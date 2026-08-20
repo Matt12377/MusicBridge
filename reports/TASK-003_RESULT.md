@@ -93,6 +93,6 @@
 
 ## 当前 Gate 与后续动作
 
-本轮解阻实现已完成并准备推送，但 TASK-003 仍为 **BLOCKED**。Owner 需要在本地终端运行 `configure-provider.sh`，在隐藏输入提示中亲自粘贴授权值；之后可重启 Agent 并在本地提供一首测试歌曲的数字 ID。不得把授权值、账号信息或完整歌曲地址发送到聊天、报告、Git 或命令参数中。
+本轮解阻实现已完成并已推送，提交为 `cd3db03e5f31c1cadfa41669be6b803ccafa3fd5`；TASK-003 仍为 **BLOCKED**。Owner 需要在本地终端运行 `configure-provider.sh`，在隐藏输入提示中亲自粘贴授权值；之后可重启 Agent 并在本地提供一首测试歌曲的数字 ID。不得把授权值、账号信息或完整歌曲地址发送到聊天、报告、Git 或命令参数中。
 
 真实 Provider 请求、standard/exhigh 实际音质、真实 Zone 出声、Roon 元数据和完整播放 Gate 在 Owner 操作前均未执行。TASK-004 不得开始。
