@@ -125,6 +125,129 @@ if [ -e "$credential_file" ] || [ -L "$credential_file" ]; then
   export NETEASE_COOKIE="$netease_cookie"
 fi
 
+if [ -n "$netease_cookie" ]; then
+  MUSICBRIDGE_RELEASE_DIR="$release_dir" \
+    MUSICBRIDGE_CREDENTIAL_FILE="$credential_file" \
+    ENABLE_GENERAL_UNBLOCK=false \
+    ENABLE_PROXY=false \
+    ENABLE_RANDOM_CN_IP=false \
+    "$node_bin" <<'NODE'
+const fs = require('node:fs')
+const os = require('node:os')
+const path = require('node:path')
+const { createRequire } = require('node:module')
+
+const releaseDir = process.env.MUSICBRIDGE_RELEASE_DIR
+const credentialFile = process.env.MUSICBRIDGE_CREDENTIAL_FILE
+const targetPath = path.join(os.tmpdir(), 'xeapi_public_key')
+const safeWrite = (line) => process.stdout.write(`${line}\n`)
+
+function readValidKey(filePath, expectedDeviceId) {
+  try {
+    const stat = fs.lstatSync(filePath)
+    if (!stat.isFile() || stat.isSymbolicLink()) return undefined
+    if ((stat.mode & 0o777) !== 0o600) return undefined
+    const raw = fs.readFileSync(filePath, 'utf8')
+    if (raw.length < 1 || raw.length > 64 * 1024) return undefined
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return undefined
+    if (typeof parsed.sk !== 'string' || parsed.sk.length === 0) return undefined
+    if (parsed.deviceId !== expectedDeviceId) return undefined
+    return parsed
+  } catch {
+    return undefined
+  }
+}
+
+async function main() {
+  if (!releaseDir) throw new Error('XEAPI_RELEASE_DIR_MISSING')
+  if (!credentialFile) throw new Error('XEAPI_CREDENTIAL_FILE_MISSING')
+  const requireFromRelease = createRequire(path.join(releaseDir, 'package.json'))
+  const { cookieToJson } = requireFromRelease(
+    '@neteasecloudmusicapienhanced/api/util/index.js',
+  )
+  const credential = cookieToJson(fs.readFileSync(credentialFile, 'utf8'))
+  const deviceId =
+    credential.deviceId || credential.sDeviceId || credential._ntes_nuid || ''
+  if (typeof deviceId !== 'string' || deviceId.length === 0) {
+    throw new Error('XEAPI_DEVICE_ID_MISSING')
+  }
+
+  const existing = readValidKey(targetPath, deviceId)
+  if (existing) {
+    safeWrite('XEAPI_PUBLIC_KEY_STATUS=ready')
+    return
+  }
+
+  if (fs.existsSync(targetPath)) {
+    const stat = fs.lstatSync(targetPath)
+    if (!stat.isFile() || stat.isSymbolicLink()) {
+      throw new Error('XEAPI_PUBLIC_KEY_TARGET_INVALID')
+    }
+  }
+
+  const { getXeapiPublicKey } = requireFromRelease(
+    '@neteasecloudmusicapienhanced/api/util/xeapiKey.js',
+  )
+  if (typeof getXeapiPublicKey !== 'function') {
+    throw new Error('XEAPI_KEY_PROVIDER_MISSING')
+  }
+
+  console.log = () => {}
+  console.error = () => {}
+  const timeout = setTimeout(() => {
+    process.stderr.write('XEAPI_PUBLIC_KEY_BOOTSTRAP_TIMEOUT\n')
+    process.exit(73)
+  }, 15_000)
+  let publicKey
+  try {
+    publicKey = await getXeapiPublicKey({}, deviceId)
+  } finally {
+    clearTimeout(timeout)
+  }
+  if (!publicKey || typeof publicKey !== 'object') {
+    throw new Error('XEAPI_PUBLIC_KEY_RESPONSE_INVALID')
+  }
+  if (typeof publicKey.sk !== 'string' || publicKey.sk.length === 0) {
+    throw new Error('XEAPI_PUBLIC_KEY_RESPONSE_INVALID')
+  }
+
+  const tempDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'musicbridge-xeapi-key.'),
+  )
+  try {
+    const tempPath = path.join(tempDir, 'xeapi_public_key')
+    fs.writeFileSync(tempPath, JSON.stringify(publicKey), {
+      encoding: 'utf8',
+      flag: 'wx',
+      mode: 0o600,
+    })
+    fs.chmodSync(tempPath, 0o600)
+    if (!readValidKey(tempPath, deviceId)) {
+      throw new Error('XEAPI_PUBLIC_KEY_TEMP_INVALID')
+    }
+    fs.renameSync(tempPath, targetPath)
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true })
+  }
+
+  if (!readValidKey(targetPath, deviceId)) {
+    throw new Error('XEAPI_PUBLIC_KEY_TARGET_INVALID')
+  }
+  safeWrite('XEAPI_PUBLIC_KEY_STATUS=ready')
+}
+
+main().catch((error) => {
+  const code =
+    error instanceof Error && /^XEAPI_[A-Z_]+$/.test(error.message)
+      ? error.message
+      : 'XEAPI_PUBLIC_KEY_BOOTSTRAP_FAILED'
+  process.stderr.write(`${code}\n`)
+  process.exitCode = 72
+})
+NODE
+fi
+
 umask 077
 mkdir -p "$data_dir" "$logs_dir"
 touch "$log_file"

@@ -153,6 +153,65 @@ else
   emit NODE_VERSION=missing
 fi
 
+xeapi_public_key_status=not-required
+if [ "$provider_credential_status" = configured ]; then
+  xeapi_public_key_status=invalid
+  if [ -n "$node_bin" ]; then
+    xeapi_public_key_status="$(MUSICBRIDGE_CREDENTIAL_FILE="$credential_file" "$node_bin" <<'NODE' 2>/dev/null || printf '%s' invalid
+const fs = require('node:fs')
+const os = require('node:os')
+const path = require('node:path')
+
+function parseCookie(raw) {
+  const output = {}
+  for (const part of raw.split(';')) {
+    const separator = part.indexOf('=')
+    if (separator < 1) continue
+    output[part.slice(0, separator).trim()] = part.slice(separator + 1).trim()
+  }
+  return output
+}
+
+try {
+  const credential = parseCookie(
+    fs.readFileSync(process.env.MUSICBRIDGE_CREDENTIAL_FILE, 'utf8'),
+  )
+  const deviceId =
+    credential.deviceId || credential.sDeviceId || credential._ntes_nuid || ''
+  const keyPath = path.join(os.tmpdir(), 'xeapi_public_key')
+  if (!fs.existsSync(keyPath)) {
+    process.stdout.write('missing')
+    process.exit(0)
+  }
+  const stat = fs.lstatSync(keyPath)
+  if (!stat.isFile() || stat.isSymbolicLink() || (stat.mode & 0o777) !== 0o600) {
+    process.stdout.write('invalid')
+    process.exit(0)
+  }
+  const raw = fs.readFileSync(keyPath, 'utf8')
+  if (raw.length < 1 || raw.length > 64 * 1024) {
+    process.stdout.write('invalid')
+    process.exit(0)
+  }
+  const key = JSON.parse(raw)
+  const ready =
+    typeof deviceId === 'string' &&
+    deviceId.length > 0 &&
+    key &&
+    typeof key === 'object' &&
+    typeof key.sk === 'string' &&
+    key.sk.length > 0 &&
+    key.deviceId === deviceId
+  process.stdout.write(ready ? 'ready' : 'invalid')
+} catch {
+  process.stdout.write('invalid')
+}
+NODE
+)"
+  fi
+fi
+emit "XEAPI_PUBLIC_KEY_STATUS=$xeapi_public_key_status"
+
 health=""
 if command -v curl >/dev/null 2>&1; then
   health="$(curl --fail --silent --show-error --max-time 5 http://127.0.0.1:38501/health 2>/dev/null || true)"
@@ -212,6 +271,7 @@ fail=0
 [ "$stream_listen" = loopback ] || fail=1
 if [ "$provider_credential_status" = configured ]; then
   [ "$netease_configured" = true ] || fail=1
+  [ "$xeapi_public_key_status" = ready ] || fail=1
 else
   [ "$netease_configured" = false ] || fail=1
 fi
