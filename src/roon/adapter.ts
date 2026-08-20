@@ -260,7 +260,7 @@ export class RoonAudioInputAdapter implements RoonPort {
         const event = messageName(playMessage);
         this.logger.info('roon_play_event', {
           phase: 'awaiting_playing',
-          event,
+          eventName: event,
         });
         switch (event) {
           case 'Playing':
@@ -305,7 +305,7 @@ export class RoonAudioInputAdapter implements RoonPort {
         const sessionId = readSessionId(body);
         this.logger.info('roon_session_event', {
           phase,
-          event: sessionEvent,
+          eventName: sessionEvent,
           hasSessionId: Boolean(sessionId),
         });
 
@@ -385,7 +385,7 @@ export class RoonAudioInputAdapter implements RoonPort {
         if (isConnectionErrorEvent(sessionEvent)) {
           this.logger.warn('roon_connection_error', {
             phase,
-            event: sessionEvent,
+            eventName: sessionEvent,
           });
           if (!settled) finish(protocolError(phase, 'connection_error', sessionEvent));
           return;

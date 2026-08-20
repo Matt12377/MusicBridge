@@ -16,7 +16,7 @@ import type {
   RoonZoneChangeCallback,
 } from '../src/roon/sdk.js';
 import { BridgeError } from '../src/shared/errors.js';
-import type { Logger } from '../src/shared/logger.js';
+import { createLogger, type Logger } from '../src/shared/logger.js';
 
 const silentLogger: Logger = {
   debug: () => undefined,
@@ -461,7 +461,7 @@ test('valid SessionBegan is required before audioInput.play and begin_session om
   );
   assert.deepEqual(
     events.filter(({ event }) => event === 'roon_play_event')[0]?.fields,
-    { phase: 'awaiting_playing', event: 'Playing' },
+    { phase: 'awaiting_playing', eventName: 'Playing' },
   );
   assert.equal(JSON.stringify(events).includes('opaque-session'), false);
 });
@@ -539,7 +539,7 @@ test('play events log the event name without callback body content', async () =>
   const playEvent = events.find(({ event }) => event === 'roon_play_event');
   assert.deepEqual(playEvent?.fields, {
     phase: 'awaiting_playing',
-    event: 'UnexpectedPlayEvent',
+    eventName: 'UnexpectedPlayEvent',
   });
   assert.equal(JSON.stringify(events).includes('must-not-log'), false);
 });
@@ -581,11 +581,29 @@ test('MooError produces a connection diagnostic without exposing callback data',
     events.find(({ event }) => event === 'roon_connection_error')?.fields,
     {
       phase: 'awaiting_session',
-      event: 'MooError',
+      eventName: 'MooError',
     },
   );
   assert.equal(JSON.stringify(events).includes('opaque-session'), false);
   assert.equal(JSON.stringify(events).includes('must-not-log'), false);
+});
+
+test('diagnostic callback event names do not overwrite the logger envelope', (t) => {
+  let line = '';
+  t.mock.method(console, 'log', (value: string) => {
+    line = value;
+  });
+
+  createLogger('info').info('roon_session_event', {
+    phase: 'awaiting_session',
+    eventName: 'InvalidRequest',
+    hasSessionId: false,
+  });
+
+  const record = JSON.parse(line) as Record<string, unknown>;
+  assert.equal(record.event, 'roon_session_event');
+  assert.equal(record.eventName, 'InvalidRequest');
+  assert.equal(record.hasSessionId, false);
 });
 
 test('play validation failures never begin an Audio Input session', async () => {
