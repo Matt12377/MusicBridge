@@ -1,100 +1,103 @@
-# TASK-001A 结果
+# TASK-001A 复审修复结果
 
-## 结果
+## 最终结论
 
-**PASS**
+**PASS**。
 
-TASK-001A 已完成：开发 Mac 负责构建，Core Mac 仅作为远程运行目标；Node.js 22 用户级运行时、脱敏 Agent bundle、release/current 目录、启动/停止/状态脚本和 38501-only SSH 隧道验证均已完成。TASK-002 未开始。
+本报告记录 Owner 对 TASK-001A 的 CHANGES REQUESTED 修复结果。开发机继续负责构建、验证和部署；运行机只运行脱敏 Agent。TASK-002 未开始，仍为 **NO**。
 
-## 开发机与运行机职责
+## 审查基线与分支
 
-| 设备 | 本次职责 |
-|---|---|
-| 开发 Mac | 在 /Users/yihe/VSCode/MusicBridge 执行 npm ci、verify、build；生成 production bundle；通过已核验 SSH ControlMaster 部署和验收 |
-| Core Mac | 用户级 Node.js 22；在稳定 data/ 工作目录运行 Bridge Agent、Stream Gateway 与 Roon Core 同机；不安装 VS Code/Codex/完整开发环境 |
+Owner 指令给出的 base SHA `63532329b1491758d1c9ea0abdb0647de27c48a2` 在本地和远端均无法解析。经 `origin/codex/task-001-starter-baseline` 核验，与审查提交 message 对应的实际原始实现 commit 为：
 
-本次没有修改产品源码、package.json、package-lock.json、Roon extension_id、端口、loopback-only 规则、Provider 或 Stream Gateway 行为。
-
-## 开发机基线
+`63532329ca0e0fd7b4c43b52fae75e92fa2d19ff`
 
 | 项目 | 结果 |
 |---|---|
-| 项目根目录 | PASS：/Users/yihe/VSCode/MusicBridge |
-| Git 分支 | codex/task-001-starter-baseline |
-| Git HEAD | 98227ae3b1491758d1c9ea0abdb0647de27c48a2 |
-| Node.js | v22.23.2 |
-| npm | 10.9.8 |
-| CPU 架构 | arm64 |
-| macOS | 26.6.1，Build 25G76 |
-| 依赖/源码范围 | package.json、package-lock.json、src 均未修改 |
+| 修复分支 | `codex/task-001a-review-fixes` |
+| 修复 commit | `5e37de04866240772a7addfd8a182b190bb216e7` |
+| commit message | `fix: harden two-mac agent deployment` |
+| 原报告“未 push 新提交” | 提交前记录，已由本次修复分支的最终发布状态更正 |
+| 修改范围 | 仅部署脚本、两份工作流/任务文档和本报告 |
+| 产品源码/依赖基线 | 无差异 |
 
-## 脱敏远程环境
+## 修改文件
 
-| 项目 | 结果 |
+- `scripts/deploy/build-agent-bundle.sh`
+- `scripts/deploy/deploy-agent.sh`
+- `scripts/deploy/start-agent.sh`
+- `scripts/deploy/stop-agent.sh`
+- `scripts/deploy/status-agent.sh`
+- `docs/15_TWO_MAC_DEVELOPMENT_WORKFLOW.md`
+- `tasks/TASK-001A_CORE_RUNTIME_TARGET.md`
+- `reports/TASK-001A_RESULT.md`
+
+未修改 `src/`、`test/`、`package.json`、`package-lock.json`、`.gitignore`、Roon extension_id、端口、loopback-only 规则、Provider 或 Stream Gateway 行为。
+
+## Release 完整性修复
+
+新 release：`5e37de04866240772a7addfd8a182b190bb216e7`
+
+bundle SHA-256：`8bfb4600ec4c75db0ec76ccffc1da4c90227fd89c69096ffffbdecf636f7b569`
+
+验证结果：
+
+- release 内 metadata 记录的 commit 与 bundle SHA-256 均匹配；
+- metadata 权限为 `600`；
+- `dist/main.js`、生产 `node_modules`、`package.json`、`package-lock.json` 均存在；
+- `incoming` 目录数量为 `0`；
+- 已存在 release 不再静默覆盖、删除或无校验复用；缺少 metadata 或内容不一致会停止；
+- 旧 release 缺少新 metadata，但通过兼容的 start/status 运行路径完成回滚验证，未用于 deploy reuse。
+
+## 运行版本身份
+
+最终运行 release 的 expected、current、running 和 `data/agent.release` 四个身份均为：
+
+`5e37de04866240772a7addfd8a182b190bb216e7`
+
+- `data/agent.pid` 权限：`600`；
+- `data/agent.release` 权限：`600`；
+- `RELEASE_IDENTITY_CONSISTENT=true`；
+- stop 成功后已验证 PID 与 release 标识成对删除；
+- status 不再只凭命令行是否包含 `dist/main.js` 判定版本，而是解析完整 release SHA 并与 current/agent.release/expected 交叉核对。
+
+## 本地环境与验证退出码
+
+最终本地构建和验证均显式使用 Node.js `v22.23.2`。复审期间发现登录 shell 曾默认落到 Node.js 25；没有用该环境进行最终 bundle，随后加载 nvm 的 Node.js 22 重跑全部验证。
+
+| 命令 | 结果 |
 |---|---|
-| SSH endpoint | Owner 已核验的 Core endpoint；报告不记录内部 IP |
-| macOS | 26.5.2，Build 25F84 |
-| CPU 架构 | arm64 |
-| Roon 进程 | 只读布尔检查为 present |
-| 远程 nvm | 0.40.6 |
-| 远程 Node.js | v22.23.2 |
-| 远程 npm | 10.9.8 |
-| 新 zsh 默认 Node | v22.23.2 |
-| 新 zsh nvm current/default | v22.23.2 / default -> 22 |
-| 远程 Shell 配置 | 远程原先不存在 ~/.zshrc；创建了只含 nvm 初始化的用户级配置，因此没有可用的旧 ~/.zshrc 备份文件 |
-| 远程 Node 安装方式 | 官方 nvm 下载入口因 Core Mac egress 失败；从开发 Mac 已核验的 arm64 nvm 核心和 Node.js 22 用户级运行时转移，未使用 sudo |
+| `bash -n scripts/deploy/build-agent-bundle.sh` | 0 |
+| `bash -n scripts/deploy/deploy-agent.sh` | 0 |
+| `bash -n scripts/deploy/start-agent.sh` | 0 |
+| `bash -n scripts/deploy/stop-agent.sh` | 0 |
+| `bash -n scripts/deploy/status-agent.sh` | 0 |
+| `npm run doctor` | 0；脱敏环境未配置 Provider 凭据的提示符合预期 |
+| `npm run typecheck` | 0 |
+| `npm test` | 0；16/16 通过 |
+| `npm run build` | 0 |
+| `npm run verify` | 0 |
+| `deploy-agent.sh` | 0；`DEPLOY_RESULT=PASS`、`DEPLOY_TEMP_CLEANUP=PASS` |
 
-SSH host key 由 Owner 在本地终端核对后，使用临时 ControlMaster 完成部署。密码没有写入脚本、环境变量、报告或日志。
+本轮 deploy 内部再次执行了 `npm ci`、`npm run verify` 和 `npm run build`；未修改依赖声明或 lockfile。
 
-## 部署目录与 release
+## 临时目录清理
 
-远程目录：
+- build 脚本明确返回本次 `mktemp` staging 父目录；deploy 对路径模式、普通目录/文件类型和父子关系进行核验后清理；
+- 本次 deploy 的 staging 和 archive 精确路径均已不存在；
+- deploy 输出 `DEPLOY_TEMP_CLEANUP=PASS`；
+- 远端 `incoming` 数量为 `0`，current/rollback 临时符号链接数量为 `0`；
+- 临时目录中另有早于本次修复的历史 staging 目录，本次未删除，避免越界清理非本次创建的目录。
 
-~~~text
-~/Library/Application Support/MusicBridgeAgent/
-├── releases/98227ae3b1491758d1c9ea0abdb0647de27c48a2/
-├── current -> releases/98227ae3b1491758d1c9ea0abdb0647de27c48a2
-├── data/
-└── logs/
-~~~
+## 新 release 运行验收
 
-部署结果：
+最终 `status-agent.sh` 退出码为 `0`，关键结果如下：
 
-| 检查项 | 结果 |
-|---|---|
-| release SHA | 98227ae3b1491758d1c9ea0abdb0647de27c48a2 |
-| current | PASS，指向该 release |
-| 远程 release 顶层 | dist、node_modules、package.json、package-lock.json |
-| production node_modules | PASS，使用 npm ci --omit=dev --ignore-scripts |
-| bundle SHA-256 | dbcc1a7bfdbdb6c3f401c182d7b0eea4348848a6673641de7c356e21700a7359 |
-| production .node 数量 | 0 |
-| release 禁止文件数量 | 0 |
-| 临时 current/probe symlink 残留 | 0 |
-| incoming 目录数量 | 0 |
-
-bundle 未包含 src、test、docs、tasks、reports、.git、.env、日志或音频文件。上游依赖中的 .env.example 和日志文件仅在临时 staging 中剔除，没有修改项目依赖或 lockfile。
-
-## 开发机构建验证
-
-| 命令 | 结果 | 证据 |
-|---|---|---|
-| npm ci | PASS | 退出码 0 |
-| npm run verify | PASS | typecheck、test、build 均通过 |
-| npm run build | PASS | 退出码 0 |
-| npm test | PASS | 16/16 通过，0 失败、0 跳过 |
-| production npm ci --omit=dev --ignore-scripts | PASS | 退出码 0 |
-| bundle 文件清单扫描 | PASS | 仅四个允许的顶层项目 |
-| 原生 .node 扫描 | PASS | 0；两端 arm64 仍已核验 |
-| bundle SHA-256 | PASS | dbcc1a7bfdbdb6c3f401c182d7b0eea4348848a6673641de7c356e21700a7359 |
-
-npm 安装保留了既有 Git 依赖 integrity warning 和上游 deprecated warning；没有升级依赖，没有执行 npm audit fix。
-
-## 远程 Agent health 与监听
-
-最终 status-agent.sh 退出码为 0：
-
-~~~text
-CURRENT_RELEASE_SHA=98227ae3b1491758d1c9ea0abdb0647de27c48a2
+```text
+CURRENT_RELEASE_SHA=5e37de04866240772a7addfd8a182b190bb216e7
+RUNNING_RELEASE_SHA=5e37de04866240772a7addfd8a182b190bb216e7
+AGENT_RELEASE_SHA=5e37de04866240772a7addfd8a182b190bb216e7
+EXPECTED_RELEASE_SHA=5e37de04866240772a7addfd8a182b190bb216e7
 AGENT_PID_STATUS=running
 CONTROL_LISTEN=loopback
 STREAM_LISTEN=loopback
@@ -104,78 +107,44 @@ NETEASE_CONFIGURED=false
 ACTIVE_STREAM_COUNT=0
 ACTIVE_PLAYBACK_PRESENT=false
 LOG_SECRET_SCAN=pass
+RELEASE_IDENTITY_CONSISTENT=true
 STATUS_RESULT=PASS
-~~~
+```
 
-Agent 启动环境固定为：
+日志扫描覆盖审查要求的凭据变量、凭据头/赋值、用户凭据标识、CSRF 标识、授权头、Bearer、令牌字段、完整 URL 和 Query 参数；命中时只输出失败状态，不输出匹配内容。最终扫描为 `pass`。
 
-~~~text
-BRIDGE_CONTROL_HOST=127.0.0.1
-BRIDGE_CONTROL_PORT=38501
-BRIDGE_STREAM_HOST=127.0.0.1
-BRIDGE_STREAM_PORT=38502
-BRIDGE_PUBLIC_STREAM_BASE_URL=http://127.0.0.1:38502
-ENABLE_GENERAL_UNBLOCK=false
-ENABLE_PROXY=false
-ENABLE_RANDOM_CN_IP=false
-LOG_LEVEL=info
-~~~
+## 两个真实 release 的回滚结果
 
-启动脚本显式清除 Provider 凭据环境变量，未创建 .env。未执行 /v1/play、歌曲播放、网易云调用或 Roon 配对测试。
+旧 release：`98227ae3b1491758d1c9ea0abdb0647de27c48a2`
 
-## SSH 隧道验证
+| 步骤 | 结果 |
+|---|---|
+| 新 release deploy | 0；current 指向新 release |
+| 新 release start | 0 |
+| 新 release status | 0；身份一致、health/loopback/零播放状态通过 |
+| 停止新 release | 0；`AGENT_STOPPED` |
+| current 切换到旧 release | 0 |
+| 旧 release start | 0；兼容路径写入旧 SHA 的 `agent.release` |
+| 旧 release status | 0；身份一致、health/loopback/零播放状态通过 |
+| 停止旧 release | 0；`AGENT_STOPPED` |
+| current 恢复新 release | 0 |
+| 新 release 再次 start/status | 0；最终状态 PASS |
 
-仅建立并验证了控制端口转发：
+整个回滚过程中没有停止、重启或修改 Roon，没有读取 Roon 数据库或音乐库。
 
-~~~text
-ssh -N -L 38501:127.0.0.1:38501 <CORE_SSH_TARGET>
-~~~
+## 安全与范围检查
 
-开发 Mac 通过隧道取得：
+- 未请求、记录或输出密码、SSH 私钥、内部 endpoint、真实设备名称、持久化配置内容或账号信息；
+- 未调用 Provider、未播放歌曲、未执行播放 POST、未进行 Roon 配对或 Zone 测试；
+- 控制端口和流端口最终均只监听 loopback；未开放 LAN、未转发流端口、未修改防火墙；
+- 未创建环境文件，未配置 Provider 凭据或访问令牌；
+- 未安装 Docker、FFmpeg、全局 npm 包、VS Code、Codex 或 Electron 开发环境；
+- 未创建 PR、未合并、未 force-push、未修改默认分支。
 
-~~~text
-HTTP status=200
-health ok=true
-neteaseConfigured=false
-activeStreamCount=0
-activePlayback 不存在
-~~~
+## 最终发布状态
 
-隧道已关闭。38502 没有转发，也没有暴露到 LAN。
+修复分支应包含上述修复 commit 和本报告提交，并已推送到远端供 Owner / 架构审查。当前远程运行 release 为：
 
-## 回滚验证
+`5e37de04866240772a7addfd8a182b190bb216e7`
 
-- 部署流程保留旧 release，不删除历史 release。
-- 发现 macOS 普通 mv 可能跟随 current 目标目录后，已将原子切换修正为 mv -h -f。
-- 使用临时 rollback probe 验证 current 原子切换到 probe 后可恢复到真实 SHA。
-- probe 和临时 symlink 已清理；最终 current 恢复到 98227ae3b1491758d1c9ea0abdb0647de27c48a2。
-- 这是首次 release，因此没有第二个不同 commit 可执行内容差异回滚；真实旧版本回滚将在产生下一 release 后再单独验证。
-
-stop-agent.sh 的首次 20 秒等待遇到 Agent 正在完成 Roon adapter shutdown 的时序边界；日志事件随后确认 bridge_shutdown_complete，且进程已退出。脚本已增加进程状态检查并将安全等待上限调整为 60 秒；随后真实执行 start → stop，最终返回 AGENT_STOPPED，再重新启动并通过最终 status 验证。未使用 kill -9。
-
-## 安全检查
-
-- 没有读取或输出 Core Mac 登录密码、SSH 私钥、Provider 凭据、临时令牌、远程持久化配置内容、账号信息或完整播放 URL。
-- 没有调用网易云、播放歌曲或执行 POST /v1/play。
-- 没有停止、重启或修改 Roon Server/Core；只确认 Roon 进程存在。
-- 没有开放 0.0.0.0、局域网控制端口或流端口。
-- 没有转发 38502，没有修改防火墙，没有安装 Docker 或 FFmpeg。
-- 没有创建远程全局 npm 包、VS Code、Codex、Electron 开发环境。
-- 已锁定的 API 依赖树仍包含间接的 unblock provider 包；本任务未新增、删除或调用它，现有安全环境旗标均为 false。该项作为供应链残余风险，需独立任务和 Owner 决策。
-- 日志扫描只输出通过/失败状态，不输出日志正文；最终为 pass。
-- 当前工作区只产生本任务允许的文档、脚本和报告文件；未修改产品代码或依赖。
-
-## 未执行事项
-
-- 未开始 TASK-002。
-- 未进行 Roon pairing、Zone 选择、歌曲播放、Signal Path 或真实账号 Gate。
-- 未执行 POST /v1/play。
-- 未发布、未创建 PR、未合并、未 push 新提交。
-- 未修改 .gitignore，因为 staging 使用系统临时目录，不产生项目内部署产物。
-- 未创建或填写 .env。
-
-## TASK-002 是否可开始
-
-**NO**。
-
-TASK-001A 已完成并在本报告记录证据，但 Owner 必须单独放行 TASK-002；在放行前不得开始 Roon 配对测试或任何后续任务。完成本报告后停止。
+TASK-002：**NO**。完成报告后停止，等待 Owner 决定下一步。
