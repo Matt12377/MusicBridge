@@ -104,7 +104,8 @@ Owner 已明确授权将本地 Provider 凭据提示从隐藏输入改为明文�
 | `status-agent.sh` 默认输出 | 仅 Provider 状态行 |
 | `status-agent.sh --runtime` 兼容模式 | release/health 汇总与 XEAPI 公钥状态均通过 |
 | 真实 Core Mac 配置 | 当前状态检查为 `PROVIDER_CREDENTIAL_STATUS=configured`；未读取或输出文件内容 |
-| TASK-003 release 部署 | `8883d4389d08598921595c2788bcc76713ba671e`；bundle SHA-256 `9b6c91a1cd8acb2aa7cae7fcdaac6eb464336a1ea6dce7ac9b94e9f31fb1fc8a`；临时产物清理 PASS |
+| TASK-003 运行实现 release | `289dbdf329ddeed442081c6923c63540dbfde657`；bundle SHA-256 `cca508bbf816ac57782fad671fb5ba29a8b3220f969a9e87edf6a25b165e377a`；临时产物清理 PASS |
+| 最终远程 runtime 状态 | expected/current/running release 一致；Agent 进程存在；Node.js `v22.23.2`；XEAPI 公钥 ready；38501/38502 仅 loopback；health 通过；`activeStreamCount=0`；无 active playback；日志秘密扫描 PASS |
 | 真实 Provider 元数据请求 | 退出码 0；测试歌曲存在 |
 | 真实 `exhigh` / `standard` 播放请求 | 均返回 `UNSAFE_UPSTREAM`；无 token、无 active playback、无 Roon Session |
 
