@@ -134,6 +134,10 @@ export class BridgeController {
   }
 
   async stop(): Promise<BridgeState> {
+    if (!this.activeToken && !this.activePlayback) {
+      return this.getState();
+    }
+
     try {
       await this.dependencies.roon.stop();
     } finally {

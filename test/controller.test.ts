@@ -45,6 +45,7 @@ class FakeRoon implements RoonPort {
   playRequest: RoonPlayRequest | undefined;
   stopCalls = 0;
   shouldFail = false;
+  shouldFailOnStop = false;
   terminalDuringPlay = false;
   terminalHandler: (reason: 'ended' | 'stopped' | 'media_error' | 'zone_lost') => void = () => undefined;
   state: RoonState = {
@@ -72,6 +73,7 @@ class FakeRoon implements RoonPort {
 
   async stop(): Promise<void> {
     this.stopCalls += 1;
+    if (this.shouldFailOnStop) throw new Error('Roon stop failed');
     this.state = { ...this.state, status: 'ready' };
   }
 
@@ -117,6 +119,21 @@ test('controller registers a local stream, starts Roon and reports actual qualit
   await controller.stop();
   assert.equal(registry.size, 0);
   assert.equal(controller.getState().activePlayback, undefined);
+});
+
+test('controller stop is idempotent after playback has already been cleared', async () => {
+  const { controller, registry, roon } = makeHarness();
+  await controller.play({ trackId: '123', quality: 'standard' });
+
+  await controller.stop();
+  roon.shouldFailOnStop = true;
+
+  const state = await controller.stop();
+
+  assert.equal(roon.stopCalls, 1);
+  assert.equal(registry.size, 0);
+  assert.equal(state.activeStreamCount, 0);
+  assert.equal(state.activePlayback, undefined);
 });
 
 test('controller revokes stream token when Roon start fails', async () => {
