@@ -66,6 +66,12 @@
 
 本轮只在 TASK-003 内增加 POC 运行时凭据通道，未改变正式 safeStorage 架构，也未修改 Provider 代码、端口、loopback-only 规则或解灰/代理/随机 IP 安全规则。
 
+### Owner 临时交互规则变更
+
+Owner 已明确授权将本地 Provider 凭据提示从隐藏输入改为明文输入，以排查终端粘贴无回显造成的误判。当前提示要求在开发 Mac 本地终端使用 `⌘V` 粘贴后按 Return；Shell 读取仍不接受命令参数，因此不会进入 Shell 历史、Git、报告或 Agent 日志。
+
+普通 Bash 只能接收终端字符流，无法可靠证明字符来自键盘还是 `⌘V`，因此“仅允许 `⌘V`”是交互约定而非程序可强制验证的来源。明文模式可能被终端录屏、终端审计或共享屏幕捕获，Owner 应仅在受控本地终端使用，并在测试后刷新凭据。
+
 新增或修改：
 
 - `scripts/deploy/configure-provider.sh`
@@ -75,7 +81,7 @@
 
 安全行为：
 
-1. `configure-provider.sh` 只在交互式终端通过隐藏输入读取授权值，不接受命令参数；通过严格 SSH 的 stdin 传输，不写入命令历史、Git、报告或日志。
+1. `configure-provider.sh` 只在交互式终端通过明文 `read -r` 读取授权值，不接受命令参数；通过严格 SSH 的 stdin 传输，不写入 Shell 历史、Git、报告或 Agent 日志。明文回显属于 Owner 临时授权的交互例外。
 2. Core Mac 端只写入 `data/netease.cookie`；临时普通文件经非空、最大长度、控制字符、普通文件、非符号链接和 `600` 权限校验后原子 rename。测试证明临时文件不会残留。
 3. `start-agent.sh` 首先清除继承的 `NETEASE_COOKIE`。只有在凭据文件满足严格校验时才安静读取，并通过子进程环境传递给 Agent，不放入 argv、不写入 Agent 日志。
 4. `status-agent.sh` 默认只输出 `PROVIDER_CREDENTIAL_STATUS=configured|missing|invalid`，不输出内容、长度、摘要或哈希；原有 release、health、loopback 和日志扫描汇总保留在显式 `--runtime` 模式。
@@ -88,13 +94,13 @@
 |---|---:|
 | 四个新增/修改脚本 `bash -n` | 退出码 0 |
 | `stop-agent.sh` `bash -n` 回归检查 | 退出码 0 |
-| 伪 SSH、临时 HOME、非凭据测试输入 | 配置、文件属性、状态和清理验证通过 |
+| 伪 SSH、临时 HOME、明文测试输入 `111` | 配置、文件属性、状态和清理验证通过；终端回显并在 Return 后完成 |
 | `status-agent.sh` 默认输出 | 仅 Provider 状态行 |
 | `status-agent.sh --runtime` 兼容模式 | release/health 汇总仍可执行 |
-| 真实 Core Mac 配置 | 未执行，等待 Owner 本地终端操作 |
+| 真实 Core Mac 配置 | 当前状态检查为 `PROVIDER_CREDENTIAL_STATUS=configured`；未读取或输出文件内容 |
 
 ## 当前 Gate 与后续动作
 
-本轮解阻实现已完成并已推送，提交为 `cd3db03e5f31c1cadfa41669be6b803ccafa3fd5`；TASK-003 仍为 **BLOCKED**。Owner 需要在本地终端运行 `configure-provider.sh`，在隐藏输入提示中亲自粘贴授权值；之后可重启 Agent 并在本地提供一首测试歌曲的数字 ID。不得把授权值、账号信息或完整歌曲地址发送到聊天、报告、Git 或命令参数中。
+本轮解阻实现已完成并已推送，提交为 `cd3db03e5f31c1cadfa41669be6b803ccafa3fd5`；随后 Owner 授权将输入改为明文显示，当前脚本行为已通过本地伪 SSH 回归验证。TASK-003 仍为 **BLOCKED**。Owner 需要在受控本地终端运行 `configure-provider.sh`，使用 `⌘V` 粘贴后按 Return；不得把授权值、账号信息或完整歌曲地址发送到聊天、报告、Git 或命令参数中。
 
 真实 Provider 请求、standard/exhigh 实际音质、真实 Zone 出声、Roon 元数据和完整播放 Gate 在 Owner 操作前均未执行。TASK-004 不得开始。

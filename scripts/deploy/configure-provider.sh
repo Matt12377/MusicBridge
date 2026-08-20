@@ -28,8 +28,8 @@ cleanup_local() {
 }
 trap cleanup_local EXIT
 
-printf '%s' '请输入 Core Mac Provider 凭据（隐藏输入）： ' > /dev/tty
-if ! IFS= read -r -s cookie < /dev/tty; then
+printf '%s' '请输入 Core Mac Provider 凭据（明文显示；请使用 ⌘V 粘贴后按 Return）： ' > /dev/tty
+if ! IFS= read -r cookie < /dev/tty; then
   printf '\n%s\n' PROVIDER_CONFIGURE_INPUT_FAILED > /dev/tty
   exit 3
 fi
