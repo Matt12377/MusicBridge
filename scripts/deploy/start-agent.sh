@@ -24,6 +24,11 @@ logs_dir="$base/logs"
 pid_file="$data_dir/agent.pid"
 release_file="$data_dir/agent.release"
 log_file="$logs_dir/agent.log"
+credential_file="$data_dir/netease.cookie"
+max_cookie_length=8192
+netease_cookie=''
+
+unset NETEASE_COOKIE
 
 valid_sha() {
   printf '%s\n' "$1" | grep -Eq '^[0-9a-f]{40}$'
@@ -90,7 +95,36 @@ case "$($node_bin --version)" in
   *) printf "%s\n" NODE_NOT_V22 >&2; exit 33 ;;
 esac
 
-unset NETEASE_COOKIE
+if [ -e "$credential_file" ] || [ -L "$credential_file" ]; then
+  if [ -L "$credential_file" ] || [ ! -f "$credential_file" ]; then
+    printf "%s\n" PROVIDER_CREDENTIAL_INVALID >&2
+    exit 35
+  fi
+  credential_mode="$(stat -f "%Lp" "$credential_file" 2>/dev/null || true)"
+  if [ "$credential_mode" != 600 ]; then
+    printf "%s\n" PROVIDER_CREDENTIAL_INVALID >&2
+    exit 35
+  fi
+  credential_size="$(wc -c < "$credential_file" | tr -d "[:space:]")"
+  case "$credential_size" in
+    ''|*[!0-9]*) printf "%s\n" PROVIDER_CREDENTIAL_INVALID >&2; exit 35 ;;
+  esac
+  if [ "$credential_size" -lt 1 ] || [ "$credential_size" -gt "$max_cookie_length" ]; then
+    printf "%s\n" PROVIDER_CREDENTIAL_INVALID >&2
+    exit 35
+  fi
+  if LC_ALL=C grep -q '[[:cntrl:]]' "$credential_file"; then
+    printf "%s\n" PROVIDER_CREDENTIAL_INVALID >&2
+    exit 35
+  fi
+  netease_cookie="$(cat "$credential_file")"
+  if [ -z "$netease_cookie" ]; then
+    printf "%s\n" PROVIDER_CREDENTIAL_INVALID >&2
+    exit 35
+  fi
+  export NETEASE_COOKIE="$netease_cookie"
+fi
+
 umask 077
 mkdir -p "$data_dir" "$logs_dir"
 touch "$log_file"
@@ -100,6 +134,7 @@ release_tmp="$data_dir/.agent.release.$$"
 pid_tmp="$data_dir/.agent.pid.$$"
 cleanup_temps() {
   rm -f "$release_tmp" "$pid_tmp"
+  unset NETEASE_COOKIE netease_cookie
 }
 trap cleanup_temps EXIT
 printf "%s\n" "$current_sha" > "$release_tmp"
@@ -139,6 +174,7 @@ if [ "$running_sha" != "$current_sha" ]; then
   rm -f "$pid_file" "$release_file"
   exit 34
 fi
+unset NETEASE_COOKIE netease_cookie
 trap - EXIT
 printf "%s\n" "AGENT_STARTED_PID=$pid"
 printf "%s\n" "CURRENT_RELEASE_SHA=$current_sha"

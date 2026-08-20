@@ -24,6 +24,8 @@ data_dir="$base/data"
 log_file="$base/logs/agent.log"
 pid_file="$data_dir/agent.pid"
 release_file="$data_dir/agent.release"
+credential_file="$data_dir/netease.cookie"
+max_cookie_length=8192
 
 valid_sha() {
   printf '%s\n' "$1" | grep -Eq '^[0-9a-f]{40}$'
@@ -93,6 +95,25 @@ fi
 printf "%s\n" "EXPECTED_RELEASE_SHA=$expected_sha"
 printf "%s\n" "AGENT_PID_STATUS=$agent_state"
 
+provider_credential_status=missing
+if [ -e "$credential_file" ] || [ -L "$credential_file" ]; then
+  provider_credential_status=invalid
+  if [ -f "$credential_file" ] && [ ! -L "$credential_file" ] && \
+     [ "$(stat -f "%Lp" "$credential_file" 2>/dev/null || true)" = 600 ]; then
+    credential_size="$(wc -c < "$credential_file" | tr -d "[:space:]")"
+    case "$credential_size" in
+      ''|*[!0-9]*) ;;
+      *)
+        if [ "$credential_size" -ge 1 ] && [ "$credential_size" -le "$max_cookie_length" ] && \
+           ! LC_ALL=C grep -q '[[:cntrl:]]' "$credential_file"; then
+          provider_credential_status=configured
+        fi
+        ;;
+    esac
+  fi
+fi
+printf "%s\n" "PROVIDER_CREDENTIAL_STATUS=$provider_credential_status"
+
 listener_scope() {
   port="$1"
   addresses="$(lsof -nP -iTCP:"$port" -sTCP:LISTEN -F n 2>/dev/null | awk '/^n/ {print substr($0, 2)}')"
@@ -148,7 +169,7 @@ printf "%s\n" "ACTIVE_PLAYBACK_PRESENT=$active_playback_present"
 
 log_scan=missing
 if [ -f "$log_file" ] && [ ! -L "$log_file" ]; then
-  if LC_ALL=C grep -Eiq 'NETEASE_COOKIE|Cookie:|cookie=|MUSIC_U|__csrf|Authorization|Bearer|token|https?://|[?&][^[:space:]]+=|query[[:space:]]*[:=]' "$log_file"; then
+if LC_ALL=C grep -Eiq 'NETEASE_COOKIE|Cookie|MUSIC_U|__csrf|Authorization|Bearer|token|https?://|[?&][^[:space:]]+=|Query' "$log_file"; then
     log_scan=fail
   else
     log_scan=pass
@@ -170,7 +191,11 @@ fail=0
 [ "$health_ok" = true ] || fail=1
 [ "$control_listen" = loopback ] || fail=1
 [ "$stream_listen" = loopback ] || fail=1
-[ "$netease_configured" = false ] || fail=1
+if [ "$provider_credential_status" = configured ]; then
+  [ "$netease_configured" = true ] || fail=1
+else
+  [ "$netease_configured" = false ] || fail=1
+fi
 [ "$active_stream_count" = 0 ] || fail=1
 [ "$active_playback_present" = false ] || fail=1
 [ "$log_scan" = pass ] || fail=1
