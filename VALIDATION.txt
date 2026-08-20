@@ -1,0 +1,121 @@
+Music Bridge for Roon V0.1 starter validation
+Date: 2026-08-20
+Node: v22.16.0
+TypeScript: Version 5.8.3
+
+== Typecheck ==
+PASS typecheck
+
+== Build ==
+PASS build
+
+== Tests ==
+TAP version 13
+# Subtest: controller registers a local stream, starts Roon and reports actual quality
+ok 1 - controller registers a local stream, starts Roon and reports actual quality
+  ---
+  duration_ms: 1.532389
+  type: 'test'
+  ...
+# Subtest: controller revokes stream token when Roon start fails
+ok 2 - controller revokes stream token when Roon start fails
+  ---
+  duration_ms: 0.502247
+  type: 'test'
+  ...
+# Subtest: controller revokes stream token when Roon reports a terminal event
+ok 3 - controller revokes stream token when Roon reports a terminal event
+  ---
+  duration_ms: 0.274188
+  type: 'test'
+  ...
+# Subtest: controller does not resurrect playback state if Roon terminates during startup
+ok 4 - controller does not resurrect playback state if Roon terminates during startup
+  ---
+  duration_ms: 0.330131
+  type: 'test'
+  ...
+# Subtest: gateway forwards Range and preserves media response headers without buffering API
+ok 5 - gateway forwards Range and preserves media response headers without buffering API
+  ---
+  duration_ms: 26.289754
+  type: 'test'
+  ...
+# Subtest: gateway supports HEAD without a response body
+ok 6 - gateway supports HEAD without a response body
+  ---
+  duration_ms: 7.292989
+  type: 'test'
+  ...
+# Subtest: parses defensive song metadata shape
+ok 7 - parses defensive song metadata shape
+  ---
+  duration_ms: 1.584688
+  type: 'test'
+  ...
+# Subtest: parses actual stream quality instead of assuming requested quality
+ok 8 - parses actual stream quality instead of assuming requested quality
+  ---
+  duration_ms: 3.254942
+  type: 'test'
+  ...
+# Subtest: rejects preview/trial streams
+ok 9 - rejects preview/trial streams
+  ---
+  duration_ms: 0.377051
+  type: 'test'
+  ...
+# Subtest: rejects unavailable streams
+ok 10 - rejects unavailable streams
+  ---
+  duration_ms: 0.145887
+  type: 'test'
+  ...
+# Subtest: safety environment forces all unblock-related flags to false
+ok 11 - safety environment forces all unblock-related flags to false
+  ---
+  duration_ms: 0.771087
+  type: 'test'
+  ...
+# Subtest: safety environment rejects any enabled unblock-related flag
+ok 12 - safety environment rejects any enabled unblock-related flag
+  ---
+  duration_ms: 0.521226
+  type: 'test'
+  ...
+# Subtest: quality and track IDs are strictly validated
+ok 13 - quality and track IDs are strictly validated
+  ---
+  duration_ms: 0.357702
+  type: 'test'
+  ...
+# Subtest: audio URL policy permits public HTTPS and rejects local/private URLs
+ok 14 - audio URL policy permits public HTTPS and rejects local/private URLs
+  ---
+  duration_ms: 4.683427
+  type: 'test'
+  ...
+# Subtest: stream tokens are high entropy, retrievable and revocable
+ok 15 - stream tokens are high entropy, retrievable and revocable
+  ---
+  duration_ms: 1.219884
+  type: 'test'
+  ...
+# Subtest: expired tokens are removed
+ok 16 - expired tokens are removed
+  ---
+  duration_ms: 0.266787
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 119.73437
+
+== Safety scan ==
+PASS safety scan: no forbidden implementation pattern found
