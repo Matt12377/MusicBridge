@@ -78,7 +78,7 @@
 1. `configure-provider.sh` 只在交互式终端通过隐藏输入读取授权值，不接受命令参数；通过严格 SSH 的 stdin 传输，不写入命令历史、Git、报告或日志。
 2. Core Mac 端只写入 `data/netease.cookie`；临时普通文件经非空、最大长度、控制字符、普通文件、非符号链接和 `600` 权限校验后原子 rename。测试证明临时文件不会残留。
 3. `start-agent.sh` 首先清除继承的 `NETEASE_COOKIE`。只有在凭据文件满足严格校验时才安静读取，并通过子进程环境传递给 Agent，不放入 argv、不写入 Agent 日志。
-4. `status-agent.sh` 的 Provider 凭据字段只输出 `configured`、`missing` 或 `invalid`，不输出内容、长度、摘要或哈希；原有 release、health、loopback 和日志扫描检查继续保留。
+4. `status-agent.sh` 默认只输出 `PROVIDER_CREDENTIAL_STATUS=configured|missing|invalid`，不输出内容、长度、摘要或哈希；原有 release、health、loopback 和日志扫描汇总保留在显式 `--runtime` 模式。
 5. `clear-provider.sh` 先调用安全停止流程，再删除目标文件并确认路径不存在；不会自动启动 Agent 或播放。
 6. 日志扫描覆盖 `NETEASE_COOKIE`、`Cookie`、`MUSIC_U`、`__csrf`、`Authorization`、`Bearer`、`token`、完整 HTTP(S) URL、Query 及查询参数模式；命中只返回失败状态，不打印匹配内容。
 
@@ -89,6 +89,8 @@
 | 四个新增/修改脚本 `bash -n` | 退出码 0 |
 | `stop-agent.sh` `bash -n` 回归检查 | 退出码 0 |
 | 伪 SSH、临时 HOME、非凭据测试输入 | 配置、文件属性、状态和清理验证通过 |
+| `status-agent.sh` 默认输出 | 仅 Provider 状态行 |
+| `status-agent.sh --runtime` 兼容模式 | release/health 汇总仍可执行 |
 | 真实 Core Mac 配置 | 未执行，等待 Owner 本地终端操作 |
 
 ## 当前 Gate 与后续动作

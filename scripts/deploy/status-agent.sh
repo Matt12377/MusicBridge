@@ -3,6 +3,11 @@
 set -euo pipefail
 
 : "${CORE_SSH_TARGET:?请设置 CORE_SSH_TARGET，例如 roonstation@<verified-core-endpoint>}"
+provider_only=true
+if [ "${1:-}" = --runtime ]; then
+  provider_only=false
+  shift
+fi
 expected_input="${EXPECTED_RELEASE_SHA:-${1:-}}"
 
 SSH_ARGS=(
@@ -26,6 +31,13 @@ pid_file="$data_dir/agent.pid"
 release_file="$data_dir/agent.release"
 credential_file="$data_dir/netease.cookie"
 max_cookie_length=8192
+provider_only="__PROVIDER_ONLY__"
+
+emit() {
+  if [ "$provider_only" = false ]; then
+    printf '%s\n' "$1"
+  fi
+}
 
 valid_sha() {
   printf '%s\n' "$1" | grep -Eq '^[0-9a-f]{40}$'
@@ -84,16 +96,16 @@ if [ -e "$pid_file" ] || [ -L "$pid_file" ]; then
   fi
 fi
 
-printf "%s\n" "CURRENT_RELEASE_SHA=$current_sha"
-printf "%s\n" "RUNNING_RELEASE_SHA=$running_sha"
-printf "%s\n" "AGENT_RELEASE_SHA=$agent_release_sha"
+emit "CURRENT_RELEASE_SHA=$current_sha"
+emit "RUNNING_RELEASE_SHA=$running_sha"
+emit "AGENT_RELEASE_SHA=$agent_release_sha"
 
 expected_sha="__EXPECTED__"
 if [ -z "$expected_sha" ]; then
   expected_sha="$current_sha"
 fi
-printf "%s\n" "EXPECTED_RELEASE_SHA=$expected_sha"
-printf "%s\n" "AGENT_PID_STATUS=$agent_state"
+emit "EXPECTED_RELEASE_SHA=$expected_sha"
+emit "AGENT_PID_STATUS=$agent_state"
 
 provider_credential_status=missing
 if [ -e "$credential_file" ] || [ -L "$credential_file" ]; then
@@ -129,16 +141,16 @@ listener_scope() {
 }
 control_listen="$(listener_scope 38501)"
 stream_listen="$(listener_scope 38502)"
-printf "%s\n" "CONTROL_LISTEN=$control_listen"
-printf "%s\n" "STREAM_LISTEN=$stream_listen"
+emit "CONTROL_LISTEN=$control_listen"
+emit "STREAM_LISTEN=$stream_listen"
 
 export NVM_DIR="$HOME/.nvm"
 if [ -s "$NVM_DIR/nvm.sh" ]; then . "$NVM_DIR/nvm.sh"; nvm use 22 >/dev/null 2>&1 || true; fi
 node_bin="$(command -v node || true)"
 if [ -n "$node_bin" ]; then
-  printf "%s\n" "NODE_VERSION=$($node_bin --version)"
+  emit "NODE_VERSION=$($node_bin --version)"
 else
-  printf "%s\n" NODE_VERSION=missing
+  emit NODE_VERSION=missing
 fi
 
 health=""
@@ -162,10 +174,10 @@ if [ -n "$health" ] && [ -n "$node_bin" ]; then
 $parsed
 EOF
 fi
-printf "%s\n" "HEALTH_OK=$health_ok"
-printf "%s\n" "NETEASE_CONFIGURED=$netease_configured"
-printf "%s\n" "ACTIVE_STREAM_COUNT=$active_stream_count"
-printf "%s\n" "ACTIVE_PLAYBACK_PRESENT=$active_playback_present"
+emit "HEALTH_OK=$health_ok"
+emit "NETEASE_CONFIGURED=$netease_configured"
+emit "ACTIVE_STREAM_COUNT=$active_stream_count"
+emit "ACTIVE_PLAYBACK_PRESENT=$active_playback_present"
 
 log_scan=missing
 if [ -f "$log_file" ] && [ ! -L "$log_file" ]; then
@@ -175,7 +187,7 @@ if LC_ALL=C grep -Eiq 'NETEASE_COOKIE|Cookie|MUSIC_U|__csrf|Authorization|Bearer
     log_scan=pass
   fi
 fi
-printf "%s\n" "LOG_SECRET_SCAN=$log_scan"
+emit "LOG_SECRET_SCAN=$log_scan"
 
 identity_consistent=false
 if valid_sha "$expected_sha" && valid_sha "$current_sha" && valid_sha "$running_sha" && valid_sha "$agent_release_sha"; then
@@ -183,7 +195,14 @@ if valid_sha "$expected_sha" && valid_sha "$current_sha" && valid_sha "$running_
     identity_consistent=true
   fi
 fi
-printf "%s\n" "RELEASE_IDENTITY_CONSISTENT=$identity_consistent"
+emit "RELEASE_IDENTITY_CONSISTENT=$identity_consistent"
+
+if [ "$provider_only" = true ]; then
+  if [ "$provider_credential_status" = invalid ]; then
+    exit 1
+  fi
+  exit 0
+fi
 
 fail=0
 [ "$agent_state" = running ] || fail=1
@@ -200,13 +219,14 @@ fi
 [ "$active_playback_present" = false ] || fail=1
 [ "$log_scan" = pass ] || fail=1
 if [ "$fail" -eq 0 ]; then
-  printf "%s\n" STATUS_RESULT=PASS
+  emit STATUS_RESULT=PASS
 else
-  printf "%s\n" STATUS_RESULT=FAIL
+  emit STATUS_RESULT=FAIL
 fi
 exit "$fail"
 REMOTE
 )"
 remote_script="${remote_script//__EXPECTED__/$expected_input}"
+remote_script="${remote_script//__PROVIDER_ONLY__/$provider_only}"
 
 ssh "${SSH_ARGS[@]}" "$CORE_SSH_TARGET" "$remote_script"
