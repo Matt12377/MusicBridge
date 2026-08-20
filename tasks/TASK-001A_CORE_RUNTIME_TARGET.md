@@ -60,17 +60,22 @@ reports/TASK-001A_RESULT.md
 
 1. 上传到 `~/Library/Application Support/MusicBridgeAgent/releases/<commit-sha>/`。
 2. 校验 bundle SHA-256 和顶层文件清单。
-3. `current` 使用临时符号链接原子切换。
+3. `current` 使用临时符号链接原子切换；首次 release 写入 commit 和 bundle SHA-256 metadata。
 4. Agent 从稳定 `data/` 目录启动，日志写入稳定 `logs/` 目录。
 5. 使用固定 loopback 环境启动，不创建 `.env`，显式清除 `NETEASE_COOKIE`。
+6. 同一 release 已存在时，必须校验 metadata、`dist/main.js`、生产 `node_modules`、`package.json` 和 `package-lock.json`；不一致停止，不覆盖、不删除。
+7. deploy 调用 build 脚本时，成功、失败和 SSH 中断均清理经验证属于本次 `mktemp` 的 staging/archive；build 脚本独立运行可保留输出。
 
 ### E. 远程验收与回滚
 
-1. 只验证 Agent、health、loopback 监听、零 stream/播放状态和脱敏日志。
-2. 不调用 `/v1/play`，不播放歌曲，不做 Roon pairing Gate。
-3. 保存旧 release，执行一次 current 切换回旧 release 的回滚验证。
-4. 创建 `reports/TASK-001A_RESULT.md`，结论只能是 `PASS`、`PARTIAL` 或 `BLOCKED`。
-5. 完成报告后立即停止，TASK-002 写为 `NO`。
+1. start 解析 `current` 的 40 位 commit SHA，写入权限为 600 的 `data/agent.release`，并与 PID 成对维护。
+2. 只验证 Agent、health、loopback 监听、零 stream/播放状态和脱敏日志。
+3. status 必须核对 expected/current/running/`agent.release` 四个 release 身份，三者或四者不一致时失败；不得只凭命令行包含 `dist/main.js` 判定版本。
+4. stop 成功后删除 `agent.pid` 和 `agent.release`。
+5. 不调用 `/v1/play`，不播放歌曲，不做 Roon pairing Gate。
+6. 保存旧 release，执行一次 current 切换到旧 release、启动验收、停止并恢复新 release 的真实回滚验证。
+7. 创建 `reports/TASK-001A_RESULT.md`，结论只能是 `PASS`、`PARTIAL` 或 `BLOCKED`。
+8. 完成报告后立即停止，TASK-002 写为 `NO`。
 
 ## 固定运行环境
 

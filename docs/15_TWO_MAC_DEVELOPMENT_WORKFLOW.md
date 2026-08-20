@@ -62,7 +62,7 @@ npm run build
   ↓
 原生 .node 扫描与敏感文件扫描
   ↓
-通过 SSH 上传到 releases/<commit-sha>
+通过 SSH 上传到 releases/<commit-sha>，写入 release metadata
   ↓
 current 原子切换
   ↓
@@ -84,6 +84,10 @@ package-lock.json
 
 每次 bundle 使用构建时 `git rev-parse HEAD` 的完整 SHA；归档文件同时记录 SHA-256。生产依赖中如果发现 `.node` 文件，脚本必须比较开发 Mac 与 Core Mac 的 CPU 架构，不一致时停止。
 
+首次提升为 release 时，release 内写入权限为 600 的隐藏 metadata，记录 `commit_sha` 和 `bundle_sha256`。如果同一 commit 的 release 已存在，deploy 必须核对 metadata、`dist/main.js`、生产 `node_modules`、`package.json` 和 `package-lock.json`；任一项缺失或不一致都停止，不能静默复用、覆盖或删除。旧 release 缺少 metadata 时仍可由 start/status 兼容运行，但不能被 deploy reuse。
+
+`deploy-agent.sh` 会接收 build 脚本明确返回的本次 `mktemp` staging 路径。成功、构建失败或 SSH 中断退出时，只清理经路径模式、普通目录/文件类型和父子关系三重核验的本次 staging/archive；独立运行 `build-agent-bundle.sh` 时仍保留输出供人工使用。
+
 ## Core Mac 目录与运行环境
 
 ```text
@@ -95,7 +99,9 @@ package-lock.json
 ```
 
 - `current` 是可替换的符号链接，不覆盖旧 release。
+- 新 release 内的隐藏 metadata 保存 commit 和 bundle SHA-256；`current` 切换前必须通过完整性复核。
 - Agent 的工作目录固定为稳定的 `data/`。
+- start 从 `current` 解析 40 位 commit SHA，并在 `data/agent.release` 写入该 SHA，权限固定为 600；`data/agent.pid` 与它必须成对存在。
 - Roon 配对配置如果由现有运行时产生，只能留在 `data/`，不能放入 release。
 - 不读取或输出 `data/config.json` 内容。
 - 失败的上传只使用临时 incoming 目录；完成校验后才提升为 release。
@@ -120,6 +126,8 @@ LOG_LEVEL=info
 
 发布前如已有本任务 Agent 运行，先执行 `stop-agent.sh`。部署脚本拒绝覆盖正在运行的 release，并只在完整校验后切换 `current`。
 
+`stop-agent.sh` 只有在安全停止后才删除 `data/agent.pid` 和 `data/agent.release`。`status-agent.sh` 同时输出并核对 expected、current、running 和 `agent.release` 四个 release 身份；命令行只用于解析完整 release SHA，不再以是否包含 `dist/main.js` 作为版本正确性的唯一依据。
+
 回滚步骤：
 
 1. 停止当前 Agent。
@@ -140,6 +148,7 @@ LOG_LEVEL=info
 - `activeStreamCount=0`。
 - `activePlayback` 不存在。
 - 日志没有 Cookie、Token、完整 URL、Query 或账号信息。
+- 日志扫描覆盖 `NETEASE_COOKIE`、`Cookie:`、`cookie=`、`MUSIC_U`、`__csrf`、`Authorization`、`Bearer`、`token`、完整 URL 和 Query 参数；命中时只输出失败状态，不输出匹配内容。
 - 可选的开发 Mac 控制隧道只转发 38501，不转发 38502：
 
   ```bash

@@ -32,8 +32,15 @@ if [[ ! "$commit_sha" =~ ^[0-9a-f]{40}$ ]]; then
   exit 3
 fi
 
-stage_parent="$(mktemp -d "${TMPDIR:-/tmp}/musicbridge-agent-stage.XXXXXX")"
+printf '%s\n' "BUNDLE_COMMIT_SHA=$commit_sha"
+
+tmp_root="${TMPDIR:-/tmp}"
+if [[ "$tmp_root" != "/" ]]; then
+  tmp_root="${tmp_root%/}"
+fi
+stage_parent="$(mktemp -d "$tmp_root/musicbridge-agent-stage.XXXXXX")"
 stage_dir="$stage_parent/staging"
+printf '%s\n' "BUNDLE_STAGE_PARENT=$stage_parent"
 mkdir "$stage_dir"
 
 cp -R dist "$stage_dir/dist"
@@ -95,7 +102,6 @@ COPYFILE_DISABLE=1 tar -czf "$archive" -C "$stage_dir" \
 bundle_sha256="$(shasum -a 256 "$archive" | awk '{print $1}')"
 
 printf '%s\n' "BUNDLE_ARCHIVE=$archive"
-printf '%s\n' "BUNDLE_COMMIT_SHA=$commit_sha"
 printf '%s\n' "BUNDLE_SHA256=$bundle_sha256"
 printf '%s\n' "BUNDLE_NODE_VERSION=$node_version"
 printf '%s\n' "BUNDLE_CPU_ARCH=$(uname -m)"
