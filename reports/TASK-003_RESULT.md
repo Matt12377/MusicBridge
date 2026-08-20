@@ -2,126 +2,142 @@
 
 ## 最终结论
 
-**BLOCKED — HTTP→HTTPS Transport Upgrade 已按批准边界实现并部署；已知完整曲目已通过 Provider/HTTPS Gate，但四次真实播放尝试均在 Roon `SessionBegan` 阶段超时，未形成可确认的 Zone 音频。不得开始 TASK-004。**
+**BLOCKED — TASK-003R 已完成有界诊断，但没有形成 Playing 或实际 Zone 音频。TASK-004 不得开始。**
 
-本轮没有放行原始 HTTP、没有使用备用 URL、代理、解灰、随机 IP 或其他替代源。真实请求未返回 `UNSAFE_UPSTREAM` 或 `UPSTREAM_HTTPS_UNAVAILABLE`，而是在完成上游 HTTPS 预检后进入 Roon 会话阶段，最终返回 `ROON_TIMEOUT`。
+本轮修正了一个重要判断：此前的 ROON_TIMEOUT 只说明旧的合并 30 秒窗口内没有进入 Playing，不能证明没有收到 SessionBegan。新的单次诊断显示：Roon 确实返回了 Session callback，但事件为 InvalidRequest，未收到有效 SessionBegan/session_id，因此没有调用 audioInput.play，也没有进入 Gateway stream。
 
 ## 任务边界与提交
 
-- 分支：`codex/task-003-standard-exhigh-playback`
-- 批准的变更前基线：`9c8382030236aafde7888f54ce01160669d1e086`
-- 原始 TASK-003 实现提交：`1da0772590d5f5263f8a9b49cee2356cc93ad8c1`
-- Core Provider 配置通道提交：`cd3db03e5f31c1cadfa41669be6b803ccafa3fd5`
-- 本轮实现提交：`4e23eabbe0246a936d691a2255af9e776b1caa15`
-- 本轮提交信息：`fix: securely upgrade NetEase CDN streams to HTTPS`
-- 本轮只修改了批准范围内的 NetEase 策略、解析、Gateway、Controller 及对应测试文件；未修改产品架构、端口、Provider 凭据通道、Roon extension ID 或 loopback-only 规则。
+- 当前分支：codex/task-003-standard-exhigh-playback
+- TASK-003R 起始报告 HEAD：225868f153066f4f5793f4824071d698d02a77e8
+- TASK-003R 实现提交：1a08695df4faa8943d7982d6fe1a391cd63bf8b6
+- 实现提交信息：fix: localize Roon Audio Input session timeout
+- 后续观测日志修复提交：c0f7664ae3d459a68401ee2fc6912f29d75dd213
+- 后续修复提交信息：fix: preserve Roon diagnostic event envelope
+- 当前远程运行 release：c0f7664ae3d459a68401ee2fc6912f29d75dd213
+- 未修改 Provider HTTPS 策略、Provider 凭据通道、Roon extension_id、正式端口、loopback-only 规则、解灰、代理或随机 IP 规则。
+- 未修改 package.json、package-lock.json；未新增依赖。
 - 未开始 TASK-004、TASK-005 或 TASK-010；未创建 PR、未合并。
 
-## 修复前原始记录
+## 修复前历史记录与判断纠正
 
-以下保留原报告的首次 TASK-003 实机结论，作为本轮修复前基线；它不代表当前运行版本结论。
+此前 HTTP→HTTPS Gate 的真实尝试曾记录 191248、1347524822 和 191174 的 Provider/播放结果。旧版本只使用一个覆盖 begin_session、SessionBegan、audioInput.play、Gateway media request 和 Playing 的 30 秒计时器。
 
-- `191248` 与 `1347524822` 在当时的 `song_url_v1` 结果触发 `UNSAFE_UPSTREAM`。
-- `191174` 在当时只返回试听片段，Bridge 返回 `TRACK_PREVIEW_ONLY`。
-- 修复前运行 release：`289dbdf329ddeed442081c6923c63540dbfde657`。
-- 修复前 bundle SHA-256：`cca508bbf816ac57782fad671fb5ba29a8b3220f969a9e87edf6a25b165e377a`。
-- 修复前的 Provider/HTTPS Gate 在 token 注册和 Roon 会话之前终止，因此没有真实 Roon Session 或 Zone 出声证据。
+因此，旧记录中的 ROON_TIMEOUT 只能表示“30 秒内没有进入 Playing”，不能回溯证明 SessionBegan 缺失、play 未调用或 Gateway 未收到 stream 请求。本报告不再把旧 ROON_TIMEOUT 解读为 SessionBegan 缺失。
 
-## 本轮实现
+## TASK-003R 实现内容
 
-1. 在 `src/netease/policy.ts` 增加受控 HTTP 候选升级：只接受精确的 `music.126.net` 或其子域名；禁止用户信息、片段、IP 字面量及非空非 80 端口；保留路径和查询部分，改为 HTTPS 并重新执行现有安全检查。
-2. `song_url_v1` 仍是唯一允许的流字段；未使用 `song_download_url_v1` 或 `song_url_v1_302`。
-3. 在 `StreamGateway` 中增加 HTTPS 上游预检：GET、`Range: bytes=0-0`、`Accept-Encoding: identity`、手动重定向、HTTPS-only、约 10 秒超时，并在收到响应头后取消响应体；只接受 200/206。
-4. Controller 顺序固定为：getTrack → resolveStream → 试听/完整性校验 → HTTPS URL → Gateway preflight → token → Roon session。
-5. `ResolvedAudioStream` 增加非敏感 `transportSecurity` 标识：`https-native` 或 `https-upgraded`；日志不输出 URL、查询参数或凭据。
-6. 重定向响应体在继续判定前安全取消；现有 HTTPS、DNS、SSRF、私网/保留地址检查保持不变。
+1. Roon Audio Input 流程拆为 awaiting_session 与 awaiting_playing 两个阶段。
+2. awaiting_session 默认超时 10 秒；awaiting_playing 默认超时 30 秒；测试可注入更短 timeout，不真实等待 10 秒或 30 秒。
+3. 超时保留现有 ROON_TIMEOUT 外层兼容码，同时以错误消息、timeoutCode 和 details.phase 明确区分 ROON_SESSION_BEGIN_TIMEOUT 与 ROON_PLAYING_TIMEOUT。未修改不在本轮允许范围内的 shared error code union。
+4. begin_session 只传 zone_id 和 display_name，不传 icon_url；Gateway 图标 endpoint 仍保留，并支持 GET/HEAD。
+5. Session callback 每次都记录脱敏事件名、phase 和 hasSessionId；SessionBegan 缺少有效 session_id 时立即失败；未知 Session 事件不再静默等待。
+6. 记录脱敏 begin_session、Session、play、connection 和 Gateway icon/stream 阶段事件。日志不记录 session_id、zone_id、output_id、stream token、media URL、Query、歌曲 ID、Core/Zone 名称或凭据。
+7. 发现 logger 的保留 event 字段会被同名回调字段覆盖后，改用 eventName 记录回调事件名，并加入 logger envelope 回归测试。
+8. Gateway 在进入 proxyStream 前记录 routeClass=stream、method 和 proxyStream=true；不会记录 stream token。icon 请求只记录 routeClass=icon 和 GET/HEAD。
+9. 移除既有 stream_proxy_started 日志中的歌曲 ID，并移除 roon_core_paired 日志中的 Core 名称。
 
 ## 自动化验证
 
-所有本地命令均在登录 zsh 的 Node.js `v22.23.2`、npm `10.9.8` 环境中执行。
+所有本地检查均在登录 zsh 的 Node.js v22.23.2、npm 10.9.8 环境中执行。
 
 | 检查 | 结果 |
-|---|---:|
-| `npm run doctor` | 退出码 0；本地 `.env` 不存在，doctor 的本地 Provider 配置项提示缺失；合法凭据只在运行机配置 |
-| `npm run typecheck` | 退出码 0 |
-| `npm test` | 退出码 0，45/45 通过 |
-| `npm run build` | 退出码 0 |
-| `npm run verify` | 退出码 0 |
-| `git diff --check` | 退出码 0 |
-| HTTP/HTTPS URL 策略、解析、Gateway、Controller 新增测试 | 通过 |
-| 原始 HTTP 不得被调用测试 | 通过 |
-| 200/206、重定向、TLS/状态、超时和响应体取消测试 | 通过 |
+|---|---|
+| npm run doctor | 退出码 0；本地 .env 不存在，doctor 的本地 Provider 配置项提示缺失；合法凭据仅在运行机配置 |
+| npm run typecheck | 退出码 0 |
+| npm test | 退出码 0，56/56 通过；原有 45 项全部保留 |
+| npm run build | 退出码 0 |
+| npm run verify | 退出码 0 |
+| git diff --check | 退出码 0 |
+| 阶段超时、有效 SessionBegan、缺失 session_id、未知事件、Zone 映射、MooError | 通过 |
+| icon/stream GET/HEAD 观测和 token/歌曲 ID 脱敏 | 通过 |
+| eventName 不覆盖日志外层 event | 通过 |
 
-部署构建阶段按批准流程执行了 `npm ci`、`npm run verify`、`npm run build` 和生产依赖安装；没有修改 package 文件或生成新的锁文件变更。
+部署构建阶段按既有流程执行 npm ci、npm run verify、npm run build 和生产依赖安装；没有修改产品依赖声明或锁文件。
 
 ## 远程部署与运行身份
 
-- 运行机最终 release：`4e23eabbe0246a936d691a2255af9e776b1caa15`
-- bundle SHA-256：`c103fe544e25425ca8d0050a47333c8b747b965c0b147e30dc902e961d00100b`
-- bundle 内容仅包含 `dist`、生产 `node_modules`、`package.json` 和 `package-lock.json`；不包含源码、测试、文档、任务、报告、Git 元数据、环境文件、日志或音频文件。
-- 开发机与运行机架构一致；生产依赖中未发现原生 `.node` 模块。
-- release 已按当前 commit SHA 建立，`current`、运行中 release 标识和 `data/agent.release` 一致。
-- deploy 成功；deploy 调用创建的 staging/archive 临时目录在成功、失败清理路径验证中均已清除，本轮最终检查无残留。
+有效真实 Probe 使用的 release：
 
-最终运行状态：
+- Probe release：1a08695df4faa8943d7982d6fe1a391cd63bf8b6
+- Probe bundle SHA-256：a3c6bb06659e50a2c2b8cfc07e9d0fe7fa0f639856759dc141db357595db3d05
+- Probe 前的 staging/archive 已由部署脚本清理。
+
+Probe 后为修复日志事件外层字段，重新部署当前版本；没有再次调用播放接口：
+
+- 最终运行 release：c0f7664ae3d459a68401ee2fc6912f29d75dd213
+- 最终 bundle SHA-256：26dad6b2d1a6d63ffc39878f7a9daf4c73bbae83fa316b9219f400ea758baac6
+- 当前 release、running release、agent.release 和 expected release 一致。
+- 最终 staging/archive 清理：PASS。
+- 开发机和运行机 CPU 架构一致；production node_modules 中没有原生 .node 模块。
+
+最终远程 runtime 状态：
 
 | 项目 | 结果 |
 |---|---|
-| expected/current/running release | 三者均为 `4e23eabbe0246a936d691a2255af9e776b1caa15` |
+| release identity | PASS；四个 release 标识均为 c0f7664ae3d459a68401ee2fc6912f29d75dd213 |
 | Agent 进程 | running |
-| Node.js | `v22.23.2` |
-| Provider 凭据状态 | `configured` |
-| XEAPI 公钥状态 | `ready` |
-| health | `true` |
-| `NETEASE_CONFIGURED` | `true` |
-| `activeStreamCount` | `0` |
+| Node.js | v22.23.2 |
+| Provider 凭据状态 | configured |
+| XEAPI 公钥状态 | ready |
+| health | true |
+| NETEASE_CONFIGURED | true |
+| activeStreamCount | 0 |
 | active playback | 不存在 |
 | 控制/流监听 | 均为 loopback |
-| 日志秘密扫描 | PASS |
-| release identity | 一致 |
+| 日志秘密扫描 | pass |
 | runtime status | PASS |
 
-## 真实播放 Gate
+## TASK-003R 唯一有效真实 Probe
 
-本轮只复测 Owner 指定的已知完整曲目 ID，使用 `exhigh` 后 `standard`；没有搜索或随机尝试其他歌曲。所有控制请求输出均已脱敏，没有打印凭据、token、完整播放地址或查询参数。
+Probe 使用此前已经通过 HTTPS preflight 的已知完整曲目 191248、音质 exhigh，只执行了一次有效播放请求。没有尝试 standard、其他歌曲或其他 Zone。
 
-| 测试 ID | 音质 | Provider/传输 Gate | Roon Gate | 结果 |
-|---:|---|---|---|---|
-| `191248` | `exhigh` | `transportSecurity=https-upgraded`；HTTPS preflight 通过 | HTTP 504，`ROON_TIMEOUT` | BLOCKED |
-| `191248` | `standard` | `transportSecurity=https-upgraded`；HTTPS preflight 通过 | HTTP 504，`ROON_TIMEOUT` | BLOCKED |
-| `1347524822` | `exhigh` | `transportSecurity=https-upgraded`；HTTPS preflight 通过 | HTTP 504，`ROON_TIMEOUT` | BLOCKED |
-| `1347524822` | `standard` | `transportSecurity=https-upgraded`；HTTPS preflight 通过 | HTTP 504，`ROON_TIMEOUT` | BLOCKED |
+| 阶段 | 结果 |
+|---|---|
+| HTTPS preflight success | YES；流程未返回 Provider/HTTPS 错误，并继续进入 begin_session |
+| begin_session requested | YES；收到 roon_begin_session_requested |
+| Session callback received | YES |
+| Session event name | InvalidRequest |
+| valid session_id received | NO；hasSessionId=false |
+| audioInput.play invoked | NO |
+| Gateway icon request | NO |
+| Gateway stream request | NO |
+| GATEWAY_STREAM_REQUEST_OBSERVED | false |
+| Roon play callback received | NO |
+| Playing received | NO |
+| timeout phase | N/A；本次在 awaiting_session 阶段收到 InvalidRequest 后立即以协议错误终止，没有等到阶段超时 |
 
-补充 Gate 结果：
+受控播放请求结果为 HTTP 502、错误码 ROON_MEDIA_ERROR、phase=awaiting_session。响应和日志均未输出 session_id、请求 body、stream token、media URL、Query 或凭据。
 
-- 原始 HTTP URL 请求：PASS。实现和自动化测试均证明 HTTP 候选不会被 fetch；实际流程只在安全升级后执行 HTTPS 预检。
-- HTTPS 预检：四次请求均未触发 `UNSAFE_UPSTREAM` 或 `UPSTREAM_HTTPS_UNAVAILABLE`，随后进入 Roon 会话阶段；预检实现只接受 200/206。
-- Roon `/v1/state` 复查：`ROON_STATUS=ready`、Zone 已选定、`activeStreamCount=0`、无 active playback。
-- Roon Audio Input Session：四次均调用了播放流程，但没有等到 `SessionBegan`；因此不能证明 Session 已成功创建。
-- 实际 Zone 出声：未确认。
-- Roon 元数据、Signal Path、完整播放：未完成。
-- 每次失败后 active stream 均回到 0；最后执行受控 stop，返回 PASS，最终状态仍为 ready、无 active playback。
-- 远程日志事件扫描：PASS；没有发现凭据、Cookie、Token、完整 URL 或 Query 泄漏。
+准备 Probe 时有一次 SSH 连接因错误复用方式走到本机代理并失败；随后一次命令引号错误导致无效 JSON，Core 仅返回 HTTP 400，未进入 Controller、Provider 或 Roon 播放流程。这两次均不是有效歌曲 Probe；有效的 191248/exhigh Probe 只执行一次，之后没有再次调用 /v1/play。
 
-## 阻塞根因
+## Smoke 与 Zone 对照结果
 
-当前失败点已经从 Provider 的非 HTTPS 返回前移问题，转移到 Roon 会话 Gate：四次请求都在升级后的 HTTPS 流完成预检后进入 `begin_session`，等待 `SessionBegan` 超时并返回 `ROON_TIMEOUT`。Roon 状态接口仍显示 ready 且 Zone 已选择，说明本轮证据不足以将失败归因于 Provider 凭据、HTTP→HTTPS 规则或 Zone 选择。
+- Smoke result：NOT RUN。主程序已经收到 Session callback，未满足“完全没有 Session callback”这一 Smoke 触发条件。
+- Smoke extension：未新增、未运行；没有发送独立 extension_id、media_url 或 stream token。
+- Zone 对照：NOT RUN。没有进入 Smoke 双 Zone Gate，因此没有触碰第二个 Zone，也没有修改 Roon Audio 设置、删除或重建 Zone。
+- RoonServer/RAATServer 日志 Gate：NOT RUN。该 Gate 仅在两个 Zone 的最小 Smoke 都失败后触发；没有复制或提交原始 Roon 日志。
 
-本轮未修改 `src/roon/adapter.ts`，也未修改 Roon、端口、防火墙、代理、解灰或随机 IP。下一步必须先由 Owner 决定是否提供 Roon SessionBegan/Signal Path 的人工诊断窗口，或重新确认运行机上的 Roon 音频输入可用性；在真实 Zone 出声、元数据和 Signal Path Gate 完成前，TASK-003 保持 BLOCKED。
+## 阻塞根因与当前解释
+
+当前可证明的阻塞点是：Roon Audio Input 对 begin_session 返回了 InvalidRequest Session callback，而不是 SessionBegan；因此主程序没有拿到有效 session_id，没有调用 audioInput.play，Gateway 没有收到 icon 或 stream 请求，Playing 当然也没有发生。
+
+本轮 A/B 已按要求移除 icon_url。InvalidRequest 说明请求仍在 Roon Audio Input session 阶段被拒绝，但仅凭本轮事件还不能把原因扩展为 Roon Server、Zone、协议字段或其他具体根因。应保留该阶段证据，不恢复 icon_url 进行第二次真实播放，也不开始 TASK-004。
 
 ## 安全与未执行事项
 
-- Provider 凭据仅在运行机本地受控文件和 Agent 子进程环境中使用；未写入命令参数、Shell 历史、Git、报告或日志。
-- 未读取、输出或保存 Cookie、账号凭据、Token、配置文件内容、完整播放 URL 或内部查询参数。
 - 未访问原始 HTTP；未启用 HTTP fallback、代理、解灰、随机 IP 或备用流字段。
+- 未读取、输出或保存 Cookie、账号凭据、Token、config.json 内容、完整播放 URL 或内部 Query。
+- 诊断事件只包含允许的事件名、phase、hasSessionId、method、routeClass、proxyStream 和 elapsedMs 等脱敏字段。
 - 未开放 LAN 监听，未修改防火墙，未读取 Roon 数据库或音乐库。
-- 未播放出可确认的音频；未声称真实 Zone 或 Signal Path 已通过。
+- 未确认 Zone 出声、Roon 元数据、Signal Path、完整播放或精确终止。
+- 最终 Agent 保持运行在当前 release，activeStreamCount=0、无 active playback、日志秘密扫描通过。
 - 未开始 TASK-004、TASK-005 或 TASK-010；未创建 PR、未合并、未发布。
 
 ## 当前决定
 
 **TASK-003：BLOCKED**
 
-**TASK-004：不可开始。**
+**TASK-004：未开始，不可开始。**
 
-后续只有在 Owner 处理 Roon `SessionBegan` 超时并完成实际 Zone 音频、元数据/Signal Path、完整播放或精确终止、stop 清理及日志扫描后，才可重新评估 TASK-003。
+下一步等待 Owner 决定如何处理 Roon Audio Input 的 InvalidRequest 阶段；在收到有效 SessionBegan、调用 play、观察 Gateway/Playing，并完成真实 Zone 音频、元数据/Signal Path、清理和日志 Gate 前，TASK-003 不得标记 PASS。
