@@ -1,4 +1,3 @@
-import { createRequire } from 'node:module';
 import { BridgeError } from '../shared/errors.js';
 import type { Logger } from '../shared/logger.js';
 import type {
@@ -7,27 +6,25 @@ import type {
   RoonState,
   RoonTerminalReason,
 } from './types.js';
-
-const require = createRequire(import.meta.url);
-const RoonApi = require('node-roon-api') as any;
-const RoonApiAudioInput = require('node-roon-api-audioinput') as any;
-const RoonApiSettings = require('node-roon-api-settings') as any;
-const RoonApiStatus = require('node-roon-api-status') as any;
-const RoonApiTransport = require('node-roon-api-transport') as any;
-
-interface ZoneOutput {
-  output_id?: string;
-  display_name?: string;
-}
-
-interface Zone {
-  zone_id: string;
-  display_name?: string;
-  outputs?: ZoneOutput[];
-}
+import {
+  createProductionRoonSdk,
+  type RoonApiInstance,
+  type RoonAudioInputService,
+  type RoonAudioInputSession,
+  type RoonCore,
+  type RoonSdk,
+  type RoonSettingsRequest,
+  type RoonSettingsService,
+  type RoonStatusService,
+  type RoonZone,
+  type RoonZoneChangeMessage,
+} from './sdk.js';
 
 interface SettingsState {
-  output?: ZoneOutput;
+  output?: {
+    output_id?: string;
+    display_name?: string;
+  };
 }
 
 function messageName(message: unknown): string {
@@ -39,21 +36,66 @@ function messageName(message: unknown): string {
   return 'Unknown';
 }
 
+function readSessionId(value: unknown): string | undefined {
+  if (!value || typeof value !== 'object' || !('session_id' in value)) {
+    return undefined;
+  }
+  const sessionId = (value as { session_id?: unknown }).session_id;
+  return typeof sessionId === 'string' ? sessionId : undefined;
+}
+
+function readSettings(value: unknown): SettingsState {
+  if (!value || typeof value !== 'object') return {};
+  const output = (value as { output?: unknown }).output;
+  if (!output || typeof output !== 'object') return {};
+
+  const outputId = (output as { output_id?: unknown }).output_id;
+  const displayName = (output as { display_name?: unknown }).display_name;
+  return {
+    output: {
+      ...(typeof outputId === 'string' ? { output_id: outputId } : {}),
+      ...(typeof displayName === 'string' ? { display_name: displayName } : {}),
+    },
+  };
+}
+
+function readSettingsInput(value: unknown): SettingsState {
+  if (!value || typeof value !== 'object') return {};
+  return readSettings((value as { values?: unknown }).values);
+}
+
+function readZoneId(value: unknown): string | undefined {
+  if (typeof value === 'string') return value;
+  if (!value || typeof value !== 'object' || !('zone_id' in value)) {
+    return undefined;
+  }
+  const zoneId = (value as { zone_id?: unknown }).zone_id;
+  return typeof zoneId === 'string' ? zoneId : undefined;
+}
+
+function isRoonZone(value: unknown): value is RoonZone {
+  if (!value || typeof value !== 'object' || !('zone_id' in value)) {
+    return false;
+  }
+  return typeof (value as { zone_id?: unknown }).zone_id === 'string';
+}
+
 export class RoonAudioInputAdapter implements RoonPort {
-  private roon: any | undefined;
-  private core: any | undefined;
-  private statusService: any | undefined;
-  private audioInput: any | undefined;
+  private roon: RoonApiInstance | undefined;
+  private core: RoonCore | undefined;
+  private statusService: RoonStatusService | undefined;
+  private audioInput: RoonAudioInputService | undefined;
   private settings: SettingsState = {};
-  private readonly zones = new Map<string, Zone>();
-  private selectedZone: Zone | undefined;
-  private session:
-    | { end_session(callback: (message: unknown, body: unknown) => void): void }
-    | undefined;
+  private readonly zones = new Map<string, RoonZone>();
+  private selectedZone: RoonZone | undefined;
+  private session: RoonAudioInputSession | undefined;
   private state: RoonState = { status: 'discovering' };
   private terminalHandler: (reason: RoonTerminalReason) => void = () => undefined;
 
-  constructor(private readonly logger: Logger) {}
+  constructor(
+    private readonly logger: Logger,
+    private readonly sdk: RoonSdk = createProductionRoonSdk(),
+  ) {}
 
   setTerminalHandler(handler: (reason: RoonTerminalReason) => void): void {
     this.terminalHandler = handler;
@@ -62,7 +104,7 @@ export class RoonAudioInputAdapter implements RoonPort {
   async start(): Promise<void> {
     if (this.roon) return;
 
-    this.roon = new RoonApi({
+    this.roon = this.sdk.createApi({
       extension_id: 'com.musicbridgeforroon.netease.poc',
       display_name: 'Music Bridge for Roon — NetEase POC',
       display_version: '0.1.0-poc.1',
@@ -71,22 +113,22 @@ export class RoonAudioInputAdapter implements RoonPort {
       website: 'https://github.com/RoonLabs/roon-connect-stream-example',
       log_level: 'none',
       force_server: true,
-      core_paired: (core: any) => this.onCorePaired(core),
+      core_paired: (core) => this.onCorePaired(core),
       core_unpaired: () => this.onCoreUnpaired(),
     });
 
-    this.settings = (this.roon.load_config('settings') as SettingsState | undefined) ?? {};
+    this.settings = readSettings(this.roon.load_config('settings'));
 
-    const settingsService = new RoonApiSettings(this.roon, {
+    const settingsService: RoonSettingsService = this.sdk.createSettings(this.roon, {
       get_settings: (callback: (layout: unknown) => void) => {
         callback(this.makeSettingsLayout(this.settings));
       },
       save_settings: (
-        request: { send_complete(status: string, body: unknown): void },
+        request: RoonSettingsRequest,
         _isDryRun: boolean,
-        incoming: { values?: SettingsState },
+        incoming: unknown,
       ) => {
-        const next = incoming.values ?? {};
+        const next = readSettingsInput(incoming);
         const layout = this.makeSettingsLayout(next);
         request.send_complete('Success', { settings: layout });
         this.settings = next;
@@ -95,10 +137,10 @@ export class RoonAudioInputAdapter implements RoonPort {
       },
     });
 
-    this.statusService = new RoonApiStatus(this.roon);
+    this.statusService = this.sdk.createStatus(this.roon);
     this.roon.init_services({
       provided_services: [settingsService, this.statusService],
-      required_services: [RoonApiAudioInput, RoonApiTransport],
+      required_services: [this.sdk.audioInputService, this.sdk.transportService],
     });
     this.roon.start_discovery();
     this.setStatus('discovering', 'Ready to pair', true);
@@ -120,6 +162,12 @@ export class RoonAudioInputAdapter implements RoonPort {
 
     await this.stop();
     this.setStatus('ready', 'Preparing stream…', false);
+    const audioInput = this.audioInput;
+    if (!audioInput) {
+      throw new BridgeError('ROON_NOT_PAIRED', 'Roon is not paired with the extension', {
+        httpStatus: 503,
+      });
+    }
 
     await new Promise<void>((resolve, reject) => {
       let settled = false;
@@ -139,18 +187,19 @@ export class RoonAudioInputAdapter implements RoonPort {
         else resolve();
       };
 
-      const session = this.audioInput.begin_session(
+      const session = audioInput.begin_session(
         {
           zone_id: this.selectedZone?.zone_id,
           display_name: 'Music Bridge for Roon',
           icon_url: request.iconUrl,
         },
-        (sessionMessage: unknown, body: any) => {
+        (sessionMessage: unknown, body: unknown) => {
           const sessionEvent = messageName(sessionMessage);
           if (sessionEvent === 'SessionBegan') {
-            this.audioInput.update_transport_controls(
+            const sessionId = readSessionId(body);
+            audioInput.update_transport_controls(
               {
-                session_id: body.session_id,
+                session_id: sessionId,
                 controls: {
                   is_previous_allowed: false,
                   is_next_allowed: false,
@@ -159,9 +208,9 @@ export class RoonAudioInputAdapter implements RoonPort {
               () => undefined,
             );
 
-            this.audioInput.play(
+            audioInput.play(
               {
-                session_id: body.session_id,
+                session_id: sessionId,
                 type: 'channel',
                 slot: 'play',
                 media_url: request.mediaUrl,
@@ -286,7 +335,7 @@ export class RoonAudioInputAdapter implements RoonPort {
     return { ...this.state };
   }
 
-  private onCorePaired(core: any): void {
+  private onCorePaired(core: RoonCore): void {
     this.core = core;
     this.audioInput = core.services.RoonApiAudioInput;
     this.state = {
@@ -296,7 +345,7 @@ export class RoonAudioInputAdapter implements RoonPort {
     this.setStatus('paired', 'Initializing…', false);
 
     core.services.RoonApiTransport.subscribe_zones(
-      (response: string, message: any) => {
+      (response: string, message: RoonZoneChangeMessage) => {
         if (response === 'Subscribed') {
           this.zones.clear();
           for (const zone of message.zones ?? []) this.storeZone(zone);
@@ -304,7 +353,7 @@ export class RoonAudioInputAdapter implements RoonPort {
           for (const zone of message.zones_added ?? []) this.storeZone(zone);
           for (const zone of message.zones_changed ?? []) this.storeZone(zone);
           for (const zone of message.zones_removed ?? []) {
-            const zoneId = typeof zone === 'string' ? zone : zone.zone_id;
+            const zoneId = readZoneId(zone);
             if (zoneId) this.zones.delete(zoneId);
           }
         }
@@ -328,9 +377,7 @@ export class RoonAudioInputAdapter implements RoonPort {
   }
 
   private storeZone(value: unknown): void {
-    if (!value || typeof value !== 'object') return;
-    const zone = value as Zone;
-    if (typeof zone.zone_id === 'string') this.zones.set(zone.zone_id, zone);
+    if (isRoonZone(value)) this.zones.set(value.zone_id, value);
   }
 
   private updateSelectedZone(): void {
