@@ -1,123 +1,127 @@
 # TASK-003 结果报告
 
-## 结论
+## 最终结论
 
-**BLOCKED — Provider 与 Roon 已就绪，三个测试歌曲均在完整曲目/HTTPS 安全 Gate 被拒绝，需要 Owner/架构师裁决 Provider 返回协议。**
+**BLOCKED — HTTP→HTTPS Transport Upgrade 已按批准边界实现并部署；已知完整曲目已通过 Provider/HTTPS Gate，但四次真实播放尝试均在 Roon `SessionBegan` 阶段超时，未形成可确认的 Zone 音频。不得开始 TASK-004。**
 
-合法 Provider 配置、TASK-003 release 部署、Roon ready/Zone 选择和真实 Provider 请求均已完成。测试歌曲 `191248` 与 `1347524822` 的 `song_url_v1` 在 `exhigh` 与 `standard` 下均返回非 HTTPS 上游地址，Bridge 按既定安全边界拒绝。歌曲 `191174` 在两个音质等级下均只返回试听片段，Bridge 以 `TRACK_PREVIEW_ONLY` 拒绝，未将试听冒充完整曲目。三次测试都未创建 Roon Audio Input Session，真实 Zone 尚未出声，因此不能标记 PASS，也不得进入 TASK-004。
+本轮没有放行原始 HTTP、没有使用备用 URL、代理、解灰、随机 IP 或其他替代源。真实请求未返回 `UNSAFE_UPSTREAM` 或 `UPSTREAM_HTTPS_UNAVAILABLE`，而是在完成上游 HTTPS 预检后进入 Roon 会话阶段，最终返回 `ROON_TIMEOUT`。
 
-## 任务边界
+## 任务边界与提交
 
-- 当前分支：`codex/task-003-standard-exhigh-playback`
-- 基线：TASK-002 报告提交 `a70350d6ab61dc6d59868da202423f85dbb1b159`
-- 初始 TASK-003 实现提交：`1da0772590d5f5263f8a9b49cee2356cc93ad8c1`
+- 分支：`codex/task-003-standard-exhigh-playback`
+- 批准的变更前基线：`9c8382030236aafde7888f54ce01160669d1e086`
+- 原始 TASK-003 实现提交：`1da0772590d5f5263f8a9b49cee2356cc93ad8c1`
 - Core Provider 配置通道提交：`cd3db03e5f31c1cadfa41669be6b803ccafa3fd5`
-- 当前运行实现提交：`289dbdf329ddeed442081c6923c63540dbfde657`
-- 未修改产品架构、端口、loopback-only 规则、Provider 接口、Stream Gateway 行为或依赖版本。
-- 未开始 TASK-004、TASK-005 或 TASK-010。
+- 本轮实现提交：`4e23eabbe0246a936d691a2255af9e776b1caa15`
+- 本轮提交信息：`fix: securely upgrade NetEase CDN streams to HTTPS`
+- 本轮只修改了批准范围内的 NetEase 策略、解析、Gateway、Controller 及对应测试文件；未修改产品架构、端口、Provider 凭据通道、Roon extension ID 或 loopback-only 规则。
+- 未开始 TASK-004、TASK-005 或 TASK-010；未创建 PR、未合并。
 
-## 实现内容
+## 修复前原始记录
 
-1. `BridgeController.stop()` 在自身没有活动播放和流 token 时直接返回当前状态，避免重复触碰已经清理的 Roon 会话。
-2. 增加 Controller 幂等停止测试：第一次停止清理流 token，第二次停止不再调用底层 Roon，状态保持为空。
-3. 原有 Controller 成功、Roon 启动失败、播放期间终止、启动阶段终止的 token/state 清理测试继续通过。
+以下保留原报告的首次 TASK-003 实机结论，作为本轮修复前基线；它不代表当前运行版本结论。
 
-## 环境与自动化 Gate
+- `191248` 与 `1347524822` 在当时的 `song_url_v1` 结果触发 `UNSAFE_UPSTREAM`。
+- `191174` 在当时只返回试听片段，Bridge 返回 `TRACK_PREVIEW_ONLY`。
+- 修复前运行 release：`289dbdf329ddeed442081c6923c63540dbfde657`。
+- 修复前 bundle SHA-256：`cca508bbf816ac57782fad671fb5ba29a8b3220f969a9e87edf6a25b165e377a`。
+- 修复前的 Provider/HTTPS Gate 在 token 注册和 Roon 会话之前终止，因此没有真实 Roon Session 或 Zone 出声证据。
 
-在新登录 zsh、Node.js `v22.23.2`、npm `10.9.8` 下执行：
+## 本轮实现
+
+1. 在 `src/netease/policy.ts` 增加受控 HTTP 候选升级：只接受精确的 `music.126.net` 或其子域名；禁止用户信息、片段、IP 字面量及非空非 80 端口；保留路径和查询部分，改为 HTTPS 并重新执行现有安全检查。
+2. `song_url_v1` 仍是唯一允许的流字段；未使用 `song_download_url_v1` 或 `song_url_v1_302`。
+3. 在 `StreamGateway` 中增加 HTTPS 上游预检：GET、`Range: bytes=0-0`、`Accept-Encoding: identity`、手动重定向、HTTPS-only、约 10 秒超时，并在收到响应头后取消响应体；只接受 200/206。
+4. Controller 顺序固定为：getTrack → resolveStream → 试听/完整性校验 → HTTPS URL → Gateway preflight → token → Roon session。
+5. `ResolvedAudioStream` 增加非敏感 `transportSecurity` 标识：`https-native` 或 `https-upgraded`；日志不输出 URL、查询参数或凭据。
+6. 重定向响应体在继续判定前安全取消；现有 HTTPS、DNS、SSRF、私网/保留地址检查保持不变。
+
+## 自动化验证
+
+所有本地命令均在登录 zsh 的 Node.js `v22.23.2`、npm `10.9.8` 环境中执行。
 
 | 检查 | 结果 |
 |---|---:|
-| `npm run doctor` | 退出码 0；本地合法 Provider 配置缺失，doctor 明确提示播放不可用 |
+| `npm run doctor` | 退出码 0；本地 `.env` 不存在，doctor 的本地 Provider 配置项提示缺失；合法凭据只在运行机配置 |
 | `npm run typecheck` | 退出码 0 |
-| `npm test` | 退出码 0，29/29 通过 |
+| `npm test` | 退出码 0，45/45 通过 |
 | `npm run build` | 退出码 0 |
 | `npm run verify` | 退出码 0 |
-| 控制端口检查 | 通过，未占用 |
-| 流端口检查 | 通过，未占用 |
-| `git diff --check` | 通过 |
+| `git diff --check` | 退出码 0 |
+| HTTP/HTTPS URL 策略、解析、Gateway、Controller 新增测试 | 通过 |
+| 原始 HTTP 不得被调用测试 | 通过 |
+| 200/206、重定向、TLS/状态、超时和响应体取消测试 | 通过 |
 
-上表记录初始自动化阶段；后续部署当前 TASK-003 release 时按既定部署流程执行了 `npm ci`、`npm run verify` 和 `npm run build`。真实 Provider Gate 已执行，但所有工具输出均经过脱敏，不含账号数据、凭据、完整上游地址或临时 stream token。
+部署构建阶段按批准流程执行了 `npm ci`、`npm run verify`、`npm run build` 和生产依赖安装；没有修改 package 文件或生成新的锁文件变更。
 
-## 真实 Gate 状态
+## 远程部署与运行身份
 
-| Gate | 状态 | 说明 |
-|---|---|---|
-| `191248` 元数据与 standard/exhigh 流解析 | BLOCKED | 元数据存在；两个等级均返回非 HTTPS 上游地址，Bridge 返回 `UNSAFE_UPSTREAM` |
-| `191174` standard/exhigh 流解析 | BLOCKED | 两个等级均返回试听片段，Bridge 返回 `TRACK_PREVIEW_ONLY` |
-| `1347524822` standard/exhigh 流解析 | BLOCKED | 两个等级均返回非 HTTPS 上游地址，Bridge 返回 `UNSAFE_UPSTREAM` |
-| XEAPI 公钥 bootstrap | 通过 | 使用既有受控凭据中的设备标识注册；不执行匿名注册、随机 IP、代理或解灰 |
-| 临时 token 注册与清理 | 自动化通过；实机未创建 | 两类拒绝均发生在注册 token 前，现场 `activeStreamCount=0` |
-| Roon Audio Input Session | 未创建 | 当前 release 已部署，但三首歌曲都在 Provider 完整性/安全 Gate 终止 |
-| 真实 Zone 出声 | 未执行 | 需要另一个可返回 HTTPS 完整授权流的测试歌曲 ID |
-| Roon 元数据显示 | 未执行 | 同上 |
-| stop 幂等 | 自动化通过 | 新增测试已通过 |
+- 运行机最终 release：`4e23eabbe0246a936d691a2255af9e776b1caa15`
+- bundle SHA-256：`c103fe544e25425ca8d0050a47333c8b747b965c0b147e30dc902e961d00100b`
+- bundle 内容仅包含 `dist`、生产 `node_modules`、`package.json` 和 `package-lock.json`；不包含源码、测试、文档、任务、报告、Git 元数据、环境文件、日志或音频文件。
+- 开发机与运行机架构一致；生产依赖中未发现原生 `.node` 模块。
+- release 已按当前 commit SHA 建立，`current`、运行中 release 标识和 `data/agent.release` 一致。
+- deploy 成功；deploy 调用创建的 staging/archive 临时目录在成功、失败清理路径验证中均已清除，本轮最终检查无残留。
 
-## 阻塞原因与恢复条件
+最终运行状态：
 
-Core Mac 的 Provider 凭据状态为 `configured`，Agent health 为 `NETEASE_CONFIGURED=true`，Roon 状态为 ready 且已选择 Zone。当前硬阻塞是已提供的三个测试 ID 都没有可用于完整播放的安全流：`191248` 与 `1347524822` 在两个等级下均为非 HTTPS 上游，`191174` 在两个等级下均为试听片段。按照安全规则不得改写为 HTTPS、放宽为 HTTP、把试听冒充完整曲目，或启用解灰/代理替代源。
+| 项目 | 结果 |
+|---|---|
+| expected/current/running release | 三者均为 `4e23eabbe0246a936d691a2255af9e776b1caa15` |
+| Agent 进程 | running |
+| Node.js | `v22.23.2` |
+| Provider 凭据状态 | `configured` |
+| XEAPI 公钥状态 | `ready` |
+| health | `true` |
+| `NETEASE_CONFIGURED` | `true` |
+| `activeStreamCount` | `0` |
+| active playback | 不存在 |
+| 控制/流监听 | 均为 loopback |
+| 日志秘密扫描 | PASS |
+| release identity | 一致 |
+| runtime status | PASS |
 
-只读根因核对确认，当前 `@neteasecloudmusicapienhanced/api` `4.40.1` 的 `song_url_v1` 模块把上游响应原样交回调用方；其 `RequestBaseConfig` 不提供“让媒体 URL 使用 HTTPS”的选项，服务端包装层也不执行该归一化。Bridge 的 `assertSafeAudioUrl` 因而按蓝图拒绝非 HTTPS 返回值。该结论排除了 Roon、SSH、凭据、XEAPI bootstrap 和音质参数故障，但不声称所有歌曲必然返回 HTTP。
+## 真实播放 Gate
 
-恢复需要 Owner/架构师决定是否存在符合现有边界、能稳定返回 HTTPS 完整授权流的 Provider 调用方式。任何协议改写、HTTP 放行、替代源、代理或解灰均超出 TASK-003 当前授权；在获得裁决前不再通过随机歌曲 ID 无限重试。
+本轮只复测 Owner 指定的已知完整曲目 ID，使用 `exhigh` 后 `standard`；没有搜索或随机尝试其他歌曲。所有控制请求输出均已脱敏，没有打印凭据、token、完整播放地址或查询参数。
 
-## 安全与范围确认
+| 测试 ID | 音质 | Provider/传输 Gate | Roon Gate | 结果 |
+|---:|---|---|---|---|
+| `191248` | `exhigh` | `transportSecurity=https-upgraded`；HTTPS preflight 通过 | HTTP 504，`ROON_TIMEOUT` | BLOCKED |
+| `191248` | `standard` | `transportSecurity=https-upgraded`；HTTPS preflight 通过 | HTTP 504，`ROON_TIMEOUT` | BLOCKED |
+| `1347524822` | `exhigh` | `transportSecurity=https-upgraded`；HTTPS preflight 通过 | HTTP 504，`ROON_TIMEOUT` | BLOCKED |
+| `1347524822` | `standard` | `transportSecurity=https-upgraded`；HTTPS preflight 通过 | HTTP 504，`ROON_TIMEOUT` | BLOCKED |
 
-- 受控启动与诊断进程只在 Core Mac 内静默读取凭据文件；未在终端、日志、Git 或报告中输出账号凭据、Cookie、Token、设备标识、公钥内容、完整播放地址或配置文件内容。
-- 已执行三首歌曲的真实 Provider 请求和本地 loopback 播放 POST；请求分别在 HTTPS 安全 Gate 与试听完整性 Gate 被拒绝，未创建 Roon Session、未播放音频。
+补充 Gate 结果：
+
+- 原始 HTTP URL 请求：PASS。实现和自动化测试均证明 HTTP 候选不会被 fetch；实际流程只在安全升级后执行 HTTPS 预检。
+- HTTPS 预检：四次请求均未触发 `UNSAFE_UPSTREAM` 或 `UPSTREAM_HTTPS_UNAVAILABLE`，随后进入 Roon 会话阶段；预检实现只接受 200/206。
+- Roon `/v1/state` 复查：`ROON_STATUS=ready`、Zone 已选定、`activeStreamCount=0`、无 active playback。
+- Roon Audio Input Session：四次均调用了播放流程，但没有等到 `SessionBegan`；因此不能证明 Session 已成功创建。
+- 实际 Zone 出声：未确认。
+- Roon 元数据、Signal Path、完整播放：未完成。
+- 每次失败后 active stream 均回到 0；最后执行受控 stop，返回 PASS，最终状态仍为 ready、无 active playback。
+- 远程日志事件扫描：PASS；没有发现凭据、Cookie、Token、完整 URL 或 Query 泄漏。
+
+## 阻塞根因
+
+当前失败点已经从 Provider 的非 HTTPS 返回前移问题，转移到 Roon 会话 Gate：四次请求都在升级后的 HTTPS 流完成预检后进入 `begin_session`，等待 `SessionBegan` 超时并返回 `ROON_TIMEOUT`。Roon 状态接口仍显示 ready 且 Zone 已选择，说明本轮证据不足以将失败归因于 Provider 凭据、HTTP→HTTPS 规则或 Zone 选择。
+
+本轮未修改 `src/roon/adapter.ts`，也未修改 Roon、端口、防火墙、代理、解灰或随机 IP。下一步必须先由 Owner 决定是否提供 Roon SessionBegan/Signal Path 的人工诊断窗口，或重新确认运行机上的 Roon 音频输入可用性；在真实 Zone 出声、元数据和 Signal Path Gate 完成前，TASK-003 保持 BLOCKED。
+
+## 安全与未执行事项
+
+- Provider 凭据仅在运行机本地受控文件和 Agent 子进程环境中使用；未写入命令参数、Shell 历史、Git、报告或日志。
+- 未读取、输出或保存 Cookie、账号凭据、Token、配置文件内容、完整播放 URL 或内部查询参数。
+- 未访问原始 HTTP；未启用 HTTP fallback、代理、解灰、随机 IP 或备用流字段。
 - 未开放 LAN 监听，未修改防火墙，未读取 Roon 数据库或音乐库。
-- 未创建 PR、未合并、未开始 TASK-004。
+- 未播放出可确认的音频；未声称真实 Zone 或 Signal Path 已通过。
+- 未开始 TASK-004、TASK-005 或 TASK-010；未创建 PR、未合并、未发布。
 
-## Core Mac Provider 配置通道修复
+## 当前决定
 
-本轮只在 TASK-003 内增加 POC 运行时凭据通道，未改变正式 safeStorage 架构，也未修改 Provider 代码、端口、loopback-only 规则或解灰/代理/随机 IP 安全规则。
+**TASK-003：BLOCKED**
 
-### Owner 临时交互规则变更
+**TASK-004：不可开始。**
 
-Owner 已明确授权将本地 Provider 凭据提示从隐藏输入改为明文输入，以排查终端粘贴无回显造成的误判。当前提示要求在开发 Mac 本地终端使用 `⌘V` 粘贴后按 Return；Shell 读取仍不接受命令参数，因此不会进入 Shell 历史、Git、报告或 Agent 日志。
-
-普通 Bash 只能接收终端字符流，无法可靠证明字符来自键盘还是 `⌘V`，因此“仅允许 `⌘V`”是交互约定而非程序可强制验证的来源。明文模式可能被终端录屏、终端审计或共享屏幕捕获，Owner 应仅在受控本地终端使用，并在测试后刷新凭据。
-
-后续复查确认普通 `read -r` 仍受 macOS TTY canonical 单行缓冲限制：当前开发终端的 `MAX_CANON` 为 1024，而配置通道允许最多 8192 字节。长文本填满行缓冲后，Return 无法提交；同时普通 `read` 不提供方向键编辑。脚本现改为 `read -r -e`，由 Bash Readline 接管动态输入缓冲和光标编辑。6000 字节脱敏输入提交及方向键插入回归均已通过。
-
-新增或修改：
-
-- `scripts/deploy/configure-provider.sh`
-- `scripts/deploy/clear-provider.sh`
-- `scripts/deploy/start-agent.sh`
-- `scripts/deploy/status-agent.sh`
-
-安全行为：
-
-1. `configure-provider.sh` 只在交互式终端通过明文 `read -r -e` 读取授权值，不接受命令参数；通过严格 SSH 的 stdin 传输，不写入 Shell 历史、Git、报告或 Agent 日志。明文回显属于 Owner 临时授权的交互例外。
-2. Core Mac 端只写入 `data/netease.cookie`；临时普通文件经非空、最大长度、控制字符、普通文件、非符号链接和 `600` 权限校验后原子 rename。测试证明临时文件不会残留。
-3. `start-agent.sh` 首先清除继承的 `NETEASE_COOKIE`。只有在凭据文件满足严格校验时才安静读取，并通过子进程环境传递给 Agent，不放入 argv、不写入 Agent 日志。
-4. `start-agent.sh` 在 Provider 已配置时检查 XEAPI 公钥；缺失时静默使用现有设备标识注册，以 `600` 权限临时文件原子写入运行时临时目录。不得执行匿名注册、随机 IP、代理或解灰，且不输出公钥或设备标识。
-5. `status-agent.sh` 默认只输出 `PROVIDER_CREDENTIAL_STATUS=configured|missing|invalid`，不输出内容、长度、摘要或哈希；显式 `--runtime` 模式额外验证 `XEAPI_PUBLIC_KEY_STATUS=ready`，Provider 已配置但公钥不就绪时必须 FAIL。
-6. `clear-provider.sh` 先调用安全停止流程，再删除目标文件并确认路径不存在；不会自动启动 Agent 或播放。
-7. 日志扫描覆盖 `NETEASE_COOKIE`、`Cookie`、`MUSIC_U`、`__csrf`、`Authorization`、`Bearer`、`token`、完整 HTTP(S) URL、Query 及查询参数模式；命中只返回失败状态，不打印匹配内容。
-
-本轮脚本验证：
-
-| 检查 | 结果 |
-|---|---:|
-| 四个新增/修改脚本 `bash -n` | 退出码 0 |
-| `stop-agent.sh` `bash -n` 回归检查 | 退出码 0 |
-| 伪 SSH、临时 HOME、明文测试输入 `111` | 配置、文件属性、状态和清理验证通过；终端回显并在 Return 后完成 |
-| 伪终端 6000 字节脱敏长输入 | `read -r` 可复现 Return 卡住；`read -r -e` 可完整提交 |
-| Readline 方向键编辑 | 输入 `abc`、左移并插入后得到预期 `abXc` |
-| `status-agent.sh` 默认输出 | 仅 Provider 状态行 |
-| `status-agent.sh --runtime` 兼容模式 | release/health 汇总与 XEAPI 公钥状态均通过 |
-| 真实 Core Mac 配置 | 当前状态检查为 `PROVIDER_CREDENTIAL_STATUS=configured`；未读取或输出文件内容 |
-| TASK-003 运行实现 release | `289dbdf329ddeed442081c6923c63540dbfde657`；bundle SHA-256 `cca508bbf816ac57782fad671fb5ba29a8b3220f969a9e87edf6a25b165e377a`；临时产物清理 PASS |
-| 最终远程 runtime 状态 | expected/current/running release 一致；Agent 进程存在；Node.js `v22.23.2`；XEAPI 公钥 ready；38501/38502 仅 loopback；health 通过；`activeStreamCount=0`；无 active playback；日志秘密扫描 PASS |
-| `191248` 真实 `exhigh` / `standard` 请求 | 均返回 `UNSAFE_UPSTREAM`；无 token、无 active playback、无 Roon Session |
-| `191174` 真实 `exhigh` / `standard` 请求 | 均返回 `TRACK_PREVIEW_ONLY`；无 token、无 active playback、无 Roon Session |
-| `1347524822` 真实 `exhigh` / `standard` 请求 | 均返回 `UNSAFE_UPSTREAM`；无 token、无 active playback、无 Roon Session |
-| 非 HTTPS 只读根因核对 | 依赖 `4.40.1` 无媒体 URL HTTPS 请求开关或响应归一化；Bridge 按既定策略拒绝 |
-
-## 当前 Gate 与后续动作
-
-Provider 配置、当前 release 部署、XEAPI bootstrap 和 runtime Gate 均已完成。TASK-003 仍为 **BLOCKED**：第一、第三首测试歌曲在两个等级下触发非 HTTPS 安全拒绝，第二首在两个等级下只获得试听片段。下一步需要 Owner/架构师对“如何在不放宽 HTTPS-only 边界的前提下获得稳定 HTTPS 完整流”作出裁决；不得把授权值、账号信息或完整歌曲地址发送到聊天、报告、Git 或命令参数中。
-
-在新的测试歌曲完成真实 Zone 出声、Roon 元数据、完整播放或精确终止、stop/token 清理及日志扫描前，TASK-004 不得开始。
+后续只有在 Owner 处理 Roon `SessionBegan` 超时并完成实际 Zone 音频、元数据/Signal Path、完整播放或精确终止、stop 清理及日志扫描后，才可重新评估 TASK-003。
