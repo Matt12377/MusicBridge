@@ -72,6 +72,8 @@ Owner 已明确授权将本地 Provider 凭据提示从隐藏输入改为明文�
 
 普通 Bash 只能接收终端字符流，无法可靠证明字符来自键盘还是 `⌘V`，因此“仅允许 `⌘V`”是交互约定而非程序可强制验证的来源。明文模式可能被终端录屏、终端审计或共享屏幕捕获，Owner 应仅在受控本地终端使用，并在测试后刷新凭据。
 
+后续复查确认普通 `read -r` 仍受 macOS TTY canonical 单行缓冲限制：当前开发终端的 `MAX_CANON` 为 1024，而配置通道允许最多 8192 字节。长文本填满行缓冲后，Return 无法提交；同时普通 `read` 不提供方向键编辑。脚本现改为 `read -r -e`，由 Bash Readline 接管动态输入缓冲和光标编辑。6000 字节脱敏输入提交及方向键插入回归均已通过。
+
 新增或修改：
 
 - `scripts/deploy/configure-provider.sh`
@@ -95,6 +97,8 @@ Owner 已明确授权将本地 Provider 凭据提示从隐藏输入改为明文�
 | 四个新增/修改脚本 `bash -n` | 退出码 0 |
 | `stop-agent.sh` `bash -n` 回归检查 | 退出码 0 |
 | 伪 SSH、临时 HOME、明文测试输入 `111` | 配置、文件属性、状态和清理验证通过；终端回显并在 Return 后完成 |
+| 伪终端 6000 字节脱敏长输入 | `read -r` 可复现 Return 卡住；`read -r -e` 可完整提交 |
+| Readline 方向键编辑 | 输入 `abc`、左移并插入后得到预期 `abXc` |
 | `status-agent.sh` 默认输出 | 仅 Provider 状态行 |
 | `status-agent.sh --runtime` 兼容模式 | release/health 汇总仍可执行 |
 | 真实 Core Mac 配置 | 当前状态检查为 `PROVIDER_CREDENTIAL_STATUS=configured`；未读取或输出文件内容 |
