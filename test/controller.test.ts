@@ -34,6 +34,7 @@ class FakeNetease implements NeteasePort {
       trackId,
       upstreamUrl: 'https://cdn.example/audio.flac',
       requestedQuality: quality,
+      transportSecurity: 'https-upgraded',
       actualQuality: 'lossless',
       format: 'flac',
       expiresInSeconds: 600,
@@ -54,6 +55,8 @@ class FakeRoon implements RoonPort {
     selectedZoneName: 'Living Room',
   };
 
+  constructor(private readonly events: string[] = []) {}
+
   setTerminalHandler(handler: (reason: 'ended' | 'stopped' | 'media_error' | 'zone_lost') => void): void {
     this.terminalHandler = handler;
   }
@@ -65,6 +68,7 @@ class FakeRoon implements RoonPort {
   async start(): Promise<void> {}
 
   async play(request: RoonPlayRequest): Promise<void> {
+    this.events.push('roon.play');
     this.playRequest = request;
     if (this.shouldFail) throw new Error('Roon failed');
     this.state = { ...this.state, status: 'playing' };
@@ -84,17 +88,22 @@ class FakeRoon implements RoonPort {
   }
 }
 
-function makeHarness() {
+function makeHarness(preflightStatus = 206) {
   const registry = new StreamRegistry();
+  const events: string[] = [];
   const gateway = new StreamGateway({
     host: '127.0.0.1',
     port: 0,
     publicBaseUrl: 'http://127.0.0.1:38502',
     registry,
     logger: createLogger('error'),
+    fetcher: async (_url, _init) => {
+      events.push('gateway.preflight');
+      return new Response(null, { status: preflightStatus });
+    },
   });
   const netease = new FakeNetease();
-  const roon = new FakeRoon();
+  const roon = new FakeRoon(events);
   const controller = new BridgeController({
     netease,
     roon,
@@ -103,11 +112,11 @@ function makeHarness() {
     logger: createLogger('error'),
     now: () => 1_700_000_000_000,
   });
-  return { registry, gateway, netease, roon, controller };
+  return { registry, gateway, netease, roon, controller, events };
 }
 
 test('controller registers a local stream, starts Roon and reports actual quality', async () => {
-  const { controller, registry, roon } = makeHarness();
+  const { controller, registry, roon, events } = makeHarness();
   const state = await controller.play({ trackId: '123', quality: 'lossless' });
 
   assert.equal(registry.size, 1);
@@ -115,10 +124,28 @@ test('controller registers a local stream, starts Roon and reports actual qualit
   assert.equal(roon.playRequest?.metadata.title, 'Test Song');
   assert.equal(state.activePlayback?.requestedQuality, 'lossless');
   assert.equal(state.activePlayback?.actualQuality, 'lossless');
+  assert.equal(state.activePlayback?.transportSecurity, 'https-upgraded');
+  assert.deepEqual(events, ['gateway.preflight', 'roon.play']);
 
   await controller.stop();
   assert.equal(registry.size, 0);
   assert.equal(controller.getState().activePlayback, undefined);
+});
+
+test('controller rejects preflight failure before registering a token or starting Roon', async () => {
+  const { controller, registry, roon, events } = makeHarness(503);
+
+  await assert.rejects(
+    () => controller.play({ trackId: '123', quality: 'standard' }),
+    (error: unknown) =>
+      error instanceof Error && error.message.includes('UPSTREAM_HTTPS_UNAVAILABLE'),
+  );
+
+  assert.deepEqual(events, ['gateway.preflight']);
+  assert.equal(roon.playRequest, undefined);
+  assert.equal(registry.size, 0);
+  assert.equal(controller.getState().activePlayback, undefined);
+  assert.equal(controller.getState().activeStreamCount, 0);
 });
 
 test('controller stop is idempotent after playback has already been cleared', async () => {

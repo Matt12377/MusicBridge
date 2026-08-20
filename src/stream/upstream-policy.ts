@@ -86,6 +86,9 @@ export const secureGatewayFetch: GatewayFetch = async (
     }
 
     const location = response.headers.get('location');
+    if (response.body !== null) {
+      await response.body.cancel().catch(() => undefined);
+    }
     if (!location) {
       throw new BridgeError(
         'STREAM_UPSTREAM_FAILED',

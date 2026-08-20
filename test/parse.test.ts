@@ -63,6 +63,34 @@ test('parses actual stream quality instead of assuming requested quality', () =>
   assert.equal(result.actualQuality, 'exhigh');
   assert.equal(result.format, 'mp3');
   assert.equal(result.bitrate, 320000);
+  assert.equal(result.transportSecurity, 'https-native');
+});
+
+test('parses a full NetEase HTTP stream as an HTTPS-upgraded stream', () => {
+  const result = parseResolvedAudioStream(
+    {
+      body: {
+        code: 200,
+        data: [
+          {
+            id: 123,
+            code: 200,
+            url: 'http://m2.music.126.net/audio.flac?fixture=1',
+            level: 'exhigh',
+            freeTrialInfo: null,
+          },
+        ],
+      },
+    },
+    '123',
+    'exhigh',
+  );
+
+  assert.equal(
+    result.upstreamUrl,
+    'https://m2.music.126.net/audio.flac?fixture=1',
+  );
+  assert.equal(result.transportSecurity, 'https-upgraded');
 });
 
 test('rejects preview/trial streams', () => {
@@ -77,6 +105,31 @@ test('rejects preview/trial streams', () => {
                 id: 123,
                 code: 200,
                 url: 'https://cdn.example/preview.mp3',
+                freeTrialInfo: { start: 0, end: 30 },
+              },
+            ],
+          },
+        },
+        '123',
+        'standard',
+      ),
+    (error: unknown) =>
+      error instanceof BridgeError && error.code === 'TRACK_PREVIEW_ONLY',
+  );
+});
+
+test('rejects preview streams before attempting HTTP URL upgrade', () => {
+  assert.throws(
+    () =>
+      parseResolvedAudioStream(
+        {
+          body: {
+            code: 200,
+            data: [
+              {
+                id: 123,
+                code: 200,
+                url: 'http://m1.music.126.net/preview.mp3',
                 freeTrialInfo: { start: 0, end: 30 },
               },
             ],

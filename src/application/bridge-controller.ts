@@ -9,6 +9,7 @@ import type {
   QualityLevel,
   ResolvedAudioStream,
   TrackMetadata,
+  TransportSecurity,
 } from '../netease/types.js';
 import type { RoonPort, RoonState } from '../roon/types.js';
 import type { StreamGateway } from '../stream/gateway.js';
@@ -18,6 +19,7 @@ export interface ActivePlayback {
   track: TrackMetadata;
   requestedQuality: QualityLevel;
   actualQuality: string;
+  transportSecurity?: TransportSecurity;
   format?: string;
   bitrate?: number;
   sizeBytes?: number;
@@ -70,10 +72,12 @@ export class BridgeController {
 
     await this.stop();
 
-    const [metadata, initialStream] = await Promise.all([
-      this.dependencies.netease.getTrack(trackId),
-      this.dependencies.netease.resolveStream(trackId, quality),
-    ]);
+    const metadata = await this.dependencies.netease.getTrack(trackId);
+    const initialStream = await this.dependencies.netease.resolveStream(
+      trackId,
+      quality,
+    );
+    await this.dependencies.gateway.preflight(initialStream);
 
     const resolver = this.createRefreshingResolver(
       trackId,
@@ -92,6 +96,9 @@ export class BridgeController {
       track: metadata,
       requestedQuality: quality,
       actualQuality: initialStream.actualQuality,
+      ...(initialStream.transportSecurity
+        ? { transportSecurity: initialStream.transportSecurity }
+        : {}),
       startedAt: new Date(this.now()).toISOString(),
       ...(initialStream.format ? { format: initialStream.format } : {}),
       ...(initialStream.bitrate !== undefined
@@ -121,6 +128,12 @@ export class BridgeController {
         title: metadata.title,
         requestedQuality: quality,
         actualQuality: initialStream.actualQuality,
+        ...(initialStream.transportSecurity
+          ? { transportSecurity: initialStream.transportSecurity }
+          : {}),
+        ...(initialStream.transportSecurity === 'https-upgraded'
+          ? { providerHostClass: 'netease-cdn' }
+          : {}),
         format: initialStream.format,
         bitrate: initialStream.bitrate,
       });

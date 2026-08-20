@@ -7,6 +7,8 @@ export const QUALITY_LEVELS = [
 
 export type QualityLevel = (typeof QUALITY_LEVELS)[number];
 
+export type TransportSecurity = 'https-native' | 'https-upgraded';
+
 export interface TrackMetadata {
   id: string;
   title: string;
@@ -20,6 +22,7 @@ export interface ResolvedAudioStream {
   trackId: string;
   upstreamUrl: string;
   requestedQuality: QualityLevel;
+  transportSecurity?: TransportSecurity;
   actualQuality: string;
   format?: string;
   bitrate?: number;

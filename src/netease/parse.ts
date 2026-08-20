@@ -1,5 +1,5 @@
 import { BridgeError } from '../shared/errors.js';
-import { assertSafeAudioUrl } from './policy.js';
+import { resolveNeteaseAudioUrl } from './policy.js';
 import type {
   QualityLevel,
   ResolvedAudioStream,
@@ -136,7 +136,7 @@ export function parseResolvedAudioStream(
     );
   }
 
-  const upstreamUrl = assertSafeAudioUrl(row.url);
+  const resolvedUrl = resolveNeteaseAudioUrl(row.url);
   const actualQuality = stringValue(row.level) ?? 'unknown';
   const format = stringValue(row.type ?? row.encodeType);
   const bitrate = numeric(row.br);
@@ -145,8 +145,9 @@ export function parseResolvedAudioStream(
 
   return {
     trackId,
-    upstreamUrl,
+    upstreamUrl: resolvedUrl.upstreamUrl,
     requestedQuality,
+    transportSecurity: resolvedUrl.transportSecurity,
     actualQuality,
     ...(format !== undefined ? { format } : {}),
     ...(bitrate !== undefined ? { bitrate } : {}),

@@ -2,6 +2,8 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { asBridgeError, BridgeError } from '../shared/errors.js';
+import { assertSafeAudioUrl } from '../netease/policy.js';
+import type { ResolvedAudioStream } from '../netease/types.js';
 import type { Logger } from '../shared/logger.js';
 import type { StreamRegistry } from './registry.js';
 import { secureGatewayFetch, type GatewayFetch } from './upstream-policy.js';
@@ -20,6 +22,25 @@ const ICON_SVG = `<?xml version="1.0" encoding="UTF-8"?>
   <rect width="512" height="512" rx="112" fill="#111"/>
   <path d="M122 322c74-16 100-62 100-138v-54l172-38v184c0 74-44 123-111 137-45 9-80-10-86-42-7-34 22-67 67-76 25-5 49-2 68 8V166l-55 12v48c0 75-44 123-111 137-45 9-80-10-86-42-7-34 22-67 67-76 27-6 52-2 75 10v-38c-10 57-44 92-100 105z" fill="#fff"/>
 </svg>`;
+
+const DEFAULT_PREFLIGHT_TIMEOUT_MS = 10_000;
+
+function preflightFailure(cause?: unknown, status?: number): BridgeError {
+  return new BridgeError(
+    'STREAM_UPSTREAM_FAILED',
+    status === undefined
+      ? 'UPSTREAM_HTTPS_UNAVAILABLE: HTTPS upstream preflight failed'
+      : `UPSTREAM_HTTPS_UNAVAILABLE: HTTPS preflight returned HTTP ${status}`,
+    {
+      httpStatus: 502,
+      ...(cause !== undefined ? { cause } : {}),
+      details: {
+        reason: 'UPSTREAM_HTTPS_UNAVAILABLE',
+        ...(status !== undefined ? { status } : {}),
+      },
+    },
+  );
+}
 
 function sendJson(
   response: ServerResponse,
@@ -47,6 +68,7 @@ export class StreamGateway {
       registry: StreamRegistry;
       logger: Logger;
       fetcher?: GatewayFetch;
+      preflightTimeoutMs?: number;
     },
   ) {}
 
@@ -88,6 +110,53 @@ export class StreamGateway {
     }
     const host = address.address.includes(':') ? `[${address.address}]` : address.address;
     return `http://${host}:${address.port}`;
+  }
+
+  async preflight(resolved: ResolvedAudioStream): Promise<void> {
+    let upstreamUrl: string;
+    try {
+      upstreamUrl = assertSafeAudioUrl(resolved.upstreamUrl);
+    } catch (error) {
+      throw preflightFailure(error);
+    }
+
+    const headers = new Headers(resolved.requestHeaders ?? {});
+    headers.set('Accept-Encoding', 'identity');
+    headers.set('Range', 'bytes=0-0');
+
+    const abortController = new AbortController();
+    const timeout = setTimeout(
+      () => abortController.abort(),
+      this.options.preflightTimeoutMs ?? DEFAULT_PREFLIGHT_TIMEOUT_MS,
+    );
+
+    try {
+      const fetcher = this.options.fetcher ?? secureGatewayFetch;
+      const upstream = await fetcher(upstreamUrl, {
+        method: 'GET',
+        headers,
+        redirect: 'manual',
+        signal: abortController.signal,
+      });
+
+      try {
+        if (upstream.status !== 200 && upstream.status !== 206) {
+          throw preflightFailure(undefined, upstream.status);
+        }
+      } finally {
+        if (upstream.body !== null) await upstream.body.cancel();
+      }
+    } catch (error) {
+      if (
+        error instanceof BridgeError &&
+        error.message.startsWith('UPSTREAM_HTTPS_UNAVAILABLE:')
+      ) {
+        throw error;
+      }
+      throw preflightFailure(error);
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   private async handle(

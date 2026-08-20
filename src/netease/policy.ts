@@ -1,6 +1,10 @@
 import { isIP } from 'node:net';
 import { BridgeError } from '../shared/errors.js';
-import { QUALITY_LEVELS, type QualityLevel } from './types.js';
+import {
+  QUALITY_LEVELS,
+  type QualityLevel,
+  type TransportSecurity,
+} from './types.js';
 
 const FORBIDDEN_TRUE_ENV_VARS = [
   'ENABLE_GENERAL_UNBLOCK',
@@ -103,6 +107,85 @@ export function assertSafeAudioUrl(value: unknown): string {
   }
 
   return parsed.toString();
+}
+
+export function resolveNeteaseAudioUrl(value: unknown): {
+  upstreamUrl: string;
+  transportSecurity: TransportSecurity;
+} {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new BridgeError('TRACK_UNAVAILABLE', 'NetEase returned no playable URL', {
+      httpStatus: 409,
+    });
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch (error) {
+    throw new BridgeError('UNSAFE_UPSTREAM', 'NetEase returned an invalid URL', {
+      cause: error,
+      httpStatus: 502,
+    });
+  }
+
+  if (parsed.protocol === 'https:') {
+    return {
+      upstreamUrl: assertSafeAudioUrl(parsed.toString()),
+      transportSecurity: 'https-native',
+    };
+  }
+
+  if (parsed.protocol !== 'http:') {
+    throw new BridgeError(
+      'UNSAFE_UPSTREAM',
+      'Only HTTPS audio upstreams or approved NetEase HTTP candidates are permitted',
+      { httpStatus: 502 },
+    );
+  }
+
+  const trimmedValue = value.trim();
+  const authority = /^https?:\/\/([^/?#]*)/i.exec(trimmedValue)?.[1] ?? '';
+  if (
+    parsed.username ||
+    parsed.password ||
+    authority.includes('@') ||
+    parsed.hash ||
+    trimmedValue.includes('#')
+  ) {
+    throw new BridgeError(
+      'UNSAFE_UPSTREAM',
+      'NetEase HTTP upgrade candidates cannot contain userinfo or fragments',
+      { httpStatus: 502 },
+    );
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+  const ipLiteral = isIP(hostname.replace(/^\[|\]$/g, '')) !== 0;
+  const isNeteaseCdn =
+    hostname === 'music.126.net' || hostname.endsWith('.music.126.net');
+  if (ipLiteral || !isNeteaseCdn) {
+    throw new BridgeError(
+      'UNSAFE_UPSTREAM',
+      'Only NetEase CDN HTTP candidates may be upgraded to HTTPS',
+      { httpStatus: 502 },
+    );
+  }
+
+  if (parsed.port !== '' && parsed.port !== '80') {
+    throw new BridgeError(
+      'UNSAFE_UPSTREAM',
+      'NetEase HTTP upgrade candidates must use the default port',
+      { httpStatus: 502 },
+    );
+  }
+
+  if (parsed.port === '80') parsed.port = '';
+  parsed.protocol = 'https:';
+  return {
+    upstreamUrl: assertSafeAudioUrl(parsed.toString()),
+    transportSecurity: 'https-upgraded',
+  };
 }
 
 function isObviouslyPrivateIp(hostname: string): boolean {
