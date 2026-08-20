@@ -7,6 +7,26 @@ import {
   secureGatewayFetch,
   type GatewayFetch,
 } from '../src/stream/upstream-policy.js';
+import type { Logger } from '../src/shared/logger.js';
+
+function recordingLogger(): {
+  logger: Logger;
+  events: Array<{ event: string; fields: Record<string, unknown> }>;
+} {
+  const events: Array<{ event: string; fields: Record<string, unknown> }> = [];
+  const record = (event: string, fields?: Record<string, unknown>): void => {
+    events.push({ event, fields: fields ?? {} });
+  };
+  return {
+    events,
+    logger: {
+      debug: record,
+      info: record,
+      warn: record,
+      error: record,
+    },
+  };
+}
 
 test('gateway forwards Range and preserves media response headers without buffering API', async (t) => {
   const registry = new StreamRegistry();
@@ -122,6 +142,70 @@ test('gateway supports HEAD without a response body', async (t) => {
   assert.equal(response.status, 200);
   assert.equal(await response.text(), '');
   assert.equal(response.headers.get('content-length'), '5000');
+});
+
+test('gateway records icon and stream GET/HEAD routes without token or track identifiers', async (t) => {
+  const registry = new StreamRegistry();
+  const { logger, events } = recordingLogger();
+  const gateway = new StreamGateway({
+    host: '127.0.0.1',
+    port: 0,
+    publicBaseUrl: 'http://127.0.0.1:0',
+    registry,
+    logger,
+    fetcher: async (_url, init) =>
+      new Response(init.method === 'HEAD' ? null : Uint8Array.from([1]), {
+        status: 206,
+        headers: {
+          'Content-Type': 'audio/mpeg',
+          'Content-Length': '1',
+          'Content-Range': 'bytes 0-0/1',
+        },
+      }),
+  });
+  await gateway.start();
+  t.after(async () => gateway.stop());
+
+  const registration = registry.register({
+    metadata: {
+      id: 'track-id-must-not-be-logged',
+      title: 'Track',
+      artists: ['Artist'],
+      album: 'Album',
+    },
+    requestedQuality: 'standard',
+    resolve: async () => resolvedStream(),
+  });
+  const baseUrl = gateway.localBaseUrl();
+
+  assert.equal((await fetch(`${baseUrl}/assets/icon.svg`)).status, 200);
+  assert.equal((await fetch(`${baseUrl}/assets/icon.svg`, { method: 'HEAD' })).status, 200);
+  assert.equal(
+    (await fetch(`${baseUrl}/stream/${registration.token}`)).status,
+    206,
+  );
+  assert.equal(
+    (await fetch(`${baseUrl}/stream/${registration.token}`, { method: 'HEAD' })).status,
+    206,
+  );
+
+  assert.deepEqual(
+    events.filter(({ event }) => event === 'roon_gateway_icon_request').map(({ fields }) => fields),
+    [
+      { method: 'GET', routeClass: 'icon' },
+      { method: 'HEAD', routeClass: 'icon' },
+    ],
+  );
+  assert.deepEqual(
+    events.filter(({ event }) => event === 'roon_gateway_stream_request').map(({ fields }) => fields),
+    [
+      { method: 'GET', routeClass: 'stream', proxyStream: true },
+      { method: 'HEAD', routeClass: 'stream', proxyStream: true },
+    ],
+  );
+  const serializedEvents = JSON.stringify(events);
+  assert.equal(serializedEvents.includes(registration.token), false);
+  assert.equal(serializedEvents.includes('track-id-must-not-be-logged'), false);
 });
 
 function resolvedStream(url = 'https://203.0.113.10/audio.mp3') {

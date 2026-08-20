@@ -27,12 +27,24 @@ const silentLogger: Logger = {
 
 class FakeAudioInput implements RoonAudioInputService {
   beginSessionCalls = 0;
+  beginSessionOptions: unknown[] = [];
+  beginSessionCallback:
+    | ((message: unknown, body: unknown) => void)
+    | undefined;
+  playCalls = 0;
+  playOptions: unknown[] = [];
+  playCallback:
+    | ((message: unknown, body: unknown) => void)
+    | undefined;
+  autoPlay = true;
 
   begin_session(
-    _options: unknown,
-    _callback: (message: unknown, body: unknown) => void,
+    options: unknown,
+    callback: (message: unknown, body: unknown) => void,
   ): RoonAudioInputSession {
     this.beginSessionCalls += 1;
+    this.beginSessionOptions.push(options);
+    this.beginSessionCallback = callback;
     return {
       end_session: (callback) => callback('SessionEnded', {}),
     };
@@ -46,10 +58,21 @@ class FakeAudioInput implements RoonAudioInputService {
   }
 
   play(
-    _options: unknown,
+    options: unknown,
     callback: (message: unknown, body: unknown) => void,
   ): void {
-    callback('Playing', {});
+    this.playCalls += 1;
+    this.playOptions.push(options);
+    this.playCallback = callback;
+    if (this.autoPlay) callback('Playing', {});
+  }
+
+  emitSession(message: unknown, body: unknown = {}): void {
+    this.beginSessionCallback?.(message, body);
+  }
+
+  emitPlay(message: unknown, body: unknown = {}): void {
+    this.playCallback?.(message, body);
   }
 }
 
@@ -178,10 +201,37 @@ class FakeSdk implements RoonSdk {
   }
 }
 
-function makeHarness(): { adapter: RoonAudioInputAdapter; sdk: FakeSdk } {
+interface AdapterTestOptions {
+  sessionBeginTimeoutMs?: number;
+  playingTimeoutMs?: number;
+}
+
+function recordingLogger(): {
+  logger: Logger;
+  events: Array<{ event: string; fields: Record<string, unknown> }>;
+} {
+  const events: Array<{ event: string; fields: Record<string, unknown> }> = [];
+  const record = (event: string, fields?: Record<string, unknown>): void => {
+    events.push({ event, fields: fields ?? {} });
+  };
+  return {
+    events,
+    logger: {
+      debug: record,
+      info: record,
+      warn: record,
+      error: record,
+    },
+  };
+}
+
+function makeHarness(
+  options: AdapterTestOptions = {},
+  logger: Logger = silentLogger,
+): { adapter: RoonAudioInputAdapter; sdk: FakeSdk } {
   const sdk = new FakeSdk();
   return {
-    adapter: new RoonAudioInputAdapter(silentLogger, sdk),
+    adapter: new RoonAudioInputAdapter(logger, sdk, options),
     sdk,
   };
 }
@@ -197,12 +247,15 @@ const playRequest = {
   },
 };
 
-async function makeReadyHarness(): Promise<{
+async function makeReadyHarness(
+  options: AdapterTestOptions = {},
+  logger: Logger = silentLogger,
+): Promise<{
   adapter: RoonAudioInputAdapter;
   sdk: FakeSdk;
   api: FakeApi;
 }> {
-  const harness = makeHarness();
+  const harness = makeHarness(options, logger);
   await harness.adapter.start();
   harness.sdk.settings[0]?.saveOutput('output-1');
   const api = harness.sdk.apis[0];
@@ -368,6 +421,171 @@ test('paired play without a selected Zone fails with ROON_ZONE_NOT_SELECTED', as
     (error: unknown) =>
       error instanceof BridgeError && error.code === 'ROON_ZONE_NOT_SELECTED',
   );
+});
+
+test('play reports awaiting_session when SessionBegan is not received', async () => {
+  const { adapter } = await makeReadyHarness({ sessionBeginTimeoutMs: 1 });
+
+  await assert.rejects(
+    () => adapter.play(playRequest),
+    (error: unknown) =>
+      error instanceof BridgeError &&
+      error.code === 'ROON_TIMEOUT' &&
+      error.message === 'ROON_SESSION_BEGIN_TIMEOUT' &&
+      error.details?.phase === 'awaiting_session',
+  );
+});
+
+test('valid SessionBegan is required before audioInput.play and begin_session omits icon_url', async () => {
+  const { logger, events } = recordingLogger();
+  const { adapter, api } = await makeReadyHarness({}, logger);
+  const playback = adapter.play(playRequest);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  const audioInput = api.core.audioInput;
+  const beginOptions = audioInput.beginSessionOptions[0] as Record<string, unknown>;
+  assert.deepEqual(beginOptions, {
+    zone_id: 'zone-1',
+    display_name: 'Music Bridge for Roon',
+  });
+  assert.equal('icon_url' in beginOptions, false);
+  assert.equal(audioInput.playCalls, 0);
+
+  audioInput.emitSession('SessionBegan', { session_id: 'opaque-session' });
+  await playback;
+
+  assert.equal(audioInput.playCalls, 1);
+  assert.equal(
+    (audioInput.playOptions[0] as Record<string, unknown>).session_id,
+    'opaque-session',
+  );
+  assert.deepEqual(
+    events.filter(({ event }) => event === 'roon_play_event')[0]?.fields,
+    { phase: 'awaiting_playing', event: 'Playing' },
+  );
+  assert.equal(JSON.stringify(events).includes('opaque-session'), false);
+});
+
+test('play reports awaiting_playing after SessionBegan but before Playing', async () => {
+  const { adapter, api } = await makeReadyHarness({ playingTimeoutMs: 1 });
+  api.core.audioInput.autoPlay = false;
+  const playback = adapter.play(playRequest);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'opaque-session' });
+
+  await assert.rejects(
+    () => playback,
+    (error: unknown) =>
+      error instanceof BridgeError &&
+      error.code === 'ROON_TIMEOUT' &&
+      error.message === 'ROON_PLAYING_TIMEOUT' &&
+      error.details?.phase === 'awaiting_playing',
+  );
+  assert.equal(api.core.audioInput.playCalls, 1);
+});
+
+test('SessionBegan without a valid session_id fails before audioInput.play', async () => {
+  const { adapter, api } = await makeReadyHarness({ playingTimeoutMs: 20 });
+  const playback = adapter.play(playRequest);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  api.core.audioInput.emitSession('SessionBegan', { session_id: '' });
+
+  await assert.rejects(
+    () => playback,
+    (error: unknown) =>
+      error instanceof BridgeError &&
+      error.code === 'ROON_MEDIA_ERROR' &&
+      error.details?.reason === 'missing_session_id',
+  );
+  assert.equal(api.core.audioInput.playCalls, 0);
+});
+
+test('unknown Session event fails immediately and logs only its event name', async () => {
+  const { logger, events } = recordingLogger();
+  const { adapter, api } = await makeReadyHarness({}, logger);
+  const playback = adapter.play(playRequest);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  api.core.audioInput.emitSession('UnexpectedSessionEvent', {
+    session_id: 'opaque-session',
+    body: 'must-not-log',
+  });
+
+  await assert.rejects(
+    () => playback,
+    (error: unknown) =>
+      error instanceof BridgeError &&
+      error.code === 'ROON_MEDIA_ERROR' &&
+      error.details?.reason === 'unexpected_session_event' &&
+      error.details?.event === 'UnexpectedSessionEvent',
+  );
+  assert.equal(JSON.stringify(events).includes('opaque-session'), false);
+  assert.equal(JSON.stringify(events).includes('must-not-log'), false);
+  assert.equal(api.core.audioInput.playCalls, 0);
+});
+
+test('play events log the event name without callback body content', async () => {
+  const { logger, events } = recordingLogger();
+  const { adapter, api } = await makeReadyHarness({ playingTimeoutMs: 20 }, logger);
+  api.core.audioInput.autoPlay = false;
+  const playback = adapter.play(playRequest);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'opaque-session' });
+  api.core.audioInput.emitPlay('UnexpectedPlayEvent', { token: 'must-not-log' });
+
+  await assert.rejects(() => playback);
+  const playEvent = events.find(({ event }) => event === 'roon_play_event');
+  assert.deepEqual(playEvent?.fields, {
+    phase: 'awaiting_playing',
+    event: 'UnexpectedPlayEvent',
+  });
+  assert.equal(JSON.stringify(events).includes('must-not-log'), false);
+});
+
+for (const event of ['ZoneNotFound', 'ZoneLost']) {
+  test(`Session ${event} remains mapped to ROON_ZONE_NOT_SELECTED`, async () => {
+    const { adapter, api } = await makeReadyHarness();
+    const playback = adapter.play(playRequest);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    api.core.audioInput.emitSession(event);
+
+    await assert.rejects(
+      () => playback,
+      (error: unknown) =>
+        error instanceof BridgeError && error.code === 'ROON_ZONE_NOT_SELECTED',
+    );
+    assert.equal(adapter.getState().status, 'paired');
+  });
+}
+
+test('MooError produces a connection diagnostic without exposing callback data', async () => {
+  const { logger, events } = recordingLogger();
+  const { adapter, api } = await makeReadyHarness({}, logger);
+  const playback = adapter.play(playRequest);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  api.core.audioInput.emitSession('MooError', {
+    session_id: 'opaque-session',
+    details: 'must-not-log',
+  });
+
+  await assert.rejects(
+    () => playback,
+    (error: unknown) =>
+      error instanceof BridgeError &&
+      error.details?.reason === 'connection_error' &&
+      error.details?.phase === 'awaiting_session',
+  );
+  assert.deepEqual(
+    events.find(({ event }) => event === 'roon_connection_error')?.fields,
+    {
+      phase: 'awaiting_session',
+      event: 'MooError',
+    },
+  );
+  assert.equal(JSON.stringify(events).includes('opaque-session'), false);
+  assert.equal(JSON.stringify(events).includes('must-not-log'), false);
 });
 
 test('play validation failures never begin an Audio Input session', async () => {

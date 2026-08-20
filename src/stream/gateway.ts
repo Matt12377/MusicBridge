@@ -177,7 +177,14 @@ export class StreamGateway {
         return;
       }
 
-      if (requestUrl.pathname === '/assets/icon.svg' && request.method === 'GET') {
+      if (
+        requestUrl.pathname === '/assets/icon.svg' &&
+        (request.method === 'GET' || request.method === 'HEAD')
+      ) {
+        this.options.logger.info('roon_gateway_icon_request', {
+          method: request.method,
+          routeClass: 'icon',
+        });
         const body = Buffer.from(ICON_SVG);
         response.writeHead(200, {
           'Content-Type': 'image/svg+xml; charset=utf-8',
@@ -185,7 +192,7 @@ export class StreamGateway {
           'Cache-Control': 'private, max-age=3600',
           'X-Content-Type-Options': 'nosniff',
         });
-        response.end(body);
+        response.end(request.method === 'HEAD' ? undefined : body);
         return;
       }
 
@@ -201,6 +208,11 @@ export class StreamGateway {
           httpStatus: 404,
         });
       }
+      this.options.logger.info('roon_gateway_stream_request', {
+        method: request.method,
+        routeClass: 'stream',
+        proxyStream: true,
+      });
       await this.proxyStream(token, request, response);
     } catch (error) {
       const bridgeError = asBridgeError(error);
@@ -266,7 +278,6 @@ export class StreamGateway {
       response.setHeader('X-Content-Type-Options', 'nosniff');
 
       this.options.logger.debug('stream_proxy_started', {
-        trackId: registration.metadata.id,
         method: request.method ?? 'GET',
         status: upstream.status,
         rangeForwarded: Boolean(range),

@@ -27,6 +27,16 @@ interface SettingsState {
   };
 }
 
+type RoonPlaybackPhase = 'awaiting_session' | 'awaiting_playing';
+
+export interface RoonAudioInputAdapterOptions {
+  sessionBeginTimeoutMs?: number;
+  playingTimeoutMs?: number;
+}
+
+const DEFAULT_SESSION_BEGIN_TIMEOUT_MS = 10_000;
+const DEFAULT_PLAYING_TIMEOUT_MS = 30_000;
+
 function messageName(message: unknown): string {
   if (typeof message === 'string') return message;
   if (message && typeof message === 'object' && 'name' in message) {
@@ -41,7 +51,39 @@ function readSessionId(value: unknown): string | undefined {
     return undefined;
   }
   const sessionId = (value as { session_id?: unknown }).session_id;
-  return typeof sessionId === 'string' ? sessionId : undefined;
+  return typeof sessionId === 'string' && sessionId.length > 0 ? sessionId : undefined;
+}
+
+function isConnectionErrorEvent(event: string): boolean {
+  return /^(?:MooError|ConnectionError|ConnectionClosed|ConnectionLost|Disconnected|NetworkError)$/i.test(
+    event,
+  );
+}
+
+function timeoutError(phase: RoonPlaybackPhase): BridgeError {
+  const timeoutCode =
+    phase === 'awaiting_session'
+      ? 'ROON_SESSION_BEGIN_TIMEOUT'
+      : 'ROON_PLAYING_TIMEOUT';
+  return new BridgeError('ROON_TIMEOUT', timeoutCode, {
+    httpStatus: 504,
+    details: { phase, timeoutCode },
+  });
+}
+
+function protocolError(
+  phase: RoonPlaybackPhase,
+  reason: string,
+  event?: string,
+): BridgeError {
+  return new BridgeError('ROON_MEDIA_ERROR', 'Roon Audio Input session protocol error', {
+    httpStatus: 502,
+    details: {
+      phase,
+      reason,
+      ...(event ? { event } : {}),
+    },
+  });
 }
 
 function readSettings(value: unknown): SettingsState {
@@ -91,11 +133,17 @@ export class RoonAudioInputAdapter implements RoonPort {
   private session: RoonAudioInputSession | undefined;
   private state: RoonState = { status: 'discovering' };
   private terminalHandler: (reason: RoonTerminalReason) => void = () => undefined;
+  private readonly sessionBeginTimeoutMs: number;
+  private readonly playingTimeoutMs: number;
 
   constructor(
     private readonly logger: Logger,
     private readonly sdk: RoonSdk = createProductionRoonSdk(),
-  ) {}
+    options: RoonAudioInputAdapterOptions = {},
+  ) {
+    this.sessionBeginTimeoutMs = options.sessionBeginTimeoutMs ?? DEFAULT_SESSION_BEGIN_TIMEOUT_MS;
+    this.playingTimeoutMs = options.playingTimeoutMs ?? DEFAULT_PLAYING_TIMEOUT_MS;
+  }
 
   setTerminalHandler(handler: (reason: RoonTerminalReason) => void): void {
     this.terminalHandler = handler;
@@ -171,32 +219,114 @@ export class RoonAudioInputAdapter implements RoonPort {
 
     await new Promise<void>((resolve, reject) => {
       let settled = false;
-      const timeout = setTimeout(() => {
-        finish(
-          new BridgeError('ROON_TIMEOUT', 'Roon did not start playback in time', {
-            httpStatus: 504,
-          }),
-        );
-      }, 30_000);
+      let phase: RoonPlaybackPhase = 'awaiting_session';
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      const startedAt = Date.now();
 
       const finish = (error?: Error): void => {
         if (settled) return;
         settled = true;
-        clearTimeout(timeout);
+        if (timeout) clearTimeout(timeout);
         if (error) reject(error);
         else resolve();
       };
 
-      const session = audioInput.begin_session(
-        {
-          zone_id: this.selectedZone?.zone_id,
-          display_name: 'Music Bridge for Roon',
-          icon_url: request.iconUrl,
-        },
-        (sessionMessage: unknown, body: unknown) => {
-          const sessionEvent = messageName(sessionMessage);
-          if (sessionEvent === 'SessionBegan') {
-            const sessionId = readSessionId(body);
+      const armTimeout = (nextPhase: RoonPlaybackPhase, durationMs: number): void => {
+        phase = nextPhase;
+        if (timeout) clearTimeout(timeout);
+        timeout = setTimeout(() => {
+          this.logger.warn('roon_session_timeout', {
+            phase: nextPhase,
+            elapsedMs: Date.now() - startedAt,
+          });
+          finish(timeoutError(nextPhase));
+        }, durationMs);
+      };
+
+      const finishZoneLoss = (): void => {
+        this.selectedZone = undefined;
+        this.setStatus('paired', 'Please configure Zone', true);
+        this.terminalHandler('zone_lost');
+        finish(
+          new BridgeError(
+            'ROON_ZONE_NOT_SELECTED',
+            'Selected Roon Zone was lost',
+            { httpStatus: 409, details: { phase } },
+          ),
+        );
+      };
+
+      const handlePlayEvent = (playMessage: unknown): void => {
+        const event = messageName(playMessage);
+        this.logger.info('roon_play_event', {
+          phase: 'awaiting_playing',
+          event,
+        });
+        switch (event) {
+          case 'Playing':
+            this.setStatus('playing', 'Playing', false);
+            finish();
+            break;
+          case 'Time':
+            break;
+          case 'EndedNaturally':
+            this.setStatus('ready', 'Ready', false);
+            this.terminalHandler('ended');
+            if (!settled) finish(protocolError('awaiting_playing', 'ended_before_playing', event));
+            break;
+          case 'StoppedUser':
+          case 'Paused':
+            this.setStatus('ready', 'Ready', false);
+            this.terminalHandler('stopped');
+            if (!settled) finish(protocolError('awaiting_playing', 'stopped_before_playing', event));
+            break;
+          case 'MediaError':
+            this.setStatus('error', 'Media error', true, 'Roon MediaError');
+            this.terminalHandler('media_error');
+            finish(
+              new BridgeError('ROON_MEDIA_ERROR', 'Roon reported a media error', {
+                httpStatus: 502,
+                details: { phase: 'awaiting_playing', event },
+              }),
+            );
+            break;
+          case 'ZoneNotFound':
+          case 'ZoneLost':
+            finishZoneLoss();
+            break;
+          default:
+            if (!settled) finish(protocolError('awaiting_playing', 'unexpected_play_event', event));
+            break;
+        }
+      };
+
+      const handleSessionEvent = (sessionMessage: unknown, body: unknown): void => {
+        const sessionEvent = messageName(sessionMessage);
+        const sessionId = readSessionId(body);
+        this.logger.info('roon_session_event', {
+          phase,
+          event: sessionEvent,
+          hasSessionId: Boolean(sessionId),
+        });
+
+        if (sessionEvent === 'SessionBegan') {
+          if (settled) return;
+          if (!sessionId) {
+            this.logger.warn('roon_session_began', {
+              phase,
+              hasSessionId: false,
+            });
+            finish(protocolError(phase, 'missing_session_id', sessionEvent));
+            return;
+          }
+
+          armTimeout('awaiting_playing', this.playingTimeoutMs);
+          this.logger.info('roon_session_began', {
+            phase: 'awaiting_playing',
+            hasSessionId: true,
+          });
+
+          try {
             audioInput.update_transport_controls(
               {
                 session_id: sessionId,
@@ -207,7 +337,7 @@ export class RoonAudioInputAdapter implements RoonPort {
               },
               () => undefined,
             );
-
+            this.logger.info('roon_play_requested', { phase: 'awaiting_playing' });
             audioInput.play(
               {
                 session_id: sessionId,
@@ -229,66 +359,62 @@ export class RoonAudioInputAdapter implements RoonPort {
                   },
                 },
               },
-              (playMessage: unknown, playBody: unknown) => {
-                const event = messageName(playMessage);
-                switch (event) {
-                  case 'Playing':
-                    this.setStatus('playing', 'Playing', false);
-                    finish();
-                    break;
-                  case 'Time':
-                    break;
-                  case 'EndedNaturally':
-                    this.setStatus('ready', 'Ready', false);
-                    this.terminalHandler('ended');
-                    break;
-                  case 'StoppedUser':
-                  case 'Paused':
-                    this.setStatus('ready', 'Ready', false);
-                    this.terminalHandler('stopped');
-                    break;
-                  case 'MediaError':
-                    this.setStatus('error', 'Media error', true, 'Roon MediaError');
-                    this.terminalHandler('media_error');
-                    finish(
-                      new BridgeError('ROON_MEDIA_ERROR', 'Roon reported a media error', {
-                        httpStatus: 502,
-                        details: { event, bodyType: typeof playBody },
-                      }),
-                    );
-                    break;
-                  case 'ZoneNotFound':
-                  case 'ZoneLost':
-                    this.selectedZone = undefined;
-                    this.setStatus('paired', 'Please configure Zone', true);
-                    this.terminalHandler('zone_lost');
-                    finish(
-                      new BridgeError(
-                        'ROON_ZONE_NOT_SELECTED',
-                        'Selected Roon Zone was lost',
-                        { httpStatus: 409 },
-                      ),
-                    );
-                    break;
-                  default:
-                    this.logger.debug('roon_unhandled_play_event', { event });
-                }
-              },
+              handlePlayEvent,
             );
-          } else if (sessionEvent === 'ZoneNotFound' || sessionEvent === 'ZoneLost') {
-            finish(
-              new BridgeError(
-                'ROON_ZONE_NOT_SELECTED',
-                'Roon could not find the selected Zone',
-                { httpStatus: 409 },
-              ),
-            );
-          } else if (sessionEvent === 'SessionEnded') {
-            this.setStatus('ready', 'Ready', false);
+          } catch (error) {
+            this.logger.warn('roon_connection_error', {
+              phase: 'awaiting_playing',
+              reason: 'play_request_failed',
+            });
+            finish(protocolError('awaiting_playing', 'play_request_failed'));
           }
-        },
-      );
-      this.session = session;
+          return;
+        }
+
+        if (sessionEvent === 'ZoneNotFound' || sessionEvent === 'ZoneLost') {
+          finishZoneLoss();
+          return;
+        }
+
+        if (sessionEvent === 'SessionEnded') {
+          this.setStatus('ready', 'Ready', false);
+          if (!settled) finish(protocolError(phase, 'session_ended', sessionEvent));
+          return;
+        }
+
+        if (isConnectionErrorEvent(sessionEvent)) {
+          this.logger.warn('roon_connection_error', {
+            phase,
+            event: sessionEvent,
+          });
+          if (!settled) finish(protocolError(phase, 'connection_error', sessionEvent));
+          return;
+        }
+
+        if (!settled) {
+          finish(protocolError(phase, 'unexpected_session_event', sessionEvent));
+        }
+      };
+
+      armTimeout('awaiting_session', this.sessionBeginTimeoutMs);
+      this.logger.info('roon_begin_session_requested', { phase: 'awaiting_session' });
+
+      try {
+        const session = audioInput.begin_session(
+          {
+            zone_id: this.selectedZone?.zone_id,
+            display_name: 'Music Bridge for Roon',
+          },
+          handleSessionEvent,
+        );
+        this.session = session;
+      } catch (error) {
+        this.logger.warn('roon_connection_error', {
+          phase: 'awaiting_session',
+          reason: 'begin_session_failed',
+        });
+        finish(protocolError('awaiting_session', 'begin_session_failed'));
+      }
     });
   }
 
@@ -361,9 +487,7 @@ export class RoonAudioInputAdapter implements RoonPort {
       },
     );
 
-    this.logger.info('roon_core_paired', {
-      coreName: typeof core.display_name === 'string' ? core.display_name : 'unknown',
-    });
+    this.logger.info('roon_core_paired');
   }
 
   private onCoreUnpaired(): void {
