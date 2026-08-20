@@ -2,9 +2,9 @@
 
 ## 结论
 
-**BLOCKED — Provider 与 Roon 已就绪，两首测试歌曲分别被 HTTPS 安全策略和完整曲目授权策略拒绝，等待替代歌曲 ID。**
+**BLOCKED — Provider 与 Roon 已就绪，三个测试歌曲均在完整曲目/HTTPS 安全 Gate 被拒绝，需要 Owner/架构师裁决 Provider 返回协议。**
 
-合法 Provider 配置、TASK-003 release 部署、Roon ready/Zone 选择和真实 Provider 请求均已完成。测试歌曲 `191248` 的 `song_detail` 成功，但 `song_url_v1` 在 `exhigh` 与 `standard` 下均返回非 HTTPS 上游地址，Bridge 按既定安全边界拒绝。替代歌曲 `191174` 在两个音质等级下均只返回试听片段，Bridge 以 `TRACK_PREVIEW_ONLY` 拒绝，未将试听冒充完整曲目。两次测试都未创建 Roon Audio Input Session，真实 Zone 尚未出声，因此不能标记 PASS，也不得进入 TASK-004。
+合法 Provider 配置、TASK-003 release 部署、Roon ready/Zone 选择和真实 Provider 请求均已完成。测试歌曲 `191248` 与 `1347524822` 的 `song_url_v1` 在 `exhigh` 与 `standard` 下均返回非 HTTPS 上游地址，Bridge 按既定安全边界拒绝。歌曲 `191174` 在两个音质等级下均只返回试听片段，Bridge 以 `TRACK_PREVIEW_ONLY` 拒绝，未将试听冒充完整曲目。三次测试都未创建 Roon Audio Input Session，真实 Zone 尚未出声，因此不能标记 PASS，也不得进入 TASK-004。
 
 ## 任务边界
 
@@ -45,23 +45,26 @@
 |---|---|---|
 | `191248` 元数据与 standard/exhigh 流解析 | BLOCKED | 元数据存在；两个等级均返回非 HTTPS 上游地址，Bridge 返回 `UNSAFE_UPSTREAM` |
 | `191174` standard/exhigh 流解析 | BLOCKED | 两个等级均返回试听片段，Bridge 返回 `TRACK_PREVIEW_ONLY` |
+| `1347524822` standard/exhigh 流解析 | BLOCKED | 两个等级均返回非 HTTPS 上游地址，Bridge 返回 `UNSAFE_UPSTREAM` |
 | XEAPI 公钥 bootstrap | 通过 | 使用既有受控凭据中的设备标识注册；不执行匿名注册、随机 IP、代理或解灰 |
 | 临时 token 注册与清理 | 自动化通过；实机未创建 | 两类拒绝均发生在注册 token 前，现场 `activeStreamCount=0` |
-| Roon Audio Input Session | 未创建 | 当前 release 已部署，但两首歌曲都在 Provider 完整性/安全 Gate 终止 |
+| Roon Audio Input Session | 未创建 | 当前 release 已部署，但三首歌曲都在 Provider 完整性/安全 Gate 终止 |
 | 真实 Zone 出声 | 未执行 | 需要另一个可返回 HTTPS 完整授权流的测试歌曲 ID |
 | Roon 元数据显示 | 未执行 | 同上 |
 | stop 幂等 | 自动化通过 | 新增测试已通过 |
 
 ## 阻塞原因与恢复条件
 
-Core Mac 的 Provider 凭据状态为 `configured`，Agent health 为 `NETEASE_CONFIGURED=true`，Roon 状态为 ready 且已选择 Zone。当前硬阻塞是已提供的两个测试 ID 都没有可用于完整播放的安全流：`191248` 在两个等级下均为非 HTTPS 上游，`191174` 在两个等级下均为试听片段。按照安全规则不得改写为 HTTPS、放宽为 HTTP、把试听冒充完整曲目，或启用解灰/代理替代源。
+Core Mac 的 Provider 凭据状态为 `configured`，Agent health 为 `NETEASE_CONFIGURED=true`，Roon 状态为 ready 且已选择 Zone。当前硬阻塞是已提供的三个测试 ID 都没有可用于完整播放的安全流：`191248` 与 `1347524822` 在两个等级下均为非 HTTPS 上游，`191174` 在两个等级下均为试听片段。按照安全规则不得改写为 HTTPS、放宽为 HTTP、把试听冒充完整曲目，或启用解灰/代理替代源。
 
-恢复时 Owner 只需提供另一首允许测试歌曲的纯数字 ID，不要发送配置内容或完整歌曲地址。随后将继续验证 standard/exhigh、在已选 Zone 完整播放、执行 stop 清理和现场日志安全扫描，并更新本报告。
+只读根因核对确认，当前 `@neteasecloudmusicapienhanced/api` `4.40.1` 的 `song_url_v1` 模块把上游响应原样交回调用方；其 `RequestBaseConfig` 不提供“让媒体 URL 使用 HTTPS”的选项，服务端包装层也不执行该归一化。Bridge 的 `assertSafeAudioUrl` 因而按蓝图拒绝非 HTTPS 返回值。该结论排除了 Roon、SSH、凭据、XEAPI bootstrap 和音质参数故障，但不声称所有歌曲必然返回 HTTP。
+
+恢复需要 Owner/架构师决定是否存在符合现有边界、能稳定返回 HTTPS 完整授权流的 Provider 调用方式。任何协议改写、HTTP 放行、替代源、代理或解灰均超出 TASK-003 当前授权；在获得裁决前不再通过随机歌曲 ID 无限重试。
 
 ## 安全与范围确认
 
 - 受控启动与诊断进程只在 Core Mac 内静默读取凭据文件；未在终端、日志、Git 或报告中输出账号凭据、Cookie、Token、设备标识、公钥内容、完整播放地址或配置文件内容。
-- 已执行两首歌曲的真实 Provider 请求和本地 loopback 播放 POST；请求分别在 HTTPS 安全 Gate 与试听完整性 Gate 被拒绝，未创建 Roon Session、未播放音频。
+- 已执行三首歌曲的真实 Provider 请求和本地 loopback 播放 POST；请求分别在 HTTPS 安全 Gate 与试听完整性 Gate 被拒绝，未创建 Roon Session、未播放音频。
 - 未开放 LAN 监听，未修改防火墙，未读取 Roon 数据库或音乐库。
 - 未创建 PR、未合并、未开始 TASK-004。
 
@@ -110,9 +113,11 @@ Owner 已明确授权将本地 Provider 凭据提示从隐藏输入改为明文�
 | 最终远程 runtime 状态 | expected/current/running release 一致；Agent 进程存在；Node.js `v22.23.2`；XEAPI 公钥 ready；38501/38502 仅 loopback；health 通过；`activeStreamCount=0`；无 active playback；日志秘密扫描 PASS |
 | `191248` 真实 `exhigh` / `standard` 请求 | 均返回 `UNSAFE_UPSTREAM`；无 token、无 active playback、无 Roon Session |
 | `191174` 真实 `exhigh` / `standard` 请求 | 均返回 `TRACK_PREVIEW_ONLY`；无 token、无 active playback、无 Roon Session |
+| `1347524822` 真实 `exhigh` / `standard` 请求 | 均返回 `UNSAFE_UPSTREAM`；无 token、无 active playback、无 Roon Session |
+| 非 HTTPS 只读根因核对 | 依赖 `4.40.1` 无媒体 URL HTTPS 请求开关或响应归一化；Bridge 按既定策略拒绝 |
 
 ## 当前 Gate 与后续动作
 
-Provider 配置、当前 release 部署、XEAPI bootstrap 和 runtime Gate 均已完成。TASK-003 仍为 **BLOCKED**：第一首测试歌曲在两个等级下触发非 HTTPS 安全拒绝，第二首在两个等级下只获得试听片段。Owner 只需提供另一个纯数字歌曲 ID；不得把授权值、账号信息或完整歌曲地址发送到聊天、报告、Git 或命令参数中。
+Provider 配置、当前 release 部署、XEAPI bootstrap 和 runtime Gate 均已完成。TASK-003 仍为 **BLOCKED**：第一、第三首测试歌曲在两个等级下触发非 HTTPS 安全拒绝，第二首在两个等级下只获得试听片段。下一步需要 Owner/架构师对“如何在不放宽 HTTPS-only 边界的前提下获得稳定 HTTPS 完整流”作出裁决；不得把授权值、账号信息或完整歌曲地址发送到聊天、报告、Git 或命令参数中。
 
 在新的测试歌曲完成真实 Zone 出声、Roon 元数据、完整播放或精确终止、stop/token 清理及日志扫描前，TASK-004 不得开始。
