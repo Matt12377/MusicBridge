@@ -7,6 +7,13 @@ import type {
   TrackSummary,
 } from './library.js';
 import {
+  PLAYBACK_QUALITY_LEVELS,
+  type PlaybackQueueItem,
+  type PlaybackQueueSnapshot,
+  type PlaybackQuality,
+  type PlaybackSnapshot,
+} from './playback.js';
+import {
   IPC_COMMANDS,
   IPC_EVENTS,
   IPC_VERSION,
@@ -117,6 +124,117 @@ function isSelectZonePayload(value: unknown): value is { zoneId: string } {
     isRecord(value) &&
     hasOnlyKeys(value, ['zoneId']) &&
     safeString(value.zoneId, 128)
+  );
+}
+
+const MAX_QUEUE_ITEMS = 100;
+
+function isPlaybackQuality(value: unknown): value is PlaybackQuality {
+  return PLAYBACK_QUALITY_LEVELS.includes(value as PlaybackQuality);
+}
+
+function isPlaybackQueueItem(value: unknown): value is PlaybackQueueItem {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['trackId', 'quality']) &&
+    safeString(value.trackId, 128) &&
+    /^\d+$/.test(value.trackId) &&
+    value.trackId !== '0' &&
+    isPlaybackQuality(value.quality)
+  );
+}
+
+function isPlaybackQueueSnapshot(value: unknown): value is PlaybackQueueSnapshot {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, ['items', 'index', 'hasNext', 'hasPrevious']) ||
+    !Array.isArray(value.items) ||
+    value.items.length > MAX_QUEUE_ITEMS ||
+    !value.items.every((item) => isPlaybackQueueItem(item)) ||
+    typeof value.index !== 'number' ||
+    !Number.isSafeInteger(value.index) ||
+    value.index < -1 ||
+    (value.items.length === 0 ? value.index !== -1 : value.index >= value.items.length) ||
+    typeof value.hasNext !== 'boolean' ||
+    typeof value.hasPrevious !== 'boolean'
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function isPlaybackState(value: unknown): value is PlaybackSnapshot['state'] {
+  return ['idle', 'resolving', 'preparing', 'playing', 'stopping', 'error'].includes(
+    String(value),
+  );
+}
+
+function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, [
+      'state',
+      'queue',
+      'currentTrack',
+      'requestedQuality',
+      'actualQuality',
+      'format',
+      'bitrate',
+      'selectedZoneId',
+      'lastError',
+      'canNext',
+      'canPrevious',
+      'canStop',
+    ]) ||
+    !isPlaybackState(value.state) ||
+    !isPlaybackQueueSnapshot(value.queue) ||
+    (value.currentTrack !== undefined && !isTrackSummary(value.currentTrack)) ||
+    (value.requestedQuality !== undefined && !isPlaybackQuality(value.requestedQuality)) ||
+    (value.actualQuality !== undefined && !safeString(value.actualQuality, 64)) ||
+    (value.format !== undefined && !safeString(value.format, 32)) ||
+    (value.bitrate !== undefined &&
+      (typeof value.bitrate !== 'number' ||
+        !Number.isSafeInteger(value.bitrate) ||
+        value.bitrate < 0 ||
+        value.bitrate > 10_000_000)) ||
+    (value.selectedZoneId !== undefined && !safeString(value.selectedZoneId, 128)) ||
+    (value.lastError !== undefined && !safeString(value.lastError, 128)) ||
+    typeof value.canNext !== 'boolean' ||
+    typeof value.canPrevious !== 'boolean' ||
+    typeof value.canStop !== 'boolean'
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function isPlaybackPlayPayload(
+  value: unknown,
+): value is { trackId: string; quality: PlaybackQuality } {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['trackId', 'quality']) &&
+    safeString(value.trackId, 128) &&
+    /^\d+$/.test(value.trackId) &&
+    value.trackId !== '0' &&
+    isPlaybackQuality(value.quality)
+  );
+}
+
+function isPlaybackReplaceQueuePayload(
+  value: unknown,
+): value is { items: readonly PlaybackQueueItem[]; index: number } {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['items', 'index']) &&
+    Array.isArray(value.items) &&
+    value.items.length > 0 &&
+    value.items.length <= MAX_QUEUE_ITEMS &&
+    value.items.every((item) => isPlaybackQueueItem(item)) &&
+    typeof value.index === 'number' &&
+    Number.isSafeInteger(value.index) &&
+    value.index >= 0 &&
+    value.index < value.items.length
   );
 }
 
@@ -242,6 +360,8 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'library.search') return isLibrarySearchPayload(payload);
   if (command === 'library.liked') return isLibraryPagePayload(payload);
   if (command === 'library.playlist') return isLibraryPlaylistPayload(payload);
+  if (command === 'playback.play') return isPlaybackPlayPayload(payload);
+  if (command === 'playback.replaceQueue') return isPlaybackReplaceQueuePayload(payload);
   return isEmptyPayload(payload);
 }
 
@@ -402,6 +522,13 @@ function isCommandResult(
       return isRecord(value) && hasOnlyKeys(value, ['stopped']) && value.stopped === true;
     case 'roon.listZones':
       return isZoneListResult(value);
+    case 'playback.getState':
+    case 'playback.play':
+    case 'playback.stop':
+    case 'playback.next':
+    case 'playback.previous':
+    case 'playback.replaceQueue':
+      return isPlaybackSnapshot(value);
   }
 }
 
@@ -422,6 +549,10 @@ function isEventPayload(event: IpcEventName, payload: unknown): boolean {
       return hasOnlyKeys(payload, ['state']) && isPublicAuthState(payload.state);
     case 'diagnostic.notice':
       return isDiagnosticPayload(payload);
+    case 'playback.changed':
+      return hasOnlyKeys(payload, ['state']) && isPlaybackSnapshot(payload.state);
+    case 'queue.changed':
+      return hasOnlyKeys(payload, ['queue']) && isPlaybackQueueSnapshot(payload.queue);
   }
 }
 

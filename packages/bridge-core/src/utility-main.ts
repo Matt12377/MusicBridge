@@ -132,6 +132,24 @@ async function dispatch(
       return { zones: runtime.listZones() };
     case 'roon.selectZone':
       return runtime.selectZone((request.payload as { zoneId: string }).zoneId);
+    case 'playback.getState':
+      return runtime.getPlaybackState();
+    case 'playback.play':
+      return runtime.playbackPlay(
+        (request.payload as { trackId: string }).trackId,
+        (request.payload as { quality: Parameters<CoreRuntimeForIpc['playbackPlay']>[1] }).quality,
+      );
+    case 'playback.stop':
+      return runtime.playbackStop();
+    case 'playback.next':
+      return runtime.playbackNext();
+    case 'playback.previous':
+      return runtime.playbackPrevious();
+    case 'playback.replaceQueue':
+      return runtime.replacePlaybackQueue(
+        (request.payload as { items: Parameters<CoreRuntimeForIpc['replacePlaybackQueue']>[0] }).items,
+        (request.payload as { index: number }).index,
+      );
   }
 }
 

@@ -1,5 +1,11 @@
 import type { PublicError } from './errors.js';
 import type { Page, PageRequest, PlaylistDetail, PlaylistSummary, TrackSummary } from './library.js';
+import type {
+  PlaybackQueueItem,
+  PlaybackQueueSnapshot,
+  PlaybackQuality,
+  PlaybackSnapshot,
+} from './playback.js';
 import type { PublicAuthState, PublicBridgeState, PublicRoonZone } from './state.js';
 
 export const IPC_VERSION = 1 as const;
@@ -22,6 +28,12 @@ export const IPC_COMMANDS = [
   'library.playlist',
   'roon.listZones',
   'roon.selectZone',
+  'playback.getState',
+  'playback.play',
+  'playback.stop',
+  'playback.next',
+  'playback.previous',
+  'playback.replaceQueue',
 ] as const;
 
 export type IpcCommand = (typeof IPC_COMMANDS)[number];
@@ -32,6 +44,8 @@ export const IPC_EVENTS = [
   'auth.changed',
   'roon.changed',
   'diagnostic.notice',
+  'playback.changed',
+  'queue.changed',
 ] as const;
 
 export type IpcEvent = (typeof IPC_EVENTS)[number];
@@ -81,6 +95,12 @@ export interface IpcCommandPayloads {
   'library.playlist': { playlistId: string; page: PageRequest };
   'roon.listZones': Record<string, never>;
   'roon.selectZone': { zoneId: string };
+  'playback.getState': Record<string, never>;
+  'playback.play': { trackId: string; quality: PlaybackQuality };
+  'playback.stop': Record<string, never>;
+  'playback.next': Record<string, never>;
+  'playback.previous': Record<string, never>;
+  'playback.replaceQueue': { items: readonly PlaybackQueueItem[]; index: number };
 }
 
 export interface IpcCommandResults {
@@ -101,6 +121,12 @@ export interface IpcCommandResults {
   'library.playlist': PlaylistDetail;
   'roon.listZones': { zones: readonly PublicRoonZone[] };
   'roon.selectZone': PublicBridgeState;
+  'playback.getState': PlaybackSnapshot;
+  'playback.play': PlaybackSnapshot;
+  'playback.stop': PlaybackSnapshot;
+  'playback.next': PlaybackSnapshot;
+  'playback.previous': PlaybackSnapshot;
+  'playback.replaceQueue': PlaybackSnapshot;
 }
 
 export interface IpcEventPayloads {
@@ -109,6 +135,8 @@ export interface IpcEventPayloads {
   'roon.changed': { state: PublicBridgeState };
   'auth.changed': { state: PublicAuthState };
   'diagnostic.notice': { code: string; message?: string };
+  'playback.changed': { state: PlaybackSnapshot };
+  'queue.changed': { queue: PlaybackQueueSnapshot };
 }
 
 export type IpcInternalCommand = 'auth.pollQr';

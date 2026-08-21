@@ -9,6 +9,8 @@ import {
 } from 'electron'
 import type {
   PageRequest,
+  PlaybackQueueItem,
+  PlaybackQuality,
   PublicAuthState,
   PublicErrorCode,
   TypedIpcEvent,
@@ -157,6 +159,53 @@ function requirePlaylistId(value: unknown): string {
   return value
 }
 
+function requirePlaybackTrackId(value: unknown): string {
+  if (typeof value !== 'string' || !/^\d+$/.test(value) || value === '0' || value.length > 128) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback track')
+  }
+  return value
+}
+
+function requirePlaybackQuality(value: unknown): PlaybackQuality {
+  if (!['standard', 'exhigh', 'lossless', 'hires'].includes(String(value))) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback quality')
+  }
+  return value as PlaybackQuality
+}
+
+function requirePlaybackQueue(value: unknown): readonly PlaybackQueueItem[] {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 100) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback queue')
+  }
+  return value.map((item) => {
+    if (
+      !item ||
+      typeof item !== 'object' ||
+      Array.isArray(item) ||
+      Object.keys(item).some((key) => !['trackId', 'quality'].includes(key))
+    ) {
+      return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback queue')
+    }
+    const queueItem = item as { trackId?: unknown; quality?: unknown }
+    return {
+      trackId: requirePlaybackTrackId(queueItem.trackId),
+      quality: requirePlaybackQuality(queueItem.quality),
+    }
+  })
+}
+
+function requirePlaybackIndex(value: unknown, items: readonly PlaybackQueueItem[]): number {
+  if (
+    typeof value !== 'number' ||
+    !Number.isSafeInteger(value) ||
+    value < 0 ||
+    value >= items.length
+  ) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback queue index')
+  }
+  return value
+}
+
 async function saveQrCredential(
   supervisor: CoreSupervisor,
   credentialVault: CredentialVault,
@@ -255,6 +304,35 @@ function registerIpcHandlers(
         page: requireLibraryPage(page),
       }),
     ),
+  )
+  ipcMain.handle('playback:get-state', (event) =>
+    invokeCore(event, () => supervisor.request('playback.getState', {})),
+  )
+  ipcMain.handle('playback:play', (event, trackId: unknown, quality: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('playback.play', {
+        trackId: requirePlaybackTrackId(trackId),
+        quality: requirePlaybackQuality(quality),
+      }),
+    ),
+  )
+  ipcMain.handle('playback:stop', (event) =>
+    invokeCore(event, () => supervisor.request('playback.stop', {})),
+  )
+  ipcMain.handle('playback:next', (event) =>
+    invokeCore(event, () => supervisor.request('playback.next', {})),
+  )
+  ipcMain.handle('playback:previous', (event) =>
+    invokeCore(event, () => supervisor.request('playback.previous', {})),
+  )
+  ipcMain.handle('playback:replace-queue', (event, items: unknown, index: unknown) =>
+    invokeCore(event, () => {
+      const queue = requirePlaybackQueue(items)
+      return supervisor.request('playback.replaceQueue', {
+        items: queue,
+        index: requirePlaybackIndex(index, queue),
+      })
+    }),
   )
 }
 

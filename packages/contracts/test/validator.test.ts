@@ -401,3 +401,99 @@ test('contracts preserves the public AUTH_EXPIRED error without internal details
   );
   assert.equal(result.ok, true);
 });
+
+test('contracts validates bounded playback controls and sanitized snapshots', () => {
+  const snapshot = {
+    state: 'playing',
+    queue: {
+      items: [
+        { trackId: '101', quality: 'lossless' },
+        { trackId: '102', quality: 'standard' },
+      ],
+      index: 0,
+      hasNext: true,
+      hasPrevious: false,
+    },
+    currentTrack: {
+      id: '101',
+      title: 'Synthetic Song',
+      artists: ['Synthetic Artist'],
+      album: 'Synthetic Album',
+    },
+    requestedQuality: 'lossless',
+    actualQuality: 'lossless',
+    format: 'flac',
+    bitrate: 900_000,
+    selectedZoneId: 'zone-1',
+    canNext: true,
+    canPrevious: false,
+    canStop: true,
+  };
+
+  for (const [id, command, payload] of [
+    ['playback-get', 'playback.getState', {}],
+    ['playback-play', 'playback.play', { trackId: '101', quality: 'lossless' }],
+    ['playback-stop', 'playback.stop', {}],
+    ['playback-next', 'playback.next', {}],
+    ['playback-previous', 'playback.previous', {}],
+    [
+      'playback-replace',
+      'playback.replaceQueue',
+      { items: [{ trackId: '101', quality: 'lossless' }], index: 0 },
+    ],
+  ] as const) {
+    assert.equal(
+      validateIpcRequest({ version: IPC_VERSION, id, command, payload }).ok,
+      true,
+    );
+    assert.equal(
+      validateIpcResponseForCommand(
+        { version: IPC_VERSION, id, ok: true, result: snapshot },
+        command,
+      ).ok,
+      true,
+    );
+  }
+
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'playback-replace-too-many',
+      command: 'playback.replaceQueue',
+      payload: {
+        items: Array.from({ length: 101 }, (_, index) => ({
+          trackId: String(index + 1),
+          quality: 'standard',
+        })),
+        index: 0,
+      },
+    }).ok,
+    false,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'playback-invalid-quality',
+      command: 'playback.play',
+      payload: { trackId: '101', quality: 'hi-res-unlock' },
+    }).ok,
+    false,
+  );
+
+  assert.equal(
+    validateIpcEvent({
+      version: IPC_VERSION,
+      event: 'playback.changed',
+      payload: { state: snapshot },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcEvent({
+      version: IPC_VERSION,
+      event: 'queue.changed',
+      payload: { queue: snapshot.queue },
+    }).ok,
+    true,
+  );
+});

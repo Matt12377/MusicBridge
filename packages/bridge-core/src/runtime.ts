@@ -3,6 +3,9 @@ import type {
   PageRequest,
   PlaylistDetail,
   PlaylistSummary,
+  PlaybackQueueItem,
+  PlaybackQuality,
+  PlaybackSnapshot,
   PublicAuthState,
   PublicBridgeState,
   PublicRoonZone,
@@ -43,6 +46,15 @@ export interface CoreRuntime {
   getLikedTracks(page: PageRequest): Promise<Page<TrackSummary>>;
   getUserPlaylists(): Promise<readonly PlaylistSummary[]>;
   getPlaylist(playlistId: string, page: PageRequest): Promise<PlaylistDetail>;
+  getPlaybackState(): PlaybackSnapshot;
+  playbackPlay(trackId: string, quality: PlaybackQuality): Promise<PlaybackSnapshot>;
+  playbackStop(): Promise<PlaybackSnapshot>;
+  playbackNext(): Promise<PlaybackSnapshot>;
+  playbackPrevious(): Promise<PlaybackSnapshot>;
+  replacePlaybackQueue(
+    items: readonly PlaybackQueueItem[],
+    index: number,
+  ): Promise<PlaybackSnapshot>;
   listZones(): readonly PublicRoonZone[];
   selectZone(zoneId: string): Promise<PublicBridgeState>;
 }
@@ -103,6 +115,21 @@ function eventWithAuthState(state: PublicAuthState): CoreRuntimeEvent {
   } as TypedIpcEvent;
 }
 
+function emptyPlaybackState(): PlaybackSnapshot {
+  return {
+    state: 'idle',
+    queue: {
+      items: [],
+      index: -1,
+      hasNext: false,
+      hasPrevious: false,
+    },
+    canNext: false,
+    canPrevious: false,
+    canStop: false,
+  };
+}
+
 export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRuntime {
   const config = loadConfig(options.env);
   const logger = options.logger ?? createLogger(config.logLevel);
@@ -140,6 +167,19 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   const publicState = (): PublicBridgeState =>
     toPublicBridgeState(controller.getState(), runtime);
   const emitHealth = (): void => emit(eventWithState('core.health', publicState()));
+
+  controller.subscribe((snapshot) => {
+    emit({
+      version: 1,
+      event: 'playback.changed',
+      payload: { state: snapshot },
+    });
+    emit({
+      version: 1,
+      event: 'queue.changed',
+      payload: { queue: snapshot.queue },
+    });
+  });
 
   roon.setStateHandler(() => {
     const state = publicState();
@@ -251,6 +291,27 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     getLikedTracks: (page) => netease.getLikedTracks(page),
     getUserPlaylists: () => netease.getUserPlaylists(),
     getPlaylist: (playlistId, page) => netease.getPlaylist(playlistId, page),
+    getPlaybackState: () => controller.getPlaybackState(),
+    async playbackPlay(trackId, quality) {
+      await controller.play({ trackId, quality });
+      return controller.getPlaybackState();
+    },
+    async playbackStop() {
+      await controller.stop();
+      return controller.getPlaybackState();
+    },
+    async playbackNext() {
+      await controller.next();
+      return controller.getPlaybackState();
+    },
+    async playbackPrevious() {
+      await controller.previous();
+      return controller.getPlaybackState();
+    },
+    async replacePlaybackQueue(items, index) {
+      await controller.replaceQueue(items, index);
+      return controller.getPlaybackState();
+    },
 
     listZones: () => roon.listZones().map((zone) => ({
       zoneId: zone.zone_id,
@@ -277,6 +338,7 @@ export function createTestBridgeRuntime(): CoreRuntime {
     activePlaybackPresent: false,
   };
   let authState: PublicAuthState = { status: 'idle' };
+  let playbackState = emptyPlaybackState();
   return {
     async start() {
       state = { ...state, runtime: 'ready' };
@@ -341,6 +403,48 @@ export function createTestBridgeRuntime(): CoreRuntime {
         trackCount: 0,
         tracks: { items: [], offset: page.offset, limit: page.limit, total: 0, hasMore: false },
       };
+    },
+    getPlaybackState: () => playbackState,
+    async playbackPlay(trackId, quality) {
+      playbackState = {
+        ...playbackState,
+        state: 'playing',
+        queue: {
+          items: [{ trackId, quality }],
+          index: 0,
+          hasNext: false,
+          hasPrevious: false,
+        },
+        requestedQuality: quality,
+        canStop: true,
+      };
+      return playbackState;
+    },
+    async playbackStop() {
+      playbackState = { ...playbackState, state: 'idle', canStop: false };
+      return playbackState;
+    },
+    async playbackNext() {
+      return playbackState;
+    },
+    async playbackPrevious() {
+      return playbackState;
+    },
+    async replacePlaybackQueue(items, index) {
+      playbackState = {
+        ...playbackState,
+        state: 'playing',
+        queue: {
+          items,
+          index,
+          hasNext: index < items.length - 1,
+          hasPrevious: index > 0,
+        },
+        canNext: index < items.length - 1,
+        canPrevious: index > 0,
+        canStop: true,
+      };
+      return playbackState;
     },
     listZones: () => [],
     async selectZone() {

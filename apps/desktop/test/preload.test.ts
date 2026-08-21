@@ -5,6 +5,7 @@ import type {
   Page,
   PlaylistDetail,
   PlaylistSummary,
+  PlaybackSnapshot,
   PublicAuthState,
   PublicBridgeState,
   TrackSummary,
@@ -39,6 +40,13 @@ test('Preload exposes only sanitized business methods', async () => {
     trackCount: 0,
     tracks: page,
   }
+  const playbackState: PlaybackSnapshot = {
+    state: 'idle',
+    queue: { items: [], index: -1, hasNext: false, hasPrevious: false },
+    canNext: false,
+    canPrevious: false,
+    canStop: false,
+  }
   const api = createPreloadApi(
     async () => appInfo,
     async () => state,
@@ -53,6 +61,12 @@ test('Preload exposes only sanitized business methods', async () => {
     async () => page,
     async () => playlists,
     async () => playlist,
+    async () => playbackState,
+    async () => playbackState,
+    async () => playbackState,
+    async () => playbackState,
+    async () => playbackState,
+    async () => playbackState,
     () => () => undefined,
   )
 
@@ -70,6 +84,12 @@ test('Preload exposes only sanitized business methods', async () => {
     'getLikedTracks',
     'getUserPlaylists',
     'getPlaylist',
+    'getPlaybackState',
+    'play',
+    'stop',
+    'next',
+    'previous',
+    'replaceQueue',
     'onCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
@@ -86,6 +106,12 @@ test('Preload exposes only sanitized business methods', async () => {
     'getLikedTracks',
     'getUserPlaylists',
     'getPlaylist',
+    'getPlaybackState',
+    'play',
+    'stop',
+    'next',
+    'previous',
+    'replaceQueue',
     'onCoreEvent',
   ])
   assert.equal(Object.isFrozen(api), true)
@@ -102,4 +128,13 @@ test('Preload exposes only sanitized business methods', async () => {
   assert.deepEqual(await api.getLikedTracks({ offset: 0, limit: 20 }), page)
   assert.deepEqual(await api.getUserPlaylists(), playlists)
   assert.deepEqual(await api.getPlaylist('301', { offset: 0, limit: 20 }), playlist)
+  assert.deepEqual(await api.getPlaybackState(), playbackState)
+  assert.deepEqual(await api.play('301', 'lossless'), playbackState)
+  assert.deepEqual(await api.stop(), playbackState)
+  assert.deepEqual(await api.next(), playbackState)
+  assert.deepEqual(await api.previous(), playbackState)
+  assert.deepEqual(
+    await api.replaceQueue([{ trackId: '301', quality: 'lossless' }], 0),
+    playbackState,
+  )
 })

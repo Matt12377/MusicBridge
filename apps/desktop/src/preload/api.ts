@@ -3,6 +3,9 @@ import type {
   PageRequest,
   PlaylistDetail,
   PlaylistSummary,
+  PlaybackQueueItem,
+  PlaybackQuality,
+  PlaybackSnapshot,
   PublicAuthState,
   PublicBridgeState,
   TrackSummary,
@@ -29,6 +32,12 @@ export interface MusicBridgePublicApi {
   getLikedTracks: (page: PageRequest) => Promise<Page<TrackSummary>>
   getUserPlaylists: () => Promise<readonly PlaylistSummary[]>
   getPlaylist: (playlistId: string, page: PageRequest) => Promise<PlaylistDetail>
+  getPlaybackState: () => Promise<PlaybackSnapshot>
+  play: (trackId: string, quality: PlaybackQuality) => Promise<PlaybackSnapshot>
+  stop: () => Promise<PlaybackSnapshot>
+  next: () => Promise<PlaybackSnapshot>
+  previous: () => Promise<PlaybackSnapshot>
+  replaceQueue: (items: readonly PlaybackQueueItem[], index: number) => Promise<PlaybackSnapshot>
   onCoreEvent: (listener: (event: TypedIpcEvent) => void) => () => void
 }
 
@@ -46,6 +55,12 @@ export const PUBLIC_API_KEYS = [
   'getLikedTracks',
   'getUserPlaylists',
   'getPlaylist',
+  'getPlaybackState',
+  'play',
+  'stop',
+  'next',
+  'previous',
+  'replaceQueue',
   'onCoreEvent',
 ] as const
 
@@ -63,6 +78,12 @@ export function createPreloadApi(
   getLikedTracks: (page: PageRequest) => Promise<Page<TrackSummary>>,
   getUserPlaylists: () => Promise<readonly PlaylistSummary[]>,
   getPlaylist: (playlistId: string, page: PageRequest) => Promise<PlaylistDetail>,
+  getPlaybackState: () => Promise<PlaybackSnapshot>,
+  play: (trackId: string, quality: PlaybackQuality) => Promise<PlaybackSnapshot>,
+  stop: () => Promise<PlaybackSnapshot>,
+  next: () => Promise<PlaybackSnapshot>,
+  previous: () => Promise<PlaybackSnapshot>,
+  replaceQueue: (items: readonly PlaybackQueueItem[], index: number) => Promise<PlaybackSnapshot>,
   onCoreEvent: (listener: (event: TypedIpcEvent) => void) => () => void,
 ): MusicBridgePublicApi {
   return Object.freeze({
@@ -79,6 +100,12 @@ export function createPreloadApi(
     getLikedTracks,
     getUserPlaylists,
     getPlaylist,
+    getPlaybackState,
+    play,
+    stop,
+    next,
+    previous,
+    replaceQueue,
     onCoreEvent,
   })
 }

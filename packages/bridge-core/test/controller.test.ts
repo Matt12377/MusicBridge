@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { BridgeController } from '../src/application/bridge-controller.js';
+import { BridgeError } from '../src/shared/errors.js';
 import type {
   NeteasePort,
   QualityLevel,
@@ -14,6 +15,7 @@ import { StreamRegistry } from '../src/stream/registry.js';
 class FakeNetease implements NeteasePort {
   readonly configured = true;
   resolveCalls = 0;
+  readonly unavailableTrackIds = new Set<string>();
 
   async searchTracks() {
     return { items: [], offset: 0, limit: 10, total: 0, hasMore: false };
@@ -37,6 +39,11 @@ class FakeNetease implements NeteasePort {
   }
 
   async getTrack(trackId: string) {
+    if (this.unavailableTrackIds.has(trackId)) {
+      throw new BridgeError('TRACK_UNAVAILABLE', 'Synthetic track is unavailable', {
+        httpStatus: 409,
+      });
+    }
     return {
       id: trackId,
       title: 'Test Song',
@@ -51,6 +58,11 @@ class FakeNetease implements NeteasePort {
     quality: QualityLevel,
   ): Promise<ResolvedAudioStream> {
     this.resolveCalls += 1;
+    if (this.unavailableTrackIds.has(trackId)) {
+      throw new BridgeError('TRACK_UNAVAILABLE', 'Synthetic track is unavailable', {
+        httpStatus: 409,
+      });
+    }
     return {
       trackId,
       upstreamUrl: 'https://cdn.example/audio.flac',
@@ -65,7 +77,11 @@ class FakeNetease implements NeteasePort {
 
 class FakeRoon implements RoonPort {
   playRequest: RoonPlayRequest | undefined;
+  readonly playRequests: RoonPlayRequest[] = [];
   stopCalls = 0;
+  activePlayCalls = 0;
+  maxConcurrentPlayCalls = 0;
+  playDelayMs = 0;
   shouldFail = false;
   shouldFailOnStop = false;
   terminalDuringPlay = false;
@@ -91,6 +107,16 @@ class FakeRoon implements RoonPort {
   async play(request: RoonPlayRequest): Promise<void> {
     this.events.push('roon.play');
     this.playRequest = request;
+    this.playRequests.push(request);
+    this.activePlayCalls += 1;
+    this.maxConcurrentPlayCalls = Math.max(
+      this.maxConcurrentPlayCalls,
+      this.activePlayCalls,
+    );
+    if (this.playDelayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, this.playDelayMs));
+    }
+    this.activePlayCalls -= 1;
     if (this.shouldFail) throw new Error('Roon failed');
     this.state = { ...this.state, status: 'playing' };
     if (this.terminalDuringPlay) this.terminalHandler('media_error');
@@ -106,6 +132,16 @@ class FakeRoon implements RoonPort {
 
   getState(): RoonState {
     return { ...this.state };
+  }
+}
+
+async function waitFor(condition: () => boolean, timeoutMs = 1_000): Promise<void> {
+  const startedAt = Date.now();
+  while (!condition()) {
+    if (Date.now() - startedAt >= timeoutMs) {
+      throw new Error('Timed out waiting for synthetic playback condition');
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1));
   }
 }
 
@@ -210,6 +246,7 @@ test('controller revokes stream token when Roon reports a terminal event', async
   await controller.play({ trackId: '123', quality: 'lossless' });
   assert.equal(registry.size, 1);
   roon.emitTerminal('ended');
+  await waitFor(() => registry.size === 0);
   assert.equal(registry.size, 0);
   assert.equal(controller.getState().activePlayback, undefined);
 });
@@ -223,4 +260,101 @@ test('controller does not resurrect playback state if Roon terminates during sta
   );
   assert.equal(registry.size, 0);
   assert.equal(controller.getState().activePlayback, undefined);
+});
+
+test('controller replaces the queue and next/previous move one item at a time', async () => {
+  const { controller, roon, registry } = makeHarness();
+
+  await controller.replaceQueue([
+    { trackId: '101', quality: 'standard' },
+    { trackId: '102', quality: 'lossless' },
+    { trackId: '103', quality: 'exhigh' },
+  ]);
+  assert.equal(roon.playRequests.length, 1);
+  assert.equal(roon.playRequests[0]!.metadata.id, '101');
+
+  await controller.next();
+  assert.equal(roon.playRequests.length, 2);
+  assert.equal(roon.playRequests[1]!.metadata.id, '102');
+
+  await controller.previous();
+  assert.equal(roon.playRequests.length, 3);
+  assert.equal(roon.playRequests[2]!.metadata.id, '101');
+  assert.equal(registry.size, 1);
+});
+
+test('controller serializes rapid queue controls and keeps one active stream', async () => {
+  const { controller, roon, registry } = makeHarness();
+  roon.playDelayMs = 10;
+
+  const replacing = controller.replaceQueue([
+    { trackId: '201', quality: 'standard' },
+    { trackId: '202', quality: 'standard' },
+  ]);
+  const advancing = controller.next();
+  await Promise.all([replacing, advancing]);
+
+  assert.equal(roon.maxConcurrentPlayCalls, 1);
+  assert.deepEqual(
+    roon.playRequests.map((request) => request.metadata.id),
+    ['201', '202'],
+  );
+  assert.equal(registry.size, 1);
+});
+
+test('natural end automatically advances and end of queue stops without residue', async () => {
+  const { controller, roon, registry } = makeHarness();
+
+  await controller.replaceQueue([
+    { trackId: '301', quality: 'standard' },
+    { trackId: '302', quality: 'standard' },
+  ]);
+  roon.emitTerminal('ended');
+  await waitFor(() => roon.playRequests.length === 2);
+  assert.equal(roon.playRequests[1]!.metadata.id, '302');
+  assert.equal(registry.size, 1);
+
+  roon.emitTerminal('ended');
+  await waitFor(() => registry.size === 0);
+  assert.equal(controller.getState().activePlayback, undefined);
+});
+
+test('unavailable queue items are skipped and all-unavailable queues stop cleanly', async () => {
+  const { controller, netease, roon, registry } = makeHarness();
+  netease.unavailableTrackIds.add('401');
+
+  await controller.replaceQueue([
+    { trackId: '401', quality: 'standard' },
+    { trackId: '402', quality: 'standard' },
+  ]);
+  assert.deepEqual(
+    roon.playRequests.map((request) => request.metadata.id),
+    ['402'],
+  );
+  assert.equal(registry.size, 1);
+
+  netease.unavailableTrackIds.add('403');
+  await controller.replaceQueue([{ trackId: '403', quality: 'standard' }]);
+  assert.equal(registry.size, 0);
+  assert.equal(controller.getState().activePlayback, undefined);
+  assert.equal(controller.getPlaybackState().lastError, 'TRACK_UNAVAILABLE');
+});
+
+test('ten naturally ended tracks leave no stream token or active playback', async () => {
+  const { controller, roon, registry } = makeHarness();
+  const items = Array.from({ length: 10 }, (_, index) => ({
+    trackId: String(501 + index),
+    quality: 'lossless' as const,
+  }));
+
+  await controller.replaceQueue(items);
+  for (let index = 0; index < items.length; index += 1) {
+    roon.emitTerminal('ended');
+    await waitFor(() => roon.playRequests.length === index + 2 || registry.size === 0);
+  }
+
+  await waitFor(() => registry.size === 0);
+  assert.equal(controller.getState().activePlayback, undefined);
+  assert.equal(controller.getState().activeStreamCount, 0);
+  assert.equal(roon.playRequests.length, 10);
 });

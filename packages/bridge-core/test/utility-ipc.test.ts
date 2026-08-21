@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { IPC_VERSION, type IpcEventMessage } from '@music-bridge/contracts';
+import {
+  IPC_VERSION,
+  type IpcEventMessage,
+  type PlaybackSnapshot,
+} from '@music-bridge/contracts';
 import {
   attachCoreRuntimePort,
   type CoreRuntimeForIpc,
@@ -56,6 +60,13 @@ function makeRuntime(): CoreRuntimeForIpc & {
     activePlaybackPresent: false,
   };
   const authState = { status: 'idle' as const };
+  const playbackState: PlaybackSnapshot = {
+    state: 'idle',
+    queue: { items: [], index: -1, hasNext: false, hasPrevious: false },
+    canNext: false,
+    canPrevious: false,
+    canStop: false,
+  };
   return {
     shutdownCalls: 0,
     setCredentialCalls: [],
@@ -126,6 +137,22 @@ function makeRuntime(): CoreRuntimeForIpc & {
         trackCount: 1,
         tracks: { items: [], offset: 0, limit: 20, total: 1, hasMore: false },
       }
+    },
+    getPlaybackState: () => playbackState,
+    async playbackPlay() {
+      return playbackState;
+    },
+    async playbackStop() {
+      return playbackState;
+    },
+    async playbackNext() {
+      return playbackState;
+    },
+    async playbackPrevious() {
+      return playbackState;
+    },
+    async replacePlaybackQueue() {
+      return playbackState;
     },
   };
 }
@@ -305,6 +332,36 @@ test('utility IPC maps an expired Provider session to a public error', async () 
     error: { code: 'AUTH_EXPIRED', message: 'Provider session expired' },
   });
   assert.doesNotMatch(JSON.stringify(port.messages[1]), /synthetic raw provider detail/);
+});
+
+test('utility IPC dispatches typed playback controls without exposing stream internals', async () => {
+  const port = new FakePort();
+  const runtime = makeRuntime();
+  await attachCoreRuntimePort(port, runtime);
+
+  for (const [id, command, payload] of [
+    ['playback-state', 'playback.getState', {}],
+    ['playback-play', 'playback.play', { trackId: '101', quality: 'lossless' }],
+    ['playback-stop', 'playback.stop', {}],
+    ['playback-next', 'playback.next', {}],
+    ['playback-previous', 'playback.previous', {}],
+    [
+      'playback-replace',
+      'playback.replaceQueue',
+      { items: [{ trackId: '101', quality: 'lossless' }], index: 0 },
+    ],
+  ] as const) {
+    port.send({ version: IPC_VERSION, id, command, payload });
+    await new Promise((resolve) => setImmediate(resolve));
+    const response = port.messages.at(-1);
+    assert.deepEqual(response, {
+      version: IPC_VERSION,
+      id,
+      ok: true,
+      result: runtime.getPlaybackState(),
+    });
+    assert.doesNotMatch(JSON.stringify(response), /upstreamUrl|gatewayToken|cookie|token/i);
+  }
 });
 
 test('utility QR commands keep the credential only in the Core-to-Main response', async () => {
