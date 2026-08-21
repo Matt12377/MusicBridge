@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { request as httpRequest } from 'node:http';
 import test from 'node:test';
 import { createLogger } from '../src/shared/logger.js';
 import { StreamGateway } from '../src/stream/gateway.js';
@@ -78,7 +79,7 @@ test('gateway forwards Range and preserves media response headers without buffer
   });
 
   const response = await fetch(
-    `${gateway.localBaseUrl()}/stream/${registration.token}`,
+    `${gateway.localBaseUrl()}/stream/${registration.token}.flac`,
     { headers: { Range: 'bytes=0-3' } },
   );
   const bytes = new Uint8Array(await response.arrayBuffer());
@@ -135,7 +136,7 @@ test('gateway supports HEAD without a response body', async (t) => {
   });
 
   const response = await fetch(
-    `${gateway.localBaseUrl()}/stream/${registration.token}`,
+    `${gateway.localBaseUrl()}/stream/${registration.token}.bin`,
     { method: 'HEAD' },
   );
   assert.equal(seenMethod, 'HEAD');
@@ -181,11 +182,11 @@ test('gateway records icon and stream GET/HEAD routes without token or track ide
   assert.equal((await fetch(`${baseUrl}/assets/icon.svg`)).status, 200);
   assert.equal((await fetch(`${baseUrl}/assets/icon.svg`, { method: 'HEAD' })).status, 200);
   assert.equal(
-    (await fetch(`${baseUrl}/stream/${registration.token}`)).status,
+    (await fetch(`${baseUrl}/stream/${registration.token}.bin`)).status,
     206,
   );
   assert.equal(
-    (await fetch(`${baseUrl}/stream/${registration.token}`, { method: 'HEAD' })).status,
+    (await fetch(`${baseUrl}/stream/${registration.token}.bin`, { method: 'HEAD' })).status,
     206,
   );
 
@@ -199,8 +200,8 @@ test('gateway records icon and stream GET/HEAD routes without token or track ide
   assert.deepEqual(
     events.filter(({ event }) => event === 'roon_gateway_stream_request').map(({ fields }) => fields),
     [
-      { method: 'GET', routeClass: 'stream', proxyStream: true },
-      { method: 'HEAD', routeClass: 'stream', proxyStream: true },
+      { method: 'GET', routeClass: 'stream', proxyStream: true, mediaExtension: 'unknown' },
+      { method: 'HEAD', routeClass: 'stream', proxyStream: true, mediaExtension: 'unknown' },
     ],
   );
   const serializedEvents = JSON.stringify(events);
@@ -461,4 +462,255 @@ test('secure gateway follows HTTPS redirects and rejects HTTP or private redirec
     secureGatewayFetch('https://203.0.113.10/start', { method: 'GET' }),
   );
   assert.deepEqual(calls, ['https://203.0.113.10/start']);
+});
+
+test('stream URLs use a format allowlist and extensions never become registry tokens', async (t) => {
+  const registry = new StreamRegistry();
+  let resolveCalls = 0;
+  const gateway = new StreamGateway({
+    host: '127.0.0.1',
+    port: 0,
+    publicBaseUrl: 'http://127.0.0.1:0',
+    registry,
+    logger: createLogger('error'),
+    fetcher: async () => new Response(Uint8Array.from([1]), { status: 200 }),
+  });
+  await gateway.start();
+  t.after(async () => gateway.stop());
+
+  const registration = registry.register({
+    metadata: { id: 'provider-track-id', title: 'Track', artists: ['Artist'], album: 'Album' },
+    requestedQuality: 'standard',
+    resolve: async () => {
+      resolveCalls += 1;
+      return { ...resolvedStream(), format: 'mp3' };
+    },
+  });
+
+  assert.match(gateway.streamUrl(registration.token, 'mp3'), /\.mp3$/);
+  assert.match(gateway.streamUrl(registration.token, 'flac'), /\.flac$/);
+  assert.match(gateway.streamUrl(registration.token, 'not-a-format'), /\.bin$/);
+  assert.equal(new URL(gateway.streamUrl(registration.token, 'mp3')).pathname.includes(`${registration.token}.mp3`), true);
+
+  const valid = await fetch(
+    `${gateway.localBaseUrl()}/stream/${registration.token}.mp3`,
+  );
+  assert.equal(valid.status, 200);
+  assert.equal(resolveCalls, 1);
+
+  const invalid = await fetch(
+    `${gateway.localBaseUrl()}/stream/${registration.token}.exe`,
+  );
+  assert.equal(invalid.status, 404);
+  assert.equal(resolveCalls, 1);
+  assert.throws(() => registry.get(`${registration.token}.mp3`));
+});
+
+test('gateway preserves concrete audio Content-Type and falls back only for missing or octet-stream', async (t) => {
+  const cases = [
+    { format: 'flac', upstream: 'audio/mpeg', expected: 'audio/mpeg' },
+    { format: 'mp3', upstream: 'application/octet-stream', expected: 'audio/mpeg' },
+    { format: 'flac', upstream: null, expected: 'audio/flac' },
+  ] as const;
+
+  for (const item of cases) {
+    const registry = new StreamRegistry();
+    const gateway = new StreamGateway({
+      host: '127.0.0.1',
+      port: 0,
+      publicBaseUrl: 'http://127.0.0.1:0',
+      registry,
+      logger: createLogger('error'),
+      fetcher: async () =>
+        new Response(new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(Uint8Array.from([1, 2]));
+            controller.close();
+          },
+        }), {
+          status: 200,
+          ...(item.upstream ? { headers: { 'Content-Type': item.upstream } } : {}),
+        }),
+    });
+    await gateway.start();
+    t.after(async () => gateway.stop());
+
+    const registration = registry.register({
+      metadata: { id: '1', title: 'Track', artists: ['Artist'], album: 'Album' },
+      requestedQuality: 'standard',
+      resolve: async () => ({ ...resolvedStream(), format: item.format }),
+    });
+    const response = await fetch(
+      `${gateway.localBaseUrl()}/stream/${registration.token}.${item.format}`,
+    );
+    await response.arrayBuffer();
+    assert.equal(response.headers.get('content-type'), item.expected);
+    assert.equal(response.headers.get('content-length'), null);
+    assert.equal(response.headers.get('content-range'), null);
+  }
+});
+
+test('gateway records safe upstream and transfer telemetry for GET and HEAD', async (t) => {
+  const registry = new StreamRegistry();
+  const { logger, events } = recordingLogger();
+  const gateway = new StreamGateway({
+    host: '127.0.0.1',
+    port: 0,
+    publicBaseUrl: 'http://127.0.0.1:0',
+    registry,
+    logger,
+    fetcher: async (_url, init) =>
+      new Response(init.method === 'HEAD' ? null : Uint8Array.from([1, 2, 3, 4]), {
+        status: 206,
+        headers: {
+          'Content-Type': 'audio/flac',
+          'Content-Length': '4',
+          'Content-Range': 'bytes 0-3/100',
+          'Accept-Ranges': 'bytes',
+        },
+      }),
+  });
+  await gateway.start();
+  t.after(async () => gateway.stop());
+
+  const registration = registry.register({
+    metadata: { id: 'provider-id-must-not-log', title: 'Track', artists: ['Artist'], album: 'Album' },
+    requestedQuality: 'standard',
+    resolve: async () => ({ ...resolvedStream(), format: 'flac' }),
+  });
+  const baseUrl = gateway.localBaseUrl();
+  const getResponse = await fetch(`${baseUrl}/stream/${registration.token}.flac`, {
+    headers: { Range: 'bytes=0-3' },
+  });
+  await getResponse.arrayBuffer();
+  const headResponse = await fetch(`${baseUrl}/stream/${registration.token}.flac`, {
+    method: 'HEAD',
+  });
+  await headResponse.arrayBuffer();
+
+  const upstreamEvents = events.filter(({ event }) => event === 'roon_gateway_upstream_response');
+  assert.deepEqual(upstreamEvents[0]?.fields, {
+    method: 'GET',
+    rangePresent: true,
+    rangeClass: 'start-end',
+    upstreamStatus: 206,
+    contentTypeClass: 'audio-flac',
+    contentLengthPresent: true,
+    contentLengthBytes: 4,
+    contentRangePresent: true,
+    acceptRangesPresent: true,
+    mediaExtension: 'flac',
+    transportSecurity: 'https-native',
+  });
+  assert.equal(upstreamEvents[1]?.fields.method, 'HEAD');
+  assert.equal(upstreamEvents[1]?.fields.rangeClass, 'none');
+
+  const transferEvents = events.filter(({ event }) => event === 'roon_gateway_transfer_complete');
+  assert.equal(transferEvents[0]?.fields.method, 'GET');
+  assert.equal(transferEvents[0]?.fields.bytesForwarded, 4);
+  assert.equal(transferEvents[0]?.fields.outcome, 'finished');
+  assert.equal(transferEvents[0]?.fields.responseFinished, true);
+  assert.equal(typeof transferEvents[0]?.fields.responseClosed, 'boolean');
+  assert.equal(transferEvents[1]?.fields.method, 'HEAD');
+  assert.equal(transferEvents[1]?.fields.bytesForwarded, 0);
+  assert.equal(transferEvents[1]?.fields.outcome, 'headers-only');
+
+  const serialized = JSON.stringify(events);
+  assert.equal(serialized.includes(registration.token), false);
+  assert.equal(serialized.includes('provider-id-must-not-log'), false);
+  assert.equal(serialized.includes('https://'), false);
+  assert.equal(serialized.includes('bytes=0-3'), false);
+});
+
+test('gateway reports pipeline-error without logging upstream error text', async (t) => {
+  const registry = new StreamRegistry();
+  const { logger, events } = recordingLogger();
+  const gateway = new StreamGateway({
+    host: '127.0.0.1',
+    port: 0,
+    publicBaseUrl: 'http://127.0.0.1:0',
+    registry,
+    logger,
+    fetcher: async () =>
+      new Response(new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(Uint8Array.from([1]));
+          setImmediate(() => controller.error(new Error('upstream-secret-detail')));
+        },
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }),
+  });
+  await gateway.start();
+  t.after(async () => gateway.stop());
+
+  const registration = registry.register({
+    metadata: { id: '1', title: 'Track', artists: ['Artist'], album: 'Album' },
+    requestedQuality: 'standard',
+    resolve: async () => ({ ...resolvedStream(), format: 'mp3' }),
+  });
+  await assert.rejects(() =>
+    fetch(`${gateway.localBaseUrl()}/stream/${registration.token}.mp3`).then((response) => response.arrayBuffer()),
+  );
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  const transfer = events.find(({ event }) => event === 'roon_gateway_transfer_complete');
+  assert.equal(transfer?.fields.outcome, 'pipeline-error');
+  assert.equal(JSON.stringify(events).includes('upstream-secret-detail'), false);
+});
+
+test('gateway records client-aborted when the downstream request is closed mid-transfer', async (t) => {
+  const registry = new StreamRegistry();
+  const { logger, events } = recordingLogger();
+  const gateway = new StreamGateway({
+    host: '127.0.0.1',
+    port: 0,
+    publicBaseUrl: 'http://127.0.0.1:0',
+    registry,
+    logger,
+    fetcher: async () =>
+      new Response(new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(Uint8Array.from([1, 2, 3]));
+        },
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }),
+  });
+  await gateway.start();
+  t.after(async () => gateway.stop());
+
+  const registration = registry.register({
+    metadata: { id: '1', title: 'Track', artists: ['Artist'], album: 'Album' },
+    requestedQuality: 'standard',
+    resolve: async () => ({ ...resolvedStream(), format: 'mp3' }),
+  });
+  await new Promise<void>((resolve, reject) => {
+    const request = httpRequest(
+      `${gateway.localBaseUrl()}/stream/${registration.token}.mp3`,
+      (response) => {
+        response.once('data', () => {
+          request.destroy();
+          resolve();
+        });
+        response.once('error', () => undefined);
+      },
+    );
+    request.once('error', (error) => {
+      if ((error as NodeJS.ErrnoException).code !== 'ECONNRESET') reject(error);
+    });
+    request.end();
+  });
+
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    if (events.some(({ event, fields }) =>
+      event === 'roon_gateway_transfer_complete' && fields.outcome === 'client-aborted')) {
+      break;
+    }
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+  const transfer = events.find(({ event }) => event === 'roon_gateway_transfer_complete');
+  assert.equal(transfer?.fields.outcome, 'client-aborted');
 });

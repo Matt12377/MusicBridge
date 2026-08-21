@@ -31,6 +31,25 @@ export interface RoonAudioInputSession {
   end_session(callback: (message: unknown, body: unknown) => void): void;
 }
 
+export interface RoonAudioInputPlayInfo {
+  is_seek_allowed: boolean;
+  is_pause_allowed: boolean;
+  length?: number;
+  one_line: { line1: string };
+  two_line: { line1: string; line2?: string };
+  three_line: { line1: string; line2?: string; line3?: string };
+}
+
+export interface RoonAudioInputPlayOptions {
+  session_id: string;
+  track_id: string;
+  type: 'channel' | 'track';
+  slot: 'play';
+  media_url: string;
+  seek_position_ms?: number;
+  info: RoonAudioInputPlayInfo;
+}
+
 export interface RoonAudioInputService {
   begin_session(
     options: unknown,
@@ -41,7 +60,7 @@ export interface RoonAudioInputService {
     callback: (message: unknown, body: unknown) => void,
   ): void;
   play(
-    options: unknown,
+    options: RoonAudioInputPlayOptions,
     callback: (message: unknown, body: unknown) => void,
   ): void;
 }

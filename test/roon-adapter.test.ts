@@ -8,6 +8,7 @@ import type {
   RoonApiInstance,
   RoonApiOptions,
   RoonAudioInputService,
+  RoonAudioInputPlayOptions,
   RoonAudioInputSession,
   RoonCore,
   RoonRequiredServiceConstructor,
@@ -35,7 +36,7 @@ class FakeAudioInput implements RoonAudioInputService {
     | ((message: unknown, body: unknown) => void)
     | undefined;
   playCalls = 0;
-  playOptions: unknown[] = [];
+  playOptions: RoonAudioInputPlayOptions[] = [];
   playCallback:
     | ((message: unknown, body: unknown) => void)
     | undefined;
@@ -65,7 +66,7 @@ class FakeAudioInput implements RoonAudioInputService {
   }
 
   play(
-    options: unknown,
+    options: RoonAudioInputPlayOptions,
     callback: (message: unknown, body: unknown) => void,
   ): void {
     this.playCalls += 1;
@@ -211,6 +212,7 @@ class FakeSdk implements RoonSdk {
 interface AdapterTestOptions {
   sessionBeginTimeoutMs?: number;
   playingTimeoutMs?: number;
+  trackIdFactory?: () => string;
 }
 
 function recordingLogger(): {
@@ -472,14 +474,96 @@ test('valid SessionBegan is required before audioInput.play and begin_session us
 
   assert.equal(audioInput.playCalls, 1);
   assert.equal(
-    (audioInput.playOptions[0] as Record<string, unknown>).session_id,
+    audioInput.playOptions[0]?.session_id,
     'opaque-session',
   );
-  assert.deepEqual(
-    events.filter(({ event }) => event === 'roon_play_event')[0]?.fields,
-    { phase: 'awaiting_playing', eventName: 'Playing' },
-  );
+  const playingEvent = events.find(({ event }) => event === 'roon_play_event');
+  assert.equal(playingEvent?.fields.phase, 'awaiting_playing');
+  assert.equal(playingEvent?.fields.eventName, 'Playing');
+  assert.equal(playingEvent?.fields.bodyPresent, true);
+  assert.deepEqual(playingEvent?.fields.bodyKeys, []);
+  assert.equal(playingEvent?.fields.sanitizedErrorClass, 'none');
+  assert.equal(playingEvent?.fields.trackIdPresent, true);
+  assert.equal(playingEvent?.fields.gatewayStage, 'none');
+  assert.equal(typeof playingEvent?.fields.elapsedMs, 'number');
   assert.equal(JSON.stringify(events).includes('opaque-session'), false);
+});
+
+test('channel play payload has one stable non-sensitive track identity', async () => {
+  const { adapter, api } = await makeReadyHarness({
+    trackIdFactory: () => 'musicbridge-test-track-identity',
+  });
+  api.core.audioInput.autoPlay = false;
+  const playback = adapter.play(playRequest);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'opaque-session' });
+  api.core.audioInput.emitPlay('Time', { session_id: 'opaque-session' });
+  api.core.audioInput.emitPlay('Playing', { session_id: 'opaque-session' });
+  await playback;
+
+  const payload = api.core.audioInput.playOptions[0];
+  assert.ok(payload);
+  assert.equal(payload.track_id, 'musicbridge-test-track-identity');
+  assert.notEqual(payload.track_id, playRequest.metadata.id);
+  assert.equal(payload.track_id.includes('fake'), false);
+  assert.notEqual(payload.track_id, new URL(playRequest.mediaUrl).pathname.split('/').at(-1));
+  assert.equal(payload.type, 'channel');
+  assert.equal(payload.seek_position_ms, undefined);
+  assert.equal(payload.info.length, undefined);
+  assert.equal(api.core.audioInput.playOptions[0]?.track_id, payload.track_id);
+});
+
+test('a new playback receives a new track identity after stop clears the prior one', async () => {
+  let nextTrackId = 0;
+  const { adapter, api } = await makeReadyHarness({
+    trackIdFactory: () => `musicbridge-test-${++nextTrackId}`,
+  });
+
+  const firstPlayback = adapter.play(playRequest);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'opaque-session-1' });
+  await firstPlayback;
+  assert.equal(api.core.audioInput.playOptions[0]?.track_id, 'musicbridge-test-1');
+
+  await adapter.stop();
+
+  const secondPlayback = adapter.play(playRequest);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'opaque-session-2' });
+  await secondPlayback;
+  assert.equal(api.core.audioInput.playOptions[1]?.track_id, 'musicbridge-test-2');
+  assert.equal(nextTrackId, 2);
+});
+
+test('play event telemetry contains only safe body summary and gateway stage', async () => {
+  const { logger, events } = recordingLogger();
+  const { adapter, api } = await makeReadyHarness({}, logger);
+  api.core.audioInput.autoPlay = false;
+  const playback = adapter.play({
+    ...playRequest,
+    gatewayStage: () => 'completed',
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'opaque-session' });
+  api.core.audioInput.emitPlay('EndedNaturally', {
+    session_id: 'opaque-session',
+    token: 'must-not-log',
+    error_message: 'must-not-log',
+  });
+
+  await assert.rejects(() => playback);
+  const playEvent = events.find(({ event }) => event === 'roon_play_event');
+  assert.deepEqual(playEvent?.fields, {
+    phase: 'awaiting_playing',
+    eventName: 'EndedNaturally',
+    elapsedMs: playEvent?.fields.elapsedMs,
+    bodyPresent: true,
+    bodyKeys: ['session_id', 'token', 'error_message'],
+    sanitizedErrorClass: 'other',
+    trackIdPresent: true,
+    gatewayStage: 'completed',
+  });
+  assert.equal(JSON.stringify(events).includes('must-not-log'), false);
 });
 
 test('Zone loss during stop rejects before beginning a new Audio Input session', async () => {
@@ -674,10 +758,14 @@ test('play events log the event name without callback body content', async () =>
 
   await assert.rejects(() => playback);
   const playEvent = events.find(({ event }) => event === 'roon_play_event');
-  assert.deepEqual(playEvent?.fields, {
-    phase: 'awaiting_playing',
-    eventName: 'UnexpectedPlayEvent',
-  });
+  assert.equal(playEvent?.fields.phase, 'awaiting_playing');
+  assert.equal(playEvent?.fields.eventName, 'UnexpectedPlayEvent');
+  assert.equal(playEvent?.fields.bodyPresent, true);
+  assert.deepEqual(playEvent?.fields.bodyKeys, ['token']);
+  assert.equal(playEvent?.fields.sanitizedErrorClass, 'none');
+  assert.equal(playEvent?.fields.trackIdPresent, true);
+  assert.equal(playEvent?.fields.gatewayStage, 'none');
+  assert.equal(typeof playEvent?.fields.elapsedMs, 'number');
   assert.equal(JSON.stringify(events).includes('must-not-log'), false);
 });
 

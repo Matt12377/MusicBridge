@@ -1,7 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import { BridgeError } from '../shared/errors.js';
 import type { Logger } from '../shared/logger.js';
 import type {
   RoonPlayRequest,
+  RoonGatewayStage,
   RoonPort,
   RoonState,
   RoonTerminalReason,
@@ -50,6 +52,7 @@ export interface RoonResponseBodySummary {
 export interface RoonAudioInputAdapterOptions {
   sessionBeginTimeoutMs?: number;
   playingTimeoutMs?: number;
+  trackIdFactory?: () => string;
 }
 
 const DEFAULT_SESSION_BEGIN_TIMEOUT_MS = 10_000;
@@ -136,6 +139,19 @@ function isLocalPngIconUrl(value: string): boolean {
     );
   } catch {
     return false;
+  }
+}
+
+function readGatewayStage(value: unknown): RoonGatewayStage {
+  switch (value) {
+    case 'headers':
+    case 'streaming':
+    case 'completed':
+    case 'aborted':
+    case 'error':
+      return value;
+    default:
+      return 'none';
   }
 }
 
@@ -239,6 +255,8 @@ export class RoonAudioInputAdapter implements RoonPort {
   private terminalHandler: (reason: RoonTerminalReason) => void = () => undefined;
   private readonly sessionBeginTimeoutMs: number;
   private readonly playingTimeoutMs: number;
+  private readonly trackIdFactory: () => string;
+  private currentTrackId: string | undefined;
 
   constructor(
     private readonly logger: Logger,
@@ -247,6 +265,7 @@ export class RoonAudioInputAdapter implements RoonPort {
   ) {
     this.sessionBeginTimeoutMs = options.sessionBeginTimeoutMs ?? DEFAULT_SESSION_BEGIN_TIMEOUT_MS;
     this.playingTimeoutMs = options.playingTimeoutMs ?? DEFAULT_PLAYING_TIMEOUT_MS;
+    this.trackIdFactory = options.trackIdFactory ?? (() => `musicbridge-${randomUUID()}`);
   }
 
   setTerminalHandler(handler: (reason: RoonTerminalReason) => void): void {
@@ -344,6 +363,15 @@ export class RoonAudioInputAdapter implements RoonPort {
       });
     }
 
+    const trackId = this.trackIdFactory();
+    if (typeof trackId !== 'string' || trackId.length === 0) {
+      throw new BridgeError('ROON_MEDIA_ERROR', 'Roon track identity could not be generated', {
+        httpStatus: 502,
+        details: { reason: 'invalid_track_identity' },
+      });
+    }
+    this.currentTrackId = trackId;
+
     await new Promise<void>((resolve, reject) => {
       let settled = false;
       let phase: RoonPlaybackPhase = 'awaiting_session';
@@ -354,6 +382,7 @@ export class RoonAudioInputAdapter implements RoonPort {
         if (settled) return;
         settled = true;
         if (timeout) clearTimeout(timeout);
+        if (error) this.clearTrackIdentity();
         if (error) reject(error);
         else resolve();
       };
@@ -373,6 +402,7 @@ export class RoonAudioInputAdapter implements RoonPort {
       const finishZoneLoss = (): void => {
         this.selectedZone = undefined;
         this.setStatus('paired', 'Please configure Zone', true);
+        this.clearTrackIdentity();
         this.terminalHandler('zone_lost');
         finish(
           new BridgeError(
@@ -383,11 +413,24 @@ export class RoonAudioInputAdapter implements RoonPort {
         );
       };
 
-      const handlePlayEvent = (playMessage: unknown): void => {
+      const handlePlayEvent = (playMessage: unknown, playBody: unknown): void => {
         const event = messageName(playMessage);
+        const responseSummary = summarizeRoonResponseBody(playBody);
+        let gatewayStage: RoonGatewayStage = 'none';
+        try {
+          gatewayStage = readGatewayStage(request.gatewayStage?.());
+        } catch {
+          gatewayStage = 'none';
+        }
         this.logger.info('roon_play_event', {
           phase: 'awaiting_playing',
           eventName: event,
+          elapsedMs: Date.now() - startedAt,
+          bodyPresent: responseSummary.bodyPresent,
+          bodyKeys: responseSummary.bodyKeys,
+          sanitizedErrorClass: responseSummary.sanitizedErrorClass,
+          trackIdPresent: this.currentTrackId === trackId,
+          gatewayStage,
         });
         switch (event) {
           case 'Playing':
@@ -399,17 +442,20 @@ export class RoonAudioInputAdapter implements RoonPort {
           case 'EndedNaturally':
             this.setStatus('ready', 'Ready', false);
             this.terminalHandler('ended');
+            this.clearTrackIdentity();
             if (!settled) finish(protocolError('awaiting_playing', 'ended_before_playing', event));
             break;
           case 'StoppedUser':
           case 'Paused':
             this.setStatus('ready', 'Ready', false);
             this.terminalHandler('stopped');
+            this.clearTrackIdentity();
             if (!settled) finish(protocolError('awaiting_playing', 'stopped_before_playing', event));
             break;
           case 'MediaError':
             this.setStatus('error', 'Media error', true, 'Roon MediaError');
             this.terminalHandler('media_error');
+            this.clearTrackIdentity();
             finish(
               new BridgeError('ROON_MEDIA_ERROR', 'Roon reported a media error', {
                 httpStatus: 502,
@@ -470,6 +516,7 @@ export class RoonAudioInputAdapter implements RoonPort {
             audioInput.play(
               {
                 session_id: sessionId,
+                track_id: trackId,
                 type: 'channel',
                 slot: 'play',
                 media_url: request.mediaUrl,
@@ -512,6 +559,7 @@ export class RoonAudioInputAdapter implements RoonPort {
 
         if (sessionEvent === 'SessionEnded') {
           this.setStatus('ready', 'Ready', false);
+          this.clearTrackIdentity();
           if (!settled) finish(protocolError(phase, 'session_ended', sessionEvent));
           return;
         }
@@ -561,6 +609,7 @@ export class RoonAudioInputAdapter implements RoonPort {
   async stop(): Promise<void> {
     const session = this.session;
     this.session = undefined;
+    this.clearTrackIdentity();
     if (!session) return;
 
     await new Promise<void>((resolve) => {
@@ -599,6 +648,10 @@ export class RoonAudioInputAdapter implements RoonPort {
 
   getState(): RoonState {
     return { ...this.state };
+  }
+
+  private clearTrackIdentity(): void {
+    this.currentTrackId = undefined;
   }
 
   private onCorePaired(core: RoonCore): void {

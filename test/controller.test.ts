@@ -120,8 +120,12 @@ test('controller registers a local stream, starts Roon and reports actual qualit
   const state = await controller.play({ trackId: '123', quality: 'lossless' });
 
   assert.equal(registry.size, 1);
-  assert.ok(roon.playRequest?.mediaUrl.startsWith('http://127.0.0.1:38502/stream/'));
+  assert.match(
+    roon.playRequest?.mediaUrl ?? '',
+    /^http:\/\/127\.0\.0\.1:38502\/stream\/[A-Za-z0-9_-]+\.flac$/,
+  );
   assert.equal(roon.playRequest?.metadata.title, 'Test Song');
+  assert.equal(roon.playRequest?.gatewayStage?.(), 'none');
   assert.equal(state.activePlayback?.requestedQuality, 'lossless');
   assert.equal(state.activePlayback?.actualQuality, 'lossless');
   assert.equal(state.activePlayback?.transportSecurity, 'https-upgraded');
@@ -130,6 +134,13 @@ test('controller registers a local stream, starts Roon and reports actual qualit
   await controller.stop();
   assert.equal(registry.size, 0);
   assert.equal(controller.getState().activePlayback, undefined);
+});
+
+test('controller attaches an explicit gateway stage context to the Roon request', async () => {
+  const { controller, roon } = makeHarness();
+  await controller.play({ trackId: '123', quality: 'lossless' });
+
+  assert.equal(roon.playRequest?.gatewayStage?.(), 'none');
 });
 
 test('controller rejects preflight failure before registering a token or starting Roon', async () => {

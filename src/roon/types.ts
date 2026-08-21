@@ -15,10 +15,19 @@ export interface RoonState {
   lastError?: string;
 }
 
+export type RoonGatewayStage =
+  | 'none'
+  | 'headers'
+  | 'streaming'
+  | 'completed'
+  | 'aborted'
+  | 'error';
+
 export interface RoonPlayRequest {
   mediaUrl: string;
   iconUrl: string;
   metadata: TrackMetadata;
+  gatewayStage?: () => RoonGatewayStage;
 }
 
 export type RoonTerminalReason =

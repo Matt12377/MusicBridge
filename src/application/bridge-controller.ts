@@ -11,7 +11,7 @@ import type {
   TrackMetadata,
   TransportSecurity,
 } from '../netease/types.js';
-import type { RoonPort, RoonState } from '../roon/types.js';
+import type { RoonGatewayStage, RoonPort, RoonState } from '../roon/types.js';
 import type { StreamGateway } from '../stream/gateway.js';
 import type { StreamRegistry } from '../stream/registry.js';
 
@@ -48,7 +48,10 @@ export class BridgeController {
     },
   ) {
     this.dependencies.roon.setTerminalHandler((reason) => {
-      if (this.activeToken) this.dependencies.registry.revoke(this.activeToken);
+      if (this.activeToken) {
+        this.dependencies.gateway.clearStageObserver(this.activeToken);
+        this.dependencies.registry.revoke(this.activeToken);
+      }
       this.activeToken = undefined;
       this.activePlayback = undefined;
       this.dependencies.logger.info('roon_session_terminal', { reason });
@@ -92,6 +95,7 @@ export class BridgeController {
     });
 
     this.activeToken = registration.token;
+    let gatewayStage: RoonGatewayStage = 'none';
     const activePlayback: ActivePlayback = {
       track: metadata,
       requestedQuality: quality,
@@ -111,9 +115,16 @@ export class BridgeController {
 
     try {
       await this.dependencies.roon.play({
-        mediaUrl: this.dependencies.gateway.streamUrl(registration.token),
+        mediaUrl: this.dependencies.gateway.streamUrl(
+          registration.token,
+          initialStream.format,
+          (stage) => {
+            gatewayStage = stage;
+          },
+        ),
         iconUrl: this.dependencies.gateway.iconUrl(),
         metadata,
+        gatewayStage: () => gatewayStage,
       });
       if (this.activeToken !== registration.token) {
         throw new BridgeError(
@@ -139,6 +150,7 @@ export class BridgeController {
       });
       return this.getState();
     } catch (error) {
+      this.dependencies.gateway.clearStageObserver(registration.token);
       this.dependencies.registry.revoke(registration.token);
       this.activeToken = undefined;
       this.activePlayback = undefined;
@@ -155,6 +167,7 @@ export class BridgeController {
       await this.dependencies.roon.stop();
     } finally {
       if (this.activeToken) {
+        this.dependencies.gateway.clearStageObserver(this.activeToken);
         this.dependencies.registry.revoke(this.activeToken);
       }
       this.activeToken = undefined;

@@ -1,9 +1,10 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import { Readable } from 'node:stream';
+import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { asBridgeError, BridgeError } from '../shared/errors.js';
 import { assertSafeAudioUrl } from '../netease/policy.js';
 import type { ResolvedAudioStream } from '../netease/types.js';
+import type { RoonGatewayStage } from '../roon/types.js';
 import type { Logger } from '../shared/logger.js';
 import type { StreamRegistry } from './registry.js';
 import { secureGatewayFetch, type GatewayFetch } from './upstream-policy.js';
@@ -30,6 +31,142 @@ const ICON_PNG = Buffer.from(
 const LOCAL_ICON_URL = 'http://127.0.0.1:38502/assets/icon.png';
 
 const DEFAULT_PREFLIGHT_TIMEOUT_MS = 10_000;
+
+export type MediaExtension =
+  | 'mp3'
+  | 'flac'
+  | 'aac'
+  | 'm4a'
+  | 'ogg'
+  | 'opus'
+  | 'wav'
+  | 'unknown';
+
+type GatewayStageObserver = (stage: RoonGatewayStage) => void;
+
+function normalizeFormat(format: string | undefined): string {
+  return format?.trim().toLowerCase().replace(/^\./, '') ?? '';
+}
+
+export function mediaExtensionForFormat(format: string | undefined): MediaExtension {
+  switch (normalizeFormat(format)) {
+    case 'mp3':
+      return 'mp3';
+    case 'flac':
+      return 'flac';
+    case 'aac':
+      return 'aac';
+    case 'm4a':
+      return 'm4a';
+    case 'ogg':
+      return 'ogg';
+    case 'opus':
+      return 'opus';
+    case 'wav':
+      return 'wav';
+    default:
+      return 'unknown';
+  }
+}
+
+function routeExtensionForFormat(format: string | undefined): string {
+  const extension = mediaExtensionForFormat(format);
+  return extension === 'unknown' ? 'bin' : extension;
+}
+
+function fallbackContentTypeForFormat(format: string | undefined): string | undefined {
+  switch (mediaExtensionForFormat(format)) {
+    case 'mp3':
+      return 'audio/mpeg';
+    case 'flac':
+      return 'audio/flac';
+    case 'aac':
+      return 'audio/aac';
+    case 'm4a':
+      return 'audio/mp4';
+    case 'ogg':
+      return 'application/ogg';
+    case 'opus':
+      return 'audio/ogg';
+    case 'wav':
+      return 'audio/wav';
+    case 'unknown':
+      return undefined;
+  }
+}
+
+type ContentTypeClass =
+  | 'audio-mpeg'
+  | 'audio-flac'
+  | 'audio-aac'
+  | 'audio-mp4'
+  | 'audio-ogg'
+  | 'audio-wav'
+  | 'octet-stream'
+  | 'missing'
+  | 'other';
+
+function contentTypeBase(value: string | null): string | undefined {
+  if (value === null) return undefined;
+  const base = value.split(';', 1)[0]?.trim().toLowerCase();
+  return base || undefined;
+}
+
+function isGenericContentType(value: string | null): boolean {
+  const base = contentTypeBase(value);
+  return (
+    base === undefined ||
+    base === 'application/octet-stream' ||
+    base === 'binary/octet-stream'
+  );
+}
+
+function classifyContentType(value: string | null): ContentTypeClass {
+  const base = contentTypeBase(value);
+  switch (base) {
+    case undefined:
+      return 'missing';
+    case 'audio/mpeg':
+      return 'audio-mpeg';
+    case 'audio/flac':
+      return 'audio-flac';
+    case 'audio/aac':
+      return 'audio-aac';
+    case 'audio/mp4':
+    case 'audio/x-m4a':
+      return 'audio-mp4';
+    case 'audio/ogg':
+    case 'application/ogg':
+      return 'audio-ogg';
+    case 'audio/wav':
+    case 'audio/x-wav':
+      return 'audio-wav';
+    case 'application/octet-stream':
+    case 'binary/octet-stream':
+      return 'octet-stream';
+    default:
+      return 'other';
+  }
+}
+
+function classifyRange(value: string | undefined):
+  | 'none'
+  | 'start-end'
+  | 'start-open'
+  | 'suffix'
+  | 'other' {
+  if (!value) return 'none';
+  if (/^bytes=\d+-\d+$/.test(value)) return 'start-end';
+  if (/^bytes=\d+-$/.test(value)) return 'start-open';
+  if (/^bytes=-\d+$/.test(value)) return 'suffix';
+  return 'other';
+}
+
+function readContentLength(value: string | null): number | undefined {
+  if (value === null || !/^\d+$/.test(value.trim())) return undefined;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : undefined;
+}
 
 function preflightFailure(cause?: unknown, status?: number): BridgeError {
   return new BridgeError(
@@ -65,6 +202,7 @@ function sendJson(
 
 export class StreamGateway {
   private server: Server | undefined;
+  private readonly stageObservers = new Map<string, GatewayStageObserver>();
 
   constructor(
     private readonly options: {
@@ -101,8 +239,17 @@ export class StreamGateway {
     });
   }
 
-  streamUrl(token: string): string {
-    return `${this.options.publicBaseUrl}/stream/${encodeURIComponent(token)}`;
+  streamUrl(
+    token: string,
+    format?: string,
+    onStageChange?: GatewayStageObserver,
+  ): string {
+    if (onStageChange) this.stageObservers.set(token, onStageChange);
+    return `${this.options.publicBaseUrl}/stream/${encodeURIComponent(token)}.${routeExtensionForFormat(format)}`;
+  }
+
+  clearStageObserver(token: string): void {
+    this.stageObservers.delete(token);
   }
 
   iconUrl(): string {
@@ -221,7 +368,9 @@ export class StreamGateway {
         return;
       }
 
-      const match = /^\/stream\/([A-Za-z0-9_-]+)$/.exec(requestUrl.pathname);
+      const match = /^\/stream\/([A-Za-z0-9_-]+)\.(mp3|flac|aac|m4a|ogg|opus|wav|bin)$/.exec(
+        requestUrl.pathname,
+      );
       if (!match || (request.method !== 'GET' && request.method !== 'HEAD')) {
         sendJson(response, 404, { ok: false, code: 'NOT_FOUND' });
         return;
@@ -237,13 +386,13 @@ export class StreamGateway {
         method: request.method,
         routeClass: 'stream',
         proxyStream: true,
+        mediaExtension: match[2] === 'bin' ? 'unknown' : match[2],
       });
       await this.proxyStream(token, request, response);
     } catch (error) {
       const bridgeError = asBridgeError(error);
       this.options.logger.warn('stream_gateway_request_failed', {
         code: bridgeError.code,
-        message: bridgeError.message,
       });
       if (!response.headersSent) {
         sendJson(response, bridgeError.httpStatus, {
@@ -262,29 +411,59 @@ export class StreamGateway {
     request: IncomingMessage,
     response: ServerResponse,
   ): Promise<void> {
-    const registration = this.options.registry.get(token);
-    const resolved = await registration.resolve();
-    const headers = new Headers(resolved.requestHeaders ?? {});
-    headers.set('Accept-Encoding', 'identity');
-
-    const range = request.headers.range;
-    const ifRangeValue = request.headers['if-range'];
-    const ifRange = Array.isArray(ifRangeValue) ? ifRangeValue[0] : ifRangeValue;
-    if (range) headers.set('Range', range);
-    if (ifRange) headers.set('If-Range', ifRange);
-
+    const startedAt = Date.now();
     const abortController = new AbortController();
-    const onClose = (): void => abortController.abort();
-    request.once('aborted', onClose);
-    response.once('close', onClose);
+    let clientAborted = false;
+    let responseFinished = false;
+    let responseClosed = false;
+    let transferOutcome:
+      | 'finished'
+      | 'client-aborted'
+      | 'upstream-aborted'
+      | 'pipeline-error'
+      | 'headers-only'
+      | undefined;
+    let pipelineStarted = false;
+    let upstreamResponseReceived = false;
+    let upstreamBodyErrored = false;
+    let clientAbortBeforeUpstreamBodyError = false;
+    let bytesForwarded = 0;
+
+    const onRequestAborted = (): void => {
+      if (!upstreamBodyErrored) clientAbortBeforeUpstreamBodyError = true;
+      clientAborted = true;
+      abortController.abort();
+    };
+    const onResponseFinish = (): void => {
+      responseFinished = true;
+    };
+    const onResponseClose = (): void => {
+      responseClosed = true;
+      if (!responseFinished) abortController.abort();
+    };
+    request.once('aborted', onRequestAborted);
+    response.once('finish', onResponseFinish);
+    response.once('close', onResponseClose);
 
     try {
+      const registration = this.options.registry.get(token);
+      const resolved = await registration.resolve();
+      const headers = new Headers(resolved.requestHeaders ?? {});
+      headers.set('Accept-Encoding', 'identity');
+
+      const range = request.headers.range;
+      const ifRangeValue = request.headers['if-range'];
+      const ifRange = Array.isArray(ifRangeValue) ? ifRangeValue[0] : ifRangeValue;
+      if (range) headers.set('Range', range);
+      if (ifRange) headers.set('If-Range', ifRange);
+
       const fetcher = this.options.fetcher ?? secureGatewayFetch;
       const upstream = await fetcher(resolved.upstreamUrl, {
         method: request.method ?? 'GET',
         headers,
         signal: abortController.signal,
       });
+      upstreamResponseReceived = true;
 
       if (!upstream.ok && upstream.status !== 206) {
         throw new BridgeError(
@@ -295,31 +474,103 @@ export class StreamGateway {
       }
 
       response.statusCode = upstream.status;
+      const upstreamContentType = upstream.headers.get('content-type');
       for (const headerName of FORWARDED_RESPONSE_HEADERS) {
         const value = upstream.headers.get(headerName);
         if (value !== null) response.setHeader(headerName, value);
       }
+      if (isGenericContentType(upstreamContentType)) {
+        const fallbackContentType = fallbackContentTypeForFormat(resolved.format);
+        if (fallbackContentType) response.setHeader('Content-Type', fallbackContentType);
+      }
       response.setHeader('Cache-Control', 'no-store');
       response.setHeader('X-Content-Type-Options', 'nosniff');
 
-      this.options.logger.debug('stream_proxy_started', {
+      this.notifyStage(token, 'headers');
+      this.options.logger.info('roon_gateway_upstream_response', {
         method: request.method ?? 'GET',
-        status: upstream.status,
-        rangeForwarded: Boolean(range),
-        actualQuality: resolved.actualQuality,
-        format: resolved.format,
+        rangePresent: Boolean(range),
+        rangeClass: classifyRange(range),
+        upstreamStatus: upstream.status,
+        contentTypeClass: classifyContentType(upstreamContentType),
+        contentLengthPresent: upstream.headers.get('content-length') !== null,
+        ...(readContentLength(upstream.headers.get('content-length')) !== undefined
+          ? { contentLengthBytes: readContentLength(upstream.headers.get('content-length')) }
+          : {}),
+        contentRangePresent: upstream.headers.get('content-range') !== null,
+        acceptRangesPresent: upstream.headers.get('accept-ranges') !== null,
+        mediaExtension: mediaExtensionForFormat(resolved.format),
+        transportSecurity: resolved.transportSecurity ?? 'unknown',
       });
 
       if (request.method === 'HEAD' || upstream.body === null) {
+        transferOutcome = 'headers-only';
         response.end();
         return;
       }
 
+      this.notifyStage(token, 'streaming');
+      pipelineStarted = true;
       const nodeStream = Readable.fromWeb(upstream.body as any);
-      await pipeline(nodeStream, response);
+      nodeStream.once('error', () => {
+        upstreamBodyErrored = true;
+      });
+      const byteCounter = new Transform({
+        transform(chunk: unknown, _encoding, callback) {
+          if (typeof chunk === 'string') bytesForwarded += Buffer.byteLength(chunk);
+          else if (chunk instanceof Uint8Array) bytesForwarded += chunk.byteLength;
+          callback(null, chunk);
+        },
+      });
+      await pipeline(nodeStream, byteCounter, response);
+      transferOutcome = 'finished';
+      this.notifyStage(token, 'completed', true);
+    } catch (error) {
+      const isAbortError = error instanceof Error && error.name === 'AbortError';
+      if (
+        pipelineStarted &&
+        !isAbortError &&
+        upstreamBodyErrored &&
+        !clientAbortBeforeUpstreamBodyError
+      ) {
+        transferOutcome = 'pipeline-error';
+        this.notifyStage(token, 'error', true);
+      } else if (clientAborted) {
+        transferOutcome = 'client-aborted';
+        this.notifyStage(token, 'aborted', true);
+      } else if (!pipelineStarted || !upstreamResponseReceived) {
+        transferOutcome = 'upstream-aborted';
+        this.notifyStage(token, 'error', true);
+      } else {
+        transferOutcome = 'pipeline-error';
+        this.notifyStage(token, 'error', true);
+      }
+      throw error;
     } finally {
-      request.off('aborted', onClose);
-      response.off('close', onClose);
+      request.off('aborted', onRequestAborted);
+      response.off('finish', onResponseFinish);
+      response.off('close', onResponseClose);
+      if (transferOutcome) {
+        this.options.logger.info('roon_gateway_transfer_complete', {
+          method: request.method ?? 'GET',
+          bytesForwarded,
+          durationMs: Date.now() - startedAt,
+          outcome: transferOutcome,
+          responseFinished: responseFinished || response.writableFinished,
+          responseClosed,
+        });
+      }
     }
+  }
+
+  private notifyStage(token: string, stage: RoonGatewayStage, terminal = false): void {
+    const observer = this.stageObservers.get(token);
+    if (!observer) return;
+    try {
+      observer(stage);
+    } catch {
+      // A diagnostic observer must never affect media delivery.
+    }
+    if (terminal) this.stageObservers.delete(token);
   }
 }
