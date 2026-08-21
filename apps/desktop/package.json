@@ -1,6 +1,6 @@
 {
   "name": "@music-bridge/desktop",
-  "version": "0.1.0-poc.1",
+  "version": "0.1.0-beta.1",
   "private": true,
   "type": "module",
   "main": "dist/main/index.js",
@@ -15,6 +15,7 @@
     "dev": "electron-vite build --mode development && electron dist/main/index.js",
     "start": "electron dist/main/index.js",
     "pack": "electron-builder --dir",
+    "pack:beta": "electron-builder --mac --arm64",
     "test:startup": "node scripts/startup-gate.mjs development && node scripts/startup-gate.mjs production",
     "test:e2e": "electron-vite build --mode production && playwright test"
   },
@@ -46,11 +47,61 @@
   },
   "build": {
     "appId": "com.musicbridge.roon",
+    "artifactName": "MusicBridge-${version}-${arch}.${ext}",
     "directories": {
-      "output": "release"
+      "output": "release",
+      "buildResources": "build"
     },
     "files": [
-      "dist/**/*"
-    ]
+      "dist/**/*",
+      "!**/docs{,/**/*}",
+      "!**/test{,/**/*}",
+      "!**/tests{,/**/*}",
+      "!**/fixtures{,/**/*}",
+      "!**/*.log",
+      "!**/*.map",
+      "!**/*.md",
+      "!**/*.markdown",
+      "!**/*.mdx",
+      "!node_modules/@music-bridge/contracts/src{,/**/*}",
+      "!node_modules/@music-bridge/contracts/tsconfig*.json"
+    ],
+    "asar": true,
+    "mac": {
+      "target": [
+        "dir",
+        "dmg"
+      ],
+      "icon": "build/icon.icns",
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "dmg": {
+      "title": "Music Bridge for Roon ${version}",
+      "backgroundColor": "#10131a",
+      "contents": [
+        {
+          "x": 160,
+          "y": 220,
+          "type": "file"
+        },
+        {
+          "x": 480,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "electronFuses": {
+      "runAsNode": false,
+      "enableCookieEncryption": true,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true,
+      "grantFileProtocolExtraPrivileges": false
+    }
   }
 }
