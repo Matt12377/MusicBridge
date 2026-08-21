@@ -61,8 +61,17 @@ function isSelectZonePayload(value: unknown): value is { zoneId: string } {
   );
 }
 
+function isSetCredentialPayload(value: unknown): value is { credential: string } {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['credential']) &&
+    safeString(value.credential, 64 * 1024)
+  );
+}
+
 function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'roon.selectZone') return isSelectZonePayload(payload);
+  if (command === 'auth.setCredential') return isSetCredentialPayload(payload);
   return isEmptyPayload(payload);
 }
 
@@ -150,6 +159,8 @@ function isCommandResult(command: IpcCommand, value: unknown): boolean {
       return isRecord(value) && hasOnlyKeys(value, ['pong']) && value.pong === true;
     case 'core.getHealth':
     case 'core.getState':
+    case 'auth.setCredential':
+    case 'auth.clearCredential':
     case 'roon.selectZone':
       return isPublicBridgeState(value);
     case 'core.shutdown':

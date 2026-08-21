@@ -92,6 +92,47 @@ test('contracts rejects a valid command with an invalid command payload', () => 
   });
 });
 
+test('contracts accepts controlled credential input but only validates public state as its result', () => {
+  const request = validateIpcRequest({
+    version: IPC_VERSION,
+    id: 'credential-request',
+    command: 'auth.setCredential',
+    payload: { credential: 'fixture-credential' },
+  });
+  assert.equal(request.ok, true);
+
+  const response = validateIpcResponseForCommand(
+    {
+      version: IPC_VERSION,
+      id: 'credential-request',
+      ok: true,
+      result: {
+        runtime: 'ready',
+        roon: 'paired',
+        provider: 'configured',
+        activeStreamCount: 0,
+        activePlaybackPresent: false,
+      },
+    },
+    'auth.setCredential',
+  );
+  assert.equal(response.ok, true);
+
+  const invalid = validateIpcRequest({
+    version: IPC_VERSION,
+    id: 'credential-request-too-long',
+    command: 'auth.setCredential',
+    payload: { credential: 'x'.repeat(64 * 1024 + 1) },
+  });
+  assert.deepEqual(invalid, {
+    ok: false,
+    error: {
+      code: 'INVALID_IPC_REQUEST',
+      message: 'Invalid IPC request',
+    },
+  });
+});
+
 test('contracts accepts a typed response and rejects an unsafe error shape', () => {
   const response = validateIpcResponse({
     version: IPC_VERSION,

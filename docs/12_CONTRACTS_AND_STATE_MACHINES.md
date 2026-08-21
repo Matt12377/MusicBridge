@@ -13,6 +13,8 @@
 export type CoreCommand =
   | { version: 1; id: string; type: 'auth.beginQr' }
   | { version: 1; id: string; type: 'auth.pollQr'; key: string }
+  | { version: 1; id: string; type: 'auth.setCredential'; credential: string }
+  | { version: 1; id: string; type: 'auth.clearCredential' }
   | { version: 1; id: string; type: 'auth.logout' }
   | { version: 1; id: string; type: 'library.search'; query: string; page: PageRequest }
   | { version: 1; id: string; type: 'library.liked'; page: PageRequest }
@@ -26,6 +28,8 @@ export type CoreCommand =
   | { version: 1; id: string; type: 'playback.previous' }
   | { version: 1; id: string; type: 'playback.replaceQueue'; items: QueueItem[]; index: number }
 ```
+
+`auth.setCredential` 与 `auth.clearCredential` 是 Main → Core 的受控内部请求；Preload 不暴露这两个方法，响应只返回公开状态，不返回凭据。
 
 ## 3. 事件
 

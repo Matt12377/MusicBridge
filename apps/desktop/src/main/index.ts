@@ -3,6 +3,7 @@ import {
   BrowserWindow,
   ipcMain,
   MessageChannelMain,
+  safeStorage,
   session,
   utilityProcess,
 } from 'electron'
@@ -13,6 +14,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { migrateRoonConfig } from './config-migration.js'
+import { provisionProviderCredential } from './credential-provisioning.js'
+import { CredentialVault } from './credential-vault.js'
 import {
   CoreIpcError,
   CoreSupervisor,
@@ -31,6 +34,8 @@ const currentFile = fileURLToPath(import.meta.url)
 const currentDirectory = path.dirname(currentFile)
 const isStartupTest = process.env.MUSIC_BRIDGE_STARTUP_TEST === '1'
 const isCoreCrashGate = isStartupTest && process.env.MUSIC_BRIDGE_CORE_CRASH_GATE === '1'
+const isCredentialVaultGate =
+  isStartupTest && process.env.MUSIC_BRIDGE_CREDENTIAL_VAULT_GATE === '1'
 
 let mainWindow: BrowserWindow | undefined
 let coreSupervisor: CoreSupervisor | undefined
@@ -183,6 +188,7 @@ function createWindow(supervisor: CoreSupervisor): BrowserWindow {
 
 function buildCoreEnvironment(): NodeJS.ProcessEnv {
   const environment = { ...process.env }
+  delete environment.NETEASE_COOKIE
   delete environment.MUSIC_BRIDGE_CORE_CRASH_PROBE
   if (isStartupTest) {
     environment.NODE_ENV = 'test'
@@ -225,7 +231,10 @@ function createCoreSupervisor(dataDirectory: string): CoreSupervisor {
   })
 }
 
-async function prepareCoreDataDirectory(): Promise<string> {
+async function prepareCoreDataDirectory(): Promise<{
+  dataDirectory: string
+  credentialVault: CredentialVault
+}> {
   if (isStartupTest) {
     app.setPath('userData', path.join(app.getPath('temp'), 'musicbridge-task012-startup'))
   }
@@ -246,7 +255,22 @@ async function prepareCoreDataDirectory(): Promise<string> {
   if (result.status === 'invalid') {
     throw new Error('Roon configuration migration failed')
   }
-  return dataDirectory
+  return {
+    dataDirectory,
+    credentialVault: new CredentialVault({
+      filePath: path.join(dataDirectory, 'netease.credential'),
+      storage: safeStorage,
+    }),
+  }
+}
+
+async function runCredentialVaultGate(credentialVault: CredentialVault): Promise<boolean> {
+  const testCredential = 'v'.repeat(32)
+  await credentialVault.save(testCredential)
+  const stored = await credentialVault.read()
+  await credentialVault.delete()
+  const deleted = (await credentialVault.read()).status === 'missing'
+  return stored.status === 'configured' && stored.credential === testCredential && deleted
 }
 
 async function bootstrap(): Promise<void> {
@@ -254,10 +278,32 @@ async function bootstrap(): Promise<void> {
   app.setName('Music Bridge for Roon')
   installSessionSecurity(session.defaultSession)
 
-  const dataDirectory = await prepareCoreDataDirectory()
-  const supervisor = createCoreSupervisor(dataDirectory)
+  const prepared = await prepareCoreDataDirectory()
+  if (isCredentialVaultGate) {
+    try {
+      const passed = await runCredentialVaultGate(prepared.credentialVault)
+      process.stdout.write(`${passed ? 'CREDENTIAL_VAULT_GATE_PASS' : 'CREDENTIAL_VAULT_GATE_FAIL'}\n`)
+      if (passed) app.quit()
+      else app.exit(1)
+    } catch {
+      process.stdout.write('CREDENTIAL_VAULT_GATE_FAIL\n')
+      app.exit(1)
+    }
+    return
+  }
+
+  const supervisor = createCoreSupervisor(prepared.dataDirectory)
   coreSupervisor = supervisor
   await supervisor.start()
+  await provisionProviderCredential({
+    vault: prepared.credentialVault,
+    environment: process.env,
+    core: {
+      setCredential: (credential) =>
+        supervisor.request('auth.setCredential', { credential }),
+      clearCredential: () => supervisor.request('auth.clearCredential', {}),
+    },
+  })
   registerIpcHandlers(supervisor)
   createWindow(supervisor)
   if (isCoreCrashGate) {

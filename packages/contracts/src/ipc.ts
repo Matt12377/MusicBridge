@@ -8,6 +8,8 @@ export const IPC_COMMANDS = [
   'core.getHealth',
   'core.getState',
   'core.shutdown',
+  'auth.setCredential',
+  'auth.clearCredential',
   'roon.listZones',
   'roon.selectZone',
 ] as const;
@@ -55,6 +57,8 @@ export interface IpcCommandPayloads {
   'core.getHealth': Record<string, never>;
   'core.getState': Record<string, never>;
   'core.shutdown': Record<string, never>;
+  'auth.setCredential': { credential: string };
+  'auth.clearCredential': Record<string, never>;
   'roon.listZones': Record<string, never>;
   'roon.selectZone': { zoneId: string };
 }
@@ -64,6 +68,8 @@ export interface IpcCommandResults {
   'core.getHealth': PublicBridgeState;
   'core.getState': PublicBridgeState;
   'core.shutdown': { stopped: true };
+  'auth.setCredential': PublicBridgeState;
+  'auth.clearCredential': PublicBridgeState;
   'roon.listZones': { zones: readonly PublicRoonZone[] };
   'roon.selectZone': PublicBridgeState;
 }

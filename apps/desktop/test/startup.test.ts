@@ -5,7 +5,11 @@ import test from 'node:test'
 
 const desktopRoot = path.resolve('.')
 
-function runStartupGate(mode: 'development' | 'production', crashGate = false) {
+function runStartupGate(
+  mode: 'development' | 'production',
+  crashGate = false,
+  credentialVaultGate = false,
+) {
   const result = spawnSync(process.execPath, ['scripts/startup-gate.mjs', mode], {
     cwd: desktopRoot,
     encoding: 'utf8',
@@ -13,6 +17,7 @@ function runStartupGate(mode: 'development' | 'production', crashGate = false) {
     env: {
       ...process.env,
       ...(crashGate ? { MUSIC_BRIDGE_CORE_CRASH_GATE: '1' } : {}),
+      ...(credentialVaultGate ? { MUSIC_BRIDGE_CREDENTIAL_VAULT_GATE: '1' } : {}),
     },
   })
 
@@ -20,7 +25,13 @@ function runStartupGate(mode: 'development' | 'production', crashGate = false) {
   assert.equal(result.status, 0, `${mode} startup gate failed:\n${result.stdout}\n${result.stderr}`)
   assert.match(
     result.stdout,
-    new RegExp(crashGate ? `CORE_CRASH_GATE=${mode}` : `DESKTOP_STARTUP_PASS=${mode}`),
+    new RegExp(
+      credentialVaultGate
+        ? `CREDENTIAL_VAULT_GATE=${mode}`
+        : crashGate
+          ? `CORE_CRASH_GATE=${mode}`
+          : `DESKTOP_STARTUP_PASS=${mode}`,
+    ),
   )
 }
 
@@ -28,4 +39,8 @@ test('desktop startup and test-only Core crash gates pass serially', () => {
   runStartupGate('development')
   runStartupGate('production')
   runStartupGate('development', true)
+})
+
+test('Electron safeStorage credential vault gate passes with a synthetic value', () => {
+  runStartupGate('development', false, true)
 })

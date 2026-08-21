@@ -89,6 +89,12 @@ async function dispatch(
     case 'core.shutdown':
       await runtime.shutdown();
       return { stopped: true as const };
+    case 'auth.setCredential':
+      return runtime.setProviderCredential(
+        (request.payload as { credential: string }).credential,
+      );
+    case 'auth.clearCredential':
+      return runtime.clearProviderCredential();
     case 'roon.listZones':
       return { zones: runtime.listZones() };
     case 'roon.selectZone':

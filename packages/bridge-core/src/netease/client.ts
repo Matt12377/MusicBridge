@@ -23,14 +23,24 @@ function loadApi(): NeteaseApiModule {
 }
 
 export class NeteaseClient implements NeteasePort {
-  readonly configured: boolean;
-  private readonly cookie: string | undefined;
+  private cookie: string | undefined;
   private readonly api: NeteaseApiModule;
 
   constructor(cookie: string | undefined, api: NeteaseApiModule = loadApi()) {
     this.cookie = cookie?.trim() || undefined;
-    this.configured = this.cookie !== undefined;
     this.api = api;
+  }
+
+  get configured(): boolean {
+    return this.cookie !== undefined;
+  }
+
+  setCredential(credential: string): void {
+    this.cookie = credential.trim() || undefined;
+  }
+
+  clearCredential(): void {
+    this.cookie = undefined;
   }
 
   async getTrack(trackIdInput: string): Promise<TrackMetadata> {

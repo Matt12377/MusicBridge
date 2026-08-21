@@ -27,7 +27,13 @@ class FakePort implements UtilityPort {
   }
 }
 
-function makeRuntime(): CoreRuntimeForIpc & { shutdownCalls: number } {
+function makeRuntime(): CoreRuntimeForIpc & {
+  shutdownCalls: number
+  setCredentialCalls: string[]
+  clearCredentialCalls: number
+  setProviderCredential(credential: string): Promise<typeof state>
+  clearProviderCredential(): Promise<typeof state>
+} {
   const state = {
     runtime: 'ready' as const,
     roon: 'disconnected' as const,
@@ -37,6 +43,8 @@ function makeRuntime(): CoreRuntimeForIpc & { shutdownCalls: number } {
   };
   return {
     shutdownCalls: 0,
+    setCredentialCalls: [],
+    clearCredentialCalls: 0,
     async start() {},
     async shutdown() {
       this.shutdownCalls += 1;
@@ -46,6 +54,14 @@ function makeRuntime(): CoreRuntimeForIpc & { shutdownCalls: number } {
     getState: () => state,
     listZones: () => [],
     selectZone: async () => state,
+    async setProviderCredential(credential: string) {
+      this.setCredentialCalls.push(credential)
+      return state
+    },
+    async clearProviderCredential() {
+      this.clearCredentialCalls += 1
+      return state
+    },
   };
 }
 
@@ -115,5 +131,42 @@ test('utility shutdown is bounded behind the typed command', async () => {
     id: 'shutdown-1',
     ok: true,
     result: { stopped: true },
+  });
+});
+
+test('controlled credential requests return only public state', async () => {
+  const port = new FakePort();
+  const runtime = makeRuntime();
+  await attachCoreRuntimePort(port, runtime);
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'credential-1',
+    command: 'auth.setCredential',
+    payload: { credential: 'fixture-credential' },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(runtime.setCredentialCalls, ['fixture-credential']);
+  assert.deepEqual(port.messages[1], {
+    version: IPC_VERSION,
+    id: 'credential-1',
+    ok: true,
+    result: runtime.getState(),
+  });
+  assert.doesNotMatch(JSON.stringify(port.messages[1]), /fixture-credential/);
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'credential-2',
+    command: 'auth.clearCredential',
+    payload: {},
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(runtime.clearCredentialCalls, 1);
+  assert.deepEqual(port.messages[2], {
+    version: IPC_VERSION,
+    id: 'credential-2',
+    ok: true,
+    result: runtime.getState(),
   });
 });

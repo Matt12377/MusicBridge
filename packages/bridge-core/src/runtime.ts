@@ -22,6 +22,8 @@ export interface CoreRuntime {
   ping(): { pong: true };
   getHealth(): PublicBridgeState;
   getState(): PublicBridgeState;
+  setProviderCredential(credential: string): Promise<PublicBridgeState>;
+  clearProviderCredential(): Promise<PublicBridgeState>;
   listZones(): readonly PublicRoonZone[];
   selectZone(zoneId: string): Promise<PublicBridgeState>;
 }
@@ -172,6 +174,20 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     getHealth: publicState,
     getState: publicState,
 
+    async setProviderCredential(credential: string): Promise<PublicBridgeState> {
+      netease.setCredential(credential);
+      const state = publicState();
+      emitHealth();
+      return state;
+    },
+
+    async clearProviderCredential(): Promise<PublicBridgeState> {
+      netease.clearCredential();
+      const state = publicState();
+      emitHealth();
+      return state;
+    },
+
     listZones: () => roon.listZones().map((zone) => ({
       zoneId: zone.zone_id,
       displayName: zone.display_name ?? zone.zone_id,
@@ -206,6 +222,14 @@ export function createTestBridgeRuntime(): CoreRuntime {
     ping: () => ({ pong: true as const }),
     getHealth: () => state,
     getState: () => state,
+    async setProviderCredential() {
+      state = { ...state, provider: 'configured' };
+      return state;
+    },
+    async clearProviderCredential() {
+      state = { ...state, provider: 'missing' };
+      return state;
+    },
     listZones: () => [],
     async selectZone() {
       return state;
