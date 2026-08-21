@@ -4,15 +4,15 @@
   "wave": "WAVE-3",
   "task": "TASK-024",
   "branch": "codex/task-024-lyrics-v1",
-  "state": "in_progress",
+  "state": "carryover",
   "baseCommit": "fa3df23342b9318867ecd0d933f47891f5f7c4ad",
-  "implementationCommit": null,
+  "implementationCommit": "107960f9f1db871a8fff859e232dca552ab7ee52",
   "reportCommit": null,
   "nextTask": "TASK-030",
   "gates": {
     "automated": "pass",
     "security": "pass",
-    "realProvider": "not-run",
+    "realProvider": "not-run-owner-only",
     "realRoon": "not-run"
   },
   "policy": {
