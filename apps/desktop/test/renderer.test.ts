@@ -63,3 +63,28 @@ test('Renderer contains the public QR login surface without credential access', 
   assert.match(source, /lyrics.changed/)
   assert.match(source, /activeWordIndex/)
 })
+
+test('Renderer exposes the V1 information architecture and avoids fake transport controls', async () => {
+  const source = await readFile(path.join(rendererRoot, 'src/App.vue'), 'utf8')
+
+  for (const text of [
+    'Home',
+    'Search',
+    'Library',
+    'Playlist detail',
+    'Now Playing',
+    'Queue',
+    'Settings',
+    'Diagnostics',
+    'global-player',
+    'Previous',
+    'Next',
+    'Stop',
+    'aria-current',
+    'diagnosticId',
+  ]) {
+    assert.match(source, new RegExp(text))
+  }
+  assert.doesNotMatch(source, />\s*Pause\s*</)
+  assert.doesNotMatch(source, />\s*Seek\s*</)
+})

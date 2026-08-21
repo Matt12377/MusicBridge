@@ -68,6 +68,8 @@ test('Preload exposes only sanitized business methods', async () => {
     async () => page,
     async () => playlists,
     async () => playlist,
+    async () => ({ zones: [] }),
+    async () => state,
     async () => lyrics,
     async () => playbackState,
     async () => playbackState,
@@ -92,6 +94,8 @@ test('Preload exposes only sanitized business methods', async () => {
     'getLikedTracks',
     'getUserPlaylists',
     'getPlaylist',
+    'listZones',
+    'selectZone',
     'getLyrics',
     'getPlaybackState',
     'play',
@@ -115,6 +119,8 @@ test('Preload exposes only sanitized business methods', async () => {
     'getLikedTracks',
     'getUserPlaylists',
     'getPlaylist',
+    'listZones',
+    'selectZone',
     'getLyrics',
     'getPlaybackState',
     'play',
@@ -138,6 +144,8 @@ test('Preload exposes only sanitized business methods', async () => {
   assert.deepEqual(await api.getLikedTracks({ offset: 0, limit: 20 }), page)
   assert.deepEqual(await api.getUserPlaylists(), playlists)
   assert.deepEqual(await api.getPlaylist('301', { offset: 0, limit: 20 }), playlist)
+  assert.deepEqual(await api.listZones(), { zones: [] })
+  assert.deepEqual(await api.selectZone('zone-1'), state)
   assert.deepEqual(await api.getLyrics('301'), lyrics)
   assert.deepEqual(await api.getPlaybackState(), playbackState)
   assert.deepEqual(await api.play('301', 'lossless'), playbackState)

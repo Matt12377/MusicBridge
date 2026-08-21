@@ -16,17 +16,34 @@ export function buildContentSecurityPolicy(_mode: DesktopBuildMode): string {
     "default-src 'self'",
     "script-src 'self'",
     "style-src 'self'",
-    "img-src 'self' data:",
+    "img-src 'self' data: https://*.music.126.net",
     "font-src 'self'",
     "connect-src 'self'",
+    "worker-src 'none'",
+    "frame-src 'none'",
+    "form-action 'none'",
     "object-src 'none'",
     "base-uri 'none'",
     "frame-ancestors 'none'",
   ].join('; ')
 }
 
-export function isNavigationAllowed(_url: string): false {
-  return false
+export function isNavigationAllowed(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return (
+      url.protocol === 'musicbridge:' &&
+      url.hostname === 'app' &&
+      url.port === '' &&
+      url.username === '' &&
+      url.password === '' &&
+      url.pathname === '/index.html' &&
+      url.search === '' &&
+      url.hash === ''
+    )
+  } catch {
+    return false
+  }
 }
 
 export function getWindowOpenDecision(): { action: 'deny' } {
@@ -41,7 +58,16 @@ export function isTrustedRendererSender(options: {
   if (options.senderId !== options.windowId) return false
   try {
     const url = new URL(options.frameUrl)
-    return url.protocol === 'file:' && url.search === '' && url.hash === ''
+    return (
+      url.protocol === 'musicbridge:' &&
+      url.hostname === 'app' &&
+      url.port === '' &&
+      url.username === '' &&
+      url.password === '' &&
+      url.pathname === '/index.html' &&
+      url.search === '' &&
+      url.hash === ''
+    )
   } catch {
     return false
   }

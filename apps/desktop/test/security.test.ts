@@ -19,7 +19,9 @@ test('main BrowserWindow security preferences are fail-closed', () => {
 })
 
 test('navigation is rejected and window.open is denied', () => {
+  assert.equal(isNavigationAllowed('musicbridge://app/index.html'), true)
   assert.equal(isNavigationAllowed('file:///local/index.html'), false)
   assert.equal(isNavigationAllowed('https://example.invalid'), false)
+  assert.equal(isNavigationAllowed('musicbridge://app/other.html'), false)
   assert.deepEqual(getWindowOpenDecision(), { action: 'deny' })
 })

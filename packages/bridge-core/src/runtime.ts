@@ -371,6 +371,26 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
 }
 
 export function createTestBridgeRuntime(): CoreRuntime {
+  const fixtureTracks: readonly TrackSummary[] = Array.from({ length: 25 }, (_, index) => ({
+    id: String(1000 + index),
+    title: `Synthetic Track ${index + 1}`,
+    artists: ['Synthetic Artist'],
+    album: 'Synthetic Album',
+    durationMs: 180_000 + index * 1_000,
+  }));
+  const fixturePlaylistId = '301';
+  const fixtureZoneId = 'synthetic-zone';
+  const pageOf = (items: readonly TrackSummary[], page: PageRequest): Page<TrackSummary> => {
+    const start = Math.min(page.offset, items.length);
+    const end = Math.min(start + page.limit, items.length);
+    return {
+      items: items.slice(start, end),
+      offset: start,
+      limit: page.limit,
+      total: items.length,
+      hasMore: end < items.length,
+    };
+  };
   let state: PublicBridgeState = {
     runtime: 'starting',
     roon: 'disconnected',
@@ -380,9 +400,46 @@ export function createTestBridgeRuntime(): CoreRuntime {
   };
   let authState: PublicAuthState = { status: 'idle' };
   let playbackState = emptyPlaybackState();
+  let selectedZoneId: string | undefined;
+  const trackFor = (trackId: string): TrackSummary | undefined =>
+    fixtureTracks.find((track) => track.id === trackId);
+  const setPlayingTrack = (trackId: string, quality: PlaybackQuality): void => {
+    const currentTrack = trackFor(trackId);
+    const {
+      currentTrack: _previousTrack,
+      selectedZoneId: _previousZone,
+      qualityNotice: _previousQualityNotice,
+      ...basePlaybackState
+    } = playbackState;
+    const nextState: PlaybackSnapshot = {
+      ...basePlaybackState,
+      state: 'playing',
+      ...(currentTrack ? { currentTrack } : {}),
+      requestedQuality: quality,
+      actualQuality: quality === 'hires' ? 'lossless' : quality,
+      format: quality === 'hires' ? 'flac' : 'flac',
+      bitrate: 1_411_200,
+      ...(selectedZoneId ? { selectedZoneId } : {}),
+      ...(quality === 'hires'
+        ? {
+            qualityNotice: {
+              code: 'QUALITY_DOWNGRADED' as const,
+              message: 'Requested quality was downgraded for this synthetic flow',
+              retryable: false,
+              diagnosticId: 'diag-synthetic-quality',
+              action: 'none' as const,
+            },
+          }
+        : {}),
+      canNext: playbackState.queue.index < playbackState.queue.items.length - 1,
+      canPrevious: playbackState.queue.index > 0,
+      canStop: true,
+    };
+    playbackState = nextState;
+  };
   return {
     async start() {
-      state = { ...state, runtime: 'ready' };
+      state = { ...state, runtime: 'ready', roon: 'ready' };
     },
     async shutdown() {
       state = { ...state, runtime: 'stopped' };
@@ -429,39 +486,38 @@ export function createTestBridgeRuntime(): CoreRuntime {
       return { ...authState };
     },
     async searchTracks(_query, page) {
-      return { items: [], offset: page.offset, limit: page.limit, total: 0, hasMore: false };
+      return pageOf(fixtureTracks, page);
     },
     async getLikedTracks(page) {
-      return { items: [], offset: page.offset, limit: page.limit, total: 0, hasMore: false };
+      return pageOf(fixtureTracks.slice(0, 12), page);
     },
     async getUserPlaylists() {
-      return [];
+      return [{ id: fixturePlaylistId, name: 'Synthetic Playlist', trackCount: fixtureTracks.length }];
     },
     async getPlaylist(playlistId, page) {
       return {
         id: playlistId,
         name: 'Synthetic Playlist',
-        trackCount: 0,
-        tracks: { items: [], offset: page.offset, limit: page.limit, total: 0, hasMore: false },
+        trackCount: fixtureTracks.length,
+        tracks: pageOf(fixtureTracks, page),
       };
     },
-    async getLyrics() {
-      return emptyLyricsSnapshot();
+    async getLyrics(trackId) {
+      if (Number(trackId) % 2 === 0) return emptyLyricsSnapshot('unavailable');
+      return {
+        status: 'ready',
+        lines: [{ startMs: 0, text: 'Synthetic lyric line' }],
+        activeLineIndex: 0,
+        timingSource: 'static',
+      };
     },
     getPlaybackState: () => playbackState,
     async playbackPlay(trackId, quality) {
       playbackState = {
         ...playbackState,
-        state: 'playing',
-        queue: {
-          items: [{ trackId, quality }],
-          index: 0,
-          hasNext: false,
-          hasPrevious: false,
-        },
-        requestedQuality: quality,
-        canStop: true,
+        queue: { items: [{ trackId, quality }], index: 0, hasNext: false, hasPrevious: false },
       };
+      setPlayingTrack(trackId, quality);
       return playbackState;
     },
     async playbackStop() {
@@ -469,9 +525,37 @@ export function createTestBridgeRuntime(): CoreRuntime {
       return playbackState;
     },
     async playbackNext() {
+      if (playbackState.queue.hasNext) {
+        const index = playbackState.queue.index + 1;
+        const item = playbackState.queue.items[index];
+        playbackState = {
+          ...playbackState,
+          queue: {
+            ...playbackState.queue,
+            index,
+            hasNext: index < playbackState.queue.items.length - 1,
+            hasPrevious: index > 0,
+          },
+        };
+        if (item) setPlayingTrack(item.trackId, item.quality);
+      }
       return playbackState;
     },
     async playbackPrevious() {
+      if (playbackState.queue.hasPrevious) {
+        const index = playbackState.queue.index - 1;
+        const item = playbackState.queue.items[index];
+        playbackState = {
+          ...playbackState,
+          queue: {
+            ...playbackState.queue,
+            index,
+            hasNext: index < playbackState.queue.items.length - 1,
+            hasPrevious: index > 0,
+          },
+        };
+        if (item) setPlayingTrack(item.trackId, item.quality);
+      }
       return playbackState;
     },
     async replacePlaybackQueue(items, index) {
@@ -484,14 +568,18 @@ export function createTestBridgeRuntime(): CoreRuntime {
           hasNext: index < items.length - 1,
           hasPrevious: index > 0,
         },
-        canNext: index < items.length - 1,
-        canPrevious: index > 0,
-        canStop: true,
       };
+      const item = items[index];
+      if (item) setPlayingTrack(item.trackId, item.quality);
       return playbackState;
     },
-    listZones: () => [],
-    async selectZone() {
+    listZones: () => ({
+      zones: [{ zoneId: fixtureZoneId, displayName: 'Synthetic Zone', selected: selectedZoneId === fixtureZoneId }],
+    }).zones,
+    async selectZone(zoneId) {
+      selectedZoneId = zoneId;
+      state = { ...state, roon: 'ready' };
+      playbackState = { ...playbackState, selectedZoneId };
       return state;
     },
   };

@@ -3,6 +3,7 @@ import {
   BrowserWindow,
   ipcMain,
   MessageChannelMain,
+  protocol,
   safeStorage,
   session,
   utilityProcess,
@@ -16,7 +17,7 @@ import type {
   TypedIpcEvent,
 } from '@music-bridge/contracts'
 import { IPC_VERSION, validateIpcEvent } from '@music-bridge/contracts'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, readFile, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -39,10 +40,31 @@ import {
   isNavigationAllowed,
   isTrustedRendererSender,
 } from './security.js'
+import {
+  getRendererAssetPath,
+  isAllowedRendererRequest,
+  RENDERER_ENTRY_PATH,
+  RENDERER_HOST,
+  RENDERER_SCHEME,
+  rendererContentType,
+} from './renderer-protocol.js'
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: RENDERER_SCHEME,
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+    },
+  },
+])
 
 const currentFile = fileURLToPath(import.meta.url)
 const currentDirectory = path.dirname(currentFile)
 const isStartupTest = process.env.MUSIC_BRIDGE_STARTUP_TEST === '1'
+const isUiE2e = process.env.MUSIC_BRIDGE_UI_E2E === '1'
 const isCoreCrashGate = isStartupTest && process.env.MUSIC_BRIDGE_CORE_CRASH_GATE === '1'
 const isCredentialVaultGate =
   isStartupTest && process.env.MUSIC_BRIDGE_CREDENTIAL_VAULT_GATE === '1'
@@ -73,6 +95,30 @@ function installSessionSecurity(targetSession: Electron.Session): void {
         ],
       },
     })
+  })
+}
+
+async function installRendererProtocol(): Promise<void> {
+  const rendererRoot = await realpath(path.join(currentDirectory, '../renderer'))
+  protocol.handle(RENDERER_SCHEME, async (request) => {
+    if (!isAllowedRendererRequest(request.url, request.method)) {
+      return new Response('Not Found', { status: 404 })
+    }
+    try {
+      const url = new URL(request.url)
+      if (url.hostname !== RENDERER_HOST) return new Response('Not Found', { status: 404 })
+      const assetPath = await getRendererAssetPath(rendererRoot, url.pathname)
+      const body = request.method === 'HEAD' ? null : await readFile(assetPath)
+      return new Response(body, {
+        status: 200,
+        headers: {
+          'Content-Type': rendererContentType(url.pathname),
+          'Cache-Control': 'no-store',
+        },
+      })
+    } catch {
+      return new Response('Not Found', { status: 404 })
+    }
   })
 }
 
@@ -158,6 +204,13 @@ function requireSearchQuery(value: unknown): string {
 function requirePlaylistId(value: unknown): string {
   if (typeof value !== 'string' || !/^\d+$/.test(value) || value === '0' || value.length > 128) {
     return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playlist')
+  }
+  return value
+}
+
+function requireZoneId(value: unknown): string {
+  if (typeof value !== 'string' || value.trim().length === 0 || value.length > 128) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid Roon zone')
   }
   return value
 }
@@ -308,6 +361,14 @@ function registerIpcHandlers(
       }),
     ),
   )
+  ipcMain.handle('roon:list-zones', (event) =>
+    invokeCore(event, () => supervisor.request('roon.listZones', {})),
+  )
+  ipcMain.handle('roon:select-zone', (event, zoneId: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.selectZone', { zoneId: requireZoneId(zoneId) }),
+    ),
+  )
   ipcMain.handle('lyrics:get', (event, trackId: unknown) =>
     invokeCore(event, () =>
       supervisor.request('lyrics.get', {
@@ -370,7 +431,7 @@ function createWindow(supervisor: CoreSupervisor): BrowserWindow {
   window.on('closed', () => {
     if (mainWindow === window) mainWindow = undefined
   })
-  window.loadFile(path.join(currentDirectory, '../renderer/index.html'))
+  void window.loadURL(`${RENDERER_SCHEME}://${RENDERER_HOST}${RENDERER_ENTRY_PATH}`)
 
   window.webContents.once('did-finish-load', () => {
     if (isStartupTest && !isCoreCrashGate && supervisor.status === 'ready') {
@@ -418,7 +479,7 @@ function buildCoreEnvironment(): NodeJS.ProcessEnv {
   const environment = { ...process.env }
   delete environment.NETEASE_COOKIE
   delete environment.MUSIC_BRIDGE_CORE_CRASH_PROBE
-  if (isStartupTest) {
+  if (isStartupTest || isUiE2e) {
     environment.NODE_ENV = 'test'
     environment.MUSIC_BRIDGE_CORE_TEST_MODE = '1'
     if (isCoreCrashGate) {
@@ -471,7 +532,7 @@ async function prepareCoreDataDirectory(): Promise<{
   dataDirectory: string
   credentialVault: CredentialVault
 }> {
-  if (isStartupTest) {
+  if (isStartupTest || isUiE2e) {
     app.setPath('userData', path.join(app.getPath('temp'), 'musicbridge-task012-startup'))
   }
   const dataDirectory = path.join(app.getPath('userData'), 'data')
@@ -512,6 +573,7 @@ async function runCredentialVaultGate(credentialVault: CredentialVault): Promise
 async function bootstrap(): Promise<void> {
   await app.whenReady()
   app.setName('Music Bridge for Roon')
+  await installRendererProtocol()
   installSessionSecurity(session.defaultSession)
 
   const prepared = await prepareCoreDataDirectory()

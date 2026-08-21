@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld(
     () => ipcRenderer.invoke('library:playlists'),
     (playlistId: string, page: { offset: number; limit: number }) =>
       ipcRenderer.invoke('library:playlist', playlistId, page),
+    () => ipcRenderer.invoke('roon:list-zones'),
+    (zoneId: string) => ipcRenderer.invoke('roon:select-zone', zoneId),
     (trackId: string) => ipcRenderer.invoke('lyrics:get', trackId),
     () => ipcRenderer.invoke('playback:get-state'),
     (trackId: string, quality: string) => ipcRenderer.invoke('playback:play', trackId, quality),

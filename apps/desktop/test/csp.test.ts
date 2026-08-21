@@ -11,7 +11,9 @@ test('development and production CSP are local-only and never use unsafe-eval', 
     assert.match(csp, /script-src 'self'/)
     assert.match(csp, /object-src 'none'/)
     assert.match(csp, /connect-src 'self'/)
+    assert.match(csp, /img-src 'self' data: https:\/\/\*\.music\.126\.net/)
     assert.doesNotMatch(csp, /unsafe-eval/)
-    assert.doesNotMatch(csp, /https?:\/\//)
+    assert.doesNotMatch(csp, /connect-src[^;]*https?:\/\//)
+    assert.doesNotMatch(csp, /font-src[^;]*https?:\/\//)
   }
 })

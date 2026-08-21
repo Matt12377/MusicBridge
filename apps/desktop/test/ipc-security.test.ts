@@ -3,12 +3,12 @@ import test from 'node:test'
 
 import { isTrustedRendererSender } from '../src/main/security.js'
 
-test('IPC sender validation accepts only the current local file frame', () => {
+test('IPC sender validation accepts only the current custom-protocol app frame', () => {
   assert.equal(
     isTrustedRendererSender({
       senderId: 7,
       windowId: 7,
-      frameUrl: 'file:///Applications/Music%20Bridge/index.html',
+      frameUrl: 'musicbridge://app/index.html',
     }),
     true,
   )
@@ -16,7 +16,7 @@ test('IPC sender validation accepts only the current local file frame', () => {
     isTrustedRendererSender({
       senderId: 8,
       windowId: 7,
-      frameUrl: 'file:///Applications/Music%20Bridge/index.html',
+      frameUrl: 'musicbridge://app/index.html',
     }),
     false,
   )
@@ -24,7 +24,7 @@ test('IPC sender validation accepts only the current local file frame', () => {
     isTrustedRendererSender({
       senderId: 7,
       windowId: 7,
-      frameUrl: 'https://example.invalid/index.html',
+      frameUrl: 'musicbridge://other/index.html',
     }),
     false,
   )
@@ -32,7 +32,15 @@ test('IPC sender validation accepts only the current local file frame', () => {
     isTrustedRendererSender({
       senderId: 7,
       windowId: 7,
-      frameUrl: 'file:///Applications/Music%20Bridge/index.html?untrusted=1',
+      frameUrl: 'musicbridge://app/index.html?untrusted=1',
+    }),
+    false,
+  )
+  assert.equal(
+    isTrustedRendererSender({
+      senderId: 7,
+      windowId: 7,
+      frameUrl: 'musicbridge://app/index.html#search',
     }),
     false,
   )

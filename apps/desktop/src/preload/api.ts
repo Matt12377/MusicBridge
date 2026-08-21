@@ -9,6 +9,7 @@ import type {
   PlaybackSnapshot,
   PublicAuthState,
   PublicBridgeState,
+  PublicRoonZone,
   TrackSummary,
   TypedIpcEvent,
 } from '@music-bridge/contracts'
@@ -33,6 +34,8 @@ export interface MusicBridgePublicApi {
   getLikedTracks: (page: PageRequest) => Promise<Page<TrackSummary>>
   getUserPlaylists: () => Promise<readonly PlaylistSummary[]>
   getPlaylist: (playlistId: string, page: PageRequest) => Promise<PlaylistDetail>
+  listZones: () => Promise<{ zones: readonly PublicRoonZone[] }>
+  selectZone: (zoneId: string) => Promise<PublicBridgeState>
   getLyrics: (trackId: string) => Promise<LyricsSnapshot>
   getPlaybackState: () => Promise<PlaybackSnapshot>
   play: (trackId: string, quality: PlaybackQuality) => Promise<PlaybackSnapshot>
@@ -57,6 +60,8 @@ export const PUBLIC_API_KEYS = [
   'getLikedTracks',
   'getUserPlaylists',
   'getPlaylist',
+  'listZones',
+  'selectZone',
   'getLyrics',
   'getPlaybackState',
   'play',
@@ -81,6 +86,8 @@ export function createPreloadApi(
   getLikedTracks: (page: PageRequest) => Promise<Page<TrackSummary>>,
   getUserPlaylists: () => Promise<readonly PlaylistSummary[]>,
   getPlaylist: (playlistId: string, page: PageRequest) => Promise<PlaylistDetail>,
+  listZones: () => Promise<{ zones: readonly PublicRoonZone[] }>,
+  selectZone: (zoneId: string) => Promise<PublicBridgeState>,
   getLyrics: (trackId: string) => Promise<LyricsSnapshot>,
   getPlaybackState: () => Promise<PlaybackSnapshot>,
   play: (trackId: string, quality: PlaybackQuality) => Promise<PlaybackSnapshot>,
@@ -104,6 +111,8 @@ export function createPreloadApi(
     getLikedTracks,
     getUserPlaylists,
     getPlaylist,
+    listZones,
+    selectZone,
     getLyrics,
     getPlaybackState,
     play,

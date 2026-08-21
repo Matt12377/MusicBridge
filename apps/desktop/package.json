@@ -15,7 +15,8 @@
     "dev": "electron-vite build --mode development && electron dist/main/index.js",
     "start": "electron dist/main/index.js",
     "pack": "electron-builder --dir",
-    "test:startup": "node scripts/startup-gate.mjs development && node scripts/startup-gate.mjs production"
+    "test:startup": "node scripts/startup-gate.mjs development && node scripts/startup-gate.mjs production",
+    "test:e2e": "electron-vite build --mode production && playwright test"
   },
   "dependencies": {
     "@music-bridge/contracts": "workspace:*",
@@ -30,12 +31,14 @@
     "vue-router": "4.5.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
     "@types/node": "22.20.1",
     "@vitejs/plugin-vue": "6.0.1",
     "@vue/compiler-sfc": "3.5.18",
     "electron": "43.4.0",
     "electron-builder": "26.15.3",
     "electron-vite": "5.0.0",
+    "axe-core": "4.13.0",
     "tsx": "4.23.12",
     "typescript": "5.9.3",
     "vite": "7.1.3",
