@@ -1,12 +1,30 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 
+import type { PublicBridgeState } from '@music-bridge/contracts'
 import type { AppInfo } from '../../preload/api.js'
 
 const appInfo = ref<AppInfo | null>(null)
+const coreState = ref<PublicBridgeState | null>(null)
+const coreError = ref(false)
+let removeCoreListener: (() => void) | undefined
 
 onMounted(async () => {
-  appInfo.value = await window.musicBridge.getAppInfo()
+  removeCoreListener = window.musicBridge.onCoreEvent((event) => {
+    if (event.event === 'core.ready' || event.event === 'core.health' || event.event === 'roon.changed') {
+      coreState.value = event.payload.state
+    }
+  })
+  try {
+    appInfo.value = await window.musicBridge.getAppInfo()
+    coreState.value = await window.musicBridge.getCoreHealth()
+  } catch {
+    coreError.value = true
+  }
+})
+
+onUnmounted(() => {
+  removeCoreListener?.()
 })
 </script>
 
@@ -31,17 +49,18 @@ onMounted(async () => {
       <article class="status-card">
         <span class="status-dot" aria-hidden="true"></span>
         <h2>Roon 状态</h2>
-        <p>占位：TASK-012 接入 typed IPC 后显示。</p>
+        <p>{{ coreState?.roon ?? '读取中' }}</p>
       </article>
       <article class="status-card">
         <span class="status-dot" aria-hidden="true"></span>
         <h2>网易云状态</h2>
-        <p>占位：本任务不读取真实凭据。</p>
+        <p>{{ coreState?.provider ?? (coreError ? '不可用' : '读取中') }}</p>
       </article>
       <article class="status-card">
         <span class="status-dot" aria-hidden="true"></span>
         <h2>Bridge Core 状态</h2>
-        <p>占位：TASK-012 接入 utilityProcess 后显示。</p>
+        <p>{{ coreState?.runtime ?? (coreError ? '不可用' : '读取中') }}</p>
+        <small v-if="coreState">活动流：{{ coreState.activeStreamCount }}</small>
       </article>
     </section>
   </main>

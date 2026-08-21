@@ -32,3 +32,17 @@ export function isNavigationAllowed(_url: string): false {
 export function getWindowOpenDecision(): { action: 'deny' } {
   return { action: 'deny' }
 }
+
+export function isTrustedRendererSender(options: {
+  senderId: number
+  windowId: number
+  frameUrl: string
+}): boolean {
+  if (options.senderId !== options.windowId) return false
+  try {
+    const url = new URL(options.frameUrl)
+    return url.protocol === 'file:' && url.search === '' && url.hash === ''
+  } catch {
+    return false
+  }
+}

@@ -6,8 +6,11 @@
   "main": "dist/main/index.js",
   "productName": "Music Bridge for Roon",
   "scripts": {
+    "prebuild": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
     "build": "electron-vite build --mode production",
+    "pretypecheck": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json",
+    "pretest": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
     "test": "node --import tsx --test test/*.test.ts",
     "dev": "electron-vite build --mode development && electron dist/main/index.js",
     "start": "electron dist/main/index.js",
@@ -15,6 +18,13 @@
     "test:startup": "node scripts/startup-gate.mjs development && node scripts/startup-gate.mjs production"
   },
   "dependencies": {
+    "@music-bridge/contracts": "workspace:*",
+    "@neteasecloudmusicapienhanced/api": "4.40.1",
+    "node-roon-api": "github:RoonLabs/node-roon-api#055dae6c2ac45b6c738aa3b9e5ac1fd722ed60e8",
+    "node-roon-api-audioinput": "github:RoonLabs/node-roon-api-audioinput#21ff59e52a12cf36a21bb9d3fd546f3e6d70581f",
+    "node-roon-api-settings": "github:RoonLabs/node-roon-api-settings#67cd8ca156c5bcd01ea63833ceaaec6d6a79654d",
+    "node-roon-api-status": "github:RoonLabs/node-roon-api-status#504c918d6da267e03fbb4337befa71ca3d3c7526",
+    "node-roon-api-transport": "github:RoonLabs/node-roon-api-transport#2ee60008a4cdb90c34ff3de58bb4b949067f1d20",
     "pinia": "3.0.3",
     "vue": "3.5.18",
     "vue-router": "4.5.1"

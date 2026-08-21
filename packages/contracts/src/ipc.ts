@@ -1,4 +1,5 @@
 import type { PublicError } from './errors.js';
+import type { PublicBridgeState, PublicRoonZone } from './state.js';
 
 export const IPC_VERSION = 1 as const;
 
@@ -6,6 +7,7 @@ export const IPC_COMMANDS = [
   'core.ping',
   'core.getHealth',
   'core.getState',
+  'core.shutdown',
   'roon.listZones',
   'roon.selectZone',
 ] as const;
@@ -47,3 +49,53 @@ export type IpcResponse<TResult = unknown> =
   | IpcFailure;
 
 export type IpcEnvelope<T = unknown> = IpcRequest<T> | IpcResponse<T>;
+
+export interface IpcCommandPayloads {
+  'core.ping': Record<string, never>;
+  'core.getHealth': Record<string, never>;
+  'core.getState': Record<string, never>;
+  'core.shutdown': Record<string, never>;
+  'roon.listZones': Record<string, never>;
+  'roon.selectZone': { zoneId: string };
+}
+
+export interface IpcCommandResults {
+  'core.ping': { pong: true };
+  'core.getHealth': PublicBridgeState;
+  'core.getState': PublicBridgeState;
+  'core.shutdown': { stopped: true };
+  'roon.listZones': { zones: readonly PublicRoonZone[] };
+  'roon.selectZone': PublicBridgeState;
+}
+
+export interface IpcEventPayloads {
+  'core.ready': { state: PublicBridgeState };
+  'core.health': { state: PublicBridgeState };
+  'roon.changed': { state: PublicBridgeState };
+  'diagnostic.notice': { code: string; message?: string };
+}
+
+export interface IpcEventMessage {
+  version: typeof IPC_VERSION;
+  event: IpcEventName;
+  payload: unknown;
+}
+
+export type IpcEventName = (typeof IPC_EVENTS)[number];
+
+export type TypedIpcRequest<TCommand extends IpcCommand = IpcCommand> =
+  TCommand extends IpcCommand
+    ? IpcRequest<IpcCommandPayloads[TCommand]> & { command: TCommand }
+    : never;
+
+export type TypedIpcResponse<TCommand extends IpcCommand = IpcCommand> =
+  TCommand extends IpcCommand
+    ? IpcResponse<IpcCommandResults[TCommand]>
+    : never;
+
+export type TypedIpcEvent<TEvent extends IpcEventName = IpcEventName> =
+  TEvent extends IpcEventName
+    ? { version: typeof IPC_VERSION; event: TEvent; payload: IpcEventPayloads[TEvent] }
+    : never;
+
+export type IpcRuntimeMessage = IpcResponse<unknown> | TypedIpcEvent;

@@ -4,8 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prebuild": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
     "build": "tsc -p tsconfig.json",
+    "pretypecheck": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
+    "pretest": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
     "test": "node --import tsx --test test/*.test.ts",
     "verify": "corepack pnpm@10.17.1 run typecheck && corepack pnpm@10.17.1 run test && corepack pnpm@10.17.1 run build",
     "dev": "node --env-file-if-exists=.env --import tsx src/main.ts",
@@ -16,6 +19,7 @@
     "state": "node --env-file-if-exists=.env scripts/state.mjs"
   },
   "dependencies": {
+    "@music-bridge/contracts": "workspace:*",
     "@neteasecloudmusicapienhanced/api": "4.40.1",
     "node-roon-api": "github:RoonLabs/node-roon-api#055dae6c2ac45b6c738aa3b9e5ac1fd722ed60e8",
     "node-roon-api-audioinput": "github:RoonLabs/node-roon-api-audioinput#21ff59e52a12cf36a21bb9d3fd546f3e6d70581f",

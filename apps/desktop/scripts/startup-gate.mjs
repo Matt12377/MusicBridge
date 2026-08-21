@@ -6,6 +6,7 @@ import electron from 'electron'
 
 const desktopRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const mode = process.argv[2]
+const crashGate = process.env.MUSIC_BRIDGE_CORE_CRASH_GATE === '1'
 
 if (mode !== 'development' && mode !== 'production') {
   console.error('usage: node scripts/startup-gate.mjs <development|production>')
@@ -41,6 +42,8 @@ const child = spawn(electron, ['dist/main/index.js'], {
   env: {
     ...process.env,
     MUSIC_BRIDGE_STARTUP_TEST: '1',
+    MUSIC_BRIDGE_CORE_TEST_MODE: '1',
+    ...(crashGate ? { MUSIC_BRIDGE_CORE_CRASH_GATE: '1' } : {}),
   },
   stdio: ['ignore', 'pipe', 'pipe'],
 })
@@ -85,11 +88,12 @@ const result = await new Promise((resolve) => {
   })
 })
 
-if (!stdout.includes('DESKTOP_STARTUP_READY') || result.code !== 0) {
+const expectedMarker = crashGate ? 'CORE_CRASH_GATE_PASS' : 'DESKTOP_STARTUP_READY'
+if (!stdout.includes(expectedMarker) || result.code !== 0) {
   console.error(`DESKTOP_STARTUP_FAIL=${mode}`)
   if (result.timedOut) console.error('DESKTOP_STARTUP_TIMEOUT=true')
   if (stderr.trim()) console.error(stderr.trim().slice(-2000))
   process.exit(1)
 }
 
-console.log(`DESKTOP_STARTUP_PASS=${mode}`)
+console.log(`${crashGate ? 'CORE_CRASH_GATE' : 'DESKTOP_STARTUP_PASS'}=${mode}`)

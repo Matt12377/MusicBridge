@@ -267,6 +267,7 @@ export class RoonAudioInputAdapter implements RoonPort {
   private readonly playingTimeoutMs: number;
   private readonly trackIdFactory: () => string;
   private readonly playbackMode: 'channel' | 'track';
+  private stateHandler: () => void = () => undefined;
 
   constructor(
     private readonly logger: Logger,
@@ -281,6 +282,42 @@ export class RoonAudioInputAdapter implements RoonPort {
 
   setTerminalHandler(handler: (reason: RoonTerminalReason) => void): void {
     this.terminalHandler = handler;
+  }
+
+  setStateHandler(handler: () => void): void {
+    this.stateHandler = handler;
+  }
+
+  listZones(): readonly RoonZone[] {
+    return [...this.zones.values()].map((zone) => ({
+      ...zone,
+      ...(zone.outputs ? { outputs: zone.outputs.map((output) => ({ ...output })) } : {}),
+    }));
+  }
+
+  selectZone(zoneId: string): void {
+    const zone = this.zones.get(zoneId);
+    if (!zone) {
+      throw new BridgeError('ROON_ZONE_NOT_SELECTED', 'Requested Roon Zone is unavailable', {
+        httpStatus: 409,
+      });
+    }
+    const output = zone.outputs?.find(
+      (candidate) => typeof candidate.output_id === 'string' && candidate.output_id.length > 0,
+    );
+    if (!output?.output_id) {
+      throw new BridgeError('ROON_ZONE_NOT_SELECTED', 'Requested Roon Zone has no output', {
+        httpStatus: 409,
+      });
+    }
+    this.settings = {
+      output: {
+        output_id: output.output_id,
+        ...(output.display_name ? { display_name: output.display_name } : {}),
+      },
+    };
+    this.roon?.save_config('settings', this.settings);
+    this.updateSelectedZone();
   }
 
   async start(): Promise<void> {
@@ -805,6 +842,7 @@ export class RoonAudioInputAdapter implements RoonPort {
       ...(lastError ? { lastError } : {}),
     };
     this.statusService?.set_status(display, isError);
+    this.stateHandler();
   }
 
   private makeSettingsLayout(settings: SettingsState): Record<string, unknown> {
