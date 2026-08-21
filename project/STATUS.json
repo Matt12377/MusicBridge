@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "project": "Music Bridge for Roon",
   "wave": "WAVE-3",
-  "task": "TASK-030",
-  "branch": "codex/task-030-v1-ui",
+  "task": "TASK-031",
+  "branch": "codex/task-031-diagnostics-stability",
   "state": "carryover",
-  "baseCommit": "d912ea1998564b43479bdca1dd004c2ad7559b8e",
-  "implementationCommit": "1109d0551b09ab649b88eb7514f759841b0d3d8f",
+  "baseCommit": "a7e12e3cb1d305156fa6d298dc19f2d64785bc77",
+  "implementationCommit": "978acb00edf7c33a71bf575a3c4743fe97da479b",
   "reportCommit": null,
-  "nextTask": "TASK-031",
+  "nextTask": "TASK-032",
   "gates": {
     "automated": "pass",
     "security": "pass",
     "realProvider": "not-run-owner-only",
-    "realRoon": "not-run-owner-only"
+    "realRoon": "owner-acceptance-pending"
   },
   "policy": {
     "realCredentialsInCi": false,
