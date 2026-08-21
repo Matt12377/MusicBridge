@@ -1,10 +1,25 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import type { BridgeController } from '../application/bridge-controller.js';
+import type { BridgeState } from '../application/bridge-controller.js';
 import type { QualityLevel } from '../netease/types.js';
+import type { PlaybackSnapshot } from '@music-bridge/contracts';
 import { asBridgeError, BridgeError } from '../shared/errors.js';
 import type { Logger } from '../shared/logger.js';
 
 const MAX_BODY_BYTES = 64 * 1024;
+const MAX_QUEUE_ITEMS = 100;
+const PLAYBACK_QUALITIES = new Set(['standard', 'exhigh', 'lossless', 'hires']);
+
+type QueueInputItem = { trackId: unknown; quality: unknown };
+
+interface ControlController {
+  getState(): BridgeState;
+  getPlaybackState(): PlaybackSnapshot;
+  play(input: QueueInputItem): Promise<BridgeState>;
+  stop(): Promise<BridgeState>;
+  replaceQueue(items: readonly QueueInputItem[], startIndex: number): Promise<BridgeState>;
+  next(): Promise<BridgeState>;
+  previous(): Promise<BridgeState>;
+}
 
 function sendJson(
   response: ServerResponse,
@@ -50,6 +65,58 @@ async function readJsonBody(request: IncomingMessage): Promise<Record<string, un
   }
 }
 
+function invalidQueueRequest(): BridgeError {
+  return new BridgeError('BAD_REQUEST', 'Invalid playback queue', { httpStatus: 400 });
+}
+
+function isTrackId(value: unknown): boolean {
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) && value > 0;
+  }
+  return typeof value === 'string' && /^\d+$/.test(value) && value !== '0' && value.length <= 128;
+}
+
+function readQueueRequest(body: Record<string, unknown>): {
+  items: readonly QueueInputItem[];
+  index: number;
+} {
+  if (!Array.isArray(body.items) || body.items.length === 0 || body.items.length > MAX_QUEUE_ITEMS) {
+    throw invalidQueueRequest();
+  }
+
+  const index = body.index ?? 0;
+  if (
+    typeof index !== 'number' ||
+    !Number.isSafeInteger(index) ||
+    index < 0 ||
+    index >= body.items.length
+  ) {
+    throw invalidQueueRequest();
+  }
+
+  const items = body.items.map((value): QueueInputItem => {
+    if (
+      !value ||
+      typeof value !== 'object' ||
+      Array.isArray(value) ||
+      Object.keys(value).some((key) => !['trackId', 'quality'].includes(key))
+    ) {
+      throw invalidQueueRequest();
+    }
+    const item = value as { trackId?: unknown; quality?: unknown };
+    if (
+      !isTrackId(item.trackId) ||
+      typeof item.quality !== 'string' ||
+      !PLAYBACK_QUALITIES.has(item.quality)
+    ) {
+      throw invalidQueueRequest();
+    }
+    return { trackId: item.trackId, quality: item.quality };
+  });
+
+  return { items, index };
+}
+
 export class ControlServer {
   private server: Server | undefined;
 
@@ -58,10 +125,15 @@ export class ControlServer {
       host: string;
       port: number;
       defaultQuality: QualityLevel;
-      controller: BridgeController;
+      controller: ControlController;
       logger: Logger;
     },
   ) {}
+
+  getListeningPort(): number | undefined {
+    const address = this.server?.address();
+    return address && typeof address === 'object' ? address.port : undefined;
+  }
 
   async start(): Promise<void> {
     if (this.server) return;
@@ -109,6 +181,43 @@ export class ControlServer {
         sendJson(response, 200, {
           ok: true,
           state: this.options.controller.getState(),
+        });
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/v1/playback') {
+        sendJson(response, 200, {
+          ok: true,
+          state: this.options.controller.getPlaybackState(),
+        });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/queue') {
+        const body = await readJsonBody(request);
+        const queue = readQueueRequest(body);
+        await this.options.controller.replaceQueue(queue.items, queue.index);
+        sendJson(response, 200, {
+          ok: true,
+          state: this.options.controller.getPlaybackState(),
+        });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/next') {
+        await this.options.controller.next();
+        sendJson(response, 200, {
+          ok: true,
+          state: this.options.controller.getPlaybackState(),
+        });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/previous') {
+        await this.options.controller.previous();
+        sendJson(response, 200, {
+          ok: true,
+          state: this.options.controller.getPlaybackState(),
         });
         return;
       }
