@@ -2,11 +2,11 @@
 
 ## 结论
 
-**PARTIAL**
+**PASS**
 
-TASK-020 的实现、自动化 Gate 和安全边界检查已完成；真实 Provider 二维码扫码、真实账号登录后的应用重启恢复仍需 Owner 在本地完成，因此本任务的 Exit Gate 尚未全部关闭。
+TASK-020 的实现、自动化 Gate、安全边界检查、真实 Provider 二维码扫码和完整应用重启恢复均已完成。Owner 确认全新二维码扫码后进入 `authorized`，完全退出并重新启动同一版本后授权状态仍保持 `authorized`，因此本任务的 Exit Gate 已全部关闭。
 
-在 Owner 完成实机 Gate 前，不开始 TASK-021。
+TASK-021 可按 Owner 已有授权继续执行。
 
 ## Git 身份
 
@@ -17,6 +17,23 @@ TASK-020 的实现、自动化 Gate 和安全边界检查已完成；真实 Prov
 - 实现 SHA：`87279a2a198b12477bfaf29286372f3e37e549a4`
 - 实现 commit：`feat: add QR login state machine`
 - 实现 commit 已推送到当前阶段分支。
+
+## TASK-020R 修复与 Owner 实机 Gate（最终）
+
+- 原始 TASK-020 实现 commit：`87279a2a198b12477bfaf29286372f3e37e549a4`
+- TASK-020R 解析修复 commit：`0511564338771d5d0b3d2b59383abad2eeba69ff`
+- 部署流程修复 commits：`bd051e225e890c53ed275c872e7f5bf76f8cdf65`、`c9454da03cac14a8bebd13723d97df614e746445`、`974844bb9cd261f54a94358c67af8efe8f9d5535`
+- Core Mac 最终运行 release SHA：`974844bb9cd261f54a94358c67af8efe8f9d5535`
+- bundle SHA-256：`dde00c12146703dab3013d41fcef770290478a538e40fced05d5f305b8dad264`
+- `qrCodeDisplayed=true`
+- `scanned=true`
+- `authorized=true`
+- `credentialPresent=true`
+- `credentialVerified=true`
+- `vaultSaved=true`
+- `restartRestored=true`
+
+Owner 确认真实扫码授权成功，并确认完全退出后重新启动同一版本无需重新扫码即可恢复授权状态。未执行歌曲播放。
 
 ## 实现范围
 
@@ -73,7 +90,18 @@ TASK-020 的实现、自动化 Gate 和安全边界检查已完成；真实 Prov
 | `corepack pnpm@10.17.1 verify` | 退出码 `0` |
 | `git diff --check` | 退出码 `0` |
 
-自动测试只使用合成 QR 图片、challenge、登录状态和凭据占位值；没有调用真实 Provider、没有读取或写入真实账号材料、没有播放歌曲，也没有执行播放接口。
+本节记录的是初始自动 Gate：测试只使用合成 QR 图片、challenge、登录状态和凭据占位值。真实扫码由 Owner 通过本地桌面界面完成；凭据、二维码内容、账号资料和 Provider 原始响应均未写入聊天、报告、Git 或日志。
+
+## TASK-020R 最终自动复核
+
+| Gate | 结果 |
+| --- | --- |
+| `corepack pnpm@10.17.1 verify` | 退出码 `0`；bridge-core `102/102`，desktop `24/24`，contracts `9/9` |
+| `git diff --check` | 退出码 `0` |
+| `package.json` / `pnpm-lock.yaml` | 无变化 |
+| `parseLoginStatusResponse()` 真实 4.40.1 `body.data` 形状 | 通过 |
+| 未签名 App 部署、Core runtime、Roon、loopback 和健康检查 | 通过 |
+| 日志秘密扫描 | 通过；未输出匹配内容 |
 
 ## 安全检查
 
@@ -94,21 +122,21 @@ TASK-020 的实现、自动化 Gate 和安全边界检查已完成；真实 Prov
 - 登录状态验证失败时不进入授权状态：自动测试覆盖。
 - safeStorage 加密保存、删除和启动注入路径：现有 Electron synthetic Gate 与 desktop 测试通过。
 
-### 待 Owner 实机完成
+### Owner 实机 Gate（已完成）
 
-- 在本地桌面界面完成一次真实二维码扫码并确认授权状态。
-- 观察授权后的应用重启，确认状态从 safeStorage 恢复为已授权；不向聊天、报告或 Git 提供任何会话材料。
-- 如需验证真实过期、取消或重复扫码，使用本地界面完成；不得把账号材料复制到命令行参数、日志或报告。
+- Owner 完成全新二维码扫码并确认授权：通过（`authorized=true`）。
+- 完全退出并重新启动同一版本后授权状态保留：通过（`restartRestored=true`）。
+- 未执行歌曲播放或 `POST /v1/play`。
 
 ## 未执行事项
 
 - 未请求、读取、输出或记录真实 Provider 凭据。
-- 未调用真实 Provider API。
-- 未播放歌曲，未执行播放接口，未开始 TASK-021。
+- 未在命令行、报告或日志中输出 Provider 原始响应；真实登录仅通过本地桌面界面完成。
+- 未播放歌曲，未执行播放接口。
 - 未创建 PR、未合并、未发布。
 
 ## 下一步
 
-**TASK-021：暂缓。**
+**TASK-021：可开始。**
 
-Owner 完成上述实机 Exit Gate 并确认结果后，才继续下一任务。
+TASK-020 实机 Exit Gate 已通过；完成本报告关闭 commit 并推送后，按既有授权继续 TASK-021。
