@@ -11,6 +11,7 @@ export type BridgeErrorCode =
   | 'ROON_MEDIA_ERROR'
   | 'ROON_TIMEOUT'
   | 'STREAM_NOT_FOUND'
+  | 'STREAM_URL_EXPIRED'
   | 'STREAM_UPSTREAM_FAILED'
   | 'BAD_REQUEST'
   | 'INTERNAL_ERROR';

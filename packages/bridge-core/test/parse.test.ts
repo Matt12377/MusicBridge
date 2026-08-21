@@ -115,7 +115,7 @@ test('parses defensive song metadata shape', () => {
             id: 123,
             name: 'Test Song',
             ar: [{ name: 'Artist A' }, { name: 'Artist B' }],
-            al: { name: 'Album', picUrl: 'https://img.example/cover.jpg' },
+            al: { name: 'Album', picUrl: 'https://p3.music.126.net/cover.jpg' },
             dt: 240000,
           },
         ],
@@ -130,8 +130,29 @@ test('parses defensive song metadata shape', () => {
     artists: ['Artist A', 'Artist B'],
     album: 'Album',
     durationMs: 240000,
-    artworkUrl: 'https://img.example/cover.jpg',
+    artworkUrl: 'https://p3.music.126.net/cover.jpg',
   });
+});
+
+test('drops non-NetEase artwork URLs instead of exposing arbitrary upstream metadata', () => {
+  const result = parseTrackMetadata(
+    {
+      body: {
+        code: 200,
+        songs: [{ id: 123, name: 'Test Song', al: { name: 'Album', picUrl: 'https://img.example/cover.jpg' } }],
+      },
+    },
+    '123',
+  );
+
+  assert.equal(result.artworkUrl, undefined);
+});
+
+test('maps nested provider session expiration to AUTH_EXPIRED for metadata', () => {
+  assert.throws(
+    () => parseTrackMetadata({ body: { data: { code: 301 } } }, '123'),
+    (error: unknown) => error instanceof BridgeError && error.code === 'AUTH_EXPIRED',
+  );
 });
 
 test('parses actual stream quality instead of assuming requested quality', () => {

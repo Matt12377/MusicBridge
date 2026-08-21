@@ -61,10 +61,7 @@ class FakeChild implements CoreChildProcess {
 function makeHarness() {
   const channels: Array<{ port1: FakePort; port2: FakePort }> = []
   const children: FakeChild[] = []
-  const supervisor = new CoreSupervisor({
-    entryPath: '/tmp/core-entry.js',
-    cwd: '/tmp',
-    dependencies: {
+  const dependencies = {
       createChannel: () => {
         const channel = { port1: new FakePort(), port2: new FakePort() }
         channels.push(channel)
@@ -75,10 +72,14 @@ function makeHarness() {
         children.push(child)
         return child
       },
-    },
+  }
+  const supervisor = new CoreSupervisor({
+    entryPath: '/tmp/core-entry.js',
+    cwd: '/tmp',
+    dependencies,
     requestTimeoutMs: 20,
   })
-  return { channels, children, supervisor }
+  return { channels, children, dependencies, supervisor }
 }
 
 function ready(channel: { port2: FakePort }): void {
@@ -183,4 +184,29 @@ test('CoreSupervisor has an explicit Main-only path for QR poll credentials', as
     state: { status: 'authorized' },
     credential: 'synthetic-credential',
   })
+})
+
+test('CoreSupervisor runs the readiness recovery hook on initial start and restart', async () => {
+  const harness = makeHarness()
+  let readyHooks = 0
+  const supervisor = new CoreSupervisor({
+    entryPath: '/tmp/core-entry.js',
+    cwd: '/tmp',
+    dependencies: harness.dependencies,
+    requestTimeoutMs: 20,
+    onReady: async () => {
+      readyHooks += 1
+    },
+  })
+  const starting = supervisor.start()
+  await new Promise((resolve) => setImmediate(resolve))
+  ready(harness.channels[0]!)
+  await starting
+  assert.equal(readyHooks, 1)
+
+  harness.children[0]!.exit(1)
+  await new Promise((resolve) => setImmediate(resolve))
+  ready(harness.channels[1]!)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(readyHooks, 2)
 })

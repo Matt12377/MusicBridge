@@ -185,6 +185,10 @@ function preflightFailure(cause?: unknown, status?: number): BridgeError {
   );
 }
 
+function isExpiredUpstreamStatus(status: number): boolean {
+  return status === 401 || status === 403 || status === 404;
+}
+
 function sendJson(
   response: ServerResponse,
   status: number,
@@ -447,25 +451,58 @@ export class StreamGateway {
 
     try {
       const registration = this.options.registry.get(token);
-      const resolved = await registration.resolve();
-      const headers = new Headers(resolved.requestHeaders ?? {});
-      headers.set('Accept-Encoding', 'identity');
-
+      let resolved = await registration.resolve();
       const range = request.headers.range;
       const ifRangeValue = request.headers['if-range'];
       const ifRange = Array.isArray(ifRangeValue) ? ifRangeValue[0] : ifRangeValue;
-      if (range) headers.set('Range', range);
-      if (ifRange) headers.set('If-Range', ifRange);
+      const requestHeaders = (stream: ResolvedAudioStream): Headers => {
+        const headers = new Headers(stream.requestHeaders ?? {});
+        headers.set('Accept-Encoding', 'identity');
+        if (range) headers.set('Range', range);
+        if (ifRange) headers.set('If-Range', ifRange);
+        return headers;
+      };
 
       const fetcher = this.options.fetcher ?? secureGatewayFetch;
-      const upstream = await fetcher(resolved.upstreamUrl, {
+      let headers = requestHeaders(resolved);
+      let upstream = await fetcher(resolved.upstreamUrl, {
         method: request.method ?? 'GET',
         headers,
         signal: abortController.signal,
       });
       upstreamResponseReceived = true;
 
+      let refreshAttempted = false;
+      if (isExpiredUpstreamStatus(upstream.status)) {
+        refreshAttempted = true;
+        if (upstream.body !== null) {
+          try {
+            await upstream.body.cancel();
+          } catch {
+            // The expired response is already unusable; continue with one refresh attempt.
+          }
+        }
+        resolved = await registration.resolve({
+          reason: 'upstream_expired',
+          status: upstream.status,
+        });
+        headers = requestHeaders(resolved);
+        upstream = await fetcher(resolved.upstreamUrl, {
+          method: request.method ?? 'GET',
+          headers,
+          signal: abortController.signal,
+        });
+        upstreamResponseReceived = true;
+      }
+
       if (!upstream.ok && upstream.status !== 206) {
+        if (refreshAttempted && isExpiredUpstreamStatus(upstream.status)) {
+          throw new BridgeError(
+            'STREAM_URL_EXPIRED',
+            'Audio stream URL expired after one refresh',
+            { httpStatus: 502, details: { status: upstream.status } },
+          );
+        }
         throw new BridgeError(
           'STREAM_UPSTREAM_FAILED',
           `Audio upstream returned HTTP ${upstream.status}`,

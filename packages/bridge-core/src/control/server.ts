@@ -162,11 +162,13 @@ export class ControlServer {
     request: IncomingMessage,
     response: ServerResponse,
   ): Promise<void> {
+    let route = '/';
     try {
       const url = new URL(
         request.url ?? '/',
         `http://${request.headers.host ?? 'localhost'}`,
       );
+      route = url.pathname;
 
       if (request.method === 'GET' && url.pathname === '/health') {
         sendJson(response, 200, {
@@ -243,15 +245,13 @@ export class ControlServer {
       const bridgeError = asBridgeError(error);
       this.options.logger.warn('control_request_failed', {
         code: bridgeError.code,
-        message: bridgeError.message,
         method: request.method,
-        path: request.url,
+        route,
       });
       sendJson(response, bridgeError.httpStatus, {
         ok: false,
         code: bridgeError.code,
         message: bridgeError.message,
-        ...(bridgeError.details ? { details: bridgeError.details } : {}),
       });
     }
   }

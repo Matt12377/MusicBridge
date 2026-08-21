@@ -21,7 +21,10 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { migrateRoonConfig } from './config-migration.js'
-import { provisionProviderCredential } from './credential-provisioning.js'
+import {
+  provisionProviderCredential,
+  restoreProviderCredential,
+} from './credential-provisioning.js'
 import { CredentialVault } from './credential-vault.js'
 import {
   CoreIpcError,
@@ -420,7 +423,13 @@ function buildCoreEnvironment(): NodeJS.ProcessEnv {
   return environment
 }
 
-function createCoreSupervisor(dataDirectory: string): CoreSupervisor {
+function createCoreSupervisor(
+  dataDirectory: string,
+  options: {
+    onReady?: () => Promise<void> | void
+    onEvent?: (event: TypedIpcEvent) => void
+  } = {},
+): CoreSupervisor {
   return new CoreSupervisor({
     entryPath: path.join(currentDirectory, 'core.js'),
     cwd: dataDirectory,
@@ -441,7 +450,9 @@ function createCoreSupervisor(dataDirectory: string): CoreSupervisor {
           serviceName: options.serviceName,
         }) as unknown as CoreChildProcess,
     },
+    onReady: options.onReady,
     onEvent: (event: TypedIpcEvent) => {
+      options.onEvent?.(event)
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('core:event', event)
       }
@@ -510,7 +521,26 @@ async function bootstrap(): Promise<void> {
     return
   }
 
-  const supervisor = createCoreSupervisor(prepared.dataDirectory)
+  let initialProvisioningComplete = false
+  let supervisor: CoreSupervisor
+  supervisor = createCoreSupervisor(prepared.dataDirectory, {
+    onReady: async () => {
+      if (!initialProvisioningComplete) return
+      await restoreProviderCredential({
+        vault: prepared.credentialVault,
+        core: {
+          setCredential: (credential) =>
+            supervisor.request('auth.setCredential', { credential }),
+          clearCredential: () => supervisor.request('auth.clearCredential', {}),
+        },
+      })
+    },
+    onEvent: (event) => {
+      if (event.event === 'auth.changed' && event.payload.state.status === 'expired') {
+        void prepared.credentialVault.delete().catch(() => undefined)
+      }
+    },
+  })
   coreSupervisor = supervisor
   await supervisor.start()
   await provisionProviderCredential({
@@ -522,6 +552,7 @@ async function bootstrap(): Promise<void> {
       clearCredential: () => supervisor.request('auth.clearCredential', {}),
     },
   })
+  initialProvisioningComplete = true
   registerIpcHandlers(supervisor, prepared.credentialVault)
   createWindow(supervisor)
   if (isCoreCrashGate) {

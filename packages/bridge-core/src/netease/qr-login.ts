@@ -183,6 +183,13 @@ export class QrLoginStateMachine {
     return this.getState()
   }
 
+  markExpired(): PublicQrLoginState {
+    this.active = undefined
+    this.generation += 1
+    this.state = { status: 'expired' }
+    return this.getState()
+  }
+
   private async pollActive(active: ActiveChallenge): Promise<QrLoginPollResult> {
     let result: QrLoginCheckResult
     try {

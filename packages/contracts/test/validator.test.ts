@@ -425,6 +425,20 @@ test('contracts validates bounded playback controls and sanitized snapshots', ()
     format: 'flac',
     bitrate: 900_000,
     selectedZoneId: 'zone-1',
+    lastIssue: {
+      code: 'ROON_MEDIA_ERROR',
+      message: 'Roon 报告媒体错误，请重试',
+      retryable: true,
+      diagnosticId: 'diag-contract-1',
+      action: 'retry',
+    },
+    qualityNotice: {
+      code: 'QUALITY_DOWNGRADED',
+      message: '请求无损，实际高品质',
+      retryable: false,
+      diagnosticId: 'diag-contract-2',
+      action: 'none',
+    },
     canNext: true,
     canPrevious: false,
     canStop: true,
@@ -495,5 +509,21 @@ test('contracts validates bounded playback controls and sanitized snapshots', ()
       payload: { queue: snapshot.queue },
     }).ok,
     true,
+  );
+
+  assert.equal(
+    validateIpcResponseForCommand(
+      {
+        version: IPC_VERSION,
+        id: 'playback-invalid-issue',
+        ok: true,
+        result: {
+          ...snapshot,
+          lastIssue: { ...snapshot.lastIssue, diagnosticId: '' },
+        },
+      },
+      'playback.getState',
+    ).ok,
+    false,
   );
 });

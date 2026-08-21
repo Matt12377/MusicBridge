@@ -81,6 +81,7 @@ export class CoreSupervisor {
       dependencies: CoreSupervisorDependencies
       requestTimeoutMs?: number
       onEvent?: (event: TypedIpcEvent) => void
+      onReady?: () => Promise<void> | void
     },
   ) {}
 
@@ -240,12 +241,25 @@ export class CoreSupervisor {
       if (!parsed.ok) return
       const message = parsed.value
       if ('event' in message) {
-        if (message.event === 'core.ready' && !settled) {
+        if (message.event === 'core.ready' && !settled && !readyReceived) {
           readyReceived = true
-          settled = true
           clearTimeout(readyTimer)
           this._status = 'ready'
-          resolveReady()
+          void Promise.resolve(this.options.onReady?.()).then(
+            () => {
+              if (settled) return
+              settled = true
+              resolveReady()
+            },
+            () => {
+              if (settled) return
+              settled = true
+              this._status = 'failed'
+              rejectReady(new CoreIpcError('INTERNAL_ERROR', 'Core readiness recovery failed'))
+              readyReceived = false
+              child.kill()
+            },
+          )
         }
         this.options.onEvent?.(message)
         return

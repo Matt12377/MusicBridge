@@ -145,6 +145,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     registry,
     logger,
   });
+  let notifyProviderExpired: () => void = () => undefined;
   const controller = new BridgeController({
     netease,
     roon,
@@ -152,6 +153,10 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     gateway,
     logger,
     ...(options.now ? { now: options.now } : {}),
+    onProviderAuthExpired: () => {
+      netease.clearCredential();
+      notifyProviderExpired();
+    },
   });
   const control = new ControlServer({
     host: config.controlHost,
@@ -167,6 +172,22 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   const publicState = (): PublicBridgeState =>
     toPublicBridgeState(controller.getState(), runtime);
   const emitHealth = (): void => emit(eventWithState('core.health', publicState()));
+  notifyProviderExpired = (): void => {
+    emit(eventWithAuthState(qrLogin.markExpired()));
+    emitHealth();
+  };
+
+  const withProviderRecovery = async <T>(operation: () => Promise<T>): Promise<T> => {
+    try {
+      return await operation();
+    } catch (error) {
+      if (asBridgeError(error).code === 'AUTH_EXPIRED') {
+        netease.clearCredential();
+        notifyProviderExpired();
+      }
+      throw error;
+    }
+  };
 
   controller.subscribe((snapshot) => {
     emit({
@@ -287,10 +308,11 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       return state;
     },
 
-    searchTracks: (query, page) => netease.searchTracks(query, page),
-    getLikedTracks: (page) => netease.getLikedTracks(page),
-    getUserPlaylists: () => netease.getUserPlaylists(),
-    getPlaylist: (playlistId, page) => netease.getPlaylist(playlistId, page),
+    searchTracks: (query, page) => withProviderRecovery(() => netease.searchTracks(query, page)),
+    getLikedTracks: (page) => withProviderRecovery(() => netease.getLikedTracks(page)),
+    getUserPlaylists: () => withProviderRecovery(() => netease.getUserPlaylists()),
+    getPlaylist: (playlistId, page) =>
+      withProviderRecovery(() => netease.getPlaylist(playlistId, page)),
     getPlaybackState: () => controller.getPlaybackState(),
     async playbackPlay(trackId, quality) {
       await controller.play({ trackId, quality });

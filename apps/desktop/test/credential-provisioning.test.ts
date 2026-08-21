@@ -8,6 +8,7 @@ import { CredentialVault, type AsyncSafeStorage } from '../src/main/credential-v
 import {
   logoutProviderCredential,
   provisionProviderCredential,
+  restoreProviderCredential,
 } from '../src/main/credential-provisioning.js'
 
 class FakeSafeStorage implements AsyncSafeStorage {
@@ -109,4 +110,14 @@ test('logout clears Core memory before deleting the encrypted credential file', 
 
   assert.deepEqual(supervisor.calls.map(({ command }) => command), ['auth.clearCredential'])
   assert.deepEqual(await vault.read(), { status: 'missing' })
+})
+
+test('restore reads the encrypted credential and rehydrates a restarted Core', async () => {
+  const storage = new FakeSafeStorage()
+  const vault = await makeVault(storage)
+  const supervisor = makeSupervisor()
+  await vault.save('fixture-credential')
+
+  assert.equal(await restoreProviderCredential({ vault, core: supervisor }), 'configured')
+  assert.deepEqual(supervisor.calls.map(({ command }) => command), ['auth.setCredential'])
 })

@@ -1,6 +1,10 @@
+import { randomUUID } from 'node:crypto';
 import type {
   PlaybackQueueItem,
+  PlaybackIssue,
+  PlaybackIssueCode,
   PlaybackQuality,
+  PlaybackRecoveryAction,
   PlaybackSnapshot,
   PlaybackState,
   TrackSummary,
@@ -25,7 +29,7 @@ import type {
   RoonTerminalReason,
 } from '../roon/types.js';
 import type { StreamGateway } from '../stream/gateway.js';
-import type { StreamRegistry } from '../stream/registry.js';
+import type { StreamRegistry, StreamResolveRequest } from '../stream/registry.js';
 
 export interface ActivePlayback {
   track: TrackMetadata;
@@ -67,6 +71,96 @@ function isSkippableQueueError(error: unknown): boolean {
   return SKIPPABLE_QUEUE_ERRORS.has(asBridgeError(error).code);
 }
 
+function playbackIssueCode(error: BridgeError): PlaybackIssueCode {
+  switch (error.code) {
+    case 'NETEASE_NOT_CONFIGURED':
+      return 'AUTH_REQUIRED';
+    case 'AUTH_EXPIRED':
+      return 'AUTH_EXPIRED';
+    case 'TRACK_UNAVAILABLE':
+      return 'TRACK_UNAVAILABLE';
+    case 'TRACK_PREVIEW_ONLY':
+      return 'TRACK_PREVIEW_ONLY';
+    case 'STREAM_URL_EXPIRED':
+      return 'STREAM_URL_EXPIRED';
+    case 'NETEASE_REQUEST_FAILED':
+    case 'STREAM_UPSTREAM_FAILED':
+      return 'UPSTREAM_HTTP_ERROR';
+    case 'ROON_NOT_PAIRED':
+      return 'ROON_NOT_PAIRED';
+    case 'ROON_ZONE_NOT_SELECTED':
+      return 'ROON_ZONE_NOT_SELECTED';
+    case 'ROON_MEDIA_ERROR':
+      return 'ROON_MEDIA_ERROR';
+    case 'ROON_TIMEOUT':
+      return 'ROON_TIMEOUT';
+    case 'STREAM_NOT_FOUND':
+    case 'UNSAFE_UPSTREAM':
+      return 'GATEWAY_NOT_REACHABLE';
+    default:
+      return 'INTERNAL_ERROR';
+  }
+}
+
+function playbackIssueMessage(code: PlaybackIssueCode): {
+  message: string;
+  retryable: boolean;
+  action: PlaybackRecoveryAction;
+} {
+  switch (code) {
+    case 'AUTH_REQUIRED':
+      return { message: '请先扫码登录 Provider', retryable: false, action: 'reauthenticate' };
+    case 'AUTH_EXPIRED':
+      return { message: '登录已过期，请重新扫码登录', retryable: false, action: 'reauthenticate' };
+    case 'TRACK_UNAVAILABLE':
+      return { message: '当前歌曲暂不可播放', retryable: false, action: 'none' };
+    case 'TRACK_PREVIEW_ONLY':
+      return { message: '当前账号仅获得试听片段', retryable: false, action: 'none' };
+    case 'STREAM_URL_EXPIRED':
+      return { message: '播放地址已过期，刷新后仍不可用', retryable: true, action: 'retry' };
+    case 'UPSTREAM_HTTP_ERROR':
+      return { message: '音频服务暂时不可用，请重试', retryable: true, action: 'retry' };
+    case 'ROON_NOT_PAIRED':
+      return { message: 'Roon Core 尚未配对', retryable: false, action: 'restart_core' };
+    case 'ROON_ZONE_NOT_SELECTED':
+      return { message: '请先选择 Roon Zone', retryable: false, action: 'select_zone' };
+    case 'ROON_ZONE_LOST':
+      return { message: 'Roon Zone 已丢失，请重新选择 Zone', retryable: false, action: 'select_zone' };
+    case 'ROON_MEDIA_ERROR':
+      return { message: 'Roon 报告媒体错误，请重试', retryable: true, action: 'retry' };
+    case 'ROON_TIMEOUT':
+      return { message: 'Roon 播放响应超时，请重试', retryable: true, action: 'retry' };
+    case 'GATEWAY_NOT_REACHABLE':
+      return { message: '本地音频网关不可用，请重试', retryable: true, action: 'retry' };
+    case 'INTERNAL_ERROR':
+      return { message: '播放失败，请重试', retryable: true, action: 'retry' };
+    case 'QUALITY_DOWNGRADED':
+      return { message: '请求音质与实际音质不同', retryable: false, action: 'none' };
+  }
+}
+
+function makePlaybackIssue(
+  code: PlaybackIssueCode,
+  diagnosticId: string,
+): PlaybackIssue {
+  const detail = playbackIssueMessage(code);
+  return { code, ...detail, diagnosticId };
+}
+
+function makeTerminalIssue(
+  reason: RoonTerminalReason,
+  diagnosticId: string,
+): PlaybackIssue | undefined {
+  switch (reason) {
+    case 'media_error':
+      return makePlaybackIssue('ROON_MEDIA_ERROR', diagnosticId);
+    case 'zone_lost':
+      return makePlaybackIssue('ROON_ZONE_LOST', diagnosticId);
+    default:
+      return undefined;
+  }
+}
+
 export class BridgeController {
   private activeToken: string | undefined;
   private activePlayback: ActivePlayback | undefined;
@@ -74,6 +168,8 @@ export class BridgeController {
   private queueIndex = -1;
   private playbackState: PlaybackState = 'idle';
   private lastPlaybackError: string | undefined;
+  private lastPlaybackIssue: PlaybackIssue | undefined;
+  private qualityNotice: PlaybackIssue | undefined;
   private pendingTerminalReason: RoonTerminalReason | undefined;
   private operationTail: Promise<void> = Promise.resolve();
   private readonly playbackListeners = new Set<PlaybackChangedListener>();
@@ -86,6 +182,8 @@ export class BridgeController {
       gateway: StreamGateway;
       logger: Logger;
       now?: () => number;
+      diagnosticId?: () => string;
+      onProviderAuthExpired?: () => void;
     },
   ) {
     this.dependencies.roon.setTerminalHandler((reason) => {
@@ -98,13 +196,14 @@ export class BridgeController {
 
         this.clearActiveResources();
         if (reason !== 'ended' || !playbackWasPlaying) {
-          this.playbackState = reason === 'media_error' ? 'error' : 'idle';
-          this.lastPlaybackError =
-            reason === 'media_error'
-              ? 'ROON_MEDIA_ERROR'
-              : reason === 'zone_lost'
-                ? 'ROON_ZONE_NOT_SELECTED'
-                : undefined;
+          this.playbackState = reason === 'stopped' ? 'idle' : 'error';
+          this.lastPlaybackError = reason === 'media_error'
+            ? 'ROON_MEDIA_ERROR'
+            : reason === 'zone_lost'
+              ? 'ROON_ZONE_LOST'
+              : undefined;
+          this.lastPlaybackIssue = makeTerminalIssue(reason, this.newDiagnosticId());
+          this.qualityNotice = undefined;
           this.notifyPlaybackChanged();
           this.dependencies.logger.info('roon_session_terminal', { reason });
           return;
@@ -114,6 +213,8 @@ export class BridgeController {
         if (nextIndex >= this.queue.length) {
           this.playbackState = 'idle';
           this.lastPlaybackError = undefined;
+          this.lastPlaybackIssue = undefined;
+          this.qualityNotice = undefined;
           this.notifyPlaybackChanged();
           this.dependencies.logger.info('roon_session_terminal', { reason });
           return;
@@ -177,6 +278,8 @@ export class BridgeController {
         : {}),
       ...(selectedZoneId ? { selectedZoneId } : {}),
       ...(this.lastPlaybackError ? { lastError: this.lastPlaybackError } : {}),
+      ...(this.lastPlaybackIssue ? { lastIssue: this.lastPlaybackIssue } : {}),
+      ...(this.qualityNotice ? { qualityNotice: this.qualityNotice } : {}),
       canNext: hasNext,
       canPrevious: hasPrevious,
       canStop: this.activeToken !== undefined || this.activePlayback !== undefined,
@@ -192,7 +295,7 @@ export class BridgeController {
       await this.stopActive();
       this.queue = [item];
       this.queueIndex = 0;
-      this.lastPlaybackError = undefined;
+      this.clearPlaybackIssue();
       await this.startQueueIndex(0, false);
       return this.getState();
     });
@@ -218,7 +321,7 @@ export class BridgeController {
       await this.stopActive();
       this.queue = normalizedItems;
       this.queueIndex = startIndex;
-      this.lastPlaybackError = undefined;
+      this.clearPlaybackIssue();
       await this.startQueueIndex(startIndex, true);
       return this.getState();
     });
@@ -262,7 +365,7 @@ export class BridgeController {
       this.queue = [];
       this.queueIndex = -1;
       this.playbackState = 'idle';
-      this.lastPlaybackError = undefined;
+      this.clearPlaybackIssue();
       this.notifyPlaybackChanged();
       this.dependencies.registry.revokeAll();
     });
@@ -279,7 +382,7 @@ export class BridgeController {
 
   private async startQueueIndex(index: number, skipUnavailable: boolean): Promise<void> {
     let candidate = index;
-    let skippedError: string | undefined;
+    let skippedError: BridgeError | undefined;
 
     while (candidate < this.queue.length) {
       this.queueIndex = candidate;
@@ -290,18 +393,21 @@ export class BridgeController {
       }
       try {
         await this.startItem(item);
-        if (skippedError) this.lastPlaybackError = skippedError;
+        if (skippedError) {
+          this.lastPlaybackError = skippedError.code;
+          this.lastPlaybackIssue = this.issueForError(skippedError);
+        }
         this.notifyPlaybackChanged();
         return;
       } catch (error) {
         const bridgeError = asBridgeError(error);
         if (!skipUnavailable || !isSkippableQueueError(error)) {
           this.playbackState = 'error';
-          this.lastPlaybackError = bridgeError.code;
+          this.setPlaybackError(bridgeError);
           this.notifyPlaybackChanged();
           throw error;
         }
-        skippedError = bridgeError.code;
+        skippedError = bridgeError;
         candidate += 1;
       }
     }
@@ -309,7 +415,9 @@ export class BridgeController {
     this.queueIndex = this.queue.length > 0 ? this.queue.length - 1 : -1;
     this.clearActiveResources();
     this.playbackState = 'idle';
-    this.lastPlaybackError = skippedError;
+    this.lastPlaybackError = skippedError?.code;
+    this.lastPlaybackIssue = skippedError ? this.issueForError(skippedError) : undefined;
+    this.qualityNotice = undefined;
     this.notifyPlaybackChanged();
   }
 
@@ -323,7 +431,7 @@ export class BridgeController {
     }
 
     this.playbackState = 'resolving';
-    this.lastPlaybackError = undefined;
+    this.clearPlaybackIssue();
     this.notifyPlaybackChanged();
 
     const metadata = await this.dependencies.netease.getTrack(item.trackId);
@@ -399,6 +507,15 @@ export class BridgeController {
       this.activePlayback = activePlayback;
       this.playbackState = 'playing';
       this.lastPlaybackError = undefined;
+      this.lastPlaybackIssue = undefined;
+      this.qualityNotice = initialStream.actualQuality !== item.quality
+        ? {
+            ...makePlaybackIssue('QUALITY_DOWNGRADED', this.newDiagnosticId()),
+            message: item.quality === 'lossless'
+              ? '请求无损，实际高品质'
+              : `请求 ${item.quality}，实际 ${initialStream.actualQuality}`,
+          }
+        : undefined;
       this.dependencies.logger.info('bridge_playing', {
         trackId: item.trackId,
         title: metadata.title,
@@ -417,9 +534,6 @@ export class BridgeController {
     } catch (error) {
       this.pendingTerminalReason = undefined;
       this.clearActiveResources();
-      this.playbackState = 'error';
-      this.lastPlaybackError = asBridgeError(error).code;
-      this.notifyPlaybackChanged();
       throw error;
     }
   }
@@ -441,6 +555,7 @@ export class BridgeController {
     } finally {
       this.clearActiveResources();
       this.playbackState = 'idle';
+      this.clearPlaybackIssue();
       this.notifyPlaybackChanged();
     }
   }
@@ -478,19 +593,71 @@ export class BridgeController {
     trackId: string,
     quality: QualityLevel,
     initial: ResolvedAudioStream,
-  ): () => Promise<ResolvedAudioStream> {
+  ): (request?: StreamResolveRequest) => Promise<ResolvedAudioStream> {
     let cached = initial;
     let resolvedAtMs = this.now();
+    let refreshUsed = false;
 
-    return async (): Promise<ResolvedAudioStream> => {
+    return async (request?: StreamResolveRequest): Promise<ResolvedAudioStream> => {
       const advertisedTtlMs = (cached.expiresInSeconds ?? 120) * 1000;
       const refreshAfterMs = Math.max(10_000, advertisedTtlMs - 30_000);
-      if (this.now() - resolvedAtMs < refreshAfterMs) return cached;
+      const forcedByUpstream = request?.reason === 'upstream_expired';
+      if (!forcedByUpstream && this.now() - resolvedAtMs < refreshAfterMs) return cached;
+      if (refreshUsed) {
+        throw new BridgeError(
+          'STREAM_URL_EXPIRED',
+          'Audio stream URL expired after one refresh',
+          { httpStatus: 502, details: { refreshAttempted: true } },
+        );
+      }
 
-      cached = await this.dependencies.netease.resolveStream(trackId, quality);
+      refreshUsed = true;
+      try {
+        cached = await this.dependencies.netease.resolveStream(trackId, quality);
+      } catch (error) {
+        const bridgeError = asBridgeError(error);
+        if (bridgeError.code === 'AUTH_EXPIRED') throw error;
+        throw new BridgeError(
+          'STREAM_URL_EXPIRED',
+          'Audio stream URL expired after one refresh',
+          { httpStatus: 502, cause: error, details: { refreshAttempted: true } },
+        );
+      }
       resolvedAtMs = this.now();
       return cached;
     };
+  }
+
+  private issueForError(error: unknown): PlaybackIssue {
+    const bridgeError = asBridgeError(error);
+    const reason = bridgeError.details?.reason;
+    const code = reason === 'zone_lost'
+      ? 'ROON_ZONE_LOST'
+      : playbackIssueCode(bridgeError);
+    return makePlaybackIssue(code, this.newDiagnosticId());
+  }
+
+  private setPlaybackError(error: unknown): void {
+    const bridgeError = asBridgeError(error);
+    this.lastPlaybackError = bridgeError.code;
+    this.lastPlaybackIssue = this.issueForError(bridgeError);
+    if (bridgeError.code === 'AUTH_EXPIRED') {
+      try {
+        this.dependencies.onProviderAuthExpired?.();
+      } catch {
+        this.dependencies.logger.warn('provider_expired_handler_failed', {});
+      }
+    }
+  }
+
+  private clearPlaybackIssue(): void {
+    this.lastPlaybackError = undefined;
+    this.lastPlaybackIssue = undefined;
+    this.qualityNotice = undefined;
+  }
+
+  private newDiagnosticId(): string {
+    return this.dependencies.diagnosticId?.() ?? `diag-${randomUUID()}`;
   }
 
   private now(): number {

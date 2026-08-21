@@ -96,6 +96,83 @@ test('gateway forwards Range and preserves media response headers without buffer
   assert.deepEqual([...bytes], [1, 2, 3, 4]);
 });
 
+test('gateway retries one expired upstream response through the resolver and then succeeds', async (t) => {
+  const registry = new StreamRegistry();
+  const statuses = [403, 206];
+  const reasons: Array<{ reason?: string; status?: number }> = [];
+  let fetchCalls = 0;
+  const gateway = new StreamGateway({
+    host: '127.0.0.1',
+    port: 0,
+    publicBaseUrl: 'http://127.0.0.1:0',
+    registry,
+    logger: createLogger('error'),
+    fetcher: async () => {
+      fetchCalls += 1;
+      return new Response(fetchCalls === 1 ? null : Uint8Array.from([7]), {
+        status: statuses[fetchCalls - 1] ?? 500,
+        ...(fetchCalls === 2 ? { headers: { 'Content-Type': 'audio/flac' } } : {}),
+      });
+    },
+  });
+  await gateway.start();
+  t.after(async () => gateway.stop());
+
+  const registration = registry.register({
+    metadata: { id: '1', title: 'Track', artists: ['Artist'], album: 'Album' },
+    requestedQuality: 'lossless',
+    resolve: async (request) => {
+      reasons.push(request ?? {});
+      return resolvedStream('https://203.0.113.10/refreshed.flac');
+    },
+  });
+
+  const response = await fetch(`${gateway.localBaseUrl()}/stream/${registration.token}.flac`);
+  assert.equal(response.status, 206);
+  assert.deepEqual([...new Uint8Array(await response.arrayBuffer())], [7]);
+  assert.equal(fetchCalls, 2);
+  assert.deepEqual(reasons, [{}, { reason: 'upstream_expired', status: 403 }]);
+});
+
+test('gateway converts a second expired upstream response into deterministic STREAM_URL_EXPIRED', async (t) => {
+  const registry = new StreamRegistry();
+  let fetchCalls = 0;
+  let resolveCalls = 0;
+  const gateway = new StreamGateway({
+    host: '127.0.0.1',
+    port: 0,
+    publicBaseUrl: 'http://127.0.0.1:0',
+    registry,
+    logger: createLogger('error'),
+    fetcher: async () => {
+      fetchCalls += 1;
+      return new Response(null, { status: 403 });
+    },
+  });
+  await gateway.start();
+  t.after(async () => gateway.stop());
+
+  const registration = registry.register({
+    metadata: { id: '1', title: 'Track', artists: ['Artist'], album: 'Album' },
+    requestedQuality: 'lossless',
+    resolve: async () => {
+      resolveCalls += 1;
+      return resolvedStream();
+    },
+  });
+
+  const response = await fetch(`${gateway.localBaseUrl()}/stream/${registration.token}.flac`);
+  const body = await response.json() as { code?: string; message?: string };
+  assert.equal(response.status, 502);
+  assert.deepEqual(body, {
+    ok: false,
+    code: 'STREAM_URL_EXPIRED',
+    message: 'Audio stream URL expired after one refresh',
+  });
+  assert.equal(fetchCalls, 2);
+  assert.equal(resolveCalls, 2);
+});
+
 test('gateway supports HEAD without a response body', async (t) => {
   const registry = new StreamRegistry();
   let seenMethod = '';

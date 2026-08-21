@@ -2,7 +2,14 @@ import { randomBytes } from 'node:crypto';
 import { BridgeError } from '../shared/errors.js';
 import type { ResolvedAudioStream, TrackMetadata } from '../netease/types.js';
 
-export type StreamResolver = () => Promise<ResolvedAudioStream>;
+export interface StreamResolveRequest {
+  reason?: 'upstream_expired';
+  status?: number;
+}
+
+export type StreamResolver = (
+  request?: StreamResolveRequest,
+) => Promise<ResolvedAudioStream>;
 
 export interface StreamRegistration {
   token: string;

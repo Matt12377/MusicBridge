@@ -7,9 +7,11 @@ import type {
   TrackSummary,
 } from './library.js';
 import {
+  PLAYBACK_ISSUE_CODES,
   PLAYBACK_QUALITY_LEVELS,
   type PlaybackQueueItem,
   type PlaybackQueueSnapshot,
+  type PlaybackIssue,
   type PlaybackQuality,
   type PlaybackSnapshot,
 } from './playback.js';
@@ -169,6 +171,26 @@ function isPlaybackState(value: unknown): value is PlaybackSnapshot['state'] {
   );
 }
 
+const PLAYBACK_RECOVERY_ACTIONS = new Set([
+  'reauthenticate',
+  'retry',
+  'select_zone',
+  'restart_core',
+  'none',
+]);
+
+function isPlaybackIssue(value: unknown): value is PlaybackIssue {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['code', 'message', 'retryable', 'diagnosticId', 'action']) &&
+    PLAYBACK_ISSUE_CODES.includes(value.code as PlaybackIssue['code']) &&
+    safeString(value.message, 512) &&
+    typeof value.retryable === 'boolean' &&
+    safeString(value.diagnosticId, 128) &&
+    (value.action === undefined || PLAYBACK_RECOVERY_ACTIONS.has(String(value.action)))
+  );
+}
+
 function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
   if (
     !isRecord(value) ||
@@ -182,6 +204,8 @@ function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
       'bitrate',
       'selectedZoneId',
       'lastError',
+      'lastIssue',
+      'qualityNotice',
       'canNext',
       'canPrevious',
       'canStop',
@@ -199,6 +223,8 @@ function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
         value.bitrate > 10_000_000)) ||
     (value.selectedZoneId !== undefined && !safeString(value.selectedZoneId, 128)) ||
     (value.lastError !== undefined && !safeString(value.lastError, 128)) ||
+    (value.lastIssue !== undefined && !isPlaybackIssue(value.lastIssue)) ||
+    (value.qualityNotice !== undefined && !isPlaybackIssue(value.qualityNotice)) ||
     typeof value.canNext !== 'boolean' ||
     typeof value.canPrevious !== 'boolean' ||
     typeof value.canStop !== 'boolean'

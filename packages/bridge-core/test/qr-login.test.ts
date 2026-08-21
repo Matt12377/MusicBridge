@@ -189,3 +189,12 @@ test('QR logout clears the provider session and returns idle', async () => {
   assert.deepEqual(await machine.logout(), { status: 'idle' })
   assert.equal(provider.logoutCalls, 1)
 })
+
+test('QR machine exposes an expired state when the provider session is rejected', () => {
+  const provider = makeProvider()
+  const machine = new QrLoginStateMachine(provider)
+
+  machine.markAuthorized()
+  assert.deepEqual(machine.markExpired(), { status: 'expired' })
+  assert.deepEqual(machine.getState(), { status: 'expired' })
+})

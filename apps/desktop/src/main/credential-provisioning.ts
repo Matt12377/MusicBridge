@@ -50,6 +50,17 @@ export async function provisionProviderCredential(options: {
   return statusFromReadResult(stored)
 }
 
+export async function restoreProviderCredential(options: {
+  vault: CredentialVault
+  core: CoreCredentialPort
+}): Promise<ProviderProvisioningStatus> {
+  const stored = await options.vault.read()
+  if (stored.status === 'configured') {
+    await options.core.setCredential(stored.credential)
+  }
+  return statusFromReadResult(stored)
+}
+
 export async function logoutProviderCredential(options: {
   vault: CredentialVault
   core: CoreCredentialPort

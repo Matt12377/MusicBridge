@@ -333,14 +333,7 @@ export function parseTrackMetadata(
   requestedTrackId: string,
 ): TrackMetadata {
   const body = bodyOf(response);
-  const code = numeric(body.code);
-  if (code !== undefined && code !== 200) {
-    throw new BridgeError(
-      'NETEASE_REQUEST_FAILED',
-      `NetEase song_detail failed with code ${code}`,
-      { httpStatus: 502, details: { code } },
-    );
-  }
+  responseBodyCode(body, 'song_detail');
 
   const songs = Array.isArray(body.songs) ? body.songs : [];
   const song = songs.find((item) => {
@@ -372,7 +365,7 @@ export function parseTrackMetadata(
       : undefined;
   const album = albumRecord ? stringValue(albumRecord.name) : undefined;
   const artworkUrl = albumRecord
-    ? stringValue(albumRecord.picUrl ?? albumRecord.blurPicUrl)
+    ? safeArtworkUrl(albumRecord.picUrl ?? albumRecord.blurPicUrl)
     : undefined;
   const durationMs = numeric(song.dt ?? song.duration);
 
@@ -392,14 +385,7 @@ export function parseResolvedAudioStream(
   requestedQuality: QualityLevel,
 ): ResolvedAudioStream {
   const body = bodyOf(response);
-  const bodyCode = numeric(body.code);
-  if (bodyCode !== undefined && bodyCode !== 200) {
-    throw new BridgeError(
-      'NETEASE_REQUEST_FAILED',
-      `NetEase song_url_v1 failed with code ${bodyCode}`,
-      { httpStatus: 502, details: { code: bodyCode } },
-    );
-  }
+  responseBodyCode(body, 'song_url_v1');
 
   const rows = Array.isArray(body.data) ? body.data : [];
   const row = rows.find((item) => {

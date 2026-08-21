@@ -15,6 +15,8 @@ import { StreamRegistry } from '../src/stream/registry.js';
 class FakeNetease implements NeteasePort {
   readonly configured = true;
   resolveCalls = 0;
+  actualQuality = 'lossless';
+  authExpired = false;
   readonly unavailableTrackIds = new Set<string>();
 
   async searchTracks() {
@@ -39,6 +41,9 @@ class FakeNetease implements NeteasePort {
   }
 
   async getTrack(trackId: string) {
+    if (this.authExpired) {
+      throw new BridgeError('AUTH_EXPIRED', 'Synthetic expired session', { httpStatus: 401 });
+    }
     if (this.unavailableTrackIds.has(trackId)) {
       throw new BridgeError('TRACK_UNAVAILABLE', 'Synthetic track is unavailable', {
         httpStatus: 409,
@@ -68,7 +73,7 @@ class FakeNetease implements NeteasePort {
       upstreamUrl: 'https://cdn.example/audio.flac',
       requestedQuality: quality,
       transportSecurity: 'https-upgraded',
-      actualQuality: 'lossless',
+      actualQuality: this.actualQuality,
       format: 'flac',
       expiresInSeconds: 600,
     };
@@ -161,6 +166,7 @@ function makeHarness(preflightStatus = 206) {
   });
   const netease = new FakeNetease();
   const roon = new FakeRoon(events);
+  let authExpiredCalls = 0;
   const controller = new BridgeController({
     netease,
     roon,
@@ -168,8 +174,12 @@ function makeHarness(preflightStatus = 206) {
     gateway,
     logger: createLogger('error'),
     now: () => 1_700_000_000_000,
+    diagnosticId: () => 'diag-controller-test',
+    onProviderAuthExpired: () => {
+      authExpiredCalls += 1;
+    },
   });
-  return { registry, gateway, netease, roon, controller, events };
+  return { registry, gateway, netease, roon, controller, events, get authExpiredCalls() { return authExpiredCalls; } };
 }
 
 test('controller registers a local stream, starts Roon and reports actual quality', async () => {
@@ -191,6 +201,22 @@ test('controller registers a local stream, starts Roon and reports actual qualit
   await controller.stop();
   assert.equal(registry.size, 0);
   assert.equal(controller.getState().activePlayback, undefined);
+});
+
+test('controller exposes a bounded quality downgrade notice without upstream details', async () => {
+  const { controller, netease } = makeHarness();
+  netease.actualQuality = 'exhigh';
+
+  await controller.play({ trackId: '123', quality: 'lossless' });
+
+  assert.deepEqual(controller.getPlaybackState().qualityNotice, {
+    code: 'QUALITY_DOWNGRADED',
+    message: '请求无损，实际高品质',
+    retryable: false,
+    diagnosticId: 'diag-controller-test',
+    action: 'none',
+  });
+  assert.equal(JSON.stringify(controller.getPlaybackState()).includes('cdn.example'), false);
 });
 
 test('controller attaches an explicit gateway stage context to the Roon request', async () => {
@@ -249,6 +275,77 @@ test('controller revokes stream token when Roon reports a terminal event', async
   await waitFor(() => registry.size === 0);
   assert.equal(registry.size, 0);
   assert.equal(controller.getState().activePlayback, undefined);
+});
+
+test('controller maps ZoneLost to a diagnostic issue and clears stream resources', async () => {
+  const { controller, registry, roon } = makeHarness();
+  await controller.play({ trackId: '123', quality: 'lossless' });
+
+  roon.emitTerminal('zone_lost');
+  await waitFor(() => registry.size === 0);
+
+  assert.equal(controller.getPlaybackState().state, 'error');
+  assert.equal(controller.getPlaybackState().lastError, 'ROON_ZONE_LOST');
+  assert.deepEqual(controller.getPlaybackState().lastIssue, {
+    code: 'ROON_ZONE_LOST',
+    message: 'Roon Zone 已丢失，请重新选择 Zone',
+    retryable: false,
+    diagnosticId: 'diag-controller-test',
+    action: 'select_zone',
+  });
+});
+
+test('controller maps MediaError to a retryable diagnostic issue', async () => {
+  const { controller, roon } = makeHarness();
+  await controller.play({ trackId: '123', quality: 'lossless' });
+
+  roon.emitTerminal('media_error');
+  await waitFor(() => controller.getPlaybackState().state === 'error');
+
+  assert.deepEqual(controller.getPlaybackState().lastIssue, {
+    code: 'ROON_MEDIA_ERROR',
+    message: 'Roon 报告媒体错误，请重试',
+    retryable: true,
+    diagnosticId: 'diag-controller-test',
+    action: 'retry',
+  });
+});
+
+test('controller refreshes an expiring stream only once', async () => {
+  const { controller, netease, registry, roon } = makeHarness();
+  await controller.play({ trackId: '123', quality: 'lossless' });
+  const mediaUrl = roon.playRequest?.mediaUrl ?? '';
+  const token = /\/stream\/([A-Za-z0-9_-]+)\./.exec(mediaUrl)?.[1];
+  assert.ok(token);
+  const registration = registry.get(token);
+
+  await registration.resolve({ reason: 'upstream_expired', status: 403 });
+  assert.equal(netease.resolveCalls, 2);
+  await assert.rejects(
+    () => registration.resolve({ reason: 'upstream_expired', status: 403 }),
+    (error: unknown) => error instanceof BridgeError && error.code === 'STREAM_URL_EXPIRED',
+  );
+  assert.equal(netease.resolveCalls, 2);
+});
+
+test('controller reports expired Provider credentials without retaining active resources', async () => {
+  const harness = makeHarness();
+  harness.netease.authExpired = true;
+
+  await assert.rejects(
+    () => harness.controller.play({ trackId: '123', quality: 'lossless' }),
+    (error: unknown) => error instanceof BridgeError && error.code === 'AUTH_EXPIRED',
+  );
+
+  assert.equal(harness.authExpiredCalls, 1);
+  assert.equal(harness.registry.size, 0);
+  assert.deepEqual(harness.controller.getPlaybackState().lastIssue, {
+    code: 'AUTH_EXPIRED',
+    message: '登录已过期，请重新扫码登录',
+    retryable: false,
+    diagnosticId: 'diag-controller-test',
+    action: 'reauthenticate',
+  });
 });
 
 
