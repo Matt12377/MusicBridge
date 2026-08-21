@@ -67,6 +67,13 @@ if (
   fail('status-policy-invalid')
 }
 
+if (status.state === 'complete') {
+  const reportPath = path.join(root, 'reports', `${status.task}_RESULT.md`)
+  if (!fs.existsSync(reportPath) || !fs.statSync(reportPath).isFile()) {
+    fail(`missing-report:${status.task}`)
+  }
+}
+
 const statusText = JSON.stringify(status)
 if (
   /(NETEASE_COOKIE|MUSIC_U|__csrf)\s*[:=]\s*[^,}]+/i.test(statusText) ||

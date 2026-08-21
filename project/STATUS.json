@@ -4,14 +4,14 @@
   "wave": "WAVE-3",
   "task": "TASK-029",
   "branch": "codex/task-029-control-plane-ci",
-  "state": "in_progress",
+  "state": "complete",
   "baseCommit": "8c5a471dfd3662609822d2ff79739365f8bc7405",
-  "implementationCommit": null,
+  "implementationCommit": "aed0ee8e3c60eca6cc39bfd48b12fa9499b81d36",
   "reportCommit": null,
   "nextTask": "TASK-024",
   "gates": {
-    "automated": "pending",
-    "security": "pending",
+    "automated": "pass",
+    "security": "pass",
     "realProvider": "not-run",
     "realRoon": "not-run"
   },
