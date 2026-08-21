@@ -1,4 +1,11 @@
 import { BridgeError } from '../shared/errors.js';
+import type {
+  Page,
+  PageRequest,
+  PlaylistDetail,
+  PlaylistSummary,
+  TrackSummary,
+} from '@music-bridge/contracts';
 import { resolveNeteaseAudioUrl } from './policy.js';
 import type {
   QualityLevel,
@@ -31,6 +38,217 @@ function numeric(value: unknown): number | undefined {
 
 function stringValue(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() !== '' ? value : undefined;
+}
+
+function safeArtworkUrl(value: unknown): string | undefined {
+  const raw = stringValue(value);
+  if (!raw || raw.length > 2_048) return undefined;
+  try {
+    const url = new URL(raw);
+    const hostname = url.hostname.toLowerCase();
+    if (
+      url.protocol !== 'https:' ||
+      (hostname !== 'music.126.net' && !hostname.endsWith('.music.126.net')) ||
+      url.username !== '' ||
+      url.password !== '' ||
+      url.hash !== ''
+    ) {
+      return undefined;
+    }
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+function safeId(value: unknown): string | undefined {
+  if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) {
+    return String(value);
+  }
+  if (typeof value === 'string' && /^\d+$/.test(value) && value !== '0') {
+    return value;
+  }
+  return undefined;
+}
+
+function trackSummaryFromRecord(value: unknown): TrackSummary | undefined {
+  if (!isRecord(value)) return undefined;
+  const id = safeId(value.id);
+  if (!id) return undefined;
+  const title = stringValue(value.name) ?? `NetEase Track ${id}`;
+  const artistRows = Array.isArray(value.ar)
+    ? value.ar
+    : Array.isArray(value.artists)
+      ? value.artists
+      : [];
+  const artists = artistRows
+    .map((artist) => (isRecord(artist) ? stringValue(artist.name) : undefined))
+    .filter((artist): artist is string => artist !== undefined);
+  const albumRecord = isRecord(value.al)
+    ? value.al
+    : isRecord(value.album)
+      ? value.album
+      : undefined;
+  const album = albumRecord ? stringValue(albumRecord.name) : undefined;
+  const durationMs = numeric(value.dt ?? value.duration);
+  const artworkUrl = albumRecord
+    ? safeArtworkUrl(albumRecord.picUrl ?? albumRecord.blurPicUrl ?? albumRecord.coverImgUrl)
+    : safeArtworkUrl(value.artworkUrl);
+
+  return {
+    id,
+    title,
+    artists: artists.length > 0 ? artists : ['Unknown Artist'],
+    album: album ?? 'Unknown Album',
+    ...(durationMs !== undefined ? { durationMs } : {}),
+    ...(artworkUrl !== undefined ? { artworkUrl } : {}),
+  };
+}
+
+function pageOf<T>(items: readonly T[], page: PageRequest, total: number): Page<T> {
+  const boundedTotal = Math.max(total, page.offset + items.length);
+  return {
+    items,
+    offset: page.offset,
+    limit: page.limit,
+    total: boundedTotal,
+    hasMore: page.offset + items.length < boundedTotal,
+  };
+}
+
+function responseBodyCode(body: Record<string, unknown>, operation: string): void {
+  const data = isRecord(body.data) ? body.data : undefined;
+  const result = isRecord(body.result) ? body.result : undefined;
+  const code = numeric(body.code) ?? numeric(data?.code) ?? numeric(result?.code);
+  if (code === 301 || code === 302) {
+    throw new BridgeError('AUTH_EXPIRED', 'Provider session expired', {
+      httpStatus: 401,
+    });
+  }
+  if (code !== undefined && code !== 200) {
+    throw new BridgeError(
+      'NETEASE_REQUEST_FAILED',
+      `NetEase ${operation} failed with code ${code}`,
+      { httpStatus: 502, details: { code } },
+    );
+  }
+}
+
+export function parseTrackSummaries(response: unknown): TrackSummary[] {
+  const body = bodyOf(response);
+  responseBodyCode(body, 'library request');
+  const result = isRecord(body.result) ? body.result : undefined;
+  const rows = Array.isArray(body.songs)
+    ? body.songs
+    : result && Array.isArray(result.songs)
+      ? result.songs
+      : [];
+  return rows
+    .map(trackSummaryFromRecord)
+    .filter((item): item is TrackSummary => item !== undefined);
+}
+
+export function parseSearchPage(
+  response: unknown,
+  page: PageRequest,
+): Page<TrackSummary> {
+  const body = bodyOf(response);
+  responseBodyCode(body, 'search');
+  const result = isRecord(body.result) ? body.result : body;
+  const items = parseTrackSummaries(response);
+  const total = numeric(result.songCount ?? result.total) ?? page.offset + items.length;
+  return pageOf(items, page, total);
+}
+
+export function parseLikedTrackIds(response: unknown): string[] {
+  const body = bodyOf(response);
+  responseBodyCode(body, 'liked tracks');
+  const ids = Array.isArray(body.ids) ? body.ids : [];
+  return ids
+    .map((item) => (isRecord(item) ? item.id : item))
+    .map(safeId)
+    .filter((id): id is string => id !== undefined);
+}
+
+function playlistSummaryFromRecord(value: unknown): PlaylistSummary | undefined {
+  if (!isRecord(value)) return undefined;
+  const id = safeId(value.id);
+  if (!id) return undefined;
+  const trackCount = numeric(value.trackCount) ?? 0;
+  const artworkUrl = safeArtworkUrl(value.coverImgUrl ?? value.coverUrl ?? value.picUrl);
+  return {
+    id,
+    name: stringValue(value.name) ?? `Playlist ${id}`,
+    trackCount: Math.max(0, Math.floor(trackCount)),
+    ...(artworkUrl !== undefined ? { artworkUrl } : {}),
+  };
+}
+
+export function parsePlaylistSummaries(response: unknown): PlaylistSummary[] {
+  const body = bodyOf(response);
+  responseBodyCode(body, 'user playlists');
+  const rows = Array.isArray(body.playlist)
+    ? body.playlist
+    : Array.isArray(body.playlists)
+      ? body.playlists
+      : [];
+  return rows
+    .map(playlistSummaryFromRecord)
+    .filter((item): item is PlaylistSummary => item !== undefined);
+}
+
+export function parseAccountId(response: unknown): string {
+  const body = bodyOf(response);
+  responseBodyCode(body, 'user account');
+  const data = isRecord(body.data) ? body.data : undefined;
+  const account = isRecord(body.account)
+    ? body.account
+    : data && isRecord(data.account)
+      ? data.account
+      : undefined;
+  const profile = isRecord(body.profile)
+    ? body.profile
+    : data && isRecord(data.profile)
+      ? data.profile
+      : undefined;
+  const id = safeId(account?.id ?? account?.userId ?? profile?.userId ?? profile?.id);
+  if (!id) {
+    throw new BridgeError('NETEASE_REQUEST_FAILED', 'NetEase account id was not returned', {
+      httpStatus: 502,
+    });
+  }
+  return id;
+}
+
+export function parsePlaylistDetailHeader(
+  response: unknown,
+  requestedPlaylistId: string,
+): Omit<PlaylistDetail, 'tracks'> {
+  const body = bodyOf(response);
+  responseBodyCode(body, 'playlist detail');
+  const playlist = isRecord(body.playlist) ? body.playlist : undefined;
+  const summary = playlistSummaryFromRecord({
+    ...(playlist ?? {}),
+    id: playlist?.id ?? requestedPlaylistId,
+  });
+  if (!summary) {
+    throw new BridgeError('NETEASE_REQUEST_FAILED', 'NetEase playlist detail was not returned', {
+      httpStatus: 502,
+    });
+  }
+  const description = playlist ? stringValue(playlist.description ?? playlist.desc) : undefined;
+  return {
+    ...summary,
+    ...(description !== undefined ? { description } : {}),
+  };
+}
+
+export function parsePlaylistTrackPage(
+  response: unknown,
+  page: PageRequest,
+  total: number,
+): Page<TrackSummary> {
+  return pageOf(parseTrackSummaries(response), page, total);
 }
 
 function responseCode(body: Record<string, unknown>, operation: string): number {

@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import type { PublicAuthState, PublicBridgeState } from '@music-bridge/contracts'
+import type {
+  Page,
+  PlaylistDetail,
+  PlaylistSummary,
+  PublicAuthState,
+  PublicBridgeState,
+  TrackSummary,
+} from '@music-bridge/contracts'
 import { createPreloadApi, PUBLIC_API_KEYS } from '../src/preload/api.js'
 
 test('Preload exposes only sanitized business methods', async () => {
@@ -18,6 +25,20 @@ test('Preload exposes only sanitized business methods', async () => {
     activePlaybackPresent: false,
   }
   const authState: PublicAuthState = { status: 'idle' }
+  const page: Page<TrackSummary> = {
+    items: [],
+    offset: 0,
+    limit: 20,
+    total: 0,
+    hasMore: false,
+  }
+  const playlists: readonly PlaylistSummary[] = []
+  const playlist: PlaylistDetail = {
+    id: '301',
+    name: 'Synthetic Playlist',
+    trackCount: 0,
+    tracks: page,
+  }
   const api = createPreloadApi(
     async () => appInfo,
     async () => state,
@@ -28,6 +49,10 @@ test('Preload exposes only sanitized business methods', async () => {
     async () => authState,
     async () => authState,
     async () => authState,
+    async () => page,
+    async () => page,
+    async () => playlists,
+    async () => playlist,
     () => () => undefined,
   )
 
@@ -41,6 +66,10 @@ test('Preload exposes only sanitized business methods', async () => {
     'pollQrLogin',
     'cancelQrLogin',
     'logout',
+    'searchTracks',
+    'getLikedTracks',
+    'getUserPlaylists',
+    'getPlaylist',
     'onCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
@@ -53,6 +82,10 @@ test('Preload exposes only sanitized business methods', async () => {
     'pollQrLogin',
     'cancelQrLogin',
     'logout',
+    'searchTracks',
+    'getLikedTracks',
+    'getUserPlaylists',
+    'getPlaylist',
     'onCoreEvent',
   ])
   assert.equal(Object.isFrozen(api), true)
@@ -65,4 +98,8 @@ test('Preload exposes only sanitized business methods', async () => {
   assert.deepEqual(await api.pollQrLogin('challenge-1'), authState)
   assert.deepEqual(await api.cancelQrLogin('challenge-1'), authState)
   assert.deepEqual(await api.logout(), authState)
+  assert.deepEqual(await api.searchTracks('synthetic', { offset: 0, limit: 20 }), page)
+  assert.deepEqual(await api.getLikedTracks({ offset: 0, limit: 20 }), page)
+  assert.deepEqual(await api.getUserPlaylists(), playlists)
+  assert.deepEqual(await api.getPlaylist('301', { offset: 0, limit: 20 }), playlist)
 })

@@ -5,6 +5,11 @@ import {
   type QualityLevel,
   type TransportSecurity,
 } from './types.js';
+import type { PageRequest } from '@music-bridge/contracts';
+
+export const MAX_LIBRARY_PAGE_LIMIT = 100 as const;
+export const MAX_LIBRARY_PAGE_OFFSET = 1_000_000 as const;
+export const MAX_SEARCH_QUERY_LENGTH = 100 as const;
 
 const FORBIDDEN_TRUE_ENV_VARS = [
   'ENABLE_GENERAL_UNBLOCK',
@@ -61,6 +66,32 @@ export function normalizeTrackId(value: unknown): string {
     });
   }
   return trackId;
+}
+
+export function normalizePageRequest(value: PageRequest): PageRequest {
+  if (
+    !Number.isSafeInteger(value.offset) ||
+    value.offset < 0 ||
+    value.offset > MAX_LIBRARY_PAGE_OFFSET ||
+    !Number.isSafeInteger(value.limit) ||
+    value.limit < 1 ||
+    value.limit > MAX_LIBRARY_PAGE_LIMIT
+  ) {
+    throw new BridgeError('BAD_REQUEST', 'Invalid library page request', {
+      httpStatus: 400,
+    });
+  }
+  return value;
+}
+
+export function normalizeSearchQuery(value: string): string {
+  const query = value.trim();
+  if (query.length === 0 || query.length > MAX_SEARCH_QUERY_LENGTH) {
+    throw new BridgeError('BAD_REQUEST', 'Invalid search query', {
+      httpStatus: 400,
+    });
+  }
+  return query;
 }
 
 export function assertSafeAudioUrl(value: unknown): string {

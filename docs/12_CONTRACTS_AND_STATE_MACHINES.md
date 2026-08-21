@@ -33,6 +33,10 @@ export type CoreCommand =
 
 `auth.setCredential` 与 `auth.clearCredential` 是 Main → Core 的受控内部请求；Preload 不暴露这两个方法，响应只返回公开状态，不返回凭据。
 
+Library 命令使用统一的分页合同：`PageRequest` 为 `offset >= 0` 与 `1 <= limit <= 100`，`library.search` 的查询词去除首尾空白后长度为 1–100。Provider 原始对象不得出现在任何 Library 响应中；响应只允许标准 `TrackSummary`、`PlaylistSummary`、`PlaylistDetail` 与 `Page<T>` 字段。封面只接受 HTTPS 的 NetEase 图片域名，Renderer 使用懒加载，旧搜索操作的结果在新操作开始后失效。
+
+Provider 会话过期只向公开 IPC 返回 `AUTH_EXPIRED`，不携带 Provider 原始错误、账号资料或响应内容。
+
 扫码登录的公开状态只允许以下字段：`status`、不透明的 `challengeId`、本地二维码图片数据和过期时间。Provider 返回的内部 key 不进入公开状态。
 
 `auth.pollQr` 在 Core → Main 的内部响应中可以携带一次性凭据；Main 完成验证、safeStorage 写入和 `auth.setCredential` 后，只把其中的公开 `state` 返回给 Renderer。Preload 的 `pollQrLogin` 永远不返回凭据。

@@ -6,6 +6,7 @@ import {
   type CoreRuntimeForIpc,
   type UtilityPort,
 } from '../src/utility-main.js';
+import { BridgeError } from '../src/shared/errors.js';
 
 class FakePort implements UtilityPort {
   readonly messages: unknown[] = [];
@@ -95,6 +96,36 @@ function makeRuntime(): CoreRuntimeForIpc & {
     },
     async logoutProvider() {
       return { status: 'idle' as const }
+    },
+    async searchTracks() {
+      return {
+        items: [
+          {
+            id: '101',
+            title: 'Synthetic Song',
+            artists: ['Synthetic Artist'],
+            album: 'Synthetic Album',
+          },
+        ],
+        offset: 0,
+        limit: 20,
+        total: 1,
+        hasMore: false,
+      }
+    },
+    async getLikedTracks() {
+      return { items: [], offset: 0, limit: 20, total: 0, hasMore: false }
+    },
+    async getUserPlaylists() {
+      return [{ id: '301', name: 'Synthetic Playlist', trackCount: 1 }]
+    },
+    async getPlaylist() {
+      return {
+        id: '301',
+        name: 'Synthetic Playlist',
+        trackCount: 1,
+        tracks: { items: [], offset: 0, limit: 20, total: 1, hasMore: false },
+      }
     },
   };
 }
@@ -203,6 +234,77 @@ test('controlled credential requests return only public state', async () => {
     ok: true,
     result: runtime.getState(),
   });
+});
+
+test('utility IPC exposes paged library data without raw provider fields', async () => {
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, makeRuntime());
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'library-search',
+    command: 'library.search',
+    payload: { query: 'synthetic', page: { offset: 0, limit: 20 } },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[1], {
+    version: IPC_VERSION,
+    id: 'library-search',
+    ok: true,
+    result: {
+      items: [
+        {
+          id: '101',
+          title: 'Synthetic Song',
+          artists: ['Synthetic Artist'],
+          album: 'Synthetic Album',
+        },
+      ],
+      offset: 0,
+      limit: 20,
+      total: 1,
+      hasMore: false,
+    },
+  });
+  assert.doesNotMatch(JSON.stringify(port.messages[1]), /rawProvider|cookie|token|Authorization/i);
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'library-playlists',
+    command: 'library.playlists',
+    payload: {},
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[2], {
+    version: IPC_VERSION,
+    id: 'library-playlists',
+    ok: true,
+    result: [{ id: '301', name: 'Synthetic Playlist', trackCount: 1 }],
+  });
+});
+
+test('utility IPC maps an expired Provider session to a public error', async () => {
+  const port = new FakePort();
+  const runtime = makeRuntime();
+  runtime.searchTracks = async () => {
+    throw new BridgeError('AUTH_EXPIRED', 'synthetic raw provider detail');
+  };
+  await attachCoreRuntimePort(port, runtime);
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'library-expired',
+    command: 'library.search',
+    payload: { query: 'synthetic', page: { offset: 0, limit: 20 } },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[1], {
+    version: IPC_VERSION,
+    id: 'library-expired',
+    ok: false,
+    error: { code: 'AUTH_EXPIRED', message: 'Provider session expired' },
+  });
+  assert.doesNotMatch(JSON.stringify(port.messages[1]), /synthetic raw provider detail/);
 });
 
 test('utility QR commands keep the credential only in the Core-to-Main response', async () => {

@@ -1,11 +1,32 @@
 import { createRequire } from 'node:module';
 import { BridgeError } from '../shared/errors.js';
-import { enforceNeteaseSafetyEnvironment, normalizeTrackId } from './policy.js';
-import { parseResolvedAudioStream, parseTrackMetadata } from './parse.js';
+import {
+  enforceNeteaseSafetyEnvironment,
+  normalizePageRequest,
+  normalizeSearchQuery,
+  normalizeTrackId,
+  MAX_LIBRARY_PAGE_LIMIT,
+} from './policy.js';
+import {
+  parseAccountId,
+  parseLikedTrackIds,
+  parsePlaylistDetailHeader,
+  parsePlaylistSummaries,
+  parsePlaylistTrackPage,
+  parseSearchPage,
+  parseResolvedAudioStream,
+  parseTrackMetadata,
+  parseTrackSummaries,
+} from './parse.js';
 import type {
+  Page,
+  PageRequest,
+  PlaylistDetail,
+  PlaylistSummary,
   NeteasePort,
   QualityLevel,
   ResolvedAudioStream,
+  TrackSummary,
   TrackMetadata,
 } from './types.js';
 import {
@@ -26,6 +47,12 @@ interface NeteaseApiModule {
   login_qr_check(params: Record<string, unknown>): ApiResponse;
   login_status(params: Record<string, unknown>): ApiResponse;
   logout(params: Record<string, unknown>): ApiResponse;
+  search?(params: Record<string, unknown>): ApiResponse;
+  likelist?(params: Record<string, unknown>): ApiResponse;
+  user_account?(params: Record<string, unknown>): ApiResponse;
+  user_playlist?(params: Record<string, unknown>): ApiResponse;
+  playlist_detail?(params: Record<string, unknown>): ApiResponse;
+  playlist_track_all?(params: Record<string, unknown>): ApiResponse;
 }
 
 function loadApi(): NeteaseApiModule {
@@ -87,6 +114,96 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     }
   }
 
+  async searchTracks(queryInput: string, pageInput: PageRequest): Promise<Page<TrackSummary>> {
+    const query = normalizeSearchQuery(queryInput);
+    const page = normalizePageRequest(pageInput);
+    const cookie = this.requireCookie();
+    const search = this.api.search;
+    if (!search) throw this.libraryApiUnavailable();
+    try {
+      return parseSearchPage(
+        await search({
+          keywords: query,
+          type: 1,
+          offset: page.offset,
+          limit: page.limit,
+          cookie,
+        }),
+        page,
+      );
+    } catch (error) {
+      throw this.libraryError(error, 'search');
+    }
+  }
+
+  async getLikedTracks(pageInput: PageRequest): Promise<Page<TrackSummary>> {
+    const page = normalizePageRequest(pageInput);
+    const cookie = this.requireCookie();
+    try {
+      const accountId = await this.getAccountId(cookie);
+      const likelist = this.api.likelist;
+      const songDetail = this.api.song_detail;
+      if (!likelist || !songDetail) throw this.libraryApiUnavailable();
+      const ids = parseLikedTrackIds(await likelist({ uid: accountId, cookie }));
+      const selectedIds = ids.slice(page.offset, page.offset + page.limit);
+      if (selectedIds.length === 0) return pageOf([], page, ids.length);
+      const response = await songDetail({ ids: selectedIds.join(','), cookie });
+      return pageOf(parseTrackSummaries(response), page, ids.length);
+    } catch (error) {
+      throw this.libraryError(error, 'liked tracks');
+    }
+  }
+
+  async getUserPlaylists(): Promise<readonly PlaylistSummary[]> {
+    const cookie = this.requireCookie();
+    try {
+      const accountId = await this.getAccountId(cookie);
+      const userPlaylist = this.api.user_playlist;
+      if (!userPlaylist) throw this.libraryApiUnavailable();
+      return parsePlaylistSummaries(
+        await userPlaylist({
+          uid: accountId,
+          limit: MAX_LIBRARY_PAGE_LIMIT,
+          offset: 0,
+          cookie,
+        }),
+      );
+    } catch (error) {
+      throw this.libraryError(error, 'user playlists');
+    }
+  }
+
+  async getPlaylist(
+    playlistIdInput: string,
+    pageInput: PageRequest,
+  ): Promise<PlaylistDetail> {
+    const playlistId = normalizeTrackId(playlistIdInput);
+    const page = normalizePageRequest(pageInput);
+    const cookie = this.requireCookie();
+    try {
+      const playlistDetail = this.api.playlist_detail;
+      const playlistTrackAll = this.api.playlist_track_all;
+      if (!playlistDetail || !playlistTrackAll) throw this.libraryApiUnavailable();
+      const header = parsePlaylistDetailHeader(
+        await playlistDetail({ id: playlistId, cookie }),
+        playlistId,
+      );
+      const tracks = parsePlaylistTrackPage(
+        await playlistTrackAll({
+          id: playlistId,
+          limit: page.limit,
+          offset: page.offset,
+          cookie,
+        }),
+        page,
+        header.trackCount,
+      );
+      return { ...header, tracks };
+    } catch (error) {
+      throw this.libraryError(error, 'playlist detail');
+    }
+  }
+
   async getTrack(trackIdInput: string): Promise<TrackMetadata> {
     const trackId = normalizeTrackId(trackIdInput);
     const cookie = this.requireCookie();
@@ -140,4 +257,38 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     }
     return this.cookie;
   }
+
+  private async getAccountId(cookie: string): Promise<string> {
+    const userAccount = this.api.user_account;
+    if (!userAccount) throw this.libraryApiUnavailable();
+    return parseAccountId(await userAccount({ cookie }));
+  }
+
+  private libraryApiUnavailable(): BridgeError {
+    return new BridgeError(
+      'NETEASE_REQUEST_FAILED',
+      'NetEase library operation is unavailable',
+      { httpStatus: 502 },
+    );
+  }
+
+  private libraryError(error: unknown, operation: string): BridgeError {
+    if (error instanceof BridgeError) return error;
+    return new BridgeError(
+      'NETEASE_REQUEST_FAILED',
+      `NetEase ${operation} request failed`,
+      { cause: error, httpStatus: 502 },
+    );
+  }
+}
+
+function pageOf<T>(items: readonly T[], page: PageRequest, total: number): Page<T> {
+  const boundedTotal = Math.max(total, page.offset + items.length);
+  return {
+    items,
+    offset: page.offset,
+    limit: page.limit,
+    total: boundedTotal,
+    hasMore: page.offset + items.length < boundedTotal,
+  };
 }

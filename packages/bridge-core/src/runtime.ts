@@ -1,7 +1,12 @@
 import type {
+  Page,
+  PageRequest,
+  PlaylistDetail,
+  PlaylistSummary,
   PublicAuthState,
   PublicBridgeState,
   PublicRoonZone,
+  TrackSummary,
   TypedIpcEvent,
 } from '@music-bridge/contracts';
 import { BridgeController, type BridgeState } from './application/bridge-controller.js';
@@ -34,6 +39,10 @@ export interface CoreRuntime {
   }>;
   cancelQrLogin(challengeId: string): PublicAuthState;
   logoutProvider(): Promise<PublicAuthState>;
+  searchTracks(query: string, page: PageRequest): Promise<Page<TrackSummary>>;
+  getLikedTracks(page: PageRequest): Promise<Page<TrackSummary>>;
+  getUserPlaylists(): Promise<readonly PlaylistSummary[]>;
+  getPlaylist(playlistId: string, page: PageRequest): Promise<PlaylistDetail>;
   listZones(): readonly PublicRoonZone[];
   selectZone(zoneId: string): Promise<PublicBridgeState>;
 }
@@ -238,6 +247,11 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       return state;
     },
 
+    searchTracks: (query, page) => netease.searchTracks(query, page),
+    getLikedTracks: (page) => netease.getLikedTracks(page),
+    getUserPlaylists: () => netease.getUserPlaylists(),
+    getPlaylist: (playlistId, page) => netease.getPlaylist(playlistId, page),
+
     listZones: () => roon.listZones().map((zone) => ({
       zoneId: zone.zone_id,
       displayName: zone.display_name ?? zone.zone_id,
@@ -310,6 +324,23 @@ export function createTestBridgeRuntime(): CoreRuntime {
       state = { ...state, provider: 'missing' };
       authState = { status: 'idle' };
       return { ...authState };
+    },
+    async searchTracks(_query, page) {
+      return { items: [], offset: page.offset, limit: page.limit, total: 0, hasMore: false };
+    },
+    async getLikedTracks(page) {
+      return { items: [], offset: page.offset, limit: page.limit, total: 0, hasMore: false };
+    },
+    async getUserPlaylists() {
+      return [];
+    },
+    async getPlaylist(playlistId, page) {
+      return {
+        id: playlistId,
+        name: 'Synthetic Playlist',
+        trackCount: 0,
+        tracks: { items: [], offset: page.offset, limit: page.limit, total: 0, hasMore: false },
+      };
     },
     listZones: () => [],
     async selectZone() {

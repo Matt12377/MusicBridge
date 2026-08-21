@@ -287,3 +287,117 @@ test('contracts keeps QR login state public and isolates the internal poll crede
   });
   assert.equal(event.ok, true);
 });
+
+test('contracts validates bounded library commands and sanitized paged results', () => {
+  const page = {
+    items: [
+      {
+        id: '101',
+        title: 'Synthetic Song',
+        artists: ['Synthetic Artist'],
+        album: 'Synthetic Album',
+        artworkUrl: 'https://p1.music.126.net/synthetic-cover.jpg',
+      },
+    ],
+    offset: 0,
+    limit: 20,
+    total: 1,
+    hasMore: false,
+  };
+
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'library-search',
+      command: 'library.search',
+      payload: { query: 'synthetic', page: { offset: 0, limit: 20 } },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'library-liked',
+      command: 'library.liked',
+      payload: { page: { offset: 20, limit: 20 } },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'library-playlists',
+      command: 'library.playlists',
+      payload: {},
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'library-playlist',
+      command: 'library.playlist',
+      payload: { playlistId: '301', page: { offset: 0, limit: 20 } },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'library-search-too-long',
+      command: 'library.search',
+      payload: { query: 'x'.repeat(101), page: { offset: 0, limit: 20 } },
+    }).ok,
+    false,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'library-page-too-large',
+      command: 'library.search',
+      payload: { query: 'synthetic', page: { offset: 0, limit: 101 } },
+    }).ok,
+    false,
+  );
+
+  const response = validateIpcResponseForCommand(
+    {
+      version: IPC_VERSION,
+      id: 'library-search',
+      ok: true,
+      result: page,
+    },
+    'library.search',
+  );
+  assert.equal(response.ok, true);
+
+  const unsafeResponse = validateIpcResponseForCommand(
+    {
+      version: IPC_VERSION,
+      id: 'library-search',
+      ok: true,
+      result: { ...page, rawProviderResponse: { code: 200 } },
+    },
+    'library.search',
+  );
+  assert.deepEqual(unsafeResponse, {
+    ok: false,
+    error: {
+      code: 'INVALID_IPC_RESPONSE',
+      message: 'Invalid IPC response',
+    },
+  });
+});
+
+test('contracts preserves the public AUTH_EXPIRED error without internal details', () => {
+  const result = validateIpcResponseForCommand(
+    {
+      version: IPC_VERSION,
+      id: 'library-expired',
+      ok: false,
+      error: { code: 'AUTH_EXPIRED', message: 'Provider session expired' },
+    },
+    'library.search',
+  );
+  assert.equal(result.ok, true);
+});

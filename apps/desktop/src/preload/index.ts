@@ -19,6 +19,12 @@ contextBridge.exposeInMainWorld(
     (challengeId: string) => ipcRenderer.invoke('auth:poll-qr', challengeId),
     (challengeId: string) => ipcRenderer.invoke('auth:cancel-qr', challengeId),
     () => ipcRenderer.invoke('auth:logout'),
+    (query: string, page: { offset: number; limit: number }) =>
+      ipcRenderer.invoke('library:search', query, page),
+    (page: { offset: number; limit: number }) => ipcRenderer.invoke('library:liked', page),
+    () => ipcRenderer.invoke('library:playlists'),
+    (playlistId: string, page: { offset: number; limit: number }) =>
+      ipcRenderer.invoke('library:playlist', playlistId, page),
     (listener: (event: TypedIpcEvent) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, message: TypedIpcEvent): void => {
         listener(message)

@@ -1,9 +1,6 @@
 import type { PublicError } from './errors.js';
-import type {
-  PublicAuthState,
-  PublicBridgeState,
-  PublicRoonZone,
-} from './state.js';
+import type { Page, PageRequest, PlaylistDetail, PlaylistSummary, TrackSummary } from './library.js';
+import type { PublicAuthState, PublicBridgeState, PublicRoonZone } from './state.js';
 
 export const IPC_VERSION = 1 as const;
 
@@ -19,6 +16,10 @@ export const IPC_COMMANDS = [
   'auth.cancelQr',
   'auth.getState',
   'auth.logout',
+  'library.search',
+  'library.liked',
+  'library.playlists',
+  'library.playlist',
   'roon.listZones',
   'roon.selectZone',
 ] as const;
@@ -74,6 +75,10 @@ export interface IpcCommandPayloads {
   'auth.cancelQr': { challengeId: string };
   'auth.getState': Record<string, never>;
   'auth.logout': Record<string, never>;
+  'library.search': { query: string; page: PageRequest };
+  'library.liked': { page: PageRequest };
+  'library.playlists': Record<string, never>;
+  'library.playlist': { playlistId: string; page: PageRequest };
   'roon.listZones': Record<string, never>;
   'roon.selectZone': { zoneId: string };
 }
@@ -90,6 +95,10 @@ export interface IpcCommandResults {
   'auth.cancelQr': PublicAuthState;
   'auth.getState': PublicAuthState;
   'auth.logout': PublicAuthState;
+  'library.search': Page<TrackSummary>;
+  'library.liked': Page<TrackSummary>;
+  'library.playlists': readonly PlaylistSummary[];
+  'library.playlist': PlaylistDetail;
   'roon.listZones': { zones: readonly PublicRoonZone[] };
   'roon.selectZone': PublicBridgeState;
 }

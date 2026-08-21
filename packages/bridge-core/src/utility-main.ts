@@ -61,6 +61,9 @@ function requestId(value: unknown): string | undefined {
 
 function failureForError(id: string, error: unknown): IpcFailure {
   const bridgeError = asBridgeError(error);
+  if (bridgeError.code === 'AUTH_EXPIRED') {
+    return responseFailure(id, 'AUTH_EXPIRED', 'Provider session expired');
+  }
   if (bridgeError.code === 'ROON_NOT_PAIRED' || bridgeError.code === 'ROON_ZONE_NOT_SELECTED') {
     return responseFailure(id, 'NOT_READY', 'Core is not ready for this request');
   }
@@ -109,6 +112,22 @@ async function dispatch(
       return runtime.getAuthState();
     case 'auth.logout':
       return runtime.logoutProvider();
+    case 'library.search':
+      return runtime.searchTracks(
+        (request.payload as { query: string }).query,
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'library.liked':
+      return runtime.getLikedTracks(
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'library.playlists':
+      return runtime.getUserPlaylists();
+    case 'library.playlist':
+      return runtime.getPlaylist(
+        (request.payload as { playlistId: string }).playlistId,
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
     case 'roon.listZones':
       return { zones: runtime.listZones() };
     case 'roon.selectZone':

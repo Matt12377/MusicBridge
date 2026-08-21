@@ -8,6 +8,7 @@ import {
   utilityProcess,
 } from 'electron'
 import type {
+  PageRequest,
   PublicAuthState,
   PublicErrorCode,
   TypedIpcEvent,
@@ -113,6 +114,49 @@ function requireChallengeId(value: unknown): string {
   return value
 }
 
+function requireLibraryPage(value: unknown): PageRequest {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    Object.keys(value).some((key) => !['offset', 'limit'].includes(key))
+  ) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid library page')
+  }
+  const page = value as { offset?: unknown; limit?: unknown }
+  if (
+    typeof page.offset !== 'number' ||
+    !Number.isSafeInteger(page.offset) ||
+    page.offset < 0 ||
+    page.offset > 1_000_000 ||
+    typeof page.limit !== 'number' ||
+    !Number.isSafeInteger(page.limit) ||
+    page.limit < 1 ||
+    page.limit > 100
+  ) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid library page')
+  }
+  return { offset: page.offset, limit: page.limit }
+}
+
+function requireSearchQuery(value: unknown): string {
+  if (typeof value !== 'string') {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid search query')
+  }
+  const query = value.trim()
+  if (query.length === 0 || query.length > 100) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid search query')
+  }
+  return query
+}
+
+function requirePlaylistId(value: unknown): string {
+  if (typeof value !== 'string' || !/^\d+$/.test(value) || value === '0' || value.length > 128) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playlist')
+  }
+  return value
+}
+
 async function saveQrCredential(
   supervisor: CoreSupervisor,
   credentialVault: CredentialVault,
@@ -187,6 +231,30 @@ function registerIpcHandlers(
       if (!state) throw new Error('Auth logout returned no state')
       return state
     }),
+  )
+  ipcMain.handle('library:search', (event, query: unknown, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('library.search', {
+        query: requireSearchQuery(query),
+        page: requireLibraryPage(page),
+      }),
+    ),
+  )
+  ipcMain.handle('library:liked', (event, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('library.liked', { page: requireLibraryPage(page) }),
+    ),
+  )
+  ipcMain.handle('library:playlists', (event) =>
+    invokeCore(event, () => supervisor.request('library.playlists', {})),
+  )
+  ipcMain.handle('library:playlist', (event, playlistId: unknown, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('library.playlist', {
+        playlistId: requirePlaylistId(playlistId),
+        page: requireLibraryPage(page),
+      }),
+    ),
   )
 }
 

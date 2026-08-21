@@ -1,3 +1,11 @@
+import type {
+  Page,
+  PageRequest,
+  PlaylistDetail,
+  PlaylistSummary,
+  TrackSummary,
+} from '@music-bridge/contracts';
+
 export const QUALITY_LEVELS = [
   'standard',
   'exhigh',
@@ -17,6 +25,8 @@ export interface TrackMetadata {
   durationMs?: number;
   artworkUrl?: string;
 }
+
+export type { Page, PageRequest, PlaylistDetail, PlaylistSummary, TrackSummary };
 
 export interface ResolvedAudioStream {
   trackId: string;
@@ -38,4 +48,8 @@ export interface NeteasePort {
     trackId: string,
     quality: QualityLevel,
   ): Promise<ResolvedAudioStream>;
+  searchTracks(query: string, page: PageRequest): Promise<Page<TrackSummary>>;
+  getLikedTracks(page: PageRequest): Promise<Page<TrackSummary>>;
+  getUserPlaylists(): Promise<readonly PlaylistSummary[]>;
+  getPlaylist(playlistId: string, page: PageRequest): Promise<PlaylistDetail>;
 }

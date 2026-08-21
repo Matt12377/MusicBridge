@@ -5,6 +5,7 @@ export type PublicErrorCode =
   | 'INVALID_IPC_RESPONSE'
   | 'TIMEOUT'
   | 'NOT_READY'
+  | 'AUTH_EXPIRED'
   | 'INTERNAL_ERROR';
 
 export interface PublicError {

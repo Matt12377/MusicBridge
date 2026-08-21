@@ -44,8 +44,16 @@ test('Renderer contains the public QR login surface without credential access', 
     '扫码登录',
     '显示二维码',
     '退出登录',
+    '音乐库临时列表',
+    '我喜欢',
+    '我的歌单',
+    '上一页',
+    '下一页',
   ]) {
     assert.match(source, new RegExp(text))
   }
-  assert.doesNotMatch(source, /NETEASE_COOKIE|MUSIC_U|__csrf|Authorization|Bearer/)
+  assert.match(source, /SEARCH_DEBOUNCE_MS/)
+  assert.match(source, /libraryOperation/)
+  assert.match(source, /loading="lazy"/)
+  assert.doesNotMatch(source, /NETEASE_COOKIE|MUSIC_U|__csrf|Authorization|Bearer|rawProviderResponse/)
 })

@@ -15,6 +15,27 @@ class FakeNetease implements NeteasePort {
   readonly configured = true;
   resolveCalls = 0;
 
+  async searchTracks() {
+    return { items: [], offset: 0, limit: 10, total: 0, hasMore: false };
+  }
+
+  async getLikedTracks() {
+    return { items: [], offset: 0, limit: 10, total: 0, hasMore: false };
+  }
+
+  async getUserPlaylists() {
+    return [];
+  }
+
+  async getPlaylist() {
+    return {
+      id: '1',
+      name: 'Synthetic Playlist',
+      trackCount: 0,
+      tracks: { items: [], offset: 0, limit: 10, total: 0, hasMore: false },
+    };
+  }
+
   async getTrack(trackId: string) {
     return {
       id: trackId,

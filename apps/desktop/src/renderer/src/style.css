@@ -67,6 +67,7 @@ h2 {
 
 .info-card,
 .auth-card,
+.library-card,
 .status-card {
   border: 1px solid #2b3344;
   border-radius: 18px;
@@ -93,6 +94,177 @@ h2 {
   margin-bottom: 0;
   color: #a8b0c3;
   line-height: 1.6;
+}
+
+.library-card {
+  margin-bottom: 18px;
+  padding: 24px;
+}
+
+.library-header {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.library-header h2 {
+  margin-bottom: 8px;
+}
+
+.library-header .description {
+  margin-bottom: 0;
+}
+
+.library-busy {
+  color: #8c9aff;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.library-tabs,
+.library-actions,
+.library-search-bar,
+.library-pagination,
+.playlist-detail-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.library-tabs {
+  margin-bottom: 18px;
+}
+
+.library-tabs button {
+  color: #c6ccef;
+  border-color: #3a4359;
+  background: transparent;
+}
+
+.library-tabs button.selected {
+  color: #10131a;
+  border-color: #aeb7ff;
+  background: #aeb7ff;
+}
+
+.library-panel {
+  min-width: 0;
+}
+
+.library-search-bar {
+  margin-bottom: 16px;
+}
+
+.library-search-bar input {
+  flex: 1 1 240px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #3a4359;
+  border-radius: 10px;
+  color: #f5f7ff;
+  background: #10131a;
+  outline: none;
+}
+
+.library-search-bar input:focus {
+  border-color: #8c9aff;
+  box-shadow: 0 0 0 3px rgb(140 154 255 / 16%);
+}
+
+.library-list,
+.playlist-list {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.library-item,
+.playlist-button {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #2b3344;
+  border-radius: 12px;
+  color: #eef2ff;
+  background: #121720;
+  text-align: left;
+}
+
+.library-item img,
+.playlist-button img {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #2b3344;
+}
+
+.library-item div,
+.playlist-button span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.library-item strong,
+.playlist-button strong,
+.playlist-detail-header strong {
+  overflow: hidden;
+  color: #f5f7ff;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-item span,
+.playlist-button small,
+.playlist-detail-header span,
+.library-pagination span,
+.library-hint,
+.library-empty {
+  color: #a8b0c3;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.playlist-button {
+  cursor: pointer;
+}
+
+.playlist-button:hover {
+  border-color: #8c9aff;
+}
+
+.library-pagination {
+  justify-content: space-between;
+  margin-top: 16px;
+}
+
+.library-pagination span {
+  flex: 1 1 auto;
+  text-align: center;
+}
+
+.playlist-detail-header {
+  margin-bottom: 16px;
+}
+
+.playlist-detail-header div {
+  display: grid;
+  gap: 4px;
+}
+
+.library-hint,
+.library-empty {
+  margin: 0 0 14px;
 }
 
 .auth-copy .eyebrow {
@@ -210,6 +382,15 @@ dd {
   .auth-card,
   .status-grid {
     grid-template-columns: 1fr;
+  }
+
+  .library-header {
+    display: block;
+  }
+
+  .library-busy {
+    display: inline-block;
+    margin-top: 10px;
   }
 
   .qr-frame {

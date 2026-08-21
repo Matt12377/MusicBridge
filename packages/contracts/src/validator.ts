@@ -1,4 +1,11 @@
 import type { PublicError } from './errors.js';
+import type {
+  Page,
+  PageRequest,
+  PlaylistDetail,
+  PlaylistSummary,
+  TrackSummary,
+} from './library.js';
 import {
   IPC_COMMANDS,
   IPC_EVENTS,
@@ -59,6 +66,52 @@ function isEmptyPayload(value: unknown): value is Record<string, never> {
   return isRecord(value) && Object.keys(value).length === 0;
 }
 
+const MAX_PAGE_OFFSET = 1_000_000;
+const MAX_PAGE_LIMIT = 100;
+const MAX_SEARCH_QUERY_LENGTH = 100;
+
+function isPageRequest(value: unknown): value is PageRequest {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['offset', 'limit']) &&
+    typeof value.offset === 'number' &&
+    Number.isSafeInteger(value.offset) &&
+    value.offset >= 0 &&
+    value.offset <= MAX_PAGE_OFFSET &&
+    typeof value.limit === 'number' &&
+    Number.isSafeInteger(value.limit) &&
+    value.limit >= 1 &&
+    value.limit <= MAX_PAGE_LIMIT
+  );
+}
+
+function isLibrarySearchPayload(value: unknown): value is { query: string; page: PageRequest } {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['query', 'page']) &&
+    safeString(value.query, MAX_SEARCH_QUERY_LENGTH) &&
+    value.query.trim().length > 0 &&
+    isPageRequest(value.page)
+  );
+}
+
+function isLibraryPagePayload(value: unknown): value is { page: PageRequest } {
+  return isRecord(value) && hasOnlyKeys(value, ['page']) && isPageRequest(value.page);
+}
+
+function isLibraryPlaylistPayload(
+  value: unknown,
+): value is { playlistId: string; page: PageRequest } {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['playlistId', 'page']) &&
+    safeString(value.playlistId, 128) &&
+    /^\d+$/.test(value.playlistId) &&
+    value.playlistId !== '0' &&
+    isPageRequest(value.page)
+  );
+}
+
 function isSelectZonePayload(value: unknown): value is { zoneId: string } {
   return (
     isRecord(value) &&
@@ -83,12 +136,112 @@ function isChallengePayload(value: unknown): value is { challengeId: string } {
   );
 }
 
+function isArtworkUrl(value: unknown): value is string {
+  if (!safeString(value, 2_048)) return false;
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase();
+    return (
+      url.protocol === 'https:' &&
+      (hostname === 'music.126.net' || hostname.endsWith('.music.126.net')) &&
+      url.username === '' &&
+      url.password === '' &&
+      url.hash === ''
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isTrackSummary(value: unknown): value is TrackSummary {
+  if (!isRecord(value) || !hasOnlyKeys(value, [
+    'id',
+    'title',
+    'artists',
+    'album',
+    'durationMs',
+    'artworkUrl',
+  ])) {
+    return false;
+  }
+  return (
+    safeString(value.id, 128) &&
+    /^\d+$/.test(value.id) &&
+    value.id !== '0' &&
+    safeString(value.title, 512) &&
+    Array.isArray(value.artists) &&
+    value.artists.length <= 64 &&
+    value.artists.every((artist) => safeString(artist, 256)) &&
+    safeString(value.album, 512) &&
+    (value.durationMs === undefined ||
+      (typeof value.durationMs === 'number' &&
+        Number.isSafeInteger(value.durationMs) &&
+        value.durationMs >= 0 &&
+        value.durationMs <= 24 * 60 * 60 * 1000)) &&
+    (value.artworkUrl === undefined || isArtworkUrl(value.artworkUrl))
+  );
+}
+
+function isPageOfTracks(value: unknown): value is Page<TrackSummary> {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['items', 'offset', 'limit', 'total', 'hasMore']) &&
+    isPageRequest({ offset: value.offset, limit: value.limit }) &&
+    Array.isArray(value.items) &&
+    value.items.length <= MAX_PAGE_LIMIT &&
+    value.items.every((item) => isTrackSummary(item)) &&
+    typeof value.total === 'number' &&
+    Number.isSafeInteger(value.total) &&
+    value.total >= 0 &&
+    value.total <= MAX_PAGE_OFFSET &&
+    typeof value.hasMore === 'boolean'
+  );
+}
+
+function isPlaylistSummary(value: unknown): value is PlaylistSummary {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['id', 'name', 'trackCount', 'artworkUrl']) &&
+    safeString(value.id, 128) &&
+    /^\d+$/.test(value.id) &&
+    value.id !== '0' &&
+    safeString(value.name, 512) &&
+    typeof value.trackCount === 'number' &&
+    Number.isSafeInteger(value.trackCount) &&
+    value.trackCount >= 0 &&
+    value.trackCount <= MAX_PAGE_OFFSET &&
+    (value.artworkUrl === undefined || isArtworkUrl(value.artworkUrl))
+  );
+}
+
+function isPlaylistDetail(value: unknown): value is PlaylistDetail {
+  const summary = isRecord(value)
+    ? {
+        id: value.id,
+        name: value.name,
+        trackCount: value.trackCount,
+        ...(value.artworkUrl !== undefined ? { artworkUrl: value.artworkUrl } : {}),
+      }
+    : undefined;
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['id', 'name', 'trackCount', 'artworkUrl', 'description', 'tracks']) &&
+    summary !== undefined &&
+    isPlaylistSummary(summary) &&
+    (value.description === undefined || safeString(value.description, 4_096)) &&
+    isPageOfTracks(value.tracks)
+  );
+}
+
 function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'roon.selectZone') return isSelectZonePayload(payload);
   if (command === 'auth.setCredential') return isSetCredentialPayload(payload);
   if (command === 'auth.pollQr' || command === 'auth.cancelQr') {
     return isChallengePayload(payload);
   }
+  if (command === 'library.search') return isLibrarySearchPayload(payload);
+  if (command === 'library.liked') return isLibraryPagePayload(payload);
+  if (command === 'library.playlist') return isLibraryPlaylistPayload(payload);
   return isEmptyPayload(payload);
 }
 
@@ -99,6 +252,7 @@ const PUBLIC_ERROR_CODES = new Set([
   'INVALID_IPC_RESPONSE',
   'TIMEOUT',
   'NOT_READY',
+  'AUTH_EXPIRED',
   'INTERNAL_ERROR',
 ]);
 
@@ -237,6 +391,13 @@ function isCommandResult(
     case 'auth.pollQr':
       return isPublicAuthState(value) ||
         (allowInternalResult && isInternalQrPollResult(value));
+    case 'library.search':
+    case 'library.liked':
+      return isPageOfTracks(value);
+    case 'library.playlists':
+      return Array.isArray(value) && value.length <= MAX_PAGE_OFFSET && value.every((item) => isPlaylistSummary(item));
+    case 'library.playlist':
+      return isPlaylistDetail(value);
     case 'core.shutdown':
       return isRecord(value) && hasOnlyKeys(value, ['stopped']) && value.stopped === true;
     case 'roon.listZones':
