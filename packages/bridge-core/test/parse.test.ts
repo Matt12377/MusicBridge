@@ -36,6 +36,75 @@ test('parses QR login responses into bounded internal values', () => {
   assert.equal(parseLoginStatusResponse({ body: { code: 200, data: {} } }), false);
 });
 
+test('parses the real login_status response wrapper from API 4.40.1', () => {
+  assert.equal(
+    parseLoginStatusResponse({
+      body: {
+        data: {
+          code: 200,
+          profile: { userId: 1 },
+          account: { id: 1 },
+        },
+      },
+    }),
+    true,
+  );
+  assert.equal(
+    parseLoginStatusResponse({
+      body: {
+        data: {
+          code: 200,
+          account: { id: 1 },
+        },
+      },
+    }),
+    true,
+  );
+  assert.equal(
+    parseLoginStatusResponse({
+      body: {
+        data: {
+          code: 401,
+          profile: { userId: 1 },
+        },
+      },
+    }),
+    false,
+  );
+  assert.equal(
+    parseLoginStatusResponse({
+      body: {
+        data: {
+          code: 200,
+        },
+      },
+    }),
+    false,
+  );
+  assert.equal(
+    parseLoginStatusResponse({
+      body: {
+        code: 200,
+        profile: { userId: 1 },
+        account: { id: 1 },
+      },
+    }),
+    true,
+  );
+  assert.equal(
+    parseLoginStatusResponse({
+      body: {
+        code: 200,
+        data: {
+          profile: { userId: 1 },
+        },
+      },
+    }),
+    true,
+  );
+  assert.equal(parseLoginStatusResponse({}), false);
+});
+
 test('parses defensive song metadata shape', () => {
   const result = parseTrackMetadata(
     {

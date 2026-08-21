@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
+import { NeteaseClient } from '../src/netease/client.js'
 import {
   QrLoginStateMachine,
   type QrLoginProvider,
@@ -93,6 +94,54 @@ test('QR poll maps waiting, scanned, then verified authorization and returns cre
   assert.deepEqual(await machine.poll('challenge-2'), { state: { status: 'authorized' } })
   assert.deepEqual(provider.verifyCalls, ['fixture-credential'])
   assert.doesNotMatch(JSON.stringify(authorized.state), /fixture-credential/)
+})
+
+test('QR 803 with the real login_status wrapper reaches authorized', async () => {
+  const api = {
+    async song_detail() {
+      return { body: { code: 200 } }
+    },
+    async song_url_v1() {
+      return { body: { code: 200 } }
+    },
+    async login_qr_key() {
+      return { body: { code: 200, data: { unikey: 'synthetic-qr-key' } } }
+    },
+    async login_qr_create() {
+      return {
+        body: {
+          code: 200,
+          data: { qrimg: 'data:image/png;base64,synthetic-qr' },
+        },
+      }
+    },
+    async login_qr_check() {
+      return { body: { code: 803, cookie: 'synthetic-credential' } }
+    },
+    async login_status() {
+      return {
+        body: {
+          data: {
+            code: 200,
+            profile: { userId: 1 },
+            account: { id: 1 },
+          },
+        },
+      }
+    },
+    async logout() {
+      return { body: { code: 200 } }
+    },
+  }
+  const machine = new QrLoginStateMachine(new NeteaseClient(undefined, api), {
+    challengeId: () => 'challenge-real-login-status',
+  })
+
+  await machine.begin()
+  assert.deepEqual(await machine.poll('challenge-real-login-status'), {
+    state: { status: 'authorized' },
+    credential: 'synthetic-credential',
+  })
 })
 
 test('QR expiration and cancellation fail closed without verifying credentials', async () => {

@@ -32,7 +32,15 @@ test('NeteaseClient adapts QR login API responses and verifies before configurin
     async login_status(params: Record<string, unknown>) {
       assert.equal(params.cookie, 'synthetic-credential')
       calls.push('status')
-      return { body: { code: 200, data: { profile: { userId: 1 } } } }
+      return {
+        body: {
+          data: {
+            code: 200,
+            profile: { userId: 1 },
+            account: { id: 1 },
+          },
+        },
+      }
     },
     async logout(params: Record<string, unknown>) {
       assert.equal(params.cookie, 'synthetic-credential')

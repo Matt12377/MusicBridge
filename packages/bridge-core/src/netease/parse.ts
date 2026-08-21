@@ -96,13 +96,17 @@ export function parseQrCheckResponse(response: unknown): {
 
 export function parseLoginStatusResponse(response: unknown): boolean {
   const body = bodyOf(response);
-  const code = numeric(body.code);
-  if (code !== 200) return false;
   const data = isRecord(body.data) ? body.data : undefined;
+  const hasLoginStatusField =
+    data !== undefined &&
+    (Object.prototype.hasOwnProperty.call(data, 'code') ||
+      Object.prototype.hasOwnProperty.call(data, 'profile') ||
+      Object.prototype.hasOwnProperty.call(data, 'account'));
+  const statusPayload = hasLoginStatusField ? data : body;
+  const code = numeric(statusPayload?.code) ?? numeric(body.code);
+  if (code !== 200) return false;
   return Boolean(
-    (data && (isRecord(data.profile) || isRecord(data.account))) ||
-      isRecord(body.profile) ||
-      isRecord(body.account),
+    isRecord(statusPayload?.profile) || isRecord(statusPayload?.account),
   );
 }
 
