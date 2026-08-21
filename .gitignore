@@ -17,3 +17,5 @@ config.json
 *.dsf
 *.dff
 diagnostics/
+apps/desktop/out/
+apps/desktop/release/
