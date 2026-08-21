@@ -2,9 +2,9 @@
 
 ## 当前结论
 
-**PARTIAL — 自动 Gate、部署 Gate 已通过；真实 Roon 两首完整连续播放 Gate 等待 Owner。**
+**PASS — 自动 Gate、部署 Gate 和 Owner 真实 Roon 两首完整连续播放 Gate 均已通过。**
 
-TASK-022 已完成队列控制实现和脱敏控制面部署。当前版本支持 `replaceQueue`、`play`、`stop`、`next`、`previous`、自然结束自动下一首、快速重复操作串行化、幂等 stop，以及不可用歌曲的明确跳过策略。Owner 已将本次真实实机验收临时调整为两首歌曲完整自然播放；自动化 10 首 Fake 队列回归仍保留。真实 Roon 播放和最终残留检查必须由 Owner 在本地确认后才能关闭本任务。
+TASK-022 已完成队列控制实现和脱敏控制面部署。当前版本支持 `replaceQueue`、`play`、`stop`、`next`、`previous`、自然结束自动下一首、快速重复操作串行化、幂等 stop，以及不可用歌曲的明确跳过策略。Owner 已完成两首歌曲的真实 Roon 完整自然播放，确认按顺序自动推进、两首 Signal Path 均为无损，并确认队列结束后无活动播放残留。自动化 10 首 Fake 队列回归仍保留。
 
 ## Git 身份
 
@@ -91,15 +91,15 @@ TASK-022 已完成队列控制实现和脱敏控制面部署。当前版本支�
 - 日志秘密扫描：PASS
 - 本地 staging/archive 和远端临时 archive：均已清理
 
-## Owner 真实 Roon Gate（Owner 临时调整为两首，待完成）
+## Owner 真实 Roon Gate（两首完整播放，已完成）
 
-请 Owner 在 Core Mac 的本地终端使用 2 个已确认可播放的数字歌曲 ID，通过已部署的 loopback Control API 提交一个队列。命令中只放歌曲数字 ID 和质量，不放 Cookie、Token 或任何完整 Provider URL；ID 由 Owner 在本地填写，不回传聊天。
+Owner 在 Core Mac 本地终端使用两个已确认可播放的数字歌曲 ID，通过已部署的 loopback Control API 提交队列。歌曲 ID 未写入本报告，也未回传聊天。
 
-需要确认：
+已确认：
 
 1. 队列提交成功，第一首开始播放。
 2. 两首歌曲按队列顺序完整自然结束并自动进入下一首。
-3. 队列期间没有第二个 active stream/session；next、previous、stop 均按预期工作，stop 重复调用不报错。
+3. Owner 听到两首歌曲完整播放，且两首 Signal Path 均显示无损。
 4. 第二首结束后自动停止，脱敏状态为 `activeStreamCount=0`、`activePlayback` 不存在、播放状态为 `idle`。
 5. 38501/38502 仍只有 loopback 监听，日志秘密扫描仍为 PASS。
 
@@ -107,14 +107,14 @@ TASK-022 已完成队列控制实现和脱敏控制面部署。当前版本支�
 
 ## 未执行事项
 
-- 本轮未由 Codex 代替 Owner 选择或播放真实歌曲。
+- 本轮未由 Codex 代替 Owner 选择或播放真实歌曲；真实歌曲由 Owner 在 Core Mac 本地完成验收。
 - 未请求、读取、输出或记录 Cookie、Token、账号资料、Provider 原始响应、二维码内容或完整播放 URL。
 - 未执行 pause、seek、gapless、下载、缓存、转码、解灰、代理或随机 IP。
 - 未停止或重启 Roon；未修改防火墙、端口或安全边界。
-- 未开始 TASK-023 或任何后续任务。
+- TASK-023 在本任务真实 Gate 完成前未开始；Owner 已在本报告关闭后授权继续 TASK-023。
 
 ## 最终状态
 
-**TASK-022：PARTIAL / WAITING_OWNER_TWO_TRACK_REAL_ROON_GATE。**
+**TASK-022：PASS。**
 
-Owner 完成上述真实 Roon 两首完整连续播放和最终清理确认后，才能将本报告更新为 PASS；在此之前不得开始 TASK-023。
+两首真实 Roon 歌曲已完整自然播放，Signal Path 均确认无损，队列结束后脱敏状态回到 idle 且无活动播放残留。TASK-022 已关闭，后续任务由 Owner 单独授权后开始。
