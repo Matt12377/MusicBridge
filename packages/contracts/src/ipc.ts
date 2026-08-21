@@ -1,5 +1,9 @@
 import type { PublicError } from './errors.js';
-import type { PublicBridgeState, PublicRoonZone } from './state.js';
+import type {
+  PublicAuthState,
+  PublicBridgeState,
+  PublicRoonZone,
+} from './state.js';
 
 export const IPC_VERSION = 1 as const;
 
@@ -10,6 +14,11 @@ export const IPC_COMMANDS = [
   'core.shutdown',
   'auth.setCredential',
   'auth.clearCredential',
+  'auth.beginQr',
+  'auth.pollQr',
+  'auth.cancelQr',
+  'auth.getState',
+  'auth.logout',
   'roon.listZones',
   'roon.selectZone',
 ] as const;
@@ -19,6 +28,7 @@ export type IpcCommand = (typeof IPC_COMMANDS)[number];
 export const IPC_EVENTS = [
   'core.ready',
   'core.health',
+  'auth.changed',
   'roon.changed',
   'diagnostic.notice',
 ] as const;
@@ -59,6 +69,11 @@ export interface IpcCommandPayloads {
   'core.shutdown': Record<string, never>;
   'auth.setCredential': { credential: string };
   'auth.clearCredential': Record<string, never>;
+  'auth.beginQr': Record<string, never>;
+  'auth.pollQr': { challengeId: string };
+  'auth.cancelQr': { challengeId: string };
+  'auth.getState': Record<string, never>;
+  'auth.logout': Record<string, never>;
   'roon.listZones': Record<string, never>;
   'roon.selectZone': { zoneId: string };
 }
@@ -70,6 +85,11 @@ export interface IpcCommandResults {
   'core.shutdown': { stopped: true };
   'auth.setCredential': PublicBridgeState;
   'auth.clearCredential': PublicBridgeState;
+  'auth.beginQr': PublicAuthState;
+  'auth.pollQr': PublicAuthState;
+  'auth.cancelQr': PublicAuthState;
+  'auth.getState': PublicAuthState;
+  'auth.logout': PublicAuthState;
   'roon.listZones': { zones: readonly PublicRoonZone[] };
   'roon.selectZone': PublicBridgeState;
 }
@@ -78,7 +98,14 @@ export interface IpcEventPayloads {
   'core.ready': { state: PublicBridgeState };
   'core.health': { state: PublicBridgeState };
   'roon.changed': { state: PublicBridgeState };
+  'auth.changed': { state: PublicAuthState };
   'diagnostic.notice': { code: string; message?: string };
+}
+
+export type IpcInternalCommand = 'auth.pollQr';
+
+export interface IpcInternalCommandResults {
+  'auth.pollQr': { state: PublicAuthState; credential?: string };
 }
 
 export interface IpcEventMessage {

@@ -8,12 +8,24 @@ import type {
   ResolvedAudioStream,
   TrackMetadata,
 } from './types.js';
+import {
+  parseLoginStatusResponse,
+  parseQrCheckResponse,
+  parseQrImageResponse,
+  parseQrKeyResponse,
+} from './parse.js';
+import type { QrLoginCheckResult, QrLoginProvider } from './qr-login.js';
 
 type ApiResponse = Promise<unknown>;
 
 interface NeteaseApiModule {
   song_detail(params: Record<string, unknown>): ApiResponse;
   song_url_v1(params: Record<string, unknown>): ApiResponse;
+  login_qr_key(params: Record<string, unknown>): ApiResponse;
+  login_qr_create(params: Record<string, unknown>): ApiResponse;
+  login_qr_check(params: Record<string, unknown>): ApiResponse;
+  login_status(params: Record<string, unknown>): ApiResponse;
+  logout(params: Record<string, unknown>): ApiResponse;
 }
 
 function loadApi(): NeteaseApiModule {
@@ -22,7 +34,7 @@ function loadApi(): NeteaseApiModule {
   return require('@neteasecloudmusicapienhanced/api') as NeteaseApiModule;
 }
 
-export class NeteaseClient implements NeteasePort {
+export class NeteaseClient implements NeteasePort, QrLoginProvider {
   private cookie: string | undefined;
   private readonly api: NeteaseApiModule;
 
@@ -41,6 +53,38 @@ export class NeteaseClient implements NeteasePort {
 
   clearCredential(): void {
     this.cookie = undefined;
+  }
+
+  async createQr(): Promise<{ key: string; qrImage: string }> {
+    const keyResponse = await this.api.login_qr_key({})
+    const key = parseQrKeyResponse(keyResponse)
+    const imageResponse = await this.api.login_qr_create({ key, qrimg: true })
+    return { key, qrImage: parseQrImageResponse(imageResponse) }
+  }
+
+  async checkQr(key: string): Promise<QrLoginCheckResult> {
+    return parseQrCheckResponse(await this.api.login_qr_check({ key }))
+  }
+
+  async verifyCredential(credential: string): Promise<boolean> {
+    try {
+      return parseLoginStatusResponse(
+        await this.api.login_status({ cookie: credential }),
+      )
+    } catch {
+      return false
+    }
+  }
+
+  async logout(): Promise<void> {
+    const cookie = this.cookie
+    try {
+      if (cookie) {
+        await this.api.logout({ cookie })
+      }
+    } finally {
+      this.clearCredential()
+    }
   }
 
   async getTrack(trackIdInput: string): Promise<TrackMetadata> {

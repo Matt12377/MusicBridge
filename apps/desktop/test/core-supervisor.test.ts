@@ -155,3 +155,32 @@ test('CoreSupervisor request timeout and shutdown are bounded', async () => {
   assert.equal(harness.supervisor.status, 'stopped')
   assert.equal(harness.children[0]!.killed, true)
 })
+
+test('CoreSupervisor has an explicit Main-only path for QR poll credentials', async () => {
+  const harness = makeHarness()
+  const starting = harness.supervisor.start()
+  await new Promise((resolve) => setImmediate(resolve))
+  ready(harness.channels[0]!)
+  await starting
+
+  const request = harness.supervisor.requestInternal('auth.pollQr', {
+    challengeId: 'challenge-1',
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+  const sent = harness.channels[0]!.port2.sent[0] as { id: string; command: string }
+  assert.equal(sent.command, 'auth.pollQr')
+  harness.channels[0]!.port2.receive({
+    version: IPC_VERSION,
+    id: sent.id,
+    ok: true,
+    result: {
+      state: { status: 'authorized' },
+      credential: 'synthetic-credential',
+    },
+  })
+
+  assert.deepEqual(await request, {
+    state: { status: 'authorized' },
+    credential: 'synthetic-credential',
+  })
+})

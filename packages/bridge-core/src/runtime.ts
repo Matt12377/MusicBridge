@@ -1,4 +1,5 @@
 import type {
+  PublicAuthState,
   PublicBridgeState,
   PublicRoonZone,
   TypedIpcEvent,
@@ -7,6 +8,7 @@ import { BridgeController, type BridgeState } from './application/bridge-control
 import { loadConfig } from './config/config.js';
 import { ControlServer } from './control/server.js';
 import { NeteaseClient } from './netease/client.js';
+import { QrLoginStateMachine } from './netease/qr-login.js';
 import { RoonAudioInputAdapter } from './roon/adapter.js';
 import type { RoonSdk } from './roon/sdk.js';
 import { asBridgeError } from './shared/errors.js';
@@ -24,6 +26,14 @@ export interface CoreRuntime {
   getState(): PublicBridgeState;
   setProviderCredential(credential: string): Promise<PublicBridgeState>;
   clearProviderCredential(): Promise<PublicBridgeState>;
+  getAuthState(): PublicAuthState;
+  beginQrLogin(): Promise<PublicAuthState>;
+  pollQrLogin(challengeId: string): Promise<{
+    state: PublicAuthState;
+    credential?: string;
+  }>;
+  cancelQrLogin(challengeId: string): PublicAuthState;
+  logoutProvider(): Promise<PublicAuthState>;
   listZones(): readonly PublicRoonZone[];
   selectZone(zoneId: string): Promise<PublicBridgeState>;
 }
@@ -76,11 +86,21 @@ function eventWithState(
   } as TypedIpcEvent;
 }
 
+function eventWithAuthState(state: PublicAuthState): CoreRuntimeEvent {
+  return {
+    version: 1,
+    event: 'auth.changed',
+    payload: { state },
+  } as TypedIpcEvent;
+}
+
 export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRuntime {
   const config = loadConfig(options.env);
   const logger = options.logger ?? createLogger(config.logLevel);
   const registry = new StreamRegistry();
   const netease = new NeteaseClient(config.neteaseCookie);
+  const qrLogin = new QrLoginStateMachine(netease);
+  if (netease.configured) qrLogin.markAuthorized();
   const roon = new RoonAudioInputAdapter(logger, options.roonSdk);
   const gateway = new StreamGateway({
     host: config.streamHost,
@@ -176,6 +196,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
 
     async setProviderCredential(credential: string): Promise<PublicBridgeState> {
       netease.setCredential(credential);
+      emit(eventWithAuthState(qrLogin.markAuthorized()));
       const state = publicState();
       emitHealth();
       return state;
@@ -183,7 +204,36 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
 
     async clearProviderCredential(): Promise<PublicBridgeState> {
       netease.clearCredential();
+      emit(eventWithAuthState(qrLogin.markMissing()));
       const state = publicState();
+      emitHealth();
+      return state;
+    },
+
+    getAuthState: () => qrLogin.getState(),
+
+    async beginQrLogin(): Promise<PublicAuthState> {
+      const state = await qrLogin.begin();
+      emit(eventWithAuthState(state));
+      return state;
+    },
+
+    async pollQrLogin(challengeId: string) {
+      const result = await qrLogin.poll(challengeId);
+      emit(eventWithAuthState(result.state));
+      return result;
+    },
+
+    cancelQrLogin(challengeId: string): PublicAuthState {
+      const state = qrLogin.cancel(challengeId);
+      emit(eventWithAuthState(state));
+      return state;
+    },
+
+    async logoutProvider(): Promise<PublicAuthState> {
+      const state = await qrLogin.logout();
+      netease.clearCredential();
+      emit(eventWithAuthState(state));
       emitHealth();
       return state;
     },
@@ -212,6 +262,7 @@ export function createTestBridgeRuntime(): CoreRuntime {
     activeStreamCount: 0,
     activePlaybackPresent: false,
   };
+  let authState: PublicAuthState = { status: 'idle' };
   return {
     async start() {
       state = { ...state, runtime: 'ready' };
@@ -224,11 +275,41 @@ export function createTestBridgeRuntime(): CoreRuntime {
     getState: () => state,
     async setProviderCredential() {
       state = { ...state, provider: 'configured' };
+      authState = { status: 'authorized' };
       return state;
     },
     async clearProviderCredential() {
       state = { ...state, provider: 'missing' };
+      authState = { status: 'idle' };
       return state;
+    },
+    getAuthState: () => ({ ...authState }),
+    async beginQrLogin() {
+      authState = {
+        status: 'waiting',
+        challengeId: 'test-challenge',
+        qrImage: 'data:image/png;base64,synthetic-qr',
+        expiresAt: Date.now() + 180_000,
+      };
+      return { ...authState };
+    },
+    async pollQrLogin() {
+      authState = {
+        status: 'waiting',
+        challengeId: 'test-challenge',
+        qrImage: 'data:image/png;base64,synthetic-qr',
+        expiresAt: Date.now() + 180_000,
+      };
+      return { state: { ...authState } };
+    },
+    cancelQrLogin() {
+      authState = { status: 'cancelled' };
+      return { ...authState };
+    },
+    async logoutProvider() {
+      state = { ...state, provider: 'missing' };
+      authState = { status: 'idle' };
+      return { ...authState };
     },
     listZones: () => [],
     async selectZone() {

@@ -13,6 +13,23 @@ export type PublicRoonStatus =
 
 export type ProviderCredentialStatus = 'configured' | 'missing' | 'invalid';
 
+export type AuthStatus =
+  | 'idle'
+  | 'creating'
+  | 'waiting'
+  | 'scanned'
+  | 'authorized'
+  | 'expired'
+  | 'cancelled'
+  | 'error';
+
+export interface PublicAuthState {
+  status: AuthStatus;
+  challengeId?: string;
+  qrImage?: string;
+  expiresAt?: number;
+}
+
 export interface PublicRoonZone {
   zoneId: string;
   displayName: string;

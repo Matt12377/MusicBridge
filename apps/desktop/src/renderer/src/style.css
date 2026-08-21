@@ -66,6 +66,7 @@ h2 {
 }
 
 .info-card,
+.auth-card,
 .status-card {
   border: 1px solid #2b3344;
   border-radius: 18px;
@@ -76,6 +77,83 @@ h2 {
 .info-card {
   padding: 24px;
   margin-bottom: 18px;
+}
+
+.auth-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 20px 28px;
+  align-items: center;
+  margin-bottom: 18px;
+  padding: 24px;
+}
+
+.auth-copy p:last-child,
+.auth-hint {
+  margin-bottom: 0;
+  color: #a8b0c3;
+  line-height: 1.6;
+}
+
+.auth-copy .eyebrow {
+  margin-bottom: 8px;
+}
+
+.auth-copy h2 {
+  margin-bottom: 8px;
+}
+
+.qr-frame {
+  display: grid;
+  width: 156px;
+  height: 156px;
+  padding: 10px;
+  place-items: center;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.qr-frame img {
+  display: block;
+  width: 136px;
+  height: 136px;
+}
+
+.auth-status,
+.auth-actions,
+.auth-hint {
+  grid-column: 1 / -1;
+}
+
+.auth-status {
+  margin: 0;
+  color: #f5f7ff;
+  font-weight: 700;
+}
+
+.auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+button {
+  padding: 10px 16px;
+  border: 1px solid #8c9aff;
+  border-radius: 10px;
+  color: #10131a;
+  background: #aeb7ff;
+  cursor: pointer;
+}
+
+button.secondary {
+  color: #eef2ff;
+  background: transparent;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 dl {
@@ -129,7 +207,12 @@ dd {
   }
 
   dl,
+  .auth-card,
   .status-grid {
     grid-template-columns: 1fr;
+  }
+
+  .qr-frame {
+    justify-self: start;
   }
 }

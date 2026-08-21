@@ -2,9 +2,39 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { BridgeError } from '../src/shared/errors.js';
 import {
+  parseLoginStatusResponse,
+  parseQrCheckResponse,
+  parseQrImageResponse,
+  parseQrKeyResponse,
   parseResolvedAudioStream,
   parseTrackMetadata,
 } from '../src/netease/parse.js';
+
+test('parses QR login responses into bounded internal values', () => {
+  assert.equal(
+    parseQrKeyResponse({ body: { code: 200, data: { unikey: 'provider-key' } } }),
+    'provider-key',
+  );
+  assert.equal(
+    parseQrImageResponse({
+      body: { code: 200, data: { qrimg: 'data:image/png;base64,synthetic-qr' } },
+    }),
+    'data:image/png;base64,synthetic-qr',
+  );
+  assert.deepEqual(
+    parseQrCheckResponse({ body: { code: 803, cookie: 'fixture-credential' } }),
+    { code: 803, credential: 'fixture-credential' },
+  );
+  assert.deepEqual(
+    parseQrCheckResponse({ body: { code: 801, message: 'waiting' } }),
+    { code: 801 },
+  );
+  assert.equal(
+    parseLoginStatusResponse({ body: { code: 200, data: { profile: { userId: 1 } } } }),
+    true,
+  );
+  assert.equal(parseLoginStatusResponse({ body: { code: 200, data: {} } }), false);
+});
 
 test('parses defensive song metadata shape', () => {
   const result = parseTrackMetadata(

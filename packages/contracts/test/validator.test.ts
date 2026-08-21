@@ -4,6 +4,7 @@ import {
   IPC_VERSION,
   parseIpcRuntimeMessage,
   validateIpcEvent,
+  validateIpcInternalResponseForCommand,
   validateIpcResponse,
   validateIpcResponseForCommand,
   validateIpcRequest,
@@ -208,4 +209,81 @@ test('contracts parses public health events and rejects unknown runtime messages
       message: 'Invalid IPC response',
     },
   });
+});
+
+test('contracts keeps QR login state public and isolates the internal poll credential', () => {
+  const publicState = {
+    status: 'waiting',
+    challengeId: 'challenge-1',
+    qrImage: 'data:image/png;base64,synthetic-qr',
+    expiresAt: 123_456,
+  };
+
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'auth-begin',
+      command: 'auth.beginQr',
+      payload: {},
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'auth-poll',
+      command: 'auth.pollQr',
+      payload: { challengeId: 'challenge-1' },
+    }).ok,
+    true,
+  );
+  assert.deepEqual(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'auth-poll-invalid',
+      command: 'auth.pollQr',
+      payload: { challengeId: '' },
+    }),
+    {
+      ok: false,
+      error: {
+        code: 'INVALID_IPC_REQUEST',
+        message: 'Invalid IPC request',
+      },
+    },
+  );
+
+  const internalResponse = {
+    version: IPC_VERSION,
+    id: 'auth-poll',
+    ok: true,
+    result: { state: { status: 'authorized' }, credential: 'synthetic-credential' },
+  };
+  assert.equal(
+    validateIpcResponseForCommand(internalResponse, 'auth.pollQr').ok,
+    false,
+  );
+  const validatedInternal = validateIpcInternalResponseForCommand(
+    internalResponse,
+    'auth.pollQr',
+  );
+  assert.equal(validatedInternal.ok, true);
+
+  const publicResponse = validateIpcResponseForCommand(
+    {
+      version: IPC_VERSION,
+      id: 'auth-begin',
+      ok: true,
+      result: publicState,
+    },
+    'auth.beginQr',
+  );
+  assert.equal(publicResponse.ok, true);
+
+  const event = validateIpcEvent({
+    version: IPC_VERSION,
+    event: 'auth.changed',
+    payload: { state: { status: 'idle' } },
+  });
+  assert.equal(event.ok, true);
 });

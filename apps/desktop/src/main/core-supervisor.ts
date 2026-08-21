@@ -3,11 +3,14 @@ import { randomUUID } from 'node:crypto'
 import {
   IPC_VERSION,
   parseIpcRuntimeMessage,
+  validateIpcInternalResponseForCommand,
   validateIpcResponseForCommand,
   validateIpcRequest,
   type IpcCommand,
   type IpcCommandPayloads,
   type IpcCommandResults,
+  type IpcInternalCommand,
+  type IpcInternalCommandResults,
   type PublicErrorCode,
   type TypedIpcEvent,
 } from '@music-bridge/contracts'
@@ -53,6 +56,7 @@ export class CoreIpcError extends Error {
 
 interface PendingRequest {
   command: IpcCommand
+  internal: boolean
   timer: NodeJS.Timeout
   reject(error: CoreIpcError): void
   resolve(value: unknown): void
@@ -106,6 +110,21 @@ export class CoreSupervisor {
     command: TCommand,
     payload: IpcCommandPayloads[TCommand],
   ): Promise<IpcCommandResults[TCommand]> {
+    return (await this.sendRequest(command, payload, false)) as IpcCommandResults[TCommand]
+  }
+
+  async requestInternal<TCommand extends IpcInternalCommand>(
+    command: TCommand,
+    payload: IpcCommandPayloads[TCommand],
+  ): Promise<IpcInternalCommandResults[TCommand]> {
+    return (await this.sendRequest(command, payload, true)) as IpcInternalCommandResults[TCommand]
+  }
+
+  private async sendRequest<TCommand extends IpcCommand>(
+    command: TCommand,
+    payload: IpcCommandPayloads[TCommand],
+    internal: boolean,
+  ): Promise<unknown> {
     if (this._status !== 'ready' || !this.port) {
       throw new CoreIpcError('NOT_READY', 'Core is not ready')
     }
@@ -121,7 +140,7 @@ export class CoreSupervisor {
         this.pending.delete(id)
         reject(new CoreIpcError('TIMEOUT', 'Core request timed out'))
       }, timeoutMs)
-      this.pending.set(id, { command, timer, resolve, reject })
+      this.pending.set(id, { command, internal, timer, resolve, reject })
       try {
         this.port?.postMessage(request)
       } catch {
@@ -130,7 +149,7 @@ export class CoreSupervisor {
         reject(new CoreIpcError('INTERNAL_ERROR', 'Core request could not be sent'))
       }
     })
-    return response as IpcCommandResults[TCommand]
+    return response
   }
 
   async shutdown(): Promise<void> {
@@ -233,7 +252,12 @@ export class CoreSupervisor {
       }
       const pending = this.pending.get(message.id)
       if (!pending) return
-      const response = validateIpcResponseForCommand(message, pending.command)
+      const response = pending.internal
+        ? validateIpcInternalResponseForCommand(
+            message,
+            pending.command as IpcInternalCommand,
+          )
+        : validateIpcResponseForCommand(message, pending.command)
       if (!response.ok) {
         clearTimeout(pending.timer)
         this.pending.delete(message.id)

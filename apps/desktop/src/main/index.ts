@@ -7,7 +7,11 @@ import {
   session,
   utilityProcess,
 } from 'electron'
-import type { PublicErrorCode, TypedIpcEvent } from '@music-bridge/contracts'
+import type {
+  PublicAuthState,
+  PublicErrorCode,
+  TypedIpcEvent,
+} from '@music-bridge/contracts'
 import { IPC_VERSION, validateIpcEvent } from '@music-bridge/contracts'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
@@ -102,7 +106,32 @@ async function invokeCore<T>(
   }
 }
 
-function registerIpcHandlers(supervisor: CoreSupervisor): void {
+function requireChallengeId(value: unknown): string {
+  if (typeof value !== 'string' || value.trim().length === 0 || value.length > 128) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid QR challenge')
+  }
+  return value
+}
+
+async function saveQrCredential(
+  supervisor: CoreSupervisor,
+  credentialVault: CredentialVault,
+  credential: string,
+): Promise<void> {
+  try {
+    await credentialVault.save(credential)
+    await supervisor.request('auth.setCredential', { credential })
+  } catch (error) {
+    await credentialVault.delete().catch(() => undefined)
+    await supervisor.request('auth.clearCredential', {}).catch(() => undefined)
+    throw error
+  }
+}
+
+function registerIpcHandlers(
+  supervisor: CoreSupervisor,
+  credentialVault: CredentialVault,
+): void {
   ipcMain.handle('app:get-info', (event) => {
     requireTrustedRenderer(event)
     return appInfo()
@@ -115,6 +144,49 @@ function registerIpcHandlers(supervisor: CoreSupervisor): void {
   )
   ipcMain.handle('core:ping', (event) =>
     invokeCore(event, () => supervisor.request('core.ping', {})),
+  )
+  ipcMain.handle('auth:get-state', (event) =>
+    invokeCore(event, () => supervisor.request('auth.getState', {})),
+  )
+  ipcMain.handle('auth:begin-qr', (event) =>
+    invokeCore(event, () => supervisor.request('auth.beginQr', {})),
+  )
+  ipcMain.handle('auth:poll-qr', (event, challengeId: unknown) =>
+    invokeCore(event, async (): Promise<PublicAuthState> => {
+      const result = await supervisor.requestInternal('auth.pollQr', {
+        challengeId: requireChallengeId(challengeId),
+      })
+      if (result.credential !== undefined) {
+        await saveQrCredential(supervisor, credentialVault, result.credential)
+      }
+      return result.state
+    }),
+  )
+  ipcMain.handle('auth:cancel-qr', (event, challengeId: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('auth.cancelQr', {
+        challengeId: requireChallengeId(challengeId),
+      }),
+    ),
+  )
+  ipcMain.handle('auth:logout', (event) =>
+    invokeCore(event, async (): Promise<PublicAuthState> => {
+      let state: PublicAuthState | undefined
+      let failure: unknown
+      try {
+        state = await supervisor.request('auth.logout', {})
+      } catch (error) {
+        failure = error
+      }
+      try {
+        await credentialVault.delete()
+      } catch (error) {
+        failure ??= error
+      }
+      if (failure) throw failure
+      if (!state) throw new Error('Auth logout returned no state')
+      return state
+    }),
   )
 }
 
@@ -304,7 +376,7 @@ async function bootstrap(): Promise<void> {
       clearCredential: () => supervisor.request('auth.clearCredential', {}),
     },
   })
-  registerIpcHandlers(supervisor)
+  registerIpcHandlers(supervisor, prepared.credentialVault)
   createWindow(supervisor)
   if (isCoreCrashGate) {
     setTimeout(() => {

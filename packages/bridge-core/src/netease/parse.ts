@@ -33,6 +33,79 @@ function stringValue(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() !== '' ? value : undefined;
 }
 
+function responseCode(body: Record<string, unknown>, operation: string): number {
+  const code = numeric(body.code);
+  if (code === undefined) {
+    throw new BridgeError('NETEASE_REQUEST_FAILED', `Invalid ${operation} response`, {
+      httpStatus: 502,
+    });
+  }
+  if (code !== 200 && operation !== 'login_qr_check') {
+    throw new BridgeError(
+      'NETEASE_REQUEST_FAILED',
+      `NetEase ${operation} failed with code ${code}`,
+      { httpStatus: 502, details: { code } },
+    );
+  }
+  return code;
+}
+
+export function parseQrKeyResponse(response: unknown): string {
+  const body = bodyOf(response);
+  responseCode(body, 'login_qr_key');
+  const data = isRecord(body.data) ? body.data : undefined;
+  const key = data ? stringValue(data.unikey ?? data.key) : undefined;
+  if (!key) {
+    throw new BridgeError('NETEASE_REQUEST_FAILED', 'NetEase QR key was not returned', {
+      httpStatus: 502,
+    });
+  }
+  return key;
+}
+
+export function parseQrImageResponse(response: unknown): string {
+  const body = bodyOf(response);
+  responseCode(body, 'login_qr_create');
+  const data = isRecord(body.data) ? body.data : undefined;
+  const image = data ? stringValue(data.qrimg) : undefined;
+  if (!image || !image.startsWith('data:image/')) {
+    throw new BridgeError('NETEASE_REQUEST_FAILED', 'NetEase QR image was not returned', {
+      httpStatus: 502,
+    });
+  }
+  return image;
+}
+
+export function parseQrCheckResponse(response: unknown): {
+  code: number;
+  credential?: string;
+} {
+  const body = bodyOf(response);
+  const code = responseCode(body, 'login_qr_check');
+  const topLevel = isRecord(response) ? response.cookie : undefined;
+  const cookie =
+    stringValue(body.cookie) ??
+    (Array.isArray(topLevel)
+      ? topLevel.filter((item): item is string => typeof item === 'string').join(';')
+      : stringValue(topLevel));
+  return {
+    code,
+    ...(cookie !== undefined ? { credential: cookie } : {}),
+  };
+}
+
+export function parseLoginStatusResponse(response: unknown): boolean {
+  const body = bodyOf(response);
+  const code = numeric(body.code);
+  if (code !== 200) return false;
+  const data = isRecord(body.data) ? body.data : undefined;
+  return Boolean(
+    (data && (isRecord(data.profile) || isRecord(data.account))) ||
+      isRecord(body.profile) ||
+      isRecord(body.account),
+  );
+}
+
 export function parseTrackMetadata(
   response: unknown,
   requestedTrackId: string,

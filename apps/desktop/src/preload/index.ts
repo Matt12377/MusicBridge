@@ -14,6 +14,11 @@ contextBridge.exposeInMainWorld(
     () => ipcRenderer.invoke('core:get-health'),
     () => ipcRenderer.invoke('core:get-state'),
     () => ipcRenderer.invoke('core:ping'),
+    () => ipcRenderer.invoke('auth:get-state'),
+    () => ipcRenderer.invoke('auth:begin-qr'),
+    (challengeId: string) => ipcRenderer.invoke('auth:poll-qr', challengeId),
+    (challengeId: string) => ipcRenderer.invoke('auth:cancel-qr', challengeId),
+    () => ipcRenderer.invoke('auth:logout'),
     (listener: (event: TypedIpcEvent) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, message: TypedIpcEvent): void => {
         listener(message)

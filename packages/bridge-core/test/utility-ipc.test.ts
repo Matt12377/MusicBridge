@@ -33,6 +33,19 @@ function makeRuntime(): CoreRuntimeForIpc & {
   clearCredentialCalls: number
   setProviderCredential(credential: string): Promise<typeof state>
   clearProviderCredential(): Promise<typeof state>
+  getAuthState(): { status: 'idle' | 'waiting' | 'authorized' }
+  beginQrLogin(): Promise<{
+    status: 'waiting'
+    challengeId: string
+    qrImage: string
+    expiresAt: number
+  }>
+  pollQrLogin(challengeId: string): Promise<{
+    state: { status: 'authorized' }
+    credential?: string
+  }>
+  cancelQrLogin(challengeId: string): { status: 'cancelled'; challengeId?: string }
+  logoutProvider(): Promise<{ status: 'idle' }>
 } {
   const state = {
     runtime: 'ready' as const,
@@ -41,6 +54,7 @@ function makeRuntime(): CoreRuntimeForIpc & {
     activeStreamCount: 0,
     activePlaybackPresent: false,
   };
+  const authState = { status: 'idle' as const };
   return {
     shutdownCalls: 0,
     setCredentialCalls: [],
@@ -61,6 +75,26 @@ function makeRuntime(): CoreRuntimeForIpc & {
     async clearProviderCredential() {
       this.clearCredentialCalls += 1
       return state
+    },
+    getAuthState: () => authState,
+    async beginQrLogin() {
+      return {
+        status: 'waiting' as const,
+        challengeId: 'challenge-utility',
+        qrImage: 'data:image/png;base64,synthetic-qr',
+        expiresAt: 123_456,
+      }
+    },
+    async pollQrLogin(challengeId: string) {
+      assert.equal(challengeId, 'challenge-utility')
+      return { state: { status: 'authorized' as const }, credential: 'synthetic-credential' }
+    },
+    cancelQrLogin: (challengeId: string) => {
+      assert.equal(challengeId, 'challenge-utility')
+      return { status: 'cancelled' as const }
+    },
+    async logoutProvider() {
+      return { status: 'idle' as const }
     },
   };
 }
@@ -168,5 +202,46 @@ test('controlled credential requests return only public state', async () => {
     id: 'credential-2',
     ok: true,
     result: runtime.getState(),
+  });
+});
+
+test('utility QR commands keep the credential only in the Core-to-Main response', async () => {
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, makeRuntime());
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'qr-begin',
+    command: 'auth.beginQr',
+    payload: {},
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[1], {
+    version: IPC_VERSION,
+    id: 'qr-begin',
+    ok: true,
+    result: {
+      status: 'waiting',
+      challengeId: 'challenge-utility',
+      qrImage: 'data:image/png;base64,synthetic-qr',
+      expiresAt: 123_456,
+    },
+  });
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'qr-poll',
+    command: 'auth.pollQr',
+    payload: { challengeId: 'challenge-utility' },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[2], {
+    version: IPC_VERSION,
+    id: 'qr-poll',
+    ok: true,
+    result: {
+      state: { status: 'authorized' },
+      credential: 'synthetic-credential',
+    },
   });
 });

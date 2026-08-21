@@ -5,12 +5,18 @@ import {
   IPC_VERSION,
   type IpcCommand,
   type IpcCommandResults,
+  type IpcInternalCommand,
+  type IpcInternalCommandResults,
   type IpcEventName,
   type IpcRuntimeMessage,
   type IpcResponse,
   type IpcRequest,
 } from './ipc.js';
-import type { PublicBridgeState, PublicRoonZone } from './state.js';
+import type {
+  PublicAuthState,
+  PublicBridgeState,
+  PublicRoonZone,
+} from './state.js';
 
 export type ValidationResult<T> =
   | { ok: true; value: T }
@@ -69,9 +75,20 @@ function isSetCredentialPayload(value: unknown): value is { credential: string }
   );
 }
 
+function isChallengePayload(value: unknown): value is { challengeId: string } {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['challengeId']) &&
+    safeString(value.challengeId, 128)
+  );
+}
+
 function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'roon.selectZone') return isSelectZonePayload(payload);
   if (command === 'auth.setCredential') return isSetCredentialPayload(payload);
+  if (command === 'auth.pollQr' || command === 'auth.cancelQr') {
+    return isChallengePayload(payload);
+  }
   return isEmptyPayload(payload);
 }
 
@@ -133,6 +150,51 @@ function isPublicBridgeState(value: unknown): value is PublicBridgeState {
   );
 }
 
+function isAuthStatus(value: unknown): value is PublicAuthState['status'] {
+  return [
+    'idle',
+    'creating',
+    'waiting',
+    'scanned',
+    'authorized',
+    'expired',
+    'cancelled',
+    'error',
+  ].includes(String(value));
+}
+
+function isPublicAuthState(value: unknown): value is PublicAuthState {
+  if (!isRecord(value)) return false;
+  if (!hasOnlyKeys(value, ['status', 'challengeId', 'qrImage', 'expiresAt'])) {
+    return false;
+  }
+  if (!isAuthStatus(value.status)) return false;
+  if (value.challengeId !== undefined && !safeString(value.challengeId, 128)) {
+    return false;
+  }
+  if (
+    value.qrImage !== undefined &&
+    (!safeString(value.qrImage, 2 * 1024 * 1024) ||
+      !value.qrImage.startsWith('data:image/'))
+  ) {
+    return false;
+  }
+  return (
+    value.expiresAt === undefined ||
+    (typeof value.expiresAt === 'number' &&
+      Number.isSafeInteger(value.expiresAt) &&
+      value.expiresAt >= 0)
+  );
+}
+
+function isInternalQrPollResult(value: unknown): boolean {
+  if (!isRecord(value) || !hasOnlyKeys(value, ['state', 'credential'])) return false;
+  return (
+    isPublicAuthState(value.state) &&
+    (value.credential === undefined || safeString(value.credential, 64 * 1024))
+  );
+}
+
 function isPublicRoonZone(value: unknown): value is PublicRoonZone {
   return (
     isRecord(value) &&
@@ -153,7 +215,11 @@ function isZoneListResult(value: unknown): boolean {
   );
 }
 
-function isCommandResult(command: IpcCommand, value: unknown): boolean {
+function isCommandResult(
+  command: IpcCommand,
+  value: unknown,
+  allowInternalResult = false,
+): boolean {
   switch (command) {
     case 'core.ping':
       return isRecord(value) && hasOnlyKeys(value, ['pong']) && value.pong === true;
@@ -163,6 +229,14 @@ function isCommandResult(command: IpcCommand, value: unknown): boolean {
     case 'auth.clearCredential':
     case 'roon.selectZone':
       return isPublicBridgeState(value);
+    case 'auth.beginQr':
+    case 'auth.cancelQr':
+    case 'auth.getState':
+    case 'auth.logout':
+      return isPublicAuthState(value);
+    case 'auth.pollQr':
+      return isPublicAuthState(value) ||
+        (allowInternalResult && isInternalQrPollResult(value));
     case 'core.shutdown':
       return isRecord(value) && hasOnlyKeys(value, ['stopped']) && value.stopped === true;
     case 'roon.listZones':
@@ -183,6 +257,8 @@ function isEventPayload(event: IpcEventName, payload: unknown): boolean {
     case 'core.health':
     case 'roon.changed':
       return hasOnlyKeys(payload, ['state']) && isPublicBridgeState(payload.state);
+    case 'auth.changed':
+      return hasOnlyKeys(payload, ['state']) && isPublicAuthState(payload.state);
     case 'diagnostic.notice':
       return isDiagnosticPayload(payload);
   }
@@ -289,6 +365,23 @@ export function validateIpcResponseForCommand<TCommand extends IpcCommand>(
     return {
       ok: true,
       value: response.value as IpcResponse<IpcCommandResults[TCommand]>,
+    };
+  }
+  return invalidResponse();
+}
+
+export function validateIpcInternalResponseForCommand<
+  TCommand extends IpcInternalCommand,
+>(
+  input: unknown,
+  command: TCommand,
+): ValidationResult<IpcResponse<IpcInternalCommandResults[TCommand]>> {
+  const response = validateIpcResponse(input);
+  if (!response.ok) return response;
+  if (!response.value.ok || isCommandResult(command, response.value.result, true)) {
+    return {
+      ok: true,
+      value: response.value as IpcResponse<IpcInternalCommandResults[TCommand]>,
     };
   }
   return invalidResponse();

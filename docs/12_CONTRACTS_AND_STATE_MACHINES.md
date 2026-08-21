@@ -12,7 +12,9 @@
 ```ts
 export type CoreCommand =
   | { version: 1; id: string; type: 'auth.beginQr' }
-  | { version: 1; id: string; type: 'auth.pollQr'; key: string }
+  | { version: 1; id: string; type: 'auth.pollQr'; challengeId: string }
+  | { version: 1; id: string; type: 'auth.cancelQr'; challengeId: string }
+  | { version: 1; id: string; type: 'auth.getState' }
   | { version: 1; id: string; type: 'auth.setCredential'; credential: string }
   | { version: 1; id: string; type: 'auth.clearCredential' }
   | { version: 1; id: string; type: 'auth.logout' }
@@ -31,13 +33,17 @@ export type CoreCommand =
 
 `auth.setCredential` 与 `auth.clearCredential` 是 Main → Core 的受控内部请求；Preload 不暴露这两个方法，响应只返回公开状态，不返回凭据。
 
+扫码登录的公开状态只允许以下字段：`status`、不透明的 `challengeId`、本地二维码图片数据和过期时间。Provider 返回的内部 key 不进入公开状态。
+
+`auth.pollQr` 在 Core → Main 的内部响应中可以携带一次性凭据；Main 完成验证、safeStorage 写入和 `auth.setCredential` 后，只把其中的公开 `state` 返回给 Renderer。Preload 的 `pollQrLogin` 永远不返回凭据。
+
 ## 3. 事件
 
 ```ts
 export type CoreEvent =
   | { version: 1; type: 'core.ready'; payload: CoreReady }
   | { version: 1; type: 'core.health'; payload: CoreHealth }
-  | { version: 1; type: 'auth.changed'; payload: AuthState }
+  | { version: 1; type: 'auth.changed'; payload: { state: AuthState } }
   | { version: 1; type: 'roon.changed'; payload: RoonSnapshot }
   | { version: 1; type: 'playback.changed'; payload: PlaybackSnapshot }
   | { version: 1; type: 'queue.changed'; payload: QueueSnapshot }
@@ -51,6 +57,8 @@ export type CoreEvent =
 - 参数长度有限制：搜索词、分页、队列项数量。
 - URL 类型不从 Renderer 接收。
 - Renderer 不能指定上游 URL、网关 token 或 Roon session ID。
+- Renderer 不能读取 Provider 凭据；二维码是受长度限制的 `data:image/*` 图片，仅用于本地展示。
+- 退出登录先清理 Core 内存中的 Provider 会话，再删除 Main 侧的 safeStorage 文件；任一步失败都不得向 Renderer 返回秘密数据。
 
 ## 5. 状态快照
 

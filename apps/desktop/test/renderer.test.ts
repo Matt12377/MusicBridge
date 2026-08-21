@@ -33,7 +33,7 @@ test('Renderer source has no Node or Electron access', async () => {
   }
 })
 
-test('Renderer contains only the desktop shell placeholders', async () => {
+test('Renderer contains the public QR login surface without credential access', async () => {
   const source = await readFile(path.join(rendererRoot, 'src/App.vue'), 'utf8')
 
   for (const text of [
@@ -41,7 +41,11 @@ test('Renderer contains only the desktop shell placeholders', async () => {
     'Roon 状态',
     '网易云状态',
     'Bridge Core 状态',
+    '扫码登录',
+    '显示二维码',
+    '退出登录',
   ]) {
     assert.match(source, new RegExp(text))
   }
+  assert.doesNotMatch(source, /NETEASE_COOKIE|MUSIC_U|__csrf|Authorization|Bearer/)
 })

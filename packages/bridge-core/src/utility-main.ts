@@ -95,6 +95,20 @@ async function dispatch(
       );
     case 'auth.clearCredential':
       return runtime.clearProviderCredential();
+    case 'auth.beginQr':
+      return runtime.beginQrLogin();
+    case 'auth.pollQr':
+      return runtime.pollQrLogin(
+        (request.payload as { challengeId: string }).challengeId,
+      );
+    case 'auth.cancelQr':
+      return runtime.cancelQrLogin(
+        (request.payload as { challengeId: string }).challengeId,
+      );
+    case 'auth.getState':
+      return runtime.getAuthState();
+    case 'auth.logout':
+      return runtime.logoutProvider();
     case 'roon.listZones':
       return { zones: runtime.listZones() };
     case 'roon.selectZone':
