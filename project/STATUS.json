@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "project": "Music Bridge for Roon",
   "wave": "WAVE-3",
-  "task": "TASK-024",
-  "branch": "codex/task-024-lyrics-v1",
+  "task": "TASK-030",
+  "branch": "codex/task-030-v1-ui",
   "state": "carryover",
-  "baseCommit": "fa3df23342b9318867ecd0d933f47891f5f7c4ad",
-  "implementationCommit": "107960f9f1db871a8fff859e232dca552ab7ee52",
+  "baseCommit": "d912ea1998564b43479bdca1dd004c2ad7559b8e",
+  "implementationCommit": "1109d0551b09ab649b88eb7514f759841b0d3d8f",
   "reportCommit": null,
-  "nextTask": "TASK-030",
+  "nextTask": "TASK-031",
   "gates": {
     "automated": "pass",
     "security": "pass",
     "realProvider": "not-run-owner-only",
-    "realRoon": "not-run"
+    "realRoon": "not-run-owner-only"
   },
   "policy": {
     "realCredentialsInCi": false,
