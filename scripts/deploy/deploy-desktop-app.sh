@@ -587,6 +587,7 @@ printf 'CURRENT_RELEASE_SHA=%s\n' "$(basename "$(readlink "$current")")"
 printf 'NEW_APP_PROCESS_COUNT=%s\n' "$(printf '%s\n' "$new_process_count" | wc -l | tr -d ' ')"
 printf 'ROON_PROCESS_COUNT=%s\n' "$roon_process_count"
 printf 'HEALTH_HTTP=PASS\n'
+release_created=0
 current_switched=0
 current_mutated=0
 REMOTE
