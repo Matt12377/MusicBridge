@@ -84,6 +84,30 @@ function readSessionId(value: unknown): string | undefined {
   return typeof sessionId === 'string' && sessionId.length > 0 ? sessionId : undefined;
 }
 
+function readRoonTimeMs(value: unknown): number | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const body = value as Record<string, unknown>;
+  const nested = body.data && typeof body.data === 'object' && !Array.isArray(body.data)
+    ? body.data as Record<string, unknown>
+    : undefined;
+  for (const key of ['position_ms', 'positionMs', 'time_ms', 'timeMs']) {
+    const candidate = nested?.[key] ?? body[key];
+    if (typeof candidate !== 'number' || !Number.isFinite(candidate)) continue;
+    if (Number.isSafeInteger(candidate) && candidate >= 0 && candidate <= 24 * 60 * 60 * 1000) {
+      return candidate;
+    }
+  }
+  for (const key of ['time', 'position', 'seconds']) {
+    const candidate = nested?.[key] ?? body[key];
+    if (typeof candidate !== 'number' || !Number.isFinite(candidate) || candidate < 0) continue;
+    const positionMs = Math.round(candidate * 1_000);
+    if (Number.isSafeInteger(positionMs) && positionMs <= 24 * 60 * 60 * 1000) {
+      return positionMs;
+    }
+  }
+  return undefined;
+}
+
 function readErrorMessage(body: unknown): string | undefined {
   if (typeof body === 'string') return body;
   if (!body || typeof body !== 'object') return undefined;
@@ -268,6 +292,7 @@ export class RoonAudioInputAdapter implements RoonPort {
   private readonly trackIdFactory: () => string;
   private readonly playbackMode: 'channel' | 'track';
   private stateHandler: () => void = () => undefined;
+  private timeHandler: (positionMs: number) => void = () => undefined;
 
   constructor(
     private readonly logger: Logger,
@@ -286,6 +311,10 @@ export class RoonAudioInputAdapter implements RoonPort {
 
   setStateHandler(handler: () => void): void {
     this.stateHandler = handler;
+  }
+
+  setTimeHandler(handler: (positionMs: number) => void): void {
+    this.timeHandler = handler;
   }
 
   listZones(): readonly RoonZone[] {
@@ -503,6 +532,10 @@ export class RoonAudioInputAdapter implements RoonPort {
             finish();
             break;
           case 'Time':
+            {
+              const positionMs = readRoonTimeMs(playBody);
+              if (positionMs !== undefined) this.timeHandler(positionMs);
+            }
             break;
           case 'EndedNaturally':
             this.setStatus('ready', 'Ready', false);
@@ -729,6 +762,7 @@ export class RoonAudioInputAdapter implements RoonPort {
       this.roon = undefined;
       this.core = undefined;
       this.audioInput = undefined;
+      this.timeHandler = () => undefined;
       this.zones.clear();
       this.selectedZone = undefined;
       this.state = { status: 'discovering' };

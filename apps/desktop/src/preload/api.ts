@@ -3,6 +3,7 @@ import type {
   PageRequest,
   PlaylistDetail,
   PlaylistSummary,
+  LyricsSnapshot,
   PlaybackQueueItem,
   PlaybackQuality,
   PlaybackSnapshot,
@@ -32,6 +33,7 @@ export interface MusicBridgePublicApi {
   getLikedTracks: (page: PageRequest) => Promise<Page<TrackSummary>>
   getUserPlaylists: () => Promise<readonly PlaylistSummary[]>
   getPlaylist: (playlistId: string, page: PageRequest) => Promise<PlaylistDetail>
+  getLyrics: (trackId: string) => Promise<LyricsSnapshot>
   getPlaybackState: () => Promise<PlaybackSnapshot>
   play: (trackId: string, quality: PlaybackQuality) => Promise<PlaybackSnapshot>
   stop: () => Promise<PlaybackSnapshot>
@@ -55,6 +57,7 @@ export const PUBLIC_API_KEYS = [
   'getLikedTracks',
   'getUserPlaylists',
   'getPlaylist',
+  'getLyrics',
   'getPlaybackState',
   'play',
   'stop',
@@ -78,6 +81,7 @@ export function createPreloadApi(
   getLikedTracks: (page: PageRequest) => Promise<Page<TrackSummary>>,
   getUserPlaylists: () => Promise<readonly PlaylistSummary[]>,
   getPlaylist: (playlistId: string, page: PageRequest) => Promise<PlaylistDetail>,
+  getLyrics: (trackId: string) => Promise<LyricsSnapshot>,
   getPlaybackState: () => Promise<PlaybackSnapshot>,
   play: (trackId: string, quality: PlaybackQuality) => Promise<PlaybackSnapshot>,
   stop: () => Promise<PlaybackSnapshot>,
@@ -100,6 +104,7 @@ export function createPreloadApi(
     getLikedTracks,
     getUserPlaylists,
     getPlaylist,
+    getLyrics,
     getPlaybackState,
     play,
     stop,

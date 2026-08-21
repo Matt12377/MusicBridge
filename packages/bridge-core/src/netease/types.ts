@@ -5,6 +5,7 @@ import type {
   PlaylistSummary,
   TrackSummary,
 } from '@music-bridge/contracts';
+import type { LyricsSnapshot } from '@music-bridge/contracts';
 
 export const QUALITY_LEVELS = [
   'standard',
@@ -52,4 +53,5 @@ export interface NeteasePort {
   getLikedTracks(page: PageRequest): Promise<Page<TrackSummary>>;
   getUserPlaylists(): Promise<readonly PlaylistSummary[]>;
   getPlaylist(playlistId: string, page: PageRequest): Promise<PlaylistDetail>;
+  getLyrics?(trackId: string): Promise<LyricsSnapshot>;
 }

@@ -6,6 +6,8 @@ import type {
   PageRequest,
   PlaylistDetail,
   PlaylistSummary,
+  LyricsSnapshot,
+  PlaybackSnapshot,
   PublicAuthState,
   PublicBridgeState,
   TrackSummary,
@@ -19,11 +21,17 @@ function emptyPage<T>(limit = LIBRARY_PAGE_SIZE): Page<T> {
   return { items: [], offset: 0, limit, total: 0, hasMore: false }
 }
 
+function emptyLyricsSnapshot(status: LyricsSnapshot['status'] = 'idle'): LyricsSnapshot {
+  return { status, lines: [], activeLineIndex: -1, timingSource: 'static' }
+}
+
 const appInfo = ref<AppInfo | null>(null)
 const coreState = ref<PublicBridgeState | null>(null)
 const authState = ref<PublicAuthState>({ status: 'idle' })
 const coreError = ref(false)
 const authError = ref(false)
+const playbackState = ref<PlaybackSnapshot | null>(null)
+const lyricsSnapshot = ref<LyricsSnapshot>(emptyLyricsSnapshot())
 let removeCoreListener: (() => void) | undefined
 let pollTimer: ReturnType<typeof setInterval> | undefined
 let authOperation = 0
@@ -38,6 +46,7 @@ const libraryBusy = ref(false)
 const libraryError = ref<'auth-expired' | 'generic' | null>(null)
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 let libraryOperation = 0
+let lyricsOperation = 0
 
 function stopPolling(): void {
   if (pollTimer !== undefined) {
@@ -239,6 +248,29 @@ async function logout(): Promise<void> {
   }
 }
 
+async function loadLyrics(trackId: string): Promise<void> {
+  const operation = ++lyricsOperation
+  lyricsSnapshot.value = emptyLyricsSnapshot('loading')
+  try {
+    const snapshot = await window.musicBridge.getLyrics(trackId)
+    if (operation !== lyricsOperation || playbackState.value?.currentTrack?.id !== trackId) return
+    lyricsSnapshot.value = snapshot
+  } catch {
+    if (operation === lyricsOperation) lyricsSnapshot.value = emptyLyricsSnapshot('error')
+  }
+}
+
+function applyPlaybackState(snapshot: PlaybackSnapshot): void {
+  playbackState.value = snapshot
+  const trackId = snapshot.currentTrack?.id
+  if (trackId) {
+    void loadLyrics(trackId)
+  } else {
+    lyricsOperation += 1
+    lyricsSnapshot.value = emptyLyricsSnapshot()
+  }
+}
+
 onMounted(async () => {
   removeCoreListener = window.musicBridge.onCoreEvent((event) => {
     if (event.event === 'core.ready' || event.event === 'core.health' || event.event === 'roon.changed') {
@@ -247,11 +279,18 @@ onMounted(async () => {
     if (event.event === 'auth.changed') {
       applyAuthState(event.payload.state)
     }
+    if (event.event === 'playback.changed') {
+      applyPlaybackState(event.payload.state)
+    }
+    if (event.event === 'lyrics.changed') {
+      lyricsSnapshot.value = event.payload.state
+    }
   })
   try {
     appInfo.value = await window.musicBridge.getAppInfo()
     coreState.value = await window.musicBridge.getCoreHealth()
     applyAuthState(await window.musicBridge.getAuthState())
+    applyPlaybackState(await window.musicBridge.getPlaybackState())
   } catch {
     coreError.value = true
   }
@@ -318,6 +357,41 @@ onUnmounted(() => {
       </div>
       <p v-if="authState.status === 'expired'" class="auth-hint">二维码已过期，请重新生成。</p>
       <p v-if="authError" class="auth-hint">登录操作暂时不可用，请稍后重试。</p>
+    </section>
+
+    <section class="lyrics-card" aria-label="Now Playing 歌词">
+      <div class="lyrics-header">
+        <div>
+          <p class="eyebrow">Now Playing</p>
+          <h2>同步歌词</h2>
+          <p class="description">歌词只在内存中处理，不写入 Roon metadata 或本地歌词库。</p>
+        </div>
+        <span class="lyrics-status">{{ lyricsSnapshot.status }}</span>
+      </div>
+      <p v-if="!playbackState?.currentTrack" class="lyrics-empty">当前没有正在播放的歌曲。</p>
+      <p v-else-if="lyricsSnapshot.status === 'loading'" class="lyrics-empty">歌词读取中…</p>
+      <p v-else-if="lyricsSnapshot.status === 'instrumental'" class="lyrics-empty">纯音乐，暂无歌词。</p>
+      <p v-else-if="lyricsSnapshot.status === 'unavailable'" class="lyrics-empty">暂无可用歌词。</p>
+      <p v-else-if="lyricsSnapshot.status === 'error'" class="lyrics-empty">歌词暂时不可用，请稍后重试。</p>
+      <div v-else class="lyrics-lines" aria-live="polite">
+        <p
+          v-for="(line, lineIndex) in lyricsSnapshot.lines"
+          :key="`${line.startMs}-${lineIndex}`"
+          class="lyrics-line"
+          :class="{ active: lyricsSnapshot.activeLineIndex === lineIndex }"
+        >
+          <span v-if="line.words?.length" class="lyrics-words">
+            <span
+              v-for="(word, wordIndex) in line.words"
+              :key="`${word.startMs}-${wordIndex}`"
+              :class="{ 'word-active': lyricsSnapshot.activeLineIndex === lineIndex && lyricsSnapshot.activeWordIndex === wordIndex }"
+            >{{ word.text }}</span>
+          </span>
+          <span v-else>{{ line.text }}</span>
+          <small v-if="line.translation">{{ line.translation }}</small>
+          <small v-if="line.romanization">{{ line.romanization }}</small>
+        </p>
+      </div>
     </section>
 
     <section class="library-card" aria-label="音乐库">

@@ -1,5 +1,6 @@
 import type { PublicError } from './errors.js';
 import type { Page, PageRequest, PlaylistDetail, PlaylistSummary, TrackSummary } from './library.js';
+import type { LyricsSnapshot } from './lyrics.js';
 import type {
   PlaybackQueueItem,
   PlaybackQueueSnapshot,
@@ -26,6 +27,7 @@ export const IPC_COMMANDS = [
   'library.liked',
   'library.playlists',
   'library.playlist',
+  'lyrics.get',
   'roon.listZones',
   'roon.selectZone',
   'playback.getState',
@@ -46,6 +48,7 @@ export const IPC_EVENTS = [
   'diagnostic.notice',
   'playback.changed',
   'queue.changed',
+  'lyrics.changed',
 ] as const;
 
 export type IpcEvent = (typeof IPC_EVENTS)[number];
@@ -93,6 +96,7 @@ export interface IpcCommandPayloads {
   'library.liked': { page: PageRequest };
   'library.playlists': Record<string, never>;
   'library.playlist': { playlistId: string; page: PageRequest };
+  'lyrics.get': { trackId: string };
   'roon.listZones': Record<string, never>;
   'roon.selectZone': { zoneId: string };
   'playback.getState': Record<string, never>;
@@ -119,6 +123,7 @@ export interface IpcCommandResults {
   'library.liked': Page<TrackSummary>;
   'library.playlists': readonly PlaylistSummary[];
   'library.playlist': PlaylistDetail;
+  'lyrics.get': LyricsSnapshot;
   'roon.listZones': { zones: readonly PublicRoonZone[] };
   'roon.selectZone': PublicBridgeState;
   'playback.getState': PlaybackSnapshot;
@@ -137,6 +142,7 @@ export interface IpcEventPayloads {
   'diagnostic.notice': { code: string; message?: string };
   'playback.changed': { state: PlaybackSnapshot };
   'queue.changed': { queue: PlaybackQueueSnapshot };
+  'lyrics.changed': { state: LyricsSnapshot };
 }
 
 export type IpcInternalCommand = 'auth.pollQr';

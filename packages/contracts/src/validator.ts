@@ -7,6 +7,13 @@ import type {
   TrackSummary,
 } from './library.js';
 import {
+  LYRICS_STATUSES,
+  LYRICS_TIMING_SOURCES,
+  type LyricLine,
+  type LyricWord,
+  type LyricsSnapshot,
+} from './lyrics.js';
+import {
   PLAYBACK_ISSUE_CODES,
   PLAYBACK_QUALITY_LEVELS,
   type PlaybackQueueItem,
@@ -78,6 +85,10 @@ function isEmptyPayload(value: unknown): value is Record<string, never> {
 const MAX_PAGE_OFFSET = 1_000_000;
 const MAX_PAGE_LIMIT = 100;
 const MAX_SEARCH_QUERY_LENGTH = 100;
+const MAX_LYRICS_LINES = 500;
+const MAX_LYRICS_WORDS = 200;
+const MAX_LYRICS_TEXT_LENGTH = 2_048;
+const MAX_LYRICS_TOTAL_TEXT_LENGTH = 256 * 1024;
 
 function isPageRequest(value: unknown): value is PageRequest {
   return (
@@ -264,6 +275,112 @@ function isPlaybackReplaceQueuePayload(
   );
 }
 
+function isLyricWord(value: unknown): value is LyricWord {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['startMs', 'endMs', 'text']) &&
+    typeof value.startMs === 'number' &&
+    Number.isSafeInteger(value.startMs) &&
+    value.startMs >= 0 &&
+    value.startMs <= 24 * 60 * 60 * 1000 &&
+    typeof value.endMs === 'number' &&
+    Number.isSafeInteger(value.endMs) &&
+    value.endMs > value.startMs &&
+    value.endMs <= 24 * 60 * 60 * 1000 &&
+    safeString(value.text, MAX_LYRICS_TEXT_LENGTH)
+  );
+}
+
+function isLyricLine(value: unknown): value is LyricLine {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, [
+      'startMs',
+      'endMs',
+      'text',
+      'translation',
+      'romanization',
+      'words',
+    ]) &&
+    typeof value.startMs === 'number' &&
+    Number.isSafeInteger(value.startMs) &&
+    value.startMs >= 0 &&
+    value.startMs <= 24 * 60 * 60 * 1000 &&
+    (value.endMs === undefined ||
+      (typeof value.endMs === 'number' &&
+        Number.isSafeInteger(value.endMs) &&
+        value.endMs > value.startMs &&
+        value.endMs <= 24 * 60 * 60 * 1000)) &&
+    safeString(value.text, MAX_LYRICS_TEXT_LENGTH) &&
+    (value.translation === undefined || safeString(value.translation, MAX_LYRICS_TEXT_LENGTH)) &&
+    (value.romanization === undefined || safeString(value.romanization, MAX_LYRICS_TEXT_LENGTH)) &&
+    (value.words === undefined ||
+      (Array.isArray(value.words) &&
+        value.words.length > 0 &&
+        value.words.length <= MAX_LYRICS_WORDS &&
+        value.words.every((word) => isLyricWord(word))))
+  );
+}
+
+function isLyricsSnapshot(value: unknown): value is LyricsSnapshot {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, [
+      'status',
+      'lines',
+      'activeLineIndex',
+      'activeWordIndex',
+      'timingSource',
+    ]) ||
+    !LYRICS_STATUSES.includes(value.status as (typeof LYRICS_STATUSES)[number]) ||
+    !Array.isArray(value.lines) ||
+    value.lines.length > MAX_LYRICS_LINES ||
+    !value.lines.every((line) => isLyricLine(line)) ||
+    typeof value.activeLineIndex !== 'number' ||
+    !Number.isSafeInteger(value.activeLineIndex) ||
+    value.activeLineIndex < -1 ||
+    value.activeLineIndex >= value.lines.length ||
+    !LYRICS_TIMING_SOURCES.includes(
+      value.timingSource as (typeof LYRICS_TIMING_SOURCES)[number],
+    )
+  ) {
+    return false;
+  }
+
+  const totalTextLength = value.lines.reduce((total, line) => {
+    const words = Array.isArray(line.words)
+      ? line.words.reduce((wordTotal, word) => wordTotal + word.text.length, 0)
+      : 0;
+    return total + line.text.length + (line.translation?.length ?? 0) +
+      (line.romanization?.length ?? 0) + words;
+  }, 0);
+  if (totalTextLength > MAX_LYRICS_TOTAL_TEXT_LENGTH) return false;
+
+  if (
+    value.activeWordIndex !== undefined &&
+    (typeof value.activeWordIndex !== 'number' ||
+      !Number.isSafeInteger(value.activeWordIndex) ||
+      value.activeWordIndex < -1)
+  ) {
+    return false;
+  }
+  if (value.activeWordIndex !== undefined && value.activeWordIndex >= 0) {
+    const activeLine = value.lines[value.activeLineIndex];
+    if (!activeLine?.words || value.activeWordIndex >= activeLine.words.length) return false;
+  }
+  return true;
+}
+
+function isLyricsPayload(value: unknown): value is { trackId: string } {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['trackId']) &&
+    safeString(value.trackId, 128) &&
+    /^\d+$/.test(value.trackId) &&
+    value.trackId !== '0'
+  );
+}
+
 function isSetCredentialPayload(value: unknown): value is { credential: string } {
   return (
     isRecord(value) &&
@@ -386,6 +503,7 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'library.search') return isLibrarySearchPayload(payload);
   if (command === 'library.liked') return isLibraryPagePayload(payload);
   if (command === 'library.playlist') return isLibraryPlaylistPayload(payload);
+  if (command === 'lyrics.get') return isLyricsPayload(payload);
   if (command === 'playback.play') return isPlaybackPlayPayload(payload);
   if (command === 'playback.replaceQueue') return isPlaybackReplaceQueuePayload(payload);
   return isEmptyPayload(payload);
@@ -544,6 +662,8 @@ function isCommandResult(
       return Array.isArray(value) && value.length <= MAX_PAGE_OFFSET && value.every((item) => isPlaylistSummary(item));
     case 'library.playlist':
       return isPlaylistDetail(value);
+    case 'lyrics.get':
+      return isLyricsSnapshot(value);
     case 'core.shutdown':
       return isRecord(value) && hasOnlyKeys(value, ['stopped']) && value.stopped === true;
     case 'roon.listZones':
@@ -579,6 +699,8 @@ function isEventPayload(event: IpcEventName, payload: unknown): boolean {
       return hasOnlyKeys(payload, ['state']) && isPlaybackSnapshot(payload.state);
     case 'queue.changed':
       return hasOnlyKeys(payload, ['queue']) && isPlaybackQueueSnapshot(payload.queue);
+    case 'lyrics.changed':
+      return hasOnlyKeys(payload, ['state']) && isLyricsSnapshot(payload.state);
   }
 }
 

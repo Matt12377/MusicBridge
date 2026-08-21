@@ -3,6 +3,7 @@ import type {
   PageRequest,
   PlaylistDetail,
   PlaylistSummary,
+  LyricsSnapshot,
   PlaybackQueueItem,
   PlaybackQuality,
   PlaybackSnapshot,
@@ -16,6 +17,7 @@ import { BridgeController, type BridgeState } from './application/bridge-control
 import { loadConfig } from './config/config.js';
 import { ControlServer } from './control/server.js';
 import { NeteaseClient } from './netease/client.js';
+import { emptyLyricsSnapshot } from './netease/lyrics.js';
 import { QrLoginStateMachine } from './netease/qr-login.js';
 import { RoonAudioInputAdapter } from './roon/adapter.js';
 import type { RoonSdk } from './roon/sdk.js';
@@ -23,6 +25,7 @@ import { asBridgeError } from './shared/errors.js';
 import { createLogger, type Logger } from './shared/logger.js';
 import { StreamGateway } from './stream/gateway.js';
 import { StreamRegistry } from './stream/registry.js';
+import { LyricsCoordinator } from './lyrics/coordinator.js';
 
 export type CoreRuntimeEvent = TypedIpcEvent;
 
@@ -46,6 +49,7 @@ export interface CoreRuntime {
   getLikedTracks(page: PageRequest): Promise<Page<TrackSummary>>;
   getUserPlaylists(): Promise<readonly PlaylistSummary[]>;
   getPlaylist(playlistId: string, page: PageRequest): Promise<PlaylistDetail>;
+  getLyrics(trackId: string): Promise<LyricsSnapshot>;
   getPlaybackState(): PlaybackSnapshot;
   playbackPlay(trackId: string, quality: PlaybackQuality): Promise<PlaybackSnapshot>;
   playbackStop(): Promise<PlaybackSnapshot>;
@@ -189,7 +193,19 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     }
   };
 
+  const lyrics = new LyricsCoordinator({
+    load: (trackId) => withProviderRecovery(() => netease.getLyrics(trackId)),
+    onChange: (snapshot) => {
+      emit({
+        version: 1,
+        event: 'lyrics.changed',
+        payload: { state: snapshot },
+      });
+    },
+  });
+
   controller.subscribe((snapshot) => {
+    lyrics.onPlaybackChanged(snapshot);
     emit({
       version: 1,
       event: 'playback.changed',
@@ -207,11 +223,13 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     emit(eventWithState('roon.changed', state));
     emit(eventWithState('core.health', state));
   });
+  roon.setTimeHandler?.((positionMs) => lyrics.updateRoonTime(positionMs));
 
   const cleanup = async (): Promise<void> => {
     await control.stop();
     await controller.shutdown();
     await roon.shutdown();
+    lyrics.shutdown();
     registry.revokeAll();
     await gateway.stop();
   };
@@ -313,6 +331,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     getUserPlaylists: () => withProviderRecovery(() => netease.getUserPlaylists()),
     getPlaylist: (playlistId, page) =>
       withProviderRecovery(() => netease.getPlaylist(playlistId, page)),
+    getLyrics: (trackId) => lyrics.getLyrics(trackId),
     getPlaybackState: () => controller.getPlaybackState(),
     async playbackPlay(trackId, quality) {
       await controller.play({ trackId, quality });
@@ -425,6 +444,9 @@ export function createTestBridgeRuntime(): CoreRuntime {
         trackCount: 0,
         tracks: { items: [], offset: page.offset, limit: page.limit, total: 0, hasMore: false },
       };
+    },
+    async getLyrics() {
+      return emptyLyricsSnapshot();
     },
     getPlaybackState: () => playbackState,
     async playbackPlay(trackId, quality) {

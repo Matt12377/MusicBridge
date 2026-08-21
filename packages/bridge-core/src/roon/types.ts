@@ -38,6 +38,7 @@ export type RoonTerminalReason =
 
 export interface RoonPort {
   setTerminalHandler(handler: (reason: RoonTerminalReason) => void): void;
+  setTimeHandler?(handler: (positionMs: number) => void): void;
   start(): Promise<void>;
   stop(): Promise<void>;
   shutdown(): Promise<void>;

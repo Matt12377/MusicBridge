@@ -128,6 +128,8 @@ async function dispatch(
         (request.payload as { playlistId: string }).playlistId,
         (request.payload as { page: { offset: number; limit: number } }).page,
       );
+    case 'lyrics.get':
+      return runtime.getLyrics((request.payload as { trackId: string }).trackId);
     case 'roon.listZones':
       return { zones: runtime.listZones() };
     case 'roon.selectZone':

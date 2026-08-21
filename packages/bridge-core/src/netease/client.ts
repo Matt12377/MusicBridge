@@ -35,6 +35,7 @@ import {
   parseQrImageResponse,
   parseQrKeyResponse,
 } from './parse.js';
+import { parseLyricsResponse } from './lyrics.js';
 import type { QrLoginCheckResult, QrLoginProvider } from './qr-login.js';
 
 type ApiResponse = Promise<unknown>;
@@ -53,6 +54,7 @@ interface NeteaseApiModule {
   user_playlist?(params: Record<string, unknown>): ApiResponse;
   playlist_detail?(params: Record<string, unknown>): ApiResponse;
   playlist_track_all?(params: Record<string, unknown>): ApiResponse;
+  lyric_new?(params: Record<string, unknown>): ApiResponse;
 }
 
 function loadApi(): NeteaseApiModule {
@@ -219,6 +221,23 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
         'NETEASE_REQUEST_FAILED',
         'NetEase song metadata request failed',
         { cause: error, httpStatus: 502, details: { trackId } },
+      );
+    }
+  }
+
+  async getLyrics(trackIdInput: string) {
+    const trackId = normalizeTrackId(trackIdInput);
+    const cookie = this.requireCookie();
+    const lyricNew = this.api.lyric_new;
+    if (!lyricNew) throw this.libraryApiUnavailable();
+    try {
+      return parseLyricsResponse(await lyricNew({ id: trackId, cookie }));
+    } catch (error) {
+      if (error instanceof BridgeError) throw error;
+      throw new BridgeError(
+        'NETEASE_REQUEST_FAILED',
+        'NetEase lyrics request failed',
+        { cause: error, httpStatus: 502 },
       );
     }
   }

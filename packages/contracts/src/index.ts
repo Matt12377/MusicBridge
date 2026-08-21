@@ -1,6 +1,7 @@
 export * from './errors.js';
 export * from './ipc.js';
 export * from './library.js';
+export * from './lyrics.js';
 export * from './playback.js';
 export * from './state.js';
 export * from './validator.js';

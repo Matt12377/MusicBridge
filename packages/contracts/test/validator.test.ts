@@ -527,3 +527,68 @@ test('contracts validates bounded playback controls and sanitized snapshots', ()
     false,
   );
 });
+
+test('contracts validates bounded lyrics snapshots and rejects provider fields', () => {
+  const snapshot = {
+    status: 'ready',
+    lines: [
+      {
+        startMs: 0,
+        endMs: 1_000,
+        text: 'Synthetic lyric',
+        translation: 'Synthetic translation',
+        romanization: 'Synthetic romanization',
+        words: [{ startMs: 0, endMs: 500, text: 'Synthetic' }],
+      },
+    ],
+    activeLineIndex: 0,
+    activeWordIndex: 0,
+    timingSource: 'roon-time',
+  };
+
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'lyrics-get',
+      command: 'lyrics.get',
+      payload: { trackId: '101' },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcResponseForCommand(
+      { version: IPC_VERSION, id: 'lyrics-get', ok: true, result: snapshot },
+      'lyrics.get',
+    ).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcEvent({
+      version: IPC_VERSION,
+      event: 'lyrics.changed',
+      payload: { state: snapshot },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcResponseForCommand(
+      {
+        version: IPC_VERSION,
+        id: 'lyrics-unsafe',
+        ok: true,
+        result: { ...snapshot, rawProviderResponse: { code: 200 } },
+      },
+      'lyrics.get',
+    ).ok,
+    false,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'lyrics-invalid-track',
+      command: 'lyrics.get',
+      payload: { trackId: 'not-a-numeric-id' },
+    }).ok,
+    false,
+  );
+});

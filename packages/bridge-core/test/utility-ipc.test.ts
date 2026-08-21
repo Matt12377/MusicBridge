@@ -11,6 +11,7 @@ import {
   type UtilityPort,
 } from '../src/utility-main.js';
 import { BridgeError } from '../src/shared/errors.js';
+import { emptyLyricsSnapshot } from '../src/netease/lyrics.js';
 
 class FakePort implements UtilityPort {
   readonly messages: unknown[] = [];
@@ -137,6 +138,9 @@ function makeRuntime(): CoreRuntimeForIpc & {
         trackCount: 1,
         tracks: { items: [], offset: 0, limit: 20, total: 1, hasMore: false },
       }
+    },
+    async getLyrics() {
+      return emptyLyricsSnapshot('unavailable')
     },
     getPlaybackState: () => playbackState,
     async playbackPlay() {
@@ -332,6 +336,31 @@ test('utility IPC maps an expired Provider session to a public error', async () 
     error: { code: 'AUTH_EXPIRED', message: 'Provider session expired' },
   });
   assert.doesNotMatch(JSON.stringify(port.messages[1]), /synthetic raw provider detail/);
+});
+
+test('utility IPC returns bounded lyrics snapshots without provider response fields', async () => {
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, makeRuntime());
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'lyrics-get',
+    command: 'lyrics.get',
+    payload: { trackId: '101' },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[1], {
+    version: IPC_VERSION,
+    id: 'lyrics-get',
+    ok: true,
+    result: {
+      status: 'unavailable',
+      lines: [],
+      activeLineIndex: -1,
+      timingSource: 'static',
+    },
+  });
+  assert.doesNotMatch(JSON.stringify(port.messages[1]), /rawProvider|cookie|token|Authorization/i);
 });
 
 test('utility IPC dispatches typed playback controls without exposing stream internals', async () => {

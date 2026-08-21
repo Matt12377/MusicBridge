@@ -308,6 +308,13 @@ function registerIpcHandlers(
       }),
     ),
   )
+  ipcMain.handle('lyrics:get', (event, trackId: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('lyrics.get', {
+        trackId: requirePlaybackTrackId(trackId),
+      }),
+    ),
+  )
   ipcMain.handle('playback:get-state', (event) =>
     invokeCore(event, () => supervisor.request('playback.getState', {})),
   )

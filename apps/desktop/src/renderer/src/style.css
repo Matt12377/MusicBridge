@@ -67,6 +67,7 @@ h2 {
 
 .info-card,
 .auth-card,
+.lyrics-card,
 .library-card,
 .status-card {
   border: 1px solid #2b3344;
@@ -87,6 +88,77 @@ h2 {
   align-items: center;
   margin-bottom: 18px;
   padding: 24px;
+}
+
+.lyrics-card {
+  margin-bottom: 18px;
+  padding: 24px;
+}
+
+.lyrics-header {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.lyrics-header h2 {
+  margin-bottom: 8px;
+}
+
+.lyrics-header .description {
+  margin-bottom: 0;
+}
+
+.lyrics-status {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border: 1px solid #3a4359;
+  border-radius: 999px;
+  color: #aeb7ff;
+  font-size: 12px;
+}
+
+.lyrics-empty {
+  margin: 0;
+  color: #a8b0c3;
+}
+
+.lyrics-lines {
+  display: grid;
+  gap: 8px;
+  max-height: 360px;
+  overflow: auto;
+  padding: 4px 2px;
+}
+
+.lyrics-line {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #8992a8;
+  line-height: 1.55;
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.lyrics-line.active {
+  color: #f5f7ff;
+  background: #252d40;
+}
+
+.lyrics-line small {
+  display: block;
+  color: #aeb7ff;
+  font-size: 12px;
+}
+
+.lyrics-words span {
+  transition: color 120ms ease;
+}
+
+.lyrics-words .word-active {
+  color: #c9d0ff;
 }
 
 .auth-copy p:last-child,
@@ -380,6 +452,7 @@ dd {
 
   dl,
   .auth-card,
+  .lyrics-header,
   .status-grid {
     grid-template-columns: 1fr;
   }

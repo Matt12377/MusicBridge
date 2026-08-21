@@ -5,6 +5,7 @@ import type {
   Page,
   PlaylistDetail,
   PlaylistSummary,
+  LyricsSnapshot,
   PlaybackSnapshot,
   PublicAuthState,
   PublicBridgeState,
@@ -47,6 +48,12 @@ test('Preload exposes only sanitized business methods', async () => {
     canPrevious: false,
     canStop: false,
   }
+  const lyrics: LyricsSnapshot = {
+    status: 'unavailable',
+    lines: [],
+    activeLineIndex: -1,
+    timingSource: 'static',
+  }
   const api = createPreloadApi(
     async () => appInfo,
     async () => state,
@@ -61,6 +68,7 @@ test('Preload exposes only sanitized business methods', async () => {
     async () => page,
     async () => playlists,
     async () => playlist,
+    async () => lyrics,
     async () => playbackState,
     async () => playbackState,
     async () => playbackState,
@@ -84,6 +92,7 @@ test('Preload exposes only sanitized business methods', async () => {
     'getLikedTracks',
     'getUserPlaylists',
     'getPlaylist',
+    'getLyrics',
     'getPlaybackState',
     'play',
     'stop',
@@ -106,6 +115,7 @@ test('Preload exposes only sanitized business methods', async () => {
     'getLikedTracks',
     'getUserPlaylists',
     'getPlaylist',
+    'getLyrics',
     'getPlaybackState',
     'play',
     'stop',
@@ -128,6 +138,7 @@ test('Preload exposes only sanitized business methods', async () => {
   assert.deepEqual(await api.getLikedTracks({ offset: 0, limit: 20 }), page)
   assert.deepEqual(await api.getUserPlaylists(), playlists)
   assert.deepEqual(await api.getPlaylist('301', { offset: 0, limit: 20 }), playlist)
+  assert.deepEqual(await api.getLyrics('301'), lyrics)
   assert.deepEqual(await api.getPlaybackState(), playbackState)
   assert.deepEqual(await api.play('301', 'lossless'), playbackState)
   assert.deepEqual(await api.stop(), playbackState)

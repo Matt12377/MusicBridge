@@ -346,6 +346,22 @@ test('start begins Roon discovery and reports discovering', async () => {
   assert.deepEqual(adapter.getState(), { status: 'discovering' });
 });
 
+test('Time callbacks expose only a validated playback position in milliseconds', async () => {
+  const { adapter, api } = await makeReadyHarness();
+  const positions: number[] = [];
+  adapter.setTimeHandler((positionMs) => positions.push(positionMs));
+  api.core.audioInput.autoPlay = false;
+  const playback = adapter.play(playRequest);
+  await nextTurn();
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'opaque-session' });
+  api.core.audioInput.emitPlay('Time', { time: 12.5 });
+  api.core.audioInput.emitPlay('Time', { position_ms: -1 });
+  api.core.audioInput.emitPlay('Time', { position_ms: 1_250 });
+  api.core.audioInput.emitPlay('Playing');
+  await playback;
+  assert.deepEqual(positions, [12_500, 1_250]);
+});
+
 test('paired Core without a selected Zone reports paired', async () => {
   const { adapter, sdk } = makeHarness();
   await adapter.start();
