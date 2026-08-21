@@ -12,6 +12,7 @@ import {
   createProductionRoonSdk,
   type RoonApiInstance,
   type RoonAudioInputService,
+  type RoonAudioInputPlayOptions,
   type RoonAudioInputSession,
   type RoonCore,
   type RoonSdk,
@@ -53,6 +54,7 @@ export interface RoonAudioInputAdapterOptions {
   sessionBeginTimeoutMs?: number;
   playingTimeoutMs?: number;
   trackIdFactory?: () => string;
+  playbackMode?: 'channel' | 'track';
 }
 
 const DEFAULT_SESSION_BEGIN_TIMEOUT_MS = 10_000;
@@ -256,6 +258,7 @@ export class RoonAudioInputAdapter implements RoonPort {
   private readonly sessionBeginTimeoutMs: number;
   private readonly playingTimeoutMs: number;
   private readonly trackIdFactory: () => string;
+  private readonly playbackMode: 'channel' | 'track';
   private currentTrackId: string | undefined;
 
   constructor(
@@ -266,6 +269,7 @@ export class RoonAudioInputAdapter implements RoonPort {
     this.sessionBeginTimeoutMs = options.sessionBeginTimeoutMs ?? DEFAULT_SESSION_BEGIN_TIMEOUT_MS;
     this.playingTimeoutMs = options.playingTimeoutMs ?? DEFAULT_PLAYING_TIMEOUT_MS;
     this.trackIdFactory = options.trackIdFactory ?? (() => `musicbridge-${randomUUID()}`);
+    this.playbackMode = options.playbackMode ?? 'track';
   }
 
   setTerminalHandler(handler: (reason: RoonTerminalReason) => void): void {
@@ -513,30 +517,32 @@ export class RoonAudioInputAdapter implements RoonPort {
               () => undefined,
             );
             this.logger.info('roon_play_requested', { phase: 'awaiting_playing' });
-            audioInput.play(
-              {
-                session_id: sessionId,
-                track_id: trackId,
-                type: 'channel',
-                slot: 'play',
-                media_url: request.mediaUrl,
-                info: {
-                  is_seek_allowed: false,
-                  is_pause_allowed: false,
-                  one_line: { line1: request.metadata.title },
-                  two_line: {
-                    line1: request.metadata.title,
-                    line2: request.metadata.artists.join(' / '),
-                  },
-                  three_line: {
-                    line1: request.metadata.title,
-                    line2: request.metadata.artists.join(' / '),
-                    line3: request.metadata.album,
-                  },
+            const playOptions: RoonAudioInputPlayOptions = {
+              session_id: sessionId,
+              track_id: trackId,
+              type: this.playbackMode,
+              slot: 'play',
+              media_url: request.mediaUrl,
+              ...(this.playbackMode === 'track' ? { seek_position_ms: 0 } : {}),
+              info: {
+                is_seek_allowed: false,
+                is_pause_allowed: false,
+                ...(this.playbackMode === 'track' && request.metadata.durationMs !== undefined
+                  ? { length: request.metadata.durationMs / 1000 }
+                  : {}),
+                one_line: { line1: request.metadata.title },
+                two_line: {
+                  line1: request.metadata.title,
+                  line2: request.metadata.artists.join(' / '),
+                },
+                three_line: {
+                  line1: request.metadata.title,
+                  line2: request.metadata.artists.join(' / '),
+                  line3: request.metadata.album,
                 },
               },
-              handlePlayEvent,
-            );
+            };
+            audioInput.play(playOptions, handlePlayEvent);
           } catch (error) {
             this.logger.warn('roon_connection_error', {
               phase: 'awaiting_playing',

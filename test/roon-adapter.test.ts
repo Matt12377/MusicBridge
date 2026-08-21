@@ -213,6 +213,7 @@ interface AdapterTestOptions {
   sessionBeginTimeoutMs?: number;
   playingTimeoutMs?: number;
   trackIdFactory?: () => string;
+  playbackMode?: 'channel' | 'track';
 }
 
 function recordingLogger(): {
@@ -492,6 +493,7 @@ test('valid SessionBegan is required before audioInput.play and begin_session us
 test('channel play payload has one stable non-sensitive track identity', async () => {
   const { adapter, api } = await makeReadyHarness({
     trackIdFactory: () => 'musicbridge-test-track-identity',
+    playbackMode: 'channel',
   });
   api.core.audioInput.autoPlay = false;
   const playback = adapter.play(playRequest);
@@ -511,6 +513,24 @@ test('channel play payload has one stable non-sensitive track identity', async (
   assert.equal(payload.seek_position_ms, undefined);
   assert.equal(payload.info.length, undefined);
   assert.equal(api.core.audioInput.playOptions[0]?.track_id, payload.track_id);
+});
+
+test('track play payload uses an explicit start position and metadata duration', async () => {
+  const { adapter, api } = await makeReadyHarness({ playbackMode: 'track' });
+  const playback = adapter.play({
+    ...playRequest,
+    metadata: { ...playRequest.metadata, durationMs: 120_000 },
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'opaque-session' });
+  await playback;
+
+  const payload = api.core.audioInput.playOptions[0];
+  assert.ok(payload);
+  assert.equal(payload.type, 'track');
+  assert.equal(payload.seek_position_ms, 0);
+  assert.equal(payload.info.length, 120);
+  assert.equal(payload.track_id.startsWith('musicbridge-'), true);
 });
 
 test('a new playback receives a new track identity after stop clears the prior one', async () => {
