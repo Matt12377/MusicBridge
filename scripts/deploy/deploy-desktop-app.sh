@@ -278,7 +278,7 @@ trap on_signal INT TERM HUP
 
 printf '%s\n' "开始构建未签名 Electron App"
 corepack pnpm@10.17.1 run verify
-corepack pnpm@10.17.1 --filter @music-bridge/desktop run pack
+CSC_IDENTITY_AUTO_DISCOVERY=false corepack pnpm@10.17.1 --filter @music-bridge/desktop run pack
 
 if [[ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]]; then
   printf '%s\n' "构建后工作区出现未预期变更，停止部署" >&2
