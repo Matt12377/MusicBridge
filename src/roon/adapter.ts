@@ -32,6 +32,13 @@ interface SettingsState {
 
 type RoonPlaybackPhase = 'awaiting_session' | 'awaiting_playing';
 
+interface ActiveRoonPlaybackContext {
+  generation: number;
+  trackId: string;
+  session?: RoonAudioInputSession;
+  cancel?: () => void;
+}
+
 export type SanitizedRoonErrorClass =
   | 'missing_required_field'
   | 'invalid_zone'
@@ -252,14 +259,14 @@ export class RoonAudioInputAdapter implements RoonPort {
   private settings: SettingsState = {};
   private readonly zones = new Map<string, RoonZone>();
   private selectedZone: RoonZone | undefined;
-  private session: RoonAudioInputSession | undefined;
+  private playbackGeneration = 0;
+  private activePlaybackContext: ActiveRoonPlaybackContext | undefined;
   private state: RoonState = { status: 'discovering' };
   private terminalHandler: (reason: RoonTerminalReason) => void = () => undefined;
   private readonly sessionBeginTimeoutMs: number;
   private readonly playingTimeoutMs: number;
   private readonly trackIdFactory: () => string;
   private readonly playbackMode: 'channel' | 'track';
-  private currentTrackId: string | undefined;
 
   constructor(
     private readonly logger: Logger,
@@ -374,7 +381,9 @@ export class RoonAudioInputAdapter implements RoonPort {
         details: { reason: 'invalid_track_identity' },
       });
     }
-    this.currentTrackId = trackId;
+    const generation = ++this.playbackGeneration;
+    const playbackContext: ActiveRoonPlaybackContext = { generation, trackId };
+    this.activePlaybackContext = playbackContext;
 
     await new Promise<void>((resolve, reject) => {
       let settled = false;
@@ -386,19 +395,27 @@ export class RoonAudioInputAdapter implements RoonPort {
         if (settled) return;
         settled = true;
         if (timeout) clearTimeout(timeout);
-        if (error) this.clearTrackIdentity();
+        if (error) this.clearPlaybackContext(generation);
         if (error) reject(error);
         else resolve();
+      };
+
+      playbackContext.cancel = () => {
+        finish(protocolError(phase, 'stopped_by_new_playback'));
       };
 
       const armTimeout = (nextPhase: RoonPlaybackPhase, durationMs: number): void => {
         phase = nextPhase;
         if (timeout) clearTimeout(timeout);
         timeout = setTimeout(() => {
+          const generationCurrent = this.isCurrentPlaybackGeneration(generation);
           this.logger.warn('roon_session_timeout', {
             phase: nextPhase,
             elapsedMs: Date.now() - startedAt,
+            generationCurrent,
+            staleCallback: !generationCurrent,
           });
+          if (!generationCurrent) return;
           finish(timeoutError(nextPhase));
         }, durationMs);
       };
@@ -406,7 +423,7 @@ export class RoonAudioInputAdapter implements RoonPort {
       const finishZoneLoss = (): void => {
         this.selectedZone = undefined;
         this.setStatus('paired', 'Please configure Zone', true);
-        this.clearTrackIdentity();
+        this.clearPlaybackContext(generation);
         this.terminalHandler('zone_lost');
         finish(
           new BridgeError(
@@ -419,7 +436,11 @@ export class RoonAudioInputAdapter implements RoonPort {
 
       const handlePlayEvent = (playMessage: unknown, playBody: unknown): void => {
         const event = messageName(playMessage);
+        const generationCurrent = this.isCurrentPlaybackGeneration(generation);
+        const staleCallback = !generationCurrent;
         const responseSummary = summarizeRoonResponseBody(playBody);
+        const trackIdPresent =
+          generationCurrent && this.activePlaybackContext?.trackId === trackId;
         let gatewayStage: RoonGatewayStage = 'none';
         try {
           gatewayStage = readGatewayStage(request.gatewayStage?.());
@@ -433,9 +454,12 @@ export class RoonAudioInputAdapter implements RoonPort {
           bodyPresent: responseSummary.bodyPresent,
           bodyKeys: responseSummary.bodyKeys,
           sanitizedErrorClass: responseSummary.sanitizedErrorClass,
-          trackIdPresent: this.currentTrackId === trackId,
+          generationCurrent,
+          staleCallback,
+          trackIdPresent,
           gatewayStage,
         });
+        if (staleCallback) return;
         switch (event) {
           case 'Playing':
             this.setStatus('playing', 'Playing', false);
@@ -446,20 +470,20 @@ export class RoonAudioInputAdapter implements RoonPort {
           case 'EndedNaturally':
             this.setStatus('ready', 'Ready', false);
             this.terminalHandler('ended');
-            this.clearTrackIdentity();
+            this.clearPlaybackContext(generation);
             if (!settled) finish(protocolError('awaiting_playing', 'ended_before_playing', event));
             break;
           case 'StoppedUser':
           case 'Paused':
             this.setStatus('ready', 'Ready', false);
             this.terminalHandler('stopped');
-            this.clearTrackIdentity();
+            this.clearPlaybackContext(generation);
             if (!settled) finish(protocolError('awaiting_playing', 'stopped_before_playing', event));
             break;
           case 'MediaError':
             this.setStatus('error', 'Media error', true, 'Roon MediaError');
             this.terminalHandler('media_error');
-            this.clearTrackIdentity();
+            this.clearPlaybackContext(generation);
             finish(
               new BridgeError('ROON_MEDIA_ERROR', 'Roon reported a media error', {
                 httpStatus: 502,
@@ -479,14 +503,20 @@ export class RoonAudioInputAdapter implements RoonPort {
 
       const handleSessionEvent = (sessionMessage: unknown, body: unknown): void => {
         const sessionEvent = messageName(sessionMessage);
+        const generationCurrent = this.isCurrentPlaybackGeneration(generation);
+        const staleCallback = !generationCurrent;
         const sessionId = readSessionId(body);
         const responseSummary = summarizeRoonResponseBody(body);
         this.logger.info('roon_session_event', {
           phase,
           eventName: sessionEvent,
+          generationCurrent,
+          staleCallback,
+          trackIdPresent: generationCurrent && this.activePlaybackContext?.trackId === trackId,
           hasSessionId: Boolean(sessionId),
           sanitizedErrorClass: responseSummary.sanitizedErrorClass,
         });
+        if (staleCallback) return;
 
         if (sessionEvent === 'SessionBegan') {
           if (settled) return;
@@ -547,6 +577,9 @@ export class RoonAudioInputAdapter implements RoonPort {
             this.logger.warn('roon_connection_error', {
               phase: 'awaiting_playing',
               reason: 'play_request_failed',
+              generationCurrent: true,
+              staleCallback: false,
+              trackIdPresent: true,
             });
             finish(protocolError('awaiting_playing', 'play_request_failed'));
           }
@@ -565,7 +598,7 @@ export class RoonAudioInputAdapter implements RoonPort {
 
         if (sessionEvent === 'SessionEnded') {
           this.setStatus('ready', 'Ready', false);
-          this.clearTrackIdentity();
+          this.clearPlaybackContext(generation);
           if (!settled) finish(protocolError(phase, 'session_ended', sessionEvent));
           return;
         }
@@ -574,6 +607,9 @@ export class RoonAudioInputAdapter implements RoonPort {
           this.logger.warn('roon_connection_error', {
             phase,
             eventName: sessionEvent,
+            generationCurrent,
+            staleCallback,
+            trackIdPresent: generationCurrent && this.activePlaybackContext?.trackId === trackId,
           });
           if (!settled) finish(protocolError(phase, 'connection_error', sessionEvent));
           return;
@@ -601,11 +637,18 @@ export class RoonAudioInputAdapter implements RoonPort {
           },
           handleSessionEvent,
         );
-        this.session = session;
+        if (this.isCurrentPlaybackGeneration(generation)) {
+          playbackContext.session = session;
+        } else {
+          session.end_session(() => undefined);
+        }
       } catch (error) {
         this.logger.warn('roon_connection_error', {
           phase: 'awaiting_session',
           reason: 'begin_session_failed',
+          generationCurrent: this.isCurrentPlaybackGeneration(generation),
+          staleCallback: false,
+          trackIdPresent: this.isCurrentPlaybackGeneration(generation),
         });
         finish(protocolError('awaiting_session', 'begin_session_failed'));
       }
@@ -613,9 +656,12 @@ export class RoonAudioInputAdapter implements RoonPort {
   }
 
   async stop(): Promise<void> {
-    const session = this.session;
-    this.session = undefined;
-    this.clearTrackIdentity();
+    const playbackContext = this.activePlaybackContext;
+    this.activePlaybackContext = undefined;
+    this.playbackGeneration += 1;
+    playbackContext?.cancel?.();
+    const session = playbackContext?.session;
+    if (playbackContext) delete playbackContext.session;
     if (!session) return;
 
     await new Promise<void>((resolve) => {
@@ -656,8 +702,13 @@ export class RoonAudioInputAdapter implements RoonPort {
     return { ...this.state };
   }
 
-  private clearTrackIdentity(): void {
-    this.currentTrackId = undefined;
+  private isCurrentPlaybackGeneration(generation: number): boolean {
+    return this.activePlaybackContext?.generation === generation;
+  }
+
+  private clearPlaybackContext(generation: number): void {
+    if (!this.isCurrentPlaybackGeneration(generation)) return;
+    this.activePlaybackContext = undefined;
   }
 
   private onCorePaired(core: RoonCore): void {

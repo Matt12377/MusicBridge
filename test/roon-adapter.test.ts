@@ -32,28 +32,41 @@ const silentLogger: Logger = {
 class FakeAudioInput implements RoonAudioInputService {
   beginSessionCalls = 0;
   beginSessionOptions: unknown[] = [];
+  beginSessionCallbacks: Array<
+    ((message: unknown, body: unknown) => void) | undefined
+  > = [];
   beginSessionCallback:
     | ((message: unknown, body: unknown) => void)
     | undefined;
+  endSessionCallbacks: Array<
+    ((message: unknown, body: unknown) => void) | undefined
+  > = [];
   playCalls = 0;
   playOptions: RoonAudioInputPlayOptions[] = [];
+  playCallbacks: Array<
+    ((message: unknown, body: unknown) => void) | undefined
+  > = [];
   playCallback:
     | ((message: unknown, body: unknown) => void)
     | undefined;
   autoPlay = true;
+  autoEndSession = true;
   beforeEndSession: (() => void) | undefined;
 
   begin_session(
     options: unknown,
     callback: (message: unknown, body: unknown) => void,
   ): RoonAudioInputSession {
+    const sessionIndex = this.beginSessionCalls;
     this.beginSessionCalls += 1;
     this.beginSessionOptions.push(options);
+    this.beginSessionCallbacks.push(callback);
     this.beginSessionCallback = callback;
     return {
       end_session: (callback) => {
         this.beforeEndSession?.();
-        callback('SessionEnded', {});
+        this.endSessionCallbacks[sessionIndex] = callback;
+        if (this.autoEndSession) callback('SessionEnded', {});
       },
     };
   }
@@ -71,6 +84,7 @@ class FakeAudioInput implements RoonAudioInputService {
   ): void {
     this.playCalls += 1;
     this.playOptions.push(options);
+    this.playCallbacks.push(callback);
     this.playCallback = callback;
     if (this.autoPlay) callback('Playing', {});
   }
@@ -79,8 +93,20 @@ class FakeAudioInput implements RoonAudioInputService {
     this.beginSessionCallback?.(message, body);
   }
 
+  emitSessionAt(index: number, message: unknown, body: unknown = {}): void {
+    this.beginSessionCallbacks[index]?.(message, body);
+  }
+
   emitPlay(message: unknown, body: unknown = {}): void {
     this.playCallback?.(message, body);
+  }
+
+  emitPlayAt(index: number, message: unknown, body: unknown = {}): void {
+    this.playCallbacks[index]?.(message, body);
+  }
+
+  endSessionAt(index: number): void {
+    this.endSessionCallbacks[index]?.('SessionEnded', {});
   }
 }
 
@@ -281,6 +307,34 @@ async function makeReadyHarness(
     ],
   });
   return { ...harness, api };
+}
+
+async function nextTurn(): Promise<void> {
+  await new Promise<void>((resolve) => setImmediate(resolve));
+}
+
+async function startSecondPlayback(
+  adapter: RoonAudioInputAdapter,
+  api: FakeApi,
+): Promise<{ playback: Promise<void> }> {
+  api.core.audioInput.autoEndSession = false;
+  const secondPlayback = adapter.play(playRequest);
+  await nextTurn();
+  api.core.audioInput.endSessionAt(0);
+  await nextTurn();
+  assert.equal(api.core.audioInput.beginSessionCalls, 2);
+  return { playback: secondPlayback };
+}
+
+async function completeSecondPlayback(
+  api: FakeApi,
+  secondPlayback: Promise<void>,
+): Promise<void> {
+  api.core.audioInput.emitSessionAt(1, 'SessionBegan', {
+    session_id: 'opaque-session-2',
+  });
+  api.core.audioInput.emitPlayAt(1, 'Playing');
+  await secondPlayback;
 }
 
 test('start begins Roon discovery and reports discovering', async () => {
@@ -555,6 +609,274 @@ test('a new playback receives a new track identity after stop clears the prior o
   assert.equal(nextTrackId, 2);
 });
 
+test('a stale SessionEnded callback does not clear the new playback identity', async () => {
+  const { logger, events } = recordingLogger();
+  const { adapter, api } = await makeReadyHarness({}, logger);
+  api.core.audioInput.autoPlay = false;
+
+  const firstPlayback = adapter.play(playRequest);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  api.core.audioInput.emitSessionAt(0, 'SessionBegan', {
+    session_id: 'opaque-session-1',
+  });
+  api.core.audioInput.emitPlayAt(0, 'Playing');
+  await firstPlayback;
+
+  api.core.audioInput.autoEndSession = false;
+  const secondPlayback = adapter.play(playRequest);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(api.core.audioInput.beginSessionCalls, 1);
+
+  api.core.audioInput.endSessionAt(0);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(api.core.audioInput.beginSessionCalls, 2);
+
+  api.core.audioInput.emitSessionAt(0, 'SessionEnded');
+  api.core.audioInput.emitSessionAt(1, 'SessionBegan', {
+    session_id: 'opaque-session-2',
+  });
+  api.core.audioInput.emitPlayAt(1, 'Playing');
+  await secondPlayback;
+
+  const playingEvents = events.filter(
+    ({ event, fields }) => event === 'roon_play_event' && fields.eventName === 'Playing',
+  );
+  assert.equal(playingEvents.at(-1)?.fields.trackIdPresent, true);
+  assert.equal(adapter.getState().status, 'playing');
+});
+
+for (const event of ['EndedNaturally', 'StoppedUser', 'Paused', 'MediaError'] as const) {
+  test(`a stale ${event} callback cannot terminate the new playback`, async () => {
+    const { adapter, api } = await makeReadyHarness();
+    api.core.audioInput.autoPlay = false;
+    const terminalReasons: string[] = [];
+    adapter.setTerminalHandler((reason) => terminalReasons.push(reason));
+
+    const firstPlayback = adapter.play(playRequest);
+    await nextTurn();
+    api.core.audioInput.emitSessionAt(0, 'SessionBegan', {
+      session_id: 'opaque-session-1',
+    });
+    api.core.audioInput.emitPlayAt(0, 'Playing');
+    await firstPlayback;
+
+    const { playback: secondPlayback } = await startSecondPlayback(adapter, api);
+    api.core.audioInput.emitPlayAt(0, event, {
+      session_id: 'opaque-old-session',
+      track_id: 'opaque-old-track',
+    });
+    await completeSecondPlayback(api, secondPlayback);
+
+    assert.deepEqual(terminalReasons, []);
+    assert.equal(adapter.getState().status, 'playing');
+  });
+}
+
+test('a stale play ZoneLost callback does not clear the selected Zone', async () => {
+  const { adapter, api } = await makeReadyHarness();
+  api.core.audioInput.autoPlay = false;
+
+  const firstPlayback = adapter.play(playRequest);
+  await nextTurn();
+  api.core.audioInput.emitSessionAt(0, 'SessionBegan', {
+    session_id: 'opaque-session-1',
+  });
+  api.core.audioInput.emitPlayAt(0, 'Playing');
+  await firstPlayback;
+
+  const { playback: secondPlayback } = await startSecondPlayback(adapter, api);
+  api.core.audioInput.emitPlayAt(0, 'ZoneLost', {
+    session_id: 'opaque-old-session',
+  });
+  await completeSecondPlayback(api, secondPlayback);
+
+  assert.equal(adapter.getState().status, 'playing');
+  assert.equal(adapter.getState().selectedZoneId, 'zone-1');
+});
+
+test('a stale session ZoneLost callback does not clear the selected Zone', async () => {
+  const { adapter, api } = await makeReadyHarness();
+  api.core.audioInput.autoPlay = false;
+
+  const firstPlayback = adapter.play(playRequest);
+  await nextTurn();
+  api.core.audioInput.emitSessionAt(0, 'SessionBegan', {
+    session_id: 'opaque-session-1',
+  });
+  api.core.audioInput.emitPlayAt(0, 'Playing');
+  await firstPlayback;
+
+  const { playback: secondPlayback } = await startSecondPlayback(adapter, api);
+  api.core.audioInput.emitSessionAt(0, 'ZoneLost', {
+    session_id: 'opaque-old-session',
+  });
+  await completeSecondPlayback(api, secondPlayback);
+
+  assert.equal(adapter.getState().status, 'playing');
+  assert.equal(adapter.getState().selectedZoneId, 'zone-1');
+});
+
+test('a stale connection callback cannot reject the new playback', async () => {
+  const { adapter, api } = await makeReadyHarness();
+  api.core.audioInput.autoPlay = false;
+
+  const firstPlayback = adapter.play(playRequest);
+  await nextTurn();
+  api.core.audioInput.emitSessionAt(0, 'SessionBegan', {
+    session_id: 'opaque-session-1',
+  });
+  api.core.audioInput.emitPlayAt(0, 'Playing');
+  await firstPlayback;
+
+  const { playback: secondPlayback } = await startSecondPlayback(adapter, api);
+  api.core.audioInput.emitSessionAt(0, 'MooError', {
+    session_id: 'opaque-old-session',
+    details: 'must-not-log',
+  });
+  await completeSecondPlayback(api, secondPlayback);
+
+  assert.equal(adapter.getState().status, 'playing');
+});
+
+test('a stale SessionBegan callback cannot start a second old play request', async () => {
+  const { adapter, api } = await makeReadyHarness();
+  api.core.audioInput.autoPlay = false;
+
+  const firstPlayback = adapter.play(playRequest);
+  await nextTurn();
+  api.core.audioInput.emitSessionAt(0, 'SessionBegan', {
+    session_id: 'opaque-session-1',
+  });
+  api.core.audioInput.emitPlayAt(0, 'Playing');
+  await firstPlayback;
+
+  const { playback: secondPlayback } = await startSecondPlayback(adapter, api);
+  api.core.audioInput.emitSessionAt(0, 'SessionBegan', {
+    session_id: 'opaque-old-session',
+  });
+  assert.equal(api.core.audioInput.playCalls, 1);
+  await completeSecondPlayback(api, secondPlayback);
+});
+
+test('a stale unknown session event cannot reject the new playback', async () => {
+  const { adapter, api } = await makeReadyHarness();
+  api.core.audioInput.autoPlay = false;
+
+  const firstPlayback = adapter.play(playRequest);
+  await nextTurn();
+  api.core.audioInput.emitSessionAt(0, 'SessionBegan', {
+    session_id: 'opaque-session-1',
+  });
+  api.core.audioInput.emitPlayAt(0, 'Playing');
+  await firstPlayback;
+
+  const { playback: secondPlayback } = await startSecondPlayback(adapter, api);
+  api.core.audioInput.emitSessionAt(0, 'UnexpectedOldSessionEvent', {
+    session_id: 'opaque-old-session',
+  });
+  await completeSecondPlayback(api, secondPlayback);
+});
+
+test('a stale unknown play event cannot reject the new playback', async () => {
+  const { adapter, api } = await makeReadyHarness();
+  api.core.audioInput.autoPlay = false;
+
+  const firstPlayback = adapter.play(playRequest);
+  await nextTurn();
+  api.core.audioInput.emitSessionAt(0, 'SessionBegan', {
+    session_id: 'opaque-session-1',
+  });
+  api.core.audioInput.emitPlayAt(0, 'Playing');
+  await firstPlayback;
+
+  const { playback: secondPlayback } = await startSecondPlayback(adapter, api);
+  api.core.audioInput.emitPlayAt(0, 'UnexpectedOldPlayEvent', {
+    session_id: 'opaque-old-session',
+  });
+  await completeSecondPlayback(api, secondPlayback);
+});
+
+test('a stale Playing callback cannot resolve the new playback', async () => {
+  const { adapter, api } = await makeReadyHarness();
+  api.core.audioInput.autoPlay = false;
+
+  const firstPlayback = adapter.play(playRequest);
+  await nextTurn();
+  api.core.audioInput.emitSessionAt(0, 'SessionBegan', {
+    session_id: 'opaque-session-1',
+  });
+  api.core.audioInput.emitPlayAt(0, 'Playing');
+  await firstPlayback;
+
+  const { playback: secondPlayback } = await startSecondPlayback(adapter, api);
+  let secondSettled = false;
+  void secondPlayback.then(
+    () => {
+      secondSettled = true;
+    },
+    () => {
+      secondSettled = true;
+    },
+  );
+  api.core.audioInput.emitPlayAt(0, 'Playing', {
+    session_id: 'opaque-old-session',
+  });
+  await nextTurn();
+  assert.equal(secondSettled, false);
+  await completeSecondPlayback(api, secondPlayback);
+});
+
+test('stale callback telemetry exposes only generation booleans and presence flags', async () => {
+  const { logger, events } = recordingLogger();
+  const { adapter, api } = await makeReadyHarness({}, logger);
+  api.core.audioInput.autoPlay = false;
+
+  const firstPlayback = adapter.play(playRequest);
+  await nextTurn();
+  api.core.audioInput.emitSessionAt(0, 'SessionBegan', {
+    session_id: 'opaque-session-1',
+  });
+  api.core.audioInput.emitPlayAt(0, 'Playing');
+  await firstPlayback;
+
+  const { playback: secondPlayback } = await startSecondPlayback(adapter, api);
+  api.core.audioInput.emitSessionAt(0, 'SessionEnded', {
+    session_id: 'opaque-old-session',
+    track_id: 'opaque-old-track',
+  });
+  await completeSecondPlayback(api, secondPlayback);
+
+  const staleSessionEvent = events.find(
+    ({ event, fields }) =>
+      event === 'roon_session_event' &&
+      fields.eventName === 'SessionEnded' &&
+      fields.staleCallback === true,
+  );
+  assert.equal(staleSessionEvent?.fields.generationCurrent, false);
+  assert.equal(staleSessionEvent?.fields.trackIdPresent, false);
+  assert.equal(JSON.stringify(staleSessionEvent).includes('opaque-old'), false);
+});
+
+test('stopping an awaiting session invalidates its timeout before the next generation', async () => {
+  const { adapter, api } = await makeReadyHarness({ sessionBeginTimeoutMs: 5 });
+  const firstPlayback = adapter.play(playRequest);
+  await nextTurn();
+
+  const secondPlayback = adapter.play(playRequest);
+  await assert.rejects(
+    () => firstPlayback,
+    (error: unknown) =>
+      error instanceof BridgeError &&
+      error.details?.reason === 'stopped_by_new_playback',
+  );
+  api.core.audioInput.emitSessionAt(1, 'SessionBegan', {
+    session_id: 'opaque-session-2',
+  });
+  await secondPlayback;
+  assert.equal(api.core.audioInput.beginSessionCalls, 2);
+  assert.equal(adapter.getState().status, 'playing');
+});
+
 test('play event telemetry contains only safe body summary and gateway stage', async () => {
   const { logger, events } = recordingLogger();
   const { adapter, api } = await makeReadyHarness({}, logger);
@@ -580,6 +902,8 @@ test('play event telemetry contains only safe body summary and gateway stage', a
     bodyPresent: true,
     bodyKeys: ['session_id', 'token', 'error_message'],
     sanitizedErrorClass: 'other',
+    generationCurrent: true,
+    staleCallback: false,
     trackIdPresent: true,
     gatewayStage: 'completed',
   });
@@ -827,6 +1151,9 @@ test('MooError produces a connection diagnostic without exposing callback data',
     {
       phase: 'awaiting_session',
       eventName: 'MooError',
+      generationCurrent: true,
+      staleCallback: false,
+      trackIdPresent: true,
     },
   );
   assert.equal(JSON.stringify(events).includes('opaque-session'), false);
