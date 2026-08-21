@@ -15,7 +15,7 @@
 - 工作分支：`codex/wave-2-desktop-core`
 - 实现提交：`74d62d7fc7cc6c18fabbfd7e89327af45c933ef3`
 - 实现提交信息：`refactor: migrate POC into pnpm workspace`
-- 报告提交：本报告提交后补记
+- 报告提交：`17a427785d4ed556de27d5182486de97fc6e5038`
 
 ## 本轮实现
 
