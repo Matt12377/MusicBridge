@@ -64,6 +64,7 @@ Music Bridge for Roon
 - 播放、停止、上一首、下一首。
 - 队列。
 - 实际音质展示。
+- 同步歌词（Now Playing 能力）。
 - 错误与诊断。
 - macOS 打包。
 
@@ -76,7 +77,6 @@ Music Bridge for Roon
 
 ### Could（V1.1）
 
-- 歌词。
 - 暂停/seek。
 - 自动更新。
 - 跨机器 Agent。

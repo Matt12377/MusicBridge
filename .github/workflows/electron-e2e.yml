@@ -1,0 +1,35 @@
+name: electron-e2e
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'apps/desktop/**'
+      - 'packages/bridge-core/**'
+      - 'packages/contracts/**'
+      - '.github/workflows/electron-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-desktop-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: Install frozen workspace
+        run: corepack pnpm@10.17.1 install --frozen-lockfile --ignore-scripts
+
+      - name: Desktop tests with synthetic fixtures
+        run: corepack pnpm@10.17.1 --filter @music-bridge/desktop test
+
+      - name: Electron startup and utilityProcess crash/restart
+        run: xvfb-run --auto-servernum corepack pnpm@10.17.1 --filter @music-bridge/desktop run test:startup

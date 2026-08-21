@@ -1,0 +1,14 @@
+schemaVersion: 1
+wave: WAVE-3
+status: active
+source: tasks/MusicBridge_V1_Completion_GOAL_v1.0.md
+order:
+  - TASK-029
+  - TASK-024
+  - TASK-030
+  - TASK-031
+  - TASK-032
+  - TASK-040
+  - TASK-041
+stopAfter: TASK-041
+reviewBoundary: beta-candidate

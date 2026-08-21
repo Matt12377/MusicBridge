@@ -18,7 +18,9 @@
 | TASK-021 | 搜索、我喜欢与歌单 | 020 | 分页与领域模型 Gate |
 | TASK-022 | 队列与播放控制 | 021 | play/stop/next/previous |
 | TASK-023 | Roon 元数据、音质与错误恢复 | 022 | 可理解状态与降级 |
-| TASK-030 | V1 主界面 | 023 | Home/Search/Library/Now Playing/Settings |
+| TASK-029 | V1 完成控制面、CI 与 Provider 契约冻结 | 023 | 控制面、CI、安全扫描与 wrapper contract |
+| TASK-024 | 同步歌词 | 029 | lyric_new、时序与 stale guard |
+| TASK-030 | V1 主界面 | 024 | Home/Search/Library/Now Playing/Settings |
 | TASK-031 | 诊断、崩溃恢复与长队列 | 030 | 30 首稳定性 Gate |
 | TASK-032 | 菜单栏与应用生命周期 | 031 | 关闭窗口不误杀、退出完整清理 |
 | TASK-040 | DMG、签名、公证与干净机 | 032 | Beta 安装 Gate |

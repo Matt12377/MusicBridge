@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "project": "Music Bridge for Roon",
+  "wave": "WAVE-3",
+  "task": "TASK-029",
+  "branch": "codex/task-029-control-plane-ci",
+  "state": "in_progress",
+  "baseCommit": "8c5a471dfd3662609822d2ff79739365f8bc7405",
+  "implementationCommit": null,
+  "reportCommit": null,
+  "nextTask": "TASK-024",
+  "gates": {
+    "automated": "pending",
+    "security": "pending",
+    "realProvider": "not-run",
+    "realRoon": "not-run"
+  },
+  "policy": {
+    "realCredentialsInCi": false,
+    "realRoonInCi": false,
+    "loopbackOnly": true,
+    "providerVersion": "4.40.1"
+  }
+}
