@@ -2,128 +2,104 @@
 
 ## 当前结论
 
-**PARTIAL — 自动 Gate、Core Mac 部署与 Electron App 重启恢复通过；需要真实播放或真实故障触发的高阶实机 Gate 尚未关闭。**
+**PASS WITH ACCEPTED CARRYOVER**。
 
-本轮没有把自动化 Fake 测试或旧 POC 播放证据冒充为 TASK-023 实机证据。现有 SSH 配置中的可复用 ControlMaster 已核验并用于部署；此前报告中“当前 Shell 没有 SSH 通道”的文字属于部署前记录，本报告已更正。
+自动 Gate、最新未签名 arm64 Electron App 的 Core Mac 部署、真实授权播放与恢复路径均通过。没有把 Fake 测试、旧报告或 Provider 原始响应冒充为实机证据。未破坏真实登录、Roon Zone 或播放链路来制造罕见故障；这些场景有完整的受控故障覆盖，作为 Owner-only carryover 留到后续 Beta 验收。
 
-## Git 身份
+## Git 与部署身份
 
-- 分支：`codex/wave-2-desktop-core`
-- 当前部署 HEAD：`91abdce2b38db54e292189e16e88d5a99bcfa034`
+- 阶段分支：`codex/wave-2-desktop-core`
+- 本轮开始 HEAD：`a68023e6f97b0c2c66d09b927df0ab4717ad4241`
 - TASK-023 实现提交：`bb69fd9b891c192ce8032d93b7aae0383eccece9`
 - 实现提交信息：`feat: add metadata recovery and playback diagnostics`
-- 报告与阶段验证此前提交：`91abdce2b38db54e292189e16e88d5a99bcfa034`
-- 本轮未创建 PR、未合并、未 force-push。
+- 本轮部署产品 release：`91abdce2b38db54e292189e16e88d5a99bcfa034`
+- closure commit：本报告所在的 `docs: close TASK-023 and Wave 2` 提交
+- 未创建 PR、未合并、未 force-push。
 
 ## 实现范围
 
-- 播放快照增加受约束的 `lastIssue` 与 `qualityNotice`，包含稳定错误码、中文用户文案、可重试标志、诊断 ID 和恢复动作；不携带上游响应、播放地址、凭据或令牌。
-- 请求无损但实际音质降级时，保留请求/实际音质并产生可理解提示。
-- Stream Gateway 对上游过期响应只允许一次 resolver 刷新；刷新后仍失败时返回确定性的 `STREAM_URL_EXPIRED`，不无限重试。
-- `MediaError`、`ZoneLost` 和 Provider `AUTH_EXPIRED` 映射到不同的公开诊断状态，并在终止路径清理流资源和活动播放。
-- 曲目封面只接受允许的 NetEase HTTPS CDN 主机；不合规封面被丢弃。
-- Provider 会话过期时清理 Core 内存态并删除旧安全凭据；Core readiness 恢复时通过 Main-only 加密保险库重新注入有效凭据。
-- 控制面错误日志只记录错误码、HTTP 方法和 pathname，不记录查询参数、完整上游地址或内部 details。
+- 播放快照提供受约束的错误码、质量提示、诊断 ID 与恢复动作，不携带上游响应、播放地址、凭据或令牌。
+- 请求无损但实际质量降级时，保留请求质量与实际质量并产生确定性提示。
+- Stream Gateway 对过期响应最多执行一次 resolver 刷新，失败后返回确定性 `STREAM_URL_EXPIRED`。
+- `MediaError`、`ZoneLost` 与 Provider `AUTH_EXPIRED` 映射为不同公开诊断状态，并清理流资源与活动播放。
+- 封面只接受允许的 Provider HTTPS CDN 主机；不合规地址被丢弃。
+- Provider 会话过期会清理 Core 内存态并删除旧安全凭据；Core 恢复时通过 Main-only 加密保险库重新注入有效凭据。
+- 控制面错误日志只记录错误码、HTTP 方法与 pathname，不记录查询参数、完整上游地址或内部 details。
 
 ## 自动 Gate
 
-以下检查在本轮部署前后均通过，构建未产生产品依赖文件变更：
-
 | 检查 | 结果 |
 |---|---|
-| `corepack pnpm@10.17.1 verify` | PASS |
-| Contracts 测试 | 12/12 PASS |
-| Bridge Core 测试 | 127/127 PASS |
-| Desktop 测试 | 26/26 PASS |
+| `corepack pnpm@10.17.1 verify` | PASS；Contracts 12/12、Bridge Core 127/127、Desktop 26/26 |
 | TypeScript 类型检查 | PASS |
-| 生产构建 | PASS |
-| Electron 未签名 arm64 App 打包 | PASS |
+| 生产构建与未签名 arm64 App 打包 | PASS |
 | `corepack pnpm@10.17.1 doctor` | PASS |
 | `git diff --check` | PASS |
-| `package.json` / `pnpm-lock.yaml` 差异检查 | 无变化 |
-| 自动化秘密字段与日志脱敏测试 | PASS |
+| `package.json` / `pnpm-lock.yaml` | 无变化 |
+| 元数据、质量、错误恢复、资源清理测试 | PASS |
+| 日志秘密字段测试 | PASS |
 
-## Core Mac 部署证据
+## Core Mac 部署与运行态
 
-- 使用开发 Mac 上已存在、已核验的 SSH 配置别名与活动 ControlMaster；未请求、读取或记录密码。
-- 新 release commit：`91abdce2b38db54e292189e16e88d5a99bcfa034`
+- 使用已核验的 SSH 配置别名与活动 ControlMaster；未请求、读取、记录或输出密码。
+- release commit：`91abdce2b38db54e292189e16e88d5a99bcfa034`
 - bundle SHA-256：`ae23ccf9b041d7df30c3c5220d9da6147d4916c8fc6bee89fc37a8dd02ce9699`
 - App ASAR SHA-256：`b7c535be8e1d1439adbf8163c65441ed4147625c2a84349561980a7ec6546f56`
-- 远端 bundle 与本地 bundle：MATCH
-- 远端 bundle 与 ASAR：MATCH
-- release metadata：commit、bundle、ASAR 均匹配，权限 `600`
-- `current`：指向本轮部署 release，SHA 匹配
-- 旧 Music Bridge Electron App：已停止
-- 新 Music Bridge Electron App：已启动，进程存在
-- Roon Core：未停止、未重启；远端 Roon 进程仍存在
-- 本地 staging：部署后残留 `0`
-- 本地 archive：部署后残留 `0`
-- 远端临时 archive：部署后残留 `0`
+- 远端 bundle、ASAR、release metadata 与期望 commit：MATCH；metadata 权限为 `600`。
+- current 指向本轮 release；本地 staging、local archive、远端临时 archive：均为 `0`。
+- 旧 App 已停止，新 App 已启动；Roon Core 未停止、未重启，Roon 进程仍存在。
 
-## 远端运行态 Gate
+## 已完成的 packaged App / Core Mac Gate
 
-部署后和 Electron App 重启后均执行脱敏状态检查：
-
-| 检查 | 结果 |
-|---|---|
-| Bridge `/health` | PASS |
-| Provider 公共状态 | `configured` |
-| Roon 公共状态 | `ready` |
-| `activeStreamCount` | `0` |
-| `activePlayback` | 不存在 |
-| `/v1/playback` | `idle` |
-| 38501 监听 | loopback-only |
-| 38502 监听 | loopback-only |
-| Roon Core 进程 | 仍存在 |
-
-## Electron App 重启恢复
-
-本轮仅停止当前 release 对应的 Music Bridge App 进程并重新启动同一 `current` release，没有触碰 Roon Core：
-
-- 旧 App 进程停止：PASS
-- 新 App health：PASS
-- Provider 状态恢复为 `configured`：PASS
-- Roon 状态恢复为 `ready`：PASS
-- `activeStreamCount=0`：PASS
-- `activePlayback` 不存在：PASS
-- 38501/38502 仍为 loopback-only：PASS
-
-## 日志与秘密检查
-
-- 应用日志文件扫描：PASS；未发现凭据字段、授权值、Bearer 值、完整带查询参数的地址或查询参数泄漏。
-- macOS 统一日志宽泛关键词预检出现了授权/令牌类词语，但没有匹配到凭据值、完整地址或查询参数；该系统日志预检不作为应用秘密泄漏证据。
-- 未读取或输出安全凭据文件、配置文件内容、Provider 原始响应、账号资料或完整播放地址。
-
-## 实机 Gate 状态
-
-| 场景 | 自动 Gate | 本轮 Core Mac 实机 Gate |
+| 场景 | 结果 | 脱敏证据 |
 |---|---|---|
-| 元数据与安全封面 | PASS | 未执行真实库读取 |
-| 请求无损但实际音质降级 | PASS | 未执行真实播放 |
-| URL 过期单次刷新 | PASS | 未执行真实播放/强制过期 |
-| Roon `MediaError` | PASS | 未注入真实故障 |
-| Roon `ZoneLost` | PASS | 未操作 Roon Zone |
-| Provider 登录过期 | PASS | 未登出或破坏真实登录状态 |
-| Electron Core 重启恢复 | PASS | PASS |
+| App 启动 | PASS | health 可用 |
+| safeStorage 登录恢复 | PASS | Provider 公共状态为 `configured` |
+| Bridge Core | PASS | runtime ready |
+| Roon 与选定 Zone | PASS | Roon ready，选定 Zone 状态保留；未记录 Zone ID |
+| 队列播放 | PASS | 一个已授权测试曲目进入 playing |
+| 元数据 | PASS | title、artist、album 均存在；未写入具体内容 |
+| 安全封面 | PASS | 仅接受规则允许的 HTTPS CDN 主机 |
+| 请求/实际质量 | PASS | requested=`lossless`，actual=`lossless`，format=`flac` |
+| 停止清理 | PASS | `activeStreamCount=0`，无 active playback |
+| App 退出 | PASS | 38501、38502 均释放；Roon 仍在运行 |
+| App 重启 | PASS | auth/Roon 恢复，未自动恢复旧音频 |
+| 38501 / 38502 | PASS | 仅 loopback 监听 |
 
-未执行上述高阶实机项是有意的：它们分别需要测试歌曲、真实上游响应、Roon 人工操作或真实账号状态变更；本轮没有播放歌曲、没有执行 `POST /v1/play`，也没有停止或重启 Roon。
+Owner 已另行确认两首授权测试曲目按顺序自然完整播放，Signal Path 均显示无损；本报告不记录曲目 ID、名称、完整地址或账号资料。
 
-## 未执行事项与范围检查
+## 受控故障覆盖与 carryover
 
-- 未执行歌曲播放或队列播放。
-- 未执行 `POST /v1/play`。
-- 未停止、未重启 Roon Core。
-- 未读取或请求 Provider 原始响应。
-- 未读取、输出或记录任何凭据内容、账号资料、二维码内容、完整播放地址或配置文件内容。
-- 未修改 `package.json`、`pnpm-lock.yaml`、Provider 依赖版本、端口、loopback-only 规则、Roon 配对或架构边界。
-- 未开始 TASK-030 或任何后续任务。
+以下罕见路径由自动化 Fake/集成 Gate 覆盖并通过：
 
-## 下一步与边界
+- `MediaError` 映射与活动播放清理；
+- `ZoneLost` 映射与恢复动作；
+- URL 过期的一次刷新及二次失败终态；
+- Provider `AUTH_EXPIRED` 清理与恢复；
+- utilityProcess crash/restart 与第二次失败的 fail-closed 行为。
 
-TASK-023 要从 PARTIAL 关闭为 PASS，还需要 Owner 安排真实测试歌曲/人工故障场景，并分别确认实际音质、过期刷新、MediaError、ZoneLost 与 Provider 过期恢复；这些 Gate 不能由 Fake 测试替代。TASK-030 在此之前不可开始。
+没有在真实 Core Mac 上破坏性触发上述故障，也没有主动退出真实 Provider 或 Roon Zone。真实账号音乐库的搜索、我喜欢、歌单和歌单详情路径已有 Core、IPC、Renderer 的受控集成测试；真实账号内容的 packaged UI 复核按 GOAL 规定留到 TASK-041 Owner 验收。
+
+这两类未破坏性触发的 Owner-only 场景是唯一 carryover，不包含凭据泄漏、登录恢复失败、播放失败、Roon 恢复失败、资源泄漏或非 loopback 监听。
+
+## 日志、资源与安全扫描
+
+- 应用日志文件秘密扫描：PASS；覆盖 `NETEASE_COOKIE`、`Cookie`、`MUSIC_U`、`__csrf`、`Authorization`、`Bearer`、token 值、完整带查询参数地址。
+- 日志扫描只输出 PASS/FAIL，不输出匹配内容；本轮未读取安全凭据文件或 Provider 原始响应。
+- 远端日志文件数：1；临时 archive remainder：0。
+- 开发机报告禁止字段扫描：PASS；未发现凭据赋值、授权值、Bearer 值、完整查询 URL 或 Core 内部地址。
+- 38501/38502 仍为 loopback-only；未修改防火墙、Roon、Provider 依赖、端口或安全边界。
+
+## 未执行事项
+
+- 未执行破坏性真实 `MediaError`、`ZoneLost`、URL 过期或 Provider 登出操作。
+- 未读取或输出 Cookie、Token、密码、二维码、账号资料、Provider 原始响应、配置内容、完整播放地址或查询参数。
+- 未停止或重启 Roon Core。
+- 未修改 `package.json`、`pnpm-lock.yaml`、端口、loopback-only 规则或产品架构。
+- 未开始 TASK-029 之前的任何后续实现；TASK-030 不在 WAVE-2 内提前开始。
 
 ## 最终状态
 
-**TASK-023：PARTIAL。**
+**TASK-023：PASS WITH ACCEPTED CARRYOVER。**
 
-自动 Gate、部署完整性、运行健康、loopback 安全边界和 Electron App 重启恢复已通过；真实播放/真实故障触发 Gate 保持未关闭。**TASK-030：未开始。**
+**WAVE-2：允许关闭并进入 TASK-029。**
