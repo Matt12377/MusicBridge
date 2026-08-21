@@ -1,5 +1,101 @@
 # TASK-003 结果报告
 
+## TASK-003T 当前增补（Owner 音频确认后）
+
+> 本节是当前有效的 TASK-003T 结论。下方原有 TASK-003S/TASK-003R 内容完整保留，代表本增补之前的历史检查结果；本增补不覆盖或删除历史证据。
+
+### 当前结论
+
+**BLOCKED — Roon 实际音频传输和 Owner 听感已通过，但最后一次 Owner 确认播放的严格 `trackIdPresent=true` 身份 Gate 未通过。TASK-004 未开始。**
+
+最后一次播放确实满足：`SessionBegan`、`Playing`、Gateway GET、完整字节转发、`exhigh`、Owner 实际听到声音。收尾后远程 Agent 的 active stream/playback 均已清零，运行状态为 PASS。
+
+阻塞点是：最后一次播放的安全回调遥测为 `trackIdPresent=false`。脱敏事件顺序显示，上一会话的 `SessionEnded` 异步回调插入了新会话 `SessionBegan` 之前；当前实现的共享身份清理没有会话代际保护，旧回调清掉了新播放的内存身份。代码和自动化测试仍证明 play payload 含有非敏感、每次生成的 `track_id`，但最后一次真实回调未满足本任务规定的 `trackIdPresent=true` Gate，因此不能把本轮标为 PASS。
+
+### 本轮范围、提交和授权记录
+
+- TASK-003T 起始 HEAD：`89157a787317943fa6696b47b398cf6fc61e83d8`
+- 当前分支：`codex/task-003-standard-exhigh-playback`
+- 第一轮实现 commit：`76317e43126c89eb71fa48b004a46643b6eef989`
+- 第一轮实现提交信息：`fix: add Roon track identity and stream telemetry`
+- 第二轮有限曲目语义 commit：`0c03f0bfb78af101d66f7d77d24f51c04e0baef8`
+- 第二轮提交信息：`fix: use bounded track playback semantics for second attempt`
+- 当前远程运行 release：`0c03f0bfb78af101d66f7d77d24f51c04e0baef8`
+- 当前 release bundle SHA-256：`1ddeead36c2aedfb606c840c9baed06cf24518678804d3759f20a3c99c4b4119`
+- 原任务授权的两次真实请求已执行；在第二次技术成功但 Owner 当时不在电脑旁后，Owner 明确追加授权了一次最终听感确认请求。本报告如实记录该额外请求，不再发起任何播放。
+- 本轮未修改产品源码、package.json、package-lock.json、Provider 通道、端口、Roon extension_id 或安全边界；当前只准备更新本报告。
+
+### 三次实际请求的脱敏矩阵
+
+曲目数字 ID、Roon Zone/Session 标识、Provider 凭据和完整媒体 URL 均未写入本报告。
+
+| 请求 | 模式 | play payload `track_id` | 回调 `trackIdPresent` | Gateway | 上游 | Content-Type | Content-Length | bytesForwarded | outcome | Playing | terminal | Owner 实际出声 |
+|---|---|---|---|---|---:|---|---:|---:|---|---|---|---|
+| 1 | `channel` | YES | `true`（EndedNaturally） | GET `.mp3` | 200 | `audio-mpeg` | 9,674,754 | 146,437 | `client-aborted` | NO | EndedNaturally | NO |
+| 2 | `track` | YES | `true`（Playing/EndedNaturally） | GET `.mp3` | 200 | `audio-mpeg` | 9,674,754 | 9,674,754 | `finished` | YES | EndedNaturally | 未确认；Owner 当时不在电脑旁 |
+| 3（Owner 追加确认） | `track` | YES | **`false`（Playing/StoppedUser）** | GET `.mp3` | 200 | `audio-mpeg` | 9,487,717 | 9,487,717 | `finished` | YES | StoppedUser | **YES** |
+
+请求 3 的其他脱敏遥测：`rangePresent=false`、`rangeClass=none`、`contentRangePresent=false`、`acceptRangesPresent=false`、`transportSecurity=https-upgraded`、`gatewayStage=completed`；`Playing` 回调耗时约 2,570 ms，`bridge_playing` 记录 requested/actual quality 均为 `exhigh`、format=`mp3`、bitrate 为数值字段。请求 3 在 Owner 确认后通过控制接口停止，停止响应为 HTTP 200，activeStreamCount=0 且 active playback 不存在。
+
+### 身份 Gate 根因证据
+
+- 请求 2 的 `Playing` 和 `EndedNaturally` 回调均为 `trackIdPresent=true`，且 Gateway 已完整转发 9,674,754 字节。
+- 请求 3 的日志顺序为：新 `roon_begin_session_requested` → 旧 `SessionEnded` → 新 `SessionBegan` → `roon_play_requested` → Gateway GET → `Playing`。
+- 请求 3 的 Gateway 传输和听感均成功，但从 `Playing` 到 `StoppedUser` 的回调 `trackIdPresent` 均为 `false`。
+- 最接近根因是 `currentTrackId` 的全局清理缺少“仅清理对应播放代际/track identity”的条件；旧会话回调可以清理新会话身份。该结论来自脱敏日志时序和当前 adapter 清理路径，不涉及任何 Session ID 内容。
+- 本轮没有继续修改或重新部署代码，也没有以第三次请求后的日志缺口为由伪造 PASS；需要后续在新授权下增加回归测试、修复身份代际清理并重新做有限实机验证。
+
+### 本轮自动验证退出码
+
+| 检查 | 退出码 | 结果 |
+|---|---:|---|
+| `bash -n scripts/deploy/build-agent-bundle.sh` | 0 | PASS |
+| `bash -n scripts/deploy/deploy-agent.sh` | 0 | PASS |
+| `bash -n scripts/deploy/start-agent.sh` | 0 | PASS |
+| `bash -n scripts/deploy/stop-agent.sh` | 0 | PASS |
+| `bash -n scripts/deploy/status-agent.sh` | 0 | PASS |
+| `npm run doctor` | 1 | 本地环境未通过：既有 Owner SSH 控制通道占用本地 38501，且开发机没有 Provider 凭据；未读取或输出凭据。 |
+| `npm run typecheck` | 0 | PASS |
+| `npm test` | 0 | 72/72 PASS |
+| `npm run build` | 0 | PASS |
+| `npm run verify` | 0 | PASS |
+| `git diff --check` | 0 | PASS |
+| `git diff --exit-code -- package.json package-lock.json` | 0 | 两个 package 文件无差异 |
+
+`npm run doctor` 的失败仅是开发机本地检查条件：控制端口被既有 SSH 隧道占用、`.env` 不存在且本地 Provider 凭据缺失；远端最终 `status-agent.sh --runtime` 独立检查为 PASS，不能把本地缺失凭据误报为远端运行失败。
+
+### 最终远程运行状态
+
+| 项目 | 结果 |
+|---|---|
+| CURRENT_RELEASE_SHA | `0c03f0bfb78af101d66f7d77d24f51c04e0baef8` |
+| RUNNING_RELEASE_SHA | `0c03f0bfb78af101d66f7d77d24f51c04e0baef8` |
+| AGENT_RELEASE_SHA | `0c03f0bfb78af101d66f7d77d24f51c04e0baef8` |
+| EXPECTED_RELEASE_SHA | `0c03f0bfb78af101d66f7d77d24f51c04e0baef8` |
+| Agent 进程 | running |
+| Node.js | v22.23.2 |
+| Provider 状态 | configured |
+| health | true |
+| activeStreamCount | 0 |
+| active playback | 不存在 |
+| 控制/流监听 | 均为 loopback |
+| 日志秘密扫描 | pass |
+| release identity | PASS |
+| runtime status | PASS |
+
+### TASK-003T 安全与停止事项
+
+- 未在报告、命令输出、日志摘要或 Git 中写入 Cookie、账号凭据、Token、Query、Session/Zone 标识、Provider ID 或完整媒体 URL。
+- 未播放其他曲目，未改变 Zone，未改变 Provider，未启用代理、解灰或随机 IP，未开放 LAN 监听。
+- 未执行第三次之后的任何播放请求；请求 3 是 Owner 追加授权的最终听感确认，已在确认后停止。
+- 未开始 TASK-004、TASK-005 或 TASK-010；未创建 PR、未合并、未发布。
+
+### 当前决定
+
+**TASK-003：BLOCKED。**
+
+音频媒体链路和 Owner 听感已经通过；严格身份遥测 Gate 因异步旧会话清理造成的 `trackIdPresent=false` 未通过。TASK-004：**未开始，不可开始**。后续应先由 Owner 决定是否授权身份代际清理修复和新的有限实机验证。
+
 ## 最终结论
 
 **BLOCKED — TASK-003S 已完成官方 `begin_session` 契约修正和一次受控真实验证，但 Roon Zone 未得到 Owner 的实际出声确认，且未观察到 `Playing`。TASK-004 不得开始。**
