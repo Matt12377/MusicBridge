@@ -23,6 +23,12 @@ const ICON_SVG = `<?xml version="1.0" encoding="UTF-8"?>
   <path d="M122 322c74-16 100-62 100-138v-54l172-38v184c0 74-44 123-111 137-45 9-80-10-86-42-7-34 22-67 67-76 25-5 49-2 68 8V166l-55 12v48c0 75-44 123-111 137-45 9-80-10-86-42-7-34 22-67 67-76 27-6 52-2 75 10v-38c-10 57-44 92-100 105z" fill="#fff"/>
 </svg>`;
 
+const ICON_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+  'base64',
+);
+const LOCAL_ICON_URL = 'http://127.0.0.1:38502/assets/icon.png';
+
 const DEFAULT_PREFLIGHT_TIMEOUT_MS = 10_000;
 
 function preflightFailure(cause?: unknown, status?: number): BridgeError {
@@ -100,7 +106,7 @@ export class StreamGateway {
   }
 
   iconUrl(): string {
-    return `${this.options.publicBaseUrl}/assets/icon.svg`;
+    return LOCAL_ICON_URL;
   }
 
   localBaseUrl(): string {
@@ -174,6 +180,25 @@ export class StreamGateway {
           ok: true,
           activeStreams: this.options.registry.size,
         });
+        return;
+      }
+
+      if (
+        requestUrl.pathname === '/assets/icon.png' &&
+        (request.method === 'GET' || request.method === 'HEAD')
+      ) {
+        this.options.logger.info('roon_gateway_icon_request', {
+          method: request.method,
+          routeClass: 'icon',
+          iconKind: 'local-png',
+        });
+        response.writeHead(200, {
+          'Content-Type': 'image/png',
+          'Content-Length': ICON_PNG.length,
+          'Cache-Control': 'private, max-age=3600',
+          'X-Content-Type-Options': 'nosniff',
+        });
+        response.end(request.method === 'HEAD' ? undefined : ICON_PNG);
         return;
       }
 

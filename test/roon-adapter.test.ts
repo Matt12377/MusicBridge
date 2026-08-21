@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { RoonAudioInputAdapter } from '../src/roon/adapter.js';
+import {
+  RoonAudioInputAdapter,
+  summarizeRoonResponseBody,
+} from '../src/roon/adapter.js';
 import type {
   RoonApiInstance,
   RoonApiOptions,
@@ -37,6 +40,7 @@ class FakeAudioInput implements RoonAudioInputService {
     | ((message: unknown, body: unknown) => void)
     | undefined;
   autoPlay = true;
+  beforeEndSession: (() => void) | undefined;
 
   begin_session(
     options: unknown,
@@ -46,7 +50,10 @@ class FakeAudioInput implements RoonAudioInputService {
     this.beginSessionOptions.push(options);
     this.beginSessionCallback = callback;
     return {
-      end_session: (callback) => callback('SessionEnded', {}),
+      end_session: (callback) => {
+        this.beforeEndSession?.();
+        callback('SessionEnded', {});
+      },
     };
   }
 
@@ -238,7 +245,7 @@ function makeHarness(
 
 const playRequest = {
   mediaUrl: 'http://test.invalid/stream/fake',
-  iconUrl: 'http://test.invalid/icon',
+  iconUrl: 'http://127.0.0.1:38502/assets/icon.png',
   metadata: {
     id: 'track-1',
     title: 'Fake Track',
@@ -436,7 +443,7 @@ test('play reports awaiting_session when SessionBegan is not received', async ()
   );
 });
 
-test('valid SessionBegan is required before audioInput.play and begin_session omits icon_url', async () => {
+test('valid SessionBegan is required before audioInput.play and begin_session uses the official fields', async () => {
   const { logger, events } = recordingLogger();
   const { adapter, api } = await makeReadyHarness({}, logger);
   const playback = adapter.play(playRequest);
@@ -447,8 +454,17 @@ test('valid SessionBegan is required before audioInput.play and begin_session om
   assert.deepEqual(beginOptions, {
     zone_id: 'zone-1',
     display_name: 'Music Bridge for Roon',
+    icon_url: 'http://127.0.0.1:38502/assets/icon.png',
   });
-  assert.equal('icon_url' in beginOptions, false);
+  assert.deepEqual(Object.keys(beginOptions).sort(), ['display_name', 'icon_url', 'zone_id']);
+  assert.equal(typeof beginOptions.zone_id, 'string');
+  assert.notEqual(beginOptions.zone_id, '');
+  assert.equal(typeof beginOptions.display_name, 'string');
+  assert.notEqual(beginOptions.display_name, '');
+  assert.equal(typeof beginOptions.icon_url, 'string');
+  assert.notEqual(beginOptions.icon_url, '');
+  assert.equal(String(beginOptions.icon_url).endsWith('/assets/icon.png'), true);
+  assert.equal(String(beginOptions.icon_url).includes('.svg'), false);
   assert.equal(audioInput.playCalls, 0);
 
   audioInput.emitSession('SessionBegan', { session_id: 'opaque-session' });
@@ -464,6 +480,127 @@ test('valid SessionBegan is required before audioInput.play and begin_session om
     { phase: 'awaiting_playing', eventName: 'Playing' },
   );
   assert.equal(JSON.stringify(events).includes('opaque-session'), false);
+});
+
+test('Zone loss during stop rejects before beginning a new Audio Input session', async () => {
+  const { adapter, api } = await makeReadyHarness({ sessionBeginTimeoutMs: 5 });
+  const firstPlayback = adapter.play(playRequest);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'opaque-session' });
+  await firstPlayback;
+  api.core.audioInput.beforeEndSession = () => {
+    api.core.transport.emit('Changed', { zones_removed: ['zone-1'] });
+  };
+
+  await assert.rejects(
+    () => adapter.play(playRequest),
+    (error: unknown) =>
+      error instanceof BridgeError && error.code === 'ROON_ZONE_NOT_SELECTED',
+  );
+  assert.equal(api.core.audioInput.beginSessionCalls, 1);
+});
+
+test('begin_session never receives an undefined zone_id after stop', async () => {
+  const { adapter, api } = await makeReadyHarness({ sessionBeginTimeoutMs: 5 });
+  const firstPlayback = adapter.play(playRequest);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'opaque-session' });
+  await firstPlayback;
+  api.core.audioInput.beforeEndSession = () => {
+    api.core.transport.emit('Changed', { zones_removed: ['zone-1'] });
+  };
+
+  await assert.rejects(() => adapter.play(playRequest));
+  assert.equal(
+    api.core.audioInput.beginSessionOptions.every(
+      (options) => typeof (options as Record<string, unknown>).zone_id === 'string',
+    ),
+    true,
+  );
+});
+
+test('InvalidRequest terminates awaiting_session and records only a sanitized error class', async () => {
+  const { logger, events } = recordingLogger();
+  const { adapter, api } = await makeReadyHarness({}, logger);
+  const playback = adapter.play(playRequest);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  api.core.audioInput.emitSession('InvalidRequest', {
+    error_message:
+      'missing required field session_id for zone 01234567-89ab-cdef-0123-456789abcdef at https://192.0.2.4:38502/path?token=secret-value',
+    session_id: 'opaque-session-id',
+  });
+
+  await assert.rejects(
+    () => playback,
+    (error: unknown) =>
+      error instanceof BridgeError &&
+      error.code === 'ROON_MEDIA_ERROR' &&
+      error.details?.reason === 'invalid_request',
+  );
+  const sessionEvent = events.find(({ event }) => event === 'roon_session_event');
+  assert.equal(sessionEvent?.fields.sanitizedErrorClass, 'missing_required_field');
+  const serializedEvents = JSON.stringify(events);
+  assert.equal(serializedEvents.includes('opaque-session-id'), false);
+  assert.equal(serializedEvents.includes('192.0.2.4'), false);
+  assert.equal(serializedEvents.includes('secret-value'), false);
+});
+
+test('Roon response body summary bounds keys and redacts identifiers, URLs, IPs, and tokens', () => {
+  const summary = summarizeRoonResponseBody({
+    error_message:
+      'invalid zone 01234567-89ab-cdef-0123-456789abcdef at https://192.0.2.4:38502/path?token=secret-value',
+    session_id: 'opaque-session-id',
+    output_id: 'opaque-output-id',
+    token: 'abcdefghijklmnopqrstuvwxyz0123456789',
+    path: '/Users/private/Music/file.flac',
+    extra1: true,
+    extra2: true,
+    extra3: true,
+    extra4: true,
+    extra5: true,
+    extra6: true,
+    extra7: true,
+    extra8: true,
+    extra9: true,
+    extra10: true,
+    extra11: true,
+    extra12: true,
+    extra13: true,
+  });
+
+  assert.equal(summary.bodyPresent, true);
+  assert.equal(summary.bodyType, 'object');
+  assert.equal(summary.bodyKeys.length, 16);
+  assert.equal(summary.errorMessagePresent, true);
+  assert.equal(summary.sanitizedErrorClass, 'invalid_zone');
+  assert.ok((summary.sanitizedErrorText?.length ?? 0) <= 160);
+  const serialized = JSON.stringify(summary);
+  assert.equal(serialized.includes('01234567-89ab-cdef-0123-456789abcdef'), false);
+  assert.equal(serialized.includes('192.0.2.4'), false);
+  assert.equal(serialized.includes('secret-value'), false);
+  assert.equal(serialized.includes('opaque-session-id'), false);
+  assert.equal(serialized.includes('opaque-output-id'), false);
+  assert.equal(serialized.includes('abcdefghijklmnopqrstuvwxyz0123456789'), false);
+  assert.equal(serialized.includes('/Users/private/Music/file.flac'), false);
+});
+
+test('Roon session logs contain no Zone ID, icon URL, session ID, or callback body', async () => {
+  const { logger, events } = recordingLogger();
+  const { adapter, api } = await makeReadyHarness({}, logger);
+  const playback = adapter.play(playRequest);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  api.core.audioInput.emitSession('InvalidRequest', {
+    error_message: 'unsupported request body must-not-log',
+    session_id: 'opaque-session-id',
+  });
+
+  await assert.rejects(() => playback);
+  const serialized = JSON.stringify(events);
+  assert.equal(serialized.includes('zone-1'), false);
+  assert.equal(serialized.includes(playRequest.iconUrl), false);
+  assert.equal(serialized.includes('opaque-session-id'), false);
+  assert.equal(serialized.includes('unsupported request body must-not-log'), false);
 });
 
 test('play reports awaiting_playing after SessionBegan but before Playing', async () => {

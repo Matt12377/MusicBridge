@@ -208,6 +208,42 @@ test('gateway records icon and stream GET/HEAD routes without token or track ide
   assert.equal(serializedEvents.includes('track-id-must-not-be-logged'), false);
 });
 
+test('gateway serves the deterministic local PNG icon for GET and HEAD', async (t) => {
+  const gateway = new StreamGateway({
+    host: '127.0.0.1',
+    port: 0,
+    publicBaseUrl: 'http://127.0.0.1:38502',
+    registry: new StreamRegistry(),
+    logger: createLogger('error'),
+  });
+  await gateway.start();
+  t.after(async () => gateway.stop());
+
+  assert.equal(gateway.iconUrl(), 'http://127.0.0.1:38502/assets/icon.png');
+  const baseUrl = gateway.localBaseUrl();
+  const getResponse = await fetch(`${baseUrl}/assets/icon.png`);
+  const getBytes = new Uint8Array(await getResponse.arrayBuffer());
+  assert.equal(getResponse.status, 200);
+  assert.equal(getResponse.headers.get('content-type'), 'image/png');
+  assert.equal(getResponse.headers.get('x-content-type-options'), 'nosniff');
+  assert.equal(
+    getResponse.headers.get('content-length'),
+    String(getBytes.byteLength),
+  );
+  assert.deepEqual([...getBytes.slice(0, 8)], [
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+  ]);
+
+  const headResponse = await fetch(`${baseUrl}/assets/icon.png`, { method: 'HEAD' });
+  assert.equal(headResponse.status, 200);
+  assert.equal(headResponse.headers.get('content-type'), 'image/png');
+  assert.equal(
+    headResponse.headers.get('content-length'),
+    String(getBytes.byteLength),
+  );
+  assert.equal(await headResponse.text(), '');
+});
+
 function resolvedStream(url = 'https://203.0.113.10/audio.mp3') {
   return {
     trackId: '1',

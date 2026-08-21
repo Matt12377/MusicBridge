@@ -29,6 +29,24 @@ interface SettingsState {
 
 type RoonPlaybackPhase = 'awaiting_session' | 'awaiting_playing';
 
+export type SanitizedRoonErrorClass =
+  | 'missing_required_field'
+  | 'invalid_zone'
+  | 'invalid_icon'
+  | 'unknown_service'
+  | 'unsupported'
+  | 'other'
+  | 'none';
+
+export interface RoonResponseBodySummary {
+  bodyPresent: boolean;
+  bodyType: string;
+  bodyKeys: string[];
+  errorMessagePresent: boolean;
+  sanitizedErrorClass: SanitizedRoonErrorClass;
+  sanitizedErrorText?: string;
+}
+
 export interface RoonAudioInputAdapterOptions {
   sessionBeginTimeoutMs?: number;
   playingTimeoutMs?: number;
@@ -52,6 +70,92 @@ function readSessionId(value: unknown): string | undefined {
   }
   const sessionId = (value as { session_id?: unknown }).session_id;
   return typeof sessionId === 'string' && sessionId.length > 0 ? sessionId : undefined;
+}
+
+function readErrorMessage(body: unknown): string | undefined {
+  if (typeof body === 'string') return body;
+  if (!body || typeof body !== 'object') return undefined;
+
+  for (const key of ['error_message', 'errorMessage', 'message', 'error']) {
+    const value = (body as Record<string, unknown>)[key];
+    if (typeof value === 'string' && value.trim().length > 0) return value;
+    if (value && typeof value === 'object') {
+      const nestedMessage = (value as Record<string, unknown>).message;
+      if (typeof nestedMessage === 'string' && nestedMessage.trim().length > 0) {
+        return nestedMessage;
+      }
+    }
+  }
+  return undefined;
+}
+
+function classifyRoonError(message: string | undefined): SanitizedRoonErrorClass {
+  if (!message) return 'none';
+  const normalized = message.toLowerCase();
+  if (/(?:missing|required|must\s+provide|mandatory)/.test(normalized)) {
+    return 'missing_required_field';
+  }
+  if (/(?:zone|output)/.test(normalized)) return 'invalid_zone';
+  if (/(?:icon|png|image)/.test(normalized)) return 'invalid_icon';
+  if (/(?:service|method|endpoint)/.test(normalized)) return 'unknown_service';
+  if (/(?:unsupported|not\s+supported)/.test(normalized)) return 'unsupported';
+  return 'other';
+}
+
+function safeErrorText(errorClass: SanitizedRoonErrorClass): string | undefined {
+  switch (errorClass) {
+    case 'missing_required_field':
+      return 'missing required field';
+    case 'invalid_zone':
+      return 'invalid zone';
+    case 'invalid_icon':
+      return 'invalid icon';
+    case 'unknown_service':
+      return 'unknown service';
+    case 'unsupported':
+      return 'unsupported';
+    case 'other':
+      return 'roon request error';
+    case 'none':
+      return undefined;
+  }
+}
+
+function isLocalPngIconUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === 'http:' &&
+      url.hostname === '127.0.0.1' &&
+      url.port === '38502' &&
+      url.pathname === '/assets/icon.png' &&
+      url.search === '' &&
+      url.hash === '' &&
+      url.username === '' &&
+      url.password === ''
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function summarizeRoonResponseBody(body: unknown): RoonResponseBodySummary {
+  const bodyPresent = body !== undefined && body !== null;
+  const bodyType = body === null ? 'null' : typeof body;
+  const bodyKeys =
+    body && typeof body === 'object' ? Object.keys(body).slice(0, 16) : [];
+  const errorMessage = readErrorMessage(body);
+  const sanitizedErrorClass = classifyRoonError(errorMessage);
+  const sanitizedErrorText = safeErrorText(sanitizedErrorClass);
+
+  return {
+    bodyPresent,
+    bodyType,
+    bodyKeys,
+    errorMessagePresent: Boolean(errorMessage),
+    sanitizedErrorClass,
+    ...(sanitizedErrorText ? { sanitizedErrorText } : {}),
+  };
 }
 
 function isConnectionErrorEvent(event: string): boolean {
@@ -209,6 +313,29 @@ export class RoonAudioInputAdapter implements RoonPort {
     }
 
     await this.stop();
+    const selectedZone = this.selectedZone;
+    if (
+      !selectedZone ||
+      typeof selectedZone.zone_id !== 'string' ||
+      selectedZone.zone_id.length === 0
+    ) {
+      this.setStatus('paired', 'Please configure Zone', true);
+      throw new BridgeError(
+        'ROON_ZONE_NOT_SELECTED',
+        'Selected Roon Zone is no longer available',
+        { httpStatus: 409 },
+      );
+    }
+    const selectedZoneSnapshot = Object.freeze({ zone_id: selectedZone.zone_id });
+    const iconUrlPresent =
+      typeof request.iconUrl === 'string' && request.iconUrl.length > 0;
+    if (!iconUrlPresent || !isLocalPngIconUrl(request.iconUrl)) {
+      throw new BridgeError(
+        'ROON_MEDIA_ERROR',
+        'Roon Audio Input requires a local PNG icon URL',
+        { httpStatus: 502, details: { reason: 'invalid_icon_url' } },
+      );
+    }
     this.setStatus('ready', 'Preparing stream…', false);
     const audioInput = this.audioInput;
     if (!audioInput) {
@@ -303,10 +430,12 @@ export class RoonAudioInputAdapter implements RoonPort {
       const handleSessionEvent = (sessionMessage: unknown, body: unknown): void => {
         const sessionEvent = messageName(sessionMessage);
         const sessionId = readSessionId(body);
+        const responseSummary = summarizeRoonResponseBody(body);
         this.logger.info('roon_session_event', {
           phase,
           eventName: sessionEvent,
           hasSessionId: Boolean(sessionId),
+          sanitizedErrorClass: responseSummary.sanitizedErrorClass,
         });
 
         if (sessionEvent === 'SessionBegan') {
@@ -376,6 +505,11 @@ export class RoonAudioInputAdapter implements RoonPort {
           return;
         }
 
+        if (sessionEvent === 'InvalidRequest') {
+          if (!settled) finish(protocolError(phase, 'invalid_request', sessionEvent));
+          return;
+        }
+
         if (sessionEvent === 'SessionEnded') {
           this.setStatus('ready', 'Ready', false);
           if (!settled) finish(protocolError(phase, 'session_ended', sessionEvent));
@@ -397,13 +531,19 @@ export class RoonAudioInputAdapter implements RoonPort {
       };
 
       armTimeout('awaiting_session', this.sessionBeginTimeoutMs);
-      this.logger.info('roon_begin_session_requested', { phase: 'awaiting_session' });
+      this.logger.info('roon_begin_session_requested', {
+        phase: 'awaiting_session',
+        zoneIdPresent: true,
+        iconUrlPresent: true,
+        iconKind: 'local-png',
+      });
 
       try {
         const session = audioInput.begin_session(
           {
-            zone_id: this.selectedZone?.zone_id,
+            zone_id: selectedZoneSnapshot.zone_id,
             display_name: 'Music Bridge for Roon',
+            icon_url: request.iconUrl,
           },
           handleSessionEvent,
         );
