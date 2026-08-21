@@ -2,6 +2,16 @@
 
 本清单用于一次统一验收。所有 Provider 登录、扫码、歌曲选择和听感判断由 Owner 在本地完成；不需要把凭据、账号资料、二维码内容、歌曲完整 URL 或私人响应发给开发者。
 
+## 最终候选部署前置 Gate
+
+- 候选提交：`b734f9874591211e9cacafc9ce9b2dbd2bbd1224`
+- Core Mac `current` release：与候选提交一致，PASS。
+- Bridge Core runtime：`ready`；Roon：`ready`；Provider：`missing`（本次公开初始状态）。
+- `activeStreamCount=0`；`activePlayback` 不存在；38501/38502 仅 loopback；日志秘密扫描 PASS。
+- 本次只执行脱敏部署与健康检查，未播放歌曲、未调用 Provider、未停止或重启 Roon。
+
+上述是部署准备 Gate，不替代下表中的 Owner 听感、登录恢复、UI 和真实退出验收。
+
 ## 验收顺序
 
 | # | 项目 | 自动/历史证据 | 最终 Beta DMG Owner 状态 |

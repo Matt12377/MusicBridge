@@ -10,7 +10,7 @@
 
 ## 真实设备验收
 
-4. **最终 Beta DMG 尚未在真实 Core Mac 完成一轮完整部署**：自动化安装冒烟和历史 POC/Owner 证据均已保留，但最终候选仍需 Owner 在真实设备上确认登录恢复、Roon/Zone 恢复、播放、退出和端口释放。
+4. **统一实机验收仍待 Owner 完成**：最终候选已在真实 Core Mac 部署并通过脱敏健康、资源和 loopback Gate，但 Owner 仍需在该候选上确认登录恢复、Roon/Zone 恢复、播放、退出和端口释放。
 5. **30 首连续队列、10 次冷启动和长时间 idle 的真实 Core Mac Gate 未在本轮重新执行**：已有 100 项合成队列、资源清理、Crash/Restart 和两首真实完整播放证据；真实长跑仍是 Owner-only carryover。
 6. **统一 20 项 Owner 验收未关闭**：清单见 `reports/V1_OWNER_ACCEPTANCE.md`。合成 E2E 通过不等于最终 DMG 的听感或 Roon Signal Path 通过。
 
@@ -21,5 +21,5 @@
 
 ## 处理原则
 
-- 以上均为可解释的内部候选 carryover，不阻塞继续交给 Owner/Sol 做一次统一 Review。
+- 以上均为可解释的内部候选 carryover，最终候选已准备好交给 Owner/Sol 做一次统一 Review。
 - 若发现凭据泄漏、音频无法播放、非 loopback 监听、退出残留或安全边界回退，必须停止发布流程并重新打开相应 Gate。
