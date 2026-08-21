@@ -16,7 +16,7 @@
 
 | 设备 | 允许做的事 | 禁止做的事 |
 |---|---|---|
-| 开发 Mac | 读取源码、运行 `npm ci`、`verify`、`build`；生成 bundle；通过 SSH 发布、启动、停止和状态检查 Agent | 不把密码、Cookie 或 Token 写入命令、脚本或报告；不执行 Roon 播放验证 |
+| 开发 Mac | 读取源码、运行固定 pnpm 的 `install`、`verify`、`build`；生成 bundle；通过 SSH 发布、启动、停止和状态检查 Agent | 不把密码、Cookie 或 Token 写入命令、脚本或报告；不执行 Roon 播放验证 |
 | Core Mac | 用户级 Node.js 22；运行脱敏 Agent、Stream Gateway 与 Roon Core 同机；提供本地 health 和 loopback 监听 | 不安装 VS Code/Codex/Electron 开发环境；不执行源码测试/构建；不改 Roon；不读数据库或音乐库；不开放 LAN 监听 |
 
 ## SSH 前置条件
@@ -50,15 +50,15 @@ export SSH_CONTROL_PATH="$HOME/.ssh/musicbridge-control/core-live.sock"
 所有构建步骤在开发 Mac 运行：
 
 ```text
-npm ci
+pnpm install --frozen-lockfile
   ↓
-npm run verify
+pnpm verify
   ↓
-npm run build
+pnpm build
   ↓
 生成独立 staging
   ↓
-生产依赖 npm ci --omit=dev
+生产依赖 pnpm deploy --legacy --prod
   ↓
 原生 .node 扫描与敏感文件扫描
   ↓
@@ -77,14 +77,13 @@ bundle 顶层只允许：
 dist/
 node_modules/       # 仅生产依赖
 package.json
-package-lock.json
 ```
 
 禁止进入 bundle：`src`、`test`、`docs`、`tasks`、`reports`、`.git`、`.env`、Cookie、Token、日志、音频文件和完整播放 URL。
 
 每次 bundle 使用构建时 `git rev-parse HEAD` 的完整 SHA；归档文件同时记录 SHA-256。生产依赖中如果发现 `.node` 文件，脚本必须比较开发 Mac 与 Core Mac 的 CPU 架构，不一致时停止。
 
-首次提升为 release 时，release 内写入权限为 600 的隐藏 metadata，记录 `commit_sha` 和 `bundle_sha256`。如果同一 commit 的 release 已存在，deploy 必须核对 metadata、`dist/main.js`、生产 `node_modules`、`package.json` 和 `package-lock.json`；任一项缺失或不一致都停止，不能静默复用、覆盖或删除。旧 release 缺少 metadata 时仍可由 start/status 兼容运行，但不能被 deploy reuse。
+首次提升为 release 时，release 内写入权限为 600 的隐藏 metadata，记录 `commit_sha` 和 `bundle_sha256`。如果同一 commit 的 release 已存在，deploy 必须核对 metadata、`dist/main.js`、生产 `node_modules` 和 `package.json`；任一项缺失或不一致都停止，不能静默复用、覆盖或删除。旧 release 缺少 metadata 时仍可由 start/status 兼容运行，但不能被 deploy reuse。workspace 的 `pnpm-lock.yaml` 只在开发机参与构建，不随生产 bundle 部署。
 
 `deploy-agent.sh` 会接收 build 脚本明确返回的本次 `mktemp` staging 路径。成功、构建失败或 SSH 中断退出时，只清理经路径模式、普通目录/文件类型和父子关系三重核验的本次 staging/archive；独立运行 `build-agent-bundle.sh` 时仍保留输出供人工使用。
 

@@ -16,15 +16,22 @@ case "$node_version" in
     ;;
 esac
 
+pnpm=(corepack pnpm@10.17.1)
+pnpm_version="$("${pnpm[@]}" --version)"
+if [[ "$pnpm_version" != "10.17.1" ]]; then
+  printf '%s\n' "需要 pnpm 10.17.1，当前为 $pnpm_version" >&2
+  exit 2
+fi
+
 # 构建和生产依赖安装不得继承本地凭据环境变量。
 unset NETEASE_COOKIE
 
-printf '%s\n' "[bundle] npm ci"
-npm ci
-printf '%s\n' "[bundle] npm run verify"
-npm run verify
-printf '%s\n' "[bundle] npm run build"
-npm run build
+printf '%s\n' "[bundle] pnpm install --frozen-lockfile"
+"${pnpm[@]}" install --frozen-lockfile --ignore-scripts
+printf '%s\n' "[bundle] pnpm verify"
+"${pnpm[@]}" verify
+printf '%s\n' "[bundle] pnpm build"
+"${pnpm[@]}" build
 
 commit_sha="$(git rev-parse HEAD)"
 if [[ ! "$commit_sha" =~ ^[0-9a-f]{40}$ ]]; then
@@ -40,25 +47,40 @@ if [[ "$tmp_root" != "/" ]]; then
 fi
 stage_parent="$(mktemp -d "$tmp_root/musicbridge-agent-stage.XXXXXX")"
 stage_dir="$stage_parent/staging"
+deploy_dir="$stage_parent/deploy"
 printf '%s\n' "BUNDLE_STAGE_PARENT=$stage_parent"
 mkdir "$stage_dir"
+cleanup_deploy_dir() {
+  if [[ -z "${deploy_dir:-}" ]]; then
+    return 0
+  fi
+  case "$deploy_dir" in
+    "$stage_parent"/deploy) ;;
+    *) return 1 ;;
+  esac
+  if [[ -L "$deploy_dir" || ( -e "$deploy_dir" && ! -d "$deploy_dir" ) ]]; then
+    return 1
+  fi
+  if [[ -d "$deploy_dir" ]]; then
+    find "$deploy_dir" -depth -mindepth 1 -delete
+    rmdir "$deploy_dir"
+  fi
+}
+trap cleanup_deploy_dir EXIT
 
-cp -R dist "$stage_dir/dist"
-cp -p package.json package-lock.json "$stage_dir/"
+cp -R packages/bridge-core/dist "$stage_dir/dist"
 
-printf '%s\n' "[bundle] production npm ci --omit=dev"
-(
-  cd "$stage_dir"
-  unset NETEASE_COOKIE
-  npm ci --omit=dev --ignore-scripts
-)
+printf '%s\n' "[bundle] pnpm deploy --prod"
+"${pnpm[@]}" deploy --legacy --filter @music-bridge/bridge-core --prod "$deploy_dir"
+cp -p "$deploy_dir/package.json" "$stage_dir/package.json"
+cp -R "$deploy_dir/node_modules" "$stage_dir/node_modules"
 
 # 个别上游包会带入开发用 lint.log；只从临时 staging 移除，不改本地依赖目录。
 find "$stage_dir" -type f -name '*.log' -delete
 # 生产依赖也可能带入 .env.example；运行时不需要任何环境文件。
 find "$stage_dir" -type f \( -name '.env' -o -name '.env.*' \) -delete
 
-allowed_top_level='dist node_modules package.json package-lock.json'
+allowed_top_level='dist node_modules package.json'
 for entry in "$stage_dir"/*; do
   name="$(basename "$entry")"
   case " $allowed_top_level " in
@@ -80,7 +102,7 @@ if [[ -n "$forbidden_path" ]]; then
   exit 5
 fi
 
-project_scan_paths=(dist package.json package-lock.json)
+project_scan_paths=(dist package.json)
 if rg -n --hidden \
   -e '(^|[[:space:]])(NETEASE_COOKIE|MUSIC_U|__csrf)[[:space:]]*=[[:space:]]*[^[:space:]]+' \
   "${project_scan_paths[@]/#/$stage_dir/}" >/dev/null; then
@@ -98,7 +120,7 @@ fi
 native_modules="$(find "$stage_dir/node_modules" -type f -name '*.node' -print | wc -l | tr -d ' ')"
 archive="$stage_parent/music-bridge-agent-$commit_sha.tar.gz"
 COPYFILE_DISABLE=1 tar -czf "$archive" -C "$stage_dir" \
-  dist node_modules package.json package-lock.json
+  dist node_modules package.json
 bundle_sha256="$(shasum -a 256 "$archive" | awk '{print $1}')"
 
 printf '%s\n' "BUNDLE_ARCHIVE=$archive"

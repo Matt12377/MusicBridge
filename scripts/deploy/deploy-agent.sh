@@ -212,7 +212,6 @@ verify_payload() {
   [ -f "$release/dist/main.js" ] && [ ! -L "$release/dist/main.js" ] || exit 25
   [ -d "$release/node_modules" ] && [ ! -L "$release/node_modules" ] || exit 25
   [ -f "$release/package.json" ] && [ ! -L "$release/package.json" ] || exit 25
-  [ -f "$release/package-lock.json" ] && [ ! -L "$release/package-lock.json" ] || exit 25
 }
 
 if [ -e "$release" ] || [ -L "$release" ]; then
@@ -273,7 +272,7 @@ actual="$(shasum -a 256 "$incoming/bundle.tar.gz" | awk "{print \$1}")"
 [ "$actual" = "$expected" ] || { printf "%s\n" BUNDLE_SHA256_MISMATCH >&2; exit 21; }
 mkdir "$incoming/payload"
 tar -xzf "$incoming/bundle.tar.gz" -C "$incoming/payload"
-for item in dist node_modules package.json package-lock.json; do
+for item in dist node_modules package.json; do
   [ -e "$incoming/payload/$item" ] || { printf "%s\n" MISSING_BUNDLE_ITEM >&2; exit 22; }
 done
 [ -f "$incoming/payload/dist/main.js" ] || { printf "%s\n" MISSING_MAIN_ENTRY >&2; exit 22; }

@@ -1,0 +1,11 @@
+{
+  "name": "@music-bridge/desktop",
+  "version": "0.1.0-poc.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node -e \"console.log('desktop workspace placeholder')\"",
+    "typecheck": "node -e \"console.log('desktop workspace placeholder')\"",
+    "test": "node -e \"console.log('desktop workspace placeholder')\""
+  }
+}

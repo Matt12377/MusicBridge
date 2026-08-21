@@ -57,7 +57,7 @@ esac
 [ -d "$release_dir" ] && [ ! -L "$release_dir" ] || { printf "%s\n" CURRENT_RELEASE_NOT_READY >&2; exit 30; }
 [ -f "$release_dir/dist/main.js" ] && [ ! -L "$release_dir/dist/main.js" ] || { printf "%s\n" CURRENT_RELEASE_NOT_READY >&2; exit 30; }
 [ -d "$release_dir/node_modules" ] && [ ! -L "$release_dir/node_modules" ] || { printf "%s\n" CURRENT_RELEASE_NOT_READY >&2; exit 30; }
-[ -f "$release_dir/package.json" ] && [ -f "$release_dir/package-lock.json" ] || { printf "%s\n" CURRENT_RELEASE_NOT_READY >&2; exit 30; }
+[ -f "$release_dir/package.json" ] || { printf "%s\n" CURRENT_RELEASE_NOT_READY >&2; exit 30; }
 
 if [ -e "$pid_file" ] || [ -L "$pid_file" ] || [ -e "$release_file" ] || [ -L "$release_file" ]; then
   if [ ! -f "$pid_file" ] || [ -L "$pid_file" ] || [ ! -f "$release_file" ] || [ -L "$release_file" ]; then

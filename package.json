@@ -7,29 +7,17 @@
   "engines": {
     "node": ">=22.0.0"
   },
+  "packageManager": "pnpm@10.17.1",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.test.json --noEmit",
-    "test": "node --import tsx --test test/*.test.ts",
-    "verify": "npm run typecheck && npm test && npm run build",
-    "dev": "node --env-file-if-exists=.env --import tsx src/main.ts",
-    "start": "node --env-file-if-exists=.env dist/main.js",
-    "doctor": "node --env-file-if-exists=.env scripts/doctor.mjs",
-    "play": "node --env-file-if-exists=.env scripts/play.mjs",
-    "stop": "node --env-file-if-exists=.env scripts/stop.mjs",
-    "state": "node --env-file-if-exists=.env scripts/state.mjs"
-  },
-  "dependencies": {
-    "@neteasecloudmusicapienhanced/api": "4.40.1",
-    "node-roon-api": "github:RoonLabs/node-roon-api#055dae6c2ac45b6c738aa3b9e5ac1fd722ed60e8",
-    "node-roon-api-audioinput": "github:RoonLabs/node-roon-api-audioinput#21ff59e52a12cf36a21bb9d3fd546f3e6d70581f",
-    "node-roon-api-settings": "github:RoonLabs/node-roon-api-settings#67cd8ca156c5bcd01ea63833ceaaec6d6a79654d",
-    "node-roon-api-status": "github:RoonLabs/node-roon-api-status#504c918d6da267e03fbb4337befa71ca3d3c7526",
-    "node-roon-api-transport": "github:RoonLabs/node-roon-api-transport#2ee60008a4cdb90c34ff3de58bb4b949067f1d20"
-  },
-  "devDependencies": {
-    "@types/node": "^22.15.30",
-    "tsx": "^4.20.3",
-    "typescript": "^5.8.3"
+    "build": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build && corepack pnpm@10.17.1 --filter @music-bridge/desktop run build",
+    "typecheck": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run typecheck && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run typecheck && corepack pnpm@10.17.1 --filter @music-bridge/desktop run typecheck",
+    "test": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run test && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run test && corepack pnpm@10.17.1 --filter @music-bridge/desktop run test",
+    "verify": "corepack pnpm@10.17.1 run typecheck && corepack pnpm@10.17.1 run test && corepack pnpm@10.17.1 run build",
+    "dev": "corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run dev",
+    "start": "corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run start",
+    "doctor": "corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run doctor",
+    "play": "corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run play",
+    "stop": "corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run stop",
+    "state": "corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run state"
   }
 }
