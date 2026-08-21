@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   IPC_VERSION,
+  type DiagnosticComponentSnapshot,
   type IpcEventMessage,
   type PlaybackSnapshot,
 } from '@music-bridge/contracts';
@@ -68,6 +69,23 @@ function makeRuntime(): CoreRuntimeForIpc & {
     canPrevious: false,
     canStop: false,
   };
+  const diagnostics: DiagnosticComponentSnapshot = {
+    component: 'core',
+    health: state,
+    timeline: [],
+    memory: { rssBytes: 1, heapUsedBytes: 1, heapTotalBytes: 1, externalBytes: 1 },
+    counters: {
+      queueItemCount: 0,
+      activeStreamCount: 0,
+      activePlaybackCount: 0,
+      activeSessionCount: 0,
+      activeTokenCount: 0,
+      listenerCount: 0,
+      timerCount: 0,
+    },
+    latency: {},
+    gates: [],
+  };
   return {
     shutdownCalls: 0,
     setCredentialCalls: [],
@@ -79,6 +97,7 @@ function makeRuntime(): CoreRuntimeForIpc & {
     ping: () => ({ pong: true as const }),
     getHealth: () => state,
     getState: () => state,
+    getDiagnostics: () => diagnostics,
     listZones: () => [],
     selectZone: async () => state,
     async setProviderCredential(credential: string) {
@@ -185,6 +204,21 @@ test('utility IPC returns ready, typed responses and bounded events', async () =
     ok: true,
     result: { pong: true },
   });
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'diagnostics-1',
+    command: 'core.getDiagnostics',
+    payload: {},
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[2], {
+    version: IPC_VERSION,
+    id: 'diagnostics-1',
+    ok: true,
+    result: runtime.getDiagnostics(),
+  });
+  assert.doesNotMatch(JSON.stringify(port.messages[2]), /trackId|Cookie|https?:\/\/|[?&][A-Za-z0-9_-]+=/i);
 });
 
 test('utility IPC rejects invalid payloads without throwing internal details', async () => {

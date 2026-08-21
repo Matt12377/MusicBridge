@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type {
+  DiagnosticResourceCounters,
   PlaybackQueueItem,
   PlaybackIssue,
   PlaybackIssueCode,
@@ -377,6 +378,18 @@ export class BridgeController {
       roon: this.dependencies.roon.getState(),
       activeStreamCount: this.dependencies.registry.size,
       ...(this.activePlayback ? { activePlayback: this.activePlayback } : {}),
+    };
+  }
+
+  getDiagnosticResourceCounters(): DiagnosticResourceCounters {
+    return {
+      queueItemCount: this.queue.length,
+      activeStreamCount: this.dependencies.registry.size,
+      activePlaybackCount: this.activePlayback ? 1 : 0,
+      activeSessionCount: this.activeToken ? 1 : 0,
+      activeTokenCount: this.activeToken ? 1 : 0,
+      listenerCount: this.playbackListeners.size,
+      timerCount: 0,
     };
   }
 

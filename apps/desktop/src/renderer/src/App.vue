@@ -73,6 +73,7 @@ const lyricsOrQueue = ref<'lyrics' | 'queue'>('lyrics')
 const actionError = ref<string | null>(null)
 const actionDiagnosticId = ref<string | null>(null)
 const diagnosticNotice = ref<{ code: string; message?: string } | null>(null)
+const diagnosticExportState = ref<'idle' | 'working' | 'done' | 'cancelled' | 'error'>('idle')
 
 const libraryTab = ref<'liked' | 'playlists'>('liked')
 const searchQuery = ref('')
@@ -381,6 +382,17 @@ async function refreshPlayback(): Promise<void> {
   }
 }
 
+async function exportDiagnostics(): Promise<void> {
+  diagnosticExportState.value = 'working'
+  try {
+    const result = await window.musicBridge.exportDiagnostics()
+    diagnosticExportState.value = result.exported ? 'done' : 'cancelled'
+  } catch (error) {
+    diagnosticExportState.value = 'error'
+    recordActionError(error)
+  }
+}
+
 async function playTrack(track: TrackSummary, addToQueue = false): Promise<void> {
   actionError.value = null
   try {
@@ -653,7 +665,9 @@ onUnmounted(() => {
         </section>
 
         <section v-else class="view" aria-labelledby="diagnostics-heading">
-          <div class="view-heading"><div><p class="section-kicker">Read-only signal</p><h2 id="diagnostics-heading">Diagnostics</h2><p class="lede">这里只展示公开状态、可操作建议和诊断标识，不导出 Provider 原始内容。</p></div><button type="button" class="secondary-button" @click="refreshPlayback">刷新状态</button></div>
+          <div class="view-heading"><div><p class="section-kicker">Read-only signal</p><h2 id="diagnostics-heading">Diagnostics</h2><p class="lede">这里只展示公开状态、可操作建议和诊断标识，不导出 Provider 原始内容。</p></div><div class="button-row"><button type="button" class="secondary-button" @click="refreshPlayback">刷新状态</button><button type="button" class="secondary-button" :disabled="diagnosticExportState === 'working'" @click="exportDiagnostics">{{ diagnosticExportState === 'working' ? '导出中…' : '导出诊断文件' }}</button></div></div>
+          <p v-if="diagnosticExportState === 'done'" class="notice-card">诊断文件已导出，仅包含脱敏运行信息。</p>
+          <p v-else-if="diagnosticExportState === 'cancelled'" class="notice-card">已取消诊断文件导出。</p>
           <p v-if="hasPlaybackIssue" class="persistent-error">{{ actionError ?? playbackState?.lastIssue?.message }}<span v-if="actionDiagnosticId ?? playbackState?.lastIssue?.diagnosticId">诊断标识：{{ actionDiagnosticId ?? playbackState?.lastIssue?.diagnosticId }}</span><button v-if="playbackState?.lastIssue?.retryable || actionError" type="button" class="inline-action" @click="retryAction">重试</button></p>
           <p v-if="diagnosticNotice" class="notice-card">{{ diagnosticNotice.code }}<span v-if="diagnosticNotice.message">{{ diagnosticNotice.message }}</span></p>
           <div class="diagnostic-grid"><article class="diagnostic-card"><span>Bridge Core</span><strong>{{ coreState?.runtime ?? 'starting' }}</strong><small>活动流 {{ coreState?.activeStreamCount ?? 0 }}</small></article><article class="diagnostic-card"><span>Roon</span><strong>{{ coreState?.roon ?? 'disconnected' }}</strong><small>{{ selectedZone?.displayName ?? '未选择 Zone' }}</small></article><article class="diagnostic-card"><span>Provider</span><strong>{{ coreState?.provider ?? 'missing' }}</strong><small>凭据状态仅显示公开枚举</small></article><article class="diagnostic-card"><span>Playback</span><strong>{{ playbackState?.state ?? 'idle' }}</strong><small>{{ coreState?.activePlaybackPresent ? '活动播放存在' : '无活动播放' }}</small></article></div>

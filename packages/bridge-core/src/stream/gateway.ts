@@ -207,6 +207,7 @@ function sendJson(
 export class StreamGateway {
   private server: Server | undefined;
   private readonly stageObservers = new Map<string, GatewayStageObserver>();
+  private activeTimerCount = 0;
 
   constructor(
     private readonly options: {
@@ -237,6 +238,7 @@ export class StreamGateway {
   async stop(): Promise<void> {
     const server = this.server;
     this.server = undefined;
+    this.stageObservers.clear();
     if (!server) return;
     await new Promise<void>((resolve, reject) => {
       server.close((error) => (error ? reject(error) : resolve()));
@@ -254,6 +256,13 @@ export class StreamGateway {
 
   clearStageObserver(token: string): void {
     this.stageObservers.delete(token);
+  }
+
+  getDiagnosticResourceCounters(): { listenerCount: number; timerCount: number } {
+    return {
+      listenerCount: this.stageObservers.size,
+      timerCount: this.activeTimerCount,
+    };
   }
 
   iconUrl(): string {
@@ -282,6 +291,7 @@ export class StreamGateway {
     headers.set('Range', 'bytes=0-0');
 
     const abortController = new AbortController();
+    this.activeTimerCount += 1;
     const timeout = setTimeout(
       () => abortController.abort(),
       this.options.preflightTimeoutMs ?? DEFAULT_PREFLIGHT_TIMEOUT_MS,
@@ -313,6 +323,7 @@ export class StreamGateway {
       throw preflightFailure(error);
     } finally {
       clearTimeout(timeout);
+      this.activeTimerCount = Math.max(0, this.activeTimerCount - 1);
     }
   }
 

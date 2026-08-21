@@ -140,6 +140,30 @@ test('CoreSupervisor restarts a crashed Core once and then fails closed', async 
   assert.equal(harness.supervisor.status, 'failed')
 })
 
+test('CoreSupervisor records bounded lifecycle states without process details', async () => {
+  const harness = makeHarness()
+  const lifecycle: string[] = []
+  const supervisor = new CoreSupervisor({
+    entryPath: '/tmp/core-entry.js',
+    cwd: '/tmp',
+    dependencies: harness.dependencies,
+    requestTimeoutMs: 20,
+    onLifecycle: (event) => lifecycle.push(event.event),
+  })
+  const starting = supervisor.start()
+  await new Promise((resolve) => setImmediate(resolve))
+  ready(harness.channels[0]!)
+  await starting
+
+  harness.children[0]!.exit(1)
+  await new Promise((resolve) => setImmediate(resolve))
+  ready(harness.channels[1]!)
+  await new Promise((resolve) => setImmediate(resolve))
+  await supervisor.shutdown()
+
+  assert.deepEqual(lifecycle, ['spawn', 'ready', 'exit', 'restart', 'spawn', 'ready', 'stopped'])
+})
+
 test('CoreSupervisor request timeout and shutdown are bounded', async () => {
   const harness = makeHarness()
   const starting = harness.supervisor.start()

@@ -44,4 +44,9 @@ export interface RoonPort {
   shutdown(): Promise<void>;
   play(request: RoonPlayRequest): Promise<void>;
   getState(): RoonState;
+  getDiagnosticResourceCounters?(): {
+    activeSessionCount: number;
+    listenerCount: number;
+    timerCount: number;
+  };
 }

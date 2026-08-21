@@ -1,3 +1,9 @@
+import {
+  DiagnosticRingBuffer,
+  type DiagnosticComponentSnapshot,
+  type DiagnosticGateResult,
+  type DiagnosticResourceCounters,
+} from '@music-bridge/contracts';
 import type {
   Page,
   PageRequest,
@@ -35,6 +41,7 @@ export interface CoreRuntime {
   ping(): { pong: true };
   getHealth(): PublicBridgeState;
   getState(): PublicBridgeState;
+  getDiagnostics(): DiagnosticComponentSnapshot;
   setProviderCredential(credential: string): Promise<PublicBridgeState>;
   clearProviderCredential(): Promise<PublicBridgeState>;
   getAuthState(): PublicAuthState;
@@ -172,6 +179,24 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
 
   let runtime: PublicBridgeState['runtime'] = 'starting';
   let shutdownStarted = false;
+  const diagnostics = new DiagnosticRingBuffer();
+  const runtimeStartedAt = Date.now();
+  let startupLatencyMs: number | undefined;
+  let lastPlayLatencyMs: number | undefined;
+  const gateResults: DiagnosticGateResult[] = [
+    { name: 'startup', status: 'not-run' },
+    { name: 'queue-state-machine', status: 'not-run' },
+    { name: 'crash-recovery', status: 'not-run' },
+    { name: 'resource-cleanup', status: 'not-run' },
+    { name: 'secret-scan', status: 'not-run' },
+  ];
+  const recordDiagnostic = (
+    level: 'info' | 'warn' | 'error',
+    event: string,
+    fields: { code?: string; diagnosticId?: string; state?: string; durationMs?: number } = {},
+  ): void => {
+    diagnostics.record({ component: 'core', level, event, ...fields });
+  };
   const emit = (event: CoreRuntimeEvent): void => options.onEvent?.(event);
   const publicState = (): PublicBridgeState =>
     toPublicBridgeState(controller.getState(), runtime);
@@ -204,7 +229,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     },
   });
 
-  controller.subscribe((snapshot) => {
+  const removeControllerListener = controller.subscribe((snapshot) => {
     lyrics.onPlaybackChanged(snapshot);
     emit({
       version: 1,
@@ -228,10 +253,65 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   const cleanup = async (): Promise<void> => {
     await control.stop();
     await controller.shutdown();
+    removeControllerListener();
     await roon.shutdown();
     lyrics.shutdown();
     registry.revokeAll();
     await gateway.stop();
+  };
+
+  const diagnosticCounters = (): DiagnosticResourceCounters => {
+    const controllerCounters = controller.getDiagnosticResourceCounters();
+    const roonCounters = roon.getDiagnosticResourceCounters?.() ?? {
+      activeSessionCount: controllerCounters.activeSessionCount,
+      listenerCount: 0,
+      timerCount: 0,
+    };
+    const gatewayCounters = gateway.getDiagnosticResourceCounters();
+    return {
+      ...controllerCounters,
+      activeSessionCount: Math.max(
+        controllerCounters.activeSessionCount,
+        roonCounters.activeSessionCount,
+      ),
+      listenerCount:
+        controllerCounters.listenerCount + roonCounters.listenerCount + gatewayCounters.listenerCount,
+      timerCount: controllerCounters.timerCount + roonCounters.timerCount + gatewayCounters.timerCount,
+    };
+  };
+
+  const getDiagnostics = (): DiagnosticComponentSnapshot => {
+    const counters = diagnosticCounters();
+    const resourceClean =
+      counters.activeStreamCount === 0 &&
+      counters.activePlaybackCount === 0 &&
+      counters.activeSessionCount === 0 &&
+      counters.activeTokenCount === 0 &&
+      counters.timerCount === 0;
+    const gates = gateResults.map((gate) =>
+      gate.name === 'startup' && runtime === 'ready'
+        ? { ...gate, status: 'pass' as const }
+        : gate.name === 'resource-cleanup' && resourceClean
+          ? { ...gate, status: 'pass' as const }
+          : { ...gate },
+    );
+    return {
+      component: 'core',
+      health: publicState(),
+      timeline: diagnostics.snapshot(),
+      memory: {
+        rssBytes: process.memoryUsage().rss,
+        heapUsedBytes: process.memoryUsage().heapUsed,
+        heapTotalBytes: process.memoryUsage().heapTotal,
+        externalBytes: process.memoryUsage().external,
+      },
+      counters,
+      latency: {
+        ...(startupLatencyMs !== undefined ? { startupMs: startupLatencyMs } : {}),
+        ...(lastPlayLatencyMs !== undefined ? { lastPlayMs: lastPlayLatencyMs } : {}),
+      },
+      gates,
+    };
   };
 
   return {
@@ -246,6 +326,8 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
         await roon.start();
         await control.start();
         runtime = 'ready';
+        startupLatencyMs = Date.now() - runtimeStartedAt;
+        recordDiagnostic('info', 'core_ready', { state: runtime, durationMs: startupLatencyMs });
         emit(eventWithState('core.ready', publicState()));
         emitHealth();
         logger.info('bridge_started', {
@@ -274,6 +356,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
         await cleanup();
       } finally {
         runtime = 'stopped';
+        recordDiagnostic('info', 'core_shutdown', { state: runtime });
         emitHealth();
       }
     },
@@ -281,6 +364,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     ping: () => ({ pong: true as const }),
     getHealth: publicState,
     getState: publicState,
+    getDiagnostics,
 
     async setProviderCredential(credential: string): Promise<PublicBridgeState> {
       netease.setCredential(credential);
@@ -334,8 +418,24 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     getLyrics: (trackId) => lyrics.getLyrics(trackId),
     getPlaybackState: () => controller.getPlaybackState(),
     async playbackPlay(trackId, quality) {
-      await controller.play({ trackId, quality });
-      return controller.getPlaybackState();
+      const startedAt = Date.now();
+      try {
+        await controller.play({ trackId, quality });
+        lastPlayLatencyMs = Date.now() - startedAt;
+        recordDiagnostic('info', 'play_completed', {
+          state: 'playing',
+          durationMs: lastPlayLatencyMs,
+        });
+        return controller.getPlaybackState();
+      } catch (error) {
+        lastPlayLatencyMs = Date.now() - startedAt;
+        recordDiagnostic('warn', 'play_failed', {
+          code: asBridgeError(error).code,
+          state: 'error',
+          durationMs: lastPlayLatencyMs,
+        });
+        throw error;
+      }
     },
     async playbackStop() {
       await controller.stop();
@@ -401,6 +501,7 @@ export function createTestBridgeRuntime(): CoreRuntime {
   let authState: PublicAuthState = { status: 'idle' };
   let playbackState = emptyPlaybackState();
   let selectedZoneId: string | undefined;
+  const diagnostics = new DiagnosticRingBuffer();
   const trackFor = (trackId: string): TrackSummary | undefined =>
     fixtureTracks.find((track) => track.id === trackId);
   const setPlayingTrack = (trackId: string, quality: PlaybackQuality): void => {
@@ -437,16 +538,62 @@ export function createTestBridgeRuntime(): CoreRuntime {
     };
     playbackState = nextState;
   };
+  const getDiagnostics = (): DiagnosticComponentSnapshot => {
+    const queueStateMachinePassed = playbackState.queue.items.length >= 100;
+    const resourcesClean =
+      playbackState.queue.items.length === 0 &&
+      !playbackState.canStop &&
+      state.activeStreamCount === 0 &&
+      !state.activePlaybackPresent;
+    return {
+      component: 'core',
+      health: state,
+      timeline: diagnostics.snapshot(),
+      memory: {
+        rssBytes: process.memoryUsage().rss,
+        heapUsedBytes: process.memoryUsage().heapUsed,
+        heapTotalBytes: process.memoryUsage().heapTotal,
+        externalBytes: process.memoryUsage().external,
+      },
+      counters: {
+        queueItemCount: playbackState.queue.items.length,
+        activeStreamCount: 0,
+        activePlaybackCount: playbackState.canStop ? 1 : 0,
+        activeSessionCount: 0,
+        activeTokenCount: 0,
+        listenerCount: 0,
+        timerCount: 0,
+      },
+      latency: {},
+      gates: [
+        { name: 'startup', status: state.runtime === 'ready' ? 'pass' : 'not-run' },
+        { name: 'queue-state-machine', status: queueStateMachinePassed ? 'pass' : 'not-run' },
+        { name: 'crash-recovery', status: 'not-run' },
+        { name: 'resource-cleanup', status: resourcesClean ? 'pass' : 'not-run' },
+        { name: 'secret-scan', status: 'not-run' },
+      ],
+    };
+  };
   return {
     async start() {
       state = { ...state, runtime: 'ready', roon: 'ready' };
+      diagnostics.record({ component: 'core', level: 'info', event: 'core_ready', state: 'ready' });
     },
     async shutdown() {
-      state = { ...state, runtime: 'stopped' };
+      playbackState = emptyPlaybackState();
+      state = {
+        ...state,
+        runtime: 'stopped',
+        roon: 'disconnected',
+        activeStreamCount: 0,
+        activePlaybackPresent: false,
+      };
+      diagnostics.record({ component: 'core', level: 'info', event: 'core_shutdown', state: 'stopped' });
     },
     ping: () => ({ pong: true as const }),
     getHealth: () => state,
     getState: () => state,
+    getDiagnostics,
     async setProviderCredential() {
       state = { ...state, provider: 'configured' };
       authState = { status: 'authorized' };

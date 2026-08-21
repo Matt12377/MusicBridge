@@ -1,6 +1,7 @@
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { readFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { createRequire } from 'node:module'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -11,6 +12,8 @@ const axeSource = await readFile(require.resolve('axe-core/axe.min.js'), 'utf8')
 
 let electronApp: ElectronApplication
 let page: Page
+let diagnosticDirectory: string
+let diagnosticPath: string
 
 function navButton(name: string) {
   const index = ['Home', 'Search', 'Library', 'Now Playing', 'Queue', 'Settings', 'Diagnostics'].indexOf(name)
@@ -51,7 +54,14 @@ async function waitForProcessMarker(
 }
 
 test.beforeEach(async () => {
-  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1' }
+  diagnosticDirectory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-ui-diagnostics-'))
+  diagnosticPath = path.join(diagnosticDirectory, 'diagnostics.json')
+  const environment = {
+    ...process.env,
+    MUSIC_BRIDGE_UI_E2E: '1',
+    MUSIC_BRIDGE_CORE_TEST_MODE: '1',
+    MUSIC_BRIDGE_DIAGNOSTIC_EXPORT_PATH: diagnosticPath,
+  }
   delete environment.NETEASE_COOKIE
   electronApp = await electron.launch({
     args: [electronEntry],
@@ -66,6 +76,7 @@ test.beforeEach(async () => {
 
 test.afterEach(async () => {
   await electronApp.close()
+  await rm(diagnosticDirectory, { recursive: true, force: true })
 })
 
 test('packaged cold start, login states, navigation, focus and Renderer isolation', async () => {
@@ -82,6 +93,17 @@ test('packaged cold start, login states, navigation, focus and Renderer isolatio
     await navButton(name).click()
     await expect(page.getByRole('heading', { name, exact: true }).first()).toBeVisible()
   }
+
+  await page.getByRole('button', { name: '导出诊断文件' }).click()
+  await expect(page.getByText('诊断文件已导出，仅包含脱敏运行信息。')).toBeVisible()
+  const report = JSON.parse(await readFile(diagnosticPath, 'utf8')) as {
+    schemaVersion?: number
+  }
+  expect(report.schemaVersion).toBe(1)
+  expect((await stat(diagnosticPath)).mode & 0o777).toBe(0o600)
+  expect(await readFile(diagnosticPath, 'utf8')).not.toMatch(
+    /NETEASE_COOKIE|MUSIC_U|__csrf|Cookie|Authorization|Bearer|https?:\/\/|[?&][A-Za-z0-9_-]+=/i,
+  )
 
   await navButton('Search').focus()
   expect(await page.evaluate(() => document.activeElement?.tagName)).toBe('BUTTON')

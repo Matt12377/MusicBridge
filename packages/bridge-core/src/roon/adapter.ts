@@ -291,6 +291,7 @@ export class RoonAudioInputAdapter implements RoonPort {
   private readonly playingTimeoutMs: number;
   private readonly trackIdFactory: () => string;
   private readonly playbackMode: 'channel' | 'track';
+  private activeTimerCount = 0;
   private stateHandler: () => void = () => undefined;
   private timeHandler: (positionMs: number) => void = () => undefined;
 
@@ -457,10 +458,17 @@ export class RoonAudioInputAdapter implements RoonPort {
       let timeout: ReturnType<typeof setTimeout> | undefined;
       const startedAt = Date.now();
 
+      const releaseTimeout = (): void => {
+        if (!timeout) return;
+        clearTimeout(timeout);
+        timeout = undefined;
+        this.activeTimerCount = Math.max(0, this.activeTimerCount - 1);
+      };
+
       const finish = (error?: Error): void => {
         if (settled) return;
         settled = true;
-        if (timeout) clearTimeout(timeout);
+        releaseTimeout();
         if (error) this.clearPlaybackContext(generation);
         if (error) reject(error);
         else resolve();
@@ -472,8 +480,11 @@ export class RoonAudioInputAdapter implements RoonPort {
 
       const armTimeout = (nextPhase: RoonPlaybackPhase, durationMs: number): void => {
         phase = nextPhase;
-        if (timeout) clearTimeout(timeout);
+        releaseTimeout();
+        this.activeTimerCount += 1;
         timeout = setTimeout(() => {
+          timeout = undefined;
+          this.activeTimerCount = Math.max(0, this.activeTimerCount - 1);
           const generationCurrent = this.isCurrentPlaybackGeneration(generation);
           this.logger.warn('roon_session_timeout', {
             phase: nextPhase,
@@ -736,14 +747,22 @@ export class RoonAudioInputAdapter implements RoonPort {
 
     await new Promise<void>((resolve) => {
       let done = false;
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      const releaseTimeout = (): void => {
+        if (!timeout) return;
+        clearTimeout(timeout);
+        timeout = undefined;
+        this.activeTimerCount = Math.max(0, this.activeTimerCount - 1);
+      };
       const finish = (): void => {
         if (done) return;
         done = true;
+        releaseTimeout();
         resolve();
       };
-      const timeout = setTimeout(finish, 2_000);
+      this.activeTimerCount += 1;
+      timeout = setTimeout(finish, 2_000);
       session.end_session(() => {
-        clearTimeout(timeout);
         finish();
       });
     });
@@ -762,7 +781,10 @@ export class RoonAudioInputAdapter implements RoonPort {
       this.roon = undefined;
       this.core = undefined;
       this.audioInput = undefined;
+      this.terminalHandler = () => undefined;
+      this.stateHandler = () => undefined;
       this.timeHandler = () => undefined;
+      this.activeTimerCount = 0;
       this.zones.clear();
       this.selectedZone = undefined;
       this.state = { status: 'discovering' };
@@ -771,6 +793,18 @@ export class RoonAudioInputAdapter implements RoonPort {
 
   getState(): RoonState {
     return { ...this.state };
+  }
+
+  getDiagnosticResourceCounters(): {
+    activeSessionCount: number;
+    listenerCount: number;
+    timerCount: number;
+  } {
+    return {
+      activeSessionCount: this.activePlaybackContext ? 1 : 0,
+      listenerCount: this.roon ? 1 : 0,
+      timerCount: this.activeTimerCount,
+    };
   }
 
   private isCurrentPlaybackGeneration(generation: number): boolean {

@@ -25,6 +25,7 @@ export interface MusicBridgePublicApi {
   getCoreHealth: () => Promise<PublicBridgeState>
   getCoreState: () => Promise<PublicBridgeState>
   pingCore: () => Promise<{ pong: true }>
+  exportDiagnostics: () => Promise<{ exported: boolean }>
   getAuthState: () => Promise<PublicAuthState>
   beginQrLogin: () => Promise<PublicAuthState>
   pollQrLogin: (challengeId: string) => Promise<PublicAuthState>
@@ -51,6 +52,7 @@ export const PUBLIC_API_KEYS = [
   'getCoreHealth',
   'getCoreState',
   'pingCore',
+  'exportDiagnostics',
   'getAuthState',
   'beginQrLogin',
   'pollQrLogin',
@@ -77,6 +79,7 @@ export function createPreloadApi(
   getCoreHealth: () => Promise<PublicBridgeState>,
   getCoreState: () => Promise<PublicBridgeState>,
   pingCore: () => Promise<{ pong: true }>,
+  exportDiagnostics: () => Promise<{ exported: boolean }>,
   getAuthState: () => Promise<PublicAuthState>,
   beginQrLogin: () => Promise<PublicAuthState>,
   pollQrLogin: (challengeId: string) => Promise<PublicAuthState>,
@@ -102,6 +105,7 @@ export function createPreloadApi(
     getCoreHealth,
     getCoreState,
     pingCore,
+    exportDiagnostics,
     getAuthState,
     beginQrLogin,
     pollQrLogin,

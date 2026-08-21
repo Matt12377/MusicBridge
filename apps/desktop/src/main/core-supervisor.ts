@@ -44,6 +44,10 @@ export interface CoreSupervisorDependencies {
 
 export type CoreSupervisorStatus = 'stopped' | 'starting' | 'ready' | 'failed'
 
+export type CoreSupervisorLifecycle =
+  | { event: 'spawn' | 'ready' | 'restart' | 'failed' | 'stopped' }
+  | { event: 'exit'; code: number }
+
 export class CoreIpcError extends Error {
   constructor(
     readonly code: PublicErrorCode,
@@ -82,6 +86,7 @@ export class CoreSupervisor {
       requestTimeoutMs?: number
       onEvent?: (event: TypedIpcEvent) => void
       onReady?: () => Promise<void> | void
+      onLifecycle?: (event: CoreSupervisorLifecycle) => void
     },
   ) {}
 
@@ -170,6 +175,7 @@ export class CoreSupervisor {
       } catch (error) {
         if (this.restartCount >= 1) {
           this._status = 'failed'
+          this.options.onLifecycle?.({ event: 'failed' })
           throw error
         }
         this.restartCount += 1
@@ -193,6 +199,7 @@ export class CoreSupervisor {
     this.child = child
     this.port = channel.port2
     this._status = 'starting'
+    this.options.onLifecycle?.({ event: 'spawn' })
 
     let settled = false
     let readyReceived = false
@@ -217,6 +224,7 @@ export class CoreSupervisor {
     const handleExit = (code: number): void => {
       clearTimeout(readyTimer)
       if (this.child !== child) return
+      this.options.onLifecycle?.({ event: 'exit', code })
       this.child = undefined
       this.port = undefined
       channel.port2.close()
@@ -249,12 +257,14 @@ export class CoreSupervisor {
             () => {
               if (settled) return
               settled = true
+              this.options.onLifecycle?.({ event: 'ready' })
               resolveReady()
             },
             () => {
               if (settled) return
               settled = true
               this._status = 'failed'
+              this.options.onLifecycle?.({ event: 'failed' })
               rejectReady(new CoreIpcError('INTERNAL_ERROR', 'Core readiness recovery failed'))
               readyReceived = false
               child.kill()
@@ -305,15 +315,18 @@ export class CoreSupervisor {
   private async restartAfterCrash(): Promise<void> {
     if (this.restartCount >= 1) {
       this._status = 'failed'
+      this.options.onLifecycle?.({ event: 'failed' })
       return
     }
     this.restartCount += 1
     this._status = 'starting'
+    this.options.onLifecycle?.({ event: 'restart' })
     try {
       await this.spawnAndAwaitReady()
       this._status = 'ready'
     } catch {
       this._status = 'failed'
+      this.options.onLifecycle?.({ event: 'failed' })
     }
   }
 
@@ -332,6 +345,7 @@ export class CoreSupervisor {
     if (!child) {
       this._status = 'stopped'
       port?.close()
+      this.options.onLifecycle?.({ event: 'stopped' })
       return
     }
 
@@ -350,6 +364,7 @@ export class CoreSupervisor {
     }
     port?.close()
     this._status = 'stopped'
+    this.options.onLifecycle?.({ event: 'stopped' })
     this.rejectPending(new CoreIpcError('NOT_READY', 'Core supervisor is stopped'))
   }
 

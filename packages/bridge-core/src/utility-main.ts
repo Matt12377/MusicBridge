@@ -89,6 +89,8 @@ async function dispatch(
       return runtime.getHealth();
     case 'core.getState':
       return runtime.getState();
+    case 'core.getDiagnostics':
+      return runtime.getDiagnostics();
     case 'core.shutdown':
       await runtime.shutdown();
       return { stopped: true as const };

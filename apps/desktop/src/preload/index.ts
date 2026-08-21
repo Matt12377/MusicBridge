@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld(
     () => ipcRenderer.invoke('core:get-health'),
     () => ipcRenderer.invoke('core:get-state'),
     () => ipcRenderer.invoke('core:ping'),
+    () => ipcRenderer.invoke('diagnostics:export'),
     () => ipcRenderer.invoke('auth:get-state'),
     () => ipcRenderer.invoke('auth:begin-qr'),
     (challengeId: string) => ipcRenderer.invoke('auth:poll-qr', challengeId),

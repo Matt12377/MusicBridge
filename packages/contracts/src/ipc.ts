@@ -8,6 +8,7 @@ import type {
   PlaybackSnapshot,
 } from './playback.js';
 import type { PublicAuthState, PublicBridgeState, PublicRoonZone } from './state.js';
+import type { DiagnosticComponentSnapshot } from './diagnostics.js';
 
 export const IPC_VERSION = 1 as const;
 
@@ -15,6 +16,7 @@ export const IPC_COMMANDS = [
   'core.ping',
   'core.getHealth',
   'core.getState',
+  'core.getDiagnostics',
   'core.shutdown',
   'auth.setCredential',
   'auth.clearCredential',
@@ -84,6 +86,7 @@ export interface IpcCommandPayloads {
   'core.ping': Record<string, never>;
   'core.getHealth': Record<string, never>;
   'core.getState': Record<string, never>;
+  'core.getDiagnostics': Record<string, never>;
   'core.shutdown': Record<string, never>;
   'auth.setCredential': { credential: string };
   'auth.clearCredential': Record<string, never>;
@@ -111,6 +114,7 @@ export interface IpcCommandResults {
   'core.ping': { pong: true };
   'core.getHealth': PublicBridgeState;
   'core.getState': PublicBridgeState;
+  'core.getDiagnostics': DiagnosticComponentSnapshot;
   'core.shutdown': { stopped: true };
   'auth.setCredential': PublicBridgeState;
   'auth.clearCredential': PublicBridgeState;

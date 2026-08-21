@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { PublicBridgeState } from '@music-bridge/contracts';
-import { toPublicBridgeState } from '../src/runtime.js';
+import { createTestBridgeRuntime, toPublicBridgeState } from '../src/runtime.js';
 
 test('runtime maps internal BridgeState to a bounded public state', () => {
   const state = toPublicBridgeState(
@@ -33,4 +33,35 @@ test('runtime maps internal BridgeState to a bounded public state', () => {
   };
   assert.deepEqual(state, expected);
   assert.doesNotMatch(JSON.stringify(state), /hidden/);
+});
+
+test('synthetic runtime exposes redacted diagnostics and clears resources on stop', async () => {
+  const runtime = createTestBridgeRuntime();
+  await runtime.start();
+  await runtime.replacePlaybackQueue(
+    Array.from({ length: 100 }, (_, index) => ({
+      trackId: String(1000 + index),
+      quality: 'lossless' as const,
+    })),
+    0,
+  );
+
+  const playing = runtime.getDiagnostics();
+  assert.equal(playing.component, 'core');
+  assert.equal(playing.counters.queueItemCount, 100);
+  assert.equal(playing.counters.activePlaybackCount, 1);
+  assert.equal(playing.counters.activeTokenCount, 0);
+  assert.equal(playing.gates.find((gate) => gate.name === 'queue-state-machine')?.status, 'pass');
+  assert.doesNotMatch(JSON.stringify(playing), /Synthetic Track|1000|trackId|zoneId|https?:\/\//i);
+
+  await runtime.shutdown();
+  const stopped = runtime.getDiagnostics();
+  assert.equal(stopped.health.runtime, 'stopped');
+  assert.equal(stopped.health.roon, 'disconnected');
+  assert.equal(stopped.counters.activePlaybackCount, 0);
+  assert.equal(stopped.counters.activeSessionCount, 0);
+  assert.equal(stopped.counters.activeTokenCount, 0);
+  assert.equal(stopped.counters.listenerCount, 0);
+  assert.equal(stopped.counters.timerCount, 0);
+  assert.equal(stopped.gates.find((gate) => gate.name === 'resource-cleanup')?.status, 'pass');
 });

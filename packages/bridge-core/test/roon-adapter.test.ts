@@ -625,6 +625,34 @@ test('a new playback receives a new track identity after stop clears the prior o
   assert.equal(nextTrackId, 2);
 });
 
+test('playback timer and Roon listener counters are cleared on shutdown', async () => {
+  const { adapter, api } = await makeReadyHarness();
+
+  assert.deepEqual(adapter.getDiagnosticResourceCounters(), {
+    activeSessionCount: 0,
+    listenerCount: 1,
+    timerCount: 0,
+  });
+
+  const playback = adapter.play(playRequest);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 1);
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'opaque-session' });
+  await playback;
+  assert.deepEqual(adapter.getDiagnosticResourceCounters(), {
+    activeSessionCount: 1,
+    listenerCount: 1,
+    timerCount: 0,
+  });
+
+  await adapter.shutdown();
+  assert.deepEqual(adapter.getDiagnosticResourceCounters(), {
+    activeSessionCount: 0,
+    listenerCount: 0,
+    timerCount: 0,
+  });
+});
+
 test('a stale SessionEnded callback does not clear the new playback identity', async () => {
   const { logger, events } = recordingLogger();
   const { adapter, api } = await makeReadyHarness({}, logger);

@@ -1,6 +1,7 @@
 import {
   app,
   BrowserWindow,
+  dialog,
   ipcMain,
   MessageChannelMain,
   protocol,
@@ -28,8 +29,13 @@ import {
 } from './credential-provisioning.js'
 import { CredentialVault } from './credential-vault.js'
 import {
+  MainDiagnosticRecorder,
+  writeDiagnosticReport,
+} from './diagnostics.js'
+import {
   CoreIpcError,
   CoreSupervisor,
+  type CoreSupervisorLifecycle,
   type CoreChildProcess,
   type CoreMessagePort,
 } from './core-supervisor.js'
@@ -72,6 +78,7 @@ const isCredentialVaultGate =
 let mainWindow: BrowserWindow | undefined
 let coreSupervisor: CoreSupervisor | undefined
 let quitAfterCoreShutdown = false
+const mainDiagnostics = new MainDiagnosticRecorder()
 
 function appInfo() {
   return {
@@ -294,6 +301,40 @@ function registerIpcHandlers(
   ipcMain.handle('core:ping', (event) =>
     invokeCore(event, () => supervisor.request('core.ping', {})),
   )
+  ipcMain.handle('diagnostics:export', (event) =>
+    invokeCore(event, async () => {
+      mainDiagnostics.recordLifecycle('diagnostics_export_requested')
+      const core = await supervisor.request('core.getDiagnostics', {})
+      const testOutputPath = isUiE2e ? process.env.MUSIC_BRIDGE_DIAGNOSTIC_EXPORT_PATH : undefined
+      const selection = testOutputPath
+        ? { canceled: false, filePath: testOutputPath }
+        : await dialog.showSaveDialog(mainWindow!, {
+            title: '导出 Music Bridge 诊断文件',
+            defaultPath: 'MusicBridge-diagnostics.json',
+            filters: [{ name: 'JSON', extensions: ['json'] }],
+          })
+      if (selection.canceled || !selection.filePath) return { exported: false }
+
+      await writeDiagnosticReport(selection.filePath, {
+        platform: {
+          platform: process.platform,
+          arch: process.arch,
+          appVersion: app.getVersion(),
+          electronVersion: process.versions.electron ?? 'unknown',
+          nodeVersion: process.versions.node,
+        },
+        main: mainDiagnostics.snapshot(core.health),
+        core,
+        gates: [
+          ...mainDiagnostics.snapshot(core.health).gates,
+          ...core.gates,
+          { name: 'diagnostic-export', status: 'pass' },
+        ],
+      })
+      mainDiagnostics.recordLifecycle('diagnostics_export_completed')
+      return { exported: true }
+    }),
+  )
   ipcMain.handle('auth:get-state', (event) =>
     invokeCore(event, () => supervisor.request('auth.getState', {})),
   )
@@ -496,6 +537,7 @@ function createCoreSupervisor(
   options: {
     onReady?: () => Promise<void> | void
     onEvent?: (event: TypedIpcEvent) => void
+    onLifecycle?: (event: CoreSupervisorLifecycle) => void
   } = {},
 ): CoreSupervisor {
   return new CoreSupervisor({
@@ -519,7 +561,9 @@ function createCoreSupervisor(
         }) as unknown as CoreChildProcess,
     },
     onReady: options.onReady,
+    onLifecycle: options.onLifecycle,
     onEvent: (event: TypedIpcEvent) => {
+      mainDiagnostics.recordCoreEvent(event)
       options.onEvent?.(event)
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('core:event', event)
@@ -608,6 +652,10 @@ async function bootstrap(): Promise<void> {
       if (event.event === 'auth.changed' && event.payload.state.status === 'expired') {
         void prepared.credentialVault.delete().catch(() => undefined)
       }
+    },
+    onLifecycle: (event) => {
+      const level = event.event === 'exit' || event.event === 'failed' ? 'warn' : 'info'
+      mainDiagnostics.recordLifecycle(`core_${event.event}`, level)
     },
   })
   coreSupervisor = supervisor

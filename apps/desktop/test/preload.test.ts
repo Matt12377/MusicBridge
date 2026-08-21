@@ -59,6 +59,7 @@ test('Preload exposes only sanitized business methods', async () => {
     async () => state,
     async () => state,
     async () => ({ pong: true as const }),
+    async () => ({ exported: true }),
     async () => authState,
     async () => authState,
     async () => authState,
@@ -85,6 +86,7 @@ test('Preload exposes only sanitized business methods', async () => {
     'getCoreHealth',
     'getCoreState',
     'pingCore',
+    'exportDiagnostics',
     'getAuthState',
     'beginQrLogin',
     'pollQrLogin',
@@ -110,6 +112,7 @@ test('Preload exposes only sanitized business methods', async () => {
     'getCoreHealth',
     'getCoreState',
     'pingCore',
+    'exportDiagnostics',
     'getAuthState',
     'beginQrLogin',
     'pollQrLogin',
@@ -135,6 +138,7 @@ test('Preload exposes only sanitized business methods', async () => {
   assert.deepEqual(await api.getCoreHealth(), state)
   assert.deepEqual(await api.getCoreState(), state)
   assert.deepEqual(await api.pingCore(), { pong: true })
+  assert.deepEqual(await api.exportDiagnostics(), { exported: true })
   assert.deepEqual(await api.getAuthState(), authState)
   assert.deepEqual(await api.beginQrLogin(), authState)
   assert.deepEqual(await api.pollQrLogin('challenge-1'), authState)

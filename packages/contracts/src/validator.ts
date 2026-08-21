@@ -40,6 +40,11 @@ import type {
   PublicBridgeState,
   PublicRoonZone,
 } from './state.js';
+import type {
+  DiagnosticComponentSnapshot,
+  DiagnosticGateResult,
+  DiagnosticTimelineEvent,
+} from './diagnostics.js';
 
 export type ValidationResult<T> =
   | { ok: true; value: T }
@@ -568,6 +573,88 @@ function isPublicBridgeState(value: unknown): value is PublicBridgeState {
   );
 }
 
+function isDiagnosticTimelineEvent(value: unknown): value is DiagnosticTimelineEvent {
+  if (!isRecord(value)) return false;
+  if (!hasOnlyKeys(value, ['at', 'component', 'level', 'event', 'code', 'diagnosticId', 'state', 'durationMs'])) {
+    return false;
+  }
+  return (
+    safeString(value.at, 64) &&
+    (value.component === 'main' || value.component === 'core') &&
+    (value.level === 'info' || value.level === 'warn' || value.level === 'error') &&
+    safeString(value.event, 128) &&
+    (value.code === undefined || safeString(value.code, 128)) &&
+    (value.diagnosticId === undefined || safeString(value.diagnosticId, 128)) &&
+    (value.state === undefined || safeString(value.state, 64)) &&
+    (value.durationMs === undefined ||
+      (typeof value.durationMs === 'number' &&
+        Number.isSafeInteger(value.durationMs) &&
+        value.durationMs >= 0 &&
+        value.durationMs <= 24 * 60 * 60 * 1000))
+  );
+}
+
+function isDiagnosticGate(value: unknown): value is DiagnosticGateResult {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['name', 'status']) &&
+    safeString(value.name, 128) &&
+    ['pass', 'fail', 'not-run'].includes(String(value.status))
+  );
+}
+
+function isDiagnosticComponentSnapshot(value: unknown): value is DiagnosticComponentSnapshot {
+  if (!isRecord(value)) return false;
+  if (
+    !hasOnlyKeys(value, ['component', 'health', 'timeline', 'memory', 'counters', 'latency', 'gates']) ||
+    !['main', 'core'].includes(String(value.component)) ||
+    !isPublicBridgeState(value.health) ||
+    !Array.isArray(value.timeline) ||
+    value.timeline.length > 200 ||
+    !value.timeline.every((event) => isDiagnosticTimelineEvent(event)) ||
+    !isRecord(value.memory) ||
+    !hasOnlyKeys(value.memory, ['rssBytes', 'heapUsedBytes', 'heapTotalBytes', 'externalBytes']) ||
+    !isRecord(value.counters) ||
+    !hasOnlyKeys(value.counters, [
+      'queueItemCount',
+      'activeStreamCount',
+      'activePlaybackCount',
+      'activeSessionCount',
+      'activeTokenCount',
+      'listenerCount',
+      'timerCount',
+    ]) ||
+    !isRecord(value.latency) ||
+    !hasOnlyKeys(value.latency, ['startupMs', 'lastPlayMs']) ||
+    !Array.isArray(value.gates) ||
+    value.gates.length > 64 ||
+    !value.gates.every((gate) => isDiagnosticGate(gate))
+  ) {
+    return false;
+  }
+
+  const memory = value.memory;
+  const counters = value.counters;
+  const latency = value.latency;
+  const boundedNumber = (candidate: unknown, maximum = Number.MAX_SAFE_INTEGER): boolean =>
+    typeof candidate === 'number' && Number.isSafeInteger(candidate) && candidate >= 0 && candidate <= maximum;
+  return (
+    boundedNumber(memory.rssBytes) &&
+    boundedNumber(memory.heapUsedBytes) &&
+    boundedNumber(memory.heapTotalBytes) &&
+    boundedNumber(memory.externalBytes) &&
+    boundedNumber(counters.queueItemCount, 100) &&
+    boundedNumber(counters.activeStreamCount, 100_000) &&
+    boundedNumber(counters.activePlaybackCount, 1) &&
+    boundedNumber(counters.activeSessionCount, 1) &&
+    boundedNumber(counters.activeTokenCount, 100_000) &&
+    boundedNumber(counters.listenerCount, 100_000) &&
+    boundedNumber(counters.timerCount, 100_000) &&
+    (latency.startupMs === undefined || boundedNumber(latency.startupMs, 24 * 60 * 60 * 1000)) &&
+    (latency.lastPlayMs === undefined || boundedNumber(latency.lastPlayMs, 24 * 60 * 60 * 1000))
+  );
+}
+
 function isAuthStatus(value: unknown): value is PublicAuthState['status'] {
   return [
     'idle',
@@ -647,6 +734,8 @@ function isCommandResult(
     case 'auth.clearCredential':
     case 'roon.selectZone':
       return isPublicBridgeState(value);
+    case 'core.getDiagnostics':
+      return isDiagnosticComponentSnapshot(value);
     case 'auth.beginQr':
     case 'auth.cancelQr':
     case 'auth.getState':
