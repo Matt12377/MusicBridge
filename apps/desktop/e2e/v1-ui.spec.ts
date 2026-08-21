@@ -182,6 +182,54 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   await expect(page.getByText('待机')).toBeVisible()
 })
 
+test('关闭窗口只隐藏，激活恢复同一窗口并保留播放状态', async () => {
+  await navButton('Search').click()
+  const search = page.getByLabel('搜索歌曲、艺人或专辑')
+  await search.fill('synthetic')
+  await expect(page.getByText('Synthetic Track 1', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '播放 Synthetic Track 1', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Now Playing', exact: true }).first()).toBeVisible()
+  await expect.poll(async () => (await page.evaluate(() => window.musicBridge.getPlaybackState())).state).toBe('playing')
+
+  const hidden = await electronApp.evaluate(({ BrowserWindow }) => {
+    const window = BrowserWindow.getAllWindows()[0]
+    if (!window) return false
+    window.close()
+    return !window.isVisible()
+  })
+  expect(hidden).toBe(true)
+  expect((await page.evaluate(() => window.musicBridge.getPlaybackState())).state).toBe('playing')
+
+  const visible = await electronApp.evaluate(({ app, BrowserWindow }) => {
+    app.emit('activate')
+    const window = BrowserWindow.getAllWindows()[0]
+    return Boolean(window && window.isVisible())
+  })
+  expect(visible).toBe(true)
+  await expect(page.getByRole('heading', { name: 'Now Playing', exact: true }).first()).toBeVisible()
+
+  await electronApp.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows()[0]?.webContents.send('app:command', 'show-queue')
+  })
+  await expect(page.getByRole('heading', { name: 'Queue', exact: true }).first()).toBeVisible()
+  expect((await page.evaluate(() => window.musicBridge.getPlaybackState())).state).toBe('playing')
+})
+
+test('退出命令完成 Core 清理并结束 Electron 进程', async () => {
+  const child = electronApp.process()
+  const exited = new Promise<number | null>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Electron 退出超时')), 10_000)
+    child.once('exit', (code) => {
+      clearTimeout(timer)
+      resolve(code)
+    })
+  })
+
+  await electronApp.evaluate(({ app }) => app.quit())
+  const exitCode = await exited
+  expect(exitCode).toBe(0)
+})
+
 test('packaged UI has no critical or serious axe findings', async () => {
   const results = await electronApp.evaluate(async ({ BrowserWindow }, source) => {
     const window = BrowserWindow.getAllWindows()[0]

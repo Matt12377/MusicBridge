@@ -85,6 +85,7 @@ const libraryBusy = ref(false)
 const libraryError = ref<'auth-expired' | 'generic' | null>(null)
 
 let removeCoreListener: (() => void) | undefined
+let removeAppCommandListener: (() => void) | undefined
 let pollTimer: ReturnType<typeof setInterval> | undefined
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 let authOperation = 0
@@ -487,6 +488,9 @@ function ipcQueueItems(items: readonly PlaybackQueueItem[]): PlaybackQueueItem[]
 }
 
 onMounted(async () => {
+  removeAppCommandListener = window.musicBridge.onAppCommand((command) => {
+    if (command === 'show-queue') navigate('queue')
+  })
   removeCoreListener = window.musicBridge.onCoreEvent((event) => {
     if (event.event === 'core.ready' || event.event === 'core.health' || event.event === 'roon.changed') {
       coreState.value = event.payload.state
@@ -510,6 +514,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   removeCoreListener?.()
+  removeAppCommandListener?.()
   stopPolling()
   stopSearchTimer()
 })

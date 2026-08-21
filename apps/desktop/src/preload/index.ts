@@ -42,5 +42,12 @@ contextBridge.exposeInMainWorld(
       ipcRenderer.on('core:event', handler)
       return () => ipcRenderer.removeListener('core:event', handler)
     },
+    (listener: (command: 'show-queue') => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, command: 'show-queue'): void => {
+        if (command === 'show-queue') listener(command)
+      }
+      ipcRenderer.on('app:command', handler)
+      return () => ipcRenderer.removeListener('app:command', handler)
+    },
   ),
 )

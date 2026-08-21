@@ -3,17 +3,22 @@ import {
   BrowserWindow,
   dialog,
   ipcMain,
+  Menu,
   MessageChannelMain,
+  nativeImage,
   protocol,
   safeStorage,
   session,
+  Tray,
   utilityProcess,
 } from 'electron'
 import type {
   PageRequest,
   PlaybackQueueItem,
   PlaybackQuality,
+  PlaybackSnapshot,
   PublicAuthState,
+  PublicBridgeState,
   PublicErrorCode,
   TypedIpcEvent,
 } from '@music-bridge/contracts'
@@ -54,6 +59,12 @@ import {
   RENDERER_SCHEME,
   rendererContentType,
 } from './renderer-protocol.js'
+import trayTemplateSvg from './assets/musicbridge-tray-template.svg?raw'
+import {
+  buildTrayPresentation,
+  shouldHideWindowOnClose,
+  type TrayPresentation,
+} from './tray.js'
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -77,8 +88,27 @@ const isCredentialVaultGate =
 
 let mainWindow: BrowserWindow | undefined
 let coreSupervisor: CoreSupervisor | undefined
+let tray: Tray | undefined
+let trayRefreshPromise: Promise<void> | undefined
+let trayRefreshQueued = false
 let quitAfterCoreShutdown = false
 const mainDiagnostics = new MainDiagnosticRecorder()
+
+const EMPTY_PLAYBACK_SNAPSHOT: PlaybackSnapshot = {
+  state: 'idle',
+  queue: { items: [], index: -1, hasNext: false, hasPrevious: false },
+  canNext: false,
+  canPrevious: false,
+  canStop: false,
+}
+
+const STARTING_BRIDGE_STATE: PublicBridgeState = {
+  runtime: 'starting',
+  roon: 'disconnected',
+  provider: 'missing',
+  activeStreamCount: 0,
+  activePlaybackPresent: false,
+}
 
 function appInfo() {
   return {
@@ -86,6 +116,119 @@ function appInfo() {
     buildMode: app.isPackaged ? 'production' : 'development',
     platform: process.platform,
   } as const
+}
+
+function sendRendererCommand(command: 'show-queue'): void {
+  const target = mainWindow
+  if (!target || target.isDestroyed()) return
+  const send = (): void => {
+    if (!target.isDestroyed()) target.webContents.send('app:command', command)
+  }
+  if (target.webContents.isLoading()) target.webContents.once('did-finish-load', send)
+  else send()
+}
+
+function showMainWindow(command?: 'show-queue'): void {
+  const target = mainWindow
+  if (!target || target.isDestroyed()) return
+  if (target.isMinimized()) target.restore()
+  target.show()
+  target.focus()
+  if (command) sendRendererCommand(command)
+}
+
+function createTrayIcon() {
+  const icon = nativeImage.createFromDataURL(
+    `data:image/svg+xml;charset=utf-8,${encodeURIComponent(trayTemplateSvg)}`,
+  )
+  if (process.platform === 'darwin') icon.setTemplateImage(true)
+  return icon
+}
+
+function destroyTray(): void {
+  trayRefreshQueued = false
+  tray?.destroy()
+  tray = undefined
+}
+
+function buildTrayMenu(
+  supervisor: CoreSupervisor,
+  snapshot: { bridge: PublicBridgeState; playback: PlaybackSnapshot },
+  presentation: TrayPresentation,
+): Electron.Menu {
+  const runPlaybackCommand = (
+    command: 'playback.previous' | 'playback.next' | 'playback.stop',
+  ): void => {
+    void supervisor
+      .request(command, {})
+      .catch(() => undefined)
+      .finally(() => requestTrayRefresh(supervisor))
+  }
+
+  return Menu.buildFromTemplate([
+    { label: presentation.statusLabel, enabled: false },
+    { label: presentation.trackLabel, enabled: false },
+    { type: 'separator' },
+    { label: 'Open Music Bridge', click: () => showMainWindow() },
+    {
+      label: 'Previous',
+      enabled: snapshot.playback.canPrevious,
+      click: () => runPlaybackCommand('playback.previous'),
+    },
+    {
+      label: 'Next',
+      enabled: snapshot.playback.canNext,
+      click: () => runPlaybackCommand('playback.next'),
+    },
+    {
+      label: 'Stop',
+      enabled: snapshot.playback.canStop,
+      click: () => runPlaybackCommand('playback.stop'),
+    },
+    { label: 'Show Queue', click: () => showMainWindow('show-queue') },
+    { label: 'Export Diagnostics', click: () => void exportDiagnosticsFromMain(supervisor) },
+    { type: 'separator' },
+    { label: 'Quit Music Bridge', click: () => app.quit() },
+  ])
+}
+
+function requestTrayRefresh(supervisor: CoreSupervisor = coreSupervisor!): void {
+  if (!tray || !supervisor) return
+  trayRefreshQueued = true
+  if (trayRefreshPromise) return
+
+  trayRefreshPromise = (async () => {
+    while (tray && trayRefreshQueued) {
+      trayRefreshQueued = false
+      try {
+        const [bridge, playback] = await Promise.all([
+          supervisor.request('core.getHealth', {}),
+          supervisor.request('playback.getState', {}),
+        ])
+        if (!tray) return
+        const snapshot = { bridge, playback }
+        const presentation = buildTrayPresentation(snapshot)
+        tray.setContextMenu(buildTrayMenu(supervisor, snapshot, presentation))
+      } catch {
+        if (!tray) return
+        const snapshot = { bridge: STARTING_BRIDGE_STATE, playback: EMPTY_PLAYBACK_SNAPSHOT }
+        const presentation = buildTrayPresentation(snapshot)
+        tray.setContextMenu(buildTrayMenu(supervisor, snapshot, presentation))
+      }
+    }
+  })().finally(() => {
+    trayRefreshPromise = undefined
+    if (trayRefreshQueued) requestTrayRefresh(supervisor)
+  })
+}
+
+function createTray(supervisor: CoreSupervisor): void {
+  if (process.platform !== 'darwin') return
+  destroyTray()
+  tray = new Tray(createTrayIcon())
+  tray.setToolTip('Music Bridge for Roon')
+  tray.on('click', () => showMainWindow())
+  requestTrayRefresh(supervisor)
 }
 
 function installSessionSecurity(targetSession: Electron.Session): void {
@@ -284,6 +427,47 @@ async function saveQrCredential(
   }
 }
 
+async function exportDiagnosticsFromMain(
+  supervisor: CoreSupervisor,
+): Promise<{ exported: boolean }> {
+  mainDiagnostics.recordLifecycle('diagnostics_export_requested')
+  const core = await supervisor.request('core.getDiagnostics', {})
+  const testOutputPath = isUiE2e ? process.env.MUSIC_BRIDGE_DIAGNOSTIC_EXPORT_PATH : undefined
+  const selection = testOutputPath
+    ? { canceled: false, filePath: testOutputPath }
+    : mainWindow
+      ? await dialog.showSaveDialog(mainWindow, {
+          title: '导出 Music Bridge 诊断文件',
+          defaultPath: 'MusicBridge-diagnostics.json',
+          filters: [{ name: 'JSON', extensions: ['json'] }],
+        })
+      : await dialog.showSaveDialog({
+          title: '导出 Music Bridge 诊断文件',
+          defaultPath: 'MusicBridge-diagnostics.json',
+          filters: [{ name: 'JSON', extensions: ['json'] }],
+        })
+  if (selection.canceled || !selection.filePath) return { exported: false }
+
+  await writeDiagnosticReport(selection.filePath, {
+    platform: {
+      platform: process.platform,
+      arch: process.arch,
+      appVersion: app.getVersion(),
+      electronVersion: process.versions.electron ?? 'unknown',
+      nodeVersion: process.versions.node,
+    },
+    main: mainDiagnostics.snapshot(core.health),
+    core,
+    gates: [
+      ...mainDiagnostics.snapshot(core.health).gates,
+      ...core.gates,
+      { name: 'diagnostic-export', status: 'pass' },
+    ],
+  })
+  mainDiagnostics.recordLifecycle('diagnostics_export_completed')
+  return { exported: true }
+}
+
 function registerIpcHandlers(
   supervisor: CoreSupervisor,
   credentialVault: CredentialVault,
@@ -302,38 +486,7 @@ function registerIpcHandlers(
     invokeCore(event, () => supervisor.request('core.ping', {})),
   )
   ipcMain.handle('diagnostics:export', (event) =>
-    invokeCore(event, async () => {
-      mainDiagnostics.recordLifecycle('diagnostics_export_requested')
-      const core = await supervisor.request('core.getDiagnostics', {})
-      const testOutputPath = isUiE2e ? process.env.MUSIC_BRIDGE_DIAGNOSTIC_EXPORT_PATH : undefined
-      const selection = testOutputPath
-        ? { canceled: false, filePath: testOutputPath }
-        : await dialog.showSaveDialog(mainWindow!, {
-            title: '导出 Music Bridge 诊断文件',
-            defaultPath: 'MusicBridge-diagnostics.json',
-            filters: [{ name: 'JSON', extensions: ['json'] }],
-          })
-      if (selection.canceled || !selection.filePath) return { exported: false }
-
-      await writeDiagnosticReport(selection.filePath, {
-        platform: {
-          platform: process.platform,
-          arch: process.arch,
-          appVersion: app.getVersion(),
-          electronVersion: process.versions.electron ?? 'unknown',
-          nodeVersion: process.versions.node,
-        },
-        main: mainDiagnostics.snapshot(core.health),
-        core,
-        gates: [
-          ...mainDiagnostics.snapshot(core.health).gates,
-          ...core.gates,
-          { name: 'diagnostic-export', status: 'pass' },
-        ],
-      })
-      mainDiagnostics.recordLifecycle('diagnostics_export_completed')
-      return { exported: true }
-    }),
+    invokeCore(event, () => exportDiagnosticsFromMain(supervisor)),
   )
   ipcMain.handle('auth:get-state', (event) =>
     invokeCore(event, () => supervisor.request('auth.getState', {})),
@@ -469,6 +622,13 @@ function createWindow(supervisor: CoreSupervisor): BrowserWindow {
     }
   })
   window.webContents.setWindowOpenHandler(() => getWindowOpenDecision())
+  window.on('close', (event) => {
+    if (!shouldHideWindowOnClose(quitAfterCoreShutdown)) {
+      return
+    }
+    event.preventDefault()
+    window.hide()
+  })
   window.on('closed', () => {
     if (mainWindow === window) mainWindow = undefined
   })
@@ -565,6 +725,7 @@ function createCoreSupervisor(
     onEvent: (event: TypedIpcEvent) => {
       mainDiagnostics.recordCoreEvent(event)
       options.onEvent?.(event)
+      requestTrayRefresh()
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('core:event', event)
       }
@@ -672,6 +833,7 @@ async function bootstrap(): Promise<void> {
   initialProvisioningComplete = true
   registerIpcHandlers(supervisor, prepared.credentialVault)
   createWindow(supervisor)
+  createTray(supervisor)
   if (isCoreCrashGate) {
     setTimeout(() => {
       const passed = supervisor.status === 'failed' && supervisor.restarts === 1
@@ -681,8 +843,11 @@ async function bootstrap(): Promise<void> {
   }
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      showMainWindow()
+    } else {
       createWindow(supervisor)
+      createTray(supervisor)
     }
   })
 }
@@ -693,14 +858,24 @@ void bootstrap().catch(() => {
 })
 
 app.on('before-quit', (event) => {
-  if (quitAfterCoreShutdown || !coreSupervisor) return
+  if (quitAfterCoreShutdown) {
+    destroyTray()
+    return
+  }
+  if (!coreSupervisor) {
+    destroyTray()
+    return
+  }
   event.preventDefault()
   quitAfterCoreShutdown = true
-  void coreSupervisor.shutdown().finally(() => app.quit())
+  void coreSupervisor.shutdown().finally(() => {
+    destroyTray()
+    app.quit()
+  })
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+  if (process.platform !== 'darwin' && !quitAfterCoreShutdown) {
     app.quit()
   }
 })

@@ -14,6 +14,8 @@ import type {
   TypedIpcEvent,
 } from '@music-bridge/contracts'
 
+export type AppCommand = 'show-queue'
+
 export interface AppInfo {
   version: string
   buildMode: 'development' | 'production'
@@ -45,6 +47,7 @@ export interface MusicBridgePublicApi {
   previous: () => Promise<PlaybackSnapshot>
   replaceQueue: (items: readonly PlaybackQueueItem[], index: number) => Promise<PlaybackSnapshot>
   onCoreEvent: (listener: (event: TypedIpcEvent) => void) => () => void
+  onAppCommand: (listener: (command: AppCommand) => void) => () => void
 }
 
 export const PUBLIC_API_KEYS = [
@@ -72,6 +75,7 @@ export const PUBLIC_API_KEYS = [
   'previous',
   'replaceQueue',
   'onCoreEvent',
+  'onAppCommand',
 ] as const
 
 export function createPreloadApi(
@@ -99,6 +103,7 @@ export function createPreloadApi(
   previous: () => Promise<PlaybackSnapshot>,
   replaceQueue: (items: readonly PlaybackQueueItem[], index: number) => Promise<PlaybackSnapshot>,
   onCoreEvent: (listener: (event: TypedIpcEvent) => void) => () => void,
+  onAppCommand: (listener: (command: AppCommand) => void) => () => void,
 ): MusicBridgePublicApi {
   return Object.freeze({
     getAppInfo,
@@ -125,5 +130,6 @@ export function createPreloadApi(
     previous,
     replaceQueue,
     onCoreEvent,
+    onAppCommand,
   })
 }

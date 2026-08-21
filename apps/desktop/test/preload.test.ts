@@ -79,6 +79,7 @@ test('Preload exposes only sanitized business methods', async () => {
     async () => playbackState,
     async () => playbackState,
     () => () => undefined,
+    () => () => undefined,
   )
 
   assert.deepEqual(PUBLIC_API_KEYS, [
@@ -106,6 +107,7 @@ test('Preload exposes only sanitized business methods', async () => {
     'previous',
     'replaceQueue',
     'onCoreEvent',
+    'onAppCommand',
   ])
   assert.deepEqual(Object.keys(api), [
     'getAppInfo',
@@ -132,6 +134,7 @@ test('Preload exposes only sanitized business methods', async () => {
     'previous',
     'replaceQueue',
     'onCoreEvent',
+    'onAppCommand',
   ])
   assert.equal(Object.isFrozen(api), true)
   assert.deepEqual(await api.getAppInfo(), appInfo)
