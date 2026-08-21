@@ -2,9 +2,9 @@
 
 ## 当前结论
 
-**PARTIAL — 自动 Gate 与远端部署通过，Owner 实机 UI Gate 待验收。**
+**PASS — 自动 Gate、远端部署和 Owner 实机 UI Gate 全部通过。**
 
-TASK-021 已完成实现并部署到 Core Mac。搜索、我喜欢、用户歌单、歌单详情分页的代码路径和自动化测试已通过；四类数据在真实 Provider 账户下的桌面界面验收尚未由 Owner 完成，因此不得开始 TASK-022。
+TASK-021 已完成实现并部署到 Core Mac。搜索、我喜欢、用户歌单、歌单详情分页的代码路径、自动化测试和真实桌面界面验收均已通过。按当前任务边界，完成后停止，不开始 TASK-022。
 
 ## Git 身份
 
@@ -82,14 +82,15 @@ TASK-021 已完成实现并部署到 Core Mac。搜索、我喜欢、用户歌�
 
 ## Owner 实机 UI Gate
 
-尚待 Owner 在当前已部署 App 中使用真实已授权 Provider 账户确认以下项目：
+Owner 已确认当前部署版本的四项真实界面验收全部通过。仅记录脱敏结果：
 
-1. 搜索结果可在临时列表显示。
-2. 我喜欢列表可显示并可翻页。
-3. 用户歌单列表可显示。
-4. 歌单详情可显示，并且详情歌曲按页加载而不是一次加载全部。
+- `searchVisible=true`
+- `likedVisible=true`
+- `playlistsVisible=true`
+- `playlistDetailVisible=true`
+- `playlistPaginationVerified=true`
 
-验收时不需要向聊天、报告或 Git 提供账号资料、Provider 原始响应、Cookie 或完整 URL。当前阶段不执行歌曲播放。
+验收未向聊天、报告或 Git 提供账号资料、Provider 原始响应或完整 URL；当前阶段未执行歌曲播放。
 
 ## 未执行事项
 
@@ -101,6 +102,6 @@ TASK-021 已完成实现并部署到 Core Mac。搜索、我喜欢、用户歌�
 
 ## 最终状态
 
-**TASK-021：PARTIAL。**
+**TASK-021：PASS。**
 
-自动 Gate 和部署 Gate 已通过；Owner 真实 UI Gate 尚未完成。**TASK-022：不可开始，等待 Owner 验收。**
+自动 Gate、部署 Gate 和 Owner 真实 UI Gate 均已通过。**TASK-022：本次未开始，等待新的 Owner 放行。**
