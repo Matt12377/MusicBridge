@@ -1,5 +1,30 @@
 # TASK-003 结果报告
 
+# TASK-003 最终架构裁决
+
+## 结果
+
+**PASS WITH CARRYOVER**
+
+核心播放 Gate 已通过：Provider 合法授权流、HTTPS Upgrade/preflight、Roon `SessionBegan`、`audioInput.play`、Gateway GET、HTTP 200、`audio/mpeg`、完整媒体字节转发、Roon `Playing`、Owner 目标 Zone 实际出声、requested/actual quality 均为 `exhigh`，以及 stop 后的状态清理均已得到证据支持。
+
+- 实际播放成功：YES
+- SessionBegan：YES
+- Playing：YES
+- Gateway GET：YES
+- 完整媒体转发：YES
+- Owner actual audio：YES
+- requestedQuality：`exhigh`
+- actualQuality：`exhigh`
+- stop 清理：PASS；`activeStreamCount=0`，`activePlayback` 不存在
+- 日志秘密扫描：PASS
+- carryover issue：`ROON-SESSION-GEN-001`
+- `ROON-SESSION-GEN-001` 是旧会话异步回调清理当前内存身份的会话代际竞态，不代表 play payload 缺少 `track_id`；play payload 已包含 `track_id`。
+- 不再为 TASK-003 增加任何播放尝试。
+- TASK-004：**可以开始**；必须先修复并验证 `ROON-SESSION-GEN-001`。
+
+下方历史 `BLOCKED` 结论和诊断过程完整保留，属于架构裁决前的历史记录，不再作为当前 TASK-003 结果。
+
 ## TASK-003T 当前增补（Owner 音频确认后）
 
 > 本节是当前有效的 TASK-003T 结论。下方原有 TASK-003S/TASK-003R 内容完整保留，代表本增补之前的历史检查结果；本增补不覆盖或删除历史证据。
