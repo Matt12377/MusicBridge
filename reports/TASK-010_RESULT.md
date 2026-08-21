@@ -2,9 +2,9 @@
 
 ## 结论
 
-当前结论：**PARTIAL / BLOCKED**。
+当前结论：**PASS**。
 
-本地 pnpm workspace 迁移、公共 contracts 最小边界、依赖解析、Headless CLI 测试和部署包构建均已通过。远程运行机的非交互 SSH 认证仍未就绪，因此本轮不能完成远端部署、启动、状态和运行态验收。TASK-011 不得开始。
+本地 pnpm workspace 迁移、公共 contracts 最小边界、依赖解析、Headless CLI 测试、部署包构建，以及远程 release 部署、启动、状态、health 和 SSH 控制隧道验收均已通过。TASK-011 当前尚未开始，可按 WAVE-2 顺序继续。
 
 ## 任务身份
 
@@ -61,8 +61,8 @@
 
 ## Bundle 验收
 
-- 构建提交 SHA：`f064323d527dd6d2d7ce0b00e1c44928962bfbe6`
-- Bundle SHA-256：`8a8267bcd20707669f71a5b51c6e829adc275620cbc01a4f2c8c0dde4bcbf79b`
+- 构建提交 SHA：`7e3567bc9053d2db703cc138e657601b0d958c4d`
+- Bundle SHA-256：`2c333ed7baf23aa2623d3b8d81dc397da11000aefbc118f5f276eda1db9421f6`
 - Bundle 顶层清单：`dist`、`node_modules`、`package.json`
 - 禁止的源码、测试、文档、任务、报告、Git 元数据和环境文件未出现在 bundle 顶层
 - production `node_modules` 原生 `.node` 模块数量：0
@@ -77,17 +77,36 @@
 
 ## 远程部署 Gate
 
-已执行严格主机密钥校验和 `BatchMode=yes` 的 SSH 连接检查，使用占位目标 `<CORE_SSH_TARGET>`；结果为 **BLOCKED**：当前会话没有可用的非交互 SSH 认证，连接被服务器拒绝。
+SSH 主机密钥校验和 `BatchMode=yes` 复用 ControlMaster 检查通过，SSH 连接检查退出码为 0。
 
-因此以下项目本轮均未执行，不能宣称通过：
+首次 deploy 发现旧 Agent 正在运行并按保护逻辑退出，退出码为 13；未覆盖旧 release。随后只读状态检查确认旧 release 三方一致、无活动流、无 active playback，安全 stop 退出码为 0。最终部署、启动和状态验收如下：
 
-- 远程 bundle 上传和 release 创建
-- 远程 Agent 启动与 status
-- 远程 health、端口 loopback 和运行态检查
-- 远程日志秘密扫描
-- SSH 隧道控制接口验证
+| 检查 | 结果 |
+|---|---:|
+| 最终 bundle deploy | 0 / `DEPLOY_RESULT=PASS` |
+| staging/archive 清理 | `DEPLOY_TEMP_CLEANUP=PASS` |
+| start-agent | 0 |
+| status-agent `--runtime` | 0 / `STATUS_RESULT=PASS` |
+| 控制端口监听 | loopback |
+| 流端口监听 | loopback |
+| Node.js | `v22.23.2` |
+| health | `HEALTH_OK=true` |
+| Provider 状态 | configured；未输出凭据内容 |
+| active stream count | 0 |
+| active playback | 不存在 |
+| 日志秘密扫描 | pass |
 
-未请求、读取、记录或输出远程登录密码，也未使用密码参数、sshpass 或其他绕过方式。请 Owner 在本地终端建立可复用的 SSH key 或已认证 ControlMaster；通道就绪后，才能继续 TASK-010 的远端 deploy/start/status 验收。
+最终 release 身份三方一致：
+
+- `CURRENT_RELEASE_SHA=7e3567bc9053d2db703cc138e657601b0d958c4d`
+- `RUNNING_RELEASE_SHA=7e3567bc9053d2db703cc138e657601b0d958c4d`
+- `AGENT_RELEASE_SHA=7e3567bc9053d2db703cc138e657601b0d958c4d`
+- `EXPECTED_RELEASE_SHA=7e3567bc9053d2db703cc138e657601b0d958c4d`
+- `RELEASE_IDENTITY_CONSISTENT=true`
+
+通过 SSH 隧道只转发控制端口 38501，未转发 38502。开发机本地 health 验证退出码为 0，结果为 `ok=true`；health 响应只检查了字段名和布尔结果，未输出响应内容。
+
+密码由 Owner 在本地交互式提示中输入；未读取、记录、复述或输出密码，也未使用密码参数、sshpass 或其他绕过方式。
 
 ## 安全与范围检查
 
@@ -97,10 +116,9 @@
 - 未调用 Provider、播放歌曲或执行播放接口。
 - 未写入或输出 Cookie、Token、密码、内部地址、完整媒体 URL 或配置内容。
 - 未创建 PR、未合并、未 force-push。
-- 未开始 TASK-011。
+- TASK-011 在本报告修订提交推送前未开始。
 
 ## 后续状态
 
-- TASK-010：本地实现 PASS，远端运行验收 BLOCKED。
-- TASK-011：**NO，不可开始**。
-- 阻塞解除条件：Owner 在本地建立可复用的 SSH 非交互认证后，重新执行 TASK-010 的远程 deploy/start/status/health Gate。
+- TASK-010：**PASS**。
+- TASK-011：当前尚未开始；TASK-010 报告修订提交推送后可按 WAVE-2 顺序开始。
