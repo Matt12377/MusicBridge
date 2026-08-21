@@ -33,11 +33,13 @@ test('gateway forwards Range and preserves media response headers without buffer
   const registry = new StreamRegistry();
   let seenMethod = '';
   let seenRange: string | null = null;
+  let seenIfRange: string | null = null;
 
   const fetcher: GatewayFetch = async (_url, init) => {
     seenMethod = init.method ?? 'GET';
     const headers = new Headers(init.headers);
     seenRange = headers.get('range');
+    seenIfRange = headers.get('if-range');
     return new Response(Uint8Array.from([1, 2, 3, 4]), {
       status: 206,
       headers: {
@@ -80,12 +82,13 @@ test('gateway forwards Range and preserves media response headers without buffer
 
   const response = await fetch(
     `${gateway.localBaseUrl()}/stream/${registration.token}.flac`,
-    { headers: { Range: 'bytes=0-3' } },
+    { headers: { Range: 'bytes=0-3', 'If-Range': 'opaque-etag' } },
   );
   const bytes = new Uint8Array(await response.arrayBuffer());
 
   assert.equal(seenMethod, 'GET');
   assert.equal(seenRange, 'bytes=0-3');
+  assert.equal(seenIfRange, 'opaque-etag');
   assert.equal(response.status, 206);
   assert.equal(response.headers.get('content-range'), 'bytes 0-3/100');
   assert.equal(response.headers.get('accept-ranges'), 'bytes');
