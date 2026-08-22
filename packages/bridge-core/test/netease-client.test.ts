@@ -144,3 +144,27 @@ test('NeteaseClient prepares the API runtime before resolving an audio URL', asy
   assert.equal(stream.upstreamUrl, 'https://audio.example.invalid/synthetic.flac')
   assert.deepEqual(events, ['prepare', 'song_url:lossless'])
 })
+
+test('NeteaseClient distinguishes authorized, expired and unavailable credential checks', async () => {
+  let mode: 'authorized' | 'expired' | 'unavailable' = 'authorized'
+  const api = {
+    async song_detail() { return { body: { code: 200 } } },
+    async song_url_v1() { return { body: { code: 200 } } },
+    async login_qr_key() { return { body: { code: 200, data: { unikey: 'synthetic-key' } } } },
+    async login_qr_create() { return { body: { code: 200, data: { qrimg: 'data:image/png;base64,synthetic' } } } },
+    async login_qr_check() { return { body: { code: 801 } } },
+    async login_status() {
+      if (mode === 'unavailable') throw new Error('synthetic network timeout')
+      if (mode === 'expired') return { body: { code: 301 } }
+      return { body: { data: { code: 200, profile: { userId: 1 } } } }
+    },
+    async logout() { return { body: { code: 200 } } },
+  }
+  const client = new NeteaseClient(undefined, api)
+
+  assert.equal(await client.verifyCredentialStatus('fixture-credential'), 'authorized')
+  mode = 'expired'
+  assert.equal(await client.verifyCredentialStatus('fixture-credential'), 'expired')
+  mode = 'unavailable'
+  assert.equal(await client.verifyCredentialStatus('fixture-credential'), 'unavailable')
+})

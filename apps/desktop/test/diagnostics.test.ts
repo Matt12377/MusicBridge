@@ -54,7 +54,7 @@ test('diagnostic report writer creates one restricted JSON file', async () => {
       platform: {
         platform: 'darwin',
         arch: 'arm64',
-        appVersion: '0.1.0-poc.1',
+        appVersion: '0.1.0-beta.2',
         electronVersion: '43.4.0',
         nodeVersion: '22.0.0',
       },

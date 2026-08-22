@@ -502,6 +502,7 @@ function isPlaylistDetail(value: unknown): value is PlaylistDetail {
 function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'roon.selectZone') return isSelectZonePayload(payload);
   if (command === 'auth.setCredential') return isSetCredentialPayload(payload);
+  if (command === 'auth.verifyCredential') return isSetCredentialPayload(payload);
   if (command === 'auth.pollQr' || command === 'auth.cancelQr') {
     return isChallengePayload(payload);
   }
@@ -734,6 +735,10 @@ function isCommandResult(
     case 'auth.clearCredential':
     case 'roon.selectZone':
       return isPublicBridgeState(value);
+    case 'auth.verifyCredential':
+      return allowInternalResult && isRecord(value) &&
+        hasOnlyKeys(value, ['status']) &&
+        ['authorized', 'expired', 'unavailable'].includes(String(value.status));
     case 'core.getDiagnostics':
       return isDiagnosticComponentSnapshot(value);
     case 'auth.beginQr':

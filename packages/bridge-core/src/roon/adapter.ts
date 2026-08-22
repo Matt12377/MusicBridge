@@ -440,8 +440,8 @@ export class RoonAudioInputAdapter implements RoonPort {
 
     this.roon = this.sdk.createApi({
       extension_id: 'com.musicbridgeforroon.netease.poc',
-      display_name: 'Music Bridge for Roon — NetEase POC',
-      display_version: '0.1.0-poc.1',
+      display_name: 'Music Bridge for Roon',
+      display_version: '0.1.0-beta.2',
       publisher: 'Music Bridge for Roon',
       email: 'local-only@example.invalid',
       website: 'https://github.com/RoonLabs/roon-connect-stream-example',

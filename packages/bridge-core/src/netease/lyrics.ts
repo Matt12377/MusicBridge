@@ -154,10 +154,10 @@ function parseYrc(source: string): MutableLine[] {
     for (const match of remainder.matchAll(wordPattern)) {
       const startMs = Number(match[1]);
       const duration = Number(match[2]);
-      const wordText = (match[3] ?? '').trim();
+      const wordText = match[3] ?? '';
       const endMs = Math.min(lineEnd, startMs + duration);
       if (
-        !wordText ||
+        !wordText.trim() ||
         wordText.length > MAX_LYRICS_TEXT_LENGTH ||
         !Number.isSafeInteger(startMs) ||
         !Number.isSafeInteger(duration) ||
@@ -257,8 +257,9 @@ export function parseLyricsResponse(response: unknown): LyricsSnapshot {
   const translationRecord = isRecord(readField(body, data, 'tlyric'))
     ? (readField(body, data, 'tlyric') as Record<string, unknown>)
     : undefined;
-  const romanizationRecord = isRecord(readField(body, data, 'romalrc'))
-    ? (readField(body, data, 'romalrc') as Record<string, unknown>)
+  const romanizationValue = readField(body, data, 'yromalrc') ?? readField(body, data, 'romalrc');
+  const romanizationRecord = isRecord(romanizationValue)
+    ? (romanizationValue as Record<string, unknown>)
     : undefined;
 
   const sources = [

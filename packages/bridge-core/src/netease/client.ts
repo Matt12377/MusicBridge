@@ -28,6 +28,7 @@ import type {
   ResolvedAudioStream,
   TrackSummary,
   TrackMetadata,
+  CredentialVerificationStatus,
 } from './types.js';
 import {
   parseLoginStatusResponse,
@@ -104,12 +105,16 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
   }
 
   async verifyCredential(credential: string): Promise<boolean> {
+    return (await this.verifyCredentialStatus(credential)) === 'authorized'
+  }
+
+  async verifyCredentialStatus(credential: string): Promise<CredentialVerificationStatus> {
     try {
       return parseLoginStatusResponse(
         await this.api.login_status({ cookie: credential }),
-      )
+      ) ? 'authorized' : 'expired'
     } catch {
-      return false
+      return 'unavailable'
     }
   }
 

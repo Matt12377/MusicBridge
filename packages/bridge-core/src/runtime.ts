@@ -23,6 +23,7 @@ import { BridgeController, type BridgeState } from './application/bridge-control
 import { loadConfig } from './config/config.js';
 import { ControlServer } from './control/server.js';
 import { NeteaseClient } from './netease/client.js';
+import type { CredentialVerificationStatus } from './netease/types.js';
 import { emptyLyricsSnapshot } from './netease/lyrics.js';
 import { QrLoginStateMachine } from './netease/qr-login.js';
 import { RoonAudioInputAdapter, type RoonTimeShapeSummary } from './roon/adapter.js';
@@ -42,6 +43,7 @@ export interface CoreRuntime {
   getHealth(): PublicBridgeState;
   getState(): PublicBridgeState;
   getDiagnostics(): DiagnosticComponentSnapshot;
+  verifyProviderCredential(credential: string): Promise<{ status: CredentialVerificationStatus }>;
   setProviderCredential(credential: string): Promise<PublicBridgeState>;
   clearProviderCredential(): Promise<PublicBridgeState>;
   getAuthState(): PublicAuthState;
@@ -373,6 +375,15 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     getState: publicState,
     getDiagnostics,
 
+    async verifyProviderCredential(credential: string) {
+      const status = await netease.verifyCredentialStatus(credential);
+      if (status === 'expired') {
+        netease.clearCredential();
+        notifyProviderExpired();
+      }
+      return { status };
+    },
+
     async setProviderCredential(credential: string): Promise<PublicBridgeState> {
       netease.setCredential(credential);
       emit(eventWithAuthState(qrLogin.markAuthorized()));
@@ -601,6 +612,9 @@ export function createTestBridgeRuntime(): CoreRuntime {
     getHealth: () => state,
     getState: () => state,
     getDiagnostics,
+    async verifyProviderCredential() {
+      return { status: 'authorized' as const };
+    },
     async setProviderCredential() {
       state = { ...state, provider: 'configured' };
       authState = { status: 'authorized' };

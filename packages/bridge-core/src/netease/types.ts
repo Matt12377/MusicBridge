@@ -16,6 +16,8 @@ export const QUALITY_LEVELS = [
 
 export type QualityLevel = (typeof QUALITY_LEVELS)[number];
 
+export type CredentialVerificationStatus = 'authorized' | 'expired' | 'unavailable';
+
 export type TransportSecurity = 'https-native' | 'https-upgraded';
 
 export interface TrackMetadata {

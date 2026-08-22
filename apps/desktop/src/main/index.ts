@@ -425,8 +425,11 @@ async function saveQrCredential(
     await credentialVault.save(credential)
     await supervisor.request('auth.setCredential', { credential })
   } catch (error) {
-    await credentialVault.delete().catch(() => undefined)
-    await supervisor.request('auth.clearCredential', {}).catch(() => undefined)
+    // Keep an encrypted credential after a transient Core/IPC failure. The
+    // next cold-start or Core restart will verify it through login_status.
+    if (error instanceof CoreIpcError || error instanceof Error) {
+      await supervisor.request('auth.clearCredential', {}).catch(() => undefined)
+    }
     throw error
   }
 }
@@ -825,6 +828,8 @@ async function bootstrap(): Promise<void> {
       await restoreProviderCredential({
         vault: prepared.credentialVault,
         core: {
+          verifyCredential: async (credential) =>
+            (await supervisor.requestInternal('auth.verifyCredential', { credential })).status,
           setCredential: (credential) =>
             supervisor.request('auth.setCredential', { credential }),
           clearCredential: () => supervisor.request('auth.clearCredential', {}),
@@ -850,6 +855,8 @@ async function bootstrap(): Promise<void> {
     vault: prepared.credentialVault,
     environment: process.env,
     core: {
+      verifyCredential: async (credential) =>
+        (await supervisor.requestInternal('auth.verifyCredential', { credential })).status,
       setCredential: (credential) =>
         supervisor.request('auth.setCredential', { credential }),
       clearCredential: () => supervisor.request('auth.clearCredential', {}),

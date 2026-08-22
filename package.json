@@ -1,6 +1,6 @@
 {
   "name": "music-bridge-for-roon",
-  "version": "0.1.0-poc.1",
+  "version": "0.1.0-beta.2",
   "private": true,
   "description": "Local proof of concept: NetEase Cloud Music account playback into a selected Roon zone through Roon Audio Input.",
   "type": "module",

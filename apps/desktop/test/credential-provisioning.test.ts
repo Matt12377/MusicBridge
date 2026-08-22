@@ -42,8 +42,16 @@ async function makeVault(storage: FakeSafeStorage): Promise<CredentialVault> {
 
 function makeSupervisor() {
   const calls: Array<{ command: string; payload: unknown }> = []
+  let verification: 'authorized' | 'expired' | 'unavailable' = 'authorized'
   return {
     calls,
+    setVerification(value: 'authorized' | 'expired' | 'unavailable') {
+      verification = value
+    },
+    async verifyCredential(credential: string): Promise<'authorized' | 'expired' | 'unavailable'> {
+      calls.push({ command: 'auth.verifyCredential', payload: { credential } })
+      return verification
+    },
     async setCredential(credential: string): Promise<unknown> {
       calls.push({ command: 'auth.setCredential', payload: { credential } })
       return {
@@ -78,7 +86,10 @@ test('provision migrates environment input, removes it from Core environment, an
     'configured',
   )
   assert.equal(environment.NETEASE_COOKIE, undefined)
-  assert.deepEqual(supervisor.calls.map(({ command }) => command), ['auth.setCredential'])
+  assert.deepEqual(supervisor.calls.map(({ command }) => command), [
+    'auth.verifyCredential',
+    'auth.setCredential',
+  ])
   assert.deepEqual(await vault.read(), {
     status: 'configured',
     credential: 'fixture-credential',
@@ -119,5 +130,35 @@ test('restore reads the encrypted credential and rehydrates a restarted Core', a
   await vault.save('fixture-credential')
 
   assert.equal(await restoreProviderCredential({ vault, core: supervisor }), 'configured')
-  assert.deepEqual(supervisor.calls.map(({ command }) => command), ['auth.setCredential'])
+  assert.deepEqual(supervisor.calls.map(({ command }) => command), [
+    'auth.verifyCredential',
+    'auth.setCredential',
+  ])
+})
+
+test('restore marks a clearly expired credential and removes only that vault', async () => {
+  const storage = new FakeSafeStorage()
+  const vault = await makeVault(storage)
+  const supervisor = makeSupervisor()
+  supervisor.setVerification('expired')
+  await vault.save('fixture-credential')
+
+  assert.equal(await restoreProviderCredential({ vault, core: supervisor }), 'expired')
+  assert.deepEqual(await vault.read(), { status: 'missing' })
+  assert.deepEqual(supervisor.calls.map(({ command }) => command), ['auth.verifyCredential'])
+})
+
+test('restore keeps the vault and refuses authorization on a temporary verification failure', async () => {
+  const storage = new FakeSafeStorage()
+  const vault = await makeVault(storage)
+  const supervisor = makeSupervisor()
+  supervisor.setVerification('unavailable')
+  await vault.save('fixture-credential')
+
+  assert.equal(await restoreProviderCredential({ vault, core: supervisor }), 'unavailable')
+  assert.deepEqual(await vault.read(), {
+    status: 'configured',
+    credential: 'fixture-credential',
+  })
+  assert.deepEqual(supervisor.calls.map(({ command }) => command), ['auth.verifyCredential'])
 })

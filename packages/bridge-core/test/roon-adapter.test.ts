@@ -293,6 +293,25 @@ const playRequest = {
   },
 };
 
+test('Roon extension metadata identifies the beta candidate without the POC suffix', async () => {
+  const { adapter, sdk } = makeHarness();
+
+  await adapter.start();
+  assert.deepEqual(
+    {
+      extensionId: sdk.apis[0]?.options.extension_id,
+      displayName: sdk.apis[0]?.options.display_name,
+      displayVersion: sdk.apis[0]?.options.display_version,
+    },
+    {
+      extensionId: 'com.musicbridgeforroon.netease.poc',
+      displayName: 'Music Bridge for Roon',
+      displayVersion: '0.1.0-beta.2',
+    },
+  );
+  await adapter.stop();
+});
+
 async function makeReadyHarness(
   options: AdapterTestOptions = {},
   logger: Logger = silentLogger,

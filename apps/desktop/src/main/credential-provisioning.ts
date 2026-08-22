@@ -8,9 +8,11 @@ export type ProviderProvisioningStatus =
   | 'configured'
   | 'missing'
   | 'invalid'
+  | 'expired'
   | 'unavailable'
 
 export interface CoreCredentialPort {
+  verifyCredential(credential: string): Promise<'authorized' | 'expired' | 'unavailable'>
   setCredential(credential: string): Promise<unknown>
   clearCredential(): Promise<unknown>
 }
@@ -45,6 +47,12 @@ export async function provisionProviderCredential(options: {
 
   const stored = await options.vault.read()
   if (stored.status === 'configured') {
+    const verification = await options.core.verifyCredential(stored.credential)
+    if (verification === 'expired') {
+      await options.vault.delete()
+      return 'expired'
+    }
+    if (verification !== 'authorized') return 'unavailable'
     await options.core.setCredential(stored.credential)
   }
   return statusFromReadResult(stored)
@@ -56,6 +64,12 @@ export async function restoreProviderCredential(options: {
 }): Promise<ProviderProvisioningStatus> {
   const stored = await options.vault.read()
   if (stored.status === 'configured') {
+    const verification = await options.core.verifyCredential(stored.credential)
+    if (verification === 'expired') {
+      await options.vault.delete()
+      return 'expired'
+    }
+    if (verification !== 'authorized') return 'unavailable'
     await options.core.setCredential(stored.credential)
   }
   return statusFromReadResult(stored)

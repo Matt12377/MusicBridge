@@ -100,6 +100,10 @@ async function dispatch(
       return runtime.setProviderCredential(
         (request.payload as { credential: string }).credential,
       );
+    case 'auth.verifyCredential':
+      return runtime.verifyProviderCredential(
+        (request.payload as { credential: string }).credential,
+      );
     case 'auth.clearCredential':
       return runtime.clearProviderCredential();
     case 'auth.beginQr':

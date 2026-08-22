@@ -31,5 +31,8 @@ jobs:
       - name: Desktop tests with synthetic fixtures
         run: corepack pnpm@10.17.1 --filter @music-bridge/desktop test
 
+      - name: Electron end-to-end flow
+        run: xvfb-run --auto-servernum corepack pnpm@10.17.1 --filter @music-bridge/desktop run test:e2e
+
       - name: Electron startup and utilityProcess crash/restart
         run: xvfb-run --auto-servernum corepack pnpm@10.17.1 --filter @music-bridge/desktop run test:startup

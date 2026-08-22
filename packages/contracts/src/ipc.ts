@@ -19,6 +19,7 @@ export const IPC_COMMANDS = [
   'core.getDiagnostics',
   'core.shutdown',
   'auth.setCredential',
+  'auth.verifyCredential',
   'auth.clearCredential',
   'auth.beginQr',
   'auth.pollQr',
@@ -89,6 +90,7 @@ export interface IpcCommandPayloads {
   'core.getDiagnostics': Record<string, never>;
   'core.shutdown': Record<string, never>;
   'auth.setCredential': { credential: string };
+  'auth.verifyCredential': { credential: string };
   'auth.clearCredential': Record<string, never>;
   'auth.beginQr': Record<string, never>;
   'auth.pollQr': { challengeId: string };
@@ -117,6 +119,7 @@ export interface IpcCommandResults {
   'core.getDiagnostics': DiagnosticComponentSnapshot;
   'core.shutdown': { stopped: true };
   'auth.setCredential': PublicBridgeState;
+  'auth.verifyCredential': { status: 'authorized' | 'expired' | 'unavailable' };
   'auth.clearCredential': PublicBridgeState;
   'auth.beginQr': PublicAuthState;
   'auth.pollQr': PublicAuthState;
@@ -149,10 +152,11 @@ export interface IpcEventPayloads {
   'lyrics.changed': { state: LyricsSnapshot };
 }
 
-export type IpcInternalCommand = 'auth.pollQr';
+export type IpcInternalCommand = 'auth.pollQr' | 'auth.verifyCredential';
 
 export interface IpcInternalCommandResults {
   'auth.pollQr': { state: PublicAuthState; credential?: string };
+  'auth.verifyCredential': { status: 'authorized' | 'expired' | 'unavailable' };
 }
 
 export interface IpcEventMessage {

@@ -94,6 +94,36 @@ test('lyrics parser treats YRC word timestamps as absolute song time', () => {
   }])
 })
 
+test('lyrics parser preserves spaces between English and mixed-language YRC words', () => {
+  const snapshot = parseLyricsResponse(response({
+    yrc: { lyric: '[100,1000](100,300,0)Hello (400,300,0)世界 (800,200,0)world' },
+  }))
+
+  assert.deepEqual(snapshot.lines, [{
+    startMs: 100,
+    endMs: 1_100,
+    text: 'Hello 世界 world',
+    words: [
+      { startMs: 100, endMs: 400, text: 'Hello ' },
+      { startMs: 400, endMs: 700, text: '世界 ' },
+      { startMs: 800, endMs: 1_000, text: 'world' },
+    ],
+  }])
+})
+
+test('lyrics parser accepts the yromalrc romanization field alongside romalrc', () => {
+  const snapshot = parseLyricsResponse(response({
+    lrc: { lyric: '[00:01.00]原文' },
+    yromalrc: { lyric: '[00:01.00]yuanwen' },
+  }))
+
+  assert.deepEqual(snapshot.lines, [{
+    startMs: 1_000,
+    text: '原文',
+    romanization: 'yuanwen',
+  }])
+})
+
 test('lyrics parser distinguishes instrumental, unavailable, malformed and oversized payloads', () => {
   assert.equal(parseLyricsResponse(response({ pureMusic: true })).status, 'instrumental')
   assert.equal(parseLyricsResponse(response({ lrc: { lyric: '' } })).status, 'unavailable')

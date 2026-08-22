@@ -40,6 +40,9 @@ function makeRuntime(): CoreRuntimeForIpc & {
   clearCredentialCalls: number
   setProviderCredential(credential: string): Promise<typeof state>
   clearProviderCredential(): Promise<typeof state>
+  verifyProviderCredential(credential: string): Promise<{
+    status: 'authorized' | 'expired' | 'unavailable'
+  }>
   getAuthState(): { status: 'idle' | 'waiting' | 'authorized' }
   beginQrLogin(): Promise<{
     status: 'waiting'
@@ -103,6 +106,10 @@ function makeRuntime(): CoreRuntimeForIpc & {
     async setProviderCredential(credential: string) {
       this.setCredentialCalls.push(credential)
       return state
+    },
+    async verifyProviderCredential(credential: string) {
+      assert.equal(credential, 'synthetic-credential')
+      return { status: 'authorized' as const }
     },
     async clearProviderCredential() {
       this.clearCredentialCalls += 1

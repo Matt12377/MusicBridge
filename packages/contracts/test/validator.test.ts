@@ -288,6 +288,28 @@ test('contracts keeps QR login state public and isolates the internal poll crede
   assert.equal(event.ok, true);
 });
 
+test('contracts keeps credential verification status Main-only', () => {
+  const request = validateIpcRequest({
+    version: IPC_VERSION,
+    id: 'auth-verify',
+    command: 'auth.verifyCredential',
+    payload: { credential: 'fixture-credential' },
+  });
+  assert.equal(request.ok, true);
+
+  const internalResponse = {
+    version: IPC_VERSION,
+    id: 'auth-verify',
+    ok: true,
+    result: { status: 'unavailable' },
+  };
+  assert.equal(validateIpcResponseForCommand(internalResponse, 'auth.verifyCredential').ok, false);
+  assert.equal(
+    validateIpcInternalResponseForCommand(internalResponse, 'auth.verifyCredential').ok,
+    true,
+  );
+});
+
 test('contracts validates bounded library commands and sanitized paged results', () => {
   const page = {
     items: [

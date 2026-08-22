@@ -15,7 +15,7 @@ import { createPreloadApi, PUBLIC_API_KEYS } from '../src/preload/api.js'
 
 test('Preload exposes only sanitized business methods', async () => {
   const appInfo = {
-    version: '0.1.0-poc.1',
+    version: '0.1.0-beta.2',
     buildMode: 'development' as const,
     platform: 'darwin',
   }
