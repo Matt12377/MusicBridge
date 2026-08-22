@@ -167,15 +167,26 @@ function readRoonTimeMs(
   value: unknown,
   onTimeShape?: (summary: RoonTimeShapeSummary) => void,
 ): number | undefined {
-  // The pinned Audio Input package forwards the callback body unchanged, but
-  // neither it nor the official example defines the Time body schema. Keep
-  // this fail-closed until a redacted real-Core capture verifies one shape.
   try {
     onTimeShape?.(summarizeRoonTimePayload(value));
   } catch {
     // Sampling must never change playback behavior.
   }
-  return undefined;
+
+  // A redacted real-Core capture verified that Time uses a non-negative,
+  // safe-integer millisecond field named seek_position_ms. Keep all other
+  // shapes fail-closed so an upstream protocol change cannot skew lyrics.
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const positionMs = (value as { seek_position_ms?: unknown }).seek_position_ms;
+  if (
+    typeof positionMs !== 'number' ||
+    !Number.isSafeInteger(positionMs) ||
+    positionMs < 0 ||
+    positionMs > MAX_ROON_TIME_MS
+  ) {
+    return undefined;
+  }
+  return positionMs;
 }
 
 function readErrorMessage(body: unknown): string | undefined {

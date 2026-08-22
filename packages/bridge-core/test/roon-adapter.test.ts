@@ -401,6 +401,20 @@ test('unverified Roon Time callback fields are ignored until a real shape is ver
   assert.doesNotMatch(JSON.stringify(summaries), /1250/);
 });
 
+test('verified Roon Time seek_position_ms is consumed as milliseconds', async () => {
+  const { adapter, api } = await makeReadyHarness();
+  const positions: number[] = [];
+  adapter.setTimeHandler((positionMs) => positions.push(positionMs));
+  api.core.audioInput.autoPlay = false;
+  const playback = adapter.play(playRequest);
+  await nextTurn();
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'opaque-session' });
+  api.core.audioInput.emitPlay('Playing');
+  await playback;
+  api.core.audioInput.emitPlay('Time', { seek_position_ms: 1_250 });
+  assert.deepEqual(positions, [1_250]);
+});
+
 test('paired Core without a selected Zone reports paired', async () => {
   const { adapter, sdk } = makeHarness();
   await adapter.start();
