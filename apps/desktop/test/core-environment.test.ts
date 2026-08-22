@@ -53,3 +53,22 @@ test('Core environment exposes only the bounded Roon Time gate path when explici
     MUSIC_BRIDGE_ROON_TIME_GATE_PATH: gatePath,
   })
 })
+
+test('Core environment exposes only bounded synthetic account modes to UI E2E', () => {
+  const environment = buildCoreEnvironment({
+    MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE: 'profile-unavailable',
+  }, {
+    startupTest: false,
+    uiE2e: true,
+    coreCrashGate: false,
+  })
+
+  assert.equal(environment.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE, 'profile-unavailable')
+  assert.equal(buildCoreEnvironment({
+    MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE: 'profile-unavailable',
+  }, {
+    startupTest: false,
+    uiE2e: false,
+    coreCrashGate: false,
+  }).MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE, undefined)
+})

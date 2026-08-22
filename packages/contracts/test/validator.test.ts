@@ -614,3 +614,120 @@ test('contracts validates bounded lyrics snapshots and rejects provider fields',
     false,
   );
 });
+
+test('contracts validates public account state and keeps provider identity fields out', () => {
+  const ready = {
+    status: 'ready',
+    profile: {
+      displayName: 'Synthetic Listener',
+      avatarUrl: 'https://p1.music.126.net/avatar.jpg',
+    },
+  };
+  for (const command of ['account.getState', 'account.refresh'] as const) {
+    assert.equal(
+      validateIpcRequest({ version: IPC_VERSION, id: command, command, payload: {} }).ok,
+      true,
+    );
+    assert.equal(
+      validateIpcResponseForCommand(
+        { version: IPC_VERSION, id: command, ok: true, result: ready },
+        command,
+      ).ok,
+      true,
+    );
+  }
+  assert.equal(
+    validateIpcEvent({
+      version: IPC_VERSION,
+      event: 'account.changed',
+      payload: { state: ready },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcResponseForCommand(
+      {
+        version: IPC_VERSION,
+        id: 'account-unsafe',
+        ok: true,
+        result: { ...ready, profile: { ...ready.profile, userId: 'private' } },
+      },
+      'account.getState',
+    ).ok,
+    false,
+  );
+  assert.equal(
+    validateIpcResponseForCommand(
+      {
+        version: IPC_VERSION,
+        id: 'account-unsafe-avatar',
+        ok: true,
+        result: {
+          status: 'ready',
+          profile: { displayName: 'Synthetic', avatarUrl: 'https://example.invalid/a.jpg' },
+        },
+      },
+      'account.getState',
+    ).ok,
+    false,
+  );
+});
+
+test('contracts validates daily recommendation snapshots with bounded reasons and artwork', () => {
+  const track = {
+    id: '101',
+    title: 'Synthetic Recommendation',
+    artists: ['Synthetic Artist'],
+    album: 'Synthetic Album',
+    durationMs: 180_000,
+    artworkUrl: 'https://p1.music.126.net/recommend.jpg',
+    recommendationReason: '根据你的收藏偏好推荐',
+  };
+  const snapshot = {
+    dayKey: '2026-08-22',
+    tracks: [track],
+  };
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'daily-recommendations',
+      command: 'library.dailyRecommendations',
+      payload: {},
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcResponseForCommand(
+      { version: IPC_VERSION, id: 'daily-recommendations', ok: true, result: snapshot },
+      'library.dailyRecommendations',
+    ).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcResponseForCommand(
+      {
+        version: IPC_VERSION,
+        id: 'daily-too-many',
+        ok: true,
+        result: { dayKey: '2026-08-22', tracks: Array.from({ length: 51 }, () => track) },
+      },
+      'library.dailyRecommendations',
+    ).ok,
+    false,
+  );
+  assert.equal(
+    validateIpcResponseForCommand(
+      {
+        version: IPC_VERSION,
+        id: 'daily-unsafe',
+        ok: true,
+        result: {
+          dayKey: '2026-08-22',
+          tracks: [{ ...track, recommendationReason: 'x'.repeat(121) }],
+        },
+      },
+      'library.dailyRecommendations',
+    ).ok,
+    false,
+  );
+});

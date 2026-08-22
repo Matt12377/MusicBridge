@@ -538,6 +538,12 @@ function registerIpcHandlers(
       return state
     }),
   )
+  ipcMain.handle('account:get-state', (event) =>
+    invokeCore(event, () => supervisor.request('account.getState', {})),
+  )
+  ipcMain.handle('account:refresh', (event) =>
+    invokeCore(event, () => supervisor.request('account.refresh', {})),
+  )
   ipcMain.handle('library:search', (event, query: unknown, page: unknown) =>
     invokeCore(event, () =>
       supervisor.request('library.search', {
@@ -561,6 +567,9 @@ function registerIpcHandlers(
         page: requireLibraryPage(page),
       }),
     ),
+  )
+  ipcMain.handle('library:daily-recommendations', (event) =>
+    invokeCore(event, () => supervisor.request('library.dailyRecommendations', {})),
   )
   ipcMain.handle('roon:list-zones', (event) =>
     invokeCore(event, () => supervisor.request('roon.listZones', {})),

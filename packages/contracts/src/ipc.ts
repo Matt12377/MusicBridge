@@ -1,5 +1,12 @@
 import type { PublicError } from './errors.js';
-import type { Page, PageRequest, PlaylistDetail, PlaylistSummary, TrackSummary } from './library.js';
+import type {
+  DailyRecommendationsSnapshot,
+  Page,
+  PageRequest,
+  PlaylistDetail,
+  PlaylistSummary,
+  TrackSummary,
+} from './library.js';
 import type { LyricsSnapshot } from './lyrics.js';
 import type {
   PlaybackQueueItem,
@@ -7,7 +14,12 @@ import type {
   PlaybackQuality,
   PlaybackSnapshot,
 } from './playback.js';
-import type { PublicAuthState, PublicBridgeState, PublicRoonZone } from './state.js';
+import type {
+  PublicAccountState,
+  PublicAuthState,
+  PublicBridgeState,
+  PublicRoonZone,
+} from './state.js';
 import type { DiagnosticComponentSnapshot } from './diagnostics.js';
 
 export const IPC_VERSION = 1 as const;
@@ -26,10 +38,13 @@ export const IPC_COMMANDS = [
   'auth.cancelQr',
   'auth.getState',
   'auth.logout',
+  'account.getState',
+  'account.refresh',
   'library.search',
   'library.liked',
   'library.playlists',
   'library.playlist',
+  'library.dailyRecommendations',
   'lyrics.get',
   'roon.listZones',
   'roon.selectZone',
@@ -47,6 +62,7 @@ export const IPC_EVENTS = [
   'core.ready',
   'core.health',
   'auth.changed',
+  'account.changed',
   'roon.changed',
   'diagnostic.notice',
   'playback.changed',
@@ -97,10 +113,13 @@ export interface IpcCommandPayloads {
   'auth.cancelQr': { challengeId: string };
   'auth.getState': Record<string, never>;
   'auth.logout': Record<string, never>;
+  'account.getState': Record<string, never>;
+  'account.refresh': Record<string, never>;
   'library.search': { query: string; page: PageRequest };
   'library.liked': { page: PageRequest };
   'library.playlists': Record<string, never>;
   'library.playlist': { playlistId: string; page: PageRequest };
+  'library.dailyRecommendations': Record<string, never>;
   'lyrics.get': { trackId: string };
   'roon.listZones': Record<string, never>;
   'roon.selectZone': { zoneId: string };
@@ -126,10 +145,13 @@ export interface IpcCommandResults {
   'auth.cancelQr': PublicAuthState;
   'auth.getState': PublicAuthState;
   'auth.logout': PublicAuthState;
+  'account.getState': PublicAccountState;
+  'account.refresh': PublicAccountState;
   'library.search': Page<TrackSummary>;
   'library.liked': Page<TrackSummary>;
   'library.playlists': readonly PlaylistSummary[];
   'library.playlist': PlaylistDetail;
+  'library.dailyRecommendations': DailyRecommendationsSnapshot;
   'lyrics.get': LyricsSnapshot;
   'roon.listZones': { zones: readonly PublicRoonZone[] };
   'roon.selectZone': PublicBridgeState;
@@ -146,6 +168,7 @@ export interface IpcEventPayloads {
   'core.health': { state: PublicBridgeState };
   'roon.changed': { state: PublicBridgeState };
   'auth.changed': { state: PublicAuthState };
+  'account.changed': { state: PublicAccountState };
   'diagnostic.notice': { code: string; message?: string };
   'playback.changed': { state: PlaybackSnapshot };
   'queue.changed': { queue: PlaybackQueueSnapshot };

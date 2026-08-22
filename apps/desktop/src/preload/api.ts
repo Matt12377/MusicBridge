@@ -8,8 +8,10 @@ import type {
   PlaybackQuality,
   PlaybackSnapshot,
   PublicAuthState,
+  PublicAccountState,
   PublicBridgeState,
   PublicRoonZone,
+  DailyRecommendationsSnapshot,
   TrackSummary,
   TypedIpcEvent,
 } from '@music-bridge/contracts'
@@ -33,10 +35,13 @@ export interface MusicBridgePublicApi {
   pollQrLogin: (challengeId: string) => Promise<PublicAuthState>
   cancelQrLogin: (challengeId: string) => Promise<PublicAuthState>
   logout: () => Promise<PublicAuthState>
+  getAccountState: () => Promise<PublicAccountState>
+  refreshAccountProfile: () => Promise<PublicAccountState>
   searchTracks: (query: string, page: PageRequest) => Promise<Page<TrackSummary>>
   getLikedTracks: (page: PageRequest) => Promise<Page<TrackSummary>>
   getUserPlaylists: () => Promise<readonly PlaylistSummary[]>
   getPlaylist: (playlistId: string, page: PageRequest) => Promise<PlaylistDetail>
+  getDailyRecommendations: () => Promise<DailyRecommendationsSnapshot>
   listZones: () => Promise<{ zones: readonly PublicRoonZone[] }>
   selectZone: (zoneId: string) => Promise<PublicBridgeState>
   getLyrics: (trackId: string) => Promise<LyricsSnapshot>
@@ -61,10 +66,13 @@ export const PUBLIC_API_KEYS = [
   'pollQrLogin',
   'cancelQrLogin',
   'logout',
+  'getAccountState',
+  'refreshAccountProfile',
   'searchTracks',
   'getLikedTracks',
   'getUserPlaylists',
   'getPlaylist',
+  'getDailyRecommendations',
   'listZones',
   'selectZone',
   'getLyrics',
@@ -89,10 +97,13 @@ export function createPreloadApi(
   pollQrLogin: (challengeId: string) => Promise<PublicAuthState>,
   cancelQrLogin: (challengeId: string) => Promise<PublicAuthState>,
   logout: () => Promise<PublicAuthState>,
+  getAccountState: () => Promise<PublicAccountState>,
+  refreshAccountProfile: () => Promise<PublicAccountState>,
   searchTracks: (query: string, page: PageRequest) => Promise<Page<TrackSummary>>,
   getLikedTracks: (page: PageRequest) => Promise<Page<TrackSummary>>,
   getUserPlaylists: () => Promise<readonly PlaylistSummary[]>,
   getPlaylist: (playlistId: string, page: PageRequest) => Promise<PlaylistDetail>,
+  getDailyRecommendations: () => Promise<DailyRecommendationsSnapshot>,
   listZones: () => Promise<{ zones: readonly PublicRoonZone[] }>,
   selectZone: (zoneId: string) => Promise<PublicBridgeState>,
   getLyrics: (trackId: string) => Promise<LyricsSnapshot>,
@@ -116,10 +127,13 @@ export function createPreloadApi(
     pollQrLogin,
     cancelQrLogin,
     logout,
+    getAccountState,
+    refreshAccountProfile,
     searchTracks,
     getLikedTracks,
     getUserPlaylists,
     getPlaylist,
+    getDailyRecommendations,
     listZones,
     selectZone,
     getLyrics,

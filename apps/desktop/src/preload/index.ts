@@ -20,12 +20,15 @@ contextBridge.exposeInMainWorld(
     (challengeId: string) => ipcRenderer.invoke('auth:poll-qr', challengeId),
     (challengeId: string) => ipcRenderer.invoke('auth:cancel-qr', challengeId),
     () => ipcRenderer.invoke('auth:logout'),
+    () => ipcRenderer.invoke('account:get-state'),
+    () => ipcRenderer.invoke('account:refresh'),
     (query: string, page: { offset: number; limit: number }) =>
       ipcRenderer.invoke('library:search', query, page),
     (page: { offset: number; limit: number }) => ipcRenderer.invoke('library:liked', page),
     () => ipcRenderer.invoke('library:playlists'),
     (playlistId: string, page: { offset: number; limit: number }) =>
       ipcRenderer.invoke('library:playlist', playlistId, page),
+    () => ipcRenderer.invoke('library:daily-recommendations'),
     () => ipcRenderer.invoke('roon:list-zones'),
     (zoneId: string) => ipcRenderer.invoke('roon:select-zone', zoneId),
     (trackId: string) => ipcRenderer.invoke('lyrics:get', trackId),

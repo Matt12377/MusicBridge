@@ -36,6 +36,13 @@ export function buildCoreEnvironment(
   if (options.startupTest || options.uiE2e) {
     environment.NODE_ENV = 'test'
     environment.MUSIC_BRIDGE_CORE_TEST_MODE = '1'
+    if (options.uiE2e) {
+      environment.MUSIC_BRIDGE_UI_E2E = '1'
+      const syntheticAccountMode = parent.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE
+      if (syntheticAccountMode === 'profile-unavailable' || syntheticAccountMode === 'expired') {
+        environment.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE = syntheticAccountMode
+      }
+    }
     if (options.coreCrashGate) {
       environment.MUSIC_BRIDGE_CORE_CRASH_PROBE = '1'
       const crashDelay = parent.MUSIC_BRIDGE_CORE_CRASH_DELAY_MS

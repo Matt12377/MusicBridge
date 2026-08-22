@@ -43,8 +43,13 @@ test('Renderer contains the public QR login surface without credential access', 
     '查看连接状态',
     '网易云',
     '扫码登录',
-    '显示二维码',
+    '重新读取',
     '退出登录',
+    '每日推荐',
+    '打开网易云账户设置',
+    '登录仍然有效',
+    '登录已过期',
+    '重新扫码',
     '我喜欢的音乐',
     '所有歌单',
     '加载更多歌曲',
@@ -81,7 +86,10 @@ test('Renderer exposes the v2 Music Source Sidebar information architecture', as
     '所有歌单',
     '搜索歌曲、歌手或歌单',
     '播放设备',
-    '网易云登录设置',
+    'SidebarAccountFooter.vue',
+    'sidebar-account-footer',
+    'getAccountState',
+    'account.changed',
     'toolbar-status-popover',
     'Previous',
     'Next',
@@ -97,7 +105,7 @@ test('Renderer exposes the v2 Music Source Sidebar information architecture', as
   assert.doesNotMatch(combinedSource, /const\s+NAV_ITEMS/)
   assert.doesNotMatch(combinedSource, /class=["']nav-item["']/)
   assert.doesNotMatch(combinedSource, /<AppSidebar\b/)
-  assert.doesNotMatch(combinedSource, /SidebarAccountButton|AccountMenu|useAccountMenu|sidebar-footer/)
+  assert.match(combinedSource, /SidebarAccountFooter|sidebar-account-footer/)
   assert.doesNotMatch(combinedSource, />\s*Pause\s*</)
   assert.doesNotMatch(combinedSource, />\s*Seek\s*</)
 })
@@ -107,10 +115,11 @@ test('Renderer keeps internal destinations available only through their v2 entry
   const combinedSource = (await Promise.all(files.map((file) => readFile(file, 'utf8')))).join('\n')
 
   assert.match(combinedSource, /currentView === ['"]search['"]|currentView === ['"]liked['"]|currentView === ['"]playlists['"]/)
-  assert.match(combinedSource, /action === 'login'/)
-  assert.match(combinedSource, /action === 'settings'/)
-  assert.match(combinedSource, /action === 'login'[\s\S]*beginQrLogin/)
-  assert.match(combinedSource, /action === 'diagnostics'/)
+  assert.match(combinedSource, /handleSidebarAccount/)
+  assert.match(combinedSource, /account-settings-hero/)
+  assert.match(combinedSource, /refreshAccountProfile/)
+  assert.match(combinedSource, /beginQrLogin/)
+  assert.match(combinedSource, /navigate\('diagnostics'\)/)
   assert.match(combinedSource, /function openNowPlaying|open-now-playing/)
   assert.match(combinedSource, /function openQueue|open-queue/)
   assert.match(combinedSource, /SidebarPlaylistRow\.vue/)
@@ -163,6 +172,9 @@ test('Homepage renders random playlist covers with a refresh action', async () =
   assert.match(appSource, /selectRandomPlaylistPages/)
   assert.match(appSource, /getPlaylist\(selection\.playlistId, selection\.page\)/)
   assert.match(appSource, /@refresh-playlists="refreshHomeRecommendations"/)
+  assert.match(homeSource, /DailyRecommendationsSection/)
+  assert.match(homeSource, /dailyTracks/)
+  assert.match(appSource, /getDailyRecommendations/)
 })
 
 test('Homepage is cover-first and keeps playback controls out of the content layer', async () => {
@@ -190,12 +202,12 @@ test('Liquid Glass v3 keeps content lists continuous and the global player owns 
   assert.doesNotMatch(appSource, /<SidebarZoneButton\b|playback-zone-dock/)
 })
 
-test('Liquid Glass v3 uses one neutral theme and never rotates the album ambient', async () => {
+test('Liquid Glass v4 uses one neutral graphite theme and never rotates the album ambient', async () => {
   const css = await readFile(path.resolve('src/renderer/src/style.css'), 'utf8')
 
   assert.equal((css.match(/:root\s*\{/g) ?? []).length, 1)
-  assert.match(css, /--mb-bg-deep:\s*#08080a/)
-  assert.match(css, /--mb-accent:\s*#ff375f/)
+  assert.match(css, /--mb-bg-deep:\s*#0e1217/)
+  assert.match(css, /--mb-accent:\s*#64d2ff/)
   assert.doesNotMatch(css, /radial-gradient\(/)
   assert.doesNotMatch(css, /album-ambient-rotate|rotate\(/)
   assert.doesNotMatch(css, /#a9bcff|#c5d2ff|#6e8fff|#8aa8ff/)

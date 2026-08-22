@@ -1,9 +1,11 @@
 import type {
   Page,
   PageRequest,
+  DailyRecommendationsSnapshot,
   PlaylistDetail,
   PlaylistSummary,
   TrackSummary,
+  PublicAccountProfile,
 } from '@music-bridge/contracts';
 import type { LyricsSnapshot } from '@music-bridge/contracts';
 
@@ -29,7 +31,15 @@ export interface TrackMetadata {
   artworkUrl?: string;
 }
 
-export type { Page, PageRequest, PlaylistDetail, PlaylistSummary, TrackSummary };
+export type {
+  DailyRecommendationsSnapshot,
+  Page,
+  PageRequest,
+  PlaylistDetail,
+  PlaylistSummary,
+  PublicAccountProfile,
+  TrackSummary,
+};
 
 export interface ResolvedAudioStream {
   trackId: string;
@@ -55,5 +65,7 @@ export interface NeteasePort {
   getLikedTracks(page: PageRequest): Promise<Page<TrackSummary>>;
   getUserPlaylists(): Promise<readonly PlaylistSummary[]>;
   getPlaylist(playlistId: string, page: PageRequest): Promise<PlaylistDetail>;
+  getPublicAccountProfile(): Promise<PublicAccountProfile>;
+  getDailyRecommendations(): Promise<DailyRecommendationsSnapshot>;
   getLyrics?(trackId: string): Promise<LyricsSnapshot>;
 }

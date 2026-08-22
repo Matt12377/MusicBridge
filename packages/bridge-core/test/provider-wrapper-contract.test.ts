@@ -144,6 +144,23 @@ test('liked and account wrappers use the expected account endpoints', async () =
   assert.deepEqual(likedCall.calls[0]?.data, { uid: 1 })
 })
 
+test('daily recommendation wrapper stays pinned to recommend_songs and never refreshes or dislikes', async () => {
+  const response = {
+    body: { code: 200, dailySongs: [], recommendReasons: [] },
+    cookie: [],
+  }
+  const { request, calls } = fakeRequest([response])
+  const actual = await loadWrapper('recommend_songs')(
+    { cookie: { fixture: 'credential' }, afresh: false },
+    request,
+  )
+  assert.deepEqual(actual, response)
+  assert.equal(calls[0]?.endpoint, '/api/v3/discovery/recommend/songs')
+  assert.deepEqual(calls[0]?.data, { afresh: false })
+  assert.equal(calls[0]?.options.crypto, 'weapi')
+  assert.equal(calls.some((call) => call.endpoint.includes('dislike')), false)
+})
+
 test('playlist list, detail and track wrappers compose the pinned API calls', async () => {
   const listCall = fakeRequest([{ body: { code: 200, playlist: [], playlistCount: 0, more: false } }])
   const listResult = await loadWrapper('user_playlist')(

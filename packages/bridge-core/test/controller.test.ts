@@ -40,6 +40,14 @@ class FakeNetease implements NeteasePort {
     };
   }
 
+  async getPublicAccountProfile() {
+    return { displayName: 'Synthetic Listener' };
+  }
+
+  async getDailyRecommendations() {
+    return { dayKey: '2026-08-22', tracks: [] };
+  }
+
   async getTrack(trackId: string) {
     if (this.authExpired) {
       throw new BridgeError('AUTH_EXPIRED', 'Synthetic expired session', { httpStatus: 401 });

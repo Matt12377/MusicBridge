@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { TrackSummary } from '@music-bridge/contracts'
+import type { DailyRecommendationTrack, TrackSummary } from '@music-bridge/contracts'
 import type { HomeRecommendationState } from '../composables/homeRecommendations.js'
 import type { ViewId } from './navigation.js'
+import DailyRecommendationsSection from './home/DailyRecommendationsSection.vue'
 
 const props = defineProps<{
   currentTrack?: TrackSummary
@@ -10,12 +11,22 @@ const props = defineProps<{
   resumeTracks: readonly TrackSummary[]
   playlistTracks: readonly TrackSummary[]
   playlistRecommendationsState: HomeRecommendationState
+  dailyDayKey: string
+  dailyTracks: readonly DailyRecommendationTrack[]
+  dailyState: 'idle' | 'loading' | 'ready' | 'empty' | 'error'
+  dailyAuthenticated: boolean
+  dailyError?: string | null
 }>()
 
 const emit = defineEmits<{
   navigate: [view: ViewId]
   play: [track: TrackSummary]
   refreshPlaylists: []
+  'play-daily': [track: DailyRecommendationTrack]
+  'play-all-daily': []
+  'view-all-daily': []
+  'open-settings': []
+  'retry-daily': []
 }>()
 
 const playlistCoverTracks = computed(() => props.playlistTracks.length ? props.playlistTracks : props.resumeTracks)
@@ -36,6 +47,19 @@ function hideBrokenArtwork(event: Event): void {
         <p class="lede">从你的收藏和歌单继续聆听。</p>
       </div>
     </header>
+
+    <DailyRecommendationsSection
+      :day-key="props.dailyDayKey"
+      :tracks="props.dailyTracks"
+      :state="props.dailyState"
+      :authenticated="props.dailyAuthenticated"
+      :error="props.dailyError"
+      @play="emit('play-daily', $event)"
+      @play-all="emit('play-all-daily')"
+      @view-all="emit('view-all-daily')"
+      @open-settings="emit('open-settings')"
+      @retry="emit('retry-daily')"
+    />
 
     <section v-if="props.currentTrack" class="home-continue-hero" aria-labelledby="continue-heading">
       <div class="home-continue-art">

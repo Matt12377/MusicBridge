@@ -20,6 +20,15 @@ export interface TrackSummary {
   artworkUrl?: string
 }
 
+export interface DailyRecommendationTrack extends TrackSummary {
+  recommendationReason?: string
+}
+
+export interface DailyRecommendationsSnapshot {
+  dayKey: string
+  tracks: readonly DailyRecommendationTrack[]
+}
+
 export interface PlaylistSummary {
   id: string
   name: string

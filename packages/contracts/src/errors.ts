@@ -6,6 +6,8 @@ export type PublicErrorCode =
   | 'TIMEOUT'
   | 'NOT_READY'
   | 'AUTH_EXPIRED'
+  | 'ACCOUNT_PROFILE_UNAVAILABLE'
+  | 'DAILY_RECOMMENDATIONS_UNAVAILABLE'
   | 'INTERNAL_ERROR';
 
 export interface PublicError {

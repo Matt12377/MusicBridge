@@ -5,11 +5,13 @@ import type {
   LyricsSnapshot,
   Page,
   PageRequest,
+  DailyRecommendationsSnapshot,
   PlaybackQuality,
   PlaybackQueueItem,
   PlaybackSnapshot,
   PlaylistDetail,
   PublicAuthState,
+  PublicAccountState,
   PublicBridgeState,
   PublicRoonZone,
   TrackSummary,
@@ -19,6 +21,8 @@ import AlbumAmbientBackground from './components/AlbumAmbientBackground.vue'
 import BottomPlayer from './components/BottomPlayer.vue'
 import HomeView from './components/HomeView.vue'
 import NowPlayingView from './components/NowPlayingView.vue'
+import DailyRecommendationsView from './components/views/DailyRecommendationsView.vue'
+import SettingsView from './components/settings/SettingsView.vue'
 import PlaybackInspector from './components/inspector/PlaybackInspector.vue'
 import TrackTable from './components/media/TrackTable.vue'
 import MusicSidebar from './components/sidebar/MusicSidebar.vue'
@@ -40,6 +44,7 @@ const VIEW_LABELS: Record<ViewId, string> = {
   home: '主页',
   search: '搜索结果',
   liked: '我喜欢的音乐',
+  'daily-recommendations': '每日推荐',
   playlists: '所有歌单',
   'playlist-detail': '歌单详情',
   'now-playing': '正在播放',
@@ -56,12 +61,25 @@ function emptyLyricsSnapshot(status: LyricsSnapshot['status'] = 'idle'): LyricsS
   return { status, lines: [], activeLineIndex: -1, timingSource: 'static' }
 }
 
+function localDayKey(now = Date.now()): string {
+  const date = new Date(now)
+  return String(date.getFullYear()) + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0')
+}
+
 const appInfo = ref<AppInfo | null>(null)
 const currentView = ref<ViewId>('home')
 const sidebar = useSidebarState()
 const searchReturnSource = ref<SidebarSource>({ type: 'home' })
 const coreState = ref<PublicBridgeState | null>(null)
 const authState = ref<PublicAuthState>({ status: 'idle' })
+const accountState = ref<PublicAccountState>({ status: 'missing' })
+const dailyRecommendations = ref<DailyRecommendationsSnapshot>({
+  dayKey: localDayKey(),
+  tracks: [],
+})
+const dailyState = ref<'idle' | 'loading' | 'ready' | 'empty' | 'error'>('idle')
+const dailyError = ref<string | null>(null)
+const accountError = ref<string | null>(null)
 const coreError = ref(false)
 const authError = ref(false)
 const playbackState = ref<PlaybackSnapshot | null>(null)
@@ -95,6 +113,7 @@ let pollInFlight = false
 let libraryOperation = 0
 let lyricsOperation = 0
 let homeRecommendationOperation = 0
+let dailyOperation = 0
 
 const currentTrack = computed(() => playbackState.value?.currentTrack)
 const ambientTrack = computed(() => playbackState.value?.state === 'playing' ? currentTrack.value : undefined)
@@ -124,6 +143,7 @@ const hasPlaybackIssue = computed(() => Boolean(playbackState.value?.lastIssue |
 
 function navigate(view: ViewId): void {
   currentView.value = view
+  if (view !== 'now-playing' && view !== 'queue') inspectorOpen.value = false
   actionError.value = null
   actionDiagnosticId.value = null
   if (view === 'search' && searchQuery.value.trim()) scheduleSearch()
@@ -213,6 +233,28 @@ function errorCode(error: unknown): string | undefined {
   return typeof error.code === 'string' ? error.code : undefined
 }
 
+function accountMessage(error: unknown): string {
+  switch (errorCode(error)) {
+    case 'AUTH_REQUIRED':
+    case 'AUTH_EXPIRED':
+      return 'Provider 登录已失效，请重新登录。'
+    case 'ACCOUNT_PROFILE_UNAVAILABLE':
+      return '账户资料暂时不可用，登录状态仍然保留。'
+    default:
+      return '账户资料暂时不可用，请稍后重试。'
+  }
+}
+
+function dailyMessage(error: unknown): string {
+  switch (errorCode(error)) {
+    case 'AUTH_REQUIRED':
+    case 'AUTH_EXPIRED':
+      return 'Provider 登录已失效，请到 Settings 重新登录。'
+    default:
+      return '每日推荐暂时不可用，请稍后重试。'
+  }
+}
+
 function actionableMessage(error: unknown): string {
   switch (errorCode(error)) {
     case 'AUTH_REQUIRED':
@@ -292,6 +334,51 @@ async function loadLiked(page: PageRequest = { offset: 0, limit: LIBRARY_PAGE_SI
     libraryBusy.value = false
   } catch (error) {
     applyLibraryError(error, operation)
+  }
+}
+
+async function loadDailyRecommendations(): Promise<void> {
+  const operation = ++dailyOperation
+  dailyError.value = null
+  if (authState.value.status !== 'authorized') {
+    dailyRecommendations.value = { dayKey: localDayKey(), tracks: [] }
+    dailyState.value = 'empty'
+    return
+  }
+  dailyState.value = 'loading'
+  try {
+    const snapshot = await window.musicBridge.getDailyRecommendations()
+    if (operation !== dailyOperation) return
+    dailyRecommendations.value = snapshot
+    dailyState.value = snapshot.tracks.length ? 'ready' : 'empty'
+  } catch (error) {
+    if (operation !== dailyOperation) return
+    dailyRecommendations.value = { dayKey: localDayKey(), tracks: [] }
+    dailyState.value = 'error'
+    dailyError.value = dailyMessage(error)
+  }
+}
+
+async function loadAccountState(): Promise<void> {
+  accountError.value = null
+  try {
+    const state = await window.musicBridge.getAccountState()
+    accountState.value = state
+    if (authState.value.status === 'authorized') void loadDailyRecommendations()
+  } catch (error) {
+    accountState.value = { status: 'unavailable' }
+    accountError.value = accountMessage(error)
+  }
+}
+
+async function refreshAccountProfile(): Promise<void> {
+  accountError.value = null
+  try {
+    accountState.value = await window.musicBridge.refreshAccountProfile()
+    if (authState.value.status === 'authorized') void loadDailyRecommendations()
+  } catch (error) {
+    accountState.value = { status: 'unavailable' }
+    accountError.value = accountMessage(error)
   }
 }
 
@@ -395,6 +482,13 @@ function applyAuthState(state: PublicAuthState, operation = authOperation): void
   if (operation !== authOperation) return
   authState.value = state
   if (!acceptsPolling(state)) stopPolling()
+  if (state.status === 'authorized') {
+    void loadAccountState()
+  } else if (state.status === 'idle' || state.status === 'cancelled' || state.status === 'expired') {
+    accountState.value = { status: 'missing' }
+    dailyRecommendations.value = { dayKey: localDayKey(), tracks: [] }
+    dailyState.value = 'empty'
+  }
 }
 
 async function pollQr(operation: number): Promise<void> {
@@ -450,11 +544,15 @@ async function cancelQrLogin(): Promise<void> {
 }
 
 async function logout(): Promise<void> {
+  if (!window.confirm('退出登录会停止播放、清空队列并移除本地账户状态。确定继续吗？')) return
   authOperation += 1
   authError.value = false
   stopPolling()
   try {
     applyAuthState(await window.musicBridge.logout())
+    accountState.value = { status: 'missing' }
+    dailyRecommendations.value = { dayKey: localDayKey(), tracks: [] }
+    dailyState.value = 'empty'
   } catch (error) {
     authError.value = true
     recordActionError(error)
@@ -521,6 +619,21 @@ async function playTrack(track: TrackSummary, addToQueue = false): Promise<void>
   }
 }
 
+async function playAllDailyRecommendations(): Promise<void> {
+  if (!dailyRecommendations.value.tracks.length) return
+  actionError.value = null
+  const items: PlaybackQueueItem[] = dailyRecommendations.value.tracks.map((track) => ({
+    trackId: track.id,
+    quality: selectedQuality.value,
+  }))
+  try {
+    applyPlaybackState(await window.musicBridge.replaceQueue(items, 0))
+    currentView.value = 'now-playing'
+  } catch (error) {
+    recordActionError(error)
+  }
+}
+
 async function playQueueItem(item: PlaybackQueueItem, index: number): Promise<void> {
   const items = playbackState.value?.queue.items
   if (!items?.length) return
@@ -574,21 +687,8 @@ async function selectZone(zoneId: string): Promise<void> {
   }
 }
 
-function handleAccountAction(action: 'login' | 'settings' | 'diagnostics' | 'logout'): void {
-  if (action === 'login') {
-    navigate('settings')
-    if (authState.value.status !== 'authorized') void beginQrLogin()
-    return
-  }
-  if (action === 'settings') {
-    navigate('settings')
-    return
-  }
-  if (action === 'diagnostics') {
-    navigate('diagnostics')
-    return
-  }
-  void logout()
+function handleSidebarAccount(): void {
+  navigate('settings')
 }
 
 function openLyrics(): void {
@@ -676,6 +776,16 @@ onMounted(async () => {
       coreState.value = event.payload.state
     }
     if (event.event === 'auth.changed') applyAuthState(event.payload.state)
+    if (event.event === 'account.changed') {
+      accountState.value = event.payload.state
+      if (event.payload.state.status === 'ready' && authState.value.status === 'authorized') {
+        void loadDailyRecommendations()
+      }
+      if (event.payload.state.status === 'missing') {
+        dailyRecommendations.value = { dayKey: localDayKey(), tracks: [] }
+        dailyState.value = 'empty'
+      }
+    }
     if (event.event === 'playback.changed') applyPlaybackState(event.payload.state)
     if (event.event === 'lyrics.changed') lyricsSnapshot.value = event.payload.state
     if (event.event === 'diagnostic.notice') diagnosticNotice.value = event.payload
@@ -683,7 +793,9 @@ onMounted(async () => {
   try {
     appInfo.value = await window.musicBridge.getAppInfo()
     coreState.value = await window.musicBridge.getCoreHealth()
-    applyAuthState(await window.musicBridge.getAuthState())
+    const initialAuthState = await window.musicBridge.getAuthState()
+    applyAuthState(initialAuthState)
+    if (initialAuthState.status !== 'authorized') await loadAccountState()
     applyPlaybackState(await window.musicBridge.getPlaybackState())
     await loadZones()
     void loadPlaylists()
@@ -714,12 +826,15 @@ onUnmounted(() => {
         :playlists="playlists"
         :playlist-state="playlistState"
         :source-scroll-top="sidebar.sourceScrollTop.value"
+        :account-state="accountState"
+        :auth-state="authState"
         @toggle="sidebar.toggleExpanded"
         @navigate="navigateSource"
         @update:search-query="updateSearchQuery"
         @clear-search="clearSearch"
         @retry-playlists="loadPlaylists"
         @scroll-source="sidebar.setSourceScrollTop"
+        @account="handleSidebarAccount"
       />
 
       <section class="workspace">
@@ -730,7 +845,7 @@ onUnmounted(() => {
             <h1>{{ viewTitle }}</h1>
           </div>
         </div>
-        <ToolbarStatusPopover :core-state="coreState" :auth-state="authState" :selected-zone="selectedZone" @diagnostics="navigate('diagnostics')" @account="handleAccountAction" />
+        <ToolbarStatusPopover :core-state="coreState" :selected-zone="selectedZone" @diagnostics="navigate('diagnostics')" />
       </header>
 
       <div class="workspace-body">
@@ -742,9 +857,31 @@ onUnmounted(() => {
           :resume-tracks="homeTracks"
           :playlist-tracks="homePlaylistTracks"
           :playlist-recommendations-state="homeRecommendationState"
+          :daily-day-key="dailyRecommendations.dayKey"
+          :daily-tracks="dailyRecommendations.tracks"
+          :daily-state="dailyState"
+          :daily-authenticated="authState.status === 'authorized'"
+          :daily-error="dailyError"
           @navigate="navigate"
           @play="playTrack"
           @refresh-playlists="refreshHomeRecommendations"
+          @play-daily="playTrack"
+          @play-all-daily="playAllDailyRecommendations"
+          @view-all-daily="navigate('daily-recommendations')"
+          @open-settings="navigate('settings')"
+          @retry-daily="refreshAccountProfile"
+        />
+
+        <DailyRecommendationsView
+          v-else-if="currentView === 'daily-recommendations'"
+          :day-key="dailyRecommendations.dayKey"
+          :tracks="dailyRecommendations.tracks"
+          :state="dailyState"
+          :error="dailyError"
+          @play="playTrack"
+          @queue="(track) => playTrack(track, true)"
+          @play-all="playAllDailyRecommendations"
+          @retry="refreshAccountProfile"
         />
 
         <section v-else-if="currentView === 'search'" class="view" aria-labelledby="search-heading">
@@ -810,14 +947,24 @@ onUnmounted(() => {
           @next="nextTrack"
         />
 
-        <section v-else-if="currentView === 'settings'" class="view" aria-labelledby="settings-heading">
-          <div class="view-heading"><div><p class="section-kicker">Local preferences</p><h2 id="settings-heading">Settings</h2><p class="lede">敏感 Provider 会话由主进程安全保存，Renderer 只看到公开状态。</p></div></div>
-          <div class="settings-grid">
-            <article class="settings-card"><div class="panel-heading"><div><p class="section-kicker">Provider</p><h3>扫码登录</h3></div><span class="state-value">{{ authState.status }}</span></div><p class="muted-copy">二维码只在本地窗口显示，登录状态由桌面主进程管理。</p><div v-if="authState.qrImage" class="qr-frame"><img :src="authState.qrImage" alt="Provider 登录二维码" /></div><p class="auth-state">当前状态：<strong>{{ authState.status }}</strong></p><div class="button-row"><button type="button" class="primary-button" :disabled="authState.status === 'creating' || acceptsPolling(authState)" @click="beginQrLogin">{{ authState.status === 'creating' ? '生成中…' : '显示二维码' }}</button><button v-if="acceptsPolling(authState)" type="button" class="secondary-button" @click="cancelQrLogin">取消</button><button v-if="authState.status === 'authorized'" type="button" class="secondary-button" @click="logout">退出登录</button></div><p v-if="authError" class="persistent-error">登录操作暂时不可用，请检查 Diagnostics。</p></article>
-            <article class="settings-card"><div class="panel-heading"><div><p class="section-kicker">Playback</p><h3>播放偏好</h3></div></div><label class="field-label" for="quality-select">请求质量</label><select id="quality-select" v-model="selectedQuality"><option value="standard">Standard</option><option value="exhigh">Exhigh</option><option value="lossless">Lossless</option><option value="hires">Hi-Res</option></select><p class="muted-copy">实际质量由 Provider、Roon 和 Signal Path 共同决定。</p><label class="field-label" for="zone-select">播放 Zone</label><select id="zone-select" :value="selectedZone?.zoneId ?? ''" @change="selectZone(($event.target as HTMLSelectElement).value)"><option value="" disabled>选择 Zone</option><option v-for="zone in zones" :key="zone.zoneId" :value="zone.zoneId">{{ zone.displayName }}</option></select><p class="muted-copy">控制与流端口继续只绑定本机 loopback。</p></article>
-            <article class="settings-card"><div class="panel-heading"><div><p class="section-kicker">Application</p><h3>应用信息</h3></div></div><dl class="detail-list"><div><dt>版本</dt><dd>{{ appInfo?.version ?? '读取中' }}</dd></div><div><dt>构建模式</dt><dd>{{ appInfo?.buildMode ?? '读取中' }}</dd></div><div><dt>平台</dt><dd>{{ appInfo?.platform ?? '读取中' }}</dd></div></dl></article>
-          </div>
-        </section>
+        <SettingsView
+          v-else-if="currentView === 'settings'"
+          :app-info="appInfo"
+          :auth-state="authState"
+          :account-state="accountState"
+          :zones="zones"
+          :selected-zone="selectedZone"
+          :selected-quality="selectedQuality"
+          :auth-error="authError"
+          :account-error="accountError"
+          @begin-login="beginQrLogin"
+          @cancel-login="cancelQrLogin"
+          @logout="logout"
+          @refresh-account="refreshAccountProfile"
+          @update:selected-quality="selectedQuality = $event"
+          @select-zone="selectZone"
+          @diagnostics="navigate('diagnostics')"
+        />
 
         <section v-else class="view" aria-labelledby="diagnostics-heading">
           <div class="view-heading"><div><p class="section-kicker">Read-only signal</p><h2 id="diagnostics-heading">Diagnostics</h2><p class="lede">这里只展示公开状态、可操作建议和诊断标识，不导出 Provider 原始内容。</p></div><div class="button-row"><button type="button" class="secondary-button" @click="refreshPlayback">刷新状态</button><button type="button" class="secondary-button" :disabled="diagnosticExportState === 'working'" @click="exportDiagnostics">{{ diagnosticExportState === 'working' ? '导出中…' : '导出诊断文件' }}</button></div></div>

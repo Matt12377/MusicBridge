@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import type { PlaylistSummary } from '@music-bridge/contracts'
+import type { PlaylistSummary, PublicAccountState, PublicAuthState } from '@music-bridge/contracts'
 import type { SidebarSource } from '../navigation.js'
 import SidebarHeader from './SidebarHeader.vue'
+import SidebarAccountFooter from './SidebarAccountFooter.vue'
 import SidebarNavRow from './SidebarNavRow.vue'
 import SidebarPlaylistList from './SidebarPlaylistList.vue'
 import SidebarSearch from './SidebarSearch.vue'
@@ -15,6 +16,8 @@ const props = defineProps<{
   playlists: readonly PlaylistSummary[]
   playlistState: 'loading' | 'ready' | 'error'
   sourceScrollTop: number
+  accountState: PublicAccountState
+  authState: PublicAuthState
 }>()
 
 const emit = defineEmits<{
@@ -24,6 +27,7 @@ const emit = defineEmits<{
   'clear-search': []
   'retry-playlists': []
   'scroll-source': [scrollTop: number]
+  account: []
 }>()
 
 const sourceScroll = ref<HTMLElement | null>(null)
@@ -77,6 +81,6 @@ onMounted(restoreSourceScroll)
 
       <SidebarPlaylistList :playlists="playlists" :expanded="expanded" :active-playlist-id="activeSource.type === 'playlist' ? activeSource.playlistId : undefined" :state="playlistState" @select="selectSource({ type: 'playlist', playlistId: $event })" @retry="emit('retry-playlists')" />
     </nav>
-
+    <SidebarAccountFooter :expanded="expanded" :account-state="accountState" :auth-state="authState" @open="emit('account')" />
   </aside>
 </template>

@@ -2,6 +2,7 @@ export type ViewId =
   | 'home'
   | 'search'
   | 'liked'
+  | 'daily-recommendations'
   | 'playlists'
   | 'playlist-detail'
   | 'now-playing'

@@ -360,6 +360,18 @@ export class BridgeController {
     });
   }
 
+  async clearQueue(): Promise<BridgeState> {
+    return this.enqueue(async () => {
+      await this.stopActive();
+      this.queue = [];
+      this.queueIndex = -1;
+      this.playbackState = 'idle';
+      this.clearPlaybackIssue();
+      this.notifyPlaybackChanged();
+      return this.getState();
+    });
+  }
+
   async shutdown(): Promise<void> {
     await this.enqueue(async () => {
       await this.stopActive();

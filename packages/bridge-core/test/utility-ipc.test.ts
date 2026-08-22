@@ -65,6 +65,26 @@ function makeRuntime(): CoreRuntimeForIpc & {
     activePlaybackPresent: false,
   };
   const authState = { status: 'idle' as const };
+  const accountState = {
+    status: 'ready' as const,
+    profile: {
+      displayName: 'Synthetic Listener',
+      avatarUrl: 'https://p1.music.126.net/synthetic-avatar.jpg',
+    },
+  };
+  const dailyRecommendations = {
+    dayKey: '2026-08-22',
+    tracks: [
+      {
+        id: '101',
+        title: 'Synthetic Recommendation',
+        artists: ['Synthetic Artist'],
+        album: 'Synthetic Album',
+        artworkUrl: 'https://p1.music.126.net/recommend.jpg',
+        recommendationReason: 'Synthetic taste match',
+      },
+    ],
+  };
   const playbackState: PlaybackSnapshot = {
     state: 'idle',
     queue: { items: [], index: -1, hasNext: false, hasPrevious: false },
@@ -134,6 +154,13 @@ function makeRuntime(): CoreRuntimeForIpc & {
     },
     async logoutProvider() {
       return { status: 'idle' as const }
+    },
+    getAccountState: () => accountState,
+    async refreshAccountProfile() {
+      return accountState
+    },
+    async getDailyRecommendations() {
+      return dailyRecommendations
     },
     async searchTracks() {
       return {
@@ -353,6 +380,24 @@ test('utility IPC exposes paged library data without raw provider fields', async
     ok: true,
     result: [{ id: '301', name: 'Synthetic Playlist', trackCount: 1 }],
   });
+});
+
+test('utility IPC exposes account state and daily recommendations through typed commands', async () => {
+  const port = new FakePort();
+  const runtime = makeRuntime();
+  await attachCoreRuntimePort(port, runtime);
+
+  for (const [id, command] of [
+    ['account-state', 'account.getState'],
+    ['account-refresh', 'account.refresh'],
+    ['daily-recommendations', 'library.dailyRecommendations'],
+  ] as const) {
+    port.send({ version: IPC_VERSION, id, command, payload: {} });
+    await new Promise((resolve) => setImmediate(resolve));
+    const response = port.messages.at(-1);
+    assert.equal((response as { ok?: boolean }).ok, true);
+    assert.doesNotMatch(JSON.stringify(response), /cookie|userId|rawProvider|recommendReasons/i);
+  }
 });
 
 test('utility IPC maps an expired Provider session to a public error', async () => {

@@ -1,9 +1,12 @@
 import { BridgeError } from '../shared/errors.js';
 import type {
+  DailyRecommendationTrack,
+  DailyRecommendationsSnapshot,
   Page,
   PageRequest,
   PlaylistDetail,
   PlaylistSummary,
+  PublicAccountProfile,
   TrackSummary,
 } from '@music-bridge/contracts';
 import { resolveNeteaseAudioUrl } from './policy.js';
@@ -38,6 +41,12 @@ function numeric(value: unknown): number | undefined {
 
 function stringValue(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() !== '' ? value : undefined;
+}
+
+function boundedPublicText(value: unknown, maximumLength: number): string | undefined {
+  const text = stringValue(value)?.trim();
+  if (!text || [...text].length > maximumLength) return undefined;
+  return text;
 }
 
 function safeArtworkUrl(value: unknown): string | undefined {
@@ -148,6 +157,49 @@ export function parseTrackSummaries(response: unknown): TrackSummary[] {
     .filter((item): item is TrackSummary => item !== undefined);
 }
 
+export function parseDailyRecommendations(
+  response: unknown,
+  dayKey: string,
+): DailyRecommendationsSnapshot {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dayKey)) {
+    throw new BridgeError('DAILY_RECOMMENDATIONS_UNAVAILABLE', 'Invalid recommendation day', {
+      httpStatus: 502,
+    });
+  }
+  const body = bodyOf(response);
+  responseBodyCode(body, 'daily recommendations');
+  const data = isRecord(body.data) ? body.data : body;
+  const rows = Array.isArray(data.dailySongs)
+    ? data.dailySongs
+    : Array.isArray(body.dailySongs)
+      ? body.dailySongs
+      : [];
+  const reasonRows = Array.isArray(data.recommendReasons)
+    ? data.recommendReasons
+    : Array.isArray(body.recommendReasons)
+      ? body.recommendReasons
+      : [];
+  const reasons = new Map<string, string>();
+  for (const row of reasonRows) {
+    if (!isRecord(row)) continue;
+    const id = safeId(row.songId ?? row.id);
+    const reason = boundedPublicText(row.reason, 120);
+    if (id && reason && !reasons.has(id)) reasons.set(id, reason);
+  }
+
+  const tracks: DailyRecommendationTrack[] = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    const track = trackSummaryFromRecord(row);
+    if (!track || seen.has(track.id)) continue;
+    seen.add(track.id);
+    const reason = reasons.get(track.id);
+    tracks.push({ ...track, ...(reason !== undefined ? { recommendationReason: reason } : {}) });
+    if (tracks.length === 50) break;
+  }
+  return { dayKey, tracks };
+}
+
 export function parseSearchPage(
   response: unknown,
   page: PageRequest,
@@ -218,6 +270,28 @@ export function parseAccountId(response: unknown): string {
     });
   }
   return id;
+}
+
+export function parsePublicAccountProfile(response: unknown): PublicAccountProfile {
+  const body = bodyOf(response);
+  responseBodyCode(body, 'user account');
+  const data = isRecord(body.data) ? body.data : undefined;
+  const profile = isRecord(body.profile)
+    ? body.profile
+    : data && isRecord(data.profile)
+      ? data.profile
+      : undefined;
+  const displayName = boundedPublicText(profile?.nickname, 80);
+  if (!profile || !displayName) {
+    throw new BridgeError('ACCOUNT_PROFILE_UNAVAILABLE', 'NetEase account profile unavailable', {
+      httpStatus: 503,
+    });
+  }
+  const avatarUrl = safeArtworkUrl(profile.avatarUrl);
+  return {
+    displayName,
+    ...(avatarUrl !== undefined ? { avatarUrl } : {}),
+  };
 }
 
 export function parsePlaylistDetailHeader(
