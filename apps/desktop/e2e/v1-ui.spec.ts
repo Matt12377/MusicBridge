@@ -14,6 +14,7 @@ let electronApp: ElectronApplication
 let page: Page
 let diagnosticDirectory: string
 let diagnosticPath: string
+const syntheticScreenshotPath = process.env.MUSIC_BRIDGE_SCREENSHOT_PATH ?? path.join(os.tmpdir(), 'musicbridge-task-033-home.png')
 
 function navButton(name: string) {
   const index = ['Home', 'Search', 'Library', 'Now Playing', 'Queue', 'Settings', 'Diagnostics'].indexOf(name)
@@ -82,6 +83,12 @@ test.afterEach(async () => {
 test('packaged cold start, login states, navigation, focus and Renderer isolation', async () => {
   await expect(page.getByText(/Bridge Core 状态 ready/)).toBeVisible()
   await expect(page.getByText(/Roon 状态 ready/)).toBeVisible()
+  await expect(page.locator('[data-ui-reference="simple-music-player-2"]')).toBeVisible()
+  await expect(page.locator('.home-hero')).toBeVisible()
+  await expect(page.locator('.global-player')).toBeVisible()
+  await expect(page.locator('.player-progress')).toBeVisible()
+  await page.screenshot({ path: syntheticScreenshotPath })
+  expect((await stat(syntheticScreenshotPath)).size).toBeGreaterThan(20_000)
 
   await page.getByRole('button', { name: 'Settings' }).click()
   await page.getByRole('button', { name: '显示二维码' }).click()

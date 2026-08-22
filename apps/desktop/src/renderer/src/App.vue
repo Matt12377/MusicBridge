@@ -16,21 +16,16 @@ import type {
   TrackSummary,
 } from '@music-bridge/contracts'
 import type { AppInfo } from '../../preload/api.js'
-
-type ViewId =
-  | 'home'
-  | 'search'
-  | 'library'
-  | 'playlist-detail'
-  | 'now-playing'
-  | 'queue'
-  | 'settings'
-  | 'diagnostics'
+import AppSidebar from './components/AppSidebar.vue'
+import BottomPlayer from './components/BottomPlayer.vue'
+import HomeView from './components/HomeView.vue'
+import NowPlayingView from './components/NowPlayingView.vue'
+import type { NavigationItem, ViewId } from './components/navigation.js'
 
 const LIBRARY_PAGE_SIZE = 20
 const SEARCH_DEBOUNCE_MS = 350
 
-const NAV_ITEMS: readonly { id: Exclude<ViewId, 'playlist-detail'>; label: string; hint: string }[] = [
+const NAV_ITEMS: readonly NavigationItem[] = [
   { id: 'home', label: 'Home', hint: '总览' },
   { id: 'search', label: 'Search', hint: '发现音乐' },
   { id: 'library', label: 'Library', hint: '音乐库' },
@@ -97,6 +92,19 @@ const currentTrack = computed(() => playbackState.value?.currentTrack)
 const currentLyricLine = computed(() => {
   const index = lyricsSnapshot.value.activeLineIndex
   return index >= 0 ? lyricsSnapshot.value.lines[index]?.text : undefined
+})
+const homeTracks = computed(() => {
+  const candidates = [
+    ...(currentTrack.value ? [currentTrack.value] : []),
+    ...searchPage.value.items,
+    ...likedPage.value.items,
+  ]
+  const seen = new Set<string>()
+  return candidates.filter((track) => {
+    if (seen.has(track.id)) return false
+    seen.add(track.id)
+    return true
+  }).slice(0, 6)
 })
 const selectedZone = computed(() => {
   const selectedId = playbackState.value?.selectedZoneId
@@ -521,36 +529,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main class="app-shell">
-    <aside class="sidebar" aria-label="主导航">
-      <div class="brand-lockup">
-        <span class="brand-mark" aria-hidden="true">MB</span>
-        <div>
-          <strong>Music Bridge</strong>
-          <span>for Roon</span>
-        </div>
-      </div>
-
-      <nav class="primary-nav" aria-label="应用视图">
-        <button
-          v-for="item in NAV_ITEMS"
-          :key="item.id"
-          type="button"
-          class="nav-item"
-          :class="{ selected: currentView === item.id || (item.id === 'library' && currentView === 'playlist-detail') }"
-          :aria-current="currentView === item.id || (item.id === 'library' && currentView === 'playlist-detail') ? 'page' : undefined"
-          @click="navigate(item.id)"
-        >
-          <span class="nav-icon" aria-hidden="true">{{ item.label.slice(0, 1) }}</span>
-          <span><strong>{{ item.label }}</strong><small>{{ item.hint }}</small></span>
-        </button>
-      </nav>
-
-      <div class="sidebar-footer">
-        <div class="mini-status"><span class="status-led" :class="coreState?.runtime"></span><span>Bridge {{ coreState?.runtime ?? 'starting' }}</span></div>
-        <button type="button" class="support-link" @click="navigate('diagnostics')">运行状态</button>
-      </div>
-    </aside>
+  <main class="app-shell" data-ui-reference="simple-music-player-2">
+    <AppSidebar :items="NAV_ITEMS" :current-view="currentView" :runtime="coreState?.runtime" @navigate="navigate" />
 
     <section class="workspace">
       <header class="topbar">
@@ -566,45 +546,19 @@ onUnmounted(() => {
       </header>
 
       <div class="content-scroll">
-        <section v-if="currentView === 'home'" class="view home-view" aria-labelledby="home-heading">
-          <div class="view-intro">
-            <div>
-              <p class="section-kicker">Local Hi-Fi console</p>
-              <h2 id="home-heading">把音乐留在你选择的 Zone。</h2>
-              <p class="lede">控制面板只负责清晰地表达状态与动作，Bridge Core 继续守住 Provider、Roon 和流媒体边界。</p>
-            </div>
-            <button type="button" class="primary-button" @click="navigate('search')">开始搜索</button>
-          </div>
-
-          <div class="overview-grid">
-            <article class="feature-card feature-card-accent">
-              <p class="section-kicker">Now Playing</p>
-              <h3>{{ currentTrack?.title ?? '还没有正在播放的内容' }}</h3>
-              <p>{{ currentTrack ? `${currentTrack.artists.join('、')} · ${currentTrack.album}` : '从 Search 或 Library 选择一首歌曲开始。' }}</p>
-              <button v-if="currentTrack" type="button" class="text-button" @click="navigate('now-playing')">查看正在播放 →</button>
-              <button v-else type="button" class="text-button" @click="navigate('settings')">检查连接 →</button>
-            </article>
-            <article class="feature-card">
-              <p class="section-kicker">Queue</p>
-              <h3>{{ playbackState?.queue.items.length ?? 0 }} 首待播</h3>
-              <p>{{ selectedZone?.displayName ?? '尚未选择 Zone' }}</p>
-              <button type="button" class="text-button" @click="navigate('queue')">打开队列 →</button>
-            </article>
-            <article class="feature-card">
-              <p class="section-kicker">Lyrics</p>
-              <h3>{{ lyricsSnapshot.status === 'ready' ? '同步中' : '等待内容' }}</h3>
-              <p>{{ currentLyricLine ?? '当前曲目歌词状态会显示在 Now Playing。' }}</p>
-              <button type="button" class="text-button" @click="navigate('now-playing')">查看歌词 →</button>
-            </article>
-          </div>
-
-          <div class="status-row" aria-label="系统摘要">
-            <article><span>Bridge Core</span><strong>{{ coreState?.runtime ?? (coreError ? '不可用' : '读取中') }}</strong></article>
-            <article><span>Roon</span><strong>{{ coreState?.roon ?? '读取中' }}</strong></article>
-            <article><span>Provider</span><strong>{{ coreState?.provider ?? '读取中' }}</strong></article>
-            <article><span>活动流</span><strong>{{ coreState?.activeStreamCount ?? 0 }}</strong></article>
-          </div>
-        </section>
+        <HomeView
+          v-if="currentView === 'home'"
+          :current-track="currentTrack"
+          :core-state="coreState"
+          :core-error="coreError"
+          :selected-zone="selectedZone"
+          :playback-state="playbackState"
+          :lyrics-snapshot="lyricsSnapshot"
+          :current-lyric-line="currentLyricLine"
+          :resume-tracks="homeTracks"
+          @navigate="navigate"
+          @play="playTrack"
+        />
 
         <section v-else-if="currentView === 'search'" class="view" aria-labelledby="search-heading">
           <div class="view-heading"><div><p class="section-kicker">Discovery</p><h2 id="search-heading">Search</h2><p class="lede">用 Provider 搜索内容，结果通过 Core 分页返回。</p></div></div>
@@ -642,17 +596,22 @@ onUnmounted(() => {
           <div v-if="selectedPlaylist && selectedPlaylist.tracks.total > 0" class="pagination"><button type="button" class="secondary-button" :disabled="selectedPlaylist.tracks.offset === 0 || libraryBusy" @click="playlistPageAt(Math.max(0, selectedPlaylist.tracks.offset - selectedPlaylist.tracks.limit))">上一页</button><span>{{ selectedPlaylist.tracks.offset + 1 }}–{{ Math.min(selectedPlaylist.tracks.offset + selectedPlaylist.tracks.items.length, selectedPlaylist.tracks.total) }} / {{ selectedPlaylist.tracks.total }}</span><button type="button" class="secondary-button" :disabled="!selectedPlaylist.tracks.hasMore || libraryBusy" @click="playlistPageAt(selectedPlaylist.tracks.offset + selectedPlaylist.tracks.limit)">下一页</button></div>
         </section>
 
-        <section v-else-if="currentView === 'now-playing'" class="view now-playing-view" aria-labelledby="now-playing-heading">
-          <div class="view-heading"><div><p class="section-kicker">The listening room</p><h2 id="now-playing-heading">Now Playing</h2><p class="lede">当前播放状态、实际质量和同步歌词。</p></div><span class="live-badge"><i class="status-led playing"></i>{{ playbackState?.state ?? 'idle' }}</span></div>
-          <div class="now-playing-layout">
-            <div class="hero-art"><img v-if="currentTrack?.artworkUrl" :src="currentTrack.artworkUrl" alt="当前曲目封面" /><span v-else aria-hidden="true">♪</span></div>
-            <div class="now-playing-copy"><p class="section-kicker">Selected Zone</p><h3>{{ currentTrack?.title ?? '没有正在播放的歌曲' }}</h3><p class="artist-line">{{ currentTrack ? `${currentTrack.artists.join('、')} · ${currentTrack.album}` : '从 Search 或 Library 选择内容。' }}</p><p class="zone-line">{{ selectedZone?.displayName ?? '尚未选择 Zone' }}</p><div class="quality-grid"><div><span>请求质量</span><strong>{{ qualityLabel(playbackState?.requestedQuality) }}</strong></div><div><span>实际质量</span><strong>{{ qualityLabel(playbackState?.actualQuality) }}</strong></div><div><span>格式</span><strong>{{ playbackState?.format ?? '—' }}</strong></div><div><span>码率</span><strong>{{ playbackState?.bitrate ? `${Math.round(playbackState.bitrate / 1000)} kbps` : '—' }}</strong></div></div><div class="transport-controls"><button type="button" class="transport-button" :disabled="!playbackState?.canPrevious" @click="previousTrack">Previous</button><button type="button" class="transport-button primary" :disabled="!playbackState?.canStop" @click="stopPlayback">Stop</button><button type="button" class="transport-button" :disabled="!playbackState?.canNext" @click="nextTrack">Next</button></div></div>
-          </div>
-          <p v-if="playbackState?.qualityNotice" class="persistent-error">{{ playbackIssueMessage(playbackState.qualityNotice) }}<span>诊断标识：{{ playbackState.qualityNotice.diagnosticId }}</span></p>
-          <div class="switch-row"><button type="button" :class="{ selected: lyricsOrQueue === 'lyrics' }" @click="lyricsOrQueue = 'lyrics'">Lyrics</button><button type="button" :class="{ selected: lyricsOrQueue === 'queue' }" @click="lyricsOrQueue = 'queue'">Queue</button></div>
-          <div v-if="lyricsOrQueue === 'lyrics'" class="lyrics-panel" aria-live="polite"><div class="panel-heading"><div><p class="section-kicker">Synchronized</p><h3>同步歌词 / 歌词</h3></div><span>{{ lyricsSnapshot.status }}</span></div><p class="empty-copy">歌词只在内存中处理。</p><p v-if="!currentTrack" class="empty-copy">播放内容后，歌词会在这里出现。</p><p v-else-if="lyricsSnapshot.status === 'loading'" class="empty-copy">歌词读取中…</p><p v-else-if="lyricsSnapshot.status === 'instrumental'" class="empty-copy">纯音乐，暂无歌词。</p><p v-else-if="lyricsSnapshot.status === 'unavailable'" class="empty-copy">暂无可用歌词。</p><p v-else-if="lyricsSnapshot.status === 'error'" class="empty-copy">歌词暂时不可用。</p><div v-else class="lyrics-lines"><p v-for="(line, lineIndex) in lyricsSnapshot.lines" :key="`${line.startMs}-${lineIndex}`" :class="{ active: lyricsSnapshot.activeLineIndex === lineIndex }" class="lyrics-line"><span v-if="line.words?.length" class="lyrics-words"><span v-for="(word, wordIndex) in line.words" :key="`${word.startMs}-${wordIndex}`" :class="{ 'word-active': lyricsSnapshot.activeLineIndex === lineIndex && lyricsSnapshot.activeWordIndex === wordIndex }">{{ word.text }}</span></span><span v-else>{{ line.text }}</span><small v-if="line.translation">{{ line.translation }}</small><small v-if="line.romanization">{{ line.romanization }}</small></p></div></div>
-          <div v-else class="queue-panel"><div class="panel-heading"><div><p class="section-kicker">Up next</p><h3>Queue</h3></div><span>{{ playbackState?.queue.items.length ?? 0 }} items</span></div><p v-if="!playbackState?.queue.items.length" class="empty-copy">队列为空。</p><button v-for="(item, index) in playbackState?.queue.items" v-else :key="`${item.trackId}-${index}`" type="button" class="queue-row" :class="{ active: playbackState?.queue.index === index }" @click="playQueueItem(item, index)"><span>{{ String(index + 1).padStart(2, '0') }}</span><strong>{{ item.trackId }}</strong><small>{{ qualityLabel(item.quality) }}</small></button></div>
-        </section>
+        <NowPlayingView
+          v-else-if="currentView === 'now-playing'"
+          :current-track="currentTrack"
+          :selected-zone="selectedZone"
+          :playback-state="playbackState"
+          :lyrics-snapshot="lyricsSnapshot"
+          :lyrics-or-queue="lyricsOrQueue"
+          :quality-label="qualityLabel"
+          :quality-notice="playbackState?.qualityNotice"
+          :playback-issue-message="playbackIssueMessage"
+          @previous="previousTrack"
+          @stop="stopPlayback"
+          @next="nextTrack"
+          @set-lyrics-mode="lyricsOrQueue = $event"
+          @play-queue-item="playQueueItem"
+        />
 
         <section v-else-if="currentView === 'queue'" class="view" aria-labelledby="queue-heading">
           <div class="view-heading"><div><p class="section-kicker">Playback plan</p><h2 id="queue-heading">Queue</h2><p class="lede">只保留 Previous、Next、Stop 三个明确的播放动作。</p></div><button type="button" class="secondary-button" @click="navigate('search')">添加内容</button></div>
@@ -680,11 +639,14 @@ onUnmounted(() => {
         </section>
       </div>
 
-      <footer class="global-player" aria-label="全局播放器">
-        <div class="player-track"><div class="player-art"><img v-if="currentTrack?.artworkUrl" :src="currentTrack.artworkUrl" alt="" /><span v-else aria-hidden="true">♪</span></div><div><span class="player-label">{{ playbackState?.state === 'playing' ? '正在播放' : '待机' }}</span><strong>{{ currentTrack?.title ?? '选择内容开始播放' }}</strong><small>{{ currentTrack ? currentTrack.artists.join('、') : 'Music Bridge for Roon' }}</small></div></div>
-        <div class="player-lyric"><span>LYRICS</span><strong>{{ currentLyricLine ?? '同步歌词会显示在这里' }}</strong></div>
-        <div class="player-actions"><button type="button" :disabled="!playbackState?.canPrevious" aria-label="Previous" @click="previousTrack">Previous</button><button type="button" class="player-stop" :disabled="!playbackState?.canStop" aria-label="Stop" @click="stopPlayback">Stop</button><button type="button" :disabled="!playbackState?.canNext" aria-label="Next" @click="nextTrack">Next</button></div>
-      </footer>
+      <BottomPlayer
+        :current-track="currentTrack"
+        :playback-state="playbackState"
+        :current-lyric-line="currentLyricLine"
+        @previous="previousTrack"
+        @stop="stopPlayback"
+        @next="nextTrack"
+      />
     </section>
   </main>
 </template>

@@ -34,7 +34,8 @@ test('Renderer source has no Node or Electron access', async () => {
 })
 
 test('Renderer contains the public QR login surface without credential access', async () => {
-  const source = await readFile(path.join(rendererRoot, 'src/App.vue'), 'utf8')
+  const files = await sourceFiles(rendererRoot)
+  const source = (await Promise.all(files.map((file) => readFile(file, 'utf8')))).join('\n')
 
   for (const text of [
     'Music Bridge for Roon',
@@ -65,7 +66,8 @@ test('Renderer contains the public QR login surface without credential access', 
 })
 
 test('Renderer exposes the V1 information architecture and avoids fake transport controls', async () => {
-  const source = await readFile(path.join(rendererRoot, 'src/App.vue'), 'utf8')
+  const source = (await sourceFiles(rendererRoot)).map((file) => readFile(file, 'utf8'))
+  const combinedSource = (await Promise.all(source)).join('\n')
 
   for (const text of [
     'Home',
@@ -83,8 +85,19 @@ test('Renderer exposes the V1 information architecture and avoids fake transport
     'aria-current',
     'diagnosticId',
   ]) {
-    assert.match(source, new RegExp(text))
+    assert.match(combinedSource, new RegExp(text))
   }
-  assert.doesNotMatch(source, />\s*Pause\s*</)
-  assert.doesNotMatch(source, />\s*Seek\s*</)
+  assert.doesNotMatch(combinedSource, />\s*Pause\s*</)
+  assert.doesNotMatch(combinedSource, />\s*Seek\s*</)
+})
+
+test('Renderer uses the clean-room player landmarks without importing the reference runtime', async () => {
+  const files = await sourceFiles(rendererRoot)
+  const source = (await Promise.all(files.map((file) => readFile(file, 'utf8')))).join('\n')
+
+  for (const landmark of ['home-hero', 'jump-back-in', 'now-playing-stage', 'lyrics-panel', 'player-progress']) {
+    assert.match(source, new RegExp(landmark))
+  }
+  assert.match(source, /data-ui-reference=["']simple-music-player-2["']/)
+  assert.doesNotMatch(source, /flutter|dart|pocketbase|ffmpeg|download-manager/i)
 })
