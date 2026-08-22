@@ -7,7 +7,7 @@
   "state": "carryover",
   "baseCommit": "8b5929eaf8c595275d6fd0e33b779f7f15531e29",
   "implementationCommit": "5a2909344b16bfda2dd214be0e054c5131e50df0",
-  "reportCommit": null,
+  "reportCommit": "8cde068d1ff246369f143dcca52ea8447217bdfe",
   "nextTask": null,
   "gates": {
     "automated": "pass",
