@@ -3,7 +3,6 @@ import type { TrackSummary } from '@music-bridge/contracts'
 
 defineProps<{
   currentTrack?: TrackSummary
-  isPlaying: boolean
 }>()
 </script>
 
@@ -14,7 +13,6 @@ defineProps<{
         v-if="currentTrack?.artworkUrl"
         :key="`${currentTrack.id}:${currentTrack.artworkUrl}`"
         class="album-ambient-cover"
-        :class="{ 'is-playing': isPlaying }"
       >
         <img :src="currentTrack.artworkUrl" alt="" />
       </div>

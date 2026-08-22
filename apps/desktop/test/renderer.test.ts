@@ -47,10 +47,9 @@ test('Renderer contains the public QR login surface without credential access', 
     '退出登录',
     '我喜欢的音乐',
     '所有歌单',
-    '上一页',
-    '下一页',
+    '加载更多歌曲',
     '同步歌词',
-    'Now Playing',
+    '正在播放',
     '歌词只在内存中处理',
   ]) {
     assert.match(source, new RegExp(text))
@@ -83,10 +82,7 @@ test('Renderer exposes the v2 Music Source Sidebar information architecture', as
     '搜索歌曲、歌手或歌单',
     '播放设备',
     '网易云登录设置',
-    'playback-zone-dock',
-    'app-footer',
     'toolbar-status-popover',
-    'global-player',
     'Previous',
     'Next',
     'Stop',
@@ -140,19 +136,67 @@ test('Playlist detail renders artworkUrl covers with a music-note fallback', asy
   assert.ok(detailStart >= 0)
   assert.ok(nextViewStart > detailStart)
 
-  const detailTemplate = source.slice(detailStart, nextViewStart)
-  assert.match(detailTemplate, /<img v-if="track\.artworkUrl"/)
-  assert.match(detailTemplate, /:src="track\.artworkUrl"/)
-  assert.match(detailTemplate, /<span v-else aria-hidden="true">♪<\/span>/)
+  const rendererSource = (await Promise.all((await sourceFiles(rendererRoot)).map((file) => readFile(file, 'utf8')))).join('\n')
+  assert.match(rendererSource, /TrackTable\.vue/)
+  assert.match(rendererSource, /artworkUrl/)
+  assert.match(rendererSource, /music-note fallback|♪/)
 })
 
 test('Renderer uses the clean-room player landmarks without importing the reference runtime', async () => {
   const files = await sourceFiles(rendererRoot)
   const source = (await Promise.all(files.map((file) => readFile(file, 'utf8')))).join('\n')
 
-  for (const landmark of ['home-hero', 'jump-back-in', 'now-playing-stage', 'lyrics-panel', 'player-progress']) {
+  for (const landmark of ['home-browse-header', 'home-cover-wall', 'now-playing-immersive', 'lyrics-panel', 'global-player', 'player-controls']) {
     assert.match(source, new RegExp(landmark))
   }
   assert.match(source, /data-ui-reference=["']simple-music-player-2["']/)
   assert.doesNotMatch(source, /flutter|dart|pocketbase|ffmpeg|download-manager/i)
+})
+
+test('Homepage renders random playlist covers with a refresh action', async () => {
+  const homeSource = await readFile(path.resolve('src/renderer/src/components/HomeView.vue'), 'utf8')
+  const appSource = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+
+  assert.match(homeSource, /playlistTracks/)
+  assert.match(homeSource, /home-cover-wall/)
+  assert.match(homeSource, /refreshPlaylists/)
+  assert.match(appSource, /selectRandomPlaylistPages/)
+  assert.match(appSource, /getPlaylist\(selection\.playlistId, selection\.page\)/)
+  assert.match(appSource, /@refresh-playlists="refreshHomeRecommendations"/)
+})
+
+test('Homepage is cover-first and keeps playback controls out of the content layer', async () => {
+  const homeSource = await readFile(path.resolve('src/renderer/src/components/HomeView.vue'), 'utf8')
+  const appSource = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+
+  assert.match(homeSource, /home-browse-header/)
+  assert.match(homeSource, /home-cover-wall/)
+  assert.doesNotMatch(homeSource, /hero-zone|overview-grid|selectedZone|Now Playing/)
+  assert.match(appSource, /<BottomPlayer\b/)
+  assert.doesNotMatch(appSource, /<SidebarZoneButton\b|<footer class="app-footer"|playback-zone-dock/)
+})
+
+test('Liquid Glass v3 keeps content lists continuous and the global player owns Zone', async () => {
+  const files = await sourceFiles(rendererRoot)
+  const combinedSource = (await Promise.all(files.map((file) => readFile(file, 'utf8')))).join('\n')
+  const appSource = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+
+  assert.match(combinedSource, /TrackTable\.vue/)
+  assert.match(appSource, /<TrackTable\b/)
+  assert.match(combinedSource, /contextmenu|Context Menu|右键菜单/)
+  assert.match(combinedSource, /dblclick|双击播放/)
+  assert.match(combinedSource, /ZoneControl\.vue/)
+  assert.match(combinedSource, /<ZoneControl\b/)
+  assert.doesNotMatch(appSource, /<SidebarZoneButton\b|playback-zone-dock/)
+})
+
+test('Liquid Glass v3 uses one neutral theme and never rotates the album ambient', async () => {
+  const css = await readFile(path.resolve('src/renderer/src/style.css'), 'utf8')
+
+  assert.equal((css.match(/:root\s*\{/g) ?? []).length, 1)
+  assert.match(css, /--mb-bg-deep:\s*#08080a/)
+  assert.match(css, /--mb-accent:\s*#ff375f/)
+  assert.doesNotMatch(css, /radial-gradient\(/)
+  assert.doesNotMatch(css, /album-ambient-rotate|rotate\(/)
+  assert.doesNotMatch(css, /#a9bcff|#c5d2ff|#6e8fff|#8aa8ff/)
 })

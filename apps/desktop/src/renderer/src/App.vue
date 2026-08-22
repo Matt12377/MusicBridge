@@ -19,10 +19,17 @@ import AlbumAmbientBackground from './components/AlbumAmbientBackground.vue'
 import BottomPlayer from './components/BottomPlayer.vue'
 import HomeView from './components/HomeView.vue'
 import NowPlayingView from './components/NowPlayingView.vue'
+import PlaybackInspector from './components/inspector/PlaybackInspector.vue'
+import TrackTable from './components/media/TrackTable.vue'
 import MusicSidebar from './components/sidebar/MusicSidebar.vue'
-import SidebarZoneButton from './components/sidebar/SidebarZoneButton.vue'
 import ToolbarStatusPopover from './components/ToolbarStatusPopover.vue'
 import { useLibrarySources } from './composables/useLibrarySources.js'
+import { appendPage } from './composables/libraryPagination.js'
+import {
+  selectRandomPlaylistPages,
+  shuffleTracks,
+  type HomeRecommendationState,
+} from './composables/homeRecommendations.js'
 import { useSidebarState } from './composables/useSidebarState.js'
 import type { SidebarSource, ViewId } from './components/navigation.js'
 
@@ -35,10 +42,10 @@ const VIEW_LABELS: Record<ViewId, string> = {
   liked: '我喜欢的音乐',
   playlists: '所有歌单',
   'playlist-detail': '歌单详情',
-  'now-playing': 'Now Playing',
-  queue: 'Queue',
-  settings: 'Settings',
-  diagnostics: 'Diagnostics',
+  'now-playing': '正在播放',
+  queue: '队列',
+  settings: '设置',
+  diagnostics: '诊断',
 }
 
 function emptyPage<T>(limit = LIBRARY_PAGE_SIZE): Page<T> {
@@ -62,6 +69,7 @@ const lyricsSnapshot = ref<LyricsSnapshot>(emptyLyricsSnapshot())
 const zones = ref<readonly PublicRoonZone[]>([])
 const selectedQuality = ref<PlaybackQuality>('lossless')
 const lyricsOrQueue = ref<'lyrics' | 'queue'>('lyrics')
+const inspectorOpen = ref(false)
 const actionError = ref<string | null>(null)
 const actionDiagnosticId = ref<string | null>(null)
 const diagnosticNotice = ref<{ code: string; message?: string } | null>(null)
@@ -73,6 +81,8 @@ const likedPage = ref<Page<TrackSummary>>(emptyPage())
 const { playlists, playlistState, playlistError, loadPlaylists: loadPlaylistSources } = useLibrarySources()
 const selectedPlaylist = ref<PlaylistDetail | null>(null)
 const selectedPlaylistId = ref<string | null>(null)
+const homePlaylistTracks = ref<readonly TrackSummary[]>([])
+const homeRecommendationState = ref<HomeRecommendationState>('loading')
 const libraryBusy = ref(false)
 const libraryError = ref<'auth-expired' | 'generic' | null>(null)
 
@@ -84,12 +94,13 @@ let authOperation = 0
 let pollInFlight = false
 let libraryOperation = 0
 let lyricsOperation = 0
+let homeRecommendationOperation = 0
 
 const currentTrack = computed(() => playbackState.value?.currentTrack)
 const ambientTrack = computed(() => playbackState.value?.state === 'playing' ? currentTrack.value : undefined)
 const currentLyricLine = computed(() => {
-  const index = lyricsSnapshot.value.activeLineIndex
-  return index >= 0 ? lyricsSnapshot.value.lines[index]?.text : undefined
+  const lineIndex = lyricsSnapshot.value.activeLineIndex
+  return lineIndex >= 0 ? lyricsSnapshot.value.lines[lineIndex]?.text : undefined
 })
 const homeTracks = computed(() => {
   const candidates = [
@@ -249,7 +260,7 @@ async function loadSearch(query: string, page: PageRequest, operation: number): 
   try {
     const result = await window.musicBridge.searchTracks(query, page)
     if (operation !== libraryOperation) return
-    searchPage.value = result
+    searchPage.value = appendPage(searchPage.value, result)
     libraryBusy.value = false
   } catch (error) {
     applyLibraryError(error, operation)
@@ -277,7 +288,7 @@ async function loadLiked(page: PageRequest = { offset: 0, limit: LIBRARY_PAGE_SI
   try {
     const result = await window.musicBridge.getLikedTracks(page)
     if (operation !== libraryOperation) return
-    likedPage.value = result
+    likedPage.value = appendPage(likedPage.value, result)
     libraryBusy.value = false
   } catch (error) {
     applyLibraryError(error, operation)
@@ -288,6 +299,45 @@ async function loadPlaylists(): Promise<void> {
   await loadPlaylistSources()
   const error = playlistError.value
   libraryError.value = error ? (isAuthExpired(error) ? 'auth-expired' : 'generic') : null
+  if (error) {
+    homePlaylistTracks.value = []
+    homeRecommendationState.value = 'error'
+    return
+  }
+  await loadHomeRecommendations()
+}
+
+async function loadHomeRecommendations(): Promise<void> {
+  const operation = ++homeRecommendationOperation
+  homeRecommendationState.value = 'loading'
+  const selections = selectRandomPlaylistPages(playlists.value)
+
+  if (!selections.length) {
+    homePlaylistTracks.value = []
+    homeRecommendationState.value = 'ready'
+    return
+  }
+
+  try {
+    const pages = await Promise.all(
+      selections.map((selection) => window.musicBridge.getPlaylist(selection.playlistId, selection.page)),
+    )
+    if (operation !== homeRecommendationOperation) return
+    homePlaylistTracks.value = shuffleTracks(pages.flatMap((page) => page.tracks.items))
+    homeRecommendationState.value = 'ready'
+  } catch {
+    if (operation !== homeRecommendationOperation) return
+    homePlaylistTracks.value = []
+    homeRecommendationState.value = 'error'
+  }
+}
+
+function refreshHomeRecommendations(): void {
+  if (playlistState.value === 'ready') {
+    void loadHomeRecommendations()
+    return
+  }
+  void loadPlaylists()
 }
 
 async function loadPlaylist(
@@ -295,13 +345,18 @@ async function loadPlaylist(
   page: PageRequest = { offset: 0, limit: LIBRARY_PAGE_SIZE },
 ): Promise<void> {
   selectedPlaylistId.value = playlistId
-  selectedPlaylist.value = null
+  const previousPlaylist = selectedPlaylist.value
+  const appending = page.offset > 0 && previousPlaylist?.id === playlistId
+  if (!appending) selectedPlaylist.value = null
   const operation = beginLibraryOperation()
   libraryBusy.value = true
   try {
     const result = await window.musicBridge.getPlaylist(playlistId, page)
     if (operation !== libraryOperation) return
-    selectedPlaylist.value = result
+    selectedPlaylist.value = {
+      ...result,
+      tracks: appendPage(appending ? previousPlaylist?.tracks ?? null : null, result.tracks),
+    }
     currentView.value = 'playlist-detail'
     sidebar.setActiveSource({ type: 'playlist', playlistId })
     libraryBusy.value = false
@@ -536,17 +591,22 @@ function handleAccountAction(action: 'login' | 'settings' | 'diagnostics' | 'log
   void logout()
 }
 
-function openNowPlaying(): void {
-  currentView.value = 'now-playing'
-}
-
 function openLyrics(): void {
   lyricsOrQueue.value = 'lyrics'
-  currentView.value = 'now-playing'
+  inspectorOpen.value = true
 }
 
 function openQueue(): void {
-  currentView.value = 'queue'
+  lyricsOrQueue.value = 'queue'
+  inspectorOpen.value = true
+}
+
+function closeInspector(): void {
+  inspectorOpen.value = false
+}
+
+function openNowPlaying(): void {
+  currentView.value = 'now-playing'
 }
 
 function navigateShortcut(source: SidebarSource): void {
@@ -592,10 +652,9 @@ async function retryAction(): Promise<void> {
   else await refreshPlayback()
 }
 
-function formatDuration(durationMs: number | undefined): string {
-  if (!durationMs || durationMs < 0) return '—'
-  const seconds = Math.floor(durationMs / 1_000)
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+function hideBrokenArtwork(event: Event): void {
+  const image = event.currentTarget as HTMLImageElement
+  image.hidden = true
 }
 
 function qualityLabel(quality: string | undefined): string {
@@ -610,7 +669,7 @@ function ipcQueueItems(items: readonly PlaybackQueueItem[]): PlaybackQueueItem[]
 onMounted(async () => {
   window.addEventListener('keydown', onGlobalShortcut)
   removeAppCommandListener = window.musicBridge.onAppCommand((command) => {
-    if (command === 'show-queue') navigate('queue')
+    if (command === 'show-queue') openQueue()
   })
   removeCoreListener = window.musicBridge.onCoreEvent((event) => {
     if (event.event === 'core.ready' || event.event === 'core.health' || event.event === 'roon.changed') {
@@ -628,6 +687,7 @@ onMounted(async () => {
     applyPlaybackState(await window.musicBridge.getPlaybackState())
     await loadZones()
     void loadPlaylists()
+    void loadLiked()
   } catch (error) {
     coreError.value = true
     recordActionError(error)
@@ -645,7 +705,7 @@ onUnmounted(() => {
 
 <template>
   <main class="app-shell" data-ui-reference="simple-music-player-2">
-    <AlbumAmbientBackground :current-track="ambientTrack" :is-playing="playbackState?.state === 'playing'" />
+    <AlbumAmbientBackground :current-track="ambientTrack" />
     <div class="app-main">
       <MusicSidebar
         :expanded="sidebar.expanded.value"
@@ -665,10 +725,6 @@ onUnmounted(() => {
       <section class="workspace">
       <header class="topbar">
         <div class="topbar-leading">
-          <div class="toolbar-navigation" aria-label="页面历史">
-            <button type="button" aria-label="后退" disabled>←</button>
-            <button type="button" aria-label="前进" disabled>→</button>
-          </div>
           <div>
             <p class="section-kicker">Music Bridge</p>
             <h1>{{ viewTitle }}</h1>
@@ -677,57 +733,65 @@ onUnmounted(() => {
         <ToolbarStatusPopover :core-state="coreState" :auth-state="authState" :selected-zone="selectedZone" @diagnostics="navigate('diagnostics')" @account="handleAccountAction" />
       </header>
 
+      <div class="workspace-body">
       <div class="content-scroll">
         <HomeView
           v-if="currentView === 'home'"
           :current-track="currentTrack"
-          :selected-zone="selectedZone"
-          :playback-state="playbackState"
-          :lyrics-snapshot="lyricsSnapshot"
-          :current-lyric-line="currentLyricLine"
+          :liked-tracks="likedPage.items"
           :resume-tracks="homeTracks"
+          :playlist-tracks="homePlaylistTracks"
+          :playlist-recommendations-state="homeRecommendationState"
           @navigate="navigate"
           @play="playTrack"
+          @refresh-playlists="refreshHomeRecommendations"
         />
 
         <section v-else-if="currentView === 'search'" class="view" aria-labelledby="search-heading">
-          <div class="view-heading"><div><p class="section-kicker">Music discovery</p><h2 id="search-heading">搜索结果</h2><p class="lede">“{{ searchQuery }}”的结果通过 Core 分页返回。</p></div></div>
+          <div class="view-heading"><div><p class="section-kicker">搜索</p><h2 id="search-heading">搜索结果</h2><p class="lede">“{{ searchQuery }}”</p></div></div>
           <p v-if="libraryError === 'auth-expired'" class="persistent-error">登录已过期，请从侧栏账户菜单重新登录。</p>
-          <p v-else-if="libraryError === 'generic'" class="persistent-error">搜索暂时不可用，请检查 Toolbar 连接状态。</p>
-          <div class="result-list" aria-label="搜索结果">
-            <div v-if="libraryBusy" class="empty-state"><span class="loading-line"></span><p>正在读取结果…</p></div>
-            <div v-else-if="!searchPage.items.length" class="empty-state"><span class="empty-glyph">⌕</span><h3>{{ searchQuery.trim() ? '没有匹配结果' : '开始一段搜索' }}</h3><p>搜索结果会保留在当前视图，旧请求不会覆盖新请求。</p></div>
-            <article v-for="track in searchPage.items" v-else :key="track.id" class="track-row">
-              <div class="track-art"><img v-if="track.artworkUrl" :src="track.artworkUrl" :alt="`${track.title} 封面`" loading="lazy" /><span v-else aria-hidden="true">♪</span></div>
-              <div class="track-copy"><strong>{{ track.title }}</strong><span>{{ track.artists.join('、') }} · {{ track.album }}</span><small>{{ formatDuration(track.durationMs) }}</small></div>
-              <div class="row-actions"><button type="button" class="icon-action" :aria-label="`播放 ${track.title}`" @click="playTrack(track)">播放</button><button type="button" class="icon-action secondary" :aria-label="`添加 ${track.title} 到队列`" @click="playTrack(track, true)">加入队列</button></div>
-            </article>
-          </div>
-          <div v-if="searchPage.total > 0" class="pagination"><button type="button" class="secondary-button" :disabled="searchPage.offset === 0 || libraryBusy" @click="searchPageAt(Math.max(0, searchPage.offset - searchPage.limit))">上一页</button><span>{{ searchPage.offset + 1 }}–{{ Math.min(searchPage.offset + searchPage.items.length, searchPage.total) }} / {{ searchPage.total }}</span><button type="button" class="secondary-button" :disabled="!searchPage.hasMore || libraryBusy" @click="searchPageAt(searchPage.offset + searchPage.limit)">下一页</button></div>
+          <p v-else-if="libraryError === 'generic'" class="persistent-error">搜索暂时不可用，请检查连接状态。</p>
+          <TrackTable
+            :tracks="searchPage.items"
+            :busy="libraryBusy"
+            :total="searchPage.total"
+            :has-more="searchPage.hasMore"
+            :empty-title="searchQuery.trim() ? '没有匹配结果' : '开始一段搜索'"
+            empty-copy="搜索结果会以连续歌曲列表显示。"
+            empty-glyph="⌕"
+            @play="playTrack"
+            @queue="(track) => playTrack(track, true)"
+            @play-next="(track) => playTrack(track, true)"
+            @load-more="searchPageAt(searchPage.offset + searchPage.limit)"
+          />
         </section>
 
         <section v-else-if="currentView === 'liked'" class="view" aria-labelledby="liked-heading">
-          <div class="view-heading"><div><p class="section-kicker">资料库</p><h2 id="liked-heading">我喜欢的音乐</h2><p class="lede">你收藏的歌曲通过 Core 分页读取。</p></div></div>
+          <div class="liked-hero">
+            <div class="liked-collage" aria-hidden="true"><span v-for="track in likedPage.items.slice(0, 4)" :key="track.id" class="liked-collage-tile"><span class="artwork-fallback">♪</span><img v-if="track.artworkUrl" :src="track.artworkUrl" alt="" @error="hideBrokenArtwork" /></span><span v-if="!likedPage.items.length" class="liked-collage-empty">♫</span></div>
+            <div class="view-heading"><div><p class="section-kicker">资料库</p><h2 id="liked-heading">我喜欢的音乐</h2><p class="lede">{{ likedPage.total }} 首歌曲</p></div><div class="button-row"><button type="button" class="primary-button" :disabled="!likedPage.items.length" @click="playTrack(likedPage.items[0]!)">播放全部</button><button type="button" class="secondary-button" :disabled="!likedPage.items.length" @click="playTrack(likedPage.items[0]!, true)">加入队列</button></div></div>
+          </div>
           <p v-if="libraryError" class="persistent-error">{{ libraryError === 'auth-expired' ? '登录已过期，请从侧栏账户菜单重新登录。' : '我喜欢的音乐暂时不可用，请稍后重试。' }}</p>
-          <div class="result-list"><div v-if="libraryBusy" class="empty-state"><p>读取我喜欢…</p></div><div v-else-if="!likedPage.items.length" class="empty-state"><h3>还没有喜欢的内容</h3><p>登录网易云后，这里会显示你的收藏。</p></div><article v-for="track in likedPage.items" v-else :key="track.id" class="track-row"><div class="track-art"><img v-if="track.artworkUrl" :src="track.artworkUrl" :alt="`${track.title} 封面`" /><span v-else aria-hidden="true">♪</span></div><div class="track-copy"><strong>{{ track.title }}</strong><span>{{ track.artists.join('、') }} · {{ track.album }}</span></div><div class="row-actions"><button type="button" class="icon-action" @click="playTrack(track)">播放</button><button type="button" class="icon-action secondary" @click="playTrack(track, true)">加入队列</button></div></article></div>
-          <div v-if="likedPage.total > 0" class="pagination"><button type="button" class="secondary-button" :disabled="likedPage.offset === 0 || libraryBusy" @click="likedPageAt(Math.max(0, likedPage.offset - likedPage.limit))">上一页</button><span>{{ likedPage.offset + 1 }}–{{ Math.min(likedPage.offset + likedPage.items.length, likedPage.total) }} / {{ likedPage.total }}</span><button type="button" class="secondary-button" :disabled="!likedPage.hasMore || libraryBusy" @click="likedPageAt(likedPage.offset + likedPage.limit)">下一页</button></div>
+          <TrackTable :tracks="likedPage.items" :busy="libraryBusy" :total="likedPage.total" :has-more="likedPage.hasMore" empty-title="还没有喜欢的内容" empty-copy="登录网易云后，这里会显示你的收藏。" @play="playTrack" @queue="(track) => playTrack(track, true)" @play-next="(track) => playTrack(track, true)" @load-more="likedPageAt(likedPage.offset + likedPage.limit)" />
         </section>
 
         <section v-else-if="currentView === 'playlists'" class="view" aria-labelledby="playlists-heading">
           <div class="view-heading"><div><p class="section-kicker">资料库</p><h2 id="playlists-heading">所有歌单</h2><p class="lede">你的网易云歌单直接来自当前 Provider 数据。</p></div></div>
           <p v-if="playlistState === 'error'" class="persistent-error">歌单暂时无法加载，请从侧栏歌单区域重试。</p>
-          <div class="playlist-grid"><div v-if="playlistState === 'loading'" class="empty-state"><p>读取歌单…</p></div><div v-else-if="!playlists.length" class="empty-state"><h3>还没有歌单</h3><p>歌单会在网易云可用后出现在这里。</p></div><button v-for="playlist in playlists" v-else :key="playlist.id" type="button" class="playlist-card" @click="navigateSource({ type: 'playlist', playlistId: playlist.id })"><span class="playlist-art"><img v-if="playlist.artworkUrl" :src="playlist.artworkUrl" alt="" /><span v-else aria-hidden="true">♫</span></span><span><strong>{{ playlist.name }}</strong><small>{{ playlist.trackCount }} 首歌曲</small></span><b aria-hidden="true">→</b></button></div>
+          <div class="playlist-grid"><div v-if="playlistState === 'loading'" class="empty-state"><p>读取歌单…</p></div><div v-else-if="!playlists.length" class="empty-state"><h3>还没有歌单</h3><p>歌单会在网易云可用后出现在这里。</p></div><button v-for="playlist in playlists" v-else :key="playlist.id" type="button" class="playlist-card" @click="navigateSource({ type: 'playlist', playlistId: playlist.id })"><span class="playlist-art"><span class="artwork-fallback" aria-hidden="true">♫</span><img v-if="playlist.artworkUrl" :src="playlist.artworkUrl" alt="" @error="hideBrokenArtwork" /></span><span><strong>{{ playlist.name }}</strong><small>{{ playlist.trackCount }} 首歌曲</small></span><b aria-hidden="true">→</b></button></div>
         </section>
 
         <section v-else-if="currentView === 'playlist-detail'" class="view" aria-labelledby="playlist-heading">
-          <button type="button" class="back-link" @click="navigateSource({ type: 'playlists' })">← 返回所有歌单</button>
+          <button type="button" class="back-link" @click="navigateSource({ type: 'playlists' })">← 所有歌单</button>
           <p v-if="libraryError === 'auth-expired'" class="persistent-error">登录已过期，请从侧栏账户菜单重新登录。</p>
           <p v-else-if="libraryError === 'generic'" class="persistent-error">歌单暂时无法加载，请稍后重试。</p>
           <div v-if="libraryBusy" class="empty-state"><span class="loading-line"></span><p>正在读取歌单…</p></div>
           <template v-else-if="selectedPlaylist">
-            <div class="view-heading"><div><p class="section-kicker">Playlist detail</p><h2 id="playlist-heading">{{ selectedPlaylist.name }}</h2><p class="lede">{{ selectedPlaylist.trackCount }} 首歌曲 · 分页读取</p></div></div>
-            <div class="result-list"><div v-if="!selectedPlaylist.tracks.items.length" class="empty-state"><h3>歌单为空</h3></div><article v-for="track in selectedPlaylist.tracks.items" v-else :key="track.id" class="track-row"><div class="track-art"><img v-if="track.artworkUrl" :src="track.artworkUrl" :alt="`${track.title} 封面`" loading="lazy" /><span v-else aria-hidden="true">♪</span></div><div class="track-copy"><strong>{{ track.title }}</strong><span>{{ track.artists.join('、') }} · {{ track.album }}</span></div><div class="row-actions"><button type="button" class="icon-action" @click="playTrack(track)">播放</button><button type="button" class="icon-action secondary" @click="playTrack(track, true)">加入队列</button></div></article></div>
-            <div v-if="selectedPlaylist.tracks.total > 0" class="pagination"><button type="button" class="secondary-button" :disabled="selectedPlaylist.tracks.offset === 0 || libraryBusy" @click="playlistPageAt(Math.max(0, selectedPlaylist.tracks.offset - selectedPlaylist.tracks.limit))">上一页</button><span>{{ selectedPlaylist.tracks.offset + 1 }}–{{ Math.min(selectedPlaylist.tracks.offset + selectedPlaylist.tracks.items.length, selectedPlaylist.tracks.total) }} / {{ selectedPlaylist.tracks.total }}</span><button type="button" class="secondary-button" :disabled="!selectedPlaylist.tracks.hasMore || libraryBusy" @click="playlistPageAt(selectedPlaylist.tracks.offset + selectedPlaylist.tracks.limit)">下一页</button></div>
+            <div class="playlist-detail-hero">
+              <div class="playlist-detail-art"><span class="artwork-fallback" aria-hidden="true">♫</span><img v-if="selectedPlaylist.artworkUrl" :src="selectedPlaylist.artworkUrl" alt="" @error="hideBrokenArtwork" /></div>
+              <div class="playlist-detail-copy"><p class="section-kicker">歌单</p><h2 id="playlist-heading">{{ selectedPlaylist.name }}</h2><p class="lede">{{ selectedPlaylist.description || '来自你的音乐收藏。' }}</p><span class="playlist-count">{{ selectedPlaylist.trackCount }} 首歌曲</span><div class="button-row"><button type="button" class="primary-button" :disabled="!selectedPlaylist.tracks.items.length" @click="playTrack(selectedPlaylist.tracks.items[0]!)">播放全部</button><button type="button" class="secondary-button" :disabled="!selectedPlaylist.tracks.items.length" @click="playTrack(selectedPlaylist.tracks.items[0]!, true)">加入队列</button></div></div>
+            </div>
+            <TrackTable :tracks="selectedPlaylist.tracks.items" :busy="libraryBusy" :total="selectedPlaylist.tracks.total" :has-more="selectedPlaylist.tracks.hasMore" empty-title="歌单为空" empty-copy="这个歌单暂时没有可显示的歌曲。" @play="playTrack" @queue="(track) => playTrack(track, true)" @play-next="(track) => playTrack(track, true)" @load-more="playlistPageAt(selectedPlaylist.tracks.offset + selectedPlaylist.tracks.limit)" />
           </template>
           <div v-else-if="libraryError === null" class="empty-state"><p>选择一个歌单查看内容。</p></div>
           <button v-if="libraryError" type="button" class="secondary-button" @click="retryPlaylist">重试</button>
@@ -736,25 +800,15 @@ onUnmounted(() => {
         <NowPlayingView
           v-else-if="currentView === 'now-playing'"
           :current-track="currentTrack"
-          :selected-zone="selectedZone"
           :playback-state="playbackState"
           :lyrics-snapshot="lyricsSnapshot"
-          :lyrics-or-queue="lyricsOrQueue"
           :quality-label="qualityLabel"
           :quality-notice="playbackState?.qualityNotice"
           :playback-issue-message="playbackIssueMessage"
           @previous="previousTrack"
           @stop="stopPlayback"
           @next="nextTrack"
-          @set-lyrics-mode="lyricsOrQueue = $event"
-          @play-queue-item="playQueueItem"
         />
-
-        <section v-else-if="currentView === 'queue'" class="view" aria-labelledby="queue-heading">
-          <div class="view-heading"><div><p class="section-kicker">Playback plan</p><h2 id="queue-heading">Queue</h2><p class="lede">只保留 Previous、Next、Stop 三个明确的播放动作。</p></div><button type="button" class="secondary-button" @click="navigate('search')">添加内容</button></div>
-          <div class="queue-panel large"><div class="panel-heading"><div><p class="section-kicker">Current queue</p><h3>{{ playbackState?.queue.items.length ?? 0 }} items</h3></div><span>{{ selectedZone?.displayName ?? '未选择 Zone' }}</span></div><p v-if="!playbackState?.queue.items.length" class="empty-copy">队列为空。前往 Search 选择内容。</p><button v-for="(item, index) in playbackState?.queue.items" v-else :key="`${item.trackId}-${index}`" type="button" class="queue-row" :class="{ active: playbackState?.queue.index === index }" @click="playQueueItem(item, index)"><span>{{ String(index + 1).padStart(2, '0') }}</span><strong>{{ item.trackId }}</strong><small>{{ qualityLabel(item.quality) }}</small><em v-if="playbackState?.queue.index === index">当前</em></button></div>
-          <div class="transport-controls queue-controls"><button type="button" class="transport-button" :disabled="!playbackState?.canPrevious" @click="previousTrack">Previous</button><button type="button" class="transport-button primary" :disabled="!playbackState?.canStop" @click="stopPlayback">Stop</button><button type="button" class="transport-button" :disabled="!playbackState?.canNext" @click="nextTrack">Next</button></div>
-        </section>
 
         <section v-else-if="currentView === 'settings'" class="view" aria-labelledby="settings-heading">
           <div class="view-heading"><div><p class="section-kicker">Local preferences</p><h2 id="settings-heading">Settings</h2><p class="lede">敏感 Provider 会话由主进程安全保存，Renderer 只看到公开状态。</p></div></div>
@@ -775,25 +829,38 @@ onUnmounted(() => {
           <div class="diagnostic-checks"><h3>安全边界</h3><ul><li>Renderer 无 Node / Electron 访问</li><li>导航与新窗口默认拒绝</li><li>控制与流端口保持 loopback-only</li><li>歌词只在内存中处理</li></ul></div>
         </section>
       </div>
+      <PlaybackInspector
+        v-if="inspectorOpen"
+        :mode="lyricsOrQueue"
+        :current-track="currentTrack"
+        :playback-state="playbackState"
+        :lyrics-snapshot="lyricsSnapshot"
+        :quality-label="qualityLabel"
+        @close="closeInspector"
+        @update:mode="lyricsOrQueue = $event"
+        @play-queue-item="playQueueItem"
+      />
+      </div>
 
       </section>
     </div>
 
-    <footer class="app-footer" aria-label="播放控制">
-      <div class="playback-zone-dock">
-        <SidebarZoneButton :zones="zones" :selected-zone="selectedZone" :roon-status="coreState?.roon ?? 'disconnected'" @select="selectZone" />
-      </div>
-      <BottomPlayer
-        :current-track="currentTrack"
-        :playback-state="playbackState"
-        :current-lyric-line="currentLyricLine"
-        @previous="previousTrack"
-        @stop="stopPlayback"
-        @next="nextTrack"
-        @open-now-playing="openNowPlaying"
-        @open-lyrics="openLyrics"
-        @open-queue="openQueue"
-      />
-    </footer>
+    <BottomPlayer
+      :current-track="currentTrack"
+      :playback-state="playbackState"
+      :current-lyric-line="currentLyricLine"
+      :zones="zones"
+      :selected-zone="selectedZone"
+      :roon-status="coreState?.roon ?? 'disconnected'"
+      :actual-quality="qualityLabel(playbackState?.actualQuality)"
+      @previous="previousTrack"
+      @stop="stopPlayback"
+      @next="nextTrack"
+      @open-now-playing="openNowPlaying"
+      @open-lyrics="openLyrics"
+      @open-queue="openQueue"
+      @select-zone="selectZone"
+    />
+
   </main>
 </template>
