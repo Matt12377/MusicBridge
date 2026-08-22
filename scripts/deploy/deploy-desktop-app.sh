@@ -195,6 +195,15 @@ if [[ "$APP_PATH" != /* ]]; then
   APP_PATH="$REPO_ROOT/$APP_PATH"
 fi
 
+codesign_auto_discovery="${DESKTOP_CSC_IDENTITY_AUTO_DISCOVERY:-false}"
+case "$codesign_auto_discovery" in
+  true|false) ;;
+  *)
+    printf '%s\n' "DESKTOP_CSC_IDENTITY_AUTO_DISCOVERY 必须是 true 或 false" >&2
+    exit 2
+    ;;
+esac
+
 TMP_ROOT="${TMPDIR:-/tmp}"
 if [[ "$TMP_ROOT" == "/" ]]; then
   printf '%s\n' "拒绝使用根目录作为临时目录" >&2
@@ -276,9 +285,9 @@ on_signal() {
 trap cleanup_local EXIT
 trap on_signal INT TERM HUP
 
-printf '%s\n' "开始构建未签名 Electron App"
+printf '开始构建 Electron App（签名发现=%s）\n' "$codesign_auto_discovery"
 corepack pnpm@10.17.1 run verify
-CSC_IDENTITY_AUTO_DISCOVERY=false corepack pnpm@10.17.1 --filter @music-bridge/desktop run pack
+CSC_IDENTITY_AUTO_DISCOVERY="$codesign_auto_discovery" corepack pnpm@10.17.1 --filter @music-bridge/desktop run pack
 
 if [[ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]]; then
   printf '%s\n' "构建后工作区出现未预期变更，停止部署" >&2
