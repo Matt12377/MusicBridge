@@ -43,6 +43,6 @@ function requestLogout(): void {
         <button type="button" role="menuitem" class="destructive-menu-item" @click="requestLogout">确认退出</button>
       </div>
     </template>
-    <button v-else type="button" role="menuitem" class="destructive-menu-item" @click="requestLogout">退出登录</button>
+    <button v-if="authState.status === 'authorized'" type="button" role="menuitem" class="destructive-menu-item" @click="requestLogout">退出登录</button>
   </div>
 </template>

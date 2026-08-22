@@ -12,6 +12,12 @@ const emit = defineEmits<{
   select: [zoneId: string]
   close: []
 }>()
+
+function roonLabel(status: string): string {
+  if (status === 'disconnected') return 'Roon 未连接'
+  if (status === 'ready' || status === 'paired') return 'Roon 已连接'
+  return 'Roon 连接中'
+}
 </script>
 
 <template>
@@ -25,6 +31,6 @@ const emit = defineEmits<{
     </div>
     <p v-else class="popover-empty">暂无可用播放设备</p>
     <div class="popover-divider"></div>
-    <p class="popover-status"><i class="status-led" :class="roonStatus"></i>{{ roonStatus === 'disconnected' ? 'Roon 未连接' : 'Roon 已连接' }}</p>
+    <p class="popover-status"><i class="status-led" :class="roonStatus"></i>{{ roonLabel(roonStatus) }}</p>
   </div>
 </template>

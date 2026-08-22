@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import type { PublicAuthState, PublicBridgeState, PublicRoonZone } from '@music-bridge/contracts'
 import SidebarIcon from './sidebar/SidebarIcon.vue'
 
@@ -15,6 +15,11 @@ const emit = defineEmits<{
 
 const root = ref<HTMLElement | null>(null)
 const open = ref(false)
+const connectionLabel = computed(() => {
+  if (props.coreState?.runtime === 'failed' || props.coreState?.roon === 'disconnected') return '未连接'
+  if (props.coreState?.runtime === 'ready' && props.coreState.roon === 'ready') return '已连接'
+  return '连接中'
+})
 
 function closeOnOutside(event: MouseEvent): void {
   if (open.value && root.value && !root.value.contains(event.target as Node)) open.value = false
@@ -49,7 +54,7 @@ onUnmounted(() => document.removeEventListener('mousedown', closeOnOutside))
   <div ref="root" class="toolbar-status-wrap">
     <button type="button" class="toolbar-status-button" aria-label="查看连接状态" :aria-expanded="open" aria-haspopup="dialog" @click="open = !open">
       <i class="status-led" :class="coreState?.runtime ?? 'starting'"></i>
-      <span>已连接</span>
+      <span>{{ connectionLabel }}</span>
       <SidebarIcon name="chevron-down" :size="14" />
     </button>
     <div v-if="open" class="toolbar-status-popover" role="dialog" aria-label="连接状态" @keydown.esc="close">
