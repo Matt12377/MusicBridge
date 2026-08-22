@@ -1,15 +1,16 @@
 export type ViewId =
   | 'home'
   | 'search'
-  | 'library'
+  | 'liked'
+  | 'playlists'
   | 'playlist-detail'
   | 'now-playing'
   | 'queue'
   | 'settings'
   | 'diagnostics'
 
-export interface NavigationItem {
-  id: Exclude<ViewId, 'playlist-detail'>
-  label: string
-  hint: string
-}
+export type SidebarSource =
+  | { type: 'home' }
+  | { type: 'liked' }
+  | { type: 'playlists' }
+  | { type: 'playlist'; playlistId: string }

@@ -9,37 +9,30 @@ import type {
   PlaybackQueueItem,
   PlaybackSnapshot,
   PlaylistDetail,
-  PlaylistSummary,
   PublicAuthState,
   PublicBridgeState,
   PublicRoonZone,
   TrackSummary,
 } from '@music-bridge/contracts'
 import type { AppInfo } from '../../preload/api.js'
-import AppSidebar from './components/AppSidebar.vue'
 import BottomPlayer from './components/BottomPlayer.vue'
 import HomeView from './components/HomeView.vue'
 import NowPlayingView from './components/NowPlayingView.vue'
-import type { NavigationItem, ViewId } from './components/navigation.js'
+import MusicSidebar from './components/sidebar/MusicSidebar.vue'
+import ToolbarStatusPopover from './components/ToolbarStatusPopover.vue'
+import { useLibrarySources } from './composables/useLibrarySources.js'
+import { useSidebarState } from './composables/useSidebarState.js'
+import type { SidebarSource, ViewId } from './components/navigation.js'
 
 const LIBRARY_PAGE_SIZE = 20
-const SEARCH_DEBOUNCE_MS = 350
-
-const NAV_ITEMS: readonly NavigationItem[] = [
-  { id: 'home', label: 'Home', hint: '总览' },
-  { id: 'search', label: 'Search', hint: '发现音乐' },
-  { id: 'library', label: 'Library', hint: '音乐库' },
-  { id: 'now-playing', label: 'Now Playing', hint: '正在播放' },
-  { id: 'queue', label: 'Queue', hint: '播放队列' },
-  { id: 'settings', label: 'Settings', hint: '偏好设置' },
-  { id: 'diagnostics', label: 'Diagnostics', hint: '诊断信息' },
-]
+const SEARCH_DEBOUNCE_MS = 250
 
 const VIEW_LABELS: Record<ViewId, string> = {
-  home: 'Home',
-  search: 'Search',
-  library: 'Library',
-  'playlist-detail': 'Playlist detail',
+  home: '主页',
+  search: '搜索结果',
+  liked: '我喜欢的音乐',
+  playlists: '所有歌单',
+  'playlist-detail': '歌单详情',
   'now-playing': 'Now Playing',
   queue: 'Queue',
   settings: 'Settings',
@@ -56,6 +49,8 @@ function emptyLyricsSnapshot(status: LyricsSnapshot['status'] = 'idle'): LyricsS
 
 const appInfo = ref<AppInfo | null>(null)
 const currentView = ref<ViewId>('home')
+const sidebar = useSidebarState()
+const searchReturnSource = ref<SidebarSource>({ type: 'home' })
 const coreState = ref<PublicBridgeState | null>(null)
 const authState = ref<PublicAuthState>({ status: 'idle' })
 const coreError = ref(false)
@@ -70,11 +65,10 @@ const actionDiagnosticId = ref<string | null>(null)
 const diagnosticNotice = ref<{ code: string; message?: string } | null>(null)
 const diagnosticExportState = ref<'idle' | 'working' | 'done' | 'cancelled' | 'error'>('idle')
 
-const libraryTab = ref<'liked' | 'playlists'>('liked')
 const searchQuery = ref('')
 const searchPage = ref<Page<TrackSummary>>(emptyPage())
 const likedPage = ref<Page<TrackSummary>>(emptyPage())
-const playlists = ref<readonly PlaylistSummary[]>([])
+const { playlists, playlistState, playlistError, loadPlaylists: loadPlaylistSources } = useLibrarySources()
 const selectedPlaylist = ref<PlaylistDetail | null>(null)
 const libraryBusy = ref(false)
 const libraryError = ref<'auth-expired' | 'generic' | null>(null)
@@ -111,7 +105,6 @@ const selectedZone = computed(() => {
   return zones.value.find((zone) => zone.zoneId === selectedId) ?? zones.value.find((zone) => zone.selected)
 })
 const viewTitle = computed(() => VIEW_LABELS[currentView.value])
-const providerConfigured = computed(() => coreState.value?.provider === 'configured')
 const hasPlaybackIssue = computed(() => Boolean(playbackState.value?.lastIssue || actionError.value))
 
 function navigate(view: ViewId): void {
@@ -119,12 +112,67 @@ function navigate(view: ViewId): void {
   actionError.value = null
   actionDiagnosticId.value = null
   if (view === 'search' && searchQuery.value.trim()) scheduleSearch()
-  if (view === 'library' && libraryTab.value === 'liked' && likedPage.value.items.length === 0) {
+  if (view === 'liked') {
+    sidebar.setActiveSource({ type: 'liked' })
+  }
+  if (view === 'playlists') {
+    sidebar.setActiveSource({ type: 'playlists' })
+  }
+  if (view === 'home') {
+    sidebar.setActiveSource({ type: 'home' })
+  }
+  if (view === 'liked' && likedPage.value.items.length === 0) {
     void loadLiked()
   }
-  if (view === 'library' && libraryTab.value === 'playlists' && playlists.value.length === 0) {
+  if (view === 'playlists' && playlistState.value !== 'ready') {
     void loadPlaylists()
   }
+}
+
+function viewForSource(source: SidebarSource): ViewId {
+  switch (source.type) {
+    case 'home':
+      return 'home'
+    case 'liked':
+      return 'liked'
+    case 'playlists':
+      return 'playlists'
+    case 'playlist':
+      return 'playlist-detail'
+  }
+}
+
+function navigateSource(source: SidebarSource): void {
+  stopSearchTimer()
+  searchQuery.value = ''
+  searchPage.value = emptyPage()
+  searchReturnSource.value = source
+  sidebar.setActiveSource(source)
+  navigate(viewForSource(source))
+  if (source.type === 'playlist') void loadPlaylist(source.playlistId)
+}
+
+function clearSearch(): void {
+  stopSearchTimer()
+  searchQuery.value = ''
+  searchPage.value = emptyPage()
+  libraryBusy.value = false
+  const source = searchReturnSource.value
+  sidebar.setActiveSource(source)
+  currentView.value = viewForSource(source)
+  if (source.type === 'liked' && likedPage.value.items.length === 0) void loadLiked()
+  if (source.type === 'playlists' && playlistState.value !== 'ready') void loadPlaylists()
+}
+
+function updateSearchQuery(query: string): void {
+  if (currentView.value !== 'search') searchReturnSource.value = sidebar.activeSource.value
+  searchQuery.value = query
+  if (!query.trim()) {
+    clearSearch()
+    return
+  }
+  currentView.value = 'search'
+  scheduleSearch()
 }
 
 function stopPolling(): void {
@@ -233,17 +281,9 @@ async function loadLiked(page: PageRequest = { offset: 0, limit: LIBRARY_PAGE_SI
 }
 
 async function loadPlaylists(): Promise<void> {
-  const operation = beginLibraryOperation()
-  libraryBusy.value = true
-  try {
-    const result = await window.musicBridge.getUserPlaylists()
-    if (operation !== libraryOperation) return
-    playlists.value = result
-    selectedPlaylist.value = null
-    libraryBusy.value = false
-  } catch (error) {
-    applyLibraryError(error, operation)
-  }
+  await loadPlaylistSources()
+  const error = playlistError.value
+  libraryError.value = error ? (isAuthExpired(error) ? 'auth-expired' : 'generic') : null
 }
 
 async function loadPlaylist(
@@ -257,6 +297,7 @@ async function loadPlaylist(
     if (operation !== libraryOperation) return
     selectedPlaylist.value = result
     currentView.value = 'playlist-detail'
+    sidebar.setActiveSource({ type: 'playlist', playlistId })
     libraryBusy.value = false
   } catch (error) {
     applyLibraryError(error, operation)
@@ -278,13 +319,6 @@ function likedPageAt(offset: number): void {
 function playlistPageAt(offset: number): void {
   const playlistId = selectedPlaylist.value?.id
   if (playlistId) void loadPlaylist(playlistId, { offset, limit: LIBRARY_PAGE_SIZE })
-}
-
-function selectLibraryTab(tab: 'liked' | 'playlists'): void {
-  stopSearchTimer()
-  libraryTab.value = tab
-  if (tab === 'liked') void loadLiked()
-  if (tab === 'playlists') void loadPlaylists()
 }
 
 function acceptsPolling(state: PublicAuthState): boolean {
@@ -474,6 +508,68 @@ async function selectZone(zoneId: string): Promise<void> {
   }
 }
 
+function handleAccountAction(action: 'login' | 'settings' | 'diagnostics' | 'logout'): void {
+  if (action === 'login' || action === 'settings') {
+    navigate('settings')
+    return
+  }
+  if (action === 'diagnostics') {
+    navigate('diagnostics')
+    return
+  }
+  void logout()
+}
+
+function openNowPlaying(): void {
+  currentView.value = 'now-playing'
+}
+
+function openLyrics(): void {
+  lyricsOrQueue.value = 'lyrics'
+  currentView.value = 'now-playing'
+}
+
+function openQueue(): void {
+  currentView.value = 'queue'
+}
+
+function navigateShortcut(source: SidebarSource): void {
+  navigateSource(source)
+}
+
+function onGlobalShortcut(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && searchQuery.value) {
+    event.preventDefault()
+    clearSearch()
+    return
+  }
+  if (!event.metaKey || event.altKey || event.ctrlKey) return
+
+  const key = event.key.toLowerCase()
+  if (event.shiftKey && key === 'l') {
+    event.preventDefault()
+    openLyrics()
+    return
+  }
+  if (event.shiftKey && key === 'q') {
+    event.preventDefault()
+    openQueue()
+    return
+  }
+  if (event.shiftKey) return
+
+  if (key === '1') {
+    event.preventDefault()
+    navigateShortcut({ type: 'home' })
+  } else if (key === '2') {
+    event.preventDefault()
+    navigateShortcut({ type: 'liked' })
+  } else if (key === '3') {
+    event.preventDefault()
+    navigateShortcut({ type: 'playlists' })
+  }
+}
+
 async function retryAction(): Promise<void> {
   const track = currentTrack.value
   if (track) await playTrack(track)
@@ -496,6 +592,7 @@ function ipcQueueItems(items: readonly PlaybackQueueItem[]): PlaybackQueueItem[]
 }
 
 onMounted(async () => {
+  window.addEventListener('keydown', onGlobalShortcut)
   removeAppCommandListener = window.musicBridge.onAppCommand((command) => {
     if (command === 'show-queue') navigate('queue')
   })
@@ -514,6 +611,7 @@ onMounted(async () => {
     applyAuthState(await window.musicBridge.getAuthState())
     applyPlaybackState(await window.musicBridge.getPlaybackState())
     await loadZones()
+    void loadPlaylists()
   } catch (error) {
     coreError.value = true
     recordActionError(error)
@@ -521,6 +619,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', onGlobalShortcut)
   removeCoreListener?.()
   removeAppCommandListener?.()
   stopPolling()
@@ -530,27 +629,46 @@ onUnmounted(() => {
 
 <template>
   <main class="app-shell" data-ui-reference="simple-music-player-2">
-    <AppSidebar :items="NAV_ITEMS" :current-view="currentView" :runtime="coreState?.runtime" @navigate="navigate" />
+    <MusicSidebar
+      :expanded="sidebar.expanded.value"
+      :active-source="sidebar.activeSource.value"
+      :search-query="searchQuery"
+      :playlists="playlists"
+      :playlist-state="playlistState"
+      :source-scroll-top="sidebar.sourceScrollTop.value"
+      :selected-zone="selectedZone"
+      :zones="zones"
+      :roon-status="coreState?.roon ?? 'disconnected'"
+      :auth-state="authState"
+      @toggle="sidebar.toggleExpanded"
+      @navigate="navigateSource"
+      @update:search-query="updateSearchQuery"
+      @clear-search="clearSearch"
+      @retry-playlists="loadPlaylists"
+      @select-zone="selectZone"
+      @account="handleAccountAction"
+      @scroll-source="sidebar.setSourceScrollTop"
+    />
 
     <section class="workspace">
       <header class="topbar">
-        <div>
-          <p class="section-kicker">Music Bridge / V1</p>
-          <h1>{{ viewTitle }}</h1>
+        <div class="topbar-leading">
+          <div class="toolbar-navigation" aria-label="页面历史">
+            <button type="button" aria-label="后退" disabled>←</button>
+            <button type="button" aria-label="前进" disabled>→</button>
+          </div>
+          <div>
+            <p class="section-kicker">Music Bridge</p>
+            <h1>{{ viewTitle }}</h1>
+          </div>
         </div>
-        <div class="connection-strip" aria-label="连接状态">
-          <span class="connection-pill"><i :class="`status-led ${coreState?.runtime ?? 'starting'}`"></i>Core / Bridge Core 状态 {{ coreState?.runtime ?? 'starting' }}</span>
-          <span class="connection-pill"><i :class="`status-led ${coreState?.roon ?? 'disconnected'}`"></i>Roon / Roon 状态 {{ coreState?.roon ?? 'disconnected' }}</span>
-          <span class="connection-pill"><i :class="`status-led ${coreState?.provider ?? 'missing'}`"></i>Provider / 网易云状态 {{ coreState?.provider ?? 'missing' }}</span>
-        </div>
+        <ToolbarStatusPopover :core-state="coreState" :auth-state="authState" :selected-zone="selectedZone" @diagnostics="navigate('diagnostics')" />
       </header>
 
       <div class="content-scroll">
         <HomeView
           v-if="currentView === 'home'"
           :current-track="currentTrack"
-          :core-state="coreState"
-          :core-error="coreError"
           :selected-zone="selectedZone"
           :playback-state="playbackState"
           :lyrics-snapshot="lyricsSnapshot"
@@ -561,13 +679,9 @@ onUnmounted(() => {
         />
 
         <section v-else-if="currentView === 'search'" class="view" aria-labelledby="search-heading">
-          <div class="view-heading"><div><p class="section-kicker">Discovery</p><h2 id="search-heading">Search</h2><p class="lede">用 Provider 搜索内容，结果通过 Core 分页返回。</p></div></div>
-          <div class="search-box">
-            <label for="search-input">搜索歌曲、艺人或专辑</label>
-            <div class="search-controls"><input id="search-input" v-model="searchQuery" type="search" maxlength="100" placeholder="输入关键词" @input="scheduleSearch" @keyup.enter="scheduleSearch" /><button type="button" class="primary-button" @click="scheduleSearch">搜索</button></div>
-          </div>
-          <p v-if="libraryError === 'auth-expired'" class="persistent-error">登录已过期，请到 Settings 重新扫码登录。</p>
-          <p v-else-if="libraryError === 'generic'" class="persistent-error">搜索暂时不可用，请检查 Diagnostics。</p>
+          <div class="view-heading"><div><p class="section-kicker">Music discovery</p><h2 id="search-heading">搜索结果</h2><p class="lede">“{{ searchQuery }}”的结果通过 Core 分页返回。</p></div></div>
+          <p v-if="libraryError === 'auth-expired'" class="persistent-error">登录已过期，请从侧栏账户菜单重新登录。</p>
+          <p v-else-if="libraryError === 'generic'" class="persistent-error">搜索暂时不可用，请检查 Toolbar 连接状态。</p>
           <div class="result-list" aria-label="搜索结果">
             <div v-if="libraryBusy" class="empty-state"><span class="loading-line"></span><p>正在读取结果…</p></div>
             <div v-else-if="!searchPage.items.length" class="empty-state"><span class="empty-glyph">⌕</span><h3>{{ searchQuery.trim() ? '没有匹配结果' : '开始一段搜索' }}</h3><p>搜索结果会保留在当前视图，旧请求不会覆盖新请求。</p></div>
@@ -580,17 +694,21 @@ onUnmounted(() => {
           <div v-if="searchPage.total > 0" class="pagination"><button type="button" class="secondary-button" :disabled="searchPage.offset === 0 || libraryBusy" @click="searchPageAt(Math.max(0, searchPage.offset - searchPage.limit))">上一页</button><span>{{ searchPage.offset + 1 }}–{{ Math.min(searchPage.offset + searchPage.items.length, searchPage.total) }} / {{ searchPage.total }}</span><button type="button" class="secondary-button" :disabled="!searchPage.hasMore || libraryBusy" @click="searchPageAt(searchPage.offset + searchPage.limit)">下一页</button></div>
         </section>
 
-        <section v-else-if="currentView === 'library'" class="view" aria-labelledby="library-heading">
-          <div class="view-heading"><div><p class="section-kicker">Your collection</p><h2 id="library-heading">Library</h2><p class="lede">音乐库临时列表：我喜欢与歌单使用分页读取，列表不会一次性吞掉整个库。</p></div></div>
-          <div class="segmented-control" role="tablist" aria-label="音乐库视图"><button type="button" :class="{ selected: libraryTab === 'liked' }" role="tab" :aria-selected="libraryTab === 'liked'" @click="selectLibraryTab('liked')">我喜欢</button><button type="button" :class="{ selected: libraryTab === 'playlists' }" role="tab" :aria-selected="libraryTab === 'playlists'" @click="selectLibraryTab('playlists')">我的歌单</button></div>
-          <p v-if="libraryError" class="persistent-error">{{ libraryError === 'auth-expired' ? '登录已过期，请到 Settings 重新登录。' : '音乐库暂时不可用，请稍后重试。' }}</p>
-          <div v-if="libraryTab === 'liked'" class="result-list"><div v-if="libraryBusy" class="empty-state"><p>读取我喜欢…</p></div><div v-else-if="!likedPage.items.length" class="empty-state"><h3>还没有喜欢的内容</h3><p>登录 Provider 后，这里会显示你的收藏。</p></div><article v-for="track in likedPage.items" v-else :key="track.id" class="track-row"><div class="track-art"><img v-if="track.artworkUrl" :src="track.artworkUrl" :alt="`${track.title} 封面`" /><span v-else>♪</span></div><div class="track-copy"><strong>{{ track.title }}</strong><span>{{ track.artists.join('、') }} · {{ track.album }}</span></div><div class="row-actions"><button type="button" class="icon-action" @click="playTrack(track)">播放</button><button type="button" class="icon-action secondary" @click="playTrack(track, true)">加入队列</button></div></article></div>
-          <div v-else class="playlist-grid"><div v-if="libraryBusy" class="empty-state"><p>读取歌单…</p></div><div v-else-if="!playlists.length" class="empty-state"><h3>还没有歌单</h3><p>歌单会在 Provider 可用后出现在这里。</p></div><button v-for="playlist in playlists" v-else :key="playlist.id" type="button" class="playlist-card" @click="loadPlaylist(playlist.id)"><span class="playlist-art" aria-hidden="true">♫</span><span><strong>{{ playlist.name }}</strong><small>{{ playlist.trackCount }} 首歌曲</small></span><b aria-hidden="true">→</b></button></div>
-          <div v-if="libraryTab === 'liked' && likedPage.total > 0" class="pagination"><button type="button" class="secondary-button" :disabled="likedPage.offset === 0 || libraryBusy" @click="likedPageAt(Math.max(0, likedPage.offset - likedPage.limit))">上一页</button><span>{{ likedPage.offset + 1 }}–{{ Math.min(likedPage.offset + likedPage.items.length, likedPage.total) }} / {{ likedPage.total }}</span><button type="button" class="secondary-button" :disabled="!likedPage.hasMore || libraryBusy" @click="likedPageAt(likedPage.offset + likedPage.limit)">下一页</button></div>
+        <section v-else-if="currentView === 'liked'" class="view" aria-labelledby="liked-heading">
+          <div class="view-heading"><div><p class="section-kicker">资料库</p><h2 id="liked-heading">我喜欢的音乐</h2><p class="lede">你收藏的歌曲通过 Core 分页读取。</p></div></div>
+          <p v-if="libraryError" class="persistent-error">{{ libraryError === 'auth-expired' ? '登录已过期，请从侧栏账户菜单重新登录。' : '我喜欢的音乐暂时不可用，请稍后重试。' }}</p>
+          <div class="result-list"><div v-if="libraryBusy" class="empty-state"><p>读取我喜欢…</p></div><div v-else-if="!likedPage.items.length" class="empty-state"><h3>还没有喜欢的内容</h3><p>登录网易云后，这里会显示你的收藏。</p></div><article v-for="track in likedPage.items" v-else :key="track.id" class="track-row"><div class="track-art"><img v-if="track.artworkUrl" :src="track.artworkUrl" :alt="`${track.title} 封面`" /><span v-else aria-hidden="true">♪</span></div><div class="track-copy"><strong>{{ track.title }}</strong><span>{{ track.artists.join('、') }} · {{ track.album }}</span></div><div class="row-actions"><button type="button" class="icon-action" @click="playTrack(track)">播放</button><button type="button" class="icon-action secondary" @click="playTrack(track, true)">加入队列</button></div></article></div>
+          <div v-if="likedPage.total > 0" class="pagination"><button type="button" class="secondary-button" :disabled="likedPage.offset === 0 || libraryBusy" @click="likedPageAt(Math.max(0, likedPage.offset - likedPage.limit))">上一页</button><span>{{ likedPage.offset + 1 }}–{{ Math.min(likedPage.offset + likedPage.items.length, likedPage.total) }} / {{ likedPage.total }}</span><button type="button" class="secondary-button" :disabled="!likedPage.hasMore || libraryBusy" @click="likedPageAt(likedPage.offset + likedPage.limit)">下一页</button></div>
+        </section>
+
+        <section v-else-if="currentView === 'playlists'" class="view" aria-labelledby="playlists-heading">
+          <div class="view-heading"><div><p class="section-kicker">资料库</p><h2 id="playlists-heading">所有歌单</h2><p class="lede">你的网易云歌单直接来自当前 Provider 数据。</p></div></div>
+          <p v-if="playlistState === 'error'" class="persistent-error">歌单暂时无法加载，请从侧栏歌单区域重试。</p>
+          <div class="playlist-grid"><div v-if="playlistState === 'loading'" class="empty-state"><p>读取歌单…</p></div><div v-else-if="!playlists.length" class="empty-state"><h3>还没有歌单</h3><p>歌单会在网易云可用后出现在这里。</p></div><button v-for="playlist in playlists" v-else :key="playlist.id" type="button" class="playlist-card" @click="navigateSource({ type: 'playlist', playlistId: playlist.id })"><span class="playlist-art"><img v-if="playlist.artworkUrl" :src="playlist.artworkUrl" alt="" /><span v-else aria-hidden="true">♫</span></span><span><strong>{{ playlist.name }}</strong><small>{{ playlist.trackCount }} 首歌曲</small></span><b aria-hidden="true">→</b></button></div>
         </section>
 
         <section v-else-if="currentView === 'playlist-detail'" class="view" aria-labelledby="playlist-heading">
-          <button type="button" class="back-link" @click="navigate('library')">← 返回 Library</button>
+          <button type="button" class="back-link" @click="navigateSource({ type: 'playlists' })">← 返回所有歌单</button>
           <div v-if="selectedPlaylist" class="view-heading"><div><p class="section-kicker">Playlist detail</p><h2 id="playlist-heading">{{ selectedPlaylist.name }}</h2><p class="lede">{{ selectedPlaylist.trackCount }} 首歌曲 · 分页读取</p></div></div>
           <div v-if="selectedPlaylist" class="result-list"><div v-if="!selectedPlaylist.tracks.items.length" class="empty-state"><h3>歌单为空</h3></div><article v-for="track in selectedPlaylist.tracks.items" v-else :key="track.id" class="track-row"><div class="track-art"><span>♪</span></div><div class="track-copy"><strong>{{ track.title }}</strong><span>{{ track.artists.join('、') }} · {{ track.album }}</span></div><div class="row-actions"><button type="button" class="icon-action" @click="playTrack(track)">播放</button><button type="button" class="icon-action secondary" @click="playTrack(track, true)">加入队列</button></div></article></div>
           <div v-if="selectedPlaylist && selectedPlaylist.tracks.total > 0" class="pagination"><button type="button" class="secondary-button" :disabled="selectedPlaylist.tracks.offset === 0 || libraryBusy" @click="playlistPageAt(Math.max(0, selectedPlaylist.tracks.offset - selectedPlaylist.tracks.limit))">上一页</button><span>{{ selectedPlaylist.tracks.offset + 1 }}–{{ Math.min(selectedPlaylist.tracks.offset + selectedPlaylist.tracks.items.length, selectedPlaylist.tracks.total) }} / {{ selectedPlaylist.tracks.total }}</span><button type="button" class="secondary-button" :disabled="!selectedPlaylist.tracks.hasMore || libraryBusy" @click="playlistPageAt(selectedPlaylist.tracks.offset + selectedPlaylist.tracks.limit)">下一页</button></div>
@@ -646,6 +764,9 @@ onUnmounted(() => {
         @previous="previousTrack"
         @stop="stopPlayback"
         @next="nextTrack"
+        @open-now-playing="openNowPlaying"
+        @open-lyrics="openLyrics"
+        @open-queue="openQueue"
       />
     </section>
   </main>
