@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   RoonAudioInputAdapter,
+  summarizeRoonTimePayload,
   summarizeRoonResponseBody,
 } from '../src/roon/adapter.js';
 import type {
@@ -142,6 +143,14 @@ class FakeSettings implements RoonSettingsService {
       { values: { output: { output_id: outputId } } },
     );
   }
+
+  saveZone(outputId: string, name: string): void {
+    this.options.save_settings(
+      { send_complete: () => undefined },
+      false,
+      { values: { zone: { output_id: outputId, name } } },
+    );
+  }
 }
 
 class FakeStatus implements RoonStatusService {
@@ -240,6 +249,7 @@ interface AdapterTestOptions {
   playingTimeoutMs?: number;
   trackIdFactory?: () => string;
   playbackMode?: 'channel' | 'track';
+  onTimeShape?: (summary: import('../src/roon/adapter.js').RoonTimeShapeSummary) => void;
 }
 
 function recordingLogger(): {
@@ -346,8 +356,34 @@ test('start begins Roon discovery and reports discovering', async () => {
   assert.deepEqual(adapter.getState(), { status: 'discovering' });
 });
 
-test('Time callbacks expose only a validated playback position in milliseconds', async () => {
-  const { adapter, api } = await makeReadyHarness();
+test('Roon Time sampler keeps only bounded shape and validation metadata', () => {
+  const summary = summarizeRoonTimePayload({
+    time: 12.5,
+    data: { position_ms: 1_250, userContent: 'must-not-escape' },
+    opaqueToken: 'must-not-escape',
+  });
+
+  assert.deepEqual(summary, {
+    bodyPresent: true,
+    bodyType: 'object',
+    topLevelKeys: ['data', 'opaqueToken', 'time'],
+    nestedKeys: ['data.position_ms', 'data.userContent'],
+    candidates: [
+      { path: 'data.position_ms', type: 'number', finite: true, safeInteger: true, nonNegative: true, durationBounded: true },
+      { path: 'data.userContent', type: 'string' },
+      { path: 'opaqueToken', type: 'string' },
+      { path: 'time', type: 'number', finite: true, safeInteger: false, nonNegative: true, durationBounded: true },
+    ],
+  });
+  assert.equal(JSON.stringify(summary).includes('12.5'), false);
+  assert.equal(JSON.stringify(summary).includes('must-not-escape'), false);
+});
+
+test('unverified Roon Time callback fields are ignored until a real shape is verified', async () => {
+  const summaries: unknown[] = [];
+  const { adapter, api } = await makeReadyHarness({
+    onTimeShape: (summary) => summaries.push(summary),
+  });
   const positions: number[] = [];
   adapter.setTimeHandler((positionMs) => positions.push(positionMs));
   api.core.audioInput.autoPlay = false;
@@ -359,7 +395,10 @@ test('Time callbacks expose only a validated playback position in milliseconds',
   api.core.audioInput.emitPlay('Time', { position_ms: 1_250 });
   api.core.audioInput.emitPlay('Playing');
   await playback;
-  assert.deepEqual(positions, [12_500, 1_250]);
+  api.core.audioInput.emitPlay('Time', { data: { timeMs: 1_250 } });
+  assert.deepEqual(positions, []);
+  assert.equal(summaries.length, 4);
+  assert.doesNotMatch(JSON.stringify(summaries), /1250/);
 });
 
 test('paired Core without a selected Zone reports paired', async () => {
@@ -408,6 +447,27 @@ test('saving Settings output persists it through the Roon config API', async () 
   assert.equal(sdk.apis[0]?.saveConfigCalls, 1);
   assert.deepEqual(sdk.config.get('settings'), {
     output: { output_id: 'output-1' },
+  });
+});
+
+test('Roon zone picker round-trips the zone setting and keeps the selected value', async () => {
+  const { adapter, sdk } = makeHarness();
+  await adapter.start();
+
+  sdk.settings[0]?.saveZone('output-1', 'Display');
+
+  assert.deepEqual(sdk.config.get('settings'), {
+    output: { output_id: 'output-1', display_name: 'Display' },
+  });
+
+  let layout: unknown;
+  sdk.settings[0]?.options.get_settings((value) => {
+    layout = value;
+  });
+  assert.deepEqual(layout, {
+    values: { zone: { output_id: 'output-1', name: 'Display' } },
+    layout: [{ type: 'zone', title: 'Roon Zone', setting: 'zone' }],
+    has_error: false,
   });
 });
 

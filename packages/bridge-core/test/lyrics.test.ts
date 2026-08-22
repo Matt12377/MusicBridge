@@ -63,7 +63,7 @@ test('lyrics parser accepts LRC with translation, romanization, ordering and dup
 
 test('lyrics parser preserves actual YRC word timing and clamps malformed words', () => {
   const snapshot = parseLyricsResponse(response({
-    yrc: { lyric: '[100,1000](0,400,0)hel(400,600,0)lo' },
+    yrc: { lyric: '[100,1000](100,400,0)hel(500,600,0)lo' },
   }))
 
   assert.equal(snapshot.status, 'ready')
@@ -74,6 +74,22 @@ test('lyrics parser preserves actual YRC word timing and clamps malformed words'
     words: [
       { startMs: 100, endMs: 500, text: 'hel' },
       { startMs: 500, endMs: 1_100, text: 'lo' },
+    ],
+  }])
+})
+
+test('lyrics parser treats YRC word timestamps as absolute song time', () => {
+  const snapshot = parseLyricsResponse(response({
+    yrc: { lyric: '[1000,1000](1000,400,0)ab(1400,600,0)cd' },
+  }))
+
+  assert.deepEqual(snapshot.lines, [{
+    startMs: 1_000,
+    endMs: 2_000,
+    text: 'abcd',
+    words: [
+      { startMs: 1_000, endMs: 1_400, text: 'ab' },
+      { startMs: 1_400, endMs: 2_000, text: 'cd' },
     ],
   }])
 })
@@ -161,6 +177,43 @@ test('lyrics coordinator uses estimated monotonic time and throttles active-line
   coordinator.updateEstimated()
   assert.equal(changes.at(-1)?.activeLineIndex, 1)
   assert.equal(changes.at(-1)?.timingSource, 'estimated')
+})
+
+test('lyrics coordinator schedules estimated updates and cancels them on shutdown', () => {
+  const changes: LyricsSnapshot[] = []
+  let now = 0
+  let tick: (() => void) | undefined
+  let cancellations = 0
+  const coordinator = new LyricsCoordinator({
+    now: () => now,
+    load: async () => readySnapshot('unused'),
+    onChange: (snapshot) => changes.push(snapshot),
+    scheduleEstimatedUpdates: (callback) => {
+      tick = callback
+      return () => {
+        cancellations += 1
+        tick = undefined
+      }
+    },
+  })
+
+  coordinator.setActiveLyrics('101', {
+    status: 'ready',
+    lines: [
+      { startMs: 0, endMs: 1_000, text: 'one' },
+      { startMs: 1_000, text: 'two' },
+    ],
+    activeLineIndex: -1,
+    timingSource: 'static',
+  })
+  coordinator.markPlaying('101')
+  now = 1_250
+  tick?.()
+
+  assert.equal(changes.at(-1)?.activeLineIndex, 1)
+  assert.equal(changes.at(-1)?.timingSource, 'estimated')
+  coordinator.shutdown()
+  assert.equal(cancellations, 1)
 })
 
 test('lyrics coordinator caps its in-memory cache at fifty tracks', async () => {

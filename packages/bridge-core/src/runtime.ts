@@ -25,7 +25,7 @@ import { ControlServer } from './control/server.js';
 import { NeteaseClient } from './netease/client.js';
 import { emptyLyricsSnapshot } from './netease/lyrics.js';
 import { QrLoginStateMachine } from './netease/qr-login.js';
-import { RoonAudioInputAdapter } from './roon/adapter.js';
+import { RoonAudioInputAdapter, type RoonTimeShapeSummary } from './roon/adapter.js';
 import type { RoonSdk } from './roon/sdk.js';
 import { asBridgeError } from './shared/errors.js';
 import { createLogger, type Logger } from './shared/logger.js';
@@ -76,6 +76,7 @@ export interface BridgeRuntimeOptions {
   roonSdk?: RoonSdk;
   now?: () => number;
   onEvent?: (event: CoreRuntimeEvent) => void;
+  onRoonTimeShape?: (summary: RoonTimeShapeSummary) => void;
 }
 
 function publicRoonStatus(
@@ -148,7 +149,9 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   const netease = new NeteaseClient(config.neteaseCookie);
   const qrLogin = new QrLoginStateMachine(netease);
   if (netease.configured) qrLogin.markAuthorized();
-  const roon = new RoonAudioInputAdapter(logger, options.roonSdk);
+  const roon = new RoonAudioInputAdapter(logger, options.roonSdk, {
+    ...(options.onRoonTimeShape ? { onTimeShape: options.onRoonTimeShape } : {}),
+  });
   const gateway = new StreamGateway({
     host: config.streamHost,
     port: config.streamPort,
@@ -220,6 +223,10 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
 
   const lyrics = new LyricsCoordinator({
     load: (trackId) => withProviderRecovery(() => netease.getLyrics(trackId)),
+    scheduleEstimatedUpdates: (callback) => {
+      const timer = setInterval(callback, 100);
+      return () => clearInterval(timer);
+    },
     onChange: (snapshot) => {
       emit({
         version: 1,

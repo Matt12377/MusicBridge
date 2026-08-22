@@ -59,6 +59,7 @@ import {
   RENDERER_SCHEME,
   rendererContentType,
 } from './renderer-protocol.js'
+import { buildCoreEnvironment as buildAllowlistedCoreEnvironment } from './core-environment.js'
 import trayTemplateSvg from './assets/musicbridge-tray-template.svg?raw'
 import {
   buildTrayPresentation,
@@ -85,6 +86,9 @@ const isUiE2e = process.env.MUSIC_BRIDGE_UI_E2E === '1'
 const isCoreCrashGate = isStartupTest && process.env.MUSIC_BRIDGE_CORE_CRASH_GATE === '1'
 const isCredentialVaultGate =
   isStartupTest && process.env.MUSIC_BRIDGE_CREDENTIAL_VAULT_GATE === '1'
+const isCredentialRecoveryGate =
+  isStartupTest && process.env.MUSIC_BRIDGE_CREDENTIAL_RECOVERY_GATE === '1'
+const isRoonTimeGate = process.env.MUSIC_BRIDGE_ROON_TIME_GATE === '1'
 
 let mainWindow: BrowserWindow | undefined
 let coreSupervisor: CoreSupervisor | undefined
@@ -677,19 +681,12 @@ function createWindow(supervisor: CoreSupervisor): BrowserWindow {
 }
 
 function buildCoreEnvironment(): NodeJS.ProcessEnv {
-  const environment = { ...process.env }
-  delete environment.NETEASE_COOKIE
-  delete environment.MUSIC_BRIDGE_CORE_CRASH_PROBE
-  if (isStartupTest || isUiE2e) {
-    environment.NODE_ENV = 'test'
-    environment.MUSIC_BRIDGE_CORE_TEST_MODE = '1'
-    if (isCoreCrashGate) {
-      environment.MUSIC_BRIDGE_CORE_CRASH_PROBE = '1'
-    }
-  } else {
-    delete environment.MUSIC_BRIDGE_CORE_TEST_MODE
-  }
-  return environment
+  return buildAllowlistedCoreEnvironment(process.env, {
+    startupTest: isStartupTest,
+    uiE2e: isUiE2e,
+    coreCrashGate: isCoreCrashGate || isCredentialRecoveryGate,
+    roonTimeGate: isRoonTimeGate,
+  })
 }
 
 function createCoreSupervisor(
@@ -775,6 +772,31 @@ async function runCredentialVaultGate(credentialVault: CredentialVault): Promise
   return stored.status === 'configured' && stored.credential === testCredential && deleted
 }
 
+async function waitForCredentialRecovery(
+  supervisor: CoreSupervisor,
+  credentialVault: CredentialVault,
+): Promise<boolean> {
+  const deadline = Date.now() + 5_000
+  while (Date.now() < deadline) {
+    if (supervisor.restarts === 1 && supervisor.status === 'ready') {
+      try {
+        const health = await supervisor.request('core.getHealth', {})
+        const stored = await credentialVault.read()
+        if (
+          health.provider === 'configured' &&
+          stored.status === 'configured'
+        ) {
+          return true
+        }
+      } catch {
+        // The restart boundary is allowed to race one health request.
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 25))
+  }
+  return false
+}
+
 async function bootstrap(): Promise<void> {
   await app.whenReady()
   app.setName('Music Bridge for Roon')
@@ -782,7 +804,7 @@ async function bootstrap(): Promise<void> {
   installSessionSecurity(session.defaultSession)
 
   const prepared = await prepareCoreDataDirectory()
-  if (isCredentialVaultGate) {
+  if (isCredentialVaultGate && !isCredentialRecoveryGate) {
     try {
       const passed = await runCredentialVaultGate(prepared.credentialVault)
       process.stdout.write(`${passed ? 'CREDENTIAL_VAULT_GATE_PASS' : 'CREDENTIAL_VAULT_GATE_FAIL'}\n`)
@@ -820,6 +842,9 @@ async function bootstrap(): Promise<void> {
     },
   })
   coreSupervisor = supervisor
+  if (isCredentialRecoveryGate) {
+    await prepared.credentialVault.save('v'.repeat(32))
+  }
   await supervisor.start()
   await provisionProviderCredential({
     vault: prepared.credentialVault,
@@ -831,6 +856,15 @@ async function bootstrap(): Promise<void> {
     },
   })
   initialProvisioningComplete = true
+  if (isCredentialRecoveryGate) {
+    const passed = await waitForCredentialRecovery(supervisor, prepared.credentialVault)
+    await prepared.credentialVault.delete().catch(() => undefined)
+    await supervisor.shutdown()
+    process.stdout.write(`${passed ? 'CREDENTIAL_RECOVERY_GATE_PASS' : 'CREDENTIAL_RECOVERY_GATE_FAIL'}\n`)
+    if (passed) app.quit()
+    else app.exit(1)
+    return
+  }
   registerIpcHandlers(supervisor, prepared.credentialVault)
   createWindow(supervisor)
   createTray(supervisor)

@@ -1,3 +1,4 @@
+import { chmodSync, writeFileSync } from 'node:fs';
 import {
   IPC_VERSION,
   parseIpcRuntimeMessage,
@@ -14,6 +15,7 @@ import {
   type CoreRuntime,
   type CoreRuntimeEvent,
 } from './runtime.js';
+import type { RoonTimeShapeSummary } from './roon/adapter.js';
 
 export interface UtilityPort {
   on(event: 'message', listener: (event: { data: unknown }) => void): unknown;
@@ -196,6 +198,21 @@ export function isCrashProbeEnabled(env: NodeJS.ProcessEnv): boolean {
   return env.NODE_ENV === 'test' && env.MUSIC_BRIDGE_CORE_CRASH_PROBE === '1';
 }
 
+function createRoonTimeShapeRecorder(
+  env: NodeJS.ProcessEnv,
+): ((summary: RoonTimeShapeSummary) => void) | undefined {
+  const outputPath = env.MUSIC_BRIDGE_ROON_TIME_GATE_PATH;
+  if (env.MUSIC_BRIDGE_ROON_TIME_GATE !== '1' || outputPath === undefined) return undefined;
+  return (summary) => {
+    try {
+      writeFileSync(outputPath, `${JSON.stringify(summary)}\n`, { encoding: 'utf8', mode: 0o600 });
+      chmodSync(outputPath, 0o600);
+    } catch {
+      // A diagnostic sampler must never change playback behavior.
+    }
+  };
+}
+
 export async function runCoreUtilityProcess(
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<void> {
@@ -215,17 +232,25 @@ export async function runCoreUtilityProcess(
       const runtime =
         env.MUSIC_BRIDGE_CORE_TEST_MODE === '1'
           ? createTestBridgeRuntime()
-          : createBridgeRuntime({
-              onEvent: (message) => {
+          : (() => {
+              const onRoonTimeShape = createRoonTimeShapeRecorder(env);
+              return createBridgeRuntime({
+                ...(onRoonTimeShape ? { onRoonTimeShape } : {}),
+                onEvent: (message) => {
                 if (message.event !== 'core.ready') {
                   port.postMessage(message)
                 }
-              },
-            });
+                },
+              });
+            })();
       try {
         await attachCoreRuntimePort(port, runtime, { exitAfterShutdown: true });
         if (isCrashProbeEnabled(env)) {
-          setTimeout(() => process.exit(71), 25);
+          const configuredDelay = Number(env.MUSIC_BRIDGE_CORE_CRASH_DELAY_MS);
+          const delayMs = Number.isSafeInteger(configuredDelay) && configuredDelay >= 25
+            ? Math.min(configuredDelay, 5_000)
+            : 25;
+          setTimeout(() => process.exit(71), delayMs);
         }
       } catch {
         process.exitCode = 1;

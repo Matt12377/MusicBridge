@@ -191,7 +191,7 @@ export class CoreSupervisor {
       [],
       {
         cwd: this.options.cwd,
-        env: { ...process.env, ...this.options.env },
+        env: { ...(this.options.env ?? {}) },
         stdio: 'ignore',
         serviceName: 'Music Bridge Core',
       },

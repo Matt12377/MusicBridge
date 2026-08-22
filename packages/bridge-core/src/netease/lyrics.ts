@@ -152,18 +152,15 @@ function parseYrc(source: string): MutableLine[] {
     wordPattern.lastIndex = 0;
     const words: LyricWord[] = [];
     for (const match of remainder.matchAll(wordPattern)) {
-      const offset = Number(match[1]);
+      const startMs = Number(match[1]);
       const duration = Number(match[2]);
       const wordText = (match[3] ?? '').trim();
-      const startMs = lineStart + offset;
       const endMs = Math.min(lineEnd, startMs + duration);
       if (
         !wordText ||
         wordText.length > MAX_LYRICS_TEXT_LENGTH ||
-        !Number.isSafeInteger(offset) ||
+        !Number.isSafeInteger(startMs) ||
         !Number.isSafeInteger(duration) ||
-        offset < 0 ||
-        duration <= 0 ||
         startMs < lineStart ||
         endMs <= startMs
       ) {

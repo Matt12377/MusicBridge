@@ -8,6 +8,7 @@ export interface LyricsCoordinatorOptions {
   load: (trackId: string) => Promise<LyricsSnapshot>;
   now?: () => number;
   onChange?: (snapshot: LyricsSnapshot) => void;
+  scheduleEstimatedUpdates?: (callback: () => void) => () => void;
 }
 
 function monotonicNowMs(): number {
@@ -78,12 +79,15 @@ export class LyricsCoordinator {
   private activeTrackId: string | undefined;
   private activeSnapshot: LyricsSnapshot = emptyLyricsSnapshot();
   private estimatedAnchorMs: number | undefined;
+  private cancelEstimatedUpdates: () => void = () => undefined;
   private lastEmittedAt = Number.NEGATIVE_INFINITY;
   private lastEmittedKey = '';
+  private readonly scheduleEstimatedUpdates: (callback: () => void) => () => void;
 
   constructor(private readonly options: LyricsCoordinatorOptions) {
     this.now = options.now ?? monotonicNowMs;
     this.onChange = options.onChange ?? (() => undefined);
+    this.scheduleEstimatedUpdates = options.scheduleEstimatedUpdates ?? (() => () => undefined);
   }
 
   get cacheSize(): number {
@@ -109,6 +113,7 @@ export class LyricsCoordinator {
     }
 
     if (this.activeTrackId !== trackId) {
+      this.stopEstimatedUpdates();
       this.generation += 1;
       const generation = this.generation;
       this.activeTrackId = trackId;
@@ -123,6 +128,7 @@ export class LyricsCoordinator {
   }
 
   setActiveLyrics(trackId: string, snapshot: LyricsSnapshot): void {
+    this.stopEstimatedUpdates();
     this.generation += 1;
     this.activeTrackId = trackId;
     this.estimatedAnchorMs = undefined;
@@ -137,7 +143,10 @@ export class LyricsCoordinator {
 
   markPlaying(trackId: string): void {
     if (this.activeTrackId !== trackId) return;
-    if (this.estimatedAnchorMs === undefined) this.estimatedAnchorMs = this.now();
+    if (this.estimatedAnchorMs === undefined) {
+      this.estimatedAnchorMs = this.now();
+      this.startEstimatedUpdates(trackId, this.generation);
+    }
     this.updateEstimated();
   }
 
@@ -148,10 +157,12 @@ export class LyricsCoordinator {
 
   updateRoonTime(positionMs: number): void {
     if (!Number.isSafeInteger(positionMs) || positionMs < 0) return;
+    this.stopEstimatedUpdates();
     this.applyPosition(positionMs, 'roon-time');
   }
 
   shutdown(): void {
+    this.stopEstimatedUpdates();
     this.generation += 1;
     this.activeTrackId = undefined;
     this.estimatedAnchorMs = undefined;
@@ -204,10 +215,27 @@ export class LyricsCoordinator {
   private invalidateActive(): void {
     if (this.activeTrackId === undefined && this.activeSnapshot.status === 'idle') return;
     this.generation += 1;
+    this.stopEstimatedUpdates();
     this.activeTrackId = undefined;
     this.estimatedAnchorMs = undefined;
     this.activeSnapshot = emptyLyricsSnapshot();
     this.emit(true);
+  }
+
+  private startEstimatedUpdates(trackId: string, generation: number): void {
+    this.stopEstimatedUpdates();
+    this.cancelEstimatedUpdates = this.scheduleEstimatedUpdates(() => {
+      if (generation !== this.generation || this.activeTrackId !== trackId) {
+        this.stopEstimatedUpdates();
+        return;
+      }
+      this.updateEstimated();
+    });
+  }
+
+  private stopEstimatedUpdates(): void {
+    this.cancelEstimatedUpdates();
+    this.cancelEstimatedUpdates = () => undefined;
   }
 
   private applyPosition(

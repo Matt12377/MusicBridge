@@ -61,15 +61,17 @@ class FakeChild implements CoreChildProcess {
 function makeHarness() {
   const channels: Array<{ port1: FakePort; port2: FakePort }> = []
   const children: FakeChild[] = []
+  const forkOptions: Array<{ env: NodeJS.ProcessEnv }> = []
   const dependencies = {
       createChannel: () => {
         const channel = { port1: new FakePort(), port2: new FakePort() }
         channels.push(channel)
         return channel
       },
-      fork: () => {
+      fork: (_entryPath: string, _args: string[], options: { env: NodeJS.ProcessEnv }) => {
         const child = new FakeChild()
         children.push(child)
+        forkOptions.push({ env: options.env })
         return child
       },
   }
@@ -79,7 +81,7 @@ function makeHarness() {
     dependencies,
     requestTimeoutMs: 20,
   })
-  return { channels, children, dependencies, supervisor }
+  return { channels, children, dependencies, forkOptions, supervisor }
 }
 
 function ready(channel: { port2: FakePort }): void {
@@ -233,4 +235,32 @@ test('CoreSupervisor runs the readiness recovery hook on initial start and resta
   ready(harness.channels[1]!)
   await new Promise((resolve) => setImmediate(resolve))
   assert.equal(readyHooks, 2)
+})
+
+test('CoreSupervisor does not reintroduce parent environment secrets into Core', async () => {
+  const canaryName = 'MUSIC_BRIDGE_UNRELATED_SECRET_CANARY'
+  const previous = process.env[canaryName]
+  process.env[canaryName] = 'synthetic-canary'
+  try {
+    const harness = makeHarness()
+    const supervisor = new CoreSupervisor({
+      entryPath: '/tmp/core-entry.js',
+      cwd: '/tmp',
+      env: { NODE_ENV: 'test', MUSIC_BRIDGE_CORE_TEST_MODE: '1' },
+      dependencies: harness.dependencies,
+      requestTimeoutMs: 20,
+    })
+    const starting = supervisor.start()
+    await new Promise((resolve) => setImmediate(resolve))
+    ready(harness.channels[0]!)
+    await starting
+
+    assert.equal(harness.forkOptions[0]?.env[canaryName], undefined)
+    assert.equal(harness.forkOptions[0]?.env.NETEASE_COOKIE, undefined)
+    assert.equal(harness.forkOptions[0]?.env.MUSIC_BRIDGE_CORE_TEST_MODE, '1')
+    await supervisor.shutdown()
+  } finally {
+    if (previous === undefined) delete process.env[canaryName]
+    else process.env[canaryName] = previous
+  }
 })

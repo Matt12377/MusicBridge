@@ -8,6 +8,7 @@ const desktopRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const mode = process.argv[2]
 const crashGate = process.env.MUSIC_BRIDGE_CORE_CRASH_GATE === '1'
 const credentialVaultGate = process.env.MUSIC_BRIDGE_CREDENTIAL_VAULT_GATE === '1'
+const credentialRecoveryGate = process.env.MUSIC_BRIDGE_CREDENTIAL_RECOVERY_GATE === '1'
 
 if (mode !== 'development' && mode !== 'production') {
   console.error('usage: node scripts/startup-gate.mjs <development|production>')
@@ -44,6 +45,12 @@ const childEnvironment = {
   MUSIC_BRIDGE_CORE_TEST_MODE: '1',
   ...(crashGate ? { MUSIC_BRIDGE_CORE_CRASH_GATE: '1' } : {}),
   ...(credentialVaultGate ? { MUSIC_BRIDGE_CREDENTIAL_VAULT_GATE: '1' } : {}),
+  ...(credentialRecoveryGate
+    ? {
+        MUSIC_BRIDGE_CREDENTIAL_RECOVERY_GATE: '1',
+        MUSIC_BRIDGE_CORE_CRASH_DELAY_MS: '250',
+      }
+    : {}),
 }
 delete childEnvironment.NETEASE_COOKIE
 
@@ -95,6 +102,8 @@ const result = await new Promise((resolve) => {
 
 const expectedMarker = credentialVaultGate
   ? 'CREDENTIAL_VAULT_GATE_PASS'
+  : credentialRecoveryGate
+    ? 'CREDENTIAL_RECOVERY_GATE_PASS'
   : crashGate
     ? 'CORE_CRASH_GATE_PASS'
     : 'DESKTOP_STARTUP_READY'
@@ -106,5 +115,5 @@ if (!stdout.includes(expectedMarker) || result.code !== 0) {
 }
 
 console.log(
-  `${credentialVaultGate ? 'CREDENTIAL_VAULT_GATE' : crashGate ? 'CORE_CRASH_GATE' : 'DESKTOP_STARTUP_PASS'}=${mode}`,
+  `${credentialVaultGate ? 'CREDENTIAL_VAULT_GATE' : credentialRecoveryGate ? 'CREDENTIAL_RECOVERY_GATE' : crashGate ? 'CORE_CRASH_GATE' : 'DESKTOP_STARTUP_PASS'}=${mode}`,
 )

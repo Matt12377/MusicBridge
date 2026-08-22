@@ -62,10 +62,30 @@ export interface RoonAudioInputAdapterOptions {
   playingTimeoutMs?: number;
   trackIdFactory?: () => string;
   playbackMode?: 'channel' | 'track';
+  onTimeShape?: (summary: RoonTimeShapeSummary) => void;
 }
 
 const DEFAULT_SESSION_BEGIN_TIMEOUT_MS = 10_000;
 const DEFAULT_PLAYING_TIMEOUT_MS = 30_000;
+const MAX_ROON_TIME_SHAPE_KEYS = 16;
+const MAX_ROON_TIME_MS = 24 * 60 * 60 * 1_000;
+
+export interface RoonTimeCandidateSummary {
+  path: string;
+  type: string;
+  finite?: boolean;
+  safeInteger?: boolean;
+  nonNegative?: boolean;
+  durationBounded?: boolean;
+}
+
+export interface RoonTimeShapeSummary {
+  bodyPresent: boolean;
+  bodyType: string;
+  topLevelKeys: string[];
+  nestedKeys: string[];
+  candidates: RoonTimeCandidateSummary[];
+}
 
 function messageName(message: unknown): string {
   if (typeof message === 'string') return message;
@@ -84,26 +104,76 @@ function readSessionId(value: unknown): string | undefined {
   return typeof sessionId === 'string' && sessionId.length > 0 ? sessionId : undefined;
 }
 
-function readRoonTimeMs(value: unknown): number | undefined {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
-  const body = value as Record<string, unknown>;
-  const nested = body.data && typeof body.data === 'object' && !Array.isArray(body.data)
-    ? body.data as Record<string, unknown>
-    : undefined;
-  for (const key of ['position_ms', 'positionMs', 'time_ms', 'timeMs']) {
-    const candidate = nested?.[key] ?? body[key];
-    if (typeof candidate !== 'number' || !Number.isFinite(candidate)) continue;
-    if (Number.isSafeInteger(candidate) && candidate >= 0 && candidate <= 24 * 60 * 60 * 1000) {
-      return candidate;
-    }
+function valueType(value: unknown): string {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'array';
+  return typeof value;
+}
+
+function isSafeKey(value: string): boolean {
+  return /^[A-Za-z][A-Za-z0-9_]{0,31}$/.test(value);
+}
+
+function safeKeys(value: Record<string, unknown>): string[] {
+  return Object.keys(value)
+    .filter(isSafeKey)
+    .sort()
+    .slice(0, MAX_ROON_TIME_SHAPE_KEYS);
+}
+
+function summarizeCandidate(path: string, value: unknown): RoonTimeCandidateSummary {
+  const type = valueType(value);
+  if (type !== 'number') return { path, type };
+  const numericValue = value as number;
+  return {
+    path,
+    type,
+    finite: Number.isFinite(numericValue),
+    safeInteger: Number.isSafeInteger(numericValue),
+    nonNegative: numericValue >= 0,
+    durationBounded: Number.isFinite(numericValue) && numericValue >= 0 && numericValue <= MAX_ROON_TIME_MS,
+  };
+}
+
+export function summarizeRoonTimePayload(value: unknown): RoonTimeShapeSummary {
+  const bodyPresent = value !== undefined && value !== null;
+  const bodyType = valueType(value);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { bodyPresent, bodyType, topLevelKeys: [], nestedKeys: [], candidates: [] };
   }
-  for (const key of ['time', 'position', 'seconds']) {
-    const candidate = nested?.[key] ?? body[key];
-    if (typeof candidate !== 'number' || !Number.isFinite(candidate) || candidate < 0) continue;
-    const positionMs = Math.round(candidate * 1_000);
-    if (Number.isSafeInteger(positionMs) && positionMs <= 24 * 60 * 60 * 1000) {
-      return positionMs;
+
+  const body = value as Record<string, unknown>;
+  const topLevelKeys = safeKeys(body);
+  const nestedKeys: string[] = [];
+  const candidates: RoonTimeCandidateSummary[] = [];
+  for (const key of topLevelKeys) {
+    const candidate = body[key];
+    if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
+      const nested = candidate as Record<string, unknown>;
+      for (const nestedKey of safeKeys(nested)) {
+        const path = `${key}.${nestedKey}`;
+        nestedKeys.push(path);
+        candidates.push(summarizeCandidate(path, nested[nestedKey]));
+      }
+      continue;
     }
+    candidates.push(summarizeCandidate(key, candidate));
+  }
+
+  return { bodyPresent, bodyType, topLevelKeys, nestedKeys, candidates };
+}
+
+function readRoonTimeMs(
+  value: unknown,
+  onTimeShape?: (summary: RoonTimeShapeSummary) => void,
+): number | undefined {
+  // The pinned Audio Input package forwards the callback body unchanged, but
+  // neither it nor the official example defines the Time body schema. Keep
+  // this fail-closed until a redacted real-Core capture verifies one shape.
+  try {
+    onTimeShape?.(summarizeRoonTimePayload(value));
+  } catch {
+    // Sampling must never change playback behavior.
   }
   return undefined;
 }
@@ -241,11 +311,13 @@ function protocolError(
 
 function readSettings(value: unknown): SettingsState {
   if (!value || typeof value !== 'object') return {};
-  const output = (value as { output?: unknown }).output;
+  const settings = value as { output?: unknown; zone?: unknown };
+  const output = settings.output ?? settings.zone;
   if (!output || typeof output !== 'object') return {};
 
   const outputId = (output as { output_id?: unknown }).output_id;
-  const displayName = (output as { display_name?: unknown }).display_name;
+  const displayName = (output as { display_name?: unknown; name?: unknown }).display_name
+    ?? (output as { name?: unknown }).name;
   return {
     output: {
       ...(typeof outputId === 'string' ? { output_id: outputId } : {}),
@@ -291,6 +363,7 @@ export class RoonAudioInputAdapter implements RoonPort {
   private readonly playingTimeoutMs: number;
   private readonly trackIdFactory: () => string;
   private readonly playbackMode: 'channel' | 'track';
+  private readonly onTimeShape: ((summary: RoonTimeShapeSummary) => void) | undefined;
   private activeTimerCount = 0;
   private stateHandler: () => void = () => undefined;
   private timeHandler: (positionMs: number) => void = () => undefined;
@@ -304,6 +377,7 @@ export class RoonAudioInputAdapter implements RoonPort {
     this.playingTimeoutMs = options.playingTimeoutMs ?? DEFAULT_PLAYING_TIMEOUT_MS;
     this.trackIdFactory = options.trackIdFactory ?? (() => `musicbridge-${randomUUID()}`);
     this.playbackMode = options.playbackMode ?? 'track';
+    this.onTimeShape = options.onTimeShape;
   }
 
   setTerminalHandler(handler: (reason: RoonTerminalReason) => void): void {
@@ -544,7 +618,7 @@ export class RoonAudioInputAdapter implements RoonPort {
             break;
           case 'Time':
             {
-              const positionMs = readRoonTimeMs(playBody);
+              const positionMs = readRoonTimeMs(playBody, this.onTimeShape);
               if (positionMs !== undefined) this.timeHandler(positionMs);
             }
             break;
@@ -914,13 +988,19 @@ export class RoonAudioInputAdapter implements RoonPort {
   }
 
   private makeSettingsLayout(settings: SettingsState): Record<string, unknown> {
+    const zone = settings.output?.output_id
+      ? {
+          output_id: settings.output.output_id,
+          ...(settings.output.display_name ? { name: settings.output.display_name } : {}),
+        }
+      : undefined;
     return {
-      values: settings,
+      values: zone ? { zone } : {},
       layout: [
         {
           type: 'zone',
           title: 'Roon Zone',
-          setting: 'output',
+          setting: 'zone',
         },
       ],
       has_error: false,
