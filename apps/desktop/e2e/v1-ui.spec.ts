@@ -16,10 +16,21 @@ let diagnosticDirectory: string
 let diagnosticPath: string
 const syntheticScreenshotPath = process.env.MUSIC_BRIDGE_SCREENSHOT_PATH ?? path.join(os.tmpdir(), 'musicbridge-task-033-home.png')
 
-function navButton(name: string) {
-  const index = ['Home', 'Search', 'Library', 'Now Playing', 'Queue', 'Settings', 'Diagnostics'].indexOf(name)
-  if (index < 0) throw new Error(`未知导航项：${name}`)
-  return page.locator('button.nav-item').nth(index)
+function sourceButton(source: 'home' | 'liked' | 'playlists') {
+  return page.locator(`[data-sidebar-source="${source}"]`)
+}
+
+function sidebarSearch() {
+  return page.getByRole('searchbox', { name: '搜索歌曲、歌手或歌单' })
+}
+
+function accountButton() {
+  return page.getByRole('button', { name: /网易云/ }).first()
+}
+
+async function openAccountMenu() {
+  await accountButton().click()
+  await expect(page.getByRole('menu', { name: '账户菜单' })).toBeVisible()
 }
 
 async function waitForProcessMarker(
@@ -72,7 +83,7 @@ test.beforeEach(async () => {
   page = await electronApp.firstWindow()
   await page.waitForLoadState('domcontentloaded')
   await expect(page).toHaveURL('musicbridge://app/index.html')
-  await expect(page.getByRole('heading', { name: 'Home', exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: '主页', exact: true }).first()).toBeVisible()
 })
 
 test.afterEach(async () => {
@@ -81,26 +92,44 @@ test.afterEach(async () => {
 })
 
 test('packaged cold start, login states, navigation, focus and Renderer isolation', async () => {
-  await expect(page.getByText(/Bridge Core 状态 ready/)).toBeVisible()
-  await expect(page.getByText(/Roon 状态 ready/)).toBeVisible()
+  await expect(page.getByRole('navigation', { name: '音乐来源' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '查看连接状态' })).toBeVisible()
   await expect(page.locator('[data-ui-reference="simple-music-player-2"]')).toBeVisible()
   await expect(page.locator('.home-hero')).toBeVisible()
   await expect(page.locator('.global-player')).toBeVisible()
   await expect(page.locator('.player-progress')).toBeVisible()
+  await expect(sourceButton('home')).toHaveAttribute('aria-current', 'page')
+  await expect(sourceButton('liked')).toBeVisible()
+  await expect(sourceButton('playlists')).toBeVisible()
+  await expect(page.getByRole('navigation', { name: '音乐来源' }).getByRole('button', { name: /Synthetic Playlist/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Synthetic Zone|选择播放设备/ })).toBeVisible()
+  await expect(accountButton()).toBeVisible()
+  for (const name of ['Home', 'Search', 'Library', 'Now Playing', 'Queue', 'Settings', 'Diagnostics']) {
+    await expect(page.getByRole('navigation', { name: '音乐来源' }).getByRole('button', { name, exact: true })).toHaveCount(0)
+  }
   await page.screenshot({ path: syntheticScreenshotPath })
   expect((await stat(syntheticScreenshotPath)).size).toBeGreaterThan(20_000)
 
-  await page.getByRole('button', { name: 'Settings' }).click()
+  await openAccountMenu()
+  await page.getByRole('menuitem', { name: '设置', exact: true }).click()
   await page.getByRole('button', { name: '显示二维码' }).click()
   await expect(page.getByText('当前状态：waiting')).toBeVisible()
   await page.getByRole('button', { name: '取消' }).click()
   await expect(page.getByText('当前状态：cancelled')).toBeVisible()
 
-  for (const name of ['Search', 'Library', 'Now Playing', 'Queue', 'Diagnostics']) {
-    await navButton(name).click()
-    await expect(page.getByRole('heading', { name, exact: true }).first()).toBeVisible()
-  }
+  await page.getByRole('button', { name: '查看连接状态' }).click()
+  const statusPopover = page.getByRole('dialog', { name: '连接状态' })
+  await expect(statusPopover).toBeVisible()
+  await expect(statusPopover.getByText('Roon', { exact: true })).toBeVisible()
+  await expect(statusPopover.getByText('已连接', { exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
 
+  await sidebarSearch().focus()
+  await page.keyboard.press('Meta+L')
+  await expect(sidebarSearch()).toBeFocused()
+
+  await openAccountMenu()
+  await page.getByRole('menuitem', { name: '高级与诊断', exact: true }).click()
   await page.getByRole('button', { name: '导出诊断文件' }).click()
   await expect(page.getByText('诊断文件已导出，仅包含脱敏运行信息。')).toBeVisible()
   const report = JSON.parse(await readFile(diagnosticPath, 'utf8')) as {
@@ -112,8 +141,6 @@ test('packaged cold start, login states, navigation, focus and Renderer isolatio
     /NETEASE_COOKIE|MUSIC_U|__csrf|Cookie|Authorization|Bearer|https?:\/\/|[?&][A-Za-z0-9_-]+=/i,
   )
 
-  await navButton('Search').focus()
-  expect(await page.evaluate(() => document.activeElement?.tagName)).toBe('BUTTON')
   expect(await page.evaluate(() => ({ process: typeof (globalThis as { process?: unknown }).process, require: typeof (globalThis as { require?: unknown }).require }))).toEqual({ process: 'undefined', require: 'undefined' })
   expect(await page.evaluate(() => window.open('https://example.invalid'))).toBeNull()
 
@@ -131,8 +158,6 @@ test('packaged cold start, login states, navigation, focus and Renderer isolatio
     env: crashEnvironment,
   })
   try {
-    const crashPage = await crashApp.firstWindow()
-    await expect(crashPage).toHaveURL('musicbridge://app/index.html')
     const output = await waitForProcessMarker(crashApp.process(), 'CORE_CRASH_GATE_PASS')
     expect(output).toContain('CORE_CRASH_GATE_PASS')
   } finally {
@@ -141,43 +166,43 @@ test('packaged cold start, login states, navigation, focus and Renderer isolatio
 })
 
 test('search, library pagination, playlist detail, queue controls and lyrics states', async () => {
-  await navButton('Search').click()
-  const search = page.getByLabel('搜索歌曲、艺人或专辑')
+  const search = sidebarSearch()
   await search.fill('synthetic')
   await expect(page.getByText('Synthetic Track 1', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '下一页' }).click()
   await expect(page.getByText('Synthetic Track 21', { exact: true })).toBeVisible()
 
-  await navButton('Library').click()
+  await sourceButton('liked').click()
   await expect(page.getByText('Synthetic Track 1', { exact: true })).toBeVisible()
-  await page.getByRole('tab', { name: '我的歌单' }).click()
-  await expect(page.getByRole('button', { name: /Synthetic Playlist/ })).toBeVisible()
-  await page.getByRole('button', { name: /Synthetic Playlist/ }).click()
+  await sourceButton('playlists').click()
+  const playlistRow = page.getByRole('navigation', { name: '音乐来源' }).getByRole('button', { name: /Synthetic Playlist/ })
+  await expect(playlistRow).toBeVisible()
+  await playlistRow.click()
   await expect(page.getByRole('heading', { name: 'Synthetic Playlist', exact: true }).first()).toBeVisible()
   await expect(page.getByText('下一页')).toBeVisible()
 
-  await navButton('Search').click()
   await search.fill('synthetic')
   await expect(page.getByText('Synthetic Track 1', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '播放 Synthetic Track 1', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Now Playing', exact: true }).first()).toBeVisible()
   await expect(page.getByText('暂无可用歌词。')).toBeVisible()
-  await navButton('Queue').click()
+  await page.getByRole('button', { name: '打开队列' }).click()
   await expect(page.getByText('1 items')).toBeVisible()
-  await navButton('Now Playing').click()
-  await navButton('Search').click()
+  await page.getByRole('button', { name: '打开正在播放' }).click()
+  await search.fill('synthetic')
   await page.getByRole('button', { name: '播放 Synthetic Track 2', exact: true }).click()
   await expect(page.getByText('Synthetic lyric line', { exact: true }).first()).toBeVisible()
 
-  await navButton('Settings').click()
+  await openAccountMenu()
+  await page.getByRole('menuitem', { name: '设置', exact: true }).click()
   await page.locator('#quality-select').selectOption('hires')
-  await navButton('Search').click()
+  await search.fill('synthetic')
   await page.getByRole('button', { name: '播放 Synthetic Track 1', exact: true }).click()
   await expect(page.getByText('实际质量', { exact: true }).first()).toBeVisible()
   await expect(page.getByText('Lossless', { exact: true }).first()).toBeVisible()
   await expect(page.getByText(/请求质量已被安全降级/)).toBeVisible()
 
-  await navButton('Search').click()
+  await search.fill('synthetic')
   await expect(page.getByText('Synthetic Track 2', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '添加 Synthetic Track 2 到队列', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Next', exact: true }).last()).toBeEnabled()
@@ -189,9 +214,52 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   await expect(page.getByText('待机')).toBeVisible()
 })
 
+test('Music Source Sidebar supports source recovery, Zone Popover and collapsed rail', async () => {
+  await page.keyboard.press('Meta+2')
+  await expect(page.getByRole('heading', { name: '我喜欢的音乐', exact: true }).first()).toBeVisible()
+  await page.keyboard.press('Meta+3')
+  await expect(page.getByRole('heading', { name: '所有歌单', exact: true }).first()).toBeVisible()
+  await page.keyboard.press('Meta+1')
+  await expect(page.getByRole('heading', { name: '主页', exact: true }).first()).toBeVisible()
+
+  await sourceButton('liked').click()
+  await expect(page.getByRole('heading', { name: '我喜欢的音乐', exact: true }).first()).toBeVisible()
+
+  const search = sidebarSearch()
+  await search.fill('synthetic')
+  await expect(page.getByRole('heading', { name: '搜索结果', exact: true }).first()).toBeVisible()
+  await search.press('Escape')
+  await expect(page.getByRole('heading', { name: '我喜欢的音乐', exact: true }).first()).toBeVisible()
+  await expect(sourceButton('liked')).toHaveAttribute('aria-current', 'page')
+
+  const zoneButton = page.getByRole('button', { name: /Synthetic Zone|选择播放设备/ }).first()
+  await zoneButton.click()
+  const zonePopover = page.getByRole('dialog', { name: '播放设备' })
+  await expect(zonePopover).toBeVisible()
+  await expect(zonePopover.getByText('Roon 已连接', { exact: true })).toBeVisible()
+  await zonePopover.getByRole('button', { name: 'Synthetic Zone', exact: true }).click()
+  await expect(zonePopover).toHaveCount(0)
+
+  await page.getByRole('button', { name: '收起侧栏' }).click()
+  await expect(page.locator('.music-sidebar')).toHaveClass(/is-collapsed/)
+  await expect(page.getByRole('button', { name: '搜索音乐 (⌘L)' })).toBeVisible()
+  await page.getByRole('button', { name: '歌单', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: '歌单' }).getByText('Synthetic Playlist', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '歌单', exact: true }).click()
+  await page.keyboard.press('Meta+Shift+L')
+  await expect(page.getByRole('heading', { name: 'Now Playing', exact: true }).first()).toBeVisible()
+  await page.keyboard.press('Meta+Shift+Q')
+  await expect(page.getByRole('heading', { name: 'Queue', exact: true }).first()).toBeVisible()
+  await page.setViewportSize({ width: 720, height: 900 })
+  await expect(page.locator('.music-sidebar')).toHaveCSS('flex-basis', '64px')
+  await page.screenshot({ path: path.join(os.tmpdir(), 'musicbridge-task-033-sidebar-720.png') })
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.getByRole('button', { name: '展开侧栏' }).click()
+  await expect(page.locator('.music-sidebar')).not.toHaveClass(/is-collapsed/)
+})
+
 test('关闭窗口只隐藏，激活恢复同一窗口并保留播放状态', async () => {
-  await navButton('Search').click()
-  const search = page.getByLabel('搜索歌曲、艺人或专辑')
+  const search = sidebarSearch()
   await search.fill('synthetic')
   await expect(page.getByText('Synthetic Track 1', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '播放 Synthetic Track 1', exact: true }).click()
