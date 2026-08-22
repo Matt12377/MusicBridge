@@ -8,7 +8,6 @@ const props = defineProps<{
   zones: readonly PublicRoonZone[]
   selectedZone?: PublicRoonZone
   roonStatus: string
-  expanded: boolean
 }>()
 
 const emit = defineEmits<{
@@ -19,11 +18,11 @@ const { root, open, toggle, close, selectZone } = useZoneSelection((zoneId) => e
 </script>
 
 <template>
-  <div ref="root" class="sidebar-zone-control">
-    <button type="button" class="sidebar-footer-row" :aria-expanded="open" aria-haspopup="dialog" :aria-label="selectedZone?.displayName ?? '选择播放设备'" :title="expanded ? undefined : (selectedZone?.displayName ?? '选择播放设备')" @click="toggle">
+  <div ref="root" class="playback-zone-control">
+    <button type="button" class="playback-zone-button" :aria-expanded="open" aria-haspopup="dialog" :aria-label="selectedZone?.displayName ?? '选择播放设备'" @click="toggle">
       <SidebarIcon name="speaker" />
-      <span v-if="expanded" class="sidebar-footer-copy"><strong>{{ selectedZone?.displayName ?? '选择播放设备' }}</strong><small>{{ roonStatus === 'disconnected' ? 'Roon 未连接' : '播放设备' }}</small></span>
-      <SidebarIcon v-if="expanded" name="chevron-down" :size="14" />
+      <span class="playback-zone-copy"><strong>{{ selectedZone?.displayName ?? '选择播放设备' }}</strong><small>{{ roonStatus === 'disconnected' ? 'Roon 未连接' : '播放设备' }}</small></span>
+      <SidebarIcon name="chevron-down" :size="14" />
     </button>
     <ZonePopover v-if="open" :zones="zones" :selected-zone="selectedZone" :roon-status="roonStatus" @select="selectZone" @close="close" />
   </div>

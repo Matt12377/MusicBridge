@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import type { PlaylistSummary } from '@music-bridge/contracts'
 
 const emit = defineEmits<{
@@ -12,14 +11,7 @@ const props = defineProps<{
   selected: boolean
 }>()
 
-function hashName(value: string): number {
-  return [...value].reduce((hash, character) => ((hash << 5) - hash + character.charCodeAt(0)) | 0, 0)
-}
-
-const fallbackGradient = computed(() => {
-  const hue = Math.abs(hashName(props.playlist.name)) % 360
-  return `linear-gradient(135deg, hsl(${hue} 52% 38%), hsl(${(hue + 48) % 360} 58% 22%))`
-})
+const fallbackGradient = 'linear-gradient(135deg, hsl(0 0% 42%), hsl(0 0% 20%))'
 </script>
 
 <template>

@@ -15,6 +15,26 @@ let page: Page
 let diagnosticDirectory: string
 let diagnosticPath: string
 const syntheticScreenshotPath = process.env.MUSIC_BRIDGE_SCREENSHOT_PATH ?? path.join(os.tmpdir(), 'musicbridge-task-033-home.png')
+const syntheticCoverUrl = 'https://p1.music.126.net/synthetic-cover.jpg'
+const syntheticCoverSvg = `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800">
+    <defs>
+      <linearGradient id="cover" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#6b7cff"/>
+        <stop offset="0.48" stop-color="#d568b7"/>
+        <stop offset="1" stop-color="#f3a85f"/>
+      </linearGradient>
+      <filter id="soft"><feGaussianBlur stdDeviation="34"/></filter>
+    </defs>
+    <rect width="800" height="800" fill="#171b38"/>
+    <circle cx="160" cy="180" r="230" fill="#7dd8ff" opacity=".85" filter="url(#soft)"/>
+    <circle cx="620" cy="210" r="250" fill="#ff8cbd" opacity=".76" filter="url(#soft)"/>
+    <circle cx="450" cy="680" r="290" fill="#ffbd73" opacity=".78" filter="url(#soft)"/>
+    <rect x="88" y="88" width="624" height="624" rx="48" fill="url(#cover)" opacity=".62"/>
+    <circle cx="400" cy="400" r="175" fill="none" stroke="#ffffff" stroke-opacity=".7" stroke-width="3"/>
+    <circle cx="400" cy="400" r="28" fill="#ffffff" fill-opacity=".9"/>
+  </svg>
+`
 
 function sourceButton(source: 'home' | 'liked' | 'playlists') {
   return page.locator(`[data-sidebar-source="${source}"]`)
@@ -24,13 +44,27 @@ function sidebarSearch() {
   return page.getByRole('searchbox', { name: '搜索歌曲、歌手或歌单' })
 }
 
-function accountButton() {
-  return page.getByRole('button', { name: /网易云/ }).first()
+function connectionButton() {
+  return page.getByRole('button', { name: '查看连接状态' })
 }
 
-async function openAccountMenu() {
-  await accountButton().click()
-  await expect(page.getByRole('menu', { name: '账户菜单' })).toBeVisible()
+async function openConnectionPopover() {
+  const statusPopover = page.getByRole('dialog', { name: '连接状态' })
+  if (!(await statusPopover.isVisible())) await connectionButton().click()
+  await expect(statusPopover).toBeVisible()
+  return statusPopover
+}
+
+async function openProviderSettings() {
+  const statusPopover = await openConnectionPopover()
+  await statusPopover.getByRole('button', { name: /网易云/ }).click()
+  await expect(page.getByRole('heading', { name: 'Settings', exact: true }).first()).toBeVisible()
+}
+
+async function openDiagnostics() {
+  const statusPopover = await openConnectionPopover()
+  await statusPopover.getByRole('button', { name: '打开诊断' }).click()
+  await expect(page.getByRole('heading', { name: 'Diagnostics', exact: true }).first()).toBeVisible()
 }
 
 async function waitForProcessMarker(
@@ -84,6 +118,9 @@ test.beforeEach(async () => {
   await page.waitForLoadState('domcontentloaded')
   await expect(page).toHaveURL('musicbridge://app/index.html')
   await expect(page.getByRole('heading', { name: '主页', exact: true }).first()).toBeVisible()
+  await page.route(syntheticCoverUrl, async (route) => {
+    await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: syntheticCoverSvg })
+  })
 })
 
 test.afterEach(async () => {
@@ -96,29 +133,54 @@ test('packaged cold start, login states, navigation, focus and Renderer isolatio
   await expect(page.getByRole('button', { name: '查看连接状态' })).toBeVisible()
   await expect(page.locator('[data-ui-reference="simple-music-player-2"]')).toBeVisible()
   await expect(page.locator('.home-hero')).toBeVisible()
+  await expect(page.locator('.app-footer')).toBeVisible()
+  await expect(page.locator('.app-footer .playback-zone-dock')).toBeVisible()
   await expect(page.locator('.global-player')).toBeVisible()
   await expect(page.locator('.player-progress')).toBeVisible()
+  const themeColorSamples = await page.evaluate(() => {
+    const selectors = ['.home-hero', '.home-hero-art', '.global-player', '.player-progress-fill', '.text-button', '.sidebar-playlist-art']
+    return selectors.flatMap((selector) => {
+      const element = document.querySelector(selector)
+      if (!element) return []
+      const styles = getComputedStyle(element)
+      return [styles.color, styles.backgroundColor, styles.borderColor, styles.backgroundImage]
+    })
+  })
+  const greenThemeColors = themeColorSamples.filter((value) => {
+    return [...value.matchAll(/rgba?\((\d+)\D+(\d+)\D+(\d+)/g)].some(([, red, green, blue]) => {
+      const channels = [Number(red), Number(green), Number(blue)]
+      return channels[1] > channels[0] + 6 && channels[1] > channels[2] + 6
+    })
+  })
+  expect(greenThemeColors, '主题颜色不得使用绿色相位').toEqual([])
   await expect(sourceButton('home')).toHaveAttribute('aria-current', 'page')
   await expect(sourceButton('liked')).toBeVisible()
   await expect(sourceButton('playlists')).toBeVisible()
   await expect(page.getByRole('navigation', { name: '音乐来源' }).getByRole('button', { name: /Synthetic Playlist/ })).toBeVisible()
-  await expect(page.getByRole('button', { name: /Synthetic Zone|选择播放设备/ })).toBeVisible()
-  await expect(accountButton()).toBeVisible()
+  await expect(page.locator('.app-footer .playback-zone-dock').getByRole('button', { name: /Synthetic Zone|选择播放设备/ })).toBeVisible()
+  await expect(page.locator('.music-sidebar .sidebar-footer')).toHaveCount(0)
+  await expect(page.locator('.music-sidebar').getByRole('button', { name: /网易云/ })).toHaveCount(0)
   for (const name of ['Home', 'Search', 'Library', 'Now Playing', 'Queue', 'Settings', 'Diagnostics']) {
     await expect(page.getByRole('navigation', { name: '音乐来源' }).getByRole('button', { name, exact: true })).toHaveCount(0)
   }
   await page.screenshot({ path: syntheticScreenshotPath })
   expect((await stat(syntheticScreenshotPath)).size).toBeGreaterThan(20_000)
 
-  await openAccountMenu()
-  await page.getByRole('menuitem', { name: '设置', exact: true }).click()
-  await page.getByRole('button', { name: '显示二维码' }).click()
+  await openProviderSettings()
   await expect(page.getByText('当前状态：waiting')).toBeVisible()
+  await expect
+    .poll(
+      () =>
+        page.locator('img[alt="Provider 登录二维码"]').evaluate((image) => {
+          return (image as HTMLImageElement).naturalWidth
+        }),
+      { message: 'Provider 登录二维码必须是浏览器可解码的图片' },
+    )
+    .toBeGreaterThan(0)
   await page.getByRole('button', { name: '取消' }).click()
   await expect(page.getByText('当前状态：cancelled')).toBeVisible()
 
-  await page.getByRole('button', { name: '查看连接状态' }).click()
-  const statusPopover = page.getByRole('dialog', { name: '连接状态' })
+  const statusPopover = await openConnectionPopover()
   await expect(statusPopover).toBeVisible()
   await expect(statusPopover.getByText('Roon', { exact: true })).toBeVisible()
   await expect(statusPopover.getByText('已连接', { exact: true })).toBeVisible()
@@ -128,8 +190,7 @@ test('packaged cold start, login states, navigation, focus and Renderer isolatio
   await page.keyboard.press('Meta+L')
   await expect(sidebarSearch()).toBeFocused()
 
-  await openAccountMenu()
-  await page.getByRole('menuitem', { name: '高级与诊断', exact: true }).click()
+  await openDiagnostics()
   await page.getByRole('button', { name: '导出诊断文件' }).click()
   await expect(page.getByText('诊断文件已导出，仅包含脱敏运行信息。')).toBeVisible()
   const report = JSON.parse(await readFile(diagnosticPath, 'utf8')) as {
@@ -185,6 +246,8 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   await expect(page.getByText('Synthetic Track 1', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '播放 Synthetic Track 1', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Now Playing', exact: true }).first()).toBeVisible()
+  await expect(page.locator('.album-ambient-cover.is-playing')).toBeVisible()
+  await expect(page.locator('.album-ambient-cover.is-playing')).toHaveCSS('animation-name', 'album-ambient-rotate')
   await expect(page.getByText('暂无可用歌词。')).toBeVisible()
   await page.getByRole('button', { name: '打开队列' }).click()
   await expect(page.getByText('1 items')).toBeVisible()
@@ -193,8 +256,7 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   await page.getByRole('button', { name: '播放 Synthetic Track 2', exact: true }).click()
   await expect(page.getByText('Synthetic lyric line', { exact: true }).first()).toBeVisible()
 
-  await openAccountMenu()
-  await page.getByRole('menuitem', { name: '设置', exact: true }).click()
+  await openProviderSettings()
   await page.locator('#quality-select').selectOption('hires')
   await search.fill('synthetic')
   await page.getByRole('button', { name: '播放 Synthetic Track 1', exact: true }).click()
@@ -212,6 +274,7 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   await expect(page.getByText('Synthetic Track 1', { exact: true }).first()).toBeVisible()
   await page.getByRole('button', { name: 'Stop', exact: true }).last().click()
   await expect(page.getByText('待机')).toBeVisible()
+  await expect(page.locator('.album-ambient-cover')).toHaveCount(0)
 })
 
 test('Music Source Sidebar supports source recovery, Zone Popover and collapsed rail', async () => {

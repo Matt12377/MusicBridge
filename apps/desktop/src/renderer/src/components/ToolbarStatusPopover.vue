@@ -11,6 +11,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   diagnostics: []
+  account: [action: 'login']
 }>()
 
 const root = ref<HTMLElement | null>(null)
@@ -46,6 +47,17 @@ function close(): void {
   open.value = false
 }
 
+function openProviderSettings(): void {
+  emit('account', 'login')
+  close()
+}
+
+function onProviderKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  openProviderSettings()
+}
+
 onMounted(() => document.addEventListener('mousedown', closeOnOutside))
 onUnmounted(() => document.removeEventListener('mousedown', closeOnOutside))
 </script>
@@ -62,7 +74,7 @@ onUnmounted(() => document.removeEventListener('mousedown', closeOnOutside))
       <dl class="toolbar-status-list">
         <div><dt>Music Bridge Core</dt><dd><i class="status-led" :class="coreState?.runtime ?? 'starting'"></i>{{ statusLabel(coreState?.runtime) }}</dd></div>
         <div><dt>Roon</dt><dd><i class="status-led" :class="coreState?.roon ?? 'disconnected'"></i>{{ coreState?.roon === 'ready' ? '已连接' : statusLabel(coreState?.roon) }}</dd></div>
-        <div><dt>网易云</dt><dd><i class="status-led" :class="authState.status === 'authorized' ? 'authorized' : 'missing'"></i>{{ authState.status === 'authorized' ? '已登录' : '未登录' }}</dd></div>
+        <div class="toolbar-status-row" role="button" tabindex="0" aria-label="网易云登录设置" @click="openProviderSettings" @keydown="onProviderKeydown"><dt>网易云</dt><dd><i class="status-led" :class="authState.status === 'authorized' ? 'authorized' : 'missing'"></i>{{ authState.status === 'authorized' ? '已登录' : '未登录' }}</dd></div>
         <div><dt>当前播放设备</dt><dd>{{ selectedZone?.displayName ?? '未选择' }}</dd></div>
       </dl>
       <button type="button" class="toolbar-diagnostics-link" @click="emit('diagnostics'); close()">打开诊断</button>

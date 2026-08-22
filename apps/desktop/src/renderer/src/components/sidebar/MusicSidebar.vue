@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import type { PlaylistSummary, PublicAuthState, PublicRoonZone } from '@music-bridge/contracts'
+import type { PlaylistSummary } from '@music-bridge/contracts'
 import type { SidebarSource } from '../navigation.js'
-import AccountButton from './SidebarAccountButton.vue'
 import SidebarHeader from './SidebarHeader.vue'
 import SidebarNavRow from './SidebarNavRow.vue'
 import SidebarPlaylistList from './SidebarPlaylistList.vue'
 import SidebarSearch from './SidebarSearch.vue'
 import SidebarSection from './SidebarSection.vue'
-import SidebarZoneButton from './SidebarZoneButton.vue'
 
 const props = defineProps<{
   expanded: boolean
@@ -17,10 +15,6 @@ const props = defineProps<{
   playlists: readonly PlaylistSummary[]
   playlistState: 'loading' | 'ready' | 'error'
   sourceScrollTop: number
-  selectedZone?: PublicRoonZone
-  zones: readonly PublicRoonZone[]
-  roonStatus: string
-  authState: PublicAuthState
 }>()
 
 const emit = defineEmits<{
@@ -29,8 +23,6 @@ const emit = defineEmits<{
   'update:searchQuery': [value: string]
   'clear-search': []
   'retry-playlists': []
-  'select-zone': [zoneId: string]
-  account: [action: 'login' | 'settings' | 'diagnostics' | 'logout']
   'scroll-source': [scrollTop: number]
 }>()
 
@@ -86,9 +78,5 @@ onMounted(restoreSourceScroll)
       <SidebarPlaylistList :playlists="playlists" :expanded="expanded" :active-playlist-id="activeSource.type === 'playlist' ? activeSource.playlistId : undefined" :state="playlistState" @select="selectSource({ type: 'playlist', playlistId: $event })" @retry="emit('retry-playlists')" />
     </nav>
 
-    <footer class="sidebar-footer">
-      <SidebarZoneButton :zones="zones" :selected-zone="selectedZone" :roon-status="roonStatus" :expanded="expanded" @select="emit('select-zone', $event)" />
-      <AccountButton :auth-state="authState" :expanded="expanded" @action="emit('account', $event)" />
-    </footer>
   </aside>
 </template>

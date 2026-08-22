@@ -243,6 +243,18 @@ export function parsePlaylistDetailHeader(
   };
 }
 
+export function parsePlaylistTrackIds(response: unknown): string[] | undefined {
+  const body = bodyOf(response);
+  responseBodyCode(body, 'playlist detail');
+  const playlist = isRecord(body.playlist) ? body.playlist : undefined;
+  if (!playlist || !Object.prototype.hasOwnProperty.call(playlist, 'trackIds')) return undefined;
+  if (!Array.isArray(playlist.trackIds)) return [];
+  return playlist.trackIds
+    .map((item) => (isRecord(item) ? item.id : item))
+    .map(safeId)
+    .filter((id): id is string => id !== undefined);
+}
+
 export function parsePlaylistTrackPage(
   response: unknown,
   page: PageRequest,

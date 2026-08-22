@@ -11,6 +11,7 @@ import {
   parseAccountId,
   parseLikedTrackIds,
   parsePlaylistDetailHeader,
+  parsePlaylistTrackIds,
   parsePlaylistSummaries,
   parsePlaylistTrackPage,
   parseSearchPage,
@@ -197,22 +198,30 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     const cookie = this.requireCookie();
     try {
       const playlistDetail = this.api.playlist_detail;
-      const playlistTrackAll = this.api.playlist_track_all;
-      if (!playlistDetail || !playlistTrackAll) throw this.libraryApiUnavailable();
+      if (!playlistDetail) throw this.libraryApiUnavailable();
+      const playlistDetailResponse = await playlistDetail({ id: playlistId, cookie });
       const header = parsePlaylistDetailHeader(
-        await playlistDetail({ id: playlistId, cookie }),
+        playlistDetailResponse,
         playlistId,
       );
-      const tracks = parsePlaylistTrackPage(
-        await playlistTrackAll({
+      const trackIds = parsePlaylistTrackIds(playlistDetailResponse);
+      let trackResponse: unknown;
+      if (trackIds !== undefined) {
+        const selectedIds = trackIds.slice(page.offset, page.offset + page.limit);
+        trackResponse = selectedIds.length === 0
+          ? { body: { code: 200, songs: [] } }
+          : await this.api.song_detail({ ids: selectedIds.join(','), cookie });
+      } else {
+        const playlistTrackAll = this.api.playlist_track_all;
+        if (!playlistTrackAll) throw this.libraryApiUnavailable();
+        trackResponse = await playlistTrackAll({
           id: playlistId,
           limit: page.limit,
           offset: page.offset,
           cookie,
-        }),
-        page,
-        header.trackCount,
-      );
+        });
+      }
+      const tracks = parsePlaylistTrackPage(trackResponse, page, header.trackCount);
       return { ...header, tracks };
     } catch (error) {
       throw this.libraryError(error, 'playlist detail');

@@ -183,6 +183,43 @@ test('CoreSupervisor request timeout and shutdown are bounded', async () => {
   assert.equal(harness.children[0]!.killed, true)
 })
 
+test('CoreSupervisor gives library playlist requests a bounded extended timeout', async () => {
+  const harness = makeHarness()
+  const starting = harness.supervisor.start()
+  await new Promise((resolve) => setImmediate(resolve))
+  ready(harness.channels[0]!)
+  await starting
+
+  const request = harness.supervisor.request('library.playlist', {
+    playlistId: '301',
+    page: { offset: 0, limit: 20 },
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+  const sent = harness.channels[0]!.port2.sent[0] as { id: string }
+  setTimeout(() => {
+    harness.channels[0]!.port2.receive({
+      version: IPC_VERSION,
+      id: sent.id,
+      ok: true,
+      result: {
+        id: '301',
+        name: 'Synthetic Large Playlist',
+        trackCount: 1200,
+        tracks: {
+          items: [],
+          offset: 0,
+          limit: 20,
+          total: 1200,
+          hasMore: true,
+        },
+      },
+    })
+  }, 30)
+
+  assert.equal((await request).trackCount, 1200)
+  await harness.supervisor.shutdown()
+})
+
 test('CoreSupervisor has an explicit Main-only path for QR poll credentials', async () => {
   const harness = makeHarness()
   const starting = harness.supervisor.start()

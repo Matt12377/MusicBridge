@@ -66,6 +66,9 @@ interface PendingRequest {
   resolve(value: unknown): void
 }
 
+const DEFAULT_REQUEST_TIMEOUT_MS = 2_000
+const LIBRARY_REQUEST_TIMEOUT_MS = 10_000
+
 export class CoreSupervisor {
   private child: CoreChildProcess | undefined
   private port: CoreMessagePort | undefined
@@ -140,7 +143,9 @@ export class CoreSupervisor {
     if (!validated.ok) {
       throw new CoreIpcError(validated.error.code, validated.error.message)
     }
-    const timeoutMs = this.options.requestTimeoutMs ?? 2_000
+    const timeoutMs = command.startsWith('library.')
+      ? LIBRARY_REQUEST_TIMEOUT_MS
+      : this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
     const response = await new Promise<unknown>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id)
@@ -219,7 +224,7 @@ export class CoreSupervisor {
         this.port = undefined
       }
       child.kill()
-    }, this.options.requestTimeoutMs ?? 2_000)
+    }, this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS)
 
     const handleExit = (code: number): void => {
       clearTimeout(readyTimer)
@@ -357,7 +362,7 @@ export class CoreSupervisor {
     } catch {
       // The bounded kill below is the fallback when Core is already unhealthy.
     }
-    await Promise.race([exited, this.delay(this.options.requestTimeoutMs ?? 2_000)])
+    await Promise.race([exited, this.delay(this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS)])
     if (this.child === child) {
       child.kill()
       await Promise.race([exited, this.delay(250)])

@@ -164,13 +164,15 @@ test('NeteaseClient maps user playlists and loads only one playlist detail page'
             description: 'Synthetic description',
             trackCount: 50,
             coverImgUrl: 'https://p1.music.126.net/synthetic-playlist.jpg',
+            trackIds: Array.from({ length: 50 }, (_, index) => ({ id: 401 + index })),
           },
         },
       };
     },
-    async playlist_track_all(params) {
-      calls.push(`tracks:${String(params.id)}:${String(params.limit)}:${String(params.offset)}`);
-      return { body: { code: 200, songs: [track(401, 'Playlist Page')] } };
+    async song_detail(params) {
+      const ids = String(params.ids).split(',');
+      calls.push(`song_detail:${ids[0]}-${ids[ids.length - 1]}`);
+      return { body: { code: 200, songs: [track(421, 'Playlist Page')] } };
     },
   }));
 
@@ -191,7 +193,7 @@ test('NeteaseClient maps user playlists and loads only one playlist detail page'
     tracks: {
       items: [
         {
-          id: '401',
+          id: '421',
           title: 'Playlist Page',
           artists: ['Synthetic Artist'],
           album: 'Synthetic Album',
@@ -209,8 +211,52 @@ test('NeteaseClient maps user playlists and loads only one playlist detail page'
     'account',
     'playlists:42:100:0',
     'detail:301',
-    'tracks:301:10:20',
+    'song_detail:421-430',
   ]);
+});
+
+test('NeteaseClient opens a 1200-track playlist page without the unbounded track wrapper', async () => {
+  const calls: string[] = [];
+  const trackIds = Array.from({ length: 1200 }, (_, index) => ({ id: 1000 + index }));
+  const client = new NeteaseClient('synthetic-credential', baseApi({
+    async playlist_detail(params) {
+      calls.push(`detail:${String(params.id)}`);
+      return {
+        body: {
+          code: 200,
+          playlist: {
+            id: 301,
+            name: 'Synthetic Large Playlist',
+            trackCount: 1200,
+            trackIds,
+          },
+        },
+      };
+    },
+    async song_detail(params) {
+      const ids = String(params.ids).split(',').map(Number);
+      calls.push(`song_detail:${ids[0]}-${ids[ids.length - 1]}`);
+      return {
+        body: {
+          code: 200,
+          songs: ids.map((id) => track(id, `Playlist Track ${id}`)),
+        },
+      };
+    },
+    async playlist_track_all() {
+      calls.push('legacy_playlist_track_all');
+      return { body: { code: 200, songs: [] } };
+    },
+  }));
+
+  const result = await client.getPlaylist('301', { offset: 1000, limit: 20 });
+
+  assert.equal(result.trackCount, 1200);
+  assert.equal(result.tracks.items.length, 20);
+  assert.equal(result.tracks.items[0]?.id, '2000');
+  assert.equal(result.tracks.items.at(-1)?.id, '2019');
+  assert.equal(result.tracks.hasMore, true);
+  assert.deepEqual(calls, ['detail:301', 'song_detail:2000-2019']);
 });
 
 test('NeteaseClient refuses library access without a credential', async () => {

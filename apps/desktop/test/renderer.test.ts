@@ -73,10 +73,8 @@ test('Renderer exposes the v2 Music Source Sidebar information architecture', as
     'SidebarSearch.vue',
     'SidebarPlaylistList.vue',
     'ZonePopover.vue',
-    'AccountMenu.vue',
     'useLibrarySources',
     'useZoneSelection',
-    'useAccountMenu',
     '发现',
     '主页',
     '资料库',
@@ -84,7 +82,9 @@ test('Renderer exposes the v2 Music Source Sidebar information architecture', as
     '所有歌单',
     '搜索歌曲、歌手或歌单',
     '播放设备',
-    '网易云已登录',
+    '网易云登录设置',
+    'playback-zone-dock',
+    'app-footer',
     'toolbar-status-popover',
     'global-player',
     'Previous',
@@ -101,6 +101,7 @@ test('Renderer exposes the v2 Music Source Sidebar information architecture', as
   assert.doesNotMatch(combinedSource, /const\s+NAV_ITEMS/)
   assert.doesNotMatch(combinedSource, /class=["']nav-item["']/)
   assert.doesNotMatch(combinedSource, /<AppSidebar\b/)
+  assert.doesNotMatch(combinedSource, /SidebarAccountButton|AccountMenu|useAccountMenu|sidebar-footer/)
   assert.doesNotMatch(combinedSource, />\s*Pause\s*</)
   assert.doesNotMatch(combinedSource, />\s*Seek\s*</)
 })
@@ -110,11 +111,39 @@ test('Renderer keeps internal destinations available only through their v2 entry
   const combinedSource = (await Promise.all(files.map((file) => readFile(file, 'utf8')))).join('\n')
 
   assert.match(combinedSource, /currentView === ['"]search['"]|currentView === ['"]liked['"]|currentView === ['"]playlists['"]/)
-  assert.match(combinedSource, /action === 'login' \|\| action === 'settings'/)
+  assert.match(combinedSource, /action === 'login'/)
+  assert.match(combinedSource, /action === 'settings'/)
+  assert.match(combinedSource, /action === 'login'[\s\S]*beginQrLogin/)
   assert.match(combinedSource, /action === 'diagnostics'/)
   assert.match(combinedSource, /function openNowPlaying|open-now-playing/)
   assert.match(combinedSource, /function openQueue|open-queue/)
   assert.match(combinedSource, /SidebarPlaylistRow\.vue/)
+})
+
+test('Playlist detail exposes loading and retry states instead of retaining stale content', async () => {
+  const source = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const detailStart = source.indexOf("currentView === 'playlist-detail'")
+  const nextViewStart = source.indexOf("currentView === 'now-playing'")
+  assert.ok(detailStart >= 0)
+  assert.ok(nextViewStart > detailStart)
+
+  const detailTemplate = source.slice(detailStart, nextViewStart)
+  assert.match(detailTemplate, /libraryBusy/)
+  assert.match(detailTemplate, /libraryError/)
+  assert.match(detailTemplate, /重试/)
+})
+
+test('Playlist detail renders artworkUrl covers with a music-note fallback', async () => {
+  const source = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const detailStart = source.indexOf("currentView === 'playlist-detail'")
+  const nextViewStart = source.indexOf("currentView === 'now-playing'")
+  assert.ok(detailStart >= 0)
+  assert.ok(nextViewStart > detailStart)
+
+  const detailTemplate = source.slice(detailStart, nextViewStart)
+  assert.match(detailTemplate, /<img v-if="track\.artworkUrl"/)
+  assert.match(detailTemplate, /:src="track\.artworkUrl"/)
+  assert.match(detailTemplate, /<span v-else aria-hidden="true">♪<\/span>/)
 })
 
 test('Renderer uses the clean-room player landmarks without importing the reference runtime', async () => {
