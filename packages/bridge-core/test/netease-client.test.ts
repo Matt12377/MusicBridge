@@ -102,3 +102,45 @@ test('NeteaseClient clears the local session when remote logout fails', async ()
   await assert.rejects(() => client.logout())
   assert.equal(client.configured, false)
 })
+
+test('NeteaseClient prepares the API runtime before resolving an audio URL', async () => {
+  const events: string[] = []
+  const api = {
+    async song_detail() {
+      return { body: { code: 200 } }
+    },
+    async song_url_v1(params: Record<string, unknown>) {
+      events.push(`song_url:${String(params.level)}`)
+      return {
+        body: {
+          code: 200,
+          data: [{ id: 303, url: 'https://audio.example.invalid/synthetic.flac', level: 'lossless' }],
+        },
+      }
+    },
+    async login_qr_key() {
+      return { body: { code: 200, data: { unikey: 'synthetic-qr-key' } } }
+    },
+    async login_qr_create() {
+      return { body: { code: 200, data: { qrimg: 'data:image/png;base64,synthetic-qr' } } }
+    },
+    async login_qr_check() {
+      return { body: { code: 801 } }
+    },
+    async login_status() {
+      return { body: { code: 200, data: { profile: { userId: 1 } } } }
+    },
+    async logout() {
+      return { body: { code: 200 } }
+    },
+  }
+
+  const client = new NeteaseClient('synthetic-credential', api, async () => {
+    events.push('prepare')
+  })
+
+  const stream = await client.resolveStream('303', 'lossless')
+
+  assert.equal(stream.upstreamUrl, 'https://audio.example.invalid/synthetic.flac')
+  assert.deepEqual(events, ['prepare', 'song_url:lossless'])
+})

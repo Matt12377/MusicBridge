@@ -37,6 +37,7 @@ import {
 } from './parse.js';
 import { parseLyricsResponse } from './lyrics.js';
 import type { QrLoginCheckResult, QrLoginProvider } from './qr-login.js';
+import { ensureNeteaseApiRuntime } from './api-runtime.js';
 
 type ApiResponse = Promise<unknown>;
 
@@ -66,10 +67,17 @@ function loadApi(): NeteaseApiModule {
 export class NeteaseClient implements NeteasePort, QrLoginProvider {
   private cookie: string | undefined;
   private readonly api: NeteaseApiModule;
+  private readonly prepareApiRuntime: () => Promise<void>;
 
-  constructor(cookie: string | undefined, api: NeteaseApiModule = loadApi()) {
+  constructor(
+    cookie: string | undefined,
+    api?: NeteaseApiModule,
+    prepareApiRuntime?: () => Promise<void>,
+  ) {
     this.cookie = cookie?.trim() || undefined;
-    this.api = api;
+    this.api = api ?? loadApi();
+    this.prepareApiRuntime =
+      prepareApiRuntime ?? (api === undefined ? ensureNeteaseApiRuntime : async () => undefined);
   }
 
   get configured(): boolean {
@@ -249,6 +257,7 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     const trackId = normalizeTrackId(trackIdInput);
     const cookie = this.requireCookie();
     try {
+      await this.prepareApiRuntime();
       // Intentionally no `unblock`, `source`, proxy, randomIP or match parameter.
       const response = await this.api.song_url_v1({
         id: trackId,
