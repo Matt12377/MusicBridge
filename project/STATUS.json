@@ -7,7 +7,7 @@
   "state": "owner-acceptance-pending",
   "baseCommit": "b8ae08d40336a2eb32c63ec0bf593f12a778aa20",
   "implementationCommit": "e7d6b0835792b8bc680c54cbc62a5577b97f2f1f",
-  "reportCommit": "pending",
+  "reportCommit": "18a76a83cd70b1a0acacaf0b7f9cd0f64a465f25",
   "nextTask": null,
   "gates": {
     "automated": "pass",
