@@ -1,5 +1,7 @@
 import type { PublicError } from './errors.js';
 import type {
+  DailyRecommendationTrack,
+  DailyRecommendationsSnapshot,
   Page,
   PageRequest,
   PlaylistDetail,
@@ -36,6 +38,8 @@ import {
   type IpcRequest,
 } from './ipc.js';
 import type {
+  PublicAccountProfile,
+  PublicAccountState,
   PublicAuthState,
   PublicBridgeState,
   PublicRoonZone,
@@ -94,6 +98,9 @@ const MAX_LYRICS_LINES = 500;
 const MAX_LYRICS_WORDS = 200;
 const MAX_LYRICS_TEXT_LENGTH = 2_048;
 const MAX_LYRICS_TOTAL_TEXT_LENGTH = 256 * 1024;
+const MAX_ACCOUNT_DISPLAY_NAME_LENGTH = 80;
+const MAX_RECOMMENDATION_TRACKS = 50;
+const MAX_RECOMMENDATION_REASON_LENGTH = 120;
 
 function isPageRequest(value: unknown): value is PageRequest {
   return (
@@ -448,6 +455,37 @@ function isTrackSummary(value: unknown): value is TrackSummary {
   );
 }
 
+function isDailyRecommendationTrack(value: unknown): value is DailyRecommendationTrack {
+  if (!isRecord(value) || !hasOnlyKeys(value, [
+    'id',
+    'title',
+    'artists',
+    'album',
+    'durationMs',
+    'artworkUrl',
+    'recommendationReason',
+  ])) {
+    return false;
+  }
+  const { recommendationReason, ...summary } = value;
+  return (
+    isTrackSummary(summary) &&
+    (recommendationReason === undefined || safeString(recommendationReason, MAX_RECOMMENDATION_REASON_LENGTH))
+  );
+}
+
+function isDailyRecommendationsSnapshot(value: unknown): value is DailyRecommendationsSnapshot {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['dayKey', 'tracks']) &&
+    typeof value.dayKey === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(value.dayKey) &&
+    Array.isArray(value.tracks) &&
+    value.tracks.length <= MAX_RECOMMENDATION_TRACKS &&
+    value.tracks.every((track) => isDailyRecommendationTrack(track))
+  );
+}
+
 function isPageOfTracks(value: unknown): value is Page<TrackSummary> {
   return (
     isRecord(value) &&
@@ -523,6 +561,8 @@ const PUBLIC_ERROR_CODES = new Set([
   'TIMEOUT',
   'NOT_READY',
   'AUTH_EXPIRED',
+  'ACCOUNT_PROFILE_UNAVAILABLE',
+  'DAILY_RECOMMENDATIONS_UNAVAILABLE',
   'INTERNAL_ERROR',
 ]);
 
@@ -693,6 +733,19 @@ function isPublicAuthState(value: unknown): value is PublicAuthState {
   );
 }
 
+function isPublicAccountState(value: unknown): value is PublicAccountState {
+  if (!isRecord(value) || !hasOnlyKeys(value, ['status', 'profile'])) return false;
+  if (!['missing', 'loading', 'ready', 'unavailable'].includes(String(value.status))) return false;
+  if (value.profile === undefined) return value.status !== 'ready';
+  if (!isRecord(value.profile) || !hasOnlyKeys(value.profile, ['displayName', 'avatarUrl'])) return false;
+  const profile = value.profile as unknown as PublicAccountProfile;
+  return (
+    safeString(profile.displayName, MAX_ACCOUNT_DISPLAY_NAME_LENGTH) &&
+    (profile.avatarUrl === undefined || isArtworkUrl(profile.avatarUrl)) &&
+    value.status === 'ready'
+  );
+}
+
 function isInternalQrPollResult(value: unknown): boolean {
   if (!isRecord(value) || !hasOnlyKeys(value, ['state', 'credential'])) return false;
   return (
@@ -756,6 +809,11 @@ function isCommandResult(
       return Array.isArray(value) && value.length <= MAX_PAGE_OFFSET && value.every((item) => isPlaylistSummary(item));
     case 'library.playlist':
       return isPlaylistDetail(value);
+    case 'account.getState':
+    case 'account.refresh':
+      return isPublicAccountState(value);
+    case 'library.dailyRecommendations':
+      return isDailyRecommendationsSnapshot(value);
     case 'lyrics.get':
       return isLyricsSnapshot(value);
     case 'core.shutdown':
@@ -787,6 +845,8 @@ function isEventPayload(event: IpcEventName, payload: unknown): boolean {
       return hasOnlyKeys(payload, ['state']) && isPublicBridgeState(payload.state);
     case 'auth.changed':
       return hasOnlyKeys(payload, ['state']) && isPublicAuthState(payload.state);
+    case 'account.changed':
+      return hasOnlyKeys(payload, ['state']) && isPublicAccountState(payload.state);
     case 'diagnostic.notice':
       return isDiagnosticPayload(payload);
     case 'playback.changed':

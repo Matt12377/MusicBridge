@@ -9,6 +9,7 @@ import {
 } from './policy.js';
 import {
   parseAccountId,
+  parseDailyRecommendations,
   parseLikedTrackIds,
   parsePlaylistDetailHeader,
   parsePlaylistTrackIds,
@@ -18,10 +19,12 @@ import {
   parseResolvedAudioStream,
   parseTrackMetadata,
   parseTrackSummaries,
+  parsePublicAccountProfile,
 } from './parse.js';
 import type {
   Page,
   PageRequest,
+  DailyRecommendationsSnapshot,
   PlaylistDetail,
   PlaylistSummary,
   NeteasePort,
@@ -29,6 +32,7 @@ import type {
   ResolvedAudioStream,
   TrackSummary,
   TrackMetadata,
+  PublicAccountProfile,
   CredentialVerificationStatus,
 } from './types.js';
 import {
@@ -43,6 +47,11 @@ import { ensureNeteaseApiRuntime } from './api-runtime.js';
 
 type ApiResponse = Promise<unknown>;
 
+function localDayKey(now = Date.now()): string {
+  const date = new Date(now);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 interface NeteaseApiModule {
   song_detail(params: Record<string, unknown>): ApiResponse;
   song_url_v1(params: Record<string, unknown>): ApiResponse;
@@ -54,6 +63,7 @@ interface NeteaseApiModule {
   search?(params: Record<string, unknown>): ApiResponse;
   likelist?(params: Record<string, unknown>): ApiResponse;
   user_account?(params: Record<string, unknown>): ApiResponse;
+  recommend_songs?(params: Record<string, unknown>): ApiResponse;
   user_playlist?(params: Record<string, unknown>): ApiResponse;
   playlist_detail?(params: Record<string, unknown>): ApiResponse;
   playlist_track_all?(params: Record<string, unknown>): ApiResponse;
@@ -186,6 +196,42 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
       );
     } catch (error) {
       throw this.libraryError(error, 'user playlists');
+    }
+  }
+
+  async getPublicAccountProfile(): Promise<PublicAccountProfile> {
+    const cookie = this.requireCookie();
+    const userAccount = this.api.user_account;
+    if (!userAccount) throw this.libraryApiUnavailable();
+    try {
+      return parsePublicAccountProfile(await userAccount({ cookie }));
+    } catch (error) {
+      if (error instanceof BridgeError) throw error;
+      throw new BridgeError(
+        'ACCOUNT_PROFILE_UNAVAILABLE',
+        'NetEase account profile request failed',
+        { cause: error, httpStatus: 503 },
+      );
+    }
+  }
+
+  async getDailyRecommendations(): Promise<DailyRecommendationsSnapshot> {
+    const cookie = this.requireCookie();
+    const recommendSongs = this.api.recommend_songs;
+    if (!recommendSongs) throw this.libraryApiUnavailable();
+    const dayKey = localDayKey();
+    try {
+      return parseDailyRecommendations(
+        await recommendSongs({ cookie, afresh: false }),
+        dayKey,
+      );
+    } catch (error) {
+      if (error instanceof BridgeError) throw error;
+      throw new BridgeError(
+        'DAILY_RECOMMENDATIONS_UNAVAILABLE',
+        'NetEase daily recommendations request failed',
+        { cause: error, httpStatus: 503 },
+      );
     }
   }
 

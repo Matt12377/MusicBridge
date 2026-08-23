@@ -1,84 +1,113 @@
 <script setup lang="ts">
-import type { LyricsSnapshot, PlaybackSnapshot, PublicRoonZone, TrackSummary } from '@music-bridge/contracts'
+import { computed } from 'vue'
+import type { DailyRecommendationTrack, TrackSummary } from '@music-bridge/contracts'
+import type { HomeRecommendationState } from '../composables/homeRecommendations.js'
 import type { ViewId } from './navigation.js'
+import DailyRecommendationsSection from './home/DailyRecommendationsSection.vue'
 
-defineProps<{
+const props = defineProps<{
   currentTrack?: TrackSummary
-  selectedZone?: PublicRoonZone
-  playbackState: PlaybackSnapshot | null
-  lyricsSnapshot: LyricsSnapshot
-  currentLyricLine?: string
+  likedTracks: readonly TrackSummary[]
   resumeTracks: readonly TrackSummary[]
+  playlistTracks: readonly TrackSummary[]
+  playlistRecommendationsState: HomeRecommendationState
+  dailyDayKey: string
+  dailyTracks: readonly DailyRecommendationTrack[]
+  dailyState: 'idle' | 'loading' | 'ready' | 'empty' | 'error'
+  dailyAuthenticated: boolean
+  dailyError?: string | null
 }>()
 
 const emit = defineEmits<{
   navigate: [view: ViewId]
   play: [track: TrackSummary]
+  refreshPlaylists: []
+  'play-daily': [track: DailyRecommendationTrack]
+  'play-all-daily': []
+  'view-all-daily': []
+  'open-settings': []
+  'retry-daily': []
 }>()
+
+const playlistCoverTracks = computed(() => props.playlistTracks.length ? props.playlistTracks : props.resumeTracks)
+const recentTracks = computed(() => props.resumeTracks.filter((track) => track.id !== props.currentTrack?.id).slice(0, 5))
+
+function hideBrokenArtwork(event: Event): void {
+  const image = event.currentTarget as HTMLImageElement
+  image.hidden = true
+}
 </script>
 
 <template>
   <section class="view home-view" aria-labelledby="home-heading">
-    <div class="home-hero">
-      <div class="home-hero-copy">
-        <p class="section-kicker">Local Hi-Fi console</p>
-        <h2 id="home-heading">把音乐留在你选择的 Zone。</h2>
-        <p class="lede">控制面板只负责清晰地表达状态与动作，Bridge Core 继续守住 Provider、Roon 和流媒体边界。</p>
-        <div class="hero-actions">
-          <button type="button" class="primary-button" @click="emit('navigate', 'liked')">打开我喜欢的音乐</button>
-          <span class="hero-zone"><i class="status-led" :class="selectedZone ? 'ready' : 'disconnected'"></i>{{ selectedZone?.displayName ?? '尚未选择 Zone' }}</span>
-        </div>
-      </div>
-      <div class="home-hero-art" aria-label="当前播放封面">
-        <img v-if="currentTrack?.artworkUrl" :src="currentTrack.artworkUrl" :alt="`${currentTrack.title} 封面`" />
-        <span v-else aria-hidden="true">MB</span>
-        <small>{{ playbackState?.state === 'playing' ? 'NOW PLAYING' : 'READY WHEN YOU ARE' }}</small>
-      </div>
-    </div>
-
-    <div class="home-section-heading">
+    <header class="home-browse-header">
       <div>
-        <p class="section-kicker">Jump Back In</p>
-        <h3>继续聆听</h3>
+        <p class="section-kicker">Music Bridge</p>
+        <h2 id="home-heading">晚上好</h2>
+        <p class="lede">从你的收藏和歌单继续聆听。</p>
       </div>
-      <button type="button" class="text-button" @click="emit('navigate', 'playlists')">打开所有歌单 →</button>
-    </div>
+    </header>
 
-    <div v-if="resumeTracks.length" class="jump-back-in" aria-label="最近内容">
-      <button v-for="track in resumeTracks" :key="track.id" type="button" class="album-card" @click="emit('play', track)">
-        <span class="album-art">
-          <img v-if="track.artworkUrl" :src="track.artworkUrl" :alt="`${track.title} 封面`" loading="lazy" />
-          <span v-else aria-hidden="true">♪</span>
-        </span>
-        <strong>{{ track.title }}</strong>
-        <small>{{ track.artists.join('、') }}</small>
-      </button>
-    </div>
-    <div v-else class="jump-back-in empty-collection">
-      <span class="empty-glyph" aria-hidden="true">♫</span>
-      <div><strong>你的下一首歌从这里开始</strong><p>完成一次搜索或播放后，最近内容会出现在这里。</p></div>
-      <button type="button" class="secondary-button" @click="emit('navigate', 'search')">探索音乐</button>
-    </div>
+    <DailyRecommendationsSection
+      :day-key="props.dailyDayKey"
+      :tracks="props.dailyTracks"
+      :state="props.dailyState"
+      :authenticated="props.dailyAuthenticated"
+      :error="props.dailyError"
+      @play="emit('play-daily', $event)"
+      @play-all="emit('play-all-daily')"
+      @view-all="emit('view-all-daily')"
+      @open-settings="emit('open-settings')"
+      @retry="emit('retry-daily')"
+    />
 
-    <div class="overview-grid">
-      <article class="feature-card feature-card-accent">
-        <p class="section-kicker">Now Playing</p>
-        <h3>{{ currentTrack?.title ?? '还没有正在播放的内容' }}</h3>
-        <p>{{ currentTrack ? `${currentTrack.artists.join('、')} · ${currentTrack.album}` : '从 Search 或 Library 选择一首歌曲开始。' }}</p>
-        <p class="home-card-footnote">从底部播放器打开详情</p>
-      </article>
-      <article class="feature-card">
-        <p class="section-kicker">Queue</p>
-        <h3>{{ playbackState?.queue.items.length ?? 0 }} 首待播</h3>
-        <p>{{ selectedZone?.displayName ?? '尚未选择 Zone' }}</p>
-        <p class="home-card-footnote">从底部播放器打开队列</p>
-      </article>
-      <article class="feature-card">
-        <p class="section-kicker">Lyrics</p>
-        <h3>{{ lyricsSnapshot.status === 'ready' ? '同步中' : '等待内容' }}</h3>
-        <p>{{ currentLyricLine ?? '当前曲目歌词状态会显示在 Now Playing。' }}</p>
-        <p class="home-card-footnote">从底部播放器打开歌词</p>
-      </article>
-    </div>
+    <section v-if="props.currentTrack" class="home-continue-hero" aria-labelledby="continue-heading">
+      <div class="home-continue-art">
+        <span class="artwork-fallback" aria-hidden="true">♪</span>
+        <img v-if="props.currentTrack.artworkUrl" :src="props.currentTrack.artworkUrl" :alt="`${props.currentTrack.title} 封面`" @error="hideBrokenArtwork" />
+      </div>
+      <div class="home-continue-copy">
+        <p class="section-kicker">继续聆听</p>
+        <h3 id="continue-heading">{{ props.currentTrack.title }}</h3>
+        <p>{{ props.currentTrack.artists.join('、') }} · {{ props.currentTrack.album }}</p>
+        <button type="button" class="secondary-button" @click="emit('play', props.currentTrack)">重新播放</button>
+      </div>
+    </section>
+
+    <section class="home-media-section" aria-labelledby="liked-home-heading">
+      <div class="home-section-heading">
+        <div><p class="section-kicker">资料库</p><h3 id="liked-home-heading">我喜欢的音乐</h3></div>
+        <button type="button" class="text-button" @click="emit('navigate', 'liked')">查看全部 →</button>
+      </div>
+      <div v-if="props.likedTracks.length" class="home-cover-wall" aria-label="我喜欢的音乐封面">
+        <button v-for="track in props.likedTracks.slice(0, 12)" :key="track.id" type="button" class="home-cover-card" :aria-label="`播放 ${track.title}`" @click="emit('play', track)">
+          <span class="home-cover-art"><span class="artwork-fallback" aria-hidden="true">♪</span><img v-if="track.artworkUrl" :src="track.artworkUrl" :alt="`${track.title} 封面`" loading="lazy" @error="hideBrokenArtwork" /></span>
+          <span class="home-cover-copy"><strong>{{ track.title }}</strong><small>{{ track.artists.join('、') }}</small></span>
+        </button>
+      </div>
+      <div v-else class="empty-collection"><span class="empty-glyph" aria-hidden="true">♫</span><div><strong>还没有收藏歌曲</strong><p>登录网易云后，你喜欢的音乐会出现在这里。</p></div><button type="button" class="secondary-button" @click="emit('navigate', 'liked')">打开收藏</button></div>
+    </section>
+
+    <section class="home-media-section" aria-labelledby="playlist-home-heading">
+      <div class="home-section-heading">
+        <div><p class="section-kicker">歌单</p><h3 id="playlist-home-heading">来自我的歌单</h3></div>
+        <div class="home-section-actions"><span v-if="playlistCoverTracks.length" class="home-section-note">{{ playlistCoverTracks.length }} 首随机内容</span><button type="button" class="text-button" :disabled="props.playlistRecommendationsState === 'loading'" @click="emit('refreshPlaylists')">换一批 ↻</button><button type="button" class="text-button" @click="emit('navigate', 'playlists')">查看全部 →</button></div>
+      </div>
+      <div v-if="props.playlistRecommendationsState === 'loading'" class="home-cover-wall home-cover-wall-loading" aria-label="正在读取歌单歌曲"><span v-for="index in 12" :key="index" class="home-cover-skeleton"></span></div>
+      <div v-else-if="playlistCoverTracks.length" class="home-cover-wall" aria-label="我的歌单随机歌曲">
+        <button v-for="track in playlistCoverTracks.slice(0, 12)" :key="track.id" type="button" class="home-cover-card" :aria-label="`播放 ${track.title}`" @click="emit('play', track)">
+          <span class="home-cover-art"><span class="artwork-fallback" aria-hidden="true">♪</span><img v-if="track.artworkUrl" :src="track.artworkUrl" :alt="`${track.title} 封面`" loading="lazy" @error="hideBrokenArtwork" /></span>
+          <span class="home-cover-copy"><strong>{{ track.title }}</strong><small>{{ track.artists.join('、') }}</small></span>
+        </button>
+      </div>
+      <div v-else class="empty-collection"><span class="empty-glyph" aria-hidden="true">♫</span><div><strong>歌单暂时没有可展示的歌曲</strong><p>稍后再刷新一次，主页会从你的歌单中随机抽取内容。</p></div><button type="button" class="secondary-button" @click="emit('refreshPlaylists')">重新读取</button></div>
+    </section>
+
+    <section v-if="recentTracks.length" class="home-recent-section" aria-labelledby="recent-heading">
+      <div class="home-section-heading"><div><p class="section-kicker">最近</p><h3 id="recent-heading">最近听过</h3></div></div>
+      <div class="home-recent-list">
+        <button v-for="track in recentTracks" :key="track.id" type="button" class="home-recent-row" @click="emit('play', track)"><span class="home-recent-art"><span class="artwork-fallback" aria-hidden="true">♪</span><img v-if="track.artworkUrl" :src="track.artworkUrl" :alt="`${track.title} 封面`" @error="hideBrokenArtwork" /></span><span><strong>{{ track.title }}</strong><small>{{ track.artists.join('、') }} · {{ track.album }}</small></span><span class="home-recent-play" aria-hidden="true">▶</span></button>
+      </div>
+    </section>
   </section>
 </template>

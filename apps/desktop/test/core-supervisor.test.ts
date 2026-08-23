@@ -274,6 +274,33 @@ test('CoreSupervisor runs the readiness recovery hook on initial start and resta
   assert.equal(readyHooks, 2)
 })
 
+test('CoreSupervisor can restart with a new explicitly supplied Core environment', async () => {
+  const harness = makeHarness()
+  const starting = harness.supervisor.start()
+  await new Promise((resolve) => setImmediate(resolve))
+  ready(harness.channels[0]!)
+  await starting
+
+  const restarting = harness.supervisor.restart({
+    NODE_ENV: 'test',
+    MUSIC_BRIDGE_REMOTE_CORE_MODE: 'remote-core-development',
+    MUSIC_BRIDGE_REMOTE_STREAM_PORT: '38512',
+  })
+  await new Promise((resolve) => setTimeout(resolve, 50))
+  assert.equal(harness.children[0]?.killed, true)
+  assert.equal(harness.children.length, 2)
+  assert.deepEqual(harness.forkOptions[1]?.env, {
+    NODE_ENV: 'test',
+    MUSIC_BRIDGE_REMOTE_CORE_MODE: 'remote-core-development',
+    MUSIC_BRIDGE_REMOTE_STREAM_PORT: '38512',
+  })
+  ready(harness.channels[1]!)
+  await restarting
+  assert.equal(harness.supervisor.status, 'ready')
+
+  await harness.supervisor.shutdown()
+})
+
 test('CoreSupervisor does not reintroduce parent environment secrets into Core', async () => {
   const canaryName = 'MUSIC_BRIDGE_UNRELATED_SECRET_CANARY'
   const previous = process.env[canaryName]

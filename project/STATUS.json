@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "project": "Music Bridge for Roon",
   "wave": "WAVE-3",
-  "task": "TASK-033",
-  "branch": "codex/task-033-apple-music-ui",
+  "task": "TASK-035",
+  "branch": "codex/task-035-remote-core-development",
   "state": "carryover",
-  "baseCommit": "e9448bdd0a1fc0963904819336760c934a9141fe",
-  "implementationCommit": "2a0eb15f47a92b527bab74b50ab6efc01000a75a",
-  "reportCommit": "db8be33d40b5f68584b9abd2233d48eb20f6207f",
+  "baseCommit": "2a5de19e37d3765c64185e786176e211c57425c2",
+  "implementationCommit": "014ed21745be0f34e14eb2d9f796a2d5485ee6c9",
+  "reportCommit": "69051033c9c3e767e71f000e8977927a260e8425",
   "nextTask": null,
   "gates": {
     "automated": "pass",
     "security": "pass",
     "realProvider": "not-run-owner-only",
-    "realRoon": "owner-acceptance-pending"
+    "realRoon": "owner-only-pending"
   },
   "policy": {
     "realCredentialsInCi": false,

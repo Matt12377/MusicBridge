@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { RemoteCoreMode } from '@music-bridge/contracts';
 import { BridgeError } from '../shared/errors.js';
 import type { Logger } from '../shared/logger.js';
 import type {
@@ -62,6 +63,8 @@ export interface RoonAudioInputAdapterOptions {
   playingTimeoutMs?: number;
   trackIdFactory?: () => string;
   playbackMode?: 'channel' | 'track';
+  mode?: RemoteCoreMode;
+  iconPort?: number;
   onTimeShape?: (summary: RoonTimeShapeSummary) => void;
 }
 
@@ -238,13 +241,19 @@ function safeErrorText(errorClass: SanitizedRoonErrorClass): string | undefined 
   }
 }
 
-function isLocalPngIconUrl(value: string): boolean {
+export const FORMAL_ROON_EXTENSION_ID = 'com.musicbridgeforroon.netease.poc';
+export const DEVELOPMENT_ROON_EXTENSION_ID = 'com.musicbridgeforroon.netease.dev';
+export const FORMAL_ROON_DISPLAY_NAME = 'Music Bridge for Roon';
+export const DEVELOPMENT_ROON_DISPLAY_NAME = 'Music Bridge for Roon — Dev Mac';
+export const DEVELOPMENT_ROON_SETTINGS_KEY = 'settings.remote-core-development';
+
+function isLocalPngIconUrl(value: string, expectedPort: number): boolean {
   try {
     const url = new URL(value);
     return (
       url.protocol === 'http:' &&
       url.hostname === '127.0.0.1' &&
-      url.port === '38502' &&
+      url.port === String(expectedPort) &&
       url.pathname === '/assets/icon.png' &&
       url.search === '' &&
       url.hash === '' &&
@@ -374,6 +383,11 @@ export class RoonAudioInputAdapter implements RoonPort {
   private readonly playingTimeoutMs: number;
   private readonly trackIdFactory: () => string;
   private readonly playbackMode: 'channel' | 'track';
+  private readonly mode: RemoteCoreMode;
+  private readonly iconPort: number;
+  private readonly settingsKey: string;
+  private readonly extensionId: string;
+  private readonly displayName: string;
   private readonly onTimeShape: ((summary: RoonTimeShapeSummary) => void) | undefined;
   private activeTimerCount = 0;
   private stateHandler: () => void = () => undefined;
@@ -388,6 +402,18 @@ export class RoonAudioInputAdapter implements RoonPort {
     this.playingTimeoutMs = options.playingTimeoutMs ?? DEFAULT_PLAYING_TIMEOUT_MS;
     this.trackIdFactory = options.trackIdFactory ?? (() => `musicbridge-${randomUUID()}`);
     this.playbackMode = options.playbackMode ?? 'track';
+    this.mode = options.mode ?? 'local-core';
+    this.iconPort = options.iconPort ?? 38502;
+    this.settingsKey =
+      this.mode === 'remote-core-development' ? DEVELOPMENT_ROON_SETTINGS_KEY : 'settings';
+    this.extensionId =
+      this.mode === 'remote-core-development'
+        ? DEVELOPMENT_ROON_EXTENSION_ID
+        : FORMAL_ROON_EXTENSION_ID;
+    this.displayName =
+      this.mode === 'remote-core-development'
+        ? DEVELOPMENT_ROON_DISPLAY_NAME
+        : FORMAL_ROON_DISPLAY_NAME;
     this.onTimeShape = options.onTimeShape;
   }
 
@@ -431,7 +457,7 @@ export class RoonAudioInputAdapter implements RoonPort {
         ...(output.display_name ? { display_name: output.display_name } : {}),
       },
     };
-    this.roon?.save_config('settings', this.settings);
+    this.roon?.save_config(this.settingsKey, this.settings);
     this.updateSelectedZone();
   }
 
@@ -439,10 +465,10 @@ export class RoonAudioInputAdapter implements RoonPort {
     if (this.roon) return;
 
     this.roon = this.sdk.createApi({
-      extension_id: 'com.musicbridgeforroon.netease.poc',
-      display_name: 'Music Bridge for Roon',
+      extension_id: this.extensionId,
+      display_name: this.displayName,
       display_version: '0.1.0-beta.2',
-      publisher: 'Music Bridge for Roon',
+      publisher: this.displayName,
       email: 'local-only@example.invalid',
       website: 'https://github.com/RoonLabs/roon-connect-stream-example',
       log_level: 'none',
@@ -451,7 +477,7 @@ export class RoonAudioInputAdapter implements RoonPort {
       core_unpaired: () => this.onCoreUnpaired(),
     });
 
-    this.settings = readSettings(this.roon.load_config('settings'));
+    this.settings = readSettings(this.roon.load_config(this.settingsKey));
 
     const settingsService: RoonSettingsService = this.sdk.createSettings(this.roon, {
       get_settings: (callback: (layout: unknown) => void) => {
@@ -466,7 +492,7 @@ export class RoonAudioInputAdapter implements RoonPort {
         const layout = this.makeSettingsLayout(next);
         request.send_complete('Success', { settings: layout });
         this.settings = next;
-        this.roon?.save_config('settings', this.settings);
+        this.roon?.save_config(this.settingsKey, this.settings);
         this.updateSelectedZone();
       },
     });
@@ -511,7 +537,7 @@ export class RoonAudioInputAdapter implements RoonPort {
     const selectedZoneSnapshot = Object.freeze({ zone_id: selectedZone.zone_id });
     const iconUrlPresent =
       typeof request.iconUrl === 'string' && request.iconUrl.length > 0;
-    if (!iconUrlPresent || !isLocalPngIconUrl(request.iconUrl)) {
+    if (!iconUrlPresent || !isLocalPngIconUrl(request.iconUrl, this.iconPort)) {
       throw new BridgeError(
         'ROON_MEDIA_ERROR',
         'Roon Audio Input requires a local PNG icon URL',
@@ -798,7 +824,7 @@ export class RoonAudioInputAdapter implements RoonPort {
         const session = audioInput.begin_session(
           {
             zone_id: selectedZoneSnapshot.zone_id,
-            display_name: 'Music Bridge for Roon',
+            display_name: this.displayName,
             icon_url: request.iconUrl,
           },
           handleSessionEvent,

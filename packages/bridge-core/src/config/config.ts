@@ -1,19 +1,27 @@
 import { BridgeError } from '../shared/errors.js';
 import { enforceNeteaseSafetyEnvironment, parseQuality } from '../netease/policy.js';
+import {
+  REMOTE_CORE_STREAM_PORT_CANDIDATES,
+  type RemoteCoreMode,
+} from '@music-bridge/contracts';
 import type { QualityLevel } from '../netease/types.js';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 export interface BridgeConfig {
+  mode: RemoteCoreMode;
   controlHost: string;
   controlPort: number;
   streamHost: string;
   streamPort: number;
   publicStreamBaseUrl: string;
+  remoteStreamPort?: number;
   neteaseCookie?: string;
   defaultQuality: QualityLevel;
   logLevel: LogLevel;
 }
+
+export const REMOTE_STREAM_PORT_CANDIDATES = REMOTE_CORE_STREAM_PORT_CANDIDATES;
 
 function parsePort(value: string | undefined, fallback: number, name: string): number {
   if (value === undefined || value.trim() === '') return fallback;
@@ -38,6 +46,14 @@ function parseLogLevel(value: string | undefined): LogLevel {
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
   enforceNeteaseSafetyEnvironment(env);
+
+  const modeValue = env.MUSIC_BRIDGE_REMOTE_CORE_MODE?.trim() || 'local-core';
+  if (modeValue !== 'local-core' && modeValue !== 'remote-core-development') {
+    throw new BridgeError('CONFIG_INVALID', 'Invalid MUSIC_BRIDGE_REMOTE_CORE_MODE', {
+      httpStatus: 500,
+    });
+  }
+  const mode = modeValue as RemoteCoreMode;
 
   const controlHost = env.BRIDGE_CONTROL_HOST?.trim() || '127.0.0.1';
   const streamHost = env.BRIDGE_STREAM_HOST?.trim() || '127.0.0.1';
@@ -81,15 +97,60 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
     );
   }
 
+  let remoteStreamPort: number | undefined;
+  if (mode === 'remote-core-development') {
+    remoteStreamPort = parsePort(
+      env.MUSIC_BRIDGE_REMOTE_STREAM_PORT,
+      REMOTE_STREAM_PORT_CANDIDATES[0]!,
+      'MUSIC_BRIDGE_REMOTE_STREAM_PORT',
+    );
+    if (!REMOTE_STREAM_PORT_CANDIDATES.includes(remoteStreamPort)) {
+      throw new BridgeError(
+        'CONFIG_INVALID',
+        'Remote Core development mode requires a bounded remote stream port',
+        { httpStatus: 500 },
+      );
+    }
+    if (
+      controlHost !== '127.0.0.1' ||
+      streamHost !== '127.0.0.1' ||
+      controlPort !== 38501 ||
+      streamPort !== 38502
+    ) {
+      throw new BridgeError(
+        'CONFIG_INVALID',
+        'Remote Core development mode requires fixed loopback Core ports',
+        { httpStatus: 500 },
+      );
+    }
+    if (
+      parsedPublicBase.hostname !== '127.0.0.1' ||
+      parsedPublicBase.port !== String(remoteStreamPort) ||
+      parsedPublicBase.username !== '' ||
+      parsedPublicBase.password !== '' ||
+      parsedPublicBase.pathname !== '/' ||
+      parsedPublicBase.search !== '' ||
+      parsedPublicBase.hash !== ''
+    ) {
+      throw new BridgeError(
+        'CONFIG_INVALID',
+        'Remote Core development public stream base must stay on the selected loopback port',
+        { httpStatus: 500 },
+      );
+    }
+  }
+
   const quality = parseQuality(env.NETEASE_DEFAULT_QUALITY ?? 'lossless');
   const cookie = env.NETEASE_COOKIE?.trim();
 
   return {
+    mode,
     controlHost,
     controlPort,
     streamHost,
     streamPort,
     publicStreamBaseUrl,
+    ...(remoteStreamPort !== undefined ? { remoteStreamPort } : {}),
     defaultQuality: quality,
     logLevel: parseLogLevel(env.LOG_LEVEL),
     ...(cookie ? { neteaseCookie: cookie } : {}),

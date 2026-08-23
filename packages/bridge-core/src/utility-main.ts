@@ -66,6 +66,12 @@ function failureForError(id: string, error: unknown): IpcFailure {
   if (bridgeError.code === 'AUTH_EXPIRED') {
     return responseFailure(id, 'AUTH_EXPIRED', 'Provider session expired');
   }
+  if (bridgeError.code === 'ACCOUNT_PROFILE_UNAVAILABLE') {
+    return responseFailure(id, 'ACCOUNT_PROFILE_UNAVAILABLE', 'Account profile is temporarily unavailable');
+  }
+  if (bridgeError.code === 'DAILY_RECOMMENDATIONS_UNAVAILABLE') {
+    return responseFailure(id, 'DAILY_RECOMMENDATIONS_UNAVAILABLE', 'Daily recommendations are temporarily unavailable');
+  }
   if (bridgeError.code === 'ROON_NOT_PAIRED' || bridgeError.code === 'ROON_ZONE_NOT_SELECTED') {
     return responseFailure(id, 'NOT_READY', 'Core is not ready for this request');
   }
@@ -120,6 +126,10 @@ async function dispatch(
       return runtime.getAuthState();
     case 'auth.logout':
       return runtime.logoutProvider();
+    case 'account.getState':
+      return runtime.getAccountState();
+    case 'account.refresh':
+      return runtime.refreshAccountProfile();
     case 'library.search':
       return runtime.searchTracks(
         (request.payload as { query: string }).query,
@@ -136,6 +146,8 @@ async function dispatch(
         (request.payload as { playlistId: string }).playlistId,
         (request.payload as { page: { offset: number; limit: number } }).page,
       );
+    case 'library.dailyRecommendations':
+      return runtime.getDailyRecommendations();
     case 'lyrics.get':
       return runtime.getLyrics((request.payload as { trackId: string }).trackId);
     case 'roon.listZones':
@@ -235,7 +247,12 @@ export async function runCoreUtilityProcess(
       }
       const runtime =
         env.MUSIC_BRIDGE_CORE_TEST_MODE === '1'
-          ? createTestBridgeRuntime()
+          ? createTestBridgeRuntime({
+              authorized: env.MUSIC_BRIDGE_UI_E2E === '1',
+              ...(env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE === 'profile-unavailable' || env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE === 'expired'
+                ? { accountMode: env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE }
+                : {}),
+            })
           : (() => {
               const onRoonTimeShape = createRoonTimeShapeRecorder(env);
               return createBridgeRuntime({

@@ -20,6 +20,8 @@ import type {
   PublicAuthState,
   PublicBridgeState,
   PublicErrorCode,
+  RemoteCoreMode,
+  RemoteCoreTunnelState,
   TypedIpcEvent,
 } from '@music-bridge/contracts'
 import { IPC_VERSION, validateIpcEvent } from '@music-bridge/contracts'
@@ -60,6 +62,11 @@ import {
   rendererContentType,
 } from './renderer-protocol.js'
 import { buildCoreEnvironment as buildAllowlistedCoreEnvironment } from './core-environment.js'
+import {
+  DEFAULT_REMOTE_STREAM_PORT,
+  LOCAL_STREAM_PORT,
+  RemoteCoreTunnelManager,
+} from './remote-core-tunnel.js'
 import trayTemplateSvg from './assets/musicbridge-tray-template.svg?raw'
 import {
   buildTrayPresentation,
@@ -92,11 +99,53 @@ const isRoonTimeGate = process.env.MUSIC_BRIDGE_ROON_TIME_GATE === '1'
 
 let mainWindow: BrowserWindow | undefined
 let coreSupervisor: CoreSupervisor | undefined
+let coreMode: RemoteCoreMode = 'local-core'
+let remoteStreamPort: number | undefined
 let tray: Tray | undefined
 let trayRefreshPromise: Promise<void> | undefined
 let trayRefreshQueued = false
 let quitAfterCoreShutdown = false
 const mainDiagnostics = new MainDiagnosticRecorder()
+
+const remoteCoreTunnelManager = new RemoteCoreTunnelManager({
+  onStateChanged: (state) => {
+    if (state.status === 'failed' || state.status === 'disconnected') {
+      const code = state.errorCode ?? 'UNKNOWN'
+      mainDiagnostics.recordLifecycle(
+        'remote_core_tunnel_failed',
+        state.status === 'failed' ? 'error' : 'warn',
+        { code, state: state.status },
+      )
+      process.stderr.write(
+        `[remote-core] ${state.status} code=${code} port=${state.remoteStreamPort ?? '-'}\n`,
+      )
+    }
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('remote-core:event', state)
+    }
+  },
+  onTunnelBound: async (state) => {
+    const supervisor = coreSupervisor
+    if (!supervisor || state.remoteStreamPort === undefined) {
+      throw new Error('Core supervisor is not ready for remote development mode')
+    }
+    const previousMode = coreMode
+    const previousRemotePort = remoteStreamPort
+    coreMode = 'remote-core-development'
+    remoteStreamPort = state.remoteStreamPort
+    try {
+      await supervisor.restart(buildCoreEnvironment())
+    } catch (error) {
+      coreMode = previousMode
+      remoteStreamPort = previousRemotePort
+      await supervisor.restart(buildCoreEnvironment()).catch(() => undefined)
+      throw error
+    }
+  },
+  onDisconnected: async () => {
+    await coreSupervisor?.request('playback.stop', {}).catch(() => undefined)
+  },
+})
 
 const EMPTY_PLAYBACK_SNAPSHOT: PlaybackSnapshot = {
   state: 'idle',
@@ -538,6 +587,12 @@ function registerIpcHandlers(
       return state
     }),
   )
+  ipcMain.handle('account:get-state', (event) =>
+    invokeCore(event, () => supervisor.request('account.getState', {})),
+  )
+  ipcMain.handle('account:refresh', (event) =>
+    invokeCore(event, () => supervisor.request('account.refresh', {})),
+  )
   ipcMain.handle('library:search', (event, query: unknown, page: unknown) =>
     invokeCore(event, () =>
       supervisor.request('library.search', {
@@ -561,6 +616,9 @@ function registerIpcHandlers(
         page: requireLibraryPage(page),
       }),
     ),
+  )
+  ipcMain.handle('library:daily-recommendations', (event) =>
+    invokeCore(event, () => supervisor.request('library.dailyRecommendations', {})),
   )
   ipcMain.handle('roon:list-zones', (event) =>
     invokeCore(event, () => supervisor.request('roon.listZones', {})),
@@ -606,6 +664,15 @@ function registerIpcHandlers(
       })
     }),
   )
+  ipcMain.handle('remote-core:get-state', (event) => {
+    return invokeRemoteCore(event, () => {
+      requireRemoteCoreDevelopment()
+      return remoteCoreTunnelManager.getState()
+    })
+  })
+  ipcMain.handle('remote-core:start', (event) => invokeRemoteCore(event, startRemoteCoreDevelopment))
+  ipcMain.handle('remote-core:stop', (event) => invokeRemoteCore(event, stopRemoteCoreDevelopment))
+  ipcMain.handle('remote-core:reconnect', (event) => invokeRemoteCore(event, reconnectRemoteCoreDevelopment))
 }
 
 function createWindow(supervisor: CoreSupervisor): BrowserWindow {
@@ -689,7 +756,64 @@ function buildCoreEnvironment(): NodeJS.ProcessEnv {
     uiE2e: isUiE2e,
     coreCrashGate: isCoreCrashGate || isCredentialRecoveryGate,
     roonTimeGate: isRoonTimeGate,
+    remoteCoreMode: coreMode,
+    ...(remoteStreamPort !== undefined ? { remoteStreamPort } : {}),
   })
+}
+
+function requireRemoteCoreDevelopment(): void {
+  if (app.isPackaged) {
+    publicIpcFailure('NOT_READY', 'Remote Core development mode is disabled in packaged builds')
+  }
+}
+
+async function invokeRemoteCore<T>(
+  event: Electron.IpcMainInvokeEvent,
+  operation: () => Promise<T> | T,
+): Promise<T> {
+  requireTrustedRenderer(event)
+  try {
+    return await operation()
+  } catch (error) {
+    if (error instanceof CoreIpcError) {
+      return publicIpcFailure(error.code, error.message)
+    }
+    if (
+      error &&
+      typeof error === 'object' &&
+      (error as { code?: unknown }).code === 'NOT_READY'
+    ) {
+      return publicIpcFailure('NOT_READY', 'Remote Core development mode is disabled in packaged builds')
+    }
+    return publicIpcFailure('INTERNAL_ERROR', 'Remote Core request failed')
+  }
+}
+
+async function startRemoteCoreDevelopment(): Promise<RemoteCoreTunnelState> {
+  requireRemoteCoreDevelopment()
+  return remoteCoreTunnelManager.start({
+    sshTarget: process.env.CORE_SSH_TARGET ?? '',
+    remoteStreamPort: DEFAULT_REMOTE_STREAM_PORT,
+    localStreamPort: LOCAL_STREAM_PORT,
+    autoReconnect: true,
+  })
+}
+
+async function stopRemoteCoreDevelopment(): Promise<RemoteCoreTunnelState> {
+  requireRemoteCoreDevelopment()
+  await coreSupervisor?.request('playback.stop', {}).catch(() => undefined)
+  const state = await remoteCoreTunnelManager.stop()
+  if (coreMode === 'remote-core-development') {
+    coreMode = 'local-core'
+    remoteStreamPort = undefined
+    await coreSupervisor?.restart(buildCoreEnvironment())
+  }
+  return state
+}
+
+async function reconnectRemoteCoreDevelopment(): Promise<RemoteCoreTunnelState> {
+  requireRemoteCoreDevelopment()
+  return remoteCoreTunnelManager.reconnect()
 }
 
 function createCoreSupervisor(
@@ -909,9 +1033,11 @@ app.on('before-quit', (event) => {
   }
   event.preventDefault()
   quitAfterCoreShutdown = true
-  void coreSupervisor.shutdown().finally(() => {
-    destroyTray()
-    app.quit()
+  void remoteCoreTunnelManager.stop().catch(() => undefined).finally(() => {
+    void coreSupervisor?.shutdown().finally(() => {
+      destroyTray()
+      app.quit()
+    })
   })
 })
 

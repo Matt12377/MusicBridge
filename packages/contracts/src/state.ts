@@ -30,6 +30,18 @@ export interface PublicAuthState {
   expiresAt?: number;
 }
 
+export type PublicAccountProfileStatus = 'missing' | 'loading' | 'ready' | 'unavailable'
+
+export interface PublicAccountProfile {
+  displayName: string
+  avatarUrl?: string
+}
+
+export interface PublicAccountState {
+  status: PublicAccountProfileStatus
+  profile?: PublicAccountProfile
+}
+
 export interface PublicRoonZone {
   zoneId: string;
   displayName: string;

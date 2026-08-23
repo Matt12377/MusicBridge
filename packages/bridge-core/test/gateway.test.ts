@@ -794,3 +794,39 @@ test('gateway records client-aborted when the downstream request is closed mid-t
   const transfer = events.find(({ event }) => event === 'roon_gateway_transfer_complete');
   assert.equal(transfer?.fields.outcome, 'client-aborted');
 });
+
+test('remote development gateway exposes a bounded health response and public icon base', async (t) => {
+  const gateway = new StreamGateway({
+    host: '127.0.0.1',
+    port: 0,
+    publicBaseUrl: 'http://127.0.0.1:38513',
+    registry: new StreamRegistry(),
+    logger: createLogger('error'),
+    remoteDevelopmentMode: true,
+  });
+  await gateway.start();
+  t.after(async () => gateway.stop());
+
+  assert.equal(gateway.iconUrl(), 'http://127.0.0.1:38513/assets/icon.png');
+  const response = await fetch(`${gateway.localBaseUrl()}/__musicbridge_remote_dev_health`);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    ok: true,
+    mode: 'remote-core-development',
+  });
+})
+
+test('formal gateway does not expose the remote development health endpoint', async (t) => {
+  const gateway = new StreamGateway({
+    host: '127.0.0.1',
+    port: 0,
+    publicBaseUrl: 'http://127.0.0.1:38502',
+    registry: new StreamRegistry(),
+    logger: createLogger('error'),
+  });
+  await gateway.start();
+  t.after(async () => gateway.stop());
+
+  const response = await fetch(`${gateway.localBaseUrl()}/__musicbridge_remote_dev_health`);
+  assert.equal(response.status, 404);
+})

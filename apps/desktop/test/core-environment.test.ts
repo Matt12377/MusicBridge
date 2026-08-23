@@ -53,3 +53,60 @@ test('Core environment exposes only the bounded Roon Time gate path when explici
     MUSIC_BRIDGE_ROON_TIME_GATE_PATH: gatePath,
   })
 })
+
+test('Core environment exposes only bounded synthetic account modes to UI E2E', () => {
+  const environment = buildCoreEnvironment({
+    MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE: 'profile-unavailable',
+  }, {
+    startupTest: false,
+    uiE2e: true,
+    coreCrashGate: false,
+  })
+
+  assert.equal(environment.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE, 'profile-unavailable')
+  assert.equal(buildCoreEnvironment({
+    MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE: 'profile-unavailable',
+  }, {
+    startupTest: false,
+    uiE2e: false,
+    coreCrashGate: false,
+  }).MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE, undefined)
+})
+
+test('remote Core mode is injected only through explicit bounded Main options', () => {
+  const environment = buildCoreEnvironment({
+    MUSIC_BRIDGE_REMOTE_CORE_MODE: 'remote-core-development',
+    MUSIC_BRIDGE_REMOTE_STREAM_PORT: '38519',
+    BRIDGE_CONTROL_HOST: '0.0.0.0',
+    BRIDGE_CONTROL_PORT: '40001',
+    BRIDGE_STREAM_HOST: '192.168.1.20',
+    BRIDGE_STREAM_PORT: '40002',
+    BRIDGE_PUBLIC_STREAM_BASE_URL: 'http://192.168.1.20:40002',
+  }, {
+    startupTest: false,
+    uiE2e: false,
+    coreCrashGate: false,
+    remoteCoreMode: 'remote-core-development',
+    remoteStreamPort: 38519,
+  })
+
+  assert.deepEqual(environment, {
+    BRIDGE_CONTROL_HOST: '127.0.0.1',
+    BRIDGE_CONTROL_PORT: '38501',
+    BRIDGE_STREAM_HOST: '127.0.0.1',
+    BRIDGE_STREAM_PORT: '38502',
+    BRIDGE_PUBLIC_STREAM_BASE_URL: 'http://127.0.0.1:38519',
+    MUSIC_BRIDGE_REMOTE_CORE_MODE: 'remote-core-development',
+    MUSIC_BRIDGE_REMOTE_STREAM_PORT: '38519',
+  })
+})
+
+test('remote Core mode rejects a port outside the bounded reverse-forward range', () => {
+  assert.throws(() => buildCoreEnvironment({}, {
+    startupTest: false,
+    uiE2e: false,
+    coreCrashGate: false,
+    remoteCoreMode: 'remote-core-development',
+    remoteStreamPort: 38520,
+  }))
+})

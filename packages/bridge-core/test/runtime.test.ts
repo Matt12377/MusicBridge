@@ -3,6 +3,11 @@ import test from 'node:test';
 import type { PublicBridgeState } from '@music-bridge/contracts';
 import { createTestBridgeRuntime, toPublicBridgeState } from '../src/runtime.js';
 
+function localDayKey(now = Date.now()): string {
+  const date = new Date(now);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 test('runtime maps internal BridgeState to a bounded public state', () => {
   const state = toPublicBridgeState(
     {
@@ -64,4 +69,53 @@ test('synthetic runtime exposes redacted diagnostics and clears resources on sto
   assert.equal(stopped.counters.listenerCount, 0);
   assert.equal(stopped.counters.timerCount, 0);
   assert.equal(stopped.gates.find((gate) => gate.name === 'resource-cleanup')?.status, 'pass');
+});
+
+test('synthetic runtime exposes bounded account and daily recommendation seams', async () => {
+  const runtime = createTestBridgeRuntime();
+  await runtime.start();
+
+  assert.deepEqual(runtime.getAccountState(), {
+    status: 'missing',
+  });
+  await runtime.setProviderCredential('synthetic-credential');
+  assert.deepEqual(runtime.getAccountState(), {
+    status: 'ready',
+    profile: {
+      displayName: 'Synthetic Listener',
+      avatarUrl: 'https://p1.music.126.net/synthetic-avatar.jpg',
+    },
+  });
+  const recommendations = await runtime.getDailyRecommendations();
+  assert.equal(recommendations.tracks.length, 12);
+  assert.equal(recommendations.tracks[0]?.recommendationReason, 'Synthetic taste match');
+  assert.doesNotMatch(JSON.stringify(recommendations), /cookie|userId|rawProvider/i);
+
+  await runtime.logoutProvider();
+  assert.deepEqual(runtime.getAccountState(), { status: 'missing' });
+  assert.deepEqual(await runtime.getDailyRecommendations(), {
+    dayKey: recommendations.dayKey,
+    tracks: [],
+  });
+});
+
+test('synthetic runtime keeps daily recommendations when profile is unavailable', async () => {
+  const runtime = createTestBridgeRuntime({ authorized: true, accountMode: 'profile-unavailable' });
+  await runtime.start();
+
+  assert.deepEqual(runtime.getAuthState(), { status: 'authorized' });
+  assert.deepEqual(runtime.getAccountState(), { status: 'unavailable' });
+  assert.equal((await runtime.getDailyRecommendations()).tracks.length, 12);
+});
+
+test('synthetic runtime clears public account and daily recommendations after expiry', async () => {
+  const runtime = createTestBridgeRuntime({ authorized: true, accountMode: 'expired' });
+  await runtime.start();
+
+  assert.deepEqual(runtime.getAuthState(), { status: 'expired' });
+  assert.deepEqual(runtime.getAccountState(), { status: 'missing' });
+  assert.deepEqual(await runtime.getDailyRecommendations(), {
+    dayKey: localDayKey(),
+    tracks: [],
+  });
 });

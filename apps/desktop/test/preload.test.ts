@@ -8,7 +8,9 @@ import type {
   LyricsSnapshot,
   PlaybackSnapshot,
   PublicAuthState,
+  PublicAccountState,
   PublicBridgeState,
+  DailyRecommendationsSnapshot,
   TrackSummary,
 } from '@music-bridge/contracts'
 import { createPreloadApi, PUBLIC_API_KEYS } from '../src/preload/api.js'
@@ -27,6 +29,14 @@ test('Preload exposes only sanitized business methods', async () => {
     activePlaybackPresent: false,
   }
   const authState: PublicAuthState = { status: 'idle' }
+  const accountState: PublicAccountState = {
+    status: 'ready',
+    profile: { displayName: 'Synthetic Account', avatarUrl: 'https://p1.music.126.net/avatar.jpg' },
+  }
+  const dailyRecommendations: DailyRecommendationsSnapshot = {
+    dayKey: '2026-08-22',
+    tracks: [],
+  }
   const page: Page<TrackSummary> = {
     items: [],
     offset: 0,
@@ -65,10 +75,13 @@ test('Preload exposes only sanitized business methods', async () => {
     async () => authState,
     async () => authState,
     async () => authState,
+    async () => accountState,
+    async () => accountState,
     async () => page,
     async () => page,
     async () => playlists,
     async () => playlist,
+    async () => dailyRecommendations,
     async () => ({ zones: [] }),
     async () => state,
     async () => lyrics,
@@ -93,10 +106,13 @@ test('Preload exposes only sanitized business methods', async () => {
     'pollQrLogin',
     'cancelQrLogin',
     'logout',
+    'getAccountState',
+    'refreshAccountProfile',
     'searchTracks',
     'getLikedTracks',
     'getUserPlaylists',
     'getPlaylist',
+    'getDailyRecommendations',
     'listZones',
     'selectZone',
     'getLyrics',
@@ -108,6 +124,11 @@ test('Preload exposes only sanitized business methods', async () => {
     'replaceQueue',
     'onCoreEvent',
     'onAppCommand',
+    'getRemoteCoreState',
+    'startRemoteCore',
+    'stopRemoteCore',
+    'reconnectRemoteCore',
+    'onRemoteCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
     'getAppInfo',
@@ -120,10 +141,13 @@ test('Preload exposes only sanitized business methods', async () => {
     'pollQrLogin',
     'cancelQrLogin',
     'logout',
+    'getAccountState',
+    'refreshAccountProfile',
     'searchTracks',
     'getLikedTracks',
     'getUserPlaylists',
     'getPlaylist',
+    'getDailyRecommendations',
     'listZones',
     'selectZone',
     'getLyrics',
@@ -135,6 +159,11 @@ test('Preload exposes only sanitized business methods', async () => {
     'replaceQueue',
     'onCoreEvent',
     'onAppCommand',
+    'getRemoteCoreState',
+    'startRemoteCore',
+    'stopRemoteCore',
+    'reconnectRemoteCore',
+    'onRemoteCoreEvent',
   ])
   assert.equal(Object.isFrozen(api), true)
   assert.deepEqual(await api.getAppInfo(), appInfo)
@@ -147,10 +176,13 @@ test('Preload exposes only sanitized business methods', async () => {
   assert.deepEqual(await api.pollQrLogin('challenge-1'), authState)
   assert.deepEqual(await api.cancelQrLogin('challenge-1'), authState)
   assert.deepEqual(await api.logout(), authState)
+  assert.deepEqual(await api.getAccountState(), accountState)
+  assert.deepEqual(await api.refreshAccountProfile(), accountState)
   assert.deepEqual(await api.searchTracks('synthetic', { offset: 0, limit: 20 }), page)
   assert.deepEqual(await api.getLikedTracks({ offset: 0, limit: 20 }), page)
   assert.deepEqual(await api.getUserPlaylists(), playlists)
   assert.deepEqual(await api.getPlaylist('301', { offset: 0, limit: 20 }), playlist)
+  assert.deepEqual(await api.getDailyRecommendations(), dailyRecommendations)
   assert.deepEqual(await api.listZones(), { zones: [] })
   assert.deepEqual(await api.selectZone('zone-1'), state)
   assert.deepEqual(await api.getLyrics('301'), lyrics)

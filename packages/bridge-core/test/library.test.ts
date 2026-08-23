@@ -29,6 +29,7 @@ interface LibraryApiOverrides {
   search?: ApiFunction;
   likelist?: ApiFunction;
   user_account?: ApiFunction;
+  recommend_songs?: ApiFunction;
   user_playlist?: ApiFunction;
   playlist_detail?: ApiFunction;
   playlist_track_all?: ApiFunction;
@@ -126,6 +127,46 @@ test('NeteaseClient paginates liked track ids without loading all track metadata
     hasMore: true,
   });
   assert.deepEqual(calls, ['account', 'likelist:42', 'song_detail:202']);
+});
+
+test('NeteaseClient exposes account profile and daily recommendations through the pinned capabilities', async () => {
+  const calls: string[] = [];
+  const client = new NeteaseClient('synthetic-credential', baseApi({
+    async user_account(params) {
+      calls.push(`account:${String(params.cookie)}`);
+      return {
+        body: {
+          code: 200,
+          profile: {
+            nickname: 'Synthetic Listener',
+            avatarUrl: 'https://p1.music.126.net/avatar.jpg',
+          },
+        },
+      };
+    },
+    async recommend_songs(params) {
+      calls.push(`recommend:${String(params.afresh)}:${String(params.cookie)}`);
+      return {
+        body: {
+          code: 200,
+          dailySongs: [track(501, 'Daily Pick')],
+          recommendReasons: [{ songId: 501, reason: 'Synthetic taste match' }],
+        },
+      };
+    },
+  }));
+
+  assert.deepEqual(await client.getPublicAccountProfile(), {
+    displayName: 'Synthetic Listener',
+    avatarUrl: 'https://p1.music.126.net/avatar.jpg',
+  });
+  const recommendations = await client.getDailyRecommendations();
+  assert.equal(recommendations.tracks[0]?.id, '501');
+  assert.equal(recommendations.tracks[0]?.recommendationReason, 'Synthetic taste match');
+  assert.deepEqual(calls, [
+    'account:synthetic-credential',
+    'recommend:false:synthetic-credential',
+  ]);
 });
 
 test('NeteaseClient maps user playlists and loads only one playlist detail page', async () => {

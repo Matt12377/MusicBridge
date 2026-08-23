@@ -50,8 +50,12 @@ export class MainDiagnosticRecorder {
     })
   }
 
-  recordLifecycle(event: string, level: 'info' | 'warn' | 'error' = 'info'): void {
-    this.buffer.record({ component: 'main', level, event })
+  recordLifecycle(
+    event: string,
+    level: 'info' | 'warn' | 'error' = 'info',
+    fields: { code?: string; state?: string } = {},
+  ): void {
+    this.buffer.record({ component: 'main', level, event, ...fields })
   }
 
   snapshot(health: PublicBridgeState = this.health): DiagnosticComponentSnapshot {
