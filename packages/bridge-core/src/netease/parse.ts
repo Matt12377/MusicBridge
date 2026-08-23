@@ -56,7 +56,7 @@ function safeArtworkUrl(value: unknown): string | undefined {
     const url = new URL(raw);
     const hostname = url.hostname.toLowerCase();
     if (
-      url.protocol !== 'https:' ||
+      (url.protocol !== 'https:' && url.protocol !== 'http:') ||
       (hostname !== 'music.126.net' && !hostname.endsWith('.music.126.net')) ||
       url.username !== '' ||
       url.password !== '' ||
@@ -64,6 +64,9 @@ function safeArtworkUrl(value: unknown): string | undefined {
     ) {
       return undefined;
     }
+    // 网易云部分 Provider 接口仍返回 http 图片地址；只对已白名单的
+    // NetEase 图片域名升级为 HTTPS，避免放宽到任意上游 URL。
+    url.protocol = 'https:';
     return url.toString();
   } catch {
     return undefined;

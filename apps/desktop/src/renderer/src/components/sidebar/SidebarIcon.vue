@@ -1,5 +1,5 @@
 <script setup lang="ts">
-type IconName = 'chevron-down' | 'chevron-left' | 'chevron-right' | 'grid' | 'heart' | 'home' | 'list' | 'more' | 'music-note' | 'search' | 'speaker' | 'user'
+type IconName = 'chevron-down' | 'chevron-left' | 'chevron-right' | 'grid' | 'heart' | 'home' | 'list' | 'more' | 'music-note' | 'play' | 'search' | 'speaker' | 'user'
 
 withDefaults(defineProps<{
   name: IconName
@@ -21,6 +21,7 @@ withDefaults(defineProps<{
     <path v-if="name === 'speaker'" d="M4 9.5v5h3.5l4.5 3.5V6L7.5 9.5H4ZM16 9a4.5 4.5 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11" />
     <path v-if="name === 'user'" d="M20 20a8 8 0 0 0-16 0M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" />
     <path v-if="name === 'music-note'" d="M9 18.5a3 3 0 1 1-3-3c1.1 0 2.1.6 2.6 1.5V5l9-2v11.5a3 3 0 1 1-3-3c1.1 0 2.1.6 2.6 1.5V7.4L9 9V18.5Z" />
+    <path v-if="name === 'play'" d="m8 5 11 7-11 7V5Z" fill="currentColor" stroke="none" />
     <path v-if="name === 'chevron-down'" d="m6 9 6 6 6-6" />
     <path v-if="name === 'chevron-left'" d="m15 18-6-6 6-6" />
     <path v-if="name === 'chevron-right'" d="m9 18 6-6-6-6" />

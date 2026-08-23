@@ -68,6 +68,7 @@ function localDayKey(now = Date.now()): string {
 
 const appInfo = ref<AppInfo | null>(null)
 const currentView = ref<ViewId>('home')
+const nowPlayingReturnView = ref<ViewId>('home')
 const sidebar = useSidebarState()
 const searchReturnSource = ref<SidebarSource>({ type: 'home' })
 const coreState = ref<PublicBridgeState | null>(null)
@@ -139,11 +140,28 @@ const selectedZone = computed(() => {
   return zones.value.find((zone) => zone.zoneId === selectedId) ?? zones.value.find((zone) => zone.selected)
 })
 const viewTitle = computed(() => VIEW_LABELS[currentView.value])
+const isImmersiveNowPlaying = computed(() => currentView.value === 'now-playing')
 const hasPlaybackIssue = computed(() => Boolean(playbackState.value?.lastIssue || actionError.value))
 
+function enterNowPlaying(): void {
+  if (currentView.value !== 'now-playing') nowPlayingReturnView.value = currentView.value
+  currentView.value = 'now-playing'
+  inspectorOpen.value = false
+}
+
+function exitNowPlaying(): void {
+  const destination = nowPlayingReturnView.value
+  currentView.value = destination === 'now-playing' ? 'home' : destination
+  inspectorOpen.value = false
+}
+
 function navigate(view: ViewId): void {
+  if (view === 'now-playing') {
+    enterNowPlaying()
+    return
+  }
   currentView.value = view
-  if (view !== 'now-playing' && view !== 'queue') inspectorOpen.value = false
+  if (view !== 'queue') inspectorOpen.value = false
   actionError.value = null
   actionDiagnosticId.value = null
   if (view === 'search' && searchQuery.value.trim()) scheduleSearch()
@@ -613,10 +631,15 @@ async function playTrack(track: TrackSummary, addToQueue = false): Promise<void>
     } else {
       applyPlaybackState(await window.musicBridge.play(track.id, selectedQuality.value))
     }
-    currentView.value = 'now-playing'
+    enterNowPlaying()
   } catch (error) {
     recordActionError(error)
   }
+}
+
+function playCurrentTrack(): void {
+  const track = currentTrack.value
+  if (track) void playTrack(track)
 }
 
 async function playAllDailyRecommendations(): Promise<void> {
@@ -628,7 +651,7 @@ async function playAllDailyRecommendations(): Promise<void> {
   }))
   try {
     applyPlaybackState(await window.musicBridge.replaceQueue(items, 0))
-    currentView.value = 'now-playing'
+    enterNowPlaying()
   } catch (error) {
     recordActionError(error)
   }
@@ -639,7 +662,7 @@ async function playQueueItem(item: PlaybackQueueItem, index: number): Promise<vo
   if (!items?.length) return
   try {
     applyPlaybackState(await window.musicBridge.replaceQueue(ipcQueueItems(items), index))
-    currentView.value = 'now-playing'
+    enterNowPlaying()
   } catch (error) {
     recordActionError(error)
   }
@@ -692,11 +715,13 @@ function handleSidebarAccount(): void {
 }
 
 function openLyrics(): void {
+  if (isImmersiveNowPlaying.value) exitNowPlaying()
   lyricsOrQueue.value = 'lyrics'
   inspectorOpen.value = true
 }
 
 function openQueue(): void {
+  if (isImmersiveNowPlaying.value) exitNowPlaying()
   lyricsOrQueue.value = 'queue'
   inspectorOpen.value = true
 }
@@ -706,7 +731,7 @@ function closeInspector(): void {
 }
 
 function openNowPlaying(): void {
-  currentView.value = 'now-playing'
+  enterNowPlaying()
 }
 
 function navigateShortcut(source: SidebarSource): void {
@@ -714,6 +739,11 @@ function navigateShortcut(source: SidebarSource): void {
 }
 
 function onGlobalShortcut(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && isImmersiveNowPlaying.value) {
+    event.preventDefault()
+    exitNowPlaying()
+    return
+  }
   if (event.key === 'Escape' && searchQuery.value) {
     event.preventDefault()
     clearSearch()
@@ -816,10 +846,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main class="app-shell" data-ui-reference="simple-music-player-2">
+  <main class="app-shell" :class="{ 'is-now-playing': isImmersiveNowPlaying }" data-ui-reference="simple-music-player-2">
     <AlbumAmbientBackground :current-track="ambientTrack" />
     <div class="app-main">
       <MusicSidebar
+        v-if="!isImmersiveNowPlaying"
         :expanded="sidebar.expanded.value"
         :active-source="sidebar.activeSource.value"
         :search-query="searchQuery"
@@ -837,8 +868,8 @@ onUnmounted(() => {
         @account="handleSidebarAccount"
       />
 
-      <section class="workspace">
-      <header class="topbar">
+      <section class="workspace" :class="{ 'is-immersive': isImmersiveNowPlaying }">
+      <header v-if="!isImmersiveNowPlaying" class="topbar">
         <div class="topbar-leading">
           <div>
             <p class="section-kicker">Music Bridge</p>
@@ -848,8 +879,8 @@ onUnmounted(() => {
         <ToolbarStatusPopover :core-state="coreState" :selected-zone="selectedZone" @diagnostics="navigate('diagnostics')" />
       </header>
 
-      <div class="workspace-body">
-      <div class="content-scroll">
+      <div class="workspace-body" :class="{ 'is-immersive': isImmersiveNowPlaying }">
+      <div class="content-scroll" :class="{ 'is-immersive': isImmersiveNowPlaying }">
         <HomeView
           v-if="currentView === 'home'"
           :current-track="currentTrack"
@@ -878,6 +909,7 @@ onUnmounted(() => {
           :tracks="dailyRecommendations.tracks"
           :state="dailyState"
           :error="dailyError"
+          @back="navigate('home')"
           @play="playTrack"
           @queue="(track) => playTrack(track, true)"
           @play-all="playAllDailyRecommendations"
@@ -939,10 +971,13 @@ onUnmounted(() => {
           :current-track="currentTrack"
           :playback-state="playbackState"
           :lyrics-snapshot="lyricsSnapshot"
+          :selected-quality="selectedQuality"
           :quality-label="qualityLabel"
           :quality-notice="playbackState?.qualityNotice"
           :playback-issue-message="playbackIssueMessage"
+          @back="exitNowPlaying"
           @previous="previousTrack"
+          @play-current="playCurrentTrack"
           @stop="stopPlayback"
           @next="nextTrack"
         />
@@ -977,7 +1012,7 @@ onUnmounted(() => {
         </section>
       </div>
       <PlaybackInspector
-        v-if="inspectorOpen"
+        v-if="inspectorOpen && !isImmersiveNowPlaying"
         :mode="lyricsOrQueue"
         :current-track="currentTrack"
         :playback-state="playbackState"
@@ -993,20 +1028,23 @@ onUnmounted(() => {
     </div>
 
     <BottomPlayer
+      v-if="!isImmersiveNowPlaying"
       :current-track="currentTrack"
       :playback-state="playbackState"
       :current-lyric-line="currentLyricLine"
       :zones="zones"
       :selected-zone="selectedZone"
       :roon-status="coreState?.roon ?? 'disconnected'"
-      :actual-quality="qualityLabel(playbackState?.actualQuality)"
+      :selected-quality="selectedQuality"
       @previous="previousTrack"
+      @play-current="playCurrentTrack"
       @stop="stopPlayback"
       @next="nextTrack"
       @open-now-playing="openNowPlaying"
       @open-lyrics="openLyrics"
       @open-queue="openQueue"
       @select-zone="selectZone"
+      @update:selected-quality="selectedQuality = $event"
     />
 
   </main>

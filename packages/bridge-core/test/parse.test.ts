@@ -216,6 +216,27 @@ test('parses the daily recommendation response wrapper, merges reasons, deduplic
   assert.equal(snapshot.tracks[0]?.artworkUrl, 'https://p1.music.126.net/recommend.jpg');
 });
 
+test('upgrades trusted NetEase HTTP artwork URLs so daily recommendations keep their covers', () => {
+  const snapshot = parseDailyRecommendations(
+    {
+      body: {
+        code: 200,
+        dailySongs: [
+          {
+            id: 9001,
+            name: 'HTTP Artwork Recommendation',
+            ar: [{ name: 'Synthetic Artist' }],
+            al: { name: 'Synthetic Album', picUrl: 'http://p1.music.126.net/recommend-http.jpg' },
+          },
+        ],
+      },
+    },
+    '2026-08-22',
+  );
+
+  assert.equal(snapshot.tracks[0]?.artworkUrl, 'https://p1.music.126.net/recommend-http.jpg');
+});
+
 test('parses empty and nested daily recommendation data while filtering malformed tracks', () => {
   assert.deepEqual(
     parseDailyRecommendations({ body: { code: 200, data: { dailySongs: [] } } }, '2026-08-22'),

@@ -3,6 +3,11 @@ import test from 'node:test';
 import type { PublicBridgeState } from '@music-bridge/contracts';
 import { createTestBridgeRuntime, toPublicBridgeState } from '../src/runtime.js';
 
+function localDayKey(now = Date.now()): string {
+  const date = new Date(now);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 test('runtime maps internal BridgeState to a bounded public state', () => {
   const state = toPublicBridgeState(
     {
@@ -110,7 +115,7 @@ test('synthetic runtime clears public account and daily recommendations after ex
   assert.deepEqual(runtime.getAuthState(), { status: 'expired' });
   assert.deepEqual(runtime.getAccountState(), { status: 'missing' });
   assert.deepEqual(await runtime.getDailyRecommendations(), {
-    dayKey: new Date().toISOString().slice(0, 10),
+    dayKey: localDayKey(),
     tracks: [],
   });
 });
