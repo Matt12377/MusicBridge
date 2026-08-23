@@ -7,7 +7,8 @@
 - 工作分支：`codex/task-036-main-stabilization`
 - PR：`#2`，base=`main`，head=`codex/task-036-main-stabilization`，状态 **Open**
 - 本轮修复后的实现 HEAD：`39db58cf22f1eaf33400c66396c49f43c0b7c6d2`
-- PR #2 当前未合并，未发布 Release；PR 的最终 HEAD 还会包含本报告提交以及后续只更新 `project/STATUS.json` 的 identity commit。
+- 本轮远端重跑前的报告提交：`0620218afaa3d68c45868b23458bbea25a3d8790`
+- PR #2 当前未合并，未发布 Release；PR 的最终 HEAD 还会包含本报告最终修订提交以及后续只更新 `project/STATUS.json` 的 identity commit。
 - 初始报告提交：`5a2ea20465332cc9fc3dda1fa1bea5c659465bfe`
 - 最终修订后的报告提交由后续 STATUS identity commit 的 `reportCommit` 锁定；最终身份 SHA 在交付记录中给出。
 
@@ -81,10 +82,19 @@
 
 本机验证只使用 synthetic credential、synthetic Core/Provider 和 fake 测试边界；没有访问真实 Provider、真实 Roon、SSH 或账号。
 
+远端对新 HEAD `0620218afaa3d68c45868b23458bbea25a3d8790` 的四个逻辑必需 Check 已重新通过；push 与 `pull_request` 双触发产生的重复运行也均为成功：
+
+| 必需 Check | 成功 Job 证据 |
+|---|---|
+| `verify` | [rerun job 97163181936](https://github.com/Matt12377/MusicBridge/actions/runs/32626693108/job/97163181936)；PR run [97163003413](https://github.com/Matt12377/MusicBridge/actions/runs/32626694806/job/97163003413) |
+| `dependency-audit` | [rerun job 97163182738](https://github.com/Matt12377/MusicBridge/actions/runs/32626693108/job/97163182738)；PR run [97163003516](https://github.com/Matt12377/MusicBridge/actions/runs/32626694806/job/97163003516) |
+| `static-security` | [push job 97162999136](https://github.com/Matt12377/MusicBridge/actions/runs/32626693107/job/97162999136)；PR run [97163003447](https://github.com/Matt12377/MusicBridge/actions/runs/32626694808/job/97163003447) |
+| `macos-electron-gate` | [push job 97162999191](https://github.com/Matt12377/MusicBridge/actions/runs/32626693112/job/97162999191)；PR run [97163003345](https://github.com/Matt12377/MusicBridge/actions/runs/32626694811/job/97163003345) |
+
 ## 四、完成收尾时的 Git 身份证据
 
 - `git rev-parse origin/main`：`8948aead451e38dddaf7d94756bbebdee946c6b0`
-- `git rev-parse HEAD`：本轮实现提交为 `39db58cf22f1eaf33400c66396c49f43c0b7c6d2`；报告提交和最终 STATUS identity commit 会顺序追加，最终 HEAD 以身份提交为准。
+- `git rev-parse HEAD`：本轮报告修订提交为 `0620218afaa3d68c45868b23458bbea25a3d8790`；最终 STATUS identity commit 会继续追加，最终 HEAD 以身份提交为准。
 - 最终 `git status --short --branch` 必须如实保留本地 worktree 容器：
 
   ```text
@@ -110,7 +120,7 @@
 
 ## 六、STATUS、carryover 与下一基线
 
-修复期间 `project/STATUS.json` 已恢复为 `in_progress`，并移除 `local-pass-awaiting-push`。自动化与安全 Gate 的状态按事实记录为：旧 PR HEAD 的 GitHub PR automated/security Gate 已通过，新 HEAD 需重新运行；真实 Provider/Roon 仍为 Owner-only pending。完成新一轮远端 Check 后，最终 STATUS identity commit 才将 `state` 改为 `complete`，并将 `reportCommit` 指向本报告最终提交。
+修复期间 `project/STATUS.json` 已恢复为 `in_progress`，并移除 `local-pass-awaiting-push`。截至本报告修订时，真正冷启动 Gate 和新 HEAD 的四个远端 Check 均已通过；真实 Provider/Roon 仍为 Owner-only pending。下一步只用一个 STATUS identity commit 将 `state` 改为 `complete`，并将 `reportCommit` 指向本报告最终提交。
 
 明确 carryover：
 
@@ -124,6 +134,6 @@
 
 ## 七、结论
 
-本报告在当前本地修复阶段结论为：**LOCAL PASS；PR #2 新 HEAD 的四个远端必需 Check 仍待重新运行，暂不宣称完整 PASS，也不执行合并。**
+结论：**PASS — 本地验证、真正双进程 Electron cold-start credential recovery、PR #2 新 HEAD 的四个必需 Check 均已通过；PR #2 仍保持 Open，未执行合并。**
 
 本任务不修改产品功能、Provider、Roon、Remote Core、UI、版本号或 beta.1 历史证据。
