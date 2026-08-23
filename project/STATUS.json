@@ -7,7 +7,7 @@
   "state": "complete",
   "baseCommit": "8948aead451e38dddaf7d94756bbebdee946c6b0",
   "implementationCommit": "05387cb7c0ad4287d52508efc9387fe9c8ca69c8",
-  "reportCommit": null,
+  "reportCommit": "5a2ea20465332cc9fc3dda1fa1bea5c659465bfe",
   "nextTask": null,
   "gates": {
     "automated": "local-pass-awaiting-push",
