@@ -6,7 +6,7 @@ export type PlaylistLoadState = 'loading' | 'ready' | 'error'
 /** 只管理公开歌单列表与其加载状态，不保存账户或 Provider 会话资料。 */
 export function useLibrarySources() {
   const playlists = ref<readonly PlaylistSummary[]>([])
-  const playlistState = ref<PlaylistLoadState>('loading')
+  const playlistState = ref<PlaylistLoadState>('ready')
   const playlistError = ref<unknown | null>(null)
   let operation = 0
 
@@ -27,10 +27,18 @@ export function useLibrarySources() {
     }
   }
 
+  function reset(): void {
+    operation += 1
+    playlists.value = []
+    playlistError.value = null
+    playlistState.value = 'ready'
+  }
+
   return {
     playlists,
     playlistState,
     playlistError,
     loadPlaylists,
+    reset,
   }
 }

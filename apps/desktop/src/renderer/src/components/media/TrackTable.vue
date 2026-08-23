@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { TrackSummary } from '@music-bridge/contracts'
+import SafeArtwork from '../SafeArtwork.vue'
 
 const props = withDefaults(defineProps<{
   tracks: readonly TrackSummary[]
   busy?: boolean
+  initialLoading?: boolean
+  loadingMore?: boolean
+  loadMoreError?: string | null
   total?: number
   hasMore?: boolean
   emptyTitle?: string
@@ -12,6 +16,9 @@ const props = withDefaults(defineProps<{
   emptyGlyph?: string
 }>(), {
   busy: false,
+  initialLoading: false,
+  loadingMore: false,
+  loadMoreError: null,
   total: 0,
   hasMore: false,
   emptyTitle: '没有歌曲',
@@ -28,16 +35,15 @@ const emit = defineEmits<{
 
 const contextTrack = ref<TrackSummary | null>(null)
 const contextPosition = ref({ x: 0, y: 0 })
+const sentinel = ref<HTMLElement | null>(null)
+let observer: IntersectionObserver | undefined
+
+const isInitialLoading = () => (props.initialLoading || props.busy) && props.tracks.length === 0
 
 function formatDuration(durationMs: number | undefined): string {
   if (!durationMs || durationMs < 0) return '—'
   const seconds = Math.floor(durationMs / 1_000)
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
-}
-
-function hideBrokenArtwork(event: Event): void {
-  const image = event.currentTarget as HTMLImageElement
-  image.hidden = true
 }
 
 function showContextMenu(event: MouseEvent, track: TrackSummary): void {
@@ -71,13 +77,34 @@ function playNextFromContext(): void {
   closeContextMenu()
 }
 
-onMounted(() => document.addEventListener('click', closeContextMenu))
-onUnmounted(() => document.removeEventListener('click', closeContextMenu))
+function observeSentinel(): void {
+  observer?.disconnect()
+  observer = undefined
+  if (!props.hasMore || props.loadMoreError || typeof IntersectionObserver === 'undefined' || !sentinel.value) return
+  observer = new IntersectionObserver((entries) => {
+    if (entries.some((entry) => entry.isIntersecting) && !props.loadingMore && !props.busy) {
+      emit('load-more')
+    }
+  }, { rootMargin: '240px 0px' })
+  observer.observe(sentinel.value)
+}
+
+onMounted(() => {
+  document.addEventListener('click', closeContextMenu)
+  void nextTick(observeSentinel)
+})
+watch(() => [props.hasMore, props.loadMoreError, props.tracks.length, props.loadingMore], () => {
+  void nextTick(observeSentinel)
+})
+onUnmounted(() => {
+  document.removeEventListener('click', closeContextMenu)
+  observer?.disconnect()
+})
 </script>
 
 <template>
   <div class="track-table-wrap">
-    <div v-if="props.busy" class="empty-state track-table-state"><span class="loading-line"></span><p>正在读取歌曲…</p></div>
+    <div v-if="isInitialLoading()" class="empty-state track-table-state"><span class="loading-line"></span><p>正在读取歌曲…</p></div>
     <div v-else-if="!props.tracks.length" class="empty-state track-table-state">
       <span class="empty-glyph" aria-hidden="true">{{ props.emptyGlyph }}</span>
       <h3>{{ props.emptyTitle }}</h3>
@@ -98,7 +125,7 @@ onUnmounted(() => document.removeEventListener('click', closeContextMenu))
         @contextmenu="showContextMenu($event, track)"
       >
         <span class="track-index" aria-hidden="true"><span class="track-number">{{ index + 1 }}</span><span class="track-play-mark">▶</span></span>
-        <span class="track-art"><span class="artwork-fallback" aria-hidden="true">♪</span><img v-if="track.artworkUrl" :src="track.artworkUrl" :alt="`${track.title} 封面`" loading="lazy" @error="hideBrokenArtwork" /></span>
+        <SafeArtwork class="track-art" :src="track.artworkUrl" :alt="`${track.title} 封面`" />
         <span class="track-copy"><strong>{{ track.title }}</strong><small>{{ track.artists.join('、') }}</small></span>
         <span class="track-album">{{ track.album }}</span>
         <span class="track-duration">{{ formatDuration(track.durationMs) }}</span>
@@ -109,8 +136,13 @@ onUnmounted(() => document.removeEventListener('click', closeContextMenu))
       </div>
     </div>
 
-    <div v-if="props.hasMore" class="track-table-more">
-      <button type="button" class="text-button" :disabled="props.busy" @click="emit('load-more')">加载更多歌曲</button>
+    <div v-if="props.hasMore" ref="sentinel" class="track-table-more">
+      <span v-if="props.loadingMore" class="loading-more-label" role="status" aria-live="polite">正在加载更多…</span>
+      <template v-else-if="props.loadMoreError">
+        <span class="load-more-error" role="status">{{ props.loadMoreError }}</span>
+        <button type="button" class="text-button" @click="emit('load-more')">重试</button>
+      </template>
+      <button v-else type="button" class="text-button" :disabled="props.busy" @click="emit('load-more')">加载更多歌曲</button>
       <span v-if="props.total">已显示 {{ props.tracks.length }} / {{ props.total }}</span>
     </div>
 

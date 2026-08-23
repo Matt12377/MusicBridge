@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import type { Page } from '@music-bridge/contracts'
+import type { Page, TrackSummary } from '@music-bridge/contracts'
 import { appendPage } from '../src/renderer/src/composables/libraryPagination.js'
 
 function page(items: string[], offset: number, hasMore: boolean): Page<string> {
@@ -22,4 +22,14 @@ test('a fresh page resets stale tracks', () => {
   assert.deepEqual(result.items, ['新内容'])
   assert.equal(result.offset, 0)
   assert.equal(result.hasMore, false)
+})
+
+test('track pages de-duplicate by id while preserving provider order', () => {
+  const track = (id: string): TrackSummary => ({ id, title: id, artists: ['Artist'], album: 'Album' })
+  const result = appendPage(
+    { items: [track('1'), track('2')], offset: 0, limit: 2, total: 4, hasMore: true },
+    { items: [track('2'), track('3')], offset: 2, limit: 2, total: 4, hasMore: false },
+  )
+
+  assert.deepEqual(result.items.map((item) => item.id), ['1', '2', '3'])
 })

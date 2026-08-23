@@ -60,7 +60,9 @@ test('Renderer contains the public QR login surface without credential access', 
     assert.match(source, new RegExp(text))
   }
   assert.match(source, /SEARCH_DEBOUNCE_MS/)
-  assert.match(source, /libraryOperation/)
+  assert.match(source, /searchRequestGeneration/)
+  assert.match(source, /likedRequestGeneration/)
+  assert.match(source, /playlistRequestGeneration/)
   assert.match(source, /loading="lazy"/)
   assert.doesNotMatch(source, /NETEASE_COOKIE|MUSIC_U|__csrf|Authorization|Bearer|rawProviderResponse/)
   assert.match(source, /lyricsSnapshot/)
@@ -84,7 +86,7 @@ test('Renderer exposes the v2 Music Source Sidebar information architecture', as
     '资料库',
     '我喜欢的音乐',
     '所有歌单',
-    '搜索歌曲、歌手或歌单',
+    '搜索歌曲或歌手',
     '播放设备',
     'SidebarAccountFooter.vue',
     'sidebar-account-footer',
@@ -133,8 +135,8 @@ test('Playlist detail exposes loading and retry states instead of retaining stal
   assert.ok(nextViewStart > detailStart)
 
   const detailTemplate = source.slice(detailStart, nextViewStart)
-  assert.match(detailTemplate, /libraryBusy/)
-  assert.match(detailTemplate, /libraryError/)
+  assert.match(detailTemplate, /playlistInitialLoading/)
+  assert.match(detailTemplate, /playlistDetailError/)
   assert.match(detailTemplate, /重试/)
 })
 

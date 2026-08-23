@@ -28,7 +28,6 @@ function onGlobalKeydown(event: KeyboardEvent): void {
 
 function onInput(value: string): void {
   emit('update:modelValue', value)
-  if (!value.trim()) emit('clear-search')
 }
 
 function onKeydown(event: KeyboardEvent): void {
@@ -49,8 +48,8 @@ onUnmounted(() => window.removeEventListener('keydown', onGlobalKeydown))
     </button>
     <label v-else class="sidebar-search-field">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="7.2" /><path d="m20 20-4.3-4.3" /></svg>
-      <span class="visually-hidden">搜索歌曲、歌手或歌单</span>
-      <input ref="input" :value="modelValue" type="search" maxlength="100" placeholder="搜索歌曲、歌手或歌单" aria-label="搜索歌曲、歌手或歌单" @input="onInput(($event.target as HTMLInputElement).value)" @keydown="onKeydown" />
+      <span class="visually-hidden">搜索歌曲或歌手</span>
+      <input ref="input" :value="modelValue" type="search" maxlength="100" placeholder="搜索歌曲或歌手" aria-label="搜索歌曲或歌手" @input="onInput(($event.target as HTMLInputElement).value)" @keydown="onKeydown" />
       <kbd aria-hidden="true">⌘L</kbd>
     </label>
   </div>
