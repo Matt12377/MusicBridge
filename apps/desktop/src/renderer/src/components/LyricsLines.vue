@@ -121,7 +121,7 @@ onUnmounted(() => {
       }"
     >
       <span v-if="entry.line.words?.length" class="lyrics-words">
-        <span v-for="(word, wordIndex) in entry.line.words" :key="`${word.startMs}-${wordIndex}`" :class="{ 'word-active': props.snapshot.activeLineIndex === entry.index && entry.distance === 0 && props.snapshot.activeWordIndex === wordIndex }">{{ word.text }}</span>
+        <span v-for="(word, wordIndex) in entry.line.words" :key="`${word.startMs}-${wordIndex}`">{{ word.text }}</span>
       </span>
       <span v-else>{{ entry.line.text }}</span>
       <small v-if="entry.line.translation">{{ entry.line.translation }}</small>

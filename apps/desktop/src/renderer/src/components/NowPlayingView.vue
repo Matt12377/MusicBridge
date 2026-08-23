@@ -76,17 +76,6 @@ function formatTime(milliseconds: number): string {
   return `${minutes}:${seconds}`
 }
 
-function lyricsStatusLabel(status: LyricsSnapshot['status']): string {
-  return {
-    idle: '待播放',
-    loading: '正在读取',
-    ready: '已同步',
-    instrumental: '纯音乐',
-    unavailable: '暂无歌词',
-    error: '歌词不可用',
-  }[status]
-}
-
 </script>
 
 <template>
@@ -125,8 +114,7 @@ function lyricsStatusLabel(status: LyricsSnapshot['status']): string {
         </div>
       </div>
 
-      <div class="now-playing-lyrics" aria-label="同步歌词">
-        <div class="now-playing-lyrics-heading"><div><p class="section-kicker">歌词</p><h3>同步歌词</h3></div><span>{{ lyricsStatusLabel(props.lyricsSnapshot.status) }}</span></div>
+      <div class="now-playing-lyrics" aria-label="歌词滚动区域">
         <LyricsLines :snapshot="props.lyricsSnapshot" :track-id="props.currentTrack?.id" class="now-playing-lyrics-lines" />
       </div>
     </div>
