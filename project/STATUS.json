@@ -4,14 +4,14 @@
   "wave": "WAVE-3",
   "task": "TASK-036",
   "branch": "codex/task-036-main-stabilization",
-  "state": "in_progress",
+  "state": "complete",
   "baseCommit": "8948aead451e38dddaf7d94756bbebdee946c6b0",
-  "implementationCommit": null,
+  "implementationCommit": "05387cb7c0ad4287d52508efc9387fe9c8ca69c8",
   "reportCommit": null,
   "nextTask": null,
   "gates": {
-    "automated": "pending",
-    "security": "pending",
+    "automated": "local-pass-awaiting-push",
+    "security": "local-pass-awaiting-push",
     "realProvider": "not-run-owner-only",
     "realRoon": "owner-only-pending"
   },
