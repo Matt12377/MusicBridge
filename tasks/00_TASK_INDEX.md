@@ -23,7 +23,11 @@
 | TASK-030 | V1 主界面 | 024 | Home/Search/Library/Now Playing/Settings |
 | TASK-031 | 诊断、崩溃恢复与长队列 | 030 | 30 首稳定性 Gate |
 | TASK-032 | 菜单栏与应用生命周期 | 031 | 关闭窗口不误杀、退出完整清理 |
-| TASK-040 | DMG、签名、公证与干净机 | 032 | Beta 安装 Gate |
+| TASK-033 | V1 UI 参考适配（Music Source Sidebar） | 032 | Apple Music 风格导航、synthetic 截图与 E2E |
+| TASK-034 | 每日推荐与账户 Settings | 033 | 推荐解析契约、账户 Hero 与 synthetic E2E |
+| TASK-035 | Remote Core 开发模式 | 034 | 隧道安全边界、Core/Gateway 合成 Gate |
+| TASK-036 | Main CI 稳定化与 Beta.2 重建基线 | 035 | 分层 CI 全绿、控制面一致、beta.2 基线结构 |
+| TASK-040 | DMG、签名、公证与干净机 | 036 | Beta 安装 Gate |
 | TASK-041 | Beta 总验收与发布包 | 040 | V1 Beta 报告 |
 
 任何任务若为 BLOCKED，后续任务自动暂停。
