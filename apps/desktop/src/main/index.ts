@@ -67,6 +67,10 @@ import {
   LOCAL_STREAM_PORT,
   RemoteCoreTunnelManager,
 } from './remote-core-tunnel.js'
+import {
+  readStartupTestConfiguration,
+  type ElectronColdStartStage,
+} from './startup-test-config.js'
 import trayTemplateSvg from './assets/musicbridge-tray-template.svg?raw'
 import {
   buildTrayPresentation,
@@ -88,13 +92,16 @@ protocol.registerSchemesAsPrivileged([
 
 const currentFile = fileURLToPath(import.meta.url)
 const currentDirectory = path.dirname(currentFile)
-const isStartupTest = process.env.MUSIC_BRIDGE_STARTUP_TEST === '1'
+const startupTestConfiguration = readStartupTestConfiguration()
+const isStartupTest = startupTestConfiguration.isStartupTest
 const isUiE2e = process.env.MUSIC_BRIDGE_UI_E2E === '1'
-const isCoreCrashGate = isStartupTest && process.env.MUSIC_BRIDGE_CORE_CRASH_GATE === '1'
-const isCredentialVaultGate =
-  isStartupTest && process.env.MUSIC_BRIDGE_CREDENTIAL_VAULT_GATE === '1'
-const isCredentialRecoveryGate =
-  isStartupTest && process.env.MUSIC_BRIDGE_CREDENTIAL_RECOVERY_GATE === '1'
+const isCoreCrashGate = startupTestConfiguration.coreCrashGate
+const isCredentialVaultGate = startupTestConfiguration.credentialVaultGate
+const isCoreRestartCredentialRecoveryGate =
+  startupTestConfiguration.coreRestartCredentialRecoveryGate
+const electronColdStartStage: ElectronColdStartStage | undefined =
+  startupTestConfiguration.electronColdStartStage
+const isElectronColdStartGate = electronColdStartStage !== undefined
 const isRoonTimeGate = process.env.MUSIC_BRIDGE_ROON_TIME_GATE === '1'
 
 let mainWindow: BrowserWindow | undefined
@@ -754,7 +761,7 @@ function buildCoreEnvironment(): NodeJS.ProcessEnv {
   return buildAllowlistedCoreEnvironment(process.env, {
     startupTest: isStartupTest,
     uiE2e: isUiE2e,
-    coreCrashGate: isCoreCrashGate || isCredentialRecoveryGate,
+    coreCrashGate: isCoreCrashGate || isCoreRestartCredentialRecoveryGate,
     roonTimeGate: isRoonTimeGate,
     remoteCoreMode: coreMode,
     ...(remoteStreamPort !== undefined ? { remoteStreamPort } : {}),
@@ -861,7 +868,13 @@ async function prepareCoreDataDirectory(): Promise<{
   dataDirectory: string
   credentialVault: CredentialVault
 }> {
-  if (isStartupTest || isUiE2e) {
+  if (isStartupTest) {
+    const userDataDirectory = startupTestConfiguration.userDataDirectory
+    if (!userDataDirectory) {
+      throw new Error('Electron startup test userData directory is missing')
+    }
+    app.setPath('userData', userDataDirectory)
+  } else if (isUiE2e) {
     app.setPath('userData', path.join(app.getPath('temp'), 'musicbridge-task012-startup'))
   }
   const dataDirectory = path.join(app.getPath('userData'), 'data')
@@ -899,7 +912,20 @@ async function runCredentialVaultGate(credentialVault: CredentialVault): Promise
   return stored.status === 'configured' && stored.credential === testCredential && deleted
 }
 
-async function waitForCredentialRecovery(
+async function waitForProviderConfigured(
+  supervisor: CoreSupervisor,
+  credentialVault: CredentialVault,
+): Promise<boolean> {
+  try {
+    const health = await supervisor.request('core.getHealth', {})
+    const stored = await credentialVault.read()
+    return health.provider === 'configured' && stored.status === 'configured'
+  } catch {
+    return false
+  }
+}
+
+async function waitForCoreRestartCredentialRecovery(
   supervisor: CoreSupervisor,
   credentialVault: CredentialVault,
 ): Promise<boolean> {
@@ -907,14 +933,7 @@ async function waitForCredentialRecovery(
   while (Date.now() < deadline) {
     if (supervisor.restarts === 1 && supervisor.status === 'ready') {
       try {
-        const health = await supervisor.request('core.getHealth', {})
-        const stored = await credentialVault.read()
-        if (
-          health.provider === 'configured' &&
-          stored.status === 'configured'
-        ) {
-          return true
-        }
+        if (await waitForProviderConfigured(supervisor, credentialVault)) return true
       } catch {
         // The restart boundary is allowed to race one health request.
       }
@@ -931,7 +950,7 @@ async function bootstrap(): Promise<void> {
   installSessionSecurity(session.defaultSession)
 
   const prepared = await prepareCoreDataDirectory()
-  if (isCredentialVaultGate && !isCredentialRecoveryGate) {
+  if (isCredentialVaultGate && !isCoreRestartCredentialRecoveryGate && !isElectronColdStartGate) {
     try {
       const passed = await runCredentialVaultGate(prepared.credentialVault)
       process.stdout.write(`${passed ? 'CREDENTIAL_VAULT_GATE_PASS' : 'CREDENTIAL_VAULT_GATE_FAIL'}\n`)
@@ -971,27 +990,52 @@ async function bootstrap(): Promise<void> {
     },
   })
   coreSupervisor = supervisor
-  if (isCredentialRecoveryGate) {
+  if (isCoreRestartCredentialRecoveryGate || electronColdStartStage === 'seed') {
     await prepared.credentialVault.save('v'.repeat(32))
   }
   await supervisor.start()
-  await provisionProviderCredential({
-    vault: prepared.credentialVault,
-    environment: process.env,
-    core: {
-      verifyCredential: async (credential) =>
-        (await supervisor.requestInternal('auth.verifyCredential', { credential })).status,
-      setCredential: (credential) =>
-        supervisor.request('auth.setCredential', { credential }),
-      clearCredential: () => supervisor.request('auth.clearCredential', {}),
-    },
-  })
+  const credentialCore = {
+    verifyCredential: async (credential: string) =>
+      (await supervisor.requestInternal('auth.verifyCredential', { credential })).status,
+    setCredential: (credential: string) =>
+      supervisor.request('auth.setCredential', { credential }),
+    clearCredential: () => supervisor.request('auth.clearCredential', {}),
+  }
+  if (electronColdStartStage === 'restore') {
+    await restoreProviderCredential({ vault: prepared.credentialVault, core: credentialCore })
+  } else {
+    await provisionProviderCredential({
+      vault: prepared.credentialVault,
+      environment: process.env,
+      core: credentialCore,
+    })
+  }
   initialProvisioningComplete = true
-  if (isCredentialRecoveryGate) {
-    const passed = await waitForCredentialRecovery(supervisor, prepared.credentialVault)
+  if (isCoreRestartCredentialRecoveryGate) {
+    const passed = await waitForCoreRestartCredentialRecovery(
+      supervisor,
+      prepared.credentialVault,
+    )
     await prepared.credentialVault.delete().catch(() => undefined)
     await supervisor.shutdown()
-    process.stdout.write(`${passed ? 'CREDENTIAL_RECOVERY_GATE_PASS' : 'CREDENTIAL_RECOVERY_GATE_FAIL'}\n`)
+    process.stdout.write(
+      `${passed ? 'CORE_RESTART_CREDENTIAL_RECOVERY_GATE_PASS' : 'CORE_RESTART_CREDENTIAL_RECOVERY_GATE_FAIL'}\n`,
+    )
+    if (passed) app.quit()
+    else app.exit(1)
+    return
+  }
+  if (isElectronColdStartGate) {
+    const passed = await waitForProviderConfigured(supervisor, prepared.credentialVault)
+    if (electronColdStartStage === 'restore') {
+      await prepared.credentialVault.delete().catch(() => undefined)
+    }
+    await supervisor.shutdown()
+    const marker =
+      electronColdStartStage === 'seed'
+        ? 'ELECTRON_COLD_START_SEED'
+        : 'ELECTRON_COLD_START_RESTORE'
+    process.stdout.write(`${passed ? `${marker}_PASS` : `${marker}_FAIL`}\n`)
     if (passed) app.quit()
     else app.exit(1)
     return
