@@ -68,6 +68,8 @@ const SKIPPABLE_QUEUE_ERRORS = new Set([
   'TRACK_UNAVAILABLE',
   'TRACK_PREVIEW_ONLY',
 ]);
+const MAX_QUEUE_ITEMS = 500;
+const QUEUE_HYDRATION_BATCH_SIZE = 20;
 
 function normalizeQueueItem(input: QueueInput): QueueItem {
   const preferenceInput = input.qualityPreference ?? input.quality;
@@ -208,6 +210,7 @@ export class BridgeController {
   private lastPositionPublishedAt = Number.NEGATIVE_INFINITY;
   private pendingTerminalReason: RoonTerminalReason | undefined;
   private operationTail: Promise<void> = Promise.resolve();
+  private queueHydrationGeneration = 0;
   private readonly playbackListeners = new Set<PlaybackChangedListener>();
 
   constructor(
@@ -367,12 +370,38 @@ export class BridgeController {
     const normalizedItems = items.map((item) => normalizeQueueItem(item));
 
     return this.enqueue(async () => {
-      await this.hydrateQueueItems(normalizedItems);
+      const hydrationGeneration = ++this.queueHydrationGeneration;
+      const activePlayback = this.activePlayback;
+      const preserveActivePlayback = activePlayback !== undefined &&
+        this.playbackState === 'playing' &&
+        normalizedItems[startIndex]?.trackId === activePlayback.track.id &&
+        normalizedItems[startIndex]?.qualityPreference === activePlayback.qualityPreference;
+      const shouldHydrateInline = !preserveActivePlayback && normalizedItems.length <= QUEUE_HYDRATION_BATCH_SIZE;
+      if (shouldHydrateInline) await this.hydrateQueueItems(normalizedItems);
+
+      if (preserveActivePlayback && activePlayback) {
+        const activeItem = normalizedItems[startIndex];
+        if (activeItem) {
+          activeItem.track = toTrackSummary(activePlayback.track);
+          activeItem.requestedQuality = activePlayback.requestedQuality;
+          activeItem.actualQuality = activePlayback.actualQuality;
+        }
+        this.queue = normalizedItems;
+        this.queueIndex = startIndex;
+        this.clearPlaybackIssue();
+        this.notifyPlaybackChanged();
+        this.scheduleQueueHydration(normalizedItems, hydrationGeneration);
+        return this.getState();
+      }
+
       await this.stopActive();
       this.queue = normalizedItems;
       this.queueIndex = startIndex;
       this.clearPlaybackIssue();
       await this.startQueueIndex(startIndex, true);
+      if (!shouldHydrateInline) {
+        this.scheduleQueueHydration(normalizedItems, hydrationGeneration);
+      }
       return this.getState();
     });
   }
@@ -384,9 +413,18 @@ export class BridgeController {
     if (normalizedItems.length === 0) return this.getState();
 
     return this.enqueue(async () => {
-      await this.hydrateQueueItems(normalizedItems);
-      this.queue.push(...normalizedItems);
+      const availableSlots = Math.max(0, MAX_QUEUE_ITEMS - this.queue.length);
+      const acceptedItems = normalizedItems.slice(0, availableSlots);
+      if (acceptedItems.length === 0) return this.getState();
+
+      const hydrationGeneration = ++this.queueHydrationGeneration;
+      const shouldHydrateInline = acceptedItems.length <= QUEUE_HYDRATION_BATCH_SIZE;
+      if (shouldHydrateInline) await this.hydrateQueueItems(acceptedItems);
+      this.queue.push(...acceptedItems);
       this.notifyPlaybackChanged();
+      if (!shouldHydrateInline) {
+        this.scheduleQueueHydration(acceptedItems, hydrationGeneration);
+      }
       return this.getState();
     });
   }
@@ -398,10 +436,19 @@ export class BridgeController {
     if (normalizedItems.length === 0) return this.getState();
 
     return this.enqueue(async () => {
-      await this.hydrateQueueItems(normalizedItems);
+      const availableSlots = Math.max(0, MAX_QUEUE_ITEMS - this.queue.length);
+      const acceptedItems = normalizedItems.slice(0, availableSlots);
+      if (acceptedItems.length === 0) return this.getState();
+
+      const hydrationGeneration = ++this.queueHydrationGeneration;
+      const shouldHydrateInline = acceptedItems.length <= QUEUE_HYDRATION_BATCH_SIZE;
+      if (shouldHydrateInline) await this.hydrateQueueItems(acceptedItems);
       const insertionIndex = this.queueIndex >= 0 ? this.queueIndex + 1 : 0;
-      this.queue.splice(insertionIndex, 0, ...normalizedItems);
+      this.queue.splice(insertionIndex, 0, ...acceptedItems);
       this.notifyPlaybackChanged();
+      if (!shouldHydrateInline) {
+        this.scheduleQueueHydration(acceptedItems, hydrationGeneration);
+      }
       return this.getState();
     });
   }
@@ -440,6 +487,7 @@ export class BridgeController {
 
   async clearQueue(): Promise<BridgeState> {
     return this.enqueue(async () => {
+      this.queueHydrationGeneration += 1;
       await this.stopActive();
       this.queue = [];
       this.queueIndex = -1;
@@ -452,6 +500,7 @@ export class BridgeController {
 
   async shutdown(): Promise<void> {
     await this.enqueue(async () => {
+      this.queueHydrationGeneration += 1;
       await this.stopActive();
       this.queue = [];
       this.queueIndex = -1;
@@ -697,9 +746,8 @@ export class BridgeController {
   }
 
   private async hydrateQueueItems(items: readonly QueueItem[]): Promise<void> {
-    const batchSize = 20;
-    for (let start = 0; start < items.length; start += batchSize) {
-      const batch = items.slice(start, start + batchSize);
+    for (let start = 0; start < items.length; start += QUEUE_HYDRATION_BATCH_SIZE) {
+      const batch = items.slice(start, start + QUEUE_HYDRATION_BATCH_SIZE);
       await Promise.all(batch.map(async (item) => {
         if (item.track) return;
         try {
@@ -709,6 +757,15 @@ export class BridgeController {
         }
       }));
     }
+  }
+
+  private scheduleQueueHydration(
+    items: readonly QueueItem[],
+    generation: number,
+  ): void {
+    void this.hydrateQueueItems(items).then(() => {
+      if (generation === this.queueHydrationGeneration) this.notifyPlaybackChanged();
+    });
   }
 
   private clearActiveResources(): void {

@@ -441,7 +441,7 @@ test('TASK-037 Now Playing geometry, real queue names and full collection loadin
       const overlap = !(art.right <= lyrics.left || lyrics.right <= art.left || art.bottom <= lyrics.top || lyrics.bottom <= art.top)
       return {
         art: { width: art.width, height: art.height, left: art.left, right: art.right, top: art.top, bottom: art.bottom },
-        lyrics: { width: lyrics.width, height: lyrics.height, left: lyrics.left, right: lyrics.right, top: lyrics.top, bottom: lyrics.bottom },
+        lyrics: { width: lyrics.width, height: lyrics.height, left: lyrics.left, right: lyrics.right, top: lyrics.top, bottom: lyrics.bottom, rightInset: window.innerWidth - lyrics.right },
         stage: { left: stage.left, right: stage.right },
         overlap,
         horizontalOverflow: document.documentElement.scrollWidth - window.innerWidth,
@@ -452,6 +452,8 @@ test('TASK-037 Now Playing geometry, real queue names and full collection loadin
     expect(geometry.lyrics.width).toBeGreaterThan(0)
     expect(geometry.lyrics.bottom).toBeGreaterThan(0)
     expect(geometry.lyrics.top).toBeLessThan(viewport.height)
+    expect(geometry.lyrics.rightInset).toBeGreaterThanOrEqual(11)
+    expect(geometry.lyrics.rightInset).toBeLessThanOrEqual(13)
     expect(geometry.overlap).toBe(false)
     expect(geometry.horizontalOverflow).toBeLessThanOrEqual(1)
     expect(geometry.stage.right).toBeLessThanOrEqual(viewport.width + 1)
@@ -506,6 +508,28 @@ test('Now Playing 歌词保留多行上下文并标记当前焦点', async () =>
   await expect(lines.nth(1)).toHaveAttribute('data-line-distance', '1')
   await expect(lines.nth(4)).toHaveAttribute('data-line-distance', '4')
   await expect(lines.nth(7)).toHaveAttribute('data-line-distance', '7')
+
+  const lyricsGeometry = await page.locator('.now-playing-lyrics').evaluate((element) => {
+    const stage = element.closest<HTMLElement>('.now-playing-stage')
+    const line = element.querySelector<HTMLElement>('.lyrics-line.active')
+    if (!stage || !line) throw new Error('Now Playing lyrics geometry nodes are missing')
+    const lyricsBounds = element.getBoundingClientRect()
+    const stageBounds = stage.getBoundingClientRect()
+    const lineStyle = getComputedStyle(line)
+    return {
+      rightInset: window.innerWidth - lyricsBounds.right,
+      widthRatio: lyricsBounds.width / stageBounds.width,
+      activeFontSize: Number.parseFloat(lineStyle.fontSize),
+      fontFamily: lineStyle.fontFamily,
+      wordSpacing: Number.parseFloat(lineStyle.wordSpacing),
+    }
+  })
+  expect(lyricsGeometry.rightInset).toBeGreaterThanOrEqual(11)
+  expect(lyricsGeometry.rightInset).toBeLessThanOrEqual(13)
+  expect(lyricsGeometry.widthRatio).toBeGreaterThan(0.62)
+  expect(lyricsGeometry.activeFontSize).toBeGreaterThanOrEqual(50)
+  expect(lyricsGeometry.fontFamily).toContain('SF Pro Rounded')
+  expect(lyricsGeometry.wordSpacing).toBeGreaterThan(0)
 
   const controls = await page.locator('.transport-controls').boundingBox()
   expect(controls).not.toBeNull()

@@ -858,10 +858,36 @@ function appendAllLiked(): void {
 function playPlaylistTrack(track: TrackSummary): void {
   const playlistId = selectedPlaylistId.value
   if (!playlistId) return
-  void replaceAndPlayCollection(
-    (page) => window.musicBridge.getPlaylist(playlistId, page).then((detail) => detail.tracks),
-    track.id,
-  )
+  const operation = ++collectionOperation
+  actionError.value = null
+  void (async () => {
+    try {
+      applyPlaybackState(await window.musicBridge.play(track.id, selectedQuality.value))
+      enterNowPlaying()
+    } catch (error) {
+      if (operation === collectionOperation) recordActionError(error)
+      return
+    }
+
+    try {
+      const tracks = await loadCollectionTracks(
+        (page) => window.musicBridge.getPlaylist(playlistId, page).then((detail) => detail.tracks),
+      )
+      const currentPlayback = playbackState.value
+      if (
+        operation !== collectionOperation ||
+        tracks.length === 0 ||
+        !currentPlayback ||
+        currentPlayback.currentTrack?.id !== track.id ||
+        currentPlayback.queue.items.length !== 1
+      ) return
+      const requestedIndex = tracks.findIndex((item) => item.id === track.id)
+      if (requestedIndex < 0) return
+      applyPlaybackState(await window.musicBridge.replaceQueue(queueItemsForTracks(tracks), requestedIndex))
+    } catch (error) {
+      if (operation === collectionOperation) recordActionError(error)
+    }
+  })()
 }
 
 function playAllPlaylist(): void {

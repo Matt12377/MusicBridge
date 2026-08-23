@@ -4,6 +4,7 @@ export type CollectionPageLoader = (page: PageRequest) => Promise<Page<TrackSumm
 
 const COLLECTION_PAGE_SIZE = 20
 const MAX_COLLECTION_TRACKS = 500
+const COLLECTION_PAGE_CONCURRENCY = 4
 
 /**
  * 独立于已渲染页面构建播放集合。
@@ -15,21 +16,39 @@ export async function loadCollectionTracks(
 ): Promise<readonly TrackSummary[]> {
   const tracks: TrackSummary[] = []
   const seen = new Set<string>()
-  let offset = 0
 
-  while (tracks.length < MAX_COLLECTION_TRACKS) {
-    const page = await loadPage({ offset, limit: pageSize })
+  const collectPage = (page: Page<TrackSummary>): void => {
     for (const track of page.items) {
       if (seen.has(track.id)) continue
       seen.add(track.id)
       tracks.push(track)
       if (tracks.length >= MAX_COLLECTION_TRACKS) break
     }
-    if (!page.hasMore || page.items.length === 0) break
+  }
 
-    const nextOffset = page.offset + page.limit
-    if (!Number.isSafeInteger(nextOffset) || nextOffset <= offset) break
-    offset = nextOffset
+  const firstPage = await loadPage({ offset: 0, limit: pageSize })
+  collectPage(firstPage)
+  if (!firstPage.hasMore || firstPage.items.length === 0 || tracks.length >= MAX_COLLECTION_TRACKS) {
+    return tracks
+  }
+
+  const effectivePageSize = firstPage.limit > 0 ? firstPage.limit : pageSize
+  const targetTrackCount = Math.min(firstPage.total, MAX_COLLECTION_TRACKS)
+  const offsets: number[] = []
+  for (let offset = effectivePageSize; offset < targetTrackCount; offset += effectivePageSize) {
+    offsets.push(offset)
+  }
+
+  for (let start = 0; start < offsets.length; start += COLLECTION_PAGE_CONCURRENCY) {
+    const pages = await Promise.all(
+      offsets.slice(start, start + COLLECTION_PAGE_CONCURRENCY).map((offset) =>
+        loadPage({ offset, limit: pageSize }),
+      ),
+    )
+    for (const page of pages) {
+      collectPage(page)
+      if (tracks.length >= MAX_COLLECTION_TRACKS) return tracks
+    }
   }
 
   return tracks

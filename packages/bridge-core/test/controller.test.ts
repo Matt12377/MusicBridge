@@ -413,6 +413,26 @@ test('controller appends to an active queue without restarting playback', async 
   assert.equal(registry.size, 1);
 });
 
+test('controller replaces the queue without restarting the same active track', async () => {
+  const { controller, roon } = makeHarness();
+
+  await controller.play({ trackId: '703', quality: 'lossless' });
+  const beforePlayCount = roon.playRequests.length;
+
+  const state = await controller.replaceQueue([
+    { trackId: '702', quality: 'lossless' },
+    { trackId: '703', quality: 'lossless' },
+    { trackId: '704', quality: 'lossless' },
+  ], 1);
+  const playback = controller.getPlaybackState();
+
+  assert.equal(roon.playRequests.length, beforePlayCount);
+  assert.equal(state.activePlayback?.track.id, '703');
+  assert.equal(playback.currentTrack?.id, '703');
+  assert.equal(playback.queue.index, 1);
+  assert.deepEqual(playback.queue.items.map((item) => item.trackId), ['702', '703', '704']);
+});
+
 test('controller inserts next after the current queue index without restarting playback', async () => {
   const { controller, roon } = makeHarness();
 

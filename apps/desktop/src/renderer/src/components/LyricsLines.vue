@@ -10,14 +10,23 @@ const props = defineProps<{
 }>()
 
 const container = ref<HTMLElement | null>(null)
+const retainedActiveLineIndex = ref(props.snapshot.activeLineIndex >= 0 ? props.snapshot.activeLineIndex : -1)
 let followPausedUntil = 0
 let resumeTimer: ReturnType<typeof setTimeout> | undefined
 let programmaticScroll = false
 
+const focusLineIndex = computed(() => {
+  const activeLineIndex = props.snapshot.activeLineIndex
+  if (activeLineIndex >= 0 && activeLineIndex < props.snapshot.lines.length) return activeLineIndex
+  return retainedActiveLineIndex.value >= 0 && retainedActiveLineIndex.value < props.snapshot.lines.length
+    ? retainedActiveLineIndex.value
+    : -1
+})
+
 const decoratedLines = computed(() => props.snapshot.lines.map((line, index) => ({
   line,
   index,
-  distance: props.snapshot.activeLineIndex >= 0 ? Math.abs(props.snapshot.activeLineIndex - index) : -1,
+  distance: focusLineIndex.value >= 0 ? Math.abs(focusLineIndex.value - index) : -1,
 })))
 
 function statusLabel(status: LyricsSnapshot['status']): string {
@@ -45,7 +54,7 @@ function pauseFollow(): void {
 }
 
 function followActiveLine(): void {
-  const index = props.snapshot.activeLineIndex
+  const index = focusLineIndex.value
   if (index < 0 || Date.now() < followPausedUntil || !container.value) return
   void nextTick(() => {
     if (!container.value || index < 0 || Date.now() < followPausedUntil) return
@@ -67,7 +76,11 @@ function onScroll(): void {
 }
 
 watch(() => [props.snapshot.activeLineIndex, props.snapshot.lines.length], followActiveLine)
+watch(() => props.snapshot.activeLineIndex, (index) => {
+  if (index >= 0 && index < props.snapshot.lines.length) retainedActiveLineIndex.value = index
+})
 watch(() => props.trackId, () => {
+  retainedActiveLineIndex.value = props.snapshot.activeLineIndex >= 0 ? props.snapshot.activeLineIndex : -1
   followPausedUntil = 0
   if (resumeTimer !== undefined) {
     clearTimeout(resumeTimer)
@@ -108,7 +121,7 @@ onUnmounted(() => {
       }"
     >
       <span v-if="entry.line.words?.length" class="lyrics-words">
-        <span v-for="(word, wordIndex) in entry.line.words" :key="`${word.startMs}-${wordIndex}`" :class="{ 'word-active': entry.distance === 0 && props.snapshot.activeWordIndex === wordIndex }">{{ word.text }}</span>
+        <span v-for="(word, wordIndex) in entry.line.words" :key="`${word.startMs}-${wordIndex}`" :class="{ 'word-active': props.snapshot.activeLineIndex === entry.index && entry.distance === 0 && props.snapshot.activeWordIndex === wordIndex }">{{ word.text }}</span>
       </span>
       <span v-else>{{ entry.line.text }}</span>
       <small v-if="entry.line.translation">{{ entry.line.translation }}</small>
