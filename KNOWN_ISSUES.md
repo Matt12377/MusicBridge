@@ -1,5 +1,7 @@
 # Known Issues — `0.1.0-beta.1`
 
+> **beta.2 边界说明**：本文件各条目绑定 `0.1.0-beta.1` 候选。工作区版本已是 `0.1.0-beta.2`（重建基线中，未发布）；在按 `reports/BETA2_REBASELINE_CHECKLIST.md` 完成重建、重审计与 Owner 验收前，beta.2 继承以下全部边界，且不得引用 beta.1 的 DMG/hash/签名证据。
+
 本文件列出当前内部 Beta 候选的已知边界，不把它们隐藏为“发布通过”。没有发现高危秘密泄漏、非 loopback 监听、解灰路径或自动化资源残留。
 
 ## 发布与安装
