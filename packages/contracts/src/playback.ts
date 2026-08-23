@@ -9,6 +9,14 @@ export const PLAYBACK_QUALITY_LEVELS = [
 
 export type PlaybackQuality = (typeof PLAYBACK_QUALITY_LEVELS)[number]
 
+export const PLAYBACK_QUALITY_PREFERENCES = [
+  'auto',
+  ...PLAYBACK_QUALITY_LEVELS,
+] as const
+
+export type PlaybackQualityPreference = (typeof PLAYBACK_QUALITY_PREFERENCES)[number]
+export type PlaybackActualQuality = PlaybackQuality | 'unknown'
+
 export type PlaybackState =
   | 'idle'
   | 'resolving'
@@ -17,10 +25,21 @@ export type PlaybackState =
   | 'stopping'
   | 'error'
 
-export interface PlaybackQueueItem {
+export interface PlaybackQueueRequestItem {
   trackId: string
-  quality: PlaybackQuality
+  qualityPreference: PlaybackQualityPreference
 }
+
+export interface PlaybackQueueEntry {
+  trackId: string
+  qualityPreference: PlaybackQualityPreference
+  track?: TrackSummary
+  requestedQuality?: PlaybackQuality
+  actualQuality?: PlaybackActualQuality
+}
+
+/** @deprecated 新代码使用 PlaybackQueueEntry；此别名只保留公开快照命名兼容。 */
+export type PlaybackQueueItem = PlaybackQueueEntry
 
 export interface PlaybackQueueSnapshot {
   items: readonly PlaybackQueueItem[]
@@ -67,8 +86,10 @@ export interface PlaybackSnapshot {
   state: PlaybackState
   queue: PlaybackQueueSnapshot
   currentTrack?: TrackSummary
+  qualityPreference?: PlaybackQualityPreference
   requestedQuality?: PlaybackQuality
-  actualQuality?: string
+  actualQuality?: PlaybackActualQuality
+  positionMs: number
   format?: string
   bitrate?: number
   selectedZoneId?: string

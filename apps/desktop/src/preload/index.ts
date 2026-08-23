@@ -33,11 +33,13 @@ contextBridge.exposeInMainWorld(
     (zoneId: string) => ipcRenderer.invoke('roon:select-zone', zoneId),
     (trackId: string) => ipcRenderer.invoke('lyrics:get', trackId),
     () => ipcRenderer.invoke('playback:get-state'),
-    (trackId: string, quality: string) => ipcRenderer.invoke('playback:play', trackId, quality),
+    (trackId: string, qualityPreference: string) => ipcRenderer.invoke('playback:play', trackId, qualityPreference),
     () => ipcRenderer.invoke('playback:stop'),
     () => ipcRenderer.invoke('playback:next'),
     () => ipcRenderer.invoke('playback:previous'),
     (items, index) => ipcRenderer.invoke('playback:replace-queue', items, index),
+    (items) => ipcRenderer.invoke('playback:append-queue', items),
+    (items) => ipcRenderer.invoke('playback:insert-next', items),
     (listener: (event: TypedIpcEvent) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, message: TypedIpcEvent): void => {
         listener(message)

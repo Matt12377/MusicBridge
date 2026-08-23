@@ -88,6 +88,7 @@ function makeRuntime(): CoreRuntimeForIpc & {
   const playbackState: PlaybackSnapshot = {
     state: 'idle',
     queue: { items: [], index: -1, hasNext: false, hasPrevious: false },
+    positionMs: 0,
     canNext: false,
     canPrevious: false,
     canStop: false,
@@ -209,6 +210,12 @@ function makeRuntime(): CoreRuntimeForIpc & {
       return playbackState;
     },
     async replacePlaybackQueue() {
+      return playbackState;
+    },
+    async appendPlaybackQueue() {
+      return playbackState;
+    },
+    async insertNextPlayback() {
       return playbackState;
     },
   };
@@ -456,15 +463,17 @@ test('utility IPC dispatches typed playback controls without exposing stream int
 
   for (const [id, command, payload] of [
     ['playback-state', 'playback.getState', {}],
-    ['playback-play', 'playback.play', { trackId: '101', quality: 'lossless' }],
+    ['playback-play', 'playback.play', { trackId: '101', qualityPreference: 'lossless' }],
     ['playback-stop', 'playback.stop', {}],
     ['playback-next', 'playback.next', {}],
     ['playback-previous', 'playback.previous', {}],
     [
       'playback-replace',
       'playback.replaceQueue',
-      { items: [{ trackId: '101', quality: 'lossless' }], index: 0 },
+      { items: [{ trackId: '101', qualityPreference: 'lossless' }], index: 0 },
     ],
+    ['playback-append', 'playback.appendQueue', { items: [{ trackId: '101', qualityPreference: 'lossless' }] }],
+    ['playback-insert-next', 'playback.insertNext', { items: [{ trackId: '101', qualityPreference: 'lossless' }] }],
   ] as const) {
     port.send({ version: IPC_VERSION, id, command, payload });
     await new Promise((resolve) => setImmediate(resolve));

@@ -1,13 +1,12 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { BridgeState } from '../application/bridge-controller.js';
-import type { QualityLevel } from '../netease/types.js';
-import type { PlaybackSnapshot } from '@music-bridge/contracts';
+import type { PlaybackQualityPreference, PlaybackSnapshot } from '@music-bridge/contracts';
 import { asBridgeError, BridgeError } from '../shared/errors.js';
 import type { Logger } from '../shared/logger.js';
 
 const MAX_BODY_BYTES = 64 * 1024;
-const MAX_QUEUE_ITEMS = 100;
-const PLAYBACK_QUALITIES = new Set(['standard', 'exhigh', 'lossless', 'hires']);
+const MAX_QUEUE_ITEMS = 500;
+const PLAYBACK_QUALITIES = new Set(['auto', 'standard', 'exhigh', 'lossless', 'hires']);
 
 type QueueInputItem = { trackId: unknown; quality: unknown };
 
@@ -124,7 +123,7 @@ export class ControlServer {
     private readonly options: {
       host: string;
       port: number;
-      defaultQuality: QualityLevel;
+      defaultQuality: PlaybackQualityPreference;
       controller: ControlController;
       logger: Logger;
     },

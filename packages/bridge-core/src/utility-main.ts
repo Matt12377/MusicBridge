@@ -159,7 +159,7 @@ async function dispatch(
     case 'playback.play':
       return runtime.playbackPlay(
         (request.payload as { trackId: string }).trackId,
-        (request.payload as { quality: Parameters<CoreRuntimeForIpc['playbackPlay']>[1] }).quality,
+        (request.payload as { qualityPreference: Parameters<CoreRuntimeForIpc['playbackPlay']>[1] }).qualityPreference,
       );
     case 'playback.stop':
       return runtime.playbackStop();
@@ -171,6 +171,14 @@ async function dispatch(
       return runtime.replacePlaybackQueue(
         (request.payload as { items: Parameters<CoreRuntimeForIpc['replacePlaybackQueue']>[0] }).items,
         (request.payload as { index: number }).index,
+      );
+    case 'playback.appendQueue':
+      return runtime.appendPlaybackQueue(
+        (request.payload as { items: Parameters<CoreRuntimeForIpc['appendPlaybackQueue']>[0] }).items,
+      );
+    case 'playback.insertNext':
+      return runtime.insertNextPlayback(
+        (request.payload as { items: Parameters<CoreRuntimeForIpc['insertNextPlayback']>[0] }).items,
       );
   }
 }

@@ -12,7 +12,9 @@ import type {
   LyricsSnapshot,
   DailyRecommendationsSnapshot,
   PlaybackQueueItem,
+  PlaybackQueueRequestItem,
   PlaybackQuality,
+  PlaybackQualityPreference,
   PlaybackSnapshot,
   PublicAuthState,
   PublicAccountState,
@@ -65,14 +67,16 @@ export interface CoreRuntime {
   getPlaylist(playlistId: string, page: PageRequest): Promise<PlaylistDetail>;
   getLyrics(trackId: string): Promise<LyricsSnapshot>;
   getPlaybackState(): PlaybackSnapshot;
-  playbackPlay(trackId: string, quality: PlaybackQuality): Promise<PlaybackSnapshot>;
+  playbackPlay(trackId: string, quality: PlaybackQualityPreference): Promise<PlaybackSnapshot>;
   playbackStop(): Promise<PlaybackSnapshot>;
   playbackNext(): Promise<PlaybackSnapshot>;
   playbackPrevious(): Promise<PlaybackSnapshot>;
   replacePlaybackQueue(
-    items: readonly PlaybackQueueItem[],
+    items: readonly PlaybackQueueRequestItem[],
     index: number,
   ): Promise<PlaybackSnapshot>;
+  appendPlaybackQueue(items: readonly PlaybackQueueRequestItem[]): Promise<PlaybackSnapshot>;
+  insertNextPlayback(items: readonly PlaybackQueueRequestItem[]): Promise<PlaybackSnapshot>;
   listZones(): readonly PublicRoonZone[];
   selectZone(zoneId: string): Promise<PublicBridgeState>;
 }
@@ -143,6 +147,7 @@ function emptyPlaybackState(): PlaybackSnapshot {
       hasNext: false,
       hasPrevious: false,
     },
+    positionMs: 0,
     canNext: false,
     canPrevious: false,
     canStop: false,
@@ -413,7 +418,10 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     emit(eventWithState('roon.changed', state));
     emit(eventWithState('core.health', state));
   });
-  roon.setTimeHandler?.((positionMs) => lyrics.updateRoonTime(positionMs));
+  roon.setTimeHandler?.((positionMs) => {
+    controller.updateRoonTime(positionMs);
+    lyrics.updateRoonTime(positionMs);
+  });
 
   const cleanup = async (): Promise<void> => {
     await control.stop();
@@ -617,10 +625,10 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     getDailyRecommendations: getDailyRecommendationSnapshot,
     getLyrics: (trackId) => lyrics.getLyrics(trackId),
     getPlaybackState: () => controller.getPlaybackState(),
-    async playbackPlay(trackId, quality) {
+    async playbackPlay(trackId, qualityPreference) {
       const startedAt = Date.now();
       try {
-        await controller.play({ trackId, quality });
+        await controller.play({ trackId, qualityPreference });
         lastPlayLatencyMs = Date.now() - startedAt;
         recordDiagnostic('info', 'play_completed', {
           state: 'playing',
@@ -653,6 +661,14 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       await controller.replaceQueue(items, index);
       return controller.getPlaybackState();
     },
+    async appendPlaybackQueue(items) {
+      await controller.appendQueue(items);
+      return controller.getPlaybackState();
+    },
+    async insertNextPlayback(items) {
+      await controller.insertNext(items);
+      return controller.getPlaybackState();
+    },
 
     listZones: () => roon.listZones().map((zone) => ({
       zoneId: zone.zone_id,
@@ -680,7 +696,7 @@ export interface TestBridgeRuntimeOptions {
 export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}): CoreRuntime {
   const accountMode = options.accountMode ?? 'ready'
   const syntheticAuthorized = options.authorized === true && accountMode !== 'expired'
-  const fixtureTracks: readonly TrackSummary[] = Array.from({ length: 25 }, (_, index) => ({
+  const fixtureTracks: readonly TrackSummary[] = Array.from({ length: 120 }, (_, index) => ({
     id: String(1000 + index),
     title: `Synthetic Track ${index + 1}`,
     artists: ['Synthetic Artist'],
@@ -735,7 +751,13 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
   const diagnostics = new DiagnosticRingBuffer();
   const trackFor = (trackId: string): TrackSummary | undefined =>
     fixtureTracks.find((track) => track.id === trackId);
-  const setPlayingTrack = (trackId: string, quality: PlaybackQuality): void => {
+  const verifiedQueueItem = (item: PlaybackQueueRequestItem): PlaybackQueueItem => {
+    const track = trackFor(item.trackId);
+    return track ? { ...item, track } : { ...item };
+  };
+  const setPlayingTrack = (trackId: string, qualityPreference: PlaybackQualityPreference): void => {
+    const requestedQuality: PlaybackQuality = qualityPreference === 'auto' ? 'hires' : qualityPreference;
+    const actualQuality: PlaybackQuality = requestedQuality === 'hires' ? 'lossless' : requestedQuality;
     const currentTrack = trackFor(trackId);
     const {
       currentTrack: _previousTrack,
@@ -747,12 +769,14 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       ...basePlaybackState,
       state: 'playing',
       ...(currentTrack ? { currentTrack } : {}),
-      requestedQuality: quality,
-      actualQuality: quality === 'hires' ? 'lossless' : quality,
-      format: quality === 'hires' ? 'flac' : 'flac',
+      qualityPreference,
+      requestedQuality,
+      actualQuality,
+      positionMs: 0,
+      format: 'flac',
       bitrate: 1_411_200,
       ...(selectedZoneId ? { selectedZoneId } : {}),
-      ...(quality === 'hires'
+      ...(qualityPreference !== 'auto' && actualQuality !== requestedQuality
         ? {
             qualityNotice: {
               code: 'QUALITY_DOWNGRADED' as const,
@@ -896,7 +920,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       return pageOf(fixtureTracks, page);
     },
     async getLikedTracks(page) {
-      return pageOf(fixtureTracks.slice(0, 12), page);
+      return pageOf(fixtureTracks, page);
     },
     async getUserPlaylists() {
       return [{ id: fixturePlaylistId, name: 'Synthetic Playlist', trackCount: fixtureTracks.length }];
@@ -919,16 +943,17 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       };
     },
     getPlaybackState: () => playbackState,
-    async playbackPlay(trackId, quality) {
+    async playbackPlay(trackId, qualityPreference) {
       playbackState = {
         ...playbackState,
-        queue: { items: [{ trackId, quality }], index: 0, hasNext: false, hasPrevious: false },
+        positionMs: 0,
+        queue: { items: [verifiedQueueItem({ trackId, qualityPreference })], index: 0, hasNext: false, hasPrevious: false },
       };
-      setPlayingTrack(trackId, quality);
+      setPlayingTrack(trackId, qualityPreference);
       return playbackState;
     },
     async playbackStop() {
-      playbackState = { ...playbackState, state: 'idle', canStop: false };
+      playbackState = { ...playbackState, state: 'idle', positionMs: 0, canStop: false };
       return playbackState;
     },
     async playbackNext() {
@@ -944,7 +969,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
             hasPrevious: index > 0,
           },
         };
-        if (item) setPlayingTrack(item.trackId, item.quality);
+        if (item) setPlayingTrack(item.trackId, item.qualityPreference);
       }
       return playbackState;
     },
@@ -961,23 +986,64 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
             hasPrevious: index > 0,
           },
         };
-        if (item) setPlayingTrack(item.trackId, item.quality);
+        if (item) setPlayingTrack(item.trackId, item.qualityPreference);
       }
       return playbackState;
     },
     async replacePlaybackQueue(items, index) {
+      const verifiedItems = items.map(verifiedQueueItem);
       playbackState = {
         ...playbackState,
         state: 'playing',
         queue: {
-          items,
+          items: verifiedItems,
           index,
-          hasNext: index < items.length - 1,
+          hasNext: index < verifiedItems.length - 1,
           hasPrevious: index > 0,
         },
       };
-      const item = items[index];
-      if (item) setPlayingTrack(item.trackId, item.quality);
+      const item = verifiedItems[index];
+      if (item) setPlayingTrack(item.trackId, item.qualityPreference);
+      return playbackState;
+    },
+    async appendPlaybackQueue(items) {
+      const verifiedItems = items.map(verifiedQueueItem);
+      const nextItems = [...playbackState.queue.items, ...verifiedItems];
+      const hasNext = playbackState.queue.index >= 0
+        ? playbackState.queue.index < nextItems.length - 1
+        : false;
+      playbackState = {
+        ...playbackState,
+        queue: {
+          ...playbackState.queue,
+          items: nextItems,
+          hasNext,
+        },
+        canNext: hasNext,
+        canPrevious: playbackState.queue.index > 0,
+      };
+      return playbackState;
+    },
+    async insertNextPlayback(items) {
+      const verifiedItems = items.map(verifiedQueueItem);
+      const insertionIndex = playbackState.queue.index >= 0
+        ? playbackState.queue.index + 1
+        : 0;
+      const nextItems = [...playbackState.queue.items];
+      nextItems.splice(insertionIndex, 0, ...verifiedItems);
+      const hasNext = playbackState.queue.index >= 0
+        ? playbackState.queue.index < nextItems.length - 1
+        : false;
+      playbackState = {
+        ...playbackState,
+        queue: {
+          ...playbackState.queue,
+          items: nextItems,
+          hasNext,
+        },
+        canNext: hasNext,
+        canPrevious: playbackState.queue.index > 0,
+      };
       return playbackState;
     },
     listZones: () => ({

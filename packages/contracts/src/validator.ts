@@ -18,10 +18,14 @@ import {
 import {
   PLAYBACK_ISSUE_CODES,
   PLAYBACK_QUALITY_LEVELS,
+  PLAYBACK_QUALITY_PREFERENCES,
+  type PlaybackQueueEntry,
+  type PlaybackQueueRequestItem,
   type PlaybackQueueItem,
   type PlaybackQueueSnapshot,
   type PlaybackIssue,
   type PlaybackQuality,
+  type PlaybackQualityPreference,
   type PlaybackSnapshot,
 } from './playback.js';
 import {
@@ -152,20 +156,39 @@ function isSelectZonePayload(value: unknown): value is { zoneId: string } {
   );
 }
 
-const MAX_QUEUE_ITEMS = 100;
+// 歌单分页最多收集 500 首；队列校验必须覆盖完整歌单，而不是截断到旧的 100 首上限。
+const MAX_QUEUE_ITEMS = 500;
 
 function isPlaybackQuality(value: unknown): value is PlaybackQuality {
   return PLAYBACK_QUALITY_LEVELS.includes(value as PlaybackQuality);
 }
 
-function isPlaybackQueueItem(value: unknown): value is PlaybackQueueItem {
+function isPlaybackQualityPreference(value: unknown): value is PlaybackQualityPreference {
+  return PLAYBACK_QUALITY_PREFERENCES.includes(value as PlaybackQualityPreference);
+}
+
+function isPlaybackQueueRequestItem(value: unknown): value is PlaybackQueueRequestItem {
   return (
     isRecord(value) &&
-    hasOnlyKeys(value, ['trackId', 'quality']) &&
+    hasOnlyKeys(value, ['trackId', 'qualityPreference']) &&
     safeString(value.trackId, 128) &&
     /^\d+$/.test(value.trackId) &&
     value.trackId !== '0' &&
-    isPlaybackQuality(value.quality)
+    isPlaybackQualityPreference(value.qualityPreference)
+  );
+}
+
+function isPlaybackQueueEntry(value: unknown): value is PlaybackQueueEntry {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['trackId', 'qualityPreference', 'track', 'requestedQuality', 'actualQuality']) &&
+    safeString(value.trackId, 128) &&
+    /^\d+$/.test(value.trackId) &&
+    value.trackId !== '0' &&
+    isPlaybackQualityPreference(value.qualityPreference) &&
+    (value.track === undefined || isTrackSummary(value.track)) &&
+    (value.requestedQuality === undefined || isPlaybackQuality(value.requestedQuality)) &&
+    (value.actualQuality === undefined || isPlaybackQuality(value.actualQuality) || value.actualQuality === 'unknown')
   );
 }
 
@@ -175,7 +198,7 @@ function isPlaybackQueueSnapshot(value: unknown): value is PlaybackQueueSnapshot
     !hasOnlyKeys(value, ['items', 'index', 'hasNext', 'hasPrevious']) ||
     !Array.isArray(value.items) ||
     value.items.length > MAX_QUEUE_ITEMS ||
-    !value.items.every((item) => isPlaybackQueueItem(item)) ||
+    !value.items.every((item) => isPlaybackQueueEntry(item)) ||
     typeof value.index !== 'number' ||
     !Number.isSafeInteger(value.index) ||
     value.index < -1 ||
@@ -221,8 +244,10 @@ function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
       'state',
       'queue',
       'currentTrack',
+      'qualityPreference',
       'requestedQuality',
       'actualQuality',
+      'positionMs',
       'format',
       'bitrate',
       'selectedZoneId',
@@ -236,8 +261,13 @@ function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
     !isPlaybackState(value.state) ||
     !isPlaybackQueueSnapshot(value.queue) ||
     (value.currentTrack !== undefined && !isTrackSummary(value.currentTrack)) ||
+    (value.qualityPreference !== undefined && !isPlaybackQualityPreference(value.qualityPreference)) ||
     (value.requestedQuality !== undefined && !isPlaybackQuality(value.requestedQuality)) ||
-    (value.actualQuality !== undefined && !safeString(value.actualQuality, 64)) ||
+    (value.actualQuality !== undefined && !isPlaybackQuality(value.actualQuality) && value.actualQuality !== 'unknown') ||
+    (typeof value.positionMs !== 'number' ||
+      !Number.isSafeInteger(value.positionMs) ||
+      value.positionMs < 0 ||
+      value.positionMs > 24 * 60 * 60 * 1000) ||
     (value.format !== undefined && !safeString(value.format, 32)) ||
     (value.bitrate !== undefined &&
       (typeof value.bitrate !== 'number' ||
@@ -259,31 +289,44 @@ function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
 
 function isPlaybackPlayPayload(
   value: unknown,
-): value is { trackId: string; quality: PlaybackQuality } {
+): value is { trackId: string; qualityPreference: PlaybackQualityPreference } {
   return (
     isRecord(value) &&
-    hasOnlyKeys(value, ['trackId', 'quality']) &&
+    hasOnlyKeys(value, ['trackId', 'qualityPreference']) &&
     safeString(value.trackId, 128) &&
     /^\d+$/.test(value.trackId) &&
     value.trackId !== '0' &&
-    isPlaybackQuality(value.quality)
+    isPlaybackQualityPreference(value.qualityPreference)
   );
 }
 
 function isPlaybackReplaceQueuePayload(
   value: unknown,
-): value is { items: readonly PlaybackQueueItem[]; index: number } {
+): value is { items: readonly PlaybackQueueRequestItem[]; index: number } {
   return (
     isRecord(value) &&
     hasOnlyKeys(value, ['items', 'index']) &&
     Array.isArray(value.items) &&
     value.items.length > 0 &&
     value.items.length <= MAX_QUEUE_ITEMS &&
-    value.items.every((item) => isPlaybackQueueItem(item)) &&
+    value.items.every((item) => isPlaybackQueueRequestItem(item)) &&
     typeof value.index === 'number' &&
     Number.isSafeInteger(value.index) &&
     value.index >= 0 &&
     value.index < value.items.length
+  );
+}
+
+function isPlaybackQueueMutationPayload(
+  value: unknown,
+): value is { items: readonly PlaybackQueueRequestItem[] } {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['items']) &&
+    Array.isArray(value.items) &&
+    value.items.length > 0 &&
+    value.items.length <= MAX_QUEUE_ITEMS &&
+    value.items.every((item) => isPlaybackQueueRequestItem(item))
   );
 }
 
@@ -550,6 +593,9 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'lyrics.get') return isLyricsPayload(payload);
   if (command === 'playback.play') return isPlaybackPlayPayload(payload);
   if (command === 'playback.replaceQueue') return isPlaybackReplaceQueuePayload(payload);
+  if (command === 'playback.appendQueue' || command === 'playback.insertNext') {
+    return isPlaybackQueueMutationPayload(payload);
+  }
   return isEmptyPayload(payload);
 }
 
@@ -684,7 +730,7 @@ function isDiagnosticComponentSnapshot(value: unknown): value is DiagnosticCompo
     boundedNumber(memory.heapUsedBytes) &&
     boundedNumber(memory.heapTotalBytes) &&
     boundedNumber(memory.externalBytes) &&
-    boundedNumber(counters.queueItemCount, 100) &&
+    boundedNumber(counters.queueItemCount, MAX_QUEUE_ITEMS) &&
     boundedNumber(counters.activeStreamCount, 100_000) &&
     boundedNumber(counters.activePlaybackCount, 1) &&
     boundedNumber(counters.activeSessionCount, 1) &&
@@ -826,6 +872,8 @@ function isCommandResult(
     case 'playback.next':
     case 'playback.previous':
     case 'playback.replaceQueue':
+    case 'playback.appendQueue':
+    case 'playback.insertNext':
       return isPlaybackSnapshot(value);
   }
 }

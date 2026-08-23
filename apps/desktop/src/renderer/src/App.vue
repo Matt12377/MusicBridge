@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 
 import type {
   LyricsSnapshot,
   Page,
   PageRequest,
   DailyRecommendationsSnapshot,
-  PlaybackQuality,
+  PlaybackQualityPreference,
+  PlaybackQueueRequestItem,
   PlaybackQueueItem,
   PlaybackSnapshot,
   PlaylistDetail,
@@ -21,6 +22,7 @@ import type { AppInfo } from '../../preload/api.js'
 import AlbumAmbientBackground from './components/AlbumAmbientBackground.vue'
 import BottomPlayer from './components/BottomPlayer.vue'
 import HomeView from './components/HomeView.vue'
+import SafeArtwork from './components/SafeArtwork.vue'
 import NowPlayingView from './components/NowPlayingView.vue'
 import DailyRecommendationsView from './components/views/DailyRecommendationsView.vue'
 import SettingsView from './components/settings/SettingsView.vue'
@@ -30,6 +32,7 @@ import MusicSidebar from './components/sidebar/MusicSidebar.vue'
 import ToolbarStatusPopover from './components/ToolbarStatusPopover.vue'
 import { useLibrarySources } from './composables/useLibrarySources.js'
 import { appendPage } from './composables/libraryPagination.js'
+import { loadCollectionTracks, type CollectionPageLoader } from './composables/collectionQueue.js'
 import {
   selectRandomPlaylistPages,
   shuffleTracks,
@@ -87,7 +90,7 @@ const authError = ref(false)
 const playbackState = ref<PlaybackSnapshot | null>(null)
 const lyricsSnapshot = ref<LyricsSnapshot>(emptyLyricsSnapshot())
 const zones = ref<readonly PublicRoonZone[]>([])
-const selectedQuality = ref<PlaybackQuality>('lossless')
+const selectedQuality = ref<PlaybackQualityPreference>('auto')
 const remoteCoreState = ref<RemoteCoreTunnelState>({
   mode: 'local-core',
   status: 'idle',
@@ -98,21 +101,40 @@ const remoteCoreState = ref<RemoteCoreTunnelState>({
 const remoteAutoStart = ref(false)
 const lyricsOrQueue = ref<'lyrics' | 'queue'>('lyrics')
 const inspectorOpen = ref(false)
+const inspectorReturnFocus = ref<HTMLElement | null>(null)
 const actionError = ref<string | null>(null)
 const actionDiagnosticId = ref<string | null>(null)
 const diagnosticNotice = ref<{ code: string; message?: string } | null>(null)
 const diagnosticExportState = ref<'idle' | 'working' | 'done' | 'cancelled' | 'error'>('idle')
+const toastMessage = ref<string | null>(null)
 
 const searchQuery = ref('')
 const searchPage = ref<Page<TrackSummary>>(emptyPage())
 const likedPage = ref<Page<TrackSummary>>(emptyPage())
-const { playlists, playlistState, playlistError, loadPlaylists: loadPlaylistSources } = useLibrarySources()
+const {
+  playlists,
+  playlistState,
+  playlistError,
+  loadPlaylists: loadPlaylistSources,
+  reset: resetPlaylistSources,
+} = useLibrarySources()
 const selectedPlaylist = ref<PlaylistDetail | null>(null)
 const selectedPlaylistId = ref<string | null>(null)
 const homePlaylistTracks = ref<readonly TrackSummary[]>([])
+const recentTracks = ref<readonly TrackSummary[]>([])
 const homeRecommendationState = ref<HomeRecommendationState>('loading')
-const libraryBusy = ref(false)
-const libraryError = ref<'auth-expired' | 'generic' | null>(null)
+const searchInitialLoading = ref(false)
+const searchLoadingMore = ref(false)
+const searchLoadMoreError = ref<string | null>(null)
+const searchError = ref<'auth-expired' | 'generic' | null>(null)
+const likedInitialLoading = ref(false)
+const likedLoadingMore = ref(false)
+const likedLoadMoreError = ref<string | null>(null)
+const likedError = ref<'auth-expired' | 'generic' | null>(null)
+const playlistInitialLoading = ref(false)
+const playlistLoadingMore = ref(false)
+const playlistLoadMoreError = ref<string | null>(null)
+const playlistDetailError = ref<'auth-expired' | 'generic' | null>(null)
 
 let removeCoreListener: (() => void) | undefined
 let removeAppCommandListener: (() => void) | undefined
@@ -121,10 +143,14 @@ let pollTimer: ReturnType<typeof setInterval> | undefined
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 let authOperation = 0
 let pollInFlight = false
-let libraryOperation = 0
 let lyricsOperation = 0
 let homeRecommendationOperation = 0
 let dailyOperation = 0
+let collectionOperation = 0
+let toastTimer: ReturnType<typeof setTimeout> | undefined
+let searchRequestGeneration = 0
+let likedRequestGeneration = 0
+let playlistRequestGeneration = 0
 
 const currentTrack = computed(() => playbackState.value?.currentTrack)
 const ambientTrack = computed(() => playbackState.value?.state === 'playing' ? currentTrack.value : undefined)
@@ -132,19 +158,7 @@ const currentLyricLine = computed(() => {
   const lineIndex = lyricsSnapshot.value.activeLineIndex
   return lineIndex >= 0 ? lyricsSnapshot.value.lines[lineIndex]?.text : undefined
 })
-const homeTracks = computed(() => {
-  const candidates = [
-    ...(currentTrack.value ? [currentTrack.value] : []),
-    ...searchPage.value.items,
-    ...likedPage.value.items,
-  ]
-  const seen = new Set<string>()
-  return candidates.filter((track) => {
-    if (seen.has(track.id)) return false
-    seen.add(track.id)
-    return true
-  }).slice(0, 6)
-})
+const homeTracks = computed(() => recentTracks.value)
 const selectedZone = computed(() => {
   const selectedId = playbackState.value?.selectedZoneId
   return zones.value.find((zone) => zone.zoneId === selectedId) ?? zones.value.find((zone) => zone.selected)
@@ -152,6 +166,16 @@ const selectedZone = computed(() => {
 const viewTitle = computed(() => VIEW_LABELS[currentView.value])
 const isImmersiveNowPlaying = computed(() => currentView.value === 'now-playing')
 const hasPlaybackIssue = computed(() => Boolean(playbackState.value?.lastIssue || actionError.value))
+const greeting = computed(() => {
+  const hour = new Date().getHours()
+  return hour >= 5 && hour < 12 ? '早上好' : hour >= 12 && hour < 18 ? '下午好' : '晚上好'
+})
+const likedHomeState = computed<'unauthorized' | 'loading' | 'ready' | 'empty' | 'error'>(() => {
+  if (authState.value.status !== 'authorized') return 'unauthorized'
+  if (likedInitialLoading.value && likedPage.value.items.length === 0) return 'loading'
+  if (likedError.value) return 'error'
+  return likedPage.value.items.length ? 'ready' : 'empty'
+})
 
 function enterNowPlaying(): void {
   if (currentView.value !== 'now-playing') nowPlayingReturnView.value = currentView.value
@@ -216,10 +240,15 @@ function navigateSource(source: SidebarSource): void {
 }
 
 function clearSearch(): void {
+  if (currentView.value !== 'search' && searchQuery.value.length === 0 && searchPage.value.items.length === 0) return
   stopSearchTimer()
+  searchRequestGeneration += 1
   searchQuery.value = ''
   searchPage.value = emptyPage()
-  libraryBusy.value = false
+  searchInitialLoading.value = false
+  searchLoadingMore.value = false
+  searchLoadMoreError.value = null
+  searchError.value = null
   const source = searchReturnSource.value
   sidebar.setActiveSource(source)
   currentView.value = viewForSource(source)
@@ -297,7 +326,7 @@ function actionableMessage(error: unknown): string {
     case 'ROON_ZONE_LOST':
       return '播放 Zone 暂时不可用，请检查 Roon 状态后重试。'
     default:
-      return '操作暂时不可用，请到 Diagnostics 查看状态。'
+      return '操作暂时不可用，请稍后重试。'
   }
 }
 
@@ -311,57 +340,95 @@ function recordActionError(error: unknown): void {
     typeof error === 'object' && error !== null && 'diagnosticId' in error && typeof error.diagnosticId === 'string'
       ? error.diagnosticId
       : null
+  showToast(actionError.value)
 }
 
-function applyLibraryError(error: unknown, operation: number): void {
-  if (operation !== libraryOperation) return
-  libraryBusy.value = false
-  libraryError.value = isAuthExpired(error) ? 'auth-expired' : 'generic'
+function libraryErrorKind(error: unknown): 'auth-expired' | 'generic' {
+  return isAuthExpired(error) ? 'auth-expired' : 'generic'
 }
 
-function beginLibraryOperation(): number {
-  libraryOperation += 1
-  libraryError.value = null
-  return libraryOperation
-}
-
-async function loadSearch(query: string, page: PageRequest, operation: number): Promise<void> {
-  libraryBusy.value = true
+async function loadSearch(query: string, page: PageRequest, generation: number): Promise<void> {
+  const initial = page.offset === 0
+  if (initial) {
+    searchInitialLoading.value = true
+    searchLoadMoreError.value = null
+  } else {
+    if (searchLoadingMore.value) return
+    searchLoadingMore.value = true
+    searchLoadMoreError.value = null
+  }
   try {
     const result = await window.musicBridge.searchTracks(query, page)
-    if (operation !== libraryOperation) return
-    searchPage.value = appendPage(searchPage.value, result)
-    libraryBusy.value = false
+    if (generation !== searchRequestGeneration) return
+    searchPage.value = initial ? result : appendPage(searchPage.value, result)
+    searchError.value = null
+    if (initial) searchInitialLoading.value = false
+    else searchLoadingMore.value = false
   } catch (error) {
-    applyLibraryError(error, operation)
+    if (generation !== searchRequestGeneration) return
+    if (initial) {
+      searchInitialLoading.value = false
+      searchError.value = libraryErrorKind(error)
+    } else {
+      searchLoadingMore.value = false
+      searchLoadMoreError.value = '加载失败，点击重试'
+    }
   }
 }
 
 function scheduleSearch(): void {
   stopSearchTimer()
-  const operation = beginLibraryOperation()
+  const generation = ++searchRequestGeneration
+  searchError.value = null
+  searchLoadMoreError.value = null
+  searchPage.value = emptyPage()
+  searchInitialLoading.value = false
+  searchLoadingMore.value = false
   const query = searchQuery.value.trim()
   if (query.length === 0) {
     searchPage.value = emptyPage()
-    libraryBusy.value = false
     return
   }
   searchTimer = setTimeout(() => {
     searchTimer = undefined
-    void loadSearch(query, { offset: 0, limit: LIBRARY_PAGE_SIZE }, operation)
+    void loadSearch(query, { offset: 0, limit: LIBRARY_PAGE_SIZE }, generation)
   }, SEARCH_DEBOUNCE_MS)
 }
 
 async function loadLiked(page: PageRequest = { offset: 0, limit: LIBRARY_PAGE_SIZE }): Promise<void> {
-  const operation = beginLibraryOperation()
-  libraryBusy.value = true
+  if (authState.value.status !== 'authorized') {
+    likedPage.value = emptyPage()
+    likedInitialLoading.value = false
+    likedLoadingMore.value = false
+    return
+  }
+  const initial = page.offset === 0
+  if (initial) {
+    likedRequestGeneration += 1
+    likedInitialLoading.value = true
+    likedLoadMoreError.value = null
+  } else {
+    if (likedLoadingMore.value) return
+    likedLoadingMore.value = true
+    likedLoadMoreError.value = null
+  }
+  const generation = likedRequestGeneration
   try {
     const result = await window.musicBridge.getLikedTracks(page)
-    if (operation !== libraryOperation) return
-    likedPage.value = appendPage(likedPage.value, result)
-    libraryBusy.value = false
+    if (generation !== likedRequestGeneration) return
+    likedPage.value = initial ? result : appendPage(likedPage.value, result)
+    likedError.value = null
+    if (initial) likedInitialLoading.value = false
+    else likedLoadingMore.value = false
   } catch (error) {
-    applyLibraryError(error, operation)
+    if (generation !== likedRequestGeneration) return
+    if (initial) {
+      likedInitialLoading.value = false
+      likedError.value = libraryErrorKind(error)
+    } else {
+      likedLoadingMore.value = false
+      likedLoadMoreError.value = '加载失败，点击重试'
+    }
   }
 }
 
@@ -392,7 +459,6 @@ async function loadAccountState(): Promise<void> {
   try {
     const state = await window.musicBridge.getAccountState()
     accountState.value = state
-    if (authState.value.status === 'authorized') void loadDailyRecommendations()
   } catch (error) {
     accountState.value = { status: 'unavailable' }
     accountError.value = accountMessage(error)
@@ -411,9 +477,14 @@ async function refreshAccountProfile(): Promise<void> {
 }
 
 async function loadPlaylists(): Promise<void> {
+  if (authState.value.status !== 'authorized') {
+    resetPlaylistSources()
+    homePlaylistTracks.value = []
+    homeRecommendationState.value = 'ready'
+    return
+  }
   await loadPlaylistSources()
   const error = playlistError.value
-  libraryError.value = error ? (isAuthExpired(error) ? 'auth-expired' : 'generic') : null
   if (error) {
     homePlaylistTracks.value = []
     homeRecommendationState.value = 'error'
@@ -459,24 +530,47 @@ async function loadPlaylist(
   playlistId: string,
   page: PageRequest = { offset: 0, limit: LIBRARY_PAGE_SIZE },
 ): Promise<void> {
+  if (authState.value.status !== 'authorized') return
+  const switchingPlaylist = selectedPlaylistId.value !== playlistId
   selectedPlaylistId.value = playlistId
   const previousPlaylist = selectedPlaylist.value
-  const appending = page.offset > 0 && previousPlaylist?.id === playlistId
-  if (!appending) selectedPlaylist.value = null
-  const operation = beginLibraryOperation()
-  libraryBusy.value = true
+  const initial = page.offset === 0
+  if (switchingPlaylist) {
+    collectionOperation += 1
+    playlistRequestGeneration += 1
+    selectedPlaylist.value = null
+  }
+  if (initial && !switchingPlaylist) playlistRequestGeneration += 1
+  if (initial) {
+    playlistInitialLoading.value = true
+    playlistLoadMoreError.value = null
+  } else {
+    if (playlistLoadingMore.value) return
+    playlistLoadingMore.value = true
+    playlistLoadMoreError.value = null
+  }
+  const generation = playlistRequestGeneration
   try {
     const result = await window.musicBridge.getPlaylist(playlistId, page)
-    if (operation !== libraryOperation) return
+    if (generation !== playlistRequestGeneration || selectedPlaylistId.value !== playlistId) return
     selectedPlaylist.value = {
       ...result,
-      tracks: appendPage(appending ? previousPlaylist?.tracks ?? null : null, result.tracks),
+      tracks: initial ? result.tracks : appendPage(previousPlaylist?.tracks ?? null, result.tracks),
     }
     currentView.value = 'playlist-detail'
     sidebar.setActiveSource({ type: 'playlist', playlistId })
-    libraryBusy.value = false
+    playlistDetailError.value = null
+    if (initial) playlistInitialLoading.value = false
+    else playlistLoadingMore.value = false
   } catch (error) {
-    applyLibraryError(error, operation)
+    if (generation !== playlistRequestGeneration || selectedPlaylistId.value !== playlistId) return
+    if (initial) {
+      playlistInitialLoading.value = false
+      playlistDetailError.value = libraryErrorKind(error)
+    } else {
+      playlistLoadingMore.value = false
+      playlistLoadMoreError.value = '加载失败，点击重试'
+    }
   }
 }
 
@@ -489,8 +583,7 @@ function searchPageAt(offset: number): void {
   const query = searchQuery.value.trim()
   if (!query) return
   stopSearchTimer()
-  const operation = beginLibraryOperation()
-  void loadSearch(query, { offset, limit: LIBRARY_PAGE_SIZE }, operation)
+  void loadSearch(query, { offset, limit: LIBRARY_PAGE_SIZE }, searchRequestGeneration)
 }
 
 function likedPageAt(offset: number): void {
@@ -502,6 +595,41 @@ function playlistPageAt(offset: number): void {
   if (playlistId) void loadPlaylist(playlistId, { offset, limit: LIBRARY_PAGE_SIZE })
 }
 
+function resetPrivateLibraryState(): void {
+  stopSearchTimer()
+  searchRequestGeneration += 1
+  likedRequestGeneration += 1
+  playlistRequestGeneration += 1
+  collectionOperation += 1
+  searchQuery.value = ''
+  searchPage.value = emptyPage()
+  searchInitialLoading.value = false
+  searchLoadingMore.value = false
+  searchLoadMoreError.value = null
+  searchError.value = null
+  likedPage.value = emptyPage()
+  likedInitialLoading.value = false
+  likedLoadingMore.value = false
+  likedLoadMoreError.value = null
+  likedError.value = null
+  selectedPlaylist.value = null
+  selectedPlaylistId.value = null
+  playlistInitialLoading.value = false
+  playlistLoadingMore.value = false
+  playlistLoadMoreError.value = null
+  playlistDetailError.value = null
+  homePlaylistTracks.value = []
+  homeRecommendationOperation += 1
+  homeRecommendationState.value = 'ready'
+  accountError.value = null
+  dailyOperation += 1
+  dailyRecommendations.value = { dayKey: localDayKey(), tracks: [] }
+  dailyState.value = 'empty'
+  dailyError.value = null
+  recentTracks.value = []
+  resetPlaylistSources()
+}
+
 function acceptsPolling(state: PublicAuthState): boolean {
   return state.status === 'waiting' || state.status === 'scanned'
 }
@@ -511,8 +639,13 @@ function applyAuthState(state: PublicAuthState, operation = authOperation): void
   authState.value = state
   if (!acceptsPolling(state)) stopPolling()
   if (state.status === 'authorized') {
+    resetPrivateLibraryState()
     void loadAccountState()
+    void loadLiked()
+    void loadPlaylists()
+    void loadDailyRecommendations()
   } else if (state.status === 'idle' || state.status === 'cancelled' || state.status === 'expired') {
+    resetPrivateLibraryState()
     accountState.value = { status: 'missing' }
     dailyRecommendations.value = { dayKey: localDayKey(), tracks: [] }
     dailyState.value = 'empty'
@@ -579,8 +712,6 @@ async function logout(): Promise<void> {
   try {
     applyAuthState(await window.musicBridge.logout())
     accountState.value = { status: 'missing' }
-    dailyRecommendations.value = { dayKey: localDayKey(), tracks: [] }
-    dailyState.value = 'empty'
   } catch (error) {
     authError.value = true
     recordActionError(error)
@@ -600,10 +731,18 @@ async function loadLyrics(trackId: string): Promise<void> {
 }
 
 function applyPlaybackState(snapshot: PlaybackSnapshot): void {
+  const previousTrackId = playbackState.value?.currentTrack?.id
+  const wasPlaying = playbackState.value?.state === 'playing'
   playbackState.value = snapshot
+  if (snapshot.state === 'playing' && snapshot.currentTrack && (!wasPlaying || previousTrackId !== snapshot.currentTrack.id)) {
+    recentTracks.value = [
+      snapshot.currentTrack,
+      ...recentTracks.value.filter((track) => track.id !== snapshot.currentTrack?.id),
+    ].slice(0, 6)
+  }
   const trackId = snapshot.currentTrack?.id
-  if (trackId) void loadLyrics(trackId)
-  else {
+  if (trackId && trackId !== previousTrackId) void loadLyrics(trackId)
+  else if (!trackId && previousTrackId) {
     lyricsOperation += 1
     lyricsSnapshot.value = emptyLyricsSnapshot()
   }
@@ -628,23 +767,117 @@ async function exportDiagnostics(): Promise<void> {
   }
 }
 
-async function playTrack(track: TrackSummary, addToQueue = false): Promise<void> {
+function showToast(message: string): void {
+  toastMessage.value = message
+  if (toastTimer !== undefined) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => {
+    toastMessage.value = null
+    toastTimer = undefined
+  }, 2_400)
+}
+
+function queueItemsForTracks(tracks: readonly TrackSummary[]): PlaybackQueueRequestItem[] {
+  return tracks.map((track) => ({ trackId: track.id, qualityPreference: selectedQuality.value }))
+}
+
+async function playTrack(track: TrackSummary): Promise<void> {
   actionError.value = null
   try {
-    if (addToQueue && playbackState.value?.queue.items.length) {
-      const items = [
-        ...ipcQueueItems(playbackState.value.queue.items),
-        { trackId: track.id, quality: selectedQuality.value },
-      ]
-      const index = Math.max(0, playbackState.value.queue.index)
-      applyPlaybackState(await window.musicBridge.replaceQueue(items, index))
-    } else {
-      applyPlaybackState(await window.musicBridge.play(track.id, selectedQuality.value))
-    }
+    applyPlaybackState(await window.musicBridge.play(track.id, selectedQuality.value))
     enterNowPlaying()
   } catch (error) {
     recordActionError(error)
   }
+}
+
+async function appendTrack(track: TrackSummary): Promise<void> {
+  actionError.value = null
+  try {
+    applyPlaybackState(await window.musicBridge.appendQueue([
+      { trackId: track.id, qualityPreference: selectedQuality.value },
+    ]))
+    showToast('已加入播放队列')
+  } catch (error) {
+    recordActionError(error)
+  }
+}
+
+async function insertTrackNext(track: TrackSummary): Promise<void> {
+  actionError.value = null
+  try {
+    applyPlaybackState(await window.musicBridge.insertNext([
+      { trackId: track.id, qualityPreference: selectedQuality.value },
+    ]))
+    showToast('将在下一首播放')
+  } catch (error) {
+    recordActionError(error)
+  }
+}
+
+async function replaceAndPlayCollection(
+  loadPage: CollectionPageLoader,
+  selectedTrackId?: string,
+): Promise<void> {
+  const operation = ++collectionOperation
+  actionError.value = null
+  try {
+    const tracks = await loadCollectionTracks(loadPage)
+    if (operation !== collectionOperation || tracks.length === 0) return
+    const requestedIndex = selectedTrackId === undefined
+      ? 0
+      : tracks.findIndex((track) => track.id === selectedTrackId)
+    const index = requestedIndex >= 0 ? requestedIndex : 0
+    applyPlaybackState(await window.musicBridge.replaceQueue(queueItemsForTracks(tracks), index))
+    enterNowPlaying()
+  } catch (error) {
+    if (operation === collectionOperation) recordActionError(error)
+  }
+}
+
+async function appendCollection(loadPage: CollectionPageLoader): Promise<void> {
+  const operation = ++collectionOperation
+  actionError.value = null
+  try {
+    const tracks = await loadCollectionTracks(loadPage)
+    if (operation !== collectionOperation || tracks.length === 0) return
+    applyPlaybackState(await window.musicBridge.appendQueue(queueItemsForTracks(tracks)))
+    showToast('已加入播放队列')
+  } catch (error) {
+    if (operation === collectionOperation) recordActionError(error)
+  }
+}
+
+function playAllLiked(): void {
+  void replaceAndPlayCollection((page) => window.musicBridge.getLikedTracks(page))
+}
+
+function appendAllLiked(): void {
+  void appendCollection((page) => window.musicBridge.getLikedTracks(page))
+}
+
+function playPlaylistTrack(track: TrackSummary): void {
+  const playlistId = selectedPlaylistId.value
+  if (!playlistId) return
+  void replaceAndPlayCollection(
+    (page) => window.musicBridge.getPlaylist(playlistId, page).then((detail) => detail.tracks),
+    track.id,
+  )
+}
+
+function playAllPlaylist(): void {
+  const playlistId = selectedPlaylistId.value
+  if (!playlistId) return
+  void replaceAndPlayCollection(
+    (page) => window.musicBridge.getPlaylist(playlistId, page).then((detail) => detail.tracks),
+  )
+}
+
+function appendAllPlaylist(): void {
+  const playlistId = selectedPlaylistId.value
+  if (!playlistId) return
+  void appendCollection(
+    (page) => window.musicBridge.getPlaylist(playlistId, page).then((detail) => detail.tracks),
+  )
 }
 
 function playCurrentTrack(): void {
@@ -655,9 +888,9 @@ function playCurrentTrack(): void {
 async function playAllDailyRecommendations(): Promise<void> {
   if (!dailyRecommendations.value.tracks.length) return
   actionError.value = null
-  const items: PlaybackQueueItem[] = dailyRecommendations.value.tracks.map((track) => ({
+  const items: PlaybackQueueRequestItem[] = dailyRecommendations.value.tracks.map((track) => ({
     trackId: track.id,
-    quality: selectedQuality.value,
+    qualityPreference: selectedQuality.value,
   }))
   try {
     applyPlaybackState(await window.musicBridge.replaceQueue(items, 0))
@@ -756,20 +989,34 @@ async function reconnectRemoteCore(): Promise<void> {
   }
 }
 
-function openLyrics(): void {
+function rememberInspectorFocus(): void {
+  const active = document.activeElement
+  inspectorReturnFocus.value = active instanceof HTMLElement && !active.closest('.playback-inspector')
+    ? active
+    : null
+}
+
+function openInspector(mode: 'lyrics' | 'queue'): void {
+  rememberInspectorFocus()
   if (isImmersiveNowPlaying.value) exitNowPlaying()
-  lyricsOrQueue.value = 'lyrics'
+  lyricsOrQueue.value = mode
   inspectorOpen.value = true
+  void nextTick(() => document.querySelector<HTMLElement>('.playback-inspector .inspector-close')?.focus())
+}
+
+function openLyrics(): void {
+  openInspector('lyrics')
 }
 
 function openQueue(): void {
-  if (isImmersiveNowPlaying.value) exitNowPlaying()
-  lyricsOrQueue.value = 'queue'
-  inspectorOpen.value = true
+  openInspector('queue')
 }
 
 function closeInspector(): void {
   inspectorOpen.value = false
+  const target = inspectorReturnFocus.value
+  inspectorReturnFocus.value = null
+  if (target?.isConnected) void nextTick(() => target.focus())
 }
 
 function openNowPlaying(): void {
@@ -784,6 +1031,11 @@ function onGlobalShortcut(event: KeyboardEvent): void {
   if (event.key === 'Escape' && isImmersiveNowPlaying.value) {
     event.preventDefault()
     exitNowPlaying()
+    return
+  }
+  if (event.key === 'Escape' && inspectorOpen.value) {
+    event.preventDefault()
+    closeInspector()
     return
   }
   if (event.key === 'Escape' && searchQuery.value) {
@@ -824,18 +1076,20 @@ async function retryAction(): Promise<void> {
   else await refreshPlayback()
 }
 
-function hideBrokenArtwork(event: Event): void {
-  const image = event.currentTarget as HTMLImageElement
-  image.hidden = true
-}
-
 function qualityLabel(quality: string | undefined): string {
   if (!quality) return '—'
+  if (quality === 'auto') return '自动（当前歌曲最高）'
+  if (quality === 'unknown') return '未知（以 Roon Signal Path 为准）'
   return quality === 'hires' ? 'Hi-Res' : quality[0].toUpperCase() + quality.slice(1)
 }
 
 function ipcQueueItems(items: readonly PlaybackQueueItem[]): PlaybackQueueItem[] {
-  return items.map((item) => ({ trackId: item.trackId, quality: item.quality }))
+  return items.map((item) => ({ trackId: item.trackId, qualityPreference: item.qualityPreference }))
+}
+
+function setSelectedQuality(preference: PlaybackQualityPreference): void {
+  selectedQuality.value = preference
+  window.localStorage.setItem('musicbridge.qualityPreference', preference)
 }
 
 onMounted(async () => {
@@ -857,6 +1111,7 @@ onMounted(async () => {
         void loadDailyRecommendations()
       }
       if (event.payload.state.status === 'missing') {
+        resetPrivateLibraryState()
         dailyRecommendations.value = { dayKey: localDayKey(), tracks: [] }
         dailyState.value = 'empty'
       }
@@ -867,6 +1122,10 @@ onMounted(async () => {
   })
   try {
     appInfo.value = await window.musicBridge.getAppInfo()
+    const storedQuality = window.localStorage.getItem('musicbridge.qualityPreference')
+    if (['auto', 'standard', 'exhigh', 'lossless', 'hires'].includes(storedQuality ?? '')) {
+      selectedQuality.value = storedQuality as PlaybackQualityPreference
+    }
     if (appInfo.value.buildMode === 'development') {
       remoteCoreState.value = await window.musicBridge.getRemoteCoreState()
       remoteAutoStart.value = window.localStorage.getItem('musicbridge.remoteCore.autoStart') === '1'
@@ -880,8 +1139,6 @@ onMounted(async () => {
     if (initialAuthState.status !== 'authorized') await loadAccountState()
     applyPlaybackState(await window.musicBridge.getPlaybackState())
     await loadZones()
-    void loadPlaylists()
-    void loadLiked()
   } catch (error) {
     coreError.value = true
     recordActionError(error)
@@ -895,6 +1152,8 @@ onUnmounted(() => {
   removeRemoteCoreListener?.()
   stopPolling()
   stopSearchTimer()
+  inspectorReturnFocus.value = null
+  if (toastTimer !== undefined) window.clearTimeout(toastTimer)
 })
 </script>
 
@@ -938,7 +1197,9 @@ onUnmounted(() => {
           v-if="currentView === 'home'"
           :current-track="currentTrack"
           :liked-tracks="likedPage.items"
-          :resume-tracks="homeTracks"
+          :recent-tracks="homeTracks"
+          :liked-state="likedHomeState"
+          :liked-error="likedError"
           :playlist-tracks="homePlaylistTracks"
           :playlist-recommendations-state="homeRecommendationState"
           :daily-day-key="dailyRecommendations.dayKey"
@@ -946,6 +1207,7 @@ onUnmounted(() => {
           :daily-state="dailyState"
           :daily-authenticated="authState.status === 'authorized'"
           :daily-error="dailyError"
+          :greeting="greeting"
           @navigate="navigate"
           @play="playTrack"
           @refresh-playlists="refreshHomeRecommendations"
@@ -964,59 +1226,61 @@ onUnmounted(() => {
           :error="dailyError"
           @back="navigate('home')"
           @play="playTrack"
-          @queue="(track) => playTrack(track, true)"
+          @queue="appendTrack"
           @play-all="playAllDailyRecommendations"
           @retry="refreshAccountProfile"
         />
 
         <section v-else-if="currentView === 'search'" class="view" aria-labelledby="search-heading">
           <div class="view-heading"><div><p class="section-kicker">搜索</p><h2 id="search-heading">搜索结果</h2><p class="lede">“{{ searchQuery }}”</p></div></div>
-          <p v-if="libraryError === 'auth-expired'" class="persistent-error">登录已过期，请从侧栏账户菜单重新登录。</p>
-          <p v-else-if="libraryError === 'generic'" class="persistent-error">搜索暂时不可用，请检查连接状态。</p>
+          <p v-if="searchError === 'auth-expired'" class="persistent-error">登录已过期，请从侧栏账户菜单重新登录。</p>
+          <p v-else-if="searchError === 'generic'" class="persistent-error">搜索暂时不可用，请检查连接状态。</p>
           <TrackTable
             :tracks="searchPage.items"
-            :busy="libraryBusy"
+            :initial-loading="searchInitialLoading"
+            :loading-more="searchLoadingMore"
+            :load-more-error="searchLoadMoreError"
             :total="searchPage.total"
             :has-more="searchPage.hasMore"
             :empty-title="searchQuery.trim() ? '没有匹配结果' : '开始一段搜索'"
             empty-copy="搜索结果会以连续歌曲列表显示。"
             empty-glyph="⌕"
             @play="playTrack"
-            @queue="(track) => playTrack(track, true)"
-            @play-next="(track) => playTrack(track, true)"
+            @queue="appendTrack"
+            @play-next="insertTrackNext"
             @load-more="searchPageAt(searchPage.offset + searchPage.limit)"
           />
         </section>
 
         <section v-else-if="currentView === 'liked'" class="view" aria-labelledby="liked-heading">
           <div class="liked-hero">
-            <div class="liked-collage" aria-hidden="true"><span v-for="track in likedPage.items.slice(0, 4)" :key="track.id" class="liked-collage-tile"><span class="artwork-fallback">♪</span><img v-if="track.artworkUrl" :src="track.artworkUrl" alt="" @error="hideBrokenArtwork" /></span><span v-if="!likedPage.items.length" class="liked-collage-empty">♫</span></div>
-            <div class="view-heading"><div><p class="section-kicker">资料库</p><h2 id="liked-heading">我喜欢的音乐</h2><p class="lede">{{ likedPage.total }} 首歌曲</p></div><div class="button-row"><button type="button" class="primary-button" :disabled="!likedPage.items.length" @click="playTrack(likedPage.items[0]!)">播放全部</button><button type="button" class="secondary-button" :disabled="!likedPage.items.length" @click="playTrack(likedPage.items[0]!, true)">加入队列</button></div></div>
+            <div class="liked-collage" aria-hidden="true"><SafeArtwork v-for="track in likedPage.items.slice(0, 4)" :key="track.id" class="liked-collage-tile" :src="track.artworkUrl" alt="" /><span v-if="!likedPage.items.length" class="liked-collage-empty">♫</span></div>
+            <div class="view-heading"><div><p class="section-kicker">资料库</p><h2 id="liked-heading">我喜欢的音乐</h2><p class="lede">{{ likedPage.total }} 首歌曲</p></div><div class="button-row"><button type="button" class="primary-button" :disabled="!likedPage.items.length" @click="playAllLiked">播放全部</button><button type="button" class="secondary-button" :disabled="!likedPage.items.length" @click="appendAllLiked">加入队列</button></div></div>
           </div>
-          <p v-if="libraryError" class="persistent-error">{{ libraryError === 'auth-expired' ? '登录已过期，请从侧栏账户菜单重新登录。' : '我喜欢的音乐暂时不可用，请稍后重试。' }}</p>
-          <TrackTable :tracks="likedPage.items" :busy="libraryBusy" :total="likedPage.total" :has-more="likedPage.hasMore" empty-title="还没有喜欢的内容" empty-copy="登录网易云后，这里会显示你的收藏。" @play="playTrack" @queue="(track) => playTrack(track, true)" @play-next="(track) => playTrack(track, true)" @load-more="likedPageAt(likedPage.offset + likedPage.limit)" />
+          <p v-if="likedError" class="persistent-error">{{ likedError === 'auth-expired' ? '登录已过期，请从侧栏账户菜单重新登录。' : '我喜欢的音乐暂时不可用，请稍后重试。' }}</p>
+          <TrackTable :tracks="likedPage.items" :initial-loading="likedInitialLoading" :loading-more="likedLoadingMore" :load-more-error="likedLoadMoreError" :total="likedPage.total" :has-more="likedPage.hasMore" empty-title="还没有喜欢的内容" empty-copy="登录网易云后，这里会显示你的收藏。" @play="playTrack" @queue="appendTrack" @play-next="insertTrackNext" @load-more="likedPageAt(likedPage.offset + likedPage.limit)" />
         </section>
 
         <section v-else-if="currentView === 'playlists'" class="view" aria-labelledby="playlists-heading">
           <div class="view-heading"><div><p class="section-kicker">资料库</p><h2 id="playlists-heading">所有歌单</h2><p class="lede">你的网易云歌单直接来自当前 Provider 数据。</p></div></div>
           <p v-if="playlistState === 'error'" class="persistent-error">歌单暂时无法加载，请从侧栏歌单区域重试。</p>
-          <div class="playlist-grid"><div v-if="playlistState === 'loading'" class="empty-state"><p>读取歌单…</p></div><div v-else-if="!playlists.length" class="empty-state"><h3>还没有歌单</h3><p>歌单会在网易云可用后出现在这里。</p></div><button v-for="playlist in playlists" v-else :key="playlist.id" type="button" class="playlist-card" @click="navigateSource({ type: 'playlist', playlistId: playlist.id })"><span class="playlist-art"><span class="artwork-fallback" aria-hidden="true">♫</span><img v-if="playlist.artworkUrl" :src="playlist.artworkUrl" alt="" @error="hideBrokenArtwork" /></span><span><strong>{{ playlist.name }}</strong><small>{{ playlist.trackCount }} 首歌曲</small></span><b aria-hidden="true">→</b></button></div>
+          <div class="playlist-grid"><div v-if="playlistState === 'loading'" class="empty-state"><p>读取歌单…</p></div><div v-else-if="!playlists.length" class="empty-state"><h3>还没有歌单</h3><p>歌单会在网易云可用后出现在这里。</p></div><button v-for="playlist in playlists" v-else :key="playlist.id" type="button" class="playlist-card" @click="navigateSource({ type: 'playlist', playlistId: playlist.id })"><SafeArtwork class="playlist-art" :src="playlist.artworkUrl" alt="" fallback="♫" /><span><strong>{{ playlist.name }}</strong><small>{{ playlist.trackCount }} 首歌曲</small></span><b aria-hidden="true">→</b></button></div>
         </section>
 
         <section v-else-if="currentView === 'playlist-detail'" class="view" aria-labelledby="playlist-heading">
           <button type="button" class="back-link" @click="navigateSource({ type: 'playlists' })">← 所有歌单</button>
-          <p v-if="libraryError === 'auth-expired'" class="persistent-error">登录已过期，请从侧栏账户菜单重新登录。</p>
-          <p v-else-if="libraryError === 'generic'" class="persistent-error">歌单暂时无法加载，请稍后重试。</p>
-          <div v-if="libraryBusy" class="empty-state"><span class="loading-line"></span><p>正在读取歌单…</p></div>
+          <p v-if="playlistDetailError === 'auth-expired'" class="persistent-error">登录已过期，请从侧栏账户菜单重新登录。</p>
+          <p v-else-if="playlistDetailError === 'generic'" class="persistent-error">歌单暂时无法加载，请稍后重试。</p>
+          <div v-if="playlistInitialLoading && !selectedPlaylist" class="empty-state"><span class="loading-line"></span><p>正在读取歌单…</p></div>
           <template v-else-if="selectedPlaylist">
             <div class="playlist-detail-hero">
-              <div class="playlist-detail-art"><span class="artwork-fallback" aria-hidden="true">♫</span><img v-if="selectedPlaylist.artworkUrl" :src="selectedPlaylist.artworkUrl" alt="" @error="hideBrokenArtwork" /></div>
-              <div class="playlist-detail-copy"><p class="section-kicker">歌单</p><h2 id="playlist-heading">{{ selectedPlaylist.name }}</h2><p class="lede">{{ selectedPlaylist.description || '来自你的音乐收藏。' }}</p><span class="playlist-count">{{ selectedPlaylist.trackCount }} 首歌曲</span><div class="button-row"><button type="button" class="primary-button" :disabled="!selectedPlaylist.tracks.items.length" @click="playTrack(selectedPlaylist.tracks.items[0]!)">播放全部</button><button type="button" class="secondary-button" :disabled="!selectedPlaylist.tracks.items.length" @click="playTrack(selectedPlaylist.tracks.items[0]!, true)">加入队列</button></div></div>
+              <SafeArtwork class="playlist-detail-art" :src="selectedPlaylist.artworkUrl" alt="" fallback="♫" />
+              <div class="playlist-detail-copy"><p class="section-kicker">歌单</p><h2 id="playlist-heading">{{ selectedPlaylist.name }}</h2><p class="lede">{{ selectedPlaylist.description || '来自你的音乐收藏。' }}</p><span class="playlist-count">{{ selectedPlaylist.trackCount }} 首歌曲</span><div class="button-row"><button type="button" class="primary-button" :disabled="!selectedPlaylist.tracks.items.length" @click="playAllPlaylist">播放全部</button><button type="button" class="secondary-button" :disabled="!selectedPlaylist.tracks.items.length" @click="appendAllPlaylist">加入队列</button></div></div>
             </div>
-            <TrackTable :tracks="selectedPlaylist.tracks.items" :busy="libraryBusy" :total="selectedPlaylist.tracks.total" :has-more="selectedPlaylist.tracks.hasMore" empty-title="歌单为空" empty-copy="这个歌单暂时没有可显示的歌曲。" @play="playTrack" @queue="(track) => playTrack(track, true)" @play-next="(track) => playTrack(track, true)" @load-more="playlistPageAt(selectedPlaylist.tracks.offset + selectedPlaylist.tracks.limit)" />
+            <TrackTable :tracks="selectedPlaylist.tracks.items" :initial-loading="playlistInitialLoading" :loading-more="playlistLoadingMore" :load-more-error="playlistLoadMoreError" :total="selectedPlaylist.tracks.total" :has-more="selectedPlaylist.tracks.hasMore" empty-title="歌单为空" empty-copy="这个歌单暂时没有可显示的歌曲。" @play="playPlaylistTrack" @queue="appendTrack" @play-next="insertTrackNext" @load-more="playlistPageAt(selectedPlaylist.tracks.offset + selectedPlaylist.tracks.limit)" />
           </template>
-          <div v-else-if="libraryError === null" class="empty-state"><p>选择一个歌单查看内容。</p></div>
-          <button v-if="libraryError" type="button" class="secondary-button" @click="retryPlaylist">重试</button>
+          <div v-else-if="playlistDetailError === null" class="empty-state"><p>选择一个歌单查看内容。</p></div>
+          <button v-if="playlistDetailError" type="button" class="secondary-button" @click="retryPlaylist">重试</button>
         </section>
 
         <NowPlayingView
@@ -1051,7 +1315,7 @@ onUnmounted(() => {
           @cancel-login="cancelQrLogin"
           @logout="logout"
           @refresh-account="refreshAccountProfile"
-          @update:selected-quality="selectedQuality = $event"
+          @update:selected-quality="setSelectedQuality($event)"
           @select-zone="selectZone"
           @diagnostics="navigate('diagnostics')"
           @start-remote-core="startRemoteCore"
@@ -1103,8 +1367,10 @@ onUnmounted(() => {
       @open-lyrics="openLyrics"
       @open-queue="openQueue"
       @select-zone="selectZone"
-      @update:selected-quality="selectedQuality = $event"
+      @update:selected-quality="setSelectedQuality($event)"
     />
+
+    <div v-if="toastMessage" class="toast" role="status" aria-live="polite">{{ toastMessage }}</div>
 
   </main>
 </template>

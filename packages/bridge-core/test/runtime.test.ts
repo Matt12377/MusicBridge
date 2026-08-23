@@ -21,6 +21,7 @@ test('runtime maps internal BridgeState to a bounded public state', () => {
           artists: ['hidden artist'],
           album: 'hidden album',
         },
+        qualityPreference: 'lossless',
         requestedQuality: 'lossless',
         actualQuality: 'lossless',
         startedAt: new Date(0).toISOString(),
@@ -46,7 +47,7 @@ test('synthetic runtime exposes redacted diagnostics and clears resources on sto
   await runtime.replacePlaybackQueue(
     Array.from({ length: 100 }, (_, index) => ({
       trackId: String(1000 + index),
-      quality: 'lossless' as const,
+      qualityPreference: 'lossless' as const,
     })),
     0,
   );

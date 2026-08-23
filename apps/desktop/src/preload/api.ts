@@ -4,8 +4,8 @@ import type {
   PlaylistDetail,
   PlaylistSummary,
   LyricsSnapshot,
-  PlaybackQueueItem,
-  PlaybackQuality,
+  PlaybackQueueRequestItem,
+  PlaybackQualityPreference,
   PlaybackSnapshot,
   PublicAuthState,
   PublicAccountState,
@@ -55,11 +55,13 @@ export interface MusicBridgePublicApi {
   selectZone: (zoneId: string) => Promise<PublicBridgeState>
   getLyrics: (trackId: string) => Promise<LyricsSnapshot>
   getPlaybackState: () => Promise<PlaybackSnapshot>
-  play: (trackId: string, quality: PlaybackQuality) => Promise<PlaybackSnapshot>
+  play: (trackId: string, quality: PlaybackQualityPreference) => Promise<PlaybackSnapshot>
   stop: () => Promise<PlaybackSnapshot>
   next: () => Promise<PlaybackSnapshot>
   previous: () => Promise<PlaybackSnapshot>
-  replaceQueue: (items: readonly PlaybackQueueItem[], index: number) => Promise<PlaybackSnapshot>
+  replaceQueue: (items: readonly PlaybackQueueRequestItem[], index: number) => Promise<PlaybackSnapshot>
+  appendQueue: (items: readonly PlaybackQueueRequestItem[]) => Promise<PlaybackSnapshot>
+  insertNext: (items: readonly PlaybackQueueRequestItem[]) => Promise<PlaybackSnapshot>
   onCoreEvent: (listener: (event: TypedIpcEvent) => void) => () => void
   onAppCommand: (listener: (command: AppCommand) => void) => () => void
   getRemoteCoreState: () => Promise<RemoteCoreTunnelState>
@@ -96,6 +98,8 @@ export const PUBLIC_API_KEYS = [
   'next',
   'previous',
   'replaceQueue',
+  'appendQueue',
+  'insertNext',
   'onCoreEvent',
   'onAppCommand',
   'getRemoteCoreState',
@@ -127,11 +131,13 @@ export function createPreloadApi(
   selectZone: (zoneId: string) => Promise<PublicBridgeState>,
   getLyrics: (trackId: string) => Promise<LyricsSnapshot>,
   getPlaybackState: () => Promise<PlaybackSnapshot>,
-  play: (trackId: string, quality: PlaybackQuality) => Promise<PlaybackSnapshot>,
+  play: (trackId: string, quality: PlaybackQualityPreference) => Promise<PlaybackSnapshot>,
   stop: () => Promise<PlaybackSnapshot>,
   next: () => Promise<PlaybackSnapshot>,
   previous: () => Promise<PlaybackSnapshot>,
-  replaceQueue: (items: readonly PlaybackQueueItem[], index: number) => Promise<PlaybackSnapshot>,
+  replaceQueue: (items: readonly PlaybackQueueRequestItem[], index: number) => Promise<PlaybackSnapshot>,
+  appendQueue: (items: readonly PlaybackQueueRequestItem[]) => Promise<PlaybackSnapshot>,
+  insertNext: (items: readonly PlaybackQueueRequestItem[]) => Promise<PlaybackSnapshot>,
   onCoreEvent: (listener: (event: TypedIpcEvent) => void) => () => void,
   onAppCommand: (listener: (command: AppCommand) => void) => () => void,
   getRemoteCoreState: () => Promise<RemoteCoreTunnelState> = async () => DEFAULT_REMOTE_CORE_STATE,
@@ -169,6 +175,8 @@ export function createPreloadApi(
     next,
     previous,
     replaceQueue,
+    appendQueue,
+    insertNext,
     onCoreEvent,
     onAppCommand,
     getRemoteCoreState,

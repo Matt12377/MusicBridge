@@ -9,9 +9,9 @@ import type {
 } from './library.js';
 import type { LyricsSnapshot } from './lyrics.js';
 import type {
-  PlaybackQueueItem,
+  PlaybackQueueRequestItem,
   PlaybackQueueSnapshot,
-  PlaybackQuality,
+  PlaybackQualityPreference,
   PlaybackSnapshot,
 } from './playback.js';
 import type {
@@ -54,6 +54,8 @@ export const IPC_COMMANDS = [
   'playback.next',
   'playback.previous',
   'playback.replaceQueue',
+  'playback.appendQueue',
+  'playback.insertNext',
 ] as const;
 
 export type IpcCommand = (typeof IPC_COMMANDS)[number];
@@ -124,11 +126,13 @@ export interface IpcCommandPayloads {
   'roon.listZones': Record<string, never>;
   'roon.selectZone': { zoneId: string };
   'playback.getState': Record<string, never>;
-  'playback.play': { trackId: string; quality: PlaybackQuality };
+  'playback.play': { trackId: string; qualityPreference: PlaybackQualityPreference };
   'playback.stop': Record<string, never>;
   'playback.next': Record<string, never>;
   'playback.previous': Record<string, never>;
-  'playback.replaceQueue': { items: readonly PlaybackQueueItem[]; index: number };
+  'playback.replaceQueue': { items: readonly PlaybackQueueRequestItem[]; index: number };
+  'playback.appendQueue': { items: readonly PlaybackQueueRequestItem[] };
+  'playback.insertNext': { items: readonly PlaybackQueueRequestItem[] };
 }
 
 export interface IpcCommandResults {
@@ -161,6 +165,8 @@ export interface IpcCommandResults {
   'playback.next': PlaybackSnapshot;
   'playback.previous': PlaybackSnapshot;
   'playback.replaceQueue': PlaybackSnapshot;
+  'playback.appendQueue': PlaybackSnapshot;
+  'playback.insertNext': PlaybackSnapshot;
 }
 
 export interface IpcEventPayloads {

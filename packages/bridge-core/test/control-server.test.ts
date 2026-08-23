@@ -17,6 +17,7 @@ function playbackState(): PlaybackSnapshot {
   return {
     state: 'idle',
     queue: { items: [], index: -1, hasNext: false, hasPrevious: false },
+    positionMs: 0,
     canNext: false,
     canPrevious: false,
     canStop: false,
@@ -55,7 +56,7 @@ function makeController() {
           queue: {
             items: items.map((item) => ({
               trackId: String(item.trackId),
-              quality: item.quality as 'lossless',
+              qualityPreference: item.quality as 'lossless',
             })),
             index,
             hasNext: index < items.length - 1,

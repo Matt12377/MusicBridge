@@ -14,8 +14,8 @@ import {
 } from 'electron'
 import type {
   PageRequest,
-  PlaybackQueueItem,
-  PlaybackQuality,
+  PlaybackQueueRequestItem,
+  PlaybackQualityPreference,
   PlaybackSnapshot,
   PublicAuthState,
   PublicBridgeState,
@@ -28,6 +28,9 @@ import { IPC_VERSION, validateIpcEvent } from '@music-bridge/contracts'
 import { mkdir, readFile, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+const APPLICATION_NAME = 'Music Bridge for Roon'
+app.setName(APPLICATION_NAME)
 
 import { migrateRoonConfig } from './config-migration.js'
 import {
@@ -157,6 +160,7 @@ const remoteCoreTunnelManager = new RemoteCoreTunnelManager({
 const EMPTY_PLAYBACK_SNAPSHOT: PlaybackSnapshot = {
   state: 'idle',
   queue: { items: [], index: -1, hasNext: false, hasPrevious: false },
+  positionMs: 0,
   canNext: false,
   canPrevious: false,
   canStop: false,
@@ -250,6 +254,56 @@ function buildTrayMenu(
     { type: 'separator' },
     { label: 'Quit Music Bridge', click: () => app.quit() },
   ])
+}
+
+function installApplicationMenu(): void {
+  const editMenu: Electron.MenuItemConstructorOptions = {
+    label: 'Edit',
+    submenu: [
+      { role: 'undo' },
+      { role: 'redo' },
+      { type: 'separator' },
+      { role: 'cut' },
+      { role: 'copy' },
+      { role: 'paste' },
+      { role: 'selectAll' },
+    ],
+  }
+  const windowMenu: Electron.MenuItemConstructorOptions = {
+    label: 'Window',
+    submenu: [
+      { role: 'minimize' },
+      { role: 'zoom' },
+      { type: 'separator' },
+      { role: 'front' },
+    ],
+  }
+  const template: Electron.MenuItemConstructorOptions[] = process.platform === 'darwin'
+    ? [
+        {
+          label: APPLICATION_NAME,
+          submenu: [
+            { role: 'about' },
+            { type: 'separator' },
+            { role: 'services' },
+            { type: 'separator' },
+            { role: 'hide' },
+            { role: 'hideOthers' },
+            { role: 'unhide' },
+            { type: 'separator' },
+            { role: 'quit' },
+          ],
+        },
+        editMenu,
+        windowMenu,
+      ]
+    : [
+        { label: 'File', submenu: [{ role: 'close' }, { role: 'quit' }] },
+        editMenu,
+        { role: 'viewMenu' },
+        windowMenu,
+      ]
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
 
 function requestTrayRefresh(supervisor: CoreSupervisor = coreSupervisor!): void {
@@ -432,15 +486,15 @@ function requirePlaybackTrackId(value: unknown): string {
   return value
 }
 
-function requirePlaybackQuality(value: unknown): PlaybackQuality {
-  if (!['standard', 'exhigh', 'lossless', 'hires'].includes(String(value))) {
-    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback quality')
+function requirePlaybackQualityPreference(value: unknown): PlaybackQualityPreference {
+  if (!['auto', 'standard', 'exhigh', 'lossless', 'hires'].includes(String(value))) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback quality preference')
   }
-  return value as PlaybackQuality
+  return value as PlaybackQualityPreference
 }
 
-function requirePlaybackQueue(value: unknown): readonly PlaybackQueueItem[] {
-  if (!Array.isArray(value) || value.length === 0 || value.length > 100) {
+function requirePlaybackQueue(value: unknown): readonly PlaybackQueueRequestItem[] {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 500) {
     return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback queue')
   }
   return value.map((item) => {
@@ -448,19 +502,19 @@ function requirePlaybackQueue(value: unknown): readonly PlaybackQueueItem[] {
       !item ||
       typeof item !== 'object' ||
       Array.isArray(item) ||
-      Object.keys(item).some((key) => !['trackId', 'quality'].includes(key))
+      Object.keys(item).some((key) => !['trackId', 'qualityPreference'].includes(key))
     ) {
       return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback queue')
     }
-    const queueItem = item as { trackId?: unknown; quality?: unknown }
+    const queueItem = item as { trackId?: unknown; qualityPreference?: unknown }
     return {
       trackId: requirePlaybackTrackId(queueItem.trackId),
-      quality: requirePlaybackQuality(queueItem.quality),
+      qualityPreference: requirePlaybackQualityPreference(queueItem.qualityPreference),
     }
   })
 }
 
-function requirePlaybackIndex(value: unknown, items: readonly PlaybackQueueItem[]): number {
+function requirePlaybackIndex(value: unknown, items: readonly PlaybackQueueRequestItem[]): number {
   if (
     typeof value !== 'number' ||
     !Number.isSafeInteger(value) ||
@@ -645,11 +699,11 @@ function registerIpcHandlers(
   ipcMain.handle('playback:get-state', (event) =>
     invokeCore(event, () => supervisor.request('playback.getState', {})),
   )
-  ipcMain.handle('playback:play', (event, trackId: unknown, quality: unknown) =>
+  ipcMain.handle('playback:play', (event, trackId: unknown, qualityPreference: unknown) =>
     invokeCore(event, () =>
       supervisor.request('playback.play', {
         trackId: requirePlaybackTrackId(trackId),
-        quality: requirePlaybackQuality(quality),
+        qualityPreference: requirePlaybackQualityPreference(qualityPreference),
       }),
     ),
   )
@@ -670,6 +724,20 @@ function registerIpcHandlers(
         index: requirePlaybackIndex(index, queue),
       })
     }),
+  )
+  ipcMain.handle('playback:append-queue', (event, items: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('playback.appendQueue', {
+        items: requirePlaybackQueue(items),
+      }),
+    ),
+  )
+  ipcMain.handle('playback:insert-next', (event, items: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('playback.insertNext', {
+        items: requirePlaybackQueue(items),
+      }),
+    ),
   )
   ipcMain.handle('remote-core:get-state', (event) => {
     return invokeRemoteCore(event, () => {
@@ -945,7 +1013,8 @@ async function waitForCoreRestartCredentialRecovery(
 
 async function bootstrap(): Promise<void> {
   await app.whenReady()
-  app.setName('Music Bridge for Roon')
+  app.setAboutPanelOptions({ applicationName: APPLICATION_NAME })
+  installApplicationMenu()
   await installRendererProtocol()
   installSessionSecurity(session.defaultSession)
 

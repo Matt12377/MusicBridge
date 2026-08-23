@@ -20,7 +20,7 @@ const bridge: PublicBridgeState = {
 const playback: PlaybackSnapshot = {
   state: 'playing',
   queue: {
-    items: [{ trackId: 'internal-track-id', quality: 'lossless' }],
+    items: [{ trackId: 'internal-track-id', qualityPreference: 'lossless' }],
     index: 0,
     hasNext: false,
     hasPrevious: false,
@@ -32,6 +32,7 @@ const playback: PlaybackSnapshot = {
     album: 'Synthetic album',
     artworkUrl: 'https://provider.invalid/artwork.jpg?token=secret',
   },
+  positionMs: 0,
   canNext: false,
   canPrevious: false,
   canStop: true,
