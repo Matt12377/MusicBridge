@@ -67,7 +67,7 @@ test('Renderer contains the public QR login surface without credential access', 
   assert.doesNotMatch(source, /NETEASE_COOKIE|MUSIC_U|__csrf|Authorization|Bearer|rawProviderResponse/)
   assert.match(source, /lyricsSnapshot/)
   assert.match(source, /lyrics.changed/)
-  assert.match(source, /activeWordIndex/)
+  assert.match(source, /activeLineIndex/)
 })
 
 test('Renderer exposes the v2 Music Source Sidebar information architecture', async () => {
