@@ -100,6 +100,20 @@ for (const relative of workflows) {
   if (/NETEASE_COOKIE\s*[:=]|roonstation|ssh\s/i.test(content)) fail(`workflow-real-service:${relative}`)
 }
 if (!text('.github/workflows/verify.yml').includes('audit --prod')) fail('workflow-audit')
-if (!text('.github/workflows/electron-e2e.yml').includes('test:startup')) fail('workflow-startup-gate')
+
+// Platform-independent verify must never launch Electron on Linux runners.
+const platformVerify = text('.github/workflows/verify.yml')
+if (/xvfb-run|test:startup|test:electron|test:e2e/.test(platformVerify)) fail('verify-workflow-electron-leak')
+
+// The macOS Electron gate must run both the Electron unit gate (startup, crash,
+// safeStorage vault, credential recovery) and the Playwright end-to-end flow.
+const electronGate = text('.github/workflows/electron-e2e.yml')
+for (const required of ['runs-on: macos-latest', 'test:electron', 'test:e2e']) {
+  if (!electronGate.includes(required)) fail(`electron-gate-missing:${required}`)
+}
+
+// Security workflow must stay platform-independent; no Electron launch steps.
+const securityWorkflow = text('.github/workflows/security.yml')
+if (/xvfb-run|test:startup|test:electron|test:e2e/.test(securityWorkflow)) fail('security-workflow-electron-leak')
 
 console.log('BOUNDARIES=PASS')

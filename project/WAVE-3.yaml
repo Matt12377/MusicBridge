@@ -2,15 +2,19 @@ schemaVersion: 1
 wave: WAVE-3
 status: active
 source: tasks/MusicBridge_V1_Completion_GOAL_v1.0.md
-activeTask: TASK-033
-activeBranch: codex/task-033-ui-reference-adaptation
-activeBaseCommit: 8b5929eaf8c595275d6fd0e33b779f7f15531e29
+activeTask: TASK-036
+activeBranch: codex/task-036-main-stabilization
+activeBaseCommit: 8948aead451e38dddaf7d94756bbebdee946c6b0
 order:
   - TASK-029
   - TASK-024
   - TASK-030
   - TASK-031
   - TASK-032
+  - TASK-033
+  - TASK-034
+  - TASK-035
+  - TASK-036
   - TASK-040
   - TASK-041
 stopAfter: TASK-041

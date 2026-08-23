@@ -1,5 +1,12 @@
 # Music Bridge for Roon `0.1.0-beta.1`
 
+## `0.1.0-beta.2` 状态（重建基线中，未发布）
+
+- 工作区版本已推进到 `0.1.0-beta.2`，但 **beta.2 尚无任何已构建候选**：没有 DMG、没有 hash、没有签名/公证结果、没有 Owner 验收结论。
+- beta.2 处于重新建基线阶段：TASK-033/034/035 已通过 PR #1（合并提交 `8948aead451e38dddaf7d94756bbebdee946c6b0`）进入 main，CI 测试分层由 TASK-036 修复。
+- 后续 beta.2 候选必须从唯一冻结 SHA 重建 DMG、重新计算 hash、重新审查 Fuses、签名、安装冒烟并重做 Owner 验收；待执行清单见 `reports/BETA2_REBASELINE_CHECKLIST.md`。
+- 以下 `0.1.0-beta.1` 章节为历史记录，原样保留。
+
 ## 状态
 
 这是 Apple silicon `arm64` 的内部 Beta 候选，不是公开发行版。当前没有自动更新，也没有创建 GitHub Release。Developer ID 签名、公证和 staple 尚未配置，因此不能把本候选当作可公开分发的 Gatekeeper 包。

@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
+import { spawnSync } from 'node:child_process'
 
 const root = process.cwd()
 const requiredFiles = [
@@ -27,6 +28,10 @@ function fail(message) {
   process.exit(1)
 }
 
+function readText(relativePath) {
+  return fs.readFileSync(path.join(root, relativePath), 'utf8')
+}
+
 for (const relativePath of requiredFiles) {
   const absolutePath = path.join(root, relativePath)
   if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isFile()) {
@@ -34,9 +39,16 @@ for (const relativePath of requiredFiles) {
   }
 }
 
+function commitExists(sha) {
+  const result = spawnSync('git', ['-C', root, 'cat-file', '-e', `${sha}^{commit}`], {
+    encoding: 'utf8',
+  })
+  return result.status === 0
+}
+
 let status
 try {
-  status = JSON.parse(fs.readFileSync(path.join(root, 'project/STATUS.json'), 'utf8'))
+  status = JSON.parse(readText('project/STATUS.json'))
 } catch {
   fail('status-json-invalid')
 }
@@ -67,7 +79,43 @@ if (
   fail('status-policy-invalid')
 }
 
-if (status.state === 'complete') {
+// STATUS commits must be well-formed and resolvable in the local Git history.
+const commitFields = ['baseCommit', 'implementationCommit', 'reportCommit']
+for (const field of commitFields) {
+  const sha = status[field]
+  if (sha === null || sha === undefined) continue
+  if (!/^[0-9a-f]{40}$/.test(sha)) fail(`status-commit-format:${field}`)
+  if (!commitExists(sha)) fail(`status-commit-not-in-history:${field}`)
+}
+
+// STATUS must agree with the wave plan.
+const wavePlan = readText('project/WAVE-3.yaml')
+const activeTaskMatch = wavePlan.match(/^activeTask:\s*(\S+)$/m)
+const activeBranchMatch = wavePlan.match(/^activeBranch:\s*(\S+)$/m)
+const activeBaseMatch = wavePlan.match(/^activeBaseCommit:\s*(\S+)$/m)
+if (!activeTaskMatch || activeTaskMatch[1] !== status.task) fail('wave-active-task-mismatch')
+if (!activeBranchMatch || activeBranchMatch[1] !== status.branch) fail('wave-active-branch-mismatch')
+if (activeBaseMatch) {
+  if (!/^[0-9a-f]{40}$/.test(activeBaseMatch[1])) fail('wave-base-format-invalid')
+  if (activeBaseMatch[1] !== status.baseCommit) fail('wave-base-status-mismatch')
+}
+
+// The current task must exist in the task index and in tasks/ definitions or reports.
+const taskIndex = readText('tasks/00_TASK_INDEX.md')
+const indexedTasks = new Set([...taskIndex.matchAll(/^\|\s*(TASK-[0-9A-Z]+)\s*\|/gm)].map((match) => match[1]))
+if (!indexedTasks.has(status.task)) fail('task-missing-from-index')
+const hasTaskDefinition = fs
+  .readdirSync(path.join(root, 'tasks'))
+  .some((name) => name.startsWith(`${status.task}_`))
+const hasTaskReport = fs
+  .readdirSync(path.join(root, 'reports'))
+  .some((name) => name.startsWith(`${status.task}_`))
+if (!hasTaskDefinition && !hasTaskReport) fail('task-definition-missing')
+
+// A finished task must have its final report; an in-progress task needs a definition file.
+if (status.state === 'in_progress') {
+  if (!hasTaskDefinition) fail(`missing-task-file:${status.task}`)
+} else {
   const reportPath = path.join(root, 'reports', `${status.task}_RESULT.md`)
   if (!fs.existsSync(reportPath) || !fs.statSync(reportPath).isFile()) {
     fail(`missing-report:${status.task}`)
@@ -83,8 +131,20 @@ if (
   fail('status-secret-or-url')
 }
 
-const wavePlan = fs.readFileSync(path.join(root, 'project/WAVE-3.yaml'), 'utf8')
-const requiredOrder = ['TASK-029', 'TASK-024', 'TASK-030', 'TASK-031', 'TASK-032', 'TASK-040', 'TASK-041']
+// Wave order must include the full executed sequence through TASK-041.
+const requiredOrder = [
+  'TASK-029',
+  'TASK-024',
+  'TASK-030',
+  'TASK-031',
+  'TASK-032',
+  'TASK-033',
+  'TASK-034',
+  'TASK-035',
+  'TASK-036',
+  'TASK-040',
+  'TASK-041',
+]
 let previousIndex = -1
 for (const task of requiredOrder) {
   const index = wavePlan.indexOf(`- ${task}`)
@@ -93,6 +153,44 @@ for (const task of requiredOrder) {
 }
 if (!wavePlan.includes('stopAfter: TASK-041') || !wavePlan.includes('reviewBoundary: beta-candidate')) {
   fail('wave-boundary-invalid')
+}
+
+// Tasks already merged into main must keep integration addenda so their historical
+// "not pushed / not merged" claims cannot be misread as current state.
+const integratedTasks = ['TASK-033', 'TASK-034', 'TASK-035']
+for (const task of integratedTasks) {
+  const addendumPath = path.join(root, 'reports', `${task}_INTEGRATION_ADDENDUM.md`)
+  if (!fs.existsSync(addendumPath) || !fs.statSync(addendumPath).isFile()) {
+    fail(`missing-integration-addendum:${task}`)
+  }
+  const resultPath = path.join(root, 'reports', `${task}_RESULT.md`)
+  if (fs.existsSync(resultPath)) {
+    const resultText = readText(path.join('reports', `${task}_RESULT.md`))
+    const claimsUnmerged = /(未创建 PR|未推送|未合并|未 push|未 force-push)/.test(resultText)
+    if (!claimsUnmerged) fail(`addendum-without-unmerged-claim:${task}`)
+  }
+}
+
+// Beta version and candidate reports must not contradict each other:
+// RELEASE_NOTES must mention the workspace version; the frozen beta acceptance
+// report must not silently adopt a newer version without a rebaseline marker.
+let packageVersion
+try {
+  packageVersion = JSON.parse(readText('package.json')).version
+} catch {
+  fail('package-json-invalid')
+}
+if (typeof packageVersion !== 'string' || !/^0\.1\.0-beta\.[0-9]+$/.test(packageVersion)) {
+  fail('package-version-shape-invalid')
+}
+const releaseNotes = readText('RELEASE_NOTES.md')
+if (!releaseNotes.includes(packageVersion)) fail('release-notes-version-missing')
+const betaAcceptance = readText('reports/V1_BETA_ACCEPTANCE.md')
+if (betaAcceptance.includes(packageVersion)) {
+  const offendingLine = betaAcceptance
+    .split('\n')
+    .find((line) => line.includes(packageVersion) && !/(重新建基线|重建|PENDING|待|未发布)/.test(line))
+  if (offendingLine) fail('beta-version-contradiction')
 }
 
 console.log('CONTROL_PLANE=PASS')

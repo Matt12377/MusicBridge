@@ -2,6 +2,7 @@ name: electron-e2e
 
 on:
   workflow_dispatch:
+  pull_request:
   push:
     paths:
       - 'apps/desktop/**'
@@ -13,9 +14,9 @@ permissions:
   contents: read
 
 jobs:
-  synthetic-desktop-gates:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+  macos-electron-gate:
+    runs-on: macos-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,11 +29,12 @@ jobs:
       - name: Install frozen workspace
         run: corepack pnpm@10.17.1 install --frozen-lockfile --ignore-scripts
 
-      - name: Desktop tests with synthetic fixtures
-        run: corepack pnpm@10.17.1 --filter @music-bridge/desktop test
+      - name: Install Electron binary from locked tree (official installer only)
+        run: node node_modules/electron/install.js
+        working-directory: apps/desktop
 
-      - name: Electron end-to-end flow
-        run: xvfb-run --auto-servernum corepack pnpm@10.17.1 --filter @music-bridge/desktop run test:e2e
+      - name: Electron startup, crash/restart, safeStorage vault and credential recovery gates
+        run: corepack pnpm@10.17.1 --filter @music-bridge/desktop run test:electron
 
-      - name: Electron startup and utilityProcess crash/restart
-        run: xvfb-run --auto-servernum corepack pnpm@10.17.1 --filter @music-bridge/desktop run test:startup
+      - name: Electron end-to-end flow (Playwright, production build)
+        run: corepack pnpm@10.17.1 --filter @music-bridge/desktop run test:e2e

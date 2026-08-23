@@ -295,17 +295,23 @@ test('v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation', 
     MUSIC_BRIDGE_CORE_TEST_MODE: '1',
     MUSIC_BRIDGE_CORE_CRASH_GATE: '1',
   }
+  const crashUserDataDirectory = await mkdtemp(
+    path.join(os.tmpdir(), 'musicbridge-task036-startup-'),
+  )
+  crashEnvironment.MUSIC_BRIDGE_STARTUP_USER_DATA_DIR = crashUserDataDirectory
   delete crashEnvironment.NETEASE_COOKIE
-  const crashApp = await electron.launch({
-    args: [electronEntry],
-    cwd: desktopRoot,
-    env: crashEnvironment,
-  })
+  let crashApp: ElectronApplication | undefined
   try {
+    crashApp = await electron.launch({
+      args: [electronEntry],
+      cwd: desktopRoot,
+      env: crashEnvironment,
+    })
     const output = await waitForProcessMarker(crashApp.process(), 'CORE_CRASH_GATE_PASS')
     expect(output).toContain('CORE_CRASH_GATE_PASS')
   } finally {
-    await crashApp.close().catch(() => undefined)
+    await crashApp?.close().catch(() => undefined)
+    await rm(crashUserDataDirectory, { recursive: true, force: true })
   }
 })
 
