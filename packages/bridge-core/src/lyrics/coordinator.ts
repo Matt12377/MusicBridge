@@ -78,7 +78,8 @@ export class LyricsCoordinator {
   private generation = 0;
   private activeTrackId: string | undefined;
   private activeSnapshot: LyricsSnapshot = emptyLyricsSnapshot();
-  private estimatedAnchorMs: number | undefined;
+  private positionAnchorMs: number | undefined;
+  private positionAnchorClockMs: number | undefined;
   private cancelEstimatedUpdates: () => void = () => undefined;
   private lastEmittedAt = Number.NEGATIVE_INFINITY;
   private lastEmittedKey = '';
@@ -117,21 +118,26 @@ export class LyricsCoordinator {
       this.generation += 1;
       const generation = this.generation;
       this.activeTrackId = trackId;
-      this.estimatedAnchorMs = undefined;
+      this.positionAnchorMs = undefined;
+      this.positionAnchorClockMs = undefined;
       const cached = this.readCache(trackId);
       this.activeSnapshot = cached ? cloneSnapshot(cached) : loadingSnapshot();
       this.emit(true);
       if (!cached) void this.loadActive(trackId, generation);
     }
 
-    if (snapshot.state === 'playing') this.markPlaying(trackId);
+    if (snapshot.state === 'playing') {
+      if (snapshot.positionMs > 0) this.updateRoonTime(snapshot.positionMs);
+      else this.markPlaying(trackId);
+    }
   }
 
   setActiveLyrics(trackId: string, snapshot: LyricsSnapshot): void {
     this.stopEstimatedUpdates();
     this.generation += 1;
     this.activeTrackId = trackId;
-    this.estimatedAnchorMs = undefined;
+    this.positionAnchorMs = undefined;
+    this.positionAnchorClockMs = undefined;
     this.activeSnapshot = {
       ...cloneSnapshot(snapshot),
       activeLineIndex: -1,
@@ -143,21 +149,28 @@ export class LyricsCoordinator {
 
   markPlaying(trackId: string): void {
     if (this.activeTrackId !== trackId) return;
-    if (this.estimatedAnchorMs === undefined) {
-      this.estimatedAnchorMs = this.now();
+    if (this.positionAnchorMs === undefined || this.positionAnchorClockMs === undefined) {
+      this.positionAnchorMs = 0;
+      this.positionAnchorClockMs = this.now();
       this.startEstimatedUpdates(trackId, this.generation);
     }
     this.updateEstimated();
   }
 
   updateEstimated(): void {
-    if (this.estimatedAnchorMs === undefined) return;
-    this.applyPosition(Math.max(0, this.now() - this.estimatedAnchorMs), 'estimated');
+    if (this.positionAnchorMs === undefined || this.positionAnchorClockMs === undefined) return;
+    this.applyPosition(
+      Math.max(0, this.positionAnchorMs + this.now() - this.positionAnchorClockMs),
+      'estimated',
+    );
   }
 
   updateRoonTime(positionMs: number): void {
     if (!Number.isSafeInteger(positionMs) || positionMs < 0) return;
-    this.stopEstimatedUpdates();
+    if (this.activeTrackId === undefined) return;
+    this.positionAnchorMs = positionMs;
+    this.positionAnchorClockMs = this.now();
+    this.startEstimatedUpdates(this.activeTrackId, this.generation);
     this.applyPosition(positionMs, 'roon-time');
   }
 
@@ -165,7 +178,8 @@ export class LyricsCoordinator {
     this.stopEstimatedUpdates();
     this.generation += 1;
     this.activeTrackId = undefined;
-    this.estimatedAnchorMs = undefined;
+    this.positionAnchorMs = undefined;
+    this.positionAnchorClockMs = undefined;
     this.activeSnapshot = emptyLyricsSnapshot();
     this.emit(true);
   }
@@ -176,7 +190,7 @@ export class LyricsCoordinator {
       if (generation !== this.generation || this.activeTrackId !== trackId) return;
       this.activeSnapshot = cloneSnapshot(loaded);
       this.emit(true);
-      if (this.estimatedAnchorMs !== undefined) this.updateEstimated();
+      if (this.positionAnchorMs !== undefined) this.updateEstimated();
     } catch {
       if (generation !== this.generation || this.activeTrackId !== trackId) return;
       this.activeSnapshot = errorSnapshot();
@@ -217,7 +231,8 @@ export class LyricsCoordinator {
     this.generation += 1;
     this.stopEstimatedUpdates();
     this.activeTrackId = undefined;
-    this.estimatedAnchorMs = undefined;
+    this.positionAnchorMs = undefined;
+    this.positionAnchorClockMs = undefined;
     this.activeSnapshot = emptyLyricsSnapshot();
     this.emit(true);
   }
