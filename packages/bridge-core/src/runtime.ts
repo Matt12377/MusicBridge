@@ -937,7 +937,16 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       if (Number(trackId) % 2 === 0) return emptyLyricsSnapshot('unavailable');
       return {
         status: 'ready',
-        lines: [{ startMs: 0, text: 'Synthetic lyric line' }],
+        lines: [
+          { startMs: 0, text: 'Midnight finds us wide awake', translation: '午夜让我们保持清醒' },
+          { startMs: 4_500, text: 'A quiet light across the room', translation: '一束安静的光穿过房间' },
+          { startMs: 9_000, text: 'We leave the windows open', translation: '我们把窗户留在夜风里' },
+          { startMs: 13_500, text: 'And let the city bloom', translation: '让城市在眼前慢慢盛开' },
+          { startMs: 18_000, text: 'Every small sound pulls us closer', translation: '每一个细小声音都让我们靠近' },
+          { startMs: 22_500, text: 'Every shadow turns to gold', translation: '每一道影子都变成金色' },
+          { startMs: 27_000, text: 'Stay a little longer', translation: '再多停留一会儿' },
+          { startMs: 31_500, text: 'Before the morning takes us home', translation: '在清晨带我们回家之前' },
+        ],
         activeLineIndex: 0,
         timingSource: 'static',
       };

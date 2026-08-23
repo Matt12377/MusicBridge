@@ -17,7 +17,9 @@ let diagnosticPath: string
 const syntheticScreenshotPath = process.env.MUSIC_BRIDGE_SCREENSHOT_PATH ?? path.join(os.tmpdir(), 'musicbridge-task-034-home.png')
 const syntheticSettingsScreenshotPath = path.join(os.tmpdir(), 'musicbridge-task-034-settings.png')
 const syntheticDailyScreenshotPath = path.join(os.tmpdir(), 'musicbridge-task-034-daily.png')
-const syntheticNowPlayingScreenshotPath = path.join(os.tmpdir(), 'musicbridge-task-034-now-playing.png')
+const syntheticNowPlayingScreenshotPath = path.join(os.tmpdir(), 'musicbridge-task-037-now-playing.png')
+const syntheticLyricsScreenshotPath = path.join(os.tmpdir(), 'musicbridge-task-037-lyrics-focus.png')
+const syntheticControlsScreenshotPath = path.join(os.tmpdir(), 'musicbridge-task-037-controls.png')
 const syntheticCoverUrl = 'https://p1.music.126.net/synthetic-cover.jpg'
 const syntheticAvatarUrl = 'https://p1.music.126.net/synthetic-avatar.jpg'
 const syntheticCoverSvg = `
@@ -208,6 +210,10 @@ test('v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation', 
   await expect(page.locator('.global-player')).toHaveCount(0)
   await expect(page.getByRole('button', { name: '退出全屏播放' })).toBeVisible()
   await page.screenshot({ path: syntheticNowPlayingScreenshotPath })
+  const normalTransportBounds = await page.locator('.transport-controls').boundingBox()
+  const normalViewportHeight = await page.evaluate(() => window.innerHeight)
+  expect(normalTransportBounds).not.toBeNull()
+  expect(normalTransportBounds!.y + normalTransportBounds!.height).toBeLessThanOrEqual(normalViewportHeight + 1)
   expect((await stat(syntheticNowPlayingScreenshotPath)).size).toBeGreaterThan(20_000)
   await page.getByRole('button', { name: '退出全屏播放' }).click()
   await expect(page.locator('.global-player')).toBeVisible()
@@ -386,7 +392,7 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   await page.getByRole('button', { name: '退出全屏播放' }).click()
   await search.fill('synthetic')
   await page.getByRole('button', { name: '播放 Synthetic Track 2', exact: true }).click()
-  await expect(page.getByText('Synthetic lyric line', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('Midnight finds us wide awake', { exact: true }).first()).toBeVisible()
   await page.getByRole('button', { name: '退出全屏播放' }).click()
 
   await openAccountSettings()
@@ -483,6 +489,31 @@ test('TASK-037 Now Playing geometry, real queue names and full collection loadin
   await page.getByRole('button', { name: '加载更多歌曲' }).click()
   await expect(page.getByText('Synthetic Track 21', { exact: true })).toBeVisible()
   await expect(page.getByRole('table', { name: '歌曲列表' }).getByText('Synthetic Track 1', { exact: true })).toBeVisible()
+})
+
+test('Now Playing 歌词保留多行上下文并标记当前焦点', async () => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const search = sidebarSearch()
+  await search.fill('synthetic')
+  await expect(page.getByText('Synthetic Track 2', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '播放 Synthetic Track 2', exact: true }).click()
+  await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
+
+  const lines = page.locator('.now-playing-lyrics-lines .lyrics-line')
+  await expect(lines).toHaveCount(8)
+  await expect(lines.nth(0)).toHaveAttribute('data-line-distance', '0')
+  await expect(lines.nth(0)).toHaveClass(/active/)
+  await expect(lines.nth(1)).toHaveAttribute('data-line-distance', '1')
+  await expect(lines.nth(4)).toHaveAttribute('data-line-distance', '4')
+  await expect(lines.nth(7)).toHaveAttribute('data-line-distance', '7')
+
+  const controls = await page.locator('.transport-controls').boundingBox()
+  expect(controls).not.toBeNull()
+  expect(controls!.y + controls!.height).toBeLessThanOrEqual(901)
+  await page.screenshot({ path: syntheticLyricsScreenshotPath })
+  await page.locator('.transport-controls').screenshot({ path: syntheticControlsScreenshotPath })
+  expect((await stat(syntheticLyricsScreenshotPath)).size).toBeGreaterThan(20_000)
+  expect((await stat(syntheticControlsScreenshotPath)).size).toBeGreaterThan(1_000)
 })
 
 test('Music Source Sidebar supports source recovery, Zone Popover and collapsed rail', async () => {
