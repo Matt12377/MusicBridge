@@ -2,6 +2,8 @@ import { spawn as nodeSpawn } from 'node:child_process'
 
 import type {
   RemoteCoreTunnelErrorCode,
+  RemoteCoreTunnelFailure,
+  RemoteCoreTunnelFailurePhase,
   RemoteCoreTunnelState,
 } from '@music-bridge/contracts'
 import { REMOTE_CORE_STREAM_PORT_CANDIDATES } from '@music-bridge/contracts'
@@ -114,6 +116,10 @@ export function buildTunnelSshArgs(
     '-o',
     'StrictHostKeyChecking=yes',
     '-o',
+    'ControlMaster=no',
+    '-o',
+    'ControlPath=none',
+    '-o',
     'ServerAliveInterval=15',
     '-o',
     'ServerAliveCountMax=3',
@@ -135,6 +141,10 @@ export function buildHealthCheckSshArgs(
     'BatchMode=yes',
     '-o',
     'StrictHostKeyChecking=yes',
+    '-o',
+    'ControlMaster=no',
+    '-o',
+    'ControlPath=none',
     '-o',
     'ConnectTimeout=5',
     sshTarget,
@@ -168,11 +178,72 @@ function classifySshFailure(stderr: string): RemoteCoreTunnelErrorCode {
   ) {
     return 'SSH_AUTH_REQUIRED'
   }
+  if (
+    /could not resolve hostname|nodename nor servname|connection timed out|connection refused|no route to host|network is unreachable|operation timed out/.test(
+      normalized,
+    )
+  ) {
+    return 'SSH_CONNECTION_FAILED'
+  }
   if (/remote forward failure|address already in use|cannot listen|listen port/.test(normalized)) {
     return 'REMOTE_PORTS_UNAVAILABLE'
   }
   if (/enoent|spawn .*ssh|not found/.test(normalized)) return 'SSH_BINARY_UNAVAILABLE'
   return 'REMOTE_PORTS_UNAVAILABLE'
+}
+
+function failurePhase(errorCode: RemoteCoreTunnelErrorCode): RemoteCoreTunnelFailurePhase {
+  switch (errorCode) {
+    case 'INVALID_SSH_TARGET':
+    case 'INVALID_REMOTE_STREAM_PORT':
+    case 'INVALID_LOCAL_STREAM_PORT':
+      return 'configuration'
+    case 'SSH_AUTH_REQUIRED':
+    case 'SSH_CONNECTION_FAILED':
+    case 'SSH_BINARY_UNAVAILABLE':
+      return 'ssh'
+    case 'REMOTE_PORTS_UNAVAILABLE':
+      return 'port-forward'
+    case 'CORE_RESTART_FAILED':
+      return 'core-restart'
+    case 'REMOTE_HEALTH_UNAVAILABLE':
+      return 'health-check'
+    case 'TUNNEL_DISCONNECTED':
+      return 'lifecycle'
+  }
+}
+
+function failureMessage(errorCode: RemoteCoreTunnelErrorCode): string {
+  switch (errorCode) {
+    case 'INVALID_SSH_TARGET':
+      return 'SSH 目标格式无效，请使用已配置的别名或 user@host。'
+    case 'INVALID_REMOTE_STREAM_PORT':
+      return '远程开发端口不在允许范围内。'
+    case 'INVALID_LOCAL_STREAM_PORT':
+      return '本地 Gateway 端口不符合远程开发约束。'
+    case 'SSH_AUTH_REQUIRED':
+      return 'SSH 认证失败，请确认 SSH key、known_hosts 和 BatchMode 配置。'
+    case 'SSH_CONNECTION_FAILED':
+      return 'SSH 无法连接到远端目标，请检查主机名、网络和 SSH 配置。'
+    case 'SSH_BINARY_UNAVAILABLE':
+      return '本机找不到受控的 SSH 程序。'
+    case 'REMOTE_PORTS_UNAVAILABLE':
+      return '远程端口转发失败，已检查允许的开发端口范围。'
+    case 'CORE_RESTART_FAILED':
+      return '本地 Core 切换到远程开发模式失败，应用已保留安全回退路径。'
+    case 'REMOTE_HEALTH_UNAVAILABLE':
+      return '远程 Core 健康检查失败，请确认远端 TASK-035 Core 正在运行。'
+    case 'TUNNEL_DISCONNECTED':
+      return 'SSH 隧道已断开，播放已停止并等待受控重连。'
+  }
+}
+
+function buildFailure(errorCode: RemoteCoreTunnelErrorCode): RemoteCoreTunnelFailure {
+  return {
+    phase: failurePhase(errorCode),
+    code: errorCode,
+    message: failureMessage(errorCode),
+  }
 }
 
 function copyState(state: RemoteCoreTunnelState): RemoteCoreTunnelState {
@@ -194,6 +265,7 @@ function baseRemoteState(
     remoteHealth: 'unavailable',
     autoReconnect: config.autoReconnect,
     ...(errorCode ? { errorCode } : {}),
+    ...(errorCode ? { failure: buildFailure(errorCode) } : {}),
   }
 }
 
@@ -310,7 +382,11 @@ export class RemoteCoreTunnelManager {
       const bound = await this.waitForBound(child)
       if (!bound.bound) {
         child.kill('SIGTERM')
-        if (bound.errorCode === 'SSH_AUTH_REQUIRED' || bound.errorCode === 'SSH_BINARY_UNAVAILABLE') {
+        if (
+          bound.errorCode === 'SSH_AUTH_REQUIRED' ||
+          bound.errorCode === 'SSH_CONNECTION_FAILED' ||
+          bound.errorCode === 'SSH_BINARY_UNAVAILABLE'
+        ) {
           return this.failState(config, bound.errorCode)
         }
         continue
@@ -322,7 +398,14 @@ export class RemoteCoreTunnelManager {
       this.attachUnexpectedExit(child)
 
       try {
-        await this.options.onTunnelBound?.(this.getState())
+        try {
+          await this.options.onTunnelBound?.(this.getState())
+        } catch {
+          this.child = undefined
+          child.kill('SIGTERM')
+          return this.failState(config, 'CORE_RESTART_FAILED', remoteStreamPort)
+        }
+
         const healthy = await this.healthProbeWithTimeout({
           sshTarget: config.sshTarget,
           remoteStreamPort,

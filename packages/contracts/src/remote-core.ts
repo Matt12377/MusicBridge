@@ -28,10 +28,26 @@ export type RemoteCoreTunnelErrorCode =
   | 'INVALID_REMOTE_STREAM_PORT'
   | 'INVALID_LOCAL_STREAM_PORT'
   | 'SSH_AUTH_REQUIRED'
+  | 'SSH_CONNECTION_FAILED'
   | 'SSH_BINARY_UNAVAILABLE'
   | 'REMOTE_PORTS_UNAVAILABLE'
   | 'REMOTE_HEALTH_UNAVAILABLE'
+  | 'CORE_RESTART_FAILED'
   | 'TUNNEL_DISCONNECTED'
+
+export type RemoteCoreTunnelFailurePhase =
+  | 'configuration'
+  | 'ssh'
+  | 'port-forward'
+  | 'core-restart'
+  | 'health-check'
+  | 'lifecycle'
+
+export interface RemoteCoreTunnelFailure {
+  phase: RemoteCoreTunnelFailurePhase
+  code: RemoteCoreTunnelErrorCode
+  message: string
+}
 
 export interface RemoteCoreTunnelState {
   mode: RemoteCoreMode
@@ -42,4 +58,5 @@ export interface RemoteCoreTunnelState {
   remoteHealth: RemoteCoreHealthStatus
   autoReconnect: boolean
   errorCode?: RemoteCoreTunnelErrorCode
+  failure?: RemoteCoreTunnelFailure
 }

@@ -29,11 +29,17 @@ test('Main diagnostic recorder keeps public Core health and a bounded event time
   recorder.recordCoreEvent(event)
   recorder.recordLifecycle('window_created')
   recorder.recordLifecycle('window_closed')
+  recorder.recordLifecycle('remote_core_tunnel_failed', 'error', {
+    code: 'SSH_CONNECTION_FAILED',
+    state: 'failed',
+  })
 
   const snapshot = recorder.snapshot(event.payload.state)
   assert.equal(snapshot.component, 'main')
   assert.equal(snapshot.health.runtime, 'ready')
-  assert.deepEqual(snapshot.timeline.map((item) => item.event), ['window_created', 'window_closed'])
+  assert.deepEqual(snapshot.timeline.map((item) => item.event), ['window_closed', 'remote_core_tunnel_failed'])
+  assert.equal(snapshot.timeline[1]?.code, 'SSH_CONNECTION_FAILED')
+  assert.equal(snapshot.timeline[1]?.state, 'failed')
   assert.doesNotMatch(JSON.stringify(snapshot), /trackId|Cookie|https?:\/\//i)
 })
 

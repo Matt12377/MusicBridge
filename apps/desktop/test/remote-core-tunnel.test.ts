@@ -119,6 +119,10 @@ test('SSH commands are fixed, loopback-only, and never forward the control port'
     '-o',
     'StrictHostKeyChecking=yes',
     '-o',
+    'ControlMaster=no',
+    '-o',
+    'ControlPath=none',
+    '-o',
     'ServerAliveInterval=15',
     '-o',
     'ServerAliveCountMax=3',
@@ -132,6 +136,10 @@ test('SSH commands are fixed, loopback-only, and never forward the control port'
     'BatchMode=yes',
     '-o',
     'StrictHostKeyChecking=yes',
+    '-o',
+    'ControlMaster=no',
+    '-o',
+    'ControlPath=none',
     '-o',
     'ConnectTimeout=5',
     'roonstation@core-mac',
@@ -232,6 +240,34 @@ test('BatchMode authentication failure stops without trying another port', async
 
   assert.equal(state.status, 'failed')
   assert.equal(state.errorCode, 'SSH_AUTH_REQUIRED')
+  assert.equal(harness.spawnCalls.length, 1)
+})
+
+test('SSH DNS or connection failure is reported separately with a redacted reason', async () => {
+  const harness = managerHarness({
+    processes: [
+      new FakeSshProcess({
+        code: 255,
+        stderr: 'ssh: Could not resolve hostname core-mac: nodename nor servname provided, or not known',
+      }),
+    ],
+  })
+
+  const state = await harness.manager.start({
+    sshTarget: 'core-mac',
+    remoteStreamPort: 38512,
+    localStreamPort: 38502,
+    autoReconnect: true,
+  })
+
+  assert.equal(state.status, 'failed')
+  assert.equal(state.errorCode, 'SSH_CONNECTION_FAILED')
+  assert.deepEqual((state as unknown as { failure?: unknown }).failure, {
+    phase: 'ssh',
+    code: 'SSH_CONNECTION_FAILED',
+    message: 'SSH 无法连接到远端目标，请检查主机名、网络和 SSH 配置。',
+  })
+  assert.equal(JSON.stringify((state as unknown as { failure?: unknown }).failure).includes('core-mac'), false)
   assert.equal(harness.spawnCalls.length, 1)
 })
 

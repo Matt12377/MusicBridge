@@ -109,6 +109,17 @@ const mainDiagnostics = new MainDiagnosticRecorder()
 
 const remoteCoreTunnelManager = new RemoteCoreTunnelManager({
   onStateChanged: (state) => {
+    if (state.status === 'failed' || state.status === 'disconnected') {
+      const code = state.errorCode ?? 'UNKNOWN'
+      mainDiagnostics.recordLifecycle(
+        'remote_core_tunnel_failed',
+        state.status === 'failed' ? 'error' : 'warn',
+        { code, state: state.status },
+      )
+      process.stderr.write(
+        `[remote-core] ${state.status} code=${code} port=${state.remoteStreamPort ?? '-'}\n`,
+      )
+    }
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('remote-core:event', state)
     }

@@ -82,6 +82,10 @@ function remoteStatusLabel(status: RemoteCoreTunnelState['status']): string {
         <p class="muted-copy">仅开发构建可用。应用仍运行在本机，SSH 只建立回环反向隧道；不会修改正式 Extension、Provider 或播放语义。</p>
         <dl class="detail-list remote-core-details"><div><dt>目标</dt><dd>{{ props.remoteCoreState.sshTarget ?? '由 CORE_SSH_TARGET 提供' }}</dd></div><div><dt>远程端口</dt><dd>{{ props.remoteCoreState.remoteStreamPort ?? '—' }}</dd></div><div><dt>本地 Gateway</dt><dd>127.0.0.1:{{ props.remoteCoreState.localStreamPort }}</dd></div><div><dt>健康检查</dt><dd>{{ props.remoteCoreState.remoteHealth === 'available' ? '可用' : '未确认' }}</dd></div></dl>
         <label class="settings-toggle"><input type="checkbox" :checked="props.remoteAutoStart" @change="emit('update:remote-auto-start', ($event.target as HTMLInputElement).checked)" /><span>开发启动时自动连接（默认关闭）</span></label>
+        <p v-if="props.remoteCoreState.failure" class="persistent-error remote-core-failure">
+          <span>{{ props.remoteCoreState.failure.message }}</span>
+          <span>阶段：{{ props.remoteCoreState.failure.phase }} · 错误码：{{ props.remoteCoreState.failure.code }}</span>
+        </p>
         <div class="button-row remote-core-actions"><button v-if="props.remoteCoreState.status === 'idle' || props.remoteCoreState.status === 'failed' || props.remoteCoreState.status === 'disconnected'" type="button" class="primary-button" @click="emit('start-remote-core')">启动远程 Core</button><button v-else type="button" class="secondary-button" :disabled="props.remoteCoreState.status === 'stopping'" @click="emit('stop-remote-core')">停止远程 Core</button><button type="button" class="secondary-button" :disabled="props.remoteCoreState.status === 'checking' || props.remoteCoreState.status === 'starting' || props.remoteCoreState.status === 'reconnecting' || props.remoteCoreState.status === 'stopping'" @click="emit('reconnect-remote-core')">重连</button></div>
       </article>
     </div>
