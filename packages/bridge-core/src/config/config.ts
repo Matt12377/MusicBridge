@@ -1,10 +1,10 @@
 import { BridgeError } from '../shared/errors.js';
-import { enforceNeteaseSafetyEnvironment, parseQuality } from '../netease/policy.js';
+import { enforceNeteaseSafetyEnvironment, parseQualityPreference } from '../netease/policy.js';
 import {
   REMOTE_CORE_STREAM_PORT_CANDIDATES,
   type RemoteCoreMode,
 } from '@music-bridge/contracts';
-import type { QualityLevel } from '../netease/types.js';
+import type { PlaybackQualityPreference } from '@music-bridge/contracts';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -17,7 +17,7 @@ export interface BridgeConfig {
   publicStreamBaseUrl: string;
   remoteStreamPort?: number;
   neteaseCookie?: string;
-  defaultQuality: QualityLevel;
+  defaultQuality: PlaybackQualityPreference;
   logLevel: LogLevel;
 }
 
@@ -140,7 +140,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
     }
   }
 
-  const quality = parseQuality(env.NETEASE_DEFAULT_QUALITY ?? 'lossless');
+  const quality = parseQualityPreference(env.NETEASE_DEFAULT_QUALITY ?? 'auto');
   const cookie = env.NETEASE_COOKIE?.trim();
 
   return {

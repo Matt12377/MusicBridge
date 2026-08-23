@@ -219,7 +219,7 @@ test('controller exposes a bounded quality downgrade notice without upstream det
 
   assert.deepEqual(controller.getPlaybackState().qualityNotice, {
     code: 'QUALITY_DOWNGRADED',
-    message: '请求无损，实际高品质',
+    message: '请求 lossless，实际 exhigh',
     retryable: false,
     diagnosticId: 'diag-controller-test',
     action: 'none',
@@ -386,6 +386,184 @@ test('controller replaces the queue and next/previous move one item at a time', 
   assert.equal(roon.playRequests.length, 3);
   assert.equal(roon.playRequests[2]!.metadata.id, '101');
   assert.equal(registry.size, 1);
+});
+
+test('controller appends to an active queue without restarting playback', async () => {
+  const { controller, roon, registry } = makeHarness();
+
+  await controller.play({ trackId: '701', quality: 'lossless' });
+  controller.updateRoonTime(12_345);
+  const before = controller.getPlaybackState();
+  const beforeMediaUrl = roon.playRequest?.mediaUrl;
+  const beforePlayCount = roon.playRequests.length;
+  const beforeStopCount = roon.stopCalls;
+  const beforeTokenCount = controller.getDiagnosticResourceCounters().activeTokenCount;
+
+  await controller.appendQueue([{ trackId: '702', quality: 'lossless' }]);
+
+  const after = controller.getPlaybackState();
+  assert.equal(roon.playRequests.length, beforePlayCount);
+  assert.equal(roon.stopCalls, beforeStopCount);
+  assert.equal(roon.playRequest?.mediaUrl, beforeMediaUrl);
+  assert.equal(controller.getDiagnosticResourceCounters().activeTokenCount, beforeTokenCount);
+  assert.equal(after.queue.index, before.queue.index);
+  assert.equal(after.currentTrack?.id, '701');
+  assert.equal(after.positionMs, before.positionMs);
+  assert.deepEqual(after.queue.items.map((item) => item.trackId), ['701', '702']);
+  assert.equal(registry.size, 1);
+});
+
+test('controller replaces the queue without restarting the same active track', async () => {
+  const { controller, roon } = makeHarness();
+
+  await controller.play({ trackId: '703', quality: 'lossless' });
+  const beforePlayCount = roon.playRequests.length;
+
+  const state = await controller.replaceQueue([
+    { trackId: '702', quality: 'lossless' },
+    { trackId: '703', quality: 'lossless' },
+    { trackId: '704', quality: 'lossless' },
+  ], 1);
+  const playback = controller.getPlaybackState();
+
+  assert.equal(roon.playRequests.length, beforePlayCount);
+  assert.equal(state.activePlayback?.track.id, '703');
+  assert.equal(playback.currentTrack?.id, '703');
+  assert.equal(playback.queue.index, 1);
+  assert.deepEqual(playback.queue.items.map((item) => item.trackId), ['702', '703', '704']);
+});
+
+test('controller inserts next after the current queue index without restarting playback', async () => {
+  const { controller, roon } = makeHarness();
+
+  await controller.replaceQueue([
+    { trackId: '711', quality: 'standard' },
+    { trackId: '713', quality: 'standard' },
+  ]);
+  const beforePlayCount = roon.playRequests.length;
+  const beforeStopCount = roon.stopCalls;
+
+  await controller.insertNext([{ trackId: '712', quality: 'standard' }]);
+
+  assert.equal(roon.playRequests.length, beforePlayCount);
+  assert.equal(roon.stopCalls, beforeStopCount);
+  assert.equal(controller.getPlaybackState().queue.index, 0);
+  assert.deepEqual(
+    controller.getPlaybackState().queue.items.map((item) => item.trackId),
+    ['711', '712', '713'],
+  );
+});
+
+test('controller appends while idle without starting playback', async () => {
+  const { controller, roon } = makeHarness();
+
+  await controller.appendQueue([{ trackId: '721', quality: 'standard' }]);
+
+  assert.equal(roon.playRequests.length, 0);
+  assert.equal(roon.stopCalls, 0);
+  assert.equal(controller.getPlaybackState().state, 'idle');
+  assert.equal(controller.getPlaybackState().queue.index, -1);
+  assert.deepEqual(controller.getPlaybackState().queue.items.map((item) => item.trackId), ['721']);
+});
+
+test('controller publishes verified summaries for queued tracks', async () => {
+  const { controller } = makeHarness();
+
+  await controller.replaceQueue([
+    { trackId: '731', quality: 'standard' },
+    { trackId: '732', quality: 'standard' },
+  ]);
+
+  assert.deepEqual(controller.getPlaybackState().queue.items.map((item) => item.track), [
+    {
+      id: '731',
+      title: 'Test Song',
+      artists: ['Artist'],
+      album: 'Album',
+      durationMs: 120000,
+    },
+    {
+      id: '732',
+      title: 'Test Song',
+      artists: ['Artist'],
+      album: 'Album',
+      durationMs: 120000,
+    },
+  ]);
+});
+
+test('controller auto quality requests the highest supported level without a downgrade warning', async () => {
+  const { controller, netease } = makeHarness();
+  netease.actualQuality = 'exhigh';
+
+  await controller.play({ trackId: '741', qualityPreference: 'auto' });
+
+  const snapshot = controller.getPlaybackState();
+  assert.equal(snapshot.qualityPreference, 'auto');
+  assert.equal(snapshot.requestedQuality, 'hires');
+  assert.equal(snapshot.actualQuality, 'exhigh');
+  assert.equal(snapshot.qualityNotice, undefined);
+});
+
+test('controller only reports a downgrade when the fixed requested rank is lower than actual', async () => {
+  const { controller, netease } = makeHarness();
+  netease.actualQuality = 'lossless';
+
+  await controller.play({ trackId: '742', qualityPreference: 'exhigh' });
+  assert.equal(controller.getPlaybackState().qualityNotice, undefined);
+
+  netease.actualQuality = 'vendor-unknown';
+  await controller.play({ trackId: '743', qualityPreference: 'hires' });
+  assert.equal(controller.getPlaybackState().actualQuality, 'unknown');
+  assert.equal(controller.getPlaybackState().qualityNotice, undefined);
+});
+
+test('controller rejects stale Roon positions after a new playback generation', async () => {
+  const { controller } = makeHarness();
+
+  await controller.play({ trackId: '751', qualityPreference: 'lossless' });
+  const oldGeneration = controller.getPlaybackGeneration();
+  controller.updateRoonTime(1_234, oldGeneration);
+  assert.equal(controller.getPlaybackState().positionMs, 1_234);
+
+  await controller.play({ trackId: '752', qualityPreference: 'lossless' });
+  assert.equal(controller.getPlaybackState().positionMs, 0);
+  controller.updateRoonTime(9_999, oldGeneration);
+  assert.equal(controller.getPlaybackState().positionMs, 0);
+  controller.updateRoonTime(2_000);
+  assert.equal(controller.getPlaybackState().positionMs, 2_000);
+
+  await controller.stop();
+  assert.equal(controller.getPlaybackState().positionMs, 0);
+});
+
+test('controller continues a 45-track collection after starting at track 21', async () => {
+  const { controller, roon } = makeHarness();
+  const items = Array.from({ length: 45 }, (_, index) => ({
+    trackId: String(8_000 + index),
+    quality: 'lossless' as const,
+  }));
+
+  await controller.replaceQueue(items, 20);
+  assert.equal(controller.getPlaybackState().currentTrack?.id, '8020');
+  roon.emitTerminal('ended');
+  await waitFor(() => controller.getPlaybackState().currentTrack?.id === '8021');
+  assert.equal(controller.getPlaybackState().queue.index, 21);
+});
+
+test('controller preserves the tail of a 120-track collection across the same boundary', async () => {
+  const { controller, roon } = makeHarness();
+  const items = Array.from({ length: 120 }, (_, index) => ({
+    trackId: String(9_000 + index),
+    qualityPreference: 'auto' as const,
+  }));
+
+  await controller.replaceQueue(items, 20);
+  assert.equal(controller.getPlaybackState().currentTrack?.id, '9020');
+  roon.emitTerminal('ended');
+  await waitFor(() => controller.getPlaybackState().currentTrack?.id === '9021');
+  assert.equal(controller.getPlaybackState().queue.items.length, 120);
+  assert.equal(controller.getPlaybackState().queue.index, 21);
 });
 
 test('controller serializes rapid queue controls and keeps one active stream', async () => {

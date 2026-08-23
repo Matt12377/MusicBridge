@@ -68,6 +68,7 @@ interface PendingRequest {
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 2_000
 const LIBRARY_REQUEST_TIMEOUT_MS = 10_000
+const PLAYBACK_REQUEST_TIMEOUT_MS = 60_000
 
 export class CoreSupervisor {
   private child: CoreChildProcess | undefined
@@ -146,7 +147,9 @@ export class CoreSupervisor {
     }
     const timeoutMs = command.startsWith('library.')
       ? LIBRARY_REQUEST_TIMEOUT_MS
-      : this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
+      : command.startsWith('playback.')
+        ? PLAYBACK_REQUEST_TIMEOUT_MS
+        : this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
     const response = await new Promise<unknown>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id)

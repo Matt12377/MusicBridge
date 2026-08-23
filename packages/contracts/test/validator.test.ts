@@ -429,8 +429,8 @@ test('contracts validates bounded playback controls and sanitized snapshots', ()
     state: 'playing',
     queue: {
       items: [
-        { trackId: '101', quality: 'lossless' },
-        { trackId: '102', quality: 'standard' },
+        { trackId: '101', qualityPreference: 'lossless' },
+        { trackId: '102', qualityPreference: 'standard' },
       ],
       index: 0,
       hasNext: true,
@@ -444,6 +444,8 @@ test('contracts validates bounded playback controls and sanitized snapshots', ()
     },
     requestedQuality: 'lossless',
     actualQuality: 'lossless',
+    qualityPreference: 'lossless',
+    positionMs: 0,
     format: 'flac',
     bitrate: 900_000,
     selectedZoneId: 'zone-1',
@@ -468,15 +470,17 @@ test('contracts validates bounded playback controls and sanitized snapshots', ()
 
   for (const [id, command, payload] of [
     ['playback-get', 'playback.getState', {}],
-    ['playback-play', 'playback.play', { trackId: '101', quality: 'lossless' }],
+    ['playback-play', 'playback.play', { trackId: '101', qualityPreference: 'lossless' }],
     ['playback-stop', 'playback.stop', {}],
     ['playback-next', 'playback.next', {}],
     ['playback-previous', 'playback.previous', {}],
     [
       'playback-replace',
       'playback.replaceQueue',
-      { items: [{ trackId: '101', quality: 'lossless' }], index: 0 },
+      { items: [{ trackId: '101', qualityPreference: 'lossless' }], index: 0 },
     ],
+    ['playback-append', 'playback.appendQueue', { items: [{ trackId: '102', qualityPreference: 'standard' }] }],
+    ['playback-insert-next', 'playback.insertNext', { items: [{ trackId: '103', qualityPreference: 'standard' }] }],
   ] as const) {
     assert.equal(
       validateIpcRequest({ version: IPC_VERSION, id, command, payload }).ok,
@@ -497,9 +501,9 @@ test('contracts validates bounded playback controls and sanitized snapshots', ()
       id: 'playback-replace-too-many',
       command: 'playback.replaceQueue',
       payload: {
-        items: Array.from({ length: 101 }, (_, index) => ({
+        items: Array.from({ length: 501 }, (_, index) => ({
           trackId: String(index + 1),
-          quality: 'standard',
+          qualityPreference: 'standard',
         })),
         index: 0,
       },
@@ -511,7 +515,7 @@ test('contracts validates bounded playback controls and sanitized snapshots', ()
       version: IPC_VERSION,
       id: 'playback-invalid-quality',
       command: 'playback.play',
-      payload: { trackId: '101', quality: 'hi-res-unlock' },
+      payload: { trackId: '101', qualityPreference: 'hi-res-unlock' },
     }).ok,
     false,
   );

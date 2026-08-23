@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DailyRecommendationTrack } from '@music-bridge/contracts'
+import SafeArtwork from '../SafeArtwork.vue'
 
 const props = defineProps<{
   dayKey: string
@@ -16,11 +17,6 @@ const emit = defineEmits<{
   'open-settings': []
   retry: []
 }>()
-
-function hideBrokenArtwork(event: Event): void {
-  const image = event.currentTarget as HTMLImageElement
-  image.hidden = true
-}
 
 function formatDayKey(dayKey: string): string {
   const parts = dayKey.split('-')
@@ -46,7 +42,7 @@ function formatDayKey(dayKey: string): string {
     </div>
     <div v-else-if="props.tracks.length" class="daily-recommendation-grid" aria-label="每日推荐歌曲">
       <button v-for="track in props.tracks.slice(0, 8)" :key="track.id" type="button" class="daily-recommendation-tile" :aria-label="'播放 ' + track.title" @click="emit('play', track)">
-        <span class="daily-recommendation-art"><span class="artwork-fallback" aria-hidden="true">♪</span><img v-if="track.artworkUrl" :src="track.artworkUrl" :alt="track.title + ' 封面'" loading="lazy" @error="hideBrokenArtwork" /></span>
+        <SafeArtwork class="daily-recommendation-art" :src="track.artworkUrl" :alt="track.title + ' 封面'" />
         <span class="daily-recommendation-copy"><strong>{{ track.title }}</strong><small>{{ track.artists.join('、') }}</small><em v-if="track.recommendationReason">{{ track.recommendationReason }}</em></span>
       </button>
     </div>

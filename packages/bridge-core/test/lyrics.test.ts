@@ -23,7 +23,7 @@ function playing(trackId: string): PlaybackSnapshot {
   return {
     state: 'playing',
     queue: {
-      items: [{ trackId, quality: 'standard' }],
+      items: [{ trackId, qualityPreference: 'standard' }],
       index: 0,
       hasNext: false,
       hasPrevious: false,
@@ -34,6 +34,7 @@ function playing(trackId: string): PlaybackSnapshot {
       artists: ['Synthetic Artist'],
       album: 'Synthetic Album',
     },
+    positionMs: 0,
     canNext: false,
     canPrevious: false,
     canStop: true,
@@ -244,6 +245,32 @@ test('lyrics coordinator schedules estimated updates and cancels them on shutdow
   assert.equal(changes.at(-1)?.timingSource, 'estimated')
   coordinator.shutdown()
   assert.equal(cancellations, 1)
+})
+
+test('lyrics coordinator keeps estimating between sparse Roon time callbacks', () => {
+  const changes: LyricsSnapshot[] = []
+  let now = 0
+  const coordinator = new LyricsCoordinator({
+    now: () => now,
+    load: async () => readySnapshot('unused'),
+    onChange: (snapshot) => changes.push(snapshot),
+  })
+
+  coordinator.setActiveLyrics('101', {
+    status: 'ready',
+    lines: [
+      { startMs: 0, endMs: 1_000, text: 'one' },
+      { startMs: 1_000, text: 'two' },
+    ],
+    activeLineIndex: -1,
+    timingSource: 'static',
+  })
+  coordinator.updateRoonTime(800)
+  now = 450
+  coordinator.updateEstimated()
+
+  assert.equal(changes.at(-1)?.activeLineIndex, 1)
+  assert.equal(changes.at(-1)?.timingSource, 'estimated')
 })
 
 test('lyrics coordinator caps its in-memory cache at fifty tracks', async () => {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { AppInfo } from '../../../../preload/api.js'
-import type { PlaybackQuality, PublicAccountState, PublicAuthState, PublicRoonZone, RemoteCoreTunnelState } from '@music-bridge/contracts'
+import type { PlaybackQualityPreference, PublicAccountState, PublicAuthState, PublicRoonZone, RemoteCoreTunnelState } from '@music-bridge/contracts'
 
 const props = defineProps<{
   appInfo: AppInfo | null
@@ -8,7 +8,7 @@ const props = defineProps<{
   accountState: PublicAccountState
   zones: readonly PublicRoonZone[]
   selectedZone?: PublicRoonZone
-  selectedQuality: PlaybackQuality
+  selectedQuality: PlaybackQualityPreference
   authError: boolean
   accountError?: string | null
   remoteCoreState: RemoteCoreTunnelState
@@ -20,7 +20,7 @@ const emit = defineEmits<{
   'cancel-login': []
   logout: []
   'refresh-account': []
-  'update:selectedQuality': [quality: PlaybackQuality]
+  'update:selectedQuality': [quality: PlaybackQualityPreference]
   'select-zone': [zoneId: string]
   diagnostics: []
   'start-remote-core': []
@@ -73,7 +73,7 @@ function remoteStatusLabel(status: RemoteCoreTunnelState['status']): string {
         <p v-if="props.authError" class="persistent-error">登录操作暂时不可用，请打开 Diagnostics 查看状态。</p>
       </article>
 
-      <article class="settings-card settings-glass-panel"><div class="panel-heading"><div><p class="section-kicker">Playback</p><h3>播放偏好</h3></div></div><label class="field-label" for="quality-select">请求质量</label><select id="quality-select" :value="props.selectedQuality" @change="emit('update:selectedQuality', ($event.target as HTMLSelectElement).value as PlaybackQuality)"><option value="standard">Standard</option><option value="exhigh">Exhigh</option><option value="lossless">Lossless</option><option value="hires">Hi-Res</option></select><p class="muted-copy">实际质量由 Provider、Roon 和 Signal Path 共同决定。</p><label class="field-label" for="zone-select">播放 Zone</label><select id="zone-select" :value="props.selectedZone?.zoneId ?? ''" @change="emit('select-zone', ($event.target as HTMLSelectElement).value)"><option value="" disabled>选择 Zone</option><option v-for="zone in props.zones" :key="zone.zoneId" :value="zone.zoneId">{{ zone.displayName }}</option></select><p class="muted-copy">控制与流端口继续只绑定本机 loopback。</p></article>
+      <article class="settings-card settings-glass-panel"><div class="panel-heading"><div><p class="section-kicker">Playback</p><h3>播放偏好</h3></div></div><label class="field-label" for="quality-select">下次播放音质</label><select id="quality-select" :value="props.selectedQuality" @change="emit('update:selectedQuality', ($event.target as HTMLSelectElement).value as PlaybackQualityPreference)"><option value="auto">自动（当前歌曲最高）</option><option value="standard">Standard</option><option value="exhigh">Exhigh</option><option value="lossless">Lossless</option><option value="hires">Hi-Res</option></select><p class="muted-copy">偏好只作用于下一次开始播放；当前歌曲不会重启。Roon Signal Path 仍需在 Roon 中确认。</p><label class="field-label" for="zone-select">播放 Zone</label><select id="zone-select" :value="props.selectedZone?.zoneId ?? ''" @change="emit('select-zone', ($event.target as HTMLSelectElement).value)"><option value="" disabled>选择 Zone</option><option v-for="zone in props.zones" :key="zone.zoneId" :value="zone.zoneId">{{ zone.displayName }}</option></select><p class="muted-copy">控制与流端口继续只绑定本机 loopback。</p></article>
 
       <article class="settings-card settings-glass-panel"><div class="panel-heading"><div><p class="section-kicker">Application</p><h3>应用信息</h3></div></div><dl class="detail-list"><div><dt>版本</dt><dd>{{ props.appInfo?.version ?? '读取中' }}</dd></div><div><dt>构建模式</dt><dd>{{ props.appInfo?.buildMode ?? '读取中' }}</dd></div><div><dt>平台</dt><dd>{{ props.appInfo?.platform ?? '读取中' }}</dd></div></dl><button type="button" class="text-button settings-diagnostics-link" @click="emit('diagnostics')">打开 Diagnostics →</button></article>
 

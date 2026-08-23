@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type {
   DiagnosticResourceCounters,
-  PlaybackQueueItem,
+  PlaybackQueueEntry,
   PlaybackIssue,
   PlaybackIssueCode,
-  PlaybackQuality,
+  PlaybackQualityPreference,
+  PlaybackActualQuality,
   PlaybackRecoveryAction,
   PlaybackSnapshot,
   PlaybackState,
@@ -14,7 +15,10 @@ import { BridgeError, asBridgeError } from '../shared/errors.js';
 import type { Logger } from '../shared/logger.js';
 import {
   normalizeTrackId,
-  parseQuality,
+  normalizeActualQuality,
+  parseQualityPreference,
+  resolveQualityPreference,
+  isQualityDowngrade,
 } from '../netease/policy.js';
 import type {
   NeteasePort,
@@ -34,8 +38,9 @@ import type { StreamRegistry, StreamResolveRequest } from '../stream/registry.js
 
 export interface ActivePlayback {
   track: TrackMetadata;
+  qualityPreference: PlaybackQualityPreference;
   requestedQuality: QualityLevel;
-  actualQuality: string;
+  actualQuality: PlaybackActualQuality;
   transportSecurity?: TransportSecurity;
   format?: string;
   bitrate?: number;
@@ -50,21 +55,50 @@ export interface BridgeState {
   activeStreamCount: number;
 }
 
-export type QueueItem = PlaybackQueueItem;
+export type QueueItem = PlaybackQueueEntry;
+type QueueInput = {
+  trackId: unknown;
+  qualityPreference?: unknown;
+  /** 兼容旧控制请求；公开 IPC 快照不再输出此字段。 */
+  quality?: unknown;
+};
 export type PlaybackChangedListener = (snapshot: PlaybackSnapshot) => void;
 
 const SKIPPABLE_QUEUE_ERRORS = new Set([
   'TRACK_UNAVAILABLE',
   'TRACK_PREVIEW_ONLY',
 ]);
+const MAX_QUEUE_ITEMS = 500;
+const QUEUE_HYDRATION_BATCH_SIZE = 20;
 
-function normalizeQueueItem(input: {
-  trackId: unknown;
-  quality: unknown;
-}): QueueItem {
+function normalizeQueueItem(input: QueueInput): QueueItem {
+  const preferenceInput = input.qualityPreference ?? input.quality;
+  const qualityPreference = parseQualityPreference(preferenceInput);
   return {
     trackId: normalizeTrackId(input.trackId),
-    quality: parseQuality(input.quality) as PlaybackQuality,
+    qualityPreference,
+  };
+}
+
+function toTrackSummary(track: TrackMetadata): TrackSummary {
+  return {
+    id: track.id,
+    title: track.title,
+    artists: [...track.artists],
+    album: track.album,
+    ...(track.durationMs !== undefined ? { durationMs: track.durationMs } : {}),
+    ...(track.artworkUrl ? { artworkUrl: track.artworkUrl } : {}),
+  };
+}
+
+function cloneTrackSummary(track: TrackSummary): TrackSummary {
+  return {
+    id: track.id,
+    title: track.title,
+    artists: [...track.artists],
+    album: track.album,
+    ...(track.durationMs !== undefined ? { durationMs: track.durationMs } : {}),
+    ...(track.artworkUrl ? { artworkUrl: track.artworkUrl } : {}),
   };
 }
 
@@ -171,8 +205,12 @@ export class BridgeController {
   private lastPlaybackError: string | undefined;
   private lastPlaybackIssue: PlaybackIssue | undefined;
   private qualityNotice: PlaybackIssue | undefined;
+  private positionMs = 0;
+  private playbackGeneration = 0;
+  private lastPositionPublishedAt = Number.NEGATIVE_INFINITY;
   private pendingTerminalReason: RoonTerminalReason | undefined;
   private operationTail: Promise<void> = Promise.resolve();
+  private queueHydrationGeneration = 0;
   private readonly playbackListeners = new Set<PlaybackChangedListener>();
 
   constructor(
@@ -261,7 +299,17 @@ export class BridgeController {
     return {
       state: this.playbackState,
       queue: {
-        items: this.queue.map((item) => ({ ...item })),
+        items: this.queue.map((item, index) => ({
+          trackId: item.trackId,
+          qualityPreference: item.qualityPreference,
+          ...(item.track ? { track: cloneTrackSummary(item.track) } : {}),
+          ...(index === this.queueIndex && this.activePlayback
+            ? {
+                requestedQuality: this.activePlayback.requestedQuality,
+                actualQuality: this.activePlayback.actualQuality,
+              }
+            : {}),
+        })),
         index: this.queueIndex,
         hasNext,
         hasPrevious,
@@ -269,6 +317,7 @@ export class BridgeController {
       ...(currentTrack ? { currentTrack } : {}),
       ...(this.activePlayback
         ? {
+            qualityPreference: this.activePlayback.qualityPreference,
             requestedQuality: this.activePlayback.requestedQuality,
             actualQuality: this.activePlayback.actualQuality,
             ...(this.activePlayback.format ? { format: this.activePlayback.format } : {}),
@@ -277,6 +326,7 @@ export class BridgeController {
               : {}),
           }
         : {}),
+      positionMs: this.positionMs,
       ...(selectedZoneId ? { selectedZoneId } : {}),
       ...(this.lastPlaybackError ? { lastError: this.lastPlaybackError } : {}),
       ...(this.lastPlaybackIssue ? { lastIssue: this.lastPlaybackIssue } : {}),
@@ -289,7 +339,8 @@ export class BridgeController {
 
   async play(input: {
     trackId: unknown;
-    quality: unknown;
+    qualityPreference?: unknown;
+    quality?: unknown;
   }): Promise<BridgeState> {
     const item = normalizeQueueItem(input);
     return this.enqueue(async () => {
@@ -303,7 +354,7 @@ export class BridgeController {
   }
 
   async replaceQueue(
-    items: readonly { trackId: unknown; quality: unknown }[],
+    items: readonly QueueInput[],
     startIndex = 0,
   ): Promise<BridgeState> {
     if (items.length === 0) {
@@ -319,11 +370,85 @@ export class BridgeController {
     const normalizedItems = items.map((item) => normalizeQueueItem(item));
 
     return this.enqueue(async () => {
+      const hydrationGeneration = ++this.queueHydrationGeneration;
+      const activePlayback = this.activePlayback;
+      const preserveActivePlayback = activePlayback !== undefined &&
+        this.playbackState === 'playing' &&
+        normalizedItems[startIndex]?.trackId === activePlayback.track.id &&
+        normalizedItems[startIndex]?.qualityPreference === activePlayback.qualityPreference;
+      const shouldHydrateInline = !preserveActivePlayback && normalizedItems.length <= QUEUE_HYDRATION_BATCH_SIZE;
+      if (shouldHydrateInline) await this.hydrateQueueItems(normalizedItems);
+
+      if (preserveActivePlayback && activePlayback) {
+        const activeItem = normalizedItems[startIndex];
+        if (activeItem) {
+          activeItem.track = toTrackSummary(activePlayback.track);
+          activeItem.requestedQuality = activePlayback.requestedQuality;
+          activeItem.actualQuality = activePlayback.actualQuality;
+        }
+        this.queue = normalizedItems;
+        this.queueIndex = startIndex;
+        this.clearPlaybackIssue();
+        this.notifyPlaybackChanged();
+        this.scheduleQueueHydration(normalizedItems, hydrationGeneration);
+        return this.getState();
+      }
+
       await this.stopActive();
       this.queue = normalizedItems;
       this.queueIndex = startIndex;
       this.clearPlaybackIssue();
       await this.startQueueIndex(startIndex, true);
+      if (!shouldHydrateInline) {
+        this.scheduleQueueHydration(normalizedItems, hydrationGeneration);
+      }
+      return this.getState();
+    });
+  }
+
+  async appendQueue(
+    items: readonly QueueInput[],
+  ): Promise<BridgeState> {
+    const normalizedItems = items.map((item) => normalizeQueueItem(item));
+    if (normalizedItems.length === 0) return this.getState();
+
+    return this.enqueue(async () => {
+      const availableSlots = Math.max(0, MAX_QUEUE_ITEMS - this.queue.length);
+      const acceptedItems = normalizedItems.slice(0, availableSlots);
+      if (acceptedItems.length === 0) return this.getState();
+
+      const hydrationGeneration = ++this.queueHydrationGeneration;
+      const shouldHydrateInline = acceptedItems.length <= QUEUE_HYDRATION_BATCH_SIZE;
+      if (shouldHydrateInline) await this.hydrateQueueItems(acceptedItems);
+      this.queue.push(...acceptedItems);
+      this.notifyPlaybackChanged();
+      if (!shouldHydrateInline) {
+        this.scheduleQueueHydration(acceptedItems, hydrationGeneration);
+      }
+      return this.getState();
+    });
+  }
+
+  async insertNext(
+    items: readonly QueueInput[],
+  ): Promise<BridgeState> {
+    const normalizedItems = items.map((item) => normalizeQueueItem(item));
+    if (normalizedItems.length === 0) return this.getState();
+
+    return this.enqueue(async () => {
+      const availableSlots = Math.max(0, MAX_QUEUE_ITEMS - this.queue.length);
+      const acceptedItems = normalizedItems.slice(0, availableSlots);
+      if (acceptedItems.length === 0) return this.getState();
+
+      const hydrationGeneration = ++this.queueHydrationGeneration;
+      const shouldHydrateInline = acceptedItems.length <= QUEUE_HYDRATION_BATCH_SIZE;
+      if (shouldHydrateInline) await this.hydrateQueueItems(acceptedItems);
+      const insertionIndex = this.queueIndex >= 0 ? this.queueIndex + 1 : 0;
+      this.queue.splice(insertionIndex, 0, ...acceptedItems);
+      this.notifyPlaybackChanged();
+      if (!shouldHydrateInline) {
+        this.scheduleQueueHydration(acceptedItems, hydrationGeneration);
+      }
       return this.getState();
     });
   }
@@ -362,6 +487,7 @@ export class BridgeController {
 
   async clearQueue(): Promise<BridgeState> {
     return this.enqueue(async () => {
+      this.queueHydrationGeneration += 1;
       await this.stopActive();
       this.queue = [];
       this.queueIndex = -1;
@@ -374,6 +500,7 @@ export class BridgeController {
 
   async shutdown(): Promise<void> {
     await this.enqueue(async () => {
+      this.queueHydrationGeneration += 1;
       await this.stopActive();
       this.queue = [];
       this.queueIndex = -1;
@@ -382,6 +509,28 @@ export class BridgeController {
       this.notifyPlaybackChanged();
       this.dependencies.registry.revokeAll();
     });
+  }
+
+  updateRoonTime(positionMs: number, generation = this.playbackGeneration): void {
+    if (
+      generation !== this.playbackGeneration ||
+      this.activePlayback === undefined ||
+      this.playbackState !== 'playing' ||
+      !Number.isSafeInteger(positionMs) ||
+      positionMs < 0 ||
+      positionMs > 24 * 60 * 60 * 1000
+    ) {
+      return;
+    }
+    this.positionMs = positionMs;
+    const now = this.now();
+    if (now - this.lastPositionPublishedAt < 250) return;
+    this.lastPositionPublishedAt = now;
+    this.notifyPlaybackChanged();
+  }
+
+  getPlaybackGeneration(): number {
+    return this.playbackGeneration;
   }
 
   getState(): BridgeState {
@@ -411,6 +560,9 @@ export class BridgeController {
 
     while (candidate < this.queue.length) {
       this.queueIndex = candidate;
+      this.playbackGeneration += 1;
+      this.positionMs = 0;
+      this.lastPositionPublishedAt = this.now();
       this.notifyPlaybackChanged();
       const item = this.queue[candidate];
       if (!item) {
@@ -459,21 +611,25 @@ export class BridgeController {
     this.clearPlaybackIssue();
     this.notifyPlaybackChanged();
 
-    const metadata = await this.dependencies.netease.getTrack(item.trackId);
+    const metadata: TrackMetadata = item.track
+      ? { ...item.track, artists: [...item.track.artists] }
+      : await this.dependencies.netease.getTrack(item.trackId);
+    item.track = toTrackSummary(metadata);
+    const requestedQuality = resolveQualityPreference(item.qualityPreference);
     const initialStream = await this.dependencies.netease.resolveStream(
       item.trackId,
-      item.quality,
+      requestedQuality,
     );
     await this.dependencies.gateway.preflight(initialStream);
 
     const resolver = this.createRefreshingResolver(
       item.trackId,
-      item.quality,
+      requestedQuality,
       initialStream,
     );
     const registration = this.dependencies.registry.register({
       metadata,
-      requestedQuality: item.quality,
+      requestedQuality,
       resolve: resolver,
       ttlMs: Math.max((metadata.durationMs ?? 0) + 60 * 60 * 1000, 2 * 60 * 60 * 1000),
     });
@@ -485,8 +641,9 @@ export class BridgeController {
     let gatewayStage: RoonGatewayStage = 'none';
     const activePlayback: ActivePlayback = {
       track: metadata,
-      requestedQuality: item.quality,
-      actualQuality: initialStream.actualQuality,
+      qualityPreference: item.qualityPreference,
+      requestedQuality,
+      actualQuality: normalizeActualQuality(initialStream.actualQuality),
       ...(initialStream.transportSecurity
         ? { transportSecurity: initialStream.transportSecurity }
         : {}),
@@ -530,22 +687,22 @@ export class BridgeController {
         );
       }
       this.activePlayback = activePlayback;
+      item.requestedQuality = requestedQuality;
+      item.actualQuality = activePlayback.actualQuality;
       this.playbackState = 'playing';
       this.lastPlaybackError = undefined;
       this.lastPlaybackIssue = undefined;
-      this.qualityNotice = initialStream.actualQuality !== item.quality
+      this.qualityNotice = item.qualityPreference !== 'auto' && isQualityDowngrade(requestedQuality, activePlayback.actualQuality)
         ? {
             ...makePlaybackIssue('QUALITY_DOWNGRADED', this.newDiagnosticId()),
-            message: item.quality === 'lossless'
-              ? '请求无损，实际高品质'
-              : `请求 ${item.quality}，实际 ${initialStream.actualQuality}`,
+            message: `请求 ${requestedQuality}，实际 ${activePlayback.actualQuality}`,
           }
         : undefined;
       this.dependencies.logger.info('bridge_playing', {
         trackId: item.trackId,
         title: metadata.title,
-        requestedQuality: item.quality,
-        actualQuality: initialStream.actualQuality,
+        requestedQuality,
+        actualQuality: activePlayback.actualQuality,
         ...(initialStream.transportSecurity
           ? { transportSecurity: initialStream.transportSecurity }
           : {}),
@@ -574,6 +731,9 @@ export class BridgeController {
     }
 
     this.playbackState = 'stopping';
+    this.positionMs = 0;
+    this.playbackGeneration += 1;
+    this.lastPositionPublishedAt = this.now();
     this.notifyPlaybackChanged();
     try {
       await this.dependencies.roon.stop();
@@ -585,6 +745,29 @@ export class BridgeController {
     }
   }
 
+  private async hydrateQueueItems(items: readonly QueueItem[]): Promise<void> {
+    for (let start = 0; start < items.length; start += QUEUE_HYDRATION_BATCH_SIZE) {
+      const batch = items.slice(start, start + QUEUE_HYDRATION_BATCH_SIZE);
+      await Promise.all(batch.map(async (item) => {
+        if (item.track) return;
+        try {
+          item.track = toTrackSummary(await this.dependencies.netease.getTrack(item.trackId));
+        } catch {
+          // 元数据不可用时，构建队列仍保持非破坏性；歌曲成为当前项时再重新确认。
+        }
+      }));
+    }
+  }
+
+  private scheduleQueueHydration(
+    items: readonly QueueItem[],
+    generation: number,
+  ): void {
+    void this.hydrateQueueItems(items).then(() => {
+      if (generation === this.queueHydrationGeneration) this.notifyPlaybackChanged();
+    });
+  }
+
   private clearActiveResources(): void {
     if (this.activeToken) {
       this.dependencies.gateway.clearStageObserver(this.activeToken);
@@ -592,6 +775,9 @@ export class BridgeController {
     }
     this.activeToken = undefined;
     this.activePlayback = undefined;
+    this.positionMs = 0;
+    this.playbackGeneration += 1;
+    this.lastPositionPublishedAt = this.now();
   }
 
   private notifyPlaybackChanged(): void {

@@ -6,6 +6,7 @@ import {
   type TransportSecurity,
 } from './types.js';
 import type { PageRequest } from '@music-bridge/contracts';
+import type { PlaybackQualityPreference } from '@music-bridge/contracts';
 
 export const MAX_LIBRARY_PAGE_LIMIT = 100 as const;
 export const MAX_LIBRARY_PAGE_OFFSET = 1_000_000 as const;
@@ -51,6 +52,47 @@ export function parseQuality(value: unknown): QualityLevel {
     );
   }
   return value as QualityLevel;
+}
+
+export function parseQualityPreference(value: unknown): PlaybackQualityPreference {
+  if (value === undefined || value === null || value === '') return 'auto';
+  if (typeof value !== 'string') {
+    throw new BridgeError('BAD_REQUEST', 'qualityPreference must be a string', {
+      httpStatus: 400,
+    });
+  }
+  if (value === 'auto' || QUALITY_LEVELS.includes(value as QualityLevel)) {
+    return value as PlaybackQualityPreference;
+  }
+  throw new BridgeError(
+    'BAD_REQUEST',
+    `Unsupported quality preference: ${value}. Allowed: auto, ${QUALITY_LEVELS.join(', ')}`,
+    { httpStatus: 400 },
+  );
+}
+
+export function resolveQualityPreference(preference: PlaybackQualityPreference): QualityLevel {
+  return preference === 'auto' ? 'hires' : preference;
+}
+
+export function normalizeActualQuality(value: unknown): QualityLevel | 'unknown' {
+  return typeof value === 'string' && QUALITY_LEVELS.includes(value as QualityLevel)
+    ? value as QualityLevel
+    : 'unknown';
+}
+
+export function qualityRank(value: unknown): number | undefined {
+  const index = QUALITY_LEVELS.indexOf(value as QualityLevel);
+  return index >= 0 ? index : undefined;
+}
+
+export function isQualityDowngrade(
+  requested: QualityLevel,
+  actual: unknown,
+): boolean {
+  const requestedRank = qualityRank(requested);
+  const actualRank = qualityRank(actual);
+  return requestedRank !== undefined && actualRank !== undefined && actualRank < requestedRank;
 }
 
 export function normalizeTrackId(value: unknown): string {

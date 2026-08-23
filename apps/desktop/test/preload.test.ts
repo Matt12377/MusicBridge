@@ -54,6 +54,7 @@ test('Preload exposes only sanitized business methods', async () => {
   const playbackState: PlaybackSnapshot = {
     state: 'idle',
     queue: { items: [], index: -1, hasNext: false, hasPrevious: false },
+    positionMs: 0,
     canNext: false,
     canPrevious: false,
     canStop: false,
@@ -91,6 +92,8 @@ test('Preload exposes only sanitized business methods', async () => {
     async () => playbackState,
     async () => playbackState,
     async () => playbackState,
+    async () => playbackState,
+    async () => playbackState,
     () => () => undefined,
     () => () => undefined,
   )
@@ -122,6 +125,8 @@ test('Preload exposes only sanitized business methods', async () => {
     'next',
     'previous',
     'replaceQueue',
+    'appendQueue',
+    'insertNext',
     'onCoreEvent',
     'onAppCommand',
     'getRemoteCoreState',
@@ -157,6 +162,8 @@ test('Preload exposes only sanitized business methods', async () => {
     'next',
     'previous',
     'replaceQueue',
+    'appendQueue',
+    'insertNext',
     'onCoreEvent',
     'onAppCommand',
     'getRemoteCoreState',
@@ -192,7 +199,7 @@ test('Preload exposes only sanitized business methods', async () => {
   assert.deepEqual(await api.next(), playbackState)
   assert.deepEqual(await api.previous(), playbackState)
   assert.deepEqual(
-    await api.replaceQueue([{ trackId: '301', quality: 'lossless' }], 0),
+    await api.replaceQueue([{ trackId: '301', qualityPreference: 'lossless' }], 0),
     playbackState,
   )
 })
