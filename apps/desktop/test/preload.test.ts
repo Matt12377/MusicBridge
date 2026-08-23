@@ -124,6 +124,11 @@ test('Preload exposes only sanitized business methods', async () => {
     'replaceQueue',
     'onCoreEvent',
     'onAppCommand',
+    'getRemoteCoreState',
+    'startRemoteCore',
+    'stopRemoteCore',
+    'reconnectRemoteCore',
+    'onRemoteCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
     'getAppInfo',
@@ -154,6 +159,11 @@ test('Preload exposes only sanitized business methods', async () => {
     'replaceQueue',
     'onCoreEvent',
     'onAppCommand',
+    'getRemoteCoreState',
+    'startRemoteCore',
+    'stopRemoteCore',
+    'reconnectRemoteCore',
+    'onRemoteCoreEvent',
   ])
   assert.equal(Object.isFrozen(api), true)
   assert.deepEqual(await api.getAppInfo(), appInfo)

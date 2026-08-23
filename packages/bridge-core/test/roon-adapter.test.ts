@@ -249,6 +249,8 @@ interface AdapterTestOptions {
   playingTimeoutMs?: number;
   trackIdFactory?: () => string;
   playbackMode?: 'channel' | 'track';
+  mode?: 'local-core' | 'remote-core-development';
+  iconPort?: number;
   onTimeShape?: (summary: import('../src/roon/adapter.js').RoonTimeShapeSummary) => void;
 }
 
@@ -309,6 +311,33 @@ test('Roon extension metadata identifies the beta candidate without the POC suff
       displayVersion: '0.1.0-beta.2',
     },
   );
+  await adapter.stop();
+});
+
+test('remote development uses an isolated Roon extension identity, settings key, and icon port', async () => {
+  const { adapter, sdk } = makeHarness({
+    mode: 'remote-core-development',
+    iconPort: 38513,
+  });
+
+  await adapter.start();
+  assert.deepEqual(
+    {
+      extensionId: sdk.apis[0]?.options.extension_id,
+      displayName: sdk.apis[0]?.options.display_name,
+    },
+    {
+      extensionId: 'com.musicbridgeforroon.netease.dev',
+      displayName: 'Music Bridge for Roon — Dev Mac',
+    },
+  );
+
+  sdk.settings[0]?.saveOutput('dev-output');
+  assert.deepEqual(sdk.config.get('settings.remote-core-development'), {
+    output: { output_id: 'dev-output' },
+  });
+  assert.equal(sdk.config.has('settings'), false);
+
   await adapter.stop();
 });
 

@@ -233,6 +233,9 @@ test('v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation', 
   await page.setViewportSize({ width: 1440, height: 900 })
 
   await openAccountSettings()
+  await expect(page.locator('[data-remote-core-settings]')).toBeVisible()
+  await expect(page.locator('[data-remote-core-settings]')).toContainText('开发启动时自动连接（默认关闭）')
+  await expect(page.getByRole('button', { name: '启动远程 Core' })).toBeVisible()
   await expect(page.locator('.account-settings-hero')).toContainText('Synthetic Listener')
   await expect(page.getByText('公开资料只包含昵称和头像')).toBeVisible()
   await expect.poll(() => page.locator('.account-settings-avatar img').evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)

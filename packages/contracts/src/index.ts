@@ -5,4 +5,5 @@ export * from './library.js';
 export * from './lyrics.js';
 export * from './playback.js';
 export * from './state.js';
+export * from './remote-core.js';
 export * from './validator.js';

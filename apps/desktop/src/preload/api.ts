@@ -11,6 +11,7 @@ import type {
   PublicAccountState,
   PublicBridgeState,
   PublicRoonZone,
+  RemoteCoreTunnelState,
   DailyRecommendationsSnapshot,
   TrackSummary,
   TypedIpcEvent,
@@ -22,6 +23,14 @@ export interface AppInfo {
   version: string
   buildMode: 'development' | 'production'
   platform: string
+}
+
+export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
+  mode: 'local-core',
+  status: 'idle',
+  localStreamPort: 38502,
+  remoteHealth: 'unavailable',
+  autoReconnect: false,
 }
 
 export interface MusicBridgePublicApi {
@@ -53,6 +62,11 @@ export interface MusicBridgePublicApi {
   replaceQueue: (items: readonly PlaybackQueueItem[], index: number) => Promise<PlaybackSnapshot>
   onCoreEvent: (listener: (event: TypedIpcEvent) => void) => () => void
   onAppCommand: (listener: (command: AppCommand) => void) => () => void
+  getRemoteCoreState: () => Promise<RemoteCoreTunnelState>
+  startRemoteCore: () => Promise<RemoteCoreTunnelState>
+  stopRemoteCore: () => Promise<RemoteCoreTunnelState>
+  reconnectRemoteCore: () => Promise<RemoteCoreTunnelState>
+  onRemoteCoreEvent: (listener: (state: RemoteCoreTunnelState) => void) => () => void
 }
 
 export const PUBLIC_API_KEYS = [
@@ -84,6 +98,11 @@ export const PUBLIC_API_KEYS = [
   'replaceQueue',
   'onCoreEvent',
   'onAppCommand',
+  'getRemoteCoreState',
+  'startRemoteCore',
+  'stopRemoteCore',
+  'reconnectRemoteCore',
+  'onRemoteCoreEvent',
 ] as const
 
 export function createPreloadApi(
@@ -115,6 +134,13 @@ export function createPreloadApi(
   replaceQueue: (items: readonly PlaybackQueueItem[], index: number) => Promise<PlaybackSnapshot>,
   onCoreEvent: (listener: (event: TypedIpcEvent) => void) => () => void,
   onAppCommand: (listener: (command: AppCommand) => void) => () => void,
+  getRemoteCoreState: () => Promise<RemoteCoreTunnelState> = async () => DEFAULT_REMOTE_CORE_STATE,
+  startRemoteCore: () => Promise<RemoteCoreTunnelState> = async () => DEFAULT_REMOTE_CORE_STATE,
+  stopRemoteCore: () => Promise<RemoteCoreTunnelState> = async () => DEFAULT_REMOTE_CORE_STATE,
+  reconnectRemoteCore: () => Promise<RemoteCoreTunnelState> = async () => DEFAULT_REMOTE_CORE_STATE,
+  onRemoteCoreEvent: (
+    _listener: (state: RemoteCoreTunnelState) => void,
+  ) => (() => void) = () => () => undefined,
 ): MusicBridgePublicApi {
   return Object.freeze({
     getAppInfo,
@@ -145,5 +171,10 @@ export function createPreloadApi(
     replaceQueue,
     onCoreEvent,
     onAppCommand,
+    getRemoteCoreState,
+    startRemoteCore,
+    stopRemoteCore,
+    reconnectRemoteCore,
+    onRemoteCoreEvent,
   })
 }

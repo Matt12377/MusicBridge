@@ -28,8 +28,6 @@ const ICON_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
   'base64',
 );
-const LOCAL_ICON_URL = 'http://127.0.0.1:38502/assets/icon.png';
-
 const DEFAULT_PREFLIGHT_TIMEOUT_MS = 10_000;
 
 export type MediaExtension =
@@ -218,6 +216,7 @@ export class StreamGateway {
       logger: Logger;
       fetcher?: GatewayFetch;
       preflightTimeoutMs?: number;
+      remoteDevelopmentMode?: boolean;
     },
   ) {}
 
@@ -266,7 +265,7 @@ export class StreamGateway {
   }
 
   iconUrl(): string {
-    return LOCAL_ICON_URL;
+    return `${this.options.publicBaseUrl.replace(/\/$/, '')}/assets/icon.png`;
   }
 
   localBaseUrl(): string {
@@ -336,6 +335,18 @@ export class StreamGateway {
         request.url ?? '/',
         `http://${request.headers.host ?? 'localhost'}`,
       );
+
+      if (
+        this.options.remoteDevelopmentMode &&
+        requestUrl.pathname === '/__musicbridge_remote_dev_health' &&
+        request.method === 'GET'
+      ) {
+        sendJson(response, 200, {
+          ok: true,
+          mode: 'remote-core-development',
+        });
+        return;
+      }
 
       if (requestUrl.pathname === '/health' && request.method === 'GET') {
         sendJson(response, 200, {

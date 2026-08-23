@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { TypedIpcEvent } from '@music-bridge/contracts'
+import type { RemoteCoreTunnelState, TypedIpcEvent } from '@music-bridge/contracts'
 
 import { createPreloadApi } from './api.js'
 
@@ -51,6 +51,17 @@ contextBridge.exposeInMainWorld(
       }
       ipcRenderer.on('app:command', handler)
       return () => ipcRenderer.removeListener('app:command', handler)
+    },
+    () => ipcRenderer.invoke('remote-core:get-state'),
+    () => ipcRenderer.invoke('remote-core:start'),
+    () => ipcRenderer.invoke('remote-core:stop'),
+    () => ipcRenderer.invoke('remote-core:reconnect'),
+    (listener: (state: RemoteCoreTunnelState) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, state: RemoteCoreTunnelState): void => {
+        listener(state)
+      }
+      ipcRenderer.on('remote-core:event', handler)
+      return () => ipcRenderer.removeListener('remote-core:event', handler)
     },
   ),
 )

@@ -14,6 +14,7 @@ import type {
   PublicAccountState,
   PublicBridgeState,
   PublicRoonZone,
+  RemoteCoreTunnelState,
   TrackSummary,
 } from '@music-bridge/contracts'
 import type { AppInfo } from '../../preload/api.js'
@@ -87,6 +88,14 @@ const playbackState = ref<PlaybackSnapshot | null>(null)
 const lyricsSnapshot = ref<LyricsSnapshot>(emptyLyricsSnapshot())
 const zones = ref<readonly PublicRoonZone[]>([])
 const selectedQuality = ref<PlaybackQuality>('lossless')
+const remoteCoreState = ref<RemoteCoreTunnelState>({
+  mode: 'local-core',
+  status: 'idle',
+  localStreamPort: 38502,
+  remoteHealth: 'unavailable',
+  autoReconnect: false,
+})
+const remoteAutoStart = ref(false)
 const lyricsOrQueue = ref<'lyrics' | 'queue'>('lyrics')
 const inspectorOpen = ref(false)
 const actionError = ref<string | null>(null)
@@ -107,6 +116,7 @@ const libraryError = ref<'auth-expired' | 'generic' | null>(null)
 
 let removeCoreListener: (() => void) | undefined
 let removeAppCommandListener: (() => void) | undefined
+let removeRemoteCoreListener: (() => void) | undefined
 let pollTimer: ReturnType<typeof setInterval> | undefined
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 let authOperation = 0
@@ -714,6 +724,38 @@ function handleSidebarAccount(): void {
   navigate('settings')
 }
 
+function updateRemoteAutoStart(value: boolean): void {
+  remoteAutoStart.value = value
+  window.localStorage.setItem('musicbridge.remoteCore.autoStart', value ? '1' : '0')
+}
+
+async function startRemoteCore(): Promise<void> {
+  actionError.value = null
+  try {
+    remoteCoreState.value = await window.musicBridge.startRemoteCore()
+  } catch (error) {
+    recordActionError(error)
+  }
+}
+
+async function stopRemoteCore(): Promise<void> {
+  actionError.value = null
+  try {
+    remoteCoreState.value = await window.musicBridge.stopRemoteCore()
+  } catch (error) {
+    recordActionError(error)
+  }
+}
+
+async function reconnectRemoteCore(): Promise<void> {
+  actionError.value = null
+  try {
+    remoteCoreState.value = await window.musicBridge.reconnectRemoteCore()
+  } catch (error) {
+    recordActionError(error)
+  }
+}
+
 function openLyrics(): void {
   if (isImmersiveNowPlaying.value) exitNowPlaying()
   lyricsOrQueue.value = 'lyrics'
@@ -801,6 +843,9 @@ onMounted(async () => {
   removeAppCommandListener = window.musicBridge.onAppCommand((command) => {
     if (command === 'show-queue') openQueue()
   })
+  removeRemoteCoreListener = window.musicBridge.onRemoteCoreEvent((state) => {
+    remoteCoreState.value = state
+  })
   removeCoreListener = window.musicBridge.onCoreEvent((event) => {
     if (event.event === 'core.ready' || event.event === 'core.health' || event.event === 'roon.changed') {
       coreState.value = event.payload.state
@@ -822,6 +867,13 @@ onMounted(async () => {
   })
   try {
     appInfo.value = await window.musicBridge.getAppInfo()
+    if (appInfo.value.buildMode === 'development') {
+      remoteCoreState.value = await window.musicBridge.getRemoteCoreState()
+      remoteAutoStart.value = window.localStorage.getItem('musicbridge.remoteCore.autoStart') === '1'
+      if (remoteAutoStart.value && remoteCoreState.value.status === 'idle') {
+        void startRemoteCore()
+      }
+    }
     coreState.value = await window.musicBridge.getCoreHealth()
     const initialAuthState = await window.musicBridge.getAuthState()
     applyAuthState(initialAuthState)
@@ -840,6 +892,7 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onGlobalShortcut)
   removeCoreListener?.()
   removeAppCommandListener?.()
+  removeRemoteCoreListener?.()
   stopPolling()
   stopSearchTimer()
 })
@@ -992,6 +1045,8 @@ onUnmounted(() => {
           :selected-quality="selectedQuality"
           :auth-error="authError"
           :account-error="accountError"
+          :remote-core-state="remoteCoreState"
+          :remote-auto-start="remoteAutoStart"
           @begin-login="beginQrLogin"
           @cancel-login="cancelQrLogin"
           @logout="logout"
@@ -999,6 +1054,10 @@ onUnmounted(() => {
           @update:selected-quality="selectedQuality = $event"
           @select-zone="selectZone"
           @diagnostics="navigate('diagnostics')"
+          @start-remote-core="startRemoteCore"
+          @stop-remote-core="stopRemoteCore"
+          @reconnect-remote-core="reconnectRemoteCore"
+          @update:remote-auto-start="updateRemoteAutoStart"
         />
 
         <section v-else class="view" aria-labelledby="diagnostics-heading">

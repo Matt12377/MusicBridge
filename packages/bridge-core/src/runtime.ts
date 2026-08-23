@@ -165,6 +165,8 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   const qrLogin = new QrLoginStateMachine(netease);
   if (netease.configured) qrLogin.markAuthorized();
   const roon = new RoonAudioInputAdapter(logger, options.roonSdk, {
+    mode: config.mode,
+    iconPort: config.remoteStreamPort ?? config.streamPort,
     ...(options.onRoonTimeShape ? { onTimeShape: options.onRoonTimeShape } : {}),
   });
   const gateway = new StreamGateway({
@@ -173,6 +175,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     publicBaseUrl: config.publicStreamBaseUrl,
     registry,
     logger,
+    remoteDevelopmentMode: config.mode === 'remote-core-development',
   });
   let notifyProviderExpired: () => void = () => undefined;
   const controller = new BridgeController({

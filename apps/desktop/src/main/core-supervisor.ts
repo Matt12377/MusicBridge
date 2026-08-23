@@ -74,6 +74,7 @@ export class CoreSupervisor {
   private port: CoreMessagePort | undefined
   private startPromise: Promise<void> | undefined
   private restartPromise: Promise<void> | undefined
+  private manualRestartPromise: Promise<void> | undefined
   private shutdownPromise: Promise<void> | undefined
   private shuttingDown = false
   private restartCount = 0
@@ -167,6 +168,24 @@ export class CoreSupervisor {
     if (this.shutdownPromise) return this.shutdownPromise
     this.shutdownPromise = this.shutdownInternal()
     return this.shutdownPromise
+  }
+
+  async restart(env?: NodeJS.ProcessEnv): Promise<void> {
+    if (this.manualRestartPromise) return this.manualRestartPromise
+    const restart = (async (): Promise<void> => {
+      await this.shutdown()
+      if (env) this.options.env = { ...env }
+      this.shutdownPromise = undefined
+      this.shuttingDown = false
+      this._status = 'stopped'
+      await this.start()
+    })()
+    this.manualRestartPromise = restart
+    try {
+      await restart
+    } finally {
+      if (this.manualRestartPromise === restart) this.manualRestartPromise = undefined
+    }
   }
 
   private async startWithOneRetry(): Promise<void> {
