@@ -150,15 +150,18 @@ const homeRecommendationState = ref<HomeRecommendationState>('loading')
 const searchInitialLoading = ref(false)
 const searchLoadingMore = ref(false)
 const searchLoadMoreError = ref<string | null>(null)
-const searchError = ref<'auth-expired' | 'generic' | null>(null)
+type SearchErrorKind = 'auth-required' | 'auth-expired' | 'generic'
+type LibraryErrorKind = SearchErrorKind
+
+const searchError = ref<SearchErrorKind | null>(null)
 const likedInitialLoading = ref(false)
 const likedLoadingMore = ref(false)
 const likedLoadMoreError = ref<string | null>(null)
-const likedError = ref<'auth-expired' | 'generic' | null>(null)
+const likedError = ref<LibraryErrorKind | null>(null)
 const playlistInitialLoading = ref(false)
 const playlistLoadingMore = ref(false)
 const playlistLoadMoreError = ref<string | null>(null)
-const playlistDetailError = ref<'auth-expired' | 'generic' | null>(null)
+const playlistDetailError = ref<LibraryErrorKind | null>(null)
 
 let removeCoreListener: (() => void) | undefined
 let removeAppCommandListener: (() => void) | undefined
@@ -324,10 +327,6 @@ function resetSearchSections(): void {
   searchDetail.value = null
 }
 
-function isAuthExpired(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'AUTH_EXPIRED'
-}
-
 function errorCode(error: unknown): string | undefined {
   if (typeof error !== 'object' || error === null || !('code' in error)) return undefined
   return typeof error.code === 'string' ? error.code : undefined
@@ -386,8 +385,32 @@ function recordActionError(error: unknown): void {
   showToast(actionError.value)
 }
 
-function libraryErrorKind(error: unknown): 'auth-expired' | 'generic' {
-  return isAuthExpired(error) ? 'auth-expired' : 'generic'
+function libraryErrorKind(error: unknown): LibraryErrorKind {
+  switch (errorCode(error)) {
+    case 'AUTH_REQUIRED':
+      return 'auth-required'
+    case 'AUTH_EXPIRED':
+      return 'auth-expired'
+    default:
+      return 'generic'
+  }
+}
+
+function searchErrorKind(error: unknown): SearchErrorKind {
+  switch (errorCode(error)) {
+    case 'AUTH_REQUIRED':
+      return 'auth-required'
+    case 'AUTH_EXPIRED':
+      return 'auth-expired'
+    default:
+      return 'generic'
+  }
+}
+
+function searchSectionErrorKind(message: string): SearchErrorKind {
+  if (message.includes('请先登录')) return 'auth-required'
+  if (message.includes('登录已过期')) return 'auth-expired'
+  return 'generic'
 }
 
 async function loadSearch(query: string, page: PageRequest, generation: number): Promise<void> {
@@ -427,7 +450,7 @@ async function loadSearch(query: string, page: PageRequest, generation: number):
         searchError.value = null
       } else {
         searchPage.value = emptyPage()
-        searchError.value = 'generic'
+        searchError.value = searchSectionErrorKind(snapshot.tracks.message)
       }
       searchInitialLoading.value = false
     } else {
@@ -441,7 +464,7 @@ async function loadSearch(query: string, page: PageRequest, generation: number):
     if (generation !== searchRequestGeneration) return
     if (initial) {
       searchInitialLoading.value = false
-      searchError.value = libraryErrorKind(error)
+      searchError.value = searchErrorKind(error)
       searchArtistsState.value = 'error'
       searchAlbumsState.value = 'error'
       searchArtistsError.value = '搜索艺人暂时不可用。'
@@ -1517,7 +1540,8 @@ onUnmounted(() => {
 
             <section class="search-result-section" aria-labelledby="search-tracks-heading">
               <div class="search-section-heading"><h3 id="search-tracks-heading">单曲</h3><span v-if="searchPage.total">{{ searchPage.total }} 首</span></div>
-              <p v-if="searchError === 'auth-expired'" class="persistent-error">登录已过期，请从侧栏账户菜单重新登录。</p>
+              <p v-if="searchError === 'auth-required'" class="persistent-error">请先登录音乐服务，再搜索内容。</p>
+              <p v-else-if="searchError === 'auth-expired'" class="persistent-error">登录已过期，请从侧栏账户菜单重新登录。</p>
               <p v-else-if="searchError === 'generic'" class="persistent-error">搜索单曲暂时不可用，请检查连接状态。</p>
               <div class="search-track-results">
                 <TrackTable
@@ -1546,7 +1570,7 @@ onUnmounted(() => {
             <div class="liked-collage" aria-hidden="true"><SafeArtwork v-for="track in likedPage.items.slice(0, 4)" :key="track.id" class="liked-collage-tile" :src="track.artworkUrl" alt="" /><span v-if="!likedPage.items.length" class="liked-collage-empty">♫</span></div>
             <div class="view-heading"><div><p class="section-kicker">资料库</p><h2 id="liked-heading">我喜欢的音乐</h2><p class="lede">{{ likedPage.total }} 首歌曲</p></div><div class="button-row"><button type="button" class="primary-button" :disabled="!likedPage.items.length" @click="playAllLiked">播放全部</button><button type="button" class="secondary-button" :disabled="!likedPage.items.length" @click="appendAllLiked">加入队列</button></div></div>
           </div>
-          <p v-if="likedError" class="persistent-error">{{ likedError === 'auth-expired' ? '登录已过期，请从侧栏账户菜单重新登录。' : '我喜欢的音乐暂时不可用，请稍后重试。' }}<button type="button" class="inline-action" @click="loadLiked()">重试</button></p>
+          <p v-if="likedError" class="persistent-error">{{ likedError === 'auth-required' ? '请先登录音乐服务，再打开我喜欢的音乐。' : likedError === 'auth-expired' ? '登录已过期，请从侧栏账户菜单重新登录。' : '我喜欢的音乐暂时不可用，请稍后重试。' }}<button type="button" class="inline-action" @click="loadLiked()">重试</button></p>
           <TrackTable :tracks="likedPage.items" :initial-loading="likedInitialLoading" :loading-more="likedLoadingMore" :load-more-error="likedLoadMoreError" :total="likedPage.total" :has-more="likedPage.hasMore" empty-title="还没有喜欢的内容" empty-copy="登录网易云后，这里会显示你的收藏。" @play="playTrack" @queue="appendTrack" @play-next="insertTrackNext" @load-more="likedPageAt(likedPage.offset + likedPage.limit)" />
         </section>
 
@@ -1558,7 +1582,8 @@ onUnmounted(() => {
 
         <section v-else-if="currentView === 'playlist-detail'" class="view view-playlist" aria-labelledby="playlist-heading">
           <button type="button" class="back-link" @click="navigateSource({ type: 'playlists' })">← 所有歌单</button>
-          <p v-if="playlistDetailError === 'auth-expired'" class="persistent-error">登录已过期，请从侧栏账户菜单重新登录。</p>
+          <p v-if="playlistDetailError === 'auth-required'" class="persistent-error">请先登录音乐服务，再打开歌单。</p>
+          <p v-else-if="playlistDetailError === 'auth-expired'" class="persistent-error">登录已过期，请从侧栏账户菜单重新登录。</p>
           <p v-else-if="playlistDetailError === 'generic'" class="persistent-error">歌单暂时无法加载，请稍后重试。</p>
           <div v-if="playlistInitialLoading && !selectedPlaylist" class="empty-state"><span class="loading-line"></span><p>正在读取歌单…</p></div>
           <template v-else-if="selectedPlaylist">

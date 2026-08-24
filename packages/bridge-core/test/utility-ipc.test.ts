@@ -451,6 +451,35 @@ test('utility IPC maps an expired Provider session to a public error', async () 
   assert.doesNotMatch(JSON.stringify(port.messages[1]), /synthetic raw provider detail/);
 });
 
+test('utility IPC maps missing Provider credentials to an auth-required public error', async () => {
+  for (const [id, command, method] of [
+    ['library-not-configured', 'library.search', 'searchTracks'],
+    ['artists-not-configured', 'library.searchArtists', 'searchArtists'],
+    ['albums-not-configured', 'library.searchAlbums', 'searchAlbums'],
+  ] as const) {
+    const port = new FakePort();
+    const runtime = makeRuntime();
+    runtime[method] = async () => {
+      throw new BridgeError('NETEASE_NOT_CONFIGURED', 'NETEASE_COOKIE is not configured');
+    };
+    await attachCoreRuntimePort(port, runtime);
+
+    port.send({
+      version: IPC_VERSION,
+      id,
+      command,
+      payload: { query: 'synthetic', page: { offset: 0, limit: 20 } },
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(port.messages[1], {
+      version: IPC_VERSION,
+      id,
+      ok: false,
+      error: { code: 'AUTH_REQUIRED', message: 'Provider login required' },
+    });
+  }
+});
+
 test('utility IPC returns bounded lyrics snapshots without provider response fields', async () => {
   const port = new FakePort();
   await attachCoreRuntimePort(port, makeRuntime());

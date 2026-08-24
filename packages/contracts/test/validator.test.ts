@@ -445,6 +445,19 @@ test('contracts preserves the public AUTH_EXPIRED error without internal details
   assert.equal(result.ok, true);
 });
 
+test('contracts preserves the public AUTH_REQUIRED error without internal details', () => {
+  const result = validateIpcResponseForCommand(
+    {
+      version: IPC_VERSION,
+      id: 'library-auth-required',
+      ok: false,
+      error: { code: 'AUTH_REQUIRED', message: 'Provider login required' },
+    },
+    'library.search',
+  );
+  assert.equal(result.ok, true);
+});
+
 test('contracts validates bounded playback controls and sanitized snapshots', () => {
   const snapshot = {
     state: 'playing',

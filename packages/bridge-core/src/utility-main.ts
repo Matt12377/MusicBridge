@@ -63,6 +63,9 @@ function requestId(value: unknown): string | undefined {
 
 function failureForError(id: string, error: unknown): IpcFailure {
   const bridgeError = asBridgeError(error);
+  if (bridgeError.code === 'NETEASE_NOT_CONFIGURED') {
+    return responseFailure(id, 'AUTH_REQUIRED', 'Provider login required');
+  }
   if (bridgeError.code === 'AUTH_EXPIRED') {
     return responseFailure(id, 'AUTH_EXPIRED', 'Provider session expired');
   }

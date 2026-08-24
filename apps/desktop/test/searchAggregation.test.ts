@@ -63,3 +63,16 @@ test('search snapshot cache is bounded and reuses the most recent query', async 
   await loader.load('一')
   assert.equal(calls, 3)
 })
+
+test('search snapshot turns a missing Provider credential into an actionable message', async () => {
+  const loader = createSearchSnapshotLoader({
+    artists: async () => { throw Object.assign(new Error('Provider login required'), { code: 'AUTH_REQUIRED' }) },
+    tracks: async () => { throw Object.assign(new Error('Provider login required'), { code: 'AUTH_REQUIRED' }) },
+    albums: async () => { throw Object.assign(new Error('Provider login required'), { code: 'AUTH_REQUIRED' }) },
+  })
+
+  const result = await loader.load('青花瓷')
+  assert.deepEqual(result.artists, { state: 'error', message: '请先登录音乐服务，再搜索内容。' })
+  assert.deepEqual(result.tracks, { state: 'error', message: '请先登录音乐服务，再搜索内容。' })
+  assert.deepEqual(result.albums, { state: 'error', message: '请先登录音乐服务，再搜索内容。' })
+})

@@ -388,8 +388,18 @@ async function installRendererProtocol(): Promise<void> {
   })
 }
 
+class PublicIpcError extends Error {
+  readonly code: PublicErrorCode
+
+  constructor(code: PublicErrorCode, message: string) {
+    super(message)
+    this.name = 'PublicIpcError'
+    this.code = code
+  }
+}
+
 function publicIpcFailure(code: PublicErrorCode, message: string): never {
-  throw Object.freeze({ code, message })
+  throw new PublicIpcError(code, message)
 }
 
 function requireTrustedRenderer(event: Electron.IpcMainInvokeEvent): BrowserWindow {

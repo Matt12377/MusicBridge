@@ -18,10 +18,23 @@ export interface SearchSnapshotResult {
   albums: SearchSectionResult<AlbumSummary>
 }
 
+function errorCode(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null || !('code' in error)) return undefined
+  return typeof error.code === 'string' ? error.code : undefined
+}
+
 function errorMessage(error: unknown): string {
-  return error instanceof Error && error.message.trim().length > 0
-    ? error.message
-    : '搜索分区暂时不可用'
+  switch (errorCode(error)) {
+    case 'AUTH_REQUIRED':
+      return '请先登录音乐服务，再搜索内容。'
+    case 'AUTH_EXPIRED':
+      return '登录已过期，请重新登录后再搜索。'
+  }
+  if (error instanceof Error && error.message.trim().length > 0) return error.message
+  if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string' && error.message.trim().length > 0) {
+    return error.message
+  }
+  return '搜索分区暂时不可用'
 }
 
 export function createSearchSnapshotLoader(
