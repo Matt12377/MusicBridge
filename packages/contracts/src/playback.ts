@@ -17,6 +17,10 @@ export const PLAYBACK_QUALITY_PREFERENCES = [
 export type PlaybackQualityPreference = (typeof PLAYBACK_QUALITY_PREFERENCES)[number]
 export type PlaybackActualQuality = PlaybackQuality | 'unknown'
 
+export const PLAYBACK_SOURCE_PREFERENCES = ['smart', 'netease', 'roon'] as const
+export type PlaybackSourcePreference = (typeof PLAYBACK_SOURCE_PREFERENCES)[number]
+export type PlaybackResolvedSource = Exclude<PlaybackSourcePreference, 'smart'>
+
 export type PlaybackState =
   | 'idle'
   | 'resolving'
@@ -28,12 +32,17 @@ export type PlaybackState =
 export interface PlaybackQueueRequestItem {
   trackId: string
   qualityPreference: PlaybackQualityPreference
+  /** 入队时的来源偏好；省略时保持现有网易云队列语义。 */
+  preferredSource?: PlaybackSourcePreference
 }
 
 export interface PlaybackQueueEntry {
   trackId: string
   qualityPreference: PlaybackQualityPreference
   track?: TrackSummary
+  preferredSource?: PlaybackSourcePreference
+  /** 曲目真正开始后锁定的来源；后台匹配不能改变当前项。 */
+  resolvedSource?: PlaybackResolvedSource
   requestedQuality?: PlaybackQuality
   actualQuality?: PlaybackActualQuality
 }
@@ -86,6 +95,7 @@ export interface PlaybackSnapshot {
   state: PlaybackState
   queue: PlaybackQueueSnapshot
   currentTrack?: TrackSummary
+  source?: PlaybackResolvedSource
   qualityPreference?: PlaybackQualityPreference
   requestedQuality?: PlaybackQuality
   actualQuality?: PlaybackActualQuality

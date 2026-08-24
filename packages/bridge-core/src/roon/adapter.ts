@@ -7,6 +7,7 @@ import type {
   RoonGatewayStage,
   RoonPort,
   RoonState,
+  RoonNativePlaybackState,
   RoonTerminalReason,
 } from './types.js';
 import {
@@ -998,6 +999,10 @@ export class RoonAudioInputAdapter implements RoonPort {
 
   getState(): RoonState {
     return { ...this.state };
+  }
+
+  getSelectedZonePlaybackState(): RoonNativePlaybackState | undefined {
+    return this.selectedZone?.state;
   }
 
   getDiagnosticResourceCounters(): {

@@ -33,7 +33,11 @@ import type {
   PublicTrackMatchResult,
   TypedIpcEvent,
 } from '@music-bridge/contracts';
-import { BridgeController, type BridgeState } from './application/bridge-controller.js';
+import {
+  BridgeController,
+  type BridgeState,
+  type SmartRoonResolution,
+} from './application/bridge-controller.js';
 import { loadConfig } from './config/config.js';
 import { ControlServer } from './control/server.js';
 import { NeteaseClient } from './netease/client.js';
@@ -157,7 +161,8 @@ export function toPublicBridgeState(
     roon: publicRoonStatus(state.roon.status),
     provider: state.neteaseConfigured ? 'configured' : 'missing',
     activeStreamCount: state.activeStreamCount,
-    activePlaybackPresent: state.activePlayback !== undefined,
+    activePlaybackPresent:
+      state.activePlayback !== undefined || state.activeRoonPlayback !== undefined,
   };
 }
 
@@ -230,12 +235,25 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     remoteDevelopmentMode: config.mode === 'remote-core-development',
   });
   let notifyProviderExpired: () => void = () => undefined;
+  let resolveSmartSource: (track: TrackSummary) => Promise<SmartRoonResolution | undefined> = async () => undefined;
   const controller = new BridgeController({
     netease,
     roon,
     registry,
     gateway,
     logger,
+    roonLibrary: {
+      play: (reference, zoneId) => roonLibrary.playTrack(reference, zoneId),
+      stop: async () => {
+        if (!roon.control) {
+          throw new BridgeError('ROON_TRANSPORT_UNAVAILABLE', 'Roon transport control is not available', {
+            httpStatus: 409,
+          });
+        }
+        await roon.control('stop');
+      },
+    },
+    resolveSmartSource: (track) => resolveSmartSource(track),
     ...(options.now ? { now: options.now } : {}),
     onProviderAuthExpired: () => {
       netease.clearCredential();
@@ -458,6 +476,14 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     }
   };
 
+  resolveSmartSource = async (track: TrackSummary): Promise<SmartRoonResolution | undefined> => {
+    const zoneId = roon.getState().selectedZoneId;
+    if (!zoneId) return undefined;
+    const match = await matchLibraryTrack(track);
+    if (match.state !== 'CONFIRMED' || match.candidate?.kind !== 'track') return undefined;
+    return { reference: match.candidate.reference, zoneId };
+  };
+
   const aggregateSearch = async (
     query: string,
     page: PageRequest,
@@ -522,6 +548,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   });
 
   roon.setStateHandler(() => {
+    controller.handleRoonPlaybackState(roon.getSelectedZonePlaybackState());
     const state = publicState();
     emit(eventWithState('roon.changed', state));
     emit(eventWithState('core.health', state));
@@ -801,20 +828,23 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     searchRoonLibrary: (query, page) => roonLibrary.searchLibrary(query, page),
     getRoonImage: (reference, options) => roonLibrary.getImage(reference, options),
     async playRoonTrack(reference, zoneId) {
-      await roonLibrary.playTrack(reference, zoneId);
+      await controller.playRoon({
+        reference,
+        zoneId,
+        track: roonLibrary.getTrackSummary(reference),
+      });
       return { started: true as const };
     },
     async queueRoonTrack(reference, zoneId) {
-      await roonLibrary.queueTrack(reference, zoneId);
+      await controller.appendRoon({
+        reference,
+        zoneId,
+        track: roonLibrary.getTrackSummary(reference),
+      });
       return { queued: true as const };
     },
     async stopRoonTransport() {
-      if (!roon.control) {
-        throw new BridgeError('ROON_TRANSPORT_UNAVAILABLE', 'Roon transport control is not available', {
-          httpStatus: 409,
-        });
-      }
-      await roon.control('stop');
+      await controller.stopRoonTransport();
       return { stopped: true as const };
     },
 

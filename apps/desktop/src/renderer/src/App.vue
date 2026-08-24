@@ -120,6 +120,25 @@ const trackLikeState = ref<'idle' | 'loading' | 'liked' | 'not-liked' | 'error'>
 const neteaseTrackLiked = ref<boolean | null>(null)
 const localTrackFavoriteState = ref<'idle' | 'loading' | 'liked' | 'not-liked' | 'error'>('idle')
 const localTrackFavoriteDescriptor = ref<FavoriteEntityDescriptor | null>(null)
+const roonQueueDescriptors = new Map<string, RoonLibraryItem>()
+const roonQueueNeteaseMatches = new Set<string>()
+const MAX_ROON_QUEUE_DESCRIPTORS = 256
+
+function rememberRoonQueueDescriptor(
+  trackId: string,
+  item: RoonLibraryItem,
+  linkedToNetease = false,
+): void {
+  roonQueueDescriptors.set(trackId, item)
+  if (linkedToNetease) roonQueueNeteaseMatches.add(trackId)
+  else roonQueueNeteaseMatches.delete(trackId)
+  while (roonQueueDescriptors.size > MAX_ROON_QUEUE_DESCRIPTORS) {
+    const oldest = roonQueueDescriptors.keys().next().value
+    if (oldest === undefined) break
+    roonQueueDescriptors.delete(oldest)
+    roonQueueNeteaseMatches.delete(oldest)
+  }
+}
 const zones = ref<readonly PublicRoonZone[]>([])
 const selectedQuality = ref<PlaybackQualityPreference>('auto')
 const remoteCoreState = ref<RemoteCoreTunnelState>({
@@ -1376,6 +1395,36 @@ function applyPlaybackState(snapshot: PlaybackSnapshot): void {
   const previousTrackId = playbackState.value?.currentTrack?.id
   const wasPlaying = playbackState.value?.state === 'playing'
   playbackState.value = snapshot
+  const queueItem = snapshot.queue.items[snapshot.queue.index]
+  const nextSource = snapshot.source ?? queueItem?.resolvedSource
+  if (nextSource !== undefined) {
+    const sourceChanged = playbackSource.value !== nextSource
+    playbackSource.value = nextSource
+    if (nextSource === 'roon') {
+      const localItem = snapshot.currentTrack
+        ? roonQueueDescriptors.get(snapshot.currentTrack.id)
+        : undefined
+      if (localItem) {
+        localTrackFavoriteDescriptor.value = favoriteDescriptorForRoonItem(localItem)
+        nativeRoonHasNeteaseMatch.value = roonQueueNeteaseMatches.has(snapshot.currentTrack?.id ?? '')
+      } else if (sourceChanged) {
+        nativeRoonHasNeteaseMatch.value = false
+      }
+      if (sourceChanged) {
+        neteaseTrackLiked.value = null
+        trackLikeState.value = 'idle'
+      }
+  } else if (sourceChanged || !snapshot.currentTrack) {
+      nativeRoonHasNeteaseMatch.value = false
+      resetLocalTrackFavorite()
+      neteaseTrackLiked.value = null
+    }
+  } else if (!snapshot.currentTrack) {
+    playbackSource.value = 'netease'
+    nativeRoonHasNeteaseMatch.value = false
+    resetLocalTrackFavorite()
+    neteaseTrackLiked.value = null
+  }
   if (snapshot.state === 'playing' && snapshot.currentTrack && (!wasPlaying || previousTrackId !== snapshot.currentTrack.id)) {
     recentTracks.value = [
       snapshot.currentTrack,
@@ -1397,39 +1446,7 @@ function applyPlaybackState(snapshot: PlaybackSnapshot): void {
   }
 }
 
-function applyNativeRoonPlayback(
-  track: TrackSummary,
-  linkedToNetease = false,
-  localItem?: RoonLibraryItem,
-): void {
-  playbackSource.value = 'roon'
-  nativeRoonHasNeteaseMatch.value = linkedToNetease
-  localTrackFavoriteDescriptor.value = localItem
-    ? favoriteDescriptorForRoonItem(localItem)
-    : favoriteDescriptorForTrack(track)
-  applyPlaybackState({
-    state: 'playing',
-    currentTrack: track,
-    queue: {
-      items: [{ trackId: track.id, qualityPreference: selectedQuality.value, track }],
-      index: 0,
-      hasNext: false,
-      hasPrevious: false,
-    },
-    qualityPreference: selectedQuality.value,
-    positionMs: 0,
-    selectedZoneId: selectedZone.value?.zoneId,
-    canNext: false,
-    canPrevious: false,
-    canStop: true,
-  })
-}
-
 function applyNeteasePlayback(snapshot: PlaybackSnapshot): void {
-  playbackSource.value = 'netease'
-  nativeRoonHasNeteaseMatch.value = false
-  resetLocalTrackFavorite()
-  neteaseTrackLiked.value = null
   applyPlaybackState(snapshot)
 }
 
@@ -1462,7 +1479,11 @@ function showToast(message: string): void {
 }
 
 function queueItemsForTracks(tracks: readonly TrackSummary[]): PlaybackQueueRequestItem[] {
-  return tracks.map((track) => ({ trackId: track.id, qualityPreference: selectedQuality.value }))
+  return tracks.map((track) => ({
+    trackId: track.id,
+    qualityPreference: selectedQuality.value,
+    preferredSource: 'smart',
+  }))
 }
 
 function cloneTrackSummary(track: TrackSummary): TrackSummary {
@@ -1486,28 +1507,21 @@ async function playTrack(track: TrackSummary): Promise<void> {
       match?.candidate?.kind === 'track' &&
       zoneId !== undefined
     if (useRoon && match?.candidate) {
-      await stopActiveSourceForTransition('roon')
+      const roonTrackId = String(Math.abs(hashReference(match.candidate.reference)))
+      rememberRoonQueueDescriptor(roonTrackId, match.candidate, true)
       await window.musicBridge.playRoonTrack(match.candidate.reference, zoneId)
-      applyNativeRoonPlayback(track, true, match.candidate)
+      applyPlaybackState(await window.musicBridge.getPlaybackState())
+      nativeRoonHasNeteaseMatch.value = true
+      localTrackFavoriteDescriptor.value = favoriteDescriptorForRoonItem(match.candidate)
       showToast('已使用 Roon 本地版本播放')
       enterNowPlaying()
       return
     }
-    await stopActiveSourceForTransition('netease')
     applyNeteasePlayback(await window.musicBridge.play(track.id, selectedQuality.value))
     enterNowPlaying()
   } catch (error) {
     recordActionError(error)
   }
-}
-
-async function stopActiveSourceForTransition(nextSource: 'roon' | 'netease'): Promise<void> {
-  if (!playbackState.value?.currentTrack || playbackState.value.state !== 'playing') return
-  if (playbackSource.value === 'roon') {
-    await window.musicBridge.stopRoonTransport()
-    return
-  }
-  if (nextSource === 'roon') await window.musicBridge.stop()
 }
 
 async function playRoonLibraryTrack(track: RoonLibraryItem): Promise<void> {
@@ -1518,16 +1532,10 @@ async function playRoonLibraryTrack(track: RoonLibraryItem): Promise<void> {
   }
   actionError.value = null
   try {
-    await stopActiveSourceForTransition('roon')
+    const roonTrackId = String(Math.abs(hashReference(track.reference)))
+    rememberRoonQueueDescriptor(roonTrackId, track)
     await window.musicBridge.playRoonTrack(track.reference, zoneId)
-    const metadata: TrackSummary = {
-      id: String(Math.abs(hashReference(track.reference))),
-      title: track.title,
-      artists: [track.artist ?? track.subtitle ?? 'Roon Library'],
-      album: track.album ?? 'Roon Library',
-      ...(track.durationMs !== undefined ? { durationMs: track.durationMs } : {}),
-    }
-    applyNativeRoonPlayback(metadata, false, track)
+    applyPlaybackState(await window.musicBridge.getPlaybackState())
     enterNowPlaying()
   } catch (error) {
     recordActionError(error)
@@ -1550,7 +1558,10 @@ async function queueRoonLibraryTrack(track: RoonLibraryItem): Promise<void> {
   }
   actionError.value = null
   try {
+    const roonTrackId = String(Math.abs(hashReference(track.reference)))
+    rememberRoonQueueDescriptor(roonTrackId, track)
     await window.musicBridge.queueRoonTrack(track.reference, zoneId)
+    applyPlaybackState(await window.musicBridge.getPlaybackState())
     showToast('已将 Roon 曲目加入队列')
   } catch (error) {
     recordActionError(error)
@@ -1561,7 +1572,7 @@ async function appendTrack(track: TrackSummary): Promise<void> {
   actionError.value = null
   try {
     applyNeteasePlayback(await window.musicBridge.appendQueue([
-      { trackId: track.id, qualityPreference: selectedQuality.value },
+      { trackId: track.id, qualityPreference: selectedQuality.value, preferredSource: 'smart' },
     ]))
     showToast('已加入播放队列')
   } catch (error) {
@@ -1573,7 +1584,7 @@ async function insertTrackNext(track: TrackSummary): Promise<void> {
   actionError.value = null
   try {
     applyNeteasePlayback(await window.musicBridge.insertNext([
-      { trackId: track.id, qualityPreference: selectedQuality.value },
+      { trackId: track.id, qualityPreference: selectedQuality.value, preferredSource: 'smart' },
     ]))
     showToast('将在下一首播放')
   } catch (error) {
@@ -1684,6 +1695,7 @@ async function playAllDailyRecommendations(): Promise<void> {
   const items: PlaybackQueueRequestItem[] = dailyRecommendations.value.tracks.map((track) => ({
     trackId: track.id,
     qualityPreference: selectedQuality.value,
+    preferredSource: 'smart',
   }))
   try {
     applyNeteasePlayback(await window.musicBridge.replaceQueue(items, 0))
@@ -1697,6 +1709,18 @@ async function playQueueItem(item: PlaybackQueueItem, index: number): Promise<vo
   const items = playbackState.value?.queue.items
   if (!items?.length) return
   try {
+    if (item.preferredSource === 'roon' || item.resolvedSource === 'roon') {
+      const localItem = roonQueueDescriptors.get(item.trackId)
+      const zoneId = selectedZone.value?.zoneId
+      if (!localItem || !zoneId) {
+        recordActionError({ code: 'ROON_ZONE_NOT_SELECTED' })
+        return
+      }
+      await window.musicBridge.playRoonTrack(localItem.reference, zoneId)
+      applyPlaybackState(await window.musicBridge.getPlaybackState())
+      enterNowPlaying()
+      return
+    }
     applyNeteasePlayback(await window.musicBridge.replaceQueue(ipcQueueItems(items), index))
     enterNowPlaying()
   } catch (error) {
@@ -1708,19 +1732,7 @@ async function stopPlayback(): Promise<void> {
   try {
     if (playbackSource.value === 'roon') {
       await window.musicBridge.stopRoonTransport()
-      const snapshot = playbackState.value
-      if (snapshot) {
-        applyPlaybackState({
-          ...snapshot,
-          state: 'idle',
-          currentTrack: undefined,
-          queue: { items: [], index: -1, hasNext: false, hasPrevious: false },
-          positionMs: 0,
-          canNext: false,
-          canPrevious: false,
-          canStop: false,
-        })
-      }
+      await refreshPlayback()
       return
     }
     applyNeteasePlayback(await window.musicBridge.stop())
@@ -1910,7 +1922,11 @@ function qualityLabel(quality: string | undefined): string {
 }
 
 function ipcQueueItems(items: readonly PlaybackQueueItem[]): PlaybackQueueItem[] {
-  return items.map((item) => ({ trackId: item.trackId, qualityPreference: item.qualityPreference }))
+  return items.map((item) => ({
+    trackId: item.trackId,
+    qualityPreference: item.qualityPreference,
+    ...(item.preferredSource !== undefined ? { preferredSource: item.preferredSource } : {}),
+  }))
 }
 
 function setSelectedQuality(preference: PlaybackQualityPreference): void {
@@ -1942,7 +1958,7 @@ onMounted(async () => {
         dailyState.value = 'empty'
       }
     }
-    if (event.event === 'playback.changed') applyNeteasePlayback(event.payload.state)
+    if (event.event === 'playback.changed') applyPlaybackState(event.payload.state)
     if (event.event === 'lyrics.changed') lyricsSnapshot.value = event.payload.state
     if (event.event === 'diagnostic.notice') diagnosticNotice.value = event.payload
   })

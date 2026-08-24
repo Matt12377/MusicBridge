@@ -734,8 +734,13 @@ test('contracts validates bounded playback controls and sanitized snapshots', ()
     state: 'playing',
     queue: {
       items: [
-        { trackId: '101', qualityPreference: 'lossless' },
-        { trackId: '102', qualityPreference: 'standard' },
+        {
+          trackId: '101',
+          qualityPreference: 'lossless',
+          preferredSource: 'roon',
+          resolvedSource: 'roon',
+        },
+        { trackId: '102', qualityPreference: 'standard', preferredSource: 'netease' },
       ],
       index: 0,
       hasNext: true,
@@ -747,6 +752,7 @@ test('contracts validates bounded playback controls and sanitized snapshots', ()
       artists: ['Synthetic Artist'],
       album: 'Synthetic Album',
     },
+    source: 'roon',
     requestedQuality: 'lossless',
     actualQuality: 'lossless',
     qualityPreference: 'lossless',
@@ -782,7 +788,10 @@ test('contracts validates bounded playback controls and sanitized snapshots', ()
     [
       'playback-replace',
       'playback.replaceQueue',
-      { items: [{ trackId: '101', qualityPreference: 'lossless' }], index: 0 },
+      {
+        items: [{ trackId: '101', qualityPreference: 'lossless', preferredSource: 'smart' }],
+        index: 0,
+      },
     ],
     ['playback-append', 'playback.appendQueue', { items: [{ trackId: '102', qualityPreference: 'standard' }] }],
     ['playback-insert-next', 'playback.insertNext', { items: [{ trackId: '103', qualityPreference: 'standard' }] }],
@@ -813,6 +822,24 @@ test('contracts validates bounded playback controls and sanitized snapshots', ()
         index: 0,
       },
     }).ok,
+    false,
+  );
+  assert.equal(
+    validateIpcResponseForCommand(
+      {
+        version: IPC_VERSION,
+        id: 'playback-roon-reference-leak',
+        ok: true,
+        result: {
+          ...snapshot,
+          queue: {
+            ...snapshot.queue,
+            items: [{ ...snapshot.queue.items[0], roonReference: 'musicbridge-v2-entity-secret' }],
+          },
+        },
+      },
+      'playback.getState',
+    ).ok,
     false,
   );
   assert.equal(

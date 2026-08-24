@@ -2,6 +2,7 @@ import type {
   RoonImageOptions as PublicRoonImageOptions,
   RoonLibraryItem as PublicRoonLibraryItem,
   RoonLibraryPage as PublicRoonLibraryPage,
+  TrackSummary,
 } from '@music-bridge/contracts';
 import { randomUUID } from 'node:crypto';
 import { BridgeError } from '../shared/errors.js';
@@ -31,6 +32,8 @@ export interface RoonPublicLibrary {
   }>;
   playTrack(reference: string, zoneOrOutputId: string): Promise<void>;
   queueTrack(reference: string, zoneOrOutputId: string): Promise<void>;
+  /** Core 内部使用的安全元数据投影；不暴露 Roon item_key 或运行期引用。 */
+  getTrackSummary(reference: string): TrackSummary;
 }
 
 interface DescriptorReference {
@@ -52,6 +55,15 @@ function toDurationMs(descriptor: RoonEntityDescriptor): number | undefined {
 
 function createToken(prefix: string): string {
   return `musicbridge-v2-${prefix}-${randomUUID()}`;
+}
+
+function stableTrackId(reference: string): string {
+  let hash = 0;
+  for (let index = 0; index < reference.length; index += 1) {
+    hash = (hash * 31 + reference.charCodeAt(index)) >>> 0;
+  }
+  const value = hash === 0 ? 1 : hash;
+  return String(value);
 }
 
 function addBounded<K, V>(map: Map<K, V>, key: K, value: V): void {
@@ -278,6 +290,17 @@ export function createRoonPublicLibrary(
       } catch (error) {
         return wrapLibraryError(error);
       }
+    },
+    getTrackSummary(reference) {
+      const descriptor = resolveTrack(reference);
+      const durationMs = toDurationMs(descriptor);
+      return {
+        id: stableTrackId(reference),
+        title: descriptor.title,
+        artists: [descriptor.artist ?? descriptor.subtitle ?? 'Roon Library'],
+        album: descriptor.album ?? 'Roon Library',
+        ...(durationMs !== undefined ? { durationMs } : {}),
+      };
     },
   };
 }

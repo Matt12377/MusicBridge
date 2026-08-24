@@ -16,6 +16,7 @@ import type {
   PageRequest,
   PlaybackQueueRequestItem,
   PlaybackQualityPreference,
+  PlaybackSourcePreference,
   PlaybackSnapshot,
   PublicAuthState,
   PublicBridgeState,
@@ -690,6 +691,13 @@ function requirePlaybackQualityPreference(value: unknown): PlaybackQualityPrefer
   return value as PlaybackQualityPreference
 }
 
+function requirePlaybackSourcePreference(value: unknown): PlaybackSourcePreference {
+  if (!['smart', 'netease', 'roon'].includes(String(value))) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback source preference')
+  }
+  return value as PlaybackSourcePreference
+}
+
 function requirePlaybackQueue(value: unknown): readonly PlaybackQueueRequestItem[] {
   if (!Array.isArray(value) || value.length === 0 || value.length > 500) {
     return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback queue')
@@ -699,14 +707,18 @@ function requirePlaybackQueue(value: unknown): readonly PlaybackQueueRequestItem
       !item ||
       typeof item !== 'object' ||
       Array.isArray(item) ||
-      Object.keys(item).some((key) => !['trackId', 'qualityPreference'].includes(key))
+      Object.keys(item).some((key) => !['trackId', 'qualityPreference', 'preferredSource'].includes(key))
     ) {
       return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback queue')
     }
-    const queueItem = item as { trackId?: unknown; qualityPreference?: unknown }
+    const queueItem = item as { trackId?: unknown; qualityPreference?: unknown; preferredSource?: unknown }
+    const preferredSource = queueItem.preferredSource === undefined
+      ? {}
+      : { preferredSource: requirePlaybackSourcePreference(queueItem.preferredSource) }
     return {
       trackId: requirePlaybackTrackId(queueItem.trackId),
       qualityPreference: requirePlaybackQualityPreference(queueItem.qualityPreference),
+      ...preferredSource,
     }
   })
 }

@@ -106,6 +106,15 @@ test('Roon public library resolves a Track reference for typed play and queue on
   const tracks = await publicLibrary.browseAlbum(album.reference, { offset: 0, limit: 20 });
   const track = tracks.items[0];
   assert.ok(track);
+  const summary = publicLibrary.getTrackSummary(track.reference);
+  assert.deepEqual(summary, {
+    id: String(Math.abs([...track.reference].reduce((hash, character) => (
+      (hash * 31 + character.charCodeAt(0)) >>> 0
+    ), 0))),
+    title: 'Track',
+    artists: ['Roon Library'],
+    album: 'Roon Library',
+  });
   await publicLibrary.playTrack(track.reference, 'zone-1');
   await publicLibrary.queueTrack(track.reference, 'zone-1');
   assert.deepEqual(actions, [

@@ -19,6 +19,7 @@ import {
   PLAYBACK_ISSUE_CODES,
   PLAYBACK_QUALITY_LEVELS,
   PLAYBACK_QUALITY_PREFERENCES,
+  PLAYBACK_SOURCE_PREFERENCES,
   type PlaybackQueueEntry,
   type PlaybackQueueRequestItem,
   type PlaybackQueueItem,
@@ -26,6 +27,8 @@ import {
   type PlaybackIssue,
   type PlaybackQuality,
   type PlaybackQualityPreference,
+  type PlaybackResolvedSource,
+  type PlaybackSourcePreference,
   type PlaybackSnapshot,
 } from './playback.js';
 import {
@@ -279,6 +282,14 @@ function isPlaybackQualityPreference(value: unknown): value is PlaybackQualityPr
   return PLAYBACK_QUALITY_PREFERENCES.includes(value as PlaybackQualityPreference);
 }
 
+function isPlaybackSourcePreference(value: unknown): value is PlaybackSourcePreference {
+  return PLAYBACK_SOURCE_PREFERENCES.includes(value as PlaybackSourcePreference);
+}
+
+function isPlaybackResolvedSource(value: unknown): value is PlaybackResolvedSource {
+  return value === 'roon' || value === 'netease';
+}
+
 function isPlaybackSeekPayload(value: unknown): value is { positionMs: number } {
   return (
     isRecord(value) &&
@@ -293,23 +304,34 @@ function isPlaybackSeekPayload(value: unknown): value is { positionMs: number } 
 function isPlaybackQueueRequestItem(value: unknown): value is PlaybackQueueRequestItem {
   return (
     isRecord(value) &&
-    hasOnlyKeys(value, ['trackId', 'qualityPreference']) &&
+    hasOnlyKeys(value, ['trackId', 'qualityPreference', 'preferredSource']) &&
     safeString(value.trackId, 128) &&
     /^\d+$/.test(value.trackId) &&
     value.trackId !== '0' &&
-    isPlaybackQualityPreference(value.qualityPreference)
+    isPlaybackQualityPreference(value.qualityPreference) &&
+    (value.preferredSource === undefined || isPlaybackSourcePreference(value.preferredSource))
   );
 }
 
 function isPlaybackQueueEntry(value: unknown): value is PlaybackQueueEntry {
   return (
     isRecord(value) &&
-    hasOnlyKeys(value, ['trackId', 'qualityPreference', 'track', 'requestedQuality', 'actualQuality']) &&
+    hasOnlyKeys(value, [
+      'trackId',
+      'qualityPreference',
+      'track',
+      'preferredSource',
+      'resolvedSource',
+      'requestedQuality',
+      'actualQuality',
+    ]) &&
     safeString(value.trackId, 128) &&
     /^\d+$/.test(value.trackId) &&
     value.trackId !== '0' &&
     isPlaybackQualityPreference(value.qualityPreference) &&
     (value.track === undefined || isTrackSummary(value.track)) &&
+    (value.preferredSource === undefined || isPlaybackSourcePreference(value.preferredSource)) &&
+    (value.resolvedSource === undefined || isPlaybackResolvedSource(value.resolvedSource)) &&
     (value.requestedQuality === undefined || isPlaybackQuality(value.requestedQuality)) &&
     (value.actualQuality === undefined || isPlaybackQuality(value.actualQuality) || value.actualQuality === 'unknown')
   );
@@ -367,6 +389,7 @@ function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
       'state',
       'queue',
       'currentTrack',
+      'source',
       'qualityPreference',
       'requestedQuality',
       'actualQuality',
@@ -384,6 +407,7 @@ function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
     !isPlaybackState(value.state) ||
     !isPlaybackQueueSnapshot(value.queue) ||
     (value.currentTrack !== undefined && !isTrackSummary(value.currentTrack)) ||
+    (value.source !== undefined && !isPlaybackResolvedSource(value.source)) ||
     (value.qualityPreference !== undefined && !isPlaybackQualityPreference(value.qualityPreference)) ||
     (value.requestedQuality !== undefined && !isPlaybackQuality(value.requestedQuality)) ||
     (value.actualQuality !== undefined && !isPlaybackQuality(value.actualQuality) && value.actualQuality !== 'unknown') ||

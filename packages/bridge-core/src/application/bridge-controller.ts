@@ -9,6 +9,8 @@ import type {
   PlaybackRecoveryAction,
   PlaybackSnapshot,
   PlaybackState,
+  PlaybackResolvedSource,
+  PlaybackSourcePreference,
   TrackSummary,
 } from '@music-bridge/contracts';
 import { BridgeError, asBridgeError } from '../shared/errors.js';
@@ -29,6 +31,7 @@ import type {
 } from '../netease/types.js';
 import type {
   RoonGatewayStage,
+  RoonNativePlaybackState,
   RoonPort,
   RoonState,
   RoonTerminalReason,
@@ -52,16 +55,36 @@ export interface BridgeState {
   neteaseConfigured: boolean;
   roon: RoonState;
   activePlayback?: ActivePlayback;
+  /** 原生 Roon 曲目仅用于内部活动状态判断，不进入公开 BridgeState。 */
+  activeRoonPlayback?: TrackSummary;
   activeStreamCount: number;
 }
 
-export type QueueItem = PlaybackQueueEntry;
+export type QueueItem = PlaybackQueueEntry & {
+  /** 运行期引用只存在 Core 内存中，绝不进入公开队列快照。 */
+  roonReference?: string;
+  roonZoneId?: string;
+};
 type QueueInput = {
   trackId: unknown;
   qualityPreference?: unknown;
   /** 兼容旧控制请求；公开 IPC 快照不再输出此字段。 */
   quality?: unknown;
+  preferredSource?: unknown;
 };
+export interface NativeRoonQueueInput {
+  reference: string;
+  zoneId: string;
+  track: TrackSummary;
+}
+export interface SmartRoonResolution {
+  reference: string;
+  zoneId: string;
+}
+interface NativeRoonPlaybackPort {
+  play(reference: string, zoneId: string): Promise<void>;
+  stop(): Promise<void>;
+}
 export type PlaybackChangedListener = (snapshot: PlaybackSnapshot) => void;
 
 const SKIPPABLE_QUEUE_ERRORS = new Set([
@@ -74,9 +97,32 @@ const QUEUE_HYDRATION_BATCH_SIZE = 20;
 function normalizeQueueItem(input: QueueInput): QueueItem {
   const preferenceInput = input.qualityPreference ?? input.quality;
   const qualityPreference = parseQualityPreference(preferenceInput);
+  const preferredSource: PlaybackSourcePreference = input.preferredSource === 'smart' || input.preferredSource === 'roon'
+    ? input.preferredSource
+    : 'netease';
   return {
     trackId: normalizeTrackId(input.trackId),
     qualityPreference,
+    ...(preferredSource !== 'netease' ? { preferredSource } : {}),
+  };
+}
+
+function normalizeNativeRoonQueueItem(input: NativeRoonQueueInput): QueueItem {
+  if (
+    input.reference.trim().length === 0 ||
+    input.reference.length > 128 ||
+    input.zoneId.trim().length === 0 ||
+    input.zoneId.length > 128
+  ) {
+    throw new BridgeError('BAD_REQUEST', 'Roon queue reference is invalid', { httpStatus: 400 });
+  }
+  return {
+    trackId: normalizeTrackId(input.track.id),
+    qualityPreference: 'auto',
+    preferredSource: 'roon',
+    track: cloneTrackSummary(input.track),
+    roonReference: input.reference,
+    roonZoneId: input.zoneId,
   };
 }
 
@@ -199,6 +245,11 @@ function makeTerminalIssue(
 export class BridgeController {
   private activeToken: string | undefined;
   private activePlayback: ActivePlayback | undefined;
+  private activeRoonPlayback: {
+    track: TrackSummary;
+    reference: string;
+    zoneId: string;
+  } | undefined;
   private queue: QueueItem[] = [];
   private queueIndex = -1;
   private playbackState: PlaybackState = 'idle';
@@ -209,6 +260,8 @@ export class BridgeController {
   private playbackGeneration = 0;
   private lastPositionPublishedAt = Number.NEGATIVE_INFINITY;
   private pendingTerminalReason: RoonTerminalReason | undefined;
+  private nativeRoonStopRequested = false;
+  private lastNativeRoonPlaybackState: RoonNativePlaybackState | undefined;
   private operationTail: Promise<void> = Promise.resolve();
   private queueHydrationGeneration = 0;
   private readonly playbackListeners = new Set<PlaybackChangedListener>();
@@ -220,6 +273,8 @@ export class BridgeController {
       registry: StreamRegistry;
       gateway: StreamGateway;
       logger: Logger;
+      roonLibrary?: NativeRoonPlaybackPort;
+      resolveSmartSource?: (track: TrackSummary) => Promise<SmartRoonResolution | undefined>;
       now?: () => number;
       diagnosticId?: () => string;
       onProviderAuthExpired?: () => void;
@@ -281,20 +336,14 @@ export class BridgeController {
     const hasNext = hasQueue && this.queueIndex >= 0 && this.queueIndex < this.queue.length - 1;
     const hasPrevious = hasQueue && this.queueIndex > 0;
     const selectedZoneId = this.dependencies.roon.getState().selectedZoneId;
-    const currentTrack: TrackSummary | undefined = this.activePlayback
-      ? {
-          id: this.activePlayback.track.id,
-          title: this.activePlayback.track.title,
-          artists: [...this.activePlayback.track.artists],
-          album: this.activePlayback.track.album,
-          ...(this.activePlayback.track.durationMs !== undefined
-            ? { durationMs: this.activePlayback.track.durationMs }
-            : {}),
-          ...(this.activePlayback.track.artworkUrl
-            ? { artworkUrl: this.activePlayback.track.artworkUrl }
-            : {}),
-        }
-      : undefined;
+    const currentTrack = this.activePlayback
+      ? cloneTrackSummary(toTrackSummary(this.activePlayback.track))
+      : this.activeRoonPlayback
+        ? cloneTrackSummary(this.activeRoonPlayback.track)
+        : undefined;
+    const activeItem = this.queue[this.queueIndex];
+    const source: PlaybackResolvedSource | undefined =
+      (this.activePlayback || this.activeRoonPlayback) ? activeItem?.resolvedSource : undefined;
 
     return {
       state: this.playbackState,
@@ -303,6 +352,8 @@ export class BridgeController {
           trackId: item.trackId,
           qualityPreference: item.qualityPreference,
           ...(item.track ? { track: cloneTrackSummary(item.track) } : {}),
+          ...(item.preferredSource ? { preferredSource: item.preferredSource } : {}),
+          ...(item.resolvedSource ? { resolvedSource: item.resolvedSource } : {}),
           ...(index === this.queueIndex && this.activePlayback
             ? {
                 requestedQuality: this.activePlayback.requestedQuality,
@@ -315,6 +366,7 @@ export class BridgeController {
         hasPrevious,
       },
       ...(currentTrack ? { currentTrack } : {}),
+      ...(source ? { source } : {}),
       ...(this.activePlayback
         ? {
             qualityPreference: this.activePlayback.qualityPreference,
@@ -333,7 +385,10 @@ export class BridgeController {
       ...(this.qualityNotice ? { qualityNotice: this.qualityNotice } : {}),
       canNext: hasNext,
       canPrevious: hasPrevious,
-      canStop: this.activeToken !== undefined || this.activePlayback !== undefined,
+      canStop:
+        this.activeToken !== undefined ||
+        this.activePlayback !== undefined ||
+        this.activeRoonPlayback !== undefined,
     };
   }
 
@@ -343,6 +398,18 @@ export class BridgeController {
     quality?: unknown;
   }): Promise<BridgeState> {
     const item = normalizeQueueItem(input);
+    return this.enqueue(async () => {
+      await this.stopActive();
+      this.queue = [item];
+      this.queueIndex = 0;
+      this.clearPlaybackIssue();
+      await this.startQueueIndex(0, false);
+      return this.getState();
+    });
+  }
+
+  async playRoon(input: NativeRoonQueueInput): Promise<BridgeState> {
+    const item = normalizeNativeRoonQueueItem(input);
     return this.enqueue(async () => {
       await this.stopActive();
       this.queue = [item];
@@ -429,6 +496,17 @@ export class BridgeController {
     });
   }
 
+  async appendRoon(input: NativeRoonQueueInput): Promise<BridgeState> {
+    const item = normalizeNativeRoonQueueItem(input);
+    return this.enqueue(async () => {
+      const availableSlots = Math.max(0, MAX_QUEUE_ITEMS - this.queue.length);
+      if (availableSlots === 0) return this.getState();
+      this.queue.push(item);
+      this.notifyPlaybackChanged();
+      return this.getState();
+    });
+  }
+
   async insertNext(
     items: readonly QueueInput[],
   ): Promise<BridgeState> {
@@ -449,6 +527,17 @@ export class BridgeController {
       if (!shouldHydrateInline) {
         this.scheduleQueueHydration(acceptedItems, hydrationGeneration);
       }
+      return this.getState();
+    });
+  }
+
+  async insertNextRoon(input: NativeRoonQueueInput): Promise<BridgeState> {
+    const item = normalizeNativeRoonQueueItem(input);
+    return this.enqueue(async () => {
+      if (this.queue.length >= MAX_QUEUE_ITEMS) return this.getState();
+      const insertionIndex = this.queueIndex >= 0 ? this.queueIndex + 1 : 0;
+      this.queue.splice(insertionIndex, 0, item);
+      this.notifyPlaybackChanged();
       return this.getState();
     });
   }
@@ -485,6 +574,17 @@ export class BridgeController {
     });
   }
 
+  async stopRoonTransport(): Promise<BridgeState> {
+    return this.enqueue(async () => {
+      if (this.activeToken !== undefined || this.activePlayback !== undefined || this.activeRoonPlayback !== undefined) {
+        await this.stopActive();
+      } else {
+        await this.dependencies.roonLibrary?.stop();
+      }
+      return this.getState();
+    });
+  }
+
   async clearQueue(): Promise<BridgeState> {
     return this.enqueue(async () => {
       this.queueHydrationGeneration += 1;
@@ -514,7 +614,7 @@ export class BridgeController {
   updateRoonTime(positionMs: number, generation = this.playbackGeneration): void {
     if (
       generation !== this.playbackGeneration ||
-      this.activePlayback === undefined ||
+      (this.activePlayback === undefined && this.activeRoonPlayback === undefined) ||
       this.playbackState !== 'playing' ||
       !Number.isSafeInteger(positionMs) ||
       positionMs < 0 ||
@@ -529,6 +629,38 @@ export class BridgeController {
     this.notifyPlaybackChanged();
   }
 
+  handleRoonPlaybackState(state: RoonNativePlaybackState | undefined): void {
+    const previous = this.lastNativeRoonPlaybackState;
+    this.lastNativeRoonPlaybackState = state;
+    if (
+      state !== 'stopped' ||
+      (previous !== 'playing' && previous !== 'loading') ||
+      this.nativeRoonStopRequested ||
+      this.activeRoonPlayback === undefined
+    ) {
+      return;
+    }
+
+    void this.enqueue(async () => {
+      if (this.nativeRoonStopRequested || this.activeRoonPlayback === undefined) return;
+      this.dependencies.logger.info('roon_native_terminal', { reason: 'ended' });
+      const nextIndex = this.queueIndex + 1;
+      this.clearActiveResources();
+      if (nextIndex >= this.queue.length) {
+        this.playbackState = 'idle';
+        this.lastPlaybackError = undefined;
+        this.lastPlaybackIssue = undefined;
+        this.qualityNotice = undefined;
+        this.notifyPlaybackChanged();
+        return;
+      }
+      await this.startQueueIndex(nextIndex, true);
+    }).catch((error: unknown) => {
+      const bridgeError = asBridgeError(error);
+      this.dependencies.logger.warn('queue_advance_failed', { code: bridgeError.code });
+    });
+  }
+
   getPlaybackGeneration(): number {
     return this.playbackGeneration;
   }
@@ -539,6 +671,7 @@ export class BridgeController {
       roon: this.dependencies.roon.getState(),
       activeStreamCount: this.dependencies.registry.size,
       ...(this.activePlayback ? { activePlayback: this.activePlayback } : {}),
+      ...(this.activeRoonPlayback ? { activeRoonPlayback: cloneTrackSummary(this.activeRoonPlayback.track) } : {}),
     };
   }
 
@@ -546,7 +679,7 @@ export class BridgeController {
     return {
       queueItemCount: this.queue.length,
       activeStreamCount: this.dependencies.registry.size,
-      activePlaybackCount: this.activePlayback ? 1 : 0,
+      activePlaybackCount: this.activePlayback || this.activeRoonPlayback ? 1 : 0,
       activeSessionCount: this.activeToken ? 1 : 0,
       activeTokenCount: this.activeToken ? 1 : 0,
       listenerCount: this.playbackListeners.size,
@@ -599,6 +732,11 @@ export class BridgeController {
   }
 
   private async startItem(item: QueueItem): Promise<void> {
+    if (item.preferredSource === 'roon' || item.roonReference) {
+      await this.startRoonItem(item);
+      return;
+    }
+
     if (!this.dependencies.netease.configured) {
       throw new BridgeError(
         'NETEASE_NOT_CONFIGURED',
@@ -615,6 +753,16 @@ export class BridgeController {
       ? { ...item.track, artists: [...item.track.artists] }
       : await this.dependencies.netease.getTrack(item.trackId);
     item.track = toTrackSummary(metadata);
+    if (item.preferredSource === 'smart' && this.dependencies.resolveSmartSource) {
+      const resolution = await this.dependencies.resolveSmartSource(item.track);
+      if (resolution) {
+        item.roonReference = resolution.reference;
+        item.roonZoneId = resolution.zoneId;
+        await this.startRoonItem(item);
+        return;
+      }
+    }
+    item.resolvedSource = 'netease';
     const requestedQuality = resolveQualityPreference(item.qualityPreference);
     const initialStream = await this.dependencies.netease.resolveStream(
       item.trackId,
@@ -720,8 +868,45 @@ export class BridgeController {
     }
   }
 
+  private async startRoonItem(item: QueueItem): Promise<void> {
+    const reference = item.roonReference;
+    const zoneId = item.roonZoneId;
+    const roonLibrary = this.dependencies.roonLibrary;
+    if (!reference || !zoneId || !roonLibrary || !item.track) {
+      throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Roon native playback is unavailable', {
+        httpStatus: 503,
+      });
+    }
+
+    this.playbackState = 'resolving';
+    this.clearPlaybackIssue();
+    this.notifyPlaybackChanged();
+    const track = cloneTrackSummary(item.track);
+    try {
+      await roonLibrary.play(reference, zoneId);
+      this.activeRoonPlayback = { track, reference, zoneId };
+      item.resolvedSource = 'roon';
+      this.playbackState = 'playing';
+      this.lastPlaybackError = undefined;
+      this.lastPlaybackIssue = undefined;
+      this.qualityNotice = undefined;
+      this.dependencies.logger.info('roon_native_playing', {
+        trackId: item.trackId,
+        title: track.title,
+      });
+      this.notifyPlaybackChanged();
+    } catch (error) {
+      this.activeRoonPlayback = undefined;
+      delete item.resolvedSource;
+      throw error;
+    }
+  }
+
   private async stopActive(): Promise<void> {
-    const hasActivePlayback = this.activeToken !== undefined || this.activePlayback !== undefined;
+    const hasActivePlayback =
+      this.activeToken !== undefined ||
+      this.activePlayback !== undefined ||
+      this.activeRoonPlayback !== undefined;
     if (!hasActivePlayback) {
       if (this.playbackState !== 'idle') {
         this.playbackState = 'idle';
@@ -736,7 +921,16 @@ export class BridgeController {
     this.lastPositionPublishedAt = this.now();
     this.notifyPlaybackChanged();
     try {
-      await this.dependencies.roon.stop();
+      if (this.activeRoonPlayback) {
+        this.nativeRoonStopRequested = true;
+        try {
+          await this.dependencies.roonLibrary?.stop();
+        } finally {
+          this.nativeRoonStopRequested = false;
+        }
+      } else {
+        await this.dependencies.roon.stop();
+      }
     } finally {
       this.clearActiveResources();
       this.playbackState = 'idle';
@@ -775,6 +969,7 @@ export class BridgeController {
     }
     this.activeToken = undefined;
     this.activePlayback = undefined;
+    this.activeRoonPlayback = undefined;
     this.positionMs = 0;
     this.playbackGeneration += 1;
     this.lastPositionPublishedAt = this.now();
