@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { TrackSummary } from '@music-bridge/contracts'
 import SafeArtwork from '../SafeArtwork.vue'
+import { calculateVirtualWindow } from '../../composables/virtualWindow.js'
 
 const props = withDefaults(defineProps<{
   tracks: readonly TrackSummary[]
@@ -36,6 +37,21 @@ const emit = defineEmits<{
 const contextTrack = ref<TrackSummary | null>(null)
 const contextPosition = ref({ x: 0, y: 0 })
 const sentinel = ref<HTMLElement | null>(null)
+const virtualViewport = ref<HTMLElement | null>(null)
+const virtualScrollTop = ref(0)
+const virtualViewportHeight = ref(620)
+const VIRTUALIZATION_THRESHOLD = 200
+const TRACK_ROW_HEIGHT = 58
+const isVirtualized = computed(() => props.tracks.length > VIRTUALIZATION_THRESHOLD)
+const virtualWindow = computed(() => calculateVirtualWindow(
+  props.tracks.length,
+  virtualScrollTop.value,
+  virtualViewportHeight.value,
+  TRACK_ROW_HEIGHT,
+))
+const renderedTracks = computed(() => isVirtualized.value
+  ? props.tracks.slice(virtualWindow.value.start, virtualWindow.value.end)
+  : props.tracks)
 let observer: IntersectionObserver | undefined
 
 const isInitialLoading = () => (props.initialLoading || props.busy) && props.tracks.length === 0
@@ -51,12 +67,22 @@ function showContextMenu(event: MouseEvent, track: TrackSummary): void {
   contextTrack.value = track
   contextPosition.value = {
     x: Math.min(event.clientX, window.innerWidth - 190),
-    y: Math.min(event.clientY, window.innerHeight - 150),
+    y: Math.min(event.clientY, Math.max(12, window.innerHeight - 230)),
   }
 }
 
 function closeContextMenu(): void {
   contextTrack.value = null
+}
+
+function trackIndex(renderedIndex: number): number {
+  return isVirtualized.value ? virtualWindow.value.start + renderedIndex : renderedIndex
+}
+
+function onVirtualScroll(event: Event): void {
+  const target = event.currentTarget as HTMLElement
+  virtualScrollTop.value = target.scrollTop
+  virtualViewportHeight.value = target.clientHeight || virtualViewportHeight.value
 }
 
 function playFromContext(): void {
@@ -93,6 +119,10 @@ onMounted(() => {
   document.addEventListener('click', closeContextMenu)
   void nextTick(observeSentinel)
 })
+watch(() => props.tracks.length, () => {
+  if (!isVirtualized.value) virtualScrollTop.value = 0
+  void nextTick(observeSentinel)
+})
 watch(() => [props.hasMore, props.loadMoreError, props.tracks.length, props.loadingMore], () => {
   void nextTick(observeSentinel)
 })
@@ -110,12 +140,13 @@ onUnmounted(() => {
       <h3>{{ props.emptyTitle }}</h3>
       <p>{{ props.emptyCopy }}</p>
     </div>
-    <div v-else class="track-table" role="table" aria-label="歌曲列表">
+    <div v-else ref="virtualViewport" class="track-table" :class="{ 'is-virtualized': isVirtualized }" role="table" aria-label="歌曲列表" @scroll="onVirtualScroll">
       <div class="track-table-header" role="row">
         <span>#</span><span>歌曲</span><span>专辑</span><span>时长</span><span class="visually-hidden">操作</span>
       </div>
+      <div v-if="isVirtualized" aria-hidden="true" :style="{ height: `${virtualWindow.topSpacer}px` }"></div>
       <div
-        v-for="(track, index) in props.tracks"
+        v-for="(track, index) in renderedTracks"
         :key="track.id"
         class="track-row"
         role="row"
@@ -124,7 +155,7 @@ onUnmounted(() => {
         @keydown.enter="emit('play', track)"
         @contextmenu="showContextMenu($event, track)"
       >
-        <span class="track-index" aria-hidden="true"><span class="track-number">{{ index + 1 }}</span><span class="track-play-mark">▶</span></span>
+        <span class="track-index" aria-hidden="true"><span class="track-number">{{ trackIndex(index) + 1 }}</span><span class="track-play-mark">▶</span></span>
         <SafeArtwork class="track-art" :src="track.artworkUrl" :alt="`${track.title} 封面`" />
         <span class="track-copy"><strong>{{ track.title }}</strong><small>{{ track.artists.join('、') }}</small></span>
         <span class="track-album">{{ track.album }}</span>
@@ -134,6 +165,7 @@ onUnmounted(() => {
           <button type="button" class="row-action row-action-more" :aria-label="`打开 ${track.title} 的更多操作`" @click.stop="showContextMenu($event, track)">•••</button>
         </span>
       </div>
+      <div v-if="isVirtualized" aria-hidden="true" :style="{ height: `${virtualWindow.bottomSpacer}px` }"></div>
     </div>
 
     <div v-if="props.hasMore" ref="sentinel" class="track-table-more">

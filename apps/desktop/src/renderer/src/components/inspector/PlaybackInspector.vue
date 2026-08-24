@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { PlaybackQueueItem, PlaybackSnapshot, TrackSummary } from '@music-bridge/contracts'
 import SafeArtwork from '../SafeArtwork.vue'
+import { calculateVirtualWindow } from '../../composables/virtualWindow.js'
 
 const props = defineProps<{
   currentTrack?: TrackSummary
@@ -13,6 +14,12 @@ const emit = defineEmits<{
   close: []
   'play-queue-item': [item: PlaybackQueueItem, index: number]
 }>()
+
+const queueViewport = ref<HTMLElement | null>(null)
+const queueScrollTop = ref(0)
+const queueViewportHeight = ref(420)
+const QUEUE_VIRTUALIZATION_THRESHOLD = 200
+const QUEUE_ROW_HEIGHT = 48
 
 const currentEntry = computed(() => {
   const state = props.playbackState
@@ -29,6 +36,22 @@ const upcomingEntries = computed(() => {
     index: startIndex + offset,
   }))
 })
+const isQueueVirtualized = computed(() => upcomingEntries.value.length > QUEUE_VIRTUALIZATION_THRESHOLD)
+const queueWindow = computed(() => calculateVirtualWindow(
+  upcomingEntries.value.length,
+  queueScrollTop.value,
+  queueViewportHeight.value,
+  QUEUE_ROW_HEIGHT,
+))
+const visibleUpcomingEntries = computed(() => isQueueVirtualized.value
+  ? upcomingEntries.value.slice(queueWindow.value.start, queueWindow.value.end)
+  : upcomingEntries.value)
+
+function onQueueScroll(event: Event): void {
+  const target = event.currentTarget as HTMLElement
+  queueScrollTop.value = target.scrollTop
+  queueViewportHeight.value = target.clientHeight || queueViewportHeight.value
+}
 
 function entryTitle(item: PlaybackQueueItem): string {
   return item.track?.title ?? '正在读取歌曲信息'
@@ -61,11 +84,15 @@ function entryAlbum(item: PlaybackQueueItem): string {
           <small v-if="props.playbackState?.requestedQuality">本次请求 {{ props.qualityLabel(props.playbackState.requestedQuality) }} · Provider 返回 {{ props.qualityLabel(props.playbackState.actualQuality) }}</small>
         </div>
         <div v-if="!upcomingEntries.length" class="empty-copy">队列已播放完</div>
-        <button v-for="entry in upcomingEntries" :key="`${entry.item.trackId}-${entry.index}`" type="button" class="queue-row" @click="emit('play-queue-item', entry.item, entry.index)">
-          <span>{{ String(entry.index + 1).padStart(2, '0') }}</span><SafeArtwork class="queue-row-art" :src="entry.item.track?.artworkUrl" :alt="`${entryTitle(entry.item)} 封面`" />
-          <span class="queue-row-copy"><strong>{{ entryTitle(entry.item) }}</strong><small>{{ entryArtists(entry.item) }} · {{ entryAlbum(entry.item) }}</small></span>
-          <small>{{ props.qualityLabel(entry.item.qualityPreference) }}</small>
-        </button>
+        <div ref="queueViewport" class="queue-upcoming-viewport" :class="{ 'is-virtualized': isQueueVirtualized }" @scroll="onQueueScroll">
+          <div v-if="isQueueVirtualized" aria-hidden="true" :style="{ height: `${queueWindow.topSpacer}px` }"></div>
+          <button v-for="entry in visibleUpcomingEntries" :key="`${entry.item.trackId}-${entry.index}`" type="button" class="queue-row" @click="emit('play-queue-item', entry.item, entry.index)">
+            <span>{{ String(entry.index + 1).padStart(2, '0') }}</span><SafeArtwork class="queue-row-art" :src="entry.item.track?.artworkUrl" :alt="`${entryTitle(entry.item)} 封面`" />
+            <span class="queue-row-copy"><strong>{{ entryTitle(entry.item) }}</strong><small>{{ entryArtists(entry.item) }} · {{ entryAlbum(entry.item) }}</small></span>
+            <small>{{ props.qualityLabel(entry.item.qualityPreference) }}</small>
+          </button>
+          <div v-if="isQueueVirtualized" aria-hidden="true" :style="{ height: `${queueWindow.bottomSpacer}px` }"></div>
+        </div>
       </template>
     </div>
   </aside>
