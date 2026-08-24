@@ -1465,10 +1465,21 @@ function queueItemsForTracks(tracks: readonly TrackSummary[]): PlaybackQueueRequ
   return tracks.map((track) => ({ trackId: track.id, qualityPreference: selectedQuality.value }))
 }
 
+function cloneTrackSummary(track: TrackSummary): TrackSummary {
+  return {
+    id: track.id,
+    title: track.title,
+    artists: [...track.artists],
+    album: track.album,
+    ...(track.durationMs !== undefined ? { durationMs: track.durationMs } : {}),
+    ...(track.artworkUrl !== undefined ? { artworkUrl: track.artworkUrl } : {}),
+  }
+}
+
 async function playTrack(track: TrackSummary): Promise<void> {
   actionError.value = null
   try {
-    const match = await window.musicBridge.matchLibraryTrack(track).catch(() => undefined)
+    const match = await window.musicBridge.matchLibraryTrack(cloneTrackSummary(track)).catch(() => undefined)
     const zoneId = selectedZone.value?.zoneId
     const useRoon =
       match?.state === 'CONFIRMED' &&
