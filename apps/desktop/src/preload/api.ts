@@ -80,6 +80,7 @@ export interface MusicBridgePublicApi {
   getRoonImage: (reference: string, options?: RoonImageOptions) => Promise<RoonImageResult>
   playRoonTrack: (reference: string, zoneId: string) => Promise<{ started: true }>
   queueRoonTrack: (reference: string, zoneId: string) => Promise<{ queued: true }>
+  stopRoonTransport: () => Promise<{ stopped: true }>
   getLyrics: (trackId: string) => Promise<LyricsSnapshot>
   getPlaybackState: () => Promise<PlaybackSnapshot>
   play: (trackId: string, quality: PlaybackQualityPreference) => Promise<PlaybackSnapshot>
@@ -136,6 +137,7 @@ export const PUBLIC_API_KEYS = [
   'getRoonImage',
   'playRoonTrack',
   'queueRoonTrack',
+  'stopRoonTransport',
   'getLyrics',
   'getPlaybackState',
   'play',
@@ -246,6 +248,9 @@ export function createPreloadApi(
   seek: (_positionMs: number) => Promise<{ positionMs: number }> = async () => {
     throw new Error('Roon Transport seek API is unavailable')
   },
+  stopRoonTransport: () => Promise<{ stopped: true }> = async () => {
+    throw new Error('Roon Transport stop API is unavailable')
+  },
 ): MusicBridgePublicApi {
   return Object.freeze({
     getAppInfo,
@@ -285,6 +290,7 @@ export function createPreloadApi(
     getRoonImage,
     playRoonTrack,
     queueRoonTrack,
+    stopRoonTransport,
     getLyrics,
     getPlaybackState,
     play,

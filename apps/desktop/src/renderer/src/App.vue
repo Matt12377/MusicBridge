@@ -1421,7 +1421,7 @@ function applyNativeRoonPlayback(
     selectedZoneId: selectedZone.value?.zoneId,
     canNext: false,
     canPrevious: false,
-    canStop: false,
+    canStop: true,
   })
 }
 
@@ -1470,24 +1470,33 @@ async function playTrack(track: TrackSummary): Promise<void> {
   try {
     const match = await window.musicBridge.matchLibraryTrack(track).catch(() => undefined)
     const zoneId = selectedZone.value?.zoneId
-    if (
+    const useRoon =
       match?.state === 'CONFIRMED' &&
       match?.candidate?.kind === 'track' &&
       zoneId !== undefined
-    ) {
+    if (useRoon && match?.candidate) {
+      await stopActiveSourceForTransition('roon')
       await window.musicBridge.playRoonTrack(match.candidate.reference, zoneId)
       applyNativeRoonPlayback(track, true, match.candidate)
       showToast('已使用 Roon 本地版本播放')
       enterNowPlaying()
       return
     }
-    playbackSource.value = 'netease'
-    nativeRoonHasNeteaseMatch.value = false
+    await stopActiveSourceForTransition('netease')
     applyNeteasePlayback(await window.musicBridge.play(track.id, selectedQuality.value))
     enterNowPlaying()
   } catch (error) {
     recordActionError(error)
   }
+}
+
+async function stopActiveSourceForTransition(nextSource: 'roon' | 'netease'): Promise<void> {
+  if (!playbackState.value?.currentTrack || playbackState.value.state !== 'playing') return
+  if (playbackSource.value === 'roon') {
+    await window.musicBridge.stopRoonTransport()
+    return
+  }
+  if (nextSource === 'roon') await window.musicBridge.stop()
 }
 
 async function playRoonLibraryTrack(track: RoonLibraryItem): Promise<void> {
@@ -1498,6 +1507,7 @@ async function playRoonLibraryTrack(track: RoonLibraryItem): Promise<void> {
   }
   actionError.value = null
   try {
+    await stopActiveSourceForTransition('roon')
     await window.musicBridge.playRoonTrack(track.reference, zoneId)
     const metadata: TrackSummary = {
       id: String(Math.abs(hashReference(track.reference))),
@@ -1685,6 +1695,23 @@ async function playQueueItem(item: PlaybackQueueItem, index: number): Promise<vo
 
 async function stopPlayback(): Promise<void> {
   try {
+    if (playbackSource.value === 'roon') {
+      await window.musicBridge.stopRoonTransport()
+      const snapshot = playbackState.value
+      if (snapshot) {
+        applyPlaybackState({
+          ...snapshot,
+          state: 'idle',
+          currentTrack: undefined,
+          queue: { items: [], index: -1, hasNext: false, hasPrevious: false },
+          positionMs: 0,
+          canNext: false,
+          canPrevious: false,
+          canStop: false,
+        })
+      }
+      return
+    }
     applyNeteasePlayback(await window.musicBridge.stop())
   } catch (error) {
     recordActionError(error)

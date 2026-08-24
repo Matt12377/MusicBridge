@@ -1168,6 +1168,8 @@ function isCommandResult(
       return isRecord(value) && hasOnlyKeys(value, ['started']) && value.started === true;
     case 'roon.library.queue':
       return isRecord(value) && hasOnlyKeys(value, ['queued']) && value.queued === true;
+    case 'roon.transport.stop':
+      return isRecord(value) && hasOnlyKeys(value, ['stopped']) && value.stopped === true;
     case 'playback.getState':
     case 'playback.play':
     case 'playback.stop':

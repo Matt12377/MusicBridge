@@ -418,6 +418,15 @@ test('contracts validates bounded library commands and sanitized paged results',
   assert.equal(
     validateIpcRequest({
       version: IPC_VERSION,
+      id: 'roon-transport-stop',
+      command: 'roon.transport.stop',
+      payload: {},
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
       id: 'library-search-too-long',
       command: 'library.search',
       payload: { query: 'x'.repeat(101), page: { offset: 0, limit: 20 } },

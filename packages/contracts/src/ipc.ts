@@ -78,6 +78,7 @@ export const IPC_COMMANDS = [
   'roon.library.image',
   'roon.library.play',
   'roon.library.queue',
+  'roon.transport.stop',
   'playback.getState',
   'playback.play',
   'playback.seek',
@@ -173,6 +174,7 @@ export interface IpcCommandPayloads {
   'roon.library.image': { reference: string; options?: RoonImageOptions };
   'roon.library.play': { reference: string; zoneId: string };
   'roon.library.queue': { reference: string; zoneId: string };
+  'roon.transport.stop': Record<string, never>;
   'playback.getState': Record<string, never>;
   'playback.play': { trackId: string; qualityPreference: PlaybackQualityPreference };
   'playback.seek': { positionMs: number };
@@ -225,6 +227,7 @@ export interface IpcCommandResults {
   'roon.library.image': RoonImageResult;
   'roon.library.play': { started: true };
   'roon.library.queue': { queued: true };
+  'roon.transport.stop': { stopped: true };
   'playback.getState': PlaybackSnapshot;
   'playback.play': PlaybackSnapshot;
   'playback.seek': { positionMs: number };

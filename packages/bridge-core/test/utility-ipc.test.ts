@@ -288,6 +288,9 @@ function makeRuntime(): CoreRuntimeForIpc & {
     async queueRoonTrack() {
       return { queued: true as const };
     },
+    async stopRoonTransport() {
+      return { stopped: true as const };
+    },
     async listFavorites() {
       return { items: [], offset: 0, limit: 20, total: 0, hasMore: false };
     },
@@ -856,6 +859,25 @@ test('utility IPC exposes bounded interactive seek', async () => {
     id: 'playback-seek-invalid',
     ok: false,
     error: { code: 'INVALID_IPC_REQUEST', message: 'Invalid IPC request' },
+  });
+});
+
+test('utility IPC exposes only the typed Roon transport stop control', async () => {
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, makeRuntime());
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'roon-transport-stop',
+    command: 'roon.transport.stop',
+    payload: {},
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[1], {
+    version: IPC_VERSION,
+    id: 'roon-transport-stop',
+    ok: true,
+    result: { stopped: true },
   });
 });
 

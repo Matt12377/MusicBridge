@@ -1007,6 +1007,9 @@ function registerIpcHandlers(
       }),
     ),
   )
+  ipcMain.handle('roon:transport:stop', (event) =>
+    invokeCore(event, () => supervisor.request('roon.transport.stop', {})),
+  )
   ipcMain.handle('lyrics:get', (event, trackId: unknown) =>
     invokeCore(event, () =>
       supervisor.request('lyrics.get', {

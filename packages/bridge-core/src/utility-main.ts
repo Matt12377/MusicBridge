@@ -245,6 +245,8 @@ async function dispatch(
         (request.payload as { reference: string }).reference,
         (request.payload as { zoneId: string }).zoneId,
       );
+    case 'roon.transport.stop':
+      return runtime.stopRoonTransport();
     case 'playback.getState':
       return runtime.getPlaybackState();
     case 'playback.play':

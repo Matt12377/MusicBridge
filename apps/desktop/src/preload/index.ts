@@ -88,5 +88,6 @@ contextBridge.exposeInMainWorld(
     (track: TrackSummary) => ipcRenderer.invoke('library:match', track),
     (query: string, page: { offset: number; limit: number }) => ipcRenderer.invoke('library:aggregate-search', query, page),
     (positionMs: number) => ipcRenderer.invoke('playback:seek', positionMs),
+    () => ipcRenderer.invoke('roon:transport:stop'),
   ),
 )

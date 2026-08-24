@@ -117,6 +117,7 @@ export interface CoreRuntime {
   getRoonImage(reference: string, options?: RoonImageOptions): Promise<RoonImageResult>;
   playRoonTrack(reference: string, zoneId: string): Promise<{ started: true }>;
   queueRoonTrack(reference: string, zoneId: string): Promise<{ queued: true }>;
+  stopRoonTransport(): Promise<{ stopped: true }>;
   listZones(): readonly PublicRoonZone[];
   selectZone(zoneId: string): Promise<PublicBridgeState>;
 }
@@ -807,6 +808,15 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       await roonLibrary.queueTrack(reference, zoneId);
       return { queued: true as const };
     },
+    async stopRoonTransport() {
+      if (!roon.control) {
+        throw new BridgeError('ROON_TRANSPORT_UNAVAILABLE', 'Roon transport control is not available', {
+          httpStatus: 409,
+        });
+      }
+      await roon.control('stop');
+      return { stopped: true as const };
+    },
 
     listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),
     async checkFavorite(descriptor) {
@@ -1272,6 +1282,9 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
         httpStatus: 503,
       });
+    },
+    async stopRoonTransport() {
+      return { stopped: true as const };
     },
     listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),
     async checkFavorite(descriptor) {
