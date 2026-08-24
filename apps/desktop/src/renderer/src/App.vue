@@ -51,6 +51,7 @@ import {
   type HomeRecommendationState,
 } from './composables/homeRecommendations.js'
 import { useSidebarState } from './composables/useSidebarState.js'
+import { roonLibraryMessage as formatRoonLibraryMessage } from './roonLibraryMessages.js'
 import {
   favoriteDescriptorForRoonItem,
   favoriteDescriptorForTrack,
@@ -504,18 +505,10 @@ function libraryErrorKind(error: unknown): 'auth-expired' | 'generic' {
 }
 
 function roonLibraryMessage(error: unknown): string {
-  switch (errorCode(error)) {
-    case 'ROON_LIBRARY_UNAVAILABLE':
-    case 'NOT_READY':
-      return 'Roon Library 暂时不可用，请确认 Core 已配对。'
-    case 'ROON_LIBRARY_REQUEST_FAILED':
-      return 'Roon Library 请求失败，请检查 Core 连接。'
-    case 'ROON_LIBRARY_INVALID_REFERENCE':
-    case 'INVALID_IPC_REQUEST':
-      return '这个 Roon 条目已过期，请返回专辑列表后重试。'
-    default:
-      return 'Roon Library 暂时无法读取，请稍后重试。'
-  }
+  return formatRoonLibraryMessage(error, {
+    roonStatus: coreState.value?.roon,
+    remoteCoreDevelopment: remoteCoreState.value.mode === 'remote-core-development',
+  })
 }
 
 async function loadRoonAlbums(page: PageRequest = { offset: 0, limit: 24 }): Promise<void> {
