@@ -527,6 +527,19 @@ test('contracts preserves the public AUTH_EXPIRED error without internal details
   assert.equal(result.ok, true);
 });
 
+test('contracts keeps Roon zone seek capability public and bounded', () => {
+  const result = validateIpcResponseForCommand({
+    version: IPC_VERSION,
+    id: 'roon-zones',
+    ok: true,
+    result: {
+      zones: [{ zoneId: 'zone-1', displayName: 'Zone', selected: true, seekAllowed: true }],
+    },
+  }, 'roon.listZones');
+
+  assert.equal(result.ok, true);
+});
+
 test('contracts validates the opaque Roon Library browse and image seams', () => {
   const albumPage = {
     items: [{

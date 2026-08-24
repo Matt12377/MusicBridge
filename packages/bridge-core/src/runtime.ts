@@ -273,6 +273,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
         zoneId: zone.zone_id,
         displayName: zone.display_name ?? zone.zone_id,
         selected: zone.zone_id === controller.getState().roon.selectedZoneId,
+        ...(zone.is_seek_allowed !== undefined ? { seekAllowed: zone.is_seek_allowed === true } : {}),
       })),
       selectZone: (zoneId) => {
         roon.selectZone(zoneId);

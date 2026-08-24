@@ -971,10 +971,11 @@ function isInternalQrPollResult(value: unknown): boolean {
 function isPublicRoonZone(value: unknown): value is PublicRoonZone {
   return (
     isRecord(value) &&
-    hasOnlyKeys(value, ['zoneId', 'displayName', 'selected']) &&
+    hasOnlyKeys(value, ['zoneId', 'displayName', 'selected', 'seekAllowed']) &&
     safeString(value.zoneId, 128) &&
     safeString(value.displayName, 256) &&
-    typeof value.selected === 'boolean'
+    typeof value.selected === 'boolean' &&
+    (value.seekAllowed === undefined || typeof value.seekAllowed === 'boolean')
   );
 }
 

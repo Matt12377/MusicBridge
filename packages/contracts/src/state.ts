@@ -46,6 +46,7 @@ export interface PublicRoonZone {
   zoneId: string;
   displayName: string;
   selected: boolean;
+  seekAllowed?: boolean;
 }
 
 export interface PublicBridgeState {
