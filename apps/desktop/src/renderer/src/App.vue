@@ -297,7 +297,7 @@ function accountMessage(error: unknown): string {
   switch (errorCode(error)) {
     case 'AUTH_REQUIRED':
     case 'AUTH_EXPIRED':
-      return 'Provider 登录已失效，请重新登录。'
+      return '音乐服务登录已失效，请重新登录。'
     case 'ACCOUNT_PROFILE_UNAVAILABLE':
       return '账户资料暂时不可用，登录状态仍然保留。'
     default:
@@ -309,7 +309,7 @@ function dailyMessage(error: unknown): string {
   switch (errorCode(error)) {
     case 'AUTH_REQUIRED':
     case 'AUTH_EXPIRED':
-      return 'Provider 登录已失效，请到 Settings 重新登录。'
+      return '音乐服务登录已失效，请到设置重新登录。'
     default:
       return '每日推荐暂时不可用，请稍后重试。'
   }
@@ -319,11 +319,11 @@ function actionableMessage(error: unknown): string {
   switch (errorCode(error)) {
     case 'AUTH_REQUIRED':
     case 'AUTH_EXPIRED':
-      return 'Provider 登录已失效，请到 Settings 重新登录。'
+      return '音乐服务登录已失效，请到设置重新登录。'
     case 'ROON_NOT_PAIRED':
       return 'Roon 尚未配对，请先确认 Roon Core 正在运行。'
     case 'ROON_ZONE_NOT_SELECTED':
-      return '请先在 Settings 选择播放 Zone。'
+      return '请先在设置选择播放设备。'
     case 'QUALITY_DOWNGRADED':
       return '当前请求质量已被安全降级，实际质量以 Signal Path 为准。'
     case 'ROON_ZONE_LOST':
@@ -1409,6 +1409,7 @@ onUnmounted(() => {
           :account-state="accountState"
           :zones="zones"
           :selected-zone="selectedZone"
+          :roon-status="coreState?.roon ?? 'disconnected'"
           :selected-quality="selectedQuality"
           :auth-error="authError"
           :account-error="accountError"

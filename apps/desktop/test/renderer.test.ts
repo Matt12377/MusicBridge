@@ -247,3 +247,22 @@ test('V1 Home and content pages use page-level width tiers and avoid a duplicate
   assert.match(css, /\.view-settings\s*\{[^}]*max-width:\s*1280px/)
   assert.match(css, /\.view-diagnostics\s*\{[^}]*max-width:\s*1100px/)
 })
+
+test('V1 Settings exposes focused Chinese category panes and hides development details in production', async () => {
+  const settings = await readFile(path.resolve('src/renderer/src/components/settings/SettingsView.vue'), 'utf8')
+
+  for (const label of ['账户', '播放', 'Roon', '应用', '高级']) {
+    assert.match(settings, new RegExp(label))
+  }
+  assert.match(settings, /settings-category-tabs/)
+  assert.match(settings, /role="tablist"/)
+  assert.match(settings, /role="tab"/)
+  assert.match(settings, /aria-selected/)
+  assert.match(settings, /settings-pane-account/)
+  assert.match(settings, /settings-pane-playback/)
+  assert.match(settings, /settings-pane-roon/)
+  assert.match(settings, /settings-pane-application/)
+  assert.match(settings, /settings-pane-advanced/)
+  assert.doesNotMatch(settings, /Apple Liquid Glass/)
+  assert.match(settings, /buildMode === 'development'/)
+})

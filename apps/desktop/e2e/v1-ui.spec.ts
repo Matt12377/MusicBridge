@@ -63,7 +63,9 @@ async function openConnectionPopover() {
 
 async function openAccountSettings() {
   await page.getByRole('button', { name: '打开网易云账户设置' }).click()
-  await expect(page.getByRole('heading', { name: 'Settings', exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: '设置', exact: true }).first()).toBeVisible()
+  const accountTab = page.getByRole('tab', { name: '账户', exact: true })
+  if (await accountTab.isVisible()) await accountTab.click()
 }
 
 async function openDiagnostics() {
@@ -177,6 +179,17 @@ test('v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation', 
   await expect(page.getByRole('button', { name: '播放当前歌曲' })).toBeVisible()
   await page.getByLabel('切换播放音质').selectOption('hires')
   await openAccountSettings()
+  await expect(page.getByRole('tab', { name: '账户', exact: true })).toBeVisible()
+  await expect(page.getByRole('tab', { name: '播放', exact: true })).toBeVisible()
+  await expect(page.getByRole('tab', { name: 'Roon', exact: true })).toBeVisible()
+  await expect(page.getByRole('tab', { name: '应用', exact: true })).toBeVisible()
+  await expect(page.getByRole('tab', { name: '高级', exact: true })).toBeVisible()
+  for (const category of ['账户', '播放', 'Roon', '应用', '高级']) {
+    await page.getByRole('tab', { name: category, exact: true }).click()
+    await expect(page.locator('.settings-pane:visible')).toHaveCount(1)
+    await page.screenshot({ path: path.join(os.tmpdir(), 'musicbridge-v1-settings-' + category + '.png') })
+  }
+  await page.getByRole('tab', { name: '播放', exact: true }).click()
   await expect(page.locator('#quality-select')).toHaveValue('hires')
   await page.locator('#quality-select').selectOption('standard')
   await expect(page.getByLabel('切换播放音质')).toHaveValue('standard')
@@ -250,15 +263,17 @@ test('v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation', 
   await page.setViewportSize({ width: 1440, height: 900 })
 
   await openAccountSettings()
+  await page.getByRole('tab', { name: '高级', exact: true }).click()
   await expect(page.locator('[data-remote-core-settings]')).toBeVisible()
   await expect(page.locator('[data-remote-core-settings]')).toContainText('开发启动时自动连接（默认关闭）')
   await expect(page.getByRole('button', { name: '启动远程 Core' })).toBeVisible()
+  await page.getByRole('tab', { name: '账户', exact: true }).click()
   await expect(page.locator('.account-settings-hero')).toContainText('Synthetic Listener')
   await expect(page.getByText('公开资料只包含昵称和头像')).toBeVisible()
   await expect.poll(() => page.locator('.account-settings-avatar img').evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
   await page.screenshot({ path: syntheticSettingsScreenshotPath })
   expect((await stat(syntheticSettingsScreenshotPath)).size).toBeGreaterThan(20_000)
-  await page.getByRole('button', { name: '重新读取' }).click()
+  await page.getByRole('button', { name: '刷新账户' }).click()
   await expect(page.getByText('已连接 · 公开资料只包含昵称和头像')).toBeVisible()
 
   page.once('dialog', (dialog) => void dialog.accept())
@@ -269,7 +284,7 @@ test('v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation', 
   await expect
     .poll(
       () =>
-        page.locator('img[alt="Provider 登录二维码"]').evaluate((image) => {
+        page.locator('img[alt="网易云登录二维码"]').evaluate((image) => {
           return (image as HTMLImageElement).naturalWidth
         }),
       { message: 'Provider 登录二维码必须是浏览器可解码的图片' },
@@ -341,7 +356,7 @@ test('合成 Profile 资料不可用但登录仍有效', async () => {
   await expect(page.getByText('资料暂不可用')).toBeVisible()
   await expect(page.getByText('登录仍然有效')).toBeVisible()
   await expect(page.getByRole('button', { name: '退出登录' })).toBeVisible()
-  await page.getByRole('button', { name: '重新读取' }).click()
+  await page.getByRole('button', { name: '刷新账户' }).click()
   await expect(page.getByText('资料暂不可用')).toBeVisible()
 })
 
@@ -396,6 +411,7 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   await page.getByRole('button', { name: '退出全屏播放' }).click()
 
   await openAccountSettings()
+  await page.getByRole('tab', { name: '播放', exact: true }).click()
   await page.locator('#quality-select').selectOption('hires')
   await search.fill('synthetic')
   await page.getByRole('button', { name: '播放 Synthetic Track 1', exact: true }).click()
