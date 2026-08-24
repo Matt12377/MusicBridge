@@ -339,6 +339,15 @@ test('contracts validates bounded library commands and sanitized paged results',
   assert.equal(
     validateIpcRequest({
       version: IPC_VERSION,
+      id: 'library-artist',
+      command: 'library.artist',
+      payload: { artistId: '7', page: { offset: 0, limit: 20 } },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
       id: 'library-liked',
       command: 'library.liked',
       payload: { page: { offset: 20, limit: 20 } },
@@ -392,6 +401,18 @@ test('contracts validates bounded library commands and sanitized paged results',
     'library.search',
   );
   assert.equal(response.ok, true);
+
+  const artistDetail = validateIpcResponseForCommand({
+    version: IPC_VERSION,
+    id: 'library-artist',
+    ok: true,
+    result: {
+      id: '7',
+      name: '周杰伦',
+      tracks: page,
+    },
+  }, 'library.artist');
+  assert.equal(artistDetail.ok, true);
 
   const unsafeResponse = validateIpcResponseForCommand(
     {

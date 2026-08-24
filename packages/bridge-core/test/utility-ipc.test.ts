@@ -181,6 +181,18 @@ function makeRuntime(): CoreRuntimeForIpc & {
         hasMore: false,
       }
     },
+    async searchArtists() {
+      return { items: [], offset: 0, limit: 20, total: 0, hasMore: false }
+    },
+    async searchAlbums() {
+      return { items: [], offset: 0, limit: 20, total: 0, hasMore: false }
+    },
+    async getArtist() {
+      return { id: '2000', name: 'Synthetic Artist', tracks: { items: [], offset: 0, limit: 20, total: 0, hasMore: false } }
+    },
+    async getAlbum() {
+      return { id: '3000', name: 'Synthetic Album', artistName: 'Synthetic Artist', tracks: { items: [], offset: 0, limit: 20, total: 0, hasMore: false } }
+    },
     async getLikedTracks() {
       return { items: [], offset: 0, limit: 20, total: 0, hasMore: false }
     },

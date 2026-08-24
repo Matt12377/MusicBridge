@@ -1,4 +1,8 @@
 import type {
+  AlbumDetail,
+  AlbumSummary,
+  ArtistDetail,
+  ArtistSummary,
   Page,
   PageRequest,
   PlaylistDetail,
@@ -47,6 +51,10 @@ export interface MusicBridgePublicApi {
   getAccountState: () => Promise<PublicAccountState>
   refreshAccountProfile: () => Promise<PublicAccountState>
   searchTracks: (query: string, page: PageRequest) => Promise<Page<TrackSummary>>
+  searchArtists: (query: string, page: PageRequest) => Promise<Page<ArtistSummary>>
+  searchAlbums: (query: string, page: PageRequest) => Promise<Page<AlbumSummary>>
+  getArtist: (artistId: string, page: PageRequest) => Promise<ArtistDetail>
+  getAlbum: (albumId: string, page: PageRequest) => Promise<AlbumDetail>
   getLikedTracks: (page: PageRequest) => Promise<Page<TrackSummary>>
   getUserPlaylists: () => Promise<readonly PlaylistSummary[]>
   getPlaylist: (playlistId: string, page: PageRequest) => Promise<PlaylistDetail>
@@ -87,6 +95,10 @@ export const PUBLIC_API_KEYS = [
   'getAccountState',
   'refreshAccountProfile',
   'searchTracks',
+  'searchArtists',
+  'searchAlbums',
+  'getArtist',
+  'getAlbum',
   'getLikedTracks',
   'getUserPlaylists',
   'getPlaylist',
@@ -153,6 +165,31 @@ export function createPreloadApi(
   onRemoteCoreEvent: (
     _listener: (state: RemoteCoreTunnelState) => void,
   ) => (() => void) = () => () => undefined,
+  searchArtists: (_query: string, page: PageRequest) => Promise<Page<ArtistSummary>> = async (_query, page) => ({
+    items: [],
+    offset: page.offset,
+    limit: page.limit,
+    total: 0,
+    hasMore: false,
+  } satisfies Page<ArtistSummary>),
+  searchAlbums: (_query: string, page: PageRequest) => Promise<Page<AlbumSummary>> = async (_query, page) => ({
+    items: [],
+    offset: page.offset,
+    limit: page.limit,
+    total: 0,
+    hasMore: false,
+  } satisfies Page<AlbumSummary>),
+  getArtist: (_artistId: string, page: PageRequest) => Promise<ArtistDetail> = async (_artistId, page) => ({
+    id: '1',
+    name: '未知艺人',
+    tracks: { items: [], offset: page.offset, limit: page.limit, total: 0, hasMore: false },
+  }),
+  getAlbum: (_albumId: string, page: PageRequest) => Promise<AlbumDetail> = async (_albumId, page) => ({
+    id: '1',
+    name: '未知专辑',
+    artistName: '未知艺人',
+    tracks: { items: [], offset: page.offset, limit: page.limit, total: 0, hasMore: false },
+  }),
 ): MusicBridgePublicApi {
   return Object.freeze({
     getAppInfo,
@@ -168,6 +205,10 @@ export function createPreloadApi(
     getAccountState,
     refreshAccountProfile,
     searchTracks,
+    searchArtists,
+    searchAlbums,
+    getArtist,
+    getAlbum,
     getLikedTracks,
     getUserPlaylists,
     getPlaylist,

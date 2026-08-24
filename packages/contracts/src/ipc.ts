@@ -1,6 +1,10 @@
 import type { PublicError } from './errors.js';
 import type {
   DailyRecommendationsSnapshot,
+  ArtistDetail,
+  ArtistSummary,
+  AlbumDetail,
+  AlbumSummary,
   Page,
   PageRequest,
   PlaylistDetail,
@@ -41,6 +45,10 @@ export const IPC_COMMANDS = [
   'account.getState',
   'account.refresh',
   'library.search',
+  'library.searchArtists',
+  'library.searchAlbums',
+  'library.artist',
+  'library.album',
   'library.liked',
   'library.playlists',
   'library.playlist',
@@ -120,6 +128,10 @@ export interface IpcCommandPayloads {
   'account.getState': Record<string, never>;
   'account.refresh': Record<string, never>;
   'library.search': { query: string; page: PageRequest };
+  'library.searchArtists': { query: string; page: PageRequest };
+  'library.searchAlbums': { query: string; page: PageRequest };
+  'library.artist': { artistId: string; page: PageRequest };
+  'library.album': { albumId: string; page: PageRequest };
   'library.liked': { page: PageRequest };
   'library.playlists': Record<string, never>;
   'library.playlist': { playlistId: string; page: PageRequest };
@@ -156,6 +168,10 @@ export interface IpcCommandResults {
   'account.getState': PublicAccountState;
   'account.refresh': PublicAccountState;
   'library.search': Page<TrackSummary>;
+  'library.searchArtists': Page<ArtistSummary>;
+  'library.searchAlbums': Page<AlbumSummary>;
+  'library.artist': ArtistDetail;
+  'library.album': AlbumDetail;
   'library.liked': Page<TrackSummary>;
   'library.playlists': readonly PlaylistSummary[];
   'library.playlist': PlaylistDetail;

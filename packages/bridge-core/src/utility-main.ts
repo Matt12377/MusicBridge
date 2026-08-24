@@ -135,6 +135,26 @@ async function dispatch(
         (request.payload as { query: string }).query,
         (request.payload as { page: { offset: number; limit: number } }).page,
       );
+    case 'library.searchArtists':
+      return runtime.searchArtists(
+        (request.payload as { query: string }).query,
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'library.searchAlbums':
+      return runtime.searchAlbums(
+        (request.payload as { query: string }).query,
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'library.artist':
+      return runtime.getArtist(
+        (request.payload as { artistId: string }).artistId,
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'library.album':
+      return runtime.getAlbum(
+        (request.payload as { albumId: string }).albumId,
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
     case 'library.liked':
       return runtime.getLikedTracks(
         (request.payload as { page: { offset: number; limit: number } }).page,

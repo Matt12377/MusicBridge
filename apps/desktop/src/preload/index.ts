@@ -67,5 +67,13 @@ contextBridge.exposeInMainWorld(
       ipcRenderer.on('remote-core:event', handler)
       return () => ipcRenderer.removeListener('remote-core:event', handler)
     },
+    (query: string, page: { offset: number; limit: number }) =>
+      ipcRenderer.invoke('library:search-artists', query, page),
+    (query: string, page: { offset: number; limit: number }) =>
+      ipcRenderer.invoke('library:search-albums', query, page),
+    (artistId: string, page: { offset: number; limit: number }) =>
+      ipcRenderer.invoke('library:artist', artistId, page),
+    (albumId: string, page: { offset: number; limit: number }) =>
+      ipcRenderer.invoke('library:album', albumId, page),
   ),
 )

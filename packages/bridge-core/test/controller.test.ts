@@ -23,6 +23,22 @@ class FakeNetease implements NeteasePort {
     return { items: [], offset: 0, limit: 10, total: 0, hasMore: false };
   }
 
+  async searchArtists() {
+    return { items: [], offset: 0, limit: 10, total: 0, hasMore: false };
+  }
+
+  async searchAlbums() {
+    return { items: [], offset: 0, limit: 10, total: 0, hasMore: false };
+  }
+
+  async getArtist() {
+    return { id: '7', name: 'Artist', tracks: { items: [], offset: 0, limit: 10, total: 0, hasMore: false } };
+  }
+
+  async getAlbum() {
+    return { id: '9', name: 'Album', artistName: 'Artist', tracks: { items: [], offset: 0, limit: 10, total: 0, hasMore: false } };
+  }
+
   async getLikedTracks() {
     return { items: [], offset: 0, limit: 10, total: 0, hasMore: false };
   }

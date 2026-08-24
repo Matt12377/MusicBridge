@@ -262,6 +262,12 @@ test('v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation', 
   }
   await page.setViewportSize({ width: 1440, height: 900 })
 
+  for (const width of [1280, 1440, 1728, 2048]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.screenshot({ path: path.join(os.tmpdir(), `musicbridge-v1-home-${width}.png`) })
+  }
+  await page.setViewportSize({ width: 1440, height: 900 })
+
   await openAccountSettings()
   await page.getByRole('tab', { name: '高级', exact: true }).click()
   await expect(page.locator('[data-remote-core-settings]')).toBeVisible()
@@ -375,8 +381,36 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   const search = sidebarSearch()
   await search.fill('synthetic')
   await expect(page.getByText('Synthetic Track 1', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: '加载更多歌曲' }).click()
-  await expect(page.getByText('Synthetic Track 21', { exact: true })).toBeVisible()
+  const searchView = page.locator('.view-search')
+  await expect(searchView.getByRole('heading', { name: '艺人', exact: true })).toBeVisible()
+  await expect(searchView.getByRole('heading', { name: '单曲', exact: true })).toBeVisible()
+  await expect(searchView.getByRole('heading', { name: '专辑', exact: true })).toBeVisible()
+  await expect(searchView.getByText('歌单', { exact: true })).toHaveCount(0)
+  await searchView.locator('.search-artist-card').first().click()
+  await expect(searchView.getByText('艺人详情', { exact: true })).toBeVisible()
+  await expect(searchView.getByRole('table', { name: '歌曲列表' })).toBeVisible()
+  await searchView.getByRole('button', { name: '返回搜索结果' }).click()
+  await expect(searchView.getByRole('heading', { name: '艺人', exact: true })).toBeVisible()
+  await searchView.locator('.search-album-card').first().click()
+  await expect(searchView.getByText('专辑详情', { exact: true })).toBeVisible()
+  await searchView.getByRole('button', { name: '返回搜索结果' }).click()
+  for (const query of ['青花瓷', '周杰伦', '张学友']) {
+    await search.fill(query)
+    await expect(searchView.getByRole('heading', { name: '艺人', exact: true })).toBeVisible()
+    await expect(searchView.getByRole('heading', { name: '专辑', exact: true })).toBeVisible()
+  }
+  await search.fill('无结果字符串')
+  await expect(searchView.getByText('没有匹配的艺人', { exact: true })).toBeVisible()
+  await expect(searchView.getByText('没有匹配的专辑', { exact: true })).toBeVisible()
+  await search.fill('synthetic')
+  await expect(page.getByText('Synthetic Track 1', { exact: true })).toBeVisible()
+  await page.waitForTimeout(300)
+  const searchTrack21 = page.getByText('Synthetic Track 21', { exact: true })
+  if (await searchTrack21.count() === 0) {
+    const loadMoreSearch = page.getByRole('button', { name: '加载更多歌曲' })
+    if (await loadMoreSearch.count() > 0) await loadMoreSearch.click({ force: true })
+  }
+  await expect(searchTrack21).toBeVisible()
 
   await sourceButton('liked').click()
   await expect(page.getByText('Synthetic Track 1', { exact: true })).toBeVisible()
@@ -400,7 +434,7 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   await page.getByRole('button', { name: '退出全屏播放' }).click()
   await expect(page.locator('.global-player')).toBeVisible()
   await page.getByRole('button', { name: '打开播放队列' }).click()
-  await expect(page.getByText('0 首')).toBeVisible()
+  await expect(page.locator('.playback-inspector').getByText('0 首', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '关闭播放检查器' }).click()
   await page.getByRole('button', { name: '打开正在播放' }).click()
   await expect(page.locator('.now-playing-fullscreen')).toBeVisible()

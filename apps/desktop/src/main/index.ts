@@ -664,6 +664,38 @@ function registerIpcHandlers(
       }),
     ),
   )
+  ipcMain.handle('library:search-artists', (event, query: unknown, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('library.searchArtists', {
+        query: requireSearchQuery(query),
+        page: requireLibraryPage(page),
+      }),
+    ),
+  )
+  ipcMain.handle('library:search-albums', (event, query: unknown, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('library.searchAlbums', {
+        query: requireSearchQuery(query),
+        page: requireLibraryPage(page),
+      }),
+    ),
+  )
+  ipcMain.handle('library:artist', (event, artistId: unknown, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('library.artist', {
+        artistId: requirePlaybackTrackId(artistId),
+        page: requireLibraryPage(page),
+      }),
+    ),
+  )
+  ipcMain.handle('library:album', (event, albumId: unknown, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('library.album', {
+        albumId: requirePlaybackTrackId(albumId),
+        page: requireLibraryPage(page),
+      }),
+    ),
+  )
   ipcMain.handle('library:liked', (event, page: unknown) =>
     invokeCore(event, () =>
       supervisor.request('library.liked', { page: requireLibraryPage(page) }),

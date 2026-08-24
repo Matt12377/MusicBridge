@@ -16,6 +16,10 @@ import {
   parsePlaylistSummaries,
   parsePlaylistTrackPage,
   parseSearchPage,
+  parseArtistSearchPage,
+  parseAlbumSearchPage,
+  parseArtistDetail,
+  parseAlbumDetail,
   parseResolvedAudioStream,
   parseTrackMetadata,
   parseTrackSummaries,
@@ -32,6 +36,8 @@ import type {
   QualityLevel,
   ResolvedAudioStream,
   TrackSummary,
+  ArtistSummary,
+  AlbumSummary,
   TrackMetadata,
   PublicAccountProfile,
   CredentialVerificationStatus,
@@ -62,6 +68,8 @@ interface NeteaseApiModule {
   login_status(params: Record<string, unknown>): ApiResponse;
   logout(params: Record<string, unknown>): ApiResponse;
   search?(params: Record<string, unknown>): ApiResponse;
+  artist_detail?(params: Record<string, unknown>): ApiResponse;
+  album?(params: Record<string, unknown>): ApiResponse;
   likelist?(params: Record<string, unknown>): ApiResponse;
   user_account?(params: Record<string, unknown>): ApiResponse;
   recommend_songs?(params: Record<string, unknown>): ApiResponse;
@@ -160,6 +168,60 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
       );
     } catch (error) {
       throw this.libraryError(error, 'search');
+    }
+  }
+
+  async searchArtists(queryInput: string, pageInput: PageRequest): Promise<Page<ArtistSummary>> {
+    const query = normalizeSearchQuery(queryInput)
+    const page = normalizePageRequest(pageInput)
+    const cookie = this.requireCookie()
+    const search = this.api.search
+    if (!search) throw this.libraryApiUnavailable()
+    try {
+      return parseArtistSearchPage(
+        await search({ keywords: query, type: 100, offset: page.offset, limit: page.limit, cookie }),
+        page,
+      )
+    } catch (error) {
+      throw this.libraryError(error, 'artist search')
+    }
+  }
+
+  async searchAlbums(queryInput: string, pageInput: PageRequest): Promise<Page<AlbumSummary>> {
+    const query = normalizeSearchQuery(queryInput)
+    const page = normalizePageRequest(pageInput)
+    const cookie = this.requireCookie()
+    const search = this.api.search
+    if (!search) throw this.libraryApiUnavailable()
+    try {
+      return parseAlbumSearchPage(
+        await search({ keywords: query, type: 10, offset: page.offset, limit: page.limit, cookie }),
+        page,
+      )
+    } catch (error) {
+      throw this.libraryError(error, 'album search')
+    }
+  }
+
+  async getArtist(artistIdInput: string, pageInput: PageRequest) {
+    const artistId = normalizeTrackId(artistIdInput)
+    const page = normalizePageRequest(pageInput)
+    if (!this.api.artist_detail) throw new BridgeError('NETEASE_REQUEST_FAILED', 'Artist detail is unavailable', { httpStatus: 501 })
+    try {
+      return parseArtistDetail(await this.api.artist_detail({ id: artistId, cookie: this.cookie }), page)
+    } catch (error) {
+      throw this.libraryError(error, 'artist detail')
+    }
+  }
+
+  async getAlbum(albumIdInput: string, pageInput: PageRequest) {
+    const albumId = normalizeTrackId(albumIdInput)
+    const page = normalizePageRequest(pageInput)
+    if (!this.api.album) throw new BridgeError('NETEASE_REQUEST_FAILED', 'Album detail is unavailable', { httpStatus: 501 })
+    try {
+      return parseAlbumDetail(await this.api.album({ id: albumId, cookie: this.cookie }), page)
+    } catch (error) {
+      throw this.libraryError(error, 'album detail')
     }
   }
 

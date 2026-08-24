@@ -2,6 +2,8 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 
 import type {
+  AlbumSummary,
+  ArtistSummary,
   LyricsSnapshot,
   Page,
   PageRequest,
@@ -45,6 +47,7 @@ import {
   type HomeRecommendationState,
 } from './composables/homeRecommendations.js'
 import { useSidebarState } from './composables/useSidebarState.js'
+import { createSearchSnapshotLoader } from './composables/search.js'
 import type { SidebarSource, ViewId } from './components/navigation.js'
 
 const LIBRARY_PAGE_SIZE = 20
@@ -115,6 +118,22 @@ const toastMessage = ref<string | null>(null)
 
 const searchQuery = ref('')
 const searchPage = ref<Page<TrackSummary>>(emptyPage())
+const searchArtistsPage = ref<Page<ArtistSummary>>(emptyPage(6))
+const searchAlbumsPage = ref<Page<AlbumSummary>>(emptyPage(8))
+const searchArtistsState = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
+const searchAlbumsState = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
+const searchArtistsError = ref<string | null>(null)
+const searchAlbumsError = ref<string | null>(null)
+const searchDetail = ref<{
+  kind: 'artist' | 'album'
+  title: string
+  subtitle: string
+  tracks: Page<TrackSummary>
+  loading: boolean
+  error: string | null
+} | null>(null)
+const searchScrollTop = ref(0)
+const contentScroll = ref<HTMLElement | null>(null)
 const likedPage = ref<Page<TrackSummary>>(emptyPage())
 const {
   playlists,
@@ -156,6 +175,7 @@ let activeCollectionLoader: ProgressiveCollectionLoader | undefined
 let collectionPlaybackStartInFlight = false
 let toastTimer: ReturnType<typeof setTimeout> | undefined
 let searchRequestGeneration = 0
+let searchDetailGeneration = 0
 let likedRequestGeneration = 0
 let playlistRequestGeneration = 0
 
@@ -178,6 +198,12 @@ const likedHomeState = computed<'unauthorized' | 'loading' | 'ready' | 'empty' |
   if (likedInitialLoading.value && likedPage.value.items.length === 0) return 'loading'
   if (likedError.value) return 'error'
   return likedPage.value.items.length ? 'ready' : 'empty'
+})
+
+const searchSnapshotLoader = createSearchSnapshotLoader({
+  artists: (query, page) => window.musicBridge.searchArtists(query, page),
+  tracks: (query, page) => window.musicBridge.searchTracks(query, page),
+  albums: (query, page) => window.musicBridge.searchAlbums(query, page),
 })
 
 function enterNowPlaying(): void {
@@ -234,6 +260,7 @@ function viewForSource(source: SidebarSource): ViewId {
 
 function navigateSource(source: SidebarSource): void {
   stopSearchTimer()
+  resetSearchSections()
   searchQuery.value = ''
   searchPage.value = emptyPage()
   searchReturnSource.value = source
@@ -245,6 +272,7 @@ function navigateSource(source: SidebarSource): void {
 function clearSearch(): void {
   if (currentView.value !== 'search' && searchQuery.value.length === 0 && searchPage.value.items.length === 0) return
   stopSearchTimer()
+  resetSearchSections()
   searchRequestGeneration += 1
   searchQuery.value = ''
   searchPage.value = emptyPage()
@@ -282,6 +310,18 @@ function stopSearchTimer(): void {
     clearTimeout(searchTimer)
     searchTimer = undefined
   }
+}
+
+function resetSearchSections(): void {
+  searchSnapshotLoader.cancel()
+  searchDetailGeneration += 1
+  searchArtistsPage.value = emptyPage(6)
+  searchAlbumsPage.value = emptyPage(8)
+  searchArtistsState.value = 'idle'
+  searchAlbumsState.value = 'idle'
+  searchArtistsError.value = null
+  searchAlbumsError.value = null
+  searchDetail.value = null
 }
 
 function isAuthExpired(error: unknown): boolean {
@@ -355,23 +395,57 @@ async function loadSearch(query: string, page: PageRequest, generation: number):
   if (initial) {
     searchInitialLoading.value = true
     searchLoadMoreError.value = null
+    searchArtistsState.value = 'loading'
+    searchAlbumsState.value = 'loading'
+    searchArtistsError.value = null
+    searchAlbumsError.value = null
   } else {
     if (searchLoadingMore.value) return
     searchLoadingMore.value = true
     searchLoadMoreError.value = null
   }
   try {
-    const result = await window.musicBridge.searchTracks(query, page)
-    if (generation !== searchRequestGeneration) return
-    searchPage.value = initial ? result : appendPage(searchPage.value, result)
-    searchError.value = null
-    if (initial) searchInitialLoading.value = false
-    else searchLoadingMore.value = false
+    if (initial) {
+      const snapshot = await searchSnapshotLoader.load(query)
+      if (generation !== searchRequestGeneration || snapshot.stale) return
+      if (snapshot.artists.state === 'ready') {
+        searchArtistsPage.value = snapshot.artists.page
+        searchArtistsState.value = 'ready'
+      } else {
+        searchArtistsState.value = 'error'
+        searchArtistsError.value = snapshot.artists.message
+      }
+      if (snapshot.albums.state === 'ready') {
+        searchAlbumsPage.value = snapshot.albums.page
+        searchAlbumsState.value = 'ready'
+      } else {
+        searchAlbumsState.value = 'error'
+        searchAlbumsError.value = snapshot.albums.message
+      }
+      if (snapshot.tracks.state === 'ready') {
+        searchPage.value = snapshot.tracks.page
+        searchError.value = null
+      } else {
+        searchPage.value = emptyPage()
+        searchError.value = 'generic'
+      }
+      searchInitialLoading.value = false
+    } else {
+      const result = await window.musicBridge.searchTracks(query, page)
+      if (generation !== searchRequestGeneration) return
+      searchPage.value = appendPage(searchPage.value, result)
+      searchError.value = null
+      searchLoadingMore.value = false
+    }
   } catch (error) {
     if (generation !== searchRequestGeneration) return
     if (initial) {
       searchInitialLoading.value = false
       searchError.value = libraryErrorKind(error)
+      searchArtistsState.value = 'error'
+      searchAlbumsState.value = 'error'
+      searchArtistsError.value = '搜索艺人暂时不可用。'
+      searchAlbumsError.value = '搜索专辑暂时不可用。'
     } else {
       searchLoadingMore.value = false
       searchLoadMoreError.value = '加载失败，点击重试'
@@ -381,10 +455,18 @@ async function loadSearch(query: string, page: PageRequest, generation: number):
 
 function scheduleSearch(): void {
   stopSearchTimer()
+  searchSnapshotLoader.cancel()
   const generation = ++searchRequestGeneration
   searchError.value = null
   searchLoadMoreError.value = null
   searchPage.value = emptyPage()
+  searchArtistsPage.value = emptyPage(6)
+  searchAlbumsPage.value = emptyPage(8)
+  searchArtistsState.value = 'idle'
+  searchAlbumsState.value = 'idle'
+  searchArtistsError.value = null
+  searchAlbumsError.value = null
+  searchDetail.value = null
   searchInitialLoading.value = false
   searchLoadingMore.value = false
   const query = searchQuery.value.trim()
@@ -596,6 +678,55 @@ function searchPageAt(offset: number): void {
   void loadSearch(query, { offset, limit: LIBRARY_PAGE_SIZE }, searchRequestGeneration)
 }
 
+async function openSearchDetail(kind: 'artist' | 'album', id: string, title: string, subtitle: string): Promise<void> {
+  searchScrollTop.value = contentScroll.value?.scrollTop ?? 0
+  const operation = ++searchDetailGeneration
+  searchDetail.value = {
+    kind,
+    title,
+    subtitle,
+    tracks: emptyPage(),
+    loading: true,
+    error: null,
+  }
+  try {
+    if (kind === 'artist') {
+      const detail = await window.musicBridge.getArtist(id, { offset: 0, limit: LIBRARY_PAGE_SIZE })
+      if (operation !== searchDetailGeneration) return
+      searchDetail.value = {
+        kind,
+        title: detail.name,
+        subtitle: `${detail.albumCount ?? 0} 张专辑 · ${detail.trackCount ?? detail.tracks.total} 首歌曲`,
+        tracks: detail.tracks,
+        loading: false,
+        error: null,
+      }
+      return
+    }
+    const detail = await window.musicBridge.getAlbum(id, { offset: 0, limit: LIBRARY_PAGE_SIZE })
+    if (operation !== searchDetailGeneration) return
+    searchDetail.value = {
+      kind,
+      title: detail.name,
+      subtitle: `${detail.artistName} · ${detail.trackCount ?? detail.tracks.total} 首歌曲`,
+      tracks: detail.tracks,
+      loading: false,
+      error: null,
+    }
+  } catch {
+    if (operation !== searchDetailGeneration) return
+    searchDetail.value = { kind, title, subtitle, tracks: emptyPage(), loading: false, error: '详情歌曲暂时不可用，请稍后重试。' }
+  }
+}
+
+function closeSearchDetail(): void {
+  searchDetailGeneration += 1
+  searchDetail.value = null
+  void nextTick(() => {
+    contentScroll.value?.scrollTo({ top: searchScrollTop.value })
+  })
+}
+
 function likedPageAt(offset: number): void {
   void loadLiked({ offset, limit: LIBRARY_PAGE_SIZE })
 }
@@ -607,6 +738,7 @@ function playlistPageAt(offset: number): void {
 
 function resetPrivateLibraryState(): void {
   stopSearchTimer()
+  resetSearchSections()
   searchRequestGeneration += 1
   likedRequestGeneration += 1
   playlistRequestGeneration += 1
@@ -1296,7 +1428,7 @@ onUnmounted(() => {
       </header>
 
       <div class="workspace-body" :class="{ 'is-immersive': isImmersiveNowPlaying }">
-      <div class="content-scroll" :class="{ 'is-immersive': isImmersiveNowPlaying }">
+      <div ref="contentScroll" class="content-scroll" :class="{ 'is-immersive': isImmersiveNowPlaying }">
         <HomeView
           v-if="currentView === 'home'"
           :current-track="currentTrack"
@@ -1337,23 +1469,73 @@ onUnmounted(() => {
 
         <section v-else-if="currentView === 'search'" class="view view-search" aria-labelledby="search-heading">
           <div class="view-heading"><div><p class="section-kicker">搜索</p><h2 id="search-heading">搜索结果</h2><p class="lede">“{{ searchQuery }}”</p></div></div>
-          <p v-if="searchError === 'auth-expired'" class="persistent-error">登录已过期，请从侧栏账户菜单重新登录。</p>
-          <p v-else-if="searchError === 'generic'" class="persistent-error">搜索暂时不可用，请检查连接状态。</p>
-          <TrackTable
-            :tracks="searchPage.items"
-            :initial-loading="searchInitialLoading"
-            :loading-more="searchLoadingMore"
-            :load-more-error="searchLoadMoreError"
-            :total="searchPage.total"
-            :has-more="searchPage.hasMore"
-            :empty-title="searchQuery.trim() ? '没有匹配结果' : '开始一段搜索'"
-            empty-copy="搜索结果会以连续歌曲列表显示。"
-            empty-glyph="⌕"
-            @play="playTrack"
-            @queue="appendTrack"
-            @play-next="insertTrackNext"
-            @load-more="searchPageAt(searchPage.offset + searchPage.limit)"
-          />
+          <template v-if="searchDetail">
+            <button type="button" class="back-link" @click="closeSearchDetail">← 返回搜索结果</button>
+            <div class="search-detail-hero">
+              <div><p class="section-kicker">{{ searchDetail.kind === 'artist' ? '艺人详情' : '专辑详情' }}</p><h3>{{ searchDetail.title }}</h3><p class="lede">{{ searchDetail.subtitle }}</p></div>
+            </div>
+            <div v-if="searchDetail.loading" class="empty-state"><span class="loading-line"></span><p>正在读取歌曲…</p></div>
+            <p v-else-if="searchDetail.error" class="persistent-error">{{ searchDetail.error }}</p>
+            <TrackTable
+              v-else
+              :tracks="searchDetail.tracks.items"
+              :total="searchDetail.tracks.total"
+              :has-more="searchDetail.tracks.hasMore"
+              empty-title="没有可显示的歌曲"
+              empty-copy="Provider 暂时没有返回此项的歌曲。"
+              @play="playTrack"
+              @queue="appendTrack"
+              @play-next="insertTrackNext"
+            />
+          </template>
+          <template v-else>
+            <section class="search-result-section" aria-labelledby="search-artists-heading">
+              <div class="search-section-heading"><h3 id="search-artists-heading">艺人</h3><span v-if="searchArtistsState === 'ready'">{{ searchArtistsPage.total }} 位</span></div>
+              <div v-if="searchArtistsState === 'loading'" class="search-card-grid search-card-grid-artists"><div v-for="index in 3" :key="index" class="search-card-skeleton" aria-hidden="true"></div></div>
+              <p v-else-if="searchArtistsState === 'error'" class="persistent-error">{{ searchArtistsError }}</p>
+              <div v-else-if="searchArtistsPage.items.length" class="search-card-grid search-card-grid-artists" role="list">
+                <button v-for="artist in searchArtistsPage.items" :key="artist.id" type="button" class="search-artist-card" role="listitem" @click="openSearchDetail('artist', artist.id, artist.name, `${artist.albumCount ?? 0} 张专辑 · ${artist.trackCount ?? 0} 首歌曲`)">
+                  <SafeArtwork class="search-artist-art" :src="artist.artworkUrl" :alt="`${artist.name} 头像`" loading="lazy" fallback="♩" />
+                  <span><strong>{{ artist.name }}</strong><small>{{ artist.albumCount ?? 0 }} 张专辑 · {{ artist.trackCount ?? 0 }} 首歌曲</small></span>
+                </button>
+              </div>
+              <p v-else class="search-section-empty">没有匹配的艺人</p>
+            </section>
+
+            <section class="search-result-section" aria-labelledby="search-tracks-heading">
+              <div class="search-section-heading"><h3 id="search-tracks-heading">单曲</h3><span v-if="searchPage.total">{{ searchPage.total }} 首</span></div>
+              <p v-if="searchError === 'auth-expired'" class="persistent-error">登录已过期，请从侧栏账户菜单重新登录。</p>
+              <p v-else-if="searchError === 'generic'" class="persistent-error">搜索单曲暂时不可用，请检查连接状态。</p>
+              <TrackTable
+                :tracks="searchPage.items"
+                :initial-loading="searchInitialLoading"
+                :loading-more="searchLoadingMore"
+                :load-more-error="searchLoadMoreError"
+                :total="searchPage.total"
+                :has-more="searchPage.hasMore"
+                :empty-title="searchQuery.trim() ? '没有匹配的单曲' : '开始一段搜索'"
+                empty-copy="搜索结果会以连续歌曲列表显示。"
+                empty-glyph="⌕"
+                @play="playTrack"
+                @queue="appendTrack"
+                @play-next="insertTrackNext"
+                @load-more="searchPageAt(searchPage.offset + searchPage.limit)"
+              />
+            </section>
+
+            <section class="search-result-section" aria-labelledby="search-albums-heading">
+              <div class="search-section-heading"><h3 id="search-albums-heading">专辑</h3><span v-if="searchAlbumsState === 'ready'">{{ searchAlbumsPage.total }} 张</span></div>
+              <div v-if="searchAlbumsState === 'loading'" class="search-card-grid search-card-grid-albums"><div v-for="index in 4" :key="index" class="search-card-skeleton" aria-hidden="true"></div></div>
+              <p v-else-if="searchAlbumsState === 'error'" class="persistent-error">{{ searchAlbumsError }}</p>
+              <div v-else-if="searchAlbumsPage.items.length" class="search-card-grid search-card-grid-albums" role="list">
+                <button v-for="album in searchAlbumsPage.items" :key="album.id" type="button" class="search-album-card" role="listitem" @click="openSearchDetail('album', album.id, album.name, `${album.artistName} · ${album.trackCount ?? 0} 首歌曲`)">
+                  <SafeArtwork class="search-album-art" :src="album.artworkUrl" :alt="`${album.name} 封面`" loading="lazy" fallback="♫" />
+                  <span><strong>{{ album.name }}</strong><small>{{ album.artistName }} · {{ album.trackCount ?? 0 }} 首歌曲</small></span>
+                </button>
+              </div>
+              <p v-else class="search-section-empty">没有匹配的专辑</p>
+            </section>
+          </template>
         </section>
 
         <section v-else-if="currentView === 'liked'" class="view view-library" aria-labelledby="liked-heading">

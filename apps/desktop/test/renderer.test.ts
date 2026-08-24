@@ -266,3 +266,29 @@ test('V1 Settings exposes focused Chinese category panes and hides development d
   assert.doesNotMatch(settings, /Apple Liquid Glass/)
   assert.match(settings, /buildMode === 'development'/)
 })
+
+test('V1 Search is an artist, track and album flow without playlist results', async () => {
+  const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const search = await readFile(path.resolve('src/renderer/src/composables/search.ts'), 'utf8')
+  const contracts = await readFile(path.resolve('../../packages/contracts/src/library.ts'), 'utf8')
+
+  for (const label of ['艺人', '单曲', '专辑', 'openSearchDetail', 'searchSnapshotLoader']) {
+    assert.match(app, new RegExp(label))
+  }
+  assert.match(app, /searchArtists|search-albums/)
+  assert.match(search, /Promise\.allSettled/)
+  assert.match(search, /stale/)
+  assert.match(contracts, /ArtistSummary/)
+  assert.match(contracts, /AlbumSummary/)
+  assert.match(contracts, /SearchSnapshot/)
+  assert.doesNotMatch(app, /搜索结果.*歌单|search-playlist|搜索歌单/)
+})
+
+test('V1 large track and queue lists use a bounded virtual window', async () => {
+  const files = await sourceFiles(rendererRoot)
+  const source = (await Promise.all(files.map((file) => readFile(file, 'utf8')))).join('\n')
+  assert.match(source, /calculateVirtualWindow/)
+  assert.match(source, /VIRTUALIZATION_THRESHOLD/)
+  assert.match(source, /QUEUE_VIRTUALIZATION_THRESHOLD/)
+  assert.match(source, /is-virtualized/)
+})

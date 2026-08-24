@@ -11,6 +11,7 @@ import type {
   PlaylistSummary,
   LyricsSnapshot,
   DailyRecommendationsSnapshot,
+  ArtistDetail,
   PlaybackQueueItem,
   PlaybackQueueRequestItem,
   PlaybackQuality,
@@ -21,6 +22,9 @@ import type {
   PublicBridgeState,
   PublicRoonZone,
   TrackSummary,
+  ArtistSummary,
+  AlbumDetail,
+  AlbumSummary,
   TypedIpcEvent,
 } from '@music-bridge/contracts';
 import { BridgeController, type BridgeState } from './application/bridge-controller.js';
@@ -62,6 +66,10 @@ export interface CoreRuntime {
   refreshAccountProfile(): Promise<PublicAccountState>;
   getDailyRecommendations(): Promise<DailyRecommendationsSnapshot>;
   searchTracks(query: string, page: PageRequest): Promise<Page<TrackSummary>>;
+  searchArtists(query: string, page: PageRequest): Promise<Page<ArtistSummary>>;
+  searchAlbums(query: string, page: PageRequest): Promise<Page<AlbumSummary>>;
+  getArtist(artistId: string, page: PageRequest): Promise<ArtistDetail>;
+  getAlbum(albumId: string, page: PageRequest): Promise<AlbumDetail>;
   getLikedTracks(page: PageRequest): Promise<Page<TrackSummary>>;
   getUserPlaylists(): Promise<readonly PlaylistSummary[]>;
   getPlaylist(playlistId: string, page: PageRequest): Promise<PlaylistDetail>;
@@ -619,6 +627,10 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     },
 
     searchTracks: (query, page) => withProviderRecovery(() => netease.searchTracks(query, page)),
+    searchArtists: (query, page) => withProviderRecovery(() => netease.searchArtists(query, page)),
+    searchAlbums: (query, page) => withProviderRecovery(() => netease.searchAlbums(query, page)),
+    getArtist: (artistId, page) => withProviderRecovery(() => netease.getArtist(artistId, page)),
+    getAlbum: (albumId, page) => withProviderRecovery(() => netease.getAlbum(albumId, page)),
     getLikedTracks: (page) => withProviderRecovery(() => netease.getLikedTracks(page)),
     getUserPlaylists: () => withProviderRecovery(() => netease.getUserPlaylists()),
     getPlaylist: (playlistId, page) =>
@@ -718,9 +730,17 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     durationMs: 180_000 + index * 1_000,
     artworkUrl: 'https://p1.music.126.net/synthetic-cover.jpg',
   }));
+  const fixtureArtists: readonly ArtistSummary[] = [
+    { id: '2000', name: 'Synthetic Artist', artworkUrl: 'https://p1.music.126.net/synthetic-cover.jpg', albumCount: 3, trackCount: fixtureTracks.length },
+    { id: '2001', name: 'Synthetic Guest', albumCount: 1, trackCount: 4 },
+  ];
+  const fixtureAlbums: readonly AlbumSummary[] = [
+    { id: '3000', name: 'Synthetic Album', artistId: '2000', artistName: 'Synthetic Artist', artworkUrl: 'https://p1.music.126.net/synthetic-cover.jpg', trackCount: fixtureTracks.length },
+    { id: '3001', name: 'Synthetic Sessions', artistId: '2001', artistName: 'Synthetic Guest', trackCount: 4 },
+  ];
   const fixturePlaylistId = '301';
   const fixtureZoneId = 'synthetic-zone';
-  const pageOf = (items: readonly TrackSummary[], page: PageRequest): Page<TrackSummary> => {
+  const pageOf = <T>(items: readonly T[], page: PageRequest): Page<T> => {
     const start = Math.min(page.offset, items.length);
     const end = Math.min(start + page.limit, items.length);
     return {
@@ -731,6 +751,8 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       hasMore: end < items.length,
     };
   };
+  const syntheticSearchPage = <T>(items: readonly T[], query: string, page: PageRequest): Page<T> =>
+    query.trim() === '无结果字符串' ? pageOf([], page) : pageOf(items, page);
   let state: PublicBridgeState = {
     runtime: 'starting',
     roon: 'disconnected',
@@ -932,8 +954,24 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       playbackState = emptyPlaybackState();
       return { ...authState };
     },
-    async searchTracks(_query, page) {
-      return pageOf(fixtureTracks, page);
+    async searchTracks(query, page) {
+      return syntheticSearchPage(fixtureTracks, query, page);
+    },
+    async searchArtists(query, page) {
+      return syntheticSearchPage(fixtureArtists, query, page);
+    },
+    async searchAlbums(query, page) {
+      return syntheticSearchPage(fixtureAlbums, query, page);
+    },
+    async getArtist(artistId, page) {
+      const artist = fixtureArtists.find((item) => item.id === artistId) ?? fixtureArtists[0];
+      if (!artist) throw new BridgeError('NETEASE_REQUEST_FAILED', 'Synthetic artist detail unavailable', { httpStatus: 404 });
+      return { ...artist, tracks: pageOf(fixtureTracks, page) };
+    },
+    async getAlbum(albumId, page) {
+      const album = fixtureAlbums.find((item) => item.id === albumId) ?? fixtureAlbums[0];
+      if (!album) throw new BridgeError('NETEASE_REQUEST_FAILED', 'Synthetic album detail unavailable', { httpStatus: 404 });
+      return { ...album, tracks: pageOf(fixtureTracks, page) };
     },
     async getLikedTracks(page) {
       return pageOf(fixtureTracks, page);

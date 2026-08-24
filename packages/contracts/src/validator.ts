@@ -2,6 +2,10 @@ import type { PublicError } from './errors.js';
 import type {
   DailyRecommendationTrack,
   DailyRecommendationsSnapshot,
+  ArtistDetail,
+  ArtistSummary,
+  AlbumDetail,
+  AlbumSummary,
   Page,
   PageRequest,
   PlaylistDetail,
@@ -147,6 +151,14 @@ function isLibraryPlaylistPayload(
     value.playlistId !== '0' &&
     isPageRequest(value.page)
   );
+}
+
+function isLibraryArtistPayload(value: unknown): value is { artistId: string; page: PageRequest } {
+  return isRecord(value) && hasOnlyKeys(value, ['artistId', 'page']) && safeString(value.artistId, 128) && /^\d+$/.test(value.artistId) && value.artistId !== '0' && isPageRequest(value.page);
+}
+
+function isLibraryAlbumPayload(value: unknown): value is { albumId: string; page: PageRequest } {
+  return isRecord(value) && hasOnlyKeys(value, ['albumId', 'page']) && safeString(value.albumId, 128) && /^\d+$/.test(value.albumId) && value.albumId !== '0' && isPageRequest(value.page);
 }
 
 function isSelectZonePayload(value: unknown): value is { zoneId: string } {
@@ -502,6 +514,33 @@ function isTrackSummary(value: unknown): value is TrackSummary {
   );
 }
 
+function isArtistSummary(value: unknown): value is ArtistSummary {
+  if (!isRecord(value) || !hasOnlyKeys(value, ['id', 'name', 'artworkUrl', 'albumCount', 'trackCount'])) return false
+  return (
+    safeString(value.id, 128) &&
+    /^\d+$/.test(value.id) &&
+    value.id !== '0' &&
+    safeString(value.name, 512) &&
+    (value.artworkUrl === undefined || isArtworkUrl(value.artworkUrl)) &&
+    (value.albumCount === undefined || (typeof value.albumCount === 'number' && Number.isSafeInteger(value.albumCount) && value.albumCount >= 0 && value.albumCount <= MAX_PAGE_OFFSET)) &&
+    (value.trackCount === undefined || (typeof value.trackCount === 'number' && Number.isSafeInteger(value.trackCount) && value.trackCount >= 0 && value.trackCount <= MAX_PAGE_OFFSET))
+  )
+}
+
+function isAlbumSummary(value: unknown): value is AlbumSummary {
+  if (!isRecord(value) || !hasOnlyKeys(value, ['id', 'name', 'artistId', 'artistName', 'artworkUrl', 'trackCount'])) return false
+  return (
+    safeString(value.id, 128) &&
+    /^\d+$/.test(value.id) &&
+    value.id !== '0' &&
+    safeString(value.name, 512) &&
+    (value.artistId === undefined || (safeString(value.artistId, 128) && /^\d+$/.test(value.artistId) && value.artistId !== '0')) &&
+    safeString(value.artistName, 512) &&
+    (value.artworkUrl === undefined || isArtworkUrl(value.artworkUrl)) &&
+    (value.trackCount === undefined || (typeof value.trackCount === 'number' && Number.isSafeInteger(value.trackCount) && value.trackCount >= 0 && value.trackCount <= MAX_PAGE_OFFSET))
+  )
+}
+
 function isDailyRecommendationTrack(value: unknown): value is DailyRecommendationTrack {
   if (!isRecord(value) || !hasOnlyKeys(value, [
     'id',
@@ -549,6 +588,61 @@ function isPageOfTracks(value: unknown): value is Page<TrackSummary> {
   );
 }
 
+function isPageOfArtists(value: unknown): value is Page<ArtistSummary> {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['items', 'offset', 'limit', 'total', 'hasMore']) &&
+    isPageRequest({ offset: value.offset, limit: value.limit }) &&
+    Array.isArray(value.items) &&
+    value.items.length <= MAX_PAGE_LIMIT &&
+    value.items.every((item) => isArtistSummary(item)) &&
+    typeof value.total === 'number' &&
+    Number.isSafeInteger(value.total) &&
+    value.total >= 0 &&
+    value.total <= MAX_PAGE_OFFSET &&
+    typeof value.hasMore === 'boolean'
+  )
+}
+
+function isPageOfAlbums(value: unknown): value is Page<AlbumSummary> {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['items', 'offset', 'limit', 'total', 'hasMore']) &&
+    isPageRequest({ offset: value.offset, limit: value.limit }) &&
+    Array.isArray(value.items) &&
+    value.items.length <= MAX_PAGE_LIMIT &&
+    value.items.every((item) => isAlbumSummary(item)) &&
+    typeof value.total === 'number' &&
+    Number.isSafeInteger(value.total) &&
+    value.total >= 0 &&
+    value.total <= MAX_PAGE_OFFSET &&
+    typeof value.hasMore === 'boolean'
+  )
+}
+
+function isArtistDetail(value: unknown): value is ArtistDetail {
+  if (!isRecord(value) || !hasOnlyKeys(value, ['id', 'name', 'artworkUrl', 'albumCount', 'trackCount', 'tracks'])) return false;
+  return isArtistSummary({
+    id: value.id,
+    name: value.name,
+    ...(value.artworkUrl !== undefined ? { artworkUrl: value.artworkUrl } : {}),
+    ...(value.albumCount !== undefined ? { albumCount: value.albumCount } : {}),
+    ...(value.trackCount !== undefined ? { trackCount: value.trackCount } : {}),
+  }) && isPageOfTracks(value.tracks);
+}
+
+function isAlbumDetail(value: unknown): value is AlbumDetail {
+  if (!isRecord(value) || !hasOnlyKeys(value, ['id', 'name', 'artistId', 'artistName', 'artworkUrl', 'trackCount', 'tracks'])) return false;
+  return isAlbumSummary({
+    id: value.id,
+    name: value.name,
+    ...(value.artistId !== undefined ? { artistId: value.artistId } : {}),
+    artistName: value.artistName,
+    ...(value.artworkUrl !== undefined ? { artworkUrl: value.artworkUrl } : {}),
+    ...(value.trackCount !== undefined ? { trackCount: value.trackCount } : {}),
+  }) && isPageOfTracks(value.tracks);
+}
+
 function isPlaylistSummary(value: unknown): value is PlaylistSummary {
   return (
     isRecord(value) &&
@@ -591,7 +685,9 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'auth.pollQr' || command === 'auth.cancelQr') {
     return isChallengePayload(payload);
   }
-  if (command === 'library.search') return isLibrarySearchPayload(payload);
+  if (command === 'library.search' || command === 'library.searchArtists' || command === 'library.searchAlbums') return isLibrarySearchPayload(payload);
+  if (command === 'library.artist') return isLibraryArtistPayload(payload);
+  if (command === 'library.album') return isLibraryAlbumPayload(payload);
   if (command === 'library.liked') return isLibraryPagePayload(payload);
   if (command === 'library.playlist') return isLibraryPlaylistPayload(payload);
   if (command === 'lyrics.get') return isLyricsPayload(payload);
@@ -855,6 +951,14 @@ function isCommandResult(
     case 'library.search':
     case 'library.liked':
       return isPageOfTracks(value);
+    case 'library.searchArtists':
+      return isPageOfArtists(value);
+    case 'library.searchAlbums':
+      return isPageOfAlbums(value);
+    case 'library.artist':
+      return isArtistDetail(value);
+    case 'library.album':
+      return isAlbumDetail(value);
     case 'library.playlists':
       return Array.isArray(value) && value.length <= MAX_PAGE_OFFSET && value.every((item) => isPlaylistSummary(item));
     case 'library.playlist':
