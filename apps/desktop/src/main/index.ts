@@ -885,6 +885,12 @@ function registerIpcHandlers(
       track: requireTrackSummary(track),
     })),
   )
+  ipcMain.handle('library:aggregate-search', (event, query: unknown, page: unknown) =>
+    invokeCore(event, () => supervisor.request('library.aggregateSearch', {
+      query: requireSearchQuery(query),
+      page: requireLibraryPage(page),
+    })),
+  )
   ipcMain.handle('library:playlists', (event) =>
     invokeCore(event, () => supervisor.request('library.playlists', {})),
   )
@@ -1035,6 +1041,19 @@ function registerIpcHandlers(
         items: queue,
         index: requirePlaybackIndex(index, queue),
       })
+    }),
+  )
+  ipcMain.handle('playback:seek', (event, positionMs: unknown) =>
+    invokeCore(event, () => {
+      if (
+        typeof positionMs !== 'number' ||
+        !Number.isSafeInteger(positionMs) ||
+        positionMs < 0 ||
+        positionMs > 24 * 60 * 60 * 1_000
+      ) {
+        return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback position')
+      }
+      return supervisor.request('playback.seek', { positionMs })
     }),
   )
   ipcMain.handle('playback:append-queue', (event, items: unknown) =>

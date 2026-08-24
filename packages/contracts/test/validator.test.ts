@@ -339,6 +339,15 @@ test('contracts validates bounded library commands and sanitized paged results',
   assert.equal(
     validateIpcRequest({
       version: IPC_VERSION,
+      id: 'library-aggregate-search',
+      command: 'library.aggregateSearch',
+      payload: { query: 'synthetic', page: { offset: 0, limit: 20 } },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
       id: 'library-liked',
       command: 'library.liked',
       payload: { page: { offset: 20, limit: 20 } },
@@ -400,6 +409,15 @@ test('contracts validates bounded library commands and sanitized paged results',
   assert.equal(
     validateIpcRequest({
       version: IPC_VERSION,
+      id: 'playback-seek',
+      command: 'playback.seek',
+      payload: { positionMs: 12_345 },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
       id: 'library-search-too-long',
       command: 'library.search',
       payload: { query: 'x'.repeat(101), page: { offset: 0, limit: 20 } },
@@ -426,6 +444,31 @@ test('contracts validates bounded library commands and sanitized paged results',
     'library.search',
   );
   assert.equal(response.ok, true);
+
+  assert.equal(
+    validateIpcResponseForCommand({
+      version: IPC_VERSION,
+      id: 'playback-seek',
+      ok: true,
+      result: { positionMs: 12_345 },
+    }, 'playback.seek').ok,
+    true,
+  );
+
+  assert.equal(
+    validateIpcResponseForCommand({
+      version: IPC_VERSION,
+      id: 'library-aggregate-search',
+      ok: true,
+      result: {
+        query: 'synthetic',
+        netease: page,
+        roon: { items: [], offset: 0, limit: 20, hasMore: false },
+        roonAvailable: false,
+      },
+    }, 'library.aggregateSearch').ok,
+    true,
+  );
 
   assert.equal(
     validateIpcResponseForCommand({

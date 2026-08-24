@@ -22,6 +22,7 @@ import type {
   PlaybackQualityPreference,
   PlaybackSnapshot,
   PublicAuthState,
+  PublicAggregatedSearchResult,
   PublicAccountState,
   PublicBridgeState,
   PublicRoonZone,
@@ -83,6 +84,7 @@ export interface CoreRuntime {
   refreshAccountProfile(): Promise<PublicAccountState>;
   getDailyRecommendations(): Promise<DailyRecommendationsSnapshot>;
   searchTracks(query: string, page: PageRequest): Promise<Page<TrackSummary>>;
+  aggregateSearch(query: string, page: PageRequest): Promise<PublicAggregatedSearchResult>;
   getLikedTracks(page: PageRequest): Promise<Page<TrackSummary>>;
   getTrackLikeStatus(trackId: string): Promise<{ liked: boolean }>;
   likeTrack(trackId: string, liked: boolean): Promise<{ liked: boolean }>;
@@ -95,6 +97,7 @@ export interface CoreRuntime {
   getLyrics(trackId: string): Promise<LyricsSnapshot>;
   getPlaybackState(): PlaybackSnapshot;
   playbackPlay(trackId: string, quality: PlaybackQualityPreference): Promise<PlaybackSnapshot>;
+  seekPlayback(positionMs: number): Promise<{ positionMs: number }>;
   playbackStop(): Promise<PlaybackSnapshot>;
   playbackNext(): Promise<PlaybackSnapshot>;
   playbackPrevious(): Promise<PlaybackSnapshot>;
@@ -454,6 +457,33 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     }
   };
 
+  const aggregateSearch = async (
+    query: string,
+    page: PageRequest,
+  ): Promise<PublicAggregatedSearchResult> => {
+    const [neteaseResult, roonResult] = await Promise.all([
+      withProviderRecovery(() => netease.searchTracks(query, page)),
+      roonLibrary.searchLibrary(query, page)
+        .then((roon) => ({ roon, roonAvailable: true as const }))
+        .catch((error: unknown) => {
+          const code = asBridgeError(error).code;
+          if (code !== 'ROON_LIBRARY_UNAVAILABLE' && code !== 'ROON_LIBRARY_REQUEST_FAILED') {
+            throw error;
+          }
+          return {
+            roon: { items: [], offset: page.offset, limit: page.limit, hasMore: false },
+            roonAvailable: false as const,
+          };
+        }),
+    ]);
+    return {
+      query,
+      netease: neteaseResult,
+      roon: roonResult.roon,
+      roonAvailable: roonResult.roonAvailable,
+    };
+  };
+
   notifyProviderExpired = (): void => {
     netease.clearCredential();
     clearAccount('missing');
@@ -690,6 +720,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     },
 
     searchTracks: (query, page) => withProviderRecovery(() => netease.searchTracks(query, page)),
+    aggregateSearch,
     getLikedTracks: (page) => withProviderRecovery(() => netease.getLikedTracks(page)),
     getTrackLikeStatus: (trackId) => withProviderRecovery(() => netease.isTrackLiked(trackId)),
     likeTrack: (trackId, liked) => withProviderRecovery(() => netease.likeTrack(trackId, liked)),
@@ -724,6 +755,16 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
         });
         throw error;
       }
+    },
+    async seekPlayback(positionMs: number): Promise<{ positionMs: number }> {
+      if (!roon.seek) {
+        throw new BridgeError('ROON_TRANSPORT_UNAVAILABLE', 'Roon seek is not available', {
+          httpStatus: 409,
+        });
+      }
+      await roon.seek(positionMs);
+      lyrics.updateRoonTime(positionMs);
+      return { positionMs };
     },
     async playbackStop() {
       await controller.stop();
@@ -1026,6 +1067,14 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     async searchTracks(_query, page) {
       return pageOf(fixtureTracks, page);
     },
+    async aggregateSearch(query, page) {
+      return {
+        query,
+        netease: pageOf(fixtureTracks, page),
+        roon: { items: [], offset: page.offset, limit: page.limit, hasMore: false },
+        roonAvailable: false,
+      };
+    },
     async getLikedTracks(page) {
       return pageOf(fixtureTracks, page);
     },
@@ -1075,6 +1124,10 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       };
     },
     getPlaybackState: () => playbackState,
+    async seekPlayback(positionMs) {
+      playbackState = { ...playbackState, positionMs };
+      return { positionMs };
+    },
     async playbackPlay(trackId, qualityPreference) {
       playbackState = {
         ...playbackState,

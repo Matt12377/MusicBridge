@@ -55,6 +55,7 @@ import type {
 } from './diagnostics.js';
 import type { FavoriteEntityDescriptor, FavoriteKind, FavoriteRecord } from './favorites.js';
 import { MATCH_STATES, type PublicTrackMatchResult } from './matching.js';
+import type { PublicAggregatedSearchResult } from './aggregated-search.js';
 
 export type ValidationResult<T> =
   | { ok: true; value: T }
@@ -276,6 +277,17 @@ function isPlaybackQuality(value: unknown): value is PlaybackQuality {
 
 function isPlaybackQualityPreference(value: unknown): value is PlaybackQualityPreference {
   return PLAYBACK_QUALITY_PREFERENCES.includes(value as PlaybackQualityPreference);
+}
+
+function isPlaybackSeekPayload(value: unknown): value is { positionMs: number } {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['positionMs']) &&
+    typeof value.positionMs === 'number' &&
+    Number.isSafeInteger(value.positionMs) &&
+    value.positionMs >= 0 &&
+    value.positionMs <= 24 * 60 * 60 * 1_000
+  );
 }
 
 function isPlaybackQueueRequestItem(value: unknown): value is PlaybackQueueRequestItem {
@@ -703,6 +715,7 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'library.likeStatus') return isTrackLikeStatusPayload(payload);
   if (command === 'library.like') return isTrackLikePayload(payload);
   if (command === 'library.match') return isTrackMatchPayload(payload);
+  if (command === 'library.aggregateSearch') return isLibrarySearchPayload(payload);
   if (command === 'library.playlist') return isLibraryPlaylistPayload(payload);
   if (command === 'favorites.list') return isFavoriteListPayload(payload);
   if (command === 'favorites.check') return isFavoriteCheckPayload(payload);
@@ -716,6 +729,7 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'roon.library.album') return isRoonAlbumPayload(payload);
   if (command === 'roon.library.artist') return isRoonAlbumPayload(payload);
   if (command === 'roon.library.search') return isLibrarySearchPayload(payload);
+  if (command === 'playback.seek') return isPlaybackSeekPayload(payload);
   if (command === 'roon.library.image') return isRoonImagePayload(payload);
   if (command === 'roon.library.play' || command === 'roon.library.queue') {
     return isRoonTrackActionPayload(payload);
@@ -1024,6 +1038,17 @@ function isPublicTrackMatchResult(value: unknown): value is PublicTrackMatchResu
     (value.candidate === undefined || isRoonLibraryItem(value.candidate));
 }
 
+function isPublicAggregatedSearchResult(value: unknown): value is PublicAggregatedSearchResult {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['query', 'netease', 'roon', 'roonAvailable']) &&
+    safeString(value.query, MAX_SEARCH_QUERY_LENGTH) &&
+    isPageOfTracks(value.netease) &&
+    isRoonLibraryPage(value.roon) &&
+    typeof value.roonAvailable === 'boolean'
+  );
+}
+
 function isRoonImageResult(value: unknown): boolean {
   return (
     isRecord(value) &&
@@ -1104,6 +1129,8 @@ function isCommandResult(
       return isRecord(value) && hasOnlyKeys(value, ['liked']) && typeof value.liked === 'boolean';
     case 'library.match':
       return isPublicTrackMatchResult(value);
+    case 'library.aggregateSearch':
+      return isPublicAggregatedSearchResult(value);
     case 'library.playlists':
       return Array.isArray(value) && value.length <= MAX_PAGE_OFFSET && value.every((item) => isPlaylistSummary(item));
     case 'library.playlist':
@@ -1150,6 +1177,13 @@ function isCommandResult(
     case 'playback.appendQueue':
     case 'playback.insertNext':
       return isPlaybackSnapshot(value);
+    case 'playback.seek':
+      return isRecord(value) &&
+        hasOnlyKeys(value, ['positionMs']) &&
+        typeof value.positionMs === 'number' &&
+        Number.isSafeInteger(value.positionMs) &&
+        value.positionMs >= 0 &&
+        value.positionMs <= 24 * 60 * 60 * 1_000;
   }
 }
 

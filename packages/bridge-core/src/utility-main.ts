@@ -75,6 +75,9 @@ function failureForError(id: string, error: unknown): IpcFailure {
   if (bridgeError.code === 'ROON_NOT_PAIRED' || bridgeError.code === 'ROON_ZONE_NOT_SELECTED') {
     return responseFailure(id, 'NOT_READY', 'Core is not ready for this request');
   }
+  if (bridgeError.code === 'ROON_TRANSPORT_UNAVAILABLE') {
+    return responseFailure(id, 'NOT_READY', 'Roon Transport is not ready for this request');
+  }
   if (bridgeError.code === 'ROON_LIBRARY_UNAVAILABLE' || bridgeError.code === 'ROON_LIBRARY_REQUEST_FAILED') {
     return responseFailure(id, 'NOT_READY', 'Roon Library is not ready');
   }
@@ -142,6 +145,11 @@ async function dispatch(
       return runtime.refreshAccountProfile();
     case 'library.search':
       return runtime.searchTracks(
+        (request.payload as { query: string }).query,
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'library.aggregateSearch':
+      return runtime.aggregateSearch(
         (request.payload as { query: string }).query,
         (request.payload as { page: { offset: number; limit: number } }).page,
       );
@@ -243,6 +251,10 @@ async function dispatch(
       return runtime.playbackPlay(
         (request.payload as { trackId: string }).trackId,
         (request.payload as { qualityPreference: Parameters<CoreRuntimeForIpc['playbackPlay']>[1] }).qualityPreference,
+      );
+    case 'playback.seek':
+      return runtime.seekPlayback(
+        (request.payload as { positionMs: number }).positionMs,
       );
     case 'playback.stop':
       return runtime.playbackStop();

@@ -33,6 +33,7 @@ import type {
   FavoriteRecord,
 } from './favorites.js';
 import type { PublicTrackMatchResult } from './matching.js';
+import type { PublicAggregatedSearchResult } from './aggregated-search.js';
 
 export const IPC_VERSION = 1 as const;
 
@@ -57,6 +58,7 @@ export const IPC_COMMANDS = [
   'library.likeStatus',
   'library.like',
   'library.match',
+  'library.aggregateSearch',
   'library.playlists',
   'library.playlist',
   'library.dailyRecommendations',
@@ -78,6 +80,7 @@ export const IPC_COMMANDS = [
   'roon.library.queue',
   'playback.getState',
   'playback.play',
+  'playback.seek',
   'playback.stop',
   'playback.next',
   'playback.previous',
@@ -150,6 +153,7 @@ export interface IpcCommandPayloads {
   'library.likeStatus': { trackId: string };
   'library.like': { trackId: string; liked: boolean };
   'library.match': { track: TrackSummary };
+  'library.aggregateSearch': { query: string; page: PageRequest };
   'library.playlists': Record<string, never>;
   'library.playlist': { playlistId: string; page: PageRequest };
   'library.dailyRecommendations': Record<string, never>;
@@ -171,6 +175,7 @@ export interface IpcCommandPayloads {
   'roon.library.queue': { reference: string; zoneId: string };
   'playback.getState': Record<string, never>;
   'playback.play': { trackId: string; qualityPreference: PlaybackQualityPreference };
+  'playback.seek': { positionMs: number };
   'playback.stop': Record<string, never>;
   'playback.next': Record<string, never>;
   'playback.previous': Record<string, never>;
@@ -200,6 +205,7 @@ export interface IpcCommandResults {
   'library.likeStatus': { liked: boolean };
   'library.like': { liked: boolean };
   'library.match': PublicTrackMatchResult;
+  'library.aggregateSearch': PublicAggregatedSearchResult;
   'library.playlists': readonly PlaylistSummary[];
   'library.playlist': PlaylistDetail;
   'library.dailyRecommendations': DailyRecommendationsSnapshot;
@@ -221,6 +227,7 @@ export interface IpcCommandResults {
   'roon.library.queue': { queued: true };
   'playback.getState': PlaybackSnapshot;
   'playback.play': PlaybackSnapshot;
+  'playback.seek': { positionMs: number };
   'playback.stop': PlaybackSnapshot;
   'playback.next': PlaybackSnapshot;
   'playback.previous': PlaybackSnapshot;

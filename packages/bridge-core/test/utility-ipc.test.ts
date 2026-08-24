@@ -179,6 +179,27 @@ function makeRuntime(): CoreRuntimeForIpc & {
         hasMore: false,
       }
     },
+    async aggregateSearch(query, page) {
+      return {
+        query,
+        netease: {
+          items: [
+            {
+              id: '101',
+              title: 'Synthetic Song',
+              artists: ['Synthetic Artist'],
+              album: 'Synthetic Album',
+            },
+          ],
+          offset: page.offset,
+          limit: page.limit,
+          total: 1,
+          hasMore: false,
+        },
+        roon: { items: [], offset: page.offset, limit: page.limit, hasMore: false },
+        roonAvailable: false,
+      };
+    },
     async getLikedTracks() {
       return { items: [], offset: 0, limit: 20, total: 0, hasMore: false }
     },
@@ -213,6 +234,9 @@ function makeRuntime(): CoreRuntimeForIpc & {
       return emptyLyricsSnapshot('unavailable')
     },
     getPlaybackState: () => playbackState,
+    async seekPlayback(positionMs) {
+      return { positionMs };
+    },
     async playbackPlay() {
       return playbackState;
     },
@@ -442,6 +466,37 @@ test('utility IPC exposes paged library data without raw provider fields', async
     ok: true,
     result: [{ id: '301', name: 'Synthetic Playlist', trackCount: 1 }],
   });
+});
+
+test('utility IPC aggregates NetEase and Roon search without leaking unavailable details', async () => {
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, makeRuntime());
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'aggregate-search',
+    command: 'library.aggregateSearch',
+    payload: { query: 'synthetic', page: { offset: 0, limit: 20 } },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[1], {
+    version: IPC_VERSION,
+    id: 'aggregate-search',
+    ok: true,
+    result: {
+      query: 'synthetic',
+      netease: {
+        items: [{ id: '101', title: 'Synthetic Song', artists: ['Synthetic Artist'], album: 'Synthetic Album' }],
+        offset: 0,
+        limit: 20,
+        total: 1,
+        hasMore: false,
+      },
+      roon: { items: [], offset: 0, limit: 20, hasMore: false },
+      roonAvailable: false,
+    },
+  });
+  assert.doesNotMatch(JSON.stringify(port.messages[1]), /item_key|rawProvider|cookie|token/i);
 });
 
 test('utility IPC keeps NetEase like operations explicit and typed', async () => {
@@ -769,6 +824,39 @@ test('utility IPC dispatches typed playback controls without exposing stream int
     });
     assert.doesNotMatch(JSON.stringify(response), /upstreamUrl|gatewayToken|cookie|token/i);
   }
+});
+
+test('utility IPC exposes bounded interactive seek', async () => {
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, makeRuntime());
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'playback-seek',
+    command: 'playback.seek',
+    payload: { positionMs: 12_345 },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[1], {
+    version: IPC_VERSION,
+    id: 'playback-seek',
+    ok: true,
+    result: { positionMs: 12_345 },
+  });
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'playback-seek-invalid',
+    command: 'playback.seek',
+    payload: { positionMs: -1 },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[2], {
+    version: IPC_VERSION,
+    id: 'playback-seek-invalid',
+    ok: false,
+    error: { code: 'INVALID_IPC_REQUEST', message: 'Invalid IPC request' },
+  });
 });
 
 test('utility QR commands keep the credential only in the Core-to-Main response', async () => {

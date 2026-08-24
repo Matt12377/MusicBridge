@@ -114,12 +114,24 @@ class FakeAudioInput implements RoonAudioInputService {
 
 class FakeTransport implements RoonTransportService {
   private zoneCallback: RoonZoneChangeCallback | undefined;
+  readonly seekCalls: Array<{ zone: string; how: 'absolute' | 'relative'; seconds: number }> = [];
+  readonly controlCalls: Array<{ zone: string; control: 'play' | 'pause' | 'playpause' | 'stop' | 'previous' | 'next' }> = [];
 
   subscribe_zones(callback: RoonZoneChangeCallback): void {
     this.zoneCallback = callback;
   }
 
-  emit(response: string, message: { zones?: readonly unknown[]; zones_added?: readonly unknown[]; zones_changed?: readonly unknown[]; zones_removed?: readonly (string | { zone_id?: unknown })[] }): void {
+  seek(zone: string, how: 'absolute' | 'relative', seconds: number, callback: (error: string | false) => void): void {
+    this.seekCalls.push({ zone, how, seconds });
+    callback(false);
+  }
+
+  control(zone: string, control: 'play' | 'pause' | 'playpause' | 'stop' | 'previous' | 'next', callback: (error: string | false) => void): void {
+    this.controlCalls.push({ zone, control });
+    callback(false);
+  }
+
+  emit(response: string, message: { zones?: readonly unknown[]; zones_added?: readonly unknown[]; zones_changed?: readonly unknown[]; zones_removed?: readonly (string | { zone_id?: unknown })[]; zones_seek_changed?: readonly unknown[] }): void {
     this.zoneCallback?.(response, message);
   }
 }
@@ -413,6 +425,11 @@ async function makeReadyHarness(
         zone_id: 'zone-1',
         display_name: 'Fake Zone',
         outputs: [{ output_id: 'output-1' }],
+        is_seek_allowed: true,
+        is_pause_allowed: true,
+        is_play_allowed: true,
+        is_previous_allowed: true,
+        is_next_allowed: true,
       },
     ],
   });
@@ -550,6 +567,43 @@ test('saved output and subscribed zones produce a ready selected Zone', async ()
     selectedZoneId: 'zone-1',
     selectedZoneName: 'Fake Zone',
   });
+});
+
+test('Roon Transport seek/control use only the selected zone and official allowlisted calls', async () => {
+  const { adapter, api } = await makeReadyHarness();
+
+  await adapter.seek(2_500);
+  await adapter.control('pause');
+
+  assert.deepEqual(api.core.transport.seekCalls, [
+    { zone: 'zone-1', how: 'absolute', seconds: 2.5 },
+  ]);
+  assert.deepEqual(api.core.transport.controlCalls, [
+    { zone: 'zone-1', control: 'pause' },
+  ]);
+  await adapter.shutdown();
+});
+
+test('Roon Transport fails closed when a zone does not advertise seek capability', async () => {
+  const { adapter, api } = await makeReadyHarness();
+  api.core.transport.emit('Changed', {
+    zones_changed: [{
+      zone_id: 'zone-1',
+      display_name: 'Fake Zone',
+      outputs: [{ output_id: 'output-1' }],
+      is_seek_allowed: false,
+      is_pause_allowed: false,
+      is_play_allowed: true,
+      is_previous_allowed: false,
+      is_next_allowed: false,
+    }],
+  });
+
+  await assert.rejects(() => adapter.seek(2_500), (error: unknown) => (
+    error instanceof BridgeError && error.code === 'ROON_TRANSPORT_UNAVAILABLE'
+  ));
+  assert.deepEqual(api.core.transport.seekCalls, []);
+  await adapter.shutdown();
 });
 
 test('saving Settings output persists it through the Roon config API', async () => {

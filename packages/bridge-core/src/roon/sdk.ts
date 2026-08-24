@@ -10,6 +10,17 @@ export interface RoonZone {
   zone_id: string;
   display_name?: string;
   outputs?: readonly RoonZoneOutput[];
+  state?: 'playing' | 'paused' | 'loading' | 'stopped';
+  seek_position?: number;
+  is_previous_allowed?: boolean;
+  is_next_allowed?: boolean;
+  is_pause_allowed?: boolean;
+  is_play_allowed?: boolean;
+  is_seek_allowed?: boolean;
+  now_playing?: {
+    seek_position?: number;
+    length?: number;
+  };
 }
 
 export interface RoonZoneChangeMessage {
@@ -17,6 +28,7 @@ export interface RoonZoneChangeMessage {
   zones_added?: readonly unknown[];
   zones_changed?: readonly unknown[];
   zones_removed?: readonly (string | { zone_id?: unknown })[];
+  zones_seek_changed?: readonly unknown[];
 }
 
 export type RoonZoneChangeCallback = (
@@ -26,6 +38,17 @@ export type RoonZoneChangeCallback = (
 
 export interface RoonTransportService {
   subscribe_zones(callback: RoonZoneChangeCallback): void;
+  seek(
+    zoneOrOutputId: string,
+    how: 'absolute' | 'relative',
+    seconds: number,
+    callback: (error: string | false) => void,
+  ): void;
+  control(
+    zoneOrOutputId: string,
+    control: 'play' | 'pause' | 'playpause' | 'stop' | 'previous' | 'next',
+    callback: (error: string | false) => void,
+  ): void;
 }
 
 export interface RoonAudioInputSession {

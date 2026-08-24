@@ -372,6 +372,18 @@ function isRoonZone(value: unknown): value is RoonZone {
   return typeof (value as { zone_id?: unknown }).zone_id === 'string';
 }
 
+function readZonePositionMs(zone: RoonZone | undefined): number | undefined {
+  const seconds = zone?.now_playing?.seek_position ?? zone?.seek_position;
+  if (
+    typeof seconds !== 'number' ||
+    !Number.isFinite(seconds) ||
+    seconds < 0 ||
+    seconds > MAX_ROON_TIME_MS / 1_000
+  ) return undefined;
+  const milliseconds = Math.round(seconds * 1_000);
+  return Number.isSafeInteger(milliseconds) ? milliseconds : undefined;
+}
+
 export class RoonAudioInputAdapter implements RoonPort {
   private roon: RoonApiInstance | undefined;
   private core: RoonCore | undefined;
@@ -766,8 +778,8 @@ export class RoonAudioInputAdapter implements RoonPort {
               media_url: request.mediaUrl,
               ...(this.playbackMode === 'track' ? { seek_position_ms: 0 } : {}),
               info: {
-                is_seek_allowed: false,
-                is_pause_allowed: false,
+                is_seek_allowed: true,
+                is_pause_allowed: true,
                 ...(this.playbackMode === 'track' && request.metadata.durationMs !== undefined
                   ? { length: request.metadata.durationMs / 1000 }
                   : {}),
@@ -863,6 +875,68 @@ export class RoonAudioInputAdapter implements RoonPort {
         });
         finish(protocolError('awaiting_session', 'begin_session_failed'));
       }
+    });
+  }
+
+  async seek(positionMs: number): Promise<void> {
+    if (
+      !Number.isSafeInteger(positionMs) ||
+      positionMs < 0 ||
+      positionMs > MAX_ROON_TIME_MS
+    ) {
+      throw new BridgeError('BAD_REQUEST', 'Roon seek position is invalid', { httpStatus: 400 });
+    }
+    const zone = this.selectedZone;
+    const transport = this.core?.services.RoonApiTransport;
+    if (!zone || !transport) {
+      throw new BridgeError('ROON_ZONE_NOT_SELECTED', 'Roon Zone is not selected', { httpStatus: 409 });
+    }
+    if (zone.is_seek_allowed !== true) {
+      throw new BridgeError('ROON_TRANSPORT_UNAVAILABLE', 'Roon seek is not available for this Zone', {
+        httpStatus: 409,
+      });
+    }
+    await new Promise<void>((resolve, reject) => {
+      transport.seek(zone.zone_id, 'absolute', positionMs / 1_000, (error) => {
+        if (error) {
+          reject(new BridgeError('ROON_TIMEOUT', 'Roon seek request failed', { httpStatus: 502 }));
+          return;
+        }
+        resolve();
+      });
+    });
+  }
+
+  async control(
+    control: 'play' | 'pause' | 'playpause' | 'stop' | 'previous' | 'next',
+  ): Promise<void> {
+    const zone = this.selectedZone;
+    const transport = this.core?.services.RoonApiTransport;
+    if (!zone || !transport) {
+      throw new BridgeError('ROON_ZONE_NOT_SELECTED', 'Roon Zone is not selected', { httpStatus: 409 });
+    }
+    const allowed = control === 'pause'
+      ? zone.is_pause_allowed
+      : control === 'play'
+        ? zone.is_play_allowed
+        : control === 'previous'
+          ? zone.is_previous_allowed
+          : control === 'next'
+            ? zone.is_next_allowed
+            : true;
+    if (allowed !== true) {
+      throw new BridgeError('ROON_TRANSPORT_UNAVAILABLE', 'Roon transport control is not available', {
+        httpStatus: 409,
+      });
+    }
+    await new Promise<void>((resolve, reject) => {
+      transport.control(zone.zone_id, control, (error) => {
+        if (error) {
+          reject(new BridgeError('ROON_TIMEOUT', 'Roon transport request failed', { httpStatus: 502 }));
+          return;
+        }
+        resolve();
+      });
     });
   }
 
@@ -977,6 +1051,8 @@ export class RoonAudioInputAdapter implements RoonPort {
           }
         }
         this.updateSelectedZone();
+        const positionMs = readZonePositionMs(this.selectedZone);
+        if (positionMs !== undefined) this.timeHandler(positionMs);
       },
     );
 

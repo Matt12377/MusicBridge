@@ -86,5 +86,7 @@ contextBridge.exposeInMainWorld(
     (trackId: string) => ipcRenderer.invoke('library:like-status', trackId),
     (trackId: string, liked: boolean) => ipcRenderer.invoke('library:like', trackId, liked),
     (track: TrackSummary) => ipcRenderer.invoke('library:match', track),
+    (query: string, page: { offset: number; limit: number }) => ipcRenderer.invoke('library:aggregate-search', query, page),
+    (positionMs: number) => ipcRenderer.invoke('playback:seek', positionMs),
   ),
 )

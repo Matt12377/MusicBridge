@@ -43,6 +43,8 @@ export interface RoonPort {
   stop(): Promise<void>;
   shutdown(): Promise<void>;
   play(request: RoonPlayRequest): Promise<void>;
+  seek?(positionMs: number): Promise<void>;
+  control?(control: 'play' | 'pause' | 'playpause' | 'stop' | 'previous' | 'next'): Promise<void>;
   getState(): RoonState;
   getDiagnosticResourceCounters?(): {
     activeSessionCount: number;

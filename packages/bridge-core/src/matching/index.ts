@@ -186,3 +186,12 @@ export type {
   PlaybackSourcePolicy,
   ResolvedPlaybackSource,
 } from './playback-resolver.js';
+export {
+  planMixedQueueTransition,
+  resolveMixedQueueSource,
+} from './mixed-queue.js';
+export type {
+  MixedQueueSource,
+  MixedQueueTransition,
+  MixedQueueTransitionRequest,
+} from './mixed-queue.js';

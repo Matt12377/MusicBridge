@@ -22,6 +22,7 @@ import type {
   FavoriteRecord,
   TrackSummary,
   PublicTrackMatchResult,
+  PublicAggregatedSearchResult,
   TypedIpcEvent,
 } from '@music-bridge/contracts'
 
@@ -59,6 +60,8 @@ export interface MusicBridgePublicApi {
   getTrackLikeStatus: (trackId: string) => Promise<{ liked: boolean }>
   setTrackLiked: (trackId: string, liked: boolean) => Promise<{ liked: boolean }>
   matchLibraryTrack: (track: TrackSummary) => Promise<PublicTrackMatchResult>
+  aggregateSearch: (query: string, page: PageRequest) => Promise<PublicAggregatedSearchResult>
+  seek: (positionMs: number) => Promise<{ positionMs: number }>
   getUserPlaylists: () => Promise<readonly PlaylistSummary[]>
   getPlaylist: (playlistId: string, page: PageRequest) => Promise<PlaylistDetail>
   getDailyRecommendations: () => Promise<DailyRecommendationsSnapshot>
@@ -113,6 +116,8 @@ export const PUBLIC_API_KEYS = [
   'getTrackLikeStatus',
   'setTrackLiked',
   'matchLibraryTrack',
+  'aggregateSearch',
+  'seek',
   'getUserPlaylists',
   'getPlaylist',
   'getDailyRecommendations',
@@ -235,6 +240,12 @@ export function createPreloadApi(
   matchLibraryTrack: (_track: TrackSummary) => Promise<PublicTrackMatchResult> = async () => {
     throw new Error('Roon matching API is unavailable')
   },
+  aggregateSearch: (_query: string, _page: PageRequest) => Promise<PublicAggregatedSearchResult> = async () => {
+    throw new Error('Aggregated search API is unavailable')
+  },
+  seek: (_positionMs: number) => Promise<{ positionMs: number }> = async () => {
+    throw new Error('Roon Transport seek API is unavailable')
+  },
 ): MusicBridgePublicApi {
   return Object.freeze({
     getAppInfo,
@@ -254,6 +265,8 @@ export function createPreloadApi(
     getTrackLikeStatus,
     setTrackLiked,
     matchLibraryTrack,
+    aggregateSearch,
+    seek,
     getUserPlaylists,
     getPlaylist,
     getDailyRecommendations,

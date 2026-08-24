@@ -116,6 +116,8 @@ test('Preload exposes only sanitized business methods', async () => {
     'getTrackLikeStatus',
     'setTrackLiked',
     'matchLibraryTrack',
+    'aggregateSearch',
+    'seek',
     'getUserPlaylists',
     'getPlaylist',
     'getDailyRecommendations',
@@ -169,6 +171,8 @@ test('Preload exposes only sanitized business methods', async () => {
     'getTrackLikeStatus',
     'setTrackLiked',
     'matchLibraryTrack',
+    'aggregateSearch',
+    'seek',
     'getUserPlaylists',
     'getPlaylist',
     'getDailyRecommendations',
@@ -222,6 +226,14 @@ test('Preload exposes only sanitized business methods', async () => {
   await assert.rejects(
     () => api.matchLibraryTrack({ id: '301', title: 'Synthetic Song', artists: ['Synthetic Artist'], album: 'Synthetic Album' }),
     /Roon matching API is unavailable/,
+  )
+  await assert.rejects(
+    () => api.aggregateSearch('synthetic', { offset: 0, limit: 20 }),
+    /Aggregated search API is unavailable/,
+  )
+  await assert.rejects(
+    () => api.seek(12_345),
+    /Roon Transport seek API is unavailable/,
   )
   assert.deepEqual(await api.getUserPlaylists(), playlists)
   assert.deepEqual(await api.getPlaylist('301', { offset: 0, limit: 20 }), playlist)

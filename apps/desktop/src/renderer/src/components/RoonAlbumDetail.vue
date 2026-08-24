@@ -9,17 +9,20 @@ const props = withDefaults(defineProps<{
   loadingMore?: boolean
   loadMoreError?: string | null
   error?: string | null
+  favoriteState?: 'idle' | 'loading' | 'liked' | 'not-liked' | 'error'
 }>(), {
   initialLoading: false,
   loadingMore: false,
   loadMoreError: null,
   error: null,
+  favoriteState: 'idle',
 })
 
 const emit = defineEmits<{
   back: []
   play: [track: RoonLibraryItem]
   queue: [track: RoonLibraryItem]
+  'toggle-favorite': []
   retry: []
   'load-more': []
 }>()
@@ -41,6 +44,7 @@ function formatDuration(durationMs: number | undefined): string {
         <h2 id="roon-album-heading">{{ props.album.title }}</h2>
         <p class="lede">{{ props.album.artist || props.album.subtitle || '本地音乐库' }}</p>
         <span class="roon-album-detail-meta">{{ props.album.year ? `${props.album.year} · ` : '' }}{{ props.page.total ?? props.page.items.length }} 首歌曲</span>
+        <button type="button" class="secondary-button detail-favorite-button" :disabled="props.favoriteState === 'loading'" :aria-pressed="props.favoriteState === 'liked'" @click="emit('toggle-favorite')">{{ props.favoriteState === 'liked' ? '♥ 已收藏' : '♡ 收藏专辑' }}</button>
       </div>
     </div>
 
