@@ -23,6 +23,7 @@ import {
   parseResolvedAudioStream,
   parseTrackMetadata,
   parseTrackSummaries,
+  parseLikedTrackIds,
   orderTrackSummariesByIds,
   parsePublicAccountProfile,
 } from './parse.js';
@@ -230,18 +231,11 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     const cookie = this.requireCookie();
     try {
       const accountId = await this.getAccountId(cookie);
-      const userPlaylist = this.api.user_playlist;
-      const playlistDetail = this.api.playlist_detail;
       const songDetail = this.api.song_detail;
-      if (!userPlaylist || !playlistDetail || !songDetail) throw this.libraryApiUnavailable();
-      const likedPlaylistId = parseLikedPlaylistId(await userPlaylist({
-        uid: accountId,
-        limit: MAX_LIBRARY_PAGE_LIMIT,
-        offset: 0,
-        cookie,
-      }));
-      const detail = await playlistDetail({ id: likedPlaylistId, cookie });
-      const ids = parsePlaylistTrackIds(detail) ?? [];
+      if (!songDetail) throw this.libraryApiUnavailable();
+      const ids = this.api.likelist
+        ? parseLikedTrackIds(await this.api.likelist({ uid: accountId, cookie }))
+        : await this.getLikedPlaylistTrackIds(accountId, cookie);
       const selectedIds = ids.slice(page.offset, page.offset + page.limit);
       if (selectedIds.length === 0) return pageOf([], page, ids.length);
       const response = await songDetail({ ids: selectedIds.join(','), cookie });
@@ -249,6 +243,20 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     } catch (error) {
       throw this.libraryError(error, 'liked tracks');
     }
+  }
+
+  private async getLikedPlaylistTrackIds(accountId: string, cookie: string): Promise<string[]> {
+    const userPlaylist = this.api.user_playlist;
+    const playlistDetail = this.api.playlist_detail;
+    if (!userPlaylist || !playlistDetail) throw this.libraryApiUnavailable();
+    const likedPlaylistId = parseLikedPlaylistId(await userPlaylist({
+      uid: accountId,
+      limit: MAX_LIBRARY_PAGE_LIMIT,
+      offset: 0,
+      cookie,
+    }));
+    const detail = await playlistDetail({ id: likedPlaylistId, cookie });
+    return parsePlaylistTrackIds(detail) ?? [];
   }
 
   async getUserPlaylists(): Promise<readonly PlaylistSummary[]> {
