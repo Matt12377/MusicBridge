@@ -1,6 +1,7 @@
 import { BridgeError } from '../shared/errors.js';
 import { enforceNeteaseSafetyEnvironment, parseQualityPreference } from '../netease/policy.js';
 import {
+  REMOTE_CORE_LOCAL_PORT_PAIRS,
   REMOTE_CORE_STREAM_PORT_CANDIDATES,
   type RemoteCoreMode,
 } from '@music-bridge/contracts';
@@ -118,15 +119,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
         { httpStatus: 500 },
       );
     }
-    if (
-      controlHost !== '127.0.0.1' ||
-      streamHost !== '127.0.0.1' ||
-      controlPort !== 38501 ||
-      streamPort !== 38502
-    ) {
+    const localPortPair = Object.values(REMOTE_CORE_LOCAL_PORT_PAIRS).some(
+      (pair) => pair.controlPort === controlPort && pair.streamPort === streamPort,
+    );
+    if (controlHost !== '127.0.0.1' || streamHost !== '127.0.0.1' || !localPortPair) {
       throw new BridgeError(
         'CONFIG_INVALID',
-        'Remote Core development mode requires fixed loopback Core ports',
+        'Remote Core development mode requires a bounded loopback Core port pair',
         { httpStatus: 500 },
       );
     }

@@ -69,10 +69,12 @@ import {
   RENDERER_SCHEME,
   rendererContentType,
 } from './renderer-protocol.js'
-import { buildCoreEnvironment as buildAllowlistedCoreEnvironment } from './core-environment.js'
+import {
+  buildCoreEnvironment as buildAllowlistedCoreEnvironment,
+  resolveRemoteCoreLocalPorts,
+} from './core-environment.js'
 import {
   DEFAULT_REMOTE_STREAM_PORT,
-  LOCAL_STREAM_PORT,
   RemoteCoreTunnelManager,
 } from './remote-core-tunnel.js'
 import {
@@ -1212,10 +1214,11 @@ async function invokeRemoteCore<T>(
 
 async function startRemoteCoreDevelopment(): Promise<RemoteCoreTunnelState> {
   requireRemoteCoreDevelopment()
+  const localPorts = resolveRemoteCoreLocalPorts(process.env)
   return remoteCoreTunnelManager.start({
     sshTarget: process.env.CORE_SSH_TARGET ?? '',
     remoteStreamPort: DEFAULT_REMOTE_STREAM_PORT,
-    localStreamPort: LOCAL_STREAM_PORT,
+    localStreamPort: localPorts.streamPort,
     autoReconnect: true,
   })
 }

@@ -158,6 +158,12 @@ test('SSH commands are fixed, loopback-only, and never forward the control port'
   assert.equal(tunnelArgs.some((value) => value.includes('PasswordAuthentication')), false)
 })
 
+test('SSH tunnel accepts only the explicitly bounded secondary Gateway port', () => {
+  const tunnelArgs = buildTunnelSshArgs('core-mac', 38512, 38602)
+  assert.equal(tunnelArgs.includes('127.0.0.1:38512:127.0.0.1:38602'), true)
+  assert.throws(() => buildTunnelSshArgs('core-mac', 38512, 38603))
+})
+
 test('default health probe accepts only the bounded remote health body through a second fake SSH process', async () => {
   const mutableCalls: string[][] = []
   const spawn: RemoteCoreTunnelSpawn = (_command, args, spawnOptions) => {

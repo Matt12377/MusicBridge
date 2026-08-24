@@ -100,3 +100,37 @@ test('remote-core-development rejects non-loopback or unbounded public settings'
     )
   }
 })
+
+test('remote-core-development accepts the bounded secondary loopback port pair', () => {
+  const config = loadConfig({
+    NODE_ENV: 'test',
+    MUSIC_BRIDGE_REMOTE_CORE_MODE: 'remote-core-development',
+    MUSIC_BRIDGE_REMOTE_STREAM_PORT: '38513',
+    BRIDGE_CONTROL_HOST: '127.0.0.1',
+    BRIDGE_CONTROL_PORT: '38601',
+    BRIDGE_STREAM_HOST: '127.0.0.1',
+    BRIDGE_STREAM_PORT: '38602',
+    BRIDGE_PUBLIC_STREAM_BASE_URL: 'http://127.0.0.1:38513',
+    ROON_CORE_HOST: '127.0.0.1',
+    ROON_CORE_PORT: '19330',
+  })
+
+  assert.equal(config.controlPort, 38601)
+  assert.equal(config.streamPort, 38602)
+})
+
+test('remote-core-development rejects an unpaired local loopback port', () => {
+  assert.throws(
+    () => loadConfig({
+      NODE_ENV: 'test',
+      MUSIC_BRIDGE_REMOTE_CORE_MODE: 'remote-core-development',
+      MUSIC_BRIDGE_REMOTE_STREAM_PORT: '38513',
+      BRIDGE_CONTROL_HOST: '127.0.0.1',
+      BRIDGE_CONTROL_PORT: '38601',
+      BRIDGE_STREAM_HOST: '127.0.0.1',
+      BRIDGE_STREAM_PORT: '38502',
+      BRIDGE_PUBLIC_STREAM_BASE_URL: 'http://127.0.0.1:38513',
+    }),
+    (error: unknown) => error instanceof BridgeError && error.code === 'CONFIG_INVALID',
+  )
+})
