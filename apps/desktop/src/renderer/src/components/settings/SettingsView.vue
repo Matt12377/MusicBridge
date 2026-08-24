@@ -59,7 +59,7 @@ function remoteStatusLabel(status: RemoteCoreTunnelState['status']): string {
 </script>
 
 <template>
-  <section class="view settings-view" aria-labelledby="settings-heading">
+  <section class="view view-settings settings-view" aria-labelledby="settings-heading">
     <div class="view-heading"><div><p class="section-kicker">Apple Liquid Glass</p><h2 id="settings-heading">Settings</h2><p class="lede">账户、播放偏好与本地诊断集中在这里；Provider 会话仍由主进程安全管理。</p></div></div>
 
     <div class="settings-layout">

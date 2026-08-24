@@ -101,11 +101,10 @@ function formatTime(milliseconds: number): string {
           </div>
           <div class="now-playing-quality-row" :aria-label="`当前实际音质 ${props.qualityLabel(props.playbackState?.actualQuality)}`">
             <span class="now-playing-quality-badge"><span>实际</span>{{ props.qualityLabel(props.playbackState?.actualQuality) }}</span>
-            <span class="now-playing-quality-source">{{ props.playbackState?.format?.toUpperCase() ?? '音频' }}<template v-if="props.playbackState?.bitrate"> · {{ Math.round(props.playbackState.bitrate / 1000) }} kbps</template></span>
-            <small>下次播放音质 {{ props.qualityLabel(props.selectedQuality) }} · Provider 返回 {{ props.qualityLabel(props.playbackState?.actualQuality) }}</small>
+            <span class="now-playing-quality-next">下次播放音质 {{ props.qualityLabel(props.selectedQuality) }}</span>
           </div>
           <div class="transport-controls" aria-label="歌曲切换控制">
-            <button type="button" class="transport-button transport-button-secondary" :disabled="!props.playbackState?.canPrevious" aria-label="上一首" @click="emit('previous')"><SidebarIcon name="chevron-left" :size="21" /></button>
+            <button type="button" class="transport-button transport-button-secondary" :disabled="!props.playbackState?.canPrevious" aria-label="上一首" @click="emit('previous')"><SidebarIcon name="previous" :size="21" /></button>
             <button
               type="button"
               class="transport-button transport-button-primary"
@@ -113,7 +112,7 @@ function formatTime(milliseconds: number): string {
               :aria-label="props.playbackState?.state === 'paused' ? '恢复播放' : props.playbackState?.state === 'playing' ? '暂停' : '播放当前歌曲'"
               @click="emit('toggle-playback')"
             ><SidebarIcon :name="props.playbackState?.state === 'playing' ? 'pause' : 'play'" :size="24" /></button>
-            <button type="button" class="transport-button transport-button-secondary" :disabled="!props.playbackState?.canNext" aria-label="下一首" @click="emit('next')"><SidebarIcon name="chevron-right" :size="21" /></button>
+            <button type="button" class="transport-button transport-button-secondary" :disabled="!props.playbackState?.canNext" aria-label="下一首" @click="emit('next')"><SidebarIcon name="next" :size="21" /></button>
           </div>
         </div>
       </div>

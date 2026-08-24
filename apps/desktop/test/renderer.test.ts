@@ -214,3 +214,36 @@ test('Liquid Glass v4 uses one neutral graphite theme and never rotates the albu
   assert.doesNotMatch(css, /album-ambient-rotate|rotate\(/)
   assert.doesNotMatch(css, /#a9bcff|#c5d2ff|#6e8fff|#8aa8ff/)
 })
+
+test('V1 Bottom Player stays compact, semantic, and free of transient lyric or state copy', async () => {
+  const player = await readFile(path.resolve('src/renderer/src/components/BottomPlayer.vue'), 'utf8')
+  const icon = await readFile(path.resolve('src/renderer/src/components/sidebar/SidebarIcon.vue'), 'utf8')
+  const css = await readFile(path.resolve('src/renderer/src/style.css'), 'utf8')
+
+  assert.doesNotMatch(player, /player-label|currentLyricLine|音质切换/)
+  assert.match(player, /下次音质/)
+  assert.match(player, /name="previous"/)
+  assert.match(player, /name="next"/)
+  assert.match(player, /name="list"/)
+  assert.match(player, /visually-hidden/)
+  assert.match(icon, /name === 'previous'/)
+  assert.match(icon, /name === 'next'/)
+  assert.match(css, /\.global-player\s*\{[^}]*height:\s*74px/)
+  assert.match(css, /\.player-art\s*\{[^}]*width:\s*46px[^}]*height:\s*46px/)
+})
+
+test('V1 Home and content pages use page-level width tiers and avoid a duplicate Home title', async () => {
+  const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const settings = await readFile(path.resolve('src/renderer/src/components/settings/SettingsView.vue'), 'utf8')
+  const css = await readFile(path.resolve('src/renderer/src/style.css'), 'utf8')
+
+  assert.match(app, /<h1 v-if="currentView !== 'home'">\{\{ viewTitle \}\}<\/h1>/)
+  assert.match(app, /class="view view-search"/)
+  assert.match(app, /class="view view-library"/)
+  assert.match(app, /class="view view-diagnostics"/)
+  assert.match(settings, /view-settings/)
+  assert.match(css, /\.home-view\s*\{[^}]*max-width:\s*1600px/)
+  assert.match(css, /\.view-search\s*,\s*\.view-library\s*,\s*\.view-playlist\s*\{[^}]*max-width:\s*1520px/)
+  assert.match(css, /\.view-settings\s*\{[^}]*max-width:\s*1280px/)
+  assert.match(css, /\.view-diagnostics\s*\{[^}]*max-width:\s*1100px/)
+})

@@ -161,10 +161,6 @@ let playlistRequestGeneration = 0
 
 const currentTrack = computed(() => playbackState.value?.currentTrack)
 const ambientTrack = computed(() => playbackState.value?.state === 'playing' ? currentTrack.value : undefined)
-const currentLyricLine = computed(() => {
-  const lineIndex = lyricsSnapshot.value.activeLineIndex
-  return lineIndex >= 0 ? lyricsSnapshot.value.lines[lineIndex]?.text : undefined
-})
 const homeTracks = computed(() => recentTracks.value)
 const selectedZone = computed(() => {
   const selectedId = playbackState.value?.selectedZoneId
@@ -1293,7 +1289,7 @@ onUnmounted(() => {
         <div class="topbar-leading">
           <div>
             <p class="section-kicker">Music Bridge</p>
-            <h1>{{ viewTitle }}</h1>
+            <h1 v-if="currentView !== 'home'">{{ viewTitle }}</h1>
           </div>
         </div>
         <ToolbarStatusPopover :core-state="coreState" :selected-zone="selectedZone" @diagnostics="navigate('diagnostics')" />
@@ -1339,7 +1335,7 @@ onUnmounted(() => {
           @retry="refreshAccountProfile"
         />
 
-        <section v-else-if="currentView === 'search'" class="view" aria-labelledby="search-heading">
+        <section v-else-if="currentView === 'search'" class="view view-search" aria-labelledby="search-heading">
           <div class="view-heading"><div><p class="section-kicker">搜索</p><h2 id="search-heading">搜索结果</h2><p class="lede">“{{ searchQuery }}”</p></div></div>
           <p v-if="searchError === 'auth-expired'" class="persistent-error">登录已过期，请从侧栏账户菜单重新登录。</p>
           <p v-else-if="searchError === 'generic'" class="persistent-error">搜索暂时不可用，请检查连接状态。</p>
@@ -1360,7 +1356,7 @@ onUnmounted(() => {
           />
         </section>
 
-        <section v-else-if="currentView === 'liked'" class="view" aria-labelledby="liked-heading">
+        <section v-else-if="currentView === 'liked'" class="view view-library" aria-labelledby="liked-heading">
           <div class="liked-hero">
             <div class="liked-collage" aria-hidden="true"><SafeArtwork v-for="track in likedPage.items.slice(0, 4)" :key="track.id" class="liked-collage-tile" :src="track.artworkUrl" alt="" /><span v-if="!likedPage.items.length" class="liked-collage-empty">♫</span></div>
             <div class="view-heading"><div><p class="section-kicker">资料库</p><h2 id="liked-heading">我喜欢的音乐</h2><p class="lede">{{ likedPage.total }} 首歌曲</p></div><div class="button-row"><button type="button" class="primary-button" :disabled="!likedPage.items.length" @click="playAllLiked">播放全部</button><button type="button" class="secondary-button" :disabled="!likedPage.items.length" @click="appendAllLiked">加入队列</button></div></div>
@@ -1369,13 +1365,13 @@ onUnmounted(() => {
           <TrackTable :tracks="likedPage.items" :initial-loading="likedInitialLoading" :loading-more="likedLoadingMore" :load-more-error="likedLoadMoreError" :total="likedPage.total" :has-more="likedPage.hasMore" empty-title="还没有喜欢的内容" empty-copy="登录网易云后，这里会显示你的收藏。" @play="playTrack" @queue="appendTrack" @play-next="insertTrackNext" @load-more="likedPageAt(likedPage.offset + likedPage.limit)" />
         </section>
 
-        <section v-else-if="currentView === 'playlists'" class="view" aria-labelledby="playlists-heading">
+        <section v-else-if="currentView === 'playlists'" class="view view-library" aria-labelledby="playlists-heading">
           <div class="view-heading"><div><p class="section-kicker">资料库</p><h2 id="playlists-heading">所有歌单</h2><p class="lede">你的网易云歌单直接来自当前 Provider 数据。</p></div></div>
           <p v-if="playlistState === 'error'" class="persistent-error">歌单暂时无法加载，请从侧栏歌单区域重试。</p>
           <div class="playlist-grid"><div v-if="playlistState === 'loading'" class="empty-state"><p>读取歌单…</p></div><div v-else-if="!playlists.length" class="empty-state"><h3>还没有歌单</h3><p>歌单会在网易云可用后出现在这里。</p></div><button v-for="playlist in playlists" v-else :key="playlist.id" type="button" class="playlist-card" @click="navigateSource({ type: 'playlist', playlistId: playlist.id })"><SafeArtwork class="playlist-art" :src="playlist.artworkUrl" alt="" fallback="♫" /><span><strong>{{ playlist.name }}</strong><small>{{ playlist.trackCount }} 首歌曲</small></span><b aria-hidden="true">→</b></button></div>
         </section>
 
-        <section v-else-if="currentView === 'playlist-detail'" class="view" aria-labelledby="playlist-heading">
+        <section v-else-if="currentView === 'playlist-detail'" class="view view-playlist" aria-labelledby="playlist-heading">
           <button type="button" class="back-link" @click="navigateSource({ type: 'playlists' })">← 所有歌单</button>
           <p v-if="playlistDetailError === 'auth-expired'" class="persistent-error">登录已过期，请从侧栏账户菜单重新登录。</p>
           <p v-else-if="playlistDetailError === 'generic'" class="persistent-error">歌单暂时无法加载，请稍后重试。</p>
@@ -1431,7 +1427,7 @@ onUnmounted(() => {
           @update:remote-auto-start="updateRemoteAutoStart"
         />
 
-        <section v-else class="view" aria-labelledby="diagnostics-heading">
+        <section v-else class="view view-diagnostics" aria-labelledby="diagnostics-heading">
           <div class="view-heading"><div><p class="section-kicker">Read-only signal</p><h2 id="diagnostics-heading">Diagnostics</h2><p class="lede">这里只展示公开状态、可操作建议和诊断标识，不导出 Provider 原始内容。</p></div><div class="button-row"><button type="button" class="secondary-button" @click="refreshPlayback">刷新状态</button><button type="button" class="secondary-button" :disabled="diagnosticExportState === 'working'" @click="exportDiagnostics">{{ diagnosticExportState === 'working' ? '导出中…' : '导出诊断文件' }}</button></div></div>
           <p v-if="diagnosticExportState === 'done'" class="notice-card">诊断文件已导出，仅包含脱敏运行信息。</p>
           <p v-else-if="diagnosticExportState === 'cancelled'" class="notice-card">已取消诊断文件导出。</p>
@@ -1458,7 +1454,6 @@ onUnmounted(() => {
       v-if="!isImmersiveNowPlaying"
       :current-track="currentTrack"
       :playback-state="playbackState"
-      :current-lyric-line="currentLyricLine"
       :zones="zones"
       :selected-zone="selectedZone"
       :roon-status="coreState?.roon ?? 'disconnected'"
