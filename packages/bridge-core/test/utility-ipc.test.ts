@@ -221,7 +221,22 @@ function makeRuntime(): CoreRuntimeForIpc & {
     async browseRoonAlbums(page) {
       return { items: [], offset: page.offset, limit: page.limit };
     },
+    async browseRoonArtists(page) {
+      return { items: [], offset: page.offset, limit: page.limit };
+    },
+    async browseRoonGenres(page) {
+      return { items: [], offset: page.offset, limit: page.limit };
+    },
+    async browseRoonPlaylists(page) {
+      return { items: [], offset: page.offset, limit: page.limit };
+    },
     async browseRoonAlbum() {
+      return { items: [], offset: 0, limit: 20 };
+    },
+    async browseRoonArtist() {
+      return { items: [], offset: 0, limit: 20 };
+    },
+    async searchRoonLibrary() {
       return { items: [], offset: 0, limit: 20 };
     },
     async getRoonImage() {
@@ -232,6 +247,15 @@ function makeRuntime(): CoreRuntimeForIpc & {
     },
     async queueRoonTrack() {
       return { queued: true as const };
+    },
+    async listFavorites() {
+      return { items: [], offset: 0, limit: 20, total: 0, hasMore: false };
+    },
+    async checkFavorite() {
+      return { favorite: false };
+    },
+    async setFavorite(_descriptor, favorite) {
+      return { favorite };
     },
   };
 }
@@ -422,6 +446,62 @@ test('utility IPC exposes account state and daily recommendations through typed 
   }
 });
 
+test('utility IPC dispatches local favorite relationships without media fields', async () => {
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, makeRuntime());
+
+  const descriptor = {
+    kind: 'track' as const,
+    title: 'Synthetic Song',
+    artist: 'Synthetic Artist',
+    album: 'Synthetic Album',
+    durationMs: 180_000,
+  };
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'favorites-list',
+    command: 'favorites.list',
+    payload: { kind: 'track', page: { offset: 0, limit: 20 } },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[1], {
+    version: IPC_VERSION,
+    id: 'favorites-list',
+    ok: true,
+    result: { items: [], offset: 0, limit: 20, total: 0, hasMore: false },
+  });
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'favorites-check',
+    command: 'favorites.check',
+    payload: { descriptor },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[2], {
+    version: IPC_VERSION,
+    id: 'favorites-check',
+    ok: true,
+    result: { favorite: false },
+  });
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'favorites-set',
+    command: 'favorites.set',
+    payload: { descriptor, favorite: true },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[3], {
+    version: IPC_VERSION,
+    id: 'favorites-set',
+    ok: true,
+    result: { favorite: true },
+  });
+  assert.doesNotMatch(JSON.stringify(port.messages[3]), /item_key|media|path|file|https?:\/\//i);
+});
+
 test('utility IPC maps an expired Provider session to a public error', async () => {
   const port = new FakePort();
   const runtime = makeRuntime();
@@ -554,6 +634,36 @@ test('utility IPC dispatches the opaque Roon Library browse/image seams', async 
     ok: true,
     result: { queued: true },
   });
+});
+
+test('utility IPC dispatches expanded Roon artist, genre, playlist and search seams', async () => {
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, makeRuntime());
+
+  const requests = [
+    ['roon-artists', 'roon.library.artists', { page: { offset: 0, limit: 20 } }],
+    ['roon-genres', 'roon.library.genres', { page: { offset: 0, limit: 20 } }],
+    ['roon-playlists', 'roon.library.playlists', { page: { offset: 0, limit: 20 } }],
+    ['roon-artist', 'roon.library.artist', {
+      reference: 'musicbridge-v2-entity-123e4567-e89b-12d3-a456-426614174000',
+      page: { offset: 0, limit: 20 },
+    }],
+    ['roon-search', 'roon.library.search', { query: 'Artist', page: { offset: 0, limit: 20 } }],
+  ] as const;
+
+  for (const [id, command, payload] of requests) {
+    port.send({ version: IPC_VERSION, id, command, payload });
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+
+  for (const [index, [id]] of requests.entries()) {
+    assert.deepEqual(port.messages[index + 1], {
+      version: IPC_VERSION,
+      id,
+      ok: true,
+      result: { items: [], offset: 0, limit: 20 },
+    });
+  }
 });
 
 test('utility IPC dispatches typed playback controls without exposing stream internals', async () => {

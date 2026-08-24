@@ -310,6 +310,17 @@ img[hidden] { display: none; }
 /* Roon 本地库复用 V1 的连续内容语言，只增加 Album-centric 的浏览层。 */
 .roon-library-state { min-height: 250px; }
 .roon-library-state .secondary-button { margin-top: 14px; }
+.roon-library-tabs { margin: 4px 0 24px; }
+.roon-library-tabs .secondary-button.is-selected { color: var(--mb-text-primary); border-color: var(--mb-accent); background: color-mix(in srgb, var(--mb-accent) 14%, transparent); }
+.favorite-library-state { min-height: 250px; }
+.favorite-library-state .secondary-button { margin-top: 14px; }
+.favorite-entity-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.favorite-entity-card { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 12px; align-items: center; min-width: 0; padding: 12px; border: 1px solid var(--mb-divider); border-radius: 14px; background: var(--mb-glass-clear); }
+.favorite-entity-art { display: grid; width: 54px; height: 54px; place-items: center; border-radius: 12px; color: var(--mb-accent); background: color-mix(in srgb, var(--mb-accent) 12%, transparent); font-size: 22px; font-weight: 650; }
+.favorite-entity-copy { display: grid; gap: 4px; min-width: 0; }
+.favorite-entity-copy strong, .favorite-entity-copy span, .favorite-entity-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.favorite-entity-copy strong { color: var(--mb-text-primary); font-size: 13px; }
+.favorite-entity-copy span, .favorite-entity-copy small { color: var(--mb-text-secondary); font-size: 11px; }
 .roon-album-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 26px 20px; }
 .roon-album-card { display: grid; gap: 10px; min-width: 0; padding: 0; color: var(--mb-text-primary); background: transparent; text-align: left; }
 .roon-album-card:hover .roon-album-art, .roon-album-card:focus-visible .roon-album-art { filter: brightness(1.08); transform: translateY(-2px); }

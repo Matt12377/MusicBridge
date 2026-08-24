@@ -100,6 +100,26 @@ test('synthetic runtime exposes bounded account and daily recommendation seams',
   });
 });
 
+test('synthetic runtime exposes local favorite check, set and list seams', async () => {
+  const runtime = createTestBridgeRuntime();
+  await runtime.start();
+  const descriptor = {
+    kind: 'track' as const,
+    title: 'Synthetic Favorite',
+    artist: 'Synthetic Artist',
+    album: 'Synthetic Album',
+  };
+
+  assert.deepEqual(await runtime.checkFavorite(descriptor), { favorite: false });
+  const set = await runtime.setFavorite(descriptor, true);
+  assert.equal(set.favorite, true);
+  assert.equal(set.item?.title, 'Synthetic Favorite');
+  assert.deepEqual(await runtime.checkFavorite(descriptor), { favorite: true });
+  assert.equal((await runtime.listFavorites('track', { offset: 0, limit: 20 })).items.length, 1);
+  await runtime.setFavorite(descriptor, false);
+  assert.deepEqual(await runtime.checkFavorite(descriptor), { favorite: false });
+});
+
 test('synthetic runtime keeps daily recommendations when profile is unavailable', async () => {
   const runtime = createTestBridgeRuntime({ authorized: true, accountMode: 'profile-unavailable' });
   await runtime.start();

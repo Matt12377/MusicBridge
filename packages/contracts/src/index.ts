@@ -1,4 +1,5 @@
 export * from './errors.js';
+export * from './favorites.js';
 export * from './diagnostics.js';
 export * from './ipc.js';
 export * from './library.js';

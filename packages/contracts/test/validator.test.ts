@@ -522,6 +522,33 @@ test('contracts validates the opaque Roon Library browse and image seams', () =>
     }, 'roon.library.image').ok,
     true,
   );
+  for (const [id, command, payload] of [
+    ['roon-artists', 'roon.library.artists', { page: { offset: 0, limit: 20 } }],
+    ['roon-genres', 'roon.library.genres', { page: { offset: 0, limit: 20 } }],
+    ['roon-playlists', 'roon.library.playlists', { page: { offset: 0, limit: 20 } }],
+    ['roon-artist', 'roon.library.artist', {
+      reference: albumItem.reference,
+      page: { offset: 0, limit: 20 },
+    }],
+    ['roon-search', 'roon.library.search', {
+      query: 'Artist',
+      page: { offset: 0, limit: 20 },
+    }],
+  ] as const) {
+    assert.equal(
+      validateIpcRequest({ version: IPC_VERSION, id, command, payload }).ok,
+      true,
+    );
+    assert.equal(
+      validateIpcResponseForCommand({
+        version: IPC_VERSION,
+        id,
+        ok: true,
+        result: albumPage,
+      }, command).ok,
+      true,
+    );
+  }
   assert.equal(
     validateIpcRequest({
       version: IPC_VERSION,
@@ -531,6 +558,72 @@ test('contracts validates the opaque Roon Library browse and image seams', () =>
     }).ok,
     false,
   );
+});
+
+test('contracts validates local favorite relationships without media or provider fields', () => {
+  const descriptor = {
+    kind: 'track',
+    title: 'Track',
+    artist: 'Artist',
+    album: 'Album',
+    durationMs: 180_000,
+  };
+  const record = {
+    ...descriptor,
+    favoriteId: '123e4567-e89b-12d3-a456-426614174000',
+    createdAt: 1_000,
+    updatedAt: 2_000,
+  };
+  const page = {
+    items: [record],
+    offset: 0,
+    limit: 20,
+    total: 1,
+    hasMore: false,
+  };
+
+  assert.equal(validateIpcRequest({
+    version: IPC_VERSION,
+    id: 'favorites-list',
+    command: 'favorites.list',
+    payload: { kind: 'track', page: { offset: 0, limit: 20 } },
+  }).ok, true);
+  assert.equal(validateIpcRequest({
+    version: IPC_VERSION,
+    id: 'favorites-check',
+    command: 'favorites.check',
+    payload: { descriptor },
+  }).ok, true);
+  assert.equal(validateIpcRequest({
+    version: IPC_VERSION,
+    id: 'favorites-set',
+    command: 'favorites.set',
+    payload: { descriptor, favorite: true },
+  }).ok, true);
+  assert.equal(validateIpcResponseForCommand({
+    version: IPC_VERSION,
+    id: 'favorites-list',
+    ok: true,
+    result: page,
+  }, 'favorites.list').ok, true);
+  assert.equal(validateIpcResponseForCommand({
+    version: IPC_VERSION,
+    id: 'favorites-check',
+    ok: true,
+    result: { favorite: true },
+  }, 'favorites.check').ok, true);
+  assert.equal(validateIpcResponseForCommand({
+    version: IPC_VERSION,
+    id: 'favorites-set',
+    ok: true,
+    result: { favorite: true, item: record },
+  }, 'favorites.set').ok, true);
+  assert.equal(validateIpcRequest({
+    version: IPC_VERSION,
+    id: 'favorites-path',
+    command: 'favorites.set',
+    payload: { descriptor: { ...descriptor, mediaPath: '/Users/music/song.flac' }, favorite: true },
+  }).ok, false);
 });
 
 test('contracts validates bounded playback controls and sanitized snapshots', () => {

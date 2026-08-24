@@ -1,3 +1,4 @@
+import path from 'node:path';
 import {
   DiagnosticRingBuffer,
   type DiagnosticComponentSnapshot,
@@ -11,6 +12,10 @@ import type {
   PlaylistSummary,
   LyricsSnapshot,
   DailyRecommendationsSnapshot,
+  FavoriteEntityDescriptor,
+  FavoriteKind,
+  FavoritePage,
+  FavoriteRecord,
   PlaybackQueueItem,
   PlaybackQueueRequestItem,
   PlaybackQuality,
@@ -41,6 +46,10 @@ import { createLogger, type Logger } from './shared/logger.js';
 import { StreamGateway } from './stream/gateway.js';
 import { StreamRegistry } from './stream/registry.js';
 import { LyricsCoordinator } from './lyrics/coordinator.js';
+import {
+  createLocalFavoriteRepository,
+  type LocalFavoriteRepository,
+} from './favorites/repository.js';
 
 export type CoreRuntimeEvent = TypedIpcEvent;
 
@@ -69,6 +78,9 @@ export interface CoreRuntime {
   getLikedTracks(page: PageRequest): Promise<Page<TrackSummary>>;
   getUserPlaylists(): Promise<readonly PlaylistSummary[]>;
   getPlaylist(playlistId: string, page: PageRequest): Promise<PlaylistDetail>;
+  listFavorites(kind: FavoriteKind | undefined, page: PageRequest): Promise<FavoritePage>;
+  checkFavorite(descriptor: FavoriteEntityDescriptor): Promise<{ favorite: boolean }>;
+  setFavorite(descriptor: FavoriteEntityDescriptor, favorite: boolean): Promise<{ favorite: boolean; item?: FavoriteRecord }>;
   getLyrics(trackId: string): Promise<LyricsSnapshot>;
   getPlaybackState(): PlaybackSnapshot;
   playbackPlay(trackId: string, quality: PlaybackQualityPreference): Promise<PlaybackSnapshot>;
@@ -82,7 +94,12 @@ export interface CoreRuntime {
   appendPlaybackQueue(items: readonly PlaybackQueueRequestItem[]): Promise<PlaybackSnapshot>;
   insertNextPlayback(items: readonly PlaybackQueueRequestItem[]): Promise<PlaybackSnapshot>;
   browseRoonAlbums(page: PageRequest): Promise<RoonLibraryPage>;
+  browseRoonArtists(page: PageRequest): Promise<RoonLibraryPage>;
+  browseRoonGenres(page: PageRequest): Promise<RoonLibraryPage>;
+  browseRoonPlaylists(page: PageRequest): Promise<RoonLibraryPage>;
   browseRoonAlbum(reference: string, page: PageRequest): Promise<RoonLibraryPage>;
+  browseRoonArtist(reference: string, page: PageRequest): Promise<RoonLibraryPage>;
+  searchRoonLibrary(query: string, page: PageRequest): Promise<RoonLibraryPage>;
   getRoonImage(reference: string, options?: RoonImageOptions): Promise<RoonImageResult>;
   playRoonTrack(reference: string, zoneId: string): Promise<{ started: true }>;
   queueRoonTrack(reference: string, zoneId: string): Promise<{ queued: true }>;
@@ -97,6 +114,7 @@ export interface BridgeRuntimeOptions {
   now?: () => number;
   onEvent?: (event: CoreRuntimeEvent) => void;
   onRoonTimeShape?: (summary: RoonTimeShapeSummary) => void;
+  favoriteRepository?: LocalFavoriteRepository;
 }
 
 function publicRoonStatus(
@@ -184,6 +202,9 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     ...(options.onRoonTimeShape ? { onTimeShape: options.onRoonTimeShape } : {}),
   });
   const roonLibrary = createRoonPublicLibrary(() => roon.getLibraryService());
+  const favoriteRepository = options.favoriteRepository ?? createLocalFavoriteRepository(
+    path.join(process.cwd(), '.musicbridge-favorites.json'),
+  );
   const gateway = new StreamGateway({
     host: config.streamHost,
     port: config.streamPort,
@@ -681,7 +702,12 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     },
 
     browseRoonAlbums: (page) => roonLibrary.browseAlbums(page),
+    browseRoonArtists: (page) => roonLibrary.browseArtists(page),
+    browseRoonGenres: (page) => roonLibrary.browseGenres(page),
+    browseRoonPlaylists: (page) => roonLibrary.browsePlaylists(page),
     browseRoonAlbum: (reference, page) => roonLibrary.browseAlbum(reference, page),
+    browseRoonArtist: (reference, page) => roonLibrary.browseArtist(reference, page),
+    searchRoonLibrary: (query, page) => roonLibrary.searchLibrary(query, page),
     getRoonImage: (reference, options) => roonLibrary.getImage(reference, options),
     async playRoonTrack(reference, zoneId) {
       await roonLibrary.playTrack(reference, zoneId);
@@ -690,6 +716,15 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     async queueRoonTrack(reference, zoneId) {
       await roonLibrary.queueTrack(reference, zoneId);
       return { queued: true as const };
+    },
+
+    listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),
+    async checkFavorite(descriptor) {
+      return { favorite: await favoriteRepository.isFavorite(descriptor) };
+    },
+    async setFavorite(descriptor, favorite) {
+      const item = await favoriteRepository.setFavorite(descriptor, favorite);
+      return { favorite, ...(item !== undefined ? { item } : {}) };
     },
 
     listZones: () => roon.listZones().map((zone) => ({
@@ -718,6 +753,7 @@ export interface TestBridgeRuntimeOptions {
 export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}): CoreRuntime {
   const accountMode = options.accountMode ?? 'ready'
   const syntheticAuthorized = options.authorized === true && accountMode !== 'expired'
+  const favoriteRepository = createLocalFavoriteRepository()
   const fixtureTracks: readonly TrackSummary[] = Array.from({ length: 120 }, (_, index) => ({
     id: String(1000 + index),
     title: `Synthetic Track ${index + 1}`,
@@ -1080,7 +1116,26 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     async browseRoonAlbums(page) {
       return { items: [], offset: page.offset, limit: page.limit };
     },
+    async browseRoonArtists(page) {
+      return { items: [], offset: page.offset, limit: page.limit };
+    },
+    async browseRoonGenres(page) {
+      return { items: [], offset: page.offset, limit: page.limit };
+    },
+    async browseRoonPlaylists(page) {
+      return { items: [], offset: page.offset, limit: page.limit };
+    },
     async browseRoonAlbum() {
+      throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
+        httpStatus: 503,
+      });
+    },
+    async browseRoonArtist() {
+      throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
+        httpStatus: 503,
+      });
+    },
+    async searchRoonLibrary() {
       throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
         httpStatus: 503,
       });
@@ -1099,6 +1154,14 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
         httpStatus: 503,
       });
+    },
+    listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),
+    async checkFavorite(descriptor) {
+      return { favorite: await favoriteRepository.isFavorite(descriptor) };
+    },
+    async setFavorite(descriptor, favorite) {
+      const item = await favoriteRepository.setFavorite(descriptor, favorite);
+      return { favorite, ...(item !== undefined ? { item } : {}) };
     },
     listZones: () => ({
       zones: [{ zoneId: fixtureZoneId, displayName: 'Synthetic Zone', selected: selectedZoneId === fixtureZoneId }],

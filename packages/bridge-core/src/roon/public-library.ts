@@ -19,7 +19,12 @@ const MAX_REFERENCES = 4096;
 
 export interface RoonPublicLibrary {
   browseAlbums(request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
+  browseArtists(request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
+  browseGenres(request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
+  browsePlaylists(request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
   browseAlbum(reference: string, request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
+  browseArtist(reference: string, request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
+  searchLibrary(query: string, request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
   getImage(reference: string, options?: PublicRoonImageOptions): Promise<{
     contentType: string;
     body: Uint8Array;
@@ -168,6 +173,16 @@ export function createRoonPublicLibrary(
     return stored.descriptor;
   };
 
+  const resolveArtist = (reference: string): RoonEntityDescriptor => {
+    const stored = references.get(reference);
+    if (!stored || stored.descriptor.kind !== 'artist') {
+      throw new BridgeError('ROON_LIBRARY_INVALID_REFERENCE', 'Roon artist reference is invalid', {
+        httpStatus: 400,
+      });
+    }
+    return stored.descriptor;
+  };
+
   return {
     async browseAlbums(request) {
       try {
@@ -176,10 +191,55 @@ export function createRoonPublicLibrary(
         return wrapLibraryError(error);
       }
     },
+    async browseArtists(request) {
+      try {
+        return mapPage(await service().browseArtists(request), request, references, imageReferences);
+      } catch (error) {
+        return wrapLibraryError(error);
+      }
+    },
+    async browseGenres(request) {
+      try {
+        return mapPage(await service().browseGenres(request), request, references, imageReferences);
+      } catch (error) {
+        return wrapLibraryError(error);
+      }
+    },
+    async browsePlaylists(request) {
+      try {
+        return mapPage(await service().browsePlaylists(request), request, references, imageReferences);
+      } catch (error) {
+        return wrapLibraryError(error);
+      }
+    },
     async browseAlbum(reference, request) {
       try {
         return mapPage(
           await service().browseAlbum(resolveAlbum(reference), request),
+          request,
+          references,
+          imageReferences,
+        );
+      } catch (error) {
+        return wrapLibraryError(error);
+      }
+    },
+    async browseArtist(reference, request) {
+      try {
+        return mapPage(
+          await service().browseArtist(resolveArtist(reference), request),
+          request,
+          references,
+          imageReferences,
+        );
+      } catch (error) {
+        return wrapLibraryError(error);
+      }
+    },
+    async searchLibrary(query, request) {
+      try {
+        return mapPage(
+          await service().searchLibrary(query, request),
           request,
           references,
           imageReferences,

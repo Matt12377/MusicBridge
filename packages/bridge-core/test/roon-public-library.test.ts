@@ -113,3 +113,53 @@ test('Roon public library resolves a Track reference for typed play and queue on
     { kind: 'queue', zone: 'zone-1', itemKey: 'track:1' },
   ]);
 });
+
+test('Roon public library exposes typed artist, genre, playlist and search pages', async () => {
+  const publicLibrary = createRoonPublicLibrary(() => ({
+    browseAlbums: async () => ({ items: [], offset: 0, level: 0 }),
+    browseArtists: async () => ({
+      items: [{ kind: 'artist', title: 'Artist', itemKey: 'artist:1' }],
+      offset: 0,
+      level: 0,
+    }),
+    browseGenres: async () => ({
+      items: [{ kind: 'genre', title: 'Genre', itemKey: 'genre:1' }],
+      offset: 0,
+      level: 0,
+    }),
+    browsePlaylists: async () => ({
+      items: [{ kind: 'playlist', title: 'Playlist', itemKey: 'playlist:1' }],
+      offset: 0,
+      level: 0,
+    }),
+    browseAlbum: async () => ({ items: [], offset: 0, level: 0 }),
+    browseArtist: async () => ({
+      items: [{ kind: 'album', title: 'Artist Album', itemKey: 'album:artist-1' }],
+      offset: 0,
+      level: 0,
+    }),
+    searchLibrary: async () => ({
+      items: [{ kind: 'track', title: 'Search Track', itemKey: 'track:search-1' }],
+      offset: 0,
+      level: 0,
+    }),
+    getImage: async () => ({ contentType: 'image/jpeg', body: Buffer.from('') }),
+    playTrack: async () => undefined,
+    queueTrack: async () => undefined,
+  }));
+
+  const artists = await publicLibrary.browseArtists({ offset: 0, limit: 20 });
+  const genres = await publicLibrary.browseGenres({ offset: 0, limit: 20 });
+  const playlists = await publicLibrary.browsePlaylists({ offset: 0, limit: 20 });
+  const artist = artists.items[0];
+  assert.ok(artist);
+  const artistAlbums = await publicLibrary.browseArtist(artist.reference, { offset: 0, limit: 20 });
+  const search = await publicLibrary.searchLibrary('search', { offset: 0, limit: 20 });
+
+  assert.deepEqual(
+    [genres.items[0]?.kind, playlists.items[0]?.kind, artistAlbums.items[0]?.kind, search.items[0]?.kind],
+    ['genre', 'playlist', 'album', 'track'],
+  );
+  assert.match(artistAlbums.items[0]?.reference ?? '', /^musicbridge-v2-entity-/u);
+  assert.match(search.items[0]?.reference ?? '', /^musicbridge-v2-entity-/u);
+});

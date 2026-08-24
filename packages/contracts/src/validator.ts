@@ -53,6 +53,7 @@ import type {
   DiagnosticGateResult,
   DiagnosticTimelineEvent,
 } from './diagnostics.js';
+import type { FavoriteEntityDescriptor, FavoriteKind, FavoriteRecord } from './favorites.js';
 
 export type ValidationResult<T> =
   | { ok: true; value: T }
@@ -105,6 +106,8 @@ const MAX_LYRICS_TOTAL_TEXT_LENGTH = 256 * 1024;
 const MAX_ACCOUNT_DISPLAY_NAME_LENGTH = 80;
 const MAX_RECOMMENDATION_TRACKS = 50;
 const MAX_RECOMMENDATION_REASON_LENGTH = 120;
+const FAVORITE_KINDS: readonly FavoriteKind[] = ['track', 'album', 'artist'];
+const MAX_FAVORITE_TEXT_LENGTH = 512;
 
 function isPageRequest(value: unknown): value is PageRequest {
   return (
@@ -129,6 +132,41 @@ function isLibrarySearchPayload(value: unknown): value is { query: string; page:
     value.query.trim().length > 0 &&
     isPageRequest(value.page)
   );
+}
+
+function isFavoriteDescriptor(value: unknown): value is FavoriteEntityDescriptor {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, ['kind', 'title', 'subtitle', 'artist', 'album', 'durationMs', 'trackNumber', 'discNumber', 'year', 'version']) ||
+    !FAVORITE_KINDS.includes(value.kind as FavoriteKind) ||
+    !safeString(value.title, MAX_FAVORITE_TEXT_LENGTH)
+  ) return false;
+  for (const key of ['subtitle', 'artist', 'album', 'version'] as const) {
+    if (value[key] !== undefined && !safeString(value[key], MAX_FAVORITE_TEXT_LENGTH)) return false;
+  }
+  if (
+    value.durationMs !== undefined &&
+    (typeof value.durationMs !== 'number' || !Number.isSafeInteger(value.durationMs) || value.durationMs < 0 || value.durationMs > 24 * 60 * 60 * 1000)
+  ) return false;
+  for (const key of ['trackNumber', 'discNumber', 'year'] as const) {
+    if (value[key] !== undefined && (typeof value[key] !== 'number' || !Number.isSafeInteger(value[key]) || value[key] < 0 || value[key] > 9999)) return false;
+  }
+  return true;
+}
+
+function isFavoriteListPayload(value: unknown): value is { kind?: FavoriteKind; page: PageRequest } {
+  return isRecord(value) && hasOnlyKeys(value, ['kind', 'page']) &&
+    (value.kind === undefined || FAVORITE_KINDS.includes(value.kind as FavoriteKind)) &&
+    isPageRequest(value.page);
+}
+
+function isFavoriteCheckPayload(value: unknown): value is { descriptor: FavoriteEntityDescriptor } {
+  return isRecord(value) && hasOnlyKeys(value, ['descriptor']) && isFavoriteDescriptor(value.descriptor);
+}
+
+function isFavoriteSetPayload(value: unknown): value is { descriptor: FavoriteEntityDescriptor; favorite: boolean } {
+  return isRecord(value) && hasOnlyKeys(value, ['descriptor', 'favorite']) &&
+    isFavoriteDescriptor(value.descriptor) && typeof value.favorite === 'boolean';
 }
 
 function isLibraryPagePayload(value: unknown): value is { page: PageRequest } {
@@ -637,8 +675,18 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'library.search') return isLibrarySearchPayload(payload);
   if (command === 'library.liked') return isLibraryPagePayload(payload);
   if (command === 'library.playlist') return isLibraryPlaylistPayload(payload);
+  if (command === 'favorites.list') return isFavoriteListPayload(payload);
+  if (command === 'favorites.check') return isFavoriteCheckPayload(payload);
+  if (command === 'favorites.set') return isFavoriteSetPayload(payload);
   if (command === 'roon.library.albums') return isLibraryPagePayload(payload);
+  if (
+    command === 'roon.library.artists' ||
+    command === 'roon.library.genres' ||
+    command === 'roon.library.playlists'
+  ) return isLibraryPagePayload(payload);
   if (command === 'roon.library.album') return isRoonAlbumPayload(payload);
+  if (command === 'roon.library.artist') return isRoonAlbumPayload(payload);
+  if (command === 'roon.library.search') return isLibrarySearchPayload(payload);
   if (command === 'roon.library.image') return isRoonImagePayload(payload);
   if (command === 'roon.library.play' || command === 'roon.library.queue') {
     return isRoonTrackActionPayload(payload);
@@ -923,6 +971,29 @@ function isRoonImageResult(value: unknown): boolean {
   );
 }
 
+function isFavoriteRecord(value: unknown): value is FavoriteRecord {
+  if (!isRecord(value) || !hasOnlyKeys(value, [
+    'favoriteId', 'kind', 'title', 'subtitle', 'artist', 'album',
+    'durationMs', 'trackNumber', 'discNumber', 'year', 'version', 'createdAt', 'updatedAt',
+  ])) return false;
+  const { favoriteId, createdAt, updatedAt, ...descriptor } = value;
+  return safeString(favoriteId, 128) &&
+    /^[0-9a-f-]{36}$/u.test(favoriteId) &&
+    typeof createdAt === 'number' && Number.isSafeInteger(createdAt) && createdAt >= 0 &&
+    typeof updatedAt === 'number' && Number.isSafeInteger(updatedAt) && updatedAt >= createdAt &&
+    isFavoriteDescriptor(descriptor);
+}
+
+function isFavoritePage(value: unknown): boolean {
+  return isRecord(value) &&
+    hasOnlyKeys(value, ['items', 'offset', 'limit', 'total', 'hasMore']) &&
+    isPageRequest({ offset: value.offset, limit: value.limit }) &&
+    Array.isArray(value.items) && value.items.length <= MAX_PAGE_LIMIT &&
+    value.items.every((item) => isFavoriteRecord(item)) &&
+    typeof value.total === 'number' && Number.isSafeInteger(value.total) && value.total >= 0 && value.total <= MAX_PAGE_OFFSET &&
+    typeof value.hasMore === 'boolean';
+}
+
 function isZoneListResult(value: unknown): boolean {
   return (
     isRecord(value) &&
@@ -973,6 +1044,14 @@ function isCommandResult(
       return isPublicAccountState(value);
     case 'library.dailyRecommendations':
       return isDailyRecommendationsSnapshot(value);
+    case 'favorites.list':
+      return isFavoritePage(value);
+    case 'favorites.check':
+      return isRecord(value) && hasOnlyKeys(value, ['favorite']) && typeof value.favorite === 'boolean';
+    case 'favorites.set':
+      return isRecord(value) && hasOnlyKeys(value, ['favorite', 'item']) &&
+        typeof value.favorite === 'boolean' &&
+        (value.item === undefined || isFavoriteRecord(value.item));
     case 'lyrics.get':
       return isLyricsSnapshot(value);
     case 'core.shutdown':
@@ -980,7 +1059,12 @@ function isCommandResult(
     case 'roon.listZones':
       return isZoneListResult(value);
     case 'roon.library.albums':
+    case 'roon.library.artists':
+    case 'roon.library.genres':
+    case 'roon.library.playlists':
     case 'roon.library.album':
+    case 'roon.library.artist':
+    case 'roon.library.search':
       return isRoonLibraryPage(value);
     case 'roon.library.image':
       return isRoonImageResult(value);

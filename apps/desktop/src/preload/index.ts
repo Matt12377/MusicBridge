@@ -66,11 +66,22 @@ contextBridge.exposeInMainWorld(
       return () => ipcRenderer.removeListener('remote-core:event', handler)
     },
     (page: { offset: number; limit: number }) => ipcRenderer.invoke('roon:library:albums', page),
+    (page: { offset: number; limit: number }) => ipcRenderer.invoke('roon:library:artists', page),
+    (page: { offset: number; limit: number }) => ipcRenderer.invoke('roon:library:genres', page),
+    (page: { offset: number; limit: number }) => ipcRenderer.invoke('roon:library:playlists', page),
     (reference: string, page: { offset: number; limit: number }) =>
       ipcRenderer.invoke('roon:library:album', reference, page),
+    (reference: string, page: { offset: number; limit: number }) =>
+      ipcRenderer.invoke('roon:library:artist', reference, page),
+    (query: string, page: { offset: number; limit: number }) =>
+      ipcRenderer.invoke('roon:library:search', query, page),
     (reference: string, options?: { scale?: 'fit' | 'fill' | 'stretch'; width?: number; height?: number; format?: 'image/jpeg' | 'image/png' }) =>
       ipcRenderer.invoke('roon:library:image', reference, options),
     (reference: string, zoneId: string) => ipcRenderer.invoke('roon:library:play', reference, zoneId),
     (reference: string, zoneId: string) => ipcRenderer.invoke('roon:library:queue', reference, zoneId),
+    (kind: 'track' | 'album' | 'artist' | undefined, page: { offset: number; limit: number }) =>
+      ipcRenderer.invoke('favorites:list', kind, page),
+    (descriptor) => ipcRenderer.invoke('favorites:check', descriptor),
+    (descriptor, favorite) => ipcRenderer.invoke('favorites:set', descriptor, favorite),
   ),
 )

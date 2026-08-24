@@ -6,6 +6,8 @@ import type {
   Page,
   PageRequest,
   DailyRecommendationsSnapshot,
+  FavoriteKind,
+  FavoritePage,
   PlaybackQualityPreference,
   PlaybackQueueRequestItem,
   PlaybackQueueItem,
@@ -31,6 +33,8 @@ import SettingsView from './components/settings/SettingsView.vue'
 import PlaybackInspector from './components/inspector/PlaybackInspector.vue'
 import TrackTable from './components/media/TrackTable.vue'
 import RoonAlbumGrid from './components/RoonAlbumGrid.vue'
+import RoonEntityGrid from './components/RoonEntityGrid.vue'
+import FavoriteEntityGrid from './components/FavoriteEntityGrid.vue'
 import RoonAlbumDetail from './components/RoonAlbumDetail.vue'
 import MusicSidebar from './components/sidebar/MusicSidebar.vue'
 import ToolbarStatusPopover from './components/ToolbarStatusPopover.vue'
@@ -57,6 +61,8 @@ const VIEW_LABELS: Record<ViewId, string> = {
   playlists: '所有歌单',
   'playlist-detail': '歌单详情',
   'roon-albums': '本地音乐库',
+  'roon-favorites': '本地收藏',
+  'roon-artist-detail': '艺术家详情',
   'roon-album-detail': '专辑详情',
   'now-playing': '正在播放',
   queue: '队列',
@@ -65,6 +71,10 @@ const VIEW_LABELS: Record<ViewId, string> = {
 }
 
 function emptyPage<T>(limit = LIBRARY_PAGE_SIZE): Page<T> {
+  return { items: [], offset: 0, limit, total: 0, hasMore: false }
+}
+
+function emptyFavoritePage(limit = LIBRARY_PAGE_SIZE): FavoritePage {
   return { items: [], offset: 0, limit, total: 0, hasMore: false }
 }
 
@@ -132,12 +142,40 @@ const roonAlbumsInitialLoading = ref(false)
 const roonAlbumsLoadingMore = ref(false)
 const roonAlbumsLoadMoreError = ref<string | null>(null)
 const roonAlbumsError = ref<string | null>(null)
+const roonArtistsPage = ref<RoonLibraryPage>(emptyRoonPage())
+const roonArtistsInitialLoading = ref(false)
+const roonArtistsLoadingMore = ref(false)
+const roonArtistsLoadMoreError = ref<string | null>(null)
+const roonArtistsError = ref<string | null>(null)
+const roonGenresPage = ref<RoonLibraryPage>(emptyRoonPage())
+const roonGenresInitialLoading = ref(false)
+const roonGenresLoadingMore = ref(false)
+const roonGenresLoadMoreError = ref<string | null>(null)
+const roonGenresError = ref<string | null>(null)
+const roonPlaylistsPage = ref<RoonLibraryPage>(emptyRoonPage())
+const roonPlaylistsInitialLoading = ref(false)
+const roonPlaylistsLoadingMore = ref(false)
+const roonPlaylistsLoadMoreError = ref<string | null>(null)
+const roonPlaylistsError = ref<string | null>(null)
+const activeRoonCollection = ref<'albums' | 'artists' | 'genres' | 'playlists'>('albums')
+const favoriteKind = ref<FavoriteKind>('track')
+const favoritesPage = ref<FavoritePage>(emptyFavoritePage())
+const favoritesInitialLoading = ref(false)
+const favoritesLoadingMore = ref(false)
+const favoritesLoadMoreError = ref<string | null>(null)
+const favoritesError = ref<string | null>(null)
 const selectedRoonAlbum = ref<RoonLibraryItem | null>(null)
 const selectedRoonAlbumPage = ref<RoonLibraryPage>(emptyRoonPage())
 const roonAlbumInitialLoading = ref(false)
 const roonAlbumLoadingMore = ref(false)
 const roonAlbumLoadMoreError = ref<string | null>(null)
 const roonAlbumError = ref<string | null>(null)
+const selectedRoonArtist = ref<RoonLibraryItem | null>(null)
+const selectedRoonArtistPage = ref<RoonLibraryPage>(emptyRoonPage())
+const roonArtistInitialLoading = ref(false)
+const roonArtistLoadingMore = ref(false)
+const roonArtistLoadMoreError = ref<string | null>(null)
+const roonArtistError = ref<string | null>(null)
 const homePlaylistTracks = ref<readonly TrackSummary[]>([])
 const recentTracks = ref<readonly TrackSummary[]>([])
 const homeRecommendationState = ref<HomeRecommendationState>('loading')
@@ -170,7 +208,12 @@ let searchRequestGeneration = 0
 let likedRequestGeneration = 0
 let playlistRequestGeneration = 0
 let roonAlbumsRequestGeneration = 0
+let roonArtistsRequestGeneration = 0
+let roonGenresRequestGeneration = 0
+let roonPlaylistsRequestGeneration = 0
+let favoritesRequestGeneration = 0
 let roonAlbumRequestGeneration = 0
+let roonArtistRequestGeneration = 0
 
 const currentTrack = computed(() => playbackState.value?.currentTrack)
 const ambientTrack = computed(() => playbackState.value?.state === 'playing' ? currentTrack.value : undefined)
@@ -229,6 +272,10 @@ function navigate(view: ViewId): void {
     sidebar.setActiveSource({ type: 'roon-albums' })
     if (!roonAlbumsPage.value.items.length && !roonAlbumsInitialLoading.value) void loadRoonAlbums()
   }
+  if (view === 'roon-favorites') {
+    sidebar.setActiveSource({ type: 'roon-favorites' })
+    if (!favoritesInitialLoading.value && !favoritesPage.value.items.length) void loadFavorites()
+  }
   if (view === 'home') {
     sidebar.setActiveSource({ type: 'home' })
   }
@@ -251,9 +298,16 @@ function viewForSource(source: SidebarSource): ViewId {
     case 'playlist':
       return 'playlist-detail'
     case 'roon-albums':
+    case 'roon-artists':
+    case 'roon-genres':
+    case 'roon-playlists':
       return 'roon-albums'
+    case 'roon-favorites':
+      return 'roon-favorites'
     case 'roon-album':
       return 'roon-album-detail'
+    case 'roon-artist':
+      return 'roon-artist-detail'
   }
 }
 
@@ -265,10 +319,25 @@ function navigateSource(source: SidebarSource): void {
   sidebar.setActiveSource(source)
   navigate(viewForSource(source))
   if (source.type === 'playlist') void loadPlaylist(source.playlistId)
-  if (source.type === 'roon-albums' && !roonAlbumsInitialLoading.value && (!roonAlbumsPage.value.items.length || roonAlbumsError.value)) {
-    void loadRoonAlbums()
+  if (source.type === 'roon-albums') {
+    activeRoonCollection.value = 'albums'
+    if (!roonAlbumsInitialLoading.value && (!roonAlbumsPage.value.items.length || roonAlbumsError.value)) void loadRoonAlbums()
   }
+  if (source.type === 'roon-artists') {
+    activeRoonCollection.value = 'artists'
+    if (!roonArtistsInitialLoading.value && (!roonArtistsPage.value.items.length || roonArtistsError.value)) void loadRoonArtists()
+  }
+  if (source.type === 'roon-genres') {
+    activeRoonCollection.value = 'genres'
+    if (!roonGenresInitialLoading.value && (!roonGenresPage.value.items.length || roonGenresError.value)) void loadRoonGenres()
+  }
+  if (source.type === 'roon-playlists') {
+    activeRoonCollection.value = 'playlists'
+    if (!roonPlaylistsInitialLoading.value && (!roonPlaylistsPage.value.items.length || roonPlaylistsError.value)) void loadRoonPlaylists()
+  }
+  if (source.type === 'roon-favorites') void loadFavorites()
   if (source.type === 'roon-album') void loadRoonAlbum(source.reference)
+  if (source.type === 'roon-artist') void loadRoonArtist(source.reference)
 }
 
 function clearSearch(): void {
@@ -434,6 +503,102 @@ async function loadRoonAlbums(page: PageRequest = { offset: 0, limit: 24 }): Pro
   }
 }
 
+async function loadRoonArtists(page: PageRequest = { offset: 0, limit: 24 }): Promise<void> {
+  const initial = page.offset === 0
+  if (initial) {
+    roonArtistsRequestGeneration += 1
+    roonArtistsInitialLoading.value = true
+    roonArtistsLoadMoreError.value = null
+    roonArtistsError.value = null
+  } else {
+    if (roonArtistsLoadingMore.value) return
+    roonArtistsLoadingMore.value = true
+    roonArtistsLoadMoreError.value = null
+  }
+  const generation = roonArtistsRequestGeneration
+  try {
+    const result = await window.musicBridge.listRoonArtists(page)
+    if (generation !== roonArtistsRequestGeneration) return
+    roonArtistsPage.value = initial ? result : appendRoonPage(roonArtistsPage.value, result)
+    roonArtistsInitialLoading.value = false
+    roonArtistsLoadingMore.value = false
+    roonArtistsError.value = null
+  } catch (error) {
+    if (generation !== roonArtistsRequestGeneration) return
+    if (initial) {
+      roonArtistsInitialLoading.value = false
+      roonArtistsError.value = roonLibraryMessage(error)
+    } else {
+      roonArtistsLoadingMore.value = false
+      roonArtistsLoadMoreError.value = '加载失败，点击重试'
+    }
+  }
+}
+
+async function loadRoonGenres(page: PageRequest = { offset: 0, limit: 24 }): Promise<void> {
+  const initial = page.offset === 0
+  if (initial) {
+    roonGenresRequestGeneration += 1
+    roonGenresInitialLoading.value = true
+    roonGenresLoadMoreError.value = null
+    roonGenresError.value = null
+  } else {
+    if (roonGenresLoadingMore.value) return
+    roonGenresLoadingMore.value = true
+    roonGenresLoadMoreError.value = null
+  }
+  const generation = roonGenresRequestGeneration
+  try {
+    const result = await window.musicBridge.listRoonGenres(page)
+    if (generation !== roonGenresRequestGeneration) return
+    roonGenresPage.value = initial ? result : appendRoonPage(roonGenresPage.value, result)
+    roonGenresInitialLoading.value = false
+    roonGenresLoadingMore.value = false
+    roonGenresError.value = null
+  } catch (error) {
+    if (generation !== roonGenresRequestGeneration) return
+    if (initial) {
+      roonGenresInitialLoading.value = false
+      roonGenresError.value = roonLibraryMessage(error)
+    } else {
+      roonGenresLoadingMore.value = false
+      roonGenresLoadMoreError.value = '加载失败，点击重试'
+    }
+  }
+}
+
+async function loadRoonPlaylists(page: PageRequest = { offset: 0, limit: 24 }): Promise<void> {
+  const initial = page.offset === 0
+  if (initial) {
+    roonPlaylistsRequestGeneration += 1
+    roonPlaylistsInitialLoading.value = true
+    roonPlaylistsLoadMoreError.value = null
+    roonPlaylistsError.value = null
+  } else {
+    if (roonPlaylistsLoadingMore.value) return
+    roonPlaylistsLoadingMore.value = true
+    roonPlaylistsLoadMoreError.value = null
+  }
+  const generation = roonPlaylistsRequestGeneration
+  try {
+    const result = await window.musicBridge.listRoonPlaylists(page)
+    if (generation !== roonPlaylistsRequestGeneration) return
+    roonPlaylistsPage.value = initial ? result : appendRoonPage(roonPlaylistsPage.value, result)
+    roonPlaylistsInitialLoading.value = false
+    roonPlaylistsLoadingMore.value = false
+    roonPlaylistsError.value = null
+  } catch (error) {
+    if (generation !== roonPlaylistsRequestGeneration) return
+    if (initial) {
+      roonPlaylistsInitialLoading.value = false
+      roonPlaylistsError.value = roonLibraryMessage(error)
+    } else {
+      roonPlaylistsLoadingMore.value = false
+      roonPlaylistsLoadMoreError.value = '加载失败，点击重试'
+    }
+  }
+}
+
 async function loadRoonAlbum(
   reference: string,
   page: PageRequest = { offset: 0, limit: 24 },
@@ -474,8 +639,60 @@ async function loadRoonAlbum(
   }
 }
 
+async function loadRoonArtist(
+  reference: string,
+  page: PageRequest = { offset: 0, limit: 24 },
+): Promise<void> {
+  const artist = roonArtistsPage.value.items.find((item) => item.reference === reference)
+  if (artist && artist.kind === 'artist') selectedRoonArtist.value = artist
+  const initial = page.offset === 0
+  if (initial) {
+    roonArtistRequestGeneration += 1
+    roonArtistInitialLoading.value = true
+    roonArtistLoadMoreError.value = null
+    roonArtistError.value = null
+    selectedRoonArtistPage.value = emptyRoonPage(page.limit)
+  } else {
+    if (roonArtistLoadingMore.value) return
+    roonArtistLoadingMore.value = true
+    roonArtistLoadMoreError.value = null
+  }
+  const generation = roonArtistRequestGeneration
+  try {
+    const result = await window.musicBridge.getRoonArtistAlbums(reference, page)
+    if (generation !== roonArtistRequestGeneration) return
+    selectedRoonArtistPage.value = initial ? result : appendRoonPage(selectedRoonArtistPage.value, result)
+    roonArtistInitialLoading.value = false
+    roonArtistLoadingMore.value = false
+    roonArtistError.value = null
+    currentView.value = 'roon-artist-detail'
+    sidebar.setActiveSource({ type: 'roon-artist', reference })
+  } catch (error) {
+    if (generation !== roonArtistRequestGeneration) return
+    if (initial) {
+      roonArtistInitialLoading.value = false
+      roonArtistError.value = roonLibraryMessage(error)
+    } else {
+      roonArtistLoadingMore.value = false
+      roonArtistLoadMoreError.value = '加载失败，点击重试'
+    }
+  }
+}
+
 function roonAlbumsPageAt(offset: number): void {
   void loadRoonAlbums({ offset, limit: roonAlbumsPage.value.limit })
+}
+
+function roonArtistsPageAt(offset: number): void {
+  void loadRoonArtists({ offset, limit: roonArtistsPage.value.limit })
+}
+
+function roonGenresPageAt(offset: number): void {
+  void loadRoonGenres({ offset, limit: roonGenresPage.value.limit })
+}
+
+function roonPlaylistsPageAt(offset: number): void {
+  void loadRoonPlaylists({ offset, limit: roonPlaylistsPage.value.limit })
 }
 
 function roonAlbumPageAt(offset: number): void {
@@ -483,8 +700,80 @@ function roonAlbumPageAt(offset: number): void {
   if (album) void loadRoonAlbum(album.reference, { offset, limit: selectedRoonAlbumPage.value.limit })
 }
 
+function roonArtistPageAt(offset: number): void {
+  const artist = selectedRoonArtist.value
+  if (artist) void loadRoonArtist(artist.reference, { offset, limit: selectedRoonArtistPage.value.limit })
+}
+
 function retryRoonAlbums(): void {
   void loadRoonAlbums()
+}
+
+function retryRoonArtists(): void {
+  void loadRoonArtists()
+}
+
+function retryRoonGenres(): void {
+  void loadRoonGenres()
+}
+
+function retryRoonPlaylists(): void {
+  void loadRoonPlaylists()
+}
+
+async function loadFavorites(
+  kind: FavoriteKind = favoriteKind.value,
+  page: PageRequest = { offset: 0, limit: LIBRARY_PAGE_SIZE },
+): Promise<void> {
+  const initial = page.offset === 0
+  if (initial) {
+    favoriteKind.value = kind
+    favoritesRequestGeneration += 1
+    favoritesInitialLoading.value = true
+    favoritesLoadMoreError.value = null
+    favoritesError.value = null
+    favoritesPage.value = emptyFavoritePage(page.limit)
+  } else {
+    if (favoritesLoadingMore.value || kind !== favoriteKind.value) return
+    favoritesLoadingMore.value = true
+    favoritesLoadMoreError.value = null
+  }
+  const generation = favoritesRequestGeneration
+  try {
+    const result = await window.musicBridge.listFavorites(kind, page)
+    if (generation !== favoritesRequestGeneration || kind !== favoriteKind.value) return
+    favoritesPage.value = initial ? result : {
+      ...result,
+      items: [...favoritesPage.value.items, ...result.items.filter((item) => !favoritesPage.value.items.some((existing) => existing.favoriteId === item.favoriteId))],
+    }
+    favoritesInitialLoading.value = false
+    favoritesLoadingMore.value = false
+    favoritesError.value = null
+    currentView.value = 'roon-favorites'
+    sidebar.setActiveSource({ type: 'roon-favorites' })
+  } catch (error) {
+    if (generation !== favoritesRequestGeneration || kind !== favoriteKind.value) return
+    if (initial) {
+      favoritesInitialLoading.value = false
+      favoritesError.value = roonLibraryMessage(error)
+    } else {
+      favoritesLoadingMore.value = false
+      favoritesLoadMoreError.value = '加载失败，点击重试'
+    }
+  }
+}
+
+function setFavoriteKind(kind: FavoriteKind): void {
+  if (favoriteKind.value === kind && favoritesPage.value.items.length) return
+  void loadFavorites(kind)
+}
+
+function favoritesPageAt(offset: number): void {
+  void loadFavorites(favoriteKind.value, { offset, limit: favoritesPage.value.limit })
+}
+
+function retryFavorites(): void {
+  void loadFavorites(favoriteKind.value)
 }
 
 function retryRoonAlbum(): void {
@@ -1435,9 +1724,16 @@ onUnmounted(() => {
 
         <section v-else-if="currentView === 'roon-albums'" class="view" aria-labelledby="roon-albums-heading">
           <div class="view-heading">
-            <div><p class="section-kicker">本地音乐库</p><h2 id="roon-albums-heading">Roon 专辑</h2><p class="lede">只显示 Roon Library 中的真实专辑，不扫描本地文件系统。</p></div>
+            <div><p class="section-kicker">本地音乐库</p><h2 id="roon-albums-heading">Roon {{ activeRoonCollection === 'albums' ? '专辑' : activeRoonCollection === 'artists' ? '艺术家' : activeRoonCollection === 'genres' ? '流派' : '歌单' }}</h2><p class="lede">只显示 Roon Library 中的真实条目，不扫描本地文件系统。</p></div>
+          </div>
+          <div class="button-row roon-library-tabs" role="tablist" aria-label="Roon 本地库分类">
+            <button type="button" class="secondary-button" :class="{ 'is-selected': activeRoonCollection === 'albums' }" role="tab" :aria-selected="activeRoonCollection === 'albums'" @click="navigateSource({ type: 'roon-albums' })">专辑</button>
+            <button type="button" class="secondary-button" :class="{ 'is-selected': activeRoonCollection === 'artists' }" role="tab" :aria-selected="activeRoonCollection === 'artists'" @click="navigateSource({ type: 'roon-artists' })">艺术家</button>
+            <button type="button" class="secondary-button" :class="{ 'is-selected': activeRoonCollection === 'genres' }" role="tab" :aria-selected="activeRoonCollection === 'genres'" @click="navigateSource({ type: 'roon-genres' })">流派</button>
+            <button type="button" class="secondary-button" :class="{ 'is-selected': activeRoonCollection === 'playlists' }" role="tab" :aria-selected="activeRoonCollection === 'playlists'" @click="navigateSource({ type: 'roon-playlists' })">歌单</button>
           </div>
           <RoonAlbumGrid
+            v-if="activeRoonCollection === 'albums'"
             :page="roonAlbumsPage"
             :initial-loading="roonAlbumsInitialLoading"
             :loading-more="roonAlbumsLoadingMore"
@@ -1446,6 +1742,80 @@ onUnmounted(() => {
             @select="navigateSource({ type: 'roon-album', reference: $event.reference })"
             @retry="retryRoonAlbums"
             @load-more="roonAlbumsPageAt(roonAlbumsPage.offset + roonAlbumsPage.limit)"
+          />
+          <RoonEntityGrid
+            v-else-if="activeRoonCollection === 'artists'"
+            :page="roonArtistsPage"
+            entity-label="艺术家"
+            empty-title="还没有可显示的艺术家"
+            empty-copy="请确认 Roon Core 已配对，并且 Library 中存在艺术家。"
+            :initial-loading="roonArtistsInitialLoading"
+            :loading-more="roonArtistsLoadingMore"
+            :load-more-error="roonArtistsLoadMoreError"
+            :error="roonArtistsError"
+            @select="navigateSource({ type: 'roon-artist', reference: $event.reference })"
+            @retry="retryRoonArtists"
+            @load-more="roonArtistsPageAt(roonArtistsPage.offset + roonArtistsPage.limit)"
+          />
+          <RoonEntityGrid
+            v-else-if="activeRoonCollection === 'genres'"
+            :page="roonGenresPage"
+            entity-label="流派"
+            empty-title="还没有可显示的流派"
+            empty-copy="请确认 Roon Core 已配对，并且 Library 中存在流派。"
+            :initial-loading="roonGenresInitialLoading"
+            :loading-more="roonGenresLoadingMore"
+            :load-more-error="roonGenresLoadMoreError"
+            :error="roonGenresError"
+            @retry="retryRoonGenres"
+            @load-more="roonGenresPageAt(roonGenresPage.offset + roonGenresPage.limit)"
+          />
+          <RoonEntityGrid
+            v-else
+            :page="roonPlaylistsPage"
+            entity-label="歌单"
+            empty-title="还没有可显示的 Roon 歌单"
+            empty-copy="请确认 Roon Core 已配对，并且 Library 中存在歌单。"
+            :initial-loading="roonPlaylistsInitialLoading"
+            :loading-more="roonPlaylistsLoadingMore"
+            :load-more-error="roonPlaylistsLoadMoreError"
+            :error="roonPlaylistsError"
+            @retry="retryRoonPlaylists"
+            @load-more="roonPlaylistsPageAt(roonPlaylistsPage.offset + roonPlaylistsPage.limit)"
+          />
+        </section>
+
+        <section v-else-if="currentView === 'roon-favorites'" class="view" aria-labelledby="roon-favorites-heading">
+          <div class="view-heading"><div><p class="section-kicker">本地音乐库</p><h2 id="roon-favorites-heading">收藏</h2><p class="lede">收藏关系由 MusicBridge 本地保存，不会删除或移动 Roon Library 媒体。</p></div></div>
+          <div class="button-row roon-library-tabs" role="tablist" aria-label="本地收藏分类">
+            <button type="button" class="secondary-button" :class="{ 'is-selected': favoriteKind === 'track' }" role="tab" :aria-selected="favoriteKind === 'track'" @click="setFavoriteKind('track')">喜欢的歌曲</button>
+            <button type="button" class="secondary-button" :class="{ 'is-selected': favoriteKind === 'album' }" role="tab" :aria-selected="favoriteKind === 'album'" @click="setFavoriteKind('album')">喜欢的专辑</button>
+            <button type="button" class="secondary-button" :class="{ 'is-selected': favoriteKind === 'artist' }" role="tab" :aria-selected="favoriteKind === 'artist'" @click="setFavoriteKind('artist')">喜欢的艺术家</button>
+          </div>
+          <FavoriteEntityGrid
+            :page="favoritesPage"
+            :kind="favoriteKind"
+            :initial-loading="favoritesInitialLoading"
+            :loading-more="favoritesLoadingMore"
+            :load-more-error="favoritesLoadMoreError"
+            :error="favoritesError"
+            @retry="retryFavorites"
+            @load-more="favoritesPageAt(favoritesPage.offset + favoritesPage.limit)"
+          />
+        </section>
+
+        <section v-else-if="currentView === 'roon-artist-detail' && selectedRoonArtist" class="view" aria-labelledby="roon-artist-heading">
+          <button type="button" class="back-link" @click="navigateSource({ type: 'roon-artists' })">← 艺术家</button>
+          <div class="view-heading"><div><p class="section-kicker">Roon 艺术家</p><h2 id="roon-artist-heading">{{ selectedRoonArtist.title }}</h2><p class="lede">只显示该艺术家在 Roon Library 中的真实专辑。</p></div></div>
+          <RoonAlbumGrid
+            :page="selectedRoonArtistPage"
+            :initial-loading="roonArtistInitialLoading"
+            :loading-more="roonArtistLoadingMore"
+            :load-more-error="roonArtistLoadMoreError"
+            :error="roonArtistError"
+            @select="navigateSource({ type: 'roon-album', reference: $event.reference })"
+            @retry="loadRoonArtist(selectedRoonArtist.reference)"
+            @load-more="roonArtistPageAt(selectedRoonArtistPage.offset + selectedRoonArtistPage.limit)"
           />
         </section>
 

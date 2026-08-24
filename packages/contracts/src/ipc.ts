@@ -26,6 +26,12 @@ import type {
   PublicRoonZone,
 } from './state.js';
 import type { DiagnosticComponentSnapshot } from './diagnostics.js';
+import type {
+  FavoriteEntityDescriptor,
+  FavoriteKind,
+  FavoritePage,
+  FavoriteRecord,
+} from './favorites.js';
 
 export const IPC_VERSION = 1 as const;
 
@@ -50,11 +56,19 @@ export const IPC_COMMANDS = [
   'library.playlists',
   'library.playlist',
   'library.dailyRecommendations',
+  'favorites.list',
+  'favorites.check',
+  'favorites.set',
   'lyrics.get',
   'roon.listZones',
   'roon.selectZone',
   'roon.library.albums',
+  'roon.library.artists',
+  'roon.library.genres',
+  'roon.library.playlists',
   'roon.library.album',
+  'roon.library.artist',
+  'roon.library.search',
   'roon.library.image',
   'roon.library.play',
   'roon.library.queue',
@@ -132,11 +146,19 @@ export interface IpcCommandPayloads {
   'library.playlists': Record<string, never>;
   'library.playlist': { playlistId: string; page: PageRequest };
   'library.dailyRecommendations': Record<string, never>;
+  'favorites.list': { kind?: FavoriteKind; page: PageRequest };
+  'favorites.check': { descriptor: FavoriteEntityDescriptor };
+  'favorites.set': { descriptor: FavoriteEntityDescriptor; favorite: boolean };
   'lyrics.get': { trackId: string };
   'roon.listZones': Record<string, never>;
   'roon.selectZone': { zoneId: string };
   'roon.library.albums': { page: PageRequest };
+  'roon.library.artists': { page: PageRequest };
+  'roon.library.genres': { page: PageRequest };
+  'roon.library.playlists': { page: PageRequest };
   'roon.library.album': { reference: string; page: PageRequest };
+  'roon.library.artist': { reference: string; page: PageRequest };
+  'roon.library.search': { query: string; page: PageRequest };
   'roon.library.image': { reference: string; options?: RoonImageOptions };
   'roon.library.play': { reference: string; zoneId: string };
   'roon.library.queue': { reference: string; zoneId: string };
@@ -171,11 +193,19 @@ export interface IpcCommandResults {
   'library.playlists': readonly PlaylistSummary[];
   'library.playlist': PlaylistDetail;
   'library.dailyRecommendations': DailyRecommendationsSnapshot;
+  'favorites.list': FavoritePage;
+  'favorites.check': { favorite: boolean };
+  'favorites.set': { favorite: boolean; item?: FavoriteRecord };
   'lyrics.get': LyricsSnapshot;
   'roon.listZones': { zones: readonly PublicRoonZone[] };
   'roon.selectZone': PublicBridgeState;
   'roon.library.albums': RoonLibraryPage;
+  'roon.library.artists': RoonLibraryPage;
+  'roon.library.genres': RoonLibraryPage;
+  'roon.library.playlists': RoonLibraryPage;
   'roon.library.album': RoonLibraryPage;
+  'roon.library.artist': RoonLibraryPage;
+  'roon.library.search': RoonLibraryPage;
   'roon.library.image': RoonImageResult;
   'roon.library.play': { started: true };
   'roon.library.queue': { queued: true };

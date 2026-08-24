@@ -16,6 +16,10 @@ import type {
   RoonLibraryPage,
   RemoteCoreTunnelState,
   DailyRecommendationsSnapshot,
+  FavoriteEntityDescriptor,
+  FavoriteKind,
+  FavoritePage,
+  FavoriteRecord,
   TrackSummary,
   TypedIpcEvent,
 } from '@music-bridge/contracts'
@@ -54,10 +58,18 @@ export interface MusicBridgePublicApi {
   getUserPlaylists: () => Promise<readonly PlaylistSummary[]>
   getPlaylist: (playlistId: string, page: PageRequest) => Promise<PlaylistDetail>
   getDailyRecommendations: () => Promise<DailyRecommendationsSnapshot>
+  listFavorites: (kind: FavoriteKind | undefined, page: PageRequest) => Promise<FavoritePage>
+  checkFavorite: (descriptor: FavoriteEntityDescriptor) => Promise<{ favorite: boolean }>
+  setFavorite: (descriptor: FavoriteEntityDescriptor, favorite: boolean) => Promise<{ favorite: boolean; item?: FavoriteRecord }>
   listZones: () => Promise<{ zones: readonly PublicRoonZone[] }>
   selectZone: (zoneId: string) => Promise<PublicBridgeState>
   listRoonAlbums: (page: PageRequest) => Promise<RoonLibraryPage>
+  listRoonArtists: (page: PageRequest) => Promise<RoonLibraryPage>
+  listRoonGenres: (page: PageRequest) => Promise<RoonLibraryPage>
+  listRoonPlaylists: (page: PageRequest) => Promise<RoonLibraryPage>
   getRoonAlbumTracks: (reference: string, page: PageRequest) => Promise<RoonLibraryPage>
+  getRoonArtistAlbums: (reference: string, page: PageRequest) => Promise<RoonLibraryPage>
+  searchRoonLibrary: (query: string, page: PageRequest) => Promise<RoonLibraryPage>
   getRoonImage: (reference: string, options?: RoonImageOptions) => Promise<RoonImageResult>
   playRoonTrack: (reference: string, zoneId: string) => Promise<{ started: true }>
   queueRoonTrack: (reference: string, zoneId: string) => Promise<{ queued: true }>
@@ -97,10 +109,18 @@ export const PUBLIC_API_KEYS = [
   'getUserPlaylists',
   'getPlaylist',
   'getDailyRecommendations',
+  'listFavorites',
+  'checkFavorite',
+  'setFavorite',
   'listZones',
   'selectZone',
   'listRoonAlbums',
+  'listRoonArtists',
+  'listRoonGenres',
+  'listRoonPlaylists',
   'getRoonAlbumTracks',
+  'getRoonArtistAlbums',
+  'searchRoonLibrary',
   'getRoonImage',
   'playRoonTrack',
   'queueRoonTrack',
@@ -163,7 +183,22 @@ export function createPreloadApi(
   listRoonAlbums: (_page: PageRequest) => Promise<RoonLibraryPage> = async () => {
     throw new Error('Roon Library API is unavailable')
   },
+  listRoonArtists: (_page: PageRequest) => Promise<RoonLibraryPage> = async () => {
+    throw new Error('Roon Library API is unavailable')
+  },
+  listRoonGenres: (_page: PageRequest) => Promise<RoonLibraryPage> = async () => {
+    throw new Error('Roon Library API is unavailable')
+  },
+  listRoonPlaylists: (_page: PageRequest) => Promise<RoonLibraryPage> = async () => {
+    throw new Error('Roon Library API is unavailable')
+  },
   getRoonAlbumTracks: (_reference: string, _page: PageRequest) => Promise<RoonLibraryPage> = async () => {
+    throw new Error('Roon Library API is unavailable')
+  },
+  getRoonArtistAlbums: (_reference: string, _page: PageRequest) => Promise<RoonLibraryPage> = async () => {
+    throw new Error('Roon Library API is unavailable')
+  },
+  searchRoonLibrary: (_query: string, _page: PageRequest) => Promise<RoonLibraryPage> = async () => {
     throw new Error('Roon Library API is unavailable')
   },
   getRoonImage: (_reference: string, _options?: RoonImageOptions) => Promise<RoonImageResult> = async () => {
@@ -174,6 +209,15 @@ export function createPreloadApi(
   },
   queueRoonTrack: (_reference: string, _zoneId: string) => Promise<{ queued: true }> = async () => {
     throw new Error('Roon Library API is unavailable')
+  },
+  listFavorites: (_kind: FavoriteKind | undefined, _page: PageRequest) => Promise<FavoritePage> = async () => {
+    throw new Error('Local favorites API is unavailable')
+  },
+  checkFavorite: (_descriptor: FavoriteEntityDescriptor) => Promise<{ favorite: boolean }> = async () => {
+    throw new Error('Local favorites API is unavailable')
+  },
+  setFavorite: (_descriptor: FavoriteEntityDescriptor, _favorite: boolean) => Promise<{ favorite: boolean; item?: FavoriteRecord }> = async () => {
+    throw new Error('Local favorites API is unavailable')
   },
 ): MusicBridgePublicApi {
   return Object.freeze({
@@ -194,10 +238,18 @@ export function createPreloadApi(
     getUserPlaylists,
     getPlaylist,
     getDailyRecommendations,
+    listFavorites,
+    checkFavorite,
+    setFavorite,
     listZones,
     selectZone,
     listRoonAlbums,
+    listRoonArtists,
+    listRoonGenres,
+    listRoonPlaylists,
     getRoonAlbumTracks,
+    getRoonArtistAlbums,
+    searchRoonLibrary,
     getRoonImage,
     playRoonTrack,
     queueRoonTrack,

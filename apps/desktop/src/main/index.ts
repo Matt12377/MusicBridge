@@ -22,6 +22,8 @@ import type {
   PublicErrorCode,
   RemoteCoreMode,
   RemoteCoreTunnelState,
+  FavoriteEntityDescriptor,
+  FavoriteKind,
   RoonImageOptions,
   TypedIpcEvent,
 } from '@music-bridge/contracts'
@@ -455,6 +457,85 @@ function requireLibraryPage(value: unknown): PageRequest {
   return { offset: page.offset, limit: page.limit }
 }
 
+function requireFavoriteKind(value: unknown): FavoriteKind | undefined {
+  if (value === undefined) return undefined
+  if (value !== 'track' && value !== 'album' && value !== 'artist') {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid favorite kind')
+  }
+  return value
+}
+
+function requireFavoriteDescriptor(value: unknown): FavoriteEntityDescriptor {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid favorite descriptor')
+  }
+  const descriptor = value as Record<string, unknown>
+  const allowedKeys = new Set([
+    'kind',
+    'title',
+    'subtitle',
+    'artist',
+    'album',
+    'durationMs',
+    'trackNumber',
+    'discNumber',
+    'year',
+    'version',
+  ])
+  if (Object.keys(descriptor).some((key) => !allowedKeys.has(key))) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid favorite descriptor')
+  }
+  const kind = requireFavoriteKind(descriptor.kind)
+  const title = descriptor.title
+  if (
+    kind === undefined ||
+    typeof title !== 'string' ||
+    title.trim().length === 0 ||
+    title.length > 512
+  ) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid favorite descriptor')
+  }
+  for (const key of ['subtitle', 'artist', 'album', 'version'] as const) {
+    const field = descriptor[key]
+    if (field !== undefined && (typeof field !== 'string' || field.length > 512)) {
+      return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid favorite descriptor')
+    }
+  }
+  for (const key of ['durationMs', 'trackNumber', 'discNumber', 'year'] as const) {
+    const field = descriptor[key]
+    if (
+      field !== undefined &&
+      (typeof field !== 'number' || !Number.isSafeInteger(field) || field < 0)
+    ) {
+      return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid favorite descriptor')
+    }
+  }
+  const optionalText = (key: 'subtitle' | 'artist' | 'album' | 'version'): string | undefined =>
+    typeof descriptor[key] === 'string' ? descriptor[key] as string : undefined
+  const optionalNumber = (key: 'durationMs' | 'trackNumber' | 'discNumber' | 'year'): number | undefined =>
+    typeof descriptor[key] === 'number' ? descriptor[key] as number : undefined
+  const subtitle = optionalText('subtitle')
+  const artist = optionalText('artist')
+  const album = optionalText('album')
+  const version = optionalText('version')
+  const durationMs = optionalNumber('durationMs')
+  const trackNumber = optionalNumber('trackNumber')
+  const discNumber = optionalNumber('discNumber')
+  const year = optionalNumber('year')
+  return {
+    kind,
+    title,
+    ...(subtitle !== undefined ? { subtitle } : {}),
+    ...(artist !== undefined ? { artist } : {}),
+    ...(album !== undefined ? { album } : {}),
+    ...(durationMs !== undefined ? { durationMs } : {}),
+    ...(trackNumber !== undefined ? { trackNumber } : {}),
+    ...(discNumber !== undefined ? { discNumber } : {}),
+    ...(year !== undefined ? { year } : {}),
+    ...(version !== undefined ? { version } : {}),
+  }
+}
+
 function requireSearchQuery(value: unknown): string {
   if (typeof value !== 'string') {
     return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid search query')
@@ -734,6 +815,31 @@ function registerIpcHandlers(
   ipcMain.handle('library:daily-recommendations', (event) =>
     invokeCore(event, () => supervisor.request('library.dailyRecommendations', {})),
   )
+  ipcMain.handle('favorites:list', (event, kind: unknown, page: unknown) =>
+    invokeCore(event, () => {
+      const favoriteKind = requireFavoriteKind(kind)
+      return supervisor.request('favorites.list', {
+        ...(favoriteKind !== undefined ? { kind: favoriteKind } : {}),
+        page: requireLibraryPage(page),
+      })
+    }),
+  )
+  ipcMain.handle('favorites:check', (event, descriptor: unknown) =>
+    invokeCore(event, () => supervisor.request('favorites.check', {
+      descriptor: requireFavoriteDescriptor(descriptor),
+    })),
+  )
+  ipcMain.handle('favorites:set', (event, descriptor: unknown, favorite: unknown) =>
+    invokeCore(event, () => {
+      if (typeof favorite !== 'boolean') {
+        return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid favorite state')
+      }
+      return supervisor.request('favorites.set', {
+        descriptor: requireFavoriteDescriptor(descriptor),
+        favorite,
+      })
+    }),
+  )
   ipcMain.handle('roon:list-zones', (event) =>
     invokeCore(event, () => supervisor.request('roon.listZones', {})),
   )
@@ -747,10 +853,41 @@ function registerIpcHandlers(
       supervisor.request('roon.library.albums', { page: requireLibraryPage(page) }),
     ),
   )
+  ipcMain.handle('roon:library:artists', (event, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.artists', { page: requireLibraryPage(page) }),
+    ),
+  )
+  ipcMain.handle('roon:library:genres', (event, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.genres', { page: requireLibraryPage(page) }),
+    ),
+  )
+  ipcMain.handle('roon:library:playlists', (event, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.playlists', { page: requireLibraryPage(page) }),
+    ),
+  )
   ipcMain.handle('roon:library:album', (event, reference: unknown, page: unknown) =>
     invokeCore(event, () =>
       supervisor.request('roon.library.album', {
         reference: requireRoonReference(reference),
+        page: requireLibraryPage(page),
+      }),
+    ),
+  )
+  ipcMain.handle('roon:library:artist', (event, reference: unknown, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.artist', {
+        reference: requireRoonReference(reference),
+        page: requireLibraryPage(page),
+      }),
+    ),
+  )
+  ipcMain.handle('roon:library:search', (event, query: unknown, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.search', {
+        query: requireSearchQuery(query),
         page: requireLibraryPage(page),
       }),
     ),

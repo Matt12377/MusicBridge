@@ -158,6 +158,20 @@ async function dispatch(
       );
     case 'library.dailyRecommendations':
       return runtime.getDailyRecommendations();
+    case 'favorites.list':
+      return runtime.listFavorites(
+        (request.payload as { kind?: Parameters<CoreRuntimeForIpc['listFavorites']>[0] }).kind,
+        (request.payload as { page: Parameters<CoreRuntimeForIpc['listFavorites']>[1] }).page,
+      );
+    case 'favorites.check':
+      return runtime.checkFavorite(
+        (request.payload as { descriptor: Parameters<CoreRuntimeForIpc['checkFavorite']>[0] }).descriptor,
+      );
+    case 'favorites.set':
+      return runtime.setFavorite(
+        (request.payload as { descriptor: Parameters<CoreRuntimeForIpc['setFavorite']>[0] }).descriptor,
+        (request.payload as { favorite: boolean }).favorite,
+      );
     case 'lyrics.get':
       return runtime.getLyrics((request.payload as { trackId: string }).trackId);
     case 'roon.listZones':
@@ -168,9 +182,31 @@ async function dispatch(
       return runtime.browseRoonAlbums(
         (request.payload as { page: { offset: number; limit: number } }).page,
       );
+    case 'roon.library.artists':
+      return runtime.browseRoonArtists(
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'roon.library.genres':
+      return runtime.browseRoonGenres(
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'roon.library.playlists':
+      return runtime.browseRoonPlaylists(
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
     case 'roon.library.album':
       return runtime.browseRoonAlbum(
         (request.payload as { reference: string }).reference,
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'roon.library.artist':
+      return runtime.browseRoonArtist(
+        (request.payload as { reference: string }).reference,
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'roon.library.search':
+      return runtime.searchRoonLibrary(
+        (request.payload as { query: string }).query,
         (request.payload as { page: { offset: number; limit: number } }).page,
       );
     case 'roon.library.image':
