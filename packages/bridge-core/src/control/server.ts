@@ -37,6 +37,7 @@ export interface ControlRoonController {
   getRoonImage(reference: string, options?: RoonImageOptions): Promise<RoonImageResult>;
   playRoonTrack?(reference: string, zoneId: string): Promise<{ started: true }>;
   queueRoonTrack?(reference: string, zoneId: string): Promise<{ queued: true }>;
+  seekRoonTransport?(positionMs: number): Promise<{ positionMs: number }>;
   stopRoonTransport?(): Promise<{ stopped: true }>;
 }
 
@@ -112,6 +113,13 @@ function readZoneId(value: unknown): string {
     throw invalidRoonRequest();
   }
   return value;
+}
+
+function readPositionMs(value: unknown): number {
+  if (!Number.isSafeInteger(value) || (value as number) < 0 || (value as number) > 24 * 60 * 60 * 1_000) {
+    throw invalidRoonRequest();
+  }
+  return value as number;
 }
 
 function readReferenceFromBody(body: Record<string, unknown>): string {
@@ -314,6 +322,13 @@ export class ControlServer {
         if (!this.options.roon?.queueRoonTrack) throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Roon playback is not ready', { httpStatus: 503 });
         const body = await readJsonBody(request);
         sendJson(response, 200, { ok: true, ...(await this.options.roon.queueRoonTrack(readReferenceFromBody(body), readZoneId(body.zoneId))) });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/roon/seek') {
+        if (!this.options.roon?.seekRoonTransport) throw new BridgeError('ROON_TRANSPORT_UNAVAILABLE', 'Roon seek is not ready', { httpStatus: 503 });
+        const body = await readJsonBody(request);
+        sendJson(response, 200, { ok: true, ...(await this.options.roon.seekRoonTransport(readPositionMs(body.positionMs))) });
         return;
       }
 

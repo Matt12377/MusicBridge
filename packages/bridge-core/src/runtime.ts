@@ -289,6 +289,16 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
         await controller.appendRoon({ reference, zoneId, track: roonLibrary.getTrackSummary(reference) });
         return { queued: true as const };
       },
+      async seekRoonTransport(positionMs) {
+        if (!roon.seek) {
+          throw new BridgeError('ROON_TRANSPORT_UNAVAILABLE', 'Roon seek is not available', {
+            httpStatus: 409,
+          });
+        }
+        await roon.seek(positionMs);
+        lyrics.updateRoonTime(positionMs);
+        return { positionMs };
+      },
       async stopRoonTransport() {
         await controller.stopRoonTransport();
         return { stopped: true as const };

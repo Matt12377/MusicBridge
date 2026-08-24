@@ -81,6 +81,7 @@ function makeController() {
 }
 
 function makeRoonController() {
+  const seekPositions: number[] = [];
   const page: RoonLibraryPage = {
     items: [{ reference: 'album-ref', kind: 'album', title: 'Album' }],
     offset: 0,
@@ -93,6 +94,7 @@ function makeRoonController() {
     body: new Uint8Array([1, 2, 3]),
   };
   return {
+    seekPositions,
     listZones: () => [{ zoneId: 'zone-1', displayName: 'Zone', selected: false }],
     selectZone: async (_zoneId: string) => ({
       runtime: 'ready' as const,
@@ -104,6 +106,10 @@ function makeRoonController() {
     browseRoonAlbums: async (_page: { offset: number; limit: number }) => page,
     browseRoonAlbum: async (_reference: string, _page: { offset: number; limit: number }) => page,
     getRoonImage: async (_reference: string) => image,
+    seekRoonTransport: async (positionMs: number) => {
+      seekPositions.push(positionMs);
+      return { positionMs };
+    },
   };
 }
 
@@ -207,6 +213,37 @@ test('Control API exposes typed read-only Roon browse, zones and image routes', 
       contentType: 'image/jpeg',
       bodyBase64: 'AQID',
     });
+
+    const roon = makeRoonController();
+    const seekServer = new ControlServer({
+      host: '127.0.0.1',
+      port: 0,
+      defaultQuality: 'standard',
+      controller,
+      roon,
+      logger,
+    });
+    await seekServer.start();
+    try {
+      const seek = await request(seekServer, '/v1/roon/seek', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ positionMs: 12_345 }),
+      });
+      assert.equal(seek.status, 200);
+      assert.deepEqual(await seek.json(), { ok: true, positionMs: 12_345 });
+      assert.deepEqual(roon.seekPositions, [12_345]);
+
+      const invalidSeek = await request(seekServer, '/v1/roon/seek', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ positionMs: -1 }),
+      });
+      assert.equal(invalidSeek.status, 400);
+      assert.deepEqual(roon.seekPositions, [12_345]);
+    } finally {
+      await seekServer.stop();
+    }
   } finally {
     await server.stop();
   }
