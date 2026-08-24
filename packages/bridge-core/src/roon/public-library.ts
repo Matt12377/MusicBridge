@@ -24,6 +24,8 @@ export interface RoonPublicLibrary {
     contentType: string;
     body: Uint8Array;
   }>;
+  playTrack(reference: string, zoneOrOutputId: string): Promise<void>;
+  queueTrack(reference: string, zoneOrOutputId: string): Promise<void>;
 }
 
 interface DescriptorReference {
@@ -156,6 +158,16 @@ export function createRoonPublicLibrary(
     return stored.descriptor;
   };
 
+  const resolveTrack = (reference: string): RoonEntityDescriptor => {
+    const stored = references.get(reference);
+    if (!stored || stored.descriptor.kind !== 'track') {
+      throw new BridgeError('ROON_LIBRARY_INVALID_REFERENCE', 'Roon track reference is invalid', {
+        httpStatus: 400,
+      });
+    }
+    return stored.descriptor;
+  };
+
   return {
     async browseAlbums(request) {
       try {
@@ -189,6 +201,20 @@ export function createRoonPublicLibrary(
           contentType: result.contentType,
           body: new Uint8Array(result.body),
         };
+      } catch (error) {
+        return wrapLibraryError(error);
+      }
+    },
+    async playTrack(reference, zoneOrOutputId) {
+      try {
+        await service().playTrack(resolveTrack(reference), zoneOrOutputId);
+      } catch (error) {
+        return wrapLibraryError(error);
+      }
+    },
+    async queueTrack(reference, zoneOrOutputId) {
+      try {
+        await service().queueTrack(resolveTrack(reference), zoneOrOutputId);
       } catch (error) {
         return wrapLibraryError(error);
       }

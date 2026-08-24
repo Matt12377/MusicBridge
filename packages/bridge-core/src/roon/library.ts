@@ -90,6 +90,8 @@ export interface RoonLibraryService {
     request: RoonPageRequest,
   ): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
   getImage(imageKey: string, options?: RoonImageOptions): Promise<RoonImageResult>;
+  playTrack(track: RoonEntityDescriptor, zoneOrOutputId: string): Promise<void>;
+  queueTrack(track: RoonEntityDescriptor, zoneOrOutputId: string): Promise<void>;
 }
 
 export interface RoonPageRequest {
@@ -122,6 +124,7 @@ interface BrowseItemRecord {
 
 interface BrowseResponse {
   list: BrowseList;
+  action?: string;
 }
 
 interface LoadResponse {
@@ -185,7 +188,11 @@ function readBrowseResponse(value: unknown): BrowseResponse {
     );
   }
   const count = readSafeInteger(list?.count);
-  return { list: { level, ...(count !== undefined ? { count } : {}) } };
+  const action = readString(body ?? {}, 'action');
+  return {
+    list: { level, ...(count !== undefined ? { count } : {}) },
+    ...(action !== undefined ? { action } : {}),
+  };
 }
 
 function readLoadResponse(value: unknown): LoadResponse {
@@ -309,6 +316,80 @@ export function createRoonLibraryService(dependencies: {
     };
   };
 
+  const runTrackAction = async (
+    track: RoonEntityDescriptor,
+    zoneOrOutputId: string,
+    kind: 'play' | 'queue',
+  ): Promise<void> => {
+    if (!track.itemKey) {
+      throw new RoonLibraryError(
+        'ROON_LIBRARY_RESPONSE_INVALID',
+        'Roon track has no item key',
+      );
+    }
+    if (zoneOrOutputId.trim().length === 0 || zoneOrOutputId.length > 128) {
+      throw new RoonLibraryError('ROON_LIBRARY_INVALID_PAGE', 'Roon Zone reference is invalid');
+    }
+
+    const hierarchy = 'albums';
+    const multiSessionKey = sessionKeyFor(hierarchy);
+    const browseResponse = readBrowseResponse(await requestBrowse('browse', {
+      hierarchy,
+      multi_session_key: multiSessionKey,
+      item_key: track.itemKey,
+    }));
+    if (browseResponse.action !== 'list') {
+      throw new RoonLibraryError(
+        'ROON_LIBRARY_RESPONSE_INVALID',
+        'Roon track action list is unavailable',
+      );
+    }
+    const actionList = readLoadResponse(await requestBrowse('load', {
+      hierarchy,
+      multi_session_key: multiSessionKey,
+      level: browseResponse.list.level,
+      offset: 0,
+      count: 32,
+    }));
+    const actionItem = actionList.items
+      .map((item) => asRecord(item))
+      .find((item) => {
+        if (!item) return false;
+        try {
+          authorizeRoonAction(item, { kind, allowMutation: true });
+          return true;
+        } catch {
+          return false;
+        }
+      });
+    if (!actionItem) {
+      throw new RoonLibraryError(
+        'ROON_LIBRARY_RESPONSE_INVALID',
+        `Roon ${kind} action is unavailable`,
+      );
+    }
+    const authorization = authorizeRoonAction(actionItem, { kind, allowMutation: true });
+    const result = asRecord(await requestBrowse('browse', {
+      hierarchy,
+      multi_session_key: multiSessionKey,
+      item_key: authorization.itemKey,
+      zone_or_output_id: zoneOrOutputId,
+    }));
+    const resultAction = readString(result ?? {}, 'action');
+    if (!resultAction) {
+      throw new RoonLibraryError(
+        'ROON_LIBRARY_RESPONSE_INVALID',
+        `Roon ${kind} action response is invalid`,
+      );
+    }
+    if (resultAction === 'message') {
+      throw new RoonLibraryError(
+        'ROON_LIBRARY_REQUEST_FAILED',
+        `Roon ${kind} action returned a message`,
+      );
+    }
+  };
+
   return {
     browseAlbums: (request) => pageFor('albums', 'album', request),
     browseArtists: (request) => pageFor('artists', 'artist', request),
@@ -385,5 +466,7 @@ export function createRoonLibraryService(dependencies: {
         });
       });
     },
+    playTrack: (track, zoneOrOutputId) => runTrackAction(track, zoneOrOutputId, 'play'),
+    queueTrack: (track, zoneOrOutputId) => runTrackAction(track, zoneOrOutputId, 'queue'),
   };
 }

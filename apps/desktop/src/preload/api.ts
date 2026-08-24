@@ -59,6 +59,8 @@ export interface MusicBridgePublicApi {
   listRoonAlbums: (page: PageRequest) => Promise<RoonLibraryPage>
   getRoonAlbumTracks: (reference: string, page: PageRequest) => Promise<RoonLibraryPage>
   getRoonImage: (reference: string, options?: RoonImageOptions) => Promise<RoonImageResult>
+  playRoonTrack: (reference: string, zoneId: string) => Promise<{ started: true }>
+  queueRoonTrack: (reference: string, zoneId: string) => Promise<{ queued: true }>
   getLyrics: (trackId: string) => Promise<LyricsSnapshot>
   getPlaybackState: () => Promise<PlaybackSnapshot>
   play: (trackId: string, quality: PlaybackQualityPreference) => Promise<PlaybackSnapshot>
@@ -100,6 +102,8 @@ export const PUBLIC_API_KEYS = [
   'listRoonAlbums',
   'getRoonAlbumTracks',
   'getRoonImage',
+  'playRoonTrack',
+  'queueRoonTrack',
   'getLyrics',
   'getPlaybackState',
   'play',
@@ -165,6 +169,12 @@ export function createPreloadApi(
   getRoonImage: (_reference: string, _options?: RoonImageOptions) => Promise<RoonImageResult> = async () => {
     throw new Error('Roon Library API is unavailable')
   },
+  playRoonTrack: (_reference: string, _zoneId: string) => Promise<{ started: true }> = async () => {
+    throw new Error('Roon Library API is unavailable')
+  },
+  queueRoonTrack: (_reference: string, _zoneId: string) => Promise<{ queued: true }> = async () => {
+    throw new Error('Roon Library API is unavailable')
+  },
 ): MusicBridgePublicApi {
   return Object.freeze({
     getAppInfo,
@@ -189,6 +199,8 @@ export function createPreloadApi(
     listRoonAlbums,
     getRoonAlbumTracks,
     getRoonImage,
+    playRoonTrack,
+    queueRoonTrack,
     getLyrics,
     getPlaybackState,
     play,

@@ -70,5 +70,7 @@ contextBridge.exposeInMainWorld(
       ipcRenderer.invoke('roon:library:album', reference, page),
     (reference: string, options?: { scale?: 'fit' | 'fill' | 'stretch'; width?: number; height?: number; format?: 'image/jpeg' | 'image/png' }) =>
       ipcRenderer.invoke('roon:library:image', reference, options),
+    (reference: string, zoneId: string) => ipcRenderer.invoke('roon:library:play', reference, zoneId),
+    (reference: string, zoneId: string) => ipcRenderer.invoke('roon:library:queue', reference, zoneId),
   ),
 )

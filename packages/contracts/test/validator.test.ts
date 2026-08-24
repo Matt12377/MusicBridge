@@ -484,6 +484,36 @@ test('contracts validates the opaque Roon Library browse and image seams', () =>
     true,
   );
   assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'roon-play',
+      command: 'roon.library.play',
+      payload: {
+        reference: albumItem.reference,
+        zoneId: 'zone-1',
+      },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcResponseForCommand({
+      version: IPC_VERSION,
+      id: 'roon-play',
+      ok: true,
+      result: { started: true },
+    }, 'roon.library.play').ok,
+    true,
+  );
+  assert.equal(
+    validateIpcResponseForCommand({
+      version: IPC_VERSION,
+      id: 'roon-queue',
+      ok: true,
+      result: { queued: true, rawAction: 'Delete from Library' },
+    }, 'roon.library.queue').ok,
+    false,
+  );
+  assert.equal(
     validateIpcResponseForCommand({
       version: IPC_VERSION,
       id: 'roon-image',

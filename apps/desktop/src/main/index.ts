@@ -492,6 +492,14 @@ function requireRoonReference(value: unknown): string {
   return value
 }
 
+function requireRoonEntityReference(value: unknown): string {
+  const reference = requireRoonReference(value)
+  if (!reference.startsWith('musicbridge-v2-entity-')) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid Roon entity reference')
+  }
+  return reference
+}
+
 function requireRoonImageOptions(value: unknown): RoonImageOptions | undefined {
   if (value === undefined) return undefined
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -755,6 +763,22 @@ function registerIpcHandlers(
         ...(imageOptions !== undefined ? { options: imageOptions } : {}),
       })
     }),
+  )
+  ipcMain.handle('roon:library:play', (event, reference: unknown, zoneId: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.play', {
+        reference: requireRoonEntityReference(reference),
+        zoneId: requireZoneId(zoneId),
+      }),
+    ),
+  )
+  ipcMain.handle('roon:library:queue', (event, reference: unknown, zoneId: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.queue', {
+        reference: requireRoonEntityReference(reference),
+        zoneId: requireZoneId(zoneId),
+      }),
+    ),
   )
   ipcMain.handle('lyrics:get', (event, trackId: unknown) =>
     invokeCore(event, () =>

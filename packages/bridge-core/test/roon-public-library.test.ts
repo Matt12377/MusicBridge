@@ -56,6 +56,8 @@ test('Roon public library rejects stale album and image references before Core c
     browseArtist: async () => ({ items: [], offset: 0, level: 0 }),
     searchLibrary: async () => ({ items: [], offset: 0, level: 0 }),
     getImage: async () => ({ contentType: 'image/jpeg', body: Buffer.from('') }),
+    playTrack: async () => undefined,
+    queueTrack: async () => undefined,
   }));
 
   await assert.rejects(
@@ -69,4 +71,45 @@ test('Roon public library rejects stale album and image references before Core c
       && (error as { code?: unknown }).code === 'ROON_LIBRARY_INVALID_REFERENCE',
   );
   assert.equal(browseCalls, 0);
+});
+
+test('Roon public library resolves a Track reference for typed play and queue only', async () => {
+  const actions: Array<{ kind: string; zone: string; itemKey: string }> = [];
+  const publicLibrary = createRoonPublicLibrary(() => ({
+    browseAlbums: async () => ({
+      items: [{ kind: 'album', title: 'Album', itemKey: 'album:1' }],
+      offset: 0,
+      level: 0,
+    }),
+    browseArtists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseGenres: async () => ({ items: [], offset: 0, level: 0 }),
+    browsePlaylists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseAlbum: async () => ({
+      items: [{ kind: 'track', title: 'Track', itemKey: 'track:1', hint: 'list' }],
+      offset: 0,
+      level: 1,
+    }),
+    browseArtist: async () => ({ items: [], offset: 0, level: 0 }),
+    searchLibrary: async () => ({ items: [], offset: 0, level: 0 }),
+    getImage: async () => ({ contentType: 'image/jpeg', body: Buffer.from('') }),
+    playTrack: async (track, zone) => {
+      actions.push({ kind: 'play', zone, itemKey: track.itemKey ?? '' });
+    },
+    queueTrack: async (track, zone) => {
+      actions.push({ kind: 'queue', zone, itemKey: track.itemKey ?? '' });
+    },
+  }));
+
+  const albums = await publicLibrary.browseAlbums({ offset: 0, limit: 20 });
+  const album = albums.items[0];
+  assert.ok(album);
+  const tracks = await publicLibrary.browseAlbum(album.reference, { offset: 0, limit: 20 });
+  const track = tracks.items[0];
+  assert.ok(track);
+  await publicLibrary.playTrack(track.reference, 'zone-1');
+  await publicLibrary.queueTrack(track.reference, 'zone-1');
+  assert.deepEqual(actions, [
+    { kind: 'play', zone: 'zone-1', itemKey: 'track:1' },
+    { kind: 'queue', zone: 'zone-1', itemKey: 'track:1' },
+  ]);
 });

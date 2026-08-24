@@ -56,6 +56,8 @@ export const IPC_COMMANDS = [
   'roon.library.albums',
   'roon.library.album',
   'roon.library.image',
+  'roon.library.play',
+  'roon.library.queue',
   'playback.getState',
   'playback.play',
   'playback.stop',
@@ -136,6 +138,8 @@ export interface IpcCommandPayloads {
   'roon.library.albums': { page: PageRequest };
   'roon.library.album': { reference: string; page: PageRequest };
   'roon.library.image': { reference: string; options?: RoonImageOptions };
+  'roon.library.play': { reference: string; zoneId: string };
+  'roon.library.queue': { reference: string; zoneId: string };
   'playback.getState': Record<string, never>;
   'playback.play': { trackId: string; qualityPreference: PlaybackQualityPreference };
   'playback.stop': Record<string, never>;
@@ -173,6 +177,8 @@ export interface IpcCommandResults {
   'roon.library.albums': RoonLibraryPage;
   'roon.library.album': RoonLibraryPage;
   'roon.library.image': RoonImageResult;
+  'roon.library.play': { started: true };
+  'roon.library.queue': { queued: true };
   'playback.getState': PlaybackSnapshot;
   'playback.play': PlaybackSnapshot;
   'playback.stop': PlaybackSnapshot;

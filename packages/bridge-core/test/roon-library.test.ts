@@ -178,3 +178,60 @@ test('RoonLibraryService 不会把未知 Browse hint 当作可进入层级执行
   );
   assert.equal(browseCalls, 0);
 });
+
+test('RoonLibraryService 只通过 typed Play/Queue action 播放或排队 Track', async () => {
+  const calls: Array<Record<string, unknown>> = [];
+  const browse: RoonBrowseApi = {
+    browse(options, callback) {
+      calls.push(options);
+      if (calls.length === 1) {
+        callback(false, { action: 'list', list: { level: 2, count: 3 } });
+        return;
+      }
+      callback(false, { action: 'none' });
+    },
+    load(options, callback) {
+      calls.push(options);
+      callback(false, {
+        offset: 0,
+        items: [
+          { title: 'Delete from Library', item_key: 'action:delete', hint: 'action' },
+          { title: 'Play Now', item_key: 'action:play', hint: 'action' },
+          { title: 'Add Next', item_key: 'action:queue', hint: 'action' },
+        ],
+      });
+    },
+  };
+  const service = createRoonLibraryService({
+    browse,
+    image: { get_image: () => undefined },
+  });
+  const track = { kind: 'track' as const, title: 'Private Track', itemKey: 'track:1', hint: 'list' };
+
+  await service.playTrack(track, 'zone:1');
+  assert.deepEqual(calls, [
+    {
+      hierarchy: 'albums',
+      multi_session_key: calls[0]?.multi_session_key,
+      item_key: 'track:1',
+    },
+    {
+      hierarchy: 'albums',
+      multi_session_key: calls[0]?.multi_session_key,
+      level: 2,
+      offset: 0,
+      count: 32,
+    },
+    {
+      hierarchy: 'albums',
+      multi_session_key: calls[0]?.multi_session_key,
+      item_key: 'action:play',
+      zone_or_output_id: 'zone:1',
+    },
+  ]);
+
+  calls.length = 0;
+  await service.queueTrack(track, 'zone:1');
+  assert.equal(calls[2]?.item_key, 'action:queue');
+  assert.equal(calls[2]?.zone_or_output_id, 'zone:1');
+});

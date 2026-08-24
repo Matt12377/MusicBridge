@@ -172,6 +172,16 @@ function isRoonImagePayload(value: unknown): value is { reference: string; optio
   );
 }
 
+function isRoonTrackActionPayload(value: unknown): value is { reference: string; zoneId: string } {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['reference', 'zoneId']) &&
+    safeString(value.reference, 128) &&
+    /^musicbridge-v2-entity-[0-9a-f-]{36}$/u.test(value.reference) &&
+    safeString(value.zoneId, 128)
+  );
+}
+
 function isLibraryPlaylistPayload(
   value: unknown,
 ): value is { playlistId: string; page: PageRequest } {
@@ -630,6 +640,9 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'roon.library.albums') return isLibraryPagePayload(payload);
   if (command === 'roon.library.album') return isRoonAlbumPayload(payload);
   if (command === 'roon.library.image') return isRoonImagePayload(payload);
+  if (command === 'roon.library.play' || command === 'roon.library.queue') {
+    return isRoonTrackActionPayload(payload);
+  }
   if (command === 'lyrics.get') return isLyricsPayload(payload);
   if (command === 'playback.play') return isPlaybackPlayPayload(payload);
   if (command === 'playback.replaceQueue') return isPlaybackReplaceQueuePayload(payload);
@@ -971,6 +984,10 @@ function isCommandResult(
       return isRoonLibraryPage(value);
     case 'roon.library.image':
       return isRoonImageResult(value);
+    case 'roon.library.play':
+      return isRecord(value) && hasOnlyKeys(value, ['started']) && value.started === true;
+    case 'roon.library.queue':
+      return isRecord(value) && hasOnlyKeys(value, ['queued']) && value.queued === true;
     case 'playback.getState':
     case 'playback.play':
     case 'playback.stop':

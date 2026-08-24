@@ -84,6 +84,8 @@ export interface CoreRuntime {
   browseRoonAlbums(page: PageRequest): Promise<RoonLibraryPage>;
   browseRoonAlbum(reference: string, page: PageRequest): Promise<RoonLibraryPage>;
   getRoonImage(reference: string, options?: RoonImageOptions): Promise<RoonImageResult>;
+  playRoonTrack(reference: string, zoneId: string): Promise<{ started: true }>;
+  queueRoonTrack(reference: string, zoneId: string): Promise<{ queued: true }>;
   listZones(): readonly PublicRoonZone[];
   selectZone(zoneId: string): Promise<PublicBridgeState>;
 }
@@ -681,6 +683,14 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     browseRoonAlbums: (page) => roonLibrary.browseAlbums(page),
     browseRoonAlbum: (reference, page) => roonLibrary.browseAlbum(reference, page),
     getRoonImage: (reference, options) => roonLibrary.getImage(reference, options),
+    async playRoonTrack(reference, zoneId) {
+      await roonLibrary.playTrack(reference, zoneId);
+      return { started: true as const };
+    },
+    async queueRoonTrack(reference, zoneId) {
+      await roonLibrary.queueTrack(reference, zoneId);
+      return { queued: true as const };
+    },
 
     listZones: () => roon.listZones().map((zone) => ({
       zoneId: zone.zone_id,
@@ -1076,6 +1086,16 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       });
     },
     async getRoonImage() {
+      throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
+        httpStatus: 503,
+      });
+    },
+    async playRoonTrack() {
+      throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
+        httpStatus: 503,
+      });
+    },
+    async queueRoonTrack() {
       throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
         httpStatus: 503,
       });

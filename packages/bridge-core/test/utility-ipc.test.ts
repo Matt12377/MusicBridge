@@ -227,6 +227,12 @@ function makeRuntime(): CoreRuntimeForIpc & {
     async getRoonImage() {
       return { contentType: 'image/jpeg', body: new Uint8Array() };
     },
+    async playRoonTrack() {
+      return { started: true as const };
+    },
+    async queueRoonTrack() {
+      return { queued: true as const };
+    },
   };
 }
 
@@ -514,6 +520,40 @@ test('utility IPC dispatches the opaque Roon Library browse/image seams', async 
   const response = port.messages[3] as { result?: { contentType?: string; body?: Uint8Array } };
   assert.equal(response.result?.contentType, 'image/jpeg');
   assert.deepEqual(response.result?.body, new Uint8Array());
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'roon-play',
+    command: 'roon.library.play',
+    payload: {
+      reference: 'musicbridge-v2-entity-123e4567-e89b-12d3-a456-426614174000',
+      zoneId: 'zone-1',
+    },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[4], {
+    version: IPC_VERSION,
+    id: 'roon-play',
+    ok: true,
+    result: { started: true },
+  });
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'roon-queue',
+    command: 'roon.library.queue',
+    payload: {
+      reference: 'musicbridge-v2-entity-123e4567-e89b-12d3-a456-426614174000',
+      zoneId: 'zone-1',
+    },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[5], {
+    version: IPC_VERSION,
+    id: 'roon-queue',
+    ok: true,
+    result: { queued: true },
+  });
 });
 
 test('utility IPC dispatches typed playback controls without exposing stream internals', async () => {

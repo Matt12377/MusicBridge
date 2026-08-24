@@ -178,6 +178,16 @@ async function dispatch(
         (request.payload as { reference: string }).reference,
         (request.payload as { options?: Parameters<CoreRuntimeForIpc['getRoonImage']>[1] }).options,
       );
+    case 'roon.library.play':
+      return runtime.playRoonTrack(
+        (request.payload as { reference: string }).reference,
+        (request.payload as { zoneId: string }).zoneId,
+      );
+    case 'roon.library.queue':
+      return runtime.queueRoonTrack(
+        (request.payload as { reference: string }).reference,
+        (request.payload as { zoneId: string }).zoneId,
+      );
     case 'playback.getState':
       return runtime.getPlaybackState();
     case 'playback.play':
