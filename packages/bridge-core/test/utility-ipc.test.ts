@@ -92,6 +92,8 @@ function makeRuntime(): CoreRuntimeForIpc & {
     canNext: false,
     canPrevious: false,
     canStop: false,
+    canPause: false,
+    canResume: false,
   };
   const diagnostics: DiagnosticComponentSnapshot = {
     component: 'core',
@@ -198,6 +200,12 @@ function makeRuntime(): CoreRuntimeForIpc & {
     },
     getPlaybackState: () => playbackState,
     async playbackPlay() {
+      return playbackState;
+    },
+    async playbackPause() {
+      return playbackState;
+    },
+    async playbackResume() {
       return playbackState;
     },
     async playbackStop() {
@@ -464,6 +472,8 @@ test('utility IPC dispatches typed playback controls without exposing stream int
   for (const [id, command, payload] of [
     ['playback-state', 'playback.getState', {}],
     ['playback-play', 'playback.play', { trackId: '101', qualityPreference: 'lossless' }],
+    ['playback-pause', 'playback.pause', {}],
+    ['playback-resume', 'playback.resume', {}],
     ['playback-stop', 'playback.stop', {}],
     ['playback-next', 'playback.next', {}],
     ['playback-previous', 'playback.previous', {}],

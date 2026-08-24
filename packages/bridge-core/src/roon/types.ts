@@ -5,13 +5,19 @@ export type RoonConnectionStatus =
   | 'paired'
   | 'ready'
   | 'playing'
+  | 'paused'
   | 'error';
+
+export type RoonTransportState = 'playing' | 'paused' | 'loading' | 'stopped';
 
 export interface RoonState {
   status: RoonConnectionStatus;
   coreName?: string;
   selectedZoneId?: string;
   selectedZoneName?: string;
+  transportState?: RoonTransportState;
+  canPause?: boolean;
+  canResume?: boolean;
   lastError?: string;
 }
 
@@ -43,6 +49,8 @@ export interface RoonPort {
   stop(): Promise<void>;
   shutdown(): Promise<void>;
   play(request: RoonPlayRequest): Promise<void>;
+  pause(): Promise<void>;
+  resume(): Promise<void>;
   getState(): RoonState;
   getDiagnosticResourceCounters?(): {
     activeSessionCount: number;

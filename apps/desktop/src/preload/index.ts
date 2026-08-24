@@ -34,6 +34,8 @@ contextBridge.exposeInMainWorld(
     (trackId: string) => ipcRenderer.invoke('lyrics:get', trackId),
     () => ipcRenderer.invoke('playback:get-state'),
     (trackId: string, qualityPreference: string) => ipcRenderer.invoke('playback:play', trackId, qualityPreference),
+    () => ipcRenderer.invoke('playback:pause'),
+    () => ipcRenderer.invoke('playback:resume'),
     () => ipcRenderer.invoke('playback:stop'),
     () => ipcRenderer.invoke('playback:next'),
     () => ipcRenderer.invoke('playback:previous'),

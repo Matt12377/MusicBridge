@@ -466,11 +466,15 @@ test('contracts validates bounded playback controls and sanitized snapshots', ()
     canNext: true,
     canPrevious: false,
     canStop: true,
+    canPause: true,
+    canResume: false,
   };
 
   for (const [id, command, payload] of [
     ['playback-get', 'playback.getState', {}],
     ['playback-play', 'playback.play', { trackId: '101', qualityPreference: 'lossless' }],
+    ['playback-pause', 'playback.pause', {}],
+    ['playback-resume', 'playback.resume', {}],
     ['playback-stop', 'playback.stop', {}],
     ['playback-next', 'playback.next', {}],
     ['playback-previous', 'playback.previous', {}],
@@ -494,6 +498,19 @@ test('contracts validates bounded playback controls and sanitized snapshots', ()
       true,
     );
   }
+
+  assert.equal(
+    validateIpcResponseForCommand(
+      {
+        version: IPC_VERSION,
+        id: 'playback-paused',
+        ok: true,
+        result: { ...snapshot, state: 'paused', canPause: false, canResume: true },
+      },
+      'playback.getState',
+    ).ok,
+    true,
+  );
 
   assert.equal(
     validateIpcRequest({

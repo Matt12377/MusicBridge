@@ -161,6 +161,10 @@ async function dispatch(
         (request.payload as { trackId: string }).trackId,
         (request.payload as { qualityPreference: Parameters<CoreRuntimeForIpc['playbackPlay']>[1] }).qualityPreference,
       );
+    case 'playback.pause':
+      return runtime.playbackPause();
+    case 'playback.resume':
+      return runtime.playbackResume();
     case 'playback.stop':
       return runtime.playbackStop();
     case 'playback.next':

@@ -56,6 +56,8 @@ export interface MusicBridgePublicApi {
   getLyrics: (trackId: string) => Promise<LyricsSnapshot>
   getPlaybackState: () => Promise<PlaybackSnapshot>
   play: (trackId: string, quality: PlaybackQualityPreference) => Promise<PlaybackSnapshot>
+  pause: () => Promise<PlaybackSnapshot>
+  resume: () => Promise<PlaybackSnapshot>
   stop: () => Promise<PlaybackSnapshot>
   next: () => Promise<PlaybackSnapshot>
   previous: () => Promise<PlaybackSnapshot>
@@ -94,6 +96,8 @@ export const PUBLIC_API_KEYS = [
   'getLyrics',
   'getPlaybackState',
   'play',
+  'pause',
+  'resume',
   'stop',
   'next',
   'previous',
@@ -132,6 +136,8 @@ export function createPreloadApi(
   getLyrics: (trackId: string) => Promise<LyricsSnapshot>,
   getPlaybackState: () => Promise<PlaybackSnapshot>,
   play: (trackId: string, quality: PlaybackQualityPreference) => Promise<PlaybackSnapshot>,
+  pause: () => Promise<PlaybackSnapshot>,
+  resume: () => Promise<PlaybackSnapshot>,
   stop: () => Promise<PlaybackSnapshot>,
   next: () => Promise<PlaybackSnapshot>,
   previous: () => Promise<PlaybackSnapshot>,
@@ -171,6 +177,8 @@ export function createPreloadApi(
     getLyrics,
     getPlaybackState,
     play,
+    pause,
+    resume,
     stop,
     next,
     previous,

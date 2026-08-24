@@ -14,6 +14,8 @@ interface ControlController {
   getState(): BridgeState;
   getPlaybackState(): PlaybackSnapshot;
   play(input: QueueInputItem): Promise<BridgeState>;
+  pause(): Promise<BridgeState>;
+  resume(): Promise<BridgeState>;
   stop(): Promise<BridgeState>;
   replaceQueue(items: readonly QueueInputItem[], startIndex: number): Promise<BridgeState>;
   next(): Promise<BridgeState>;
@@ -235,6 +237,18 @@ export class ControlServer {
 
       if (request.method === 'POST' && url.pathname === '/v1/stop') {
         const state = await this.options.controller.stop();
+        sendJson(response, 200, { ok: true, state });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/pause') {
+        const state = await this.options.controller.pause();
+        sendJson(response, 200, { ok: true, state });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/resume') {
+        const state = await this.options.controller.resume();
         sendJson(response, 200, { ok: true, state });
         return;
       }

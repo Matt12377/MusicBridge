@@ -283,7 +283,13 @@ export class BridgeController {
     const hasQueue = this.queue.length > 0;
     const hasNext = hasQueue && this.queueIndex >= 0 && this.queueIndex < this.queue.length - 1;
     const hasPrevious = hasQueue && this.queueIndex > 0;
-    const selectedZoneId = this.dependencies.roon.getState().selectedZoneId;
+    const roonState = this.dependencies.roon.getState();
+    const selectedZoneId = roonState.selectedZoneId;
+    const transportState = roonState.transportState;
+    const effectiveState: PlaybackState =
+      this.activePlayback && transportState === 'paused'
+        ? 'paused'
+        : this.playbackState;
     const currentTrack: TrackSummary | undefined = this.activePlayback
       ? {
           id: this.activePlayback.track.id,
@@ -300,7 +306,7 @@ export class BridgeController {
       : undefined;
 
     return {
-      state: this.playbackState,
+      state: effectiveState,
       queue: {
         items: this.queue.map((item, index) => ({
           trackId: item.trackId,
@@ -337,6 +343,8 @@ export class BridgeController {
       canNext: hasNext,
       canPrevious: hasPrevious,
       canStop: this.activeToken !== undefined || this.activePlayback !== undefined,
+      canPause: this.activePlayback !== undefined && effectiveState === 'playing' && roonState.canPause === true,
+      canResume: this.activePlayback !== undefined && effectiveState === 'paused' && roonState.canResume === true,
     };
   }
 
@@ -510,6 +518,53 @@ export class BridgeController {
     });
   }
 
+  async pause(): Promise<BridgeState> {
+    return this.enqueue(async () => {
+      const snapshot = this.getPlaybackState();
+      if (!this.activePlayback || snapshot.state !== 'playing' || !snapshot.canPause) {
+        throw new BridgeError('BAD_REQUEST', 'Roon pause is not currently available', {
+          httpStatus: 409,
+          details: { reason: 'pause_unsupported', ownerDecision: 'OWNER_DECISION_REQUIRED' },
+        });
+      }
+      await this.dependencies.roon.pause();
+      this.playbackState = 'paused';
+      this.notifyPlaybackChanged();
+      return this.getState();
+    });
+  }
+
+  async resume(): Promise<BridgeState> {
+    return this.enqueue(async () => {
+      const snapshot = this.getPlaybackState();
+      if (!this.activePlayback || snapshot.state !== 'paused' || !snapshot.canResume) {
+        throw new BridgeError('BAD_REQUEST', 'Roon resume is not currently available', {
+          httpStatus: 409,
+          details: { reason: 'resume_unsupported', ownerDecision: 'OWNER_DECISION_REQUIRED' },
+        });
+      }
+      await this.dependencies.roon.resume();
+      this.playbackState = 'playing';
+      this.notifyPlaybackChanged();
+      return this.getState();
+    });
+  }
+
+  syncRoonTransportState(): void {
+    if (!this.activePlayback) return;
+    const transportState = this.dependencies.roon.getState().transportState;
+    if (transportState === 'paused' && this.playbackState === 'playing') {
+      this.playbackState = 'paused';
+      this.notifyPlaybackChanged();
+    } else if (
+      (transportState === 'playing' || transportState === 'loading') &&
+      this.playbackState === 'paused'
+    ) {
+      this.playbackState = 'playing';
+      this.notifyPlaybackChanged();
+    }
+  }
+
   async clearQueue(): Promise<BridgeState> {
     return this.enqueue(async () => {
       this.queueHydrationGeneration += 1;
@@ -540,7 +595,8 @@ export class BridgeController {
     if (
       generation !== this.playbackGeneration ||
       this.activePlayback === undefined ||
-      this.playbackState !== 'playing' ||
+      (this.playbackState !== 'playing' && this.playbackState !== 'paused') ||
+      this.dependencies.roon.getState().transportState === 'paused' ||
       !Number.isSafeInteger(positionMs) ||
       positionMs < 0 ||
       positionMs > 24 * 60 * 60 * 1000

@@ -1,20 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { LyricsSnapshot, PlaybackQueueItem, PlaybackSnapshot, TrackSummary } from '@music-bridge/contracts'
-import LyricsPanel from '../LyricsPanel.vue'
+import type { PlaybackQueueItem, PlaybackSnapshot, TrackSummary } from '@music-bridge/contracts'
 import SafeArtwork from '../SafeArtwork.vue'
 
 const props = defineProps<{
-  mode: 'lyrics' | 'queue'
   currentTrack?: TrackSummary
   playbackState: PlaybackSnapshot | null
-  lyricsSnapshot: LyricsSnapshot
   qualityLabel: (quality: string | undefined) => string
 }>()
 
 const emit = defineEmits<{
   close: []
-  'update:mode': [mode: 'lyrics' | 'queue']
   'play-queue-item': [item: PlaybackQueueItem, index: number]
 }>()
 
@@ -50,15 +46,10 @@ function entryAlbum(item: PlaybackQueueItem): string {
 <template>
   <aside class="playback-inspector" aria-label="播放队列检查器">
     <div class="inspector-header">
-      <div><h2>{{ props.mode === 'lyrics' ? '歌词' : '播放队列' }}</h2></div>
+      <div><h2>播放队列</h2></div>
       <button type="button" class="inspector-close" aria-label="关闭播放检查器" @click="emit('close')">×</button>
     </div>
-    <div class="inspector-tabs" role="tablist" aria-label="播放检查器视图">
-      <button type="button" role="tab" :aria-selected="props.mode === 'lyrics'" :class="{ selected: props.mode === 'lyrics' }" @click="emit('update:mode', 'lyrics')">歌词</button>
-      <button type="button" role="tab" :aria-selected="props.mode === 'queue'" :class="{ selected: props.mode === 'queue' }" @click="emit('update:mode', 'queue')">队列</button>
-    </div>
-    <LyricsPanel v-if="props.mode === 'lyrics'" :current-track="props.currentTrack" :snapshot="props.lyricsSnapshot" />
-    <div v-else class="queue-panel inspector-queue">
+    <div class="queue-panel inspector-queue">
       <div class="panel-heading"><div><p class="section-kicker">接下来</p></div><span>{{ upcomingEntries.length }} 首</span></div>
       <div v-if="!props.playbackState?.queue.items.length" class="empty-copy">队列为空，去歌曲列表添加内容。</div>
       <template v-else>

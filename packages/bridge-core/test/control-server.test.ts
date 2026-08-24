@@ -21,6 +21,8 @@ function playbackState(): PlaybackSnapshot {
     canNext: false,
     canPrevious: false,
     canStop: false,
+    canPause: false,
+    canResume: false,
   };
 }
 
@@ -48,6 +50,14 @@ function makeController() {
         calls.push('stop');
         return bridgeState();
       },
+      async pause() {
+        calls.push('pause');
+        return bridgeState();
+      },
+      async resume() {
+        calls.push('resume');
+        return bridgeState();
+      },
       async replaceQueue(items: readonly { trackId: unknown; quality: unknown }[], index: number) {
         calls.push(`replace:${index}:${items.length}`);
         snapshot = {
@@ -65,6 +75,8 @@ function makeController() {
           canNext: index < items.length - 1,
           canPrevious: index > 0,
           canStop: true,
+          canPause: true,
+          canResume: false,
         };
         return bridgeState();
       },
@@ -118,7 +130,9 @@ test('Control API exposes queue replacement, navigation and sanitized playback s
 
     assert.equal((await request(server, '/v1/next', { method: 'POST' })).status, 200);
     assert.equal((await request(server, '/v1/previous', { method: 'POST' })).status, 200);
-    assert.deepEqual(calls, ['replace:0:2', 'next', 'previous']);
+    assert.equal((await request(server, '/v1/pause', { method: 'POST' })).status, 200);
+    assert.equal((await request(server, '/v1/resume', { method: 'POST' })).status, 200);
+    assert.deepEqual(calls, ['replace:0:2', 'next', 'previous', 'pause', 'resume']);
   } finally {
     await server.stop();
   }

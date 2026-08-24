@@ -340,9 +340,8 @@ img[hidden] { display: none; }
 .transport-button:hover:not(:disabled) { color: var(--mb-text-primary); background: rgba(255, 255, 255, .10); }
 .transport-button:active:not(:disabled) { transform: scale(.95); }
 .transport-button-secondary { width: 36px; height: 36px; }
-.transport-button.stop-button { width: 46px; height: 46px; border: 1px solid rgba(255, 255, 255, .18); color: #fff !important; background: var(--mb-player-accent) !important; box-shadow: 0 8px 20px rgba(255, 55, 95, .20), inset 0 1px 0 rgba(255, 255, 255, .22); }
-.transport-button.stop-button:hover:not(:disabled) { background: var(--mb-player-accent-hover) !important; box-shadow: 0 10px 24px rgba(255, 55, 95, .25), inset 0 1px 0 rgba(255, 255, 255, .24); }
-.transport-button.stop-button .player-stop-glyph { width: 8px; height: 8px; border-radius: 2px; }
+.transport-button-primary { width: 46px; height: 46px; border: 1px solid rgba(100, 210, 255, .42); color: #071017 !important; background: var(--mb-accent) !important; box-shadow: 0 8px 20px rgba(100, 210, 255, .18), inset 0 1px 0 rgba(255, 255, 255, .45); }
+.transport-button-primary:hover:not(:disabled) { background: var(--mb-accent-hover) !important; box-shadow: 0 10px 24px rgba(100, 210, 255, .24), inset 0 1px 0 rgba(255, 255, 255, .52); }
 .now-playing-lyrics { position: relative; display: flex; width: 100%; height: 66.6667%; min-width: 0; min-height: 0; align-self: center; align-items: center; flex-direction: column; padding: 0; font-family: var(--mb-lyrics-font); }
 .now-playing-lyrics::before, .now-playing-lyrics::after { display: none; }
 .now-playing-lyrics .now-playing-lyrics-lines { position: relative; z-index: 0; display: grid; width: 100%; align-content: start; gap: clamp(28px, 4vh, 46px); flex: 1 1 0; height: 0; min-height: 0; overflow: auto; padding: 0; overscroll-behavior: contain; scroll-padding-block: 40%; scrollbar-width: none; -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 8%, #000 92%, transparent 100%); mask-image: linear-gradient(to bottom, transparent 0, #000 8%, #000 92%, transparent 100%); }
@@ -378,9 +377,6 @@ img[hidden] { display: none; }
 .inspector-header h2 { margin: 0; color: var(--mb-text-primary); font-size: 24px; letter-spacing: -.04em; }
 .inspector-close { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 50%; color: var(--mb-text-secondary); background: var(--mb-glass-clear); font-size: 18px; }
 .inspector-close:hover { color: var(--mb-text-primary); background: rgba(255, 255, 255, .10); }
-.inspector-tabs { display: flex; gap: 5px; margin-bottom: 18px; padding-bottom: 10px; border-bottom: 1px solid var(--mb-divider); }
-.inspector-tabs button { padding: 7px 10px; border-radius: 8px; color: var(--mb-text-secondary); background: transparent; font-size: 11px; }
-.inspector-tabs button.selected { color: var(--mb-text-primary); background: var(--mb-glass-clear); }
 .lyrics-panel, .queue-panel { min-width: 0; padding: 0; border: 0; background: transparent; }
 .panel-heading { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
 .panel-heading h3 { margin: 0; color: var(--mb-text-primary); font-size: 17px; }
@@ -426,10 +422,8 @@ img[hidden] { display: none; }
 .player-control-button, .player-play-button { display: grid; place-items: center; border-radius: 50%; color: var(--mb-text-primary); background: transparent; }
 .player-control-button { width: 36px; height: 36px; }
 .player-control-button:hover:not(:disabled) { background: rgba(255, 255, 255, .09); }
-.player-play-button { width: 48px; height: 48px; color: #fff; background: var(--mb-player-accent); box-shadow: 0 10px 26px rgba(255, 55, 95, .24); }
-.player-play-button:hover:not(:disabled) { background: var(--mb-player-accent-hover); }
-.player-stop { color: var(--mb-text-tertiary); }
-.player-stop-glyph { display: block; width: 10px; height: 10px; border-radius: 2px; background: currentColor; }
+.player-play-button { width: 48px; height: 48px; color: #071017; background: var(--mb-accent); box-shadow: 0 10px 26px rgba(100, 210, 255, .20); }
+.player-play-button:hover:not(:disabled) { background: var(--mb-accent-hover); }
 .player-meta { display: flex; min-width: 0; gap: 10px; align-items: center; justify-content: flex-end; }
 .player-quality-select { display: grid; gap: 3px; min-width: 90px; }
 .player-quality-select > span { color: var(--mb-text-tertiary); font-size: 9px; }

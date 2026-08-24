@@ -50,6 +50,8 @@ export const IPC_COMMANDS = [
   'roon.selectZone',
   'playback.getState',
   'playback.play',
+  'playback.pause',
+  'playback.resume',
   'playback.stop',
   'playback.next',
   'playback.previous',
@@ -127,6 +129,8 @@ export interface IpcCommandPayloads {
   'roon.selectZone': { zoneId: string };
   'playback.getState': Record<string, never>;
   'playback.play': { trackId: string; qualityPreference: PlaybackQualityPreference };
+  'playback.pause': Record<string, never>;
+  'playback.resume': Record<string, never>;
   'playback.stop': Record<string, never>;
   'playback.next': Record<string, never>;
   'playback.previous': Record<string, never>;
@@ -161,6 +165,8 @@ export interface IpcCommandResults {
   'roon.selectZone': PublicBridgeState;
   'playback.getState': PlaybackSnapshot;
   'playback.play': PlaybackSnapshot;
+  'playback.pause': PlaybackSnapshot;
+  'playback.resume': PlaybackSnapshot;
   'playback.stop': PlaybackSnapshot;
   'playback.next': PlaybackSnapshot;
   'playback.previous': PlaybackSnapshot;

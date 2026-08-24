@@ -18,8 +18,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   back: []
   previous: []
-  'play-current': []
-  stop: []
+  'toggle-playback': []
   next: []
 }>()
 
@@ -107,8 +106,13 @@ function formatTime(milliseconds: number): string {
           </div>
           <div class="transport-controls" aria-label="歌曲切换控制">
             <button type="button" class="transport-button transport-button-secondary" :disabled="!props.playbackState?.canPrevious" aria-label="上一首" @click="emit('previous')"><SidebarIcon name="chevron-left" :size="21" /></button>
-            <button v-if="props.playbackState?.canStop" type="button" class="transport-button stop-button" aria-label="停止" @click="emit('stop')"><span class="player-stop-glyph" aria-hidden="true"></span></button>
-            <button v-else type="button" class="transport-button stop-button" :disabled="!props.currentTrack" aria-label="播放当前歌曲" @click="emit('play-current')"><SidebarIcon name="play" :size="24" /></button>
+            <button
+              type="button"
+              class="transport-button transport-button-primary"
+              :disabled="['resolving', 'preparing', 'stopping', 'error'].includes(props.playbackState?.state ?? '') || (!props.playbackState?.canPause && !props.playbackState?.canResume && !props.currentTrack)"
+              :aria-label="props.playbackState?.state === 'paused' ? '恢复播放' : props.playbackState?.state === 'playing' ? '暂停' : '播放当前歌曲'"
+              @click="emit('toggle-playback')"
+            ><SidebarIcon :name="props.playbackState?.state === 'playing' ? 'pause' : 'play'" :size="24" /></button>
             <button type="button" class="transport-button transport-button-secondary" :disabled="!props.playbackState?.canNext" aria-label="下一首" @click="emit('next')"><SidebarIcon name="chevron-right" :size="21" /></button>
           </div>
         </div>

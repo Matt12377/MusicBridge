@@ -7,6 +7,7 @@ import type {
   RoonGatewayStage,
   RoonPort,
   RoonState,
+  RoonTransportState,
   RoonTerminalReason,
 } from './types.js';
 import {
@@ -20,6 +21,7 @@ import {
   type RoonSettingsRequest,
   type RoonSettingsService,
   type RoonStatusService,
+  type RoonTransportControl,
   type RoonZone,
   type RoonZoneChangeMessage,
 } from './sdk.js';
@@ -651,6 +653,7 @@ export class RoonAudioInputAdapter implements RoonPort {
         switch (event) {
           case 'Playing':
             this.setStatus('playing', 'Playing', false);
+            this.setTransportState('playing');
             finish();
             break;
           case 'Time':
@@ -661,16 +664,24 @@ export class RoonAudioInputAdapter implements RoonPort {
             break;
           case 'EndedNaturally':
             this.setStatus('ready', 'Ready', false);
+            this.setTransportState('stopped');
             this.terminalHandler('ended');
             this.clearPlaybackContext(generation);
             if (!settled) finish(protocolError('awaiting_playing', 'ended_before_playing', event));
             break;
           case 'StoppedUser':
-          case 'Paused':
             this.setStatus('ready', 'Ready', false);
+            this.setTransportState('stopped');
             this.terminalHandler('stopped');
             this.clearPlaybackContext(generation);
             if (!settled) finish(protocolError('awaiting_playing', 'stopped_before_playing', event));
+            break;
+          case 'Paused':
+            // Audio Input reports an external Roon pause through this callback.
+            // It is a live session state, not a terminal stop.
+            this.setStatus('paused', 'Paused', false);
+            this.setTransportState('paused');
+            if (!settled) finish();
             break;
           case 'MediaError':
             this.setStatus('error', 'Media error', true, 'Roon MediaError');
@@ -748,7 +759,7 @@ export class RoonAudioInputAdapter implements RoonPort {
               ...(this.playbackMode === 'track' ? { seek_position_ms: 0 } : {}),
               info: {
                 is_seek_allowed: false,
-                is_pause_allowed: false,
+                is_pause_allowed: true,
                 ...(this.playbackMode === 'track' && request.metadata.durationMs !== undefined
                   ? { length: request.metadata.durationMs / 1000 }
                   : {}),
@@ -880,7 +891,18 @@ export class RoonAudioInputAdapter implements RoonPort {
 
     if (this.core && this.selectedZone) {
       this.setStatus('ready', 'Ready', false);
+      this.setTransportState('stopped');
     }
+  }
+
+  async pause(): Promise<void> {
+    await this.controlTransport('pause', 'is_pause_allowed');
+    this.setTransportState('paused');
+  }
+
+  async resume(): Promise<void> {
+    await this.controlTransport('play', 'is_play_allowed');
+    this.setTransportState('playing');
   }
 
   async shutdown(): Promise<void> {
@@ -1000,13 +1022,98 @@ export class RoonAudioInputAdapter implements RoonPort {
       return;
     }
 
+    const transportState = this.selectedZone.state ?? this.state.transportState;
+    const status: RoonState['status'] =
+      transportState === 'paused'
+        ? 'paused'
+        : transportState === 'playing' || transportState === 'loading'
+          ? 'playing'
+          : this.state.status === 'playing' || this.state.status === 'paused'
+            ? this.state.status
+            : 'ready';
     this.state = {
-      status: 'ready',
+      status,
       ...(coreName ? { coreName } : {}),
       selectedZoneId: this.selectedZone.zone_id,
       selectedZoneName: this.selectedZone.display_name ?? this.selectedZone.zone_id,
+      ...(transportState ? { transportState } : {}),
+      ...(typeof this.selectedZone.is_pause_allowed === 'boolean'
+        ? { canPause: this.selectedZone.is_pause_allowed }
+        : this.state.canPause !== undefined
+          ? { canPause: this.state.canPause }
+          : {}),
+      ...(typeof this.selectedZone.is_play_allowed === 'boolean'
+        ? { canResume: this.selectedZone.is_play_allowed }
+        : this.state.canResume !== undefined
+          ? { canResume: this.state.canResume }
+          : {}),
     };
-    this.setStatus('ready', 'Ready', false);
+    this.statusService?.set_status(
+      status === 'paused' ? 'Paused' : status === 'playing' ? 'Playing' : 'Ready',
+      false,
+    );
+    this.stateHandler();
+  }
+
+  private setTransportState(transportState: RoonTransportState): void {
+    const status: RoonState['status'] =
+      transportState === 'paused'
+        ? 'paused'
+        : transportState === 'playing' || transportState === 'loading'
+          ? 'playing'
+          : this.core && this.selectedZone
+            ? 'ready'
+            : this.state.status;
+    this.state = {
+      ...this.state,
+      status,
+      transportState,
+      ...(transportState === 'paused' && this.state.canPause !== undefined
+        ? { canPause: false, canResume: this.selectedZone?.is_play_allowed === true }
+        : transportState === 'playing' && this.state.canResume !== undefined
+          ? { canPause: this.selectedZone?.is_pause_allowed === true, canResume: false }
+          : {}),
+    };
+    this.stateHandler();
+  }
+
+  private async controlTransport(
+    control: RoonTransportControl,
+    capability: 'is_pause_allowed' | 'is_play_allowed',
+  ): Promise<void> {
+    if (!this.core || !this.selectedZone || !this.activePlaybackContext) {
+      throw new BridgeError('BAD_REQUEST', `Roon transport ${control} is unavailable`, {
+        httpStatus: 409,
+        details: { reason: 'pause_unsupported', ownerDecision: 'OWNER_DECISION_REQUIRED' },
+      });
+    }
+    if (this.selectedZone[capability] !== true) {
+      throw new BridgeError('BAD_REQUEST', `Roon transport ${control} is unavailable`, {
+        httpStatus: 409,
+        details: { reason: 'pause_unsupported', ownerDecision: 'OWNER_DECISION_REQUIRED' },
+      });
+    }
+    const zone = Object.freeze({ zone_id: this.selectedZone.zone_id });
+    await new Promise<void>((resolve, reject) => {
+      try {
+        this.core?.services.RoonApiTransport.control(zone, control, (error) => {
+          if (error === false) {
+            resolve();
+            return;
+          }
+          reject(new BridgeError('ROON_MEDIA_ERROR', `Roon transport ${control} failed`, {
+            httpStatus: 502,
+            details: { control, reason: 'transport_control_failed' },
+          }));
+        });
+      } catch (error) {
+        reject(new BridgeError('ROON_MEDIA_ERROR', `Roon transport ${control} failed`, {
+          httpStatus: 502,
+          cause: error,
+          details: { control, reason: 'transport_control_failed' },
+        }));
+      }
+    });
   }
 
   private setStatus(

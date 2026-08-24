@@ -17,11 +17,9 @@ defineProps<{
 
 const emit = defineEmits<{
   previous: []
-  'play-current': []
-  stop: []
+  'toggle-playback': []
   next: []
   'open-now-playing': []
-  'open-lyrics': []
   'open-queue': []
   'select-zone': [zoneId: string]
   'update:selected-quality': [quality: PlaybackQualityPreference]
@@ -43,8 +41,13 @@ function qualityLabel(quality: PlaybackQualityPreference): string {
 
     <div class="player-controls" aria-label="播放控制">
       <button type="button" class="player-control-button" :disabled="!playbackState?.canPrevious" aria-label="上一首" @click="emit('previous')"><SidebarIcon name="chevron-left" :size="18" /></button>
-      <button v-if="playbackState?.canStop" type="button" class="player-play-button" aria-label="停止" @click="emit('stop')"><span class="player-stop-glyph" aria-hidden="true"></span></button>
-      <button v-else type="button" class="player-play-button" :disabled="!currentTrack" aria-label="播放当前歌曲" @click="emit('play-current')"><SidebarIcon name="play" :size="18" /></button>
+      <button
+        type="button"
+        class="player-play-button"
+        :disabled="['resolving', 'preparing', 'stopping', 'error'].includes(playbackState?.state ?? '') || (!playbackState?.canPause && !playbackState?.canResume && !currentTrack)"
+        :aria-label="playbackState?.state === 'paused' ? '恢复播放' : playbackState?.state === 'playing' ? '暂停' : '播放当前歌曲'"
+        @click="emit('toggle-playback')"
+      ><SidebarIcon :name="playbackState?.state === 'playing' ? 'pause' : 'play'" :size="18" /></button>
       <button type="button" class="player-control-button" :disabled="!playbackState?.canNext" aria-label="下一首" @click="emit('next')"><SidebarIcon name="chevron-right" :size="18" /></button>
     </div>
 
@@ -56,7 +59,6 @@ function qualityLabel(quality: PlaybackQualityPreference): string {
         </select>
       </label>
       <ZoneControl :zones="zones" :selected-zone="selectedZone" :roon-status="roonStatus" @select="emit('select-zone', $event)" />
-      <button type="button" class="player-inspector-button" aria-label="打开歌词检查器" @click="emit('open-lyrics')">歌词</button>
       <button type="button" class="player-inspector-button" aria-label="打开队列检查器" @click="emit('open-queue')">队列</button>
     </div>
   </footer>

@@ -9,6 +9,11 @@ export interface RoonZone {
   zone_id: string;
   display_name?: string;
   outputs?: readonly RoonZoneOutput[];
+  state?: 'playing' | 'paused' | 'loading' | 'stopped';
+  is_pause_allowed?: boolean;
+  is_play_allowed?: boolean;
+  is_previous_allowed?: boolean;
+  is_next_allowed?: boolean;
 }
 
 export interface RoonZoneChangeMessage {
@@ -23,8 +28,15 @@ export type RoonZoneChangeCallback = (
   message: RoonZoneChangeMessage,
 ) => void;
 
+export type RoonTransportControl = 'play' | 'pause';
+
 export interface RoonTransportService {
   subscribe_zones(callback: RoonZoneChangeCallback): void;
+  control(
+    zone: RoonZone | RoonZoneOutput | { zone_id: string },
+    control: RoonTransportControl,
+    callback: (error: false | string) => void,
+  ): void;
 }
 
 export interface RoonAudioInputSession {

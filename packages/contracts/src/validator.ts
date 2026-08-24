@@ -212,7 +212,7 @@ function isPlaybackQueueSnapshot(value: unknown): value is PlaybackQueueSnapshot
 }
 
 function isPlaybackState(value: unknown): value is PlaybackSnapshot['state'] {
-  return ['idle', 'resolving', 'preparing', 'playing', 'stopping', 'error'].includes(
+  return ['idle', 'resolving', 'preparing', 'playing', 'paused', 'stopping', 'error'].includes(
     String(value),
   );
 }
@@ -257,6 +257,8 @@ function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
       'canNext',
       'canPrevious',
       'canStop',
+      'canPause',
+      'canResume',
     ]) ||
     !isPlaybackState(value.state) ||
     !isPlaybackQueueSnapshot(value.queue) ||
@@ -280,7 +282,9 @@ function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
     (value.qualityNotice !== undefined && !isPlaybackIssue(value.qualityNotice)) ||
     typeof value.canNext !== 'boolean' ||
     typeof value.canPrevious !== 'boolean' ||
-    typeof value.canStop !== 'boolean'
+    typeof value.canStop !== 'boolean' ||
+    typeof value.canPause !== 'boolean' ||
+    typeof value.canResume !== 'boolean'
   ) {
     return false;
   }
@@ -868,6 +872,8 @@ function isCommandResult(
       return isZoneListResult(value);
     case 'playback.getState':
     case 'playback.play':
+    case 'playback.pause':
+    case 'playback.resume':
     case 'playback.stop':
     case 'playback.next':
     case 'playback.previous':

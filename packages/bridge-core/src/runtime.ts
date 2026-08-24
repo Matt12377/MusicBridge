@@ -68,6 +68,8 @@ export interface CoreRuntime {
   getLyrics(trackId: string): Promise<LyricsSnapshot>;
   getPlaybackState(): PlaybackSnapshot;
   playbackPlay(trackId: string, quality: PlaybackQualityPreference): Promise<PlaybackSnapshot>;
+  playbackPause(): Promise<PlaybackSnapshot>;
+  playbackResume(): Promise<PlaybackSnapshot>;
   playbackStop(): Promise<PlaybackSnapshot>;
   playbackNext(): Promise<PlaybackSnapshot>;
   playbackPrevious(): Promise<PlaybackSnapshot>;
@@ -100,6 +102,7 @@ function publicRoonStatus(
       return 'paired';
     case 'ready':
     case 'playing':
+    case 'paused':
       return 'ready';
     case 'error':
       return 'disconnected';
@@ -151,6 +154,8 @@ function emptyPlaybackState(): PlaybackSnapshot {
     canNext: false,
     canPrevious: false,
     canStop: false,
+    canPause: false,
+    canResume: false,
   };
 }
 
@@ -414,6 +419,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   });
 
   roon.setStateHandler(() => {
+    controller.syncRoonTransportState();
     const state = publicState();
     emit(eventWithState('roon.changed', state));
     emit(eventWithState('core.health', state));
@@ -649,6 +655,14 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       await controller.stop();
       return controller.getPlaybackState();
     },
+    async playbackPause() {
+      await controller.pause();
+      return controller.getPlaybackState();
+    },
+    async playbackResume() {
+      await controller.resume();
+      return controller.getPlaybackState();
+    },
     async playbackNext() {
       await controller.next();
       return controller.getPlaybackState();
@@ -790,6 +804,8 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       canNext: playbackState.queue.index < playbackState.queue.items.length - 1,
       canPrevious: playbackState.queue.index > 0,
       canStop: true,
+      canPause: true,
+      canResume: false,
     };
     playbackState = nextState;
   };
@@ -961,8 +977,27 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       setPlayingTrack(trackId, qualityPreference);
       return playbackState;
     },
+    async playbackPause() {
+      if (playbackState.canPause) {
+        playbackState = { ...playbackState, state: 'paused', canPause: false, canResume: true };
+      }
+      return playbackState;
+    },
+    async playbackResume() {
+      if (playbackState.canResume) {
+        playbackState = { ...playbackState, state: 'playing', canPause: true, canResume: false };
+      }
+      return playbackState;
+    },
     async playbackStop() {
-      playbackState = { ...playbackState, state: 'idle', positionMs: 0, canStop: false };
+      playbackState = {
+        ...playbackState,
+        state: 'idle',
+        positionMs: 0,
+        canStop: false,
+        canPause: false,
+        canResume: false,
+      };
       return playbackState;
     },
     async playbackNext() {

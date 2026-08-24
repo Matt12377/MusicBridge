@@ -58,6 +58,8 @@ test('Preload exposes only sanitized business methods', async () => {
     canNext: false,
     canPrevious: false,
     canStop: false,
+    canPause: false,
+    canResume: false,
   }
   const lyrics: LyricsSnapshot = {
     status: 'unavailable',
@@ -94,6 +96,8 @@ test('Preload exposes only sanitized business methods', async () => {
     async () => playbackState,
     async () => playbackState,
     async () => playbackState,
+    async () => playbackState,
+    async () => playbackState,
     () => () => undefined,
     () => () => undefined,
   )
@@ -121,6 +125,8 @@ test('Preload exposes only sanitized business methods', async () => {
     'getLyrics',
     'getPlaybackState',
     'play',
+    'pause',
+    'resume',
     'stop',
     'next',
     'previous',
@@ -158,6 +164,8 @@ test('Preload exposes only sanitized business methods', async () => {
     'getLyrics',
     'getPlaybackState',
     'play',
+    'pause',
+    'resume',
     'stop',
     'next',
     'previous',
@@ -195,6 +203,8 @@ test('Preload exposes only sanitized business methods', async () => {
   assert.deepEqual(await api.getLyrics('301'), lyrics)
   assert.deepEqual(await api.getPlaybackState(), playbackState)
   assert.deepEqual(await api.play('301', 'lossless'), playbackState)
+  assert.deepEqual(await api.pause(), playbackState)
+  assert.deepEqual(await api.resume(), playbackState)
   assert.deepEqual(await api.stop(), playbackState)
   assert.deepEqual(await api.next(), playbackState)
   assert.deepEqual(await api.previous(), playbackState)

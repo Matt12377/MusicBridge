@@ -105,7 +105,6 @@ const remoteCoreState = ref<RemoteCoreTunnelState>({
   autoReconnect: false,
 })
 const remoteAutoStart = ref(false)
-const lyricsOrQueue = ref<'lyrics' | 'queue'>('lyrics')
 const inspectorOpen = ref(false)
 const inspectorReturnFocus = ref<HTMLElement | null>(null)
 const actionError = ref<string | null>(null)
@@ -983,11 +982,6 @@ function appendAllPlaylist(): void {
   )
 }
 
-function playCurrentTrack(): void {
-  const track = currentTrack.value
-  if (track) void playTrack(track)
-}
-
 async function playAllDailyRecommendations(): Promise<void> {
   if (!dailyRecommendations.value.tracks.length) return
   actionError.value = null
@@ -1014,11 +1008,27 @@ async function playQueueItem(item: PlaybackQueueItem, index: number): Promise<vo
   }
 }
 
-async function stopPlayback(): Promise<void> {
-  try {
-    applyPlaybackState(await window.musicBridge.stop())
-  } catch (error) {
-    recordActionError(error)
+async function togglePlayback(): Promise<void> {
+  const snapshot = playbackState.value
+  if (!snapshot) return
+  if (snapshot.state === 'playing' && snapshot.canPause) {
+    try {
+      applyPlaybackState(await window.musicBridge.pause())
+    } catch (error) {
+      recordActionError(error)
+    }
+    return
+  }
+  if (snapshot.state === 'paused' && snapshot.canResume) {
+    try {
+      applyPlaybackState(await window.musicBridge.resume())
+    } catch (error) {
+      recordActionError(error)
+    }
+    return
+  }
+  if (snapshot.state === 'idle' && currentTrack.value) {
+    await playTrack(currentTrack.value)
   }
 }
 
@@ -1099,20 +1109,15 @@ function rememberInspectorFocus(): void {
     : null
 }
 
-function openInspector(mode: 'lyrics' | 'queue'): void {
+function openInspector(): void {
   rememberInspectorFocus()
   if (isImmersiveNowPlaying.value) exitNowPlaying()
-  lyricsOrQueue.value = mode
   inspectorOpen.value = true
   void nextTick(() => document.querySelector<HTMLElement>('.playback-inspector .inspector-close')?.focus())
 }
 
-function openLyrics(): void {
-  openInspector('lyrics')
-}
-
 function openQueue(): void {
-  openInspector('queue')
+  openInspector()
 }
 
 function closeInspector(): void {
@@ -1151,7 +1156,7 @@ function onGlobalShortcut(event: KeyboardEvent): void {
   const key = event.key.toLowerCase()
   if (event.shiftKey && key === 'l') {
     event.preventDefault()
-    openLyrics()
+    enterNowPlaying()
     return
   }
   if (event.shiftKey && key === 'q') {
@@ -1397,8 +1402,7 @@ onUnmounted(() => {
           :playback-issue-message="playbackIssueMessage"
           @back="exitNowPlaying"
           @previous="previousTrack"
-          @play-current="playCurrentTrack"
-          @stop="stopPlayback"
+          @toggle-playback="togglePlayback"
           @next="nextTrack"
         />
 
@@ -1439,13 +1443,10 @@ onUnmounted(() => {
       </div>
       <PlaybackInspector
         v-if="inspectorOpen && !isImmersiveNowPlaying"
-        :mode="lyricsOrQueue"
         :current-track="currentTrack"
         :playback-state="playbackState"
-        :lyrics-snapshot="lyricsSnapshot"
         :quality-label="qualityLabel"
         @close="closeInspector"
-        @update:mode="lyricsOrQueue = $event"
         @play-queue-item="playQueueItem"
       />
       </div>
@@ -1463,11 +1464,9 @@ onUnmounted(() => {
       :roon-status="coreState?.roon ?? 'disconnected'"
       :selected-quality="selectedQuality"
       @previous="previousTrack"
-      @play-current="playCurrentTrack"
-      @stop="stopPlayback"
+      @toggle-playback="togglePlayback"
       @next="nextTrack"
       @open-now-playing="openNowPlaying"
-      @open-lyrics="openLyrics"
       @open-queue="openQueue"
       @select-zone="selectZone"
       @update:selected-quality="setSelectedQuality($event)"

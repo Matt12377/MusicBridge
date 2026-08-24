@@ -113,9 +113,20 @@ class FakeAudioInput implements RoonAudioInputService {
 
 class FakeTransport implements RoonTransportService {
   private zoneCallback: RoonZoneChangeCallback | undefined;
+  readonly controlCalls: Array<{ zoneId: string; control: 'play' | 'pause' }> = [];
+  controlResult: false | string = false;
 
   subscribe_zones(callback: RoonZoneChangeCallback): void {
     this.zoneCallback = callback;
+  }
+
+  control(
+    zone: { zone_id: string },
+    control: 'play' | 'pause',
+    callback: (error: false | string) => void,
+  ): void {
+    this.controlCalls.push({ zoneId: zone.zone_id, control });
+    callback(this.controlResult);
   }
 
   emit(response: string, message: { zones?: readonly unknown[]; zones_added?: readonly unknown[]; zones_changed?: readonly unknown[]; zones_removed?: readonly (string | { zone_id?: unknown })[] }): void {
@@ -722,7 +733,70 @@ test('track play payload uses an explicit start position and metadata duration',
   assert.equal(payload.type, 'track');
   assert.equal(payload.seek_position_ms, 0);
   assert.equal(payload.info.length, 120);
+  assert.equal(payload.info.is_pause_allowed, true);
   assert.equal(payload.track_id.startsWith('musicbridge-'), true);
+});
+
+test('pause and resume use the selected Roon Transport control without ending Audio Input', async () => {
+  const { adapter, api } = await makeReadyHarness({ playbackMode: 'track' });
+  const terminalReasons: string[] = [];
+  adapter.setTerminalHandler((reason) => terminalReasons.push(reason));
+  const playback = adapter.play(playRequest);
+  await nextTurn();
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'opaque-session' });
+  await playback;
+
+  api.core.transport.emit('Changed', {
+    zones_changed: [{
+      zone_id: 'zone-1',
+      display_name: 'Fake Zone',
+      state: 'playing',
+      is_pause_allowed: true,
+      is_play_allowed: false,
+      outputs: [{ output_id: 'output-1' }],
+    }],
+  });
+  await adapter.pause();
+  assert.deepEqual(api.core.transport.controlCalls, [{ zoneId: 'zone-1', control: 'pause' }]);
+  assert.equal(adapter.getState().transportState, 'paused');
+
+  api.core.audioInput.emitPlay('Paused');
+  assert.deepEqual(terminalReasons, []);
+
+  api.core.transport.emit('Changed', {
+    zones_changed: [{
+      zone_id: 'zone-1',
+      display_name: 'Fake Zone',
+      state: 'paused',
+      is_pause_allowed: false,
+      is_play_allowed: true,
+      outputs: [{ output_id: 'output-1' }],
+    }],
+  });
+  await adapter.resume();
+  assert.deepEqual(api.core.transport.controlCalls, [
+    { zoneId: 'zone-1', control: 'pause' },
+    { zoneId: 'zone-1', control: 'play' },
+  ]);
+  assert.equal(adapter.getState().transportState, 'playing');
+  assert.deepEqual(terminalReasons, []);
+});
+
+test('pause fails closed when the selected Zone does not advertise the capability', async () => {
+  const { adapter, api } = await makeReadyHarness();
+  const playback = adapter.play(playRequest);
+  await nextTurn();
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'opaque-session' });
+  await playback;
+
+  await assert.rejects(
+    () => adapter.pause(),
+    (error: unknown) =>
+      error instanceof BridgeError &&
+      error.code === 'BAD_REQUEST' &&
+      error.details?.ownerDecision === 'OWNER_DECISION_REQUIRED',
+  );
+  assert.deepEqual(api.core.transport.controlCalls, []);
 });
 
 test('a new playback receives a new track identity after stop clears the prior one', async () => {

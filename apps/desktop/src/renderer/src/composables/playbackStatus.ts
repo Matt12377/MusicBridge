@@ -5,6 +5,7 @@ const PLAYBACK_STATE_LABELS: Record<PlaybackSnapshot['state'], string> = {
   resolving: '正在获取音频',
   preparing: '正在连接 Roon',
   playing: '正在播放',
+  paused: '已暂停',
   stopping: '正在停止',
   error: '播放失败',
 }

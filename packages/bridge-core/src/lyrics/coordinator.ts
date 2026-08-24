@@ -126,6 +126,15 @@ export class LyricsCoordinator {
       if (!cached) void this.loadActive(trackId, generation);
     }
 
+    if (snapshot.state === 'paused') {
+      if (snapshot.positionMs > 0) {
+        this.positionAnchorMs = snapshot.positionMs;
+        this.positionAnchorClockMs = this.now();
+      }
+      this.stopEstimatedUpdates();
+      return;
+    }
+
     if (snapshot.state === 'playing') {
       if (snapshot.positionMs > 0) this.updateRoonTime(snapshot.positionMs);
       else this.markPlaying(trackId);

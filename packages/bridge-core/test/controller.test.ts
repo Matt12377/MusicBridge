@@ -92,6 +92,8 @@ class FakeRoon implements RoonPort {
   playRequest: RoonPlayRequest | undefined;
   readonly playRequests: RoonPlayRequest[] = [];
   stopCalls = 0;
+  pauseCalls = 0;
+  resumeCalls = 0;
   activePlayCalls = 0;
   maxConcurrentPlayCalls = 0;
   playDelayMs = 0;
@@ -139,6 +141,28 @@ class FakeRoon implements RoonPort {
     this.stopCalls += 1;
     if (this.shouldFailOnStop) throw new Error('Roon stop failed');
     this.state = { ...this.state, status: 'ready' };
+  }
+
+  async pause(): Promise<void> {
+    this.pauseCalls += 1;
+    this.state = {
+      ...this.state,
+      status: 'paused',
+      transportState: 'paused',
+      canPause: false,
+      canResume: true,
+    };
+  }
+
+  async resume(): Promise<void> {
+    this.resumeCalls += 1;
+    this.state = {
+      ...this.state,
+      status: 'playing',
+      transportState: 'playing',
+      canPause: true,
+      canResume: false,
+    };
   }
 
   async shutdown(): Promise<void> {}
@@ -591,6 +615,45 @@ test('controller rejects stale Roon positions after a new playback generation', 
 
   await controller.stop();
   assert.equal(controller.getPlaybackState().positionMs, 0);
+});
+
+test('controller pause and resume preserve current track, queue index, position, and stream', async () => {
+  const { controller, roon, registry } = makeHarness();
+  roon.state = {
+    ...roon.state,
+    transportState: 'playing',
+    canPause: true,
+    canResume: false,
+  };
+
+  await controller.replaceQueue([
+    { trackId: '761', qualityPreference: 'lossless' },
+    { trackId: '762', qualityPreference: 'lossless' },
+  ], 0);
+  controller.updateRoonTime(12_345);
+  const before = controller.getPlaybackState();
+
+  await controller.pause();
+  const paused = controller.getPlaybackState();
+  assert.equal(paused.state, 'paused');
+  assert.equal(paused.positionMs, 12_345);
+  assert.equal(paused.currentTrack?.id, before.currentTrack?.id);
+  assert.equal(paused.queue.index, before.queue.index);
+  assert.equal(paused.canPause, false);
+  assert.equal(paused.canResume, true);
+  assert.equal(roon.pauseCalls, 1);
+  assert.equal(registry.size, 1);
+
+  await controller.resume();
+  const resumed = controller.getPlaybackState();
+  assert.equal(resumed.state, 'playing');
+  assert.equal(resumed.positionMs, 12_345);
+  assert.equal(resumed.currentTrack?.id, before.currentTrack?.id);
+  assert.equal(resumed.queue.index, before.queue.index);
+  assert.equal(resumed.canPause, true);
+  assert.equal(resumed.canResume, false);
+  assert.equal(roon.resumeCalls, 1);
+  assert.equal(registry.size, 1);
 });
 
 test('controller continues a 45-track collection after starting at track 21', async () => {

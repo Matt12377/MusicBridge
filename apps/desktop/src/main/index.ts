@@ -164,6 +164,8 @@ const EMPTY_PLAYBACK_SNAPSHOT: PlaybackSnapshot = {
   canNext: false,
   canPrevious: false,
   canStop: false,
+  canPause: false,
+  canResume: false,
 }
 
 const STARTING_BRIDGE_STATE: PublicBridgeState = {
@@ -706,6 +708,12 @@ function registerIpcHandlers(
         qualityPreference: requirePlaybackQualityPreference(qualityPreference),
       }),
     ),
+  )
+  ipcMain.handle('playback:pause', (event) =>
+    invokeCore(event, () => supervisor.request('playback.pause', {})),
+  )
+  ipcMain.handle('playback:resume', (event) =>
+    invokeCore(event, () => supervisor.request('playback.resume', {})),
   )
   ipcMain.handle('playback:stop', (event) =>
     invokeCore(event, () => supervisor.request('playback.stop', {})),

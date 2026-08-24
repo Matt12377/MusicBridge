@@ -25,6 +25,7 @@ export type PlaybackState =
   | 'resolving'
   | 'preparing'
   | 'playing'
+  | 'paused'
   | 'stopping'
   | 'error'
 
@@ -102,4 +103,6 @@ export interface PlaybackSnapshot {
   canNext: boolean
   canPrevious: boolean
   canStop: boolean
+  canPause: boolean
+  canResume: boolean
 }
