@@ -17,6 +17,7 @@ import {
 } from './lyrics.js';
 import {
   PLAYBACK_ISSUE_CODES,
+  MAX_PLAYBACK_QUEUE_ITEMS,
   PLAYBACK_QUALITY_LEVELS,
   PLAYBACK_QUALITY_PREFERENCES,
   type PlaybackQueueEntry,
@@ -156,8 +157,7 @@ function isSelectZonePayload(value: unknown): value is { zoneId: string } {
   );
 }
 
-// 歌单分页最多收集 500 首；队列校验必须覆盖完整歌单，而不是截断到旧的 100 首上限。
-const MAX_QUEUE_ITEMS = 500;
+const MAX_QUEUE_ITEMS = MAX_PLAYBACK_QUEUE_ITEMS;
 
 function isPlaybackQuality(value: unknown): value is PlaybackQuality {
   return PLAYBACK_QUALITY_LEVELS.includes(value as PlaybackQuality);

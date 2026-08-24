@@ -5,6 +5,7 @@ import type { PlaylistSummary, TrackSummary } from '@music-bridge/contracts'
 import {
   HOME_RECOMMENDATION_PAGE_SIZE,
   HOME_RECOMMENDATION_TRACK_LIMIT,
+  settleHomePlaylistPages,
   selectRandomPlaylistPages,
   shuffleTracks,
 } from '../src/renderer/src/composables/homeRecommendations.js'
@@ -48,4 +49,16 @@ test('homepage shuffles unique tracks and caps the cover wall', () => {
   assert.equal(result.length, 2)
   assert.equal(new Set(result.map((track) => track.id)).size, 2)
   assert.ok(result.every((track) => ['1', '2', '3'].includes(track.id)))
+})
+
+test('homepage keeps successful playlist pages when one sampled page fails', async () => {
+  const result = await settleHomePlaylistPages([
+    Promise.resolve({ tracks: { items: [{ id: '1', title: 'One', artists: ['A'], album: 'A' }] } }),
+    Promise.reject(new Error('synthetic page failure')),
+    Promise.resolve({ tracks: { items: [{ id: '2', title: 'Two', artists: ['B'], album: 'B' }] } }),
+  ])
+
+  assert.deepEqual(result.tracks.map((track) => track.id), ['1', '2'])
+  assert.equal(result.failedCount, 1)
+  assert.equal(result.successCount, 2)
 })

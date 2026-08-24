@@ -93,16 +93,25 @@ test('NeteaseClient returns a sanitized paged search result', async () => {
   ]);
 });
 
-test('NeteaseClient paginates liked track ids without loading all track metadata', async () => {
+test('NeteaseClient paginates the native liked playlist without loading all track metadata', async () => {
   const calls: string[] = [];
   const client = new NeteaseClient('synthetic-credential', baseApi({
     async user_account() {
       calls.push('account');
       return { body: { code: 200, account: { id: 42 } } };
     },
-    async likelist(params) {
-      calls.push(`likelist:${String(params.uid)}`);
-      return { body: { code: 200, ids: [201, 202, 203] } };
+    async user_playlist() {
+      calls.push('user_playlist');
+      return { body: { code: 200, playlist: [{ id: 9001, specialType: 10, trackCount: 3 }] } };
+    },
+    async playlist_detail() {
+      calls.push('playlist_detail:9001');
+      return {
+        body: {
+          code: 200,
+          playlist: { id: 9001, specialType: 10, trackCount: 3, trackIds: [201, 202, 203] },
+        },
+      };
     },
     async song_detail(params) {
       calls.push(`song_detail:${String(params.ids)}`);
@@ -126,7 +135,52 @@ test('NeteaseClient paginates liked track ids without loading all track metadata
     total: 3,
     hasMore: true,
   });
-  assert.deepEqual(calls, ['account', 'likelist:42', 'song_detail:202']);
+  assert.deepEqual(calls, ['account', 'user_playlist', 'playlist_detail:9001', 'song_detail:202']);
+});
+
+test('NeteaseClient uses the native liked playlist order and reorders song details by trackIds', async () => {
+  const calls: string[] = [];
+  const client = new NeteaseClient('synthetic-credential', baseApi({
+    async user_account() {
+      calls.push('account');
+      return { body: { code: 200, account: { id: 42 } } };
+    },
+    async user_playlist() {
+      calls.push('user_playlist');
+      return {
+        body: {
+          code: 200,
+          playlist: [
+            { id: 9001, name: '系统喜欢歌单', specialType: 10, trackCount: 3 },
+            { id: 9002, name: '普通收藏', specialType: 0, trackCount: 3 },
+          ],
+        },
+      };
+    },
+    async playlist_detail(params) {
+      calls.push(`playlist_detail:${String(params.id)}`);
+      return {
+        body: {
+          code: 200,
+          playlist: {
+            id: 9001,
+            name: '系统喜欢歌单',
+            specialType: 10,
+            trackCount: 3,
+            trackIds: [{ id: 303 }, { id: 301 }, { id: 302 }],
+          },
+        },
+      };
+    },
+    async song_detail(params) {
+      calls.push(`song_detail:${String(params.ids)}`);
+      return { body: { code: 200, songs: [track(301, 'One'), track(302, 'Two'), track(303, 'Three')] } };
+    },
+  }));
+
+  const result = await client.getLikedTracks({ offset: 0, limit: 3 });
+  assert.deepEqual(result.items.map((item) => item.id), ['303', '301', '302']);
+  assert.deepEqual(calls, ['account', 'user_playlist', 'playlist_detail:9001', 'song_detail:303,301,302']);
 });
 
 test('NeteaseClient exposes account profile and daily recommendations through the pinned capabilities', async () => {

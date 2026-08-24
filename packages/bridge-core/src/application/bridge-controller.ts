@@ -11,6 +11,7 @@ import type {
   PlaybackState,
   TrackSummary,
 } from '@music-bridge/contracts';
+import { MAX_PLAYBACK_QUEUE_ITEMS } from '@music-bridge/contracts';
 import { BridgeError, asBridgeError } from '../shared/errors.js';
 import type { Logger } from '../shared/logger.js';
 import {
@@ -68,7 +69,7 @@ const SKIPPABLE_QUEUE_ERRORS = new Set([
   'TRACK_UNAVAILABLE',
   'TRACK_PREVIEW_ONLY',
 ]);
-const MAX_QUEUE_ITEMS = 500;
+const MAX_QUEUE_ITEMS = MAX_PLAYBACK_QUEUE_ITEMS;
 const QUEUE_HYDRATION_BATCH_SIZE = 20;
 
 function normalizeQueueItem(input: QueueInput): QueueItem {
@@ -211,6 +212,8 @@ export class BridgeController {
   private pendingTerminalReason: RoonTerminalReason | undefined;
   private operationTail: Promise<void> = Promise.resolve();
   private queueHydrationGeneration = 0;
+  private nextInsertionQueueIndex: number | undefined;
+  private nextInsertionCursor: number | undefined;
   private readonly playbackListeners = new Set<PlaybackChangedListener>();
 
   constructor(
@@ -362,6 +365,12 @@ export class BridgeController {
         httpStatus: 400,
       });
     }
+    if (items.length > MAX_QUEUE_ITEMS) {
+      throw new BridgeError('BAD_REQUEST', 'Playback queue capacity exceeded', {
+        httpStatus: 413,
+        details: { capacity: MAX_QUEUE_ITEMS },
+      });
+    }
     if (!Number.isSafeInteger(startIndex) || startIndex < 0 || startIndex >= items.length) {
       throw new BridgeError('BAD_REQUEST', 'Queue start index is invalid', {
         httpStatus: 400,
@@ -414,6 +423,12 @@ export class BridgeController {
 
     return this.enqueue(async () => {
       const availableSlots = Math.max(0, MAX_QUEUE_ITEMS - this.queue.length);
+      if (normalizedItems.length > availableSlots) {
+        throw new BridgeError('BAD_REQUEST', 'Playback queue capacity exceeded', {
+          httpStatus: 413,
+          details: { capacity: MAX_QUEUE_ITEMS },
+        });
+      }
       const acceptedItems = normalizedItems.slice(0, availableSlots);
       if (acceptedItems.length === 0) return this.getState();
 
@@ -437,14 +452,24 @@ export class BridgeController {
 
     return this.enqueue(async () => {
       const availableSlots = Math.max(0, MAX_QUEUE_ITEMS - this.queue.length);
+      if (normalizedItems.length > availableSlots) {
+        throw new BridgeError('BAD_REQUEST', 'Playback queue capacity exceeded', {
+          httpStatus: 413,
+          details: { capacity: MAX_QUEUE_ITEMS },
+        });
+      }
       const acceptedItems = normalizedItems.slice(0, availableSlots);
       if (acceptedItems.length === 0) return this.getState();
 
       const hydrationGeneration = ++this.queueHydrationGeneration;
       const shouldHydrateInline = acceptedItems.length <= QUEUE_HYDRATION_BATCH_SIZE;
       if (shouldHydrateInline) await this.hydrateQueueItems(acceptedItems);
-      const insertionIndex = this.queueIndex >= 0 ? this.queueIndex + 1 : 0;
+      const insertionIndex = this.nextInsertionQueueIndex === this.queueIndex && this.nextInsertionCursor !== undefined
+        ? this.nextInsertionCursor
+        : this.queueIndex >= 0 ? this.queueIndex + 1 : 0;
       this.queue.splice(insertionIndex, 0, ...acceptedItems);
+      this.nextInsertionQueueIndex = this.queueIndex;
+      this.nextInsertionCursor = insertionIndex + acceptedItems.length;
       this.notifyPlaybackChanged();
       if (!shouldHydrateInline) {
         this.scheduleQueueHydration(acceptedItems, hydrationGeneration);
@@ -555,6 +580,8 @@ export class BridgeController {
   }
 
   private async startQueueIndex(index: number, skipUnavailable: boolean): Promise<void> {
+    this.nextInsertionQueueIndex = undefined;
+    this.nextInsertionCursor = undefined;
     let candidate = index;
     let skippedError: BridgeError | undefined;
 

@@ -1,11 +1,11 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { BridgeState } from '../application/bridge-controller.js';
-import type { PlaybackQualityPreference, PlaybackSnapshot } from '@music-bridge/contracts';
+import { MAX_PLAYBACK_QUEUE_ITEMS, type PlaybackQualityPreference, type PlaybackSnapshot } from '@music-bridge/contracts';
 import { asBridgeError, BridgeError } from '../shared/errors.js';
 import type { Logger } from '../shared/logger.js';
 
 const MAX_BODY_BYTES = 64 * 1024;
-const MAX_QUEUE_ITEMS = 500;
+const MAX_QUEUE_ITEMS = MAX_PLAYBACK_QUEUE_ITEMS;
 const PLAYBACK_QUALITIES = new Set(['auto', 'standard', 'exhigh', 'lossless', 'hires']);
 
 type QueueInputItem = { trackId: unknown; quality: unknown };

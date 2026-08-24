@@ -32,9 +32,15 @@ import MusicSidebar from './components/sidebar/MusicSidebar.vue'
 import ToolbarStatusPopover from './components/ToolbarStatusPopover.vue'
 import { useLibrarySources } from './composables/useLibrarySources.js'
 import { appendPage } from './composables/libraryPagination.js'
-import { loadCollectionTracks, type CollectionPageLoader } from './composables/collectionQueue.js'
+import {
+  createProgressiveCollectionLoader,
+  loadCollectionTracks,
+  type CollectionPageLoader,
+  type ProgressiveCollectionLoader,
+} from './composables/collectionQueue.js'
 import {
   selectRandomPlaylistPages,
+  settleHomePlaylistPages,
   shuffleTracks,
   type HomeRecommendationState,
 } from './composables/homeRecommendations.js'
@@ -147,6 +153,8 @@ let lyricsOperation = 0
 let homeRecommendationOperation = 0
 let dailyOperation = 0
 let collectionOperation = 0
+let activeCollectionLoader: ProgressiveCollectionLoader | undefined
+let collectionPlaybackStartInFlight = false
 let toastTimer: ReturnType<typeof setTimeout> | undefined
 let searchRequestGeneration = 0
 let likedRequestGeneration = 0
@@ -505,12 +513,12 @@ async function loadHomeRecommendations(): Promise<void> {
   }
 
   try {
-    const pages = await Promise.all(
+    const settled = await settleHomePlaylistPages(
       selections.map((selection) => window.musicBridge.getPlaylist(selection.playlistId, selection.page)),
     )
     if (operation !== homeRecommendationOperation) return
-    homePlaylistTracks.value = shuffleTracks(pages.flatMap((page) => page.tracks.items))
-    homeRecommendationState.value = 'ready'
+    homePlaylistTracks.value = shuffleTracks(settled.tracks)
+    homeRecommendationState.value = settled.successCount > 0 ? 'ready' : 'error'
   } catch {
     if (operation !== homeRecommendationOperation) return
     homePlaylistTracks.value = []
@@ -526,6 +534,13 @@ function refreshHomeRecommendations(): void {
   void loadPlaylists()
 }
 
+function invalidateCollectionOperation(): void {
+  collectionOperation += 1
+  activeCollectionLoader?.cancel()
+  activeCollectionLoader = undefined
+  collectionPlaybackStartInFlight = false
+}
+
 async function loadPlaylist(
   playlistId: string,
   page: PageRequest = { offset: 0, limit: LIBRARY_PAGE_SIZE },
@@ -536,7 +551,7 @@ async function loadPlaylist(
   const previousPlaylist = selectedPlaylist.value
   const initial = page.offset === 0
   if (switchingPlaylist) {
-    collectionOperation += 1
+    invalidateCollectionOperation()
     playlistRequestGeneration += 1
     selectedPlaylist.value = null
   }
@@ -600,7 +615,7 @@ function resetPrivateLibraryState(): void {
   searchRequestGeneration += 1
   likedRequestGeneration += 1
   playlistRequestGeneration += 1
-  collectionOperation += 1
+  invalidateCollectionOperation()
   searchQuery.value = ''
   searchPage.value = emptyPage()
   searchInitialLoading.value = false
@@ -814,41 +829,101 @@ async function insertTrackNext(track: TrackSummary): Promise<void> {
   }
 }
 
+async function continueCollectionQueue(
+  loader: ProgressiveCollectionLoader,
+  operation: number,
+  pendingTracks: readonly TrackSummary[] = [],
+): Promise<void> {
+  try {
+    if (pendingTracks.length > 0 && operation === collectionOperation) {
+      applyPlaybackState(await window.musicBridge.appendQueue(queueItemsForTracks(pendingTracks)))
+    }
+    while (operation === collectionOperation) {
+      const batch = await loader.next()
+      if (!batch || operation !== collectionOperation) return
+      if (batch.tracks.length > 0) {
+        applyPlaybackState(await window.musicBridge.appendQueue(queueItemsForTracks(batch.tracks)))
+      }
+      if (!batch.hasMore) return
+    }
+  } catch (error) {
+    // 后续分页失败不能终止已经开始的歌曲；只报告可重试的局部错误。
+    if (operation === collectionOperation) recordActionError(error)
+  } finally {
+    if (activeCollectionLoader === loader) activeCollectionLoader = undefined
+  }
+}
+
 async function replaceAndPlayCollection(
   loadPage: CollectionPageLoader,
   selectedTrackId?: string,
+  initialPage?: Page<TrackSummary>,
 ): Promise<void> {
+  if (collectionPlaybackStartInFlight || activeCollectionLoader) return
+  collectionPlaybackStartInFlight = true
   const operation = ++collectionOperation
   actionError.value = null
+  const loader = createProgressiveCollectionLoader(loadPage, LIBRARY_PAGE_SIZE, initialPage)
+  activeCollectionLoader = loader
   try {
-    const tracks = await loadCollectionTracks(loadPage)
-    if (operation !== collectionOperation || tracks.length === 0) return
+    const firstBatch = await loader.next()
+    if (operation !== collectionOperation || !firstBatch || firstBatch.tracks.length === 0) {
+      if (operation === collectionOperation) collectionPlaybackStartInFlight = false
+      return
+    }
+    const tracks = firstBatch.tracks
     const requestedIndex = selectedTrackId === undefined
       ? 0
       : tracks.findIndex((track) => track.id === selectedTrackId)
     const index = requestedIndex >= 0 ? requestedIndex : 0
-    applyPlaybackState(await window.musicBridge.replaceQueue(queueItemsForTracks(tracks), index))
+    const startsWithSingleTrack = selectedTrackId === undefined && index === 0
+    const initialTracks = startsWithSingleTrack ? tracks.slice(0, 1) : tracks
+    const snapshot = await window.musicBridge.replaceQueue(queueItemsForTracks(initialTracks), startsWithSingleTrack ? 0 : index)
+    if (operation !== collectionOperation) return
+    applyPlaybackState(snapshot)
     enterNowPlaying()
+    collectionPlaybackStartInFlight = false
+    if (firstBatch.hasMore || tracks.length > initialTracks.length) {
+      void continueCollectionQueue(loader, operation, tracks.slice(initialTracks.length))
+    } else {
+      activeCollectionLoader = undefined
+    }
   } catch (error) {
     if (operation === collectionOperation) recordActionError(error)
+    if (operation === collectionOperation) {
+      collectionPlaybackStartInFlight = false
+      activeCollectionLoader = undefined
+    }
+  } finally {
+    if (operation === collectionOperation && collectionPlaybackStartInFlight && activeCollectionLoader !== loader) {
+      collectionPlaybackStartInFlight = false
+    }
   }
 }
 
 async function appendCollection(loadPage: CollectionPageLoader): Promise<void> {
   const operation = ++collectionOperation
+  activeCollectionLoader?.cancel()
   actionError.value = null
+  const loader = createProgressiveCollectionLoader(loadPage, LIBRARY_PAGE_SIZE)
+  activeCollectionLoader = loader
   try {
-    const tracks = await loadCollectionTracks(loadPage)
-    if (operation !== collectionOperation || tracks.length === 0) return
-    applyPlaybackState(await window.musicBridge.appendQueue(queueItemsForTracks(tracks)))
+    const firstBatch = await loader.next()
+    if (operation !== collectionOperation || !firstBatch || firstBatch.tracks.length === 0) return
+    applyPlaybackState(await window.musicBridge.appendQueue(queueItemsForTracks(firstBatch.tracks)))
     showToast('已加入播放队列')
+    if (firstBatch.hasMore) void continueCollectionQueue(loader, operation)
   } catch (error) {
     if (operation === collectionOperation) recordActionError(error)
   }
 }
 
 function playAllLiked(): void {
-  void replaceAndPlayCollection((page) => window.musicBridge.getLikedTracks(page))
+  void replaceAndPlayCollection(
+    (page) => window.musicBridge.getLikedTracks(page),
+    undefined,
+    likedPage.value.items.length > 0 ? likedPage.value : undefined,
+  )
 }
 
 function appendAllLiked(): void {
@@ -895,6 +970,8 @@ function playAllPlaylist(): void {
   if (!playlistId) return
   void replaceAndPlayCollection(
     (page) => window.musicBridge.getPlaylist(playlistId, page).then((detail) => detail.tracks),
+    undefined,
+    selectedPlaylist.value?.tracks.items.length ? selectedPlaylist.value.tracks : undefined,
   )
 }
 

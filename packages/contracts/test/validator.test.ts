@@ -498,10 +498,25 @@ test('contracts validates bounded playback controls and sanitized snapshots', ()
   assert.equal(
     validateIpcRequest({
       version: IPC_VERSION,
+      id: 'playback-replace-1197',
+      command: 'playback.replaceQueue',
+      payload: {
+        items: Array.from({ length: 1_197 }, (_, index) => ({
+          trackId: String(index + 1),
+          qualityPreference: 'standard',
+        })),
+        index: 0,
+      },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
       id: 'playback-replace-too-many',
       command: 'playback.replaceQueue',
       payload: {
-        items: Array.from({ length: 501 }, (_, index) => ({
+        items: Array.from({ length: 5_001 }, (_, index) => ({
           trackId: String(index + 1),
           qualityPreference: 'standard',
         })),

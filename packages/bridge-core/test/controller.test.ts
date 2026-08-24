@@ -454,6 +454,62 @@ test('controller inserts next after the current queue index without restarting p
   );
 });
 
+test('controller keeps consecutive insert-next batches in user order', async () => {
+  const { controller } = makeHarness();
+
+  await controller.replaceQueue([
+    { trackId: '801', quality: 'standard' },
+    { trackId: '804', quality: 'standard' },
+  ]);
+  await controller.insertNext([
+    { trackId: '802', quality: 'standard' },
+    { trackId: '803', quality: 'standard' },
+  ]);
+  await controller.insertNext([
+    { trackId: '805', quality: 'standard' },
+    { trackId: '806', quality: 'standard' },
+  ]);
+
+  assert.deepEqual(
+    controller.getPlaybackState().queue.items.map((item) => item.trackId),
+    ['801', '802', '803', '805', '806', '804'],
+  );
+});
+
+test('controller accepts a 1,197-track queue through bounded progressive mutations', async () => {
+  const { controller } = makeHarness();
+  const firstPage = Array.from({ length: 20 }, (_, index) => ({
+    trackId: String(10_000 + index),
+    quality: 'standard' as const,
+  }));
+  await controller.replaceQueue(firstPage);
+
+  for (let start = 20; start < 1_197; start += 20) {
+    await controller.appendQueue(
+      Array.from({ length: Math.min(20, 1_197 - start) }, (_, offset) => ({
+        trackId: String(10_000 + start + offset),
+        quality: 'standard' as const,
+      })),
+    );
+  }
+
+  const queue = controller.getPlaybackState().queue.items
+  assert.equal(queue.length, 1_197)
+  assert.equal(queue[1_196]?.trackId, '11196')
+});
+
+test('controller rejects a queue beyond the bounded capacity instead of silently dropping items', async () => {
+  const { controller } = makeHarness();
+  await assert.rejects(
+    () => controller.replaceQueue(Array.from({ length: 5_001 }, (_, index) => ({
+      trackId: String(20_000 + index),
+      quality: 'standard' as const,
+    }))),
+    (error: unknown) => error instanceof BridgeError && error.code === 'BAD_REQUEST',
+  );
+  assert.equal(controller.getPlaybackState().queue.items.length, 0);
+});
+
 test('controller appends while idle without starting playback', async () => {
   const { controller, roon } = makeHarness();
 

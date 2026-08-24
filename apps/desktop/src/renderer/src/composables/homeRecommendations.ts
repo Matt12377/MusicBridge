@@ -11,6 +11,27 @@ export interface HomePlaylistPageSelection {
   page: PageRequest
 }
 
+export interface SettledHomePlaylistPages {
+  tracks: readonly TrackSummary[]
+  successCount: number
+  failedCount: number
+}
+
+export async function settleHomePlaylistPages(
+  pages: readonly Promise<{ tracks: { items: readonly TrackSummary[] } }>[],
+): Promise<SettledHomePlaylistPages> {
+  const settled = await Promise.allSettled(pages)
+  const successfulPages = settled.filter(
+    (result): result is PromiseFulfilledResult<{ tracks: { items: readonly TrackSummary[] } }> =>
+      result.status === 'fulfilled',
+  )
+  return {
+    tracks: successfulPages.flatMap((result) => result.value.tracks.items),
+    successCount: successfulPages.length,
+    failedCount: settled.length - successfulPages.length,
+  }
+}
+
 function randomIndex(length: number, random: () => number): number {
   if (length <= 1) return 0
   return Math.min(length - 1, Math.max(0, Math.floor(random() * length)))

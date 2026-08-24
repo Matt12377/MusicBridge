@@ -225,6 +225,36 @@ export function parseLikedTrackIds(response: unknown): string[] {
     .filter((id): id is string => id !== undefined);
 }
 
+export function parseLikedPlaylistId(response: unknown): string {
+  const body = bodyOf(response);
+  responseBodyCode(body, 'user playlists');
+  const rows = Array.isArray(body.playlist)
+    ? body.playlist
+    : Array.isArray(body.playlists)
+      ? body.playlists
+      : [];
+  const likedPlaylist = rows.find((value) => (
+    isRecord(value) && numeric(value.specialType) === 10
+  ));
+  const id = likedPlaylist && isRecord(likedPlaylist) ? safeId(likedPlaylist.id) : undefined;
+  if (!id) {
+    throw new BridgeError('NETEASE_REQUEST_FAILED', 'NetEase native liked playlist was not returned', {
+      httpStatus: 502,
+    });
+  }
+  return id;
+}
+
+export function orderTrackSummariesByIds(
+  tracks: readonly TrackSummary[],
+  orderedIds: readonly string[],
+): TrackSummary[] {
+  const byId = new Map(tracks.map((track) => [track.id, track]));
+  return orderedIds
+    .map((id) => byId.get(id))
+    .filter((track): track is TrackSummary => track !== undefined);
+}
+
 function playlistSummaryFromRecord(value: unknown): PlaylistSummary | undefined {
   if (!isRecord(value)) return undefined;
   const id = safeId(value.id);

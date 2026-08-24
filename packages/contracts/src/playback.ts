@@ -17,6 +17,9 @@ export const PLAYBACK_QUALITY_PREFERENCES = [
 export type PlaybackQualityPreference = (typeof PLAYBACK_QUALITY_PREFERENCES)[number]
 export type PlaybackActualQuality = PlaybackQuality | 'unknown'
 
+/** Queue is filled in bounded pages; this is a safety ceiling, not a collection-page cap. */
+export const MAX_PLAYBACK_QUEUE_ITEMS = 5_000
+
 export type PlaybackState =
   | 'idle'
   | 'resolving'

@@ -24,7 +24,7 @@ import type {
   RemoteCoreTunnelState,
   TypedIpcEvent,
 } from '@music-bridge/contracts'
-import { IPC_VERSION, validateIpcEvent } from '@music-bridge/contracts'
+import { IPC_VERSION, MAX_PLAYBACK_QUEUE_ITEMS, validateIpcEvent } from '@music-bridge/contracts'
 import { mkdir, readFile, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -494,7 +494,7 @@ function requirePlaybackQualityPreference(value: unknown): PlaybackQualityPrefer
 }
 
 function requirePlaybackQueue(value: unknown): readonly PlaybackQueueRequestItem[] {
-  if (!Array.isArray(value) || value.length === 0 || value.length > 500) {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_PLAYBACK_QUEUE_ITEMS) {
     return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback queue')
   }
   return value.map((item) => {

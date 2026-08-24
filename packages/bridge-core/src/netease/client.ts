@@ -10,7 +10,7 @@ import {
 import {
   parseAccountId,
   parseDailyRecommendations,
-  parseLikedTrackIds,
+  parseLikedPlaylistId,
   parsePlaylistDetailHeader,
   parsePlaylistTrackIds,
   parsePlaylistSummaries,
@@ -19,6 +19,7 @@ import {
   parseResolvedAudioStream,
   parseTrackMetadata,
   parseTrackSummaries,
+  orderTrackSummariesByIds,
   parsePublicAccountProfile,
 } from './parse.js';
 import type {
@@ -167,14 +168,22 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     const cookie = this.requireCookie();
     try {
       const accountId = await this.getAccountId(cookie);
-      const likelist = this.api.likelist;
+      const userPlaylist = this.api.user_playlist;
+      const playlistDetail = this.api.playlist_detail;
       const songDetail = this.api.song_detail;
-      if (!likelist || !songDetail) throw this.libraryApiUnavailable();
-      const ids = parseLikedTrackIds(await likelist({ uid: accountId, cookie }));
+      if (!userPlaylist || !playlistDetail || !songDetail) throw this.libraryApiUnavailable();
+      const likedPlaylistId = parseLikedPlaylistId(await userPlaylist({
+        uid: accountId,
+        limit: MAX_LIBRARY_PAGE_LIMIT,
+        offset: 0,
+        cookie,
+      }));
+      const detail = await playlistDetail({ id: likedPlaylistId, cookie });
+      const ids = parsePlaylistTrackIds(detail) ?? [];
       const selectedIds = ids.slice(page.offset, page.offset + page.limit);
       if (selectedIds.length === 0) return pageOf([], page, ids.length);
       const response = await songDetail({ ids: selectedIds.join(','), cookie });
-      return pageOf(parseTrackSummaries(response), page, ids.length);
+      return pageOf(orderTrackSummariesByIds(parseTrackSummaries(response), selectedIds), page, ids.length);
     } catch (error) {
       throw this.libraryError(error, 'liked tracks');
     }
