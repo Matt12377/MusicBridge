@@ -284,27 +284,34 @@ test('V1 Search is an artist, track and album flow without playlist results', as
   assert.doesNotMatch(app, /搜索结果.*歌单|search-playlist|搜索歌单/)
 })
 
-test('V1 search single tracks use text-first rows without cover artwork', async () => {
+test('V1 search shows album results before artwork-backed single rows', async () => {
   const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
   const trackTable = await readFile(path.resolve('src/renderer/src/components/media/TrackTable.vue'), 'utf8')
 
   assert.match(app, /class="search-track-results"/)
-  assert.match(app, /:show-artwork="false"/)
+  assert.match(app, /:show-artwork="true"/)
+  const albumIndex = app.indexOf('aria-labelledby="search-albums-heading"')
+  const trackIndex = app.indexOf('aria-labelledby="search-tracks-heading"')
+  assert.ok(albumIndex >= 0 && albumIndex < trackIndex)
   assert.match(trackTable, /showArtwork/)
   assert.match(trackTable, /v-if="props\.showArtwork"/)
 })
 
-test('V1 Now Playing centers a clickable bitrate quality menu without next-quality copy', async () => {
+test('V1 Now Playing centers a real-quality disclosure without a quality switcher', async () => {
   const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
   const nowPlaying = await readFile(path.resolve('src/renderer/src/components/NowPlayingView.vue'), 'utf8')
   const css = await readFile(path.resolve('src/renderer/src/style.css'), 'utf8')
+  const nowPlayingUsage = app.match(/<NowPlayingView[\s\S]*?\/>/)?.[0] ?? ''
 
   assert.doesNotMatch(nowPlaying, /下次播放音质|now-playing-quality-next/)
-  assert.match(nowPlaying, /PLAYBACK_QUALITY_PREFERENCES/)
-  assert.match(nowPlaying, /role="menuitemradio"/)
-  assert.match(nowPlaying, /320 kbps/)
-  assert.match(nowPlaying, /update:selected-quality/)
-  assert.match(app, /@update:selected-quality="setSelectedQuality\(\$event\)"/)
+  assert.doesNotMatch(nowPlaying, /PLAYBACK_QUALITY_PREFERENCES/)
+  assert.doesNotMatch(nowPlaying, /role="menuitemradio"|now-playing-quality-menu/)
+  assert.doesNotMatch(nowPlaying, /update:selected-quality|selectedQuality: PlaybackQualityPreference/)
+  assert.match(nowPlaying, /props\.playbackState\?\.actualQuality/)
+  assert.match(nowPlaying, /props\.playbackState\?\.bitrate/)
+  assert.match(nowPlaying, /formatBitrate|kbps/)
+  assert.doesNotMatch(nowPlayingUsage, /:selected-quality="selectedQuality"/)
+  assert.doesNotMatch(nowPlayingUsage, /@update:selected-quality=/)
   assert.match(css, /\.now-playing-quality-row\s*\{[^}]*justify-content:\s*center/)
 })
 

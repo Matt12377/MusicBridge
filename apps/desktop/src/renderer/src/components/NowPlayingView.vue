@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { PLAYBACK_QUALITY_PREFERENCES, type LyricsSnapshot, type PlaybackIssue, type PlaybackQualityPreference, type PlaybackSnapshot, type TrackSummary } from '@music-bridge/contracts'
+import type { LyricsSnapshot, PlaybackIssue, PlaybackSnapshot, TrackSummary } from '@music-bridge/contracts'
 import SidebarIcon from './sidebar/SidebarIcon.vue'
 import SafeArtwork from './SafeArtwork.vue'
 import LyricsLines from './LyricsLines.vue'
@@ -9,7 +9,6 @@ const props = defineProps<{
   currentTrack?: TrackSummary
   playbackState: PlaybackSnapshot | null
   lyricsSnapshot: LyricsSnapshot
-  selectedQuality: PlaybackQualityPreference
   qualityLabel: (quality: string | undefined) => string
   qualityNotice?: PlaybackIssue
   playbackIssueMessage: (issue: PlaybackIssue) => string
@@ -20,41 +19,9 @@ const emit = defineEmits<{
   previous: []
   'toggle-playback': []
   next: []
-  'update:selected-quality': [quality: PlaybackQualityPreference]
 }>()
 
-const QUALITY_OPTION_LABELS: Record<PlaybackQualityPreference, string> = {
-  auto: '自动 · 最高可用',
-  standard: '标准 · 128 kbps',
-  exhigh: '极高 · 320 kbps',
-  lossless: '无损 · 1,411 kbps',
-  hires: 'Hi-Res · 2,304 kbps',
-}
-
-const qualityMenuOpen = ref(false)
-const qualityMenuRoot = ref<HTMLElement | null>(null)
-
-function qualityOptionLabel(quality: PlaybackQualityPreference): string {
-  return QUALITY_OPTION_LABELS[quality]
-}
-
-function toggleQualityMenu(): void {
-  qualityMenuOpen.value = !qualityMenuOpen.value
-}
-
-function selectQuality(quality: PlaybackQualityPreference): void {
-  qualityMenuOpen.value = false
-  emit('update:selected-quality', quality)
-}
-
-function closeQualityMenuOnPointerDown(event: PointerEvent): void {
-  const target = event.target
-  if (target instanceof Node && !qualityMenuRoot.value?.contains(target)) qualityMenuOpen.value = false
-}
-
-function closeQualityMenuOnEscape(event: KeyboardEvent): void {
-  if (event.key === 'Escape') qualityMenuOpen.value = false
-}
+const qualityDetailsOpen = ref(false)
 
 const durationMs = computed(() => props.currentTrack?.durationMs ?? 0)
 const progressMs = ref(0)
@@ -98,15 +65,12 @@ function startProgressInterpolation(): void {
 }
 
 watch(() => [props.currentTrack?.id, props.playbackState?.positionMs, props.playbackState?.state], startProgressInterpolation)
-onMounted(() => {
-  startProgressInterpolation()
-  document.addEventListener('pointerdown', closeQualityMenuOnPointerDown)
-  document.addEventListener('keydown', closeQualityMenuOnEscape)
+watch(() => [props.currentTrack?.id, props.playbackState?.actualQuality, props.playbackState?.bitrate], () => {
+  qualityDetailsOpen.value = false
 })
+onMounted(startProgressInterpolation)
 onUnmounted(() => {
   stopProgressInterpolation()
-  document.removeEventListener('pointerdown', closeQualityMenuOnPointerDown)
-  document.removeEventListener('keydown', closeQualityMenuOnEscape)
 })
 
 function formatTime(milliseconds: number): string {
@@ -116,6 +80,20 @@ function formatTime(milliseconds: number): string {
   const seconds = String(totalSeconds % 60).padStart(2, '0')
   return `${minutes}:${seconds}`
 }
+
+function formatBitrate(bitrate: number | undefined): string | undefined {
+  if (!Number.isFinite(bitrate) || bitrate === undefined || bitrate <= 0) return undefined
+  return `${Math.round(bitrate / 1000).toLocaleString('en-US')} kbps`
+}
+
+const actualQualityDetail = computed(() => {
+  const bitrate = formatBitrate(props.playbackState?.bitrate)
+  const format = props.playbackState?.format?.trim()
+  if (bitrate && format) return `${bitrate} · ${format.toUpperCase()}`
+  if (bitrate) return bitrate
+  if (format) return format.toUpperCase()
+  return '码率未知'
+})
 
 </script>
 
@@ -141,28 +119,14 @@ function formatTime(milliseconds: number): string {
             </div>
             <div class="now-playing-progress-meta"><span>{{ formatTime(progressMs) }}</span><span>{{ formatTime(durationMs) }}</span></div>
           </div>
-          <div class="now-playing-quality-row" aria-label="音质选择">
-            <div ref="qualityMenuRoot" class="now-playing-quality-control">
-              <button
-                type="button"
-                class="now-playing-quality-button"
-                :aria-expanded="qualityMenuOpen"
-                aria-haspopup="menu"
-                :aria-label="`选择播放音质，当前 ${qualityOptionLabel(props.selectedQuality)}`"
-                @click="toggleQualityMenu"
-              ><span>音质</span>{{ qualityOptionLabel(props.selectedQuality) }}<SidebarIcon name="chevron-down" :size="12" /></button>
-              <div v-if="qualityMenuOpen" class="now-playing-quality-menu" role="menu" aria-label="播放音质">
-                <button
-                  v-for="quality in PLAYBACK_QUALITY_PREFERENCES"
-                  :key="quality"
-                  type="button"
-                  role="menuitemradio"
-                  :aria-checked="props.selectedQuality === quality"
-                  @click="selectQuality(quality)"
-                >{{ qualityOptionLabel(quality) }}</button>
-              </div>
-            </div>
-            <span class="now-playing-quality-actual">实际 {{ props.qualityLabel(props.playbackState?.actualQuality) }}</span>
+          <div class="now-playing-quality-row" aria-label="当前实际音质">
+            <button
+              type="button"
+              class="now-playing-quality-button"
+              :aria-expanded="qualityDetailsOpen"
+              :aria-label="`当前实际音质 ${props.qualityLabel(props.playbackState?.actualQuality)}`"
+              @click="qualityDetailsOpen = !qualityDetailsOpen"
+            ><span>实际</span>{{ qualityDetailsOpen ? actualQualityDetail : props.qualityLabel(props.playbackState?.actualQuality) }}<SidebarIcon name="chevron-down" :size="12" /></button>
           </div>
           <div class="transport-controls" aria-label="歌曲切换控制">
             <button type="button" class="transport-button transport-button-secondary" :disabled="!props.playbackState?.canPrevious" aria-label="上一首" @click="emit('previous')"><SidebarIcon name="previous" :size="21" /></button>

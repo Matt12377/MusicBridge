@@ -1502,6 +1502,19 @@ onUnmounted(() => {
               <p v-else class="search-section-empty">没有匹配的艺人</p>
             </section>
 
+            <section class="search-result-section" aria-labelledby="search-albums-heading">
+              <div class="search-section-heading"><h3 id="search-albums-heading">专辑</h3><span v-if="searchAlbumsState === 'ready'">{{ searchAlbumsPage.total }} 张</span></div>
+              <div v-if="searchAlbumsState === 'loading'" class="search-card-grid search-card-grid-albums"><div v-for="index in 4" :key="index" class="search-card-skeleton" aria-hidden="true"></div></div>
+              <p v-else-if="searchAlbumsState === 'error'" class="persistent-error">{{ searchAlbumsError }}</p>
+              <div v-else-if="searchAlbumsPage.items.length" class="search-card-grid search-card-grid-albums" role="list">
+                <button v-for="album in searchAlbumsPage.items" :key="album.id" type="button" class="search-album-card" role="listitem" @click="openSearchDetail('album', album.id, album.name, `${album.artistName} · ${album.trackCount ?? 0} 首歌曲`)">
+                  <SafeArtwork class="search-album-art" :src="album.artworkUrl" :alt="`${album.name} 封面`" loading="lazy" fallback="♫" />
+                  <span><strong>{{ album.name }}</strong><small>{{ album.artistName }} · {{ album.trackCount ?? 0 }} 首歌曲</small></span>
+                </button>
+              </div>
+              <p v-else class="search-section-empty">没有匹配的专辑</p>
+            </section>
+
             <section class="search-result-section" aria-labelledby="search-tracks-heading">
               <div class="search-section-heading"><h3 id="search-tracks-heading">单曲</h3><span v-if="searchPage.total">{{ searchPage.total }} 首</span></div>
               <p v-if="searchError === 'auth-expired'" class="persistent-error">登录已过期，请从侧栏账户菜单重新登录。</p>
@@ -1509,7 +1522,7 @@ onUnmounted(() => {
               <div class="search-track-results">
                 <TrackTable
                   :tracks="searchPage.items"
-                  :show-artwork="false"
+                  :show-artwork="true"
                   :initial-loading="searchInitialLoading"
                   :loading-more="searchLoadingMore"
                   :load-more-error="searchLoadMoreError"
@@ -1524,19 +1537,6 @@ onUnmounted(() => {
                   @load-more="searchPageAt(searchPage.offset + searchPage.limit)"
                 />
               </div>
-            </section>
-
-            <section class="search-result-section" aria-labelledby="search-albums-heading">
-              <div class="search-section-heading"><h3 id="search-albums-heading">专辑</h3><span v-if="searchAlbumsState === 'ready'">{{ searchAlbumsPage.total }} 张</span></div>
-              <div v-if="searchAlbumsState === 'loading'" class="search-card-grid search-card-grid-albums"><div v-for="index in 4" :key="index" class="search-card-skeleton" aria-hidden="true"></div></div>
-              <p v-else-if="searchAlbumsState === 'error'" class="persistent-error">{{ searchAlbumsError }}</p>
-              <div v-else-if="searchAlbumsPage.items.length" class="search-card-grid search-card-grid-albums" role="list">
-                <button v-for="album in searchAlbumsPage.items" :key="album.id" type="button" class="search-album-card" role="listitem" @click="openSearchDetail('album', album.id, album.name, `${album.artistName} · ${album.trackCount ?? 0} 首歌曲`)">
-                  <SafeArtwork class="search-album-art" :src="album.artworkUrl" :alt="`${album.name} 封面`" loading="lazy" fallback="♫" />
-                  <span><strong>{{ album.name }}</strong><small>{{ album.artistName }} · {{ album.trackCount ?? 0 }} 首歌曲</small></span>
-                </button>
-              </div>
-              <p v-else class="search-section-empty">没有匹配的专辑</p>
             </section>
           </template>
         </section>
@@ -1577,7 +1577,6 @@ onUnmounted(() => {
           :current-track="currentTrack"
           :playback-state="playbackState"
           :lyrics-snapshot="lyricsSnapshot"
-          :selected-quality="selectedQuality"
           :quality-label="qualityLabel"
           :quality-notice="playbackState?.qualityNotice"
           :playback-issue-message="playbackIssueMessage"
@@ -1585,7 +1584,6 @@ onUnmounted(() => {
           @previous="previousTrack"
           @toggle-playback="togglePlayback"
           @next="nextTrack"
-          @update:selected-quality="setSelectedQuality($event)"
         />
 
         <SettingsView
