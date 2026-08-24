@@ -6,6 +6,7 @@ import { calculateVirtualWindow } from '../../composables/virtualWindow.js'
 
 const props = withDefaults(defineProps<{
   tracks: readonly TrackSummary[]
+  showArtwork?: boolean
   busy?: boolean
   initialLoading?: boolean
   loadingMore?: boolean
@@ -16,6 +17,7 @@ const props = withDefaults(defineProps<{
   emptyCopy?: string
   emptyGlyph?: string
 }>(), {
+  showArtwork: true,
   busy: false,
   initialLoading: false,
   loadingMore: false,
@@ -140,7 +142,7 @@ onUnmounted(() => {
       <h3>{{ props.emptyTitle }}</h3>
       <p>{{ props.emptyCopy }}</p>
     </div>
-    <div v-else ref="virtualViewport" class="track-table" :class="{ 'is-virtualized': isVirtualized }" role="table" aria-label="歌曲列表" @scroll="onVirtualScroll">
+    <div v-else ref="virtualViewport" class="track-table" :class="{ 'is-virtualized': isVirtualized, 'track-table-no-artwork': !props.showArtwork }" role="table" aria-label="歌曲列表" @scroll="onVirtualScroll">
       <div class="track-table-header" role="row">
         <span>#</span><span>歌曲</span><span>专辑</span><span>时长</span><span class="visually-hidden">操作</span>
       </div>
@@ -156,7 +158,7 @@ onUnmounted(() => {
         @contextmenu="showContextMenu($event, track)"
       >
         <span class="track-index" aria-hidden="true"><span class="track-number">{{ trackIndex(index) + 1 }}</span><span class="track-play-mark">▶</span></span>
-        <SafeArtwork class="track-art" :src="track.artworkUrl" :alt="`${track.title} 封面`" />
+        <SafeArtwork v-if="props.showArtwork" class="track-art" :src="track.artworkUrl" :alt="`${track.title} 封面`" />
         <span class="track-copy"><strong>{{ track.title }}</strong><small>{{ track.artists.join('、') }}</small></span>
         <span class="track-album">{{ track.album }}</span>
         <span class="track-duration">{{ formatDuration(track.durationMs) }}</span>

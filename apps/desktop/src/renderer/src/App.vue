@@ -1506,21 +1506,24 @@ onUnmounted(() => {
               <div class="search-section-heading"><h3 id="search-tracks-heading">单曲</h3><span v-if="searchPage.total">{{ searchPage.total }} 首</span></div>
               <p v-if="searchError === 'auth-expired'" class="persistent-error">登录已过期，请从侧栏账户菜单重新登录。</p>
               <p v-else-if="searchError === 'generic'" class="persistent-error">搜索单曲暂时不可用，请检查连接状态。</p>
-              <TrackTable
-                :tracks="searchPage.items"
-                :initial-loading="searchInitialLoading"
-                :loading-more="searchLoadingMore"
-                :load-more-error="searchLoadMoreError"
-                :total="searchPage.total"
-                :has-more="searchPage.hasMore"
-                :empty-title="searchQuery.trim() ? '没有匹配的单曲' : '开始一段搜索'"
-                empty-copy="搜索结果会以连续歌曲列表显示。"
-                empty-glyph="⌕"
-                @play="playTrack"
-                @queue="appendTrack"
-                @play-next="insertTrackNext"
-                @load-more="searchPageAt(searchPage.offset + searchPage.limit)"
-              />
+              <div class="search-track-results">
+                <TrackTable
+                  :tracks="searchPage.items"
+                  :show-artwork="false"
+                  :initial-loading="searchInitialLoading"
+                  :loading-more="searchLoadingMore"
+                  :load-more-error="searchLoadMoreError"
+                  :total="searchPage.total"
+                  :has-more="searchPage.hasMore"
+                  :empty-title="searchQuery.trim() ? '没有匹配的单曲' : '开始一段搜索'"
+                  empty-copy="搜索结果会以连续歌曲列表显示。"
+                  empty-glyph="⌕"
+                  @play="playTrack"
+                  @queue="appendTrack"
+                  @play-next="insertTrackNext"
+                  @load-more="searchPageAt(searchPage.offset + searchPage.limit)"
+                />
+              </div>
             </section>
 
             <section class="search-result-section" aria-labelledby="search-albums-heading">
@@ -1543,7 +1546,7 @@ onUnmounted(() => {
             <div class="liked-collage" aria-hidden="true"><SafeArtwork v-for="track in likedPage.items.slice(0, 4)" :key="track.id" class="liked-collage-tile" :src="track.artworkUrl" alt="" /><span v-if="!likedPage.items.length" class="liked-collage-empty">♫</span></div>
             <div class="view-heading"><div><p class="section-kicker">资料库</p><h2 id="liked-heading">我喜欢的音乐</h2><p class="lede">{{ likedPage.total }} 首歌曲</p></div><div class="button-row"><button type="button" class="primary-button" :disabled="!likedPage.items.length" @click="playAllLiked">播放全部</button><button type="button" class="secondary-button" :disabled="!likedPage.items.length" @click="appendAllLiked">加入队列</button></div></div>
           </div>
-          <p v-if="likedError" class="persistent-error">{{ likedError === 'auth-expired' ? '登录已过期，请从侧栏账户菜单重新登录。' : '我喜欢的音乐暂时不可用，请稍后重试。' }}</p>
+          <p v-if="likedError" class="persistent-error">{{ likedError === 'auth-expired' ? '登录已过期，请从侧栏账户菜单重新登录。' : '我喜欢的音乐暂时不可用，请稍后重试。' }}<button type="button" class="inline-action" @click="loadLiked()">重试</button></p>
           <TrackTable :tracks="likedPage.items" :initial-loading="likedInitialLoading" :loading-more="likedLoadingMore" :load-more-error="likedLoadMoreError" :total="likedPage.total" :has-more="likedPage.hasMore" empty-title="还没有喜欢的内容" empty-copy="登录网易云后，这里会显示你的收藏。" @play="playTrack" @queue="appendTrack" @play-next="insertTrackNext" @load-more="likedPageAt(likedPage.offset + likedPage.limit)" />
         </section>
 
@@ -1582,6 +1585,7 @@ onUnmounted(() => {
           @previous="previousTrack"
           @toggle-playback="togglePlayback"
           @next="nextTrack"
+          @update:selected-quality="setSelectedQuality($event)"
         />
 
         <SettingsView

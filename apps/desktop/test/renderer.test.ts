@@ -284,6 +284,30 @@ test('V1 Search is an artist, track and album flow without playlist results', as
   assert.doesNotMatch(app, /搜索结果.*歌单|search-playlist|搜索歌单/)
 })
 
+test('V1 search single tracks use text-first rows without cover artwork', async () => {
+  const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const trackTable = await readFile(path.resolve('src/renderer/src/components/media/TrackTable.vue'), 'utf8')
+
+  assert.match(app, /class="search-track-results"/)
+  assert.match(app, /:show-artwork="false"/)
+  assert.match(trackTable, /showArtwork/)
+  assert.match(trackTable, /v-if="props\.showArtwork"/)
+})
+
+test('V1 Now Playing centers a clickable bitrate quality menu without next-quality copy', async () => {
+  const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const nowPlaying = await readFile(path.resolve('src/renderer/src/components/NowPlayingView.vue'), 'utf8')
+  const css = await readFile(path.resolve('src/renderer/src/style.css'), 'utf8')
+
+  assert.doesNotMatch(nowPlaying, /下次播放音质|now-playing-quality-next/)
+  assert.match(nowPlaying, /PLAYBACK_QUALITY_PREFERENCES/)
+  assert.match(nowPlaying, /role="menuitemradio"/)
+  assert.match(nowPlaying, /320 kbps/)
+  assert.match(nowPlaying, /update:selected-quality/)
+  assert.match(app, /@update:selected-quality="setSelectedQuality\(\$event\)"/)
+  assert.match(css, /\.now-playing-quality-row\s*\{[^}]*justify-content:\s*center/)
+})
+
 test('V1 large track and queue lists use a bounded virtual window', async () => {
   const files = await sourceFiles(rendererRoot)
   const source = (await Promise.all(files.map((file) => readFile(file, 'utf8')))).join('\n')
