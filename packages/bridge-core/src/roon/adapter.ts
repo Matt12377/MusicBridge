@@ -512,12 +512,14 @@ export class RoonAudioInputAdapter implements RoonPort {
       this.sdk.audioInputService,
       this.sdk.transportService,
     ];
-    if (this.sdk.browseService && this.sdk.imageService) {
-      requiredServices.push(this.sdk.browseService, this.sdk.imageService);
-    }
+    // Browse/Image are capability additions. They must not prevent the
+    // transport extension from pairing when a Core does not authorize them.
+    const optionalServices = [this.sdk.browseService, this.sdk.imageService]
+      .filter((service): service is RoonRequiredServiceConstructor => service !== undefined);
     this.roon.init_services({
       provided_services: [settingsService, this.statusService],
       required_services: requiredServices,
+      optional_services: optionalServices,
     });
     this.roon.start_discovery();
     this.setStatus('discovering', 'Ready to pair', true);

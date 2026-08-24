@@ -118,6 +118,7 @@ export interface RoonApiInstance {
   init_services(options: {
     provided_services?: readonly unknown[];
     required_services?: readonly RoonRequiredServiceConstructor[];
+    optional_services?: readonly RoonRequiredServiceConstructor[];
   }): void;
   start_discovery(): void;
   stop_discovery?(): void;

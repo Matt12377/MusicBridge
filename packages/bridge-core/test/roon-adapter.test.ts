@@ -193,6 +193,7 @@ class FakeApi implements RoonApiInstance {
   readonly initServiceCalls: Array<{
     provided_services: readonly unknown[];
     required_services: readonly RoonRequiredServiceConstructor[];
+    optional_services: readonly RoonRequiredServiceConstructor[];
   }> = [];
   startDiscoveryCalls = 0;
   stopDiscoveryCalls = 0;
@@ -216,10 +217,12 @@ class FakeApi implements RoonApiInstance {
   init_services(options: {
     provided_services?: readonly unknown[];
     required_services?: readonly RoonRequiredServiceConstructor[];
+    optional_services?: readonly RoonRequiredServiceConstructor[];
   }): void {
     this.initServiceCalls.push({
       provided_services: options.provided_services ?? [],
       required_services: options.required_services ?? [],
+      optional_services: options.optional_services ?? [],
     });
   }
 
@@ -347,13 +350,15 @@ test('Roon extension metadata identifies the beta candidate without the POC suff
   await adapter.stop();
 });
 
-test('paired core exposes the Roon library service and registers Browse/Image requirements', async () => {
+test('paired core exposes the Roon library service while registering Browse/Image as optional capabilities', async () => {
   const { adapter, sdk } = await makeReadyHarness();
 
   assert.ok(adapter.getLibraryService());
   assert.deepEqual(sdk.apis[0]?.initServiceCalls[0]?.required_services, [
     sdk.audioInputService,
     sdk.transportService,
+  ]);
+  assert.deepEqual(sdk.apis[0]?.initServiceCalls[0]?.optional_services, [
     sdk.browseService,
     sdk.imageService,
   ]);
