@@ -19,6 +19,30 @@ test('local-core keeps the formal loopback defaults and ignores no remote settin
   assert.equal(config.remoteStreamPort, undefined)
 })
 
+test('local-core accepts an explicitly configured loopback Roon Core websocket', () => {
+  const config = loadConfig({
+    NODE_ENV: 'test',
+    ROON_CORE_HOST: '127.0.0.1',
+    ROON_CORE_PORT: '9330',
+    NETEASE_DEFAULT_QUALITY: 'lossless',
+  })
+
+  assert.equal(config.mode, 'local-core')
+  assert.equal(config.roonCoreHost, '127.0.0.1')
+  assert.equal(config.roonCorePort, 9330)
+})
+
+test('local-core rejects a non-loopback Roon Core websocket host', () => {
+  assert.throws(
+    () => loadConfig({
+      NODE_ENV: 'test',
+      ROON_CORE_HOST: '192.168.1.20',
+      ROON_CORE_PORT: '9330',
+    }),
+    (error: unknown) => error instanceof BridgeError && error.code === 'CONFIG_INVALID',
+  )
+})
+
 test('remote-core-development fixes local Core ports and publishes only the selected bounded remote port', () => {
   const config = loadConfig({
     NODE_ENV: 'test',

@@ -26,6 +26,7 @@ export interface BridgeConfig {
 export const REMOTE_STREAM_PORT_CANDIDATES = REMOTE_CORE_STREAM_PORT_CANDIDATES;
 export const REMOTE_ROON_CORE_HOST = '127.0.0.1' as const;
 export const LOCAL_ROON_CORE_PORT = 19330 as const;
+export const DIRECT_ROON_CORE_PORT = 9330 as const;
 
 function parsePort(value: string | undefined, fallback: number, name: string): number {
   if (value === undefined || value.trim() === '') return fallback;
@@ -160,6 +161,16 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
         { httpStatus: 500 },
       );
     }
+  } else if (env.ROON_CORE_HOST?.trim() || env.ROON_CORE_PORT?.trim()) {
+    roonCoreHost = env.ROON_CORE_HOST?.trim() || REMOTE_ROON_CORE_HOST;
+    if (roonCoreHost !== REMOTE_ROON_CORE_HOST && roonCoreHost !== '::1') {
+      throw new BridgeError(
+        'CONFIG_INVALID',
+        'Direct Roon Core host must stay on loopback',
+        { httpStatus: 500 },
+      );
+    }
+    roonCorePort = parsePort(env.ROON_CORE_PORT, DIRECT_ROON_CORE_PORT, 'ROON_CORE_PORT');
   }
 
   const quality = parseQualityPreference(env.NETEASE_DEFAULT_QUALITY ?? 'auto');
