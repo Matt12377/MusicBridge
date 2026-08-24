@@ -218,6 +218,15 @@ function makeRuntime(): CoreRuntimeForIpc & {
     async insertNextPlayback() {
       return playbackState;
     },
+    async browseRoonAlbums(page) {
+      return { items: [], offset: page.offset, limit: page.limit };
+    },
+    async browseRoonAlbum() {
+      return { items: [], offset: 0, limit: 20 };
+    },
+    async getRoonImage() {
+      return { contentType: 'image/jpeg', body: new Uint8Array() };
+    },
   };
 }
 
@@ -454,6 +463,57 @@ test('utility IPC returns bounded lyrics snapshots without provider response fie
     },
   });
   assert.doesNotMatch(JSON.stringify(port.messages[1]), /rawProvider|cookie|token|Authorization/i);
+});
+
+test('utility IPC dispatches the opaque Roon Library browse/image seams', async () => {
+  const port = new FakePort();
+  const runtime = makeRuntime();
+  await attachCoreRuntimePort(port, runtime);
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'roon-albums',
+    command: 'roon.library.albums',
+    payload: { page: { offset: 0, limit: 20 } },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[1], {
+    version: IPC_VERSION,
+    id: 'roon-albums',
+    ok: true,
+    result: { items: [], offset: 0, limit: 20 },
+  });
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'roon-album',
+    command: 'roon.library.album',
+    payload: {
+      reference: 'musicbridge-v2-entity-123e4567-e89b-12d3-a456-426614174000',
+      page: { offset: 0, limit: 20 },
+    },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[2], {
+    version: IPC_VERSION,
+    id: 'roon-album',
+    ok: true,
+    result: { items: [], offset: 0, limit: 20 },
+  });
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'roon-image',
+    command: 'roon.library.image',
+    payload: {
+      reference: 'musicbridge-v2-image-123e4567-e89b-12d3-a456-426614174001',
+      options: { width: 128, height: 128 },
+    },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  const response = port.messages[3] as { result?: { contentType?: string; body?: Uint8Array } };
+  assert.equal(response.result?.contentType, 'image/jpeg');
+  assert.deepEqual(response.result?.body, new Uint8Array());
 });
 
 test('utility IPC dispatches typed playback controls without exposing stream internals', async () => {

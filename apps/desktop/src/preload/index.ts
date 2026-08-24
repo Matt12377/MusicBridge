@@ -65,5 +65,10 @@ contextBridge.exposeInMainWorld(
       ipcRenderer.on('remote-core:event', handler)
       return () => ipcRenderer.removeListener('remote-core:event', handler)
     },
+    (page: { offset: number; limit: number }) => ipcRenderer.invoke('roon:library:albums', page),
+    (reference: string, page: { offset: number; limit: number }) =>
+      ipcRenderer.invoke('roon:library:album', reference, page),
+    (reference: string, options?: { scale?: 'fit' | 'fill' | 'stretch'; width?: number; height?: number; format?: 'image/jpeg' | 'image/png' }) =>
+      ipcRenderer.invoke('roon:library:image', reference, options),
   ),
 )

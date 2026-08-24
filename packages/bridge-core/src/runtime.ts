@@ -20,6 +20,9 @@ import type {
   PublicAccountState,
   PublicBridgeState,
   PublicRoonZone,
+  RoonImageOptions,
+  RoonImageResult,
+  RoonLibraryPage,
   TrackSummary,
   TypedIpcEvent,
 } from '@music-bridge/contracts';
@@ -31,6 +34,7 @@ import type { CredentialVerificationStatus } from './netease/types.js';
 import { emptyLyricsSnapshot } from './netease/lyrics.js';
 import { QrLoginStateMachine } from './netease/qr-login.js';
 import { RoonAudioInputAdapter, type RoonTimeShapeSummary } from './roon/adapter.js';
+import { createRoonPublicLibrary } from './roon/public-library.js';
 import type { RoonSdk } from './roon/sdk.js';
 import { asBridgeError, BridgeError } from './shared/errors.js';
 import { createLogger, type Logger } from './shared/logger.js';
@@ -77,6 +81,9 @@ export interface CoreRuntime {
   ): Promise<PlaybackSnapshot>;
   appendPlaybackQueue(items: readonly PlaybackQueueRequestItem[]): Promise<PlaybackSnapshot>;
   insertNextPlayback(items: readonly PlaybackQueueRequestItem[]): Promise<PlaybackSnapshot>;
+  browseRoonAlbums(page: PageRequest): Promise<RoonLibraryPage>;
+  browseRoonAlbum(reference: string, page: PageRequest): Promise<RoonLibraryPage>;
+  getRoonImage(reference: string, options?: RoonImageOptions): Promise<RoonImageResult>;
   listZones(): readonly PublicRoonZone[];
   selectZone(zoneId: string): Promise<PublicBridgeState>;
 }
@@ -174,6 +181,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     iconPort: config.remoteStreamPort ?? config.streamPort,
     ...(options.onRoonTimeShape ? { onTimeShape: options.onRoonTimeShape } : {}),
   });
+  const roonLibrary = createRoonPublicLibrary(() => roon.getLibraryService());
   const gateway = new StreamGateway({
     host: config.streamHost,
     port: config.streamPort,
@@ -670,6 +678,10 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       return controller.getPlaybackState();
     },
 
+    browseRoonAlbums: (page) => roonLibrary.browseAlbums(page),
+    browseRoonAlbum: (reference, page) => roonLibrary.browseAlbum(reference, page),
+    getRoonImage: (reference, options) => roonLibrary.getImage(reference, options),
+
     listZones: () => roon.listZones().map((zone) => ({
       zoneId: zone.zone_id,
       displayName: zone.display_name ?? zone.zone_id,
@@ -1054,6 +1066,19 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
         canPrevious: playbackState.queue.index > 0,
       };
       return playbackState;
+    },
+    async browseRoonAlbums(page) {
+      return { items: [], offset: page.offset, limit: page.limit };
+    },
+    async browseRoonAlbum() {
+      throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
+        httpStatus: 503,
+      });
+    },
+    async getRoonImage() {
+      throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
+        httpStatus: 503,
+      });
     },
     listZones: () => ({
       zones: [{ zoneId: fixtureZoneId, displayName: 'Synthetic Zone', selected: selectedZoneId === fixtureZoneId }],

@@ -424,6 +424,85 @@ test('contracts preserves the public AUTH_EXPIRED error without internal details
   assert.equal(result.ok, true);
 });
 
+test('contracts validates the opaque Roon Library browse and image seams', () => {
+  const albumPage = {
+    items: [{
+      reference: 'musicbridge-v2-entity-123e4567-e89b-12d3-a456-426614174000',
+      kind: 'album',
+      title: 'Private Album',
+      durationMs: 123_000,
+      artworkReference: 'musicbridge-v2-image-123e4567-e89b-12d3-a456-426614174001',
+    }],
+    offset: 0,
+    limit: 20,
+    total: 1,
+    hasMore: false,
+  };
+  const albumItem = albumPage.items[0];
+  assert.ok(albumItem);
+  assert.ok(albumItem.artworkReference);
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'roon-albums',
+      command: 'roon.library.albums',
+      payload: { page: { offset: 0, limit: 20 } },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'roon-album',
+      command: 'roon.library.album',
+      payload: {
+        reference: albumItem.reference,
+        page: { offset: 0, limit: 20 },
+      },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'roon-image',
+      command: 'roon.library.image',
+      payload: {
+        reference: albumItem.artworkReference,
+        options: { width: 256, height: 256, scale: 'fit', format: 'image/jpeg' },
+      },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcResponseForCommand({
+      version: IPC_VERSION,
+      id: 'roon-albums',
+      ok: true,
+      result: albumPage,
+    }, 'roon.library.albums').ok,
+    true,
+  );
+  assert.equal(
+    validateIpcResponseForCommand({
+      version: IPC_VERSION,
+      id: 'roon-image',
+      ok: true,
+      result: { contentType: 'image/jpeg', body: new Uint8Array([1, 2, 3]) },
+    }, 'roon.library.image').ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'roon-delete-shaped',
+      command: 'roon.library.album',
+      payload: { reference: 'album:delete', page: { offset: 0, limit: 20 } },
+    }).ok,
+    false,
+  );
+});
+
 test('contracts validates bounded playback controls and sanitized snapshots', () => {
   const snapshot = {
     state: 'playing',

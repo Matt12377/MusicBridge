@@ -7,6 +7,11 @@ import type {
   PlaylistSummary,
   TrackSummary,
 } from './library.js';
+import type {
+  RoonImageOptions,
+  RoonImageResult,
+  RoonLibraryPage,
+} from './roon.js';
 import type { LyricsSnapshot } from './lyrics.js';
 import type {
   PlaybackQueueRequestItem,
@@ -48,6 +53,9 @@ export const IPC_COMMANDS = [
   'lyrics.get',
   'roon.listZones',
   'roon.selectZone',
+  'roon.library.albums',
+  'roon.library.album',
+  'roon.library.image',
   'playback.getState',
   'playback.play',
   'playback.stop',
@@ -125,6 +133,9 @@ export interface IpcCommandPayloads {
   'lyrics.get': { trackId: string };
   'roon.listZones': Record<string, never>;
   'roon.selectZone': { zoneId: string };
+  'roon.library.albums': { page: PageRequest };
+  'roon.library.album': { reference: string; page: PageRequest };
+  'roon.library.image': { reference: string; options?: RoonImageOptions };
   'playback.getState': Record<string, never>;
   'playback.play': { trackId: string; qualityPreference: PlaybackQualityPreference };
   'playback.stop': Record<string, never>;
@@ -159,6 +170,9 @@ export interface IpcCommandResults {
   'lyrics.get': LyricsSnapshot;
   'roon.listZones': { zones: readonly PublicRoonZone[] };
   'roon.selectZone': PublicBridgeState;
+  'roon.library.albums': RoonLibraryPage;
+  'roon.library.album': RoonLibraryPage;
+  'roon.library.image': RoonImageResult;
   'playback.getState': PlaybackSnapshot;
   'playback.play': PlaybackSnapshot;
   'playback.stop': PlaybackSnapshot;

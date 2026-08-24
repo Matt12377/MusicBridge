@@ -22,6 +22,7 @@ import type {
   PublicErrorCode,
   RemoteCoreMode,
   RemoteCoreTunnelState,
+  RoonImageOptions,
   TypedIpcEvent,
 } from '@music-bridge/contracts'
 import { IPC_VERSION, validateIpcEvent } from '@music-bridge/contracts'
@@ -479,6 +480,50 @@ function requireZoneId(value: unknown): string {
   return value
 }
 
+function requireRoonReference(value: unknown): string {
+  if (
+    typeof value !== 'string' ||
+    value.trim().length === 0 ||
+    value.length > 128 ||
+    !/^musicbridge-v2-(?:entity|image)-[0-9a-f-]{36}$/u.test(value)
+  ) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid Roon Library reference')
+  }
+  return value
+}
+
+function requireRoonImageOptions(value: unknown): RoonImageOptions | undefined {
+  if (value === undefined) return undefined
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid Roon image options')
+  }
+  const options = value as {
+    scale?: unknown
+    width?: unknown
+    height?: unknown
+    format?: unknown
+  }
+  if (
+    Object.keys(options).some((key) => !['scale', 'width', 'height', 'format'].includes(key)) ||
+    (options.scale !== undefined && !['fit', 'fill', 'stretch'].includes(String(options.scale))) ||
+    (options.format !== undefined && !['image/jpeg', 'image/png'].includes(String(options.format))) ||
+    (options.width !== undefined && (
+      typeof options.width !== 'number' || !Number.isSafeInteger(options.width) || options.width < 1 || options.width > 2048
+    )) ||
+    (options.height !== undefined && (
+      typeof options.height !== 'number' || !Number.isSafeInteger(options.height) || options.height < 1 || options.height > 2048
+    ))
+  ) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid Roon image options')
+  }
+  return {
+    ...(options.scale !== undefined ? { scale: options.scale as RoonImageOptions['scale'] } : {}),
+    ...(options.width !== undefined ? { width: options.width } : {}),
+    ...(options.height !== undefined ? { height: options.height } : {}),
+    ...(options.format !== undefined ? { format: options.format as RoonImageOptions['format'] } : {}),
+  }
+}
+
 function requirePlaybackTrackId(value: unknown): string {
   if (typeof value !== 'string' || !/^\d+$/.test(value) || value === '0' || value.length > 128) {
     return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback track')
@@ -688,6 +733,28 @@ function registerIpcHandlers(
     invokeCore(event, () =>
       supervisor.request('roon.selectZone', { zoneId: requireZoneId(zoneId) }),
     ),
+  )
+  ipcMain.handle('roon:library:albums', (event, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.albums', { page: requireLibraryPage(page) }),
+    ),
+  )
+  ipcMain.handle('roon:library:album', (event, reference: unknown, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.album', {
+        reference: requireRoonReference(reference),
+        page: requireLibraryPage(page),
+      }),
+    ),
+  )
+  ipcMain.handle('roon:library:image', (event, reference: unknown, options: unknown) =>
+    invokeCore(event, () => {
+      const imageOptions = requireRoonImageOptions(options)
+      return supervisor.request('roon.library.image', {
+        reference: requireRoonReference(reference),
+        ...(imageOptions !== undefined ? { options: imageOptions } : {}),
+      })
+    }),
   )
   ipcMain.handle('lyrics:get', (event, trackId: unknown) =>
     invokeCore(event, () =>

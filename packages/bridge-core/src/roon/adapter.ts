@@ -16,6 +16,7 @@ import {
   type RoonAudioInputPlayOptions,
   type RoonAudioInputSession,
   type RoonCore,
+  type RoonRequiredServiceConstructor,
   type RoonSdk,
   type RoonSettingsRequest,
   type RoonSettingsService,
@@ -23,6 +24,10 @@ import {
   type RoonZone,
   type RoonZoneChangeMessage,
 } from './sdk.js';
+import {
+  createRoonLibraryService,
+  type RoonLibraryService,
+} from './library.js';
 
 interface SettingsState {
   output?: {
@@ -372,6 +377,7 @@ export class RoonAudioInputAdapter implements RoonPort {
   private core: RoonCore | undefined;
   private statusService: RoonStatusService | undefined;
   private audioInput: RoonAudioInputService | undefined;
+  private libraryService: RoonLibraryService | undefined;
   private settings: SettingsState = {};
   private readonly zones = new Map<string, RoonZone>();
   private selectedZone: RoonZone | undefined;
@@ -436,6 +442,10 @@ export class RoonAudioInputAdapter implements RoonPort {
     }));
   }
 
+  getLibraryService(): RoonLibraryService | undefined {
+    return this.libraryService;
+  }
+
   selectZone(zoneId: string): void {
     const zone = this.zones.get(zoneId);
     if (!zone) {
@@ -498,9 +508,16 @@ export class RoonAudioInputAdapter implements RoonPort {
     });
 
     this.statusService = this.sdk.createStatus(this.roon);
+    const requiredServices: RoonRequiredServiceConstructor[] = [
+      this.sdk.audioInputService,
+      this.sdk.transportService,
+    ];
+    if (this.sdk.browseService && this.sdk.imageService) {
+      requiredServices.push(this.sdk.browseService, this.sdk.imageService);
+    }
     this.roon.init_services({
       provided_services: [settingsService, this.statusService],
-      required_services: [this.sdk.audioInputService, this.sdk.transportService],
+      required_services: requiredServices,
     });
     this.roon.start_discovery();
     this.setStatus('discovering', 'Ready to pair', true);
@@ -892,6 +909,7 @@ export class RoonAudioInputAdapter implements RoonPort {
       this.roon = undefined;
       this.core = undefined;
       this.audioInput = undefined;
+      this.libraryService = undefined;
       this.terminalHandler = () => undefined;
       this.stateHandler = () => undefined;
       this.timeHandler = () => undefined;
@@ -930,6 +948,13 @@ export class RoonAudioInputAdapter implements RoonPort {
   private onCorePaired(core: RoonCore): void {
     this.core = core;
     this.audioInput = core.services.RoonApiAudioInput;
+    this.libraryService =
+      core.services.RoonApiBrowse && core.services.RoonApiImage
+        ? createRoonLibraryService({
+            browse: core.services.RoonApiBrowse,
+            image: core.services.RoonApiImage,
+          })
+        : undefined;
     this.state = {
       status: 'paired',
       ...(typeof core.display_name === 'string' ? { coreName: core.display_name } : {}),
@@ -959,6 +984,7 @@ export class RoonAudioInputAdapter implements RoonPort {
   private onCoreUnpaired(): void {
     this.core = undefined;
     this.audioInput = undefined;
+    this.libraryService = undefined;
     this.zones.clear();
     this.selectedZone = undefined;
     this.state = { status: 'discovering' };

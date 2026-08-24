@@ -11,6 +11,9 @@ import type {
   PublicAccountState,
   PublicBridgeState,
   PublicRoonZone,
+  RoonImageOptions,
+  RoonImageResult,
+  RoonLibraryPage,
   RemoteCoreTunnelState,
   DailyRecommendationsSnapshot,
   TrackSummary,
@@ -53,6 +56,9 @@ export interface MusicBridgePublicApi {
   getDailyRecommendations: () => Promise<DailyRecommendationsSnapshot>
   listZones: () => Promise<{ zones: readonly PublicRoonZone[] }>
   selectZone: (zoneId: string) => Promise<PublicBridgeState>
+  listRoonAlbums: (page: PageRequest) => Promise<RoonLibraryPage>
+  getRoonAlbumTracks: (reference: string, page: PageRequest) => Promise<RoonLibraryPage>
+  getRoonImage: (reference: string, options?: RoonImageOptions) => Promise<RoonImageResult>
   getLyrics: (trackId: string) => Promise<LyricsSnapshot>
   getPlaybackState: () => Promise<PlaybackSnapshot>
   play: (trackId: string, quality: PlaybackQualityPreference) => Promise<PlaybackSnapshot>
@@ -91,6 +97,9 @@ export const PUBLIC_API_KEYS = [
   'getDailyRecommendations',
   'listZones',
   'selectZone',
+  'listRoonAlbums',
+  'getRoonAlbumTracks',
+  'getRoonImage',
   'getLyrics',
   'getPlaybackState',
   'play',
@@ -147,6 +156,15 @@ export function createPreloadApi(
   onRemoteCoreEvent: (
     _listener: (state: RemoteCoreTunnelState) => void,
   ) => (() => void) = () => () => undefined,
+  listRoonAlbums: (_page: PageRequest) => Promise<RoonLibraryPage> = async () => {
+    throw new Error('Roon Library API is unavailable')
+  },
+  getRoonAlbumTracks: (_reference: string, _page: PageRequest) => Promise<RoonLibraryPage> = async () => {
+    throw new Error('Roon Library API is unavailable')
+  },
+  getRoonImage: (_reference: string, _options?: RoonImageOptions) => Promise<RoonImageResult> = async () => {
+    throw new Error('Roon Library API is unavailable')
+  },
 ): MusicBridgePublicApi {
   return Object.freeze({
     getAppInfo,
@@ -168,6 +186,9 @@ export function createPreloadApi(
     getDailyRecommendations,
     listZones,
     selectZone,
+    listRoonAlbums,
+    getRoonAlbumTracks,
+    getRoonImage,
     getLyrics,
     getPlaybackState,
     play,

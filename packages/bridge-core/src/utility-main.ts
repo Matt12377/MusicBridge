@@ -75,6 +75,16 @@ function failureForError(id: string, error: unknown): IpcFailure {
   if (bridgeError.code === 'ROON_NOT_PAIRED' || bridgeError.code === 'ROON_ZONE_NOT_SELECTED') {
     return responseFailure(id, 'NOT_READY', 'Core is not ready for this request');
   }
+  if (bridgeError.code === 'ROON_LIBRARY_UNAVAILABLE' || bridgeError.code === 'ROON_LIBRARY_REQUEST_FAILED') {
+    return responseFailure(id, 'NOT_READY', 'Roon Library is not ready');
+  }
+  if (
+    bridgeError.code === 'ROON_LIBRARY_INVALID_REFERENCE' ||
+    bridgeError.code === 'ROON_ACTION_BLOCKED' ||
+    bridgeError.code === 'BAD_REQUEST'
+  ) {
+    return responseFailure(id, 'INVALID_IPC_REQUEST', 'Invalid Roon Library request');
+  }
   return responseFailure(id, 'INTERNAL_ERROR', 'Core request failed');
 }
 
@@ -154,6 +164,20 @@ async function dispatch(
       return { zones: runtime.listZones() };
     case 'roon.selectZone':
       return runtime.selectZone((request.payload as { zoneId: string }).zoneId);
+    case 'roon.library.albums':
+      return runtime.browseRoonAlbums(
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'roon.library.album':
+      return runtime.browseRoonAlbum(
+        (request.payload as { reference: string }).reference,
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'roon.library.image':
+      return runtime.getRoonImage(
+        (request.payload as { reference: string }).reference,
+        (request.payload as { options?: Parameters<CoreRuntimeForIpc['getRoonImage']>[1] }).options,
+      );
     case 'playback.getState':
       return runtime.getPlaybackState();
     case 'playback.play':

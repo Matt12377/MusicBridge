@@ -20,6 +20,7 @@ import type {
   RoonTransportService,
   RoonZoneChangeCallback,
 } from '../src/roon/sdk.js';
+import type { RoonBrowseApi, RoonImageApi } from '../src/roon/library.js';
 import { BridgeError } from '../src/shared/errors.js';
 import { createLogger, type Logger } from '../src/shared/logger.js';
 
@@ -123,13 +124,43 @@ class FakeTransport implements RoonTransportService {
   }
 }
 
+class FakeBrowse implements RoonBrowseApi {
+  browse(
+    _options: Record<string, unknown>,
+    callback: (error: string | false, body: unknown) => void,
+  ): void {
+    callback(false, { list: { level: 1 } });
+  }
+
+  load(
+    _options: Record<string, unknown>,
+    callback: (error: string | false, body: unknown) => void,
+  ): void {
+    callback(false, { offset: 0, items: [] });
+  }
+}
+
+class FakeImage implements RoonImageApi {
+  get_image(
+    _imageKey: string,
+    _options: Record<string, unknown>,
+    callback: (error: string | false, contentType?: string, imageBody?: Buffer) => void,
+  ): void {
+    callback(false, 'image/jpeg', Buffer.from('fake-image'));
+  }
+}
+
 class FakeCore implements RoonCore {
   readonly display_name = 'Fake Core';
   readonly audioInput = new FakeAudioInput();
   readonly transport = new FakeTransport();
+  readonly browse = new FakeBrowse();
+  readonly image = new FakeImage();
   readonly services = {
     RoonApiAudioInput: this.audioInput,
     RoonApiTransport: this.transport,
+    RoonApiBrowse: this.browse,
+    RoonApiImage: this.image,
   };
 }
 
@@ -221,6 +252,8 @@ class FakeSdk implements RoonSdk {
 
   readonly audioInputService = class FakeAudioInputService {};
   readonly transportService = class FakeTransportService {};
+  readonly browseService = class FakeBrowseService {};
+  readonly imageService = class FakeImageService {};
 
   createApi(options: RoonApiOptions): RoonApiInstance {
     const api = new FakeApi(options, this.config);
@@ -312,6 +345,20 @@ test('Roon extension metadata identifies the beta candidate without the POC suff
     },
   );
   await adapter.stop();
+});
+
+test('paired core exposes the Roon library service and registers Browse/Image requirements', async () => {
+  const { adapter, sdk } = await makeReadyHarness();
+
+  assert.ok(adapter.getLibraryService());
+  assert.deepEqual(sdk.apis[0]?.initServiceCalls[0]?.required_services, [
+    sdk.audioInputService,
+    sdk.transportService,
+    sdk.browseService,
+    sdk.imageService,
+  ]);
+
+  await adapter.shutdown();
 });
 
 test('remote development uses an isolated Roon extension identity, settings key, and icon port', async () => {

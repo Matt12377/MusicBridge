@@ -135,6 +135,43 @@ function isLibraryPagePayload(value: unknown): value is { page: PageRequest } {
   return isRecord(value) && hasOnlyKeys(value, ['page']) && isPageRequest(value.page);
 }
 
+function isRoonLibraryReference(value: unknown): value is string {
+  return safeString(value, 128) && /^musicbridge-v2-(?:entity|image)-[0-9a-f-]{36}$/u.test(value);
+}
+
+function isRoonAlbumPayload(value: unknown): value is { reference: string; page: PageRequest } {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['reference', 'page']) &&
+    isRoonLibraryReference(value.reference) &&
+    isPageRequest(value.page)
+  );
+}
+
+function isRoonImageOptions(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (!isRecord(value) || !hasOnlyKeys(value, ['scale', 'width', 'height', 'format'])) return false;
+  return (
+    (value.scale === undefined || ['fit', 'fill', 'stretch'].includes(String(value.scale))) &&
+    (value.format === undefined || ['image/jpeg', 'image/png'].includes(String(value.format))) &&
+    (value.width === undefined || (
+      typeof value.width === 'number' && Number.isSafeInteger(value.width) && value.width >= 1 && value.width <= 2048
+    )) &&
+    (value.height === undefined || (
+      typeof value.height === 'number' && Number.isSafeInteger(value.height) && value.height >= 1 && value.height <= 2048
+    ))
+  );
+}
+
+function isRoonImagePayload(value: unknown): value is { reference: string; options?: Record<string, unknown> } {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['reference', 'options']) &&
+    isRoonLibraryReference(value.reference) &&
+    isRoonImageOptions(value.options)
+  );
+}
+
 function isLibraryPlaylistPayload(
   value: unknown,
 ): value is { playlistId: string; page: PageRequest } {
@@ -590,6 +627,9 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'library.search') return isLibrarySearchPayload(payload);
   if (command === 'library.liked') return isLibraryPagePayload(payload);
   if (command === 'library.playlist') return isLibraryPlaylistPayload(payload);
+  if (command === 'roon.library.albums') return isLibraryPagePayload(payload);
+  if (command === 'roon.library.album') return isRoonAlbumPayload(payload);
+  if (command === 'roon.library.image') return isRoonImagePayload(payload);
   if (command === 'lyrics.get') return isLyricsPayload(payload);
   if (command === 'playback.play') return isPlaybackPlayPayload(payload);
   if (command === 'playback.replaceQueue') return isPlaybackReplaceQueuePayload(payload);
@@ -810,6 +850,66 @@ function isPublicRoonZone(value: unknown): value is PublicRoonZone {
   );
 }
 
+function isRoonLibraryItem(value: unknown): boolean {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, [
+      'reference',
+      'kind',
+      'title',
+      'subtitle',
+      'artist',
+      'album',
+      'durationMs',
+      'trackNumber',
+      'discNumber',
+      'year',
+      'version',
+      'artworkReference',
+    ])
+  ) return false;
+  return (
+    isRoonLibraryReference(value.reference) &&
+    ['album', 'artist', 'genre', 'playlist', 'composer', 'track'].includes(String(value.kind)) &&
+    safeString(value.title, 512) &&
+    (value.subtitle === undefined || safeString(value.subtitle, 512)) &&
+    (value.artist === undefined || safeString(value.artist, 512)) &&
+    (value.album === undefined || safeString(value.album, 512)) &&
+    (value.durationMs === undefined || (
+      typeof value.durationMs === 'number' && Number.isSafeInteger(value.durationMs) && value.durationMs >= 0 && value.durationMs <= 24 * 60 * 60 * 1000
+    )) &&
+    (value.trackNumber === undefined || (typeof value.trackNumber === 'number' && Number.isSafeInteger(value.trackNumber) && value.trackNumber >= 0)) &&
+    (value.discNumber === undefined || (typeof value.discNumber === 'number' && Number.isSafeInteger(value.discNumber) && value.discNumber >= 0)) &&
+    (value.year === undefined || (typeof value.year === 'number' && Number.isSafeInteger(value.year) && value.year >= 0 && value.year <= 9999)) &&
+    (value.version === undefined || safeString(value.version, 256)) &&
+    (value.artworkReference === undefined || /^musicbridge-v2-image-[0-9a-f-]{36}$/u.test(String(value.artworkReference)))
+  );
+}
+
+function isRoonLibraryPage(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['items', 'offset', 'limit', 'total', 'hasMore']) &&
+    isPageRequest({ offset: value.offset, limit: value.limit }) &&
+    Array.isArray(value.items) &&
+    value.items.length <= MAX_PAGE_LIMIT &&
+    value.items.every((item) => isRoonLibraryItem(item)) &&
+    (value.total === undefined || (typeof value.total === 'number' && Number.isSafeInteger(value.total) && value.total >= 0 && value.total <= MAX_PAGE_OFFSET)) &&
+    (value.hasMore === undefined || typeof value.hasMore === 'boolean')
+  );
+}
+
+function isRoonImageResult(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['contentType', 'body']) &&
+    safeString(value.contentType, 128) &&
+    value.contentType.startsWith('image/') &&
+    value.body instanceof Uint8Array &&
+    value.body.byteLength <= 4 * 1024 * 1024
+  );
+}
+
 function isZoneListResult(value: unknown): boolean {
   return (
     isRecord(value) &&
@@ -866,6 +966,11 @@ function isCommandResult(
       return isRecord(value) && hasOnlyKeys(value, ['stopped']) && value.stopped === true;
     case 'roon.listZones':
       return isZoneListResult(value);
+    case 'roon.library.albums':
+    case 'roon.library.album':
+      return isRoonLibraryPage(value);
+    case 'roon.library.image':
+      return isRoonImageResult(value);
     case 'playback.getState':
     case 'playback.play':
     case 'playback.stop':

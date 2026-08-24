@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module';
+import type { RoonBrowseApi, RoonImageApi } from './library.js';
 
 export interface RoonZoneOutput {
   output_id?: string;
@@ -70,6 +71,8 @@ export interface RoonCore {
   services: {
     RoonApiAudioInput: RoonAudioInputService;
     RoonApiTransport: RoonTransportService;
+    RoonApiBrowse?: RoonBrowseApi;
+    RoonApiImage?: RoonImageApi;
   };
 }
 
@@ -124,6 +127,8 @@ export interface RoonApiInstance {
 export interface RoonSdk {
   readonly audioInputService: RoonRequiredServiceConstructor;
   readonly transportService: RoonRequiredServiceConstructor;
+  readonly browseService?: RoonRequiredServiceConstructor;
+  readonly imageService?: RoonRequiredServiceConstructor;
   createApi(options: RoonApiOptions): RoonApiInstance;
   createSettings(
     roon: RoonApiInstance,
@@ -153,6 +158,12 @@ const RoonApi = require('node-roon-api') as RoonApiConstructor;
 const RoonApiAudioInput = require(
   'node-roon-api-audioinput',
 ) as RoonRequiredServiceConstructor;
+const RoonApiBrowse = require(
+  'node-roon-api-browse',
+) as RoonRequiredServiceConstructor;
+const RoonApiImage = require(
+  'node-roon-api-image',
+) as RoonRequiredServiceConstructor;
 const RoonApiSettings = require(
   'node-roon-api-settings',
 ) as RoonSettingsConstructor;
@@ -167,6 +178,8 @@ export function createProductionRoonSdk(): RoonSdk {
   return {
     audioInputService: RoonApiAudioInput,
     transportService: RoonApiTransport,
+    browseService: RoonApiBrowse,
+    imageService: RoonApiImage,
     createApi: (options) => new RoonApi(options),
     createSettings: (roon, options) => new RoonApiSettings(roon, options),
     createStatus: (roon) => new RoonApiStatus(roon),

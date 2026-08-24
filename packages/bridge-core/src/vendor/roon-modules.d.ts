@@ -8,6 +8,16 @@ declare module 'node-roon-api-audioinput' {
   export = RoonApiAudioInput;
 }
 
+declare module 'node-roon-api-browse' {
+  const RoonApiBrowse: any;
+  export = RoonApiBrowse;
+}
+
+declare module 'node-roon-api-image' {
+  const RoonApiImage: any;
+  export = RoonApiImage;
+}
+
 declare module 'node-roon-api-settings' {
   const RoonApiSettings: any;
   export = RoonApiSettings;
