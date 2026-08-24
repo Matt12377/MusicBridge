@@ -30,8 +30,14 @@ function errorMessage(error: unknown): string {
     case 'AUTH_EXPIRED':
       return '登录已过期，请重新登录后再搜索。'
   }
-  if (error instanceof Error && error.message.trim().length > 0) return error.message
+  if (error instanceof Error && error.message.trim().length > 0) {
+    if (error.message === 'Provider login required') return '请先登录音乐服务，再搜索内容。'
+    if (error.message === 'Provider session expired') return '登录已过期，请重新登录后再搜索。'
+    return error.message
+  }
   if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string' && error.message.trim().length > 0) {
+    if (error.message === 'Provider login required') return '请先登录音乐服务，再搜索内容。'
+    if (error.message === 'Provider session expired') return '登录已过期，请重新登录后再搜索。'
     return error.message
   }
   return '搜索分区暂时不可用'

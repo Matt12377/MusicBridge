@@ -332,8 +332,21 @@ function errorCode(error: unknown): string | undefined {
   return typeof error.code === 'string' ? error.code : undefined
 }
 
+function publicErrorCode(error: unknown): string | undefined {
+  const code = errorCode(error)
+  if (code) return code
+  const message = error instanceof Error
+    ? error.message
+    : typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string'
+      ? error.message
+      : undefined
+  if (message === 'Provider login required') return 'AUTH_REQUIRED'
+  if (message === 'Provider session expired') return 'AUTH_EXPIRED'
+  return undefined
+}
+
 function accountMessage(error: unknown): string {
-  switch (errorCode(error)) {
+  switch (publicErrorCode(error)) {
     case 'AUTH_REQUIRED':
     case 'AUTH_EXPIRED':
       return '音乐服务登录已失效，请重新登录。'
@@ -345,7 +358,7 @@ function accountMessage(error: unknown): string {
 }
 
 function dailyMessage(error: unknown): string {
-  switch (errorCode(error)) {
+  switch (publicErrorCode(error)) {
     case 'AUTH_REQUIRED':
     case 'AUTH_EXPIRED':
       return '音乐服务登录已失效，请到设置重新登录。'
@@ -355,7 +368,7 @@ function dailyMessage(error: unknown): string {
 }
 
 function actionableMessage(error: unknown): string {
-  switch (errorCode(error)) {
+  switch (publicErrorCode(error)) {
     case 'AUTH_REQUIRED':
     case 'AUTH_EXPIRED':
       return '音乐服务登录已失效，请到设置重新登录。'
@@ -386,7 +399,7 @@ function recordActionError(error: unknown): void {
 }
 
 function libraryErrorKind(error: unknown): LibraryErrorKind {
-  switch (errorCode(error)) {
+  switch (publicErrorCode(error)) {
     case 'AUTH_REQUIRED':
       return 'auth-required'
     case 'AUTH_EXPIRED':
@@ -397,7 +410,7 @@ function libraryErrorKind(error: unknown): LibraryErrorKind {
 }
 
 function searchErrorKind(error: unknown): SearchErrorKind {
-  switch (errorCode(error)) {
+  switch (publicErrorCode(error)) {
     case 'AUTH_REQUIRED':
       return 'auth-required'
     case 'AUTH_EXPIRED':

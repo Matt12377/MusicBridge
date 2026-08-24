@@ -66,9 +66,9 @@ test('search snapshot cache is bounded and reuses the most recent query', async 
 
 test('search snapshot turns a missing Provider credential into an actionable message', async () => {
   const loader = createSearchSnapshotLoader({
-    artists: async () => { throw Object.assign(new Error('Provider login required'), { code: 'AUTH_REQUIRED' }) },
-    tracks: async () => { throw Object.assign(new Error('Provider login required'), { code: 'AUTH_REQUIRED' }) },
-    albums: async () => { throw Object.assign(new Error('Provider login required'), { code: 'AUTH_REQUIRED' }) },
+    artists: async () => { throw new Error('Provider login required') },
+    tracks: async () => { throw new Error('Provider login required') },
+    albums: async () => { throw new Error('Provider login required') },
   })
 
   const result = await loader.load('青花瓷')
