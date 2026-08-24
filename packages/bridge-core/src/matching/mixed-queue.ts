@@ -1,4 +1,4 @@
-import type { MatchResult } from './index.js';
+import type { MatchResult } from './types.js';
 import {
   resolvePlaybackSource,
   type PlaybackSourcePolicy,

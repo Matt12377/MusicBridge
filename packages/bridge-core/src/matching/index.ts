@@ -1,32 +1,18 @@
 import type { RoonLibraryItem } from '@music-bridge/contracts';
+import {
+  MATCH_ALGORITHM_VERSION,
+  type LogicalRecording,
+  type MatchCandidateScore,
+  type MatchResult,
+} from './types.js';
 
-export const MATCH_ALGORITHM_VERSION = 'v2-deterministic-1';
-
-export interface LogicalRecording {
-  neteaseTrackId: string;
-  title: string;
-  artists: readonly string[];
-  album?: string;
-  durationMs?: number;
-  version?: string;
-}
-
-export type MatchState = 'CONFIRMED' | 'POSSIBLE' | 'REJECTED' | 'NONE' | 'MANUAL';
-
-export interface MatchCandidateScore {
-  candidate: RoonLibraryItem;
-  score: number;
-  evidence: readonly string[];
-}
-
-export interface MatchResult {
-  state: MatchState;
-  confidence: number;
-  evidence: readonly string[];
-  candidates: readonly MatchCandidateScore[];
-  candidate?: RoonLibraryItem;
-  algorithmVersion: typeof MATCH_ALGORITHM_VERSION;
-}
+export {
+  MATCH_ALGORITHM_VERSION,
+  type LogicalRecording,
+  type MatchCandidateScore,
+  type MatchResult,
+  type MatchState,
+} from './types.js';
 
 const VERSION_MARKERS = [
   'live',

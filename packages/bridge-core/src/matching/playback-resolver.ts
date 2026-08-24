@@ -1,4 +1,4 @@
-import type { MatchResult } from './index.js';
+import type { MatchResult } from './types.js';
 
 export type PlaybackSourcePolicy = 'smart' | 'netease-only' | 'roon-only';
 export type ResolvedPlaybackSource = 'roon' | 'netease' | 'unavailable';
