@@ -348,6 +348,40 @@ test('contracts validates bounded library commands and sanitized paged results',
   assert.equal(
     validateIpcRequest({
       version: IPC_VERSION,
+      id: 'library-like-status',
+      command: 'library.likeStatus',
+      payload: { trackId: '101' },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'library-like',
+      command: 'library.like',
+      payload: { trackId: '101', liked: true },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'library-match',
+      command: 'library.match',
+      payload: {
+        track: {
+          id: '101',
+          title: 'Synthetic Song',
+          artists: ['Synthetic Artist'],
+          album: 'Synthetic Album',
+        },
+      },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
       id: 'library-playlists',
       command: 'library.playlists',
       payload: {},
@@ -392,6 +426,23 @@ test('contracts validates bounded library commands and sanitized paged results',
     'library.search',
   );
   assert.equal(response.ok, true);
+
+  assert.equal(
+    validateIpcResponseForCommand({
+      version: IPC_VERSION,
+      id: 'library-match',
+      ok: true,
+      result: {
+        trackId: '101',
+        state: 'NONE',
+        confidence: 0,
+        evidence: ['roon-library-unavailable'],
+        candidates: [],
+        algorithmVersion: 'v2-deterministic-1',
+      },
+    }, 'library.match').ok,
+    true,
+  );
 
   const unsafeResponse = validateIpcResponseForCommand(
     {

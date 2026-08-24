@@ -13,6 +13,7 @@ const props = defineProps<{
   qualityLabel: (quality: string | undefined) => string
   qualityNotice?: PlaybackIssue
   playbackIssueMessage: (issue: PlaybackIssue) => string
+  trackLikeState: 'idle' | 'loading' | 'liked' | 'not-liked' | 'error'
 }>()
 
 const emit = defineEmits<{
@@ -21,6 +22,7 @@ const emit = defineEmits<{
   'play-current': []
   stop: []
   next: []
+  'toggle-like': []
 }>()
 
 const durationMs = computed(() => props.currentTrack?.durationMs ?? 0)
@@ -90,7 +92,7 @@ function formatTime(milliseconds: number): string {
         <div class="now-playing-copy">
           <div class="now-playing-track-heading">
             <p class="section-kicker">正在播放</p>
-            <h2 id="listening-heading">{{ props.currentTrack?.title ?? '还没有正在播放的歌曲' }}</h2>
+            <div class="now-playing-title-row"><h2 id="listening-heading">{{ props.currentTrack?.title ?? '还没有正在播放的歌曲' }}</h2><button v-if="props.currentTrack" type="button" class="now-playing-like" :class="{ 'is-liked': props.trackLikeState === 'liked' }" :disabled="props.trackLikeState === 'loading'" :aria-pressed="props.trackLikeState === 'liked'" aria-label="喜欢这首歌" @click="emit('toggle-like')">{{ props.trackLikeState === 'liked' ? '♥' : '♡' }}</button></div>
             <p class="artist-line">{{ props.currentTrack ? `${props.currentTrack.artists.join('、')} · ${props.currentTrack.album}` : '从歌曲列表选择内容开始。' }}</p>
           </div>
           <div class="now-playing-progress" aria-label="播放进度">

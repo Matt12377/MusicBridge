@@ -113,6 +113,9 @@ test('Preload exposes only sanitized business methods', async () => {
     'refreshAccountProfile',
     'searchTracks',
     'getLikedTracks',
+    'getTrackLikeStatus',
+    'setTrackLiked',
+    'matchLibraryTrack',
     'getUserPlaylists',
     'getPlaylist',
     'getDailyRecommendations',
@@ -163,6 +166,9 @@ test('Preload exposes only sanitized business methods', async () => {
     'refreshAccountProfile',
     'searchTracks',
     'getLikedTracks',
+    'getTrackLikeStatus',
+    'setTrackLiked',
+    'matchLibraryTrack',
     'getUserPlaylists',
     'getPlaylist',
     'getDailyRecommendations',
@@ -213,6 +219,10 @@ test('Preload exposes only sanitized business methods', async () => {
   assert.deepEqual(await api.refreshAccountProfile(), accountState)
   assert.deepEqual(await api.searchTracks('synthetic', { offset: 0, limit: 20 }), page)
   assert.deepEqual(await api.getLikedTracks({ offset: 0, limit: 20 }), page)
+  await assert.rejects(
+    () => api.matchLibraryTrack({ id: '301', title: 'Synthetic Song', artists: ['Synthetic Artist'], album: 'Synthetic Album' }),
+    /Roon matching API is unavailable/,
+  )
   assert.deepEqual(await api.getUserPlaylists(), playlists)
   assert.deepEqual(await api.getPlaylist('301', { offset: 0, limit: 20 }), playlist)
   assert.deepEqual(await api.getDailyRecommendations(), dailyRecommendations)

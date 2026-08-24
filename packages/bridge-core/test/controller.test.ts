@@ -27,6 +27,14 @@ class FakeNetease implements NeteasePort {
     return { items: [], offset: 0, limit: 10, total: 0, hasMore: false };
   }
 
+  async isTrackLiked() {
+    return { liked: false };
+  }
+
+  async likeTrack(_trackId: string, liked: boolean) {
+    return { liked };
+  }
+
   async getUserPlaylists() {
     return [];
   }

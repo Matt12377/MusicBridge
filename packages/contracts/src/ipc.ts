@@ -32,6 +32,7 @@ import type {
   FavoritePage,
   FavoriteRecord,
 } from './favorites.js';
+import type { PublicTrackMatchResult } from './matching.js';
 
 export const IPC_VERSION = 1 as const;
 
@@ -53,6 +54,9 @@ export const IPC_COMMANDS = [
   'account.refresh',
   'library.search',
   'library.liked',
+  'library.likeStatus',
+  'library.like',
+  'library.match',
   'library.playlists',
   'library.playlist',
   'library.dailyRecommendations',
@@ -143,6 +147,9 @@ export interface IpcCommandPayloads {
   'account.refresh': Record<string, never>;
   'library.search': { query: string; page: PageRequest };
   'library.liked': { page: PageRequest };
+  'library.likeStatus': { trackId: string };
+  'library.like': { trackId: string; liked: boolean };
+  'library.match': { track: TrackSummary };
   'library.playlists': Record<string, never>;
   'library.playlist': { playlistId: string; page: PageRequest };
   'library.dailyRecommendations': Record<string, never>;
@@ -190,6 +197,9 @@ export interface IpcCommandResults {
   'account.refresh': PublicAccountState;
   'library.search': Page<TrackSummary>;
   'library.liked': Page<TrackSummary>;
+  'library.likeStatus': { liked: boolean };
+  'library.like': { liked: boolean };
+  'library.match': PublicTrackMatchResult;
   'library.playlists': readonly PlaylistSummary[];
   'library.playlist': PlaylistDetail;
   'library.dailyRecommendations': DailyRecommendationsSnapshot;

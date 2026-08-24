@@ -29,6 +29,7 @@ import type {
   RoonImageResult,
   RoonLibraryPage,
   TrackSummary,
+  PublicTrackMatchResult,
   TypedIpcEvent,
 } from '@music-bridge/contracts';
 import { BridgeController, type BridgeState } from './application/bridge-controller.js';
@@ -50,6 +51,13 @@ import {
   createLocalFavoriteRepository,
   type LocalFavoriteRepository,
 } from './favorites/repository.js';
+import {
+  createMatchCache,
+  matchLogicalRecording,
+  MATCH_ALGORITHM_VERSION,
+  type LogicalRecording,
+  type MatchResult,
+} from './matching/index.js';
 
 export type CoreRuntimeEvent = TypedIpcEvent;
 
@@ -76,6 +84,9 @@ export interface CoreRuntime {
   getDailyRecommendations(): Promise<DailyRecommendationsSnapshot>;
   searchTracks(query: string, page: PageRequest): Promise<Page<TrackSummary>>;
   getLikedTracks(page: PageRequest): Promise<Page<TrackSummary>>;
+  getTrackLikeStatus(trackId: string): Promise<{ liked: boolean }>;
+  likeTrack(trackId: string, liked: boolean): Promise<{ liked: boolean }>;
+  matchLibraryTrack(track: TrackSummary): Promise<PublicTrackMatchResult>;
   getUserPlaylists(): Promise<readonly PlaylistSummary[]>;
   getPlaylist(playlistId: string, page: PageRequest): Promise<PlaylistDetail>;
   listFavorites(kind: FavoriteKind | undefined, page: PageRequest): Promise<FavoritePage>;
@@ -205,6 +216,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   const favoriteRepository = options.favoriteRepository ?? createLocalFavoriteRepository(
     path.join(process.cwd(), '.musicbridge-favorites.json'),
   );
+  const matchCache = createMatchCache();
   const gateway = new StreamGateway({
     host: config.streamHost,
     port: config.streamPort,
@@ -405,6 +417,40 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
         dailyRequestGeneration = -1;
         dailyRequestDayKey = '';
       }
+    }
+  };
+
+  const matchLibraryTrack = async (track: TrackSummary): Promise<PublicTrackMatchResult> => {
+    const recording: LogicalRecording = {
+      neteaseTrackId: track.id,
+      title: track.title,
+      artists: track.artists,
+      album: track.album,
+      ...(track.durationMs !== undefined ? { durationMs: track.durationMs } : {}),
+    };
+    const cached = matchCache.get(recording);
+    if (cached) return { trackId: track.id, ...cached };
+
+    try {
+      const query = `${track.artists[0] ?? ''} ${track.title}`.trim();
+      const page = await roonLibrary.searchLibrary(query, { offset: 0, limit: 20 });
+      const result = matchLogicalRecording(recording, page.items);
+      matchCache.set(recording, result);
+      return { trackId: track.id, ...result };
+    } catch (error) {
+      const code = asBridgeError(error).code;
+      if (code !== 'ROON_LIBRARY_UNAVAILABLE' && code !== 'ROON_LIBRARY_REQUEST_FAILED') {
+        throw error;
+      }
+      const result: MatchResult = {
+        state: 'NONE' as const,
+        confidence: 0,
+        evidence: ['roon-library-unavailable'],
+        candidates: [],
+        algorithmVersion: MATCH_ALGORITHM_VERSION,
+      };
+      matchCache.set(recording, result);
+      return { trackId: track.id, ...result };
     }
   };
 
@@ -645,6 +691,9 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
 
     searchTracks: (query, page) => withProviderRecovery(() => netease.searchTracks(query, page)),
     getLikedTracks: (page) => withProviderRecovery(() => netease.getLikedTracks(page)),
+    getTrackLikeStatus: (trackId) => withProviderRecovery(() => netease.isTrackLiked(trackId)),
+    likeTrack: (trackId, liked) => withProviderRecovery(() => netease.likeTrack(trackId, liked)),
+    matchLibraryTrack,
     getUserPlaylists: () => withProviderRecovery(() => netease.getUserPlaylists()),
     getPlaylist: (playlistId, page) =>
       withProviderRecovery(() => netease.getPlaylist(playlistId, page)),
@@ -979,6 +1028,22 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     },
     async getLikedTracks(page) {
       return pageOf(fixtureTracks, page);
+    },
+    async getTrackLikeStatus() {
+      return { liked: false };
+    },
+    async likeTrack(_trackId, liked) {
+      return { liked };
+    },
+    async matchLibraryTrack(track) {
+      return {
+        trackId: track.id,
+        state: 'NONE' as const,
+        confidence: 0,
+        evidence: ['roon-library-unavailable'],
+        candidates: [],
+        algorithmVersion: MATCH_ALGORITHM_VERSION,
+      };
     },
     async getUserPlaylists() {
       return [{ id: fixturePlaylistId, name: 'Synthetic Playlist', trackCount: fixtureTracks.length }];

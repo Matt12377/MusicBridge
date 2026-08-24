@@ -21,6 +21,7 @@ import type {
   FavoritePage,
   FavoriteRecord,
   TrackSummary,
+  PublicTrackMatchResult,
   TypedIpcEvent,
 } from '@music-bridge/contracts'
 
@@ -55,6 +56,9 @@ export interface MusicBridgePublicApi {
   refreshAccountProfile: () => Promise<PublicAccountState>
   searchTracks: (query: string, page: PageRequest) => Promise<Page<TrackSummary>>
   getLikedTracks: (page: PageRequest) => Promise<Page<TrackSummary>>
+  getTrackLikeStatus: (trackId: string) => Promise<{ liked: boolean }>
+  setTrackLiked: (trackId: string, liked: boolean) => Promise<{ liked: boolean }>
+  matchLibraryTrack: (track: TrackSummary) => Promise<PublicTrackMatchResult>
   getUserPlaylists: () => Promise<readonly PlaylistSummary[]>
   getPlaylist: (playlistId: string, page: PageRequest) => Promise<PlaylistDetail>
   getDailyRecommendations: () => Promise<DailyRecommendationsSnapshot>
@@ -106,6 +110,9 @@ export const PUBLIC_API_KEYS = [
   'refreshAccountProfile',
   'searchTracks',
   'getLikedTracks',
+  'getTrackLikeStatus',
+  'setTrackLiked',
+  'matchLibraryTrack',
   'getUserPlaylists',
   'getPlaylist',
   'getDailyRecommendations',
@@ -219,6 +226,15 @@ export function createPreloadApi(
   setFavorite: (_descriptor: FavoriteEntityDescriptor, _favorite: boolean) => Promise<{ favorite: boolean; item?: FavoriteRecord }> = async () => {
     throw new Error('Local favorites API is unavailable')
   },
+  getTrackLikeStatus: (_trackId: string) => Promise<{ liked: boolean }> = async () => {
+    throw new Error('NetEase like API is unavailable')
+  },
+  setTrackLiked: (_trackId: string, _liked: boolean) => Promise<{ liked: boolean }> = async () => {
+    throw new Error('NetEase like API is unavailable')
+  },
+  matchLibraryTrack: (_track: TrackSummary) => Promise<PublicTrackMatchResult> = async () => {
+    throw new Error('Roon matching API is unavailable')
+  },
 ): MusicBridgePublicApi {
   return Object.freeze({
     getAppInfo,
@@ -235,6 +251,9 @@ export function createPreloadApi(
     refreshAccountProfile,
     searchTracks,
     getLikedTracks,
+    getTrackLikeStatus,
+    setTrackLiked,
+    matchLibraryTrack,
     getUserPlaylists,
     getPlaylist,
     getDailyRecommendations,

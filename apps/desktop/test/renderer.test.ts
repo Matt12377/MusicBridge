@@ -55,6 +55,10 @@ test('Renderer contains the public QR login surface without credential access', 
     '加载更多歌曲',
     '同步歌词',
     '正在播放',
+    'now-playing-like',
+    'toggleTrackLike',
+    'getTrackLikeStatus',
+    'setTrackLiked',
     '歌词只在内存中处理',
   ]) {
     assert.match(source, new RegExp(text))

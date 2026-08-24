@@ -54,6 +54,7 @@ import type {
   DiagnosticTimelineEvent,
 } from './diagnostics.js';
 import type { FavoriteEntityDescriptor, FavoriteKind, FavoriteRecord } from './favorites.js';
+import { MATCH_STATES, type PublicTrackMatchResult } from './matching.js';
 
 export type ValidationResult<T> =
   | { ok: true; value: T }
@@ -132,6 +133,31 @@ function isLibrarySearchPayload(value: unknown): value is { query: string; page:
     value.query.trim().length > 0 &&
     isPageRequest(value.page)
   );
+}
+
+function isTrackLikeStatusPayload(value: unknown): value is { trackId: string } {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['trackId']) &&
+    safeString(value.trackId, 128) &&
+    /^\d+$/.test(value.trackId) &&
+    value.trackId !== '0'
+  );
+}
+
+function isTrackLikePayload(value: unknown): value is { trackId: string; liked: boolean } {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['trackId', 'liked']) &&
+    safeString(value.trackId, 128) &&
+    /^\d+$/.test(value.trackId) &&
+    value.trackId !== '0' &&
+    typeof value.liked === 'boolean'
+  );
+}
+
+function isTrackMatchPayload(value: unknown): value is { track: TrackSummary } {
+  return isRecord(value) && hasOnlyKeys(value, ['track']) && isTrackSummary(value.track);
 }
 
 function isFavoriteDescriptor(value: unknown): value is FavoriteEntityDescriptor {
@@ -674,6 +700,9 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   }
   if (command === 'library.search') return isLibrarySearchPayload(payload);
   if (command === 'library.liked') return isLibraryPagePayload(payload);
+  if (command === 'library.likeStatus') return isTrackLikeStatusPayload(payload);
+  if (command === 'library.like') return isTrackLikePayload(payload);
+  if (command === 'library.match') return isTrackMatchPayload(payload);
   if (command === 'library.playlist') return isLibraryPlaylistPayload(payload);
   if (command === 'favorites.list') return isFavoriteListPayload(payload);
   if (command === 'favorites.check') return isFavoriteCheckPayload(payload);
@@ -960,6 +989,41 @@ function isRoonLibraryPage(value: unknown): boolean {
   );
 }
 
+function isPublicTrackMatchResult(value: unknown): value is PublicTrackMatchResult {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, ['trackId', 'state', 'confidence', 'evidence', 'candidates', 'candidate', 'algorithmVersion']) ||
+    !safeString(value.trackId, 128) ||
+    !/^\d+$/.test(value.trackId) ||
+    value.trackId === '0' ||
+    !MATCH_STATES.includes(value.state as (typeof MATCH_STATES)[number]) ||
+    typeof value.confidence !== 'number' ||
+    !Number.isFinite(value.confidence) ||
+    value.confidence < 0 ||
+    value.confidence > 1 ||
+    !Array.isArray(value.evidence) ||
+    value.evidence.length > 32 ||
+    !value.evidence.every((entry) => safeString(entry, 128)) ||
+    !safeString(value.algorithmVersion, 64) ||
+    !Array.isArray(value.candidates) ||
+    value.candidates.length > MAX_PAGE_LIMIT
+  ) return false;
+  const isCandidate = (entry: unknown): boolean => (
+    isRecord(entry) &&
+    hasOnlyKeys(entry, ['candidate', 'score', 'evidence']) &&
+    isRoonLibraryItem(entry.candidate) &&
+    typeof entry.score === 'number' &&
+    Number.isFinite(entry.score) &&
+    entry.score >= 0 &&
+    entry.score <= 1 &&
+    Array.isArray(entry.evidence) &&
+    entry.evidence.length <= 32 &&
+    entry.evidence.every((item) => safeString(item, 128))
+  );
+  return value.candidates.every(isCandidate) &&
+    (value.candidate === undefined || isRoonLibraryItem(value.candidate));
+}
+
 function isRoonImageResult(value: unknown): boolean {
   return (
     isRecord(value) &&
@@ -1035,6 +1099,11 @@ function isCommandResult(
     case 'library.search':
     case 'library.liked':
       return isPageOfTracks(value);
+    case 'library.likeStatus':
+    case 'library.like':
+      return isRecord(value) && hasOnlyKeys(value, ['liked']) && typeof value.liked === 'boolean';
+    case 'library.match':
+      return isPublicTrackMatchResult(value);
     case 'library.playlists':
       return Array.isArray(value) && value.length <= MAX_PAGE_OFFSET && value.every((item) => isPlaylistSummary(item));
     case 'library.playlist':

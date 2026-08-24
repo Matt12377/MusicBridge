@@ -182,6 +182,22 @@ function makeRuntime(): CoreRuntimeForIpc & {
     async getLikedTracks() {
       return { items: [], offset: 0, limit: 20, total: 0, hasMore: false }
     },
+    async getTrackLikeStatus() {
+      return { liked: false }
+    },
+    async likeTrack(_trackId, liked) {
+      return { liked }
+    },
+    async matchLibraryTrack(track) {
+      return {
+        trackId: track.id,
+        state: 'NONE' as const,
+        confidence: 0,
+        evidence: ['roon-library-unavailable'],
+        candidates: [],
+        algorithmVersion: 'v2-deterministic-1',
+      };
+    },
     async getUserPlaylists() {
       return [{ id: '301', name: 'Synthetic Playlist', trackCount: 1 }]
     },
@@ -426,6 +442,63 @@ test('utility IPC exposes paged library data without raw provider fields', async
     ok: true,
     result: [{ id: '301', name: 'Synthetic Playlist', trackCount: 1 }],
   });
+});
+
+test('utility IPC keeps NetEase like operations explicit and typed', async () => {
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, makeRuntime());
+
+  port.send({ version: IPC_VERSION, id: 'like-status', command: 'library.likeStatus', payload: { trackId: '101' } });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[1], {
+    version: IPC_VERSION,
+    id: 'like-status',
+    ok: true,
+    result: { liked: false },
+  });
+
+  port.send({ version: IPC_VERSION, id: 'like', command: 'library.like', payload: { trackId: '101', liked: true } });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[2], {
+    version: IPC_VERSION,
+    id: 'like',
+    ok: true,
+    result: { liked: true },
+  });
+});
+
+test('utility IPC exposes fail-closed library matching without raw Roon identifiers', async () => {
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, makeRuntime());
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'library-match',
+    command: 'library.match',
+    payload: {
+      track: {
+        id: '101',
+        title: 'Synthetic Song',
+        artists: ['Synthetic Artist'],
+        album: 'Synthetic Album',
+      },
+    },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[1], {
+    version: IPC_VERSION,
+    id: 'library-match',
+    ok: true,
+    result: {
+      trackId: '101',
+      state: 'NONE',
+      confidence: 0,
+      evidence: ['roon-library-unavailable'],
+      candidates: [],
+      algorithmVersion: 'v2-deterministic-1',
+    },
+  });
+  assert.doesNotMatch(JSON.stringify(port.messages[1]), /item_key|mediaPath|rawProvider|cookie/i);
 });
 
 test('utility IPC exposes account state and daily recommendations through typed commands', async () => {

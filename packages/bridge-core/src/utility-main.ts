@@ -149,6 +149,19 @@ async function dispatch(
       return runtime.getLikedTracks(
         (request.payload as { page: { offset: number; limit: number } }).page,
       );
+    case 'library.likeStatus':
+      return runtime.getTrackLikeStatus(
+        (request.payload as { trackId: string }).trackId,
+      );
+    case 'library.like':
+      return runtime.likeTrack(
+        (request.payload as { trackId: string }).trackId,
+        (request.payload as { liked: boolean }).liked,
+      );
+    case 'library.match':
+      return runtime.matchLibraryTrack(
+        (request.payload as { track: Parameters<CoreRuntimeForIpc['matchLibraryTrack']>[0] }).track,
+      );
     case 'library.playlists':
       return runtime.getUserPlaylists();
     case 'library.playlist':

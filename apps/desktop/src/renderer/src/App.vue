@@ -106,6 +106,7 @@ const coreError = ref(false)
 const authError = ref(false)
 const playbackState = ref<PlaybackSnapshot | null>(null)
 const lyricsSnapshot = ref<LyricsSnapshot>(emptyLyricsSnapshot())
+const trackLikeState = ref<'idle' | 'loading' | 'liked' | 'not-liked' | 'error'>('idle')
 const zones = ref<readonly PublicRoonZone[]>([])
 const selectedQuality = ref<PlaybackQualityPreference>('auto')
 const remoteCoreState = ref<RemoteCoreTunnelState>({
@@ -200,6 +201,7 @@ let searchTimer: ReturnType<typeof setTimeout> | undefined
 let authOperation = 0
 let pollInFlight = false
 let lyricsOperation = 0
+let trackLikeOperation = 0
 let homeRecommendationOperation = 0
 let dailyOperation = 0
 let collectionOperation = 0
@@ -1164,6 +1166,35 @@ async function loadLyrics(trackId: string): Promise<void> {
   }
 }
 
+async function loadTrackLikeStatus(trackId: string): Promise<void> {
+  const operation = ++trackLikeOperation
+  trackLikeState.value = 'loading'
+  try {
+    const result = await window.musicBridge.getTrackLikeStatus(trackId)
+    if (operation !== trackLikeOperation || playbackState.value?.currentTrack?.id !== trackId) return
+    trackLikeState.value = result.liked ? 'liked' : 'not-liked'
+  } catch {
+    if (operation === trackLikeOperation) trackLikeState.value = 'error'
+  }
+}
+
+async function toggleTrackLike(): Promise<void> {
+  const trackId = currentTrack.value?.id
+  if (!trackId || trackLikeState.value === 'loading') return
+  const nextLiked = trackLikeState.value !== 'liked'
+  const operation = ++trackLikeOperation
+  trackLikeState.value = 'loading'
+  try {
+    const result = await window.musicBridge.setTrackLiked(trackId, nextLiked)
+    if (operation !== trackLikeOperation || playbackState.value?.currentTrack?.id !== trackId) return
+    trackLikeState.value = result.liked ? 'liked' : 'not-liked'
+    showToast(result.liked ? '已加入网易云喜欢的音乐' : '已取消网易云喜欢')
+  } catch (error) {
+    if (operation === trackLikeOperation) trackLikeState.value = 'error'
+    recordActionError(error)
+  }
+}
+
 function applyPlaybackState(snapshot: PlaybackSnapshot): void {
   const previousTrackId = playbackState.value?.currentTrack?.id
   const wasPlaying = playbackState.value?.state === 'playing'
@@ -1175,10 +1206,15 @@ function applyPlaybackState(snapshot: PlaybackSnapshot): void {
     ].slice(0, 6)
   }
   const trackId = snapshot.currentTrack?.id
-  if (trackId && trackId !== previousTrackId) void loadLyrics(trackId)
+  if (trackId && trackId !== previousTrackId) {
+    void loadLyrics(trackId)
+    void loadTrackLikeStatus(trackId)
+  }
   else if (!trackId && previousTrackId) {
     lyricsOperation += 1
     lyricsSnapshot.value = emptyLyricsSnapshot()
+    trackLikeOperation += 1
+    trackLikeState.value = 'idle'
   }
 }
 
@@ -1895,11 +1931,13 @@ onUnmounted(() => {
           :quality-label="qualityLabel"
           :quality-notice="playbackState?.qualityNotice"
           :playback-issue-message="playbackIssueMessage"
+          :track-like-state="trackLikeState"
           @back="exitNowPlaying"
           @previous="previousTrack"
           @play-current="playCurrentTrack"
           @stop="stopPlayback"
           @next="nextTrack"
+          @toggle-like="toggleTrackLike"
         />
 
         <SettingsView

@@ -28,6 +28,8 @@ interface LibraryApiOverrides {
   logout?: ApiFunction;
   search?: ApiFunction;
   likelist?: ApiFunction;
+  song_like?: ApiFunction;
+  song_like_check?: ApiFunction;
   user_account?: ApiFunction;
   recommend_songs?: ApiFunction;
   user_playlist?: ApiFunction;
@@ -127,6 +129,27 @@ test('NeteaseClient paginates liked track ids without loading all track metadata
     hasMore: true,
   });
   assert.deepEqual(calls, ['account', 'likelist:42', 'song_detail:202']);
+});
+
+test('NeteaseClient exposes explicit NetEase like and like-status operations', async () => {
+  const calls: Array<{ method: string; params: Record<string, unknown> }> = [];
+  const client = new NeteaseClient('synthetic-credential', baseApi({
+    async song_like(params) {
+      calls.push({ method: 'song_like', params });
+      return { body: { code: 200 } };
+    },
+    async song_like_check(params) {
+      calls.push({ method: 'song_like_check', params });
+      return { body: { code: 200, checkPoint: true } };
+    },
+  }));
+
+  assert.deepEqual(await client.isTrackLiked('101'), { liked: true });
+  assert.deepEqual(await client.likeTrack('101', false), { liked: false });
+  assert.deepEqual(calls, [
+    { method: 'song_like_check', params: { ids: '101', cookie: 'synthetic-credential' } },
+    { method: 'song_like', params: { id: '101', like: false, cookie: 'synthetic-credential' } },
+  ]);
 });
 
 test('NeteaseClient exposes account profile and daily recommendations through the pinned capabilities', async () => {

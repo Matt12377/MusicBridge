@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { RemoteCoreTunnelState, TypedIpcEvent } from '@music-bridge/contracts'
+import type { RemoteCoreTunnelState, TrackSummary, TypedIpcEvent } from '@music-bridge/contracts'
 
 import { createPreloadApi } from './api.js'
 
@@ -83,5 +83,8 @@ contextBridge.exposeInMainWorld(
       ipcRenderer.invoke('favorites:list', kind, page),
     (descriptor) => ipcRenderer.invoke('favorites:check', descriptor),
     (descriptor, favorite) => ipcRenderer.invoke('favorites:set', descriptor, favorite),
+    (trackId: string) => ipcRenderer.invoke('library:like-status', trackId),
+    (trackId: string, liked: boolean) => ipcRenderer.invoke('library:like', trackId, liked),
+    (track: TrackSummary) => ipcRenderer.invoke('library:match', track),
   ),
 )

@@ -63,6 +63,8 @@ export interface NeteasePort {
   ): Promise<ResolvedAudioStream>;
   searchTracks(query: string, page: PageRequest): Promise<Page<TrackSummary>>;
   getLikedTracks(page: PageRequest): Promise<Page<TrackSummary>>;
+  isTrackLiked(trackId: string): Promise<{ liked: boolean }>;
+  likeTrack(trackId: string, liked: boolean): Promise<{ liked: boolean }>;
   getUserPlaylists(): Promise<readonly PlaylistSummary[]>;
   getPlaylist(playlistId: string, page: PageRequest): Promise<PlaylistDetail>;
   getPublicAccountProfile(): Promise<PublicAccountProfile>;

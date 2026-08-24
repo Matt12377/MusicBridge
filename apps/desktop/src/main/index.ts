@@ -25,6 +25,7 @@ import type {
   FavoriteEntityDescriptor,
   FavoriteKind,
   RoonImageOptions,
+  TrackSummary,
   TypedIpcEvent,
 } from '@music-bridge/contracts'
 import { IPC_VERSION, validateIpcEvent } from '@music-bridge/contracts'
@@ -620,6 +621,68 @@ function requirePlaybackTrackId(value: unknown): string {
   return value
 }
 
+function requireTrackSummary(value: unknown): TrackSummary {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid match track')
+  }
+  const track = value as Record<string, unknown>
+  const allowedKeys = new Set(['id', 'title', 'artists', 'album', 'durationMs', 'artworkUrl'])
+  if (Object.keys(track).some((key) => !allowedKeys.has(key))) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid match track')
+  }
+  const id = requirePlaybackTrackId(track.id)
+  if (
+    typeof track.title !== 'string' ||
+    track.title.trim().length === 0 ||
+    track.title.length > 512 ||
+    typeof track.album !== 'string' ||
+    track.album.trim().length === 0 ||
+    track.album.length > 512 ||
+    !Array.isArray(track.artists) ||
+    track.artists.length > 64 ||
+    track.artists.some((artist) => typeof artist !== 'string' || artist.trim().length === 0 || artist.length > 256)
+  ) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid match track')
+  }
+  if (
+    track.durationMs !== undefined &&
+    (typeof track.durationMs !== 'number' ||
+      !Number.isSafeInteger(track.durationMs) ||
+      track.durationMs < 0 ||
+      track.durationMs > 24 * 60 * 60 * 1000)
+  ) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid match track')
+  }
+  if (track.artworkUrl !== undefined) {
+    if (typeof track.artworkUrl !== 'string' || track.artworkUrl.length > 2_048) {
+      return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid match track')
+    }
+    try {
+      const url = new URL(track.artworkUrl)
+      const hostname = url.hostname.toLowerCase()
+      if (
+        url.protocol !== 'https:' ||
+        (hostname !== 'music.126.net' && !hostname.endsWith('.music.126.net')) ||
+        url.username !== '' ||
+        url.password !== '' ||
+        url.hash !== ''
+      ) {
+        return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid match track')
+      }
+    } catch {
+      return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid match track')
+    }
+  }
+  return {
+    id,
+    title: track.title,
+    artists: track.artists,
+    album: track.album,
+    ...(track.durationMs !== undefined ? { durationMs: track.durationMs } : {}),
+    ...(track.artworkUrl !== undefined ? { artworkUrl: track.artworkUrl } : {}),
+  }
+}
+
 function requirePlaybackQualityPreference(value: unknown): PlaybackQualityPreference {
   if (!['auto', 'standard', 'exhigh', 'lossless', 'hires'].includes(String(value))) {
     return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback quality preference')
@@ -800,6 +863,27 @@ function registerIpcHandlers(
     invokeCore(event, () =>
       supervisor.request('library.liked', { page: requireLibraryPage(page) }),
     ),
+  )
+  ipcMain.handle('library:like-status', (event, trackId: unknown) =>
+    invokeCore(event, () => supervisor.request('library.likeStatus', {
+      trackId: requirePlaybackTrackId(trackId),
+    })),
+  )
+  ipcMain.handle('library:like', (event, trackId: unknown, liked: unknown) =>
+    invokeCore(event, () => {
+      if (typeof liked !== 'boolean') {
+        return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid like state')
+      }
+      return supervisor.request('library.like', {
+        trackId: requirePlaybackTrackId(trackId),
+        liked,
+      })
+    }),
+  )
+  ipcMain.handle('library:match', (event, track: unknown) =>
+    invokeCore(event, () => supervisor.request('library.match', {
+      track: requireTrackSummary(track),
+    })),
   )
   ipcMain.handle('library:playlists', (event) =>
     invokeCore(event, () => supervisor.request('library.playlists', {})),
