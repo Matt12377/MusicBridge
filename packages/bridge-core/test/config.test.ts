@@ -29,6 +29,8 @@ test('remote-core-development fixes local Core ports and publishes only the sele
     BRIDGE_STREAM_HOST: '127.0.0.1',
     BRIDGE_STREAM_PORT: '38502',
     BRIDGE_PUBLIC_STREAM_BASE_URL: 'http://127.0.0.1:38513',
+    ROON_CORE_HOST: '127.0.0.1',
+    ROON_CORE_PORT: '19330',
     NETEASE_DEFAULT_QUALITY: 'lossless',
   })
 
@@ -40,6 +42,8 @@ test('remote-core-development fixes local Core ports and publishes only the sele
     streamPort: 38502,
     publicStreamBaseUrl: 'http://127.0.0.1:38513',
     remoteStreamPort: 38513,
+    roonCoreHost: '127.0.0.1',
+    roonCorePort: 19330,
     defaultQuality: 'lossless',
     logLevel: 'info',
   })

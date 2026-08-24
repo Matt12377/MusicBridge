@@ -211,6 +211,7 @@ class FakeApi implements RoonApiInstance {
   stopDiscoveryCalls = 0;
   disconnectAllCalls = 0;
   saveConfigCalls = 0;
+  readonly wsConnectCalls: Array<{ host: string; port: number }> = [];
 
   constructor(
     readonly options: RoonApiOptions,
@@ -240,6 +241,11 @@ class FakeApi implements RoonApiInstance {
 
   start_discovery(): void {
     this.startDiscoveryCalls += 1;
+  }
+
+  ws_connect(options: { host: string; port: number }): unknown {
+    this.wsConnectCalls.push({ host: options.host, port: options.port });
+    return undefined;
   }
 
   stop_discovery(): void {
@@ -290,6 +296,7 @@ class FakeSdk implements RoonSdk {
     this.status.push(service);
     return service;
   }
+
 }
 
 interface AdapterTestOptions {
@@ -299,6 +306,8 @@ interface AdapterTestOptions {
   playbackMode?: 'channel' | 'track';
   mode?: 'local-core' | 'remote-core-development';
   iconPort?: number;
+  coreHost?: string;
+  corePort?: number;
   onTimeShape?: (summary: import('../src/roon/adapter.js').RoonTimeShapeSummary) => void;
 }
 
@@ -402,6 +411,20 @@ test('remote development uses an isolated Roon extension identity, settings key,
   });
   assert.equal(sdk.config.has('settings'), false);
 
+  await adapter.stop();
+});
+
+test('remote development connects through the bounded Core websocket instead of UDP discovery', async () => {
+  const { adapter, sdk } = makeHarness({
+    mode: 'remote-core-development',
+    coreHost: '127.0.0.1',
+    corePort: 19330,
+  });
+
+  await adapter.start();
+
+  assert.deepEqual(sdk.apis[0]?.wsConnectCalls, [{ host: '127.0.0.1', port: 19330 }]);
+  assert.equal(sdk.apis[0]?.startDiscoveryCalls, 0);
   await adapter.stop();
 });
 

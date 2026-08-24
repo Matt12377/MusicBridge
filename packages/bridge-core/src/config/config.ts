@@ -16,12 +16,16 @@ export interface BridgeConfig {
   streamPort: number;
   publicStreamBaseUrl: string;
   remoteStreamPort?: number;
+  roonCoreHost?: string;
+  roonCorePort?: number;
   neteaseCookie?: string;
   defaultQuality: PlaybackQualityPreference;
   logLevel: LogLevel;
 }
 
 export const REMOTE_STREAM_PORT_CANDIDATES = REMOTE_CORE_STREAM_PORT_CANDIDATES;
+export const REMOTE_ROON_CORE_HOST = '127.0.0.1' as const;
+export const LOCAL_ROON_CORE_PORT = 19330 as const;
 
 function parsePort(value: string | undefined, fallback: number, name: string): number {
   if (value === undefined || value.trim() === '') return fallback;
@@ -98,6 +102,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
   }
 
   let remoteStreamPort: number | undefined;
+  let roonCoreHost: string | undefined;
+  let roonCorePort: number | undefined;
   if (mode === 'remote-core-development') {
     remoteStreamPort = parsePort(
       env.MUSIC_BRIDGE_REMOTE_STREAM_PORT,
@@ -138,6 +144,22 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
         { httpStatus: 500 },
       );
     }
+    roonCoreHost = env.ROON_CORE_HOST?.trim() || REMOTE_ROON_CORE_HOST;
+    if (roonCoreHost !== REMOTE_ROON_CORE_HOST && roonCoreHost !== '::1') {
+      throw new BridgeError(
+        'CONFIG_INVALID',
+        'Remote Core development Roon host must stay on loopback',
+        { httpStatus: 500 },
+      );
+    }
+    roonCorePort = parsePort(env.ROON_CORE_PORT, LOCAL_ROON_CORE_PORT, 'ROON_CORE_PORT');
+    if (roonCorePort !== LOCAL_ROON_CORE_PORT) {
+      throw new BridgeError(
+        'CONFIG_INVALID',
+        'Remote Core development Roon port must use the fixed local tunnel port',
+        { httpStatus: 500 },
+      );
+    }
   }
 
   const quality = parseQualityPreference(env.NETEASE_DEFAULT_QUALITY ?? 'auto');
@@ -151,6 +173,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
     streamPort,
     publicStreamBaseUrl,
     ...(remoteStreamPort !== undefined ? { remoteStreamPort } : {}),
+    ...(roonCoreHost !== undefined ? { roonCoreHost } : {}),
+    ...(roonCorePort !== undefined ? { roonCorePort } : {}),
     defaultQuality: quality,
     logLevel: parseLogLevel(env.LOG_LEVEL),
     ...(cookie ? { neteaseCookie: cookie } : {}),

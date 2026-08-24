@@ -126,6 +126,8 @@ test('SSH commands are fixed, loopback-only, and never forward the control port'
     'ServerAliveInterval=15',
     '-o',
     'ServerAliveCountMax=3',
+    '-L',
+    '127.0.0.1:19330:127.0.0.1:9330',
     '-R',
     '127.0.0.1:38512:127.0.0.1:38502',
     'roonstation@core-mac',

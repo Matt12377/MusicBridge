@@ -9,6 +9,8 @@ import type {
 import { REMOTE_CORE_STREAM_PORT_CANDIDATES } from '@music-bridge/contracts'
 
 export const LOCAL_STREAM_PORT = 38502 as const
+export const LOCAL_ROON_CORE_PORT = 19330 as const
+export const REMOTE_ROON_CORE_PORT = 9330 as const
 export const REMOTE_STREAM_PORT_CANDIDATES = REMOTE_CORE_STREAM_PORT_CANDIDATES
 export const DEFAULT_REMOTE_STREAM_PORT = REMOTE_STREAM_PORT_CANDIDATES[0]!
 export const REMOTE_HEALTH_PATH = '/__musicbridge_remote_dev_health'
@@ -123,6 +125,8 @@ export function buildTunnelSshArgs(
     'ServerAliveInterval=15',
     '-o',
     'ServerAliveCountMax=3',
+    '-L',
+    `127.0.0.1:${LOCAL_ROON_CORE_PORT}:127.0.0.1:${REMOTE_ROON_CORE_PORT}`,
     '-R',
     `127.0.0.1:${remoteStreamPort}:127.0.0.1:${localStreamPort}`,
     sshTarget,

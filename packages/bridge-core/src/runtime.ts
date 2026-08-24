@@ -219,6 +219,8 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   const roon = new RoonAudioInputAdapter(logger, options.roonSdk, {
     mode: config.mode,
     iconPort: config.remoteStreamPort ?? config.streamPort,
+    ...(config.roonCoreHost ? { coreHost: config.roonCoreHost } : {}),
+    ...(config.roonCorePort ? { corePort: config.roonCorePort } : {}),
     ...(options.onRoonTimeShape ? { onTimeShape: options.onRoonTimeShape } : {}),
   });
   const roonLibrary = createRoonPublicLibrary(() => roon.getLibraryService());
@@ -260,15 +262,41 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       notifyProviderExpired();
     },
   });
+  let runtime: PublicBridgeState['runtime'] = 'starting';
   const control = new ControlServer({
     host: config.controlHost,
     port: config.controlPort,
     defaultQuality: config.defaultQuality,
     controller,
+    roon: {
+      listZones: () => roon.listZones().map((zone) => ({
+        zoneId: zone.zone_id,
+        displayName: zone.display_name ?? zone.zone_id,
+        selected: zone.zone_id === controller.getState().roon.selectedZoneId,
+      })),
+      selectZone: (zoneId) => {
+        roon.selectZone(zoneId);
+        return toPublicBridgeState(controller.getState(), runtime);
+      },
+      browseRoonAlbums: (page) => roonLibrary.browseAlbums(page),
+      browseRoonAlbum: (reference, page) => roonLibrary.browseAlbum(reference, page),
+      getRoonImage: (reference, options) => roonLibrary.getImage(reference, options),
+      async playRoonTrack(reference, zoneId) {
+        await controller.playRoon({ reference, zoneId, track: roonLibrary.getTrackSummary(reference) });
+        return { started: true as const };
+      },
+      async queueRoonTrack(reference, zoneId) {
+        await controller.appendRoon({ reference, zoneId, track: roonLibrary.getTrackSummary(reference) });
+        return { queued: true as const };
+      },
+      async stopRoonTransport() {
+        await controller.stopRoonTransport();
+        return { stopped: true as const };
+      },
+    },
     logger,
   });
 
-  let runtime: PublicBridgeState['runtime'] = 'starting';
   let shutdownStarted = false;
   const diagnostics = new DiagnosticRingBuffer();
   const runtimeStartedAt = Date.now();

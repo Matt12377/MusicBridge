@@ -98,6 +98,8 @@ test('remote Core mode is injected only through explicit bounded Main options', 
     BRIDGE_PUBLIC_STREAM_BASE_URL: 'http://127.0.0.1:38519',
     MUSIC_BRIDGE_REMOTE_CORE_MODE: 'remote-core-development',
     MUSIC_BRIDGE_REMOTE_STREAM_PORT: '38519',
+    ROON_CORE_HOST: '127.0.0.1',
+    ROON_CORE_PORT: '19330',
   })
 })
 

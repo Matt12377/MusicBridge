@@ -72,6 +72,8 @@ export function buildCoreEnvironment(
     environment.BRIDGE_PUBLIC_STREAM_BASE_URL = `http://127.0.0.1:${options.remoteStreamPort}`
     environment.MUSIC_BRIDGE_REMOTE_CORE_MODE = 'remote-core-development'
     environment.MUSIC_BRIDGE_REMOTE_STREAM_PORT = String(options.remoteStreamPort)
+    environment.ROON_CORE_HOST = '127.0.0.1'
+    environment.ROON_CORE_PORT = '19330'
   }
 
   return environment

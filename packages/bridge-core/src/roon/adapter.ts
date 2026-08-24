@@ -71,6 +71,8 @@ export interface RoonAudioInputAdapterOptions {
   playbackMode?: 'channel' | 'track';
   mode?: RemoteCoreMode;
   iconPort?: number;
+  coreHost?: string;
+  corePort?: number;
   onTimeShape?: (summary: RoonTimeShapeSummary) => void;
 }
 
@@ -404,6 +406,8 @@ export class RoonAudioInputAdapter implements RoonPort {
   private readonly playbackMode: 'channel' | 'track';
   private readonly mode: RemoteCoreMode;
   private readonly iconPort: number;
+  private readonly coreHost: string | undefined;
+  private readonly corePort: number | undefined;
   private readonly settingsKey: string;
   private readonly extensionId: string;
   private readonly displayName: string;
@@ -423,6 +427,8 @@ export class RoonAudioInputAdapter implements RoonPort {
     this.playbackMode = options.playbackMode ?? 'track';
     this.mode = options.mode ?? 'local-core';
     this.iconPort = options.iconPort ?? 38502;
+    this.coreHost = options.coreHost;
+    this.corePort = options.corePort;
     this.settingsKey =
       this.mode === 'remote-core-development' ? DEVELOPMENT_ROON_SETTINGS_KEY : 'settings';
     this.extensionId =
@@ -534,7 +540,17 @@ export class RoonAudioInputAdapter implements RoonPort {
       required_services: requiredServices,
       optional_services: optionalServices,
     });
-    this.roon.start_discovery();
+    if (this.coreHost && this.corePort && this.roon.ws_connect) {
+      this.roon.ws_connect({
+        host: this.coreHost,
+        port: this.corePort,
+        onerror: () => {
+          this.logger.warn('roon_connection_error', { phase: 'direct_connect' });
+        },
+      });
+    } else {
+      this.roon.start_discovery();
+    }
     this.setStatus('discovering', 'Ready to pair', true);
   }
 

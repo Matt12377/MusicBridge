@@ -144,8 +144,16 @@ export interface RoonApiInstance {
     optional_services?: readonly RoonRequiredServiceConstructor[];
   }): void;
   start_discovery(): void;
+  ws_connect?(options: RoonWsConnectOptions): unknown;
   stop_discovery?(): void;
   disconnect_all?(): void;
+}
+
+export interface RoonWsConnectOptions {
+  host: string;
+  port: number;
+  onclose?: () => void;
+  onerror?: (connection: unknown) => void;
 }
 
 export interface RoonSdk {
