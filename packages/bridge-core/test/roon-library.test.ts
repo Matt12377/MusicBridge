@@ -157,6 +157,7 @@ test('RoonLibraryService 使用 Album 来源 Browse Context 进入曲目层', as
     hierarchy: 'albums',
     title: 'Private Track',
     subtitle: 'Private Artist',
+    album: 'Private Album',
     itemKey: 'track:1',
     imageKey: 'image:album',
     hint: 'action_list',

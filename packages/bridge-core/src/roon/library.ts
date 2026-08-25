@@ -958,6 +958,7 @@ export function createRoonLibraryService(dependencies: {
     inheritedImageKey: string | undefined,
   ): Promise<readonly RoonEntityDescriptor[]> => {
     const tracks: RoonEntityDescriptor[] = [];
+    const inheritedAlbum = albumPath.at(-1)?.title;
     let scannedItems = 0;
     let containerCount = 0;
 
@@ -1022,9 +1023,12 @@ export function createRoonLibraryService(dependencies: {
             registerPath,
           });
           if (track) {
-            tracks.push(track.imageKey || !inheritedImageKey
+            const withAlbum = track.album || !inheritedAlbum
               ? track
-              : { ...track, imageKey: inheritedImageKey });
+              : { ...track, album: inheritedAlbum };
+            tracks.push(withAlbum.imageKey || !inheritedImageKey
+              ? withAlbum
+              : { ...withAlbum, imageKey: inheritedImageKey });
           }
           continue;
         }
