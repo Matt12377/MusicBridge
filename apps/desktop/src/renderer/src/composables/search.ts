@@ -23,6 +23,18 @@ function errorCode(error: unknown): string | undefined {
   return typeof error.code === 'string' ? error.code : undefined
 }
 
+function errorText(message: string): string {
+  if (message.includes('Provider login required')) return '请先登录音乐服务，再搜索内容。'
+  if (message.includes('Provider session expired')) return '登录已过期，请重新登录后再搜索。'
+  if (
+    message.includes('Error invoking remote method') ||
+    message.startsWith('Core ')
+  ) {
+    return '搜索分区暂时不可用，请检查连接状态。'
+  }
+  return message
+}
+
 function errorMessage(error: unknown): string {
   switch (errorCode(error)) {
     case 'AUTH_REQUIRED':
@@ -31,14 +43,10 @@ function errorMessage(error: unknown): string {
       return '登录已过期，请重新登录后再搜索。'
   }
   if (error instanceof Error && error.message.trim().length > 0) {
-    if (error.message === 'Provider login required') return '请先登录音乐服务，再搜索内容。'
-    if (error.message === 'Provider session expired') return '登录已过期，请重新登录后再搜索。'
-    return error.message
+    return errorText(error.message)
   }
   if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string' && error.message.trim().length > 0) {
-    if (error.message === 'Provider login required') return '请先登录音乐服务，再搜索内容。'
-    if (error.message === 'Provider session expired') return '登录已过期，请重新登录后再搜索。'
-    return error.message
+    return errorText(error.message)
   }
   return '搜索分区暂时不可用'
 }
@@ -88,7 +96,12 @@ export function createSearchSnapshotLoader(
           ? { state: 'ready', page: albums.value }
           : { state: 'error', message: errorMessage(albums.reason) },
       }
-      if (!result.stale) {
+      if (
+        !result.stale &&
+        result.artists.state === 'ready' &&
+        result.tracks.state === 'ready' &&
+        result.albums.state === 'ready'
+      ) {
         cache.set(query, result)
         while (cache.size > cacheSize) cache.delete(cache.keys().next().value as string)
       }

@@ -153,7 +153,7 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
   async searchTracks(queryInput: string, pageInput: PageRequest): Promise<Page<TrackSummary>> {
     const query = normalizeSearchQuery(queryInput);
     const page = normalizePageRequest(pageInput);
-    const cookie = this.requireCookie();
+    this.requireCookie();
     const search = this.api.search;
     if (!search) throw this.libraryApiUnavailable();
     try {
@@ -163,7 +163,6 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
           type: 1,
           offset: page.offset,
           limit: page.limit,
-          cookie,
         }),
         page,
       );
@@ -175,12 +174,12 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
   async searchArtists(queryInput: string, pageInput: PageRequest): Promise<Page<ArtistSummary>> {
     const query = normalizeSearchQuery(queryInput)
     const page = normalizePageRequest(pageInput)
-    const cookie = this.requireCookie()
+    this.requireCookie()
     const search = this.api.search
     if (!search) throw this.libraryApiUnavailable()
     try {
       return parseArtistSearchPage(
-        await search({ keywords: query, type: 100, offset: page.offset, limit: page.limit, cookie }),
+        await search({ keywords: query, type: 100, offset: page.offset, limit: page.limit }),
         page,
       )
     } catch (error) {
@@ -191,12 +190,12 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
   async searchAlbums(queryInput: string, pageInput: PageRequest): Promise<Page<AlbumSummary>> {
     const query = normalizeSearchQuery(queryInput)
     const page = normalizePageRequest(pageInput)
-    const cookie = this.requireCookie()
+    this.requireCookie()
     const search = this.api.search
     if (!search) throw this.libraryApiUnavailable()
     try {
       return parseAlbumSearchPage(
-        await search({ keywords: query, type: 10, offset: page.offset, limit: page.limit, cookie }),
+        await search({ keywords: query, type: 10, offset: page.offset, limit: page.limit }),
         page,
       )
     } catch (error) {

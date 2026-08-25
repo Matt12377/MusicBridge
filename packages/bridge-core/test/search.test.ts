@@ -59,6 +59,44 @@ test('NeteaseClient routes Artist and Album search through official search types
   assert.deepEqual(calls.map((call) => call.keywords), ['周杰伦', '周杰伦'])
 })
 
+test('configured consecutive searches keep the account credential out of the public search endpoint', async () => {
+  const calls: Array<Record<string, unknown>> = []
+  const client = new NeteaseClient('MUSIC_U=synthetic-sensitive-credential', {
+    async search(params: Record<string, unknown>) {
+      calls.push(params)
+      if (Object.hasOwn(params, 'cookie')) {
+        throw Object.assign(new Error('synthetic authenticated search rejected'), {
+          status: 405,
+          body: { code: 405 },
+        })
+      }
+      const type = params.type
+      return {
+        body: {
+          code: 200,
+          result: type === 100
+            ? { artistCount: 0, artists: [] }
+            : type === 10
+              ? { albumCount: 0, albums: [] }
+              : { songCount: 0, songs: [] },
+        },
+      }
+    },
+  } as never)
+
+  for (const query of ['1', '周杰伦']) {
+    await Promise.all([
+      client.searchArtists(query, page),
+      client.searchTracks(query, page),
+      client.searchAlbums(query, page),
+    ])
+  }
+
+  assert.equal(calls.length, 6)
+  assert.deepEqual(calls.map((call) => call.type), [100, 1, 10, 100, 1, 10])
+  assert.ok(calls.every((call) => !Object.hasOwn(call, 'cookie')))
+})
+
 test('detail parsers keep provider songs behind bounded Artist and Album detail contracts', async () => {
   const artist = parseArtistDetail({ body: { code: 200, data: { artist: { id: 7, name: '周杰伦', albumSize: 2 }, hotSongs: [{ id: 1, name: '青花瓷', ar: [{ name: '周杰伦' }], al: { name: '我很忙', picUrl: 'http://p1.music.126.net/a.jpg' } }] } } }, page)
   const album = parseAlbumDetail({ body: { code: 200, album: { id: 9, name: '范特西', artist: { id: 7, name: '周杰伦' }, picUrl: 'http://p1.music.126.net/b.jpg', size: 1 }, songs: [{ id: 2, name: '爱在西元前', ar: [{ name: '周杰伦' }], al: { name: '范特西', picUrl: 'http://p1.music.126.net/b.jpg' } }] } }, page)

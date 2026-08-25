@@ -49,7 +49,7 @@ function baseApi(overrides: LibraryApiOverrides = {}) {
   };
 }
 
-test('NeteaseClient returns a sanitized paged search result', async () => {
+test('NeteaseClient returns a sanitized public paged search result without forwarding the account credential', async () => {
   const calls: Array<{ method: string; params: Record<string, unknown> }> = [];
   const client = new NeteaseClient('synthetic-credential', baseApi({
     async search(params) {
@@ -87,7 +87,6 @@ test('NeteaseClient returns a sanitized paged search result', async () => {
         type: 1,
         offset: 10,
         limit: 1,
-        cookie: 'synthetic-credential',
       },
     },
   ]);
