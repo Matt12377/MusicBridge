@@ -1,4 +1,4 @@
-import { chmodSync, writeFileSync } from 'node:fs';
+import { appendFileSync, chmodSync, writeFileSync } from 'node:fs';
 import {
   IPC_VERSION,
   parseIpcRuntimeMessage,
@@ -16,6 +16,7 @@ import {
   type CoreRuntimeEvent,
 } from './runtime.js';
 import type { RoonTimeShapeSummary } from './roon/adapter.js';
+import type { RoonBrowseShapeSummary } from './roon/library.js';
 
 export interface UtilityPort {
   on(event: 'message', listener: (event: { data: unknown }) => void): unknown;
@@ -365,6 +366,21 @@ function createRoonTimeShapeRecorder(
   };
 }
 
+function createRoonBrowseShapeRecorder(
+  env: NodeJS.ProcessEnv,
+): ((summary: RoonBrowseShapeSummary) => void) | undefined {
+  const outputPath = env.MUSIC_BRIDGE_ROON_BROWSE_GATE_PATH;
+  if (env.MUSIC_BRIDGE_ROON_BROWSE_GATE !== '1' || outputPath === undefined) return undefined;
+  return (summary) => {
+    try {
+      appendFileSync(outputPath, `${JSON.stringify(summary)}\n`, { encoding: 'utf8', mode: 0o600 });
+      chmodSync(outputPath, 0o600);
+    } catch {
+      // 诊断采样不得改变 Browse 行为。
+    }
+  };
+}
+
 export async function runCoreUtilityProcess(
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<void> {
@@ -391,8 +407,10 @@ export async function runCoreUtilityProcess(
             })
           : (() => {
               const onRoonTimeShape = createRoonTimeShapeRecorder(env);
+              const onRoonBrowseShape = createRoonBrowseShapeRecorder(env);
               return createBridgeRuntime({
                 ...(onRoonTimeShape ? { onRoonTimeShape } : {}),
+                ...(onRoonBrowseShape ? { onRoonBrowseShape } : {}),
                 onEvent: (message) => {
                 if (message.event !== 'core.ready') {
                   port.postMessage(message)

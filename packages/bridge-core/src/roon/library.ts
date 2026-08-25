@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { authorizeRoonAction } from './action-policy.js';
 
 export interface RoonBrowseApi {
@@ -44,6 +44,17 @@ export type RoonLibraryKind =
 
 export type RoonBrowseHierarchy = 'albums' | 'artists' | 'genres' | 'playlists' | 'search';
 
+export interface RoonBrowseContext {
+  hierarchy: RoonBrowseHierarchy;
+  multiSessionKey: string;
+  level: number;
+  itemKey?: string;
+  sourceIndex?: number;
+  kind: RoonLibraryKind;
+  parentReference?: string;
+  pathSignature: string;
+}
+
 export interface RoonEntityDescriptor {
   kind: RoonLibraryKind;
   /** Core 内部 Browse 上下文；不会进入公开 contracts。 */
@@ -61,6 +72,7 @@ export interface RoonEntityDescriptor {
   discNumber?: number;
   year?: number;
   version?: string;
+  browseContext?: RoonBrowseContext;
 }
 
 export interface RoonLibraryPage<T extends RoonEntityDescriptor> {
@@ -136,7 +148,72 @@ interface LoadResponse {
   items: readonly unknown[];
 }
 
+interface BrowsePathSegment {
+  hierarchy: RoonBrowseHierarchy;
+  kind: RoonLibraryKind | 'container';
+  title: string;
+  subtitle?: string;
+  artist?: string;
+  album?: string;
+  trackNumber?: number;
+  discNumber?: number;
+  durationSeconds?: number;
+  durationMs?: number;
+  version?: string;
+  itemKey: string;
+  hint?: string;
+  sourceIndex: number;
+  pathSignature: string;
+}
+
+interface BrowseSessionState {
+  hierarchy: RoonBrowseHierarchy;
+  multiSessionKey: string;
+  initialized: boolean;
+  rootLevel?: number;
+  currentLevel?: number;
+  currentCount?: number;
+  currentPath: BrowsePathSegment[];
+  tail: Promise<void>;
+}
+
+export interface RoonBrowseShapeSummary {
+  operation: 'browse' | 'load';
+  hierarchy: RoonBrowseHierarchy | 'unknown';
+  bodyType: string;
+  bodyKeys?: string[];
+  action?: 'list' | 'message' | 'none' | 'replace_item' | 'remove_item' | 'unknown';
+  level?: number;
+  count?: number;
+  listHint?: 'generic' | 'actionList' | 'unknown';
+  listKeys?: string[];
+  replacementItemKeyPresent?: boolean;
+  replacementInputPromptPresent?: boolean;
+  replacementHint?: 'generic' | 'list' | 'actionList' | 'action' | 'header' | 'unknown';
+  replacementKeys?: string[];
+  offset?: number;
+  itemCount?: number;
+  itemKeys?: string[];
+  itemKeyCount?: number;
+  imageKeyCount?: number;
+  subtitleCount?: number;
+  inputPromptCount?: number;
+  hintCounts?: {
+    generic: number;
+    list: number;
+    actionList: number;
+    action: number;
+    header: number;
+    unknown: number;
+  };
+}
+
 const MAX_PAGE_LIMIT = 100;
+const MAX_SEARCH_SCAN_ITEMS = 1_000;
+const MAX_ALBUM_SCAN_ITEMS = 1_000;
+const MAX_ARTIST_SCAN_ITEMS = 1_000;
+const MAX_ALBUM_CONTAINER_COUNT = 64;
+const MAX_ALBUM_BROWSE_DEPTH = 4;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const SUPPORTED_IMAGE_CONTENT_TYPES = new Set<RoonImageFormat>(['image/jpeg', 'image/png']);
 const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
@@ -169,6 +246,166 @@ function readNumber(record: BrowseItemRecord, key: string): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0
     ? value
     : undefined;
+}
+
+function valueType(value: unknown): string {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'array';
+  return typeof value;
+}
+
+function safeShapeKeys(value: BrowseItemRecord | undefined): string[] {
+  if (!value) return [];
+  return Object.keys(value)
+    .filter((key) => /^[A-Za-z][A-Za-z0-9_]{0,31}$/u.test(key))
+    .sort()
+    .slice(0, 16);
+}
+
+function readHierarchy(value: unknown): RoonBrowseHierarchy | 'unknown' {
+  switch (value) {
+    case 'albums':
+    case 'artists':
+    case 'genres':
+    case 'playlists':
+    case 'search':
+      return value;
+    default:
+      return 'unknown';
+  }
+}
+
+function readAction(value: unknown): RoonBrowseShapeSummary['action'] {
+  switch (value) {
+    case 'list':
+    case 'message':
+    case 'none':
+    case 'replace_item':
+    case 'remove_item':
+      return value;
+    default:
+      return value === undefined ? undefined : 'unknown';
+  }
+}
+
+function readListHint(value: unknown): NonNullable<RoonBrowseShapeSummary['listHint']> {
+  if (value === undefined || value === null) return 'generic';
+  if (value === 'action_list') return 'actionList';
+  return 'unknown';
+}
+
+function readItemHint(value: unknown): NonNullable<RoonBrowseShapeSummary['replacementHint']> {
+  switch (value) {
+    case undefined:
+    case null:
+      return 'generic';
+    case 'list':
+      return 'list';
+    case 'action_list':
+      return 'actionList';
+    case 'action':
+      return 'action';
+    case 'header':
+      return 'header';
+    default:
+      return 'unknown';
+  }
+}
+
+export function summarizeRoonBrowsePayload(
+  operation: 'browse' | 'load',
+  options: Record<string, unknown>,
+  value: unknown,
+): RoonBrowseShapeSummary {
+  const body = asRecord(value);
+  const base: RoonBrowseShapeSummary = {
+    operation,
+    hierarchy: readHierarchy(options.hierarchy),
+    bodyType: valueType(value),
+    ...(body ? { bodyKeys: safeShapeKeys(body) } : {}),
+  };
+  if (operation === 'browse') {
+    const list = asRecord(body?.list);
+    const replacement = asRecord(body?.item);
+    const action = readAction(body?.action);
+    const level = readSafeInteger(list?.level);
+    const count = readSafeInteger(list?.count);
+    return {
+      ...base,
+      ...(action !== undefined ? { action } : {}),
+      ...(level !== undefined ? { level } : {}),
+      ...(count !== undefined ? { count } : {}),
+      ...(list ? { listHint: readListHint(list.hint) } : {}),
+      ...(list ? { listKeys: safeShapeKeys(list) } : {}),
+      ...(replacement ? {
+        replacementKeys: safeShapeKeys(replacement),
+        replacementItemKeyPresent:
+          typeof replacement.item_key === 'string' && replacement.item_key.length > 0,
+        replacementInputPromptPresent: asRecord(replacement.input_prompt) !== undefined,
+        replacementHint: readItemHint(replacement.hint),
+      } : {}),
+    };
+  }
+
+  const items = Array.isArray(body?.items) ? body.items : undefined;
+  const offset = readSafeInteger(body?.offset);
+  if (!items) return { ...base, ...(offset !== undefined ? { offset } : {}) };
+  const hintCounts = {
+    generic: 0,
+    list: 0,
+    actionList: 0,
+    action: 0,
+    header: 0,
+    unknown: 0,
+  };
+  let itemKeyCount = 0;
+  let imageKeyCount = 0;
+  let subtitleCount = 0;
+  let inputPromptCount = 0;
+  const itemKeyNames = new Set<string>();
+  for (const item of items) {
+    const record = asRecord(item);
+    if (!record) {
+      hintCounts.unknown += 1;
+      continue;
+    }
+    for (const key of safeShapeKeys(record)) itemKeyNames.add(key);
+    if (typeof record.item_key === 'string' && record.item_key.length > 0) itemKeyCount += 1;
+    if (typeof record.image_key === 'string' && record.image_key.length > 0) imageKeyCount += 1;
+    if (typeof record.subtitle === 'string' && record.subtitle.length > 0) subtitleCount += 1;
+    if (asRecord(record.input_prompt)) inputPromptCount += 1;
+    switch (record.hint) {
+      case undefined:
+      case null:
+        hintCounts.generic += 1;
+        break;
+      case 'list':
+        hintCounts.list += 1;
+        break;
+      case 'action_list':
+        hintCounts.actionList += 1;
+        break;
+      case 'action':
+        hintCounts.action += 1;
+        break;
+      case 'header':
+        hintCounts.header += 1;
+        break;
+      default:
+        hintCounts.unknown += 1;
+    }
+  }
+  return {
+    ...base,
+    ...(offset !== undefined ? { offset } : {}),
+    itemCount: items.length,
+    itemKeys: [...itemKeyNames].sort().slice(0, 16),
+    itemKeyCount,
+    imageKeyCount,
+    subtitleCount,
+    inputPromptCount,
+    hintCounts,
+  };
 }
 
 function normalizePage(request: RoonPageRequest): RoonPageRequest {
@@ -213,10 +450,92 @@ function readLoadResponse(value: unknown): LoadResponse {
   return { offset: body.offset, items: body.items };
 }
 
+function entityPathSignature(
+  source: BrowseItemRecord,
+  kind: RoonLibraryKind | 'container',
+  parentReference: string,
+  sourceIndex: number,
+  inheritedDiscNumber?: number,
+): string {
+  const discNumber = readNumber(source, 'disc_number') ?? inheritedDiscNumber;
+  return createHash('sha256')
+    .update([
+      parentReference,
+      kind,
+      readString(source, 'title') ?? '',
+      readString(source, 'subtitle') ?? '',
+      readString(source, 'artist') ?? '',
+      readString(source, 'album') ?? '',
+      String(readNumber(source, 'track_number') ?? ''),
+      String(discNumber ?? ''),
+      String(readNumber(source, 'duration_ms') ?? ''),
+      String(readNumber(source, 'duration') ?? ''),
+      readString(source, 'version') ?? '',
+      String(sourceIndex),
+    ].join('\0'))
+    .digest('hex');
+}
+
+function readPathSegment(
+  value: unknown,
+  hierarchy: RoonBrowseHierarchy,
+  kind: RoonLibraryKind | 'container',
+  parentReference: string,
+  sourceIndex: number,
+  inheritedDiscNumber?: number,
+): BrowsePathSegment | undefined {
+  const source = asRecord(value);
+  if (!source) return undefined;
+  const title = readString(source, 'title');
+  const itemKey = readString(source, 'item_key');
+  if (!title || !itemKey) return undefined;
+  const subtitle = readString(source, 'subtitle');
+  const artist = readString(source, 'artist');
+  const album = readString(source, 'album');
+  const trackNumber = readNumber(source, 'track_number');
+  const discNumber = readNumber(source, 'disc_number') ?? inheritedDiscNumber;
+  const durationSeconds = readNumber(source, 'duration');
+  const durationMs = readNumber(source, 'duration_ms');
+  const version = readString(source, 'version');
+  const hint = readString(source, 'hint');
+  return {
+    hierarchy,
+    kind,
+    title,
+    itemKey,
+    sourceIndex,
+    pathSignature: entityPathSignature(
+      source,
+      kind,
+      parentReference,
+      sourceIndex,
+      inheritedDiscNumber,
+    ),
+    ...(subtitle !== undefined ? { subtitle } : {}),
+    ...(artist !== undefined ? { artist } : {}),
+    ...(album !== undefined ? { album } : {}),
+    ...(trackNumber !== undefined ? { trackNumber } : {}),
+    ...(discNumber !== undefined ? { discNumber } : {}),
+    ...(durationSeconds !== undefined ? { durationSeconds } : {}),
+    ...(durationMs !== undefined ? { durationMs } : {}),
+    ...(version !== undefined ? { version } : {}),
+    ...(hint !== undefined ? { hint } : {}),
+  };
+}
+
 function readItem(
   value: unknown,
   kind: RoonLibraryKind,
   hierarchy: RoonBrowseHierarchy,
+  context: {
+    multiSessionKey: string;
+    level: number;
+    parentReference: string;
+    parentPath: readonly BrowsePathSegment[];
+    sourceIndex: number;
+    inheritedDiscNumber?: number;
+    registerPath: (pathSignature: string, path: readonly BrowsePathSegment[]) => void;
+  },
 ): RoonEntityDescriptor | undefined {
   const record = asRecord(value);
   const source = record ?? {};
@@ -232,10 +551,17 @@ function readItem(
   const durationMs = readNumber(source, 'duration_ms');
   const durationSeconds = readNumber(source, 'duration');
   const trackNumber = readNumber(source, 'track_number');
-  const discNumber = readNumber(source, 'disc_number');
+  const discNumber = readNumber(source, 'disc_number') ?? context.inheritedDiscNumber;
   const year = readNumber(source, 'year');
   const version = readString(source, 'version');
 
+  const pathSignature = entityPathSignature(
+    source,
+    kind,
+    context.parentReference,
+    context.sourceIndex,
+    context.inheritedDiscNumber,
+  );
   const item: RoonEntityDescriptor = {
     kind,
     hierarchy,
@@ -252,7 +578,26 @@ function readItem(
     ...(discNumber !== undefined ? { discNumber } : {}),
     ...(year !== undefined ? { year } : {}),
     ...(version !== undefined ? { version } : {}),
+    browseContext: {
+      hierarchy,
+      multiSessionKey: context.multiSessionKey,
+      level: context.level,
+      ...(itemKey !== undefined ? { itemKey } : {}),
+      sourceIndex: context.sourceIndex,
+      kind,
+      parentReference: context.parentReference,
+      pathSignature,
+    },
   };
+  const segment = readPathSegment(
+    source,
+    hierarchy,
+    kind,
+    context.parentReference,
+    context.sourceIndex,
+    context.inheritedDiscNumber,
+  );
+  if (segment) context.registerPath(pathSignature, [...context.parentPath, segment]);
   return item;
 }
 
@@ -260,9 +605,21 @@ function mapItems(
   value: readonly unknown[],
   kind: RoonLibraryKind,
   hierarchy: RoonBrowseHierarchy,
+  context: {
+    multiSessionKey: string;
+    level: number;
+    parentReference: string;
+    parentPath: readonly BrowsePathSegment[];
+    sourceOffset: number;
+    inheritedDiscNumber?: number;
+    registerPath: (pathSignature: string, path: readonly BrowsePathSegment[]) => void;
+  },
 ): RoonEntityDescriptor[] {
   return value
-    .map((item) => readItem(item, kind, hierarchy))
+    .map((item, index) => readItem(item, kind, hierarchy, {
+      ...context,
+      sourceIndex: context.sourceOffset + index,
+    }))
     .filter((item): item is RoonEntityDescriptor => item !== undefined);
 }
 
@@ -278,6 +635,8 @@ export function createRoonLibraryService(dependencies: {
   browse: RoonBrowseApi;
   image: RoonImageApi;
   requestTimeoutMs?: number;
+  onBrowseShape?: (summary: RoonBrowseShapeSummary) => void;
+  zoneOrOutputId?: () => string | undefined;
 }): RoonLibraryService {
   const requestTimeoutMs = dependencies.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
   if (!Number.isSafeInteger(requestTimeoutMs) || requestTimeoutMs < 1) {
@@ -285,11 +644,68 @@ export function createRoonLibraryService(dependencies: {
   }
   const newSessionKey = (hierarchy: RoonBrowseHierarchy): string =>
     `musicbridge-v2-${hierarchy}-${randomUUID()}`;
+  const sessionsByKey = new Map<string, BrowseSessionState>();
+  const rootSessions = new Map<RoonBrowseHierarchy, BrowseSessionState>();
+  const searchSessions = new Map<string, BrowseSessionState>();
+  const pathsBySignature = new Map<string, readonly BrowsePathSegment[]>();
+  const albumTracksBySignature = new Map<string, readonly RoonEntityDescriptor[]>();
+  const artistAlbumsBySignature = new Map<string, readonly RoonEntityDescriptor[]>();
+  const searchTracksByQuery = new Map<string, readonly RoonEntityDescriptor[]>();
+
+  const createSession = (hierarchy: RoonBrowseHierarchy): BrowseSessionState => {
+    const session: BrowseSessionState = {
+      hierarchy,
+      multiSessionKey: newSessionKey(hierarchy),
+      initialized: false,
+      currentPath: [],
+      tail: Promise.resolve(),
+    };
+    sessionsByKey.set(session.multiSessionKey, session);
+    return session;
+  };
+  const rootSession = (hierarchy: RoonBrowseHierarchy): BrowseSessionState => {
+    const existing = rootSessions.get(hierarchy);
+    if (existing) return existing;
+    const created = createSession(hierarchy);
+    rootSessions.set(hierarchy, created);
+    return created;
+  };
+  const searchSession = (query: string): BrowseSessionState => {
+    const existing = searchSessions.get(query);
+    if (existing) return existing;
+    const created = createSession('search');
+    searchSessions.set(query, created);
+    return created;
+  };
+  const registerPath = (
+    pathSignature: string,
+    path: readonly BrowsePathSegment[],
+  ): void => {
+    pathsBySignature.set(pathSignature, path);
+  };
+  const withSession = <T>(
+    session: BrowseSessionState,
+    operation: () => Promise<T>,
+  ): Promise<T> => {
+    const result = session.tail.then(operation, operation);
+    session.tail = result.then(() => undefined, () => undefined);
+    return result;
+  };
 
   const requestBrowse = (
     operation: 'browse' | 'load',
     options: Record<string, unknown>,
   ): Promise<unknown> => new Promise((resolve, reject) => {
+    const zoneOrOutputId = operation === 'browse' ? dependencies.zoneOrOutputId?.() : undefined;
+    const requestOptions = {
+      ...options,
+      ...(typeof zoneOrOutputId === 'string'
+        && zoneOrOutputId.length > 0
+        && zoneOrOutputId.length <= 128
+        && options.zone_or_output_id === undefined
+        ? { zone_or_output_id: zoneOrOutputId }
+        : {}),
+    };
     let settled = false;
     const finish = (error?: Error, body?: unknown): void => {
       if (settled) return;
@@ -305,7 +721,12 @@ export function createRoonLibraryService(dependencies: {
       ));
     }, requestTimeoutMs);
     try {
-      dependencies.browse[operation](options, (error, body) => {
+      dependencies.browse[operation](requestOptions, (error, body) => {
+        try {
+          dependencies.onBrowseShape?.(summarizeRoonBrowsePayload(operation, requestOptions, body));
+        } catch {
+          // 诊断回调不得改变 Browse 行为。
+        }
         if (error) {
           finish(new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', `Roon ${operation} failed`));
           return;
@@ -317,39 +738,366 @@ export function createRoonLibraryService(dependencies: {
     }
   });
 
-  const pageFor = async (
+  const rootReference = (hierarchy: RoonBrowseHierarchy, suffix = ''): string =>
+    createHash('sha256').update(`root\0${hierarchy}\0${suffix}`).digest('hex');
+
+  const applyBrowseState = (
+    session: BrowseSessionState,
+    response: BrowseResponse,
+    path: readonly BrowsePathSegment[],
+  ): void => {
+    if (response.action !== undefined && response.action !== 'list') {
+      throw new RoonLibraryError(
+        'ROON_LIBRARY_RESPONSE_INVALID',
+        'Roon Browse did not return a navigable list',
+      );
+    }
+    session.initialized = true;
+    session.currentLevel = response.list.level;
+    if (response.list.count === undefined) delete session.currentCount;
+    else session.currentCount = response.list.count;
+    session.currentPath = [...path];
+  };
+
+  const currentList = (session: BrowseSessionState): BrowseList => {
+    if (!session.initialized || session.currentLevel === undefined) {
+      throw new RoonLibraryError(
+        'ROON_LIBRARY_RESPONSE_INVALID',
+        'Roon Browse session is not initialized',
+      );
+    }
+    return {
+      level: session.currentLevel,
+      ...(session.currentCount !== undefined ? { count: session.currentCount } : {}),
+    };
+  };
+
+  const ensureRoot = async (session: BrowseSessionState): Promise<BrowseList> => {
+    if (!session.initialized) {
+      const response = readBrowseResponse(await requestBrowse('browse', {
+        hierarchy: session.hierarchy,
+        multi_session_key: session.multiSessionKey,
+        pop_all: true,
+      }));
+      applyBrowseState(session, response, []);
+      session.rootLevel = response.list.level;
+      return response.list;
+    }
+    if (session.currentPath.length > 0) {
+      const response = readBrowseResponse(await requestBrowse('browse', {
+        hierarchy: session.hierarchy,
+        multi_session_key: session.multiSessionKey,
+        pop_levels: session.currentPath.length,
+      }));
+      applyBrowseState(session, response, []);
+    }
+    return currentList(session);
+  };
+
+  const entitySessionAndPath = (
+    entity: RoonEntityDescriptor,
+    expectedKind: RoonLibraryKind,
+  ): { session: BrowseSessionState; path: readonly BrowsePathSegment[] } => {
+    const context = entity.browseContext;
+    if (!context || context.kind !== expectedKind) {
+      throw new RoonLibraryError(
+        'ROON_LIBRARY_RESPONSE_INVALID',
+        `Roon ${expectedKind} Browse context is unavailable`,
+      );
+    }
+    const session = sessionsByKey.get(context.multiSessionKey);
+    const path = pathsBySignature.get(context.pathSignature);
+    if (
+      !session
+      || session.hierarchy !== context.hierarchy
+      || !path
+      || path.at(-1)?.pathSignature !== context.pathSignature
+    ) {
+      throw new RoonLibraryError(
+        'ROON_LIBRARY_RESPONSE_INVALID',
+        `Roon ${expectedKind} Browse context is stale`,
+      );
+    }
+    return { session, path };
+  };
+
+  const navigateToPath = async (
+    session: BrowseSessionState,
+    targetPath: readonly BrowsePathSegment[],
+  ): Promise<BrowseList> => {
+    if (!session.initialized) await ensureRoot(session);
+    let commonLength = 0;
+    while (
+      commonLength < session.currentPath.length
+      && commonLength < targetPath.length
+      && session.currentPath[commonLength]?.pathSignature
+        === targetPath[commonLength]?.pathSignature
+    ) {
+      commonLength += 1;
+    }
+    const popLevels = session.currentPath.length - commonLength;
+    if (popLevels > 0) {
+      const response = readBrowseResponse(await requestBrowse('browse', {
+        hierarchy: session.hierarchy,
+        multi_session_key: session.multiSessionKey,
+        pop_levels: popLevels,
+      }));
+      applyBrowseState(session, response, session.currentPath.slice(0, commonLength));
+    }
+    for (let index = commonLength; index < targetPath.length; index += 1) {
+      const segment = targetPath[index];
+      if (!segment) continue;
+      const nextPath = targetPath.slice(0, index + 1);
+      const response = readBrowseResponse(await requestBrowse('browse', {
+        hierarchy: session.hierarchy,
+        multi_session_key: session.multiSessionKey,
+        item_key: segment.itemKey,
+      }));
+      applyBrowseState(session, response, nextPath);
+    }
+    return currentList(session);
+  };
+
+  const loadAllAtLevel = async (
     hierarchy: RoonBrowseHierarchy,
-    kind: RoonLibraryKind,
+    multiSessionKey: string,
+    level: number,
+    total: number | undefined,
+    maximum: number,
+  ): Promise<readonly unknown[]> => {
+    if (total !== undefined && total > maximum) {
+      throw new RoonLibraryError(
+        'ROON_LIBRARY_RESPONSE_INVALID',
+        'Roon Browse list exceeds the bounded scan limit',
+      );
+    }
+    const items: unknown[] = [];
+    while (items.length < maximum && (total === undefined || items.length < total)) {
+      const count = Math.min(MAX_PAGE_LIMIT, maximum - items.length, total === undefined
+        ? MAX_PAGE_LIMIT
+        : total - items.length);
+      if (count < 1) break;
+      const loaded = readLoadResponse(await requestBrowse('load', {
+        hierarchy,
+        multi_session_key: multiSessionKey,
+        level,
+        offset: items.length,
+        count,
+      }));
+      items.push(...loaded.items);
+      if (loaded.items.length < count) break;
+    }
+    if (total === undefined && items.length === maximum) {
+      const overflow = readLoadResponse(await requestBrowse('load', {
+        hierarchy,
+        multi_session_key: multiSessionKey,
+        level,
+        offset: maximum,
+        count: 1,
+      }));
+      if (overflow.items.length > 0) {
+        throw new RoonLibraryError(
+          'ROON_LIBRARY_RESPONSE_INVALID',
+          'Roon Browse list exceeds the bounded scan limit',
+        );
+      }
+    }
+    return items;
+  };
+
+  const pageFor = async (
+    hierarchy: Exclude<RoonBrowseHierarchy, 'search'>,
+    kind: Exclude<RoonLibraryKind, 'track'>,
     request: RoonPageRequest,
-    itemKey?: string,
-    input?: string,
-    existingSessionKey?: string,
   ): Promise<RoonLibraryPage<RoonEntityDescriptor>> => {
     const pageRequest = normalizePage(request);
-    const multiSessionKey = existingSessionKey ?? newSessionKey(hierarchy);
-    const browseOptions: Record<string, unknown> = {
-      hierarchy,
-      multi_session_key: multiSessionKey,
-      ...(itemKey ? { item_key: itemKey } : { pop_all: true }),
-      ...(input ? { input } : {}),
+    const session = rootSession(hierarchy);
+    return withSession(session, async () => {
+      const list = await ensureRoot(session);
+      const loaded = readLoadResponse(await requestBrowse('load', {
+        hierarchy,
+        multi_session_key: session.multiSessionKey,
+        level: list.level,
+        offset: pageRequest.offset,
+        count: pageRequest.limit,
+      }));
+      const offset = readSafeInteger(loaded.offset) ?? pageRequest.offset;
+      const items = mapItems(loaded.items, kind, hierarchy, {
+        multiSessionKey: session.multiSessionKey,
+        level: list.level,
+        parentReference: rootReference(hierarchy),
+        parentPath: [],
+        sourceOffset: offset,
+        registerPath,
+      }).filter((item) => item.itemKey !== undefined && item.hint === 'list');
+      return {
+        items,
+        offset,
+        level: list.level,
+        ...(list.count !== undefined
+          ? { total: list.count, hasMore: offset + loaded.items.length < list.count }
+          : {}),
+      };
+    });
+  };
+
+  const inferDiscNumber = (title: string): number | undefined => {
+    const latin = /\b(?:disc|disk|cd)\s*0*(\d{1,2})\b/iu.exec(title);
+    const localized = /第\s*0*(\d{1,2})\s*[碟盘張张]/u.exec(title);
+    const value = Number.parseInt(latin?.[1] ?? localized?.[1] ?? '', 10);
+    return Number.isSafeInteger(value) && value > 0 ? value : undefined;
+  };
+
+  const collectAlbumTracks = async (
+    session: BrowseSessionState,
+    albumPath: readonly BrowsePathSegment[],
+  ): Promise<readonly RoonEntityDescriptor[]> => {
+    const tracks: RoonEntityDescriptor[] = [];
+    let scannedItems = 0;
+    let containerCount = 0;
+
+    const collectCurrentLevel = async (
+      parentPath: readonly BrowsePathSegment[],
+      inheritedDiscNumber: number | undefined,
+      depth: number,
+    ): Promise<void> => {
+      if (depth > MAX_ALBUM_BROWSE_DEPTH) {
+        throw new RoonLibraryError(
+          'ROON_LIBRARY_RESPONSE_INVALID',
+          'Roon album Browse depth exceeds the bounded limit',
+        );
+      }
+      const list = currentList(session);
+      const remaining = MAX_ALBUM_SCAN_ITEMS - scannedItems;
+      if (remaining < 1) {
+        throw new RoonLibraryError(
+          'ROON_LIBRARY_RESPONSE_INVALID',
+          'Roon album Browse exceeds the bounded scan limit',
+        );
+      }
+      const values = await loadAllAtLevel(
+        session.hierarchy,
+        session.multiSessionKey,
+        list.level,
+        list.count,
+        remaining,
+      );
+      scannedItems += values.length;
+      const parentReference = parentPath.at(-1)?.pathSignature
+        ?? rootReference(session.hierarchy);
+      let sectionDiscNumber = inheritedDiscNumber;
+
+      for (let index = 0; index < values.length; index += 1) {
+        const value = values[index];
+        const record = asRecord(value);
+        if (!record) continue;
+        const hint = readString(record, 'hint');
+        const title = readString(record, 'title');
+        if (hint === 'header') {
+          if (title) sectionDiscNumber = inferDiscNumber(title) ?? sectionDiscNumber;
+          continue;
+        }
+        if (hint === 'action_list' && readString(record, 'item_key')) {
+          const trackDiscNumber = title ? inferDiscNumber(title) : undefined;
+          const resolvedDiscNumber = trackDiscNumber ?? sectionDiscNumber;
+          const track = readItem(value, 'track', session.hierarchy, {
+            multiSessionKey: session.multiSessionKey,
+            level: list.level,
+            parentReference,
+            parentPath,
+            sourceIndex: index,
+            ...(resolvedDiscNumber !== undefined
+              ? { inheritedDiscNumber: resolvedDiscNumber }
+              : {}),
+            registerPath,
+          });
+          if (track) tracks.push(track);
+          continue;
+        }
+        if (hint !== 'list' || !title) continue;
+        const segment = readPathSegment(
+          value,
+          session.hierarchy,
+          'container',
+          parentReference,
+          index,
+          sectionDiscNumber,
+        );
+        if (!segment) continue;
+        containerCount += 1;
+        if (containerCount > MAX_ALBUM_CONTAINER_COUNT) {
+          throw new RoonLibraryError(
+            'ROON_LIBRARY_RESPONSE_INVALID',
+            'Roon album Browse has too many nested containers',
+          );
+        }
+        const containerPath = [...parentPath, segment];
+        registerPath(segment.pathSignature, containerPath);
+        await navigateToPath(session, containerPath);
+        await collectCurrentLevel(
+          containerPath,
+          inferDiscNumber(title) ?? sectionDiscNumber,
+          depth + 1,
+        );
+      }
     };
-    const browseResponse = readBrowseResponse(await requestBrowse('browse', browseOptions));
-    const loadResponse = readLoadResponse(await requestBrowse('load', {
-      hierarchy,
-      multi_session_key: multiSessionKey,
-      level: browseResponse.list.level,
-      offset: pageRequest.offset,
-      count: pageRequest.limit,
-    }));
-    const offset = readSafeInteger(loadResponse.offset) ?? pageRequest.offset;
-    const items = mapItems(loadResponse.items, kind, hierarchy);
-    const total = browseResponse.list.count;
+
+    await navigateToPath(session, albumPath);
+    await collectCurrentLevel(albumPath, undefined, 0);
+    return tracks;
+  };
+
+  const pageFromResolvedItems = (
+    items: readonly RoonEntityDescriptor[],
+    request: RoonPageRequest,
+    level: number,
+  ): RoonLibraryPage<RoonEntityDescriptor> => {
+    const pageRequest = normalizePage(request);
+    const pageItems = items.slice(pageRequest.offset, pageRequest.offset + pageRequest.limit);
     return {
-      items,
-      offset,
-      level: browseResponse.list.level,
-      ...(total !== undefined ? { total, hasMore: offset + items.length < total } : {}),
+      items: pageItems,
+      offset: pageRequest.offset,
+      level,
+      total: items.length,
+      hasMore: pageRequest.offset + pageItems.length < items.length,
     };
+  };
+
+  const resolveCurrentItemKey = async (
+    session: BrowseSessionState,
+    segment: BrowsePathSegment,
+    parentPath: readonly BrowsePathSegment[],
+  ): Promise<{ itemKey: string; segment: BrowsePathSegment }> => {
+    const list = currentList(session);
+    const loaded = readLoadResponse(await requestBrowse('load', {
+      hierarchy: session.hierarchy,
+      multi_session_key: session.multiSessionKey,
+      level: list.level,
+      offset: segment.sourceIndex,
+      count: 1,
+    }));
+    const value = loaded.items[0];
+    const parentReference = parentPath.at(-1)?.pathSignature
+      ?? rootReference(session.hierarchy);
+    const refreshed = readPathSegment(
+      value,
+      session.hierarchy,
+      segment.kind,
+      parentReference,
+      segment.sourceIndex,
+      segment.discNumber,
+    );
+    if (
+      !refreshed
+      || refreshed.pathSignature !== segment.pathSignature
+      || refreshed.hint !== segment.hint
+    ) {
+      throw new RoonLibraryError(
+        'ROON_LIBRARY_RESPONSE_INVALID',
+        'Roon Browse item identity changed before action',
+      );
+    }
+    return { itemKey: refreshed.itemKey, segment: refreshed };
   };
 
   const runTrackAction = async (
@@ -367,63 +1115,73 @@ export function createRoonLibraryService(dependencies: {
       throw new RoonLibraryError('ROON_LIBRARY_INVALID_PAGE', 'Roon Zone reference is invalid');
     }
 
-    const hierarchy = track.hierarchy ?? 'albums';
-    const multiSessionKey = newSessionKey(hierarchy);
-    const browseResponse = readBrowseResponse(await requestBrowse('browse', {
-      hierarchy,
-      multi_session_key: multiSessionKey,
+    authorizeRoonAction({
+      title: track.title,
+      hint: track.hint,
       item_key: track.itemKey,
-    }));
-    if (browseResponse.action !== 'list') {
-      throw new RoonLibraryError(
-        'ROON_LIBRARY_RESPONSE_INVALID',
-        'Roon track action list is unavailable',
-      );
+    }, { kind: 'browse' });
+    const { session, path } = entitySessionAndPath(track, 'track');
+    const segment = path.at(-1);
+    if (!segment) {
+      throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', 'Roon track path is unavailable');
     }
-    const actionList = readLoadResponse(await requestBrowse('load', {
-      hierarchy,
-      multi_session_key: multiSessionKey,
-      level: browseResponse.list.level,
-      offset: 0,
-      count: 32,
-    }));
-    const actionItem = actionList.items
-      .map((item) => asRecord(item))
-      .find((item) => {
-        if (!item) return false;
-        try {
-          authorizeRoonAction(item, { kind, allowMutation: true });
-          return true;
-        } catch {
-          return false;
-        }
-      });
-    if (!actionItem) {
-      throw new RoonLibraryError(
-        'ROON_LIBRARY_RESPONSE_INVALID',
-        `Roon ${kind} action is unavailable`,
-      );
-    }
-    const authorization = authorizeRoonAction(actionItem, { kind, allowMutation: true });
-    const result = asRecord(await requestBrowse('browse', {
-      hierarchy,
-      multi_session_key: multiSessionKey,
-      item_key: authorization.itemKey,
-      zone_or_output_id: zoneOrOutputId,
-    }));
-    const resultAction = readString(result ?? {}, 'action');
-    if (!resultAction) {
-      throw new RoonLibraryError(
-        'ROON_LIBRARY_RESPONSE_INVALID',
-        `Roon ${kind} action response is invalid`,
-      );
-    }
-    if (resultAction === 'message') {
-      throw new RoonLibraryError(
-        'ROON_LIBRARY_REQUEST_FAILED',
-        `Roon ${kind} action returned a message`,
-      );
-    }
+    const parentPath = path.slice(0, -1);
+    await withSession(session, async () => {
+      await navigateToPath(session, parentPath);
+      const refreshed = await resolveCurrentItemKey(session, segment, parentPath);
+      const refreshedPath = [...parentPath, refreshed.segment];
+      const browseResponse = readBrowseResponse(await requestBrowse('browse', {
+        hierarchy: session.hierarchy,
+        multi_session_key: session.multiSessionKey,
+        item_key: refreshed.itemKey,
+      }));
+      applyBrowseState(session, browseResponse, refreshedPath);
+      registerPath(segment.pathSignature, refreshedPath);
+      const actionList = readLoadResponse(await requestBrowse('load', {
+        hierarchy: session.hierarchy,
+        multi_session_key: session.multiSessionKey,
+        level: browseResponse.list.level,
+        offset: 0,
+        count: Math.min(browseResponse.list.count ?? 32, 32),
+      }));
+      const actionItem = actionList.items
+        .map((item) => asRecord(item))
+        .find((item) => {
+          if (!item) return false;
+          try {
+            authorizeRoonAction(item, { kind, allowMutation: true });
+            return true;
+          } catch {
+            return false;
+          }
+        });
+      if (!actionItem) {
+        throw new RoonLibraryError(
+          'ROON_LIBRARY_RESPONSE_INVALID',
+          `Roon ${kind} action is unavailable`,
+        );
+      }
+      const authorization = authorizeRoonAction(actionItem, { kind, allowMutation: true });
+      const result = asRecord(await requestBrowse('browse', {
+        hierarchy: session.hierarchy,
+        multi_session_key: session.multiSessionKey,
+        item_key: authorization.itemKey,
+        zone_or_output_id: zoneOrOutputId,
+      }));
+      const resultAction = readString(result ?? {}, 'action');
+      if (!resultAction) {
+        throw new RoonLibraryError(
+          'ROON_LIBRARY_RESPONSE_INVALID',
+          `Roon ${kind} action response is invalid`,
+        );
+      }
+      if (resultAction === 'message') {
+        throw new RoonLibraryError(
+          'ROON_LIBRARY_REQUEST_FAILED',
+          `Roon ${kind} action returned a message`,
+        );
+      }
+    });
   };
 
   return {
@@ -432,6 +1190,7 @@ export function createRoonLibraryService(dependencies: {
     browseGenres: (request) => pageFor('genres', 'genre', request),
     browsePlaylists: (request) => pageFor('playlists', 'playlist', request),
     browseAlbum: async (album, request) => {
+      const pageRequest = normalizePage(request);
       if (!album.itemKey) {
         throw new RoonLibraryError(
           'ROON_LIBRARY_RESPONSE_INVALID',
@@ -443,9 +1202,34 @@ export function createRoonLibraryService(dependencies: {
         hint: album.hint,
         item_key: album.itemKey,
       }, { kind: 'browse' });
-      return pageFor(album.hierarchy ?? 'albums', 'track', request, authorization.itemKey);
+      if (authorization.itemKey !== album.itemKey) {
+        throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', 'Roon album key changed');
+      }
+      const albumContext = album.browseContext;
+      if (!albumContext) {
+        throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', 'Roon album path is unavailable');
+      }
+      const { session, path } = entitySessionAndPath(album, 'album');
+      const cacheKey = albumContext.pathSignature;
+      const cached = albumTracksBySignature.get(cacheKey);
+      if (cached) {
+        const level = cached[0]?.browseContext?.level ?? albumContext.level + 1;
+        return pageFromResolvedItems(cached, pageRequest, level);
+      }
+      return withSession(session, async () => {
+        const existing = albumTracksBySignature.get(cacheKey);
+        if (existing) {
+          const level = existing[0]?.browseContext?.level ?? albumContext.level + 1;
+          return pageFromResolvedItems(existing, pageRequest, level);
+        }
+        const list = await navigateToPath(session, path);
+        const tracks = await collectAlbumTracks(session, path);
+        albumTracksBySignature.set(cacheKey, tracks);
+        return pageFromResolvedItems(tracks, pageRequest, list.level);
+      });
     },
     browseArtist: async (artist, request) => {
+      const pageRequest = normalizePage(request);
       if (!artist.itemKey) {
         throw new RoonLibraryError(
           'ROON_LIBRARY_RESPONSE_INVALID',
@@ -457,34 +1241,236 @@ export function createRoonLibraryService(dependencies: {
         hint: artist.hint,
         item_key: artist.itemKey,
       }, { kind: 'browse' });
-      return pageFor(artist.hierarchy ?? 'artists', 'album', request, authorization.itemKey);
+      if (authorization.itemKey !== artist.itemKey) {
+        throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', 'Roon artist key changed');
+      }
+      const artistContext = artist.browseContext;
+      if (!artistContext) {
+        throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', 'Roon artist path is unavailable');
+      }
+      const { session, path } = entitySessionAndPath(artist, 'artist');
+      const cacheKey = artistContext.pathSignature;
+      const cached = artistAlbumsBySignature.get(cacheKey);
+      if (cached) {
+        const level = cached[0]?.browseContext?.level ?? artistContext.level + 1;
+        return pageFromResolvedItems(cached, pageRequest, level);
+      }
+      return withSession(session, async () => {
+        const existing = artistAlbumsBySignature.get(cacheKey);
+        if (existing) {
+          const level = existing[0]?.browseContext?.level ?? artistContext.level + 1;
+          return pageFromResolvedItems(existing, pageRequest, level);
+        }
+        const list = await navigateToPath(session, path);
+        const loadedItems = await loadAllAtLevel(
+          session.hierarchy,
+          session.multiSessionKey,
+          list.level,
+          list.count,
+          MAX_ARTIST_SCAN_ITEMS,
+        );
+        const parentReference = path.at(-1)?.pathSignature ?? rootReference(session.hierarchy);
+        const albumGroupTitles = new Set([
+          'album',
+          'albums',
+          'discography',
+          'releases',
+          '专辑',
+          '唱片',
+          '唱片集',
+          '发行',
+        ]);
+        const groups = loadedItems.flatMap((value, index) => {
+          const record = asRecord(value);
+          const title = readString(record ?? {}, 'title');
+          if (
+            readString(record ?? {}, 'hint') !== 'list'
+            || !title
+            || !albumGroupTitles.has(title.normalize('NFKC').trim().toLocaleLowerCase('en-US'))
+          ) {
+            return [];
+          }
+          const segment = readPathSegment(
+            value,
+            session.hierarchy,
+            'container',
+            parentReference,
+            index,
+          );
+          return segment ? [segment] : [];
+        });
+        let scannedItems = loadedItems.length;
+        const albums: RoonEntityDescriptor[] = [];
+        if (groups.length === 0) {
+          albums.push(...mapItems(loadedItems, 'album', session.hierarchy, {
+            multiSessionKey: session.multiSessionKey,
+            level: list.level,
+            parentReference,
+            parentPath: path,
+            sourceOffset: 0,
+            registerPath,
+          }).filter((item) => item.itemKey !== undefined && item.hint === 'list'));
+        } else {
+          for (const group of groups) {
+            const groupPath = [...path, group];
+            registerPath(group.pathSignature, groupPath);
+            const groupList = await navigateToPath(session, groupPath);
+            const remaining = MAX_ARTIST_SCAN_ITEMS - scannedItems;
+            if (remaining < 1) {
+              throw new RoonLibraryError(
+                'ROON_LIBRARY_RESPONSE_INVALID',
+                'Roon artist results exceed the bounded scan limit',
+              );
+            }
+            const groupItems = await loadAllAtLevel(
+              session.hierarchy,
+              session.multiSessionKey,
+              groupList.level,
+              groupList.count,
+              remaining,
+            );
+            scannedItems += groupItems.length;
+            albums.push(...mapItems(groupItems, 'album', session.hierarchy, {
+              multiSessionKey: session.multiSessionKey,
+              level: groupList.level,
+              parentReference: group.pathSignature,
+              parentPath: groupPath,
+              sourceOffset: 0,
+              registerPath,
+            }).filter((item) => item.itemKey !== undefined && item.hint === 'list'));
+          }
+        }
+        artistAlbumsBySignature.set(cacheKey, albums);
+        const resultLevel = albums[0]?.browseContext?.level ?? list.level;
+        return pageFromResolvedItems(albums, pageRequest, resultLevel);
+      });
     },
     searchLibrary: async (query, request) => {
-      if (query.trim().length === 0 || query.length > 128) {
+      const normalizedQuery = query.trim();
+      if (normalizedQuery.length === 0 || normalizedQuery.length > 128) {
         throw new RoonLibraryError('ROON_LIBRARY_INVALID_PAGE', 'Roon search query is invalid');
       }
-      const hierarchy = 'search';
-      const multiSessionKey = newSessionKey(hierarchy);
-      const rootBrowse = readBrowseResponse(await requestBrowse('browse', {
-        hierarchy,
-        multi_session_key: multiSessionKey,
-        pop_all: true,
-      }));
-      const rootLoad = readLoadResponse(await requestBrowse('load', {
-        hierarchy,
-        multi_session_key: multiSessionKey,
-        level: rootBrowse.list.level,
-        offset: 0,
-        count: MAX_PAGE_LIMIT,
-      }));
-      const prompt = rootLoad.items
-        .map((item) => asRecord(item))
-        .find((item) => typeof item?.item_key === 'string' && asRecord(item.input_prompt));
-      const promptKey = readString(prompt ?? {}, 'item_key');
-      if (!promptKey) {
-        throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', 'Roon search prompt is missing');
+      const pageRequest = normalizePage(request);
+      const cached = searchTracksByQuery.get(normalizedQuery);
+      if (cached) {
+        const level = cached[0]?.browseContext?.level ?? 0;
+        return pageFromResolvedItems(cached, pageRequest, level);
       }
-      return pageFor('search', 'track', request, promptKey, query.trim(), multiSessionKey);
+      const session = searchSession(normalizedQuery);
+      return withSession(session, async () => {
+        const existing = searchTracksByQuery.get(normalizedQuery);
+        if (existing) {
+          const level = existing[0]?.browseContext?.level ?? 0;
+          return pageFromResolvedItems(existing, pageRequest, level);
+        }
+        if (!session.initialized) {
+          const response = readBrowseResponse(await requestBrowse('browse', {
+            hierarchy: 'search',
+            multi_session_key: session.multiSessionKey,
+            pop_all: true,
+            input: normalizedQuery,
+          }));
+          applyBrowseState(session, response, []);
+          session.rootLevel = response.list.level;
+        } else {
+          await navigateToPath(session, []);
+        }
+        const list = currentList(session);
+        const loadedItems = await loadAllAtLevel(
+          'search',
+          session.multiSessionKey,
+          list.level,
+          list.count,
+          MAX_SEARCH_SCAN_ITEMS,
+        );
+        const parentReference = rootReference('search', normalizedQuery);
+        const tracks: RoonEntityDescriptor[] = loadedItems.flatMap((value, index) => {
+          const record = asRecord(value);
+          if (readString(record ?? {}, 'hint') !== 'action_list') return [];
+          const track = readItem(value, 'track', 'search', {
+            multiSessionKey: session.multiSessionKey,
+            level: list.level,
+            parentReference,
+            parentPath: [],
+            sourceIndex: index,
+            registerPath,
+          });
+          return track?.itemKey ? [track] : [];
+        });
+        let scannedItems = loadedItems.length;
+        const trackGroupTitles = new Set(['track', 'tracks', 'song', 'songs', '单曲', '曲目', '歌曲']);
+        const trackGroups = loadedItems.flatMap((value, index) => {
+          const record = asRecord(value);
+          const title = readString(record ?? {}, 'title');
+          if (
+            readString(record ?? {}, 'hint') !== 'list'
+            || !title
+            || !trackGroupTitles.has(title.normalize('NFKC').trim().toLocaleLowerCase('en-US'))
+          ) {
+            return [];
+          }
+          const segment = readPathSegment(
+            value,
+            'search',
+            'container',
+            parentReference,
+            index,
+          );
+          return segment ? [segment] : [];
+        });
+        for (const group of trackGroups) {
+          const groupPath = [group];
+          registerPath(group.pathSignature, groupPath);
+          const groupList = await navigateToPath(session, groupPath);
+          const remaining = MAX_SEARCH_SCAN_ITEMS - scannedItems;
+          if (remaining < 1) {
+            throw new RoonLibraryError(
+              'ROON_LIBRARY_RESPONSE_INVALID',
+              'Roon search results exceed the bounded scan limit',
+            );
+          }
+          const groupItems = await loadAllAtLevel(
+            'search',
+            session.multiSessionKey,
+            groupList.level,
+            groupList.count,
+            remaining,
+          );
+          scannedItems += groupItems.length;
+          for (let index = 0; index < groupItems.length; index += 1) {
+            const value = groupItems[index];
+            const record = asRecord(value);
+            if (readString(record ?? {}, 'hint') !== 'action_list') continue;
+            const track = readItem(value, 'track', 'search', {
+              multiSessionKey: session.multiSessionKey,
+              level: groupList.level,
+              parentReference: group.pathSignature,
+              parentPath: groupPath,
+              sourceIndex: index,
+              registerPath,
+            });
+            if (track?.itemKey) tracks.push(track);
+          }
+        }
+        const seenTracks = new Set<string>();
+        const uniqueTracks = tracks.filter((track) => {
+          const identity = createHash('sha256').update([
+            track.title,
+            track.artist ?? track.subtitle ?? '',
+            track.album ?? '',
+            String(track.discNumber ?? ''),
+            String(track.trackNumber ?? ''),
+            String(track.durationMs ?? track.durationSeconds ?? ''),
+            track.version ?? '',
+          ].join('\0')).digest('hex');
+          if (seenTracks.has(identity)) return false;
+          seenTracks.add(identity);
+          return true;
+        });
+        searchTracksByQuery.set(normalizedQuery, uniqueTracks);
+        const resultLevel = uniqueTracks[0]?.browseContext?.level ?? list.level;
+        return pageFromResolvedItems(uniqueTracks, pageRequest, resultLevel);
+      });
     },
     getImage: (imageKey, options = {}) => {
       if (imageKey.trim().length === 0 || imageKey.length > 512) {

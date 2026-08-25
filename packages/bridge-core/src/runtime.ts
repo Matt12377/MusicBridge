@@ -50,6 +50,7 @@ import { emptyLyricsSnapshot } from './netease/lyrics.js';
 import { QrLoginStateMachine } from './netease/qr-login.js';
 import { RoonAudioInputAdapter, type RoonTimeShapeSummary } from './roon/adapter.js';
 import { createRoonPublicLibrary } from './roon/public-library.js';
+import type { RoonBrowseShapeSummary } from './roon/library.js';
 import type { RoonSdk } from './roon/sdk.js';
 import { asBridgeError, BridgeError } from './shared/errors.js';
 import { createLogger, type Logger } from './shared/logger.js';
@@ -145,6 +146,7 @@ export interface BridgeRuntimeOptions {
   now?: () => number;
   onEvent?: (event: CoreRuntimeEvent) => void;
   onRoonTimeShape?: (summary: RoonTimeShapeSummary) => void;
+  onRoonBrowseShape?: (summary: RoonBrowseShapeSummary) => void;
   favoriteRepository?: LocalFavoriteRepository;
 }
 
@@ -237,6 +239,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     ...(config.roonCoreHost ? { coreHost: config.roonCoreHost } : {}),
     ...(config.roonCorePort ? { corePort: config.roonCorePort } : {}),
     ...(options.onRoonTimeShape ? { onTimeShape: options.onRoonTimeShape } : {}),
+    ...(options.onRoonBrowseShape ? { onBrowseShape: options.onRoonBrowseShape } : {}),
   });
   const roonLibrary = createRoonPublicLibrary(() => roon.getLibraryService());
   const favoriteRepository = options.favoriteRepository ?? createLocalFavoriteRepository(

@@ -24,6 +24,7 @@ export interface CoreEnvironmentOptions {
   uiE2e: boolean
   coreCrashGate: boolean
   roonTimeGate?: boolean
+  roonBrowseGate?: boolean
   remoteCoreMode?: RemoteCoreMode
   remoteStreamPort?: number
   remoteLocalPorts?: RemoteCoreLocalPorts
@@ -45,6 +46,10 @@ export function resolveRemoteCoreLocalPorts(parent: NodeJS.ProcessEnv): RemoteCo
 
 function isRoonTimeGatePath(value: string | undefined): value is string {
   return value !== undefined && /^\/tmp\/musicbridge-roon-time-gate-[A-Za-z0-9._-]+\.jsonl$/.test(value)
+}
+
+function isRoonBrowseGatePath(value: string | undefined): value is string {
+  return value !== undefined && /^\/tmp\/musicbridge-roon-browse-gate-[A-Za-z0-9._-]+\.jsonl$/.test(value)
 }
 
 export function buildCoreEnvironment(
@@ -77,6 +82,11 @@ export function buildCoreEnvironment(
   if (options.roonTimeGate && isRoonTimeGatePath(parent.MUSIC_BRIDGE_ROON_TIME_GATE_PATH)) {
     environment.MUSIC_BRIDGE_ROON_TIME_GATE = '1'
     environment.MUSIC_BRIDGE_ROON_TIME_GATE_PATH = parent.MUSIC_BRIDGE_ROON_TIME_GATE_PATH
+  }
+
+  if (options.roonBrowseGate && isRoonBrowseGatePath(parent.MUSIC_BRIDGE_ROON_BROWSE_GATE_PATH)) {
+    environment.MUSIC_BRIDGE_ROON_BROWSE_GATE = '1'
+    environment.MUSIC_BRIDGE_ROON_BROWSE_GATE_PATH = parent.MUSIC_BRIDGE_ROON_BROWSE_GATE_PATH
   }
 
   if (options.remoteCoreMode === 'remote-core-development') {

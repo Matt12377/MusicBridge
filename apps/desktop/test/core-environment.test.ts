@@ -54,6 +54,24 @@ test('Core environment exposes only the bounded Roon Time gate path when explici
   })
 })
 
+test('Core environment exposes only the bounded Roon Browse gate path when explicitly enabled', () => {
+  const gatePath = '/tmp/musicbridge-roon-browse-gate-test.jsonl'
+  const environment = buildCoreEnvironment({
+    MUSIC_BRIDGE_ROON_BROWSE_GATE: '1',
+    MUSIC_BRIDGE_ROON_BROWSE_GATE_PATH: gatePath,
+  }, {
+    startupTest: false,
+    uiE2e: false,
+    coreCrashGate: false,
+    roonBrowseGate: true,
+  })
+
+  assert.deepEqual(environment, {
+    MUSIC_BRIDGE_ROON_BROWSE_GATE: '1',
+    MUSIC_BRIDGE_ROON_BROWSE_GATE_PATH: gatePath,
+  })
+})
+
 test('Core environment exposes only bounded synthetic account modes to UI E2E', () => {
   const environment = buildCoreEnvironment({
     MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE: 'profile-unavailable',

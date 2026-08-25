@@ -29,6 +29,7 @@ import {
 } from './sdk.js';
 import {
   createRoonLibraryService,
+  type RoonBrowseShapeSummary,
   type RoonLibraryService,
 } from './library.js';
 
@@ -77,6 +78,7 @@ export interface RoonAudioInputAdapterOptions {
   coreHost?: string;
   corePort?: number;
   onTimeShape?: (summary: RoonTimeShapeSummary) => void;
+  onBrowseShape?: (summary: RoonBrowseShapeSummary) => void;
 }
 
 const DEFAULT_SESSION_BEGIN_TIMEOUT_MS = 10_000;
@@ -417,6 +419,7 @@ export class RoonAudioInputAdapter implements RoonPort {
   private readonly extensionId: string;
   private readonly displayName: string;
   private readonly onTimeShape: ((summary: RoonTimeShapeSummary) => void) | undefined;
+  private readonly onBrowseShape: ((summary: RoonBrowseShapeSummary) => void) | undefined;
   private activeTimerCount = 0;
   private stateHandler: () => void = () => undefined;
   private timeHandler: (positionMs: number) => void = () => undefined;
@@ -446,6 +449,7 @@ export class RoonAudioInputAdapter implements RoonPort {
         ? DEVELOPMENT_ROON_DISPLAY_NAME
         : FORMAL_ROON_DISPLAY_NAME;
     this.onTimeShape = options.onTimeShape;
+    this.onBrowseShape = options.onBrowseShape;
   }
 
   setTerminalHandler(handler: (reason: RoonTerminalReason) => void): void {
@@ -1070,6 +1074,8 @@ export class RoonAudioInputAdapter implements RoonPort {
         ? createRoonLibraryService({
             browse: core.services.RoonApiBrowse,
             image: core.services.RoonApiImage,
+            ...(this.onBrowseShape ? { onBrowseShape: this.onBrowseShape } : {}),
+            zoneOrOutputId: () => this.selectedZone?.zone_id,
           })
         : undefined;
     this.state = {

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { roonTrackIdFromReference } from '@music-bridge/contracts';
-import { createRoonLibraryService } from '../src/roon/library.js';
+import { createRoonLibraryService, type RoonLibraryService } from '../src/roon/library.js';
 import { createRoonPublicLibrary } from '../src/roon/public-library.js';
 
 test('Roon public library converts runtime item keys into scoped references', async () => {
@@ -43,6 +43,117 @@ test('Roon public library converts runtime item keys into scoped references', as
   assert.deepEqual(image.body, new Uint8Array(Buffer.from('cover')));
 });
 
+test('Roon public library 为同一运行期实体复用稳定引用', async () => {
+  const service: RoonLibraryService = {
+    browseAlbums: async () => ({
+      items: [{
+        kind: 'album',
+        title: 'Stable Album',
+        itemKey: 'album:stable',
+        imageKey: 'image:stable',
+      }],
+      offset: 0,
+      level: 0,
+    }),
+    browseArtists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseGenres: async () => ({ items: [], offset: 0, level: 0 }),
+    browsePlaylists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseAlbum: async () => ({ items: [], offset: 0, level: 1 }),
+    browseArtist: async () => ({ items: [], offset: 0, level: 1 }),
+    searchLibrary: async () => ({ items: [], offset: 0, level: 0 }),
+    getImage: async () => ({ contentType: 'image/jpeg', body: Buffer.from('cover') }),
+    playTrack: async () => undefined,
+    queueTrack: async () => undefined,
+  };
+  const publicLibrary = createRoonPublicLibrary(() => service);
+
+  const first = await publicLibrary.browseAlbums({ offset: 0, limit: 20 });
+  const second = await publicLibrary.browseAlbums({ offset: 0, limit: 20 });
+
+  assert.equal(first.items[0]?.reference, second.items[0]?.reference);
+  assert.equal(first.items[0]?.artworkReference, second.items[0]?.artworkReference);
+});
+
+test('Roon public library 保留超过 4096 个仍可能可见的实体引用', async () => {
+  let openedTitle: string | undefined;
+  const service: RoonLibraryService = {
+    browseAlbums: async ({ offset, limit }) => ({
+      items: Array.from({ length: limit }, (_, index) => {
+        const absoluteIndex = offset + index;
+        return {
+          kind: 'album' as const,
+          title: `Album ${absoluteIndex}`,
+          itemKey: `album:${absoluteIndex}`,
+        };
+      }),
+      offset,
+      level: 0,
+      total: 4_100,
+      hasMore: offset + limit < 4_100,
+    }),
+    browseArtists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseGenres: async () => ({ items: [], offset: 0, level: 0 }),
+    browsePlaylists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseAlbum: async (album) => {
+      openedTitle = album.title;
+      return { items: [], offset: 0, level: 1 };
+    },
+    browseArtist: async () => ({ items: [], offset: 0, level: 1 }),
+    searchLibrary: async () => ({ items: [], offset: 0, level: 0 }),
+    getImage: async () => ({ contentType: 'image/jpeg', body: Buffer.from('cover') }),
+    playTrack: async () => undefined,
+    queueTrack: async () => undefined,
+  };
+  const publicLibrary = createRoonPublicLibrary(() => service);
+  let firstReference = '';
+  for (let offset = 0; offset < 4_100; offset += 100) {
+    const page = await publicLibrary.browseAlbums({ offset, limit: 100 });
+    if (offset === 0) firstReference = page.items[0]?.reference ?? '';
+  }
+
+  await publicLibrary.browseAlbum(firstReference, { offset: 0, limit: 20 });
+  assert.equal(openedTitle, 'Album 0');
+});
+
+test('Roon public library 在 Core Library Service 更换后立即作废旧 Context 引用', async () => {
+  let replacementBrowseCalls = 0;
+  const original: RoonLibraryService = {
+    browseAlbums: async () => ({
+      items: [{ kind: 'album', title: 'Old Album', itemKey: 'album:old' }],
+      offset: 0,
+      level: 0,
+    }),
+    browseArtists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseGenres: async () => ({ items: [], offset: 0, level: 0 }),
+    browsePlaylists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseAlbum: async () => ({ items: [], offset: 0, level: 1 }),
+    browseArtist: async () => ({ items: [], offset: 0, level: 1 }),
+    searchLibrary: async () => ({ items: [], offset: 0, level: 0 }),
+    getImage: async () => ({ contentType: 'image/jpeg', body: Buffer.from('cover') }),
+    playTrack: async () => undefined,
+    queueTrack: async () => undefined,
+  };
+  const replacement: RoonLibraryService = {
+    ...original,
+    browseAlbum: async () => {
+      replacementBrowseCalls += 1;
+      return { items: [], offset: 0, level: 1 };
+    },
+  };
+  let current = original;
+  const publicLibrary = createRoonPublicLibrary(() => current);
+  const page = await publicLibrary.browseAlbums({ offset: 0, limit: 20 });
+  const oldReference = page.items[0]?.reference ?? '';
+  current = replacement;
+
+  await assert.rejects(
+    publicLibrary.browseAlbum(oldReference, { offset: 0, limit: 20 }),
+    (error: unknown) => error instanceof Error && 'code' in error
+      && (error as { code?: unknown }).code === 'ROON_LIBRARY_INVALID_REFERENCE',
+  );
+  assert.equal(replacementBrowseCalls, 0);
+});
+
 test('Roon public library rejects stale album and image references before Core calls', async () => {
   let browseCalls = 0;
   const publicLibrary = createRoonPublicLibrary(() => ({
@@ -76,7 +187,7 @@ test('Roon public library rejects stale album and image references before Core c
 
 test('Roon public library resolves a Track reference for typed play and queue only', async () => {
   const actions: Array<{ kind: string; zone: string; itemKey: string }> = [];
-  const publicLibrary = createRoonPublicLibrary(() => ({
+  const service: RoonLibraryService = {
     browseAlbums: async () => ({
       items: [{ kind: 'album', title: 'Album', itemKey: 'album:1' }],
       offset: 0,
@@ -99,7 +210,8 @@ test('Roon public library resolves a Track reference for typed play and queue on
     queueTrack: async (track, zone) => {
       actions.push({ kind: 'queue', zone, itemKey: track.itemKey ?? '' });
     },
-  }));
+  };
+  const publicLibrary = createRoonPublicLibrary(() => service);
 
   const albums = await publicLibrary.browseAlbums({ offset: 0, limit: 20 });
   const album = albums.items[0];
@@ -123,7 +235,7 @@ test('Roon public library resolves a Track reference for typed play and queue on
 });
 
 test('Roon public library exposes typed artist, genre, playlist and search pages', async () => {
-  const publicLibrary = createRoonPublicLibrary(() => ({
+  const service: RoonLibraryService = {
     browseAlbums: async () => ({ items: [], offset: 0, level: 0 }),
     browseArtists: async () => ({
       items: [{ kind: 'artist', title: 'Artist', itemKey: 'artist:1' }],
@@ -154,7 +266,8 @@ test('Roon public library exposes typed artist, genre, playlist and search pages
     getImage: async () => ({ contentType: 'image/jpeg', body: Buffer.from('') }),
     playTrack: async () => undefined,
     queueTrack: async () => undefined,
-  }));
+  };
+  const publicLibrary = createRoonPublicLibrary(() => service);
 
   const artists = await publicLibrary.browseArtists({ offset: 0, limit: 20 });
   const genres = await publicLibrary.browseGenres({ offset: 0, limit: 20 });

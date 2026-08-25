@@ -5,7 +5,7 @@ import type {
   TrackSummary,
 } from '@music-bridge/contracts';
 import { roonTrackIdFromReference } from '@music-bridge/contracts';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { BridgeError } from '../shared/errors.js';
 import { RoonActionBlockedError } from './action-policy.js';
 import {
@@ -17,7 +17,7 @@ import {
   type RoonPageRequest,
 } from './library.js';
 
-const MAX_REFERENCES = 4096;
+const MAX_REFERENCES = 65_536;
 
 export interface RoonPublicLibrary {
   browseAlbums(request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
@@ -54,31 +54,59 @@ function toDurationMs(descriptor: RoonEntityDescriptor): number | undefined {
   return descriptor.durationSeconds * 1_000;
 }
 
-function createToken(prefix: string): string {
-  return `musicbridge-v2-${prefix}-${randomUUID()}`;
+function uuidFromIdentity(scope: string, identity: string): string {
+  const bytes = Buffer.from(createHash('sha256').update(`${scope}\0${identity}`).digest().subarray(0, 16));
+  bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x50;
+  bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
+  const hex = bytes.toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-function addBounded<K, V>(map: Map<K, V>, key: K, value: V): void {
-  map.set(key, value);
-  while (map.size > MAX_REFERENCES) {
-    const oldest = map.keys().next().value;
-    if (oldest === undefined) break;
-    map.delete(oldest);
+function createToken(prefix: string, scope: string, identity: string): string {
+  return `musicbridge-v2-${prefix}-${uuidFromIdentity(scope, identity)}`;
+}
+
+function descriptorIdentity(descriptor: RoonEntityDescriptor): string {
+  if (descriptor.browseContext?.pathSignature) return descriptor.browseContext.pathSignature;
+  return createHash('sha256').update([
+    descriptor.hierarchy ?? '',
+    descriptor.kind,
+    descriptor.title,
+    descriptor.subtitle ?? '',
+    descriptor.artist ?? '',
+    descriptor.album ?? '',
+    String(descriptor.trackNumber ?? ''),
+    String(descriptor.discNumber ?? ''),
+    String(descriptor.durationMs ?? descriptor.durationSeconds ?? ''),
+    descriptor.version ?? '',
+    descriptor.itemKey ?? '',
+  ].join('\0')).digest('hex');
+}
+
+function addReference<K, V>(map: Map<K, V>, key: K, value: V): void {
+  if (!map.has(key) && map.size >= MAX_REFERENCES) {
+    throw new RoonLibraryError(
+      'ROON_LIBRARY_RESPONSE_INVALID',
+      'Roon runtime reference capacity is exhausted',
+    );
   }
+  map.set(key, value);
 }
 
 function mapDescriptor(
   descriptor: RoonEntityDescriptor,
   references: Map<string, DescriptorReference>,
   imageReferences: Map<string, string>,
+  scope: string,
 ): PublicRoonLibraryItem {
-  const reference = createToken('entity');
+  const identity = descriptorIdentity(descriptor);
+  const reference = createToken('entity', scope, identity);
   let artworkReference: string | undefined;
   if (descriptor.imageKey) {
-    artworkReference = createToken('image');
-    addBounded(imageReferences, artworkReference, descriptor.imageKey);
+    artworkReference = createToken('image', scope, descriptor.imageKey);
+    addReference(imageReferences, artworkReference, descriptor.imageKey);
   }
-  addBounded(references, reference, {
+  addReference(references, reference, {
     descriptor,
     ...(artworkReference !== undefined ? { imageReference: artworkReference } : {}),
   });
@@ -104,9 +132,10 @@ function mapPage(
   request: RoonPageRequest,
   references: Map<string, DescriptorReference>,
   imageReferences: Map<string, string>,
+  scope: string,
 ): PublicRoonLibraryPage {
   return {
-    items: page.items.map((item) => mapDescriptor(item, references, imageReferences)),
+    items: page.items.map((item) => mapDescriptor(item, references, imageReferences, scope)),
     offset: page.offset,
     limit: request.limit,
     ...(page.total !== undefined ? { total: page.total } : {}),
@@ -146,6 +175,8 @@ export function createRoonPublicLibrary(
 ): RoonPublicLibrary {
   const references = new Map<string, DescriptorReference>();
   const imageReferences = new Map<string, string>();
+  let activeService: RoonLibraryService | undefined;
+  let referenceScope = randomUUID();
 
   const service = (): RoonLibraryService => {
     const value = getService();
@@ -154,6 +185,12 @@ export function createRoonPublicLibrary(
         httpStatus: 503,
       });
     }
+    if (activeService && activeService !== value) {
+      references.clear();
+      imageReferences.clear();
+      referenceScope = randomUUID();
+    }
+    activeService = value;
     return value;
   };
 
@@ -190,39 +227,69 @@ export function createRoonPublicLibrary(
   return {
     async browseAlbums(request) {
       try {
-        return mapPage(await service().browseAlbums(request), request, references, imageReferences);
+        const current = service();
+        return mapPage(
+          await current.browseAlbums(request),
+          request,
+          references,
+          imageReferences,
+          referenceScope,
+        );
       } catch (error) {
         return wrapLibraryError(error);
       }
     },
     async browseArtists(request) {
       try {
-        return mapPage(await service().browseArtists(request), request, references, imageReferences);
+        const current = service();
+        return mapPage(
+          await current.browseArtists(request),
+          request,
+          references,
+          imageReferences,
+          referenceScope,
+        );
       } catch (error) {
         return wrapLibraryError(error);
       }
     },
     async browseGenres(request) {
       try {
-        return mapPage(await service().browseGenres(request), request, references, imageReferences);
+        const current = service();
+        return mapPage(
+          await current.browseGenres(request),
+          request,
+          references,
+          imageReferences,
+          referenceScope,
+        );
       } catch (error) {
         return wrapLibraryError(error);
       }
     },
     async browsePlaylists(request) {
       try {
-        return mapPage(await service().browsePlaylists(request), request, references, imageReferences);
+        const current = service();
+        return mapPage(
+          await current.browsePlaylists(request),
+          request,
+          references,
+          imageReferences,
+          referenceScope,
+        );
       } catch (error) {
         return wrapLibraryError(error);
       }
     },
     async browseAlbum(reference, request) {
       try {
+        const current = service();
         return mapPage(
-          await service().browseAlbum(resolveAlbum(reference), request),
+          await current.browseAlbum(resolveAlbum(reference), request),
           request,
           references,
           imageReferences,
+          referenceScope,
         );
       } catch (error) {
         return wrapLibraryError(error);
@@ -230,11 +297,13 @@ export function createRoonPublicLibrary(
     },
     async browseArtist(reference, request) {
       try {
+        const current = service();
         return mapPage(
-          await service().browseArtist(resolveArtist(reference), request),
+          await current.browseArtist(resolveArtist(reference), request),
           request,
           references,
           imageReferences,
+          referenceScope,
         );
       } catch (error) {
         return wrapLibraryError(error);
@@ -242,17 +311,20 @@ export function createRoonPublicLibrary(
     },
     async searchLibrary(query, request) {
       try {
+        const current = service();
         return mapPage(
-          await service().searchLibrary(query, request),
+          await current.searchLibrary(query, request),
           request,
           references,
           imageReferences,
+          referenceScope,
         );
       } catch (error) {
         return wrapLibraryError(error);
       }
     },
     async getImage(reference, options) {
+      const current = service();
       const imageKey = imageReferences.get(reference);
       if (!imageKey) {
         throw new BridgeError('ROON_LIBRARY_INVALID_REFERENCE', 'Roon image reference is invalid', {
@@ -260,7 +332,7 @@ export function createRoonPublicLibrary(
         });
       }
       try {
-        const result = await service().getImage(imageKey, imageOptions(options));
+        const result = await current.getImage(imageKey, imageOptions(options));
         return {
           contentType: result.contentType,
           body: new Uint8Array(result.body),
@@ -271,19 +343,22 @@ export function createRoonPublicLibrary(
     },
     async playTrack(reference, zoneOrOutputId) {
       try {
-        await service().playTrack(resolveTrack(reference), zoneOrOutputId);
+        const current = service();
+        await current.playTrack(resolveTrack(reference), zoneOrOutputId);
       } catch (error) {
         return wrapLibraryError(error);
       }
     },
     async queueTrack(reference, zoneOrOutputId) {
       try {
-        await service().queueTrack(resolveTrack(reference), zoneOrOutputId);
+        const current = service();
+        await current.queueTrack(resolveTrack(reference), zoneOrOutputId);
       } catch (error) {
         return wrapLibraryError(error);
       }
     },
     getTrackSummary(reference) {
+      service();
       const descriptor = resolveTrack(reference);
       const durationMs = toDurationMs(descriptor);
       return {

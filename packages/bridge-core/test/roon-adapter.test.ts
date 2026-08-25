@@ -20,7 +20,11 @@ import type {
   RoonTransportService,
   RoonZoneChangeCallback,
 } from '../src/roon/sdk.js';
-import type { RoonBrowseApi, RoonImageApi } from '../src/roon/library.js';
+import type {
+  RoonBrowseApi,
+  RoonBrowseShapeSummary,
+  RoonImageApi,
+} from '../src/roon/library.js';
 import { BridgeError } from '../src/shared/errors.js';
 import { createLogger, type Logger } from '../src/shared/logger.js';
 
@@ -324,6 +328,7 @@ interface AdapterTestOptions {
   coreHost?: string;
   corePort?: number;
   onTimeShape?: (summary: import('../src/roon/adapter.js').RoonTimeShapeSummary) => void;
+  onBrowseShape?: (summary: RoonBrowseShapeSummary) => void;
 }
 
 function recordingLogger(): {
@@ -399,6 +404,19 @@ test('paired core exposes the Roon library service while registering Browse/Imag
     sdk.imageService,
   ]);
 
+  await adapter.shutdown();
+});
+
+test('paired Core routes bounded Browse shape diagnostics through the formal Adapter', async () => {
+  const summaries: RoonBrowseShapeSummary[] = [];
+  const { adapter } = await makeReadyHarness({
+    onBrowseShape: (summary) => summaries.push(summary),
+  });
+
+  await adapter.getLibraryService()?.browseAlbums({ offset: 0, limit: 20 });
+
+  assert.deepEqual(summaries.map((summary) => summary.operation), ['browse', 'load']);
+  assert.doesNotMatch(JSON.stringify(summaries), /item_key|multi_session_key/u);
   await adapter.shutdown();
 });
 

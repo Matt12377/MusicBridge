@@ -113,6 +113,7 @@ const electronColdStartStage: ElectronColdStartStage | undefined =
   startupTestConfiguration.electronColdStartStage
 const isElectronColdStartGate = electronColdStartStage !== undefined
 const isRoonTimeGate = process.env.MUSIC_BRIDGE_ROON_TIME_GATE === '1'
+const isRoonBrowseGate = process.env.MUSIC_BRIDGE_ROON_BROWSE_GATE === '1'
 
 let mainWindow: BrowserWindow | undefined
 let coreSupervisor: CoreSupervisor | undefined
@@ -1248,6 +1249,7 @@ function buildCoreEnvironment(): NodeJS.ProcessEnv {
     uiE2e: isUiE2e,
     coreCrashGate: isCoreCrashGate || isCoreRestartCredentialRecoveryGate,
     roonTimeGate: isRoonTimeGate,
+    roonBrowseGate: isRoonBrowseGate,
     remoteCoreMode: coreMode,
     ...(remoteStreamPort !== undefined ? { remoteStreamPort } : {}),
   })
