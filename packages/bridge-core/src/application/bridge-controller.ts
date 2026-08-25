@@ -149,6 +149,7 @@ function cloneTrackSummary(track: TrackSummary): TrackSummary {
     album: track.album,
     ...(track.durationMs !== undefined ? { durationMs: track.durationMs } : {}),
     ...(track.artworkUrl ? { artworkUrl: track.artworkUrl } : {}),
+    ...(track.artworkReference ? { artworkReference: track.artworkReference } : {}),
   };
 }
 

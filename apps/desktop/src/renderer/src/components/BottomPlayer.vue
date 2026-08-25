@@ -2,7 +2,7 @@
 import { PLAYBACK_QUALITY_PREFERENCES, type PlaybackQualityPreference, type PlaybackSnapshot, type PublicRoonZone, type TrackSummary } from '@music-bridge/contracts'
 import SidebarIcon from './sidebar/SidebarIcon.vue'
 import ZoneControl from './player/ZoneControl.vue'
-import SafeArtwork from './SafeArtwork.vue'
+import TrackArtwork from './TrackArtwork.vue'
 import type { ZoneLifecycleStatus } from '../zone-lifecycle.js'
 
 defineProps<{
@@ -35,7 +35,7 @@ function qualityLabel(quality: PlaybackQualityPreference): string {
 <template>
   <footer class="global-player" aria-label="全局播放器">
     <button type="button" class="player-track player-track-button" aria-label="打开正在播放" @click="emit('open-now-playing')">
-      <SafeArtwork class="player-art" :src="currentTrack?.artworkUrl" alt="" loading="eager" />
+      <TrackArtwork class="player-art" :track="currentTrack" alt="" eager />
       <div><strong>{{ currentTrack?.title ?? '选择内容开始播放' }}</strong><small>{{ currentTrack ? currentTrack.artists.join('、') : 'Music Bridge for Roon' }}</small></div>
     </button>
 

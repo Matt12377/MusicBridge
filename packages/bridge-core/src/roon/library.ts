@@ -1,4 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto';
+import {
+  isValidRoonImageBinary,
+  summarizeRoonImageBinary,
+  type RoonImageShapeSummary,
+} from '@music-bridge/contracts';
 import { authorizeRoonAction } from './action-policy.js';
 
 export interface RoonBrowseApi {
@@ -214,8 +219,6 @@ const MAX_ALBUM_SCAN_ITEMS = 1_000;
 const MAX_ARTIST_SCAN_ITEMS = 1_000;
 const MAX_ALBUM_CONTAINER_COUNT = 64;
 const MAX_ALBUM_BROWSE_DEPTH = 4;
-const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
-const SUPPORTED_IMAGE_CONTENT_TYPES = new Set<RoonImageFormat>(['image/jpeg', 'image/png']);
 const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 const DEFAULT_IMAGE_OPTIONS: Required<RoonImageOptions> = {
   scale: 'fit',
@@ -636,6 +639,7 @@ export function createRoonLibraryService(dependencies: {
   image: RoonImageApi;
   requestTimeoutMs?: number;
   onBrowseShape?: (summary: RoonBrowseShapeSummary) => void;
+  onImageShape?: (summary: RoonImageShapeSummary) => void;
   zoneOrOutputId?: () => string | undefined;
 }): RoonLibraryService {
   const requestTimeoutMs = dependencies.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
@@ -951,6 +955,7 @@ export function createRoonLibraryService(dependencies: {
   const collectAlbumTracks = async (
     session: BrowseSessionState,
     albumPath: readonly BrowsePathSegment[],
+    inheritedImageKey: string | undefined,
   ): Promise<readonly RoonEntityDescriptor[]> => {
     const tracks: RoonEntityDescriptor[] = [];
     let scannedItems = 0;
@@ -1011,7 +1016,11 @@ export function createRoonLibraryService(dependencies: {
               : {}),
             registerPath,
           });
-          if (track) tracks.push(track);
+          if (track) {
+            tracks.push(track.imageKey || !inheritedImageKey
+              ? track
+              : { ...track, imageKey: inheritedImageKey });
+          }
           continue;
         }
         if (hint !== 'list' || !title) continue;
@@ -1223,7 +1232,7 @@ export function createRoonLibraryService(dependencies: {
           return pageFromResolvedItems(existing, pageRequest, level);
         }
         const list = await navigateToPath(session, path);
-        const tracks = await collectAlbumTracks(session, path);
+        const tracks = await collectAlbumTracks(session, path, album.imageKey);
         albumTracksBySignature.set(cacheKey, tracks);
         return pageFromResolvedItems(tracks, pageRequest, list.level);
       });
@@ -1492,13 +1501,18 @@ export function createRoonLibraryService(dependencies: {
         }, requestTimeoutMs);
         try {
           dependencies.image.get_image(imageKey, requestOptions, (error, contentType, body) => {
+            try {
+              dependencies.onImageShape?.(
+                summarizeRoonImageBinary('roon-callback', contentType, body),
+              );
+            } catch {
+              // 诊断回调不得改变图片行为。
+            }
             if (
               error
-              || !contentType
-              || !SUPPORTED_IMAGE_CONTENT_TYPES.has(contentType as RoonImageFormat)
+              || typeof contentType !== 'string'
               || !Buffer.isBuffer(body)
-              || body.byteLength === 0
-              || body.byteLength > MAX_IMAGE_BYTES
+              || !isValidRoonImageBinary(contentType, body)
             ) {
               finish(new RoonLibraryError('ROON_IMAGE_REQUEST_FAILED', 'Roon image request failed'));
               return;

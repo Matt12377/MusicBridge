@@ -16,7 +16,7 @@ export function buildContentSecurityPolicy(_mode: DesktopBuildMode): string {
     "default-src 'self'",
     "script-src 'self'",
     "style-src 'self'",
-    "img-src 'self' data: https://*.music.126.net",
+    "img-src 'self' blob: data: https://*.music.126.net",
     "font-src 'self'",
     "connect-src 'self'",
     "worker-src 'none'",

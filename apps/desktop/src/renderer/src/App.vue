@@ -64,6 +64,7 @@ import {
 import { useSidebarState } from './composables/useSidebarState.js'
 import { createSearchSnapshotLoader } from './composables/search.js'
 import { roonLibraryMessage as formatRoonLibraryMessage } from './roonLibraryMessages.js'
+import { roonArtworkCache } from './roon-artwork-cache.js'
 import {
   favoriteDescriptorForRoonItem,
   favoriteDescriptorForTrack,
@@ -1606,6 +1607,9 @@ function cloneTrackSummary(track: TrackSummary): TrackSummary {
     album: track.album,
     ...(track.durationMs !== undefined ? { durationMs: track.durationMs } : {}),
     ...(track.artworkUrl !== undefined ? { artworkUrl: track.artworkUrl } : {}),
+    ...(track.artworkReference !== undefined
+      ? { artworkReference: track.artworkReference }
+      : {}),
   }
 }
 
@@ -2094,13 +2098,23 @@ onMounted(async () => {
     if (command === 'show-queue') openQueue()
   })
   removeRemoteCoreListener = window.musicBridge.onRemoteCoreEvent((state) => {
+    const previousStatus = remoteCoreState.value.status
     remoteCoreState.value = state
+    if (previousStatus === 'ready' && state.status !== 'ready') roonArtworkCache.clear()
     if (state.status !== 'ready' && coreState.value) {
       coreState.value = { ...coreState.value, roon: 'disconnected' }
     }
     zoneRefreshCoordinator.handleRemoteCoreState(state.status)
   })
   removeCoreListener = window.musicBridge.onCoreEvent((event) => {
+    if (
+      event.event === 'core.ready'
+      || (event.event === 'roon.changed'
+        && coreState.value?.roon === 'ready'
+        && event.payload.state.roon !== 'ready')
+    ) {
+      roonArtworkCache.clear()
+    }
     if (event.event === 'core.ready' || event.event === 'core.health' || event.event === 'roon.changed') {
       coreState.value = event.payload.state
     }
@@ -2154,6 +2168,7 @@ onUnmounted(() => {
   removeAppCommandListener?.()
   removeRemoteCoreListener?.()
   zoneRefreshCoordinator.dispose()
+  roonArtworkCache.clear()
   stopPolling()
   stopSearchTimer()
   inspectorReturnFocus.value = null

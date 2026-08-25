@@ -42,7 +42,7 @@ const emit = defineEmits<{
   <template v-else>
     <div class="roon-album-grid" aria-label="Roon 专辑">
       <button v-for="album in props.page.items" :key="album.reference" type="button" class="roon-album-card" @click="emit('select', album)">
-        <RoonArtwork class="roon-album-art" :reference="album.artworkReference" :alt="`${album.title} 封面`" />
+        <RoonArtwork class="roon-album-art" :reference="album.artworkReference" :alt="`${album.title} 封面`" :width="256" :height="256" />
         <span class="roon-album-copy"><strong>{{ album.title }}</strong><small>{{ album.artist || album.subtitle || 'Roon Library' }}</small><small v-if="album.year">{{ album.year }}</small></span>
       </button>
     </div>

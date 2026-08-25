@@ -26,10 +26,18 @@ import type {
   FavoriteEntityDescriptor,
   FavoriteKind,
   RoonImageOptions,
+  RoonImageResult,
+  RoonImageShapeSummary,
   TrackSummary,
   TypedIpcEvent,
 } from '@music-bridge/contracts'
-import { IPC_VERSION, MAX_PLAYBACK_QUEUE_ITEMS, validateIpcEvent } from '@music-bridge/contracts'
+import {
+  IPC_VERSION,
+  MAX_PLAYBACK_QUEUE_ITEMS,
+  summarizeRoonImageBinary,
+  validateIpcEvent,
+} from '@music-bridge/contracts'
+import { appendFileSync, chmodSync } from 'node:fs'
 import { mkdir, readFile, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -114,6 +122,8 @@ const electronColdStartStage: ElectronColdStartStage | undefined =
 const isElectronColdStartGate = electronColdStartStage !== undefined
 const isRoonTimeGate = process.env.MUSIC_BRIDGE_ROON_TIME_GATE === '1'
 const isRoonBrowseGate = process.env.MUSIC_BRIDGE_ROON_BROWSE_GATE === '1'
+const isRoonImageGate = process.env.MUSIC_BRIDGE_ROON_IMAGE_GATE === '1'
+const roonImageGatePath = process.env.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH
 
 let mainWindow: BrowserWindow | undefined
 let coreSupervisor: CoreSupervisor | undefined
@@ -124,6 +134,58 @@ let trayRefreshPromise: Promise<void> | undefined
 let trayRefreshQueued = false
 let quitAfterCoreShutdown = false
 const mainDiagnostics = new MainDiagnosticRecorder()
+
+function recordRoonImageShape(summary: RoonImageShapeSummary): void {
+  if (
+    !isRoonImageGate
+    || !roonImageGatePath
+    || !/^\/tmp\/musicbridge-roon-image-gate-[A-Za-z0-9._-]+\.jsonl$/.test(roonImageGatePath)
+  ) {
+    return
+  }
+  try {
+    appendFileSync(roonImageGatePath, `${JSON.stringify(summary)}\n`, {
+      encoding: 'utf8',
+      mode: 0o600,
+    })
+    chmodSync(roonImageGatePath, 0o600)
+  } catch {
+    // 诊断采样不得改变图片行为。
+  }
+}
+
+function recordPreloadRoonImageShape(value: unknown): void {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return
+  const shape = value as Record<string, unknown>
+  if (
+    shape.layer !== 'preload'
+    || (shape.contentType !== 'image/jpeg' && shape.contentType !== 'image/png')
+    || !Number.isSafeInteger(shape.byteLength)
+    || (shape.byteLength as number) < 0
+    || (shape.byteLength as number) > 4 * 1024 * 1024
+    || typeof shape.magic8 !== 'string'
+    || !/^[0-9a-f]{0,16}$/u.test(shape.magic8)
+    || typeof shape.bodyType !== 'string'
+    || shape.bodyType.length > 64
+    || typeof shape.isBuffer !== 'boolean'
+    || typeof shape.isUint8Array !== 'boolean'
+    || typeof shape.isArrayBuffer !== 'boolean'
+    || typeof shape.valid !== 'boolean'
+  ) {
+    return
+  }
+  recordRoonImageShape({
+    layer: 'preload',
+    contentType: shape.contentType,
+    byteLength: shape.byteLength as number,
+    magic8: shape.magic8,
+    bodyType: shape.bodyType,
+    isBuffer: shape.isBuffer,
+    isUint8Array: shape.isUint8Array,
+    isArrayBuffer: shape.isArrayBuffer,
+    valid: shape.valid,
+  })
+}
 
 const remoteCoreTunnelManager = new RemoteCoreTunnelManager({
   onStateChanged: (state) => {
@@ -825,6 +887,13 @@ function registerIpcHandlers(
   supervisor: CoreSupervisor,
   credentialVault: CredentialVault,
 ): void {
+  if (isRoonImageGate) {
+    ipcMain.handle('roon:image:diagnostic', (event, shape: unknown) => {
+      requireTrustedRenderer(event)
+      recordPreloadRoonImageShape(shape)
+      return { recorded: true }
+    })
+  }
   ipcMain.handle('app:get-info', (event) => {
     requireTrustedRenderer(event)
     return appInfo()
@@ -1054,12 +1123,18 @@ function registerIpcHandlers(
     ),
   )
   ipcMain.handle('roon:library:image', (event, reference: unknown, options: unknown) =>
-    invokeCore(event, () => {
+    invokeCore(event, async () => {
       const imageOptions = requireRoonImageOptions(options)
-      return supervisor.request('roon.library.image', {
+      const result = await supervisor.request('roon.library.image', {
         reference: requireRoonReference(reference),
         ...(imageOptions !== undefined ? { options: imageOptions } : {}),
       })
+      recordRoonImageShape(summarizeRoonImageBinary(
+        'main-ipc',
+        (result as RoonImageResult).contentType,
+        (result as RoonImageResult).body,
+      ))
+      return result
     }),
   )
   ipcMain.handle('roon:library:play', (event, reference: unknown, zoneId: unknown) =>
@@ -1250,6 +1325,7 @@ function buildCoreEnvironment(): NodeJS.ProcessEnv {
     coreCrashGate: isCoreCrashGate || isCoreRestartCredentialRecoveryGate,
     roonTimeGate: isRoonTimeGate,
     roonBrowseGate: isRoonBrowseGate,
+    roonImageGate: isRoonImageGate,
     remoteCoreMode: coreMode,
     ...(remoteStreamPort !== undefined ? { remoteStreamPort } : {}),
   })

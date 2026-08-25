@@ -64,6 +64,7 @@ import type {
 import type { FavoriteEntityDescriptor, FavoriteKind, FavoriteRecord } from './favorites.js';
 import { MATCH_STATES, type PublicTrackMatchResult } from './matching.js';
 import type { PublicAggregatedSearchResult } from './aggregated-search.js';
+import { isValidRoonImageBinary } from './roon.js';
 
 export type ValidationResult<T> =
   | { ok: true; value: T }
@@ -651,6 +652,7 @@ function isTrackSummary(value: unknown): value is TrackSummary {
     'album',
     'durationMs',
     'artworkUrl',
+    'artworkReference',
   ])) {
     return false;
   }
@@ -668,7 +670,9 @@ function isTrackSummary(value: unknown): value is TrackSummary {
         Number.isSafeInteger(value.durationMs) &&
         value.durationMs >= 0 &&
         value.durationMs <= 24 * 60 * 60 * 1000)) &&
-    (value.artworkUrl === undefined || isArtworkUrl(value.artworkUrl))
+    (value.artworkUrl === undefined || isArtworkUrl(value.artworkUrl)) &&
+    (value.artworkReference === undefined ||
+      /^musicbridge-v2-image-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(String(value.artworkReference)))
   );
 }
 
@@ -1191,10 +1195,7 @@ function isRoonImageResult(value: unknown): boolean {
   return (
     isRecord(value) &&
     hasOnlyKeys(value, ['contentType', 'body']) &&
-    safeString(value.contentType, 128) &&
-    value.contentType.startsWith('image/') &&
-    value.body instanceof Uint8Array &&
-    value.body.byteLength <= 4 * 1024 * 1024
+    isValidRoonImageBinary(value.contentType, value.body)
   );
 }
 

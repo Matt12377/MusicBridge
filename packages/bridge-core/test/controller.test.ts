@@ -486,6 +486,7 @@ test('controller keeps Roon and NetEase items in one logical queue and switches 
     artists: ['Local Artist'],
     album: 'Local Album',
     durationMs: 180_000,
+    artworkReference: 'musicbridge-v2-image-123e4567-e89b-12d3-a456-426614174001',
   };
 
   await controller.playRoon({
@@ -499,6 +500,8 @@ test('controller keeps Roon and NetEase items in one logical queue and switches 
   assert.equal(snapshot.source, 'roon');
   assert.deepEqual(snapshot.queue.items.map((item) => item.resolvedSource), ['roon', undefined]);
   assert.equal(snapshot.queue.items[0]?.preferredSource, 'roon');
+  assert.equal(snapshot.currentTrack?.artworkReference, roonTrack.artworkReference);
+  assert.equal(snapshot.queue.items[0]?.track?.artworkReference, roonTrack.artworkReference);
   assert.equal('roonReference' in (snapshot.queue.items[0] ?? {}), false);
   assert.equal(nativeRoon.playCalls.length, 1);
   assert.equal(registry.size, 0);

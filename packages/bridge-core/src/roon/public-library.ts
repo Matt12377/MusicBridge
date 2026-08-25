@@ -1,10 +1,15 @@
 import type {
   RoonImageOptions as PublicRoonImageOptions,
+  RoonImageShapeSummary,
   RoonLibraryItem as PublicRoonLibraryItem,
   RoonLibraryPage as PublicRoonLibraryPage,
   TrackSummary,
 } from '@music-bridge/contracts';
-import { roonTrackIdFromReference } from '@music-bridge/contracts';
+import {
+  isValidRoonImageBinary,
+  roonTrackIdFromReference,
+  summarizeRoonImageBinary,
+} from '@music-bridge/contracts';
 import { createHash, randomUUID } from 'node:crypto';
 import { BridgeError } from '../shared/errors.js';
 import { RoonActionBlockedError } from './action-policy.js';
@@ -18,6 +23,17 @@ import {
 } from './library.js';
 
 const MAX_REFERENCES = 65_536;
+const DEFAULT_MAX_IMAGE_CACHE_ENTRIES = 128;
+const DEFAULT_MAX_IMAGE_CACHE_BYTES = 32 * 1024 * 1024;
+const DEFAULT_NEGATIVE_IMAGE_TTL_MS = 3_000;
+
+export interface RoonPublicLibraryOptions {
+  maxImageCacheEntries?: number;
+  maxImageCacheBytes?: number;
+  negativeImageTtlMs?: number;
+  now?: () => number;
+  onImageShape?: (summary: RoonImageShapeSummary) => void;
+}
 
 export interface RoonPublicLibrary {
   browseAlbums(request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
@@ -40,6 +56,16 @@ export interface RoonPublicLibrary {
 interface DescriptorReference {
   descriptor: RoonEntityDescriptor;
   imageReference?: string;
+}
+
+interface CachedImage {
+  contentType: string;
+  body: Uint8Array;
+}
+
+interface NegativeImageEntry {
+  error: unknown;
+  expiresAt: number;
 }
 
 function toDurationMs(descriptor: RoonEntityDescriptor): number | undefined {
@@ -153,6 +179,28 @@ function imageOptions(options?: PublicRoonImageOptions): RoonImageOptions | unde
   };
 }
 
+function normalizedImageOptions(options?: PublicRoonImageOptions): Required<PublicRoonImageOptions> {
+  return {
+    scale: options?.scale ?? 'fit',
+    width: options?.width ?? 256,
+    height: options?.height ?? 256,
+    format: options?.format ?? 'image/jpeg',
+  };
+}
+
+function requireBoundedInteger(
+  value: number | undefined,
+  fallback: number,
+  maximum: number,
+  name: string,
+): number {
+  const resolved = value ?? fallback;
+  if (!Number.isSafeInteger(resolved) || resolved < 1 || resolved > maximum) {
+    throw new TypeError(`${name} is invalid`);
+  }
+  return resolved;
+}
+
 function wrapLibraryError(error: unknown): never {
   if (error instanceof BridgeError) throw error;
   if (error instanceof RoonActionBlockedError) {
@@ -172,11 +220,82 @@ function wrapLibraryError(error: unknown): never {
 
 export function createRoonPublicLibrary(
   getService: () => RoonLibraryService | undefined,
+  libraryOptions: RoonPublicLibraryOptions = {},
 ): RoonPublicLibrary {
+  const maxImageCacheEntries = requireBoundedInteger(
+    libraryOptions.maxImageCacheEntries,
+    DEFAULT_MAX_IMAGE_CACHE_ENTRIES,
+    1_024,
+    'Roon image cache entry limit',
+  );
+  const maxImageCacheBytes = requireBoundedInteger(
+    libraryOptions.maxImageCacheBytes,
+    DEFAULT_MAX_IMAGE_CACHE_BYTES,
+    256 * 1024 * 1024,
+    'Roon image cache byte limit',
+  );
+  const negativeImageTtlMs = requireBoundedInteger(
+    libraryOptions.negativeImageTtlMs,
+    DEFAULT_NEGATIVE_IMAGE_TTL_MS,
+    60_000,
+    'Roon image negative-cache TTL',
+  );
+  const now = libraryOptions.now ?? Date.now;
   const references = new Map<string, DescriptorReference>();
   const imageReferences = new Map<string, string>();
+  const imageCache = new Map<string, CachedImage>();
+  const pendingImages = new Map<string, Promise<CachedImage>>();
+  const negativeImages = new Map<string, NegativeImageEntry>();
+  let imageCacheBytes = 0;
   let activeService: RoonLibraryService | undefined;
   let referenceScope = randomUUID();
+
+  const clearImageState = (): void => {
+    imageCache.clear();
+    pendingImages.clear();
+    negativeImages.clear();
+    imageCacheBytes = 0;
+  };
+
+  const touchCachedImage = (key: string): CachedImage | undefined => {
+    const cached = imageCache.get(key);
+    if (!cached) return undefined;
+    imageCache.delete(key);
+    imageCache.set(key, cached);
+    return cached;
+  };
+
+  const cacheImage = (key: string, image: CachedImage): void => {
+    const existing = imageCache.get(key);
+    if (existing) {
+      imageCacheBytes -= existing.body.byteLength;
+      imageCache.delete(key);
+    }
+    while (
+      imageCache.size > 0
+      && (imageCache.size >= maxImageCacheEntries
+        || imageCacheBytes + image.body.byteLength > maxImageCacheBytes)
+    ) {
+      const oldestKey = imageCache.keys().next().value as string | undefined;
+      if (!oldestKey) break;
+      const oldest = imageCache.get(oldestKey);
+      imageCache.delete(oldestKey);
+      imageCacheBytes -= oldest?.body.byteLength ?? 0;
+    }
+    if (
+      image.body.byteLength <= maxImageCacheBytes
+      && imageCache.size < maxImageCacheEntries
+      && imageCacheBytes + image.body.byteLength <= maxImageCacheBytes
+    ) {
+      imageCache.set(key, image);
+      imageCacheBytes += image.body.byteLength;
+    }
+  };
+
+  const cloneImage = (image: CachedImage): CachedImage => ({
+    contentType: image.contentType,
+    body: new Uint8Array(image.body),
+  });
 
   const service = (): RoonLibraryService => {
     const value = getService();
@@ -188,6 +307,7 @@ export function createRoonPublicLibrary(
     if (activeService && activeService !== value) {
       references.clear();
       imageReferences.clear();
+      clearImageState();
       referenceScope = randomUUID();
     }
     activeService = value;
@@ -204,15 +324,18 @@ export function createRoonPublicLibrary(
     return stored.descriptor;
   };
 
-  const resolveTrack = (reference: string): RoonEntityDescriptor => {
+  const resolveTrackReference = (reference: string): DescriptorReference => {
     const stored = references.get(reference);
     if (!stored || stored.descriptor.kind !== 'track') {
       throw new BridgeError('ROON_LIBRARY_INVALID_REFERENCE', 'Roon track reference is invalid', {
         httpStatus: 400,
       });
     }
-    return stored.descriptor;
+    return stored;
   };
+
+  const resolveTrack = (reference: string): RoonEntityDescriptor =>
+    resolveTrackReference(reference).descriptor;
 
   const resolveArtist = (reference: string): RoonEntityDescriptor => {
     const stored = references.get(reference);
@@ -332,11 +455,57 @@ export function createRoonPublicLibrary(
         });
       }
       try {
-        const result = await current.getImage(imageKey, imageOptions(options));
-        return {
-          contentType: result.contentType,
-          body: new Uint8Array(result.body),
-        };
+        const normalized = normalizedImageOptions(options);
+        const cacheKey = JSON.stringify([
+          referenceScope,
+          imageKey,
+          normalized.width,
+          normalized.height,
+          normalized.format,
+          normalized.scale,
+        ]);
+        const cached = touchCachedImage(cacheKey);
+        if (cached) return cloneImage(cached);
+        const negative = negativeImages.get(cacheKey);
+        if (negative) {
+          if (negative.expiresAt > now()) throw negative.error;
+          negativeImages.delete(cacheKey);
+        }
+        let pending = pendingImages.get(cacheKey);
+        if (!pending) {
+          pending = (async () => {
+            try {
+              const result = await current.getImage(imageKey, imageOptions(normalized));
+              const body = new Uint8Array(result.body);
+              if (!isValidRoonImageBinary(result.contentType, body)) {
+                throw new RoonLibraryError(
+                  'ROON_IMAGE_REQUEST_FAILED',
+                  'Roon image response failed binary validation',
+                );
+              }
+              const image = { contentType: result.contentType, body };
+              try {
+                libraryOptions.onImageShape?.(
+                  summarizeRoonImageBinary('bridge-core-output', image.contentType, image.body),
+                );
+              } catch {
+                // 诊断回调不得改变图片行为。
+              }
+              cacheImage(cacheKey, image);
+              return image;
+            } catch (error) {
+              negativeImages.set(cacheKey, {
+                error,
+                expiresAt: now() + negativeImageTtlMs,
+              });
+              throw error;
+            } finally {
+              pendingImages.delete(cacheKey);
+            }
+          })();
+          pendingImages.set(cacheKey, pending);
+        }
+        return cloneImage(await pending);
       } catch (error) {
         return wrapLibraryError(error);
       }
@@ -359,7 +528,8 @@ export function createRoonPublicLibrary(
     },
     getTrackSummary(reference) {
       service();
-      const descriptor = resolveTrack(reference);
+      const stored = resolveTrackReference(reference);
+      const descriptor = stored.descriptor;
       const durationMs = toDurationMs(descriptor);
       return {
         id: roonTrackIdFromReference(reference),
@@ -367,6 +537,9 @@ export function createRoonPublicLibrary(
         artists: [descriptor.artist ?? descriptor.subtitle ?? 'Roon Library'],
         album: descriptor.album ?? 'Roon Library',
         ...(durationMs !== undefined ? { durationMs } : {}),
+        ...(stored.imageReference !== undefined
+          ? { artworkReference: stored.imageReference }
+          : {}),
       };
     },
   };

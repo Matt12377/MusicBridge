@@ -25,6 +25,7 @@ export interface CoreEnvironmentOptions {
   coreCrashGate: boolean
   roonTimeGate?: boolean
   roonBrowseGate?: boolean
+  roonImageGate?: boolean
   remoteCoreMode?: RemoteCoreMode
   remoteStreamPort?: number
   remoteLocalPorts?: RemoteCoreLocalPorts
@@ -50,6 +51,10 @@ function isRoonTimeGatePath(value: string | undefined): value is string {
 
 function isRoonBrowseGatePath(value: string | undefined): value is string {
   return value !== undefined && /^\/tmp\/musicbridge-roon-browse-gate-[A-Za-z0-9._-]+\.jsonl$/.test(value)
+}
+
+function isRoonImageGatePath(value: string | undefined): value is string {
+  return value !== undefined && /^\/tmp\/musicbridge-roon-image-gate-[A-Za-z0-9._-]+\.jsonl$/.test(value)
 }
 
 export function buildCoreEnvironment(
@@ -87,6 +92,11 @@ export function buildCoreEnvironment(
   if (options.roonBrowseGate && isRoonBrowseGatePath(parent.MUSIC_BRIDGE_ROON_BROWSE_GATE_PATH)) {
     environment.MUSIC_BRIDGE_ROON_BROWSE_GATE = '1'
     environment.MUSIC_BRIDGE_ROON_BROWSE_GATE_PATH = parent.MUSIC_BRIDGE_ROON_BROWSE_GATE_PATH
+  }
+
+  if (options.roonImageGate && isRoonImageGatePath(parent.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH)) {
+    environment.MUSIC_BRIDGE_ROON_IMAGE_GATE = '1'
+    environment.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH = parent.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH
   }
 
   if (options.remoteCoreMode === 'remote-core-development') {

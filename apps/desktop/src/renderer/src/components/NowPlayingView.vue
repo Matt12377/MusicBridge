@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { LyricsSnapshot, PlaybackIssue, PlaybackSnapshot, TrackSummary } from '@music-bridge/contracts'
 import SidebarIcon from './sidebar/SidebarIcon.vue'
-import SafeArtwork from './SafeArtwork.vue'
+import TrackArtwork from './TrackArtwork.vue'
 import LyricsLines from './LyricsLines.vue'
 
 const props = defineProps<{
@@ -132,7 +132,7 @@ const actualQualityDetail = computed(() => {
 
     <div class="now-playing-stage now-playing-immersive">
       <div class="now-playing-art-column">
-        <SafeArtwork class="now-playing-art" :src="props.currentTrack?.artworkUrl" :alt="`${props.currentTrack?.title ?? ''} 封面`" loading="eager" />
+        <TrackArtwork class="now-playing-art" :track="props.currentTrack" :alt="`${props.currentTrack?.title ?? ''} 封面`" :width="768" :height="768" eager />
         <div class="now-playing-copy">
           <div class="now-playing-track-heading">
             <p class="section-kicker">正在播放</p>

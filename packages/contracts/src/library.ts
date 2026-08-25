@@ -18,6 +18,8 @@ export interface TrackSummary {
   album: string
   durationMs?: number
   artworkUrl?: string
+  /** 当前 Roon Core 运行期内可解析的本地图片引用；重连后必须重新获取。 */
+  artworkReference?: string
 }
 
 export interface ArtistSummary {

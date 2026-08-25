@@ -4,6 +4,8 @@ import { roonTrackIdFromReference } from '@music-bridge/contracts';
 import { createRoonLibraryService, type RoonLibraryService } from '../src/roon/library.js';
 import { createRoonPublicLibrary } from '../src/roon/public-library.js';
 
+const JPEG_BYTES = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]);
+
 test('Roon public library converts runtime item keys into scoped references', async () => {
   const service = createRoonLibraryService({
     browse: {
@@ -20,7 +22,7 @@ test('Roon public library converts runtime item keys into scoped references', as
       }),
     },
     image: {
-      get_image: (_key, _options, callback) => callback(false, 'image/jpeg', Buffer.from('cover')),
+      get_image: (_key, _options, callback) => callback(false, 'image/jpeg', JPEG_BYTES),
     },
   });
   const publicLibrary = createRoonPublicLibrary(() => service);
@@ -40,7 +42,7 @@ test('Roon public library converts runtime item keys into scoped references', as
     height: 128,
   });
   assert.equal(image.contentType, 'image/jpeg');
-  assert.deepEqual(image.body, new Uint8Array(Buffer.from('cover')));
+  assert.deepEqual(image.body, new Uint8Array(JPEG_BYTES));
 });
 
 test('Roon public library 为同一运行期实体复用稳定引用', async () => {
@@ -61,7 +63,7 @@ test('Roon public library 为同一运行期实体复用稳定引用', async () 
     browseAlbum: async () => ({ items: [], offset: 0, level: 1 }),
     browseArtist: async () => ({ items: [], offset: 0, level: 1 }),
     searchLibrary: async () => ({ items: [], offset: 0, level: 0 }),
-    getImage: async () => ({ contentType: 'image/jpeg', body: Buffer.from('cover') }),
+    getImage: async () => ({ contentType: 'image/jpeg', body: JPEG_BYTES }),
     playTrack: async () => undefined,
     queueTrack: async () => undefined,
   };
@@ -72,6 +74,156 @@ test('Roon public library 为同一运行期实体复用稳定引用', async () 
 
   assert.equal(first.items[0]?.reference, second.items[0]?.reference);
   assert.equal(first.items[0]?.artworkReference, second.items[0]?.artworkReference);
+});
+
+test('Roon public library 按图片身份与尺寸去重并缓存受控二进制', async () => {
+  let imageCalls = 0;
+  const summaries: Array<Record<string, unknown>> = [];
+  const service: RoonLibraryService = {
+    browseAlbums: async () => ({
+      items: [{ kind: 'album', title: 'Cached Album', itemKey: 'album:cached', imageKey: 'image:cached' }],
+      offset: 0,
+      level: 0,
+    }),
+    browseArtists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseGenres: async () => ({ items: [], offset: 0, level: 0 }),
+    browsePlaylists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseAlbum: async () => ({ items: [], offset: 0, level: 1 }),
+    browseArtist: async () => ({ items: [], offset: 0, level: 1 }),
+    searchLibrary: async () => ({ items: [], offset: 0, level: 0 }),
+    getImage: async () => {
+      imageCalls += 1;
+      await new Promise((resolve) => setImmediate(resolve));
+      return { contentType: 'image/jpeg', body: JPEG_BYTES };
+    },
+    playTrack: async () => undefined,
+    queueTrack: async () => undefined,
+  };
+  const publicLibrary = createRoonPublicLibrary(() => service, {
+    maxImageCacheEntries: 4,
+    onImageShape: (summary) => summaries.push(summary as unknown as Record<string, unknown>),
+  });
+  const page = await publicLibrary.browseAlbums({ offset: 0, limit: 20 });
+  const reference = page.items[0]?.artworkReference ?? '';
+
+  const [first, second] = await Promise.all([
+    publicLibrary.getImage(reference, { width: 256, height: 256, scale: 'fit', format: 'image/jpeg' }),
+    publicLibrary.getImage(reference, { width: 256, height: 256, scale: 'fit', format: 'image/jpeg' }),
+  ]);
+  assert.equal(imageCalls, 1);
+  assert.deepEqual(first.body, second.body);
+  assert.notEqual(first.body, second.body);
+
+  await publicLibrary.getImage(reference, { width: 256, height: 256, scale: 'fit', format: 'image/jpeg' });
+  assert.equal(imageCalls, 1);
+  await publicLibrary.getImage(reference, { width: 512, height: 512, scale: 'fit', format: 'image/jpeg' });
+  assert.equal(imageCalls, 2);
+  assert.deepEqual(summaries, [{
+    layer: 'bridge-core-output',
+    contentType: 'image/jpeg',
+    byteLength: 8,
+    magic8: 'ffd8ffe000104a46',
+    bodyType: 'Uint8Array',
+    isBuffer: false,
+    isUint8Array: true,
+    isArrayBuffer: false,
+    valid: true,
+  }, {
+    layer: 'bridge-core-output',
+    contentType: 'image/jpeg',
+    byteLength: 8,
+    magic8: 'ffd8ffe000104a46',
+    bodyType: 'Uint8Array',
+    isBuffer: false,
+    isUint8Array: true,
+    isArrayBuffer: false,
+    valid: true,
+  }]);
+});
+
+test('Roon public library 使用有界 LRU，并在 Core Service 更换时隔离旧缓存', async () => {
+  const calls = new Map<string, number>();
+  const makeService = (suffix: string): RoonLibraryService => ({
+    browseAlbums: async () => ({
+      items: ['a', 'b', 'c'].map((key) => ({
+        kind: 'album' as const,
+        title: `${suffix}-${key}`,
+        itemKey: `album:${suffix}:${key}`,
+        imageKey: `image:${suffix}:${key}`,
+      })),
+      offset: 0,
+      level: 0,
+    }),
+    browseArtists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseGenres: async () => ({ items: [], offset: 0, level: 0 }),
+    browsePlaylists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseAlbum: async () => ({ items: [], offset: 0, level: 1 }),
+    browseArtist: async () => ({ items: [], offset: 0, level: 1 }),
+    searchLibrary: async () => ({ items: [], offset: 0, level: 0 }),
+    getImage: async (imageKey) => {
+      calls.set(imageKey, (calls.get(imageKey) ?? 0) + 1);
+      return { contentType: 'image/jpeg', body: JPEG_BYTES };
+    },
+    playTrack: async () => undefined,
+    queueTrack: async () => undefined,
+  });
+  let service = makeService('first');
+  const publicLibrary = createRoonPublicLibrary(() => service, { maxImageCacheEntries: 2 });
+  const firstPage = await publicLibrary.browseAlbums({ offset: 0, limit: 20 });
+  const firstRefs = firstPage.items.map((item) => item.artworkReference ?? '');
+
+  await publicLibrary.getImage(firstRefs[0]!, { width: 256, height: 256 });
+  await publicLibrary.getImage(firstRefs[1]!, { width: 256, height: 256 });
+  await publicLibrary.getImage(firstRefs[0]!, { width: 256, height: 256 });
+  await publicLibrary.getImage(firstRefs[2]!, { width: 256, height: 256 });
+  await publicLibrary.getImage(firstRefs[1]!, { width: 256, height: 256 });
+  assert.equal(calls.get('image:first:a'), 1);
+  assert.equal(calls.get('image:first:b'), 2);
+  assert.equal(calls.get('image:first:c'), 1);
+
+  service = makeService('replacement');
+  const replacementPage = await publicLibrary.browseAlbums({ offset: 0, limit: 20 });
+  const replacementReference = replacementPage.items[0]?.artworkReference ?? '';
+  await publicLibrary.getImage(replacementReference, { width: 256, height: 256 });
+  assert.equal(calls.get('image:replacement:a'), 1);
+  await assert.rejects(publicLibrary.getImage(firstRefs[0]!, { width: 256, height: 256 }));
+});
+
+test('Roon public library 对图片失败使用短时 negative cache', async () => {
+  let now = 1_000;
+  let imageCalls = 0;
+  const service: RoonLibraryService = {
+    browseAlbums: async () => ({
+      items: [{ kind: 'album', title: 'Missing Art', itemKey: 'album:missing', imageKey: 'image:missing' }],
+      offset: 0,
+      level: 0,
+    }),
+    browseArtists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseGenres: async () => ({ items: [], offset: 0, level: 0 }),
+    browsePlaylists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseAlbum: async () => ({ items: [], offset: 0, level: 1 }),
+    browseArtist: async () => ({ items: [], offset: 0, level: 1 }),
+    searchLibrary: async () => ({ items: [], offset: 0, level: 0 }),
+    getImage: async () => {
+      imageCalls += 1;
+      throw new Error('synthetic image failure');
+    },
+    playTrack: async () => undefined,
+    queueTrack: async () => undefined,
+  };
+  const publicLibrary = createRoonPublicLibrary(() => service, {
+    negativeImageTtlMs: 100,
+    now: () => now,
+  });
+  const page = await publicLibrary.browseAlbums({ offset: 0, limit: 20 });
+  const reference = page.items[0]?.artworkReference ?? '';
+
+  await assert.rejects(publicLibrary.getImage(reference, { width: 256, height: 256 }));
+  await assert.rejects(publicLibrary.getImage(reference, { width: 256, height: 256 }));
+  assert.equal(imageCalls, 1);
+  now += 101;
+  await assert.rejects(publicLibrary.getImage(reference, { width: 256, height: 256 }));
+  assert.equal(imageCalls, 2);
 });
 
 test('Roon public library 保留超过 4096 个仍可能可见的实体引用', async () => {
@@ -100,7 +252,7 @@ test('Roon public library 保留超过 4096 个仍可能可见的实体引用', 
     },
     browseArtist: async () => ({ items: [], offset: 0, level: 1 }),
     searchLibrary: async () => ({ items: [], offset: 0, level: 0 }),
-    getImage: async () => ({ contentType: 'image/jpeg', body: Buffer.from('cover') }),
+    getImage: async () => ({ contentType: 'image/jpeg', body: JPEG_BYTES }),
     playTrack: async () => undefined,
     queueTrack: async () => undefined,
   };
@@ -129,7 +281,7 @@ test('Roon public library 在 Core Library Service 更换后立即作废旧 Cont
     browseAlbum: async () => ({ items: [], offset: 0, level: 1 }),
     browseArtist: async () => ({ items: [], offset: 0, level: 1 }),
     searchLibrary: async () => ({ items: [], offset: 0, level: 0 }),
-    getImage: async () => ({ contentType: 'image/jpeg', body: Buffer.from('cover') }),
+    getImage: async () => ({ contentType: 'image/jpeg', body: JPEG_BYTES }),
     playTrack: async () => undefined,
     queueTrack: async () => undefined,
   };
@@ -167,7 +319,7 @@ test('Roon public library rejects stale album and image references before Core c
     browseAlbum: async () => ({ items: [], offset: 0, level: 0 }),
     browseArtist: async () => ({ items: [], offset: 0, level: 0 }),
     searchLibrary: async () => ({ items: [], offset: 0, level: 0 }),
-    getImage: async () => ({ contentType: 'image/jpeg', body: Buffer.from('') }),
+    getImage: async () => ({ contentType: 'image/jpeg', body: JPEG_BYTES }),
     playTrack: async () => undefined,
     queueTrack: async () => undefined,
   }));
@@ -197,13 +349,19 @@ test('Roon public library resolves a Track reference for typed play and queue on
     browseGenres: async () => ({ items: [], offset: 0, level: 0 }),
     browsePlaylists: async () => ({ items: [], offset: 0, level: 0 }),
     browseAlbum: async () => ({
-      items: [{ kind: 'track', title: 'Track', itemKey: 'track:1', hint: 'list' }],
+      items: [{
+        kind: 'track',
+        title: 'Track',
+        itemKey: 'track:1',
+        imageKey: 'image:track-1',
+        hint: 'list',
+      }],
       offset: 0,
       level: 1,
     }),
     browseArtist: async () => ({ items: [], offset: 0, level: 0 }),
     searchLibrary: async () => ({ items: [], offset: 0, level: 0 }),
-    getImage: async () => ({ contentType: 'image/jpeg', body: Buffer.from('') }),
+    getImage: async () => ({ contentType: 'image/jpeg', body: JPEG_BYTES }),
     playTrack: async (track, zone) => {
       actions.push({ kind: 'play', zone, itemKey: track.itemKey ?? '' });
     },
@@ -219,12 +377,14 @@ test('Roon public library resolves a Track reference for typed play and queue on
   const tracks = await publicLibrary.browseAlbum(album.reference, { offset: 0, limit: 20 });
   const track = tracks.items[0];
   assert.ok(track);
+  assert.ok(track.artworkReference);
   const summary = publicLibrary.getTrackSummary(track.reference);
   assert.deepEqual(summary, {
     id: roonTrackIdFromReference(track.reference),
     title: 'Track',
     artists: ['Roon Library'],
     album: 'Roon Library',
+    artworkReference: track.artworkReference,
   });
   await publicLibrary.playTrack(track.reference, 'zone-1');
   await publicLibrary.queueTrack(track.reference, 'zone-1');
@@ -263,7 +423,7 @@ test('Roon public library exposes typed artist, genre, playlist and search pages
       offset: 0,
       level: 0,
     }),
-    getImage: async () => ({ contentType: 'image/jpeg', body: Buffer.from('') }),
+    getImage: async () => ({ contentType: 'image/jpeg', body: JPEG_BYTES }),
     playTrack: async () => undefined,
     queueTrack: async () => undefined,
   };

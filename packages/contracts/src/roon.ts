@@ -49,6 +49,27 @@ export interface RoonLibraryPage {
 export type RoonImageScale = 'fit' | 'fill' | 'stretch'
 export type RoonImageFormat = 'image/jpeg' | 'image/png'
 
+export const MAX_ROON_IMAGE_BYTES = 4 * 1024 * 1024
+
+export type RoonImageShapeLayer =
+  | 'roon-callback'
+  | 'bridge-core-output'
+  | 'main-ipc'
+  | 'preload'
+  | 'renderer-blob'
+
+export interface RoonImageShapeSummary {
+  layer: RoonImageShapeLayer
+  contentType?: string
+  byteLength: number
+  magic8: string
+  bodyType: string
+  isBuffer: boolean
+  isUint8Array: boolean
+  isArrayBuffer: boolean
+  valid: boolean
+}
+
 export interface RoonImageOptions {
   scale?: RoonImageScale
   width?: number
@@ -59,4 +80,75 @@ export interface RoonImageOptions {
 export interface RoonImageResult {
   contentType: string
   body: Uint8Array
+}
+
+function bytesForShape(body: unknown): Uint8Array | undefined {
+  if (body instanceof Uint8Array) return body
+  if (body instanceof ArrayBuffer) return new Uint8Array(body)
+  return undefined
+}
+
+export function roonImageMagic8(body: Uint8Array): string {
+  return Array.from(body.subarray(0, 8), (value) => value.toString(16).padStart(2, '0')).join('')
+}
+
+export function roonImageContentTypeFromMagic(body: Uint8Array): RoonImageFormat | undefined {
+  if (body.byteLength >= 3 && body[0] === 0xff && body[1] === 0xd8 && body[2] === 0xff) {
+    return 'image/jpeg'
+  }
+  if (
+    body.byteLength >= 8
+    && body[0] === 0x89
+    && body[1] === 0x50
+    && body[2] === 0x4e
+    && body[3] === 0x47
+    && body[4] === 0x0d
+    && body[5] === 0x0a
+    && body[6] === 0x1a
+    && body[7] === 0x0a
+  ) {
+    return 'image/png'
+  }
+  return undefined
+}
+
+export function isValidRoonImageBinary(
+  contentType: unknown,
+  body: unknown,
+): body is Uint8Array {
+  return (
+    (contentType === 'image/jpeg' || contentType === 'image/png')
+    && body instanceof Uint8Array
+    && body.byteLength > 0
+    && body.byteLength <= MAX_ROON_IMAGE_BYTES
+    && roonImageContentTypeFromMagic(body) === contentType
+  )
+}
+
+export function summarizeRoonImageBinary(
+  layer: RoonImageShapeLayer,
+  contentType: unknown,
+  body: unknown,
+): RoonImageShapeSummary {
+  const bytes = bytesForShape(body)
+  const bodyType = body && typeof body === 'object'
+    ? (body as { constructor?: { name?: unknown } }).constructor?.name
+    : undefined
+  const normalizedBodyType = typeof bodyType === 'string' && bodyType.length <= 64
+    ? bodyType
+    : typeof body
+  return {
+    layer,
+    ...(typeof contentType === 'string' && contentType.length <= 128 ? { contentType } : {}),
+    byteLength: bytes?.byteLength ?? 0,
+    magic8: bytes ? roonImageMagic8(bytes) : '',
+    bodyType: normalizedBodyType,
+    isBuffer: normalizedBodyType === 'Buffer' && body instanceof Uint8Array,
+    isUint8Array: body instanceof Uint8Array,
+    isArrayBuffer: body instanceof ArrayBuffer,
+    valid: bytes !== undefined
+      && bytes.byteLength > 0
+      && bytes.byteLength <= MAX_ROON_IMAGE_BYTES
+      && roonImageContentTypeFromMagic(bytes) === contentType,
+  }
 }

@@ -38,7 +38,7 @@ function formatDuration(durationMs: number | undefined): string {
   <section class="view roon-album-detail-view" aria-labelledby="roon-album-heading">
     <button type="button" class="back-link" @click="emit('back')">← 本地音乐库</button>
     <div class="roon-album-detail-hero">
-      <RoonArtwork class="roon-album-detail-art" :reference="props.album.artworkReference" :alt="`${props.album.title} 封面`" :width="768" :height="768" />
+      <RoonArtwork class="roon-album-detail-art" :reference="props.album.artworkReference" :alt="`${props.album.title} 封面`" :width="768" :height="768" eager />
       <div class="roon-album-detail-copy">
         <p class="section-kicker">Roon 专辑</p>
         <h2 id="roon-album-heading">{{ props.album.title }}</h2>

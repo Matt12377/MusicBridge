@@ -7,6 +7,7 @@ import {
   type IpcFailure,
   type IpcRequest,
   type IpcResponse,
+  type RoonImageShapeSummary,
 } from '@music-bridge/contracts';
 import { asBridgeError } from './shared/errors.js';
 import {
@@ -381,6 +382,21 @@ function createRoonBrowseShapeRecorder(
   };
 }
 
+function createRoonImageShapeRecorder(
+  env: NodeJS.ProcessEnv,
+): ((summary: RoonImageShapeSummary) => void) | undefined {
+  const outputPath = env.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH;
+  if (env.MUSIC_BRIDGE_ROON_IMAGE_GATE !== '1' || outputPath === undefined) return undefined;
+  return (summary) => {
+    try {
+      appendFileSync(outputPath, `${JSON.stringify(summary)}\n`, { encoding: 'utf8', mode: 0o600 });
+      chmodSync(outputPath, 0o600);
+    } catch {
+      // 诊断采样不得改变图片行为。
+    }
+  };
+}
+
 export async function runCoreUtilityProcess(
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<void> {
@@ -408,9 +424,11 @@ export async function runCoreUtilityProcess(
           : (() => {
               const onRoonTimeShape = createRoonTimeShapeRecorder(env);
               const onRoonBrowseShape = createRoonBrowseShapeRecorder(env);
+              const onRoonImageShape = createRoonImageShapeRecorder(env);
               return createBridgeRuntime({
                 ...(onRoonTimeShape ? { onRoonTimeShape } : {}),
                 ...(onRoonBrowseShape ? { onRoonBrowseShape } : {}),
+                ...(onRoonImageShape ? { onRoonImageShape } : {}),
                 onEvent: (message) => {
                 if (message.event !== 'core.ready') {
                   port.postMessage(message)

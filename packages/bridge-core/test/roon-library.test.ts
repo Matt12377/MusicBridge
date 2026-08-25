@@ -8,6 +8,9 @@ import {
 } from '../src/roon/library.js';
 import { RoonActionBlockedError } from '../src/roon/action-policy.js';
 
+const JPEG_BYTES = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]);
+const PNG_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
 test('RoonLibraryService 通过 Browse + load 读取 Albums 分页，并保留真实存在的字段', async () => {
   const browseCalls: Array<Record<string, unknown>> = [];
   const loadCalls: Array<Record<string, unknown>> = [];
@@ -115,6 +118,7 @@ test('RoonLibraryService 使用 Album 来源 Browse Context 进入曲目层', as
             items: [{
               title: 'Private Album',
               item_key: 'album:1',
+              image_key: 'image:album',
               hint: 'list',
             }],
           }
@@ -152,6 +156,7 @@ test('RoonLibraryService 使用 Album 来源 Browse Context 进入曲目层', as
     hierarchy: 'albums',
     title: 'Private Track',
     itemKey: 'track:1',
+    imageKey: 'image:album',
     hint: 'action_list',
     durationSeconds: 243,
   });
@@ -177,10 +182,11 @@ test('RoonLibraryService 使用 Album 来源 Browse Context 进入曲目层', as
 
 test('RoonLibraryService Image seam 只接受显式 key 和受限尺寸格式', async () => {
   const calls: Array<{ imageKey: string; options: Record<string, unknown> }> = [];
+  const summaries: Array<Record<string, unknown>> = [];
   const image: RoonImageApi = {
     get_image(imageKey, options, callback) {
       calls.push({ imageKey, options });
-      callback(false, 'image/png', Buffer.from('png'));
+      callback(false, 'image/png', PNG_BYTES);
     },
   };
   const service = createRoonLibraryService({
@@ -189,6 +195,7 @@ test('RoonLibraryService Image seam 只接受显式 key 和受限尺寸格式', 
       load: () => undefined,
     },
     image,
+    onImageShape: (summary) => summaries.push(summary as unknown as Record<string, unknown>),
   });
 
   const result = await service.getImage('image:1', {
@@ -203,10 +210,21 @@ test('RoonLibraryService Image seam 只接受显式 key 和受限尺寸格式', 
     options: { width: 256, height: 256, scale: 'fit', format: 'image/png' },
   }]);
   assert.equal(result.contentType, 'image/png');
-  assert.deepEqual(result.body, Buffer.from('png'));
+  assert.deepEqual(result.body, PNG_BYTES);
+  assert.deepEqual(summaries, [{
+    layer: 'roon-callback',
+    contentType: 'image/png',
+    byteLength: 8,
+    magic8: '89504e470d0a1a0a',
+    bodyType: 'Buffer',
+    isBuffer: true,
+    isUint8Array: true,
+    isArrayBuffer: false,
+    valid: true,
+  }]);
 });
 
-test('RoonLibraryService 拒绝非图片 content type 和超过 4 MiB 的图片响应', async () => {
+test('RoonLibraryService 拒绝非图片 content type、MIME 魔数不符和超过 4 MiB 的图片响应', async () => {
   const browse: RoonBrowseApi = {
     browse: () => undefined,
     load: () => undefined,
@@ -221,6 +239,32 @@ test('RoonLibraryService 拒绝非图片 content type 和超过 4 MiB 的图片�
   });
   await assert.rejects(
     htmlService.getImage('image:html'),
+    (error: unknown) => (error as { code?: unknown }).code === 'ROON_IMAGE_REQUEST_FAILED',
+  );
+
+  const mismatchedService = createRoonLibraryService({
+    browse,
+    image: {
+      get_image(_imageKey, _options, callback) {
+        callback(false, 'image/jpeg', PNG_BYTES);
+      },
+    },
+  });
+  await assert.rejects(
+    mismatchedService.getImage('image:mismatched'),
+    (error: unknown) => (error as { code?: unknown }).code === 'ROON_IMAGE_REQUEST_FAILED',
+  );
+
+  const malformedService = createRoonLibraryService({
+    browse,
+    image: {
+      get_image(_imageKey, _options, callback) {
+        callback(false, 'image/jpeg', Buffer.from('not-an-image'));
+      },
+    },
+  });
+  await assert.rejects(
+    malformedService.getImage('image:malformed'),
     (error: unknown) => (error as { code?: unknown }).code === 'ROON_IMAGE_REQUEST_FAILED',
   );
 

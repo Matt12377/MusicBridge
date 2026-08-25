@@ -29,6 +29,7 @@ import type {
   PublicRoonZone,
   RoonImageOptions,
   RoonImageResult,
+  RoonImageShapeSummary,
   RoonLibraryPage,
   TrackSummary,
   ArtistSummary,
@@ -147,6 +148,7 @@ export interface BridgeRuntimeOptions {
   onEvent?: (event: CoreRuntimeEvent) => void;
   onRoonTimeShape?: (summary: RoonTimeShapeSummary) => void;
   onRoonBrowseShape?: (summary: RoonBrowseShapeSummary) => void;
+  onRoonImageShape?: (summary: RoonImageShapeSummary) => void;
   favoriteRepository?: LocalFavoriteRepository;
 }
 
@@ -240,8 +242,12 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     ...(config.roonCorePort ? { corePort: config.roonCorePort } : {}),
     ...(options.onRoonTimeShape ? { onTimeShape: options.onRoonTimeShape } : {}),
     ...(options.onRoonBrowseShape ? { onBrowseShape: options.onRoonBrowseShape } : {}),
+    ...(options.onRoonImageShape ? { onImageShape: options.onRoonImageShape } : {}),
   });
-  const roonLibrary = createRoonPublicLibrary(() => roon.getLibraryService());
+  const roonLibrary = createRoonPublicLibrary(
+    () => roon.getLibraryService(),
+    options.onRoonImageShape ? { onImageShape: options.onRoonImageShape } : {},
+  );
   const favoriteRepository = options.favoriteRepository ?? createLocalFavoriteRepository(
     path.join(process.cwd(), '.musicbridge-favorites.json'),
   );

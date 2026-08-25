@@ -668,10 +668,35 @@ test('contracts validates the opaque Roon Library browse and image seams', () =>
       version: IPC_VERSION,
       id: 'roon-image',
       ok: true,
-      result: { contentType: 'image/jpeg', body: new Uint8Array([1, 2, 3]) },
+      result: {
+        contentType: 'image/jpeg',
+        body: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]),
+      },
     }, 'roon.library.image').ok,
     true,
   );
+  for (const result of [
+    { contentType: 'image/jpeg', body: new Uint8Array() },
+    {
+      contentType: 'image/png',
+      body: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]),
+    },
+    {
+      contentType: 'image/jpeg',
+      body: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    },
+    { contentType: 'image/jpeg', body: { 0: 0xff, 1: 0xd8, 2: 0xff } },
+  ]) {
+    assert.equal(
+      validateIpcResponseForCommand({
+        version: IPC_VERSION,
+        id: 'roon-image-invalid',
+        ok: true,
+        result,
+      }, 'roon.library.image').ok,
+      false,
+    );
+  }
   for (const [id, command, payload] of [
     ['roon-artists', 'roon.library.artists', { page: { offset: 0, limit: 20 } }],
     ['roon-genres', 'roon.library.genres', { page: { offset: 0, limit: 20 } }],
@@ -798,6 +823,7 @@ test('contracts validates bounded playback controls and sanitized snapshots', ()
       title: 'Synthetic Song',
       artists: ['Synthetic Artist'],
       album: 'Synthetic Album',
+      artworkReference: 'musicbridge-v2-image-123e4567-e89b-12d3-a456-426614174001',
     },
     source: 'roon',
     requestedQuality: 'lossless',

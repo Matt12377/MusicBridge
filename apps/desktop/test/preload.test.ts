@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
 import test from 'node:test'
 
 import type {
@@ -14,6 +16,27 @@ import type {
   TrackSummary,
 } from '@music-bridge/contracts'
 import { createPreloadApi, PUBLIC_API_KEYS } from '../src/preload/api.js'
+import { summarizePreloadRoonImage } from '../src/preload/image-diagnostic.js'
+
+test('Preload 图片诊断保持 sandbox 本地实现，不引入 contracts 运行期依赖', async () => {
+  const source = await readFile(path.resolve('src/preload/index.ts'), 'utf8')
+  assert.match(source, /import type \{[\s\S]*?\} from '@music-bridge\/contracts'/u)
+  assert.doesNotMatch(source, /summarizeRoonImageBinary/u)
+  assert.deepEqual(summarizePreloadRoonImage({
+    contentType: 'image/jpeg',
+    body: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]),
+  }), {
+    layer: 'preload',
+    contentType: 'image/jpeg',
+    byteLength: 8,
+    magic8: 'ffd8ffe000104a46',
+    bodyType: 'Uint8Array',
+    isBuffer: false,
+    isUint8Array: true,
+    isArrayBuffer: false,
+    valid: true,
+  })
+})
 
 test('Preload exposes only sanitized business methods', async () => {
   const appInfo = {

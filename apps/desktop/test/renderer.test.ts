@@ -185,6 +185,26 @@ test('Renderer uses the clean-room player landmarks without importing the refere
   assert.doesNotMatch(source, /flutter|dart|pocketbase|ffmpeg|download-manager/i)
 })
 
+test('Roon artwork is lazy, bounded, failure-safe, and reused by every playback surface', async () => {
+  const artwork = await readFile(path.resolve('src/renderer/src/components/RoonArtwork.vue'), 'utf8')
+  const detail = await readFile(path.resolve('src/renderer/src/components/RoonAlbumDetail.vue'), 'utf8')
+  const bottom = await readFile(path.resolve('src/renderer/src/components/BottomPlayer.vue'), 'utf8')
+  const nowPlaying = await readFile(path.resolve('src/renderer/src/components/NowPlayingView.vue'), 'utf8')
+  const queue = await readFile(path.resolve('src/renderer/src/components/inspector/PlaybackInspector.vue'), 'utf8')
+
+  assert.match(artwork, /IntersectionObserver/)
+  assert.match(artwork, /width:\s*256/)
+  assert.match(artwork, /@error=/)
+  assert.match(artwork, /alt=""/)
+  assert.match(artwork, /acquireRoonArtwork|roonArtworkCache/)
+  assert.match(detail, /:width="768"/)
+  assert.match(detail, /eager/)
+  for (const source of [bottom, nowPlaying, queue]) {
+    assert.match(source, /TrackArtwork/)
+  }
+  assert.doesNotMatch(artwork, /width:\s*512/)
+})
+
 test('Homepage renders random playlist covers with a refresh action', async () => {
   const homeSource = await readFile(path.resolve('src/renderer/src/components/HomeView.vue'), 'utf8')
   const appSource = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')

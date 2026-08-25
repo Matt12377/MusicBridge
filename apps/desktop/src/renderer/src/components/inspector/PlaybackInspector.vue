@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { PlaybackQueueItem, PlaybackSnapshot, TrackSummary } from '@music-bridge/contracts'
-import SafeArtwork from '../SafeArtwork.vue'
+import TrackArtwork from '../TrackArtwork.vue'
 import { calculateVirtualWindow } from '../../composables/virtualWindow.js'
 
 const props = defineProps<{
@@ -77,7 +77,7 @@ function entryAlbum(item: PlaybackQueueItem): string {
       <div v-if="!props.playbackState?.queue.items.length" class="empty-copy">队列为空，去歌曲列表添加内容。</div>
       <template v-else>
         <div v-if="currentEntry || props.currentTrack" class="queue-current">
-          <SafeArtwork class="queue-current-art" :src="props.currentTrack?.artworkUrl ?? currentEntry?.track?.artworkUrl" :alt="`${props.currentTrack?.title ?? currentEntry?.track?.title ?? '当前歌曲'} 封面`" />
+          <TrackArtwork class="queue-current-art" :track="props.currentTrack ?? currentEntry?.track" :alt="`${props.currentTrack?.title ?? currentEntry?.track?.title ?? '当前歌曲'} 封面`" />
           <span>正在播放</span>
           <strong>{{ props.currentTrack?.title ?? (currentEntry ? entryTitle(currentEntry) : '当前歌曲') }}</strong>
           <small>{{ props.currentTrack?.artists.join('、') ?? (currentEntry ? entryArtists(currentEntry) : '—') }} · {{ props.currentTrack?.album ?? (currentEntry ? entryAlbum(currentEntry) : '—') }}</small>
@@ -87,7 +87,7 @@ function entryAlbum(item: PlaybackQueueItem): string {
         <div ref="queueViewport" class="queue-upcoming-viewport" :class="{ 'is-virtualized': isQueueVirtualized }" @scroll="onQueueScroll">
           <div v-if="isQueueVirtualized" aria-hidden="true" :style="{ height: `${queueWindow.topSpacer}px` }"></div>
           <button v-for="entry in visibleUpcomingEntries" :key="`${entry.item.trackId}-${entry.index}`" type="button" class="queue-row" @click="emit('play-queue-item', entry.item, entry.index)">
-            <span>{{ String(entry.index + 1).padStart(2, '0') }}</span><SafeArtwork class="queue-row-art" :src="entry.item.track?.artworkUrl" :alt="`${entryTitle(entry.item)} 封面`" />
+            <span>{{ String(entry.index + 1).padStart(2, '0') }}</span><TrackArtwork class="queue-row-art" :track="entry.item.track" :alt="`${entryTitle(entry.item)} 封面`" />
             <span class="queue-row-copy"><strong>{{ entryTitle(entry.item) }}</strong><small>{{ entryArtists(entry.item) }} · {{ entryAlbum(entry.item) }}</small></span>
             <small>{{ props.qualityLabel(entry.item.qualityPreference) }}</small>
           </button>

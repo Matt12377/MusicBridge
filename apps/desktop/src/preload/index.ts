@@ -1,11 +1,23 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { RemoteCoreTunnelState, TrackSummary, TypedIpcEvent } from '@music-bridge/contracts'
+import type {
+  RemoteCoreTunnelState,
+  RoonImageResult,
+  TrackSummary,
+  TypedIpcEvent,
+} from '@music-bridge/contracts'
 
 import { createPreloadApi } from './api.js'
+import { summarizePreloadRoonImage } from './image-diagnostic.js'
 
 if (!process.contextIsolated) {
   throw new Error('Music Bridge requires contextIsolation')
 }
+
+const recordRoonImageShape =
+  process.env.MUSIC_BRIDGE_ROON_IMAGE_GATE === '1'
+  && /^\/tmp\/musicbridge-roon-image-gate-[A-Za-z0-9._-]+\.jsonl$/u.test(
+    process.env.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH ?? '',
+  )
 
 contextBridge.exposeInMainWorld(
   'musicBridge',
@@ -85,8 +97,20 @@ contextBridge.exposeInMainWorld(
       ipcRenderer.invoke('roon:library:artist', reference, page),
     (query: string, page: { offset: number; limit: number }) =>
       ipcRenderer.invoke('roon:library:search', query, page),
-    (reference: string, options?: { scale?: 'fit' | 'fill' | 'stretch'; width?: number; height?: number; format?: 'image/jpeg' | 'image/png' }) =>
-      ipcRenderer.invoke('roon:library:image', reference, options),
+    async (reference: string, options?: { scale?: 'fit' | 'fill' | 'stretch'; width?: number; height?: number; format?: 'image/jpeg' | 'image/png' }) => {
+      const result = await ipcRenderer.invoke('roon:library:image', reference, options) as RoonImageResult
+      if (recordRoonImageShape) {
+        try {
+          await ipcRenderer.invoke(
+            'roon:image:diagnostic',
+            summarizePreloadRoonImage(result),
+          )
+        } catch {
+          // 诊断采样不得改变图片行为。
+        }
+      }
+      return result
+    },
     (reference: string, zoneId: string) => ipcRenderer.invoke('roon:library:play', reference, zoneId),
     (reference: string, zoneId: string) => ipcRenderer.invoke('roon:library:queue', reference, zoneId),
     (kind: 'track' | 'album' | 'artist' | undefined, page: { offset: number; limit: number }) =>

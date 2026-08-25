@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { RemoteCoreMode } from '@music-bridge/contracts';
+import type { RemoteCoreMode, RoonImageShapeSummary } from '@music-bridge/contracts';
 import { BridgeError } from '../shared/errors.js';
 import type { Logger } from '../shared/logger.js';
 import type {
@@ -79,6 +79,7 @@ export interface RoonAudioInputAdapterOptions {
   corePort?: number;
   onTimeShape?: (summary: RoonTimeShapeSummary) => void;
   onBrowseShape?: (summary: RoonBrowseShapeSummary) => void;
+  onImageShape?: (summary: RoonImageShapeSummary) => void;
 }
 
 const DEFAULT_SESSION_BEGIN_TIMEOUT_MS = 10_000;
@@ -420,6 +421,7 @@ export class RoonAudioInputAdapter implements RoonPort {
   private readonly displayName: string;
   private readonly onTimeShape: ((summary: RoonTimeShapeSummary) => void) | undefined;
   private readonly onBrowseShape: ((summary: RoonBrowseShapeSummary) => void) | undefined;
+  private readonly onImageShape: ((summary: RoonImageShapeSummary) => void) | undefined;
   private activeTimerCount = 0;
   private stateHandler: () => void = () => undefined;
   private timeHandler: (positionMs: number) => void = () => undefined;
@@ -450,6 +452,7 @@ export class RoonAudioInputAdapter implements RoonPort {
         : FORMAL_ROON_DISPLAY_NAME;
     this.onTimeShape = options.onTimeShape;
     this.onBrowseShape = options.onBrowseShape;
+    this.onImageShape = options.onImageShape;
   }
 
   setTerminalHandler(handler: (reason: RoonTerminalReason) => void): void {
@@ -1075,6 +1078,7 @@ export class RoonAudioInputAdapter implements RoonPort {
             browse: core.services.RoonApiBrowse,
             image: core.services.RoonApiImage,
             ...(this.onBrowseShape ? { onBrowseShape: this.onBrowseShape } : {}),
+            ...(this.onImageShape ? { onImageShape: this.onImageShape } : {}),
             zoneOrOutputId: () => this.selectedZone?.zone_id,
           })
         : undefined;
