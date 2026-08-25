@@ -15,7 +15,7 @@
 - 修复基线 SHA：`569c3c159af950fa173acd717b1ef239c5742de5`
 - 实现提交：`974e245cb64a3d5b8c0d37e4c3dc896a95fab454`
 - 实现提交信息：`fix(search): avoid authenticated search endpoint failures`
-- 报告提交：本文件通过独立文档提交；交付复核时以 `git rev-parse HEAD` 记录报告身份。
+- 报告提交：`96a900468d9b38832681b13d1838785c3e8a657d`（独立文档提交）。
 - 下一分支基线：`974e245cb64a3d5b8c0d37e4c3dc896a95fab454`；本轮不启动新的编号任务，不修改 `project/STATUS.json` 或 `project/WAVE-3.yaml`。
 
 ## 根因与修复
