@@ -408,6 +408,71 @@ test('RoonLibraryService 只下钻 Search 的 Tracks 分组并复用查询 Sessi
   assert.equal(browseCalls[0]?.multi_session_key, browseCalls[1]?.multi_session_key);
 });
 
+test('RoonLibraryService 重放 Search Track action 时保留受控查询上下文', async () => {
+  const rootInputs: unknown[] = [];
+  const sessionLocations = new Map<string, 'root' | 'track-actions'>();
+  const browse: RoonBrowseApi = {
+    browse(options, callback) {
+      const key = options.multi_session_key;
+      assert.equal(typeof key, 'string');
+      if (options.pop_all === true) {
+        rootInputs.push(options.input);
+        if (options.input !== '归零') {
+          callback('search input missing', undefined);
+          return;
+        }
+        sessionLocations.set(key as string, 'root');
+        callback(false, { action: 'list', list: { level: 0, count: 1 } });
+        return;
+      }
+      if (options.item_key === `track:${key}`) {
+        sessionLocations.set(key as string, 'track-actions');
+        callback(false, { action: 'list', list: { level: 1, count: 1 } });
+        return;
+      }
+      if (options.item_key === `action:play:${key}`) {
+        callback(false, { action: 'none' });
+        return;
+      }
+      callback('unexpected search action', undefined);
+    },
+    load(options, callback) {
+      const key = options.multi_session_key;
+      assert.equal(typeof key, 'string');
+      callback(false, sessionLocations.get(key as string) === 'root'
+        ? {
+            offset: options.offset,
+            items: [{
+              title: '歸零',
+              subtitle: '林憶蓮',
+              item_key: `track:${key}`,
+              hint: 'action_list',
+              duration: 271,
+            }],
+          }
+        : {
+            offset: options.offset,
+            items: [{
+              title: 'Play Now',
+              item_key: `action:play:${key}`,
+              hint: 'action',
+            }],
+          });
+    },
+  };
+  const service = createRoonLibraryService({
+    browse,
+    image: { get_image: () => undefined },
+  });
+
+  const search = await service.searchLibrary('  归零  ', { offset: 0, limit: 20 });
+  const track = search.items[0];
+  assert.ok(track);
+  await service.playTrack(track, 'zone:1');
+
+  assert.deepEqual(rootInputs, ['归零', '归零']);
+});
+
 test('RoonLibraryService 同一 hierarchy 分页复用 session，不同 hierarchy 仍隔离', async () => {
   const browseCalls: Array<Record<string, unknown>> = [];
   const service = createRoonLibraryService({
@@ -983,6 +1048,8 @@ test('RoonLibraryService 只通过 typed Play/Queue action 播放或排队 Track
   const tracks = await service.browseAlbum(album, { offset: 0, limit: 20 });
   const track = tracks.items[0];
   assert.ok(track);
+  const sourceSessionKey = track.browseContext?.multiSessionKey;
+  assert.ok(sourceSessionKey);
 
   await service.playTrack(track, 'zone:1');
   await service.queueTrack(track, 'zone:1');
@@ -990,9 +1057,14 @@ test('RoonLibraryService 只通过 typed Play/Queue action 播放或排队 Track
   const sessionKeys = calls
     .map((call) => call.options.multi_session_key)
     .filter((value): value is string => typeof value === 'string');
-  assert.equal(new Set(sessionKeys).size, 1);
+  assert.equal(new Set(sessionKeys).size, 3);
   assert.equal(calls.some((call) => call.options.item_key === 'track:old'), false);
   assert.equal(calls.filter((call) => call.options.item_key === 'track:fresh').length, 2);
+  const actionSessionKeys = calls
+    .filter((call) => call.options.item_key === 'action:play' || call.options.item_key === 'action:queue')
+    .map((call) => call.options.multi_session_key);
+  assert.equal(new Set(actionSessionKeys).size, 2);
+  assert.equal(actionSessionKeys.includes(sourceSessionKey), false);
   assert.deepEqual(
     calls
       .filter((call) => call.options.item_key === 'action:play' || call.options.item_key === 'action:queue')
@@ -1002,4 +1074,125 @@ test('RoonLibraryService 只通过 typed Play/Queue action 播放或排队 Track
       { itemKey: 'action:queue', zone: 'zone:1' },
     ],
   );
+});
+
+test('RoonLibraryService 每次 Track action 都用新 Session 重放稳定路径', async () => {
+  interface SessionState {
+    location: 'root' | 'album' | 'track-actions';
+    consumed: boolean;
+  }
+
+  const sessions = new Map<string, SessionState>();
+  const actionSessionKeys: string[] = [];
+  const sessionKey = (options: Record<string, unknown>): string => {
+    assert.equal(typeof options.multi_session_key, 'string');
+    return options.multi_session_key as string;
+  };
+  const browse: RoonBrowseApi = {
+    browse(options, callback) {
+      const key = sessionKey(options);
+      let state = sessions.get(key);
+      if (options.pop_all === true) {
+        state = { location: 'root', consumed: false };
+        sessions.set(key, state);
+        callback(false, { action: 'list', list: { level: 0, count: 1 } });
+        return;
+      }
+      if (!state || state.consumed) {
+        callback('Roon Library is not ready', undefined);
+        return;
+      }
+      if (options.item_key === `album:${key}`) {
+        state.location = 'album';
+        callback(false, { action: 'list', list: { level: 1, count: 2 } });
+        return;
+      }
+      if (
+        options.item_key === `track:${key}:1`
+        || options.item_key === `track:${key}:2`
+      ) {
+        state.location = 'track-actions';
+        callback(false, { action: 'list', list: { level: 2, count: 2 } });
+        return;
+      }
+      if (
+        options.item_key === `action:play:${key}`
+        || options.item_key === `action:queue:${key}`
+      ) {
+        state.consumed = true;
+        actionSessionKeys.push(key);
+        callback(false, { action: 'none' });
+        return;
+      }
+      callback('unexpected browse', undefined);
+    },
+    load(options, callback) {
+      const key = sessionKey(options);
+      const state = sessions.get(key);
+      if (!state || state.consumed) {
+        callback('Roon Library is not ready', undefined);
+        return;
+      }
+      if (state.location === 'root') {
+        callback(false, {
+          offset: options.offset,
+          items: [{ title: 'Album', item_key: `album:${key}`, hint: 'list' }],
+        });
+        return;
+      }
+      if (state.location === 'album') {
+        const firstTrack = {
+          title: 'First Track',
+          subtitle: 'Artist',
+          item_key: `track:${key}:1`,
+          hint: 'action_list',
+          duration: 241,
+        };
+        const siblingTrack = {
+          title: 'Sibling Track',
+          subtitle: 'Artist',
+          item_key: `track:${key}:2`,
+          hint: 'action_list',
+          duration: 243,
+        };
+        callback(false, {
+          offset: options.offset,
+          items: options.count === 1
+            ? [options.offset === 1 ? siblingTrack : firstTrack]
+            : [firstTrack, siblingTrack],
+        });
+        return;
+      }
+      callback(false, {
+        offset: options.offset,
+        items: [
+          { title: 'Play Now', item_key: `action:play:${key}`, hint: 'action' },
+          { title: 'Add Next', item_key: `action:queue:${key}`, hint: 'action' },
+        ],
+      });
+    },
+  };
+  const service = createRoonLibraryService({
+    browse,
+    image: { get_image: () => undefined },
+  });
+
+  const albums = await service.browseAlbums({ offset: 0, limit: 20 });
+  const album = albums.items[0];
+  assert.ok(album);
+  const tracks = await service.browseAlbum(album, { offset: 0, limit: 20 });
+  const firstTrack = tracks.items[0];
+  const siblingTrack = tracks.items[1];
+  assert.ok(firstTrack);
+  assert.ok(siblingTrack);
+  const sourceSessionKey = siblingTrack.browseContext?.multiSessionKey;
+  assert.ok(sourceSessionKey);
+
+  await service.playTrack(firstTrack, 'zone:1');
+  await service.playTrack(siblingTrack, 'zone:1');
+
+  assert.equal(actionSessionKeys.length, 2);
+  assert.equal(new Set(actionSessionKeys).size, 2);
+  assert.equal(actionSessionKeys.includes(sourceSessionKey), false);
+  assert.equal(sessions.get(sourceSessionKey)?.consumed, false);
 });

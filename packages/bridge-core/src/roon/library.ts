@@ -174,6 +174,7 @@ interface BrowsePathSegment {
 interface BrowseSessionState {
   hierarchy: RoonBrowseHierarchy;
   multiSessionKey: string;
+  input?: string;
   initialized: boolean;
   rootLevel?: number;
   currentLevel?: number;
@@ -656,15 +657,19 @@ export function createRoonLibraryService(dependencies: {
   const artistAlbumsBySignature = new Map<string, readonly RoonEntityDescriptor[]>();
   const searchTracksByQuery = new Map<string, readonly RoonEntityDescriptor[]>();
 
-  const createSession = (hierarchy: RoonBrowseHierarchy): BrowseSessionState => {
+  const createSession = (
+    hierarchy: RoonBrowseHierarchy,
+    options: { register?: boolean; input?: string } = {},
+  ): BrowseSessionState => {
     const session: BrowseSessionState = {
       hierarchy,
       multiSessionKey: newSessionKey(hierarchy),
+      ...(options.input !== undefined ? { input: options.input } : {}),
       initialized: false,
       currentPath: [],
       tail: Promise.resolve(),
     };
-    sessionsByKey.set(session.multiSessionKey, session);
+    if (options.register !== false) sessionsByKey.set(session.multiSessionKey, session);
     return session;
   };
   const rootSession = (hierarchy: RoonBrowseHierarchy): BrowseSessionState => {
@@ -677,7 +682,7 @@ export function createRoonLibraryService(dependencies: {
   const searchSession = (query: string): BrowseSessionState => {
     const existing = searchSessions.get(query);
     if (existing) return existing;
-    const created = createSession('search');
+    const created = createSession('search', { input: query });
     searchSessions.set(query, created);
     return created;
   };
@@ -745,6 +750,9 @@ export function createRoonLibraryService(dependencies: {
   const rootReference = (hierarchy: RoonBrowseHierarchy, suffix = ''): string =>
     createHash('sha256').update(`root\0${hierarchy}\0${suffix}`).digest('hex');
 
+  const sessionRootReference = (session: BrowseSessionState): string =>
+    rootReference(session.hierarchy, session.input ?? '');
+
   const applyBrowseState = (
     session: BrowseSessionState,
     response: BrowseResponse,
@@ -782,6 +790,7 @@ export function createRoonLibraryService(dependencies: {
         hierarchy: session.hierarchy,
         multi_session_key: session.multiSessionKey,
         pop_all: true,
+        ...(session.input !== undefined ? { input: session.input } : {}),
       }));
       applyBrowseState(session, response, []);
       session.rootLevel = response.list.level;
@@ -1096,7 +1105,7 @@ export function createRoonLibraryService(dependencies: {
     }));
     const value = loaded.items[0];
     const parentReference = parentPath.at(-1)?.pathSignature
-      ?? rootReference(session.hierarchy);
+      ?? sessionRootReference(session);
     const refreshed = readPathSegment(
       value,
       session.hierarchy,
@@ -1116,6 +1125,26 @@ export function createRoonLibraryService(dependencies: {
       );
     }
     return { itemKey: refreshed.itemKey, segment: refreshed };
+  };
+
+  const replayStablePath = async (
+    session: BrowseSessionState,
+    sourcePath: readonly BrowsePathSegment[],
+  ): Promise<readonly BrowsePathSegment[]> => {
+    await ensureRoot(session);
+    const replayedPath: BrowsePathSegment[] = [];
+    for (const sourceSegment of sourcePath) {
+      const refreshed = await resolveCurrentItemKey(session, sourceSegment, replayedPath);
+      const nextPath = [...replayedPath, refreshed.segment];
+      const response = readBrowseResponse(await requestBrowse('browse', {
+        hierarchy: session.hierarchy,
+        multi_session_key: session.multiSessionKey,
+        item_key: refreshed.itemKey,
+      }));
+      applyBrowseState(session, response, nextPath);
+      replayedPath.push(refreshed.segment);
+    }
+    return replayedPath;
   };
 
   const runTrackAction = async (
@@ -1138,26 +1167,33 @@ export function createRoonLibraryService(dependencies: {
       hint: track.hint,
       item_key: track.itemKey,
     }, { kind: 'browse' });
-    const { session, path } = entitySessionAndPath(track, 'track');
+    const { session: sourceSession, path } = entitySessionAndPath(track, 'track');
     const segment = path.at(-1);
     if (!segment) {
       throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', 'Roon track path is unavailable');
     }
     const parentPath = path.slice(0, -1);
-    await withSession(session, async () => {
-      await navigateToPath(session, parentPath);
-      const refreshed = await resolveCurrentItemKey(session, segment, parentPath);
-      const refreshedPath = [...parentPath, refreshed.segment];
+    const actionSession = createSession(sourceSession.hierarchy, {
+      register: false,
+      ...(sourceSession.input !== undefined ? { input: sourceSession.input } : {}),
+    });
+    await withSession(actionSession, async () => {
+      const refreshedParentPath = await replayStablePath(actionSession, parentPath);
+      const refreshed = await resolveCurrentItemKey(
+        actionSession,
+        segment,
+        refreshedParentPath,
+      );
+      const refreshedPath = [...refreshedParentPath, refreshed.segment];
       const browseResponse = readBrowseResponse(await requestBrowse('browse', {
-        hierarchy: session.hierarchy,
-        multi_session_key: session.multiSessionKey,
+        hierarchy: actionSession.hierarchy,
+        multi_session_key: actionSession.multiSessionKey,
         item_key: refreshed.itemKey,
       }));
-      applyBrowseState(session, browseResponse, refreshedPath);
-      registerPath(segment.pathSignature, refreshedPath);
+      applyBrowseState(actionSession, browseResponse, refreshedPath);
       const actionList = readLoadResponse(await requestBrowse('load', {
-        hierarchy: session.hierarchy,
-        multi_session_key: session.multiSessionKey,
+        hierarchy: actionSession.hierarchy,
+        multi_session_key: actionSession.multiSessionKey,
         level: browseResponse.list.level,
         offset: 0,
         count: Math.min(browseResponse.list.count ?? 32, 32),
@@ -1181,8 +1217,8 @@ export function createRoonLibraryService(dependencies: {
       }
       const authorization = authorizeRoonAction(actionItem, { kind, allowMutation: true });
       const result = asRecord(await requestBrowse('browse', {
-        hierarchy: session.hierarchy,
-        multi_session_key: session.multiSessionKey,
+        hierarchy: actionSession.hierarchy,
+        multi_session_key: actionSession.multiSessionKey,
         item_key: authorization.itemKey,
         zone_or_output_id: zoneOrOutputId,
       }));
