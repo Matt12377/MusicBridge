@@ -77,6 +77,7 @@ import {
   settledMapWithConcurrency,
 } from './composables/playbackMatching.js'
 import type { SidebarSource, ViewId } from './components/navigation.js'
+import { createZoneRefreshCoordinator, resolveZoneLifecycleStatus } from './zone-lifecycle.js'
 
 const LIBRARY_PAGE_SIZE = 20
 const SEARCH_DEBOUNCE_MS = 250
@@ -160,6 +161,13 @@ function rememberRoonQueueDescriptor(
   }
 }
 const zones = ref<readonly PublicRoonZone[]>([])
+const zonesLoading = ref(false)
+const zoneRefreshCoordinator = createZoneRefreshCoordinator({
+  load: async () => (await window.musicBridge.listZones()).zones,
+  onZones: (nextZones) => { zones.value = nextZones },
+  onLoading: (loading) => { zonesLoading.value = loading },
+  onError: (error) => recordActionError(error),
+})
 const selectedQuality = ref<PlaybackQualityPreference>('auto')
 const remoteCoreState = ref<RemoteCoreTunnelState>({
   mode: 'local-core',
@@ -333,6 +341,12 @@ const selectedZone = computed(() => {
   const selectedId = playbackState.value?.selectedZoneId
   return zones.value.find((zone) => zone.zoneId === selectedId) ?? zones.value.find((zone) => zone.selected)
 })
+const zoneLifecycleStatus = computed(() => resolveZoneLifecycleStatus({
+  roonStatus: coreState.value?.roon ?? 'disconnected',
+  loading: zonesLoading.value,
+  zoneCount: zones.value.length,
+  selected: selectedZone.value !== undefined,
+}))
 const viewTitle = computed(() => VIEW_LABELS[currentView.value])
 const isImmersiveNowPlaying = computed(() => currentView.value === 'now-playing')
 const hasPlaybackIssue = computed(() => Boolean(playbackState.value?.lastIssue || actionError.value))
@@ -1931,11 +1945,7 @@ async function seekPlayback(positionMs: number): Promise<void> {
 }
 
 async function loadZones(): Promise<void> {
-  try {
-    zones.value = (await window.musicBridge.listZones()).zones
-  } catch (error) {
-    recordActionError(error)
-  }
+  await zoneRefreshCoordinator.refreshNow()
 }
 
 async function selectZone(zoneId: string): Promise<void> {
@@ -2085,10 +2095,17 @@ onMounted(async () => {
   })
   removeRemoteCoreListener = window.musicBridge.onRemoteCoreEvent((state) => {
     remoteCoreState.value = state
+    if (state.status !== 'ready' && coreState.value) {
+      coreState.value = { ...coreState.value, roon: 'disconnected' }
+    }
+    zoneRefreshCoordinator.handleRemoteCoreState(state.status)
   })
   removeCoreListener = window.musicBridge.onCoreEvent((event) => {
     if (event.event === 'core.ready' || event.event === 'core.health' || event.event === 'roon.changed') {
       coreState.value = event.payload.state
+    }
+    if (event.event === 'core.ready' || event.event === 'roon.changed') {
+      zoneRefreshCoordinator.handleCoreEvent(event.event, event.payload.state.roon)
     }
     if (event.event === 'auth.changed') applyAuthState(event.payload.state)
     if (event.event === 'account.changed') {
@@ -2136,6 +2153,7 @@ onUnmounted(() => {
   removeCoreListener?.()
   removeAppCommandListener?.()
   removeRemoteCoreListener?.()
+  zoneRefreshCoordinator.dispose()
   stopPolling()
   stopSearchTimer()
   inspectorReturnFocus.value = null
@@ -2481,6 +2499,7 @@ onUnmounted(() => {
           :zones="zones"
           :selected-zone="selectedZone"
           :roon-status="coreState?.roon ?? 'disconnected'"
+          :zone-status="zoneLifecycleStatus"
           :selected-quality="selectedQuality"
           :auth-error="authError"
           :account-error="accountError"
@@ -2492,6 +2511,7 @@ onUnmounted(() => {
           @refresh-account="refreshAccountProfile"
           @update:selected-quality="setSelectedQuality($event)"
           @select-zone="selectZone"
+          @refresh-zones="loadZones"
           @diagnostics="navigate('diagnostics')"
           @start-remote-core="startRemoteCore"
           @stop-remote-core="stopRemoteCore"
@@ -2529,6 +2549,7 @@ onUnmounted(() => {
       :zones="zones"
       :selected-zone="selectedZone"
       :roon-status="coreState?.roon ?? 'disconnected'"
+      :zone-status="zoneLifecycleStatus"
       :selected-quality="selectedQuality"
       @previous="previousTrack"
       @toggle-playback="togglePlayback"

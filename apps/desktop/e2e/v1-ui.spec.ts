@@ -75,6 +75,90 @@ async function openDiagnostics() {
   await expect(page.getByRole('heading', { name: 'Diagnostics', exact: true }).first()).toBeVisible()
 }
 
+interface ZoneFixture {
+  zoneId: string
+  displayName: string
+  selected: boolean
+}
+
+async function replaceZoneList(zones: readonly ZoneFixture[], delayMs = 0) {
+  await electronApp.evaluate(({ ipcMain }, input) => {
+    ipcMain.removeHandler('roon:list-zones')
+    ipcMain.handle('roon:list-zones', async () => {
+      if (input.delayMs > 0) await new Promise((resolve) => setTimeout(resolve, input.delayMs))
+      return { zones: input.zones }
+    })
+  }, { zones, delayMs })
+}
+
+async function reloadWithZones(zones: readonly ZoneFixture[]) {
+  await replaceZoneList(zones)
+  await page.reload()
+  await page.waitForLoadState('domcontentloaded')
+}
+
+function playerZoneButton() {
+  return page.locator('.player-zone-button')
+}
+
+async function openPlayerZonePopover() {
+  const button = playerZoneButton()
+  await expect(button).toBeVisible()
+  await button.click()
+  const popover = page.getByRole('dialog', { name: '播放设备' })
+  await expect(popover).toBeVisible()
+  return popover
+}
+
+async function emitCoreEvent(
+  event: 'core.ready' | 'roon.changed',
+  roon: 'disconnected' | 'paired' | 'ready',
+) {
+  await electronApp.evaluate(({ BrowserWindow }, input) => {
+    BrowserWindow.getAllWindows()[0]?.webContents.send('core:event', {
+      version: 1,
+      event: input.event,
+      payload: {
+        state: {
+          runtime: 'ready',
+          roon: input.roon,
+          provider: 'configured',
+          activeStreamCount: 0,
+          activePlaybackPresent: false,
+        },
+      },
+    })
+  }, { event, roon })
+}
+
+async function emitRemoteCoreEvent(status: 'ready' | 'stopping') {
+  await electronApp.evaluate(({ BrowserWindow }, remoteStatus) => {
+    BrowserWindow.getAllWindows()[0]?.webContents.send('remote-core:event', {
+      mode: 'remote-core-development',
+      status: remoteStatus,
+      sshTarget: 'synthetic-core',
+      localStreamPort: 38502,
+      remoteStreamPort: 38512,
+      remoteHealth: remoteStatus === 'ready' ? 'available' : 'unavailable',
+      autoReconnect: true,
+    })
+  }, status)
+}
+
+async function resetZoneListCalls() {
+  await electronApp.evaluate(() => {
+    const runtime = globalThis as typeof globalThis & { zoneListCalls?: number }
+    runtime.zoneListCalls = 0
+  })
+}
+
+async function readZoneListCalls() {
+  return electronApp.evaluate(() => {
+    const runtime = globalThis as typeof globalThis & { zoneListCalls?: number }
+    return runtime.zoneListCalls ?? 0
+  })
+}
+
 async function waitForProcessMarker(
   child: ReturnType<ElectronApplication['process']>,
   marker: string,
@@ -150,6 +234,195 @@ test.beforeEach(async () => {
 test.afterEach(async () => {
   await electronApp.close()
   await rm(diagnosticDirectory, { recursive: true, force: true })
+})
+
+test('Core 后连接时自动刷新 Zone 列表', async () => {
+  await reloadWithZones([])
+  await expect(connectionButton()).toContainText('已连接')
+  await emitCoreEvent('roon.changed', 'disconnected')
+  await expect(playerZoneButton()).toContainText('Core 已断开')
+  const zonePopover = await openPlayerZonePopover()
+  await expect(zonePopover.getByText('Core 已断开', { exact: true })).toBeVisible()
+
+  await replaceZoneList([{ zoneId: 'delayed-zone', displayName: 'Delayed Zone', selected: false }])
+  await emitCoreEvent('roon.changed', 'paired')
+
+  await expect(zonePopover.getByRole('button', { name: 'Delayed Zone', exact: true })).toBeVisible()
+})
+
+test('Remote Core ready 时自动刷新 Zone 列表', async () => {
+  await reloadWithZones([])
+  await emitCoreEvent('core.ready', 'ready')
+  const zonePopover = await openPlayerZonePopover()
+  await expect(zonePopover.getByText('没有可用播放设备', { exact: true })).toBeVisible()
+
+  await replaceZoneList([{ zoneId: 'remote-zone', displayName: 'Remote Zone', selected: false }])
+  await emitRemoteCoreEvent('ready')
+
+  await expect(zonePopover.getByRole('button', { name: 'Remote Zone', exact: true })).toBeVisible()
+})
+
+test('Remote Core 停止时清空旧 Zone 并显示 Core 已断开', async () => {
+  await reloadWithZones([
+    { zoneId: 'remote-stale-zone', displayName: 'Remote Stale Zone', selected: true },
+  ])
+
+  const zoneButton = playerZoneButton()
+  await expect(zoneButton).toContainText('Remote Stale Zone')
+  await emitRemoteCoreEvent('stopping')
+
+  await expect(zoneButton).toContainText('Core 已断开')
+  const zonePopover = await openPlayerZonePopover()
+  await expect(zonePopover.getByText('Core 已断开', { exact: true })).toBeVisible()
+  await expect(zonePopover.getByText('Remote Stale Zone', { exact: true })).toHaveCount(0)
+})
+
+test('连续 Core 生命周期事件只触发一次 Zone 刷新', async () => {
+  await electronApp.evaluate(({ ipcMain }) => {
+    const runtime = globalThis as typeof globalThis & { zoneListCalls?: number }
+    runtime.zoneListCalls = 0
+    ipcMain.removeHandler('roon:list-zones')
+    ipcMain.handle('roon:list-zones', () => {
+      runtime.zoneListCalls = (runtime.zoneListCalls ?? 0) + 1
+      return {
+        zones: [{ zoneId: 'coalesced-zone', displayName: 'Coalesced Zone', selected: false }],
+      }
+    })
+  })
+  await page.reload()
+  await page.waitForLoadState('domcontentloaded')
+  await expect(playerZoneButton()).toBeVisible()
+  await resetZoneListCalls()
+
+  await electronApp.evaluate(({ BrowserWindow }) => {
+    const window = BrowserWindow.getAllWindows()[0]
+    const state = {
+      runtime: 'ready',
+      roon: 'paired',
+      provider: 'configured',
+      activeStreamCount: 0,
+      activePlaybackPresent: false,
+    }
+    window?.webContents.send('core:event', { version: 1, event: 'core.ready', payload: { state } })
+    window?.webContents.send('core:event', { version: 1, event: 'roon.changed', payload: { state } })
+    window?.webContents.send('core:event', { version: 1, event: 'roon.changed', payload: { state } })
+  })
+  await page.waitForTimeout(200)
+
+  expect(await readZoneListCalls()).toBe(1)
+  const zonePopover = await openPlayerZonePopover()
+  await expect(zonePopover.getByRole('button', {
+    name: 'Coalesced Zone',
+    exact: true,
+  })).toBeVisible()
+})
+
+test('较旧的空 Zone 响应不会覆盖较新的设备列表', async () => {
+  await reloadWithZones([])
+  const zonePopover = await openPlayerZonePopover()
+  await expect(zonePopover.getByText('没有可用播放设备', { exact: true })).toBeVisible()
+
+  await electronApp.evaluate(({ ipcMain }) => {
+    const runtime = globalThis as typeof globalThis & { zoneListCalls?: number }
+    runtime.zoneListCalls = 0
+    ipcMain.removeHandler('roon:list-zones')
+    ipcMain.handle('roon:list-zones', async () => {
+      runtime.zoneListCalls = (runtime.zoneListCalls ?? 0) + 1
+      if (runtime.zoneListCalls === 1) {
+        await new Promise((resolve) => setTimeout(resolve, 200))
+        return { zones: [] }
+      }
+      return {
+        zones: [{ zoneId: 'latest-zone', displayName: 'Latest Zone', selected: false }],
+      }
+    })
+  })
+
+  await emitCoreEvent('core.ready', 'paired')
+  await page.waitForTimeout(75)
+  await emitCoreEvent('roon.changed', 'ready')
+
+  const latestZone = zonePopover.getByRole('button', { name: 'Latest Zone', exact: true })
+  await expect(latestZone).toBeVisible()
+  await page.waitForTimeout(200)
+  await expect(latestZone).toBeVisible()
+})
+
+test('Roon 断连时立即清空陈旧 Zone 且不再读取设备', async () => {
+  await electronApp.evaluate(({ ipcMain }) => {
+    const runtime = globalThis as typeof globalThis & { zoneListCalls?: number }
+    runtime.zoneListCalls = 0
+    ipcMain.removeHandler('roon:list-zones')
+    ipcMain.handle('roon:list-zones', () => {
+      runtime.zoneListCalls = (runtime.zoneListCalls ?? 0) + 1
+      return {
+        zones: [{ zoneId: 'stale-zone', displayName: 'Stale Zone', selected: false }],
+      }
+    })
+  })
+  await page.reload()
+  await page.waitForLoadState('domcontentloaded')
+  const zonePopover = await openPlayerZonePopover()
+  await expect(zonePopover.getByRole('button', { name: 'Stale Zone', exact: true })).toBeVisible()
+  await resetZoneListCalls()
+  await emitCoreEvent('roon.changed', 'disconnected')
+  await page.waitForTimeout(100)
+
+  await expect(zonePopover.getByText('Core 已断开', { exact: true })).toBeVisible()
+  await expect(zonePopover.getByText('Roon 未连接', { exact: true })).toBeVisible()
+  expect(await readZoneListCalls()).toBe(0)
+})
+
+test('Core 已连接但 Zone 尚未返回时显示加载状态', async () => {
+  await reloadWithZones([])
+  const zonePopover = await openPlayerZonePopover()
+  await expect(zonePopover.getByText('没有可用播放设备', { exact: true })).toBeVisible()
+
+  await replaceZoneList(
+    [{ zoneId: 'loading-zone', displayName: 'Loaded Zone', selected: false }],
+    300,
+  )
+  await emitCoreEvent('roon.changed', 'paired')
+  await page.waitForTimeout(100)
+
+  await expect(zonePopover.getByText('正在读取播放设备', { exact: true })).toBeVisible()
+  await expect(zonePopover.getByRole('button', { name: 'Loaded Zone', exact: true })).toBeVisible()
+})
+
+test('Settings 与 Bottom Player 共享 Core 断连的 Zone 状态', async () => {
+  await replaceZoneList([])
+  await emitCoreEvent('roon.changed', 'disconnected')
+
+  const zoneButton = playerZoneButton()
+  await expect(zoneButton).toContainText('Core 已断开')
+  await zoneButton.click()
+  await expect(page.getByRole('dialog', { name: '播放设备' }).getByText('Core 已断开', {
+    exact: true,
+  })).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  await openAccountSettings()
+  await page.getByRole('tab', { name: 'Roon', exact: true }).click()
+  await expect(page.locator('.settings-pane:visible').getByRole('definition').filter({
+    hasText: /^Core 已断开$/,
+  })).toBeVisible()
+})
+
+test('Settings 可手动刷新已连接 Core 的 Zone 列表', async () => {
+  await reloadWithZones([])
+  await openAccountSettings()
+  await page.getByRole('tab', { name: 'Roon', exact: true }).click()
+  const roonPane = page.locator('.settings-pane:visible')
+  await expect(roonPane.getByRole('definition').filter({ hasText: /^没有可用播放设备$/ })).toBeVisible()
+
+  await replaceZoneList([{ zoneId: 'manual-zone', displayName: 'Manual Zone', selected: false }])
+  await roonPane.getByRole('button', { name: '刷新播放设备', exact: true }).click()
+
+  await expect(roonPane.getByLabel('播放设备', { exact: true }).getByRole('option', {
+    name: 'Manual Zone',
+    exact: true,
+  })).toHaveCount(1)
+  await expect(roonPane.getByRole('definition').filter({ hasText: /^尚未选择播放设备$/ })).toBeVisible()
 })
 
 test('v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation', async () => {

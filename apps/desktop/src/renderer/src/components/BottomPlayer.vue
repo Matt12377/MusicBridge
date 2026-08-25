@@ -3,6 +3,7 @@ import { PLAYBACK_QUALITY_PREFERENCES, type PlaybackQualityPreference, type Play
 import SidebarIcon from './sidebar/SidebarIcon.vue'
 import ZoneControl from './player/ZoneControl.vue'
 import SafeArtwork from './SafeArtwork.vue'
+import type { ZoneLifecycleStatus } from '../zone-lifecycle.js'
 
 defineProps<{
   currentTrack?: TrackSummary
@@ -10,6 +11,7 @@ defineProps<{
   zones: readonly PublicRoonZone[]
   selectedZone?: PublicRoonZone
   roonStatus: string
+  zoneStatus: ZoneLifecycleStatus
   selectedQuality: PlaybackQualityPreference
 }>()
 
@@ -56,7 +58,7 @@ function qualityLabel(quality: PlaybackQualityPreference): string {
         <option v-for="quality in PLAYBACK_QUALITY_PREFERENCES" :key="quality" :value="quality">{{ qualityLabel(quality) }}</option>
         </select>
       </label>
-      <ZoneControl :zones="zones" :selected-zone="selectedZone" :roon-status="roonStatus" @select="emit('select-zone', $event)" />
+      <ZoneControl :zones="zones" :selected-zone="selectedZone" :roon-status="roonStatus" :zone-status="zoneStatus" @select="emit('select-zone', $event)" />
       <button type="button" class="player-inspector-button" aria-label="打开播放队列" @click="emit('open-queue')"><SidebarIcon name="list" :size="16" /><span class="visually-hidden">队列</span></button>
     </div>
   </footer>

@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import type { AppInfo } from '../../../../preload/api.js'
 import type { PlaybackQualityPreference, PublicAccountState, PublicAuthState, PublicRoonZone, RemoteCoreTunnelState } from '@music-bridge/contracts'
 import { createSettingsNavigation, type SettingsCategory } from '../../composables/useSettingsNavigation.js'
+import { zoneLifecycleLabel, type ZoneLifecycleStatus } from '../../zone-lifecycle.js'
 
 const props = defineProps<{
   appInfo: AppInfo | null
@@ -11,6 +12,7 @@ const props = defineProps<{
   zones: readonly PublicRoonZone[]
   selectedZone?: PublicRoonZone
   roonStatus: string
+  zoneStatus: ZoneLifecycleStatus
   selectedQuality: PlaybackQualityPreference
   authError: boolean
   accountError?: string | null
@@ -25,6 +27,7 @@ const emit = defineEmits<{
   'refresh-account': []
   'update:selectedQuality': [quality: PlaybackQualityPreference]
   'select-zone': [zoneId: string]
+  'refresh-zones': []
   diagnostics: []
   'start-remote-core': []
   'stop-remote-core': []
@@ -146,12 +149,13 @@ function paneId(category: SettingsCategory): string {
     <div v-else-if="activeCategory === 'roon'" id="settings-pane-roon" class="settings-pane settings-pane-roon" role="tabpanel" aria-labelledby="settings-tab-roon">
       <article class="settings-card settings-glass-panel">
         <div class="panel-heading"><div><p class="section-kicker">Roon</p><h3>Roon Core 与播放设备</h3></div><span class="settings-status-pill" :class="'is-' + props.roonStatus">{{ roonStatusLabel(props.roonStatus) }}</span></div>
-        <dl class="detail-list"><div><dt>Core 状态</dt><dd>{{ roonStatusLabel(props.roonStatus) }}</dd></div><div><dt>当前设备</dt><dd>{{ props.selectedZone?.displayName ?? '未选择设备' }}</dd></div></dl>
+        <dl class="detail-list"><div><dt>Core 状态</dt><dd>{{ roonStatusLabel(props.roonStatus) }}</dd></div><div><dt>当前设备</dt><dd>{{ props.selectedZone?.displayName ?? zoneLifecycleLabel(props.zoneStatus) }}</dd></div></dl>
         <label class="field-label" for="zone-select">播放设备</label>
-        <select id="zone-select" :value="props.selectedZone?.zoneId ?? ''" @change="emit('select-zone', ($event.target as HTMLSelectElement).value)">
-          <option value="" disabled>选择播放设备</option>
+        <select id="zone-select" :value="props.selectedZone?.zoneId ?? ''" :disabled="props.zoneStatus === 'core-disconnected' || props.zoneStatus === 'loading' || props.zoneStatus === 'empty'" @change="emit('select-zone', ($event.target as HTMLSelectElement).value)">
+          <option value="" disabled>{{ zoneLifecycleLabel(props.zoneStatus) }}</option>
           <option v-for="zone in props.zones" :key="zone.zoneId" :value="zone.zoneId">{{ zone.displayName }}</option>
         </select>
+        <button type="button" class="secondary-button" :disabled="props.zoneStatus === 'core-disconnected' || props.zoneStatus === 'loading'" @click="emit('refresh-zones')">刷新播放设备</button>
         <p class="muted-copy">设备名称以 Roon Core 返回为准；切换失败时不会在界面伪造新设备。控制与流端口继续只绑定本机。</p>
       </article>
     </div>
