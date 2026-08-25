@@ -1002,7 +1002,12 @@ export function createRoonLibraryService(dependencies: {
           if (title) sectionDiscNumber = inferDiscNumber(title) ?? sectionDiscNumber;
           continue;
         }
-        if (hint === 'action_list' && readString(record, 'item_key')) {
+        // 真实专辑层会把 Play Album 也标成 action_list；曲目必须同时具备实体副标题元数据。
+        if (
+          hint === 'action_list'
+          && readString(record, 'item_key')
+          && readString(record, 'subtitle')
+        ) {
           const trackDiscNumber = title ? inferDiscNumber(title) : undefined;
           const resolvedDiscNumber = trackDiscNumber ?? sectionDiscNumber;
           const track = readItem(value, 'track', session.hierarchy, {

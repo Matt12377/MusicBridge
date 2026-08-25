@@ -126,6 +126,7 @@ test('RoonLibraryService 使用 Album 来源 Browse Context 进入曲目层', as
             offset: options.offset,
             items: [{
               title: 'Private Track',
+              subtitle: 'Private Artist',
               item_key: 'track:1',
               hint: 'action_list',
               duration: 243,
@@ -155,6 +156,7 @@ test('RoonLibraryService 使用 Album 来源 Browse Context 进入曲目层', as
     kind: 'track',
     hierarchy: 'albums',
     title: 'Private Track',
+    subtitle: 'Private Artist',
     itemKey: 'track:1',
     imageKey: 'image:album',
     hint: 'action_list',
@@ -437,7 +439,7 @@ test('RoonLibraryService 专辑曲目层只接受 action_list，不把 header、
       browse(_options, callback) {
         callback(false, browseIndex++ === 0
           ? { action: 'list', list: { level: 0, count: 1 } }
-          : { action: 'list', list: { level: 1, count: 4 } });
+          : { action: 'list', list: { level: 1, count: 5 } });
       },
       load(options, callback) {
         callback(false, loadIndex++ === 0
@@ -450,7 +452,8 @@ test('RoonLibraryService 专辑曲目层只接受 action_list，不把 header、
               items: [
                 { title: 'Disc 1', hint: 'header' },
                 { title: 'Delete from Library', item_key: 'action:delete', hint: 'action' },
-                { title: 'Track 1', item_key: 'track:1', hint: 'action_list' },
+                { title: 'Play Album', item_key: 'action:play-album', hint: 'action_list' },
+                { title: 'Track 1', subtitle: 'Artist', item_key: 'track:1', hint: 'action_list' },
                 { title: 'Unclassified Result', item_key: 'unknown:1' },
               ],
             });
@@ -579,6 +582,7 @@ test('RoonLibraryService 有界下钻多碟专辑并保持 Disc/Track 顺序', a
           offset: options.offset,
           items: [1, 2].map((trackNumber) => ({
             title: `D${discNumber} Track ${trackNumber}`,
+            subtitle: 'Artist',
             item_key: `track:${discNumber}:${trackNumber}`,
             hint: 'action_list',
             track_number: trackNumber,
@@ -627,8 +631,8 @@ test('RoonLibraryService 从最终 Track 的明确 CD1/CD2 标签补全多碟顺
           : {
               offset: options.offset,
               items: [
-                { title: 'Archive [CD1]', item_key: 'track:cd1', hint: 'action_list' },
-                { title: 'Archive [CD2]', item_key: 'track:cd2', hint: 'action_list' },
+                { title: 'Archive [CD1]', subtitle: 'Artist', item_key: 'track:cd1', hint: 'action_list' },
+                { title: 'Archive [CD2]', subtitle: 'Artist', item_key: 'track:cd2', hint: 'action_list' },
               ],
             });
       },
@@ -950,6 +954,7 @@ test('RoonLibraryService 只通过 typed Play/Queue action 播放或排队 Track
           offset: options.offset,
           items: [{
             title: 'Private Track',
+            subtitle: 'Private Artist',
             item_key: albumLoads === 1 ? 'track:old' : 'track:fresh',
             hint: 'action_list',
             duration: 243,
