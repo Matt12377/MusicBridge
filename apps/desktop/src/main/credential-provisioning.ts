@@ -31,6 +31,33 @@ function statusFromMigrationError(error: unknown): ProviderProvisioningStatus {
   return 'invalid'
 }
 
+async function hydrateStoredCredential(options: {
+  vault: CredentialVault
+  core: CoreCredentialPort
+  stored: CredentialVaultReadResult
+}): Promise<ProviderProvisioningStatus> {
+  if (options.stored.status !== 'configured') return statusFromReadResult(options.stored)
+
+  let verification: 'authorized' | 'expired' | 'unavailable'
+  try {
+    verification = await options.core.verifyCredential(options.stored.credential)
+  } catch {
+    return 'unavailable'
+  }
+  if (verification === 'expired') {
+    await options.vault.delete()
+    return 'expired'
+  }
+  if (verification !== 'authorized') return 'unavailable'
+
+  try {
+    await options.core.setCredential(options.stored.credential)
+  } catch {
+    return 'unavailable'
+  }
+  return 'configured'
+}
+
 export async function provisionProviderCredential(options: {
   vault: CredentialVault
   core: CoreCredentialPort
@@ -45,34 +72,22 @@ export async function provisionProviderCredential(options: {
   }
   delete options.environment.NETEASE_COOKIE
 
-  const stored = await options.vault.read()
-  if (stored.status === 'configured') {
-    const verification = await options.core.verifyCredential(stored.credential)
-    if (verification === 'expired') {
-      await options.vault.delete()
-      return 'expired'
-    }
-    if (verification !== 'authorized') return 'unavailable'
-    await options.core.setCredential(stored.credential)
-  }
-  return statusFromReadResult(stored)
+  return hydrateStoredCredential({
+    vault: options.vault,
+    core: options.core,
+    stored: await options.vault.read(),
+  })
 }
 
 export async function restoreProviderCredential(options: {
   vault: CredentialVault
   core: CoreCredentialPort
 }): Promise<ProviderProvisioningStatus> {
-  const stored = await options.vault.read()
-  if (stored.status === 'configured') {
-    const verification = await options.core.verifyCredential(stored.credential)
-    if (verification === 'expired') {
-      await options.vault.delete()
-      return 'expired'
-    }
-    if (verification !== 'authorized') return 'unavailable'
-    await options.core.setCredential(stored.credential)
-  }
-  return statusFromReadResult(stored)
+  return hydrateStoredCredential({
+    vault: options.vault,
+    core: options.core,
+    stored: await options.vault.read(),
+  })
 }
 
 export async function logoutProviderCredential(options: {
