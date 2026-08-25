@@ -113,6 +113,14 @@ function formatBitrate(bitrate: number | undefined): string | undefined {
   return `${Math.round(bitrate / 1000).toLocaleString('en-US')} kbps`
 }
 
+function transportLabel(state: PlaybackSnapshot['state'] | undefined): string {
+  if (state === 'pausing') return '正在暂停'
+  if (state === 'resuming') return '正在恢复'
+  if (state === 'paused') return '恢复播放'
+  if (state === 'playing') return '暂停'
+  return '播放当前歌曲'
+}
+
 const actualQualityDetail = computed(() => {
   const bitrate = formatBitrate(props.playbackState?.bitrate)
   const format = props.playbackState?.format?.trim()
@@ -161,10 +169,10 @@ const actualQualityDetail = computed(() => {
             <button
               type="button"
               class="transport-button transport-button-primary"
-              :disabled="['resolving', 'preparing', 'stopping', 'error'].includes(props.playbackState?.state ?? '') || (!props.playbackState?.canPause && !props.playbackState?.canResume && !props.currentTrack)"
-              :aria-label="props.playbackState?.state === 'paused' ? '恢复播放' : props.playbackState?.state === 'playing' ? '暂停' : '播放当前歌曲'"
+              :disabled="['resolving', 'preparing', 'pausing', 'resuming', 'stopping', 'error'].includes(props.playbackState?.state ?? '') || (!props.playbackState?.canPause && !props.playbackState?.canResume && !props.currentTrack)"
+              :aria-label="transportLabel(props.playbackState?.state)"
               @click="emit('toggle-playback')"
-            ><SidebarIcon :name="props.playbackState?.state === 'playing' ? 'pause' : 'play'" :size="24" /></button>
+            ><SidebarIcon :name="props.playbackState?.state === 'playing' || props.playbackState?.state === 'pausing' ? 'pause' : 'play'" :size="24" /></button>
             <button type="button" class="transport-button transport-button-secondary" :disabled="!props.playbackState?.canNext" aria-label="下一首" @click="emit('next')"><SidebarIcon name="next" :size="21" /></button>
           </div>
         </div>

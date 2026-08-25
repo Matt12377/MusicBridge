@@ -79,3 +79,22 @@ test('Roon collection loader blocks load-more while an initial retry is pending'
   await retry
   assert.equal(collection.page.value.items[0]?.reference, 'album:new')
 })
+
+test('Roon collection loader reset drops stale runtime references and invalidates pending responses', async () => {
+  let resolvePending: ((value: RoonLibraryPage) => void) | undefined
+  const collection = useRoonCollection(async () => new Promise<RoonLibraryPage>((resolve) => {
+    resolvePending = resolve
+  }), () => '本地库失败', 1)
+
+  const pending = collection.load()
+  collection.reset()
+
+  assert.deepEqual(collection.page.value.items, [])
+  assert.equal(collection.initialLoading.value, false)
+  assert.equal(collection.loadingMore.value, false)
+  assert.equal(collection.error.value, null)
+
+  resolvePending?.(page('album:stale-session', 0, false))
+  await pending
+  assert.deepEqual(collection.page.value.items, [])
+})

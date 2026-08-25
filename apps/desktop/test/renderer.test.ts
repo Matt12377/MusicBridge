@@ -363,6 +363,42 @@ test('V1 Provider progress remains read-only and V2 seek requires an explicitly 
   assert.match(app, /:seek-allowed="playbackSource === 'roon' && selectedZone\?\.seekAllowed === true"/)
   assert.match(nowPlaying, /seekAllowed: boolean/)
   assert.match(nowPlaying, /:disabled="!props\.seekAllowed \|\| !props\.currentTrack \|\| durationMs <= 0"/)
+  assert.doesNotMatch(app, /playbackState\.value\s*=\s*\{\s*\.\.\.snapshot,\s*positionMs:\s*result\.positionMs\s*\}/)
+  const seekStart = app.indexOf('async function seekPlayback')
+  const seekEnd = app.indexOf('\n}', seekStart)
+  assert.match(app.slice(seekStart, seekEnd), /await refreshPlayback\(\)/)
+})
+
+test('P0-D transport UI keeps transitional controls disabled and reuses the Core-selected Zone while the list refreshes', async () => {
+  const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const bottomPlayer = await readFile(path.resolve('src/renderer/src/components/BottomPlayer.vue'), 'utf8')
+  const nowPlaying = await readFile(path.resolve('src/renderer/src/components/NowPlayingView.vue'), 'utf8')
+
+  assert.match(app, /selectedZone\.value\?\.zoneId\s*\?\?\s*playbackState\.value\?\.selectedZoneId/)
+  assert.match(app, /zoneLifecycleStatus\.value === 'loading'[\s\S]*正在读取播放设备/)
+  assert.match(bottomPlayer, /'pausing',\s*'resuming'/)
+  assert.match(nowPlaying, /'pausing',\s*'resuming'/)
+  assert.match(bottomPlayer, /state === 'pausing'[\s\S]*正在暂停/)
+  assert.match(bottomPlayer, /state === 'resuming'[\s\S]*正在恢复/)
+  assert.match(nowPlaying, /state === 'pausing'[\s\S]*正在暂停/)
+  assert.match(nowPlaying, /state === 'resuming'[\s\S]*正在恢复/)
+})
+
+test('Roon reconnect invalidates session-scoped collection references before they can be reused', async () => {
+  const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+
+  for (const reset of [
+    'resetRoonAlbums',
+    'resetRoonArtists',
+    'resetRoonGenres',
+    'resetRoonPlaylists',
+  ]) {
+    assert.match(app, new RegExp(`reset: ${reset}`))
+  }
+  assert.match(app, /function resetRoonRuntimeReferences\(\): void[\s\S]*resetRoonAlbums\(\)[\s\S]*resetRoonPlaylists\(\)/)
+  assert.match(app, /previousStatus === 'ready' && state\.status !== 'ready'[\s\S]*resetRoonRuntimeReferences\(\)/)
+  assert.match(app, /event\.event === 'core\.ready'[\s\S]*resetRoonRuntimeReferences\(\)/)
+  assert.match(app, /event\.payload\.state\.roon === 'ready'[\s\S]*refreshVisibleRoonCollection\(\)/)
 })
 
 test('V2 native Roon playback clears only stale local favorite identity when the current descriptor is unavailable', async () => {

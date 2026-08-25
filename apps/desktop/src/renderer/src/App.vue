@@ -226,6 +226,7 @@ const {
   load: loadRoonAlbums,
   loadMore: loadMoreRoonAlbums,
   retry: retryRoonAlbums,
+  reset: resetRoonAlbums,
 } = useRoonCollection(
   (page) => window.musicBridge.listRoonAlbums(page),
   (error) => roonLibraryMessage(error),
@@ -239,6 +240,7 @@ const {
   load: loadRoonArtists,
   loadMore: loadMoreRoonArtists,
   retry: retryRoonArtists,
+  reset: resetRoonArtists,
 } = useRoonCollection(
   (page) => window.musicBridge.listRoonArtists(page),
   (error) => roonLibraryMessage(error),
@@ -252,6 +254,7 @@ const {
   load: loadRoonGenres,
   loadMore: loadMoreRoonGenres,
   retry: retryRoonGenres,
+  reset: resetRoonGenres,
 } = useRoonCollection(
   (page) => window.musicBridge.listRoonGenres(page),
   (error) => roonLibraryMessage(error),
@@ -265,6 +268,7 @@ const {
   load: loadRoonPlaylists,
   loadMore: loadMoreRoonPlaylists,
   retry: retryRoonPlaylists,
+  reset: resetRoonPlaylists,
 } = useRoonCollection(
   (page) => window.musicBridge.listRoonPlaylists(page),
   (error) => roonLibraryMessage(error),
@@ -532,6 +536,77 @@ function resetSearchSections(): void {
   searchDetail.value = null
 }
 
+function resetRoonRuntimeReferences(): void {
+  resetRoonAlbums()
+  resetRoonArtists()
+  resetRoonGenres()
+  resetRoonPlaylists()
+  roonAlbumRequestGeneration += 1
+  roonArtistRequestGeneration += 1
+  selectedRoonAlbum.value = null
+  selectedRoonAlbumPage.value = emptyRoonPage()
+  roonAlbumInitialLoading.value = false
+  roonAlbumLoadingMore.value = false
+  roonAlbumLoadMoreError.value = null
+  roonAlbumError.value = null
+  roonAlbumFavoriteState.value = 'idle'
+  selectedRoonArtist.value = null
+  selectedRoonArtistPage.value = emptyRoonPage()
+  roonArtistInitialLoading.value = false
+  roonArtistLoadingMore.value = false
+  roonArtistLoadMoreError.value = null
+  roonArtistError.value = null
+  roonArtistFavoriteState.value = 'idle'
+  entityFavoriteOperation += 1
+  roonQueueDescriptors.clear()
+  roonQueueNeteaseMatches.clear()
+  matchGeneration += 1
+  matchStates.value = {}
+  matchResults.value = {}
+  if (aggregatedSearch.value) {
+    aggregatedSearch.value = {
+      ...aggregatedSearch.value,
+      roon: emptyRoonPage(aggregatedSearch.value.roon.limit),
+      roonAvailable: false,
+    }
+  }
+  roonArtworkCache.clear()
+
+  const activeSource = sidebar.activeSource.value
+  const staleAlbumContext = activeSource.type === 'roon-album'
+    || currentView.value === 'roon-album-detail'
+    || nowPlayingReturnView.value === 'roon-album-detail'
+  const staleArtistContext = activeSource.type === 'roon-artist'
+    || currentView.value === 'roon-artist-detail'
+    || nowPlayingReturnView.value === 'roon-artist-detail'
+  if (staleAlbumContext) {
+    activeRoonCollection.value = 'albums'
+    sidebar.setActiveSource({ type: 'roon-albums' })
+  } else if (staleArtistContext) {
+    activeRoonCollection.value = 'artists'
+    sidebar.setActiveSource({ type: 'roon-artists' })
+  }
+  if (currentView.value === 'roon-album-detail' || currentView.value === 'roon-artist-detail') {
+    currentView.value = 'roon-albums'
+  }
+  if (nowPlayingReturnView.value === 'roon-album-detail' || nowPlayingReturnView.value === 'roon-artist-detail') {
+    nowPlayingReturnView.value = 'roon-albums'
+  }
+  if (searchReturnSource.value.type === 'roon-album') {
+    searchReturnSource.value = { type: 'roon-albums' }
+  } else if (searchReturnSource.value.type === 'roon-artist') {
+    searchReturnSource.value = { type: 'roon-artists' }
+  }
+}
+
+function refreshVisibleRoonCollection(): void {
+  if (currentView.value !== 'roon-albums') return
+  if (activeRoonCollection.value === 'albums' && !roonAlbumsInitialLoading.value) void loadRoonAlbums()
+  if (activeRoonCollection.value === 'artists' && !roonArtistsInitialLoading.value) void loadRoonArtists()
+  if (activeRoonCollection.value === 'genres' && !roonGenresInitialLoading.value) void loadRoonGenres()
+  if (activeRoonCollection.value === 'playlists' && !roonPlaylistsInitialLoading.value) void loadRoonPlaylists()
+}
+
 function errorCode(error: unknown): string | undefined {
   if (typeof error !== 'object' || error === null || !('code' in error)) return undefined
   return typeof error.code === 'string' ? error.code : undefined
@@ -585,6 +660,8 @@ function actionableMessage(error: unknown): string {
       return '当前请求质量已被安全降级，实际质量以 Signal Path 为准。'
     case 'ROON_ZONE_LOST':
       return '播放 Zone 暂时不可用，请检查 Roon 状态后重试。'
+    case 'ROON_TIMEOUT':
+      return 'Roon 未确认真实播放状态，请检查设备后重试。'
     case 'ROON_LIBRARY_UNAVAILABLE':
     case 'NOT_READY':
       return 'Roon Library 暂时不可用，请确认 Core 已配对并重试。'
@@ -1641,8 +1718,12 @@ async function playTrack(track: TrackSummary): Promise<void> {
 }
 
 async function playRoonLibraryTrack(track: RoonLibraryItem): Promise<void> {
-  const zoneId = selectedZone.value?.zoneId
+  const zoneId = selectedZone.value?.zoneId ?? playbackState.value?.selectedZoneId
   if (!zoneId) {
+    if (zoneLifecycleStatus.value === 'loading') {
+      actionError.value = '正在读取播放设备，请稍候。'
+      return
+    }
     recordActionError({ code: 'ROON_ZONE_NOT_SELECTED' })
     return
   }
@@ -1659,8 +1740,12 @@ async function playRoonLibraryTrack(track: RoonLibraryItem): Promise<void> {
 }
 
 async function queueRoonLibraryTrack(track: RoonLibraryItem): Promise<void> {
-  const zoneId = selectedZone.value?.zoneId
+  const zoneId = selectedZone.value?.zoneId ?? playbackState.value?.selectedZoneId
   if (!zoneId) {
+    if (zoneLifecycleStatus.value === 'loading') {
+      actionError.value = '正在读取播放设备，请稍候。'
+      return
+    }
     recordActionError({ code: 'ROON_ZONE_NOT_SELECTED' })
     return
   }
@@ -1937,11 +2022,8 @@ async function seekPlayback(positionMs: number): Promise<void> {
     selectedZone.value?.seekAllowed !== true
   ) return
   try {
-    const result = await window.musicBridge.seek(positionMs)
-    playbackState.value = { ...snapshot, positionMs: result.positionMs }
-    if (playbackSource.value === 'roon' && nativeRoonHasNeteaseMatch.value) {
-      void loadLyrics(currentTrack.id)
-    }
+    await window.musicBridge.seek(positionMs)
+    await refreshPlayback()
   } catch (error) {
     recordActionError(error)
     await refreshPlayback()
@@ -2100,26 +2182,33 @@ onMounted(async () => {
   removeRemoteCoreListener = window.musicBridge.onRemoteCoreEvent((state) => {
     const previousStatus = remoteCoreState.value.status
     remoteCoreState.value = state
-    if (previousStatus === 'ready' && state.status !== 'ready') roonArtworkCache.clear()
+    if (previousStatus === 'ready' && state.status !== 'ready') resetRoonRuntimeReferences()
     if (state.status !== 'ready' && coreState.value) {
       coreState.value = { ...coreState.value, roon: 'disconnected' }
     }
     zoneRefreshCoordinator.handleRemoteCoreState(state.status)
   })
   removeCoreListener = window.musicBridge.onCoreEvent((event) => {
+    const previousRoonStatus = coreState.value?.roon
     if (
       event.event === 'core.ready'
       || (event.event === 'roon.changed'
-        && coreState.value?.roon === 'ready'
+        && previousRoonStatus === 'ready'
         && event.payload.state.roon !== 'ready')
     ) {
-      roonArtworkCache.clear()
+      resetRoonRuntimeReferences()
     }
     if (event.event === 'core.ready' || event.event === 'core.health' || event.event === 'roon.changed') {
       coreState.value = event.payload.state
     }
     if (event.event === 'core.ready' || event.event === 'roon.changed') {
       zoneRefreshCoordinator.handleCoreEvent(event.event, event.payload.state.roon)
+    }
+    if (
+      (event.event === 'core.ready' || event.event === 'roon.changed')
+      && event.payload.state.roon === 'ready'
+    ) {
+      refreshVisibleRoonCollection()
     }
     if (event.event === 'auth.changed') applyAuthState(event.payload.state)
     if (event.event === 'account.changed') {

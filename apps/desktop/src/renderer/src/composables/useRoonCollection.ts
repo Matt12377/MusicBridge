@@ -12,6 +12,7 @@ export interface RoonCollectionLoader {
   load: (page?: PageRequest) => Promise<void>
   loadMore: () => Promise<void>
   retry: () => Promise<void>
+  reset: () => void
 }
 
 export function useRoonCollection(
@@ -76,5 +77,13 @@ export function useRoonCollection(
       })
     },
     retry: () => load({ offset: 0, limit: page.value.limit }),
+    reset: () => {
+      generation += 1
+      page.value = emptyRoonPage(pageSize)
+      initialLoading.value = false
+      loadingMore.value = false
+      loadMoreError.value = null
+      error.value = null
+    },
   }
 }

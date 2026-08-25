@@ -30,6 +30,14 @@ function qualityLabel(quality: PlaybackQualityPreference): string {
   return quality === 'hires' ? 'Hi-Res' : quality[0].toUpperCase() + quality.slice(1)
 }
 
+function transportLabel(state: PlaybackSnapshot['state'] | undefined): string {
+  if (state === 'pausing') return '正在暂停'
+  if (state === 'resuming') return '正在恢复'
+  if (state === 'paused') return '恢复播放'
+  if (state === 'playing') return '暂停'
+  return '播放当前歌曲'
+}
+
 </script>
 
 <template>
@@ -44,10 +52,10 @@ function qualityLabel(quality: PlaybackQualityPreference): string {
       <button
         type="button"
         class="player-play-button"
-        :disabled="['resolving', 'preparing', 'stopping', 'error'].includes(playbackState?.state ?? '') || (!playbackState?.canPause && !playbackState?.canResume && !currentTrack)"
-        :aria-label="playbackState?.state === 'paused' ? '恢复播放' : playbackState?.state === 'playing' ? '暂停' : '播放当前歌曲'"
+        :disabled="['resolving', 'preparing', 'pausing', 'resuming', 'stopping', 'error'].includes(playbackState?.state ?? '') || (!playbackState?.canPause && !playbackState?.canResume && !currentTrack)"
+        :aria-label="transportLabel(playbackState?.state)"
         @click="emit('toggle-playback')"
-      ><SidebarIcon :name="playbackState?.state === 'playing' ? 'pause' : 'play'" :size="18" /></button>
+      ><SidebarIcon :name="playbackState?.state === 'playing' || playbackState?.state === 'pausing' ? 'pause' : 'play'" :size="18" /></button>
       <button type="button" class="player-control-button" :disabled="!playbackState?.canNext" aria-label="下一首" @click="emit('next')"><SidebarIcon name="next" :size="18" /></button>
     </div>
 
