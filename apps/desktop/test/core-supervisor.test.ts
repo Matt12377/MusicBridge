@@ -220,6 +220,64 @@ test('CoreSupervisor gives library playlist requests a bounded extended timeout'
   await harness.supervisor.shutdown()
 })
 
+test('CoreSupervisor gives Roon Library requests the same bounded extended timeout', async () => {
+  const harness = makeHarness()
+  const starting = harness.supervisor.start()
+  await new Promise((resolve) => setImmediate(resolve))
+  ready(harness.channels[0]!)
+  await starting
+
+  const request = harness.supervisor.request('roon.library.albums', {
+    page: { offset: 0, limit: 20 },
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+  const sent = harness.channels[0]!.port2.sent[0] as { id: string }
+  setTimeout(() => {
+    harness.channels[0]!.port2.receive({
+      version: IPC_VERSION,
+      id: sent.id,
+      ok: true,
+      result: {
+        items: [],
+        offset: 0,
+        limit: 20,
+        hasMore: false,
+      },
+    })
+  }, 30)
+
+  assert.deepEqual(await request, {
+    items: [],
+    offset: 0,
+    limit: 20,
+    hasMore: false,
+  })
+  await harness.supervisor.shutdown()
+})
+
+test('CoreSupervisor keeps typed Roon transport control alive for its bounded Core callback', async () => {
+  const harness = makeHarness()
+  const starting = harness.supervisor.start()
+  await new Promise((resolve) => setImmediate(resolve))
+  ready(harness.channels[0]!)
+  await starting
+
+  const request = harness.supervisor.request('roon.transport.stop', {})
+  await new Promise((resolve) => setImmediate(resolve))
+  const sent = harness.channels[0]!.port2.sent[0] as { id: string }
+  setTimeout(() => {
+    harness.channels[0]!.port2.receive({
+      version: IPC_VERSION,
+      id: sent.id,
+      ok: true,
+      result: { stopped: true },
+    })
+  }, 30)
+
+  assert.deepEqual(await request, { stopped: true })
+  await harness.supervisor.shutdown()
+})
+
 test('CoreSupervisor has an explicit Main-only path for QR poll credentials', async () => {
   const harness = makeHarness()
   const starting = harness.supervisor.start()

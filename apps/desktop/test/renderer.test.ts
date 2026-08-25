@@ -55,6 +55,14 @@ test('Renderer contains the public QR login surface without credential access', 
     '加载更多歌曲',
     '同步歌词',
     '正在播放',
+    'now-playing-like',
+    'toggleTrackLike',
+    'getTrackLikeStatus',
+    'setTrackLiked',
+    'searchRoonLibrary',
+    'matchLibraryTrack',
+    'Roon 本地结果',
+    'Roon 已匹配',
     '歌词只在内存中处理',
   ]) {
     assert.match(source, new RegExp(text))
@@ -86,6 +94,19 @@ test('Renderer exposes the v2 Music Source Sidebar information architecture', as
     '资料库',
     '我喜欢的音乐',
     '所有歌单',
+    '艺术家',
+    '流派',
+    'RoonEntityGrid.vue',
+    'FavoriteEntityGrid.vue',
+    'roon-favorites',
+    'listFavorites',
+    '喜欢的歌曲',
+    '喜欢的专辑',
+    '喜欢的艺术家',
+    'listRoonArtists',
+    'listRoonGenres',
+    'listRoonPlaylists',
+    'getRoonArtistAlbums',
     '搜索歌曲或歌手',
     '播放设备',
     'SidebarAccountFooter.vue',
@@ -313,6 +334,49 @@ test('V1 Now Playing centers a real-quality disclosure without a quality switche
   assert.doesNotMatch(nowPlayingUsage, /:selected-quality="selectedQuality"/)
   assert.doesNotMatch(nowPlayingUsage, /@update:selected-quality=/)
   assert.match(css, /\.now-playing-quality-row\s*\{[^}]*justify-content:\s*center/)
+})
+
+test('V1 Provider progress remains read-only and V2 seek requires an explicitly seekable Roon Zone', async () => {
+  const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const nowPlaying = await readFile(path.resolve('src/renderer/src/components/NowPlayingView.vue'), 'utf8')
+
+  assert.match(app, /:seek-allowed="playbackSource === 'roon' && selectedZone\?\.seekAllowed === true"/)
+  assert.match(nowPlaying, /seekAllowed: boolean/)
+  assert.match(nowPlaying, /:disabled="!props\.seekAllowed \|\| !props\.currentTrack \|\| durationMs <= 0"/)
+})
+
+test('V2 native Roon playback clears only stale local favorite identity when the current descriptor is unavailable', async () => {
+  const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+
+  assert.doesNotMatch(app, /else if \(sourceChanged\) \{\s*nativeRoonHasNeteaseMatch\.value = false/)
+  assert.match(app, /const rememberedNeteaseMatch = roonQueueNeteaseMatches\.has\(trackId\)/)
+  assert.match(app, /nativeRoonHasNeteaseMatch\.value = nativeRoonQueueItemHasNeteaseIdentity\([\s\S]*?rememberedNeteaseMatch,[\s\S]*?\)/)
+  assert.match(app, /if \(localItem\) \{[\s\S]*?localTrackFavoriteDescriptor\.value = favoriteDescriptorForRoonItem\(localItem\)[\s\S]*?\} else \{\s*resetLocalTrackFavorite\(\)/)
+  assert.match(app, /:track-like-available="playbackSource === 'netease' \|\| nativeRoonHasNeteaseMatch \|\| localTrackFavoriteDescriptor !== null"/)
+})
+
+test('confirmed matching keeps the V1 track identity inside the unified Smart queue', async () => {
+  const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const playTrackStart = app.indexOf('async function playTrack(track: TrackSummary)')
+  const roonPlayStart = app.indexOf('async function playRoonLibraryTrack', playTrackStart)
+  const playTrack = app.slice(playTrackStart, roonPlayStart)
+
+  assert.match(playTrack, /rememberRoonQueueDescriptor\(track\.id, selection\.candidate, true\)/)
+  assert.match(playTrack, /replaceQueue\(\[\{[\s\S]*trackId: track\.id[\s\S]*preferredSource: 'smart'/)
+  assert.doesNotMatch(playTrack, /playRoonTrack\(/)
+  assert.match(app, /rememberRoonQueueDescriptor\(track\.id, candidate, true\)/)
+  assert.match(app, /nativeRoonQueueItemHasNeteaseIdentity\(\s*queueItem,\s*rememberedNeteaseMatch,?\s*\)/)
+  assert.match(app, /:track-like-available="playbackSource === 'netease' \|\| nativeRoonHasNeteaseMatch \|\| localTrackFavoriteDescriptor !== null"/)
+})
+
+test('queue item selection preserves the existing V1/V2 mixed queue', async () => {
+  const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const selectStart = app.indexOf('async function playQueueItem')
+  const toggleStart = app.indexOf('async function togglePlayback', selectStart)
+  const selection = app.slice(selectStart, toggleStart)
+
+  assert.match(selection, /window\.musicBridge\.playQueueIndex\(index\)/)
+  assert.doesNotMatch(selection, /playRoonTrack\(|replaceQueue\(/)
 })
 
 test('V1 large track and queue lists use a bounded virtual window', async () => {

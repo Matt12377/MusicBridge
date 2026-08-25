@@ -12,6 +12,10 @@ const props = defineProps<{
   qualityLabel: (quality: string | undefined) => string
   qualityNotice?: PlaybackIssue
   playbackIssueMessage: (issue: PlaybackIssue) => string
+  trackLikeState: 'idle' | 'loading' | 'liked' | 'not-liked' | 'error'
+  trackLikeAvailable: boolean
+  playbackSource: 'roon' | 'netease'
+  seekAllowed: boolean
 }>()
 
 const emit = defineEmits<{
@@ -19,12 +23,15 @@ const emit = defineEmits<{
   previous: []
   'toggle-playback': []
   next: []
+  'toggle-like': []
+  seek: [positionMs: number]
 }>()
 
 const qualityDetailsOpen = ref(false)
 
 const durationMs = computed(() => props.currentTrack?.durationMs ?? 0)
 const progressMs = ref(0)
+const seeking = ref(false)
 const progressRatio = computed(() => {
   if (durationMs.value <= 0) return 0
   return Math.min(1, Math.max(0, progressMs.value / durationMs.value))
@@ -47,13 +54,33 @@ function syncPlaybackPosition(): void {
 }
 
 function tickProgress(): void {
-  if (props.playbackState?.state !== 'playing') {
+  if (seeking.value || props.playbackState?.state !== 'playing') {
     stopProgressInterpolation()
     return
   }
   const interpolated = positionAnchorMs + Math.max(0, performance.now() - positionAnchorAt)
   progressMs.value = Math.min(interpolated, durationMs.value || Number.MAX_SAFE_INTEGER)
   progressAnimationFrame = requestAnimationFrame(tickProgress)
+}
+
+function readSeekValue(event: Event): number {
+  const target = event.target
+  if (!(target instanceof HTMLInputElement)) return progressMs.value
+  const value = Number(target.value)
+  return Number.isFinite(value) ? Math.max(0, Math.round(value)) : progressMs.value
+}
+
+function previewSeek(event: Event): void {
+  seeking.value = true
+  progressMs.value = Math.min(readSeekValue(event), durationMs.value || Number.MAX_SAFE_INTEGER)
+}
+
+function commitSeek(event: Event): void {
+  const positionMs = Math.min(readSeekValue(event), durationMs.value || Number.MAX_SAFE_INTEGER)
+  seeking.value = false
+  progressMs.value = positionMs
+  emit('seek', positionMs)
+  startProgressInterpolation()
 }
 
 function startProgressInterpolation(): void {
@@ -109,13 +136,14 @@ const actualQualityDetail = computed(() => {
         <div class="now-playing-copy">
           <div class="now-playing-track-heading">
             <p class="section-kicker">正在播放</p>
-            <h2 id="listening-heading">{{ props.currentTrack?.title ?? '还没有正在播放的歌曲' }}</h2>
+            <div class="now-playing-title-row"><h2 id="listening-heading">{{ props.currentTrack?.title ?? '还没有正在播放的歌曲' }}</h2><span v-if="props.currentTrack" class="source-badge">{{ props.playbackSource === 'roon' ? 'Roon 本地' : '网易云' }}</span><button v-if="props.currentTrack && props.trackLikeAvailable" type="button" class="now-playing-like" :class="{ 'is-liked': props.trackLikeState === 'liked' }" :disabled="props.trackLikeState === 'loading'" :aria-pressed="props.trackLikeState === 'liked'" aria-label="喜欢这首歌" @click="emit('toggle-like')">{{ props.trackLikeState === 'liked' ? '♥' : '♡' }}</button></div>
             <p class="artist-line">{{ props.currentTrack ? `${props.currentTrack.artists.join('、')} · ${props.currentTrack.album}` : '从歌曲列表选择内容开始。' }}</p>
           </div>
           <div class="now-playing-progress" aria-label="播放进度">
             <div class="now-playing-progress-track" :style="{ '--progress-ratio': `${progressRatio * 100}%` }">
               <span class="now-playing-progress-visual" aria-hidden="true"></span>
               <progress aria-label="播放进度" :max="Math.max(durationMs, 1)" :value="progressMs">{{ progressMs }}</progress>
+              <input class="now-playing-progress-input" type="range" aria-label="拖动播放进度" :min="0" :max="Math.max(durationMs, 1)" :value="progressMs" :disabled="!props.seekAllowed || !props.currentTrack || durationMs <= 0" @input="previewSeek" @change="commitSeek" />
             </div>
             <div class="now-playing-progress-meta"><span>{{ formatTime(progressMs) }}</span><span>{{ formatTime(durationMs) }}</span></div>
           </div>

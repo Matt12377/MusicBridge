@@ -5,6 +5,10 @@ export type ViewId =
   | 'daily-recommendations'
   | 'playlists'
   | 'playlist-detail'
+  | 'roon-albums'
+  | 'roon-favorites'
+  | 'roon-album-detail'
+  | 'roon-artist-detail'
   | 'now-playing'
   | 'queue'
   | 'settings'
@@ -15,3 +19,10 @@ export type SidebarSource =
   | { type: 'liked' }
   | { type: 'playlists' }
   | { type: 'playlist'; playlistId: string }
+  | { type: 'roon-albums' }
+  | { type: 'roon-artists' }
+  | { type: 'roon-genres' }
+  | { type: 'roon-playlists' }
+  | { type: 'roon-favorites' }
+  | { type: 'roon-album'; reference: string }
+  | { type: 'roon-artist'; reference: string }

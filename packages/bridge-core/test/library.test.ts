@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { NeteaseClient } from '../src/netease/client.js';
+import { BridgeError } from '../src/shared/errors.js';
 
 function track(id: number, title: string) {
   return {
@@ -28,6 +29,8 @@ interface LibraryApiOverrides {
   logout?: ApiFunction;
   search?: ApiFunction;
   likelist?: ApiFunction;
+  song_like?: ApiFunction;
+  song_like_check?: ApiFunction;
   user_account?: ApiFunction;
   recommend_songs?: ApiFunction;
   user_playlist?: ApiFunction;
@@ -202,6 +205,57 @@ test('NeteaseClient loads liked track ids from the native likelist endpoint', as
   const result = await client.getLikedTracks({ offset: 0, limit: 3 });
   assert.deepEqual(result.items.map((item) => item.id), ['303', '301', '302']);
   assert.deepEqual(calls, ['account', 'likelist:42', 'song_detail:303,301,302']);
+});
+
+test('NeteaseClient exposes explicit NetEase like and like-status operations', async () => {
+  const calls: Array<{ method: string; params: Record<string, unknown> }> = [];
+  const client = new NeteaseClient('synthetic-credential', baseApi({
+    async song_like(params) {
+      calls.push({ method: 'song_like', params });
+      return { body: { code: 200 } };
+    },
+    async song_like_check(params) {
+      calls.push({ method: 'song_like_check', params });
+      return { body: { code: 200, checkPoint: true } };
+    },
+  }));
+
+  assert.deepEqual(await client.isTrackLiked('101'), { liked: true });
+  assert.deepEqual(await client.likeTrack('101', false), { liked: false });
+  assert.deepEqual(calls, [
+    { method: 'song_like_check', params: { ids: '101', cookie: 'synthetic-credential' } },
+    { method: 'song_like', params: { id: '101', like: false, cookie: 'synthetic-credential' } },
+  ]);
+});
+
+test('NeteaseClient rejects a like-status response without an explicit boolean', async () => {
+  const client = new NeteaseClient('synthetic-credential', baseApi({
+    async song_like_check() {
+      return { body: { code: 200, data: {} } };
+    },
+  }));
+
+  await assert.rejects(
+    () => client.isTrackLiked('101'),
+    (error: unknown) => (
+      error instanceof BridgeError &&
+      error.code === 'NETEASE_REQUEST_FAILED' &&
+      !error.message.includes('data')
+    ),
+  );
+});
+
+test('NeteaseClient rejects a like mutation response without an explicit success code', async () => {
+  const client = new NeteaseClient('synthetic-credential', baseApi({
+    async song_like() {
+      return { body: {} };
+    },
+  }));
+
+  await assert.rejects(
+    () => client.likeTrack('101', true),
+    (error: unknown) => error instanceof BridgeError && error.code === 'NETEASE_REQUEST_FAILED',
+  );
 });
 
 test('NeteaseClient exposes account profile and daily recommendations through the pinned capabilities', async () => {

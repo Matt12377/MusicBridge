@@ -6,9 +6,17 @@ import type {
   RemoteCoreTunnelFailurePhase,
   RemoteCoreTunnelState,
 } from '@music-bridge/contracts'
-import { REMOTE_CORE_STREAM_PORT_CANDIDATES } from '@music-bridge/contracts'
+import {
+  REMOTE_CORE_LOCAL_PORT_PAIRS,
+  REMOTE_CORE_STREAM_PORT_CANDIDATES,
+} from '@music-bridge/contracts'
 
-export const LOCAL_STREAM_PORT = 38502 as const
+export const LOCAL_STREAM_PORT = REMOTE_CORE_LOCAL_PORT_PAIRS.default.streamPort
+export const LOCAL_STREAM_PORT_CANDIDATES: readonly number[] = Object.freeze(
+  Object.values(REMOTE_CORE_LOCAL_PORT_PAIRS).map((ports) => ports.streamPort),
+)
+export const LOCAL_ROON_CORE_PORT = 19330 as const
+export const REMOTE_ROON_CORE_PORT = 9330 as const
 export const REMOTE_STREAM_PORT_CANDIDATES = REMOTE_CORE_STREAM_PORT_CANDIDATES
 export const DEFAULT_REMOTE_STREAM_PORT = REMOTE_STREAM_PORT_CANDIDATES[0]!
 export const REMOTE_HEALTH_PATH = '/__musicbridge_remote_dev_health'
@@ -105,7 +113,7 @@ export function buildTunnelSshArgs(
   assertSafeSshTarget(sshTarget)
   assertRemotePort(remoteStreamPort)
   assertSafePort(localStreamPort, 'INVALID_LOCAL_STREAM_PORT')
-  if (localStreamPort !== LOCAL_STREAM_PORT) throw new Error('INVALID_LOCAL_STREAM_PORT')
+  if (!LOCAL_STREAM_PORT_CANDIDATES.includes(localStreamPort)) throw new Error('INVALID_LOCAL_STREAM_PORT')
   return [
     '-N',
     '-T',
@@ -123,6 +131,8 @@ export function buildTunnelSshArgs(
     'ServerAliveInterval=15',
     '-o',
     'ServerAliveCountMax=3',
+    '-L',
+    `127.0.0.1:${LOCAL_ROON_CORE_PORT}:127.0.0.1:${REMOTE_ROON_CORE_PORT}`,
     '-R',
     `127.0.0.1:${remoteStreamPort}:127.0.0.1:${localStreamPort}`,
     sshTarget,
@@ -436,7 +446,7 @@ export class RemoteCoreTunnelManager {
     if (!REMOTE_STREAM_PORT_CANDIDATES.includes(config.remoteStreamPort)) {
       return 'INVALID_REMOTE_STREAM_PORT'
     }
-    if (config.localStreamPort !== LOCAL_STREAM_PORT) return 'INVALID_LOCAL_STREAM_PORT'
+    if (!LOCAL_STREAM_PORT_CANDIDATES.includes(config.localStreamPort)) return 'INVALID_LOCAL_STREAM_PORT'
     return undefined
   }
 

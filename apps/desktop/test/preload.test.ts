@@ -121,11 +121,30 @@ test('Preload exposes only sanitized business methods', async () => {
   'getArtist',
   'getAlbum',
     'getLikedTracks',
+    'getTrackLikeStatus',
+    'setTrackLiked',
+    'matchLibraryTrack',
+    'aggregateSearch',
+    'seek',
     'getUserPlaylists',
     'getPlaylist',
     'getDailyRecommendations',
+    'listFavorites',
+    'checkFavorite',
+    'setFavorite',
     'listZones',
     'selectZone',
+    'listRoonAlbums',
+    'listRoonArtists',
+    'listRoonGenres',
+    'listRoonPlaylists',
+    'getRoonAlbumTracks',
+    'getRoonArtistAlbums',
+    'searchRoonLibrary',
+    'getRoonImage',
+    'playRoonTrack',
+    'queueRoonTrack',
+    'stopRoonTransport',
     'getLyrics',
     'getPlaybackState',
     'play',
@@ -134,6 +153,7 @@ test('Preload exposes only sanitized business methods', async () => {
     'stop',
     'next',
     'previous',
+    'playQueueIndex',
     'replaceQueue',
     'appendQueue',
     'insertNext',
@@ -164,11 +184,30 @@ test('Preload exposes only sanitized business methods', async () => {
   'getArtist',
   'getAlbum',
     'getLikedTracks',
+    'getTrackLikeStatus',
+    'setTrackLiked',
+    'matchLibraryTrack',
+    'aggregateSearch',
+    'seek',
     'getUserPlaylists',
     'getPlaylist',
     'getDailyRecommendations',
+    'listFavorites',
+    'checkFavorite',
+    'setFavorite',
     'listZones',
     'selectZone',
+    'listRoonAlbums',
+    'listRoonArtists',
+    'listRoonGenres',
+    'listRoonPlaylists',
+    'getRoonAlbumTracks',
+    'getRoonArtistAlbums',
+    'searchRoonLibrary',
+    'getRoonImage',
+    'playRoonTrack',
+    'queueRoonTrack',
+    'stopRoonTransport',
     'getLyrics',
     'getPlaybackState',
     'play',
@@ -177,6 +216,7 @@ test('Preload exposes only sanitized business methods', async () => {
     'stop',
     'next',
     'previous',
+    'playQueueIndex',
     'replaceQueue',
     'appendQueue',
     'insertNext',
@@ -203,6 +243,18 @@ test('Preload exposes only sanitized business methods', async () => {
   assert.deepEqual(await api.refreshAccountProfile(), accountState)
   assert.deepEqual(await api.searchTracks('synthetic', { offset: 0, limit: 20 }), page)
   assert.deepEqual(await api.getLikedTracks({ offset: 0, limit: 20 }), page)
+  await assert.rejects(
+    () => api.matchLibraryTrack({ id: '301', title: 'Synthetic Song', artists: ['Synthetic Artist'], album: 'Synthetic Album' }),
+    /Roon matching API is unavailable/,
+  )
+  await assert.rejects(
+    () => api.aggregateSearch('synthetic', { offset: 0, limit: 20 }),
+    /Aggregated search API is unavailable/,
+  )
+  await assert.rejects(
+    () => api.seek(12_345),
+    /Roon Transport seek API is unavailable/,
+  )
   assert.deepEqual(await api.getUserPlaylists(), playlists)
   assert.deepEqual(await api.getPlaylist('301', { offset: 0, limit: 20 }), playlist)
   assert.deepEqual(await api.getDailyRecommendations(), dailyRecommendations)
@@ -216,6 +268,10 @@ test('Preload exposes only sanitized business methods', async () => {
   assert.deepEqual(await api.stop(), playbackState)
   assert.deepEqual(await api.next(), playbackState)
   assert.deepEqual(await api.previous(), playbackState)
+  await assert.rejects(
+    () => api.playQueueIndex(0),
+    /Queue index API is unavailable/,
+  )
   assert.deepEqual(
     await api.replaceQueue([{ trackId: '301', qualityPreference: 'lossless' }], 0),
     playbackState,

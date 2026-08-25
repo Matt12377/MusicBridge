@@ -75,6 +75,8 @@ export interface NeteasePort {
   getArtist(artistId: string, page: PageRequest): Promise<import('@music-bridge/contracts').ArtistDetail>;
   getAlbum(albumId: string, page: PageRequest): Promise<import('@music-bridge/contracts').AlbumDetail>;
   getLikedTracks(page: PageRequest): Promise<Page<TrackSummary>>;
+  isTrackLiked(trackId: string): Promise<{ liked: boolean }>;
+  likeTrack(trackId: string, liked: boolean): Promise<{ liked: boolean }>;
   getUserPlaylists(): Promise<readonly PlaylistSummary[]>;
   getPlaylist(playlistId: string, page: PageRequest): Promise<PlaylistDetail>;
   getPublicAccountProfile(): Promise<PublicAccountProfile>;

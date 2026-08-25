@@ -42,6 +42,8 @@ export type RoonTerminalReason =
   | 'media_error'
   | 'zone_lost';
 
+export type RoonNativePlaybackState = 'playing' | 'paused' | 'loading' | 'stopped';
+
 export interface RoonPort {
   setTerminalHandler(handler: (reason: RoonTerminalReason) => void): void;
   setTimeHandler?(handler: (positionMs: number) => void): void;
@@ -51,6 +53,9 @@ export interface RoonPort {
   play(request: RoonPlayRequest): Promise<void>;
   pause(): Promise<void>;
   resume(): Promise<void>;
+  seek?(positionMs: number): Promise<void>;
+  control?(control: 'play' | 'pause' | 'playpause' | 'stop' | 'previous' | 'next'): Promise<void>;
+  getSelectedZonePlaybackState?(): RoonNativePlaybackState | undefined;
   getState(): RoonState;
   getDiagnosticResourceCounters?(): {
     activeSessionCount: number;

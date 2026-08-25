@@ -11,6 +11,9 @@ import {
   parseAccountId,
   parseDailyRecommendations,
   parseLikedPlaylistId,
+  parseLikedTrackIds,
+  assertTrackLikeMutationSucceeded,
+  parseTrackLikeState,
   parsePlaylistDetailHeader,
   parsePlaylistTrackIds,
   parsePlaylistSummaries,
@@ -23,7 +26,6 @@ import {
   parseResolvedAudioStream,
   parseTrackMetadata,
   parseTrackSummaries,
-  parseLikedTrackIds,
   orderTrackSummariesByIds,
   parsePublicAccountProfile,
 } from './parse.js';
@@ -72,6 +74,8 @@ interface NeteaseApiModule {
   artist_detail?(params: Record<string, unknown>): ApiResponse;
   album?(params: Record<string, unknown>): ApiResponse;
   likelist?(params: Record<string, unknown>): ApiResponse;
+  song_like?(params: Record<string, unknown>): ApiResponse;
+  song_like_check?(params: Record<string, unknown>): ApiResponse;
   user_account?(params: Record<string, unknown>): ApiResponse;
   recommend_songs?(params: Record<string, unknown>): ApiResponse;
   user_playlist?(params: Record<string, unknown>): ApiResponse;
@@ -256,6 +260,32 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     }));
     const detail = await playlistDetail({ id: likedPlaylistId, cookie });
     return parsePlaylistTrackIds(detail) ?? [];
+  }
+
+  async isTrackLiked(trackIdInput: string): Promise<{ liked: boolean }> {
+    const trackId = normalizeTrackId(trackIdInput);
+    const cookie = this.requireCookie();
+    const songLikeCheck = this.api.song_like_check;
+    if (!songLikeCheck) throw this.libraryApiUnavailable();
+    try {
+      return parseTrackLikeState(await songLikeCheck({ ids: trackId, cookie }));
+    } catch (error) {
+      throw this.libraryError(error, 'track like status');
+    }
+  }
+
+  async likeTrack(trackIdInput: string, liked: boolean): Promise<{ liked: boolean }> {
+    const trackId = normalizeTrackId(trackIdInput);
+    const cookie = this.requireCookie();
+    const songLike = this.api.song_like;
+    if (!songLike) throw this.libraryApiUnavailable();
+    try {
+      const response = await songLike({ id: trackId, like: liked, cookie });
+      assertTrackLikeMutationSucceeded(response);
+      return { liked };
+    } catch (error) {
+      throw this.libraryError(error, 'track like');
+    }
   }
 
   async getUserPlaylists(): Promise<readonly PlaylistSummary[]> {

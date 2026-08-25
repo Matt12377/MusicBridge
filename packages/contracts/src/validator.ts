@@ -24,6 +24,7 @@ import {
   MAX_PLAYBACK_QUEUE_ITEMS,
   PLAYBACK_QUALITY_LEVELS,
   PLAYBACK_QUALITY_PREFERENCES,
+  PLAYBACK_SOURCE_PREFERENCES,
   type PlaybackQueueEntry,
   type PlaybackQueueRequestItem,
   type PlaybackQueueItem,
@@ -31,6 +32,8 @@ import {
   type PlaybackIssue,
   type PlaybackQuality,
   type PlaybackQualityPreference,
+  type PlaybackResolvedSource,
+  type PlaybackSourcePreference,
   type PlaybackSnapshot,
 } from './playback.js';
 import {
@@ -58,6 +61,9 @@ import type {
   DiagnosticGateResult,
   DiagnosticTimelineEvent,
 } from './diagnostics.js';
+import type { FavoriteEntityDescriptor, FavoriteKind, FavoriteRecord } from './favorites.js';
+import { MATCH_STATES, type PublicTrackMatchResult } from './matching.js';
+import type { PublicAggregatedSearchResult } from './aggregated-search.js';
 
 export type ValidationResult<T> =
   | { ok: true; value: T }
@@ -110,6 +116,8 @@ const MAX_LYRICS_TOTAL_TEXT_LENGTH = 256 * 1024;
 const MAX_ACCOUNT_DISPLAY_NAME_LENGTH = 80;
 const MAX_RECOMMENDATION_TRACKS = 50;
 const MAX_RECOMMENDATION_REASON_LENGTH = 120;
+const FAVORITE_KINDS: readonly FavoriteKind[] = ['track', 'album', 'artist'];
+const MAX_FAVORITE_TEXT_LENGTH = 512;
 
 function isPageRequest(value: unknown): value is PageRequest {
   return (
@@ -136,8 +144,115 @@ function isLibrarySearchPayload(value: unknown): value is { query: string; page:
   );
 }
 
+function isTrackLikeStatusPayload(value: unknown): value is { trackId: string } {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['trackId']) &&
+    safeString(value.trackId, 128) &&
+    /^\d+$/.test(value.trackId) &&
+    value.trackId !== '0'
+  );
+}
+
+function isTrackLikePayload(value: unknown): value is { trackId: string; liked: boolean } {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['trackId', 'liked']) &&
+    safeString(value.trackId, 128) &&
+    /^\d+$/.test(value.trackId) &&
+    value.trackId !== '0' &&
+    typeof value.liked === 'boolean'
+  );
+}
+
+function isTrackMatchPayload(value: unknown): value is { track: TrackSummary } {
+  return isRecord(value) && hasOnlyKeys(value, ['track']) && isTrackSummary(value.track);
+}
+
+function isFavoriteDescriptor(value: unknown): value is FavoriteEntityDescriptor {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, ['kind', 'title', 'subtitle', 'artist', 'album', 'durationMs', 'trackNumber', 'discNumber', 'year', 'version']) ||
+    !FAVORITE_KINDS.includes(value.kind as FavoriteKind) ||
+    !safeString(value.title, MAX_FAVORITE_TEXT_LENGTH)
+  ) return false;
+  for (const key of ['subtitle', 'artist', 'album', 'version'] as const) {
+    if (value[key] !== undefined && !safeString(value[key], MAX_FAVORITE_TEXT_LENGTH)) return false;
+  }
+  if (
+    value.durationMs !== undefined &&
+    (typeof value.durationMs !== 'number' || !Number.isSafeInteger(value.durationMs) || value.durationMs < 0 || value.durationMs > 24 * 60 * 60 * 1000)
+  ) return false;
+  for (const key of ['trackNumber', 'discNumber', 'year'] as const) {
+    if (value[key] !== undefined && (typeof value[key] !== 'number' || !Number.isSafeInteger(value[key]) || value[key] < 0 || value[key] > 9999)) return false;
+  }
+  return true;
+}
+
+function isFavoriteListPayload(value: unknown): value is { kind?: FavoriteKind; page: PageRequest } {
+  return isRecord(value) && hasOnlyKeys(value, ['kind', 'page']) &&
+    (value.kind === undefined || FAVORITE_KINDS.includes(value.kind as FavoriteKind)) &&
+    isPageRequest(value.page);
+}
+
+function isFavoriteCheckPayload(value: unknown): value is { descriptor: FavoriteEntityDescriptor } {
+  return isRecord(value) && hasOnlyKeys(value, ['descriptor']) && isFavoriteDescriptor(value.descriptor);
+}
+
+function isFavoriteSetPayload(value: unknown): value is { descriptor: FavoriteEntityDescriptor; favorite: boolean } {
+  return isRecord(value) && hasOnlyKeys(value, ['descriptor', 'favorite']) &&
+    isFavoriteDescriptor(value.descriptor) && typeof value.favorite === 'boolean';
+}
+
 function isLibraryPagePayload(value: unknown): value is { page: PageRequest } {
   return isRecord(value) && hasOnlyKeys(value, ['page']) && isPageRequest(value.page);
+}
+
+function isRoonLibraryReference(value: unknown): value is string {
+  return safeString(value, 128) && /^musicbridge-v2-(?:entity|image)-[0-9a-f-]{36}$/u.test(value);
+}
+
+function isRoonAlbumPayload(value: unknown): value is { reference: string; page: PageRequest } {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['reference', 'page']) &&
+    isRoonLibraryReference(value.reference) &&
+    isPageRequest(value.page)
+  );
+}
+
+function isRoonImageOptions(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (!isRecord(value) || !hasOnlyKeys(value, ['scale', 'width', 'height', 'format'])) return false;
+  return (
+    (value.scale === undefined || ['fit', 'fill', 'stretch'].includes(String(value.scale))) &&
+    (value.format === undefined || ['image/jpeg', 'image/png'].includes(String(value.format))) &&
+    (value.width === undefined || (
+      typeof value.width === 'number' && Number.isSafeInteger(value.width) && value.width >= 1 && value.width <= 2048
+    )) &&
+    (value.height === undefined || (
+      typeof value.height === 'number' && Number.isSafeInteger(value.height) && value.height >= 1 && value.height <= 2048
+    ))
+  );
+}
+
+function isRoonImagePayload(value: unknown): value is { reference: string; options?: Record<string, unknown> } {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['reference', 'options']) &&
+    isRoonLibraryReference(value.reference) &&
+    isRoonImageOptions(value.options)
+  );
+}
+
+function isRoonTrackActionPayload(value: unknown): value is { reference: string; zoneId: string } {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['reference', 'zoneId']) &&
+    safeString(value.reference, 128) &&
+    /^musicbridge-v2-entity-[0-9a-f-]{36}$/u.test(value.reference) &&
+    safeString(value.zoneId, 128)
+  );
 }
 
 function isLibraryPlaylistPayload(
@@ -179,26 +294,67 @@ function isPlaybackQualityPreference(value: unknown): value is PlaybackQualityPr
   return PLAYBACK_QUALITY_PREFERENCES.includes(value as PlaybackQualityPreference);
 }
 
+function isPlaybackSourcePreference(value: unknown): value is PlaybackSourcePreference {
+  return PLAYBACK_SOURCE_PREFERENCES.includes(value as PlaybackSourcePreference);
+}
+
+function isPlaybackResolvedSource(value: unknown): value is PlaybackResolvedSource {
+  return value === 'roon' || value === 'netease';
+}
+
+function isPlaybackSeekPayload(value: unknown): value is { positionMs: number } {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['positionMs']) &&
+    typeof value.positionMs === 'number' &&
+    Number.isSafeInteger(value.positionMs) &&
+    value.positionMs >= 0 &&
+    value.positionMs <= 24 * 60 * 60 * 1_000
+  );
+}
+
+function isPlaybackQueueIndexPayload(value: unknown): value is { index: number } {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['index']) &&
+    typeof value.index === 'number' &&
+    Number.isSafeInteger(value.index) &&
+    value.index >= 0 &&
+    value.index < MAX_QUEUE_ITEMS
+  );
+}
+
 function isPlaybackQueueRequestItem(value: unknown): value is PlaybackQueueRequestItem {
   return (
     isRecord(value) &&
-    hasOnlyKeys(value, ['trackId', 'qualityPreference']) &&
+    hasOnlyKeys(value, ['trackId', 'qualityPreference', 'preferredSource']) &&
     safeString(value.trackId, 128) &&
     /^\d+$/.test(value.trackId) &&
     value.trackId !== '0' &&
-    isPlaybackQualityPreference(value.qualityPreference)
+    isPlaybackQualityPreference(value.qualityPreference) &&
+    (value.preferredSource === undefined || isPlaybackSourcePreference(value.preferredSource))
   );
 }
 
 function isPlaybackQueueEntry(value: unknown): value is PlaybackQueueEntry {
   return (
     isRecord(value) &&
-    hasOnlyKeys(value, ['trackId', 'qualityPreference', 'track', 'requestedQuality', 'actualQuality']) &&
+    hasOnlyKeys(value, [
+      'trackId',
+      'qualityPreference',
+      'track',
+      'preferredSource',
+      'resolvedSource',
+      'requestedQuality',
+      'actualQuality',
+    ]) &&
     safeString(value.trackId, 128) &&
     /^\d+$/.test(value.trackId) &&
     value.trackId !== '0' &&
     isPlaybackQualityPreference(value.qualityPreference) &&
     (value.track === undefined || isTrackSummary(value.track)) &&
+    (value.preferredSource === undefined || isPlaybackSourcePreference(value.preferredSource)) &&
+    (value.resolvedSource === undefined || isPlaybackResolvedSource(value.resolvedSource)) &&
     (value.requestedQuality === undefined || isPlaybackQuality(value.requestedQuality)) &&
     (value.actualQuality === undefined || isPlaybackQuality(value.actualQuality) || value.actualQuality === 'unknown')
   );
@@ -256,6 +412,7 @@ function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
       'state',
       'queue',
       'currentTrack',
+      'source',
       'qualityPreference',
       'requestedQuality',
       'actualQuality',
@@ -275,6 +432,7 @@ function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
     !isPlaybackState(value.state) ||
     !isPlaybackQueueSnapshot(value.queue) ||
     (value.currentTrack !== undefined && !isTrackSummary(value.currentTrack)) ||
+    (value.source !== undefined && !isPlaybackResolvedSource(value.source)) ||
     (value.qualityPreference !== undefined && !isPlaybackQualityPreference(value.qualityPreference)) ||
     (value.requestedQuality !== undefined && !isPlaybackQuality(value.requestedQuality)) ||
     (value.actualQuality !== undefined && !isPlaybackQuality(value.actualQuality) && value.actualQuality !== 'unknown') ||
@@ -689,7 +847,29 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'library.artist') return isLibraryArtistPayload(payload);
   if (command === 'library.album') return isLibraryAlbumPayload(payload);
   if (command === 'library.liked') return isLibraryPagePayload(payload);
+  if (command === 'library.likeStatus') return isTrackLikeStatusPayload(payload);
+  if (command === 'library.like') return isTrackLikePayload(payload);
+  if (command === 'library.match') return isTrackMatchPayload(payload);
+  if (command === 'library.aggregateSearch') return isLibrarySearchPayload(payload);
   if (command === 'library.playlist') return isLibraryPlaylistPayload(payload);
+  if (command === 'favorites.list') return isFavoriteListPayload(payload);
+  if (command === 'favorites.check') return isFavoriteCheckPayload(payload);
+  if (command === 'favorites.set') return isFavoriteSetPayload(payload);
+  if (command === 'roon.library.albums') return isLibraryPagePayload(payload);
+  if (
+    command === 'roon.library.artists' ||
+    command === 'roon.library.genres' ||
+    command === 'roon.library.playlists'
+  ) return isLibraryPagePayload(payload);
+  if (command === 'roon.library.album') return isRoonAlbumPayload(payload);
+  if (command === 'roon.library.artist') return isRoonAlbumPayload(payload);
+  if (command === 'roon.library.search') return isLibrarySearchPayload(payload);
+  if (command === 'playback.seek') return isPlaybackSeekPayload(payload);
+  if (command === 'playback.playQueueIndex') return isPlaybackQueueIndexPayload(payload);
+  if (command === 'roon.library.image') return isRoonImagePayload(payload);
+  if (command === 'roon.library.play' || command === 'roon.library.queue') {
+    return isRoonTrackActionPayload(payload);
+  }
   if (command === 'lyrics.get') return isLyricsPayload(payload);
   if (command === 'playback.play') return isPlaybackPlayPayload(payload);
   if (command === 'playback.replaceQueue') return isPlaybackReplaceQueuePayload(payload);
@@ -904,11 +1084,141 @@ function isInternalQrPollResult(value: unknown): boolean {
 function isPublicRoonZone(value: unknown): value is PublicRoonZone {
   return (
     isRecord(value) &&
-    hasOnlyKeys(value, ['zoneId', 'displayName', 'selected']) &&
+    hasOnlyKeys(value, ['zoneId', 'displayName', 'selected', 'seekAllowed']) &&
     safeString(value.zoneId, 128) &&
     safeString(value.displayName, 256) &&
-    typeof value.selected === 'boolean'
+    typeof value.selected === 'boolean' &&
+    (value.seekAllowed === undefined || typeof value.seekAllowed === 'boolean')
   );
+}
+
+function isRoonLibraryItem(value: unknown): boolean {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, [
+      'reference',
+      'kind',
+      'title',
+      'subtitle',
+      'artist',
+      'album',
+      'durationMs',
+      'trackNumber',
+      'discNumber',
+      'year',
+      'version',
+      'artworkReference',
+    ])
+  ) return false;
+  return (
+    isRoonLibraryReference(value.reference) &&
+    ['album', 'artist', 'genre', 'playlist', 'composer', 'track'].includes(String(value.kind)) &&
+    safeString(value.title, 512) &&
+    (value.subtitle === undefined || safeString(value.subtitle, 512)) &&
+    (value.artist === undefined || safeString(value.artist, 512)) &&
+    (value.album === undefined || safeString(value.album, 512)) &&
+    (value.durationMs === undefined || (
+      typeof value.durationMs === 'number' && Number.isSafeInteger(value.durationMs) && value.durationMs >= 0 && value.durationMs <= 24 * 60 * 60 * 1000
+    )) &&
+    (value.trackNumber === undefined || (typeof value.trackNumber === 'number' && Number.isSafeInteger(value.trackNumber) && value.trackNumber >= 0)) &&
+    (value.discNumber === undefined || (typeof value.discNumber === 'number' && Number.isSafeInteger(value.discNumber) && value.discNumber >= 0)) &&
+    (value.year === undefined || (typeof value.year === 'number' && Number.isSafeInteger(value.year) && value.year >= 0 && value.year <= 9999)) &&
+    (value.version === undefined || safeString(value.version, 256)) &&
+    (value.artworkReference === undefined || /^musicbridge-v2-image-[0-9a-f-]{36}$/u.test(String(value.artworkReference)))
+  );
+}
+
+function isRoonLibraryPage(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['items', 'offset', 'limit', 'total', 'hasMore']) &&
+    isPageRequest({ offset: value.offset, limit: value.limit }) &&
+    Array.isArray(value.items) &&
+    value.items.length <= MAX_PAGE_LIMIT &&
+    value.items.every((item) => isRoonLibraryItem(item)) &&
+    (value.total === undefined || (typeof value.total === 'number' && Number.isSafeInteger(value.total) && value.total >= 0 && value.total <= MAX_PAGE_OFFSET)) &&
+    (value.hasMore === undefined || typeof value.hasMore === 'boolean')
+  );
+}
+
+function isPublicTrackMatchResult(value: unknown): value is PublicTrackMatchResult {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, ['trackId', 'state', 'confidence', 'evidence', 'candidates', 'candidate', 'algorithmVersion']) ||
+    !safeString(value.trackId, 128) ||
+    !/^\d+$/.test(value.trackId) ||
+    value.trackId === '0' ||
+    !MATCH_STATES.includes(value.state as (typeof MATCH_STATES)[number]) ||
+    typeof value.confidence !== 'number' ||
+    !Number.isFinite(value.confidence) ||
+    value.confidence < 0 ||
+    value.confidence > 1 ||
+    !Array.isArray(value.evidence) ||
+    value.evidence.length > 32 ||
+    !value.evidence.every((entry) => safeString(entry, 128)) ||
+    !safeString(value.algorithmVersion, 64) ||
+    !Array.isArray(value.candidates) ||
+    value.candidates.length > MAX_PAGE_LIMIT
+  ) return false;
+  const isCandidate = (entry: unknown): boolean => (
+    isRecord(entry) &&
+    hasOnlyKeys(entry, ['candidate', 'score', 'evidence']) &&
+    isRoonLibraryItem(entry.candidate) &&
+    typeof entry.score === 'number' &&
+    Number.isFinite(entry.score) &&
+    entry.score >= 0 &&
+    entry.score <= 1 &&
+    Array.isArray(entry.evidence) &&
+    entry.evidence.length <= 32 &&
+    entry.evidence.every((item) => safeString(item, 128))
+  );
+  return value.candidates.every(isCandidate) &&
+    (value.candidate === undefined || isRoonLibraryItem(value.candidate));
+}
+
+function isPublicAggregatedSearchResult(value: unknown): value is PublicAggregatedSearchResult {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['query', 'netease', 'roon', 'roonAvailable']) &&
+    safeString(value.query, MAX_SEARCH_QUERY_LENGTH) &&
+    isPageOfTracks(value.netease) &&
+    isRoonLibraryPage(value.roon) &&
+    typeof value.roonAvailable === 'boolean'
+  );
+}
+
+function isRoonImageResult(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ['contentType', 'body']) &&
+    safeString(value.contentType, 128) &&
+    value.contentType.startsWith('image/') &&
+    value.body instanceof Uint8Array &&
+    value.body.byteLength <= 4 * 1024 * 1024
+  );
+}
+
+function isFavoriteRecord(value: unknown): value is FavoriteRecord {
+  if (!isRecord(value) || !hasOnlyKeys(value, [
+    'favoriteId', 'kind', 'title', 'subtitle', 'artist', 'album',
+    'durationMs', 'trackNumber', 'discNumber', 'year', 'version', 'createdAt', 'updatedAt',
+  ])) return false;
+  const { favoriteId, createdAt, updatedAt, ...descriptor } = value;
+  return safeString(favoriteId, 128) &&
+    /^[0-9a-f-]{36}$/u.test(favoriteId) &&
+    typeof createdAt === 'number' && Number.isSafeInteger(createdAt) && createdAt >= 0 &&
+    typeof updatedAt === 'number' && Number.isSafeInteger(updatedAt) && updatedAt >= createdAt &&
+    isFavoriteDescriptor(descriptor);
+}
+
+function isFavoritePage(value: unknown): boolean {
+  return isRecord(value) &&
+    hasOnlyKeys(value, ['items', 'offset', 'limit', 'total', 'hasMore']) &&
+    isPageRequest({ offset: value.offset, limit: value.limit }) &&
+    Array.isArray(value.items) && value.items.length <= MAX_PAGE_LIMIT &&
+    value.items.every((item) => isFavoriteRecord(item)) &&
+    typeof value.total === 'number' && Number.isSafeInteger(value.total) && value.total >= 0 && value.total <= MAX_PAGE_OFFSET &&
+    typeof value.hasMore === 'boolean';
 }
 
 function isZoneListResult(value: unknown): boolean {
@@ -960,6 +1270,13 @@ function isCommandResult(
       return isArtistDetail(value);
     case 'library.album':
       return isAlbumDetail(value);
+    case 'library.likeStatus':
+    case 'library.like':
+      return isRecord(value) && hasOnlyKeys(value, ['liked']) && typeof value.liked === 'boolean';
+    case 'library.match':
+      return isPublicTrackMatchResult(value);
+    case 'library.aggregateSearch':
+      return isPublicAggregatedSearchResult(value);
     case 'library.playlists':
       return Array.isArray(value) && value.length <= MAX_PAGE_OFFSET && value.every((item) => isPlaylistSummary(item));
     case 'library.playlist':
@@ -969,12 +1286,36 @@ function isCommandResult(
       return isPublicAccountState(value);
     case 'library.dailyRecommendations':
       return isDailyRecommendationsSnapshot(value);
+    case 'favorites.list':
+      return isFavoritePage(value);
+    case 'favorites.check':
+      return isRecord(value) && hasOnlyKeys(value, ['favorite']) && typeof value.favorite === 'boolean';
+    case 'favorites.set':
+      return isRecord(value) && hasOnlyKeys(value, ['favorite', 'item']) &&
+        typeof value.favorite === 'boolean' &&
+        (value.item === undefined || isFavoriteRecord(value.item));
     case 'lyrics.get':
       return isLyricsSnapshot(value);
     case 'core.shutdown':
       return isRecord(value) && hasOnlyKeys(value, ['stopped']) && value.stopped === true;
     case 'roon.listZones':
       return isZoneListResult(value);
+    case 'roon.library.albums':
+    case 'roon.library.artists':
+    case 'roon.library.genres':
+    case 'roon.library.playlists':
+    case 'roon.library.album':
+    case 'roon.library.artist':
+    case 'roon.library.search':
+      return isRoonLibraryPage(value);
+    case 'roon.library.image':
+      return isRoonImageResult(value);
+    case 'roon.library.play':
+      return isRecord(value) && hasOnlyKeys(value, ['started']) && value.started === true;
+    case 'roon.library.queue':
+      return isRecord(value) && hasOnlyKeys(value, ['queued']) && value.queued === true;
+    case 'roon.transport.stop':
+      return isRecord(value) && hasOnlyKeys(value, ['stopped']) && value.stopped === true;
     case 'playback.getState':
     case 'playback.play':
     case 'playback.pause':
@@ -982,10 +1323,18 @@ function isCommandResult(
     case 'playback.stop':
     case 'playback.next':
     case 'playback.previous':
+    case 'playback.playQueueIndex':
     case 'playback.replaceQueue':
     case 'playback.appendQueue':
     case 'playback.insertNext':
       return isPlaybackSnapshot(value);
+    case 'playback.seek':
+      return isRecord(value) &&
+        hasOnlyKeys(value, ['positionMs']) &&
+        typeof value.positionMs === 'number' &&
+        Number.isSafeInteger(value.positionMs) &&
+        value.positionMs >= 0 &&
+        value.positionMs <= 24 * 60 * 60 * 1_000;
   }
 }
 

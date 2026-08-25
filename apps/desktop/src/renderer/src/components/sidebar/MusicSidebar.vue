@@ -38,7 +38,13 @@ function restoreSourceScroll(): void {
   })
 }
 
-function isSourceSelected(type: 'home' | 'liked' | 'playlists'): boolean {
+function isSourceSelected(type: 'home' | 'liked' | 'playlists' | 'roon-albums' | 'roon-artists' | 'roon-genres' | 'roon-playlists' | 'roon-favorites'): boolean {
+  if (type === 'roon-albums') {
+    return props.activeSource.type === 'roon-albums' || props.activeSource.type === 'roon-album'
+  }
+  if (type === 'roon-artists') {
+    return props.activeSource.type === 'roon-artists' || props.activeSource.type === 'roon-artist'
+  }
   return props.activeSource.type === type
 }
 
@@ -77,6 +83,14 @@ onMounted(restoreSourceScroll)
       <SidebarSection title="资料库" :expanded="expanded">
         <SidebarNavRow source="liked" label="我喜欢的音乐" icon="heart" :expanded="expanded" :selected="isSourceSelected('liked')" @select="selectSource({ type: 'liked' })" />
         <SidebarNavRow source="playlists" label="所有歌单" icon="grid" :expanded="expanded" :selected="isSourceSelected('playlists')" @select="selectSource({ type: 'playlists' })" />
+      </SidebarSection>
+
+      <SidebarSection title="本地音乐库" :expanded="expanded">
+        <SidebarNavRow source="roon-albums" label="专辑" icon="music-note" :expanded="expanded" :selected="isSourceSelected('roon-albums')" @select="selectSource({ type: 'roon-albums' })" />
+        <SidebarNavRow source="roon-artists" label="艺术家" icon="grid" :expanded="expanded" :selected="isSourceSelected('roon-artists')" @select="selectSource({ type: 'roon-artists' })" />
+        <SidebarNavRow source="roon-genres" label="流派" icon="grid" :expanded="expanded" :selected="isSourceSelected('roon-genres')" @select="selectSource({ type: 'roon-genres' })" />
+        <SidebarNavRow source="roon-playlists" label="Roon 歌单" icon="grid" :expanded="expanded" :selected="isSourceSelected('roon-playlists')" @select="selectSource({ type: 'roon-playlists' })" />
+        <SidebarNavRow source="roon-favorites" label="收藏" icon="heart" :expanded="expanded" :selected="isSourceSelected('roon-favorites')" @select="selectSource({ type: 'roon-favorites' })" />
       </SidebarSection>
 
       <SidebarPlaylistList :playlists="playlists" :expanded="expanded" :active-playlist-id="activeSource.type === 'playlist' ? activeSource.playlistId : undefined" :state="playlistState" @select="selectSource({ type: 'playlist', playlistId: $event })" @retry="emit('retry-playlists')" />

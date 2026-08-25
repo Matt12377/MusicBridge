@@ -193,8 +193,45 @@ function makeRuntime(): CoreRuntimeForIpc & {
     async getAlbum() {
       return { id: '3000', name: 'Synthetic Album', artistName: 'Synthetic Artist', tracks: { items: [], offset: 0, limit: 20, total: 0, hasMore: false } }
     },
+    async aggregateSearch(query, page) {
+      return {
+        query,
+        netease: {
+          items: [
+            {
+              id: '101',
+              title: 'Synthetic Song',
+              artists: ['Synthetic Artist'],
+              album: 'Synthetic Album',
+            },
+          ],
+          offset: page.offset,
+          limit: page.limit,
+          total: 1,
+          hasMore: false,
+        },
+        roon: { items: [], offset: page.offset, limit: page.limit, hasMore: false },
+        roonAvailable: false,
+      };
+    },
     async getLikedTracks() {
       return { items: [], offset: 0, limit: 20, total: 0, hasMore: false }
+    },
+    async getTrackLikeStatus() {
+      return { liked: false }
+    },
+    async likeTrack(_trackId, liked) {
+      return { liked }
+    },
+    async matchLibraryTrack(track) {
+      return {
+        trackId: track.id,
+        state: 'NONE' as const,
+        confidence: 0,
+        evidence: ['roon-library-unavailable'],
+        candidates: [],
+        algorithmVersion: 'v2-deterministic-1',
+      };
     },
     async getUserPlaylists() {
       return [{ id: '301', name: 'Synthetic Playlist', trackCount: 1 }]
@@ -211,6 +248,9 @@ function makeRuntime(): CoreRuntimeForIpc & {
       return emptyLyricsSnapshot('unavailable')
     },
     getPlaybackState: () => playbackState,
+    async seekPlayback(positionMs) {
+      return { positionMs };
+    },
     async playbackPlay() {
       return playbackState;
     },
@@ -229,6 +269,9 @@ function makeRuntime(): CoreRuntimeForIpc & {
     async playbackPrevious() {
       return playbackState;
     },
+    async playbackPlayQueueIndex() {
+      return playbackState;
+    },
     async replacePlaybackQueue() {
       return playbackState;
     },
@@ -237,6 +280,48 @@ function makeRuntime(): CoreRuntimeForIpc & {
     },
     async insertNextPlayback() {
       return playbackState;
+    },
+    async browseRoonAlbums(page) {
+      return { items: [], offset: page.offset, limit: page.limit };
+    },
+    async browseRoonArtists(page) {
+      return { items: [], offset: page.offset, limit: page.limit };
+    },
+    async browseRoonGenres(page) {
+      return { items: [], offset: page.offset, limit: page.limit };
+    },
+    async browseRoonPlaylists(page) {
+      return { items: [], offset: page.offset, limit: page.limit };
+    },
+    async browseRoonAlbum() {
+      return { items: [], offset: 0, limit: 20 };
+    },
+    async browseRoonArtist() {
+      return { items: [], offset: 0, limit: 20 };
+    },
+    async searchRoonLibrary() {
+      return { items: [], offset: 0, limit: 20 };
+    },
+    async getRoonImage() {
+      return { contentType: 'image/jpeg', body: new Uint8Array() };
+    },
+    async playRoonTrack() {
+      return { started: true as const };
+    },
+    async queueRoonTrack() {
+      return { queued: true as const };
+    },
+    async stopRoonTransport() {
+      return { stopped: true as const };
+    },
+    async listFavorites() {
+      return { items: [], offset: 0, limit: 20, total: 0, hasMore: false };
+    },
+    async checkFavorite() {
+      return { favorite: false };
+    },
+    async setFavorite(_descriptor, favorite) {
+      return { favorite };
     },
   };
 }
@@ -409,6 +494,94 @@ test('utility IPC exposes paged library data without raw provider fields', async
   });
 });
 
+test('utility IPC aggregates NetEase and Roon search without leaking unavailable details', async () => {
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, makeRuntime());
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'aggregate-search',
+    command: 'library.aggregateSearch',
+    payload: { query: 'synthetic', page: { offset: 0, limit: 20 } },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[1], {
+    version: IPC_VERSION,
+    id: 'aggregate-search',
+    ok: true,
+    result: {
+      query: 'synthetic',
+      netease: {
+        items: [{ id: '101', title: 'Synthetic Song', artists: ['Synthetic Artist'], album: 'Synthetic Album' }],
+        offset: 0,
+        limit: 20,
+        total: 1,
+        hasMore: false,
+      },
+      roon: { items: [], offset: 0, limit: 20, hasMore: false },
+      roonAvailable: false,
+    },
+  });
+  assert.doesNotMatch(JSON.stringify(port.messages[1]), /item_key|rawProvider|cookie|token/i);
+});
+
+test('utility IPC keeps NetEase like operations explicit and typed', async () => {
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, makeRuntime());
+
+  port.send({ version: IPC_VERSION, id: 'like-status', command: 'library.likeStatus', payload: { trackId: '101' } });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[1], {
+    version: IPC_VERSION,
+    id: 'like-status',
+    ok: true,
+    result: { liked: false },
+  });
+
+  port.send({ version: IPC_VERSION, id: 'like', command: 'library.like', payload: { trackId: '101', liked: true } });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[2], {
+    version: IPC_VERSION,
+    id: 'like',
+    ok: true,
+    result: { liked: true },
+  });
+});
+
+test('utility IPC exposes fail-closed library matching without raw Roon identifiers', async () => {
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, makeRuntime());
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'library-match',
+    command: 'library.match',
+    payload: {
+      track: {
+        id: '101',
+        title: 'Synthetic Song',
+        artists: ['Synthetic Artist'],
+        album: 'Synthetic Album',
+      },
+    },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[1], {
+    version: IPC_VERSION,
+    id: 'library-match',
+    ok: true,
+    result: {
+      trackId: '101',
+      state: 'NONE',
+      confidence: 0,
+      evidence: ['roon-library-unavailable'],
+      candidates: [],
+      algorithmVersion: 'v2-deterministic-1',
+    },
+  });
+  assert.doesNotMatch(JSON.stringify(port.messages[1]), /item_key|mediaPath|rawProvider|cookie/i);
+});
+
 test('utility IPC exposes account state and daily recommendations through typed commands', async () => {
   const port = new FakePort();
   const runtime = makeRuntime();
@@ -425,6 +598,62 @@ test('utility IPC exposes account state and daily recommendations through typed 
     assert.equal((response as { ok?: boolean }).ok, true);
     assert.doesNotMatch(JSON.stringify(response), /cookie|userId|rawProvider|recommendReasons/i);
   }
+});
+
+test('utility IPC dispatches local favorite relationships without media fields', async () => {
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, makeRuntime());
+
+  const descriptor = {
+    kind: 'track' as const,
+    title: 'Synthetic Song',
+    artist: 'Synthetic Artist',
+    album: 'Synthetic Album',
+    durationMs: 180_000,
+  };
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'favorites-list',
+    command: 'favorites.list',
+    payload: { kind: 'track', page: { offset: 0, limit: 20 } },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[1], {
+    version: IPC_VERSION,
+    id: 'favorites-list',
+    ok: true,
+    result: { items: [], offset: 0, limit: 20, total: 0, hasMore: false },
+  });
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'favorites-check',
+    command: 'favorites.check',
+    payload: { descriptor },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[2], {
+    version: IPC_VERSION,
+    id: 'favorites-check',
+    ok: true,
+    result: { favorite: false },
+  });
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'favorites-set',
+    command: 'favorites.set',
+    payload: { descriptor, favorite: true },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[3], {
+    version: IPC_VERSION,
+    id: 'favorites-set',
+    ok: true,
+    result: { favorite: true },
+  });
+  assert.doesNotMatch(JSON.stringify(port.messages[3]), /item_key|media|path|file|https?:\/\//i);
 });
 
 test('utility IPC maps an expired Provider session to a public error', async () => {
@@ -505,6 +734,121 @@ test('utility IPC returns bounded lyrics snapshots without provider response fie
   assert.doesNotMatch(JSON.stringify(port.messages[1]), /rawProvider|cookie|token|Authorization/i);
 });
 
+test('utility IPC dispatches the opaque Roon Library browse/image seams', async () => {
+  const port = new FakePort();
+  const runtime = makeRuntime();
+  await attachCoreRuntimePort(port, runtime);
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'roon-albums',
+    command: 'roon.library.albums',
+    payload: { page: { offset: 0, limit: 20 } },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[1], {
+    version: IPC_VERSION,
+    id: 'roon-albums',
+    ok: true,
+    result: { items: [], offset: 0, limit: 20 },
+  });
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'roon-album',
+    command: 'roon.library.album',
+    payload: {
+      reference: 'musicbridge-v2-entity-123e4567-e89b-12d3-a456-426614174000',
+      page: { offset: 0, limit: 20 },
+    },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[2], {
+    version: IPC_VERSION,
+    id: 'roon-album',
+    ok: true,
+    result: { items: [], offset: 0, limit: 20 },
+  });
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'roon-image',
+    command: 'roon.library.image',
+    payload: {
+      reference: 'musicbridge-v2-image-123e4567-e89b-12d3-a456-426614174001',
+      options: { width: 128, height: 128 },
+    },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  const response = port.messages[3] as { result?: { contentType?: string; body?: Uint8Array } };
+  assert.equal(response.result?.contentType, 'image/jpeg');
+  assert.deepEqual(response.result?.body, new Uint8Array());
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'roon-play',
+    command: 'roon.library.play',
+    payload: {
+      reference: 'musicbridge-v2-entity-123e4567-e89b-12d3-a456-426614174000',
+      zoneId: 'zone-1',
+    },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[4], {
+    version: IPC_VERSION,
+    id: 'roon-play',
+    ok: true,
+    result: { started: true },
+  });
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'roon-queue',
+    command: 'roon.library.queue',
+    payload: {
+      reference: 'musicbridge-v2-entity-123e4567-e89b-12d3-a456-426614174000',
+      zoneId: 'zone-1',
+    },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[5], {
+    version: IPC_VERSION,
+    id: 'roon-queue',
+    ok: true,
+    result: { queued: true },
+  });
+});
+
+test('utility IPC dispatches expanded Roon artist, genre, playlist and search seams', async () => {
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, makeRuntime());
+
+  const requests = [
+    ['roon-artists', 'roon.library.artists', { page: { offset: 0, limit: 20 } }],
+    ['roon-genres', 'roon.library.genres', { page: { offset: 0, limit: 20 } }],
+    ['roon-playlists', 'roon.library.playlists', { page: { offset: 0, limit: 20 } }],
+    ['roon-artist', 'roon.library.artist', {
+      reference: 'musicbridge-v2-entity-123e4567-e89b-12d3-a456-426614174000',
+      page: { offset: 0, limit: 20 },
+    }],
+    ['roon-search', 'roon.library.search', { query: 'Artist', page: { offset: 0, limit: 20 } }],
+  ] as const;
+
+  for (const [id, command, payload] of requests) {
+    port.send({ version: IPC_VERSION, id, command, payload });
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+
+  for (const [index, [id]] of requests.entries()) {
+    assert.deepEqual(port.messages[index + 1], {
+      version: IPC_VERSION,
+      id,
+      ok: true,
+      result: { items: [], offset: 0, limit: 20 },
+    });
+  }
+});
+
 test('utility IPC dispatches typed playback controls without exposing stream internals', async () => {
   const port = new FakePort();
   const runtime = makeRuntime();
@@ -518,6 +862,7 @@ test('utility IPC dispatches typed playback controls without exposing stream int
     ['playback-stop', 'playback.stop', {}],
     ['playback-next', 'playback.next', {}],
     ['playback-previous', 'playback.previous', {}],
+    ['playback-queue-index', 'playback.playQueueIndex', { index: 0 }],
     [
       'playback-replace',
       'playback.replaceQueue',
@@ -537,6 +882,58 @@ test('utility IPC dispatches typed playback controls without exposing stream int
     });
     assert.doesNotMatch(JSON.stringify(response), /upstreamUrl|gatewayToken|cookie|token/i);
   }
+});
+
+test('utility IPC exposes bounded interactive seek', async () => {
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, makeRuntime());
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'playback-seek',
+    command: 'playback.seek',
+    payload: { positionMs: 12_345 },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[1], {
+    version: IPC_VERSION,
+    id: 'playback-seek',
+    ok: true,
+    result: { positionMs: 12_345 },
+  });
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'playback-seek-invalid',
+    command: 'playback.seek',
+    payload: { positionMs: -1 },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[2], {
+    version: IPC_VERSION,
+    id: 'playback-seek-invalid',
+    ok: false,
+    error: { code: 'INVALID_IPC_REQUEST', message: 'Invalid IPC request' },
+  });
+});
+
+test('utility IPC exposes only the typed Roon transport stop control', async () => {
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, makeRuntime());
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'roon-transport-stop',
+    command: 'roon.transport.stop',
+    payload: {},
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages[1], {
+    version: IPC_VERSION,
+    id: 'roon-transport-stop',
+    ok: true,
+    result: { stopped: true },
+  });
 });
 
 test('utility QR commands keep the credential only in the Core-to-Main response', async () => {

@@ -98,6 +98,8 @@ test('remote Core mode is injected only through explicit bounded Main options', 
     BRIDGE_PUBLIC_STREAM_BASE_URL: 'http://127.0.0.1:38519',
     MUSIC_BRIDGE_REMOTE_CORE_MODE: 'remote-core-development',
     MUSIC_BRIDGE_REMOTE_STREAM_PORT: '38519',
+    ROON_CORE_HOST: '127.0.0.1',
+    ROON_CORE_PORT: '19330',
   })
 })
 
@@ -108,5 +110,33 @@ test('remote Core mode rejects a port outside the bounded reverse-forward range'
     coreCrashGate: false,
     remoteCoreMode: 'remote-core-development',
     remoteStreamPort: 38520,
+  }))
+})
+
+test('remote Core mode can use the explicitly selected secondary loopback port pair', () => {
+  const environment = buildCoreEnvironment({
+    MUSIC_BRIDGE_REMOTE_LOCAL_PORT_PROFILE: 'secondary',
+  }, {
+    startupTest: false,
+    uiE2e: false,
+    coreCrashGate: false,
+    remoteCoreMode: 'remote-core-development',
+    remoteStreamPort: 38519,
+  })
+
+  assert.equal(environment.BRIDGE_CONTROL_PORT, '38601')
+  assert.equal(environment.BRIDGE_STREAM_PORT, '38602')
+  assert.equal(environment.BRIDGE_PUBLIC_STREAM_BASE_URL, 'http://127.0.0.1:38519')
+})
+
+test('remote Core mode rejects an unknown local port profile', () => {
+  assert.throws(() => buildCoreEnvironment({
+    MUSIC_BRIDGE_REMOTE_LOCAL_PORT_PROFILE: 'unbounded',
+  }, {
+    startupTest: false,
+    uiE2e: false,
+    coreCrashGate: false,
+    remoteCoreMode: 'remote-core-development',
+    remoteStreamPort: 38519,
   }))
 })

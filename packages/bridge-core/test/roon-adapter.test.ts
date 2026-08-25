@@ -20,6 +20,7 @@ import type {
   RoonTransportService,
   RoonZoneChangeCallback,
 } from '../src/roon/sdk.js';
+import type { RoonBrowseApi, RoonImageApi } from '../src/roon/library.js';
 import { BridgeError } from '../src/shared/errors.js';
 import { createLogger, type Logger } from '../src/shared/logger.js';
 
@@ -113,24 +114,65 @@ class FakeAudioInput implements RoonAudioInputService {
 
 class FakeTransport implements RoonTransportService {
   private zoneCallback: RoonZoneChangeCallback | undefined;
-  readonly controlCalls: Array<{ zoneId: string; control: 'play' | 'pause' }> = [];
+  readonly seekCalls: Array<{ zone: string; how: 'absolute' | 'relative'; seconds: number }> = [];
+  readonly controlCalls: Array<
+    | { zone: string; control: 'play' | 'pause' | 'playpause' | 'stop' | 'previous' | 'next' }
+    | { zoneId: string; control: 'play' | 'pause' }
+  > = [];
   controlResult: false | string = false;
+  respondToSeek = true;
+  respondToControl = true;
 
   subscribe_zones(callback: RoonZoneChangeCallback): void {
     this.zoneCallback = callback;
   }
 
-  control(
-    zone: { zone_id: string },
-    control: 'play' | 'pause',
-    callback: (error: false | string) => void,
-  ): void {
-    this.controlCalls.push({ zoneId: zone.zone_id, control });
-    callback(this.controlResult);
+  seek(zone: string, how: 'absolute' | 'relative', seconds: number, callback: (error: string | false) => void): void {
+    this.seekCalls.push({ zone, how, seconds });
+    if (this.respondToSeek) callback(false);
   }
 
-  emit(response: string, message: { zones?: readonly unknown[]; zones_added?: readonly unknown[]; zones_changed?: readonly unknown[]; zones_removed?: readonly (string | { zone_id?: unknown })[] }): void {
+  control(
+    zone: string | { zone_id: string },
+    control: 'play' | 'pause' | 'playpause' | 'stop' | 'previous' | 'next',
+    callback: (error: string | false) => void,
+  ): void {
+    if (typeof zone === 'string') {
+      this.controlCalls.push({ zone, control });
+    } else {
+      this.controlCalls.push({ zoneId: zone.zone_id, control: control as 'play' | 'pause' });
+    }
+    if (this.respondToControl) callback(this.controlResult);
+  }
+
+  emit(response: string, message: { zones?: readonly unknown[]; zones_added?: readonly unknown[]; zones_changed?: readonly unknown[]; zones_removed?: readonly (string | { zone_id?: unknown })[]; zones_seek_changed?: readonly unknown[] }): void {
     this.zoneCallback?.(response, message);
+  }
+}
+
+class FakeBrowse implements RoonBrowseApi {
+  browse(
+    _options: Record<string, unknown>,
+    callback: (error: string | false, body: unknown) => void,
+  ): void {
+    callback(false, { list: { level: 1 } });
+  }
+
+  load(
+    _options: Record<string, unknown>,
+    callback: (error: string | false, body: unknown) => void,
+  ): void {
+    callback(false, { offset: 0, items: [] });
+  }
+}
+
+class FakeImage implements RoonImageApi {
+  get_image(
+    _imageKey: string,
+    _options: Record<string, unknown>,
+    callback: (error: string | false, contentType?: string, imageBody?: Buffer) => void,
+  ): void {
+    callback(false, 'image/jpeg', Buffer.from('fake-image'));
   }
 }
 
@@ -138,9 +180,13 @@ class FakeCore implements RoonCore {
   readonly display_name = 'Fake Core';
   readonly audioInput = new FakeAudioInput();
   readonly transport = new FakeTransport();
+  readonly browse = new FakeBrowse();
+  readonly image = new FakeImage();
   readonly services = {
     RoonApiAudioInput: this.audioInput,
     RoonApiTransport: this.transport,
+    RoonApiBrowse: this.browse,
+    RoonApiImage: this.image,
   };
 }
 
@@ -173,11 +219,13 @@ class FakeApi implements RoonApiInstance {
   readonly initServiceCalls: Array<{
     provided_services: readonly unknown[];
     required_services: readonly RoonRequiredServiceConstructor[];
+    optional_services: readonly RoonRequiredServiceConstructor[];
   }> = [];
   startDiscoveryCalls = 0;
   stopDiscoveryCalls = 0;
   disconnectAllCalls = 0;
   saveConfigCalls = 0;
+  readonly wsConnectCalls: Array<{ host: string; port: number }> = [];
 
   constructor(
     readonly options: RoonApiOptions,
@@ -196,15 +244,22 @@ class FakeApi implements RoonApiInstance {
   init_services(options: {
     provided_services?: readonly unknown[];
     required_services?: readonly RoonRequiredServiceConstructor[];
+    optional_services?: readonly RoonRequiredServiceConstructor[];
   }): void {
     this.initServiceCalls.push({
       provided_services: options.provided_services ?? [],
       required_services: options.required_services ?? [],
+      optional_services: options.optional_services ?? [],
     });
   }
 
   start_discovery(): void {
     this.startDiscoveryCalls += 1;
+  }
+
+  ws_connect(options: { host: string; port: number }): unknown {
+    this.wsConnectCalls.push({ host: options.host, port: options.port });
+    return undefined;
   }
 
   stop_discovery(): void {
@@ -232,6 +287,8 @@ class FakeSdk implements RoonSdk {
 
   readonly audioInputService = class FakeAudioInputService {};
   readonly transportService = class FakeTransportService {};
+  readonly browseService = class FakeBrowseService {};
+  readonly imageService = class FakeImageService {};
 
   createApi(options: RoonApiOptions): RoonApiInstance {
     const api = new FakeApi(options, this.config);
@@ -253,15 +310,19 @@ class FakeSdk implements RoonSdk {
     this.status.push(service);
     return service;
   }
+
 }
 
 interface AdapterTestOptions {
   sessionBeginTimeoutMs?: number;
   playingTimeoutMs?: number;
+  transportTimeoutMs?: number;
   trackIdFactory?: () => string;
   playbackMode?: 'channel' | 'track';
   mode?: 'local-core' | 'remote-core-development';
   iconPort?: number;
+  coreHost?: string;
+  corePort?: number;
   onTimeShape?: (summary: import('../src/roon/adapter.js').RoonTimeShapeSummary) => void;
 }
 
@@ -325,6 +386,22 @@ test('Roon extension metadata identifies the beta candidate without the POC suff
   await adapter.stop();
 });
 
+test('paired core exposes the Roon library service while registering Browse/Image as optional capabilities', async () => {
+  const { adapter, sdk } = await makeReadyHarness();
+
+  assert.ok(adapter.getLibraryService());
+  assert.deepEqual(sdk.apis[0]?.initServiceCalls[0]?.required_services, [
+    sdk.audioInputService,
+    sdk.transportService,
+  ]);
+  assert.deepEqual(sdk.apis[0]?.initServiceCalls[0]?.optional_services, [
+    sdk.browseService,
+    sdk.imageService,
+  ]);
+
+  await adapter.shutdown();
+});
+
 test('remote development uses an isolated Roon extension identity, settings key, and icon port', async () => {
   const { adapter, sdk } = makeHarness({
     mode: 'remote-core-development',
@@ -352,6 +429,20 @@ test('remote development uses an isolated Roon extension identity, settings key,
   await adapter.stop();
 });
 
+test('remote development connects through the bounded Core websocket instead of UDP discovery', async () => {
+  const { adapter, sdk } = makeHarness({
+    mode: 'remote-core-development',
+    coreHost: '127.0.0.1',
+    corePort: 19330,
+  });
+
+  await adapter.start();
+
+  assert.deepEqual(sdk.apis[0]?.wsConnectCalls, [{ host: '127.0.0.1', port: 19330 }]);
+  assert.equal(sdk.apis[0]?.startDiscoveryCalls, 0);
+  await adapter.stop();
+});
+
 async function makeReadyHarness(
   options: AdapterTestOptions = {},
   logger: Logger = silentLogger,
@@ -372,6 +463,11 @@ async function makeReadyHarness(
         zone_id: 'zone-1',
         display_name: 'Fake Zone',
         outputs: [{ output_id: 'output-1' }],
+        is_seek_allowed: true,
+        is_pause_allowed: true,
+        is_play_allowed: true,
+        is_previous_allowed: true,
+        is_next_allowed: true,
       },
     ],
   });
@@ -509,6 +605,80 @@ test('saved output and subscribed zones produce a ready selected Zone', async ()
     selectedZoneId: 'zone-1',
     selectedZoneName: 'Fake Zone',
   });
+});
+
+test('Roon Transport seek/control use only the selected zone and official allowlisted calls', async () => {
+  const { adapter, api } = await makeReadyHarness();
+
+  await adapter.seek(2_500);
+  await adapter.control('pause');
+
+  assert.deepEqual(api.core.transport.seekCalls, [
+    { zone: 'zone-1', how: 'absolute', seconds: 2.5 },
+  ]);
+  assert.deepEqual(api.core.transport.controlCalls, [
+    { zone: 'zone-1', control: 'pause' },
+  ]);
+  await adapter.shutdown();
+});
+
+test('Roon Transport fails closed when a zone does not advertise seek capability', async () => {
+  const { adapter, api } = await makeReadyHarness();
+  api.core.transport.emit('Changed', {
+    zones_changed: [{
+      zone_id: 'zone-1',
+      display_name: 'Fake Zone',
+      outputs: [{ output_id: 'output-1' }],
+      is_seek_allowed: false,
+      is_pause_allowed: false,
+      is_play_allowed: true,
+      is_previous_allowed: false,
+      is_next_allowed: false,
+    }],
+  });
+
+  await assert.rejects(() => adapter.seek(2_500), (error: unknown) => (
+    error instanceof BridgeError && error.code === 'ROON_TRANSPORT_UNAVAILABLE'
+  ));
+  assert.deepEqual(api.core.transport.seekCalls, []);
+  await adapter.shutdown();
+});
+
+test('Roon Transport seek and Audio Input pause time out when Core never calls back', async () => {
+  const { adapter, api } = await makeReadyHarness({
+    playbackMode: 'track',
+    transportTimeoutMs: 1,
+  });
+  api.core.transport.respondToSeek = false;
+
+  const seekResult = await Promise.race([
+    adapter.seek(2_500).then(
+      () => 'resolved' as const,
+      (error: unknown) => error,
+    ),
+    new Promise<'pending'>((resolve) => setTimeout(() => resolve('pending'), 20)),
+  ]);
+  assert.notEqual(seekResult, 'pending');
+  assert.ok(seekResult instanceof BridgeError);
+  assert.equal(seekResult.code, 'ROON_TIMEOUT');
+
+  const playback = adapter.play(playRequest);
+  await nextTurn();
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'opaque-session' });
+  await playback;
+  api.core.transport.respondToControl = false;
+  const pauseResult = await Promise.race([
+    adapter.pause().then(
+      () => 'resolved' as const,
+      (error: unknown) => error,
+    ),
+    new Promise<'pending'>((resolve) => setTimeout(() => resolve('pending'), 20)),
+  ]);
+  assert.notEqual(pauseResult, 'pending');
+  assert.ok(pauseResult instanceof BridgeError);
+  assert.equal(pauseResult.code, 'ROON_TIMEOUT');
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+  await adapter.shutdown();
 });
 
 test('saving Settings output persists it through the Roon config API', async () => {
@@ -714,11 +884,12 @@ test('channel play payload has one stable non-sensitive track identity', async (
   assert.notEqual(payload.track_id, new URL(playRequest.mediaUrl).pathname.split('/').at(-1));
   assert.equal(payload.type, 'channel');
   assert.equal(payload.seek_position_ms, undefined);
+  assert.equal(payload.info.is_seek_allowed, false);
   assert.equal(payload.info.length, undefined);
   assert.equal(api.core.audioInput.playOptions[0]?.track_id, payload.track_id);
 });
 
-test('track play payload uses an explicit start position and metadata duration', async () => {
+test('V1 Provider track payload keeps seek disabled while retaining start position and duration', async () => {
   const { adapter, api } = await makeReadyHarness({ playbackMode: 'track' });
   const playback = adapter.play({
     ...playRequest,
@@ -733,6 +904,7 @@ test('track play payload uses an explicit start position and metadata duration',
   assert.equal(payload.type, 'track');
   assert.equal(payload.seek_position_ms, 0);
   assert.equal(payload.info.length, 120);
+  assert.equal(payload.info.is_seek_allowed, false);
   assert.equal(payload.info.is_pause_allowed, true);
   assert.equal(payload.track_id.startsWith('musicbridge-'), true);
 });
@@ -788,6 +960,17 @@ test('pause fails closed when the selected Zone does not advertise the capabilit
   await nextTurn();
   api.core.audioInput.emitSession('SessionBegan', { session_id: 'opaque-session' });
   await playback;
+
+  api.core.transport.emit('Changed', {
+    zones_changed: [{
+      zone_id: 'zone-1',
+      display_name: 'Fake Zone',
+      state: 'playing',
+      is_pause_allowed: false,
+      is_play_allowed: true,
+      outputs: [{ output_id: 'output-1' }],
+    }],
+  });
 
   await assert.rejects(
     () => adapter.pause(),

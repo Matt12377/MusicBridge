@@ -350,6 +350,40 @@ export function orderTrackSummariesByIds(
     .filter((track): track is TrackSummary => track !== undefined);
 }
 
+export function parseTrackLikeState(response: unknown): { liked: boolean } {
+  const body = bodyOf(response);
+  responseBodyCode(body, 'track like status');
+  const candidates = [body.liked, body.like, body.checkPoint, body.data, body.result];
+  for (const value of candidates) {
+    if (typeof value === 'boolean') return { liked: value };
+    if (isRecord(value)) {
+      for (const key of ['liked', 'like', 'checkPoint', 'isLiked']) {
+        if (typeof value[key] === 'boolean') return { liked: value[key] };
+      }
+    }
+  }
+  throw new BridgeError(
+    'NETEASE_REQUEST_FAILED',
+    'NetEase track like status response is missing state',
+    { httpStatus: 502 },
+  );
+}
+
+export function assertTrackLikeMutationSucceeded(response: unknown): void {
+  const body = bodyOf(response);
+  const data = isRecord(body.data) ? body.data : undefined;
+  const result = isRecord(body.result) ? body.result : undefined;
+  const code = numeric(body.code) ?? numeric(data?.code) ?? numeric(result?.code);
+  responseBodyCode(body, 'track like');
+  if (code !== 200) {
+    throw new BridgeError(
+      'NETEASE_REQUEST_FAILED',
+      'NetEase track like response is missing success status',
+      { httpStatus: 502 },
+    );
+  }
+}
+
 function playlistSummaryFromRecord(value: unknown): PlaylistSummary | undefined {
   if (!isRecord(value)) return undefined;
   const id = safeId(value.id);

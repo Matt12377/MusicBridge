@@ -78,6 +78,19 @@ function failureForError(id: string, error: unknown): IpcFailure {
   if (bridgeError.code === 'ROON_NOT_PAIRED' || bridgeError.code === 'ROON_ZONE_NOT_SELECTED') {
     return responseFailure(id, 'NOT_READY', 'Core is not ready for this request');
   }
+  if (bridgeError.code === 'ROON_TRANSPORT_UNAVAILABLE') {
+    return responseFailure(id, 'NOT_READY', 'Roon Transport is not ready for this request');
+  }
+  if (bridgeError.code === 'ROON_LIBRARY_UNAVAILABLE' || bridgeError.code === 'ROON_LIBRARY_REQUEST_FAILED') {
+    return responseFailure(id, 'NOT_READY', 'Roon Library is not ready');
+  }
+  if (
+    bridgeError.code === 'ROON_LIBRARY_INVALID_REFERENCE' ||
+    bridgeError.code === 'ROON_ACTION_BLOCKED' ||
+    bridgeError.code === 'BAD_REQUEST'
+  ) {
+    return responseFailure(id, 'INVALID_IPC_REQUEST', 'Invalid Roon Library request');
+  }
   return responseFailure(id, 'INTERNAL_ERROR', 'Core request failed');
 }
 
@@ -158,9 +171,27 @@ async function dispatch(
         (request.payload as { albumId: string }).albumId,
         (request.payload as { page: { offset: number; limit: number } }).page,
       );
+    case 'library.aggregateSearch':
+      return runtime.aggregateSearch(
+        (request.payload as { query: string }).query,
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
     case 'library.liked':
       return runtime.getLikedTracks(
         (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'library.likeStatus':
+      return runtime.getTrackLikeStatus(
+        (request.payload as { trackId: string }).trackId,
+      );
+    case 'library.like':
+      return runtime.likeTrack(
+        (request.payload as { trackId: string }).trackId,
+        (request.payload as { liked: boolean }).liked,
+      );
+    case 'library.match':
+      return runtime.matchLibraryTrack(
+        (request.payload as { track: Parameters<CoreRuntimeForIpc['matchLibraryTrack']>[0] }).track,
       );
     case 'library.playlists':
       return runtime.getUserPlaylists();
@@ -171,12 +202,74 @@ async function dispatch(
       );
     case 'library.dailyRecommendations':
       return runtime.getDailyRecommendations();
+    case 'favorites.list':
+      return runtime.listFavorites(
+        (request.payload as { kind?: Parameters<CoreRuntimeForIpc['listFavorites']>[0] }).kind,
+        (request.payload as { page: Parameters<CoreRuntimeForIpc['listFavorites']>[1] }).page,
+      );
+    case 'favorites.check':
+      return runtime.checkFavorite(
+        (request.payload as { descriptor: Parameters<CoreRuntimeForIpc['checkFavorite']>[0] }).descriptor,
+      );
+    case 'favorites.set':
+      return runtime.setFavorite(
+        (request.payload as { descriptor: Parameters<CoreRuntimeForIpc['setFavorite']>[0] }).descriptor,
+        (request.payload as { favorite: boolean }).favorite,
+      );
     case 'lyrics.get':
       return runtime.getLyrics((request.payload as { trackId: string }).trackId);
     case 'roon.listZones':
       return { zones: runtime.listZones() };
     case 'roon.selectZone':
       return runtime.selectZone((request.payload as { zoneId: string }).zoneId);
+    case 'roon.library.albums':
+      return runtime.browseRoonAlbums(
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'roon.library.artists':
+      return runtime.browseRoonArtists(
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'roon.library.genres':
+      return runtime.browseRoonGenres(
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'roon.library.playlists':
+      return runtime.browseRoonPlaylists(
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'roon.library.album':
+      return runtime.browseRoonAlbum(
+        (request.payload as { reference: string }).reference,
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'roon.library.artist':
+      return runtime.browseRoonArtist(
+        (request.payload as { reference: string }).reference,
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'roon.library.search':
+      return runtime.searchRoonLibrary(
+        (request.payload as { query: string }).query,
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'roon.library.image':
+      return runtime.getRoonImage(
+        (request.payload as { reference: string }).reference,
+        (request.payload as { options?: Parameters<CoreRuntimeForIpc['getRoonImage']>[1] }).options,
+      );
+    case 'roon.library.play':
+      return runtime.playRoonTrack(
+        (request.payload as { reference: string }).reference,
+        (request.payload as { zoneId: string }).zoneId,
+      );
+    case 'roon.library.queue':
+      return runtime.queueRoonTrack(
+        (request.payload as { reference: string }).reference,
+        (request.payload as { zoneId: string }).zoneId,
+      );
+    case 'roon.transport.stop':
+      return runtime.stopRoonTransport();
     case 'playback.getState':
       return runtime.getPlaybackState();
     case 'playback.play':
@@ -188,12 +281,20 @@ async function dispatch(
       return runtime.playbackPause();
     case 'playback.resume':
       return runtime.playbackResume();
+    case 'playback.seek':
+      return runtime.seekPlayback(
+        (request.payload as { positionMs: number }).positionMs,
+      );
     case 'playback.stop':
       return runtime.playbackStop();
     case 'playback.next':
       return runtime.playbackNext();
     case 'playback.previous':
       return runtime.playbackPrevious();
+    case 'playback.playQueueIndex':
+      return runtime.playbackPlayQueueIndex(
+        (request.payload as { index: number }).index,
+      );
     case 'playback.replaceQueue':
       return runtime.replacePlaybackQueue(
         (request.payload as { items: Parameters<CoreRuntimeForIpc['replacePlaybackQueue']>[0] }).items,

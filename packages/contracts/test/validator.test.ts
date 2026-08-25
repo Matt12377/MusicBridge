@@ -348,9 +348,52 @@ test('contracts validates bounded library commands and sanitized paged results',
   assert.equal(
     validateIpcRequest({
       version: IPC_VERSION,
+      id: 'library-aggregate-search',
+      command: 'library.aggregateSearch',
+      payload: { query: 'synthetic', page: { offset: 0, limit: 20 } },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
       id: 'library-liked',
       command: 'library.liked',
       payload: { page: { offset: 20, limit: 20 } },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'library-like-status',
+      command: 'library.likeStatus',
+      payload: { trackId: '101' },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'library-like',
+      command: 'library.like',
+      payload: { trackId: '101', liked: true },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'library-match',
+      command: 'library.match',
+      payload: {
+        track: {
+          id: '101',
+          title: 'Synthetic Song',
+          artists: ['Synthetic Artist'],
+          album: 'Synthetic Album',
+        },
+      },
     }).ok,
     true,
   );
@@ -369,6 +412,24 @@ test('contracts validates bounded library commands and sanitized paged results',
       id: 'library-playlist',
       command: 'library.playlist',
       payload: { playlistId: '301', page: { offset: 0, limit: 20 } },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'playback-seek',
+      command: 'playback.seek',
+      payload: { positionMs: 12_345 },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'roon-transport-stop',
+      command: 'roon.transport.stop',
+      payload: {},
     }).ok,
     true,
   );
@@ -414,6 +475,48 @@ test('contracts validates bounded library commands and sanitized paged results',
   }, 'library.artist');
   assert.equal(artistDetail.ok, true);
 
+  assert.equal(
+    validateIpcResponseForCommand({
+      version: IPC_VERSION,
+      id: 'playback-seek',
+      ok: true,
+      result: { positionMs: 12_345 },
+    }, 'playback.seek').ok,
+    true,
+  );
+
+  assert.equal(
+    validateIpcResponseForCommand({
+      version: IPC_VERSION,
+      id: 'library-aggregate-search',
+      ok: true,
+      result: {
+        query: 'synthetic',
+        netease: page,
+        roon: { items: [], offset: 0, limit: 20, hasMore: false },
+        roonAvailable: false,
+      },
+    }, 'library.aggregateSearch').ok,
+    true,
+  );
+
+  assert.equal(
+    validateIpcResponseForCommand({
+      version: IPC_VERSION,
+      id: 'library-match',
+      ok: true,
+      result: {
+        trackId: '101',
+        state: 'NONE',
+        confidence: 0,
+        evidence: ['roon-library-unavailable'],
+        candidates: [],
+        algorithmVersion: 'v2-deterministic-1',
+      },
+    }, 'library.match').ok,
+    true,
+  );
+
   const unsafeResponse = validateIpcResponseForCommand(
     {
       version: IPC_VERSION,
@@ -458,13 +561,233 @@ test('contracts preserves the public AUTH_REQUIRED error without internal detail
   assert.equal(result.ok, true);
 });
 
+test('contracts keeps Roon zone seek capability public and bounded', () => {
+  const result = validateIpcResponseForCommand({
+    version: IPC_VERSION,
+    id: 'roon-zones',
+    ok: true,
+    result: {
+      zones: [{ zoneId: 'zone-1', displayName: 'Zone', selected: true, seekAllowed: true }],
+    },
+  }, 'roon.listZones');
+
+  assert.equal(result.ok, true);
+});
+
+test('contracts validates the opaque Roon Library browse and image seams', () => {
+  const albumPage = {
+    items: [{
+      reference: 'musicbridge-v2-entity-123e4567-e89b-12d3-a456-426614174000',
+      kind: 'album',
+      title: 'Private Album',
+      durationMs: 123_000,
+      artworkReference: 'musicbridge-v2-image-123e4567-e89b-12d3-a456-426614174001',
+    }],
+    offset: 0,
+    limit: 20,
+    total: 1,
+    hasMore: false,
+  };
+  const albumItem = albumPage.items[0];
+  assert.ok(albumItem);
+  assert.ok(albumItem.artworkReference);
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'roon-albums',
+      command: 'roon.library.albums',
+      payload: { page: { offset: 0, limit: 20 } },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'roon-album',
+      command: 'roon.library.album',
+      payload: {
+        reference: albumItem.reference,
+        page: { offset: 0, limit: 20 },
+      },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'roon-image',
+      command: 'roon.library.image',
+      payload: {
+        reference: albumItem.artworkReference,
+        options: { width: 256, height: 256, scale: 'fit', format: 'image/jpeg' },
+      },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcResponseForCommand({
+      version: IPC_VERSION,
+      id: 'roon-albums',
+      ok: true,
+      result: albumPage,
+    }, 'roon.library.albums').ok,
+    true,
+  );
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'roon-play',
+      command: 'roon.library.play',
+      payload: {
+        reference: albumItem.reference,
+        zoneId: 'zone-1',
+      },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validateIpcResponseForCommand({
+      version: IPC_VERSION,
+      id: 'roon-play',
+      ok: true,
+      result: { started: true },
+    }, 'roon.library.play').ok,
+    true,
+  );
+  assert.equal(
+    validateIpcResponseForCommand({
+      version: IPC_VERSION,
+      id: 'roon-queue',
+      ok: true,
+      result: { queued: true, rawAction: 'Delete from Library' },
+    }, 'roon.library.queue').ok,
+    false,
+  );
+  assert.equal(
+    validateIpcResponseForCommand({
+      version: IPC_VERSION,
+      id: 'roon-image',
+      ok: true,
+      result: { contentType: 'image/jpeg', body: new Uint8Array([1, 2, 3]) },
+    }, 'roon.library.image').ok,
+    true,
+  );
+  for (const [id, command, payload] of [
+    ['roon-artists', 'roon.library.artists', { page: { offset: 0, limit: 20 } }],
+    ['roon-genres', 'roon.library.genres', { page: { offset: 0, limit: 20 } }],
+    ['roon-playlists', 'roon.library.playlists', { page: { offset: 0, limit: 20 } }],
+    ['roon-artist', 'roon.library.artist', {
+      reference: albumItem.reference,
+      page: { offset: 0, limit: 20 },
+    }],
+    ['roon-search', 'roon.library.search', {
+      query: 'Artist',
+      page: { offset: 0, limit: 20 },
+    }],
+  ] as const) {
+    assert.equal(
+      validateIpcRequest({ version: IPC_VERSION, id, command, payload }).ok,
+      true,
+    );
+    assert.equal(
+      validateIpcResponseForCommand({
+        version: IPC_VERSION,
+        id,
+        ok: true,
+        result: albumPage,
+      }, command).ok,
+      true,
+    );
+  }
+  assert.equal(
+    validateIpcRequest({
+      version: IPC_VERSION,
+      id: 'roon-delete-shaped',
+      command: 'roon.library.album',
+      payload: { reference: 'album:delete', page: { offset: 0, limit: 20 } },
+    }).ok,
+    false,
+  );
+});
+
+test('contracts validates local favorite relationships without media or provider fields', () => {
+  const descriptor = {
+    kind: 'track',
+    title: 'Track',
+    artist: 'Artist',
+    album: 'Album',
+    durationMs: 180_000,
+  };
+  const record = {
+    ...descriptor,
+    favoriteId: '123e4567-e89b-12d3-a456-426614174000',
+    createdAt: 1_000,
+    updatedAt: 2_000,
+  };
+  const page = {
+    items: [record],
+    offset: 0,
+    limit: 20,
+    total: 1,
+    hasMore: false,
+  };
+
+  assert.equal(validateIpcRequest({
+    version: IPC_VERSION,
+    id: 'favorites-list',
+    command: 'favorites.list',
+    payload: { kind: 'track', page: { offset: 0, limit: 20 } },
+  }).ok, true);
+  assert.equal(validateIpcRequest({
+    version: IPC_VERSION,
+    id: 'favorites-check',
+    command: 'favorites.check',
+    payload: { descriptor },
+  }).ok, true);
+  assert.equal(validateIpcRequest({
+    version: IPC_VERSION,
+    id: 'favorites-set',
+    command: 'favorites.set',
+    payload: { descriptor, favorite: true },
+  }).ok, true);
+  assert.equal(validateIpcResponseForCommand({
+    version: IPC_VERSION,
+    id: 'favorites-list',
+    ok: true,
+    result: page,
+  }, 'favorites.list').ok, true);
+  assert.equal(validateIpcResponseForCommand({
+    version: IPC_VERSION,
+    id: 'favorites-check',
+    ok: true,
+    result: { favorite: true },
+  }, 'favorites.check').ok, true);
+  assert.equal(validateIpcResponseForCommand({
+    version: IPC_VERSION,
+    id: 'favorites-set',
+    ok: true,
+    result: { favorite: true, item: record },
+  }, 'favorites.set').ok, true);
+  assert.equal(validateIpcRequest({
+    version: IPC_VERSION,
+    id: 'favorites-path',
+    command: 'favorites.set',
+    payload: { descriptor: { ...descriptor, mediaPath: '/Users/music/song.flac' }, favorite: true },
+  }).ok, false);
+});
+
 test('contracts validates bounded playback controls and sanitized snapshots', () => {
   const snapshot = {
     state: 'playing',
     queue: {
       items: [
-        { trackId: '101', qualityPreference: 'lossless' },
-        { trackId: '102', qualityPreference: 'standard' },
+        {
+          trackId: '101',
+          qualityPreference: 'lossless',
+          preferredSource: 'roon',
+          resolvedSource: 'roon',
+        },
+        { trackId: '102', qualityPreference: 'standard', preferredSource: 'netease' },
       ],
       index: 0,
       hasNext: true,
@@ -476,6 +799,7 @@ test('contracts validates bounded playback controls and sanitized snapshots', ()
       artists: ['Synthetic Artist'],
       album: 'Synthetic Album',
     },
+    source: 'roon',
     requestedQuality: 'lossless',
     actualQuality: 'lossless',
     qualityPreference: 'lossless',
@@ -512,10 +836,14 @@ test('contracts validates bounded playback controls and sanitized snapshots', ()
     ['playback-stop', 'playback.stop', {}],
     ['playback-next', 'playback.next', {}],
     ['playback-previous', 'playback.previous', {}],
+    ['playback-queue-index', 'playback.playQueueIndex', { index: 0 }],
     [
       'playback-replace',
       'playback.replaceQueue',
-      { items: [{ trackId: '101', qualityPreference: 'lossless' }], index: 0 },
+      {
+        items: [{ trackId: '101', qualityPreference: 'lossless', preferredSource: 'smart' }],
+        index: 0,
+      },
     ],
     ['playback-append', 'playback.appendQueue', { items: [{ trackId: '102', qualityPreference: 'standard' }] }],
     ['playback-insert-next', 'playback.insertNext', { items: [{ trackId: '103', qualityPreference: 'standard' }] }],
@@ -574,6 +902,24 @@ test('contracts validates bounded playback controls and sanitized snapshots', ()
         index: 0,
       },
     }).ok,
+    false,
+  );
+  assert.equal(
+    validateIpcResponseForCommand(
+      {
+        version: IPC_VERSION,
+        id: 'playback-roon-reference-leak',
+        ok: true,
+        result: {
+          ...snapshot,
+          queue: {
+            ...snapshot.queue,
+            items: [{ ...snapshot.queue.items[0], roonReference: 'musicbridge-v2-entity-secret' }],
+          },
+        },
+      },
+      'playback.getState',
+    ).ok,
     false,
   );
   assert.equal(
