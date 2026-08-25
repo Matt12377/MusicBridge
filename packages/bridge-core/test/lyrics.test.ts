@@ -302,6 +302,59 @@ test('lyrics coordinator stops estimated updates while paused and resumes from t
   assert.equal(changes.at(-1)?.activeLineIndex, 1)
 })
 
+test('lyrics coordinator freezes estimated time throughout pausing and resuming', () => {
+  const changes: LyricsSnapshot[] = []
+  let now = 0
+  let tick: (() => void) | undefined
+  let cancellations = 0
+  const coordinator = new LyricsCoordinator({
+    now: () => now,
+    load: async () => readySnapshot('unused'),
+    onChange: (snapshot) => changes.push(snapshot),
+    scheduleEstimatedUpdates: (callback) => {
+      tick = callback
+      return () => {
+        cancellations += 1
+        tick = undefined
+      }
+    },
+  })
+
+  coordinator.setActiveLyrics('101', {
+    status: 'ready',
+    lines: [
+      { startMs: 0, endMs: 1_000, text: 'one' },
+      { startMs: 1_000, text: 'two' },
+    ],
+    activeLineIndex: -1,
+    timingSource: 'static',
+  })
+  coordinator.onPlaybackChanged({ ...playing('101'), positionMs: 800 })
+  now = 300
+  coordinator.onPlaybackChanged({
+    ...playing('101'),
+    state: 'pausing' as PlaybackSnapshot['state'],
+    positionMs: 800,
+    canPause: false,
+    canResume: false,
+  })
+  const heldLine = changes.at(-1)?.activeLineIndex
+  tick?.()
+  assert.equal(changes.at(-1)?.activeLineIndex, heldLine)
+
+  coordinator.onPlaybackChanged({
+    ...playing('101'),
+    state: 'resuming' as PlaybackSnapshot['state'],
+    positionMs: 800,
+    canPause: false,
+    canResume: false,
+  })
+  now = 800
+  tick?.()
+  assert.equal(changes.at(-1)?.activeLineIndex, heldLine)
+  assert.equal(cancellations > 0, true)
+})
+
 test('lyrics coordinator keeps estimating between sparse Roon time callbacks', () => {
   const changes: LyricsSnapshot[] = []
   let now = 0

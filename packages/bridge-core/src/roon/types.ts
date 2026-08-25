@@ -44,9 +44,47 @@ export type RoonTerminalReason =
 
 export type RoonNativePlaybackState = 'playing' | 'paused' | 'loading' | 'stopped';
 
+export interface RoonNowPlayingIdentity {
+  title?: string;
+  artist?: string;
+  album?: string;
+  durationMs?: number;
+}
+
+export interface RoonPlaybackObservation {
+  revision: number;
+  zoneId: string;
+  state?: RoonNativePlaybackState;
+  positionMs?: number;
+  nowPlaying?: RoonNowPlayingIdentity;
+}
+
+export interface RoonPlaybackConfirmationRequest {
+  zoneId: string;
+  state: 'playing' | 'paused' | 'stopped' | 'inactive';
+  afterRevision: number;
+  track?: {
+    title: string;
+    artists: readonly string[];
+    album: string;
+    durationMs?: number;
+  };
+  requirePosition?: boolean;
+  positionMs?: number;
+}
+
+export interface RoonTimeEvent {
+  positionMs: number;
+  source: 'audio-input' | 'zone';
+  zoneId: string;
+  revision: number;
+  playbackEpoch?: number;
+  nowPlaying?: RoonNowPlayingIdentity;
+}
+
 export interface RoonPort {
   setTerminalHandler(handler: (reason: RoonTerminalReason) => void): void;
-  setTimeHandler?(handler: (positionMs: number) => void): void;
+  setTimeHandler?(handler: (event: RoonTimeEvent) => void): void;
   start(): Promise<void>;
   stop(): Promise<void>;
   shutdown(): Promise<void>;
@@ -56,6 +94,11 @@ export interface RoonPort {
   seek?(positionMs: number): Promise<void>;
   control?(control: 'play' | 'pause' | 'playpause' | 'stop' | 'previous' | 'next'): Promise<void>;
   getSelectedZonePlaybackState?(): RoonNativePlaybackState | undefined;
+  getSelectedZonePlaybackObservation?(): RoonPlaybackObservation | undefined;
+  waitForSelectedZonePlayback?(
+    request: RoonPlaybackConfirmationRequest,
+  ): Promise<RoonPlaybackObservation>;
+  getActivePlaybackEpoch?(): number | undefined;
   getState(): RoonState;
   getDiagnosticResourceCounters?(): {
     activeSessionCount: number;

@@ -33,9 +33,11 @@ import type {
 import type {
   RoonGatewayStage,
   RoonNativePlaybackState,
+  RoonPlaybackObservation,
   RoonPort,
   RoonState,
   RoonTerminalReason,
+  RoonTimeEvent,
 } from '../roon/types.js';
 import type { StreamGateway } from '../stream/gateway.js';
 import type { StreamRegistry, StreamResolveRequest } from '../stream/registry.js';
@@ -83,7 +85,7 @@ export interface SmartRoonResolution {
   zoneId: string;
 }
 interface NativeRoonPlaybackPort {
-  play(reference: string, zoneId: string): Promise<void>;
+  play(reference: string, zoneId: string, track: TrackSummary): Promise<RoonPlaybackObservation>;
   stop(): Promise<void>;
   pause(): Promise<void>;
   resume(): Promise<void>;
@@ -151,6 +153,27 @@ function cloneTrackSummary(track: TrackSummary): TrackSummary {
     ...(track.artworkUrl ? { artworkUrl: track.artworkUrl } : {}),
     ...(track.artworkReference ? { artworkReference: track.artworkReference } : {}),
   };
+}
+
+function normalizedPlaybackIdentity(value: string): string {
+  return value
+    .normalize('NFKC')
+    .trim()
+    .replace(/\s+/gu, ' ')
+    .toLocaleLowerCase('en-US')
+    .replace(/^\d{1,3}\s*(?:[.．、:：)]|[-–—])\s+/u, '');
+}
+
+function timeEventMatchesTrack(event: RoonTimeEvent, track: TrackSummary): boolean {
+  const nowPlaying = event.nowPlaying;
+  if (!nowPlaying?.title) return false;
+  if (normalizedPlaybackIdentity(nowPlaying.title) !== normalizedPlaybackIdentity(track.title)) {
+    return false;
+  }
+  if (nowPlaying.durationMs !== undefined && track.durationMs !== undefined) {
+    return Math.abs(nowPlaying.durationMs - track.durationMs) <= 2_000;
+  }
+  return true;
 }
 
 function isSkippableQueueError(error: unknown): boolean {
@@ -263,6 +286,14 @@ export class BridgeController {
   private qualityNotice: PlaybackIssue | undefined;
   private positionMs = 0;
   private playbackGeneration = 0;
+  private positionContext: {
+    generation: number;
+    trackId: string;
+    zoneId: string;
+    source: PlaybackResolvedSource;
+    playbackEpoch?: number;
+    minimumRevision?: number;
+  } | undefined;
   private lastPositionPublishedAt = Number.NEGATIVE_INFINITY;
   private pendingTerminalReason: RoonTerminalReason | undefined;
   private nativeRoonStopRequested = false;
@@ -650,11 +681,25 @@ export class BridgeController {
           details: { reason: 'pause_unsupported', ownerDecision: 'OWNER_DECISION_REQUIRED' },
         });
       }
-      if (this.activeRoonPlayback) await this.dependencies.roonLibrary?.pause();
-      else await this.dependencies.roon.pause();
-      this.playbackState = 'paused';
+      this.playbackState = 'pausing';
       this.notifyPlaybackChanged();
-      return this.getState();
+      try {
+        if (this.activeRoonPlayback) await this.dependencies.roonLibrary?.pause();
+        else await this.dependencies.roon.pause();
+        const changed = this.getPlaybackState().state !== 'paused'
+          || this.lastPlaybackError !== undefined
+          || this.lastPlaybackIssue !== undefined;
+        this.playbackState = 'paused';
+        this.lastPlaybackError = undefined;
+        this.lastPlaybackIssue = undefined;
+        if (changed) this.notifyPlaybackChanged();
+        return this.getState();
+      } catch (error) {
+        this.playbackState = this.observedTransportPlaybackState('playing');
+        this.setPlaybackError(error);
+        this.notifyPlaybackChanged();
+        throw error;
+      }
     });
   }
 
@@ -682,11 +727,25 @@ export class BridgeController {
           details: { reason: 'resume_unsupported', ownerDecision: 'OWNER_DECISION_REQUIRED' },
         });
       }
-      if (this.activeRoonPlayback) await this.dependencies.roonLibrary?.resume();
-      else await this.dependencies.roon.resume();
-      this.playbackState = 'playing';
+      this.playbackState = 'resuming';
       this.notifyPlaybackChanged();
-      return this.getState();
+      try {
+        if (this.activeRoonPlayback) await this.dependencies.roonLibrary?.resume();
+        else await this.dependencies.roon.resume();
+        const changed = this.getPlaybackState().state !== 'playing'
+          || this.lastPlaybackError !== undefined
+          || this.lastPlaybackIssue !== undefined;
+        this.playbackState = 'playing';
+        this.lastPlaybackError = undefined;
+        this.lastPlaybackIssue = undefined;
+        if (changed) this.notifyPlaybackChanged();
+        return this.getState();
+      } catch (error) {
+        this.playbackState = this.observedTransportPlaybackState('paused');
+        this.setPlaybackError(error);
+        this.notifyPlaybackChanged();
+        throw error;
+      }
     });
   }
 
@@ -708,9 +767,6 @@ export class BridgeController {
         );
       }
       await roonLibrary.seek(positionMs);
-      this.positionMs = positionMs;
-      this.lastPositionPublishedAt = this.now();
-      this.notifyPlaybackChanged();
       return this.getState();
     });
   }
@@ -718,12 +774,17 @@ export class BridgeController {
   syncRoonTransportState(): void {
     if (!this.activePlayback && !this.activeRoonPlayback) return;
     const transportState = this.dependencies.roon.getState().transportState;
-    if (transportState === 'paused' && this.playbackState === 'playing') {
+    if (
+      transportState === 'paused'
+      && (this.playbackState === 'playing'
+        || this.playbackState === 'pausing'
+        || this.playbackState === 'resuming')
+    ) {
       this.playbackState = 'paused';
       this.notifyPlaybackChanged();
     } else if (
-      (transportState === 'playing' || transportState === 'loading') &&
-      this.playbackState === 'paused'
+      transportState === 'playing'
+      && (this.playbackState === 'paused' || this.playbackState === 'resuming')
     ) {
       this.playbackState = 'playing';
       this.notifyPlaybackChanged();
@@ -756,23 +817,58 @@ export class BridgeController {
     });
   }
 
-  updateRoonTime(positionMs: number, generation = this.playbackGeneration): void {
+  updateRoonTime(
+    eventOrPosition: RoonTimeEvent | number,
+    generation = this.playbackGeneration,
+  ): boolean {
+    const positionContext = this.positionContext;
+    const selectedZoneId = this.dependencies.roon.getState().selectedZoneId;
+    const event = typeof eventOrPosition === 'number' ? undefined : eventOrPosition;
+    const positionMs = typeof eventOrPosition === 'number'
+      ? eventOrPosition
+      : eventOrPosition.positionMs;
+    const activeTrack = this.activePlayback
+      ? toTrackSummary(this.activePlayback.track)
+      : this.activeRoonPlayback?.track;
+    const activeSource: PlaybackResolvedSource | undefined = this.activePlayback
+      ? 'netease'
+      : this.activeRoonPlayback
+        ? 'roon'
+        : undefined;
     if (
       generation !== this.playbackGeneration ||
+      !positionContext ||
+      positionContext.generation !== generation ||
+      !activeTrack ||
+      activeTrack.id !== positionContext.trackId ||
+      activeSource !== positionContext.source ||
+      selectedZoneId !== positionContext.zoneId ||
       (this.activePlayback === undefined && this.activeRoonPlayback === undefined) ||
-      (this.playbackState !== 'playing' && this.playbackState !== 'paused') ||
-      this.dependencies.roon.getState().transportState === 'paused' ||
+      this.playbackState !== 'playing' ||
+      this.dependencies.roon.getState().transportState !== 'playing' ||
+      (event !== undefined && event.zoneId !== positionContext.zoneId) ||
+      (event !== undefined
+        && positionContext.minimumRevision !== undefined
+        && event.revision < positionContext.minimumRevision) ||
+      (event !== undefined
+        && positionContext.source === 'netease'
+        && ((event.source !== 'audio-input' && event.source !== 'zone')
+          || event.playbackEpoch !== positionContext.playbackEpoch)) ||
+      (event !== undefined
+        && positionContext.source === 'roon'
+        && (event.source !== 'zone' || !timeEventMatchesTrack(event, activeTrack))) ||
       !Number.isSafeInteger(positionMs) ||
       positionMs < 0 ||
       positionMs > 24 * 60 * 60 * 1000
     ) {
-      return;
+      return false;
     }
     this.positionMs = positionMs;
     const now = this.now();
-    if (now - this.lastPositionPublishedAt < 250) return;
+    if (now - this.lastPositionPublishedAt < 250) return true;
     this.lastPositionPublishedAt = now;
     this.notifyPlaybackChanged();
+    return true;
   }
 
   handleRoonPlaybackState(state: RoonNativePlaybackState | undefined): void {
@@ -995,6 +1091,23 @@ export class BridgeController {
         );
       }
       this.activePlayback = activePlayback;
+      const selectedZoneId = this.dependencies.roon.getState().selectedZoneId;
+      if (!selectedZoneId) {
+        throw new BridgeError('ROON_ZONE_NOT_SELECTED', 'Roon Zone confirmation is unavailable', {
+          httpStatus: 409,
+        });
+      }
+      const playbackEpoch = this.dependencies.roon.getActivePlaybackEpoch?.();
+      const observationRevision =
+        this.dependencies.roon.getSelectedZonePlaybackObservation?.()?.revision;
+      this.positionContext = {
+        generation: this.playbackGeneration,
+        trackId: metadata.id,
+        zoneId: selectedZoneId,
+        source: 'netease',
+        ...(playbackEpoch !== undefined ? { playbackEpoch } : {}),
+        ...(observationRevision !== undefined ? { minimumRevision: observationRevision } : {}),
+      };
       item.requestedQuality = requestedQuality;
       item.actualQuality = activePlayback.actualQuality;
       this.playbackState = 'playing';
@@ -1043,8 +1156,28 @@ export class BridgeController {
     this.notifyPlaybackChanged();
     const track = cloneTrackSummary(item.track);
     try {
-      await roonLibrary.play(reference, zoneId);
-      this.activeRoonPlayback = { track, reference, zoneId };
+      const observation = await roonLibrary.play(reference, zoneId, track);
+      const confirmedTrack = track.durationMs === undefined
+        && observation.nowPlaying?.durationMs !== undefined
+        ? { ...track, durationMs: observation.nowPlaying.durationMs }
+        : track;
+      this.activeRoonPlayback = { track: confirmedTrack, reference, zoneId };
+      item.track = cloneTrackSummary(confirmedTrack);
+      if (
+        observation.positionMs !== undefined
+        && Number.isSafeInteger(observation.positionMs)
+        && observation.positionMs >= 0
+        && observation.positionMs <= 24 * 60 * 60 * 1_000
+      ) {
+        this.positionMs = observation.positionMs;
+      }
+      this.positionContext = {
+        generation: this.playbackGeneration,
+        trackId: confirmedTrack.id,
+        zoneId,
+        source: 'roon',
+        minimumRevision: observation.revision,
+      };
       item.resolvedSource = 'roon';
       this.playbackState = 'playing';
       this.lastPlaybackError = undefined;
@@ -1052,7 +1185,7 @@ export class BridgeController {
       this.qualityNotice = undefined;
       this.dependencies.logger.info('roon_native_playing', {
         trackId: item.trackId,
-        title: track.title,
+        title: confirmedTrack.title,
       });
       this.notifyPlaybackChanged();
     } catch (error) {
@@ -1130,6 +1263,7 @@ export class BridgeController {
     this.activeToken = undefined;
     this.activePlayback = undefined;
     this.activeRoonPlayback = undefined;
+    this.positionContext = undefined;
     this.positionMs = 0;
     this.playbackGeneration += 1;
     this.lastPositionPublishedAt = this.now();
@@ -1220,6 +1354,15 @@ export class BridgeController {
     this.lastPlaybackError = undefined;
     this.lastPlaybackIssue = undefined;
     this.qualityNotice = undefined;
+  }
+
+  private observedTransportPlaybackState(
+    fallback: 'playing' | 'paused',
+  ): 'playing' | 'paused' {
+    const transportState = this.dependencies.roon.getState().transportState;
+    if (transportState === 'paused') return 'paused';
+    if (transportState === 'playing' || transportState === 'loading') return 'playing';
+    return fallback;
   }
 
   private newDiagnosticId(): string {

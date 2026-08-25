@@ -20,6 +20,9 @@ export interface RoonZone {
   now_playing?: {
     seek_position?: number;
     length?: number;
+    one_line?: { line1?: string };
+    two_line?: { line1?: string; line2?: string };
+    three_line?: { line1?: string; line2?: string; line3?: string };
   };
 }
 

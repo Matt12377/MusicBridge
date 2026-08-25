@@ -126,7 +126,11 @@ export class LyricsCoordinator {
       if (!cached) void this.loadActive(trackId, generation);
     }
 
-    if (snapshot.state === 'paused') {
+    if (
+      snapshot.state === 'pausing'
+      || snapshot.state === 'paused'
+      || snapshot.state === 'resuming'
+    ) {
       if (snapshot.positionMs > 0) {
         this.positionAnchorMs = snapshot.positionMs;
         this.positionAnchorClockMs = this.now();

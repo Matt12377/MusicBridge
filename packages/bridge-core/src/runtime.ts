@@ -270,9 +270,52 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     gateway,
     logger,
     roonLibrary: {
-      play: (reference, zoneId) => roonLibrary.playTrack(reference, zoneId),
-      pause: () => roon.control('pause'),
-      resume: () => roon.control('play'),
+      play: async (reference, zoneId, track) => {
+        const before = roon.getSelectedZonePlaybackObservation();
+        if (!before || before.zoneId !== zoneId) {
+          throw new BridgeError(
+            'ROON_ZONE_NOT_SELECTED',
+            'The requested Roon Zone is not the selected playback Zone',
+            { httpStatus: 409 },
+          );
+        }
+        await roonLibrary.playTrack(reference, zoneId);
+        return roon.waitForSelectedZonePlayback({
+          zoneId,
+          state: 'playing',
+          afterRevision: before.revision,
+          track,
+        });
+      },
+      pause: async () => {
+        const before = roon.getSelectedZonePlaybackObservation();
+        if (!before) {
+          throw new BridgeError('ROON_ZONE_NOT_SELECTED', 'Roon Zone is not selected', {
+            httpStatus: 409,
+          });
+        }
+        await roon.control('pause');
+        await roon.waitForSelectedZonePlayback({
+          zoneId: before.zoneId,
+          state: 'paused',
+          afterRevision: before.revision,
+        });
+      },
+      resume: async () => {
+        const before = roon.getSelectedZonePlaybackObservation();
+        if (!before) {
+          throw new BridgeError('ROON_ZONE_NOT_SELECTED', 'Roon Zone is not selected', {
+            httpStatus: 409,
+          });
+        }
+        await roon.control('play');
+        await roon.waitForSelectedZonePlayback({
+          zoneId: before.zoneId,
+          state: 'playing',
+          afterRevision: before.revision,
+          requirePosition: true,
+        });
+      },
       seek: async (positionMs) => {
         if (!roon.seek) {
           throw new BridgeError('ROON_TRANSPORT_UNAVAILABLE', 'Roon seek is not available', {
@@ -332,8 +375,10 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
           });
         }
         await roon.seek(positionMs);
-        lyrics.updateRoonTime(positionMs);
-        return { positionMs };
+        return {
+          positionMs:
+            roon.getSelectedZonePlaybackObservation()?.positionMs ?? positionMs,
+        };
       },
       async stopRoonTransport() {
         await controller.stopRoonTransport();
@@ -633,9 +678,8 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     emit(eventWithState('roon.changed', state));
     emit(eventWithState('core.health', state));
   });
-  roon.setTimeHandler?.((positionMs) => {
-    controller.updateRoonTime(positionMs);
-    lyrics.updateRoonTime(positionMs);
+  roon.setTimeHandler?.((event) => {
+    if (controller.updateRoonTime(event)) lyrics.updateRoonTime(event.positionMs);
   });
 
   const cleanup = async (): Promise<void> => {
@@ -870,8 +914,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     },
     async seekPlayback(positionMs: number): Promise<{ positionMs: number }> {
       await controller.seek(positionMs);
-      lyrics.updateRoonTime(positionMs);
-      return { positionMs };
+      return { positionMs: controller.getPlaybackState().positionMs };
     },
     async playbackStop() {
       await controller.stop();

@@ -29,7 +29,9 @@ export type PlaybackState =
   | 'resolving'
   | 'preparing'
   | 'playing'
+  | 'pausing'
   | 'paused'
+  | 'resuming'
   | 'stopping'
   | 'error'
 

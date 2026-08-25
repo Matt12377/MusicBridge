@@ -558,7 +558,7 @@ test('unverified Roon Time callback fields are ignored until a real shape is ver
     onTimeShape: (summary) => summaries.push(summary),
   });
   const positions: number[] = [];
-  adapter.setTimeHandler((positionMs) => positions.push(positionMs));
+  adapter.setTimeHandler((event) => positions.push(event.positionMs));
   api.core.audioInput.autoPlay = false;
   const playback = adapter.play(playRequest);
   await nextTurn();
@@ -577,7 +577,7 @@ test('unverified Roon Time callback fields are ignored until a real shape is ver
 test('verified Roon Time seek_position_ms is consumed as milliseconds', async () => {
   const { adapter, api } = await makeReadyHarness();
   const positions: number[] = [];
-  adapter.setTimeHandler((positionMs) => positions.push(positionMs));
+  adapter.setTimeHandler((event) => positions.push(event.positionMs));
   api.core.audioInput.autoPlay = false;
   const playback = adapter.play(playRequest);
   await nextTurn();
@@ -628,7 +628,25 @@ test('saved output and subscribed zones produce a ready selected Zone', async ()
 test('Roon Transport seek/control use only the selected zone and official allowlisted calls', async () => {
   const { adapter, api } = await makeReadyHarness();
 
-  await adapter.seek(2_500);
+  let seekSettled = false;
+  const seeking = adapter.seek(2_500).then(() => {
+    seekSettled = true;
+  });
+  await nextTurn();
+  assert.equal(seekSettled, false);
+  api.core.transport.emit('Changed', {
+    zones_changed: [{
+      zone_id: 'zone-1',
+      display_name: 'Fake Zone',
+      state: 'playing',
+      seek_position: 2.5,
+      is_seek_allowed: true,
+      is_pause_allowed: true,
+      is_play_allowed: false,
+      outputs: [{ output_id: 'output-1' }],
+    }],
+  });
+  await seeking;
   await adapter.control('pause');
 
   assert.deepEqual(api.core.transport.seekCalls, [
@@ -636,6 +654,36 @@ test('Roon Transport seek/control use only the selected zone and official allowl
   ]);
   assert.deepEqual(api.core.transport.controlCalls, [
     { zone: 'zone-1', control: 'pause' },
+  ]);
+  await adapter.shutdown();
+});
+
+test('Roon Transport stop does not resolve before the selected Zone confirms inactive', async () => {
+  const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 5 });
+
+  let settled = false;
+  const stopping = adapter.control('stop').then(() => {
+    settled = true;
+  });
+  await nextTurn();
+  assert.equal(settled, false);
+
+  api.core.transport.emit('Changed', {
+    zones_changed: [{
+      zone_id: 'zone-1',
+      display_name: 'Fake Zone',
+      state: 'paused',
+      is_seek_allowed: true,
+      is_pause_allowed: false,
+      is_play_allowed: true,
+      outputs: [{ output_id: 'output-1' }],
+    }],
+  });
+  await stopping;
+
+  assert.equal(settled, true);
+  assert.deepEqual(api.core.transport.controlCalls, [
+    { zone: 'zone-1', control: 'stop' },
   ]);
   await adapter.shutdown();
 });
@@ -695,6 +743,18 @@ test('Roon Transport seek and Audio Input pause time out when Core never calls b
   assert.notEqual(pauseResult, 'pending');
   assert.ok(pauseResult instanceof BridgeError);
   assert.equal(pauseResult.code, 'ROON_TIMEOUT');
+
+  api.core.transport.respondToControl = true;
+  const confirmationResult = await Promise.race([
+    adapter.pause().then(
+      () => 'resolved' as const,
+      (error: unknown) => error,
+    ),
+    new Promise<'pending'>((resolve) => setTimeout(() => resolve('pending'), 20)),
+  ]);
+  assert.notEqual(confirmationResult, 'pending');
+  assert.ok(confirmationResult instanceof BridgeError);
+  assert.equal(confirmationResult.code, 'ROON_TIMEOUT');
   assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
   await adapter.shutdown();
 });
@@ -946,12 +1006,14 @@ test('pause and resume use the selected Roon Transport control without ending Au
       outputs: [{ output_id: 'output-1' }],
     }],
   });
-  await adapter.pause();
+  let pauseSettled = false;
+  const pausing = adapter.pause().then(() => {
+    pauseSettled = true;
+  });
+  await nextTurn();
   assert.deepEqual(api.core.transport.controlCalls, [{ zoneId: 'zone-1', control: 'pause' }]);
-  assert.equal(adapter.getState().transportState, 'paused');
-
-  api.core.audioInput.emitPlay('Paused');
-  assert.deepEqual(terminalReasons, []);
+  assert.equal(adapter.getState().transportState, 'playing');
+  assert.equal(pauseSettled, false);
 
   api.core.transport.emit('Changed', {
     zones_changed: [{
@@ -963,13 +1025,125 @@ test('pause and resume use the selected Roon Transport control without ending Au
       outputs: [{ output_id: 'output-1' }],
     }],
   });
-  await adapter.resume();
+  await pausing;
+  assert.equal(adapter.getState().transportState, 'paused');
+
+  api.core.audioInput.emitPlay('Paused');
+  assert.deepEqual(terminalReasons, []);
+
+  let resumeSettled = false;
+  const resuming = adapter.resume().then(() => {
+    resumeSettled = true;
+  });
+  await nextTurn();
   assert.deepEqual(api.core.transport.controlCalls, [
     { zoneId: 'zone-1', control: 'pause' },
     { zoneId: 'zone-1', control: 'play' },
   ]);
+  assert.equal(adapter.getState().transportState, 'paused');
+  assert.equal(resumeSettled, false);
+
+  api.core.transport.emit('Changed', {
+    zones_changed: [{
+      zone_id: 'zone-1',
+      display_name: 'Fake Zone',
+      state: 'playing',
+      seek_position: 14.25,
+      is_pause_allowed: true,
+      is_play_allowed: false,
+      outputs: [{ output_id: 'output-1' }],
+    }],
+  });
+  await resuming;
   assert.equal(adapter.getState().transportState, 'playing');
   assert.deepEqual(terminalReasons, []);
+});
+
+test('selected Zone playback confirmation requires the target identity and a real playing event', async () => {
+  const { adapter, api } = await makeReadyHarness();
+  const confirmationApi = adapter as unknown as {
+    getSelectedZonePlaybackObservation(): {
+      revision: number;
+      zoneId: string;
+      state?: string;
+      positionMs?: number;
+    } | undefined;
+    waitForSelectedZonePlayback(input: {
+      zoneId: string;
+      state: 'playing';
+      afterRevision: number;
+      track: {
+        title: string;
+        artists: readonly string[];
+        album: string;
+        durationMs?: number;
+      };
+    }): Promise<unknown>;
+  };
+  assert.equal(typeof confirmationApi.getSelectedZonePlaybackObservation, 'function');
+  assert.equal(typeof confirmationApi.waitForSelectedZonePlayback, 'function');
+  const before = confirmationApi.getSelectedZonePlaybackObservation();
+  assert.ok(before);
+
+  let settled = false;
+  const confirmation = confirmationApi.waitForSelectedZonePlayback({
+    zoneId: 'zone-1',
+    state: 'playing',
+    afterRevision: before.revision,
+    track: {
+      title: '7. Target Local Song',
+      artists: ['Target Artist'],
+      album: 'Target Album',
+      durationMs: 180_000,
+    },
+  }).then(() => {
+    settled = true;
+  });
+
+  api.core.transport.emit('Changed', {
+    zones_changed: [{
+      zone_id: 'zone-1',
+      state: 'playing',
+      now_playing: {
+        three_line: { line1: 'Wrong Song', line2: 'Target Artist', line3: 'Target Album' },
+        length: 180,
+        seek_position: 3,
+      },
+      outputs: [{ output_id: 'output-1' }],
+    }],
+  });
+  await nextTurn();
+  assert.equal(settled, false);
+
+  api.core.transport.emit('Changed', {
+    zones_changed: [{
+      zone_id: 'zone-1',
+      state: 'loading',
+      now_playing: {
+        three_line: { line1: 'Target Local Song', line2: 'Target Artist', line3: 'Target Album' },
+        length: 180,
+        seek_position: 0,
+      },
+      outputs: [{ output_id: 'output-1' }],
+    }],
+  });
+  await nextTurn();
+  assert.equal(settled, false);
+
+  api.core.transport.emit('Changed', {
+    zones_changed: [{
+      zone_id: 'zone-1',
+      state: 'playing',
+      now_playing: {
+        three_line: { line1: 'Target Local Song', line2: 'Target Artist', line3: 'Target Album' },
+        length: 180,
+        seek_position: 0.4,
+      },
+      outputs: [{ output_id: 'output-1' }],
+    }],
+  });
+  await confirmation;
+  assert.equal(settled, true);
 });
 
 test('pause fails closed when the selected Zone does not advertise the capability', async () => {

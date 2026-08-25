@@ -900,6 +900,26 @@ test('contracts validates bounded playback controls and sanitized snapshots', ()
     true,
   );
 
+  for (const state of ['pausing', 'resuming']) {
+    assert.equal(
+      validateIpcResponseForCommand(
+        {
+          version: IPC_VERSION,
+          id: `playback-${state}`,
+          ok: true,
+          result: {
+            ...snapshot,
+            state,
+            canPause: false,
+            canResume: false,
+          },
+        },
+        'playback.getState',
+      ).ok,
+      true,
+    );
+  }
+
   assert.equal(
     validateIpcRequest({
       version: IPC_VERSION,

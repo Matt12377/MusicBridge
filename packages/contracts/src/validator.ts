@@ -381,7 +381,7 @@ function isPlaybackQueueSnapshot(value: unknown): value is PlaybackQueueSnapshot
 }
 
 function isPlaybackState(value: unknown): value is PlaybackSnapshot['state'] {
-  return ['idle', 'resolving', 'preparing', 'playing', 'paused', 'stopping', 'error'].includes(
+  return ['idle', 'resolving', 'preparing', 'playing', 'pausing', 'paused', 'resuming', 'stopping', 'error'].includes(
     String(value),
   );
 }
