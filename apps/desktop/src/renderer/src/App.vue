@@ -71,11 +71,17 @@ import {
   resolveFavoriteToggle,
 } from './composables/playbackFavorites.js'
 import {
+  SMART_MATCH_REQUEST_CONCURRENCY,
   confirmedRoonCandidate,
+  createMatchRequestScheduler,
   immediatePlaybackSelection,
   nativeRoonQueueItemHasNeteaseIdentity,
   queuePreferenceForMatch,
   settledMapWithConcurrency,
+  shouldPreloadSmartMatches,
+  trackSummaryForMatching,
+  tracksForInitialMatching,
+  waitForMatchWithinPlaybackBudget,
 } from './composables/playbackMatching.js'
 import type { SidebarSource, ViewId } from './components/navigation.js'
 import { createZoneRefreshCoordinator, resolveZoneLifecycleStatus } from './zone-lifecycle.js'
@@ -207,6 +213,11 @@ const contentScroll = ref<HTMLElement | null>(null)
 const aggregatedSearch = ref<PublicAggregatedSearchResult | null>(null)
 const matchStates = ref<Record<string, MatchState>>({})
 const matchResults = ref<Record<string, PublicTrackMatchResult>>({})
+const pendingMatchRequests = new Map<string, Promise<PublicTrackMatchResult>>()
+const matchRequestScheduler = createMatchRequestScheduler(
+  (track: TrackSummary) => window.musicBridge.matchLibraryTrack(track),
+  SMART_MATCH_REQUEST_CONCURRENCY,
+)
 const likedPage = ref<Page<TrackSummary>>(emptyPage())
 const {
   playlists,
@@ -451,6 +462,7 @@ function navigateSource(source: SidebarSource): void {
   aggregatedSearch.value = null
   matchStates.value = {}
   matchResults.value = {}
+  cancelPendingMatches()
   matchGeneration += 1
   searchReturnSource.value = source
   sidebar.setActiveSource(source)
@@ -487,6 +499,7 @@ function clearSearch(): void {
   aggregatedSearch.value = null
   matchStates.value = {}
   matchResults.value = {}
+  cancelPendingMatches()
   matchGeneration += 1
   searchInitialLoading.value = false
   searchLoadingMore.value = false
@@ -563,6 +576,7 @@ function resetRoonRuntimeReferences(): void {
   matchGeneration += 1
   matchStates.value = {}
   matchResults.value = {}
+  cancelPendingMatches()
   if (aggregatedSearch.value) {
     aggregatedSearch.value = {
       ...aggregatedSearch.value,
@@ -953,13 +967,15 @@ async function loadSearch(query: string, page: PageRequest, generation: number):
       if (snapshot.tracks.state === 'ready') {
         searchPage.value = snapshot.tracks.page
         searchError.value = null
-        void matchTracks(snapshot.tracks.page.items)
       } else {
         searchPage.value = emptyPage()
         searchError.value = searchSectionErrorKind(snapshot.tracks.message)
       }
-      void loadRoonSearch(query, generation, searchPage.value)
       searchInitialLoading.value = false
+      const tracksForMatching = searchPage.value.items
+      void loadRoonSearch(query, generation, searchPage.value).then(() => {
+        if (generation === searchRequestGeneration) void matchTracks(tracksForMatching)
+      })
     } else {
       const result = await window.musicBridge.searchTracks(query, page)
       if (generation !== searchRequestGeneration) return
@@ -1010,20 +1026,40 @@ async function loadRoonSearch(
   }
 }
 
-async function matchTracks(tracks: readonly TrackSummary[]): Promise<void> {
+function cancelPendingMatches(): void {
+  matchRequestScheduler.cancelPending()
+  pendingMatchRequests.clear()
+}
+
+function requestLibraryMatch(track: TrackSummary): Promise<PublicTrackMatchResult> {
+  const existing = pendingMatchRequests.get(track.id)
+  if (existing) return existing
+  const request = matchRequestScheduler.schedule(trackSummaryForMatching(track))
+  pendingMatchRequests.set(track.id, request)
+  return request
+}
+
+async function matchTracks(
+  tracks: readonly TrackSummary[],
+  visible = true,
+): Promise<void> {
+  if (!shouldPreloadSmartMatches(selectedZone.value?.zoneId, visible)) return
   const generation = matchGeneration
-  const boundedTracks = tracks.slice(0, LIBRARY_PAGE_SIZE)
+  const boundedTracks = tracksForInitialMatching(tracks)
   const results = await settledMapWithConcurrency(
     boundedTracks,
     3,
-    (track) => window.musicBridge.matchLibraryTrack(track),
+    (track) => generation === matchGeneration
+      ? requestLibraryMatch(track)
+      : Promise.reject(new Error('Smart matching batch was superseded')),
   )
   if (generation !== matchGeneration) return
   const next = { ...matchStates.value }
   const nextResults = { ...matchResults.value }
   results.forEach((result, index) => {
-    if (result.status !== 'fulfilled') return
     const track = boundedTracks[index]
+    if (track) pendingMatchRequests.delete(track.id)
+    if (result.status !== 'fulfilled') return
     if (track) {
       next[track.id] = result.value.state
       nextResults[track.id] = result.value
@@ -1050,6 +1086,7 @@ function scheduleSearch(): void {
   aggregatedSearch.value = null
   matchStates.value = {}
   matchResults.value = {}
+  cancelPendingMatches()
   matchGeneration += 1
   searchInitialLoading.value = false
   searchLoadingMore.value = false
@@ -1114,7 +1151,10 @@ async function loadDailyRecommendations(): Promise<void> {
     const snapshot = await window.musicBridge.getDailyRecommendations()
     if (operation !== dailyOperation) return
     dailyRecommendations.value = snapshot
-    void matchTracks(snapshot.tracks)
+    void matchTracks(
+      snapshot.tracks,
+      currentView.value === 'home' || currentView.value === 'daily-recommendations',
+    )
     dailyState.value = snapshot.tracks.length ? 'ready' : 'empty'
   } catch (error) {
     if (operation !== dailyOperation) return
@@ -1351,6 +1391,7 @@ function resetPrivateLibraryState(): void {
   aggregatedSearch.value = null
   matchStates.value = {}
   matchResults.value = {}
+  cancelPendingMatches()
   matchGeneration += 1
   searchInitialLoading.value = false
   searchLoadingMore.value = false
@@ -1693,9 +1734,16 @@ function cloneTrackSummary(track: TrackSummary): TrackSummary {
 async function playTrack(track: TrackSummary): Promise<void> {
   actionError.value = null
   try {
+    const zoneId = selectedZone.value?.zoneId
+    const cachedMatch = matchResults.value[track.id]
+    const pendingMatch = zoneId && !cachedMatch
+      ? pendingMatchRequests.get(track.id)
+      : undefined
+    const match = cachedMatch
+      ?? (pendingMatch ? await waitForMatchWithinPlaybackBudget(pendingMatch) : undefined)
     const selection = immediatePlaybackSelection(
-      matchResults.value[track.id],
-      selectedZone.value?.zoneId,
+      match,
+      zoneId,
     )
     if (selection.source === 'roon') {
       rememberRoonQueueDescriptor(track.id, selection.candidate, true)

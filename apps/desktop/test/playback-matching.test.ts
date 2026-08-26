@@ -1,13 +1,20 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import type { PublicTrackMatchResult } from '@music-bridge/contracts'
+import type { DailyRecommendationTrack, PublicTrackMatchResult } from '@music-bridge/contracts'
 import {
+  SMART_MATCH_PRELOAD_LIMIT,
+  SMART_MATCH_CLICK_WAIT_MS,
+  createMatchRequestScheduler,
   confirmedRoonCandidate,
   settledMapWithConcurrency,
   immediatePlaybackSelection,
   nativeRoonQueueItemHasNeteaseIdentity,
   queuePreferenceForMatch,
+  shouldPreloadSmartMatches,
+  trackSummaryForMatching,
+  tracksForInitialMatching,
+  waitForMatchWithinPlaybackBudget,
 } from '../src/renderer/src/composables/playbackMatching.js'
 
 const confirmed: PublicTrackMatchResult = {
@@ -73,4 +80,110 @@ test('Roon matching keeps Browse concurrency bounded and preserves result order'
   assert.deepEqual(results.map((result) => (
     result.status === 'fulfilled' ? result.value : 'rejected'
   )), [10, 20, 30, 'rejected', 50, 60, 70])
+})
+
+test('Smart matching shares one concurrency bound across overlapping UI batches', async () => {
+  let active = 0
+  let maximumActive = 0
+  const scheduler = createMatchRequestScheduler(async (value: number) => {
+    active += 1
+    maximumActive = Math.max(maximumActive, active)
+    await new Promise((resolve) => setTimeout(resolve, 2))
+    active -= 1
+    return value * 10
+  }, 2)
+
+  const firstBatch = [1, 2, 3].map((value) => scheduler.schedule(value))
+  const secondBatch = [4, 5, 6].map((value) => scheduler.schedule(value))
+
+  assert.deepEqual(await Promise.all([...firstBatch, ...secondBatch]), [10, 20, 30, 40, 50, 60])
+  assert.equal(maximumActive, 2)
+})
+
+test('Smart matching drops stale queued work before scheduling the current search', async () => {
+  let releaseFirst!: () => void
+  const started: number[] = []
+  const firstGate = new Promise<void>((resolve) => {
+    releaseFirst = resolve
+  })
+  const scheduler = createMatchRequestScheduler(async (value: number) => {
+    started.push(value)
+    if (value === 1) await firstGate
+    return value
+  }, 1)
+
+  const first = scheduler.schedule(1)
+  const stale = scheduler.schedule(2).then(
+    () => 'fulfilled',
+    () => 'cancelled',
+  )
+  await Promise.resolve()
+  scheduler.cancelPending()
+  const current = scheduler.schedule(3)
+  releaseFirst()
+
+  assert.equal(await first, 1)
+  assert.equal(await stale, 'cancelled')
+  assert.equal(await current, 3)
+  assert.deepEqual(started, [1, 3])
+})
+
+test('Smart matching strips recommendation and Roon-only fields before strict IPC', () => {
+  const track: DailyRecommendationTrack = {
+    id: '301',
+    title: 'Synthetic Song',
+    artists: ['Synthetic Artist'],
+    album: 'Synthetic Album',
+    durationMs: 240_000,
+    artworkUrl: 'https://p1.music.126.net/synthetic-cover.jpg',
+    artworkReference: 'roon-image:runtime-only',
+    recommendationReason: 'synthetic recommendation',
+  }
+
+  assert.deepEqual(trackSummaryForMatching(track), {
+    id: '301',
+    title: 'Synthetic Song',
+    artists: ['Synthetic Artist'],
+    album: 'Synthetic Album',
+    durationMs: 240_000,
+    artworkUrl: 'https://p1.music.126.net/synthetic-cover.jpg',
+  })
+})
+
+test('Smart matching preloads only the most relevant eight visible tracks', () => {
+  const tracks = Array.from({ length: 12 }, (_, index) => ({
+    id: String(index + 1),
+    title: `Track ${index + 1}`,
+    artists: ['Synthetic Artist'],
+    album: 'Synthetic Album',
+  }))
+
+  assert.equal(SMART_MATCH_PRELOAD_LIMIT, 8)
+  assert.deepEqual(
+    tracksForInitialMatching(tracks).map((track) => track.id),
+    ['1', '2', '3', '4', '5', '6', '7', '8'],
+  )
+})
+
+test('Smart matching does not start Browse work before a real Zone is selected', () => {
+  assert.equal(shouldPreloadSmartMatches(undefined), false)
+  assert.equal(shouldPreloadSmartMatches(''), false)
+  assert.equal(shouldPreloadSmartMatches('zone-1', false), false)
+  assert.equal(shouldPreloadSmartMatches('zone-1'), true)
+})
+
+test('Smart playback waits at most the bounded click budget for an in-flight match', async () => {
+  assert.equal(SMART_MATCH_CLICK_WAIT_MS, 300)
+  assert.equal(
+    await waitForMatchWithinPlaybackBudget(Promise.resolve(confirmed), 10),
+    confirmed,
+  )
+  assert.equal(
+    await waitForMatchWithinPlaybackBudget(Promise.reject(new Error('synthetic failure')), 10),
+    undefined,
+  )
+  assert.equal(
+    await waitForMatchWithinPlaybackBudget(new Promise(() => undefined), 2),
+    undefined,
+  )
 })
