@@ -323,13 +323,21 @@ test('较旧的空 Zone 响应不会覆盖较新的设备列表', async () => {
   await expect(zonePopover.getByText('没有可用播放设备', { exact: true })).toBeVisible()
 
   await electronApp.evaluate(({ ipcMain }) => {
-    const runtime = globalThis as typeof globalThis & { zoneListCalls?: number }
+    const runtime = globalThis as typeof globalThis & {
+      zoneListCalls?: number
+      releaseOlderZoneList?: () => void
+      olderZoneListResolved?: boolean
+    }
     runtime.zoneListCalls = 0
+    runtime.olderZoneListResolved = false
     ipcMain.removeHandler('roon:list-zones')
     ipcMain.handle('roon:list-zones', async () => {
       runtime.zoneListCalls = (runtime.zoneListCalls ?? 0) + 1
       if (runtime.zoneListCalls === 1) {
-        await new Promise((resolve) => setTimeout(resolve, 200))
+        await new Promise<void>((resolve) => {
+          runtime.releaseOlderZoneList = resolve
+        })
+        runtime.olderZoneListResolved = true
         return { zones: [] }
       }
       return {
@@ -339,12 +347,20 @@ test('较旧的空 Zone 响应不会覆盖较新的设备列表', async () => {
   })
 
   await emitCoreEvent('core.ready', 'paired')
-  await page.waitForTimeout(75)
+  await expect.poll(readZoneListCalls).toBe(1)
   await emitCoreEvent('roon.changed', 'ready')
+  await expect.poll(readZoneListCalls).toBe(2)
 
   const latestZone = zonePopover.getByRole('button', { name: 'Latest Zone', exact: true })
   await expect(latestZone).toBeVisible()
-  await page.waitForTimeout(200)
+  await electronApp.evaluate(() => {
+    const runtime = globalThis as typeof globalThis & { releaseOlderZoneList?: () => void }
+    runtime.releaseOlderZoneList?.()
+  })
+  await expect.poll(() => electronApp.evaluate(() => {
+    const runtime = globalThis as typeof globalThis & { olderZoneListResolved?: boolean }
+    return runtime.olderZoneListResolved ?? false
+  })).toBe(true)
   await expect(latestZone).toBeVisible()
 })
 
