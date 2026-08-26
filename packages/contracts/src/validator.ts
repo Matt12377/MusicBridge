@@ -879,6 +879,8 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   ) return isLibraryPagePayload(payload);
   if (command === 'roon.library.album') return isRoonAlbumPayload(payload);
   if (command === 'roon.library.artist') return isRoonAlbumPayload(payload);
+  if (command === 'roon.library.genre') return isRoonAlbumPayload(payload);
+  if (command === 'roon.library.playlist') return isRoonAlbumPayload(payload);
   if (command === 'roon.library.search') return isLibrarySearchPayload(payload);
   if (command === 'playback.seek') return isPlaybackSeekPayload(payload);
   if (command === 'playback.playQueueIndex') return isPlaybackQueueIndexPayload(payload);
@@ -906,6 +908,13 @@ const PUBLIC_ERROR_CODES = new Set([
   'AUTH_EXPIRED',
   'ACCOUNT_PROFILE_UNAVAILABLE',
   'DAILY_RECOMMENDATIONS_UNAVAILABLE',
+  'ROON_CORE_NOT_CONNECTED',
+  'ROON_LIBRARY_UNAVAILABLE',
+  'ROON_LIBRARY_REQUEST_FAILED',
+  'ROON_ZONE_NOT_SELECTED',
+  'ROON_IMAGE_DECODE_FAILED',
+  'ROON_ALBUM_HIERARCHY_INVALID',
+  'ROON_TRACK_ACTION_UNAVAILABLE',
   'INTERNAL_ERROR',
 ]);
 
@@ -1319,6 +1328,8 @@ function isCommandResult(
     case 'roon.library.playlists':
     case 'roon.library.album':
     case 'roon.library.artist':
+    case 'roon.library.genre':
+    case 'roon.library.playlist':
     case 'roon.library.search':
       return isRoonLibraryPage(value);
     case 'roon.library.image':

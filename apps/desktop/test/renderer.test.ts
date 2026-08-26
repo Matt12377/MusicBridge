@@ -458,6 +458,23 @@ test('search playback gives immediate preparation feedback and rejects duplicate
   assert.match(app, /:busy="playbackStartPending"/)
 })
 
+test('P1-D keeps local-library navigation in the sidebar and wires real genre and Roon playlist drill-down', async () => {
+  const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const navigation = await readFile(path.resolve('src/renderer/src/components/navigation.ts'), 'utf8')
+  const artwork = await readFile(path.resolve('src/renderer/src/components/RoonArtwork.vue'), 'utf8')
+  const trackTable = await readFile(path.resolve('src/renderer/src/components/media/TrackTable.vue'), 'utf8')
+
+  assert.doesNotMatch(app, /roon-library-tabs|activeRoonCollection/)
+  assert.match(navigation, /type: 'roon-genre'; reference: string/)
+  assert.match(navigation, /type: 'roon-playlist'; reference: string/)
+  assert.match(app, /getRoonGenreItems/)
+  assert.match(app, /getRoonPlaylistTracks/)
+  assert.match(app, /@select="navigateSource\(\{ type: 'roon-genre'/)
+  assert.match(app, /@select="navigateSource\(\{ type: 'roon-playlist'/)
+  assert.match(artwork, /封面解码失败/)
+  assert.match(trackTable, /Smart 匹配不唯一/)
+})
+
 test('queue item selection preserves the existing V1/V2 mixed queue', async () => {
   const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
   const selectStart = app.indexOf('async function playQueueItem')

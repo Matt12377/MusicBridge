@@ -13,7 +13,6 @@ import {
   parseLikedPlaylistId,
   parseLikedTrackIds,
   assertTrackLikeMutationSucceeded,
-  parseTrackLikeState,
   parsePlaylistDetailHeader,
   parsePlaylistTrackIds,
   parsePlaylistSummaries,
@@ -60,9 +59,16 @@ type ApiResponse = Promise<unknown>;
 const DEFAULT_METADATA_CACHE_MAX_ENTRIES = 256;
 const MAX_METADATA_CACHE_MAX_ENTRIES = 512;
 const DEFAULT_METADATA_CACHE_TTL_MS = 5 * 60 * 1_000;
+const LIKED_TRACK_IDS_CACHE_TTL_MS = 30 * 1_000;
 
 interface CachedTrackMetadata {
   metadata: TrackMetadata;
+  expiresAt: number;
+}
+
+interface CachedLikedTrackIds {
+  ids: readonly string[];
+  idSet: ReadonlySet<string>;
   expiresAt: number;
 }
 
@@ -136,6 +142,7 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
   private readonly metadataCacheMaxEntries: number;
   private readonly metadataCacheTtlMs: number;
   private readonly now: () => number;
+  private likedTrackIdsCache: CachedLikedTrackIds | undefined;
 
   constructor(
     cookie: string | undefined,
@@ -158,13 +165,17 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
 
   setCredential(credential: string): void {
     const nextCredential = credential.trim() || undefined;
-    if (nextCredential !== this.cookie) this.metadataCache.clear();
+    if (nextCredential !== this.cookie) {
+      this.metadataCache.clear();
+      this.likedTrackIdsCache = undefined;
+    }
     this.cookie = nextCredential;
   }
 
   clearCredential(): void {
     this.cookie = undefined;
     this.metadataCache.clear();
+    this.likedTrackIdsCache = undefined;
   }
 
   async createQr(): Promise<{ key: string; qrImage: string }> {
@@ -288,12 +299,9 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     const page = normalizePageRequest(pageInput);
     const cookie = this.requireCookie();
     try {
-      const accountId = await this.getAccountId(cookie);
       const songDetail = this.api.song_detail;
       if (!songDetail) throw this.libraryApiUnavailable();
-      const ids = this.api.likelist
-        ? parseLikedTrackIds(await this.api.likelist({ uid: accountId, cookie }))
-        : await this.getLikedPlaylistTrackIds(accountId, cookie);
+      const ids = await this.getLikedTrackIds(cookie);
       const selectedIds = ids.slice(page.offset, page.offset + page.limit);
       if (selectedIds.length === 0) return pageOf([], page, ids.length);
       const response = await songDetail({ ids: selectedIds.join(','), cookie });
@@ -322,10 +330,9 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
   async isTrackLiked(trackIdInput: string): Promise<{ liked: boolean }> {
     const trackId = normalizeTrackId(trackIdInput);
     const cookie = this.requireCookie();
-    const songLikeCheck = this.api.song_like_check;
-    if (!songLikeCheck) throw this.libraryApiUnavailable();
     try {
-      return parseTrackLikeState(await songLikeCheck({ ids: trackId, cookie }));
+      const ids = await this.getLikedTrackIds(cookie);
+      return { liked: ids.includes(trackId) };
     } catch (error) {
       throw this.libraryError(error, 'track like status');
     }
@@ -339,6 +346,7 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     try {
       const response = await songLike({ id: trackId, like: liked, cookie });
       assertTrackLikeMutationSucceeded(response);
+      this.updateLikedTrackIdsCache(trackId, liked);
       return { liked };
     } catch (error) {
       throw this.libraryError(error, 'track like');
@@ -552,6 +560,37 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     const userAccount = this.api.user_account;
     if (!userAccount) throw this.libraryApiUnavailable();
     return parseAccountId(await userAccount({ cookie }));
+  }
+
+  private async getLikedTrackIds(cookie: string): Promise<readonly string[]> {
+    const cached = this.likedTrackIdsCache;
+    if (cached && cached.expiresAt > this.now()) return cached.ids;
+    this.likedTrackIdsCache = undefined;
+    const accountId = await this.getAccountId(cookie);
+    const ids = this.api.likelist
+      ? parseLikedTrackIds(await this.api.likelist({ uid: accountId, cookie }))
+      : await this.getLikedPlaylistTrackIds(accountId, cookie);
+    this.likedTrackIdsCache = {
+      ids: [...ids],
+      idSet: new Set(ids),
+      expiresAt: this.now() + LIKED_TRACK_IDS_CACHE_TTL_MS,
+    };
+    return this.likedTrackIdsCache.ids;
+  }
+
+  private updateLikedTrackIdsCache(trackId: string, liked: boolean): void {
+    const cached = this.likedTrackIdsCache;
+    if (!cached || cached.expiresAt <= this.now()) {
+      this.likedTrackIdsCache = undefined;
+      return;
+    }
+    const idSet = new Set(cached.idSet);
+    if (liked) idSet.add(trackId);
+    else idSet.delete(trackId);
+    const ids = liked
+      ? [trackId, ...cached.ids.filter((id) => id !== trackId)]
+      : cached.ids.filter((id) => id !== trackId);
+    this.likedTrackIdsCache = { ids, idSet, expiresAt: cached.expiresAt };
   }
 
   private libraryApiUnavailable(): BridgeError {

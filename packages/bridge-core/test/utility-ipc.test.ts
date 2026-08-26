@@ -299,6 +299,12 @@ function makeRuntime(): CoreRuntimeForIpc & {
     async browseRoonArtist() {
       return { items: [], offset: 0, limit: 20 };
     },
+    async browseRoonGenre() {
+      return { items: [], offset: 0, limit: 20 };
+    },
+    async browseRoonPlaylist() {
+      return { items: [], offset: 0, limit: 20 };
+    },
     async searchRoonLibrary() {
       return { items: [], offset: 0, limit: 20 };
     },
@@ -827,6 +833,14 @@ test('utility IPC dispatches expanded Roon artist, genre, playlist and search se
     ['roon-artists', 'roon.library.artists', { page: { offset: 0, limit: 20 } }],
     ['roon-genres', 'roon.library.genres', { page: { offset: 0, limit: 20 } }],
     ['roon-playlists', 'roon.library.playlists', { page: { offset: 0, limit: 20 } }],
+    ['roon-genre', 'roon.library.genre', {
+      reference: 'musicbridge-v2-entity-123e4567-e89b-12d3-a456-426614174000',
+      page: { offset: 0, limit: 20 },
+    }],
+    ['roon-playlist', 'roon.library.playlist', {
+      reference: 'musicbridge-v2-entity-123e4567-e89b-12d3-a456-426614174000',
+      page: { offset: 0, limit: 20 },
+    }],
     ['roon-artist', 'roon.library.artist', {
       reference: 'musicbridge-v2-entity-123e4567-e89b-12d3-a456-426614174000',
       page: { offset: 0, limit: 20 },

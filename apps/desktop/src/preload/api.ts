@@ -84,6 +84,8 @@ export interface MusicBridgePublicApi {
   listRoonPlaylists: (page: PageRequest) => Promise<RoonLibraryPage>
   getRoonAlbumTracks: (reference: string, page: PageRequest) => Promise<RoonLibraryPage>
   getRoonArtistAlbums: (reference: string, page: PageRequest) => Promise<RoonLibraryPage>
+  getRoonGenreItems: (reference: string, page: PageRequest) => Promise<RoonLibraryPage>
+  getRoonPlaylistTracks: (reference: string, page: PageRequest) => Promise<RoonLibraryPage>
   searchRoonLibrary: (query: string, page: PageRequest) => Promise<RoonLibraryPage>
   getRoonImage: (reference: string, options?: RoonImageOptions) => Promise<RoonImageResult>
   playRoonTrack: (reference: string, zoneId: string) => Promise<{ started: true }>
@@ -152,6 +154,8 @@ export const PUBLIC_API_KEYS = [
   'listRoonPlaylists',
   'getRoonAlbumTracks',
   'getRoonArtistAlbums',
+  'getRoonGenreItems',
+  'getRoonPlaylistTracks',
   'searchRoonLibrary',
   'getRoonImage',
   'playRoonTrack',
@@ -265,6 +269,12 @@ export function createPreloadApi(
   getRoonArtistAlbums: (_reference: string, _page: PageRequest) => Promise<RoonLibraryPage> = async () => {
     throw new Error('Roon Library API is unavailable')
   },
+  getRoonGenreItems: (_reference: string, _page: PageRequest) => Promise<RoonLibraryPage> = async () => {
+    throw new Error('Roon Library API is unavailable')
+  },
+  getRoonPlaylistTracks: (_reference: string, _page: PageRequest) => Promise<RoonLibraryPage> = async () => {
+    throw new Error('Roon Library API is unavailable')
+  },
   searchRoonLibrary: (_query: string, _page: PageRequest) => Promise<RoonLibraryPage> = async () => {
     throw new Error('Roon Library API is unavailable')
   },
@@ -346,6 +356,8 @@ export function createPreloadApi(
     listRoonPlaylists,
     getRoonAlbumTracks,
     getRoonArtistAlbums,
+    getRoonGenreItems,
+    getRoonPlaylistTracks,
     searchRoonLibrary,
     getRoonImage,
     playRoonTrack,

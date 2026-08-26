@@ -77,14 +77,29 @@ function failureForError(id: string, error: unknown): IpcFailure {
   if (bridgeError.code === 'DAILY_RECOMMENDATIONS_UNAVAILABLE') {
     return responseFailure(id, 'DAILY_RECOMMENDATIONS_UNAVAILABLE', 'Daily recommendations are temporarily unavailable');
   }
-  if (bridgeError.code === 'ROON_NOT_PAIRED' || bridgeError.code === 'ROON_ZONE_NOT_SELECTED') {
-    return responseFailure(id, 'NOT_READY', 'Core is not ready for this request');
+  if (bridgeError.code === 'ROON_NOT_PAIRED') {
+    return responseFailure(id, 'ROON_CORE_NOT_CONNECTED', 'Roon Core is not connected');
+  }
+  if (bridgeError.code === 'ROON_ZONE_NOT_SELECTED') {
+    return responseFailure(id, 'ROON_ZONE_NOT_SELECTED', 'Roon Zone is not selected');
   }
   if (bridgeError.code === 'ROON_TRANSPORT_UNAVAILABLE') {
     return responseFailure(id, 'NOT_READY', 'Roon Transport is not ready for this request');
   }
-  if (bridgeError.code === 'ROON_LIBRARY_UNAVAILABLE' || bridgeError.code === 'ROON_LIBRARY_REQUEST_FAILED') {
-    return responseFailure(id, 'NOT_READY', 'Roon Library is not ready');
+  if (bridgeError.code === 'ROON_LIBRARY_UNAVAILABLE') {
+    return responseFailure(id, 'ROON_LIBRARY_UNAVAILABLE', 'Roon Library is not available');
+  }
+  if (bridgeError.code === 'ROON_LIBRARY_REQUEST_FAILED') {
+    return responseFailure(id, 'ROON_LIBRARY_REQUEST_FAILED', 'Roon Library request failed');
+  }
+  if (bridgeError.code === 'ROON_IMAGE_DECODE_FAILED') {
+    return responseFailure(id, 'ROON_IMAGE_DECODE_FAILED', 'Roon image decode failed');
+  }
+  if (bridgeError.code === 'ROON_ALBUM_HIERARCHY_INVALID') {
+    return responseFailure(id, 'ROON_ALBUM_HIERARCHY_INVALID', 'Roon album hierarchy is invalid');
+  }
+  if (bridgeError.code === 'ROON_TRACK_ACTION_UNAVAILABLE') {
+    return responseFailure(id, 'ROON_TRACK_ACTION_UNAVAILABLE', 'Roon track action is unavailable');
   }
   if (
     bridgeError.code === 'ROON_LIBRARY_INVALID_REFERENCE' ||
@@ -247,6 +262,16 @@ async function dispatch(
       );
     case 'roon.library.artist':
       return runtime.browseRoonArtist(
+        (request.payload as { reference: string }).reference,
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'roon.library.genre':
+      return runtime.browseRoonGenre(
+        (request.payload as { reference: string }).reference,
+        (request.payload as { page: { offset: number; limit: number } }).page,
+      );
+    case 'roon.library.playlist':
+      return runtime.browseRoonPlaylist(
         (request.payload as { reference: string }).reference,
         (request.payload as { page: { offset: number; limit: number } }).page,
       );

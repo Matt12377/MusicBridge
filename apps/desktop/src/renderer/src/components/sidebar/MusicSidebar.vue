@@ -45,6 +45,12 @@ function isSourceSelected(type: 'home' | 'liked' | 'playlists' | 'roon-albums' |
   if (type === 'roon-artists') {
     return props.activeSource.type === 'roon-artists' || props.activeSource.type === 'roon-artist'
   }
+  if (type === 'roon-genres') {
+    return props.activeSource.type === 'roon-genres' || props.activeSource.type === 'roon-genre'
+  }
+  if (type === 'roon-playlists') {
+    return props.activeSource.type === 'roon-playlists' || props.activeSource.type === 'roon-playlist'
+  }
   return props.activeSource.type === type
 }
 

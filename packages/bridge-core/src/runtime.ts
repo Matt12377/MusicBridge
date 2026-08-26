@@ -136,6 +136,8 @@ export interface CoreRuntime {
   browseRoonPlaylists(page: PageRequest): Promise<RoonLibraryPage>;
   browseRoonAlbum(reference: string, page: PageRequest): Promise<RoonLibraryPage>;
   browseRoonArtist(reference: string, page: PageRequest): Promise<RoonLibraryPage>;
+  browseRoonGenre(reference: string, page: PageRequest): Promise<RoonLibraryPage>;
+  browseRoonPlaylist(reference: string, page: PageRequest): Promise<RoonLibraryPage>;
   searchRoonLibrary(query: string, page: PageRequest): Promise<RoonLibraryPage>;
   getRoonImage(reference: string, options?: RoonImageOptions): Promise<RoonImageResult>;
   playRoonTrack(reference: string, zoneId: string): Promise<{ started: true }>;
@@ -985,6 +987,8 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     browseRoonPlaylists: (page) => roonLibrary.browsePlaylists(page),
     browseRoonAlbum: (reference, page) => roonLibrary.browseAlbum(reference, page),
     browseRoonArtist: (reference, page) => roonLibrary.browseArtist(reference, page),
+    browseRoonGenre: (reference, page) => roonLibrary.browseGenre(reference, page),
+    browseRoonPlaylist: (reference, page) => roonLibrary.browsePlaylist(reference, page),
     searchRoonLibrary: (query, page) => roonLibrary.searchLibrary(query, page),
     getRoonImage: (reference, options) => roonLibrary.getImage(reference, options),
     async playRoonTrack(reference, zoneId) {
@@ -1515,6 +1519,16 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       });
     },
     async browseRoonArtist() {
+      throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
+        httpStatus: 503,
+      });
+    },
+    async browseRoonGenre() {
+      throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
+        httpStatus: 503,
+      });
+    },
+    async browseRoonPlaylist() {
       throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
         httpStatus: 503,
       });

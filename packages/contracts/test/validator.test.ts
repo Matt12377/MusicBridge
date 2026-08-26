@@ -701,6 +701,14 @@ test('contracts validates the opaque Roon Library browse and image seams', () =>
     ['roon-artists', 'roon.library.artists', { page: { offset: 0, limit: 20 } }],
     ['roon-genres', 'roon.library.genres', { page: { offset: 0, limit: 20 } }],
     ['roon-playlists', 'roon.library.playlists', { page: { offset: 0, limit: 20 } }],
+    ['roon-genre', 'roon.library.genre', {
+      reference: albumItem.reference,
+      page: { offset: 0, limit: 20 },
+    }],
+    ['roon-playlist', 'roon.library.playlist', {
+      reference: albumItem.reference,
+      page: { offset: 0, limit: 20 },
+    }],
     ['roon-artist', 'roon.library.artist', {
       reference: albumItem.reference,
       page: { offset: 0, limit: 20 },

@@ -107,6 +107,14 @@ export interface RoonLibraryService {
     artist: RoonEntityDescriptor,
     request: RoonPageRequest,
   ): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
+  browseGenre(
+    genre: RoonEntityDescriptor,
+    request: RoonPageRequest,
+  ): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
+  browsePlaylist(
+    playlist: RoonEntityDescriptor,
+    request: RoonPageRequest,
+  ): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
   searchLibrary(
     query: string,
     request: RoonPageRequest,
@@ -128,7 +136,9 @@ export class RoonLibraryError extends Error {
       | 'ROON_LIBRARY_INVALID_PAGE'
       | 'ROON_LIBRARY_REQUEST_FAILED'
       | 'ROON_LIBRARY_RESPONSE_INVALID'
-      | 'ROON_IMAGE_REQUEST_FAILED',
+      | 'ROON_IMAGE_REQUEST_FAILED'
+      | 'ROON_IMAGE_DECODE_FAILED'
+      | 'ROON_TRACK_ACTION_UNAVAILABLE',
     message: string,
   ) {
     super(message);
@@ -667,6 +677,8 @@ export function createRoonLibraryService(dependencies: {
   const pathsBySignature = new Map<string, readonly BrowsePathSegment[]>();
   const albumTracksBySignature = new Map<string, readonly RoonEntityDescriptor[]>();
   const artistAlbumsBySignature = new Map<string, readonly RoonEntityDescriptor[]>();
+  const genreItemsBySignature = new Map<string, readonly RoonEntityDescriptor[]>();
+  const playlistTracksBySignature = new Map<string, readonly RoonEntityDescriptor[]>();
   const searchTracksByQuery = new Map<string, readonly RoonEntityDescriptor[]>();
   const searchAlbumsByQuery = new Map<string, readonly RoonEntityDescriptor[]>();
 
@@ -1103,6 +1115,196 @@ export function createRoonLibraryService(dependencies: {
     };
   };
 
+  const albumGroupTitles = new Set([
+    'album',
+    'albums',
+    'discography',
+    'releases',
+    '专辑',
+    '唱片',
+    '唱片集',
+    '发行',
+  ]);
+  const trackGroupTitles = new Set([
+    'track',
+    'tracks',
+    'song',
+    'songs',
+    'top tracks',
+    '单曲',
+    '曲目',
+    '歌曲',
+  ]);
+
+  const normalizedGroupKind = (title: string): 'album' | 'track' | undefined => {
+    const normalized = title.normalize('NFKC').trim().toLocaleLowerCase('en-US');
+    if (albumGroupTitles.has(normalized)) return 'album';
+    if (trackGroupTitles.has(normalized)) return 'track';
+    return undefined;
+  };
+
+  const isGenreCollectionSummary = (subtitle: string): boolean => {
+    const normalized = subtitle.normalize('NFKC').trim();
+    return /^\d[\d,. ]*\s+artists?\s*[,，]\s*\d[\d,. ]*\s+albums?$/iu.test(normalized)
+      || /^\d[\d,. ]*\s*(?:位)?艺术家\s*[,，]\s*\d[\d,. ]*\s*(?:张)?专辑$/u.test(normalized);
+  };
+
+  const collectEntityChildren = async (
+    session: BrowseSessionState,
+    entityPath: readonly BrowsePathSegment[],
+    mode: 'genre' | 'playlist',
+  ): Promise<{ items: readonly RoonEntityDescriptor[]; level: number }> => {
+    const list = await navigateToPath(session, entityPath);
+    const loadedItems = await loadAllAtLevel(
+      session.hierarchy,
+      session.multiSessionKey,
+      list.level,
+      list.count,
+      MAX_ARTIST_SCAN_ITEMS,
+    );
+    const parentReference = entityPath.at(-1)?.pathSignature
+      ?? rootReference(session.hierarchy);
+    const items: RoonEntityDescriptor[] = [];
+    const groups: Array<{ kind: 'album' | 'track'; segment: BrowsePathSegment }> = [];
+
+    for (let index = 0; index < loadedItems.length; index += 1) {
+      const value = loadedItems[index];
+      const record = asRecord(value);
+      const hint = readString(record ?? {}, 'hint');
+      const title = readString(record ?? {}, 'title');
+      const subtitle = readString(record ?? {}, 'subtitle');
+      const groupKind = title ? normalizedGroupKind(title) : undefined;
+      if (hint === 'list' && groupKind) {
+        const segment = readPathSegment(
+          value,
+          session.hierarchy,
+          'container',
+          parentReference,
+          index,
+        );
+        if (segment && (mode === 'genre' || groupKind === 'track')) {
+          groups.push({ kind: groupKind, segment });
+        }
+        continue;
+      }
+      if (
+        mode === 'genre'
+        && hint === 'list'
+        && subtitle
+        && !isGenreCollectionSummary(subtitle)
+      ) {
+        const album = readItem(value, 'album', session.hierarchy, {
+          multiSessionKey: session.multiSessionKey,
+          level: list.level,
+          parentReference,
+          parentPath: entityPath,
+          sourceIndex: index,
+          registerPath,
+        });
+        if (album?.itemKey) items.push(album);
+        continue;
+      }
+      if (hint === 'action_list' && readString(record ?? {}, 'subtitle')) {
+        const track = readItem(value, 'track', session.hierarchy, {
+          multiSessionKey: session.multiSessionKey,
+          level: list.level,
+          parentReference,
+          parentPath: entityPath,
+          sourceIndex: index,
+          registerPath,
+        });
+        if (track?.itemKey) items.push(track);
+      }
+    }
+
+    let scannedItems = loadedItems.length;
+    for (const group of groups) {
+      const groupPath = [...entityPath, group.segment];
+      registerPath(group.segment.pathSignature, groupPath);
+      const groupList = await navigateToPath(session, groupPath);
+      const remaining = MAX_ARTIST_SCAN_ITEMS - scannedItems;
+      if (remaining < 1) {
+        throw new RoonLibraryError(
+          'ROON_LIBRARY_RESPONSE_INVALID',
+          `Roon ${mode} results exceed the bounded scan limit`,
+        );
+      }
+      const groupItems = await loadAllAtLevel(
+        session.hierarchy,
+        session.multiSessionKey,
+        groupList.level,
+        groupList.count,
+        remaining,
+      );
+      scannedItems += groupItems.length;
+      for (let index = 0; index < groupItems.length; index += 1) {
+        const value = groupItems[index];
+        const record = asRecord(value);
+        const expectedHint = group.kind === 'album' ? 'list' : 'action_list';
+        if (readString(record ?? {}, 'hint') !== expectedHint) continue;
+        if (group.kind === 'track' && !readString(record ?? {}, 'subtitle')) continue;
+        const item = readItem(value, group.kind, session.hierarchy, {
+          multiSessionKey: session.multiSessionKey,
+          level: groupList.level,
+          parentReference: group.segment.pathSignature,
+          parentPath: groupPath,
+          sourceIndex: index,
+          registerPath,
+        });
+        if (item?.itemKey) items.push(item);
+      }
+    }
+    return {
+      items,
+      level: items[0]?.browseContext?.level ?? list.level,
+    };
+  };
+
+  const browseEntityChildren = async (
+    entity: RoonEntityDescriptor,
+    expectedKind: 'genre' | 'playlist',
+    request: RoonPageRequest,
+  ): Promise<RoonLibraryPage<RoonEntityDescriptor>> => {
+    const pageRequest = normalizePage(request);
+    if (!entity.itemKey) {
+      throw new RoonLibraryError(
+        'ROON_LIBRARY_RESPONSE_INVALID',
+        `Roon ${expectedKind} has no item key`,
+      );
+    }
+    authorizeRoonAction({
+      title: entity.title,
+      hint: entity.hint,
+      item_key: entity.itemKey,
+    }, { kind: 'browse' });
+    const context = entity.browseContext;
+    if (!context) {
+      throw new RoonLibraryError(
+        'ROON_LIBRARY_RESPONSE_INVALID',
+        `Roon ${expectedKind} path is unavailable`,
+      );
+    }
+    const { session, path } = entitySessionAndPath(entity, expectedKind);
+    const cache = expectedKind === 'genre'
+      ? genreItemsBySignature
+      : playlistTracksBySignature;
+    const cached = cache.get(context.pathSignature);
+    if (cached) {
+      const level = cached[0]?.browseContext?.level ?? context.level + 1;
+      return pageFromResolvedItems(cached, pageRequest, level);
+    }
+    return withSession(session, async () => {
+      const existing = cache.get(context.pathSignature);
+      if (existing) {
+        const level = existing[0]?.browseContext?.level ?? context.level + 1;
+        return pageFromResolvedItems(existing, pageRequest, level);
+      }
+      const collected = await collectEntityChildren(session, path, expectedKind);
+      cache.set(context.pathSignature, collected.items);
+      return pageFromResolvedItems(collected.items, pageRequest, collected.level);
+    });
+  };
+
   const resolveCurrentItemKey = async (
     session: BrowseSessionState,
     segment: BrowsePathSegment,
@@ -1224,7 +1426,7 @@ export function createRoonLibraryService(dependencies: {
         });
       if (!actionItem) {
         throw new RoonLibraryError(
-          'ROON_LIBRARY_RESPONSE_INVALID',
+          'ROON_TRACK_ACTION_UNAVAILABLE',
           `Roon ${kind} action is unavailable`,
         );
       }
@@ -1256,6 +1458,8 @@ export function createRoonLibraryService(dependencies: {
     browseArtists: (request) => pageFor('artists', 'artist', request),
     browseGenres: (request) => pageFor('genres', 'genre', request),
     browsePlaylists: (request) => pageFor('playlists', 'playlist', request),
+    browseGenre: (genre, request) => browseEntityChildren(genre, 'genre', request),
+    browsePlaylist: (playlist, request) => browseEntityChildren(playlist, 'playlist', request),
     browseAlbum: async (album, request) => {
       const pageRequest = normalizePage(request);
       if (!album.itemKey) {

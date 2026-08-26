@@ -96,6 +96,10 @@ contextBridge.exposeInMainWorld(
       ipcRenderer.invoke('roon:library:album', reference, page),
     (reference: string, page: { offset: number; limit: number }) =>
       ipcRenderer.invoke('roon:library:artist', reference, page),
+    (reference: string, page: { offset: number; limit: number }) =>
+      ipcRenderer.invoke('roon:library:genre', reference, page),
+    (reference: string, page: { offset: number; limit: number }) =>
+      ipcRenderer.invoke('roon:library:playlist', reference, page),
     (query: string, page: { offset: number; limit: number }) =>
       ipcRenderer.invoke('roon:library:search', query, page),
     async (reference: string, options?: { scale?: 'fit' | 'fill' | 'stretch'; width?: number; height?: number; format?: 'image/jpeg' | 'image/png' }) => {

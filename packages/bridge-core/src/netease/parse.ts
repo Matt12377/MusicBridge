@@ -313,7 +313,14 @@ export function parseAlbumDetail(response: unknown, page: PageRequest): AlbumDet
 export function parseLikedTrackIds(response: unknown): string[] {
   const body = bodyOf(response);
   responseBodyCode(body, 'liked tracks');
-  const ids = Array.isArray(body.ids) ? body.ids : [];
+  if (!Array.isArray(body.ids)) {
+    throw new BridgeError(
+      'NETEASE_REQUEST_FAILED',
+      'NetEase liked track list was not returned',
+      { httpStatus: 502 },
+    );
+  }
+  const ids = body.ids;
   return ids
     .map((item) => (isRecord(item) ? item.id : item))
     .map(safeId)

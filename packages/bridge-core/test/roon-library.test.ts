@@ -100,6 +100,143 @@ test('RoonLibraryService 通过 Browse + load 读取 Albums 分页，并保留�
   assert.match(album.browseContext.pathSignature, /^[0-9a-f]{64}$/u);
 });
 
+test('RoonLibraryService drills Genre into typed Albums and Tracks without coercing headers or actions', async () => {
+  let location: 'root' | 'genre' | 'albums' | 'tracks' = 'root';
+  const browse: RoonBrowseApi = {
+    browse(options, callback) {
+      if (options.pop_all) location = 'root';
+      else if (options.pop_levels) location = 'genre';
+      else if (options.item_key === 'genre:rock') location = 'genre';
+      else if (options.item_key === 'group:albums') location = 'albums';
+      else if (options.item_key === 'group:tracks') location = 'tracks';
+      callback(false, {
+        action: 'list',
+        list: {
+          level: location === 'root' ? 0 : location === 'genre' ? 1 : 2,
+          count: location === 'genre' ? 2 : 1,
+        },
+      });
+    },
+    load(options, callback) {
+      const items = location === 'root'
+        ? [{ title: 'Rock', item_key: 'genre:rock', hint: 'list' }]
+        : location === 'genre'
+          ? [
+              { title: 'Albums', item_key: 'group:albums', hint: 'list' },
+              { title: 'Tracks', item_key: 'group:tracks', hint: 'list' },
+            ]
+          : location === 'albums'
+            ? [{ title: 'Rock Album', subtitle: 'Band', item_key: 'album:rock', hint: 'list' }]
+            : [
+                { title: 'Disc 1', hint: 'header' },
+                { title: '1. Rock Track', subtitle: 'Band', album: 'Rock Album', item_key: 'track:rock', hint: 'action_list' },
+                { title: 'Play Now', item_key: 'action:play', hint: 'action' },
+              ];
+      callback(false, { offset: options.offset, items });
+    },
+  };
+  const service = createRoonLibraryService({ browse, image: { get_image: () => undefined } });
+
+  const genres = await service.browseGenres({ offset: 0, limit: 20 });
+  const genre = genres.items[0];
+  assert.ok(genre);
+  const detail = await service.browseGenre(genre, { offset: 0, limit: 20 });
+
+  assert.deepEqual(detail.items.map((item) => [item.kind, item.title]), [
+    ['album', 'Rock Album'],
+    ['track', 'Rock Track'],
+  ]);
+});
+
+test('RoonLibraryService does not coerce nested Genre summaries into Albums', async () => {
+  let location: 'root' | 'genre' = 'root';
+  const service = createRoonLibraryService({
+    browse: {
+      browse(options, callback) {
+        if (options.pop_all) location = 'root';
+        else if (options.item_key === 'genre:jazz') location = 'genre';
+        callback(false, {
+          action: 'list',
+          list: { level: location === 'root' ? 0 : 1, count: location === 'root' ? 1 : 3 },
+        });
+      },
+      load(options, callback) {
+        callback(false, {
+          offset: options.offset,
+          items: location === 'root'
+            ? [{ title: 'Jazz', subtitle: '1 Artist, 1 Album', item_key: 'genre:jazz', hint: 'list' }]
+            : [
+                {
+                  title: 'Jazz Instrument',
+                  subtitle: '1 Artist, 1 Album',
+                  image_key: 'image:nested-genre',
+                  item_key: 'genre:jazz-instrument',
+                  hint: 'list',
+                },
+                {
+                  title: 'Heart and Soul',
+                  subtitle: 'Kenny G / Babyface',
+                  image_key: 'image:album',
+                  item_key: 'album:heart-and-soul',
+                  hint: 'list',
+                },
+                {
+                  title: 'More',
+                  image_key: 'image:unknown-container',
+                  item_key: 'container:more',
+                  hint: 'list',
+                },
+              ],
+        });
+      },
+    },
+    image: { get_image: () => undefined },
+  });
+
+  const genre = (await service.browseGenres({ offset: 0, limit: 20 })).items[0];
+  assert.ok(genre);
+
+  const detail = await service.browseGenre(genre, { offset: 0, limit: 20 });
+
+  assert.deepEqual(detail.items.map((item) => [item.kind, item.title]), [
+    ['album', 'Heart and Soul'],
+  ]);
+});
+
+test('RoonLibraryService drills Roon Playlist into real Tracks only', async () => {
+  let location: 'root' | 'playlist' = 'root';
+  const browse: RoonBrowseApi = {
+    browse(options, callback) {
+      if (options.pop_all) location = 'root';
+      else if (options.item_key === 'playlist:1') location = 'playlist';
+      callback(false, {
+        action: 'list',
+        list: { level: location === 'root' ? 0 : 1, count: location === 'root' ? 1 : 3 },
+      });
+    },
+    load(options, callback) {
+      callback(false, {
+        offset: options.offset,
+        items: location === 'root'
+          ? [{ title: 'Road Trip', item_key: 'playlist:1', hint: 'list' }]
+          : [
+              { title: 'Playlist', hint: 'header' },
+              { title: '1. First Song', subtitle: 'Artist', item_key: 'track:1', hint: 'action_list' },
+              { title: 'Shuffle', item_key: 'action:shuffle', hint: 'action' },
+            ],
+      });
+    },
+  };
+  const service = createRoonLibraryService({ browse, image: { get_image: () => undefined } });
+
+  const playlists = await service.browsePlaylists({ offset: 0, limit: 20 });
+  const playlist = playlists.items[0];
+  assert.ok(playlist);
+  const detail = await service.browsePlaylist(playlist, { offset: 0, limit: 20 });
+
+  assert.deepEqual(detail.items.map((item) => [item.kind, item.title]), [['track', 'First Song']]);
+});
+
 test('RoonLibraryService 使用 Album 来源 Browse Context 进入曲目层', async () => {
   const calls: Array<Record<string, unknown>> = [];
   let browseIndex = 0;

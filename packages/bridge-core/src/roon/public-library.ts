@@ -43,6 +43,8 @@ export interface RoonPublicLibrary {
   browsePlaylists(request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
   browseAlbum(reference: string, request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
   browseArtist(reference: string, request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
+  browseGenre(reference: string, request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
+  browsePlaylist(reference: string, request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
   searchLibrary(
     query: string,
     request: RoonPageRequest,
@@ -206,7 +208,10 @@ function requireBoundedInteger(
   return resolved;
 }
 
-function wrapLibraryError(error: unknown): never {
+function wrapLibraryError(
+  error: unknown,
+  operation: 'generic' | 'album' | 'image' | 'track-action' = 'generic',
+): never {
   if (error instanceof BridgeError) throw error;
   if (error instanceof RoonActionBlockedError) {
     throw new BridgeError('ROON_ACTION_BLOCKED', 'Roon library action is not allowed', {
@@ -215,6 +220,27 @@ function wrapLibraryError(error: unknown): never {
     });
   }
   if (error instanceof RoonLibraryError) {
+    if (operation === 'album' && error.code === 'ROON_LIBRARY_RESPONSE_INVALID') {
+      throw new BridgeError(
+        'ROON_ALBUM_HIERARCHY_INVALID',
+        'Roon album hierarchy is invalid',
+        { httpStatus: 502, cause: error },
+      );
+    }
+    if (error.code === 'ROON_TRACK_ACTION_UNAVAILABLE') {
+      throw new BridgeError(
+        'ROON_TRACK_ACTION_UNAVAILABLE',
+        'Roon track action is unavailable',
+        { httpStatus: 409, cause: error },
+      );
+    }
+    if (operation === 'image' && error.code === 'ROON_IMAGE_DECODE_FAILED') {
+      throw new BridgeError(
+        'ROON_IMAGE_DECODE_FAILED',
+        'Roon image decode failed',
+        { httpStatus: 502, cause: error },
+      );
+    }
     throw new BridgeError('ROON_LIBRARY_REQUEST_FAILED', 'Roon library request failed', {
       httpStatus: 503,
       cause: error,
@@ -352,6 +378,26 @@ export function createRoonPublicLibrary(
     return stored.descriptor;
   };
 
+  const resolveGenre = (reference: string): RoonEntityDescriptor => {
+    const stored = references.get(reference);
+    if (!stored || stored.descriptor.kind !== 'genre') {
+      throw new BridgeError('ROON_LIBRARY_INVALID_REFERENCE', 'Roon genre reference is invalid', {
+        httpStatus: 400,
+      });
+    }
+    return stored.descriptor;
+  };
+
+  const resolvePlaylist = (reference: string): RoonEntityDescriptor => {
+    const stored = references.get(reference);
+    if (!stored || stored.descriptor.kind !== 'playlist') {
+      throw new BridgeError('ROON_LIBRARY_INVALID_REFERENCE', 'Roon playlist reference is invalid', {
+        httpStatus: 400,
+      });
+    }
+    return stored.descriptor;
+  };
+
   return {
     async browseAlbums(request) {
       try {
@@ -420,7 +466,7 @@ export function createRoonPublicLibrary(
           referenceScope,
         );
       } catch (error) {
-        return wrapLibraryError(error);
+        return wrapLibraryError(error, 'album');
       }
     },
     async browseArtist(reference, request) {
@@ -428,6 +474,34 @@ export function createRoonPublicLibrary(
         const current = service();
         return mapPage(
           await current.browseArtist(resolveArtist(reference), request),
+          request,
+          references,
+          imageReferences,
+          referenceScope,
+        );
+      } catch (error) {
+        return wrapLibraryError(error);
+      }
+    },
+    async browseGenre(reference, request) {
+      try {
+        const current = service();
+        return mapPage(
+          await current.browseGenre(resolveGenre(reference), request),
+          request,
+          references,
+          imageReferences,
+          referenceScope,
+        );
+      } catch (error) {
+        return wrapLibraryError(error);
+      }
+    },
+    async browsePlaylist(reference, request) {
+      try {
+        const current = service();
+        return mapPage(
+          await current.browsePlaylist(resolvePlaylist(reference), request),
           request,
           references,
           imageReferences,
@@ -484,7 +558,7 @@ export function createRoonPublicLibrary(
               const body = new Uint8Array(result.body);
               if (!isValidRoonImageBinary(result.contentType, body)) {
                 throw new RoonLibraryError(
-                  'ROON_IMAGE_REQUEST_FAILED',
+                  'ROON_IMAGE_DECODE_FAILED',
                   'Roon image response failed binary validation',
                 );
               }
@@ -512,7 +586,7 @@ export function createRoonPublicLibrary(
         }
         return cloneImage(await pending);
       } catch (error) {
-        return wrapLibraryError(error);
+        return wrapLibraryError(error, 'image');
       }
     },
     async playTrack(reference, zoneOrOutputId) {
@@ -520,7 +594,7 @@ export function createRoonPublicLibrary(
         const current = service();
         await current.playTrack(resolveTrack(reference), zoneOrOutputId);
       } catch (error) {
-        return wrapLibraryError(error);
+        return wrapLibraryError(error, 'track-action');
       }
     },
     async queueTrack(reference, zoneOrOutputId) {
@@ -528,7 +602,7 @@ export function createRoonPublicLibrary(
         const current = service();
         await current.queueTrack(resolveTrack(reference), zoneOrOutputId);
       } catch (error) {
-        return wrapLibraryError(error);
+        return wrapLibraryError(error, 'track-action');
       }
     },
     getTrackSummary(reference) {

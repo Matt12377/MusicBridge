@@ -60,6 +60,8 @@ test('Roon public library 为同一运行期实体复用稳定引用', async () 
     browseArtists: async () => ({ items: [], offset: 0, level: 0 }),
     browseGenres: async () => ({ items: [], offset: 0, level: 0 }),
     browsePlaylists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseGenre: async () => ({ items: [], offset: 0, level: 1 }),
+    browsePlaylist: async () => ({ items: [], offset: 0, level: 1 }),
     browseAlbum: async () => ({ items: [], offset: 0, level: 1 }),
     browseArtist: async () => ({ items: [], offset: 0, level: 1 }),
     searchLibrary: async () => ({ items: [], offset: 0, level: 0 }),
@@ -88,6 +90,8 @@ test('Roon public library 按图片身份与尺寸去重并缓存受控二进制
     browseArtists: async () => ({ items: [], offset: 0, level: 0 }),
     browseGenres: async () => ({ items: [], offset: 0, level: 0 }),
     browsePlaylists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseGenre: async () => ({ items: [], offset: 0, level: 1 }),
+    browsePlaylist: async () => ({ items: [], offset: 0, level: 1 }),
     browseAlbum: async () => ({ items: [], offset: 0, level: 1 }),
     browseArtist: async () => ({ items: [], offset: 0, level: 1 }),
     searchLibrary: async () => ({ items: [], offset: 0, level: 0 }),
@@ -157,6 +161,8 @@ test('Roon public library 使用有界 LRU，并在 Core Service 更换时隔离
     browseArtists: async () => ({ items: [], offset: 0, level: 0 }),
     browseGenres: async () => ({ items: [], offset: 0, level: 0 }),
     browsePlaylists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseGenre: async () => ({ items: [], offset: 0, level: 1 }),
+    browsePlaylist: async () => ({ items: [], offset: 0, level: 1 }),
     browseAlbum: async () => ({ items: [], offset: 0, level: 1 }),
     browseArtist: async () => ({ items: [], offset: 0, level: 1 }),
     searchLibrary: async () => ({ items: [], offset: 0, level: 0 }),
@@ -201,6 +207,8 @@ test('Roon public library 对图片失败使用短时 negative cache', async () 
     browseArtists: async () => ({ items: [], offset: 0, level: 0 }),
     browseGenres: async () => ({ items: [], offset: 0, level: 0 }),
     browsePlaylists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseGenre: async () => ({ items: [], offset: 0, level: 1 }),
+    browsePlaylist: async () => ({ items: [], offset: 0, level: 1 }),
     browseAlbum: async () => ({ items: [], offset: 0, level: 1 }),
     browseArtist: async () => ({ items: [], offset: 0, level: 1 }),
     searchLibrary: async () => ({ items: [], offset: 0, level: 0 }),
@@ -246,6 +254,8 @@ test('Roon public library 保留超过 4096 个仍可能可见的实体引用', 
     browseArtists: async () => ({ items: [], offset: 0, level: 0 }),
     browseGenres: async () => ({ items: [], offset: 0, level: 0 }),
     browsePlaylists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseGenre: async () => ({ items: [], offset: 0, level: 1 }),
+    browsePlaylist: async () => ({ items: [], offset: 0, level: 1 }),
     browseAlbum: async (album) => {
       openedTitle = album.title;
       return { items: [], offset: 0, level: 1 };
@@ -278,6 +288,8 @@ test('Roon public library 在 Core Library Service 更换后立即作废旧 Cont
     browseArtists: async () => ({ items: [], offset: 0, level: 0 }),
     browseGenres: async () => ({ items: [], offset: 0, level: 0 }),
     browsePlaylists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseGenre: async () => ({ items: [], offset: 0, level: 1 }),
+    browsePlaylist: async () => ({ items: [], offset: 0, level: 1 }),
     browseAlbum: async () => ({ items: [], offset: 0, level: 1 }),
     browseArtist: async () => ({ items: [], offset: 0, level: 1 }),
     searchLibrary: async () => ({ items: [], offset: 0, level: 0 }),
@@ -316,6 +328,8 @@ test('Roon public library rejects stale album and image references before Core c
     browseArtists: async () => ({ items: [], offset: 0, level: 0 }),
     browseGenres: async () => ({ items: [], offset: 0, level: 0 }),
     browsePlaylists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseGenre: async () => ({ items: [], offset: 0, level: 1 }),
+    browsePlaylist: async () => ({ items: [], offset: 0, level: 1 }),
     browseAlbum: async () => ({ items: [], offset: 0, level: 0 }),
     browseArtist: async () => ({ items: [], offset: 0, level: 0 }),
     searchLibrary: async () => ({ items: [], offset: 0, level: 0 }),
@@ -348,6 +362,8 @@ test('Roon public library resolves a Track reference for typed play and queue on
     browseArtists: async () => ({ items: [], offset: 0, level: 0 }),
     browseGenres: async () => ({ items: [], offset: 0, level: 0 }),
     browsePlaylists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseGenre: async () => ({ items: [], offset: 0, level: 1 }),
+    browsePlaylist: async () => ({ items: [], offset: 0, level: 1 }),
     browseAlbum: async () => ({
       items: [{
         kind: 'track',
@@ -412,6 +428,16 @@ test('Roon public library exposes typed artist, genre, playlist and search pages
       offset: 0,
       level: 0,
     }),
+    browseGenre: async () => ({
+      items: [{ kind: 'album', title: 'Genre Album', itemKey: 'album:genre-1' }],
+      offset: 0,
+      level: 1,
+    }),
+    browsePlaylist: async () => ({
+      items: [{ kind: 'track', title: 'Playlist Track', itemKey: 'track:playlist-1' }],
+      offset: 0,
+      level: 1,
+    }),
     browseAlbum: async () => ({ items: [], offset: 0, level: 0 }),
     browseArtist: async () => ({
       items: [{ kind: 'album', title: 'Artist Album', itemKey: 'album:artist-1' }],
@@ -433,8 +459,14 @@ test('Roon public library exposes typed artist, genre, playlist and search pages
   const genres = await publicLibrary.browseGenres({ offset: 0, limit: 20 });
   const playlists = await publicLibrary.browsePlaylists({ offset: 0, limit: 20 });
   const artist = artists.items[0];
+  const genre = genres.items[0];
+  const playlist = playlists.items[0];
   assert.ok(artist);
+  assert.ok(genre);
+  assert.ok(playlist);
   const artistAlbums = await publicLibrary.browseArtist(artist.reference, { offset: 0, limit: 20 });
+  const genreItems = await publicLibrary.browseGenre(genre.reference, { offset: 0, limit: 20 });
+  const playlistTracks = await publicLibrary.browsePlaylist(playlist.reference, { offset: 0, limit: 20 });
   const search = await publicLibrary.searchLibrary('search', { offset: 0, limit: 20 });
 
   assert.deepEqual(
@@ -442,5 +474,7 @@ test('Roon public library exposes typed artist, genre, playlist and search pages
     ['genre', 'playlist', 'album', 'track'],
   );
   assert.match(artistAlbums.items[0]?.reference ?? '', /^musicbridge-v2-entity-/u);
+  assert.equal(genreItems.items[0]?.kind, 'album');
+  assert.equal(playlistTracks.items[0]?.kind, 'track');
   assert.match(search.items[0]?.reference ?? '', /^musicbridge-v2-entity-/u);
 });

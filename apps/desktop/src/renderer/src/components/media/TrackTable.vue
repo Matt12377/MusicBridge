@@ -167,7 +167,7 @@ onUnmounted(() => {
       >
         <span class="track-index" aria-hidden="true"><span class="track-number">{{ trackIndex(index) + 1 }}</span><span class="track-play-mark">▶</span></span>
         <SafeArtwork v-if="props.showArtwork" class="track-art" :src="track.artworkUrl" :alt="`${track.title} 封面`" />
-        <span class="track-copy"><strong>{{ track.title }}</strong><small>{{ track.artists.join('、') }}</small><span v-if="props.matchStates?.[track.id] === 'CONFIRMED'" class="track-source-badge">Roon 已匹配</span><span v-else-if="props.matchStates?.[track.id] === 'POSSIBLE'" class="track-source-badge is-muted">可能有本地版本</span></span>
+        <span class="track-copy"><strong>{{ track.title }}</strong><small>{{ track.artists.join('、') }}</small><span v-if="props.matchStates?.[track.id] === 'CONFIRMED'" class="track-source-badge">Roon 已匹配</span><span v-else-if="props.matchStates?.[track.id] === 'POSSIBLE'" class="track-source-badge is-muted" title="存在多个候选，保持 Provider 播放">Smart 匹配不唯一</span></span>
         <span class="track-album">{{ track.album }}</span>
         <span class="track-duration">{{ formatDuration(track.durationMs) }}</span>
         <span class="row-actions">

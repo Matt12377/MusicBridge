@@ -82,6 +82,8 @@ export const IPC_COMMANDS = [
   'roon.library.playlists',
   'roon.library.album',
   'roon.library.artist',
+  'roon.library.genre',
+  'roon.library.playlist',
   'roon.library.search',
   'roon.library.image',
   'roon.library.play',
@@ -185,6 +187,8 @@ export interface IpcCommandPayloads {
   'roon.library.playlists': { page: PageRequest };
   'roon.library.album': { reference: string; page: PageRequest };
   'roon.library.artist': { reference: string; page: PageRequest };
+  'roon.library.genre': { reference: string; page: PageRequest };
+  'roon.library.playlist': { reference: string; page: PageRequest };
   'roon.library.search': { query: string; page: PageRequest };
   'roon.library.image': { reference: string; options?: RoonImageOptions };
   'roon.library.play': { reference: string; zoneId: string };
@@ -249,6 +253,8 @@ export interface IpcCommandResults {
   'roon.library.playlists': RoonLibraryPage;
   'roon.library.album': RoonLibraryPage;
   'roon.library.artist': RoonLibraryPage;
+  'roon.library.genre': RoonLibraryPage;
+  'roon.library.playlist': RoonLibraryPage;
   'roon.library.search': RoonLibraryPage;
   'roon.library.image': RoonImageResult;
   'roon.library.play': { started: true };

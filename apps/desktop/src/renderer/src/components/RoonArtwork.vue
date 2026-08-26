@@ -25,6 +25,7 @@ const props = withDefaults(defineProps<{
 const root = ref<HTMLElement | null>(null)
 const imageUrl = ref<string | undefined>()
 const loading = ref(false)
+const errorState = ref<'request' | 'decode' | null>(null)
 let visible = props.eager
 let operation = 0
 let observer: IntersectionObserver | undefined
@@ -41,9 +42,11 @@ async function acquireRoonArtwork(): Promise<void> {
   releaseImage()
   if (!props.reference || !visible) {
     loading.value = false
+    errorState.value = null
     return
   }
   loading.value = true
+  errorState.value = null
   try {
     const acquired = await roonArtworkCache.acquire({
       reference: props.reference,
@@ -59,7 +62,10 @@ async function acquireRoonArtwork(): Promise<void> {
     lease = acquired
     imageUrl.value = acquired.url
   } catch {
-    if (current === operation) imageUrl.value = undefined
+    if (current === operation) {
+      imageUrl.value = undefined
+      errorState.value = 'request'
+    }
   } finally {
     if (current === operation) loading.value = false
   }
@@ -68,6 +74,7 @@ async function acquireRoonArtwork(): Promise<void> {
 function handleImageError(): void {
   operation += 1
   imageUrl.value = undefined
+  errorState.value = 'decode'
   lease?.invalidate()
   lease = undefined
   loading.value = false
@@ -121,5 +128,7 @@ onUnmounted(() => {
       decoding="async"
       @error="handleImageError"
     />
+    <span v-if="errorState === 'decode'" class="roon-artwork-error" role="status">封面解码失败</span>
+    <span v-else-if="errorState === 'request'" class="roon-artwork-error" role="status">封面读取失败</span>
   </span>
 </template>

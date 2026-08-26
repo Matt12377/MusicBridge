@@ -462,7 +462,9 @@ class PublicIpcError extends Error {
   readonly code: PublicErrorCode
 
   constructor(code: PublicErrorCode, message: string) {
-    super(message)
+    // Electron 通过 ipcRenderer.invoke() 传递异常时只保留 Error.message；
+    // 将受控公开错误码写入消息，Renderer 才能安全恢复具体错误语义。
+    super(`[${code}] ${message}`)
     this.name = 'PublicIpcError'
     this.code = code
   }
@@ -1123,6 +1125,22 @@ function registerIpcHandlers(
   ipcMain.handle('roon:library:artist', (event, reference: unknown, page: unknown) =>
     invokeCore(event, () =>
       supervisor.request('roon.library.artist', {
+        reference: requireRoonReference(reference),
+        page: requireLibraryPage(page),
+      }),
+    ),
+  )
+  ipcMain.handle('roon:library:genre', (event, reference: unknown, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.genre', {
+        reference: requireRoonReference(reference),
+        page: requireLibraryPage(page),
+      }),
+    ),
+  )
+  ipcMain.handle('roon:library:playlist', (event, reference: unknown, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.playlist', {
         reference: requireRoonReference(reference),
         page: requireLibraryPage(page),
       }),

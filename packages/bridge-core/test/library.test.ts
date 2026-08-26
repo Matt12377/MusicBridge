@@ -277,27 +277,57 @@ test('NeteaseClient loads liked track ids from the native likelist endpoint', as
 test('NeteaseClient exposes explicit NetEase like and like-status operations', async () => {
   const calls: Array<{ method: string; params: Record<string, unknown> }> = [];
   const client = new NeteaseClient('synthetic-credential', baseApi({
+    async user_account(params) {
+      calls.push({ method: 'user_account', params });
+      return { body: { code: 200, account: { id: 42 } } };
+    },
+    async likelist(params) {
+      calls.push({ method: 'likelist', params });
+      return { body: { code: 200, ids: [101] } };
+    },
     async song_like(params) {
       calls.push({ method: 'song_like', params });
       return { body: { code: 200 } };
-    },
-    async song_like_check(params) {
-      calls.push({ method: 'song_like_check', params });
-      return { body: { code: 200, checkPoint: true } };
     },
   }));
 
   assert.deepEqual(await client.isTrackLiked('101'), { liked: true });
   assert.deepEqual(await client.likeTrack('101', false), { liked: false });
   assert.deepEqual(calls, [
-    { method: 'song_like_check', params: { ids: '101', cookie: 'synthetic-credential' } },
+    { method: 'user_account', params: { cookie: 'synthetic-credential' } },
+    { method: 'likelist', params: { uid: '42', cookie: 'synthetic-credential' } },
     { method: 'song_like', params: { id: '101', like: false, cookie: 'synthetic-credential' } },
   ]);
 });
 
-test('NeteaseClient rejects a like-status response without an explicit boolean', async () => {
+test('NeteaseClient reads real like status from the account likelist instead of the unstable single-track check endpoint', async () => {
+  const calls: string[] = [];
   const client = new NeteaseClient('synthetic-credential', baseApi({
+    async user_account() {
+      calls.push('user_account');
+      return { body: { code: 200, account: { id: 42 } } };
+    },
+    async likelist(params) {
+      calls.push(`likelist:${String(params.uid)}`);
+      return { body: { code: 200, ids: [101, 303] } };
+    },
     async song_like_check() {
+      calls.push('unstable_song_like_check');
+      throw new Error('real endpoint unavailable');
+    },
+  }));
+
+  assert.deepEqual(await client.isTrackLiked('101'), { liked: true });
+  assert.deepEqual(await client.isTrackLiked('202'), { liked: false });
+  assert.deepEqual(calls, ['user_account', 'likelist:42']);
+});
+
+test('NeteaseClient rejects a like-status lookup without an explicit liked-track list', async () => {
+  const client = new NeteaseClient('synthetic-credential', baseApi({
+    async user_account() {
+      return { body: { code: 200, account: { id: 42 } } };
+    },
+    async likelist() {
       return { body: { code: 200, data: {} } };
     },
   }));
