@@ -278,11 +278,13 @@ test('Liquid Glass v4 uses one neutral graphite theme and never rotates the albu
 
 test('V1 Bottom Player stays compact, semantic, and free of transient lyric or state copy', async () => {
   const player = await readFile(path.resolve('src/renderer/src/components/BottomPlayer.vue'), 'utf8')
+  const qualityControl = await readFile(path.resolve('src/renderer/src/components/player/QualityControl.vue'), 'utf8')
   const icon = await readFile(path.resolve('src/renderer/src/components/sidebar/SidebarIcon.vue'), 'utf8')
   const css = await readFile(path.resolve('src/renderer/src/style.css'), 'utf8')
 
   assert.doesNotMatch(player, /player-label|currentLyricLine|音质切换/)
-  assert.match(player, /下次音质/)
+  assert.match(player, /QualityControl/)
+  assert.match(qualityControl, /下次音质/)
   assert.match(player, /name="previous"/)
   assert.match(player, /name="next"/)
   assert.match(player, /name="list"/)
@@ -418,7 +420,7 @@ test('Roon reconnect invalidates session-scoped collection references before the
   assert.match(app, /function resetRoonRuntimeReferences\(\): void[\s\S]*resetRoonAlbums\(\)[\s\S]*resetRoonPlaylists\(\)/)
   assert.match(app, /previousStatus === 'ready' && state\.status !== 'ready'[\s\S]*resetRoonRuntimeReferences\(\)/)
   assert.match(app, /event\.event === 'core\.ready'[\s\S]*resetRoonRuntimeReferences\(\)/)
-  assert.match(app, /event\.payload\.state\.roon === 'ready'[\s\S]*refreshVisibleRoonCollection\(\)/)
+  assert.match(app, /shouldRefreshVisibleRoonCollection\([\s\S]*previousRoonStatus,[\s\S]*event\.payload\.state\.roon,[\s\S]*\)[\s\S]*refreshVisibleRoonCollection\(\)/)
 })
 
 test('V2 native Roon playback clears only stale local favorite identity when the current descriptor is unavailable', async () => {
@@ -456,6 +458,30 @@ test('search playback gives immediate preparation feedback and rejects duplicate
   assert.match(playTrack, /window\.musicBridge\.play\(track\.id, selectedQuality\.value, rendererClickAtMs\)/)
   assert.match(playTrack, /finally \{\s*playbackStartPending\.value = false\s*\}/)
   assert.match(app, /:busy="playbackStartPending"/)
+})
+
+test('本地 Roon 点播先投影请求曲目再等待 Core 精确确认，并防止旧请求覆盖新请求', async () => {
+  const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const start = app.indexOf('async function playRoonLibraryTrack')
+  const end = app.indexOf('async function queueRoonLibraryTrack', start)
+  const playRoonTrack = app.slice(start, end)
+
+  const optimisticIndex = playRoonTrack.indexOf('createOptimisticRoonPlayback')
+  const enterIndex = playRoonTrack.indexOf('enterNowPlaying()')
+  const awaitIndex = playRoonTrack.indexOf('await window.musicBridge.playRoonTrack')
+  assert.ok(optimisticIndex >= 0 && optimisticIndex < awaitIndex)
+  assert.ok(enterIndex >= 0 && enterIndex < awaitIndex)
+  assert.match(playRoonTrack, /const operation = \+\+roonPlaybackOperation/)
+  assert.match(playRoonTrack, /if \(operation !== roonPlaybackOperation\) return/)
+})
+
+test('Roon 未提供真实码率时向用户说明 API 边界，不展示伪造数值', async () => {
+  const nowPlaying = await readFile(
+    path.resolve('src/renderer/src/components/NowPlayingView.vue'),
+    'utf8',
+  )
+
+  assert.match(nowPlaying, /Roon API 未提供码率/)
 })
 
 test('P1-D keeps local-library navigation in the sidebar and wires real genre and Roon playlist drill-down', async () => {

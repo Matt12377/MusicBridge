@@ -1146,6 +1146,53 @@ test('selected Zone playback confirmation requires the target identity and a rea
   assert.equal(settled, true);
 });
 
+test('selected Zone playback confirmation accepts a Roon disc-track prefix without waiting for timeout', async () => {
+  const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 20 });
+  const confirmationApi = adapter as unknown as {
+    getSelectedZonePlaybackObservation(): { revision: number } | undefined;
+    waitForSelectedZonePlayback(input: {
+      zoneId: string;
+      state: 'playing';
+      afterRevision: number;
+      track: {
+        title: string;
+        artists: readonly string[];
+        album: string;
+        durationMs?: number;
+      };
+    }): Promise<unknown>;
+  };
+  const before = confirmationApi.getSelectedZonePlaybackObservation();
+  assert.ok(before);
+
+  const confirmation = confirmationApi.waitForSelectedZonePlayback({
+    zoneId: 'zone-1',
+    state: 'playing',
+    afterRevision: before.revision,
+    track: {
+      title: '1-1 Target Local Song',
+      artists: ['Target Artist'],
+      album: 'Target Album',
+      durationMs: 180_000,
+    },
+  });
+
+  api.core.transport.emit('Changed', {
+    zones_changed: [{
+      zone_id: 'zone-1',
+      state: 'playing',
+      now_playing: {
+        three_line: { line1: 'Target Local Song', line2: 'Target Artist', line3: 'Target Album' },
+        length: 180,
+        seek_position: 0.2,
+      },
+      outputs: [{ output_id: 'output-1' }],
+    }],
+  });
+
+  await confirmation;
+});
+
 test('pause fails closed when the selected Zone does not advertise the capability', async () => {
   const { adapter, api } = await makeReadyHarness();
   const playback = adapter.play(playRequest);

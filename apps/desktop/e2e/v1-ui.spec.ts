@@ -101,6 +101,10 @@ function playerZoneButton() {
   return page.locator('.player-zone-button')
 }
 
+function playerQualityButton() {
+  return page.getByRole('button', { name: '选择下次播放音质' })
+}
+
 async function openPlayerZonePopover() {
   const button = playerZoneButton()
   await expect(button).toBeVisible()
@@ -465,9 +469,15 @@ test('v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation', 
   await expect(sourceButton('playlists')).toBeVisible()
   await expect(page.getByRole('navigation', { name: '音乐来源' }).getByRole('button', { name: /Synthetic Playlist/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /Synthetic Zone|选择播放设备/ })).toBeVisible()
-  await expect(page.getByLabel('切换播放音质')).toHaveValue('auto')
+  await expect(playerQualityButton()).toContainText('自动')
   await expect(page.getByRole('button', { name: '播放当前歌曲' })).toBeVisible()
-  await page.getByLabel('切换播放音质').selectOption('hires')
+  await playerQualityButton().click()
+  const qualityPopover = page.getByRole('dialog', { name: '下次播放音质' })
+  await expect(qualityPopover).toBeVisible()
+  await expect(qualityPopover.getByRole('listbox', { name: '可选音质' })).toBeVisible()
+  await page.keyboard.press('End')
+  await page.keyboard.press('Enter')
+  await expect(playerQualityButton()).toContainText('Hi-Res')
   await openAccountSettings()
   await expect(page.getByRole('tab', { name: '账户', exact: true })).toBeVisible()
   await expect(page.getByRole('tab', { name: '播放', exact: true })).toBeVisible()
@@ -482,7 +492,7 @@ test('v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation', 
   await page.getByRole('tab', { name: '播放', exact: true }).click()
   await expect(page.locator('#quality-select')).toHaveValue('hires')
   await page.locator('#quality-select').selectOption('standard')
-  await expect(page.getByLabel('切换播放音质')).toHaveValue('standard')
+  await expect(playerQualityButton()).toContainText('Standard')
   await sourceButton('home').click()
   for (const name of ['Home', 'Search', 'Library', 'Now Playing', 'Queue', 'Settings', 'Diagnostics']) {
     await expect(page.getByRole('navigation', { name: '音乐来源' }).getByRole('button', { name, exact: true })).toHaveCount(0)
@@ -720,6 +730,18 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   await playlistRow.click()
   await expect(page.getByRole('heading', { name: 'Synthetic Playlist', exact: true }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: '加载更多歌曲' })).toBeVisible()
+  const playlistView = page.locator('.view-playlist')
+  const playlistScrollTop = await page.locator('.content-scroll').evaluate((element) => {
+    element.scrollTop = 240
+    return element.scrollTop
+  })
+  await playlistView.getByRole('button', { name: '播放 Synthetic Track 1', exact: true }).click()
+  await expect(page.locator('.now-playing-fullscreen')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Synthetic Playlist', exact: true }).first()).toBeVisible()
+  await page.getByRole('button', { name: '打开正在播放' }).click()
+  await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
+  await page.getByRole('button', { name: '退出全屏播放' }).click()
+  await expect.poll(() => page.locator('.content-scroll').evaluate((element) => element.scrollTop)).toBe(playlistScrollTop)
 
   await search.fill('synthetic')
   await expect(page.getByText('Synthetic Track 1', { exact: true })).toBeVisible()
@@ -754,6 +776,8 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   await expect(actualQualityButton).toContainText('Lossless')
   await expect(actualQualityButton).not.toContainText('Hi-Res')
   await actualQualityButton.click()
+  await expect(actualQualityButton).toContainText(/1,411 kbps|1411 kbps/)
+  await page.waitForTimeout(1_500)
   await expect(actualQualityButton).toContainText(/1,411 kbps|1411 kbps/)
   await expect(page.getByText(/请求质量已被安全降级/)).toBeVisible()
   await page.getByRole('button', { name: '退出全屏播放' }).click()
@@ -863,6 +887,13 @@ test('Now Playing 歌词保留多行上下文并标记当前焦点', async () =>
   await expect(lines.nth(1)).toHaveAttribute('data-line-distance', '1')
   await expect(lines.nth(4)).toHaveAttribute('data-line-distance', '4')
   await expect(lines.nth(7)).toHaveAttribute('data-line-distance', '7')
+  await expect.poll(() => page.locator('.now-playing-lyrics-lines').evaluate((element) => {
+    const active = element.querySelector<HTMLElement>('.lyrics-line.active')
+    if (!active) return Number.POSITIVE_INFINITY
+    const host = element.getBoundingClientRect()
+    const line = active.getBoundingClientRect()
+    return Math.abs((line.top + line.height / 2) - (host.top + host.height / 2))
+  })).toBeLessThanOrEqual(12)
 
   const lyricsGeometry = await page.locator('.now-playing-lyrics').evaluate((element) => {
     const stage = element.closest<HTMLElement>('.now-playing-stage')

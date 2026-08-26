@@ -17,6 +17,8 @@ export interface RoonLibraryItem {
   artist?: string
   album?: string
   durationMs?: number
+  bitrate?: number
+  format?: string
   trackNumber?: number
   discNumber?: number
   year?: number

@@ -46,6 +46,11 @@ export function useRoonCollection(
     try {
       const result = await requestPage(request)
       if (requestGeneration !== generation) return
+      if (!initial && result.offset !== request.offset) {
+        loadingMore.value = false
+        loadMoreError.value = '分页响应异常，点击重试'
+        return
+      }
       page.value = initial ? result : appendRoonPage(page.value, result)
       initialLoading.value = false
       loadingMore.value = false

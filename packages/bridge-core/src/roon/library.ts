@@ -74,6 +74,8 @@ export interface RoonEntityDescriptor {
   album?: string;
   durationMs?: number;
   durationSeconds?: number;
+  bitrate?: number;
+  format?: string;
   trackNumber?: number;
   discNumber?: number;
   year?: number;
@@ -121,9 +123,12 @@ export interface RoonLibraryService {
     kind?: RoonSearchResultKind,
   ): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
   getImage(imageKey: string, options?: RoonImageOptions): Promise<RoonImageResult>;
-  playTrack(track: RoonEntityDescriptor, zoneOrOutputId: string): Promise<void>;
-  queueTrack(track: RoonEntityDescriptor, zoneOrOutputId: string): Promise<void>;
+  getArtistImageKey?(artist: RoonEntityDescriptor): Promise<string | undefined>;
+  playTrack(track: RoonEntityDescriptor, zoneOrOutputId: string): Promise<RoonTrackActionOutcome | void>;
+  queueTrack(track: RoonEntityDescriptor, zoneOrOutputId: string): Promise<RoonTrackActionOutcome | void>;
 }
+
+export type RoonTrackActionOutcome = 'accepted' | 'confirmation-required';
 
 export interface RoonPageRequest {
   offset: number;
@@ -137,6 +142,7 @@ export class RoonLibraryError extends Error {
       | 'ROON_LIBRARY_REQUEST_FAILED'
       | 'ROON_LIBRARY_RESPONSE_INVALID'
       | 'ROON_IMAGE_REQUEST_FAILED'
+      | 'ROON_IMAGE_UNAVAILABLE'
       | 'ROON_IMAGE_DECODE_FAILED'
       | 'ROON_TRACK_ACTION_UNAVAILABLE',
     message: string,
@@ -149,6 +155,7 @@ export class RoonLibraryError extends Error {
 interface BrowseList {
   level: number;
   count?: number;
+  imageKey?: string;
 }
 
 interface BrowseItemRecord {
@@ -191,6 +198,7 @@ interface BrowseSessionState {
   rootLevel?: number;
   currentLevel?: number;
   currentCount?: number;
+  currentImageKey?: string;
   currentPath: BrowsePathSegment[];
   tail: Promise<void>;
 }
@@ -448,9 +456,14 @@ function readBrowseResponse(value: unknown): BrowseResponse {
     );
   }
   const count = readSafeInteger(list?.count);
+  const imageKey = readString(list ?? {}, 'image_key');
   const action = readString(body ?? {}, 'action');
   return {
-    list: { level, ...(count !== undefined ? { count } : {}) },
+    list: {
+      level,
+      ...(count !== undefined ? { count } : {}),
+      ...(imageKey !== undefined ? { imageKey } : {}),
+    },
     ...(action !== undefined ? { action } : {}),
   };
 }
@@ -566,6 +579,15 @@ function readItem(
   const album = readString(source, 'album');
   const durationMs = readNumber(source, 'duration_ms');
   const durationSeconds = readNumber(source, 'duration');
+  const rawBitrate = readNumber(source, 'bitrate') ?? readNumber(source, 'bit_rate');
+  const bitrate = rawBitrate !== undefined
+    && Number.isSafeInteger(rawBitrate)
+    && rawBitrate > 0
+    && rawBitrate <= 10_000_000
+    ? rawBitrate
+    : undefined;
+  const rawFormat = readString(source, 'format')?.trim();
+  const format = rawFormat && rawFormat.length <= 64 ? rawFormat : undefined;
   const explicitTrackNumber = readNumber(source, 'track_number');
   const numberedTitle = kind === 'track'
     ? /^\s*0*(\d{1,3})[.．]\s+(.+?)\s*$/u.exec(rawTitle)
@@ -600,6 +622,8 @@ function readItem(
     ...(album !== undefined ? { album } : {}),
     ...(durationMs !== undefined ? { durationMs } : {}),
     ...(durationSeconds !== undefined ? { durationSeconds } : {}),
+    ...(bitrate !== undefined ? { bitrate } : {}),
+    ...(format !== undefined ? { format } : {}),
     ...(trackNumber !== undefined ? { trackNumber } : {}),
     ...(discNumber !== undefined ? { discNumber } : {}),
     ...(year !== undefined ? { year } : {}),
@@ -681,6 +705,10 @@ export function createRoonLibraryService(dependencies: {
   const playlistTracksBySignature = new Map<string, readonly RoonEntityDescriptor[]>();
   const searchTracksByQuery = new Map<string, readonly RoonEntityDescriptor[]>();
   const searchAlbumsByQuery = new Map<string, readonly RoonEntityDescriptor[]>();
+  const artistImageKeysBySignature = new Map<string, string | undefined>();
+  const pendingArtistImageKeys = new Map<string, Promise<string | undefined>>();
+  const artistImageLookupTails = Array.from({ length: 4 }, () => Promise.resolve());
+  let nextArtistImageLookupLane = 0;
 
   const createSession = (
     hierarchy: RoonBrowseHierarchy,
@@ -724,6 +752,23 @@ export function createRoonLibraryService(dependencies: {
     const result = session.tail.then(operation, operation);
     session.tail = result.then(() => undefined, () => undefined);
     return result;
+  };
+
+  const withArtistImageLookupLane = <T>(operation: () => Promise<T>): Promise<T> => {
+    const lane = nextArtistImageLookupLane;
+    nextArtistImageLookupLane = (nextArtistImageLookupLane + 1) % artistImageLookupTails.length;
+    const result = artistImageLookupTails[lane]!.then(operation, operation);
+    artistImageLookupTails[lane] = result.then(() => undefined, () => undefined);
+    return result;
+  };
+
+  const cacheArtistImageKey = (signature: string, imageKey: string | undefined): void => {
+    if (!artistImageKeysBySignature.has(signature) && artistImageKeysBySignature.size >= 2_048) {
+      const oldest = artistImageKeysBySignature.keys().next().value;
+      if (oldest !== undefined) artistImageKeysBySignature.delete(oldest);
+    }
+    artistImageKeysBySignature.delete(signature);
+    artistImageKeysBySignature.set(signature, imageKey);
   };
 
   const requestBrowse = (
@@ -793,6 +838,8 @@ export function createRoonLibraryService(dependencies: {
     session.currentLevel = response.list.level;
     if (response.list.count === undefined) delete session.currentCount;
     else session.currentCount = response.list.count;
+    if (response.list.imageKey === undefined) delete session.currentImageKey;
+    else session.currentImageKey = response.list.imageKey;
     session.currentPath = [...path];
   };
 
@@ -806,6 +853,7 @@ export function createRoonLibraryService(dependencies: {
     return {
       level: session.currentLevel,
       ...(session.currentCount !== undefined ? { count: session.currentCount } : {}),
+      ...(session.currentImageKey !== undefined ? { imageKey: session.currentImageKey } : {}),
     };
   };
 
@@ -1366,7 +1414,7 @@ export function createRoonLibraryService(dependencies: {
     track: RoonEntityDescriptor,
     zoneOrOutputId: string,
     kind: 'play' | 'queue',
-  ): Promise<void> => {
+  ): Promise<RoonTrackActionOutcome> => {
     if (!track.itemKey) {
       throw new RoonLibraryError(
         'ROON_LIBRARY_RESPONSE_INVALID',
@@ -1392,7 +1440,7 @@ export function createRoonLibraryService(dependencies: {
       register: false,
       ...(sourceSession.input !== undefined ? { input: sourceSession.input } : {}),
     });
-    await withSession(actionSession, async () => {
+    return withSession(actionSession, async () => {
       const refreshedParentPath = await replayStablePath(actionSession, parentPath);
       const refreshed = await resolveCurrentItemKey(
         actionSession,
@@ -1431,25 +1479,31 @@ export function createRoonLibraryService(dependencies: {
         );
       }
       const authorization = authorizeRoonAction(actionItem, { kind, allowMutation: true });
-      const result = asRecord(await requestBrowse('browse', {
-        hierarchy: actionSession.hierarchy,
-        multi_session_key: actionSession.multiSessionKey,
-        item_key: authorization.itemKey,
-        zone_or_output_id: zoneOrOutputId,
-      }));
+      let result: BrowseItemRecord | undefined;
+      try {
+        result = asRecord(await requestBrowse('browse', {
+          hierarchy: actionSession.hierarchy,
+          multi_session_key: actionSession.multiSessionKey,
+          item_key: authorization.itemKey,
+          zone_or_output_id: zoneOrOutputId,
+        }));
+      } catch (error) {
+        if (kind === 'play' && error instanceof RoonLibraryError) {
+          return 'confirmation-required';
+        }
+        throw error;
+      }
       const resultAction = readString(result ?? {}, 'action');
-      if (!resultAction) {
+      if (!resultAction || resultAction === 'message') {
+        if (kind === 'play') return 'confirmation-required';
         throw new RoonLibraryError(
-          'ROON_LIBRARY_RESPONSE_INVALID',
-          `Roon ${kind} action response is invalid`,
+          resultAction === 'message'
+            ? 'ROON_LIBRARY_REQUEST_FAILED'
+            : 'ROON_LIBRARY_RESPONSE_INVALID',
+          `Roon ${kind} action response requires confirmation`,
         );
       }
-      if (resultAction === 'message') {
-        throw new RoonLibraryError(
-          'ROON_LIBRARY_REQUEST_FAILED',
-          `Roon ${kind} action returned a message`,
-        );
-      }
+      return 'accepted';
     });
   };
 
@@ -1460,6 +1514,52 @@ export function createRoonLibraryService(dependencies: {
     browsePlaylists: (request) => pageFor('playlists', 'playlist', request),
     browseGenre: (genre, request) => browseEntityChildren(genre, 'genre', request),
     browsePlaylist: (playlist, request) => browseEntityChildren(playlist, 'playlist', request),
+    getArtistImageKey: async (artist) => {
+      const { session: sourceSession, path } = entitySessionAndPath(artist, 'artist');
+      const signature = path.at(-1)?.pathSignature;
+      if (!signature) {
+        throw new RoonLibraryError(
+          'ROON_LIBRARY_RESPONSE_INVALID',
+          'Roon artist image path is unavailable',
+        );
+      }
+      if (artistImageKeysBySignature.has(signature)) {
+        const cached = artistImageKeysBySignature.get(signature);
+        artistImageKeysBySignature.delete(signature);
+        artistImageKeysBySignature.set(signature, cached);
+        return cached;
+      }
+      const existing = pendingArtistImageKeys.get(signature);
+      if (existing) return existing;
+      const imageSession = createSession(sourceSession.hierarchy, {
+        register: false,
+        ...(sourceSession.input !== undefined ? { input: sourceSession.input } : {}),
+      });
+      const pending = withArtistImageLookupLane(async () => withSession(imageSession, async () => {
+        await replayStablePath(imageSession, path);
+        const list = currentList(imageSession);
+        let imageKey = list.imageKey;
+        if (!imageKey && list.count !== 0) {
+          const loaded = readLoadResponse(await requestBrowse('load', {
+            hierarchy: imageSession.hierarchy,
+            multi_session_key: imageSession.multiSessionKey,
+            level: list.level,
+            offset: 0,
+            count: Math.min(list.count ?? 8, 8),
+          }));
+          imageKey = loaded.items
+            .map((item) => asRecord(item))
+            .map((item) => readString(item ?? {}, 'image_key'))
+            .find((candidate) => candidate !== undefined);
+        }
+        cacheArtistImageKey(signature, imageKey);
+        return imageKey;
+      })).finally(() => {
+        pendingArtistImageKeys.delete(signature);
+      });
+      pendingArtistImageKeys.set(signature, pending);
+      return pending;
+    },
     browseAlbum: async (album, request) => {
       const pageRequest = normalizePage(request);
       if (!album.itemKey) {
@@ -1778,13 +1878,20 @@ export function createRoonLibraryService(dependencies: {
             } catch {
               // 诊断回调不得改变图片行为。
             }
+            if (error) {
+              finish(new RoonLibraryError('ROON_IMAGE_REQUEST_FAILED', 'Roon image request failed'));
+              return;
+            }
+            if (body === undefined || body === null || (Buffer.isBuffer(body) && body.length === 0)) {
+              finish(new RoonLibraryError('ROON_IMAGE_UNAVAILABLE', 'Roon image is unavailable'));
+              return;
+            }
             if (
-              error
-              || typeof contentType !== 'string'
+              typeof contentType !== 'string'
               || !Buffer.isBuffer(body)
               || !isValidRoonImageBinary(contentType, body)
             ) {
-              finish(new RoonLibraryError('ROON_IMAGE_REQUEST_FAILED', 'Roon image request failed'));
+              finish(new RoonLibraryError('ROON_IMAGE_DECODE_FAILED', 'Roon image response is not decodable'));
               return;
             }
             finish(undefined, { contentType, body });

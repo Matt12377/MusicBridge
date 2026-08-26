@@ -17,6 +17,10 @@ export interface TrackSummary {
   artists: readonly string[]
   album: string
   durationMs?: number
+  /** 来源明确提供的每秒比特数；不可由标题或音质标签推断。 */
+  bitrate?: number
+  /** 来源明确提供的短格式名，例如 FLAC；不可由扩展名推断。 */
+  format?: string
   artworkUrl?: string
   /** 当前 Roon Core 运行期内可解析的本地图片引用；重连后必须重新获取。 */
   artworkReference?: string

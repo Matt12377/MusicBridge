@@ -160,6 +160,8 @@ function cloneTrackSummary(track: TrackSummary): TrackSummary {
     artists: [...track.artists],
     album: track.album,
     ...(track.durationMs !== undefined ? { durationMs: track.durationMs } : {}),
+    ...(track.bitrate !== undefined ? { bitrate: track.bitrate } : {}),
+    ...(track.format ? { format: track.format } : {}),
     ...(track.artworkUrl ? { artworkUrl: track.artworkUrl } : {}),
     ...(track.artworkReference ? { artworkReference: track.artworkReference } : {}),
   };
@@ -427,7 +429,17 @@ export class BridgeController {
               ? { bitrate: this.activePlayback.bitrate }
               : {}),
           }
-        : {}),
+        : this.activeRoonPlayback
+          ? {
+              actualQuality: 'unknown' as const,
+              ...(this.activeRoonPlayback.track.format
+                ? { format: this.activeRoonPlayback.track.format }
+                : {}),
+              ...(this.activeRoonPlayback.track.bitrate !== undefined
+                ? { bitrate: this.activeRoonPlayback.track.bitrate }
+                : {}),
+            }
+          : {}),
       positionMs: this.positionMs,
       ...(selectedZoneId ? { selectedZoneId } : {}),
       ...(this.lastPlaybackError ? { lastError: this.lastPlaybackError } : {}),

@@ -53,6 +53,8 @@ import { QrLoginStateMachine } from './netease/qr-login.js';
 import { RoonAudioInputAdapter, type RoonTimeShapeSummary } from './roon/adapter.js';
 import { createRoonPublicLibrary } from './roon/public-library.js';
 import type { RoonBrowseShapeSummary } from './roon/library.js';
+import { switchRoonZoneAfterStop } from './roon/zone-switch.js';
+import { confirmRoonTrackActionAfterExactMatchFailure } from './roon/track-action-confirmation.js';
 import type { RoonSdk } from './roon/sdk.js';
 import { asBridgeError, BridgeError } from './shared/errors.js';
 import { createLogger, type Logger } from './shared/logger.js';
@@ -294,13 +296,25 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
             { httpStatus: 409 },
           );
         }
-        await roonLibrary.playTrack(reference, zoneId);
-        return roon.waitForSelectedZonePlayback({
-          zoneId,
-          state: 'playing',
-          afterRevision: before.revision,
-          track,
-        });
+        const actionOutcome = await roonLibrary.playTrack(reference, zoneId);
+        try {
+          return await roon.waitForSelectedZonePlayback({
+            zoneId,
+            state: 'playing',
+            afterRevision: before.revision,
+            track,
+          });
+        } catch (error) {
+          const latest = roon.getSelectedZonePlaybackObservation();
+          return confirmRoonTrackActionAfterExactMatchFailure({
+            zoneId,
+            afterRevision: before.revision,
+            expectedTrack: track,
+            ...(latest !== undefined ? { latest } : {}),
+            actionOutcome,
+            exactMatchError: error,
+          });
+        }
       },
       pause: async () => {
         const before = roon.getSelectedZonePlaybackObservation();
@@ -368,8 +382,14 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
         selected: zone.zone_id === controller.getState().roon.selectedZoneId,
         ...(zone.is_seek_allowed !== undefined ? { seekAllowed: zone.is_seek_allowed === true } : {}),
       })),
-      selectZone: (zoneId) => {
-        roon.selectZone(zoneId);
+      selectZone: async (zoneId) => {
+        const stateBeforeSwitch = controller.getState();
+        await switchRoonZoneAfterStop({
+          hasActivePlayback: stateBeforeSwitch.activePlayback !== undefined
+            || stateBeforeSwitch.activeRoonPlayback !== undefined,
+          stop: () => controller.stop(),
+          select: () => roon.selectZone(zoneId),
+        });
         return toPublicBridgeState(controller.getState(), runtime);
       },
       browseRoonAlbums: (page) => roonLibrary.browseAlbums(page),
@@ -1029,7 +1049,13 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     })),
 
     async selectZone(zoneId: string): Promise<PublicBridgeState> {
-      roon.selectZone(zoneId);
+      const stateBeforeSwitch = controller.getState();
+      await switchRoonZoneAfterStop({
+        hasActivePlayback: stateBeforeSwitch.activePlayback !== undefined
+          || stateBeforeSwitch.activeRoonPlayback !== undefined,
+        stop: () => controller.stop(),
+        select: () => roon.selectZone(zoneId),
+      });
       const state = publicState();
       emit(eventWithState('roon.changed', state));
       emitHealth();
@@ -1568,6 +1594,31 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       zones: [{ zoneId: fixtureZoneId, displayName: 'Synthetic Zone', selected: selectedZoneId === fixtureZoneId }],
     }).zones,
     async selectZone(zoneId) {
+      if (playbackState.state !== 'idle') {
+        const {
+          currentTrack: _currentTrack,
+          source: _source,
+          qualityPreference: _qualityPreference,
+          requestedQuality: _requestedQuality,
+          actualQuality: _actualQuality,
+          format: _format,
+          bitrate: _bitrate,
+          lastError: _lastError,
+          lastIssue: _lastIssue,
+          qualityNotice: _qualityNotice,
+          ...stoppedPlayback
+        } = playbackState;
+        playbackState = {
+          ...stoppedPlayback,
+          state: 'idle',
+          positionMs: 0,
+          canNext: false,
+          canPrevious: false,
+          canStop: false,
+          canPause: false,
+          canResume: false,
+        };
+      }
       selectedZoneId = zoneId;
       state = { ...state, roon: 'ready' };
       playbackState = { ...playbackState, selectedZoneId };

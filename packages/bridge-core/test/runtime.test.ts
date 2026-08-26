@@ -140,3 +140,20 @@ test('synthetic runtime clears public account and daily recommendations after ex
     tracks: [],
   });
 });
+
+test('synthetic runtime 切换 Zone 时停止当前播放并清除当前曲目', async () => {
+  const runtime = createTestBridgeRuntime();
+  await runtime.start();
+  await runtime.playbackPlay('1000', 'lossless');
+
+  await runtime.selectZone('zone-next');
+
+  const playback = runtime.getPlaybackState();
+  assert.equal(playback.state, 'idle');
+  assert.equal(playback.positionMs, 0);
+  assert.equal(playback.currentTrack, undefined);
+  assert.equal(playback.canStop, false);
+  assert.equal(playback.canPause, false);
+  assert.equal(playback.canResume, false);
+  assert.equal(playback.selectedZoneId, 'zone-next');
+});

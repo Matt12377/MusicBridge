@@ -663,6 +663,8 @@ function isTrackSummary(value: unknown): value is TrackSummary {
     'artists',
     'album',
     'durationMs',
+    'bitrate',
+    'format',
     'artworkUrl',
     'artworkReference',
   ])) {
@@ -682,6 +684,8 @@ function isTrackSummary(value: unknown): value is TrackSummary {
         Number.isSafeInteger(value.durationMs) &&
         value.durationMs >= 0 &&
         value.durationMs <= 24 * 60 * 60 * 1000)) &&
+    (value.bitrate === undefined || (typeof value.bitrate === 'number' && Number.isSafeInteger(value.bitrate) && value.bitrate > 0 && value.bitrate <= 10_000_000)) &&
+    (value.format === undefined || safeString(value.format, 64)) &&
     (value.artworkUrl === undefined || isArtworkUrl(value.artworkUrl)) &&
     (value.artworkReference === undefined ||
       /^musicbridge-v2-image-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(String(value.artworkReference)))
@@ -912,6 +916,7 @@ const PUBLIC_ERROR_CODES = new Set([
   'ROON_LIBRARY_UNAVAILABLE',
   'ROON_LIBRARY_REQUEST_FAILED',
   'ROON_ZONE_NOT_SELECTED',
+  'ROON_IMAGE_UNAVAILABLE',
   'ROON_IMAGE_DECODE_FAILED',
   'ROON_ALBUM_HIERARCHY_INVALID',
   'ROON_TRACK_ACTION_UNAVAILABLE',
@@ -1128,6 +1133,8 @@ function isRoonLibraryItem(value: unknown): boolean {
       'artist',
       'album',
       'durationMs',
+      'bitrate',
+      'format',
       'trackNumber',
       'discNumber',
       'year',
@@ -1145,6 +1152,8 @@ function isRoonLibraryItem(value: unknown): boolean {
     (value.durationMs === undefined || (
       typeof value.durationMs === 'number' && Number.isSafeInteger(value.durationMs) && value.durationMs >= 0 && value.durationMs <= 24 * 60 * 60 * 1000
     )) &&
+    (value.bitrate === undefined || (typeof value.bitrate === 'number' && Number.isSafeInteger(value.bitrate) && value.bitrate > 0 && value.bitrate <= 10_000_000)) &&
+    (value.format === undefined || safeString(value.format, 64)) &&
     (value.trackNumber === undefined || (typeof value.trackNumber === 'number' && Number.isSafeInteger(value.trackNumber) && value.trackNumber >= 0)) &&
     (value.discNumber === undefined || (typeof value.discNumber === 'number' && Number.isSafeInteger(value.discNumber) && value.discNumber >= 0)) &&
     (value.year === undefined || (typeof value.year === 'number' && Number.isSafeInteger(value.year) && value.year >= 0 && value.year <= 9999)) &&

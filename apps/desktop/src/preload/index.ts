@@ -8,6 +8,7 @@ import type {
 
 import { createPreloadApi } from './api.js'
 import { summarizePreloadRoonImage } from './image-diagnostic.js'
+import { unwrapRoonImageIpc, type RoonImageIpcEnvelope } from '../roon-image-ipc.js'
 
 if (!process.contextIsolated) {
   throw new Error('Music Bridge requires contextIsolation')
@@ -103,7 +104,12 @@ contextBridge.exposeInMainWorld(
     (query: string, page: { offset: number; limit: number }) =>
       ipcRenderer.invoke('roon:library:search', query, page),
     async (reference: string, options?: { scale?: 'fit' | 'fill' | 'stretch'; width?: number; height?: number; format?: 'image/jpeg' | 'image/png' }) => {
-      const result = await ipcRenderer.invoke('roon:library:image', reference, options) as RoonImageResult
+      const envelope = await ipcRenderer.invoke(
+        'roon:library:image',
+        reference,
+        options,
+      ) as RoonImageIpcEnvelope
+      const result: RoonImageResult = unwrapRoonImageIpc(envelope)
       if (recordRoonImageShape) {
         try {
           await ipcRenderer.invoke(

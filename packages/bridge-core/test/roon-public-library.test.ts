@@ -45,6 +45,173 @@ test('Roon public library converts runtime item keys into scoped references', as
   assert.deepEqual(image.body, new Uint8Array(JPEG_BYTES));
 });
 
+test('Roon artist artwork lazily falls back to the artist list image without exposing Browse keys', async () => {
+  const locations = new Map<string, 'root' | 'artist'>();
+  const rootSessionKeys: string[] = [];
+  const artistDetailSessionKeys: string[] = [];
+  const service = createRoonLibraryService({
+    browse: {
+      browse: (options, callback) => {
+        const sessionKey = String(options.multi_session_key);
+        if (options.pop_all) {
+          locations.set(sessionKey, 'root');
+          rootSessionKeys.push(sessionKey);
+        } else if (String(options.item_key).startsWith('artist:')) {
+          locations.set(sessionKey, 'artist');
+          artistDetailSessionKeys.push(sessionKey);
+        }
+        const location = locations.get(sessionKey) ?? 'root';
+        callback(false, {
+          action: 'list',
+          list: {
+            level: location === 'root' ? 0 : 1,
+            count: 1,
+            ...(location === 'artist' ? { image_key: 'artist-image:private' } : {}),
+          },
+        });
+      },
+      load: (options, callback) => {
+        const location = locations.get(String(options.multi_session_key)) ?? 'root';
+        callback(false, {
+          offset: options.offset,
+          items: location === 'root'
+            ? [{ title: 'Artist without root image', item_key: 'artist:private', hint: 'list' }]
+            : [{ title: 'Album', item_key: 'album:private', hint: 'list' }],
+        });
+      },
+    },
+    image: {
+      get_image: (key, _options, callback) => {
+        assert.equal(key, 'artist-image:private');
+        callback(false, 'image/jpeg', JPEG_BYTES);
+      },
+    },
+  });
+  const publicLibrary = createRoonPublicLibrary(() => service);
+  const artist = (await publicLibrary.browseArtists({ offset: 0, limit: 20 })).items[0];
+  assert.ok(artist);
+  assert.equal(artist.artworkReference, undefined);
+
+  const image = await publicLibrary.getImage(artist.reference, { width: 128, height: 128 });
+  assert.deepEqual(image.body, new Uint8Array(JPEG_BYTES));
+  assert.doesNotMatch(JSON.stringify(artist), /artist:private|artist-image:private/u);
+  assert.equal(rootSessionKeys.length, 2);
+  assert.equal(artistDetailSessionKeys.length, 1);
+  assert.notEqual(artistDetailSessionKeys[0], rootSessionKeys[0]);
+
+  const nextPage = await publicLibrary.browseArtists({ offset: 1, limit: 20 });
+  assert.equal(nextPage.items[0]?.kind, 'artist');
+});
+
+test('Roon artist 详情没有头像时有界回退到真实专辑封面', async () => {
+  const locations = new Map<string, 'root' | 'artist'>();
+  const service = createRoonLibraryService({
+    browse: {
+      browse: (options, callback) => {
+        const sessionKey = String(options.multi_session_key);
+        if (options.pop_all) locations.set(sessionKey, 'root');
+        else if (String(options.item_key).startsWith('artist:')) locations.set(sessionKey, 'artist');
+        const location = locations.get(sessionKey) ?? 'root';
+        callback(false, {
+          action: 'list',
+          list: {
+            level: location === 'root' ? 0 : 1,
+            count: 1,
+          },
+        });
+      },
+      load: (options, callback) => {
+        const location = locations.get(String(options.multi_session_key)) ?? 'root';
+        callback(false, {
+          offset: options.offset,
+          items: location === 'root'
+            ? [{ title: 'Artist without portrait', item_key: 'artist:no-portrait', hint: 'list' }]
+            : [{
+                title: 'Real album cover fallback',
+                item_key: 'album:fallback',
+                hint: 'list',
+                image_key: 'album-image:private',
+              }],
+        });
+      },
+    },
+    image: {
+      get_image: (key, _options, callback) => {
+        assert.equal(key, 'album-image:private');
+        callback(false, 'image/jpeg', JPEG_BYTES);
+      },
+    },
+  });
+  const publicLibrary = createRoonPublicLibrary(() => service);
+  const artist = (await publicLibrary.browseArtists({ offset: 0, limit: 20 })).items[0];
+  assert.ok(artist);
+
+  const image = await publicLibrary.getImage(artist.reference, { width: 128, height: 128 });
+
+  assert.deepEqual(image.body, new Uint8Array(JPEG_BYTES));
+  assert.doesNotMatch(JSON.stringify(artist), /artist:no-portrait|album-image:private/u);
+});
+
+test('Roon artist 详情也没有 image_key 时返回明确的图片不可用，而非请求失败', async () => {
+  const service: RoonLibraryService = {
+    browseAlbums: async () => ({ items: [], offset: 0, level: 0 }),
+    browseArtists: async () => ({
+      items: [{ kind: 'artist', title: 'Artist without any image', itemKey: 'artist:none' }],
+      offset: 0,
+      level: 0,
+    }),
+    browseGenres: async () => ({ items: [], offset: 0, level: 0 }),
+    browsePlaylists: async () => ({ items: [], offset: 0, level: 0 }),
+    browseGenre: async () => ({ items: [], offset: 0, level: 1 }),
+    browsePlaylist: async () => ({ items: [], offset: 0, level: 1 }),
+    browseAlbum: async () => ({ items: [], offset: 0, level: 1 }),
+    browseArtist: async () => ({ items: [], offset: 0, level: 1 }),
+    searchLibrary: async () => ({ items: [], offset: 0, level: 0 }),
+    getArtistImageKey: async () => undefined,
+    getImage: async () => ({ contentType: 'image/jpeg', body: JPEG_BYTES }),
+    playTrack: async () => undefined,
+    queueTrack: async () => undefined,
+  };
+  const publicLibrary = createRoonPublicLibrary(() => service);
+  const artist = (await publicLibrary.browseArtists({ offset: 0, limit: 20 })).items[0];
+  assert.ok(artist);
+
+  await assert.rejects(
+    publicLibrary.getImage(artist.reference),
+    (error: unknown) => error instanceof Error && 'code' in error
+      && (error as { code?: unknown }).code === 'ROON_IMAGE_UNAVAILABLE',
+  );
+});
+
+test('Roon artist 有图片 key 但 Core 返回空图片时仍返回图片不可用', async () => {
+  const service = createRoonLibraryService({
+    browse: {
+      browse: (_options, callback) => callback(false, { list: { level: 0, count: 1 } }),
+      load: (_options, callback) => callback(false, {
+        offset: 0,
+        items: [{
+          title: 'Artist with empty image',
+          item_key: 'artist:empty-image',
+          image_key: 'image:empty',
+          hint: 'list',
+        }],
+      }),
+    },
+    image: {
+      get_image: (_key, _options, callback) => callback(false, 'image/jpeg', Buffer.alloc(0)),
+    },
+  });
+  const publicLibrary = createRoonPublicLibrary(() => service);
+  const artist = (await publicLibrary.browseArtists({ offset: 0, limit: 20 })).items[0];
+  assert.ok(artist?.artworkReference);
+
+  await assert.rejects(
+    publicLibrary.getImage(artist.artworkReference),
+    (error: unknown) => error instanceof Error && 'code' in error
+      && (error as { code?: unknown }).code === 'ROON_IMAGE_UNAVAILABLE',
+  );
+});
+
 test('Roon public library 为同一运行期实体复用稳定引用', async () => {
   const service: RoonLibraryService = {
     browseAlbums: async () => ({

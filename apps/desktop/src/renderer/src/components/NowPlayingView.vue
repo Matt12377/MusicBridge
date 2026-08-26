@@ -28,6 +28,12 @@ const emit = defineEmits<{
 }>()
 
 const qualityDetailsOpen = ref(false)
+const playbackQualityIdentity = computed(() => [
+  props.currentTrack?.id ?? '',
+  props.playbackState?.actualQuality ?? '',
+  props.playbackState?.bitrate ?? '',
+  props.playbackState?.format ?? '',
+].join('\u0000'))
 
 const durationMs = computed(() => props.currentTrack?.durationMs ?? 0)
 const progressMs = ref(0)
@@ -92,7 +98,7 @@ function startProgressInterpolation(): void {
 }
 
 watch(() => [props.currentTrack?.id, props.playbackState?.positionMs, props.playbackState?.state], startProgressInterpolation)
-watch(() => [props.currentTrack?.id, props.playbackState?.actualQuality, props.playbackState?.bitrate], () => {
+watch(playbackQualityIdentity, () => {
   qualityDetailsOpen.value = false
 })
 onMounted(startProgressInterpolation)
@@ -127,7 +133,7 @@ const actualQualityDetail = computed(() => {
   if (bitrate && format) return `${bitrate} · ${format.toUpperCase()}`
   if (bitrate) return bitrate
   if (format) return format.toUpperCase()
-  return '码率未知'
+  return props.playbackSource === 'roon' ? 'Roon API 未提供码率' : '码率未知'
 })
 
 </script>

@@ -50,6 +50,8 @@ export function roonLibraryMessage(
       return 'Roon 返回的专辑层级无效，请返回列表后重试。'
     case 'ROON_TRACK_ACTION_UNAVAILABLE':
       return '这首曲目的 Roon 播放操作不可用。'
+    case 'ROON_IMAGE_UNAVAILABLE':
+      return 'Roon 没有为这个条目提供封面。'
     case 'ROON_IMAGE_DECODE_FAILED':
       return 'Roon 封面解码失败。'
     case 'ROON_LIBRARY_INVALID_REFERENCE':

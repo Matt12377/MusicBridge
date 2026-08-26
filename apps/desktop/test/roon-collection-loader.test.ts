@@ -98,3 +98,24 @@ test('Roon collection loader reset drops stale runtime references and invalidate
   await pending
   assert.deepEqual(collection.page.value.items, [])
 })
+
+test('Roon collection loader rejects a mismatched response offset and retries the same continuous page', async () => {
+  const calls: number[] = []
+  let mismatch = true
+  const collection = useRoonCollection(async (request) => {
+    calls.push(request.offset)
+    if (request.offset === 0) return page('album:1', 0, true)
+    if (mismatch) return page('album:wrong-offset', 0, true)
+    return page('album:2', 1, false)
+  }, () => '本地库失败', 1)
+
+  await collection.load()
+  await collection.loadMore()
+  assert.deepEqual(collection.page.value.items.map((item) => item.reference), ['album:1'])
+  assert.equal(collection.loadMoreError.value, '分页响应异常，点击重试')
+
+  mismatch = false
+  await collection.loadMore()
+  assert.deepEqual(calls, [0, 1, 1])
+  assert.deepEqual(collection.page.value.items.map((item) => item.reference), ['album:1', 'album:2'])
+})

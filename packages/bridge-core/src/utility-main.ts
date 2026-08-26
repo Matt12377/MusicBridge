@@ -92,6 +92,9 @@ function failureForError(id: string, error: unknown): IpcFailure {
   if (bridgeError.code === 'ROON_LIBRARY_REQUEST_FAILED') {
     return responseFailure(id, 'ROON_LIBRARY_REQUEST_FAILED', 'Roon Library request failed');
   }
+  if (bridgeError.code === 'ROON_IMAGE_UNAVAILABLE') {
+    return responseFailure(id, 'ROON_IMAGE_UNAVAILABLE', 'Roon image is unavailable');
+  }
   if (bridgeError.code === 'ROON_IMAGE_DECODE_FAILED') {
     return responseFailure(id, 'ROON_IMAGE_DECODE_FAILED', 'Roon image decode failed');
   }
