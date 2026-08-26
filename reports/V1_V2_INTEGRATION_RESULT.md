@@ -11,11 +11,11 @@
 | Automated / Synthetic Gate | **PASS** | 当前源码的 typecheck、unit、build、security、Electron、startup、E2E、控制面与边界检查均为新鲜 `exit 0` |
 | Real Provider Gate | **PASS** | 真实网易云账号、真实搜索/播放/歌词/Pause/Resume/fallback/会话恢复 |
 | Real Roon Engineering Gate | **PASS** | 真实 Dev Extension、Remote Core、Zone、Browse、Artwork、Native Play/Queue/Seek/Pause/Resume/Stop、Smart 与 reconnect |
-| Owner 分项 Gate | **PARTIAL PASS** | Owner 已确认歌词听感“同步”，并参与前序实机检查；尚未对本报告中的完整最终矩阵签署一次性验收 |
-| Owner Final Gate | **PENDING** | 仍需最终 UI/听感/延迟总体验收 |
+| Owner 分项 Gate | **PASS** | Owner 已确认歌词听感“同步”，并参与真实 Zone、播放、Queue、Pause/Resume、Smart、导航与 reconnect 检查 |
+| Owner Final Gate | **PASS** | 2026-08-26，Owner 针对当前 Final HEAD 的完整短验收明确回复 `Owner Final Gate PASS` |
 | Merge to main | **BLOCKED** | 未获 Owner 合并授权；未 push、未创建 PR、未 merge、未修改 `main` |
 
-本报告不使用“集成完成”或“没有其他问题”作为结论。当前准确表述是：**工程自动 Gate、真实 Provider Gate 和真实 Roon Gate 已通过；Owner Final Gate 仍待确认，因此合并到 `main` 继续阻塞。**
+本报告不使用“集成完成”或“没有其他问题”作为结论。当前准确表述是：**工程自动 Gate、真实 Provider Gate、真实 Roon Gate 和 Owner Final Gate 均已通过；由于没有 push、PR 或 merge 授权，合并到 `main` 继续阻塞。**
 
 ## A. Git 身份与边界
 
@@ -97,6 +97,7 @@
 - 暂停后进度保持；恢复后从真实 Roon position 继续；Queue inspector 显示当前曲目与“接下来 0 首”。
 - P1-B 对 ROON 本地 `归零` 覆盖 Seek、暂停约 10 秒、恢复与歌词滚动恢复。
 - 本轮 P1-D 再次对 Smart `归零` 验证：播放到 0:23 后暂停，等待 3 秒进度无变化；恢复后进度前进到 0:32；随后通过停止 Remote Core 清理真实播放。
+- Owner Final Gate 在 `d25246ba603f97f329e672bf97b3000e7ec21ec7` 上重新启动开发版并连接真实 Remote Core：`Studio Display` 自动恢复；`归零 / 林忆莲 / 0 (2024版)` 显示 `ROON 本地`并加载真实歌词；0:15 暂停后 3.2 秒保持不动，恢复确认后推进到 0:24，最终再次暂停在约 0:30 供 Owner 试听。
 
 ### Smart Matching
 
@@ -108,7 +109,7 @@
 | `High High High (Live)` | Live 变体没有因标题相似而冒充 exact | 网易云 |
 | `张学友 - 吻别(DjBin Electro Remix)` | Remix 变体保持真实 Provider 身份 | 网易云 |
 
-P1-D 期间曾在旧运行期上下文中出现一次 `playback:replace-queue INTERNAL_ERROR`。停止并重连 Remote Core、让运行期引用失效、重新搜索后，同一 `归零 / 林忆莲` 样本稳定进入 ROON 本地 Now Playing。该旧上下文失败没有在干净 reconnect 路径复现；若 Owner Final Gate 再次复现，应立即重新阻塞 Smart Gate。
+P1-D 期间曾在旧运行期上下文中出现一次 `playback:replace-queue INTERNAL_ERROR`。停止并重连 Remote Core、让运行期引用失效、重新搜索后，同一 `归零 / 林忆莲` 样本稳定进入 ROON 本地 Now Playing。该旧上下文失败没有在干净 reconnect 路径或 Owner Final Gate 中复现；若后续再次复现，应重新阻塞 Smart Gate 并采集该次公开诊断。
 
 ## E. Real Provider Evidence
 
@@ -178,7 +179,7 @@ Owner 已经直接参与或观察以下分项：
 - Genre、Album、Roon Playlist 下钻；
 - Remote Core stop/reconnect。
 
-本轮通过真实 Electron 可访问性树和 live UI 完成证据采集，但没有把临时截图或录屏复制进 Git。为了满足最终 Owner Final Gate，建议 Owner 对当前 HEAD 再做一次短验收并明确回复整体 PASS，重点看：
+本轮通过真实 Electron 可访问性树和 live UI 完成证据采集，但没有把临时截图或录屏复制进 Git。Owner Final Gate 在验收基线 HEAD `d25246ba603f97f329e672bf97b3000e7ec21ec7` 上完成以下短验收：
 
 1. 单一左侧本地导航；
 2. 专辑封面与正确曲目数；
@@ -189,38 +190,32 @@ Owner 已经直接参与或观察以下分项：
 7. Pause/Resume；
 8. Remote Core reconnect。
 
+新鲜实机证据包括：Remote Core `已就绪`且健康检查`可用`、`Studio Display` 自动选中、Jazz 仅显示 1 张真实专辑且进入后为 12 首、Roon Playlist 完整加载 26/26、Smart `归零`进入 `ROON 本地`、歌词加载，以及 Pause 冻结/Resume 继续。Owner 随后明确回复：`Owner Final Gate PASS`。
+
 ## I. Remaining Issues
 
-### 1. Owner Final Gate 尚未签署
-
-- 真实限制：分项验收已完成，但没有针对当前 Final HEAD 的一次性整体 Owner PASS。
-- 影响：不能申请合并 `main`。
-- 建议：Owner 对上节 8 项做最终短验收后明确给出 PASS/FAIL。
-- 是否阻塞 main：**是**。
-- 是否需 Owner 决策：**是**。
-
-### 2. 一次旧运行期 Smart 失败未在干净 reconnect 后复现
+### 1. 一次旧运行期 Smart 失败未在干净 reconnect 后复现
 
 - 证据：旧上下文出现一次 `playback:replace-queue INTERNAL_ERROR`；受控 stop/reconnect、重新搜索后 `归零 / 林忆莲` Confirmed 并真实播放成功。
-- 影响：当前工程 Gate 不失败，但 Owner Final Gate 若复现必须重新阻塞并采集该次公开诊断。
-- 建议：最终验收先 reconnect，再从新搜索结果播放 `归零`。
-- 是否阻塞 main：当前由 Owner Final Gate 统一阻塞。
+- 影响：当前工程 Gate 与 Owner Final Gate 均不失败；后续若复现，必须重新阻塞 Smart Gate 并采集该次公开诊断。
+- 建议：后续回归从干净 reconnect 和新搜索上下文开始播放 `归零`。
+- 是否阻塞 main：**否**，当前干净 reconnect 与 Owner Final Gate 均未复现。
 - 是否需 Owner 决策：否；复现时再升级。
 
-### 3. 发布级性能快照不在本次源码稳定化证据内
+### 2. 发布级性能快照不在本次源码稳定化证据内
 
 - 真实限制：没有记录 Renderer Heap、精确 Object URL 峰值和图片命中率百分比。
 - 影响：不影响已验证功能正确性；若要发布性能基线，证据仍不完整。
 - 建议：发布前另做只读 Instruments/Heap 验收，不改变本阶段代码。
-- 是否阻塞 main：由 Owner 的发布标准决定。
-- 是否需 Owner 决策：是。
+- 是否阻塞 main：**不阻塞本次稳定化 Gate**；是否成为发布前置由后续发布决策决定。
+- 是否需 Owner 决策：仅在要求新增发布级性能基线时需要。
 
-### 4. 发布与分发未执行
+### 3. 发布与分发未执行
 
 - 未部署、未签名/公证、未 push、未创建 PR、未 merge。
-- 这些动作不在当前授权内。
+- Owner Final Gate PASS 不自动授予这些动作；它们仍不在当前授权内。
 - 是否阻塞 main：**是，直到 Owner 明确授权**。
 
 ## 结论
 
-**当前稳定化分支的 automated/synthetic Gate、real Provider Gate 和 real Roon Engineering Gate 均 PASS。Owner Final Gate 仍为 PENDING，MERGE TO MAIN 继续 BLOCKED。没有 push、PR、merge，也没有 destructive library capability。**
+**当前稳定化分支的 automated/synthetic Gate、real Provider Gate、real Roon Engineering Gate 和 Owner Final Gate 均 PASS。MERGE TO MAIN 仍因缺少明确 push/PR/merge 授权而 BLOCKED。没有 push、PR、merge，也没有 destructive library capability。**
