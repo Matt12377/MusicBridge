@@ -22,6 +22,7 @@ const VERSION_MARKERS = [
   'demo',
   'acoustic',
   'karaoke',
+  '纯音乐',
   '伴奏',
   '现场',
   '混音',
@@ -48,9 +49,17 @@ function markerSet(value: string | undefined): Set<string> {
 }
 
 function artistMatches(recording: LogicalRecording, candidate: RoonLibraryItem): boolean {
-  const candidateArtist = normalizeText(candidate.artist ?? candidate.subtitle);
-  if (!candidateArtist) return false;
-  return recording.artists.some((artist) => normalizeText(artist) === candidateArtist);
+  const candidateArtist = candidate.artist ?? candidate.subtitle;
+  const normalizedCandidateArtist = normalizeText(candidateArtist);
+  if (!normalizedCandidateArtist) return false;
+  const candidateCredits = new Set([
+    normalizedCandidateArtist,
+    ...(candidateArtist ?? '')
+      .split(/\s*(?:,|，|、|&|；|;|\b(?:and|feat\.?|featuring)\b)\s*/giu)
+      .map((artist) => normalizeText(artist))
+      .filter(Boolean),
+  ]);
+  return recording.artists.some((artist) => candidateCredits.has(normalizeText(artist)));
 }
 
 function durationScore(recording: LogicalRecording, candidate: RoonLibraryItem): number {
@@ -63,8 +72,12 @@ function durationScore(recording: LogicalRecording, candidate: RoonLibraryItem):
 }
 
 function versionRejected(recording: LogicalRecording, candidate: RoonLibraryItem): boolean {
-  const recordingMarkers = markerSet(`${recording.title} ${recording.version ?? ''}`);
-  const candidateMarkers = markerSet(`${candidate.title} ${candidate.version ?? ''}`);
+  const recordingMarkers = markerSet(
+    `${recording.title} ${recording.album ?? ''} ${recording.version ?? ''}`,
+  );
+  const candidateMarkers = markerSet(
+    `${candidate.title} ${candidate.album ?? ''} ${candidate.version ?? ''}`,
+  );
   if (recordingMarkers.size === 0 && candidateMarkers.size === 0) return false;
   if (recordingMarkers.size === 0) return candidateMarkers.size > 0;
   for (const marker of candidateMarkers) {
@@ -122,12 +135,26 @@ export function matchLogicalRecording(
   }
   const second = usable[1];
   const margin = second ? top.score - second.score : top.score;
-  const confirmed = top.score >= 0.86 && margin >= 0.2;
-  const possible = top.score >= 0.52;
+  const exactTitleCandidates = usable.filter((entry) => entry.evidence.includes('title-exact'));
+  const secondExactTitle = exactTitleCandidates[1];
+  const exactTitleMargin = secondExactTitle
+    ? top.score - secondExactTitle.score
+    : top.score;
+  const ambiguousExactTitleCandidates = exactTitleCandidates.length > 1;
+  const titleAlbumConfirmed = top.evidence.includes('title-exact')
+    && top.evidence.includes('album-exact')
+    && exactTitleMargin >= 0.2;
+  const confirmed = (top.score >= 0.86 && margin >= 0.2) || titleAlbumConfirmed;
+  const possible = top.score >= 0.52 || ambiguousExactTitleCandidates;
   return {
     state: confirmed ? 'CONFIRMED' : possible ? 'POSSIBLE' : 'NONE',
     confidence: Number(top.score.toFixed(3)),
-    evidence: [...top.evidence, ...(second && margin < 0.08 ? ['ambiguous-top-candidates'] : [])],
+    evidence: [
+      ...top.evidence,
+      ...(titleAlbumConfirmed ? ['title-album-unique'] : []),
+      ...(ambiguousExactTitleCandidates ? ['ambiguous-exact-title-candidates'] : []),
+      ...(second && margin < 0.08 ? ['ambiguous-top-candidates'] : []),
+    ],
     candidates: scored,
     ...(confirmed ? { candidate: top.candidate } : {}),
     algorithmVersion: MATCH_ALGORITHM_VERSION,

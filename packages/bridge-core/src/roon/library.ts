@@ -48,6 +48,7 @@ export type RoonLibraryKind =
   | 'track';
 
 export type RoonBrowseHierarchy = 'albums' | 'artists' | 'genres' | 'playlists' | 'search';
+export type RoonSearchResultKind = 'track' | 'album';
 
 export interface RoonBrowseContext {
   hierarchy: RoonBrowseHierarchy;
@@ -109,6 +110,7 @@ export interface RoonLibraryService {
   searchLibrary(
     query: string,
     request: RoonPageRequest,
+    kind?: RoonSearchResultKind,
   ): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
   getImage(imageKey: string, options?: RoonImageOptions): Promise<RoonImageResult>;
   playTrack(track: RoonEntityDescriptor, zoneOrOutputId: string): Promise<void>;
@@ -543,8 +545,8 @@ function readItem(
 ): RoonEntityDescriptor | undefined {
   const record = asRecord(value);
   const source = record ?? {};
-  const title = readString(source, 'title');
-  if (!title) return undefined;
+  const rawTitle = readString(source, 'title');
+  if (!rawTitle) return undefined;
 
   const subtitle = readString(source, 'subtitle');
   const itemKey = readString(source, 'item_key');
@@ -554,7 +556,17 @@ function readItem(
   const album = readString(source, 'album');
   const durationMs = readNumber(source, 'duration_ms');
   const durationSeconds = readNumber(source, 'duration');
-  const trackNumber = readNumber(source, 'track_number');
+  const explicitTrackNumber = readNumber(source, 'track_number');
+  const numberedTitle = kind === 'track'
+    ? /^\s*0*(\d{1,3})[.．]\s+(.+?)\s*$/u.exec(rawTitle)
+    : null;
+  const inferredTrackNumber = Number.parseInt(numberedTitle?.[1] ?? '', 10);
+  const canUseNumberedTitle = numberedTitle !== null
+    && Number.isSafeInteger(inferredTrackNumber)
+    && inferredTrackNumber > 0
+    && (explicitTrackNumber === undefined || explicitTrackNumber === inferredTrackNumber);
+  const title = canUseNumberedTitle ? numberedTitle[2] ?? rawTitle : rawTitle;
+  const trackNumber = explicitTrackNumber ?? (canUseNumberedTitle ? inferredTrackNumber : undefined);
   const discNumber = readNumber(source, 'disc_number') ?? context.inheritedDiscNumber;
   const year = readNumber(source, 'year');
   const version = readString(source, 'version');
@@ -656,6 +668,7 @@ export function createRoonLibraryService(dependencies: {
   const albumTracksBySignature = new Map<string, readonly RoonEntityDescriptor[]>();
   const artistAlbumsBySignature = new Map<string, readonly RoonEntityDescriptor[]>();
   const searchTracksByQuery = new Map<string, readonly RoonEntityDescriptor[]>();
+  const searchAlbumsByQuery = new Map<string, readonly RoonEntityDescriptor[]>();
 
   const createSession = (
     hierarchy: RoonBrowseHierarchy,
@@ -1399,20 +1412,21 @@ export function createRoonLibraryService(dependencies: {
         return pageFromResolvedItems(albums, pageRequest, resultLevel);
       });
     },
-    searchLibrary: async (query, request) => {
+    searchLibrary: async (query, request, kind = 'track') => {
       const normalizedQuery = query.trim();
       if (normalizedQuery.length === 0 || normalizedQuery.length > 128) {
         throw new RoonLibraryError('ROON_LIBRARY_INVALID_PAGE', 'Roon search query is invalid');
       }
       const pageRequest = normalizePage(request);
-      const cached = searchTracksByQuery.get(normalizedQuery);
+      const cache = kind === 'track' ? searchTracksByQuery : searchAlbumsByQuery;
+      const cached = cache.get(normalizedQuery);
       if (cached) {
         const level = cached[0]?.browseContext?.level ?? 0;
         return pageFromResolvedItems(cached, pageRequest, level);
       }
       const session = searchSession(normalizedQuery);
       return withSession(session, async () => {
-        const existing = searchTracksByQuery.get(normalizedQuery);
+        const existing = cache.get(normalizedQuery);
         if (existing) {
           const level = existing[0]?.browseContext?.level ?? 0;
           return pageFromResolvedItems(existing, pageRequest, level);
@@ -1438,28 +1452,32 @@ export function createRoonLibraryService(dependencies: {
           MAX_SEARCH_SCAN_ITEMS,
         );
         const parentReference = rootReference('search', normalizedQuery);
-        const tracks: RoonEntityDescriptor[] = loadedItems.flatMap((value, index) => {
-          const record = asRecord(value);
-          if (readString(record ?? {}, 'hint') !== 'action_list') return [];
-          const track = readItem(value, 'track', 'search', {
-            multiSessionKey: session.multiSessionKey,
-            level: list.level,
-            parentReference,
-            parentPath: [],
-            sourceIndex: index,
-            registerPath,
-          });
-          return track?.itemKey ? [track] : [];
-        });
+        const results: RoonEntityDescriptor[] = kind === 'track'
+          ? loadedItems.flatMap((value, index) => {
+              const record = asRecord(value);
+              if (readString(record ?? {}, 'hint') !== 'action_list') return [];
+              const track = readItem(value, 'track', 'search', {
+                multiSessionKey: session.multiSessionKey,
+                level: list.level,
+                parentReference,
+                parentPath: [],
+                sourceIndex: index,
+                registerPath,
+              });
+              return track?.itemKey ? [track] : [];
+            })
+          : [];
         let scannedItems = loadedItems.length;
-        const trackGroupTitles = new Set(['track', 'tracks', 'song', 'songs', '单曲', '曲目', '歌曲']);
-        const trackGroups = loadedItems.flatMap((value, index) => {
+        const groupTitles = kind === 'track'
+          ? new Set(['track', 'tracks', 'song', 'songs', '单曲', '曲目', '歌曲'])
+          : new Set(['album', 'albums', '专辑', '唱片']);
+        const groups = loadedItems.flatMap((value, index) => {
           const record = asRecord(value);
           const title = readString(record ?? {}, 'title');
           if (
             readString(record ?? {}, 'hint') !== 'list'
             || !title
-            || !trackGroupTitles.has(title.normalize('NFKC').trim().toLocaleLowerCase('en-US'))
+            || !groupTitles.has(title.normalize('NFKC').trim().toLocaleLowerCase('en-US'))
           ) {
             return [];
           }
@@ -1472,7 +1490,7 @@ export function createRoonLibraryService(dependencies: {
           );
           return segment ? [segment] : [];
         });
-        for (const group of trackGroups) {
+        for (const group of groups) {
           const groupPath = [group];
           registerPath(group.pathSignature, groupPath);
           const groupList = await navigateToPath(session, groupPath);
@@ -1494,8 +1512,9 @@ export function createRoonLibraryService(dependencies: {
           for (let index = 0; index < groupItems.length; index += 1) {
             const value = groupItems[index];
             const record = asRecord(value);
-            if (readString(record ?? {}, 'hint') !== 'action_list') continue;
-            const track = readItem(value, 'track', 'search', {
+            const expectedHint = kind === 'track' ? 'action_list' : 'list';
+            if (readString(record ?? {}, 'hint') !== expectedHint) continue;
+            const item = readItem(value, kind, 'search', {
               multiSessionKey: session.multiSessionKey,
               level: groupList.level,
               parentReference: group.pathSignature,
@@ -1503,27 +1522,29 @@ export function createRoonLibraryService(dependencies: {
               sourceIndex: index,
               registerPath,
             });
-            if (track?.itemKey) tracks.push(track);
+            if (item?.itemKey) results.push(item);
           }
         }
-        const seenTracks = new Set<string>();
-        const uniqueTracks = tracks.filter((track) => {
+        const seenResults = new Set<string>();
+        const uniqueResults = results.filter((item) => {
           const identity = createHash('sha256').update([
-            track.title,
-            track.artist ?? track.subtitle ?? '',
-            track.album ?? '',
-            String(track.discNumber ?? ''),
-            String(track.trackNumber ?? ''),
-            String(track.durationMs ?? track.durationSeconds ?? ''),
-            track.version ?? '',
+            item.kind,
+            item.itemKey ?? '',
+            item.title,
+            item.artist ?? item.subtitle ?? '',
+            item.album ?? '',
+            String(item.discNumber ?? ''),
+            String(item.trackNumber ?? ''),
+            String(item.durationMs ?? item.durationSeconds ?? ''),
+            item.version ?? '',
           ].join('\0')).digest('hex');
-          if (seenTracks.has(identity)) return false;
-          seenTracks.add(identity);
+          if (seenResults.has(identity)) return false;
+          seenResults.add(identity);
           return true;
         });
-        searchTracksByQuery.set(normalizedQuery, uniqueTracks);
-        const resultLevel = uniqueTracks[0]?.browseContext?.level ?? list.level;
-        return pageFromResolvedItems(uniqueTracks, pageRequest, resultLevel);
+        cache.set(normalizedQuery, uniqueResults);
+        const resultLevel = uniqueResults[0]?.browseContext?.level ?? list.level;
+        return pageFromResolvedItems(uniqueResults, pageRequest, resultLevel);
       });
     },
     getImage: (imageKey, options = {}) => {

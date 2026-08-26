@@ -20,6 +20,7 @@ import {
   type RoonLibraryPage,
   type RoonLibraryService,
   type RoonPageRequest,
+  type RoonSearchResultKind,
 } from './library.js';
 
 const MAX_REFERENCES = 65_536;
@@ -42,7 +43,11 @@ export interface RoonPublicLibrary {
   browsePlaylists(request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
   browseAlbum(reference: string, request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
   browseArtist(reference: string, request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
-  searchLibrary(query: string, request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
+  searchLibrary(
+    query: string,
+    request: RoonPageRequest,
+    kind?: RoonSearchResultKind,
+  ): Promise<PublicRoonLibraryPage>;
   getImage(reference: string, options?: PublicRoonImageOptions): Promise<{
     contentType: string;
     body: Uint8Array;
@@ -432,11 +437,11 @@ export function createRoonPublicLibrary(
         return wrapLibraryError(error);
       }
     },
-    async searchLibrary(query, request) {
+    async searchLibrary(query, request, kind) {
       try {
         const current = service();
         return mapPage(
-          await current.searchLibrary(query, request),
+          await current.searchLibrary(query, request, kind),
           request,
           references,
           imageReferences,

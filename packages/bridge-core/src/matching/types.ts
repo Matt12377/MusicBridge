@@ -1,6 +1,6 @@
 import type { RoonLibraryItem } from '@music-bridge/contracts'
 
-export const MATCH_ALGORITHM_VERSION = 'v2-deterministic-1'
+export const MATCH_ALGORITHM_VERSION = 'v2-deterministic-2'
 
 export interface LogicalRecording {
   neteaseTrackId: string

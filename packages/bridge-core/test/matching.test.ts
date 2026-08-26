@@ -29,6 +29,15 @@ function candidate(overrides: Partial<RoonLibraryItem> = {}): RoonLibraryItem {
   };
 }
 
+function withoutCandidateFields(
+  value: RoonLibraryItem,
+  ...keys: readonly (keyof RoonLibraryItem)[]
+): RoonLibraryItem {
+  const result = { ...value };
+  for (const key of keys) delete result[key];
+  return result;
+}
+
 test('MatchingEngine confirms a unique same-version Roon candidate', () => {
   const result = matchLogicalRecording(track, [candidate()]);
   assert.equal(result.state, 'CONFIRMED');
@@ -59,6 +68,135 @@ test('MatchingEngine keeps ambiguous compilations as possible, never auto-confir
   assert.equal(result.state, 'POSSIBLE');
   assert.equal(result.candidate, undefined);
   assert.equal(result.candidates.length, 2);
+});
+
+test('MatchingEngine exposes multiple sparse exact-title versions as candidates without auto-confirming', () => {
+  const recording: LogicalRecording = {
+    neteaseTrackId: '401',
+    title: '至少还有你',
+    artists: ['林忆莲'],
+    album: "林忆莲's",
+  };
+  const candidates = [
+    withoutCandidateFields(candidate({
+      reference: 'musicbridge-v2-entity-123e4567-e89b-12d3-a456-426614174041',
+      title: '至少还有你',
+      subtitle: 'Sandy Lam, Davy Chan, Lin Xi',
+    }), 'artist', 'album', 'durationMs'),
+    withoutCandidateFields(candidate({
+      reference: 'musicbridge-v2-entity-123e4567-e89b-12d3-a456-426614174042',
+      title: '至少还有你',
+      subtitle: 'Sandy Lam, Davy Chan, Lin Xi, Anthony Lun',
+    }), 'artist', 'album', 'durationMs'),
+  ];
+
+  const result = matchLogicalRecording(recording, candidates);
+  assert.equal(result.state, 'POSSIBLE');
+  assert.equal(result.candidate, undefined);
+  assert.ok(result.evidence.includes('ambiguous-exact-title-candidates'));
+});
+
+test('MatchingEngine confirms one exact title plus exact album when Roon artist uses an alias', () => {
+  const recording: LogicalRecording = {
+    neteaseTrackId: '301',
+    title: '归零',
+    artists: ['林忆莲'],
+    album: '0 (2024版)',
+    durationMs: 271_000,
+  };
+  const result = matchLogicalRecording(recording, [withoutCandidateFields(candidate({
+    title: '归零',
+    subtitle: 'Sandy Lam, 常石磊',
+    album: '0 (2024版)',
+  }), 'artist', 'durationMs')]);
+
+  assert.equal(result.state, 'CONFIRMED');
+  assert.ok(result.evidence.includes('title-exact'));
+  assert.ok(result.evidence.includes('album-exact'));
+  assert.equal(result.evidence.includes('artist-exact'), false);
+});
+
+test('MatchingEngine does not treat neighboring tracks from the same album as title ambiguity', () => {
+  const recording: LogicalRecording = {
+    neteaseTrackId: '301',
+    title: '归零',
+    artists: ['林忆莲'],
+    album: '0 (2024版)',
+  };
+  const result = matchLogicalRecording(recording, [
+    withoutCandidateFields(candidate({
+      reference: 'musicbridge-v2-entity-123e4567-e89b-12d3-a456-426614174031',
+      title: '归零',
+      subtitle: 'Sandy Lam, 常石磊',
+      album: '0 (2024版)',
+    }), 'artist', 'durationMs'),
+    withoutCandidateFields(candidate({
+      reference: 'musicbridge-v2-entity-123e4567-e89b-12d3-a456-426614174032',
+      title: '太阳系',
+      artist: '林忆莲',
+      album: '0 (2024版)',
+    }), 'durationMs'),
+  ]);
+
+  assert.equal(result.state, 'CONFIRMED');
+  assert.ok(result.evidence.includes('title-album-unique'));
+});
+
+test('MatchingEngine keeps duplicate exact-title/exact-album candidates ambiguous', () => {
+  const recording: LogicalRecording = {
+    neteaseTrackId: '301',
+    title: '归零',
+    artists: ['林忆莲'],
+    album: '0 (2024版)',
+  };
+  const candidates = [
+    withoutCandidateFields(candidate({
+      reference: 'musicbridge-v2-entity-123e4567-e89b-12d3-a456-426614174011',
+      title: '归零',
+      subtitle: 'Sandy Lam, 常石磊',
+      album: '0 (2024版)',
+    }), 'artist', 'durationMs'),
+    withoutCandidateFields(candidate({
+      reference: 'musicbridge-v2-entity-123e4567-e89b-12d3-a456-426614174012',
+      title: '归零',
+      subtitle: 'Sandy Lam, 常石磊',
+      album: '0 (2024版)',
+    }), 'artist', 'durationMs'),
+  ];
+
+  const result = matchLogicalRecording(recording, candidates);
+  assert.equal(result.state, 'POSSIBLE');
+  assert.equal(result.candidate, undefined);
+  assert.ok(result.evidence.includes('ambiguous-top-candidates'));
+});
+
+test('MatchingEngine rejects a version marker carried by album metadata', () => {
+  const result = matchLogicalRecording(track, [candidate({
+    title: '吻别',
+    album: '吻别 Live',
+  })]);
+
+  assert.equal(result.state, 'REJECTED');
+  assert.ok(result.evidence.includes('version-reject'));
+});
+
+test('MatchingEngine treats one exact artist inside real Roon multi-credit subtitle as evidence', () => {
+  const result = matchLogicalRecording(track, [withoutCandidateFields(candidate({
+    subtitle: '张学友, 欧丁玉 & 林明阳',
+  }), 'artist', 'album')]);
+
+  assert.equal(result.state, 'CONFIRMED');
+  assert.ok(result.evidence.includes('artist-exact'));
+});
+
+test('MatchingEngine hard-rejects Chinese instrumental wording against a vocal original', () => {
+  const result = matchLogicalRecording(track, [candidate({
+    title: '吻别 (纯音乐版)',
+    artist: '张学友',
+  })]);
+
+  assert.equal(result.state, 'REJECTED');
+  assert.ok(result.evidence.includes('version-reject'));
 });
 
 test('Match cache is bounded, keyed by NetEase id, and can invalidate runtime references', () => {

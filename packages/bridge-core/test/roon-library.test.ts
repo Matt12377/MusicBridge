@@ -183,6 +183,45 @@ test('RoonLibraryService 使用 Album 来源 Browse Context 进入曲目层', as
   );
 });
 
+test('RoonLibraryService 从真实 Album 曲目标题中分离序号与实体标题', async () => {
+  let browseIndex = 0;
+  let loadIndex = 0;
+  const service = createRoonLibraryService({
+    browse: {
+      browse(_options, callback) {
+        callback(false, browseIndex++ === 0
+          ? { action: 'list', list: { level: 0, count: 1, title: 'Albums' } }
+          : { action: 'list', list: { level: 1, count: 1, title: 'Tracks' } });
+      },
+      load(options, callback) {
+        callback(false, loadIndex++ === 0
+          ? {
+              offset: options.offset,
+              items: [{ title: '0 (2024版)', item_key: 'album:1', hint: 'list' }],
+            }
+          : {
+              offset: options.offset,
+              items: [{
+                title: '7. 归零',
+                subtitle: 'Sandy Lam, 常石磊',
+                item_key: 'track:7',
+                hint: 'action_list',
+              }],
+            });
+      },
+    },
+    image: { get_image: () => undefined },
+  });
+
+  const albums = await service.browseAlbums({ offset: 0, limit: 20 });
+  const album = albums.items[0];
+  assert.ok(album);
+  const tracks = await service.browseAlbum(album, { offset: 0, limit: 20 });
+
+  assert.equal(tracks.items[0]?.title, '归零');
+  assert.equal(tracks.items[0]?.trackNumber, 7);
+});
+
 test('RoonLibraryService Image seam 只接受显式 key 和受限尺寸格式', async () => {
   const calls: Array<{ imageKey: string; options: Record<string, unknown> }> = [];
   const summaries: Array<Record<string, unknown>> = [];
@@ -406,6 +445,102 @@ test('RoonLibraryService 只下钻 Search 的 Tracks 分组并复用查询 Sessi
   assert.deepEqual(browseCalls.map((call) => call.item_key), [undefined, 'group:tracks']);
   assert.equal(browseCalls.some((call) => call.item_key === 'album:result'), false);
   assert.equal(browseCalls[0]?.multi_session_key, browseCalls[1]?.multi_session_key);
+});
+
+test('RoonLibraryService 可按 Albums 分组返回真实专辑候选，不把 Tracks 结果冒充 Album', async () => {
+  const visited: string[] = [];
+  let location: 'root' | 'albums' = 'root';
+  const service = createRoonLibraryService({
+    browse: {
+      browse(options, callback) {
+        if (options.pop_all === true) {
+          location = 'root';
+          callback(false, { action: 'list', list: { level: 0, count: 2 } });
+          return;
+        }
+        if (options.item_key === 'group:albums') {
+          visited.push('albums');
+          location = 'albums';
+          callback(false, { action: 'list', list: { level: 1, count: 1 } });
+          return;
+        }
+        if (options.item_key === 'group:tracks') visited.push('tracks');
+        callback('unexpected search drill-down', undefined);
+      },
+      load(options, callback) {
+        callback(false, location === 'root'
+          ? {
+              offset: options.offset,
+              items: [
+                { title: 'Albums', item_key: 'group:albums', hint: 'list' },
+                { title: 'Tracks', item_key: 'group:tracks', hint: 'list' },
+              ],
+            }
+          : {
+              offset: options.offset,
+              items: [{
+                title: '0 (2024版)',
+                subtitle: 'Sandy Lam',
+                item_key: 'album:zero',
+                hint: 'list',
+              }],
+            });
+      },
+    },
+    image: { get_image: () => undefined },
+  });
+
+  const page = await service.searchLibrary(
+    '林忆莲 0 (2024版)',
+    { offset: 0, limit: 10 },
+    'album',
+  );
+
+  assert.deepEqual(page.items.map((item) => ({ kind: item.kind, title: item.title })), [{
+    kind: 'album',
+    title: '0 (2024版)',
+  }]);
+  assert.deepEqual(visited, ['albums']);
+});
+
+test('RoonLibraryService 保留同标题同 subtitle 但 item_key 不同的重复版本候选', async () => {
+  let location: 'root' | 'tracks' = 'root';
+  const service = createRoonLibraryService({
+    browse: {
+      browse(options, callback) {
+        if (options.pop_all === true) {
+          location = 'root';
+          callback(false, { action: 'list', list: { level: 0, count: 1 } });
+          return;
+        }
+        if (options.item_key === 'group:tracks') {
+          location = 'tracks';
+          callback(false, { action: 'list', list: { level: 1, count: 2 } });
+          return;
+        }
+        callback('unexpected search drill-down', undefined);
+      },
+      load(options, callback) {
+        callback(false, location === 'root'
+          ? {
+              offset: options.offset,
+              items: [{ title: 'Tracks', item_key: 'group:tracks', hint: 'list' }],
+            }
+          : {
+              offset: options.offset,
+              items: [
+                { title: '归零', subtitle: 'Sandy Lam', item_key: 'track:original', hint: 'action_list' },
+                { title: '归零', subtitle: 'Sandy Lam', item_key: 'track:compilation', hint: 'action_list' },
+              ],
+            });
+      },
+    },
+    image: { get_image: () => undefined },
+  });
+
+  const page = await service.searchLibrary('林忆莲 归零', { offset: 0, limit: 20 });
+  assert.equal(page.items.length, 2);
+  assert.deepEqual(page.items.map((item) => item.itemKey), ['track:original', 'track:compilation']);
 });
 
 test('RoonLibraryService 重放 Search Track action 时保留受控查询上下文', async () => {

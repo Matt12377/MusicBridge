@@ -65,11 +65,11 @@ import {
 import {
   createMatchCache,
   isCacheableMatchResult,
-  matchLogicalRecording,
   MATCH_ALGORITHM_VERSION,
   type LogicalRecording,
   type MatchResult,
 } from './matching/index.js';
+import { resolveRoonMatch } from './matching/candidate-resolution.js';
 
 export type CoreRuntimeEvent = TypedIpcEvent;
 
@@ -573,9 +573,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     if (cached) return { trackId: track.id, ...cached };
 
     try {
-      const query = `${track.artists[0] ?? ''} ${track.title}`.trim();
-      const page = await roonLibrary.searchLibrary(query, { offset: 0, limit: 20 });
-      const result = matchLogicalRecording(recording, page.items);
+      const result = await resolveRoonMatch(recording, roonLibrary);
       if (isCacheableMatchResult(result)) matchCache.set(recording, result);
       return { trackId: track.id, ...result };
     } catch (error) {
