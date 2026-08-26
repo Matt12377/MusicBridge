@@ -95,6 +95,73 @@ test('NeteaseClient returns a sanitized public paged search result without forwa
   ]);
 });
 
+test('NeteaseClient reuses hydrated search metadata without repeating song_detail', async () => {
+  let songDetailCalls = 0;
+  const client = new NeteaseClient('synthetic-credential', baseApi({
+    async search() {
+      return {
+        body: {
+          code: 200,
+          result: { songCount: 1, songs: [track(101, 'Hydrated Search Result')] },
+        },
+      };
+    },
+    async song_detail() {
+      songDetailCalls += 1;
+      return { body: { code: 200, songs: [track(101, 'Repeated Detail')] } };
+    },
+  }));
+
+  await client.searchTracks('hydrated', { offset: 0, limit: 20 });
+  assert.deepEqual(await client.getTrack('101'), {
+    id: '101',
+    title: 'Hydrated Search Result',
+    artists: ['Synthetic Artist'],
+    album: 'Synthetic Album',
+    durationMs: 180_000,
+    artworkUrl: 'https://p1.music.126.net/synthetic-cover.jpg',
+  });
+  assert.equal(songDetailCalls, 0);
+});
+
+test('NeteaseClient metadata cache is bounded and expires hydrated search results', async () => {
+  let now = 1_000;
+  const detailCalls: string[] = [];
+  let searchTrack = track(101, 'First Search Result');
+  const client = new NeteaseClient(
+    'synthetic-credential',
+    baseApi({
+      async search() {
+        return {
+          body: {
+            code: 200,
+            result: { songCount: 1, songs: [searchTrack] },
+          },
+        };
+      },
+      async song_detail(params) {
+        const id = Number(params.ids);
+        detailCalls.push(String(id));
+        return { body: { code: 200, songs: [track(id, `Detail ${id}`)] } };
+      },
+    }),
+    undefined,
+    { metadataCacheMaxEntries: 1, metadataCacheTtlMs: 100, now: () => now },
+  );
+
+  await client.searchTracks('first', { offset: 0, limit: 1 });
+  searchTrack = track(102, 'Second Search Result');
+  await client.searchTracks('second', { offset: 0, limit: 1 });
+  assert.equal((await client.getTrack('102')).title, 'Second Search Result');
+  assert.deepEqual(detailCalls, []);
+  await client.getTrack('101');
+  assert.deepEqual(detailCalls, ['101']);
+
+  now += 101;
+  await client.getTrack('102');
+  assert.deepEqual(detailCalls, ['101', '102']);
+});
+
 test('NeteaseClient paginates the native liked playlist without loading all track metadata', async () => {
   const calls: string[] = [];
   const client = new NeteaseClient('synthetic-credential', baseApi({

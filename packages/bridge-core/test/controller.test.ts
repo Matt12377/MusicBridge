@@ -24,6 +24,8 @@ class FakeNetease implements NeteasePort {
   actualQuality = 'lossless';
   authExpired = false;
   readonly unavailableTrackIds = new Set<string>();
+  metadataStarted = false;
+  metadataGate: Promise<void> | undefined;
 
   async searchTracks() {
     return { items: [], offset: 0, limit: 10, total: 0, hasMore: false };
@@ -79,6 +81,8 @@ class FakeNetease implements NeteasePort {
   }
 
   async getTrack(trackId: string) {
+    this.metadataStarted = true;
+    await this.metadataGate;
     if (this.authExpired) {
       throw new BridgeError('AUTH_EXPIRED', 'Synthetic expired session', { httpStatus: 401 });
     }
@@ -166,6 +170,7 @@ class FakeRoon implements RoonPort {
       this.maxConcurrentPlayCalls,
       this.activePlayCalls,
     );
+    request.onStartupStage?.('roon-session-began');
     if (this.playDelayMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, this.playDelayMs));
     }
@@ -178,6 +183,7 @@ class FakeRoon implements RoonPort {
       canPause: true,
       canResume: false,
     };
+    request.onStartupStage?.('roon-playing');
     if (this.terminalDuringPlay) this.terminalHandler('media_error');
   }
 
@@ -380,6 +386,44 @@ test('controller registers a local stream, starts Roon and reports actual qualit
   await controller.stop();
   assert.equal(registry.size, 0);
   assert.equal(controller.getState().activePlayback, undefined);
+});
+
+test('controller resolves independent metadata and stream URL work in parallel', async () => {
+  const { controller, netease } = makeHarness();
+  let releaseMetadata: () => void = () => undefined;
+  netease.metadataGate = new Promise<void>((resolve) => {
+    releaseMetadata = resolve;
+  });
+
+  const playback = controller.play({ trackId: '123', quality: 'lossless' });
+  await waitFor(() => netease.metadataStarted);
+  await waitFor(() => netease.resolveCalls === 1);
+  releaseMetadata();
+  await playback;
+});
+
+test('controller reports both independent Provider stages before Gateway preflight', async () => {
+  const { controller } = makeHarness();
+  const stages: string[] = [];
+
+  await controller.play({
+    trackId: '123',
+    quality: 'lossless',
+    startupTrace: {
+      startedAtMs: 1_700_000_000_000,
+      onStage: (stage) => stages.push(stage),
+    },
+  });
+
+  assert.deepEqual(new Set(stages.slice(0, 2)), new Set([
+    'metadata-ready',
+    'stream-url-ready',
+  ]));
+  assert.deepEqual(stages.slice(2), [
+    'gateway-preflight-ready',
+    'roon-session-began',
+    'roon-playing',
+  ]);
 });
 
 test('controller exposes a bounded quality downgrade notice without upstream details', async () => {

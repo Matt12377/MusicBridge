@@ -90,9 +90,14 @@ function onVirtualScroll(event: Event): void {
 }
 
 function playFromContext(): void {
-  if (!contextTrack.value) return
+  if (!contextTrack.value || props.busy) return
   emit('play', contextTrack.value)
   closeContextMenu()
+}
+
+function requestPlay(track: TrackSummary): void {
+  if (props.busy) return
+  emit('play', track)
 }
 
 function queueFromContext(): void {
@@ -154,9 +159,10 @@ onUnmounted(() => {
         :key="track.id"
         class="track-row"
         role="row"
-        tabindex="0"
-        @dblclick="emit('play', track)"
-        @keydown.enter="emit('play', track)"
+        :tabindex="props.busy ? -1 : 0"
+        :aria-disabled="props.busy ? 'true' : undefined"
+        @dblclick="requestPlay(track)"
+        @keydown.enter="requestPlay(track)"
         @contextmenu="showContextMenu($event, track)"
       >
         <span class="track-index" aria-hidden="true"><span class="track-number">{{ trackIndex(index) + 1 }}</span><span class="track-play-mark">▶</span></span>
@@ -165,7 +171,7 @@ onUnmounted(() => {
         <span class="track-album">{{ track.album }}</span>
         <span class="track-duration">{{ formatDuration(track.durationMs) }}</span>
         <span class="row-actions">
-          <button type="button" class="row-action" :aria-label="`播放 ${track.title}`" @click.stop="emit('play', track)">▶</button>
+          <button type="button" class="row-action" :disabled="props.busy" :aria-label="`播放 ${track.title}`" @click.stop="requestPlay(track)">▶</button>
           <button type="button" class="row-action row-action-more" :aria-label="`打开 ${track.title} 的更多操作`" @click.stop="showContextMenu($event, track)">•••</button>
         </span>
       </div>
@@ -191,7 +197,7 @@ onUnmounted(() => {
       @click.stop
     >
       <strong>{{ contextTrack.title }}</strong>
-      <button type="button" role="menuitem" @click="playFromContext">播放</button>
+      <button type="button" role="menuitem" :disabled="props.busy" @click="playFromContext">播放</button>
       <button type="button" role="menuitem" @click="playNextFromContext">下一首播放</button>
       <button type="button" role="menuitem" @click="queueFromContext">加入队列</button>
     </div>

@@ -141,6 +141,7 @@ const accountError = ref<string | null>(null)
 const coreError = ref(false)
 const authError = ref(false)
 const playbackState = ref<PlaybackSnapshot | null>(null)
+const playbackStartPending = ref(false)
 const playbackSource = ref<'roon' | 'netease'>('netease')
 const nativeRoonHasNeteaseMatch = ref(false)
 const lyricsSnapshot = ref<LyricsSnapshot>(emptyLyricsSnapshot())
@@ -1732,7 +1733,11 @@ function cloneTrackSummary(track: TrackSummary): TrackSummary {
 }
 
 async function playTrack(track: TrackSummary): Promise<void> {
+  if (playbackStartPending.value) return
+  const rendererClickAtMs = Date.now()
+  playbackStartPending.value = true
   actionError.value = null
+  showToast('正在准备')
   try {
     const zoneId = selectedZone.value?.zoneId
     const cachedMatch = matchResults.value[track.id]
@@ -1757,11 +1762,13 @@ async function playTrack(track: TrackSummary): Promise<void> {
       enterNowPlaying()
       return
     }
-    applyNeteasePlayback(await window.musicBridge.play(track.id, selectedQuality.value))
+    applyNeteasePlayback(await window.musicBridge.play(track.id, selectedQuality.value, rendererClickAtMs))
     if (!matchResults.value[track.id]) void matchTracks([cloneTrackSummary(track)])
     enterNowPlaying()
   } catch (error) {
     recordActionError(error)
+  } finally {
+    playbackStartPending.value = false
   }
 }
 
@@ -2513,6 +2520,7 @@ onUnmounted(() => {
             <TrackTable
               v-else
               :tracks="searchDetail.tracks.items"
+              :busy="playbackStartPending"
               :match-states="matchStates"
               :total="searchDetail.tracks.total"
               :has-more="searchDetail.tracks.hasMore"
@@ -2558,6 +2566,7 @@ onUnmounted(() => {
               <div class="search-track-results">
                 <TrackTable
                   :tracks="searchPage.items"
+                  :busy="playbackStartPending"
                   :match-states="matchStates"
                   :show-artwork="true"
                   :initial-loading="searchInitialLoading"

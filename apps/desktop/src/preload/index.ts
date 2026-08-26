@@ -45,7 +45,8 @@ contextBridge.exposeInMainWorld(
     (zoneId: string) => ipcRenderer.invoke('roon:select-zone', zoneId),
     (trackId: string) => ipcRenderer.invoke('lyrics:get', trackId),
     () => ipcRenderer.invoke('playback:get-state'),
-    (trackId: string, qualityPreference: string) => ipcRenderer.invoke('playback:play', trackId, qualityPreference),
+    (trackId: string, qualityPreference: string, rendererClickAtMs?: number) =>
+      ipcRenderer.invoke('playback:play', trackId, qualityPreference, rendererClickAtMs),
     () => ipcRenderer.invoke('playback:pause'),
     () => ipcRenderer.invoke('playback:resume'),
     () => ipcRenderer.invoke('playback:stop'),

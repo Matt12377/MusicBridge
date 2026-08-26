@@ -820,6 +820,11 @@ export class RoonAudioInputAdapter implements RoonPort {
           case 'Playing':
             this.setStatus('playing', 'Playing', false);
             this.setTransportState('playing');
+            try {
+              request.onStartupStage?.('roon-playing');
+            } catch {
+              // 受控诊断绝不能改变播放结果。
+            }
             finish();
             break;
           case 'Time':
@@ -913,6 +918,11 @@ export class RoonAudioInputAdapter implements RoonPort {
             phase: 'awaiting_playing',
             hasSessionId: true,
           });
+          try {
+            request.onStartupStage?.('roon-session-began');
+          } catch {
+            // 受控诊断绝不能改变播放结果。
+          }
 
           try {
             audioInput.update_transport_controls(

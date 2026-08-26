@@ -34,6 +34,7 @@ export interface RoonPlayRequest {
   iconUrl: string;
   metadata: TrackMetadata;
   gatewayStage?: () => RoonGatewayStage;
+  onStartupStage?: (stage: 'roon-session-began' | 'roon-playing') => void;
 }
 
 export type RoonTerminalReason =

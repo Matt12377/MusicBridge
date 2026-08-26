@@ -91,7 +91,11 @@ export interface MusicBridgePublicApi {
   stopRoonTransport: () => Promise<{ stopped: true }>
   getLyrics: (trackId: string) => Promise<LyricsSnapshot>
   getPlaybackState: () => Promise<PlaybackSnapshot>
-  play: (trackId: string, quality: PlaybackQualityPreference) => Promise<PlaybackSnapshot>
+  play: (
+    trackId: string,
+    quality: PlaybackQualityPreference,
+    rendererClickAtMs?: number,
+  ) => Promise<PlaybackSnapshot>
   pause: () => Promise<PlaybackSnapshot>
   resume: () => Promise<PlaybackSnapshot>
   stop: () => Promise<PlaybackSnapshot>
@@ -196,7 +200,11 @@ export function createPreloadApi(
   selectZone: (zoneId: string) => Promise<PublicBridgeState>,
   getLyrics: (trackId: string) => Promise<LyricsSnapshot>,
   getPlaybackState: () => Promise<PlaybackSnapshot>,
-  play: (trackId: string, quality: PlaybackQualityPreference) => Promise<PlaybackSnapshot>,
+  play: (
+    trackId: string,
+    quality: PlaybackQualityPreference,
+    rendererClickAtMs?: number,
+  ) => Promise<PlaybackSnapshot>,
   pause: () => Promise<PlaybackSnapshot>,
   resume: () => Promise<PlaybackSnapshot>,
   stop: () => Promise<PlaybackSnapshot>,

@@ -41,6 +41,7 @@ import type {
 import {
   BridgeController,
   type BridgeState,
+  type PlaybackStartupStage,
   type SmartRoonResolution,
 } from './application/bridge-controller.js';
 import { loadConfig } from './config/config.js';
@@ -111,7 +112,11 @@ export interface CoreRuntime {
   setFavorite(descriptor: FavoriteEntityDescriptor, favorite: boolean): Promise<{ favorite: boolean; item?: FavoriteRecord }>;
   getLyrics(trackId: string): Promise<LyricsSnapshot>;
   getPlaybackState(): PlaybackSnapshot;
-  playbackPlay(trackId: string, quality: PlaybackQualityPreference): Promise<PlaybackSnapshot>;
+  playbackPlay(
+    trackId: string,
+    quality: PlaybackQualityPreference,
+    rendererClickAtMs?: number,
+  ): Promise<PlaybackSnapshot>;
   playbackPause(): Promise<PlaybackSnapshot>;
   playbackResume(): Promise<PlaybackSnapshot>;
   seekPlayback(positionMs: number): Promise<{ positionMs: number }>;
@@ -227,6 +232,14 @@ function localDayKey(now = Date.now()): string {
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+const PLAYBACK_STARTUP_DIAGNOSTIC_EVENTS: Record<PlaybackStartupStage, string> = {
+  'metadata-ready': 'playback_metadata_ready',
+  'stream-url-ready': 'playback_stream_url_ready',
+  'gateway-preflight-ready': 'playback_gateway_preflight_ready',
+  'roon-session-began': 'playback_roon_session_began',
+  'roon-playing': 'playback_roon_playing',
+};
 
 export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRuntime {
   const config = loadConfig(options.env);
@@ -890,18 +903,33 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     getDailyRecommendations: getDailyRecommendationSnapshot,
     getLyrics: (trackId) => lyrics.getLyrics(trackId),
     getPlaybackState: () => controller.getPlaybackState(),
-    async playbackPlay(trackId, qualityPreference) {
-      const startedAt = Date.now();
+    async playbackPlay(trackId, qualityPreference, rendererClickAtMs) {
+      const coreReceivedAtMs = options.now?.() ?? Date.now();
+      const startedAt = Math.min(rendererClickAtMs ?? coreReceivedAtMs, coreReceivedAtMs);
+      recordDiagnostic('info', 'playback_core_request_received', {
+        durationMs: coreReceivedAtMs - startedAt,
+      });
       try {
-        await controller.play({ trackId, qualityPreference });
-        lastPlayLatencyMs = Date.now() - startedAt;
+        await controller.play({
+          trackId,
+          qualityPreference,
+          startupTrace: {
+            startedAtMs: startedAt,
+            onStage: (stage, elapsedMs) => {
+              recordDiagnostic('info', PLAYBACK_STARTUP_DIAGNOSTIC_EVENTS[stage], {
+                durationMs: elapsedMs,
+              });
+            },
+          },
+        });
+        lastPlayLatencyMs = Math.max(0, (options.now?.() ?? Date.now()) - startedAt);
         recordDiagnostic('info', 'play_completed', {
           state: 'playing',
           durationMs: lastPlayLatencyMs,
         });
         return controller.getPlaybackState();
       } catch (error) {
-        lastPlayLatencyMs = Date.now() - startedAt;
+        lastPlayLatencyMs = Math.max(0, (options.now?.() ?? Date.now()) - startedAt);
         recordDiagnostic('warn', 'play_failed', {
           code: asBridgeError(error).code,
           state: 'error',

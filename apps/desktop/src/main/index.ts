@@ -768,6 +768,20 @@ function requirePlaybackQualityPreference(value: unknown): PlaybackQualityPrefer
   return value as PlaybackQualityPreference
 }
 
+function requireRendererClickAtMs(value: unknown, receivedAtMs: number): number {
+  if (value === undefined) return receivedAtMs
+  if (
+    typeof value !== 'number' ||
+    !Number.isSafeInteger(value) ||
+    value <= 0 ||
+    value > receivedAtMs + 1_000 ||
+    value < receivedAtMs - 60_000
+  ) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback startup timestamp')
+  }
+  return value
+}
+
 function requirePlaybackSourcePreference(value: unknown): PlaybackSourcePreference {
   if (!['smart', 'netease', 'roon'].includes(String(value))) {
     return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback source preference')
@@ -1166,14 +1180,18 @@ function registerIpcHandlers(
   ipcMain.handle('playback:get-state', (event) =>
     invokeCore(event, () => supervisor.request('playback.getState', {})),
   )
-  ipcMain.handle('playback:play', (event, trackId: unknown, qualityPreference: unknown) =>
-    invokeCore(event, () =>
-      supervisor.request('playback.play', {
+  ipcMain.handle('playback:play', (event, trackId: unknown, qualityPreference: unknown, rendererClickAt: unknown) => {
+    const mainReceivedAtMs = Date.now()
+    return invokeCore(event, () => {
+      const rendererClickAtMs = requireRendererClickAtMs(rendererClickAt, mainReceivedAtMs)
+      mainDiagnostics.recordPlaybackStartup(rendererClickAtMs, mainReceivedAtMs)
+      return supervisor.request('playback.play', {
         trackId: requirePlaybackTrackId(trackId),
         qualityPreference: requirePlaybackQualityPreference(qualityPreference),
-      }),
-    ),
-  )
+        rendererClickAtMs,
+      })
+    })
+  })
   ipcMain.handle('playback:pause', (event) =>
     invokeCore(event, () => supervisor.request('playback.pause', {})),
   )

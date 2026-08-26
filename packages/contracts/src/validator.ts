@@ -464,14 +464,26 @@ function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
 
 function isPlaybackPlayPayload(
   value: unknown,
-): value is { trackId: string; qualityPreference: PlaybackQualityPreference } {
+): value is {
+  trackId: string;
+  qualityPreference: PlaybackQualityPreference;
+  rendererClickAtMs?: number;
+} {
   return (
     isRecord(value) &&
-    hasOnlyKeys(value, ['trackId', 'qualityPreference']) &&
+    hasOnlyKeys(value, ['trackId', 'qualityPreference', 'rendererClickAtMs']) &&
     safeString(value.trackId, 128) &&
     /^\d+$/.test(value.trackId) &&
     value.trackId !== '0' &&
-    isPlaybackQualityPreference(value.qualityPreference)
+    isPlaybackQualityPreference(value.qualityPreference) &&
+    (
+      value.rendererClickAtMs === undefined ||
+      (
+        typeof value.rendererClickAtMs === 'number' &&
+        Number.isSafeInteger(value.rendererClickAtMs) &&
+        value.rendererClickAtMs > 0
+      )
+    )
   );
 }
 

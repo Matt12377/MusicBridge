@@ -191,7 +191,11 @@ export interface IpcCommandPayloads {
   'roon.library.queue': { reference: string; zoneId: string };
   'roon.transport.stop': Record<string, never>;
   'playback.getState': Record<string, never>;
-  'playback.play': { trackId: string; qualityPreference: PlaybackQualityPreference };
+  'playback.play': {
+    trackId: string;
+    qualityPreference: PlaybackQualityPreference;
+    rendererClickAtMs?: number;
+  };
   'playback.pause': Record<string, never>;
   'playback.resume': Record<string, never>;
   'playback.seek': { positionMs: number };

@@ -84,6 +84,16 @@ export interface SmartRoonResolution {
   reference: string;
   zoneId: string;
 }
+export type PlaybackStartupStage =
+  | 'metadata-ready'
+  | 'stream-url-ready'
+  | 'gateway-preflight-ready'
+  | 'roon-session-began'
+  | 'roon-playing';
+export interface PlaybackStartupTrace {
+  startedAtMs: number;
+  onStage(stage: PlaybackStartupStage, elapsedMs: number): void;
+}
 interface NativeRoonPlaybackPort {
   play(reference: string, zoneId: string, track: TrackSummary): Promise<RoonPlaybackObservation>;
   stop(): Promise<void>;
@@ -444,6 +454,7 @@ export class BridgeController {
     trackId: unknown;
     qualityPreference?: unknown;
     quality?: unknown;
+    startupTrace?: PlaybackStartupTrace;
   }): Promise<BridgeState> {
     const item = normalizeQueueItem(input);
     return this.enqueue(async () => {
@@ -451,7 +462,7 @@ export class BridgeController {
       this.queue = [item];
       this.queueIndex = 0;
       this.clearPlaybackIssue();
-      await this.startQueueIndex(0, false);
+      await this.startQueueIndex(0, false, input.startupTrace);
       return this.getState();
     });
   }
@@ -929,7 +940,11 @@ export class BridgeController {
     };
   }
 
-  private async startQueueIndex(index: number, skipUnavailable: boolean): Promise<void> {
+  private async startQueueIndex(
+    index: number,
+    skipUnavailable: boolean,
+    startupTrace?: PlaybackStartupTrace,
+  ): Promise<void> {
     this.nextInsertionQueueIndex = undefined;
     this.nextInsertionCursor = undefined;
     let candidate = index;
@@ -946,7 +961,7 @@ export class BridgeController {
         break;
       }
       try {
-        await this.startItem(item);
+        await this.startItem(item, startupTrace);
         if (skippedError) {
           this.lastPlaybackError = skippedError.code;
           this.lastPlaybackIssue = this.issueForError(skippedError);
@@ -975,7 +990,10 @@ export class BridgeController {
     this.notifyPlaybackChanged();
   }
 
-  private async startItem(item: QueueItem): Promise<void> {
+  private async startItem(
+    item: QueueItem,
+    startupTrace?: PlaybackStartupTrace,
+  ): Promise<void> {
     if (item.preferredSource === 'roon' || item.roonReference) {
       await this.startRoonItem(item);
       return;
@@ -993,9 +1011,29 @@ export class BridgeController {
     this.clearPlaybackIssue();
     this.notifyPlaybackChanged();
 
-    const metadata: TrackMetadata = item.track
-      ? { ...item.track, artists: [...item.track.artists] }
-      : await this.dependencies.netease.getTrack(item.trackId);
+    const requestedQuality = resolveQualityPreference(item.qualityPreference);
+    let metadata: TrackMetadata;
+    let initialStream: ResolvedAudioStream | undefined;
+    if (item.preferredSource === 'smart') {
+      metadata = item.track
+        ? { ...item.track, artists: [...item.track.artists] }
+        : await this.dependencies.netease.getTrack(item.trackId);
+      this.reportStartupStage(startupTrace, 'metadata-ready');
+    } else {
+      const metadataRequest: Promise<TrackMetadata> = item.track
+        ? Promise.resolve({ ...item.track, artists: [...item.track.artists] })
+        : this.dependencies.netease.getTrack(item.trackId);
+      [metadata, initialStream] = await Promise.all([
+        metadataRequest.then((value) => {
+          this.reportStartupStage(startupTrace, 'metadata-ready');
+          return value;
+        }),
+        this.dependencies.netease.resolveStream(item.trackId, requestedQuality).then((value) => {
+          this.reportStartupStage(startupTrace, 'stream-url-ready');
+          return value;
+        }),
+      ]);
+    }
     item.track = toTrackSummary(metadata);
     if (item.preferredSource === 'smart' && this.dependencies.resolveSmartSource) {
       const resolution = await this.dependencies.resolveSmartSource(item.track);
@@ -1019,12 +1057,15 @@ export class BridgeController {
       }
     }
     item.resolvedSource = 'netease';
-    const requestedQuality = resolveQualityPreference(item.qualityPreference);
-    const initialStream = await this.dependencies.netease.resolveStream(
-      item.trackId,
-      requestedQuality,
-    );
+    if (!initialStream) {
+      initialStream = await this.dependencies.netease.resolveStream(
+        item.trackId,
+        requestedQuality,
+      );
+      this.reportStartupStage(startupTrace, 'stream-url-ready');
+    }
     await this.dependencies.gateway.preflight(initialStream);
+    this.reportStartupStage(startupTrace, 'gateway-preflight-ready');
 
     const resolver = this.createRefreshingResolver(
       item.trackId,
@@ -1073,6 +1114,11 @@ export class BridgeController {
         iconUrl: this.dependencies.gateway.iconUrl(),
         metadata,
         gatewayStage: () => gatewayStage,
+        ...(startupTrace
+          ? {
+              onStartupStage: (stage) => this.reportStartupStage(startupTrace, stage),
+            }
+          : {}),
       });
       if (this.pendingTerminalReason) {
         const reason = this.pendingTerminalReason;
@@ -1367,6 +1413,18 @@ export class BridgeController {
 
   private newDiagnosticId(): string {
     return this.dependencies.diagnosticId?.() ?? `diag-${randomUUID()}`;
+  }
+
+  private reportStartupStage(
+    trace: PlaybackStartupTrace | undefined,
+    stage: PlaybackStartupStage,
+  ): void {
+    if (!trace) return;
+    try {
+      trace.onStage(stage, Math.max(0, this.now() - trace.startedAtMs));
+    } catch {
+      // 受控诊断绝不能改变播放结果。
+    }
   }
 
   private now(): number {

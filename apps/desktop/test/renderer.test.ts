@@ -445,6 +445,19 @@ test('confirmed matching keeps the V1 track identity inside the unified Smart qu
   assert.match(app, /:track-like-available="playbackSource === 'netease' \|\| nativeRoonHasNeteaseMatch \|\| localTrackFavoriteDescriptor !== null"/)
 })
 
+test('search playback gives immediate preparation feedback and rejects duplicate clicks', async () => {
+  const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const playTrackStart = app.indexOf('async function playTrack(track: TrackSummary)')
+  const roonPlayStart = app.indexOf('async function playRoonLibraryTrack', playTrackStart)
+  const playTrack = app.slice(playTrackStart, roonPlayStart)
+
+  assert.match(playTrack, /if \(playbackStartPending\.value\) return/)
+  assert.match(playTrack, /playbackStartPending\.value = true[\s\S]*showToast\('正在准备'\)/)
+  assert.match(playTrack, /window\.musicBridge\.play\(track\.id, selectedQuality\.value, rendererClickAtMs\)/)
+  assert.match(playTrack, /finally \{\s*playbackStartPending\.value = false\s*\}/)
+  assert.match(app, /:busy="playbackStartPending"/)
+})
+
 test('queue item selection preserves the existing V1/V2 mixed queue', async () => {
   const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
   const selectStart = app.indexOf('async function playQueueItem')

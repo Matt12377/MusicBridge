@@ -278,6 +278,7 @@ async function dispatch(
       return runtime.playbackPlay(
         (request.payload as { trackId: string }).trackId,
         (request.payload as { qualityPreference: Parameters<CoreRuntimeForIpc['playbackPlay']>[1] }).qualityPreference,
+        (request.payload as { rendererClickAtMs?: number }).rendererClickAtMs,
       );
     case 'playback.pause':
       return runtime.playbackPause();

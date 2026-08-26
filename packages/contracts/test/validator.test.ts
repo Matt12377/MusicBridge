@@ -857,6 +857,7 @@ test('contracts validates bounded playback controls and sanitized snapshots', ()
   for (const [id, command, payload] of [
     ['playback-get', 'playback.getState', {}],
     ['playback-play', 'playback.play', { trackId: '101', qualityPreference: 'lossless' }],
+    ['playback-play-traced', 'playback.play', { trackId: '101', qualityPreference: 'lossless', rendererClickAtMs: 1_700_000_000_000 }],
     ['playback-pause', 'playback.pause', {}],
     ['playback-resume', 'playback.resume', {}],
     ['playback-stop', 'playback.stop', {}],

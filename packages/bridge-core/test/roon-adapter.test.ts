@@ -1562,6 +1562,21 @@ test('begin_session never receives an undefined zone_id after stop', async () =>
   );
 });
 
+test('formal Roon Adapter reports SessionBegan and Playing startup stages', async () => {
+  const { adapter, api } = await makeReadyHarness();
+  const stages: string[] = [];
+  const playback = adapter.play({
+    ...playRequest,
+    onStartupStage: (stage) => stages.push(stage),
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'opaque-session' });
+  await playback;
+
+  assert.deepEqual(stages, ['roon-session-began', 'roon-playing']);
+});
+
 test('InvalidRequest terminates awaiting_session and records only a sanitized error class', async () => {
   const { logger, events } = recordingLogger();
   const { adapter, api } = await makeReadyHarness({}, logger);
