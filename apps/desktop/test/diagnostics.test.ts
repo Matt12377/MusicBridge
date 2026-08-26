@@ -43,6 +43,53 @@ test('Main diagnostic recorder keeps public Core health and a bounded event time
   assert.doesNotMatch(JSON.stringify(snapshot), /trackId|Cookie|https?:\/\//i)
 })
 
+test('Main diagnostic recorder anchors playback startup at the Renderer click', () => {
+  const recorder = new MainDiagnosticRecorder()
+
+  recorder.recordPlaybackStartup(1_700_000_000_000, 1_700_000_000_037)
+
+  const timeline = recorder.snapshot().timeline
+  assert.deepEqual(timeline.map((item) => ({ event: item.event, durationMs: item.durationMs })), [
+    { event: 'playback_renderer_click', durationMs: 0 },
+    { event: 'playback_main_ipc_received', durationMs: 37 },
+  ])
+  assert.equal(timeline[0]?.at, '2023-11-14T22:13:20.000Z')
+  assert.equal(timeline[1]?.at, '2023-11-14T22:13:20.037Z')
+})
+
+test('Main diagnostic recorder retains playback startup stages during high-frequency updates', () => {
+  const recorder = new MainDiagnosticRecorder()
+  const rendererClickAtMs = 1_700_000_000_000
+
+  for (let index = 0; index < 5; index += 1) {
+    const clickAtMs = rendererClickAtMs + index * 1_000
+    recorder.recordPlaybackStartup(clickAtMs, clickAtMs + index + 1)
+  }
+  for (let index = 0; index < 250; index += 1) {
+    recorder.recordLifecycle(`runtime_update_${index}`)
+  }
+
+  const timeline = recorder.snapshot().timeline
+  const playbackStages = timeline.filter((item) => item.event.startsWith('playback_'))
+
+  assert.equal(timeline.length, 200)
+  assert.deepEqual(
+    playbackStages.map((item) => ({ event: item.event, durationMs: item.durationMs })),
+    [
+      { event: 'playback_renderer_click', durationMs: 0 },
+      { event: 'playback_main_ipc_received', durationMs: 1 },
+      { event: 'playback_renderer_click', durationMs: 0 },
+      { event: 'playback_main_ipc_received', durationMs: 2 },
+      { event: 'playback_renderer_click', durationMs: 0 },
+      { event: 'playback_main_ipc_received', durationMs: 3 },
+      { event: 'playback_renderer_click', durationMs: 0 },
+      { event: 'playback_main_ipc_received', durationMs: 4 },
+      { event: 'playback_renderer_click', durationMs: 0 },
+      { event: 'playback_main_ipc_received', durationMs: 5 },
+    ],
+  )
+})
+
 test('diagnostic report writer creates one restricted JSON file', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-diagnostics-'))
   try {

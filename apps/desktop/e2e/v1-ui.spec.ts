@@ -17,6 +17,7 @@ let diagnosticPath: string
 const syntheticScreenshotPath = process.env.MUSIC_BRIDGE_SCREENSHOT_PATH ?? path.join(os.tmpdir(), 'musicbridge-task-034-home.png')
 const syntheticSettingsScreenshotPath = path.join(os.tmpdir(), 'musicbridge-task-034-settings.png')
 const syntheticDailyScreenshotPath = path.join(os.tmpdir(), 'musicbridge-task-034-daily.png')
+const syntheticSearchScreenshotPath = process.env.MUSIC_BRIDGE_SEARCH_SCREENSHOT_PATH ?? path.join(os.tmpdir(), 'musicbridge-v1-search.png')
 const syntheticNowPlayingScreenshotPath = path.join(os.tmpdir(), 'musicbridge-task-037-now-playing.png')
 const syntheticLyricsScreenshotPath = path.join(os.tmpdir(), 'musicbridge-task-037-lyrics-focus.png')
 const syntheticControlsScreenshotPath = path.join(os.tmpdir(), 'musicbridge-task-037-controls.png')
@@ -63,13 +64,99 @@ async function openConnectionPopover() {
 
 async function openAccountSettings() {
   await page.getByRole('button', { name: '打开网易云账户设置' }).click()
-  await expect(page.getByRole('heading', { name: 'Settings', exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: '设置', exact: true }).first()).toBeVisible()
+  const accountTab = page.getByRole('tab', { name: '账户', exact: true })
+  if (await accountTab.isVisible()) await accountTab.click()
 }
 
 async function openDiagnostics() {
   const statusPopover = await openConnectionPopover()
   await statusPopover.getByRole('button', { name: '打开诊断' }).click()
   await expect(page.getByRole('heading', { name: 'Diagnostics', exact: true }).first()).toBeVisible()
+}
+
+interface ZoneFixture {
+  zoneId: string
+  displayName: string
+  selected: boolean
+}
+
+async function replaceZoneList(zones: readonly ZoneFixture[], delayMs = 0) {
+  await electronApp.evaluate(({ ipcMain }, input) => {
+    ipcMain.removeHandler('roon:list-zones')
+    ipcMain.handle('roon:list-zones', async () => {
+      if (input.delayMs > 0) await new Promise((resolve) => setTimeout(resolve, input.delayMs))
+      return { zones: input.zones }
+    })
+  }, { zones, delayMs })
+}
+
+async function reloadWithZones(zones: readonly ZoneFixture[]) {
+  await replaceZoneList(zones)
+  await page.reload()
+  await page.waitForLoadState('domcontentloaded')
+}
+
+function playerZoneButton() {
+  return page.locator('.player-zone-button')
+}
+
+async function openPlayerZonePopover() {
+  const button = playerZoneButton()
+  await expect(button).toBeVisible()
+  await button.click()
+  const popover = page.getByRole('dialog', { name: '播放设备' })
+  await expect(popover).toBeVisible()
+  return popover
+}
+
+async function emitCoreEvent(
+  event: 'core.ready' | 'roon.changed',
+  roon: 'disconnected' | 'paired' | 'ready',
+) {
+  await electronApp.evaluate(({ BrowserWindow }, input) => {
+    BrowserWindow.getAllWindows()[0]?.webContents.send('core:event', {
+      version: 1,
+      event: input.event,
+      payload: {
+        state: {
+          runtime: 'ready',
+          roon: input.roon,
+          provider: 'configured',
+          activeStreamCount: 0,
+          activePlaybackPresent: false,
+        },
+      },
+    })
+  }, { event, roon })
+}
+
+async function emitRemoteCoreEvent(status: 'ready' | 'stopping') {
+  await electronApp.evaluate(({ BrowserWindow }, remoteStatus) => {
+    BrowserWindow.getAllWindows()[0]?.webContents.send('remote-core:event', {
+      mode: 'remote-core-development',
+      status: remoteStatus,
+      sshTarget: 'synthetic-core',
+      localStreamPort: 38502,
+      remoteStreamPort: 38512,
+      remoteHealth: remoteStatus === 'ready' ? 'available' : 'unavailable',
+      autoReconnect: true,
+    })
+  }, status)
+}
+
+async function resetZoneListCalls() {
+  await electronApp.evaluate(() => {
+    const runtime = globalThis as typeof globalThis & { zoneListCalls?: number }
+    runtime.zoneListCalls = 0
+  })
+}
+
+async function readZoneListCalls() {
+  return electronApp.evaluate(() => {
+    const runtime = globalThis as typeof globalThis & { zoneListCalls?: number }
+    return runtime.zoneListCalls ?? 0
+  })
 }
 
 async function waitForProcessMarker(
@@ -141,12 +228,217 @@ test.beforeEach(async () => {
   await page.reload()
   await page.waitForLoadState('domcontentloaded')
   await expect(page).toHaveURL('musicbridge://app/index.html')
-  await expect(page.getByRole('heading', { name: '主页', exact: true }).first()).toBeVisible()
+  await expect(page.locator('#home-heading')).toBeVisible()
 })
 
 test.afterEach(async () => {
   await electronApp.close()
   await rm(diagnosticDirectory, { recursive: true, force: true })
+})
+
+test('Core 后连接时自动刷新 Zone 列表', async () => {
+  await reloadWithZones([])
+  await expect(connectionButton()).toContainText('已连接')
+  await emitCoreEvent('roon.changed', 'disconnected')
+  await expect(playerZoneButton()).toContainText('Core 已断开')
+  const zonePopover = await openPlayerZonePopover()
+  await expect(zonePopover.getByText('Core 已断开', { exact: true })).toBeVisible()
+
+  await replaceZoneList([{ zoneId: 'delayed-zone', displayName: 'Delayed Zone', selected: false }])
+  await emitCoreEvent('roon.changed', 'paired')
+
+  await expect(zonePopover.getByRole('button', { name: 'Delayed Zone', exact: true })).toBeVisible()
+})
+
+test('Remote Core ready 时自动刷新 Zone 列表', async () => {
+  await reloadWithZones([])
+  await emitCoreEvent('core.ready', 'ready')
+  const zonePopover = await openPlayerZonePopover()
+  await expect(zonePopover.getByText('没有可用播放设备', { exact: true })).toBeVisible()
+
+  await replaceZoneList([{ zoneId: 'remote-zone', displayName: 'Remote Zone', selected: false }])
+  await emitRemoteCoreEvent('ready')
+
+  await expect(zonePopover.getByRole('button', { name: 'Remote Zone', exact: true })).toBeVisible()
+})
+
+test('Remote Core 停止时清空旧 Zone 并显示 Core 已断开', async () => {
+  await reloadWithZones([
+    { zoneId: 'remote-stale-zone', displayName: 'Remote Stale Zone', selected: true },
+  ])
+
+  const zoneButton = playerZoneButton()
+  await expect(zoneButton).toContainText('Remote Stale Zone')
+  await emitRemoteCoreEvent('stopping')
+
+  await expect(zoneButton).toContainText('Core 已断开')
+  const zonePopover = await openPlayerZonePopover()
+  await expect(zonePopover.getByText('Core 已断开', { exact: true })).toBeVisible()
+  await expect(zonePopover.getByText('Remote Stale Zone', { exact: true })).toHaveCount(0)
+})
+
+test('连续 Core 生命周期事件只触发一次 Zone 刷新', async () => {
+  await electronApp.evaluate(({ ipcMain }) => {
+    const runtime = globalThis as typeof globalThis & { zoneListCalls?: number }
+    runtime.zoneListCalls = 0
+    ipcMain.removeHandler('roon:list-zones')
+    ipcMain.handle('roon:list-zones', () => {
+      runtime.zoneListCalls = (runtime.zoneListCalls ?? 0) + 1
+      return {
+        zones: [{ zoneId: 'coalesced-zone', displayName: 'Coalesced Zone', selected: false }],
+      }
+    })
+  })
+  await page.reload()
+  await page.waitForLoadState('domcontentloaded')
+  await expect(playerZoneButton()).toBeVisible()
+  await resetZoneListCalls()
+
+  await electronApp.evaluate(({ BrowserWindow }) => {
+    const window = BrowserWindow.getAllWindows()[0]
+    const state = {
+      runtime: 'ready',
+      roon: 'paired',
+      provider: 'configured',
+      activeStreamCount: 0,
+      activePlaybackPresent: false,
+    }
+    window?.webContents.send('core:event', { version: 1, event: 'core.ready', payload: { state } })
+    window?.webContents.send('core:event', { version: 1, event: 'roon.changed', payload: { state } })
+    window?.webContents.send('core:event', { version: 1, event: 'roon.changed', payload: { state } })
+  })
+  await page.waitForTimeout(200)
+
+  expect(await readZoneListCalls()).toBe(1)
+  const zonePopover = await openPlayerZonePopover()
+  await expect(zonePopover.getByRole('button', {
+    name: 'Coalesced Zone',
+    exact: true,
+  })).toBeVisible()
+})
+
+test('较旧的空 Zone 响应不会覆盖较新的设备列表', async () => {
+  await reloadWithZones([])
+  const zonePopover = await openPlayerZonePopover()
+  await expect(zonePopover.getByText('没有可用播放设备', { exact: true })).toBeVisible()
+
+  await electronApp.evaluate(({ ipcMain }) => {
+    const runtime = globalThis as typeof globalThis & {
+      zoneListCalls?: number
+      releaseOlderZoneList?: () => void
+      olderZoneListResolved?: boolean
+    }
+    runtime.zoneListCalls = 0
+    runtime.olderZoneListResolved = false
+    ipcMain.removeHandler('roon:list-zones')
+    ipcMain.handle('roon:list-zones', async () => {
+      runtime.zoneListCalls = (runtime.zoneListCalls ?? 0) + 1
+      if (runtime.zoneListCalls === 1) {
+        await new Promise<void>((resolve) => {
+          runtime.releaseOlderZoneList = resolve
+        })
+        runtime.olderZoneListResolved = true
+        return { zones: [] }
+      }
+      return {
+        zones: [{ zoneId: 'latest-zone', displayName: 'Latest Zone', selected: false }],
+      }
+    })
+  })
+
+  await emitCoreEvent('core.ready', 'paired')
+  await expect.poll(readZoneListCalls).toBe(1)
+  await emitCoreEvent('roon.changed', 'ready')
+  await expect.poll(readZoneListCalls).toBe(2)
+
+  const latestZone = zonePopover.getByRole('button', { name: 'Latest Zone', exact: true })
+  await expect(latestZone).toBeVisible()
+  await electronApp.evaluate(() => {
+    const runtime = globalThis as typeof globalThis & { releaseOlderZoneList?: () => void }
+    runtime.releaseOlderZoneList?.()
+  })
+  await expect.poll(() => electronApp.evaluate(() => {
+    const runtime = globalThis as typeof globalThis & { olderZoneListResolved?: boolean }
+    return runtime.olderZoneListResolved ?? false
+  })).toBe(true)
+  await expect(latestZone).toBeVisible()
+})
+
+test('Roon 断连时立即清空陈旧 Zone 且不再读取设备', async () => {
+  await electronApp.evaluate(({ ipcMain }) => {
+    const runtime = globalThis as typeof globalThis & { zoneListCalls?: number }
+    runtime.zoneListCalls = 0
+    ipcMain.removeHandler('roon:list-zones')
+    ipcMain.handle('roon:list-zones', () => {
+      runtime.zoneListCalls = (runtime.zoneListCalls ?? 0) + 1
+      return {
+        zones: [{ zoneId: 'stale-zone', displayName: 'Stale Zone', selected: false }],
+      }
+    })
+  })
+  await page.reload()
+  await page.waitForLoadState('domcontentloaded')
+  const zonePopover = await openPlayerZonePopover()
+  await expect(zonePopover.getByRole('button', { name: 'Stale Zone', exact: true })).toBeVisible()
+  await resetZoneListCalls()
+  await emitCoreEvent('roon.changed', 'disconnected')
+  await page.waitForTimeout(100)
+
+  await expect(zonePopover.getByText('Core 已断开', { exact: true })).toBeVisible()
+  await expect(zonePopover.getByText('Roon 未连接', { exact: true })).toBeVisible()
+  expect(await readZoneListCalls()).toBe(0)
+})
+
+test('Core 已连接但 Zone 尚未返回时显示加载状态', async () => {
+  await reloadWithZones([])
+  const zonePopover = await openPlayerZonePopover()
+  await expect(zonePopover.getByText('没有可用播放设备', { exact: true })).toBeVisible()
+
+  await replaceZoneList(
+    [{ zoneId: 'loading-zone', displayName: 'Loaded Zone', selected: false }],
+    300,
+  )
+  await emitCoreEvent('roon.changed', 'paired')
+  await page.waitForTimeout(100)
+
+  await expect(zonePopover.getByText('正在读取播放设备', { exact: true })).toBeVisible()
+  await expect(zonePopover.getByRole('button', { name: 'Loaded Zone', exact: true })).toBeVisible()
+})
+
+test('Settings 与 Bottom Player 共享 Core 断连的 Zone 状态', async () => {
+  await replaceZoneList([])
+  await emitCoreEvent('roon.changed', 'disconnected')
+
+  const zoneButton = playerZoneButton()
+  await expect(zoneButton).toContainText('Core 已断开')
+  await zoneButton.click()
+  await expect(page.getByRole('dialog', { name: '播放设备' }).getByText('Core 已断开', {
+    exact: true,
+  })).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  await openAccountSettings()
+  await page.getByRole('tab', { name: 'Roon', exact: true }).click()
+  await expect(page.locator('.settings-pane:visible').getByRole('definition').filter({
+    hasText: /^Core 已断开$/,
+  })).toBeVisible()
+})
+
+test('Settings 可手动刷新已连接 Core 的 Zone 列表', async () => {
+  await reloadWithZones([])
+  await openAccountSettings()
+  await page.getByRole('tab', { name: 'Roon', exact: true }).click()
+  const roonPane = page.locator('.settings-pane:visible')
+  await expect(roonPane.getByRole('definition').filter({ hasText: /^没有可用播放设备$/ })).toBeVisible()
+
+  await replaceZoneList([{ zoneId: 'manual-zone', displayName: 'Manual Zone', selected: false }])
+  await roonPane.getByRole('button', { name: '刷新播放设备', exact: true }).click()
+
+  await expect(roonPane.getByLabel('播放设备', { exact: true }).getByRole('option', {
+    name: 'Manual Zone',
+    exact: true,
+  })).toHaveCount(1)
+  await expect(roonPane.getByRole('definition').filter({ hasText: /^尚未选择播放设备$/ })).toBeVisible()
 })
 
 test('v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation', async () => {
@@ -177,6 +469,17 @@ test('v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation', 
   await expect(page.getByRole('button', { name: '播放当前歌曲' })).toBeVisible()
   await page.getByLabel('切换播放音质').selectOption('hires')
   await openAccountSettings()
+  await expect(page.getByRole('tab', { name: '账户', exact: true })).toBeVisible()
+  await expect(page.getByRole('tab', { name: '播放', exact: true })).toBeVisible()
+  await expect(page.getByRole('tab', { name: 'Roon', exact: true })).toBeVisible()
+  await expect(page.getByRole('tab', { name: '应用', exact: true })).toBeVisible()
+  await expect(page.getByRole('tab', { name: '高级', exact: true })).toBeVisible()
+  for (const category of ['账户', '播放', 'Roon', '应用', '高级']) {
+    await page.getByRole('tab', { name: category, exact: true }).click()
+    await expect(page.locator('.settings-pane:visible')).toHaveCount(1)
+    await page.screenshot({ path: path.join(os.tmpdir(), 'musicbridge-v1-settings-' + category + '.png') })
+  }
+  await page.getByRole('tab', { name: '播放', exact: true }).click()
   await expect(page.locator('#quality-select')).toHaveValue('hires')
   await page.locator('#quality-select').selectOption('standard')
   await expect(page.getByLabel('切换播放音质')).toHaveValue('standard')
@@ -193,7 +496,7 @@ test('v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation', 
   await expect.poll(() => page.locator('.track-art img').first().evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
   await expect(page.getByRole('button', { name: '返回主页' })).toBeVisible()
   await page.getByRole('button', { name: '返回主页' }).click()
-  await expect(page.getByRole('heading', { name: '主页', exact: true }).first()).toBeVisible()
+  await expect(page.locator('#home-heading')).toBeVisible()
   await page.screenshot({ path: syntheticDailyScreenshotPath })
   expect((await stat(syntheticDailyScreenshotPath)).size).toBeGreaterThan(20_000)
 
@@ -203,7 +506,13 @@ test('v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation', 
   await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
   await expect(page.locator('.now-playing-lyrics')).toBeVisible()
   await expect(page.getByRole('progressbar', { name: '播放进度' })).toBeVisible()
-  await expect(page.locator('.now-playing-quality-row')).toContainText('下次播放音质')
+  await expect(page.locator('.now-playing-quality-next')).toHaveCount(0)
+  const nowPlayingQualityButton = page.getByRole('button', { name: /当前实际音质/ })
+  await expect(nowPlayingQualityButton).toBeVisible()
+  await expect(nowPlayingQualityButton).toContainText('Standard')
+  await nowPlayingQualityButton.click()
+  await expect(page.locator('.now-playing-quality-menu')).toHaveCount(0)
+  await expect(nowPlayingQualityButton).toContainText(/1,411 kbps|1411 kbps/)
   await expect(page.locator('.now-playing-progress')).toBeVisible()
   await expect(page.locator('.music-sidebar')).toHaveCount(0)
   await expect(page.locator('.topbar')).toHaveCount(0)
@@ -217,22 +526,24 @@ test('v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation', 
   expect((await stat(syntheticNowPlayingScreenshotPath)).size).toBeGreaterThan(20_000)
   await page.getByRole('button', { name: '退出全屏播放' }).click()
   await expect(page.locator('.global-player')).toBeVisible()
-  await page.getByRole('button', { name: '停止', exact: true }).last().click()
-  await page.getByRole('button', { name: '播放当前歌曲' }).click()
+  await page.getByRole('button', { name: '暂停', exact: true }).last().click()
+  await page.getByRole('button', { name: '恢复播放', exact: true }).last().click()
+  await expect(page.getByRole('button', { name: '暂停', exact: true }).last()).toBeVisible()
+  await page.getByRole('button', { name: '打开正在播放' }).click()
   await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
   await page.getByRole('button', { name: '退出全屏播放' }).click()
-  await page.getByRole('button', { name: '停止', exact: true }).last().click()
+  await page.getByRole('button', { name: '暂停', exact: true }).last().click()
   await sourceButton('home').click()
   await page.getByRole('button', { name: '播放全部', exact: true }).first().click()
   await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
   await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
   await page.getByRole('button', { name: '退出全屏播放' }).click()
-  await page.getByRole('button', { name: '打开队列' }).click()
+  await page.getByRole('button', { name: '打开播放队列' }).click()
   await expect(page.getByText('12 首').last()).toBeVisible()
   await page.getByRole('button', { name: '打开正在播放' }).click()
   await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
   await page.getByRole('button', { name: '退出全屏播放' }).click()
-  await page.getByRole('button', { name: '停止', exact: true }).last().click()
+  await page.getByRole('button', { name: '暂停', exact: true }).last().click()
   await sourceButton('home').click()
 
   for (const [width, expectedColumns] of [[720, 4], [1024, 5], [1280, 6], [1600, 7], [1920, 8]] as const) {
@@ -247,16 +558,24 @@ test('v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation', 
   }
   await page.setViewportSize({ width: 1440, height: 900 })
 
+  for (const width of [1280, 1440, 1728, 2048]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.screenshot({ path: path.join(os.tmpdir(), `musicbridge-v1-home-${width}.png`) })
+  }
+  await page.setViewportSize({ width: 1440, height: 900 })
+
   await openAccountSettings()
+  await page.getByRole('tab', { name: '高级', exact: true }).click()
   await expect(page.locator('[data-remote-core-settings]')).toBeVisible()
   await expect(page.locator('[data-remote-core-settings]')).toContainText('开发启动时自动连接（默认关闭）')
   await expect(page.getByRole('button', { name: '启动远程 Core' })).toBeVisible()
+  await page.getByRole('tab', { name: '账户', exact: true }).click()
   await expect(page.locator('.account-settings-hero')).toContainText('Synthetic Listener')
   await expect(page.getByText('公开资料只包含昵称和头像')).toBeVisible()
   await expect.poll(() => page.locator('.account-settings-avatar img').evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
   await page.screenshot({ path: syntheticSettingsScreenshotPath })
   expect((await stat(syntheticSettingsScreenshotPath)).size).toBeGreaterThan(20_000)
-  await page.getByRole('button', { name: '重新读取' }).click()
+  await page.getByRole('button', { name: '刷新账户' }).click()
   await expect(page.getByText('已连接 · 公开资料只包含昵称和头像')).toBeVisible()
 
   page.once('dialog', (dialog) => void dialog.accept())
@@ -267,7 +586,7 @@ test('v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation', 
   await expect
     .poll(
       () =>
-        page.locator('img[alt="Provider 登录二维码"]').evaluate((image) => {
+        page.locator('img[alt="网易云登录二维码"]').evaluate((image) => {
           return (image as HTMLImageElement).naturalWidth
         }),
       { message: 'Provider 登录二维码必须是浏览器可解码的图片' },
@@ -339,7 +658,7 @@ test('合成 Profile 资料不可用但登录仍有效', async () => {
   await expect(page.getByText('资料暂不可用')).toBeVisible()
   await expect(page.getByText('登录仍然有效')).toBeVisible()
   await expect(page.getByRole('button', { name: '退出登录' })).toBeVisible()
-  await page.getByRole('button', { name: '重新读取' }).click()
+  await page.getByRole('button', { name: '刷新账户' }).click()
   await expect(page.getByText('资料暂不可用')).toBeVisible()
 })
 
@@ -358,8 +677,40 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   const search = sidebarSearch()
   await search.fill('synthetic')
   await expect(page.getByText('Synthetic Track 1', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: '加载更多歌曲' }).click()
-  await expect(page.getByText('Synthetic Track 21', { exact: true })).toBeVisible()
+  const searchView = page.locator('.view-search')
+  await expect(searchView.getByRole('heading', { name: '艺人', exact: true })).toBeVisible()
+  await expect(searchView.getByRole('heading', { name: '单曲', exact: true })).toBeVisible()
+  await expect(searchView.getByRole('heading', { name: '专辑', exact: true })).toBeVisible()
+  await expect(searchView.getByText('歌单', { exact: true })).toHaveCount(0)
+  await searchView.locator('.search-artist-card').first().click()
+  await expect(searchView.getByText('艺人详情', { exact: true })).toBeVisible()
+  await expect(searchView.getByRole('table', { name: '歌曲列表' })).toBeVisible()
+  await searchView.getByRole('button', { name: '返回搜索结果' }).click()
+  await expect(searchView.getByRole('heading', { name: '艺人', exact: true })).toBeVisible()
+  await searchView.locator('.search-album-card').first().click()
+  await expect(searchView.getByText('专辑详情', { exact: true })).toBeVisible()
+  await searchView.getByRole('button', { name: '返回搜索结果' }).click()
+  for (const query of ['青花瓷', '周杰伦', '张学友']) {
+    await search.fill(query)
+    await expect(searchView.getByRole('heading', { name: '艺人', exact: true })).toBeVisible()
+    await expect(searchView.getByRole('heading', { name: '专辑', exact: true })).toBeVisible()
+  }
+  await search.fill('无结果字符串')
+  await expect(searchView.getByText('没有匹配的艺人', { exact: true })).toBeVisible()
+  await expect(searchView.getByText('没有匹配的专辑', { exact: true })).toBeVisible()
+  await search.fill('synthetic')
+  await expect(page.getByText('Synthetic Track 1', { exact: true })).toBeVisible()
+  await expect(page.locator('.search-track-results .track-art').first()).toBeVisible()
+  await expect.poll(async () => searchView.locator('.search-result-section h3').allTextContents()).toEqual(['艺人', '专辑', '单曲'])
+  await page.screenshot({ path: syntheticSearchScreenshotPath })
+  expect((await stat(syntheticSearchScreenshotPath)).size).toBeGreaterThan(20_000)
+  await page.waitForTimeout(300)
+  const searchTrack21 = page.getByText('Synthetic Track 21', { exact: true })
+  if (await searchTrack21.count() === 0) {
+    const loadMoreSearch = page.getByRole('button', { name: '加载更多歌曲' })
+    if (await loadMoreSearch.count() > 0) await loadMoreSearch.click({ force: true })
+  }
+  await expect(searchTrack21).toBeVisible()
 
   await sourceButton('liked').click()
   await expect(page.getByText('Synthetic Track 1', { exact: true })).toBeVisible()
@@ -382,11 +733,9 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   await expect(page.locator('.global-player')).toHaveCount(0)
   await page.getByRole('button', { name: '退出全屏播放' }).click()
   await expect(page.locator('.global-player')).toBeVisible()
-  await page.getByRole('button', { name: '打开歌词检查器' }).click()
-  await expect(page.getByText('暂无可用歌词。')).toBeVisible()
+  await page.getByRole('button', { name: '打开播放队列' }).click()
+  await expect(page.locator('.playback-inspector').getByText('0 首', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '关闭播放检查器' }).click()
-  await page.getByRole('button', { name: '打开队列' }).click()
-  await expect(page.getByText('0 首')).toBeVisible()
   await page.getByRole('button', { name: '打开正在播放' }).click()
   await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
   await page.getByRole('button', { name: '退出全屏播放' }).click()
@@ -396,10 +745,16 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   await page.getByRole('button', { name: '退出全屏播放' }).click()
 
   await openAccountSettings()
+  await page.getByRole('tab', { name: '播放', exact: true }).click()
   await page.locator('#quality-select').selectOption('hires')
   await search.fill('synthetic')
   await page.getByRole('button', { name: '播放 Synthetic Track 1', exact: true }).click()
-  await expect(page.getByText(/Provider 返回 Lossless/).first()).toBeVisible()
+  await expect(page.locator('.now-playing-quality-next')).toHaveCount(0)
+  const actualQualityButton = page.getByRole('button', { name: /当前实际音质/ })
+  await expect(actualQualityButton).toContainText('Lossless')
+  await expect(actualQualityButton).not.toContainText('Hi-Res')
+  await actualQualityButton.click()
+  await expect(actualQualityButton).toContainText(/1,411 kbps|1411 kbps/)
   await expect(page.getByText(/请求质量已被安全降级/)).toBeVisible()
   await page.getByRole('button', { name: '退出全屏播放' }).click()
 
@@ -415,8 +770,8 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   await expect(page.getByText('Synthetic Track 2', { exact: true }).first()).toBeVisible()
   await page.getByRole('button', { name: '上一首', exact: true }).last().click()
   await expect(page.getByText('Synthetic Track 1', { exact: true }).first()).toBeVisible()
-  await page.getByRole('button', { name: '停止', exact: true }).last().click()
-  await expect(page.getByText('待机')).toBeVisible()
+  await page.getByRole('button', { name: '暂停', exact: true }).last().click()
+  await expect(page.getByRole('button', { name: '恢复播放', exact: true }).last()).toBeVisible()
   await expect(page.locator('.album-ambient-cover')).toHaveCount(0)
 })
 
@@ -468,7 +823,7 @@ test('TASK-037 Now Playing geometry, real queue names and full collection loadin
   await page.getByRole('button', { name: '打开 Synthetic Track 2 的更多操作', exact: true }).click()
   await page.getByRole('menuitem', { name: '加入队列' }).click()
   await expect(page.getByRole('status')).toContainText('已加入播放队列')
-  await page.getByRole('button', { name: '打开队列' }).click()
+  await page.getByRole('button', { name: '打开播放队列' }).click()
   await expect(page.getByText('队列歌曲')).toHaveCount(0)
   await expect(page.getByText('Synthetic Track 2', { exact: true }).last()).toBeVisible()
   await expect(page.getByText('Synthetic Artist · Synthetic Album', { exact: true }).last()).toBeVisible()
@@ -481,7 +836,7 @@ test('TASK-037 Now Playing geometry, real queue names and full collection loadin
   await page.getByRole('button', { name: '播放全部', exact: true }).click()
   await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
   await page.getByRole('button', { name: '退出全屏播放' }).click()
-  await page.getByRole('button', { name: '打开队列' }).click()
+  await page.getByRole('button', { name: '打开播放队列' }).click()
   await expect(page.getByText('119 首', { exact: true })).toBeVisible()
   await expect(page.getByText('Synthetic Track 120', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '关闭播放检查器' }).click()
@@ -546,7 +901,7 @@ test('Music Source Sidebar supports source recovery, Zone Popover and collapsed 
   await page.keyboard.press('Meta+3')
   await expect(page.getByRole('heading', { name: '所有歌单', exact: true }).first()).toBeVisible()
   await page.keyboard.press('Meta+1')
-  await expect(page.getByRole('heading', { name: '主页', exact: true }).first()).toBeVisible()
+  await expect(page.locator('#home-heading')).toBeVisible()
 
   await sourceButton('liked').click()
   await expect(page.getByRole('heading', { name: '我喜欢的音乐', exact: true }).first()).toBeVisible()
@@ -573,12 +928,13 @@ test('Music Source Sidebar supports source recovery, Zone Popover and collapsed 
   await expect(page.getByRole('dialog', { name: '歌单' }).getByText('Synthetic Playlist', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '歌单', exact: true }).click()
   await page.keyboard.press('Meta+Shift+L')
-  await expect(page.getByRole('heading', { name: '歌词', exact: true }).first()).toBeVisible()
+  await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
+  await page.getByRole('button', { name: '退出全屏播放' }).click()
   await page.keyboard.press('Meta+Shift+Q')
   await expect(page.locator('.playback-inspector').getByRole('heading', { name: '播放队列', exact: true }).first()).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.locator('.playback-inspector')).toHaveCount(0)
-  const queueTrigger = page.getByRole('button', { name: '打开队列' }).first()
+  const queueTrigger = page.getByRole('button', { name: '打开播放队列' }).first()
   await queueTrigger.focus()
   await queueTrigger.press('Enter')
   await expect(page.locator('.playback-inspector').getByRole('heading', { name: '播放队列', exact: true }).first()).toBeVisible()

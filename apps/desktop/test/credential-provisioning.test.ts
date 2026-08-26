@@ -162,3 +162,66 @@ test('restore keeps the vault and refuses authorization on a temporary verificat
   })
   assert.deepEqual(supervisor.calls.map(({ command }) => command), ['auth.verifyCredential'])
 })
+
+test('provision keeps the encrypted credential when real Provider verification times out', async () => {
+  const storage = new FakeSafeStorage()
+  const vault = await makeVault(storage)
+  const calls: string[] = []
+  await vault.save('fixture-credential')
+
+  const status = await provisionProviderCredential({
+    vault,
+    environment: {},
+    core: {
+      async verifyCredential(): Promise<'authorized'> {
+        calls.push('auth.verifyCredential')
+        throw new Error('Core request timed out')
+      },
+      async setCredential(): Promise<unknown> {
+        calls.push('auth.setCredential')
+        return undefined
+      },
+      async clearCredential(): Promise<unknown> {
+        return undefined
+      },
+    },
+  })
+
+  assert.equal(status, 'unavailable')
+  assert.deepEqual(calls, ['auth.verifyCredential'])
+  assert.deepEqual(await vault.read(), {
+    status: 'configured',
+    credential: 'fixture-credential',
+  })
+})
+
+test('restore keeps the encrypted credential when Core injection is temporarily unavailable', async () => {
+  const storage = new FakeSafeStorage()
+  const vault = await makeVault(storage)
+  const calls: string[] = []
+  await vault.save('fixture-credential')
+
+  const status = await restoreProviderCredential({
+    vault,
+    core: {
+      async verifyCredential(): Promise<'authorized'> {
+        calls.push('auth.verifyCredential')
+        return 'authorized'
+      },
+      async setCredential(): Promise<unknown> {
+        calls.push('auth.setCredential')
+        throw new Error('Core request timed out')
+      },
+      async clearCredential(): Promise<unknown> {
+        return undefined
+      },
+    },
+  })
+
+  assert.equal(status, 'unavailable')
+  assert.deepEqual(calls, ['auth.verifyCredential', 'auth.setCredential'])
+  assert.deepEqual(await vault.read(), {
+    status: 'configured',
+    credential: 'fixture-credential',
+  })
+})

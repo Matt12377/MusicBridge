@@ -1,4 +1,9 @@
-import { REMOTE_CORE_STREAM_PORT_CANDIDATES, type RemoteCoreMode } from '@music-bridge/contracts'
+import {
+  REMOTE_CORE_LOCAL_PORT_PAIRS,
+  REMOTE_CORE_STREAM_PORT_CANDIDATES,
+  type RemoteCoreLocalPortProfile,
+  type RemoteCoreMode,
+} from '@music-bridge/contracts'
 
 const CORE_RUNTIME_ENV_KEYS = [
   'NODE_ENV',
@@ -19,14 +24,37 @@ export interface CoreEnvironmentOptions {
   uiE2e: boolean
   coreCrashGate: boolean
   roonTimeGate?: boolean
+  roonBrowseGate?: boolean
+  roonImageGate?: boolean
   remoteCoreMode?: RemoteCoreMode
   remoteStreamPort?: number
+  remoteLocalPorts?: RemoteCoreLocalPorts
 }
 
 const REMOTE_STREAM_PORT_SET = new Set(REMOTE_CORE_STREAM_PORT_CANDIDATES)
 
+export interface RemoteCoreLocalPorts {
+  controlPort: number
+  streamPort: number
+}
+
+export function resolveRemoteCoreLocalPorts(parent: NodeJS.ProcessEnv): RemoteCoreLocalPorts {
+  const profile = (parent.MUSIC_BRIDGE_REMOTE_LOCAL_PORT_PROFILE?.trim() || 'default') as RemoteCoreLocalPortProfile
+  const ports = REMOTE_CORE_LOCAL_PORT_PAIRS[profile]
+  if (!ports) throw new Error('INVALID_REMOTE_LOCAL_PORT_PROFILE')
+  return ports
+}
+
 function isRoonTimeGatePath(value: string | undefined): value is string {
   return value !== undefined && /^\/tmp\/musicbridge-roon-time-gate-[A-Za-z0-9._-]+\.jsonl$/.test(value)
+}
+
+function isRoonBrowseGatePath(value: string | undefined): value is string {
+  return value !== undefined && /^\/tmp\/musicbridge-roon-browse-gate-[A-Za-z0-9._-]+\.jsonl$/.test(value)
+}
+
+function isRoonImageGatePath(value: string | undefined): value is string {
+  return value !== undefined && /^\/tmp\/musicbridge-roon-image-gate-[A-Za-z0-9._-]+\.jsonl$/.test(value)
 }
 
 export function buildCoreEnvironment(
@@ -61,17 +89,30 @@ export function buildCoreEnvironment(
     environment.MUSIC_BRIDGE_ROON_TIME_GATE_PATH = parent.MUSIC_BRIDGE_ROON_TIME_GATE_PATH
   }
 
+  if (options.roonBrowseGate && isRoonBrowseGatePath(parent.MUSIC_BRIDGE_ROON_BROWSE_GATE_PATH)) {
+    environment.MUSIC_BRIDGE_ROON_BROWSE_GATE = '1'
+    environment.MUSIC_BRIDGE_ROON_BROWSE_GATE_PATH = parent.MUSIC_BRIDGE_ROON_BROWSE_GATE_PATH
+  }
+
+  if (options.roonImageGate && isRoonImageGatePath(parent.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH)) {
+    environment.MUSIC_BRIDGE_ROON_IMAGE_GATE = '1'
+    environment.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH = parent.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH
+  }
+
   if (options.remoteCoreMode === 'remote-core-development') {
     if (options.remoteStreamPort === undefined || !REMOTE_STREAM_PORT_SET.has(options.remoteStreamPort)) {
       throw new Error('Remote Core development mode requires a bounded remote stream port')
     }
+    const localPorts = options.remoteLocalPorts ?? resolveRemoteCoreLocalPorts(parent)
     environment.BRIDGE_CONTROL_HOST = '127.0.0.1'
-    environment.BRIDGE_CONTROL_PORT = '38501'
+    environment.BRIDGE_CONTROL_PORT = String(localPorts.controlPort)
     environment.BRIDGE_STREAM_HOST = '127.0.0.1'
-    environment.BRIDGE_STREAM_PORT = '38502'
+    environment.BRIDGE_STREAM_PORT = String(localPorts.streamPort)
     environment.BRIDGE_PUBLIC_STREAM_BASE_URL = `http://127.0.0.1:${options.remoteStreamPort}`
     environment.MUSIC_BRIDGE_REMOTE_CORE_MODE = 'remote-core-development'
     environment.MUSIC_BRIDGE_REMOTE_STREAM_PORT = String(options.remoteStreamPort)
+    environment.ROON_CORE_HOST = '127.0.0.1'
+    environment.ROON_CORE_PORT = '19330'
   }
 
   return environment

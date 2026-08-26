@@ -22,6 +22,12 @@ importers:
       node-roon-api-audioinput:
         specifier: github:RoonLabs/node-roon-api-audioinput#21ff59e52a12cf36a21bb9d3fd546f3e6d70581f
         version: https://codeload.github.com/RoonLabs/node-roon-api-audioinput/tar.gz/21ff59e52a12cf36a21bb9d3fd546f3e6d70581f
+      node-roon-api-browse:
+        specifier: github:RoonLabs/node-roon-api-browse#98adcbaba3a30fd6ce109c1f04cd361536143222
+        version: https://codeload.github.com/RoonLabs/node-roon-api-browse/tar.gz/98adcbaba3a30fd6ce109c1f04cd361536143222
+      node-roon-api-image:
+        specifier: github:RoonLabs/node-roon-api-image#a5f0efaf2dfb5457e91abe326c3a40d865131d32
+        version: https://codeload.github.com/RoonLabs/node-roon-api-image/tar.gz/a5f0efaf2dfb5457e91abe326c3a40d865131d32
       node-roon-api-settings:
         specifier: github:RoonLabs/node-roon-api-settings#67cd8ca156c5bcd01ea63833ceaaec6d6a79654d
         version: https://codeload.github.com/RoonLabs/node-roon-api-settings/tar.gz/67cd8ca156c5bcd01ea63833ceaaec6d6a79654d
@@ -92,6 +98,12 @@ importers:
       node-roon-api-audioinput:
         specifier: github:RoonLabs/node-roon-api-audioinput#21ff59e52a12cf36a21bb9d3fd546f3e6d70581f
         version: https://codeload.github.com/RoonLabs/node-roon-api-audioinput/tar.gz/21ff59e52a12cf36a21bb9d3fd546f3e6d70581f
+      node-roon-api-browse:
+        specifier: github:RoonLabs/node-roon-api-browse#98adcbaba3a30fd6ce109c1f04cd361536143222
+        version: https://codeload.github.com/RoonLabs/node-roon-api-browse/tar.gz/98adcbaba3a30fd6ce109c1f04cd361536143222
+      node-roon-api-image:
+        specifier: github:RoonLabs/node-roon-api-image#a5f0efaf2dfb5457e91abe326c3a40d865131d32
+        version: https://codeload.github.com/RoonLabs/node-roon-api-image/tar.gz/a5f0efaf2dfb5457e91abe326c3a40d865131d32
       node-roon-api-settings:
         specifier: github:RoonLabs/node-roon-api-settings#67cd8ca156c5bcd01ea63833ceaaec6d6a79654d
         version: https://codeload.github.com/RoonLabs/node-roon-api-settings/tar.gz/67cd8ca156c5bcd01ea63833ceaaec6d6a79654d
@@ -2072,6 +2084,14 @@ packages:
 
   node-roon-api-audioinput@https://codeload.github.com/RoonLabs/node-roon-api-audioinput/tar.gz/21ff59e52a12cf36a21bb9d3fd546f3e6d70581f:
     resolution: {tarball: https://codeload.github.com/RoonLabs/node-roon-api-audioinput/tar.gz/21ff59e52a12cf36a21bb9d3fd546f3e6d70581f}
+    version: 1.0.0
+
+  node-roon-api-browse@https://codeload.github.com/RoonLabs/node-roon-api-browse/tar.gz/98adcbaba3a30fd6ce109c1f04cd361536143222:
+    resolution: {tarball: https://codeload.github.com/RoonLabs/node-roon-api-browse/tar.gz/98adcbaba3a30fd6ce109c1f04cd361536143222}
+    version: 1.0.0
+
+  node-roon-api-image@https://codeload.github.com/RoonLabs/node-roon-api-image/tar.gz/a5f0efaf2dfb5457e91abe326c3a40d865131d32:
+    resolution: {tarball: https://codeload.github.com/RoonLabs/node-roon-api-image/tar.gz/a5f0efaf2dfb5457e91abe326c3a40d865131d32}
     version: 1.0.0
 
   node-roon-api-settings@https://codeload.github.com/RoonLabs/node-roon-api-settings/tar.gz/67cd8ca156c5bcd01ea63833ceaaec6d6a79654d:
@@ -4997,6 +5017,10 @@ snapshots:
   node-releases@2.0.53: {}
 
   node-roon-api-audioinput@https://codeload.github.com/RoonLabs/node-roon-api-audioinput/tar.gz/21ff59e52a12cf36a21bb9d3fd546f3e6d70581f: {}
+
+  node-roon-api-browse@https://codeload.github.com/RoonLabs/node-roon-api-browse/tar.gz/98adcbaba3a30fd6ce109c1f04cd361536143222: {}
+
+  node-roon-api-image@https://codeload.github.com/RoonLabs/node-roon-api-image/tar.gz/a5f0efaf2dfb5457e91abe326c3a40d865131d32: {}
 
   node-roon-api-settings@https://codeload.github.com/RoonLabs/node-roon-api-settings/tar.gz/67cd8ca156c5bcd01ea63833ceaaec6d6a79654d: {}
 

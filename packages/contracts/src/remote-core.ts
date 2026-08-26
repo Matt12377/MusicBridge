@@ -1,5 +1,12 @@
 export type RemoteCoreMode = 'local-core' | 'remote-core-development'
 
+export const REMOTE_CORE_LOCAL_PORT_PAIRS = Object.freeze({
+  default: Object.freeze({ controlPort: 38501, streamPort: 38502 }),
+  secondary: Object.freeze({ controlPort: 38601, streamPort: 38602 }),
+} as const)
+
+export type RemoteCoreLocalPortProfile = keyof typeof REMOTE_CORE_LOCAL_PORT_PAIRS
+
 export const REMOTE_CORE_STREAM_PORT_CANDIDATES = Object.freeze([
   38512,
   38513,

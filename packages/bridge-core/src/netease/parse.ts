@@ -2,6 +2,10 @@ import { BridgeError } from '../shared/errors.js';
 import type {
   DailyRecommendationTrack,
   DailyRecommendationsSnapshot,
+  ArtistDetail,
+  ArtistSummary,
+  AlbumDetail,
+  AlbumSummary,
   Page,
   PageRequest,
   PlaylistDetail,
@@ -215,14 +219,176 @@ export function parseSearchPage(
   return pageOf(items, page, total);
 }
 
+function artistSummaryFromRecord(value: unknown): ArtistSummary | undefined {
+  if (!isRecord(value)) return undefined
+  const id = safeId(value.id)
+  const name = stringValue(value.name)
+  if (!id || !name) return undefined
+  const artworkUrl = safeArtworkUrl(value.picUrl ?? value.avatarUrl)
+  const albumCount = numeric(value.albumSize ?? value.albumCount)
+  const trackCount = numeric(value.musicSize ?? value.trackCount)
+  return {
+    id,
+    name,
+    ...(artworkUrl !== undefined ? { artworkUrl } : {}),
+    ...(albumCount !== undefined ? { albumCount } : {}),
+    ...(trackCount !== undefined ? { trackCount } : {}),
+  }
+}
+
+function albumSummaryFromRecord(value: unknown): AlbumSummary | undefined {
+  if (!isRecord(value)) return undefined
+  const id = safeId(value.id)
+  const name = stringValue(value.name)
+  const artist = isRecord(value.artist) ? value.artist : undefined
+  const artistId = safeId(artist?.id ?? value.artistId)
+  const artistName = stringValue(artist?.name ?? value.artistName) ?? '未知艺人'
+  if (!id || !name) return undefined
+  const artworkUrl = safeArtworkUrl(value.picUrl ?? value.blurPicUrl ?? value.coverImgUrl)
+  const trackCount = numeric(value.size ?? value.trackCount)
+  return {
+    id,
+    name,
+    ...(artistId !== undefined ? { artistId } : {}),
+    artistName,
+    ...(artworkUrl !== undefined ? { artworkUrl } : {}),
+    ...(trackCount !== undefined ? { trackCount } : {}),
+  }
+}
+
+export function parseArtistSearchPage(
+  response: unknown,
+  page: PageRequest,
+): Page<ArtistSummary> {
+  const body = bodyOf(response)
+  responseBodyCode(body, 'artist search')
+  const result = isRecord(body.result) ? body.result : body
+  const rows = Array.isArray(result.artists) ? result.artists : []
+  const items = rows.map(artistSummaryFromRecord).filter((item): item is ArtistSummary => item !== undefined)
+  const total = numeric(result.artistCount ?? result.total) ?? page.offset + items.length
+  return pageOf(items, page, total)
+}
+
+export function parseAlbumSearchPage(
+  response: unknown,
+  page: PageRequest,
+): Page<AlbumSummary> {
+  const body = bodyOf(response)
+  responseBodyCode(body, 'album search')
+  const result = isRecord(body.result) ? body.result : body
+  const rows = Array.isArray(result.albums) ? result.albums : []
+  const items = rows.map(albumSummaryFromRecord).filter((item): item is AlbumSummary => item !== undefined)
+  const total = numeric(result.albumCount ?? result.total) ?? page.offset + items.length
+  return pageOf(items, page, total)
+}
+
+function pageTracksFromRows(rows: readonly unknown[], page: PageRequest): Page<TrackSummary> {
+  const tracks = rows.map(trackSummaryFromRecord).filter((item): item is TrackSummary => item !== undefined)
+  const items = tracks.slice(page.offset, page.offset + page.limit)
+  return pageOf(items, page, tracks.length)
+}
+
+export function parseArtistDetail(response: unknown, page: PageRequest): ArtistDetail {
+  const body = bodyOf(response)
+  responseBodyCode(body, 'artist detail')
+  const data = isRecord(body.data) ? body.data : body
+  const artist = artistSummaryFromRecord(data.artist ?? body.artist)
+  if (!artist) throw new BridgeError('NETEASE_REQUEST_FAILED', 'Artist detail was not returned', { httpStatus: 502 })
+  const rows = Array.isArray(data.hotSongs) ? data.hotSongs : Array.isArray(data.songs) ? data.songs : []
+  const tracks = pageTracksFromRows(rows, page)
+  return { ...artist, ...(artist.trackCount === undefined ? { trackCount: tracks.total } : {}), tracks }
+}
+
+export function parseAlbumDetail(response: unknown, page: PageRequest): AlbumDetail {
+  const body = bodyOf(response)
+  responseBodyCode(body, 'album detail')
+  const albumRecord = isRecord(body.album) ? body.album : isRecord(body.data) && isRecord(body.data.album) ? body.data.album : undefined
+  const album = albumSummaryFromRecord(albumRecord)
+  if (!album) throw new BridgeError('NETEASE_REQUEST_FAILED', 'Album detail was not returned', { httpStatus: 502 })
+  const rows = Array.isArray(body.songs) ? body.songs : isRecord(body.data) && Array.isArray(body.data.songs) ? body.data.songs : []
+  const tracks = pageTracksFromRows(rows, page)
+  return { ...album, ...(album.trackCount === undefined ? { trackCount: tracks.total } : {}), tracks }
+}
+
 export function parseLikedTrackIds(response: unknown): string[] {
   const body = bodyOf(response);
   responseBodyCode(body, 'liked tracks');
-  const ids = Array.isArray(body.ids) ? body.ids : [];
+  if (!Array.isArray(body.ids)) {
+    throw new BridgeError(
+      'NETEASE_REQUEST_FAILED',
+      'NetEase liked track list was not returned',
+      { httpStatus: 502 },
+    );
+  }
+  const ids = body.ids;
   return ids
     .map((item) => (isRecord(item) ? item.id : item))
     .map(safeId)
     .filter((id): id is string => id !== undefined);
+}
+
+export function parseLikedPlaylistId(response: unknown): string {
+  const body = bodyOf(response);
+  responseBodyCode(body, 'user playlists');
+  const rows = Array.isArray(body.playlist)
+    ? body.playlist
+    : Array.isArray(body.playlists)
+      ? body.playlists
+      : [];
+  const likedPlaylist = rows.find((value) => (
+    isRecord(value) && numeric(value.specialType) === 10
+  ));
+  const id = likedPlaylist && isRecord(likedPlaylist) ? safeId(likedPlaylist.id) : undefined;
+  if (!id) {
+    throw new BridgeError('NETEASE_REQUEST_FAILED', 'NetEase native liked playlist was not returned', {
+      httpStatus: 502,
+    });
+  }
+  return id;
+}
+
+export function orderTrackSummariesByIds(
+  tracks: readonly TrackSummary[],
+  orderedIds: readonly string[],
+): TrackSummary[] {
+  const byId = new Map(tracks.map((track) => [track.id, track]));
+  return orderedIds
+    .map((id) => byId.get(id))
+    .filter((track): track is TrackSummary => track !== undefined);
+}
+
+export function parseTrackLikeState(response: unknown): { liked: boolean } {
+  const body = bodyOf(response);
+  responseBodyCode(body, 'track like status');
+  const candidates = [body.liked, body.like, body.checkPoint, body.data, body.result];
+  for (const value of candidates) {
+    if (typeof value === 'boolean') return { liked: value };
+    if (isRecord(value)) {
+      for (const key of ['liked', 'like', 'checkPoint', 'isLiked']) {
+        if (typeof value[key] === 'boolean') return { liked: value[key] };
+      }
+    }
+  }
+  throw new BridgeError(
+    'NETEASE_REQUEST_FAILED',
+    'NetEase track like status response is missing state',
+    { httpStatus: 502 },
+  );
+}
+
+export function assertTrackLikeMutationSucceeded(response: unknown): void {
+  const body = bodyOf(response);
+  const data = isRecord(body.data) ? body.data : undefined;
+  const result = isRecord(body.result) ? body.result : undefined;
+  const code = numeric(body.code) ?? numeric(data?.code) ?? numeric(result?.code);
+  responseBodyCode(body, 'track like');
+  if (code !== 200) {
+    throw new BridgeError(
+      'NETEASE_REQUEST_FAILED',
+      'NetEase track like response is missing success status',
+      { httpStatus: 502 },
+    );
+  }
 }
 
 function playlistSummaryFromRecord(value: unknown): PlaylistSummary | undefined {

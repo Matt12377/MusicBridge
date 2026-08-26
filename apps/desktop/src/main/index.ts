@@ -16,15 +16,28 @@ import type {
   PageRequest,
   PlaybackQueueRequestItem,
   PlaybackQualityPreference,
+  PlaybackSourcePreference,
   PlaybackSnapshot,
   PublicAuthState,
   PublicBridgeState,
   PublicErrorCode,
   RemoteCoreMode,
   RemoteCoreTunnelState,
+  FavoriteEntityDescriptor,
+  FavoriteKind,
+  RoonImageOptions,
+  RoonImageResult,
+  RoonImageShapeSummary,
+  TrackSummary,
   TypedIpcEvent,
 } from '@music-bridge/contracts'
-import { IPC_VERSION, validateIpcEvent } from '@music-bridge/contracts'
+import {
+  IPC_VERSION,
+  MAX_PLAYBACK_QUEUE_ITEMS,
+  summarizeRoonImageBinary,
+  validateIpcEvent,
+} from '@music-bridge/contracts'
+import { appendFileSync, chmodSync } from 'node:fs'
 import { mkdir, readFile, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -64,10 +77,12 @@ import {
   RENDERER_SCHEME,
   rendererContentType,
 } from './renderer-protocol.js'
-import { buildCoreEnvironment as buildAllowlistedCoreEnvironment } from './core-environment.js'
+import {
+  buildCoreEnvironment as buildAllowlistedCoreEnvironment,
+  resolveRemoteCoreLocalPorts,
+} from './core-environment.js'
 import {
   DEFAULT_REMOTE_STREAM_PORT,
-  LOCAL_STREAM_PORT,
   RemoteCoreTunnelManager,
 } from './remote-core-tunnel.js'
 import {
@@ -106,6 +121,9 @@ const electronColdStartStage: ElectronColdStartStage | undefined =
   startupTestConfiguration.electronColdStartStage
 const isElectronColdStartGate = electronColdStartStage !== undefined
 const isRoonTimeGate = process.env.MUSIC_BRIDGE_ROON_TIME_GATE === '1'
+const isRoonBrowseGate = process.env.MUSIC_BRIDGE_ROON_BROWSE_GATE === '1'
+const isRoonImageGate = process.env.MUSIC_BRIDGE_ROON_IMAGE_GATE === '1'
+const roonImageGatePath = process.env.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH
 
 let mainWindow: BrowserWindow | undefined
 let coreSupervisor: CoreSupervisor | undefined
@@ -116,6 +134,58 @@ let trayRefreshPromise: Promise<void> | undefined
 let trayRefreshQueued = false
 let quitAfterCoreShutdown = false
 const mainDiagnostics = new MainDiagnosticRecorder()
+
+function recordRoonImageShape(summary: RoonImageShapeSummary): void {
+  if (
+    !isRoonImageGate
+    || !roonImageGatePath
+    || !/^\/tmp\/musicbridge-roon-image-gate-[A-Za-z0-9._-]+\.jsonl$/.test(roonImageGatePath)
+  ) {
+    return
+  }
+  try {
+    appendFileSync(roonImageGatePath, `${JSON.stringify(summary)}\n`, {
+      encoding: 'utf8',
+      mode: 0o600,
+    })
+    chmodSync(roonImageGatePath, 0o600)
+  } catch {
+    // 诊断采样不得改变图片行为。
+  }
+}
+
+function recordPreloadRoonImageShape(value: unknown): void {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return
+  const shape = value as Record<string, unknown>
+  if (
+    shape.layer !== 'preload'
+    || (shape.contentType !== 'image/jpeg' && shape.contentType !== 'image/png')
+    || !Number.isSafeInteger(shape.byteLength)
+    || (shape.byteLength as number) < 0
+    || (shape.byteLength as number) > 4 * 1024 * 1024
+    || typeof shape.magic8 !== 'string'
+    || !/^[0-9a-f]{0,16}$/u.test(shape.magic8)
+    || typeof shape.bodyType !== 'string'
+    || shape.bodyType.length > 64
+    || typeof shape.isBuffer !== 'boolean'
+    || typeof shape.isUint8Array !== 'boolean'
+    || typeof shape.isArrayBuffer !== 'boolean'
+    || typeof shape.valid !== 'boolean'
+  ) {
+    return
+  }
+  recordRoonImageShape({
+    layer: 'preload',
+    contentType: shape.contentType,
+    byteLength: shape.byteLength as number,
+    magic8: shape.magic8,
+    bodyType: shape.bodyType,
+    isBuffer: shape.isBuffer,
+    isUint8Array: shape.isUint8Array,
+    isArrayBuffer: shape.isArrayBuffer,
+    valid: shape.valid,
+  })
+}
 
 const remoteCoreTunnelManager = new RemoteCoreTunnelManager({
   onStateChanged: (state) => {
@@ -164,6 +234,8 @@ const EMPTY_PLAYBACK_SNAPSHOT: PlaybackSnapshot = {
   canNext: false,
   canPrevious: false,
   canStop: false,
+  canPause: false,
+  canResume: false,
 }
 
 const STARTING_BRIDGE_STATE: PublicBridgeState = {
@@ -386,8 +458,20 @@ async function installRendererProtocol(): Promise<void> {
   })
 }
 
+class PublicIpcError extends Error {
+  readonly code: PublicErrorCode
+
+  constructor(code: PublicErrorCode, message: string) {
+    // Electron 通过 ipcRenderer.invoke() 传递异常时只保留 Error.message；
+    // 将受控公开错误码写入消息，Renderer 才能安全恢复具体错误语义。
+    super(`[${code}] ${message}`)
+    this.name = 'PublicIpcError'
+    this.code = code
+  }
+}
+
 function publicIpcFailure(code: PublicErrorCode, message: string): never {
-  throw Object.freeze({ code, message })
+  throw new PublicIpcError(code, message)
 }
 
 function requireTrustedRenderer(event: Electron.IpcMainInvokeEvent): BrowserWindow {
@@ -454,6 +538,85 @@ function requireLibraryPage(value: unknown): PageRequest {
   return { offset: page.offset, limit: page.limit }
 }
 
+function requireFavoriteKind(value: unknown): FavoriteKind | undefined {
+  if (value === undefined) return undefined
+  if (value !== 'track' && value !== 'album' && value !== 'artist') {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid favorite kind')
+  }
+  return value
+}
+
+function requireFavoriteDescriptor(value: unknown): FavoriteEntityDescriptor {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid favorite descriptor')
+  }
+  const descriptor = value as Record<string, unknown>
+  const allowedKeys = new Set([
+    'kind',
+    'title',
+    'subtitle',
+    'artist',
+    'album',
+    'durationMs',
+    'trackNumber',
+    'discNumber',
+    'year',
+    'version',
+  ])
+  if (Object.keys(descriptor).some((key) => !allowedKeys.has(key))) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid favorite descriptor')
+  }
+  const kind = requireFavoriteKind(descriptor.kind)
+  const title = descriptor.title
+  if (
+    kind === undefined ||
+    typeof title !== 'string' ||
+    title.trim().length === 0 ||
+    title.length > 512
+  ) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid favorite descriptor')
+  }
+  for (const key of ['subtitle', 'artist', 'album', 'version'] as const) {
+    const field = descriptor[key]
+    if (field !== undefined && (typeof field !== 'string' || field.length > 512)) {
+      return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid favorite descriptor')
+    }
+  }
+  for (const key of ['durationMs', 'trackNumber', 'discNumber', 'year'] as const) {
+    const field = descriptor[key]
+    if (
+      field !== undefined &&
+      (typeof field !== 'number' || !Number.isSafeInteger(field) || field < 0)
+    ) {
+      return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid favorite descriptor')
+    }
+  }
+  const optionalText = (key: 'subtitle' | 'artist' | 'album' | 'version'): string | undefined =>
+    typeof descriptor[key] === 'string' ? descriptor[key] as string : undefined
+  const optionalNumber = (key: 'durationMs' | 'trackNumber' | 'discNumber' | 'year'): number | undefined =>
+    typeof descriptor[key] === 'number' ? descriptor[key] as number : undefined
+  const subtitle = optionalText('subtitle')
+  const artist = optionalText('artist')
+  const album = optionalText('album')
+  const version = optionalText('version')
+  const durationMs = optionalNumber('durationMs')
+  const trackNumber = optionalNumber('trackNumber')
+  const discNumber = optionalNumber('discNumber')
+  const year = optionalNumber('year')
+  return {
+    kind,
+    title,
+    ...(subtitle !== undefined ? { subtitle } : {}),
+    ...(artist !== undefined ? { artist } : {}),
+    ...(album !== undefined ? { album } : {}),
+    ...(durationMs !== undefined ? { durationMs } : {}),
+    ...(trackNumber !== undefined ? { trackNumber } : {}),
+    ...(discNumber !== undefined ? { discNumber } : {}),
+    ...(year !== undefined ? { year } : {}),
+    ...(version !== undefined ? { version } : {}),
+  }
+}
+
 function requireSearchQuery(value: unknown): string {
   if (typeof value !== 'string') {
     return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid search query')
@@ -479,11 +642,125 @@ function requireZoneId(value: unknown): string {
   return value
 }
 
+function requireRoonReference(value: unknown): string {
+  if (
+    typeof value !== 'string' ||
+    value.trim().length === 0 ||
+    value.length > 128 ||
+    !/^musicbridge-v2-(?:entity|image)-[0-9a-f-]{36}$/u.test(value)
+  ) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid Roon Library reference')
+  }
+  return value
+}
+
+function requireRoonEntityReference(value: unknown): string {
+  const reference = requireRoonReference(value)
+  if (!reference.startsWith('musicbridge-v2-entity-')) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid Roon entity reference')
+  }
+  return reference
+}
+
+function requireRoonImageOptions(value: unknown): RoonImageOptions | undefined {
+  if (value === undefined) return undefined
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid Roon image options')
+  }
+  const options = value as {
+    scale?: unknown
+    width?: unknown
+    height?: unknown
+    format?: unknown
+  }
+  if (
+    Object.keys(options).some((key) => !['scale', 'width', 'height', 'format'].includes(key)) ||
+    (options.scale !== undefined && !['fit', 'fill', 'stretch'].includes(String(options.scale))) ||
+    (options.format !== undefined && !['image/jpeg', 'image/png'].includes(String(options.format))) ||
+    (options.width !== undefined && (
+      typeof options.width !== 'number' || !Number.isSafeInteger(options.width) || options.width < 1 || options.width > 2048
+    )) ||
+    (options.height !== undefined && (
+      typeof options.height !== 'number' || !Number.isSafeInteger(options.height) || options.height < 1 || options.height > 2048
+    ))
+  ) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid Roon image options')
+  }
+  return {
+    ...(options.scale !== undefined ? { scale: options.scale as RoonImageOptions['scale'] } : {}),
+    ...(options.width !== undefined ? { width: options.width } : {}),
+    ...(options.height !== undefined ? { height: options.height } : {}),
+    ...(options.format !== undefined ? { format: options.format as RoonImageOptions['format'] } : {}),
+  }
+}
+
 function requirePlaybackTrackId(value: unknown): string {
   if (typeof value !== 'string' || !/^\d+$/.test(value) || value === '0' || value.length > 128) {
     return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback track')
   }
   return value
+}
+
+function requireTrackSummary(value: unknown): TrackSummary {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid match track')
+  }
+  const track = value as Record<string, unknown>
+  const allowedKeys = new Set(['id', 'title', 'artists', 'album', 'durationMs', 'artworkUrl'])
+  if (Object.keys(track).some((key) => !allowedKeys.has(key))) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid match track')
+  }
+  const id = requirePlaybackTrackId(track.id)
+  if (
+    typeof track.title !== 'string' ||
+    track.title.trim().length === 0 ||
+    track.title.length > 512 ||
+    typeof track.album !== 'string' ||
+    track.album.trim().length === 0 ||
+    track.album.length > 512 ||
+    !Array.isArray(track.artists) ||
+    track.artists.length > 64 ||
+    track.artists.some((artist) => typeof artist !== 'string' || artist.trim().length === 0 || artist.length > 256)
+  ) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid match track')
+  }
+  if (
+    track.durationMs !== undefined &&
+    (typeof track.durationMs !== 'number' ||
+      !Number.isSafeInteger(track.durationMs) ||
+      track.durationMs < 0 ||
+      track.durationMs > 24 * 60 * 60 * 1000)
+  ) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid match track')
+  }
+  if (track.artworkUrl !== undefined) {
+    if (typeof track.artworkUrl !== 'string' || track.artworkUrl.length > 2_048) {
+      return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid match track')
+    }
+    try {
+      const url = new URL(track.artworkUrl)
+      const hostname = url.hostname.toLowerCase()
+      if (
+        url.protocol !== 'https:' ||
+        (hostname !== 'music.126.net' && !hostname.endsWith('.music.126.net')) ||
+        url.username !== '' ||
+        url.password !== '' ||
+        url.hash !== ''
+      ) {
+        return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid match track')
+      }
+    } catch {
+      return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid match track')
+    }
+  }
+  return {
+    id,
+    title: track.title,
+    artists: track.artists,
+    album: track.album,
+    ...(track.durationMs !== undefined ? { durationMs: track.durationMs } : {}),
+    ...(track.artworkUrl !== undefined ? { artworkUrl: track.artworkUrl } : {}),
+  }
 }
 
 function requirePlaybackQualityPreference(value: unknown): PlaybackQualityPreference {
@@ -493,8 +770,29 @@ function requirePlaybackQualityPreference(value: unknown): PlaybackQualityPrefer
   return value as PlaybackQualityPreference
 }
 
+function requireRendererClickAtMs(value: unknown, receivedAtMs: number): number {
+  if (value === undefined) return receivedAtMs
+  if (
+    typeof value !== 'number' ||
+    !Number.isSafeInteger(value) ||
+    value <= 0 ||
+    value > receivedAtMs + 1_000 ||
+    value < receivedAtMs - 60_000
+  ) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback startup timestamp')
+  }
+  return value
+}
+
+function requirePlaybackSourcePreference(value: unknown): PlaybackSourcePreference {
+  if (!['smart', 'netease', 'roon'].includes(String(value))) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback source preference')
+  }
+  return value as PlaybackSourcePreference
+}
+
 function requirePlaybackQueue(value: unknown): readonly PlaybackQueueRequestItem[] {
-  if (!Array.isArray(value) || value.length === 0 || value.length > 500) {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_PLAYBACK_QUEUE_ITEMS) {
     return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback queue')
   }
   return value.map((item) => {
@@ -502,14 +800,18 @@ function requirePlaybackQueue(value: unknown): readonly PlaybackQueueRequestItem
       !item ||
       typeof item !== 'object' ||
       Array.isArray(item) ||
-      Object.keys(item).some((key) => !['trackId', 'qualityPreference'].includes(key))
+      Object.keys(item).some((key) => !['trackId', 'qualityPreference', 'preferredSource'].includes(key))
     ) {
       return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback queue')
     }
-    const queueItem = item as { trackId?: unknown; qualityPreference?: unknown }
+    const queueItem = item as { trackId?: unknown; qualityPreference?: unknown; preferredSource?: unknown }
+    const preferredSource = queueItem.preferredSource === undefined
+      ? {}
+      : { preferredSource: requirePlaybackSourcePreference(queueItem.preferredSource) }
     return {
       trackId: requirePlaybackTrackId(queueItem.trackId),
       qualityPreference: requirePlaybackQualityPreference(queueItem.qualityPreference),
+      ...preferredSource,
     }
   })
 }
@@ -520,6 +822,18 @@ function requirePlaybackIndex(value: unknown, items: readonly PlaybackQueueReque
     !Number.isSafeInteger(value) ||
     value < 0 ||
     value >= items.length
+  ) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback queue index')
+  }
+  return value
+}
+
+function requireExistingPlaybackIndex(value: unknown): number {
+  if (
+    typeof value !== 'number' ||
+    !Number.isSafeInteger(value) ||
+    value < 0 ||
+    value >= MAX_PLAYBACK_QUEUE_ITEMS
   ) {
     return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback queue index')
   }
@@ -589,6 +903,13 @@ function registerIpcHandlers(
   supervisor: CoreSupervisor,
   credentialVault: CredentialVault,
 ): void {
+  if (isRoonImageGate) {
+    ipcMain.handle('roon:image:diagnostic', (event, shape: unknown) => {
+      requireTrustedRenderer(event)
+      recordPreloadRoonImageShape(shape)
+      return { recorded: true }
+    })
+  }
   ipcMain.handle('app:get-info', (event) => {
     requireTrustedRenderer(event)
     return appInfo()
@@ -662,10 +983,69 @@ function registerIpcHandlers(
       }),
     ),
   )
+  ipcMain.handle('library:search-artists', (event, query: unknown, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('library.searchArtists', {
+        query: requireSearchQuery(query),
+        page: requireLibraryPage(page),
+      }),
+    ),
+  )
+  ipcMain.handle('library:search-albums', (event, query: unknown, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('library.searchAlbums', {
+        query: requireSearchQuery(query),
+        page: requireLibraryPage(page),
+      }),
+    ),
+  )
+  ipcMain.handle('library:artist', (event, artistId: unknown, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('library.artist', {
+        artistId: requirePlaybackTrackId(artistId),
+        page: requireLibraryPage(page),
+      }),
+    ),
+  )
+  ipcMain.handle('library:album', (event, albumId: unknown, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('library.album', {
+        albumId: requirePlaybackTrackId(albumId),
+        page: requireLibraryPage(page),
+      }),
+    ),
+  )
   ipcMain.handle('library:liked', (event, page: unknown) =>
     invokeCore(event, () =>
       supervisor.request('library.liked', { page: requireLibraryPage(page) }),
     ),
+  )
+  ipcMain.handle('library:like-status', (event, trackId: unknown) =>
+    invokeCore(event, () => supervisor.request('library.likeStatus', {
+      trackId: requirePlaybackTrackId(trackId),
+    })),
+  )
+  ipcMain.handle('library:like', (event, trackId: unknown, liked: unknown) =>
+    invokeCore(event, () => {
+      if (typeof liked !== 'boolean') {
+        return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid like state')
+      }
+      return supervisor.request('library.like', {
+        trackId: requirePlaybackTrackId(trackId),
+        liked,
+      })
+    }),
+  )
+  ipcMain.handle('library:match', (event, track: unknown) =>
+    invokeCore(event, () => supervisor.request('library.match', {
+      track: requireTrackSummary(track),
+    })),
+  )
+  ipcMain.handle('library:aggregate-search', (event, query: unknown, page: unknown) =>
+    invokeCore(event, () => supervisor.request('library.aggregateSearch', {
+      query: requireSearchQuery(query),
+      page: requireLibraryPage(page),
+    })),
   )
   ipcMain.handle('library:playlists', (event) =>
     invokeCore(event, () => supervisor.request('library.playlists', {})),
@@ -681,6 +1061,31 @@ function registerIpcHandlers(
   ipcMain.handle('library:daily-recommendations', (event) =>
     invokeCore(event, () => supervisor.request('library.dailyRecommendations', {})),
   )
+  ipcMain.handle('favorites:list', (event, kind: unknown, page: unknown) =>
+    invokeCore(event, () => {
+      const favoriteKind = requireFavoriteKind(kind)
+      return supervisor.request('favorites.list', {
+        ...(favoriteKind !== undefined ? { kind: favoriteKind } : {}),
+        page: requireLibraryPage(page),
+      })
+    }),
+  )
+  ipcMain.handle('favorites:check', (event, descriptor: unknown) =>
+    invokeCore(event, () => supervisor.request('favorites.check', {
+      descriptor: requireFavoriteDescriptor(descriptor),
+    })),
+  )
+  ipcMain.handle('favorites:set', (event, descriptor: unknown, favorite: unknown) =>
+    invokeCore(event, () => {
+      if (typeof favorite !== 'boolean') {
+        return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid favorite state')
+      }
+      return supervisor.request('favorites.set', {
+        descriptor: requireFavoriteDescriptor(descriptor),
+        favorite,
+      })
+    }),
+  )
   ipcMain.handle('roon:list-zones', (event) =>
     invokeCore(event, () => supervisor.request('roon.listZones', {})),
   )
@@ -688,6 +1093,100 @@ function registerIpcHandlers(
     invokeCore(event, () =>
       supervisor.request('roon.selectZone', { zoneId: requireZoneId(zoneId) }),
     ),
+  )
+  ipcMain.handle('roon:library:albums', (event, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.albums', { page: requireLibraryPage(page) }),
+    ),
+  )
+  ipcMain.handle('roon:library:artists', (event, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.artists', { page: requireLibraryPage(page) }),
+    ),
+  )
+  ipcMain.handle('roon:library:genres', (event, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.genres', { page: requireLibraryPage(page) }),
+    ),
+  )
+  ipcMain.handle('roon:library:playlists', (event, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.playlists', { page: requireLibraryPage(page) }),
+    ),
+  )
+  ipcMain.handle('roon:library:album', (event, reference: unknown, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.album', {
+        reference: requireRoonReference(reference),
+        page: requireLibraryPage(page),
+      }),
+    ),
+  )
+  ipcMain.handle('roon:library:artist', (event, reference: unknown, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.artist', {
+        reference: requireRoonReference(reference),
+        page: requireLibraryPage(page),
+      }),
+    ),
+  )
+  ipcMain.handle('roon:library:genre', (event, reference: unknown, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.genre', {
+        reference: requireRoonReference(reference),
+        page: requireLibraryPage(page),
+      }),
+    ),
+  )
+  ipcMain.handle('roon:library:playlist', (event, reference: unknown, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.playlist', {
+        reference: requireRoonReference(reference),
+        page: requireLibraryPage(page),
+      }),
+    ),
+  )
+  ipcMain.handle('roon:library:search', (event, query: unknown, page: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.search', {
+        query: requireSearchQuery(query),
+        page: requireLibraryPage(page),
+      }),
+    ),
+  )
+  ipcMain.handle('roon:library:image', (event, reference: unknown, options: unknown) =>
+    invokeCore(event, async () => {
+      const imageOptions = requireRoonImageOptions(options)
+      const result = await supervisor.request('roon.library.image', {
+        reference: requireRoonReference(reference),
+        ...(imageOptions !== undefined ? { options: imageOptions } : {}),
+      })
+      recordRoonImageShape(summarizeRoonImageBinary(
+        'main-ipc',
+        (result as RoonImageResult).contentType,
+        (result as RoonImageResult).body,
+      ))
+      return result
+    }),
+  )
+  ipcMain.handle('roon:library:play', (event, reference: unknown, zoneId: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.play', {
+        reference: requireRoonEntityReference(reference),
+        zoneId: requireZoneId(zoneId),
+      }),
+    ),
+  )
+  ipcMain.handle('roon:library:queue', (event, reference: unknown, zoneId: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('roon.library.queue', {
+        reference: requireRoonEntityReference(reference),
+        zoneId: requireZoneId(zoneId),
+      }),
+    ),
+  )
+  ipcMain.handle('roon:transport:stop', (event) =>
+    invokeCore(event, () => supervisor.request('roon.transport.stop', {})),
   )
   ipcMain.handle('lyrics:get', (event, trackId: unknown) =>
     invokeCore(event, () =>
@@ -699,13 +1198,23 @@ function registerIpcHandlers(
   ipcMain.handle('playback:get-state', (event) =>
     invokeCore(event, () => supervisor.request('playback.getState', {})),
   )
-  ipcMain.handle('playback:play', (event, trackId: unknown, qualityPreference: unknown) =>
-    invokeCore(event, () =>
-      supervisor.request('playback.play', {
+  ipcMain.handle('playback:play', (event, trackId: unknown, qualityPreference: unknown, rendererClickAt: unknown) => {
+    const mainReceivedAtMs = Date.now()
+    return invokeCore(event, () => {
+      const rendererClickAtMs = requireRendererClickAtMs(rendererClickAt, mainReceivedAtMs)
+      mainDiagnostics.recordPlaybackStartup(rendererClickAtMs, mainReceivedAtMs)
+      return supervisor.request('playback.play', {
         trackId: requirePlaybackTrackId(trackId),
         qualityPreference: requirePlaybackQualityPreference(qualityPreference),
-      }),
-    ),
+        rendererClickAtMs,
+      })
+    })
+  })
+  ipcMain.handle('playback:pause', (event) =>
+    invokeCore(event, () => supervisor.request('playback.pause', {})),
+  )
+  ipcMain.handle('playback:resume', (event) =>
+    invokeCore(event, () => supervisor.request('playback.resume', {})),
   )
   ipcMain.handle('playback:stop', (event) =>
     invokeCore(event, () => supervisor.request('playback.stop', {})),
@@ -716,6 +1225,13 @@ function registerIpcHandlers(
   ipcMain.handle('playback:previous', (event) =>
     invokeCore(event, () => supervisor.request('playback.previous', {})),
   )
+  ipcMain.handle('playback:play-queue-index', (event, index: unknown) =>
+    invokeCore(event, () =>
+      supervisor.request('playback.playQueueIndex', {
+        index: requireExistingPlaybackIndex(index),
+      }),
+    ),
+  )
   ipcMain.handle('playback:replace-queue', (event, items: unknown, index: unknown) =>
     invokeCore(event, () => {
       const queue = requirePlaybackQueue(items)
@@ -723,6 +1239,19 @@ function registerIpcHandlers(
         items: queue,
         index: requirePlaybackIndex(index, queue),
       })
+    }),
+  )
+  ipcMain.handle('playback:seek', (event, positionMs: unknown) =>
+    invokeCore(event, () => {
+      if (
+        typeof positionMs !== 'number' ||
+        !Number.isSafeInteger(positionMs) ||
+        positionMs < 0 ||
+        positionMs > 24 * 60 * 60 * 1_000
+      ) {
+        return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid playback position')
+      }
+      return supervisor.request('playback.seek', { positionMs })
     }),
   )
   ipcMain.handle('playback:append-queue', (event, items: unknown) =>
@@ -831,6 +1360,8 @@ function buildCoreEnvironment(): NodeJS.ProcessEnv {
     uiE2e: isUiE2e,
     coreCrashGate: isCoreCrashGate || isCoreRestartCredentialRecoveryGate,
     roonTimeGate: isRoonTimeGate,
+    roonBrowseGate: isRoonBrowseGate,
+    roonImageGate: isRoonImageGate,
     remoteCoreMode: coreMode,
     ...(remoteStreamPort !== undefined ? { remoteStreamPort } : {}),
   })
@@ -866,10 +1397,11 @@ async function invokeRemoteCore<T>(
 
 async function startRemoteCoreDevelopment(): Promise<RemoteCoreTunnelState> {
   requireRemoteCoreDevelopment()
+  const localPorts = resolveRemoteCoreLocalPorts(process.env)
   return remoteCoreTunnelManager.start({
     sshTarget: process.env.CORE_SSH_TARGET ?? '',
     remoteStreamPort: DEFAULT_REMOTE_STREAM_PORT,
-    localStreamPort: LOCAL_STREAM_PORT,
+    localStreamPort: localPorts.streamPort,
     autoReconnect: true,
   })
 }

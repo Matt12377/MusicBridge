@@ -51,8 +51,8 @@ function formatDayKey(dayKey: string): string {
       <button type="button" class="secondary-button" @click="emit('retry')">重试</button>
     </div>
     <div v-else-if="!props.authenticated" class="daily-recommendation-message">
-      <div><strong>每日推荐需要网易云登录</strong><p>前往 Settings 完成登录后，这里会显示今天的推荐内容。</p></div>
-      <button type="button" class="secondary-button" @click="emit('open-settings')">打开 Settings</button>
+      <div><strong>每日推荐需要网易云登录</strong><p>前往设置完成登录后，这里会显示今天的推荐内容。</p></div>
+      <button type="button" class="secondary-button" @click="emit('open-settings')">打开设置</button>
     </div>
     <div v-else class="daily-recommendation-message">
       <div><strong>今天还没有可显示的推荐</strong><p>网易云每日推荐为空时，这里会保持轻量空状态。</p></div>

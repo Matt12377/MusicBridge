@@ -11,9 +11,23 @@ const props = defineProps<{
 
 const container = ref<HTMLElement | null>(null)
 const retainedActiveLineIndex = ref(props.snapshot.activeLineIndex >= 0 ? props.snapshot.activeLineIndex : -1)
+type ScrollFollowState = 'following' | 'programmatic-scrolling' | 'user-scrolling' | 'settling'
+
 let followPausedUntil = 0
 let resumeTimer: ReturnType<typeof setTimeout> | undefined
-let programmaticScroll = false
+let scrollFollowState: ScrollFollowState = 'following'
+let pendingFollowIndex = -1
+let settleFrame: number | undefined
+let settleFrameCount = 0
+let stableFrameCount = 0
+let previousScrollTop: number | undefined
+let followGeneration = 0
+
+const FOLLOW_PAUSE_MS = 4_000
+const SAFE_ZONE_START = 0.35
+const SAFE_ZONE_END = 0.65
+const REQUIRED_STABLE_FRAMES = 3
+const MAX_SETTLE_FRAMES = 60
 
 const focusLineIndex = computed(() => {
   const activeLineIndex = props.snapshot.activeLineIndex
@@ -44,53 +58,139 @@ function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
 }
 
-function pauseFollow(): void {
-  followPausedUntil = Date.now() + 4_000
+function beginUserScroll(): void {
+  followGeneration += 1
+  scrollFollowState = 'user-scrolling'
+  pendingFollowIndex = -1
+  cancelScrollSettlement()
+  followPausedUntil = Date.now() + FOLLOW_PAUSE_MS
   if (resumeTimer !== undefined) clearTimeout(resumeTimer)
   resumeTimer = setTimeout(() => {
     resumeTimer = undefined
+    scrollFollowState = 'settling'
     followActiveLine()
-  }, 4_050)
+  }, FOLLOW_PAUSE_MS + 50)
+}
+
+function cancelScrollSettlement(): void {
+  if (settleFrame !== undefined) {
+    cancelAnimationFrame(settleFrame)
+    settleFrame = undefined
+  }
+  settleFrameCount = 0
+  stableFrameCount = 0
+  previousScrollTop = undefined
+}
+
+function targetInSafeZone(target: HTMLElement, host: HTMLElement): boolean {
+  const hostRect = host.getBoundingClientRect()
+  const targetRect = target.getBoundingClientRect()
+  const center = targetRect.top + targetRect.height / 2 - hostRect.top
+  return center >= hostRect.height * SAFE_ZONE_START && center <= hostRect.height * SAFE_ZONE_END
+}
+
+function finishProgrammaticScroll(): void {
+  scrollFollowState = 'following'
+  pendingFollowIndex = -1
+  cancelScrollSettlement()
+}
+
+function monitorScrollSettlement(target: HTMLElement, host: HTMLElement): void {
+  cancelScrollSettlement()
+  settleFrameCount = 0
+  stableFrameCount = 0
+  previousScrollTop = host.scrollTop
+  const check = (): void => {
+    if (scrollFollowState !== 'programmatic-scrolling' && scrollFollowState !== 'settling') return
+    settleFrameCount += 1
+    const currentScrollTop = host.scrollTop
+    const stable = previousScrollTop !== undefined
+      && Math.abs(currentScrollTop - previousScrollTop) < 0.5
+      && targetInSafeZone(target, host)
+    stableFrameCount = stable ? stableFrameCount + 1 : 0
+    previousScrollTop = currentScrollTop
+    if (targetInSafeZone(target, host)) scrollFollowState = 'settling'
+    // scrollend is the primary completion signal. Engines without it must show
+    // a genuinely stable target for several frames before follow resumes.
+    if (!target.isConnected || stableFrameCount >= REQUIRED_STABLE_FRAMES || settleFrameCount >= MAX_SETTLE_FRAMES) {
+      finishProgrammaticScroll()
+      return
+    }
+    settleFrame = requestAnimationFrame(check)
+  }
+  settleFrame = requestAnimationFrame(check)
 }
 
 function followActiveLine(): void {
   const index = focusLineIndex.value
-  if (index < 0 || Date.now() < followPausedUntil || !container.value) return
+  if (
+    index < 0
+    || scrollFollowState === 'user-scrolling'
+    || Date.now() < followPausedUntil
+    || !container.value
+  ) return
+  const generation = ++followGeneration
   void nextTick(() => {
-    if (!container.value || index < 0 || Date.now() < followPausedUntil) return
+    if (
+      generation !== followGeneration
+      || !container.value
+      || index < 0
+      || scrollFollowState === 'user-scrolling'
+      || Date.now() < followPausedUntil
+    ) return
     const target = container.value.querySelector<HTMLElement>(`[data-line-index="${index}"]`)
     if (!target) return
-    programmaticScroll = true
+    if (targetInSafeZone(target, container.value)) {
+      finishProgrammaticScroll()
+      return
+    }
+    pendingFollowIndex = index
+    scrollFollowState = 'programmatic-scrolling'
     target.scrollIntoView({
       behavior: prefersReducedMotion() ? 'auto' : 'smooth',
       block: 'center',
     })
-    window.setTimeout(() => {
-      programmaticScroll = false
-    }, prefersReducedMotion() ? 0 : 350)
+    monitorScrollSettlement(target, container.value)
   })
 }
 
 function onScroll(): void {
-  if (!programmaticScroll) pauseFollow()
+  // User input handlers enter user-scrolling before their resulting scroll
+  // event. Programmatic events are observed only by the settlement monitor.
 }
 
-watch(() => [props.snapshot.activeLineIndex, props.snapshot.lines.length], followActiveLine)
+function onScrollEnd(): void {
+  if (
+    (scrollFollowState === 'programmatic-scrolling' || scrollFollowState === 'settling')
+    && pendingFollowIndex >= 0
+  ) finishProgrammaticScroll()
+}
+
+watch(() => [props.snapshot.activeLineIndex, props.snapshot.lines.length], () => {
+  cancelScrollSettlement()
+  followActiveLine()
+})
 watch(() => props.snapshot.activeLineIndex, (index) => {
   if (index >= 0 && index < props.snapshot.lines.length) retainedActiveLineIndex.value = index
 })
 watch(() => props.trackId, () => {
+  followGeneration += 1
   retainedActiveLineIndex.value = props.snapshot.activeLineIndex >= 0 ? props.snapshot.activeLineIndex : -1
   followPausedUntil = 0
   if (resumeTimer !== undefined) {
     clearTimeout(resumeTimer)
     resumeTimer = undefined
   }
+  cancelScrollSettlement()
+  scrollFollowState = 'following'
+  pendingFollowIndex = -1
   followActiveLine()
 })
 onMounted(followActiveLine)
 onUnmounted(() => {
+  followGeneration += 1
   if (resumeTimer !== undefined) clearTimeout(resumeTimer)
+  cancelScrollSettlement()
 })
 </script>
 
@@ -100,10 +200,11 @@ onUnmounted(() => {
     class="lyrics-lines lyrics-follow-scroll"
     :class="$attrs.class"
     tabindex="0"
-    @wheel="pauseFollow"
-    @touchstart="pauseFollow"
-    @pointerdown="pauseFollow"
+    @wheel="beginUserScroll"
+    @touchstart="beginUserScroll"
+    @pointerdown="beginUserScroll"
     @scroll="onScroll"
+    @scrollend="onScrollEnd"
   >
     <p v-if="!props.snapshot.lines.length" class="lyrics-empty-line">{{ statusLabel(props.snapshot.status) }}</p>
     <p

@@ -1,3 +1,4 @@
+import path from 'node:path';
 import {
   DiagnosticRingBuffer,
   type DiagnosticComponentSnapshot,
@@ -11,19 +12,38 @@ import type {
   PlaylistSummary,
   LyricsSnapshot,
   DailyRecommendationsSnapshot,
+  ArtistDetail,
+  FavoriteEntityDescriptor,
+  FavoriteKind,
+  FavoritePage,
+  FavoriteRecord,
   PlaybackQueueItem,
   PlaybackQueueRequestItem,
   PlaybackQuality,
   PlaybackQualityPreference,
   PlaybackSnapshot,
   PublicAuthState,
+  PublicAggregatedSearchResult,
   PublicAccountState,
   PublicBridgeState,
   PublicRoonZone,
+  RoonImageOptions,
+  RoonImageResult,
+  RoonImageShapeSummary,
+  RoonLibraryPage,
   TrackSummary,
+  ArtistSummary,
+  AlbumDetail,
+  AlbumSummary,
+  PublicTrackMatchResult,
   TypedIpcEvent,
 } from '@music-bridge/contracts';
-import { BridgeController, type BridgeState } from './application/bridge-controller.js';
+import {
+  BridgeController,
+  type BridgeState,
+  type PlaybackStartupStage,
+  type SmartRoonResolution,
+} from './application/bridge-controller.js';
 import { loadConfig } from './config/config.js';
 import { ControlServer } from './control/server.js';
 import { NeteaseClient } from './netease/client.js';
@@ -31,12 +51,26 @@ import type { CredentialVerificationStatus } from './netease/types.js';
 import { emptyLyricsSnapshot } from './netease/lyrics.js';
 import { QrLoginStateMachine } from './netease/qr-login.js';
 import { RoonAudioInputAdapter, type RoonTimeShapeSummary } from './roon/adapter.js';
+import { createRoonPublicLibrary } from './roon/public-library.js';
+import type { RoonBrowseShapeSummary } from './roon/library.js';
 import type { RoonSdk } from './roon/sdk.js';
 import { asBridgeError, BridgeError } from './shared/errors.js';
 import { createLogger, type Logger } from './shared/logger.js';
 import { StreamGateway } from './stream/gateway.js';
 import { StreamRegistry } from './stream/registry.js';
 import { LyricsCoordinator } from './lyrics/coordinator.js';
+import {
+  createLocalFavoriteRepository,
+  type LocalFavoriteRepository,
+} from './favorites/repository.js';
+import {
+  createMatchCache,
+  isCacheableMatchResult,
+  MATCH_ALGORITHM_VERSION,
+  type LogicalRecording,
+  type MatchResult,
+} from './matching/index.js';
+import { resolveRoonMatch } from './matching/candidate-resolution.js';
 
 export type CoreRuntimeEvent = TypedIpcEvent;
 
@@ -62,21 +96,53 @@ export interface CoreRuntime {
   refreshAccountProfile(): Promise<PublicAccountState>;
   getDailyRecommendations(): Promise<DailyRecommendationsSnapshot>;
   searchTracks(query: string, page: PageRequest): Promise<Page<TrackSummary>>;
+  searchArtists(query: string, page: PageRequest): Promise<Page<ArtistSummary>>;
+  searchAlbums(query: string, page: PageRequest): Promise<Page<AlbumSummary>>;
+  getArtist(artistId: string, page: PageRequest): Promise<ArtistDetail>;
+  getAlbum(albumId: string, page: PageRequest): Promise<AlbumDetail>;
+  aggregateSearch(query: string, page: PageRequest): Promise<PublicAggregatedSearchResult>;
   getLikedTracks(page: PageRequest): Promise<Page<TrackSummary>>;
+  getTrackLikeStatus(trackId: string): Promise<{ liked: boolean }>;
+  likeTrack(trackId: string, liked: boolean): Promise<{ liked: boolean }>;
+  matchLibraryTrack(track: TrackSummary): Promise<PublicTrackMatchResult>;
   getUserPlaylists(): Promise<readonly PlaylistSummary[]>;
   getPlaylist(playlistId: string, page: PageRequest): Promise<PlaylistDetail>;
+  listFavorites(kind: FavoriteKind | undefined, page: PageRequest): Promise<FavoritePage>;
+  checkFavorite(descriptor: FavoriteEntityDescriptor): Promise<{ favorite: boolean }>;
+  setFavorite(descriptor: FavoriteEntityDescriptor, favorite: boolean): Promise<{ favorite: boolean; item?: FavoriteRecord }>;
   getLyrics(trackId: string): Promise<LyricsSnapshot>;
   getPlaybackState(): PlaybackSnapshot;
-  playbackPlay(trackId: string, quality: PlaybackQualityPreference): Promise<PlaybackSnapshot>;
+  playbackPlay(
+    trackId: string,
+    quality: PlaybackQualityPreference,
+    rendererClickAtMs?: number,
+  ): Promise<PlaybackSnapshot>;
+  playbackPause(): Promise<PlaybackSnapshot>;
+  playbackResume(): Promise<PlaybackSnapshot>;
+  seekPlayback(positionMs: number): Promise<{ positionMs: number }>;
   playbackStop(): Promise<PlaybackSnapshot>;
   playbackNext(): Promise<PlaybackSnapshot>;
   playbackPrevious(): Promise<PlaybackSnapshot>;
+  playbackPlayQueueIndex(index: number): Promise<PlaybackSnapshot>;
   replacePlaybackQueue(
     items: readonly PlaybackQueueRequestItem[],
     index: number,
   ): Promise<PlaybackSnapshot>;
   appendPlaybackQueue(items: readonly PlaybackQueueRequestItem[]): Promise<PlaybackSnapshot>;
   insertNextPlayback(items: readonly PlaybackQueueRequestItem[]): Promise<PlaybackSnapshot>;
+  browseRoonAlbums(page: PageRequest): Promise<RoonLibraryPage>;
+  browseRoonArtists(page: PageRequest): Promise<RoonLibraryPage>;
+  browseRoonGenres(page: PageRequest): Promise<RoonLibraryPage>;
+  browseRoonPlaylists(page: PageRequest): Promise<RoonLibraryPage>;
+  browseRoonAlbum(reference: string, page: PageRequest): Promise<RoonLibraryPage>;
+  browseRoonArtist(reference: string, page: PageRequest): Promise<RoonLibraryPage>;
+  browseRoonGenre(reference: string, page: PageRequest): Promise<RoonLibraryPage>;
+  browseRoonPlaylist(reference: string, page: PageRequest): Promise<RoonLibraryPage>;
+  searchRoonLibrary(query: string, page: PageRequest): Promise<RoonLibraryPage>;
+  getRoonImage(reference: string, options?: RoonImageOptions): Promise<RoonImageResult>;
+  playRoonTrack(reference: string, zoneId: string): Promise<{ started: true }>;
+  queueRoonTrack(reference: string, zoneId: string): Promise<{ queued: true }>;
+  stopRoonTransport(): Promise<{ stopped: true }>;
   listZones(): readonly PublicRoonZone[];
   selectZone(zoneId: string): Promise<PublicBridgeState>;
 }
@@ -88,6 +154,9 @@ export interface BridgeRuntimeOptions {
   now?: () => number;
   onEvent?: (event: CoreRuntimeEvent) => void;
   onRoonTimeShape?: (summary: RoonTimeShapeSummary) => void;
+  onRoonBrowseShape?: (summary: RoonBrowseShapeSummary) => void;
+  onRoonImageShape?: (summary: RoonImageShapeSummary) => void;
+  favoriteRepository?: LocalFavoriteRepository;
 }
 
 function publicRoonStatus(
@@ -100,6 +169,7 @@ function publicRoonStatus(
       return 'paired';
     case 'ready':
     case 'playing':
+    case 'paused':
       return 'ready';
     case 'error':
       return 'disconnected';
@@ -115,7 +185,8 @@ export function toPublicBridgeState(
     roon: publicRoonStatus(state.roon.status),
     provider: state.neteaseConfigured ? 'configured' : 'missing',
     activeStreamCount: state.activeStreamCount,
-    activePlaybackPresent: state.activePlayback !== undefined,
+    activePlaybackPresent:
+      state.activePlayback !== undefined || state.activeRoonPlayback !== undefined,
   };
 }
 
@@ -151,6 +222,8 @@ function emptyPlaybackState(): PlaybackSnapshot {
     canNext: false,
     canPrevious: false,
     canStop: false,
+    canPause: false,
+    canResume: false,
   };
 }
 
@@ -162,6 +235,14 @@ function localDayKey(now = Date.now()): string {
   return `${year}-${month}-${day}`;
 }
 
+const PLAYBACK_STARTUP_DIAGNOSTIC_EVENTS: Record<PlaybackStartupStage, string> = {
+  'metadata-ready': 'playback_metadata_ready',
+  'stream-url-ready': 'playback_stream_url_ready',
+  'gateway-preflight-ready': 'playback_gateway_preflight_ready',
+  'roon-session-began': 'playback_roon_session_began',
+  'roon-playing': 'playback_roon_playing',
+};
+
 export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRuntime {
   const config = loadConfig(options.env);
   const logger = options.logger ?? createLogger(config.logLevel);
@@ -172,8 +253,21 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   const roon = new RoonAudioInputAdapter(logger, options.roonSdk, {
     mode: config.mode,
     iconPort: config.remoteStreamPort ?? config.streamPort,
+    ...(config.roonCoreHost ? { coreHost: config.roonCoreHost } : {}),
+    ...(config.roonCorePort ? { corePort: config.roonCorePort } : {}),
     ...(options.onRoonTimeShape ? { onTimeShape: options.onRoonTimeShape } : {}),
+    ...(options.onRoonBrowseShape ? { onBrowseShape: options.onRoonBrowseShape } : {}),
+    ...(options.onRoonImageShape ? { onImageShape: options.onRoonImageShape } : {}),
   });
+  const roonLibrary = createRoonPublicLibrary(
+    () => roon.getLibraryService(),
+    options.onRoonImageShape ? { onImageShape: options.onRoonImageShape } : {},
+  );
+  const favoriteRepository = options.favoriteRepository ?? createLocalFavoriteRepository(
+    path.join(process.cwd(), '.musicbridge-favorites.json'),
+  );
+  const matchCache = createMatchCache();
+  let matchLibraryAvailable = roon.getLibraryService() !== undefined;
   const gateway = new StreamGateway({
     host: config.streamHost,
     port: config.streamPort,
@@ -183,27 +277,132 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     remoteDevelopmentMode: config.mode === 'remote-core-development',
   });
   let notifyProviderExpired: () => void = () => undefined;
+  let resolveSmartSource: (track: TrackSummary) => Promise<SmartRoonResolution | undefined> = async () => undefined;
   const controller = new BridgeController({
     netease,
     roon,
     registry,
     gateway,
     logger,
+    roonLibrary: {
+      play: async (reference, zoneId, track) => {
+        const before = roon.getSelectedZonePlaybackObservation();
+        if (!before || before.zoneId !== zoneId) {
+          throw new BridgeError(
+            'ROON_ZONE_NOT_SELECTED',
+            'The requested Roon Zone is not the selected playback Zone',
+            { httpStatus: 409 },
+          );
+        }
+        await roonLibrary.playTrack(reference, zoneId);
+        return roon.waitForSelectedZonePlayback({
+          zoneId,
+          state: 'playing',
+          afterRevision: before.revision,
+          track,
+        });
+      },
+      pause: async () => {
+        const before = roon.getSelectedZonePlaybackObservation();
+        if (!before) {
+          throw new BridgeError('ROON_ZONE_NOT_SELECTED', 'Roon Zone is not selected', {
+            httpStatus: 409,
+          });
+        }
+        await roon.control('pause');
+        await roon.waitForSelectedZonePlayback({
+          zoneId: before.zoneId,
+          state: 'paused',
+          afterRevision: before.revision,
+        });
+      },
+      resume: async () => {
+        const before = roon.getSelectedZonePlaybackObservation();
+        if (!before) {
+          throw new BridgeError('ROON_ZONE_NOT_SELECTED', 'Roon Zone is not selected', {
+            httpStatus: 409,
+          });
+        }
+        await roon.control('play');
+        await roon.waitForSelectedZonePlayback({
+          zoneId: before.zoneId,
+          state: 'playing',
+          afterRevision: before.revision,
+          requirePosition: true,
+        });
+      },
+      seek: async (positionMs) => {
+        if (!roon.seek) {
+          throw new BridgeError('ROON_TRANSPORT_UNAVAILABLE', 'Roon seek is not available', {
+            httpStatus: 409,
+          });
+        }
+        await roon.seek(positionMs);
+      },
+      stop: async () => {
+        if (!roon.control) {
+          throw new BridgeError('ROON_TRANSPORT_UNAVAILABLE', 'Roon transport control is not available', {
+            httpStatus: 409,
+          });
+        }
+        await roon.control('stop');
+      },
+    },
+    resolveSmartSource: (track) => resolveSmartSource(track),
     ...(options.now ? { now: options.now } : {}),
     onProviderAuthExpired: () => {
       netease.clearCredential();
       notifyProviderExpired();
     },
   });
+  let runtime: PublicBridgeState['runtime'] = 'starting';
   const control = new ControlServer({
     host: config.controlHost,
     port: config.controlPort,
     defaultQuality: config.defaultQuality,
     controller,
+    roon: {
+      listZones: () => roon.listZones().map((zone) => ({
+        zoneId: zone.zone_id,
+        displayName: zone.display_name ?? zone.zone_id,
+        selected: zone.zone_id === controller.getState().roon.selectedZoneId,
+        ...(zone.is_seek_allowed !== undefined ? { seekAllowed: zone.is_seek_allowed === true } : {}),
+      })),
+      selectZone: (zoneId) => {
+        roon.selectZone(zoneId);
+        return toPublicBridgeState(controller.getState(), runtime);
+      },
+      browseRoonAlbums: (page) => roonLibrary.browseAlbums(page),
+      browseRoonAlbum: (reference, page) => roonLibrary.browseAlbum(reference, page),
+      getRoonImage: (reference, options) => roonLibrary.getImage(reference, options),
+      async playRoonTrack(reference, zoneId) {
+        await controller.playRoon({ reference, zoneId, track: roonLibrary.getTrackSummary(reference) });
+        return { started: true as const };
+      },
+      async queueRoonTrack(reference, zoneId) {
+        await controller.appendRoon({ reference, zoneId, track: roonLibrary.getTrackSummary(reference) });
+        return { queued: true as const };
+      },
+      async seekRoonTransport(positionMs) {
+        if (!roon.seek) {
+          throw new BridgeError('ROON_TRANSPORT_UNAVAILABLE', 'Roon seek is not available', {
+            httpStatus: 409,
+          });
+        }
+        await roon.seek(positionMs);
+        return {
+          positionMs:
+            roon.getSelectedZonePlaybackObservation()?.positionMs ?? positionMs,
+        };
+      },
+      async stopRoonTransport() {
+        await controller.stopRoonTransport();
+        return { stopped: true as const };
+      },
+    },
     logger,
   });
 
-  let runtime: PublicBridgeState['runtime'] = 'starting';
   let shutdownStarted = false;
   const diagnostics = new DiagnosticRingBuffer();
   const runtimeStartedAt = Date.now();
@@ -377,6 +576,73 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     }
   };
 
+  const matchLibraryTrack = async (track: TrackSummary): Promise<PublicTrackMatchResult> => {
+    const recording: LogicalRecording = {
+      neteaseTrackId: track.id,
+      title: track.title,
+      artists: track.artists,
+      album: track.album,
+      ...(track.durationMs !== undefined ? { durationMs: track.durationMs } : {}),
+    };
+    const cached = matchCache.get(recording);
+    if (cached) return { trackId: track.id, ...cached };
+
+    try {
+      const result = await resolveRoonMatch(recording, roonLibrary);
+      if (isCacheableMatchResult(result)) matchCache.set(recording, result);
+      return { trackId: track.id, ...result };
+    } catch (error) {
+      const code = asBridgeError(error).code;
+      if (code !== 'ROON_LIBRARY_UNAVAILABLE' && code !== 'ROON_LIBRARY_REQUEST_FAILED') {
+        throw error;
+      }
+      const result: MatchResult = {
+        state: 'NONE' as const,
+        confidence: 0,
+        evidence: ['roon-library-unavailable'],
+        candidates: [],
+        algorithmVersion: MATCH_ALGORITHM_VERSION,
+      };
+      if (isCacheableMatchResult(result)) matchCache.set(recording, result);
+      return { trackId: track.id, ...result };
+    }
+  };
+
+  resolveSmartSource = async (track: TrackSummary): Promise<SmartRoonResolution | undefined> => {
+    const zoneId = roon.getState().selectedZoneId;
+    if (!zoneId) return undefined;
+    const match = await matchLibraryTrack(track);
+    if (match.state !== 'CONFIRMED' || match.candidate?.kind !== 'track') return undefined;
+    return { reference: match.candidate.reference, zoneId };
+  };
+
+  const aggregateSearch = async (
+    query: string,
+    page: PageRequest,
+  ): Promise<PublicAggregatedSearchResult> => {
+    const [neteaseResult, roonResult] = await Promise.all([
+      withProviderRecovery(() => netease.searchTracks(query, page)),
+      roonLibrary.searchLibrary(query, page)
+        .then((roon) => ({ roon, roonAvailable: true as const }))
+        .catch((error: unknown) => {
+          const code = asBridgeError(error).code;
+          if (code !== 'ROON_LIBRARY_UNAVAILABLE' && code !== 'ROON_LIBRARY_REQUEST_FAILED') {
+            throw error;
+          }
+          return {
+            roon: { items: [], offset: page.offset, limit: page.limit, hasMore: false },
+            roonAvailable: false as const,
+          };
+        }),
+    ]);
+    return {
+      query,
+      netease: neteaseResult,
+      roon: roonResult.roon,
+      roonAvailable: roonResult.roonAvailable,
+    };
+  };
+
   notifyProviderExpired = (): void => {
     netease.clearCredential();
     clearAccount('missing');
@@ -414,13 +680,19 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   });
 
   roon.setStateHandler(() => {
+    const libraryAvailable = roon.getLibraryService() !== undefined;
+    if (libraryAvailable !== matchLibraryAvailable) {
+      matchLibraryAvailable = libraryAvailable;
+      matchCache.invalidate();
+    }
+    controller.syncRoonTransportState();
+    controller.handleRoonPlaybackState(roon.getSelectedZonePlaybackState());
     const state = publicState();
     emit(eventWithState('roon.changed', state));
     emit(eventWithState('core.health', state));
   });
-  roon.setTimeHandler?.((positionMs) => {
-    controller.updateRoonTime(positionMs);
-    lyrics.updateRoonTime(positionMs);
+  roon.setTimeHandler?.((event) => {
+    if (controller.updateRoonTime(event)) lyrics.updateRoonTime(event.positionMs);
   });
 
   const cleanup = async (): Promise<void> => {
@@ -613,7 +885,15 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     },
 
     searchTracks: (query, page) => withProviderRecovery(() => netease.searchTracks(query, page)),
+    searchArtists: (query, page) => withProviderRecovery(() => netease.searchArtists(query, page)),
+    searchAlbums: (query, page) => withProviderRecovery(() => netease.searchAlbums(query, page)),
+    getArtist: (artistId, page) => withProviderRecovery(() => netease.getArtist(artistId, page)),
+    getAlbum: (albumId, page) => withProviderRecovery(() => netease.getAlbum(albumId, page)),
+    aggregateSearch,
     getLikedTracks: (page) => withProviderRecovery(() => netease.getLikedTracks(page)),
+    getTrackLikeStatus: (trackId) => withProviderRecovery(() => netease.isTrackLiked(trackId)),
+    likeTrack: (trackId, liked) => withProviderRecovery(() => netease.likeTrack(trackId, liked)),
+    matchLibraryTrack,
     getUserPlaylists: () => withProviderRecovery(() => netease.getUserPlaylists()),
     getPlaylist: (playlistId, page) =>
       withProviderRecovery(() => netease.getPlaylist(playlistId, page)),
@@ -625,18 +905,33 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     getDailyRecommendations: getDailyRecommendationSnapshot,
     getLyrics: (trackId) => lyrics.getLyrics(trackId),
     getPlaybackState: () => controller.getPlaybackState(),
-    async playbackPlay(trackId, qualityPreference) {
-      const startedAt = Date.now();
+    async playbackPlay(trackId, qualityPreference, rendererClickAtMs) {
+      const coreReceivedAtMs = options.now?.() ?? Date.now();
+      const startedAt = Math.min(rendererClickAtMs ?? coreReceivedAtMs, coreReceivedAtMs);
+      recordDiagnostic('info', 'playback_core_request_received', {
+        durationMs: coreReceivedAtMs - startedAt,
+      });
       try {
-        await controller.play({ trackId, qualityPreference });
-        lastPlayLatencyMs = Date.now() - startedAt;
+        await controller.play({
+          trackId,
+          qualityPreference,
+          startupTrace: {
+            startedAtMs: startedAt,
+            onStage: (stage, elapsedMs) => {
+              recordDiagnostic('info', PLAYBACK_STARTUP_DIAGNOSTIC_EVENTS[stage], {
+                durationMs: elapsedMs,
+              });
+            },
+          },
+        });
+        lastPlayLatencyMs = Math.max(0, (options.now?.() ?? Date.now()) - startedAt);
         recordDiagnostic('info', 'play_completed', {
           state: 'playing',
           durationMs: lastPlayLatencyMs,
         });
         return controller.getPlaybackState();
       } catch (error) {
-        lastPlayLatencyMs = Date.now() - startedAt;
+        lastPlayLatencyMs = Math.max(0, (options.now?.() ?? Date.now()) - startedAt);
         recordDiagnostic('warn', 'play_failed', {
           code: asBridgeError(error).code,
           state: 'error',
@@ -645,8 +940,20 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
         throw error;
       }
     },
+    async seekPlayback(positionMs: number): Promise<{ positionMs: number }> {
+      await controller.seek(positionMs);
+      return { positionMs: controller.getPlaybackState().positionMs };
+    },
     async playbackStop() {
       await controller.stop();
+      return controller.getPlaybackState();
+    },
+    async playbackPause() {
+      await controller.pause();
+      return controller.getPlaybackState();
+    },
+    async playbackResume() {
+      await controller.resume();
       return controller.getPlaybackState();
     },
     async playbackNext() {
@@ -655,6 +962,10 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     },
     async playbackPrevious() {
       await controller.previous();
+      return controller.getPlaybackState();
+    },
+    async playbackPlayQueueIndex(index) {
+      await controller.playQueueIndex(index);
       return controller.getPlaybackState();
     },
     async replacePlaybackQueue(items, index) {
@@ -670,10 +981,51 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       return controller.getPlaybackState();
     },
 
+    browseRoonAlbums: (page) => roonLibrary.browseAlbums(page),
+    browseRoonArtists: (page) => roonLibrary.browseArtists(page),
+    browseRoonGenres: (page) => roonLibrary.browseGenres(page),
+    browseRoonPlaylists: (page) => roonLibrary.browsePlaylists(page),
+    browseRoonAlbum: (reference, page) => roonLibrary.browseAlbum(reference, page),
+    browseRoonArtist: (reference, page) => roonLibrary.browseArtist(reference, page),
+    browseRoonGenre: (reference, page) => roonLibrary.browseGenre(reference, page),
+    browseRoonPlaylist: (reference, page) => roonLibrary.browsePlaylist(reference, page),
+    searchRoonLibrary: (query, page) => roonLibrary.searchLibrary(query, page),
+    getRoonImage: (reference, options) => roonLibrary.getImage(reference, options),
+    async playRoonTrack(reference, zoneId) {
+      await controller.playRoon({
+        reference,
+        zoneId,
+        track: roonLibrary.getTrackSummary(reference),
+      });
+      return { started: true as const };
+    },
+    async queueRoonTrack(reference, zoneId) {
+      await controller.appendRoon({
+        reference,
+        zoneId,
+        track: roonLibrary.getTrackSummary(reference),
+      });
+      return { queued: true as const };
+    },
+    async stopRoonTransport() {
+      await controller.stopRoonTransport();
+      return { stopped: true as const };
+    },
+
+    listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),
+    async checkFavorite(descriptor) {
+      return { favorite: await favoriteRepository.isFavorite(descriptor) };
+    },
+    async setFavorite(descriptor, favorite) {
+      const item = await favoriteRepository.setFavorite(descriptor, favorite);
+      return { favorite, ...(item !== undefined ? { item } : {}) };
+    },
+
     listZones: () => roon.listZones().map((zone) => ({
       zoneId: zone.zone_id,
       displayName: zone.display_name ?? zone.zone_id,
       selected: zone.zone_id === controller.getState().roon.selectedZoneId,
+      ...(zone.is_seek_allowed !== undefined ? { seekAllowed: zone.is_seek_allowed === true } : {}),
     })),
 
     async selectZone(zoneId: string): Promise<PublicBridgeState> {
@@ -696,6 +1048,7 @@ export interface TestBridgeRuntimeOptions {
 export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}): CoreRuntime {
   const accountMode = options.accountMode ?? 'ready'
   const syntheticAuthorized = options.authorized === true && accountMode !== 'expired'
+  const favoriteRepository = createLocalFavoriteRepository()
   const fixtureTracks: readonly TrackSummary[] = Array.from({ length: 120 }, (_, index) => ({
     id: String(1000 + index),
     title: `Synthetic Track ${index + 1}`,
@@ -704,9 +1057,17 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     durationMs: 180_000 + index * 1_000,
     artworkUrl: 'https://p1.music.126.net/synthetic-cover.jpg',
   }));
+  const fixtureArtists: readonly ArtistSummary[] = [
+    { id: '2000', name: 'Synthetic Artist', artworkUrl: 'https://p1.music.126.net/synthetic-cover.jpg', albumCount: 3, trackCount: fixtureTracks.length },
+    { id: '2001', name: 'Synthetic Guest', albumCount: 1, trackCount: 4 },
+  ];
+  const fixtureAlbums: readonly AlbumSummary[] = [
+    { id: '3000', name: 'Synthetic Album', artistId: '2000', artistName: 'Synthetic Artist', artworkUrl: 'https://p1.music.126.net/synthetic-cover.jpg', trackCount: fixtureTracks.length },
+    { id: '3001', name: 'Synthetic Sessions', artistId: '2001', artistName: 'Synthetic Guest', trackCount: 4 },
+  ];
   const fixturePlaylistId = '301';
   const fixtureZoneId = 'synthetic-zone';
-  const pageOf = (items: readonly TrackSummary[], page: PageRequest): Page<TrackSummary> => {
+  const pageOf = <T>(items: readonly T[], page: PageRequest): Page<T> => {
     const start = Math.min(page.offset, items.length);
     const end = Math.min(start + page.limit, items.length);
     return {
@@ -717,6 +1078,8 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       hasMore: end < items.length,
     };
   };
+  const syntheticSearchPage = <T>(items: readonly T[], query: string, page: PageRequest): Page<T> =>
+    query.trim() === '无结果字符串' ? pageOf([], page) : pageOf(items, page);
   let state: PublicBridgeState = {
     runtime: 'starting',
     roon: 'disconnected',
@@ -790,6 +1153,8 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       canNext: playbackState.queue.index < playbackState.queue.items.length - 1,
       canPrevious: playbackState.queue.index > 0,
       canStop: true,
+      canPause: true,
+      canResume: false,
     };
     playbackState = nextState;
   };
@@ -916,11 +1281,51 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       playbackState = emptyPlaybackState();
       return { ...authState };
     },
-    async searchTracks(_query, page) {
-      return pageOf(fixtureTracks, page);
+    async searchTracks(query, page) {
+      return syntheticSearchPage(fixtureTracks, query, page);
+    },
+    async searchArtists(query, page) {
+      return syntheticSearchPage(fixtureArtists, query, page);
+    },
+    async searchAlbums(query, page) {
+      return syntheticSearchPage(fixtureAlbums, query, page);
+    },
+    async getArtist(artistId, page) {
+      const artist = fixtureArtists.find((item) => item.id === artistId) ?? fixtureArtists[0];
+      if (!artist) throw new BridgeError('NETEASE_REQUEST_FAILED', 'Synthetic artist detail unavailable', { httpStatus: 404 });
+      return { ...artist, tracks: pageOf(fixtureTracks, page) };
+    },
+    async getAlbum(albumId, page) {
+      const album = fixtureAlbums.find((item) => item.id === albumId) ?? fixtureAlbums[0];
+      if (!album) throw new BridgeError('NETEASE_REQUEST_FAILED', 'Synthetic album detail unavailable', { httpStatus: 404 });
+      return { ...album, tracks: pageOf(fixtureTracks, page) };
+    },
+    async aggregateSearch(query, page) {
+      return {
+        query,
+        netease: pageOf(fixtureTracks, page),
+        roon: { items: [], offset: page.offset, limit: page.limit, hasMore: false },
+        roonAvailable: false,
+      };
     },
     async getLikedTracks(page) {
       return pageOf(fixtureTracks, page);
+    },
+    async getTrackLikeStatus() {
+      return { liked: false };
+    },
+    async likeTrack(_trackId, liked) {
+      return { liked };
+    },
+    async matchLibraryTrack(track) {
+      return {
+        trackId: track.id,
+        state: 'NONE' as const,
+        confidence: 0,
+        evidence: ['roon-library-unavailable'],
+        candidates: [],
+        algorithmVersion: MATCH_ALGORITHM_VERSION,
+      };
     },
     async getUserPlaylists() {
       return [{ id: fixturePlaylistId, name: 'Synthetic Playlist', trackCount: fixtureTracks.length }];
@@ -952,6 +1357,10 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       };
     },
     getPlaybackState: () => playbackState,
+    async seekPlayback(positionMs) {
+      playbackState = { ...playbackState, positionMs };
+      return { positionMs };
+    },
     async playbackPlay(trackId, qualityPreference) {
       playbackState = {
         ...playbackState,
@@ -961,8 +1370,27 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       setPlayingTrack(trackId, qualityPreference);
       return playbackState;
     },
+    async playbackPause() {
+      if (playbackState.canPause) {
+        playbackState = { ...playbackState, state: 'paused', canPause: false, canResume: true };
+      }
+      return playbackState;
+    },
+    async playbackResume() {
+      if (playbackState.canResume) {
+        playbackState = { ...playbackState, state: 'playing', canPause: true, canResume: false };
+      }
+      return playbackState;
+    },
     async playbackStop() {
-      playbackState = { ...playbackState, state: 'idle', positionMs: 0, canStop: false };
+      playbackState = {
+        ...playbackState,
+        state: 'idle',
+        positionMs: 0,
+        canStop: false,
+        canPause: false,
+        canResume: false,
+      };
       return playbackState;
     },
     async playbackNext() {
@@ -997,6 +1425,24 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
         };
         if (item) setPlayingTrack(item.trackId, item.qualityPreference);
       }
+      return playbackState;
+    },
+    async playbackPlayQueueIndex(index) {
+      if (!Number.isSafeInteger(index) || index < 0 || index >= playbackState.queue.items.length) {
+        throw new BridgeError('BAD_REQUEST', 'Playback queue index is invalid', { httpStatus: 400 });
+      }
+      const item = playbackState.queue.items[index];
+      playbackState = {
+        ...playbackState,
+        state: 'playing',
+        queue: {
+          ...playbackState.queue,
+          index,
+          hasNext: index < playbackState.queue.items.length - 1,
+          hasPrevious: index > 0,
+        },
+      };
+      if (item) setPlayingTrack(item.trackId, item.qualityPreference);
       return playbackState;
     },
     async replacePlaybackQueue(items, index) {
@@ -1054,6 +1500,69 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
         canPrevious: playbackState.queue.index > 0,
       };
       return playbackState;
+    },
+    async browseRoonAlbums(page) {
+      return { items: [], offset: page.offset, limit: page.limit };
+    },
+    async browseRoonArtists(page) {
+      return { items: [], offset: page.offset, limit: page.limit };
+    },
+    async browseRoonGenres(page) {
+      return { items: [], offset: page.offset, limit: page.limit };
+    },
+    async browseRoonPlaylists(page) {
+      return { items: [], offset: page.offset, limit: page.limit };
+    },
+    async browseRoonAlbum() {
+      throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
+        httpStatus: 503,
+      });
+    },
+    async browseRoonArtist() {
+      throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
+        httpStatus: 503,
+      });
+    },
+    async browseRoonGenre() {
+      throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
+        httpStatus: 503,
+      });
+    },
+    async browseRoonPlaylist() {
+      throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
+        httpStatus: 503,
+      });
+    },
+    async searchRoonLibrary() {
+      throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
+        httpStatus: 503,
+      });
+    },
+    async getRoonImage() {
+      throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
+        httpStatus: 503,
+      });
+    },
+    async playRoonTrack() {
+      throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
+        httpStatus: 503,
+      });
+    },
+    async queueRoonTrack() {
+      throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
+        httpStatus: 503,
+      });
+    },
+    async stopRoonTransport() {
+      return { stopped: true as const };
+    },
+    listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),
+    async checkFavorite(descriptor) {
+      return { favorite: await favoriteRepository.isFavorite(descriptor) };
+    },
+    async setFavorite(descriptor, favorite) {
+      const item = await favoriteRepository.setFavorite(descriptor, favorite);
+      return { favorite, ...(item !== undefined ? { item } : {}) };
     },
     listZones: () => ({
       zones: [{ zoneId: fixtureZoneId, displayName: 'Synthetic Zone', selected: selectedZoneId === fixtureZoneId }],

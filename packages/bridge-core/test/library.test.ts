@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { NeteaseClient } from '../src/netease/client.js';
+import { BridgeError } from '../src/shared/errors.js';
 
 function track(id: number, title: string) {
   return {
@@ -28,6 +29,8 @@ interface LibraryApiOverrides {
   logout?: ApiFunction;
   search?: ApiFunction;
   likelist?: ApiFunction;
+  song_like?: ApiFunction;
+  song_like_check?: ApiFunction;
   user_account?: ApiFunction;
   recommend_songs?: ApiFunction;
   user_playlist?: ApiFunction;
@@ -49,7 +52,7 @@ function baseApi(overrides: LibraryApiOverrides = {}) {
   };
 }
 
-test('NeteaseClient returns a sanitized paged search result', async () => {
+test('NeteaseClient returns a sanitized public paged search result without forwarding the account credential', async () => {
   const calls: Array<{ method: string; params: Record<string, unknown> }> = [];
   const client = new NeteaseClient('synthetic-credential', baseApi({
     async search(params) {
@@ -87,22 +90,97 @@ test('NeteaseClient returns a sanitized paged search result', async () => {
         type: 1,
         offset: 10,
         limit: 1,
-        cookie: 'synthetic-credential',
       },
     },
   ]);
 });
 
-test('NeteaseClient paginates liked track ids without loading all track metadata', async () => {
+test('NeteaseClient reuses hydrated search metadata without repeating song_detail', async () => {
+  let songDetailCalls = 0;
+  const client = new NeteaseClient('synthetic-credential', baseApi({
+    async search() {
+      return {
+        body: {
+          code: 200,
+          result: { songCount: 1, songs: [track(101, 'Hydrated Search Result')] },
+        },
+      };
+    },
+    async song_detail() {
+      songDetailCalls += 1;
+      return { body: { code: 200, songs: [track(101, 'Repeated Detail')] } };
+    },
+  }));
+
+  await client.searchTracks('hydrated', { offset: 0, limit: 20 });
+  assert.deepEqual(await client.getTrack('101'), {
+    id: '101',
+    title: 'Hydrated Search Result',
+    artists: ['Synthetic Artist'],
+    album: 'Synthetic Album',
+    durationMs: 180_000,
+    artworkUrl: 'https://p1.music.126.net/synthetic-cover.jpg',
+  });
+  assert.equal(songDetailCalls, 0);
+});
+
+test('NeteaseClient metadata cache is bounded and expires hydrated search results', async () => {
+  let now = 1_000;
+  const detailCalls: string[] = [];
+  let searchTrack = track(101, 'First Search Result');
+  const client = new NeteaseClient(
+    'synthetic-credential',
+    baseApi({
+      async search() {
+        return {
+          body: {
+            code: 200,
+            result: { songCount: 1, songs: [searchTrack] },
+          },
+        };
+      },
+      async song_detail(params) {
+        const id = Number(params.ids);
+        detailCalls.push(String(id));
+        return { body: { code: 200, songs: [track(id, `Detail ${id}`)] } };
+      },
+    }),
+    undefined,
+    { metadataCacheMaxEntries: 1, metadataCacheTtlMs: 100, now: () => now },
+  );
+
+  await client.searchTracks('first', { offset: 0, limit: 1 });
+  searchTrack = track(102, 'Second Search Result');
+  await client.searchTracks('second', { offset: 0, limit: 1 });
+  assert.equal((await client.getTrack('102')).title, 'Second Search Result');
+  assert.deepEqual(detailCalls, []);
+  await client.getTrack('101');
+  assert.deepEqual(detailCalls, ['101']);
+
+  now += 101;
+  await client.getTrack('102');
+  assert.deepEqual(detailCalls, ['101', '102']);
+});
+
+test('NeteaseClient paginates the native liked playlist without loading all track metadata', async () => {
   const calls: string[] = [];
   const client = new NeteaseClient('synthetic-credential', baseApi({
     async user_account() {
       calls.push('account');
       return { body: { code: 200, account: { id: 42 } } };
     },
-    async likelist(params) {
-      calls.push(`likelist:${String(params.uid)}`);
-      return { body: { code: 200, ids: [201, 202, 203] } };
+    async user_playlist() {
+      calls.push('user_playlist');
+      return { body: { code: 200, playlist: [{ id: 9001, specialType: 10, trackCount: 3 }] } };
+    },
+    async playlist_detail() {
+      calls.push('playlist_detail:9001');
+      return {
+        body: {
+          code: 200,
+          playlist: { id: 9001, specialType: 10, trackCount: 3, trackIds: [201, 202, 203] },
+        },
+      };
     },
     async song_detail(params) {
       calls.push(`song_detail:${String(params.ids)}`);
@@ -126,7 +204,155 @@ test('NeteaseClient paginates liked track ids without loading all track metadata
     total: 3,
     hasMore: true,
   });
-  assert.deepEqual(calls, ['account', 'likelist:42', 'song_detail:202']);
+  assert.deepEqual(calls, ['account', 'user_playlist', 'playlist_detail:9001', 'song_detail:202']);
+});
+
+test('NeteaseClient uses the native liked playlist order and reorders song details by trackIds', async () => {
+  const calls: string[] = [];
+  const client = new NeteaseClient('synthetic-credential', baseApi({
+    async user_account() {
+      calls.push('account');
+      return { body: { code: 200, account: { id: 42 } } };
+    },
+    async user_playlist() {
+      calls.push('user_playlist');
+      return {
+        body: {
+          code: 200,
+          playlist: [
+            { id: 9001, name: '系统喜欢歌单', specialType: 10, trackCount: 3 },
+            { id: 9002, name: '普通收藏', specialType: 0, trackCount: 3 },
+          ],
+        },
+      };
+    },
+    async playlist_detail(params) {
+      calls.push(`playlist_detail:${String(params.id)}`);
+      return {
+        body: {
+          code: 200,
+          playlist: {
+            id: 9001,
+            name: '系统喜欢歌单',
+            specialType: 10,
+            trackCount: 3,
+            trackIds: [{ id: 303 }, { id: 301 }, { id: 302 }],
+          },
+        },
+      };
+    },
+    async song_detail(params) {
+      calls.push(`song_detail:${String(params.ids)}`);
+      return { body: { code: 200, songs: [track(301, 'One'), track(302, 'Two'), track(303, 'Three')] } };
+    },
+  }));
+
+  const result = await client.getLikedTracks({ offset: 0, limit: 3 });
+  assert.deepEqual(result.items.map((item) => item.id), ['303', '301', '302']);
+  assert.deepEqual(calls, ['account', 'user_playlist', 'playlist_detail:9001', 'song_detail:303,301,302']);
+});
+
+test('NeteaseClient loads liked track ids from the native likelist endpoint', async () => {
+  const calls: string[] = [];
+  const client = new NeteaseClient('synthetic-credential', baseApi({
+    async user_account() {
+      calls.push('account');
+      return { body: { code: 200, account: { id: 42 } } };
+    },
+    async likelist(params) {
+      calls.push(`likelist:${String(params.uid)}`);
+      return { body: { code: 200, ids: [303, 301, 302] } };
+    },
+    async song_detail(params) {
+      calls.push(`song_detail:${String(params.ids)}`);
+      return { body: { code: 200, songs: [track(301, 'One'), track(302, 'Two'), track(303, 'Three')] } };
+    },
+  }));
+
+  const result = await client.getLikedTracks({ offset: 0, limit: 3 });
+  assert.deepEqual(result.items.map((item) => item.id), ['303', '301', '302']);
+  assert.deepEqual(calls, ['account', 'likelist:42', 'song_detail:303,301,302']);
+});
+
+test('NeteaseClient exposes explicit NetEase like and like-status operations', async () => {
+  const calls: Array<{ method: string; params: Record<string, unknown> }> = [];
+  const client = new NeteaseClient('synthetic-credential', baseApi({
+    async user_account(params) {
+      calls.push({ method: 'user_account', params });
+      return { body: { code: 200, account: { id: 42 } } };
+    },
+    async likelist(params) {
+      calls.push({ method: 'likelist', params });
+      return { body: { code: 200, ids: [101] } };
+    },
+    async song_like(params) {
+      calls.push({ method: 'song_like', params });
+      return { body: { code: 200 } };
+    },
+  }));
+
+  assert.deepEqual(await client.isTrackLiked('101'), { liked: true });
+  assert.deepEqual(await client.likeTrack('101', false), { liked: false });
+  assert.deepEqual(calls, [
+    { method: 'user_account', params: { cookie: 'synthetic-credential' } },
+    { method: 'likelist', params: { uid: '42', cookie: 'synthetic-credential' } },
+    { method: 'song_like', params: { id: '101', like: false, cookie: 'synthetic-credential' } },
+  ]);
+});
+
+test('NeteaseClient reads real like status from the account likelist instead of the unstable single-track check endpoint', async () => {
+  const calls: string[] = [];
+  const client = new NeteaseClient('synthetic-credential', baseApi({
+    async user_account() {
+      calls.push('user_account');
+      return { body: { code: 200, account: { id: 42 } } };
+    },
+    async likelist(params) {
+      calls.push(`likelist:${String(params.uid)}`);
+      return { body: { code: 200, ids: [101, 303] } };
+    },
+    async song_like_check() {
+      calls.push('unstable_song_like_check');
+      throw new Error('real endpoint unavailable');
+    },
+  }));
+
+  assert.deepEqual(await client.isTrackLiked('101'), { liked: true });
+  assert.deepEqual(await client.isTrackLiked('202'), { liked: false });
+  assert.deepEqual(calls, ['user_account', 'likelist:42']);
+});
+
+test('NeteaseClient rejects a like-status lookup without an explicit liked-track list', async () => {
+  const client = new NeteaseClient('synthetic-credential', baseApi({
+    async user_account() {
+      return { body: { code: 200, account: { id: 42 } } };
+    },
+    async likelist() {
+      return { body: { code: 200, data: {} } };
+    },
+  }));
+
+  await assert.rejects(
+    () => client.isTrackLiked('101'),
+    (error: unknown) => (
+      error instanceof BridgeError &&
+      error.code === 'NETEASE_REQUEST_FAILED' &&
+      !error.message.includes('data')
+    ),
+  );
+});
+
+test('NeteaseClient rejects a like mutation response without an explicit success code', async () => {
+  const client = new NeteaseClient('synthetic-credential', baseApi({
+    async song_like() {
+      return { body: {} };
+    },
+  }));
+
+  await assert.rejects(
+    () => client.likeTrack('101', true),
+    (error: unknown) => error instanceof BridgeError && error.code === 'NETEASE_REQUEST_FAILED',
+  );
 });
 
 test('NeteaseClient exposes account profile and daily recommendations through the pinned capabilities', async () => {

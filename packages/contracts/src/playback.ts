@@ -17,23 +17,38 @@ export const PLAYBACK_QUALITY_PREFERENCES = [
 export type PlaybackQualityPreference = (typeof PLAYBACK_QUALITY_PREFERENCES)[number]
 export type PlaybackActualQuality = PlaybackQuality | 'unknown'
 
+/** Queue is filled in bounded pages; this is a safety ceiling, not a collection-page cap. */
+export const MAX_PLAYBACK_QUEUE_ITEMS = 5_000
+
+export const PLAYBACK_SOURCE_PREFERENCES = ['smart', 'netease', 'roon'] as const
+export type PlaybackSourcePreference = (typeof PLAYBACK_SOURCE_PREFERENCES)[number]
+export type PlaybackResolvedSource = Exclude<PlaybackSourcePreference, 'smart'>
+
 export type PlaybackState =
   | 'idle'
   | 'resolving'
   | 'preparing'
   | 'playing'
+  | 'pausing'
+  | 'paused'
+  | 'resuming'
   | 'stopping'
   | 'error'
 
 export interface PlaybackQueueRequestItem {
   trackId: string
   qualityPreference: PlaybackQualityPreference
+  /** 入队时的来源偏好；省略时保持现有网易云队列语义。 */
+  preferredSource?: PlaybackSourcePreference
 }
 
 export interface PlaybackQueueEntry {
   trackId: string
   qualityPreference: PlaybackQualityPreference
   track?: TrackSummary
+  preferredSource?: PlaybackSourcePreference
+  /** 曲目真正开始后锁定的来源；后台匹配不能改变当前项。 */
+  resolvedSource?: PlaybackResolvedSource
   requestedQuality?: PlaybackQuality
   actualQuality?: PlaybackActualQuality
 }
@@ -86,6 +101,7 @@ export interface PlaybackSnapshot {
   state: PlaybackState
   queue: PlaybackQueueSnapshot
   currentTrack?: TrackSummary
+  source?: PlaybackResolvedSource
   qualityPreference?: PlaybackQualityPreference
   requestedQuality?: PlaybackQuality
   actualQuality?: PlaybackActualQuality
@@ -99,4 +115,6 @@ export interface PlaybackSnapshot {
   canNext: boolean
   canPrevious: boolean
   canStop: boolean
+  canPause: boolean
+  canResume: boolean
 }

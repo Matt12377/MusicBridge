@@ -1,7 +1,11 @@
 import type {
+  AlbumDetail,
   Page,
   PageRequest,
   DailyRecommendationsSnapshot,
+  ArtistDetail,
+  ArtistSummary,
+  AlbumSummary,
   PlaylistDetail,
   PlaylistSummary,
   TrackSummary,
@@ -32,7 +36,11 @@ export interface TrackMetadata {
 }
 
 export type {
+  AlbumSummary,
+  AlbumDetail,
   DailyRecommendationsSnapshot,
+  ArtistSummary,
+  ArtistDetail,
   Page,
   PageRequest,
   PlaylistDetail,
@@ -62,7 +70,13 @@ export interface NeteasePort {
     quality: QualityLevel,
   ): Promise<ResolvedAudioStream>;
   searchTracks(query: string, page: PageRequest): Promise<Page<TrackSummary>>;
+  searchArtists(query: string, page: PageRequest): Promise<Page<ArtistSummary>>;
+  searchAlbums(query: string, page: PageRequest): Promise<Page<AlbumSummary>>;
+  getArtist(artistId: string, page: PageRequest): Promise<import('@music-bridge/contracts').ArtistDetail>;
+  getAlbum(albumId: string, page: PageRequest): Promise<import('@music-bridge/contracts').AlbumDetail>;
   getLikedTracks(page: PageRequest): Promise<Page<TrackSummary>>;
+  isTrackLiked(trackId: string): Promise<{ liked: boolean }>;
+  likeTrack(trackId: string, liked: boolean): Promise<{ liked: boolean }>;
   getUserPlaylists(): Promise<readonly PlaylistSummary[]>;
   getPlaylist(playlistId: string, page: PageRequest): Promise<PlaylistDetail>;
   getPublicAccountProfile(): Promise<PublicAccountProfile>;

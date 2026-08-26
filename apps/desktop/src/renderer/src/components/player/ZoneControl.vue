@@ -3,11 +3,13 @@ import type { PublicRoonZone } from '@music-bridge/contracts'
 import { useZoneSelection } from '../../composables/useZoneSelection.js'
 import SidebarIcon from '../sidebar/SidebarIcon.vue'
 import ZonePopover from '../sidebar/ZonePopover.vue'
+import { zoneLifecycleLabel, type ZoneLifecycleStatus } from '../../zone-lifecycle.js'
 
 const props = defineProps<{
   zones: readonly PublicRoonZone[]
   selectedZone?: PublicRoonZone
   roonStatus: string
+  zoneStatus: ZoneLifecycleStatus
 }>()
 
 const emit = defineEmits<{
@@ -28,9 +30,9 @@ const { root, open, toggle, close, selectZone } = useZoneSelection((zoneId) => e
       @click="toggle"
     >
       <SidebarIcon name="speaker" :size="15" />
-      <span><strong>{{ selectedZone?.displayName ?? '选择播放设备' }}</strong><small>{{ roonStatus === 'disconnected' ? 'Roon 未连接' : '播放设备' }}</small></span>
+      <span><strong>{{ selectedZone?.displayName ?? '选择播放设备' }}</strong><small>{{ zoneLifecycleLabel(zoneStatus) }}</small></span>
       <SidebarIcon name="chevron-down" :size="13" />
     </button>
-    <ZonePopover v-if="open" :zones="props.zones" :selected-zone="props.selectedZone" :roon-status="props.roonStatus" @select="selectZone" @close="close" />
+    <ZonePopover v-if="open" :zones="props.zones" :selected-zone="props.selectedZone" :roon-status="props.roonStatus" :zone-status="props.zoneStatus" @select="selectZone" @close="close" />
   </div>
 </template>

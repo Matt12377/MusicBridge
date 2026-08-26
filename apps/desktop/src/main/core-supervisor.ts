@@ -145,7 +145,10 @@ export class CoreSupervisor {
     if (!validated.ok) {
       throw new CoreIpcError(validated.error.code, validated.error.message)
     }
-    const timeoutMs = command.startsWith('library.')
+    const timeoutMs =
+      command.startsWith('library.') ||
+      command.startsWith('roon.library.') ||
+      command.startsWith('roon.transport.')
       ? LIBRARY_REQUEST_TIMEOUT_MS
       : command.startsWith('playback.')
         ? PLAYBACK_REQUEST_TIMEOUT_MS

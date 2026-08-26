@@ -36,6 +36,8 @@ const playback: PlaybackSnapshot = {
   canNext: false,
   canPrevious: false,
   canStop: true,
+  canPause: true,
+  canResume: false,
 }
 
 test('托盘展示只包含允许的公共摘要和状态', () => {

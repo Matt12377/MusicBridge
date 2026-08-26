@@ -54,6 +54,42 @@ test('Core environment exposes only the bounded Roon Time gate path when explici
   })
 })
 
+test('Core environment exposes only the bounded Roon Browse gate path when explicitly enabled', () => {
+  const gatePath = '/tmp/musicbridge-roon-browse-gate-test.jsonl'
+  const environment = buildCoreEnvironment({
+    MUSIC_BRIDGE_ROON_BROWSE_GATE: '1',
+    MUSIC_BRIDGE_ROON_BROWSE_GATE_PATH: gatePath,
+  }, {
+    startupTest: false,
+    uiE2e: false,
+    coreCrashGate: false,
+    roonBrowseGate: true,
+  })
+
+  assert.deepEqual(environment, {
+    MUSIC_BRIDGE_ROON_BROWSE_GATE: '1',
+    MUSIC_BRIDGE_ROON_BROWSE_GATE_PATH: gatePath,
+  })
+})
+
+test('Core environment exposes only the bounded Roon Image gate path when explicitly enabled', () => {
+  const gatePath = '/tmp/musicbridge-roon-image-gate-test.jsonl'
+  const environment = buildCoreEnvironment({
+    MUSIC_BRIDGE_ROON_IMAGE_GATE: '1',
+    MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH: gatePath,
+  }, {
+    startupTest: false,
+    uiE2e: false,
+    coreCrashGate: false,
+    roonImageGate: true,
+  })
+
+  assert.deepEqual(environment, {
+    MUSIC_BRIDGE_ROON_IMAGE_GATE: '1',
+    MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH: gatePath,
+  })
+})
+
 test('Core environment exposes only bounded synthetic account modes to UI E2E', () => {
   const environment = buildCoreEnvironment({
     MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE: 'profile-unavailable',
@@ -98,6 +134,8 @@ test('remote Core mode is injected only through explicit bounded Main options', 
     BRIDGE_PUBLIC_STREAM_BASE_URL: 'http://127.0.0.1:38519',
     MUSIC_BRIDGE_REMOTE_CORE_MODE: 'remote-core-development',
     MUSIC_BRIDGE_REMOTE_STREAM_PORT: '38519',
+    ROON_CORE_HOST: '127.0.0.1',
+    ROON_CORE_PORT: '19330',
   })
 })
 
@@ -108,5 +146,33 @@ test('remote Core mode rejects a port outside the bounded reverse-forward range'
     coreCrashGate: false,
     remoteCoreMode: 'remote-core-development',
     remoteStreamPort: 38520,
+  }))
+})
+
+test('remote Core mode can use the explicitly selected secondary loopback port pair', () => {
+  const environment = buildCoreEnvironment({
+    MUSIC_BRIDGE_REMOTE_LOCAL_PORT_PROFILE: 'secondary',
+  }, {
+    startupTest: false,
+    uiE2e: false,
+    coreCrashGate: false,
+    remoteCoreMode: 'remote-core-development',
+    remoteStreamPort: 38519,
+  })
+
+  assert.equal(environment.BRIDGE_CONTROL_PORT, '38601')
+  assert.equal(environment.BRIDGE_STREAM_PORT, '38602')
+  assert.equal(environment.BRIDGE_PUBLIC_STREAM_BASE_URL, 'http://127.0.0.1:38519')
+})
+
+test('remote Core mode rejects an unknown local port profile', () => {
+  assert.throws(() => buildCoreEnvironment({
+    MUSIC_BRIDGE_REMOTE_LOCAL_PORT_PROFILE: 'unbounded',
+  }, {
+    startupTest: false,
+    uiE2e: false,
+    coreCrashGate: false,
+    remoteCoreMode: 'remote-core-development',
+    remoteStreamPort: 38519,
   }))
 })

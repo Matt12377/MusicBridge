@@ -18,6 +18,40 @@ export interface TrackSummary {
   album: string
   durationMs?: number
   artworkUrl?: string
+  /** 当前 Roon Core 运行期内可解析的本地图片引用；重连后必须重新获取。 */
+  artworkReference?: string
+}
+
+export interface ArtistSummary {
+  id: string
+  name: string
+  artworkUrl?: string
+  albumCount?: number
+  trackCount?: number
+}
+
+export interface AlbumSummary {
+  id: string
+  name: string
+  artistId?: string
+  artistName: string
+  artworkUrl?: string
+  trackCount?: number
+}
+
+export interface ArtistDetail extends ArtistSummary {
+  tracks: Page<TrackSummary>
+}
+
+export interface AlbumDetail extends AlbumSummary {
+  tracks: Page<TrackSummary>
+}
+
+export interface SearchSnapshot {
+  query: string
+  artists: Page<ArtistSummary>
+  tracks: Page<TrackSummary>
+  albums: Page<AlbumSummary>
 }
 
 export interface DailyRecommendationTrack extends TrackSummary {

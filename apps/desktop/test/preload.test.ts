@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
 import test from 'node:test'
 
 import type {
@@ -14,6 +16,27 @@ import type {
   TrackSummary,
 } from '@music-bridge/contracts'
 import { createPreloadApi, PUBLIC_API_KEYS } from '../src/preload/api.js'
+import { summarizePreloadRoonImage } from '../src/preload/image-diagnostic.js'
+
+test('Preload 图片诊断保持 sandbox 本地实现，不引入 contracts 运行期依赖', async () => {
+  const source = await readFile(path.resolve('src/preload/index.ts'), 'utf8')
+  assert.match(source, /import type \{[\s\S]*?\} from '@music-bridge\/contracts'/u)
+  assert.doesNotMatch(source, /summarizeRoonImageBinary/u)
+  assert.deepEqual(summarizePreloadRoonImage({
+    contentType: 'image/jpeg',
+    body: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]),
+  }), {
+    layer: 'preload',
+    contentType: 'image/jpeg',
+    byteLength: 8,
+    magic8: 'ffd8ffe000104a46',
+    bodyType: 'Uint8Array',
+    isBuffer: false,
+    isUint8Array: true,
+    isArrayBuffer: false,
+    valid: true,
+  })
+})
 
 test('Preload exposes only sanitized business methods', async () => {
   const appInfo = {
@@ -58,6 +81,8 @@ test('Preload exposes only sanitized business methods', async () => {
     canNext: false,
     canPrevious: false,
     canStop: false,
+    canPause: false,
+    canResume: false,
   }
   const lyrics: LyricsSnapshot = {
     status: 'unavailable',
@@ -94,6 +119,8 @@ test('Preload exposes only sanitized business methods', async () => {
     async () => playbackState,
     async () => playbackState,
     async () => playbackState,
+    async () => playbackState,
+    async () => playbackState,
     () => () => undefined,
     () => () => undefined,
   )
@@ -110,20 +137,48 @@ test('Preload exposes only sanitized business methods', async () => {
     'cancelQrLogin',
     'logout',
     'getAccountState',
-    'refreshAccountProfile',
-    'searchTracks',
+  'refreshAccountProfile',
+  'searchTracks',
+  'searchArtists',
+  'searchAlbums',
+  'getArtist',
+  'getAlbum',
     'getLikedTracks',
+    'getTrackLikeStatus',
+    'setTrackLiked',
+    'matchLibraryTrack',
+    'aggregateSearch',
+    'seek',
     'getUserPlaylists',
     'getPlaylist',
     'getDailyRecommendations',
+    'listFavorites',
+    'checkFavorite',
+    'setFavorite',
     'listZones',
     'selectZone',
+    'listRoonAlbums',
+    'listRoonArtists',
+    'listRoonGenres',
+    'listRoonPlaylists',
+    'getRoonAlbumTracks',
+    'getRoonArtistAlbums',
+    'getRoonGenreItems',
+    'getRoonPlaylistTracks',
+    'searchRoonLibrary',
+    'getRoonImage',
+    'playRoonTrack',
+    'queueRoonTrack',
+    'stopRoonTransport',
     'getLyrics',
     'getPlaybackState',
     'play',
+    'pause',
+    'resume',
     'stop',
     'next',
     'previous',
+    'playQueueIndex',
     'replaceQueue',
     'appendQueue',
     'insertNext',
@@ -147,20 +202,48 @@ test('Preload exposes only sanitized business methods', async () => {
     'cancelQrLogin',
     'logout',
     'getAccountState',
-    'refreshAccountProfile',
-    'searchTracks',
+  'refreshAccountProfile',
+  'searchTracks',
+  'searchArtists',
+  'searchAlbums',
+  'getArtist',
+  'getAlbum',
     'getLikedTracks',
+    'getTrackLikeStatus',
+    'setTrackLiked',
+    'matchLibraryTrack',
+    'aggregateSearch',
+    'seek',
     'getUserPlaylists',
     'getPlaylist',
     'getDailyRecommendations',
+    'listFavorites',
+    'checkFavorite',
+    'setFavorite',
     'listZones',
     'selectZone',
+    'listRoonAlbums',
+    'listRoonArtists',
+    'listRoonGenres',
+    'listRoonPlaylists',
+    'getRoonAlbumTracks',
+    'getRoonArtistAlbums',
+    'getRoonGenreItems',
+    'getRoonPlaylistTracks',
+    'searchRoonLibrary',
+    'getRoonImage',
+    'playRoonTrack',
+    'queueRoonTrack',
+    'stopRoonTransport',
     'getLyrics',
     'getPlaybackState',
     'play',
+    'pause',
+    'resume',
     'stop',
     'next',
     'previous',
+    'playQueueIndex',
     'replaceQueue',
     'appendQueue',
     'insertNext',
@@ -187,6 +270,18 @@ test('Preload exposes only sanitized business methods', async () => {
   assert.deepEqual(await api.refreshAccountProfile(), accountState)
   assert.deepEqual(await api.searchTracks('synthetic', { offset: 0, limit: 20 }), page)
   assert.deepEqual(await api.getLikedTracks({ offset: 0, limit: 20 }), page)
+  await assert.rejects(
+    () => api.matchLibraryTrack({ id: '301', title: 'Synthetic Song', artists: ['Synthetic Artist'], album: 'Synthetic Album' }),
+    /Roon matching API is unavailable/,
+  )
+  await assert.rejects(
+    () => api.aggregateSearch('synthetic', { offset: 0, limit: 20 }),
+    /Aggregated search API is unavailable/,
+  )
+  await assert.rejects(
+    () => api.seek(12_345),
+    /Roon Transport seek API is unavailable/,
+  )
   assert.deepEqual(await api.getUserPlaylists(), playlists)
   assert.deepEqual(await api.getPlaylist('301', { offset: 0, limit: 20 }), playlist)
   assert.deepEqual(await api.getDailyRecommendations(), dailyRecommendations)
@@ -195,9 +290,15 @@ test('Preload exposes only sanitized business methods', async () => {
   assert.deepEqual(await api.getLyrics('301'), lyrics)
   assert.deepEqual(await api.getPlaybackState(), playbackState)
   assert.deepEqual(await api.play('301', 'lossless'), playbackState)
+  assert.deepEqual(await api.pause(), playbackState)
+  assert.deepEqual(await api.resume(), playbackState)
   assert.deepEqual(await api.stop(), playbackState)
   assert.deepEqual(await api.next(), playbackState)
   assert.deepEqual(await api.previous(), playbackState)
+  await assert.rejects(
+    () => api.playQueueIndex(0),
+    /Queue index API is unavailable/,
+  )
   assert.deepEqual(
     await api.replaceQueue([{ trackId: '301', qualityPreference: 'lossless' }], 0),
     playbackState,

@@ -7,7 +7,13 @@ import type {
   QualityLevel,
   ResolvedAudioStream,
 } from '../src/netease/types.js';
-import type { RoonPlayRequest, RoonPort, RoonState } from '../src/roon/types.js';
+import type {
+  RoonPlayRequest,
+  RoonPlaybackObservation,
+  RoonPort,
+  RoonState,
+  RoonTimeEvent,
+} from '../src/roon/types.js';
 import { createLogger } from '../src/shared/logger.js';
 import { StreamGateway } from '../src/stream/gateway.js';
 import { StreamRegistry } from '../src/stream/registry.js';
@@ -18,13 +24,39 @@ class FakeNetease implements NeteasePort {
   actualQuality = 'lossless';
   authExpired = false;
   readonly unavailableTrackIds = new Set<string>();
+  metadataStarted = false;
+  metadataGate: Promise<void> | undefined;
 
   async searchTracks() {
     return { items: [], offset: 0, limit: 10, total: 0, hasMore: false };
   }
 
+  async searchArtists() {
+    return { items: [], offset: 0, limit: 10, total: 0, hasMore: false };
+  }
+
+  async searchAlbums() {
+    return { items: [], offset: 0, limit: 10, total: 0, hasMore: false };
+  }
+
+  async getArtist() {
+    return { id: '7', name: 'Artist', tracks: { items: [], offset: 0, limit: 10, total: 0, hasMore: false } };
+  }
+
+  async getAlbum() {
+    return { id: '9', name: 'Album', artistName: 'Artist', tracks: { items: [], offset: 0, limit: 10, total: 0, hasMore: false } };
+  }
+
   async getLikedTracks() {
     return { items: [], offset: 0, limit: 10, total: 0, hasMore: false };
+  }
+
+  async isTrackLiked() {
+    return { liked: false };
+  }
+
+  async likeTrack(_trackId: string, liked: boolean) {
+    return { liked };
   }
 
   async getUserPlaylists() {
@@ -49,6 +81,8 @@ class FakeNetease implements NeteasePort {
   }
 
   async getTrack(trackId: string) {
+    this.metadataStarted = true;
+    await this.metadataGate;
     if (this.authExpired) {
       throw new BridgeError('AUTH_EXPIRED', 'Synthetic expired session', { httpStatus: 401 });
     }
@@ -92,12 +126,22 @@ class FakeRoon implements RoonPort {
   playRequest: RoonPlayRequest | undefined;
   readonly playRequests: RoonPlayRequest[] = [];
   stopCalls = 0;
+  pauseCalls = 0;
+  resumeCalls = 0;
   activePlayCalls = 0;
   maxConcurrentPlayCalls = 0;
   playDelayMs = 0;
   shouldFail = false;
   shouldFailOnStop = false;
   terminalDuringPlay = false;
+  autoConfirmPause = true;
+  autoConfirmResume = true;
+  failPause = false;
+  failResume = false;
+  activePlaybackEpoch = 17;
+  zoneRevision = 1;
+  private confirmPauseRequest: (() => void) | undefined;
+  private confirmResumeRequest: (() => void) | undefined;
   terminalHandler: (reason: 'ended' | 'stopped' | 'media_error' | 'zone_lost') => void = () => undefined;
   state: RoonState = {
     status: 'ready',
@@ -126,25 +170,149 @@ class FakeRoon implements RoonPort {
       this.maxConcurrentPlayCalls,
       this.activePlayCalls,
     );
+    request.onStartupStage?.('roon-session-began');
     if (this.playDelayMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, this.playDelayMs));
     }
     this.activePlayCalls -= 1;
     if (this.shouldFail) throw new Error('Roon failed');
-    this.state = { ...this.state, status: 'playing' };
+    this.state = {
+      ...this.state,
+      status: 'playing',
+      transportState: 'playing',
+      canPause: true,
+      canResume: false,
+    };
+    request.onStartupStage?.('roon-playing');
     if (this.terminalDuringPlay) this.terminalHandler('media_error');
   }
 
   async stop(): Promise<void> {
     this.stopCalls += 1;
     if (this.shouldFailOnStop) throw new Error('Roon stop failed');
-    this.state = { ...this.state, status: 'ready' };
+    this.state = { ...this.state, status: 'ready', transportState: 'stopped' };
+  }
+
+  async pause(): Promise<void> {
+    this.pauseCalls += 1;
+    if (this.failPause) {
+      throw new BridgeError('ROON_TIMEOUT', 'Synthetic pause confirmation timed out', {
+        httpStatus: 504,
+      });
+    }
+    if (!this.autoConfirmPause) {
+      await new Promise<void>((resolve) => {
+        this.confirmPauseRequest = resolve;
+      });
+    }
+    this.state = {
+      ...this.state,
+      status: 'paused',
+      transportState: 'paused',
+      canPause: false,
+      canResume: true,
+    };
+  }
+
+  async resume(): Promise<void> {
+    this.resumeCalls += 1;
+    if (this.failResume) {
+      throw new BridgeError('ROON_TIMEOUT', 'Synthetic resume confirmation timed out', {
+        httpStatus: 504,
+      });
+    }
+    if (!this.autoConfirmResume) {
+      await new Promise<void>((resolve) => {
+        this.confirmResumeRequest = resolve;
+      });
+    }
+    this.state = {
+      ...this.state,
+      status: 'playing',
+      transportState: 'playing',
+      canPause: true,
+      canResume: false,
+    };
+  }
+
+  confirmPause(): void {
+    this.confirmPauseRequest?.();
+    this.confirmPauseRequest = undefined;
+  }
+
+  confirmResume(): void {
+    this.confirmResumeRequest?.();
+    this.confirmResumeRequest = undefined;
   }
 
   async shutdown(): Promise<void> {}
 
   getState(): RoonState {
     return { ...this.state };
+  }
+
+  getActivePlaybackEpoch(): number {
+    return this.activePlaybackEpoch;
+  }
+
+  getSelectedZonePlaybackObservation(): RoonPlaybackObservation | undefined {
+    if (!this.state.selectedZoneId) return undefined;
+    return {
+      revision: this.zoneRevision,
+      zoneId: this.state.selectedZoneId,
+      ...(this.state.transportState ? { state: this.state.transportState } : {}),
+    };
+  }
+}
+
+class FakeNativeRoonLibrary {
+  readonly playCalls: Array<{ reference: string; zoneId: string }> = [];
+  readonly seekCalls: number[] = [];
+  stopCalls = 0;
+  pauseCalls = 0;
+  resumeCalls = 0;
+  active = false;
+  shouldFail = false;
+  autoConfirmSeek = true;
+  playObservation: RoonPlaybackObservation = {
+    revision: 1,
+    zoneId: 'zone-1',
+    state: 'playing',
+  };
+  private confirmSeekRequest: (() => void) | undefined;
+
+  async play(reference: string, zoneId: string, _track?: unknown): Promise<RoonPlaybackObservation> {
+    this.playCalls.push({ reference, zoneId });
+    if (this.shouldFail) throw new Error('Synthetic native Roon failure');
+    this.active = true;
+    return { ...this.playObservation, zoneId };
+  }
+
+  async stop(): Promise<void> {
+    this.stopCalls += 1;
+    this.active = false;
+  }
+
+  async pause(): Promise<void> {
+    this.pauseCalls += 1;
+  }
+
+  async resume(): Promise<void> {
+    this.resumeCalls += 1;
+  }
+
+  async seek(positionMs: number): Promise<void> {
+    this.seekCalls.push(positionMs);
+    if (!this.autoConfirmSeek) {
+      await new Promise<void>((resolve) => {
+        this.confirmSeekRequest = resolve;
+      });
+    }
+  }
+
+  confirmSeek(): void {
+    this.confirmSeekRequest?.();
+    this.confirmSeekRequest = undefined;
   }
 }
 
@@ -158,7 +326,13 @@ async function waitFor(condition: () => boolean, timeoutMs = 1_000): Promise<voi
   }
 }
 
-function makeHarness(preflightStatus = 206) {
+function makeHarness(
+  preflightStatus = 206,
+  resolveSmartSource?: (track: { id: string; title: string; artists: readonly string[]; album: string }) => Promise<{
+    reference: string;
+    zoneId: string;
+  } | undefined>,
+) {
   const registry = new StreamRegistry();
   const events: string[] = [];
   const gateway = new StreamGateway({
@@ -174,6 +348,7 @@ function makeHarness(preflightStatus = 206) {
   });
   const netease = new FakeNetease();
   const roon = new FakeRoon(events);
+  const nativeRoon = new FakeNativeRoonLibrary();
   let authExpiredCalls = 0;
   const controller = new BridgeController({
     netease,
@@ -186,8 +361,10 @@ function makeHarness(preflightStatus = 206) {
     onProviderAuthExpired: () => {
       authExpiredCalls += 1;
     },
+    roonLibrary: nativeRoon,
+    ...(resolveSmartSource ? { resolveSmartSource } : {}),
   });
-  return { registry, gateway, netease, roon, controller, events, get authExpiredCalls() { return authExpiredCalls; } };
+  return { registry, gateway, netease, roon, nativeRoon, controller, events, get authExpiredCalls() { return authExpiredCalls; } };
 }
 
 test('controller registers a local stream, starts Roon and reports actual quality', async () => {
@@ -209,6 +386,44 @@ test('controller registers a local stream, starts Roon and reports actual qualit
   await controller.stop();
   assert.equal(registry.size, 0);
   assert.equal(controller.getState().activePlayback, undefined);
+});
+
+test('controller resolves independent metadata and stream URL work in parallel', async () => {
+  const { controller, netease } = makeHarness();
+  let releaseMetadata: () => void = () => undefined;
+  netease.metadataGate = new Promise<void>((resolve) => {
+    releaseMetadata = resolve;
+  });
+
+  const playback = controller.play({ trackId: '123', quality: 'lossless' });
+  await waitFor(() => netease.metadataStarted);
+  await waitFor(() => netease.resolveCalls === 1);
+  releaseMetadata();
+  await playback;
+});
+
+test('controller reports both independent Provider stages before Gateway preflight', async () => {
+  const { controller } = makeHarness();
+  const stages: string[] = [];
+
+  await controller.play({
+    trackId: '123',
+    quality: 'lossless',
+    startupTrace: {
+      startedAtMs: 1_700_000_000_000,
+      onStage: (stage) => stages.push(stage),
+    },
+  });
+
+  assert.deepEqual(new Set(stages.slice(0, 2)), new Set([
+    'metadata-ready',
+    'stream-url-ready',
+  ]));
+  assert.deepEqual(stages.slice(2), [
+    'gateway-preflight-ready',
+    'roon-session-began',
+    'roon-playing',
+  ]);
 });
 
 test('controller exposes a bounded quality downgrade notice without upstream details', async () => {
@@ -388,6 +603,283 @@ test('controller replaces the queue and next/previous move one item at a time', 
   assert.equal(registry.size, 1);
 });
 
+test('controller keeps Roon and NetEase items in one logical queue and switches source serially', async () => {
+  const { controller, roon, nativeRoon, registry } = makeHarness();
+  const roonTrack = {
+    id: '8801',
+    title: 'Local Song',
+    artists: ['Local Artist'],
+    album: 'Local Album',
+    durationMs: 180_000,
+    artworkReference: 'musicbridge-v2-image-123e4567-e89b-12d3-a456-426614174001',
+  };
+
+  await controller.playRoon({
+    reference: 'roon-ref-1',
+    zoneId: 'zone-1',
+    track: roonTrack,
+  });
+  await controller.appendQueue([{ trackId: '8802', quality: 'lossless' }]);
+
+  let snapshot = controller.getPlaybackState();
+  assert.equal(snapshot.source, 'roon');
+  assert.deepEqual(snapshot.queue.items.map((item) => item.resolvedSource), ['roon', undefined]);
+  assert.equal(snapshot.queue.items[0]?.preferredSource, 'roon');
+  assert.equal(snapshot.currentTrack?.artworkReference, roonTrack.artworkReference);
+  assert.equal(snapshot.queue.items[0]?.track?.artworkReference, roonTrack.artworkReference);
+  assert.equal('roonReference' in (snapshot.queue.items[0] ?? {}), false);
+  assert.equal(nativeRoon.playCalls.length, 1);
+  assert.equal(registry.size, 0);
+
+  await controller.next();
+  snapshot = controller.getPlaybackState();
+  assert.equal(snapshot.source, 'netease');
+  assert.equal(snapshot.currentTrack?.id, '8802');
+  assert.equal(nativeRoon.stopCalls, 1);
+  assert.equal(roon.playRequests.length, 1);
+  assert.equal(registry.size, 1);
+  assert.equal(nativeRoon.active, false);
+});
+
+test('controller plays an existing mixed queue index without discarding the queue', async () => {
+  const { controller } = makeHarness();
+  await controller.play({ trackId: '8890', quality: 'standard' });
+  await controller.appendRoon({
+    reference: 'roon-ref-select',
+    zoneId: 'zone-1',
+    track: {
+      id: '8891',
+      title: 'Selected Local Song',
+      artists: ['Local Artist'],
+      album: 'Local Album',
+    },
+  });
+  await controller.appendQueue([{ trackId: '8892', quality: 'lossless' }]);
+
+  await controller.playQueueIndex(1);
+  let snapshot = controller.getPlaybackState();
+  assert.equal(snapshot.queue.items.length, 3);
+  assert.equal(snapshot.queue.index, 1);
+  assert.equal(snapshot.currentTrack?.id, '8891');
+  assert.equal(snapshot.source, 'roon');
+
+  await controller.next();
+  snapshot = controller.getPlaybackState();
+  assert.equal(snapshot.queue.items.length, 3);
+  assert.equal(snapshot.currentTrack?.id, '8892');
+  assert.equal(snapshot.source, 'netease');
+});
+
+test('controller pauses and resumes an active native Roon queue item through the same V1 controls', async () => {
+  const { controller, roon, nativeRoon } = makeHarness();
+  await controller.playRoon({
+    reference: 'roon-ref-pause',
+    zoneId: 'zone-1',
+    track: {
+      id: '8803',
+      title: 'Local Pause Song',
+      artists: ['Local Artist'],
+      album: 'Local Album',
+    },
+  });
+  roon.state = {
+    ...roon.state,
+    status: 'playing',
+    transportState: 'playing',
+    canPause: true,
+    canResume: false,
+  };
+
+  assert.equal(controller.getPlaybackState().canPause, true);
+  await controller.pause();
+  assert.equal(nativeRoon.pauseCalls, 1);
+  assert.equal(controller.getPlaybackState().state, 'paused');
+
+  roon.state = {
+    ...roon.state,
+    status: 'paused',
+    transportState: 'paused',
+    canPause: false,
+    canResume: true,
+  };
+  assert.equal(controller.getPlaybackState().canResume, true);
+  await controller.resume();
+  assert.equal(nativeRoon.resumeCalls, 1);
+  assert.equal(controller.getPlaybackState().state, 'playing');
+});
+
+test('controller seeks only an active V2 native Roon item and leaves V1 Provider playback read-only', async () => {
+  const { controller, roon, nativeRoon } = makeHarness();
+
+  await controller.play({ trackId: '8804', quality: 'lossless' });
+  await assert.rejects(
+    controller.seek(12_345),
+    (error: unknown) => error instanceof BridgeError && error.code === 'ROON_TRANSPORT_UNAVAILABLE',
+  );
+  assert.deepEqual(nativeRoon.seekCalls, []);
+
+  roon.state = {
+    ...roon.state,
+    status: 'playing',
+    transportState: 'playing',
+    canPause: true,
+    canResume: false,
+  };
+
+  await controller.playRoon({
+    reference: 'roon-ref-seek',
+    zoneId: 'zone-1',
+    track: {
+      id: '8805',
+      title: 'Local Seek Song',
+      artists: ['Local Artist'],
+      album: 'Local Album',
+      durationMs: 180_000,
+    },
+  });
+  roon.state = {
+    ...roon.state,
+    status: 'playing',
+    transportState: 'playing',
+    canPause: true,
+    canResume: false,
+  };
+  await controller.seek(12_345);
+  assert.deepEqual(nativeRoon.seekCalls, [12_345]);
+  assert.equal(controller.getPlaybackState().positionMs, 0);
+  controller.updateRoonTime(12_345);
+  assert.equal(controller.getPlaybackState().positionMs, 12_345);
+});
+
+test('controller keeps the prior position until native Roon confirms seek with real time', async () => {
+  const { controller, roon, nativeRoon } = makeHarness();
+  roon.state = {
+    ...roon.state,
+    status: 'playing',
+    transportState: 'playing',
+    canPause: true,
+    canResume: false,
+  };
+  await controller.playRoon({
+    reference: 'roon-ref-confirmed-seek',
+    zoneId: 'zone-1',
+    track: {
+      id: '8806',
+      title: 'Confirmed Seek Song',
+      artists: ['Local Artist'],
+      album: 'Local Album',
+      durationMs: 180_000,
+    },
+  });
+  controller.updateRoonTime(4_000);
+  nativeRoon.autoConfirmSeek = false;
+
+  let settled = false;
+  const seeking = controller.seek(20_000).then(() => {
+    settled = true;
+  });
+  await waitFor(() => nativeRoon.seekCalls.length === 1);
+  assert.equal(controller.getPlaybackState().positionMs, 4_000);
+  assert.equal(settled, false);
+
+  controller.updateRoonTime(19_750);
+  nativeRoon.confirmSeek();
+  await seeking;
+  assert.equal(controller.getPlaybackState().positionMs, 19_750);
+});
+
+test('controller switches from an active NetEase item to a queued Roon item without overlap', async () => {
+  const { controller, roon, nativeRoon, registry } = makeHarness();
+  await controller.play({ trackId: '8810', quality: 'standard' });
+  await controller.appendRoon({
+    reference: 'roon-ref-2',
+    zoneId: 'zone-1',
+    track: {
+      id: '8811',
+      title: 'Queued Local Song',
+      artists: ['Local Artist'],
+      album: 'Local Album',
+    },
+  });
+
+  await controller.next();
+  const snapshot = controller.getPlaybackState();
+  assert.equal(snapshot.source, 'roon');
+  assert.equal(snapshot.currentTrack?.id, '8811');
+  assert.equal(roon.stopCalls, 1);
+  assert.equal(registry.size, 0);
+  assert.equal(nativeRoon.playCalls.length, 1);
+  assert.equal(nativeRoon.active, true);
+});
+
+test('controller advances a mixed queue after a native Roon track ends', async () => {
+  const { controller, nativeRoon, roon } = makeHarness();
+  await controller.playRoon({
+    reference: 'roon-ref-3',
+    zoneId: 'zone-1',
+    track: {
+      id: '8820',
+      title: 'Native First',
+      artists: ['Local Artist'],
+      album: 'Local Album',
+    },
+  });
+  await controller.appendQueue([{ trackId: '8821', quality: 'standard' }]);
+
+  controller.handleRoonPlaybackState('playing');
+  controller.handleRoonPlaybackState('stopped');
+  await waitFor(() => controller.getPlaybackState().currentTrack?.id === '8821');
+
+  assert.equal(controller.getPlaybackState().source, 'netease');
+  assert.equal(nativeRoon.stopCalls, 0);
+  assert.equal(roon.playRequests.length, 1);
+});
+
+test('controller resolves Smart at queue start and keeps the logical NetEase identity', async () => {
+  const { controller, nativeRoon, registry } = makeHarness(206, async (track) => {
+    assert.equal(track.id, '8830');
+    return { reference: 'roon-smart-ref', zoneId: 'zone-1' };
+  });
+
+  await controller.replaceQueue([{
+    trackId: '8830',
+    quality: 'lossless',
+    preferredSource: 'smart',
+  }]);
+
+  const snapshot = controller.getPlaybackState();
+  assert.equal(snapshot.source, 'roon');
+  assert.equal(snapshot.currentTrack?.id, '8830');
+  assert.equal(snapshot.queue.items[0]?.preferredSource, 'smart');
+  assert.equal(snapshot.queue.items[0]?.resolvedSource, 'roon');
+  assert.equal(nativeRoon.playCalls[0]?.reference, 'roon-smart-ref');
+  assert.equal(registry.size, 0);
+});
+
+test('controller safely falls Smart playback back to V1 Provider when native Roon start fails', async () => {
+  const { controller, nativeRoon, roon, registry } = makeHarness(
+    206,
+    async () => ({ reference: 'roon-stale-ref', zoneId: 'zone-1' }),
+  );
+  nativeRoon.shouldFail = true;
+
+  await controller.replaceQueue([{
+    trackId: '8831',
+    quality: 'lossless',
+    preferredSource: 'smart',
+  }]);
+
+  const snapshot = controller.getPlaybackState();
+  assert.equal(nativeRoon.playCalls.length, 1);
+  assert.equal(nativeRoon.stopCalls, 1);
+  assert.equal(roon.playRequests.length, 1);
+  assert.equal(snapshot.source, 'netease');
+  assert.equal(snapshot.currentTrack?.id, '8831');
+  assert.equal(snapshot.queue.items[0]?.preferredSource, 'smart');
+  assert.equal(snapshot.queue.items[0]?.resolvedSource, 'netease');
+  assert.equal(registry.size, 1);
+});
+
 test('controller appends to an active queue without restarting playback', async () => {
   const { controller, roon, registry } = makeHarness();
 
@@ -452,6 +944,62 @@ test('controller inserts next after the current queue index without restarting p
     controller.getPlaybackState().queue.items.map((item) => item.trackId),
     ['711', '712', '713'],
   );
+});
+
+test('controller keeps consecutive insert-next batches in user order', async () => {
+  const { controller } = makeHarness();
+
+  await controller.replaceQueue([
+    { trackId: '801', quality: 'standard' },
+    { trackId: '804', quality: 'standard' },
+  ]);
+  await controller.insertNext([
+    { trackId: '802', quality: 'standard' },
+    { trackId: '803', quality: 'standard' },
+  ]);
+  await controller.insertNext([
+    { trackId: '805', quality: 'standard' },
+    { trackId: '806', quality: 'standard' },
+  ]);
+
+  assert.deepEqual(
+    controller.getPlaybackState().queue.items.map((item) => item.trackId),
+    ['801', '802', '803', '805', '806', '804'],
+  );
+});
+
+test('controller accepts a 1,197-track queue through bounded progressive mutations', async () => {
+  const { controller } = makeHarness();
+  const firstPage = Array.from({ length: 20 }, (_, index) => ({
+    trackId: String(10_000 + index),
+    quality: 'standard' as const,
+  }));
+  await controller.replaceQueue(firstPage);
+
+  for (let start = 20; start < 1_197; start += 20) {
+    await controller.appendQueue(
+      Array.from({ length: Math.min(20, 1_197 - start) }, (_, offset) => ({
+        trackId: String(10_000 + start + offset),
+        quality: 'standard' as const,
+      })),
+    );
+  }
+
+  const queue = controller.getPlaybackState().queue.items
+  assert.equal(queue.length, 1_197)
+  assert.equal(queue[1_196]?.trackId, '11196')
+});
+
+test('controller rejects a queue beyond the bounded capacity instead of silently dropping items', async () => {
+  const { controller } = makeHarness();
+  await assert.rejects(
+    () => controller.replaceQueue(Array.from({ length: 5_001 }, (_, index) => ({
+      trackId: String(20_000 + index),
+      quality: 'standard' as const,
+    }))),
+    (error: unknown) => error instanceof BridgeError && error.code === 'BAD_REQUEST',
+  );
+  assert.equal(controller.getPlaybackState().queue.items.length, 0);
 });
 
 test('controller appends while idle without starting playback', async () => {
@@ -535,6 +1083,210 @@ test('controller rejects stale Roon positions after a new playback generation', 
 
   await controller.stop();
   assert.equal(controller.getPlaybackState().positionMs, 0);
+});
+
+test('controller pause and resume preserve current track, queue index, position, and stream', async () => {
+  const { controller, roon, registry } = makeHarness();
+  roon.state = {
+    ...roon.state,
+    transportState: 'playing',
+    canPause: true,
+    canResume: false,
+  };
+
+  await controller.replaceQueue([
+    { trackId: '761', qualityPreference: 'lossless' },
+    { trackId: '762', qualityPreference: 'lossless' },
+  ], 0);
+  controller.updateRoonTime(12_345);
+  const before = controller.getPlaybackState();
+
+  await controller.pause();
+  const paused = controller.getPlaybackState();
+  assert.equal(paused.state, 'paused');
+  assert.equal(paused.positionMs, 12_345);
+  assert.equal(paused.currentTrack?.id, before.currentTrack?.id);
+  assert.equal(paused.queue.index, before.queue.index);
+  assert.equal(paused.canPause, false);
+  assert.equal(paused.canResume, true);
+  assert.equal(roon.pauseCalls, 1);
+  assert.equal(registry.size, 1);
+
+  await controller.resume();
+  const resumed = controller.getPlaybackState();
+  assert.equal(resumed.state, 'playing');
+  assert.equal(resumed.positionMs, 12_345);
+  assert.equal(resumed.currentTrack?.id, before.currentTrack?.id);
+  assert.equal(resumed.queue.index, before.queue.index);
+  assert.equal(resumed.canPause, true);
+  assert.equal(resumed.canResume, false);
+  assert.equal(roon.resumeCalls, 1);
+  assert.equal(registry.size, 1);
+});
+
+test('controller publishes pausing and resuming until the Roon port confirms the real state', async () => {
+  const { controller, roon } = makeHarness();
+  const states: string[] = [];
+  controller.subscribe((snapshot) => states.push(snapshot.state));
+  roon.state = {
+    ...roon.state,
+    transportState: 'playing',
+    canPause: true,
+    canResume: false,
+  };
+  await controller.play({ trackId: '763', qualityPreference: 'lossless' });
+
+  roon.autoConfirmPause = false;
+  let pauseSettled = false;
+  const pausing = controller.pause().then(() => {
+    pauseSettled = true;
+  });
+  await waitFor(() => roon.pauseCalls === 1);
+  assert.equal(controller.getPlaybackState().state, 'pausing');
+  assert.equal(controller.getPlaybackState().canPause, false);
+  assert.equal(controller.getPlaybackState().canResume, false);
+  assert.equal(pauseSettled, false);
+  roon.confirmPause();
+  await pausing;
+  assert.equal(controller.getPlaybackState().state, 'paused');
+
+  roon.autoConfirmResume = false;
+  let resumeSettled = false;
+  const resuming = controller.resume().then(() => {
+    resumeSettled = true;
+  });
+  await waitFor(() => roon.resumeCalls === 1);
+  assert.equal(controller.getPlaybackState().state, 'resuming');
+  assert.equal(controller.getPlaybackState().canPause, false);
+  assert.equal(controller.getPlaybackState().canResume, false);
+  assert.equal(resumeSettled, false);
+  roon.confirmResume();
+  await resuming;
+  assert.equal(controller.getPlaybackState().state, 'playing');
+  assert.deepEqual(
+    states.filter((state) => ['pausing', 'paused', 'resuming', 'playing'].includes(state)).slice(-4),
+    ['pausing', 'paused', 'resuming', 'playing'],
+  );
+});
+
+test('controller rolls a failed pause confirmation back to the observed playing state', async () => {
+  const { controller, roon } = makeHarness();
+  const states: string[] = [];
+  controller.subscribe((snapshot) => states.push(snapshot.state));
+  roon.state = {
+    ...roon.state,
+    transportState: 'playing',
+    canPause: true,
+    canResume: false,
+  };
+  await controller.play({ trackId: '764', qualityPreference: 'lossless' });
+  roon.failPause = true;
+
+  await assert.rejects(
+    controller.pause(),
+    (error: unknown) => error instanceof BridgeError && error.code === 'ROON_TIMEOUT',
+  );
+
+  assert.equal(controller.getPlaybackState().state, 'playing');
+  assert.deepEqual(states.slice(-2), ['pausing', 'playing']);
+});
+
+test('controller rejects position updates after the active Zone identity changes', async () => {
+  const { controller, roon } = makeHarness();
+  roon.state = {
+    ...roon.state,
+    transportState: 'playing',
+    canPause: true,
+    canResume: false,
+  };
+  await controller.play({ trackId: '765', qualityPreference: 'lossless' });
+  controller.updateRoonTime(1_234);
+  assert.equal(controller.getPlaybackState().positionMs, 1_234);
+
+  roon.state = { ...roon.state, selectedZoneId: 'zone-2' };
+  controller.updateRoonTime(9_999);
+  assert.equal(controller.getPlaybackState().positionMs, 1_234);
+});
+
+test('controller binds real Time events to playback source, epoch, Zone and Track identity', async () => {
+  const { controller, roon } = makeHarness();
+  await controller.play({ trackId: '766', qualityPreference: 'lossless' });
+  const audioEvent = (overrides: Partial<RoonTimeEvent> = {}): RoonTimeEvent => ({
+    positionMs: 2_000,
+    source: 'audio-input',
+    zoneId: 'zone-1',
+    revision: 2,
+    playbackEpoch: 17,
+    ...overrides,
+  });
+
+  assert.equal(controller.updateRoonTime(audioEvent({ playbackEpoch: 16 })), false);
+  assert.equal(controller.updateRoonTime(audioEvent({ zoneId: 'zone-2' })), false);
+  assert.equal(controller.getPlaybackState().positionMs, 0);
+  assert.equal(controller.updateRoonTime(audioEvent()), true);
+  assert.equal(controller.getPlaybackState().positionMs, 2_000);
+
+  await controller.playRoon({
+    reference: 'roon-ref-time-identity',
+    zoneId: 'zone-1',
+    track: {
+      id: '767',
+      title: '7. Native Time Song',
+      artists: ['Local Artist'],
+      album: 'Local Album',
+      durationMs: 180_000,
+    },
+  });
+  roon.state = {
+    ...roon.state,
+    transportState: 'playing',
+    canPause: true,
+    canResume: false,
+  };
+  const nativeEvent = (title: string): RoonTimeEvent => ({
+    positionMs: 3_000,
+    source: 'zone',
+    zoneId: 'zone-1',
+    revision: 3,
+    nowPlaying: { title, durationMs: 180_000 },
+  });
+  assert.equal(controller.updateRoonTime(nativeEvent('Stale Native Song')), false);
+  assert.equal(controller.getPlaybackState().positionMs, 0);
+  // Roon Browse 常在标题前带曲目序号，而 Zone now_playing 只返回真实标题。
+  assert.equal(controller.updateRoonTime(nativeEvent('Native Time Song')), true);
+  assert.equal(controller.getPlaybackState().positionMs, 3_000);
+});
+
+test('controller hydrates native Roon duration and position from the confirmed Zone observation', async () => {
+  const { controller, nativeRoon } = makeHarness();
+  nativeRoon.playObservation = {
+    revision: 8,
+    zoneId: 'zone-1',
+    state: 'playing',
+    positionMs: 1_250,
+    nowPlaying: {
+      title: 'Native Duration Song',
+      artist: 'Local Artist',
+      album: 'Local Album',
+      durationMs: 271_000,
+    },
+  };
+
+  await controller.playRoon({
+    reference: 'roon-ref-duration',
+    zoneId: 'zone-1',
+    track: {
+      id: '768',
+      title: '8. Native Duration Song',
+      artists: ['Local Artist'],
+      album: 'Local Album',
+    },
+  });
+
+  const snapshot = controller.getPlaybackState();
+  assert.equal(snapshot.currentTrack?.durationMs, 271_000);
+  assert.equal(snapshot.queue.items[0]?.track?.durationMs, 271_000);
+  assert.equal(snapshot.positionMs, 1_250);
 });
 
 test('controller continues a 45-track collection after starting at track 21', async () => {
