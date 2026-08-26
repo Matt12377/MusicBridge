@@ -2,7 +2,7 @@ import type { LyricsSnapshot, PlaybackSnapshot } from '@music-bridge/contracts';
 import { emptyLyricsSnapshot } from '../netease/lyrics.js';
 
 const MAX_LYRICS_CACHE_ENTRIES = 50;
-const LYRICS_PUSH_INTERVAL_MS = 250;
+const ACTIVE_WORD_PUSH_INTERVAL_MS = 100;
 
 export interface LyricsCoordinatorOptions {
   load: (trackId: string) => Promise<LyricsSnapshot>;
@@ -77,6 +77,9 @@ export class LyricsCoordinator {
   private readonly onChange: (snapshot: LyricsSnapshot) => void;
   private generation = 0;
   private activeTrackId: string | undefined;
+  private activeSource: PlaybackSnapshot['source'];
+  private activeZoneId: string | undefined;
+  private activePlaybackState: PlaybackSnapshot['state'] | undefined;
   private activeSnapshot: LyricsSnapshot = emptyLyricsSnapshot();
   private positionAnchorMs: number | undefined;
   private positionAnchorClockMs: number | undefined;
@@ -118,24 +121,36 @@ export class LyricsCoordinator {
       this.generation += 1;
       const generation = this.generation;
       this.activeTrackId = trackId;
+      this.activeSource = snapshot.source;
+      this.activeZoneId = snapshot.selectedZoneId;
       this.positionAnchorMs = undefined;
       this.positionAnchorClockMs = undefined;
       const cached = this.readCache(trackId);
       this.activeSnapshot = cached ? cloneSnapshot(cached) : loadingSnapshot();
       this.emit(true);
       if (!cached) void this.loadActive(trackId, generation);
+    } else if (
+      this.activeSource !== snapshot.source
+      || this.activeZoneId !== snapshot.selectedZoneId
+    ) {
+      this.stopEstimatedUpdates();
+      this.activeSource = snapshot.source;
+      this.activeZoneId = snapshot.selectedZoneId;
+      this.positionAnchorMs = undefined;
+      this.positionAnchorClockMs = undefined;
     }
+
+    this.activePlaybackState = snapshot.state;
 
     if (
       snapshot.state === 'pausing'
       || snapshot.state === 'paused'
       || snapshot.state === 'resuming'
     ) {
-      if (snapshot.positionMs > 0) {
-        this.positionAnchorMs = snapshot.positionMs;
-        this.positionAnchorClockMs = this.now();
-      }
       this.stopEstimatedUpdates();
+      this.positionAnchorMs = snapshot.positionMs;
+      this.positionAnchorClockMs = this.now();
+      this.applyPosition(snapshot.positionMs, 'roon-time', true);
       return;
     }
 
@@ -149,6 +164,9 @@ export class LyricsCoordinator {
     this.stopEstimatedUpdates();
     this.generation += 1;
     this.activeTrackId = trackId;
+    this.activeSource = undefined;
+    this.activeZoneId = undefined;
+    this.activePlaybackState = undefined;
     this.positionAnchorMs = undefined;
     this.positionAnchorClockMs = undefined;
     this.activeSnapshot = {
@@ -162,15 +180,20 @@ export class LyricsCoordinator {
 
   markPlaying(trackId: string): void {
     if (this.activeTrackId !== trackId) return;
+    this.activePlaybackState = 'playing';
     if (this.positionAnchorMs === undefined || this.positionAnchorClockMs === undefined) {
       this.positionAnchorMs = 0;
       this.positionAnchorClockMs = this.now();
-      this.startEstimatedUpdates(trackId, this.generation);
     }
+    this.startEstimatedUpdates(trackId, this.generation);
     this.updateEstimated();
   }
 
   updateEstimated(): void {
+    if (
+      this.activePlaybackState !== undefined
+      && this.activePlaybackState !== 'playing'
+    ) return;
     if (this.positionAnchorMs === undefined || this.positionAnchorClockMs === undefined) return;
     this.applyPosition(
       Math.max(0, this.positionAnchorMs + this.now() - this.positionAnchorClockMs),
@@ -191,6 +214,9 @@ export class LyricsCoordinator {
     this.stopEstimatedUpdates();
     this.generation += 1;
     this.activeTrackId = undefined;
+    this.activeSource = undefined;
+    this.activeZoneId = undefined;
+    this.activePlaybackState = undefined;
     this.positionAnchorMs = undefined;
     this.positionAnchorClockMs = undefined;
     this.activeSnapshot = emptyLyricsSnapshot();
@@ -203,7 +229,10 @@ export class LyricsCoordinator {
       if (generation !== this.generation || this.activeTrackId !== trackId) return;
       this.activeSnapshot = cloneSnapshot(loaded);
       this.emit(true);
-      if (this.positionAnchorMs !== undefined) this.updateEstimated();
+      if (this.positionAnchorMs !== undefined) {
+        if (this.activePlaybackState === 'playing') this.updateEstimated();
+        else this.applyPosition(this.positionAnchorMs, 'roon-time');
+      }
     } catch {
       if (generation !== this.generation || this.activeTrackId !== trackId) return;
       this.activeSnapshot = errorSnapshot();
@@ -244,6 +273,9 @@ export class LyricsCoordinator {
     this.generation += 1;
     this.stopEstimatedUpdates();
     this.activeTrackId = undefined;
+    this.activeSource = undefined;
+    this.activeZoneId = undefined;
+    this.activePlaybackState = undefined;
     this.positionAnchorMs = undefined;
     this.positionAnchorClockMs = undefined;
     this.activeSnapshot = emptyLyricsSnapshot();
@@ -269,6 +301,7 @@ export class LyricsCoordinator {
   private applyPosition(
     positionMs: number,
     timingSource: LyricsSnapshot['timingSource'],
+    force = false,
   ): void {
     if (this.activeSnapshot.status !== 'ready') return;
     const activeLineIndex = lineAtPosition(this.activeSnapshot, positionMs);
@@ -281,7 +314,7 @@ export class LyricsCoordinator {
     };
     if (activeWordIndex < 0) delete next.activeWordIndex;
     this.activeSnapshot = next;
-    this.emit(false);
+    this.emit(force);
   }
 
   private emit(force: boolean): void {
@@ -289,7 +322,18 @@ export class LyricsCoordinator {
     const key = `${snapshot.status}:${snapshot.activeLineIndex}:${snapshot.activeWordIndex ?? -1}:${snapshot.timingSource}:${snapshot.lines.length}`;
     if (!force && key === this.lastEmittedKey) return;
     const now = this.now();
-    if (!force && now - this.lastEmittedAt < LYRICS_PUSH_INTERVAL_MS) return;
+    const previousKeyParts = this.lastEmittedKey.split(':');
+    const onlyActiveWordChanged = previousKeyParts.length === 5
+      && previousKeyParts[0] === snapshot.status
+      && Number(previousKeyParts[1]) === snapshot.activeLineIndex
+      && Number(previousKeyParts[2]) !== (snapshot.activeWordIndex ?? -1)
+      && previousKeyParts[3] === snapshot.timingSource
+      && Number(previousKeyParts[4]) === snapshot.lines.length;
+    if (
+      !force
+      && onlyActiveWordChanged
+      && now - this.lastEmittedAt < ACTIVE_WORD_PUSH_INTERVAL_MS
+    ) return;
     this.lastEmittedAt = now;
     this.lastEmittedKey = key;
     this.onChange(snapshot);

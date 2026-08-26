@@ -78,6 +78,26 @@ test('Renderer contains the public QR login surface without credential access', 
   assert.match(source, /activeLineIndex/)
 })
 
+test('Lyrics follow uses explicit programmatic and user scroll states', async () => {
+  const source = await readFile(
+    path.resolve('src/renderer/src/components/LyricsLines.vue'),
+    'utf8',
+  )
+
+  for (const state of [
+    'following',
+    'programmatic-scrolling',
+    'user-scrolling',
+    'settling',
+  ]) {
+    assert.match(source, new RegExp(`['"]${state}['"]`))
+  }
+  assert.match(source, /@scrollend="onScrollEnd"/)
+  assert.match(source, /@wheel="beginUserScroll"/)
+  assert.match(source, /@touchstart="beginUserScroll"/)
+  assert.match(source, /@pointerdown="beginUserScroll"/)
+})
+
 test('Renderer exposes the v2 Music Source Sidebar information architecture', async () => {
   const source = (await sourceFiles(rendererRoot)).map((file) => readFile(file, 'utf8'))
   const combinedSource = (await Promise.all(source)).join('\n')

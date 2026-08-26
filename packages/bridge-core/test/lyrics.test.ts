@@ -180,7 +180,7 @@ test('lyrics coordinator prevents stale track results from replacing the active 
   assert.equal(coordinator.getSnapshot().lines[0]?.text, 'current')
 })
 
-test('lyrics coordinator uses estimated monotonic time and throttles active-line pushes', () => {
+test('lyrics coordinator pushes active-line changes immediately inside the word throttle window', () => {
   const changes: LyricsSnapshot[] = []
   let now = 0
   const coordinator = new LyricsCoordinator({
@@ -199,18 +199,188 @@ test('lyrics coordinator uses estimated monotonic time and throttles active-line
   }
 
   coordinator.setActiveLyrics('101', snapshot)
-  coordinator.markPlaying('101')
-  now = 1_000
-  coordinator.updateEstimated()
+  now = 250
+  coordinator.updateRoonTime(500)
   const afterFirstLine = changes.length
-  now = 1_100
-  coordinator.updateEstimated()
-  assert.equal(changes.length, afterFirstLine)
-  now = 1_250
-  coordinator.updateEstimated()
+  now = 260
+  coordinator.updateRoonTime(1_000)
+
+  assert.equal(changes.length, afterFirstLine + 1)
   assert.equal(changes.at(-1)?.activeLineIndex, 1)
-  assert.equal(changes.at(-1)?.timingSource, 'estimated')
+  assert.equal(changes.at(-1)?.timingSource, 'roon-time')
 })
+
+test('lyrics coordinator bounds active-word updates to one hundred milliseconds', () => {
+  const changes: LyricsSnapshot[] = []
+  let now = 0
+  const coordinator = new LyricsCoordinator({
+    now: () => now,
+    load: async () => readySnapshot('unused'),
+    onChange: (snapshot) => changes.push(snapshot),
+  })
+
+  coordinator.setActiveLyrics('101', {
+    status: 'ready',
+    lines: [{
+      startMs: 0,
+      endMs: 2_000,
+      text: 'one two three',
+      words: [
+        { startMs: 0, endMs: 500, text: 'one ' },
+        { startMs: 500, endMs: 1_000, text: 'two ' },
+        { startMs: 1_000, endMs: 2_000, text: 'three' },
+      ],
+    }],
+    activeLineIndex: -1,
+    timingSource: 'static',
+  })
+  now = 250
+  coordinator.updateRoonTime(100)
+  const afterFirstWord = changes.length
+  now = 300
+  coordinator.updateRoonTime(500)
+  assert.equal(changes.length, afterFirstWord)
+  now = 350
+  coordinator.updateRoonTime(1_000)
+
+  assert.equal(changes.length, afterFirstWord + 1)
+  assert.equal(changes.at(-1)?.activeWordIndex, 2)
+})
+
+test('lyrics coordinator applies the confirmed pause position before freezing progression', () => {
+  const changes: LyricsSnapshot[] = []
+  let now = 0
+  const coordinator = new LyricsCoordinator({
+    now: () => now,
+    load: async () => readySnapshot('unused'),
+    onChange: (snapshot) => changes.push(snapshot),
+  })
+
+  coordinator.setActiveLyrics('101', {
+    status: 'ready',
+    lines: [
+      { startMs: 0, endMs: 1_000, text: 'one' },
+      { startMs: 1_000, text: 'two' },
+    ],
+    activeLineIndex: -1,
+    timingSource: 'static',
+  })
+  now = 250
+  coordinator.onPlaybackChanged({
+    ...playing('101'),
+    source: 'netease',
+    selectedZoneId: 'zone-a',
+    positionMs: 800,
+  })
+  now = 260
+  coordinator.onPlaybackChanged({
+    ...playing('101'),
+    state: 'paused',
+    source: 'netease',
+    selectedZoneId: 'zone-a',
+    positionMs: 1_000,
+    canPause: false,
+    canResume: true,
+  })
+
+  assert.equal(changes.at(-1)?.activeLineIndex, 1)
+  assert.equal(changes.at(-1)?.timingSource, 'roon-time')
+})
+
+test('lyrics coordinator does not leave a throttled word stale when playback pauses', () => {
+  const changes: LyricsSnapshot[] = []
+  let now = 0
+  const coordinator = new LyricsCoordinator({
+    now: () => now,
+    load: async () => readySnapshot('unused'),
+    onChange: (snapshot) => changes.push(snapshot),
+  })
+
+  coordinator.setActiveLyrics('101', {
+    status: 'ready',
+    lines: [{
+      startMs: 0,
+      endMs: 1_000,
+      text: 'one two',
+      words: [
+        { startMs: 0, endMs: 500, text: 'one ' },
+        { startMs: 500, endMs: 1_000, text: 'two' },
+      ],
+    }],
+    activeLineIndex: -1,
+    timingSource: 'static',
+  })
+  now = 250
+  coordinator.onPlaybackChanged({
+    ...playing('101'),
+    source: 'netease',
+    selectedZoneId: 'zone-a',
+    positionMs: 100,
+  })
+  assert.equal(changes.at(-1)?.activeWordIndex, 0)
+
+  now = 300
+  coordinator.onPlaybackChanged({
+    ...playing('101'),
+    state: 'paused',
+    source: 'netease',
+    selectedZoneId: 'zone-a',
+    positionMs: 500,
+    canPause: false,
+    canResume: true,
+  })
+
+  assert.equal(changes.at(-1)?.activeWordIndex, 1)
+})
+
+for (const contextChange of [
+  {
+    name: 'source',
+    next: { source: 'roon' as const, selectedZoneId: 'zone-a' },
+  },
+  {
+    name: 'zone',
+    next: { source: 'netease' as const, selectedZoneId: 'zone-b' },
+  },
+]) {
+  test(`lyrics coordinator re-anchors when the ${contextChange.name} changes on the same track`, () => {
+    const changes: LyricsSnapshot[] = []
+    let now = 0
+    const coordinator = new LyricsCoordinator({
+      now: () => now,
+      load: async () => readySnapshot('unused'),
+      onChange: (snapshot) => changes.push(snapshot),
+    })
+
+    coordinator.setActiveLyrics('101', {
+      status: 'ready',
+      lines: [
+        { startMs: 0, endMs: 1_000, text: 'one' },
+        { startMs: 1_000, text: 'two' },
+      ],
+      activeLineIndex: -1,
+      timingSource: 'static',
+    })
+    now = 250
+    coordinator.onPlaybackChanged({
+      ...playing('101'),
+      source: 'netease',
+      selectedZoneId: 'zone-a',
+      positionMs: 1_500,
+    })
+    assert.equal(changes.at(-1)?.activeLineIndex, 1)
+
+    now = 260
+    coordinator.onPlaybackChanged({
+      ...playing('101'),
+      ...contextChange.next,
+      positionMs: 0,
+    })
+
+    assert.equal(changes.at(-1)?.activeLineIndex, 0)
+    assert.equal(changes.at(-1)?.timingSource, 'estimated')
+  })
+}
 
 test('lyrics coordinator schedules estimated updates and cancels them on shutdown', () => {
   const changes: LyricsSnapshot[] = []
