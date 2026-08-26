@@ -22,7 +22,7 @@
     "state": "automated-pass-unmerged",
     "baseCommit": "40bde67dd552f1286ae491c4887928e12f7718dc",
     "implementationCommit": "fe17c5e978258d3f85a7ff3d66f436a86751904d",
-    "reportCommit": null,
+    "reportCommit": "65e461c374c051e83c78c6e44a4c2ddf53f3812e",
     "pullRequest": 9,
     "nextTask": "TASK-044",
     "integrationPolicy": "stacked-unmerged-until-owner-acceptance",
