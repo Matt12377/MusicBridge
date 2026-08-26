@@ -1,0 +1,29 @@
+schemaVersion: 1
+wave: WAVE-4
+status: planned
+feature: local-to-netease-cross-source-lyrics
+design: docs/adr/ADR-008-LOCAL-TO-NETEASE-CROSS-SOURCE-LYRICS.md
+plannedBaseCommit: 207f7f04bc11fd4dcf7e6214ab705e999ee6f559
+entryGate:
+  - PR-6-merged
+  - P0-zone-ready
+  - browse-context-ready
+  - native-playback-state-ready
+  - P1-A-smart-matching-ready
+order:
+  - TASK-042
+  - TASK-043
+  - TASK-044
+  - TASK-045
+  - TASK-046
+  - TASK-047
+stopAfter: TASK-047
+reviewBoundary: local-lyrics-real-acceptance
+policy:
+  audioSource: roon
+  lyricsSource: netease
+  timelineAuthority: roon-transport
+  scanLocalMedia: false
+  persistRuntimeReference: false
+  realCredentialsInCi: false
+  realRoonInCi: false
