@@ -444,7 +444,7 @@ function normalizedIdentity(value: string): string {
 
 function normalizedTrackIdentity(value: string): string {
   return normalizedIdentity(value).replace(
-    /^\d{1,3}\s*(?:[.．、:：)]|[-–—])\s+/u,
+    /^(?:\d{1,3}\s*[-–—]\s*\d{1,3}|\d{1,3}\s*(?:[.．、:：)]|[-–—]))\s+/u,
     '',
   );
 }

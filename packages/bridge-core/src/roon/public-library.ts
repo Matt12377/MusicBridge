@@ -21,6 +21,7 @@ import {
   type RoonLibraryService,
   type RoonPageRequest,
   type RoonSearchResultKind,
+  type RoonTrackActionOutcome,
 } from './library.js';
 
 const MAX_REFERENCES = 65_536;
@@ -54,8 +55,8 @@ export interface RoonPublicLibrary {
     contentType: string;
     body: Uint8Array;
   }>;
-  playTrack(reference: string, zoneOrOutputId: string): Promise<void>;
-  queueTrack(reference: string, zoneOrOutputId: string): Promise<void>;
+  playTrack(reference: string, zoneOrOutputId: string): Promise<RoonTrackActionOutcome | void>;
+  queueTrack(reference: string, zoneOrOutputId: string): Promise<RoonTrackActionOutcome | void>;
   /** Core 内部使用的安全元数据投影；不暴露 Roon item_key 或运行期引用。 */
   getTrackSummary(reference: string): TrackSummary;
 }
@@ -152,6 +153,8 @@ function mapDescriptor(
     ...(descriptor.artist !== undefined ? { artist: descriptor.artist } : {}),
     ...(descriptor.album !== undefined ? { album: descriptor.album } : {}),
     ...(durationMs !== undefined ? { durationMs } : {}),
+    ...(descriptor.bitrate !== undefined ? { bitrate: descriptor.bitrate } : {}),
+    ...(descriptor.format !== undefined ? { format: descriptor.format } : {}),
     ...(descriptor.trackNumber !== undefined ? { trackNumber: descriptor.trackNumber } : {}),
     ...(descriptor.discNumber !== undefined ? { discNumber: descriptor.discNumber } : {}),
     ...(descriptor.year !== undefined ? { year: descriptor.year } : {}),
@@ -239,6 +242,13 @@ function wrapLibraryError(
         'ROON_IMAGE_DECODE_FAILED',
         'Roon image decode failed',
         { httpStatus: 502, cause: error },
+      );
+    }
+    if (operation === 'image' && error.code === 'ROON_IMAGE_UNAVAILABLE') {
+      throw new BridgeError(
+        'ROON_IMAGE_UNAVAILABLE',
+        'Roon image is unavailable',
+        { httpStatus: 404, cause: error },
       );
     }
     throw new BridgeError('ROON_LIBRARY_REQUEST_FAILED', 'Roon library request failed', {
@@ -527,8 +537,24 @@ export function createRoonPublicLibrary(
     },
     async getImage(reference, options) {
       const current = service();
-      const imageKey = imageReferences.get(reference);
+      let imageKey = imageReferences.get(reference);
+      const stored = references.get(reference);
       if (!imageKey) {
+        if (stored?.descriptor.kind === 'artist' && current.getArtistImageKey) {
+          try {
+            imageKey = await current.getArtistImageKey(stored.descriptor);
+            if (imageKey) imageReferences.set(reference, imageKey);
+          } catch (error) {
+            return wrapLibraryError(error, 'image');
+          }
+        }
+      }
+      if (!imageKey) {
+        if (stored?.descriptor.kind === 'artist') {
+          throw new BridgeError('ROON_IMAGE_UNAVAILABLE', 'Roon artist image is unavailable', {
+            httpStatus: 404,
+          });
+        }
         throw new BridgeError('ROON_LIBRARY_INVALID_REFERENCE', 'Roon image reference is invalid', {
           httpStatus: 400,
         });
@@ -592,7 +618,7 @@ export function createRoonPublicLibrary(
     async playTrack(reference, zoneOrOutputId) {
       try {
         const current = service();
-        await current.playTrack(resolveTrack(reference), zoneOrOutputId);
+        return await current.playTrack(resolveTrack(reference), zoneOrOutputId);
       } catch (error) {
         return wrapLibraryError(error, 'track-action');
       }
@@ -600,7 +626,7 @@ export function createRoonPublicLibrary(
     async queueTrack(reference, zoneOrOutputId) {
       try {
         const current = service();
-        await current.queueTrack(resolveTrack(reference), zoneOrOutputId);
+        return await current.queueTrack(resolveTrack(reference), zoneOrOutputId);
       } catch (error) {
         return wrapLibraryError(error, 'track-action');
       }
@@ -616,6 +642,8 @@ export function createRoonPublicLibrary(
         artists: [descriptor.artist ?? descriptor.subtitle ?? 'Roon Library'],
         album: descriptor.album ?? 'Roon Library',
         ...(durationMs !== undefined ? { durationMs } : {}),
+        ...(descriptor.bitrate !== undefined ? { bitrate: descriptor.bitrate } : {}),
+        ...(descriptor.format !== undefined ? { format: descriptor.format } : {}),
         ...(stored.imageReference !== undefined
           ? { artworkReference: stored.imageReference }
           : {}),

@@ -267,6 +267,8 @@ test('RoonLibraryService 使用 Album 来源 Browse Context 进入曲目层', as
               item_key: 'track:1',
               hint: 'action_list',
               duration: 243,
+              bitrate: 921600,
+              format: 'FLAC',
             }],
           });
     },
@@ -299,6 +301,8 @@ test('RoonLibraryService 使用 Album 来源 Browse Context 进入曲目层', as
     imageKey: 'image:album',
     hint: 'action_list',
     durationSeconds: 243,
+    bitrate: 921600,
+    format: 'FLAC',
   });
   assert.deepEqual(
     {
@@ -418,7 +422,7 @@ test('RoonLibraryService 拒绝非图片 content type、MIME 魔数不符和超�
   });
   await assert.rejects(
     htmlService.getImage('image:html'),
-    (error: unknown) => (error as { code?: unknown }).code === 'ROON_IMAGE_REQUEST_FAILED',
+    (error: unknown) => (error as { code?: unknown }).code === 'ROON_IMAGE_DECODE_FAILED',
   );
 
   const mismatchedService = createRoonLibraryService({
@@ -431,7 +435,7 @@ test('RoonLibraryService 拒绝非图片 content type、MIME 魔数不符和超�
   });
   await assert.rejects(
     mismatchedService.getImage('image:mismatched'),
-    (error: unknown) => (error as { code?: unknown }).code === 'ROON_IMAGE_REQUEST_FAILED',
+    (error: unknown) => (error as { code?: unknown }).code === 'ROON_IMAGE_DECODE_FAILED',
   );
 
   const malformedService = createRoonLibraryService({
@@ -444,7 +448,7 @@ test('RoonLibraryService 拒绝非图片 content type、MIME 魔数不符和超�
   });
   await assert.rejects(
     malformedService.getImage('image:malformed'),
-    (error: unknown) => (error as { code?: unknown }).code === 'ROON_IMAGE_REQUEST_FAILED',
+    (error: unknown) => (error as { code?: unknown }).code === 'ROON_IMAGE_DECODE_FAILED',
   );
 
   const oversizedService = createRoonLibraryService({
@@ -457,7 +461,26 @@ test('RoonLibraryService 拒绝非图片 content type、MIME 魔数不符和超�
   });
   await assert.rejects(
     oversizedService.getImage('image:oversized'),
-    (error: unknown) => (error as { code?: unknown }).code === 'ROON_IMAGE_REQUEST_FAILED',
+    (error: unknown) => (error as { code?: unknown }).code === 'ROON_IMAGE_DECODE_FAILED',
+  );
+});
+
+test('RoonLibraryService 将无错误但空响应的图片明确归类为不可用', async () => {
+  const service = createRoonLibraryService({
+    browse: {
+      browse: () => undefined,
+      load: () => undefined,
+    },
+    image: {
+      get_image(_imageKey, _options, callback) {
+        callback(false, 'image/jpeg', Buffer.alloc(0));
+      },
+    },
+  });
+
+  await assert.rejects(
+    service.getImage('image:empty'),
+    (error: unknown) => (error as { code?: unknown }).code === 'ROON_IMAGE_UNAVAILABLE',
   );
 });
 
@@ -1467,4 +1490,42 @@ test('RoonLibraryService 每次 Track action 都用新 Session 重放稳定路�
   assert.equal(new Set(actionSessionKeys).size, 2);
   assert.equal(actionSessionKeys.includes(sourceSessionKey), false);
   assert.equal(sessions.get(sourceSessionKey)?.consumed, false);
+});
+
+test('RoonLibraryService 将 final play action 的 message 响应标记为需要 Zone 确认', async () => {
+  let location: 'root' | 'album' | 'actions' = 'root';
+  const service = createRoonLibraryService({
+    browse: {
+      browse(options, callback) {
+        if (options.pop_all) location = 'root';
+        else if (String(options.item_key).startsWith('album:')) location = 'album';
+        else if (String(options.item_key).startsWith('track:')) location = 'actions';
+        else if (String(options.item_key).startsWith('action:play:')) {
+          callback(false, { action: 'message', message: 'private upstream message' });
+          return;
+        }
+        callback(false, {
+          action: 'list',
+          list: { level: location === 'root' ? 0 : location === 'album' ? 1 : 2, count: 1 },
+        });
+      },
+      load(options, callback) {
+        const key = String(options.multi_session_key);
+        const items = location === 'root'
+          ? [{ title: 'Album', item_key: `album:${key}`, hint: 'list' }]
+          : location === 'album'
+            ? [{ title: 'Track', subtitle: 'Artist', item_key: `track:${key}`, hint: 'action_list' }]
+            : [{ title: 'Play Now', item_key: `action:play:${key}`, hint: 'action' }];
+        callback(false, { offset: options.offset, items });
+      },
+    },
+    image: { get_image: () => undefined },
+  });
+
+  const album = (await service.browseAlbums({ offset: 0, limit: 1 })).items[0];
+  assert.ok(album);
+  const track = (await service.browseAlbum(album, { offset: 0, limit: 1 })).items[0];
+  assert.ok(track);
+
+  assert.equal(await service.playTrack(track, 'zone:1'), 'confirmation-required');
 });

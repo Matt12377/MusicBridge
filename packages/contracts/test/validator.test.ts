@@ -143,6 +143,17 @@ test('contracts accepts a typed response and rejects an unsafe error shape', () 
   });
   assert.equal(response.ok, true);
 
+  const imageUnavailable = validateIpcResponse({
+    version: IPC_VERSION,
+    id: 'request-image-unavailable',
+    ok: false,
+    error: {
+      code: 'ROON_IMAGE_UNAVAILABLE',
+      message: 'Roon image is unavailable',
+    },
+  });
+  assert.equal(imageUnavailable.ok, true);
+
   const unsafe = validateIpcResponse({
     version: IPC_VERSION,
     id: 'request-6',

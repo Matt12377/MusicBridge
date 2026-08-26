@@ -56,6 +56,7 @@ import {
 } from './composables/collectionQueue.js'
 import { appendRoonPage, emptyRoonPage } from './composables/roonLibraryPagination.js'
 import { useRoonCollection } from './composables/useRoonCollection.js'
+import { shouldRefreshVisibleRoonCollection } from './roon-collection-lifecycle.js'
 import {
   selectRandomPlaylistPages,
   settleHomePlaylistPages,
@@ -89,6 +90,7 @@ import {
 } from './composables/playbackMatching.js'
 import type { SidebarSource, ViewId } from './components/navigation.js'
 import { createZoneRefreshCoordinator, resolveZoneLifecycleStatus } from './zone-lifecycle.js'
+import { createOptimisticRoonPlayback } from './roon-playback-optimism.js'
 
 const LIBRARY_PAGE_SIZE = 20
 const SEARCH_DEBOUNCE_MS = 250
@@ -238,6 +240,8 @@ const {
 } = useLibrarySources()
 const selectedPlaylist = ref<PlaylistDetail | null>(null)
 const selectedPlaylistId = ref<string | null>(null)
+const playlistContentScrollTop = ref(0)
+const playlistTableScrollTop = ref(0)
 const {
   page: roonAlbumsPage,
   initialLoading: roonAlbumsInitialLoading,
@@ -358,6 +362,8 @@ let localFavoriteOperation = 0
 let homeRecommendationOperation = 0
 let dailyOperation = 0
 let collectionOperation = 0
+let roonPlaybackOperation = 0
+let optimisticRoonTrackId: string | undefined
 let activeCollectionLoader: ProgressiveCollectionLoader | undefined
 let collectionPlaybackStartInFlight = false
 let toastTimer: ReturnType<typeof setTimeout> | undefined
@@ -407,7 +413,12 @@ const searchSnapshotLoader = createSearchSnapshotLoader({
 })
 
 function enterNowPlaying(): void {
-  if (currentView.value !== 'now-playing') nowPlayingReturnView.value = currentView.value
+  if (currentView.value !== 'now-playing') {
+    nowPlayingReturnView.value = currentView.value
+    if (currentView.value === 'playlist-detail') {
+      playlistContentScrollTop.value = contentScroll.value?.scrollTop ?? 0
+    }
+  }
   currentView.value = 'now-playing'
   inspectorOpen.value = false
 }
@@ -416,6 +427,9 @@ function exitNowPlaying(): void {
   const destination = nowPlayingReturnView.value
   currentView.value = destination === 'now-playing' ? 'home' : destination
   inspectorOpen.value = false
+  if (currentView.value === 'playlist-detail') {
+    void nextTick(() => contentScroll.value?.scrollTo({ top: playlistContentScrollTop.value }))
+  }
 }
 
 function navigate(view: ViewId): void {
@@ -1428,6 +1442,8 @@ async function loadPlaylist(
     invalidateCollectionOperation()
     playlistRequestGeneration += 1
     selectedPlaylist.value = null
+    playlistContentScrollTop.value = 0
+    playlistTableScrollTop.value = 0
   }
   if (initial && !switchingPlaylist) playlistRequestGeneration += 1
   if (initial) {
@@ -1936,13 +1952,22 @@ async function playRoonLibraryTrack(track: RoonLibraryItem): Promise<void> {
     return
   }
   actionError.value = null
+  const operation = ++roonPlaybackOperation
+  const roonTrackId = roonTrackIdFromReference(track.reference)
+  optimisticRoonTrackId = roonTrackId
+  rememberRoonQueueDescriptor(roonTrackId, track)
+  applyPlaybackState(createOptimisticRoonPlayback(track, zoneId, selectedQuality.value))
+  enterNowPlaying()
   try {
-    const roonTrackId = roonTrackIdFromReference(track.reference)
-    rememberRoonQueueDescriptor(roonTrackId, track)
     await window.musicBridge.playRoonTrack(track.reference, zoneId)
+    if (operation !== roonPlaybackOperation) return
+    optimisticRoonTrackId = undefined
     applyPlaybackState(await window.musicBridge.getPlaybackState())
-    enterNowPlaying()
   } catch (error) {
+    if (operation !== roonPlaybackOperation) return
+    optimisticRoonTrackId = undefined
+    await refreshPlayback()
+    if (operation !== roonPlaybackOperation) return
     recordActionError(error)
   }
 }
@@ -2098,7 +2123,6 @@ function playPlaylistTrack(track: TrackSummary): void {
   void (async () => {
     try {
       applyNeteasePlayback(await window.musicBridge.play(track.id, selectedQuality.value))
-      enterNowPlaying()
     } catch (error) {
       if (operation === collectionOperation) recordActionError(error)
       return
@@ -2414,7 +2438,11 @@ onMounted(async () => {
     }
     if (
       (event.event === 'core.ready' || event.event === 'roon.changed')
-      && event.payload.state.roon === 'ready'
+      && shouldRefreshVisibleRoonCollection(
+        event.event,
+        previousRoonStatus,
+        event.payload.state.roon,
+      )
     ) {
       refreshVisibleRoonCollection()
     }
@@ -2430,7 +2458,20 @@ onMounted(async () => {
         dailyState.value = 'empty'
       }
     }
-    if (event.event === 'playback.changed') applyPlaybackState(event.payload.state)
+    if (event.event === 'playback.changed') {
+      const snapshot = event.payload.state
+      if (
+        optimisticRoonTrackId === undefined
+        || (
+          snapshot.state === 'playing'
+          && snapshot.source === 'roon'
+          && snapshot.currentTrack?.id === optimisticRoonTrackId
+        )
+      ) {
+        optimisticRoonTrackId = undefined
+        applyPlaybackState(snapshot)
+      }
+    }
     if (event.event === 'lyrics.changed') lyricsSnapshot.value = event.payload.state
     if (event.event === 'diagnostic.notice') diagnosticNotice.value = event.payload
   })
@@ -2816,7 +2857,7 @@ onUnmounted(() => {
               <SafeArtwork class="playlist-detail-art" :src="selectedPlaylist.artworkUrl" alt="" fallback="♫" />
               <div class="playlist-detail-copy"><p class="section-kicker">歌单</p><h2 id="playlist-heading">{{ selectedPlaylist.name }}</h2><p class="lede">{{ selectedPlaylist.description || '来自你的音乐收藏。' }}</p><span class="playlist-count">{{ selectedPlaylist.trackCount }} 首歌曲</span><div class="button-row"><button type="button" class="primary-button" :disabled="!selectedPlaylist.tracks.items.length" @click="playAllPlaylist">播放全部</button><button type="button" class="secondary-button" :disabled="!selectedPlaylist.tracks.items.length" @click="appendAllPlaylist">加入队列</button></div></div>
             </div>
-            <TrackTable :tracks="selectedPlaylist.tracks.items" :initial-loading="playlistInitialLoading" :loading-more="playlistLoadingMore" :load-more-error="playlistLoadMoreError" :total="selectedPlaylist.tracks.total" :has-more="selectedPlaylist.tracks.hasMore" empty-title="歌单为空" empty-copy="这个歌单暂时没有可显示的歌曲。" @play="playPlaylistTrack" @queue="appendTrack" @play-next="insertTrackNext" @load-more="playlistPageAt(selectedPlaylist.tracks.offset + selectedPlaylist.tracks.limit)" />
+            <TrackTable v-model:scroll-top="playlistTableScrollTop" :tracks="selectedPlaylist.tracks.items" :initial-loading="playlistInitialLoading" :loading-more="playlistLoadingMore" :load-more-error="playlistLoadMoreError" :total="selectedPlaylist.tracks.total" :has-more="selectedPlaylist.tracks.hasMore" empty-title="歌单为空" empty-copy="这个歌单暂时没有可显示的歌曲。" @play="playPlaylistTrack" @queue="appendTrack" @play-next="insertTrackNext" @load-more="playlistPageAt(selectedPlaylist.tracks.offset + selectedPlaylist.tracks.limit)" />
           </template>
           <div v-else-if="playlistDetailError === null" class="empty-state"><p>选择一个歌单查看内容。</p></div>
           <button v-if="playlistDetailError" type="button" class="secondary-button" @click="retryPlaylist">重试</button>

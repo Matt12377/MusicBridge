@@ -17,6 +17,7 @@ const props = withDefaults(defineProps<{
   emptyCopy?: string
   emptyGlyph?: string
   matchStates?: Readonly<Record<string, MatchState>>
+  scrollTop?: number
 }>(), {
   showArtwork: true,
   busy: false,
@@ -29,6 +30,7 @@ const props = withDefaults(defineProps<{
   emptyCopy: '歌曲会在内容可用后显示在这里。',
   emptyGlyph: '♫',
   matchStates: undefined,
+  scrollTop: 0,
 })
 
 const emit = defineEmits<{
@@ -36,6 +38,7 @@ const emit = defineEmits<{
   queue: [track: TrackSummary]
   'play-next': [track: TrackSummary]
   'load-more': []
+  'update:scrollTop': [scrollTop: number]
 }>()
 
 const contextTrack = ref<TrackSummary | null>(null)
@@ -87,6 +90,14 @@ function onVirtualScroll(event: Event): void {
   const target = event.currentTarget as HTMLElement
   virtualScrollTop.value = target.scrollTop
   virtualViewportHeight.value = target.clientHeight || virtualViewportHeight.value
+  emit('update:scrollTop', target.scrollTop)
+}
+
+function restoreVirtualScroll(): void {
+  if (!isVirtualized.value || !virtualViewport.value) return
+  const next = Math.max(0, props.scrollTop)
+  virtualViewport.value.scrollTop = next
+  virtualScrollTop.value = next
 }
 
 function playFromContext(): void {
@@ -126,7 +137,10 @@ function observeSentinel(): void {
 
 onMounted(() => {
   document.addEventListener('click', closeContextMenu)
-  void nextTick(observeSentinel)
+  void nextTick(() => {
+    restoreVirtualScroll()
+    observeSentinel()
+  })
 })
 watch(() => props.tracks.length, () => {
   if (!isVirtualized.value) virtualScrollTop.value = 0
@@ -135,6 +149,7 @@ watch(() => props.tracks.length, () => {
 watch(() => [props.hasMore, props.loadMoreError, props.tracks.length, props.loadingMore], () => {
   void nextTick(observeSentinel)
 })
+watch(() => props.scrollTop, () => void nextTick(restoreVirtualScroll))
 onUnmounted(() => {
   document.removeEventListener('click', closeContextMenu)
   observer?.disconnect()

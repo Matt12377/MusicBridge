@@ -70,7 +70,7 @@ function requireBoundedInteger(
 }
 
 function requestKey(request: RoonArtworkRequest): string {
-  if (!/^musicbridge-v2-image-[0-9a-f-]{36}$/u.test(request.reference)) {
+  if (!/^musicbridge-v2-(?:image|entity)-[0-9a-f-]{36}$/u.test(request.reference)) {
     throw new TypeError('Roon artwork reference is invalid')
   }
   if (
@@ -212,10 +212,18 @@ export function createRoonArtworkCache(
               format: request.format,
             })
             if (!isValidRoonImageBinary(result.contentType, result.body)) {
-              throw new Error('Roon artwork response failed binary validation')
+              const decodeError = new Error('Roon artwork response failed binary validation') as Error & { code: string }
+              decodeError.code = 'ROON_IMAGE_DECODE_FAILED'
+              throw decodeError
             }
             url = createObjectUrl(new Uint8Array(result.body), result.contentType)
-            await decodeObjectUrl(url)
+            try {
+              await decodeObjectUrl(url)
+            } catch (cause) {
+              const decodeError = new Error('Roon artwork decode failed', { cause }) as Error & { code: string }
+              decodeError.code = 'ROON_IMAGE_DECODE_FAILED'
+              throw decodeError
+            }
             if (requestGeneration !== generation) {
               revokeObjectUrl(url)
               throw new Error('Roon artwork request became stale')

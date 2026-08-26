@@ -89,6 +89,7 @@ import {
   readStartupTestConfiguration,
   type ElectronColdStartStage,
 } from './startup-test-config.js'
+import { settleRoonImageIpc } from '../roon-image-ipc.js'
 import trayTemplateSvg from './assets/musicbridge-tray-template.svg?raw'
 import {
   buildTrayPresentation,
@@ -1154,21 +1155,25 @@ function registerIpcHandlers(
       }),
     ),
   )
-  ipcMain.handle('roon:library:image', (event, reference: unknown, options: unknown) =>
-    invokeCore(event, async () => {
-      const imageOptions = requireRoonImageOptions(options)
+  ipcMain.handle('roon:library:image', async (event, reference: unknown, options: unknown) => {
+    requireTrustedRenderer(event)
+    const imageOptions = requireRoonImageOptions(options)
+    const imageReference = requireRoonReference(reference)
+    return settleRoonImageIpc(async () => {
       const result = await supervisor.request('roon.library.image', {
-        reference: requireRoonReference(reference),
+        reference: imageReference,
         ...(imageOptions !== undefined ? { options: imageOptions } : {}),
-      })
+      }) as RoonImageResult
       recordRoonImageShape(summarizeRoonImageBinary(
         'main-ipc',
-        (result as RoonImageResult).contentType,
-        (result as RoonImageResult).body,
+        result.contentType,
+        result.body,
       ))
       return result
-    }),
-  )
+    }, (error) => error instanceof CoreIpcError
+      ? { code: error.code, message: error.message }
+      : { code: 'INTERNAL_ERROR', message: 'Roon image request failed' })
+  })
   ipcMain.handle('roon:library:play', (event, reference: unknown, zoneId: unknown) =>
     invokeCore(event, () =>
       supervisor.request('roon.library.play', {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { PLAYBACK_QUALITY_PREFERENCES, type PlaybackQualityPreference, type PlaybackSnapshot, type PublicRoonZone, type TrackSummary } from '@music-bridge/contracts'
+import { type PlaybackQualityPreference, type PlaybackSnapshot, type PublicRoonZone, type TrackSummary } from '@music-bridge/contracts'
 import SidebarIcon from './sidebar/SidebarIcon.vue'
+import QualityControl from './player/QualityControl.vue'
 import ZoneControl from './player/ZoneControl.vue'
 import TrackArtwork from './TrackArtwork.vue'
 import type { ZoneLifecycleStatus } from '../zone-lifecycle.js'
@@ -24,11 +25,6 @@ const emit = defineEmits<{
   'select-zone': [zoneId: string]
   'update:selected-quality': [quality: PlaybackQualityPreference]
 }>()
-
-function qualityLabel(quality: PlaybackQualityPreference): string {
-  if (quality === 'auto') return '自动'
-  return quality === 'hires' ? 'Hi-Res' : quality[0].toUpperCase() + quality.slice(1)
-}
 
 function transportLabel(state: PlaybackSnapshot['state'] | undefined): string {
   if (state === 'pausing') return '正在暂停'
@@ -60,12 +56,7 @@ function transportLabel(state: PlaybackSnapshot['state'] | undefined): string {
     </div>
 
     <div class="player-meta">
-      <label class="player-quality-select">
-        <span>下次音质</span>
-        <select aria-label="切换播放音质" :value="selectedQuality" @change="emit('update:selected-quality', ($event.target as HTMLSelectElement).value as PlaybackQualityPreference)">
-        <option v-for="quality in PLAYBACK_QUALITY_PREFERENCES" :key="quality" :value="quality">{{ qualityLabel(quality) }}</option>
-        </select>
-      </label>
+      <QualityControl :selected-quality="selectedQuality" @update:selected-quality="emit('update:selected-quality', $event)" />
       <ZoneControl :zones="zones" :selected-zone="selectedZone" :roon-status="roonStatus" :zone-status="zoneStatus" @select="emit('select-zone', $event)" />
       <button type="button" class="player-inspector-button" aria-label="打开播放队列" @click="emit('open-queue')"><SidebarIcon name="list" :size="16" /><span class="visually-hidden">队列</span></button>
     </div>

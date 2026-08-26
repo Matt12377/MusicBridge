@@ -24,8 +24,7 @@ let previousScrollTop: number | undefined
 let followGeneration = 0
 
 const FOLLOW_PAUSE_MS = 4_000
-const SAFE_ZONE_START = 0.35
-const SAFE_ZONE_END = 0.65
+const CENTER_TOLERANCE_PX = 12
 const REQUIRED_STABLE_FRAMES = 3
 const MAX_SETTLE_FRAMES = 60
 
@@ -82,11 +81,18 @@ function cancelScrollSettlement(): void {
   previousScrollTop = undefined
 }
 
-function targetInSafeZone(target: HTMLElement, host: HTMLElement): boolean {
+function lineVisuallyCentered(target: HTMLElement, host: HTMLElement): boolean {
   const hostRect = host.getBoundingClientRect()
   const targetRect = target.getBoundingClientRect()
   const center = targetRect.top + targetRect.height / 2 - hostRect.top
-  return center >= hostRect.height * SAFE_ZONE_START && center <= hostRect.height * SAFE_ZONE_END
+  return Math.abs(center - hostRect.height / 2) <= CENTER_TOLERANCE_PX
+}
+
+function updateEdgeSpacers(target: HTMLElement, host: HTMLElement): void {
+  const height = Math.max(0, host.clientHeight / 2 - target.getBoundingClientRect().height / 2)
+  for (const spacer of host.querySelectorAll<HTMLElement>('.lyrics-edge-spacer')) {
+    spacer.style.height = `${height}px`
+  }
 }
 
 function finishProgrammaticScroll(): void {
@@ -106,10 +112,10 @@ function monitorScrollSettlement(target: HTMLElement, host: HTMLElement): void {
     const currentScrollTop = host.scrollTop
     const stable = previousScrollTop !== undefined
       && Math.abs(currentScrollTop - previousScrollTop) < 0.5
-      && targetInSafeZone(target, host)
+      && lineVisuallyCentered(target, host)
     stableFrameCount = stable ? stableFrameCount + 1 : 0
     previousScrollTop = currentScrollTop
-    if (targetInSafeZone(target, host)) scrollFollowState = 'settling'
+    if (lineVisuallyCentered(target, host)) scrollFollowState = 'settling'
     // scrollend is the primary completion signal. Engines without it must show
     // a genuinely stable target for several frames before follow resumes.
     if (!target.isConnected || stableFrameCount >= REQUIRED_STABLE_FRAMES || settleFrameCount >= MAX_SETTLE_FRAMES) {
@@ -140,7 +146,8 @@ function followActiveLine(): void {
     ) return
     const target = container.value.querySelector<HTMLElement>(`[data-line-index="${index}"]`)
     if (!target) return
-    if (targetInSafeZone(target, container.value)) {
+    updateEdgeSpacers(target, container.value)
+    if (lineVisuallyCentered(target, container.value)) {
       finishProgrammaticScroll()
       return
     }
@@ -186,11 +193,19 @@ watch(() => props.trackId, () => {
   pendingFollowIndex = -1
   followActiveLine()
 })
-onMounted(followActiveLine)
+function onViewportResize(): void {
+  followActiveLine()
+}
+
+onMounted(() => {
+  window.addEventListener('resize', onViewportResize)
+  followActiveLine()
+})
 onUnmounted(() => {
   followGeneration += 1
   if (resumeTimer !== undefined) clearTimeout(resumeTimer)
   cancelScrollSettlement()
+  window.removeEventListener('resize', onViewportResize)
 })
 </script>
 
@@ -206,6 +221,7 @@ onUnmounted(() => {
     @scroll="onScroll"
     @scrollend="onScrollEnd"
   >
+    <span class="lyrics-edge-spacer" aria-hidden="true"></span>
     <p v-if="!props.snapshot.lines.length" class="lyrics-empty-line">{{ statusLabel(props.snapshot.status) }}</p>
     <p
       v-for="entry in decoratedLines"
@@ -228,5 +244,6 @@ onUnmounted(() => {
       <small v-if="entry.line.translation">{{ entry.line.translation }}</small>
       <small v-if="entry.line.romanization">{{ entry.line.romanization }}</small>
     </p>
+    <span class="lyrics-edge-spacer" aria-hidden="true"></span>
   </div>
 </template>

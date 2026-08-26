@@ -101,7 +101,11 @@ test('Renderer artwork cache 对无效二进制和解码失败执行短时 negat
     format: 'image/jpeg' as const,
   }
 
-  await assert.rejects(cache.acquire(request))
+  await assert.rejects(cache.acquire(request), (error: unknown) => (
+    error instanceof Error
+    && 'code' in error
+    && error.code === 'ROON_IMAGE_DECODE_FAILED'
+  ))
   await assert.rejects(cache.acquire(request))
   assert.equal(fetchCalls, 1)
   assert.equal(decodeCalls, 1)
@@ -119,5 +123,17 @@ test('Renderer artwork cache 对无效二进制和解码失败执行短时 negat
     },
     decodeObjectUrl: async () => undefined,
   })
-  await assert.rejects(invalidCache.acquire(request))
+  await assert.rejects(invalidCache.acquire(request), (error: unknown) => (
+    error instanceof Error
+    && 'code' in error
+    && error.code === 'ROON_IMAGE_DECODE_FAILED'
+  ))
+
+  const entityLease = await createRoonArtworkCache({
+    getImage: async () => ({ contentType: 'image/jpeg', body: JPEG_BYTES }),
+    createObjectUrl: () => 'blob:artist-fallback',
+    decodeObjectUrl: async () => undefined,
+  }).acquire({ ...request, reference: 'musicbridge-v2-entity-123e4567-e89b-12d3-a456-426614174099' })
+  assert.equal(entityLease.url, 'blob:artist-fallback')
+  entityLease.release()
 })

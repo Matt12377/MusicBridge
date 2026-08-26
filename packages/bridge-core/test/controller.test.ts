@@ -641,6 +641,31 @@ test('controller keeps Roon and NetEase items in one logical queue and switches 
   assert.equal(nativeRoon.active, false);
 });
 
+test('controller projects available native Roon technical metadata and an explicit unknown quality', async () => {
+  const { controller } = makeHarness();
+  const roonTrack = {
+    id: '8809',
+    title: 'Local Technical Song',
+    artists: ['Local Artist'],
+    album: 'Local Album',
+    bitrate: 921_600,
+    format: 'flac',
+  };
+
+  await controller.playRoon({
+    reference: 'roon-ref-technical',
+    zoneId: 'zone-1',
+    track: roonTrack,
+  });
+
+  const snapshot = controller.getPlaybackState();
+  assert.equal(snapshot.actualQuality, 'unknown');
+  assert.equal(snapshot.bitrate, 921_600);
+  assert.equal(snapshot.format, 'flac');
+  assert.equal(snapshot.currentTrack?.bitrate, 921_600);
+  assert.equal(snapshot.currentTrack?.format, 'flac');
+});
+
 test('controller plays an existing mixed queue index without discarding the queue', async () => {
   const { controller } = makeHarness();
   await controller.play({ trackId: '8890', quality: 'standard' });
