@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue'
 import type { DraftProgramType, MasterDraft, MasterDraftResult, MasterDraftSummary, Page, AppendMasterDraftRequest } from '@music-bridge/contracts'
 import MediaPlanningPanel from './MediaPlanningPanel.vue'
+import MasterVersionsPanel from './MasterVersionsPanel.vue'
 import SourceEvidencePanel from './SourceEvidencePanel.vue'
 import type { DraftSourceSnapshot } from '@music-bridge/contracts'
 import MasterSourcePicker from './MasterSourcePicker.vue'
@@ -9,7 +10,7 @@ const emit = defineEmits<{ 'open-collection': [] }>()
 const api = window.musicBridge
 const catalog = shallowRef<Page<MasterDraftSummary>>(), draft = shallowRef<MasterDraft>()
 const loading = ref(false), saving = ref(false), picker = ref(false), error = ref(''), notice = ref(''), discarding = ref(false)
-const mediaPlanning = ref(false)
+const mediaPlanning = ref(false), masterVersions = ref(false)
 const sourceTrackId = ref(''), sourceSnapshot = shallowRef<DraftSourceSnapshot>()
 const pending = shallowRef<() => Promise<MasterDraftResult>>()
 const title = ref(''), programType = ref<DraftProgramType>('compilation'), trackIds = ref<string[]>([])
@@ -123,16 +124,18 @@ onUnmounted(() => { alive = false; ++generation })
         <p class="draft-estimate">已保存草稿的初步时长：{{ duration(draft.estimatedDurationMs) }}。精选按相邻曲目额外 5 秒估算，不等于最终分面或执行时间线。</p>
         <ol class="draft-tracks"><li v-for="(track, index) in tracks" :key="track.id"><span class="position">{{ index + 1 }}</span><div class="track-title"><strong>{{ track.metadata.title }}</strong><small>{{ [track.metadata.artist, track.metadata.album, track.metadata.version].filter(Boolean).join(' · ') || '元数据待核实' }}</small><small>{{ sourceLabel(track.id) }} · {{ duration(track.metadata.durationMs) }}</small></div><div class="track-actions"><button :disabled="dirty" @click="sourceTrackId = track.id">绑定实际源文件</button><button :aria-label="`上移 ${track.metadata.title}`" :disabled="index === 0" @click="move(index, -1)">上移</button><button :aria-label="`下移 ${track.metadata.title}`" :disabled="index === tracks.length - 1" @click="move(index, 1)">下移</button><button :aria-label="`移除 ${track.metadata.title}`" @click="trackIds = trackIds.filter(id => id !== track.id)">移除</button><button @click="play(track.id)">试听 {{ track.metadata.title }}</button></div></li></ol>
         <p v-if="!tracks.length" class="draft-estimate">草稿还没有曲目。可先保存，再继续从 Roon 添加。</p>
-        <div class="draft-toolbar"><button :disabled="!dirty || !title.trim()" @click="save">保存草稿修改</button><button :disabled="!dirty" @click="open(draft.id)">撤销未保存修改</button><button disabled aria-describedby="draft-freeze-status">冻结母版</button></div>
+        <div class="draft-toolbar"><button :disabled="!dirty || !title.trim()" @click="save">保存草稿修改</button><button :disabled="!dirty" @click="open(draft.id)">撤销未保存修改</button><button :disabled="dirty || !sourceSnapshot?.sourceLockEligible" aria-describedby="draft-freeze-status" @click="masterVersions = true">冻结母版</button></div>
       </fieldset>
       <button class="recording-primary" :disabled="blocked || dirty || !draft.trackCount" @click="mediaPlanning = true">分面与选择磁带</button>
-      <p id="draft-freeze-status" class="draft-estimate">冻结前需完成实际源文件验证及最终布局；当前只保存草稿。</p>
+      <button :disabled="blocked || dirty" @click="masterVersions = true">母版与布局版本</button>
+      <p id="draft-freeze-status" class="draft-estimate">冻结前需完成实际源验证、最终分面与磁带预留；可在版本面板查看提案和历史。</p>
       <p v-if="dirty" class="draft-estimate" role="status">有未保存的修改；添加更多曲目前请先保存或撤销。</p>
       <div v-if="discarding" class="discard"><p>返回会放弃当前未保存的修改，已保存草稿不变。</p><button @click="back(true)">放弃未保存修改并返回</button><button @click="discarding = false">继续编辑</button></div>
     </section>
     <p v-if="loading" class="draft-message" role="status">正在读取草稿…</p><p v-if="notice" class="draft-message" role="status">{{ notice }}</p>
     <p v-if="error && !picker" class="draft-message" role="alert">{{ error }} <button v-if="pending" :disabled="saving" @click="retry">重试原操作</button><button v-else :disabled="loading" @click="error = ''; draft ? open(draft.id) : list()">刷新草稿</button></p>
     <section v-if="!draft && catalog?.items.length" class="draft-library" aria-label="已保存的录音草稿"><h3>继续一份草稿</h3><div class="draft-grid"><button v-for="item in catalog.items" :key="item.id" class="draft-card" @click="open(item.id)"><span>继续草稿 {{ item.title }}</span><small>{{ item.trackCount }} 首 · {{ duration(item.estimatedDurationMs) }} · {{ item.sourceLockEligible ? '源已验证' : '来源待验证' }}</small></button></div><nav v-if="catalog.total > catalog.limit" aria-label="草稿分页"><button :disabled="loading || !catalog.offset" @click="list(Math.max(0, catalog.offset - 12))">上一页</button><button :disabled="loading || !catalog.hasMore" @click="list(catalog.offset + 12)">下一页</button></nav></section>
+    <MasterVersionsPanel v-if="draft && masterVersions" :draft="draft" @close="masterVersions = false" />
     <MediaPlanningPanel v-if="draft && mediaPlanning" :draft="draft" @close="mediaPlanning = false" />
     <SourceEvidencePanel v-if="draft && sourceTrackId" :draft-id="draft.id" :track-id="sourceTrackId" :title="draft.tracks.find(t => t.id === sourceTrackId)?.metadata.title ?? '曲目'" @close="closeSources" />
     <MasterSourcePicker v-if="picker" :draft="draft" :busy="saving" :pending="!!pending" :error="error" @close="picker = false; error = ''" @confirm="append" @retry="retry" />

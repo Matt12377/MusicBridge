@@ -145,7 +145,7 @@ test('Gate A-02：真实编码的合成 FLAC 与 AIFF 均只探测技术块，�
   for (const [file, codec, durationMs] of [[flac, 'FLAC', 20], [aiff, 'PCM', 1000]] as const) {
     await writeFile(f.file, file); const selection = f.selection(); f.service.start(selection, f.file); await f.service.idle();
     assert.equal(f.service.job(selection.commandId).job?.state, 'completed'); const b = (await f.service.snapshot(selection.draftId)).tracks[0]!.binding!;
-    assert.equal(b.technical.codec, codec); assert.equal(b.technical.durationMs, durationMs); assert.equal(b.sha256, createHash('sha256').update(file).digest('hex')); assert.equal(b.sourceLockEligible, false);
+    assert.equal(b.technical.sampleFrames, durationMs * 44100 / 1000); assert.equal(b.technical.frameEvidence, 'container-declared'); assert.equal(b.technical.codec, codec); assert.equal(b.technical.durationMs, durationMs); assert.equal(b.sha256, createHash('sha256').update(file).digest('hex')); assert.equal(b.sourceLockEligible, false);
   }
 });
 
@@ -222,4 +222,18 @@ test('分面重新取实际源时长，绑定与内容变化使旧规划失效�
   assert.equal(changed.sourceBasis, 'unavailable'); assert.equal(changed.layout.sides[0]!.durationMs, undefined);
   assert.equal((await coordinator.detail(plan.id)).requiresReview, true);
   assert.ok(!JSON.stringify(changed).includes(f.source));
+});
+
+test('源帧证据保留非整毫秒帧数，不能从 durationMs 反推执行长度', async t => {
+  const f = await fixture(t);
+  const audio = wav(); const exact = Buffer.concat([audio, Buffer.alloc(4)]);
+  exact.writeUInt32LE(exact.length - 8, 4); exact.writeUInt32LE(exact.length - 44, 40);
+  await writeFile(f.file, exact);
+  const evidence = await probeReadonlySource(f.repository.sources.root(f.root.id), 'actual-source.wav', new AbortController().signal);
+  assert.equal(evidence.technical.durationMs, 1000);
+  const technical = evidence.technical as typeof evidence.technical & { sampleFrames?: number; frameEvidence?: string };
+  assert.equal(technical.sampleFrames, 44101);
+  assert.equal(technical.frameEvidence, 'container-declared');
+  assert.notEqual(technical.sampleFrames, technical.durationMs * technical.sampleRate / 1000);
+  assert.deepEqual(await readFile(f.file), exact);
 });

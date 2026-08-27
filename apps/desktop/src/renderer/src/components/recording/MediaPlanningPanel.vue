@@ -145,7 +145,7 @@ onBeforeUnmount(() => { alive = false; ++generation; dialog.value?.close() })
       <div v-if="selected" class="confirmation"><h4>预留 {{ selected.model.brand }} {{ selected.model.name }}</h4><p>{{ selected.lengthMinutes }} 分钟 · {{ selected.packaging === 'opened' ? '已拆' : '未拆' }}。提交时再次检查库存与保护条件。</p><label class="check"><input v-model="confirmed" type="checkbox" :disabled="blocked">我确认预留一盘，暂不开始录音</label><div class="actions"><button class="primary" :disabled="blocked || !confirmed || !canReserve" @click="reserve">确认预留一盘</button><button :disabled="blocked" @click="selected = undefined; confirmed = false">取消选择</button></div></div>
     </section>
     <p v-if="loading" role="status">正在核对分面和库存…</p><p v-if="notice" class="fit" role="status">{{ notice }}</p><p v-if="error" class="warning" role="alert">{{ error }} <button v-if="pending" :disabled="busy" @click="retry">重试原操作</button><button v-else :disabled="blocked" @click="plan ? calculate() : load()">重试读取</button></p>
-    <footer>未保存的设置关闭后放弃，已保存规划与预留保留。正式录音、母版冻结与帧级编译尚未接入。</footer>
+    <footer>未保存的设置关闭后放弃，已保存规划与预留保留。下一步可在录音页打开“母版与布局版本”；正式录音与帧级编译尚未接入。</footer>
   </dialog>
 </template>
 

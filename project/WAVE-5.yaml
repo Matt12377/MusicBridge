@@ -3,9 +3,9 @@ wave: WAVE-5
 status: active
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-055
-activeBranch: codex/task-055-v3-layout-media-select
-activeBaseCommit: 79ca787240226eefb87cba49c7f92c35232be45a
+activeTask: TASK-056
+activeBranch: codex/task-056-v3-master-layout-versions
+activeBaseCommit: d64f2b2979b580b2771efea4cb6b935806f17dea
 order:
   - TASK-048
   - TASK-049
@@ -15,5 +15,6 @@ order:
   - TASK-053
   - TASK-054
   - TASK-055
-stopAfter: TASK-055
-reviewBoundary: authorized-layout-media-recommendation-reservation
+  - TASK-056
+stopAfter: TASK-056
+reviewBoundary: immutable-master-layout-versions-no-recording

@@ -1,3 +1,4 @@
+import { isPreviewVersionsRequest, isFreezeVersionsRequest } from '@music-bridge/contracts'
 import { isMediaLayoutSpec, isPreviewMediaRequest, isSaveMediaPlanRequest, isReserveMediaRequest, isReleaseMediaRequest } from '@music-bridge/contracts'
 import { isSourceSelection, isSourceAction, isSourceConfirmation } from '@music-bridge/contracts'
 import { isAppendMasterDraftRequest, isUpdateMasterDraftRequest } from '@music-bridge/contracts'
@@ -1084,6 +1085,26 @@ function registerIpcHandlers(
   ipcMain.handle('library:daily-recommendations', (event) =>
     invokeCore(event, () => supervisor.request('library.dailyRecommendations', {})),
   )
+  ipcMain.handle('recordingVersions:list', (event, draftId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(draftId)) throw new Error('录音草稿编号无效。')
+    return supervisor.request('recordingVersions.list', { draftId })
+  }))
+  ipcMain.handle('recordingVersions:preview', (event, request: unknown) => invokeCore(event, () => {
+    if (!isPreviewVersionsRequest(request)) throw new Error('版本预览请求无效。')
+    return supervisor.request('recordingVersions.preview', request)
+  }))
+  ipcMain.handle('recordingVersions:freeze', (event, request: unknown) => invokeCore(event, () => {
+    if (!isFreezeVersionsRequest(request)) throw new Error('冻结请求无效或未明确确认。')
+    return supervisor.request('recordingVersions.freeze', request)
+  }))
+  ipcMain.handle('recordingVersions:job', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) throw new Error('版本任务编号无效。')
+    return supervisor.request('recordingVersions.job', { id })
+  }))
+  ipcMain.handle('recordingVersions:cancel', (event, request: unknown) => invokeCore(event, () => {
+    if (!isSourceAction(request)) throw new Error('取消任务请求无效。')
+    return supervisor.request('recordingVersions.cancel', request)
+  }))
   ipcMain.handle('recordingMedia:plans', (event, draftId: unknown) => invokeCore(event, () => {
     if (!isCollectionId(draftId)) throw new Error('录音草稿编号无效。')
     return supervisor.request('recordingMedia.plans', { draftId })

@@ -1,3 +1,4 @@
+import type { PreviewVersionsRequest, FreezeVersionsRequest, VersionProposal, VersionHistory, VersionJob } from './master-versions.js';
 import type { MediaPlan, MediaPreview, MediaLayoutSpec, PreviewMediaRequest, SaveMediaPlanRequest, ReserveMediaRequest, ReleaseMediaRequest } from './media-planning.js';
 import type { SourceRoot, SourceJob, SourceBinding, SourceSelection, SourceAction, SourceConfirmation, DraftSourceSnapshot } from './source-evidence.js';
 import type { MasterDraft, MasterDraftSummary, AppendMasterDraftRequest, UpdateMasterDraftRequest, MasterDraftResult } from './master-drafts.js';
@@ -77,6 +78,11 @@ export const IPC_COMMANDS = [
   'library.playlist',
   'library.dailyRecommendations',
   'favorites.list',
+  'recordingVersions.list',
+  'recordingVersions.preview',
+  'recordingVersions.freeze',
+  'recordingVersions.job',
+  'recordingVersions.cancel',
   'recordingMedia.plans',
   'recordingMedia.detail',
   'recordingMedia.preview',
@@ -207,6 +213,11 @@ export type IpcResponse<TResult = unknown> =
 export type IpcEnvelope<T = unknown> = IpcRequest<T> | IpcResponse<T>;
 
 export interface IpcCommandPayloads {
+  'recordingVersions.list': { draftId: string };
+  'recordingVersions.preview': PreviewVersionsRequest;
+  'recordingVersions.freeze': FreezeVersionsRequest;
+  'recordingVersions.job': { id: string };
+  'recordingVersions.cancel': { commandId: string; id: string };
   'recordingMedia.plans': { draftId: string };
   'recordingMedia.detail': { id: string };
   'recordingMedia.preview': PreviewMediaRequest;
@@ -326,6 +337,11 @@ export interface IpcCommandPayloads {
 }
 
 export interface IpcCommandResults {
+  'recordingVersions.list': VersionHistory;
+  'recordingVersions.preview': VersionProposal;
+  'recordingVersions.freeze': VersionJob;
+  'recordingVersions.job': { job: VersionJob | null };
+  'recordingVersions.cancel': VersionJob;
   'recordingMedia.plans': { draftId: string; plans: readonly MediaPlan[] };
   'recordingMedia.detail': MediaPlan;
   'recordingMedia.preview': MediaPreview;

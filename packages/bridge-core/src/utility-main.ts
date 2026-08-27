@@ -138,6 +138,11 @@ function sourcesFor(runtime: CoreRuntimeForIpc) {
   return runtime.sources;
 }
 
+function masterVersionsFor(runtime: CoreRuntimeForIpc) {
+  if (!runtime.masterVersions) throw new CollectionError('INVENTORY_UNAVAILABLE', '母版版本服务尚未就绪，请重试。');
+  return runtime.masterVersions;
+}
+
 function mediaPlanningFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.mediaPlanning) throw new CollectionError('INVENTORY_UNAVAILABLE', '录音规划服务尚未就绪，请重试。');
   return runtime.mediaPlanning;
@@ -169,6 +174,11 @@ async function dispatch(
     case 'recordingSources.cancel': { const p = request.payload as IpcCommandPayloads['recordingSources.cancel']; return sourcesFor(runtime).cancel(p); }
     case 'recordingSources.confirm': { const p = request.payload as IpcCommandPayloads['recordingSources.confirm']; return sourcesFor(runtime).confirm(p); }
     case 'recordingSources.recheck': { const p = request.payload as IpcCommandPayloads['recordingSources.recheck']; return sourcesFor(runtime).recheck(p); }
+    case 'recordingVersions.list': return masterVersionsFor(runtime).list((request.payload as IpcCommandPayloads['recordingVersions.list']).draftId);
+    case 'recordingVersions.preview': return masterVersionsFor(runtime).preview(request.payload as IpcCommandPayloads['recordingVersions.preview']);
+    case 'recordingVersions.freeze': return masterVersionsFor(runtime).freeze(request.payload as IpcCommandPayloads['recordingVersions.freeze']);
+    case 'recordingVersions.job': return masterVersionsFor(runtime).job((request.payload as IpcCommandPayloads['recordingVersions.job']).id);
+    case 'recordingVersions.cancel': return masterVersionsFor(runtime).cancel(request.payload as IpcCommandPayloads['recordingVersions.cancel']);
     case 'recordingMedia.plans': return mediaPlanningFor(runtime).list((request.payload as IpcCommandPayloads['recordingMedia.plans']).draftId);
     case 'recordingMedia.detail': return mediaPlanningFor(runtime).detail((request.payload as IpcCommandPayloads['recordingMedia.detail']).id);
     case 'recordingMedia.balance': { const p = request.payload as IpcCommandPayloads['recordingMedia.balance']; return mediaPlanningFor(runtime).balance(p.draftId, p.spec); }

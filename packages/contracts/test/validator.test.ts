@@ -1462,3 +1462,31 @@ test('分面变更合同要求原命令和明确确认，公开结果拒绝路�
   assert.equal(accepted({ ...result, path: '/private/source.wav' }), false);
   assert.equal(accepted({ ...result, layout: { ...result.layout, timebase: 'frames' } }), false);
 });
+
+test('源容器帧证据保留旧快照兼容，新增帧数与采样率时长必须一致', async () => {
+  const { isSourceTechnical } = await import('../src/index.js');
+  const old = { container: 'WAVE', codec: 'PCM', sampleRate: 44100, channels: 2, durationMs: 1000, bitsPerSample: 16, lossless: true };
+  assert.equal(isSourceTechnical(old), true);
+  const precise = { ...old, sampleFrames: 44101, frameEvidence: 'container-declared' };
+  assert.equal(isSourceTechnical(precise), true);
+  for (const bad of [{ ...precise, sampleFrames: 0 }, { ...precise, sampleFrames: 44100.5 }, { ...precise, sampleFrames: 88200 }, { ...precise, frameEvidence: 'decoded-verified' }, { ...old, sampleFrames: 44101 }, { ...old, frameEvidence: 'container-declared' }]) assert.equal(isSourceTechnical(bad), false);
+});
+
+test('不可变版本 IPC 不接收 Renderer 伪造内容、源路径或未确认冻结；后台状态必须自洽', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const request = (command: string, payload: unknown) => validateIpcRequest({ version: 1, id: 'versions', command, payload }).ok;
+  assert.equal(request('recordingVersions.list', { draftId: id }), true);
+  assert.equal(request('recordingVersions.preview', { planId: id, sampleRate: 96000 }), true);
+  const freeze = { planId: id, sampleRate: 96000, commandId: id, proposalFingerprint: 'a'.repeat(64), userConfirmed: true };
+  assert.equal(request('recordingVersions.freeze', freeze), true);
+  for (const bad of [{ ...freeze, userConfirmed: false }, { ...freeze, content: {} }, { ...freeze, path: '/private/source' }, { ...freeze, sampleRate: 0 }, { ...freeze, proposalFingerprint: '' }]) assert.equal(request('recordingVersions.freeze', bad), false);
+  assert.equal(request('recordingVersions.cancel', { commandId: id, id }), true);
+  const response = (command: Parameters<typeof validateIpcResponseForCommand>[1], result: unknown) => validateIpcResponseForCommand({ version: 1, id: 'versions', ok: true, result }, command).ok;
+  assert.equal(response('recordingVersions.list', { draftId: id, masters: [], layouts: [], jobs: [] }), true);
+  const job = { id, draftId: id, planId: id, state: 'running' };
+  assert.equal(response('recordingVersions.freeze', job), true);
+  assert.equal(response('recordingVersions.freeze', { ...job, state: 'completed' }), false);
+  assert.equal(response('recordingVersions.freeze', { ...job, state: 'completed', masterVersionId: id, layoutVersionId: id }), true);
+  assert.equal(response('recordingVersions.freeze', { ...job, state: 'failed', failure: 'SOURCE_INVALID', stack: 'private' }), false);
+  assert.equal(response('recordingVersions.job', { job: null }), true);
+});

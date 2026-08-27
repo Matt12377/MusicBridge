@@ -1121,3 +1121,17 @@ test('分面规划 IPC 初次返回草稿空规划，不自动预留库存', asy
   assert.deepEqual(port.messages.at(-1), { version: 1, id: 'media-plans', ok: true, result: { draftId: draft.draftId, plans: [] } });
   assert.equal(collection.list({ offset: 0, limit: 20 }).total, 0);
 });
+
+test('母版版本历史通过正式 IPC 读取，不隐式冻结草稿或打开源文件', async t => {
+  const collection = createCollectionRepository({ filePath: ':memory:' });
+  const sources = createSourceEvidenceService({ store: collection.sources, drafts: collection.drafts });
+  const mediaPlanning = createMediaPlanningCoordinator({ store: collection.media, drafts: collection.drafts, sources });
+  const { createMasterVersionsCoordinator } = await import('../src/recording/versions-coordinator.js');
+  const masterVersions = createMasterVersionsCoordinator({ store: collection.versions, mediaStore: collection.media, media: mediaPlanning, drafts: collection.drafts, sourceStore: collection.sources, sources });
+  t.after(async () => { await masterVersions.close(); await sources.close(); collection.close(); });
+  const draft = collection.drafts.append({ commandId: '11111111-1111-4111-8111-111111111111', fingerprint: 'b'.repeat(64), title: '合成', programType: 'compilation', metadata: [{ title: '合成曲目' }] });
+  const port = new FakePort(); await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { collection, sources, mediaPlanning, masterVersions }));
+  port.send({ version: 1, id: 'versions', command: 'recordingVersions.list', payload: { draftId: draft.draftId } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'versions', ok: true, result: { draftId: draft.draftId, masters: [], layouts: [], jobs: [] } });
+});

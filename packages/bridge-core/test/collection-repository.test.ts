@@ -309,9 +309,9 @@ test('v1 库存迁移保留全部账本和实体；迁移失败仍保留 v1 可�
   repository.materialize({ commandId: randomUUID(), lotId: stock.lotId!, bucket: 'sealedBlank', action: 'open' });
   repository.setPolicy({ commandId: randomUUID(), modelId: stock.modelId, expectedRevision: 1, collectorPolicy: 'preserve-sealed', minimumSealedReserve: 2 });
   const before = repository.detail(stock.modelId, page); repository.close();
-  // 本次迁移只新增这两张表；去除它们后即为上一版本的实际 schema 和业务数据。
+  // 去除 v1 之后新增的表，恢复为实际 v1 schema；既有业务数据与账本保留。
   const db = new DatabaseSync(filePath);
-  db.exec('DROP TABLE media_reservations; DROP TABLE media_plans; DROP TABLE media_ledger; DROP TABLE draft_source_links; DROP TABLE source_bindings; DROP TABLE source_roots; DROP TABLE source_jobs; DROP TABLE source_ledger; DROP TABLE master_drafts; DROP TABLE master_drafts_ledger; DROP TABLE physical_digital_links; DROP TABLE physical_digital_absence; DROP TABLE digital_albums; DROP TABLE physical_links_ledger; DROP TABLE music_photos; DROP TABLE legacy_recording_content; DROP TABLE music_releases; DROP TABLE music_ledger; DROP TABLE collection_featured_photos; DROP TABLE collection_photos; PRAGMA user_version=1');
+  db.exec('DROP TABLE layout_versions; DROP TABLE master_versions; DROP TABLE version_jobs; DROP TABLE version_ledger; DROP TABLE media_reservations; DROP TABLE media_plans; DROP TABLE media_ledger; DROP TABLE draft_source_links; DROP TABLE source_bindings; DROP TABLE source_roots; DROP TABLE source_jobs; DROP TABLE source_ledger; DROP TABLE master_drafts; DROP TABLE master_drafts_ledger; DROP TABLE physical_digital_links; DROP TABLE physical_digital_absence; DROP TABLE digital_albums; DROP TABLE physical_links_ledger; DROP TABLE music_photos; DROP TABLE legacy_recording_content; DROP TABLE music_releases; DROP TABLE music_ledger; DROP TABLE collection_featured_photos; DROP TABLE collection_photos; PRAGMA user_version=1');
   const ledger = db.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(); db.close();
   const failing = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-photos') throw new Error('合成迁移中断'); } });
   assert.throws(() => failing.list(page), /库存暂时不可用/u); failing.close();
@@ -321,7 +321,7 @@ test('v1 库存迁移保留全部账本和实体；迁移失败仍保留 v1 可�
   const migrated = createCollectionRepository({ filePath });
   try { assert.deepEqual(migrated.detail(stock.modelId, page), before); } finally { migrated.close(); }
   const check = new DatabaseSync(filePath, { readOnly: true });
-  try { assert.equal(check.prepare('PRAGMA user_version').get()?.user_version, 7); assert.deepEqual(check.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(), ledger); }
+  try { assert.equal(check.prepare('PRAGMA user_version').get()?.user_version, 8); assert.deepEqual(check.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(), ledger); }
   finally { check.close(); }
 });
 
@@ -399,7 +399,7 @@ test('schema 2 音乐迁移失败回滚，成功后库存、照片、编号和�
   repository.addPhoto({ commandId: randomUUID(), modelId: stock.modelId, image: photoImage });
   const before = repository.detail(stock.modelId, page); repository.close();
   const db = new DatabaseSync(filePath);
-  db.exec('DROP TABLE media_reservations; DROP TABLE media_plans; DROP TABLE media_ledger; DROP TABLE draft_source_links; DROP TABLE source_bindings; DROP TABLE source_roots; DROP TABLE source_jobs; DROP TABLE source_ledger; DROP TABLE master_drafts; DROP TABLE master_drafts_ledger; DROP TABLE physical_digital_links; DROP TABLE physical_digital_absence; DROP TABLE digital_albums; DROP TABLE physical_links_ledger; DROP TABLE music_photos; DROP TABLE legacy_recording_content; DROP TABLE music_releases; DROP TABLE music_ledger; PRAGMA user_version=2'); db.close();
+  db.exec('DROP TABLE layout_versions; DROP TABLE master_versions; DROP TABLE version_jobs; DROP TABLE version_ledger; DROP TABLE media_reservations; DROP TABLE media_plans; DROP TABLE media_ledger; DROP TABLE draft_source_links; DROP TABLE source_bindings; DROP TABLE source_roots; DROP TABLE source_jobs; DROP TABLE source_ledger; DROP TABLE master_drafts; DROP TABLE master_drafts_ledger; DROP TABLE physical_digital_links; DROP TABLE physical_digital_absence; DROP TABLE digital_albums; DROP TABLE physical_links_ledger; DROP TABLE music_photos; DROP TABLE legacy_recording_content; DROP TABLE music_releases; DROP TABLE music_ledger; PRAGMA user_version=2'); db.close();
   const interrupted = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-music') throw new Error('synthetic'); } });
   assert.throws(() => interrupted.music.list(page), /不可用/u); interrupted.close();
   const old = new DatabaseSync(filePath); assert.equal(old.prepare('PRAGMA user_version').get()?.user_version, 2); old.close();
@@ -467,7 +467,7 @@ test('schema 3 关系迁移中断回滚，已有音乐与照片完整保留', as
   repository.music.addPhoto({ commandId: randomUUID(), id: saved.id, image: photoImage });
   const before = repository.music.detail(saved.id); repository.close();
   const db = new DatabaseSync(filePath);
-  db.exec('DROP TABLE media_reservations; DROP TABLE media_plans; DROP TABLE media_ledger; DROP TABLE draft_source_links; DROP TABLE source_bindings; DROP TABLE source_roots; DROP TABLE source_jobs; DROP TABLE source_ledger; DROP TABLE master_drafts; DROP TABLE master_drafts_ledger; DROP TABLE physical_digital_links; DROP TABLE physical_digital_absence; DROP TABLE digital_albums; DROP TABLE physical_links_ledger; PRAGMA user_version=3'); db.close();
+  db.exec('DROP TABLE layout_versions; DROP TABLE master_versions; DROP TABLE version_jobs; DROP TABLE version_ledger; DROP TABLE media_reservations; DROP TABLE media_plans; DROP TABLE media_ledger; DROP TABLE draft_source_links; DROP TABLE source_bindings; DROP TABLE source_roots; DROP TABLE source_jobs; DROP TABLE source_ledger; DROP TABLE master_drafts; DROP TABLE master_drafts_ledger; DROP TABLE physical_digital_links; DROP TABLE physical_digital_absence; DROP TABLE digital_albums; DROP TABLE physical_links_ledger; PRAGMA user_version=3'); db.close();
   const interrupted = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-links') throw new Error('合成迁移中断'); } });
   assert.throws(() => interrupted.links.digitalList(page), /不可用/u); interrupted.close();
   const old = new DatabaseSync(filePath);
@@ -537,7 +537,7 @@ test('schema 4 草稿迁移中断完整回滚，成功后原音乐与 Roon 关�
   const release = repository.music.saveRelease({ commandId: randomUUID(), release: { format: 'cd', title: '迁移保留', artist: '合成', quantity: 1, completeness: 'basic', tracks: [] } });
   repository.links.link({ commandId: randomUUID(), fingerprint: linkFingerprint('before-draft'), releaseId: release.id, expectedRevision: 1, relation: 'related', ripFromCdConfirmed: false, metadata: { title: '关联数字版' } });
   const before = repository.links.physical(release.id); repository.close();
-  const db = new DatabaseSync(filePath); db.exec('DROP TABLE media_reservations; DROP TABLE media_plans; DROP TABLE media_ledger; DROP TABLE draft_source_links; DROP TABLE source_bindings; DROP TABLE source_roots; DROP TABLE source_jobs; DROP TABLE source_ledger; DROP TABLE master_drafts; DROP TABLE master_drafts_ledger; PRAGMA user_version=4'); db.close();
+  const db = new DatabaseSync(filePath); db.exec('DROP TABLE layout_versions; DROP TABLE master_versions; DROP TABLE version_jobs; DROP TABLE version_ledger; DROP TABLE media_reservations; DROP TABLE media_plans; DROP TABLE media_ledger; DROP TABLE draft_source_links; DROP TABLE source_bindings; DROP TABLE source_roots; DROP TABLE source_jobs; DROP TABLE source_ledger; DROP TABLE master_drafts; DROP TABLE master_drafts_ledger; PRAGMA user_version=4'); db.close();
   const interrupted = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-drafts') throw new Error('合成迁移故障'); } });
   assert.throws(() => interrupted.drafts.list(page), /不可用/u); interrupted.close();
   const old = new DatabaseSync(filePath); assert.equal(old.prepare('PRAGMA user_version').get()?.user_version, 4); assert.equal(old.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE name='master_drafts'").get()?.n, 0); old.close();
@@ -579,7 +579,7 @@ test('v5 源证据迁移失败回滚；重试保留草稿及所有旧账本', as
   const { repository, filePath } = await fixture(t);
   const draft = repository.drafts.append({ commandId: randomUUID(), fingerprint: 'c'.repeat(64), title: '迁移前草稿', programType: 'compilation', metadata: [{ title: '迁移前曲目' }] });
   const before = repository.drafts.detail(draft.draftId); repository.close();
-  const db = new DatabaseSync(filePath); db.exec('DROP TABLE media_reservations; DROP TABLE media_plans; DROP TABLE media_ledger; DROP TABLE draft_source_links; DROP TABLE source_bindings; DROP TABLE source_roots; DROP TABLE source_jobs; DROP TABLE source_ledger; PRAGMA user_version=5');
+  const db = new DatabaseSync(filePath); db.exec('DROP TABLE layout_versions; DROP TABLE master_versions; DROP TABLE version_jobs; DROP TABLE version_ledger; DROP TABLE media_reservations; DROP TABLE media_plans; DROP TABLE media_ledger; DROP TABLE draft_source_links; DROP TABLE source_bindings; DROP TABLE source_roots; DROP TABLE source_jobs; DROP TABLE source_ledger; PRAGMA user_version=5');
   const ledger = db.prepare('SELECT * FROM master_drafts_ledger').all(); db.close();
   const failing = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-sources') throw new Error('合成迁移中断'); } });
   assert.throws(() => failing.sources.roots(), /库存暂时不可用/u); failing.close();
@@ -652,7 +652,7 @@ test('分面迁移从 schema 6 原子升级，失败不改变草稿与库存，�
   const { repository, filePath } = await fixture(t), stock = repository.receive(receipt());
   const { plan } = mediaFixture(repository), draft = repository.drafts.detail(plan.draftId), before = repository.detail(stock.modelId, page);
   repository.close();
-  const db = new DatabaseSync(filePath); db.exec('DROP TABLE media_reservations; DROP TABLE media_plans; DROP TABLE media_ledger; PRAGMA user_version=6'); db.close();
+  const db = new DatabaseSync(filePath); db.exec('DROP TABLE layout_versions; DROP TABLE master_versions; DROP TABLE version_jobs; DROP TABLE version_ledger; DROP TABLE media_reservations; DROP TABLE media_plans; DROP TABLE media_ledger; PRAGMA user_version=6'); db.close();
   const interrupted = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-media-planning') throw new Error('合成迁移中断'); } });
   assert.throws(() => interrupted.media.list(draft.id)); interrupted.close();
   const failed = new DatabaseSync(filePath); assert.equal(failed.prepare('PRAGMA user_version').get()?.user_version, 6); assert.equal(failed.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE name='media_plans'").get()?.n, 0); failed.close();

@@ -1,3 +1,4 @@
+import { isPreviewVersionsRequest, isFreezeVersionsRequest, isVersionProposal, isVersionHistory, isVersionJob } from './master-versions.js';
 import { isMediaLayoutSpec, isPreviewMediaRequest, isSaveMediaPlanRequest, isReserveMediaRequest, isReleaseMediaRequest, isMediaPlan, isMediaCandidate, isMediaPreview } from './media-planning.js';
 import { isSourceRoot, isSourceJob, isSourceBinding, isSourceSelection, isSourceAction, isSourceConfirmation, isDraftSourceSnapshot } from './source-evidence.js';
 import { isMasterDraft, isMasterDraftSummary, isMasterDraftResult, isAppendMasterDraftRequest, isUpdateMasterDraftRequest } from './master-drafts.js';
@@ -927,6 +928,11 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'recordingSources.snapshot') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
   if (command === 'recordingSources.revoke' || command === 'recordingSources.cancel') return isSourceAction(payload);
   if (command === 'recordingSources.confirm' || command === 'recordingSources.recheck') return isSourceConfirmation(payload);
+  if (command === 'recordingVersions.list') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
+  if (command === 'recordingVersions.preview') return isPreviewVersionsRequest(payload);
+  if (command === 'recordingVersions.freeze') return isFreezeVersionsRequest(payload);
+  if (command === 'recordingVersions.job') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
+  if (command === 'recordingVersions.cancel') return isSourceAction(payload);
   if (command === 'recordingMedia.plans') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
   if (command === 'recordingMedia.detail') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
   if (command === 'recordingMedia.preview') return isPreviewMediaRequest(payload);
@@ -1390,6 +1396,11 @@ function isCommandResult(
     case 'recordingSources.cancel':
     case 'recordingSources.recheck': return isSourceJob(value);
     case 'recordingSources.confirm': return isSourceBinding(value);
+    case 'recordingVersions.list': return isVersionHistory(value);
+    case 'recordingVersions.preview': return isVersionProposal(value);
+    case 'recordingVersions.freeze':
+    case 'recordingVersions.cancel': return isVersionJob(value);
+    case 'recordingVersions.job': return isRecord(value) && hasOnlyKeys(value, ['job']) && (value.job === null || isVersionJob(value.job));
     case 'recordingMedia.plans': return isRecord(value) && hasOnlyKeys(value, ['draftId', 'plans']) && isCollectionId(value.draftId) && Array.isArray(value.plans) && value.plans.length <= 100 && value.plans.every(isMediaPlan);
     case 'recordingMedia.preview': return isMediaPreview(value, page => isCollectionPage(page, isMediaCandidate));
     case 'recordingMedia.balance': return isRecord(value) && hasOnlyKeys(value, ['splitAfter']) && Number.isInteger(value.splitAfter) && Number(value.splitAfter) >= 1 && Number(value.splitAfter) <= 200;

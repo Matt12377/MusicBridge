@@ -126,6 +126,11 @@ test('Preload exposes only sanitized business methods', async () => {
   )
 
   assert.deepEqual(PUBLIC_API_KEYS, [
+    'listMasterVersions',
+    'previewMasterVersions',
+    'freezeMasterVersions',
+    'getMasterVersionJob',
+    'cancelMasterVersionJob',
     'listMediaPlans',
   'getMediaPlan',
   'previewMediaPlan',
@@ -243,6 +248,11 @@ test('Preload exposes only sanitized business methods', async () => {
     'onRemoteCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
+    'listMasterVersions',
+    'previewMasterVersions',
+    'freezeMasterVersions',
+    'getMasterVersionJob',
+    'cancelMasterVersionJob',
     'listMediaPlans',
   'getMediaPlan',
   'previewMediaPlan',

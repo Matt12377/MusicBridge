@@ -12,7 +12,7 @@ export interface FileEvidence { sha256: string; size: number; signature: string;
 const fail = (code: SourceFailure): never => { throw new SourceFileError(code); };
 const signature = (s: BigIntStats): string => [s.dev, s.ino, s.size, s.mtimeNs, s.ctimeNs].join(':');
 /** 只把有界的技术块交给探测器；封面、标签及任意文本块不进入解析器。 */
-function technicalHeader(prefix: Buffer, size: number): { bytes: Buffer; mimeType: string; virtualSize: number; durationMs?: number } {
+function technicalHeader(prefix: Buffer, size: number): { bytes: Buffer; mimeType: string; virtualSize: number; sampleFrames: number; durationMs?: number } {
   const magic = prefix.subarray(0, 4).toString('ascii');
   if (magic === 'fLaC') {
     if (prefix.length < 42 || (prefix[4]! & 0x7f) !== 0 || prefix.readUIntBE(5, 3) !== 34) return fail('UNSUPPORTED');
@@ -21,7 +21,7 @@ function technicalHeader(prefix: Buffer, size: number): { bytes: Buffer; mimeTyp
       const length = prefix.readUIntBE(offset + 1, 3), last = (prefix[offset]! & 0x80) !== 0;
       offset += 4 + length;
       if (offset >= size) return fail('UNSUPPORTED');
-      if (last) { const bytes = Buffer.from(prefix.subarray(0, 42)); bytes[4] = 0x80; return { bytes, mimeType: 'audio/flac', virtualSize: size }; }
+      if (last) { const bytes = Buffer.from(prefix.subarray(0, 42)); bytes[4] = 0x80; return { bytes, mimeType: 'audio/flac', virtualSize: size, sampleFrames: Number(prefix.readBigUInt64BE(18) & 0xfffffffffn) }; }
     }
     return fail('LIMIT_EXCEEDED');
   }
@@ -52,7 +52,7 @@ function technicalHeader(prefix: Buffer, size: number): { bytes: Buffer; mimeTyp
       const bytes = Buffer.concat([prefix.subarray(0, 12), format, prefix.subarray(offset, offset + 8)]);
       const virtualSize = bytes.length + length;
       if (wav) bytes.writeUInt32LE(virtualSize - 8, 4); else bytes.writeUInt32BE(virtualSize - 8, 4);
-      return { bytes, mimeType: wav ? 'audio/wav' : 'audio/aiff', virtualSize, ...(wav ? { durationMs: Math.round(length / format.readUInt16LE(20) / format.readUInt32LE(12) * 1000) } : {}) };
+      return { bytes, sampleFrames: wav ? length / format.readUInt16LE(20) : format.readUInt32BE(10), mimeType: wav ? 'audio/wav' : 'audio/aiff', virtualSize, ...(wav ? { durationMs: Math.round(length / format.readUInt16LE(20) / format.readUInt32LE(12) * 1000) } : {}) };
     }
     offset += 8 + length + (length % 2);
   }
@@ -124,7 +124,7 @@ export async function probeReadonlySource(root: RootCapability, relative: string
     const metadata = await parseBuffer(header.bytes, { mimeType: header.mimeType, size: header.virtualSize }, { skipCovers: true, skipPostHeaders: true }).catch(() => fail('UNSUPPORTED'));
     const f = metadata.format;
     const technical = { container: f.container, codec: f.codec, sampleRate: f.sampleRate, channels: f.numberOfChannels,
-      durationMs: header.durationMs ?? (f.duration === undefined ? undefined : Math.round(f.duration * 1000)), lossless: f.lossless,
+      durationMs: f.sampleRate === undefined ? undefined : Math.round(header.sampleFrames / f.sampleRate * 1000), lossless: f.lossless, sampleFrames: header.sampleFrames, frameEvidence: 'container-declared',
       ...(f.bitsPerSample ? { bitsPerSample: f.bitsPerSample } : {}) };
     if (!isSourceTechnical(technical) || !technical.lossless) return fail('UNSUPPORTED');
     checkAbort();

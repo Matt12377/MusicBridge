@@ -9,6 +9,7 @@ const invalid = (message = '源文件操作无效，请刷新并重新确认。'
 export function createSourceEvidenceService({ store, drafts, probe = probeReadonlySource }: { store: SourceStore; drafts: MasterDraftsRepository; probe?: typeof probeReadonlySource }) {
   const active = new Map<string, { rootId: string; controller: AbortController; promise: Promise<void> }>();
   let closed = false;
+  const revocationListeners = new Set<(rootId: string) => void>();
   const pendingFailures = new Map<string, SourceFailure>();
   function flushFailures(): void { for (const [id, failure] of pendingFailures) { store.fail(id, failure); pendingFailures.delete(id); } }
   // 只由 Core 生命周期唯一持有者调用；仓库的普通读取不会中断另一个任务。
@@ -50,12 +51,14 @@ export function createSourceEvidenceService({ store, drafts, probe = probeReadon
     return job.public;
   }
   return {
+    onRootRevoked(listener: (rootId: string) => void) { revocationListeners.add(listener); return () => { revocationListeners.delete(listener); }; },
     async roots() { return { roots: await Promise.all(store.roots().map(publicRoot)) }; },
     async authorize(commandId: string, absolutePath: string) { if (!isCollectionId(commandId)) return invalid(); const prior = store.rootReceipt(commandId); return publicRoot(prior ?? store.authorize(commandId, await authorizeSourceDirectory(absolutePath))); },
     async rootReceipt(commandId: string) { if (!isCollectionId(commandId)) return invalid(); const root = store.rootReceipt(commandId); return { root: root ? await publicRoot(root) : null }; },
     async context(id: string) { if (!isCollectionId(id)) return invalid(); const root = store.root(id); if (await sourceRootAvailability(root) !== 'ONLINE') return invalid('源目录当前未授权或离线。'); return { absolutePath: root.path }; },
     async revoke(request: SourceAction) {
       if (!isSourceAction(request)) return invalid(); const root = store.revoke(request);
+      for (const listener of revocationListeners) listener(root.id);
       for (const [id, job] of active) if (job.rootId === root.id) { store.fail(id, 'REVOKED'); job.controller.abort(); }
       return publicRoot(root);
     },
@@ -78,7 +81,7 @@ export function createSourceEvidenceService({ store, drafts, probe = probeReadon
       return { draftId, sourceLockEligible: tracks.length > 0 && tracks.every(t => t.binding?.sourceLockEligible === true), tracks };
     },
     async idle() { await Promise.all([...active.values()].map(job => job.promise)); },
-    async close() { closed = true; for (const job of active.values()) job.controller.abort(); await Promise.all([...active.values()].map(job => job.promise)); },
+    async close() { closed = true; revocationListeners.clear(); for (const job of active.values()) job.controller.abort(); await Promise.all([...active.values()].map(job => job.promise)); },
   };
 }
 export type SourceEvidenceService = ReturnType<typeof createSourceEvidenceService>;

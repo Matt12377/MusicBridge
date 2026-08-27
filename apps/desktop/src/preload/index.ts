@@ -200,5 +200,12 @@ contextBridge.exposeInMainWorld(
       reserveMediaPlan: request => ipcRenderer.invoke('recordingMedia:reserve', request),
       releaseMediaPlan: request => ipcRenderer.invoke('recordingMedia:release', request),
     },
+    {
+      listMasterVersions: draftId => ipcRenderer.invoke('recordingVersions:list', draftId),
+      previewMasterVersions: request => ipcRenderer.invoke('recordingVersions:preview', request),
+      freezeMasterVersions: request => ipcRenderer.invoke('recordingVersions:freeze', request),
+      getMasterVersionJob: id => ipcRenderer.invoke('recordingVersions:job', id),
+      cancelMasterVersionJob: request => ipcRenderer.invoke('recordingVersions:cancel', request),
+    },
   ),
 )
