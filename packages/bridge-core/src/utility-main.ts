@@ -1,10 +1,12 @@
 import { appendFileSync, chmodSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { CollectionError, createCollectionRepository, type CollectionRepository } from './collection/repository.js';
 import {
   IPC_VERSION,
   parseIpcRuntimeMessage,
   validateIpcRequest,
   type IpcCommand,
+  type IpcCommandPayloads,
   type IpcFailure,
   type IpcRequest,
   type IpcResponse,
@@ -66,6 +68,7 @@ function requestId(value: unknown): string | undefined {
 }
 
 function failureForError(id: string, error: unknown): IpcFailure {
+  if (error instanceof CollectionError) return responseFailure(id, error.code, error.message);
   const bridgeError = asBridgeError(error);
   if (bridgeError.code === 'NETEASE_NOT_CONFIGURED') {
     return responseFailure(id, 'AUTH_REQUIRED', 'Provider login required');
@@ -124,11 +127,30 @@ function postReady(port: UtilityPort, runtime: CoreRuntime): void {
   } satisfies CoreRuntimeEvent);
 }
 
+function collectionFor(runtime: CoreRuntimeForIpc): CollectionRepository {
+  if (!runtime.collection) throw new CollectionError('INVENTORY_UNAVAILABLE', '库存服务尚未就绪，请重试。');
+  return runtime.collection;
+}
+
 async function dispatch(
   runtime: CoreRuntimeForIpc,
   request: IpcRequest,
 ): Promise<unknown> {
   switch (request.command as IpcCommand) {
+    case 'collection.list':
+      return collectionFor(runtime).list((request.payload as IpcCommandPayloads['collection.list']).page);
+    case 'collection.detail': {
+      const payload = request.payload as IpcCommandPayloads['collection.detail'];
+      return collectionFor(runtime).detail(payload.modelId, payload.page);
+    }
+    case 'collection.receive':
+      return collectionFor(runtime).receive(request.payload as IpcCommandPayloads['collection.receive']);
+    case 'collection.materialize':
+      return collectionFor(runtime).materialize(request.payload as IpcCommandPayloads['collection.materialize']);
+    case 'collection.updateCopy':
+      return collectionFor(runtime).updateCopy(request.payload as IpcCommandPayloads['collection.updateCopy']);
+    case 'collection.setPolicy':
+      return collectionFor(runtime).setPolicy(request.payload as IpcCommandPayloads['collection.setPolicy']);
     case 'core.ping':
       return runtime.ping();
     case 'core.getHealth':
@@ -456,6 +478,7 @@ export async function runCoreUtilityProcess(
       const runtime =
         env.MUSIC_BRIDGE_CORE_TEST_MODE === '1'
           ? createTestBridgeRuntime({
+              ...(env.MUSIC_BRIDGE_DATA_DIRECTORY ? { collectionRepository: createCollectionRepository({ filePath: path.join(env.MUSIC_BRIDGE_DATA_DIRECTORY, 'collection.v1.sqlite') }) } : {}),
               authorized: env.MUSIC_BRIDGE_UI_E2E === '1',
               ...(env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE === 'profile-unavailable' || env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE === 'expired'
                 ? { accountMode: env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE }
@@ -475,6 +498,7 @@ export async function runCoreUtilityProcess(
               const onRoonBrowseShape = createRoonBrowseShapeRecorder(env);
               const onRoonImageShape = createRoonImageShapeRecorder(env);
               return createBridgeRuntime({
+                collectionRepository: createCollectionRepository({ filePath: path.join(dataDirectory, 'collection.v1.sqlite') }),
                 lyricsMatchRepository: createLyricsMatchRepository({
                   filePath: path.join(dataDirectory, 'lyrics-matches.v1.json'),
                 }),

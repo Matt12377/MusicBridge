@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { createCollectionRepository, type CollectionRepository } from './collection/repository.js';
 import {
   DiagnosticRingBuffer,
   type DiagnosticComponentSnapshot,
@@ -87,6 +88,7 @@ import { resolveRoonMatch } from './matching/candidate-resolution.js';
 export type CoreRuntimeEvent = TypedIpcEvent;
 
 export interface CoreRuntime {
+  readonly collection?: CollectionRepository;
   start(): Promise<void>;
   shutdown(): Promise<void>;
   ping(): { pong: true };
@@ -163,6 +165,7 @@ export interface CoreRuntime {
 }
 
 export interface BridgeRuntimeOptions {
+  collectionRepository?: CollectionRepository;
   env?: NodeJS.ProcessEnv;
   logger?: Logger;
   roonSdk?: RoonSdk;
@@ -762,6 +765,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   });
 
   const cleanup = async (): Promise<void> => {
+    options.collectionRepository?.close();
     await control.stop();
     await controller.shutdown();
     removeControllerListener();
@@ -1082,6 +1086,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       return { stopped: true as const };
     },
 
+    ...(options.collectionRepository ? { collection: options.collectionRepository } : {}),
     listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),
     async checkFavorite(descriptor) {
       return { favorite: await favoriteRepository.isFavorite(descriptor) };
@@ -1117,11 +1122,13 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
 const SYNTHETIC_QR_IMAGE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2IiB2aWV3Qm94PSIwIDAgMzMgMzMiIHNoYXBlLXJlbmRlcmluZz0iY3Jpc3BFZGdlcyI+PHBhdGggZmlsbD0iI2ZmZmZmZiIgZD0iTTAgMGgzM3YzM0gweiIvPjxwYXRoIHN0cm9rZT0iIzAwMDAwMCIgZD0iTTIgMi41aDdtMSAwaDFtMSAwaDJtNCAwaDFtMSAwaDNtMSAwaDdNMiAzLjVoMW01IDBoMW0xIDBoMW0xIDBoMW0xIDBoMm04IDBoMW01IDBoMU0yIDQuNWgxbTEgMGgzbTEgMGgxbTMgMGgybTEgMGgzbTIgMGgybTIgMGgxbTEgMGgzbTEgMGgxTTIgNS41aDFtMSAwaDNtMSAwaDFtMSAwaDFtNCAwaDJtMiAwaDNtMiAwaDFtMSAwaDNtMSAwaDFNMiA2LjVoMW0xIDBoM20xIDBoMW0zIDBoMW0zIDBoM20yIDBoMW0yIDBoMW0xIDBoM20xIDBoMU0yIDcuNWgxbTUgMGgxbTIgMGgybTIgMGgybTIgMGgzbTIgMGgxbTUgMGgxTTIgOC41aDdtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDdNMTAgOS41aDFtMiAwaDJtMyAwaDNNMiAxMC41aDFtMSAwaDJtMSAwaDNtMSAwaDJtMiAwaDFtMiAwaDVtMSAwaDFtMiAwaDFtMSAwaDJNNCAxMS41aDFtMiAwaDFtMiAwaDNtMSAwaDJtMiAwaDFtMiAwaDRtMSAwaDFtMSAwaDNNMiAxMi41aDFtMiAwaDJtMSAwaDFtNSAwaDJtMyAwaDJtMiAwaDdNMiAxMy41aDFtMSAwaDFtMSAwaDFtMiAwaDFtMSAwaDNtNyAwaDNtMiAwaDFtMiAwaDFNMiAxNC41aDNtMiAwaDJtMiAwaDJtMSAwaDFtMSAwaDFtMiAwaDFtMyAwaDFtMSAwaDFtMiAwaDJNMiAxNS41aDFtMSAwaDFtMSAwaDJtMiAwaDVtMSAwaDRtMSAwaDFtMiAwaDJtMiAwaDNNNSAxNi41aDFtMiAwaDFtMSAwaDFtMiAwaDFtMSAwaDFtMiAwaDFtMSAwaDJtMSAwaDFtMSAwaDFtMiAwaDNNNCAxNy41aDRtMSAwaDJtNSAwaDNtNSAwaDRNNCAxOC41aDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDJtMiAwaDJtMiAwaDRtMSAwaDJtMiAwaDFNMyAxOS41aDNtNCAwaDRtMiAwaDJtMiAwaDFtMSAwaDJtMSAwaDFtMSAwaDFtMSAwaDFNMiAyMC41aDFtMiAwaDFtMiAwaDFtMSAwaDNtMiAwaDZtMiAwaDFtMSAwaDFtMiAwaDFNMTEgMjEuNWgxbTMgMGgybTIgMGgybTIgMGgybTIgMGgzTTMgMjIuNWg2bTMgMGg1bTEgMGg5bTEgMGgyTTEwIDIzLjVoMW0xIDBoMW0xIDBoMW0zIDBoMW0yIDBoMm0zIDBoMW0yIDBoMk0yIDI0LjVoN20xIDBoMW0xIDBoMm0yIDBoMW0yIDBoNG0xIDBoMW0xIDBoMW0yIDBoMU0yIDI1LjVoMW01IDBoMW0xIDBoMW0yIDBoNG0xIDBoMW0zIDBoMW0zIDBoMU0yIDI2LjVoMW0xIDBoM20xIDBoMW0zIDBoMW02IDBoMm0xIDBoNW0xIDBoMU0yIDI3LjVoMW0xIDBoM20xIDBoMW0xIDBoMW0yIDBoMW0zIDBoMm00IDBoMW0xIDBoMm0zIDBoMU0yIDI4LjVoMW0xIDBoM20xIDBoMW0xIDBoMW0yIDBoMW0xIDBoMW00IDBoMW0xIDBoMm0xIDBoMW00IDBoMU0yIDI5LjVoMW01IDBoMW0yIDBoMW0xIDBoMm03IDBoM20xIDBoMm0xIDBoMU0yIDMwLjVoN20xIDBoMW0yIDBoMW0xIDBoMm0zIDBoNG01IDBoMSIvPjwvc3ZnPgo='
 
 export interface TestBridgeRuntimeOptions {
+  collectionRepository?: CollectionRepository;
   authorized?: boolean
   accountMode?: 'ready' | 'profile-unavailable' | 'expired'
 }
 
 export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}): CoreRuntime {
+  const collection = options.collectionRepository ?? createCollectionRepository({ filePath: ':memory:' });
   const accountMode = options.accountMode ?? 'ready'
   const syntheticAuthorized = options.authorized === true && accountMode !== 'expired'
   const favoriteRepository = createLocalFavoriteRepository()
@@ -1276,6 +1283,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       diagnostics.record({ component: 'core', level: 'info', event: 'core_ready', state: 'ready' });
     },
     async shutdown() {
+      collection.close();
       playbackState = emptyPlaybackState();
       state = {
         ...state,
@@ -1640,6 +1648,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     async stopRoonTransport() {
       return { stopped: true as const };
     },
+    collection,
     listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),
     async checkFavorite(descriptor) {
       return { favorite: await favoriteRepository.isFavorite(descriptor) };

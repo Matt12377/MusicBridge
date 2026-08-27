@@ -7,6 +7,16 @@ import test from 'node:test'
 
 import { readStartupTestConfiguration } from '../src/main/startup-test-config.js'
 
+test('V3 UI 测试的持久库存只使用独立临时目录，普通启动不接受测试路径', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-ui-e2e-'))
+  try {
+    const environment = { MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: directory }
+    assert.equal((readStartupTestConfiguration(environment) as { uiE2eUserDataDirectory?: string }).uiE2eUserDataDirectory, realpathSync(directory))
+    assert.throws(() => readStartupTestConfiguration({ MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: directory }), /UI 测试/u)
+    assert.throws(() => readStartupTestConfiguration({ ...environment, MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: '/Users/Shared' }), /temporary directory name/u)
+  } finally { await rm(directory, { recursive: true, force: true }) }
+})
+
 test('startup configuration accepts a bounded cold-start stage and temporary userData directory', async () => {
   const userDataDirectory = await mkdtemp(
     path.join(os.tmpdir(), 'musicbridge-task036-cold-start-'),

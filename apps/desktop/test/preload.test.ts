@@ -126,6 +126,12 @@ test('Preload exposes only sanitized business methods', async () => {
   )
 
   assert.deepEqual(PUBLIC_API_KEYS, [
+    'listCollection',
+    'getCollectionModel',
+    'receiveCollectionStock',
+    'materializeCollectionCopy',
+    'updateCollectionCopy',
+    'setCollectionPolicy',
     'getAppInfo',
     'getCoreHealth',
     'getCoreState',
@@ -194,6 +200,12 @@ test('Preload exposes only sanitized business methods', async () => {
     'onRemoteCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
+    'listCollection',
+    'getCollectionModel',
+    'receiveCollectionStock',
+    'materializeCollectionCopy',
+    'updateCollectionCopy',
+    'setCollectionPolicy',
     'getAppInfo',
     'getCoreHealth',
     'getCoreState',

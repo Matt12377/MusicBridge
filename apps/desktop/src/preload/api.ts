@@ -1,5 +1,6 @@
 import type {
   AlbumDetail,
+  CollectionPublicApi,
   AlbumSummary,
   ArtistDetail,
   ArtistSummary,
@@ -47,7 +48,7 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
   autoReconnect: false,
 }
 
-export interface MusicBridgePublicApi {
+export interface MusicBridgePublicApi extends CollectionPublicApi {
   getAppInfo: () => Promise<AppInfo>
   getCoreHealth: () => Promise<PublicBridgeState>
   getCoreState: () => Promise<PublicBridgeState>
@@ -121,6 +122,12 @@ export interface MusicBridgePublicApi {
 }
 
 export const PUBLIC_API_KEYS = [
+  'listCollection',
+  'getCollectionModel',
+  'receiveCollectionStock',
+  'materializeCollectionCopy',
+  'updateCollectionCopy',
+  'setCollectionPolicy',
   'getAppInfo',
   'getCoreHealth',
   'getCoreState',
@@ -333,8 +340,15 @@ export function createPreloadApi(
   revokeLocalLyricsMatch: () => Promise<LocalLyricsMatchSnapshot> = async () => {
     throw new Error('Local lyrics matching API is unavailable')
   },
+  collectionApi?: CollectionPublicApi,
 ): MusicBridgePublicApi {
+  const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   return Object.freeze({
+    ...(collectionApi ?? {
+      listCollection: collectionUnavailable, getCollectionModel: collectionUnavailable,
+      receiveCollectionStock: collectionUnavailable, materializeCollectionCopy: collectionUnavailable,
+      updateCollectionCopy: collectionUnavailable, setCollectionPolicy: collectionUnavailable,
+    }),
     getAppInfo,
     getCoreHealth,
     getCoreState,

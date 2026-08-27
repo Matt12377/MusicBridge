@@ -1,6 +1,7 @@
 export * from './errors.js';
 export * from './aggregated-search.js';
 export * from './favorites.js';
+export * from './collection.js';
 export * from './matching.js';
 export * from './diagnostics.js';
 export * from './ipc.js';

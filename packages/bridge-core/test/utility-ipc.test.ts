@@ -13,6 +13,7 @@ import {
 } from '../src/utility-main.js';
 import { BridgeError } from '../src/shared/errors.js';
 import { emptyLyricsSnapshot } from '../src/netease/lyrics.js';
+import { createCollectionRepository } from '../src/collection/repository.js';
 
 class FakePort implements UtilityPort {
   readonly messages: unknown[] = [];
@@ -33,6 +34,27 @@ class FakePort implements UtilityPort {
     this.listener?.({ data: message });
   }
 }
+
+test('V3 库存通过正式 IPC 返回空分页，不要求 Provider 或 Roon', async t => {
+  const port = new FakePort();
+  const page = { items: [], offset: 0, limit: 20, total: 0, hasMore: false };
+  const collection = createCollectionRepository({ filePath: ':memory:' });
+  t.after(() => collection.close());
+  const runtime = Object.assign(makeRuntime(), { collection });
+  await attachCoreRuntimePort(port, runtime);
+  port.send({ version: IPC_VERSION, id: 'collection-list', command: 'collection.list', payload: { page: { offset: 0, limit: 20 } } });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: IPC_VERSION, id: 'collection-list', ok: true, result: page });
+});
+
+test('V3 库存 IPC 返回有界冲突，不泄露路径或 SQLite 错误', async t => {
+  const port = new FakePort(); const collection = createCollectionRepository({ filePath: ':memory:' });
+  t.after(() => collection.close());
+  await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { collection }));
+  port.send({ version: 1, id: 'missing-model', command: 'collection.detail', payload: { modelId: '11111111-1111-4111-8111-111111111111', page: { offset: 0, limit: 20 } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'missing-model', ok: false, error: { code: 'INVENTORY_CONFLICT', message: '型号不存在，请刷新收藏。' } });
+});
 
 function makeRuntime(): CoreRuntimeForIpc & {
   shutdownCalls: number

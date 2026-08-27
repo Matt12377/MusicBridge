@@ -5,6 +5,7 @@ import path from 'node:path'
 export type ElectronColdStartStage = 'seed' | 'restore'
 
 export interface StartupTestConfiguration {
+  uiE2eUserDataDirectory?: string
   isStartupTest: boolean
   userDataDirectory?: string
   coreCrashGate: boolean
@@ -29,10 +30,9 @@ function isPathInside(root: string, candidate: string): boolean {
   return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative)
 }
 
-function validateUserDataDirectory(value: string): string {
+function validateUserDataDirectory(value: string, expectedName = /^musicbridge-task036-(?:startup|cold-start)-[A-Za-z0-9._-]+$/): string {
   const requestedPath = path.resolve(value)
   const temporaryRoot = realpathSync(os.tmpdir())
-  const expectedName = /^musicbridge-task036-(?:startup|cold-start)-[A-Za-z0-9._-]+$/
   if (!expectedName.test(path.basename(requestedPath))) {
     throw new Error(`${STARTUP_USER_DATA_ENV} has an invalid temporary directory name`)
   }
@@ -56,6 +56,10 @@ function readColdStartStage(environment: NodeJS.ProcessEnv): ElectronColdStartSt
 export function readStartupTestConfiguration(
   environment: NodeJS.ProcessEnv = process.env,
 ): StartupTestConfiguration {
+  const uiDirectory = environment.MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR
+  if (uiDirectory !== undefined && environment.MUSIC_BRIDGE_UI_E2E !== '1') throw new Error('库存测试目录只能用于 UI 测试')
+  const uiE2eUserDataDirectory = uiDirectory === undefined ? undefined
+    : validateUserDataDirectory(uiDirectory, /^musicbridge-ui-(?:e2e|diagnostics)-[A-Za-z0-9._-]+$/)
   const startupTestValue = environment.MUSIC_BRIDGE_STARTUP_TEST
   if (startupTestValue !== undefined && startupTestValue !== '1') {
     throw new Error('MUSIC_BRIDGE_STARTUP_TEST must be exactly 1 when provided')
@@ -84,6 +88,7 @@ export function readStartupTestConfiguration(
     }
     return {
       isStartupTest: false,
+      ...(uiE2eUserDataDirectory ? { uiE2eUserDataDirectory } : {}),
       coreCrashGate: false,
       credentialVaultGate: false,
       coreRestartCredentialRecoveryGate: false,

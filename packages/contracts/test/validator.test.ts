@@ -10,6 +10,52 @@ import {
   validateIpcRequest,
 } from '../src/index.js';
 
+test('V3 库存合同接受有界的查询与收货请求', () => {
+  for (const [command, payload] of [
+    ['collection.list', { page: { offset: 0, limit: 20 } }],
+    ['collection.receive', {
+      commandId: '11111111-1111-4111-8111-111111111111',
+      model: { brand: 'TDK', name: 'SA', edition: '1990', year: 1990, format: 'cassette', tapeType: 'II', identification: 'verified' },
+      lengthMinutes: 90,
+      quantities: { sealedBlank: 5, openedBlank: 1, legacyUsed: 1, unclassified: 0 },
+    }],
+  ]) {
+    assert.equal(validateIpcRequest({ version: IPC_VERSION, id: 'inventory-1', command, payload }).ok, true, String(command));
+  }
+});
+
+test('V3 库存拒绝非法数量、未知字段、错配介质及无版次的确认', () => {
+  const payload = {
+    commandId: '11111111-1111-4111-8111-111111111111',
+    model: { brand: 'TDK', name: 'SA', edition: '1990', year: 1990, format: 'cassette', tapeType: 'II', identification: 'verified' },
+    lengthMinutes: 90,
+    quantities: { sealedBlank: 5, openedBlank: 0, legacyUsed: 0, unclassified: 0 },
+  };
+  for (const invalid of [
+    { ...payload, commandId: '../../config' }, { ...payload, privatePath: '/private/music' },
+    ...[-1, 0, 1.5, 10_001, NaN].map(n => ({ ...payload, quantities: { ...payload.quantities, sealedBlank: n } })),
+    { ...payload, model: { ...payload.model, edition: '' } },
+    { ...payload, model: { ...payload.model, format: 'dat' } },
+    { ...payload, model: { ...payload.model, brand: 'x'.repeat(121) } },
+    { ...payload, lengthMinutes: 0 },
+  ]) assert.equal(validateIpcRequest({ version: 1, id: 'bad-collection', command: 'collection.receive', payload: invalid }).ok, false);
+  assert.equal(validateIpcRequest({ version: 1, id: 'bad-page', command: 'collection.list', payload: { page: { offset: 0, limit: 101 } } }).ok, false);
+  assert.equal(validateIpcRequest({ version: 1, id: 'bad-copy', command: 'collection.materialize', payload: {
+    commandId: payload.commandId, lotId: payload.commandId, bucket: 'unclassified', action: 'open',
+  } }).ok, false);
+});
+
+test('V3 库存响应必须数量守恒且不暴露额外路径或无界数据', () => {
+  const item = { id: '11111111-1111-4111-8111-111111111111', brand: 'TDK', name: 'SA', edition: '', year: null,
+    format: 'cassette', tapeType: 'II', identification: 'unidentified', collectorPolicy: 'normal', minimumSealedReserve: 0, revision: 1,
+    lengths: [90], counts: { total: 2, sealedBlank: 1, openedBlank: 0, legacyUsed: 1, recorded: 0, reserved: 0, unavailable: 0, unknown: 0 } };
+  const response = (items: unknown[]) => ({ version: 1, id: 'result', ok: true, result: { items, offset: 0, limit: 20, total: items.length, hasMore: false } });
+  assert.equal(validateIpcResponseForCommand(response([item]), 'collection.list').ok, true);
+  assert.equal(validateIpcResponseForCommand(response([{ ...item, counts: { ...item.counts, total: 3 } }]), 'collection.list').ok, false);
+  assert.equal(validateIpcResponseForCommand(response([{ ...item, filePath: '/private/inventory.sqlite' }]), 'collection.list').ok, false);
+  assert.equal(validateIpcResponseForCommand(response(Array(101).fill(item)), 'collection.list').ok, false);
+});
+
 test('contracts accepts a versioned public core request', () => {
   const result = validateIpcRequest({
     version: IPC_VERSION,

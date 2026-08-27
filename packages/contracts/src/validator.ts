@@ -1,4 +1,5 @@
 import type { PublicError } from './errors.js';
+import { isCollectionId, isCollectionReceiveRequest, isCollectionMaterializeRequest, isCollectionUpdateCopyRequest, isCollectionPolicyRequest, isCollectionMutationResult, isCollectionModel, isCollectionPage, isCollectionDetail } from './collection.js';
 import type {
   DailyRecommendationTrack,
   DailyRecommendationsSnapshot,
@@ -913,6 +914,12 @@ function isPlaylistDetail(value: unknown): value is PlaylistDetail {
 }
 
 function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
+  if (command === 'collection.list') return isLibraryPagePayload(payload);
+  if (command === 'collection.detail') return isRecord(payload) && hasOnlyKeys(payload, ['modelId', 'page']) && isCollectionId(payload.modelId) && isPageRequest(payload.page);
+  if (command === 'collection.receive') return isCollectionReceiveRequest(payload);
+  if (command === 'collection.materialize') return isCollectionMaterializeRequest(payload);
+  if (command === 'collection.updateCopy') return isCollectionUpdateCopyRequest(payload);
+  if (command === 'collection.setPolicy') return isCollectionPolicyRequest(payload);
   if (command === 'roon.selectZone') return isSelectZonePayload(payload);
   if (command === 'auth.setCredential') return isSetCredentialPayload(payload);
   if (command === 'auth.verifyCredential') return isSetCredentialPayload(payload);
@@ -959,6 +966,8 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
 }
 
 const PUBLIC_ERROR_CODES = new Set([
+  'INVENTORY_CONFLICT',
+  'INVENTORY_UNAVAILABLE',
   'INVALID_IPC_REQUEST',
   'UNSUPPORTED_IPC_VERSION',
   'UNKNOWN_IPC_COMMAND',
@@ -1325,6 +1334,15 @@ function isCommandResult(
   allowInternalResult = false,
 ): boolean {
   switch (command) {
+    case 'collection.list':
+      return isCollectionPage(value, isCollectionModel);
+    case 'collection.detail':
+      return isCollectionDetail(value);
+    case 'collection.receive':
+    case 'collection.materialize':
+    case 'collection.updateCopy':
+    case 'collection.setPolicy':
+      return isCollectionMutationResult(value);
     case 'core.ping':
       return isRecord(value) && hasOnlyKeys(value, ['pong']) && value.pong === true;
     case 'core.getHealth':

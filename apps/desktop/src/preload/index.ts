@@ -139,5 +139,13 @@ contextBridge.exposeInMainWorld(
     (matchSessionId: string, candidateId: string) =>
       ipcRenderer.invoke('lyrics:match:select', matchSessionId, candidateId),
     () => ipcRenderer.invoke('lyrics:match:revoke'),
+    {
+      listCollection: page => ipcRenderer.invoke('collection:list', page),
+      getCollectionModel: (modelId, page) => ipcRenderer.invoke('collection:detail', modelId, page),
+      receiveCollectionStock: request => ipcRenderer.invoke('collection:receive', request),
+      materializeCollectionCopy: request => ipcRenderer.invoke('collection:materialize', request),
+      updateCollectionCopy: request => ipcRenderer.invoke('collection:update-copy', request),
+      setCollectionPolicy: request => ipcRenderer.invoke('collection:set-policy', request),
+    },
   ),
 )

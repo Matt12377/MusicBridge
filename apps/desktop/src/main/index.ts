@@ -36,9 +36,14 @@ import {
   MAX_PLAYBACK_QUEUE_ITEMS,
   summarizeRoonImageBinary,
   validateIpcEvent,
+  isCollectionId,
+  isCollectionReceiveRequest,
+  isCollectionMaterializeRequest,
+  isCollectionUpdateCopyRequest,
+  isCollectionPolicyRequest,
 } from '@music-bridge/contracts'
 import { appendFileSync, chmodSync } from 'node:fs'
-import { mkdir, readFile, realpath } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -1070,6 +1075,27 @@ function registerIpcHandlers(
   ipcMain.handle('library:daily-recommendations', (event) =>
     invokeCore(event, () => supervisor.request('library.dailyRecommendations', {})),
   )
+  ipcMain.handle('collection:list', (event, page: unknown) => invokeCore(event, () => supervisor.request('collection.list', { page: requireLibraryPage(page) })))
+  ipcMain.handle('collection:detail', (event, modelId: unknown, page: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(modelId)) return publicIpcFailure('INVALID_IPC_REQUEST', '库存型号无效')
+    return supervisor.request('collection.detail', { modelId, page: requireLibraryPage(page) })
+  }))
+  ipcMain.handle('collection:receive', (event, request: unknown) => invokeCore(event, () => {
+    if (!isCollectionReceiveRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '库存录入内容无效')
+    return supervisor.request('collection.receive', request)
+  }))
+  ipcMain.handle('collection:materialize', (event, request: unknown) => invokeCore(event, () => {
+    if (!isCollectionMaterializeRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '实体登记内容无效')
+    return supervisor.request('collection.materialize', request)
+  }))
+  ipcMain.handle('collection:update-copy', (event, request: unknown) => invokeCore(event, () => {
+    if (!isCollectionUpdateCopyRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '副本状态变更无效')
+    return supervisor.request('collection.updateCopy', request)
+  }))
+  ipcMain.handle('collection:set-policy', (event, request: unknown) => invokeCore(event, () => {
+    if (!isCollectionPolicyRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '收藏保护设置无效')
+    return supervisor.request('collection.setPolicy', request)
+  }))
   ipcMain.handle('favorites:list', (event, kind: unknown, page: unknown) =>
     invokeCore(event, () => {
       const favoriteKind = requireFavoriteKind(kind)
@@ -1502,7 +1528,7 @@ async function prepareCoreDataDirectory(): Promise<{
     }
     app.setPath('userData', userDataDirectory)
   } else if (isUiE2e) {
-    app.setPath('userData', path.join(app.getPath('temp'), 'musicbridge-task012-startup'))
+    app.setPath('userData', startupTestConfiguration.uiE2eUserDataDirectory ?? await mkdtemp(path.join(app.getPath('temp'), 'musicbridge-ui-e2e-')))
   }
   const dataDirectory = path.join(app.getPath('userData'), 'data')
   await mkdir(dataDirectory, { recursive: true, mode: 0o700 })

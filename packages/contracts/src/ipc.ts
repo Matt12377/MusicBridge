@@ -1,4 +1,5 @@
 import type { PublicError } from './errors.js';
+import type { CollectionModel, CollectionDetail, CollectionReceiveRequest, CollectionMaterializeRequest, CollectionUpdateCopyRequest, CollectionPolicyRequest, CollectionMutationResult } from './collection.js';
 import type {
   DailyRecommendationsSnapshot,
   ArtistDetail,
@@ -71,6 +72,12 @@ export const IPC_COMMANDS = [
   'library.playlist',
   'library.dailyRecommendations',
   'favorites.list',
+  'collection.list',
+  'collection.detail',
+  'collection.receive',
+  'collection.materialize',
+  'collection.updateCopy',
+  'collection.setPolicy',
   'favorites.check',
   'favorites.set',
   'lyrics.get',
@@ -180,6 +187,12 @@ export interface IpcCommandPayloads {
   'library.playlist': { playlistId: string; page: PageRequest };
   'library.dailyRecommendations': Record<string, never>;
   'favorites.list': { kind?: FavoriteKind; page: PageRequest };
+  'collection.list': { page: PageRequest };
+  'collection.detail': { modelId: string; page: PageRequest };
+  'collection.receive': CollectionReceiveRequest;
+  'collection.materialize': CollectionMaterializeRequest;
+  'collection.updateCopy': CollectionUpdateCopyRequest;
+  'collection.setPolicy': CollectionPolicyRequest;
   'favorites.check': { descriptor: FavoriteEntityDescriptor };
   'favorites.set': { descriptor: FavoriteEntityDescriptor; favorite: boolean };
   'lyrics.get': { trackId: string };
@@ -249,6 +262,12 @@ export interface IpcCommandResults {
   'library.playlist': PlaylistDetail;
   'library.dailyRecommendations': DailyRecommendationsSnapshot;
   'favorites.list': FavoritePage;
+  'collection.list': Page<CollectionModel>;
+  'collection.detail': CollectionDetail;
+  'collection.receive': CollectionMutationResult;
+  'collection.materialize': CollectionMutationResult;
+  'collection.updateCopy': CollectionMutationResult;
+  'collection.setPolicy': CollectionMutationResult;
   'favorites.check': { favorite: boolean };
   'favorites.set': { favorite: boolean; item?: FavoriteRecord };
   'lyrics.get': LyricsSnapshot;

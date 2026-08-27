@@ -233,6 +233,7 @@ test.beforeEach(async () => {
   const environment = {
     ...process.env,
     MUSIC_BRIDGE_UI_E2E: '1',
+    MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory,
     MUSIC_BRIDGE_CORE_TEST_MODE: '1',
     MUSIC_BRIDGE_DIAGNOSTIC_EXPORT_PATH: diagnosticPath,
   }
@@ -1252,8 +1253,8 @@ test('V3 页面在桌面和最小窗口无横向溢出，未接入状态与无�
     for (const view of ['collection', 'recording']) {
       await page.locator(`[data-sidebar-source="${view}"]`).click()
       if (view === 'collection') {
-        await expect(page.getByRole('tabpanel', { name: '空白磁带收藏' }).getByText('库存录入与照片管理尚未接入，当前不展示示例库存。', { exact: true })).toBeVisible()
-        await expect(page.getByRole('button', { name: '添加磁带', exact: true })).toBeDisabled()
+        await expect(page.getByRole('tabpanel', { name: '空白磁带收藏' }).getByText('还没有磁带库存', { exact: true })).toBeVisible()
+        await expect(page.getByRole('button', { name: '添加磁带', exact: true })).toBeEnabled()
       }
       expect(await page.locator('.content-scroll').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
       await page.evaluate((source) => window.eval(source), axeSource)
@@ -1269,6 +1270,123 @@ test('V3 页面在桌面和最小窗口无横向溢出，未接入状态与无�
     }
   }
   expect(errors).toEqual([])
+})
+
+test('V3 真实库存录入、实例化与刷新后数量保持一致', async () => {
+  await page.locator('[data-sidebar-source="collection"]').click()
+  await expect(page.getByRole('button', { name: '添加磁带', exact: true })).toBeEnabled()
+  await page.getByRole('button', { name: '添加磁带', exact: true }).click()
+  const form = page.getByRole('dialog', { name: '添加磁带' })
+  await form.getByLabel('品牌', { exact: true }).fill('合成品牌')
+  await form.getByLabel('型号', { exact: true }).fill('库存验收磁带')
+  await form.getByLabel('版次 / 包装版本', { exact: true }).fill('验收版')
+  await form.getByLabel('时长（分钟）', { exact: true }).fill('90')
+  await form.getByLabel('未开封空白', { exact: true }).fill('8')
+  await page.screenshot({ path: path.join(os.tmpdir(), 'musicbridge-task-049-receive.png') })
+  await form.getByRole('button', { name: '保存库存', exact: true }).click()
+  await expect(form).toHaveCount(0)
+  await page.getByRole('button', { name: /合成品牌 库存验收磁带/ }).click()
+  const detail = page.getByRole('region', { name: '磁带型号详情' })
+  await expect(detail.getByTestId('inventory-total')).toHaveText('8')
+  await detail.getByRole('button', { name: '拆封一盘', exact: true }).click()
+  await expect(detail.getByText('MB-C-00001', { exact: true })).toBeVisible()
+  await expect(detail.getByTestId('inventory-total')).toHaveText('8')
+  await expect(detail.getByTestId('inventory-sealed')).toHaveText('7')
+  await expect(detail.getByTestId('inventory-opened')).toHaveText('1')
+  await detail.getByRole('button', { name: '预留', exact: true }).click()
+  await expect(detail.getByTestId('inventory-reserved')).toHaveText('1')
+  await detail.getByRole('button', { name: '取消预留', exact: true }).click()
+  await expect(detail.getByTestId('inventory-opened')).toHaveText('1')
+  await detail.getByText('收藏保护设置', { exact: true }).click()
+  await detail.getByRole('combobox', { name: '收藏策略', exact: true }).selectOption('preserve-sealed')
+  await detail.getByRole('button', { name: '保存保护设置', exact: true }).click()
+  await expect(detail.getByRole('button', { name: '拆封一盘', exact: true })).toBeDisabled()
+  await page.reload()
+  await page.locator('[data-sidebar-source="collection"]').click()
+  await page.getByRole('button', { name: /合成品牌 库存验收磁带/ }).click()
+  await expect(detail.getByTestId('inventory-total')).toHaveText('8')
+  await expect(detail.getByText('MB-C-00001', { exact: true })).toBeVisible()
+  // 完全退出 Electron，再用同一个独立测试目录启动，证明数据不只保存在 Renderer 或 Core 内存。
+  await electronApp.close()
+  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
+  delete environment.NETEASE_COOKIE
+  electronApp = await electron.launch({ args: [electronEntry], cwd: desktopRoot, env: environment })
+  page = await electronApp.firstWindow()
+  await page.locator('[data-sidebar-source="collection"]').click()
+  await page.getByRole('button', { name: /合成品牌 库存验收磁带/ }).click()
+  await expect(page.getByTestId('inventory-total')).toHaveText('8')
+  await expect(page.getByText('MB-C-00001', { exact: true })).toBeVisible()
+  await page.getByText('收藏保护设置', { exact: true }).click()
+  await expect(page.getByRole('combobox', { name: '收藏策略', exact: true })).toHaveValue('preserve-sealed')
+  await page.screenshot({ path: path.join(os.tmpdir(), 'musicbridge-task-049-detail.png') })
+})
+
+test('V3 未分类不冒充空白，旧录音登记守恒；表单和详情支持最小窗口', async () => {
+  await page.locator('[data-sidebar-source="collection"]').click()
+  await page.getByRole('button', { name: '添加磁带', exact: true }).click()
+  const form = page.getByRole('dialog', { name: '添加磁带' })
+  await form.getByLabel('品牌', { exact: true }).fill('测试品牌')
+  await form.getByLabel('型号', { exact: true }).fill('混合状态')
+  await form.getByRole('button', { name: '保存库存', exact: true }).click()
+  await expect(form.getByRole('alert')).toContainText('每批合计')
+  await form.getByLabel('旧录音待登记', { exact: true }).fill('3')
+  await form.getByLabel('未分类', { exact: true }).fill('7')
+  await page.setViewportSize({ width: 720, height: 480 })
+  expect(await form.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+  await page.evaluate(source => window.eval(source), axeSource)
+  const inspectAccessibility = async (selector: string) => page.evaluate(async selector => {
+    const root = document.querySelector(selector)!
+    const result = await (window as typeof window & { axe: { run: (root: Element) => Promise<{ violations: { id: string; impact: string | null }[] }> } }).axe.run(root)
+    return result.violations.filter(item => item.impact === 'critical' || item.impact === 'serious')
+  }, selector)
+  expect(await inspectAccessibility('dialog')).toEqual([])
+  await form.getByRole('button', { name: '保存库存', exact: true }).click()
+  await expect(form).toHaveCount(0)
+  await page.getByRole('button', { name: /测试品牌 混合状态/ }).click()
+  await expect(page.getByTestId('inventory-total')).toHaveText('10')
+  await expect(page.getByTestId('inventory-sealed')).toHaveText('0')
+  await page.getByRole('button', { name: '登记旧录音', exact: true }).click()
+  await expect(page.getByTestId('inventory-legacy')).toHaveText('2')
+  await expect(page.getByTestId('inventory-recorded')).toHaveText('1')
+  await page.getByRole('button', { name: '建立待确认档案', exact: true }).click()
+  await expect(page.getByText('MB-C-00002', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('inventory-unknown')).toHaveText('7')
+  await expect(page.getByTestId('inventory-total')).toHaveText('10')
+  await expect(page.getByRole('button', { name: '预留', exact: true })).toHaveCount(0)
+  expect(await page.locator('.content-scroll').evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+  expect(await inspectAccessibility('[data-component="CollectionView"]')).toEqual([])
+  await page.screenshot({ path: path.join(os.tmpdir(), 'musicbridge-task-049-detail-720.png') })
+})
+
+test('V3 库存读取失败不显示空库，重试原命令且提交回执丢失不重复录入', async () => {
+  await electronApp.evaluate(({ ipcMain }) => {
+    // 仅在隔离测试进程注入一次读取故障和一次提交后的回执故障；写入仍调用正式 Core/SQLite 通路。
+    const handlers = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => unknown> })._invokeHandlers
+    const list = handlers.get('collection:list')!
+    const receive = handlers.get('collection:receive')!
+    ipcMain.removeHandler('collection:list')
+    let readFailed = false
+    ipcMain.handle('collection:list', (...args) => { if (!readFailed) { readFailed = true; throw new Error('[INVENTORY_UNAVAILABLE] 合成读取故障') } return list(...args) })
+    ipcMain.removeHandler('collection:receive')
+    let responseLost = false
+    ipcMain.handle('collection:receive', async (...args) => { const result = await receive(...args); if (!responseLost) { responseLost = true; throw new Error('[INVENTORY_UNAVAILABLE] 合成回执丢失') } return result })
+  })
+  await page.locator('[data-sidebar-source="collection"]').click()
+  await expect(page.getByRole('alert')).toContainText('无法读取库存')
+  await expect(page.getByText('还没有磁带库存', { exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: '刷新库存', exact: true }).click()
+  await page.getByRole('button', { name: '添加磁带', exact: true }).click()
+  const form = page.getByRole('dialog', { name: '添加磁带' })
+  await form.getByLabel('品牌', { exact: true }).fill('测试重试')
+  await form.getByLabel('型号', { exact: true }).fill('只入库一次')
+  await form.getByLabel('未开封空白', { exact: true }).fill('2')
+  await form.getByRole('button', { name: '保存库存', exact: true }).click()
+  await expect(form.getByRole('alert')).toContainText('尚未确认保存结果')
+  await expect(form.getByRole('button', { name: '保存库存', exact: true })).toBeDisabled()
+  await form.getByRole('button', { name: '重试原操作', exact: true }).click()
+  await expect(form).toHaveCount(0)
+  await page.getByRole('button', { name: /测试重试 只入库一次/ }).click()
+  await expect(page.getByTestId('inventory-total')).toHaveText('2')
 })
 
 test('packaged UI has no critical or serious axe findings', async () => {
