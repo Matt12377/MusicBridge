@@ -22,8 +22,8 @@
     "state": "automated-pass-unmerged",
     "baseCommit": "3185b381b261a61458df6696ac69c1dfad32d963",
     "implementationCommit": "f2d6b3eba57deabdca51fef69ab415f25c44deb6",
-    "reportCommit": "pending-report-commit",
-    "pullRequest": null,
+    "reportCommit": "59338f5aa19eae8b0056ff78bd373d5ffdd4285f",
+    "pullRequest": 11,
     "nextTask": "TASK-046",
     "integrationPolicy": "stacked-unmerged-until-owner-acceptance",
     "gates": {
@@ -32,7 +32,7 @@
       "desktop": "161-of-161-pass",
       "electron": "4-of-4-pass",
       "e2e": "19-of-19-pass-axe-zero",
-      "github": "pending-stacked-pr",
+      "github": "pending-final-identity-head",
       "realProvider": "deferred-to-task-047",
       "realRoon": "deferred-to-task-047",
       "ownerIntegration": "pending-all-slices"

@@ -5,7 +5,7 @@
 - 分支：`codex/task-045-cross-source-lyrics-coordinator`
 - 基线：`3185b381b261a61458df6696ac69c1dfad32d963`（TASK-044 最终 HEAD）
 - 实现提交：`f2d6b3eba57deabdca51fef69ab415f25c44deb6`（`feat(lyrics): coordinate cross-source local lyrics`）
-- PR：待创建，base=`codex/task-044-local-lyrics-resolver`，保持未合并
+- PR：[#11](https://github.com/Matt12377/MusicBridge/pull/11)，base=`codex/task-044-local-lyrics-resolver`，保持 Open
 
 ## 实现
 
@@ -37,4 +37,4 @@
 
 ## 结论
 
-**TASK-045 本地自动 Gate 通过；待创建堆叠 PR，保持未合并。下一步 TASK-046 增加来源提示与受控 MANUAL 选择/撤销 UI。**
+**TASK-045 本地自动 Gate 通过；PR #11 保持未合并。下一步 TASK-046 增加来源提示与受控 MANUAL 选择/撤销 UI。**
