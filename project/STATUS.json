@@ -34,6 +34,7 @@
       "sourceCommit": "f4bc89306302c7f86cf74209637249d002a8afa1",
       "previousMainCommit": "207f7f04bc11fd4dcf7e6214ab705e999ee6f559",
       "report": "reports/WAVE-4_INTEGRATION_ADDENDUM.md",
+      "reportCommit": "a5258c44aac3cda3e19a1a9316440df09d612df3",
       "nextDevelopmentBranch": "codex/v3"
     },
     "gates": {
