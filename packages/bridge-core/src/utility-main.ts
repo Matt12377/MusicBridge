@@ -142,6 +142,10 @@ function masterVersionsFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.masterVersions) throw new CollectionError('INVENTORY_UNAVAILABLE', '母版版本服务尚未就绪，请重试。');
   return runtime.masterVersions;
 }
+function preparationFor(runtime: CoreRuntimeForIpc) {
+  if (!runtime.preparation) throw new CollectionError('INVENTORY_UNAVAILABLE', 'Logic 工作区服务尚未就绪，请重试。');
+  return runtime.preparation;
+}
 
 function mediaPlanningFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.mediaPlanning) throw new CollectionError('INVENTORY_UNAVAILABLE', '录音规划服务尚未就绪，请重试。');
@@ -175,6 +179,16 @@ async function dispatch(
     case 'recordingSources.confirm': { const p = request.payload as IpcCommandPayloads['recordingSources.confirm']; return sourcesFor(runtime).confirm(p); }
     case 'recordingSources.recheck': { const p = request.payload as IpcCommandPayloads['recordingSources.recheck']; return sourcesFor(runtime).recheck(p); }
     case 'recordingVersions.list': return masterVersionsFor(runtime).list((request.payload as IpcCommandPayloads['recordingVersions.list']).draftId);
+    case 'recordingPreparation.destinations': return { destinations: preparationFor(runtime).destinations() };
+    case 'recordingPreparation.authorizationReceipt': return { destination: preparationFor(runtime).authorizationReceipt((request.payload as IpcCommandPayloads['recordingPreparation.authorizationReceipt']).commandId) };
+    case 'recordingPreparation.authorize': { const payload = request.payload as IpcCommandPayloads['recordingPreparation.authorize']; return preparationFor(runtime).authorize(payload.commandId, payload.absolutePath); }
+    case 'recordingPreparation.revoke': return preparationFor(runtime).revoke(request.payload as IpcCommandPayloads['recordingPreparation.revoke']);
+    case 'recordingPreparation.job': return preparationFor(runtime).job((request.payload as IpcCommandPayloads['recordingPreparation.job']).id);
+    case 'recordingPreparation.cancel': return preparationFor(runtime).cancel(request.payload as IpcCommandPayloads['recordingPreparation.cancel']);
+    case 'recordingPreparation.context': return preparationFor(runtime).context((request.payload as IpcCommandPayloads['recordingPreparation.context']).id);
+    case 'recordingPreparation.list': return preparationFor(runtime).list((request.payload as IpcCommandPayloads['recordingPreparation.list']).draftId);
+    case 'recordingPreparation.preview': return preparationFor(runtime).preview(request.payload as IpcCommandPayloads['recordingPreparation.preview']);
+    case 'recordingPreparation.start': return preparationFor(runtime).start(request.payload as IpcCommandPayloads['recordingPreparation.start']);
     case 'recordingVersions.preview': return masterVersionsFor(runtime).preview(request.payload as IpcCommandPayloads['recordingVersions.preview']);
     case 'recordingVersions.freeze': return masterVersionsFor(runtime).freeze(request.payload as IpcCommandPayloads['recordingVersions.freeze']);
     case 'recordingVersions.job': return masterVersionsFor(runtime).job((request.payload as IpcCommandPayloads['recordingVersions.job']).id);

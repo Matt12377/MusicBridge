@@ -1,4 +1,5 @@
 import { masterVersionsMigration, createMasterVersionsStore, type MasterVersionsStore } from '../recording/versions-store.js';
+import { preparationMigration, createPreparationStore, type PreparationStore } from '../recording/preparation-store.js';
 import { mediaPlanningMigration, createMediaPlanningStore, type MediaPlanningStore } from '../recording/media-store.js';
 import type { MediaStockCandidate } from '../recording/media-planner.js';
 import type { MediaReservation, ReserveMediaRequest, ReleaseMediaRequest } from '@music-bridge/contracts';
@@ -35,6 +36,7 @@ export interface CollectionRepository {
   sources: SourceStore;
   media: MediaPlanningStore;
   versions: MasterVersionsStore;
+  preparations: PreparationStore;
   links: PhysicalLinksRepository;
   list(page: PageRequest, filter?: CollectionFilter): Page<CollectionModel>;
   addPhoto(request: CollectionAddPhotoRequest): CollectionMutationResult;
@@ -152,15 +154,15 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
       // WAL 恢复期间，首次版本读取也可能遇到短暂锁；先设置等待，再访问数据库内容。
       db.exec('PRAGMA busy_timeout=1000');
       const version = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-      if (![0, 1, 2, 3, 4, 5, 6, 7, 8].includes(version)) return unavailable();
+      if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9].includes(version)) return unavailable();
       if (version === 0 && Number(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").get()?.n) !== 0) return unavailable();
       db.exec('PRAGMA trusted_schema=OFF; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
-      if (version < 8) {
+      if (version < 9) {
         db.exec('BEGIN IMMEDIATE');
         try {
           // 等待写锁后重读版本，避免两个首次连接同时执行迁移。
           const currentVersion = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-          if (![0, 1, 2, 3, 4, 5, 6, 7, 8].includes(currentVersion)) return unavailable();
+          if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9].includes(currentVersion)) return unavailable();
           if (currentVersion === 0) db.exec(schema);
           if (currentVersion < 2) { db.exec(photoMigration); options.beforeCommit?.('migrate-photos'); }
           if (currentVersion < 3) { db.exec(physicalMusicMigration); options.beforeCommit?.('migrate-music'); }
@@ -169,6 +171,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
           if (currentVersion < 6) { db.exec(sourceEvidenceMigration); options.beforeCommit?.('migrate-sources'); }
           if (currentVersion < 7) { db.exec(mediaPlanningMigration); options.beforeCommit?.('migrate-media-planning'); }
           if (currentVersion < 8) { db.exec(masterVersionsMigration); options.beforeCommit?.('migrate-master-versions'); }
+          if (currentVersion < 9) { db.exec(preparationMigration); options.beforeCommit?.('migrate-preparation'); }
           db.exec('COMMIT');
         } catch (error) { db.exec('ROLLBACK'); throw error; }
       }
@@ -339,6 +342,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
   const media = createMediaPlanningStore({ read: guarded, conflict, unavailable, stock: mediaStock, stockOne: mediaStockOne, reservationStock: reservedMediaStock, reserve: reserveMediaStock, release: releaseMediaStock, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   return {
     music, links,
+    preparations: createPreparationStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     versions: createMasterVersionsStore({ read: guarded, conflict, media, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     media,
     sources: createSourceStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),

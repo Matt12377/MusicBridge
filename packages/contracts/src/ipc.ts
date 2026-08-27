@@ -1,4 +1,5 @@
 import type { PreviewVersionsRequest, FreezeVersionsRequest, VersionProposal, VersionHistory, VersionJob } from './master-versions.js';
+import type { PreviewPreparationRequest, StartPreparationRequest, PreparationHistory, PreparationProposal, PreparationJob, PreparationDestination } from './preparation.js';
 import type { MediaPlan, MediaPreview, MediaLayoutSpec, PreviewMediaRequest, SaveMediaPlanRequest, ReserveMediaRequest, ReleaseMediaRequest } from './media-planning.js';
 import type { SourceRoot, SourceJob, SourceBinding, SourceSelection, SourceAction, SourceConfirmation, DraftSourceSnapshot } from './source-evidence.js';
 import type { MasterDraft, MasterDraftSummary, AppendMasterDraftRequest, UpdateMasterDraftRequest, MasterDraftResult } from './master-drafts.js';
@@ -79,6 +80,16 @@ export const IPC_COMMANDS = [
   'library.dailyRecommendations',
   'favorites.list',
   'recordingVersions.list',
+  'recordingPreparation.destinations',
+  'recordingPreparation.authorizationReceipt',
+  'recordingPreparation.authorize',
+  'recordingPreparation.revoke',
+  'recordingPreparation.job',
+  'recordingPreparation.cancel',
+  'recordingPreparation.context',
+  'recordingPreparation.list',
+  'recordingPreparation.preview',
+  'recordingPreparation.start',
   'recordingVersions.preview',
   'recordingVersions.freeze',
   'recordingVersions.job',
@@ -213,7 +224,18 @@ export type IpcResponse<TResult = unknown> =
 export type IpcEnvelope<T = unknown> = IpcRequest<T> | IpcResponse<T>;
 
 export interface IpcCommandPayloads {
+  'recordingPreparation.destinations': {};
+  'recordingPreparation.authorizationReceipt': { commandId: string };
+  'recordingPreparation.authorize': { commandId: string; absolutePath: string };
+  'recordingPreparation.revoke': { commandId: string; id: string };
+  'recordingPreparation.job': { id: string };
+  'recordingPreparation.cancel': { commandId: string; id: string };
+  'recordingPreparation.context': { id: string };
+
   'recordingVersions.list': { draftId: string };
+  'recordingPreparation.list': { draftId: string };
+  'recordingPreparation.preview': PreviewPreparationRequest;
+  'recordingPreparation.start': StartPreparationRequest;
   'recordingVersions.preview': PreviewVersionsRequest;
   'recordingVersions.freeze': FreezeVersionsRequest;
   'recordingVersions.job': { id: string };
@@ -337,6 +359,17 @@ export interface IpcCommandPayloads {
 }
 
 export interface IpcCommandResults {
+  'recordingPreparation.destinations': { destinations: readonly PreparationDestination[] };
+  'recordingPreparation.authorizationReceipt': { destination: PreparationDestination | null };
+  'recordingPreparation.authorize': PreparationDestination;
+  'recordingPreparation.revoke': PreparationDestination;
+  'recordingPreparation.job': { job: PreparationJob | null };
+  'recordingPreparation.cancel': PreparationJob;
+  'recordingPreparation.context': { absolutePath: string };
+
+  'recordingPreparation.list': PreparationHistory;
+  'recordingPreparation.preview': PreparationProposal;
+  'recordingPreparation.start': PreparationJob;
   'recordingVersions.list': VersionHistory;
   'recordingVersions.preview': VersionProposal;
   'recordingVersions.freeze': VersionJob;
@@ -469,9 +502,13 @@ export interface IpcEventPayloads {
   'lyrics.match.changed': { state: LocalLyricsMatchSnapshot };
 }
 
-export type IpcInternalCommand = 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
+export type IpcInternalCommand = 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
 
 export interface IpcInternalCommandResults {
+  'recordingPreparation.authorizationReceipt': { destination: PreparationDestination | null };
+  'recordingPreparation.authorize': PreparationDestination;
+  'recordingPreparation.context': { absolutePath: string };
+
   'recordingSources.rootReceipt': { root: SourceRoot | null };
   'recordingSources.authorize': SourceRoot;
   'recordingSources.context': { absolutePath: string };

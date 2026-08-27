@@ -1,3 +1,4 @@
+import type { PreparationPublicApi } from '@music-bridge/contracts'
 import type { MasterVersionsPublicApi } from '@music-bridge/contracts'
 import type { MediaPlanningPublicApi } from '@music-bridge/contracts'
 import type { RecordingSourcesPublicApi } from '@music-bridge/contracts'
@@ -54,7 +55,7 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
   autoReconnect: false,
 }
 
-export interface MusicBridgePublicApi extends MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
+export interface MusicBridgePublicApi extends PreparationPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
   getAppInfo: () => Promise<AppInfo>
   getCoreHealth: () => Promise<PublicBridgeState>
   getCoreState: () => Promise<PublicBridgeState>
@@ -128,6 +129,16 @@ export interface MusicBridgePublicApi extends MasterVersionsPublicApi, MediaPlan
 }
 
 export const PUBLIC_API_KEYS = [
+  'listPreparationDestinations',
+  'choosePreparationDestination',
+  'revokePreparationDestination',
+  'listPreparations',
+  'previewPreparation',
+  'startPreparation',
+  'getPreparationJob',
+  'cancelPreparationJob',
+  'openPreparationWorkspace',
+
   'listMasterVersions',
   'previewMasterVersions',
   'freezeMasterVersions',
@@ -402,9 +413,11 @@ export function createPreloadApi(
   recordingSourcesApi?: RecordingSourcesPublicApi,
   mediaPlanningApi?: MediaPlanningPublicApi,
   masterVersionsApi?: MasterVersionsPublicApi,
+  preparationApi?: PreparationPublicApi,
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   return Object.freeze({
+    ...(preparationApi ?? { listPreparationDestinations: collectionUnavailable, choosePreparationDestination: collectionUnavailable, revokePreparationDestination: collectionUnavailable, listPreparations: collectionUnavailable, previewPreparation: collectionUnavailable, startPreparation: collectionUnavailable, getPreparationJob: collectionUnavailable, cancelPreparationJob: collectionUnavailable, openPreparationWorkspace: collectionUnavailable }),
     ...(masterVersionsApi ?? { listMasterVersions: collectionUnavailable, previewMasterVersions: collectionUnavailable, freezeMasterVersions: collectionUnavailable, getMasterVersionJob: collectionUnavailable, cancelMasterVersionJob: collectionUnavailable }),
     ...(mediaPlanningApi ?? { listMediaPlans: collectionUnavailable, getMediaPlan: collectionUnavailable, previewMediaPlan: collectionUnavailable, balanceMediaPlan: collectionUnavailable, saveMediaPlan: collectionUnavailable, reserveMediaPlan: collectionUnavailable, releaseMediaPlan: collectionUnavailable }),
     ...(recordingSourcesApi ?? {

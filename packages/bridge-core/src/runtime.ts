@@ -1,4 +1,5 @@
 import { createMasterVersionsCoordinator, type MasterVersionsCoordinator } from './recording/versions-coordinator.js';
+import { createPreparationCoordinator, type PreparationCoordinator } from './recording/preparation-coordinator.js';
 import { createMediaPlanningCoordinator, type MediaPlanningCoordinator } from './recording/media-coordinator.js';
 import { createSourceEvidenceService, type SourceEvidenceService } from './recording/source-evidence.js';
 import { createMasterDraftsCoordinator, type MasterDraftsCoordinator } from './recording/drafts-coordinator.js';
@@ -99,6 +100,7 @@ export interface CoreRuntime {
   sources?: SourceEvidenceService;
   mediaPlanning?: MediaPlanningCoordinator;
   masterVersions?: MasterVersionsCoordinator;
+  preparation?: PreparationCoordinator;
   readonly collection?: CollectionRepository;
   start(): Promise<void>;
   shutdown(): Promise<void>;
@@ -779,7 +781,9 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   const sources = options.collectionRepository ? createSourceEvidenceService({ store: options.collectionRepository.sources, drafts: options.collectionRepository.drafts }) : undefined;
   const mediaPlanning = options.collectionRepository ? createMediaPlanningCoordinator({ store: options.collectionRepository.media, drafts: options.collectionRepository.drafts, ...(sources ? { sources } : {}) }) : undefined;
   const masterVersions = options.collectionRepository && sources && mediaPlanning ? createMasterVersionsCoordinator({ store: options.collectionRepository.versions, mediaStore: options.collectionRepository.media, media: mediaPlanning, drafts: options.collectionRepository.drafts, sourceStore: options.collectionRepository.sources, sources }) : undefined;
+  const preparation = options.collectionRepository && sources ? createPreparationCoordinator({ store: options.collectionRepository.preparations, sourceStore: options.collectionRepository.sources, sources }) : undefined;
   const cleanup = async (): Promise<void> => {
+    await preparation?.close();
     await masterVersions?.close();
     await sources?.close();
     options.collectionRepository?.close();
@@ -1106,6 +1110,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     ...(sources ? { sources } : {}),
     ...(mediaPlanning ? { mediaPlanning } : {}),
     ...(masterVersions ? { masterVersions } : {}),
+    ...(preparation ? { preparation } : {}),
     ...(options.collectionRepository ? { collection: options.collectionRepository, physicalLinks: createPhysicalLinksCoordinator({ repository: options.collectionRepository.links, library: roonLibrary }), masterDrafts: createMasterDraftsCoordinator({ repository: options.collectionRepository.drafts, library: roonLibrary }) } : {}),
     listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),
     async checkFavorite(descriptor) {
@@ -1153,6 +1158,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
   const sources = createSourceEvidenceService({ store: collection.sources, drafts: collection.drafts });
   const mediaPlanning = createMediaPlanningCoordinator({ store: collection.media, drafts: collection.drafts, sources });
   const masterVersions = createMasterVersionsCoordinator({ store: collection.versions, mediaStore: collection.media, media: mediaPlanning, drafts: collection.drafts, sourceStore: collection.sources, sources });
+  const preparation = createPreparationCoordinator({ store: collection.preparations, sourceStore: collection.sources, sources });
   const accountMode = options.accountMode ?? 'ready'
   const syntheticAuthorized = options.authorized === true && accountMode !== 'expired'
   const favoriteRepository = createLocalFavoriteRepository()
@@ -1307,6 +1313,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       diagnostics.record({ component: 'core', level: 'info', event: 'core_ready', state: 'ready' });
     },
     async shutdown() {
+      await preparation.close();
       await masterVersions.close();
       await sources.close();
       collection.close();
@@ -1678,7 +1685,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     },
     collection,
     sources,
-    mediaPlanning, masterVersions,
+    mediaPlanning, masterVersions, preparation,
     physicalLinks: createPhysicalLinksCoordinator({ repository: collection.links, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
     masterDrafts: createMasterDraftsCoordinator({ repository: collection.drafts, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
     listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),

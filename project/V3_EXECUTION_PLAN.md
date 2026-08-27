@@ -10,7 +10,7 @@ Owner 已授权“全部开始”。这是持续实施授权，不是“所有�
 | 4 | TASK-051 → TASK-052 | 原版 CD/磁带与旧录音同库 → Roon 双向关系 | TASK-051/052 自动通过；真实 Roon 与 Owner 待验收 |
 | 5 | TASK-053 → TASK-054 | Roon 选曲草稿 → 授权源绑定与 Gate A | TASK-053/054 自动通过；实际目录和完整 Gate A 待验收 |
 | 6 | TASK-055 | 分面规划、初步库存推荐与用户预留 | 自动通过；正式容量/设备预检与 Owner 待验收 |
-| 7 | TASK-056 → TASK-057 / 后续 PREP 任务 | 源帧证据、不可变母版/布局，再接 Logic 与 Gate D | TASK-056 本地自动验证通过；Logic 待接续 |
+| 7 | TASK-056 → TASK-057 / 后续 PREP 任务 | 源帧证据、不可变母版/布局，再接 Logic 与 Gate D | TASK-056 本地自动验证通过；TASK-056/057 本地自动验证通过；原始 Render、Marker 与 PREP 待 TASK-058 |
 | 8 | 待编号 | 执行资产、录音状态机、Gate B 与设备实测 | 待开发；F-01/设备参数待确认 |
 | 9 | 待编号 | 归档、双库同步、Replica、J-Card、备份与 Gate E | 待开发 |
 | 10 | 待编号 | 参考目录、Excel 导入、Want List 与收藏完成度 | 待开发 |

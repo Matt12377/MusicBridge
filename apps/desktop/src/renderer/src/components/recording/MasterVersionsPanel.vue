@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch 
 import type { MasterDraft, MediaPlan, VersionHistory, VersionJob, VersionProposal, FreezeVersionsRequest } from '@music-bridge/contracts'
 import VersionTimeline from './VersionTimeline.vue'
 const props = defineProps<{ draft: MasterDraft }>()
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; prepare: [layoutId: string] }>()
 const api = window.musicBridge, dialog = ref<HTMLDialogElement>()
 const history = shallowRef<VersionHistory>(), plans = shallowRef<readonly MediaPlan[]>([]), proposal = shallowRef<VersionProposal>()
 const planId = ref(''), sampleRate = ref(96000), confirmed = ref(false), loading = ref(false), busy = ref(false), error = ref(''), notice = ref('')
@@ -90,6 +90,7 @@ onBeforeUnmount(() => { alive = false; ++generation; if (timer) clearTimeout(tim
     <section aria-labelledby="version-history-title"><h3 id="version-history-title">冻结历史</h3><p v-if="history && !history.layouts.length" class="muted">还没有冻结版本。</p>
       <article v-for="layout in history?.layouts" :key="layout.id" class="history-item">
         <h4>L{{ layout.sequence }} · M{{ history!.masters.find(m => m.id === layout.masterVersionId)?.sequence }} · {{ layout.reservation.physicalId }}</h4><p class="muted">{{ new Date(layout.createdAt).toLocaleString() }} · {{ layout.spec.format === 'cassette' ? 'Cassette A/B' : 'DAT Program' }}</p>
+        <button :disabled="busy || !!pending" @click="dialog?.close(); emit('prepare', layout.id)">为布局 L{{ layout.sequence }} 准备 Logic</button>
         <details><summary>查看布局 L{{ layout.sequence }}</summary><template v-for="master in history!.masters.filter(m => m.id === layout.masterVersionId)" :key="master.id"><p>{{ master.title }} · 母版 M{{ master.sequence }}{{ master.parentId ? ' · 从历史母版派生' : '' }}</p><VersionTimeline :timeline="layout.timeline" :content="master.content" /><details><summary>查看母版源身份</summary><ol class="sources"><li v-for="track in master.content.tracks" :key="track.trackId"><strong>{{ track.metadata.title }}</strong><code>SHA-256 {{ track.source.sha256 }}</code></li></ol></details></template><code>Planned Timeline SHA-256 {{ layout.timelineHash }}</code></details>
       </article>
       <details v-if="history?.jobs.length"><summary>复核任务记录（{{ history.jobs.length }}）</summary><ul class="jobs"><li v-for="job in history.jobs" :key="job.id"><span>{{ job.id.slice(0, 8) }}</span> · {{ jobLabel(job) }}</li></ul></details>

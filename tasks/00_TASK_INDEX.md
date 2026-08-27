@@ -56,3 +56,5 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 - TASK-055：分面规划、现有库存推荐与明确预留；从 TASK-054 最终身份接续，持续开发授权。
 
 - [TASK-056](TASK-056-v3-master-layout-versions.md)：源帧证据与不可变母版/布局版本。
+
+- [TASK-057](TASK-057-v3-logic-preparation.md)：Logic 工作副本、Preparation Workspace 与安全交接清单。

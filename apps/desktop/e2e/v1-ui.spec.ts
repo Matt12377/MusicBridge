@@ -1,5 +1,5 @@
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { mkdtemp, readFile, rm, stat, writeFile, realpath } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, stat, writeFile, realpath, mkdir, readdir } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
@@ -243,7 +243,7 @@ test.beforeEach(async () => {
     environment.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE = 'expired'
   }
   delete environment.NETEASE_COOKIE
-  if ((test.info().title.includes('V3 Roon 关联闭环') || test.info().title.includes('V3 录音选曲') || test.info().title.includes('V3 分面') || test.info().title.includes('V3 母版'))) environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY = '1'
+  if ((test.info().title.includes('V3 Roon 关联闭环') || test.info().title.includes('V3 录音选曲') || test.info().title.includes('V3 分面') || test.info().title.includes('V3 母版') || test.info().title.includes('V3 Logic 工作区'))) environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY = '1'
   electronApp = await electron.launch({
     args: [electronEntry],
     cwd: desktopRoot,
@@ -2140,4 +2140,95 @@ test('V3 母版冻结：正式 IPC 复核源、回执重试、帧级历史与冷
   await page.getByRole('button', { name: '母版与布局版本', exact: true }).click()
   await expect(page.getByText('查看布局 L1', { exact: true })).toBeVisible()
   expect(await page.evaluate(id => window.musicBridge.listMasterVersions(id), draft.draftId)).toEqual(history)
+})
+
+test('V3 Logic 工作区：原生授权、确认复制、回执重试、Finder 与冷启动历史', async () => {
+  test.setTimeout(90_000)
+  const directory = await realpath(diagnosticDirectory), sourceRoot = path.join(directory, 'preparation-source'), target = path.join(directory, 'logic-target'); await mkdir(sourceRoot); await mkdir(target)
+  const sourceFile = path.join(sourceRoot, 'preparation-source.wav')
+  const bytes = Buffer.alloc(44 + 44101 * 4)
+  bytes.write('RIFF'); bytes.writeUInt32LE(bytes.length - 8, 4); bytes.write('WAVEfmt ', 8); bytes.writeUInt32LE(16, 16); bytes.writeUInt16LE(1, 20); bytes.writeUInt16LE(2, 22); bytes.writeUInt32LE(44100, 24); bytes.writeUInt32LE(176400, 28); bytes.writeUInt16LE(4, 32); bytes.writeUInt16LE(16, 34); bytes.write('data', 36); bytes.writeUInt32LE(bytes.length - 44, 40)
+  await writeFile(sourceFile, bytes)
+  const draft = await page.evaluate(async () => {
+    const api = window.musicBridge, page = { offset: 0, limit: 20 }
+    const albums = await api.searchPhysicalRoonAlbums('', page), trackPages = await Promise.all(albums.items.slice(0, 2).map(album => api.getRoonAlbumTracks(album.reference, page)))
+    return api.appendMasterDraft({ commandId: crypto.randomUUID(), title: 'Logic 工作区合成', programType: 'compilation', references: trackPages.map(tracks => tracks.items[0]!.reference), userConfirmed: true })
+  })
+  await electronApp.evaluate(({ dialog }, root) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [root] }) }, sourceRoot)
+  const root = await page.evaluate(() => window.musicBridge.chooseRecordingSourceRoot(crypto.randomUUID()))
+  expect(root).toBeTruthy()
+  await electronApp.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }) }, sourceFile)
+  for (const trackId of draft.trackIds) {
+    const result = await page.evaluate(({ draftId, trackId, rootId }) => window.musicBridge.chooseRecordingSource({ commandId: crypto.randomUUID(), draftId, trackId, rootId, acquisition: 'userFileBind' }), { draftId: draft.draftId, trackId, rootId: root!.id })
+    await expect.poll(async () => (await page.evaluate(id => window.musicBridge.getRecordingSourceJob(id), result!.id)).job?.state).toBe('completed')
+    await page.evaluate(async ({ draftId, trackId }) => { const snapshot = await window.musicBridge.getDraftSources(draftId), binding = snapshot.tracks.find(t => t.trackId === trackId)!.binding!; await window.musicBridge.confirmRecordingSource({ commandId: crypto.randomUUID(), id: binding.id, draftId, trackId, userConfirmed: true }) }, { draftId: draft.draftId, trackId })
+  }
+  const plan = await page.evaluate(async draftId => {
+    const api = window.musicBridge, page = { offset: 0, limit: 20 }
+    await api.receiveCollectionStock({ commandId: crypto.randomUUID(), model: { brand: 'TDK', name: 'SA', edition: '合成工作区验证', year: 1990, format: 'cassette', tapeType: 'II', identification: 'verified' }, lengthMinutes: 60, quantities: { openedBlank: 2, sealedBlank: 0, legacyUsed: 0, unclassified: 0 } })
+    const spec = { format: 'cassette' as const, splitAfter: 2, leadInMs: 1000, tailMs: 1000, defaultGapMs: 5000, rules: [], compatibility: { confirmed: true, cassetteTypes: ['II' as const], dat: true } }
+    const preview = await api.previewMediaPlan({ draftId, spec, page }), saved = await api.saveMediaPlan({ commandId: crypto.randomUUID(), draftId, expectedDraftRevision: preview.draftRevision, inputFingerprint: preview.inputFingerprint, spec })
+    return api.reserveMediaPlan({ commandId: crypto.randomUUID(), planId: saved.id, expectedRevision: saved.revision, skuId: preview.candidates.items[0]!.skuId, packaging: 'opened', userConfirmed: true })
+  }, draft.draftId)
+
+  const frozen = await page.evaluate(async planId => { const api = window.musicBridge, p = await api.previewMasterVersions({ planId, sampleRate: 96000 }); return api.freezeMasterVersions({ commandId: crypto.randomUUID(), planId, sampleRate: 96000, proposalFingerprint: p.proposalFingerprint, userConfirmed: true }) }, plan.id)
+  await expect.poll(async () => (await page.evaluate(id => window.musicBridge.getMasterVersionJob(id), frozen.id)).job?.state).toBe('completed')
+  await page.locator('[data-sidebar-source="recording"]').click(); await page.getByRole('button', { name: '继续草稿 Logic 工作区合成' }).click()
+  const trigger = page.getByRole('button', { name: 'Logic 工作区', exact: true }); await expect(trigger).toBeVisible(); await trigger.click()
+  const panel = page.getByRole('dialog', { name: 'Logic 工作区', exact: true })
+  await expect(panel.getByText('尚无工作区。先选择冻结布局和目标目录。', { exact: true })).toBeVisible()
+  await expect(panel.getByRole('button', { name: '预览工作区', exact: true })).toBeDisabled()
+  await electronApp.evaluate(({ dialog }) => { dialog.showOpenDialog = async () => ({ canceled: true, filePaths: [] }) })
+  await panel.getByRole('button', { name: '选择目标目录', exact: true }).click()
+  expect((await page.evaluate(() => window.musicBridge.listPreparationDestinations())).destinations).toEqual([])
+  await electronApp.evaluate(({ dialog }, folder) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [folder] }) }, sourceRoot)
+  await panel.getByRole('button', { name: '选择目标目录', exact: true }).click()
+  await expect(panel.getByRole('alert')).toContainText('请求未接受')
+  await expect(panel.getByRole('button', { name: '关闭', exact: true })).toBeEnabled()
+  expect((await page.evaluate(() => window.musicBridge.listPreparationDestinations())).destinations).toEqual([])
+  await electronApp.evaluate(({ dialog }, folder) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [folder] }) }, target)
+  await panel.getByRole('button', { name: '选择目标目录', exact: true }).click()
+  await expect(panel.getByLabel('工作区目标', { exact: true })).not.toHaveValue('')
+  await panel.getByRole('button', { name: '预览工作区', exact: true }).click()
+  await expect(panel.getByRole('heading', { name: '准备交给 Logic', exact: true })).toBeVisible()
+  await expect(panel.getByRole('button', { name: '确认并生成工作副本', exact: true })).toBeDisabled()
+  expect(await readdir(target)).toEqual([])
+  await electronApp.evaluate(({ ipcMain }) => {
+    const handlers = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => unknown> })._invokeHandlers, original = handlers.get('recordingPreparation:start')!
+    let lost = false; ipcMain.removeHandler('recordingPreparation:start')
+    ipcMain.handle('recordingPreparation:start', async (...args) => { const result = await original(...args); if (!lost) { lost = true; throw new Error('合成工作区回执丢失') }; return result })
+  })
+  await panel.getByLabel('我确认生成独立工作副本；不修改源文件，不自动控制 Logic', { exact: true }).check()
+  await panel.getByRole('button', { name: '确认并生成工作副本', exact: true }).click()
+  await expect(panel.getByRole('button', { name: '重试原操作', exact: true })).toBeVisible()
+  await expect(panel.getByRole('button', { name: '关闭', exact: true })).toBeDisabled()
+  await panel.getByRole('button', { name: '重试原操作', exact: true }).click()
+  await expect(panel.getByRole('status').filter({ hasText: '工作区已生成' })).toBeVisible()
+  const history = await page.evaluate(id => window.musicBridge.listPreparations(id), draft.draftId)
+  expect(history.workspaces).toHaveLength(1); expect(history.jobs).toHaveLength(1); expect(history.workspaces[0]!.executionReady).toBe(false)
+  expect(JSON.stringify(history)).not.toContain(target); expect(JSON.stringify(history)).not.toContain(sourceRoot)
+  const directories = await readdir(target); expect(directories).toHaveLength(1)
+  const workspace = path.join(target, directories[0]!), manifest = JSON.parse(await readFile(path.join(workspace, 'Manifest.json'), 'utf8'))
+  expect(manifest.layoutVersionId).toBe(history.workspaces[0]!.layoutVersionId)
+  expect(await readFile(path.join(workspace, 'Sources', '001.wav'))).toEqual(bytes); expect(await readFile(sourceFile)).toEqual(bytes)
+  expect((await stat(path.join(workspace, 'Bounce Targets', 'A'))).isDirectory()).toBe(true)
+  for (const size of [{ width: 1440, height: 900 }, { width: 720, height: 480 }]) {
+    await page.setViewportSize(size); expect(await panel.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+    await page.evaluate(source => window.eval(source), axeSource)
+    const result = await page.evaluate(async () => (window as typeof window & { axe: { run(root: Element): Promise<{ violations: { impact: string | null }[] }> } }).axe.run(document.querySelector('dialog[open]')!))
+    expect(result.violations.filter(v => v.impact === 'critical' || v.impact === 'serious')).toEqual([])
+    await panel.evaluate(el => { el.scrollTop = 0 }); await page.screenshot({ path: test.info().outputPath(`logic-preparation-${size.width}.png`) })
+    await panel.locator('.workspace-item').first().scrollIntoViewIfNeeded(); await page.screenshot({ path: test.info().outputPath(`logic-preparation-history-${size.width}.png`) })
+  }
+  await electronApp.evaluate(({ shell }) => { shell.openPath = async p => { (globalThis as typeof globalThis & { preparationOpened?: string }).preparationOpened = p; return '' } })
+  await panel.getByRole('button', { name: '在 Finder 中打开', exact: true }).click()
+  expect(await electronApp.evaluate(() => (globalThis as typeof globalThis & { preparationOpened?: string }).preparationOpened)).toBe(workspace)
+  await panel.getByRole('button', { name: '关闭', exact: true }).click(); await expect(trigger).toBeFocused()
+  await electronApp.close()
+  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
+  delete environment.NETEASE_COOKIE; delete environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY
+  electronApp = await electron.launch({ args: [electronEntry], cwd: desktopRoot, env: environment }); page = await electronApp.firstWindow()
+  await page.locator('[data-sidebar-source="recording"]').click(); await page.getByRole('button', { name: '继续草稿 Logic 工作区合成' }).click(); await page.getByRole('button', { name: 'Logic 工作区', exact: true }).click()
+  await expect(page.getByRole('button', { name: '在 Finder 中打开', exact: true })).toBeVisible()
+  expect(await page.evaluate(id => window.musicBridge.listPreparations(id), draft.draftId)).toEqual(history)
 })

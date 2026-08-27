@@ -1135,3 +1135,17 @@ test('母版版本历史通过正式 IPC 读取，不隐式冻结草稿或打开
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(port.messages.at(-1), { version: 1, id: 'versions', ok: true, result: { draftId: draft.draftId, masters: [], layouts: [], jobs: [] } });
 });
+
+test('Logic Preparation 历史通过正式 IPC 返回，读取不会授权目标目录或写入工作副本', async t => {
+  const collection = createCollectionRepository({ filePath: ':memory:' });
+  const sources = createSourceEvidenceService({ store: collection.sources, drafts: collection.drafts });
+  const { createPreparationCoordinator } = await import('../src/recording/preparation-coordinator.js');
+  const preparation = createPreparationCoordinator({ store: collection.preparations, sourceStore: collection.sources, sources });
+  t.after(async () => { await preparation.close(); await sources.close(); collection.close(); });
+  const draft = collection.drafts.append({ commandId: '11111111-1111-4111-8111-111111111111', fingerprint: 'c'.repeat(64), title: '工作区合成草稿', programType: 'compilation', metadata: [{ title: '合成曲目' }] });
+  const port = new FakePort(); await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { collection, sources, preparation }));
+  port.send({ version: 1, id: 'preparations', command: 'recordingPreparation.list', payload: { draftId: draft.draftId } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'preparations', ok: true, result: { draftId: draft.draftId, workspaces: [], jobs: [] } });
+  assert.deepEqual(preparation.destinations(), []);
+});

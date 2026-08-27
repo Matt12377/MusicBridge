@@ -1,4 +1,5 @@
 import { isPreviewVersionsRequest, isFreezeVersionsRequest, isVersionProposal, isVersionHistory, isVersionJob } from './master-versions.js';
+import { isPreviewPreparationRequest, isStartPreparationRequest, isPreparationHistory, isPreparationProposal, isPreparationJob, isPreparationDestination } from './preparation.js';
 import { isMediaLayoutSpec, isPreviewMediaRequest, isSaveMediaPlanRequest, isReserveMediaRequest, isReleaseMediaRequest, isMediaPlan, isMediaCandidate, isMediaPreview } from './media-planning.js';
 import { isSourceRoot, isSourceJob, isSourceBinding, isSourceSelection, isSourceAction, isSourceConfirmation, isDraftSourceSnapshot } from './source-evidence.js';
 import { isMasterDraft, isMasterDraftSummary, isMasterDraftResult, isAppendMasterDraftRequest, isUpdateMasterDraftRequest } from './master-drafts.js';
@@ -929,6 +930,14 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'recordingSources.revoke' || command === 'recordingSources.cancel') return isSourceAction(payload);
   if (command === 'recordingSources.confirm' || command === 'recordingSources.recheck') return isSourceConfirmation(payload);
   if (command === 'recordingVersions.list') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
+  if (command === 'recordingPreparation.destinations') return isRecord(payload) && hasOnlyKeys(payload, []);
+  if (command === 'recordingPreparation.authorizationReceipt') return isRecord(payload) && hasOnlyKeys(payload, ['commandId']) && isCollectionId(payload.commandId);
+  if (command === 'recordingPreparation.authorize') return isRecord(payload) && hasOnlyKeys(payload, ['commandId','absolutePath']) && isCollectionId(payload.commandId) && isSourcePrivatePath(payload.absolutePath);
+  if (command === 'recordingPreparation.revoke' || command === 'recordingPreparation.cancel') return isSourceAction(payload);
+  if (command === 'recordingPreparation.job' || command === 'recordingPreparation.context') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
+  if (command === 'recordingPreparation.list') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
+  if (command === 'recordingPreparation.preview') return isPreviewPreparationRequest(payload);
+  if (command === 'recordingPreparation.start') return isStartPreparationRequest(payload);
   if (command === 'recordingVersions.preview') return isPreviewVersionsRequest(payload);
   if (command === 'recordingVersions.freeze') return isFreezeVersionsRequest(payload);
   if (command === 'recordingVersions.job') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
@@ -1397,6 +1406,16 @@ function isCommandResult(
     case 'recordingSources.recheck': return isSourceJob(value);
     case 'recordingSources.confirm': return isSourceBinding(value);
     case 'recordingVersions.list': return isVersionHistory(value);
+    case 'recordingPreparation.destinations': return isRecord(value) && hasOnlyKeys(value, ['destinations']) && Array.isArray(value.destinations) && value.destinations.length <= 100 && value.destinations.every(isPreparationDestination);
+    case 'recordingPreparation.authorizationReceipt': return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['destination']) && (value.destination === null || isPreparationDestination(value.destination));
+    case 'recordingPreparation.authorize': return allowInternalResult && isPreparationDestination(value);
+    case 'recordingPreparation.revoke': return isPreparationDestination(value);
+    case 'recordingPreparation.job': return isRecord(value) && hasOnlyKeys(value, ['job']) && (value.job === null || isPreparationJob(value.job));
+    case 'recordingPreparation.cancel': return isPreparationJob(value);
+    case 'recordingPreparation.context': return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['absolutePath']) && isSourcePrivatePath(value.absolutePath);
+    case 'recordingPreparation.list': return isPreparationHistory(value);
+    case 'recordingPreparation.preview': return isPreparationProposal(value);
+    case 'recordingPreparation.start': return isPreparationJob(value);
     case 'recordingVersions.preview': return isVersionProposal(value);
     case 'recordingVersions.freeze':
     case 'recordingVersions.cancel': return isVersionJob(value);

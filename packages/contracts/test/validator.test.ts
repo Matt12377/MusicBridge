@@ -1490,3 +1490,44 @@ test('不可变版本 IPC 不接收 Renderer 伪造内容、源路径或未确�
   assert.equal(response('recordingVersions.freeze', { ...job, state: 'failed', failure: 'SOURCE_INVALID', stack: 'private' }), false);
   assert.equal(response('recordingVersions.job', { job: null }), true);
 });
+
+test('Logic Preparation 请求只引用冻结布局与已授权目标，不能提交私有路径或伪造工作副本', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const request = (command: string, payload: unknown) => validateIpcRequest({ version: 1, id: 'preparation', command, payload }).ok;
+  assert.equal(request('recordingPreparation.list', { draftId: id }), true);
+  assert.equal(request('recordingPreparation.preview', { layoutVersionId: id, destinationId: id }), true);
+  const start = { commandId: id, layoutVersionId: id, destinationId: id, proposalFingerprint: 'a'.repeat(64), userConfirmed: true };
+  assert.equal(request('recordingPreparation.start', start), true);
+  for (const invalid of [{ ...start, path: '/private/library' }, { ...start, workingCopies: [] }, { ...start, userConfirmed: false }, { ...start, proposalFingerprint: '' }]) assert.equal(request('recordingPreparation.start', invalid), false);
+});
+
+test('Logic Preparation 公开回执区分工作副本和执行资产，拒绝目标路径及不完整成功状态', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const response = (command: string, result: unknown) => validateIpcResponseForCommand({ version: 1, id: 'prep', ok: true, result }, command as Parameters<typeof validateIpcResponseForCommand>[1]).ok;
+  assert.equal(response('recordingPreparation.list', { draftId: id, workspaces: [], jobs: [] }), true);
+  const job = { id, draftId: id, layoutVersionId: id, destinationId: id, state: 'running', completedTracks: 0, totalTracks: 1 };
+  assert.equal(response('recordingPreparation.start', job), true);
+  assert.equal(response('recordingPreparation.start', { ...job, state: 'completed' }), false);
+  assert.equal(response('recordingPreparation.start', { ...job, path: '/private/output' }), false);
+  assert.equal(response('recordingPreparation.start', { ...job, completedTracks: 2 }), false);
+  const proposal = { draftId: id, masterVersionId: id, layoutVersionId: id, destinationId: id, contentHash: 'a'.repeat(64), timelineHash: 'b'.repeat(64), trackCount: 1, bytes: 44, proposalFingerprint: 'c'.repeat(64), executionReady: false };
+  assert.equal(response('recordingPreparation.preview', proposal), true);
+  assert.equal(response('recordingPreparation.preview', { ...proposal, executionReady: true }), false);
+});
+
+test('Preparation 目标与任务 API 有界，原生授权路径及 Finder 上下文只能返回 Main', () => {
+  const id = '11111111-1111-4111-8111-111111111111', destination = { id, label: 'Logic 合成输出', authorized: true };
+  const request = (command: string, payload: unknown) => validateIpcRequest({ version: 1, id: 'prep-api', command, payload }).ok;
+  assert.equal(request('recordingPreparation.destinations', {}), true);
+  assert.equal(request('recordingPreparation.revoke', { commandId: id, id }), true);
+  assert.equal(request('recordingPreparation.job', { id }), true);
+  assert.equal(request('recordingPreparation.cancel', { commandId: id, id }), true);
+  assert.equal(request('recordingPreparation.context', { id }), true);
+  assert.equal(request('recordingPreparation.context', { id, path: '/private/other' }), false);
+  assert.equal(request('recordingPreparation.authorize', { commandId: id, absolutePath: '/private/synthetic-target' }), true);
+  const response = { version: 1, id: 'prep-api', ok: true, result: { absolutePath: '/private/synthetic-target/workspace' } };
+  assert.equal(validateIpcResponseForCommand(response, 'recordingPreparation.context' as Parameters<typeof validateIpcResponseForCommand>[1]).ok, false);
+  assert.equal(validateIpcInternalResponseForCommand(response, 'recordingPreparation.context' as Parameters<typeof validateIpcInternalResponseForCommand>[1]).ok, true);
+  assert.equal(validateIpcResponseForCommand({ ...response, result: { destinations: [destination] } }, 'recordingPreparation.destinations' as Parameters<typeof validateIpcResponseForCommand>[1]).ok, true);
+  assert.equal(validateIpcResponseForCommand({ ...response, result: { destinations: [{ ...destination, path: '/private/other' }] } }, 'recordingPreparation.destinations' as Parameters<typeof validateIpcResponseForCommand>[1]).ok, false);
+});

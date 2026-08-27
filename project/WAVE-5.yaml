@@ -3,9 +3,9 @@ wave: WAVE-5
 status: active
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-056
-activeBranch: codex/task-056-v3-master-layout-versions
-activeBaseCommit: d64f2b2979b580b2771efea4cb6b935806f17dea
+activeTask: TASK-057
+activeBranch: codex/task-057-v3-logic-preparation
+activeBaseCommit: 385e1433f7f5a18b0467e0d90e51cfa5d5798b4e
 order:
   - TASK-048
   - TASK-049
@@ -16,5 +16,6 @@ order:
   - TASK-054
   - TASK-055
   - TASK-056
-stopAfter: TASK-056
-reviewBoundary: immutable-master-layout-versions-no-recording
+  - TASK-057
+stopAfter: TASK-057
+reviewBoundary: logic-working-copies-no-render-freeze-or-recording

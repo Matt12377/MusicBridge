@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
 import { lstat, open, realpath } from 'node:fs/promises';
 import type { BigIntStats } from 'node:fs';
+import type { FileHandle } from 'node:fs/promises';
 import path from 'node:path';
 import { parseBuffer } from 'music-metadata';
 import { isSourceTechnical, type SourceTechnical, type SourceFailure, type SourceAvailability } from '@music-bridge/contracts';
@@ -97,6 +98,49 @@ async function checkedFile(root: RootCapability, relative: string): Promise<{ ab
 export async function sourceFileAvailability(root: RootCapability, relative: string, expected: string): Promise<SourceAvailability> {
   try { return signature((await checkedFile(root, relative)).info) === expected ? 'ONLINE' : 'CONTENT_CHANGED'; }
   catch (error) { const code = error instanceof SourceFileError ? error.code : 'IO_ERROR'; return code === 'REVOKED' || code === 'SOURCE_ROOT_OFFLINE' || code === 'MISSING' ? code : 'CONTENT_CHANGED'; }
+}
+/** 目标句柄由工作区层排他创建；这里不接收目标路径，也不修改原件属性。 */
+export async function copyReadonlySource(root: RootCapability, relative: string, expected: { sha256: string; size: number }, destination: FileHandle, signal: AbortSignal): Promise<{ sha256: string; size: number }> {
+  const checkAbort = (): void => { if (signal.aborted) fail('CANCELLED'); };
+  checkAbort(); const first = await checkedFile(root, relative);
+  if (!Number.isSafeInteger(expected.size) || expected.size < 1 || expected.size > 68_719_476_736 || first.info.size !== BigInt(expected.size)) return fail('CONTENT_CHANGED');
+  const source = await open(first.absolute, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const before = await source.stat({ bigint: true }), target = await destination.stat({ bigint: true });
+    if (signature(before) !== signature(first.info) || signature((await checkedFile(root, relative)).info) !== signature(before)) return fail('CONTENT_CHANGED');
+    if (!target.isFile() || target.size !== 0n || (target.dev === before.dev && target.ino === before.ino)) return fail('IO_ERROR');
+    const inputHash = createHash('sha256'), chunk = Buffer.allocUnsafe(1024 * 1024), deadline = Date.now() + 15 * 60_000;
+    let offset = 0;
+    while (offset < expected.size) {
+      checkAbort(); if (Date.now() > deadline) return fail('LIMIT_EXCEEDED');
+      const { bytesRead } = await source.read(chunk, 0, Math.min(chunk.length, expected.size - offset), offset);
+      if (!bytesRead) return fail('CONTENT_CHANGED');
+      inputHash.update(chunk.subarray(0, bytesRead));
+      let written = 0;
+      while (written < bytesRead) {
+        checkAbort();
+        const { bytesWritten } = await destination.write(chunk, written, bytesRead - written, offset + written);
+        if (!bytesWritten) return fail('IO_ERROR');
+        written += bytesWritten;
+      }
+      offset += bytesRead;
+    }
+    checkAbort();
+    if (signature(await source.stat({ bigint: true })) !== signature(before) || signature((await checkedFile(root, relative)).info) !== signature(before)) return fail('CONTENT_CHANGED');
+    if (inputHash.digest('hex') !== expected.sha256) return fail('HASH_MISMATCH');
+    await destination.sync();
+    const outputHash = createHash('sha256'); offset = 0;
+    while (offset < expected.size) {
+      checkAbort();
+      const { bytesRead } = await destination.read(chunk, 0, Math.min(chunk.length, expected.size - offset), offset);
+      if (!bytesRead) return fail('HASH_MISMATCH');
+      outputHash.update(chunk.subarray(0, bytesRead)); offset += bytesRead;
+    }
+    checkAbort();
+    if ((await destination.stat()).size !== expected.size || outputHash.digest('hex') !== expected.sha256) return fail('HASH_MISMATCH');
+    if (signature((await checkedFile(root, relative)).info) !== signature(before)) return fail('CONTENT_CHANGED');
+    return { sha256: expected.sha256, size: expected.size };
+  } finally { await source.close(); }
 }
 /** 原件始终只读；完整 Hash 与头部技术探测是独立证据，不宣称音频逐帧解码通过。 */
 export async function probeReadonlySource(root: RootCapability, relative: string, signal: AbortSignal): Promise<FileEvidence> {
