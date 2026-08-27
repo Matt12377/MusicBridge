@@ -82,7 +82,7 @@
     "branch": "codex/task-049-v3-inventory",
     "baseCommit": "5ed814a7f65bc02c200039379006929f4aced112",
     "state": "synthetic-pass-owner-review-pending",
-    "implementationCommit": null,
+    "implementationCommit": "88693078df507b1f6893e26c48ca0a366dba6491",
     "reportCommit": null,
     "nextTask": "TASK-050",
     "previousTask": {
@@ -119,7 +119,8 @@
     "carryover": [
       "V2 闲置播放器未选设备提示对比度 4.01:1，1440px 主页对照复现；本导航任务未修改",
       "PRD F-01 执行资产保留策略未定",
-      "TASK-047 真实验收继续待执行"
+      "TASK-047 真实验收继续待执行",
+      "未确认操作的跨 Renderer/应用重启 outbox 恢复待后续覆盖；当前 UI 仅保留会话内原命令重试，数据库幂等结果已持久化"
     ]
   }
 }
