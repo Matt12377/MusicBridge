@@ -6,7 +6,7 @@ export type DraftProgramType = 'compilation' | 'concert' | 'continuous';
 /** 草稿元数据不代表已校验音频，不能充当 Source Lock。 */
 export interface DraftTrackMetadata { title: string; artist?: string; album?: string; version?: string; durationMs?: number; discNumber?: number; trackNumber?: number }
 export interface MasterDraftTrack { id: string; source: 'roon'; metadata: DraftTrackMetadata }
-export interface MasterDraftSummary { id: string; title: string; programType: DraftProgramType; revision: number; status: 'draft'; sourceLockEligible: false; trackCount: number; estimatedDurationMs?: number }
+export interface MasterDraftSummary { id: string; title: string; programType: DraftProgramType; revision: number; status: 'draft'; sourceLockEligible: boolean; trackCount: number; estimatedDurationMs?: number }
 export interface MasterDraft extends MasterDraftSummary { tracks: readonly MasterDraftTrack[] }
 export interface AppendMasterDraftRequest { commandId: string; draftId?: string; expectedRevision?: number; title?: string; programType?: DraftProgramType; references: readonly string[]; userConfirmed: true }
 export interface UpdateMasterDraftRequest { commandId: string; draftId: string; expectedRevision: number; title: string; programType: DraftProgramType; trackIds: readonly string[] }
@@ -29,7 +29,7 @@ export function isDraftTrackMetadata(v: unknown): v is DraftTrackMetadata {
     && (v.durationMs === undefined || integer(v.durationMs, 1, 86_400_000)) && (v.discNumber === undefined || integer(v.discNumber, 1, 1000)) && (v.trackNumber === undefined || integer(v.trackNumber, 1, 10000));
 }
 const summaryKeys = ['id', 'title', 'programType', 'revision', 'status', 'sourceLockEligible', 'trackCount', 'estimatedDurationMs'];
-function summary(v: Record<string, unknown>): boolean { return isCollectionId(v.id) && isDraftText(v.title) && isDraftProgramType(v.programType) && integer(v.revision) && v.status === 'draft' && v.sourceLockEligible === false && integer(v.trackCount, 0, 200) && (v.estimatedDurationMs === undefined || integer(v.estimatedDurationMs, 0, 20_000_000_000)); }
+function summary(v: Record<string, unknown>): boolean { return isCollectionId(v.id) && isDraftText(v.title) && isDraftProgramType(v.programType) && integer(v.revision) && v.status === 'draft' && typeof v.sourceLockEligible === 'boolean' && integer(v.trackCount, 0, 200) && (v.estimatedDurationMs === undefined || integer(v.estimatedDurationMs, 0, 20_000_000_000)); }
 export function isMasterDraftSummary(v: unknown): v is MasterDraftSummary { return record(v) && keys(v, summaryKeys) && summary(v); }
 export function isMasterDraft(v: unknown): v is MasterDraft {
   return record(v) && keys(v, [...summaryKeys, 'tracks']) && summary(v) && Array.isArray(v.tracks) && v.tracks.length === v.trackCount && v.tracks.length <= 200

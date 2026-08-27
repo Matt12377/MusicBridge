@@ -1,3 +1,4 @@
+import { createSourceEvidenceService, type SourceEvidenceService } from './recording/source-evidence.js';
 import { createMasterDraftsCoordinator, type MasterDraftsCoordinator } from './recording/drafts-coordinator.js';
 import { createPhysicalLinksCoordinator, type PhysicalLinksCoordinator } from './collection/physical-links-coordinator.js';
 import type { RoonPublicLibrary } from './roon/public-library.js';
@@ -93,6 +94,7 @@ export type CoreRuntimeEvent = TypedIpcEvent;
 export interface CoreRuntime {
   physicalLinks?: PhysicalLinksCoordinator;
   masterDrafts?: MasterDraftsCoordinator;
+  sources?: SourceEvidenceService;
   readonly collection?: CollectionRepository;
   start(): Promise<void>;
   shutdown(): Promise<void>;
@@ -770,7 +772,9 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     if (controller.updateRoonTime(event)) lyrics.updateRoonTime(event.positionMs);
   });
 
+  const sources = options.collectionRepository ? createSourceEvidenceService({ store: options.collectionRepository.sources, drafts: options.collectionRepository.drafts }) : undefined;
   const cleanup = async (): Promise<void> => {
+    await sources?.close();
     options.collectionRepository?.close();
     await control.stop();
     await controller.shutdown();
@@ -1092,6 +1096,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       return { stopped: true as const };
     },
 
+    ...(sources ? { sources } : {}),
     ...(options.collectionRepository ? { collection: options.collectionRepository, physicalLinks: createPhysicalLinksCoordinator({ repository: options.collectionRepository.links, library: roonLibrary }), masterDrafts: createMasterDraftsCoordinator({ repository: options.collectionRepository.drafts, library: roonLibrary }) } : {}),
     listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),
     async checkFavorite(descriptor) {
@@ -1136,6 +1141,7 @@ export interface TestBridgeRuntimeOptions {
 
 export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}): CoreRuntime {
   const collection = options.collectionRepository ?? createCollectionRepository({ filePath: ':memory:' });
+  const sources = createSourceEvidenceService({ store: collection.sources, drafts: collection.drafts });
   const accountMode = options.accountMode ?? 'ready'
   const syntheticAuthorized = options.authorized === true && accountMode !== 'expired'
   const favoriteRepository = createLocalFavoriteRepository()
@@ -1290,6 +1296,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       diagnostics.record({ component: 'core', level: 'info', event: 'core_ready', state: 'ready' });
     },
     async shutdown() {
+      await sources.close();
       collection.close();
       playbackState = emptyPlaybackState();
       state = {
@@ -1658,6 +1665,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       return { stopped: true as const };
     },
     collection,
+    sources,
     physicalLinks: createPhysicalLinksCoordinator({ repository: collection.links, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
     masterDrafts: createMasterDraftsCoordinator({ repository: collection.drafts, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
     listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),

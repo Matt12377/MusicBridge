@@ -1,3 +1,4 @@
+import { createSourceEvidenceService } from '../src/recording/source-evidence.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -1095,4 +1096,14 @@ test('录音草稿 IPC 离线首次返回空库，不从普通播放队列生成
   port.send({ version: 1, id: 'draft-list', command: 'recordingDrafts.list', payload: { page: { offset: 0, limit: 20 } } });
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(port.messages.at(-1), { version: 1, id: 'draft-list', ok: true, result: { items: [], offset: 0, limit: 20, total: 0, hasMore: false } });
+});
+
+test('源目录 IPC 初次为空，没有默认授权用户音乐目录', async t => {
+  const collection = createCollectionRepository({ filePath: ':memory:' });
+  t.after(() => collection.close());
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { collection, sources: createSourceEvidenceService({ store: collection.sources, drafts: collection.drafts }) }));
+  port.send({ version: 1, id: 'source-roots', command: 'recordingSources.roots', payload: {} });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'source-roots', ok: true, result: { roots: [] } });
 });

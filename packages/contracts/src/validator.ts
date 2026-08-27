@@ -1,3 +1,4 @@
+import { isSourceRoot, isSourceJob, isSourceBinding, isSourceSelection, isSourceAction, isSourceConfirmation, isDraftSourceSnapshot } from './source-evidence.js';
 import { isMasterDraft, isMasterDraftSummary, isMasterDraftResult, isAppendMasterDraftRequest, isUpdateMasterDraftRequest } from './master-drafts.js';
 import { isAlbumQuery, isDigitalAlbum, isDigitalAlbumDetail, isPhysicalLinksSnapshot, isDigitalRuntime, isPhysicalLinkResult, isCollectionMatrixRow, isConfirmPhysicalLinkRequest, isRelocateDigitalRequest, isRegisterDigitalRequest, isRemovePhysicalLinkRequest, isConfirmAbsenceRequest } from './physical-links.js';
 import { isMusicId, isMusicFilter, isMusicEntry, isMusicDetail, isMusicMutationResult, isSaveReleaseRequest, isSaveLegacyRequest, isAddMusicPhotoRequest, isRemoveMusicPhotoRequest } from './physical-music.js';
@@ -917,6 +918,14 @@ function isPlaylistDetail(value: unknown): value is PlaylistDetail {
 }
 
 function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
+  if (command === 'recordingSources.roots') return isRecord(payload) && hasOnlyKeys(payload, []);
+  if (command === 'recordingSources.rootReceipt') return isRecord(payload) && hasOnlyKeys(payload, ['commandId']) && isCollectionId(payload.commandId);
+  if (command === 'recordingSources.authorize') return isRecord(payload) && hasOnlyKeys(payload, ['commandId', 'absolutePath']) && isCollectionId(payload.commandId) && isSourcePrivatePath(payload.absolutePath);
+  if (command === 'recordingSources.start') return isRecord(payload) && hasOnlyKeys(payload, ['selection', 'absolutePath']) && isSourceSelection(payload.selection) && isSourcePrivatePath(payload.absolutePath);
+  if (command === 'recordingSources.context' || command === 'recordingSources.job') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
+  if (command === 'recordingSources.snapshot') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
+  if (command === 'recordingSources.revoke' || command === 'recordingSources.cancel') return isSourceAction(payload);
+  if (command === 'recordingSources.confirm' || command === 'recordingSources.recheck') return isSourceConfirmation(payload);
   if (command === 'recordingDrafts.list') return isRecord(payload) && hasOnlyKeys(payload, ['page']) && isPageRequest(payload.page);
   if (command === 'recordingDrafts.detail') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
   if (command === 'recordingDrafts.runtime') return isRecord(payload) && hasOnlyKeys(payload, ['draftId', 'trackId']) && isCollectionId(payload.draftId) && isCollectionId(payload.trackId);
@@ -1362,6 +1371,17 @@ function isCommandResult(
   allowInternalResult = false,
 ): boolean {
   switch (command) {
+    case 'recordingSources.roots': return isRecord(value) && hasOnlyKeys(value, ['roots']) && Array.isArray(value.roots) && value.roots.length <= 100 && value.roots.every(isSourceRoot);
+    case 'recordingSources.rootReceipt': return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['root']) && (value.root === null || isSourceRoot(value.root));
+    case 'recordingSources.authorize': return allowInternalResult && isSourceRoot(value);
+    case 'recordingSources.context': return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['absolutePath']) && isSourcePrivatePath(value.absolutePath);
+    case 'recordingSources.start': return allowInternalResult && isSourceJob(value);
+    case 'recordingSources.revoke': return isSourceRoot(value);
+    case 'recordingSources.snapshot': return isDraftSourceSnapshot(value);
+    case 'recordingSources.job': return isRecord(value) && hasOnlyKeys(value, ['job']) && (value.job === null || isSourceJob(value.job));
+    case 'recordingSources.cancel':
+    case 'recordingSources.recheck': return isSourceJob(value);
+    case 'recordingSources.confirm': return isSourceBinding(value);
     case 'recordingDrafts.list': return isCollectionPage(value, isMasterDraftSummary);
     case 'recordingDrafts.detail': return isMasterDraft(value);
     case 'recordingDrafts.append':
@@ -1700,3 +1720,5 @@ export function parseIpcRuntimeMessage(
   }
   return invalidResponse();
 }
+
+function isSourcePrivatePath(value: unknown): value is string { return typeof value === 'string' && value.startsWith('/') && value.length <= 4096 && !/[\u0000-\u001f\u007f]/u.test(value); }

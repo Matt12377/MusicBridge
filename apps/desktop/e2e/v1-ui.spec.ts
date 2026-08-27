@@ -1,5 +1,5 @@
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, stat, writeFile, realpath } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
@@ -1188,7 +1188,7 @@ test('V3 收藏与录音分开，收藏视图支持键盘、搜索返回和收�
   await expect(page.locator('[data-component="RecordingView"]')).toBeVisible()
   await expect(page.locator('[data-component="CollectionView"]')).toHaveCount(0)
   await expect(page.getByRole('button', { name: '从 Roon 选择音乐', exact: true })).toBeEnabled()
-  await expect(page.getByText('确认选曲后保存录音草稿。源验证与正式录音尚未完成，选曲不会操作播放设备。', { exact: true })).toBeVisible()
+  await expect(page.getByText('确认选曲后保存录音草稿。下一步可绑定实际源文件进行只读验证，选曲不会操作播放设备。', { exact: true })).toBeVisible()
   await collection.click()
   await expect(music).toHaveAttribute('aria-selected', 'true')
   await sidebarSearch().fill('synthetic')
@@ -1872,4 +1872,84 @@ test('V3 录音选曲回执丢失重试不重复草稿或曲目', async () => {
   await expect(picker).toHaveCount(0)
   const saved = await page.evaluate(() => window.musicBridge.listMasterDrafts({ offset: 0, limit: 20 }))
   expect(saved.total).toBe(1); expect(saved.items[0]?.trackCount).toBe(1); expect(saved.items[0]?.sourceLockEligible).toBe(false)
+})
+
+test('V3 录音选曲源绑定入口不要求默认目录授权', async () => {
+  const saved = await page.evaluate(async () => {
+    const albums = await window.musicBridge.searchPhysicalRoonAlbums('', { offset: 0, limit: 20 })
+    const tracks = await window.musicBridge.getRoonAlbumTracks(albums.items[0]!.reference, { offset: 0, limit: 20 })
+    return window.musicBridge.appendMasterDraft({ commandId: crypto.randomUUID(), title: '源验证入口', programType: 'compilation', references: [tracks.items[0]!.reference], userConfirmed: true })
+  })
+  await page.locator('[data-sidebar-source="recording"]').click()
+  await page.getByRole('button', { name: '继续草稿 源验证入口' }).click()
+  await expect(page.getByRole('button', { name: '绑定实际源文件', exact: true })).toBeEnabled()
+  await page.getByRole('button', { name: '绑定实际源文件', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: '实际源文件', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '授权一个源目录', exact: true })).toBeEnabled()
+  expect(saved.trackIds).toHaveLength(1)
+})
+
+test('V3 录音选曲源验证：原生选择到 SQLite、人工确认、离线与重启', async () => {
+  test.setTimeout(90_000)
+  const sourceRoot = await realpath(diagnosticDirectory), sourceFile = path.join(sourceRoot, 'source-e2e.wav')
+  const bytes = Buffer.alloc(44 + 176400)
+  bytes.write('RIFF'); bytes.writeUInt32LE(bytes.length - 8, 4); bytes.write('WAVEfmt ', 8); bytes.writeUInt32LE(16, 16); bytes.writeUInt16LE(1, 20); bytes.writeUInt16LE(2, 22); bytes.writeUInt32LE(44100, 24); bytes.writeUInt32LE(176400, 28); bytes.writeUInt16LE(4, 32); bytes.writeUInt16LE(16, 34); bytes.write('data', 36); bytes.writeUInt32LE(176400, 40)
+  await writeFile(sourceFile, bytes)
+  const saved = await page.evaluate(async () => {
+    const albums = await window.musicBridge.searchPhysicalRoonAlbums('', { offset: 0, limit: 20 })
+    const tracks = await window.musicBridge.getRoonAlbumTracks(albums.items[0]!.reference, { offset: 0, limit: 20 })
+    return window.musicBridge.appendMasterDraft({ commandId: crypto.randomUUID(), title: '实际源验证合成', programType: 'compilation', references: [tracks.items[0]!.reference], userConfirmed: true })
+  })
+  await page.locator('[data-sidebar-source="recording"]').click(); await page.getByRole('button', { name: '继续草稿 实际源验证合成' }).click()
+  const trigger = page.getByRole('button', { name: '绑定实际源文件', exact: true }); await trigger.click()
+  const panel = page.getByRole('dialog', { name: '实际源文件', exact: true })
+  expect((await page.evaluate(() => window.musicBridge.listRecordingSourceRoots())).roots).toEqual([])
+  await electronApp.evaluate(({ dialog }) => { dialog.showOpenDialog = async () => ({ canceled: true, filePaths: [] }) })
+  await panel.getByRole('button', { name: '授权一个源目录', exact: true }).click()
+  await expect(panel.getByRole('button', { name: '授权一个源目录', exact: true })).toBeEnabled()
+  expect((await page.evaluate(() => window.musicBridge.listRecordingSourceRoots())).roots).toEqual([])
+  await electronApp.evaluate(({ dialog }, directory) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [directory] }) }, sourceRoot)
+  await panel.getByRole('button', { name: '授权一个源目录', exact: true }).click()
+  await expect(panel.getByRole('button', { name: '选择文件并校验', exact: true })).toBeEnabled()
+  await electronApp.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }) }, sourceFile)
+  await electronApp.evaluate(({ ipcMain }) => {
+    const original = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => unknown> })._invokeHandlers.get('recordingSources:choose')!
+    let lost = false
+    ipcMain.removeHandler('recordingSources:choose')
+    ipcMain.handle('recordingSources:choose', async (...args) => { const result = await original(...args); if (!lost) { lost = true; throw new Error('合成校验回执丢失') }; return result })
+  })
+  await panel.getByRole('button', { name: '选择文件并校验', exact: true }).click()
+  await expect(panel.getByRole('button', { name: '重试原操作', exact: true })).toBeVisible()
+  await panel.getByRole('button', { name: '重试原操作', exact: true }).click()
+  await expect(panel.getByText('source-e2e.wav', { exact: true })).toBeVisible()
+  await expect(panel.getByRole('button', { name: '确认曲目对应', exact: true })).toBeDisabled()
+  await panel.getByLabel('我已核对这份文件对应「合成关联曲目」', { exact: true }).check()
+  await panel.getByRole('button', { name: '确认曲目对应', exact: true }).click()
+  await expect(panel.getByRole('status').filter({ hasText: '源验证条件已满足' })).toBeVisible()
+  expect((await page.evaluate(id => window.musicBridge.getMasterDraft(id), saved.draftId)).sourceLockEligible).toBe(true)
+  expect((await page.evaluate(id => window.musicBridge.getDraftSources(id), saved.draftId)).sourceLockEligible).toBe(true)
+  expect((await page.evaluate(id => window.musicBridge.getDraftSources(id), saved.draftId)).tracks[0]!.jobs).toHaveLength(1)
+  expect(JSON.stringify(await page.evaluate(id => window.musicBridge.getDraftSources(id), saved.draftId))).not.toContain(sourceRoot)
+  expect(await readFile(sourceFile)).toEqual(bytes)
+  for (const size of [{ width: 1440, height: 900 }, { width: 720, height: 480 }]) {
+    await page.setViewportSize(size)
+    expect(await panel.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+    await page.evaluate(source => window.eval(source), axeSource)
+    const result = await page.evaluate(async () => (window as typeof window & { axe: { run(root: Element): Promise<{ violations: { impact: string | null }[] }> } }).axe.run(document.querySelector('dialog[open]')!))
+    expect(result.violations.filter(v => v.impact === 'critical' || v.impact === 'serious')).toEqual([])
+    await page.screenshot({ path: test.info().outputPath(`source-evidence-${size.width}.png`) })
+    await panel.evaluate(el => { el.scrollTop = 0 })
+    await page.screenshot({ path: test.info().outputPath(`source-panel-top-${size.width}.png`) })
+  }
+  await panel.getByRole('button', { name: '关闭', exact: true }).click(); await expect(trigger).toBeFocused()
+  await electronApp.close()
+  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
+  delete environment.NETEASE_COOKIE; delete environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY
+  electronApp = await electron.launch({ args: [electronEntry], cwd: desktopRoot, env: environment }); page = await electronApp.firstWindow()
+  await page.locator('[data-sidebar-source="recording"]').click(); await page.getByRole('button', { name: '继续草稿 实际源验证合成' }).click()
+  expect((await page.evaluate(id => window.musicBridge.getDraftSources(id), saved.draftId)).sourceLockEligible).toBe(true)
+  expect((await page.evaluate(() => window.musicBridge.listCollection({ offset: 0, limit: 20 }))).total).toBe(0)
+  await rm(sourceFile)
+  expect((await page.evaluate(id => window.musicBridge.getDraftSources(id), saved.draftId)).tracks[0]!.binding!.availability).toBe('MISSING')
+  expect((await page.evaluate(id => window.musicBridge.getMasterDraft(id), saved.draftId)).sourceLockEligible).toBe(false)
 })

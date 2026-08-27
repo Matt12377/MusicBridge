@@ -133,6 +133,11 @@ function collectionFor(runtime: CoreRuntimeForIpc): CollectionRepository {
   return runtime.collection;
 }
 
+function sourcesFor(runtime: CoreRuntimeForIpc) {
+  if (!runtime.sources) throw new BridgeError('BAD_REQUEST', '源文件服务尚未就绪。', { httpStatus: 503 });
+  return runtime.sources;
+}
+
 function masterDraftsFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.masterDrafts) throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', '录音草稿服务尚未就绪。', { httpStatus: 503 });
   return runtime.masterDrafts;
@@ -148,8 +153,29 @@ async function dispatch(
   request: IpcRequest,
 ): Promise<unknown> {
   switch (request.command as IpcCommand) {
-    case 'recordingDrafts.list': return collectionFor(runtime).drafts.list((request.payload as IpcCommandPayloads['recordingDrafts.list']).page);
-    case 'recordingDrafts.detail': return collectionFor(runtime).drafts.detail((request.payload as IpcCommandPayloads['recordingDrafts.detail']).id);
+    case 'recordingSources.roots': return sourcesFor(runtime).roots();
+    case 'recordingSources.rootReceipt': { const p = request.payload as IpcCommandPayloads['recordingSources.rootReceipt']; return sourcesFor(runtime).rootReceipt(p.commandId); }
+    case 'recordingSources.authorize': { const p = request.payload as IpcCommandPayloads['recordingSources.authorize']; return sourcesFor(runtime).authorize(p.commandId, p.absolutePath); }
+    case 'recordingSources.context': { const p = request.payload as IpcCommandPayloads['recordingSources.context']; return sourcesFor(runtime).context(p.id); }
+    case 'recordingSources.start': { const p = request.payload as IpcCommandPayloads['recordingSources.start']; return sourcesFor(runtime).start(p.selection, p.absolutePath); }
+    case 'recordingSources.revoke': { const p = request.payload as IpcCommandPayloads['recordingSources.revoke']; return sourcesFor(runtime).revoke(p); }
+    case 'recordingSources.snapshot': { const p = request.payload as IpcCommandPayloads['recordingSources.snapshot']; return sourcesFor(runtime).snapshot(p.draftId); }
+    case 'recordingSources.job': { const p = request.payload as IpcCommandPayloads['recordingSources.job']; return sourcesFor(runtime).job(p.id); }
+    case 'recordingSources.cancel': { const p = request.payload as IpcCommandPayloads['recordingSources.cancel']; return sourcesFor(runtime).cancel(p); }
+    case 'recordingSources.confirm': { const p = request.payload as IpcCommandPayloads['recordingSources.confirm']; return sourcesFor(runtime).confirm(p); }
+    case 'recordingSources.recheck': { const p = request.payload as IpcCommandPayloads['recordingSources.recheck']; return sourcesFor(runtime).recheck(p); }
+    case 'recordingDrafts.list': {
+      const result = collectionFor(runtime).drafts.list((request.payload as IpcCommandPayloads['recordingDrafts.list']).page);
+      const items = [];
+      for (const item of result.items) { const evidence = runtime.sources ? await runtime.sources.snapshot(item.id) : undefined; const latest = collectionFor(runtime).drafts.detail(item.id); items.push({ ...item, sourceLockEligible: latest.revision === item.revision && evidence?.sourceLockEligible === true }); }
+      return { ...result, items };
+    }
+    case 'recordingDrafts.detail': {
+      const id = (request.payload as IpcCommandPayloads['recordingDrafts.detail']).id;
+      const evidence = runtime.sources ? await runtime.sources.snapshot(id) : undefined;
+      const draft = collectionFor(runtime).drafts.detail(id);
+      return { ...draft, sourceLockEligible: evidence?.sourceLockEligible === true && JSON.stringify(evidence.tracks.map(t => t.trackId)) === JSON.stringify(draft.tracks.map(t => t.id)) };
+    }
     case 'recordingDrafts.append': return masterDraftsFor(runtime).append(request.payload as IpcCommandPayloads['recordingDrafts.append']);
     case 'recordingDrafts.update': return masterDraftsFor(runtime).update(request.payload as IpcCommandPayloads['recordingDrafts.update']);
     case 'recordingDrafts.runtime': { const p = request.payload as IpcCommandPayloads['recordingDrafts.runtime']; return masterDraftsFor(runtime).runtime(p.draftId, p.trackId); }

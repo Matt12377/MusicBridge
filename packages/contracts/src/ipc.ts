@@ -1,3 +1,4 @@
+import type { SourceRoot, SourceJob, SourceBinding, SourceSelection, SourceAction, SourceConfirmation, DraftSourceSnapshot } from './source-evidence.js';
 import type { MasterDraft, MasterDraftSummary, AppendMasterDraftRequest, UpdateMasterDraftRequest, MasterDraftResult } from './master-drafts.js';
 import type { DigitalAlbum, DigitalAlbumDetail, PhysicalLinksSnapshot, DigitalRuntime, ConfirmPhysicalLinkRequest, RelocateDigitalRequest, RegisterDigitalRequest, RemovePhysicalLinkRequest, ConfirmAbsenceRequest, PhysicalLinkResult, CollectionMatrixRow } from './physical-links.js';
 import type { MusicFilter, MusicEntry, MusicDetail, SaveReleaseRequest, SaveLegacyRequest, MusicMutationResult, AddMusicPhotoRequest, RemoveMusicPhotoRequest } from './physical-music.js';
@@ -75,6 +76,17 @@ export const IPC_COMMANDS = [
   'library.playlist',
   'library.dailyRecommendations',
   'favorites.list',
+  'recordingSources.roots',
+  'recordingSources.rootReceipt',
+  'recordingSources.authorize',
+  'recordingSources.context',
+  'recordingSources.start',
+  'recordingSources.revoke',
+  'recordingSources.snapshot',
+  'recordingSources.job',
+  'recordingSources.cancel',
+  'recordingSources.confirm',
+  'recordingSources.recheck',
   'recordingDrafts.list',
   'recordingDrafts.detail',
   'recordingDrafts.append',
@@ -187,6 +199,17 @@ export type IpcResponse<TResult = unknown> =
 export type IpcEnvelope<T = unknown> = IpcRequest<T> | IpcResponse<T>;
 
 export interface IpcCommandPayloads {
+  'recordingSources.roots': Record<string, never>;
+  'recordingSources.rootReceipt': { commandId: string };
+  'recordingSources.authorize': { commandId: string; absolutePath: string };
+  'recordingSources.context': { id: string };
+  'recordingSources.start': { selection: SourceSelection; absolutePath: string };
+  'recordingSources.revoke': SourceAction;
+  'recordingSources.snapshot': { draftId: string };
+  'recordingSources.job': { id: string };
+  'recordingSources.cancel': SourceAction;
+  'recordingSources.confirm': SourceConfirmation;
+  'recordingSources.recheck': SourceConfirmation;
   'recordingDrafts.list': { page: PageRequest };
   'recordingDrafts.detail': { id: string };
   'recordingDrafts.append': AppendMasterDraftRequest;
@@ -288,6 +311,17 @@ export interface IpcCommandPayloads {
 }
 
 export interface IpcCommandResults {
+  'recordingSources.roots': { roots: readonly SourceRoot[] };
+  'recordingSources.rootReceipt': { root: SourceRoot | null };
+  'recordingSources.authorize': SourceRoot;
+  'recordingSources.context': { absolutePath: string };
+  'recordingSources.start': SourceJob;
+  'recordingSources.revoke': SourceRoot;
+  'recordingSources.snapshot': DraftSourceSnapshot;
+  'recordingSources.job': { job: SourceJob | null };
+  'recordingSources.cancel': SourceJob;
+  'recordingSources.confirm': SourceBinding;
+  'recordingSources.recheck': SourceJob;
   'recordingDrafts.list': Page<MasterDraftSummary>;
   'recordingDrafts.detail': MasterDraft;
   'recordingDrafts.append': MasterDraftResult;
@@ -397,9 +431,14 @@ export interface IpcEventPayloads {
   'lyrics.match.changed': { state: LocalLyricsMatchSnapshot };
 }
 
-export type IpcInternalCommand = 'auth.pollQr' | 'auth.verifyCredential';
+export type IpcInternalCommand = 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
 
 export interface IpcInternalCommandResults {
+  'recordingSources.rootReceipt': { root: SourceRoot | null };
+  'recordingSources.authorize': SourceRoot;
+  'recordingSources.context': { absolutePath: string };
+  'recordingSources.start': SourceJob;
+
   'auth.pollQr': { state: PublicAuthState; credential?: string };
   'auth.verifyCredential': { status: 'authorized' | 'expired' | 'unavailable' };
 }

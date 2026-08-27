@@ -1,3 +1,4 @@
+import type { RecordingSourcesPublicApi } from '@music-bridge/contracts'
 import type { MasterDraftsPublicApi } from '@music-bridge/contracts'
 import type { PhysicalLinksPublicApi } from '@music-bridge/contracts'
 import type { PhysicalMusicPublicApi } from '@music-bridge/contracts'
@@ -51,7 +52,7 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
   autoReconnect: false,
 }
 
-export interface MusicBridgePublicApi extends CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
+export interface MusicBridgePublicApi extends RecordingSourcesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
   getAppInfo: () => Promise<AppInfo>
   getCoreHealth: () => Promise<PublicBridgeState>
   getCoreState: () => Promise<PublicBridgeState>
@@ -125,6 +126,15 @@ export interface MusicBridgePublicApi extends CollectionPublicApi, PhysicalMusic
 }
 
 export const PUBLIC_API_KEYS = [
+  'listRecordingSourceRoots',
+  'chooseRecordingSourceRoot',
+  'revokeRecordingSourceRoot',
+  'chooseRecordingSource',
+  'getDraftSources',
+  'getRecordingSourceJob',
+  'cancelRecordingSourceJob',
+  'recheckRecordingSource',
+  'confirmRecordingSource',
   'listMasterDrafts',
   'getMasterDraft',
   'appendMasterDraft',
@@ -375,9 +385,21 @@ export function createPreloadApi(
   physicalMusicApi?: PhysicalMusicPublicApi,
   physicalLinksApi?: PhysicalLinksPublicApi,
   masterDraftsApi?: MasterDraftsPublicApi,
+  recordingSourcesApi?: RecordingSourcesPublicApi,
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   return Object.freeze({
+    ...(recordingSourcesApi ?? {
+      listRecordingSourceRoots: collectionUnavailable,
+      chooseRecordingSourceRoot: collectionUnavailable,
+      revokeRecordingSourceRoot: collectionUnavailable,
+      chooseRecordingSource: collectionUnavailable,
+      getDraftSources: collectionUnavailable,
+      getRecordingSourceJob: collectionUnavailable,
+      cancelRecordingSourceJob: collectionUnavailable,
+      recheckRecordingSource: collectionUnavailable,
+      confirmRecordingSource: collectionUnavailable,
+    }),
     ...(masterDraftsApi ?? {
       listMasterDrafts: collectionUnavailable,
       getMasterDraft: collectionUnavailable,

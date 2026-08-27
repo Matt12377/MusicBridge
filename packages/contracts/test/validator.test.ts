@@ -1423,3 +1423,16 @@ test('录音草稿只接收确认后的 Roon 引用，拒绝伪造元数据与�
   assert.equal(validateIpcResponseForCommand({ version: 1, id: 'draft-contract', ok: true, result: { items: [summary], offset: 0, limit: 20, total: 1, hasMore: false } }, 'recordingDrafts.list').ok, true);
   assert.equal(validateIpcResponseForCommand({ version: 1, id: 'draft-contract', ok: true, result: { ...summary, sourceLockEligible: true, tracks: [] } }, 'recordingDrafts.detail').ok, false);
 });
+
+test('源能力私有路径仅允许内部响应，公开结果拒绝路径和伪造源锁', async () => {
+  const { isSourceSelection, isSourceBinding, isDraftSourceSnapshot } = await import('../src/index.js');
+  const id = '11111111-1111-4111-8111-111111111111', response = { version: 1, id: 'source', ok: true, result: { absolutePath: '/synthetic/authorized' } };
+  assert.equal(validateIpcResponseForCommand(response, 'recordingSources.context').ok, false);
+  assert.equal(validateIpcInternalResponseForCommand(response, 'recordingSources.context').ok, true);
+  const selection = { commandId: id, draftId: id, trackId: id, rootId: id, acquisition: 'userFileBind' };
+  assert.equal(isSourceSelection(selection), true); assert.equal(isSourceSelection({ ...selection, absolutePath: '/untrusted/path' }), false); assert.equal(isSourceSelection({ ...selection, acquisition: 'anything' }), false);
+  const binding = { id, rootId: id, fileName: 'audio.flac', acquisition: 'userFileBind', verification: 'fileHashVerified', preservation: 'externalReferenceOnly', availability: 'ONLINE', sha256: 'a'.repeat(64), size: 100, modifiedAt: '2026-08-27T00:00:00.000Z', verifiedAt: '2026-08-27T00:00:00.000Z', technical: { container: 'FLAC', codec: 'FLAC', sampleRate: 44100, channels: 2, durationMs: 1000, lossless: true }, userConfirmed: false, sourceLockEligible: false };
+  assert.equal(isSourceBinding(binding), true);
+  for (const bad of [{ ...binding, sourceLockEligible: true }, { ...binding, fileName: '/private/audio.flac' }, { ...binding, absolutePath: '/private/audio.flac' }, { ...binding, availability: 'MISSING', userConfirmed: true, sourceLockEligible: true }]) assert.equal(isSourceBinding(bad), false);
+  assert.equal(isDraftSourceSnapshot({ draftId: id, sourceLockEligible: true, tracks: [] }), false);
+});

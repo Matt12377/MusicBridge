@@ -21,6 +21,7 @@
   "dependencies": {
     "@music-bridge/contracts": "workspace:*",
     "@neteasecloudmusicapienhanced/api": "4.40.1",
+    "music-metadata": "11.15.0",
     "node-roon-api": "github:RoonLabs/node-roon-api#055dae6c2ac45b6c738aa3b9e5ac1fd722ed60e8",
     "node-roon-api-audioinput": "github:RoonLabs/node-roon-api-audioinput#21ff59e52a12cf36a21bb9d3fd546f3e6d70581f",
     "node-roon-api-browse": "github:RoonLabs/node-roon-api-browse#98adcbaba3a30fd6ce109c1f04cd361536143222",

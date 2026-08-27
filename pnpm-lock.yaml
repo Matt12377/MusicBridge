@@ -92,6 +92,9 @@ importers:
       '@neteasecloudmusicapienhanced/api':
         specifier: 4.40.1
         version: 4.40.1
+      music-metadata:
+        specifier: 11.15.0
+        version: 11.15.0
       node-roon-api:
         specifier: github:RoonLabs/node-roon-api#055dae6c2ac45b6c738aa3b9e5ac1fd722ed60e8
         version: https://codeload.github.com/RoonLabs/node-roon-api/tar.gz/055dae6c2ac45b6c738aa3b9e5ac1fd722ed60e8

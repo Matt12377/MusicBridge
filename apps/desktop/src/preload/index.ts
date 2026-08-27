@@ -180,5 +180,16 @@ contextBridge.exposeInMainWorld(
       updateMasterDraft: request => ipcRenderer.invoke('recordingDrafts:update', request),
       getMasterDraftTrackRuntime: (draftId, trackId) => ipcRenderer.invoke('recordingDrafts:runtime', draftId, trackId),
     },
+    {
+      listRecordingSourceRoots: () => ipcRenderer.invoke('recordingSources:roots'),
+      chooseRecordingSourceRoot: commandId => ipcRenderer.invoke('recordingSources:chooseRoot', commandId),
+      revokeRecordingSourceRoot: request => ipcRenderer.invoke('recordingSources:revoke', request),
+      chooseRecordingSource: request => ipcRenderer.invoke('recordingSources:choose', request),
+      getDraftSources: draftId => ipcRenderer.invoke('recordingSources:snapshot', draftId),
+      getRecordingSourceJob: id => ipcRenderer.invoke('recordingSources:job', id),
+      cancelRecordingSourceJob: request => ipcRenderer.invoke('recordingSources:cancel', request),
+      recheckRecordingSource: request => ipcRenderer.invoke('recordingSources:recheck', request),
+      confirmRecordingSource: request => ipcRenderer.invoke('recordingSources:confirm', request),
+    },
   ),
 )

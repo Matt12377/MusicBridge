@@ -3,9 +3,9 @@ wave: WAVE-5
 status: active
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-053
-activeBranch: codex/task-053-v3-master-source-picker
-activeBaseCommit: bc4290a10b7ca4a5f5fb73fe70898946fb49be16
+activeTask: TASK-054
+activeBranch: codex/task-054-v3-source-evidence
+activeBaseCommit: 5994fc4afdaf27e6e5e97ca9411aa23879808dc8
 order:
   - TASK-048
   - TASK-049
@@ -13,5 +13,6 @@ order:
   - TASK-051
   - TASK-052
   - TASK-053
-stopAfter: TASK-053
-reviewBoundary: persisted-draft-selection-no-source-lock
+  - TASK-054
+stopAfter: TASK-054
+reviewBoundary: authorized-readonly-source-evidence

@@ -126,6 +126,15 @@ test('Preload exposes only sanitized business methods', async () => {
   )
 
   assert.deepEqual(PUBLIC_API_KEYS, [
+    'listRecordingSourceRoots',
+    'chooseRecordingSourceRoot',
+    'revokeRecordingSourceRoot',
+    'chooseRecordingSource',
+    'getDraftSources',
+    'getRecordingSourceJob',
+    'cancelRecordingSourceJob',
+    'recheckRecordingSource',
+    'confirmRecordingSource',
     'listMasterDrafts',
     'getMasterDraft',
     'appendMasterDraft',
@@ -227,6 +236,15 @@ test('Preload exposes only sanitized business methods', async () => {
     'onRemoteCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
+    'listRecordingSourceRoots',
+    'chooseRecordingSourceRoot',
+    'revokeRecordingSourceRoot',
+    'chooseRecordingSource',
+    'getDraftSources',
+    'getRecordingSourceJob',
+    'cancelRecordingSourceJob',
+    'recheckRecordingSource',
+    'confirmRecordingSource',
     'listMasterDrafts',
     'getMasterDraft',
     'appendMasterDraft',

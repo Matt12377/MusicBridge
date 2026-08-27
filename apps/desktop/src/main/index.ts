@@ -1,3 +1,4 @@
+import { isSourceSelection, isSourceAction, isSourceConfirmation } from '@music-bridge/contracts'
 import { isAppendMasterDraftRequest, isUpdateMasterDraftRequest } from '@music-bridge/contracts'
 import { isAlbumQuery, isConfirmPhysicalLinkRequest, isRelocateDigitalRequest, isRegisterDigitalRequest, isRemovePhysicalLinkRequest, isConfirmAbsenceRequest } from '@music-bridge/contracts'
 import { isMusicId, isMusicFilter, isSaveReleaseRequest, isSaveLegacyRequest, isAddMusicPhotoRequest, isRemoveMusicPhotoRequest } from '@music-bridge/contracts'
@@ -1082,6 +1083,57 @@ function registerIpcHandlers(
   ipcMain.handle('library:daily-recommendations', (event) =>
     invokeCore(event, () => supervisor.request('library.dailyRecommendations', {})),
   )
+  let sourcePickerBusy = false
+  ipcMain.handle('recordingSources:roots', event => invokeCore(event, () => supervisor.request('recordingSources.roots', {})))
+  ipcMain.handle('recordingSources:snapshot', (event, draftId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(draftId)) return publicIpcFailure('INVALID_IPC_REQUEST', '草稿编号无效')
+    return supervisor.request('recordingSources.snapshot', { draftId })
+  }))
+  ipcMain.handle('recordingSources:job', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '校验任务编号无效')
+    return supervisor.request('recordingSources.job', { id })
+  }))
+  ipcMain.handle('recordingSources:chooseRoot', (event, commandId: unknown) => invokeCore(event, async () => {
+    if (!isCollectionId(commandId)) return publicIpcFailure('INVALID_IPC_REQUEST', '目录授权操作无效')
+    const prior = await supervisor.requestInternal('recordingSources.rootReceipt', { commandId })
+    if (prior.root) return prior.root
+    if (sourcePickerBusy) return publicIpcFailure('NOT_READY', '源文件选择器已打开')
+    sourcePickerBusy = true
+    try {
+      const chosen = await dialog.showOpenDialog(requireTrustedRenderer(event), { title: '授权只读源目录', message: '只允许读取所选目录中的音频，不改写原件。可随时撤销授权。', properties: ['openDirectory'] })
+      if (chosen.canceled || !chosen.filePaths[0]) return null
+      return await supervisor.requestInternal('recordingSources.authorize', { commandId, absolutePath: chosen.filePaths[0] })
+    } finally { sourcePickerBusy = false }
+  }))
+  ipcMain.handle('recordingSources:choose', (event, selection: unknown) => invokeCore(event, async () => {
+    if (!isSourceSelection(selection)) return publicIpcFailure('INVALID_IPC_REQUEST', '源文件选择无效')
+    const prior = await supervisor.request('recordingSources.job', { id: selection.commandId })
+    if (prior.job) return supervisor.requestInternal('recordingSources.start', { selection, absolutePath: '/already-selected' })
+    if (sourcePickerBusy) return publicIpcFailure('NOT_READY', '源文件选择器已打开')
+    sourcePickerBusy = true
+    try {
+      const context = await supervisor.requestInternal('recordingSources.context', { id: selection.rootId })
+      const chosen = await dialog.showOpenDialog(requireTrustedRenderer(event), { title: selection.relocateBindingId ? '重新定位相同内容' : '选择实际音频文件', message: '只能选择已授权目录内的普通文件。选择后只读校验，不会开始录音。', defaultPath: context.absolutePath, properties: ['openFile'], filters: [{ name: '无损源音频', extensions: ['wav', 'wave', 'flac', 'aiff', 'aif'] }] })
+      if (chosen.canceled || !chosen.filePaths[0]) return null
+      return await supervisor.requestInternal('recordingSources.start', { selection, absolutePath: chosen.filePaths[0] })
+    } finally { sourcePickerBusy = false }
+  }))
+  ipcMain.handle('recordingSources:revoke', (event, request: unknown) => invokeCore(event, () => {
+    if (!isSourceAction(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '源文件操作无效')
+    return supervisor.request('recordingSources.revoke', request)
+  }))
+  ipcMain.handle('recordingSources:cancel', (event, request: unknown) => invokeCore(event, () => {
+    if (!isSourceAction(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '源文件操作无效')
+    return supervisor.request('recordingSources.cancel', request)
+  }))
+  ipcMain.handle('recordingSources:confirm', (event, request: unknown) => invokeCore(event, () => {
+    if (!isSourceConfirmation(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '源文件操作无效')
+    return supervisor.request('recordingSources.confirm', request)
+  }))
+  ipcMain.handle('recordingSources:recheck', (event, request: unknown) => invokeCore(event, () => {
+    if (!isSourceConfirmation(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '源文件操作无效')
+    return supervisor.request('recordingSources.recheck', request)
+  }))
   ipcMain.handle('recordingDrafts:list', (event, page: unknown) => invokeCore(event, () => supervisor.request('recordingDrafts.list', { page: requireLibraryPage(page) })))
   ipcMain.handle('recordingDrafts:detail', (event, id: unknown) => invokeCore(event, () => {
     if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '草稿编号无效')
