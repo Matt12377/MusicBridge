@@ -135,5 +135,9 @@ contextBridge.exposeInMainWorld(
     (positionMs: number) => ipcRenderer.invoke('playback:seek', positionMs),
     () => ipcRenderer.invoke('roon:transport:stop'),
     (index: number) => ipcRenderer.invoke('playback:play-queue-index', index),
+    () => ipcRenderer.invoke('lyrics:match:get'),
+    (matchSessionId: string, candidateId: string) =>
+      ipcRenderer.invoke('lyrics:match:select', matchSessionId, candidateId),
+    () => ipcRenderer.invoke('lyrics:match:revoke'),
   ),
 )

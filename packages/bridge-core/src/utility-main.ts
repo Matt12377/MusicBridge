@@ -240,6 +240,15 @@ async function dispatch(
       );
     case 'lyrics.get':
       return runtime.getLyrics((request.payload as { trackId: string }).trackId);
+    case 'lyrics.match.get':
+      return runtime.getLocalLyricsMatch();
+    case 'lyrics.match.select':
+      return runtime.selectLocalLyricsMatch(
+        (request.payload as { matchSessionId: string }).matchSessionId,
+        (request.payload as { candidateId: string }).candidateId,
+      );
+    case 'lyrics.match.revoke':
+      return runtime.revokeLocalLyricsMatch();
     case 'roon.listZones':
       return { zones: runtime.listZones() };
     case 'roon.selectZone':

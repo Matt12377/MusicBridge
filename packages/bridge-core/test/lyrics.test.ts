@@ -6,6 +6,7 @@ import { NeteaseClient } from '../src/netease/client.js'
 import { parseLyricsResponse } from '../src/netease/lyrics.js'
 import { LyricsMatchResolver } from '../src/lyrics-matching/resolver.js'
 import { createLyricsMatchRepository } from '../src/lyrics-matching/repository.js'
+import { LocalLyricsManualMatchController } from '../src/lyrics-matching/manual-controller.js'
 import {
   LyricsCoordinator,
   createLyricsRequestContext,
@@ -978,4 +979,111 @@ test('lyrics coordinator caps its in-memory cache at fifty tracks', async () => 
 
   assert.equal(coordinator.cacheSize, 50)
   assert.equal(loads, 51)
+})
+
+test('重复播放命中本地歌词缓存时恢复 MANUAL 状态和撤销能力', async () => {
+  const repository = createLyricsMatchRepository()
+  let downloads = 0
+  const resolver = new LyricsMatchResolver({
+    repository,
+    provider: {
+      configured: true,
+      async searchTracks() { throw new Error('不应重新搜索已保存的匹配') },
+      async getLyrics() { downloads += 1; return readySnapshot('已确认歌词') },
+    },
+  })
+  const snapshot: PlaybackSnapshot = {
+    ...playing('local-1'),
+    source: 'roon',
+    currentTrack: { id: 'local-1', title: '归零', artists: ['林忆莲'], album: '0', durationMs: 271_000 },
+    queue: { items: [{ trackId: 'local-1', qualityPreference: 'auto', preferredSource: 'roon' }], index: 0, hasNext: false, hasPrevious: false },
+  }
+  const first = createLyricsRequestContext(snapshot, 1)
+  assert.ok(first?.kind === 'local')
+  await repository.set({ signature: first.signature, neteaseTrackId: '101', source: 'MANUAL', algorithmVersion: 'lyrics-match-v1' })
+  const manual = new LocalLyricsManualMatchController({ repository, reload: async () => undefined })
+  const coordinator = new LyricsCoordinator({
+    load: async () => readySnapshot('不应调用'),
+    localResolver: resolver,
+    onLocalResolution: (context, resolution) => manual.observeResolution(context, resolution),
+  })
+  manual.observeContext(first)
+  coordinator.onPlaybackChanged(snapshot, first)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(manual.getSnapshot().canRevoke, true)
+  manual.observeContext(undefined)
+  coordinator.onPlaybackChanged({ ...snapshot, state: 'idle' })
+  const second = createLyricsRequestContext(snapshot, 2)
+  assert.ok(second?.kind === 'local')
+  manual.observeContext(second)
+  coordinator.onPlaybackChanged(snapshot, second)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(coordinator.getSnapshot().status, 'ready')
+  assert.equal(downloads, 1)
+  assert.equal(manual.getSnapshot().status, 'matched')
+  assert.equal(manual.getSnapshot().canRevoke, true)
+})
+
+test('停止或播放失败时不再保留可供手动选择的本地上下文', () => {
+  for (const state of ['idle', 'stopping', 'error'] as const) {
+    assert.equal(createLyricsRequestContext({ ...playing('101'), state }, 3), undefined)
+  }
+})
+
+test('MANUAL 选择和撤销贯穿 resolver 与 coordinator，仅刷新歌词不改变播放快照', async () => {
+  const repository = createLyricsMatchRepository()
+  let searches = 0
+  const downloads: string[] = []
+  const resolver = new LyricsMatchResolver({
+    repository,
+    provider: {
+      configured: true,
+      async searchTracks() {
+        searches += 1
+        return {
+          items: [
+            { id: '101', title: '归零', artists: ['林忆莲'], album: '甲', durationMs: 268_000 },
+            { id: '102', title: '归零', artists: ['林忆莲'], album: '乙', durationMs: 274_000 },
+          ], offset: 0, limit: 20, total: 2, hasMore: false,
+        }
+      },
+      async getLyrics(trackId) { downloads.push(trackId); return readySnapshot('手动选择后的歌词') },
+    },
+  })
+  const snapshot: PlaybackSnapshot = {
+    ...playing('local-1'), source: 'roon', positionMs: 5_000,
+    currentTrack: { id: 'local-1', title: '归零', artists: ['林忆莲'], album: '0', durationMs: 271_000 },
+    queue: { items: [{ trackId: 'local-1', qualityPreference: 'auto', preferredSource: 'roon' }], index: 0, hasNext: false, hasPrevious: false },
+  }
+  const before = JSON.stringify(snapshot)
+  const context = createLyricsRequestContext(snapshot, 7)
+  assert.ok(context?.kind === 'local')
+  let coordinator!: LyricsCoordinator
+  const manual = new LocalLyricsManualMatchController({
+    repository,
+    reload: async (active) => { resolver.invalidate(active.signature.key); await coordinator.reloadActiveLocalLyrics(active) },
+  })
+  coordinator = new LyricsCoordinator({
+    load: async () => { throw new Error('本地播放不得使用直接加载入口') },
+    localResolver: resolver,
+    onLocalResolution: (active, result) => manual.observeResolution(active, result),
+  })
+  manual.observeContext(context)
+  coordinator.onPlaybackChanged(snapshot, context)
+  await new Promise((resolve) => setImmediate(resolve))
+  const choice = manual.getSnapshot()
+  assert.equal(choice.status, 'needs-choice')
+  assert.deepEqual(downloads, [])
+  await manual.select(choice.matchSessionId!, choice.candidates[1]!.candidateId)
+  assert.deepEqual(downloads, ['102'])
+  assert.equal(coordinator.getSnapshot().source, 'netease')
+  assert.equal(coordinator.getSnapshot().activeLineIndex, 0)
+  assert.equal(manual.getSnapshot().canRevoke, true)
+  const searchesBeforeRevoke = searches
+  await manual.revoke()
+  assert.equal(manual.getSnapshot().status, 'needs-choice')
+  assert.equal(coordinator.getSnapshot().status, 'unavailable')
+  assert.equal(searches > searchesBeforeRevoke, true)
+  assert.equal(await repository.get(context.signature.key, 'lyrics-match-v1'), undefined)
+  assert.equal(JSON.stringify(snapshot), before)
 })

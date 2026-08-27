@@ -137,6 +137,11 @@ export class LyricsMatchResolver {
     this.activePromise = undefined
   }
 
+  invalidate(signatureKey: string): void {
+    this.negativeCache.delete(signatureKey)
+    if (this.activeKey?.includes(`:${signatureKey}:`)) this.cancelActive()
+  }
+
   private async resolve(request: ActiveLyricsResolutionRequest): Promise<LyricsResolution> {
     const none = () => matchLyricsRecording(identityOf(request.signature), [])
     if (!this.options.provider.configured) {

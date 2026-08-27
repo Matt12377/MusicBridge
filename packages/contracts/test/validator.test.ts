@@ -1133,6 +1133,84 @@ test('contracts validates bounded lyrics snapshots and rejects provider fields',
   );
 });
 
+test('contracts bounds local lyrics candidate sessions without exposing matching internals', () => {
+  const choice = {
+    status: 'needs-choice',
+    matchSessionId: 'session-0123456789abcdef',
+    candidates: [{
+      candidateId: 'candidate-0123456789abcdef',
+      title: '归零',
+      artists: ['林忆莲'],
+      album: '0',
+      durationMs: 271_000,
+    }],
+    canRevoke: false,
+  };
+
+  assert.equal(validateIpcRequest({
+    version: IPC_VERSION,
+    id: 'lyrics-match-get',
+    command: 'lyrics.match.get',
+    payload: {},
+  }).ok, true);
+  assert.equal(validateIpcRequest({
+    version: IPC_VERSION,
+    id: 'lyrics-match-select',
+    command: 'lyrics.match.select',
+    payload: {
+      matchSessionId: choice.matchSessionId,
+      candidateId: choice.candidates[0]?.candidateId,
+    },
+  }).ok, true);
+  assert.equal(validateIpcRequest({
+    version: IPC_VERSION,
+    id: 'lyrics-match-revoke',
+    command: 'lyrics.match.revoke',
+    payload: {},
+  }).ok, true);
+
+  for (const command of ['lyrics.match.get', 'lyrics.match.select', 'lyrics.match.revoke'] as const) {
+    assert.equal(validateIpcResponseForCommand({
+      version: IPC_VERSION,
+      id: command,
+      ok: true,
+      result: choice,
+    }, command).ok, true);
+  }
+  assert.equal(validateIpcEvent({
+    version: IPC_VERSION,
+    event: 'lyrics.match.changed',
+    payload: { state: choice },
+  }).ok, true);
+
+  for (const forbidden of [
+    { score: 0.9 },
+    { confidence: 0.9 },
+    { evidence: ['title-exact'] },
+    { algorithmVersion: 'lyrics-match-v1' },
+    { signature: 'private-signature' },
+    { roonReference: 'private-roon-reference' },
+    { searchQuery: 'private search text' },
+  ]) {
+    assert.equal(validateIpcResponseForCommand({
+      version: IPC_VERSION,
+      id: 'lyrics-match-private',
+      ok: true,
+      result: { ...choice, ...forbidden },
+    }, 'lyrics.match.get').ok, false);
+  }
+
+  assert.equal(validateIpcResponseForCommand({
+    version: IPC_VERSION,
+    id: 'lyrics-match-track-id',
+    ok: true,
+    result: {
+      ...choice,
+      candidates: [{ ...choice.candidates[0], neteaseTrackId: '123' }],
+    },
+  }, 'lyrics.match.get').ok, false);
+});
+
 test('contracts validates public account state and keeps provider identity fields out', () => {
   const ready = {
     status: 'ready',

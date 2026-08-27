@@ -91,6 +91,38 @@ async function replaceZoneList(zones: readonly ZoneFixture[], delayMs = 0) {
   }, { zones, delayMs })
 }
 
+async function installSyntheticLocalLyricsMatch() {
+  await electronApp.evaluate(({ ipcMain }) => {
+    let state: {
+      status: 'needs-choice' | 'matched' | 'no-match'
+      matchSessionId?: string
+      candidates: Array<{ candidateId: string; title: string; artists: string[]; album: string; durationMs: number }>
+      canRevoke: boolean
+    } = {
+      status: 'needs-choice',
+      matchSessionId: 'session-0123456789abcdef',
+      candidates: [
+        { candidateId: 'candidate-0123456789abcdef', title: 'Synthetic Track 2', artists: ['Synthetic Artist'], album: 'Synthetic Album', durationMs: 210_000 },
+        { candidateId: 'candidate-fedcba9876543210', title: 'Synthetic Track 2', artists: ['Synthetic Artist'], album: 'Synthetic Collection', durationMs: 212_000 },
+      ],
+      canRevoke: false,
+    }
+    for (const channel of ['lyrics:match:get', 'lyrics:match:select', 'lyrics:match:revoke']) ipcMain.removeHandler(channel)
+    ipcMain.handle('lyrics:match:get', async () => state)
+    ipcMain.handle('lyrics:match:select', async (_event, sessionId: unknown, candidateId: unknown) => {
+      if (sessionId !== state.matchSessionId || !state.candidates.some((candidate) => candidate.candidateId === candidateId)) {
+        throw new Error('Synthetic stale lyrics session')
+      }
+      state = { status: 'matched', candidates: [], canRevoke: true }
+      return state
+    })
+    ipcMain.handle('lyrics:match:revoke', async () => {
+      state = { status: 'no-match', candidates: [], canRevoke: false }
+      return state
+    })
+  })
+}
+
 async function reloadWithZones(zones: readonly ZoneFixture[]) {
   await replaceZoneList(zones)
   await page.reload()
@@ -924,6 +956,111 @@ test('Now Playing 歌词保留多行上下文并标记当前焦点', async () =>
   await page.locator('.transport-controls').screenshot({ path: syntheticControlsScreenshotPath })
   expect((await stat(syntheticLyricsScreenshotPath)).size).toBeGreaterThan(20_000)
   expect((await stat(syntheticControlsScreenshotPath)).size).toBeGreaterThan(1_000)
+})
+
+test('本地歌词候选抽屉支持来源提示、键盘焦点、窄窗口和不重启播放的手动选择', async () => {
+  await installSyntheticLocalLyricsMatch()
+  await page.reload()
+  await page.waitForLoadState('domcontentloaded')
+  await page.setViewportSize({ width: 720, height: 820 })
+  await page.getByRole('button', { name: '播放 Synthetic Track 2', exact: true }).first().click()
+  await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
+  await expect(page.getByText('歌词来源：网易云', { exact: true })).toBeVisible()
+
+  const trigger = page.getByRole('button', { name: '选择匹配歌词' })
+  await trigger.click()
+  const drawer = page.getByRole('dialog', { name: '候选歌曲' })
+  await expect(drawer).toBeVisible()
+  await expect(drawer.getByText('Synthetic Collection', { exact: false })).toBeVisible()
+  await expect(drawer).not.toContainText(/score|confidence|evidence|algorithmVersion|signature|trackId/iu)
+  await expect(drawer.getByRole('button', { name: '关闭歌词匹配' })).toBeFocused()
+  await page.keyboard.press('Shift+Tab')
+  await expect(drawer.getByRole('button', { name: '关闭', exact: true })).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(drawer.getByRole('button', { name: '关闭歌词匹配' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(drawer).toHaveCount(0)
+  await expect(trigger).toBeFocused()
+
+  await trigger.click()
+  await expect.poll(() => drawer.evaluate((element) => {
+    const bounds = element.getBoundingClientRect()
+    return Math.max(0, bounds.right - window.innerWidth)
+  })).toBeLessThanOrEqual(1)
+  await expect.poll(() => drawer.evaluate((element) =>
+    Math.abs(element.getBoundingClientRect().bottom - window.innerHeight),
+  )).toBeLessThanOrEqual(1)
+  await page.evaluate((source) => window.eval(source), axeSource)
+  const candidateViolations = await page.evaluate(async () =>
+    (await (window as typeof window & { axe: { run: (root: Element) => Promise<{ violations: { id: string; impact: string | null }[] }> } }).axe.run(
+      document.querySelector('.lyrics-match-drawer')!,
+    )).violations.filter((violation) => violation.impact === 'critical' || violation.impact === 'serious'))
+  expect(candidateViolations).toEqual([])
+  await page.screenshot({ path: path.join(os.tmpdir(), 'musicbridge-task-046-lyrics-candidates.png') })
+  const playbackBefore = await page.getByRole('button', { name: '暂停', exact: true }).isVisible()
+  await drawer.getByRole('button', { name: /选择 Synthetic Track 2，Synthetic Artist/ }).last().click()
+  await expect(drawer.getByText('当前歌词已经匹配。')).toBeVisible()
+  expect(playbackBefore).toBe(true)
+  await expect(page.getByRole('button', { name: '暂停', exact: true })).toBeVisible()
+  await expect(drawer.getByRole('button', { name: '取消匹配' })).toBeVisible()
+  await expect(drawer.getByRole('button', { name: '关闭歌词匹配' })).toBeFocused()
+
+  const accessibility = await page.evaluate(async (source) => {
+    window.eval(source)
+    return (await (window as typeof window & { axe: { run: (root: Element) => Promise<{ violations: { impact: string | null }[] }> } }).axe.run(
+      document.querySelector('.lyrics-match-drawer')!,
+    )).violations.filter((violation) => violation.impact === 'critical' || violation.impact === 'serious')
+  }, axeSource)
+  expect(accessibility).toEqual([])
+  await drawer.getByRole('button', { name: '取消匹配' }).click()
+  await expect(drawer.getByText('没有找到可用候选。')).toBeVisible()
+  await expect(page.getByRole('button', { name: '暂停', exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.getByRole('button', { name: '歌词匹配', exact: true }).click()
+  await expect(drawer).toHaveCSS('animation-name', 'none')
+})
+
+test('手动匹配请求的旧响应不覆盖更新的 Core 匹配事件', async () => {
+  await installSyntheticLocalLyricsMatch()
+  await electronApp.evaluate(({ ipcMain }) => {
+    ipcMain.removeHandler('lyrics:match:select')
+    ipcMain.handle('lyrics:match:select', (event) => {
+      event.sender.send('core:event', {
+        version: 1,
+        event: 'lyrics.match.changed',
+        payload: { state: { status: 'no-match', candidates: [], canRevoke: false } },
+      })
+      return { status: 'matched', candidates: [], canRevoke: true }
+    })
+  })
+  await page.reload()
+  await page.getByRole('button', { name: '播放 Synthetic Track 2', exact: true }).first().click()
+  await page.getByRole('button', { name: '选择匹配歌词' }).click()
+  const drawer = page.getByRole('dialog', { name: '候选歌曲' })
+  await drawer.getByRole('button', { name: /选择 Synthetic Track 2，Synthetic Artist/ }).first().click()
+  await expect(drawer.getByText('没有找到可用候选。')).toBeVisible()
+  await expect(drawer.getByText('当前歌词已经匹配。')).toHaveCount(0)
+})
+
+test('初始化匹配查询的延迟失败不清空已推送的新状态', async () => {
+  await electronApp.evaluate(({ ipcMain }) => {
+    ipcMain.removeHandler('lyrics:match:get')
+    ipcMain.handle('lyrics:match:get', (event) => {
+      event.sender.send('core:event', {
+        version: 1,
+        event: 'lyrics.match.changed',
+        payload: { state: { status: 'no-match', candidates: [], canRevoke: false } },
+      })
+      throw new Error('Synthetic delayed initial request failure')
+    })
+  })
+  await page.reload()
+  await page.getByRole('button', { name: '播放 Synthetic Track 2', exact: true }).first().click()
+  const trigger = page.getByRole('button', { name: '歌词匹配', exact: true })
+  await expect(trigger).toBeVisible()
+  await trigger.click()
+  await expect(page.getByRole('dialog', { name: '候选歌曲' }).getByText('没有找到可用候选。')).toBeVisible()
 })
 
 test('Music Source Sidebar supports source recovery, Zone Popover and collapsed rail', async () => {

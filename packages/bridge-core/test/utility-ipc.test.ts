@@ -247,6 +247,13 @@ function makeRuntime(): CoreRuntimeForIpc & {
     async getLyrics() {
       return emptyLyricsSnapshot('unavailable')
     },
+    getLocalLyricsMatch: () => ({ status: 'hidden', candidates: [], canRevoke: false }),
+    async selectLocalLyricsMatch() {
+      return { status: 'hidden', candidates: [], canRevoke: false }
+    },
+    async revokeLocalLyricsMatch() {
+      return { status: 'hidden', candidates: [], canRevoke: false }
+    },
     getPlaybackState: () => playbackState,
     async seekPlayback(positionMs) {
       return { positionMs };
@@ -738,6 +745,42 @@ test('utility IPC returns bounded lyrics snapshots without provider response fie
     },
   });
   assert.doesNotMatch(JSON.stringify(port.messages[1]), /rawProvider|cookie|token|Authorization/i);
+});
+
+test('utility IPC exposes only bounded local lyrics match sessions and mutations', async () => {
+  const port = new FakePort();
+  const runtime = makeRuntime();
+  runtime.getLocalLyricsMatch = () => ({
+    status: 'needs-choice',
+    matchSessionId: 'session-0123456789abcdef',
+    candidates: [{
+      candidateId: 'candidate-0123456789abcdef',
+      title: '归零',
+      artists: ['林忆莲'],
+      album: '0',
+      durationMs: 271_000,
+    }],
+    canRevoke: false,
+  });
+  await attachCoreRuntimePort(port, runtime);
+
+  port.send({ version: IPC_VERSION, id: 'lyrics-match-get', command: 'lyrics.match.get', payload: {} });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal((port.messages[1] as { ok?: boolean }).ok, true);
+  assert.doesNotMatch(JSON.stringify(port.messages[1]), /score|confidence|evidence|algorithmVersion|signature|neteaseTrackId|roonReference|searchQuery/iu);
+
+  port.send({
+    version: IPC_VERSION,
+    id: 'lyrics-match-select',
+    command: 'lyrics.match.select',
+    payload: { matchSessionId: 'session-0123456789abcdef', candidateId: 'candidate-0123456789abcdef' },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal((port.messages[2] as { ok?: boolean }).ok, true);
+
+  port.send({ version: IPC_VERSION, id: 'lyrics-match-revoke', command: 'lyrics.match.revoke', payload: {} });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal((port.messages[3] as { ok?: boolean }).ok, true);
 });
 
 test('utility IPC dispatches the opaque Roon Library browse/image seams', async () => {

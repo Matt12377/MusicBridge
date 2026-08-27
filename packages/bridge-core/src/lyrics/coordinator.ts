@@ -18,6 +18,10 @@ export interface LyricsCoordinatorOptions {
     resolveActive(request: ActiveLyricsResolutionRequest): Promise<LyricsResolution>;
     cancelActive(): void;
   };
+  onLocalResolution?: (
+    context: Extract<LyricsRequestContext, { kind: 'local' }>,
+    resolution: LyricsResolution,
+  ) => void;
   now?: () => number;
   onChange?: (snapshot: LyricsSnapshot) => void;
   scheduleEstimatedUpdates?: (callback: () => void) => () => void;
@@ -35,6 +39,7 @@ export type LyricsRequestContext =
       playbackGeneration: number;
       cacheKey: string;
       signature: LocalTrackSignature;
+      manualEligible: boolean;
       trustedNeteaseTrackId?: string;
     }
   | {
@@ -48,6 +53,7 @@ export function createLyricsRequestContext(
   playbackGeneration: number,
 ): LyricsRequestContext | undefined {
   if (!Number.isSafeInteger(playbackGeneration) || playbackGeneration < 0) return undefined;
+  if (snapshot.state === 'idle' || snapshot.state === 'stopping' || snapshot.state === 'error') return undefined;
   const track = snapshot.currentTrack;
   const item = snapshot.queue.items[snapshot.queue.index];
   if (!track || !item) return undefined;
@@ -74,6 +80,7 @@ export function createLyricsRequestContext(
       playbackGeneration,
       cacheKey: `local:${signature.key}`,
       signature,
+      manualEligible: directRoon,
       ...(smartRoon ? { trustedNeteaseTrackId: item.trackId } : {}),
     };
   } catch {
@@ -159,7 +166,10 @@ function wordAtPosition(
 }
 
 export class LyricsCoordinator {
-  private readonly cache = new Map<string, LyricsSnapshot>();
+  private readonly cache = new Map<string, {
+    snapshot: LyricsSnapshot;
+    localResolution?: LyricsResolution;
+  }>();
   private readonly now: () => number;
   private readonly onChange: (snapshot: LyricsSnapshot) => void;
   private generation = 0;
@@ -194,8 +204,26 @@ export class LyricsCoordinator {
   async getLyrics(trackId: string): Promise<LyricsSnapshot> {
     if (this.activeTrackId === trackId) return this.getSnapshot();
     const cached = this.readCache(`netease:${trackId}`);
-    if (cached) return cloneSnapshot(cached);
+    if (cached) return cloneSnapshot(cached.snapshot);
     return this.loadNeteaseSnapshot(trackId, `netease:${trackId}`);
+  }
+
+  async reloadActiveLocalLyrics(
+    context: Extract<LyricsRequestContext, { kind: 'local' }>,
+  ): Promise<void> {
+    if (
+      this.activeTrackId === undefined
+      || this.activeCacheKey !== context.cacheKey
+      || this.activePlaybackGeneration !== context.playbackGeneration
+    ) return;
+    this.cache.delete(context.cacheKey);
+    this.stopEstimatedUpdates();
+    this.generation += 1;
+    const generation = this.generation;
+    const trackId = this.activeTrackId;
+    this.activeSnapshot = loadingSnapshot();
+    this.emit(true);
+    await this.loadActive(trackId, context, generation);
   }
 
   onPlaybackChanged(
@@ -232,7 +260,10 @@ export class LyricsCoordinator {
       this.positionAnchorMs = undefined;
       this.positionAnchorClockMs = undefined;
       const cached = this.readCache(context.cacheKey);
-      this.activeSnapshot = cached ? cloneSnapshot(cached) : loadingSnapshot();
+      this.activeSnapshot = cached ? cloneSnapshot(cached.snapshot) : loadingSnapshot();
+      if (cached?.localResolution && context.kind === 'local') {
+        this.options.onLocalResolution?.(context, cached.localResolution);
+      }
       this.emit(true);
       if (!cached) void this.loadActive(trackId, context, generation);
     } else if (
@@ -389,18 +420,22 @@ export class LyricsCoordinator {
         ? { trustedNeteaseTrackId: context.trustedNeteaseTrackId }
         : {}),
     });
+    this.options.onLocalResolution?.(context, resolved);
     if (!resolved.applied || resolved.status === 'stale') return emptyLyricsSnapshot('unavailable');
     const loaded = resolved.lyrics ?? emptyLyricsSnapshot(
       resolved.status === 'error' ? 'error' : 'unavailable',
     );
     const snapshot = withNeteaseSource(loaded);
     if (snapshot.status === 'ready' || snapshot.status === 'instrumental') {
-      this.writeCache(context.cacheKey, snapshot);
+      this.writeCache(context.cacheKey, snapshot, resolved);
     }
     return snapshot;
   }
 
-  private readCache(trackId: string): LyricsSnapshot | undefined {
+  private readCache(trackId: string): {
+    snapshot: LyricsSnapshot;
+    localResolution?: LyricsResolution;
+  } | undefined {
     const cached = this.cache.get(trackId);
     if (!cached) return undefined;
     this.cache.delete(trackId);
@@ -408,9 +443,12 @@ export class LyricsCoordinator {
     return cached;
   }
 
-  private writeCache(trackId: string, snapshot: LyricsSnapshot): void {
+  private writeCache(trackId: string, snapshot: LyricsSnapshot, localResolution?: LyricsResolution): void {
     this.cache.delete(trackId);
-    this.cache.set(trackId, cloneSnapshot(snapshot));
+    this.cache.set(trackId, {
+      snapshot: cloneSnapshot(snapshot),
+      ...(localResolution ? { localResolution } : {}),
+    });
     while (this.cache.size > MAX_LYRICS_CACHE_ENTRIES) {
       const oldest = this.cache.keys().next().value as string | undefined;
       if (oldest === undefined) break;

@@ -703,6 +703,13 @@ function requirePlaybackTrackId(value: unknown): string {
   return value
 }
 
+function requireLyricsMatchId(value: unknown): string {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]{15,127}$/u.test(value)) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid lyrics match session')
+  }
+  return value
+}
+
 function requireTrackSummary(value: unknown): TrackSummary {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid match track')
@@ -1200,6 +1207,18 @@ function registerIpcHandlers(
         trackId: requirePlaybackTrackId(trackId),
       }),
     ),
+  )
+  ipcMain.handle('lyrics:match:get', (event) =>
+    invokeCore(event, () => supervisor.request('lyrics.match.get', {})),
+  )
+  ipcMain.handle('lyrics:match:select', (event, matchSessionId: unknown, candidateId: unknown) =>
+    invokeCore(event, () => supervisor.request('lyrics.match.select', {
+      matchSessionId: requireLyricsMatchId(matchSessionId),
+      candidateId: requireLyricsMatchId(candidateId),
+    })),
+  )
+  ipcMain.handle('lyrics:match:revoke', (event) =>
+    invokeCore(event, () => supervisor.request('lyrics.match.revoke', {})),
   )
   ipcMain.handle('playback:get-state', (event) =>
     invokeCore(event, () => supervisor.request('playback.getState', {})),

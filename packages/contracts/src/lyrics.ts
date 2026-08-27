@@ -37,3 +37,33 @@ export interface LyricsSnapshot {
   /** 歌词正文来源；只公开产品来源，不公开匹配证据或置信度。 */
   source?: 'netease'
 }
+
+export const LOCAL_LYRICS_MATCH_STATUSES = [
+  'hidden',
+  'searching',
+  'matched',
+  'needs-choice',
+  'no-match',
+  'no-lyrics',
+  'provider-unavailable',
+  'network-error',
+] as const
+
+export type LocalLyricsMatchStatus = (typeof LOCAL_LYRICS_MATCH_STATUSES)[number]
+
+/** Renderer 可见的候选；candidateId 是短期会话内的不透明标识。 */
+export interface LocalLyricsMatchCandidate {
+  candidateId: string
+  title: string
+  artists: readonly string[]
+  album?: string
+  durationMs?: number
+}
+
+/** 当前播放曲目的有界歌词匹配状态，不含签名、搜索原文或工程置信信息。 */
+export interface LocalLyricsMatchSnapshot {
+  status: LocalLyricsMatchStatus
+  candidates: readonly LocalLyricsMatchCandidate[]
+  canRevoke: boolean
+  matchSessionId?: string
+}
