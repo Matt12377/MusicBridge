@@ -78,18 +78,18 @@
   },
   "v3Development": {
     "wave": "WAVE-5",
-    "task": "TASK-058",
-    "branch": "codex/task-058-v3-prepared-render-conformance",
-    "baseCommit": "9262dfd9a2338c5502a7d4c9328d18ee3fa89218",
+    "task": "TASK-059",
+    "branch": "codex/task-059-v3-execution-planning",
+    "baseCommit": "71f08fc9dab8ea11625d2d282bfcc2ce593a6705",
     "state": "local-automated-pass",
-    "implementationCommit": "ece85f27e2739a4447334a06801a983749d9e17a",
-    "reportCommit": "dba7a6bcae3c7a2d53973842045e91f83fd4ca75",
+    "implementationCommit": null,
+    "reportCommit": null,
     "nextTask": null,
     "previousTask": {
-      "task": "TASK-057",
-      "implementationCommit": "5b84f15d9ae170d181929079605c67bd29835bf6",
-      "reportCommit": "e28bb68e4373c8d44a2ff2d1b8f569c6de92908a",
-      "finalCommit": "9262dfd9a2338c5502a7d4c9328d18ee3fa89218"
+      "task": "TASK-058",
+      "implementationCommit": "ece85f27e2739a4447334a06801a983749d9e17a",
+      "reportCommit": "dba7a6bcae3c7a2d53973842045e91f83fd4ca75",
+      "finalCommit": "71f08fc9dab8ea11625d2d282bfcc2ce593a6705"
     },
     "gates": {
       "automated": "local-verify-pass",
@@ -97,16 +97,18 @@
       "realRoon": "NOT_RUN",
       "realRecording": "NOT_RUN",
       "ownerProductAcceptance": "NOT_RUN",
+      "fullPrdGateB": "NOT_RUN",
       "fullPrdGateD": "NOT_RUN",
+      "contracts": "48-of-48-pass",
+      "bridgeCore": "603-of-603-pass",
+      "desktop": "169-of-169-pass",
       "security": "22-of-22-pass",
       "electron": "4-of-4-pass",
       "playwright": "47-of-47-pass",
-      "staticBoundaries": "control-plane-boundaries-cycles-pass-131-files",
-      "contracts": "44-of-44-pass",
-      "bridgeCore": "583-of-583-pass",
-      "desktop": "169-of-169-pass",
-      "focused": "28-of-28-pass",
-      "visual": "1440-and-720-no-overflow-axe-zero-final-screenshots-reviewed"
+      "focused": "20-of-20-pass",
+      "staticBoundaries": "control-plane-boundaries-cycles-pass-135-files",
+      "pcmByteEvidence": "96000Hz-960291-frames-two-480000-frame-zero-gaps-independent-reader-pass",
+      "visual": "no-ui-change-existing-e2e-regression-pass-no-new-visual-acceptance"
     },
     "integration": "NOT_RUN",
     "push": "NOT_AUTHORIZED",
@@ -115,7 +117,8 @@
       "PRD F-01 执行资产保留策略未定",
       "TASK-047 真实验收继续待执行",
       "未确认操作的跨 Renderer/应用重启 outbox 恢复待后续覆盖；当前 UI 仅保留会话内原命令重试，数据库幂等结果已持久化",
-      "旧侧栏窄窗后恢复宽窗的收起状态有文字裁切视觉现象，留待总体验收复查"
+      "旧侧栏窄窗后恢复宽窗的收起状态有文字裁切视觉现象，留待总体验收复查",
+      "TASK-059 编译内核尚未接入持久化执行资产任务/发布、桌面入口和正式预检；转换器、SRC、独立 Derivative 仍待实施"
     ]
   }
 }

@@ -99,6 +99,28 @@ export async function sourceFileAvailability(root: RootCapability, relative: str
   try { return signature((await checkedFile(root, relative)).info) === expected ? 'ONLINE' : 'CONTENT_CHANGED'; }
   catch (error) { const code = error instanceof SourceFileError ? error.code : 'IO_ERROR'; return code === 'REVOKED' || code === 'SOURCE_ROOT_OFFLINE' || code === 'MISSING' ? code : 'CONTENT_CHANGED'; }
 }
+/** Core 内部只读句柄租期：完整 Hash 后读取，结束时重核文件与授权身份；不公开句柄或路径。 */
+export async function withVerifiedReadonlySource<T>(root: RootCapability, relative: string, expected: { sha256: string; size: number }, signal: AbortSignal, consume: (handle: FileHandle, check: () => void) => Promise<T>, checkOperation: () => void = () => undefined): Promise<T> {
+  const deadline = Date.now() + 15 * 60_000;
+  const check = (): void => { checkOperation(); if (signal.aborted) fail('CANCELLED'); if (Date.now() > deadline) fail('LIMIT_EXCEEDED'); };
+  check(); const first = await checkedFile(root, relative);
+  if (!/^[a-f0-9]{64}$/u.test(expected.sha256) || !Number.isSafeInteger(expected.size) || expected.size < 1 || expected.size > 68_719_476_736 || first.info.size !== BigInt(expected.size)) return fail('CONTENT_CHANGED');
+  const handle = await open(first.absolute, constants.O_RDONLY | constants.O_NOFOLLOW).catch(() => fail('IO_ERROR'));
+  try {
+    const before = await handle.stat({ bigint: true });
+    if (signature(before) !== signature(first.info) || signature((await checkedFile(root, relative)).info) !== signature(before)) return fail('CONTENT_CHANGED');
+    const hash = createHash('sha256'), chunk = Buffer.allocUnsafe(1024 * 1024); let offset = 0;
+    while (offset < expected.size) {
+      check(); const { bytesRead } = await handle.read(chunk, 0, Math.min(chunk.length, expected.size - offset), offset);
+      if (!bytesRead) return fail('CONTENT_CHANGED'); hash.update(chunk.subarray(0, bytesRead)); offset += bytesRead;
+    }
+    if (hash.digest('hex') !== expected.sha256) return fail('HASH_MISMATCH');
+    if (signature(await handle.stat({ bigint: true })) !== signature(before)) return fail('CONTENT_CHANGED');
+    check(); const result = await consume(handle, check); check();
+    if (signature(await handle.stat({ bigint: true })) !== signature(before) || signature((await checkedFile(root, relative)).info) !== signature(before)) return fail('CONTENT_CHANGED');
+    return result;
+  } finally { await handle.close(); }
+}
 /** 目标句柄由工作区层排他创建；这里不接收目标路径，也不修改原件属性。 */
 export async function copyReadonlySource(root: RootCapability, relative: string, expected: { sha256: string; size: number }, destination: FileHandle, signal: AbortSignal): Promise<{ sha256: string; size: number }> {
   const checkAbort = (): void => { if (signal.aborted) fail('CANCELLED'); };

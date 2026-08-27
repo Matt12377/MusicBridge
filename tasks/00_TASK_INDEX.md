@@ -60,3 +60,5 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 - [TASK-057](TASK-057-v3-logic-preparation.md)：Logic 工作副本、Preparation Workspace 与安全交接清单。
 
 - [TASK-058](TASK-058-v3-prepared-render-conformance.md)：原始 Render、实际 Marker、Conformance 与 Frozen PREP。
+
+- [TASK-059](TASK-059-v3-execution-planning.md)：显式执行格式、精确帧配方与 PCM 编译内核。
