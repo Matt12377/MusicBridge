@@ -1,3 +1,5 @@
+import type { RecordingProfileVersion, RecordingProfileHistory, RecordingSessionSettings, SaveRecordingProfileRequest, SaveRecordingSessionRequest } from './recording-profile.js';
+import type { ExecutionHistory, ExecutionProposal, ExecutionJob, ExecutionAssetCheck, PreviewExecutionRequest, StartExecutionRequest, VerifyExecutionRequest } from './execution-assets.js';
 import type { PreparedHistory, PreparedSelection, SelectPreparedRequest, PreviewPreparedImportRequest, StartPreparedImportRequest, PreparedImportJob, PreparedImportProposal, ReviewPreparedRequest, FreezePreparedRequest, PreparedReview, FrozenPrepared } from './prepared-render.js';
 import type { PreviewVersionsRequest, FreezeVersionsRequest, VersionProposal, VersionHistory, VersionJob } from './master-versions.js';
 import type { PreviewPreparationRequest, StartPreparationRequest, PreparationHistory, PreparationProposal, PreparationJob, PreparationDestination } from './preparation.js';
@@ -80,6 +82,19 @@ export const IPC_COMMANDS = [
   'library.playlist',
   'library.dailyRecommendations',
   'favorites.list',
+  'recordingProfiles.list',
+  'recordingProfiles.history',
+  'recordingProfiles.version',
+  'recordingProfiles.save',
+  'recordingProfiles.session',
+  'recordingProfiles.saveSession',
+  'recordingExecution.list',
+  'recordingExecution.preview',
+  'recordingExecution.start',
+  'recordingExecution.job',
+  'recordingExecution.cancel',
+  'recordingExecution.cancelRead',
+  'recordingExecution.verify',
   'recordingVersions.list',
   'recordingPrepared.list',
   'recordingPrepared.selections',
@@ -236,6 +251,20 @@ export type IpcResponse<TResult = unknown> =
 export type IpcEnvelope<T = unknown> = IpcRequest<T> | IpcResponse<T>;
 
 export interface IpcCommandPayloads {
+  'recordingProfiles.list': {};
+  'recordingProfiles.history': { profileId: string };
+  'recordingProfiles.version': { versionId: string };
+  'recordingProfiles.save': SaveRecordingProfileRequest;
+  'recordingProfiles.session': { draftId: string };
+  'recordingProfiles.saveSession': SaveRecordingSessionRequest;
+  'recordingExecution.list': { draftId: string };
+  'recordingExecution.preview': PreviewExecutionRequest;
+  'recordingExecution.start': StartExecutionRequest;
+  'recordingExecution.job': { id: string };
+  'recordingExecution.cancel': { commandId: string; id: string };
+  'recordingExecution.cancelRead': { id: string };
+  'recordingExecution.verify': VerifyExecutionRequest;
+
   'recordingPreparation.destinations': {};
   'recordingPreparation.authorizationReceipt': { commandId: string };
   'recordingPreparation.authorize': { commandId: string; absolutePath: string };
@@ -382,6 +411,20 @@ export interface IpcCommandPayloads {
 }
 
 export interface IpcCommandResults {
+  'recordingProfiles.list': { profiles: readonly RecordingProfileVersion[] };
+  'recordingProfiles.history': RecordingProfileHistory;
+  'recordingProfiles.version': RecordingProfileVersion;
+  'recordingProfiles.save': RecordingProfileVersion;
+  'recordingProfiles.session': { session: RecordingSessionSettings | null };
+  'recordingProfiles.saveSession': RecordingSessionSettings;
+  'recordingExecution.list': ExecutionHistory;
+  'recordingExecution.preview': ExecutionProposal;
+  'recordingExecution.start': ExecutionJob;
+  'recordingExecution.job': { job: ExecutionJob | null };
+  'recordingExecution.cancel': ExecutionJob;
+  'recordingExecution.cancelRead': { cancelled: true };
+  'recordingExecution.verify': ExecutionAssetCheck;
+
   'recordingPreparation.destinations': { destinations: readonly PreparationDestination[] };
   'recordingPreparation.authorizationReceipt': { destination: PreparationDestination | null };
   'recordingPreparation.authorize': PreparationDestination;

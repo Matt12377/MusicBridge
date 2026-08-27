@@ -1149,3 +1149,17 @@ test('Logic Preparation 历史通过正式 IPC 返回，读取不会授权目标
   assert.deepEqual(port.messages.at(-1), { version: 1, id: 'preparations', ok: true, result: { draftId: draft.draftId, workspaces: [], jobs: [] } });
   assert.deepEqual(preparation.destinations(), []);
 });
+
+test('录音 Profile 通过正式 IPC 持久化，模板列表不是当前播放状态', async t => {
+  const { randomUUID } = await import('node:crypto'), { recordingProfileContent } = await import('./helpers/recording-profile-fixture.js');
+  const collection = createCollectionRepository({ filePath: ':memory:' }); t.after(() => collection.close());
+  const port = new FakePort(); await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { collection }));
+  const payload = { commandId: randomUUID(), content: recordingProfileContent(), userConfirmed: true };
+  port.send({ version: 1, id: 'profile-save', command: 'recordingProfiles.save', payload }); await new Promise(resolve => setImmediate(resolve));
+  const profile = collection.recordingProfiles.list().profiles[0]; assert.ok(profile);
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'profile-save', ok: true, result: profile });
+  port.send({ version: 1, id: 'profile-retry', command: 'recordingProfiles.save', payload }); await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'profile-retry', ok: true, result: profile });
+  port.send({ version: 1, id: 'profile-list', command: 'recordingProfiles.list', payload: {} }); await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'profile-list', ok: true, result: { profiles: [profile] } });
+});

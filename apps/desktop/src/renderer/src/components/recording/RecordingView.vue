@@ -5,6 +5,7 @@ import MediaPlanningPanel from './MediaPlanningPanel.vue'
 import MasterVersionsPanel from './MasterVersionsPanel.vue'
 import PreparationPanel from './PreparationPanel.vue'
 import PreparedPanel from './PreparedPanel.vue'
+import ExecutionPanel from './ExecutionPanel.vue'
 import SourceEvidencePanel from './SourceEvidencePanel.vue'
 import type { DraftSourceSnapshot } from '@music-bridge/contracts'
 import MasterSourcePicker from './MasterSourcePicker.vue'
@@ -13,6 +14,8 @@ const api = window.musicBridge
 const catalog = shallowRef<Page<MasterDraftSummary>>(), draft = shallowRef<MasterDraft>()
 const loading = ref(false), saving = ref(false), picker = ref(false), error = ref(''), notice = ref(''), discarding = ref(false)
 const mediaPlanning = ref(false), masterVersions = ref(false)
+const execution = ref(false), executionTrigger = ref<HTMLButtonElement>()
+async function closeExecution(): Promise<void> { execution.value = false; await nextTick(); executionTrigger.value?.focus() }
 const prepared = ref(false), preparedId = ref(''), preparedTrigger = ref<HTMLButtonElement>()
 function openPrepared(id = ''): void { preparation.value = false; preparedId.value = id; prepared.value = true }
 async function closePrepared(): Promise<void> { prepared.value = false; await nextTick(); preparedTrigger.value?.focus() }
@@ -138,6 +141,7 @@ onUnmounted(() => { alive = false; ++generation })
       <button :disabled="blocked || dirty" @click="masterVersions = true">母版与布局版本</button>
       <button ref="preparationTrigger" :disabled="blocked" @click="openPreparation()">Logic 工作区</button>
       <button ref="preparedTrigger" :disabled="blocked" @click="openPrepared()">原始 Render 与 PREP</button>
+      <button ref="executionTrigger" :disabled="blocked" @click="execution = true">录音参数与执行资产</button>
       <p id="draft-freeze-status" class="draft-estimate">冻结前需完成实际源验证、最终分面与磁带预留；可在版本面板查看提案和历史。</p>
       <p v-if="dirty" class="draft-estimate" role="status">有未保存的修改；添加更多曲目前请先保存或撤销。</p>
       <div v-if="discarding" class="discard"><p>返回会放弃当前未保存的修改，已保存草稿不变。</p><button @click="back(true)">放弃未保存修改并返回</button><button @click="discarding = false">继续编辑</button></div>
@@ -148,6 +152,7 @@ onUnmounted(() => { alive = false; ++generation })
     <MasterVersionsPanel v-if="draft && masterVersions" :draft="draft" @close="masterVersions = false" @prepare="openPreparation" />
     <PreparationPanel v-if="draft && preparation" :draft="draft" :initial-layout-id="preparationLayoutId" @close="closePreparation" @import-render="openPrepared" />
     <PreparedPanel v-if="draft && prepared" :draft="draft" :initial-preparation-id="preparedId" @close="closePrepared" />
+    <ExecutionPanel v-if="draft && execution" :draft="draft" @close="closeExecution" />
     <MediaPlanningPanel v-if="draft && mediaPlanning" :draft="draft" @close="mediaPlanning = false" />
     <SourceEvidencePanel v-if="draft && sourceTrackId" :draft-id="draft.id" :track-id="sourceTrackId" :title="draft.tracks.find(t => t.id === sourceTrackId)?.metadata.title ?? '曲目'" @close="closeSources" />
     <MasterSourcePicker v-if="picker" :draft="draft" :busy="saving" :pending="!!pending" :error="error" @close="picker = false; error = ''" @confirm="append" @retry="retry" />

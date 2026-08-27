@@ -3,11 +3,13 @@ import { constants } from 'node:fs';
 import { lstat, mkdir, open, realpath } from 'node:fs/promises';
 import type { FileHandle } from 'node:fs/promises';
 import path from 'node:path';
+import { compileDirectPcm, type ExecutionSourceLocation } from './execution-compiler.js';
+import type { ExecutionRecipe, ExecutionAudioReceipt } from '@music-bridge/contracts';
 import { isCollectionId } from '@music-bridge/contracts';
 import { authorizeSourceDirectory, sourceRootAvailability, copyReadonlySource, type RootCapability } from './source-files.js';
 
 export class PreparationFileError extends Error { constructor() { super('Preparation 目标目录或操作归属已失效'); } }
-export interface OwnedPreparation { id: string; root: RootCapability; destination: RootCapability; owner: string; directories: readonly RootCapability[]; purpose?: 'raw-render' }
+export interface OwnedPreparation { id: string; root: RootCapability; destination: RootCapability; owner: string; directories: readonly RootCapability[]; purpose?: 'raw-render' | 'execution' }
 export interface PreparationOutput { relative: string; sha256: string; size: number }
 const digest = (bytes: Buffer): string => createHash('sha256').update(bytes).digest('hex');
 const fail = (): never => { throw new PreparationFileError(); };
@@ -33,21 +35,21 @@ async function readBounded(file: string, limit: number): Promise<Buffer> {
   } finally { await handle.close(); }
 }
 export async function checkPreparationOwnership(owned: OwnedPreparation): Promise<void> {
-  if (!isCollectionId(owned.id) || owned.purpose !== undefined && owned.purpose !== 'raw-render' || owned.root.path !== path.join(owned.destination.path, `MusicBridge-${owned.purpose === 'raw-render' ? 'OriginalRender' : 'Preparation'}-${owned.id}`)) return fail();
+  if (!isCollectionId(owned.id) || owned.purpose !== undefined && owned.purpose !== 'raw-render' && owned.purpose !== 'execution' || owned.root.path !== path.join(owned.destination.path, `MusicBridge-${owned.purpose === 'execution' ? 'Execution' : owned.purpose === 'raw-render' ? 'OriginalRender' : 'Preparation'}-${owned.id}`)) return fail();
   await available(owned.destination); await available(owned.root);
   if ((await readBounded(path.join(owned.root.path, '.musicbridge-owner.json'), 1024)).toString('utf8') !== owned.owner) return fail();
   for (const directory of owned.directories) { if (!inside(owned.root.path, directory.path)) return fail(); await available(directory); }
 }
-export async function createPreparationDirectory(destination: RootCapability, id: string, format: 'cassette' | 'dat', purpose?: 'raw-render'): Promise<OwnedPreparation> {
-  if (!isCollectionId(id)) return fail(); await available(destination);
-  const absolute = path.join(destination.path, `MusicBridge-${purpose === 'raw-render' ? 'OriginalRender' : 'Preparation'}-${id}`);
+export async function createPreparationDirectory(destination: RootCapability, id: string, format: 'cassette' | 'dat', purpose?: 'raw-render' | 'execution'): Promise<OwnedPreparation> {
+  if (!isCollectionId(id) || purpose !== undefined && purpose !== 'raw-render' && purpose !== 'execution') return fail(); await available(destination);
+  const absolute = path.join(destination.path, `MusicBridge-${purpose === 'execution' ? 'Execution' : purpose === 'raw-render' ? 'OriginalRender' : 'Preparation'}-${id}`);
   await mkdir(absolute, { mode: 0o700 });
   await available(destination);
   const root = { ...await authorizeSourceDirectory(absolute), id }, owner = JSON.stringify({ format: 1, operationId: id, nonce: randomUUID() });
   const marker = await open(path.join(absolute, '.musicbridge-owner.json'), constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
   try { await marker.writeFile(owner, 'utf8'); await marker.sync(); } finally { await marker.close(); }
   const directories: RootCapability[] = [], owned: OwnedPreparation = { id, root, destination, owner, directories, ...(purpose ? { purpose } : {}) };
-  for (const relative of purpose === 'raw-render' ? ['Originals'] : ['Sources', 'Bounce Targets', ...(format === 'cassette' ? ['Bounce Targets/A', 'Bounce Targets/B'] : ['Bounce Targets/Program'])]) {
+  for (const relative of purpose === 'execution' ? ['Audio'] : purpose === 'raw-render' ? ['Originals'] : ['Sources', 'Bounce Targets', ...(format === 'cassette' ? ['Bounce Targets/A', 'Bounce Targets/B'] : ['Bounce Targets/Program'])]) {
     await checkPreparationOwnership(owned); const folder = path.join(absolute, relative); await mkdir(folder, { mode: 0o700 });
     directories.push({ ...await authorizeSourceDirectory(folder), id: randomUUID() });
   }
@@ -55,6 +57,10 @@ export async function createPreparationDirectory(destination: RootCapability, id
   await syncDirectory(root); await syncDirectory(destination); await checkPreparationOwnership(owned); return owned;
 }
 function outputPath(owned: OwnedPreparation, relative: string): string {
+  if (owned.purpose === 'execution') {
+    if (!/^(?:Audio\/(?:A|B|Program)\.execution\.wav|Manifest\.json)$/u.test(relative)) return fail();
+    return path.join(owned.root.path, relative);
+  }
   if (owned.purpose === 'raw-render') {
     if (!/^(?:Originals\/(?:A|B|Program)\.wav|Manifest\.json)$/u.test(relative)) return fail();
     return path.join(owned.root.path, relative);
@@ -96,7 +102,7 @@ async function verifyOutput(owned: OwnedPreparation, file: PreparationOutput, si
   } finally { await handle.close(); }
 }
 export async function publishPreparation(owned: OwnedPreparation, files: readonly PreparationOutput[], manifest: Buffer, signal: AbortSignal): Promise<string> {
-  if (!files.length || files.length > 203 || new Set(files.map(f => f.relative)).size !== files.length || files.some(f => f.relative === 'Manifest.json')) return fail();
+  if ((!files.length && owned.purpose !== 'execution') || files.length > 203 || new Set(files.map(f => f.relative)).size !== files.length || files.some(f => f.relative === 'Manifest.json')) return fail();
   signal.throwIfAborted();
   for (const file of files) await verifyOutput(owned, file, signal);
   signal.throwIfAborted(); const result = await writePreparationFile(owned, 'Manifest.json', manifest);
@@ -107,8 +113,20 @@ export async function verifyPublishedPreparation(owned: OwnedPreparation, files:
   try {
     await checkPreparationOwnership(owned);
     const manifest = await readBounded(outputPath(owned, 'Manifest.json'), 4 * 1024 * 1024);
-    if (digest(manifest) !== manifestHash || !files.length) return false;
+    if (digest(manifest) !== manifestHash || (!files.length && owned.purpose !== 'execution')) return false;
     for (const file of files) await verifyOutput(owned, file, signal);
     await checkPreparationOwnership(owned); return true;
   } catch { return false; }
+}
+
+/** 只能在执行任务拥有的目录内写入新的编译音频，不能覆盖已有资产。 */
+export async function compileExecutionFile(owned: OwnedPreparation, recipe: ExecutionRecipe, sources: readonly ExecutionSourceLocation[], signal: AbortSignal): Promise<{ file: PreparationOutput; receipt: ExecutionAudioReceipt }> {
+  if (owned.purpose !== 'execution') return fail();
+  let receipt: ExecutionAudioReceipt | undefined;
+  const file = await output(owned, `Audio/${recipe.side}.execution.wav`, async handle => {
+    receipt = await compileDirectPcm(recipe, sources, handle, signal);
+    return receipt.audio;
+  });
+  if (!receipt) return fail();
+  return { file, receipt };
 }

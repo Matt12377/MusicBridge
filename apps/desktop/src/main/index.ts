@@ -1,3 +1,4 @@
+import { isSaveRecordingProfileRequest, isSaveRecordingSessionRequest, isPreviewExecutionRequest, isStartExecutionRequest, isVerifyExecutionRequest } from '@music-bridge/contracts'
 import { isSelectPreparedRequest, isPreviewPreparedImportRequest, isStartPreparedImportRequest, isReviewPreparedRequest, isFreezePreparedRequest } from '@music-bridge/contracts'
 import { isPreviewPreparationRequest, isStartPreparationRequest } from '@music-bridge/contracts'
 import { isPreviewVersionsRequest, isFreezeVersionsRequest } from '@music-bridge/contracts'
@@ -1137,6 +1138,55 @@ function registerIpcHandlers(
     return supervisor.request('recordingMedia.release', request)
   }))
   let sourcePickerBusy = false
+  ipcMain.handle('recordingProfiles:list', event => invokeCore(event, () => supervisor.request('recordingProfiles.list', {})))
+  ipcMain.handle('recordingProfiles:history', (event, profileId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(profileId)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
+    return supervisor.request('recordingProfiles.history', { profileId })
+  }))
+  ipcMain.handle('recordingProfiles:version', (event, versionId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(versionId)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
+    return supervisor.request('recordingProfiles.version', { versionId })
+  }))
+  ipcMain.handle('recordingProfiles:save', (event, request: unknown) => invokeCore(event, () => {
+    if (!isSaveRecordingProfileRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
+    return supervisor.request('recordingProfiles.save', request)
+  }))
+  ipcMain.handle('recordingProfiles:session', (event, draftId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(draftId)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
+    return supervisor.request('recordingProfiles.session', { draftId })
+  }))
+  ipcMain.handle('recordingProfiles:saveSession', (event, request: unknown) => invokeCore(event, () => {
+    if (!isSaveRecordingSessionRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
+    return supervisor.request('recordingProfiles.saveSession', request)
+  }))
+  ipcMain.handle('recordingExecution:list', (event, draftId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(draftId)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
+    return supervisor.request('recordingExecution.list', { draftId })
+  }))
+  ipcMain.handle('recordingExecution:preview', (event, request: unknown) => invokeCore(event, () => {
+    if (!isPreviewExecutionRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
+    return supervisor.request('recordingExecution.preview', request)
+  }))
+  ipcMain.handle('recordingExecution:start', (event, request: unknown) => invokeCore(event, () => {
+    if (!isStartExecutionRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
+    return supervisor.request('recordingExecution.start', request)
+  }))
+  ipcMain.handle('recordingExecution:job', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
+    return supervisor.request('recordingExecution.job', { id })
+  }))
+  ipcMain.handle('recordingExecution:cancel', (event, request: unknown) => invokeCore(event, () => {
+    if (!isSourceAction(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
+    return supervisor.request('recordingExecution.cancel', request)
+  }))
+  ipcMain.handle('recordingExecution:cancelRead', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
+    return supervisor.request('recordingExecution.cancelRead', { id })
+  }))
+  ipcMain.handle('recordingExecution:verify', (event, request: unknown) => invokeCore(event, () => {
+    if (!isVerifyExecutionRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
+    return supervisor.request('recordingExecution.verify', request)
+  }))
   ipcMain.handle('recordingPrepared:choose', (event, request: unknown) => invokeCore(event, async () => {
     if (!isSelectPreparedRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '原始 Render 选择请求无效')
     const prior = await supervisor.requestInternal('recordingPrepared.selectionReceipt', request)

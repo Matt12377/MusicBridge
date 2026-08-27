@@ -15,6 +15,7 @@ function guard(signal: AbortSignal): () => void {
 async function bounded<T>(action: () => Promise<T>): Promise<T> {
   try { return await action(); } catch (error) {
     if (error instanceof ExecutionCompileError) throw error;
+    if (error instanceof Error && 'code' in error && error.code === 'ENOSPC') return executionFail('DISK_FULL');
     if (error instanceof SourceFileError) {
       if (error.code === 'CANCELLED' || error.code === 'LIMIT_EXCEEDED' || error.code === 'HASH_MISMATCH') return executionFail(error.code);
       if (error.code === 'CONTENT_CHANGED') return executionFail('INPUT_CHANGED');

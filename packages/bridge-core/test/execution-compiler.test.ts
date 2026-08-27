@@ -118,7 +118,7 @@ test('短写正确循环，磁盘满/零写/回读篡改返回有界错误而非
   for (const fault of ['full','zero','tamper'] as const) {
     const output = await f.output();
     const bad = proxy(output.handle, fault === 'tamper' ? { sync: async () => { await output.handle.sync(); await output.handle.write(Buffer.from([127]), 0, 1, 44); } } : { write: (async () => { if (fault === 'full') throw Object.assign(new Error('/private/ENOSPC'), { code: 'ENOSPC' }); return { bytesWritten: 0, buffer: Buffer.alloc(0) }; }) as unknown as FileHandle['write'] });
-    await rejects(compileDirectPcm(f.recipe, f.locations, bad, signal()), fault === 'tamper' ? 'HASH_MISMATCH' : 'IO_ERROR');
+    await rejects(compileDirectPcm(f.recipe, f.locations, bad, signal()), fault === 'tamper' ? 'HASH_MISMATCH' : fault === 'full' ? 'DISK_FULL' : 'IO_ERROR');
   }
 });
 test('明确不支持的格式、畸形 RIFF/重复数据/错误块对齐在写入前阻断', async t => {

@@ -62,3 +62,4 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 - [TASK-058](TASK-058-v3-prepared-render-conformance.md)：原始 Render、实际 Marker、Conformance 与 Frozen PREP。
 
 - [TASK-059](TASK-059-v3-execution-planning.md)：显式执行格式、精确帧配方与 PCM 编译内核。
+- [TASK-060](TASK-060-v3-execution-assets.md)：版本化 Profile、本次参数、持久执行资产与桌面确认。

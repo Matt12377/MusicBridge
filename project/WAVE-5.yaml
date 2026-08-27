@@ -3,9 +3,9 @@ wave: WAVE-5
 status: active
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-059
-activeBranch: codex/task-059-v3-execution-planning
-activeBaseCommit: 71f08fc9dab8ea11625d2d282bfcc2ce593a6705
+activeTask: TASK-060
+activeBranch: codex/task-060-v3-execution-assets
+activeBaseCommit: d3c093947a3661da684e7780e49eb2ebd4a5b46a
 order:
   - TASK-048
   - TASK-049
@@ -19,5 +19,6 @@ order:
   - TASK-057
   - TASK-058
   - TASK-059
-stopAfter: TASK-059
-reviewBoundary: pcm-compiler-kernel-no-asset-publication-or-certified-playback
+  - TASK-060
+stopAfter: TASK-060
+reviewBoundary: profile-session-and-persisted-execution-assets-no-formal-recording

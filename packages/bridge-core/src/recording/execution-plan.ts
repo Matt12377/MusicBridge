@@ -2,7 +2,7 @@ import { isExecutionFormat, isExecutionPcmInput, isExecutionRecipe, isFrozenPrep
 import { mediaFingerprint } from './media-store.js';
 import { assessRender } from './render-conformance.js';
 
-export type ExecutionFailure = 'INVALID_INPUT' | 'VERSION_MISMATCH' | 'CONVERSION_REQUIRED' | 'UNSUPPORTED_WAVE' | 'FRAME_MISMATCH' | 'HASH_MISMATCH' | 'INPUT_CHANGED' | 'SOURCE_UNAVAILABLE' | 'IO_ERROR' | 'CANCELLED' | 'LIMIT_EXCEEDED';
+export type ExecutionFailure = 'INVALID_INPUT' | 'VERSION_MISMATCH' | 'CONVERSION_REQUIRED' | 'UNSUPPORTED_WAVE' | 'FRAME_MISMATCH' | 'HASH_MISMATCH' | 'INPUT_CHANGED' | 'SOURCE_UNAVAILABLE' | 'IO_ERROR' | 'DISK_FULL' | 'CANCELLED' | 'LIMIT_EXCEEDED';
 export class ExecutionCompileError extends Error { constructor(readonly code: ExecutionFailure) { super(code); } }
 export const executionFail = (code: ExecutionFailure): never => { throw new ExecutionCompileError(code); };
 export function requireCopyFormat(format: ExecutionFormat): number {

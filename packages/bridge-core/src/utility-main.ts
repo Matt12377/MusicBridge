@@ -142,6 +142,10 @@ function masterVersionsFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.masterVersions) throw new CollectionError('INVENTORY_UNAVAILABLE', '母版版本服务尚未就绪，请重试。');
   return runtime.masterVersions;
 }
+function executionFor(runtime: CoreRuntimeForIpc) {
+  if (!runtime.execution) throw new CollectionError('INVENTORY_UNAVAILABLE', '执行资产服务尚未就绪，请重试。');
+  return runtime.execution;
+}
 function preparedFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.prepared) throw new CollectionError('INVENTORY_UNAVAILABLE', 'PREP 服务尚未就绪，请重试。');
   return runtime.prepared;
@@ -183,6 +187,19 @@ async function dispatch(
     case 'recordingSources.confirm': { const p = request.payload as IpcCommandPayloads['recordingSources.confirm']; return sourcesFor(runtime).confirm(p); }
     case 'recordingSources.recheck': { const p = request.payload as IpcCommandPayloads['recordingSources.recheck']; return sourcesFor(runtime).recheck(p); }
     case 'recordingVersions.list': return masterVersionsFor(runtime).list((request.payload as IpcCommandPayloads['recordingVersions.list']).draftId);
+    case 'recordingProfiles.list': return collectionFor(runtime).recordingProfiles.list();
+    case 'recordingProfiles.history': return collectionFor(runtime).recordingProfiles.history((request.payload as IpcCommandPayloads['recordingProfiles.history']).profileId);
+    case 'recordingProfiles.version': return collectionFor(runtime).recordingProfiles.version((request.payload as IpcCommandPayloads['recordingProfiles.version']).versionId);
+    case 'recordingProfiles.save': return collectionFor(runtime).recordingProfiles.save(request.payload as IpcCommandPayloads['recordingProfiles.save']);
+    case 'recordingProfiles.session': return collectionFor(runtime).recordingProfiles.session((request.payload as IpcCommandPayloads['recordingProfiles.session']).draftId);
+    case 'recordingProfiles.saveSession': return collectionFor(runtime).recordingProfiles.saveSession(request.payload as IpcCommandPayloads['recordingProfiles.saveSession']);
+    case 'recordingExecution.list': return executionFor(runtime).list((request.payload as IpcCommandPayloads['recordingExecution.list']).draftId);
+    case 'recordingExecution.preview': return executionFor(runtime).preview(request.payload as IpcCommandPayloads['recordingExecution.preview']);
+    case 'recordingExecution.start': return executionFor(runtime).start(request.payload as IpcCommandPayloads['recordingExecution.start']);
+    case 'recordingExecution.job': return executionFor(runtime).job((request.payload as IpcCommandPayloads['recordingExecution.job']).id);
+    case 'recordingExecution.cancel': return executionFor(runtime).cancel(request.payload as IpcCommandPayloads['recordingExecution.cancel']);
+    case 'recordingExecution.cancelRead': return executionFor(runtime).cancelRead((request.payload as IpcCommandPayloads['recordingExecution.cancelRead']).id);
+    case 'recordingExecution.verify': return executionFor(runtime).verify(request.payload as IpcCommandPayloads['recordingExecution.verify']);
     case 'recordingPrepared.list': return preparedFor(runtime).list((request.payload as IpcCommandPayloads['recordingPrepared.list']).draftId);
     case 'recordingPrepared.selections': return preparedFor(runtime).selections((request.payload as IpcCommandPayloads['recordingPrepared.selections']).preparationId);
     case 'recordingPrepared.selectionReceipt': return { selection: preparedFor(runtime).selectionReceipt((request.payload as IpcCommandPayloads['recordingPrepared.selectionReceipt'])) };

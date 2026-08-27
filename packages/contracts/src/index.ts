@@ -23,3 +23,5 @@ export * from './master-versions.js';
 export * from './preparation.js';
 export * from './prepared-render.js';
 export * from './execution-audio.js';
+export * from './recording-profile.js';
+export * from './execution-assets.js';

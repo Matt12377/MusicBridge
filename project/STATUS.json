@@ -78,37 +78,39 @@
   },
   "v3Development": {
     "wave": "WAVE-5",
-    "task": "TASK-059",
-    "branch": "codex/task-059-v3-execution-planning",
-    "baseCommit": "71f08fc9dab8ea11625d2d282bfcc2ce593a6705",
-    "state": "local-automated-pass",
-    "implementationCommit": "693256466776f44a0cb214c261f935f6588bf203",
-    "reportCommit": "7d9b6bb61d04ef88ed9601e15eed31ae53626194",
+    "task": "TASK-060",
+    "branch": "codex/task-060-v3-execution-assets",
+    "baseCommit": "d3c093947a3661da684e7780e49eb2ebd4a5b46a",
+    "state": "synthetic-pass-owner-review-pending",
+    "implementationCommit": null,
+    "reportCommit": null,
     "nextTask": null,
     "previousTask": {
-      "task": "TASK-058",
-      "implementationCommit": "ece85f27e2739a4447334a06801a983749d9e17a",
-      "reportCommit": "dba7a6bcae3c7a2d53973842045e91f83fd4ca75",
-      "finalCommit": "71f08fc9dab8ea11625d2d282bfcc2ce593a6705"
+      "task": "TASK-059",
+      "implementationCommit": "693256466776f44a0cb214c261f935f6588bf203",
+      "reportCommit": "7d9b6bb61d04ef88ed9601e15eed31ae53626194",
+      "finalCommit": "d3c093947a3661da684e7780e49eb2ebd4a5b46a"
     },
     "gates": {
-      "automated": "local-verify-pass",
+      "automated": "PASS",
       "realProvider": "NOT_RUN",
       "realRoon": "NOT_RUN",
       "realRecording": "NOT_RUN",
       "ownerProductAcceptance": "NOT_RUN",
       "fullPrdGateB": "NOT_RUN",
       "fullPrdGateD": "NOT_RUN",
-      "contracts": "48-of-48-pass",
-      "bridgeCore": "603-of-603-pass",
-      "desktop": "169-of-169-pass",
-      "security": "22-of-22-pass",
-      "electron": "4-of-4-pass",
-      "playwright": "47-of-47-pass",
-      "focused": "20-of-20-pass",
-      "staticBoundaries": "control-plane-boundaries-cycles-pass-135-files",
-      "pcmByteEvidence": "96000Hz-960291-frames-two-480000-frame-zero-gaps-independent-reader-pass",
-      "visual": "no-ui-change-existing-e2e-regression-pass-no-new-visual-acceptance"
+      "contracts": "53/53",
+      "bridgeCore": "624/624",
+      "desktop": "169/169",
+      "security": "22/22",
+      "electron": "4/4",
+      "playwright": "48/48",
+      "focused": "DIRECT_AND_PREP_A_B_EMPTY_B_IPC_PASS",
+      "staticBoundaries": "PASS_CONTROL_WAVE3_BOUNDARIES_CYCLES_140",
+      "pcmByteEvidence": "PASS_INDEPENDENT_PYTHON_WAVE_396902_FRAMES",
+      "visual": "PASS_1440x900_AND_720x480_AXE_AND_SCREENSHOTS",
+      "v3Identity": "PASS",
+      "runtime": "Node 22.23.2 / pnpm 10.17.1"
     },
     "integration": "NOT_RUN",
     "push": "NOT_AUTHORIZED",
@@ -118,7 +120,8 @@
       "TASK-047 真实验收继续待执行",
       "未确认操作的跨 Renderer/应用重启 outbox 恢复待后续覆盖；当前 UI 仅保留会话内原命令重试，数据库幂等结果已持久化",
       "旧侧栏窄窗后恢复宽窗的收起状态有文字裁切视觉现象，留待总体验收复查",
-      "TASK-059 编译内核尚未接入持久化执行资产任务/发布、桌面入口和正式预检；转换器、SRC、独立 Derivative 仍待实施"
-    ]
+      "TASK-060 已接入 Profile/Session、持久执行资产和桌面确认；转换器、SRC、独立 Derivative、正式预检及录音仍待后续"
+    ],
+    "diagEvidence": "reports/runtime/task-060-_7ztk4bn"
   }
 }

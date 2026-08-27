@@ -230,5 +230,22 @@ contextBridge.exposeInMainWorld(
       reviewPrepared: request => ipcRenderer.invoke('recordingPrepared:review', request),
       freezePrepared: request => ipcRenderer.invoke('recordingPrepared:freeze', request),
     },
+    {
+      listRecordingProfiles: () => ipcRenderer.invoke('recordingProfiles:list'),
+      getRecordingProfileHistory: profileId => ipcRenderer.invoke('recordingProfiles:history', profileId),
+      getRecordingProfileVersion: versionId => ipcRenderer.invoke('recordingProfiles:version', versionId),
+      saveRecordingProfile: request => ipcRenderer.invoke('recordingProfiles:save', request),
+      getRecordingSession: draftId => ipcRenderer.invoke('recordingProfiles:session', draftId),
+      saveRecordingSession: request => ipcRenderer.invoke('recordingProfiles:saveSession', request),
+    },
+    {
+      listExecutionAssets: draftId => ipcRenderer.invoke('recordingExecution:list', draftId),
+      previewExecutionAsset: request => ipcRenderer.invoke('recordingExecution:preview', request),
+      startExecutionAsset: request => ipcRenderer.invoke('recordingExecution:start', request),
+      getExecutionJob: id => ipcRenderer.invoke('recordingExecution:job', id),
+      cancelExecutionJob: request => ipcRenderer.invoke('recordingExecution:cancel', request),
+      cancelExecutionRead: id => ipcRenderer.invoke('recordingExecution:cancelRead', id),
+      verifyExecutionAsset: request => ipcRenderer.invoke('recordingExecution:verify', request),
+    },
   ),
 )
