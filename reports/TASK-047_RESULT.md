@@ -1,5 +1,7 @@
 # TASK-047：跨源歌词分层验收
 
+> 2026-08-27 集成补录：Owner 已明确授权先合并 main、准备 v3。本文原有禁止合并结论被此次授权取代；真实验收仍未完成，TASK-047 不标记 complete。详见 [WAVE-4 集成补录](WAVE-4_INTEGRATION_ADDENDUM.md)。
+
 ## 当前结论
 
 **Synthetic 自动 Gate 已通过；真实 Roon + NetEase 与 Owner 接受尚未执行。TASK-047 不标记 complete，所有 PR 保持未合并。**

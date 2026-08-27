@@ -2,7 +2,7 @@
 
 ## 状态
 
-提议，等待 Owner 确认后按 TASK-042 至 TASK-047 线性实施。
+TASK-042 至 TASK-047 已按叠加分支线性实施并完成 Synthetic 验证。Owner 于 2026-08-27 授权将整条功能线集成 main；真实 Roon/NetEase 和 Owner 产品验收仍为 carryover。当前集成决策见 `reports/WAVE-4_INTEGRATION_ADDENDUM.md`，后文原始执行顺序保留为设计历史。
 
 设计基线：`main` `207f7f04bc11fd4dcf7e6214ab705e999ee6f559`。
 

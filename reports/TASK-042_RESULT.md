@@ -1,5 +1,7 @@
 # TASK-042 结果报告：LyricsMatch 领域模型与版本冲突
 
+> 2026-08-27 集成补录：Owner 已授权整条歌词功能线集成 main；本文未合并表述保留为历史状态，最新边界见 [WAVE-4 集成补录](WAVE-4_INTEGRATION_ADDENDUM.md)。
+
 ## 任务身份
 
 - 任务：TASK-042 — LyricsMatch 领域模型与版本冲突

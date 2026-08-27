@@ -19,23 +19,34 @@
     "wave": "WAVE-4",
     "task": "TASK-047",
     "branch": "codex/task-047-local-lyrics-acceptance",
-    "state": "synthetic-pass-owner-pending-unmerged",
+    "state": "synthetic-pass-real-acceptance-carryover",
     "baseCommit": "097e349b99ced1492d5c2f6065bd479e343bd98c",
     "implementationCommit": "3d50e3836cabb5763b062445a45392d32e37edab",
     "reportCommit": "68a5adb2ee58b19b0124dcab943628ed867da938",
     "pullRequest": 13,
     "nextTask": null,
-    "integrationPolicy": "stacked-unmerged-until-owner-acceptance",
+    "integrationPolicy": "owner-authorized-main-integration-with-real-acceptance-carryover",
+    "integration": {
+      "authorizedOn": "2026-08-27",
+      "targetBranch": "main",
+      "pullRequest": 13,
+      "method": "merge-commit-preserving-stacked-history",
+      "sourceCommit": "f4bc89306302c7f86cf74209637249d002a8afa1",
+      "previousMainCommit": "207f7f04bc11fd4dcf7e6214ab705e999ee6f559",
+      "report": "reports/WAVE-4_INTEGRATION_ADDENDUM.md",
+      "nextDevelopmentBranch": "codex/v3"
+    },
     "gates": {
       "focused": "17-cross-source-acceptance-pass",
       "bridgeCore": "422-of-422-pass",
       "desktop": "162-of-162-pass",
       "electron": "4-of-4-pass",
       "e2e": "22-of-22-pass-axe-zero",
-      "github": "pending-final-identity-head",
+      "github": "source-f4bc893-pass-final-integration-checks-tracked-in-pr-13",
       "realProvider": "owner-local-session-required-not-run",
       "realRoon": "owner-local-session-required-not-run",
-      "ownerIntegration": "pending-explicit-acceptance-no-merge"
+      "ownerIntegration": "explicitly-authorized-2026-08-27",
+      "ownerProductAcceptance": "pending-not-implied-by-integration-authorization"
     }
   },
   "policy": {

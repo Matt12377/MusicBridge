@@ -1,6 +1,6 @@
 schemaVersion: 1
 wave: WAVE-4
-status: planned
+status: real-acceptance-carryover
 feature: local-to-netease-cross-source-lyrics
 design: docs/adr/ADR-008-LOCAL-TO-NETEASE-CROSS-SOURCE-LYRICS.md
 plannedBaseCommit: 207f7f04bc11fd4dcf7e6214ab705e999ee6f559
@@ -19,6 +19,15 @@ order:
   - TASK-047
 stopAfter: TASK-047
 reviewBoundary: local-lyrics-real-acceptance
+integration:
+  ownerAuthorizedOn: 2026-08-27
+  targetBranch: main
+  pullRequest: 13
+  preserveStackedHistory: true
+  realAcceptance: pending
+  ownerProductAcceptance: pending
+  report: reports/WAVE-4_INTEGRATION_ADDENDUM.md
+  nextDevelopmentBranch: codex/v3
 policy:
   audioSource: roon
   lyricsSource: netease

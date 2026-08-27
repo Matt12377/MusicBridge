@@ -1,5 +1,7 @@
 # TASK-046 结果报告：本地歌词来源与手动匹配
 
+> 2026-08-27 集成补录：Owner 已授权整条歌词功能线集成 main；本文未合并表述保留为历史状态，最新边界见 [WAVE-4 集成补录](WAVE-4_INTEGRATION_ADDENDUM.md)。
+
 ## 身份与集成边界
 
 - 分支：`codex/task-046-local-lyrics-manual-ui`

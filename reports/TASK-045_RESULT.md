@@ -1,5 +1,7 @@
 # TASK-045 结果报告：Cross-source LyricsCoordinator 与来源合同
 
+> 2026-08-27 集成补录：Owner 已授权整条歌词功能线集成 main；本文未合并表述保留为历史状态，最新边界见 [WAVE-4 集成补录](WAVE-4_INTEGRATION_ADDENDUM.md)。
+
 ## 身份
 
 - 分支：`codex/task-045-cross-source-lyrics-coordinator`
