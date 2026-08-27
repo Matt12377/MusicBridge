@@ -82,8 +82,8 @@
     "branch": "codex/task-053-v3-master-source-picker",
     "baseCommit": "bc4290a10b7ca4a5f5fb73fe70898946fb49be16",
     "state": "local-automated-pass-real-acceptance-pending",
-    "implementationCommit": null,
-    "reportCommit": null,
+    "implementationCommit": "26bf98de6985695402ff724668c12b0796586c59",
+    "reportCommit": "eae2fe2ad322f4620b25f2e3b4de480c4a23f5ba",
     "nextTask": "TASK-054",
     "previousTask": {
       "task": "TASK-052",
