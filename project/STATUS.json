@@ -81,8 +81,8 @@
     "task": "TASK-048",
     "branch": "codex/task-048-v3-navigation",
     "baseCommit": "b0e1ff8ec83ac9aaebbe90e8ecb14c4a5832e7f4",
-    "state": "in_progress",
-    "implementationCommit": null,
+    "state": "synthetic-pass-owner-review-pending",
+    "implementationCommit": "7ca3423841a595116d6dc7b5ffe1d18c60ca792b",
     "reportCommit": null,
     "nextTask": null,
     "gates": {
@@ -107,9 +107,9 @@
     "integration": "NOT_RUN",
     "push": "NOT_AUTHORIZED",
     "carryover": [
-      "V2 idle player device hint contrast 4.01:1 at 1440px; reproduced on Home; not changed in navigation slice",
-      "PRD F-01 remains undecided",
-      "TASK-047 real acceptance remains pending"
+      "V2 闲置播放器未选设备提示对比度 4.01:1，1440px 主页对照复现；本导航任务未修改",
+      "PRD F-01 执行资产保留策略未定",
+      "TASK-047 真实验收继续待执行"
     ]
   }
 }
