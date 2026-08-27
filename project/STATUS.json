@@ -22,8 +22,8 @@
     "state": "synthetic-pass-owner-pending-unmerged",
     "baseCommit": "097e349b99ced1492d5c2f6065bd479e343bd98c",
     "implementationCommit": "3d50e3836cabb5763b062445a45392d32e37edab",
-    "reportCommit": null,
-    "pullRequest": null,
+    "reportCommit": "68a5adb2ee58b19b0124dcab943628ed867da938",
+    "pullRequest": 13,
     "nextTask": null,
     "integrationPolicy": "stacked-unmerged-until-owner-acceptance",
     "gates": {
