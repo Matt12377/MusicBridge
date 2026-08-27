@@ -746,12 +746,9 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   await expect.poll(async () => searchView.locator('.search-result-section h3').allTextContents()).toEqual(['艺人', '专辑', '单曲'])
   await page.screenshot({ path: syntheticSearchScreenshotPath })
   expect((await stat(syntheticSearchScreenshotPath)).size).toBeGreaterThan(20_000)
-  await page.waitForTimeout(300)
   const searchTrack21 = page.getByText('Synthetic Track 21', { exact: true })
-  if (await searchTrack21.count() === 0) {
-    const loadMoreSearch = page.getByRole('button', { name: '加载更多歌曲' })
-    if (await loadMoreSearch.count() > 0) await loadMoreSearch.click({ force: true })
-  }
+  // 滚动会触发分页观察器；等待结果，不与正在被加载状态替换的按钮抢点击。
+  await page.locator('.content-scroll').evaluate((element) => { element.scrollTop = element.scrollHeight })
   await expect(searchTrack21).toBeVisible()
 
   await sourceButton('liked').click()
