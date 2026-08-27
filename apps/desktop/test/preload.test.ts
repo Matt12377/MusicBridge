@@ -126,6 +126,17 @@ test('Preload exposes only sanitized business methods', async () => {
   )
 
   assert.deepEqual(PUBLIC_API_KEYS, [
+    'searchPhysicalRoonAlbums',
+    'listDigitalAlbums',
+    'getDigitalAlbum',
+    'getPhysicalLinks',
+    'getDigitalRuntime',
+    'confirmPhysicalLink',
+    'relocateDigitalAlbum',
+    'registerDigitalAlbum',
+    'removePhysicalLink',
+    'confirmPhysicalAbsence',
+    'getCollectionMatrix',
     'listPhysicalMusic',
     'getPhysicalMusic',
     'savePhysicalRelease',
@@ -211,6 +222,17 @@ test('Preload exposes only sanitized business methods', async () => {
     'onRemoteCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
+    'searchPhysicalRoonAlbums',
+    'listDigitalAlbums',
+    'getDigitalAlbum',
+    'getPhysicalLinks',
+    'getDigitalRuntime',
+    'confirmPhysicalLink',
+    'relocateDigitalAlbum',
+    'registerDigitalAlbum',
+    'removePhysicalLink',
+    'confirmPhysicalAbsence',
+    'getCollectionMatrix',
     'listPhysicalMusic',
     'getPhysicalMusic',
     'savePhysicalRelease',

@@ -1,3 +1,4 @@
+import { createSyntheticRoonLibrary } from './roon/synthetic-library.js';
 import { appendFileSync, chmodSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { CollectionError, createCollectionRepository, type CollectionRepository } from './collection/repository.js';
@@ -12,7 +13,7 @@ import {
   type IpcResponse,
   type RoonImageShapeSummary,
 } from '@music-bridge/contracts';
-import { asBridgeError } from './shared/errors.js';
+import { asBridgeError, BridgeError } from './shared/errors.js';
 import {
   createBridgeRuntime,
   createTestBridgeRuntime,
@@ -132,11 +133,27 @@ function collectionFor(runtime: CoreRuntimeForIpc): CollectionRepository {
   return runtime.collection;
 }
 
+function physicalLinksFor(runtime: CoreRuntimeForIpc) {
+  if (!runtime.physicalLinks) throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Roon 关联服务尚未就绪。', { httpStatus: 503 });
+  return runtime.physicalLinks;
+}
+
 async function dispatch(
   runtime: CoreRuntimeForIpc,
   request: IpcRequest,
 ): Promise<unknown> {
   switch (request.command as IpcCommand) {
+    case 'physicalLinks.search': { const p = request.payload as IpcCommandPayloads['physicalLinks.search']; return physicalLinksFor(runtime).search(p.query, p.page); }
+    case 'physicalLinks.digitalList': return collectionFor(runtime).links.digitalList((request.payload as IpcCommandPayloads['physicalLinks.digitalList']).page);
+    case 'physicalLinks.digitalDetail': return collectionFor(runtime).links.digitalDetail((request.payload as IpcCommandPayloads['physicalLinks.digitalDetail']).id);
+    case 'physicalLinks.physical': return collectionFor(runtime).links.physical((request.payload as IpcCommandPayloads['physicalLinks.physical']).releaseId);
+    case 'physicalLinks.runtime': return physicalLinksFor(runtime).runtime((request.payload as IpcCommandPayloads['physicalLinks.runtime']).id);
+    case 'physicalLinks.matrix': { const p = request.payload as IpcCommandPayloads['physicalLinks.matrix']; return collectionFor(runtime).links.matrix(p.page, p.query); }
+    case 'physicalLinks.confirm': return physicalLinksFor(runtime).confirm(request.payload as IpcCommandPayloads['physicalLinks.confirm']);
+    case 'physicalLinks.relocate': return physicalLinksFor(runtime).relocate(request.payload as IpcCommandPayloads['physicalLinks.relocate']);
+    case 'physicalLinks.register': return physicalLinksFor(runtime).register(request.payload as IpcCommandPayloads['physicalLinks.register']);
+    case 'physicalLinks.remove': return physicalLinksFor(runtime).remove(request.payload as IpcCommandPayloads['physicalLinks.remove']);
+    case 'physicalLinks.absence': return physicalLinksFor(runtime).absence(request.payload as IpcCommandPayloads['physicalLinks.absence']);
     case 'physicalMusic.list': { const p = request.payload as IpcCommandPayloads['physicalMusic.list']; return collectionFor(runtime).music.list(p.page, p.filter); }
     case 'physicalMusic.detail': return collectionFor(runtime).music.detail((request.payload as IpcCommandPayloads['physicalMusic.detail']).id);
     case 'physicalMusic.photo': return collectionFor(runtime).music.photo((request.payload as IpcCommandPayloads['physicalMusic.photo']).photoId);
@@ -493,6 +510,7 @@ export async function runCoreUtilityProcess(
       const runtime =
         env.MUSIC_BRIDGE_CORE_TEST_MODE === '1'
           ? createTestBridgeRuntime({
+              ...(env.MUSIC_BRIDGE_UI_E2E === '1' && env.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY === '1' ? { roonLibrary: createSyntheticRoonLibrary() } : {}),
               ...(env.MUSIC_BRIDGE_DATA_DIRECTORY ? { collectionRepository: createCollectionRepository({ filePath: path.join(env.MUSIC_BRIDGE_DATA_DIRECTORY, 'collection.v1.sqlite') }) } : {}),
               authorized: env.MUSIC_BRIDGE_UI_E2E === '1',
               ...(env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE === 'profile-unavailable' || env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE === 'expired'

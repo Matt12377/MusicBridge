@@ -1,3 +1,4 @@
+import type { PhysicalLinksPublicApi } from '@music-bridge/contracts'
 import type { PhysicalMusicPublicApi } from '@music-bridge/contracts'
 import type {
   AlbumDetail,
@@ -49,7 +50,7 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
   autoReconnect: false,
 }
 
-export interface MusicBridgePublicApi extends CollectionPublicApi, PhysicalMusicPublicApi {
+export interface MusicBridgePublicApi extends CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi {
   getAppInfo: () => Promise<AppInfo>
   getCoreHealth: () => Promise<PublicBridgeState>
   getCoreState: () => Promise<PublicBridgeState>
@@ -123,6 +124,17 @@ export interface MusicBridgePublicApi extends CollectionPublicApi, PhysicalMusic
 }
 
 export const PUBLIC_API_KEYS = [
+  'searchPhysicalRoonAlbums',
+  'listDigitalAlbums',
+  'getDigitalAlbum',
+  'getPhysicalLinks',
+  'getDigitalRuntime',
+  'confirmPhysicalLink',
+  'relocateDigitalAlbum',
+  'registerDigitalAlbum',
+  'removePhysicalLink',
+  'confirmPhysicalAbsence',
+  'getCollectionMatrix',
   'listPhysicalMusic',
   'getPhysicalMusic',
   'savePhysicalRelease',
@@ -354,9 +366,23 @@ export function createPreloadApi(
   },
   collectionApi?: CollectionPublicApi,
   physicalMusicApi?: PhysicalMusicPublicApi,
+  physicalLinksApi?: PhysicalLinksPublicApi,
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   return Object.freeze({
+    ...(physicalLinksApi ?? {
+      searchPhysicalRoonAlbums: collectionUnavailable,
+      listDigitalAlbums: collectionUnavailable,
+      getDigitalAlbum: collectionUnavailable,
+      getPhysicalLinks: collectionUnavailable,
+      getDigitalRuntime: collectionUnavailable,
+      confirmPhysicalLink: collectionUnavailable,
+      relocateDigitalAlbum: collectionUnavailable,
+      registerDigitalAlbum: collectionUnavailable,
+      removePhysicalLink: collectionUnavailable,
+      confirmPhysicalAbsence: collectionUnavailable,
+      getCollectionMatrix: collectionUnavailable,
+    }),
     ...(physicalMusicApi ?? {
       listPhysicalMusic: collectionUnavailable,
       getPhysicalMusic: collectionUnavailable,

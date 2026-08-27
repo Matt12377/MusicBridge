@@ -1,3 +1,4 @@
+import { physicalLinksMigration, createPhysicalLinksRepository, type PhysicalLinksRepository } from './physical-links.js';
 import { physicalMusicMigration, createPhysicalMusicRepository, type PhysicalMusicRepository } from './physical-music.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { closeSync, constants, fchmodSync, lstatSync, mkdirSync, openSync } from 'node:fs';
@@ -24,6 +25,7 @@ const unavailable = (): never => { throw new CollectionError('INVENTORY_UNAVAILA
 
 export interface CollectionRepository {
   music: PhysicalMusicRepository;
+  links: PhysicalLinksRepository;
   list(page: PageRequest, filter?: CollectionFilter): Page<CollectionModel>;
   addPhoto(request: CollectionAddPhotoRequest): CollectionMutationResult;
   photo(photoId: string): CollectionPhotoImage;
@@ -140,18 +142,19 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
       // WAL 恢复期间，首次版本读取也可能遇到短暂锁；先设置等待，再访问数据库内容。
       db.exec('PRAGMA busy_timeout=1000');
       const version = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-      if (![0, 1, 2, 3].includes(version)) return unavailable();
+      if (![0, 1, 2, 3, 4].includes(version)) return unavailable();
       if (version === 0 && Number(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").get()?.n) !== 0) return unavailable();
       db.exec('PRAGMA trusted_schema=OFF; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
-      if (version < 3) {
+      if (version < 4) {
         db.exec('BEGIN IMMEDIATE');
         try {
           // 等待写锁后重读版本，避免两个首次连接同时执行迁移。
           const currentVersion = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-          if (![0, 1, 2, 3].includes(currentVersion)) return unavailable();
+          if (![0, 1, 2, 3, 4].includes(currentVersion)) return unavailable();
           if (currentVersion === 0) db.exec(schema);
           if (currentVersion < 2) { db.exec(photoMigration); options.beforeCommit?.('migrate-photos'); }
           if (currentVersion < 3) { db.exec(physicalMusicMigration); options.beforeCommit?.('migrate-music'); }
+          if (currentVersion < 4) { db.exec(physicalLinksMigration); options.beforeCommit?.('migrate-links'); }
           db.exec('COMMIT');
         } catch (error) { db.exec('ROLLBACK'); throw error; }
       }
@@ -235,8 +238,10 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
     });
   }
 
+  const music = createPhysicalMusicRepository({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
+  const links = createPhysicalLinksRepository({ read: guarded, conflict, unavailable, music, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   return {
-    music: createPhysicalMusicRepository({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
+    music, links,
     list(page, filter = {}) {
       if (!validPage(page) || !isCollectionFilter(filter)) return conflict('库存请求无效，请检查分页和筛选。');
       const conditions: string[] = [], values: SQLInputValue[] = [];

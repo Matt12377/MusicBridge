@@ -46,3 +46,5 @@ WAVE-4 是 Owner 从已整合 Bug 修复的 `main` 明确启动的功能线，�
 WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发线，见 `project/WAVE-5.yaml`。首任务从已同步最新需求的 V3 文档基线建立，旧 WAVE-3 控制面不改写。首任务只包含导航基础；后续任务从上一任务最终 HEAD 建立并单独定义范围，不将历史验收或 F-01 自动标为完成。
 
 - [TASK-051：实体音乐库](TASK-051-v3-physical-music-library.md) — 原版 CD/磁带、旧录音内容与同库展示；基线 TASK-050。
+
+- [TASK-052：Roon 双向关系](TASK-052-v3-roon-physical-links.md) — 确认关系、离线保留、Provenance 与收藏矩阵；基线 TASK-051。

@@ -1,3 +1,4 @@
+import { isAlbumQuery, isDigitalAlbum, isDigitalAlbumDetail, isPhysicalLinksSnapshot, isDigitalRuntime, isPhysicalLinkResult, isCollectionMatrixRow, isConfirmPhysicalLinkRequest, isRelocateDigitalRequest, isRegisterDigitalRequest, isRemovePhysicalLinkRequest, isConfirmAbsenceRequest } from './physical-links.js';
 import { isMusicId, isMusicFilter, isMusicEntry, isMusicDetail, isMusicMutationResult, isSaveReleaseRequest, isSaveLegacyRequest, isAddMusicPhotoRequest, isRemoveMusicPhotoRequest } from './physical-music.js';
 import type { PublicError } from './errors.js';
 import { isCollectionFilter, isCollectionPhotoImage, isCollectionAddPhotoRequest, isCollectionChangePhotoRequest, isCollectionId, isCollectionReceiveRequest, isCollectionMaterializeRequest, isCollectionUpdateCopyRequest, isCollectionPolicyRequest, isCollectionMutationResult, isCollectionModel, isCollectionPage, isCollectionDetail } from './collection.js';
@@ -915,6 +916,16 @@ function isPlaylistDetail(value: unknown): value is PlaylistDetail {
 }
 
 function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
+  if (command === 'physicalLinks.digitalList') return isRecord(payload) && hasOnlyKeys(payload, ['page']) && isPageRequest(payload.page);
+  if (command === 'physicalLinks.search') return isRecord(payload) && hasOnlyKeys(payload, ['page', 'query']) && isPageRequest(payload.page) && isAlbumQuery(payload.query);
+  if (command === 'physicalLinks.matrix') return isRecord(payload) && hasOnlyKeys(payload, ['page', 'query']) && isPageRequest(payload.page) && (payload.query === undefined || isAlbumQuery(payload.query));
+  if (command === 'physicalLinks.digitalDetail' || command === 'physicalLinks.runtime') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
+  if (command === 'physicalLinks.physical') return isRecord(payload) && hasOnlyKeys(payload, ['releaseId']) && isCollectionId(payload.releaseId);
+  if (command === 'physicalLinks.confirm') return isConfirmPhysicalLinkRequest(payload);
+  if (command === 'physicalLinks.relocate') return isRelocateDigitalRequest(payload);
+  if (command === 'physicalLinks.register') return isRegisterDigitalRequest(payload);
+  if (command === 'physicalLinks.remove') return isRemovePhysicalLinkRequest(payload);
+  if (command === 'physicalLinks.absence') return isConfirmAbsenceRequest(payload);
   if (command === 'physicalMusic.list') return isRecord(payload) && hasOnlyKeys(payload, ['page', 'filter']) && isPageRequest(payload.page) && (payload.filter === undefined || isMusicFilter(payload.filter));
   if (command === 'physicalMusic.detail') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isMusicId(payload.id);
   if (command === 'physicalMusic.photo') return isRecord(payload) && hasOnlyKeys(payload, ['photoId']) && isCollectionId(payload.photoId);
@@ -1345,6 +1356,18 @@ function isCommandResult(
   allowInternalResult = false,
 ): boolean {
   switch (command) {
+    case 'physicalLinks.search': return isRoonLibraryPage(value);
+    case 'physicalLinks.digitalList': return isCollectionPage(value, isDigitalAlbum);
+    case 'physicalLinks.digitalDetail': return isDigitalAlbumDetail(value, isMusicEntry);
+    case 'physicalLinks.physical': return isPhysicalLinksSnapshot(value);
+    case 'physicalLinks.runtime': return isDigitalRuntime(value);
+    case 'physicalLinks.matrix': return isCollectionPage(value, isCollectionMatrixRow);
+    case 'physicalLinks.confirm':
+    case 'physicalLinks.relocate':
+    case 'physicalLinks.register':
+    case 'physicalLinks.remove':
+    case 'physicalLinks.absence':
+      return isPhysicalLinkResult(value);
     case 'physicalMusic.list': return isCollectionPage(value, isMusicEntry);
     case 'physicalMusic.detail': return isMusicDetail(value);
     case 'physicalMusic.photo': return isCollectionPhotoImage(value);

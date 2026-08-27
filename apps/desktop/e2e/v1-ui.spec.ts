@@ -243,6 +243,7 @@ test.beforeEach(async () => {
     environment.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE = 'expired'
   }
   delete environment.NETEASE_COOKIE
+  if (test.info().title.includes('V3 Roon 关联闭环')) environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY = '1'
   electronApp = await electron.launch({
     args: [electronEntry],
     cwd: desktopRoot,
@@ -1684,4 +1685,102 @@ test('V3 实体音乐库读取失败不冒充空库，保存回执丢失重试�
   await expect(page.getByRole('heading', { name: '只登记一次', exact: true })).toBeVisible()
   const saved = await page.evaluate(() => window.musicBridge.listPhysicalMusic({ offset: 0, limit: 20 }))
   expect(saved.total).toBe(1); expect(saved.items[0]?.kind).toBe('cassette')
+})
+
+test('V3 原版实体详情提供明确的 Roon 关联入口', async () => {
+  const result = await page.evaluate(() => window.musicBridge.savePhysicalRelease({ commandId: crypto.randomUUID(), release: { format: 'cd', title: '关联验收专辑', artist: '关联验收艺术家', quantity: 1, completeness: 'basic', tracks: [] } }))
+  await page.locator('[data-sidebar-source="collection"]').click()
+  await page.getByRole('tab', { name: '实体音乐库', exact: true }).click()
+  await page.getByRole('button', { name: /原版 CD · 1 张 关联验收专辑/ }).click()
+  await expect(page.getByRole('button', { name: '关联 Roon 专辑', exact: true })).toBeEnabled()
+  const detail = await page.evaluate(id => window.musicBridge.getPhysicalMusic(id), result.id)
+  expect(detail.entry.contentStatus).toBe('commercial')
+})
+
+test('V3 Roon 关联闭环：取消、确认、矩阵、双向导航与重启重新定位', async () => {
+  test.setTimeout(90_000)
+  const physical = await page.evaluate(() => window.musicBridge.savePhysicalRelease({ commandId: crypto.randomUUID(), release: { format: 'cd', title: '关联验收专辑', artist: '关联验收艺术家', quantity: 2, completeness: 'basic', tracks: [] } }))
+  async function enterPhysical() {
+    await page.locator('[data-sidebar-source="collection"]').click()
+    await page.getByRole('tab', { name: '实体音乐库', exact: true }).click()
+    await page.getByRole('button', { name: /原版 CD · 2 张 关联验收专辑/ }).click()
+  }
+  await enterPhysical()
+  await page.getByRole('button', { name: '关联 Roon 专辑', exact: true }).click()
+  const picker = page.getByRole('dialog', { name: '选择 Roon 专辑', exact: true })
+  await picker.getByRole('radio', { name: /关联验收专辑/ }).check()
+  await expect(picker.getByRole('button', { name: '确认关联', exact: true })).toBeDisabled()
+  await picker.getByRole('button', { name: '取消', exact: true }).click()
+  await expect(page.getByRole('button', { name: '关联 Roon 专辑', exact: true })).toBeFocused()
+  expect((await page.evaluate(id => window.musicBridge.getPhysicalLinks(id), physical.id)).links).toHaveLength(0)
+  await page.getByRole('button', { name: '关联 Roon 专辑', exact: true }).click()
+  await picker.getByRole('radio', { name: /关联验收专辑/ }).check()
+  await picker.getByRole('combobox', { name: '关系类型', exact: true }).selectOption('exact')
+  await picker.getByLabel('确认此数字版本由这张原版 CD 抓轨', { exact: true }).check()
+  await picker.getByLabel('我已核对候选信息并确认本次选择', { exact: true }).check()
+  await picker.getByRole('button', { name: '确认关联', exact: true }).click()
+  const links = page.getByRole('region', { name: 'Roon 数字关联', exact: true })
+  await expect(links.getByText('Exact · 用户确认同版', { exact: true })).toBeVisible()
+  await expect(links.getByText('CD Rip · 用户单独确认', { exact: true })).toBeVisible()
+  const digitalId = (await page.evaluate(id => window.musicBridge.getPhysicalLinks(id), physical.id)).links[0]!.album.id
+  await links.getByRole('button', { name: '查看数字关联详情', exact: true }).click()
+  await expect(page.getByText('当前 Roon 链接可用', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '查看关联实物', exact: true }).click()
+  await expect(page.getByRole('region', { name: '数字关联详情', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: '关联验收专辑', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '← 返回音乐库', exact: true }).click()
+  await page.getByRole('button', { name: '收藏矩阵', exact: true }).click()
+  const matrix = page.getByRole('region', { name: '收藏矩阵内容', exact: true })
+  await expect(matrix.getByText('CD 2', { exact: true })).toBeVisible()
+  await electronApp.close()
+  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory, MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY: '1' }
+  delete environment.NETEASE_COOKIE
+  electronApp = await electron.launch({ args: [electronEntry], cwd: desktopRoot, env: environment }); page = await electronApp.firstWindow()
+  expect((await page.evaluate(id => window.musicBridge.getDigitalRuntime(id), digitalId)).status).toBe('needs-resolution')
+  await enterPhysical()
+  await page.getByRole('button', { name: '查看数字关联详情', exact: true }).click()
+  await expect(page.getByText('链接待重新定位，收藏关系已保留', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '重新定位 Roon 专辑', exact: true }).click()
+  const relocation = page.getByRole('dialog', { name: '选择 Roon 专辑', exact: true })
+  await relocation.getByRole('radio', { name: /关联验收专辑/ }).check()
+  await relocation.getByLabel('我已核对候选信息并确认本次选择', { exact: true }).check()
+  await relocation.getByRole('button', { name: '确认重新定位', exact: true }).click()
+  await expect(page.getByText('当前 Roon 链接可用', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '查看 Roon 曲目 / 试听', exact: true }).click()
+  await expect(page.getByRole('region', { name: '关联专辑曲目', exact: true })).toContainText('合成关联曲目')
+  for (const size of [{ width: 1440, height: 900 }, { width: 720, height: 480 }]) {
+    await page.setViewportSize(size)
+    expect(await page.locator('.content-scroll').evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+    await page.evaluate(source => window.eval(source), axeSource)
+    const result = await page.evaluate(async () => (window as typeof window & { axe: { run(root: Element): Promise<{ violations: { impact: string | null }[] }> } }).axe.run(document.querySelector('.physical-relations')!))
+    expect(result.violations.filter(v => v.impact === 'critical' || v.impact === 'serious')).toEqual([])
+    await page.screenshot({ path: test.info().outputPath(`physical-links-${size.width}.png`) })
+  }
+  await emitCoreEvent('roon.changed', 'disconnected')
+  await expect(page.getByText('当前 Roon 不可用，收藏关系已保留', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '查看 Roon 曲目 / 试听', exact: true })).toBeDisabled()
+})
+
+test('V3 Roon 关联闭环：候选不符后可重新选择，不形成无法退出的重试', async () => {
+  const digital = await page.evaluate(async () => {
+    const candidate = (await window.musicBridge.searchPhysicalRoonAlbums('关联验收专辑', { offset: 0, limit: 20 })).items[0]!
+    return window.musicBridge.registerDigitalAlbum({ commandId: crypto.randomUUID(), reference: candidate.reference, physicalAbsenceConfirmed: false, userConfirmed: true })
+  })
+  await page.locator('[data-sidebar-source="collection"]').click()
+  await page.getByRole('tab', { name: '实体音乐库', exact: true }).click()
+  await page.getByRole('button', { name: '收藏矩阵', exact: true }).click()
+  await page.getByRole('button', { name: '查看数字关联详情', exact: true }).click()
+  await page.getByRole('button', { name: '重新定位 Roon 专辑', exact: true }).click()
+  const picker = page.getByRole('dialog', { name: '选择 Roon 专辑', exact: true })
+  await picker.getByRole('radio', { name: /另一张合成专辑/ }).check()
+  await picker.getByLabel('我已核对候选信息并确认本次选择', { exact: true }).check()
+  await picker.getByRole('button', { name: '确认重新定位', exact: true }).click()
+  await expect(picker.getByRole('alert')).toContainText('未保存')
+  await expect(picker.getByRole('button', { name: '取消', exact: true })).toBeEnabled()
+  expect((await page.evaluate(id => window.musicBridge.getDigitalAlbum(id), digital.digitalId!)).album.metadata.title).toBe('关联验收专辑')
+  await picker.getByRole('radio', { name: /关联验收专辑/ }).check()
+  await expect(picker.getByRole('button', { name: '确认重新定位', exact: true })).toBeDisabled()
+  await picker.getByLabel('我已核对候选信息并确认本次选择', { exact: true }).check()
+  await picker.getByRole('button', { name: '确认重新定位', exact: true }).click()
+  await expect(picker).toHaveCount(0)
 })

@@ -34,6 +34,7 @@ test('Roon public library converts runtime item keys into scoped references', as
   assert.equal(item.durationMs, 123_000);
   assert.equal('itemKey' in item, false);
   assert.equal('imageKey' in item, false);
+  assert.deepEqual(publicLibrary.getAlbumSnapshot(item.reference), { title: 'Private Album' });
   assert.match(item.reference, /^musicbridge-v2-entity-/u);
   assert.match(item.artworkReference ?? '', /^musicbridge-v2-image-/u);
 
@@ -646,4 +647,43 @@ test('Roon public library exposes typed artist, genre, playlist and search pages
   assert.equal(genreItems.items[0]?.kind, 'album');
   assert.equal(playlistTracks.items[0]?.kind, 'track');
   assert.match(search.items[0]?.reference ?? '', /^musicbridge-v2-entity-/u);
+});
+
+test('Roon 离线后即使恢复同一个服务对象，也不复用旧作用域引用', async () => {
+  let reads = 0;
+  const empty = async () => ({ items: [], offset: 0, level: 0 });
+  const service: RoonLibraryService = {
+    browseAlbums: async () => ({ items: [{ kind: 'album', title: '合成专辑', artist: '合成艺术家', itemKey: 'private-key' }], offset: 0, level: 0 }),
+    browseArtists: empty, browseGenres: empty, browsePlaylists: empty, browseArtist: empty, browseGenre: empty, browsePlaylist: empty,
+    browseAlbum: async () => { reads++; return { items: [], offset: 0, level: 1 }; }, searchLibrary: empty,
+    getImage: async () => ({ contentType: 'image/jpeg', body: JPEG_BYTES }), playTrack: async () => undefined, queueTrack: async () => undefined,
+  };
+  let available = true;
+  const library = createRoonPublicLibrary(() => available ? service : undefined);
+  const first = (await library.browseAlbums({ offset: 0, limit: 20 })).items[0]!;
+  available = false;
+  await assert.rejects(library.browseAlbums({ offset: 0, limit: 20 }));
+  available = true;
+  await assert.rejects(library.browseAlbum(first.reference, { offset: 0, limit: 20 }), error => error instanceof Error && 'code' in error && error.code === 'ROON_LIBRARY_INVALID_REFERENCE');
+  assert.equal(reads, 0);
+  const second = (await library.browseAlbums({ offset: 0, limit: 20 })).items[0]!;
+  assert.notEqual(second.reference, first.reference);
+});
+
+test('断连前发出的专辑请求即使晚到，也不能发布到新的引用作用域', async () => {
+  let finish: ((page: Awaited<ReturnType<RoonLibraryService['browseAlbums']>>) => void) | undefined;
+  const empty = async () => ({ items: [], offset: 0, level: 0 });
+  const service: RoonLibraryService = {
+    browseAlbums: () => new Promise(resolve => { finish = resolve; }),
+    browseArtists: empty, browseGenres: empty, browsePlaylists: empty, browseArtist: empty, browseGenre: empty, browsePlaylist: empty, browseAlbum: empty, searchLibrary: empty,
+    getImage: async () => ({ contentType: 'image/jpeg', body: JPEG_BYTES }), playTrack: async () => undefined, queueTrack: async () => undefined,
+  };
+  let available = true;
+  const library = createRoonPublicLibrary(() => available ? service : undefined);
+  const pending = library.browseAlbums({ offset: 0, limit: 20 });
+  available = false;
+  await assert.rejects(library.browseArtists({ offset: 0, limit: 20 }));
+  available = true;
+  finish!({ items: [{ kind: 'album', title: '旧回复', itemKey: 'old-key' }], offset: 0, level: 0 });
+  await assert.rejects(pending, error => error instanceof Error && 'code' in error && error.code === 'ROON_LIBRARY_INVALID_REFERENCE');
 });

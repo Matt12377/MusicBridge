@@ -2,11 +2,13 @@
 import { nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import type { MusicDetail, MusicEntry, MusicFilter, MusicMutationResult, Page } from '@music-bridge/contracts'
 import PhysicalMusicEditor from './PhysicalMusicEditor.vue'
+import PhysicalRelations from './PhysicalRelations.vue'
 import CollectionPhotoView from './CollectionPhoto.vue'
 const props = defineProps<{ requestedId?: string; active: boolean }>()
 const emit = defineEmits<{ model: [id: string] }>()
 const api = window.musicBridge
 const catalog = shallowRef<Page<MusicEntry>>()
+const matrixMode = ref(false), relationsBusy = ref(false)
 const detail = shallowRef<MusicDetail>()
 const loading = ref(false), saving = ref(false), error = ref(''), notice = ref(''), editing = ref(false)
 const query = ref(''), kind = ref<MusicFilter['kind'] | ''>('')
@@ -25,6 +27,7 @@ async function load(offset = 0): Promise<void> {
   finally { if (active && generation === current) loading.value = false }
 }
 async function open(id: string): Promise<void> {
+  matrixMode.value = false
   const current = ++generation; loading.value = true
   try { const result = await api.getPhysicalMusic(id); if (active && generation === current) { detail.value = result; error.value = '' } }
   catch { if (active && generation === current) error.value = '音乐资料无法读取，请刷新后重试。' }
@@ -64,24 +67,30 @@ onUnmounted(() => { active = false; ++generation })
     <p v-if="error" role="alert">{{ error }} <button v-if="pending && !editing" :disabled="saving" @click="retry">重试原操作</button><button v-else-if="!pending" :disabled="loading" @click="detail ? open(detail.entry.id) : load()">刷新音乐库</button></p>
     <p v-if="notice" role="status">{{ notice }}</p><p v-if="loading" role="status">正在读取音乐资料…</p>
     <template v-if="detail">
-      <header><button :disabled="saving || !!pending" @click="back">← 返回音乐库</button><button :disabled="saving || !!pending" @click="editing = true">{{ detail.release ? '编辑资料' : '补录录音内容' }}</button></header>
+      <header><button :disabled="saving || !!pending || relationsBusy" @click="back">← 返回音乐库</button><button :disabled="saving || !!pending || relationsBusy" @click="editing = true">{{ detail.release ? '编辑资料' : '补录录音内容' }}</button></header>
       <p class="accent">{{ labels[detail.entry.kind] }} · {{ detail.release ? completeness[detail.release.completeness] : detail.recording ? '历史补录，非正式录音证据' : '已录音，内容待补录' }}</p>
       <h2>{{ detail.entry.title }}</h2><p>{{ detail.entry.artist }}</p>
-      <div class="identity"><span>实物数量 {{ detail.entry.quantity }}</span><span>{{ detail.entry.id }}</span><span>Roon 尚未关联</span></div>
+      <div class="identity"><span>实物数量 {{ detail.entry.quantity }}</span><span>{{ detail.entry.id }}</span><span v-if="!detail.release">曲目源关系待后续补齐</span></div>
       <p v-if="detail.entry.modelId">本记录沿用原磁带编号，不增加库存。<button @click="emit('model', detail.entry.modelId!)">查看磁带型号与单盘</button></p>
       <dl v-if="detail.release" class="metadata"><template v-for="field in releaseFields" :key="field.key"><div v-if="detail.release[field.key]"><dt>{{ field.label }}</dt><dd>{{ detail.release[field.key] }}</dd></div></template></dl>
       <p v-else-if="detail.recording?.storage">存放位置：{{ detail.recording.storage }}</p>
       <p v-if="(detail.release ?? detail.recording)?.notes">{{ (detail.release ?? detail.recording)?.notes }}</p>
       <section v-if="detail.release" aria-label="发行版实物照片">
-        <header><h3>实物照片 · {{ detail.photos.length }} / 24</h3><button :disabled="saving || !!pending || detail.photos.length >= 24" @click="addPhoto">添加发行版照片</button></header>
+        <header><h3>实物照片 · {{ detail.photos.length }} / 24</h3><button :disabled="saving || !!pending || relationsBusy || detail.photos.length >= 24" @click="addPhoto">添加发行版照片</button></header>
         <p v-if="!detail.photos.length">尚未添加照片。只保存展示副本，原文件保持不变。</p>
-        <div class="photos"><figure v-for="(photo, index) in detail.photos" :key="photo.id"><button class="photo" :aria-label="`查看发行版照片 ${index + 1}`" @click="showPhoto(photo)"><CollectionPhotoView :photo="photo" :load-photo="api.getPhysicalMusicPhoto" :alt="`${detail.entry.title} 实物照片 ${index + 1}`" /></button><figcaption>实物照片 {{ index + 1 }} <button :disabled="saving || !!pending" @click="removing = photo.id">移除</button></figcaption><div v-if="removing === photo.id"><p>仅移除展示副本。</p><button :disabled="saving || !!pending" @click="removePhoto(photo.id)">确认移除照片</button><button @click="removing = undefined">取消</button></div></figure></div>
+        <div class="photos"><figure v-for="(photo, index) in detail.photos" :key="photo.id"><button class="photo" :aria-label="`查看发行版照片 ${index + 1}`" @click="showPhoto(photo)"><CollectionPhotoView :photo="photo" :load-photo="api.getPhysicalMusicPhoto" :alt="`${detail.entry.title} 实物照片 ${index + 1}`" /></button><figcaption>实物照片 {{ index + 1 }} <button :disabled="saving || !!pending || relationsBusy" @click="removing = photo.id">移除</button></figcaption><div v-if="removing === photo.id"><p>仅移除展示副本。</p><button :disabled="saving || !!pending || relationsBusy" @click="removePhoto(photo.id)">确认移除照片</button><button @click="removing = undefined">取消</button></div></figure></div>
       </section>
+      <PhysicalRelations v-if="detail.release" :key="detail.entry.id" :release="detail.entry" @physical="open" @changed="open(detail.entry.id)" @busy="relationsBusy = $event" />
       <h3>曲目</h3><p v-if="!(detail.release ?? detail.recording)?.tracks.length">曲目待补录，不推测录音内容。</p>
       <ol class="track-list"><li v-for="(track, index) in (detail.release ?? detail.recording)?.tracks" :key="index"><span class="track-position">{{ track.side ? `${track.side} 面` : track.disc ? `CD ${track.disc}` : '' }} · {{ track.position }}</span><span>{{ track.title }}<small>{{ track.artist }}</small></span><span>{{ track.durationSeconds ? `${Math.floor(track.durationSeconds / 60)}:${String(track.durationSeconds % 60).padStart(2, '0')}` : '时长待补录' }}</span></li></ol>
     </template>
+    <template v-else-if="matrixMode">
+      <button :disabled="relationsBusy" @click="matrixMode = false; load()">← 返回音乐库</button>
+      <PhysicalRelations @physical="open" @busy="relationsBusy = $event" />
+    </template>
     <template v-else>
-      <header><div><p class="accent">音乐与实物</p><h2>让音乐，有一个实体位置。</h2><p>原版 CD、原版磁带与自录作品，分别记录，共同收藏。</p></div><button :disabled="saving || !!pending || !catalog" @click="create">添加实体音乐</button></header>
+      <header><div><p class="accent">音乐与实物</p><h2>让音乐，有一个实体位置。</h2><p>原版 CD、原版磁带与自录作品，分别记录，共同收藏。</p></div><button :disabled="saving || !!pending || relationsBusy || !catalog" @click="create">添加实体音乐</button></header>
+      <button :disabled="saving || !!pending" @click="matrixMode = true">收藏矩阵</button>
       <form class="filters" aria-label="筛选实体音乐" @submit.prevent="load(0)"><label>搜索音乐<input v-model.trim="query" maxlength="240" placeholder="专辑或艺术家"></label><label>介质类别<select v-model="kind"><option value="">全部</option><option v-for="(label, key) in labels" :key="key" :value="key">{{ label }}</option></select></label><button :disabled="loading">筛选音乐</button></form>
       <div v-if="catalog?.items.length" class="music-grid"><button v-for="entry in catalog.items" :key="entry.id" class="music-card" @click="open(entry.id)"><div class="cover"><CollectionPhotoView v-if="entry.photo" :photo="entry.photo" :load-photo="api.getPhysicalMusicPhoto" :alt="`${entry.title} 实物代表图`" /><span v-else class="missing-photo">实物照片待添加</span></div><span class="card-kind">{{ labels[entry.kind] }} · {{ entry.quantity }} {{ entry.kind === 'cd' ? '张' : '盘' }}</span><strong>{{ entry.title }}</strong><span class="card-artist">{{ entry.artist }}</span><span v-if="entry.contentStatus !== 'commercial'" class="card-note">{{ entry.contentStatus === 'missing' ? '内容待补录' : '历史录音' }} · {{ entry.id }}</span></button></div>
       <div v-else-if="catalog && !loading && !error" class="empty"><h3>{{ query || kind ? '没有符合筛选的音乐' : '还没有实体音乐记录' }}</h3><p>添加原版 CD 或磁带；已登记的旧录音会自动出现在这里。</p></div>

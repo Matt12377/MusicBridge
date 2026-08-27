@@ -1,3 +1,4 @@
+import type { DigitalAlbum, DigitalAlbumDetail, PhysicalLinksSnapshot, DigitalRuntime, ConfirmPhysicalLinkRequest, RelocateDigitalRequest, RegisterDigitalRequest, RemovePhysicalLinkRequest, ConfirmAbsenceRequest, PhysicalLinkResult, CollectionMatrixRow } from './physical-links.js';
 import type { MusicFilter, MusicEntry, MusicDetail, SaveReleaseRequest, SaveLegacyRequest, MusicMutationResult, AddMusicPhotoRequest, RemoveMusicPhotoRequest } from './physical-music.js';
 import type { PublicError } from './errors.js';
 import type { CollectionFilter, CollectionPhotoImage, CollectionAddPhotoRequest, CollectionChangePhotoRequest, CollectionModel, CollectionDetail, CollectionReceiveRequest, CollectionMaterializeRequest, CollectionUpdateCopyRequest, CollectionPolicyRequest, CollectionMutationResult } from './collection.js';
@@ -73,6 +74,17 @@ export const IPC_COMMANDS = [
   'library.playlist',
   'library.dailyRecommendations',
   'favorites.list',
+  'physicalLinks.search',
+  'physicalLinks.digitalList',
+  'physicalLinks.digitalDetail',
+  'physicalLinks.physical',
+  'physicalLinks.runtime',
+  'physicalLinks.confirm',
+  'physicalLinks.relocate',
+  'physicalLinks.register',
+  'physicalLinks.remove',
+  'physicalLinks.absence',
+  'physicalLinks.matrix',
   'physicalMusic.list',
   'physicalMusic.detail',
   'physicalMusic.saveRelease',
@@ -198,6 +210,17 @@ export interface IpcCommandPayloads {
   'library.playlist': { playlistId: string; page: PageRequest };
   'library.dailyRecommendations': Record<string, never>;
   'favorites.list': { kind?: FavoriteKind; page: PageRequest };
+  'physicalLinks.search': { query: string; page: PageRequest };
+  'physicalLinks.digitalList': { page: PageRequest };
+  'physicalLinks.digitalDetail': { id: string };
+  'physicalLinks.physical': { releaseId: string };
+  'physicalLinks.runtime': { id: string };
+  'physicalLinks.confirm': ConfirmPhysicalLinkRequest;
+  'physicalLinks.relocate': RelocateDigitalRequest;
+  'physicalLinks.register': RegisterDigitalRequest;
+  'physicalLinks.remove': RemovePhysicalLinkRequest;
+  'physicalLinks.absence': ConfirmAbsenceRequest;
+  'physicalLinks.matrix': { page: PageRequest; query?: string };
   'physicalMusic.list': { page: PageRequest; filter?: MusicFilter };
   'physicalMusic.detail': { id: string };
   'physicalMusic.saveRelease': SaveReleaseRequest;
@@ -283,6 +306,17 @@ export interface IpcCommandResults {
   'library.playlist': PlaylistDetail;
   'library.dailyRecommendations': DailyRecommendationsSnapshot;
   'favorites.list': FavoritePage;
+  'physicalLinks.search': RoonLibraryPage;
+  'physicalLinks.digitalList': Page<DigitalAlbum>;
+  'physicalLinks.digitalDetail': DigitalAlbumDetail;
+  'physicalLinks.physical': PhysicalLinksSnapshot;
+  'physicalLinks.runtime': DigitalRuntime;
+  'physicalLinks.confirm': PhysicalLinkResult;
+  'physicalLinks.relocate': PhysicalLinkResult;
+  'physicalLinks.register': PhysicalLinkResult;
+  'physicalLinks.remove': PhysicalLinkResult;
+  'physicalLinks.absence': PhysicalLinkResult;
+  'physicalLinks.matrix': Page<CollectionMatrixRow>;
   'physicalMusic.list': Page<MusicEntry>;
   'physicalMusic.detail': MusicDetail;
   'physicalMusic.saveRelease': MusicMutationResult;

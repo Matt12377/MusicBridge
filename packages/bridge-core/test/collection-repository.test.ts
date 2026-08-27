@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { mkdtemp, rm, stat, symlink } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -311,7 +311,7 @@ test('v1 库存迁移保留全部账本和实体；迁移失败仍保留 v1 可�
   const before = repository.detail(stock.modelId, page); repository.close();
   // 本次迁移只新增这两张表；去除它们后即为上一版本的实际 schema 和业务数据。
   const db = new DatabaseSync(filePath);
-  db.exec('DROP TABLE music_photos; DROP TABLE legacy_recording_content; DROP TABLE music_releases; DROP TABLE music_ledger; DROP TABLE collection_featured_photos; DROP TABLE collection_photos; PRAGMA user_version=1');
+  db.exec('DROP TABLE physical_digital_links; DROP TABLE physical_digital_absence; DROP TABLE digital_albums; DROP TABLE physical_links_ledger; DROP TABLE music_photos; DROP TABLE legacy_recording_content; DROP TABLE music_releases; DROP TABLE music_ledger; DROP TABLE collection_featured_photos; DROP TABLE collection_photos; PRAGMA user_version=1');
   const ledger = db.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(); db.close();
   const failing = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-photos') throw new Error('合成迁移中断'); } });
   assert.throws(() => failing.list(page), /库存暂时不可用/u); failing.close();
@@ -321,7 +321,7 @@ test('v1 库存迁移保留全部账本和实体；迁移失败仍保留 v1 可�
   const migrated = createCollectionRepository({ filePath });
   try { assert.deepEqual(migrated.detail(stock.modelId, page), before); } finally { migrated.close(); }
   const check = new DatabaseSync(filePath, { readOnly: true });
-  try { assert.equal(check.prepare('PRAGMA user_version').get()?.user_version, 3); assert.deepEqual(check.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(), ledger); }
+  try { assert.equal(check.prepare('PRAGMA user_version').get()?.user_version, 4); assert.deepEqual(check.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(), ledger); }
   finally { check.close(); }
 });
 
@@ -399,11 +399,99 @@ test('schema 2 音乐迁移失败回滚，成功后库存、照片、编号和�
   repository.addPhoto({ commandId: randomUUID(), modelId: stock.modelId, image: photoImage });
   const before = repository.detail(stock.modelId, page); repository.close();
   const db = new DatabaseSync(filePath);
-  db.exec('DROP TABLE music_photos; DROP TABLE legacy_recording_content; DROP TABLE music_releases; DROP TABLE music_ledger; PRAGMA user_version=2'); db.close();
+  db.exec('DROP TABLE physical_digital_links; DROP TABLE physical_digital_absence; DROP TABLE digital_albums; DROP TABLE physical_links_ledger; DROP TABLE music_photos; DROP TABLE legacy_recording_content; DROP TABLE music_releases; DROP TABLE music_ledger; PRAGMA user_version=2'); db.close();
   const interrupted = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-music') throw new Error('synthetic'); } });
   assert.throws(() => interrupted.music.list(page), /不可用/u); interrupted.close();
   const old = new DatabaseSync(filePath); assert.equal(old.prepare('PRAGMA user_version').get()?.user_version, 2); old.close();
   const reopened = createCollectionRepository({ filePath }); t.after(() => reopened.close());
   assert.deepEqual(reopened.detail(stock.modelId, page), before);
   assert.equal(reopened.music.list(page).total, 0);
+});
+
+const linkFingerprint = (v: unknown): string => createHash('sha256').update(JSON.stringify(v)).digest('hex');
+test('原版与数字关联双向可见，明确缺少与已有关系互斥，不向自录建立商业关系', async t => {
+  const { repository } = await fixture(t);
+  const release = repository.music.saveRelease({ commandId: randomUUID(), release: { format: 'cd', title: '关联专辑', artist: '合成艺术家', tracks: [], quantity: 1, completeness: 'basic' } });
+  assert.equal(repository.links.physical(release.id).digitalAbsenceConfirmed, false);
+  const missing = { commandId: randomUUID(), id: release.id, target: 'digital' as const, expectedRevision: 1, confirmedAbsent: true, userConfirmed: true as const };
+  repository.links.absence(missing, linkFingerprint(missing));
+  assert.equal(repository.links.physical(release.id).digitalAbsenceConfirmed, true);
+  const command = { commandId: randomUUID(), fingerprint: linkFingerprint('link'), releaseId: release.id, expectedRevision: 2, relation: 'exact' as const, ripFromCdConfirmed: true, metadata: { title: '关联专辑', artist: '合成艺术家', version: '首版' } };
+  const result = repository.links.link(command);
+  assert.deepEqual(repository.links.link(command), result);
+  assert.equal(repository.links.physical(release.id).digitalAbsenceConfirmed, false);
+  const digital = repository.links.digitalDetail(result.digitalId!);
+  assert.equal(digital.links[0]?.release.id, release.id);
+  assert.equal(digital.links[0]?.link.ripFromCdConfirmed, true);
+  assert.equal(repository.links.matrix(page).items[0]?.cd, 1);
+  const impossible = { ...missing, commandId: randomUUID(), expectedRevision: 3 };
+  assert.throws(() => repository.links.absence(impossible, linkFingerprint(impossible)), /仍有数字关联/u);
+  const remove = { commandId: randomUUID(), linkId: result.linkId!, expectedRevision: 1 };
+  repository.links.remove(remove, linkFingerprint(remove));
+  assert.equal(repository.links.digitalDetail(result.digitalId!).links.length, 0);
+  assert.equal(repository.links.physical(release.id).digitalAbsenceConfirmed, false);
+});
+
+test('Roon 关系不凭同名合并数字对象，Related 不计同版收藏，原版磁带不能冒充 CD Rip', async t => {
+  const { repository, filePath } = await fixture(t);
+  const release = repository.music.saveRelease({ commandId: randomUUID(), release: { format: 'cassette', title: '同名专辑', artist: '合成', tracks: [], quantity: 1, completeness: 'basic' } });
+  const command = { commandId: randomUUID(), fingerprint: linkFingerprint('related'), releaseId: release.id, expectedRevision: 1, relation: 'related' as const, ripFromCdConfirmed: false, metadata: { title: '同名专辑' } };
+  const first = repository.links.link(command);
+  const second = repository.links.register(randomUUID(), linkFingerprint('same-name'), { title: '同名专辑' }, true);
+  assert.notEqual(first.digitalId, second.digitalId);
+  const row = repository.links.matrix(page).items.find(r => r.digitalId === first.digitalId)!;
+  assert.equal(row.cassette, 0); assert.equal(row.uncertainRelations, 1);
+  assert.throws(() => repository.links.link({ ...command, commandId: randomUUID(), fingerprint: linkFingerprint('invalid-rip'), expectedRevision: 2, relation: 'exact', ripFromCdConfirmed: true }), /CD Rip/u);
+  repository.close(); const reopened = createCollectionRepository({ filePath }); t.after(() => reopened.close());
+  assert.equal(reopened.links.digitalDetail(second.digitalId!).album.physicalAbsenceConfirmed, true);
+  assert.equal(reopened.links.physical(release.id).links[0]?.link.relation, 'related');
+});
+
+test('关联提交失败不留下数字孤儿或部分关系；历史副本不能作为商业原版关联', async t => {
+  let fail = false;
+  const { repository } = await fixture(t, action => { if (fail && action === 'confirm-physical-link') throw new Error('synthetic'); });
+  const release = repository.music.saveRelease({ commandId: randomUUID(), release: { format: 'cd', title: '回滚', artist: '合成', tracks: [], quantity: 1, completeness: 'basic' } });
+  const command = { commandId: randomUUID(), fingerprint: linkFingerprint('rollback'), releaseId: release.id, expectedRevision: 1, relation: 'probable' as const, ripFromCdConfirmed: false, metadata: { title: '回滚' } };
+  fail = true; assert.throws(() => repository.links.link(command), /不可用/u); fail = false;
+  assert.equal(repository.links.digitalList(page).total, 0);
+  assert.equal(repository.links.physical(release.id).revision, 1);
+  repository.links.link(command);
+  const stock = repository.receive(receipt({ quantities: { sealedBlank: 0, openedBlank: 0, legacyUsed: 1, unclassified: 0 } }));
+  const copy = repository.materialize({ commandId: randomUUID(), lotId: stock.lotId!, bucket: 'legacyUsed', action: 'register-legacy' });
+  assert.throws(() => repository.links.physical(copy.physicalId!), /编号无效/u);
+});
+
+test('schema 3 关系迁移中断回滚，已有音乐与照片完整保留', async t => {
+  const { repository, filePath } = await fixture(t);
+  const saved = repository.music.saveRelease({ commandId: randomUUID(), release: { format: 'cd', title: '迁移验收', artist: '合成', quantity: 1, completeness: 'basic', tracks: [] } });
+  repository.music.addPhoto({ commandId: randomUUID(), id: saved.id, image: photoImage });
+  const before = repository.music.detail(saved.id); repository.close();
+  const db = new DatabaseSync(filePath);
+  db.exec('DROP TABLE physical_digital_links; DROP TABLE physical_digital_absence; DROP TABLE digital_albums; DROP TABLE physical_links_ledger; PRAGMA user_version=3'); db.close();
+  const interrupted = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-links') throw new Error('合成迁移中断'); } });
+  assert.throws(() => interrupted.links.digitalList(page), /不可用/u); interrupted.close();
+  const old = new DatabaseSync(filePath);
+  assert.equal(old.prepare('PRAGMA user_version').get()?.user_version, 3);
+  assert.equal(old.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE name='digital_albums'").get()?.n, 0); old.close();
+  const reopened = createCollectionRepository({ filePath }); t.after(() => reopened.close());
+  assert.deepEqual(reopened.music.detail(saved.id), before);
+  assert.equal(reopened.links.physical(saved.id).links.length, 0);
+});
+
+test('关系数据库和不可变账本只保留本地身份及快照，不落盘 Roon 运行引用', async t => {
+  const { repository, filePath } = await fixture(t);
+  const { createPhysicalLinksCoordinator } = await import('../src/collection/physical-links-coordinator.js');
+  const { createSyntheticRoonLibrary } = await import('../src/roon/synthetic-library.js');
+  const coordinator = createPhysicalLinksCoordinator({ repository: repository.links, library: createSyntheticRoonLibrary() });
+  const candidate = (await coordinator.search('', page)).items[0]!;
+  const result = coordinator.register({ commandId: randomUUID(), reference: candidate.reference, physicalAbsenceConfirmed: false, userConfirmed: true });
+  const check = new DatabaseSync(filePath);
+  assert.throws(() => check.exec('UPDATE physical_links_ledger SET fingerprint=\'changed\''), /immutable ledger/u);
+  assert.throws(() => check.exec('DELETE FROM physical_links_ledger'), /immutable ledger/u);
+  const persisted = JSON.stringify([check.prepare('SELECT * FROM digital_albums').all(), check.prepare('SELECT * FROM physical_links_ledger').all()]);
+  assert.doesNotMatch(persisted, /musicbridge-v2|synthetic-private|itemKey|runtimeReference/u);
+  assert.ok(persisted.includes(result.digitalId!)); check.close(); repository.close();
+  const bytes = await (await import('node:fs/promises')).readFile(filePath);
+  assert.equal(bytes.includes(Buffer.from(candidate.reference)), false);
+  assert.equal(bytes.includes(Buffer.from('synthetic-private-album-1')), false);
 });

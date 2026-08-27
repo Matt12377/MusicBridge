@@ -1402,3 +1402,12 @@ test('实体音乐合同区分原版和历史副本，拒绝路径、混合分�
   const response = { version: 1, id: 'music-contract', ok: true, result: { entry: { id: 'MB-C-00001', kind: 'cd', title: '伪造', artist: '合成', quantity: 1, revision: 1, contentStatus: 'commercial' }, release, photos: [] } };
   assert.equal(validateIpcResponseForCommand(response, 'physicalMusic.detail').ok, false);
 });
+
+test('关联合同要求明确确认，不接受路径、双重身份或不一致的 CD Rip 关系', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const request = { commandId: id, releaseId: id, expectedRevision: 1, reference: 'musicbridge-v2-entity-22222222-2222-5222-8222-222222222222', relation: 'exact', ripFromCdConfirmed: false, userConfirmed: true };
+  const valid = (payload: unknown) => validateIpcRequest({ version: 1, id: 'links-contract', command: 'physicalLinks.confirm', payload }).ok;
+  assert.equal(valid(request), true);
+  for (const bad of [{ ...request, userConfirmed: false }, { ...request, digitalId: id }, { ...request, reference: '/private/music.wav' }, { ...request, itemKey: 'private' }, { ...request, relation: 'probable', ripFromCdConfirmed: true }]) assert.equal(valid(bad), false);
+  assert.equal(validateIpcResponseForCommand({ version: 1, id: 'runtime', ok: true, result: { status: 'unavailable', reference: request.reference } }, 'physicalLinks.runtime').ok, false);
+});

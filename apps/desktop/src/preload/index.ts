@@ -160,5 +160,18 @@ contextBridge.exposeInMainWorld(
       getPhysicalMusicPhoto: photoId => ipcRenderer.invoke('physicalMusic:photo', photoId),
       removePhysicalMusicPhoto: request => ipcRenderer.invoke('physicalMusic:removePhoto', request),
     },
+    {
+      searchPhysicalRoonAlbums: (query, page) => ipcRenderer.invoke('physicalLinks:search', query, page),
+      listDigitalAlbums: page => ipcRenderer.invoke('physicalLinks:digitalList', page),
+      getDigitalAlbum: id => ipcRenderer.invoke('physicalLinks:digitalDetail', id),
+      getPhysicalLinks: releaseId => ipcRenderer.invoke('physicalLinks:physical', releaseId),
+      getDigitalRuntime: id => ipcRenderer.invoke('physicalLinks:runtime', id),
+      confirmPhysicalLink: request => ipcRenderer.invoke('physicalLinks:confirm', request),
+      relocateDigitalAlbum: request => ipcRenderer.invoke('physicalLinks:relocate', request),
+      registerDigitalAlbum: request => ipcRenderer.invoke('physicalLinks:register', request),
+      removePhysicalLink: request => ipcRenderer.invoke('physicalLinks:remove', request),
+      confirmPhysicalAbsence: request => ipcRenderer.invoke('physicalLinks:absence', request),
+      getCollectionMatrix: (page, query) => ipcRenderer.invoke('physicalLinks:matrix', page, query),
+    },
   ),
 )

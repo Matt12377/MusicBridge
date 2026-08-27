@@ -191,3 +191,9 @@ test('remote Core mode rejects an unknown local port profile', () => {
     remoteStreamPort: 38519,
   }))
 })
+
+test('合成 Roon 目录仅在明确 UI E2E 环境透传，正常运行忽略该开关', () => {
+  const parent = { MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY: '1' };
+  assert.equal(buildCoreEnvironment(parent, { startupTest: false, uiE2e: false, coreCrashGate: false }).MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY, undefined);
+  assert.equal(buildCoreEnvironment(parent, { startupTest: false, uiE2e: true, coreCrashGate: false }).MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY, '1');
+});

@@ -1,3 +1,4 @@
+import { isAlbumQuery, isConfirmPhysicalLinkRequest, isRelocateDigitalRequest, isRegisterDigitalRequest, isRemovePhysicalLinkRequest, isConfirmAbsenceRequest } from '@music-bridge/contracts'
 import { isMusicId, isMusicFilter, isSaveReleaseRequest, isSaveLegacyRequest, isAddMusicPhotoRequest, isRemoveMusicPhotoRequest } from '@music-bridge/contracts'
 import {
   app,
@@ -1080,6 +1081,47 @@ function registerIpcHandlers(
   ipcMain.handle('library:daily-recommendations', (event) =>
     invokeCore(event, () => supervisor.request('library.dailyRecommendations', {})),
   )
+  ipcMain.handle('physicalLinks:digitalDetail', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '关联对象编号无效')
+    return supervisor.request('physicalLinks.digitalDetail', { id })
+  }))
+  ipcMain.handle('physicalLinks:physical', (event, releaseId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(releaseId)) return publicIpcFailure('INVALID_IPC_REQUEST', '关联对象编号无效')
+    return supervisor.request('physicalLinks.physical', { releaseId })
+  }))
+  ipcMain.handle('physicalLinks:runtime', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '关联对象编号无效')
+    return supervisor.request('physicalLinks.runtime', { id })
+  }))
+  ipcMain.handle('physicalLinks:digitalList', (event, page: unknown) => invokeCore(event, () => supervisor.request('physicalLinks.digitalList', { page: requireLibraryPage(page) })))
+  ipcMain.handle('physicalLinks:search', (event, query: unknown, page: unknown) => invokeCore(event, () => {
+    if (!isAlbumQuery(query)) return publicIpcFailure('INVALID_IPC_REQUEST', '专辑查询无效')
+    return supervisor.request('physicalLinks.search', { query, page: requireLibraryPage(page) })
+  }))
+  ipcMain.handle('physicalLinks:matrix', (event, page: unknown, query: unknown) => invokeCore(event, () => {
+    if (query !== undefined && !isAlbumQuery(query)) return publicIpcFailure('INVALID_IPC_REQUEST', '矩阵查询无效')
+    return supervisor.request('physicalLinks.matrix', { page: requireLibraryPage(page), ...(query !== undefined ? { query } : {}) })
+  }))
+  ipcMain.handle('physicalLinks:confirm', (event, request: unknown) => invokeCore(event, () => {
+    if (!isConfirmPhysicalLinkRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '关联确认内容无效')
+    return supervisor.request('physicalLinks.confirm', request)
+  }))
+  ipcMain.handle('physicalLinks:relocate', (event, request: unknown) => invokeCore(event, () => {
+    if (!isRelocateDigitalRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '关联确认内容无效')
+    return supervisor.request('physicalLinks.relocate', request)
+  }))
+  ipcMain.handle('physicalLinks:register', (event, request: unknown) => invokeCore(event, () => {
+    if (!isRegisterDigitalRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '关联确认内容无效')
+    return supervisor.request('physicalLinks.register', request)
+  }))
+  ipcMain.handle('physicalLinks:remove', (event, request: unknown) => invokeCore(event, () => {
+    if (!isRemovePhysicalLinkRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '关联确认内容无效')
+    return supervisor.request('physicalLinks.remove', request)
+  }))
+  ipcMain.handle('physicalLinks:absence', (event, request: unknown) => invokeCore(event, () => {
+    if (!isConfirmAbsenceRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '关联确认内容无效')
+    return supervisor.request('physicalLinks.absence', request)
+  }))
   ipcMain.handle('physicalMusic:list', (event, page: unknown, filter: unknown) => invokeCore(event, () => {
     if (filter !== undefined && !isMusicFilter(filter)) return publicIpcFailure('INVALID_IPC_REQUEST', '音乐筛选无效')
     return supervisor.request('physicalMusic.list', { page: requireLibraryPage(page), ...(filter ? { filter } : {}) })

@@ -1076,3 +1076,13 @@ test('V3 实体音乐库 IPC 首次返回空列表，不依赖 Roon', async t =>
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(port.messages.at(-1), { version: 1, id: 'music-list', ok: true, result: { items: [], offset: 0, limit: 20, total: 0, hasMore: false } });
 });
+
+test('V3 数字关联 IPC 未连接 Roon 时仍返回持久化空目录', async t => {
+  const collection = createCollectionRepository({ filePath: ':memory:' });
+  t.after(() => collection.close());
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { collection }));
+  port.send({ version: 1, id: 'digital-list', command: 'physicalLinks.digitalList', payload: { page: { offset: 0, limit: 20 } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'digital-list', ok: true, result: { items: [], offset: 0, limit: 20, total: 0, hasMore: false } });
+});
