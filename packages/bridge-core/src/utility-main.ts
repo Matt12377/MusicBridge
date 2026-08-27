@@ -137,8 +137,16 @@ async function dispatch(
   request: IpcRequest,
 ): Promise<unknown> {
   switch (request.command as IpcCommand) {
-    case 'collection.list':
-      return collectionFor(runtime).list((request.payload as IpcCommandPayloads['collection.list']).page);
+    case 'collection.addPhoto':
+      return collectionFor(runtime).addPhoto(request.payload as IpcCommandPayloads['collection.addPhoto']);
+    case 'collection.photo':
+      return collectionFor(runtime).photo((request.payload as IpcCommandPayloads['collection.photo']).photoId);
+    case 'collection.changePhoto':
+      return collectionFor(runtime).changePhoto(request.payload as IpcCommandPayloads['collection.changePhoto']);
+    case 'collection.list': {
+      const payload = request.payload as IpcCommandPayloads['collection.list'];
+      return collectionFor(runtime).list(payload.page, payload.filter);
+    }
     case 'collection.detail': {
       const payload = request.payload as IpcCommandPayloads['collection.detail'];
       return collectionFor(runtime).detail(payload.modelId, payload.page);

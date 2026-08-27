@@ -1,11 +1,12 @@
 import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue'
-import type { CollectionDetail, CollectionModel, CollectionMutationResult, Page } from '@music-bridge/contracts'
+import type { CollectionDetail, CollectionFilter, CollectionModel, CollectionMutationResult, Page } from '@music-bridge/contracts'
 
 const firstPage = { offset: 0, limit: 24 }
 
 export function useCollection() {
   const catalog = shallowRef<Page<CollectionModel>>()
   const detail = shallowRef<CollectionDetail>()
+  const filter = ref<CollectionFilter>({})
   const loading = ref(false)
   const saving = ref(false)
   const error = ref('')
@@ -19,7 +20,7 @@ export function useCollection() {
     const generation = ++listGeneration
     loading.value = true
     try {
-      const result = await window.musicBridge.listCollection({ ...firstPage, offset })
+      const result = await window.musicBridge.listCollection({ ...firstPage, offset }, { ...filter.value })
       if (active && generation === listGeneration) { catalog.value = result; if (!pending.value) error.value = '' }
     } catch {
       if (active && generation === listGeneration) error.value = '无法读取库存。请重试；现有数据不会被清空。'
@@ -65,7 +66,21 @@ export function useCollection() {
     pending.value = operation
     return retry()
   }
+  async function addPhoto(physicalId?: string): Promise<void> {
+    if (saving.value || pending.value || !detail.value) return
+    const modelId = detail.value.model.id
+    saving.value = true; error.value = ''; notice.value = ''
+    try {
+      const image = await window.musicBridge.pickCollectionPhoto()
+      saving.value = false
+      if (!image || !active) return
+      const request = { commandId: crypto.randomUUID(), modelId, image, ...(physicalId ? { physicalId } : {}) }
+      await mutate(() => window.musicBridge.addCollectionPhoto(request))
+    } catch {
+      error.value = '照片未导入。请选择 25 MB、4000 万像素以内的有效 PNG / JPEG 普通文件；原文件未修改。'
+    } finally { saving.value = false }
+  }
   onMounted(() => { void load() })
   onUnmounted(() => { active = false; ++listGeneration; ++detailGeneration })
-  return { catalog, detail, loading, saving, error, notice, pending, blocked: computed(() => saving.value || !!pending.value), load, openModel, closeModel, mutate, retry }
+  return { catalog, detail, filter, loading, saving, error, notice, pending, blocked: computed(() => saving.value || !!pending.value), load, openModel, closeModel, mutate, retry, addPhoto }
 }

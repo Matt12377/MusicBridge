@@ -3,11 +3,12 @@ wave: WAVE-5
 status: active
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-049
-activeBranch: codex/task-049-v3-inventory
-activeBaseCommit: 5ed814a7f65bc02c200039379006929f4aced112
+activeTask: TASK-050
+activeBranch: codex/task-050-v3-collection-photos
+activeBaseCommit: 71eca199f2678c9dfe6ba765193e09ef4207d89a
 order:
   - TASK-048
   - TASK-049
-stopAfter: TASK-049
-reviewBoundary: inventory-ledger-and-receiving
+  - TASK-050
+stopAfter: TASK-050
+reviewBoundary: photos-featured-copy-and-collection-wall

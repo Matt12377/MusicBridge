@@ -122,6 +122,10 @@ export interface MusicBridgePublicApi extends CollectionPublicApi {
 }
 
 export const PUBLIC_API_KEYS = [
+  'pickCollectionPhoto',
+  'addCollectionPhoto',
+  'getCollectionPhoto',
+  'changeCollectionPhoto',
   'listCollection',
   'getCollectionModel',
   'receiveCollectionStock',
@@ -345,6 +349,8 @@ export function createPreloadApi(
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   return Object.freeze({
     ...(collectionApi ?? {
+      pickCollectionPhoto: collectionUnavailable, addCollectionPhoto: collectionUnavailable,
+      getCollectionPhoto: collectionUnavailable, changeCollectionPhoto: collectionUnavailable,
       listCollection: collectionUnavailable, getCollectionModel: collectionUnavailable,
       receiveCollectionStock: collectionUnavailable, materializeCollectionCopy: collectionUnavailable,
       updateCollectionCopy: collectionUnavailable, setCollectionPolicy: collectionUnavailable,

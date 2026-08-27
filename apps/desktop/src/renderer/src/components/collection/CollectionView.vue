@@ -4,10 +4,18 @@ import type { CollectionModel, CollectionReceiveRequest } from '@music-bridge/co
 import { useCollection } from '../../composables/useCollection'
 import CollectionReceiveDialog from './CollectionReceiveDialog.vue'
 import CollectionModelDetail from './CollectionModelDetail.vue'
+import CollectionPhoto from './CollectionPhoto.vue'
 
 const inventory = useCollection()
 const collectionApi = window.musicBridge
-const { catalog, detail, loading, saving, error, notice, pending, blocked } = inventory
+const { catalog, detail, filter, loading, saving, error, notice, pending, blocked } = inventory
+const filterDraft = ref({ query: '', brand: '', decade: '' })
+function applyFilter(): void {
+  filter.value = { query: filterDraft.value.query, brand: filterDraft.value.brand,
+    ...(filterDraft.value.decade ? { decade: filterDraft.value.decade === 'unknown' ? 'unknown' as const : Number(filterDraft.value.decade) } : {}) }
+  void inventory.load(0)
+}
+function clearFilter(): void { filterDraft.value = { query: '', brand: '', decade: '' }; applyFilter() }
 const receiving = ref(false)
 const receiveModel = ref<CollectionModel>()
 function beginReceive(model?: CollectionModel): void { receiveModel.value = model; receiving.value = true }
@@ -56,6 +64,8 @@ function onTabKeydown(event: KeyboardEvent): void {
         @close="inventory.closeModel" @receive="beginReceive(detail.model)" @page="inventory.openModel(detail.model.id, $event)"
         @materialize="request => inventory.mutate(() => collectionApi.materializeCollectionCopy(request))"
         @update-copy="request => inventory.mutate(() => collectionApi.updateCollectionCopy(request))"
+        @add-photo="inventory.addPhoto"
+        @change-photo="request => inventory.mutate(() => collectionApi.changeCollectionPhoto(request))"
         @policy="request => inventory.mutate(() => collectionApi.setCollectionPolicy(request))" />
       <header v-if="view.id !== 'tapes' || !detail" class="collection-heading">
         <div>
@@ -69,10 +79,18 @@ function onTabKeydown(event: KeyboardEvent): void {
       </header>
 
       <template v-if="view.id === 'tapes' && !detail">
+        <form class="inventory-filters" aria-label="筛选磁带收藏" @submit.prevent="applyFilter">
+          <label>关键词<input v-model.trim="filterDraft.query" maxlength="120" placeholder="品牌、型号或版次"></label>
+          <label>品牌<input v-model.trim="filterDraft.brand" maxlength="120" placeholder="输入品牌全名"></label>
+          <label>年代<select v-model="filterDraft.decade"><option value="">全部年代</option><option value="unknown">年代待确认</option><option v-for="decade in [1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020, 2030]" :key="decade" :value="String(decade)">{{ decade }} 年代</option></select></label>
+          <button type="submit" :disabled="loading">筛选</button><button type="button" :disabled="loading" @click="clearFilter">清除</button>
+        </form>
         <p v-if="loading" role="status" class="collection-status">正在读取库存…</p>
         <div v-if="catalog?.items.length" class="inventory-grid">
           <button v-for="model in catalog.items" :key="model.id" class="inventory-card" type="button" @click="inventory.openModel(model.id)">
-            <div class="inventory-placeholder" aria-hidden="true"><svg viewBox="0 0 220 130" fill="none"><rect x="20" y="20" width="180" height="95" rx="12" stroke="currentColor"/><rect x="36" y="35" width="148" height="48" rx="8" stroke="currentColor"/><circle cx="64" cy="59" r="14" stroke="currentColor"/><circle cx="156" cy="59" r="14" stroke="currentColor"/><path d="M78 59h64M55 115l10-20h90l10 20" stroke="currentColor"/></svg><span>实物照片待添加</span></div>
+            <div v-if="model.featuredPhoto" class="inventory-card-photo"><CollectionPhoto :photo="model.featuredPhoto" :alt="`${model.brand} ${model.name} 实物代表图`" /></div>
+            <div v-else class="inventory-placeholder" aria-hidden="true"><svg viewBox="0 0 220 130" fill="none"><rect x="20" y="20" width="180" height="95" rx="12" stroke="currentColor"/><rect x="36" y="35" width="148" height="48" rx="8" stroke="currentColor"/><circle cx="64" cy="59" r="14" stroke="currentColor"/><circle cx="156" cy="59" r="14" stroke="currentColor"/><path d="M78 59h64M55 115l10-20h90l10 20" stroke="currentColor"/></svg><span>实物照片待添加</span></div>
+            <span v-if="model.featuredPhoto" class="inventory-photo-source">实物照片{{ model.featuredPhoto.physicalId ? ` · ${model.featuredPhoto.physicalId}` : '' }}</span>
             <span class="inventory-card-title">{{ model.brand }} {{ model.name }}</span>
             <span class="inventory-card-edition">{{ model.edition || '版次待确认' }} · {{ model.lengths.map(n => n ? `${n} min` : '时长待确认').join(' / ') }}</span>
             <span class="inventory-card-counts"><span>未开封 <b>{{ model.counts.sealedBlank }}</b></span><span>已拆空白 <b>{{ model.counts.openedBlank }}</b></span><span>全部 <b>{{ model.counts.total }}</b></span></span>
@@ -96,9 +114,9 @@ function onTabKeydown(event: KeyboardEvent): void {
           <circle cx="141" cy="78" r="42" stroke="currentColor" stroke-opacity=".15" /><circle cx="141" cy="78" r="13" stroke="currentColor" />
           <circle cx="141" cy="78" r="4" stroke="currentColor" />
         </svg>
-        <h3>{{ view.id === 'tapes' ? '还没有磁带库存' : '这里将保存你拥有的音乐' }}</h3>
+        <h3>{{ view.id === 'tapes' ? (filter.query || filter.brand || filter.decade ? '没有符合筛选的型号' : '还没有磁带库存') : '这里将保存你拥有的音乐' }}</h3>
         <p class="collection-description">{{ view.id === 'tapes' ? '实物照片成为封面。打开一个型号，就能看到未开封、已拆空白和已录磁带，以及它们录下的音乐。' : '按音乐浏览实体收藏；自录磁带保留原有型号与实体编号，不重复计算库存。' }}</p>
-        <p :id="`collection-status-${view.id}`" class="collection-status">{{ view.id === 'tapes' ? '从一批磁带开始录入。实物照片管理将在后续任务接入。' : '实体音乐关联与照片管理尚未接入，当前不展示示例库存。' }}</p>
+        <p :id="`collection-status-${view.id}`" class="collection-status">{{ view.id === 'tapes' ? '录入后打开型号，即可添加实物照片；也可清除筛选查看全部收藏。' : '实体音乐关联尚未接入，当前不展示示例库存。' }}</p>
       </div>
     </div>
     <CollectionReceiveDialog v-if="receiving" :model="receiveModel" :busy="saving" :error="error" :retryable="!!pending" @close="receiving = false" @save="receive" @retry="retry" />
@@ -130,6 +148,12 @@ h3 { margin: 0; font-size: 19px; font-weight: 550; letter-spacing: -.02em; }
 .inventory-card:hover { border-color: var(--mb-accent); }
 .inventory-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; aspect-ratio: 1.6; background: var(--mb-glass-clear); color: var(--mb-text-secondary); font-size: 12px; }
 .inventory-placeholder svg { width: 70%; max-height: 150px; opacity: .65; }
+.inventory-card-photo { box-sizing: border-box; width: 100%; aspect-ratio: 1.6; padding: 12px; background: var(--mb-bg-base); }
+.inventory-photo-source { padding: 8px 18px 0; font-size: 12px; color: var(--mb-accent); }
+.inventory-filters { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; margin: 0 0 24px; }
+.inventory-filters label { display: grid; gap: 7px; min-width: 120px; flex: 1; font-size: 12px; color: var(--mb-text-secondary); }
+.inventory-filters input, .inventory-filters select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 40px; padding: 8px 10px; border: 1px solid var(--mb-glass-border); border-radius: 8px; background: var(--mb-bg-base); color: var(--mb-text-primary); font: inherit; }
+.inventory-filters button { min-height: 40px; padding: 8px 14px; border: 1px solid var(--mb-glass-border); border-radius: 8px; background: var(--mb-glass-clear); color: var(--mb-text-primary); font-size: 12px; }
 .inventory-card-title { padding: 18px 18px 0; font-size: 17px; font-weight: 600; overflow-wrap: anywhere; }
 .inventory-card-edition { padding: 8px 18px; color: var(--mb-text-secondary); font-size: 12px; overflow-wrap: anywhere; }
 .inventory-card-counts { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 18px 18px; padding-top: 12px; border-top: 1px solid var(--mb-divider); color: var(--mb-text-secondary); font-size: 12px; }

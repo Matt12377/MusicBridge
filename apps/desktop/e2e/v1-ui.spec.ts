@@ -1,5 +1,5 @@
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
@@ -1387,6 +1387,166 @@ test('V3 库存读取失败不显示空库，重试原命令且提交回执丢�
   await expect(form).toHaveCount(0)
   await page.getByRole('button', { name: /测试重试 只入库一次/ }).click()
   await expect(page.getByTestId('inventory-total')).toHaveText('2')
+})
+
+test('V3 实物照片原生导入、代表图与重启持久化，不预分配单盘编号', async () => {
+  test.setTimeout(60_000)
+  const stock = await page.evaluate(() => window.musicBridge.receiveCollectionStock({
+    commandId: crypto.randomUUID(),
+    model: { brand: '照片验收品牌', name: '照片验收型号', edition: '合成版次', year: 1990, format: 'cassette', tapeType: 'II', identification: 'verified' },
+    lengthMinutes: 90, quantities: { sealedBlank: 5, openedBlank: 0, legacyUsed: 0, unclassified: 0 },
+  }))
+  await page.locator('[data-sidebar-source="collection"]').click()
+  await page.getByRole('button', { name: /照片验收品牌 照片验收型号/ }).click()
+  await expect(page.getByTestId('inventory-total')).toHaveText('5')
+  await expect(page.getByRole('button', { name: '添加实物照片', exact: true })).toBeVisible()
+  const detail = () => page.evaluate(modelId => window.musicBridge.getCollectionModel(modelId, { offset: 0, limit: 20 }), stock.modelId)
+  expect((await detail()).copies.total).toBe(0)
+  // 仅代替原生选择器的选择动作。解码、缩放、IPC、SQLite 与图片显示均走正式代码。
+  async function makePhoto(filename: string, channel: number): Promise<string> {
+    const bytes = await electronApp.evaluate(({ nativeImage }, channel) => {
+      const width = 2400, height = 1500, bitmap = Buffer.alloc(width * height * 4)
+      for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+        const p = (y * width + x) * 4
+        const reel = (x - 700) ** 2 + (y - 750) ** 2 < 220 ** 2 || (x - 1700) ** 2 + (y - 750) ** 2 < 220 ** 2
+        bitmap[p] = reel ? 35 : 110; bitmap[p + 1] = reel ? 35 : channel; bitmap[p + 2] = reel ? 35 : 180; bitmap[p + 3] = 255
+      }
+      const image = nativeImage.createFromBitmap(bitmap, { width, height })
+      return Array.from(channel === 100 ? image.toPNG() : image.toJPEG(90))
+    }, channel)
+    const filePath = path.join(diagnosticDirectory, filename)
+    await writeFile(filePath, Buffer.from(bytes))
+    return filePath
+  }
+  async function selectPhoto(filePath: string | null): Promise<void> {
+    await electronApp.evaluate(({ dialog }, filePath) => {
+      dialog.showOpenDialog = async () => ({ canceled: filePath === null, filePaths: filePath ? [filePath] : [] })
+    }, filePath)
+    await page.getByRole('button', { name: '添加实物照片', exact: true }).click()
+    await expect(page.getByRole('button', { name: '添加实物照片', exact: true })).toBeEnabled()
+  }
+  const firstPath = await makePhoto('synthetic-photo.png', 100)
+  const original = await readFile(firstPath)
+  await selectPhoto(firstPath)
+  const photos = page.getByRole('region', { name: '实物照片', exact: true })
+  await expect(photos.locator('figure')).toHaveCount(1)
+  await expect.poll(() => photos.locator('img').first().evaluate(el => (el as HTMLImageElement).naturalWidth)).toBe(1200)
+  const saved = (await detail()).photos![0]!
+  expect([saved.width, saved.height]).toEqual([1200, 750])
+  expect((await detail()).copies.total).toBe(0)
+  await selectPhoto(null)
+  await expect(photos.locator('figure')).toHaveCount(1)
+  await selectPhoto(firstPath)
+  await expect(photos.locator('figure')).toHaveCount(1)
+  const secondPath = await makePhoto('synthetic-photo-2.jpeg', 200)
+  await selectPhoto(secondPath)
+  await expect(photos.locator('figure')).toHaveCount(2)
+  await photos.locator('figure').nth(1).getByRole('button', { name: '设为代表图', exact: true }).click()
+  await expect(photos.locator('figure').nth(1).getByText('收藏墙代表图', { exact: true })).toBeVisible()
+  const selected = (await detail()).model.featuredPhoto!.id
+  for (const size of [{ width: 1440, height: 900 }, { width: 720, height: 480 }]) {
+    await page.setViewportSize(size)
+    expect(await page.locator('.content-scroll').evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+    await photos.getByRole('button', { name: '查看实物照片 1', exact: true }).press('Enter')
+    const dialog = page.getByRole('dialog', { name: '实物照片大图' })
+    await expect(dialog).toBeVisible()
+    if (size.width === 720) {
+      // 原生 close 通知异步投递；模拟上一轮关闭的通知晚于重新打开，不能清空当前照片。
+      await dialog.evaluate(el => el.dispatchEvent(new Event('close')))
+    }
+    await expect.poll(() => dialog.locator('img').evaluate(el => (el as HTMLImageElement).naturalHeight)).toBe(750)
+    expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+    await page.evaluate(source => window.eval(source), axeSource)
+    const violations = await page.evaluate(async () => {
+      const root = document.querySelector('dialog[open]')!
+      const result = await (window as typeof window & { axe: { run: (root: Element) => Promise<{ violations: { id: string; impact: string | null }[] }> } }).axe.run(root)
+      return result.violations.filter(item => item.impact === 'critical' || item.impact === 'serious')
+    })
+    expect(violations).toEqual([])
+    await page.screenshot({ path: test.info().outputPath(`photos-dialog-${size.width}.png`) })
+    await dialog.getByRole('button', { name: '关闭大图', exact: true }).click()
+    await expect(photos.getByRole('button', { name: '查看实物照片 1', exact: true })).toBeFocused()
+  }
+  await page.getByRole('button', { name: '← 返回收藏', exact: true }).click()
+  const card = page.getByRole('button', { name: /照片验收品牌 照片验收型号/ })
+  await expect.poll(() => card.locator('img').evaluate(el => (el as HTMLImageElement).naturalWidth)).toBe(1200)
+  await page.getByRole('textbox', { name: '关键词', exact: true }).fill('不会命中的筛选')
+  await page.getByRole('button', { name: '筛选', exact: true }).click()
+  await expect(page.getByText('没有符合筛选的型号', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '清除', exact: true }).click()
+  await expect(card).toBeVisible()
+  await page.screenshot({ path: test.info().outputPath('photos-wall.png') })
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.screenshot({ path: test.info().outputPath('photos-wall-1440.png') })
+  await electronApp.close()
+  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
+  delete environment.NETEASE_COOKIE
+  electronApp = await electron.launch({ args: [electronEntry], cwd: desktopRoot, env: environment })
+  page = await electronApp.firstWindow()
+  await page.locator('[data-sidebar-source="collection"]').click()
+  await page.getByRole('button', { name: /照片验收品牌 照片验收型号/ }).click()
+  expect((await detail()).model.featuredPhoto!.id).toBe(selected)
+  await expect(page.getByTestId('inventory-total')).toHaveText('5')
+  await expect.poll(() => page.getByRole('region', { name: '实物照片', exact: true }).locator('img').first().evaluate(el => (el as HTMLImageElement).naturalWidth)).toBe(1200)
+  const restored = page.getByRole('region', { name: '实物照片', exact: true })
+  await restored.locator('figure').nth(1).getByRole('button', { name: '移除照片', exact: true }).click()
+  await restored.getByRole('button', { name: '确认移除', exact: true }).click()
+  await expect(restored.locator('figure')).toHaveCount(1)
+  expect((await detail()).model.featuredPhoto!.id).toBe(saved.id)
+  expect((await detail()).copies.total).toBe(0)
+  expect(await readFile(firstPath)).toEqual(original)
+})
+
+test('V3 单盘照片拒绝非法文件；加载失败可重试且不丢库存', async () => {
+  const stock = await page.evaluate(() => window.musicBridge.receiveCollectionStock({
+    commandId: crypto.randomUUID(),
+    model: { brand: '单盘照片', name: '失败恢复验收', edition: '合成版次', year: null, format: 'cassette', tapeType: 'I', identification: 'verified' },
+    lengthMinutes: 60, quantities: { sealedBlank: 0, openedBlank: 1, legacyUsed: 0, unclassified: 0 },
+  }))
+  const copy = await page.evaluate(lotId => window.musicBridge.materializeCollectionCopy({ commandId: crypto.randomUUID(), lotId, bucket: 'openedBlank', action: 'identify' }), stock.lotId!)
+  await page.locator('[data-sidebar-source="collection"]').click()
+  await page.getByRole('button', { name: /单盘照片 失败恢复验收/ }).click()
+  const invalid = path.join(diagnosticDirectory, 'invalid.jpg')
+  await writeFile(invalid, '这不是一张照片')
+  await electronApp.evaluate(({ dialog }, filePath) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filePath] }) }, invalid)
+  await page.getByRole('button', { name: '添加实物照片', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('照片未导入')
+  await expect(page.getByTestId('inventory-total')).toHaveText('1')
+  const bytes = await electronApp.evaluate(({ nativeImage }) => Array.from(nativeImage.createFromBitmap(Buffer.from([80, 100, 120, 255]), { width: 1, height: 1 }).toPNG()))
+  const valid = path.join(diagnosticDirectory, 'valid.png')
+  await writeFile(valid, Buffer.from(bytes))
+  await electronApp.evaluate(({ dialog, ipcMain }, filePath) => {
+    dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filePath] })
+    const handlers = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => unknown> })._invokeHandlers
+    const photo = handlers.get('collection:photo')!
+    ipcMain.removeHandler('collection:photo')
+    let failed = false
+    ipcMain.handle('collection:photo', (...args) => { if (!failed) { failed = true; throw new Error('[INVENTORY_UNAVAILABLE] 合成图片读取失败') } return photo(...args) })
+  }, valid)
+  await page.getByRole('button', { name: `添加单盘照片 ${copy.physicalId}`, exact: true }).click()
+  const photos = page.getByRole('region', { name: '实物照片', exact: true })
+  await expect(photos.getByText('照片暂不可用', { exact: true })).toBeVisible()
+  await expect(photos.getByText(copy.physicalId!, { exact: true })).toBeVisible()
+  await expect(page.getByTestId('inventory-total')).toHaveText('1')
+  await expect(photos.getByRole('button', { name: '重新加载照片', exact: true })).toBeVisible()
+  await photos.getByRole('button', { name: '重新加载照片', exact: true }).click()
+  await expect.poll(() => photos.locator('img').evaluate(el => (el as HTMLImageElement).naturalWidth)).toBe(1)
+  await photos.getByRole('button', { name: '移除照片', exact: true }).click()
+  await photos.getByRole('button', { name: '取消', exact: true }).click()
+  await expect(photos.locator('figure')).toHaveCount(1)
+  await page.setViewportSize({ width: 720, height: 480 })
+  await page.evaluate(source => window.eval(source), axeSource)
+  const violations = await page.evaluate(async () => {
+    const root = document.querySelector('[data-component="CollectionView"]')!
+    const result = await (window as typeof window & { axe: { run: (root: Element) => Promise<{ violations: { id: string; impact: string | null }[] }> } }).axe.run(root)
+    return result.violations.filter(item => item.impact === 'critical' || item.impact === 'serious')
+  })
+  expect(violations).toEqual([])
+  await page.screenshot({ path: test.info().outputPath('single-copy-photo-720.png') })
+  const detail = await page.evaluate(modelId => window.musicBridge.getCollectionModel(modelId, { offset: 0, limit: 20 }), stock.modelId)
+  expect(detail.photos?.[0]?.physicalId).toBe(copy.physicalId)
+  expect(detail.copies.total).toBe(1)
+  expect(detail.model.counts.openedBlank).toBe(1)
 })
 
 test('packaged UI has no critical or serious axe findings', async () => {

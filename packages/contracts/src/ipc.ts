@@ -1,5 +1,5 @@
 import type { PublicError } from './errors.js';
-import type { CollectionModel, CollectionDetail, CollectionReceiveRequest, CollectionMaterializeRequest, CollectionUpdateCopyRequest, CollectionPolicyRequest, CollectionMutationResult } from './collection.js';
+import type { CollectionFilter, CollectionPhotoImage, CollectionAddPhotoRequest, CollectionChangePhotoRequest, CollectionModel, CollectionDetail, CollectionReceiveRequest, CollectionMaterializeRequest, CollectionUpdateCopyRequest, CollectionPolicyRequest, CollectionMutationResult } from './collection.js';
 import type {
   DailyRecommendationsSnapshot,
   ArtistDetail,
@@ -72,6 +72,9 @@ export const IPC_COMMANDS = [
   'library.playlist',
   'library.dailyRecommendations',
   'favorites.list',
+  'collection.addPhoto',
+  'collection.photo',
+  'collection.changePhoto',
   'collection.list',
   'collection.detail',
   'collection.receive',
@@ -187,7 +190,10 @@ export interface IpcCommandPayloads {
   'library.playlist': { playlistId: string; page: PageRequest };
   'library.dailyRecommendations': Record<string, never>;
   'favorites.list': { kind?: FavoriteKind; page: PageRequest };
-  'collection.list': { page: PageRequest };
+  'collection.list': { page: PageRequest; filter?: CollectionFilter };
+  'collection.addPhoto': CollectionAddPhotoRequest;
+  'collection.photo': { photoId: string };
+  'collection.changePhoto': CollectionChangePhotoRequest;
   'collection.detail': { modelId: string; page: PageRequest };
   'collection.receive': CollectionReceiveRequest;
   'collection.materialize': CollectionMaterializeRequest;
@@ -263,6 +269,9 @@ export interface IpcCommandResults {
   'library.dailyRecommendations': DailyRecommendationsSnapshot;
   'favorites.list': FavoritePage;
   'collection.list': Page<CollectionModel>;
+  'collection.addPhoto': CollectionMutationResult;
+  'collection.photo': CollectionPhotoImage;
+  'collection.changePhoto': CollectionMutationResult;
   'collection.detail': CollectionDetail;
   'collection.receive': CollectionMutationResult;
   'collection.materialize': CollectionMutationResult;

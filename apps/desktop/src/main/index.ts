@@ -41,7 +41,11 @@ import {
   isCollectionMaterializeRequest,
   isCollectionUpdateCopyRequest,
   isCollectionPolicyRequest,
+  isCollectionFilter,
+  isCollectionAddPhotoRequest,
+  isCollectionChangePhotoRequest,
 } from '@music-bridge/contracts'
+import { pickCollectionPhoto, CollectionPhotoImportError } from './collection-photos'
 import { appendFileSync, chmodSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, realpath } from 'node:fs/promises'
 import path from 'node:path'
@@ -1075,7 +1079,36 @@ function registerIpcHandlers(
   ipcMain.handle('library:daily-recommendations', (event) =>
     invokeCore(event, () => supervisor.request('library.dailyRecommendations', {})),
   )
-  ipcMain.handle('collection:list', (event, page: unknown) => invokeCore(event, () => supervisor.request('collection.list', { page: requireLibraryPage(page) })))
+  let photoPickerBusy = false
+  ipcMain.handle('collection:pick-photo', async (event) => {
+    const window = requireTrustedRenderer(event)
+    if (photoPickerBusy) return publicIpcFailure('NOT_READY', '照片选择器已打开')
+    photoPickerBusy = true
+    try {
+      return await pickCollectionPhoto(
+        () => dialog.showOpenDialog(window, { title: '添加实物照片', properties: ['openFile'], filters: [{ name: '实物照片', extensions: ['png', 'jpg', 'jpeg'] }] }),
+        bytes => nativeImage.createFromBuffer(bytes),
+      )
+    } catch (error) {
+      return publicIpcFailure('INVALID_IPC_REQUEST', error instanceof CollectionPhotoImportError ? error.message : '照片导入失败')
+    } finally { photoPickerBusy = false }
+  })
+  ipcMain.handle('collection:add-photo', (event, request: unknown) => invokeCore(event, () => {
+    if (!isCollectionAddPhotoRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '照片内容无效')
+    return supervisor.request('collection.addPhoto', request)
+  }))
+  ipcMain.handle('collection:photo', (event, photoId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(photoId)) return publicIpcFailure('INVALID_IPC_REQUEST', '照片编号无效')
+    return supervisor.request('collection.photo', { photoId })
+  }))
+  ipcMain.handle('collection:change-photo', (event, request: unknown) => invokeCore(event, () => {
+    if (!isCollectionChangePhotoRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '照片修改无效')
+    return supervisor.request('collection.changePhoto', request)
+  }))
+  ipcMain.handle('collection:list', (event, page: unknown, filter: unknown) => invokeCore(event, () => {
+    if (filter !== undefined && !isCollectionFilter(filter)) return publicIpcFailure('INVALID_IPC_REQUEST', '库存筛选无效')
+    return supervisor.request('collection.list', { page: requireLibraryPage(page), ...(filter ? { filter } : {}) })
+  }))
   ipcMain.handle('collection:detail', (event, modelId: unknown, page: unknown) => invokeCore(event, () => {
     if (!isCollectionId(modelId)) return publicIpcFailure('INVALID_IPC_REQUEST', '库存型号无效')
     return supervisor.request('collection.detail', { modelId, page: requireLibraryPage(page) })

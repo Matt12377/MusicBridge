@@ -6,6 +6,9 @@ import {
   isCollectionId, isCollectionReceiveRequest, isCollectionMaterializeRequest,
   isCollectionUpdateCopyRequest, isCollectionPolicyRequest, isCollectionModel,
   isCollectionDetail, isCollectionMutationResult,
+  isCollectionFilter, isCollectionAddPhotoRequest, isCollectionChangePhotoRequest, isCollectionPhotoImage,
+  MAX_COLLECTION_PHOTO_BYTES, MAX_COLLECTION_PHOTOS_PER_MODEL,
+  type CollectionFilter, type CollectionPhoto, type CollectionPhotoImage, type CollectionAddPhotoRequest, type CollectionChangePhotoRequest,
   type CollectionModel, type CollectionDetail, type CollectionLot, type CollectionCopy,
   type CollectionReceiveRequest, type CollectionMaterializeRequest,
   type CollectionUpdateCopyRequest, type CollectionPolicyRequest, type CollectionMutationResult,
@@ -19,7 +22,10 @@ const conflict = (message: string): never => { throw new CollectionError('INVENT
 const unavailable = (): never => { throw new CollectionError('INVENTORY_UNAVAILABLE', '库存暂时不可用，请重试；现有数据不会被自动清除。'); };
 
 export interface CollectionRepository {
-  list(page: PageRequest): Page<CollectionModel>;
+  list(page: PageRequest, filter?: CollectionFilter): Page<CollectionModel>;
+  addPhoto(request: CollectionAddPhotoRequest): CollectionMutationResult;
+  photo(photoId: string): CollectionPhotoImage;
+  changePhoto(request: CollectionChangePhotoRequest): CollectionMutationResult;
   detail(modelId: string, page: PageRequest): CollectionDetail;
   receive(request: CollectionReceiveRequest): CollectionMutationResult;
   materialize(request: CollectionMaterializeRequest): CollectionMutationResult;
@@ -30,6 +36,7 @@ export interface CollectionRepository {
 interface ModelRow { id: string; descriptor: string; policy: CollectorPolicy; minimum_sealed: number; revision: number }
 interface LotRow { id: string; sku_id: string; model_id: string; minutes: number; acquired: number; sealed: number; opened: number; legacy: number; unknown: number }
 interface CopyRow { physical_id: string; lot_id: string; sku_id: string; model_id: string; minutes: number; packaging: CollectionCopy['packaging']; usage: CollectionCopy['usage']; available: number; origin: CollectionCopy['origin']; revision: number; reserved_from: string | null }
+interface PhotoRow { id: string; model_id: string; physical_id: string | null; width: number; height: number }
 
 const schema = `
 CREATE TABLE collection_models (
@@ -70,6 +77,24 @@ CREATE TRIGGER ledger_no_update BEFORE UPDATE ON inventory_ledger BEGIN SELECT R
 CREATE TRIGGER ledger_no_delete BEFORE DELETE ON inventory_ledger BEGIN SELECT RAISE(ABORT,'immutable ledger'); END;
 PRAGMA user_version=1;
 `;
+const photoMigration = `
+CREATE TABLE collection_photos (
+  id TEXT PRIMARY KEY, model_id TEXT NOT NULL REFERENCES collection_models(id),
+  physical_id TEXT REFERENCES physical_copies(physical_id),
+  content BLOB NOT NULL CHECK(length(content) BETWEEN 4 AND 1048576),
+  content_hash TEXT NOT NULL, width INTEGER NOT NULL CHECK(width BETWEEN 1 AND 1200),
+  height INTEGER NOT NULL CHECK(height BETWEEN 1 AND 1200)
+) STRICT;
+CREATE UNIQUE INDEX collection_photo_identity ON collection_photos(model_id,COALESCE(physical_id,''),content_hash);
+CREATE TABLE collection_featured_photos (
+  model_id TEXT PRIMARY KEY REFERENCES collection_models(id),
+  photo_id TEXT NOT NULL REFERENCES collection_photos(id) ON DELETE CASCADE
+) STRICT;
+PRAGMA user_version=2;
+`;
+function publicPhoto(row: PhotoRow): CollectionPhoto {
+  return { id: row.id, modelId: row.model_id, ...(row.physical_id ? { physicalId: row.physical_id } : {}), width: row.width, height: row.height, source: 'user-photo' };
+}
 const lotSelect = 'SELECT l.*, s.model_id, s.minutes FROM inventory_lots l JOIN collection_skus s ON s.id=l.sku_id';
 const copySelect = 'SELECT c.*, l.sku_id, s.model_id, s.minutes FROM physical_copies c JOIN inventory_lots l ON l.id=c.lot_id JOIN collection_skus s ON s.id=l.sku_id';
 const columns = { sealedBlank: 'sealed', openedBlank: 'opened', legacyUsed: 'legacy', unclassified: 'unknown' } as const;
@@ -110,13 +135,22 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
     }
     const db = new DatabaseSync(options.filePath, { enableForeignKeyConstraints: true, allowExtension: false });
     try {
+      // WAL 恢复期间，首次版本读取也可能遇到短暂锁；先设置等待，再访问数据库内容。
+      db.exec('PRAGMA busy_timeout=1000');
       const version = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-      if (version !== 0 && version !== 1) return unavailable();
+      if (![0, 1, 2].includes(version)) return unavailable();
       if (version === 0 && Number(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").get()?.n) !== 0) return unavailable();
-      db.exec('PRAGMA busy_timeout=1000; PRAGMA trusted_schema=OFF; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
-      if (version === 0) {
+      db.exec('PRAGMA trusted_schema=OFF; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
+      if (version < 2) {
         db.exec('BEGIN IMMEDIATE');
-        try { db.exec(schema); db.exec('COMMIT'); } catch (error) { db.exec('ROLLBACK'); throw error; }
+        try {
+          // 等待写锁后重读版本，避免两个首次连接同时执行迁移。
+          const currentVersion = Number(db.prepare('PRAGMA user_version').get()?.user_version);
+          if (![0, 1, 2].includes(currentVersion)) return unavailable();
+          if (currentVersion === 0) db.exec(schema);
+          if (currentVersion < 2) { db.exec(photoMigration); options.beforeCommit?.('migrate-photos'); }
+          db.exec('COMMIT');
+        } catch (error) { db.exec('ROLLBACK'); throw error; }
       }
       database = db;
       return db;
@@ -156,10 +190,12 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
   function model(db: DatabaseSync, id: string): CollectionModel {
     const row = one<ModelRow>(db, 'SELECT * FROM collection_models WHERE id=?', id);
     if (!row) return conflict('型号不存在，请刷新收藏。');
+    const featured = one<PhotoRow>(db, 'SELECT p.id,p.model_id,p.physical_id,p.width,p.height FROM collection_photos p LEFT JOIN collection_featured_photos f ON f.model_id=p.model_id WHERE p.model_id=? ORDER BY (f.photo_id=p.id) DESC,p.rowid LIMIT 1', id);
     const result = { ...JSON.parse(row.descriptor) as CollectionDescriptor, id: row.id,
       collectorPolicy: row.policy, minimumSealedReserve: row.minimum_sealed, revision: row.revision,
       lengths: many<{ minutes: number }>(db, 'SELECT minutes FROM collection_skus WHERE model_id=? ORDER BY minutes', id).map(s => s.minutes || null),
-      counts: counts(db, id) };
+      counts: counts(db, id), photoCount: count(db, 'SELECT COUNT(*) AS n FROM collection_photos WHERE model_id=?', id),
+      ...(featured ? { featuredPhoto: publicPhoto(featured) } : {}) };
     if (!isCollectionModel(result)) return unavailable();
     return result;
   }
@@ -197,9 +233,18 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
   }
 
   return {
-    list(page) {
-      if (!validPage(page)) return conflict('库存请求无效，请检查分页。');
-      return guarded(db => paged(many<{ id: string }>(db, 'SELECT id FROM collection_models ORDER BY rowid DESC LIMIT ? OFFSET ?', page.limit, page.offset).map(r => model(db, r.id)), page, count(db, 'SELECT COUNT(*) AS n FROM collection_models')));
+    list(page, filter = {}) {
+      if (!validPage(page) || !isCollectionFilter(filter)) return conflict('库存请求无效，请检查分页和筛选。');
+      const conditions: string[] = [], values: SQLInputValue[] = [];
+      if (filter.query?.trim()) {
+        conditions.push("instr(lower(json_extract(descriptor,'$.brand') || ' ' || json_extract(descriptor,'$.name') || ' ' || json_extract(descriptor,'$.edition')), ?) > 0");
+        values.push(normalized(filter.query).toLowerCase());
+      }
+      if (filter.brand?.trim()) { conditions.push("lower(json_extract(descriptor,'$.brand'))=?"); values.push(normalized(filter.brand).toLowerCase()); }
+      if (filter.decade === 'unknown') conditions.push("json_extract(descriptor,'$.year') IS NULL");
+      else if (filter.decade !== undefined) { conditions.push("json_extract(descriptor,'$.year') BETWEEN ? AND ?"); values.push(filter.decade, filter.decade + 9); }
+      const where = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : '';
+      return guarded(db => paged(many<{ id: string }>(db, `SELECT id FROM collection_models${where} ORDER BY rowid DESC LIMIT ? OFFSET ?`, ...values, page.limit, page.offset).map(r => model(db, r.id)), page, count(db, `SELECT COUNT(*) AS n FROM collection_models${where}`, ...values)));
     },
     detail(modelId, page) {
       if (!isCollectionId(modelId) || !validPage(page)) return conflict('库存请求无效，请检查型号和分页。');
@@ -207,6 +252,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
         const lots = many<LotRow>(db, `${lotSelect} WHERE s.model_id=? ORDER BY l.rowid DESC LIMIT ? OFFSET ?`, modelId, page.limit, page.offset);
         const copies = many<CopyRow>(db, `${copySelect} WHERE s.model_id=? ORDER BY c.rowid DESC LIMIT ? OFFSET ?`, modelId, page.limit, page.offset);
         const detail: CollectionDetail = { model: model(db, modelId),
+          photos: many<PhotoRow>(db, 'SELECT id,model_id,physical_id,width,height FROM collection_photos WHERE model_id=? ORDER BY rowid', modelId).map(publicPhoto),
           lots: paged(lots.map((r): CollectionLot => ({ id: r.id, skuId: r.sku_id, lengthMinutes: r.minutes || null, quantityAcquired: r.acquired,
             quantities: { sealedBlank: r.sealed, openedBlank: r.opened, legacyUsed: r.legacy, unclassified: r.unknown } })), page,
           count(db, 'SELECT COUNT(*) AS n FROM inventory_lots l JOIN collection_skus s ON s.id=l.sku_id WHERE s.model_id=?', modelId)),
@@ -280,6 +326,49 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
         if (prior.revision !== request.expectedRevision) return conflict('型号已改变，请刷新后重试。');
         db.prepare('UPDATE collection_models SET policy=?,minimum_sealed=?,revision=revision+1 WHERE id=?').run(request.collectorPolicy, request.minimumSealedReserve, request.modelId);
         return { result: { modelId: request.modelId }, evidence: { kind: 'POLICY_CHANGED', before: { policy: prior.collectorPolicy, minimumSealedReserve: prior.minimumSealedReserve }, after: { policy: request.collectorPolicy, minimumSealedReserve: request.minimumSealedReserve } } };
+      });
+    },
+    addPhoto(request) {
+      return transaction('add-photo', request, isCollectionAddPhotoRequest(request), db => {
+        model(db, request.modelId);
+        if (request.physicalId) {
+          const copy = one<CopyRow>(db, `${copySelect} WHERE c.physical_id=?`, request.physicalId);
+          if (!copy || copy.model_id !== request.modelId) return conflict('该单盘不属于此型号。');
+        }
+        const content = Buffer.from(request.image.dataUrl.slice(23), 'base64');
+        if (content.length > MAX_COLLECTION_PHOTO_BYTES || content.toString('base64') !== request.image.dataUrl.slice(23) || content.at(-2) !== 0xff || content.at(-1) !== 0xd9) return conflict('照片内容无效。');
+        const hash = createHash('sha256').update(content).digest('hex');
+        const duplicate = one<{ id: string }>(db, "SELECT id FROM collection_photos WHERE model_id=? AND COALESCE(physical_id,'')=? AND content_hash=?", request.modelId, request.physicalId ?? '', hash);
+        if (duplicate) return { result: { modelId: request.modelId, photoId: duplicate.id }, evidence: { kind: 'PHOTO_DUPLICATE', hash } };
+        if (count(db, 'SELECT COUNT(*) AS n FROM collection_photos WHERE model_id=?', request.modelId) >= MAX_COLLECTION_PHOTOS_PER_MODEL) return conflict('每个型号最多保存 24 张照片，请先移除不需要的照片。');
+        const photoId = randomUUID();
+        db.prepare('INSERT INTO collection_photos VALUES (?,?,?,?,?,?,?)').run(photoId, request.modelId, request.physicalId ?? null, content, hash, request.image.width, request.image.height);
+        db.prepare('UPDATE collection_models SET revision=revision+1 WHERE id=?').run(request.modelId);
+        return { result: { modelId: request.modelId, photoId }, evidence: { kind: 'PHOTO_ADDED', hash, physicalId: request.physicalId ?? null } };
+      });
+    },
+    photo(photoId) {
+      if (!isCollectionId(photoId)) return conflict('照片编号无效。');
+      return guarded(db => {
+        const row = one<PhotoRow & { content: Uint8Array; content_hash: string }>(db, 'SELECT * FROM collection_photos WHERE id=?', photoId);
+        if (!row) return conflict('照片不存在或已移除。');
+        const bytes = Buffer.from(row.content);
+        if (createHash('sha256').update(bytes).digest('hex') !== row.content_hash) return unavailable();
+        const result = { dataUrl: `data:image/jpeg;base64,${bytes.toString('base64')}`, width: row.width, height: row.height };
+        if (!isCollectionPhotoImage(result)) return unavailable();
+        return result;
+      });
+    },
+    changePhoto(request) {
+      return transaction('change-photo', request, isCollectionChangePhotoRequest(request), db => {
+        const current = model(db, request.modelId);
+        if (current.revision !== request.expectedRevision) return conflict('型号已改变，请刷新后重试。');
+        const photo = one<PhotoRow>(db, 'SELECT id,model_id,physical_id,width,height FROM collection_photos WHERE id=?', request.photoId);
+        if (!photo || photo.model_id !== request.modelId) return conflict('照片不存在或不属于此型号。');
+        if (request.action === 'remove') db.prepare('DELETE FROM collection_photos WHERE id=?').run(request.photoId);
+        else db.prepare('INSERT INTO collection_featured_photos VALUES (?,?) ON CONFLICT(model_id) DO UPDATE SET photo_id=excluded.photo_id').run(request.modelId, request.photoId);
+        db.prepare('UPDATE collection_models SET revision=revision+1 WHERE id=?').run(request.modelId);
+        return { result: { modelId: request.modelId, photoId: request.photoId }, evidence: { kind: request.action === 'remove' ? 'PHOTO_REMOVED' : 'FEATURED_PHOTO', photoId: request.photoId } };
       });
     },
     close() { database?.close(); database = undefined; closed = true; },

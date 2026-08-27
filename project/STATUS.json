@@ -78,18 +78,18 @@
   },
   "v3Development": {
     "wave": "WAVE-5",
-    "task": "TASK-049",
-    "branch": "codex/task-049-v3-inventory",
-    "baseCommit": "5ed814a7f65bc02c200039379006929f4aced112",
-    "state": "synthetic-pass-owner-review-pending",
-    "implementationCommit": "88693078df507b1f6893e26c48ca0a366dba6491",
-    "reportCommit": "b1a46d2a5271ee61e50c2b93a4176ecb73484cce",
-    "nextTask": "TASK-050",
+    "task": "TASK-050",
+    "branch": "codex/task-050-v3-collection-photos",
+    "baseCommit": "71eca199f2678c9dfe6ba765193e09ef4207d89a",
+    "state": "local-automated-gates-passed",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "nextTask": "TASK-051",
     "previousTask": {
-      "task": "TASK-048",
-      "implementationCommit": "7ca3423841a595116d6dc7b5ffe1d18c60ca792b",
-      "reportCommit": "aa67e76353705a9798c4eba3b24fd102ae126e51",
-      "finalCommit": "5ed814a7f65bc02c200039379006929f4aced112"
+      "task": "TASK-049",
+      "implementationCommit": "88693078df507b1f6893e26c48ca0a366dba6491",
+      "reportCommit": "b1a46d2a5271ee61e50c2b93a4176ecb73484cce",
+      "finalCommit": "71eca199f2678c9dfe6ba765193e09ef4207d89a"
     },
     "gates": {
       "automated": "PASS",
@@ -98,21 +98,17 @@
       "realRecording": "NOT_RUN",
       "ownerProductAcceptance": "NOT_RUN",
       "fullPrdGateC": "NOT_RUN",
-      "focusedE2E": "6/6",
-      "fullE2E": "28/28",
-      "contracts": "30/30",
-      "core": "441/441",
-      "desktop": "163/163",
-      "security": "22/22",
-      "electron": "4/4",
-      "inventoryRepository": "17/17",
-      "inventoryIpc": "2/2",
-      "v3ViewAccessibility": "PASS_720_AND_DEFAULT_WINDOW",
-      "controlPlane": "PASS_WAVE3",
-      "v3Identity": "PASS",
+      "photoEntryRed": "EXPECTED_FAIL_MISSING_ADD_PHOTO_BUTTON_AFTER_REAL_STOCK_RECEIPT",
+      "verify": "PASS_CONTRACTS_31_CORE_448_DESKTOP_167",
+      "security": "PASS_22",
+      "electronLifecycle": "PASS_4",
+      "photoFocused": "PASS_2",
+      "dialogCloseRace": "PASS_REPEAT_3_AFTER_BEHAVIOR_RED",
+      "fullE2e": "PASS_30",
+      "controlPlane": "PASS_WAVE_3_LEGACY",
       "boundaries": "PASS",
-      "cycles": "PASS",
-      "runtime": "Node 22.23.2 / pnpm 10.17.1"
+      "cycles": "PASS_102_FILES",
+      "realPhotos": "NOT_RUN"
     },
     "integration": "NOT_RUN",
     "push": "NOT_AUTHORIZED",
@@ -120,7 +116,8 @@
       "V2 闲置播放器未选设备提示对比度 4.01:1，1440px 主页对照复现；本导航任务未修改",
       "PRD F-01 执行资产保留策略未定",
       "TASK-047 真实验收继续待执行",
-      "未确认操作的跨 Renderer/应用重启 outbox 恢复待后续覆盖；当前 UI 仅保留会话内原命令重试，数据库幂等结果已持久化"
+      "未确认操作的跨 Renderer/应用重启 outbox 恢复待后续覆盖；当前 UI 仅保留会话内原命令重试，数据库幂等结果已持久化",
+      "旧侧栏窄窗后恢复宽窗的收起状态有文字裁切视觉现象，留待总体验收复查"
     ]
   }
 }

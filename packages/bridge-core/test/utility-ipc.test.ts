@@ -35,6 +35,16 @@ class FakePort implements UtilityPort {
   }
 }
 
+test('V3 照片读取通过正式 IPC 返回不存在，而不是未知命令', async t => {
+  const collection = createCollectionRepository({ filePath: ':memory:' });
+  t.after(() => collection.close());
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { collection }));
+  port.send({ version: 1, id: 'missing-photo', command: 'collection.photo', payload: { photoId: '11111111-1111-4111-8111-111111111111' } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'missing-photo', ok: false, error: { code: 'INVENTORY_CONFLICT', message: '照片不存在或已移除。' } });
+});
+
 test('V3 库存通过正式 IPC 返回空分页，不要求 Provider 或 Roon', async t => {
   const port = new FakePort();
   const page = { items: [], offset: 0, limit: 20, total: 0, hasMore: false };

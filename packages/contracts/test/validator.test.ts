@@ -10,6 +10,21 @@ import {
   validateIpcRequest,
 } from '../src/index.js';
 
+test('V3 照片命令和筛选合同有界，不接受外部路径或任意 URL', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const image = { dataUrl: 'data:image/jpeg;base64,/9j/2Q==', width: 1, height: 1 };
+  const request = (command: string, payload: unknown) => validateIpcRequest({ version: 1, id: 'photo', command, payload }).ok;
+  assert.equal(request('collection.list', { page: { offset: 0, limit: 20 }, filter: { query: 'SA', brand: 'TDK', decade: 1990 } }), true);
+  assert.equal(request('collection.addPhoto', { commandId: id, modelId: id, image }), true);
+  assert.equal(request('collection.photo', { photoId: id }), true);
+  assert.equal(request('collection.changePhoto', { commandId: id, modelId: id, photoId: id, expectedRevision: 1, action: 'feature' }), true);
+  for (const bad of [{ ...image, dataUrl: 'file:///private/photo.jpg' }, { ...image, dataUrl: 'data:image/svg+xml;base64,PHN2Zz4=' }, { ...image, width: 20000 }, { ...image, path: '/private/photo.jpg' }]) {
+    assert.equal(request('collection.addPhoto', { commandId: id, modelId: id, image: bad }), false);
+  }
+  assert.equal(request('collection.list', { page: { offset: 0, limit: 20 }, filter: { decade: 1991 } }), false);
+  assert.equal(request('collection.list', { page: { offset: 0, limit: 20 }, filter: { query: 'x'.repeat(121) } }), false);
+});
+
 test('V3 库存合同接受有界的查询与收货请求', () => {
   for (const [command, payload] of [
     ['collection.list', { page: { offset: 0, limit: 20 } }],

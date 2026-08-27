@@ -11,6 +11,7 @@ import type { CollectionReceiveRequest } from '@music-bridge/contracts';
 import { createCollectionRepository } from '../src/collection/repository.js';
 
 const page = { offset: 0, limit: 100 };
+const photoImage = { dataUrl: 'data:image/jpeg;base64,/9j/2Q==', width: 1, height: 1 };
 const receipt = (overrides: Partial<CollectionReceiveRequest> = {}): CollectionReceiveRequest => ({
   commandId: randomUUID(),
   model: { brand: 'TDK', name: 'SA', edition: '1990', year: 1990, format: 'cassette', tapeType: 'II', identification: 'verified' },
@@ -124,6 +125,31 @@ test('两个独立进程并发提交相同命令，只有一个数量和账本�
   try { assert.equal(db.prepare('SELECT COUNT(*) AS n FROM inventory_ledger').get()?.n, 1); } finally { db.close(); }
 });
 
+test('首次版本读取也等待短暂数据库锁，释放后仅提交一次', async t => {
+  const { repository, filePath } = await fixture(t);
+  repository.list(page); repository.close();
+  const blocker = new DatabaseSync(filePath);
+  blocker.exec('PRAGMA journal_mode=DELETE; BEGIN EXCLUSIVE');
+  t.after(() => blocker.close());
+  const command = receipt();
+  const modulePath = fileURLToPath(new URL('../src/collection/repository.ts', import.meta.url));
+  const script = `import {createCollectionRepository} from ${JSON.stringify(modulePath)}; process.stdout.write('ready\\n'); const r=createCollectionRepository({filePath:${JSON.stringify(filePath)}}); process.stdout.write(JSON.stringify(r.receive(${JSON.stringify(command)}))); r.close();`;
+  let released = false;
+  const release = () => { if (!released) { blocker.exec('COMMIT'); released = true; } };
+  try {
+    const result = await new Promise<string>((resolve, reject) => {
+      const child = spawn(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', script], { timeout: 10_000 });
+      let stdout = '', stderr = '', timer: ReturnType<typeof setTimeout> | undefined;
+      child.stdout.on('data', data => { stdout += data; if (!timer && stdout.includes('ready\n')) timer = setTimeout(release, 200); });
+      child.stderr.on('data', data => { stderr += data; });
+      child.on('error', reject);
+      child.on('close', code => { clearTimeout(timer); release(); code === 0 ? resolve(stdout.slice('ready\n'.length)) : reject(new Error(`子进程失败 ${code}: ${stderr}`)); });
+    });
+    assert.deepEqual(JSON.parse(result), JSON.parse(String(blocker.prepare('SELECT result FROM inventory_ledger WHERE command_id=?').get(command.commandId)?.result)));
+    assert.equal(blocker.prepare('SELECT COUNT(*) AS n FROM inventory_ledger').get()?.n, 1);
+  } finally { release(); }
+});
+
 test('提交前故障回滚数量、实体 ID 及账本；可安全重试', async t => {
   let fail = true;
   const { repository, filePath } = await fixture(t, action => { if (action === 'materialize' && fail) throw new Error('合成故障'); });
@@ -223,4 +249,92 @@ test('拒绝符号链接数据库，不修改其目标', async t => {
   assert.throws(() => repository.list(page), /库存暂时不可用/u);
   const preserved = new DatabaseSync(target, { readOnly: true });
   try { assert.equal(preserved.prepare('PRAGMA user_version').get()?.user_version, 99); } finally { preserved.close(); }
+});
+
+test('品牌、关键词与年代查询在分页前筛选，不改变全量库存', async t => {
+  const { repository } = await fixture(t);
+  const a = receipt(); repository.receive(a);
+  repository.receive(receipt({ model: { ...a.model, name: 'SA 100%', year: 1988 } }));
+  repository.receive(receipt({ model: { ...a.model, brand: 'Sony', year: null } }));
+  assert.equal(repository.list(page, { brand: 'tdk', decade: 1990 }).total, 1);
+  assert.equal(repository.list(page, { query: '%' }).total, 1);
+  assert.equal(repository.list(page, { decade: 'unknown' }).items[0]?.brand, 'Sony');
+  assert.equal(repository.list(page).total, 3);
+});
+
+test('照片与已有单盘归属、代表图切换、删除回退均不改变数量', async t => {
+  const { repository, filePath } = await fixture(t);
+  const stock = repository.receive(receipt());
+  const request = { commandId: randomUUID(), modelId: stock.modelId, image: photoImage };
+  const first = repository.addPhoto(request);
+  assert.deepEqual(repository.addPhoto(request), first);
+  assert.equal(repository.addPhoto({ ...request, commandId: randomUUID() }).photoId, first.photoId);
+  let detail = repository.detail(stock.modelId, page);
+  assert.equal(detail.copies.total, 0); assert.equal(detail.model.counts.total, 8);
+  assert.equal(detail.model.featuredPhoto?.id, first.photoId); assert.equal(detail.photos?.length, 1);
+  const copy = repository.materialize({ commandId: randomUUID(), lotId: stock.lotId!, bucket: 'sealedBlank', action: 'identify' });
+  const second = repository.addPhoto({ ...request, commandId: randomUUID(), physicalId: copy.physicalId! });
+  detail = repository.detail(stock.modelId, page);
+  repository.changePhoto({ commandId: randomUUID(), modelId: stock.modelId, photoId: second.photoId!, expectedRevision: detail.model.revision, action: 'feature' });
+  assert.equal(repository.detail(stock.modelId, page).model.featuredPhoto?.physicalId, copy.physicalId);
+  assert.throws(() => repository.changePhoto({ commandId: randomUUID(), modelId: stock.modelId, photoId: first.photoId!, expectedRevision: 1, action: 'feature' }), /已改变/u);
+  const revision = repository.detail(stock.modelId, page).model.revision;
+  repository.changePhoto({ commandId: randomUUID(), modelId: stock.modelId, photoId: second.photoId!, expectedRevision: revision, action: 'remove' });
+  assert.equal(repository.detail(stock.modelId, page).model.featuredPhoto?.id, first.photoId);
+  assert.throws(() => repository.photo(second.photoId!), /照片不存在/u);
+  repository.close();
+  const reopened = createCollectionRepository({ filePath });
+  try { assert.deepEqual(reopened.photo(first.photoId!), photoImage); assert.equal(reopened.detail(stock.modelId, page).model.counts.total, 8); }
+  finally { reopened.close(); }
+});
+
+test('照片跨型号归属与提交前故障不会留下半份照片或修改库存', async t => {
+  let fail = false;
+  const { repository } = await fixture(t, action => { if (action === 'add-photo' && fail) throw new Error('合成照片提交故障'); });
+  const a = receipt(); const stock = repository.receive(a);
+  const other = repository.receive(receipt({ model: { ...a.model, edition: '别版' } }));
+  const copy = repository.materialize({ commandId: randomUUID(), lotId: other.lotId!, bucket: 'sealedBlank', action: 'identify' });
+  assert.throws(() => repository.addPhoto({ commandId: randomUUID(), modelId: stock.modelId, physicalId: copy.physicalId!, image: photoImage }), /不属于/u);
+  fail = true;
+  const command = { commandId: randomUUID(), modelId: stock.modelId, image: photoImage };
+  assert.throws(() => repository.addPhoto(command), /库存暂时不可用/u);
+  assert.equal(repository.detail(stock.modelId, page).photos?.length, 0);
+  fail = false; repository.addPhoto(command);
+  assert.equal(repository.detail(stock.modelId, page).photos?.length, 1);
+});
+
+test('v1 库存迁移保留全部账本和实体；迁移失败仍保留 v1 可恢复状态', async t => {
+  const { repository, filePath } = await fixture(t);
+  const stock = repository.receive(receipt());
+  repository.materialize({ commandId: randomUUID(), lotId: stock.lotId!, bucket: 'sealedBlank', action: 'open' });
+  repository.setPolicy({ commandId: randomUUID(), modelId: stock.modelId, expectedRevision: 1, collectorPolicy: 'preserve-sealed', minimumSealedReserve: 2 });
+  const before = repository.detail(stock.modelId, page); repository.close();
+  // 本次迁移只新增这两张表；去除它们后即为上一版本的实际 schema 和业务数据。
+  const db = new DatabaseSync(filePath);
+  db.exec('DROP TABLE collection_featured_photos; DROP TABLE collection_photos; PRAGMA user_version=1');
+  const ledger = db.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(); db.close();
+  const failing = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-photos') throw new Error('合成迁移中断'); } });
+  assert.throws(() => failing.list(page), /库存暂时不可用/u); failing.close();
+  const old = new DatabaseSync(filePath, { readOnly: true });
+  assert.equal(old.prepare('PRAGMA user_version').get()?.user_version, 1);
+  assert.equal(old.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name='collection_photos'").get()?.n, 0); old.close();
+  const migrated = createCollectionRepository({ filePath });
+  try { assert.deepEqual(migrated.detail(stock.modelId, page), before); } finally { migrated.close(); }
+  const check = new DatabaseSync(filePath, { readOnly: true });
+  try { assert.equal(check.prepare('PRAGMA user_version').get()?.user_version, 2); assert.deepEqual(check.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(), ledger); }
+  finally { check.close(); }
+});
+
+test('照片数量有界，内容损坏不会清空库存，最后一张删除后回到缺图', async t => {
+  const { repository, filePath } = await fixture(t);
+  const stock = repository.receive(receipt());
+  const first = repository.addPhoto({ commandId: randomUUID(), modelId: stock.modelId, image: photoImage });
+  const db = new DatabaseSync(filePath); db.prepare('UPDATE collection_photos SET content_hash=? WHERE id=?').run('corrupted', first.photoId!); db.close();
+  assert.throws(() => repository.photo(first.photoId!), /库存暂时不可用/u);
+  assert.equal(repository.detail(stock.modelId, page).model.counts.total, 8);
+  repository.changePhoto({ commandId: randomUUID(), modelId: stock.modelId, photoId: first.photoId!, expectedRevision: 2, action: 'remove' });
+  assert.equal(repository.detail(stock.modelId, page).model.featuredPhoto, undefined);
+  for (let n = 0; n < 24; n++) repository.addPhoto({ commandId: randomUUID(), modelId: stock.modelId, image: { ...photoImage, dataUrl: `data:image/jpeg;base64,${Buffer.from([255,216,255,n,255,217]).toString('base64')}` } });
+  assert.throws(() => repository.addPhoto({ commandId: randomUUID(), modelId: stock.modelId, image: photoImage }), /最多保存/u);
+  assert.equal(repository.detail(stock.modelId, page).model.counts.total, 8);
 });

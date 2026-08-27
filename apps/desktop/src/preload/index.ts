@@ -140,7 +140,11 @@ contextBridge.exposeInMainWorld(
       ipcRenderer.invoke('lyrics:match:select', matchSessionId, candidateId),
     () => ipcRenderer.invoke('lyrics:match:revoke'),
     {
-      listCollection: page => ipcRenderer.invoke('collection:list', page),
+      pickCollectionPhoto: () => ipcRenderer.invoke('collection:pick-photo'),
+      addCollectionPhoto: request => ipcRenderer.invoke('collection:add-photo', request),
+      getCollectionPhoto: photoId => ipcRenderer.invoke('collection:photo', photoId),
+      changeCollectionPhoto: request => ipcRenderer.invoke('collection:change-photo', request),
+      listCollection: (page, filter) => ipcRenderer.invoke('collection:list', page, filter),
       getCollectionModel: (modelId, page) => ipcRenderer.invoke('collection:detail', modelId, page),
       receiveCollectionStock: request => ipcRenderer.invoke('collection:receive', request),
       materializeCollectionCopy: request => ipcRenderer.invoke('collection:materialize', request),

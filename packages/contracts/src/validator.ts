@@ -1,5 +1,5 @@
 import type { PublicError } from './errors.js';
-import { isCollectionId, isCollectionReceiveRequest, isCollectionMaterializeRequest, isCollectionUpdateCopyRequest, isCollectionPolicyRequest, isCollectionMutationResult, isCollectionModel, isCollectionPage, isCollectionDetail } from './collection.js';
+import { isCollectionFilter, isCollectionPhotoImage, isCollectionAddPhotoRequest, isCollectionChangePhotoRequest, isCollectionId, isCollectionReceiveRequest, isCollectionMaterializeRequest, isCollectionUpdateCopyRequest, isCollectionPolicyRequest, isCollectionMutationResult, isCollectionModel, isCollectionPage, isCollectionDetail } from './collection.js';
 import type {
   DailyRecommendationTrack,
   DailyRecommendationsSnapshot,
@@ -914,7 +914,10 @@ function isPlaylistDetail(value: unknown): value is PlaylistDetail {
 }
 
 function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
-  if (command === 'collection.list') return isLibraryPagePayload(payload);
+  if (command === 'collection.list') return isRecord(payload) && hasOnlyKeys(payload, ['page', 'filter']) && isPageRequest(payload.page) && (payload.filter === undefined || isCollectionFilter(payload.filter));
+  if (command === 'collection.addPhoto') return isCollectionAddPhotoRequest(payload);
+  if (command === 'collection.changePhoto') return isCollectionChangePhotoRequest(payload);
+  if (command === 'collection.photo') return isRecord(payload) && hasOnlyKeys(payload, ['photoId']) && isCollectionId(payload.photoId);
   if (command === 'collection.detail') return isRecord(payload) && hasOnlyKeys(payload, ['modelId', 'page']) && isCollectionId(payload.modelId) && isPageRequest(payload.page);
   if (command === 'collection.receive') return isCollectionReceiveRequest(payload);
   if (command === 'collection.materialize') return isCollectionMaterializeRequest(payload);
@@ -1334,6 +1337,11 @@ function isCommandResult(
   allowInternalResult = false,
 ): boolean {
   switch (command) {
+    case 'collection.addPhoto':
+    case 'collection.changePhoto':
+      return isCollectionMutationResult(value);
+    case 'collection.photo':
+      return isCollectionPhotoImage(value);
     case 'collection.list':
       return isCollectionPage(value, isCollectionModel);
     case 'collection.detail':
