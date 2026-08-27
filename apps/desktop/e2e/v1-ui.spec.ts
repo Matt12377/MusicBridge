@@ -1161,6 +1161,116 @@ test('退出命令完成 Core 清理并结束 Electron 进程', async () => {
   expect(exitCode).toBe(0)
 })
 
+test('V3 收藏与录音分开，收藏视图支持键盘、搜索返回和收起侧栏', async () => {
+  const collection = page.locator('[data-sidebar-source="collection"]')
+  const recording = page.locator('[data-sidebar-source="recording"]')
+  await expect(collection).toBeVisible()
+  await expect(recording).toBeVisible()
+  await expect(page.locator('[data-sidebar-source="roon-favorites"]')).toHaveAccessibleName('Roon 收藏')
+  await collection.click()
+  await expect(collection).toHaveAttribute('aria-current', 'page')
+  const tapes = page.getByRole('tab', { name: '空白磁带收藏', exact: true })
+  const music = page.getByRole('tab', { name: '实体音乐库', exact: true })
+  await expect(tapes).toHaveAttribute('aria-selected', 'true')
+  await tapes.focus()
+  await tapes.press('ArrowRight')
+  await expect(music).toBeFocused()
+  await expect(music).toHaveAttribute('aria-selected', 'true')
+  await music.press('Home')
+  await expect(tapes).toBeFocused()
+  await tapes.press('End')
+  await expect(music).toBeFocused()
+  await expect(page.getByRole('tabpanel', { name: '实体音乐库' })).toBeVisible()
+
+  await recording.click()
+  await expect(page.locator('[data-component="RecordingView"]')).toBeVisible()
+  await expect(page.locator('[data-component="CollectionView"]')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '从 Roon 选择音乐', exact: true })).toBeDisabled()
+  await expect(page.getByText('选曲与录音引擎尚未接入，当前不会操作播放设备。', { exact: true })).toBeVisible()
+  await collection.click()
+  await expect(music).toHaveAttribute('aria-selected', 'true')
+  await sidebarSearch().fill('synthetic')
+  await expect(page.locator('.view-search')).toBeVisible()
+  await sidebarSearch().press('Escape')
+  await expect(page.getByRole('tabpanel', { name: '实体音乐库' })).toBeVisible()
+
+  await page.getByRole('button', { name: '收起侧栏' }).click()
+  await recording.focus()
+  await recording.press('Enter')
+  await expect(recording).toHaveAttribute('aria-current', 'page')
+  await expect(recording).toHaveAttribute('title', '录音')
+  await expect(page.locator('.music-sidebar')).toHaveCount(1)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^(概览|设备|Overview|Equipment)$/ })).toHaveCount(0)
+  await page.getByRole('button', { name: '查看空白磁带收藏', exact: true }).click()
+  await expect(tapes).toHaveAttribute('aria-selected', 'true')
+  await expect(collection).toHaveAttribute('aria-current', 'page')
+})
+
+test('V3 导航不触发播放变更 IPC，保留正在播放的曲目、队列和 Zone', async () => {
+  await sidebarSearch().fill('synthetic')
+  await page.getByRole('button', { name: '播放 Synthetic Track 1', exact: true }).click()
+  await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
+  await expect.poll(async () => (await page.evaluate(() => window.musicBridge.getPlaybackState())).state).toBe('playing')
+  await page.getByRole('button', { name: '退出全屏播放' }).click()
+  const before = await page.evaluate(() => window.musicBridge.getPlaybackState())
+  await electronApp.evaluate(({ ipcMain }) => {
+    const runtime = globalThis as typeof globalThis & { v3PlaybackMutations?: string[] }
+    runtime.v3PlaybackMutations = []
+    // 只在本例的隔离 Electron 实例中拦截变更请求；任何尝试都将使末尾断言失败。
+    for (const channel of [
+      'playback:play', 'playback:pause', 'playback:resume', 'playback:stop',
+      'playback:next', 'playback:previous', 'playback:play-queue-index',
+      'playback:replace-queue', 'playback:append-queue', 'playback:insert-next',
+      'playback:seek', 'roon:select-zone', 'roon:library:play',
+    ]) {
+      ipcMain.removeHandler(channel)
+      ipcMain.handle(channel, () => { runtime.v3PlaybackMutations?.push(channel); return undefined })
+    }
+  })
+  await page.locator('[data-sidebar-source="collection"]').click()
+  await page.getByRole('tab', { name: '实体音乐库', exact: true }).click()
+  await page.locator('[data-sidebar-source="recording"]').click()
+  await expect(page.locator('[data-component="RecordingView"]')).toBeVisible()
+  await expect(page.locator('.global-player')).toBeVisible()
+  await page.getByRole('button', { name: '查看空白磁带收藏', exact: true }).click()
+  await sourceButton('home').click()
+  await expect(page.locator('#home-heading')).toBeVisible()
+  const after = await page.evaluate(() => window.musicBridge.getPlaybackState())
+  expect(after.state).toBe('playing')
+  expect(after.currentTrack?.id).toBe(before.currentTrack?.id)
+  expect(after.queue).toEqual(before.queue)
+  expect(after.selectedZoneId).toBe(before.selectedZoneId)
+  expect(await electronApp.evaluate(() => (globalThis as typeof globalThis & { v3PlaybackMutations?: string[] }).v3PlaybackMutations)).toEqual([])
+})
+
+test('V3 页面在桌面和最小窗口无横向溢出，未接入状态与无障碍检查清晰', async () => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  for (const size of [{ width: 1440, height: 900 }, { width: 720, height: 480 }]) {
+    await page.setViewportSize(size)
+    for (const view of ['collection', 'recording']) {
+      await page.locator(`[data-sidebar-source="${view}"]`).click()
+      if (view === 'collection') {
+        await expect(page.getByRole('tabpanel', { name: '空白磁带收藏' }).getByText('库存录入与照片管理尚未接入，当前不展示示例库存。', { exact: true })).toBeVisible()
+        await expect(page.getByRole('button', { name: '添加磁带', exact: true })).toBeDisabled()
+      }
+      expect(await page.locator('.content-scroll').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+      await page.evaluate((source) => window.eval(source), axeSource)
+      // 新页面单独验收；整页 V2 检查仍由下方既有测试执行。闲置播放器的已复现对比度问题另记 carryover。
+      const violations = await page.evaluate(async (activeView) => {
+        const root = document.querySelector(`[data-component="${activeView === 'collection' ? 'CollectionView' : 'RecordingView'}"]`)
+        if (!root) throw new Error('V3 页面未挂载')
+        const result = await (window as typeof window & { axe: { run: (root: Element) => Promise<{ violations: { id: string; impact: string | null }[] }> } }).axe.run(root)
+        return result.violations.filter((item) => item.impact === 'critical' || item.impact === 'serious')
+      }, view)
+      expect(violations).toEqual([])
+      await page.screenshot({ path: path.join(os.tmpdir(), `musicbridge-task-048-${view}-${size.width}.png`) })
+    }
+  }
+  expect(errors).toEqual([])
+})
+
 test('packaged UI has no critical or serious axe findings', async () => {
   const results = await electronApp.evaluate(async ({ BrowserWindow }, source) => {
     const window = BrowserWindow.getAllWindows()[0]

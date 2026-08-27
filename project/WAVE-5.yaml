@@ -1,0 +1,12 @@
+schemaVersion: 1
+wave: WAVE-5
+status: active
+source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
+developmentPack: project/V3_DEVELOPMENT_PACK.md
+activeTask: TASK-048
+activeBranch: codex/task-048-v3-navigation
+activeBaseCommit: b0e1ff8ec83ac9aaebbe90e8ecb14c4a5832e7f4
+order:
+  - TASK-048
+stopAfter: TASK-048
+reviewBoundary: navigation-foundation

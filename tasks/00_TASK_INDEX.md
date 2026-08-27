@@ -35,7 +35,10 @@
 | TASK-045 | Cross-source LyricsCoordinator | 044 | 来源合同与 Roon 时间轴 |
 | TASK-046 | 歌词来源与 MANUAL UI | 045 | 选择、撤销与安全 IPC |
 | TASK-047 | Synthetic 与真实跨源歌词验收 | 046 | 自动、真实 Roon/NetEase、Owner 分层报告 |
+| TASK-048 | V3 收藏与录音导航基础 | V3 文档基线 b0e1ff8 | 双入口、收藏双视图、独立录音页、播放隔离与 V2 回归 |
 
 任何任务若为 BLOCKED，后续任务自动暂停。
 
 WAVE-4 是 Owner 从已整合 Bug 修复的 `main` 明确启动的功能线，不把尚未完成的 TASK-040/TASK-041 分发验收视为已完成，也不以跨源歌词自动 Gate 替代签名、公证、安装或 Beta Owner Gate。WAVE-4 内部仍严格按 TASK-042 至 TASK-047 线性执行。
+
+WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发线，见 `project/WAVE-5.yaml`。首任务从已同步最新需求的 V3 文档基线建立，旧 WAVE-3 控制面不改写。首任务只包含导航基础；后续任务从上一任务最终 HEAD 建立并单独定义范围，不将历史验收或 F-01 自动标为完成。

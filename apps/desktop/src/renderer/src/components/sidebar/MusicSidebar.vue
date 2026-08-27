@@ -38,7 +38,7 @@ function restoreSourceScroll(): void {
   })
 }
 
-function isSourceSelected(type: 'home' | 'liked' | 'playlists' | 'roon-albums' | 'roon-artists' | 'roon-genres' | 'roon-playlists' | 'roon-favorites'): boolean {
+function isSourceSelected(type: SidebarSource['type']): boolean {
   if (type === 'roon-albums') {
     return props.activeSource.type === 'roon-albums' || props.activeSource.type === 'roon-album'
   }
@@ -96,7 +96,12 @@ onMounted(restoreSourceScroll)
         <SidebarNavRow source="roon-artists" label="艺术家" icon="grid" :expanded="expanded" :selected="isSourceSelected('roon-artists')" @select="selectSource({ type: 'roon-artists' })" />
         <SidebarNavRow source="roon-genres" label="流派" icon="grid" :expanded="expanded" :selected="isSourceSelected('roon-genres')" @select="selectSource({ type: 'roon-genres' })" />
         <SidebarNavRow source="roon-playlists" label="Roon 歌单" icon="grid" :expanded="expanded" :selected="isSourceSelected('roon-playlists')" @select="selectSource({ type: 'roon-playlists' })" />
-        <SidebarNavRow source="roon-favorites" label="收藏" icon="heart" :expanded="expanded" :selected="isSourceSelected('roon-favorites')" @select="selectSource({ type: 'roon-favorites' })" />
+        <SidebarNavRow source="roon-favorites" label="Roon 收藏" icon="heart" :expanded="expanded" :selected="isSourceSelected('roon-favorites')" @select="selectSource({ type: 'roon-favorites' })" />
+      </SidebarSection>
+
+      <SidebarSection title="我的实物与录音" :expanded="expanded">
+        <SidebarNavRow source="collection" label="收藏" icon="cassette" :expanded="expanded" :selected="isSourceSelected('collection')" @select="selectSource({ type: 'collection' })" />
+        <SidebarNavRow source="recording" label="录音" icon="record" :expanded="expanded" :selected="isSourceSelected('recording')" @select="selectSource({ type: 'recording' })" />
       </SidebarSection>
 
       <SidebarPlaylistList :playlists="playlists" :expanded="expanded" :active-playlist-id="activeSource.type === 'playlist' ? activeSource.playlistId : undefined" :state="playlistState" @select="selectSource({ type: 'playlist', playlistId: $event })" @retry="emit('retry-playlists')" />

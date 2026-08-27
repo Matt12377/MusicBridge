@@ -1,5 +1,7 @@
 export type ViewId =
   | 'home'
+  | 'collection'
+  | 'recording'
   | 'search'
   | 'liked'
   | 'daily-recommendations'
@@ -21,6 +23,8 @@ export type ViewId =
 
 export type SidebarSource =
   | { type: 'home' }
+  | { type: 'collection' }
+  | { type: 'recording' }
   | { type: 'liked' }
   | { type: 'playlists' }
   | { type: 'playlist'; playlistId: string }

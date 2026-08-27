@@ -92,12 +92,16 @@ import {
 import type { SidebarSource, ViewId } from './components/navigation.js'
 import { createZoneRefreshCoordinator, resolveZoneLifecycleStatus } from './zone-lifecycle.js'
 import { createOptimisticRoonPlayback } from './roon-playback-optimism.js'
+import CollectionView from './components/collection/CollectionView.vue'
+import RecordingView from './components/recording/RecordingView.vue'
 
 const LIBRARY_PAGE_SIZE = 20
 const SEARCH_DEBOUNCE_MS = 250
 
 const VIEW_LABELS: Record<ViewId, string> = {
   home: '主页',
+  collection: '收藏',
+  recording: '录音',
   search: '搜索结果',
   liked: '我喜欢的音乐',
   'daily-recommendations': '每日推荐',
@@ -480,6 +484,10 @@ function viewForSource(source: SidebarSource): ViewId {
   switch (source.type) {
     case 'home':
       return 'home'
+    case 'collection':
+      return 'collection'
+    case 'recording':
+      return 'recording'
     case 'liked':
       return 'liked'
     case 'playlists':
@@ -505,6 +513,14 @@ function viewForSource(source: SidebarSource): ViewId {
     case 'roon-playlist':
       return 'roon-playlist-detail'
   }
+}
+
+// 只保留本次会话的视图选择，不承载库存、曲目或持久化数据。
+const collectionView = ref<'tapes' | 'music'>('tapes')
+
+function openTapeCollection(): void {
+  collectionView.value = 'tapes'
+  navigateSource({ type: 'collection' })
 }
 
 function navigateSource(source: SidebarSource): void {
@@ -2633,6 +2649,16 @@ onUnmounted(() => {
           @view-all-daily="navigate('daily-recommendations')"
           @open-settings="navigate('settings')"
           @retry-daily="refreshAccountProfile"
+        />
+
+        <CollectionView
+          v-else-if="currentView === 'collection'"
+          v-model="collectionView"
+        />
+
+        <RecordingView
+          v-else-if="currentView === 'recording'"
+          @open-collection="openTapeCollection"
         />
 
         <DailyRecommendationsView

@@ -75,5 +75,41 @@
     "realRoonInCi": false,
     "loopbackOnly": true,
     "providerVersion": "4.40.1"
+  },
+  "v3Development": {
+    "wave": "WAVE-5",
+    "task": "TASK-048",
+    "branch": "codex/task-048-v3-navigation",
+    "baseCommit": "b0e1ff8ec83ac9aaebbe90e8ecb14c4a5832e7f4",
+    "state": "in_progress",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "nextTask": null,
+    "gates": {
+      "automated": "PASS",
+      "realProvider": "NOT_RUN",
+      "realRoon": "NOT_RUN",
+      "realRecording": "NOT_RUN",
+      "ownerProductAcceptance": "NOT_RUN",
+      "focusedE2E": "3/3",
+      "fullE2E": "25/25",
+      "contracts": "27/27",
+      "core": "422/422",
+      "desktop": "162/162",
+      "security": "22/22",
+      "electron": "4/4",
+      "v3ViewAccessibility": "PASS_720_1440",
+      "controlPlane": "PASS_WAVE3",
+      "v3Identity": "PASS",
+      "boundaries": "PASS",
+      "cycles": "PASS"
+    },
+    "integration": "NOT_RUN",
+    "push": "NOT_AUTHORIZED",
+    "carryover": [
+      "V2 idle player device hint contrast 4.01:1 at 1440px; reproduced on Home; not changed in navigation slice",
+      "PRD F-01 remains undecided",
+      "TASK-047 real acceptance remains pending"
+    ]
   }
 }
