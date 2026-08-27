@@ -10,3 +10,5 @@ WAVE-2 历史风险保留在 `docs/07_RISK_REGISTER.md`。本文件只登记 V1 
 | R-014 | Core 或流资源在崩溃/退出后残留 | utilityProcess restart/fail-closed、退出清理、30 首稳定性 Gate | 先关闭资源泄漏再进入 Beta |
 | R-015 | macOS 签名/公证条件缺失 | 未签名 arm64 fallback、`SIGNING_CREDENTIALS_PENDING` 明确记录 | 允许内部 Beta candidate，不宣称公开可分发 |
 | R-016 | Lyrics 时序或 stale 响应污染当前播放 | generation、track identity、LRU 上限、无伪造 word sync | 保留静态歌词或 unavailable，不回退到不受控上游 |
+| R-017 | 本地与 NetEase 同名/同歌手仍可能不是同一录音，元数据无法证明真实听感同步 | 五轴硬拒绝、录音簇、CONFIRMED/MANUAL 才展示、短期候选会话 | 用 Owner 真实样本验证；不得将 Synthetic 结果写成真实录音验收 |
+| R-018 | 跨源歌词真实 Provider/Roon 和 Owner 接受尚未执行 | TASK-047 分层矩阵，设计及实现 PR 均保持未合并 | 等 Owner 在本地安全会话完成样本与同步测试，明确接受后才整合 main |
