@@ -1,3 +1,4 @@
+import { isMasterDraft, isMasterDraftSummary, isMasterDraftResult, isAppendMasterDraftRequest, isUpdateMasterDraftRequest } from './master-drafts.js';
 import { isAlbumQuery, isDigitalAlbum, isDigitalAlbumDetail, isPhysicalLinksSnapshot, isDigitalRuntime, isPhysicalLinkResult, isCollectionMatrixRow, isConfirmPhysicalLinkRequest, isRelocateDigitalRequest, isRegisterDigitalRequest, isRemovePhysicalLinkRequest, isConfirmAbsenceRequest } from './physical-links.js';
 import { isMusicId, isMusicFilter, isMusicEntry, isMusicDetail, isMusicMutationResult, isSaveReleaseRequest, isSaveLegacyRequest, isAddMusicPhotoRequest, isRemoveMusicPhotoRequest } from './physical-music.js';
 import type { PublicError } from './errors.js';
@@ -916,6 +917,11 @@ function isPlaylistDetail(value: unknown): value is PlaylistDetail {
 }
 
 function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
+  if (command === 'recordingDrafts.list') return isRecord(payload) && hasOnlyKeys(payload, ['page']) && isPageRequest(payload.page);
+  if (command === 'recordingDrafts.detail') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
+  if (command === 'recordingDrafts.runtime') return isRecord(payload) && hasOnlyKeys(payload, ['draftId', 'trackId']) && isCollectionId(payload.draftId) && isCollectionId(payload.trackId);
+  if (command === 'recordingDrafts.append') return isAppendMasterDraftRequest(payload);
+  if (command === 'recordingDrafts.update') return isUpdateMasterDraftRequest(payload);
   if (command === 'physicalLinks.digitalList') return isRecord(payload) && hasOnlyKeys(payload, ['page']) && isPageRequest(payload.page);
   if (command === 'physicalLinks.search') return isRecord(payload) && hasOnlyKeys(payload, ['page', 'query']) && isPageRequest(payload.page) && isAlbumQuery(payload.query);
   if (command === 'physicalLinks.matrix') return isRecord(payload) && hasOnlyKeys(payload, ['page', 'query']) && isPageRequest(payload.page) && (payload.query === undefined || isAlbumQuery(payload.query));
@@ -1356,6 +1362,11 @@ function isCommandResult(
   allowInternalResult = false,
 ): boolean {
   switch (command) {
+    case 'recordingDrafts.list': return isCollectionPage(value, isMasterDraftSummary);
+    case 'recordingDrafts.detail': return isMasterDraft(value);
+    case 'recordingDrafts.append':
+    case 'recordingDrafts.update': return isMasterDraftResult(value);
+    case 'recordingDrafts.runtime': return isDigitalRuntime(value);
     case 'physicalLinks.search': return isRoonLibraryPage(value);
     case 'physicalLinks.digitalList': return isCollectionPage(value, isDigitalAlbum);
     case 'physicalLinks.digitalDetail': return isDigitalAlbumDetail(value, isMusicEntry);

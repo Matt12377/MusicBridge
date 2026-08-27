@@ -48,3 +48,5 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 - [TASK-051：实体音乐库](TASK-051-v3-physical-music-library.md) — 原版 CD/磁带、旧录音内容与同库展示；基线 TASK-050。
 
 - [TASK-052：Roon 双向关系](TASK-052-v3-roon-physical-links.md) — 确认关系、离线保留、Provenance 与收藏矩阵；基线 TASK-051。
+
+- [TASK-053：Roon 选曲草稿](TASK-053-v3-master-source-picker.md) — 持久化草稿、稳定曲目身份、明确排序与未验证来源边界；基线 TASK-052。

@@ -4,6 +4,7 @@ import type {
   RoonLibraryItem as PublicRoonLibraryItem,
   RoonLibraryPage as PublicRoonLibraryPage,
   TrackSummary,
+  DraftTrackMetadata,
 } from '@music-bridge/contracts';
 import {
   isValidRoonImageBinary,
@@ -43,6 +44,7 @@ export interface RoonPublicLibrary {
   invalidateReferences(): void;
   /** Core 内部专辑元数据快照，不包含运行期引用或私有 Browse 身份。 */
   getAlbumSnapshot(reference: string): RoonAlbumMetadata;
+  getTrackSnapshot(reference: string): DraftTrackMetadata;
   browseAlbums(request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
   browseArtists(request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
   browseGenres(request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
@@ -650,6 +652,21 @@ export function createRoonPublicLibrary(
       } catch (error) {
         return wrapLibraryError(error, 'track-action');
       }
+    },
+    getTrackSnapshot(reference) {
+      service();
+      const { descriptor } = resolveTrackReference(reference);
+      const durationMs = toDurationMs(descriptor);
+      // 不把缺失字段的 UI 占位文字、运行期身份和封面引用写成档案元数据。
+      return {
+        title: descriptor.title,
+        ...(descriptor.artist ? { artist: descriptor.artist } : {}),
+        ...(descriptor.album ? { album: descriptor.album } : {}),
+        ...(descriptor.version ? { version: descriptor.version } : {}),
+        ...(durationMs !== undefined ? { durationMs } : {}),
+        ...(descriptor.discNumber !== undefined ? { discNumber: descriptor.discNumber } : {}),
+        ...(descriptor.trackNumber !== undefined ? { trackNumber: descriptor.trackNumber } : {}),
+      };
     },
     getTrackSummary(reference) {
       service();

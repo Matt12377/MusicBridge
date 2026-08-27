@@ -243,7 +243,7 @@ test.beforeEach(async () => {
     environment.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE = 'expired'
   }
   delete environment.NETEASE_COOKIE
-  if (test.info().title.includes('V3 Roon 关联闭环')) environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY = '1'
+  if ((test.info().title.includes('V3 Roon 关联闭环') || test.info().title.includes('V3 录音选曲'))) environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY = '1'
   electronApp = await electron.launch({
     args: [electronEntry],
     cwd: desktopRoot,
@@ -1187,8 +1187,8 @@ test('V3 收藏与录音分开，收藏视图支持键盘、搜索返回和收�
   await recording.click()
   await expect(page.locator('[data-component="RecordingView"]')).toBeVisible()
   await expect(page.locator('[data-component="CollectionView"]')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: '从 Roon 选择音乐', exact: true })).toBeDisabled()
-  await expect(page.getByText('选曲与录音引擎尚未接入，当前不会操作播放设备。', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '从 Roon 选择音乐', exact: true })).toBeEnabled()
+  await expect(page.getByText('确认选曲后保存录音草稿。源验证与正式录音尚未完成，选曲不会操作播放设备。', { exact: true })).toBeVisible()
   await collection.click()
   await expect(music).toHaveAttribute('aria-selected', 'true')
   await sidebarSearch().fill('synthetic')
@@ -1783,4 +1783,93 @@ test('V3 Roon 关联闭环：候选不符后可重新选择，不形成无法退
   await picker.getByLabel('我已核对候选信息并确认本次选择', { exact: true }).check()
   await picker.getByRole('button', { name: '确认重新定位', exact: true }).click()
   await expect(picker).toHaveCount(0)
+})
+
+test('V3 录音选曲入口可用，选曲前不要求库存或设备', async () => {
+  await page.locator('[data-sidebar-source="recording"]').click()
+  await expect(page.getByRole('button', { name: '从 Roon 选择音乐', exact: true })).toBeEnabled()
+  expect((await page.evaluate(() => window.musicBridge.listCollection({ offset: 0, limit: 20 }))).total).toBe(0)
+})
+
+test('V3 录音选曲草稿：取消不写入、跨专辑选曲、排序与重启保留未验证来源', async () => {
+  test.setTimeout(90_000)
+  await page.locator('[data-sidebar-source="recording"]').click()
+  const start = page.getByRole('button', { name: '从 Roon 选择音乐', exact: true })
+  await start.click()
+  const picker = page.getByRole('dialog', { name: '从 Roon 选择曲目', exact: true })
+  await picker.getByRole('button', { name: '查看曲目 关联验收专辑', exact: true }).click()
+  await picker.getByLabel('选择 合成关联曲目', { exact: true }).check()
+  await picker.getByRole('button', { name: '取消', exact: true }).click()
+  await expect(start).toBeFocused()
+  expect((await page.evaluate(() => window.musicBridge.listMasterDrafts({ offset: 0, limit: 20 }))).total).toBe(0)
+  await start.click()
+  await picker.getByLabel('草稿标题', { exact: true }).fill('跨专辑私人精选')
+  await picker.getByRole('button', { name: '查看曲目 关联验收专辑', exact: true }).click()
+  await picker.getByLabel('选择 合成关联曲目', { exact: true }).check()
+  await picker.getByRole('button', { name: '返回专辑列表', exact: true }).click()
+  await picker.getByRole('button', { name: '查看曲目 另一张合成专辑', exact: true }).click()
+  await picker.getByLabel('选择 另一首合成曲目', { exact: true }).check()
+  await page.setViewportSize({ width: 720, height: 480 })
+  expect(await picker.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+  await page.evaluate(source => window.eval(source), axeSource)
+  const pickerAxe = await page.evaluate(async () => (window as typeof window & { axe: { run(root: Element): Promise<{ violations: { impact: string | null }[] }> } }).axe.run(document.querySelector('dialog[open]')!))
+  expect(pickerAxe.violations.filter(v => v.impact === 'critical' || v.impact === 'serious')).toEqual([])
+  await page.screenshot({ path: test.info().outputPath('master-picker-720.png') })
+  await expect(picker.getByRole('button', { name: '加入录音草稿', exact: true })).toBeDisabled()
+  await picker.getByLabel('我确认将所选曲目按选择顺序加入草稿', { exact: true }).check()
+  await picker.getByRole('button', { name: '加入录音草稿', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '跨专辑私人精选', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '冻结母版', exact: true })).toBeDisabled()
+  const id = (await page.evaluate(() => window.musicBridge.listMasterDrafts({ offset: 0, limit: 20 }))).items[0]!.id
+  const before = await page.evaluate(id => window.musicBridge.getMasterDraft(id), id)
+  expect(before.trackCount).toBe(2); expect(before.sourceLockEligible).toBe(false)
+  await page.getByRole('button', { name: '上移 另一首合成曲目', exact: true }).click()
+  await page.getByRole('button', { name: '保存草稿修改', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: '草稿已保存' })).toBeVisible()
+  const after = await page.evaluate(id => window.musicBridge.getMasterDraft(id), id)
+  expect(after.tracks.map(t => t.id)).toEqual(before.tracks.map(t => t.id).reverse())
+  expect((await page.evaluate(() => window.musicBridge.listCollection({ offset: 0, limit: 20 }))).total).toBe(0)
+  for (const size of [{ width: 1440, height: 900 }, { width: 720, height: 480 }]) {
+    await page.setViewportSize(size)
+    expect(await page.locator('.recording-view').evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+    await page.evaluate(source => window.eval(source), axeSource)
+    const result = await page.evaluate(async () => (window as typeof window & { axe: { run(root: Element): Promise<{ violations: { impact: string | null }[] }> } }).axe.run(document.querySelector('.recording-view')!))
+    expect(result.violations.filter(v => v.impact === 'critical' || v.impact === 'serious')).toEqual([])
+    await page.screenshot({ path: test.info().outputPath(`master-draft-${size.width}.png`) })
+  }
+  await electronApp.close()
+  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
+  delete environment.NETEASE_COOKIE; delete environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY
+  electronApp = await electron.launch({ args: [electronEntry], cwd: desktopRoot, env: environment }); page = await electronApp.firstWindow()
+  await page.locator('[data-sidebar-source="recording"]').click()
+  await page.getByRole('button', { name: /继续草稿 跨专辑私人精选/ }).click()
+  const restored = await page.evaluate(id => window.musicBridge.getMasterDraft(id), id)
+  expect(restored.tracks.map(t => t.id)).toEqual(after.tracks.map(t => t.id))
+  await page.getByRole('button', { name: '试听 另一首合成曲目', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('当前曲目链接待重新定位')
+  await page.getByRole('button', { name: '移除 另一首合成曲目', exact: true }).click()
+  await page.getByRole('button', { name: '保存草稿修改', exact: true }).click()
+  await expect.poll(async () => (await page.evaluate(id => window.musicBridge.getMasterDraft(id), id)).trackCount).toBe(1)
+})
+
+test('V3 录音选曲回执丢失重试不重复草稿或曲目', async () => {
+  await electronApp.evaluate(({ ipcMain }) => {
+    const handler = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => unknown> })._invokeHandlers.get('recordingDrafts:append')!
+    let lost = false
+    ipcMain.removeHandler('recordingDrafts:append')
+    ipcMain.handle('recordingDrafts:append', async (...args) => { const result = await handler(...args); if (!lost) { lost = true; throw new Error('合成草稿回执丢失') }; return result })
+  })
+  await page.locator('[data-sidebar-source="recording"]').click()
+  await page.getByRole('button', { name: '从 Roon 选择音乐', exact: true }).click()
+  const picker = page.getByRole('dialog', { name: '从 Roon 选择曲目', exact: true })
+  await picker.getByRole('button', { name: '查看曲目 关联验收专辑', exact: true }).click()
+  await picker.getByLabel('选择 合成关联曲目', { exact: true }).check()
+  await picker.getByLabel('我确认将所选曲目按选择顺序加入草稿', { exact: true }).check()
+  await picker.getByRole('button', { name: '加入录音草稿', exact: true }).click()
+  await expect(picker.getByRole('alert')).toContainText('尚未确认')
+  await expect(picker.getByRole('button', { name: '加入录音草稿', exact: true })).toBeDisabled()
+  await picker.getByRole('button', { name: '重试原操作', exact: true }).click()
+  await expect(picker).toHaveCount(0)
+  const saved = await page.evaluate(() => window.musicBridge.listMasterDrafts({ offset: 0, limit: 20 }))
+  expect(saved.total).toBe(1); expect(saved.items[0]?.trackCount).toBe(1); expect(saved.items[0]?.sourceLockEligible).toBe(false)
 })

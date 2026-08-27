@@ -11,7 +11,7 @@ export function createSyntheticRoonLibrary(): RoonPublicLibrary {
   const empty = async () => ({ items: [], offset: 0, level: 0 });
   const service: RoonLibraryService = {
     browseAlbums: async page => pageOf(albums, page), browseArtists: empty, browseGenres: empty, browsePlaylists: empty, browseArtist: empty, browseGenre: empty, browsePlaylist: empty,
-    browseAlbum: async (_album, page) => pageOf([{ kind: 'track', title: '合成关联曲目', artist: '关联验收艺术家', itemKey: 'synthetic-private-track-1', durationMs: 180000 }], page),
+    browseAlbum: async (album, page) => pageOf([{ kind: 'track', title: album.title === '关联验收专辑' ? '合成关联曲目' : '另一首合成曲目', artist: album.artist!, album: album.title, itemKey: `synthetic-private-track-${album.title === '关联验收专辑' ? '1' : '2'}`, durationMs: album.title === '关联验收专辑' ? 180000 : 210000 }], page),
     searchLibrary: async (query, page, kind) => pageOf(kind === 'album' ? albums.filter(a => `${a.title} ${a.artist}`.includes(query)) : [], page),
     getImage: async () => ({ contentType: 'image/jpeg', body: Buffer.from([255, 216, 255, 217]) }),
     playTrack: async () => { throw new Error('合成目录不提供播放成功证据'); }, queueTrack: async () => { throw new Error('合成目录不提供队列成功证据'); },

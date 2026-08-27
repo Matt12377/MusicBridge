@@ -1411,3 +1411,15 @@ test('关联合同要求明确确认，不接受路径、双重身份或不一�
   for (const bad of [{ ...request, userConfirmed: false }, { ...request, digitalId: id }, { ...request, reference: '/private/music.wav' }, { ...request, itemKey: 'private' }, { ...request, relation: 'probable', ripFromCdConfirmed: true }]) assert.equal(valid(bad), false);
   assert.equal(validateIpcResponseForCommand({ version: 1, id: 'runtime', ok: true, result: { status: 'unavailable', reference: request.reference } }, 'physicalLinks.runtime').ok, false);
 });
+
+test('录音草稿只接收确认后的 Roon 引用，拒绝伪造元数据与冻结状态', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const reference = 'musicbridge-v2-entity-22222222-2222-5222-8222-222222222222';
+  const request = { commandId: id, title: '私人精选', programType: 'compilation', references: [reference], userConfirmed: true };
+  const valid = (payload: unknown) => validateIpcRequest({ version: 1, id: 'draft-contract', command: 'recordingDrafts.append', payload }).ok;
+  assert.equal(valid(request), true);
+  for (const bad of [{ ...request, userConfirmed: false }, { ...request, sourceLockEligible: true }, { ...request, tracks: [{ title: '伪造' }] }, { ...request, references: [reference, reference] }, { ...request, references: ['/private/song.flac'] }, { ...request, draftId: id }]) assert.equal(valid(bad), false);
+  const summary = { id, title: '私人精选', programType: 'compilation', revision: 1, status: 'draft', sourceLockEligible: false, trackCount: 1, estimatedDurationMs: 180000 };
+  assert.equal(validateIpcResponseForCommand({ version: 1, id: 'draft-contract', ok: true, result: { items: [summary], offset: 0, limit: 20, total: 1, hasMore: false } }, 'recordingDrafts.list').ok, true);
+  assert.equal(validateIpcResponseForCommand({ version: 1, id: 'draft-contract', ok: true, result: { ...summary, sourceLockEligible: true, tracks: [] } }, 'recordingDrafts.detail').ok, false);
+});

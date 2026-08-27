@@ -1,3 +1,4 @@
+import { isAppendMasterDraftRequest, isUpdateMasterDraftRequest } from '@music-bridge/contracts'
 import { isAlbumQuery, isConfirmPhysicalLinkRequest, isRelocateDigitalRequest, isRegisterDigitalRequest, isRemovePhysicalLinkRequest, isConfirmAbsenceRequest } from '@music-bridge/contracts'
 import { isMusicId, isMusicFilter, isSaveReleaseRequest, isSaveLegacyRequest, isAddMusicPhotoRequest, isRemoveMusicPhotoRequest } from '@music-bridge/contracts'
 import {
@@ -1081,6 +1082,23 @@ function registerIpcHandlers(
   ipcMain.handle('library:daily-recommendations', (event) =>
     invokeCore(event, () => supervisor.request('library.dailyRecommendations', {})),
   )
+  ipcMain.handle('recordingDrafts:list', (event, page: unknown) => invokeCore(event, () => supervisor.request('recordingDrafts.list', { page: requireLibraryPage(page) })))
+  ipcMain.handle('recordingDrafts:detail', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '草稿编号无效')
+    return supervisor.request('recordingDrafts.detail', { id })
+  }))
+  ipcMain.handle('recordingDrafts:runtime', (event, draftId: unknown, trackId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(draftId) || !isCollectionId(trackId)) return publicIpcFailure('INVALID_IPC_REQUEST', '草稿曲目编号无效')
+    return supervisor.request('recordingDrafts.runtime', { draftId, trackId })
+  }))
+  ipcMain.handle('recordingDrafts:append', (event, request: unknown) => invokeCore(event, () => {
+    if (!isAppendMasterDraftRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '选曲确认内容无效')
+    return supervisor.request('recordingDrafts.append', request)
+  }))
+  ipcMain.handle('recordingDrafts:update', (event, request: unknown) => invokeCore(event, () => {
+    if (!isUpdateMasterDraftRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '草稿修改内容无效')
+    return supervisor.request('recordingDrafts.update', request)
+  }))
   ipcMain.handle('physicalLinks:digitalDetail', (event, id: unknown) => invokeCore(event, () => {
     if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '关联对象编号无效')
     return supervisor.request('physicalLinks.digitalDetail', { id })

@@ -1,3 +1,4 @@
+import type { MasterDraftsPublicApi } from '@music-bridge/contracts'
 import type { PhysicalLinksPublicApi } from '@music-bridge/contracts'
 import type { PhysicalMusicPublicApi } from '@music-bridge/contracts'
 import type {
@@ -50,7 +51,7 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
   autoReconnect: false,
 }
 
-export interface MusicBridgePublicApi extends CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi {
+export interface MusicBridgePublicApi extends CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
   getAppInfo: () => Promise<AppInfo>
   getCoreHealth: () => Promise<PublicBridgeState>
   getCoreState: () => Promise<PublicBridgeState>
@@ -124,6 +125,12 @@ export interface MusicBridgePublicApi extends CollectionPublicApi, PhysicalMusic
 }
 
 export const PUBLIC_API_KEYS = [
+  'listMasterDrafts',
+  'getMasterDraft',
+  'appendMasterDraft',
+  'updateMasterDraft',
+  'getMasterDraftTrackRuntime',
+
   'searchPhysicalRoonAlbums',
   'listDigitalAlbums',
   'getDigitalAlbum',
@@ -367,9 +374,17 @@ export function createPreloadApi(
   collectionApi?: CollectionPublicApi,
   physicalMusicApi?: PhysicalMusicPublicApi,
   physicalLinksApi?: PhysicalLinksPublicApi,
+  masterDraftsApi?: MasterDraftsPublicApi,
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   return Object.freeze({
+    ...(masterDraftsApi ?? {
+      listMasterDrafts: collectionUnavailable,
+      getMasterDraft: collectionUnavailable,
+      appendMasterDraft: collectionUnavailable,
+      updateMasterDraft: collectionUnavailable,
+      getMasterDraftTrackRuntime: collectionUnavailable,
+    }),
     ...(physicalLinksApi ?? {
       searchPhysicalRoonAlbums: collectionUnavailable,
       listDigitalAlbums: collectionUnavailable,

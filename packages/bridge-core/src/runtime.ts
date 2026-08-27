@@ -1,3 +1,4 @@
+import { createMasterDraftsCoordinator, type MasterDraftsCoordinator } from './recording/drafts-coordinator.js';
 import { createPhysicalLinksCoordinator, type PhysicalLinksCoordinator } from './collection/physical-links-coordinator.js';
 import type { RoonPublicLibrary } from './roon/public-library.js';
 import path from 'node:path';
@@ -91,6 +92,7 @@ export type CoreRuntimeEvent = TypedIpcEvent;
 
 export interface CoreRuntime {
   physicalLinks?: PhysicalLinksCoordinator;
+  masterDrafts?: MasterDraftsCoordinator;
   readonly collection?: CollectionRepository;
   start(): Promise<void>;
   shutdown(): Promise<void>;
@@ -1090,7 +1092,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       return { stopped: true as const };
     },
 
-    ...(options.collectionRepository ? { collection: options.collectionRepository, physicalLinks: createPhysicalLinksCoordinator({ repository: options.collectionRepository.links, library: roonLibrary }) } : {}),
+    ...(options.collectionRepository ? { collection: options.collectionRepository, physicalLinks: createPhysicalLinksCoordinator({ repository: options.collectionRepository.links, library: roonLibrary }), masterDrafts: createMasterDraftsCoordinator({ repository: options.collectionRepository.drafts, library: roonLibrary }) } : {}),
     listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),
     async checkFavorite(descriptor) {
       return { favorite: await favoriteRepository.isFavorite(descriptor) };
@@ -1599,6 +1601,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       return playbackState;
     },
     async browseRoonAlbums(page) {
+      if (options.roonLibrary) return options.roonLibrary.browseAlbums(page);
       return { items: [], offset: page.offset, limit: page.limit };
     },
     async browseRoonArtists(page) {
@@ -1656,6 +1659,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     },
     collection,
     physicalLinks: createPhysicalLinksCoordinator({ repository: collection.links, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
+    masterDrafts: createMasterDraftsCoordinator({ repository: collection.drafts, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
     listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),
     async checkFavorite(descriptor) {
       return { favorite: await favoriteRepository.isFavorite(descriptor) };

@@ -563,6 +563,7 @@ test('Roon public library resolves a Track reference for typed play and queue on
   const track = tracks.items[0];
   assert.ok(track);
   assert.ok(track.artworkReference);
+  assert.deepEqual(publicLibrary.getTrackSnapshot(track.reference), { title: 'Track', version: 'Live' });
   const summary = publicLibrary.getTrackSummary(track.reference);
   assert.deepEqual(summary, {
     id: roonTrackIdFromReference(track.reference),

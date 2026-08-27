@@ -1,3 +1,4 @@
+import type { MasterDraft, MasterDraftSummary, AppendMasterDraftRequest, UpdateMasterDraftRequest, MasterDraftResult } from './master-drafts.js';
 import type { DigitalAlbum, DigitalAlbumDetail, PhysicalLinksSnapshot, DigitalRuntime, ConfirmPhysicalLinkRequest, RelocateDigitalRequest, RegisterDigitalRequest, RemovePhysicalLinkRequest, ConfirmAbsenceRequest, PhysicalLinkResult, CollectionMatrixRow } from './physical-links.js';
 import type { MusicFilter, MusicEntry, MusicDetail, SaveReleaseRequest, SaveLegacyRequest, MusicMutationResult, AddMusicPhotoRequest, RemoveMusicPhotoRequest } from './physical-music.js';
 import type { PublicError } from './errors.js';
@@ -74,6 +75,11 @@ export const IPC_COMMANDS = [
   'library.playlist',
   'library.dailyRecommendations',
   'favorites.list',
+  'recordingDrafts.list',
+  'recordingDrafts.detail',
+  'recordingDrafts.append',
+  'recordingDrafts.update',
+  'recordingDrafts.runtime',
   'physicalLinks.search',
   'physicalLinks.digitalList',
   'physicalLinks.digitalDetail',
@@ -181,6 +187,11 @@ export type IpcResponse<TResult = unknown> =
 export type IpcEnvelope<T = unknown> = IpcRequest<T> | IpcResponse<T>;
 
 export interface IpcCommandPayloads {
+  'recordingDrafts.list': { page: PageRequest };
+  'recordingDrafts.detail': { id: string };
+  'recordingDrafts.append': AppendMasterDraftRequest;
+  'recordingDrafts.update': UpdateMasterDraftRequest;
+  'recordingDrafts.runtime': { draftId: string; trackId: string };
   'core.ping': Record<string, never>;
   'core.getHealth': Record<string, never>;
   'core.getState': Record<string, never>;
@@ -277,6 +288,11 @@ export interface IpcCommandPayloads {
 }
 
 export interface IpcCommandResults {
+  'recordingDrafts.list': Page<MasterDraftSummary>;
+  'recordingDrafts.detail': MasterDraft;
+  'recordingDrafts.append': MasterDraftResult;
+  'recordingDrafts.update': MasterDraftResult;
+  'recordingDrafts.runtime': DigitalRuntime;
   'core.ping': { pong: true };
   'core.getHealth': PublicBridgeState;
   'core.getState': PublicBridgeState;

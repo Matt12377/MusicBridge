@@ -311,7 +311,7 @@ test('v1 库存迁移保留全部账本和实体；迁移失败仍保留 v1 可�
   const before = repository.detail(stock.modelId, page); repository.close();
   // 本次迁移只新增这两张表；去除它们后即为上一版本的实际 schema 和业务数据。
   const db = new DatabaseSync(filePath);
-  db.exec('DROP TABLE physical_digital_links; DROP TABLE physical_digital_absence; DROP TABLE digital_albums; DROP TABLE physical_links_ledger; DROP TABLE music_photos; DROP TABLE legacy_recording_content; DROP TABLE music_releases; DROP TABLE music_ledger; DROP TABLE collection_featured_photos; DROP TABLE collection_photos; PRAGMA user_version=1');
+  db.exec('DROP TABLE master_drafts; DROP TABLE master_drafts_ledger; DROP TABLE physical_digital_links; DROP TABLE physical_digital_absence; DROP TABLE digital_albums; DROP TABLE physical_links_ledger; DROP TABLE music_photos; DROP TABLE legacy_recording_content; DROP TABLE music_releases; DROP TABLE music_ledger; DROP TABLE collection_featured_photos; DROP TABLE collection_photos; PRAGMA user_version=1');
   const ledger = db.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(); db.close();
   const failing = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-photos') throw new Error('合成迁移中断'); } });
   assert.throws(() => failing.list(page), /库存暂时不可用/u); failing.close();
@@ -321,7 +321,7 @@ test('v1 库存迁移保留全部账本和实体；迁移失败仍保留 v1 可�
   const migrated = createCollectionRepository({ filePath });
   try { assert.deepEqual(migrated.detail(stock.modelId, page), before); } finally { migrated.close(); }
   const check = new DatabaseSync(filePath, { readOnly: true });
-  try { assert.equal(check.prepare('PRAGMA user_version').get()?.user_version, 4); assert.deepEqual(check.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(), ledger); }
+  try { assert.equal(check.prepare('PRAGMA user_version').get()?.user_version, 5); assert.deepEqual(check.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(), ledger); }
   finally { check.close(); }
 });
 
@@ -399,7 +399,7 @@ test('schema 2 音乐迁移失败回滚，成功后库存、照片、编号和�
   repository.addPhoto({ commandId: randomUUID(), modelId: stock.modelId, image: photoImage });
   const before = repository.detail(stock.modelId, page); repository.close();
   const db = new DatabaseSync(filePath);
-  db.exec('DROP TABLE physical_digital_links; DROP TABLE physical_digital_absence; DROP TABLE digital_albums; DROP TABLE physical_links_ledger; DROP TABLE music_photos; DROP TABLE legacy_recording_content; DROP TABLE music_releases; DROP TABLE music_ledger; PRAGMA user_version=2'); db.close();
+  db.exec('DROP TABLE master_drafts; DROP TABLE master_drafts_ledger; DROP TABLE physical_digital_links; DROP TABLE physical_digital_absence; DROP TABLE digital_albums; DROP TABLE physical_links_ledger; DROP TABLE music_photos; DROP TABLE legacy_recording_content; DROP TABLE music_releases; DROP TABLE music_ledger; PRAGMA user_version=2'); db.close();
   const interrupted = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-music') throw new Error('synthetic'); } });
   assert.throws(() => interrupted.music.list(page), /不可用/u); interrupted.close();
   const old = new DatabaseSync(filePath); assert.equal(old.prepare('PRAGMA user_version').get()?.user_version, 2); old.close();
@@ -467,7 +467,7 @@ test('schema 3 关系迁移中断回滚，已有音乐与照片完整保留', as
   repository.music.addPhoto({ commandId: randomUUID(), id: saved.id, image: photoImage });
   const before = repository.music.detail(saved.id); repository.close();
   const db = new DatabaseSync(filePath);
-  db.exec('DROP TABLE physical_digital_links; DROP TABLE physical_digital_absence; DROP TABLE digital_albums; DROP TABLE physical_links_ledger; PRAGMA user_version=3'); db.close();
+  db.exec('DROP TABLE master_drafts; DROP TABLE master_drafts_ledger; DROP TABLE physical_digital_links; DROP TABLE physical_digital_absence; DROP TABLE digital_albums; DROP TABLE physical_links_ledger; PRAGMA user_version=3'); db.close();
   const interrupted = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-links') throw new Error('合成迁移中断'); } });
   assert.throws(() => interrupted.links.digitalList(page), /不可用/u); interrupted.close();
   const old = new DatabaseSync(filePath);
@@ -494,4 +494,77 @@ test('关系数据库和不可变账本只保留本地身份及快照，不落�
   const bytes = await (await import('node:fs/promises')).readFile(filePath);
   assert.equal(bytes.includes(Buffer.from(candidate.reference)), false);
   assert.equal(bytes.includes(Buffer.from('synthetic-private-album-1')), false);
+});
+
+test('选曲草稿持久化独立身份、幂等追加和显式曲序，不把浏览信息当 Source Lock', async t => {
+  const { repository, filePath } = await fixture(t);
+  const metadata = { title: '合成同名曲', artist: '合成艺术家', album: '合成专辑', durationMs: 180000 };
+  const request = { commandId: randomUUID(), fingerprint: linkFingerprint('draft'), title: '私人精选', programType: 'compilation' as const, metadata: [metadata, metadata] };
+  const result = repository.drafts.append(request);
+  assert.deepEqual(repository.drafts.append(request), result);
+  const first = repository.drafts.detail(result.draftId);
+  assert.equal(first.sourceLockEligible, false); assert.equal(first.status, 'draft');
+  assert.equal(first.estimatedDurationMs, 365000); assert.equal(first.trackCount, 2);
+  assert.notEqual(first.tracks[0]?.id, first.tracks[1]?.id);
+  const edit = { commandId: randomUUID(), draftId: result.draftId, expectedRevision: 1, title: '换个顺序', programType: 'concert' as const, trackIds: [...result.trackIds].reverse() };
+  repository.drafts.update(edit, linkFingerprint(edit));
+  assert.deepEqual(repository.drafts.detail(result.draftId).tracks.map(track => track.id), edit.trackIds);
+  assert.equal(repository.drafts.detail(result.draftId).estimatedDurationMs, 360000);
+  assert.throws(() => repository.drafts.update({ ...edit, commandId: randomUUID() }, linkFingerprint('stale-draft')), /已改变/u);
+  repository.close(); const reopened = createCollectionRepository({ filePath }); t.after(() => reopened.close());
+  assert.equal(reopened.drafts.detail(result.draftId).title, '换个顺序');
+  assert.deepEqual(reopened.drafts.detail(result.draftId).tracks.map(track => track.id), edit.trackIds);
+  assert.equal(reopened.list(page).total, 0); assert.equal(reopened.music.list(page).total, 0);
+});
+
+test('草稿事务失败回滚，未知时长不伪造估算，删除只接受本草稿曲目', async t => {
+  let fail = false; const { repository } = await fixture(t, action => { if (fail && action === 'append-draft-tracks') throw new Error('合成提交中断'); });
+  const request = { commandId: randomUUID(), fingerprint: linkFingerprint('draft-rollback'), title: '待核实', programType: 'compilation' as const, metadata: [{ title: '未知时长' }] };
+  fail = true; assert.throws(() => repository.drafts.append(request), /不可用/u); fail = false;
+  assert.equal(repository.drafts.list(page).total, 0);
+  const result = repository.drafts.append(request);
+  assert.equal(repository.drafts.detail(result.draftId).estimatedDurationMs, undefined);
+  const edit = { commandId: randomUUID(), draftId: result.draftId, expectedRevision: 1, title: '待核实', programType: 'continuous' as const, trackIds: [randomUUID()] };
+  assert.throws(() => repository.drafts.update(edit, linkFingerprint(edit)), /曲目/u);
+  const remove = { ...edit, commandId: randomUUID(), trackIds: [] };
+  repository.drafts.update(remove, linkFingerprint(remove));
+  assert.equal(repository.drafts.detail(result.draftId).trackCount, 0);
+  assert.equal(repository.drafts.detail(result.draftId).sourceLockEligible, false);
+});
+
+test('schema 4 草稿迁移中断完整回滚，成功后原音乐与 Roon 关系不变', async t => {
+  const { repository, filePath } = await fixture(t);
+  const release = repository.music.saveRelease({ commandId: randomUUID(), release: { format: 'cd', title: '迁移保留', artist: '合成', quantity: 1, completeness: 'basic', tracks: [] } });
+  repository.links.link({ commandId: randomUUID(), fingerprint: linkFingerprint('before-draft'), releaseId: release.id, expectedRevision: 1, relation: 'related', ripFromCdConfirmed: false, metadata: { title: '关联数字版' } });
+  const before = repository.links.physical(release.id); repository.close();
+  const db = new DatabaseSync(filePath); db.exec('DROP TABLE master_drafts; DROP TABLE master_drafts_ledger; PRAGMA user_version=4'); db.close();
+  const interrupted = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-drafts') throw new Error('合成迁移故障'); } });
+  assert.throws(() => interrupted.drafts.list(page), /不可用/u); interrupted.close();
+  const old = new DatabaseSync(filePath); assert.equal(old.prepare('PRAGMA user_version').get()?.user_version, 4); assert.equal(old.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE name='master_drafts'").get()?.n, 0); old.close();
+  const reopened = createCollectionRepository({ filePath }); t.after(() => reopened.close());
+  assert.deepEqual(reopened.links.physical(release.id), before);
+  assert.equal(reopened.drafts.list(page).total, 0);
+});
+
+test('草稿上限与不可变账本有界，磁盘不存运行引用', async t => {
+  const { repository, filePath } = await fixture(t);
+  const { createMasterDraftsCoordinator } = await import('../src/recording/drafts-coordinator.js');
+  const { createSyntheticRoonLibrary } = await import('../src/roon/synthetic-library.js');
+  const library = createSyntheticRoonLibrary(), coordinator = createMasterDraftsCoordinator({ repository: repository.drafts, library });
+  const album = (await library.browseAlbums(page)).items[0]!;
+  const track = (await library.browseAlbum(album.reference, page)).items[0]!;
+  const request = { commandId: randomUUID(), title: '草稿字节证据', programType: 'compilation' as const, references: [track.reference], userConfirmed: true as const };
+  const saved = coordinator.append(request);
+  assert.throws(() => coordinator.append({ ...request, title: '不同内容' }), /操作编号/u);
+  const many = { commandId: randomUUID(), fingerprint: linkFingerprint('draft-many'), draftId: saved.draftId, expectedRevision: 1, metadata: Array.from({ length: 100 }, () => ({ title: '重复节目', durationMs: 1000 })) };
+  repository.drafts.append(many);
+  assert.throws(() => repository.drafts.append({ ...many, commandId: randomUUID(), fingerprint: linkFingerprint('draft-over'), expectedRevision: 2 }), /最多包含/u);
+  assert.equal(repository.drafts.detail(saved.draftId).trackCount, 101);
+  const db = new DatabaseSync(filePath);
+  assert.throws(() => db.exec("UPDATE master_drafts_ledger SET fingerprint='changed'"), /immutable ledger/u);
+  assert.throws(() => db.exec('DELETE FROM master_drafts_ledger'), /immutable ledger/u); db.close();
+  repository.close();
+  const bytes = await (await import('node:fs/promises')).readFile(filePath);
+  assert.equal(bytes.includes(Buffer.from(track.reference)), false);
+  assert.equal(bytes.includes(Buffer.from('synthetic-private-track-1')), false);
 });

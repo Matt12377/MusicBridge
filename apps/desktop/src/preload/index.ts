@@ -173,5 +173,12 @@ contextBridge.exposeInMainWorld(
       confirmPhysicalAbsence: request => ipcRenderer.invoke('physicalLinks:absence', request),
       getCollectionMatrix: (page, query) => ipcRenderer.invoke('physicalLinks:matrix', page, query),
     },
+    {
+      listMasterDrafts: page => ipcRenderer.invoke('recordingDrafts:list', page),
+      getMasterDraft: id => ipcRenderer.invoke('recordingDrafts:detail', id),
+      appendMasterDraft: request => ipcRenderer.invoke('recordingDrafts:append', request),
+      updateMasterDraft: request => ipcRenderer.invoke('recordingDrafts:update', request),
+      getMasterDraftTrackRuntime: (draftId, trackId) => ipcRenderer.invoke('recordingDrafts:runtime', draftId, trackId),
+    },
   ),
 )

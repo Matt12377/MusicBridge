@@ -3,14 +3,15 @@ wave: WAVE-5
 status: active
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-052
-activeBranch: codex/task-052-v3-roon-physical-links
-activeBaseCommit: 60d4752d585c8a1b67629b0d5d3f85b36ba9362e
+activeTask: TASK-053
+activeBranch: codex/task-053-v3-master-source-picker
+activeBaseCommit: bc4290a10b7ca4a5f5fb73fe70898946fb49be16
 order:
   - TASK-048
   - TASK-049
   - TASK-050
   - TASK-051
   - TASK-052
-stopAfter: TASK-052
-reviewBoundary: confirmed-roon-physical-relations-and-matrix
+  - TASK-053
+stopAfter: TASK-053
+reviewBoundary: persisted-draft-selection-no-source-lock

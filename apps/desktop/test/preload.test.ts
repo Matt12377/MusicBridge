@@ -126,6 +126,11 @@ test('Preload exposes only sanitized business methods', async () => {
   )
 
   assert.deepEqual(PUBLIC_API_KEYS, [
+    'listMasterDrafts',
+    'getMasterDraft',
+    'appendMasterDraft',
+    'updateMasterDraft',
+    'getMasterDraftTrackRuntime',
     'searchPhysicalRoonAlbums',
     'listDigitalAlbums',
     'getDigitalAlbum',
@@ -222,6 +227,11 @@ test('Preload exposes only sanitized business methods', async () => {
     'onRemoteCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
+    'listMasterDrafts',
+    'getMasterDraft',
+    'appendMasterDraft',
+    'updateMasterDraft',
+    'getMasterDraftTrackRuntime',
     'searchPhysicalRoonAlbums',
     'listDigitalAlbums',
     'getDigitalAlbum',

@@ -163,6 +163,7 @@ test('显式合成目录注入走同一公共曲目浏览，不提供试听成�
   const library = createSyntheticRoonLibrary();
   const runtime = createTestBridgeRuntime({ roonLibrary: library });
   const album = (await library.browseAlbums({ offset: 0, limit: 20 })).items[0]!;
+  assert.equal((await runtime.browseRoonAlbums({ offset: 0, limit: 20 })).items[0]?.reference, album.reference);
   const tracks = await runtime.browseRoonAlbum(album.reference, { offset: 0, limit: 20 });
   assert.equal(tracks.items[0]?.title, '合成关联曲目');
   await assert.rejects(runtime.playRoonTrack(tracks.items[0]!.reference, 'synthetic-zone'));

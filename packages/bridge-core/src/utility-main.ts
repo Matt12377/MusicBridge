@@ -133,6 +133,11 @@ function collectionFor(runtime: CoreRuntimeForIpc): CollectionRepository {
   return runtime.collection;
 }
 
+function masterDraftsFor(runtime: CoreRuntimeForIpc) {
+  if (!runtime.masterDrafts) throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', '录音草稿服务尚未就绪。', { httpStatus: 503 });
+  return runtime.masterDrafts;
+}
+
 function physicalLinksFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.physicalLinks) throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Roon 关联服务尚未就绪。', { httpStatus: 503 });
   return runtime.physicalLinks;
@@ -143,6 +148,11 @@ async function dispatch(
   request: IpcRequest,
 ): Promise<unknown> {
   switch (request.command as IpcCommand) {
+    case 'recordingDrafts.list': return collectionFor(runtime).drafts.list((request.payload as IpcCommandPayloads['recordingDrafts.list']).page);
+    case 'recordingDrafts.detail': return collectionFor(runtime).drafts.detail((request.payload as IpcCommandPayloads['recordingDrafts.detail']).id);
+    case 'recordingDrafts.append': return masterDraftsFor(runtime).append(request.payload as IpcCommandPayloads['recordingDrafts.append']);
+    case 'recordingDrafts.update': return masterDraftsFor(runtime).update(request.payload as IpcCommandPayloads['recordingDrafts.update']);
+    case 'recordingDrafts.runtime': { const p = request.payload as IpcCommandPayloads['recordingDrafts.runtime']; return masterDraftsFor(runtime).runtime(p.draftId, p.trackId); }
     case 'physicalLinks.search': { const p = request.payload as IpcCommandPayloads['physicalLinks.search']; return physicalLinksFor(runtime).search(p.query, p.page); }
     case 'physicalLinks.digitalList': return collectionFor(runtime).links.digitalList((request.payload as IpcCommandPayloads['physicalLinks.digitalList']).page);
     case 'physicalLinks.digitalDetail': return collectionFor(runtime).links.digitalDetail((request.payload as IpcCommandPayloads['physicalLinks.digitalDetail']).id);
