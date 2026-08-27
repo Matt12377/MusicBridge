@@ -81,9 +81,9 @@
     "task": "TASK-050",
     "branch": "codex/task-050-v3-collection-photos",
     "baseCommit": "71eca199f2678c9dfe6ba765193e09ef4207d89a",
-    "state": "local-automated-gates-passed",
-    "implementationCommit": null,
-    "reportCommit": null,
+    "state": "local-automated-gates-passed-owner-pending",
+    "implementationCommit": "542d8cd2c18890cda32046c848b433165a80cbc8",
+    "reportCommit": "a5629b83dc54de82582e1a5213fc564e3cc86db9",
     "nextTask": "TASK-051",
     "previousTask": {
       "task": "TASK-049",
