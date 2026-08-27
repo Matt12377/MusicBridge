@@ -50,6 +50,26 @@
       "ownerProductAcceptance": "pending-not-implied-by-integration-authorization"
     }
   },
+  "v3Preparation": {
+    "branch": "codex/v3",
+    "baseCommit": "90d0aa8aa7f156c6ecfc6f366eea698f8e4d6098",
+    "documentState": "FREEZE_PENDING",
+    "prd": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+    "developmentPack": "project/V3_DEVELOPMENT_PACK.md",
+    "implementationAuthorization": "OWNER_GRANTED_SEQUENTIAL_SLICES",
+    "technicalGates": {
+      "A": "NOT_RUN",
+      "B": "NOT_RUN",
+      "C": "NOT_RUN",
+      "D": "NOT_RUN",
+      "E": "NOT_RUN"
+    },
+    "outputBackendCertification": "NOT_RUN",
+    "ownerProductAcceptance": "NOT_RUN",
+    "approvedNavigation": "collection-and-recording-preview-02",
+    "firstTask": "TASK-048",
+    "ownerDesignDirection": "APPROVED_PREVIEW_02"
+  },
   "policy": {
     "realCredentialsInCi": false,
     "realRoonInCi": false,
