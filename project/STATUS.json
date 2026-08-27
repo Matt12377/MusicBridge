@@ -83,7 +83,7 @@
     "baseCommit": "79ca787240226eefb87cba49c7f92c35232be45a",
     "state": "synthetic-pass-owner-review-pending",
     "implementationCommit": "557cb78bf1048732bb30638de6440368787bda0d",
-    "reportCommit": null,
+    "reportCommit": "6bc736e7372c2b0f860070d9b64e1a9af13e2947",
     "nextTask": null,
     "previousTask": {
       "task": "TASK-054",
