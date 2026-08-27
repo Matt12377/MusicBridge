@@ -21,9 +21,9 @@
     "branch": "codex/task-046-local-lyrics-manual-ui",
     "state": "automated-pass-unmerged",
     "baseCommit": "fee74e5b51a517253e5804a0c8dc217a0feeb106",
-    "implementationCommit": null,
+    "implementationCommit": "f97c941645e96fb643716f5c2f63695b9bc158d5",
     "reportCommit": null,
-    "pullRequest": null,
+    "pullRequest": 12,
     "nextTask": "TASK-047",
     "integrationPolicy": "stacked-unmerged-until-owner-acceptance",
     "gates": {
@@ -32,7 +32,7 @@
       "desktop": "162-of-162-pass",
       "electron": "4-of-4-pass",
       "e2e": "22-of-22-pass-axe-zero",
-      "github": "not-pushed",
+      "github": "pending-final-identity-head",
       "realProvider": "deferred-to-task-047",
       "realRoon": "deferred-to-task-047",
       "ownerIntegration": "pending-all-slices"
