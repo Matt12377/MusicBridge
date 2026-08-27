@@ -47,6 +47,8 @@ UI E2E 使用 Main 测试夹具；Core 另有真实组件组合测试覆盖 cont
 
 ## Carryover 与下一步
 
+- 远端首次最终 HEAD macOS Gate 在既有搜索分页 E2E 失败：强制点击滚动后已被 IntersectionObserver 加载状态替换的按钮。只调整测试为滚动并等待第二页结果，不改分页产品代码；最终远端状态以 PR checks 为准。
+
 - 本任务没有连接真实 Provider 或真实 Roon，没有取得 Owner 接受。
 - TASK-047 从本任务最终身份提交创建，补齐全矩阵组合验收及真实样本操作清单。
 - 自动测试生成的未跟踪 `apps/desktop/test-results/` 保留但不提交；不删除其他工作树及证据。
