@@ -10,7 +10,7 @@ Owner 已授权“全部开始”。这是持续实施授权，不是“所有�
 | 4 | TASK-051 → TASK-052 | 原版 CD/磁带与旧录音同库 → Roon 双向关系 | TASK-051/052 自动通过；真实 Roon 与 Owner 待验收 |
 | 5 | TASK-053 → TASK-054 | Roon 选曲草稿 → 授权源绑定与 Gate A | TASK-053/054 自动通过；实际目录和完整 Gate A 待验收 |
 | 6 | TASK-055 | 分面规划、初步库存推荐与用户预留 | 自动通过；正式容量/设备预检与 Owner 待验收 |
-| 7 | TASK-056 → TASK-057 / 后续 PREP 任务 | 源帧证据、不可变母版/布局，再接 Logic 与 Gate D | TASK-056 本地自动验证通过；TASK-056/057 本地自动验证通过；原始 Render、Marker 与 PREP 待 TASK-058 |
+| 7 | TASK-056 → TASK-057 → TASK-058 | 源帧证据、不可变母版/布局，再接 Logic 与 Gate D | TASK-056/057/058 本地自动验证通过；实际 Logic、完整 Gate D 与 Owner 待验收 |
 | 8 | 待编号 | 执行资产、录音状态机、Gate B 与设备实测 | 待开发；F-01/设备参数待确认 |
 | 9 | 待编号 | 归档、双库同步、Replica、J-Card、备份与 Gate E | 待开发 |
 | 10 | 待编号 | 参考目录、Excel 导入、Want List 与收藏完成度 | 待开发 |
@@ -44,3 +44,7 @@ TASK-055 已接入毫秒分面与库存推荐/预留；后续继续不可变母�
 ### TASK-056 版本冻结承接
 
 源容器帧证据、独立 Master/Layout 内容身份、整数帧时间线、可取消的完整源复核与 schema 8 原子冻结已通过本地自动验证。录音页提供提案确认、后台状态和冻结历史；没有生成执行音频或开始录音。下一段继续 Logic/PREP 与 Planned/Render Timeline 独立确认，不将本任务当作完整 Gate D。
+
+### TASK-058 PREP 承接
+
+原始 Render 独立保存、人工实际 Marker、Conformance 五态、Frozen PREP、空 B 面、DAT Program 和故障恢复已通过本地自动验证。旧 PREP 对原 M/L 继续有效；不代表执行资产、正式录音或完整归档已就绪。下一段继续执行格式与执行层，F-01 保留策略仍待 Owner 明确决定。

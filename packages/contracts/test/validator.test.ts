@@ -1531,3 +1531,29 @@ test('Preparation 目标与任务 API 有界，原生授权路径及 Finder 上�
   assert.equal(validateIpcResponseForCommand({ ...response, result: { destinations: [destination] } }, 'recordingPreparation.destinations' as Parameters<typeof validateIpcResponseForCommand>[1]).ok, true);
   assert.equal(validateIpcResponseForCommand({ ...response, result: { destinations: [{ ...destination, path: '/private/other' }] } }, 'recordingPreparation.destinations' as Parameters<typeof validateIpcResponseForCommand>[1]).ok, false);
 });
+
+test('Prepared 请求只读取有界版本上下文，不接受私有 Render 路径或伪造冻结记录', () => {
+  const draftId = '11111111-1111-4111-8111-111111111111';
+  const request = (payload: unknown) => validateIpcRequest({ version: 1, id: 'prepared', command: 'recordingPrepared.list', payload }).ok;
+  assert.equal(request({ draftId }), true);
+  assert.equal(request({ draftId, renderPath: '/private/render.wav' }), false);
+  assert.equal(request({ draftId, preps: [] }), false);
+});
+
+test('Prepared 原始文件选择只在 Main 授权，公开预览与冻结不接收文件路径', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const request = (command: string, payload: unknown) => validateIpcRequest({ version: 1, id: 'raw-api', command, payload }).ok;
+  assert.equal(request('recordingPrepared.selections', { preparationId: id }), true);
+  assert.equal(request('recordingPrepared.select', { commandId: id, preparationId: id, side: 'A', absolutePath: '/private/render.wav' }), true);
+  assert.equal(request('recordingPrepared.select', { commandId: id, preparationId: id, side: 'unknown', absolutePath: '/private/render.wav' }), false);
+  const selection = { id, preparationId: id, side: 'A', label: '合成 WAV', authorized: true };
+  const response = { version: 1, id: 'raw-api', ok: true, result: selection };
+  assert.equal(validateIpcResponseForCommand(response, 'recordingPrepared.select' as Parameters<typeof validateIpcResponseForCommand>[1]).ok, false);
+  assert.equal(validateIpcInternalResponseForCommand(response, 'recordingPrepared.select' as Parameters<typeof validateIpcInternalResponseForCommand>[1]).ok, true);
+  assert.equal(validateIpcInternalResponseForCommand({ ...response, result: { ...selection, absolutePath: '/private/render.wav' } }, 'recordingPrepared.select' as Parameters<typeof validateIpcInternalResponseForCommand>[1]).ok, false);
+  const preview = { preparationId: id, destinationId: id, selectionIds: [id] };
+  assert.equal(request('recordingPrepared.previewImport', preview), true);
+  assert.equal(request('recordingPrepared.previewImport', { ...preview, absolutePath: '/private/render.wav' }), false);
+  assert.equal(request('recordingPrepared.startImport', { ...preview, commandId: id, proposalFingerprint: 'a'.repeat(64), userConfirmed: true }), true);
+  assert.equal(request('recordingPrepared.startImport', { ...preview, commandId: id, proposalFingerprint: 'a'.repeat(64), userConfirmed: false }), false);
+});

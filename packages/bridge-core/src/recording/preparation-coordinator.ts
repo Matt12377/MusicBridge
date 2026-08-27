@@ -12,6 +12,7 @@ const invalid = (message = '工作区提案已失效，请重新预览并确认�
 const publicDestination = (root: { id: string; label: string; authorized: boolean }): PreparationDestination => ({ id: root.id, label: root.label, authorized: root.authorized });
 export function createPreparationCoordinator({ store, sourceStore, sources, copy = copyPreparationFile, afterPublish }: { store: PreparationStore; sourceStore: SourceStore; sources: SourceEvidenceService; copy?: typeof copyPreparationFile; afterPublish?: () => Promise<void> }) {
   let closed = false;
+  const destinationRevoked = new Set<(id: string) => void>();
   const active = new Map<string, { destinationId: string; roots: readonly string[]; controller: AbortController; promise: Promise<void> }>();
   const pendingFailures = new Map<string, PreparationFailure | undefined>();
   function flushFailures(): void { for (const [id, failure] of pendingFailures) { store.fail(id, failure); pendingFailures.delete(id); } }
@@ -102,6 +103,7 @@ export function createPreparationCoordinator({ store, sourceStore, sources, copy
     active.set(job.public.id, { destinationId: job.public.destinationId, roots: rootIds, controller, promise }); return job.public;
   }
   return {
+    onDestinationRevoked(listener: (id: string) => void) { destinationRevoked.add(listener); return () => { destinationRevoked.delete(listener); }; },
     destinations: () => store.destinations().map(publicDestination),
     authorizationReceipt(id: string) { if (!isCollectionId(id)) return invalid(); const prior = store.authorizationReceipt(id); return prior ? publicDestination(prior) : null; },
     async authorize(commandId: string, absolute: string): Promise<PreparationDestination> {
@@ -113,7 +115,7 @@ export function createPreparationCoordinator({ store, sourceStore, sources, copy
       // 数据库写入失败仍保留模糊回执语义，不能误报为确定未接受。
       return publicDestination(store.authorize(commandId, capability));
     },
-    revoke(request: { commandId: string; id: string }) { if (!isSourceAction(request)) return invalid(); const result = store.revoke(request); recoveryControllers.get(request.id)?.abort('DESTINATION_REVOKED'); for (const job of active.values()) if (job.destinationId === request.id) job.controller.abort('DESTINATION_REVOKED'); return publicDestination(result); },
+    revoke(request: { commandId: string; id: string }) { if (!isSourceAction(request)) return invalid(); const result = store.revoke(request); recoveryControllers.get(request.id)?.abort('DESTINATION_REVOKED'); for (const job of active.values()) if (job.destinationId === request.id) job.controller.abort('DESTINATION_REVOKED'); for (const listener of destinationRevoked) listener(request.id); return publicDestination(result); },
     list(draftId: string) { if (!isCollectionId(draftId)) return invalid(); flushFailures(); return store.list(draftId); },
     async preview(request: PreviewPreparationRequest) { await ready(); return (await input(request)).proposal; },
     async start(request: StartPreparationRequest): Promise<PreparationJob> { await ready(); if (closed || !isStartPreparationRequest(request)) return invalid(); flushFailures(); const prior = store.cached(request); if (prior) return prior; let prepared: PreparationInput;

@@ -4,6 +4,7 @@ import type { DraftProgramType, MasterDraft, MasterDraftResult, MasterDraftSumma
 import MediaPlanningPanel from './MediaPlanningPanel.vue'
 import MasterVersionsPanel from './MasterVersionsPanel.vue'
 import PreparationPanel from './PreparationPanel.vue'
+import PreparedPanel from './PreparedPanel.vue'
 import SourceEvidencePanel from './SourceEvidencePanel.vue'
 import type { DraftSourceSnapshot } from '@music-bridge/contracts'
 import MasterSourcePicker from './MasterSourcePicker.vue'
@@ -12,6 +13,9 @@ const api = window.musicBridge
 const catalog = shallowRef<Page<MasterDraftSummary>>(), draft = shallowRef<MasterDraft>()
 const loading = ref(false), saving = ref(false), picker = ref(false), error = ref(''), notice = ref(''), discarding = ref(false)
 const mediaPlanning = ref(false), masterVersions = ref(false)
+const prepared = ref(false), preparedId = ref(''), preparedTrigger = ref<HTMLButtonElement>()
+function openPrepared(id = ''): void { preparation.value = false; preparedId.value = id; prepared.value = true }
+async function closePrepared(): Promise<void> { prepared.value = false; await nextTick(); preparedTrigger.value?.focus() }
 const preparation = ref(false), preparationLayoutId = ref(''), preparationTrigger = ref<HTMLButtonElement>()
 function openPreparation(layoutId = ''): void { masterVersions.value = false; preparationLayoutId.value = layoutId; preparation.value = true }
 async function closePreparation(): Promise<void> { preparation.value = false; await nextTick(); preparationTrigger.value?.focus() }
@@ -133,6 +137,7 @@ onUnmounted(() => { alive = false; ++generation })
       <button class="recording-primary" :disabled="blocked || dirty || !draft.trackCount" @click="mediaPlanning = true">分面与选择磁带</button>
       <button :disabled="blocked || dirty" @click="masterVersions = true">母版与布局版本</button>
       <button ref="preparationTrigger" :disabled="blocked" @click="openPreparation()">Logic 工作区</button>
+      <button ref="preparedTrigger" :disabled="blocked" @click="openPrepared()">原始 Render 与 PREP</button>
       <p id="draft-freeze-status" class="draft-estimate">冻结前需完成实际源验证、最终分面与磁带预留；可在版本面板查看提案和历史。</p>
       <p v-if="dirty" class="draft-estimate" role="status">有未保存的修改；添加更多曲目前请先保存或撤销。</p>
       <div v-if="discarding" class="discard"><p>返回会放弃当前未保存的修改，已保存草稿不变。</p><button @click="back(true)">放弃未保存修改并返回</button><button @click="discarding = false">继续编辑</button></div>
@@ -141,7 +146,8 @@ onUnmounted(() => { alive = false; ++generation })
     <p v-if="error && !picker" class="draft-message" role="alert">{{ error }} <button v-if="pending" :disabled="saving" @click="retry">重试原操作</button><button v-else :disabled="loading" @click="error = ''; draft ? open(draft.id) : list()">刷新草稿</button></p>
     <section v-if="!draft && catalog?.items.length" class="draft-library" aria-label="已保存的录音草稿"><h3>继续一份草稿</h3><div class="draft-grid"><button v-for="item in catalog.items" :key="item.id" class="draft-card" @click="open(item.id)"><span>继续草稿 {{ item.title }}</span><small>{{ item.trackCount }} 首 · {{ duration(item.estimatedDurationMs) }} · {{ item.sourceLockEligible ? '源已验证' : '来源待验证' }}</small></button></div><nav v-if="catalog.total > catalog.limit" aria-label="草稿分页"><button :disabled="loading || !catalog.offset" @click="list(Math.max(0, catalog.offset - 12))">上一页</button><button :disabled="loading || !catalog.hasMore" @click="list(catalog.offset + 12)">下一页</button></nav></section>
     <MasterVersionsPanel v-if="draft && masterVersions" :draft="draft" @close="masterVersions = false" @prepare="openPreparation" />
-    <PreparationPanel v-if="draft && preparation" :draft="draft" :initial-layout-id="preparationLayoutId" @close="closePreparation" />
+    <PreparationPanel v-if="draft && preparation" :draft="draft" :initial-layout-id="preparationLayoutId" @close="closePreparation" @import-render="openPrepared" />
+    <PreparedPanel v-if="draft && prepared" :draft="draft" :initial-preparation-id="preparedId" @close="closePrepared" />
     <MediaPlanningPanel v-if="draft && mediaPlanning" :draft="draft" @close="mediaPlanning = false" />
     <SourceEvidencePanel v-if="draft && sourceTrackId" :draft-id="draft.id" :track-id="sourceTrackId" :title="draft.tracks.find(t => t.id === sourceTrackId)?.metadata.title ?? '曲目'" @close="closeSources" />
     <MasterSourcePicker v-if="picker" :draft="draft" :busy="saving" :pending="!!pending" :error="error" @close="picker = false; error = ''" @confirm="append" @retry="retry" />

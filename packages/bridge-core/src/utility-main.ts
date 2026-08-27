@@ -142,6 +142,10 @@ function masterVersionsFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.masterVersions) throw new CollectionError('INVENTORY_UNAVAILABLE', '母版版本服务尚未就绪，请重试。');
   return runtime.masterVersions;
 }
+function preparedFor(runtime: CoreRuntimeForIpc) {
+  if (!runtime.prepared) throw new CollectionError('INVENTORY_UNAVAILABLE', 'PREP 服务尚未就绪，请重试。');
+  return runtime.prepared;
+}
 function preparationFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.preparation) throw new CollectionError('INVENTORY_UNAVAILABLE', 'Logic 工作区服务尚未就绪，请重试。');
   return runtime.preparation;
@@ -179,6 +183,17 @@ async function dispatch(
     case 'recordingSources.confirm': { const p = request.payload as IpcCommandPayloads['recordingSources.confirm']; return sourcesFor(runtime).confirm(p); }
     case 'recordingSources.recheck': { const p = request.payload as IpcCommandPayloads['recordingSources.recheck']; return sourcesFor(runtime).recheck(p); }
     case 'recordingVersions.list': return masterVersionsFor(runtime).list((request.payload as IpcCommandPayloads['recordingVersions.list']).draftId);
+    case 'recordingPrepared.list': return preparedFor(runtime).list((request.payload as IpcCommandPayloads['recordingPrepared.list']).draftId);
+    case 'recordingPrepared.selections': return preparedFor(runtime).selections((request.payload as IpcCommandPayloads['recordingPrepared.selections']).preparationId);
+    case 'recordingPrepared.selectionReceipt': return { selection: preparedFor(runtime).selectionReceipt((request.payload as IpcCommandPayloads['recordingPrepared.selectionReceipt'])) };
+    case 'recordingPrepared.revoke': return preparedFor(runtime).revoke((request.payload as IpcCommandPayloads['recordingPrepared.revoke']));
+    case 'recordingPrepared.previewImport': return preparedFor(runtime).previewImport((request.payload as IpcCommandPayloads['recordingPrepared.previewImport']));
+    case 'recordingPrepared.startImport': return preparedFor(runtime).startImport((request.payload as IpcCommandPayloads['recordingPrepared.startImport']));
+    case 'recordingPrepared.job': return preparedFor(runtime).job((request.payload as IpcCommandPayloads['recordingPrepared.job']).id);
+    case 'recordingPrepared.cancel': return preparedFor(runtime).cancel((request.payload as IpcCommandPayloads['recordingPrepared.cancel']));
+    case 'recordingPrepared.review': return preparedFor(runtime).review((request.payload as IpcCommandPayloads['recordingPrepared.review']));
+    case 'recordingPrepared.freeze': return preparedFor(runtime).freeze((request.payload as IpcCommandPayloads['recordingPrepared.freeze']));
+    case 'recordingPrepared.select': { const { absolutePath, ...selection } = request.payload as IpcCommandPayloads['recordingPrepared.select']; return preparedFor(runtime).select(selection, absolutePath); }
     case 'recordingPreparation.destinations': return { destinations: preparationFor(runtime).destinations() };
     case 'recordingPreparation.authorizationReceipt': return { destination: preparationFor(runtime).authorizationReceipt((request.payload as IpcCommandPayloads['recordingPreparation.authorizationReceipt']).commandId) };
     case 'recordingPreparation.authorize': { const payload = request.payload as IpcCommandPayloads['recordingPreparation.authorize']; return preparationFor(runtime).authorize(payload.commandId, payload.absolutePath); }

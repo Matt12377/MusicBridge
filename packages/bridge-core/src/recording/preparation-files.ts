@@ -7,7 +7,7 @@ import { isCollectionId } from '@music-bridge/contracts';
 import { authorizeSourceDirectory, sourceRootAvailability, copyReadonlySource, type RootCapability } from './source-files.js';
 
 export class PreparationFileError extends Error { constructor() { super('Preparation 目标目录或操作归属已失效'); } }
-export interface OwnedPreparation { id: string; root: RootCapability; destination: RootCapability; owner: string; directories: readonly RootCapability[] }
+export interface OwnedPreparation { id: string; root: RootCapability; destination: RootCapability; owner: string; directories: readonly RootCapability[]; purpose?: 'raw-render' }
 export interface PreparationOutput { relative: string; sha256: string; size: number }
 const digest = (bytes: Buffer): string => createHash('sha256').update(bytes).digest('hex');
 const fail = (): never => { throw new PreparationFileError(); };
@@ -33,21 +33,21 @@ async function readBounded(file: string, limit: number): Promise<Buffer> {
   } finally { await handle.close(); }
 }
 export async function checkPreparationOwnership(owned: OwnedPreparation): Promise<void> {
-  if (!isCollectionId(owned.id) || owned.root.path !== path.join(owned.destination.path, `MusicBridge-Preparation-${owned.id}`)) return fail();
+  if (!isCollectionId(owned.id) || owned.purpose !== undefined && owned.purpose !== 'raw-render' || owned.root.path !== path.join(owned.destination.path, `MusicBridge-${owned.purpose === 'raw-render' ? 'OriginalRender' : 'Preparation'}-${owned.id}`)) return fail();
   await available(owned.destination); await available(owned.root);
   if ((await readBounded(path.join(owned.root.path, '.musicbridge-owner.json'), 1024)).toString('utf8') !== owned.owner) return fail();
   for (const directory of owned.directories) { if (!inside(owned.root.path, directory.path)) return fail(); await available(directory); }
 }
-export async function createPreparationDirectory(destination: RootCapability, id: string, format: 'cassette' | 'dat'): Promise<OwnedPreparation> {
+export async function createPreparationDirectory(destination: RootCapability, id: string, format: 'cassette' | 'dat', purpose?: 'raw-render'): Promise<OwnedPreparation> {
   if (!isCollectionId(id)) return fail(); await available(destination);
-  const absolute = path.join(destination.path, `MusicBridge-Preparation-${id}`);
+  const absolute = path.join(destination.path, `MusicBridge-${purpose === 'raw-render' ? 'OriginalRender' : 'Preparation'}-${id}`);
   await mkdir(absolute, { mode: 0o700 });
   await available(destination);
   const root = { ...await authorizeSourceDirectory(absolute), id }, owner = JSON.stringify({ format: 1, operationId: id, nonce: randomUUID() });
   const marker = await open(path.join(absolute, '.musicbridge-owner.json'), constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
   try { await marker.writeFile(owner, 'utf8'); await marker.sync(); } finally { await marker.close(); }
-  const directories: RootCapability[] = [], owned = { id, root, destination, owner, directories };
-  for (const relative of ['Sources', 'Bounce Targets', ...(format === 'cassette' ? ['Bounce Targets/A', 'Bounce Targets/B'] : ['Bounce Targets/Program'])]) {
+  const directories: RootCapability[] = [], owned: OwnedPreparation = { id, root, destination, owner, directories, ...(purpose ? { purpose } : {}) };
+  for (const relative of purpose === 'raw-render' ? ['Originals'] : ['Sources', 'Bounce Targets', ...(format === 'cassette' ? ['Bounce Targets/A', 'Bounce Targets/B'] : ['Bounce Targets/Program'])]) {
     await checkPreparationOwnership(owned); const folder = path.join(absolute, relative); await mkdir(folder, { mode: 0o700 });
     directories.push({ ...await authorizeSourceDirectory(folder), id: randomUUID() });
   }
@@ -55,6 +55,10 @@ export async function createPreparationDirectory(destination: RootCapability, id
   await syncDirectory(root); await syncDirectory(destination); await checkPreparationOwnership(owned); return owned;
 }
 function outputPath(owned: OwnedPreparation, relative: string): string {
+  if (owned.purpose === 'raw-render') {
+    if (!/^(?:Originals\/(?:A|B|Program)\.wav|Manifest\.json)$/u.test(relative)) return fail();
+    return path.join(owned.root.path, relative);
+  }
   if (!/^(?:Sources\/[0-9]{3}\.(?:wav|aiff|flac)|Tracklist\.tsv|SourceLineage\.json|README\.txt|Manifest\.json)$/u.test(relative)) return fail();
   return path.join(owned.root.path, relative);
 }
@@ -84,8 +88,8 @@ async function verifyOutput(owned: OwnedPreparation, file: PreparationOutput, si
   try {
     const before = await handle.stat({ bigint: true });
     if (!before.isFile() || before.nlink !== 1n || before.size !== BigInt(file.size)) return fail();
-    const hash = createHash('sha256'), chunk = Buffer.allocUnsafe(1024 * 1024); let offset = 0;
-    while (offset < file.size) { signal.throwIfAborted(); const { bytesRead } = await handle.read(chunk, 0, Math.min(chunk.length, file.size - offset), offset); if (!bytesRead) return fail(); hash.update(chunk.subarray(0, bytesRead)); offset += bytesRead; }
+    const hash = createHash('sha256'), chunk = Buffer.allocUnsafe(1024 * 1024), deadline = Date.now() + 15 * 60_000; let offset = 0;
+    while (offset < file.size) { signal.throwIfAborted(); if (Date.now() > deadline) return fail(); const { bytesRead } = await handle.read(chunk, 0, Math.min(chunk.length, file.size - offset), offset); if (!bytesRead) return fail(); hash.update(chunk.subarray(0, bytesRead)); offset += bytesRead; }
     const after = await lstat(absolute, { bigint: true });
     if (!after.isFile() || after.dev !== before.dev || after.ino !== before.ino || after.mtimeNs !== before.mtimeNs || after.ctimeNs !== before.ctimeNs || hash.digest('hex') !== file.sha256) return fail();
     await checkPreparationOwnership(owned); signal.throwIfAborted();

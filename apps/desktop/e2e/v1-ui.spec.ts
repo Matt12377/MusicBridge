@@ -243,7 +243,7 @@ test.beforeEach(async () => {
     environment.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE = 'expired'
   }
   delete environment.NETEASE_COOKIE
-  if ((test.info().title.includes('V3 Roon 关联闭环') || test.info().title.includes('V3 录音选曲') || test.info().title.includes('V3 分面') || test.info().title.includes('V3 母版') || test.info().title.includes('V3 Logic 工作区'))) environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY = '1'
+  if ((test.info().title.includes('V3 Roon 关联闭环') || test.info().title.includes('V3 录音选曲') || test.info().title.includes('V3 分面') || test.info().title.includes('V3 母版') || test.info().title.includes('V3 Logic 工作区') || test.info().title.includes('V3 PREP'))) environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY = '1'
   electronApp = await electron.launch({
     args: [electronEntry],
     cwd: desktopRoot,
@@ -2231,4 +2231,107 @@ test('V3 Logic 工作区：原生授权、确认复制、回执重试、Finder �
   await page.locator('[data-sidebar-source="recording"]').click(); await page.getByRole('button', { name: '继续草稿 Logic 工作区合成' }).click(); await page.getByRole('button', { name: 'Logic 工作区', exact: true }).click()
   await expect(page.getByRole('button', { name: '在 Finder 中打开', exact: true })).toBeVisible()
   expect(await page.evaluate(id => window.musicBridge.listPreparations(id), draft.draftId)).toEqual(history)
+})
+
+for (const emptyB of [false, true]) test(`V3 PREP：原始 Render 保存、人工 Marker、差异接受与冷启动历史 · ${emptyB ? '空 B 面' : 'A/B'}`, async () => {
+  test.setTimeout(90_000)
+  const directory = await realpath(diagnosticDirectory), sourceRoot = path.join(directory, 'preparation-source'), target = path.join(directory, 'logic-target'); await mkdir(sourceRoot); await mkdir(target)
+  const sourceFile = path.join(sourceRoot, 'preparation-source.wav')
+  const bytes = Buffer.alloc(44 + 44101 * 4)
+  bytes.write('RIFF'); bytes.writeUInt32LE(bytes.length - 8, 4); bytes.write('WAVEfmt ', 8); bytes.writeUInt32LE(16, 16); bytes.writeUInt16LE(1, 20); bytes.writeUInt16LE(2, 22); bytes.writeUInt32LE(44100, 24); bytes.writeUInt32LE(176400, 28); bytes.writeUInt16LE(4, 32); bytes.writeUInt16LE(16, 34); bytes.write('data', 36); bytes.writeUInt32LE(bytes.length - 44, 40)
+  await writeFile(sourceFile, bytes)
+  const draft = await page.evaluate(async () => {
+    const api = window.musicBridge, page = { offset: 0, limit: 20 }
+    const albums = await api.searchPhysicalRoonAlbums('', page), trackPages = await Promise.all(albums.items.slice(0, 2).map(album => api.getRoonAlbumTracks(album.reference, page)))
+    return api.appendMasterDraft({ commandId: crypto.randomUUID(), title: 'PREP 合成草稿', programType: 'compilation', references: trackPages.map(tracks => tracks.items[0]!.reference), userConfirmed: true })
+  })
+  await electronApp.evaluate(({ dialog }, root) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [root] }) }, sourceRoot)
+  const root = await page.evaluate(() => window.musicBridge.chooseRecordingSourceRoot(crypto.randomUUID()))
+  expect(root).toBeTruthy()
+  await electronApp.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }) }, sourceFile)
+  for (const trackId of draft.trackIds) {
+    const result = await page.evaluate(({ draftId, trackId, rootId }) => window.musicBridge.chooseRecordingSource({ commandId: crypto.randomUUID(), draftId, trackId, rootId, acquisition: 'userFileBind' }), { draftId: draft.draftId, trackId, rootId: root!.id })
+    await expect.poll(async () => (await page.evaluate(id => window.musicBridge.getRecordingSourceJob(id), result!.id)).job?.state).toBe('completed')
+    await page.evaluate(async ({ draftId, trackId }) => { const snapshot = await window.musicBridge.getDraftSources(draftId), binding = snapshot.tracks.find(t => t.trackId === trackId)!.binding!; await window.musicBridge.confirmRecordingSource({ commandId: crypto.randomUUID(), id: binding.id, draftId, trackId, userConfirmed: true }) }, { draftId: draft.draftId, trackId })
+  }
+  const plan = await page.evaluate(async ({ draftId, emptyB }) => {
+    const api = window.musicBridge, page = { offset: 0, limit: 20 }
+    await api.receiveCollectionStock({ commandId: crypto.randomUUID(), model: { brand: 'TDK', name: 'SA', edition: '合成工作区验证', year: 1990, format: 'cassette', tapeType: 'II', identification: 'verified' }, lengthMinutes: 60, quantities: { openedBlank: 2, sealedBlank: 0, legacyUsed: 0, unclassified: 0 } })
+    const spec = { format: 'cassette' as const, splitAfter: emptyB ? 2 : 1, leadInMs: 1000, tailMs: 1000, defaultGapMs: 5000, rules: [], compatibility: { confirmed: true, cassetteTypes: ['II' as const], dat: true } }
+    const preview = await api.previewMediaPlan({ draftId, spec, page }), saved = await api.saveMediaPlan({ commandId: crypto.randomUUID(), draftId, expectedDraftRevision: preview.draftRevision, inputFingerprint: preview.inputFingerprint, spec })
+    return api.reserveMediaPlan({ commandId: crypto.randomUUID(), planId: saved.id, expectedRevision: saved.revision, skuId: preview.candidates.items[0]!.skuId, packaging: 'opened', userConfirmed: true })
+  }, { draftId: draft.draftId, emptyB })
+
+  const frozen = await page.evaluate(async planId => { const api = window.musicBridge, p = await api.previewMasterVersions({ planId, sampleRate: 96000 }); return api.freezeMasterVersions({ commandId: crypto.randomUUID(), planId, sampleRate: 96000, proposalFingerprint: p.proposalFingerprint, userConfirmed: true }) }, plan.id)
+  await expect.poll(async () => (await page.evaluate(id => window.musicBridge.getMasterVersionJob(id), frozen.id)).job?.state).toBe('completed')
+  const context = await page.evaluate(async draftId => {
+    const api = window.musicBridge, history = await api.listMasterVersions(draftId); return { master: history.masters[0]!, layout: history.layouts[0]! }
+  }, draft.draftId)
+  await electronApp.evaluate(({ dialog }, folder) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [folder] }) }, target)
+  const destination = await page.evaluate(() => window.musicBridge.choosePreparationDestination(crypto.randomUUID()))
+  const prepJob = await page.evaluate(async ({ layoutId, destinationId }) => { const api = window.musicBridge, proposal = await api.previewPreparation({ layoutVersionId: layoutId, destinationId }); return api.startPreparation({ commandId: crypto.randomUUID(), layoutVersionId: layoutId, destinationId, proposalFingerprint: proposal.proposalFingerprint, userConfirmed: true }) }, { layoutId: context.layout.id, destinationId: destination!.id })
+  await expect.poll(async () => (await page.evaluate(id => window.musicBridge.getPreparationJob(id), prepJob.id)).job?.state).toBe('completed')
+  const renders: { file: string; bytes: Buffer; side: string }[] = []
+  for (const side of context.layout.timeline.sides.filter(s => s.tracks.length > 0)) {
+    const raw = Buffer.alloc(44 + side.totalFrames * 4); bytes.copy(raw, 0, 0, 44); raw.writeUInt32LE(raw.length - 8, 4); raw.writeUInt32LE(96000, 24); raw.writeUInt32LE(96000 * 4, 28); raw.writeUInt32LE(raw.length - 44, 40)
+    const file = path.join(directory, `final-${side.name}.wav`); await writeFile(file, raw); renders.push({ file, bytes: raw, side: side.name })
+  }
+  await page.locator('[data-sidebar-source="recording"]').click(); await page.getByRole('button', { name: '继续草稿 PREP 合成草稿' }).click()
+  const trigger = page.getByRole('button', { name: '原始 Render 与 PREP', exact: true }); await expect(trigger).toBeVisible(); await trigger.click()
+  const panel = page.getByRole('dialog', { name: '原始 Render 与 PREP', exact: true })
+  await expect(panel.getByRole('button', { name: '核对原始 Render', exact: true })).toBeDisabled()
+  await electronApp.evaluate(({ dialog }) => { dialog.showOpenDialog = async () => ({ canceled: true, filePaths: [] }) })
+  await panel.getByRole('button', { name: '选择 A 面 WAV', exact: true }).click()
+  expect((await page.evaluate(id => window.musicBridge.listPreparedSelections(id), prepJob.id)).selections).toEqual([])
+  for (const raw of renders) {
+    await electronApp.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }) }, raw.file)
+    await panel.getByRole('button', { name: `选择 ${raw.side} 面 WAV`, exact: true }).click()
+    await expect(panel.getByText(path.basename(raw.file), { exact: true }).first()).toBeVisible()
+  }
+  await panel.getByRole('button', { name: '核对原始 Render', exact: true }).click()
+  await expect(panel.getByRole('heading', { name: '确认独立保存原始 Render', exact: true })).toBeVisible()
+  expect(await readdir(target)).toHaveLength(1)
+  await expect(panel.getByRole('button', { name: '确认保存原始 Render', exact: true })).toBeDisabled()
+  await panel.getByLabel('我确认在所选目标保存独立原始 Render；不覆盖源文件，也不作为执行派生文件', { exact: true }).check()
+  await panel.getByRole('button', { name: '确认保存原始 Render', exact: true }).click()
+  await expect(panel.getByRole('heading', { name: '确认实际曲目标记', exact: true })).toBeVisible()
+  await panel.getByLabel('处理谱系', { exact: true }).fill('合成 WAV；保持源与曲序，人工核对每曲边界。')
+  await panel.getByRole('button', { name: '生成 Conformance 报告', exact: true }).click()
+  await expect(panel.getByTestId('conformance-status')).toContainText('REJECTED')
+  for (const check of await panel.getByLabel(/我已核对本曲、Exact Source 和实际帧边界/).all()) await check.check()
+  const firstStart = panel.getByLabel('A 面第 1 曲实际开始帧', { exact: true }); await firstStart.fill(String(context.layout.timeline.sides[0]!.tracks[0]!.startFrame + 2))
+  await panel.getByLabel(/我已核对本曲、Exact Source 和实际帧边界/).first().check()
+  await panel.getByRole('button', { name: '生成 Conformance 报告', exact: true }).click(); await expect(panel.getByTestId('conformance-status')).toContainText('REJECTED')
+  await panel.getByLabel('我明确接受保持曲目、源、曲序和分面的时间差异', { exact: true }).check()
+  await panel.getByLabel('差异原因', { exact: true }).fill('人工确认两帧起点偏移，仍适配介质。')
+  await panel.getByRole('button', { name: '生成 Conformance 报告', exact: true }).click(); await expect(panel.getByTestId('conformance-status')).toContainText('ACCEPTED_VARIANCE')
+  await expect(panel.getByRole('button', { name: '冻结 PREP', exact: true })).toBeDisabled()
+  await panel.getByLabel('我确认上述实际时间线，并冻结到此母版与布局；后续不得再次插入 Gap', { exact: true }).check()
+  await electronApp.evaluate(({ ipcMain }) => {
+    const handlers = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => unknown> })._invokeHandlers, original = handlers.get('recordingPrepared:freeze')!; let lost = false
+    ipcMain.removeHandler('recordingPrepared:freeze'); ipcMain.handle('recordingPrepared:freeze', async (...args) => { const result = await original(...args); if (!lost) { lost = true; throw new Error('合成 PREP 回执丢失') }; return result })
+  })
+  await panel.getByRole('button', { name: '冻结 PREP', exact: true }).click(); await expect(panel.getByRole('button', { name: '重试原操作', exact: true })).toBeVisible()
+  await expect(panel.getByRole('button', { name: '关闭', exact: true })).toBeDisabled(); await panel.getByRole('button', { name: '重试原操作', exact: true }).click()
+  await expect(panel.getByRole('heading', { name: 'PREP 1', exact: true })).toBeVisible()
+  const history = await page.evaluate(id => window.musicBridge.listPrepared(id), draft.draftId)
+  expect(history.preps).toHaveLength(1); expect(history.jobs).toHaveLength(1); expect(history.preps[0]!.conformance.status).toBe('ACCEPTED_VARIANCE'); expect(history.preps[0]!.transitionRenderingMode).toBe('Baked Into Render'); expect(history.preps[0]!.executionReady).toBe(false)
+  expect(JSON.stringify(history)).not.toContain(directory)
+  const rawFolder = path.join(target, `MusicBridge-OriginalRender-${history.jobs[0]!.id}`)
+  for (const raw of renders) { expect(await readFile(raw.file)).toEqual(raw.bytes); expect(await readFile(path.join(rawFolder, `Originals/${raw.side}.wav`))).toEqual(raw.bytes) }
+  for (const size of [{ width: 1440, height: 900 }, { width: 720, height: 480 }]) {
+    await page.setViewportSize(size); expect(await panel.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+    await page.evaluate(source => window.eval(source), axeSource)
+    const result = await page.evaluate(async () => (window as typeof window & { axe: { run(root: Element): Promise<{ violations: { impact: string | null }[] }> } }).axe.run(document.querySelector('dialog[open]')!))
+    expect(result.violations.filter(v => v.impact === 'critical' || v.impact === 'serious')).toEqual([])
+    await panel.evaluate(el => { el.scrollTop = 0 }); await page.screenshot({ path: test.info().outputPath(`prepared-render-${size.width}.png`) })
+    await panel.locator('.marker').first().evaluate(el => el.scrollIntoView({ block: 'start' })); await page.screenshot({ path: test.info().outputPath(`prepared-markers-${size.width}.png`) })
+    await panel.getByRole('heading', { name: 'PREP 1', exact: true }).scrollIntoViewIfNeeded(); await page.screenshot({ path: test.info().outputPath(`prepared-history-${size.width}.png`) })
+  }
+  await panel.getByRole('button', { name: '关闭', exact: true }).click(); await expect(trigger).toBeFocused()
+  await electronApp.close()
+  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }; delete environment.NETEASE_COOKIE; delete environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY
+  electronApp = await electron.launch({ args: [electronEntry], cwd: desktopRoot, env: environment }); page = await electronApp.firstWindow()
+  await page.locator('[data-sidebar-source="recording"]').click(); await page.getByRole('button', { name: '继续草稿 PREP 合成草稿' }).click(); await page.getByRole('button', { name: '原始 Render 与 PREP', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'PREP 1', exact: true })).toBeVisible(); expect(await page.evaluate(id => window.musicBridge.listPrepared(id), draft.draftId)).toEqual(history)
 })

@@ -1,3 +1,4 @@
+import type { PreparedPublicApi } from '@music-bridge/contracts'
 import type { PreparationPublicApi } from '@music-bridge/contracts'
 import type { MasterVersionsPublicApi } from '@music-bridge/contracts'
 import type { MediaPlanningPublicApi } from '@music-bridge/contracts'
@@ -55,7 +56,7 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
   autoReconnect: false,
 }
 
-export interface MusicBridgePublicApi extends PreparationPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
+export interface MusicBridgePublicApi extends PreparedPublicApi, PreparationPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
   getAppInfo: () => Promise<AppInfo>
   getCoreHealth: () => Promise<PublicBridgeState>
   getCoreState: () => Promise<PublicBridgeState>
@@ -129,6 +130,16 @@ export interface MusicBridgePublicApi extends PreparationPublicApi, MasterVersio
 }
 
 export const PUBLIC_API_KEYS = [
+  'listPrepared',
+  'listPreparedSelections',
+  'choosePreparedRender',
+  'revokePreparedSelection',
+  'previewPreparedImport',
+  'startPreparedImport',
+  'getPreparedImportJob',
+  'cancelPreparedImport',
+  'reviewPrepared',
+  'freezePrepared',
   'listPreparationDestinations',
   'choosePreparationDestination',
   'revokePreparationDestination',
@@ -414,9 +425,11 @@ export function createPreloadApi(
   mediaPlanningApi?: MediaPlanningPublicApi,
   masterVersionsApi?: MasterVersionsPublicApi,
   preparationApi?: PreparationPublicApi,
+  preparedApi?: PreparedPublicApi,
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   return Object.freeze({
+    ...(preparedApi ?? { listPrepared: collectionUnavailable, listPreparedSelections: collectionUnavailable, choosePreparedRender: collectionUnavailable, revokePreparedSelection: collectionUnavailable, previewPreparedImport: collectionUnavailable, startPreparedImport: collectionUnavailable, getPreparedImportJob: collectionUnavailable, cancelPreparedImport: collectionUnavailable, reviewPrepared: collectionUnavailable, freezePrepared: collectionUnavailable }),
     ...(preparationApi ?? { listPreparationDestinations: collectionUnavailable, choosePreparationDestination: collectionUnavailable, revokePreparationDestination: collectionUnavailable, listPreparations: collectionUnavailable, previewPreparation: collectionUnavailable, startPreparation: collectionUnavailable, getPreparationJob: collectionUnavailable, cancelPreparationJob: collectionUnavailable, openPreparationWorkspace: collectionUnavailable }),
     ...(masterVersionsApi ?? { listMasterVersions: collectionUnavailable, previewMasterVersions: collectionUnavailable, freezeMasterVersions: collectionUnavailable, getMasterVersionJob: collectionUnavailable, cancelMasterVersionJob: collectionUnavailable }),
     ...(mediaPlanningApi ?? { listMediaPlans: collectionUnavailable, getMediaPlan: collectionUnavailable, previewMediaPlan: collectionUnavailable, balanceMediaPlan: collectionUnavailable, saveMediaPlan: collectionUnavailable, reserveMediaPlan: collectionUnavailable, releaseMediaPlan: collectionUnavailable }),

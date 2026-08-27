@@ -16,7 +16,8 @@ const spec: MediaLayoutSpec = { format: 'cassette', splitAfter: 2, leadInMs: 100
 function audio() {
   const b = Buffer.alloc(44 + 44101 * 4); b.write('RIFF'); b.writeUInt32LE(b.length - 8, 4); b.write('WAVEfmt ', 8); b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(2, 22); b.writeUInt32LE(44100, 24); b.writeUInt32LE(176400, 28); b.writeUInt16LE(4, 32); b.writeUInt16LE(16, 34); b.write('data', 36); b.writeUInt32LE(b.length - 44, 40); return b;
 }
-export async function preparationFixture(t: test.TestContext, options: { probe?: typeof probeReadonlySource; beforeCommit?: (action: string) => void } = {}) {
+export async function preparationFixture(t: test.TestContext, options: { probe?: typeof probeReadonlySource; beforeCommit?: (action: string) => void; format?: 'cassette' | 'dat'; emptyB?: boolean } = {}) {
+  const layoutSpec = options.format === 'dat' ? { ...spec, format: 'dat' as const, splitAfter: 0 } : options.emptyB ? { ...spec, splitAfter: 3 } : spec;
   const directory = await realpath(await mkdtemp(path.join(os.tmpdir(), 'musicbridge-version-'))), sourcePath = path.join(directory, 'private-source');
   await mkdir(sourcePath); const file = path.join(sourcePath, 'fixture.wav'); await writeFile(file, audio());
   const filePath = path.join(directory, 'collection.sqlite');
@@ -30,10 +31,10 @@ export async function preparationFixture(t: test.TestContext, options: { probe?:
     const binding = repository.sources.linked(draft.draftId, trackId)!;
     await sources.confirm({ commandId: randomUUID(), id: binding.id, draftId: draft.draftId, trackId, userConfirmed: true });
   }
-  repository.receive({ commandId: randomUUID(), model: { brand: 'TDK', name: 'SA', edition: '合成', year: 1990, format: 'cassette', tapeType: 'II', identification: 'verified' }, lengthMinutes: 60, quantities: { openedBlank: 3, sealedBlank: 0, legacyUsed: 0, unclassified: 0 } });
+  repository.receive({ commandId: randomUUID(), model: { brand: 'TDK', name: 'SA', edition: '合成', year: 1990, ...(options.format === 'dat' ? { format: 'dat' as const, tapeType: 'dat' as const } : { format: 'cassette' as const, tapeType: 'II' as const }), identification: 'verified' }, lengthMinutes: 60, quantities: { openedBlank: 3, sealedBlank: 0, legacyUsed: 0, unclassified: 0 } });
   const media = createMediaPlanningCoordinator({ store: repository.media, drafts: repository.drafts, sources });
-  const preview = await media.preview({ draftId: draft.draftId, spec, page });
-  const saved = await media.save({ commandId: randomUUID(), draftId: draft.draftId, expectedDraftRevision: preview.draftRevision, inputFingerprint: preview.inputFingerprint, spec });
+  const preview = await media.preview({ draftId: draft.draftId, spec: layoutSpec, page });
+  const saved = await media.save({ commandId: randomUUID(), draftId: draft.draftId, expectedDraftRevision: preview.draftRevision, inputFingerprint: preview.inputFingerprint, spec: layoutSpec });
   const plan = await media.reserve({ commandId: randomUUID(), planId: saved.id, expectedRevision: saved.revision, skuId: preview.candidates.items[0]!.skuId, packaging: 'opened', userConfirmed: true });
   const { createMasterVersionsCoordinator } = await import('../../src/recording/versions-coordinator.js');
   const versions = createMasterVersionsCoordinator({ store: repository.versions, mediaStore: repository.media, media, drafts: repository.drafts, sourceStore: repository.sources, sources, ...(options.probe ? { probe: options.probe } : {}) });

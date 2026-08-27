@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import type { MasterDraft, VersionHistory, PreparationDestination, PreparationHistory, PreparationJob, PreparationProposal, StartPreparationRequest } from '@music-bridge/contracts'
 const props = defineProps<{ draft: MasterDraft; initialLayoutId?: string }>()
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; 'import-render': [id: string] }>()
 const api = window.musicBridge, dialog = ref<HTMLDialogElement>()
 const versions = shallowRef<VersionHistory>(), history = shallowRef<PreparationHistory>(), destinations = shallowRef<readonly PreparationDestination[]>([])
 const layoutId = ref(props.initialLayoutId ?? ''), destinationId = ref(''), proposal = shallowRef<PreparationProposal>(), confirmed = ref(false)
@@ -112,6 +112,7 @@ onBeforeUnmount(() => { alive = false; ++generation; if (timer) clearTimeout(tim
         <p class="muted">{{ destinations.find(d => d.id === item.destinationId)?.label ?? '目标目录' }} · {{ item.id.slice(0, 8) }}</p>
         <p>允许在 Logic 编辑；历史记录只证明导出时核验通过。</p>
         <button :disabled="busy || !!pending || !destinations.some(d => d.id === item.destinationId && d.authorized)" @click="open(item.id)">在 Finder 中打开</button>
+        <button :disabled="busy || !!pending" @click="emit('import-render', item.id)">导入原始 Render</button>
         <details><summary>查看导出身份</summary><code>Master {{ item.masterVersionId }}</code><code>Layout {{ item.layoutVersionId }}</code><code>Manifest SHA-256 {{ item.manifestHash }}</code></details>
       </article>
       <details v-if="history?.jobs.length"><summary>任务记录（{{ history.jobs.length }}）</summary><ul class="jobs"><li v-for="job in history.jobs" :key="job.id">{{ job.id.slice(0, 8) }} · {{ jobLabel(job) }}</li></ul></details>

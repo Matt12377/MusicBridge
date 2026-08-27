@@ -126,6 +126,16 @@ test('Preload exposes only sanitized business methods', async () => {
   )
 
   assert.deepEqual(PUBLIC_API_KEYS, [
+    'listPrepared',
+    'listPreparedSelections',
+    'choosePreparedRender',
+    'revokePreparedSelection',
+    'previewPreparedImport',
+    'startPreparedImport',
+    'getPreparedImportJob',
+    'cancelPreparedImport',
+    'reviewPrepared',
+    'freezePrepared',
     'listPreparationDestinations',
     'choosePreparationDestination',
     'revokePreparationDestination',
@@ -257,6 +267,16 @@ test('Preload exposes only sanitized business methods', async () => {
     'onRemoteCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
+    'listPrepared',
+    'listPreparedSelections',
+    'choosePreparedRender',
+    'revokePreparedSelection',
+    'previewPreparedImport',
+    'startPreparedImport',
+    'getPreparedImportJob',
+    'cancelPreparedImport',
+    'reviewPrepared',
+    'freezePrepared',
     'listPreparationDestinations',
     'choosePreparationDestination',
     'revokePreparationDestination',

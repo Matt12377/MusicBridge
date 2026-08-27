@@ -67,6 +67,8 @@ interface PendingRequest {
 }
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 2_000
+// 两份 WAV 的完整 Hash 读取各自最多 15 分钟；撤销仍走短控制请求。
+const PREPARED_FILE_REQUEST_TIMEOUT_MS = 35 * 60_000
 const LIBRARY_REQUEST_TIMEOUT_MS = 10_000
 const PLAYBACK_REQUEST_TIMEOUT_MS = 60_000
 
@@ -146,7 +148,9 @@ export class CoreSupervisor {
       throw new CoreIpcError(validated.error.code, validated.error.message)
     }
     const timeoutMs =
-      command.startsWith('library.') ||
+      ['recordingPrepared.previewImport', 'recordingPrepared.startImport', 'recordingPrepared.review', 'recordingPrepared.freeze'].includes(command)
+      ? PREPARED_FILE_REQUEST_TIMEOUT_MS
+      : command.startsWith('library.') ||
       command.startsWith('roon.library.') ||
       command.startsWith('roon.transport.')
       ? LIBRARY_REQUEST_TIMEOUT_MS

@@ -218,5 +218,17 @@ contextBridge.exposeInMainWorld(
       cancelPreparationJob: request => ipcRenderer.invoke('recordingPreparation:cancel', request),
       openPreparationWorkspace: id => ipcRenderer.invoke('recordingPreparation:open', id),
     },
+    {
+      listPrepared: draftId => ipcRenderer.invoke('recordingPrepared:list', draftId),
+      listPreparedSelections: preparationId => ipcRenderer.invoke('recordingPrepared:selections', preparationId),
+      choosePreparedRender: request => ipcRenderer.invoke('recordingPrepared:choose', request),
+      revokePreparedSelection: request => ipcRenderer.invoke('recordingPrepared:revoke', request),
+      previewPreparedImport: request => ipcRenderer.invoke('recordingPrepared:previewImport', request),
+      startPreparedImport: request => ipcRenderer.invoke('recordingPrepared:startImport', request),
+      getPreparedImportJob: id => ipcRenderer.invoke('recordingPrepared:job', id),
+      cancelPreparedImport: request => ipcRenderer.invoke('recordingPrepared:cancel', request),
+      reviewPrepared: request => ipcRenderer.invoke('recordingPrepared:review', request),
+      freezePrepared: request => ipcRenderer.invoke('recordingPrepared:freeze', request),
+    },
   ),
 )

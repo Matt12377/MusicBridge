@@ -138,7 +138,7 @@ test('Preparation schema 8 迁移失败完整回滚，重开后母版历史不�
   const f = await preparationFixture(t); await f.freeze(); await f.versions.idle(); const history = f.repository.versions.list(f.draft.draftId);
   await f.versions.close(); await f.sources.close(); f.repository.close();
   const db = new DatabaseSync(f.filePath);
-  try { db.exec('DROP TABLE preparation_workspaces; DROP TABLE preparation_jobs; DROP TABLE preparation_destinations; DROP TABLE preparation_ledger; PRAGMA user_version=8'); } finally { db.close(); }
+  try { db.exec('DROP TABLE prepared_versions; DROP TABLE prepared_jobs; DROP TABLE prepared_selections; DROP TABLE prepared_ledger; DROP TABLE preparation_workspaces; DROP TABLE preparation_jobs; DROP TABLE preparation_destinations; DROP TABLE preparation_ledger; PRAGMA user_version=8'); } finally { db.close(); }
   const failing = createCollectionRepository({ filePath: f.filePath, beforeCommit: action => { if (action === 'migrate-preparation') throw new Error('合成迁移失败'); } });
   assert.throws(() => failing.preparations.list(f.draft.draftId)); failing.close();
   const inspect = new DatabaseSync(f.filePath); try { assert.equal(inspect.prepare('PRAGMA user_version').get()!.user_version, 8); assert.equal(inspect.prepare("SELECT count(*) AS n FROM sqlite_master WHERE name LIKE 'preparation_%'").get()!.n, 0); } finally { inspect.close(); }

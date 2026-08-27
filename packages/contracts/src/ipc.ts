@@ -1,3 +1,4 @@
+import type { PreparedHistory, PreparedSelection, SelectPreparedRequest, PreviewPreparedImportRequest, StartPreparedImportRequest, PreparedImportJob, PreparedImportProposal, ReviewPreparedRequest, FreezePreparedRequest, PreparedReview, FrozenPrepared } from './prepared-render.js';
 import type { PreviewVersionsRequest, FreezeVersionsRequest, VersionProposal, VersionHistory, VersionJob } from './master-versions.js';
 import type { PreviewPreparationRequest, StartPreparationRequest, PreparationHistory, PreparationProposal, PreparationJob, PreparationDestination } from './preparation.js';
 import type { MediaPlan, MediaPreview, MediaLayoutSpec, PreviewMediaRequest, SaveMediaPlanRequest, ReserveMediaRequest, ReleaseMediaRequest } from './media-planning.js';
@@ -80,6 +81,17 @@ export const IPC_COMMANDS = [
   'library.dailyRecommendations',
   'favorites.list',
   'recordingVersions.list',
+  'recordingPrepared.list',
+  'recordingPrepared.selections',
+  'recordingPrepared.selectionReceipt',
+  'recordingPrepared.select',
+  'recordingPrepared.revoke',
+  'recordingPrepared.previewImport',
+  'recordingPrepared.startImport',
+  'recordingPrepared.job',
+  'recordingPrepared.cancel',
+  'recordingPrepared.review',
+  'recordingPrepared.freeze',
   'recordingPreparation.destinations',
   'recordingPreparation.authorizationReceipt',
   'recordingPreparation.authorize',
@@ -233,6 +245,17 @@ export interface IpcCommandPayloads {
   'recordingPreparation.context': { id: string };
 
   'recordingVersions.list': { draftId: string };
+  'recordingPrepared.list': { draftId: string };
+  'recordingPrepared.selections': { preparationId: string };
+  'recordingPrepared.selectionReceipt': SelectPreparedRequest;
+  'recordingPrepared.select': SelectPreparedRequest & { absolutePath: string };
+  'recordingPrepared.revoke': { commandId: string; id: string };
+  'recordingPrepared.previewImport': PreviewPreparedImportRequest;
+  'recordingPrepared.startImport': StartPreparedImportRequest;
+  'recordingPrepared.job': { id: string };
+  'recordingPrepared.cancel': { commandId: string; id: string };
+  'recordingPrepared.review': ReviewPreparedRequest;
+  'recordingPrepared.freeze': FreezePreparedRequest;
   'recordingPreparation.list': { draftId: string };
   'recordingPreparation.preview': PreviewPreparationRequest;
   'recordingPreparation.start': StartPreparationRequest;
@@ -367,6 +390,17 @@ export interface IpcCommandResults {
   'recordingPreparation.cancel': PreparationJob;
   'recordingPreparation.context': { absolutePath: string };
 
+  'recordingPrepared.list': PreparedHistory;
+  'recordingPrepared.selections': { selections: readonly PreparedSelection[] };
+  'recordingPrepared.selectionReceipt': { selection: PreparedSelection | null };
+  'recordingPrepared.select': PreparedSelection;
+  'recordingPrepared.revoke': PreparedSelection;
+  'recordingPrepared.previewImport': PreparedImportProposal;
+  'recordingPrepared.startImport': PreparedImportJob;
+  'recordingPrepared.job': { job: PreparedImportJob | null };
+  'recordingPrepared.cancel': PreparedImportJob;
+  'recordingPrepared.review': PreparedReview;
+  'recordingPrepared.freeze': FrozenPrepared;
   'recordingPreparation.list': PreparationHistory;
   'recordingPreparation.preview': PreparationProposal;
   'recordingPreparation.start': PreparationJob;
@@ -502,9 +536,11 @@ export interface IpcEventPayloads {
   'lyrics.match.changed': { state: LocalLyricsMatchSnapshot };
 }
 
-export type IpcInternalCommand = 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
+export type IpcInternalCommand = 'recordingPrepared.select' | 'recordingPrepared.selectionReceipt' | 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
 
 export interface IpcInternalCommandResults {
+  'recordingPrepared.select': PreparedSelection;
+  'recordingPrepared.selectionReceipt': { selection: PreparedSelection | null };
   'recordingPreparation.authorizationReceipt': { destination: PreparationDestination | null };
   'recordingPreparation.authorize': PreparationDestination;
   'recordingPreparation.context': { absolutePath: string };
