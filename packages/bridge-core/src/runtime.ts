@@ -11,6 +11,7 @@ import type {
   PlaylistDetail,
   PlaylistSummary,
   LyricsSnapshot,
+  LocalLyricsMatchSnapshot,
   DailyRecommendationsSnapshot,
   ArtistDetail,
   FavoriteEntityDescriptor,
@@ -60,7 +61,16 @@ import { asBridgeError, BridgeError } from './shared/errors.js';
 import { createLogger, type Logger } from './shared/logger.js';
 import { StreamGateway } from './stream/gateway.js';
 import { StreamRegistry } from './stream/registry.js';
-import { LyricsCoordinator } from './lyrics/coordinator.js';
+import {
+  LyricsCoordinator,
+  createLyricsRequestContext,
+} from './lyrics/coordinator.js';
+import { LyricsMatchResolver } from './lyrics-matching/resolver.js';
+import { LocalLyricsManualMatchController } from './lyrics-matching/manual-controller.js';
+import {
+  createLyricsMatchRepository,
+  type LyricsMatchRepository,
+} from './lyrics-matching/repository.js';
 import {
   createLocalFavoriteRepository,
   type LocalFavoriteRepository,
@@ -113,6 +123,9 @@ export interface CoreRuntime {
   checkFavorite(descriptor: FavoriteEntityDescriptor): Promise<{ favorite: boolean }>;
   setFavorite(descriptor: FavoriteEntityDescriptor, favorite: boolean): Promise<{ favorite: boolean; item?: FavoriteRecord }>;
   getLyrics(trackId: string): Promise<LyricsSnapshot>;
+  getLocalLyricsMatch(): LocalLyricsMatchSnapshot;
+  selectLocalLyricsMatch(matchSessionId: string, candidateId: string): Promise<LocalLyricsMatchSnapshot>;
+  revokeLocalLyricsMatch(): Promise<LocalLyricsMatchSnapshot>;
   getPlaybackState(): PlaybackSnapshot;
   playbackPlay(
     trackId: string,
@@ -159,6 +172,7 @@ export interface BridgeRuntimeOptions {
   onRoonBrowseShape?: (summary: RoonBrowseShapeSummary) => void;
   onRoonImageShape?: (summary: RoonImageShapeSummary) => void;
   favoriteRepository?: LocalFavoriteRepository;
+  lyricsMatchRepository?: LyricsMatchRepository;
 }
 
 function publicRoonStatus(
@@ -268,6 +282,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   const favoriteRepository = options.favoriteRepository ?? createLocalFavoriteRepository(
     path.join(process.cwd(), '.musicbridge-favorites.json'),
   );
+  const lyricsMatchRepository = options.lyricsMatchRepository ?? createLyricsMatchRepository();
   const matchCache = createMatchCache();
   let matchLibraryAvailable = roon.getLibraryService() !== undefined;
   const gateway = new StreamGateway({
@@ -670,8 +685,37 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     emitHealth();
   };
 
-  const lyrics = new LyricsCoordinator({
+  const lyricsResolver = new LyricsMatchResolver({
+    provider: {
+      get configured() {
+        return netease.configured;
+      },
+      searchTracks: (query, page) => withProviderRecovery(() => netease.searchTracks(query, page)),
+      getLyrics: (trackId) => withProviderRecovery(() => netease.getLyrics(trackId)),
+    },
+    repository: lyricsMatchRepository,
+  });
+  let lyrics!: LyricsCoordinator;
+  const manualLyrics = new LocalLyricsManualMatchController({
+    repository: lyricsMatchRepository,
+    reload: async (context) => {
+      lyricsResolver.invalidate(context.signature.key);
+      await lyrics.reloadActiveLocalLyrics(context);
+    },
+    onChange: (snapshot) => {
+      emit({
+        version: 1,
+        event: 'lyrics.match.changed',
+        payload: { state: snapshot },
+      });
+    },
+  });
+  lyrics = new LyricsCoordinator({
     load: (trackId) => withProviderRecovery(() => netease.getLyrics(trackId)),
+    localResolver: lyricsResolver,
+    onLocalResolution: (context, resolution) => {
+      manualLyrics.observeResolution(context, resolution);
+    },
     scheduleEstimatedUpdates: (callback) => {
       const timer = setInterval(callback, 100);
       return () => clearInterval(timer);
@@ -686,7 +730,9 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   });
 
   const removeControllerListener = controller.subscribe((snapshot) => {
-    lyrics.onPlaybackChanged(snapshot);
+    const lyricsContext = createLyricsRequestContext(snapshot, controller.getPlaybackGeneration());
+    manualLyrics.observeContext(lyricsContext?.kind === 'local' ? lyricsContext : undefined);
+    lyrics.onPlaybackChanged(snapshot, lyricsContext);
     emit({
       version: 1,
       event: 'playback.changed',
@@ -924,6 +970,10 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     refreshAccountProfile: refreshAccountProfileState,
     getDailyRecommendations: getDailyRecommendationSnapshot,
     getLyrics: (trackId) => lyrics.getLyrics(trackId),
+    getLocalLyricsMatch: () => manualLyrics.getSnapshot(),
+    selectLocalLyricsMatch: (matchSessionId, candidateId) =>
+      manualLyrics.select(matchSessionId, candidateId),
+    revokeLocalLyricsMatch: () => manualLyrics.revoke(),
     getPlaybackState: () => controller.getPlaybackState(),
     async playbackPlay(trackId, qualityPreference, rendererClickAtMs) {
       const coreReceivedAtMs = options.now?.() ?? Date.now();
@@ -1380,7 +1430,15 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
         ],
         activeLineIndex: 0,
         timingSource: 'static',
+        source: 'netease',
       };
+    },
+    getLocalLyricsMatch: () => ({ status: 'hidden', candidates: [], canRevoke: false }),
+    async selectLocalLyricsMatch() {
+      throw new BridgeError('BAD_REQUEST', 'Synthetic local lyrics matching is unavailable', { httpStatus: 409 });
+    },
+    async revokeLocalLyricsMatch() {
+      throw new BridgeError('BAD_REQUEST', 'Synthetic local lyrics matching is unavailable', { httpStatus: 409 });
     },
     getPlaybackState: () => playbackState,
     async seekPlayback(positionMs) {

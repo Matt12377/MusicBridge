@@ -171,6 +171,9 @@ test('Preload exposes only sanitized business methods', async () => {
     'queueRoonTrack',
     'stopRoonTransport',
     'getLyrics',
+    'getLocalLyricsMatch',
+    'selectLocalLyricsMatch',
+    'revokeLocalLyricsMatch',
     'getPlaybackState',
     'play',
     'pause',
@@ -236,6 +239,9 @@ test('Preload exposes only sanitized business methods', async () => {
     'queueRoonTrack',
     'stopRoonTransport',
     'getLyrics',
+    'getLocalLyricsMatch',
+    'selectLocalLyricsMatch',
+    'revokeLocalLyricsMatch',
     'getPlaybackState',
     'play',
     'pause',
@@ -288,6 +294,9 @@ test('Preload exposes only sanitized business methods', async () => {
   assert.deepEqual(await api.listZones(), { zones: [] })
   assert.deepEqual(await api.selectZone('zone-1'), state)
   assert.deepEqual(await api.getLyrics('301'), lyrics)
+  assert.deepEqual(await api.getLocalLyricsMatch(), { status: 'hidden', candidates: [], canRevoke: false })
+  await assert.rejects(() => api.selectLocalLyricsMatch('session-0123456789abcdef', 'candidate-0123456789abcdef'), /unavailable/iu)
+  await assert.rejects(() => api.revokeLocalLyricsMatch(), /unavailable/iu)
   assert.deepEqual(await api.getPlaybackState(), playbackState)
   assert.deepEqual(await api.play('301', 'lossless'), playbackState)
   assert.deepEqual(await api.pause(), playbackState)

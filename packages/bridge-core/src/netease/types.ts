@@ -32,6 +32,7 @@ export interface TrackMetadata {
   artists: string[];
   album: string;
   durationMs?: number;
+  version?: string;
   artworkUrl?: string;
 }
 

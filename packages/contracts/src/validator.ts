@@ -18,6 +18,8 @@ import {
   type LyricLine,
   type LyricWord,
   type LyricsSnapshot,
+  type LocalLyricsMatchSnapshot,
+  LOCAL_LYRICS_MATCH_STATUSES,
 } from './lyrics.js';
 import {
   PLAYBACK_ISSUE_CODES,
@@ -573,6 +575,7 @@ function isLyricsSnapshot(value: unknown): value is LyricsSnapshot {
       'activeLineIndex',
       'activeWordIndex',
       'timingSource',
+      'source',
     ]) ||
     !LYRICS_STATUSES.includes(value.status as (typeof LYRICS_STATUSES)[number]) ||
     !Array.isArray(value.lines) ||
@@ -584,7 +587,11 @@ function isLyricsSnapshot(value: unknown): value is LyricsSnapshot {
     value.activeLineIndex >= value.lines.length ||
     !LYRICS_TIMING_SOURCES.includes(
       value.timingSource as (typeof LYRICS_TIMING_SOURCES)[number],
-    )
+    ) ||
+    (value.source !== undefined && (
+      value.source !== 'netease'
+      || (value.status !== 'ready' && value.status !== 'instrumental')
+    ))
   ) {
     return false;
   }
@@ -613,6 +620,44 @@ function isLyricsSnapshot(value: unknown): value is LyricsSnapshot {
   return true;
 }
 
+const OPAQUE_LYRICS_MATCH_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{15,127}$/u;
+
+function isLocalLyricsMatchCandidate(value: unknown): boolean {
+  return isRecord(value)
+    && hasOnlyKeys(value, ['candidateId', 'title', 'artists', 'album', 'durationMs'])
+    && typeof value.candidateId === 'string'
+    && OPAQUE_LYRICS_MATCH_ID.test(value.candidateId)
+    && safeString(value.title, 512)
+    && value.title.trim().length > 0
+    && Array.isArray(value.artists)
+    && value.artists.length > 0
+    && value.artists.length <= 64
+    && value.artists.every((artist) => safeString(artist, 512) && artist.trim().length > 0)
+    && (value.album === undefined || safeString(value.album, 512))
+    && (value.durationMs === undefined || (
+      Number.isSafeInteger(value.durationMs)
+      && Number(value.durationMs) >= 0
+      && Number(value.durationMs) <= 24 * 60 * 60 * 1_000
+    ));
+}
+
+function isLocalLyricsMatchSnapshot(value: unknown): value is LocalLyricsMatchSnapshot {
+  if (!isRecord(value)
+    || !hasOnlyKeys(value, ['status', 'candidates', 'canRevoke', 'matchSessionId'])
+    || !LOCAL_LYRICS_MATCH_STATUSES.includes(value.status as (typeof LOCAL_LYRICS_MATCH_STATUSES)[number])
+    || !Array.isArray(value.candidates)
+    || value.candidates.length > 20
+    || !value.candidates.every(isLocalLyricsMatchCandidate)
+    || typeof value.canRevoke !== 'boolean'
+    || (value.matchSessionId !== undefined && (
+      typeof value.matchSessionId !== 'string' || !OPAQUE_LYRICS_MATCH_ID.test(value.matchSessionId)
+    ))) return false;
+  if (value.status === 'needs-choice') {
+    return value.candidates.length > 0 && value.matchSessionId !== undefined && value.canRevoke === false;
+  }
+  return value.candidates.length === 0 && value.matchSessionId === undefined;
+}
+
 function isLyricsPayload(value: unknown): value is { trackId: string } {
   return (
     isRecord(value) &&
@@ -621,6 +666,15 @@ function isLyricsPayload(value: unknown): value is { trackId: string } {
     /^\d+$/.test(value.trackId) &&
     value.trackId !== '0'
   );
+}
+
+function isLyricsMatchSelectionPayload(value: unknown): boolean {
+  return isRecord(value)
+    && hasOnlyKeys(value, ['matchSessionId', 'candidateId'])
+    && typeof value.matchSessionId === 'string'
+    && OPAQUE_LYRICS_MATCH_ID.test(value.matchSessionId)
+    && typeof value.candidateId === 'string'
+    && OPAQUE_LYRICS_MATCH_ID.test(value.candidateId);
 }
 
 function isSetCredentialPayload(value: unknown): value is { credential: string } {
@@ -663,6 +717,7 @@ function isTrackSummary(value: unknown): value is TrackSummary {
     'artists',
     'album',
     'durationMs',
+    'version',
     'bitrate',
     'format',
     'artworkUrl',
@@ -684,6 +739,7 @@ function isTrackSummary(value: unknown): value is TrackSummary {
         Number.isSafeInteger(value.durationMs) &&
         value.durationMs >= 0 &&
         value.durationMs <= 24 * 60 * 60 * 1000)) &&
+    (value.version === undefined || safeString(value.version, 256)) &&
     (value.bitrate === undefined || (typeof value.bitrate === 'number' && Number.isSafeInteger(value.bitrate) && value.bitrate > 0 && value.bitrate <= 10_000_000)) &&
     (value.format === undefined || safeString(value.format, 64)) &&
     (value.artworkUrl === undefined || isArtworkUrl(value.artworkUrl)) &&
@@ -893,6 +949,7 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
     return isRoonTrackActionPayload(payload);
   }
   if (command === 'lyrics.get') return isLyricsPayload(payload);
+  if (command === 'lyrics.match.select') return isLyricsMatchSelectionPayload(payload);
   if (command === 'playback.play') return isPlaybackPlayPayload(payload);
   if (command === 'playback.replaceQueue') return isPlaybackReplaceQueuePayload(payload);
   if (command === 'playback.appendQueue' || command === 'playback.insertNext') {
@@ -1327,6 +1384,10 @@ function isCommandResult(
         (value.item === undefined || isFavoriteRecord(value.item));
     case 'lyrics.get':
       return isLyricsSnapshot(value);
+    case 'lyrics.match.get':
+    case 'lyrics.match.select':
+    case 'lyrics.match.revoke':
+      return isLocalLyricsMatchSnapshot(value);
     case 'core.shutdown':
       return isRecord(value) && hasOnlyKeys(value, ['stopped']) && value.stopped === true;
     case 'roon.listZones':
@@ -1396,6 +1457,8 @@ function isEventPayload(event: IpcEventName, payload: unknown): boolean {
       return hasOnlyKeys(payload, ['queue']) && isPlaybackQueueSnapshot(payload.queue);
     case 'lyrics.changed':
       return hasOnlyKeys(payload, ['state']) && isLyricsSnapshot(payload.state);
+    case 'lyrics.match.changed':
+      return hasOnlyKeys(payload, ['state']) && isLocalLyricsMatchSnapshot(payload.state);
   }
 }
 

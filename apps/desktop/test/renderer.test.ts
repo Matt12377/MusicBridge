@@ -98,6 +98,27 @@ test('Lyrics follow uses explicit programmatic and user scroll states', async ()
   assert.match(source, /@pointerdown="beginUserScroll"/)
 })
 
+test('Local lyrics manual matching uses an accessible project-native drawer without exposing engineering data', async () => {
+  const panel = await readFile(path.resolve('src/renderer/src/components/LyricsPanel.vue'), 'utf8')
+  const nowPlaying = await readFile(path.resolve('src/renderer/src/components/NowPlayingView.vue'), 'utf8')
+  const drawer = await readFile(path.resolve('src/renderer/src/components/LocalLyricsMatchDrawer.vue'), 'utf8')
+  const combined = `${panel}\n${nowPlaying}\n${drawer}`
+
+  assert.match(combined, /歌词来源：网易云/u)
+  assert.match(combined, /选择匹配歌词/u)
+  assert.match(drawer, /role="dialog"/u)
+  assert.match(drawer, /aria-modal="true"/u)
+  assert.match(drawer, /@keydown\.esc/u)
+  assert.match(drawer, /focus\(/u)
+  assert.match(drawer, /候选歌曲/u)
+  assert.match(drawer, /取消匹配/u)
+  assert.match(drawer, /暂无匹配歌曲|没有找到可用候选/u)
+  assert.match(drawer, /网易云尚未登录|网易云暂时不可用/u)
+  assert.match(drawer, /@media\s*\(max-width:/u)
+  assert.doesNotMatch(combined, /score|confidence|evidence|algorithmVersion|LocalTrackSignature|roonReference|searchQuery/iu)
+  assert.doesNotMatch(drawer, /<select\b/iu)
+})
+
 test('Renderer exposes the v2 Music Source Sidebar information architecture', async () => {
   const source = (await sourceFiles(rendererRoot)).map((file) => readFile(file, 'utf8'))
   const combinedSource = (await Promise.all(source)).join('\n')

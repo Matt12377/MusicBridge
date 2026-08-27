@@ -4,7 +4,13 @@ import test from 'node:test'
 import type { LyricsSnapshot, PlaybackSnapshot } from '@music-bridge/contracts'
 import { NeteaseClient } from '../src/netease/client.js'
 import { parseLyricsResponse } from '../src/netease/lyrics.js'
-import { LyricsCoordinator } from '../src/lyrics/coordinator.js'
+import { LyricsMatchResolver } from '../src/lyrics-matching/resolver.js'
+import { createLyricsMatchRepository } from '../src/lyrics-matching/repository.js'
+import { LocalLyricsManualMatchController } from '../src/lyrics-matching/manual-controller.js'
+import {
+  LyricsCoordinator,
+  createLyricsRequestContext,
+} from '../src/lyrics/coordinator.js'
 
 function response(body: Record<string, unknown>): unknown {
   return { body: { code: 200, ...body } }
@@ -178,6 +184,413 @@ test('lyrics coordinator prevents stale track results from replacing the active 
 
   assert.equal(changes.at(-1)?.lines[0]?.text, 'current')
   assert.equal(coordinator.getSnapshot().lines[0]?.text, 'current')
+})
+
+test('lyrics request context distinguishes NetEase, Smart-to-Roon and direct Roon identity', () => {
+  const directNetease = createLyricsRequestContext({
+    ...playing('101'),
+    source: 'netease',
+  }, 7)
+  assert.deepEqual(directNetease, {
+    kind: 'netease',
+    playbackGeneration: 7,
+    cacheKey: 'netease:101',
+    neteaseTrackId: '101',
+  })
+
+  const smartRoon = createLyricsRequestContext({
+    ...playing('runtime-smart-id'),
+    source: 'roon',
+    currentTrack: {
+      id: 'runtime-smart-id',
+      title: '归零',
+      artists: ['林忆莲'],
+      album: '0',
+      durationMs: 271_000,
+      version: 'Original',
+    },
+    queue: {
+      items: [{
+        trackId: '202',
+        qualityPreference: 'lossless',
+        preferredSource: 'smart',
+        resolvedSource: 'roon',
+      }],
+      index: 0,
+      hasNext: false,
+      hasPrevious: false,
+    },
+  }, 8)
+  assert.equal(smartRoon?.kind, 'local')
+  if (smartRoon?.kind !== 'local') assert.fail('expected local lyrics context')
+  assert.equal(smartRoon.trustedNeteaseTrackId, '202')
+  assert.equal(smartRoon.signature.canonical.version, 'original')
+  assert.equal(JSON.stringify(smartRoon).includes('runtime-smart-id'), false)
+
+  const directRoon = createLyricsRequestContext({
+    ...playing('runtime-local-id'),
+    source: 'roon',
+    currentTrack: {
+      id: 'runtime-local-id',
+      title: 'Local Song',
+      artists: ['Local Artist'],
+      album: 'Local Album',
+      durationMs: 180_000,
+    },
+    queue: {
+      items: [{
+        trackId: '999',
+        qualityPreference: 'auto',
+        preferredSource: 'roon',
+        resolvedSource: 'roon',
+      }],
+      index: 0,
+      hasNext: false,
+      hasPrevious: false,
+    },
+  }, 9)
+  assert.equal(directRoon?.kind, 'local')
+  if (directRoon?.kind !== 'local') assert.fail('expected local lyrics context')
+  assert.equal(directRoon.trustedNeteaseTrackId, undefined)
+  assert.equal(JSON.stringify(directRoon).includes('runtime-local-id'), false)
+
+  const malformedRoon = createLyricsRequestContext({
+    ...playing('777777'),
+    source: 'roon',
+    currentTrack: {
+      id: '777777',
+      title: 'Local Song',
+      artists: [],
+      album: 'Local Album',
+    },
+    queue: {
+      items: [{ trackId: '777777', qualityPreference: 'auto', preferredSource: 'roon' }],
+      index: 0,
+      hasNext: false,
+      hasPrevious: false,
+    },
+  }, 10)
+  assert.deepEqual(malformedRoon, {
+    kind: 'unavailable',
+    playbackGeneration: 10,
+    cacheKey: 'unavailable:10',
+  })
+})
+
+test('an un-signable Roon track fails lyrics closed without calling either NetEase path', async () => {
+  let directLoads = 0
+  let resolverCalls = 0
+  const snapshot: PlaybackSnapshot = {
+    ...playing('777777'),
+    source: 'roon',
+    currentTrack: { id: '777777', title: 'Local Song', artists: [], album: 'Local Album' },
+    queue: {
+      items: [{ trackId: '777777', qualityPreference: 'auto', preferredSource: 'roon' }],
+      index: 0,
+      hasNext: false,
+      hasPrevious: false,
+    },
+  }
+  const coordinator = new LyricsCoordinator({
+    async load() {
+      directLoads += 1
+      return readySnapshot('unsafe direct load')
+    },
+    localResolver: {
+      async resolveActive() {
+        resolverCalls += 1
+        return { status: 'unavailable', applied: true } as never
+      },
+      cancelActive() {},
+    },
+  })
+
+  coordinator.onPlaybackChanged(snapshot, createLyricsRequestContext(snapshot, 10))
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.equal(coordinator.getSnapshot().status, 'unavailable')
+  assert.equal(directLoads, 0)
+  assert.equal(resolverCalls, 0)
+})
+
+test('local playback reaches playing while lyrics resolve asynchronously and never loads the Roon runtime id', async () => {
+  const changes: LyricsSnapshot[] = []
+  const loadedTrackIds: string[] = []
+  let resolveLocal: ((value: unknown) => void) | undefined
+  const localResolver = {
+    resolveActive: () => new Promise((resolve) => { resolveLocal = resolve }),
+    cancelActive: () => undefined,
+  }
+  const snapshot: PlaybackSnapshot = {
+    ...playing('987654321'),
+    source: 'roon',
+    currentTrack: {
+      id: '987654321',
+      title: '归零',
+      artists: ['林忆莲'],
+      album: '0',
+      durationMs: 271_000,
+    },
+    queue: {
+      items: [{
+        trackId: '987654321',
+        qualityPreference: 'auto',
+        preferredSource: 'roon',
+        resolvedSource: 'roon',
+      }],
+      index: 0,
+      hasNext: false,
+      hasPrevious: false,
+    },
+  }
+  const coordinator = new LyricsCoordinator({
+    load: async (trackId) => {
+      loadedTrackIds.push(trackId)
+      return readySnapshot('wrong path')
+    },
+    localResolver: localResolver as never,
+    onChange: (value) => changes.push(value),
+  })
+
+  coordinator.onPlaybackChanged(snapshot, createLyricsRequestContext(snapshot, 11))
+  assert.equal(snapshot.state, 'playing')
+  assert.equal(changes.at(-1)?.status, 'loading')
+  assert.deepEqual(loadedTrackIds, [])
+
+  resolveLocal?.({
+    status: 'resolved',
+    applied: true,
+    lyrics: readySnapshot('matched local lyric'),
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.equal(changes.at(-1)?.lines[0]?.text, 'matched local lyric')
+  assert.equal(changes.at(-1)?.source, 'netease')
+  assert.deepEqual(loadedTrackIds, [])
+})
+
+test('Smart-to-Roon playback resolves lyrics through the original NetEase identity and stable signature', async () => {
+  const requestedLyricsIds: string[] = []
+  let searchCalls = 0
+  const repository = createLyricsMatchRepository()
+  const resolver = new LyricsMatchResolver({
+    provider: {
+      configured: true,
+      async searchTracks() {
+        searchCalls += 1
+        return { items: [], offset: 0, limit: 20, total: 0, hasMore: false }
+      },
+      async getLyrics(trackId) {
+        requestedLyricsIds.push(trackId)
+        return readySnapshot('trusted smart lyric')
+      },
+    },
+    repository,
+  })
+  const snapshot: PlaybackSnapshot = {
+    ...playing('987654321'),
+    source: 'roon',
+    currentTrack: {
+      id: '987654321',
+      title: '归零',
+      artists: ['林忆莲'],
+      album: '0',
+      durationMs: 271_000,
+    },
+    queue: {
+      items: [{
+        trackId: '202',
+        qualityPreference: 'lossless',
+        preferredSource: 'smart',
+        resolvedSource: 'roon',
+      }],
+      index: 0,
+      hasNext: false,
+      hasPrevious: false,
+    },
+  }
+  const context = createLyricsRequestContext(snapshot, 13)
+  assert.equal(context?.kind, 'local')
+  const coordinator = new LyricsCoordinator({
+    load: async () => readySnapshot('wrong direct path'),
+    localResolver: resolver,
+  })
+
+  coordinator.onPlaybackChanged(snapshot, context)
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.deepEqual(requestedLyricsIds, ['202'])
+  assert.equal(searchCalls, 0)
+  assert.equal(coordinator.getSnapshot().lines[0]?.text, 'trusted smart lyric')
+  const records = await repository.listBounded(0, 10)
+  assert.equal(records.length, 1)
+  assert.equal(records[0]?.neteaseTrackId, '202')
+  assert.equal(JSON.stringify(records).includes('987654321'), false)
+})
+
+test('local lyrics cache follows the stable recording signature across Roon runtime id changes', async () => {
+  let resolverCalls = 0
+  const coordinator = new LyricsCoordinator({
+    load: async () => readySnapshot('unused'),
+    localResolver: {
+      async resolveActive() {
+        resolverCalls += 1
+        return {
+          status: 'resolved',
+          applied: true,
+          lyrics: readySnapshot('stable cached lyric'),
+        } as never
+      },
+      cancelActive() {},
+    },
+  })
+  const localPlayback = (runtimeId: string): PlaybackSnapshot => ({
+    ...playing(runtimeId),
+    source: 'roon',
+    currentTrack: {
+      id: runtimeId,
+      title: 'Same Local Song',
+      artists: ['Same Artist'],
+      album: 'Same Album',
+      durationMs: 200_000,
+    },
+    queue: {
+      items: [{ trackId: runtimeId, qualityPreference: 'auto', preferredSource: 'roon' }],
+      index: 0,
+      hasNext: false,
+      hasPrevious: false,
+    },
+  })
+  const first = localPlayback('111111')
+  coordinator.onPlaybackChanged(first, createLyricsRequestContext(first, 21))
+  await new Promise((resolve) => setImmediate(resolve))
+  coordinator.onPlaybackChanged({
+    ...first,
+    state: 'idle',
+    canStop: false,
+    canPause: false,
+  })
+
+  const second = localPlayback('222222')
+  coordinator.onPlaybackChanged(second, createLyricsRequestContext(second, 22))
+
+  assert.equal(resolverCalls, 1)
+  assert.equal(coordinator.getSnapshot().lines[0]?.text, 'stable cached lyric')
+  assert.equal(coordinator.getSnapshot().source, 'netease')
+})
+
+test('an unavailable local resolution is not promoted beyond the resolver negative-cache policy', async () => {
+  let resolverCalls = 0
+  const coordinator = new LyricsCoordinator({
+    load: async () => readySnapshot('unused'),
+    localResolver: {
+      async resolveActive() {
+        resolverCalls += 1
+        return resolverCalls === 1
+          ? {
+              status: 'unavailable',
+              applied: true,
+              lyrics: { status: 'unavailable', lines: [], activeLineIndex: -1, timingSource: 'static' },
+            } as never
+          : {
+              status: 'resolved',
+              applied: true,
+              lyrics: readySnapshot('available on retry'),
+            } as never
+      },
+      cancelActive() {},
+    },
+  })
+  const localPlayback = (generation: number): PlaybackSnapshot => ({
+    ...playing('333333'),
+    source: 'roon',
+    currentTrack: {
+      id: '333333',
+      title: 'Retry Local Song',
+      artists: ['Retry Artist'],
+      album: 'Retry Album',
+      durationMs: 210_000,
+    },
+    queue: {
+      items: [{ trackId: '333333', qualityPreference: 'auto', preferredSource: 'roon' }],
+      index: 0,
+      hasNext: false,
+      hasPrevious: false,
+    },
+    positionMs: generation,
+  })
+
+  const first = localPlayback(31)
+  coordinator.onPlaybackChanged(first, createLyricsRequestContext(first, 31))
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(coordinator.getSnapshot().status, 'unavailable')
+  coordinator.onPlaybackChanged({ ...first, state: 'idle', canStop: false, canPause: false })
+
+  const second = localPlayback(32)
+  coordinator.onPlaybackChanged(second, createLyricsRequestContext(second, 32))
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.equal(resolverCalls, 2)
+  assert.equal(coordinator.getSnapshot().lines[0]?.text, 'available on retry')
+})
+
+test('stopped local playback rejects a late resolver result without mutating playback', async () => {
+  const changes: LyricsSnapshot[] = []
+  let cancellations = 0
+  let resolveLocal: ((value: unknown) => void) | undefined
+  const coordinator = new LyricsCoordinator({
+    load: async () => readySnapshot('unused'),
+    localResolver: {
+      resolveActive: () => new Promise((resolve) => { resolveLocal = resolve }),
+      cancelActive: () => { cancellations += 1 },
+    } as never,
+    onChange: (value) => changes.push(value),
+  })
+  const snapshot: PlaybackSnapshot = {
+    ...playing('303030'),
+    source: 'roon',
+    currentTrack: {
+      id: '303030',
+      title: 'Local Song',
+      artists: ['Local Artist'],
+      album: 'Local Album',
+    },
+    queue: {
+      items: [{ trackId: '303030', qualityPreference: 'auto', preferredSource: 'roon' }],
+      index: 0,
+      hasNext: false,
+      hasPrevious: false,
+    },
+  }
+  coordinator.onPlaybackChanged(snapshot, createLyricsRequestContext(snapshot, 12))
+  const { currentTrack: _currentTrack, ...stoppedSnapshot } = snapshot
+  coordinator.onPlaybackChanged({
+    ...stoppedSnapshot,
+    state: 'idle',
+    canStop: false,
+    canPause: false,
+  })
+  resolveLocal?.({ status: 'resolved', applied: true, lyrics: readySnapshot('stale') })
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.equal(cancellations > 0, true)
+  assert.equal(changes.at(-1)?.status, 'idle')
+  assert.equal(changes.some((value) => value.lines[0]?.text === 'stale'), false)
+  assert.equal(snapshot.state, 'playing')
+})
+
+test('NetEase source is exposed only for ready or instrumental snapshots', async () => {
+  for (const status of ['ready', 'instrumental', 'unavailable', 'error'] as const) {
+    const coordinator = new LyricsCoordinator({
+      load: async () => status === 'ready'
+        ? readySnapshot('source')
+        : { status, lines: [], activeLineIndex: -1, timingSource: 'static' },
+    })
+    const result = await coordinator.getLyrics('404')
+    assert.equal(result.source, status === 'ready' || status === 'instrumental' ? 'netease' : undefined)
+    assert.equal('confidence' in result, false)
+    assert.equal('evidence' in result, false)
+  }
 })
 
 test('lyrics coordinator pushes active-line changes immediately inside the word throttle window', () => {
@@ -566,4 +979,111 @@ test('lyrics coordinator caps its in-memory cache at fifty tracks', async () => 
 
   assert.equal(coordinator.cacheSize, 50)
   assert.equal(loads, 51)
+})
+
+test('重复播放命中本地歌词缓存时恢复 MANUAL 状态和撤销能力', async () => {
+  const repository = createLyricsMatchRepository()
+  let downloads = 0
+  const resolver = new LyricsMatchResolver({
+    repository,
+    provider: {
+      configured: true,
+      async searchTracks() { throw new Error('不应重新搜索已保存的匹配') },
+      async getLyrics() { downloads += 1; return readySnapshot('已确认歌词') },
+    },
+  })
+  const snapshot: PlaybackSnapshot = {
+    ...playing('local-1'),
+    source: 'roon',
+    currentTrack: { id: 'local-1', title: '归零', artists: ['林忆莲'], album: '0', durationMs: 271_000 },
+    queue: { items: [{ trackId: 'local-1', qualityPreference: 'auto', preferredSource: 'roon' }], index: 0, hasNext: false, hasPrevious: false },
+  }
+  const first = createLyricsRequestContext(snapshot, 1)
+  assert.ok(first?.kind === 'local')
+  await repository.set({ signature: first.signature, neteaseTrackId: '101', source: 'MANUAL', algorithmVersion: 'lyrics-match-v1' })
+  const manual = new LocalLyricsManualMatchController({ repository, reload: async () => undefined })
+  const coordinator = new LyricsCoordinator({
+    load: async () => readySnapshot('不应调用'),
+    localResolver: resolver,
+    onLocalResolution: (context, resolution) => manual.observeResolution(context, resolution),
+  })
+  manual.observeContext(first)
+  coordinator.onPlaybackChanged(snapshot, first)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(manual.getSnapshot().canRevoke, true)
+  manual.observeContext(undefined)
+  coordinator.onPlaybackChanged({ ...snapshot, state: 'idle' })
+  const second = createLyricsRequestContext(snapshot, 2)
+  assert.ok(second?.kind === 'local')
+  manual.observeContext(second)
+  coordinator.onPlaybackChanged(snapshot, second)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(coordinator.getSnapshot().status, 'ready')
+  assert.equal(downloads, 1)
+  assert.equal(manual.getSnapshot().status, 'matched')
+  assert.equal(manual.getSnapshot().canRevoke, true)
+})
+
+test('停止或播放失败时不再保留可供手动选择的本地上下文', () => {
+  for (const state of ['idle', 'stopping', 'error'] as const) {
+    assert.equal(createLyricsRequestContext({ ...playing('101'), state }, 3), undefined)
+  }
+})
+
+test('MANUAL 选择和撤销贯穿 resolver 与 coordinator，仅刷新歌词不改变播放快照', async () => {
+  const repository = createLyricsMatchRepository()
+  let searches = 0
+  const downloads: string[] = []
+  const resolver = new LyricsMatchResolver({
+    repository,
+    provider: {
+      configured: true,
+      async searchTracks() {
+        searches += 1
+        return {
+          items: [
+            { id: '101', title: '归零', artists: ['林忆莲'], album: '甲', durationMs: 268_000 },
+            { id: '102', title: '归零', artists: ['林忆莲'], album: '乙', durationMs: 274_000 },
+          ], offset: 0, limit: 20, total: 2, hasMore: false,
+        }
+      },
+      async getLyrics(trackId) { downloads.push(trackId); return readySnapshot('手动选择后的歌词') },
+    },
+  })
+  const snapshot: PlaybackSnapshot = {
+    ...playing('local-1'), source: 'roon', positionMs: 5_000,
+    currentTrack: { id: 'local-1', title: '归零', artists: ['林忆莲'], album: '0', durationMs: 271_000 },
+    queue: { items: [{ trackId: 'local-1', qualityPreference: 'auto', preferredSource: 'roon' }], index: 0, hasNext: false, hasPrevious: false },
+  }
+  const before = JSON.stringify(snapshot)
+  const context = createLyricsRequestContext(snapshot, 7)
+  assert.ok(context?.kind === 'local')
+  let coordinator!: LyricsCoordinator
+  const manual = new LocalLyricsManualMatchController({
+    repository,
+    reload: async (active) => { resolver.invalidate(active.signature.key); await coordinator.reloadActiveLocalLyrics(active) },
+  })
+  coordinator = new LyricsCoordinator({
+    load: async () => { throw new Error('本地播放不得使用直接加载入口') },
+    localResolver: resolver,
+    onLocalResolution: (active, result) => manual.observeResolution(active, result),
+  })
+  manual.observeContext(context)
+  coordinator.onPlaybackChanged(snapshot, context)
+  await new Promise((resolve) => setImmediate(resolve))
+  const choice = manual.getSnapshot()
+  assert.equal(choice.status, 'needs-choice')
+  assert.deepEqual(downloads, [])
+  await manual.select(choice.matchSessionId!, choice.candidates[1]!.candidateId)
+  assert.deepEqual(downloads, ['102'])
+  assert.equal(coordinator.getSnapshot().source, 'netease')
+  assert.equal(coordinator.getSnapshot().activeLineIndex, 0)
+  assert.equal(manual.getSnapshot().canRevoke, true)
+  const searchesBeforeRevoke = searches
+  await manual.revoke()
+  assert.equal(manual.getSnapshot().status, 'needs-choice')
+  assert.equal(coordinator.getSnapshot().status, 'unavailable')
+  assert.equal(searches > searchesBeforeRevoke, true)
+  assert.equal(await repository.get(context.signature.key, 'lyrics-match-v1'), undefined)
+  assert.equal(JSON.stringify(snapshot), before)
 })

@@ -16,7 +16,7 @@ import type {
   RoonImageResult,
   RoonLibraryPage,
 } from './roon.js';
-import type { LyricsSnapshot } from './lyrics.js';
+import type { LocalLyricsMatchSnapshot, LyricsSnapshot } from './lyrics.js';
 import type {
   PlaybackQueueRequestItem,
   PlaybackQueueSnapshot,
@@ -74,6 +74,9 @@ export const IPC_COMMANDS = [
   'favorites.check',
   'favorites.set',
   'lyrics.get',
+  'lyrics.match.get',
+  'lyrics.match.select',
+  'lyrics.match.revoke',
   'roon.listZones',
   'roon.selectZone',
   'roon.library.albums',
@@ -115,6 +118,7 @@ export const IPC_EVENTS = [
   'playback.changed',
   'queue.changed',
   'lyrics.changed',
+  'lyrics.match.changed',
 ] as const;
 
 export type IpcEvent = (typeof IPC_EVENTS)[number];
@@ -179,6 +183,9 @@ export interface IpcCommandPayloads {
   'favorites.check': { descriptor: FavoriteEntityDescriptor };
   'favorites.set': { descriptor: FavoriteEntityDescriptor; favorite: boolean };
   'lyrics.get': { trackId: string };
+  'lyrics.match.get': Record<string, never>;
+  'lyrics.match.select': { matchSessionId: string; candidateId: string };
+  'lyrics.match.revoke': Record<string, never>;
   'roon.listZones': Record<string, never>;
   'roon.selectZone': { zoneId: string };
   'roon.library.albums': { page: PageRequest };
@@ -245,6 +252,9 @@ export interface IpcCommandResults {
   'favorites.check': { favorite: boolean };
   'favorites.set': { favorite: boolean; item?: FavoriteRecord };
   'lyrics.get': LyricsSnapshot;
+  'lyrics.match.get': LocalLyricsMatchSnapshot;
+  'lyrics.match.select': LocalLyricsMatchSnapshot;
+  'lyrics.match.revoke': LocalLyricsMatchSnapshot;
   'roon.listZones': { zones: readonly PublicRoonZone[] };
   'roon.selectZone': PublicBridgeState;
   'roon.library.albums': RoonLibraryPage;
@@ -284,6 +294,7 @@ export interface IpcEventPayloads {
   'playback.changed': { state: PlaybackSnapshot };
   'queue.changed': { queue: PlaybackQueueSnapshot };
   'lyrics.changed': { state: LyricsSnapshot };
+  'lyrics.match.changed': { state: LocalLyricsMatchSnapshot };
 }
 
 export type IpcInternalCommand = 'auth.pollQr' | 'auth.verifyCredential';

@@ -17,6 +17,8 @@ export interface TrackSummary {
   artists: readonly string[]
   album: string
   durationMs?: number
+  /** 来源明确提供的录音版本；不可从标题猜测。 */
+  version?: string
   /** 来源明确提供的每秒比特数；不可由标题或音质标签推断。 */
   bitrate?: number
   /** 来源明确提供的短格式名，例如 FLAC；不可由扩展名推断。 */

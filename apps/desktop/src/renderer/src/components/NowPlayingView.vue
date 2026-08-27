@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import type { LyricsSnapshot, PlaybackIssue, PlaybackSnapshot, TrackSummary } from '@music-bridge/contracts'
+import type { LocalLyricsMatchSnapshot, LyricsSnapshot, PlaybackIssue, PlaybackSnapshot, TrackSummary } from '@music-bridge/contracts'
 import SidebarIcon from './sidebar/SidebarIcon.vue'
 import TrackArtwork from './TrackArtwork.vue'
 import LyricsLines from './LyricsLines.vue'
+import LocalLyricsMatchDrawer from './LocalLyricsMatchDrawer.vue'
 
 const props = defineProps<{
   currentTrack?: TrackSummary
@@ -16,6 +17,9 @@ const props = defineProps<{
   trackLikeAvailable: boolean
   playbackSource: 'roon' | 'netease'
   seekAllowed: boolean
+  localLyricsMatchState: LocalLyricsMatchSnapshot
+  localLyricsMatchBusy?: boolean
+  localLyricsMatchError?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -25,9 +29,12 @@ const emit = defineEmits<{
   next: []
   'toggle-like': []
   seek: [positionMs: number]
+  'select-lyrics-match': [matchSessionId: string, candidateId: string]
+  'revoke-lyrics-match': []
 }>()
 
 const qualityDetailsOpen = ref(false)
+const lyricsMatchOpen = ref(false)
 const playbackQualityIdentity = computed(() => [
   props.currentTrack?.id ?? '',
   props.playbackState?.actualQuality ?? '',
@@ -98,6 +105,7 @@ function startProgressInterpolation(): void {
 }
 
 watch(() => [props.currentTrack?.id, props.playbackState?.positionMs, props.playbackState?.state], startProgressInterpolation)
+watch(() => props.currentTrack?.id, () => { lyricsMatchOpen.value = false })
 watch(playbackQualityIdentity, () => {
   qualityDetailsOpen.value = false
 })
@@ -185,9 +193,30 @@ const actualQualityDetail = computed(() => {
       </div>
 
       <div class="now-playing-lyrics" aria-label="歌词滚动区域">
+        <div v-if="props.lyricsSnapshot.source === 'netease' || props.localLyricsMatchState.status !== 'hidden'" class="now-playing-lyrics-toolbar">
+          <span v-if="props.lyricsSnapshot.source === 'netease'" class="lyrics-source-label">歌词来源：网易云</span>
+          <button
+            v-if="props.localLyricsMatchState.status !== 'hidden'"
+            type="button"
+            class="lyrics-match-trigger"
+            :aria-expanded="lyricsMatchOpen"
+            aria-haspopup="dialog"
+            @click="lyricsMatchOpen = true"
+          >{{ props.localLyricsMatchState.status === 'needs-choice' ? '选择匹配歌词' : '歌词匹配' }}</button>
+        </div>
         <LyricsLines :snapshot="props.lyricsSnapshot" :track-id="props.currentTrack?.id" class="now-playing-lyrics-lines" />
       </div>
     </div>
+
+    <LocalLyricsMatchDrawer
+      v-if="lyricsMatchOpen"
+      :state="props.localLyricsMatchState"
+      :busy="props.localLyricsMatchBusy"
+      :error="props.localLyricsMatchError"
+      @close="lyricsMatchOpen = false"
+      @select="(sessionId, candidateId) => emit('select-lyrics-match', sessionId, candidateId)"
+      @revoke="emit('revoke-lyrics-match')"
+    />
 
     <p v-if="props.qualityNotice" class="persistent-error">{{ props.playbackIssueMessage(props.qualityNotice) }}<span>诊断标识：{{ props.qualityNotice.diagnosticId }}</span></p>
   </section>

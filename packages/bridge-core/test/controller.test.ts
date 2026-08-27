@@ -17,6 +17,9 @@ import type {
 import { createLogger } from '../src/shared/logger.js';
 import { StreamGateway } from '../src/stream/gateway.js';
 import { StreamRegistry } from '../src/stream/registry.js';
+import { LyricsCoordinator, createLyricsRequestContext } from '../src/lyrics/coordinator.js';
+import { LyricsMatchResolver } from '../src/lyrics-matching/resolver.js';
+import { createLyricsMatchRepository } from '../src/lyrics-matching/repository.js';
 
 class FakeNetease implements NeteasePort {
   readonly configured = true;
@@ -366,6 +369,106 @@ function makeHarness(
   });
   return { registry, gateway, netease, roon, nativeRoon, controller, events, get authExpiredCalls() { return authExpiredCalls; } };
 }
+
+test('跨源验收：原生 Roon 先播放，歌词搜索未结算不阻塞音频，失败不触发播放控制', { timeout: 3_000 }, async (t) => {
+  const { controller, nativeRoon, netease, registry } = makeHarness();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  let searches = 0;
+  const resolver = new LyricsMatchResolver({
+    repository: createLyricsMatchRepository(),
+    provider: {
+      configured: true,
+      async searchTracks() {
+        searches += 1;
+        await gate;
+        throw new Error('Synthetic Provider unavailable');
+      },
+      async getLyrics() { throw new Error('未经匹配不得下载歌词'); },
+    },
+  });
+  const lyrics = new LyricsCoordinator({
+    load: async () => { throw new Error('不得使用 Roon runtime ID 下载歌词'); },
+    localResolver: resolver,
+  });
+  const unsubscribe = controller.subscribe((snapshot) => {
+    lyrics.onPlaybackChanged(snapshot, createLyricsRequestContext(snapshot, controller.getPlaybackGeneration()));
+  });
+  t.after(() => { release(); unsubscribe(); lyrics.shutdown(); });
+  await controller.playRoon({
+    reference: 'synthetic-private-roon-reference', zoneId: 'zone-1',
+    track: { id: '98001', title: '归零', artists: ['林忆莲'], album: '0', durationMs: 271_000 },
+  });
+  await waitFor(() => searches === 1);
+  assert.equal(controller.getPlaybackState().state, 'playing');
+  assert.equal(controller.getPlaybackState().source, 'roon');
+  assert.equal(nativeRoon.active, true);
+  assert.equal(lyrics.getSnapshot().status, 'loading');
+  release();
+  await waitFor(() => lyrics.getSnapshot().status === 'error');
+  assert.equal(controller.getPlaybackState().state, 'playing');
+  assert.equal(nativeRoon.playCalls.length, 1);
+  assert.equal(nativeRoon.stopCalls + nativeRoon.pauseCalls + nativeRoon.resumeCalls, 0);
+  assert.equal(netease.resolveCalls, 0);
+  assert.equal(registry.size, 0);
+});
+
+test('跨源验收：原生 pause/resume/seek 与歌词共享已确认的 Roon 时间轴', async (t) => {
+  const { controller, nativeRoon, roon } = makeHarness();
+  let now = 0;
+  const resolver = new LyricsMatchResolver({
+    repository: createLyricsMatchRepository(),
+    provider: {
+      configured: true,
+      async searchTracks() {
+        return { items: [{ id: '601', title: 'Synthetic Timing', artists: ['Artist'], album: 'Album', durationMs: 180_000 }], offset: 0, limit: 20, total: 1, hasMore: false };
+      },
+      async getLyrics() {
+        return { status: 'ready', lines: [{ startMs: 0, endMs: 1_000, text: 'SYNTHETIC_A' }, { startMs: 1_000, text: 'SYNTHETIC_B' }], activeLineIndex: -1, timingSource: 'static' };
+      },
+    },
+  });
+  const lyrics = new LyricsCoordinator({
+    now: () => now, localResolver: resolver,
+    load: async () => { throw new Error('不应访问直接加载入口'); },
+  });
+  const unsubscribe = controller.subscribe((snapshot) => lyrics.onPlaybackChanged(
+    snapshot, createLyricsRequestContext(snapshot, controller.getPlaybackGeneration()),
+  ));
+  t.after(() => { unsubscribe(); lyrics.shutdown(); });
+  await controller.playRoon({
+    reference: 'synthetic-time-reference', zoneId: 'zone-1',
+    track: { id: '98002', title: 'Synthetic Timing', artists: ['Artist'], album: 'Album', durationMs: 180_000 },
+  });
+  await waitFor(() => lyrics.getSnapshot().status === 'ready');
+  roon.state = { ...roon.state, status: 'playing', transportState: 'playing', canPause: true, canResume: false };
+  const time = (positionMs: number): void => {
+    if (controller.updateRoonTime(positionMs)) lyrics.updateRoonTime(positionMs);
+  };
+  time(400);
+  await controller.pause();
+  now = 2_000;
+  lyrics.updateEstimated();
+  assert.equal(lyrics.getSnapshot().activeLineIndex, 0);
+  roon.state = { ...roon.state, status: 'paused', transportState: 'paused', canPause: false, canResume: true };
+  let release!: () => void;
+  nativeRoon.resume = () => new Promise<void>((resolve) => { release = resolve; });
+  const resuming = controller.resume();
+  await waitFor(() => controller.getPlaybackState().state === 'resuming');
+  now = 4_000;
+  lyrics.updateEstimated();
+  assert.equal(lyrics.getSnapshot().activeLineIndex, 0);
+  roon.state = { ...roon.state, status: 'playing', transportState: 'playing', canPause: true, canResume: false };
+  release();
+  await resuming;
+  time(1_200);
+  assert.equal(lyrics.getSnapshot().activeLineIndex, 1);
+  await controller.seek(200);
+  assert.equal(lyrics.getSnapshot().activeLineIndex, 1);
+  time(200);
+  assert.equal(lyrics.getSnapshot().activeLineIndex, 0);
+  assert.equal(nativeRoon.playCalls.length, 1);
+});
 
 test('controller registers a local stream, starts Roon and reports actual quality', async () => {
   const { controller, registry, roon, events } = makeHarness();

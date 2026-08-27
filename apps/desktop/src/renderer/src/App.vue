@@ -6,6 +6,7 @@ import type {
   AlbumSummary,
   ArtistSummary,
   LyricsSnapshot,
+  LocalLyricsMatchSnapshot,
   MatchState,
   Page,
   PageRequest,
@@ -129,6 +130,10 @@ function emptyLyricsSnapshot(status: LyricsSnapshot['status'] = 'idle'): LyricsS
   return { status, lines: [], activeLineIndex: -1, timingSource: 'static' }
 }
 
+function emptyLocalLyricsMatchSnapshot(): LocalLyricsMatchSnapshot {
+  return { status: 'hidden', candidates: [], canRevoke: false }
+}
+
 function localDayKey(now = Date.now()): string {
   const date = new Date(now)
   return String(date.getFullYear()) + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0')
@@ -156,6 +161,10 @@ const playbackStartPending = ref(false)
 const playbackSource = ref<'roon' | 'netease'>('netease')
 const nativeRoonHasNeteaseMatch = ref(false)
 const lyricsSnapshot = ref<LyricsSnapshot>(emptyLyricsSnapshot())
+const localLyricsMatchState = ref<LocalLyricsMatchSnapshot>(emptyLocalLyricsMatchSnapshot())
+const localLyricsMatchBusy = ref(false)
+const localLyricsMatchError = ref(false)
+let localLyricsMatchRevision = 0
 const trackLikeState = ref<'idle' | 'loading' | 'liked' | 'not-liked' | 'error'>('idle')
 const neteaseTrackLiked = ref<boolean | null>(null)
 const localTrackFavoriteState = ref<'idle' | 'loading' | 'liked' | 'not-liked' | 'error'>('idle')
@@ -1690,6 +1699,42 @@ async function loadLyrics(trackId: string): Promise<void> {
   }
 }
 
+async function selectLocalLyricsMatch(matchSessionId: string, candidateId: string): Promise<void> {
+  if (localLyricsMatchBusy.value) return
+  const revision = localLyricsMatchRevision
+  localLyricsMatchBusy.value = true
+  localLyricsMatchError.value = false
+  try {
+    const state = await window.musicBridge.selectLocalLyricsMatch(matchSessionId, candidateId)
+    if (localLyricsMatchRevision === revision) localLyricsMatchState.value = state
+  } catch (error) {
+    if (localLyricsMatchRevision === revision) {
+      localLyricsMatchError.value = true
+      recordActionError(error)
+    }
+  } finally {
+    localLyricsMatchBusy.value = false
+  }
+}
+
+async function revokeLocalLyricsMatch(): Promise<void> {
+  if (localLyricsMatchBusy.value) return
+  const revision = localLyricsMatchRevision
+  localLyricsMatchBusy.value = true
+  localLyricsMatchError.value = false
+  try {
+    const state = await window.musicBridge.revokeLocalLyricsMatch()
+    if (localLyricsMatchRevision === revision) localLyricsMatchState.value = state
+  } catch (error) {
+    if (localLyricsMatchRevision === revision) {
+      localLyricsMatchError.value = true
+      recordActionError(error)
+    }
+  } finally {
+    localLyricsMatchBusy.value = false
+  }
+}
+
 function resetLocalTrackFavorite(): void {
   localFavoriteOperation += 1
   localTrackFavoriteDescriptor.value = null
@@ -2473,8 +2518,23 @@ onMounted(async () => {
       }
     }
     if (event.event === 'lyrics.changed') lyricsSnapshot.value = event.payload.state
+    if (event.event === 'lyrics.match.changed') {
+      localLyricsMatchRevision += 1
+      localLyricsMatchState.value = event.payload.state
+      localLyricsMatchError.value = false
+    }
     if (event.event === 'diagnostic.notice') diagnosticNotice.value = event.payload
   })
+  const initialLocalLyricsMatchRevision = localLyricsMatchRevision
+  void window.musicBridge.getLocalLyricsMatch()
+    .then((state) => {
+      if (localLyricsMatchRevision === initialLocalLyricsMatchRevision) localLyricsMatchState.value = state
+    })
+    .catch(() => {
+      if (localLyricsMatchRevision === initialLocalLyricsMatchRevision) {
+        localLyricsMatchState.value = emptyLocalLyricsMatchSnapshot()
+      }
+    })
   try {
     appInfo.value = await window.musicBridge.getAppInfo()
     const storedQuality = window.localStorage.getItem('musicbridge.qualityPreference')
@@ -2868,6 +2928,9 @@ onUnmounted(() => {
           :current-track="currentTrack"
           :playback-state="playbackState"
           :lyrics-snapshot="lyricsSnapshot"
+          :local-lyrics-match-state="localLyricsMatchState"
+          :local-lyrics-match-busy="localLyricsMatchBusy"
+          :local-lyrics-match-error="localLyricsMatchError"
           :quality-label="qualityLabel"
           :quality-notice="playbackState?.qualityNotice"
           :playback-issue-message="playbackIssueMessage"
@@ -2881,6 +2944,8 @@ onUnmounted(() => {
           @next="nextTrack"
           @toggle-like="toggleTrackLike"
           @seek="seekPlayback"
+          @select-lyrics-match="selectLocalLyricsMatch"
+          @revoke-lyrics-match="revokeLocalLyricsMatch"
         />
 
         <SettingsView

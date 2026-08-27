@@ -8,6 +8,7 @@ import type {
   PlaylistDetail,
   PlaylistSummary,
   LyricsSnapshot,
+  LocalLyricsMatchSnapshot,
   PlaybackQueueRequestItem,
   PlaybackQualityPreference,
   PlaybackSnapshot,
@@ -92,6 +93,9 @@ export interface MusicBridgePublicApi {
   queueRoonTrack: (reference: string, zoneId: string) => Promise<{ queued: true }>
   stopRoonTransport: () => Promise<{ stopped: true }>
   getLyrics: (trackId: string) => Promise<LyricsSnapshot>
+  getLocalLyricsMatch: () => Promise<LocalLyricsMatchSnapshot>
+  selectLocalLyricsMatch: (matchSessionId: string, candidateId: string) => Promise<LocalLyricsMatchSnapshot>
+  revokeLocalLyricsMatch: () => Promise<LocalLyricsMatchSnapshot>
   getPlaybackState: () => Promise<PlaybackSnapshot>
   play: (
     trackId: string,
@@ -162,6 +166,9 @@ export const PUBLIC_API_KEYS = [
   'queueRoonTrack',
   'stopRoonTransport',
   'getLyrics',
+  'getLocalLyricsMatch',
+  'selectLocalLyricsMatch',
+  'revokeLocalLyricsMatch',
   'getPlaybackState',
   'play',
   'pause',
@@ -317,6 +324,15 @@ export function createPreloadApi(
   playQueueIndex: (_index: number) => Promise<PlaybackSnapshot> = async () => {
     throw new Error('Queue index API is unavailable')
   },
+  getLocalLyricsMatch: () => Promise<LocalLyricsMatchSnapshot> = async () => ({
+    status: 'hidden', candidates: [], canRevoke: false,
+  }),
+  selectLocalLyricsMatch: (_matchSessionId: string, _candidateId: string) => Promise<LocalLyricsMatchSnapshot> = async () => {
+    throw new Error('Local lyrics matching API is unavailable')
+  },
+  revokeLocalLyricsMatch: () => Promise<LocalLyricsMatchSnapshot> = async () => {
+    throw new Error('Local lyrics matching API is unavailable')
+  },
 ): MusicBridgePublicApi {
   return Object.freeze({
     getAppInfo,
@@ -364,6 +380,9 @@ export function createPreloadApi(
     queueRoonTrack,
     stopRoonTransport,
     getLyrics,
+    getLocalLyricsMatch,
+    selectLocalLyricsMatch,
+    revokeLocalLyricsMatch,
     getPlaybackState,
     play,
     pause,

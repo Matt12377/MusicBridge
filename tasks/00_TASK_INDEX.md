@@ -29,5 +29,13 @@
 | TASK-036 | Main CI 稳定化与 Beta.2 重建基线 | 035 | 分层 CI 全绿、控制面一致、beta.2 基线结构 |
 | TASK-040 | DMG、签名、公证与干净机 | 036 | Beta 安装 Gate |
 | TASK-041 | Beta 总验收与发布包 | 040 | V1 Beta 报告 |
+| TASK-042 | LyricsMatch 领域模型与版本冲突 | ADR-008 + main 207f7f0 | 纯领域 RED/GREEN |
+| TASK-043 | LocalTrackSignature 与有界仓库 | 042 | 稳定身份与原子持久化 |
+| TASK-044 | 异步 NetEase Lyrics Resolver | 043 | 搜索、聚类与 stale guard |
+| TASK-045 | Cross-source LyricsCoordinator | 044 | 来源合同与 Roon 时间轴 |
+| TASK-046 | 歌词来源与 MANUAL UI | 045 | 选择、撤销与安全 IPC |
+| TASK-047 | Synthetic 与真实跨源歌词验收 | 046 | 自动、真实 Roon/NetEase、Owner 分层报告 |
 
 任何任务若为 BLOCKED，后续任务自动暂停。
+
+WAVE-4 是 Owner 从已整合 Bug 修复的 `main` 明确启动的功能线，不把尚未完成的 TASK-040/TASK-041 分发验收视为已完成，也不以跨源歌词自动 Gate 替代签名、公证、安装或 Beta Owner Gate。WAVE-4 内部仍严格按 TASK-042 至 TASK-047 线性执行。

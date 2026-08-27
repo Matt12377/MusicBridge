@@ -4,6 +4,7 @@ import {
   type RemoteCoreLocalPortProfile,
   type RemoteCoreMode,
 } from '@music-bridge/contracts'
+import path from 'node:path'
 
 const CORE_RUNTIME_ENV_KEYS = [
   'NODE_ENV',
@@ -29,6 +30,7 @@ export interface CoreEnvironmentOptions {
   remoteCoreMode?: RemoteCoreMode
   remoteStreamPort?: number
   remoteLocalPorts?: RemoteCoreLocalPorts
+  dataDirectory?: string
 }
 
 const REMOTE_STREAM_PORT_SET = new Set(REMOTE_CORE_STREAM_PORT_CANDIDATES)
@@ -65,6 +67,18 @@ export function buildCoreEnvironment(
   for (const key of CORE_RUNTIME_ENV_KEYS) {
     const value = parent[key]
     if (value !== undefined) environment[key] = value
+  }
+
+  if (options.dataDirectory !== undefined) {
+    if (
+      options.dataDirectory.length === 0
+      || options.dataDirectory.length > 1_024
+      || !path.isAbsolute(options.dataDirectory)
+      || options.dataDirectory.includes('\0')
+    ) {
+      throw new Error('Core data directory must be a bounded absolute path')
+    }
+    environment.MUSIC_BRIDGE_DATA_DIRECTORY = options.dataDirectory
   }
 
   if (options.startupTest || options.uiE2e) {

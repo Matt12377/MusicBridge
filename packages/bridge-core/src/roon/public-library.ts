@@ -642,6 +642,7 @@ export function createRoonPublicLibrary(
         artists: [descriptor.artist ?? descriptor.subtitle ?? 'Roon Library'],
         album: descriptor.album ?? 'Roon Library',
         ...(durationMs !== undefined ? { durationMs } : {}),
+        ...(descriptor.version !== undefined ? { version: descriptor.version } : {}),
         ...(descriptor.bitrate !== undefined ? { bitrate: descriptor.bitrate } : {}),
         ...(descriptor.format !== undefined ? { format: descriptor.format } : {}),
         ...(stored.imageReference !== undefined

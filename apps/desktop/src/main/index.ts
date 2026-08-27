@@ -129,6 +129,7 @@ const roonImageGatePath = process.env.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH
 let mainWindow: BrowserWindow | undefined
 let coreSupervisor: CoreSupervisor | undefined
 let coreMode: RemoteCoreMode = 'local-core'
+let coreDataDirectory: string | undefined
 let remoteStreamPort: number | undefined
 let tray: Tray | undefined
 let trayRefreshPromise: Promise<void> | undefined
@@ -702,6 +703,13 @@ function requirePlaybackTrackId(value: unknown): string {
   return value
 }
 
+function requireLyricsMatchId(value: unknown): string {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]{15,127}$/u.test(value)) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid lyrics match session')
+  }
+  return value
+}
+
 function requireTrackSummary(value: unknown): TrackSummary {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid match track')
@@ -1200,6 +1208,18 @@ function registerIpcHandlers(
       }),
     ),
   )
+  ipcMain.handle('lyrics:match:get', (event) =>
+    invokeCore(event, () => supervisor.request('lyrics.match.get', {})),
+  )
+  ipcMain.handle('lyrics:match:select', (event, matchSessionId: unknown, candidateId: unknown) =>
+    invokeCore(event, () => supervisor.request('lyrics.match.select', {
+      matchSessionId: requireLyricsMatchId(matchSessionId),
+      candidateId: requireLyricsMatchId(candidateId),
+    })),
+  )
+  ipcMain.handle('lyrics:match:revoke', (event) =>
+    invokeCore(event, () => supervisor.request('lyrics.match.revoke', {})),
+  )
   ipcMain.handle('playback:get-state', (event) =>
     invokeCore(event, () => supervisor.request('playback.getState', {})),
   )
@@ -1368,6 +1388,7 @@ function buildCoreEnvironment(): NodeJS.ProcessEnv {
     roonBrowseGate: isRoonBrowseGate,
     roonImageGate: isRoonImageGate,
     remoteCoreMode: coreMode,
+    ...(coreDataDirectory !== undefined ? { dataDirectory: coreDataDirectory } : {}),
     ...(remoteStreamPort !== undefined ? { remoteStreamPort } : {}),
   })
 }
@@ -1436,6 +1457,7 @@ function createCoreSupervisor(
     onLifecycle?: (event: CoreSupervisorLifecycle) => void
   } = {},
 ): CoreSupervisor {
+  coreDataDirectory = dataDirectory
   return new CoreSupervisor({
     entryPath: path.join(currentDirectory, 'core.js'),
     cwd: dataDirectory,
