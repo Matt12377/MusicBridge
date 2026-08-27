@@ -1,4 +1,5 @@
 import { appendFileSync, chmodSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import {
   IPC_VERSION,
   parseIpcRuntimeMessage,
@@ -18,6 +19,7 @@ import {
 } from './runtime.js';
 import type { RoonTimeShapeSummary } from './roon/adapter.js';
 import type { RoonBrowseShapeSummary } from './roon/library.js';
+import { createLyricsMatchRepository } from './lyrics-matching/repository.js';
 
 export interface UtilityPort {
   on(event: 'message', listener: (event: { data: unknown }) => void): unknown;
@@ -451,10 +453,22 @@ export async function runCoreUtilityProcess(
                 : {}),
             })
           : (() => {
+              const dataDirectory = env.MUSIC_BRIDGE_DATA_DIRECTORY;
+              if (
+                !dataDirectory
+                || dataDirectory.length > 1_024
+                || !path.isAbsolute(dataDirectory)
+                || dataDirectory.includes('\0')
+              ) {
+                throw new Error('Core data directory is unavailable');
+              }
               const onRoonTimeShape = createRoonTimeShapeRecorder(env);
               const onRoonBrowseShape = createRoonBrowseShapeRecorder(env);
               const onRoonImageShape = createRoonImageShapeRecorder(env);
               return createBridgeRuntime({
+                lyricsMatchRepository: createLyricsMatchRepository({
+                  filePath: path.join(dataDirectory, 'lyrics-matches.v1.json'),
+                }),
                 ...(onRoonTimeShape ? { onRoonTimeShape } : {}),
                 ...(onRoonBrowseShape ? { onRoonBrowseShape } : {}),
                 ...(onRoonImageShape ? { onRoonImageShape } : {}),

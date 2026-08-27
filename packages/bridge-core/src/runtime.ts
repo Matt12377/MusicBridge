@@ -60,7 +60,15 @@ import { asBridgeError, BridgeError } from './shared/errors.js';
 import { createLogger, type Logger } from './shared/logger.js';
 import { StreamGateway } from './stream/gateway.js';
 import { StreamRegistry } from './stream/registry.js';
-import { LyricsCoordinator } from './lyrics/coordinator.js';
+import {
+  LyricsCoordinator,
+  createLyricsRequestContext,
+} from './lyrics/coordinator.js';
+import { LyricsMatchResolver } from './lyrics-matching/resolver.js';
+import {
+  createLyricsMatchRepository,
+  type LyricsMatchRepository,
+} from './lyrics-matching/repository.js';
 import {
   createLocalFavoriteRepository,
   type LocalFavoriteRepository,
@@ -159,6 +167,7 @@ export interface BridgeRuntimeOptions {
   onRoonBrowseShape?: (summary: RoonBrowseShapeSummary) => void;
   onRoonImageShape?: (summary: RoonImageShapeSummary) => void;
   favoriteRepository?: LocalFavoriteRepository;
+  lyricsMatchRepository?: LyricsMatchRepository;
 }
 
 function publicRoonStatus(
@@ -268,6 +277,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   const favoriteRepository = options.favoriteRepository ?? createLocalFavoriteRepository(
     path.join(process.cwd(), '.musicbridge-favorites.json'),
   );
+  const lyricsMatchRepository = options.lyricsMatchRepository ?? createLyricsMatchRepository();
   const matchCache = createMatchCache();
   let matchLibraryAvailable = roon.getLibraryService() !== undefined;
   const gateway = new StreamGateway({
@@ -670,8 +680,19 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     emitHealth();
   };
 
+  const lyricsResolver = new LyricsMatchResolver({
+    provider: {
+      get configured() {
+        return netease.configured;
+      },
+      searchTracks: (query, page) => withProviderRecovery(() => netease.searchTracks(query, page)),
+      getLyrics: (trackId) => withProviderRecovery(() => netease.getLyrics(trackId)),
+    },
+    repository: lyricsMatchRepository,
+  });
   const lyrics = new LyricsCoordinator({
     load: (trackId) => withProviderRecovery(() => netease.getLyrics(trackId)),
+    localResolver: lyricsResolver,
     scheduleEstimatedUpdates: (callback) => {
       const timer = setInterval(callback, 100);
       return () => clearInterval(timer);
@@ -686,7 +707,10 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   });
 
   const removeControllerListener = controller.subscribe((snapshot) => {
-    lyrics.onPlaybackChanged(snapshot);
+    lyrics.onPlaybackChanged(
+      snapshot,
+      createLyricsRequestContext(snapshot, controller.getPlaybackGeneration()),
+    );
     emit({
       version: 1,
       event: 'playback.changed',
@@ -1380,6 +1404,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
         ],
         activeLineIndex: 0,
         timingSource: 'static',
+        source: 'netease',
       };
     },
     getPlaybackState: () => playbackState,

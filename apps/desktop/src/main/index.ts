@@ -129,6 +129,7 @@ const roonImageGatePath = process.env.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH
 let mainWindow: BrowserWindow | undefined
 let coreSupervisor: CoreSupervisor | undefined
 let coreMode: RemoteCoreMode = 'local-core'
+let coreDataDirectory: string | undefined
 let remoteStreamPort: number | undefined
 let tray: Tray | undefined
 let trayRefreshPromise: Promise<void> | undefined
@@ -1368,6 +1369,7 @@ function buildCoreEnvironment(): NodeJS.ProcessEnv {
     roonBrowseGate: isRoonBrowseGate,
     roonImageGate: isRoonImageGate,
     remoteCoreMode: coreMode,
+    ...(coreDataDirectory !== undefined ? { dataDirectory: coreDataDirectory } : {}),
     ...(remoteStreamPort !== undefined ? { remoteStreamPort } : {}),
   })
 }
@@ -1436,6 +1438,7 @@ function createCoreSupervisor(
     onLifecycle?: (event: CoreSupervisorLifecycle) => void
   } = {},
 ): CoreSupervisor {
+  coreDataDirectory = dataDirectory
   return new CoreSupervisor({
     entryPath: path.join(currentDirectory, 'core.js'),
     cwd: dataDirectory,

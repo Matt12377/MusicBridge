@@ -36,6 +36,21 @@ test('Core environment keeps only runtime keys and test-only probes', () => {
   assert.equal(Object.hasOwn(environment, 'ELECTRON_RUN_AS_NODE'), false)
 })
 
+test('Main injects only its prepared userData data directory for Core persistence', () => {
+  const environment = buildCoreEnvironment({
+    MUSIC_BRIDGE_DATA_DIRECTORY: '/tmp/untrusted-parent-directory',
+  }, {
+    startupTest: false,
+    uiE2e: false,
+    coreCrashGate: false,
+    dataDirectory: '/tmp/musicbridge-owner-user-data/data',
+  })
+
+  assert.deepEqual(environment, {
+    MUSIC_BRIDGE_DATA_DIRECTORY: '/tmp/musicbridge-owner-user-data/data',
+  })
+})
+
 test('Core environment exposes only the bounded Roon Time gate path when explicitly enabled', () => {
   const gatePath = '/tmp/musicbridge-roon-time-gate-test.jsonl'
   const environment = buildCoreEnvironment({

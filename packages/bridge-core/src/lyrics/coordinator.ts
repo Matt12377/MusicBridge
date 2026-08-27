@@ -1,14 +1,88 @@
 import type { LyricsSnapshot, PlaybackSnapshot } from '@music-bridge/contracts';
 import { emptyLyricsSnapshot } from '../netease/lyrics.js';
+import type {
+  ActiveLyricsResolutionRequest,
+  LyricsResolution,
+} from '../lyrics-matching/resolver.js';
+import {
+  createLocalTrackSignature,
+  type LocalTrackSignature,
+} from '../lyrics-matching/signature.js';
 
 const MAX_LYRICS_CACHE_ENTRIES = 50;
 const ACTIVE_WORD_PUSH_INTERVAL_MS = 100;
 
 export interface LyricsCoordinatorOptions {
   load: (trackId: string) => Promise<LyricsSnapshot>;
+  localResolver?: {
+    resolveActive(request: ActiveLyricsResolutionRequest): Promise<LyricsResolution>;
+    cancelActive(): void;
+  };
   now?: () => number;
   onChange?: (snapshot: LyricsSnapshot) => void;
   scheduleEstimatedUpdates?: (callback: () => void) => () => void;
+}
+
+export type LyricsRequestContext =
+  | {
+      kind: 'netease';
+      playbackGeneration: number;
+      cacheKey: string;
+      neteaseTrackId: string;
+    }
+  | {
+      kind: 'local';
+      playbackGeneration: number;
+      cacheKey: string;
+      signature: LocalTrackSignature;
+      trustedNeteaseTrackId?: string;
+    }
+  | {
+      kind: 'unavailable';
+      playbackGeneration: number;
+      cacheKey: string;
+    };
+
+export function createLyricsRequestContext(
+  snapshot: PlaybackSnapshot,
+  playbackGeneration: number,
+): LyricsRequestContext | undefined {
+  if (!Number.isSafeInteger(playbackGeneration) || playbackGeneration < 0) return undefined;
+  const track = snapshot.currentTrack;
+  const item = snapshot.queue.items[snapshot.queue.index];
+  if (!track || !item) return undefined;
+  const directRoon = item.preferredSource === 'roon';
+  const smartRoon = item.preferredSource === 'smart' && snapshot.source === 'roon';
+  if (!directRoon && !smartRoon) {
+    return {
+      kind: 'netease',
+      playbackGeneration,
+      cacheKey: `netease:${item.trackId}`,
+      neteaseTrackId: item.trackId,
+    };
+  }
+  try {
+    const signature = createLocalTrackSignature({
+      title: track.title,
+      artists: track.artists,
+      album: track.album,
+      ...(track.durationMs !== undefined ? { durationMs: track.durationMs } : {}),
+      ...(track.version !== undefined ? { version: track.version } : {}),
+    });
+    return {
+      kind: 'local',
+      playbackGeneration,
+      cacheKey: `local:${signature.key}`,
+      signature,
+      ...(smartRoon ? { trustedNeteaseTrackId: item.trackId } : {}),
+    };
+  } catch {
+    return {
+      kind: 'unavailable',
+      playbackGeneration,
+      cacheKey: `unavailable:${playbackGeneration}`,
+    };
+  }
 }
 
 function monotonicNowMs(): number {
@@ -33,7 +107,20 @@ function cloneSnapshot(snapshot: LyricsSnapshot): LyricsSnapshot {
       ? { activeWordIndex: snapshot.activeWordIndex }
       : {}),
     timingSource: snapshot.timingSource,
+    ...(snapshot.source === 'netease'
+      && (snapshot.status === 'ready' || snapshot.status === 'instrumental')
+      ? { source: 'netease' as const }
+      : {}),
   };
+}
+
+function withNeteaseSource(snapshot: LyricsSnapshot): LyricsSnapshot {
+  const cloned = cloneSnapshot(snapshot);
+  if (cloned.status === 'ready' || cloned.status === 'instrumental') {
+    return { ...cloned, source: 'netease' };
+  }
+  delete cloned.source;
+  return cloned;
 }
 
 function loadingSnapshot(): LyricsSnapshot {
@@ -77,6 +164,8 @@ export class LyricsCoordinator {
   private readonly onChange: (snapshot: LyricsSnapshot) => void;
   private generation = 0;
   private activeTrackId: string | undefined;
+  private activeCacheKey: string | undefined;
+  private activePlaybackGeneration: number | undefined;
   private activeSource: PlaybackSnapshot['source'];
   private activeZoneId: string | undefined;
   private activePlaybackState: PlaybackSnapshot['state'] | undefined;
@@ -104,31 +193,48 @@ export class LyricsCoordinator {
 
   async getLyrics(trackId: string): Promise<LyricsSnapshot> {
     if (this.activeTrackId === trackId) return this.getSnapshot();
-    const cached = this.readCache(trackId);
+    const cached = this.readCache(`netease:${trackId}`);
     if (cached) return cloneSnapshot(cached);
-    return this.loadSnapshot(trackId);
+    return this.loadNeteaseSnapshot(trackId, `netease:${trackId}`);
   }
 
-  onPlaybackChanged(snapshot: PlaybackSnapshot): void {
+  onPlaybackChanged(
+    snapshot: PlaybackSnapshot,
+    suppliedContext?: LyricsRequestContext,
+  ): void {
     const trackId = snapshot.currentTrack?.id;
     if (!trackId || snapshot.state === 'idle' || snapshot.state === 'stopping' || snapshot.state === 'error') {
       this.invalidateActive();
       return;
     }
 
-    if (this.activeTrackId !== trackId) {
+    const context = suppliedContext ?? {
+      kind: 'netease' as const,
+      playbackGeneration: 0,
+      cacheKey: `netease:${trackId}`,
+      neteaseTrackId: trackId,
+    };
+
+    if (
+      this.activeTrackId !== trackId
+      || this.activeCacheKey !== context.cacheKey
+      || this.activePlaybackGeneration !== context.playbackGeneration
+    ) {
       this.stopEstimatedUpdates();
+      this.options.localResolver?.cancelActive();
       this.generation += 1;
       const generation = this.generation;
       this.activeTrackId = trackId;
+      this.activeCacheKey = context.cacheKey;
+      this.activePlaybackGeneration = context.playbackGeneration;
       this.activeSource = snapshot.source;
       this.activeZoneId = snapshot.selectedZoneId;
       this.positionAnchorMs = undefined;
       this.positionAnchorClockMs = undefined;
-      const cached = this.readCache(trackId);
+      const cached = this.readCache(context.cacheKey);
       this.activeSnapshot = cached ? cloneSnapshot(cached) : loadingSnapshot();
       this.emit(true);
-      if (!cached) void this.loadActive(trackId, generation);
+      if (!cached) void this.loadActive(trackId, context, generation);
     } else if (
       this.activeSource !== snapshot.source
       || this.activeZoneId !== snapshot.selectedZoneId
@@ -164,6 +270,8 @@ export class LyricsCoordinator {
     this.stopEstimatedUpdates();
     this.generation += 1;
     this.activeTrackId = trackId;
+    this.activeCacheKey = `netease:${trackId}`;
+    this.activePlaybackGeneration = 0;
     this.activeSource = undefined;
     this.activeZoneId = undefined;
     this.activePlaybackState = undefined;
@@ -214,6 +322,9 @@ export class LyricsCoordinator {
     this.stopEstimatedUpdates();
     this.generation += 1;
     this.activeTrackId = undefined;
+    this.activeCacheKey = undefined;
+    this.activePlaybackGeneration = undefined;
+    this.options.localResolver?.cancelActive();
     this.activeSource = undefined;
     this.activeZoneId = undefined;
     this.activePlaybackState = undefined;
@@ -223,10 +334,23 @@ export class LyricsCoordinator {
     this.emit(true);
   }
 
-  private async loadActive(trackId: string, generation: number): Promise<void> {
+  private async loadActive(
+    trackId: string,
+    context: LyricsRequestContext,
+    generation: number,
+  ): Promise<void> {
     try {
-      const loaded = await this.loadSnapshot(trackId);
-      if (generation !== this.generation || this.activeTrackId !== trackId) return;
+      const loaded = context.kind === 'netease'
+        ? await this.loadNeteaseSnapshot(context.neteaseTrackId, context.cacheKey)
+        : context.kind === 'local'
+          ? await this.loadLocalSnapshot(context)
+          : emptyLyricsSnapshot('unavailable');
+      if (
+        generation !== this.generation
+        || this.activeTrackId !== trackId
+        || this.activeCacheKey !== context.cacheKey
+        || this.activePlaybackGeneration !== context.playbackGeneration
+      ) return;
       this.activeSnapshot = cloneSnapshot(loaded);
       this.emit(true);
       if (this.positionAnchorMs !== undefined) {
@@ -234,20 +358,46 @@ export class LyricsCoordinator {
         else this.applyPosition(this.positionAnchorMs, 'roon-time');
       }
     } catch {
-      if (generation !== this.generation || this.activeTrackId !== trackId) return;
+      if (
+        generation !== this.generation
+        || this.activeTrackId !== trackId
+        || this.activeCacheKey !== context.cacheKey
+        || this.activePlaybackGeneration !== context.playbackGeneration
+      ) return;
       this.activeSnapshot = errorSnapshot();
       this.emit(true);
     }
   }
 
-  private async loadSnapshot(trackId: string): Promise<LyricsSnapshot> {
+  private async loadNeteaseSnapshot(trackId: string, cacheKey: string): Promise<LyricsSnapshot> {
     try {
-      const loaded = cloneSnapshot(await this.options.load(trackId));
-      if (loaded.status !== 'error') this.writeCache(trackId, loaded);
+      const loaded = withNeteaseSource(await this.options.load(trackId));
+      if (loaded.status !== 'error') this.writeCache(cacheKey, loaded);
       return loaded;
     } catch {
       return errorSnapshot();
     }
+  }
+
+  private async loadLocalSnapshot(context: Extract<LyricsRequestContext, { kind: 'local' }>): Promise<LyricsSnapshot> {
+    const resolver = this.options.localResolver;
+    if (!resolver) return emptyLyricsSnapshot('unavailable');
+    const resolved = await resolver.resolveActive({
+      signature: context.signature,
+      playbackGeneration: context.playbackGeneration,
+      ...(context.trustedNeteaseTrackId !== undefined
+        ? { trustedNeteaseTrackId: context.trustedNeteaseTrackId }
+        : {}),
+    });
+    if (!resolved.applied || resolved.status === 'stale') return emptyLyricsSnapshot('unavailable');
+    const loaded = resolved.lyrics ?? emptyLyricsSnapshot(
+      resolved.status === 'error' ? 'error' : 'unavailable',
+    );
+    const snapshot = withNeteaseSource(loaded);
+    if (snapshot.status === 'ready' || snapshot.status === 'instrumental') {
+      this.writeCache(context.cacheKey, snapshot);
+    }
+    return snapshot;
   }
 
   private readCache(trackId: string): LyricsSnapshot | undefined {
@@ -273,6 +423,9 @@ export class LyricsCoordinator {
     this.generation += 1;
     this.stopEstimatedUpdates();
     this.activeTrackId = undefined;
+    this.activeCacheKey = undefined;
+    this.activePlaybackGeneration = undefined;
+    this.options.localResolver?.cancelActive();
     this.activeSource = undefined;
     this.activeZoneId = undefined;
     this.activePlaybackState = undefined;

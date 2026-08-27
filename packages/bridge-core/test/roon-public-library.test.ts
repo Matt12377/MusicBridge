@@ -538,6 +538,7 @@ test('Roon public library resolves a Track reference for typed play and queue on
         itemKey: 'track:1',
         imageKey: 'image:track-1',
         hint: 'list',
+        version: 'Live',
       }],
       offset: 0,
       level: 1,
@@ -567,6 +568,7 @@ test('Roon public library resolves a Track reference for typed play and queue on
     title: 'Track',
     artists: ['Roon Library'],
     album: 'Roon Library',
+    version: 'Live',
     artworkReference: track.artworkReference,
   });
   await publicLibrary.playTrack(track.reference, 'zone-1');

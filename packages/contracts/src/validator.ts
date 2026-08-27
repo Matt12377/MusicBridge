@@ -573,6 +573,7 @@ function isLyricsSnapshot(value: unknown): value is LyricsSnapshot {
       'activeLineIndex',
       'activeWordIndex',
       'timingSource',
+      'source',
     ]) ||
     !LYRICS_STATUSES.includes(value.status as (typeof LYRICS_STATUSES)[number]) ||
     !Array.isArray(value.lines) ||
@@ -584,7 +585,11 @@ function isLyricsSnapshot(value: unknown): value is LyricsSnapshot {
     value.activeLineIndex >= value.lines.length ||
     !LYRICS_TIMING_SOURCES.includes(
       value.timingSource as (typeof LYRICS_TIMING_SOURCES)[number],
-    )
+    ) ||
+    (value.source !== undefined && (
+      value.source !== 'netease'
+      || (value.status !== 'ready' && value.status !== 'instrumental')
+    ))
   ) {
     return false;
   }
@@ -663,6 +668,7 @@ function isTrackSummary(value: unknown): value is TrackSummary {
     'artists',
     'album',
     'durationMs',
+    'version',
     'bitrate',
     'format',
     'artworkUrl',
@@ -684,6 +690,7 @@ function isTrackSummary(value: unknown): value is TrackSummary {
         Number.isSafeInteger(value.durationMs) &&
         value.durationMs >= 0 &&
         value.durationMs <= 24 * 60 * 60 * 1000)) &&
+    (value.version === undefined || safeString(value.version, 256)) &&
     (value.bitrate === undefined || (typeof value.bitrate === 'number' && Number.isSafeInteger(value.bitrate) && value.bitrate > 0 && value.bitrate <= 10_000_000)) &&
     (value.format === undefined || safeString(value.format, 64)) &&
     (value.artworkUrl === undefined || isArtworkUrl(value.artworkUrl)) &&

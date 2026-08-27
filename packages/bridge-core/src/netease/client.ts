@@ -97,6 +97,7 @@ function cloneTrackMetadata(track: TrackSummary | TrackMetadata): TrackMetadata 
     artists: [...track.artists],
     album: track.album,
     ...(track.durationMs !== undefined ? { durationMs: track.durationMs } : {}),
+    ...(track.version !== undefined ? { version: track.version } : {}),
     ...(track.artworkUrl !== undefined ? { artworkUrl: track.artworkUrl } : {}),
   };
 }

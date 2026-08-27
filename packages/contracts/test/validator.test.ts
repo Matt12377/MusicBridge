@@ -1048,6 +1048,7 @@ test('contracts validates bounded lyrics snapshots and rejects provider fields',
     activeLineIndex: 0,
     activeWordIndex: 0,
     timingSource: 'roon-time',
+    source: 'netease',
   };
 
   assert.equal(
@@ -1084,6 +1085,41 @@ test('contracts validates bounded lyrics snapshots and rejects provider fields',
       },
       'lyrics.get',
     ).ok,
+    false,
+  );
+  for (const forbidden of [
+    { source: 'roon' },
+    { confidence: 1 },
+    { evidence: ['title-exact'] },
+    { rawProviderResponse: { code: 200 } },
+  ]) {
+    assert.equal(
+      validateIpcResponseForCommand(
+        {
+          version: IPC_VERSION,
+          id: 'lyrics-private-match-data',
+          ok: true,
+          result: { ...snapshot, ...forbidden },
+        },
+        'lyrics.get',
+      ).ok,
+      false,
+    );
+  }
+  assert.equal(
+    validateIpcEvent({
+      version: IPC_VERSION,
+      event: 'lyrics.changed',
+      payload: {
+        state: {
+          status: 'unavailable',
+          lines: [],
+          activeLineIndex: -1,
+          timingSource: 'static',
+          source: 'netease',
+        },
+      },
+    }).ok,
     false,
   );
   assert.equal(

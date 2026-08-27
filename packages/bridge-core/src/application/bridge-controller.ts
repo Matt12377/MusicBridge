@@ -149,6 +149,7 @@ function toTrackSummary(track: TrackMetadata): TrackSummary {
     artists: [...track.artists],
     album: track.album,
     ...(track.durationMs !== undefined ? { durationMs: track.durationMs } : {}),
+    ...(track.version !== undefined ? { version: track.version } : {}),
     ...(track.artworkUrl ? { artworkUrl: track.artworkUrl } : {}),
   };
 }
@@ -160,6 +161,7 @@ function cloneTrackSummary(track: TrackSummary): TrackSummary {
     artists: [...track.artists],
     album: track.album,
     ...(track.durationMs !== undefined ? { durationMs: track.durationMs } : {}),
+    ...(track.version ? { version: track.version } : {}),
     ...(track.bitrate !== undefined ? { bitrate: track.bitrate } : {}),
     ...(track.format ? { format: track.format } : {}),
     ...(track.artworkUrl ? { artworkUrl: track.artworkUrl } : {}),

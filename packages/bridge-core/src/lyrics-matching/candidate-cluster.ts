@@ -12,5 +12,6 @@ export function toUniqueLyricsCandidates(tracks: readonly TrackSummary[]): reado
     artists: [...track.artists],
     album: track.album,
     ...(track.durationMs === undefined ? {} : { durationMs: track.durationMs }),
+    ...(track.version === undefined ? {} : { version: track.version }),
   }))
 }
