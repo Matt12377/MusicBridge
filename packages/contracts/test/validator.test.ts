@@ -1388,3 +1388,17 @@ test('contracts validates daily recommendation snapshots with bounded reasons an
     false,
   );
 });
+
+test('实体音乐合同区分原版和历史副本，拒绝路径、混合分面及伪造身份', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const release = { format: 'cd', title: '合成专辑', artist: '合成艺术家', quantity: 1, completeness: 'basic', tracks: [] };
+  const valid = (command: string, payload: unknown) => validateIpcRequest({ version: 1, id: 'music-contract', command, payload }).ok;
+  assert.equal(valid('physicalMusic.saveRelease', { commandId: id, release }), true);
+  assert.equal(valid('physicalMusic.saveLegacy', { commandId: id, physicalId: 'MB-C-00001', expectedRevision: 1, content: { title: '旧录音', artist: '合成', tracks: [] } }), true);
+  for (const bad of [{ ...release, quantity: 0 }, { ...release, path: '/private/music' }, { ...release, completeness: 'verified' }, { ...release, tracks: [{ title: '曲目', artist: '', position: 1, side: 'A' }] }]) assert.equal(valid('physicalMusic.saveRelease', { commandId: id, release: bad }), false);
+  assert.equal(valid('physicalMusic.saveRelease', { commandId: id, id: 'MB-C-00001', expectedRevision: 1, release }), false);
+  assert.equal(valid('physicalMusic.list', { page: { offset: 0, limit: 101 } }), false);
+  assert.equal(valid('physicalMusic.photo', { photoId: '/private/photo.jpg' }), false);
+  const response = { version: 1, id: 'music-contract', ok: true, result: { entry: { id: 'MB-C-00001', kind: 'cd', title: '伪造', artist: '合成', quantity: 1, revision: 1, contentStatus: 'commercial' }, release, photos: [] } };
+  assert.equal(validateIpcResponseForCommand(response, 'physicalMusic.detail').ok, false);
+});

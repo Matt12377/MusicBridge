@@ -1,3 +1,4 @@
+import { isMusicId, isMusicFilter, isSaveReleaseRequest, isSaveLegacyRequest, isAddMusicPhotoRequest, isRemoveMusicPhotoRequest } from '@music-bridge/contracts'
 import {
   app,
   BrowserWindow,
@@ -1079,6 +1080,34 @@ function registerIpcHandlers(
   ipcMain.handle('library:daily-recommendations', (event) =>
     invokeCore(event, () => supervisor.request('library.dailyRecommendations', {})),
   )
+  ipcMain.handle('physicalMusic:list', (event, page: unknown, filter: unknown) => invokeCore(event, () => {
+    if (filter !== undefined && !isMusicFilter(filter)) return publicIpcFailure('INVALID_IPC_REQUEST', '音乐筛选无效')
+    return supervisor.request('physicalMusic.list', { page: requireLibraryPage(page), ...(filter ? { filter } : {}) })
+  }))
+  ipcMain.handle('physicalMusic:detail', (event, id: unknown) => invokeCore(event, () => {
+    if (!isMusicId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '音乐编号无效')
+    return supervisor.request('physicalMusic.detail', { id })
+  }))
+  ipcMain.handle('physicalMusic:photo', (event, photoId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(photoId)) return publicIpcFailure('INVALID_IPC_REQUEST', '照片编号无效')
+    return supervisor.request('physicalMusic.photo', { photoId })
+  }))
+  ipcMain.handle('physicalMusic:saveRelease', (event, request: unknown) => invokeCore(event, () => {
+    if (!isSaveReleaseRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '音乐资料无效')
+    return supervisor.request('physicalMusic.saveRelease', request)
+  }))
+  ipcMain.handle('physicalMusic:saveLegacy', (event, request: unknown) => invokeCore(event, () => {
+    if (!isSaveLegacyRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '音乐资料无效')
+    return supervisor.request('physicalMusic.saveLegacy', request)
+  }))
+  ipcMain.handle('physicalMusic:addPhoto', (event, request: unknown) => invokeCore(event, () => {
+    if (!isAddMusicPhotoRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '音乐资料无效')
+    return supervisor.request('physicalMusic.addPhoto', request)
+  }))
+  ipcMain.handle('physicalMusic:removePhoto', (event, request: unknown) => invokeCore(event, () => {
+    if (!isRemoveMusicPhotoRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '音乐资料无效')
+    return supervisor.request('physicalMusic.removePhoto', request)
+  }))
   let photoPickerBusy = false
   ipcMain.handle('collection:pick-photo', async (event) => {
     const window = requireTrustedRenderer(event)

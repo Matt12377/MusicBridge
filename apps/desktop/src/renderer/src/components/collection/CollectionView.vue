@@ -5,6 +5,7 @@ import { useCollection } from '../../composables/useCollection'
 import CollectionReceiveDialog from './CollectionReceiveDialog.vue'
 import CollectionModelDetail from './CollectionModelDetail.vue'
 import CollectionPhoto from './CollectionPhoto.vue'
+import PhysicalMusicView from './PhysicalMusicView.vue'
 
 const inventory = useCollection()
 const collectionApi = window.musicBridge
@@ -16,6 +17,10 @@ function applyFilter(): void {
   void inventory.load(0)
 }
 function clearFilter(): void { filterDraft.value = { query: '', brand: '', decade: '' }; applyFilter() }
+const musicId = ref<string>()
+const musicNavigation = ref(0)
+function showRecording(id: string): void { musicId.value = id; musicNavigation.value++; selectedView.value = 'music' }
+function showModel(id: string): void { selectedView.value = 'tapes'; void inventory.openModel(id) }
 const receiving = ref(false)
 const receiveModel = ref<CollectionModel>()
 function beginReceive(model?: CollectionModel): void { receiveModel.value = model; receiving.value = true }
@@ -61,20 +66,21 @@ function onTabKeydown(event: KeyboardEvent): void {
         <p v-else-if="notice" role="status">{{ notice }}</p>
       </div>
       <CollectionModelDetail v-if="view.id === 'tapes' && detail" :detail="detail" :busy="blocked"
-        @close="inventory.closeModel" @receive="beginReceive(detail.model)" @page="inventory.openModel(detail.model.id, $event)"
+        @show-recording="showRecording" @close="inventory.closeModel" @receive="beginReceive(detail.model)" @page="inventory.openModel(detail.model.id, $event)"
         @materialize="request => inventory.mutate(() => collectionApi.materializeCollectionCopy(request))"
         @update-copy="request => inventory.mutate(() => collectionApi.updateCollectionCopy(request))"
         @add-photo="inventory.addPhoto"
         @change-photo="request => inventory.mutate(() => collectionApi.changeCollectionPhoto(request))"
         @policy="request => inventory.mutate(() => collectionApi.setCollectionPolicy(request))" />
-      <header v-if="view.id !== 'tapes' || !detail" class="collection-heading">
+      <PhysicalMusicView :key="musicNavigation" v-if="view.id === 'music'" :requested-id="musicId" :active="selectedView === 'music'" @model="showModel" />
+      <header v-if="view.id === 'tapes' && !detail" class="collection-heading">
         <div>
-          <p class="collection-kicker">{{ view.id === 'tapes' ? '磁带收藏' : '音乐与实物' }}</p>
-          <h2>{{ view.id === 'tapes' ? '每一盘，都值得留下。' : '让音乐，有一个实体位置。' }}</h2>
-          <p>{{ view.id === 'tapes' ? '按型号与版次收藏，记录每盘磁带的状态与故事。' : '原版 CD、原版磁带与自录作品，在这里与数字音乐相连。' }}</p>
+          <p class="collection-kicker">磁带收藏</p>
+          <h2>每一盘，都值得留下。</h2>
+          <p>按型号与版次收藏，记录每盘磁带的状态与故事。</p>
         </div>
-        <button class="collection-add" type="button" :disabled="view.id === 'music' || blocked || !catalog" @click="beginReceive()">
-          <span aria-hidden="true">＋</span> {{ view.id === 'tapes' ? '添加磁带' : '添加实体音乐' }}
+        <button class="collection-add" type="button" :disabled="blocked || !catalog" @click="beginReceive()">
+          <span aria-hidden="true">＋</span> 添加磁带
         </button>
       </header>
 
@@ -98,7 +104,7 @@ function onTabKeydown(event: KeyboardEvent): void {
         </div>
         <nav v-if="catalog && catalog.total > catalog.limit" class="inventory-pagination" aria-label="收藏分页"><button :disabled="loading || catalog.offset === 0" @click="inventory.load(Math.max(0, catalog.offset - catalog.limit))">上一页</button><span>{{ Math.floor(catalog.offset / catalog.limit) + 1 }} / {{ Math.ceil(catalog.total / catalog.limit) }}</span><button :disabled="loading || !catalog.hasMore" @click="inventory.load(catalog.offset + catalog.limit)">下一页</button></nav>
       </template>
-      <div v-if="view.id === 'music' || (!detail && catalog && !catalog.total)" class="collection-empty">
+      <div v-if="view.id === 'tapes' && !detail && catalog && !catalog.total" class="collection-empty">
         <!-- 线稿只表示尚未接入的页面，不冒充用户实物照片或参考品牌资源。 -->
         <svg v-if="view.id === 'tapes'" class="collection-art" viewBox="0 0 220 150" fill="none" aria-hidden="true">
           <rect x="20" y="21" width="180" height="110" rx="12" fill="currentColor" fill-opacity=".035" stroke="currentColor" stroke-opacity=".45" />
@@ -107,16 +113,9 @@ function onTabKeydown(event: KeyboardEvent): void {
           <circle cx="66" cy="65" r="6" stroke="currentColor" /><circle cx="154" cy="65" r="6" stroke="currentColor" />
           <path d="M82 65h56M57 130l12-25h82l12 25" stroke="currentColor" stroke-opacity=".6" />
         </svg>
-        <svg v-else class="collection-art" viewBox="0 0 220 150" fill="none" aria-hidden="true">
-          <rect x="25" y="18" width="112" height="114" rx="7" fill="currentColor" fill-opacity=".035" stroke="currentColor" stroke-opacity=".4" />
-          <path d="M37 18v114M51 41h60M51 51h42" stroke="currentColor" stroke-opacity=".35" />
-          <circle cx="141" cy="78" r="53" fill="var(--mb-bg-base)" stroke="currentColor" stroke-opacity=".6" />
-          <circle cx="141" cy="78" r="42" stroke="currentColor" stroke-opacity=".15" /><circle cx="141" cy="78" r="13" stroke="currentColor" />
-          <circle cx="141" cy="78" r="4" stroke="currentColor" />
-        </svg>
-        <h3>{{ view.id === 'tapes' ? (filter.query || filter.brand || filter.decade ? '没有符合筛选的型号' : '还没有磁带库存') : '这里将保存你拥有的音乐' }}</h3>
+        <h3>{{ filter.query || filter.brand || filter.decade ? '没有符合筛选的型号' : '还没有磁带库存' }}</h3>
         <p class="collection-description">{{ view.id === 'tapes' ? '实物照片成为封面。打开一个型号，就能看到未开封、已拆空白和已录磁带，以及它们录下的音乐。' : '按音乐浏览实体收藏；自录磁带保留原有型号与实体编号，不重复计算库存。' }}</p>
-        <p :id="`collection-status-${view.id}`" class="collection-status">{{ view.id === 'tapes' ? '录入后打开型号，即可添加实物照片；也可清除筛选查看全部收藏。' : '实体音乐关联尚未接入，当前不展示示例库存。' }}</p>
+        <p :id="`collection-status-${view.id}`" class="collection-status">录入后打开型号，即可添加实物照片；也可清除筛选查看全部收藏。</p>
       </div>
     </div>
     <CollectionReceiveDialog v-if="receiving" :model="receiveModel" :busy="saving" :error="error" :retryable="!!pending" @close="receiving = false" @save="receive" @retry="retry" />

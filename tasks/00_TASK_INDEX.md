@@ -44,3 +44,5 @@
 WAVE-4 是 Owner 从已整合 Bug 修复的 `main` 明确启动的功能线，不把尚未完成的 TASK-040/TASK-041 分发验收视为已完成，也不以跨源歌词自动 Gate 替代签名、公证、安装或 Beta Owner Gate。WAVE-4 内部仍严格按 TASK-042 至 TASK-047 线性执行。
 
 WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发线，见 `project/WAVE-5.yaml`。首任务从已同步最新需求的 V3 文档基线建立，旧 WAVE-3 控制面不改写。首任务只包含导航基础；后续任务从上一任务最终 HEAD 建立并单独定义范围，不将历史验收或 F-01 自动标为完成。
+
+- [TASK-051：实体音乐库](TASK-051-v3-physical-music-library.md) — 原版 CD/磁带、旧录音内容与同库展示；基线 TASK-050。

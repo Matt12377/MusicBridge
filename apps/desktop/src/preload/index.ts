@@ -151,5 +151,14 @@ contextBridge.exposeInMainWorld(
       updateCollectionCopy: request => ipcRenderer.invoke('collection:update-copy', request),
       setCollectionPolicy: request => ipcRenderer.invoke('collection:set-policy', request),
     },
+    {
+      listPhysicalMusic: (page, filter) => ipcRenderer.invoke('physicalMusic:list', page, filter),
+      getPhysicalMusic: id => ipcRenderer.invoke('physicalMusic:detail', id),
+      savePhysicalRelease: request => ipcRenderer.invoke('physicalMusic:saveRelease', request),
+      saveLegacyRecording: request => ipcRenderer.invoke('physicalMusic:saveLegacy', request),
+      addPhysicalMusicPhoto: request => ipcRenderer.invoke('physicalMusic:addPhoto', request),
+      getPhysicalMusicPhoto: photoId => ipcRenderer.invoke('physicalMusic:photo', photoId),
+      removePhysicalMusicPhoto: request => ipcRenderer.invoke('physicalMusic:removePhoto', request),
+    },
   ),
 )

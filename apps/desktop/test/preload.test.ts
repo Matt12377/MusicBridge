@@ -126,6 +126,13 @@ test('Preload exposes only sanitized business methods', async () => {
   )
 
   assert.deepEqual(PUBLIC_API_KEYS, [
+    'listPhysicalMusic',
+    'getPhysicalMusic',
+    'savePhysicalRelease',
+    'saveLegacyRecording',
+    'addPhysicalMusicPhoto',
+    'getPhysicalMusicPhoto',
+    'removePhysicalMusicPhoto',
     'pickCollectionPhoto',
     'addCollectionPhoto',
     'getCollectionPhoto',
@@ -204,6 +211,13 @@ test('Preload exposes only sanitized business methods', async () => {
     'onRemoteCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
+    'listPhysicalMusic',
+    'getPhysicalMusic',
+    'savePhysicalRelease',
+    'saveLegacyRecording',
+    'addPhysicalMusicPhoto',
+    'getPhysicalMusicPhoto',
+    'removePhysicalMusicPhoto',
     'pickCollectionPhoto',
     'addCollectionPhoto',
     'getCollectionPhoto',

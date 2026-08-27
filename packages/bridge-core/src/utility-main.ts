@@ -137,6 +137,13 @@ async function dispatch(
   request: IpcRequest,
 ): Promise<unknown> {
   switch (request.command as IpcCommand) {
+    case 'physicalMusic.list': { const p = request.payload as IpcCommandPayloads['physicalMusic.list']; return collectionFor(runtime).music.list(p.page, p.filter); }
+    case 'physicalMusic.detail': return collectionFor(runtime).music.detail((request.payload as IpcCommandPayloads['physicalMusic.detail']).id);
+    case 'physicalMusic.photo': return collectionFor(runtime).music.photo((request.payload as IpcCommandPayloads['physicalMusic.photo']).photoId);
+    case 'physicalMusic.saveRelease': return collectionFor(runtime).music.saveRelease(request.payload as IpcCommandPayloads['physicalMusic.saveRelease']);
+    case 'physicalMusic.saveLegacy': return collectionFor(runtime).music.saveLegacy(request.payload as IpcCommandPayloads['physicalMusic.saveLegacy']);
+    case 'physicalMusic.addPhoto': return collectionFor(runtime).music.addPhoto(request.payload as IpcCommandPayloads['physicalMusic.addPhoto']);
+    case 'physicalMusic.removePhoto': return collectionFor(runtime).music.removePhoto(request.payload as IpcCommandPayloads['physicalMusic.removePhoto']);
     case 'collection.addPhoto':
       return collectionFor(runtime).addPhoto(request.payload as IpcCommandPayloads['collection.addPhoto']);
     case 'collection.photo':

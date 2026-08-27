@@ -46,6 +46,7 @@ export interface CollectionLot {
   quantities: CollectionQuantities;
 }
 export interface CollectionCopy {
+  recordingTitle?: string;
   physicalId: string;
   lotId: string;
   skuId: string;
@@ -195,7 +196,8 @@ function isCollectionLot(v: unknown): v is CollectionLot {
     && isCollectionQuantities(v.quantities) && Object.values(v.quantities).reduce((sum, n) => sum + n, 0) <= v.quantityAcquired;
 }
 function isCollectionCopy(v: unknown): v is CollectionCopy {
-  return record(v) && keys(v, ['physicalId', 'lotId', 'skuId', 'lengthMinutes', 'packaging', 'usage', 'available', 'origin', 'revision'])
+  return record(v) && keys(v, ['physicalId', 'lotId', 'skuId', 'lengthMinutes', 'packaging', 'usage', 'available', 'origin', 'revision', 'recordingTitle'])
+    && (v.recordingTitle === undefined || (v.usage === 'recorded' && typeof v.recordingTitle === 'string' && v.recordingTitle.length > 0 && v.recordingTitle.length <= 240 && !/[\u0000-\u001f\u007f]/u.test(v.recordingTitle)))
     && isPhysicalId(v.physicalId) && isCollectionId(v.lotId) && isCollectionId(v.skuId) && length(v.lengthMinutes)
     && ['sealed', 'opened', 'unknown'].includes(String(v.packaging)) && ['blank', 'reserved', 'recorded', 'unknown', 'erased'].includes(String(v.usage))
     && typeof v.available === 'boolean' && ['blank-pool', 'legacy-registration', 'unclassified'].includes(String(v.origin)) && integer(v.revision, 1);

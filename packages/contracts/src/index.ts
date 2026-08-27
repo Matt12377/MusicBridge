@@ -12,3 +12,5 @@ export * from './state.js';
 export * from './remote-core.js';
 export * from './roon.js';
 export * from './validator.js';
+
+export * from './physical-music.js';

@@ -1,3 +1,4 @@
+import { physicalMusicMigration, createPhysicalMusicRepository, type PhysicalMusicRepository } from './physical-music.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { closeSync, constants, fchmodSync, lstatSync, mkdirSync, openSync } from 'node:fs';
 import path from 'node:path';
@@ -22,6 +23,7 @@ const conflict = (message: string): never => { throw new CollectionError('INVENT
 const unavailable = (): never => { throw new CollectionError('INVENTORY_UNAVAILABLE', '库存暂时不可用，请重试；现有数据不会被自动清除。'); };
 
 export interface CollectionRepository {
+  music: PhysicalMusicRepository;
   list(page: PageRequest, filter?: CollectionFilter): Page<CollectionModel>;
   addPhoto(request: CollectionAddPhotoRequest): CollectionMutationResult;
   photo(photoId: string): CollectionPhotoImage;
@@ -35,7 +37,7 @@ export interface CollectionRepository {
 }
 interface ModelRow { id: string; descriptor: string; policy: CollectorPolicy; minimum_sealed: number; revision: number }
 interface LotRow { id: string; sku_id: string; model_id: string; minutes: number; acquired: number; sealed: number; opened: number; legacy: number; unknown: number }
-interface CopyRow { physical_id: string; lot_id: string; sku_id: string; model_id: string; minutes: number; packaging: CollectionCopy['packaging']; usage: CollectionCopy['usage']; available: number; origin: CollectionCopy['origin']; revision: number; reserved_from: string | null }
+interface CopyRow { recording_title?: string | null; physical_id: string; lot_id: string; sku_id: string; model_id: string; minutes: number; packaging: CollectionCopy['packaging']; usage: CollectionCopy['usage']; available: number; origin: CollectionCopy['origin']; revision: number; reserved_from: string | null }
 interface PhotoRow { id: string; model_id: string; physical_id: string | null; width: number; height: number }
 
 const schema = `
@@ -96,7 +98,7 @@ function publicPhoto(row: PhotoRow): CollectionPhoto {
   return { id: row.id, modelId: row.model_id, ...(row.physical_id ? { physicalId: row.physical_id } : {}), width: row.width, height: row.height, source: 'user-photo' };
 }
 const lotSelect = 'SELECT l.*, s.model_id, s.minutes FROM inventory_lots l JOIN collection_skus s ON s.id=l.sku_id';
-const copySelect = 'SELECT c.*, l.sku_id, s.model_id, s.minutes FROM physical_copies c JOIN inventory_lots l ON l.id=c.lot_id JOIN collection_skus s ON s.id=l.sku_id';
+const copySelect = "SELECT c.*, l.sku_id, s.model_id, s.minutes,json_extract(r.data,'$.title') recording_title FROM physical_copies c JOIN inventory_lots l ON l.id=c.lot_id JOIN collection_skus s ON s.id=l.sku_id LEFT JOIN legacy_recording_content r ON r.physical_id=c.physical_id";
 const columns = { sealedBlank: 'sealed', openedBlank: 'opened', legacyUsed: 'legacy', unclassified: 'unknown' } as const;
 const normalized = (value: string): string => value.normalize('NFKC').trim().replace(/\s+/gu, ' ');
 function canonical(value: unknown): string {
@@ -138,17 +140,18 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
       // WAL 恢复期间，首次版本读取也可能遇到短暂锁；先设置等待，再访问数据库内容。
       db.exec('PRAGMA busy_timeout=1000');
       const version = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-      if (![0, 1, 2].includes(version)) return unavailable();
+      if (![0, 1, 2, 3].includes(version)) return unavailable();
       if (version === 0 && Number(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").get()?.n) !== 0) return unavailable();
       db.exec('PRAGMA trusted_schema=OFF; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
-      if (version < 2) {
+      if (version < 3) {
         db.exec('BEGIN IMMEDIATE');
         try {
           // 等待写锁后重读版本，避免两个首次连接同时执行迁移。
           const currentVersion = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-          if (![0, 1, 2].includes(currentVersion)) return unavailable();
+          if (![0, 1, 2, 3].includes(currentVersion)) return unavailable();
           if (currentVersion === 0) db.exec(schema);
           if (currentVersion < 2) { db.exec(photoMigration); options.beforeCommit?.('migrate-photos'); }
+          if (currentVersion < 3) { db.exec(physicalMusicMigration); options.beforeCommit?.('migrate-music'); }
           db.exec('COMMIT');
         } catch (error) { db.exec('ROLLBACK'); throw error; }
       }
@@ -206,7 +209,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
   }
   function publicCopy(row: CopyRow): CollectionCopy {
     return { physicalId: row.physical_id, lotId: row.lot_id, skuId: row.sku_id, lengthMinutes: row.minutes || null,
-      packaging: row.packaging, usage: row.usage, available: row.available === 1, origin: row.origin, revision: row.revision };
+      packaging: row.packaging, usage: row.usage, available: row.available === 1, origin: row.origin, revision: row.revision, ...(row.usage === 'recorded' && row.recording_title ? { recordingTitle: row.recording_title } : {}) };
   }
   function transaction<T extends { commandId: string }>(action: string, request: T, valid: boolean,
     operation: (db: DatabaseSync) => { result: CollectionMutationResult; evidence: unknown }): CollectionMutationResult {
@@ -233,6 +236,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
   }
 
   return {
+    music: createPhysicalMusicRepository({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     list(page, filter = {}) {
       if (!validPage(page) || !isCollectionFilter(filter)) return conflict('库存请求无效，请检查分页和筛选。');
       const conditions: string[] = [], values: SQLInputValue[] = [];

@@ -1065,3 +1065,14 @@ test('utility QR commands keep the credential only in the Core-to-Main response'
     },
   });
 });
+
+
+test('V3 实体音乐库 IPC 首次返回空列表，不依赖 Roon', async t => {
+  const collection = createCollectionRepository({ filePath: ':memory:' });
+  t.after(() => collection.close());
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { collection }));
+  port.send({ version: 1, id: 'music-list', command: 'physicalMusic.list', payload: { page: { offset: 0, limit: 20 } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'music-list', ok: true, result: { items: [], offset: 0, limit: 20, total: 0, hasMore: false } });
+});

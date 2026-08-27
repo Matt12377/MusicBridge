@@ -311,7 +311,7 @@ test('v1 库存迁移保留全部账本和实体；迁移失败仍保留 v1 可�
   const before = repository.detail(stock.modelId, page); repository.close();
   // 本次迁移只新增这两张表；去除它们后即为上一版本的实际 schema 和业务数据。
   const db = new DatabaseSync(filePath);
-  db.exec('DROP TABLE collection_featured_photos; DROP TABLE collection_photos; PRAGMA user_version=1');
+  db.exec('DROP TABLE music_photos; DROP TABLE legacy_recording_content; DROP TABLE music_releases; DROP TABLE music_ledger; DROP TABLE collection_featured_photos; DROP TABLE collection_photos; PRAGMA user_version=1');
   const ledger = db.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(); db.close();
   const failing = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-photos') throw new Error('合成迁移中断'); } });
   assert.throws(() => failing.list(page), /库存暂时不可用/u); failing.close();
@@ -321,7 +321,7 @@ test('v1 库存迁移保留全部账本和实体；迁移失败仍保留 v1 可�
   const migrated = createCollectionRepository({ filePath });
   try { assert.deepEqual(migrated.detail(stock.modelId, page), before); } finally { migrated.close(); }
   const check = new DatabaseSync(filePath, { readOnly: true });
-  try { assert.equal(check.prepare('PRAGMA user_version').get()?.user_version, 2); assert.deepEqual(check.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(), ledger); }
+  try { assert.equal(check.prepare('PRAGMA user_version').get()?.user_version, 3); assert.deepEqual(check.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(), ledger); }
   finally { check.close(); }
 });
 
@@ -337,4 +337,73 @@ test('照片数量有界，内容损坏不会清空库存，最后一张删除�
   for (let n = 0; n < 24; n++) repository.addPhoto({ commandId: randomUUID(), modelId: stock.modelId, image: { ...photoImage, dataUrl: `data:image/jpeg;base64,${Buffer.from([255,216,255,n,255,217]).toString('base64')}` } });
   assert.throws(() => repository.addPhoto({ commandId: randomUUID(), modelId: stock.modelId, image: photoImage }), /最多保存/u);
   assert.equal(repository.detail(stock.modelId, page).model.counts.total, 8);
+});
+
+test('原版实体发行版独立于库存，命令幂等、更新冲突与重启持久化', async t => {
+  const { repository, filePath } = await fixture(t);
+  const release = { format: 'cd' as const, title: '合成唱片', artist: '合成艺术家', quantity: 2, completeness: 'basic' as const, tracks: [] };
+  const command = { commandId: randomUUID(), release };
+  const result = repository.music.saveRelease(command);
+  assert.deepEqual(repository.music.saveRelease(command), result);
+  assert.equal(repository.list(page).total, 0);
+  assert.equal(repository.music.list(page).items[0]?.quantity, 2);
+  const detail = repository.music.detail(result.id);
+  assert.equal(detail.entry.kind, 'cd'); assert.equal(detail.entry.revision, 1);
+  assert.throws(() => repository.music.saveRelease({ ...command, release: { ...release, title: '冲突' } }), /操作编号/u);
+  const changed = { commandId: randomUUID(), id: result.id, expectedRevision: 1, release: { ...release, edition: '首版', completeness: 'partial' as const } };
+  repository.music.saveRelease(changed);
+  assert.throws(() => repository.music.saveRelease({ ...changed, commandId: randomUUID() }), /已改变/u);
+  repository.close(); const reopened = createCollectionRepository({ filePath }); t.after(() => reopened.close());
+  assert.equal(reopened.music.detail(result.id).release?.edition, '首版');
+  assert.equal(reopened.music.list(page, { query: '不会匹配' }).total, 0);
+});
+
+test('历史自录只补已有单盘内容，两个库仍指向相同身份且不伪造正式录音', async t => {
+  const { repository } = await fixture(t);
+  const stock = repository.receive(receipt({ quantities: { sealedBlank: 0, openedBlank: 1, legacyUsed: 1, unclassified: 0 } }));
+  const legacy = repository.materialize({ commandId: randomUUID(), lotId: stock.lotId!, bucket: 'legacyUsed', action: 'register-legacy' });
+  const blank = repository.materialize({ commandId: randomUUID(), lotId: stock.lotId!, bucket: 'openedBlank', action: 'identify' });
+  const original = repository.music.detail(legacy.physicalId!);
+  assert.equal(original.entry.contentStatus, 'missing');
+  const content = { title: '两面精选', artist: '多位艺术家', tracks: [{ title: '第一首', artist: '甲', side: 'A' as const, position: 1 }, { title: '第二首', artist: '乙', side: 'B' as const, position: 1 }] };
+  const command = { commandId: randomUUID(), physicalId: legacy.physicalId!, expectedRevision: 1, content };
+  repository.music.saveLegacy(command); repository.music.saveLegacy(command);
+  assert.equal(repository.music.detail(legacy.physicalId!).entry.modelId, stock.modelId);
+  assert.equal(repository.music.detail(legacy.physicalId!).entry.contentStatus, 'legacy');
+  assert.equal(repository.music.detail(legacy.physicalId!).recording?.tracks.length, 2);
+  assert.equal(repository.detail(stock.modelId, page).copies.items.find(c => c.physicalId === legacy.physicalId)?.recordingTitle, '两面精选');
+  assert.equal(repository.music.list(page).total, 1);
+  assert.equal(repository.detail(stock.modelId, page).model.counts.total, 2);
+  assert.throws(() => repository.music.saveLegacy({ ...command, commandId: randomUUID(), physicalId: blank.physicalId! }), /旧录音/u);
+});
+
+test('音乐资料事务失败回滚，原版照片去重与归属检查且不污染库存照片', async t => {
+  let fail = false; const { repository } = await fixture(t, action => { if (fail && action === 'save-release') throw new Error('synthetic'); });
+  const release = { format: 'cassette' as const, title: '原版磁带', artist: '合成艺术家', quantity: 1, completeness: 'basic' as const, tracks: [] };
+  fail = true; const command = { commandId: randomUUID(), release };
+  assert.throws(() => repository.music.saveRelease(command), /不可用/u);
+  fail = false; assert.equal(repository.music.list(page).total, 0);
+  const result = repository.music.saveRelease(command);
+  const photo = repository.music.addPhoto({ commandId: randomUUID(), id: result.id, image: photoImage });
+  assert.equal(repository.music.addPhoto({ commandId: randomUUID(), id: result.id, image: photoImage }).photoId, photo.photoId);
+  assert.equal(repository.music.detail(result.id).photos.length, 1);
+  assert.deepEqual(repository.music.photo(photo.photoId!), photoImage);
+  assert.throws(() => repository.photo(photo.photoId!), /不存在/u);
+  repository.music.removePhoto({ commandId: randomUUID(), id: result.id, photoId: photo.photoId!, expectedRevision: repository.music.detail(result.id).entry.revision });
+  assert.equal(repository.music.detail(result.id).photos.length, 0);
+});
+
+test('schema 2 音乐迁移失败回滚，成功后库存、照片、编号和账本完整保留', async t => {
+  const { repository, filePath } = await fixture(t);
+  const stock = repository.receive(receipt());
+  repository.addPhoto({ commandId: randomUUID(), modelId: stock.modelId, image: photoImage });
+  const before = repository.detail(stock.modelId, page); repository.close();
+  const db = new DatabaseSync(filePath);
+  db.exec('DROP TABLE music_photos; DROP TABLE legacy_recording_content; DROP TABLE music_releases; DROP TABLE music_ledger; PRAGMA user_version=2'); db.close();
+  const interrupted = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-music') throw new Error('synthetic'); } });
+  assert.throws(() => interrupted.music.list(page), /不可用/u); interrupted.close();
+  const old = new DatabaseSync(filePath); assert.equal(old.prepare('PRAGMA user_version').get()?.user_version, 2); old.close();
+  const reopened = createCollectionRepository({ filePath }); t.after(() => reopened.close());
+  assert.deepEqual(reopened.detail(stock.modelId, page), before);
+  assert.equal(reopened.music.list(page).total, 0);
 });

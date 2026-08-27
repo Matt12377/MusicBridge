@@ -1,3 +1,4 @@
+import type { PhysicalMusicPublicApi } from '@music-bridge/contracts'
 import type {
   AlbumDetail,
   CollectionPublicApi,
@@ -48,7 +49,7 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
   autoReconnect: false,
 }
 
-export interface MusicBridgePublicApi extends CollectionPublicApi {
+export interface MusicBridgePublicApi extends CollectionPublicApi, PhysicalMusicPublicApi {
   getAppInfo: () => Promise<AppInfo>
   getCoreHealth: () => Promise<PublicBridgeState>
   getCoreState: () => Promise<PublicBridgeState>
@@ -122,6 +123,13 @@ export interface MusicBridgePublicApi extends CollectionPublicApi {
 }
 
 export const PUBLIC_API_KEYS = [
+  'listPhysicalMusic',
+  'getPhysicalMusic',
+  'savePhysicalRelease',
+  'saveLegacyRecording',
+  'addPhysicalMusicPhoto',
+  'getPhysicalMusicPhoto',
+  'removePhysicalMusicPhoto',
   'pickCollectionPhoto',
   'addCollectionPhoto',
   'getCollectionPhoto',
@@ -345,9 +353,19 @@ export function createPreloadApi(
     throw new Error('Local lyrics matching API is unavailable')
   },
   collectionApi?: CollectionPublicApi,
+  physicalMusicApi?: PhysicalMusicPublicApi,
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   return Object.freeze({
+    ...(physicalMusicApi ?? {
+      listPhysicalMusic: collectionUnavailable,
+      getPhysicalMusic: collectionUnavailable,
+      savePhysicalRelease: collectionUnavailable,
+      saveLegacyRecording: collectionUnavailable,
+      addPhysicalMusicPhoto: collectionUnavailable,
+      getPhysicalMusicPhoto: collectionUnavailable,
+      removePhysicalMusicPhoto: collectionUnavailable,
+    }),
     ...(collectionApi ?? {
       pickCollectionPhoto: collectionUnavailable, addCollectionPhoto: collectionUnavailable,
       getCollectionPhoto: collectionUnavailable, changeCollectionPhoto: collectionUnavailable,

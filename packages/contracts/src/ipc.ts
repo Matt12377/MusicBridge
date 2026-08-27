@@ -1,3 +1,4 @@
+import type { MusicFilter, MusicEntry, MusicDetail, SaveReleaseRequest, SaveLegacyRequest, MusicMutationResult, AddMusicPhotoRequest, RemoveMusicPhotoRequest } from './physical-music.js';
 import type { PublicError } from './errors.js';
 import type { CollectionFilter, CollectionPhotoImage, CollectionAddPhotoRequest, CollectionChangePhotoRequest, CollectionModel, CollectionDetail, CollectionReceiveRequest, CollectionMaterializeRequest, CollectionUpdateCopyRequest, CollectionPolicyRequest, CollectionMutationResult } from './collection.js';
 import type {
@@ -72,6 +73,13 @@ export const IPC_COMMANDS = [
   'library.playlist',
   'library.dailyRecommendations',
   'favorites.list',
+  'physicalMusic.list',
+  'physicalMusic.detail',
+  'physicalMusic.saveRelease',
+  'physicalMusic.saveLegacy',
+  'physicalMusic.addPhoto',
+  'physicalMusic.photo',
+  'physicalMusic.removePhoto',
   'collection.addPhoto',
   'collection.photo',
   'collection.changePhoto',
@@ -190,6 +198,13 @@ export interface IpcCommandPayloads {
   'library.playlist': { playlistId: string; page: PageRequest };
   'library.dailyRecommendations': Record<string, never>;
   'favorites.list': { kind?: FavoriteKind; page: PageRequest };
+  'physicalMusic.list': { page: PageRequest; filter?: MusicFilter };
+  'physicalMusic.detail': { id: string };
+  'physicalMusic.saveRelease': SaveReleaseRequest;
+  'physicalMusic.saveLegacy': SaveLegacyRequest;
+  'physicalMusic.addPhoto': AddMusicPhotoRequest;
+  'physicalMusic.photo': { photoId: string };
+  'physicalMusic.removePhoto': RemoveMusicPhotoRequest;
   'collection.list': { page: PageRequest; filter?: CollectionFilter };
   'collection.addPhoto': CollectionAddPhotoRequest;
   'collection.photo': { photoId: string };
@@ -268,6 +283,13 @@ export interface IpcCommandResults {
   'library.playlist': PlaylistDetail;
   'library.dailyRecommendations': DailyRecommendationsSnapshot;
   'favorites.list': FavoritePage;
+  'physicalMusic.list': Page<MusicEntry>;
+  'physicalMusic.detail': MusicDetail;
+  'physicalMusic.saveRelease': MusicMutationResult;
+  'physicalMusic.saveLegacy': MusicMutationResult;
+  'physicalMusic.addPhoto': MusicMutationResult;
+  'physicalMusic.photo': CollectionPhotoImage;
+  'physicalMusic.removePhoto': MusicMutationResult;
   'collection.list': Page<CollectionModel>;
   'collection.addPhoto': CollectionMutationResult;
   'collection.photo': CollectionPhotoImage;

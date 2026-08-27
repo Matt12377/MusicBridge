@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { onUnmounted, ref, watch } from 'vue'
-import type { CollectionPhoto } from '@music-bridge/contracts'
-const props = defineProps<{ photo: CollectionPhoto; alt: string }>()
+import type { CollectionPhoto, CollectionPhotoImage } from '@music-bridge/contracts'
+const props = defineProps<{ photo: Pick<CollectionPhoto, 'id' | 'width' | 'height'>; alt: string; loadPhoto?: (id: string) => Promise<CollectionPhotoImage> }>()
 const source = ref(''), failed = ref(false), loading = ref(false)
 let generation = 0
 async function load(): Promise<void> {
   const current = ++generation
   source.value = ''; failed.value = false; loading.value = true
   try {
-    const image = await window.musicBridge.getCollectionPhoto(props.photo.id)
+    const image = await (props.loadPhoto ?? window.musicBridge.getCollectionPhoto)(props.photo.id)
     if (current === generation) source.value = image.dataUrl
   } catch { if (current === generation) failed.value = true }
   finally { if (current === generation) loading.value = false }

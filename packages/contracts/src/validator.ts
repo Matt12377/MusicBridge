@@ -1,3 +1,4 @@
+import { isMusicId, isMusicFilter, isMusicEntry, isMusicDetail, isMusicMutationResult, isSaveReleaseRequest, isSaveLegacyRequest, isAddMusicPhotoRequest, isRemoveMusicPhotoRequest } from './physical-music.js';
 import type { PublicError } from './errors.js';
 import { isCollectionFilter, isCollectionPhotoImage, isCollectionAddPhotoRequest, isCollectionChangePhotoRequest, isCollectionId, isCollectionReceiveRequest, isCollectionMaterializeRequest, isCollectionUpdateCopyRequest, isCollectionPolicyRequest, isCollectionMutationResult, isCollectionModel, isCollectionPage, isCollectionDetail } from './collection.js';
 import type {
@@ -914,6 +915,13 @@ function isPlaylistDetail(value: unknown): value is PlaylistDetail {
 }
 
 function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
+  if (command === 'physicalMusic.list') return isRecord(payload) && hasOnlyKeys(payload, ['page', 'filter']) && isPageRequest(payload.page) && (payload.filter === undefined || isMusicFilter(payload.filter));
+  if (command === 'physicalMusic.detail') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isMusicId(payload.id);
+  if (command === 'physicalMusic.photo') return isRecord(payload) && hasOnlyKeys(payload, ['photoId']) && isCollectionId(payload.photoId);
+  if (command === 'physicalMusic.saveRelease') return isSaveReleaseRequest(payload);
+  if (command === 'physicalMusic.saveLegacy') return isSaveLegacyRequest(payload);
+  if (command === 'physicalMusic.addPhoto') return isAddMusicPhotoRequest(payload);
+  if (command === 'physicalMusic.removePhoto') return isRemoveMusicPhotoRequest(payload);
   if (command === 'collection.list') return isRecord(payload) && hasOnlyKeys(payload, ['page', 'filter']) && isPageRequest(payload.page) && (payload.filter === undefined || isCollectionFilter(payload.filter));
   if (command === 'collection.addPhoto') return isCollectionAddPhotoRequest(payload);
   if (command === 'collection.changePhoto') return isCollectionChangePhotoRequest(payload);
@@ -1337,6 +1345,14 @@ function isCommandResult(
   allowInternalResult = false,
 ): boolean {
   switch (command) {
+    case 'physicalMusic.list': return isCollectionPage(value, isMusicEntry);
+    case 'physicalMusic.detail': return isMusicDetail(value);
+    case 'physicalMusic.photo': return isCollectionPhotoImage(value);
+    case 'physicalMusic.saveRelease':
+    case 'physicalMusic.saveLegacy':
+    case 'physicalMusic.addPhoto':
+    case 'physicalMusic.removePhoto':
+      return isMusicMutationResult(value);
     case 'collection.addPhoto':
     case 'collection.changePhoto':
       return isCollectionMutationResult(value);

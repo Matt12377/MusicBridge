@@ -3,12 +3,13 @@ wave: WAVE-5
 status: active
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-050
-activeBranch: codex/task-050-v3-collection-photos
-activeBaseCommit: 71eca199f2678c9dfe6ba765193e09ef4207d89a
+activeTask: TASK-051
+activeBranch: codex/task-051-v3-physical-music-library
+activeBaseCommit: 7bd3d6fbf07079f683e00c615afbfe92fa475f31
 order:
   - TASK-048
   - TASK-049
   - TASK-050
-stopAfter: TASK-050
-reviewBoundary: photos-featured-copy-and-collection-wall
+  - TASK-051
+stopAfter: TASK-051
+reviewBoundary: commercial-releases-and-legacy-recording-library

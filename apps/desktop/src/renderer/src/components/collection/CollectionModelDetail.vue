@@ -4,7 +4,7 @@ import type { CollectionChangePhotoRequest, CollectionCopy, CollectionDetail, Co
 import CollectionPhotos from './CollectionPhotos.vue'
 
 const props = defineProps<{ detail: CollectionDetail; busy: boolean }>()
-const emit = defineEmits<{ close: []; receive: []; page: [offset: number]; materialize: [request: CollectionMaterializeRequest]; updateCopy: [request: CollectionUpdateCopyRequest]; policy: [request: CollectionPolicyRequest]; addPhoto: [physicalId?: string]; changePhoto: [request: CollectionChangePhotoRequest] }>()
+const emit = defineEmits<{ showRecording: [physicalId: string]; close: []; receive: []; page: [offset: number]; materialize: [request: CollectionMaterializeRequest]; updateCopy: [request: CollectionUpdateCopyRequest]; policy: [request: CollectionPolicyRequest]; addPhoto: [physicalId?: string]; changePhoto: [request: CollectionChangePhotoRequest] }>()
 const policy = ref<CollectorPolicy>('normal')
 const reserve = ref(0)
 watch(() => props.detail.model, model => { policy.value = model.collectorPolicy; reserve.value = model.minimumSealedReserve }, { immediate: true })
@@ -25,7 +25,7 @@ function savePolicy(): void {
 }
 function state(copy: CollectionCopy): string {
   if (!copy.available) return '不可用'
-  return { blank: copy.packaging === 'sealed' ? '未开封空白' : '已拆空白', reserved: '已预留', recorded: '已录音，内容待补录', unknown: '状态待确认', erased: '已擦除空白' }[copy.usage]
+  return { blank: copy.packaging === 'sealed' ? '未开封空白' : '已拆空白', reserved: '已预留', recorded: copy.recordingTitle ? `已录音 · ${copy.recordingTitle}` : '已录音，内容待补录', unknown: '状态待确认', erased: '已擦除空白' }[copy.usage]
 }
 </script>
 
@@ -61,6 +61,7 @@ function state(copy: CollectionCopy): string {
     <article v-for="copy in detail.copies.items" :key="copy.physicalId" class="copy">
       <div><strong>{{ copy.physicalId }}</strong><p class="muted">{{ copy.lengthMinutes ? `${copy.lengthMinutes} 分钟 · ` : '' }}{{ state(copy) }}</p></div>
       <div class="copy-actions">
+        <button v-if="copy.usage === 'recorded'" :disabled="busy" @click="emit('showRecording', copy.physicalId)">查看录音内容</button>
         <button :aria-label="`添加单盘照片 ${copy.physicalId}`" :disabled="busy || (detail.model.photoCount ?? 0) >= 24" @click="emit('addPhoto', copy.physicalId)">添加照片</button>
         <button v-if="copy.usage === 'reserved'" :disabled="busy" @click="update(copy, 'cancel-reservation')">取消预留</button>
         <button v-else-if="copy.usage === 'blank' || copy.usage === 'erased'" :disabled="busy || !copy.available || detail.model.collectorPolicy === 'collector' || (copy.packaging === 'sealed' && protectedSealed)" @click="update(copy, 'reserve')">预留</button>
