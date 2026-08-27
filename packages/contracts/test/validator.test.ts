@@ -1436,3 +1436,29 @@ test('源能力私有路径仅允许内部响应，公开结果拒绝路径和�
   for (const bad of [{ ...binding, sourceLockEligible: true }, { ...binding, fileName: '/private/audio.flac' }, { ...binding, absolutePath: '/private/audio.flac' }, { ...binding, availability: 'MISSING', userConfirmed: true, sourceLockEligible: true }]) assert.equal(isSourceBinding(bad), false);
   assert.equal(isDraftSourceSnapshot({ draftId: id, sourceLockEligible: true, tracks: [] }), false);
 });
+
+test('分面预览合同支持逐面规划，拒绝伪造源时长与失控间隔', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const spec = { format: 'cassette', splitAfter: 1, leadInMs: 0, tailMs: 0, defaultGapMs: 5000, rules: [], compatibility: { confirmed: false, cassetteTypes: [], dat: false } };
+  const valid = (payload: unknown) => validateIpcRequest({ version: 1, id: 'media-preview', command: 'recordingMedia.preview', payload }).ok;
+  const payload = { draftId: id, spec, page: { offset: 0, limit: 20 } };
+  assert.equal(valid(payload), true);
+  assert.equal(valid({ ...payload, durations: [100] }), false);
+  assert.equal(valid({ ...payload, spec: { ...spec, defaultGapMs: -1 } }), false);
+  assert.equal(valid({ ...payload, spec: { ...spec, format: 'dat', splitAfter: 1 } }), false);
+});
+
+test('分面变更合同要求原命令和明确确认，公开结果拒绝路径及执行就绪伪造', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const request = { commandId: id, planId: id, expectedRevision: 1, skuId: id, packaging: 'opened', userConfirmed: true };
+  const valid = (payload: unknown) => validateIpcRequest({ version: 1, id: 'reserve', command: 'recordingMedia.reserve', payload }).ok;
+  assert.equal(valid(request), true);
+  for (const bad of [{ ...request, userConfirmed: false }, { ...request, expectedRevision: 0 }, { ...request, commandId: 'unstable' }, { ...request, path: '/private/source.wav' }]) assert.equal(valid(bad), false);
+  const spec = { format: 'cassette', splitAfter: 1, leadInMs: 0, tailMs: 0, defaultGapMs: 5000, rules: [], compatibility: { confirmed: false, cassetteTypes: [], dat: false } };
+  const result = { id, draftId: id, draftRevision: 1, revision: 1, spec, layout: { timebase: 'milliseconds', executionReady: false, sides: [{ name: 'A', tracks: [{ trackId: id, startMs: 0, endMs: 1000, gapAfterMs: 0 }], musicMs: 1000, durationMs: 1000, gapMs: 0, leadInMs: 0, tailMs: 0 }, { name: 'B', tracks: [], musicMs: 0, durationMs: 0, gapMs: 0, leadInMs: 0, tailMs: 0 }], constraints: [] }, sourceBasis: 'roon-estimate', inputFingerprint: 'a'.repeat(64), requiresReview: false, executionReady: false };
+  const accepted = (value: unknown) => validateIpcResponseForCommand({ version: 1, id: 'reserve', ok: true, result: value }, 'recordingMedia.save').ok;
+  assert.equal(accepted(result), true);
+  assert.equal(accepted({ ...result, executionReady: true }), false);
+  assert.equal(accepted({ ...result, path: '/private/source.wav' }), false);
+  assert.equal(accepted({ ...result, layout: { ...result.layout, timebase: 'frames' } }), false);
+});

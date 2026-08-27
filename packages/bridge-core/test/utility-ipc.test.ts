@@ -1,3 +1,4 @@
+import { createMediaPlanningCoordinator } from '../src/recording/media-coordinator.js';
 import { createSourceEvidenceService } from '../src/recording/source-evidence.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -1106,4 +1107,17 @@ test('源目录 IPC 初次为空，没有默认授权用户音乐目录', async 
   port.send({ version: 1, id: 'source-roots', command: 'recordingSources.roots', payload: {} });
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(port.messages.at(-1), { version: 1, id: 'source-roots', ok: true, result: { roots: [] } });
+});
+
+
+test('分面规划 IPC 初次返回草稿空规划，不自动预留库存', async t => {
+  const collection = createCollectionRepository({ filePath: ':memory:' });
+  t.after(() => collection.close());
+  const draft = collection.drafts.append({ commandId: '11111111-1111-4111-8111-111111111111', fingerprint: 'a'.repeat(64), title: '分面初始草稿', programType: 'compilation', metadata: [{ title: '合成曲目', durationMs: 180000 }] });
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { collection, mediaPlanning: createMediaPlanningCoordinator({ store: collection.media, drafts: collection.drafts }) }));
+  port.send({ version: 1, id: 'media-plans', command: 'recordingMedia.plans', payload: { draftId: draft.draftId } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'media-plans', ok: true, result: { draftId: draft.draftId, plans: [] } });
+  assert.equal(collection.list({ offset: 0, limit: 20 }).total, 0);
 });

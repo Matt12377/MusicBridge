@@ -191,5 +191,14 @@ contextBridge.exposeInMainWorld(
       recheckRecordingSource: request => ipcRenderer.invoke('recordingSources:recheck', request),
       confirmRecordingSource: request => ipcRenderer.invoke('recordingSources:confirm', request),
     },
+    {
+      listMediaPlans: draftId => ipcRenderer.invoke('recordingMedia:plans', draftId),
+      getMediaPlan: id => ipcRenderer.invoke('recordingMedia:detail', id),
+      previewMediaPlan: request => ipcRenderer.invoke('recordingMedia:preview', request),
+      balanceMediaPlan: (draftId, spec) => ipcRenderer.invoke('recordingMedia:balance', draftId, spec),
+      saveMediaPlan: request => ipcRenderer.invoke('recordingMedia:save', request),
+      reserveMediaPlan: request => ipcRenderer.invoke('recordingMedia:reserve', request),
+      releaseMediaPlan: request => ipcRenderer.invoke('recordingMedia:release', request),
+    },
   ),
 )

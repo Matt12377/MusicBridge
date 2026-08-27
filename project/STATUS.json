@@ -60,7 +60,7 @@
     "technicalGates": {
       "A": "PARTIAL_AUTOMATED_REAL_AND_FREEZE_PENDING",
       "B": "NOT_RUN",
-      "C": "NOT_RUN",
+      "C": "PARTIAL_AUTOMATED_FULL_PENDING",
       "D": "NOT_RUN",
       "E": "NOT_RUN"
     },
@@ -78,32 +78,37 @@
   },
   "v3Development": {
     "wave": "WAVE-5",
-    "task": "TASK-054",
-    "branch": "codex/task-054-v3-source-evidence",
-    "baseCommit": "5994fc4afdaf27e6e5e97ca9411aa23879808dc8",
-    "state": "automated-pass-real-gates-pending",
-    "implementationCommit": "1e2341b71914c9dc484977d372edd752e7fde5be",
-    "reportCommit": "d01487ab07f0f0b92b270c21705afadaa0f8f442",
-    "nextTask": "TASK-055",
+    "task": "TASK-055",
+    "branch": "codex/task-055-v3-layout-media-select",
+    "baseCommit": "79ca787240226eefb87cba49c7f92c35232be45a",
+    "state": "synthetic-pass-owner-review-pending",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "nextTask": null,
     "previousTask": {
-      "task": "TASK-053",
-      "implementationCommit": "26bf98de6985695402ff724668c12b0796586c59",
-      "reportCommit": "eae2fe2ad322f4620b25f2e3b4de480c4a23f5ba",
-      "finalCommit": "5994fc4afdaf27e6e5e97ca9411aa23879808dc8"
+      "task": "TASK-054",
+      "implementationCommit": "1e2341b71914c9dc484977d372edd752e7fde5be",
+      "reportCommit": "d01487ab07f0f0b92b270c21705afadaa0f8f442",
+      "finalCommit": "79ca787240226eefb87cba49c7f92c35232be45a"
     },
     "gates": {
-      "automated": "contracts-35-core-494-desktop-168-pass",
+      "automated": "PASS",
       "realProvider": "NOT_RUN",
       "realRoon": "NOT_RUN",
       "realRecording": "NOT_RUN",
       "ownerProductAcceptance": "NOT_RUN",
-      "fullPrdGateA": "PARTIAL_AUTOMATED_REAL_AND_FREEZE_PENDING",
-      "security": "22-of-22-pass",
-      "electron": "4-of-4-pass",
-      "e2e": "41-of-41-pass",
-      "sourceEvidence": "18-of-18-synthetic-pass",
+      "fullPrdGateC": "PARTIAL_AUTOMATED_FULL_PENDING",
+      "contracts": "37/37",
+      "core": "508/508",
+      "desktop": "168/168",
+      "security": "22/22",
+      "electron": "4/4",
+      "fullE2E": "43/43",
+      "focusedE2E": "2/2",
+      "mediaPanelAccessibility": "PASS_720_1440",
+      "controlPlane": "PASS_WAVE3",
       "boundaries": "PASS",
-      "cycles": "PASS-115-files"
+      "cycles": "PASS_119_FILES"
     },
     "integration": "NOT_RUN",
     "push": "NOT_AUTHORIZED",
@@ -113,7 +118,6 @@
       "TASK-047 真实验收继续待执行",
       "未确认操作的跨 Renderer/应用重启 outbox 恢复待后续覆盖；当前 UI 仅保留会话内原命令重试，数据库幂等结果已持久化",
       "旧侧栏窄窗后恢复宽窗的收起状态有文字裁切视觉现象，留待总体验收复查"
-    ],
-    "evidenceDirectory": "reports/runtime/task-054-final-imb2bcgr"
+    ]
   }
 }

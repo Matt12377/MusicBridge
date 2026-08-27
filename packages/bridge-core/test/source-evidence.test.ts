@@ -1,3 +1,4 @@
+import { createMediaPlanningCoordinator } from '../src/recording/media-coordinator.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHash, randomUUID } from 'node:crypto';
@@ -194,4 +195,31 @@ test('数据库暂时拒绝完成和失败写入时不产生未处理后台拒�
     assert.equal(service.job(request.commandId).job?.state, 'failed'); assert.equal(probes, 1);
     assert.equal((await service.snapshot(request.draftId)).tracks[0]!.binding, undefined);
   } finally { unavailable = false; await service.close(); repository.close(); }
+});
+
+test('分面重新取实际源时长，绑定与内容变化使旧规划失效且不能回退估算', async t => {
+  const f = await fixture(t), coordinator = createMediaPlanningCoordinator({ store: f.repository.media, drafts: f.repository.drafts, sources: f.service });
+  const spec = { format: 'cassette' as const, splitAfter: 1, leadInMs: 0, tailMs: 0, defaultGapMs: 5000, rules: [], compatibility: { confirmed: true, cassetteTypes: ['II' as const], dat: false } };
+  const request = { draftId: f.draft.draftId, spec, page: { offset: 0, limit: 20 } };
+  const preview = await coordinator.preview(request);
+  assert.equal(preview.sourceBasis, 'roon-estimate'); assert.equal(preview.layout.sides[0]!.durationMs, undefined);
+  const save = { commandId: randomUUID(), draftId: preview.draftId, expectedDraftRevision: preview.draftRevision, inputFingerprint: preview.inputFingerprint, spec };
+  const plan = await coordinator.save(save);
+  assert.equal((await coordinator.detail(plan.id)).requiresReview, false);
+  const selection = f.selection(); f.service.start(selection, f.file); await f.service.idle();
+  assert.equal((await coordinator.preview(request)).sourceBasis, 'unavailable');
+  const binding = (await f.service.snapshot(f.draft.draftId)).tracks[0]!.binding!;
+  await f.service.confirm({ commandId: randomUUID(), id: binding.id, draftId: f.draft.draftId, trackId: selection.trackId, userConfirmed: true });
+  const verified = await coordinator.preview(request);
+  assert.equal(verified.sourceBasis, 'verified-sources'); assert.equal(verified.layout.sides[0]!.durationMs, 1000);
+  assert.equal((await coordinator.detail(plan.id)).requiresReview, true);
+  await assert.rejects(coordinator.save({ ...save, commandId: randomUUID() }));
+  const refreshed = await coordinator.save({ ...save, commandId: randomUUID(), planId: plan.id, expectedRevision: plan.revision, inputFingerprint: verified.inputFingerprint });
+  assert.equal(refreshed.requiresReview, false);
+  assert.equal((await coordinator.save(save)).id, plan.id, '回执重试返回同一规划，不新建');
+  await writeFile(f.file, wav(2));
+  const changed = await coordinator.preview(request);
+  assert.equal(changed.sourceBasis, 'unavailable'); assert.equal(changed.layout.sides[0]!.durationMs, undefined);
+  assert.equal((await coordinator.detail(plan.id)).requiresReview, true);
+  assert.ok(!JSON.stringify(changed).includes(f.source));
 });

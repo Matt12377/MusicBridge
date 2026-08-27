@@ -138,6 +138,11 @@ function sourcesFor(runtime: CoreRuntimeForIpc) {
   return runtime.sources;
 }
 
+function mediaPlanningFor(runtime: CoreRuntimeForIpc) {
+  if (!runtime.mediaPlanning) throw new CollectionError('INVENTORY_UNAVAILABLE', '录音规划服务尚未就绪，请重试。');
+  return runtime.mediaPlanning;
+}
+
 function masterDraftsFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.masterDrafts) throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', '录音草稿服务尚未就绪。', { httpStatus: 503 });
   return runtime.masterDrafts;
@@ -164,6 +169,13 @@ async function dispatch(
     case 'recordingSources.cancel': { const p = request.payload as IpcCommandPayloads['recordingSources.cancel']; return sourcesFor(runtime).cancel(p); }
     case 'recordingSources.confirm': { const p = request.payload as IpcCommandPayloads['recordingSources.confirm']; return sourcesFor(runtime).confirm(p); }
     case 'recordingSources.recheck': { const p = request.payload as IpcCommandPayloads['recordingSources.recheck']; return sourcesFor(runtime).recheck(p); }
+    case 'recordingMedia.plans': return mediaPlanningFor(runtime).list((request.payload as IpcCommandPayloads['recordingMedia.plans']).draftId);
+    case 'recordingMedia.detail': return mediaPlanningFor(runtime).detail((request.payload as IpcCommandPayloads['recordingMedia.detail']).id);
+    case 'recordingMedia.balance': { const p = request.payload as IpcCommandPayloads['recordingMedia.balance']; return mediaPlanningFor(runtime).balance(p.draftId, p.spec); }
+    case 'recordingMedia.preview': return mediaPlanningFor(runtime).preview(request.payload as IpcCommandPayloads['recordingMedia.preview']);
+    case 'recordingMedia.save': return mediaPlanningFor(runtime).save(request.payload as IpcCommandPayloads['recordingMedia.save']);
+    case 'recordingMedia.reserve': return mediaPlanningFor(runtime).reserve(request.payload as IpcCommandPayloads['recordingMedia.reserve']);
+    case 'recordingMedia.release': return mediaPlanningFor(runtime).release(request.payload as IpcCommandPayloads['recordingMedia.release']);
     case 'recordingDrafts.list': {
       const result = collectionFor(runtime).drafts.list((request.payload as IpcCommandPayloads['recordingDrafts.list']).page);
       const items = [];

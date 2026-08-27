@@ -243,7 +243,7 @@ test.beforeEach(async () => {
     environment.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE = 'expired'
   }
   delete environment.NETEASE_COOKIE
-  if ((test.info().title.includes('V3 Roon 关联闭环') || test.info().title.includes('V3 录音选曲'))) environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY = '1'
+  if ((test.info().title.includes('V3 Roon 关联闭环') || test.info().title.includes('V3 录音选曲') || test.info().title.includes('V3 分面'))) environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY = '1'
   electronApp = await electron.launch({
     args: [electronEntry],
     cwd: desktopRoot,
@@ -1952,4 +1952,118 @@ test('V3 录音选曲源验证：原生选择到 SQLite、人工确认、离线�
   await rm(sourceFile)
   expect((await page.evaluate(id => window.musicBridge.getDraftSources(id), saved.draftId)).tracks[0]!.binding!.availability).toBe('MISSING')
   expect((await page.evaluate(id => window.musicBridge.getMasterDraft(id), saved.draftId)).sourceLockEligible).toBe(false)
+})
+
+test('V3 分面与库存：浏览不写入，明确预留、取消与冷启动保持实体守恒', async () => {
+  test.setTimeout(90_000)
+  const fixture = await page.evaluate(async () => {
+    const api = window.musicBridge
+    const albums = await api.searchPhysicalRoonAlbums('', { offset: 0, limit: 20 })
+    const tracks = await api.getRoonAlbumTracks(albums.items[0]!.reference, { offset: 0, limit: 20 })
+    const draft = await api.appendMasterDraft({ commandId: crypto.randomUUID(), title: '分面预留合成', programType: 'compilation', references: tracks.items.slice(0, 2).map(t => t.reference), userConfirmed: true })
+    const stock = await api.receiveCollectionStock({ commandId: crypto.randomUUID(), model: { brand: '合成', name: '规划磁带', edition: '测试版', year: 1990, format: 'cassette', tapeType: 'II', identification: 'verified' }, lengthMinutes: 90, quantities: { sealedBlank: 2, openedBlank: 1, legacyUsed: 0, unclassified: 0 } })
+    return { draftId: draft.draftId, modelId: stock.modelId }
+  })
+  const before = await page.evaluate(() => window.musicBridge.getPlaybackState())
+  await page.locator('[data-sidebar-source="recording"]').click()
+  await page.getByRole('button', { name: '继续草稿 分面预留合成' }).click()
+  const trigger = page.getByRole('button', { name: '分面与选择磁带', exact: true })
+  await expect(trigger).toBeEnabled(); await trigger.click()
+  const panel = page.getByRole('dialog', { name: '分面与选择磁带', exact: true })
+  await expect(panel.getByText('Roon 估算', { exact: true })).toBeVisible()
+  await expect(panel.getByRole('button', { name: '保存分面规划', exact: true })).toBeEnabled()
+  await panel.getByRole('button', { name: '关闭', exact: true }).click(); await expect(trigger).toBeFocused()
+  expect((await page.evaluate(id => window.musicBridge.listMediaPlans(id), fixture.draftId)).plans).toEqual([])
+  expect((await page.evaluate(id => window.musicBridge.getCollectionModel(id, { offset: 0, limit: 20 }), fixture.modelId)).copies.total).toBe(0)
+  await trigger.click()
+  await panel.getByLabel('确认所选设备支持这些介质').check()
+  await panel.getByLabel('Type II', { exact: true }).check()
+  await panel.getByRole('button', { name: '重新计算', exact: true }).click()
+  await panel.getByRole('button', { name: '辅助平衡 A/B', exact: true }).click()
+  await panel.getByRole('button', { name: '保存分面规划', exact: true }).click()
+  await expect(panel.getByRole('status').filter({ hasText: '规划已保存' })).toBeVisible()
+  const opened = panel.locator('[data-media-packaging="opened"]')
+  await opened.getByRole('button', { name: '选择这类磁带', exact: true }).click()
+  await expect(panel.getByRole('button', { name: '确认预留一盘', exact: true })).toBeDisabled()
+  await panel.getByLabel('我确认预留一盘，暂不开始录音').check()
+  await panel.getByRole('button', { name: '确认预留一盘', exact: true }).click()
+  await expect(panel.getByText('MB-C-00001', { exact: true })).toBeVisible()
+  const reserved = await page.evaluate(id => window.musicBridge.getCollectionModel(id, { offset: 0, limit: 20 }), fixture.modelId)
+  expect(reserved.model.counts).toMatchObject({ total: 3, reserved: 1, openedBlank: 0, sealedBlank: 2 })
+  for (const size of [{ width: 1440, height: 900 }, { width: 720, height: 480 }]) {
+    await page.setViewportSize(size)
+    expect(await panel.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+    await page.evaluate(source => window.eval(source), axeSource)
+    const result = await page.evaluate(async () => (window as typeof window & { axe: { run(root: Element): Promise<{ violations: { id: string; impact: string | null }[] }> } }).axe.run(document.querySelector('dialog[open]')!))
+    expect(result.violations.filter(v => v.impact === 'critical' || v.impact === 'serious')).toEqual([])
+    await panel.evaluate(el => { el.scrollTop = 0 })
+    await page.screenshot({ path: test.info().outputPath(`media-planning-${size.width}.png`) })
+  }
+  await panel.getByRole('button', { name: '关闭', exact: true }).click()
+  const after = await page.evaluate(() => window.musicBridge.getPlaybackState())
+  expect(after.queue).toEqual(before.queue); expect(after.selectedZoneId).toEqual(before.selectedZoneId); expect(after.state).toEqual(before.state)
+  await electronApp.close()
+  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
+  delete environment.ELECTRON_RUN_AS_NODE
+  electronApp = await electron.launch({ args: [electronEntry], cwd: desktopRoot, env: environment }); page = await electronApp.firstWindow()
+  await page.locator('[data-sidebar-source="recording"]').click(); await page.getByRole('button', { name: '继续草稿 分面预留合成' }).click()
+  await page.getByRole('button', { name: '分面与选择磁带', exact: true }).click()
+  const restored = page.getByRole('dialog', { name: '分面与选择磁带', exact: true })
+  await expect(restored.getByText('MB-C-00001', { exact: true })).toBeVisible()
+  await restored.getByRole('button', { name: '取消这盘预留', exact: true }).click()
+  await restored.getByRole('button', { name: '确认取消预留', exact: true }).click()
+  await expect(restored.getByText('MB-C-00001', { exact: true })).toHaveCount(0)
+  const released = await page.evaluate(id => window.musicBridge.getCollectionModel(id, { offset: 0, limit: 20 }), fixture.modelId)
+  expect(released.model.counts).toMatchObject({ total: 3, reserved: 0, openedBlank: 1, sealedBlank: 2 })
+  expect(released.copies.total).toBe(1); expect(released.copies.items[0]!.physicalId).toBe('MB-C-00001')
+})
+
+test('V3 分面回执丢失重试不重复预留，规划变化需确认且 DAT 不伪造双面', async () => {
+  test.setTimeout(60_000)
+  const fixture = await page.evaluate(async () => {
+    const api = window.musicBridge, albums = await api.searchPhysicalRoonAlbums('', { offset: 0, limit: 20 })
+    const tracks = await api.getRoonAlbumTracks(albums.items[0]!.reference, { offset: 0, limit: 20 })
+    const draft = await api.appendMasterDraft({ commandId: crypto.randomUUID(), title: '规划回执故障合成', programType: 'continuous', references: [tracks.items[0]!.reference], userConfirmed: true })
+    const stock = await api.receiveCollectionStock({ commandId: crypto.randomUUID(), model: { brand: '合成', name: 'DAT 规划', edition: '测试版', year: 1990, format: 'dat', tapeType: 'dat', identification: 'verified' }, lengthMinutes: 60, quantities: { sealedBlank: 0, openedBlank: 1, legacyUsed: 0, unclassified: 0 } })
+    return { draftId: draft.draftId, modelId: stock.modelId }
+  })
+  await electronApp.evaluate(({ ipcMain }) => {
+    const internal = ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => Promise<unknown>> }
+    const reserve = internal._invokeHandlers.get('recordingMedia:reserve')!
+    ipcMain.removeHandler('recordingMedia:reserve'); let lost = false
+    ipcMain.handle('recordingMedia:reserve', async (...args) => { const result = await reserve(...args); if (!lost) { lost = true; throw new Error('合成预留回执丢失') }; return result })
+  })
+  await page.locator('[data-sidebar-source="recording"]').click(); await page.getByRole('button', { name: '继续草稿 规划回执故障合成' }).click()
+  await page.getByRole('button', { name: '分面与选择磁带', exact: true }).click()
+  const panel = page.getByRole('dialog', { name: '分面与选择磁带', exact: true })
+  // 对话框使用不透明背景，底层草稿文字不应透进设置和时间线。
+  expect(await panel.evaluate(el => getComputedStyle(el).backgroundColor)).toMatch(/^rgb\(/)
+  await expect(panel.getByRole('button', { name: '保存分面规划', exact: true })).toBeEnabled()
+  await panel.getByLabel('介质格式', { exact: true }).selectOption('dat')
+  await panel.getByLabel('确认所选设备支持这些介质').check(); await panel.getByLabel('DAT', { exact: true }).check()
+  await panel.getByRole('button', { name: '重新计算', exact: true }).click()
+  await expect(panel.getByRole('heading', { name: 'Program', exact: true })).toBeVisible()
+  await expect(panel.getByRole('heading', { name: 'A 面', exact: true })).toHaveCount(0)
+  await expect(panel.getByLabel('默认曲间间隔（毫秒）', { exact: true })).toHaveValue('0')
+  await panel.getByRole('button', { name: '保存分面规划', exact: true }).click()
+  await expect(panel.getByRole('status').filter({ hasText: '规划已保存' })).toBeVisible()
+  await panel.getByRole('button', { name: '选择这类磁带', exact: true }).click()
+  await panel.getByLabel('我确认预留一盘，暂不开始录音').check(); await panel.getByRole('button', { name: '确认预留一盘', exact: true }).click()
+  await expect(panel.getByRole('alert')).toContainText('回执尚未确认')
+  await expect(panel.getByRole('button', { name: '确认预留一盘', exact: true })).toBeDisabled()
+  await panel.getByRole('button', { name: '重试原操作', exact: true }).click()
+  await expect(panel.getByText('MB-D-00001', { exact: true })).toBeVisible()
+  const stock = await page.evaluate(id => window.musicBridge.getCollectionModel(id, { offset: 0, limit: 20 }), fixture.modelId)
+  expect(stock.model.counts).toMatchObject({ total: 1, reserved: 1 }); expect(stock.copies.total).toBe(1)
+  await page.evaluate(async id => {
+    const draft = await window.musicBridge.getMasterDraft(id)
+    await window.musicBridge.updateMasterDraft({ commandId: crypto.randomUUID(), draftId: id, expectedRevision: draft.revision, title: '草稿已在其他入口修改', programType: draft.programType, trackIds: draft.tracks.map(t => t.id) })
+  }, fixture.draftId)
+  await panel.getByRole('button', { name: '重新计算', exact: true }).click()
+  await expect(panel.getByRole('status').filter({ hasText: '需要重新计算并保存确认' })).toBeVisible()
+  await expect(panel.getByText('MB-D-00001', { exact: true })).toBeVisible()
+  await panel.getByRole('button', { name: '保存分面规划', exact: true }).click()
+  await expect(panel.getByRole('status').filter({ hasText: '需要重新计算并保存确认' })).toHaveCount(0)
+  const after = (await page.evaluate(id => window.musicBridge.listMediaPlans(id), fixture.draftId)).plans
+  expect(after).toHaveLength(1); expect(after[0]!.reservation?.physicalId).toBe('MB-D-00001')
 })

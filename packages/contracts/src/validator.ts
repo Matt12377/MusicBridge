@@ -1,3 +1,4 @@
+import { isMediaLayoutSpec, isPreviewMediaRequest, isSaveMediaPlanRequest, isReserveMediaRequest, isReleaseMediaRequest, isMediaPlan, isMediaCandidate, isMediaPreview } from './media-planning.js';
 import { isSourceRoot, isSourceJob, isSourceBinding, isSourceSelection, isSourceAction, isSourceConfirmation, isDraftSourceSnapshot } from './source-evidence.js';
 import { isMasterDraft, isMasterDraftSummary, isMasterDraftResult, isAppendMasterDraftRequest, isUpdateMasterDraftRequest } from './master-drafts.js';
 import { isAlbumQuery, isDigitalAlbum, isDigitalAlbumDetail, isPhysicalLinksSnapshot, isDigitalRuntime, isPhysicalLinkResult, isCollectionMatrixRow, isConfirmPhysicalLinkRequest, isRelocateDigitalRequest, isRegisterDigitalRequest, isRemovePhysicalLinkRequest, isConfirmAbsenceRequest } from './physical-links.js';
@@ -926,6 +927,13 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'recordingSources.snapshot') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
   if (command === 'recordingSources.revoke' || command === 'recordingSources.cancel') return isSourceAction(payload);
   if (command === 'recordingSources.confirm' || command === 'recordingSources.recheck') return isSourceConfirmation(payload);
+  if (command === 'recordingMedia.plans') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
+  if (command === 'recordingMedia.detail') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
+  if (command === 'recordingMedia.preview') return isPreviewMediaRequest(payload);
+  if (command === 'recordingMedia.balance') return isRecord(payload) && hasOnlyKeys(payload, ['draftId', 'spec']) && isCollectionId(payload.draftId) && isMediaLayoutSpec(payload.spec);
+  if (command === 'recordingMedia.save') return isSaveMediaPlanRequest(payload);
+  if (command === 'recordingMedia.reserve') return isReserveMediaRequest(payload);
+  if (command === 'recordingMedia.release') return isReleaseMediaRequest(payload);
   if (command === 'recordingDrafts.list') return isRecord(payload) && hasOnlyKeys(payload, ['page']) && isPageRequest(payload.page);
   if (command === 'recordingDrafts.detail') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
   if (command === 'recordingDrafts.runtime') return isRecord(payload) && hasOnlyKeys(payload, ['draftId', 'trackId']) && isCollectionId(payload.draftId) && isCollectionId(payload.trackId);
@@ -1382,6 +1390,13 @@ function isCommandResult(
     case 'recordingSources.cancel':
     case 'recordingSources.recheck': return isSourceJob(value);
     case 'recordingSources.confirm': return isSourceBinding(value);
+    case 'recordingMedia.plans': return isRecord(value) && hasOnlyKeys(value, ['draftId', 'plans']) && isCollectionId(value.draftId) && Array.isArray(value.plans) && value.plans.length <= 100 && value.plans.every(isMediaPlan);
+    case 'recordingMedia.preview': return isMediaPreview(value, page => isCollectionPage(page, isMediaCandidate));
+    case 'recordingMedia.balance': return isRecord(value) && hasOnlyKeys(value, ['splitAfter']) && Number.isInteger(value.splitAfter) && Number(value.splitAfter) >= 1 && Number(value.splitAfter) <= 200;
+    case 'recordingMedia.detail':
+    case 'recordingMedia.save':
+    case 'recordingMedia.reserve':
+    case 'recordingMedia.release': return isMediaPlan(value);
     case 'recordingDrafts.list': return isCollectionPage(value, isMasterDraftSummary);
     case 'recordingDrafts.detail': return isMasterDraft(value);
     case 'recordingDrafts.append':

@@ -1,3 +1,4 @@
+import { createMediaPlanningCoordinator, type MediaPlanningCoordinator } from './recording/media-coordinator.js';
 import { createSourceEvidenceService, type SourceEvidenceService } from './recording/source-evidence.js';
 import { createMasterDraftsCoordinator, type MasterDraftsCoordinator } from './recording/drafts-coordinator.js';
 import { createPhysicalLinksCoordinator, type PhysicalLinksCoordinator } from './collection/physical-links-coordinator.js';
@@ -95,6 +96,7 @@ export interface CoreRuntime {
   physicalLinks?: PhysicalLinksCoordinator;
   masterDrafts?: MasterDraftsCoordinator;
   sources?: SourceEvidenceService;
+  mediaPlanning?: MediaPlanningCoordinator;
   readonly collection?: CollectionRepository;
   start(): Promise<void>;
   shutdown(): Promise<void>;
@@ -1097,6 +1099,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     },
 
     ...(sources ? { sources } : {}),
+    ...(options.collectionRepository ? { mediaPlanning: createMediaPlanningCoordinator({ store: options.collectionRepository.media, drafts: options.collectionRepository.drafts, ...(sources ? { sources } : {}) }) } : {}),
     ...(options.collectionRepository ? { collection: options.collectionRepository, physicalLinks: createPhysicalLinksCoordinator({ repository: options.collectionRepository.links, library: roonLibrary }), masterDrafts: createMasterDraftsCoordinator({ repository: options.collectionRepository.drafts, library: roonLibrary }) } : {}),
     listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),
     async checkFavorite(descriptor) {
@@ -1666,6 +1669,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     },
     collection,
     sources,
+    mediaPlanning: createMediaPlanningCoordinator({ store: collection.media, drafts: collection.drafts, sources }),
     physicalLinks: createPhysicalLinksCoordinator({ repository: collection.links, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
     masterDrafts: createMasterDraftsCoordinator({ repository: collection.drafts, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
     listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),

@@ -1,3 +1,6 @@
+import { mediaPlanningMigration, createMediaPlanningStore, type MediaPlanningStore } from '../recording/media-store.js';
+import type { MediaStockCandidate } from '../recording/media-planner.js';
+import type { MediaReservation, ReserveMediaRequest, ReleaseMediaRequest } from '@music-bridge/contracts';
 import { sourceEvidenceMigration, createSourceStore, type SourceStore } from '../recording/source-store.js';
 import { masterDraftsMigration, createMasterDraftsRepository, type MasterDraftsRepository } from '../recording/drafts.js';
 import { physicalLinksMigration, createPhysicalLinksRepository, type PhysicalLinksRepository } from './physical-links.js';
@@ -29,6 +32,7 @@ export interface CollectionRepository {
   music: PhysicalMusicRepository;
   drafts: MasterDraftsRepository;
   sources: SourceStore;
+  media: MediaPlanningStore;
   links: PhysicalLinksRepository;
   list(page: PageRequest, filter?: CollectionFilter): Page<CollectionModel>;
   addPhoto(request: CollectionAddPhotoRequest): CollectionMutationResult;
@@ -146,21 +150,22 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
       // WAL 恢复期间，首次版本读取也可能遇到短暂锁；先设置等待，再访问数据库内容。
       db.exec('PRAGMA busy_timeout=1000');
       const version = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-      if (![0, 1, 2, 3, 4, 5, 6].includes(version)) return unavailable();
+      if (![0, 1, 2, 3, 4, 5, 6, 7].includes(version)) return unavailable();
       if (version === 0 && Number(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").get()?.n) !== 0) return unavailable();
       db.exec('PRAGMA trusted_schema=OFF; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
-      if (version < 6) {
+      if (version < 7) {
         db.exec('BEGIN IMMEDIATE');
         try {
           // 等待写锁后重读版本，避免两个首次连接同时执行迁移。
           const currentVersion = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-          if (![0, 1, 2, 3, 4, 5, 6].includes(currentVersion)) return unavailable();
+          if (![0, 1, 2, 3, 4, 5, 6, 7].includes(currentVersion)) return unavailable();
           if (currentVersion === 0) db.exec(schema);
           if (currentVersion < 2) { db.exec(photoMigration); options.beforeCommit?.('migrate-photos'); }
           if (currentVersion < 3) { db.exec(physicalMusicMigration); options.beforeCommit?.('migrate-music'); }
           if (currentVersion < 4) { db.exec(physicalLinksMigration); options.beforeCommit?.('migrate-links'); }
           if (currentVersion < 5) { db.exec(masterDraftsMigration); options.beforeCommit?.('migrate-drafts'); }
           if (currentVersion < 6) { db.exec(sourceEvidenceMigration); options.beforeCommit?.('migrate-sources'); }
+          if (currentVersion < 7) { db.exec(mediaPlanningMigration); options.beforeCommit?.('migrate-media-planning'); }
           db.exec('COMMIT');
         } catch (error) { db.exec('ROLLBACK'); throw error; }
       }
@@ -244,10 +249,93 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
     });
   }
 
+  const mediaStockSql = `WITH pools AS (
+    SELECT sku_id,SUM(opened) opened,SUM(sealed) sealed FROM inventory_lots GROUP BY sku_id
+  ), copies AS (
+    SELECT l.sku_id,SUM(c.packaging='opened') opened,SUM(c.packaging='sealed') sealed
+    FROM physical_copies c JOIN inventory_lots l ON l.id=c.lot_id
+    WHERE c.available=1 AND c.usage IN ('blank','erased') AND c.packaging IN ('opened','sealed') GROUP BY l.sku_id
+  ), balances AS (
+    SELECT s.id sku_id,s.model_id,s.minutes,COALESCE(p.opened,0)+COALESCE(c.opened,0) opened,COALESCE(p.sealed,0)+COALESCE(c.sealed,0) sealed
+    FROM collection_skus s LEFT JOIN pools p ON p.sku_id=s.id LEFT JOIN copies c ON c.sku_id=s.id
+  ), candidates AS (
+    SELECT sku_id,model_id,minutes,'opened' packaging,opened amount FROM balances WHERE opened>0
+    UNION ALL SELECT sku_id,model_id,minutes,'sealed' packaging,sealed amount FROM balances WHERE sealed>0
+  ) SELECT candidates.*,m.policy,json_extract(m.descriptor,'$.format') format FROM candidates JOIN collection_models m ON m.id=candidates.model_id`;
+  interface StockRow { sku_id: string; model_id: string; minutes: number; packaging: 'opened' | 'sealed'; amount: number }
+  function stockCandidate(db: DatabaseSync, row: StockRow): MediaStockCandidate { return { skuId: row.sku_id, model: model(db, row.model_id), lengthMinutes: row.minutes || null, packaging: row.packaging, availableCount: Number(row.amount) }; }
+  function mediaStock(db: DatabaseSync, page: PageRequest, format: 'cassette' | 'dat'): Page<MediaStockCandidate> {
+    if (!validPage(page) || !['cassette','dat'].includes(format)) return conflict('库存候选查询无效。');
+    const sql = `SELECT * FROM (${mediaStockSql}) WHERE format=?`;
+    const total = count(db, `SELECT COUNT(*) n FROM (${sql})`, format);
+    const rows = many<StockRow>(db, `${sql} ORDER BY (policy='collector' OR (policy='preserve-sealed' AND packaging='sealed')),packaging='opened' DESC,minutes=0,minutes,model_id,sku_id LIMIT ? OFFSET ?`, format, page.limit, page.offset);
+    return paged(rows.map(row => stockCandidate(db, row)), page, total);
+  }
+  function mediaStockOne(db: DatabaseSync, skuId: string, packaging: 'opened' | 'sealed'): MediaStockCandidate | undefined {
+    const row = one<StockRow>(db, `SELECT * FROM (${mediaStockSql}) WHERE sku_id=? AND packaging=?`, skuId, packaging);
+    return row ? stockCandidate(db, row) : undefined;
+  }
+  function reservedMediaStock(db: DatabaseSync, reservation: MediaReservation): MediaStockCandidate | undefined {
+    const copy = one<CopyRow>(db, `${copySelect} WHERE c.physical_id=?`, reservation.physicalId);
+    if (!copy || copy.usage !== 'reserved' || !copy.available || copy.sku_id !== reservation.skuId || copy.packaging !== reservation.packaging) return undefined;
+    const current = model(db, copy.model_id);
+    // 复核已有预留时把它计回可用基数，不能把最低保留线重复扣减一遍。
+    const adjusted = copy.packaging === 'sealed' ? { ...current, counts: { ...current.counts, sealedBlank: current.counts.sealedBlank + 1 } } : current;
+    return { skuId: copy.sku_id, model: adjusted, lengthMinutes: copy.minutes || null, packaging: reservation.packaging, availableCount: 1 };
+  }
+  function mediaStockLedger(db: DatabaseSync, action: string, request: ReserveMediaRequest | ReleaseMediaRequest, result: CollectionMutationResult, evidence: unknown): void {
+    const fingerprint = createHash('sha256').update(canonical({ action, request })).digest('hex');
+    db.prepare('INSERT INTO inventory_ledger VALUES (?,?,?,?,?,?)').run(request.commandId, fingerprint, action, JSON.stringify(result), JSON.stringify(evidence), new Date().toISOString());
+  }
+  function reserveMediaStock(db: DatabaseSync, request: ReserveMediaRequest): MediaReservation {
+    const sku = one<{ id: string; model_id: string }>(db, 'SELECT id,model_id FROM collection_skus WHERE id=?', request.skuId);
+    if (!sku) return conflict('库存时长规格不存在。');
+    ensureConsumable(db, sku.model_id, request.packaging === 'sealed');
+    let copy = one<CopyRow>(db, `${copySelect} WHERE l.sku_id=? AND c.available=1 AND c.usage IN ('blank','erased') AND c.packaging=? ORDER BY c.physical_id LIMIT 1`, request.skuId, request.packaging);
+    let poolEvidence: unknown;
+    if (!copy) {
+      const column = request.packaging === 'opened' ? 'opened' : 'sealed';
+      const lot = one<{ id: string }>(db, `SELECT id FROM inventory_lots WHERE sku_id=? AND ${column}>0 ORDER BY rowid LIMIT 1`, request.skuId);
+      if (!lot) return conflict('这类空白磁带已无可用数量。');
+      const materialized = materializeInTransaction(db, { commandId: request.commandId, lotId: lot.id, bucket: request.packaging === 'opened' ? 'openedBlank' : 'sealedBlank', action: 'identify' });
+      poolEvidence = materialized.evidence;
+      copy = one<CopyRow>(db, `${copySelect} WHERE c.physical_id=?`, materialized.result.physicalId);
+    }
+    if (!copy || !['blank','erased'].includes(copy.usage)) return conflict('副本已被其他操作占用。');
+    const before = publicCopy(copy);
+    db.prepare("UPDATE physical_copies SET usage='reserved',reserved_from=usage,revision=revision+1 WHERE physical_id=?").run(copy.physical_id);
+    const reservation: MediaReservation = { physicalId: copy.physical_id, modelId: sku.model_id, skuId: sku.id, packaging: request.packaging };
+    mediaStockLedger(db, 'recording-reserve', request, { modelId: sku.model_id, lotId: copy.lot_id, physicalId: copy.physical_id }, { planId: request.planId, before, reservation, ...(poolEvidence ? { poolEvidence } : {}) });
+    return reservation;
+  }
+  function releaseMediaStock(db: DatabaseSync, request: ReleaseMediaRequest, reservation: MediaReservation): void {
+    const copy = one<CopyRow>(db, `${copySelect} WHERE c.physical_id=?`, reservation.physicalId);
+    if (!copy || copy.usage !== 'reserved' || !['blank','erased'].includes(copy.reserved_from ?? '')) return conflict('预留副本状态不一致，请停止并检查库存。');
+    db.prepare('UPDATE physical_copies SET usage=reserved_from,reserved_from=NULL,revision=revision+1 WHERE physical_id=?').run(copy.physical_id);
+    mediaStockLedger(db, 'recording-release', request, { modelId: copy.model_id, lotId: copy.lot_id, physicalId: copy.physical_id }, { planId: request.planId, before: publicCopy(copy), restoredUsage: copy.reserved_from });
+  }
+  function materializeInTransaction(db: DatabaseSync, request: CollectionMaterializeRequest) {
+    const lot = one<LotRow>(db, `${lotSelect} WHERE l.id=?`, request.lotId);
+    if (!lot || lot[columns[request.bucket]] < 1) return conflict('库存不足，请刷新后重试。');
+    if (request.action === 'open') ensureConsumable(db, lot.model_id, true);
+    const descriptor = model(db, lot.model_id);
+    const sequence = one<{ next_value: number }>(db, 'SELECT next_value FROM physical_sequences WHERE format=?', descriptor.format)!.next_value;
+    if (sequence > 999_999_999) return conflict('实体编号已达当前上限。');
+    const physicalId = `MB-${descriptor.format === 'cassette' ? 'C' : 'D'}-${String(sequence).padStart(5, '0')}`;
+    db.prepare('UPDATE physical_sequences SET next_value=next_value+1 WHERE format=?').run(descriptor.format);
+    const column = columns[request.bucket];
+    db.prepare(`UPDATE inventory_lots SET ${column}=${column}-1 WHERE id=?`).run(request.lotId);
+    const packaging = request.bucket === 'unclassified' ? 'unknown' : request.bucket === 'sealedBlank' && request.action !== 'open' ? 'sealed' : 'opened';
+    const usage = request.bucket === 'legacyUsed' ? 'recorded' : request.bucket === 'unclassified' ? 'unknown' : 'blank';
+    const origin = request.bucket === 'legacyUsed' ? 'legacy-registration' : request.bucket === 'unclassified' ? 'unclassified' : 'blank-pool';
+    db.prepare('INSERT INTO physical_copies(physical_id,lot_id,packaging,usage,available,origin) VALUES (?,?,?,?,1,?)').run(physicalId, request.lotId, packaging, usage, origin);
+    return { result: { modelId: lot.model_id, lotId: lot.id, physicalId }, evidence: { kind: 'POOL_TO_COPY', bucket: request.bucket, before: lot[column], after: lot[column] - 1, packaging, usage, origin } };
+  }
   const music = createPhysicalMusicRepository({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   const links = createPhysicalLinksRepository({ read: guarded, conflict, unavailable, music, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   return {
     music, links,
+    media: createMediaPlanningStore({ read: guarded, conflict, unavailable, stock: mediaStock, stockOne: mediaStockOne, reservationStock: reservedMediaStock, reserve: reserveMediaStock, release: releaseMediaStock, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     sources: createSourceStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     drafts: createMasterDraftsRepository({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     list(page, filter = {}) {
@@ -301,25 +389,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
         return { result: { modelId, lotId }, evidence: { kind: 'RECEIVE', quantityAcquired: amount, quantities: q } };
       });
     },
-    materialize(request) {
-      return transaction('materialize', request, isCollectionMaterializeRequest(request), db => {
-        const lot = one<LotRow>(db, `${lotSelect} WHERE l.id=?`, request.lotId);
-        if (!lot || lot[columns[request.bucket]] < 1) return conflict('库存不足，请刷新后重试。');
-        if (request.action === 'open') ensureConsumable(db, lot.model_id, true);
-        const descriptor = model(db, lot.model_id);
-        const sequence = one<{ next_value: number }>(db, 'SELECT next_value FROM physical_sequences WHERE format=?', descriptor.format)!.next_value;
-        if (sequence > 999_999_999) return conflict('实体编号已达当前上限。');
-        const physicalId = `MB-${descriptor.format === 'cassette' ? 'C' : 'D'}-${String(sequence).padStart(5, '0')}`;
-        db.prepare('UPDATE physical_sequences SET next_value=next_value+1 WHERE format=?').run(descriptor.format);
-        const column = columns[request.bucket];
-        db.prepare(`UPDATE inventory_lots SET ${column}=${column}-1 WHERE id=?`).run(request.lotId);
-        const packaging = request.bucket === 'unclassified' ? 'unknown' : request.bucket === 'sealedBlank' && request.action !== 'open' ? 'sealed' : 'opened';
-        const usage = request.bucket === 'legacyUsed' ? 'recorded' : request.bucket === 'unclassified' ? 'unknown' : 'blank';
-        const origin = request.bucket === 'legacyUsed' ? 'legacy-registration' : request.bucket === 'unclassified' ? 'unclassified' : 'blank-pool';
-        db.prepare('INSERT INTO physical_copies(physical_id,lot_id,packaging,usage,available,origin) VALUES (?,?,?,?,1,?)').run(physicalId, request.lotId, packaging, usage, origin);
-        return { result: { modelId: lot.model_id, lotId: lot.id, physicalId }, evidence: { kind: 'POOL_TO_COPY', bucket: request.bucket, before: lot[column], after: lot[column] - 1, packaging, usage, origin } };
-      });
-    },
+    materialize(request) { return transaction('materialize', request, isCollectionMaterializeRequest(request), db => materializeInTransaction(db, request)); },
     updateCopy(request) {
       return transaction('update-copy', request, isCollectionUpdateCopyRequest(request), db => {
         const copy = one<CopyRow>(db, `${copySelect} WHERE c.physical_id=?`, request.physicalId);
@@ -330,6 +400,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
           ensureConsumable(db, copy.model_id, copy.packaging === 'sealed');
           reservedFrom = usage; usage = 'reserved';
         } else if (request.action === 'cancel-reservation') {
+          if (db.prepare('SELECT 1 FROM media_reservations WHERE physical_id=?').get(request.physicalId)) return conflict('这盘磁带属于录音规划，请从该规划取消预留。');
           if (usage !== 'reserved' || !['blank', 'erased'].includes(reservedFrom ?? '')) return conflict('该副本没有可取消的预留。');
           usage = reservedFrom as 'blank' | 'erased'; reservedFrom = null;
         } else available = request.action === 'mark-available' ? 1 : 0;

@@ -311,7 +311,7 @@ test('v1 库存迁移保留全部账本和实体；迁移失败仍保留 v1 可�
   const before = repository.detail(stock.modelId, page); repository.close();
   // 本次迁移只新增这两张表；去除它们后即为上一版本的实际 schema 和业务数据。
   const db = new DatabaseSync(filePath);
-  db.exec('DROP TABLE draft_source_links; DROP TABLE source_bindings; DROP TABLE source_roots; DROP TABLE source_jobs; DROP TABLE source_ledger; DROP TABLE master_drafts; DROP TABLE master_drafts_ledger; DROP TABLE physical_digital_links; DROP TABLE physical_digital_absence; DROP TABLE digital_albums; DROP TABLE physical_links_ledger; DROP TABLE music_photos; DROP TABLE legacy_recording_content; DROP TABLE music_releases; DROP TABLE music_ledger; DROP TABLE collection_featured_photos; DROP TABLE collection_photos; PRAGMA user_version=1');
+  db.exec('DROP TABLE media_reservations; DROP TABLE media_plans; DROP TABLE media_ledger; DROP TABLE draft_source_links; DROP TABLE source_bindings; DROP TABLE source_roots; DROP TABLE source_jobs; DROP TABLE source_ledger; DROP TABLE master_drafts; DROP TABLE master_drafts_ledger; DROP TABLE physical_digital_links; DROP TABLE physical_digital_absence; DROP TABLE digital_albums; DROP TABLE physical_links_ledger; DROP TABLE music_photos; DROP TABLE legacy_recording_content; DROP TABLE music_releases; DROP TABLE music_ledger; DROP TABLE collection_featured_photos; DROP TABLE collection_photos; PRAGMA user_version=1');
   const ledger = db.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(); db.close();
   const failing = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-photos') throw new Error('合成迁移中断'); } });
   assert.throws(() => failing.list(page), /库存暂时不可用/u); failing.close();
@@ -321,7 +321,7 @@ test('v1 库存迁移保留全部账本和实体；迁移失败仍保留 v1 可�
   const migrated = createCollectionRepository({ filePath });
   try { assert.deepEqual(migrated.detail(stock.modelId, page), before); } finally { migrated.close(); }
   const check = new DatabaseSync(filePath, { readOnly: true });
-  try { assert.equal(check.prepare('PRAGMA user_version').get()?.user_version, 6); assert.deepEqual(check.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(), ledger); }
+  try { assert.equal(check.prepare('PRAGMA user_version').get()?.user_version, 7); assert.deepEqual(check.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(), ledger); }
   finally { check.close(); }
 });
 
@@ -399,7 +399,7 @@ test('schema 2 音乐迁移失败回滚，成功后库存、照片、编号和�
   repository.addPhoto({ commandId: randomUUID(), modelId: stock.modelId, image: photoImage });
   const before = repository.detail(stock.modelId, page); repository.close();
   const db = new DatabaseSync(filePath);
-  db.exec('DROP TABLE draft_source_links; DROP TABLE source_bindings; DROP TABLE source_roots; DROP TABLE source_jobs; DROP TABLE source_ledger; DROP TABLE master_drafts; DROP TABLE master_drafts_ledger; DROP TABLE physical_digital_links; DROP TABLE physical_digital_absence; DROP TABLE digital_albums; DROP TABLE physical_links_ledger; DROP TABLE music_photos; DROP TABLE legacy_recording_content; DROP TABLE music_releases; DROP TABLE music_ledger; PRAGMA user_version=2'); db.close();
+  db.exec('DROP TABLE media_reservations; DROP TABLE media_plans; DROP TABLE media_ledger; DROP TABLE draft_source_links; DROP TABLE source_bindings; DROP TABLE source_roots; DROP TABLE source_jobs; DROP TABLE source_ledger; DROP TABLE master_drafts; DROP TABLE master_drafts_ledger; DROP TABLE physical_digital_links; DROP TABLE physical_digital_absence; DROP TABLE digital_albums; DROP TABLE physical_links_ledger; DROP TABLE music_photos; DROP TABLE legacy_recording_content; DROP TABLE music_releases; DROP TABLE music_ledger; PRAGMA user_version=2'); db.close();
   const interrupted = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-music') throw new Error('synthetic'); } });
   assert.throws(() => interrupted.music.list(page), /不可用/u); interrupted.close();
   const old = new DatabaseSync(filePath); assert.equal(old.prepare('PRAGMA user_version').get()?.user_version, 2); old.close();
@@ -467,7 +467,7 @@ test('schema 3 关系迁移中断回滚，已有音乐与照片完整保留', as
   repository.music.addPhoto({ commandId: randomUUID(), id: saved.id, image: photoImage });
   const before = repository.music.detail(saved.id); repository.close();
   const db = new DatabaseSync(filePath);
-  db.exec('DROP TABLE draft_source_links; DROP TABLE source_bindings; DROP TABLE source_roots; DROP TABLE source_jobs; DROP TABLE source_ledger; DROP TABLE master_drafts; DROP TABLE master_drafts_ledger; DROP TABLE physical_digital_links; DROP TABLE physical_digital_absence; DROP TABLE digital_albums; DROP TABLE physical_links_ledger; PRAGMA user_version=3'); db.close();
+  db.exec('DROP TABLE media_reservations; DROP TABLE media_plans; DROP TABLE media_ledger; DROP TABLE draft_source_links; DROP TABLE source_bindings; DROP TABLE source_roots; DROP TABLE source_jobs; DROP TABLE source_ledger; DROP TABLE master_drafts; DROP TABLE master_drafts_ledger; DROP TABLE physical_digital_links; DROP TABLE physical_digital_absence; DROP TABLE digital_albums; DROP TABLE physical_links_ledger; PRAGMA user_version=3'); db.close();
   const interrupted = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-links') throw new Error('合成迁移中断'); } });
   assert.throws(() => interrupted.links.digitalList(page), /不可用/u); interrupted.close();
   const old = new DatabaseSync(filePath);
@@ -537,7 +537,7 @@ test('schema 4 草稿迁移中断完整回滚，成功后原音乐与 Roon 关�
   const release = repository.music.saveRelease({ commandId: randomUUID(), release: { format: 'cd', title: '迁移保留', artist: '合成', quantity: 1, completeness: 'basic', tracks: [] } });
   repository.links.link({ commandId: randomUUID(), fingerprint: linkFingerprint('before-draft'), releaseId: release.id, expectedRevision: 1, relation: 'related', ripFromCdConfirmed: false, metadata: { title: '关联数字版' } });
   const before = repository.links.physical(release.id); repository.close();
-  const db = new DatabaseSync(filePath); db.exec('DROP TABLE draft_source_links; DROP TABLE source_bindings; DROP TABLE source_roots; DROP TABLE source_jobs; DROP TABLE source_ledger; DROP TABLE master_drafts; DROP TABLE master_drafts_ledger; PRAGMA user_version=4'); db.close();
+  const db = new DatabaseSync(filePath); db.exec('DROP TABLE media_reservations; DROP TABLE media_plans; DROP TABLE media_ledger; DROP TABLE draft_source_links; DROP TABLE source_bindings; DROP TABLE source_roots; DROP TABLE source_jobs; DROP TABLE source_ledger; DROP TABLE master_drafts; DROP TABLE master_drafts_ledger; PRAGMA user_version=4'); db.close();
   const interrupted = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-drafts') throw new Error('合成迁移故障'); } });
   assert.throws(() => interrupted.drafts.list(page), /不可用/u); interrupted.close();
   const old = new DatabaseSync(filePath); assert.equal(old.prepare('PRAGMA user_version').get()?.user_version, 4); assert.equal(old.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE name='master_drafts'").get()?.n, 0); old.close();
@@ -579,10 +579,93 @@ test('v5 源证据迁移失败回滚；重试保留草稿及所有旧账本', as
   const { repository, filePath } = await fixture(t);
   const draft = repository.drafts.append({ commandId: randomUUID(), fingerprint: 'c'.repeat(64), title: '迁移前草稿', programType: 'compilation', metadata: [{ title: '迁移前曲目' }] });
   const before = repository.drafts.detail(draft.draftId); repository.close();
-  const db = new DatabaseSync(filePath); db.exec('DROP TABLE draft_source_links; DROP TABLE source_bindings; DROP TABLE source_roots; DROP TABLE source_jobs; DROP TABLE source_ledger; PRAGMA user_version=5');
+  const db = new DatabaseSync(filePath); db.exec('DROP TABLE media_reservations; DROP TABLE media_plans; DROP TABLE media_ledger; DROP TABLE draft_source_links; DROP TABLE source_bindings; DROP TABLE source_roots; DROP TABLE source_jobs; DROP TABLE source_ledger; PRAGMA user_version=5');
   const ledger = db.prepare('SELECT * FROM master_drafts_ledger').all(); db.close();
   const failing = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-sources') throw new Error('合成迁移中断'); } });
   assert.throws(() => failing.sources.roots(), /库存暂时不可用/u); failing.close();
   const old = new DatabaseSync(filePath); assert.equal(old.prepare('PRAGMA user_version').get()?.user_version, 5); assert.deepEqual(old.prepare('SELECT * FROM master_drafts_ledger').all(), ledger); assert.equal(old.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE name='source_roots'").get()?.n, 0); old.close();
   const migrated = createCollectionRepository({ filePath }); try { assert.deepEqual(migrated.drafts.detail(draft.draftId), before); assert.deepEqual(migrated.sources.roots(), []); } finally { migrated.close(); }
+});
+
+test('录音规划初始为空并归属现有草稿，读取不产生库存实体', async t => {
+  const { repository } = await fixture(t);
+  const draft = repository.drafts.append({ commandId: randomUUID(), fingerprint: 'd'.repeat(64), title: '库存规划草稿', programType: 'compilation', metadata: [{ title: '合成曲目', durationMs: 180000 }] });
+  assert.ok('media' in repository, '分面与预留必须进入正式库存数据库');
+  assert.deepEqual((repository as unknown as { media: { list(id: string): unknown } }).media.list(draft.draftId), { draftId: draft.draftId, plans: [] });
+  assert.equal(repository.list(page).total, 0);
+});
+
+function mediaFixture(repository: ReturnType<typeof createCollectionRepository>) {
+  const saved = repository.drafts.append({ commandId: randomUUID(), fingerprint: createHash('sha256').update(randomUUID()).digest('hex'), title: '介质规划合成', programType: 'compilation', metadata: [{ title: '合成一', durationMs: 180000 }, { title: '合成二', durationMs: 210000 }] });
+  const draft = repository.drafts.detail(saved.draftId);
+  const input = { draftId: draft.id, revision: draft.revision, identity: repository.media.inputIdentity(draft.id), fingerprint: createHash('sha256').update(draft.id).digest('hex'), tracks: draft.tracks.map(t => ({ trackId: t.id, durationMs: t.metadata.durationMs!, basis: 'roon-estimate' as const })), basis: 'roon-estimate' as const };
+  const spec = { format: 'cassette' as const, splitAfter: 1, leadInMs: 0, tailMs: 0, defaultGapMs: 5000, rules: [], compatibility: { confirmed: true, cassetteTypes: ['II' as const], dat: false } };
+  const plan = repository.media.save({ commandId: randomUUID(), draftId: draft.id, expectedDraftRevision: draft.revision, inputFingerprint: input.fingerprint, spec }, input);
+  return { input, plan };
+}
+
+test('录音预留单一事务守恒，回执重复不增加实体，取消不返池且再次预留复用实体', async t => {
+  const { repository } = await fixture(t), stock = repository.receive(receipt({ quantities: { sealedBlank: 5, openedBlank: 3, legacyUsed: 0, unclassified: 0 } }));
+  const { plan, input } = mediaFixture(repository), skuId = repository.detail(stock.modelId, page).lots.items[0]!.skuId;
+  const request = { commandId: randomUUID(), planId: plan.id, expectedRevision: plan.revision, skuId, packaging: 'opened' as const, userConfirmed: true as const };
+  const reserved = repository.media.reserve(request, input); assert.equal(reserved.reservation?.physicalId, 'MB-C-00001'); assert.equal(reserved.revision, 2);
+  assert.equal(repository.media.reserve(request, input).reservation?.physicalId, 'MB-C-00001');
+  let detail = repository.detail(stock.modelId, page); assert.equal(detail.model.counts.total, 8); assert.equal(detail.model.counts.openedBlank, 2); assert.equal(detail.model.counts.reserved, 1); assert.equal(detail.copies.total, 1);
+  assert.throws(() => repository.updateCopy({ commandId: randomUUID(), physicalId: 'MB-C-00001', expectedRevision: detail.copies.items[0]!.revision, action: 'cancel-reservation' }), /录音规划/u);
+  const release = { commandId: randomUUID(), planId: plan.id, expectedRevision: reserved.revision, userConfirmed: true as const };
+  const released = repository.media.release(release); assert.equal(released.reservation, undefined); assert.equal(repository.media.release(release).revision, released.revision);
+  detail = repository.detail(stock.modelId, page); assert.equal(detail.model.counts.total, 8); assert.equal(detail.model.counts.openedBlank, 3); assert.equal(detail.lots.items[0]!.quantities.openedBlank, 2); assert.equal(detail.copies.total, 1);
+  assert.equal(repository.media.reserve({ ...request, commandId: randomUUID(), expectedRevision: released.revision }, input).reservation?.physicalId, 'MB-C-00001');
+});
+
+test('预留最后一盘互斥；源/草稿变更和保护策略不能借旧预览绕过', async t => {
+  const { repository } = await fixture(t), stock = repository.receive(receipt({ quantities: { sealedBlank: 0, openedBlank: 1, legacyUsed: 0, unclassified: 0 } }));
+  const first = mediaFixture(repository), second = mediaFixture(repository), skuId = repository.detail(stock.modelId, page).lots.items[0]!.skuId;
+  const reserve = (planId: string) => ({ commandId: randomUUID(), planId, expectedRevision: 1, skuId, packaging: 'opened' as const, userConfirmed: true as const });
+  repository.media.reserve(reserve(first.plan.id), first.input);
+  assert.throws(() => repository.media.reserve(reserve(second.plan.id), second.input));
+  assert.equal(repository.detail(stock.modelId, page).model.counts.reserved, 1);
+  repository.drafts.update({ commandId: randomUUID(), draftId: second.input.draftId, expectedRevision: 1, title: '新曲序', programType: 'compilation', trackIds: [...second.input.tracks].reverse().map(t => t.trackId) }, 'e'.repeat(64));
+  assert.throws(() => repository.media.reserve(reserve(second.plan.id), second.input), /草稿或源绑定/u);
+  assert.equal(repository.media.detail(second.plan.id).requiresReview, true);
+});
+
+test('预留完成前故障回滚 Pool、Copy、两个账本和序号，原命令重试可恢复', async t => {
+  let fail = false; const { repository, filePath } = await fixture(t, action => { if (fail && action === 'reserve-media-plan') throw new Error('合成预留事务中断'); });
+  const stock = repository.receive(receipt({ quantities: { sealedBlank: 0, openedBlank: 1, legacyUsed: 0, unclassified: 0 } }));
+  const { plan, input } = mediaFixture(repository), skuId = repository.detail(stock.modelId, page).lots.items[0]!.skuId;
+  const request = { commandId: randomUUID(), planId: plan.id, expectedRevision: 1, skuId, packaging: 'opened' as const, userConfirmed: true as const };
+  fail = true; assert.throws(() => repository.media.reserve(request, input));
+  assert.equal(repository.detail(stock.modelId, page).copies.total, 0); assert.equal(repository.detail(stock.modelId, page).model.counts.openedBlank, 1); assert.equal(repository.media.detail(plan.id).revision, 1);
+  const db = new DatabaseSync(filePath); assert.equal(db.prepare('SELECT COUNT(*) n FROM inventory_ledger WHERE command_id=?').get(request.commandId)?.n, 0); assert.equal(db.prepare('SELECT COUNT(*) n FROM media_ledger WHERE command_id=?').get(request.commandId)?.n, 0); db.close();
+  fail = false; assert.equal(repository.media.reserve(request, input).reservation?.physicalId, 'MB-C-00001');
+});
+
+test('库存候选仅计可用空白和已擦除，未知/旧录音/预留/不可用不混入', async t => {
+  const { repository } = await fixture(t), stock = repository.receive(receipt({ quantities: { sealedBlank: 1, openedBlank: 1, legacyUsed: 1, unclassified: 4 } }));
+  const copy = repository.materialize({ commandId: randomUUID(), lotId: stock.lotId!, bucket: 'openedBlank', action: 'identify' });
+  repository.updateCopy({ commandId: randomUUID(), physicalId: copy.physicalId!, expectedRevision: 1, action: 'mark-unavailable' });
+  const candidates = repository.media.stock(page, 'cassette'); assert.equal(candidates.total, 1); assert.equal(candidates.items[0]!.packaging, 'sealed'); assert.equal(candidates.items[0]!.availableCount, 1);
+});
+
+test('分面迁移从 schema 6 原子升级，失败不改变草稿与库存，两个账本不可改写', async t => {
+  const { repository, filePath } = await fixture(t), stock = repository.receive(receipt());
+  const { plan } = mediaFixture(repository), draft = repository.drafts.detail(plan.draftId), before = repository.detail(stock.modelId, page);
+  repository.close();
+  const db = new DatabaseSync(filePath); db.exec('DROP TABLE media_reservations; DROP TABLE media_plans; DROP TABLE media_ledger; PRAGMA user_version=6'); db.close();
+  const interrupted = createCollectionRepository({ filePath, beforeCommit: action => { if (action === 'migrate-media-planning') throw new Error('合成迁移中断'); } });
+  assert.throws(() => interrupted.media.list(draft.id)); interrupted.close();
+  const failed = new DatabaseSync(filePath); assert.equal(failed.prepare('PRAGMA user_version').get()?.user_version, 6); assert.equal(failed.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE name='media_plans'").get()?.n, 0); failed.close();
+  const restored = createCollectionRepository({ filePath });
+  try {
+    assert.deepEqual(restored.drafts.detail(draft.id), draft); assert.deepEqual(restored.detail(stock.modelId, page), before);
+    assert.deepEqual(restored.media.list(draft.id).plans, []);
+    const f = mediaFixture(restored), skuId = before.lots.items[0]!.skuId;
+    const request = { commandId: randomUUID(), planId: f.plan.id, expectedRevision: 1, skuId, packaging: 'sealed' as const, userConfirmed: true as const };
+    restored.media.reserve(request, f.input);
+    const check = new DatabaseSync(filePath);
+    try {
+      for (const table of ['inventory_ledger', 'media_ledger']) { assert.throws(() => check.prepare(`DELETE FROM ${table} WHERE command_id=?`).run(request.commandId)); assert.throws(() => check.prepare(`UPDATE ${table} SET fingerprint=? WHERE command_id=?`).run('x', request.commandId)); }
+    } finally { check.close(); }
+  } finally { restored.close(); }
 });

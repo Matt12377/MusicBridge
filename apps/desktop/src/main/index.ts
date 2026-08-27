@@ -1,3 +1,4 @@
+import { isMediaLayoutSpec, isPreviewMediaRequest, isSaveMediaPlanRequest, isReserveMediaRequest, isReleaseMediaRequest } from '@music-bridge/contracts'
 import { isSourceSelection, isSourceAction, isSourceConfirmation } from '@music-bridge/contracts'
 import { isAppendMasterDraftRequest, isUpdateMasterDraftRequest } from '@music-bridge/contracts'
 import { isAlbumQuery, isConfirmPhysicalLinkRequest, isRelocateDigitalRequest, isRegisterDigitalRequest, isRemovePhysicalLinkRequest, isConfirmAbsenceRequest } from '@music-bridge/contracts'
@@ -1083,6 +1084,34 @@ function registerIpcHandlers(
   ipcMain.handle('library:daily-recommendations', (event) =>
     invokeCore(event, () => supervisor.request('library.dailyRecommendations', {})),
   )
+  ipcMain.handle('recordingMedia:plans', (event, draftId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(draftId)) throw new Error('录音草稿编号无效。')
+    return supervisor.request('recordingMedia.plans', { draftId })
+  }))
+  ipcMain.handle('recordingMedia:detail', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) throw new Error('录音规划编号无效。')
+    return supervisor.request('recordingMedia.detail', { id })
+  }))
+  ipcMain.handle('recordingMedia:balance', (event, draftId: unknown, spec: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(draftId) || !isMediaLayoutSpec(spec)) throw new Error('分面输入无效。')
+    return supervisor.request('recordingMedia.balance', { draftId, spec })
+  }))
+  ipcMain.handle('recordingMedia:preview', (event, request: unknown) => invokeCore(event, () => {
+    if (!isPreviewMediaRequest(request)) throw new Error('分面预览请求无效。')
+    return supervisor.request('recordingMedia.preview', request)
+  }))
+  ipcMain.handle('recordingMedia:save', (event, request: unknown) => invokeCore(event, () => {
+    if (!isSaveMediaPlanRequest(request)) throw new Error('分面保存请求无效。')
+    return supervisor.request('recordingMedia.save', request)
+  }))
+  ipcMain.handle('recordingMedia:reserve', (event, request: unknown) => invokeCore(event, () => {
+    if (!isReserveMediaRequest(request)) throw new Error('预留需要明确确认。')
+    return supervisor.request('recordingMedia.reserve', request)
+  }))
+  ipcMain.handle('recordingMedia:release', (event, request: unknown) => invokeCore(event, () => {
+    if (!isReleaseMediaRequest(request)) throw new Error('取消预留需要明确确认。')
+    return supervisor.request('recordingMedia.release', request)
+  }))
   let sourcePickerBusy = false
   ipcMain.handle('recordingSources:roots', event => invokeCore(event, () => supervisor.request('recordingSources.roots', {})))
   ipcMain.handle('recordingSources:snapshot', (event, draftId: unknown) => invokeCore(event, () => {

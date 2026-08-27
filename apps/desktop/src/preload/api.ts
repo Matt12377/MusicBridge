@@ -1,3 +1,4 @@
+import type { MediaPlanningPublicApi } from '@music-bridge/contracts'
 import type { RecordingSourcesPublicApi } from '@music-bridge/contracts'
 import type { MasterDraftsPublicApi } from '@music-bridge/contracts'
 import type { PhysicalLinksPublicApi } from '@music-bridge/contracts'
@@ -52,7 +53,7 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
   autoReconnect: false,
 }
 
-export interface MusicBridgePublicApi extends RecordingSourcesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
+export interface MusicBridgePublicApi extends MediaPlanningPublicApi, RecordingSourcesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
   getAppInfo: () => Promise<AppInfo>
   getCoreHealth: () => Promise<PublicBridgeState>
   getCoreState: () => Promise<PublicBridgeState>
@@ -126,6 +127,13 @@ export interface MusicBridgePublicApi extends RecordingSourcesPublicApi, Collect
 }
 
 export const PUBLIC_API_KEYS = [
+  'listMediaPlans',
+  'getMediaPlan',
+  'previewMediaPlan',
+  'balanceMediaPlan',
+  'saveMediaPlan',
+  'reserveMediaPlan',
+  'releaseMediaPlan',
   'listRecordingSourceRoots',
   'chooseRecordingSourceRoot',
   'revokeRecordingSourceRoot',
@@ -386,9 +394,11 @@ export function createPreloadApi(
   physicalLinksApi?: PhysicalLinksPublicApi,
   masterDraftsApi?: MasterDraftsPublicApi,
   recordingSourcesApi?: RecordingSourcesPublicApi,
+  mediaPlanningApi?: MediaPlanningPublicApi,
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   return Object.freeze({
+    ...(mediaPlanningApi ?? { listMediaPlans: collectionUnavailable, getMediaPlan: collectionUnavailable, previewMediaPlan: collectionUnavailable, balanceMediaPlan: collectionUnavailable, saveMediaPlan: collectionUnavailable, reserveMediaPlan: collectionUnavailable, releaseMediaPlan: collectionUnavailable }),
     ...(recordingSourcesApi ?? {
       listRecordingSourceRoots: collectionUnavailable,
       chooseRecordingSourceRoot: collectionUnavailable,

@@ -1,3 +1,4 @@
+import type { MediaPlan, MediaPreview, MediaLayoutSpec, PreviewMediaRequest, SaveMediaPlanRequest, ReserveMediaRequest, ReleaseMediaRequest } from './media-planning.js';
 import type { SourceRoot, SourceJob, SourceBinding, SourceSelection, SourceAction, SourceConfirmation, DraftSourceSnapshot } from './source-evidence.js';
 import type { MasterDraft, MasterDraftSummary, AppendMasterDraftRequest, UpdateMasterDraftRequest, MasterDraftResult } from './master-drafts.js';
 import type { DigitalAlbum, DigitalAlbumDetail, PhysicalLinksSnapshot, DigitalRuntime, ConfirmPhysicalLinkRequest, RelocateDigitalRequest, RegisterDigitalRequest, RemovePhysicalLinkRequest, ConfirmAbsenceRequest, PhysicalLinkResult, CollectionMatrixRow } from './physical-links.js';
@@ -76,6 +77,13 @@ export const IPC_COMMANDS = [
   'library.playlist',
   'library.dailyRecommendations',
   'favorites.list',
+  'recordingMedia.plans',
+  'recordingMedia.detail',
+  'recordingMedia.preview',
+  'recordingMedia.balance',
+  'recordingMedia.save',
+  'recordingMedia.reserve',
+  'recordingMedia.release',
   'recordingSources.roots',
   'recordingSources.rootReceipt',
   'recordingSources.authorize',
@@ -199,6 +207,13 @@ export type IpcResponse<TResult = unknown> =
 export type IpcEnvelope<T = unknown> = IpcRequest<T> | IpcResponse<T>;
 
 export interface IpcCommandPayloads {
+  'recordingMedia.plans': { draftId: string };
+  'recordingMedia.detail': { id: string };
+  'recordingMedia.preview': PreviewMediaRequest;
+  'recordingMedia.balance': { draftId: string; spec: MediaLayoutSpec };
+  'recordingMedia.save': SaveMediaPlanRequest;
+  'recordingMedia.reserve': ReserveMediaRequest;
+  'recordingMedia.release': ReleaseMediaRequest;
   'recordingSources.roots': Record<string, never>;
   'recordingSources.rootReceipt': { commandId: string };
   'recordingSources.authorize': { commandId: string; absolutePath: string };
@@ -311,6 +326,13 @@ export interface IpcCommandPayloads {
 }
 
 export interface IpcCommandResults {
+  'recordingMedia.plans': { draftId: string; plans: readonly MediaPlan[] };
+  'recordingMedia.detail': MediaPlan;
+  'recordingMedia.preview': MediaPreview;
+  'recordingMedia.balance': { splitAfter: number };
+  'recordingMedia.save': MediaPlan;
+  'recordingMedia.reserve': MediaPlan;
+  'recordingMedia.release': MediaPlan;
   'recordingSources.roots': { roots: readonly SourceRoot[] };
   'recordingSources.rootReceipt': { root: SourceRoot | null };
   'recordingSources.authorize': SourceRoot;
