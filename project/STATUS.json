@@ -82,7 +82,7 @@
     "branch": "codex/task-065-archive-restore",
     "baseCommit": "7dab2bfdaa37d7dcb56e09f66e61f25a14e22420",
     "state": "local-automated-pass",
-    "implementationCommit": null,
+    "implementationCommit": "2aa79d23a87f41ad2daacbd063d80ba535a98e98",
     "reportCommit": null,
     "previousTask": {
       "task": "TASK-064",
