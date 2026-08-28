@@ -3,9 +3,9 @@ wave: WAVE-5
 status: active
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-066
-activeBranch: codex/task-066-backup-restore-workflow
-activeBaseCommit: abbd2fc230956103a2a22c3c9555e65f9c653a81
+activeTask: TASK-067
+activeBranch: codex/task-067-command-outbox
+activeBaseCommit: a64a31a6f7fca9ae34ea112faba1f9c7a2c530e2
 order:
   - TASK-048
   - TASK-049
@@ -26,5 +26,6 @@ order:
   - TASK-064
   - TASK-065
   - TASK-066
-stopAfter: TASK-066
-reviewBoundary: explicit-backup-restore-workflow-no-formal-recording
+  - TASK-067
+stopAfter: TASK-067
+reviewBoundary: persistent-outbox-dataset-scoped-no-automatic-replay

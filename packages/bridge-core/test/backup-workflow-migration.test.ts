@@ -51,7 +51,7 @@ function dataset(id: string, restoreId: string): PreparedRestoredDataset {
   return { id, directory: root, database: { ...root, path: '/private/synthetic/database' }, databaseFile: { relative: 'collection.sqlite', sha256: 'a'.repeat(64), size: 1 }, source: { ...root, path: '/private/synthetic/source' }, restoreId, restoreManifestHash: 'b'.repeat(64), contentIncluded: false };
 }
 
-test('v1升级v2保持已有授权、任务、不可变命令回执；冷开不自动恢复或重放任务', async t => {
+test('v1升级v3保持已有授权、任务、不可变命令回执；冷开不自动恢复或重放任务', async t => {
   const f = await versionOne(t), store = createBackupWorkflowStore({ filePath: f.filePath });
   try {
     assert.deepEqual(store.overview(), { roots: [f.root], jobs: [f.view], activations: [] });
@@ -61,7 +61,7 @@ test('v1升级v2保持已有授权、任务、不可变命令回执；冷开不�
   } finally { store.close(); }
   const db = new DatabaseSync(f.filePath);
   try {
-    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 2);
+    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 3);
     assert.deepEqual(db.prepare('SELECT * FROM backup_commands ORDER BY command_id').all(), f.receipts);
     assert.throws(() => db.exec('DELETE FROM backup_commands'));
     assert.throws(() => db.exec("UPDATE backup_commands SET action='activate'"));
@@ -79,10 +79,32 @@ test('v1聚合index只补缺失说明，不伪造对象明细，原命令回执�
   finally { store.close(); }
   const db = new DatabaseSync(f.filePath);
   try {
-    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 2);
+    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 3);
     assert.deepEqual(db.prepare('SELECT * FROM backup_commands ORDER BY command_id').all(), f.receipts);
     assert.deepEqual(JSON.parse(String(db.prepare('SELECT data FROM backup_jobs WHERE id=?').get(f.view.id)?.data)), { request: f.request, view: expected });
   } finally { db.close(); }
+});
+
+test('固定v2结构升级v3保留激活指针与回执，新增身份表不重放激活', async t => {
+  const f = await versionOne(t), id = randomUUID(), commandId = randomUUID(), restoreJobId = randomUUID();
+  const view = { id, restoreJobId, previousId: null, state: 'failed', createdAt: new Date().toISOString(), issue: 'PREPARATION_FAILED' };
+  const db = new DatabaseSync(f.filePath);
+  try {
+    // 固定历史 v2 结构，不引用当前生产建表文本。
+    db.exec('CREATE TABLE restore_activations(id TEXT PRIMARY KEY, data TEXT NOT NULL) STRICT; CREATE TABLE active_dataset(singleton INTEGER PRIMARY KEY CHECK(singleton=1), active_id TEXT, pending_id TEXT) STRICT; INSERT INTO active_dataset VALUES(1,NULL,NULL); PRAGMA user_version=2;');
+    db.prepare('INSERT INTO restore_activations VALUES(?,?)').run(id, JSON.stringify({ view }));
+    db.prepare('INSERT INTO backup_commands VALUES(?,?,?,?)').run(commandId, createHash('sha256').update(JSON.stringify([restoreJobId, null])).digest('hex'), id, 'activate');
+  } finally { db.close(); }
+  const store = createBackupWorkflowStore({ filePath: f.filePath });
+  try {
+    assert.deepEqual(store.overview().activations, [view]);
+    assert.deepEqual(store.activations.receipt({ commandId, restoreJobId, expectedActiveId: null, userConfirmed: true, stopPlaybackConfirmed: true }), view);
+    assert.deepEqual(store.activations.beginBoot(), {});
+    assert.deepEqual(store.startJob(f.request), f.view);
+  } finally { store.close(); }
+  const inspected = new DatabaseSync(f.filePath);
+  try { assert.equal(inspected.prepare('PRAGMA user_version').get()?.user_version, 3); assert.equal(inspected.prepare('SELECT count(*) n FROM dataset_identities').get()?.n, 0); }
+  finally { inspected.close(); }
 });
 
 test('激活回执复用维护连接；prepared冷开只在beginBoot租用，二次冷开回滚到上一已激活库', async t => {
@@ -126,7 +148,7 @@ for (const mutation of ['extra-object', 'future-version', 'invalid-legacy-index'
     const f = await versionOne(t, mutation === 'invalid-legacy-index'), db = new DatabaseSync(f.filePath);
     try {
       if (mutation === 'extra-object') db.exec('CREATE TABLE sqliteX_user(value TEXT)');
-      else if (mutation === 'future-version') db.exec('PRAGMA user_version=3');
+      else if (mutation === 'future-version') db.exec('PRAGMA user_version=4');
       else {
         assert.ok('index' in f.view);
         db.prepare('UPDATE backup_jobs SET data=? WHERE id=?').run(JSON.stringify({ request: f.request, view: { ...f.view, index: { ...f.view.index, privatePath: '/private/unknown' } } }), f.view.id);

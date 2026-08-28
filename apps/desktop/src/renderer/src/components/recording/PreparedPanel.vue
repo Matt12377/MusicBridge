@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { isCollectionId } from '@music-bridge/contracts'
 import type { MasterDraft, VersionHistory, PreparationHistory, PreparationDestination, PreparedHistory, PreparedSelection, PreparedImportProposal, PreparedImportJob, PreparedReview, RenderMarker, RenderSide, ReviewPreparedRequest, StartPreparedImportRequest, FrozenPrepared } from '@music-bridge/contracts'
 const props = defineProps<{ draft: MasterDraft; initialPreparationId?: string }>()
 const emit = defineEmits<{ close: [] }>()
@@ -116,13 +117,23 @@ function freeze(): void {
   phase.value = 'review'; mutate(async () => { const prep = await api.freezePrepared(request); if (alive) notice.value = `PREP ${prep.sequence} 已冻结。此状态不代表获得正式录音许可。` })
 }
 async function stopChecks(): Promise<void> {
-  if (aborting.value) return
+  if (!alive || aborting.value) return
   if (!pendingAbort.value) {
-    if (phase.value === 'import') { const requests = Object.values(selectedIds.value).filter(Boolean).map(id => ({ commandId: crypto.randomUUID(), id })); pendingAbort.value = async () => { for (const r of requests) await api.revokePreparedSelection(r) } }
+    if (phase.value === 'import') {
+      const selected = Object.entries(selectedIds.value).filter(([, id]) => id !== '')
+      if (selected.length < 1 || selected.length > 3
+        || selected.some(([side, id]) => !['A', 'B', 'Program'].includes(side) || !isCollectionId(id))
+        || new Set(selected.map(([, id]) => id)).size !== selected.length) {
+        error.value = '文件授权选择无效，请刷新并核对最多三份不同的原始 Render。'
+        return
+      }
+      const requests = Object.freeze(selected.map(([, id]) => Object.freeze({ commandId: crypto.randomUUID(), id })))
+      pendingAbort.value = async () => { await api.revokePreparedSelections(requests) }
+    }
     else if (phase.value === 'review' && imported.value) { const r = { commandId: crypto.randomUUID(), id: imported.value.destinationId }; pendingAbort.value = async () => { await api.revokePreparationDestination(r) } }
     else return
   }
-  aborting.value = true
+  aborting.value = true; error.value = ''
   try { await pendingAbort.value(); if (alive) { pendingAbort.value = undefined; notice.value = '相关授权已撤销，核对停止；已有文件和历史不会删除。'; await refresh() } }
   catch { if (alive) error.value = '撤权回执尚未确认，请重试原撤权操作。' }
   finally { if (alive) aborting.value = false }

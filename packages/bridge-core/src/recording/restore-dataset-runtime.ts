@@ -14,6 +14,7 @@ import { createRestoredContentBinding } from './restore-content-binding.js';
 import { authorizeSourceDirectory, type RootCapability } from './source-files.js';
 
 export interface OpenCollectionDataset {
+  readonly datasetId: string; assertIdentity(): void;
   repository: CollectionRepository; store: BackupWorkflowStore; privateRoot: RootCapability;
   contentBinding?: ArchiveContentBinding; pendingActivationId?: string;
   commit(): void; fail(): void; close(): void;
@@ -120,12 +121,16 @@ export async function openCollectionDataset(dataDirectory: string): Promise<Open
       if (boot.active) {
         const dataset = boot.active.dataset; if (!dataset) return unavailable();
         const file = checkDatasetTree(privateRoot, dataset); await checkActiveMarker(dataset);
+        store.datasetIdentities.assertKnown(`activation:${dataset.id}`, file);
         repository = openRepository(file, true, () => { checkDatasetTree(privateRoot, dataset); }); selectedDataset = dataset; selectedActivation = boot.active;
       } else repository = openRepository(path.join(privateRoot.path, 'collection.v1.sqlite'), false, () => { checkRoot(privateRoot); });
     }
     let settled = false, closed = false;
     const selected = repository;
+    const datasetIdentity = store.datasetIdentities.bind(selectedDataset ? `activation:${selectedDataset.id}` : 'default', selectedDataset ? path.join(selectedDataset.database.path, 'collection.sqlite') : path.join(privateRoot.path, 'collection.v1.sqlite'), !selectedDataset);
     return {
+      datasetId: datasetIdentity.datasetId,
+      assertIdentity() { if (closed) unavailable(); checkRoot(privateRoot); if (selectedDataset) checkDatasetTree(privateRoot, selectedDataset); datasetIdentity.assertCurrent(); },
       repository: selected, store, privateRoot,
       ...(selectedDataset ? { contentBinding: createRestoredContentBinding(selectedDataset, { isAuthorized: () => {
         try {

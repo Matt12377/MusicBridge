@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { verifyBackupRestoreWorkflow, verifyInactiveWindowRestore } from './task-066-workflows.js'
+import { loseNextOutboxReceipt, verifyBackupRestoreWorkflow, verifyInactiveWindowRestore } from './task-066-workflows.js'
 
 const desktopRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const electronEntry = path.join(desktopRoot, 'dist/main/index.js')
@@ -1346,14 +1346,11 @@ test('V3 库存读取失败不显示空库，重试原命令且提交回执丢�
     // 仅在隔离测试进程注入一次读取故障和一次提交后的回执故障；写入仍调用正式 Core/SQLite 通路。
     const handlers = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => unknown> })._invokeHandlers
     const list = handlers.get('collection:list')!
-    const receive = handlers.get('collection:receive')!
     ipcMain.removeHandler('collection:list')
     let readFailed = false
     ipcMain.handle('collection:list', (...args) => { if (!readFailed) { readFailed = true; throw new Error('[INVENTORY_UNAVAILABLE] 合成读取故障') } return list(...args) })
-    ipcMain.removeHandler('collection:receive')
-    let responseLost = false
-    ipcMain.handle('collection:receive', async (...args) => { const result = await receive(...args); if (!responseLost) { responseLost = true; throw new Error('[INVENTORY_UNAVAILABLE] 合成回执丢失') } return result })
   })
+  await loseNextOutboxReceipt(electronApp, 'collection.receive', '[INVENTORY_UNAVAILABLE] 合成回执丢失')
   await page.locator('[data-sidebar-source="collection"]').click()
   await expect(page.getByRole('alert')).toContainText('无法读取库存')
   await expect(page.getByText('还没有磁带库存', { exact: true })).toHaveCount(0)
@@ -1644,12 +1641,12 @@ test('V3 旧录音补录 A/B 曲目后两库指向同一盘，库存不增加', 
 test('V3 实体音乐库读取失败不冒充空库，保存回执丢失重试只保留一条', async () => {
   await electronApp.evaluate(({ ipcMain }) => {
     const handlers = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => unknown> })._invokeHandlers
-    const list = handlers.get('physicalMusic:list')!, save = handlers.get('physicalMusic:saveRelease')!
-    let readFailed = false, responseLost = false
-    ipcMain.removeHandler('physicalMusic:list'); ipcMain.removeHandler('physicalMusic:saveRelease')
+    const list = handlers.get('physicalMusic:list')!
+    let readFailed = false
+    ipcMain.removeHandler('physicalMusic:list')
     ipcMain.handle('physicalMusic:list', (...args) => { if (!readFailed) { readFailed = true; throw new Error('合成读取故障') } return list(...args) })
-    ipcMain.handle('physicalMusic:saveRelease', async (...args) => { const result = await save(...args); if (!responseLost) { responseLost = true; throw new Error('合成回执丢失') } return result })
   })
+  await loseNextOutboxReceipt(electronApp, 'physicalMusic.saveRelease', '合成回执丢失')
   await page.locator('[data-sidebar-source="collection"]').click()
   await page.getByRole('tab', { name: '实体音乐库', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('音乐库暂时无法读取')
@@ -1835,12 +1832,7 @@ test('V3 录音选曲草稿：取消不写入、跨专辑选曲、排序与重�
 })
 
 test('V3 录音选曲回执丢失重试不重复草稿或曲目', async () => {
-  await electronApp.evaluate(({ ipcMain }) => {
-    const handler = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => unknown> })._invokeHandlers.get('recordingDrafts:append')!
-    let lost = false
-    ipcMain.removeHandler('recordingDrafts:append')
-    ipcMain.handle('recordingDrafts:append', async (...args) => { const result = await handler(...args); if (!lost) { lost = true; throw new Error('合成草稿回执丢失') }; return result })
-  })
+  await loseNextOutboxReceipt(electronApp, 'recordingDrafts.append', '合成草稿回执丢失')
   await page.locator('[data-sidebar-source="recording"]').click()
   await page.getByRole('button', { name: '从 Roon 选择音乐', exact: true }).click()
   const picker = page.getByRole('dialog', { name: '从 Roon 选择曲目', exact: true })
@@ -1894,12 +1886,7 @@ test('V3 录音选曲源验证：原生选择到 SQLite、人工确认、离线�
   await panel.getByRole('button', { name: '授权一个源目录', exact: true }).click()
   await expect(panel.getByRole('button', { name: '选择文件并校验', exact: true })).toBeEnabled()
   await electronApp.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }) }, sourceFile)
-  await electronApp.evaluate(({ ipcMain }) => {
-    const original = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => unknown> })._invokeHandlers.get('recordingSources:choose')!
-    let lost = false
-    ipcMain.removeHandler('recordingSources:choose')
-    ipcMain.handle('recordingSources:choose', async (...args) => { const result = await original(...args); if (!lost) { lost = true; throw new Error('合成校验回执丢失') }; return result })
-  })
+  await loseNextOutboxReceipt(electronApp, 'recordingSources.choose', '合成校验回执丢失')
   await panel.getByRole('button', { name: '选择文件并校验', exact: true }).click()
   await expect(panel.getByRole('button', { name: '重试原操作', exact: true })).toBeVisible()
   await panel.getByRole('button', { name: '重试原操作', exact: true }).click()
@@ -2009,12 +1996,7 @@ test('V3 分面回执丢失重试不重复预留，规划变化需确认且 DAT 
     const stock = await api.receiveCollectionStock({ commandId: crypto.randomUUID(), model: { brand: '合成', name: 'DAT 规划', edition: '测试版', year: 1990, format: 'dat', tapeType: 'dat', identification: 'verified' }, lengthMinutes: 60, quantities: { sealedBlank: 0, openedBlank: 1, legacyUsed: 0, unclassified: 0 } })
     return { draftId: draft.draftId, modelId: stock.modelId }
   })
-  await electronApp.evaluate(({ ipcMain }) => {
-    const internal = ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => Promise<unknown>> }
-    const reserve = internal._invokeHandlers.get('recordingMedia:reserve')!
-    ipcMain.removeHandler('recordingMedia:reserve'); let lost = false
-    ipcMain.handle('recordingMedia:reserve', async (...args) => { const result = await reserve(...args); if (!lost) { lost = true; throw new Error('合成预留回执丢失') }; return result })
-  })
+  await loseNextOutboxReceipt(electronApp, 'recordingMedia.reserve', '合成预留回执丢失')
   await page.locator('[data-sidebar-source="recording"]').click(); await page.getByRole('button', { name: '继续草稿 规划回执故障合成' }).click()
   await page.getByRole('button', { name: '分面与选择磁带', exact: true }).click()
   const panel = page.getByRole('dialog', { name: '分面与选择磁带', exact: true })
@@ -2087,11 +2069,7 @@ test('V3 母版冻结：正式 IPC 复核源、回执重试、帧级历史与冷
   await expect(panel.getByText('480,000 帧曲间静音', { exact: true })).toBeVisible()
   await expect(panel.getByRole('button', { name: '确认并复核冻结', exact: true })).toBeDisabled()
   expect((await page.evaluate(id => window.musicBridge.listMasterVersions(id), draft.draftId)).masters).toEqual([])
-  await electronApp.evaluate(({ ipcMain }) => {
-    const original = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => unknown> })._invokeHandlers.get('recordingVersions:freeze')!
-    let lost = false; ipcMain.removeHandler('recordingVersions:freeze')
-    ipcMain.handle('recordingVersions:freeze', async (...args) => { const result = await original(...args); if (!lost) { lost = true; throw new Error('合成冻结回执丢失') }; return result })
-  })
+  await loseNextOutboxReceipt(electronApp, 'recordingVersions.freeze', '合成冻结回执丢失')
   await panel.getByLabel('我确认曲目、源、曲间规则和此布局，冻结后保留历史版本', { exact: true }).check()
   await panel.getByRole('button', { name: '确认并复核冻结', exact: true }).click()
   await expect(panel.getByRole('button', { name: '重试原操作', exact: true })).toBeVisible()
@@ -2175,11 +2153,7 @@ test('V3 Logic 工作区：原生授权、确认复制、回执重试、Finder �
   await expect(panel.getByRole('heading', { name: '准备交给 Logic', exact: true })).toBeVisible()
   await expect(panel.getByRole('button', { name: '确认并生成工作副本', exact: true })).toBeDisabled()
   expect(await readdir(target)).toEqual([])
-  await electronApp.evaluate(({ ipcMain }) => {
-    const handlers = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => unknown> })._invokeHandlers, original = handlers.get('recordingPreparation:start')!
-    let lost = false; ipcMain.removeHandler('recordingPreparation:start')
-    ipcMain.handle('recordingPreparation:start', async (...args) => { const result = await original(...args); if (!lost) { lost = true; throw new Error('合成工作区回执丢失') }; return result })
-  })
+  await loseNextOutboxReceipt(electronApp, 'recordingPreparation.start', '合成工作区回执丢失')
   await panel.getByLabel('我确认生成独立工作副本；不修改源文件，不自动控制 Logic', { exact: true }).check()
   await panel.getByRole('button', { name: '确认并生成工作副本', exact: true }).click()
   await expect(panel.getByRole('button', { name: '重试原操作', exact: true })).toBeVisible()
@@ -2289,10 +2263,7 @@ for (const emptyB of [false, true]) test(`V3 PREP：原始 Render 保存、人�
   await panel.getByRole('button', { name: '生成 Conformance 报告', exact: true }).click(); await expect(panel.getByTestId('conformance-status')).toContainText('ACCEPTED_VARIANCE')
   await expect(panel.getByRole('button', { name: '冻结 PREP', exact: true })).toBeDisabled()
   await panel.getByLabel('我确认上述实际时间线，并冻结到此母版与布局；后续不得再次插入 Gap', { exact: true }).check()
-  await electronApp.evaluate(({ ipcMain }) => {
-    const handlers = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => unknown> })._invokeHandlers, original = handlers.get('recordingPrepared:freeze')!; let lost = false
-    ipcMain.removeHandler('recordingPrepared:freeze'); ipcMain.handle('recordingPrepared:freeze', async (...args) => { const result = await original(...args); if (!lost) { lost = true; throw new Error('合成 PREP 回执丢失') }; return result })
-  })
+  await loseNextOutboxReceipt(electronApp, 'recordingPrepared.freeze', '合成 PREP 回执丢失')
   await panel.getByRole('button', { name: '冻结 PREP', exact: true }).click(); await expect(panel.getByRole('button', { name: '重试原操作', exact: true })).toBeVisible()
   await expect(panel.getByRole('button', { name: '关闭', exact: true })).toBeDisabled(); await panel.getByRole('button', { name: '重试原操作', exact: true }).click()
   await expect(panel.getByRole('heading', { name: 'PREP 1', exact: true })).toBeVisible()
@@ -2454,7 +2425,7 @@ test('V3 执行资产：Profile 与本次参数、明确编译、回执重试和
   await expect(panel.getByRole('heading', { name: '确认执行资产', exact: true })).toBeVisible()
   expect(await readdir(target)).toEqual([])
   await expect(panel.getByRole('button', { name: '确认并准备执行资产', exact: true })).toBeDisabled()
-  await electronApp.evaluate(({ ipcMain }) => { const handlers = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => unknown> })._invokeHandlers, original = handlers.get('recordingExecution:start')!; let lost = false, accepted: unknown; ipcMain.removeHandler('recordingExecution:start'); ipcMain.handle('recordingExecution:start', async (...args) => { const result = await original(...args); if (!lost) { accepted = result; lost = true; throw new Error('合成执行回执丢失') }; return accepted }) })
+  await loseNextOutboxReceipt(electronApp, 'recordingExecution.start', '合成执行回执丢失', true)
   await panel.getByLabel('我确认准备上述执行资产；不开始录音，不自动删除文件', { exact: true }).check()
   await panel.getByRole('button', { name: '确认并准备执行资产', exact: true }).click()
   await expect(panel.getByRole('button', { name: '重试原操作', exact: true })).toBeVisible(); await expect(panel.getByRole('button', { name: '关闭', exact: true })).toBeDisabled()
@@ -2490,10 +2461,7 @@ test('V3 执行资产：Profile 与本次参数、明确编译、回执重试和
   await expect(panel.getByRole('heading', { name: '确认归档内容', exact: true })).toBeVisible()
   expect(await readdir(path.join(archivePath, 'Objects'))).toEqual([]); expect(await readdir(path.join(archivePath, 'Operations'))).toEqual([])
   await expect(panel.getByRole('button', { name: '确认并开始归档', exact: true })).toBeDisabled()
-  await electronApp.evaluate(({ ipcMain }) => {
-    const handlers = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => unknown> })._invokeHandlers, original = handlers.get('recordingArchive:start')!; let lost = false
-    ipcMain.removeHandler('recordingArchive:start'); ipcMain.handle('recordingArchive:start', async (...args) => { const result = await original(...args); if (!lost) { lost = true; throw new Error('合成归档回执丢失') }; return result })
-  })
+  await loseNextOutboxReceipt(electronApp, 'recordingArchive.start', '合成归档回执丢失')
   await panel.getByLabel('我确认归档以上内容和源文件政策；不开始录音', { exact: true }).check()
   await panel.getByRole('button', { name: '确认并开始归档', exact: true }).click()
   await expect(panel.getByRole('button', { name: '重试归档原操作', exact: true })).toBeVisible()
@@ -2555,11 +2523,7 @@ test('V3 执行资产：Profile 与本次参数、明确编译、回执重试和
   await currentPanel.getByRole('button', { name: '继续编辑', exact: true }).click()
   await currentPanel.getByLabel('本次使用临时设备链', { exact: true }).check()
   await currentPanel.getByLabel('临时设备或连接 1', { exact: true }).fill('本次合成链；不操作设备')
-  await electronApp.evaluate(({ ipcMain }) => {
-    const handlers = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => unknown> })._invokeHandlers, original = handlers.get('recordingProfiles:saveSession')!
-    let lost = false
-    ipcMain.removeHandler('recordingProfiles:saveSession'); ipcMain.handle('recordingProfiles:saveSession', async (...args) => { const result = await original(...args); if (!lost) { lost = true; throw new Error('合成本次参数回执丢失') }; return result })
-  })
+  await loseNextOutboxReceipt(electronApp, 'recordingProfiles.saveSession', '合成本次参数回执丢失')
   await currentPanel.getByLabel('我确认本次参数；后续修改模板不改写此版本', { exact: true }).check()
   await currentPanel.getByRole('button', { name: '保存本次参数', exact: true }).click()
   await expect(currentPanel.getByRole('button', { name: '重试原操作', exact: true })).toBeVisible()

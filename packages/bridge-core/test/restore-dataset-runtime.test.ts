@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
-import { link, mkdir, readFile, readdir, rename, rm, symlink, writeFile } from 'node:fs/promises';
+import { copyFile, link, mkdir, readFile, readdir, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { archiveBackupFixture } from './helpers/archive-backup-fixture.js';
 import { createCollectionRepository, type CollectionRepository } from '../src/collection/repository.js';
@@ -51,8 +51,11 @@ async function fixture(t: test.TestContext) {
 }
 
 test('启动先选择已确认候选，仅运行成功后commit切换持久指针，旧库原样保留', async t => {
-  const f = await fixture(t), before = await readFile(f.defaultFile), opened = await f.open(f.privatePath);
+  const f = await fixture(t), before = await readFile(f.defaultFile), maintenance = createBackupWorkflowStore({ filePath: f.storePath });
+  const originalId = maintenance.datasetIdentities.bind('default', f.defaultFile, true).datasetId; maintenance.close();
+  const opened = await f.open(f.privatePath);
   try {
+    assert.notEqual(opened.datasetId, originalId); assert.notEqual(opened.datasetId, f.pending.id);
     assert.equal(opened.pendingActivationId, f.pending.id); assert.equal(opened.repository.list(page).total, 1);
     assert.equal(opened.store.activations.overview().activeId, null); assert.equal(opened.store.activations.get(f.pending.id).view.state, 'activating');
     assert.ok(opened.contentBinding); assert.equal(opened.privateRoot.path, f.privatePath);
@@ -79,14 +82,24 @@ test('候选启动前损坏只回旧默认库一次，留下BOOT_FAILED且冷启
 
 test('active工作库允许新增业务数据，恢复包和历史源离线后冷启动仍保留新数据', async t => {
   const f = await fixture(t), opened = await f.open(f.privatePath);
+  const datasetId = (opened as typeof opened & { datasetId?: string }).datasetId;
+  assert.match(datasetId ?? '', /^[0-9a-f-]{36}$/u);
   opened.commit(); addBusinessData(opened.repository); assert.equal(opened.repository.list(page).total, 2); opened.close();
   await rename(f.restored.path, f.restored.path + '-离线'); await rm(f.root.root.path, { recursive: true });
   const cold = await f.open(f.privatePath);
   try {
+    assert.equal((cold as typeof cold & { datasetId?: string }).datasetId, datasetId);
     assert.equal(cold.repository.list(page).total, 2); assert.equal(cold.pendingActivationId, undefined); assert.ok(cold.contentBinding);
     assert.equal(cold.store.activations.overview().activeId, f.pending.id);
     assert.throws(() => cold.repository.archive.root(f.root.id));
   } finally { cold.close(); }
+});
+
+test('已激活数据库被相同字节的新文件替换也拒绝冷启动，不继承原scope', async t => {
+  const f = await fixture(t), opened = await f.open(f.privatePath); opened.commit(); opened.close();
+  const file = path.join(f.pending.prepared.database.path, 'collection.sqlite');
+  await rename(file, file + '.original'); await copyFile(file + '.original', file);
+  await assert.rejects(f.open(f.privatePath));
 });
 
 test('第二个候选损坏回退到先前active工作库，保留其激活后新增数据', async t => {

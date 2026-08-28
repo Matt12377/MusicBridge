@@ -1,3 +1,4 @@
+import { isCommandOutboxDatasetId, isCommandOutboxContext, isCommandOutboxExecute, isCommandOutboxResult } from './command-outbox.js';
 import { isActivateRestoredDataset, isRestoreActivationView } from './recording-activation.js';
 import { isBackupOverview, isBackupRootView, isAuthorizeBackupRoot, isStartBackupJob, isBackupJobView } from './recording-backups.js';
 import { isArchiveRootView, isInitializeArchiveRequest, isArchiveProposal, isStartArchiveRequest, isPreviewArchiveRequest, isArchiveOperationView, isArchiveHistory, isArchiveCheck, isVerifyArchiveRequest } from './recording-archive.js';
@@ -927,6 +928,9 @@ function isPlaylistDetail(value: unknown): value is PlaylistDetail {
 }
 
 function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
+  if (command === 'recordingBackups.activationReceipt') return isActivateRestoredDataset(payload);
+  if (command === 'commandOutbox.context') return isEmptyPayload(payload);
+  if (command === 'commandOutbox.execute') return isCommandOutboxExecute(payload);
   if (command === 'recordingSources.roots') return isRecord(payload) && hasOnlyKeys(payload, []);
   if (command === 'recordingSources.rootReceipt') return isRecord(payload) && hasOnlyKeys(payload, ['commandId']) && isCollectionId(payload.commandId);
   if (command === 'recordingSources.authorize') return isRecord(payload) && hasOnlyKeys(payload, ['commandId', 'absolutePath']) && isCollectionId(payload.commandId) && isSourcePrivatePath(payload.absolutePath);
@@ -1070,6 +1074,7 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
 }
 
 const PUBLIC_ERROR_CODES = new Set([
+  'OUTBOX_SCOPE_MISMATCH',
   'INVENTORY_CONFLICT',
   'INVENTORY_UNAVAILABLE',
   'INVALID_IPC_REQUEST',
@@ -1438,6 +1443,9 @@ function isCommandResult(
   allowInternalResult = false,
 ): boolean {
   switch (command) {
+    case 'recordingBackups.activationReceipt': return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['activation']) && (value.activation === null || isRestoreActivationView(value.activation));
+    case 'commandOutbox.context': return isCommandOutboxContext(value);
+    case 'commandOutbox.execute': return isCommandOutboxResult(value);
     case 'recordingSources.roots': return isRecord(value) && hasOnlyKeys(value, ['roots']) && Array.isArray(value.roots) && value.roots.length <= 100 && value.roots.every(isSourceRoot);
     case 'recordingSources.rootReceipt': return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['root']) && (value.root === null || isSourceRoot(value.root));
     case 'recordingSources.authorize': return allowInternalResult && isSourceRoot(value);
@@ -1706,6 +1714,7 @@ export function validateIpcRequest(
   }
 
   if (
+    (input.expectedDatasetId !== undefined && !isCommandOutboxDatasetId(input.expectedDatasetId)) ||
     typeof input.id !== 'string' ||
     input.id.trim().length === 0 ||
     input.id.length > 128 ||
@@ -1737,6 +1746,7 @@ export function validateIpcRequest(
       id: input.id,
       command: input.command as (typeof IPC_COMMANDS)[number],
       payload: input.payload,
+      ...(input.expectedDatasetId !== undefined ? { expectedDatasetId: input.expectedDatasetId as string } : {}),
     },
   };
 }

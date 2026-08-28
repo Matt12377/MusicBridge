@@ -84,7 +84,7 @@ export class CoreSupervisor {
   private manualRestartPromise: Promise<void> | undefined
   private shutdownPromise: Promise<void> | undefined
   private readyTimeoutOverride: number | undefined
-  private activationFlight: { request: ActivateRestoredDataset; promise: Promise<RestoreActivationView> } | undefined
+  private activationFlight: { request: ActivateRestoredDataset; expectedDatasetId?: string; promise: Promise<RestoreActivationView> } | undefined
   private shuttingDown = false
   private restartCount = 0
   private readonly pending = new Map<string, PendingRequest>()
@@ -128,33 +128,37 @@ export class CoreSupervisor {
   async request<TCommand extends IpcCommand>(
     command: TCommand,
     payload: IpcCommandPayloads[TCommand],
+    expectedDatasetId?: string,
   ): Promise<IpcCommandResults[TCommand]> {
-    return (await this.sendRequest(command, payload, false)) as IpcCommandResults[TCommand]
+    return (await this.sendRequest(command, payload, false, expectedDatasetId)) as IpcCommandResults[TCommand]
   }
 
   async requestInternal<TCommand extends IpcInternalCommand>(
     command: TCommand,
     payload: IpcCommandPayloads[TCommand],
+    expectedDatasetId?: string,
   ): Promise<IpcInternalCommandResults[TCommand]> {
-    return (await this.sendRequest(command, payload, true)) as IpcInternalCommandResults[TCommand]
+    return (await this.sendRequest(command, payload, true, expectedDatasetId)) as IpcInternalCommandResults[TCommand]
   }
 
   private async sendRequest<TCommand extends IpcCommand>(
     command: TCommand,
     payload: IpcCommandPayloads[TCommand],
     internal: boolean,
+    expectedDatasetId?: string,
   ): Promise<unknown> {
     if (this._status !== 'ready' || !this.port) {
       throw new CoreIpcError('NOT_READY', 'Core is not ready')
     }
     const id = randomUUID()
-    const request = { version: IPC_VERSION, id, command, payload }
+    const request = { version: IPC_VERSION, id, command, payload, ...(expectedDatasetId === undefined ? {} : { expectedDatasetId }) }
     const validated = validateIpcRequest(request)
     if (!validated.ok) {
       throw new CoreIpcError(validated.error.code, validated.error.message)
     }
+    const timedCommand = command === 'commandOutbox.execute' && 'command' in payload ? String(payload.command) : command
     const timeoutMs =
-      ['recordingArchive.preview', 'recordingArchive.start', 'recordingArchive.verify', 'recordingArchive.initialize', 'recordingExecution.preview', 'recordingExecution.start', 'recordingExecution.verify', 'recordingPrepared.previewImport', 'recordingPrepared.startImport', 'recordingPrepared.review', 'recordingPrepared.freeze'].includes(command)
+      ['recordingArchive.preview', 'recordingArchive.start', 'recordingArchive.verify', 'recordingArchive.initialize', 'recordingExecution.preview', 'recordingExecution.start', 'recordingExecution.verify', 'recordingPrepared.previewImport', 'recordingPrepared.startImport', 'recordingPrepared.review', 'recordingPrepared.freeze'].includes(timedCommand)
       ? PREPARED_FILE_REQUEST_TIMEOUT_MS
       : command.startsWith('library.') ||
       command.startsWith('roon.library.') ||
@@ -211,25 +215,25 @@ export class CoreSupervisor {
   }
 
   /** 显式激活只复制并切换收藏工作库；账号恢复仍由既有 onReady 安全通道处理。 */
-  async activateRestoredDataset(request: ActivateRestoredDataset): Promise<RestoreActivationView> {
+  async activateRestoredDataset(request: ActivateRestoredDataset, expectedDatasetId?: string): Promise<RestoreActivationView> {
     if (!isActivateRestoredDataset(request)) throw new CoreIpcError('INVALID_IPC_REQUEST', '激活必须明确确认停止播放和切换工作库')
     if (this.activationFlight) {
       const prior = this.activationFlight.request
-      if (prior.commandId !== request.commandId || prior.restoreJobId !== request.restoreJobId || prior.expectedActiveId !== request.expectedActiveId) {
+      if (this.activationFlight.expectedDatasetId !== expectedDatasetId || prior.commandId !== request.commandId || prior.restoreJobId !== request.restoreJobId || prior.expectedActiveId !== request.expectedActiveId) {
         throw new CoreIpcError('INVENTORY_CONFLICT', '已有工作库切换正在处理')
       }
       return this.activationFlight.promise
     }
     const accepted = { ...request }
-    const promise = this.activateRestoredDatasetInternal(accepted)
-    this.activationFlight = { request: accepted, promise }
+    const promise = this.activateRestoredDatasetInternal(accepted, expectedDatasetId)
+    this.activationFlight = { request: accepted, expectedDatasetId, promise }
     try { return await promise }
     finally { if (this.activationFlight?.promise === promise) this.activationFlight = undefined }
   }
 
-  private async activateRestoredDatasetInternal(request: ActivateRestoredDataset): Promise<RestoreActivationView> {
+  private async activateRestoredDatasetInternal(request: ActivateRestoredDataset, expectedDatasetId?: string): Promise<RestoreActivationView> {
     const deadline = Date.now() + RESTORE_ACTIVATION_TIMEOUT_MS
-    let result = await this.request('recordingBackups.activate', request)
+    let result = await this.request('recordingBackups.activate', request, expectedDatasetId)
     const activationId = result.id
     if (result.restoreJobId !== request.restoreJobId) throw new CoreIpcError('INVENTORY_CONFLICT', '激活回执与请求的恢复任务不一致')
     const current = async (): Promise<RestoreActivationView> => {

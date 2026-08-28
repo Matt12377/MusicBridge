@@ -76,3 +76,5 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 - [TASK-065](TASK-065-archive-restore.md)：隔离恢复候选、重复恢复保护与基本索引重建（本地自动 Gate 通过；激活与 Owner 待后续）。
 
 - [TASK-066](TASK-066-backup-restore-workflow.md)：备份恢复持久工作流、位置绑定、明确激活与桌面入口（本地自动 Gate 通过；容量与Owner边界保留）。
+
+- [TASK-067](TASK-067-command-outbox.md)：跨Renderer/应用重启未确认命令、工作库身份隔离和人工恢复入口（进行中）。

@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm, mkdir, readdir } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
+import type { CommandOutboxTrackedCommand } from '@music-bridge/contracts'
 
 // 本模块由 tsconfig.e2e.json 独立检查；历史 v1 用例尚未纳入此类型 Gate。
 export interface Task066E2eSession {
@@ -16,6 +17,36 @@ interface BackupWorkflowContext {
   desktopRoot: string
   diagnosticDirectory: string
   axeSource: string
+}
+
+export async function loseNextOutboxReceipt(
+  electronApp: ElectronApplication,
+  command: CommandOutboxTrackedCommand,
+  errorMessage: string,
+  replayFirstResult = false,
+): Promise<void> {
+  await electronApp.evaluate(({ ipcMain }, input) => {
+    const channel = 'commandOutbox:submit'
+    const handlers = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => Promise<unknown>> })._invokeHandlers
+    const original = handlers.get(channel)
+    if (!original) throw new Error('缺少正式 commandOutbox:submit handler，不能注入回执故障')
+    let lostCommandId: string | undefined
+    let accepted: unknown
+    ipcMain.removeHandler(channel)
+    ipcMain.handle(channel, async (...args) => {
+      const result = await original(...args)
+      const submitted = args[1] as { request?: { command?: unknown; payload?: { commandId?: unknown } } } | undefined
+      if (submitted?.request?.command !== input.command || typeof submitted.request.payload?.commandId !== 'string') return result
+      if (typeof result !== 'object' || result === null || !('ok' in result) || result.ok !== true) return result
+      if (lostCommandId === undefined) {
+        lostCommandId = submitted.request.payload.commandId
+        accepted = result
+        throw new Error(input.errorMessage)
+      }
+      // 执行资产用例保留首个已接受回执，但其他命令与其他 commandId 始终透传。
+      return input.replayFirstResult && submitted.request.payload.commandId === lostCommandId ? accepted : result
+    })
+  }, { command, errorMessage, replayFirstResult })
 }
 
 export async function verifyInactiveWindowRestore(session: Task066E2eSession): Promise<void> {
@@ -79,11 +110,7 @@ export async function verifyBackupRestoreWorkflow({ session, electronEntry, desk
     await panel.getByRole('combobox', { name: '备份范围', exact: true }).selectOption('metadata')
     await expect(panel.getByRole('button', { name: '确认并开始备份', exact: true })).toBeDisabled()
     await panel.getByLabel('我确认备份所选范围到新建子目录，不覆盖已有文件', { exact: true }).check()
-    await electronApp.evaluate(({ ipcMain }) => {
-      const handlers = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => Promise<unknown>> })._invokeHandlers
-      const original = handlers.get('recordingBackups:start')!; let lost = false
-      ipcMain.removeHandler('recordingBackups:start'); ipcMain.handle('recordingBackups:start', async (...args) => { const result = await original(...args); if (!lost) { lost = true; throw new Error('合成备份回执丢失') }; return result })
-    })
+    await loseNextOutboxReceipt(electronApp, 'recordingBackups.start', '合成备份回执丢失')
     await panel.getByRole('button', { name: '确认并开始备份', exact: true }).click()
     await panel.getByRole('button', { name: '重试备份恢复原操作', exact: true }).click()
     await expect.poll(async () => (await page.evaluate(() => window.musicBridge.getBackupOverview())).jobs.filter(j => j.kind === 'backup' && j.state === 'succeeded').length).toBe(1)
@@ -145,16 +172,7 @@ export async function verifyBackupRestoreWorkflow({ session, electronEntry, desk
     await expect.poll(async () => (await page.evaluate(() => window.musicBridge.getPlaybackState())).state).toBe('playing')
     const beforeCore = await electronApp.evaluate(({ app }) => app.getAppMetrics().filter(p => p.name === 'Music Bridge Core' || p.serviceName === 'Music Bridge Core').map(p => ({ pid: p.pid, created: p.creationTime })))
     expect(beforeCore).toHaveLength(1)
-    await electronApp.evaluate(({ ipcMain }) => {
-      const handlers = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => Promise<unknown>> })._invokeHandlers
-      const original = handlers.get('recordingBackups:activate')!; let lost = false
-      ipcMain.removeHandler('recordingBackups:activate')
-      ipcMain.handle('recordingBackups:activate', async (...args) => {
-        const result = await original(...args)
-        if (!lost) { lost = true; throw new Error('合成激活回执丢失') }
-        return result
-      })
-    })
+    await loseNextOutboxReceipt(electronApp, 'recordingBackups.activate', '合成激活回执丢失')
     await activationButton.click()
     const retryActivation = activationPanel.getByRole('button', { name: '重试备份恢复原操作', exact: true })
     await expect(retryActivation).toBeVisible({ timeout: 30_000 })

@@ -5,6 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { BACKUP_INDEX_MISSING_FACTS, isAuthorizeBackupRoot, isBackupRootView, isStartBackupJob, isBackupJobView, isCollectionId, type StartBackupJob, type BackupJobView, type BackupJobIssue, type AuthorizeBackupRoot, type BackupOverview, type BackupRootView } from '@music-bridge/contracts';
 import type { RootCapability } from './source-files.js';
 import { createRestoreActivationStore, restoreActivationSchema, restoreActivationSchemaObjects, RestoreActivationError, type RestoreActivationStore } from './restore-activation-store.js';
+import { createDatasetIdentityStore, datasetIdentitySchemaObjects } from './dataset-identity.js';
 
 export class BackupWorkflowError extends Error {
   constructor(readonly code: 'BACKUP_CONFLICT' | 'BACKUP_UNAVAILABLE') {
@@ -29,10 +30,10 @@ PRAGMA user_version=1;
 `;
 const ownedPaths = new Set<string>();
 
-function verifySchema(db: DatabaseSync): 1 | 2 {
+function verifySchema(db: DatabaseSync): 1 | 2 | 3 {
   const version = db.prepare('PRAGMA user_version').get()?.user_version;
-  if ((version !== 1 && version !== 2) || db.prepare('PRAGMA application_id').get()?.application_id !== 1296192087) return unavailable();
-  const expected = version === 1 ? schemaObjects : [...schemaObjects, ...restoreActivationSchemaObjects];
+  if ((version !== 1 && version !== 2 && version !== 3) || db.prepare('PRAGMA application_id').get()?.application_id !== 1296192087) return unavailable();
+  const expected = [...schemaObjects, ...(version >= 2 ? restoreActivationSchemaObjects : []), ...(version >= 3 ? datasetIdentitySchemaObjects : [])];
   const objects = db.prepare("SELECT sql FROM sqlite_schema WHERE name NOT GLOB 'sqlite_*'").all();
   if (objects.length !== expected.length || objects.some(row => !expected.includes(String(row.sql)))) return unavailable();
   return version;
@@ -110,6 +111,7 @@ export function createBackupWorkflowStore(options: { filePath: string }) {
         for (const value of updates) db.prepare('UPDATE backup_jobs SET data=? WHERE id=?').run(value.data, value.id);
         db.exec('PRAGMA user_version=2');
       }
+      if (verifySchema(db) === 2) db.exec(`${datasetIdentitySchemaObjects.join(';')}; PRAGMA user_version=3;`);
       db.exec('COMMIT');
       db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
       database = db; return db;
@@ -149,6 +151,7 @@ export function createBackupWorkflowStore(options: { filePath: string }) {
   const active = (view: BackupJobView): boolean => view.state === 'queued' || view.state === 'running' || view.state === 'cancelling';
   const activations: RestoreActivationStore = createRestoreActivationStore({ read, transaction });
   return {
+    datasetIdentities: createDatasetIdentityStore({ read, transaction }),
     activations,
     overview(): BackupOverview { return read(db => ({ roots: db.prepare('SELECT id FROM backup_roots ORDER BY rowid DESC').all().map(row => root(db, String(row.id)).view), jobs: db.prepare('SELECT id FROM backup_jobs ORDER BY rowid DESC LIMIT 100').all().map(row => job(db, String(row.id)).view), activations: activations.overview().activations })); },
     authorize(command: AuthorizeBackupRoot, capability: RootCapability): BackupRootView {

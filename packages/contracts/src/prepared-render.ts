@@ -50,6 +50,8 @@ export interface PreparedPublicApi {
   listPreparedSelections(preparationId: string): Promise<{ selections: readonly PreparedSelection[] }>;
   choosePreparedRender(request: SelectPreparedRequest): Promise<PreparedSelection | null>;
   revokePreparedSelection(request: { commandId: string; id: string }): Promise<PreparedSelection>;
+  /** 一次确认的文件撤权先整体持久化，最多 A/B/Program 三项。 */
+  revokePreparedSelections(requests: readonly { commandId: string; id: string }[]): Promise<readonly PreparedSelection[]>;
   previewPreparedImport(request: PreviewPreparedImportRequest): Promise<PreparedImportProposal>;
   startPreparedImport(request: StartPreparedImportRequest): Promise<PreparedImportJob>;
   getPreparedImportJob(id: string): Promise<{ job: PreparedImportJob | null }>;

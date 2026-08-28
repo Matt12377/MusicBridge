@@ -1,4 +1,5 @@
 import { BackupWorkflowError } from './recording/backup-workflow-store.js';
+import { DatasetScopeError } from './recording/dataset-identity.js';
 import { createSyntheticRoonLibrary } from './roon/synthetic-library.js';
 import { appendFileSync, chmodSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -8,6 +9,7 @@ import {
   IPC_VERSION,
   parseIpcRuntimeMessage,
   validateIpcRequest,
+  isCommandOutboxExecute,
   type IpcCommand,
   type IpcCommandPayloads,
   type IpcFailure,
@@ -72,6 +74,7 @@ function requestId(value: unknown): string | undefined {
 }
 
 function failureForError(id: string, error: unknown): IpcFailure {
+  if (error instanceof DatasetScopeError) return responseFailure(id, error.code, error.message);
   if (error instanceof BackupWorkflowError) return responseFailure(id, error.code === 'BACKUP_CONFLICT' ? 'INVENTORY_CONFLICT' : 'INVENTORY_UNAVAILABLE', error.message);
   if (error instanceof CollectionError) return responseFailure(id, error.code, error.message);
   const bridgeError = asBridgeError(error);
@@ -187,7 +190,23 @@ async function dispatch(
   runtime: CoreRuntimeForIpc,
   request: IpcRequest,
 ): Promise<unknown> {
+  if (request.expectedDatasetId !== undefined) {
+    if (!runtime.commandOutbox) throw new CollectionError('INVENTORY_UNAVAILABLE', '工作库身份尚未就绪。');
+    runtime.commandOutbox.assertScope(request.expectedDatasetId);
+  }
   switch (request.command as IpcCommand) {
+    case 'recordingBackups.activationReceipt': return backupsFor(runtime).activationReceipt(request.payload as IpcCommandPayloads['recordingBackups.activationReceipt']);
+    case 'commandOutbox.context': {
+      if (!runtime.commandOutbox) throw new CollectionError('INVENTORY_UNAVAILABLE', '工作库身份尚未就绪。');
+      return runtime.commandOutbox.context();
+    }
+    case 'commandOutbox.execute': {
+      if (!isCommandOutboxExecute(request.payload)) throw new BridgeError('BAD_REQUEST', '持久命令请求无效。');
+      if (!runtime.commandOutbox) throw new CollectionError('INVENTORY_UNAVAILABLE', '工作库身份尚未就绪。');
+      const value = request.payload;
+      runtime.commandOutbox.assertScope(value.datasetId);
+      return { command: value.command, result: await dispatch(runtime, { version: IPC_VERSION, id: request.id, command: value.command, payload: value.payload }) };
+    }
     case 'recordingSources.roots': return sourcesFor(runtime).roots();
     case 'recordingSources.rootReceipt': { const p = request.payload as IpcCommandPayloads['recordingSources.rootReceipt']; return sourcesFor(runtime).rootReceipt(p.commandId); }
     case 'recordingSources.authorize': { const p = request.payload as IpcCommandPayloads['recordingSources.authorize']; return sourcesFor(runtime).authorize(p.commandId, p.absolutePath); }
@@ -653,6 +672,7 @@ export async function runCoreUtilityProcess(
         if (dataDirectory !== undefined && (!dataDirectory || dataDirectory.length > 1024 || !path.isAbsolute(dataDirectory) || dataDirectory.includes('\0'))) throw new Error('Core 数据目录不可用');
         if (dataDirectory) dataset = await openCollectionDataset(dataDirectory);
         const datasetOptions = dataset ? {
+          collectionDatasetIdentity: { datasetId: dataset.datasetId, assertCurrent: () => dataset!.assertIdentity() },
           collectionRepository: dataset.repository,
           backupWorkflowStore: dataset.store,
           backupPrivateRoot: dataset.privateRoot,

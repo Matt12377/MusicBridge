@@ -47,6 +47,7 @@ import RoonAlbumDetail from './components/RoonAlbumDetail.vue'
 import RoonBrowseDetail from './components/RoonBrowseDetail.vue'
 import MusicSidebar from './components/sidebar/MusicSidebar.vue'
 import ToolbarStatusPopover from './components/ToolbarStatusPopover.vue'
+import CommandOutboxPanel from './components/CommandOutboxPanel.vue'
 import { useLibrarySources } from './composables/useLibrarySources.js'
 import { appendPage } from './composables/libraryPagination.js'
 import {
@@ -210,6 +211,13 @@ const remoteCoreState = ref<RemoteCoreTunnelState>({
 })
 const remoteAutoStart = ref(false)
 const inspectorOpen = ref(false)
+const commandOutboxOpen = ref(false)
+const commandOutboxTrigger = ref<HTMLButtonElement>()
+async function closeCommandOutbox(): Promise<void> {
+  commandOutboxOpen.value = false
+  await nextTick()
+  commandOutboxTrigger.value?.focus({ preventScroll: true })
+}
 const inspectorReturnFocus = ref<HTMLElement | null>(null)
 const actionError = ref<string | null>(null)
 const actionDiagnosticId = ref<string | null>(null)
@@ -2621,7 +2629,10 @@ onUnmounted(() => {
             <h1 v-if="currentView !== 'home'">{{ viewTitle }}</h1>
           </div>
         </div>
-        <ToolbarStatusPopover :core-state="coreState" :selected-zone="selectedZone" @diagnostics="navigate('diagnostics')" />
+        <div class="command-outbox-tools">
+          <button ref="commandOutboxTrigger" type="button" class="command-outbox-entry" aria-haspopup="dialog" @click="commandOutboxOpen = true">未确认操作</button>
+          <ToolbarStatusPopover :core-state="coreState" :selected-zone="selectedZone" @diagnostics="navigate('diagnostics')" />
+        </div>
       </header>
 
       <div class="workspace-body" :class="{ 'is-immersive': isImmersiveNowPlaying }">
@@ -3044,6 +3055,14 @@ onUnmounted(() => {
     />
 
     <div v-if="toastMessage" class="toast" role="status" aria-live="polite">{{ toastMessage }}</div>
+    <CommandOutboxPanel v-if="commandOutboxOpen" @close="closeCommandOutbox" />
 
   </main>
 </template>
+
+<style scoped>
+.command-outbox-tools { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.command-outbox-entry { min-height: 44px; padding: 8px 12px; border: 1px solid var(--mb-glass-border); border-radius: 8px; background: var(--mb-glass-clear); color: var(--mb-text-primary); font: inherit; font-size: 13px; cursor: pointer; }
+.command-outbox-entry:focus-visible { outline: 2px solid var(--mb-accent); outline-offset: 3px; }
+@media (hover: hover) and (pointer: fine) { .command-outbox-entry:hover { border-color: var(--mb-accent); } }
+</style>

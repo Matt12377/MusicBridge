@@ -1,3 +1,4 @@
+import type { CommandOutboxContext, CommandOutboxExecute, CommandOutboxResult } from './command-outbox.js';
 import type { ActivateRestoredDataset, RestoreActivationView } from './recording-activation.js';
 import type { BackupOverview, BackupRootView, AuthorizeBackupRoot, StartBackupJob, BackupJobView } from './recording-backups.js';
 import type { ArchiveRootView, InitializeArchiveRequest, ArchiveProposal, StartArchiveRequest, PreviewArchiveRequest, ArchiveOperationView, ArchiveHistory, ArchiveCheck, VerifyArchiveRequest } from './recording-archive.js';
@@ -56,6 +57,8 @@ import type { PublicAggregatedSearchResult } from './aggregated-search.js';
 export const IPC_VERSION = 1 as const;
 
 export const IPC_COMMANDS = [
+  'commandOutbox.context',
+  'commandOutbox.execute',
   'core.ping',
   'core.getHealth',
   'core.getState',
@@ -87,6 +90,7 @@ export const IPC_COMMANDS = [
   'favorites.list',
   'recordingBackups.overview',
   'recordingBackups.activate',
+  'recordingBackups.activationReceipt',
   'recordingBackups.authorize',
   'recordingBackups.authorizationReceipt',
   'recordingBackups.start',
@@ -247,6 +251,7 @@ export const IPC_EVENTS = [
 export type IpcEvent = (typeof IPC_EVENTS)[number];
 
 export interface IpcRequest<TPayload = unknown> {
+  expectedDatasetId?: string;
   version: typeof IPC_VERSION;
   id: string;
   command: IpcCommand;
@@ -274,8 +279,11 @@ export type IpcResponse<TResult = unknown> =
 export type IpcEnvelope<T = unknown> = IpcRequest<T> | IpcResponse<T>;
 
 export interface IpcCommandPayloads {
+  'commandOutbox.context': Record<string, never>;
+  'commandOutbox.execute': CommandOutboxExecute;
   'recordingBackups.overview': Record<string, never>;
   'recordingBackups.activate': ActivateRestoredDataset;
+  'recordingBackups.activationReceipt': ActivateRestoredDataset;
   'recordingBackups.authorize': AuthorizeBackupRoot & { absolutePath: string };
   'recordingBackups.authorizationReceipt': AuthorizeBackupRoot;
   'recordingBackups.start': StartBackupJob;
@@ -455,8 +463,11 @@ export interface IpcCommandPayloads {
 }
 
 export interface IpcCommandResults {
+  'commandOutbox.context': CommandOutboxContext;
+  'commandOutbox.execute': CommandOutboxResult;
   'recordingBackups.overview': BackupOverview;
   'recordingBackups.activate': RestoreActivationView;
+  'recordingBackups.activationReceipt': { activation: RestoreActivationView | null };
   'recordingBackups.authorize': BackupRootView;
   'recordingBackups.authorizationReceipt': { root: BackupRootView | null };
   'recordingBackups.start': BackupJobView;
@@ -644,9 +655,10 @@ export interface IpcEventPayloads {
   'lyrics.match.changed': { state: LocalLyricsMatchSnapshot };
 }
 
-export type IpcInternalCommand = 'recordingBackups.authorize' | 'recordingBackups.authorizationReceipt' | 'recordingArchive.authorize' | 'recordingArchive.authorizationReceipt' | 'recordingPrepared.select' | 'recordingPrepared.selectionReceipt' | 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
+export type IpcInternalCommand = 'recordingBackups.activationReceipt' | 'recordingBackups.authorize' | 'recordingBackups.authorizationReceipt' | 'recordingArchive.authorize' | 'recordingArchive.authorizationReceipt' | 'recordingPrepared.select' | 'recordingPrepared.selectionReceipt' | 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
 
 export interface IpcInternalCommandResults {
+  'recordingBackups.activationReceipt': { activation: RestoreActivationView | null };
   'recordingBackups.authorize': BackupRootView;
   'recordingBackups.authorizationReceipt': { root: BackupRootView | null };
   'recordingArchive.authorize': ArchiveRootView;

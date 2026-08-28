@@ -5,6 +5,18 @@ import { DatabaseSync } from 'node:sqlite';
 import type { PreparedRestoredDataset } from '../src/recording/restore-activation-files.js';
 import { createBackupWorkflowStore } from '../src/recording/backup-workflow-store.js';
 
+test('激活回执查询不创建意图，命中必须保持原命令指纹且不改写数据库', async t => {
+  const f = await fixture(t);
+  const api = f.store as typeof f.store & { receipt?: (request: typeof f.request) => unknown };
+  assert.equal(typeof api.receipt, 'function');
+  assert.equal(api.receipt!(f.request), null);
+  assert.equal(f.store.overview().activations.length, 0);
+  const prior = f.store.begin(f.request), before = f.db.prepare('SELECT total_changes() n').get()?.n;
+  assert.deepEqual(api.receipt!(f.request), prior.view);
+  assert.equal(f.db.prepare('SELECT total_changes() n').get()?.n, before);
+  assert.throws(() => api.receipt!({ ...f.request, restoreJobId: randomUUID() }));
+});
+
 async function fixture(t: test.TestContext) {
   const module = await import('../src/recording/restore-activation-store.js').catch(() => ({}));
   assert.ok('createRestoreActivationStore' in module, '缺少激活意图与工作库指针事务边界');
@@ -20,7 +32,7 @@ async function fixture(t: test.TestContext) {
     const root = { id: randomUUID(), path: '/private/synthetic', dev: '1', ino: '2', authorized: true, label: '合成' };
     return { id, directory: root, database: { ...root, path: '/private/synthetic/database' }, databaseFile: { relative: 'collection.sqlite', sha256: 'a'.repeat(64), size: 1 }, source: { ...root, path: '/private/restore' }, restoreId: request.restoreJobId, restoreManifestHash: 'b'.repeat(64), contentIncluded: true };
   };
-  return { store, request, prepared };
+  return { store, request, prepared, db };
 }
 
 test('激活须单独确认影响，稳定命令回执不能改指向或自动重试失败', async t => {

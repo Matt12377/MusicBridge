@@ -47,6 +47,16 @@ export function createRestoreActivationStore(access: ActivationStoreAccess) {
     save(db, value); db.prepare('UPDATE active_dataset SET pending_id=NULL WHERE singleton=1').run(); return value.view;
   }
   return {
+    receipt(request: ActivateRestoredDataset): RestoreActivationView | null {
+      if (!isActivateRestoredDataset(request)) return conflict();
+      return access.read(db => {
+        const receipt = db.prepare('SELECT fingerprint,result_id,action FROM backup_commands WHERE command_id=?').get(request.commandId);
+        if (!receipt) return null;
+        const fingerprint = createHash('sha256').update(JSON.stringify([request.restoreJobId, request.expectedActiveId])).digest('hex');
+        if (receipt.action !== 'activate' || receipt.fingerprint !== fingerprint) return conflict();
+        return get(db, String(receipt.result_id)).view;
+      });
+    },
     overview() { return access.read(db => ({ activeId: pointer(db).activeId, activations: db.prepare('SELECT id FROM restore_activations ORDER BY rowid DESC').all().map(row => get(db, String(row.id)).view) })); },
     get(id: string): StoredRestoreActivation { return access.read(db => get(db, id)); },
     begin(request: ActivateRestoredDataset): StoredRestoreActivation {

@@ -1,4 +1,8 @@
 {
   "extends": "./tsconfig.json",
-  "include": ["e2e/task-066-workflows.ts", "src/renderer/src/env.d.ts"]
+  "include": [
+    "e2e/task-066-workflows.ts",
+    "e2e/task-067.spec.ts",
+    "src/renderer/src/env.d.ts"
+  ]
 }

@@ -30,3 +30,4 @@ export * from './audio-conversion.js';
 export * from './converted-execution.js';
 export * from './recording-archive.js';
 export * from './recording-activation.js';
+export * from './command-outbox.js';

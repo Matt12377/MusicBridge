@@ -126,6 +126,10 @@ test('Preload exposes only sanitized business methods', async () => {
   )
 
   assert.deepEqual(PUBLIC_API_KEYS, [
+    'getCommandOutbox',
+    'retryCommandOutbox',
+    'dismissCommandOutbox',
+    'acknowledgeCommandOutbox',
     'activateRestoredDataset',
     'getBackupOverview',
     'chooseBackupRoot',
@@ -161,6 +165,7 @@ test('Preload exposes only sanitized business methods', async () => {
     'listPreparedSelections',
     'choosePreparedRender',
     'revokePreparedSelection',
+    'revokePreparedSelections',
     'previewPreparedImport',
     'startPreparedImport',
     'getPreparedImportJob',
@@ -298,6 +303,10 @@ test('Preload exposes only sanitized business methods', async () => {
     'onRemoteCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
+    'getCommandOutbox',
+    'retryCommandOutbox',
+    'dismissCommandOutbox',
+    'acknowledgeCommandOutbox',
     'activateRestoredDataset',
     'getBackupOverview',
     'chooseBackupRoot',
@@ -333,6 +342,7 @@ test('Preload exposes only sanitized business methods', async () => {
     'listPreparedSelections',
     'choosePreparedRender',
     'revokePreparedSelection',
+    'revokePreparedSelections',
     'previewPreparedImport',
     'startPreparedImport',
     'getPreparedImportJob',
@@ -520,4 +530,96 @@ test('Preload exposes only sanitized business methods', async () => {
     await api.replaceQueue([{ trackId: '301', qualityPreference: 'lossless' }], 0),
     playbackState,
   )
+})
+
+test('outbox预加载在编辑前固定scope，等待期间的原DTO不被外部修改，成功后确认接收', async () => {
+  const module = await import('../src/preload/command-outbox-client.js').catch(() => ({}))
+  assert.ok('createCommandOutboxClient' in module, '缺少持久命令预加载接线')
+  const create = (module as typeof import('../src/preload/command-outbox-client.js')).createCommandOutboxClient
+  const scope = '11111111-1111-4111-8111-111111111111', id = '22222222-2222-4222-8222-222222222222'
+  let release!: (value: unknown) => void
+  const calls: Array<[string, unknown]> = []
+  const client = create(async (channel, value) => {
+    calls.push([channel, value])
+    if (channel === 'commandOutbox:context') return new Promise(resolve => { release = resolve })
+    if (channel === 'commandOutbox:submit') return { ok: true, outboxId: id, result: { modelId: id } }
+    return undefined
+  })
+  const request = { commandId: id, model: { brand: '合成', name: '编辑时原文', edition: '测试', year: 1990, format: 'cassette' as const, tapeType: 'II' as const, identification: 'verified' as const }, lengthMinutes: 60, quantities: { sealedBlank: 1, openedBlank: 0, legacyUsed: 0, unclassified: 0 } }
+  const pending = client.submit('collection.receive', request); request.model.name = '迟到的修改'
+  release({ datasetId: scope })
+  assert.deepEqual(await pending, { modelId: id })
+  assert.equal(calls.filter(([channel]) => channel === 'commandOutbox:context').length, 1)
+  assert.deepEqual(calls[1], ['commandOutbox:submit', { request: { datasetId: scope, command: 'collection.receive', payload: { ...request, model: { ...request.model, name: '编辑时原文' } } } }])
+  assert.deepEqual(calls[2], ['commandOutbox:acknowledge', { id }])
+})
+
+test('outbox预加载只在同会话明确再调用时带retryConfirmed，冷启不发送业务', async () => {
+  const module = await import('../src/preload/command-outbox-client.js').catch(() => ({}))
+  assert.ok('createCommandOutboxClient' in module)
+  const create = (module as typeof import('../src/preload/command-outbox-client.js')).createCommandOutboxClient
+  const id = '22222222-2222-4222-8222-222222222222', calls: Array<[string, unknown]> = []
+  let attempts = 0
+  const client = create(async (channel, value) => {
+    calls.push([channel, value])
+    if (channel === 'commandOutbox:context') return { datasetId: id }
+    if (channel === 'commandOutbox:submit') return ++attempts === 1 ? { ok: false, code: 'OUTBOX_RESULT_UNKNOWN' } : { ok: true, outboxId: id, result: { revoked: true } }
+    throw new Error('模拟确认回执丢失，不暴露内容')
+  })
+  await Promise.resolve(); assert.deepEqual(calls.map(([channel]) => channel), ['commandOutbox:context'])
+  const request = { commandId: id, id }
+  await assert.rejects(client.submit('recordingSources.revoke', request), /OUTBOX_RESULT_UNKNOWN/u)
+  assert.deepEqual(await client.submit('recordingSources.revoke', request), { revoked: true })
+  assert.equal((calls.filter(([channel]) => channel === 'commandOutbox:submit')[0]![1] as { retryConfirmed?: boolean }).retryConfirmed, undefined)
+  assert.equal((calls.filter(([channel]) => channel === 'commandOutbox:submit')[1]![1] as { retryConfirmed?: boolean }).retryConfirmed, true)
+})
+
+test('outbox预加载无有效scope不发送，结果信封非法不确认，错误不透传内部内容', async () => {
+  const module = await import('../src/preload/command-outbox-client.js').catch(() => ({}))
+  assert.ok('createCommandOutboxClient' in module)
+  const create = (module as typeof import('../src/preload/command-outbox-client.js')).createCommandOutboxClient
+  const id = '22222222-2222-4222-8222-222222222222', calls: string[] = []
+  const invalid = create(async channel => { calls.push(channel); return { datasetId: '/private/untrusted' } })
+  await assert.rejects(invalid.submit('recordingSources.revoke', { commandId: id, id }), /OUTBOX_UNAVAILABLE/u)
+  assert.deepEqual(calls, ['commandOutbox:context'])
+  const badResult = create(async channel => { if (channel === 'commandOutbox:context') return { datasetId: id }; if (channel === 'commandOutbox:submit') return { ok: true, outboxId: '/private/untrusted', result: {} }; throw new Error('不能到达ack') })
+  await assert.rejects(badResult.submit('recordingSources.revoke', { commandId: id, id }), /OUTBOX_RESULT_UNKNOWN/u)
+})
+
+test('PREP批次在等待scope前捕获整组原请求，单次发送，失败后只在人工重试恢复并逐项确认', async () => {
+  const { createCommandOutboxClient } = await import('../src/preload/command-outbox-client.js')
+  const ids = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222']
+  const requests = ids.map(id => ({ id, commandId: id })), original = structuredClone(requests)
+  const calls: Array<[string, unknown]> = []; let release!: (value: unknown) => void, attempts = 0
+  const results = ids.map(id => ({ id, preparationId: ids[0], side: 'A', label: '合成', authorized: false }))
+  const client = createCommandOutboxClient(async (channel, value) => {
+    calls.push([channel, value])
+    if (channel === 'commandOutbox:context') return new Promise(resolve => { release = resolve })
+    if (channel === 'commandOutbox:revokePreparedBatch') return ++attempts === 1 ? { ok: false, code: 'OUTBOX_RESULT_UNKNOWN' } : { ok: true, submissions: ids.map((id, index) => ({ outboxId: id, result: results[index] })) }
+    return undefined
+  })
+  assert.equal(typeof client.submitPreparedRevocations, 'function')
+  const pending = client.submitPreparedRevocations(requests); requests[1]!.id = ids[0]!
+  release({ datasetId: ids[0] })
+  await assert.rejects(pending, /OUTBOX_RESULT_UNKNOWN/u)
+  const first = calls.find(([channel]) => channel === 'commandOutbox:revokePreparedBatch')![1]
+  assert.deepEqual(first, { requests: original.map(payload => ({ datasetId: ids[0], command: 'recordingPrepared.revoke', payload })) })
+  assert.deepEqual(await client.submitPreparedRevocations(original), results)
+  assert.equal((calls.filter(([channel]) => channel === 'commandOutbox:revokePreparedBatch')[1]![1] as { retryConfirmed: boolean }).retryConfirmed, true)
+  assert.deepEqual(calls.filter(([channel]) => channel === 'commandOutbox:acknowledge').map(([, value]) => value), ids.map(id => ({ id })))
+  assert.equal(calls.some(([channel]) => channel === 'commandOutbox:submit'), false)
+})
+
+test('PREP批次不确认不完整的成功信封，不把残缺结果当整批成功', async () => {
+  const { createCommandOutboxClient } = await import('../src/preload/command-outbox-client.js')
+  const id = '11111111-1111-4111-8111-111111111111', other = '22222222-2222-4222-8222-222222222222'
+  let acknowledgements = 0
+  const client = createCommandOutboxClient(async channel => {
+    if (channel === 'commandOutbox:context') return { datasetId: id }
+    if (channel === 'commandOutbox:acknowledge') { acknowledgements++; return undefined }
+    return { ok: true, submissions: [{ outboxId: id, result: {} }] }
+  })
+  assert.equal(typeof client.submitPreparedRevocations, 'function')
+  await assert.rejects(client.submitPreparedRevocations([{ commandId: id, id }, { commandId: other, id: other }]), /OUTBOX_RESULT_UNKNOWN/u)
+  assert.equal(acknowledgements, 0)
 })

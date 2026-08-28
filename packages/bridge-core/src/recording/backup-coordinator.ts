@@ -69,6 +69,7 @@ export function createBackupCoordinator(options: { store: BackupWorkflowStore; r
     } finally { clearTimeout(timer); controllers.delete(id); }
   }
   const api = {
+    activationReceipt: (request: ActivateRestoredDataset) => ({ activation: store.activations.receipt(request) }),
     overview: () => store.overview(),
     activate(request: ActivateRestoredDataset): RestoreActivationView {
       if (closed || !options.privateRoot || !isActivateRestoredDataset(request)) return conflict();

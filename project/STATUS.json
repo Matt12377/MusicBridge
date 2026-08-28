@@ -78,35 +78,32 @@
   },
   "v3Development": {
     "wave": "WAVE-5",
-    "task": "TASK-066",
-    "branch": "codex/task-066-backup-restore-workflow",
-    "baseCommit": "abbd2fc230956103a2a22c3c9555e65f9c653a81",
+    "task": "TASK-067",
+    "branch": "codex/task-067-command-outbox",
+    "baseCommit": "a64a31a6f7fca9ae34ea112faba1f9c7a2c530e2",
     "state": "local-automated-pass",
-    "implementationCommit": "5b5dad2abd9116673f4c8883649c6c693dc6f3d3",
-    "reportCommit": "70c22c015b843a2e50872b904d56843dad921010",
+    "implementationCommit": null,
+    "reportCommit": null,
     "previousTask": {
-      "task": "TASK-065",
-      "implementationCommit": "2aa79d23a87f41ad2daacbd063d80ba535a98e98",
-      "reportCommit": "284f98edbf46877c279088dcf361f48485d606b4",
-      "finalCommit": "abbd2fc230956103a2a22c3c9555e65f9c653a81"
+      "task": "TASK-066",
+      "implementationCommit": "5b5dad2abd9116673f4c8883649c6c693dc6f3d3",
+      "reportCommit": "70c22c015b843a2e50872b904d56843dad921010",
+      "finalCommit": "a64a31a6f7fca9ae34ea112faba1f9c7a2c530e2"
     },
     "authorization": "continuous-development-owner-authorized-parallel-sol-high-no-push-no-release",
     "f01": "OWNER_DECISION_PENDING",
     "gates": {
-      "automated": "PASS",
-      "contracts": "77-of-77-pass",
-      "bridgeCore": "818-of-818-pass",
-      "desktop": "186-of-186-pass",
-      "security": "22-of-22-pass",
-      "electron": "4-of-4-pass",
-      "e2e": "50-of-50-pass-fixed-native-no-skips",
-      "e2eTypes": "STANDARD_TYPECHECK_PASS",
+      "automated": "PASS_82_CONTRACTS_827_CORE_279_DESKTOP",
+      "security": "PASS_27",
+      "electron": "PASS_4",
+      "e2e": "PASS_54_FIXED_NATIVE_NO_SKIP",
+      "e2eTypes": "PASS",
       "controlPlane": "PASS_LEGACY_SCOPE",
       "boundaries": "PASS",
-      "cycles": "PASS_170_FILES",
-      "spec": "PASS_BY_ROOT_ADJUDICATION",
-      "quality": "PASS_WITH_BOUNDED_CAPACITY_CARRYOVER_BY_ROOT",
-      "capacity": "TASK_078_GATE_E_PENDING",
+      "cycles": "PASS_178_FILES",
+      "spec": "PASS_BOUNDED_SECOND_REVIEW_AND_ROOT_E2E_ORACLE",
+      "quality": "PASS_BOUNDED_REVIEW_AND_ROOT_ADJUDICATION",
+      "capacity": "R020_TASK_078_GATE_E_PENDING",
       "realProvider": "NOT_RUN",
       "realRoon": "NOT_RUN",
       "realRecording": "NOT_RUN",
@@ -119,33 +116,13 @@
       "完整 Gate E、真实恢复与容量验收待后续",
       "TASK-047 实际歌词与既有视觉 carryover 保留",
       "归档只支持已验证的本地硬链接/fsync 文件系统；多应用实例共写未支持",
-      "R-020 大库冷启扫描与2秒ready策略待TASK-078/Gate E验证",
-      "TASK-067跨重启outbox仍待接续，不等同后台任务账本"
+      "R-020 大库冷启扫描与2秒ready策略待TASK-078/Gate E验证"
     ],
-    "checkpoint": "final-local-commits-locked",
+    "checkpoint": "final-auto-pass-awaiting-local-commits",
     "todo": "project/V3_TODO.md",
-    "nextTask": "TASK-067",
-    "checkpointReport": "reports/TASK-066_PROGRESS.md",
-    "pendingWork": [],
-    "historicalCheckpointGates": {
-      "verify": {
-        "exitCode": 0,
-        "contracts": 74,
-        "core": 746,
-        "desktop": 179
-      },
-      "security": {
-        "exitCode": 0,
-        "tests": 22
-      },
-      "controlPlane": "PASS_LEGACY_SCOPE",
-      "boundaries": "PASS",
-      "cycles": "PASS_165_FILES",
-      "focusedWorkflow": "PASS_12",
-      "newE2E": "FAIL_TEST_HARNESS_GET_BRIDGE_STATE_STOP_AFTER_THREE",
-      "electron": "NOT_RUN_THIS_CANDIDATE",
-      "fullE2E": "NOT_RUN_THIS_CANDIDATE"
-    },
-    "resultReport": "reports/TASK-066_RESULT.md"
+    "nextTask": "TASK-068",
+    "resultReport": "reports/TASK-067_RESULT.md",
+    "checkpointReport": "reports/TASK-067_PROGRESS.md",
+    "pendingWork": []
   }
 }

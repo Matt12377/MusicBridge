@@ -525,3 +525,31 @@ test('激活停止播放失败时不重启 Core，保留当前工作库', async 
   await assert.rejects(supervisor.activateRestoredDataset(request), error => error instanceof CoreIpcError && error.code === 'TIMEOUT')
   assert.deepEqual(calls, ['recordingBackups.activate', 'playback.stop'])
 })
+
+test('原生授权与激活请求把编辑时dataset scope送到Core而不改写', async t => {
+  const harness = makeHarness(), starting = harness.supervisor.start()
+  await new Promise(resolve => setImmediate(resolve)); ready(harness.channels[0]!); await starting
+  const dataset = randomUUID(), request = { commandId: randomUUID(), restoreJobId: randomUUID(), expectedActiveId: null, userConfirmed: true as const, stopPlaybackConfirmed: true as const }
+  const response = harness.supervisor.requestInternal('recordingBackups.activationReceipt', request, dataset)
+  const sent = harness.channels[0]!.port2.sent.at(-1) as { id: string; expectedDatasetId?: string }
+  harness.channels[0]!.port2.receive({ version: IPC_VERSION, id: sent.id, ok: true, result: { activation: null } })
+  assert.deepEqual(await response, { activation: null }); assert.equal(sent.expectedDatasetId, dataset)
+  const calls: unknown[][] = []
+  t.mock.method(harness.supervisor, 'request', async (...args: unknown[]) => { calls.push(args); return { id: randomUUID(), restoreJobId: request.restoreJobId, previousId: null, state: 'failed', issue: 'PREPARATION_FAILED', createdAt: new Date().toISOString() } as never })
+  await harness.supervisor.activateRestoredDataset(request, dataset)
+  assert.deepEqual(calls[0], ['recordingBackups.activate', request, dataset])
+  await harness.supervisor.shutdown()
+})
+
+test('outbox包装保留归档长操作预算，普通控制请求仍按短期限', async () => {
+  const harness = makeHarness(), starting = harness.supervisor.start()
+  await new Promise(resolve => setImmediate(resolve)); ready(harness.channels[0]!); await starting
+  const id = randomUUID(); let settled = false
+  const pending = harness.supervisor.request('commandOutbox.execute', { datasetId: id, command: 'recordingArchive.initialize', payload: { commandId: id, id, userConfirmed: true } }).then(() => { settled = true }, () => { settled = true })
+  await new Promise(resolve => setTimeout(resolve, 45))
+  const early = settled
+  harness.children[0]!.exit(1); await pending
+  // 本条仅测deadline；清理重启子进程不能把timeout判断混在一起。
+  await harness.supervisor.shutdown()
+  assert.equal(early, false, 'outbox内部归档操作不能退回20ms测试短期限')
+})
