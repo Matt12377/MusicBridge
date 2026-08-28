@@ -1,6 +1,6 @@
 # V3 剩余任务 TODO
 
-当前进度：TASK-077本地软件Gate通过（184/1088/601、安全29、Electron4、完整E2E90，双native零skip），正在锁定实现/报告与最终提交；TASK-078只从本任务最终HEAD启动。可听Replica、TASK073真实HAL/Gate B、实体纸张与最终Owner仍待验；旧CDP退出FAIL与R020～023保留。仅本地开发至079，不push、不合并main、不发布；智能体统一GPT-5.6 Sol / High。
+当前进度：TASK-077本地软件Gate通过（184/1088/601、安全29、Electron4、完整E2E90，双native零skip），实现与报告身份已锁定，见STATUS；TASK-078只从本任务最终HEAD启动。可听Replica、TASK073真实HAL/Gate B、实体纸张与最终Owner仍待验；旧CDP退出FAIL与R020～023保留。仅本地开发至079，不push、不合并main、不发布；智能体统一GPT-5.6 Sol / High。
 
 本表是任务拆分与依赖计划，不是完成声明。后续任务沿上一任务最终 HEAD 创建独立分支；当前已展开 TASK-064～077，其余任务开始前补详细范围和允许路径。具体子任务可根据已验证结果细分，不删减 PRD 范围。
 

@@ -83,7 +83,7 @@
     "baseCommit": "323b8852b10baff356418edd02625b6b19fa6d9e",
     "state": "local-software-gates-pass-paper-owner-pending",
     "implementationCommit": "8d8c6730d4c21effe5b8dc1a0d89859ed2858df2",
-    "reportCommit": null,
+    "reportCommit": "437f9d571860e89dcd31d266c2013223c8880f4a",
     "previousTask": {
       "task": "TASK-076",
       "implementationCommit": "8aef55b44ab147c6e07d28c541473030cbce0c6a",
@@ -139,7 +139,7 @@
       "TASK077排版预览包含浏览器滚动条，真实PDF不含；TASK078处理未来预览，既有Artifact/PDF不重写"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task077-implementation-committed-report-ready",
+    "checkpoint": "task077-implementation-report-identity-locked-next078",
     "nextTask": "TASK-078",
     "resultReport": "reports/TASK-077_RESULT.md",
     "candidateFingerprint": "de23b454e9ac2190473d8bc76c7181a12b66f2617cd5a5ccaafb7784a9f4b941"
