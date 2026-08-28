@@ -78,17 +78,17 @@
   },
   "v3Development": {
     "wave": "WAVE-5",
-    "task": "TASK-063",
-    "branch": "codex/task-063-archive-workflow",
-    "baseCommit": "4cdffc25cae80aa80003d1b331025d1a9b5fbcd3",
+    "task": "TASK-064",
+    "branch": "codex/task-064-backup-foundation",
+    "baseCommit": "37bd9a03466a0b2c12a1868fe5b68a272da3dfc7",
     "state": "local-automated-pass",
-    "implementationCommit": "ddee7e5f724bedbeb155c310f3a90873cd91b7ab",
-    "reportCommit": "b85332f7dad0d49dc0c66c12a728997b47fa6ab9",
+    "implementationCommit": null,
+    "reportCommit": null,
     "previousTask": {
-      "task": "TASK-062",
-      "implementationCommit": "62a20a6db58c5a94a537f84032931e89da20a5b4",
-      "reportCommit": "9398335fe80a56aea3369b40565882d75fb61522",
-      "finalCommit": "4cdffc25cae80aa80003d1b331025d1a9b5fbcd3"
+      "task": "TASK-063",
+      "implementationCommit": "ddee7e5f724bedbeb155c310f3a90873cd91b7ab",
+      "reportCommit": "b85332f7dad0d49dc0c66c12a728997b47fa6ab9",
+      "finalCommit": "37bd9a03466a0b2c12a1868fe5b68a272da3dfc7"
     },
     "authorization": "continuous-development-until-owner-acceptance-no-push-no-release-zero-subagents",
     "f01": "OWNER_DECISION_PENDING",
@@ -99,16 +99,14 @@
       "realRecording": "NOT_RUN",
       "ownerProductAcceptance": "NOT_RUN",
       "contracts": "71/71",
-      "bridgeCore": "704/704",
-      "archiveFilesAndTransactions": "26/26-in-full-core",
-      "archiveRootWorkflow": "23/23-in-full-core",
+      "bridgeCore": "721/721",
       "desktop": "179/179",
+      "security": "22/22",
       "electron": "4/4",
       "playwright": "49/49_FIXED_NATIVE_BUNDLE",
-      "security": "22/22",
       "controlPlane": "PASS_WAVE_3_ONLY",
       "boundaries": "PASS",
-      "cycles": "PASS_155_FILES"
+      "cycles": "PASS_159_FILES"
     },
     "carryover": [
       "完整 V3 范围保持；仅本地顺序推进",
@@ -118,6 +116,8 @@
       "TASK-047 实际歌词与既有视觉 carryover 保留",
       "归档只支持已验证的本地硬链接/fsync 文件系统；多应用实例共写未支持"
     ],
-    "checkpoint": "archive-workflow-local-gates-pass-full-v3-and-owner-pending"
+    "checkpoint": "backup-foundation-local-gates-pass-restore-ui-and-owner-pending",
+    "todo": "project/V3_TODO.md",
+    "nextTask": "TASK-065"
   }
 }

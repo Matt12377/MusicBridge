@@ -1,3 +1,5 @@
+import { createCollectionSnapshot, type CollectionSnapshot } from '../recording/backup-snapshot.js';
+import type { RootCapability } from '../recording/source-files.js';
 import { archiveWorkflowMigration } from '../recording/archive-workflow-store.js';
 import { archiveMigration, createArchiveStore, type ArchiveStore } from '../recording/archive-store.js';
 import { executionMigration, createExecutionStore, type ExecutionStore } from '../recording/execution-store.js';
@@ -56,6 +58,7 @@ export interface CollectionRepository {
   materialize(request: CollectionMaterializeRequest): CollectionMutationResult;
   updateCopy(request: CollectionUpdateCopyRequest): CollectionMutationResult;
   setPolicy(request: CollectionPolicyRequest): CollectionMutationResult;
+  backupSnapshot(destination: RootCapability): Promise<CollectionSnapshot>;
   close(): void;
 }
 interface ModelRow { id: string; descriptor: string; policy: CollectorPolicy; minimum_sealed: number; revision: number }
@@ -140,6 +143,7 @@ function paged<T>(items: T[], page: PageRequest, total: number): Page<T> {
 export function createCollectionRepository(options: { filePath: string; beforeCommit?: (action: string) => void }): CollectionRepository {
   let database: DatabaseSync | undefined;
   let closed = false;
+  let activeSnapshots = 0;
 
   function open(): DatabaseSync {
     if (closed) return unavailable();
@@ -486,6 +490,18 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
         return { result: { modelId: request.modelId, photoId: request.photoId }, evidence: { kind: request.action === 'remove' ? 'PHOTO_REMOVED' : 'FEATURED_PHOTO', photoId: request.photoId } };
       });
     },
-    close() { database?.close(); database = undefined; closed = true; },
+    backupSnapshot(destination) {
+      return guarded(db => {
+        activeSnapshots++;
+        return createCollectionSnapshot(db, destination).finally(() => {
+          activeSnapshots--;
+          if (closed && activeSnapshots === 0) { database?.close(); database = undefined; }
+        });
+      });
+    },
+    close() {
+      closed = true;
+      if (activeSnapshots === 0) { database?.close(); database = undefined; }
+    },
   };
 }

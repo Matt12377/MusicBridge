@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdtemp, rm, stat, symlink } from 'node:fs/promises';
+import { mkdtemp, rm, stat, symlink, mkdir, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
@@ -9,6 +9,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import type { CollectionReceiveRequest } from '@music-bridge/contracts';
 import { createCollectionRepository } from '../src/collection/repository.js';
+import { authorizeSourceDirectory } from '../src/recording/source-files.js';
 
 const page = { offset: 0, limit: 100 };
 const photoImage = { dataUrl: 'data:image/jpeg;base64,/9j/2Q==', width: 1, height: 1 };
@@ -668,4 +669,54 @@ test('分面迁移从 schema 6 原子升级，失败不改变草稿与库存，�
       for (const table of ['inventory_ledger', 'media_ledger']) { assert.throws(() => check.prepare(`DELETE FROM ${table} WHERE command_id=?`).run(request.commandId)); assert.throws(() => check.prepare(`UPDATE ${table} SET fingerprint=? WHERE command_id=?`).run('x', request.commandId)); }
     } finally { check.close(); }
   } finally { restored.close(); }
+});
+
+
+test('一致性快照包含尚在 WAL 的库存与账本，之后写入不改变快照', async t => {
+  const { repository, directory, filePath } = await fixture(t);
+  assert.equal(typeof repository.backupSnapshot, 'function', '生产仓库尚无一致性快照边界');
+  const stock = repository.receive(receipt());
+  assert.ok((await stat(filePath + '-wal')).size > 0);
+  const destination = path.join(directory, '备份'); await mkdir(destination);
+  const snapshot = await repository.backupSnapshot({ ...await authorizeSourceDirectory(destination), id: randomUUID() });
+  assert.equal(snapshot.relative, 'collection.sqlite');
+  const bytes = await readFile(path.join(destination, snapshot.relative));
+  assert.equal(snapshot.sha256, createHash('sha256').update(bytes).digest('hex'));
+  repository.receive(receipt({ model: { ...receipt().model, name: '后续录入' } }));
+  const db = new DatabaseSync(path.join(destination, snapshot.relative), { readOnly: true });
+  try {
+    assert.equal(db.prepare('SELECT count(*) n FROM collection_models').get()?.n, 1);
+    assert.equal(db.prepare('SELECT sum(l.sealed) n FROM inventory_lots l JOIN collection_skus s ON s.id=l.sku_id WHERE s.model_id=?').get(stock.modelId)?.n, 8);
+    assert.equal(db.prepare('SELECT count(*) n FROM inventory_ledger').get()?.n, 1);
+    assert.equal(db.prepare('PRAGMA integrity_check').get()?.integrity_check, 'ok');
+    assert.equal(db.prepare('PRAGMA foreign_key_check').all().length, 0);
+  } finally { db.close(); }
+  assert.deepEqual(await readFile(path.join(destination, snapshot.relative)), bytes);
+  assert.equal((await stat(path.join(destination, snapshot.relative))).mode & 0o777, 0o600);
+});
+
+test('快照拒绝覆盖既有文件或符号链接，原文件保持不变', async t => {
+  const { repository, directory } = await fixture(t);
+  assert.equal(typeof repository.backupSnapshot, 'function');
+  repository.receive(receipt());
+  const destination = path.join(directory, '备份'); await mkdir(destination);
+  const root = { ...await authorizeSourceDirectory(destination), id: randomUUID() }, file = path.join(destination, 'collection.sqlite');
+  await writeFile(file, '已有用户数据');
+  await assert.rejects(repository.backupSnapshot(root));
+  assert.equal(await readFile(file, 'utf8'), '已有用户数据');
+  await rm(file); const original = path.join(directory, '原文件'); await writeFile(original, '不能覆盖'); await symlink(original, file);
+  await assert.rejects(repository.backupSnapshot(root));
+  assert.equal(await readFile(original, 'utf8'), '不能覆盖');
+});
+
+test('快照开始后关闭仓库等待备份释放连接，不接受新的读写', async t => {
+  const { repository, directory } = await fixture(t);
+  assert.equal(typeof repository.backupSnapshot, 'function');
+  repository.receive(receipt());
+  const destination = path.join(directory, '备份'); await mkdir(destination);
+  const pending = repository.backupSnapshot({ ...await authorizeSourceDirectory(destination), id: randomUUID() });
+  repository.close();
+  assert.throws(() => repository.list(page));
+  const result = await pending;
+  assert.ok(result.size > 0);
 });
