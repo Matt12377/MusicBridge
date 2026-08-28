@@ -111,6 +111,19 @@
       "enableEmbeddedAsarIntegrityValidation": true,
       "onlyLoadAppFromAsar": true,
       "grantFileProtocolExtraPrivileges": false
-    }
+    },
+    "beforePack": "./scripts/native-converter-package.mjs",
+    "extraResources": [
+      {
+        "from": "native/ffmpeg/darwin-arm64",
+        "to": "ffmpeg/darwin-arm64",
+        "filter": [
+          "manifest.json",
+          "bin/*",
+          "lib/*",
+          "legal/*"
+        ]
+      }
+    ]
   }
 }

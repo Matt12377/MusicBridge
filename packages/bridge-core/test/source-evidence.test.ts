@@ -129,6 +129,32 @@ test('截断 WAV 不能凭头部声明的时长生成可确认的证据', async 
   assert.equal((await f.service.snapshot(selection.draftId)).tracks[0]!.binding, undefined);
 });
 
+test('源探测不得把高位魔数或不存在的 16-bit IEEE 浮点当成可用音频', async t => {
+  const f = await fixture(t), root = f.repository.sources.root(f.root.id);
+  for (const offset of [0, 8, 12, 36, -1]) {
+    const bytes = Buffer.from(f.audio);
+    if (offset < 0) bytes.writeUInt16LE(3, 20);
+    else bytes[offset] = bytes[offset]! | 0x80;
+    await writeFile(f.file, bytes);
+    await assert.rejects(probeReadonlySource(root, 'actual-source.wav', new AbortController().signal), e => e instanceof SourceFileError && e.code === 'UNSUPPORTED', `无效头部位置 ${offset}`);
+    assert.deepEqual(await readFile(f.file), bytes);
+  }
+});
+
+test('源探测保留 32/64-bit IEEE 浮点的容器帧证据，不宣称实际解码通过', async t => {
+  const f = await fixture(t), root = f.repository.sources.root(f.root.id);
+  for (const bits of [32, 64]) {
+    const frames = 441, bytes = Buffer.alloc(44 + frames * 2 * bits / 8); f.audio.copy(bytes, 0, 0, 44);
+    bytes.writeUInt32LE(bytes.length - 8, 4); bytes.writeUInt16LE(3, 20); bytes.writeUInt32LE(44100 * 2 * bits / 8, 28);
+    bytes.writeUInt16LE(2 * bits / 8, 32); bytes.writeUInt16LE(bits, 34); bytes.writeUInt32LE(bytes.length - 44, 40);
+    await writeFile(f.file, bytes);
+    const evidence = await probeReadonlySource(root, 'actual-source.wav', new AbortController().signal);
+    assert.equal(evidence.technical.codec, 'IEEE_FLOAT'); assert.equal(evidence.technical.bitsPerSample, bits);
+    assert.equal(evidence.technical.sampleFrames, frames); assert.equal(evidence.technical.frameEvidence, 'container-declared');
+    assert.equal(evidence.sha256, createHash('sha256').update(bytes).digest('hex'));
+  }
+});
+
 test('超过头部缓存的大 WAV 仍按真实数据块探测完整时长，而不是前缀长度', async t => {
   const f = await fixture(t), selection = f.selection(), large = wav(120);
   await writeFile(f.file, large); f.service.start(selection, f.file); await f.service.idle();

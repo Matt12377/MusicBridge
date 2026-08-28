@@ -3,8 +3,9 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch 
 import type {
   MasterDraft, VersionHistory, PreparedHistory, PreparationDestination,
   ExecutionHistory, ExecutionJob, ExecutionProposal, ExecutionAssetCheck,
-  RecordingSessionSettings, StartExecutionRequest,
+  RecordingSessionSettings, StartExecutionRequest, ExecutionMode, ExecutionAssetRecipe,
 } from '@music-bridge/contracts'
+import { executionFrameLimit } from '@music-bridge/contracts'
 import RecordingProfileSettings from './RecordingProfileSettings.vue'
 
 const props = defineProps<{ draft: MasterDraft }>()
@@ -15,7 +16,8 @@ const history = shallowRef<ExecutionHistory>()
 const destinations = shallowRef<readonly PreparationDestination[]>([])
 const session = shallowRef<RecordingSessionSettings | null>(null)
 const layoutId = ref(''), destinationId = ref(''), preparedId = ref('')
-const mode = ref<'direct' | 'prepared-reference'>('direct')
+const mode = ref<ExecutionMode>('direct')
+const usesPrepared = computed(() => mode.value === 'prepared-reference' || mode.value === 'prepared-derivative')
 const loading = ref(true), busy = ref(false), error = ref(''), notice = ref('')
 const profileState = ref({ busy: true, dirty: false })
 const pending = shallowRef<() => Promise<void>>()
@@ -28,15 +30,22 @@ const compatiblePreps = computed(() => prepared.value?.preps.filter(p => p.layou
 const running = computed(() => history.value?.jobs.filter(j => j.state === 'running') ?? [])
 const externalBusy = computed(() => loading.value || busy.value || !!pending.value || !!readId.value)
 const blocked = computed(() => externalBusy.value || profileState.value.busy)
-const canPreview = computed(() => !blocked.value && !profileState.value.dirty && !!session.value && !!layout.value && !!destination.value?.authorized && (mode.value === 'direct' || compatiblePreps.value.some(p => p.id === preparedId.value)))
+const canPreview = computed(() => !blocked.value && !profileState.value.dirty && !!session.value && !!layout.value && !!destination.value?.authorized && (!usesPrepared.value || compatiblePreps.value.some(p => p.id === preparedId.value)))
 const closeBlocked = computed(() => busy.value || !!pending.value || profileState.value.busy || !!readId.value)
 const size = (bytes: number): string => bytes < 1024 ** 3 ? `${(bytes / 1024 ** 2).toFixed(1)} MiB` : `${(bytes / 1024 ** 3).toFixed(2)} GiB`
 const short = (id: string): string => id.slice(0,8)
 const failures: Record<NonNullable<ExecutionJob['failure']>, string> = {
   SOURCE_INVALID: '源文件或读取授权失效', DESTINATION_INVALID: '目标或保留原件授权失效',
-  INPUT_CHANGED: '输入内容已改变', CONVERSION_REQUIRED: '需要尚未接入的格式转换',
+  INPUT_CHANGED: '输入内容已改变', CONVERSION_REQUIRED: '固定转换器未配置、构建已改变或不支持此转换',
   IO_ERROR: '读取、写入或总体时限检查失败', DISK_FULL: '目标磁盘空间不足',
   CANCELLED: '已取消', ASSET_INVALID: '发布文件或原始 Render 完整性验证失败',
+}
+const modeLabels: Record<ExecutionMode, string> = { direct: 'Direct 编译', 'direct-converted': 'Direct 转换编译', 'prepared-reference': 'Prepared 原件引用', 'prepared-derivative': 'PREP 独立派生' }
+function framesText(recipe: ExecutionAssetRecipe): string {
+  return recipe.schemaVersion === 1 ? `${recipe.totalFrames.toLocaleString()} 帧` : `预计 ${recipe.minimumFrames.toLocaleString()}–${recipe.maximumFrames.toLocaleString()} 帧；发布后记录实际帧数`
+}
+function conversionPlans(recipe: ExecutionAssetRecipe) {
+  return recipe.schemaVersion === 2 ? recipe.segments.flatMap(s => s.kind === 'silence' ? [] : [s.conversion]) : []
 }
 function statusText(job: ExecutionJob): string {
   if (job.state === 'completed') return '执行资产已发布；尚未获得正式录音许可。'
@@ -101,9 +110,11 @@ async function preview(): Promise<void> {
   const id = crypto.randomUUID(), token = ++generation
   readId.value = id; readPurpose.value = '正在完整读取并核对源音频'; error.value = ''; notice.value = ''; invalidate()
   const request = { readId: id, layoutVersionId: layoutId.value, destinationId: destinationId.value, mode: mode.value,
-    sessionRevision: session.value.revision, ...(mode.value === 'prepared-reference' ? { preparedVersionId: preparedId.value } : {}) }
+    sessionRevision: session.value.revision, ...(usesPrepared.value ? { preparedVersionId: preparedId.value } : {}) }
   try { const result = await api.previewExecutionAsset(request); if (alive && token === generation) proposal.value = result }
-  catch { if (alive && token === generation) error.value = '无法准备此格式。请检查源音频与 Profile 的采样率、声道和位深是否一致，以及预留和目录授权是否有效；当前不做隐式格式转换。' }
+  catch { if (alive && token === generation) error.value = mode.value === 'direct-converted' || mode.value === 'prepared-derivative'
+    ? '转换预览未通过。需要 Core 配置已核定的固定转换器，并核对源格式、Profile 参数、预留与目录授权；不会自动启用系统 FFmpeg。'
+    : '无法准备此格式。请检查源音频与 Profile 的采样率、声道和位深是否一致，以及预留和目录授权是否有效；需要转换时请明确选择转换执行。' }
   finally { if (alive && readId.value === id) readId.value = '' }
 }
 function start(): void {
@@ -162,15 +173,17 @@ onBeforeUnmount(() => {
       <fieldset :disabled="blocked">
         <div class="fields">
           <label>冻结布局<select v-model="layoutId"><option value="">先冻结母版与布局</option><option v-for="item in versions?.layouts" :key="item.id" :value="item.id">M{{ versions?.masters.find(m => m.id === item.masterVersionId)?.sequence }} · L{{ item.sequence }} · {{ item.spec.format === 'cassette' ? 'A / B' : 'DAT Program' }} · {{ short(item.id) }}</option></select></label>
-          <label>执行来源<select v-model="mode"><option value="direct">Direct · 从冻结源文件编译</option><option value="prepared-reference">Prepared · 引用原始 Render</option></select></label>
-          <label v-if="mode === 'prepared-reference'">兼容 PREP<select v-model="preparedId"><option value="">选择此布局的 Frozen PREP</option><option v-for="item in compatiblePreps" :key="item.id" :value="item.id">PREP {{ item.sequence }} · {{ item.conformance.status }} · {{ short(item.id) }}</option></select></label>
+          <label>执行来源<select v-model="mode"><option value="direct">Direct · 从冻结源文件编译</option><option value="direct-converted">Direct 转换 · 固定格式后编译</option><option value="prepared-reference">Prepared · 引用原始 Render</option><option value="prepared-derivative">PREP 派生 · 独立转换文件</option></select></label>
+          <label v-if="usesPrepared">兼容 PREP<select v-model="preparedId"><option value="">选择此布局的 Frozen PREP</option><option v-for="item in compatiblePreps" :key="item.id" :value="item.id">PREP {{ item.sequence }} · {{ item.conformance.status }} · {{ short(item.id) }}</option></select></label>
           <label>执行目标<select v-model="destinationId"><option value="">选择保存目录</option><option v-for="item in destinations" :key="item.id" :value="item.id">{{ item.label }} · {{ short(item.id) }}{{ item.authorized ? '' : ' · 已撤权' }}</option></select></label>
         </div>
         <div class="actions"><button @click="chooseDestination">选择执行目标</button><button class="primary" :disabled="!canPreview || running.length >= 2" @click="preview">预览执行资产</button></div>
       </fieldset>
       <p v-if="!session || profileState.dirty" class="muted">请先保存并确认本次参数；未保存的编辑不会参与编译。</p>
       <p v-if="mode === 'direct'" class="muted">Direct 写入新的逐面 PCM 音频，按执行采样率计算冻结的留白。当前仅支持同格式整数 PCM，不改变原文件。</p>
-      <p v-else class="muted">Prepared 完整验证保留的原始 Render，并保存引用清单；不二次复制，不再次插入 Gap。没有兼容 PREP 时不能继续。</p>
+      <p v-else-if="mode === 'direct-converted'" class="muted">Direct 转换先保存逐曲中间文件，再插入冻结的数字零留白并编译。需已核定的固定转换器；不会隐式启用系统 FFmpeg，不改源文件，不自动清理中间文件。</p>
+      <p v-else-if="mode === 'prepared-reference'" class="muted">Prepared 完整验证保留的原始 Render，并保存引用清单；不二次复制，不再次插入 Gap。没有兼容 PREP 时不能继续。</p>
+      <p v-else class="muted">PREP 派生从保留的实际 Render 生成独立转换文件，原件保持不变，绝不再次插入 Gap。需兼容 PREP 和已核定的固定转换器。</p>
       <button v-if="destination?.authorized" :disabled="busy || !!pending || profileState.busy" @click="revokeDestination">撤销此目录授权（不删文件）</button>
     </section>
 
@@ -182,9 +195,22 @@ onBeforeUnmount(() => {
         <div><dt>音频格式</dt><dd>{{ proposal.settings.format.sampleRate.toLocaleString() }} Hz · {{ proposal.settings.format.channelLayout }} · {{ proposal.settings.format.outputSampleFormat }}</dd></div>
         <div><dt>计划后端（未认证）</dt><dd>{{ proposal.settings.format.outputBackend.id }} · {{ proposal.settings.format.outputBackend.version }}</dd></div>
         <div><dt>精度 / 重采样 / Dither</dt><dd>{{ proposal.settings.format.internalProcessingPrecision }} · {{ proposal.settings.format.resamplerImplementation }} / {{ proposal.settings.format.resamplerVersion }} · {{ proposal.settings.format.ditherPolicy }}</dd></div>
-        <div><dt>目标与空间</dt><dd>{{ proposal.destinationLabel }} · 新写音频 {{ size(proposal.audioBytesToWrite) }} · 引用原件 {{ size(proposal.referencedAudioBytes) }}<small>另需少量清单空间；发布前再次检查。</small></dd></div>
+        <div><dt>目标与空间</dt><dd>{{ proposal.destinationLabel }} · 新写音频预算 {{ size(proposal.audioBytesToWrite) }} · 引用原件 {{ size(proposal.referencedAudioBytes) }}<small>转换预算含中间文件；另需少量清单空间，发布前再次检查。</small></dd></div>
       </dl>
-      <div class="side-list"><article v-for="recipe in proposal.recipes" :key="recipe.side"><strong>{{ recipe.side }} {{ recipe.totalFrames ? '' : '· 空面，不生成文件' }}</strong><p>{{ recipe.totalFrames.toLocaleString() }} / {{ recipe.capacityFrames.toLocaleString() }} 帧</p><p v-if="recipe.totalFrames">{{ (recipe.totalFrames / recipe.format.sampleRate).toFixed(3) }} 秒 · {{ recipe.segments.filter(s => s.kind === 'silence' && s.reason === 'gap').length }} 段 Gap</p></article></div>
+      <div class="side-list"><article v-for="recipe in proposal.recipes" :key="recipe.side">
+        <strong>{{ recipe.side }} {{ executionFrameLimit(recipe) ? '' : '· 空面，不生成文件' }}</strong>
+        <p>{{ framesText(recipe) }} / 容量 {{ recipe.capacityFrames.toLocaleString() }} 帧</p>
+        <p v-if="executionFrameLimit(recipe)">最长 {{ (executionFrameLimit(recipe) / recipe.format.sampleRate).toFixed(3) }} 秒 · {{ recipe.segments.filter(s => s.kind === 'silence' && s.reason === 'gap').length }} 段 Gap</p>
+        <details v-if="conversionPlans(recipe).length"><summary>{{ recipe.side }} 面转换计划与构建身份</summary>
+          <div v-for="(conversion,index) in conversionPlans(recipe)" :key="index" class="audio-detail">
+            <p>输入 {{ index + 1 }}：{{ conversion.input.technical.container }} / {{ conversion.input.technical.codec }} · {{ conversion.input.technical.sampleRate }} Hz · {{ conversion.input.technical.channels }} 声道 · {{ conversion.input.technical.bitsPerSample }} bit</p>
+            <p>输出：{{ conversion.format.sampleRate }} Hz · {{ conversion.format.outputSampleFormat }} · {{ conversion.format.channelMapping }}</p>
+            <p>精度 {{ conversion.format.internalProcessingPrecision }} · SRC {{ conversion.format.resamplerImplementation }} / {{ conversion.format.resamplerVersion }} · Dither {{ conversion.format.ditherPolicy }}</p>
+            <p>固定转换器 {{ conversion.converter.id }} / {{ conversion.converter.version }}（未认证）</p>
+            <p>源 SHA-256</p><code>{{ conversion.input.sha256 }}</code><p>构建 SHA-256</p><code>{{ conversion.converter.buildSha256 }}</code>
+          </div>
+        </details>
+      </article></div>
       <p class="muted">手动预卷 {{ proposal.settings.effective.preRollMs / 1000 }} 秒不写入音频。校准：{{ proposal.settings.effective.calibration ?? '未设定' }}。链路：{{ proposal.settings.effective.signalChain.map(s => s.label).join(' → ') }}。</p>
       <label class="check"><input v-model="confirmed" type="checkbox" :disabled="blocked">我确认准备上述执行资产；不开始录音，不自动删除文件</label>
       <button class="primary" :disabled="!confirmed || !canPreview || running.length >= 2" @click="start">确认并准备执行资产</button>
@@ -200,7 +226,7 @@ onBeforeUnmount(() => {
       <p class="muted">历史保留发布时使用的版本与参数。文件此刻是否仍可用，需要重新验证；验证通过也不解锁正式录音。</p>
       <p v-if="history && !history.assets.length" class="muted">尚无已发布执行资产。</p>
       <article v-for="(asset,i) in history?.assets" :key="asset.id" class="asset">
-        <div class="asset-heading"><h4>执行资产 {{ (history?.assets.length ?? 0) - i }}</h4><span>{{ asset.mode === 'direct' ? 'Direct 编译' : 'Prepared 原件引用' }}</span></div>
+        <div class="asset-heading"><h4>执行资产 {{ (history?.assets.length ?? 0) - i }}</h4><span>{{ modeLabels[asset.mode] }}</span></div>
         <p>{{ asset.settings.profile.content.name }} · v{{ asset.settings.profile.sequence }} · {{ asset.settings.format.sampleRate.toLocaleString() }} Hz · {{ asset.settings.format.outputSampleFormat }}</p>
         <p class="muted">{{ new Date(asset.createdAt).toLocaleString() }} · M {{ short(asset.masterVersionId) }} / L {{ short(asset.layoutVersionId) }} · {{ asset.audio.length }} 份非空音频</p>
         <p class="muted">降噪 {{ asset.settings.effective.noiseReduction ?? '未设定' }} · 校准 {{ asset.settings.effective.calibration ?? '未设定' }} · 电平 {{ asset.settings.effective.recordLevel ?? '未设定' }} · 手动预卷 {{ asset.settings.effective.preRollMs / 1000 }} 秒</p>

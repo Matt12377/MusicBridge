@@ -12,8 +12,11 @@ import { createCollectionRepository } from '../src/collection/repository.js';
 import { compileExecutionFile } from '../src/recording/preparation-files.js';
 import { createPreparedCoordinator } from '../src/recording/prepared-coordinator.js';
 import { pcmWaveHeader } from '../src/recording/execution-wave.js';
+import { conversionFixture } from './helpers/conversion-fixture.js';
+import type { FfmpegConverter } from '../src/recording/audio-converter.js';
+import { executionPublicationComplete } from '../src/recording/execution-store.js';
 
-type Hooks = { compile?: typeof compileExecutionFile; afterPublish?: () => Promise<void>; operationTimeoutMs?: number };
+type Hooks = { compile?: typeof compileExecutionFile; afterPublish?: () => Promise<void>; operationTimeoutMs?: number; converter?: FfmpegConverter };
 async function setup(t: test.TestContext, options: Hooks & { beforeCommit?: (action: string) => void; emptyB?: boolean; format?: 'cassette' | 'dat' } = {}) {
   const f = await preparationFixture(t, options), v = await f.freeze(); await f.versions.idle();
   assert.ok('execution' in f.repository, '缺少持久化执行资产仓库');
@@ -147,4 +150,107 @@ test('预览转换需求以公开 BAD_REQUEST 拒绝；后续编译故障保留�
   await f.execution.idle(); assert.equal(f.execution.job(job.id).job!.failure, 'DISK_FULL');
   const profile = f.repository.recordingProfiles.save({ commandId: randomUUID(), content: recordingProfileContent(48000), userConfirmed: true }), session = f.repository.recordingProfiles.saveSession({ commandId: randomUUID(), draftId: f.draft.draftId, expectedRevision: 1, profileVersionId: profile.id, overrides: {}, userConfirmed: true });
   await assert.rejects(f.execution.preview({ ...f.selection, sessionRevision: session.revision, readId: randomUUID() }), error => error instanceof Error && 'code' in error && error.code === 'BAD_REQUEST' && error.message.includes('转换'));
+});
+
+test('V2 转换任务明确预览后发布所有中间文件和最终音频，命令幂等且无路径泄漏', async t => {
+  const f=await setup(t,{converter:conversionFixture()}),selection={...f.selection,mode:'direct-converted' as const};
+  const proposal=await f.execution.preview({...selection,readId:randomUUID()});
+  assert.equal(isExecutionProposal(proposal),true);assert.deepEqual(await readdir(f.target),[]);
+  const request={...selection,commandId:randomUUID(),proposalFingerprint:proposal.proposalFingerprint,userConfirmed:true as const};
+  const job=await f.execution.start(request);await f.execution.idle();
+  const stored=f.repository.execution.job(job.id)!,history=f.execution.list(f.draft.draftId);
+  assert.equal(history.jobs[0]!.state,'completed',JSON.stringify({job:stored.public,files:stored.files,audio:stored.audio.length}));assert.equal(isExecutionHistory(history),true);
+  assert.equal(stored.files.length,5);assert.equal(executionPublicationComplete(stored),true);
+  assert.equal(executionPublicationComplete({...stored,files:stored.files.slice(1)}),false);
+  assert.equal(history.assets[0]!.recipes.every(r=>r.schemaVersion===2),true);
+  assert.deepEqual(await f.execution.start(request),history.jobs[0]);assert.equal((await readdir(f.target)).length,1);
+  assert.equal((await f.execution.verify({assetId:job.id,readId:randomUUID()})).state,'verified');
+  assert.ok(!JSON.stringify(history).includes(f.directory));
+});
+
+test('V2 发布后提交中断只补交，不重读原源或重新转换；中间文件也属于完整性边界', async t => {
+  let fail=true,calls=0;const converter=conversionFixture(),convert=converter.convert;
+  converter.convert=async(...args)=>{calls++;return convert(...args);};
+  const f=await setup(t,{converter,beforeCommit:action=>{if(fail&&action==='finish-execution')throw new Error('合成提交中断');}}),selection={...f.selection,mode:'direct-converted' as const};
+  const proposal=await f.execution.preview({...selection,readId:randomUUID()}),request={...selection,commandId:randomUUID(),proposalFingerprint:proposal.proposalFingerprint,userConfirmed:true as const};
+  const job=await f.execution.start(request);await f.execution.idle();assert.equal(f.execution.job(job.id).job!.state,'interrupted');
+  const count=calls;await f.execution.close();await rm(f.sourcePath,{recursive:true});fail=false;
+  const resumed=f.make(f.repository,{converter});
+  try {
+    await resumed.idle();assert.equal(resumed.job(job.id).job!.state,'completed');assert.equal(calls,count);
+    const stored=f.repository.execution.job(job.id)!,intermediate=stored.files.find(file=>file.relative.endsWith('.converted.wav'))!;
+    const filename=path.join(stored.owned!.root.path,intermediate.relative),bytes=await readFile(filename);bytes[44]=1;await writeFile(filename,bytes);
+    assert.equal((await resumed.verify({assetId:job.id,readId:randomUUID()})).state,'unavailable');
+  }finally{await resumed.close();}
+});
+
+test('V2 PREP Derivative 使用实际 Render 位深生成独立文件，保留原件且不加 Gap', async t => {
+  const f=await preparedSetup(t,{converter:conversionFixture(),emptyB:true});
+  const original=await readFile(path.join(f.imported.owned!.root.path,f.imported.files[0]!.relative));
+  const content=recordingProfileContent(48000);content.executionFormat={...content.executionFormat,internalProcessingPrecision:'float64',outputSampleFormat:'pcm-s24le',resamplerImplementation:'ffmpeg-swr',resamplerVersion:'6.3.102'};
+  const profile=f.repository.recordingProfiles.save({commandId:randomUUID(),content,userConfirmed:true}),session=f.repository.recordingProfiles.saveSession({commandId:randomUUID(),draftId:f.draft.draftId,expectedRevision:f.selection.sessionRevision,profileVersionId:profile.id,overrides:{},userConfirmed:true});
+  const selection={...f.selection,mode:'prepared-derivative' as const,sessionRevision:session.revision},proposal=await f.execution.preview({...selection,readId:randomUUID()});
+  assert.ok(proposal.audioBytesToWrite>0);assert.equal(proposal.referencedAudioBytes,original.length);
+  const job=await f.execution.start({...selection,commandId:randomUUID(),proposalFingerprint:proposal.proposalFingerprint,userConfirmed:true});await f.execution.idle();
+  assert.equal(f.execution.job(job.id).job!.state,'completed');const asset=f.execution.list(f.draft.draftId).assets[0]!;
+  assert.equal(asset.audio[0]!.origin,'derived-render');assert.equal(asset.audio[0]!.audio.frameCount,Math.ceil(f.prep.assets[0]!.totalFrames/2));
+  assert.equal(asset.recipes[0]!.segments.length,1);assert.equal(f.repository.execution.job(job.id)!.files[0]!.relative,'Audio/A.derivative.wav');
+  assert.deepEqual(await readFile(path.join(f.imported.owned!.root.path,f.imported.files[0]!.relative)),original);
+});
+
+test('V2 未配置固定转换器时明确拒绝，不自动搜索或启用系统 FFmpeg', async t => {
+  const f=await setup(t);
+  await assert.rejects(f.execution.preview({...f.selection,mode:'direct-converted',readId:randomUUID()}),error=>error instanceof Error&&error.message.includes('转换器'));
+  assert.deepEqual(await readdir(f.target),[]);assert.equal(f.execution.list(f.draft.draftId).jobs.length,0);
+});
+
+test('V2 转换中取消、源撤权或目标撤权均不发布，冷启动不重放部分文件', async t => {
+  for (const action of ['cancel', 'source', 'destination'] as const) {
+    let entered!: () => void, release!: () => void;
+    const seen = new Promise<void>(resolve => { entered = resolve; });
+    const wait = new Promise<void>(resolve => { release = resolve; });
+    const fixture = conversionFixture();
+    const converter: FfmpegConverter = { ...fixture, convert: async (...args) => { entered(); await wait; return fixture.convert(...args); } };
+    const f = await setup(t, { converter }), selection = { ...f.selection, mode: 'direct-converted' as const };
+    const proposal = await f.execution.preview({ ...selection, readId: randomUUID() });
+    const job = await f.execution.start({ ...selection, commandId: randomUUID(), proposalFingerprint: proposal.proposalFingerprint, userConfirmed: true });
+    await seen;
+    if (action === 'source') await f.sources.revoke({ commandId: randomUUID(), id: f.root.id });
+    else if (action === 'destination') f.preparation.revoke({ commandId: randomUUID(), id: f.destination.id });
+    else f.execution.cancel({ commandId: randomUUID(), id: job.id });
+    release(); await f.execution.idle();
+    assert.equal(f.execution.job(job.id).job!.failure, action === 'cancel' ? 'CANCELLED' : action === 'source' ? 'SOURCE_INVALID' : 'DESTINATION_INVALID');
+    assert.equal(f.execution.list(f.draft.draftId).assets.length, 0);
+    const owned = f.repository.execution.job(job.id)!.owned!;
+    assert.ok((await readdir(path.join(owned.root.path, 'Audio'))).length > 0, '保留已拥有的部分文件');
+    assert.ok(!(await readdir(owned.root.path)).includes('Manifest.json'));
+    await f.execution.close();
+    const resumed = f.make(f.repository, { converter: { ...fixture, convert: async () => { assert.fail('不得重放转换'); } } });
+    try { await resumed.idle(); assert.equal(resumed.list(f.draft.draftId).assets.length, 0); } finally { await resumed.close(); }
+  }
+});
+
+test('V2 预览读取实际源字节，源变化时不返回可确认配方', async t => {
+  const f = await setup(t, { converter: conversionFixture() });
+  const bytes = await readFile(f.file); bytes[44] = bytes[44]! ^ 1; await writeFile(f.file, bytes);
+  await assert.rejects(f.execution.preview({ ...f.selection, mode: 'direct-converted', readId: randomUUID() }));
+  assert.deepEqual(await readdir(f.target), []);
+  assert.equal(f.execution.list(f.draft.draftId).jobs.length, 0);
+});
+
+test('私有运行时注入转换器后，公开预览与启动仍只接收固定选择合同', async t => {
+  const f = await setup(t), { createTestBridgeRuntime } = await import('../src/runtime.js');
+  await f.execution.close();
+  const runtime = createTestBridgeRuntime({ collectionRepository: f.repository, recordingConverter: conversionFixture() });
+  try {
+    const selection = { ...f.selection, mode: 'direct-converted' as const };
+    const proposal = await runtime.execution!.preview({ ...selection, readId: randomUUID() });
+    assert.equal(proposal.mode, 'direct-converted');
+    assert.equal(proposal.recipes[0]!.schemaVersion, 2);
+    assert.deepEqual(await readdir(f.target), []);
+    const job = await runtime.execution!.start({ ...selection, commandId: randomUUID(), proposalFingerprint: proposal.proposalFingerprint, userConfirmed: true });
+    await runtime.execution!.idle();
+    assert.equal(runtime.execution!.job(job.id).job!.state, 'completed');
+    assert.equal(isExecutionHistory(runtime.execution!.list(f.draft.draftId)), true);
+  } finally { await runtime.shutdown(); }
 });

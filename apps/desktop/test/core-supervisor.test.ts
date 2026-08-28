@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { randomUUID } from 'node:crypto'
 
 import { IPC_VERSION } from '@music-bridge/contracts'
 import {
@@ -194,6 +195,18 @@ test('CoreSupervisor request timeout and shutdown are bounded', async () => {
   await harness.supervisor.shutdown()
   assert.equal(harness.supervisor.status, 'stopped')
   assert.equal(harness.children[0]!.killed, true)
+})
+
+test('执行启动包含原始 Render 核验，不使用短交互期限', async () => {
+  const harness = makeHarness()
+  const starting = harness.supervisor.start()
+  await new Promise(resolve => setImmediate(resolve)); ready(harness.channels[0]!); await starting
+  const payload = { commandId: randomUUID(), layoutVersionId: randomUUID(), destinationId: randomUUID(), preparedVersionId: randomUUID(), mode: 'prepared-derivative' as const, sessionRevision: 1, proposalFingerprint: 'a'.repeat(64), userConfirmed: true as const }
+  const request = harness.supervisor.request('recordingExecution.start', payload)
+  await new Promise(resolve => setImmediate(resolve))
+  const sent = harness.channels[0]!.port2.sent[0] as { id: string }
+  setTimeout(() => harness.channels[0]!.port2.receive({ version: IPC_VERSION, id: sent.id, ok: true, result: { id: payload.commandId, draftId: randomUUID(), layoutVersionId: payload.layoutVersionId, destinationId: payload.destinationId, profileVersionId: randomUUID(), mode: payload.mode, state: 'running', completedSides: 0, totalSides: 1 } }), 30)
+  try { assert.equal((await request).state, 'running') } finally { await harness.supervisor.shutdown() }
 })
 
 test('CoreSupervisor gives library playlist requests a bounded extended timeout', async () => {

@@ -4,8 +4,8 @@ import { randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
 import { open, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { isExecutionRecipe, isFrozenPrepared, type ExecutionFormat, type FrozenPrepared, type RawRenderAsset, type RenderTimeline, type LayoutVersion, type MasterVersion } from '@music-bridge/contracts';
-import { planDirectExecution, planPreparedExecution, ExecutionCompileError } from '../src/recording/execution-plan.js';
+import { isExecutionRecipe, isConvertedExecutionRecipe, isFrozenPrepared, type AudioConversionPlan, type AudioConversionSource, type ExecutionFormat, type FrozenPrepared, type RawRenderAsset, type RenderTimeline, type LayoutVersion, type MasterVersion } from '@music-bridge/contracts';
+import { planDirectExecution, planPreparedExecution, planConvertedDirectExecution, planPreparedDerivative, ExecutionCompileError } from '../src/recording/execution-plan.js';
 import { compileDirectPcm } from '../src/recording/execution-compiler.js';
 import { mediaFingerprint } from '../src/recording/media-store.js';
 import { preparationFixture } from './helpers/preparation-fixture.js';
@@ -89,4 +89,38 @@ test('已接受的 Render 时序差异使用实际帧，不回退计划 Marker�
     if (options.emptyB) { assert.equal(recipes[1]!.totalFrames, 0); assert.deepEqual(recipes[1]!.segments, []); }
     else assert.equal(recipes[0]!.side, 'Program');
   }
+});
+
+const conversionPlan = (input: AudioConversionSource, output: ExecutionFormat): AudioConversionPlan => ({
+  schemaVersion: 1, input: structuredClone(input), format: structuredClone(output),
+  converter: { id: 'fixture-converter', version: '1', binarySha256: 'a'.repeat(64), buildSha256: 'b'.repeat(64), components: [{ name: 'fixture-src', version: '1' }] },
+  processing: { sourceExtent: 'whole-input', inputStreamIndex: 0, gain: 'unchanged', timestampCompensation: 'disabled', parameters: [] }, formalReady: false,
+});
+const convertedFormat = (rate = 96000): ExecutionFormat => ({ ...format(rate), internalProcessingPrecision: 'float64', outputSampleFormat: 'pcm-s24le', resamplerImplementation: 'ffmpeg-swr', resamplerVersion: '6.3.102' });
+
+test('V2 Direct 保留冻结源及 Master/Layout，按输出率精确计划静音并报告 SRC 范围', async t => {
+  const f = await versions(t), before = structuredClone({ master: f.master, layout: f.layout });
+  const recipes = planConvertedDirectExecution(f.master, f.layout, convertedFormat(), conversionPlan);
+  assert.equal(recipes.every(isConvertedExecutionRecipe), true);
+  assert.deepEqual(recipes[0]!.segments.filter(s => s.kind === 'silence').map(s => s.frames), [96000,480000,96000]);
+  assert.equal(recipes[0]!.minimumFrames, 864004); assert.equal(recipes[0]!.maximumFrames, 864006);
+  const source = recipes[0]!.segments.find(s => s.kind === 'source')!;
+  assert.equal(source.conversion.input.sha256, f.master.content.tracks[0]!.source.sha256);
+  assert.equal(source.conversion.input.technical.sampleRate, 44100);
+  assert.deepEqual({ master: f.master, layout: f.layout }, before);
+  const mono = planConvertedDirectExecution(f.master, f.layout, { ...convertedFormat(), channelCount: 1, channelLayout: 'mono' }, conversionPlan);
+  assert.equal(mono[0]!.segments.find(s => s.kind === 'source')!.conversion.format.channelMapping, 'stereo-to-mono');
+  rejects(() => planConvertedDirectExecution({ ...f.master, contentHash: 'f'.repeat(64) }, f.layout, convertedFormat(), conversionPlan), 'VERSION_MISMATCH');
+});
+
+test('V2 PREP Derivative 锁定原 Render 证据，只计划整文件转换且保留空 B', async t => {
+  const f = await versions(t, { emptyB: true }), { prep, inputs } = prepared(f.master, f.layout), before = structuredClone(prep);
+  const sources = inputs.map(i => ({ assetId: i.assetId, source: { sha256: i.input.sha256, size: i.input.size, technical: { container: 'WAVE', codec: 'PCM', sampleRate: i.input.sampleRate, channels: i.input.channelCount, bitsPerSample: i.input.bitsPerSample, sampleFrames: i.input.totalFrames, frameEvidence: 'container-declared' as const, lossless: true, durationMs: Math.round(i.input.totalFrames / i.input.sampleRate * 1000) } } }));
+  const recipes = planPreparedDerivative(f.master, f.layout, prep, convertedFormat(48000), sources, conversionPlan);
+  assert.equal(recipes.every(isConvertedExecutionRecipe), true);
+  assert.equal(recipes[0]!.segments.length, 1); assert.equal(recipes[0]!.segments[0]!.kind, 'render');
+  assert.equal(recipes[0]!.prepared!.renderTimelineHash, prep.renderTimelineHash);
+  assert.equal(recipes[1]!.maximumFrames, 0); assert.equal(recipes[1]!.segments.length, 0);
+  assert.deepEqual(prep, before);
+  rejects(() => planPreparedDerivative(f.master, f.layout, prep, convertedFormat(48000), sources.map(s => ({ ...s, source: { ...s.source, sha256: 'c'.repeat(64) } })), conversionPlan), 'VERSION_MISMATCH');
 });

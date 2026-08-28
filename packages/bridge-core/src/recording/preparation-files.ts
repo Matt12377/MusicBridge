@@ -7,6 +7,9 @@ import { compileDirectPcm, type ExecutionSourceLocation } from './execution-comp
 import type { ExecutionRecipe, ExecutionAudioReceipt } from '@music-bridge/contracts';
 import { isCollectionId } from '@music-bridge/contracts';
 import { authorizeSourceDirectory, sourceRootAvailability, copyReadonlySource, type RootCapability } from './source-files.js';
+import type { AudioConversionPlan, AudioConversionReceipt, ConvertedExecutionRecipe, ConvertedExecutionReceipt } from '@music-bridge/contracts';
+import type { FfmpegConverter } from './audio-converter.js';
+import { compileConvertedDirect, preparedDerivativeReceipt, type ConvertedSourceLocation } from './converted-compiler.js';
 
 export class PreparationFileError extends Error { constructor() { super('Preparation 目标目录或操作归属已失效'); } }
 export interface OwnedPreparation { id: string; root: RootCapability; destination: RootCapability; owner: string; directories: readonly RootCapability[]; purpose?: 'raw-render' | 'execution' }
@@ -58,7 +61,8 @@ export async function createPreparationDirectory(destination: RootCapability, id
 }
 function outputPath(owned: OwnedPreparation, relative: string): string {
   if (owned.purpose === 'execution') {
-    if (!/^(?:Audio\/(?:A|B|Program)\.execution\.wav|Manifest\.json)$/u.test(relative)) return fail();
+    const converted = /^Audio\/([^/]+)\.converted\.wav$/u.exec(relative);
+    if (!/^(?:Audio\/(?:A|B|Program)\.(?:execution|derivative)\.wav|Manifest\.json)$/u.test(relative) && !(converted && isCollectionId(converted[1]))) return fail();
     return path.join(owned.root.path, relative);
   }
   if (owned.purpose === 'raw-render') {
@@ -77,7 +81,7 @@ async function output(owned: OwnedPreparation, relative: string, write: (handle:
     await handle.sync(); await checkPreparationOwnership(owned);
     const final = await lstat(absolute, { bigint: true });
     if (!final.isFile() || final.nlink !== 1n || final.dev !== initial.dev || final.ino !== initial.ino) return fail();
-    return { relative, ...result };
+    return { relative, sha256: result.sha256, size: result.size };
   } finally { await handle.close(); }
 }
 export async function writePreparationFile(owned: OwnedPreparation, relative: string, bytes: Buffer): Promise<PreparationOutput> {
@@ -129,4 +133,32 @@ export async function compileExecutionFile(owned: OwnedPreparation, recipe: Exec
   });
   if (!receipt) return fail();
   return { file, receipt };
+}
+
+/** 中间转换文件保留在任务目录并纳入发布清单；失败不自动删除或覆盖。 */
+export async function convertExecutionSourceFile(owned: OwnedPreparation, trackId: string, plan: AudioConversionPlan, location: { root: RootCapability; relative: string }, converter: FfmpegConverter, signal: AbortSignal, check?: () => void): Promise<{ file: PreparationOutput; receipt: AudioConversionReceipt }> {
+  if (owned.purpose !== 'execution' || !isCollectionId(trackId)) return fail();
+  let receipt: AudioConversionReceipt | undefined;
+  const file = await output(owned, `Audio/${trackId}.converted.wav`, async handle => {
+    receipt = await converter.convert(plan, location, handle, signal, check); return receipt.audio;
+  });
+  if (!receipt) return fail(); return { file, receipt };
+}
+export async function compileConvertedExecutionFile(owned: OwnedPreparation, recipe: ConvertedExecutionRecipe, sources: readonly ConvertedSourceLocation[], signal: AbortSignal, check?: () => void): Promise<{ file: PreparationOutput; receipt: ConvertedExecutionReceipt }> {
+  if (owned.purpose !== 'execution' || sources.some(s => rootIdentity(s.root) !== rootIdentity(owned.root) || s.relative !== `Audio/${s.trackId}.converted.wav`)) return fail();
+  let receipt: ConvertedExecutionReceipt | undefined;
+  const file = await output(owned, `Audio/${recipe.side}.execution.wav`, async handle => {
+    receipt = await compileConvertedDirect(recipe, sources, handle, signal, check); return receipt.audio;
+  });
+  if (!receipt) return fail(); return { file, receipt };
+}
+function rootIdentity(root: RootCapability): string { return JSON.stringify([root.id, root.path, root.dev, root.ino]); }
+export async function convertPreparedExecutionFile(owned: OwnedPreparation, recipe: ConvertedExecutionRecipe, location: { root: RootCapability; relative: string }, converter: FfmpegConverter, signal: AbortSignal, check?: () => void): Promise<{ file: PreparationOutput; receipt: ConvertedExecutionReceipt }> {
+  const segment = recipe.segments[0];
+  if (owned.purpose !== 'execution' || recipe.mode !== 'prepared-derivative' || segment?.kind !== 'render') return fail();
+  let receipt: ConvertedExecutionReceipt | undefined;
+  const file = await output(owned, `Audio/${recipe.side}.derivative.wav`, async handle => {
+    receipt = preparedDerivativeReceipt(recipe, await converter.convert(segment.conversion, location, handle, signal, check)); return receipt.audio;
+  });
+  if (!receipt) return fail(); return { file, receipt };
 }

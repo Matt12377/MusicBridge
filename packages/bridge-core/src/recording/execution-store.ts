@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'node:crypto';
-import { isCollectionId, isStartExecutionRequest, isExecutionProposal, isExecutionAsset, isExecutionJob, isExecutionAudioReceipt, type ExecutionAsset, type ExecutionAudioReceipt, type ExecutionHistory, type ExecutionJob, type ExecutionProposal, type StartExecutionRequest, type MasterVersion, type LayoutVersion, type FrozenPrepared, type RecordingSessionSettings } from '@music-bridge/contracts';
+import { isCollectionId, isStartExecutionRequest, isExecutionProposal, isExecutionAsset, isExecutionJob, isExecutionAssetAudio, executionFrameLimit, type ExecutionAsset, type ExecutionAssetAudio, type ExecutionHistory, type ExecutionJob, type ExecutionProposal, type StartExecutionRequest, type MasterVersion, type LayoutVersion, type FrozenPrepared, type RecordingSessionSettings } from '@music-bridge/contracts';
 import type { RootCapability } from './source-files.js';
 import type { OwnedPreparation, PreparationOutput } from './preparation-files.js';
 import type { ExecutionSourceLocation, ExecutionRenderLocation } from './execution-compiler.js';
@@ -23,11 +23,11 @@ export interface ExecutionInput {
   sources: readonly ExecutionSourceLocation[];
   retained?: { prepared: FrozenPrepared; owned: OwnedPreparation; files: readonly PreparationOutput[]; manifestHash: string; locations: readonly ExecutionRenderLocation[] };
 }
-export interface StoredExecutionJob { public: ExecutionJob; request: StartExecutionRequest; input: ExecutionInput; createdAt: string; owned?: OwnedPreparation; files: readonly PreparationOutput[]; audio: readonly ExecutionAudioReceipt[]; manifestHash?: string }
+export interface StoredExecutionJob { public: ExecutionJob; request: StartExecutionRequest; input: ExecutionInput; createdAt: string; owned?: OwnedPreparation; files: readonly PreparationOutput[]; audio: readonly ExecutionAssetAudio[]; manifestHash?: string }
 /** 清单只含公开谱系与相对输出名；源路径和授权 capability 仅留在 Core 数据库。 */
 export function executionManifest(job: StoredExecutionJob): Buffer {
   const p = job.input.proposal;
-  return Buffer.from(JSON.stringify({ schemaVersion: 1, kind: 'execution-audio', assetId: job.public.id, draftId: p.draftId, masterVersionId: p.masterVersionId, layoutVersionId: p.layoutVersionId, mode: p.mode, ...(p.preparedVersionId ? { preparedVersionId: p.preparedVersionId } : {}), settings: p.settings, recipes: p.recipes, audio: job.audio, files: job.files, createdAt: job.createdAt, retentionPolicy: p.retentionPolicy, formalReady: false }, null, 2) + '\n');
+  return Buffer.from(JSON.stringify({ schemaVersion: p.recipes.some(r => r.schemaVersion === 2) ? 2 : 1, kind: 'execution-audio', assetId: job.public.id, draftId: p.draftId, masterVersionId: p.masterVersionId, layoutVersionId: p.layoutVersionId, mode: p.mode, ...(p.preparedVersionId ? { preparedVersionId: p.preparedVersionId } : {}), settings: p.settings, recipes: p.recipes, audio: job.audio, files: job.files, createdAt: job.createdAt, retentionPolicy: p.retentionPolicy, formalReady: false }, null, 2) + '\n');
 }
 export const executionManifestHash = (job: StoredExecutionJob): string => createHash('sha256').update(executionManifest(job)).digest('hex');
 export function executionAssetFromJob(job: StoredExecutionJob): ExecutionAsset {
@@ -36,8 +36,24 @@ export function executionAssetFromJob(job: StoredExecutionJob): ExecutionAsset {
 }
 export function executionPublicationComplete(job: StoredExecutionJob): boolean {
   const asset = executionAssetFromJob(job);
-  return !!job.owned && job.owned.id === job.public.id && job.owned.purpose === 'execution' && mediaFingerprint(job.owned.destination) === mediaFingerprint(job.input.destination) && isExecutionAsset(asset) && job.public.completedSides === job.public.totalSides && job.audio.every(a => a.recipeHash === mediaFingerprint(a.recipe)) && job.manifestHash === executionManifestHash(job) && (job.public.mode === 'direct' ? job.files.length === job.audio.length && job.files.every((f,i) => f.relative === `Audio/${job.audio[i]!.recipe.side}.execution.wav` && f.sha256 === job.audio[i]!.audio.sha256 && f.size === job.audio[i]!.audio.size) : job.files.length === 0 && !!job.input.retained);
+  if (!job.owned || job.owned.id !== job.public.id || job.owned.purpose !== 'execution' || mediaFingerprint(job.owned.destination) !== mediaFingerprint(job.input.destination) || !isExecutionAsset(asset) || job.public.completedSides !== job.public.totalSides || job.manifestHash !== executionManifestHash(job)) return false;
+  const expected: PreparationOutput[] = [];
+  for (const receipt of job.audio) {
+    if (receipt.recipeHash !== mediaFingerprint(receipt.recipe)) return false;
+    if (receipt.origin === 'retained-render') { if (!job.input.retained) return false; continue; }
+    expected.push({ relative:`Audio/${receipt.recipe.side}.${receipt.origin === 'derived-render' ? 'derivative' : 'execution'}.wav`, sha256:receipt.audio.sha256, size:receipt.audio.size });
+    if ('segments' in receipt) for (const [i,segment] of receipt.segments.entries()) {
+      if (!segment.conversion) continue;
+      if (segment.conversion.planHash !== mediaFingerprint(segment.conversion.plan)) return false;
+      const planned=receipt.recipe.segments[i];
+      if (planned?.kind === 'source') expected.push({relative:`Audio/${planned.trackId}.converted.wav`,sha256:segment.conversion.audio.sha256,size:segment.conversion.audio.size});
+      else if (planned?.kind === 'render' && !job.input.retained) return false;
+    }
+  }
+  return job.files.length === expected.length && new Set(job.files.map(f => f.relative)).size === expected.length
+    && expected.every(e => job.files.some(f => f.relative === e.relative && f.sha256 === e.sha256 && f.size === e.size));
 }
+
 interface Access { read<T>(fn: (db: DatabaseSync) => T): T; conflict(message: string): never; beforeCommit?: (action: string) => void }
 export function createExecutionStore({ read, conflict, beforeCommit }: Access) {
   const get = <T>(db: DatabaseSync, table: string, id: string): T | undefined => { const row = db.prepare(`SELECT data FROM ${table} WHERE id=?`).get(id); return row ? JSON.parse(String(row.data)) as T : undefined; };
@@ -65,15 +81,15 @@ export function createExecutionStore({ read, conflict, beforeCommit }: Access) {
         if (!authorized(db, input) || !sessionRow || mediaFingerprint(JSON.parse(String(sessionRow.data))) !== mediaFingerprint(input.session) || input.session.revision !== request.sessionRevision || input.session.profileVersionId !== p.settings.profile.id || p.proposalFingerprint !== request.proposalFingerprint || p.layoutVersionId !== request.layoutVersionId || p.destinationId !== request.destinationId || p.mode !== request.mode || p.preparedVersionId !== request.preparedVersionId) return conflict('参数或目标授权已改变，请重新预览。');
         if (mediaFingerprint(get(db, 'master_versions', p.masterVersionId)) !== mediaFingerprint(input.master) || mediaFingerprint(get(db, 'layout_versions', p.layoutVersionId)) !== mediaFingerprint(input.layout) || mediaFingerprint(get(db, 'recording_profile_versions', p.settings.profile.id)) !== mediaFingerprint(p.settings.profile) || input.retained && mediaFingerprint(get(db, 'prepared_versions', input.retained.prepared.id)) !== mediaFingerprint(input.retained.prepared)) return conflict('冻结版本或参数证据已改变。');
         if (Number(db.prepare('SELECT count(*) n FROM execution_jobs WHERE draft_id=?').get(p.draftId)!.n) >= 1000 || Number(db.prepare("SELECT count(*) n FROM execution_jobs WHERE json_extract(data,'$.public.state')='running'").get()!.n) >= 2 || Number(db.prepare("SELECT count(*) n FROM execution_jobs WHERE draft_id=? AND json_extract(data,'$.public.state') IN ('running','interrupted','completed')").get(p.draftId)!.n) >= 100) return conflict('执行资产任务已达到上限，请等待或取消。');
-        const value: StoredExecutionJob = { public: { id: request.commandId, draftId: p.draftId, layoutVersionId: p.layoutVersionId, destinationId: p.destinationId, profileVersionId: p.settings.profile.id, mode: p.mode, state: 'running', completedSides: 0, totalSides: p.recipes.filter(r => r.totalFrames > 0).length }, request: structuredClone(request), input: structuredClone(input), createdAt: new Date().toISOString(), files: [], audio: [] };
+        const value: StoredExecutionJob = { public: { id: request.commandId, draftId: p.draftId, layoutVersionId: p.layoutVersionId, destinationId: p.destinationId, profileVersionId: p.settings.profile.id, mode: p.mode, state: 'running', completedSides: 0, totalSides: p.recipes.filter(r => executionFrameLimit(r) > 0).length }, request: structuredClone(request), input: structuredClone(input), createdAt: new Date().toISOString(), files: [], audio: [] };
         put(db, value); record(db, request.commandId, fp, value.public.id); return value;
       });
     },
     update(id: string, patch: Pick<Partial<StoredExecutionJob>, 'owned' | 'files' | 'audio' | 'manifestHash'>): StoredExecutionJob {
       return transaction('progress-execution', db => {
         const value = job(db, id); if (value.public.state !== 'running') return value;
-        const next = { ...value, ...structuredClone(patch) }, recipes = next.input.proposal.recipes.filter(r => r.totalFrames > 0);
-        if (next.audio.length < value.audio.length || next.audio.length > recipes.length || !next.audio.every((a,i) => isExecutionAudioReceipt(a) && a.recipeHash === mediaFingerprint(a.recipe) && mediaFingerprint(a.recipe) === mediaFingerprint(recipes[i])) || value.owned && mediaFingerprint(next.owned) !== mediaFingerprint(value.owned)) return conflict('执行进度与冻结配方不符。');
+        const next = { ...value, ...structuredClone(patch) }, recipes = next.input.proposal.recipes.filter(r => executionFrameLimit(r) > 0);
+        if (next.audio.length < value.audio.length || next.audio.length > recipes.length || !next.audio.every((a,i) => isExecutionAssetAudio(a) && a.recipeHash === mediaFingerprint(a.recipe) && mediaFingerprint(a.recipe) === mediaFingerprint(recipes[i])) || value.owned && mediaFingerprint(next.owned) !== mediaFingerprint(value.owned)) return conflict('执行进度与冻结配方不符。');
         next.public = { ...next.public, completedSides: next.audio.length }; put(db, next); return next;
       });
     },

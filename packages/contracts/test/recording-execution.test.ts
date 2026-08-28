@@ -63,3 +63,30 @@ test('Profile/执行 IPC 响应仍做严格公共合同检查，不把空缺或�
     assert.equal(response(command,result), true, command); assert.equal(response(command,{ ...result, absolutePath: '/private/music' }), false, command);
   }
 });
+
+test('转换执行必须明确选择；公开请求不接受后端路径、命令或替换转换计划', () => {
+  for (const mode of ['direct-converted','prepared-derivative']) {
+    const request = { layoutVersionId: recipe.layoutVersionId, destinationId: proposal.destinationId, mode, sessionRevision: 1, readId: randomUUID(), ...(mode === 'prepared-derivative' ? { preparedVersionId: randomUUID() } : {}) };
+    assert.equal(c.isPreviewExecutionRequest(request), true);
+    assert.equal(c.validateIpcRequest({ version:1,id:'convert',command:'recordingExecution.preview',payload:request }).ok, true);
+    for (const extra of [{ executablePath:'/private/ffmpeg' },{ conversionPlan:{} },{ arguments:['-af','loudnorm'] }]) assert.equal(c.isPreviewExecutionRequest({ ...request,...extra }), false);
+    assert.equal(c.isPreviewExecutionRequest({ ...request, preparedVersionId: mode === 'direct-converted' ? randomUUID() : undefined }), false);
+  }
+});
+
+test('转换提案计入中间文件和最终文件上限，实际资产只能绑定相同配方回执', () => {
+  const conversion: c.AudioConversionPlan = { schemaVersion:1,input:{sha256:'1'.repeat(64),size:444,technical:{container:'WAVE',codec:'PCM',sampleRate:96000,channels:2,bitsPerSample:16,sampleFrames:100,frameEvidence:'container-declared',durationMs:1,lossless:true}},format:settings.format,converter:{id:'fixture',version:'1',binarySha256:'2'.repeat(64),buildSha256:'3'.repeat(64),components:[{name:'fixture',version:'1'}]},processing:{sourceExtent:'whole-input',inputStreamIndex:0,gain:'unchanged',timestampCompensation:'disabled',parameters:[]},formalReady:false };
+  const r: c.ConvertedExecutionRecipe = {schemaVersion:2,compiler:'musicbridge-conversion-v2',mode:'direct',masterVersionId:recipe.masterVersionId,layoutVersionId:recipe.layoutVersionId,contentHash:recipe.contentHash,plannedTimelineHash:recipe.plannedTimelineHash,format:settings.format,side:'A',capacityFrames:1000,minimumFrames:100,maximumFrames:100,segments:[{kind:'source',trackId:randomUUID(),conversion}],formalReady:false};
+  const p = {...proposal,mode:'direct-converted',recipes:[r,{...r,side:'B',minimumFrames:0,maximumFrames:0,segments:[]}],audioBytesToWrite:444 + 4496};
+  assert.equal(c.isExecutionProposal(p),true);
+  assert.equal(c.isExecutionProposal({...p,audioBytesToWrite:444}),false);
+  const conversionReceipt: c.AudioConversionReceipt = {plan:conversion,planHash:'4'.repeat(64),decoded:{codec:'pcm_s16le',sampleRate:96000,channelCount:2,sampleFormat:'s16',frameCount:100,wholeInputConsumed:true},audio:{sha256:'5'.repeat(64),pcmSha256:'6'.repeat(64),size:444,dataOffset:44,frameCount:100},formalReady:false};
+  const audio: c.ConvertedExecutionReceipt = {recipe:r,recipeHash:'7'.repeat(64),origin:'compiled',segments:[{startFrame:0,endFrame:100,conversion:conversionReceipt}],audio:conversionReceipt.audio,formalReady:false};
+  const asset={id:randomUUID(),draftId:p.draftId,masterVersionId:r.masterVersionId,layoutVersionId:r.layoutVersionId,destinationId:p.destinationId,mode:p.mode,settings,recipes:p.recipes,audio:[audio],manifestHash:'8'.repeat(64),createdAt:profile.createdAt,state:'verified-at-publication',retentionPolicy:p.retentionPolicy,formalReady:false};
+  assert.equal(c.isExecutionAsset(asset),true);
+  assert.equal(c.isExecutionAsset({...asset,mode:'direct'}),false);
+  const prepId=randomUUID(),render={...r,mode:'prepared-derivative',prepared:{id:prepId,renderTimelineHash:'9'.repeat(64)},segments:[{kind:'render',renderAssetId:randomUUID(),conversion}]};
+  const derivative={...p,mode:'prepared-derivative',preparedVersionId:prepId,recipes:[render,{...render,side:'B',minimumFrames:0,maximumFrames:0,segments:[]}],audioBytesToWrite:4496,referencedAudioBytes:444};
+  assert.equal(c.isExecutionProposal(derivative),true);
+  assert.equal(c.isExecutionProposal({...derivative,referencedAudioBytes:0}),false);
+});

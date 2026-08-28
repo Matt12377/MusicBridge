@@ -23,6 +23,7 @@ import {
 import type { RoonTimeShapeSummary } from './roon/adapter.js';
 import type { RoonBrowseShapeSummary } from './roon/library.js';
 import { createLyricsMatchRepository } from './lyrics-matching/repository.js';
+import type { FfmpegConverter } from './recording/audio-converter.js';
 
 export interface UtilityPort {
   on(event: 'message', listener: (event: { data: unknown }) => void): unknown;
@@ -597,6 +598,7 @@ function createRoonImageShapeRecorder(
 
 export async function runCoreUtilityProcess(
   env: NodeJS.ProcessEnv = process.env,
+  createRecordingConverter?: () => Promise<FfmpegConverter | undefined>,
 ): Promise<void> {
   const parentPort = (process as unknown as ProcessWithParentPort).parentPort;
   if (!parentPort) {
@@ -611,45 +613,48 @@ export async function runCoreUtilityProcess(
         process.exitCode = 1;
         return;
       }
-      const runtime =
-        env.MUSIC_BRIDGE_CORE_TEST_MODE === '1'
-          ? createTestBridgeRuntime({
-              ...(env.MUSIC_BRIDGE_UI_E2E === '1' && env.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY === '1' ? { roonLibrary: createSyntheticRoonLibrary() } : {}),
-              ...(env.MUSIC_BRIDGE_DATA_DIRECTORY ? { collectionRepository: createCollectionRepository({ filePath: path.join(env.MUSIC_BRIDGE_DATA_DIRECTORY, 'collection.v1.sqlite') }) } : {}),
-              authorized: env.MUSIC_BRIDGE_UI_E2E === '1',
-              ...(env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE === 'profile-unavailable' || env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE === 'expired'
-                ? { accountMode: env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE }
-                : {}),
-            })
-          : (() => {
-              const dataDirectory = env.MUSIC_BRIDGE_DATA_DIRECTORY;
-              if (
-                !dataDirectory
-                || dataDirectory.length > 1_024
-                || !path.isAbsolute(dataDirectory)
-                || dataDirectory.includes('\0')
-              ) {
-                throw new Error('Core data directory is unavailable');
-              }
-              const onRoonTimeShape = createRoonTimeShapeRecorder(env);
-              const onRoonBrowseShape = createRoonBrowseShapeRecorder(env);
-              const onRoonImageShape = createRoonImageShapeRecorder(env);
-              return createBridgeRuntime({
-                collectionRepository: createCollectionRepository({ filePath: path.join(dataDirectory, 'collection.v1.sqlite') }),
-                lyricsMatchRepository: createLyricsMatchRepository({
-                  filePath: path.join(dataDirectory, 'lyrics-matches.v1.json'),
-                }),
-                ...(onRoonTimeShape ? { onRoonTimeShape } : {}),
-                ...(onRoonBrowseShape ? { onRoonBrowseShape } : {}),
-                ...(onRoonImageShape ? { onRoonImageShape } : {}),
-                onEvent: (message) => {
-                if (message.event !== 'core.ready') {
-                  port.postMessage(message)
-                }
-                },
-              });
-            })();
       try {
+        const recordingConverter = await createRecordingConverter?.();
+        const runtime =
+          env.MUSIC_BRIDGE_CORE_TEST_MODE === '1'
+            ? createTestBridgeRuntime({
+                ...(recordingConverter ? { recordingConverter } : {}),
+                ...(env.MUSIC_BRIDGE_UI_E2E === '1' && env.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY === '1' ? { roonLibrary: createSyntheticRoonLibrary() } : {}),
+                ...(env.MUSIC_BRIDGE_DATA_DIRECTORY ? { collectionRepository: createCollectionRepository({ filePath: path.join(env.MUSIC_BRIDGE_DATA_DIRECTORY, 'collection.v1.sqlite') }) } : {}),
+                authorized: env.MUSIC_BRIDGE_UI_E2E === '1',
+                ...(env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE === 'profile-unavailable' || env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE === 'expired'
+                  ? { accountMode: env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE }
+                  : {}),
+              })
+            : (() => {
+                const dataDirectory = env.MUSIC_BRIDGE_DATA_DIRECTORY;
+                if (
+                  !dataDirectory
+                  || dataDirectory.length > 1_024
+                  || !path.isAbsolute(dataDirectory)
+                  || dataDirectory.includes('\0')
+                ) {
+                  throw new Error('Core data directory is unavailable');
+                }
+                const onRoonTimeShape = createRoonTimeShapeRecorder(env);
+                const onRoonBrowseShape = createRoonBrowseShapeRecorder(env);
+                const onRoonImageShape = createRoonImageShapeRecorder(env);
+                return createBridgeRuntime({
+                  ...(recordingConverter ? { recordingConverter } : {}),
+                  collectionRepository: createCollectionRepository({ filePath: path.join(dataDirectory, 'collection.v1.sqlite') }),
+                  lyricsMatchRepository: createLyricsMatchRepository({
+                    filePath: path.join(dataDirectory, 'lyrics-matches.v1.json'),
+                  }),
+                  ...(onRoonTimeShape ? { onRoonTimeShape } : {}),
+                  ...(onRoonBrowseShape ? { onRoonBrowseShape } : {}),
+                  ...(onRoonImageShape ? { onRoonImageShape } : {}),
+                  onEvent: (message) => {
+                  if (message.event !== 'core.ready') {
+                    port.postMessage(message)
+                  }
+                  },
+                });
+              })();
         await attachCoreRuntimePort(port, runtime, { exitAfterShutdown: true });
         if (isCrashProbeEnabled(env)) {
           const configuredDelay = Number(env.MUSIC_BRIDGE_CORE_CRASH_DELAY_MS);

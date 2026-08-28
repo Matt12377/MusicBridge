@@ -1,27 +1,35 @@
+import { isConvertedExecutionRecipe, isConvertedExecutionReceipt, conversionFrameBounds, type ConvertedExecutionRecipe, type ConvertedExecutionReceipt } from './converted-execution.js';
 import { isCollectionId } from './collection.js';
 import { isDraftText } from './master-drafts.js';
 import { isExecutionRecipe, isExecutionAudioReceipt, type ExecutionRecipe, type ExecutionAudioReceipt } from './execution-audio.js';
 import { isResolvedRecordingSettings, type ResolvedRecordingSettings } from './recording-profile.js';
 
-export interface ExecutionSelection { layoutVersionId: string; mode: 'direct' | 'prepared-reference'; preparedVersionId?: string; destinationId: string; sessionRevision: number }
+export type ExecutionMode = 'direct' | 'prepared-reference' | 'direct-converted' | 'prepared-derivative';
+export type ExecutionAssetRecipe = ExecutionRecipe | ConvertedExecutionRecipe;
+export type ExecutionAssetAudio = ExecutionAudioReceipt | ConvertedExecutionReceipt;
+export const isExecutionAssetRecipe = (v: unknown): v is ExecutionAssetRecipe => isExecutionRecipe(v) || isConvertedExecutionRecipe(v);
+export const isExecutionAssetAudio = (v: unknown): v is ExecutionAssetAudio => isExecutionAudioReceipt(v) || isConvertedExecutionReceipt(v);
+export const executionFrameLimit = (r: ExecutionAssetRecipe): number => r.schemaVersion === 1 ? r.totalFrames : r.maximumFrames;
+export const executionRecipeMode = (r: ExecutionAssetRecipe): ExecutionMode => r.schemaVersion === 2 && r.mode === 'direct' ? 'direct-converted' : r.mode;
+export interface ExecutionSelection { layoutVersionId: string; mode: ExecutionMode; preparedVersionId?: string; destinationId: string; sessionRevision: number }
 export interface PreviewExecutionRequest extends ExecutionSelection { readId: string }
 export interface StartExecutionRequest extends ExecutionSelection { commandId: string; proposalFingerprint: string; userConfirmed: true }
 export interface ExecutionProposal extends ExecutionSelection {
-  draftId: string; masterVersionId: string; settings: ResolvedRecordingSettings; recipes: readonly ExecutionRecipe[];
+  draftId: string; masterVersionId: string; settings: ResolvedRecordingSettings; recipes: readonly ExecutionAssetRecipe[];
   destinationLabel: string; audioBytesToWrite: number; referencedAudioBytes: number; proposalFingerprint: string;
   retentionPolicy: 'unresolved-no-automatic-deletion'; formalReady: false;
 }
 export type ExecutionJobFailure = 'SOURCE_INVALID' | 'DESTINATION_INVALID' | 'INPUT_CHANGED' | 'CONVERSION_REQUIRED' | 'IO_ERROR' | 'DISK_FULL' | 'CANCELLED' | 'ASSET_INVALID';
 export interface ExecutionJob {
   id: string; draftId: string; layoutVersionId: string; destinationId: string; profileVersionId: string;
-  mode: 'direct' | 'prepared-reference'; state: 'running' | 'completed' | 'failed' | 'cancelled' | 'interrupted';
+  mode: ExecutionMode; state: 'running' | 'completed' | 'failed' | 'cancelled' | 'interrupted';
   completedSides: number; totalSides: number; assetId?: string; failure?: ExecutionJobFailure;
 }
 /** 只保存当次发布事实；当前文件是否可用须重新验证，发布不等于正式录音就绪。 */
 export interface ExecutionAsset {
   id: string; draftId: string; masterVersionId: string; layoutVersionId: string; destinationId: string;
-  mode: 'direct' | 'prepared-reference'; preparedVersionId?: string;
-  settings: ResolvedRecordingSettings; recipes: readonly ExecutionRecipe[]; audio: readonly ExecutionAudioReceipt[];
+  mode: ExecutionMode; preparedVersionId?: string;
+  settings: ResolvedRecordingSettings; recipes: readonly ExecutionAssetRecipe[]; audio: readonly ExecutionAssetAudio[];
   manifestHash: string; createdAt: string; state: 'verified-at-publication';
   retentionPolicy: 'unresolved-no-automatic-deletion'; formalReady: false;
 }
@@ -43,23 +51,35 @@ const integer = (v: unknown, min = 0, max = Number.MAX_SAFE_INTEGER): v is numbe
 const hash = (v: unknown): v is string => typeof v === 'string' && /^[a-f0-9]{64}$/u.test(v);
 const date = (v: unknown): boolean => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u.test(v);
 const selectedKeys = ['layoutVersionId','mode','preparedVersionId','destinationId','sessionRevision'];
-function selected(v: Record<string, unknown>): boolean { return isCollectionId(v.layoutVersionId) && isCollectionId(v.destinationId) && integer(v.sessionRevision, 1) && (v.mode === 'direct' ? v.preparedVersionId === undefined : v.mode === 'prepared-reference' && isCollectionId(v.preparedVersionId)); }
+function selected(v: Record<string, unknown>): boolean { return isCollectionId(v.layoutVersionId) && isCollectionId(v.destinationId) && integer(v.sessionRevision, 1) && ((v.mode === 'direct' || v.mode === 'direct-converted') ? v.preparedVersionId === undefined : (v.mode === 'prepared-reference' || v.mode === 'prepared-derivative') && isCollectionId(v.preparedVersionId)); }
 export function isPreviewExecutionRequest(v: unknown): v is PreviewExecutionRequest { return record(v) && keys(v, [...selectedKeys,'readId']) && selected(v) && isCollectionId(v.readId); }
 export function isStartExecutionRequest(v: unknown): v is StartExecutionRequest { return record(v) && keys(v, [...selectedKeys,'commandId','proposalFingerprint','userConfirmed']) && selected(v) && isCollectionId(v.commandId) && hash(v.proposalFingerprint) && v.userConfirmed === true; }
 function canonical(v: unknown): string { if (Array.isArray(v)) return `[${v.map(canonical).join(',')}]`; if (record(v)) return `{${Object.entries(v).sort(([a],[b]) => a.localeCompare(b)).map(([k,value]) => `${JSON.stringify(k)}:${canonical(value)}`).join(',')}}`; return JSON.stringify(v); }
 function material(v: Record<string, unknown>): boolean {
-  if (!isCollectionId(v.draftId) || !isCollectionId(v.masterVersionId) || !isCollectionId(v.layoutVersionId) || !isResolvedRecordingSettings(v.settings) || !Array.isArray(v.recipes) || !v.recipes.every(isExecutionRecipe) || !((v.recipes.length === 1 && v.recipes[0]?.side === 'Program') || (v.recipes.length === 2 && v.recipes[0]?.side === 'A' && v.recipes[1]?.side === 'B')) || v.retentionPolicy !== 'unresolved-no-automatic-deletion' || v.formalReady !== false) return false;
+  if (!isCollectionId(v.draftId) || !isCollectionId(v.masterVersionId) || !isCollectionId(v.layoutVersionId) || !isResolvedRecordingSettings(v.settings) || !Array.isArray(v.recipes) || !v.recipes.every(isExecutionAssetRecipe) || !((v.recipes.length === 1 && v.recipes[0]?.side === 'Program') || (v.recipes.length === 2 && v.recipes[0]?.side === 'A' && v.recipes[1]?.side === 'B')) || v.retentionPolicy !== 'unresolved-no-automatic-deletion' || v.formalReady !== false) return false;
   const settings = v.settings;
-  return v.recipes.every(r => r.masterVersionId === v.masterVersionId && r.layoutVersionId === v.layoutVersionId && r.contentHash === (v.recipes as ExecutionRecipe[])[0]!.contentHash && r.plannedTimelineHash === (v.recipes as ExecutionRecipe[])[0]!.plannedTimelineHash && r.mode === v.mode && r.prepared?.id === v.preparedVersionId && canonical(r.format) === canonical(settings.format));
+  return v.recipes.every(r => r.masterVersionId === v.masterVersionId && r.layoutVersionId === v.layoutVersionId && r.contentHash === (v.recipes as ExecutionAssetRecipe[])[0]!.contentHash && r.plannedTimelineHash === (v.recipes as ExecutionAssetRecipe[])[0]!.plannedTimelineHash && executionRecipeMode(r) === v.mode && r.prepared?.id === v.preparedVersionId && canonical(r.format) === canonical(settings.format));
 }
-export function executionAudioSize(recipe: ExecutionRecipe): number { if (!recipe.totalFrames) return 0; const data = recipe.totalFrames * recipe.format.channelCount * Number(recipe.format.outputSampleFormat.slice(5,7)) / 8; return 44 + data + data % 2; }
+/** V1 是精确文件大小；V2 是包含转换文件的保守写盘上限。 */
+export function executionAudioSize(recipe: ExecutionAssetRecipe): number {
+  const frames = executionFrameLimit(recipe); if (!frames) return 0;
+  const align = recipe.format.channelCount * Number(recipe.format.outputSampleFormat.slice(5,7)) / 8;
+  const data = frames * align, compiled = (recipe.format.outputSampleFormat === 'pcm-f32le' ? 56 : 44) + data + data % 2;
+  if (recipe.schemaVersion === 1) return compiled;
+  const converted = recipe.segments.reduce((sum,s) => sum + (s.kind === 'silence' ? 0 : 4096 + conversionFrameBounds(s.conversion).maximum * align), 0);
+  return converted + (recipe.mode === 'direct' ? compiled : 0);
+}
+export function executionReferencedBytes(recipe: ExecutionAssetRecipe): number {
+  if (recipe.schemaVersion === 1) return recipe.segments.reduce((sum,s) => sum + (s.kind === 'render' ? s.input.size : 0),0);
+  return recipe.segments.reduce((sum,s) => sum + (s.kind === 'render' ? s.conversion.input.size : 0),0);
+}
 export function isExecutionProposal(v: unknown): v is ExecutionProposal {
   if (!record(v) || !keys(v, [...selectedKeys,'draftId','masterVersionId','settings','recipes','destinationLabel','audioBytesToWrite','referencedAudioBytes','proposalFingerprint','retentionPolicy','formalReady']) || !selected(v) || !material(v) || !isDraftText(v.destinationLabel) || !integer(v.audioBytesToWrite) || !integer(v.referencedAudioBytes) || !hash(v.proposalFingerprint)) return false;
-  const recipes = v.recipes as readonly ExecutionRecipe[];
-  return v.mode === 'direct' ? v.referencedAudioBytes === 0 && v.audioBytesToWrite === recipes.reduce((n,r) => n + executionAudioSize(r), 0) : v.audioBytesToWrite === 0 && v.referencedAudioBytes === recipes.reduce((n,r) => n + r.segments.reduce((size,s) => size + (s.kind === 'render' ? s.input.size : 0), 0), 0);
+  const recipes = v.recipes as readonly ExecutionAssetRecipe[];
+  return v.referencedAudioBytes === recipes.reduce((n,r) => n + executionReferencedBytes(r), 0) && v.audioBytesToWrite === (v.mode === 'prepared-reference' ? 0 : recipes.reduce((n,r) => n + executionAudioSize(r), 0));
 }
 export function isExecutionJob(v: unknown): v is ExecutionJob {
-  if (!record(v) || !keys(v, ['id','draftId','layoutVersionId','destinationId','profileVersionId','mode','state','completedSides','totalSides','assetId','failure']) || !['id','draftId','layoutVersionId','destinationId','profileVersionId'].every(k => isCollectionId(v[k])) || !(v.mode === 'direct' || v.mode === 'prepared-reference') || !integer(v.totalSides, 1, 2) || !integer(v.completedSides, 0, v.totalSides)) return false;
+  if (!record(v) || !keys(v, ['id','draftId','layoutVersionId','destinationId','profileVersionId','mode','state','completedSides','totalSides','assetId','failure']) || !['id','draftId','layoutVersionId','destinationId','profileVersionId'].every(k => isCollectionId(v[k])) || !(v.mode === 'direct' || v.mode === 'prepared-reference' || v.mode === 'direct-converted' || v.mode === 'prepared-derivative') || !integer(v.totalSides, 1, 2) || !integer(v.completedSides, 0, v.totalSides)) return false;
   if (v.state === 'completed') return isCollectionId(v.assetId) && v.completedSides === v.totalSides && v.failure === undefined;
   if (v.assetId !== undefined) return false;
   if (v.state === 'failed') return typeof v.failure === 'string' && ['SOURCE_INVALID','DESTINATION_INVALID','INPUT_CHANGED','CONVERSION_REQUIRED','IO_ERROR','DISK_FULL','ASSET_INVALID'].includes(v.failure);
@@ -67,8 +87,8 @@ export function isExecutionJob(v: unknown): v is ExecutionJob {
   return (v.state === 'running' || v.state === 'interrupted') && v.failure === undefined;
 }
 export function isExecutionAsset(v: unknown): v is ExecutionAsset {
-  if (!record(v) || !keys(v, ['id','draftId','masterVersionId','layoutVersionId','destinationId','mode','preparedVersionId','settings','recipes','audio','manifestHash','createdAt','state','retentionPolicy','formalReady']) || !isCollectionId(v.id) || !isCollectionId(v.destinationId) || !material(v) || !Array.isArray(v.audio) || !v.audio.length || v.audio.length > 2 || !v.audio.every(isExecutionAudioReceipt) || !hash(v.manifestHash) || !date(v.createdAt) || v.state !== 'verified-at-publication') return false;
-  const recipes = (v.recipes as readonly ExecutionRecipe[]).filter(r => r.totalFrames > 0);
+  if (!record(v) || !keys(v, ['id','draftId','masterVersionId','layoutVersionId','destinationId','mode','preparedVersionId','settings','recipes','audio','manifestHash','createdAt','state','retentionPolicy','formalReady']) || !isCollectionId(v.id) || !isCollectionId(v.destinationId) || !material(v) || !Array.isArray(v.audio) || !v.audio.length || v.audio.length > 2 || !v.audio.every(isExecutionAssetAudio) || !hash(v.manifestHash) || !date(v.createdAt) || v.state !== 'verified-at-publication') return false;
+  const recipes = (v.recipes as readonly ExecutionAssetRecipe[]).filter(r => executionFrameLimit(r) > 0);
   return v.audio.length === recipes.length && v.audio.every((receipt,i) => canonical(receipt.recipe) === canonical(recipes[i]));
 }
 export function isExecutionHistory(v: unknown): v is ExecutionHistory {

@@ -40,6 +40,8 @@ function technicalHeader(prefix: Buffer, size: number): { bytes: Buffer; mimeTyp
       if (format || (wav ? length < 16 || length > 40 : length !== 18) || offset + 8 + length > prefix.length) return fail('UNSUPPORTED');
       format = Buffer.from(prefix.subarray(offset, offset + 8 + length));
       if (wav && ![1, 3].includes(format.readUInt16LE(8))) return fail('UNSUPPORTED');
+      // IEEE 浮点只支持 32/64 位；标签解析器不会替我们排除不存在的 16 位格式。
+      if (wav && format.readUInt16LE(8) === 3 && ![32, 64].includes(format.readUInt16LE(22))) return fail('UNSUPPORTED');
     } else if (id === (wav ? 'data' : 'SSND')) {
       if (!format || length <= (wav ? 0 : 8)) return fail('UNSUPPORTED');
       if (wav) {

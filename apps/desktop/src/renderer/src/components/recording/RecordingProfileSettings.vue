@@ -211,17 +211,17 @@ onBeforeUnmount(() => { alive = false })
         <div class="fields">
           <label>采样率（Hz）<input v-model.number="form.executionFormat.sampleRate" type="number" min="8000" max="384000" step="1" required></label>
           <label>声道<select v-model="form.executionFormat.channelCount"><option :value="1">单声道</option><option :value="2">立体声</option></select></label>
-          <label>输出样本格式<select v-model="form.executionFormat.outputSampleFormat"><option value="pcm-s16le">整数 PCM · 16 bit</option><option value="pcm-s24le">整数 PCM · 24 bit</option><option value="pcm-s32le">整数 PCM · 32 bit</option><option value="pcm-f32le">浮点 PCM · 32 bit（转换待接入）</option></select></label>
-          <label>内部精度<select v-model="form.executionFormat.internalProcessingPrecision"><option value="integer-bit-copy">整数位复制</option><option value="float32">Float 32（待接入）</option><option value="float64">Float 64（待接入）</option></select></label>
+          <label>输出样本格式<select v-model="form.executionFormat.outputSampleFormat"><option value="pcm-s16le">整数 PCM · 16 bit</option><option value="pcm-s24le">整数 PCM · 24 bit</option><option value="pcm-s32le">整数 PCM · 32 bit</option><option value="pcm-f32le">浮点 PCM · 32 bit（需转换执行）</option></select></label>
+          <label>内部精度<select v-model="form.executionFormat.internalProcessingPrecision"><option value="integer-bit-copy">整数位复制</option><option value="float32">Float 32（需转换执行）</option><option value="float64">Float 64（需转换执行）</option></select></label>
           <label>计划后端标识<input v-model="form.executionFormat.outputBackend.id" maxlength="80" required placeholder="填写计划使用的后端标识"></label>
           <label>计划后端版本<input v-model="form.executionFormat.outputBackend.version" maxlength="80" required placeholder="填写明确版本"></label>
         </div>
-        <p class="muted">后端标识是计划参数，不是设备 ID 或认证结果。当前只编译同格式整数 PCM；需要转换时明确阻断，不自动改格式。</p>
+        <p class="muted">后端标识是计划参数，不是设备 ID 或认证结果。同格式整数 PCM 可用 Direct；需要 SRC、浮点、位深或声道转换时，请明确选择转换执行。固定后端不可用时仍会阻断，不自动改格式。</p>
         <details><summary>转换与声道策略</summary><div class="fields">
           <label>重采样器标识<input v-model="form.executionFormat.resamplerImplementation" maxlength="80" required></label>
           <label>重采样器版本<input v-model="form.executionFormat.resamplerVersion" maxlength="80" required></label>
-          <label>Dither<select v-model="form.executionFormat.ditherPolicy"><option value="none">不施加</option><option value="tpdf">TPDF（待接入）</option></select></label>
-          <label>声道映射<select v-model="form.executionFormat.channelMapping"><option value="identity">保持原声道</option><option value="mono-to-stereo">单声道转立体声（待接入）</option><option value="stereo-to-mono">立体声转单声道（待接入）</option></select></label>
+          <label>Dither<select v-model="form.executionFormat.ditherPolicy"><option value="none">不施加</option><option value="tpdf">TPDF（需转换执行）</option></select></label>
+          <label>声道映射<select v-model="form.executionFormat.channelMapping"><option value="identity">保持原声道</option><option value="mono-to-stereo">单声道转立体声（需转换执行）</option><option value="stereo-to-mono">立体声转单声道（需转换执行）</option></select></label>
         </div></details>
         <label class="check"><input v-model="profileConfirmed" type="checkbox">我确认保存 Profile；这些参数不构成设备认证</label>
         <p v-if="!validProfile" class="muted">请填写名称、完整设备链和后端版本，并检查格式参数。空白默认降噪、校准及电平会保存为“未设定”。</p>

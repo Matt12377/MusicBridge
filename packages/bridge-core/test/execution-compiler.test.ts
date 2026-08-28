@@ -6,12 +6,37 @@ import { mkdtemp, mkdir, open, readFile, realpath, rm, stat, symlink, link, writ
 import type { FileHandle } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { isExecutionAudioReceipt, isExecutionRecipe, type ExecutionFormat, type ExecutionRecipe, type ExecutionSegment } from '@music-bridge/contracts';
+import { isExecutionAudioReceipt, isExecutionRecipe, isConvertedExecutionReceipt, type AudioConversionPlan, type AudioConversionReceipt, type ConvertedExecutionRecipe, type ExecutionFormat, type ExecutionRecipe, type ExecutionSegment } from '@music-bridge/contracts';
 import { compileDirectPcm, verifyPreparedPcm } from '../src/recording/execution-compiler.js';
+import { compileConvertedDirect, preparedDerivativeReceipt } from '../src/recording/converted-compiler.js';
+import { mediaFingerprint } from '../src/recording/media-store.js';
 import { authorizeSourceDirectory } from '../src/recording/source-files.js';
 import { ExecutionCompileError } from '../src/recording/execution-plan.js';
+import * as waveReader from '../src/recording/execution-wave.js';
 const digest = (bytes: Buffer): string => createHash('sha256').update(bytes).digest('hex');
 const signal = (): AbortSignal => new AbortController().signal;
+function conversionWave(extensible: boolean, floating: boolean, channels: 1 | 2 = 2, frames = 7): { bytes: Buffer; pcm: Buffer; offset: number } {
+  const bits = floating ? 32 : 24, pcm = Buffer.alloc(frames * channels * bits / 8);
+  if (floating) for (let i = 0; i < frames * channels; i++) pcm.writeFloatLE((i - 4) / 2, i * 4);
+  else for (let i = 0; i < pcm.length; i++) pcm[i] = (i * 7) % 256;
+  const fmt = Buffer.alloc(extensible ? 48 : 26); fmt.write('fmt '); fmt.writeUInt32LE(fmt.length - 8, 4);
+  fmt.writeUInt16LE(extensible ? 0xfffe : floating ? 3 : 1, 8); fmt.writeUInt16LE(channels, 10); fmt.writeUInt32LE(48000, 12);
+  fmt.writeUInt32LE(48000 * channels * bits / 8, 16); fmt.writeUInt16LE(channels * bits / 8, 20); fmt.writeUInt16LE(bits, 22);
+  if (extensible) {
+    fmt.writeUInt16LE(22, 24); fmt.writeUInt16LE(bits, 26); fmt.writeUInt32LE(channels === 1 ? 4 : 3, 28);
+    Buffer.from(floating ? '0300000000001000800000aa00389b71' : '0100000000001000800000aa00389b71', 'hex').copy(fmt, 32);
+  }
+  const fact = Buffer.alloc(12); fact.write('fact'); fact.writeUInt32LE(4, 4); fact.writeUInt32LE(frames, 8);
+  const data = Buffer.alloc(8); data.write('data'); data.writeUInt32LE(pcm.length, 4);
+  const body = Buffer.concat([fmt, fact, data, pcm, Buffer.alloc(pcm.length % 2)]), head = Buffer.alloc(12);
+  head.write('RIFF'); head.writeUInt32LE(body.length + 4, 4); head.write('WAVE', 8);
+  return { bytes: Buffer.concat([head, body]), pcm, offset: 12 + fmt.length + fact.length + data.length };
+}
+function conversionInspector(): (handle: FileHandle, format: ExecutionFormat, signal: AbortSignal) => Promise<{ sha256: string; pcmSha256: string; frameCount: number; size: number; dataOffset: number }> {
+  const fn = (waveReader as unknown as Record<string, unknown>).inspectConversionOutput;
+  assert.equal(typeof fn, 'function', '缺少输出回读接口；这是接线 RED，不能证明已实现转换');
+  return fn as ReturnType<typeof conversionInspector>;
+}
 function wave(rate: number, channels: 1 | 2, bits: 16 | 24 | 32, frames: number, seed: number, metadata = false): { bytes: Buffer; pcm: Buffer; offset: number } {
   const pcm = Buffer.alloc(frames * channels * bits / 8);
   for (let i = channels * bits / 8; i < pcm.length - channels * bits / 8; i++) pcm[i] = (i + seed) % 256;
@@ -44,6 +69,53 @@ async function fixture(t: test.TestContext, options: { rate?: number; channels?:
 }
 const rejects = async (action: Promise<unknown>, code: string): Promise<void> => { await assert.rejects(action, e => e instanceof ExecutionCompileError && e.code === code && !e.message.includes('/')); };
 function proxy(handle: FileHandle, overrides: Partial<FileHandle>): FileHandle { return new Proxy(handle, { get(target, key) { const v = key in overrides ? Reflect.get(overrides, key) : Reflect.get(target, key, target); return typeof v === 'function' ? v.bind(target) : v; } }); }
+
+async function convertedFixture(t: test.TestContext, floating: boolean) {
+  const f = await fixture(t, { count: 1, rate: 48000, frames: 48 }), value = conversionWave(true, floating, 2, 48);
+  await writeFile(path.join(f.sourceDir, 'converted.wav'), value.bytes);
+  const outputFormat: ExecutionFormat = { ...f.recipe.format, internalProcessingPrecision: 'float64', outputSampleFormat: floating ? 'pcm-f32le' : 'pcm-s24le' };
+  const plan: AudioConversionPlan = { schemaVersion: 1, input: { sha256: digest(f.waves[0]!.bytes), size: f.waves[0]!.bytes.length, technical: { container: 'WAVE', codec: 'PCM', sampleRate: 48000, channels: 2, bitsPerSample: 16, sampleFrames: 48, frameEvidence: 'container-declared', durationMs: 1, lossless: true } }, format: outputFormat,
+    converter: { id: 'fixture', version: '1', binarySha256: 'a'.repeat(64), buildSha256: 'b'.repeat(64), components: [{ name: 'fixture', version: '1' }] }, processing: { sourceExtent: 'whole-input', inputStreamIndex: 0, gain: 'unchanged', timestampCompensation: 'disabled', parameters: [] }, formalReady: false };
+  const conversion: AudioConversionReceipt = { plan, planHash: mediaFingerprint(plan), decoded: { codec: 'pcm_s16le', sampleRate: 48000, channelCount: 2, sampleFormat: 's16', frameCount: 48, wholeInputConsumed: true }, audio: { sha256: digest(value.bytes), pcmSha256: digest(value.pcm), size: value.bytes.length, dataOffset: value.offset, frameCount: 48 }, formalReady: false };
+  const ids = [randomUUID(),randomUUID()];
+  const recipe: ConvertedExecutionRecipe = { schemaVersion: 2, compiler: 'musicbridge-conversion-v2', mode: 'direct', masterVersionId: f.recipe.masterVersionId, layoutVersionId: f.recipe.layoutVersionId, contentHash: f.recipe.contentHash, plannedTimelineHash: f.recipe.plannedTimelineHash, format: outputFormat, side: 'Program', capacityFrames: 48000, minimumFrames: 99, maximumFrames: 99,
+    segments: [{ kind: 'source', trackId: ids[0]!, conversion: plan }, { kind: 'silence', reason: 'gap', frames: 3 }, { kind: 'source', trackId: ids[1]!, conversion: plan }], formalReady: false };
+  return { ...f, value, conversion, recipe, converted: ids.map(trackId => ({ trackId, root: f.root, relative: 'converted.wav', receipt: conversion })) };
+}
+
+test('V2 编译逐字节保留整数/浮点转换结果，Gap 是精确数字零且回执按实际帧拼接', async t => {
+  for (const floating of [false,true]) {
+    const f = await convertedFixture(t, floating), output = await f.output();
+    const result = await compileConvertedDirect(f.recipe, f.converted, output.handle, signal());
+    assert.equal(isConvertedExecutionReceipt(result), true);
+    const bytes = await readFile(output.file), pcm = Buffer.concat([f.value.pcm, Buffer.alloc(3 * 2 * (floating ? 4 : 3)), f.value.pcm]);
+    assert.deepEqual(bytes.subarray(result.audio.dataOffset, result.audio.dataOffset + pcm.length), pcm);
+    assert.equal(result.audio.pcmSha256, digest(pcm)); assert.equal(result.audio.sha256, digest(bytes));
+    assert.deepEqual(result.segments.map(s => [s.startFrame,s.endFrame]), [[0,48],[48,51],[51,99]]);
+    assert.deepEqual(await readFile(path.join(f.sourceDir, 'converted.wav')), f.value.bytes);
+  }
+});
+
+test('V2 编译拒绝伪造转换计划 Hash、损坏转换文件与撤权；不覆盖已有输出', async t => {
+  for (const fault of ['plan-hash','changed','revoked','occupied']) {
+    const f = await convertedFixture(t, false), output = await f.output();
+    if (fault === 'plan-hash') f.converted[0]!.receipt = { ...f.conversion, planHash: 'f'.repeat(64) };
+    if (fault === 'changed') { const bytes = Buffer.from(f.value.bytes); bytes[f.value.offset] = bytes[f.value.offset]! ^ 1; await writeFile(path.join(f.sourceDir, 'converted.wav'), bytes); }
+    if (fault === 'revoked') f.root.authorized = false;
+    if (fault === 'occupied') await output.handle.writeFile('keep');
+    await rejects(compileConvertedDirect(f.recipe, f.converted, output.handle, signal()), fault === 'changed' ? 'HASH_MISMATCH' : fault === 'revoked' ? 'SOURCE_UNAVAILABLE' : 'INVALID_INPUT');
+    assert.equal((await output.handle.stat()).size, fault === 'occupied' ? 4 : 0);
+  }
+});
+
+test('V2 PREP 回执直接绑定独立转换字节，不再次编译、插 Gap 或改原 Render 谱系', async t => {
+  const f = await convertedFixture(t, true), renderAssetId = randomUUID();
+  const recipe: ConvertedExecutionRecipe = { ...f.recipe, mode: 'prepared-derivative', prepared: { id: randomUUID(), renderTimelineHash: 'e'.repeat(64) }, minimumFrames: 48, maximumFrames: 48, segments: [{ kind: 'render', renderAssetId, conversion: f.conversion.plan }] };
+  const result = preparedDerivativeReceipt(recipe, f.conversion);
+  assert.equal(isConvertedExecutionReceipt(result), true); assert.deepEqual(result.audio, f.conversion.audio);
+  assert.equal(result.origin, 'derived-render'); assert.equal(result.segments.length, 1);
+  assert.throws(() => preparedDerivativeReceipt(recipe, { ...f.conversion, planHash: 'f'.repeat(64) }), (error: unknown) => error instanceof ExecutionCompileError && error.code === 'INVALID_INPUT');
+});
 
 test('最终 96k WAV 的两个 Gap 各 480000 帧，源首尾静音和全部 PCM 字节保留', async t => {
   const f = await fixture(t), output = await f.output(), before = await Promise.all(f.locations.map(l => stat(path.join(f.sourceDir, l.relative), { bigint: true })));
@@ -162,4 +234,80 @@ test('整体编译有明确超时，不以卡住的读取来证明成功', async
   const f = await fixture(t, { count: 1 }), output = await f.output(); let calls = 0;
   t.mock.method(Date, 'now', () => 1000000 + calls++ * 16 * 60_000);
   await rejects(compileDirectPcm(f.recipe, f.locations, output.handle, signal()), 'LIMIT_EXCEEDED'); assert.equal((await output.handle.stat()).size, 0);
+});
+
+test('转换输出回读实际整数/浮点及扩展 WAV，整文件和 PCM 分别 Hash；旧复制入口仍拒绝', async t => {
+  const inspect = conversionInspector(), f = await fixture(t, { count: 1 });
+  for (const extensible of [false, true]) for (const floating of [false, true]) for (const channels of [1, 2] as const) {
+    const value = conversionWave(extensible, floating, channels), output = await f.output(); await output.handle.writeFile(value.bytes);
+    const format: ExecutionFormat = { ...f.recipe.format, sampleRate: 48000, channelCount: channels, channelLayout: channels === 1 ? 'mono' : 'stereo', outputSampleFormat: floating ? 'pcm-f32le' : 'pcm-s24le', internalProcessingPrecision: 'float64' };
+    const before = await output.handle.stat({ bigint: true }), evidence = await inspect(output.handle, format, signal());
+    assert.deepEqual(evidence, { sha256: digest(value.bytes), pcmSha256: digest(value.pcm), frameCount: 7, size: value.bytes.length, dataOffset: value.offset });
+    const after = await output.handle.stat({ bigint: true }); assert.equal(after.mtimeNs, before.mtimeNs); assert.equal(after.ctimeNs, before.ctimeNs);
+    await rejects(waveReader.readPcmWave(output.handle, value.bytes.length, () => undefined), 'UNSUPPORTED_WAVE');
+  }
+});
+
+test('转换输出拒绝错误 GUID、有效位宽、声道位置、fact 帧数、重复数据和非有限浮点', async t => {
+  const inspect = conversionInspector(), f = await fixture(t, { count: 1 });
+  for (const fault of ['guid','valid-bits','mask','fact','duplicate','nan','infinity','magic','trailing'] as const) {
+    const value = conversionWave(true, true); let bytes: Buffer = Buffer.from(value.bytes);
+    if (fault === 'guid') bytes[59] = bytes[59]! ^ 1;
+    if (fault === 'valid-bits') bytes.writeUInt16LE(24, 38);
+    if (fault === 'mask') bytes.writeUInt32LE(5, 40);
+    if (fault === 'fact') bytes.writeUInt32LE(8, 68);
+    if (fault === 'duplicate') { bytes = Buffer.concat([bytes, bytes.subarray(value.offset - 8)]); bytes.writeUInt32LE(bytes.length - 8, 4); }
+    if (fault === 'nan' || fault === 'infinity') bytes.writeFloatLE(fault === 'nan' ? NaN : Infinity, value.offset + 4);
+    if (fault === 'magic') bytes[0] = bytes[0]! | 0x80;
+    if (fault === 'trailing') bytes = Buffer.concat([bytes, Buffer.alloc(1)]);
+    const output = await f.output(); await output.handle.writeFile(bytes);
+    await rejects(inspect(output.handle, { ...f.recipe.format, sampleRate: 48000, outputSampleFormat: 'pcm-f32le', internalProcessingPrecision: 'float64' }, signal()), 'UNSUPPORTED_WAVE');
+  }
+});
+
+test('转换输出格式与预期不符、读取中变化、取消和私有 IO 异常不能生成文件证据', async t => {
+  const inspect = conversionInspector(), f = await fixture(t, { count: 1 }), value = conversionWave(true, true);
+  const output = await f.output(); await output.handle.writeFile(value.bytes);
+  const format: ExecutionFormat = { ...f.recipe.format, sampleRate: 48000, outputSampleFormat: 'pcm-f32le', internalProcessingPrecision: 'float64' };
+  await rejects(inspect(output.handle, { ...format, outputSampleFormat: 'pcm-s32le' }, signal()), 'CONVERSION_REQUIRED');
+  const controller = new AbortController(); controller.abort(); await rejects(inspect(output.handle, format, controller.signal), 'CANCELLED');
+  const bad = proxy(output.handle, { read: (async () => { throw new Error('/private/output-name.wav'); }) as unknown as FileHandle['read'] });
+  await rejects(inspect(bad, format, signal()), 'IO_ERROR');
+  let changed = false;
+  const changing = proxy(output.handle, { read: (async (b: Buffer, offset: number, length: number, position: number) => {
+    const result = await output.handle.read(b, offset, length, position);
+    if (!changed && position === value.offset) { changed = true; await output.handle.truncate(value.bytes.length + 4); }
+    return result;
+  }) as FileHandle['read'] });
+  await rejects(inspect(changing, format, signal()), 'INPUT_CHANGED'); assert.equal(changed, true);
+});
+
+test('转换回读短读补齐；超过首个缓冲区的 NaN 和中途取消仍被检测', async t => {
+  const inspect = conversionInspector(), f = await fixture(t, { count: 1 }), output = await f.output(), small = conversionWave(true, true);
+  const frames = 131080, pcm = Buffer.alloc(frames * 8), bytes = Buffer.concat([small.bytes.subarray(0, small.offset), pcm]);
+  bytes.writeUInt32LE(bytes.length - 8, 4); bytes.writeUInt32LE(frames, 68); bytes.writeUInt32LE(pcm.length, small.offset - 4);
+  await output.handle.writeFile(bytes);
+  const format: ExecutionFormat = { ...f.recipe.format, sampleRate: 48000, outputSampleFormat: 'pcm-f32le', internalProcessingPrecision: 'float64' };
+  const short = proxy(output.handle, { read: (async (b: Buffer, offset: number, length: number, position: number) => output.handle.read(b, offset, Math.min(4093, length), position)) as FileHandle['read'] });
+  const evidence = await inspect(short, format, signal()); assert.equal(evidence.frameCount, frames); assert.equal(evidence.pcmSha256, digest(pcm));
+  const nan = Buffer.alloc(4); nan.writeFloatLE(NaN); await output.handle.write(nan, 0, 4, small.offset + 1024 * 1024 + 4);
+  await rejects(inspect(short, format, signal()), 'UNSUPPORTED_WAVE');
+  await output.handle.write(Buffer.alloc(4), 0, 4, small.offset + 1024 * 1024 + 4);
+  const controller = new AbortController();
+  const cancel = proxy(output.handle, { read: (async (b: Buffer, offset: number, length: number, position: number) => {
+    const result = await output.handle.read(b, offset, length, position); if (position >= small.offset) controller.abort(); return result;
+  }) as FileHandle['read'] });
+  await rejects(inspect(cancel, format, controller.signal), 'CANCELLED');
+});
+
+test('转换回读同时限制墙钟和单调时钟，拒绝硬链接输出', async t => {
+  const inspect = conversionInspector(), f = await fixture(t, { count: 1 }), value = conversionWave(true, true), output = await f.output();
+  await output.handle.writeFile(value.bytes);
+  const format: ExecutionFormat = { ...f.recipe.format, sampleRate: 48000, outputSampleFormat: 'pcm-f32le', internalProcessingPrecision: 'float64' };
+  for (const clock of [Date, performance]) {
+    let calls = 0; const mock = t.mock.method(clock, 'now', () => 1000000 + calls++ * 16 * 60_000);
+    await rejects(inspect(output.handle, format, signal()), 'LIMIT_EXCEEDED'); mock.mock.restore();
+  }
+  await link(output.file, path.join(f.dir, 'linked-output'));
+  await rejects(inspect(output.handle, format, signal()), 'INVALID_INPUT');
 });

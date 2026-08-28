@@ -228,7 +228,12 @@ async function waitForProcessMarker(
 }
 
 test.beforeEach(async () => {
+  if (test.info().title.includes('固定原生构建')) test.skip(process.env.MUSIC_BRIDGE_NATIVE_GATE !== '1', '需要显式构建并核定的原生候选')
   diagnosticDirectory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-ui-diagnostics-'))
+  if (test.info().title.includes('固定原生构建')) {
+    await mkdir(test.info().outputDir, { recursive: true })
+    await writeFile(test.info().outputPath('synthetic-user-data-path.txt'), await realpath(diagnosticDirectory))
+  }
   diagnosticPath = path.join(diagnosticDirectory, 'diagnostics.json')
   const environment = {
     ...process.env,
@@ -243,6 +248,8 @@ test.beforeEach(async () => {
     environment.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE = 'expired'
   }
   delete environment.NETEASE_COOKIE
+  delete environment.MUSIC_BRIDGE_BUNDLED_CONVERTER_GATE
+  if (test.info().title.includes('固定原生构建')) environment.MUSIC_BRIDGE_BUNDLED_CONVERTER_GATE = '1'
   if ((test.info().title.includes('V3 Roon 关联闭环') || test.info().title.includes('V3 录音选曲') || test.info().title.includes('V3 分面') || test.info().title.includes('V3 母版') || test.info().title.includes('V3 Logic 工作区') || test.info().title.includes('V3 PREP') || test.info().title.includes('V3 执行资产'))) environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY = '1'
   electronApp = await electron.launch({
     args: [electronEntry],
@@ -270,7 +277,9 @@ test.beforeEach(async () => {
 })
 
 test.afterEach(async () => {
-  await electronApp.close()
+  if (test.info().status === 'skipped') return
+  if (electronApp) await electronApp.close()
+  if (test.info().title.includes('固定原生构建')) return // 显式 Gate 的隔离合成目录随测试产物保留，供打包应用核验。
   await rm(diagnosticDirectory, { recursive: true, force: true })
 })
 
@@ -2394,6 +2403,7 @@ test('V3 执行资产：Profile 与本次参数、明确编译、回执重试和
   await page.locator('[data-sidebar-source="recording"]').click(); await page.getByRole('button', { name: '继续草稿 执行资产合成草稿' }).click()
   const trigger = page.getByRole('button', { name: '录音参数与执行资产', exact: true }); await trigger.click()
   const panel = page.getByRole('dialog', { name: '录音参数与执行资产', exact: true })
+  await expect(panel.getByRole('combobox', { name: '执行来源', exact: true }).locator('option')).toHaveCount(4)
   await panel.getByRole('button', { name: '新建 Profile', exact: true }).click()
   await panel.getByLabel('模板名称', { exact: true }).fill('桌面合成链')
   await panel.getByLabel('设备或连接 1', { exact: true }).fill('合成声卡；不连接设备')
@@ -2415,6 +2425,42 @@ test('V3 执行资产：Profile 与本次参数、明确编译、回执重试和
   await expect(panel.getByText('本次参数已保存', { exact: true })).toBeVisible()
   await electronApp.evaluate(({ dialog }, folder) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [folder] }) }, target)
   await panel.getByRole('button', { name: '选择执行目标', exact: true }).click()
+  await panel.getByRole('combobox', { name: '执行来源', exact: true }).selectOption('direct-converted')
+  await panel.getByRole('button', { name: '预览执行资产', exact: true }).click()
+  await expect(panel.getByRole('alert')).toContainText('固定转换器')
+  await expect(panel.getByRole('heading', { name: '确认执行资产', exact: true })).toHaveCount(0)
+  expect(await readdir(target)).toEqual([])
+  await panel.getByRole('combobox', { name: '执行来源', exact: true }).selectOption('direct')
+  // 仅替换一次预览回执来验证 V2 呈现，不启动转换，不作为真实转换或发布证据。
+  const previewFixture = await page.evaluate(async draftId => {
+    const api = window.musicBridge, versions = await api.listMasterVersions(draftId), layout = versions.layouts[0]!, session = (await api.getRecordingSession(draftId)).session!, destination = (await api.listPreparationDestinations()).destinations.find(d => d.authorized)!
+    const proposal = await api.previewExecutionAsset({ readId: crypto.randomUUID(), layoutVersionId: layout.id, destinationId: destination.id, mode: 'direct', sessionRevision: session.revision })
+    return { proposal, layout, master: versions.masters.find(m => m.id === layout.masterVersionId)! }
+  }, draft.draftId)
+  const { planConvertedDirectExecution } = await import('../../../packages/bridge-core/src/recording/execution-plan.js')
+  const { conversionFixture } = await import('../../../packages/bridge-core/test/helpers/conversion-fixture.js')
+  const { executionAudioSize, isExecutionProposal } = await import('@music-bridge/contracts')
+  const recipes = planConvertedDirectExecution(previewFixture.master, previewFixture.layout, previewFixture.proposal.settings.format, conversionFixture().plan)
+  const convertedProposal = { ...previewFixture.proposal, mode: 'direct-converted' as const, recipes, audioBytesToWrite: recipes.reduce((sum,r) => sum + executionAudioSize(r),0) }
+  expect(isExecutionProposal(convertedProposal)).toBe(true)
+  await electronApp.evaluate(({ ipcMain }, proposal) => {
+    const handlers = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => unknown> })._invokeHandlers, original = handlers.get('recordingExecution:preview')!
+    ipcMain.removeHandler('recordingExecution:preview'); ipcMain.handle('recordingExecution:preview', (...args) => {
+      ipcMain.removeHandler('recordingExecution:preview'); ipcMain.handle('recordingExecution:preview', original)
+      return proposal
+    })
+  }, convertedProposal)
+  await panel.getByRole('combobox', { name: '执行来源', exact: true }).selectOption('direct-converted')
+  await panel.getByRole('button', { name: '预览执行资产', exact: true }).click()
+  await expect(panel.getByText(/预计 .*发布后记录实际帧数/).first()).toBeVisible()
+  await panel.getByText('A 面转换计划与构建身份', { exact: true }).click()
+  await expect(panel.getByText('固定转换器 fixture / 1（未认证）').first()).toBeVisible()
+  await expect(panel.getByText('构建 SHA-256').first()).toBeVisible()
+  await expect(panel.getByRole('button', { name: '确认并准备执行资产', exact: true })).toBeDisabled()
+  await page.screenshot({ path: test.info().outputPath('conversion-preview-fixture.png') })
+  expect(await readdir(target)).toEqual([])
+  await panel.getByRole('combobox', { name: '执行来源', exact: true }).selectOption('direct')
+  await expect(panel.getByRole('heading', { name: '确认执行资产', exact: true })).toHaveCount(0)
   await electronApp.evaluate(({ ipcMain }) => {
     const handlers = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => unknown> })._invokeHandlers, original = handlers.get('recordingExecution:preview')!
     let paused = false
@@ -2506,4 +2552,91 @@ test('V3 执行资产：Profile 与本次参数、明确编译、回执重试和
   expect(updated.session!.overrides.signalChain![0]!.label).toBe('本次合成链；不操作设备')
   expect(updated.session!.overrides.recordLevel).toBe('尚未保存的人工电平')
   expect(await page.evaluate(id => window.musicBridge.listExecutionAssets(id), draft.draftId)).toEqual(history)
+})
+
+
+test('V3 执行资产固定原生构建：真实转换、文件验证与冷启动', async () => {
+  test.setTimeout(90_000)
+  const directory = await realpath(diagnosticDirectory), sourceRoot = path.join(directory, 'execution-source'), target = path.join(directory, 'execution-target'); await mkdir(sourceRoot); await mkdir(target)
+  const sourceFile = path.join(sourceRoot, 'source.wav'), bytes = Buffer.alloc(44 + 44101 * 4)
+  bytes.write('RIFF'); bytes.writeUInt32LE(bytes.length - 8, 4); bytes.write('WAVEfmt ', 8); bytes.writeUInt32LE(16, 16); bytes.writeUInt16LE(1, 20); bytes.writeUInt16LE(2, 22); bytes.writeUInt32LE(44100, 24); bytes.writeUInt32LE(176400, 28); bytes.writeUInt16LE(4, 32); bytes.writeUInt16LE(16, 34); bytes.write('data', 36); bytes.writeUInt32LE(bytes.length - 44, 40); bytes.writeInt16LE(12345, 44); await writeFile(sourceFile, bytes)
+  const draft = await page.evaluate(async () => { const api = window.musicBridge, page = { offset: 0, limit: 20 }, albums = await api.searchPhysicalRoonAlbums('', page), tracks = await Promise.all(albums.items.slice(0, 2).map(a => api.getRoonAlbumTracks(a.reference, page))); return api.appendMasterDraft({ commandId: crypto.randomUUID(), title: '固定原生构建合成草稿', programType: 'compilation', references: tracks.map(p => p.items[0]!.reference), userConfirmed: true }) })
+  await electronApp.evaluate(({ dialog }, root) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [root] }) }, sourceRoot)
+  const root = await page.evaluate(() => window.musicBridge.chooseRecordingSourceRoot(crypto.randomUUID())); expect(root).toBeTruthy()
+  await electronApp.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }) }, sourceFile)
+  for (const trackId of draft.trackIds) {
+    const job = await page.evaluate(({ draftId, trackId, rootId }) => window.musicBridge.chooseRecordingSource({ commandId: crypto.randomUUID(), draftId, trackId, rootId, acquisition: 'userFileBind' }), { draftId: draft.draftId, trackId, rootId: root!.id })
+    await expect.poll(async () => (await page.evaluate(id => window.musicBridge.getRecordingSourceJob(id), job!.id)).job?.state).toBe('completed')
+    await page.evaluate(async ({ draftId, trackId }) => { const api = window.musicBridge, binding = (await api.getDraftSources(draftId)).tracks.find(t => t.trackId === trackId)!.binding!; await api.confirmRecordingSource({ commandId: crypto.randomUUID(), id: binding.id, draftId, trackId, userConfirmed: true }) }, { draftId: draft.draftId, trackId })
+  }
+  const frozen = await page.evaluate(async draftId => {
+    const api = window.musicBridge, page = { offset: 0, limit: 20 }, spec = { format: 'cassette' as const, splitAfter: 2, leadInMs: 1000, tailMs: 1000, defaultGapMs: 5000, rules: [], compatibility: { confirmed: true, cassetteTypes: ['II' as const], dat: true } }
+    await api.receiveCollectionStock({ commandId: crypto.randomUUID(), model: { brand: 'TDK', name: 'SA', edition: '执行合成', year: 1990, format: 'cassette', tapeType: 'II', identification: 'verified' }, lengthMinutes: 60, quantities: { openedBlank: 1, sealedBlank: 0, legacyUsed: 0, unclassified: 0 } })
+    const preview = await api.previewMediaPlan({ draftId, spec, page }), saved = await api.saveMediaPlan({ commandId: crypto.randomUUID(), draftId, expectedDraftRevision: preview.draftRevision, inputFingerprint: preview.inputFingerprint, spec }), plan = await api.reserveMediaPlan({ commandId: crypto.randomUUID(), planId: saved.id, expectedRevision: saved.revision, skuId: preview.candidates.items[0]!.skuId, packaging: 'opened', userConfirmed: true }), version = await api.previewMasterVersions({ planId: plan.id, sampleRate: 96000 })
+    return api.freezeMasterVersions({ commandId: crypto.randomUUID(), planId: plan.id, sampleRate: 96000, proposalFingerprint: version.proposalFingerprint, userConfirmed: true })
+  }, draft.draftId)
+  await expect.poll(async () => (await page.evaluate(id => window.musicBridge.getMasterVersionJob(id), frozen.id)).job?.state).toBe('completed')
+  await page.locator('[data-sidebar-source="recording"]').click(); await page.getByRole('button', { name: '继续草稿 固定原生构建合成草稿' }).click()
+  const trigger = page.getByRole('button', { name: '录音参数与执行资产', exact: true }); await trigger.click()
+  const panel = page.getByRole('dialog', { name: '录音参数与执行资产', exact: true })
+  await expect(panel.getByRole('combobox', { name: '执行来源', exact: true }).locator('option')).toHaveCount(4)
+  await panel.getByRole('button', { name: '新建 Profile', exact: true }).click()
+  await panel.getByLabel('模板名称', { exact: true }).fill('桌面合成链')
+  await panel.getByLabel('设备或连接 1', { exact: true }).fill('合成声卡；不连接设备')
+  await panel.getByLabel('默认降噪', { exact: true }).fill('Off')
+  await panel.getByLabel('默认校准', { exact: true }).fill('合成校准')
+  await panel.getByLabel('手动预卷（秒）', { exact: true }).fill('2')
+  await panel.getByLabel('计划后端标识', { exact: true }).fill('isolated-test-no-output')
+  await panel.getByLabel('计划后端版本', { exact: true }).fill('1')
+  await panel.getByLabel('兼容 Type II', { exact: true }).check()
+  await panel.getByLabel('我已确认上述介质兼容性', { exact: true }).check()
+  await panel.getByLabel('采样率（Hz）', { exact: true }).fill('48000')
+  await panel.getByRole('combobox', { name: /^输出样本格式/ }).selectOption('pcm-s24le')
+  await panel.getByRole('combobox', { name: /^内部精度/ }).selectOption('float64')
+  await panel.getByText('转换与声道策略', { exact: true }).click()
+  await panel.getByLabel('重采样器标识', { exact: true }).fill('ffmpeg-swr')
+  await panel.getByLabel('重采样器版本', { exact: true }).fill('6.3.102')
+  await panel.getByLabel('我确认保存 Profile；这些参数不构成设备认证', { exact: true }).check()
+  await panel.getByRole('button', { name: '保存 Profile 版本', exact: true }).click()
+  await expect(panel.getByRole('combobox', { name: '所选 Profile 版本', exact: true })).not.toHaveValue('')
+  await panel.getByRole('combobox', { name: '本次降噪选择', exact: true }).selectOption('unset')
+  await panel.getByRole('combobox', { name: '本次电平选择', exact: true }).selectOption('custom')
+  await panel.getByLabel('本次电平', { exact: true }).fill('人工合成 -3 dB')
+  await panel.getByLabel('我确认本次参数；后续修改模板不改写此版本', { exact: true }).check()
+  await panel.getByRole('button', { name: '保存本次参数', exact: true }).click()
+  await expect(panel.getByText('本次参数已保存', { exact: true })).toBeVisible()
+  await electronApp.evaluate(({ dialog }, folder) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [folder] }) }, target)
+  await panel.getByRole('button', { name: '选择执行目标', exact: true }).click()
+  await panel.getByRole('combobox', { name: '执行来源', exact: true }).selectOption('direct-converted')
+  await panel.getByRole('button', { name: '预览执行资产', exact: true }).click()
+  await expect(panel.getByRole('heading', { name: '确认执行资产', exact: true })).toBeVisible()
+  expect(await readdir(target)).toEqual([])
+  await panel.getByText('A 面转换计划与构建身份', { exact: true }).click()
+  await expect(panel.getByText('固定转换器 ffmpeg / 8.1.2（未认证）').first()).toBeVisible()
+  await expect(panel.getByRole('button', { name: '确认并准备执行资产', exact: true })).toBeDisabled()
+  await panel.getByLabel('我确认准备上述执行资产；不开始录音，不自动删除文件', { exact: true }).check()
+  await panel.getByRole('button', { name: '确认并准备执行资产', exact: true }).click()
+  await expect(panel.getByRole('heading', { name: '执行资产 1', exact: true })).toBeVisible({ timeout: 30_000 })
+  const history = await page.evaluate(id => window.musicBridge.listExecutionAssets(id), draft.draftId), asset = history.assets[0]!
+  expect(history.jobs).toHaveLength(1); expect(history.jobs[0]!.state).toBe('completed')
+  expect(asset.mode).toBe('direct-converted'); expect(asset.formalReady).toBe(false)
+  expect(asset.audio[0]!.audio.frameCount).toBe(432004)
+  expect(JSON.stringify(asset)).toContain('ffmpeg'); expect(JSON.stringify(asset)).not.toContain(directory)
+  expect(await readFile(sourceFile)).toEqual(bytes)
+  const published = await readFile(path.join(target, `MusicBridge-Execution-${history.jobs[0]!.id}`, 'Audio', 'A.execution.wav'))
+  await writeFile(test.info().outputPath('published-A.execution.wav'), published)
+  await writeFile(test.info().outputPath('execution-public-history.json'), JSON.stringify(history, null, 2))
+  await panel.getByRole('button', { name: '重新验证此资产', exact: true }).click()
+  await expect(panel.getByText('本次文件验证通过', { exact: true })).toBeVisible()
+  await page.screenshot({ path: test.info().outputPath('native-conversion.png') })
+  await electronApp.close()
+  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_BUNDLED_CONVERTER_GATE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
+  delete environment.NETEASE_COOKIE; delete environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY
+  electronApp = await electron.launch({ args: [electronEntry], cwd: desktopRoot, env: environment }); page = await electronApp.firstWindow()
+  await page.locator('[data-sidebar-source="recording"]').click(); await page.getByRole('button', { name: '继续草稿 固定原生构建合成草稿' }).click()
+  await page.getByRole('button', { name: '录音参数与执行资产', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '执行资产 1', exact: true })).toBeVisible()
+  expect(await page.evaluate(id => window.musicBridge.listExecutionAssets(id), draft.draftId)).toEqual(history)
+  await page.getByRole('button', { name: '重新验证此资产', exact: true }).click()
+  await expect(page.getByText('本次文件验证通过', { exact: true })).toBeVisible()
 })

@@ -37,14 +37,15 @@ const integer = (v: unknown, min = 0, max = Number.MAX_SAFE_INTEGER): v is numbe
 const hash = (v: unknown): v is string => typeof v === 'string' && /^[a-f0-9]{64}$/u.test(v);
 const label = (v: unknown): v is string => typeof v === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9._+-]{0,79}$/u.test(v);
 const rate = (v: unknown): v is number => integer(v, 8000, 384000);
+const one = (v: unknown, values: readonly string[]): boolean => typeof v === 'string' && values.includes(v);
 export function isExecutionFormat(v: unknown): v is ExecutionFormat {
   return record(v) && keys(v, ['sampleRate','channelCount','channelLayout','internalProcessingPrecision','outputSampleFormat','resamplerImplementation','resamplerVersion','ditherPolicy','channelMapping','outputBackend','outputProfileVersion']) && rate(v.sampleRate)
     && (v.channelCount === 1 ? v.channelLayout === 'mono' : v.channelCount === 2 && v.channelLayout === 'stereo')
-    && ['integer-bit-copy','float32','float64'].includes(String(v.internalProcessingPrecision))
-    && ['pcm-s16le','pcm-s24le','pcm-s32le','pcm-f32le'].includes(String(v.outputSampleFormat))
+    && one(v.internalProcessingPrecision, ['integer-bit-copy','float32','float64'])
+    && one(v.outputSampleFormat, ['pcm-s16le','pcm-s24le','pcm-s32le','pcm-f32le'])
     && label(v.resamplerImplementation) && label(v.resamplerVersion)
     && (v.resamplerImplementation !== 'none' || v.resamplerVersion === 'not-applied')
-    && ['none','tpdf'].includes(String(v.ditherPolicy)) && ['identity','mono-to-stereo','stereo-to-mono'].includes(String(v.channelMapping))
+    && one(v.ditherPolicy, ['none','tpdf']) && one(v.channelMapping, ['identity','mono-to-stereo','stereo-to-mono'])
     && record(v.outputBackend) && keys(v.outputBackend, ['id','version']) && label(v.outputBackend.id) && label(v.outputBackend.version) && isCollectionId(v.outputProfileVersion);
 }
 export function isExecutionPcmInput(v: unknown): v is ExecutionPcmInput {

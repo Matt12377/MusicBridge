@@ -86,6 +86,7 @@ export function buildCoreEnvironment(
     environment.MUSIC_BRIDGE_CORE_TEST_MODE = '1'
     if (options.uiE2e) {
       environment.MUSIC_BRIDGE_UI_E2E = '1'
+      if (parent.MUSIC_BRIDGE_BUNDLED_CONVERTER_GATE === '1') environment.MUSIC_BRIDGE_BUNDLED_CONVERTER_GATE = '1'
       if (parent.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY === '1') environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY = '1'
       const syntheticAccountMode = parent.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE
       if (syntheticAccountMode === 'profile-unavailable' || syntheticAccountMode === 'expired') {

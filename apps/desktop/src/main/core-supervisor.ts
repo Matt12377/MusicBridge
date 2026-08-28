@@ -148,7 +148,7 @@ export class CoreSupervisor {
       throw new CoreIpcError(validated.error.code, validated.error.message)
     }
     const timeoutMs =
-      ['recordingExecution.preview', 'recordingExecution.verify', 'recordingPrepared.previewImport', 'recordingPrepared.startImport', 'recordingPrepared.review', 'recordingPrepared.freeze'].includes(command)
+      ['recordingExecution.preview', 'recordingExecution.start', 'recordingExecution.verify', 'recordingPrepared.previewImport', 'recordingPrepared.startImport', 'recordingPrepared.review', 'recordingPrepared.freeze'].includes(command)
       ? PREPARED_FILE_REQUEST_TIMEOUT_MS
       : command.startsWith('library.') ||
       command.startsWith('roon.library.') ||

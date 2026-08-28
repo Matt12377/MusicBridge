@@ -19,3 +19,4 @@ config.json
 diagnostics/
 apps/desktop/out/
 apps/desktop/release/
+apps/desktop/native/ffmpeg/
