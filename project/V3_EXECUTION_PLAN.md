@@ -20,7 +20,7 @@ Owner 已授权“全部开始”。这是持续实施授权，不是“所有�
 
 ## 剩余任务 TODO
 
-本轮已将后续拆为 TASK-064～079，详见 [V3 TODO](V3_TODO.md)。TASK-064 本地自动 Gate 通过，TASK-065 本地自动 Gate 通过，TASK-066～079 未完成；外部条件和旧任务验收单独保留。
+本轮已将后续拆为 TASK-064～079，详见 [V3 TODO](V3_TODO.md)。TASK-064 本地自动 Gate 通过，TASK-065 本地自动 Gate 通过，TASK-066 本地自动 Gate 通过，TASK-067～079 未完成；外部条件和旧任务验收单独保留。
 
 ## 推进与进度展示
 
@@ -78,3 +78,12 @@ SQLite Backup API 一致性快照、快照内归档引用闭包、完整 Content
 ### TASK-065 隔离恢复承接
 
 新目录恢复、权限撤销、重复收据和候选更新保护、未结束任务中断、备份与原生Root的Manifest基本索引均通过本地自动Gate。Contracts71/Core735/Desktop179、安全22/Electron4/E2E49；独立Python确认7表不变、6对象/1PREP与旧授权为0。候选仍未激活Runtime，Quarantine是只读问题清单；TASK-066继续根位置绑定、激活与原生桌面流程。完整Gate E和Owner未完成。
+
+
+### TASK-066 接续检查点（2026-08-28）
+
+接替 v31，工作树为 `worktree/task-066-backup-restore-workflow`，base `abbd2fc230956103a2a22c3c9555e65f9c653a81`。原待办 TASK-064～079 与验收边界保持一致，064/065 的本地自动通过不代表 Owner 已接受。
+
+Owner 已解除此前测试停修并授权 GPT-5.6 Sol / High 按独立文件范围并行。原生选择、后台备份/校验/隔离恢复、持久回执、内容新位置绑定与显式 Core 激活均已接通；不改历史路径或恢复旧目录权限。真实合成 Electron 已核验库存2项切到备份1项、旧库字节保留、回执重试不二次重启、冷启动不自动播放；子进程 SIGKILL 覆盖 ready 提交前后恢复边界。维护库排他、迁移、撤权逐对象停止和备份身份锁定已分层验证。最终40文件候选全量 Gate 通过（77/818/186，安全22、Electron4、E2E50）；标准typecheck额外接线已复核，提交身份由结果报告和STATUS锁定；历史失败记录保留在 TASK-066_PROGRESS。不 push、不合并 main、不发布，真实 Provider/Roon/设备及 Owner 验收仍单独等待。
+
+QUALITY有界容量carryover：普通冷启2秒ready与大库完整性扫描的耗时策略由TASK-078/Gate E继续验证，不能据此宣称容量或发布验收完成。TASK-067从最终锁定HEAD接续，跨重启outbox必须绑定原工作库身份。

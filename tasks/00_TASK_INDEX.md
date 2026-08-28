@@ -74,3 +74,5 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 剩余 TASK-065～079 与 Owner 条件见 [V3 TODO](../project/V3_TODO.md)，任务开始前展开详细范围。
 
 - [TASK-065](TASK-065-archive-restore.md)：隔离恢复候选、重复恢复保护与基本索引重建（本地自动 Gate 通过；激活与 Owner 待后续）。
+
+- [TASK-066](TASK-066-backup-restore-workflow.md)：备份恢复持久工作流、位置绑定、明确激活与桌面入口（本地自动 Gate 通过；容量与Owner边界保留）。
