@@ -82,7 +82,7 @@
     "branch": "codex/task-074-recording-attempts",
     "baseCommit": "017dfef43d615b26db770c206dec2e38105bd1e5",
     "state": "local-automated-pass-real-acceptance-pending",
-    "implementationCommit": null,
+    "implementationCommit": "5a322b603b6072a549f100189ab977da8d4b73c7",
     "reportCommit": null,
     "previousTask": {
       "task": "TASK-073",
