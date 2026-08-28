@@ -255,6 +255,15 @@ async function dispatch(
     case 'recordingExecution.cancel': return executionFor(runtime).cancel(request.payload as IpcCommandPayloads['recordingExecution.cancel']);
     case 'recordingExecution.cancelRead': return executionFor(runtime).cancelRead((request.payload as IpcCommandPayloads['recordingExecution.cancelRead']).id);
     case 'recordingExecution.verify': return executionFor(runtime).verify(request.payload as IpcCommandPayloads['recordingExecution.verify']);
+    case 'collectionProgress.wants': return collectionFor(runtime).collectionProgress.wants(request.payload as IpcCommandPayloads['collectionProgress.wants']);
+    case 'collectionProgress.saveWant': return collectionFor(runtime).collectionProgress.saveWant(request.payload as IpcCommandPayloads['collectionProgress.saveWant']);
+    case 'collectionProgress.cancelWant': return collectionFor(runtime).collectionProgress.cancelWant(request.payload as IpcCommandPayloads['collectionProgress.cancelWant']);
+    case 'collectionProgress.wantHistory': return collectionFor(runtime).collectionProgress.wantHistory(request.payload as IpcCommandPayloads['collectionProgress.wantHistory']);
+    case 'collectionProgress.current': return collectionFor(runtime).collectionProgress.current(request.payload as IpcCommandPayloads['collectionProgress.current']);
+    case 'collectionProgress.capture': return collectionFor(runtime).collectionProgress.capture(request.payload as IpcCommandPayloads['collectionProgress.capture']);
+    case 'collectionProgress.snapshots': return collectionFor(runtime).collectionProgress.snapshots(request.payload as IpcCommandPayloads['collectionProgress.snapshots']);
+    case 'collectionProgress.snapshot': return collectionFor(runtime).collectionProgress.snapshot(request.payload as IpcCommandPayloads['collectionProgress.snapshot']);
+    case 'collectionProgress.modelLengths': return collectionFor(runtime).collectionProgress.modelLengths(request.payload as IpcCommandPayloads['collectionProgress.modelLengths']);
     case 'spreadsheetImports.registerWorkbook': {
       const payload = request.payload as IpcCommandPayloads['spreadsheetImports.registerWorkbook'];
       const repository = collectionFor(runtime).spreadsheetImports, prior = repository.sourceReceipt({ commandId: payload.commandId });

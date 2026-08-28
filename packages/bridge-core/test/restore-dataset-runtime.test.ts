@@ -60,7 +60,7 @@ async function fixture(t: test.TestContext, beforeBackup?: (f: Awaited<ReturnTyp
   return { ...f, privatePath, defaultFile, storePath, restored, destinationId: destination.id, pending, prepare, open };
 }
 
-test('正式schema16默认工作库关闭后可冷开，保留dataset身份及库存', async t => {
+test('正式schema17默认工作库关闭后可冷开，保留dataset身份及库存', async t => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-catalog-cold-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const first = await openCollectionDataset(directory), datasetId = first.datasetId;
@@ -76,7 +76,7 @@ test('真实合成工作簿原字节、类型化源行、修订与更正随Lot�
   const inspectFacts = (filePath: string) => {
     const db = new DatabaseSync(filePath, { readOnly: true });
     try {
-      assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 16);
+      assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 17);
       assert.equal(db.prepare('PRAGMA integrity_check').get()?.integrity_check, 'ok');
       assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
       return db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND (name GLOB 'spreadsheet_*' OR name GLOB 'reference_*' OR name GLOB 'inventory_*' OR name GLOB 'collection_*' OR name='physical_copies') ORDER BY name").all().map(({ name }) => [name, db.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all()]);
@@ -122,7 +122,14 @@ test('真实合成工作簿原字节、类型化源行、修订与更正随Lot�
     assert.equal(adjustment.after.quantityAcquired, 10); assert.equal(adjustment.after.quantityAdjustment, 1); assert.equal(adjustment.after.materializedCount, 1);
     const detail = f.repository.detail(row.modelId!, importPage);
     assert.equal(detail.model.counts.total, 11); assert.equal(detail.photos?.length, 1); assert.equal(detail.copies.items[0]?.physicalId, copy.physicalId);
-    return { workbookPath, bytes: file.bytes, source, sourceRows, revision, row, matched, adjustment, detail, facts: inspectFacts(f.filePath) };
+    const wants = f.repository.collectionProgress, wanted = wants.saveWant({ id: null, expectedVersion: 0, commandId: randomUUID(), revisionId: matched.revision.id, referenceId: item.referenceId, priority: 'high', preferredCondition: '品相更佳', notes: '预算为资料', targetLengthMinutes: 60, packagingTarget: '完整包装', priceTarget: { currency: 'CNY', amount: '123.4500' }, userConfirmed: true });
+    const current = wants.current({ revisionId: matched.revision.id, page: importPage });
+    const progress = wants.capture({ commandId: randomUUID(), revisionId: matched.revision.id, expectedFingerprint: current.fingerprint, userConfirmed: true });
+    const historicalProgress = wants.snapshot({ id: progress.id, page: importPage });
+    wants.cancelWant({ id: wanted.id, expectedVersion: wanted.version, commandId: randomUUID(), userConfirmed: true });
+    const wantedHistory = wants.wantHistory({ id: wanted.id, page: importPage });
+    assert.equal(wantedHistory.total, 2); assert.equal(wants.current({ revisionId: matched.revision.id, page: importPage }).overall.wanted, 0);
+    return { workbookPath, bytes: file.bytes, source, sourceRows, revision, row, matched, adjustment, detail, wanted, wantedHistory, historicalProgress, facts: inspectFacts(f.filePath) };
   };
   let seeded: Awaited<ReturnType<typeof seedWorkbook>> | undefined;
   const f = await fixture(t, async base => { seeded = await seedWorkbook(base); });
@@ -136,6 +143,10 @@ test('真实合成工作簿原字节、类型化源行、修订与更正随Lot�
     assert.deepEqual(repository.spreadsheetImports.adjustments({ revisionId: expected.revision.revision.id, rowId: expected.row.id, page: importPage }).items, [expected.adjustment]);
     assert.deepEqual(repository.detail(expected.row.modelId!, importPage), expected.detail);
     assert.deepEqual(repository.catalog.snapshot({ id: expected.matched.snapshot.id }), expected.matched.snapshot);
+    assert.deepEqual(repository.collectionProgress.wantHistory({ id: expected.wanted.id, page: importPage }), expected.wantedHistory);
+    assert.deepEqual(repository.collectionProgress.snapshot({ id: expected.historicalProgress.snapshot.id, page: importPage }), expected.historicalProgress);
+    assert.equal(repository.collectionProgress.current({ revisionId: expected.matched.revision.id, page: importPage }).overall.wanted, 0);
+    assert.equal(expected.historicalProgress.snapshot.overall.wanted, 1, '冻结Wanted与当前取消状态分别保留');
     assert.equal(repository.catalog.revision({ id: expected.matched.revision.id }).currentEntries[0]?.stockCount, 11, '动态拥有数量11不覆写历史时点10');
   };
   const before = await readFile(f.defaultFile), opened = await f.open(f.privatePath), datasetId = opened.datasetId;

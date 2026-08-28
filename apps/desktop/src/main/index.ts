@@ -1,3 +1,4 @@
+import { installCollectionProgressReads } from './collection-progress-ipc.js'
 import { installReferenceCatalogReads } from './reference-catalog-ipc.js'
 import { installSpreadsheetImportReads } from './spreadsheet-import-ipc.js'
 import { createCommandOutboxStore } from './command-outbox-store.js'
@@ -1201,6 +1202,7 @@ function registerIpcHandlers(
   }))
   installReferenceCatalogReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   installSpreadsheetImportReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installCollectionProgressReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   ipcMain.handle('recordingPrepared:selections', (event, preparationId: unknown) => invokeCore(event, () => {
     if (!isCollectionId(preparationId)) return publicIpcFailure('INVALID_IPC_REQUEST', 'PREP 请求无效或未确认')
     return supervisor.request('recordingPrepared.selections', { preparationId })

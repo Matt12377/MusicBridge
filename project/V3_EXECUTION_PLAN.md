@@ -20,7 +20,7 @@ Owner 已授权“全部开始”。这是持续实施授权，不是“所有�
 
 ## 剩余任务 TODO
 
-本轮已将后续拆为 TASK-064～079，详见 [V3 TODO](V3_TODO.md)。TASK-064 本地自动 Gate 通过，TASK-065 本地自动 Gate 通过，TASK-066 本地自动 Gate 通过，TASK-067 本地自动 Gate 通过，TASK-068 本地自动 Gate 通过，TASK-069～079 未完成；外部条件和旧任务验收单独保留。
+本轮已将后续拆为 TASK-064～079，详见 [V3 TODO](V3_TODO.md)。TASK-064 本地自动 Gate 通过，TASK-065 本地自动 Gate 通过，TASK-066 本地自动 Gate 通过，TASK-067 本地自动 Gate 通过，TASK-068 本地自动 Gate 通过，TASK-069 本地自动 Gate 通过，TASK-070 本地自动 Gate 通过，TASK-071～079 未完成；外部条件和旧任务验收单独保留。
 
 ## 推进与进度展示
 
@@ -103,3 +103,9 @@ Main独立私有账本覆盖52个原稳定命令，Core末端工作库身份守�
 ### TASK-069 Excel非破坏导入承接
 
 从TASK068最终 `49a322db0ebd1ab32e5bf227c5614e0b0553de63` 接续独立工作树。原文件与类型化源行、显式映射预览、同文件/修订去重和独立数量调整分离；未知元数据不伪造、导入不覆盖人工资料或历史。Sol/High按合同/存储/UI互斥范围并行，root集成Worker解析和桌面恢复边界。详细范围见TASK-069与ADR-029。最终本地Gate通过：107/881/316、安全27、Electron4、单次完整E2E60且固定native开启无skip；62代码文件与13原生文件身份一致。SPEC与QUALITY各两轮最终PASS，Owner未验收。TASK070从最终锁定HEAD接续，后续070～079及外部条件保持不变。
+
+### TASK-070 求购与完成度承接
+
+从TASK069最终 `d2735054e7f1481db9eccf058c5d400ba87b3019` 接续。Wanted正交库存状态，按实际持有统计型号及长度，显式捕获不可变完成度；旧修订目标人工重绑，旧快照不回填。合同/Core/UI由Sol High互斥实现，root集成桌面和备份边界，详细TASK070/ADR030。自动和Owner Gate尚未完成，后续队列不变。
+
+TASK070最终自动Gate：118/897/337、安全27、Electron4、完整66E2E含固定native零skip，SPEC与QUALITY各两轮最终PASS。41代码文件与13原生文件身份一致；TASK071从最终锁定HEAD接续，不继承未提交候选。

@@ -1,4 +1,5 @@
 import { isChooseSpreadsheetWorkbookRequest, isSpreadsheetWorkbookSource, isApplySpreadsheetImportRequest, isSpreadsheetImportResult, isAdjustSpreadsheetInventoryRequest, isSpreadsheetInventoryAdjustment, type ChooseSpreadsheetWorkbookRequest, type SpreadsheetWorkbookSource } from './spreadsheet-import.js';
+import { isSaveWantEntryRequest, isCancelWantEntryRequest, isCaptureCollectionProgressRequest, isWantEntry, isCollectionProgressSnapshotSummary } from './collection-progress.js';
 import { isCollectionId, isCollectionReceiveRequest, isCollectionMaterializeRequest, isCollectionUpdateCopyRequest, isCollectionPolicyRequest, isCollectionAddPhotoRequest, isCollectionChangePhotoRequest, isCollectionMutationResult } from './collection.js';
 import { isRegisterReferenceSourceRequest, isPublishCatalogRevisionRequest, isSetCatalogMatchRequest, isReferenceSourceVersion, isCatalogRevisionDetail } from './reference-catalog.js';
 import { isSaveReleaseRequest, isSaveLegacyRequest, isAddMusicPhotoRequest, isRemoveMusicPhotoRequest, isMusicMutationResult } from './physical-music.js';
@@ -21,6 +22,7 @@ import { isActivateRestoredDataset, isRestoreActivationView, type ActivateRestor
 
 /** 只允许原有公开领域写命令，不能从任意 IPC 名称推导重放权限。 */
 export const COMMAND_OUTBOX_COMMANDS = [
+  'collectionProgress.saveWant', 'collectionProgress.cancelWant', 'collectionProgress.capture',
   'spreadsheetImports.apply', 'spreadsheetImports.adjust',
   'referenceCatalog.registerSource', 'referenceCatalog.publishRevision', 'referenceCatalog.setMatch',
   'collection.receive', 'collection.materialize', 'collection.updateCopy', 'collection.setPolicy', 'collection.addPhoto', 'collection.changePhoto',
@@ -46,6 +48,9 @@ export type CommandOutboxSpecialCommand = typeof COMMAND_OUTBOX_SPECIAL_COMMANDS
 export type CommandOutboxTrackedCommand = CommandOutboxCommand | CommandOutboxSpecialCommand;
 /** 复用叶级领域验证器；不反向导入总 IPC validator，避免运行时模块循环。 */
 const ordinaryValidators = {
+  'collectionProgress.saveWant': [isSaveWantEntryRequest, isWantEntry],
+  'collectionProgress.cancelWant': [isCancelWantEntryRequest, isWantEntry],
+  'collectionProgress.capture': [isCaptureCollectionProgressRequest, isCollectionProgressSnapshotSummary],
   'spreadsheetImports.apply': [isApplySpreadsheetImportRequest, isSpreadsheetImportResult],
   'spreadsheetImports.adjust': [isAdjustSpreadsheetInventoryRequest, isSpreadsheetInventoryAdjustment],
   'referenceCatalog.registerSource': [isRegisterReferenceSourceRequest, isReferenceSourceVersion],

@@ -88,3 +88,34 @@ test('参考目录正式IPC浏览不写库存，source登记走原scope outbox�
   assert.equal(stored.ok, true); if (stored.ok) assert.match(JSON.stringify(stored.result), new RegExp(request.packHash, 'u'));
   assert.equal(f.opened.repository.list({ offset: 0, limit: 20 }).total, 0);
 });
+
+
+test('完成度九IPC与三写outbox保留原scope，重复提交不写库存或复制求购快照', async t => {
+  const f = await fixture(t), page = { offset: 0, limit: 25 };
+  const read = async (command: string, payload: unknown) => { const reply = await f.port.rpc(command, payload); assert.equal(reply.ok, true, JSON.stringify(reply)); if (!reply.ok) throw new Error('合成IPC失败'); return reply.result as any; };
+  const empty = await read('collectionProgress.wants', { page }); assert.equal(empty.total, 0);
+  const item = { referenceId: 'wanted-model', bookId: 'wanted-book', brand: '合成', series: '测试', edition: '第一版', model: '测试型号', lengths: [60, 90], iec: 'II' as const, era: '1990', image: { kind: 'none' as const }, pages: ['1'], notes: '', confidence: 'high' as const };
+  const catalog = f.opened.repository.catalog, rawPack = JSON.stringify({ schemaVersion: 1, bookId: item.bookId, title: '合成求购目录', sourceVersion: '1', items: [item] });
+  const source = catalog.registerSource({ commandId: randomUUID(), rawPack, packHash: createHash('sha256').update(rawPack).digest('hex'), userConfirmed: true });
+  const plan = { sourceId: source.id, expectedCurrentRevisionId: null, items: [item], mappings: [] }, preview = catalog.previewRevision(plan);
+  const published = catalog.publishRevision({ ...plan, commandId: randomUUID(), baselineFingerprint: preview.baselineFingerprint, userConfirmed: true });
+  const payload = { commandId: randomUUID(), id: null, expectedVersion: 0, revisionId: published.revision.id, referenceId: item.referenceId, priority: 'high', preferredCondition: '未拆封', notes: '仅合成资料', targetLengthMinutes: 90, packagingTarget: '', priceTarget: { currency: 'CNY', amount: '100.2500' }, userConfirmed: true };
+  const wrong = await f.port.rpc('commandOutbox.execute', { datasetId: randomUUID(), command: 'collectionProgress.saveWant', payload });
+  assert.equal(wrong.ok, false); if (!wrong.ok) assert.equal(wrong.error.code, 'OUTBOX_SCOPE_MISMATCH');
+  assert.equal((await read('collectionProgress.wants', { page })).total, 0);
+  const save = { datasetId: f.opened.datasetId, command: 'collectionProgress.saveWant', payload }, first = await read('commandOutbox.execute', save);
+  assert.deepEqual(await read('commandOutbox.execute', save), first);
+  assert.equal((await read('collectionProgress.wantHistory', { id: first.result.id, page })).total, 1);
+  const current = await read('collectionProgress.current', { revisionId: published.revision.id, page });
+  assert.equal(current.overall.wanted, 1); assert.equal(current.overall.owned, 0);
+  const capture = { datasetId: f.opened.datasetId, command: 'collectionProgress.capture', payload: { commandId: randomUUID(), revisionId: published.revision.id, expectedFingerprint: current.fingerprint, userConfirmed: true } };
+  const snap = await read('commandOutbox.execute', capture); assert.deepEqual(await read('commandOutbox.execute', capture), snap);
+  assert.equal((await read('collectionProgress.snapshots', { page })).total, 1);
+  assert.equal((await read('collectionProgress.snapshot', { id: snap.result.id, page })).entries.items[0].wantedTargets.length, 1);
+  const cancel = { datasetId: f.opened.datasetId, command: 'collectionProgress.cancelWant', payload: { commandId: randomUUID(), id: first.result.id, expectedVersion: first.result.version, userConfirmed: true } };
+  const cancelled = await read('commandOutbox.execute', cancel); assert.equal(cancelled.result.active, false); assert.deepEqual(await read('commandOutbox.execute', cancel), cancelled);
+  assert.equal((await read('collectionProgress.snapshot', { id: snap.result.id, page })).entries.items[0].wantedTargets.length, 1);
+  assert.equal(f.opened.repository.list(page).total, 0, 'Wanted不改库存');
+  const received = f.opened.repository.receive({ ...f.payload, model: { ...f.payload.model, format: 'cassette', tapeType: 'II', identification: 'verified' } } as Parameters<typeof f.opened.repository.receive>[0]);
+  assert.equal((await read('collectionProgress.modelLengths', { modelId: received.modelId })).total, 1);
+});

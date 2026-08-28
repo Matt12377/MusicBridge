@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { canManuallyReceiveModel, collectionModelLabel } from './collection-display'
-import { computed, ref, watch } from 'vue'
-import type { CollectionChangePhotoRequest, CollectionCopy, CollectionDetail, CollectionMaterializeRequest, CollectionPolicyRequest, CollectionUpdateCopyRequest, CollectorPolicy } from '@music-bridge/contracts'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import type { CollectionChangePhotoRequest, CollectionCopy, CollectionDetail, CollectionMaterializeRequest, CollectionModelLengths, CollectionPolicyRequest, CollectionUpdateCopyRequest, CollectorPolicy } from '@music-bridge/contracts'
 import CollectionPhotos from './CollectionPhotos.vue'
 
 const props = defineProps<{ detail: CollectionDetail; busy: boolean }>()
@@ -11,6 +11,17 @@ const reserve = ref(0)
 watch(() => props.detail.model, model => { policy.value = model.collectorPolicy; reserve.value = model.minimumSealedReserve }, { immediate: true })
 const protectedSealed = computed(() => ['collector', 'preserve-sealed'].includes(props.detail.model.collectorPolicy) || props.detail.model.counts.sealedBlank <= props.detail.model.minimumSealedReserve)
 const manualReceiveAllowed = computed(() => canManuallyReceiveModel(props.detail.model))
+const currentLengths = ref<CollectionModelLengths>(), lengthsLoading = ref(false), lengthsError = ref('')
+let lengthsRead = 0, alive = true
+async function loadLengths(): Promise<void> {
+  const read = ++lengthsRead, modelId = props.detail.model.id
+  currentLengths.value = undefined; lengthsLoading.value = true; lengthsError.value = ''
+  try { const result = await window.musicBridge.getCollectionModelLengths({ modelId }); if (alive && read === lengthsRead && result.modelId === modelId) currentLengths.value = result }
+  catch { if (alive && read === lengthsRead) lengthsError.value = '当前持有长度读取失败，请重试；不能据此判断为零或推断长度覆盖。' }
+  finally { if (alive && read === lengthsRead) lengthsLoading.value = false }
+}
+onMounted(() => { watch(() => props.detail, () => { void loadLengths() }, { immediate: true }) })
+onBeforeUnmount(() => { alive = false; lengthsRead++ })
 const maxPageTotal = computed(() => Math.max(props.detail.lots.total, props.detail.copies.total))
 const countItems = [
   ['total', '全部实物', 'total'], ['sealedBlank', '未开封空白', 'sealed'], ['openedBlank', '已拆空白', 'opened'],
@@ -36,7 +47,8 @@ function state(copy: CollectionCopy): string {
     <div class="detail-toolbar"><button type="button" @click="emit('close')">← 返回收藏</button><button type="button" :disabled="busy || !manualReceiveAllowed" @click="emit('receive')">补充库存</button></div>
     <h2>{{ collectionModelLabel(detail.model) }}</h2>
     <p v-if="!manualReceiveAllowed" class="muted">导入型号的资料尚待确认，不能通过普通入库补充。请从 Excel 导入历史核对源行，再单独确认数量更正。</p>
-    <p class="muted">{{ detail.model.edition || '版次待确认' }} · {{ detail.model.format === 'dat' ? 'DAT' : '卡式磁带' }} · {{ detail.model.lengths.map(n => n ? `${n} 分钟` : '时长待确认').join(' / ') }}</p>
+    <p class="muted">{{ detail.model.edition || '版次待确认' }} · {{ detail.model.format === 'dat' ? 'DAT' : '卡式磁带' }}</p>
+    <section class="current-lengths" aria-labelledby="current-lengths-title"><h3 id="current-lengths-title">当前真实持有长度</h3><p class="muted">按目前持有数量统计；旧批次曾出现的长度不代表现在仍然拥有。</p><p v-if="lengthsLoading" role="status">正在读取当前持有长度…</p><p v-else-if="lengthsError" role="alert">{{ lengthsError }}</p><template v-else-if="currentLengths"><p>当前持有总量 {{ currentLengths.total }} 盘 · 未知长度 {{ currentLengths.unknownLengthQty }} 盘</p><ul><li v-for="length in currentLengths.lengths" :key="length.lengthMinutes">{{ length.lengthMinutes }} 分钟 · {{ length.quantity }} 盘</li></ul><p v-if="!currentLengths.lengths.length" class="muted">没有已确认长度的当前持有记录，不代表已集齐任何长度。</p></template><p v-else class="muted">当前持有长度尚未读取。</p><button :disabled="lengthsLoading" @click="loadLengths">刷新持有长度</button></section>
     <CollectionPhotos :detail="detail" :busy="busy" @add="emit('addPhoto', $event)" @change="emit('changePhoto', $event)" />
     <dl class="counts"><div v-for="[key, label, testId] in countItems" :key="key"><dt>{{ label }}</dt><dd :data-testid="`inventory-${testId}`">{{ detail.model.counts[key] }}</dd></div></dl>
 

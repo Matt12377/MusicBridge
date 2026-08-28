@@ -3,9 +3,9 @@ wave: WAVE-5
 status: active
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-069
-activeBranch: codex/task-069-excel-import
-activeBaseCommit: 49a322db0ebd1ab32e5bf227c5614e0b0553de63
+activeTask: TASK-070
+activeBranch: codex/task-070-want-completion
+activeBaseCommit: d2735054e7f1481db9eccf058c5d400ba87b3019
 order:
   - TASK-048
   - TASK-049
@@ -29,5 +29,6 @@ order:
   - TASK-067
   - TASK-068
   - TASK-069
-stopAfter: TASK-069
-reviewBoundary: non-destructive-workbook-import-and-explicit-ledger-corrections
+  - TASK-070
+stopAfter: TASK-070
+reviewBoundary: orthogonal-wants-current-stock-and-immutable-progress

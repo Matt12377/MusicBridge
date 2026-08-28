@@ -303,5 +303,16 @@ contextBridge.exposeInMainWorld(
       adjustSpreadsheetInventory: request => outbox.submit('spreadsheetImports.adjust', request),
       listSpreadsheetAdjustments: request => ipcRenderer.invoke('spreadsheetImports:adjustments', request),
     },
+    {
+      listWantEntries: request => ipcRenderer.invoke('collectionProgress:wants', request),
+      saveWantEntry: request => outbox.submit('collectionProgress.saveWant', request),
+      cancelWantEntry: request => outbox.submit('collectionProgress.cancelWant', request),
+      getWantEntryHistory: request => ipcRenderer.invoke('collectionProgress:wantHistory', request),
+      getCollectionProgress: request => ipcRenderer.invoke('collectionProgress:current', request),
+      captureCollectionProgress: request => outbox.submit('collectionProgress.capture', request),
+      listCollectionProgressSnapshots: request => ipcRenderer.invoke('collectionProgress:snapshots', request),
+      getCollectionProgressSnapshot: request => ipcRenderer.invoke('collectionProgress:snapshot', request),
+      getCollectionModelLengths: request => ipcRenderer.invoke('collectionProgress:modelLengths', request),
+    },
   ),
 )

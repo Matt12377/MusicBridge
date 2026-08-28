@@ -33,3 +33,4 @@ export * from './recording-activation.js';
 export * from './command-outbox.js';
 export * from './reference-catalog.js';
 export * from './spreadsheet-import.js';
+export * from './collection-progress.js';

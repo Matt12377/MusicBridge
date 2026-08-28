@@ -1,3 +1,4 @@
+import type { CollectionProgressPublicApi } from '@music-bridge/contracts'
 import type { SpreadsheetImportPublicApi } from '@music-bridge/contracts'
 import type { ReferenceCatalogPublicApi } from '@music-bridge/contracts'
 import type { CommandOutboxPublicApi } from '@music-bridge/contracts'
@@ -60,7 +61,7 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
   autoReconnect: false,
 }
 
-export interface MusicBridgePublicApi extends SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
+export interface MusicBridgePublicApi extends CollectionProgressPublicApi, SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
   getAppInfo: () => Promise<AppInfo>
   getCoreHealth: () => Promise<PublicBridgeState>
   getCoreState: () => Promise<PublicBridgeState>
@@ -189,6 +190,15 @@ export const PUBLIC_API_KEYS = [
   'setCatalogMatch',
   'getCatalogSnapshot',
   'getCatalogHistory',
+  'listWantEntries',
+  'saveWantEntry',
+  'cancelWantEntry',
+  'getWantEntryHistory',
+  'getCollectionProgress',
+  'captureCollectionProgress',
+  'listCollectionProgressSnapshots',
+  'getCollectionProgressSnapshot',
+  'getCollectionModelLengths',
   'listPrepared',
   'listPreparedSelections',
   'choosePreparedRender',
@@ -493,6 +503,7 @@ export function createPreloadApi(
   commandOutboxApi?: CommandOutboxPublicApi,
   referenceCatalogApi?: ReferenceCatalogPublicApi,
   spreadsheetImportApi?: SpreadsheetImportPublicApi,
+  collectionProgressApi?: CollectionProgressPublicApi,
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   return Object.freeze({
@@ -503,6 +514,7 @@ export function createPreloadApi(
     ...(recordingExecutionApi ?? { listExecutionAssets: collectionUnavailable, previewExecutionAsset: collectionUnavailable, startExecutionAsset: collectionUnavailable, getExecutionJob: collectionUnavailable, cancelExecutionJob: collectionUnavailable, cancelExecutionRead: collectionUnavailable, verifyExecutionAsset: collectionUnavailable }),
     ...(spreadsheetImportApi ?? { chooseSpreadsheetWorkbook: collectionUnavailable, listSpreadsheetSources: collectionUnavailable, getSpreadsheetSource: collectionUnavailable, getSpreadsheetSourceRows: collectionUnavailable, previewSpreadsheetImport: collectionUnavailable, applySpreadsheetImport: collectionUnavailable, getSpreadsheetImportRevision: collectionUnavailable, listSpreadsheetImportHistory: collectionUnavailable, previewSpreadsheetAdjustment: collectionUnavailable, adjustSpreadsheetInventory: collectionUnavailable, listSpreadsheetAdjustments: collectionUnavailable }),
     ...(referenceCatalogApi ?? { registerReferenceSource: collectionUnavailable, listReferenceSources: collectionUnavailable, getReferenceSource: collectionUnavailable, previewCatalogRevision: collectionUnavailable, publishCatalogRevision: collectionUnavailable, getCatalogRevision: collectionUnavailable, setCatalogMatch: collectionUnavailable, getCatalogSnapshot: collectionUnavailable, getCatalogHistory: collectionUnavailable }),
+    ...(collectionProgressApi ?? { listWantEntries: collectionUnavailable, saveWantEntry: collectionUnavailable, cancelWantEntry: collectionUnavailable, getWantEntryHistory: collectionUnavailable, getCollectionProgress: collectionUnavailable, captureCollectionProgress: collectionUnavailable, listCollectionProgressSnapshots: collectionUnavailable, getCollectionProgressSnapshot: collectionUnavailable, getCollectionModelLengths: collectionUnavailable }),
     ...(preparedApi ?? { listPrepared: collectionUnavailable, listPreparedSelections: collectionUnavailable, choosePreparedRender: collectionUnavailable, revokePreparedSelection: collectionUnavailable, revokePreparedSelections: collectionUnavailable, previewPreparedImport: collectionUnavailable, startPreparedImport: collectionUnavailable, getPreparedImportJob: collectionUnavailable, cancelPreparedImport: collectionUnavailable, reviewPrepared: collectionUnavailable, freezePrepared: collectionUnavailable }),
     ...(preparationApi ?? { listPreparationDestinations: collectionUnavailable, choosePreparationDestination: collectionUnavailable, revokePreparationDestination: collectionUnavailable, listPreparations: collectionUnavailable, previewPreparation: collectionUnavailable, startPreparation: collectionUnavailable, getPreparationJob: collectionUnavailable, cancelPreparationJob: collectionUnavailable, openPreparationWorkspace: collectionUnavailable }),
     ...(masterVersionsApi ?? { listMasterVersions: collectionUnavailable, previewMasterVersions: collectionUnavailable, freezeMasterVersions: collectionUnavailable, getMasterVersionJob: collectionUnavailable, cancelMasterVersionJob: collectionUnavailable }),

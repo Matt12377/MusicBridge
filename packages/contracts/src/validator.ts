@@ -1,4 +1,5 @@
 import { isSpreadsheetPageRequest, isSpreadsheetSourcePage, isSpreadsheetIdRequest, isSpreadsheetWorkbookSource, isSpreadsheetSourceRowsRequest, isSpreadsheetSourceRowsPage, isPreviewSpreadsheetImportRequest, isSpreadsheetImportPreview, isApplySpreadsheetImportRequest, isSpreadsheetImportResult, isSpreadsheetImportRevisionRequest, isSpreadsheetImportRevisionDetail, isSpreadsheetImportHistory, isSpreadsheetAdjustmentPreviewRequest, isSpreadsheetAdjustmentBalance, isAdjustSpreadsheetInventoryRequest, isSpreadsheetInventoryAdjustment, isSpreadsheetAdjustmentsRequest, isSpreadsheetAdjustmentsPage, isRegisterSpreadsheetWorkbookRequest, isChooseSpreadsheetWorkbookRequest, isSpreadsheetWorkbookReceipt } from './spreadsheet-import.js';
+import { isListWantEntriesRequest, isWantEntriesPage, isSaveWantEntryRequest, isWantEntry, isCancelWantEntryRequest, isGetWantEntryHistoryRequest, isWantEntryHistory, isGetCollectionProgressRequest, isCollectionProgress, isCaptureCollectionProgressRequest, isCollectionProgressSnapshotSummary, isListCollectionProgressSnapshotsRequest, isCollectionProgressSnapshotsPage, isGetCollectionProgressSnapshotRequest, isCollectionProgressSnapshotDetail, isGetCollectionModelLengthsRequest, isCollectionModelLengths } from './collection-progress.js';
 import { isCommandOutboxDatasetId, isCommandOutboxContext, isCommandOutboxExecute, isCommandOutboxResult } from './command-outbox.js';
 import { isRegisterReferenceSourceRequest, isReferenceSourceVersion, isReferenceSourceListRequest, isReferenceSourcePage, isCatalogIdRequest, isReferenceSourceDetail, isPreviewCatalogRevisionRequest, isCatalogRevisionPreview, isPublishCatalogRevisionRequest, isCatalogRevisionDetail, isSetCatalogMatchRequest, isCatalogSnapshot, isCatalogHistoryRequest, isCatalogHistory } from './reference-catalog.js';
 import { isActivateRestoredDataset, isRestoreActivationView } from './recording-activation.js';
@@ -930,6 +931,15 @@ function isPlaylistDetail(value: unknown): value is PlaylistDetail {
 }
 
 function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
+  if (command === 'collectionProgress.wants') return isListWantEntriesRequest(payload);
+  if (command === 'collectionProgress.saveWant') return isSaveWantEntryRequest(payload);
+  if (command === 'collectionProgress.cancelWant') return isCancelWantEntryRequest(payload);
+  if (command === 'collectionProgress.wantHistory') return isGetWantEntryHistoryRequest(payload);
+  if (command === 'collectionProgress.current') return isGetCollectionProgressRequest(payload);
+  if (command === 'collectionProgress.capture') return isCaptureCollectionProgressRequest(payload);
+  if (command === 'collectionProgress.snapshots') return isListCollectionProgressSnapshotsRequest(payload);
+  if (command === 'collectionProgress.snapshot') return isGetCollectionProgressSnapshotRequest(payload);
+  if (command === 'collectionProgress.modelLengths') return isGetCollectionModelLengthsRequest(payload);
   if (command === 'spreadsheetImports.sources') return isSpreadsheetPageRequest(payload);
   if (command === 'spreadsheetImports.source') return isSpreadsheetIdRequest(payload);
   if (command === 'spreadsheetImports.sourceRows') return isSpreadsheetSourceRowsRequest(payload);
@@ -1464,6 +1474,15 @@ function isCommandResult(
   allowInternalResult = false,
 ): boolean {
   switch (command) {
+    case 'collectionProgress.wants': return isWantEntriesPage(value);
+    case 'collectionProgress.saveWant': return isWantEntry(value);
+    case 'collectionProgress.cancelWant': return isWantEntry(value);
+    case 'collectionProgress.wantHistory': return isWantEntryHistory(value);
+    case 'collectionProgress.current': return isCollectionProgress(value);
+    case 'collectionProgress.capture': return isCollectionProgressSnapshotSummary(value);
+    case 'collectionProgress.snapshots': return isCollectionProgressSnapshotsPage(value);
+    case 'collectionProgress.snapshot': return isCollectionProgressSnapshotDetail(value);
+    case 'collectionProgress.modelLengths': return isCollectionModelLengths(value);
     case 'spreadsheetImports.sources': return isSpreadsheetSourcePage(value);
     case 'spreadsheetImports.source': return isSpreadsheetWorkbookSource(value);
     case 'spreadsheetImports.sourceRows': return isSpreadsheetSourceRowsPage(value);

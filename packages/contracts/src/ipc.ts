@@ -1,4 +1,5 @@
 import type { SpreadsheetPageRequest, SpreadsheetSourcePage, SpreadsheetIdRequest, SpreadsheetWorkbookSource, SpreadsheetSourceRowsRequest, SpreadsheetSourceRowsPage, PreviewSpreadsheetImportRequest, SpreadsheetImportPreview, ApplySpreadsheetImportRequest, SpreadsheetImportResult, SpreadsheetImportRevisionRequest, SpreadsheetImportRevisionDetail, SpreadsheetImportHistory, SpreadsheetAdjustmentPreviewRequest, SpreadsheetAdjustmentBalance, AdjustSpreadsheetInventoryRequest, SpreadsheetInventoryAdjustment, SpreadsheetAdjustmentsRequest, SpreadsheetAdjustmentsPage, RegisterSpreadsheetWorkbookRequest, ChooseSpreadsheetWorkbookRequest, SpreadsheetWorkbookReceipt } from './spreadsheet-import.js';
+import type { ListWantEntriesRequest, WantEntriesPage, SaveWantEntryRequest, WantEntry, CancelWantEntryRequest, GetWantEntryHistoryRequest, WantEntryHistory, GetCollectionProgressRequest, CollectionProgress, CaptureCollectionProgressRequest, CollectionProgressSnapshotSummary, ListCollectionProgressSnapshotsRequest, CollectionProgressSnapshotsPage, GetCollectionProgressSnapshotRequest, CollectionProgressSnapshotDetail, GetCollectionModelLengthsRequest, CollectionModelLengths } from './collection-progress.js';
 import type { CommandOutboxContext, CommandOutboxExecute, CommandOutboxResult } from './command-outbox.js';
 import type { RegisterReferenceSourceRequest, ReferenceSourceVersion, ReferenceSourceListRequest, ReferenceSourcePage, CatalogIdRequest, ReferenceSourceDetail, PreviewCatalogRevisionRequest, CatalogRevisionPreview, PublishCatalogRevisionRequest, CatalogRevisionDetail, SetCatalogMatchRequest, CatalogSnapshot, CatalogHistoryRequest, CatalogHistory } from './reference-catalog.js';
 import type { ActivateRestoredDataset, RestoreActivationView } from './recording-activation.js';
@@ -71,6 +72,15 @@ export const IPC_COMMANDS = [
   'spreadsheetImports.adjustments',
   'spreadsheetImports.registerWorkbook',
   'spreadsheetImports.workbookReceipt',
+  'collectionProgress.wants',
+  'collectionProgress.saveWant',
+  'collectionProgress.cancelWant',
+  'collectionProgress.wantHistory',
+  'collectionProgress.current',
+  'collectionProgress.capture',
+  'collectionProgress.snapshots',
+  'collectionProgress.snapshot',
+  'collectionProgress.modelLengths',
   'referenceCatalog.registerSource',
   'referenceCatalog.sources',
   'referenceCatalog.source',
@@ -316,6 +326,15 @@ export interface IpcCommandPayloads {
   'spreadsheetImports.adjustments': SpreadsheetAdjustmentsRequest;
   'spreadsheetImports.registerWorkbook': RegisterSpreadsheetWorkbookRequest;
   'spreadsheetImports.workbookReceipt': ChooseSpreadsheetWorkbookRequest;
+  'collectionProgress.wants': ListWantEntriesRequest;
+  'collectionProgress.saveWant': SaveWantEntryRequest;
+  'collectionProgress.cancelWant': CancelWantEntryRequest;
+  'collectionProgress.wantHistory': GetWantEntryHistoryRequest;
+  'collectionProgress.current': GetCollectionProgressRequest;
+  'collectionProgress.capture': CaptureCollectionProgressRequest;
+  'collectionProgress.snapshots': ListCollectionProgressSnapshotsRequest;
+  'collectionProgress.snapshot': GetCollectionProgressSnapshotRequest;
+  'collectionProgress.modelLengths': GetCollectionModelLengthsRequest;
   'referenceCatalog.registerSource': RegisterReferenceSourceRequest;
   'referenceCatalog.sources': ReferenceSourceListRequest;
   'referenceCatalog.source': CatalogIdRequest;
@@ -521,6 +540,15 @@ export interface IpcCommandResults {
   'spreadsheetImports.adjustments': SpreadsheetAdjustmentsPage;
   'spreadsheetImports.registerWorkbook': never;
   'spreadsheetImports.workbookReceipt': never;
+  'collectionProgress.wants': WantEntriesPage;
+  'collectionProgress.saveWant': WantEntry;
+  'collectionProgress.cancelWant': WantEntry;
+  'collectionProgress.wantHistory': WantEntryHistory;
+  'collectionProgress.current': CollectionProgress;
+  'collectionProgress.capture': CollectionProgressSnapshotSummary;
+  'collectionProgress.snapshots': CollectionProgressSnapshotsPage;
+  'collectionProgress.snapshot': CollectionProgressSnapshotDetail;
+  'collectionProgress.modelLengths': CollectionModelLengths;
   'referenceCatalog.registerSource': ReferenceSourceVersion;
   'referenceCatalog.sources': ReferenceSourcePage;
   'referenceCatalog.source': ReferenceSourceDetail;

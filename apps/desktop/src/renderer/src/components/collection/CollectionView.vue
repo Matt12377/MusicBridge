@@ -9,6 +9,11 @@ import CollectionPhoto from './CollectionPhoto.vue'
 import PhysicalMusicView from './PhysicalMusicView.vue'
 import ReferenceCatalogPanel from './ReferenceCatalogPanel.vue'
 import SpreadsheetImportPanel from './SpreadsheetImportPanel.vue'
+import CollectionProgressPanel from './CollectionProgressPanel.vue'
+
+const progressOpen = ref(false)
+const progressTrigger = ref<HTMLButtonElement>()
+function closeProgress(): void { progressOpen.value = false; void nextTick(() => progressTrigger.value?.focus({ preventScroll: true })) }
 
 const spreadsheetOpen = ref(false)
 const spreadsheetTrigger = ref<HTMLButtonElement>()
@@ -69,7 +74,8 @@ function onTabKeydown(event: KeyboardEvent): void {
       >{{ view.label }}</button>
     </div>
     <div class="collection-tools"><button ref="spreadsheetTrigger" class="reference-entry" type="button" @click="spreadsheetOpen = true">Excel 导入</button>
-    <button ref="referenceTrigger" class="reference-entry" type="button" @click="referenceOpen = true">参考目录与版次</button></div>
+    <button ref="referenceTrigger" class="reference-entry" type="button" @click="referenceOpen = true">参考目录与版次</button>
+    <button ref="progressTrigger" class="reference-entry" type="button" @click="progressOpen = true">完成度与求购</button></div>
     </div>
 
     <div
@@ -135,6 +141,7 @@ function onTabKeydown(event: KeyboardEvent): void {
     </div>
     <SpreadsheetImportPanel v-if="spreadsheetOpen" @close="closeSpreadsheet" @changed="inventory.load(); detail && inventory.openModel(detail.model.id)" />
     <ReferenceCatalogPanel v-if="referenceOpen" @close="closeReference" />
+    <CollectionProgressPanel v-if="progressOpen" @close="closeProgress" />
     <CollectionReceiveDialog v-if="receiving" :model="receiveModel" :busy="saving" :error="error" :retryable="!!pending" @close="receiving = false" @save="receive" @retry="retry" />
   </section>
 </template>

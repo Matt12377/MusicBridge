@@ -1,3 +1,4 @@
+import { verifyCollectionProgressDatabase } from '../collection/collection-progress-store.js';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { isCollectionId } from '@music-bridge/contracts';
@@ -17,9 +18,10 @@ export function readBackupIndex(databasePath: string): { index: BackupIndex; own
   try {
     db.exec('PRAGMA trusted_schema=OFF; PRAGMA query_only=ON;');
     const version = db.prepare('PRAGMA user_version').get()?.user_version;
-    if (version !== 14 && version !== 15 && version !== 16 || db.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || db.prepare('PRAGMA foreign_key_check').all().length) backupFail();
-    if (version === 15 || version === 16) verifyReferenceCatalogDatabase(db);
-    if (version === 16) verifySpreadsheetImportDatabase(db);
+    if (version !== 14 && version !== 15 && version !== 16 && version !== 17 || db.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || db.prepare('PRAGMA foreign_key_check').all().length) backupFail();
+    if (version === 15 || version === 16 || version === 17) verifyReferenceCatalogDatabase(db);
+    if (version === 16 || version === 17) verifySpreadsheetImportDatabase(db);
+    if (version === 17) verifyCollectionProgressDatabase(db);
     const count = Number(db.prepare('SELECT count(*) n FROM archive_operations').get()?.n);
     if (count > 10000) backupFail();
     const operations: BackupOperation[] = [], owned: OwnedArchiveOperation[] = [], incompleteOperationIds: string[] = [];

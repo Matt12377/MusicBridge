@@ -81,3 +81,5 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 
 - [TASK-068](TASK-068-reference-catalog.md)：参考资料版本、目录修订、合并拆分审核与Unknown/Missing边界（本地自动Gate通过，Owner未验收）。
 - [TASK-069](TASK-069-excel-import.md)：Excel原行追踪、非破坏导入修订与明确数量账本更正（本地自动Gate通过，Owner未验收）。
+
+- [TASK-070](TASK-070-want-completion.md)：求购目标、当前持有长度与不可变收藏完成度（本地自动Gate通过，Owner未验收）。
