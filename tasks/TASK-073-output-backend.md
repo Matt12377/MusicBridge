@@ -40,3 +40,14 @@
 - root：新UI实际Electron E2E/截图/axe、统一build与所有Gate、阶段报告与完整TODO；共享Main/runtime/合同改动须先分配单一writer。
 
 每个新增模块或delta先SPEC再QUALITY、最多两轮；不重开上一已封版候选的第三轮审查。真实Gate B仍NOT_RUN，TASK074仍未启动。证据保留`reports/runtime/task-073-output-ui/`；不push、合并、安装或发布。
+
+## 2026-08-29 第三阶段：隔离的输出会话生命周期内核
+
+第二阶段已本地封版，基线`a9090f247cdf2db553f95e9a4f63c041563e33ac`，继续TASK073原分支。无设备面板80/80 E2E通过不改变包退出FAIL或Gate B未认证。此阶段只开发和执行合成驱动测试，不触设备，不重试包退出。
+
+- restore_index_details唯一代码writer：`native/output-lifecycle/device-session.hpp`、`device-session.cpp`、`device-session.test.cpp`，以及`scripts/test-output-lifecycle.mjs`。单次会话的注册/启动/停止/回调静止/释放；终止原因与清理阶段分开，取消先到、重复调用、旧代际、失败与超时均不重启。复用原FramePump，不复制帧搬运。
+- Driver接口仅显式注入；唯一可执行driver实现留在测试。无设备ID、系统枚举、默认设备、CoreAudio控制调用、格式修改、动态加载或fallback。停止ACK不能充当回调静止或设备排空证据；未明确静止前不得释放回调可用资源。
+- 新目录不属于现有helper源码pin或打包集合。测试脚本只在`reports/runtime/task-073-output-lifecycle/`输出独立测试产物；原FramePump和HAL源只读，必要时HAL仅`-c`，不链接设备框架或改现有构建脚本/16个原生文件。
+- root唯一控制文档与最终报告writer（本任务、ADR033、STATUS、V3_TODO、RISK_REGISTER和阶段结果）、统一验证；task070_store和task071_picker承担非作者的限定SPEC→QUALITY，最多两轮。没有Main/Core/Contracts/Renderer接线，不新增Attempt或认证回执。
+
+真实RED先于生产行为；正常与故障顺序、资源计数、迟到回调、帧泵尾块/欠载/停止、sanitizer分别给出新鲜证据。只称合成生命周期测试，formalReady=false/Gate B NOT_RUN保持；真实HAL资源静止保证和B01～B15仍需后续专门授权与测量。
