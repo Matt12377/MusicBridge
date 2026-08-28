@@ -3,9 +3,9 @@ wave: WAVE-5
 status: active
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-061
-activeBranch: codex/task-061-execution-conversion
-activeBaseCommit: 87e52bf08b2cd0666333bc5112983fddca3a6237
+activeTask: TASK-062
+activeBranch: codex/task-062-archive-foundation
+activeBaseCommit: e785308b3ccf31cd01f4947f88c9942330b15d07
 order:
   - TASK-048
   - TASK-049
@@ -21,5 +21,6 @@ order:
   - TASK-059
   - TASK-060
   - TASK-061
-stopAfter: TASK-061
-reviewBoundary: execution-conversion-and-derivative-no-formal-recording
+  - TASK-062
+stopAfter: TASK-062
+reviewBoundary: archive-transaction-foundation-no-formal-recording

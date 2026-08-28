@@ -101,16 +101,18 @@ function ready(channel: { port2: FakePort }): void {
   })
 }
 
-test('PREP 完整文件核对使用有界长超时，不被普通两秒控制请求窗口截断', async () => {
+test('PREP 完整文件核对使用有界长超时，不被普通两秒控制请求窗口截断', async t => {
+  // 这里验证请求期限，不让 20ms 的模拟启动期限与宿主调度竞争。
+  t.mock.timers.enable({ apis: ['setTimeout'] });
   const harness = makeHarness(), starting = harness.supervisor.start();
-  await new Promise(resolve => setImmediate(resolve)); ready(harness.channels[0]!); await starting;
+  ready(harness.channels[0]!); await starting;
   const id = '11111111-1111-4111-8111-111111111111'; let settled = false;
   const pending = harness.supervisor.request('recordingPrepared.previewImport', { preparationId: id, destinationId: id, selectionIds: [id] }).then(() => { settled = true; return undefined }, error => { settled = true; return error });
-  await new Promise(resolve => setTimeout(resolve, 45));
+  t.mock.timers.tick(45); await Promise.resolve();
   const timedOutEarly = settled;
   const sent = harness.channels[0]!.port2.sent.at(-1) as { id: string };
   harness.channels[0]!.port2.receive({ version: 1, id: sent.id, ok: false, error: { code: 'INVALID_IPC_REQUEST', message: '合成取消文件核对' } });
-  const result = await pending; await harness.supervisor.shutdown();
+  const result = await pending; t.mock.timers.reset(); await harness.supervisor.shutdown();
   assert.equal(timedOutEarly, false); assert.equal(result.code, 'INVALID_IPC_REQUEST');
 });
 

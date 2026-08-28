@@ -64,3 +64,5 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 - [TASK-059](TASK-059-v3-execution-planning.md)：显式执行格式、精确帧配方与 PCM 编译内核。
 - [TASK-060](TASK-060-v3-execution-assets.md)：版本化 Profile、本次参数、持久执行资产与桌面确认。
 - [TASK-061](TASK-061-execution-conversion.md)：执行转换谱系、固定格式编译与独立 Derivative。
+
+- [TASK-062](TASK-062-archive-foundation.md)：归档 Root、内容去重和文件/数据库事务恢复基础。
