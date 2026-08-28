@@ -4,8 +4,8 @@ import path from 'node:path';
 import { isCollectionId } from '@music-bridge/contracts';
 import type { CollectionRepository } from '../collection/repository.js';
 import { archiveDigest, previewArchiveRoot, verifyArchiveObjects } from './archive-files.js';
-import { authorizeSourceDirectory, copyReadonlySource, withVerifiedReadonlySource, type RootCapability } from './source-files.js';
-import { BackupError, backupFail, checkBackupRoot, createBackupDirectory, hashBackupFile, syncBackupRoot, writeBackupText, type BackupFile } from './backup-files.js';
+import { authorizeSourceDirectory, copyReadonlySource, type RootCapability } from './source-files.js';
+import { BackupError, backupFail, checkBackupRoot, createBackupDirectory, hashBackupFile, syncBackupRoot, writeBackupText, readBackupText, type BackupFile } from './backup-files.js';
 import { readBackupIndex, type BackupIndex } from './backup-index.js';
 
 export interface ArchiveBackupManifest extends BackupIndex {
@@ -18,22 +18,13 @@ async function child(parent: RootCapability, name: string): Promise<RootCapabili
   await checkBackupRoot(parent); const root = { ...await authorizeSourceDirectory(path.join(parent.path, name)), id: parent.id };
   if (root.path !== path.join(parent.path, name)) backupFail(); return root;
 }
-async function readText(root: RootCapability, name: string, maximum: number, signal: AbortSignal): Promise<string> {
-  const file = await hashBackupFile(root, name, signal, maximum);
-  if (file.size > maximum) backupFail();
-  return withVerifiedReadonlySource(root, name, file, signal, async handle => {
-    const bytes = Buffer.alloc(file.size); let offset = 0;
-    while (offset < bytes.length) { signal.throwIfAborted(); const { bytesRead } = await handle.read(bytes, offset, bytes.length - offset, offset); if (!bytesRead) backupFail(); offset += bytesRead; }
-    return bytes.toString('utf8');
-  });
-}
 /** 只验证备份内部字节和引用闭包，不接触快照内保存的原绝对路径，也不恢复目录权限。 */
 async function verifyPackage(directory: RootCapability, signal: AbortSignal, completed: boolean): Promise<ArchiveBackupManifest> {
   signal.throwIfAborted(); await checkBackupRoot(directory);
-  const bytes = await readText(directory, 'Backup.json', 32 * 1024 * 1024, signal), manifest = JSON.parse(bytes) as ArchiveBackupManifest;
+  const bytes = await readBackupText(directory, 'Backup.json', 32 * 1024 * 1024, signal), manifest = JSON.parse(bytes) as ArchiveBackupManifest;
   if (!same(Object.keys(manifest).sort(), ['schemaVersion','kind','id','mode','createdAt','database','contentIncluded','exclusions','operations','objects','incompleteOperationIds'].sort()) || manifest.schemaVersion !== 1 || manifest.kind !== 'musicbridge-archive-backup' || !isCollectionId(manifest.id) || !['metadata','archive-content'].includes(manifest.mode) || manifest.contentIncluded !== (manifest.mode === 'archive-content') || !same(manifest.exclusions, exclusions) || !Number.isFinite(Date.parse(manifest.createdAt))) backupFail();
   if (completed) {
-    const marker = JSON.parse(await readText(directory, 'Complete.json', 1024, signal)) as unknown;
+    const marker = JSON.parse(await readBackupText(directory, 'Complete.json', 1024, signal)) as unknown;
     if (!same(marker, { schemaVersion: 1, id: manifest.id, manifestHash: archiveDigest(bytes) })) backupFail('BACKUP_INCOMPLETE');
   }
   const databaseRoot = await child(directory, 'database');

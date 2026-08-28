@@ -78,17 +78,17 @@
   },
   "v3Development": {
     "wave": "WAVE-5",
-    "task": "TASK-064",
-    "branch": "codex/task-064-backup-foundation",
-    "baseCommit": "37bd9a03466a0b2c12a1868fe5b68a272da3dfc7",
+    "task": "TASK-065",
+    "branch": "codex/task-065-archive-restore",
+    "baseCommit": "7dab2bfdaa37d7dcb56e09f66e61f25a14e22420",
     "state": "local-automated-pass",
-    "implementationCommit": "51c0329e96d11e39326d8347212aef82e3bc459d",
-    "reportCommit": "eefff21cafc07420250d9a51cb9cf7d4a6c6b2cf",
+    "implementationCommit": null,
+    "reportCommit": null,
     "previousTask": {
-      "task": "TASK-063",
-      "implementationCommit": "ddee7e5f724bedbeb155c310f3a90873cd91b7ab",
-      "reportCommit": "b85332f7dad0d49dc0c66c12a728997b47fa6ab9",
-      "finalCommit": "37bd9a03466a0b2c12a1868fe5b68a272da3dfc7"
+      "task": "TASK-064",
+      "implementationCommit": "51c0329e96d11e39326d8347212aef82e3bc459d",
+      "reportCommit": "eefff21cafc07420250d9a51cb9cf7d4a6c6b2cf",
+      "finalCommit": "7dab2bfdaa37d7dcb56e09f66e61f25a14e22420"
     },
     "authorization": "continuous-development-until-owner-acceptance-no-push-no-release-zero-subagents",
     "f01": "OWNER_DECISION_PENDING",
@@ -99,14 +99,14 @@
       "realRecording": "NOT_RUN",
       "ownerProductAcceptance": "NOT_RUN",
       "contracts": "71/71",
-      "bridgeCore": "721/721",
+      "bridgeCore": "735/735",
       "desktop": "179/179",
       "security": "22/22",
       "electron": "4/4",
       "playwright": "49/49_FIXED_NATIVE_BUNDLE",
       "controlPlane": "PASS_WAVE_3_ONLY",
       "boundaries": "PASS",
-      "cycles": "PASS_159_FILES"
+      "cycles": "PASS_162_FILES"
     },
     "carryover": [
       "完整 V3 范围保持；仅本地顺序推进",
@@ -116,8 +116,8 @@
       "TASK-047 实际歌词与既有视觉 carryover 保留",
       "归档只支持已验证的本地硬链接/fsync 文件系统；多应用实例共写未支持"
     ],
-    "checkpoint": "backup-foundation-local-gates-pass-restore-ui-and-owner-pending",
+    "checkpoint": "isolated-restore-local-gates-pass-activation-ui-and-owner-pending",
     "todo": "project/V3_TODO.md",
-    "nextTask": "TASK-065"
+    "nextTask": "TASK-066"
   }
 }

@@ -3,9 +3,9 @@ wave: WAVE-5
 status: active
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-064
-activeBranch: codex/task-064-backup-foundation
-activeBaseCommit: 37bd9a03466a0b2c12a1868fe5b68a272da3dfc7
+activeTask: TASK-065
+activeBranch: codex/task-065-archive-restore
+activeBaseCommit: 7dab2bfdaa37d7dcb56e09f66e61f25a14e22420
 order:
   - TASK-048
   - TASK-049
@@ -24,5 +24,6 @@ order:
   - TASK-062
   - TASK-063
   - TASK-064
-stopAfter: TASK-064
-reviewBoundary: backup-foundation-no-restore-or-formal-recording
+  - TASK-065
+stopAfter: TASK-065
+reviewBoundary: isolated-restore-no-runtime-activation

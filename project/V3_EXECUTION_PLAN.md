@@ -20,7 +20,7 @@ Owner 已授权“全部开始”。这是持续实施授权，不是“所有�
 
 ## 剩余任务 TODO
 
-本轮已将后续拆为 TASK-064～079，详见 [V3 TODO](V3_TODO.md)。TASK-064 本地自动 Gate 通过，TASK-065～079 未完成；外部条件和旧任务验收单独保留。
+本轮已将后续拆为 TASK-064～079，详见 [V3 TODO](V3_TODO.md)。TASK-064 本地自动 Gate 通过，TASK-065 本地自动 Gate 通过，TASK-066～079 未完成；外部条件和旧任务验收单独保留。
 
 ## 推进与进度展示
 
@@ -74,3 +74,7 @@ TASK-055 已接入毫秒分面与库存推荐/预留；后续继续不可变母�
 ### TASK-064 备份基础承接
 
 SQLite Backup API 一致性快照、快照内归档引用闭包、完整 Content Object 复制、元数据范围声明、无覆盖文件发布与独立核验已通过本地自动 Gate。Contracts71/Core721/Desktop179、安全22/Electron4/E2E49（固定原生候选）通过；独立 Python 读取合成包的5对象/1操作与SQLite关系通过。没有桌面备份恢复入口，不激活旧路径授权，不修改F-01。TASK-065 继续隔离恢复与基本索引，TASK-066 接桌面确认；完整Gate E与Owner待验收。
+
+### TASK-065 隔离恢复承接
+
+新目录恢复、权限撤销、重复收据和候选更新保护、未结束任务中断、备份与原生Root的Manifest基本索引均通过本地自动Gate。Contracts71/Core735/Desktop179、安全22/Electron4/E2E49；独立Python确认7表不变、6对象/1PREP与旧授权为0。候选仍未激活Runtime，Quarantine是只读问题清单；TASK-066继续根位置绑定、激活与原生桌面流程。完整Gate E和Owner未完成。

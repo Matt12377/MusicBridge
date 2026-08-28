@@ -1,34 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { executionFixture } from './helpers/execution-fixture.js';
-import { createArchiveCoordinator } from '../src/recording/archive-coordinator.js';
 import { authorizeSourceDirectory } from '../src/recording/source-files.js';
 import { archiveDigest } from '../src/recording/archive-files.js';
+import { archiveBackupFixture as setup } from './helpers/archive-backup-fixture.js';
 
-async function setup(t: test.TestContext) {
-  const f = await executionFixture(t);
-  const archive = createArchiveCoordinator({ store: f.repository.archive, executionStore: f.repository.execution, preparationStore: f.repository.preparations, sourceStore: f.repository.sources, sources: f.sources, preparation: f.preparation });
-  t.after(() => archive.close());
-  const parent = path.join(f.directory, '归档'), destinationPath = path.join(f.directory, '备份');
-  await mkdir(parent); await mkdir(destinationPath);
-  const root = await archive.authorize(randomUUID(), parent); await archive.initialize({ commandId: randomUUID(), id: root.id, userConfirmed: true });
-  const job = await f.execution.start(await f.request()); await f.execution.idle();
-  const selection = { rootId: root.id, assetId: job.id, sourcePolicy: 'preserve-exact-sources' as const };
-  const preview = await archive.preview({ ...selection, readId: randomUUID() });
-  const request = { ...selection, commandId: randomUUID(), proposalFingerprint: preview.proposalFingerprint, userConfirmed: true as const };
-  await archive.start(request); await archive.idle();
-  assert.equal(f.repository.archive.operation(request.commandId)?.phase, 'FINALIZED');
-  const destination = { ...await authorizeSourceDirectory(destinationPath), id: randomUUID() };
-  const module = await import('../src/recording/backup-package.js').catch(() => ({}));
-  assert.ok('createArchiveBackup' in module && 'verifyArchiveBackup' in module, '生产备份包边界尚未实现');
-  const api = module as typeof import('../src/recording/backup-package.js');
-  const backupRequest = { repository: f.repository, destination, id: randomUUID(), mode: 'archive-content' as const, userConfirmed: true, signal: new AbortController().signal };
-  return { ...f, api, archive, archiveRequest: request, root: f.repository.archive.root(root.id), destination, backupRequest };
-}
 
 test('完整归档内容备份包含快照与每一引用字节；脱离原目录可独立校验', async t => {
   const f = await setup(t), before = f.repository.archive.operations();

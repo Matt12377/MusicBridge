@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
 import { lstat, mkdir, open } from 'node:fs/promises';
 import path from 'node:path';
-import { authorizeSourceDirectory, sourceRootAvailability, type RootCapability } from './source-files.js';
+import { authorizeSourceDirectory, sourceRootAvailability, withVerifiedReadonlySource, type RootCapability } from './source-files.js';
 
 export class BackupError extends Error {
   constructor(readonly code: 'BACKUP_DESTINATION_INVALID' | 'BACKUP_INCOMPLETE' | 'BACKUP_INVALID' | 'BACKUP_IO_ERROR') { super(code); }
@@ -55,4 +55,14 @@ export async function hashBackupFile(root: RootCapability, relative: string, sig
     if (identity(before) !== identity(await handle.stat()) || identity(before) !== identity(await lstat(absolute))) backupFail();
     return { relative, sha256: digest.digest('hex'), size: before.size };
   } finally { await handle.close(); }
+}
+
+export async function readBackupText(root: RootCapability, name: string, maximum: number, signal: AbortSignal): Promise<string> {
+  const file = await hashBackupFile(root, name, signal, maximum);
+  if (file.size > maximum) backupFail();
+  return withVerifiedReadonlySource(root, name, file, signal, async handle => {
+    const bytes = Buffer.alloc(file.size); let offset = 0;
+    while (offset < bytes.length) { signal.throwIfAborted(); const { bytesRead } = await handle.read(bytes, offset, bytes.length - offset, offset); if (!bytesRead) backupFail(); offset += bytesRead; }
+    return bytes.toString('utf8');
+  });
 }
