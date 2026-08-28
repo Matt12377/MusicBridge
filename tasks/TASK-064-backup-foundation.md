@@ -31,4 +31,4 @@ TASK-065 承接隔离恢复、当前库切换、基本索引重建与 Quarantine
 
 ## 当前结果
 
-本地自动 Gate 已通过，结果与身份见 `reports/TASK-064_RESULT.md`（报告提交阶段生成）。当前仅完成本文的 Core 基础范围，后续恢复激活/UI和完整Gate E未完成。
+本地自动 Gate 已通过，结果与身份见 `reports/TASK-064_RESULT.md`。当前仅完成本文的 Core 基础范围，后续恢复激活/UI和完整Gate E未完成。
