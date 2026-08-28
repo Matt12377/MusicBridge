@@ -83,7 +83,7 @@
     "baseCommit": "6c94350575ab2a21f7aeef36713b9a3d868e4bdf",
     "state": "in-progress",
     "implementationCommit": "baff4bef0a7890c5ecd0cd19af7d5e6164554232",
-    "reportCommit": null,
+    "reportCommit": "d0a16e4d226bd09a806d73e8dcbbfcf8fdea3d3f",
     "previousTask": {
       "task": "TASK-072",
       "implementationCommit": "cab05c2c8eb367dbabfd703b4bd6eef9a96d046f",
@@ -124,7 +124,7 @@
       "TASK072 P3：同内容媒体规划仅revision变化可能误归因为COPY_UNAVAILABLE，保守阻断不放行；后续补版本分类行为测试",
       "TASK073实际包合成check通过；CDP探针清理需SIGKILL且已close，无残留；正常包退出未验证，保留NOT_READY日志至TASK078复核"
     ],
-    "checkpoint": "task073-synthetic-stage-verified-device-stage-pending",
+    "checkpoint": "task073-synthetic-stage-locally-sealed-device-stage-pending",
     "todo": "project/V3_TODO.md",
     "nextTask": "TASK-074",
     "resultReport": "reports/TASK-073_RESULT.md",
