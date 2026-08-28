@@ -1758,16 +1758,15 @@ async function prepareCoreDataDirectory(): Promise<{
   }
   const dataDirectory = path.join(app.getPath('userData'), 'data')
   await mkdir(dataDirectory, { recursive: true, mode: 0o700 })
-  const legacyPath = path.join(
-    app.getPath('home'),
-    'Library',
-    'Application Support',
-    'MusicBridgeAgent',
-    'data',
-    'config.json',
-  )
-  const result = await migrateRoonConfig({
-    legacyPath,
+  const result = await migrateRoonConfig(isStartupTest || isUiE2e ? { mode: 'synthetic-test' } : {
+    legacyPath: path.join(
+      app.getPath('home'),
+      'Library',
+      'Application Support',
+      'MusicBridgeAgent',
+      'data',
+      'config.json',
+    ),
     targetPath: path.join(dataDirectory, 'config.json'),
   })
   if (result.status === 'invalid') {

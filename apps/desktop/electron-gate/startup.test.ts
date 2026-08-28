@@ -14,7 +14,8 @@ function runStartupGate(
   const result = spawnSync(process.execPath, ['scripts/startup-gate.mjs', mode], {
     cwd: desktopRoot,
     encoding: 'utf8',
-    timeout: 60_000,
+    // 覆盖构建120秒、启动/退出各30秒及内层清理；外层不能提前杀掉清理进程。
+    timeout: 210_000,
     env: {
       ...process.env,
       ...(crashGate ? { MUSIC_BRIDGE_CORE_CRASH_GATE: '1' } : {}),

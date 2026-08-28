@@ -5,6 +5,7 @@ import path from 'node:path'
 const MAX_CONFIG_BYTES = 2 * 1024 * 1024
 
 export type RoonConfigMigrationStatus =
+  | 'skipped_test'
   | 'missing'
   | 'invalid'
   | 'already_present'
@@ -36,10 +37,13 @@ async function readValidatedConfig(filePath: string): Promise<ConfigFile | undef
   return { contents }
 }
 
-export async function migrateRoonConfig(options: {
+export async function migrateRoonConfig(options: { mode: 'synthetic-test' } | {
+  mode?: 'normal'
   legacyPath: string
   targetPath: string
 }): Promise<RoonConfigMigrationResult> {
+  // 仅Main由已有测试标志选择；合成运行不取得路径，也不读取或迁移用户配置。
+  if (options.mode === 'synthetic-test') return { status: 'skipped_test' }
   let legacy: ConfigFile | undefined
   try {
     legacy = await readValidatedConfig(options.legacyPath)

@@ -57,3 +57,19 @@
 Owner说明目前没有设备连接，后续计划使用RME或Apogee声卡，录音机为Sony卡座。这是用户提供的计划，不是系统枚举结果；声卡品牌仍为候选，具体型号、连接方式、输出后端和测量配置尚未确定。
 
 目前无需Owner补充型号；待设备接入时再确认实际配置及设备操作范围。持续开发授权保持，但该说明不新增设备枚举/open、音频设置修改、测试音、录音或故障注入授权，也不构成兼容性或音质验证。formalReady=false、Gate B NOT_RUN、TASK073进行中及后续任务依赖保持不变。
+
+## 2026-08-29 第四阶段：无设备验证的退出边界与配置隔离
+
+基线`81dbd2621774ba84d017cff3b98734d63e75fd4f`，Owner再次要求持续开发、不重复询问。继续TASK073，不启动TASK074，不接触声卡或真实账号。旧包退出FAIL保留，不重放旧探针；先修复已定位的验证入口缺口。
+
+- task071_picker唯一writer：`apps/desktop/scripts/startup-gate.mjs`、必要同目录进程等待helper及相邻`test/startup-gate*.test.ts`。先用真实短命/挂起Node子进程取得RED；就绪标记不能撤销退出期限，必须观察close且code0/signal为空才算成功；超时仅清理自建子进程，固定分类、不输出原始敏感环境。
+- restore_index_details唯一writer：`apps/desktop/src/main/config-migration.ts`、相邻`test/config-migration.test.ts`及`index.ts`中prepareCoreDataDirectory最小接线。合成startup/UI模式不得读取或复制home下的真实旧配置；普通模式保留原迁移行为。先RED再实现，不更改退出钩子或公开IPC。
+- task070_store只读分析R021的新可证伪定位假设，随后承担非作者SPEC；root保留控制文档、统一Gate和最终QUALITY。各新增delta最多两轮，不重审已封版模块。
+
+证据写入`reports/runtime/task-073-exit-lifecycle/`。旧报告、16个原生文件及隔离生命周期内核保持身份；不改Fuses/sender，不安装或发布。合成配置隔离修复前不运行新的应用验证。启动脚本通过、应用正常退出、真实设备Gate B分别记账，不能相互替代。
+
+### 最新持续开发目标
+
+Owner随后明确将目标更新为“持续开发全部任务，直到079，列出todo面板”。该授权替代此前stopAfter TASK073的软件开发暂停点：当前本地阶段完成并锁定最终HEAD后，按独立分支依次推进TASK074～079的软件实现、合成测试和验收准备。root维护WAVE-5、任务索引、STATUS及完整TODO一致。
+
+这不解除生产Formal输出的Gate B阻断，也不把TASK073真实硬件生命周期/认证、TASK079实机操作或Owner验收标为完成。无设备阶段使用显式合成驱动/资料；不会用合成成功写入真实设备认证或实体录制完成事实。新阶段外层Electron测试watchdog为210秒，须覆盖内层构建、启动、退出和清理期限。

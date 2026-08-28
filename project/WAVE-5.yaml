@@ -33,5 +33,11 @@ order:
   - TASK-071
   - TASK-072
   - TASK-073
-stopAfter: TASK-073
-reviewBoundary: fixed-synthetic-frame-pump-and-device-gate-not-run
+  - TASK-074
+  - TASK-075
+  - TASK-076
+  - TASK-077
+  - TASK-078
+  - TASK-079
+stopAfter: TASK-079
+reviewBoundary: local-software-gates-through079-real-device-and-owner-acceptance-pending

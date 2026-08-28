@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
-import { chmod, lstat, mkdir, mkdtemp, readFile, symlink, writeFile } from 'node:fs/promises'
+import { chmod, lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
+import { runInNewContext } from 'node:vm'
+import ts from 'typescript'
 
 import { migrateRoonConfig } from '../src/main/config-migration.js'
 
@@ -65,3 +67,52 @@ test('existing formal config is preserved and legacy config remains available', 
   assert.match(await readFile(targetPath, 'utf8'), /new/)
   assert.match(await readFile(legacyPath, 'utf8'), /old/)
 })
+
+
+test('合成迁移模式在取得任何配置路径之前跳过，不读取或复制旧配置', async () => {
+  let pathReads = 0
+  const request = {
+    mode: 'synthetic-test' as const,
+    get legacyPath(): string { ++pathReads; throw new Error('合成模式禁止取得旧配置路径') },
+    get targetPath(): string { ++pathReads; throw new Error('跳过迁移不应取得目标路径') },
+  }
+  assert.deepEqual(await migrateRoonConfig(request), { status: 'skipped_test' })
+  assert.equal(pathReads, 0)
+})
+
+for (const mode of ['startup', 'ui'] as const) {
+  test(`${mode}合成启动实际prepare函数不解析home、不迁移旧配置`, async t => {
+    const root = await makeTempRoot()
+    t.after(() => rm(root, { recursive: true, force: true }))
+    const userData = path.join(root, 'isolated-user-data')
+    const sourceText = await readFile(new URL('../src/main/index.ts', import.meta.url), 'utf8')
+    const source = ts.createSourceFile('index.ts', sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+    const declaration = source.statements.find(statement => ts.isFunctionDeclaration(statement) && statement.name?.text === 'prepareCoreDataDirectory')
+    assert.ok(declaration, '必须执行现有Main中的精确命名函数')
+    const compiled = ts.transpileModule(declaration.getText(source), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText
+    let homeReads = 0
+    let currentUserData = ''
+    const migrationCalls: Parameters<typeof migrateRoonConfig>[0][] = []
+    const result = await runInNewContext(compiled + '\nprepareCoreDataDirectory()', {
+      isStartupTest: mode === 'startup', isUiE2e: mode === 'ui',
+      startupTestConfiguration: { userDataDirectory: userData, uiE2eUserDataDirectory: userData },
+      app: {
+        setPath(name: string, value: string) { assert.equal(name, 'userData'); assert.equal(value, userData); currentUserData = value },
+        getPath(name: string) {
+          if (name === 'home') { ++homeReads; throw new Error('合成启动禁止解析用户home') }
+          assert.equal(name, 'userData'); assert.equal(currentUserData, userData); return currentUserData
+        },
+      },
+      path, mkdir, mkdtemp, safeStorage: {},
+      migrateRoonConfig: async (request: Parameters<typeof migrateRoonConfig>[0]) => { migrationCalls.push(request); return migrateRoonConfig(request) },
+      CredentialVault: class { constructor(readonly options: { filePath: string }) {} },
+    }) as { dataDirectory: string; credentialVault: { options: { filePath: string } } }
+    assert.equal(homeReads, 0)
+    assert.equal(migrationCalls.length, 1)
+    assert.deepEqual(Object.keys(migrationCalls[0]!), ['mode'])
+    assert.equal((migrationCalls[0] as { mode?: string }).mode, 'synthetic-test')
+    assert.equal(result.dataDirectory, path.join(userData, 'data'))
+    assert.equal(result.credentialVault.options.filePath, path.join(userData, 'data', 'netease.credential'))
+    await assert.rejects(lstat(path.join(userData, 'data', 'config.json')), { code: 'ENOENT' })
+  })
+}
