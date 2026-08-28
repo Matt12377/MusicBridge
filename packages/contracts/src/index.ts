@@ -31,3 +31,4 @@ export * from './converted-execution.js';
 export * from './recording-archive.js';
 export * from './recording-activation.js';
 export * from './command-outbox.js';
+export * from './reference-catalog.js';

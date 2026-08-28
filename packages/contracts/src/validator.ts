@@ -1,4 +1,5 @@
 import { isCommandOutboxDatasetId, isCommandOutboxContext, isCommandOutboxExecute, isCommandOutboxResult } from './command-outbox.js';
+import { isRegisterReferenceSourceRequest, isReferenceSourceVersion, isReferenceSourceListRequest, isReferenceSourcePage, isCatalogIdRequest, isReferenceSourceDetail, isPreviewCatalogRevisionRequest, isCatalogRevisionPreview, isPublishCatalogRevisionRequest, isCatalogRevisionDetail, isSetCatalogMatchRequest, isCatalogSnapshot, isCatalogHistoryRequest, isCatalogHistory } from './reference-catalog.js';
 import { isActivateRestoredDataset, isRestoreActivationView } from './recording-activation.js';
 import { isBackupOverview, isBackupRootView, isAuthorizeBackupRoot, isStartBackupJob, isBackupJobView } from './recording-backups.js';
 import { isArchiveRootView, isInitializeArchiveRequest, isArchiveProposal, isStartArchiveRequest, isPreviewArchiveRequest, isArchiveOperationView, isArchiveHistory, isArchiveCheck, isVerifyArchiveRequest } from './recording-archive.js';
@@ -931,6 +932,13 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'recordingBackups.activationReceipt') return isActivateRestoredDataset(payload);
   if (command === 'commandOutbox.context') return isEmptyPayload(payload);
   if (command === 'commandOutbox.execute') return isCommandOutboxExecute(payload);
+  if (command === 'referenceCatalog.registerSource') return isRegisterReferenceSourceRequest(payload);
+  if (command === 'referenceCatalog.sources') return isReferenceSourceListRequest(payload);
+  if (command === 'referenceCatalog.source' || command === 'referenceCatalog.revision' || command === 'referenceCatalog.snapshot') return isCatalogIdRequest(payload);
+  if (command === 'referenceCatalog.previewRevision') return isPreviewCatalogRevisionRequest(payload);
+  if (command === 'referenceCatalog.publishRevision') return isPublishCatalogRevisionRequest(payload);
+  if (command === 'referenceCatalog.setMatch') return isSetCatalogMatchRequest(payload);
+  if (command === 'referenceCatalog.history') return isCatalogHistoryRequest(payload);
   if (command === 'recordingSources.roots') return isRecord(payload) && hasOnlyKeys(payload, []);
   if (command === 'recordingSources.rootReceipt') return isRecord(payload) && hasOnlyKeys(payload, ['commandId']) && isCollectionId(payload.commandId);
   if (command === 'recordingSources.authorize') return isRecord(payload) && hasOnlyKeys(payload, ['commandId', 'absolutePath']) && isCollectionId(payload.commandId) && isSourcePrivatePath(payload.absolutePath);
@@ -1446,6 +1454,15 @@ function isCommandResult(
     case 'recordingBackups.activationReceipt': return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['activation']) && (value.activation === null || isRestoreActivationView(value.activation));
     case 'commandOutbox.context': return isCommandOutboxContext(value);
     case 'commandOutbox.execute': return isCommandOutboxResult(value);
+    case 'referenceCatalog.registerSource': return isReferenceSourceVersion(value);
+    case 'referenceCatalog.sources': return isReferenceSourcePage(value);
+    case 'referenceCatalog.source': return isReferenceSourceDetail(value);
+    case 'referenceCatalog.previewRevision': return isCatalogRevisionPreview(value);
+    case 'referenceCatalog.publishRevision':
+    case 'referenceCatalog.setMatch':
+    case 'referenceCatalog.revision': return isCatalogRevisionDetail(value);
+    case 'referenceCatalog.snapshot': return isCatalogSnapshot(value);
+    case 'referenceCatalog.history': return isCatalogHistory(value);
     case 'recordingSources.roots': return isRecord(value) && hasOnlyKeys(value, ['roots']) && Array.isArray(value.roots) && value.roots.length <= 100 && value.roots.every(isSourceRoot);
     case 'recordingSources.rootReceipt': return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['root']) && (value.root === null || isSourceRoot(value.root));
     case 'recordingSources.authorize': return allowInternalResult && isSourceRoot(value);

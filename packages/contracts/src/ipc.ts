@@ -1,4 +1,5 @@
 import type { CommandOutboxContext, CommandOutboxExecute, CommandOutboxResult } from './command-outbox.js';
+import type { RegisterReferenceSourceRequest, ReferenceSourceVersion, ReferenceSourceListRequest, ReferenceSourcePage, CatalogIdRequest, ReferenceSourceDetail, PreviewCatalogRevisionRequest, CatalogRevisionPreview, PublishCatalogRevisionRequest, CatalogRevisionDetail, SetCatalogMatchRequest, CatalogSnapshot, CatalogHistoryRequest, CatalogHistory } from './reference-catalog.js';
 import type { ActivateRestoredDataset, RestoreActivationView } from './recording-activation.js';
 import type { BackupOverview, BackupRootView, AuthorizeBackupRoot, StartBackupJob, BackupJobView } from './recording-backups.js';
 import type { ArchiveRootView, InitializeArchiveRequest, ArchiveProposal, StartArchiveRequest, PreviewArchiveRequest, ArchiveOperationView, ArchiveHistory, ArchiveCheck, VerifyArchiveRequest } from './recording-archive.js';
@@ -57,6 +58,15 @@ import type { PublicAggregatedSearchResult } from './aggregated-search.js';
 export const IPC_VERSION = 1 as const;
 
 export const IPC_COMMANDS = [
+  'referenceCatalog.registerSource',
+  'referenceCatalog.sources',
+  'referenceCatalog.source',
+  'referenceCatalog.previewRevision',
+  'referenceCatalog.publishRevision',
+  'referenceCatalog.revision',
+  'referenceCatalog.setMatch',
+  'referenceCatalog.snapshot',
+  'referenceCatalog.history',
   'commandOutbox.context',
   'commandOutbox.execute',
   'core.ping',
@@ -281,6 +291,15 @@ export type IpcEnvelope<T = unknown> = IpcRequest<T> | IpcResponse<T>;
 export interface IpcCommandPayloads {
   'commandOutbox.context': Record<string, never>;
   'commandOutbox.execute': CommandOutboxExecute;
+  'referenceCatalog.registerSource': RegisterReferenceSourceRequest;
+  'referenceCatalog.sources': ReferenceSourceListRequest;
+  'referenceCatalog.source': CatalogIdRequest;
+  'referenceCatalog.previewRevision': PreviewCatalogRevisionRequest;
+  'referenceCatalog.publishRevision': PublishCatalogRevisionRequest;
+  'referenceCatalog.revision': CatalogIdRequest;
+  'referenceCatalog.setMatch': SetCatalogMatchRequest;
+  'referenceCatalog.snapshot': CatalogIdRequest;
+  'referenceCatalog.history': CatalogHistoryRequest;
   'recordingBackups.overview': Record<string, never>;
   'recordingBackups.activate': ActivateRestoredDataset;
   'recordingBackups.activationReceipt': ActivateRestoredDataset;
@@ -465,6 +484,15 @@ export interface IpcCommandPayloads {
 export interface IpcCommandResults {
   'commandOutbox.context': CommandOutboxContext;
   'commandOutbox.execute': CommandOutboxResult;
+  'referenceCatalog.registerSource': ReferenceSourceVersion;
+  'referenceCatalog.sources': ReferenceSourcePage;
+  'referenceCatalog.source': ReferenceSourceDetail;
+  'referenceCatalog.previewRevision': CatalogRevisionPreview;
+  'referenceCatalog.publishRevision': CatalogRevisionDetail;
+  'referenceCatalog.revision': CatalogRevisionDetail;
+  'referenceCatalog.setMatch': CatalogRevisionDetail;
+  'referenceCatalog.snapshot': CatalogSnapshot;
+  'referenceCatalog.history': CatalogHistory;
   'recordingBackups.overview': BackupOverview;
   'recordingBackups.activate': RestoreActivationView;
   'recordingBackups.activationReceipt': { activation: RestoreActivationView | null };

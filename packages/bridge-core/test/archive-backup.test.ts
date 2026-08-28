@@ -1,13 +1,80 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { randomUUID } from 'node:crypto';
-import { readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { createHash, randomUUID } from 'node:crypto';
+import { readFile, readdir, rm, writeFile, mkdtemp, mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
+import type { CanonicalReference } from '@music-bridge/contracts';
 import { DatabaseSync } from 'node:sqlite';
 import { authorizeSourceDirectory } from '../src/recording/source-files.js';
 import { archiveDigest } from '../src/recording/archive-files.js';
 import { archiveBackupFixture as setup } from './helpers/archive-backup-fixture.js';
+import { createCollectionRepository } from '../src/collection/repository.js';
+import { readBackupIndex } from '../src/recording/backup-index.js';
+import { isolateRestoredDatabase, verifyRestoredDatabaseIsolation } from '../src/recording/restore-database.js';
 
+test('固定旧schema14仍可校验，目录schema15迁移后快照与隔离恢复保留库存事实', async t => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-catalog-backup-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const filePath = path.join(directory, 'collection.sqlite');
+  const seed = new DatabaseSync(filePath);
+  try { seed.exec(await readFile(new URL('./fixtures/collection-schema14.sql', import.meta.url), 'utf8')); assert.equal(seed.prepare('PRAGMA user_version').get()?.user_version, 14); }
+  finally { seed.close(); }
+  const before = await readFile(filePath);
+  assert.deepEqual(readBackupIndex(filePath).index, { operations: [], objects: [], incompleteOperationIds: [] });
+  assert.deepEqual(await readFile(filePath), before, '只读验证旧备份不得迁移或修改原件');
+  const inspect = () => {
+    const db = new DatabaseSync(filePath, { readOnly: true });
+    try { return { version: db.prepare('PRAGMA user_version').get()?.user_version, ledger: db.prepare('SELECT * FROM inventory_ledger ORDER BY command_id').all(), copies: db.prepare('SELECT * FROM physical_copies ORDER BY physical_id').all(), lots: db.prepare('SELECT * FROM inventory_lots ORDER BY id').all(), photos: db.prepare('SELECT * FROM collection_photos ORDER BY id').all() }; }
+    finally { db.close(); }
+  };
+  const original = inspect(), repository = createCollectionRepository({ filePath });
+  try { repository.list({ offset: 0, limit: 20 }); } finally { repository.close(); }
+  assert.equal(inspect().version, 15, '目录schema必须由正式迁移创建');
+  assert.deepEqual(readBackupIndex(filePath).index, { operations: [], objects: [], incompleteOperationIds: [] });
+  isolateRestoredDatabase(filePath); verifyRestoredDatabaseIsolation(filePath);
+  assert.deepEqual(inspect(), { ...original, version: 15 });
+});
+
+
+test('含参考资料与历史拥有快照的真实数据库备份可隔离恢复，原包哈希篡改拒绝', async t => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-catalog-snapshot-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const filePath = path.join(directory, 'collection.sqlite'), seed = new DatabaseSync(filePath);
+  try { seed.exec(await readFile(new URL('./fixtures/collection-schema14.sql', import.meta.url), 'utf8')); } finally { seed.close(); }
+  const repository = createCollectionRepository({ filePath }); t.after(() => repository.close());
+  const item: CanonicalReference = { referenceId: 'synthetic-ref', bookId: 'synthetic-book', brand: '合成', series: '测试', edition: '1990', model: '合成型号', lengths: [60, 90], iec: 'II', era: '1990', image: { kind: 'none' }, pages: ['1'], notes: '', confidence: 'high' };
+  const rawPack = '\uFEFF' + JSON.stringify({ schemaVersion: 1, bookId: item.bookId, title: '合成目录', sourceVersion: '1', items: [item] }) + '\r\n';
+  const source = repository.catalog.registerSource({ commandId: randomUUID(), rawPack, packHash: createHash('sha256').update(rawPack).digest('hex'), userConfirmed: true });
+  const previewRequest = { sourceId: source.id, expectedCurrentRevisionId: null, items: [item], mappings: [] };
+  const preview = repository.catalog.previewRevision(previewRequest);
+  const initial = repository.catalog.publishRevision({ ...previewRequest, commandId: randomUUID(), baselineFingerprint: preview.baselineFingerprint, userConfirmed: true });
+  const matched = repository.catalog.setMatch({ commandId: randomUUID(), revisionId: initial.revision.id, expectedMatchVersion: 0, match: { referenceId: item.referenceId, modelId: repository.list({ offset: 0, limit: 20 }).items[0]!.id, status: 'confirmed', availability: 'unknown' }, userConfirmed: true });
+  assert.equal(matched.currentCounts.owned, 1); assert.equal(matched.currentEntries[0]?.stockCount, 5);
+  const destinationPath = path.join(directory, '快照'); await mkdir(destinationPath);
+  const snapshot = await repository.backupSnapshot({ ...await authorizeSourceDirectory(destinationPath), id: randomUUID() });
+  assert.equal(snapshot.schemaVersion, 15);
+  const restoredPath = path.join(destinationPath, 'collection.sqlite');
+  readBackupIndex(restoredPath); isolateRestoredDatabase(restoredPath); verifyRestoredDatabaseIsolation(restoredPath); readBackupIndex(restoredPath);
+  const restored = createCollectionRepository({ filePath: restoredPath });
+  try {
+    assert.deepEqual(restored.catalog.source({ id: source.id }), { source, rawPack });
+    assert.deepEqual(restored.catalog.revision({ id: initial.revision.id }), matched);
+    assert.deepEqual(restored.catalog.snapshot({ id: initial.snapshot.id }), initial.snapshot);
+    assert.deepEqual(restored.list({ offset: 0, limit: 20 }), repository.list({ offset: 0, limit: 20 }));
+  } finally { restored.close(); }
+  const damaged = new DatabaseSync(restoredPath);
+  try {
+    const trigger = String(damaged.prepare("SELECT sql FROM sqlite_master WHERE name='reference_sources_no_update'").get()?.sql);
+    damaged.exec('DROP TRIGGER reference_sources_no_update');
+    damaged.prepare('UPDATE reference_sources SET raw_pack=raw_pack || ? WHERE id=?').run(' ', source.id);
+    damaged.exec(trigger);
+  } finally { damaged.close(); }
+  const damagedBytes = await readFile(restoredPath);
+  assert.throws(() => readBackupIndex(restoredPath), /参考目录|BACKUP/u);
+  assert.deepEqual(await readFile(restoredPath), damagedBytes, '只读拒绝不能修改损坏证据');
+  assert.equal(repository.catalog.source({ id: source.id }).rawPack, rawPack, '恢复副本损坏不影响原工作库');
+});
 
 test('完整归档内容备份包含快照与每一引用字节；脱离原目录可独立校验', async t => {
   const f = await setup(t), before = f.repository.archive.operations();

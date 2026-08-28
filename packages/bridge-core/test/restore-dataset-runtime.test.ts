@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
-import { copyFile, link, mkdir, readFile, readdir, rename, rm, symlink, writeFile } from 'node:fs/promises';
+import { copyFile, link, mkdir, mkdtemp, readFile, readdir, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
+import { openCollectionDataset } from '../src/recording/restore-dataset-runtime.js';
 import { archiveBackupFixture } from './helpers/archive-backup-fixture.js';
 import { createCollectionRepository, type CollectionRepository } from '../src/collection/repository.js';
 import { createBackupWorkflowStore } from '../src/recording/backup-workflow-store.js';
@@ -49,6 +51,16 @@ async function fixture(t: test.TestContext) {
   const open = (module as typeof import('../src/recording/restore-dataset-runtime.js')).openCollectionDataset;
   return { ...f, privatePath, defaultFile, storePath, restored, destinationId: destination.id, pending, prepare, open };
 }
+
+test('目录schema15默认工作库关闭后可冷开，保留dataset身份及库存', async t => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-catalog-cold-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const first = await openCollectionDataset(directory), datasetId = first.datasetId;
+  addBusinessData(first.repository); first.close();
+  const cold = await openCollectionDataset(directory);
+  try { assert.equal(cold.datasetId, datasetId); assert.equal(cold.repository.list(page).total, 1); }
+  finally { cold.close(); }
+});
 
 test('启动先选择已确认候选，仅运行成功后commit切换持久指针，旧库原样保留', async t => {
   const f = await fixture(t), before = await readFile(f.defaultFile), maintenance = createBackupWorkflowStore({ filePath: f.storePath });

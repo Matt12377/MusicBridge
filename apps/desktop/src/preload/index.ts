@@ -279,5 +279,16 @@ contextBridge.exposeInMainWorld(
       dismissCommandOutbox: request => ipcRenderer.invoke('commandOutbox:dismiss', request),
       acknowledgeCommandOutbox: request => ipcRenderer.invoke('commandOutbox:acknowledge', request),
     },
+    {
+      registerReferenceSource: request => outbox.submit('referenceCatalog.registerSource', request),
+      listReferenceSources: request => ipcRenderer.invoke('referenceCatalog:sources', request),
+      getReferenceSource: request => ipcRenderer.invoke('referenceCatalog:source', request),
+      previewCatalogRevision: request => ipcRenderer.invoke('referenceCatalog:previewRevision', request),
+      publishCatalogRevision: request => outbox.submit('referenceCatalog.publishRevision', request),
+      getCatalogRevision: request => ipcRenderer.invoke('referenceCatalog:revision', request),
+      setCatalogMatch: request => outbox.submit('referenceCatalog.setMatch', request),
+      getCatalogSnapshot: request => ipcRenderer.invoke('referenceCatalog:snapshot', request),
+      getCatalogHistory: request => ipcRenderer.invoke('referenceCatalog:history', request),
+    },
   ),
 )

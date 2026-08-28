@@ -6,6 +6,11 @@ import CollectionReceiveDialog from './CollectionReceiveDialog.vue'
 import CollectionModelDetail from './CollectionModelDetail.vue'
 import CollectionPhoto from './CollectionPhoto.vue'
 import PhysicalMusicView from './PhysicalMusicView.vue'
+import ReferenceCatalogPanel from './ReferenceCatalogPanel.vue'
+
+const referenceOpen = ref(false)
+const referenceTrigger = ref<HTMLButtonElement>()
+function closeReference(): void { referenceOpen.value = false; void nextTick(() => referenceTrigger.value?.focus({ preventScroll: true })) }
 
 const inventory = useCollection()
 const collectionApi = window.musicBridge
@@ -48,6 +53,7 @@ function onTabKeydown(event: KeyboardEvent): void {
 
 <template>
   <section class="collection-view" data-component="CollectionView" aria-label="实体收藏">
+    <div class="collection-context">
     <div ref="tabs" class="collection-tabs" role="tablist" aria-label="收藏视图">
       <button
         v-for="view in views" :id="`collection-tab-${view.id}`" :key="view.id"
@@ -55,6 +61,8 @@ function onTabKeydown(event: KeyboardEvent): void {
         :aria-controls="`collection-panel-${view.id}`" :tabindex="selectedView === view.id ? 0 : -1"
         @click="selectedView = view.id" @keydown="onTabKeydown"
       >{{ view.label }}</button>
+    </div>
+    <button ref="referenceTrigger" class="reference-entry" type="button" @click="referenceOpen = true">参考目录与版次</button>
     </div>
 
     <div
@@ -118,12 +126,16 @@ function onTabKeydown(event: KeyboardEvent): void {
         <p :id="`collection-status-${view.id}`" class="collection-status">录入后打开型号，即可添加实物照片；也可清除筛选查看全部收藏。</p>
       </div>
     </div>
+    <ReferenceCatalogPanel v-if="referenceOpen" @close="closeReference" />
     <CollectionReceiveDialog v-if="receiving" :model="receiveModel" :busy="saving" :error="error" :retryable="!!pending" @close="receiving = false" @save="receive" @retry="retry" />
   </section>
 </template>
 
 <style scoped>
 .collection-view { max-width: 1240px; margin: 0 auto; padding: 24px 36px 40px; }
+.collection-context { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.reference-entry { min-height: 44px; padding: 8px 14px; border: 1px solid var(--mb-glass-border); border-radius: 9px; color: var(--mb-text-primary); background: var(--mb-glass-clear); font-size: 13px; }
+.reference-entry:focus-visible { outline: 2px solid var(--mb-accent); outline-offset: 3px; }
 .collection-tabs { display: flex; gap: 5px; width: fit-content; max-width: 100%; padding: 4px; border: 1px solid var(--mb-glass-border); border-radius: 12px; background: var(--mb-bg-base); }
 .collection-tabs button { min-height: 38px; padding: 0 18px; border-radius: 8px; color: var(--mb-text-secondary); background: transparent; font-size: 13px; }
 .collection-tabs button[aria-selected="true"] { color: var(--mb-text-primary); background: var(--mb-glass-strong); box-shadow: 0 2px 8px #0003; }

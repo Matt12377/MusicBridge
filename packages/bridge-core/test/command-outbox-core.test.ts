@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { mkdtemp, rename, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -69,4 +69,22 @@ test('context读取后实际数据库文件被替换也不能借相同datasetId�
   assert.equal(result.ok, false);
   if (!result.ok) assert.equal(result.error.code, 'OUTBOX_SCOPE_MISMATCH');
   assert.equal(f.opened.repository.list({ offset: 0, limit: 1 }).total, 0);
+});
+
+test('参考目录正式IPC浏览不写库存，source登记走原scope outbox且重复命令不新增版本', async t => {
+  const f = await fixture(t);
+  const empty = await f.port.rpc('referenceCatalog.sources', { offset: 0, limit: 20 });
+  assert.equal(empty.ok, true, '参考目录读取必须接入实际Core路由');
+  const rawPack = JSON.stringify({ schemaVersion: 1, bookId: 'synthetic-book', title: '合成目录', sourceVersion: '1', items: [{ referenceId: 'synthetic-model', bookId: 'synthetic-book', brand: '合成', series: '测试', edition: '第一版', model: '测试型号', lengths: [60, 90], iec: 'II', era: '1990', image: { kind: 'none' }, pages: ['1'], notes: '', confidence: 'high' }] });
+  const request = { commandId: randomUUID(), rawPack, packHash: createHash('sha256').update(rawPack).digest('hex'), userConfirmed: true };
+  const wrongScope = await f.port.rpc('commandOutbox.execute', { datasetId: randomUUID(), command: 'referenceCatalog.registerSource', payload: request });
+  assert.equal(wrongScope.ok, false); if (!wrongScope.ok) assert.equal(wrongScope.error.code, 'OUTBOX_SCOPE_MISMATCH');
+  assert.deepEqual(await f.port.rpc('referenceCatalog.sources', { offset: 0, limit: 20 }).then(reply => reply.ok ? reply.result : null), empty.ok ? empty.result : null);
+  const envelope = { datasetId: f.opened.datasetId, command: 'referenceCatalog.registerSource', payload: request };
+  const first = await f.port.rpc('commandOutbox.execute', envelope), second = await f.port.rpc('commandOutbox.execute', envelope);
+  assert.equal(first.ok, true); assert.equal(second.ok, true);
+  if (first.ok && second.ok) assert.deepEqual(first.result, second.result);
+  const stored = await f.port.rpc('referenceCatalog.sources', { offset: 0, limit: 20 });
+  assert.equal(stored.ok, true); if (stored.ok) assert.match(JSON.stringify(stored.result), new RegExp(request.packHash, 'u'));
+  assert.equal(f.opened.repository.list({ offset: 0, limit: 20 }).total, 0);
 });

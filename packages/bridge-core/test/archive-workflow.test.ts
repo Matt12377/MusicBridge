@@ -298,7 +298,7 @@ test('工作流迁移失败回滚；已有内核 Root 保留身份并可作为�
   const plan = store.beginInitialization({ commandId: randomUUID(), id: candidate.id, userConfirmed: true }).initialization!;
   const owned = await initializePlannedArchiveRoot(plan, f.repository.sources.roots(), true); store.finishInitialization(candidate.id, owned);
   await f.execution.close(); f.repository.close();
-  const old = new DatabaseSync(f.filePath); old.exec('DROP TABLE archive_workflow_ledger; DROP TABLE archive_candidates; PRAGMA user_version=13'); old.close();
+  const old = new DatabaseSync(f.filePath); old.exec('DROP TABLE reference_catalog_ledger; DROP TABLE reference_catalog_snapshots; DROP TABLE reference_catalog_matches; DROP TABLE reference_catalog_heads; DROP TABLE reference_catalog_revisions; DROP TABLE reference_sources; DROP TABLE archive_workflow_ledger; DROP TABLE archive_candidates; PRAGMA user_version=13'); old.close();
   const failed = createCollectionRepository({ filePath: f.filePath, beforeCommit: action => { if (action === 'migrate-archive-workflow') throw new Error('合成归档工作流迁移失败'); } });
   assert.throws(() => failed.archive.candidates()); failed.close();
   const check = new DatabaseSync(f.filePath); assert.equal(check.prepare('PRAGMA user_version').get()!.user_version, 13); assert.equal(check.prepare("SELECT count(*) n FROM sqlite_master WHERE name='archive_candidates'").get()!.n, 0); check.close();

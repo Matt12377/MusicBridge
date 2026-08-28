@@ -252,6 +252,15 @@ async function dispatch(
     case 'recordingExecution.cancel': return executionFor(runtime).cancel(request.payload as IpcCommandPayloads['recordingExecution.cancel']);
     case 'recordingExecution.cancelRead': return executionFor(runtime).cancelRead((request.payload as IpcCommandPayloads['recordingExecution.cancelRead']).id);
     case 'recordingExecution.verify': return executionFor(runtime).verify(request.payload as IpcCommandPayloads['recordingExecution.verify']);
+    case 'referenceCatalog.registerSource': return collectionFor(runtime).catalog.registerSource(request.payload as IpcCommandPayloads['referenceCatalog.registerSource']);
+    case 'referenceCatalog.sources': return collectionFor(runtime).catalog.sources(request.payload as IpcCommandPayloads['referenceCatalog.sources']);
+    case 'referenceCatalog.source': return collectionFor(runtime).catalog.source(request.payload as IpcCommandPayloads['referenceCatalog.source']);
+    case 'referenceCatalog.previewRevision': return collectionFor(runtime).catalog.previewRevision(request.payload as IpcCommandPayloads['referenceCatalog.previewRevision']);
+    case 'referenceCatalog.publishRevision': return collectionFor(runtime).catalog.publishRevision(request.payload as IpcCommandPayloads['referenceCatalog.publishRevision']);
+    case 'referenceCatalog.revision': return collectionFor(runtime).catalog.revision(request.payload as IpcCommandPayloads['referenceCatalog.revision']);
+    case 'referenceCatalog.setMatch': return collectionFor(runtime).catalog.setMatch(request.payload as IpcCommandPayloads['referenceCatalog.setMatch']);
+    case 'referenceCatalog.snapshot': return collectionFor(runtime).catalog.snapshot(request.payload as IpcCommandPayloads['referenceCatalog.snapshot']);
+    case 'referenceCatalog.history': return collectionFor(runtime).catalog.history(request.payload as IpcCommandPayloads['referenceCatalog.history']);
     case 'recordingPrepared.list': return preparedFor(runtime).list((request.payload as IpcCommandPayloads['recordingPrepared.list']).draftId);
     case 'recordingPrepared.selections': return preparedFor(runtime).selections((request.payload as IpcCommandPayloads['recordingPrepared.selections']).preparationId);
     case 'recordingPrepared.selectionReceipt': return { selection: preparedFor(runtime).selectionReceipt((request.payload as IpcCommandPayloads['recordingPrepared.selectionReceipt'])) };

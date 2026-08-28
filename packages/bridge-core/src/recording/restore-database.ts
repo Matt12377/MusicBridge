@@ -7,7 +7,8 @@ export function isolateRestoredDatabase(filePath: string): void {
   try {
     db.exec('PRAGMA trusted_schema=OFF; PRAGMA foreign_keys=ON; PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL; BEGIN IMMEDIATE;');
     try {
-      if (db.prepare('PRAGMA user_version').get()?.user_version !== 14) backupFail();
+      const version = db.prepare('PRAGMA user_version').get()?.user_version;
+      if (version !== 14 && version !== 15) backupFail();
       for (const table of ['source_roots', 'preparation_destinations']) db.exec(`UPDATE ${table} SET data=json_set(data,'$.authorized',json('false'))`);
       db.exec("UPDATE prepared_selections SET data=json_set(data,'$.root.authorized',json('false')); UPDATE archive_roots SET authorized=0; UPDATE archive_candidates SET authorized=0;");
       for (const table of ['source_jobs', 'version_jobs', 'preparation_jobs', 'prepared_jobs', 'execution_jobs']) {

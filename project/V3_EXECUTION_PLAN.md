@@ -20,7 +20,7 @@ Owner 已授权“全部开始”。这是持续实施授权，不是“所有�
 
 ## 剩余任务 TODO
 
-本轮已将后续拆为 TASK-064～079，详见 [V3 TODO](V3_TODO.md)。TASK-064 本地自动 Gate 通过，TASK-065 本地自动 Gate 通过，TASK-066 本地自动 Gate 通过，TASK-067 本地自动 Gate 通过，TASK-068～079 未完成；外部条件和旧任务验收单独保留。
+本轮已将后续拆为 TASK-064～079，详见 [V3 TODO](V3_TODO.md)。TASK-064 本地自动 Gate 通过，TASK-065 本地自动 Gate 通过，TASK-066 本地自动 Gate 通过，TASK-067 本地自动 Gate 通过，TASK-068 本地自动 Gate 通过，TASK-069～079 未完成；外部条件和旧任务验收单独保留。
 
 ## 推进与进度展示
 
@@ -95,3 +95,7 @@ QUALITY有界容量carryover：普通冷启2秒ready与大库完整性扫描的�
 ### TASK-067 持久命令outbox承接
 
 Main独立私有账本覆盖52个原稳定命令，Core末端工作库身份守卫、七类原生/激活专用恢复及PREP整批撤权均已接线。重启不自动发送，人工恢复原DTO/commandId，不二次记账或跨库误发。最终本地Gate 82/827/279、安全27/Electron4/E2E54全部通过；44文件候选一致。F-01、R-020容量、真实账号/硬件和Owner验收不因此关闭。TASK-068按最终锁定HEAD接续参考目录与版次修订。
+
+### TASK-068 参考资料与目录修订承接
+
+从TASK067最终 `b95ef2c26dc0bdbf89c64d8c99f79ad8f2b4a83a` 建立独立工作树。资料原包与整理目录分离，合并/拆分需明确映射，历史snapshot不可变，参考资料不增加库存。schema15随collection快照并保持旧schema14备份可读。最终本地Gate通过：95/847/291、安全27、Electron4，常规E2E56通过加显式固定native专项1通过（同一37文件候选、分开调用）；不声明Owner完成。完整TASK069～079和外部条件保留。

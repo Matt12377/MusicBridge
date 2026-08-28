@@ -1,4 +1,5 @@
 import { isCollectionId, isCollectionReceiveRequest, isCollectionMaterializeRequest, isCollectionUpdateCopyRequest, isCollectionPolicyRequest, isCollectionAddPhotoRequest, isCollectionChangePhotoRequest, isCollectionMutationResult } from './collection.js';
+import { isRegisterReferenceSourceRequest, isPublishCatalogRevisionRequest, isSetCatalogMatchRequest, isReferenceSourceVersion, isCatalogRevisionDetail } from './reference-catalog.js';
 import { isSaveReleaseRequest, isSaveLegacyRequest, isAddMusicPhotoRequest, isRemoveMusicPhotoRequest, isMusicMutationResult } from './physical-music.js';
 import { isConfirmPhysicalLinkRequest, isRelocateDigitalRequest, isRegisterDigitalRequest, isRemovePhysicalLinkRequest, isConfirmAbsenceRequest, isPhysicalLinkResult } from './physical-links.js';
 import { isAppendMasterDraftRequest, isUpdateMasterDraftRequest, isMasterDraftResult } from './master-drafts.js';
@@ -19,6 +20,7 @@ import { isActivateRestoredDataset, isRestoreActivationView, type ActivateRestor
 
 /** 只允许原有公开领域写命令，不能从任意 IPC 名称推导重放权限。 */
 export const COMMAND_OUTBOX_COMMANDS = [
+  'referenceCatalog.registerSource', 'referenceCatalog.publishRevision', 'referenceCatalog.setMatch',
   'collection.receive', 'collection.materialize', 'collection.updateCopy', 'collection.setPolicy', 'collection.addPhoto', 'collection.changePhoto',
   'physicalMusic.saveRelease', 'physicalMusic.saveLegacy', 'physicalMusic.addPhoto', 'physicalMusic.removePhoto',
   'physicalLinks.confirm', 'physicalLinks.relocate', 'physicalLinks.register', 'physicalLinks.remove', 'physicalLinks.absence',
@@ -41,6 +43,9 @@ export type CommandOutboxSpecialCommand = typeof COMMAND_OUTBOX_SPECIAL_COMMANDS
 export type CommandOutboxTrackedCommand = CommandOutboxCommand | CommandOutboxSpecialCommand;
 /** 复用叶级领域验证器；不反向导入总 IPC validator，避免运行时模块循环。 */
 const ordinaryValidators = {
+  'referenceCatalog.registerSource': [isRegisterReferenceSourceRequest, isReferenceSourceVersion],
+  'referenceCatalog.publishRevision': [isPublishCatalogRevisionRequest, isCatalogRevisionDetail],
+  'referenceCatalog.setMatch': [isSetCatalogMatchRequest, isCatalogRevisionDetail],
   'collection.receive': [isCollectionReceiveRequest, isCollectionMutationResult],
   'collection.materialize': [isCollectionMaterializeRequest, isCollectionMutationResult],
   'collection.updateCopy': [isCollectionUpdateCopyRequest, isCollectionMutationResult],

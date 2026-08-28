@@ -3,9 +3,9 @@ wave: WAVE-5
 status: active
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-067
-activeBranch: codex/task-067-command-outbox
-activeBaseCommit: a64a31a6f7fca9ae34ea112faba1f9c7a2c530e2
+activeTask: TASK-068
+activeBranch: codex/task-068-reference-catalog
+activeBaseCommit: b95ef2c26dc0bdbf89c64d8c99f79ad8f2b4a83a
 order:
   - TASK-048
   - TASK-049
@@ -27,5 +27,6 @@ order:
   - TASK-065
   - TASK-066
   - TASK-067
-stopAfter: TASK-067
-reviewBoundary: task-067-local-automated-pass-owner-and-capacity-pending
+  - TASK-068
+stopAfter: TASK-068
+reviewBoundary: reference-catalog-immutable-revisions-no-inventory-mutation
