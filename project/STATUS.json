@@ -83,7 +83,7 @@
     "baseCommit": "4cdffc25cae80aa80003d1b331025d1a9b5fbcd3",
     "state": "local-automated-pass",
     "implementationCommit": "ddee7e5f724bedbeb155c310f3a90873cd91b7ab",
-    "reportCommit": null,
+    "reportCommit": "b85332f7dad0d49dc0c66c12a728997b47fa6ab9",
     "previousTask": {
       "task": "TASK-062",
       "implementationCommit": "62a20a6db58c5a94a537f84032931e89da20a5b4",
@@ -118,6 +118,6 @@
       "TASK-047 实际歌词与既有视觉 carryover 保留",
       "归档只支持已验证的本地硬链接/fsync 文件系统；多应用实例共写未支持"
     ],
-    "checkpoint": "archive-workflow-report-commit-pending"
+    "checkpoint": "archive-workflow-local-gates-pass-full-v3-and-owner-pending"
   }
 }
