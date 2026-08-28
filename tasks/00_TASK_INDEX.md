@@ -69,6 +69,6 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 
 - [TASK-063](TASK-063-archive-workflow.md)：归档授权、完整执行谱系与桌面明确确认。
 
-- [TASK-064](TASK-064-backup-foundation.md)：一致性快照与归档内容备份基础（进行中）。
+- [TASK-064](TASK-064-backup-foundation.md)：一致性快照与归档内容备份基础（本地自动 Gate 通过；恢复与 Owner 待后续）。
 
 剩余 TASK-065～079 与 Owner 条件见 [V3 TODO](../project/V3_TODO.md)，任务开始前展开详细范围。
