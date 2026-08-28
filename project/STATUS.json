@@ -166,7 +166,7 @@
       "state": "local-automated-pass-device-gate-pending",
       "scope": "isolated-single-session-core-and-fake-driver-only",
       "implementationCommit": "0c26e535274598869f88fb1992be2cc329f7fbe5",
-      "reportCommit": null,
+      "reportCommit": "ad49bba624071010b8f5efdd6dab3e0984d743c2",
       "gates": {
         "automated": "contracts134-core957-desktop447-pass-both-native-zero-skip",
         "native": "76-assertions-pass",
