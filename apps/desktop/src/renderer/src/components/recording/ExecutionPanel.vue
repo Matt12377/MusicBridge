@@ -3,10 +3,11 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch 
 import type {
   MasterDraft, VersionHistory, PreparedHistory, PreparationDestination,
   ExecutionHistory, ExecutionJob, ExecutionProposal, ExecutionAssetCheck,
-  RecordingSessionSettings, StartExecutionRequest, ExecutionMode, ExecutionAssetRecipe,
+  RecordingSessionSettings, StartExecutionRequest, ExecutionMode, ExecutionAssetRecipe, ExecutionAsset,
 } from '@music-bridge/contracts'
 import { executionFrameLimit } from '@music-bridge/contracts'
 import RecordingProfileSettings from './RecordingProfileSettings.vue'
+import ArchivePanel from './ArchivePanel.vue'
 
 const props = defineProps<{ draft: MasterDraft }>()
 const emit = defineEmits<{ close: [] }>()
@@ -20,6 +21,8 @@ const mode = ref<ExecutionMode>('direct')
 const usesPrepared = computed(() => mode.value === 'prepared-reference' || mode.value === 'prepared-derivative')
 const loading = ref(true), busy = ref(false), error = ref(''), notice = ref('')
 const profileState = ref({ busy: true, dirty: false })
+const archivingAsset = shallowRef<ExecutionAsset>(), archiveBusy = ref(false)
+let archiveTrigger: HTMLButtonElement | undefined
 const pending = shallowRef<() => Promise<void>>()
 const proposal = shallowRef<ExecutionProposal>(), confirmed = ref(false)
 const checks = ref<Record<string, ExecutionAssetCheck>>({})
@@ -31,7 +34,7 @@ const running = computed(() => history.value?.jobs.filter(j => j.state === 'runn
 const externalBusy = computed(() => loading.value || busy.value || !!pending.value || !!readId.value)
 const blocked = computed(() => externalBusy.value || profileState.value.busy)
 const canPreview = computed(() => !blocked.value && !profileState.value.dirty && !!session.value && !!layout.value && !!destination.value?.authorized && (!usesPrepared.value || compatiblePreps.value.some(p => p.id === preparedId.value)))
-const closeBlocked = computed(() => busy.value || !!pending.value || profileState.value.busy || !!readId.value)
+const closeBlocked = computed(() => busy.value || !!pending.value || profileState.value.busy || !!readId.value || archiveBusy.value)
 const size = (bytes: number): string => bytes < 1024 ** 3 ? `${(bytes / 1024 ** 2).toFixed(1)} MiB` : `${(bytes / 1024 ** 3).toFixed(2)} GiB`
 const short = (id: string): string => id.slice(0,8)
 const failures: Record<NonNullable<ExecutionJob['failure']>, string> = {
@@ -152,6 +155,16 @@ function close(force = false): void {
   if (profileState.value.dirty && !force) { discarding.value = true; return }
   dialog.value?.close(); emit('close')
 }
+async function openArchive(asset: ExecutionAsset, event: MouseEvent): Promise<void> {
+  if (blocked.value || profileState.value.dirty) return
+  archiveTrigger = event.currentTarget as HTMLButtonElement; archivingAsset.value = asset
+  await nextTick(); dialog.value?.querySelector<HTMLElement>('#archive-title')?.focus()
+}
+async function closeArchive(): Promise<void> {
+  archivingAsset.value = undefined; archiveBusy.value = false
+  await nextTick();
+  archiveTrigger?.focus(); archiveTrigger = undefined
+}
 onMounted(async () => { await nextTick(); dialog.value?.showModal(); void refresh(true) })
 onBeforeUnmount(() => {
   alive = false; ++generation; if (timer) clearTimeout(timer)
@@ -165,6 +178,8 @@ onBeforeUnmount(() => {
       <div><p class="kicker">录音准备 · 06</p><h2 id="execution-title">录音参数与执行资产</h2><p class="muted">{{ draft.title }}</p></div>
       <button :disabled="closeBlocked" @click="close()">关闭</button>
     </header>
+    <ArchivePanel v-if="archivingAsset" :draft-id="draft.id" :asset="archivingAsset" @close="closeArchive" @state="archiveBusy = $event" />
+    <div v-show="!archivingAsset">
     <div class="boundary"><strong>准备音频，尚不开始录音。</strong><p>F-01 保留政策、归档规则、输出认证与正式预检仍待完成。本阶段不操作设备，不自动删除执行文件，也不承诺永久归档。</p></div>
     <RecordingProfileSettings :draft-id="draft.id" :disabled="externalBusy" @session="session = $event" @state="profileState = $event" />
 
@@ -232,6 +247,7 @@ onBeforeUnmount(() => {
         <p class="muted">降噪 {{ asset.settings.effective.noiseReduction ?? '未设定' }} · 校准 {{ asset.settings.effective.calibration ?? '未设定' }} · 电平 {{ asset.settings.effective.recordLevel ?? '未设定' }} · 手动预卷 {{ asset.settings.effective.preRollMs / 1000 }} 秒</p>
         <details><summary>逐面音频与谱系</summary><p class="muted">链路：{{ asset.settings.effective.signalChain.map(s => s.label).join(' → ') }}</p><p class="muted">计划后端：{{ asset.settings.format.outputBackend.id }} / {{ asset.settings.format.outputBackend.version }}（未认证）</p><div v-for="audio in asset.audio" :key="audio.recipe.side" class="audio-detail"><strong>{{ audio.recipe.side }} · {{ audio.audio.frameCount.toLocaleString() }} 帧 · {{ size(audio.audio.size) }}</strong><p>SHA-256</p><code>{{ audio.audio.sha256 }}</code><p>PCM SHA-256</p><code>{{ audio.audio.pcmSha256 }}</code></div><p>Manifest SHA-256</p><code>{{ asset.manifestHash }}</code></details>
         <button :disabled="blocked" @click="verify(asset.id)">重新验证此资产</button>
+        <button :data-archive-asset="asset.id" :disabled="blocked || profileState.dirty" @click="openArchive(asset, $event)">归档此执行资产</button>
         <p v-if="checks[asset.id]" role="status" class="check-result">{{ checks[asset.id]!.state === 'verified' ? '本次文件验证通过' : '文件不可用或完整性验证未通过' }}</p>
         <p v-if="checks[asset.id]" class="muted">核验时间：{{ new Date(checks[asset.id]!.checkedAt).toLocaleString() }}。仍未正式就绪。</p>
       </article>
@@ -240,6 +256,7 @@ onBeforeUnmount(() => {
       </details>
     </section>
     <div v-if="discarding" class="warning" role="alert"><p>关闭会放弃尚未保存的参数编辑，已保存版本与执行任务保持不变。</p><div class="actions"><button @click="close(true)">放弃未保存编辑并关闭</button><button @click="discarding = false">继续编辑</button></div></div>
+    </div>
   </dialog>
 </template>
 <style scoped>

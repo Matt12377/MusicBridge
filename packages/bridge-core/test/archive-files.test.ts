@@ -125,3 +125,28 @@ test('JSON 元数据与音频采用相同事务；无效 JSON 不会进入 VERIF
     assert.deepEqual(await readFile(archiveObjectPath(f.archive, input.sha256)), bytes);
   }
 });
+
+test('内嵌 JSON 快照随明确操作持久化，预先无源文件，暂存与 Hash 仍统一校验', async t => {
+  const f = await setup(t), content = JSON.stringify({ schemaVersion: 1, masterVersionId: f.lineage.masterVersionId, formalRecording: false });
+  const metadata = { role: 'metadata' as const, name: 'ArchiveSnapshot.json', media: 'json' as const, content, size: Buffer.byteLength(content), sha256: createHash('sha256').update(content).digest('hex') };
+  const op = await createArchiveOperation(f.archive, randomUUID(), [metadata], f.lineage);
+  assert.deepEqual(await readdir(op.staging.path), []);
+  await stageArchiveOperation(op, f.signal, { copy: async () => { assert.fail('内嵌 JSON 不应读取源文件'); } });
+  await verifyArchiveStaging(op, f.signal); await promoteArchiveOperation(op, f.signal); await markArchivePhase(op, 'DB_COMMITTED'); await finalizeArchiveOperation(op, f.signal);
+  assert.equal(await readFile(archiveObjectPath(f.archive, metadata.sha256), 'utf8'), content);
+  await assert.rejects(createArchiveOperation(f.archive, randomUUID(), [{ ...metadata, content: 'changed' }], f.lineage));
+  await assert.rejects(createArchiveOperation(f.archive, randomUUID(), [{ ...metadata, source: f.input.source, relative: 'fixture.wav' }], f.lineage));
+});
+
+test('持久初始化意图可在文件已完成但 DB 未登记时恢复同一 Root，不重建第二个目录', async t => {
+  const f = await preparationFixture(t), parentPath = path.join(f.directory, '待初始化归档'); await mkdir(parentPath);
+  const protectedRoots = f.repository.sources.roots(), parent = await previewArchiveRoot(parentPath, protectedRoots);
+  const api = await import('../src/recording/archive-files.js');
+  assert.equal(typeof api.planArchiveRootInitialization, 'function', '归档初始化意图尚未接入');
+  const plan = api.planArchiveRootInitialization(parent, randomUUID()); assert.deepEqual(await readdir(parentPath), []);
+  await assert.rejects(api.initializePlannedArchiveRoot(plan, protectedRoots, false)); assert.deepEqual(await readdir(parentPath), []);
+  const first = await api.initializePlannedArchiveRoot(plan, protectedRoots, true);
+  const second = await api.initializePlannedArchiveRoot(JSON.parse(JSON.stringify(plan)), protectedRoots, true);
+  assert.deepEqual(second, first); assert.equal((await readdir(parentPath)).length, 1);
+  await assert.rejects(api.initializePlannedArchiveRoot(api.planArchiveRootInitialization(parent, plan.id), protectedRoots, true));
+});

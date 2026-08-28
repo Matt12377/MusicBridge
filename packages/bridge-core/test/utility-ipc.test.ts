@@ -16,6 +16,10 @@ import {
 import { BridgeError } from '../src/shared/errors.js';
 import { emptyLyricsSnapshot } from '../src/netease/lyrics.js';
 import { createCollectionRepository } from '../src/collection/repository.js';
+import { randomUUID } from 'node:crypto';
+import { executionFixture } from './helpers/execution-fixture.js';
+import { createTestBridgeRuntime } from '../src/runtime.js';
+import type { IpcCommandPayloads, IpcCommandResults, IpcResponse } from '@music-bridge/contracts';
 
 class FakePort implements UtilityPort {
   readonly messages: unknown[] = [];
@@ -36,6 +40,39 @@ class FakePort implements UtilityPort {
     this.listener?.({ data: message });
   }
 }
+
+test('归档正式 IPC 完成目录回执、初始化、预览与后台确认，不返回私有 capability', async t => {
+  const f = await executionFixture(t), executed = await f.execution.start(await f.request()); await f.execution.idle();
+  await f.execution.close(); await f.preparation.close(); await f.versions.close(); await f.sources.close();
+  const { mkdir, readdir } = await import('node:fs/promises'), path = await import('node:path');
+  const target = path.join(f.directory, 'IPC归档'); await mkdir(target);
+  const runtime = createTestBridgeRuntime({ collectionRepository: f.repository }); t.after(() => runtime.shutdown());
+  const port = new FakePort(); await attachCoreRuntimePort(port, runtime);
+  async function rpc<K extends keyof IpcCommandPayloads>(command: K, payload: IpcCommandPayloads[K]): Promise<IpcCommandResults[K]> {
+    const id = randomUUID(); port.send({ version: 1, id, command, payload });
+    const deadline = Date.now() + 5000;
+    while (Date.now() < deadline) {
+      const response = port.messages.find(m => typeof m === 'object' && m !== null && 'id' in m && m.id === id) as IpcResponse | undefined;
+      if (response) { assert.equal(response.ok, true, JSON.stringify(response)); if (!response.ok) throw new Error('IPC 失败'); return response.result as IpcCommandResults[K]; }
+      await new Promise(resolve => setTimeout(resolve, 5));
+    }
+    assert.fail('归档 IPC 没有在期限内响应');
+  }
+  assert.deepEqual(await rpc('recordingArchive.roots', {}), { roots: [] });
+  const commandId = randomUUID(), root = await rpc('recordingArchive.authorize', { commandId, absolutePath: target });
+  assert.equal(root.state, 'selected'); assert.deepEqual(await readdir(target), []);
+  assert.deepEqual(await rpc('recordingArchive.authorizationReceipt', { commandId }), { root });
+  await rpc('recordingArchive.initialize', { commandId: randomUUID(), id: root.id, userConfirmed: true });
+  const selection = { assetId: executed.id, rootId: root.id, sourcePolicy: 'reference-dependent' as const };
+  const p = await rpc('recordingArchive.preview', { ...selection, readId: randomUUID() });
+  const op = await rpc('recordingArchive.start', { ...selection, commandId: randomUUID(), proposalFingerprint: p.proposalFingerprint, userConfirmed: true });
+  await runtime.archive!.idle();
+  assert.equal((await rpc('recordingArchive.operation', { id: op.id })).operation!.phase, 'FINALIZED');
+  assert.equal((await rpc('recordingArchive.verify', { id: op.id, readId: randomUUID() })).state, 'verified');
+  assert.equal((await rpc('recordingArchive.list', { draftId: f.draft.draftId })).operations.length, 1);
+  assert.ok(!JSON.stringify(port.messages).includes(target));
+  assert.equal((await rpc('recordingArchive.revokeRoot', { commandId: randomUUID(), id: root.id })).state, 'revoked');
+});
 
 test('V3 照片读取通过正式 IPC 返回不存在，而不是未知命令', async t => {
   const collection = createCollectionRepository({ filePath: ':memory:' });

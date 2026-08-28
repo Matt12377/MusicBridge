@@ -27,3 +27,4 @@ export * from './recording-profile.js';
 export * from './execution-assets.js';
 export * from './audio-conversion.js';
 export * from './converted-execution.js';
+export * from './recording-archive.js';

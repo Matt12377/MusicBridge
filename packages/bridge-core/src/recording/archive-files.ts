@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
 import { lstat, mkdir, open, realpath, link, unlink, statfs, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { isCollectionId } from '@music-bridge/contracts';
+import { isCollectionId, isArchiveObjectDescriptor, type ArchiveObjectRole } from '@music-bridge/contracts';
 import { authorizeSourceDirectory, sourceRootAvailability, copyReadonlySource, withVerifiedReadonlySource, probeReadonlySource, type RootCapability } from './source-files.js';
 
 export class ArchiveFileError extends Error {
@@ -11,10 +11,16 @@ export class ArchiveFileError extends Error {
 export interface OwnedArchive {
   id: string; parent: RootCapability; root: RootCapability; objects: RootCapability; operations: RootCapability; owner: string;
 }
-export interface ArchiveInput {
-  role: 'execution-audio' | 'raw-render' | 'exact-source' | 'manifest' | 'metadata';
-  name: string; source: RootCapability; relative: string; sha256: string; size: number; media: 'audio' | 'json';
+export interface ArchiveFileInput {
+  role: ArchiveObjectRole; name: string; source: RootCapability; relative: string;
+  sha256: string; size: number; media: 'audio' | 'json';
 }
+export interface ArchiveInlineInput {
+  role: 'metadata' | 'manifest'; name: string; content: string;
+  sha256: string; size: number; media: 'json';
+}
+export type ArchiveInput = ArchiveFileInput | ArchiveInlineInput;
+export interface ArchiveRootInitialization { id: string; parent: RootCapability; owner: string }
 export interface ArchiveLineage { masterVersionId: string; layoutVersionId: string; executionAssetId: string }
 export interface OwnedArchiveOperation {
   id: string; archive: OwnedArchive; directory: RootCapability; staging: RootCapability;
@@ -45,26 +51,46 @@ async function readText(absolute: string, maximum = 4 * 1024 * 1024): Promise<st
     return bytes.toString('utf8');
   } finally { await handle.close(); }
 }
-async function writeExclusive(directory: RootCapability, name: string, text: string): Promise<void> {
-  await available(directory); const absolute = path.join(directory.path, name);
+async function writeExclusive(directory: RootCapability, name: string, text: string, check: () => void = () => undefined): Promise<void> {
+  check(); await available(directory); check(); const absolute = path.join(directory.path, name);
   const handle = await open(absolute, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
-  try { await available(directory); await handle.writeFile(text); await handle.sync(); } finally { await handle.close(); }
-  await sync(directory);
+  try { await available(directory); check(); await handle.writeFile(text); check(); await handle.sync(); } finally { await handle.close(); }
+  check(); await sync(directory);
 }
 export async function previewArchiveRoot(absolute: string, protectedRoots: readonly RootCapability[]): Promise<RootCapability> {
   if (!path.isAbsolute(absolute) || absolute.includes('\0') || absolute.split(path.sep).some(p => p === '.' || p === '..') || await realpath(absolute) !== absolute || protectedRoots.some(r => inside(r.path, absolute) || inside(absolute, r.path))) return fail('ARCHIVE_INPUT_INVALID');
   return { ...await authorizeSourceDirectory(absolute), id: randomUUID() };
 }
+/** 只创建意图；调用方在写文件前把这份 owner nonce 与命令一起持久化。 */
+export function planArchiveRootInitialization(parent: RootCapability, id: string): ArchiveRootInitialization {
+  if (!isCollectionId(id) || !parent.authorized) return fail('ARCHIVE_INPUT_INVALID');
+  return { id, parent: structuredClone(parent), owner: JSON.stringify({ schemaVersion: 1, archiveId: id, nonce: randomUUID() }) + '\n' };
+}
 export async function initializeArchiveRoot(parent: RootCapability, id: string, protectedRoots: readonly RootCapability[], confirmed: boolean): Promise<OwnedArchive> {
-  if (confirmed !== true || !isCollectionId(id)) return fail('ARCHIVE_INPUT_INVALID');
-  await available(parent); await previewArchiveRoot(parent.path, protectedRoots);
-  const absolute = path.join(parent.path, `MusicBridge-Archive-${id}`); await mkdir(absolute, { mode: 0o700 }); await available(parent);
-  const root = { ...await authorizeSourceDirectory(absolute), id }, owner = JSON.stringify({ schemaVersion: 1, archiveId: id, nonce: randomUUID() }) + '\n';
-  await writeExclusive(root, '.musicbridge-owner.json', owner);
+  return initializePlannedArchiveRoot(planArchiveRootInitialization(parent, id), protectedRoots, confirmed);
+}
+export async function initializePlannedArchiveRoot(plan: ArchiveRootInitialization, protectedRoots: readonly RootCapability[], confirmed: boolean, check: () => void = () => undefined): Promise<OwnedArchive> {
+  check();
+  const { id, parent, owner } = plan;
+  if (confirmed !== true || !isCollectionId(id) || typeof owner !== 'string' || owner.length > 1024) return fail('ARCHIVE_INPUT_INVALID');
+  const marker: unknown = JSON.parse(owner);
+  if (!marker || typeof marker !== 'object' || !('nonce' in marker) || !isCollectionId(marker.nonce) || owner !== JSON.stringify({ schemaVersion: 1, archiveId: id, nonce: marker.nonce }) + '\n') return fail('ARCHIVE_INPUT_INVALID');
+  await available(parent); await previewArchiveRoot(parent.path, protectedRoots); check();
+  const absolute = path.join(parent.path, `MusicBridge-Archive-${id}`); let created = false;
+  try { await mkdir(absolute, { mode: 0o700 }); created = true; } catch (error) { if (!exists(error)) throw error; }
+  await available(parent); check(); const root = { ...await authorizeSourceDirectory(absolute), id };
+  if (root.path !== absolute) return fail('ARCHIVE_ROOT_INVALID');
+  if (created) await writeExclusive(root, '.musicbridge-owner.json', owner, check);
+  else if (await readText(path.join(absolute, '.musicbridge-owner.json'), 1024) !== owner) return fail('ARCHIVE_ROOT_INVALID');
   const children: RootCapability[] = [];
-  for (const name of ['Objects', 'Operations']) { await available(root); const child = path.join(absolute, name); await mkdir(child, { mode: 0o700 }); children.push({ ...await authorizeSourceDirectory(child), id: randomUUID() }); }
+  for (const name of ['Objects', 'Operations']) {
+    await available(root); check(); const child = path.join(absolute, name);
+    try { await mkdir(child, { mode: 0o700 }); } catch (error) { if (!exists(error)) throw error; }
+    const capability = { ...await authorizeSourceDirectory(child), id };
+    if (capability.path !== child) return fail('ARCHIVE_ROOT_INVALID'); children.push(capability);
+  }
   const result: OwnedArchive = { id, parent, root, objects: children[0]!, operations: children[1]!, owner };
-  await sync(result.objects); await sync(result.operations); await sync(root); await sync(parent); await checkArchiveRoot(result); return result;
+  check(); await sync(result.objects); check(); await sync(result.operations); check(); await sync(root); check(); await sync(parent); await checkArchiveRoot(result); check(); return result;
 }
 export async function checkArchiveRoot(archive: OwnedArchive): Promise<void> {
   if (!isCollectionId(archive.id) || archive.root.path !== path.join(archive.parent.path, `MusicBridge-Archive-${archive.id}`) || archive.objects.path !== path.join(archive.root.path, 'Objects') || archive.operations.path !== path.join(archive.root.path, 'Operations')) return fail('ARCHIVE_ROOT_INVALID');
@@ -75,7 +101,11 @@ function validateInput(files: readonly ArchiveInput[], lineage: ArchiveLineage):
   if (!lineage || Object.keys(lineage).sort().join(',') !== 'executionAssetId,layoutVersionId,masterVersionId' || !Object.values(lineage).every(isCollectionId) || !Array.isArray(files) || files.length < 1 || files.length > 1000) return fail('ARCHIVE_INPUT_INVALID');
   const names = new Set<string>(), sizes = new Map<string, number>(); let total = 0;
   for (const f of files) {
-    if (!['execution-audio','raw-render','exact-source','manifest','metadata'].includes(f.role) || !['audio','json'].includes(f.media) || (['manifest','metadata'].includes(f.role) !== (f.media === 'json')) || !relative(f.relative) || !f.name || f.name.length > 240 || /[\/\\\u0000-\u001f\u007f]/u.test(f.name) || !hash(f.sha256) || !Number.isSafeInteger(f.size) || f.size < 1 || f.size > (f.media === 'json' ? 4 * 1024 * 1024 : 68_719_476_736) || !f.source.authorized || names.has(`${f.role}:${f.name}`) || sizes.has(f.sha256) && sizes.get(f.sha256) !== f.size) return fail('ARCHIVE_INPUT_INVALID');
+    const descriptor = { role: f.role, name: f.name, media: f.media, sha256: f.sha256, size: f.size };
+    if (!isArchiveObjectDescriptor(descriptor) || names.has(`${f.role}:${f.name}`) || sizes.has(f.sha256) && sizes.get(f.sha256) !== f.size) return fail('ARCHIVE_INPUT_INVALID');
+    if ('content' in f) {
+      if ('source' in f || 'relative' in f || f.media !== 'json' || !['metadata','manifest'].includes(f.role) || typeof f.content !== 'string' || Buffer.byteLength(f.content) !== f.size || archiveDigest(f.content) !== f.sha256) return fail('ARCHIVE_INPUT_INVALID');
+    } else if (!relative(f.relative) || !f.source?.authorized) return fail('ARCHIVE_INPUT_INVALID');
     names.add(`${f.role}:${f.name}`); sizes.set(f.sha256, f.size); total += f.size;
   }
   if (!Number.isSafeInteger(total) || total > 1_099_511_627_776) fail('ARCHIVE_INPUT_INVALID');
@@ -86,7 +116,7 @@ export function archiveManifest(id: string, files: readonly ArchiveInput[], line
 }
 export async function createArchiveOperation(archive: OwnedArchive, id: string, files: readonly ArchiveInput[], lineage: ArchiveLineage): Promise<OwnedArchiveOperation> {
   const manifest = archiveManifest(id, files, lineage); await checkArchiveRoot(archive);
-  if (files.some(f => inside(archive.root.path, f.source.path) || inside(f.source.path, archive.root.path))) return fail('ARCHIVE_INPUT_INVALID');
+  if (files.some(f => !('content' in f) && (inside(archive.root.path, f.source.path) || inside(f.source.path, archive.root.path)))) return fail('ARCHIVE_INPUT_INVALID');
   const intent = JSON.stringify({ schemaVersion: 1, operationId: id, archiveId: archive.id, files, lineage, manifestHash: archiveDigest(manifest) }) + '\n';
   if (Buffer.byteLength(intent) > 4 * 1024 * 1024) return fail('ARCHIVE_INPUT_INVALID');
   const absolute = path.join(archive.operations.path, id); let prior = false;
@@ -151,8 +181,9 @@ export async function stageArchiveOperation(op: OwnedArchiveOperation, signal: A
     signal.throwIfAborted(); await checkOperation(op); const temporary = `${f.sha256}.partial-${randomUUID()}`, absolute = path.join(op.staging.path, temporary);
     const handle = await open(absolute, constants.O_CREAT | constants.O_EXCL | constants.O_RDWR | constants.O_NOFOLLOW, 0o600);
     try {
-      await (hooks.copy ?? copyReadonlySource)(f.source, f.relative, f, handle, signal); await handle.sync();
-      await withVerifiedReadonlySource(f.source, f.relative, f, signal, async () => undefined);
+      if ('content' in f) { signal.throwIfAborted(); await handle.writeFile(f.content, 'utf8'); }
+      else { await (hooks.copy ?? copyReadonlySource)(f.source, f.relative, f, handle, signal); await withVerifiedReadonlySource(f.source, f.relative, f, signal, async () => undefined); }
+      await handle.sync();
       await verifyFile(op.staging, temporary, f, signal); await checkOperation(op);
       const current = await lstat(absolute, { bigint: true }), opened = await handle.stat({ bigint: true });
       if (current.dev !== opened.dev || current.ino !== opened.ino || current.nlink !== 1n) return fail();

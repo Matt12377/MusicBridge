@@ -126,6 +126,18 @@ test('Preload exposes only sanitized business methods', async () => {
   )
 
   assert.deepEqual(PUBLIC_API_KEYS, [
+    'listArchiveRoots',
+    'chooseArchiveRoot',
+    'initializeArchiveRoot',
+    'revokeArchiveRoot',
+    'previewArchive',
+    'startArchive',
+    'listArchives',
+    'getArchiveOperation',
+    'cancelArchive',
+    'resumeArchive',
+    'verifyArchive',
+    'cancelArchiveRead',
     'listRecordingProfiles',
     'getRecordingProfileHistory',
     'getRecordingProfileVersion',
@@ -280,6 +292,18 @@ test('Preload exposes only sanitized business methods', async () => {
     'onRemoteCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
+    'listArchiveRoots',
+    'chooseArchiveRoot',
+    'initializeArchiveRoot',
+    'revokeArchiveRoot',
+    'previewArchive',
+    'startArchive',
+    'listArchives',
+    'getArchiveOperation',
+    'cancelArchive',
+    'resumeArchive',
+    'verifyArchive',
+    'cancelArchiveRead',
     'listRecordingProfiles',
     'getRecordingProfileHistory',
     'getRecordingProfileVersion',

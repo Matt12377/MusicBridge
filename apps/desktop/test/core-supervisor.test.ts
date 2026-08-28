@@ -116,6 +116,22 @@ test('PREP 完整文件核对使用有界长超时，不被普通两秒控制请
   assert.equal(timedOutEarly, false); assert.equal(result.code, 'INVALID_IPC_REQUEST');
 });
 
+for (const command of ['recordingArchive.preview','recordingArchive.start','recordingArchive.initialize','recordingArchive.verify'] as const) {
+  test(`${command} 使用有界文件期限`, async t => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const harness = makeHarness(), starting = harness.supervisor.start(); ready(harness.channels[0]!); await starting;
+    const id = randomUUID(), selection = { assetId: id, rootId: id, sourcePolicy: 'reference-dependent' as const };
+    const payload = command === 'recordingArchive.preview' ? { ...selection, readId: id } : command === 'recordingArchive.start' ? { ...selection, commandId: id, proposalFingerprint: 'a'.repeat(64), userConfirmed: true } : command === 'recordingArchive.initialize' ? { commandId: id, id, userConfirmed: true } : { id, readId: id };
+    let settled = false;
+    const pending = harness.supervisor.request(command, payload as never).then(() => { settled = true; return undefined }, error => { settled = true; return error });
+    t.mock.timers.tick(45); await Promise.resolve(); const timedOutEarly = settled;
+    const sent = harness.channels[0]!.port2.sent.at(-1) as { id: string };
+    harness.channels[0]!.port2.receive({ version: 1, id: sent.id, ok: false, error: { code: 'INVALID_IPC_REQUEST', message: '合成结束' } });
+    const result = await pending; t.mock.timers.reset(); await harness.supervisor.shutdown();
+    assert.equal(timedOutEarly, false, command); assert.equal(result.code, 'INVALID_IPC_REQUEST');
+  })
+}
+
 test('CoreSupervisor creates request ids and resolves typed responses', async () => {
   const harness = makeHarness()
   const starting = harness.supervisor.start()

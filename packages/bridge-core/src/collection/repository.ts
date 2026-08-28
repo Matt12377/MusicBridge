@@ -1,3 +1,4 @@
+import { archiveWorkflowMigration } from '../recording/archive-workflow-store.js';
 import { archiveMigration, createArchiveStore, type ArchiveStore } from '../recording/archive-store.js';
 import { executionMigration, createExecutionStore, type ExecutionStore } from '../recording/execution-store.js';
 import { recordingProfilesMigration, createRecordingProfilesStore, type RecordingProfilesStore } from '../recording/profile-store.js';
@@ -162,15 +163,15 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
       // WAL 恢复期间，首次版本读取也可能遇到短暂锁；先设置等待，再访问数据库内容。
       db.exec('PRAGMA busy_timeout=1000');
       const version = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-      if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].includes(version)) return unavailable();
+      if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].includes(version)) return unavailable();
       if (version === 0 && Number(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").get()?.n) !== 0) return unavailable();
       db.exec('PRAGMA trusted_schema=OFF; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
-      if (version < 13) {
+      if (version < 14) {
         db.exec('BEGIN IMMEDIATE');
         try {
           // 等待写锁后重读版本，避免两个首次连接同时执行迁移。
           const currentVersion = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-          if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].includes(currentVersion)) return unavailable();
+          if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].includes(currentVersion)) return unavailable();
           if (currentVersion === 0) db.exec(schema);
           if (currentVersion < 2) { db.exec(photoMigration); options.beforeCommit?.('migrate-photos'); }
           if (currentVersion < 3) { db.exec(physicalMusicMigration); options.beforeCommit?.('migrate-music'); }
@@ -184,6 +185,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
           if (currentVersion < 11) { db.exec(recordingProfilesMigration); options.beforeCommit?.('migrate-recording-profiles'); }
           if (currentVersion < 12) { db.exec(executionMigration); options.beforeCommit?.('migrate-execution'); }
           if (currentVersion < 13) { db.exec(archiveMigration); options.beforeCommit?.('migrate-archive'); }
+          if (currentVersion < 14) { db.exec(archiveWorkflowMigration); options.beforeCommit?.('migrate-archive-workflow'); }
           db.exec('COMMIT');
         } catch (error) { db.exec('ROLLBACK'); throw error; }
       }

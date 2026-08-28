@@ -1,3 +1,4 @@
+import { isInitializeArchiveRequest, isPreviewArchiveRequest, isStartArchiveRequest, isVerifyArchiveRequest } from '@music-bridge/contracts'
 import { isSaveRecordingProfileRequest, isSaveRecordingSessionRequest, isPreviewExecutionRequest, isStartExecutionRequest, isVerifyExecutionRequest } from '@music-bridge/contracts'
 import { isSelectPreparedRequest, isPreviewPreparedImportRequest, isStartPreparedImportRequest, isReviewPreparedRequest, isFreezePreparedRequest } from '@music-bridge/contracts'
 import { isPreviewPreparationRequest, isStartPreparationRequest } from '@music-bridge/contracts'
@@ -1138,6 +1139,59 @@ function registerIpcHandlers(
     return supervisor.request('recordingMedia.release', request)
   }))
   let sourcePickerBusy = false
+  ipcMain.handle('recordingArchive:roots', event => invokeCore(event, () => supervisor.request('recordingArchive.roots', {})))
+  ipcMain.handle('recordingArchive:initialize', (event, request: unknown) => invokeCore(event, () => {
+    if (!isInitializeArchiveRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档请求无效或尚未明确确认')
+    return supervisor.request('recordingArchive.initialize', request)
+  }))
+  ipcMain.handle('recordingArchive:revokeRoot', (event, request: unknown) => invokeCore(event, () => {
+    if (!isSourceAction(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档请求无效或尚未明确确认')
+    return supervisor.request('recordingArchive.revokeRoot', request)
+  }))
+  ipcMain.handle('recordingArchive:preview', (event, request: unknown) => invokeCore(event, () => {
+    if (!isPreviewArchiveRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档请求无效或尚未明确确认')
+    return supervisor.request('recordingArchive.preview', request)
+  }))
+  ipcMain.handle('recordingArchive:start', (event, request: unknown) => invokeCore(event, () => {
+    if (!isStartArchiveRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档请求无效或尚未明确确认')
+    return supervisor.request('recordingArchive.start', request)
+  }))
+  ipcMain.handle('recordingArchive:cancel', (event, request: unknown) => invokeCore(event, () => {
+    if (!isSourceAction(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档请求无效或尚未明确确认')
+    return supervisor.request('recordingArchive.cancel', request)
+  }))
+  ipcMain.handle('recordingArchive:resume', (event, request: unknown) => invokeCore(event, () => {
+    if (!isSourceAction(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档请求无效或尚未明确确认')
+    return supervisor.request('recordingArchive.resume', request)
+  }))
+  ipcMain.handle('recordingArchive:verify', (event, request: unknown) => invokeCore(event, () => {
+    if (!isVerifyArchiveRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档请求无效或尚未明确确认')
+    return supervisor.request('recordingArchive.verify', request)
+  }))
+  ipcMain.handle('recordingArchive:list', (event, draftId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(draftId)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档编号无效')
+    return supervisor.request('recordingArchive.list', { draftId })
+  }))
+  ipcMain.handle('recordingArchive:operation', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档编号无效')
+    return supervisor.request('recordingArchive.operation', { id })
+  }))
+  ipcMain.handle('recordingArchive:cancelRead', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档编号无效')
+    return supervisor.request('recordingArchive.cancelRead', { id })
+  }))
+  ipcMain.handle('recordingArchive:choose', (event, commandId: unknown) => invokeCore(event, async () => {
+    if (!isCollectionId(commandId)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档目录选择编号无效')
+    const prior = await supervisor.requestInternal('recordingArchive.authorizationReceipt', { commandId })
+    if (prior.root) return prior.root
+    if (sourcePickerBusy) return publicIpcFailure('NOT_READY', '目录或文件选择器已打开')
+    sourcePickerBusy = true
+    try {
+      const chosen = await dialog.showOpenDialog(requireTrustedRenderer(event), { title: '选择归档父目录', message: '本次选择不创建归档文件。返回后须明确确认初始化，再预览内容并确认归档；不能选择音乐库源目录。', properties: ['openDirectory'] })
+      if (chosen.canceled || !chosen.filePaths[0]) return null
+      return await supervisor.requestInternal('recordingArchive.authorize', { commandId, absolutePath: chosen.filePaths[0] })
+    } finally { sourcePickerBusy = false }
+  }))
   ipcMain.handle('recordingProfiles:list', event => invokeCore(event, () => supervisor.request('recordingProfiles.list', {})))
   ipcMain.handle('recordingProfiles:history', (event, profileId: unknown) => invokeCore(event, () => {
     if (!isCollectionId(profileId)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')

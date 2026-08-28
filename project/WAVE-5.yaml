@@ -3,9 +3,9 @@ wave: WAVE-5
 status: active
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-062
-activeBranch: codex/task-062-archive-foundation
-activeBaseCommit: e785308b3ccf31cd01f4947f88c9942330b15d07
+activeTask: TASK-063
+activeBranch: codex/task-063-archive-workflow
+activeBaseCommit: 4cdffc25cae80aa80003d1b331025d1a9b5fbcd3
 order:
   - TASK-048
   - TASK-049
@@ -22,5 +22,6 @@ order:
   - TASK-060
   - TASK-061
   - TASK-062
-stopAfter: TASK-062
-reviewBoundary: archive-transaction-foundation-no-formal-recording
+  - TASK-063
+stopAfter: TASK-063
+reviewBoundary: archive-workflow-no-formal-recording

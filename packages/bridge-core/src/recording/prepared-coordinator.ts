@@ -2,7 +2,7 @@ import path from 'node:path';
 import { lstat, realpath } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { isCollectionId, isSourceAction, isSelectPreparedRequest, isPreviewPreparedImportRequest, isStartPreparedImportRequest, isReviewPreparedRequest, isFreezePreparedRequest, isRawRenderAsset, type SelectPreparedRequest, type PreparedSelection, type PreviewPreparedImportRequest, type StartPreparedImportRequest, type PreparedImportProposal, type PreparedImportJob, type ReviewPreparedRequest, type FreezePreparedRequest, type PreparedReview, type FrozenPrepared, type RawRenderAsset } from '@music-bridge/contracts';
-import type { PreparedStore, PreparedInput, StoredPreparedJob } from './prepared-store.js';
+import { retainedRenderManifest, type PreparedStore, type PreparedInput, type StoredPreparedJob } from './prepared-store.js';
 import type { PreparationStore } from './preparation-store.js';
 import type { PreparationCoordinator } from './preparation-coordinator.js';
 import type { SourceStore } from './source-store.js';
@@ -93,7 +93,7 @@ export function createPreparedCoordinator({ store, preparationStore, preparation
           check(); files.push(await copy(owned, `Originals/${selection.asset.side}.wav`, store.selection(selection.public.id).root, selection.relative, selection.asset, controller.signal)); check();
           store.update(job.public.id, { files: [...files] }, i + 1);
         }
-        const manifest = Buffer.from(JSON.stringify({ schemaVersion: 1, kind: 'retained-original-render', operationId: job.public.id, preparationId: job.public.preparationId, masterVersionId: job.input.master.id, layoutVersionId: job.input.layout.id, contentHash: job.input.master.contentHash, plannedTimelineHash: job.input.layout.timelineHash, assets: job.input.proposal.assets, files, executionReady: false }, null, 2) + '\n');
+        const manifest = retainedRenderManifest({ operationId: job.public.id, preparationId: job.public.preparationId, masterVersionId: job.input.master.id, layoutVersionId: job.input.layout.id, contentHash: job.input.master.contentHash, plannedTimelineHash: job.input.layout.timelineHash, assets: job.input.proposal.assets, files });
         store.update(job.public.id, { files, manifestHash: createHash('sha256').update(manifest).digest('hex') });
         await sourceCheck(job.input); check();
         const hash = await publishPreparation(owned, files, manifest, controller.signal); published = true;

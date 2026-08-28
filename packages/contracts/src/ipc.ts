@@ -1,3 +1,4 @@
+import type { ArchiveRootView, InitializeArchiveRequest, ArchiveProposal, StartArchiveRequest, PreviewArchiveRequest, ArchiveOperationView, ArchiveHistory, ArchiveCheck, VerifyArchiveRequest } from './recording-archive.js';
 import type { RecordingProfileVersion, RecordingProfileHistory, RecordingSessionSettings, SaveRecordingProfileRequest, SaveRecordingSessionRequest } from './recording-profile.js';
 import type { ExecutionHistory, ExecutionProposal, ExecutionJob, ExecutionAssetCheck, PreviewExecutionRequest, StartExecutionRequest, VerifyExecutionRequest } from './execution-assets.js';
 import type { PreparedHistory, PreparedSelection, SelectPreparedRequest, PreviewPreparedImportRequest, StartPreparedImportRequest, PreparedImportJob, PreparedImportProposal, ReviewPreparedRequest, FreezePreparedRequest, PreparedReview, FrozenPrepared } from './prepared-render.js';
@@ -82,6 +83,19 @@ export const IPC_COMMANDS = [
   'library.playlist',
   'library.dailyRecommendations',
   'favorites.list',
+  'recordingArchive.roots',
+  'recordingArchive.initialize',
+  'recordingArchive.revokeRoot',
+  'recordingArchive.preview',
+  'recordingArchive.start',
+  'recordingArchive.list',
+  'recordingArchive.operation',
+  'recordingArchive.cancel',
+  'recordingArchive.resume',
+  'recordingArchive.verify',
+  'recordingArchive.cancelRead',
+  'recordingArchive.authorize',
+  'recordingArchive.authorizationReceipt',
   'recordingProfiles.list',
   'recordingProfiles.history',
   'recordingProfiles.version',
@@ -251,6 +265,20 @@ export type IpcResponse<TResult = unknown> =
 export type IpcEnvelope<T = unknown> = IpcRequest<T> | IpcResponse<T>;
 
 export interface IpcCommandPayloads {
+  'recordingArchive.roots': Record<string, never>;
+  'recordingArchive.initialize': InitializeArchiveRequest;
+  'recordingArchive.revokeRoot': { commandId: string; id: string };
+  'recordingArchive.preview': PreviewArchiveRequest;
+  'recordingArchive.start': StartArchiveRequest;
+  'recordingArchive.list': { draftId: string };
+  'recordingArchive.operation': { id: string };
+  'recordingArchive.cancel': { commandId: string; id: string };
+  'recordingArchive.resume': { commandId: string; id: string };
+  'recordingArchive.verify': VerifyArchiveRequest;
+  'recordingArchive.cancelRead': { id: string };
+  'recordingArchive.authorize': { commandId: string; absolutePath: string };
+  'recordingArchive.authorizationReceipt': { commandId: string };
+
   'recordingProfiles.list': {};
   'recordingProfiles.history': { profileId: string };
   'recordingProfiles.version': { versionId: string };
@@ -411,6 +439,20 @@ export interface IpcCommandPayloads {
 }
 
 export interface IpcCommandResults {
+  'recordingArchive.roots': { roots: readonly ArchiveRootView[] };
+  'recordingArchive.initialize': ArchiveRootView;
+  'recordingArchive.revokeRoot': ArchiveRootView;
+  'recordingArchive.preview': ArchiveProposal;
+  'recordingArchive.start': ArchiveOperationView;
+  'recordingArchive.list': ArchiveHistory;
+  'recordingArchive.operation': { operation: ArchiveOperationView | null };
+  'recordingArchive.cancel': ArchiveOperationView;
+  'recordingArchive.resume': ArchiveOperationView;
+  'recordingArchive.verify': ArchiveCheck;
+  'recordingArchive.cancelRead': { cancelled: true };
+  'recordingArchive.authorize': ArchiveRootView;
+  'recordingArchive.authorizationReceipt': { root: ArchiveRootView | null };
+
   'recordingProfiles.list': { profiles: readonly RecordingProfileVersion[] };
   'recordingProfiles.history': RecordingProfileHistory;
   'recordingProfiles.version': RecordingProfileVersion;
@@ -579,9 +621,11 @@ export interface IpcEventPayloads {
   'lyrics.match.changed': { state: LocalLyricsMatchSnapshot };
 }
 
-export type IpcInternalCommand = 'recordingPrepared.select' | 'recordingPrepared.selectionReceipt' | 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
+export type IpcInternalCommand = 'recordingArchive.authorize' | 'recordingArchive.authorizationReceipt' | 'recordingPrepared.select' | 'recordingPrepared.selectionReceipt' | 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
 
 export interface IpcInternalCommandResults {
+  'recordingArchive.authorize': ArchiveRootView;
+  'recordingArchive.authorizationReceipt': { root: ArchiveRootView | null };
   'recordingPrepared.select': PreparedSelection;
   'recordingPrepared.selectionReceipt': { selection: PreparedSelection | null };
   'recordingPreparation.authorizationReceipt': { destination: PreparationDestination | null };

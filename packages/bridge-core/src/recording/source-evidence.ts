@@ -6,7 +6,7 @@ import type { SourceStore, StoredBinding } from './source-store.js';
 import type { MasterDraftsRepository } from './drafts.js';
 
 const invalid = (message = '源文件操作无效，请刷新并重新确认。'): never => { throw new BridgeError('BAD_REQUEST', message, { httpStatus: 400 }); };
-export function createSourceEvidenceService({ store, drafts, probe = probeReadonlySource }: { store: SourceStore; drafts: MasterDraftsRepository; probe?: typeof probeReadonlySource }) {
+export function createSourceEvidenceService({ store, drafts, probe = probeReadonlySource, validateAuthorization }: { store: SourceStore; drafts: MasterDraftsRepository; probe?: typeof probeReadonlySource; validateAuthorization?: (root: Omit<RootCapability, 'id'>) => void }) {
   const active = new Map<string, { rootId: string; controller: AbortController; promise: Promise<void> }>();
   let closed = false;
   const revocationListeners = new Set<(rootId: string) => void>();
@@ -53,7 +53,12 @@ export function createSourceEvidenceService({ store, drafts, probe = probeReadon
   return {
     onRootRevoked(listener: (rootId: string) => void) { revocationListeners.add(listener); return () => { revocationListeners.delete(listener); }; },
     async roots() { return { roots: await Promise.all(store.roots().map(publicRoot)) }; },
-    async authorize(commandId: string, absolutePath: string) { if (!isCollectionId(commandId)) return invalid(); const prior = store.rootReceipt(commandId); return publicRoot(prior ?? store.authorize(commandId, await authorizeSourceDirectory(absolutePath))); },
+    async authorize(commandId: string, absolutePath: string) {
+      if (!isCollectionId(commandId) || closed) return invalid(); const prior = store.rootReceipt(commandId); if (prior) return publicRoot(prior);
+      const root = await authorizeSourceDirectory(absolutePath); if (closed) return invalid();
+      try { validateAuthorization?.(root); } catch { return invalid('此目录与应用已授权的归档目录重叠，请选择独立源目录。'); }
+      return publicRoot(store.authorize(commandId, root));
+    },
     async rootReceipt(commandId: string) { if (!isCollectionId(commandId)) return invalid(); const root = store.rootReceipt(commandId); return { root: root ? await publicRoot(root) : null }; },
     async context(id: string) { if (!isCollectionId(id)) return invalid(); const root = store.root(id); if (await sourceRootAvailability(root) !== 'ONLINE') return invalid('源目录当前未授权或离线。'); return { absolutePath: root.path }; },
     async revoke(request: SourceAction) {

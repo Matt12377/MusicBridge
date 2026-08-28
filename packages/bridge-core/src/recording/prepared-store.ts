@@ -20,6 +20,13 @@ PRAGMA user_version=10;
 export interface StoredPreparedSelection { public: PreparedSelection; root: RootCapability; relative: string; signature: string; createdAt: string; creationTimeEvidence: RawRenderAsset['creationTimeEvidence'] }
 export interface PreparedInput { master: MasterVersion; layout: LayoutVersion; destination: RootCapability; proposal: PreparedImportProposal; selections: readonly (StoredPreparedSelection & { evidence: FileEvidence; asset: RawRenderAsset })[] }
 export interface StoredPreparedJob { public: PreparedImportJob; request: StartPreparedImportRequest; input: PreparedInput; createdAt: string; owned?: OwnedPreparation; files: readonly PreparationOutput[]; manifestHash?: string }
+/** 原始 Render 的公开清单字节格式；创建和归档复用，不含目录授权。 */
+export function retainedRenderManifest(value: {
+  operationId: string; preparationId: string; masterVersionId: string; layoutVersionId: string;
+  contentHash: string; plannedTimelineHash: string; assets: readonly RawRenderAsset[]; files: readonly PreparationOutput[];
+}): Buffer {
+  return Buffer.from(JSON.stringify({ schemaVersion: 1, kind: 'retained-original-render', operationId: value.operationId, preparationId: value.preparationId, masterVersionId: value.masterVersionId, layoutVersionId: value.layoutVersionId, contentHash: value.contentHash, plannedTimelineHash: value.plannedTimelineHash, assets: value.assets, files: value.files, executionReady: false }, null, 2) + '\n');
+}
 interface Access { read<T>(fn: (db: DatabaseSync) => T): T; conflict(message: string): never; beforeCommit?: (action: string) => void }
 export function createPreparedStore({ read, conflict, beforeCommit }: Access) {
   const get = <T>(db: DatabaseSync, table: string, id: string): T | undefined => { const row = db.prepare(`SELECT data FROM ${table} WHERE id=?`).get(id); return row ? JSON.parse(String(row.data)) as T : undefined; };

@@ -66,3 +66,5 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 - [TASK-061](TASK-061-execution-conversion.md)：执行转换谱系、固定格式编译与独立 Derivative。
 
 - [TASK-062](TASK-062-archive-foundation.md)：归档 Root、内容去重和文件/数据库事务恢复基础。
+
+- [TASK-063](TASK-063-archive-workflow.md)：归档授权、完整执行谱系与桌面明确确认。

@@ -147,6 +147,10 @@ function executionFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.execution) throw new CollectionError('INVENTORY_UNAVAILABLE', '执行资产服务尚未就绪，请重试。');
   return runtime.execution;
 }
+function archiveFor(runtime: CoreRuntimeForIpc) {
+  if (!runtime.archive) throw new CollectionError('INVENTORY_UNAVAILABLE', '归档服务尚未就绪，请重试。');
+  return runtime.archive;
+}
 function preparedFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.prepared) throw new CollectionError('INVENTORY_UNAVAILABLE', 'PREP 服务尚未就绪，请重试。');
   return runtime.prepared;
@@ -194,6 +198,19 @@ async function dispatch(
     case 'recordingProfiles.save': return collectionFor(runtime).recordingProfiles.save(request.payload as IpcCommandPayloads['recordingProfiles.save']);
     case 'recordingProfiles.session': return collectionFor(runtime).recordingProfiles.session((request.payload as IpcCommandPayloads['recordingProfiles.session']).draftId);
     case 'recordingProfiles.saveSession': return collectionFor(runtime).recordingProfiles.saveSession(request.payload as IpcCommandPayloads['recordingProfiles.saveSession']);
+    case 'recordingArchive.roots': return archiveFor(runtime).roots();
+    case 'recordingArchive.authorize': { const p = request.payload as IpcCommandPayloads['recordingArchive.authorize']; return archiveFor(runtime).authorize(p.commandId, p.absolutePath); }
+    case 'recordingArchive.authorizationReceipt': return archiveFor(runtime).authorizationReceipt((request.payload as IpcCommandPayloads['recordingArchive.authorizationReceipt']).commandId);
+    case 'recordingArchive.initialize': return archiveFor(runtime).initialize(request.payload as IpcCommandPayloads['recordingArchive.initialize']);
+    case 'recordingArchive.revokeRoot': return archiveFor(runtime).revoke(request.payload as IpcCommandPayloads['recordingArchive.revokeRoot']);
+    case 'recordingArchive.preview': return archiveFor(runtime).preview(request.payload as IpcCommandPayloads['recordingArchive.preview']);
+    case 'recordingArchive.start': return archiveFor(runtime).start(request.payload as IpcCommandPayloads['recordingArchive.start']);
+    case 'recordingArchive.list': return archiveFor(runtime).list((request.payload as IpcCommandPayloads['recordingArchive.list']).draftId);
+    case 'recordingArchive.operation': return archiveFor(runtime).operation((request.payload as IpcCommandPayloads['recordingArchive.operation']).id);
+    case 'recordingArchive.cancel': return archiveFor(runtime).cancel(request.payload as IpcCommandPayloads['recordingArchive.cancel']);
+    case 'recordingArchive.resume': return archiveFor(runtime).resume(request.payload as IpcCommandPayloads['recordingArchive.resume']);
+    case 'recordingArchive.verify': return archiveFor(runtime).verify(request.payload as IpcCommandPayloads['recordingArchive.verify']);
+    case 'recordingArchive.cancelRead': return archiveFor(runtime).cancelRead((request.payload as IpcCommandPayloads['recordingArchive.cancelRead']).id);
     case 'recordingExecution.list': return executionFor(runtime).list((request.payload as IpcCommandPayloads['recordingExecution.list']).draftId);
     case 'recordingExecution.preview': return executionFor(runtime).preview(request.payload as IpcCommandPayloads['recordingExecution.preview']);
     case 'recordingExecution.start': return executionFor(runtime).start(request.payload as IpcCommandPayloads['recordingExecution.start']);
