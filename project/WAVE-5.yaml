@@ -3,9 +3,9 @@ wave: WAVE-5
 status: active
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-076
-activeBranch: codex/task-076-digital-replica
-activeBaseCommit: 7f890be5badee3e9ea08355729e29c5aefeec377
+activeTask: TASK-077
+activeBranch: codex/task-077-j-card
+activeBaseCommit: 323b8852b10baff356418edd02625b6b19fa6d9e
 order:
   - TASK-048
   - TASK-049

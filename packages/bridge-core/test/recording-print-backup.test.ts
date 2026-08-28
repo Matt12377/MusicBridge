@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';import test from 'node:test';import {DatabaseSync} from 'node:sqlite';import {mkdir,readFile} from 'node:fs/promises';import path from 'node:path';import {randomUUID,createHash} from 'node:crypto';
+import {recordingRecordFixture} from './helpers/recording-record-fixture.js';import {createRecordingPrintCoordinator} from '../src/recording/print-coordinator.js';import {printTables,verifyRecordingPrintDatabase} from '../src/recording/print-integrity.js';
+import {readBackupIndex} from '../src/recording/backup-index.js';import {restoreArchiveBackup,verifyRestoredArchive} from '../src/recording/restore-package.js';import {isolateRestoredDatabase,verifyRestoredDatabaseIsolation} from '../src/recording/restore-database.js';import {authorizeSourceDirectory} from '../src/recording/source-files.js';
+async function printed(t:test.TestContext){const f=await recordingRecordFixture(t),api=createRecordingPrintCoordinator({store:f.repository.recordingPrints,assertCurrent(){}});t.after(()=>api.close());const image={dataUrl:'data:image/jpeg;base64,/9j/2Q==',width:1,height:1};api.artworkSave({commandId:randomUUID(),masterVersionId:f.frozenPlan.master.id,expectedVersionId:null,image,userConfirmed:true});const pending=await f.readyForFinal();await f.attempts.confirm(pending.request);const lease=api.claim({workerId:randomUUID()}).lease!,bytes=Buffer.from('%PDF-1.7\n合成对象，不作为真实PDF排版验收\n%%EOF\n');const ready=api.complete({leaseId:lease.leaseId,workerId:lease.workerId,jobId:lease.jobId,inputHash:lease.inputHash,pdfBase64:bytes.toString('base64'),pdfSha256:createHash('sha256').update(bytes).digest('hex'),preview:image,pageCount:1,rendererVersion:'synthetic-1'});return {...f,prints:api,ready};}
+test('schema21完整音频备份同时保留Artwork/PDF/preview/request/event原字节，隔离恢复不重生成',async t=>{
+ const f=await printed(t),db=new DatabaseSync(f.filePath);t.after(()=>db.close());verifyRecordingPrintDatabase(db);const before=printTables.map(table=>[table,db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all()]);
+ readBackupIndex(f.filePath);const backup=await f.api.createArchiveBackup(f.backupRequest);await f.api.verifyArchiveBackup(backup.directory,f.backupRequest.signal);
+ const target=path.join(f.directory,'印刷品隔离恢复');await mkdir(target);const restored=await restoreArchiveBackup({backup:backup.directory,destination:{...await authorizeSourceDirectory(target),id:randomUUID()},protectedRoots:[...f.repository.sources.roots(),...f.repository.preparations.destinations(),f.root.root],id:randomUUID(),userConfirmed:true,signal:f.backupRequest.signal});
+ assert.equal((await verifyRestoredArchive(restored.directory,f.backupRequest.signal)).contentIncluded,true);const filePath=path.join(restored.directory.path,'database','collection.sqlite');isolateRestoredDatabase(filePath);verifyRestoredDatabaseIsolation(filePath);readBackupIndex(filePath);
+ const after=new DatabaseSync(filePath,{readOnly:true});t.after(()=>after.close());verifyRecordingPrintDatabase(after);assert.deepEqual(printTables.map(table=>[table,after.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all()]),before);
+});
+test('篡改PDF字节后恢复trigger仍拒绝完整性、备份与隔离，拒绝前文件头不改',async t=>{
+ const f=await printed(t),db=new DatabaseSync(f.filePath);t.after(()=>db.close());const trigger=String(db.prepare("SELECT sql FROM sqlite_schema WHERE name='recording_print_objects_no_update'").get()!.sql);
+ db.exec('DROP TRIGGER recording_print_objects_no_update');db.prepare("UPDATE recording_print_objects SET content=? WHERE mime='application/pdf'").run(Buffer.from('%PDF-坏对象\n%%EOF'));db.exec(trigger);db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+ const digest=()=>readFile(f.filePath).then(bytes=>createHash('sha256').update(bytes).digest('hex')),before=await digest();assert.throws(()=>verifyRecordingPrintDatabase(db));assert.throws(()=>readBackupIndex(f.filePath));assert.throws(()=>isolateRestoredDatabase(f.filePath));assert.equal(await digest(),before);
+});
+test('篡改Artifact页数不能脱离原worker回执或通过隔离恢复',async t=>{
+ const f=await printed(t),db=new DatabaseSync(f.filePath);t.after(()=>db.close());const trigger=String(db.prepare("SELECT sql FROM sqlite_schema WHERE name='recording_print_artifacts_no_update'").get()!.sql);
+ db.exec('DROP TRIGGER recording_print_artifacts_no_update');db.prepare("UPDATE recording_print_artifacts SET data=json_set(data,'$.pageCount',2)").run();db.exec(trigger);
+ assert.throws(()=>verifyRecordingPrintDatabase(db));assert.throws(()=>isolateRestoredDatabase(f.filePath));
+});
+test('Artifact生成时间必须绑定ready事件，不能单改可变时间而绕过回执',async t=>{
+ const f=await printed(t),db=new DatabaseSync(f.filePath);t.after(()=>db.close());const trigger=String(db.prepare("SELECT sql FROM sqlite_schema WHERE name='recording_print_artifacts_no_update'").get()!.sql);
+ const artifact=JSON.parse(String(db.prepare('SELECT data FROM recording_print_artifacts').get()!.data));artifact.createdAt=new Date(Date.parse(artifact.createdAt)+1000).toISOString();db.exec('DROP TRIGGER recording_print_artifacts_no_update');db.prepare('UPDATE recording_print_artifacts SET data=?').run(JSON.stringify(artifact));db.exec(trigger);assert.throws(()=>verifyRecordingPrintDatabase(db));
+});

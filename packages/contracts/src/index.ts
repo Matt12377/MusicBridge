@@ -40,3 +40,6 @@ export * from './recording-attempts.js';
 export * from './recording-records.js';
 
 export * from './recording-replica.js';
+
+export * from './recording-artwork.js';
+export * from './recording-prints.js';

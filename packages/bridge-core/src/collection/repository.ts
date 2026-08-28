@@ -1,3 +1,5 @@
+import { createRecordingPrintStore, migrateRecordingPrints, recoverRecordingPrints, type RecordingPrintStore } from '../recording/print-store.js';
+import { RecordingPrintError } from '../recording/print-integrity.js';
 import { createRecordingRecordStore, migrateRecordingRecords, type RecordingRecordStore } from '../recording/record-store.js';
 import { RecordingRecordError, verifyRecordingRecordDatabase } from '../recording/record-integrity.js';
 import { getRecordingCopyProjection } from '../recording/record-projections.js';
@@ -49,6 +51,7 @@ const unavailable = (): never => { throw new CollectionError('INVENTORY_UNAVAILA
 
 export interface CollectionRepository {
   recordingRecords: RecordingRecordStore;
+  recordingPrints: RecordingPrintStore;
   recordingAttempts: RecordingAttemptStore;
   recordingPlans: RecordingPlanStore;
   collectionProgress: CollectionProgressStore;
@@ -183,17 +186,17 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
       // WAL 恢复期间，首次版本读取也可能遇到短暂锁；先设置等待，再访问数据库内容。
       db.exec('PRAGMA busy_timeout=1000');
       const version = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-      if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].includes(version)) return unavailable();
+      if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].includes(version)) return unavailable();
       if (version === 0 && Number(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").get()?.n) !== 0) return unavailable();
       db.exec('PRAGMA trusted_schema=OFF; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
-      if (version < 20) {
+      if (version < 21) {
         // 重建被其他表引用的批次表：事务外暂关检查，提交前核验，退出时始终恢复。
         db.exec('PRAGMA foreign_keys=OFF');
         db.exec('BEGIN IMMEDIATE');
         try {
           // 等待写锁后重读版本，避免两个首次连接同时执行迁移。
           const currentVersion = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-          if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].includes(currentVersion)) return unavailable();
+          if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].includes(currentVersion)) return unavailable();
           if (currentVersion === 0) db.exec(schema);
           if (currentVersion < 2) { db.exec(photoMigration); options.beforeCommit?.('migrate-photos'); }
           if (currentVersion < 3) { db.exec(physicalMusicMigration); options.beforeCommit?.('migrate-music'); }
@@ -214,13 +217,14 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
           if (currentVersion < 18) { db.exec(recordingPlansMigration); options.beforeCommit?.('migrate-recording-plans'); }
           if (currentVersion < 19) { db.exec(recordingAttemptsMigration); options.beforeCommit?.('migrate-recording-attempts'); }
           if (currentVersion < 20) { migrateRecordingRecords(db); options.beforeCommit?.('migrate-recording-records'); }
+          if (currentVersion < 21) { verifyRecordingRecordDatabase(db); migrateRecordingPrints(db); options.beforeCommit?.('migrate-recording-prints'); }
           if (db.prepare('PRAGMA foreign_key_check').get()) return unavailable();
           db.exec('COMMIT');
         } catch (error) { db.exec('ROLLBACK'); throw error; }
         finally { db.exec('PRAGMA foreign_keys=ON'); }
       }
       db.exec('BEGIN IMMEDIATE');
-      try { verifyRecordingRecordDatabase(db); recoverRecordingAttempts(db, new Date().toISOString()); options.beforeCommit?.('recover-recording-attempts'); db.exec('COMMIT'); }
+      try { verifyRecordingRecordDatabase(db); recoverRecordingPrints(db); recoverRecordingAttempts(db, new Date().toISOString()); options.beforeCommit?.('recover-recording-attempts'); db.exec('COMMIT'); }
       catch (error) { db.exec('ROLLBACK'); throw error; }
       database = db;
       return db;
@@ -228,7 +232,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
   }
   function guarded<T>(operation: (db: DatabaseSync) => T): T {
     try { return operation(open()); }
-    catch (error) { if (error instanceof CollectionError || error instanceof RecordingPlanError || error instanceof AttemptError || error instanceof RecordingRecordError) throw error; return unavailable(); }
+    catch (error) { if (error instanceof CollectionError || error instanceof RecordingPlanError || error instanceof AttemptError || error instanceof RecordingRecordError || error instanceof RecordingPrintError) throw error; return unavailable(); }
   }
   function one<T>(db: DatabaseSync, sql: string, ...values: SQLInputValue[]): T | undefined {
     return db.prepare(sql).get(...values) as unknown as T | undefined;
@@ -410,6 +414,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
   const links = createPhysicalLinksRepository({ read: guarded, conflict, unavailable, music, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   const media = createMediaPlanningStore({ read: guarded, conflict, unavailable, stock: mediaStock, stockOne: mediaStockOne, reservationStock: reservedMediaStock, reserve: reserveMediaStock, release: releaseMediaStock, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   return {
+    recordingPrints: createRecordingPrintStore({ read: guarded, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     recordingRecords: createRecordingRecordStore({ read: guarded, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     recordingAttempts: createRecordingAttemptStore({ read: guarded, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     recordingPlans: createRecordingPlanStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),

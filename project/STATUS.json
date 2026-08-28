@@ -78,19 +78,19 @@
   },
   "v3Development": {
     "wave": "WAVE-5",
-    "task": "TASK-076",
-    "branch": "codex/task-076-digital-replica",
-    "baseCommit": "7f890be5badee3e9ea08355729e29c5aefeec377",
-    "state": "local-software-gates-pass-audible-replica-pending",
-    "implementationCommit": "8aef55b44ab147c6e07d28c541473030cbce0c6a",
-    "reportCommit": "23f381958da086154d289c89c237355c26e6b32d",
+    "task": "TASK-077",
+    "branch": "codex/task-077-j-card",
+    "baseCommit": "323b8852b10baff356418edd02625b6b19fa6d9e",
+    "state": "local-software-gates-pass-paper-owner-pending",
+    "implementationCommit": null,
+    "reportCommit": null,
     "previousTask": {
-      "task": "TASK-075",
-      "implementationCommit": "f84bd8e2f9d3b7d79163496950acc545ff649155",
-      "reportCommit": "e1a2889060e714addd2d52598e06d694bcd176f6",
-      "finalCommit": "7f890be5badee3e9ea08355729e29c5aefeec377",
+      "task": "TASK-076",
+      "implementationCommit": "8aef55b44ab147c6e07d28c541473030cbce0c6a",
+      "reportCommit": "23f381958da086154d289c89c237355c26e6b32d",
+      "finalCommit": "323b8852b10baff356418edd02625b6b19fa6d9e",
       "hardwareAcceptance": "NOT_RUN",
-      "report": "reports/TASK-075_RESULT.md"
+      "report": "reports/TASK-076_RESULT.md"
     },
     "authorization": "owner-continuous-software-development-through079-sol-high-no-push-no-release",
     "f01": "OWNER_APPROVED_f01-permanent-execution-v1",
@@ -113,15 +113,17 @@
       "outputBackendCertification": "NOT_RUN"
     },
     "gates": {
-      "automated": "174-contracts-1066-core-532-desktop-pass-zero-skip",
+      "automated": "184-contracts-1088-core-601-desktop-pass-zero-skip",
       "security": "29-of-29-pass",
       "electron": "4-of-4-pass",
-      "e2e": "88-of-88-pass-dual-native-zero-skip",
-      "review": "contract-r2-input-r2-session-ui-ipc-r1-spec-then-quality-pass",
+      "e2e": "90-of-90-pass-dual-native-zero-skip",
+      "review": "contracts-core-r1-wiring-pdf-ui-r2-spec-then-quality-pass",
+      "pdfGeometryAndRendering": "23-pages-independent-and-real-app-pdf-pass",
       "audibleReplica": "NOT_RUN",
       "outputBackendCertification": "NOT_RUN",
       "realRecording": "NOT_RUN",
-      "ownerProductAcceptance": "NOT_RUN"
+      "ownerProductAcceptance": "NOT_RUN",
+      "paperPrint": "NOT_RUN"
     },
     "carryover": [
       "完整 V3 范围保持；仅本地顺序推进",
@@ -132,13 +134,14 @@
       "R-020 大库冷启扫描与2秒ready策略待TASK-078/Gate E验证",
       "R-021：旧包根CDP退出15秒超时FAIL保留；新包无CDP启动自退出code0/close通过，未复测执行后退出，不能据此关闭旧场景",
       "R-022：FakeDriver join/静止契约未证明真实HAL；未链接应用或helper，真实设备与Gate B须独立授权及测量",
-      "R-023：Attempt逐写全历史/回执及Record照片闭包验证、档案全量搜索存在规模风险；TASK078测量并优化，真实driver接入前解除，不宣称实时Stop保证",
-      "TASK-076历史核验与私有synthetic会话已通过本地软件Gate；实际可听Replica及正式provider接线须随073设备准入和079另验，当前始终blocked"
+      "R-023：Attempt逐写全历史/回执及Record照片及schema21打印对象闭包验证、档案全量搜索存在规模风险；TASK078测量并优化，真实driver接入前解除，不宣称实时Stop保证",
+      "TASK-076历史核验与私有synthetic会话已通过本地软件Gate；实际可听Replica及正式provider接线须随073设备准入和079另验，当前始终blocked",
+      "TASK077排版预览包含浏览器滚动条，真实PDF不含；TASK078处理未来预览，既有Artifact/PDF不重写"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task076-implementation-report-identity-locked-next077",
-    "nextTask": "TASK-077",
-    "resultReport": "reports/TASK-076_RESULT.md",
-    "candidateFingerprint": "489612f88769a67e09a9cda713b77258a0fdc3946cacc5c8ff7b1365f5ffc591"
+    "checkpoint": "task077-final-gates-pass-ready-for-local-identity-lock",
+    "nextTask": "TASK-078",
+    "resultReport": "reports/TASK-077_RESULT.md",
+    "candidateFingerprint": "de23b454e9ac2190473d8bc76c7181a12b66f2617cd5a5ccaafb7784a9f4b941"
   }
 }

@@ -29,7 +29,9 @@ test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，
   let exposed: ReturnType<typeof createPreloadApi> | undefined
   const recordModule = await import('../src/preload/recording-record-client.js').catch(() => ({}))
   const replicaModule = await import('../src/preload/recording-replica-client.js').catch(() => ({}))
+  const printModule = await import('../src/preload/recording-print-client.js')
   const modules: Record<string, unknown> = {
+    './recording-print-client.js': printModule,
     './recording-replica-client.js': replicaModule,
     './recording-record-client.js': recordModule,
     electron: { contextBridge: { exposeInMainWorld: (name: string, api: ReturnType<typeof createPreloadApi>) => { assert.equal(name, 'musicBridge'); exposed = api } }, ipcRenderer: { invoke: async (channel: string, payload: unknown) => { calls.push([channel, structuredClone(payload)]); return channel === 'commandOutbox:context' ? { datasetId: runId } : { reply: channel } } } },
@@ -41,6 +43,7 @@ test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，
     require: (name: string) => { assert.ok(Object.hasOwn(modules, name), `非预期依赖 ${name}`); return modules[name] },
   })
   assert.ok(exposed)
+  for (const name of ['getMasterArtwork', 'pickMasterArtwork', 'saveMasterArtwork', 'listRecordingPrints', 'requestRecordingPrint', 'retryRecordingPrint', 'getRecordingPrint', 'exportRecordingPrint']) assert.equal(typeof (exposed as unknown as Record<string, unknown>)[name], 'function', name)
   for (const name of ['getRecordingOutputStatus', 'checkRecordingOutput', 'cancelRecordingOutputCheck']) assert.equal(typeof (exposed as unknown as Record<string, unknown>)[name], 'function', name)
   calls.length = 0
   const request = { runId, planVersionId: '73000000-0000-4000-8000-000000000002', side: 'Program' as const }
@@ -205,6 +208,15 @@ test('Preload exposes only sanitized business methods', async () => {
     assert.equal(typeof (api as unknown as Record<string, unknown>)[name], 'function', `缺少受限业务API ${name}`)
   }
   assert.deepEqual(PUBLIC_API_KEYS, [
+    'getMasterArtwork',
+    'pickMasterArtwork',
+    'saveMasterArtwork',
+    'listRecordingPrints',
+    'requestRecordingPrint',
+    'retryRecordingPrint',
+    'getRecordingPrint',
+    'exportRecordingPrint',
+
     'getRecordingReplicaStatus',
     'inspectRecordingReplica',
     'cancelRecordingReplicaRead',
@@ -431,6 +443,15 @@ test('Preload exposes only sanitized business methods', async () => {
     'onRemoteCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
+    'getMasterArtwork',
+    'pickMasterArtwork',
+    'saveMasterArtwork',
+    'listRecordingPrints',
+    'requestRecordingPrint',
+    'retryRecordingPrint',
+    'getRecordingPrint',
+    'exportRecordingPrint',
+
     'getRecordingReplicaStatus',
     'inspectRecordingReplica',
     'cancelRecordingReplicaRead',

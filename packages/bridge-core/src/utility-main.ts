@@ -1,3 +1,4 @@
+import { RecordingPrintError } from './recording/print-integrity.js';
 import { RecordingReplicaError } from './recording/replica-error.js';
 import { AttemptError } from './recording/attempt-integrity.js';
 import { RecordingRecordError } from './recording/record-integrity.js';
@@ -82,6 +83,12 @@ function requestId(value: unknown): string | undefined {
 }
 
 function failureForError(id: string, error: unknown): IpcFailure {
+  if (error instanceof RecordingPrintError) {
+    const code = error.code === 'INVALID_REQUEST' ? 'INVALID_IPC_REQUEST' : error.code === 'CLOSED' ? 'NOT_READY'
+      : error.code === 'CONFLICT' || error.code === 'COMMAND_CONFLICT' ? 'INVENTORY_CONFLICT' : 'INVENTORY_UNAVAILABLE';
+    return responseFailure(id, code, '印刷资料操作未获确认，请核对档案、版本与生成状态；原录音与历史PDF不会改写。');
+  }
+
   if (error instanceof RecordingReplicaError) {
     const code = error.code === 'INVALID_REQUEST' ? 'INVALID_IPC_REQUEST' : error.code === 'BACKEND_UNAVAILABLE' ? 'NOT_READY'
       : error.code === 'RUN_CONFLICT' || error.code === 'READ_CONFLICT' ? 'INVENTORY_CONFLICT' : error.code === 'TIMEOUT' ? 'TIMEOUT' : 'INVENTORY_UNAVAILABLE';
@@ -188,6 +195,10 @@ function recordingReplicaFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.recordingReplica) throw new RecordingReplicaError('BACKEND_UNAVAILABLE');
   return runtime.recordingReplica;
 }
+function recordingPrintsFor(runtime: CoreRuntimeForIpc) {
+  if (!runtime.recordingPrints) throw new CollectionError('INVENTORY_UNAVAILABLE', '印刷资料服务尚未就绪。');
+  return runtime.recordingPrints;
+}
 function recordingRecordsFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.recordingRecords) throw new CollectionError('INVENTORY_UNAVAILABLE', '录音档案服务尚未就绪。');
   return runtime.recordingRecords;
@@ -236,7 +247,7 @@ async function dispatch(
   runtime: CoreRuntimeForIpc,
   request: IpcRequest,
 ): Promise<unknown> {
-  if ((request.command.startsWith('recordingAttempts.') || request.command.startsWith('recordingRecords.') || request.command.startsWith('recordingReplica.')) && (!request.expectedDatasetId || !runtime.commandOutbox)) throw new DatasetScopeError();
+  if ((request.command.startsWith('recordingAttempts.') || request.command.startsWith('recordingRecords.') || request.command.startsWith('recordingReplica.') || request.command.startsWith('masterArtwork.') || request.command.startsWith('recordingPrints.') || request.command.startsWith('recordingPrintWorker.')) && (!request.expectedDatasetId || !runtime.commandOutbox)) throw new DatasetScopeError();
   if (request.expectedDatasetId !== undefined) {
     if (!runtime.commandOutbox) throw new CollectionError('INVENTORY_UNAVAILABLE', '工作库身份尚未就绪。');
     runtime.commandOutbox.assertScope(request.expectedDatasetId);
@@ -279,6 +290,16 @@ async function dispatch(
     case 'recordingBackups.start': return backupsFor(runtime).start(request.payload as IpcCommandPayloads['recordingBackups.start']);
     case 'recordingBackups.cancel': return backupsFor(runtime).cancel(request.payload as IpcCommandPayloads['recordingBackups.cancel']);
     case 'recordingBackups.revoke': return backupsFor(runtime).revoke(request.payload as IpcCommandPayloads['recordingBackups.revoke']);
+    case 'masterArtwork.get': return recordingPrintsFor(runtime).artworkGet(request.payload as IpcCommandPayloads['masterArtwork.get']);
+    case 'masterArtwork.save': return recordingPrintsFor(runtime).artworkSave(request.payload as IpcCommandPayloads['masterArtwork.save']);
+    case 'recordingPrints.list': return recordingPrintsFor(runtime).list(request.payload as IpcCommandPayloads['recordingPrints.list']);
+    case 'recordingPrints.request': return recordingPrintsFor(runtime).request(request.payload as IpcCommandPayloads['recordingPrints.request']);
+    case 'recordingPrints.retry': return recordingPrintsFor(runtime).retry(request.payload as IpcCommandPayloads['recordingPrints.retry']);
+    case 'recordingPrints.get': return recordingPrintsFor(runtime).get(request.payload as IpcCommandPayloads['recordingPrints.get']);
+    case 'recordingPrintWorker.claim': return recordingPrintsFor(runtime).claim(request.payload as IpcCommandPayloads['recordingPrintWorker.claim']);
+    case 'recordingPrintWorker.complete': return recordingPrintsFor(runtime).complete(request.payload as IpcCommandPayloads['recordingPrintWorker.complete']);
+    case 'recordingPrintWorker.fail': return recordingPrintsFor(runtime).fail(request.payload as IpcCommandPayloads['recordingPrintWorker.fail']);
+    case 'recordingPrintWorker.pdf': return recordingPrintsFor(runtime).pdf(request.payload as IpcCommandPayloads['recordingPrintWorker.pdf']);
     case 'recordingReplica.status': return recordingReplicaFor(runtime).status();
     case 'recordingReplica.inspect': return recordingReplicaFor(runtime).inspect(request.payload as IpcCommandPayloads['recordingReplica.inspect']);
     case 'recordingReplica.cancelRead': return recordingReplicaFor(runtime).cancelRead(request.payload as IpcCommandPayloads['recordingReplica.cancelRead']);

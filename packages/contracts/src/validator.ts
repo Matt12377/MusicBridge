@@ -1,3 +1,5 @@
+import { isGetMasterArtworkRequest, isSaveMasterArtworkRequest, isMasterArtworkResult, isMasterArtworkVersion } from './recording-artwork.js';
+import { isListRecordingPrintsRequest, isRequestRecordingPrintRequest, isRetryRecordingPrintRequest, isGetRecordingPrintRequest, isExportRecordingPrintRequest, isRecordingPrintsPage, isRecordingPrintJob, isRecordingPrintResult, isClaimRecordingPrintRequest, isCompleteRecordingPrintRequest, isFailRecordingPrintRequest, isRecordingPrintLease, isRecordingPrintPdfResult } from './recording-prints.js';
 import { isRecordingReplicaStatus, isInspectRecordingReplicaRequest, isRecordingReplicaReadIdRequest, isStartRecordingReplicaRequest, isRecordingReplicaRunIdRequest, isRecordingReplicaInspection, isRecordingReplicaReadCancellation, isRecordingReplicaRun } from './recording-replica.js';
 import { isListRecordingRecordsRequest, isRecordingRecordIdRequest, isRecordingVisualRequest, isPhysicalRecordingHistoryRequest, isPreviewPhysicalRecordingDispositionRequest, isApplyPhysicalRecordingDispositionRequest, isRecordingRecordsPage, isRecordingRecordDetail, isRecordingVisualResult, isPhysicalRecordingHistory, isPhysicalRecordingDispositionProposal, isApplyPhysicalRecordingDispositionResult } from './recording-records.js';
 import { isRecordingOutputStatus, isRecordingOutputCheckRequest, isRecordingOutputCancelRequest, isRecordingOutputCheckResult } from './recording-output.js';
@@ -981,6 +983,16 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'recordingPlans.preview') return isPreviewRecordingPlanRequest(payload);
   if (command === 'recordingPlans.freeze') return isFreezeRecordingPlanRequest(payload);
   if (command === 'recordingPlans.preflight') return isRecordingPreflightRequest(payload);
+  if (command === 'masterArtwork.get') return isGetMasterArtworkRequest(payload);
+  if (command === 'masterArtwork.save') return isSaveMasterArtworkRequest(payload);
+  if (command === 'recordingPrints.list') return isListRecordingPrintsRequest(payload);
+  if (command === 'recordingPrints.request') return isRequestRecordingPrintRequest(payload);
+  if (command === 'recordingPrints.retry') return isRetryRecordingPrintRequest(payload);
+  if (command === 'recordingPrints.get') return isGetRecordingPrintRequest(payload);
+  if (command === 'recordingPrintWorker.claim') return isClaimRecordingPrintRequest(payload);
+  if (command === 'recordingPrintWorker.complete') return isCompleteRecordingPrintRequest(payload);
+  if (command === 'recordingPrintWorker.fail') return isFailRecordingPrintRequest(payload);
+  if (command === 'recordingPrintWorker.pdf') return isExportRecordingPrintRequest(payload);
   if (command === 'recordingReplica.status') return isEmptyPayload(payload);
   if (command === 'recordingReplica.inspect') return isInspectRecordingReplicaRequest(payload);
   if (command === 'recordingReplica.cancelRead') return isRecordingReplicaReadIdRequest(payload);
@@ -1555,6 +1567,15 @@ function isCommandResult(
     case 'recordingPlans.freeze': return isRecordingPlanVersion(value);
     case 'recordingPlans.preflight': return isRecordingPreflightResult(value);
     case 'recordingPlans.cancelRead': return isRecord(value) && hasOnlyKeys(value, ['cancelled']) && value.cancelled === true;
+    case 'masterArtwork.get': return isMasterArtworkResult(value);
+    case 'masterArtwork.save': return isMasterArtworkVersion(value);
+    case 'recordingPrints.list': return isRecordingPrintsPage(value);
+    case 'recordingPrints.request': return isRecordingPrintJob(value);
+    case 'recordingPrints.retry': return isRecordingPrintJob(value);
+    case 'recordingPrints.get': return isRecordingPrintResult(value);
+    case 'recordingPrintWorker.claim': return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['lease']) && (value.lease === null || isRecordingPrintLease(value.lease));
+    case 'recordingPrintWorker.complete': case 'recordingPrintWorker.fail': return allowInternalResult && isRecordingPrintJob(value);
+    case 'recordingPrintWorker.pdf': return allowInternalResult && isRecordingPrintPdfResult(value);
     case 'recordingReplica.status': return isRecordingReplicaStatus(value);
     case 'recordingReplica.inspect': return isRecordingReplicaInspection(value);
     case 'recordingReplica.cancelRead': return isRecordingReplicaReadCancellation(value);

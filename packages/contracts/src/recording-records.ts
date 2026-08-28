@@ -3,6 +3,7 @@ import { isRecordingAttempt, type RecordingAttempt, type RecordingAttemptStatus 
 import { isRecordingPlanVersion, type RecordingPlanVersion } from './recording-plans.js';
 import { isMediaPlan, type MediaPlan } from './media-planning.js';
 import type { Page, PageRequest } from './library.js';
+import { isRecordingArtworkSnapshot, type RecordingArtworkSnapshot } from './recording-artwork.js';
 
 export const MAX_RECORDING_RECORD_PAGE_SIZE = 25;
 export const MAX_RECORDING_RECORD_METADATA_BYTES = 134_217_728;
@@ -25,14 +26,15 @@ export interface RecordingVisualAttachment {
   mimeType:'image/jpeg'; width:number; height:number;
 }
 export interface RecordingVisualAbsence { state:'not-captured'; reason:'not-provided'|'not-implemented'|'not-applicable' }
-export interface RecordingVisualSnapshot {
+export interface RecordingVisualSnapshotV1 {
   artwork:RecordingVisualAbsence; jCard:RecordingVisualAbsence;
   photos:RecordingVisualAbsence|{state:'captured';attachments:readonly RecordingVisualAttachment[]};
 }
-export interface RecordingRecord {
-  schemaVersion:1; id:string; createdAt:string; contentHash:string;
-  completion:CompletedRecordingAttempt; media:RecordingMediaSnapshot; visuals:RecordingVisualSnapshot;
-}
+export interface RecordingVisualSnapshot extends Omit<RecordingVisualSnapshotV1, 'artwork'> { artwork:RecordingArtworkSnapshot }
+interface RecordingRecordCommon { id:string; createdAt:string; contentHash:string; completion:CompletedRecordingAttempt; media:RecordingMediaSnapshot }
+export interface RecordingRecordV1 extends RecordingRecordCommon { schemaVersion:1; visuals:RecordingVisualSnapshotV1 }
+export interface RecordingRecordV2 extends RecordingRecordCommon { schemaVersion:2; visuals:RecordingVisualSnapshot; printRequestId:string|null }
+export type RecordingRecord = RecordingRecordV1 | RecordingRecordV2;
 export interface RecordingRecordSummary {
   id:string; physicalId:string; attemptId:string; planVersionId:string;
   completedAt:string; title:string; format:'cassette'|'dat'; modelId:string;
@@ -149,11 +151,16 @@ function media(v: unknown): v is RecordingMediaSnapshot {
 }
 /** 结构有效只表示完成档案格式；不能替代受信任的完成事件或新的输出准入。 */
 export function isRecordingRecord(v: unknown): v is RecordingRecord {
-  if (!record(v) || !keys(v, ['schemaVersion', 'id', 'createdAt', 'contentHash', 'completion', 'media', 'visuals']) || v.schemaVersion !== 1 || !uuid(v.id) || !date(v.createdAt) || !hash(v.contentHash)
+  if (!record(v) || (v.schemaVersion !== 1 && v.schemaVersion !== 2) || !keys(v, ['schemaVersion', 'id', 'createdAt', 'contentHash', 'completion', 'media', 'visuals', ...(v.schemaVersion === 2 ? ['printRequestId'] : [])]) || !uuid(v.id) || !date(v.createdAt) || !hash(v.contentHash)
     || !isRecordingAttempt(v.completion) || v.completion.status !== 'completed' || !v.completion.endedAt || v.createdAt < v.completion.endedAt || !media(v.media)) return false;
   const format = v.completion.sides[0]?.side === 'Program' ? 'dat' : 'cassette';
-  return sameFormat(v.completion.physicalId, format) && (v.media.snapshotSource === 'legacy-plan-only' || v.media.descriptor.format === format)
-    && visuals(v.visuals, v.id, v.completion.physicalId, v.media.snapshotSource === 'legacy-plan-only');
+  if (!sameFormat(v.completion.physicalId, format) || !(v.media.snapshotSource === 'legacy-plan-only' || v.media.descriptor.format === format)) return false;
+  if (v.schemaVersion === 1) return visuals(v.visuals, v.id, v.completion.physicalId, v.media.snapshotSource === 'legacy-plan-only');
+  if (v.media.snapshotSource !== 'completion' || (format === 'cassette' ? !uuid(v.printRequestId) : v.printRequestId !== null)
+    || !record(v.visuals) || !isRecordingArtworkSnapshot(v.visuals.artwork) || !absence(v.visuals.jCard)
+    || v.visuals.jCard.reason !== (format === 'cassette' ? 'not-provided' : 'not-applicable')) return false;
+  if (v.visuals.artwork.state === 'not-captured' ? v.visuals.artwork.reason !== 'not-provided' : v.visuals.artwork.version.createdAt > v.completion.endedAt) return false;
+  return visuals({ ...v.visuals, artwork: { state: 'not-captured', reason: 'not-provided' } }, v.id, v.completion.physicalId, false);
 }
 export function isRecordingRecordSummary(v: unknown): v is RecordingRecordSummary {
   return record(v) && keys(v, ['id', 'physicalId', 'attemptId', 'planVersionId', 'completedAt', 'title', 'format', 'modelId', 'mediaBrand', 'mediaSeries', 'artist'])
@@ -163,7 +170,8 @@ export function isRecordingRecordSummary(v: unknown): v is RecordingRecordSummar
 export function isRecordingRecordDetail(v: unknown): v is RecordingRecordDetail {
   if (!record(v) || !keys(v, ['record', 'plan', 'current']) || !isRecordingRecord(v.record) || !isRecordingPlanVersion(v.plan) || !isPhysicalRecordingState(v.current)) return false;
   const { completion, media } = v.record, plan = v.plan;
-  return completion.planVersionId === plan.id && completion.planContentHash === plan.contentHash && completion.draftId === plan.draftId && completion.executionAssetId === plan.execution.assetId
+  return (v.record.visuals.artwork.state !== 'captured' || v.record.visuals.artwork.version.masterVersionId === plan.master.id)
+    && completion.planVersionId === plan.id && completion.planContentHash === plan.contentHash && completion.draftId === plan.draftId && completion.executionAssetId === plan.execution.assetId
     && completion.physicalId === plan.physicalCopy.physicalId && v.current.physicalId === completion.physicalId && media.modelId === plan.layout.reservation.modelId
     && media.lotId === plan.physicalCopy.lotId && media.skuId === plan.physicalCopy.skuId && media.origin === plan.physicalCopy.origin && media.lengthMinutes === plan.physicalCopy.lengthMinutes
     && completion.sides.length === plan.execution.audio.length && completion.sides.every((side, index) => {

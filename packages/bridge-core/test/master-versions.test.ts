@@ -125,7 +125,7 @@ test('版本迁移失败回滚既有 schema 与数据，重试成功；新连接
   try { assert.deepEqual(reopened.versions.list(f.draft.draftId), history); } finally { reopened.close(); }
   const legacyPath = path.join(f.directory, 'legacy.sqlite'), db = new DatabaseSync(legacyPath);
   try {
-    const current = new DatabaseSync(f.filePath); try { const schema = current.prepare("SELECT sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE '%version%' AND name NOT LIKE 'preparation_%' AND name NOT LIKE 'prepared_%' AND name NOT LIKE 'recording_%' AND name NOT LIKE 'execution_%' AND name NOT LIKE 'archive_%' AND name NOT GLOB 'reference_*' AND name NOT GLOB 'spreadsheet_*' AND name NOT GLOB 'collection_progress_*' AND name NOT GLOB 'collection_want*' AND name NOT LIKE 'sqlite_%' ORDER BY rowid").all(); for (const row of schema) db.exec(String(row.sql)); } finally { current.close(); }
+    const current = new DatabaseSync(f.filePath); try { const schema = current.prepare("SELECT sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE '%version%' AND name NOT LIKE 'preparation_%' AND name NOT LIKE 'prepared_%' AND name NOT LIKE 'recording_%' AND name NOT LIKE 'master_artwork_%' AND name NOT LIKE 'execution_%' AND name NOT LIKE 'archive_%' AND name NOT GLOB 'reference_*' AND name NOT GLOB 'spreadsheet_*' AND name NOT GLOB 'collection_progress_*' AND name NOT GLOB 'collection_want*' AND name NOT LIKE 'sqlite_%' ORDER BY rowid").all(); for (const row of schema) db.exec(String(row.sql)); } finally { current.close(); }
     db.exec('PRAGMA user_version=7');
   } finally { db.close(); }
   const failed = createCollectionRepository({ filePath: legacyPath, beforeCommit: action => { if (action === 'migrate-master-versions') throw new Error('合成迁移失败'); } });

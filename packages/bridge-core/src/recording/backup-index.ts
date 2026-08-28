@@ -21,7 +21,7 @@ export function readBackupIndex(databasePath: string): { index: BackupIndex; own
   try {
     db.exec('PRAGMA trusted_schema=OFF; PRAGMA query_only=ON;');
     const version = db.prepare('PRAGMA user_version').get()?.user_version;
-    if (version !== 14 && version !== 15 && version !== 16 && version !== 17 && version !== 18 && version !== 19 && version !== 20 || db.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || db.prepare('PRAGMA foreign_key_check').all().length) backupFail();
+    if (version !== 14 && version !== 15 && version !== 16 && version !== 17 && version !== 18 && version !== 19 && version !== 20 && version !== 21 || db.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || db.prepare('PRAGMA foreign_key_check').all().length) backupFail();
     if (Number(version) >= 15) verifyReferenceCatalogDatabase(db);
     if (Number(version) >= 16) verifySpreadsheetImportDatabase(db);
     if (Number(version) >= 17) verifyCollectionProgressDatabase(db);

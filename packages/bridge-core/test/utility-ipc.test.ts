@@ -1483,3 +1483,25 @@ test('计划只读IPC逐项派发，缺失服务有界失败且无任意正式St
   assert.equal(error.error?.code, 'INVENTORY_CONFLICT');
   assert.match(JSON.stringify(error), /ARCHIVE_INVALID/u);
 });
+
+test('印刷worker真实Core运行时空库可领取、所有命令拒绝缺失或错误dataset且不扫描设备', async t => {
+  const runtime = createTestBridgeRuntime(); t.after(() => runtime.shutdown());
+  const port = new FakePort(); await attachCoreRuntimePort(port, runtime);
+  const datasetId = runtime.commandOutbox!.context().datasetId;
+  const rpc = async (command: string, payload: unknown, scope?: string) => {
+    const id = randomUUID(); port.send({ version: 1, id, command, payload, ...(scope ? { expectedDatasetId: scope } : {}) });
+    await new Promise(resolve => setImmediate(resolve));
+    return port.messages.find((value: any) => value.id === id) as any;
+  };
+  const workerId = randomUUID();
+  assert.deepEqual(await rpc('recordingPrintWorker.claim', { workerId }, datasetId), {version:1,id:(port.messages.at(-1) as any).id,ok:true,result:{lease:null}});
+  for(const scope of [undefined, randomUUID()]) {
+    const response=await rpc('recordingPrintWorker.claim',{workerId},scope);
+    assert.equal(response.ok,false);assert.equal(response.error.code,'OUTBOX_SCOPE_MISMATCH');
+    const artwork=await rpc('masterArtwork.get',{masterVersionId:randomUUID()},scope);
+    assert.equal(artwork.ok,false);assert.equal(artwork.error.code,'OUTBOX_SCOPE_MISMATCH');
+    const prints=await rpc('recordingPrints.list',{recordingId:randomUUID(),page:{offset:0,limit:25}},scope);
+    assert.equal(prints.ok,false);assert.equal(prints.error.code,'OUTBOX_SCOPE_MISMATCH');
+  }
+  assert.equal((await rpc('recordingPrintWorker.renderHtml',{html:'<script>bad</script>'},datasetId)).ok,false);
+});

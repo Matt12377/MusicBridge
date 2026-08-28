@@ -3,7 +3,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
 import { hashBytes, readRecordingRecord, recordFail } from './record-integrity.js';
 
-export function captureRecordingVisuals(db:DatabaseSync, recordingId:string, physicalId:string, legacy=false):dto.RecordingVisualSnapshot {
+export function captureRecordingVisuals(db:DatabaseSync, recordingId:string, physicalId:string, legacy=false):dto.RecordingVisualSnapshotV1 {
   const absent={state:'not-captured',reason:'not-provided'} as const;
   if(legacy) return {artwork:absent,jCard:absent,photos:absent};
   const rows=db.prepare('SELECT * FROM collection_photos WHERE physical_id=? ORDER BY rowid').all(physicalId);

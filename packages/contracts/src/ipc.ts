@@ -1,3 +1,5 @@
+import type { GetMasterArtworkRequest, SaveMasterArtworkRequest, MasterArtworkResult, MasterArtworkVersion } from './recording-artwork.js';
+import type { ListRecordingPrintsRequest, RequestRecordingPrintRequest, RetryRecordingPrintRequest, GetRecordingPrintRequest, ExportRecordingPrintRequest, RecordingPrintsPage, RecordingPrintJob, RecordingPrintResult, ClaimRecordingPrintRequest, CompleteRecordingPrintRequest, FailRecordingPrintRequest, RecordingPrintLease, RecordingPrintPdfResult } from './recording-prints.js';
 import type { RecordingReplicaStatus, InspectRecordingReplicaRequest, RecordingReplicaReadIdRequest, StartRecordingReplicaRequest, RecordingReplicaRunIdRequest, RecordingReplicaInspection, RecordingReplicaReadCancellation, RecordingReplicaRun } from './recording-replica.js';
 import type { ListRecordingRecordsRequest, RecordingRecordIdRequest, RecordingVisualRequest, PhysicalRecordingHistoryRequest, PreviewPhysicalRecordingDispositionRequest, ApplyPhysicalRecordingDispositionRequest, RecordingRecordsPage, RecordingRecordDetail, RecordingVisualResult, PhysicalRecordingHistory, PhysicalRecordingDispositionProposal, ApplyPhysicalRecordingDispositionResult } from './recording-records.js';
 import type { RecordingOutputStatus, RecordingOutputCheckRequest, RecordingOutputCancelRequest, RecordingOutputCheckResult } from './recording-output.js';
@@ -153,6 +155,16 @@ export const IPC_COMMANDS = [
   'recordingPlans.freeze',
   'recordingPlans.preflight',
   'recordingPlans.cancelRead',
+  'masterArtwork.get',
+  'masterArtwork.save',
+  'recordingPrints.list',
+  'recordingPrints.request',
+  'recordingPrints.retry',
+  'recordingPrints.get',
+  'recordingPrintWorker.claim',
+  'recordingPrintWorker.complete',
+  'recordingPrintWorker.fail',
+  'recordingPrintWorker.pdf',
   'recordingReplica.status',
   'recordingReplica.inspect',
   'recordingReplica.cancelRead',
@@ -404,6 +416,16 @@ export interface IpcCommandPayloads {
   'recordingPlans.freeze': FreezeRecordingPlanRequest;
   'recordingPlans.preflight': RecordingPreflightRequest;
   'recordingPlans.cancelRead': RecordingPlanIdRequest;
+  'masterArtwork.get': GetMasterArtworkRequest;
+  'masterArtwork.save': SaveMasterArtworkRequest;
+  'recordingPrints.list': ListRecordingPrintsRequest;
+  'recordingPrints.request': RequestRecordingPrintRequest;
+  'recordingPrints.retry': RetryRecordingPrintRequest;
+  'recordingPrints.get': GetRecordingPrintRequest;
+  'recordingPrintWorker.claim': ClaimRecordingPrintRequest;
+  'recordingPrintWorker.complete': CompleteRecordingPrintRequest;
+  'recordingPrintWorker.fail': FailRecordingPrintRequest;
+  'recordingPrintWorker.pdf': ExportRecordingPrintRequest;
   'recordingReplica.status': Record<string, never>;
   'recordingReplica.inspect': InspectRecordingReplicaRequest;
   'recordingReplica.cancelRead': RecordingReplicaReadIdRequest;
@@ -645,6 +667,16 @@ export interface IpcCommandResults {
   'recordingPlans.freeze': RecordingPlanVersion;
   'recordingPlans.preflight': RecordingPreflightResult;
   'recordingPlans.cancelRead': { cancelled: true };
+  'masterArtwork.get': MasterArtworkResult;
+  'masterArtwork.save': MasterArtworkVersion;
+  'recordingPrints.list': RecordingPrintsPage;
+  'recordingPrints.request': RecordingPrintJob;
+  'recordingPrints.retry': RecordingPrintJob;
+  'recordingPrints.get': RecordingPrintResult;
+  'recordingPrintWorker.claim': { lease: RecordingPrintLease | null };
+  'recordingPrintWorker.complete': RecordingPrintJob;
+  'recordingPrintWorker.fail': RecordingPrintJob;
+  'recordingPrintWorker.pdf': RecordingPrintPdfResult;
   'recordingReplica.status': RecordingReplicaStatus;
   'recordingReplica.inspect': RecordingReplicaInspection;
   'recordingReplica.cancelRead': RecordingReplicaReadCancellation;
@@ -834,9 +866,14 @@ export interface IpcEventPayloads {
   'lyrics.match.changed': { state: LocalLyricsMatchSnapshot };
 }
 
-export type IpcInternalCommand = 'spreadsheetImports.registerWorkbook' | 'spreadsheetImports.workbookReceipt' | 'recordingBackups.activationReceipt' | 'recordingBackups.authorize' | 'recordingBackups.authorizationReceipt' | 'recordingArchive.authorize' | 'recordingArchive.authorizationReceipt' | 'recordingPrepared.select' | 'recordingPrepared.selectionReceipt' | 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
+export type IpcInternalCommand = 'recordingPrintWorker.claim' | 'recordingPrintWorker.complete' | 'recordingPrintWorker.fail' | 'recordingPrintWorker.pdf' | 'spreadsheetImports.registerWorkbook' | 'spreadsheetImports.workbookReceipt' | 'recordingBackups.activationReceipt' | 'recordingBackups.authorize' | 'recordingBackups.authorizationReceipt' | 'recordingArchive.authorize' | 'recordingArchive.authorizationReceipt' | 'recordingPrepared.select' | 'recordingPrepared.selectionReceipt' | 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
 
 export interface IpcInternalCommandResults {
+  'recordingPrintWorker.claim': { lease: RecordingPrintLease | null };
+  'recordingPrintWorker.complete': RecordingPrintJob;
+  'recordingPrintWorker.fail': RecordingPrintJob;
+  'recordingPrintWorker.pdf': RecordingPrintPdfResult;
+
   'spreadsheetImports.registerWorkbook': SpreadsheetWorkbookSource;
   'spreadsheetImports.workbookReceipt': SpreadsheetWorkbookReceipt;
   'recordingBackups.activationReceipt': { activation: RestoreActivationView | null };

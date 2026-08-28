@@ -92,7 +92,7 @@ test('SFC与双库入口存在，正式分支禁止旧补录',async()=>{
 async function mounted(t: test.TestContext, api: c.RecordingRecordsPublicApi, props: { physicalId?: string; draftId?: string } = {}) {
   const vue = await import('vue'), require = createRequire(import.meta.url), fs = require('node:fs') as typeof import('node:fs'), path = require('node:path') as typeof import('node:path')
   const { parse, compileScript, compileTemplate } = require('@vue/compiler-sfc') as typeof import('@vue/compiler-sfc'), ts = require('typescript') as typeof import('typescript')
-  const controller = await import('../src/renderer/src/components/recording/recording-record-controller.js'), replicaController = await import('../src/renderer/src/components/recording/recording-replica-controller.js')
+  const controller = await import('../src/renderer/src/components/recording/recording-record-controller.js'), replicaController = await import('../src/renderer/src/components/recording/recording-replica-controller.js'), printController = await import('../src/renderer/src/components/recording/recording-print-controller.js')
   const document = { body: {}, activeElement: undefined as unknown }; document.activeElement = document.body
   const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document'); Object.defineProperty(globalThis, 'document', { configurable: true, value: document }); t.after(() => { if (originalDocument) Object.defineProperty(globalThis, 'document', originalDocument); else Reflect.deleteProperty(globalThis, 'document') })
   const compile = (content: string) => ts.transpileModule(content, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
@@ -101,7 +101,7 @@ async function mounted(t: test.TestContext, api: c.RecordingRecordsPublicApi, pr
     if (modules.has(filename)) return modules.get(filename)!
     const { descriptor, errors } = parse(fs.readFileSync(filename, 'utf8')); assert.deepEqual(errors, [])
     const script = compileScript(descriptor, { id: filename }), module = { exports: {} as { default: import('vue').Component } }
-    const load = (name: string): unknown => name === 'vue' ? vue : name.endsWith('recording-record-controller') ? controller : name.endsWith('recording-replica-controller') ? replicaController : name.endsWith('.vue') ? { default: loadSfc(path.resolve(path.dirname(filename), name)) } : require(name)
+    const load = (name: string): unknown => name === 'vue' ? vue : name.endsWith('recording-record-controller') ? controller : name.endsWith('recording-replica-controller') ? replicaController : name.endsWith('recording-print-controller') ? printController : name.endsWith('.vue') ? { default: loadSfc(path.resolve(path.dirname(filename), name)) } : require(name)
     new Function('require', 'module', 'exports', 'window', 'document', compile(script.content))(load, module, module.exports, { musicBridge: api }, document)
     const template = compileTemplate({ id: filename, filename, source: descriptor.template!.content, compilerOptions: { bindingMetadata: script.bindings } }); assert.deepEqual(template.errors, [])
     const render = { exports: {} as { render: (...args: unknown[]) => unknown } }; new Function('require', 'module', 'exports', compile(template.code))(load, render, render.exports)

@@ -1,3 +1,4 @@
+import { captureMasterArtwork, registerRecordingPrint } from './print-store.js';
 import { verifyRecordingAttemptDatabase } from './attempt-integrity.js';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
@@ -35,12 +36,16 @@ export function registerCompletedRecording(db:DatabaseSync,completion:dto.Record
   const plan=JSON.parse(String(planRow.data)) as dto.RecordingPlanVersion;
   const id=randomUUID(),base={modelId:plan.layout.reservation.modelId,lotId:plan.physicalCopy.lotId,skuId:plan.physicalCopy.skuId,lengthMinutes:plan.physicalCopy.lengthMinutes,origin:plan.physicalCopy.origin};
   const model=db.prepare('SELECT descriptor FROM collection_models WHERE id=?').get(base.modelId); if(!model) return recordFail();
-  const body={schemaVersion:1 as const,id,createdAt:completion.endedAt!,completion:completion as dto.CompletedRecordingAttempt,
-    media:legacy?{...base,snapshotSource:'legacy-plan-only' as const}:{...base,snapshotSource:'completion' as const,descriptor:JSON.parse(String(model.descriptor)) as dto.CollectionDescriptor},visuals:captureRecordingVisuals(db,id,completion.physicalId,legacy)};
-  const record:dto.RecordingRecord={...body,contentHash:mediaFingerprint(body)};
-  if(!dto.isRecordingRecord(record)) return recordFail();
+  const printing=!legacy&&Number(db.prepare('PRAGMA user_version').get()?.user_version)>=21;
+  const printRequestId=printing&&plan.layout.spec.format==='cassette'?randomUUID():null;
+  const visuals=captureRecordingVisuals(db,id,completion.physicalId,legacy);
+  const body={...(printing?{schemaVersion:2 as const,printRequestId}:{schemaVersion:1 as const}),id,createdAt:completion.endedAt!,completion:completion as dto.CompletedRecordingAttempt,
+    media:legacy?{...base,snapshotSource:'legacy-plan-only' as const}:{...base,snapshotSource:'completion' as const,descriptor:JSON.parse(String(model.descriptor)) as dto.CollectionDescriptor},visuals:printing?{...visuals,artwork:captureMasterArtwork(db,plan.master.id),jCard:{state:'not-captured' as const,reason:plan.layout.spec.format==='cassette'?'not-provided' as const:'not-applicable' as const}}:visuals};
+  const candidate={...body,contentHash:mediaFingerprint(body)};
+  if(!dto.isRecordingRecord(candidate))return recordFail();const record=candidate;
   const before=readContentHead(db,completion.physicalId);
   db.prepare('INSERT INTO recording_records VALUES(?,?,?,?,?,?)').run(id,completion.id,completion.revision,completion.physicalId,completion.planVersionId,JSON.stringify(record));
+  if(printRequestId)registerRecordingPrint(db,record,plan,printRequestId,'completion',record.createdAt);
   if(!legacy) withPhysicalRecordingMutation(db,completion.physicalId,'completed',()=>{
     db.prepare("UPDATE physical_copies SET usage='recorded',reserved_from=NULL,revision=revision+1 WHERE physical_id=? AND usage='reserved'").run(completion.physicalId);
     const reservation=db.prepare('SELECT plan_id FROM media_reservations WHERE physical_id=?').get(completion.physicalId);

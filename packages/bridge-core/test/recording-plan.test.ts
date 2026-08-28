@@ -16,7 +16,7 @@ import { recordingPlanFixture as fixture } from './helpers/recording-plan-fixtur
 
 function facts(filePath: string) {
   const db = new DatabaseSync(filePath, { readOnly: true });
-  try { return db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT GLOB 'sqlite_*' AND name NOT GLOB 'recording_plan*' AND name NOT GLOB 'recording_attempt*' AND name NOT GLOB 'recording_record*' AND name<>'recording_profile_snapshots' ORDER BY name").all().map(({ name }) => [name, db.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all()]); }
+  try { return db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT GLOB 'sqlite_*' AND name NOT GLOB 'recording_plan*' AND name NOT GLOB 'recording_attempt*' AND name NOT GLOB 'recording_record*' AND name NOT GLOB 'recording_print*' AND name NOT GLOB 'master_artwork*' AND name<>'recording_profile_snapshots' ORDER BY name").all().map(({ name }) => [name, db.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all()]); }
   finally { db.close(); }
 }
 
@@ -218,7 +218,7 @@ test('实际在途取消丢弃迟到结果；同command并发仅保存一版且�
   assert.equal(f.plans.list({ draftId: f.draft.draftId }).versions.length, 1);
 });
 
-test('固定schema17迁移失败完整回滚；重试20逐列保留旧事实', async t => {
+test('固定schema17迁移失败完整回滚；重试21逐列保留旧事实', async t => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-plan-migrate-')); t.after(() => rm(directory, { recursive: true, force: true }));
   const filePath = path.join(directory, 'collection.sqlite'), db = new DatabaseSync(filePath);
   db.exec(await readFile(new URL('./fixtures/collection-schema17.sql', import.meta.url), 'utf8')); db.close();
@@ -230,7 +230,7 @@ test('固定schema17迁移失败完整回滚；重试20逐列保留旧事实', a
   const repository = createCollectionRepository({ filePath }); t.after(() => repository.close());
   repository.recordingPlans.version({ id: randomUUID() });
   const migrated = new DatabaseSync(filePath, { readOnly: true }); t.after(() => migrated.close());
-  assert.equal(migrated.prepare('PRAGMA user_version').get()!.user_version, 20);
+  assert.equal(migrated.prepare('PRAGMA user_version').get()!.user_version, 21);
   verifyRecordingPlanDatabase(migrated); assert.deepEqual(facts(filePath), before);
 });
 

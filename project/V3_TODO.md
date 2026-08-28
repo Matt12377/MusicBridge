@@ -1,8 +1,8 @@
 # V3 剩余任务 TODO
 
-当前进度：TASK-075本地软件Gate通过（162/1035/505、安全29、Electron4、E2E86，双native零skip），最终HEAD 7f890be5badee3e9ea08355729e29c5aefeec377；TASK-076本地软件Gate已通过（174/1066/532、安全29、Electron4、E2E88），等待本地提交锁定后顺序启动077；可听Replica仍待设备准入。TASK073真实HAL/Gate B待实机，旧CDP退出FAIL与R020～023保留至078/独立验证。仅本地开发至079，不push、不合并main、不发布；智能体统一GPT-5.6 Sol / High。
+当前进度：TASK-077本地软件Gate通过（184/1088/601、安全29、Electron4、完整E2E90，双native零skip），正在锁定实现/报告与最终提交；TASK-078只从本任务最终HEAD启动。可听Replica、TASK073真实HAL/Gate B、实体纸张与最终Owner仍待验；旧CDP退出FAIL与R020～023保留。仅本地开发至079，不push、不合并main、不发布；智能体统一GPT-5.6 Sol / High。
 
-本表是任务拆分与依赖计划，不是完成声明。后续任务沿上一任务最终 HEAD 创建独立分支；当前已展开 TASK-064～076，其余任务开始前补详细范围和允许路径。具体子任务可根据已验证结果细分，不删减 PRD 范围。
+本表是任务拆分与依赖计划，不是完成声明。后续任务沿上一任务最终 HEAD 创建独立分支；当前已展开 TASK-064～077，其余任务开始前补详细范围和允许路径。具体子任务可根据已验证结果细分，不删减 PRD 范围。
 
 ## 开发队列
 
@@ -19,8 +19,8 @@
 - [x] **TASK-074：正式录音 Attempt 状态机** — 本地Gate通过：147/1005/483、安全29、Electron4、完整E2E83，双native、零skip。Cassette显式翻面/BeginB、DAT Program、中断不续播、三层完成、schema19及可能写入介质保护；真实准入仍受Gate B阻断，R023容量风险待078。见[TASK-074结果](../reports/TASK-074_RESULT.md)。
 - [x] **TASK-075：录音档案、检索与双库同步** — 本地Gate通过：162/1035/505、安全29、Electron4、完整E2E86，双native零skip。首次Completed幂等不可变登记、当前内容认知、明确重录/擦除声明与检索；同一Physical Copy双库同步且不增加库存，历史快照不重写；真实播放/实机与Owner待验，见[TASK-075结果](../reports/TASK-075_RESULT.md)。
 - [x] **TASK-076：Digital Replica（本地软件阶段）** — 本地Gate通过：174/1066/532、安全29、Electron4、完整E2E88，双native零skip。历史归档执行音频/原Render核验、恢复binding、有限只读会话与取消收口；生产播放保持blocked，可听Replica及正式provider仍待073/079，不冒称真实播放，见[TASK-076结果](../reports/TASK-076_RESULT.md)。
-- [ ] **TASK-077：J-Card 与 Printed Artifact** — 待前置。封面/曲目/模板快照、打印导出、旧印刷品不随模板变化。
-- [ ] **TASK-078：V3 全链路自动验收** — 待前置。逐项PRD30、A～E、U-01～U-10、V2回归、故障矩阵、TASK066大库冷启容量/超时策略、TASK074全历史校验与停止延迟R023、TASK073包正常退出FAIL定位和证据差距清单。TASK072版本分类P3已在TASK073第二阶段修复，不再列为待修。
+- [x] **TASK-077：J-Card 与 Printed Artifact（本地软件阶段）** — 本地Gate通过：184/1088/601、安全29、Electron4、完整E2E90，双native零skip。完成事务自动打印请求、Master Artwork版本、不可变PDF/预览、原生无覆盖导出与schema21恢复；实际PDF23页独立几何/内容/视觉通过，纸张/盒型与Owner待验，见[TASK-077结果](../reports/TASK-077_RESULT.md)。
+- [ ] **TASK-078：V3 全链路自动验收** — 待前置。逐项PRD30、A～E、U-01～U-10、V2回归、故障矩阵、TASK066大库冷启容量/超时策略、TASK074全历史校验与停止延迟R023、TASK073包正常退出FAIL定位和证据差距清单；TASK077未来预览去浏览器滚动条，不改历史Artifact。TASK072版本分类P3已在TASK073第二阶段修复，不再列为待修。
 - [ ] **TASK-079：真实环境与最终 Owner 验收** — 待 Owner。授权实物/库存表/Source Roots/Logic/设备实录；Owner 明确逐项接受。
 
 ## 需要 Owner 的外部条件

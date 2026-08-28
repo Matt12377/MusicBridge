@@ -60,7 +60,7 @@ async function fixture(t: test.TestContext, beforeBackup?: (f: Awaited<ReturnTyp
   return { ...f, privatePath, defaultFile, storePath, restored, destinationId: destination.id, pending, prepare, open };
 }
 
-test('正式schema20默认工作库关闭后可冷开，保留dataset身份及库存', async t => {
+test('正式schema21默认工作库关闭后可冷开，保留dataset身份及库存', async t => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-catalog-cold-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const first = await openCollectionDataset(directory), datasetId = first.datasetId;
@@ -76,7 +76,7 @@ test('真实合成工作簿原字节、类型化源行、修订与更正随Lot�
   const inspectFacts = (filePath: string) => {
     const db = new DatabaseSync(filePath, { readOnly: true });
     try {
-      assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 20);
+      assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 21);
       assert.equal(db.prepare('PRAGMA integrity_check').get()?.integrity_check, 'ok');
       assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
       return db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND (name GLOB 'spreadsheet_*' OR name GLOB 'reference_*' OR name GLOB 'inventory_*' OR name GLOB 'collection_*' OR name='physical_copies') ORDER BY name").all().map(({ name }) => [name, db.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all()]);

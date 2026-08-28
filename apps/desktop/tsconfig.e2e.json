@@ -13,6 +13,7 @@
     "e2e/task-074.spec.ts",
     "e2e/task-075.spec.ts",
     "e2e/task-076.spec.ts",
+    "e2e/task-077.spec.ts",
     "src/renderer/src/env.d.ts"
   ]
 }

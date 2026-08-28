@@ -1,3 +1,4 @@
+import { createRecordingPrintCoordinator, type RecordingPrintCoordinator } from './recording/print-coordinator.js';
 import { createRecordingReplicaInput } from './recording/replica-input.js';
 import { createRecordingReplicaCoordinator, type RecordingReplicaCoordinator } from './recording/replica-coordinator.js';
 import { createRecordingRecordCoordinator, type RecordingRecordCoordinator } from './recording/record-coordinator.js';
@@ -127,6 +128,7 @@ export interface CoreRuntime {
   recordingOutput?: RecordingOutputService;
   recordingAttempts?: RecordingAttemptCoordinator;
   recordingRecords?: RecordingRecordCoordinator;
+  recordingPrints?: RecordingPrintCoordinator;
   recordingReplica?: RecordingReplicaCoordinator;
   backups?: BackupCoordinator;
   readonly collection?: CollectionRepository;
@@ -840,12 +842,14 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     },
     assertExecutionIdle: () => recordingAttempts.assertExecutionIdle(),
   }) : undefined;
+  const recordingPrints = options.collectionRepository ? createRecordingPrintCoordinator({ store: options.collectionRepository.recordingPrints, assertCurrent: assertReplicaCurrent }) : undefined;
   recordingReplica = options.collectionRepository && recordingAttempts ? createRecordingReplicaCoordinator({
     input: createRecordingReplicaInput({ repository: options.collectionRepository, assertCurrent: assertReplicaCurrent, ...(options.backupContentBinding ? { contentBinding: options.backupContentBinding } : {}) }),
     assertCurrent: assertReplicaCurrent, assertAttemptIdle: () => recordingAttempts.assertExecutionIdle(),
   }) : undefined;
   const cleanup = async (): Promise<void> => {
     await recordingReplica?.close();
+    await recordingPrints?.close();
     await recordingRecords?.close();
     await recordingAttempts?.close();
     await recordingOutput.close();
@@ -1188,6 +1192,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     ...(recordingPlans ? { recordingPlans } : {}),
     ...(recordingAttempts ? { recordingAttempts } : {}),
     ...(recordingRecords ? { recordingRecords } : {}),
+    ...(recordingPrints ? { recordingPrints } : {}),
     ...(recordingReplica ? { recordingReplica } : {}),
     recordingOutput,
     ...(backups ? { backups } : {}),
@@ -1259,6 +1264,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
   });
   assertReplicaIdle = () => recordingReplica.assertExecutionIdle();
   const recordingRecords = createRecordingRecordCoordinator({ store: collection.recordingRecords, assertCurrent: () => { commandOutbox.context(); }, assertExecutionIdle: () => recordingAttempts.assertExecutionIdle() });
+  const recordingPrints = createRecordingPrintCoordinator({ store: collection.recordingPrints, assertCurrent: () => { commandOutbox.context(); } });
   const recordingOutput = createRecordingOutputService({ store: collection.recordingPlans, ...(options.recordingOutputHelper ? { helper: options.recordingOutputHelper } : {}) });
   const archive = createArchiveCoordinator({ store: collection.archive, executionStore: collection.execution, preparationStore: collection.preparations, sourceStore: collection.sources, sources, preparation });
   const accountMode = options.accountMode ?? 'ready'
@@ -1417,6 +1423,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     },
     async shutdown() {
       await recordingReplica.close();
+      await recordingPrints.close();
       await recordingRecords.close();
       await recordingAttempts.close();
       await recordingOutput.close();
@@ -1798,7 +1805,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     collection,
     commandOutbox,
     sources,
-    mediaPlanning, masterVersions, preparation, prepared, execution, archive, backups, recordingPlans, recordingOutput, recordingAttempts, recordingRecords, recordingReplica,
+    mediaPlanning, masterVersions, preparation, prepared, execution, archive, backups, recordingPlans, recordingOutput, recordingAttempts, recordingRecords, recordingPrints, recordingReplica,
     physicalLinks: createPhysicalLinksCoordinator({ repository: collection.links, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
     masterDrafts: createMasterDraftsCoordinator({ repository: collection.drafts, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
     listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),

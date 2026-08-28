@@ -1,3 +1,4 @@
+import { createRecordingPrintClient } from './recording-print-client.js'
 import { createRecordingReplicaClient } from './recording-replica-client.js'
 import { createRecordingRecordClient } from './recording-record-client.js'
 import { contextBridge, ipcRenderer } from 'electron'
@@ -333,5 +334,6 @@ contextBridge.exposeInMainWorld(
     createRecordingAttemptClient((channel, value) => ipcRenderer.invoke(channel, value)),
     createRecordingRecordClient((channel, value) => ipcRenderer.invoke(channel, value)),
     createRecordingReplicaClient((channel, value) => ipcRenderer.invoke(channel, value)),
+    createRecordingPrintClient((channel, value) => ipcRenderer.invoke(channel, value)),
   ),
 )

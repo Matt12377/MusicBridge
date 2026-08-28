@@ -1,3 +1,4 @@
+import { verifyRecordingPrintDatabase } from './print-integrity.js';
 import type { DatabaseSync } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
 import { mediaFingerprint } from './media-store.js';
@@ -106,6 +107,7 @@ export function verifyRecordingRecordDatabase(db: DatabaseSync): void {
     if (objects.length!==recordSchema.length || objects.some(row=>!recordSchema.includes(String(row.sql)))) return recordFail();
     if (db.prepare('SELECT 1 FROM recording_record_write_guard').get() || db.prepare('PRAGMA foreign_key_check').get()) return recordFail();
     checkRecordingRecordBudgets(db);
+    if(Number(db.prepare('PRAGMA user_version').get()?.user_version)>=21)verifyRecordingPrintDatabase(db);
     const referencedVisuals=new Set<string>();
     for(const row of db.prepare('SELECT id FROM recording_records').iterate()) {
       const record=readRecordingRecord(db,String(row.id))!, completed=db.prepare("SELECT revision,data FROM recording_attempt_events WHERE attempt_id=? AND json_extract(data,'$.after.status')='completed' ORDER BY revision LIMIT 1").get(record.completion.id);

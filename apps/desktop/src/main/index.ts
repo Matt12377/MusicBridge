@@ -1,3 +1,7 @@
+import { installRecordingPrintHandlers } from './recording-print-ipc.js'
+import { createRecordingPrintWorker } from './recording-print-worker.js'
+import { createRecordingPrintRenderer } from './recording-print-renderer.js'
+import { exportRecordingPrintPdf } from './recording-print-export.js'
 import { installRecordingRecordHandlers } from './recording-record-ipc.js'
 import { installRecordingReplicaHandlers } from './recording-replica-ipc.js'
 import { installRecordingAttemptHandlers } from './recording-attempt-ipc.js'
@@ -161,6 +165,27 @@ const roonImageGatePath = process.env.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH
 
 let mainWindow: BrowserWindow | undefined
 let coreSupervisor: CoreSupervisor | undefined
+let recordingPrintWorker: ReturnType<typeof createRecordingPrintWorker> | undefined
+let recordingPrintEpoch = 0
+function stopRecordingPrintWorker(): void {
+  recordingPrintEpoch++
+  const previous = recordingPrintWorker
+  recordingPrintWorker = undefined
+  void previous?.stop()
+}
+async function startRecordingPrintWorker(supervisor: CoreSupervisor): Promise<void> {
+  stopRecordingPrintWorker()
+  const epoch = recordingPrintEpoch
+  try {
+    const { datasetId } = await supervisor.request('commandOutbox.context', {})
+    if (epoch !== recordingPrintEpoch || quitAfterCoreShutdown) return
+    recordingPrintWorker = createRecordingPrintWorker({ datasetId, requestInternal: supervisor.requestInternal.bind(supervisor), renderer: createRecordingPrintRenderer() })
+    recordingPrintWorker.start()
+  } catch {
+    mainDiagnostics.recordLifecycle('recording_print_worker_unavailable', 'warn')
+  }
+}
+
 let commandOutbox: CommandOutboxService | undefined
 let coreMode: RemoteCoreMode = 'local-core'
 let coreDataDirectory: string | undefined
@@ -1210,6 +1235,17 @@ function registerIpcHandlers(
   installRecordingPlanReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   installRecordingOutputReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   installRecordingRecordHandlers({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installRecordingPrintHandlers({
+    handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor,
+    getEpoch: () => recordingPrintEpoch,
+    pickArtwork: event => pickCollectionPhoto(
+      () => dialog.showOpenDialog(requireTrustedRenderer(event), { title: '选择母版 Artwork（选择后需保存）', properties: ['openFile'], filters: [{ name: 'Artwork 图片', extensions: ['png', 'jpg', 'jpeg'] }] }),
+      bytes => nativeImage.createFromBuffer(bytes),
+    ),
+    exportPdf: (options, event) => exportRecordingPrintPdf({ ...options, select: () => dialog.showSaveDialog(requireTrustedRenderer(event), {
+      title: '导出历史 J-Card PDF（不覆盖已有文件）', defaultPath: `MusicBridge-${options.request.artifactId}.pdf`, filters: [{ name: 'PDF 文档', extensions: ['pdf'] }],
+    }) }),
+  })
   installRecordingReplicaHandlers({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   installRecordingAttemptHandlers({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   installCollectionProgressReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
@@ -1853,6 +1889,7 @@ async function bootstrap(): Promise<void> {
   let supervisor: CoreSupervisor
   supervisor = createCoreSupervisor(prepared.dataDirectory, {
     onReady: async () => {
+      await startRecordingPrintWorker(supervisor)
       if (!initialProvisioningComplete) return
       await restoreProviderCredential({
         vault: prepared.credentialVault,
@@ -1871,6 +1908,7 @@ async function bootstrap(): Promise<void> {
       }
     },
     onLifecycle: (event) => {
+      if (event.event !== 'ready') stopRecordingPrintWorker()
       const level = event.event === 'exit' || event.event === 'failed' ? 'warn' : 'info'
       mainDiagnostics.recordLifecycle(`core_${event.event}`, level)
     },
@@ -1963,6 +2001,7 @@ app.on('before-quit', (event) => {
   }
   event.preventDefault()
   quitAfterCoreShutdown = true
+  stopRecordingPrintWorker()
   void remoteCoreTunnelManager.stop().catch(() => undefined).finally(() => {
     void coreSupervisor?.shutdown().finally(async () => {
       // 原生对话框可能仍未返回；退出有界，不等待用户完成新的选择。
