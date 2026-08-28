@@ -58,7 +58,9 @@ async function readWave(handle: FileHandle, size: number, check: () => void, con
 }
 
 /** 只回读上层持有的输出句柄，不运行转换器，也不证明源已完整解码或已获输出设备认证。 */
-export async function inspectConversionOutput(handle: FileHandle, expected: ExecutionFormat, signal: AbortSignal, checkOperation: () => void = () => undefined): Promise<AudioConversionReceipt['audio']> {
+export interface ReadonlyPcmFormat { sampleRate: number; channelCount: 1 | 2; sampleFormat: ExecutionFormat['outputSampleFormat'] }
+/** 原件的中立解析，不构造设备Profile或执行转换谱系。 */
+export async function inspectReadonlyPcmWave(handle: FileHandle, signal: AbortSignal, checkOperation: () => void = () => undefined): Promise<{ format: ReadonlyPcmFormat; audio: AudioConversionReceipt['audio'] }> {
   const wallDeadline = Date.now() + 15 * 60_000, monotonicDeadline = performance.now() + 15 * 60_000;
   const check = (): void => {
     if (signal.aborted) return executionFail('CANCELLED');
@@ -66,11 +68,9 @@ export async function inspectConversionOutput(handle: FileHandle, expected: Exec
     checkOperation();
   };
   try {
-    check(); if (!isExecutionFormat(expected)) return executionFail('INVALID_INPUT');
-    const format = structuredClone(expected), before = await handle.stat({ bigint: true });
+    check(); const before = await handle.stat({ bigint: true });
     if (!before.isFile() || before.nlink !== 1n) return executionFail('INVALID_INPUT');
     const size = Number(before.size), wave = await readWave(handle, size, check, true);
-    if (wave.sampleRate !== format.sampleRate || wave.channelCount !== format.channelCount || wave.sampleFormat !== format.outputSampleFormat) return executionFail('CONVERSION_REQUIRED');
     const wholeHash = createHash('sha256'), pcmHash = createHash('sha256');
     // 分块回读限制内存；浮点块始终按四字节对齐，短读由 readExactly 补齐。
     for (let offset = 0; offset < wave.dataSize;) {
@@ -86,11 +86,19 @@ export async function inspectConversionOutput(handle: FileHandle, expected: Exec
     }
     check(); const after = await handle.stat({ bigint: true }); check();
     if (after.dev !== before.dev || after.ino !== before.ino || after.size !== before.size || after.mtimeNs !== before.mtimeNs || after.ctimeNs !== before.ctimeNs || after.nlink !== 1n) return executionFail('INPUT_CHANGED');
-    return { sha256: wholeHash.digest('hex'), pcmSha256: pcmHash.digest('hex'), size, dataOffset: wave.dataOffset, frameCount: wave.totalFrames };
+    return { format: { sampleRate: wave.sampleRate, channelCount: wave.channelCount, sampleFormat: wave.sampleFormat }, audio: { sha256: wholeHash.digest('hex'), pcmSha256: pcmHash.digest('hex'), size, dataOffset: wave.dataOffset, frameCount: wave.totalFrames } };
   } catch (error) {
     if (error instanceof ExecutionCompileError) throw error;
     return executionFail('IO_ERROR');
   }
+}
+/** 执行资产保持原有完整ExecutionFormat校验；中立解析不放宽输出格式。 */
+export async function inspectConversionOutput(handle: FileHandle, expected: ExecutionFormat, signal: AbortSignal, checkOperation: () => void = () => undefined): Promise<AudioConversionReceipt['audio']> {
+  if (signal.aborted) return executionFail('CANCELLED');
+  checkOperation(); if (!isExecutionFormat(expected)) return executionFail('INVALID_INPUT');
+  const format = structuredClone(expected), result = await inspectReadonlyPcmWave(handle, signal, checkOperation);
+  if (result.format.sampleRate !== format.sampleRate || result.format.channelCount !== format.channelCount || result.format.sampleFormat !== format.outputSampleFormat) return executionFail('CONVERSION_REQUIRED');
+  return result.audio;
 }
 export function assertPcmInput(wave: PcmWave, input: ExecutionPcmInput): void {
   if (wave.totalFrames !== input.totalFrames) return executionFail('FRAME_MISMATCH');

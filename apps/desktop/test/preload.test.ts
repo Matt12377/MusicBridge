@@ -28,7 +28,9 @@ test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，
   const calls: Array<[string, unknown]> = [], runId = '73000000-0000-4000-8000-000000000001'
   let exposed: ReturnType<typeof createPreloadApi> | undefined
   const recordModule = await import('../src/preload/recording-record-client.js').catch(() => ({}))
+  const replicaModule = await import('../src/preload/recording-replica-client.js').catch(() => ({}))
   const modules: Record<string, unknown> = {
+    './recording-replica-client.js': replicaModule,
     './recording-record-client.js': recordModule,
     electron: { contextBridge: { exposeInMainWorld: (name: string, api: ReturnType<typeof createPreloadApi>) => { assert.equal(name, 'musicBridge'); exposed = api } }, ipcRenderer: { invoke: async (channel: string, payload: unknown) => { calls.push([channel, structuredClone(payload)]); return channel === 'commandOutbox:context' ? { datasetId: runId } : { reply: channel } } } },
     './recording-attempt-client.js': { createRecordingAttemptClient }, './api.js': { createPreloadApi }, './command-outbox-client.js': { createCommandOutboxClient },
@@ -76,6 +78,20 @@ test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，
     assert.deepEqual(await attemptApi[name]!(payload), { reply: `recordingRecords:${channel}` })
   }
   assert.deepEqual(calls, recordCalls.map(([, channel, payload, wire]) => [`recordingRecords:${channel}`, { datasetId: runId, payload: wire ?? payload }]))
+  const replicaCalls: Array<[string, string, unknown, unknown?]> = [
+    ['getRecordingReplicaStatus', 'status', undefined, {}],
+    ['inspectRecordingReplica', 'inspect', { readId: runId, recordingId: runId }],
+    ['cancelRecordingReplicaRead', 'cancelRead', runId, { readId: runId }],
+    ['startRecordingReplica', 'start', { runId, recordingId: runId, target: 'actual-execution', side: 'A', expectedFingerprint: 'a'.repeat(64), userConfirmed: true }],
+    ['getRecordingReplicaRun', 'get', runId, { runId }],
+    ['stopRecordingReplica', 'stop', runId, { runId }],
+  ]
+  calls.length = 0
+  for (const [name, channel, payload] of replicaCalls) {
+    assert.equal(typeof attemptApi[name], 'function', `缺少Replica Preload入口${name}`)
+    assert.deepEqual(await attemptApi[name]!(payload), { reply: `recordingReplica:${channel}` })
+  }
+  assert.deepEqual(calls, replicaCalls.map(([, channel, payload, wire]) => [`recordingReplica:${channel}`, { datasetId: runId, payload: wire ?? payload }]))
 })
 
 test('Preload 图片诊断保持 sandbox 本地实现，不引入 contracts 运行期依赖', async () => {
@@ -189,6 +205,12 @@ test('Preload exposes only sanitized business methods', async () => {
     assert.equal(typeof (api as unknown as Record<string, unknown>)[name], 'function', `缺少受限业务API ${name}`)
   }
   assert.deepEqual(PUBLIC_API_KEYS, [
+    'getRecordingReplicaStatus',
+    'inspectRecordingReplica',
+    'cancelRecordingReplicaRead',
+    'startRecordingReplica',
+    'getRecordingReplicaRun',
+    'stopRecordingReplica',
     'listRecordingRecords',
     'getRecordingRecord',
     'getRecordingRecordVisual',
@@ -409,6 +431,12 @@ test('Preload exposes only sanitized business methods', async () => {
     'onRemoteCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
+    'getRecordingReplicaStatus',
+    'inspectRecordingReplica',
+    'cancelRecordingReplicaRead',
+    'startRecordingReplica',
+    'getRecordingReplicaRun',
+    'stopRecordingReplica',
     'listRecordingRecords',
     'getRecordingRecord',
     'getRecordingRecordVisual',

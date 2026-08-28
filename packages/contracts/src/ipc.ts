@@ -1,3 +1,4 @@
+import type { RecordingReplicaStatus, InspectRecordingReplicaRequest, RecordingReplicaReadIdRequest, StartRecordingReplicaRequest, RecordingReplicaRunIdRequest, RecordingReplicaInspection, RecordingReplicaReadCancellation, RecordingReplicaRun } from './recording-replica.js';
 import type { ListRecordingRecordsRequest, RecordingRecordIdRequest, RecordingVisualRequest, PhysicalRecordingHistoryRequest, PreviewPhysicalRecordingDispositionRequest, ApplyPhysicalRecordingDispositionRequest, RecordingRecordsPage, RecordingRecordDetail, RecordingVisualResult, PhysicalRecordingHistory, PhysicalRecordingDispositionProposal, ApplyPhysicalRecordingDispositionResult } from './recording-records.js';
 import type { RecordingOutputStatus, RecordingOutputCheckRequest, RecordingOutputCancelRequest, RecordingOutputCheckResult } from './recording-output.js';
 import type { ListRecordingAttemptsRequest, RecordingAttemptIdRequest, BeginRecordingAttemptRequest, ConfirmRecordingAttemptRequest, BeginRecordingAttemptSideRequest, StopRecordingAttemptRequest, RecordingAttemptsPage, RecordingAttempt } from './recording-attempts.js';
@@ -152,6 +153,12 @@ export const IPC_COMMANDS = [
   'recordingPlans.freeze',
   'recordingPlans.preflight',
   'recordingPlans.cancelRead',
+  'recordingReplica.status',
+  'recordingReplica.inspect',
+  'recordingReplica.cancelRead',
+  'recordingReplica.start',
+  'recordingReplica.get',
+  'recordingReplica.stop',
   'recordingOutput.status',
   'recordingOutput.check',
   'recordingOutput.cancel',
@@ -397,6 +404,12 @@ export interface IpcCommandPayloads {
   'recordingPlans.freeze': FreezeRecordingPlanRequest;
   'recordingPlans.preflight': RecordingPreflightRequest;
   'recordingPlans.cancelRead': RecordingPlanIdRequest;
+  'recordingReplica.status': Record<string, never>;
+  'recordingReplica.inspect': InspectRecordingReplicaRequest;
+  'recordingReplica.cancelRead': RecordingReplicaReadIdRequest;
+  'recordingReplica.start': StartRecordingReplicaRequest;
+  'recordingReplica.get': RecordingReplicaRunIdRequest;
+  'recordingReplica.stop': RecordingReplicaRunIdRequest;
   'recordingOutput.status': Record<string, never>;
   'recordingOutput.check': RecordingOutputCheckRequest;
   'recordingOutput.cancel': RecordingOutputCancelRequest;
@@ -632,6 +645,12 @@ export interface IpcCommandResults {
   'recordingPlans.freeze': RecordingPlanVersion;
   'recordingPlans.preflight': RecordingPreflightResult;
   'recordingPlans.cancelRead': { cancelled: true };
+  'recordingReplica.status': RecordingReplicaStatus;
+  'recordingReplica.inspect': RecordingReplicaInspection;
+  'recordingReplica.cancelRead': RecordingReplicaReadCancellation;
+  'recordingReplica.start': RecordingReplicaRun;
+  'recordingReplica.get': { run: RecordingReplicaRun | null };
+  'recordingReplica.stop': RecordingReplicaRun;
   'recordingOutput.status': RecordingOutputStatus;
   'recordingOutput.check': RecordingOutputCheckResult;
   'recordingOutput.cancel': { cancelled: true };

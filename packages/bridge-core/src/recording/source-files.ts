@@ -123,6 +123,62 @@ export async function withVerifiedReadonlySource<T>(root: RootCapability, relati
     return result;
   } finally { await handle.close(); }
 }
+export interface ReplicaSourceLeaseOptions {
+  /** 必须由冻结帧数/采样率计算；公开请求没有时长或期限参数。 */
+  durationMs: number;
+  preparationTimeoutMs?: number;
+  finalizationTimeoutMs?: number;
+  watchIntervalMs?: number;
+  /** 只供可信测试注入单调时钟，不改变生产上限。 */
+  now?: () => number;
+  /** 同FD格式/PCM核验属于准备阶段，不能挤占消费余量。 */
+  verify?: (handle: FileHandle, check: () => void, signal: AbortSignal) => Promise<void>;
+  finalize?: (handle: FileHandle, check: () => void, signal: AbortSignal) => Promise<void>;
+}
+/** Replica独立有限租期；旧源/编译调用的15分钟默认完全不变。 */
+export async function withVerifiedReadonlyReplicaSource<T>(root: RootCapability, relative: string, expected: { sha256: string; size: number }, signal: AbortSignal,
+  consume: (handle: FileHandle, check: () => void, signal: AbortSignal) => Promise<T>, checkOperation: () => void, options: ReplicaSourceLeaseOptions): Promise<T> {
+  const limit = (value: number | undefined, maximum: number): number => { const n = value ?? maximum; if (!Number.isSafeInteger(n) || n < 1 || n > maximum) return fail('LIMIT_EXCEEDED'); return n; };
+  const duration = limit(options.durationMs, 6 * 60 * 60_000), preparation = limit(options.preparationTimeoutMs, 15 * 60_000), finalization = limit(options.finalizationTimeoutMs, 15 * 60_000);
+  const watchMs = limit(options.watchIntervalMs, 1000), now = options.now ?? (() => performance.now());
+  const controller = new AbortController(), started = now(), totalDeadline = started + preparation + duration + 120_000 + finalization;
+  let deadline = started + preparation;
+  const abort = (error: unknown) => { if (!controller.signal.aborted) controller.abort(error); };
+  const forwarded = () => abort(signal.reason instanceof Error ? signal.reason : new SourceFileError('CANCELLED'));
+  signal.addEventListener('abort', forwarded, { once: true }); if (signal.aborted) forwarded();
+  const check = (): void => {
+    if (controller.signal.aborted) throw controller.signal.reason;
+    try { checkOperation(); if (now() > Math.min(deadline, totalDeadline)) fail('LIMIT_EXCEEDED'); }
+    catch (error) { abort(error); throw error; }
+  };
+  let handle: FileHandle | undefined, control: ReturnType<typeof setInterval> | undefined, watcher: ReturnType<typeof setInterval> | undefined, watching: Promise<void> | undefined;
+  try {
+    check(); const first = await checkedFile(root, relative);
+    if (!/^[a-f0-9]{64}$/u.test(expected.sha256) || !Number.isSafeInteger(expected.size) || expected.size < 1 || expected.size > 68_719_476_736 || first.info.size !== BigInt(expected.size) || first.info.nlink !== 1n) return fail('CONTENT_CHANGED');
+    handle = await open(first.absolute, constants.O_RDONLY | constants.O_NOFOLLOW).catch(() => fail('IO_ERROR'));
+    const opened = handle, before = await opened.stat({ bigint: true });
+    const verifyIdentity = async () => { check(); const current = await opened.stat({ bigint: true }), named = (await checkedFile(root, relative)).info; check(); if (current.nlink !== 1n || named.nlink !== 1n || signature(current) !== signature(before) || signature(named) !== signature(before)) fail('CONTENT_CHANGED'); };
+    if (signature(before) !== signature(first.info)) return fail('CONTENT_CHANGED');
+    const hashFile = async () => {
+      const hash = createHash('sha256'), chunk = Buffer.allocUnsafe(1024 * 1024); let offset = 0;
+      while (offset < expected.size) { check(); const { bytesRead } = await opened.read(chunk, 0, Math.min(chunk.length, expected.size - offset), offset); if (!bytesRead) fail('CONTENT_CHANGED'); hash.update(chunk.subarray(0, bytesRead)); offset += bytesRead; }
+      check(); if (hash.digest('hex') !== expected.sha256) fail('HASH_MISMATCH');
+    };
+    control = setInterval(() => { try { check(); } catch (error) { abort(error); } }, 50);
+    await verifyIdentity(); await hashFile(); await options.verify?.(opened, check, controller.signal); await verifyIdentity();
+    deadline = Math.min(totalDeadline - finalization, now() + duration + 120_000);
+    watcher = setInterval(() => { if (!watching) watching = verifyIdentity().catch(abort).finally(() => { watching = undefined; }); }, watchMs);
+    // consume必须等待其持有者真正close；超时只撤销signal，绝不race后释放仍在使用的FD。
+    const result = await consume(opened, check, controller.signal);
+    check(); clearInterval(watcher); if (watching) await watching; check();
+    deadline = Math.min(totalDeadline, now() + finalization);
+    await verifyIdentity(); await hashFile(); await options.finalize?.(opened, check, controller.signal); await verifyIdentity(); check(); return result;
+  } finally {
+    clearInterval(control); clearInterval(watcher); signal.removeEventListener('abort', forwarded);
+    if (watching) await watching;
+    if (handle) await handle.close();
+  }
+}
 /** 目标句柄由工作区层排他创建；这里不接收目标路径，也不修改原件属性。 */
 export async function copyReadonlySource(root: RootCapability, relative: string, expected: { sha256: string; size: number }, destination: FileHandle, signal: AbortSignal): Promise<{ sha256: string; size: number }> {
   const checkAbort = (): void => { if (signal.aborted) fail('CANCELLED'); };

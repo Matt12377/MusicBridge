@@ -1,3 +1,4 @@
+import { createRecordingReplicaClient } from './recording-replica-client.js'
 import { createRecordingRecordClient } from './recording-record-client.js'
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
@@ -331,5 +332,6 @@ contextBridge.exposeInMainWorld(
     },
     createRecordingAttemptClient((channel, value) => ipcRenderer.invoke(channel, value)),
     createRecordingRecordClient((channel, value) => ipcRenderer.invoke(channel, value)),
+    createRecordingReplicaClient((channel, value) => ipcRenderer.invoke(channel, value)),
   ),
 )

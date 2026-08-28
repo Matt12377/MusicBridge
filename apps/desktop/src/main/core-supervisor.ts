@@ -158,7 +158,7 @@ export class CoreSupervisor {
     }
     const timedCommand = command === 'commandOutbox.execute' && 'command' in payload ? String(payload.command) : command
     const timeoutMs =
-      ['recordingOutput.check', 'recordingPlans.preview', 'recordingPlans.freeze', 'recordingPlans.preflight', 'recordingArchive.preview', 'recordingArchive.start', 'recordingArchive.verify', 'recordingArchive.initialize', 'recordingExecution.preview', 'recordingExecution.start', 'recordingExecution.verify', 'recordingPrepared.previewImport', 'recordingPrepared.startImport', 'recordingPrepared.review', 'recordingPrepared.freeze'].includes(timedCommand)
+      ['recordingReplica.inspect', 'recordingOutput.check', 'recordingPlans.preview', 'recordingPlans.freeze', 'recordingPlans.preflight', 'recordingArchive.preview', 'recordingArchive.start', 'recordingArchive.verify', 'recordingArchive.initialize', 'recordingExecution.preview', 'recordingExecution.start', 'recordingExecution.verify', 'recordingPrepared.previewImport', 'recordingPrepared.startImport', 'recordingPrepared.review', 'recordingPrepared.freeze'].includes(timedCommand)
       ? PREPARED_FILE_REQUEST_TIMEOUT_MS
       : command.startsWith('library.') ||
       command.startsWith('roon.library.') ||

@@ -1,3 +1,4 @@
+import { RecordingReplicaError } from './recording/replica-error.js';
 import { AttemptError } from './recording/attempt-integrity.js';
 import { RecordingRecordError } from './recording/record-integrity.js';
 import { OutputCheckError } from './recording/output-error.js';
@@ -81,6 +82,11 @@ function requestId(value: unknown): string | undefined {
 }
 
 function failureForError(id: string, error: unknown): IpcFailure {
+  if (error instanceof RecordingReplicaError) {
+    const code = error.code === 'INVALID_REQUEST' ? 'INVALID_IPC_REQUEST' : error.code === 'BACKEND_UNAVAILABLE' ? 'NOT_READY'
+      : error.code === 'RUN_CONFLICT' || error.code === 'READ_CONFLICT' ? 'INVENTORY_CONFLICT' : error.code === 'TIMEOUT' ? 'TIMEOUT' : 'INVENTORY_UNAVAILABLE';
+    return responseFailure(id, code, '历史音频操作未获确认，请核对原档案与会话；不会自动替换来源或重新播放。');
+  }
   if (error instanceof RecordingRecordError) {
     const code = error.code === 'INVALID_REQUEST' ? 'INVALID_IPC_REQUEST' : error.code === 'NOT_READY' ? 'NOT_READY'
       : error.code === 'CONFLICT' || error.code === 'COMMAND_CONFLICT' ? 'INVENTORY_CONFLICT' : 'INVENTORY_UNAVAILABLE';
@@ -178,6 +184,10 @@ function executionFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.execution) throw new CollectionError('INVENTORY_UNAVAILABLE', '执行资产服务尚未就绪，请重试。');
   return runtime.execution;
 }
+function recordingReplicaFor(runtime: CoreRuntimeForIpc) {
+  if (!runtime.recordingReplica) throw new RecordingReplicaError('BACKEND_UNAVAILABLE');
+  return runtime.recordingReplica;
+}
 function recordingRecordsFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.recordingRecords) throw new CollectionError('INVENTORY_UNAVAILABLE', '录音档案服务尚未就绪。');
   return runtime.recordingRecords;
@@ -226,7 +236,7 @@ async function dispatch(
   runtime: CoreRuntimeForIpc,
   request: IpcRequest,
 ): Promise<unknown> {
-  if ((request.command.startsWith('recordingAttempts.') || request.command.startsWith('recordingRecords.')) && (!request.expectedDatasetId || !runtime.commandOutbox)) throw new DatasetScopeError();
+  if ((request.command.startsWith('recordingAttempts.') || request.command.startsWith('recordingRecords.') || request.command.startsWith('recordingReplica.')) && (!request.expectedDatasetId || !runtime.commandOutbox)) throw new DatasetScopeError();
   if (request.expectedDatasetId !== undefined) {
     if (!runtime.commandOutbox) throw new CollectionError('INVENTORY_UNAVAILABLE', '工作库身份尚未就绪。');
     runtime.commandOutbox.assertScope(request.expectedDatasetId);
@@ -269,6 +279,12 @@ async function dispatch(
     case 'recordingBackups.start': return backupsFor(runtime).start(request.payload as IpcCommandPayloads['recordingBackups.start']);
     case 'recordingBackups.cancel': return backupsFor(runtime).cancel(request.payload as IpcCommandPayloads['recordingBackups.cancel']);
     case 'recordingBackups.revoke': return backupsFor(runtime).revoke(request.payload as IpcCommandPayloads['recordingBackups.revoke']);
+    case 'recordingReplica.status': return recordingReplicaFor(runtime).status();
+    case 'recordingReplica.inspect': return recordingReplicaFor(runtime).inspect(request.payload as IpcCommandPayloads['recordingReplica.inspect']);
+    case 'recordingReplica.cancelRead': return recordingReplicaFor(runtime).cancelRead(request.payload as IpcCommandPayloads['recordingReplica.cancelRead']);
+    case 'recordingReplica.start': return recordingReplicaFor(runtime).start(request.payload as IpcCommandPayloads['recordingReplica.start']);
+    case 'recordingReplica.get': return recordingReplicaFor(runtime).get(request.payload as IpcCommandPayloads['recordingReplica.get']);
+    case 'recordingReplica.stop': return recordingReplicaFor(runtime).stop(request.payload as IpcCommandPayloads['recordingReplica.stop']);
     case 'recordingRecords.list': return recordingRecordsFor(runtime).list(request.payload as IpcCommandPayloads['recordingRecords.list']);
     case 'recordingRecords.get': return recordingRecordsFor(runtime).get(request.payload as IpcCommandPayloads['recordingRecords.get']);
     case 'recordingRecords.visual': return recordingRecordsFor(runtime).visual(request.payload as IpcCommandPayloads['recordingRecords.visual']);

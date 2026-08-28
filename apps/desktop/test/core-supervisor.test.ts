@@ -555,6 +555,21 @@ test('outbox包装保留归档长操作预算，普通控制请求仍按短期�
 })
 
 
+for (const method of ['status', 'inspect', 'cancelRead', 'start', 'get', 'stop'] as const) {
+  test(`recordingReplica.${method} 只有归档核验使用长期限，会话派发和停止保持短期限`, async t => {
+    t.mock.timers.enable({ apis: ['setTimeout'] })
+    const harness = makeHarness(), starting = harness.supervisor.start(); ready(harness.channels[0]!); await starting
+    const id = randomUUID(), payload = method === 'status' ? {} : method === 'inspect' ? { readId: id, recordingId: id }
+      : method === 'cancelRead' ? { readId: id } : method === 'start' ? { runId: id, recordingId: id, target: 'actual-execution', side: 'A', expectedFingerprint: 'a'.repeat(64), userConfirmed: true } : { runId: id }
+    let settled = false
+    const pending = harness.supervisor.request(`recordingReplica.${method}`, payload as never, randomUUID()).then(() => { settled = true; return undefined }, error => { settled = true; return error })
+    t.mock.timers.tick(45); await new Promise<void>(resolve => setImmediate(resolve)); const early = settled
+    if (method === 'inspect') t.mock.timers.tick(35 * 60_000)
+    const result = await pending; t.mock.timers.reset(); await harness.supervisor.shutdown()
+    assert.equal(early, method !== 'inspect'); assert.equal(result.code, 'TIMEOUT')
+  })
+}
+
 for (const command of ['recordingOutput.check', 'recordingOutput.status', 'recordingOutput.cancel'] as const) {
   test(`${command} 只有完整文件检查使用长期限，状态和取消保留短期限`, async t => {
     t.mock.timers.enable({ apis: ['setTimeout'] })

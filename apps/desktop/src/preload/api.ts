@@ -1,3 +1,4 @@
+import type { RecordingReplicaPublicApi } from '@music-bridge/contracts'
 import type { RecordingRecordsPublicApi } from '@music-bridge/contracts'
 import type { RecordingAttemptsPublicApi } from '@music-bridge/contracts'
 import type { RecordingPlansPublicApi } from '@music-bridge/contracts'
@@ -65,7 +66,7 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
   autoReconnect: false,
 }
 
-export interface MusicBridgePublicApi extends RecordingRecordsPublicApi, RecordingAttemptsPublicApi, RecordingOutputPublicApi, RecordingPlansPublicApi, CollectionProgressPublicApi, SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
+export interface MusicBridgePublicApi extends RecordingReplicaPublicApi, RecordingRecordsPublicApi, RecordingAttemptsPublicApi, RecordingOutputPublicApi, RecordingPlansPublicApi, CollectionProgressPublicApi, SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
   getAppInfo: () => Promise<AppInfo>
   getCoreHealth: () => Promise<PublicBridgeState>
   getCoreState: () => Promise<PublicBridgeState>
@@ -139,6 +140,12 @@ export interface MusicBridgePublicApi extends RecordingRecordsPublicApi, Recordi
 }
 
 export const PUBLIC_API_KEYS = [
+  'getRecordingReplicaStatus',
+  'inspectRecordingReplica',
+  'cancelRecordingReplicaRead',
+  'startRecordingReplica',
+  'getRecordingReplicaRun',
+  'stopRecordingReplica',
   'listRecordingRecords',
   'getRecordingRecord',
   'getRecordingRecordVisual',
@@ -533,10 +540,12 @@ export function createPreloadApi(
   recordingOutputApi?: RecordingOutputPublicApi,
   recordingAttemptsApi?: RecordingAttemptsPublicApi,
   recordingRecordsApi?: RecordingRecordsPublicApi,
+  recordingReplicaApi?: RecordingReplicaPublicApi,
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   const outputUnavailable = async (): Promise<never> => { throw new Error('输出核验服务暂时不可用；未访问设备。') }
   return Object.freeze({
+    ...(recordingReplicaApi ?? { getRecordingReplicaStatus: collectionUnavailable, inspectRecordingReplica: collectionUnavailable, cancelRecordingReplicaRead: collectionUnavailable, startRecordingReplica: collectionUnavailable, getRecordingReplicaRun: collectionUnavailable, stopRecordingReplica: collectionUnavailable }),
     ...(recordingRecordsApi ?? { listRecordingRecords: collectionUnavailable, getRecordingRecord: collectionUnavailable, getRecordingRecordVisual: collectionUnavailable, getPhysicalRecordingHistory: collectionUnavailable, previewPhysicalRecordingDisposition: collectionUnavailable, applyPhysicalRecordingDisposition: collectionUnavailable }),
     ...(recordingAttemptsApi ?? { listRecordingAttempts: collectionUnavailable, getRecordingAttempt: collectionUnavailable, beginRecordingAttempt: collectionUnavailable, confirmRecordingAttempt: collectionUnavailable, beginRecordingAttemptSide: collectionUnavailable, stopRecordingAttempt: collectionUnavailable }),
     ...(recordingOutputApi ?? { getRecordingOutputStatus: outputUnavailable, checkRecordingOutput: outputUnavailable, cancelRecordingOutputCheck: outputUnavailable }),

@@ -1,8 +1,12 @@
 <script setup lang="ts">
+import { nextTick, ref } from 'vue'
 import type { RecordingRecordDetail, RecordingVisualAbsence } from '@music-bridge/contracts'
 import type { RecordingRecordState } from './recording-record-controller'
+import RecordingReplicaPanel from './RecordingReplicaPanel.vue'
 defineProps<{ detail: RecordingRecordDetail; state: RecordingRecordState }>()
 const emit = defineEmits<{ visual: [id: string]; imageError: [] }>()
+const replicaOpen = ref(false), replicaTrigger = ref<HTMLButtonElement>()
+async function closeReplica(): Promise<void> { replicaOpen.value = false; await nextTick(); replicaTrigger.value?.focus({ preventScroll: true }) }
 const absence = (value: RecordingVisualAbsence) => ({ 'not-provided': '未提供', 'not-implemented': '尚未实现', 'not-applicable': '不适用' })[value.reason]
 const frame = (value: number) => value.toLocaleString('zh-CN')
 </script>
@@ -11,6 +15,8 @@ const frame = (value: number) => value.toLocaleString('zh-CN')
     <h3 tabindex="-1">录音档案详情</h3>
     <h4>{{ detail.plan.master.title }}</h4>
     <p>这是首次完成时保存的历史快照；后续重录、修改资料或删除原照片均不改写它。</p>
+    <button ref="replicaTrigger" type="button" @click="replicaOpen = true">Digital Replica</button>
+    <RecordingReplicaPanel v-if="replicaOpen" :key="detail.record.id" :detail="detail" @close="closeReplica" />
     <dl><dt>档案编号</dt><dd>{{ detail.record.id }}</dd><dt>实体编号</dt><dd>{{ detail.record.completion.physicalId }}</dd><dt>首次完成时间</dt><dd>{{ detail.record.completion.endedAt }}</dd><dt>快照来源</dt><dd>{{ detail.record.media.snapshotSource === 'completion' ? '完成时快照' : '旧记录，仅保留冻结计划证据' }}</dd><dt>介质</dt><dd>{{ detail.record.media.descriptor ? `${detail.record.media.descriptor.brand} · ${detail.record.media.descriptor.name}` : '历史品牌与系列未知，未用当前资料补填' }}</dd><dt>长度</dt><dd>{{ detail.record.media.lengthMinutes === null ? '未知' : `${detail.record.media.lengthMinutes} 分钟` }}</dd><dt>原始来源</dt><dd>{{ ({ 'blank-pool': '空白库存', 'legacy-registration': '旧录音登记', unclassified: '未分类' })[detail.record.media.origin] }}</dd></dl>
     <div class="notice"><p>软件播放完成：已完成</p><p>实体录制确认：{{ detail.record.completion.physicalRecordingConfirmedAt }}</p><p>最终核验完成：{{ detail.record.completion.finalVerificationCompleteAt }}</p><p>这是历史完成证据，不代表此实体当前仍是这份内容。</p></div>
     <section v-for="side in detail.record.completion.sides" :key="side.side" class="card">

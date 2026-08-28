@@ -1,3 +1,4 @@
+import { isRecordingReplicaStatus, isInspectRecordingReplicaRequest, isRecordingReplicaReadIdRequest, isStartRecordingReplicaRequest, isRecordingReplicaRunIdRequest, isRecordingReplicaInspection, isRecordingReplicaReadCancellation, isRecordingReplicaRun } from './recording-replica.js';
 import { isListRecordingRecordsRequest, isRecordingRecordIdRequest, isRecordingVisualRequest, isPhysicalRecordingHistoryRequest, isPreviewPhysicalRecordingDispositionRequest, isApplyPhysicalRecordingDispositionRequest, isRecordingRecordsPage, isRecordingRecordDetail, isRecordingVisualResult, isPhysicalRecordingHistory, isPhysicalRecordingDispositionProposal, isApplyPhysicalRecordingDispositionResult } from './recording-records.js';
 import { isRecordingOutputStatus, isRecordingOutputCheckRequest, isRecordingOutputCancelRequest, isRecordingOutputCheckResult } from './recording-output.js';
 import { isListRecordingAttemptsRequest, isRecordingAttemptIdRequest, isBeginRecordingAttemptRequest, isConfirmRecordingAttemptRequest, isBeginRecordingAttemptSideRequest, isStopRecordingAttemptRequest, isRecordingAttemptsPage, isRecordingAttempt } from './recording-attempts.js';
@@ -980,6 +981,11 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'recordingPlans.preview') return isPreviewRecordingPlanRequest(payload);
   if (command === 'recordingPlans.freeze') return isFreezeRecordingPlanRequest(payload);
   if (command === 'recordingPlans.preflight') return isRecordingPreflightRequest(payload);
+  if (command === 'recordingReplica.status') return isEmptyPayload(payload);
+  if (command === 'recordingReplica.inspect') return isInspectRecordingReplicaRequest(payload);
+  if (command === 'recordingReplica.cancelRead') return isRecordingReplicaReadIdRequest(payload);
+  if (command === 'recordingReplica.start') return isStartRecordingReplicaRequest(payload);
+  if (command === 'recordingReplica.get' || command === 'recordingReplica.stop') return isRecordingReplicaRunIdRequest(payload);
   if (command === 'recordingOutput.status') return isEmptyPayload(payload);
   if (command === 'recordingOutput.check') return isRecordingOutputCheckRequest(payload);
   if (command === 'recordingOutput.cancel') return isRecordingOutputCancelRequest(payload);
@@ -1549,6 +1555,11 @@ function isCommandResult(
     case 'recordingPlans.freeze': return isRecordingPlanVersion(value);
     case 'recordingPlans.preflight': return isRecordingPreflightResult(value);
     case 'recordingPlans.cancelRead': return isRecord(value) && hasOnlyKeys(value, ['cancelled']) && value.cancelled === true;
+    case 'recordingReplica.status': return isRecordingReplicaStatus(value);
+    case 'recordingReplica.inspect': return isRecordingReplicaInspection(value);
+    case 'recordingReplica.cancelRead': return isRecordingReplicaReadCancellation(value);
+    case 'recordingReplica.start': case 'recordingReplica.stop': return isRecordingReplicaRun(value);
+    case 'recordingReplica.get': return isRecord(value) && hasOnlyKeys(value, ['run']) && (value.run === null || isRecordingReplicaRun(value.run));
     case 'recordingOutput.status': return isRecordingOutputStatus(value);
     case 'recordingOutput.check': return isRecordingOutputCheckResult(value);
     case 'recordingOutput.cancel': return isRecord(value) && hasOnlyKeys(value, ['cancelled']) && value.cancelled === true;

@@ -38,3 +38,5 @@ export * from './recording-plans.js';
 export * from './recording-output.js';
 export * from './recording-attempts.js';
 export * from './recording-records.js';
+
+export * from './recording-replica.js';

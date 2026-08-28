@@ -17,12 +17,12 @@ export interface RecordingAttemptAdmissionProvider {
   start(request: RecordingAttemptDriverRequest): Promise<RecordingAttemptDriver>;
 }
 interface Options {
-  store: RecordingAttemptStore; admissionProvider?: RecordingAttemptAdmissionProvider; assertCurrent?: () => void;
+  store: RecordingAttemptStore; admissionProvider?: RecordingAttemptAdmissionProvider; assertCurrent?: () => void; assertReplicaIdle?: () => void;
   operationTimeoutMs?: number; closeTimeoutMs?: number;
 }
 interface Slot { controller: AbortController; attemptId?: string; side?: dto.RenderSide; runId?: string; handle?: RecordingAttemptDriver; wantsClose: boolean; closing?: Promise<void>; pendingStart?: Promise<RecordingAttemptDriver> }
 
-export function createRecordingAttemptCoordinator({ store, admissionProvider, assertCurrent = () => {}, operationTimeoutMs = 30 * 60_000, closeTimeoutMs = 5_000 }: Options) {
+export function createRecordingAttemptCoordinator({ store, admissionProvider, assertCurrent = () => {}, assertReplicaIdle = () => {}, operationTimeoutMs = 30 * 60_000, closeTimeoutMs = 5_000 }: Options) {
   if (!Number.isSafeInteger(operationTimeoutMs) || operationTimeoutMs < 1 || operationTimeoutMs > 30 * 60_000 || !Number.isSafeInteger(closeTimeoutMs) || closeTimeoutMs < 1 || closeTimeoutMs > 5_000) return attemptFail('INVALID_REQUEST');
   let closed = false, slot: Slot | undefined, closing: Promise<void> | undefined;
   const commands = new Map<string, { fingerprint: string; promise: Promise<dto.RecordingAttempt> }>();
@@ -77,6 +77,7 @@ export function createRecordingAttemptCoordinator({ store, admissionProvider, as
   async function execute(request: dto.BeginRecordingAttemptRequest | dto.BeginRecordingAttemptSideRequest, side?: 'B'): Promise<dto.RecordingAttempt> {
     open(); if (!admissionProvider) return attemptFail('BACKEND_NOT_CERTIFIED');
     if (slot) return attemptFail('ATTEMPT_CONFLICT');
+    try { assertReplicaIdle(); } catch { return attemptFail('ATTEMPT_CONFLICT'); }
     const previous = 'attemptId' in request ? store.get({ attemptId: request.attemptId }).attempt ?? attemptFail('ATTEMPT_NOT_FOUND') : undefined;
     if (previous && ('expectedRevision' in request && previous.revision !== request.expectedRevision)) return attemptFail('VERSION_MISMATCH');
     if (previous && (previous.phase !== 'awaiting-side-b' || previous.status !== 'in-progress')) return attemptFail('INVALID_TRANSITION');

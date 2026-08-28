@@ -48,6 +48,51 @@ class FakePort implements UtilityPort {
   }
 }
 
+test('Replica六IPC强制固定工作库，未知设备入口不可派发', async () => {
+  const datasetId = randomUUID(), id = randomUUID(), calls: Array<[string, unknown]> = [];
+  const cases: Array<[string, unknown]> = [['status', {}], ['inspect', { readId: id, recordingId: id }], ['cancelRead', { readId: id }],
+    ['start', { runId: id, recordingId: id, target: 'actual-execution', side: 'A', expectedFingerprint: 'a'.repeat(64), userConfirmed: true }], ['get', { runId: id }], ['stop', { runId: id }]];
+  let failure: Error | undefined;
+  const service = Object.fromEntries(cases.map(([method]) => [method, (payload: unknown) => { if (failure) throw failure; calls.push([method, payload]); return { dispatched: method }; }]));
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { recordingReplica: service, commandOutbox: createDatasetCommandBoundary({ datasetId, assertCurrent: () => {} }) }) as unknown as CoreRuntimeForIpc);
+  async function rpc(method: string, payload: unknown, scope?: string) {
+    const requestId = randomUUID(); port.send({ version: 1, id: requestId, command: `recordingReplica.${method}`, payload, ...(scope ? { expectedDatasetId: scope } : {}) });
+    await new Promise(resolve => setImmediate(resolve));
+    return port.messages.find(m => (m as { id?: string }).id === requestId) as { ok: boolean; result?: unknown; error?: { code: string; message: string } };
+  }
+  for (const [method, payload] of cases) {
+    assert.equal((await rpc(method, payload)).error?.code, 'OUTBOX_SCOPE_MISMATCH');
+    assert.equal((await rpc(method, payload, randomUUID())).error?.code, 'OUTBOX_SCOPE_MISMATCH');
+  }
+  assert.equal(calls.length, 0);
+  for (const [method, payload] of cases) assert.deepEqual((await rpc(method, payload, datasetId)).result, { dispatched: method });
+  assert.deepEqual(calls, cases.map(([method, payload]) => [method, method === 'status' ? undefined : payload]));
+  assert.equal((await rpc('openDevice', { deviceId: 1 }, datasetId)).ok, false);
+  assert.equal((await rpc('replaceSource', { path: '/private/synthetic.wav' }, datasetId)).ok, false);
+  const { RecordingReplicaError } = await import('../src/recording/replica-error.js');
+  for (const [code, publicCode] of [['INVALID_REQUEST', 'INVALID_IPC_REQUEST'], ['BACKEND_UNAVAILABLE', 'NOT_READY'], ['RUN_CONFLICT', 'INVENTORY_CONFLICT'], ['READ_CONFLICT', 'INVENTORY_CONFLICT'], ['TIMEOUT', 'TIMEOUT'], ['INPUT_CHANGED', 'INVENTORY_UNAVAILABLE'], ['RUN_LIMIT', 'INVENTORY_UNAVAILABLE'], ['AUTHORIZATION_REVOKED', 'INVENTORY_UNAVAILABLE'], ['CLOSED', 'INVENTORY_UNAVAILABLE']] as const) {
+    failure = new RecordingReplicaError(code); failure.message = '/private/synthetic-replica-error';
+    const result = await rpc('start', cases[3]![1], datasetId);
+    assert.equal(result.error?.code, publicCode); assert.equal(result.error!.message.includes('/private'), false);
+  }
+});
+
+test('实际Runtime提供Replica但无后端不创建会话，关闭后服务失效', async () => {
+  const runtime = createTestBridgeRuntime();
+  type Service = { status(): unknown; start(request: unknown): unknown; get(request: unknown): unknown };
+  try {
+    const replica = (runtime as unknown as { recordingReplica?: Service }).recordingReplica;
+    assert.ok(replica, '缺少实际Replica服务');
+    assert.deepEqual(await replica.status(), { playback: 'blocked', reason: 'BACKEND_UNAVAILABLE', deviceAccess: 'not-authorized', deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' });
+    const request = { runId: randomUUID(), recordingId: randomUUID(), target: 'actual-execution', side: 'A', expectedFingerprint: 'a'.repeat(64), userConfirmed: true };
+    await assert.rejects(Promise.resolve().then(() => replica.start(request)), /BACKEND_UNAVAILABLE|NOT_READY/u);
+    assert.deepEqual(await replica.get({ runId: request.runId }), { run: null });
+    await runtime.shutdown();
+    await assert.rejects(Promise.resolve().then(() => replica.status()), /CLOSED/u);
+  } finally { await runtime.shutdown(); }
+});
+
 test('档案六IPC在Core重验原工作库，拒绝缺失或跨库scope且不派发处置', async () => {
   const datasetId = randomUUID(), id = randomUUID(), calls: Array<[string, unknown]> = [];
   const preview = { physicalId: 'MB-C-00427', expectedPhysicalRevision: 1, expectedContentRevision: 0, expectedAttempt: null, intent: { action: 'mark-content-unknown' } };

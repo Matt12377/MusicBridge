@@ -93,3 +93,5 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 - [TASK-074](TASK-074-recording-attempts.md)：录音Attempt状态机、不可变事实、崩溃中断及介质保护；本地Gate通过，真实输出准入仍阻断。
 
 - [TASK-075](TASK-075-recording-records.md)：不可变录音档案、检索、当前内容认知与双库同步；本地Gate162/1035/505、安全29、Electron4、E2E86通过，实机及Owner待验。
+
+- [TASK-076](TASK-076-digital-replica.md)：历史执行音频/原始Render与有限Replica会话；本地软件Gate通过（174/1066/532、安全29、Electron4、E2E88），可听播放及Owner待验。
