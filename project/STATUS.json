@@ -82,7 +82,7 @@
     "branch": "codex/task-073-output-backend",
     "baseCommit": "6c94350575ab2a21f7aeef36713b9a3d868e4bdf",
     "state": "in-progress",
-    "implementationCommit": null,
+    "implementationCommit": "baff4bef0a7890c5ecd0cd19af7d5e6164554232",
     "reportCommit": null,
     "previousTask": {
       "task": "TASK-072",
