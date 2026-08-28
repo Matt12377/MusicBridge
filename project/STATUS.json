@@ -211,7 +211,7 @@
     "exitValidationContinuation": {
       "baseCommit": "81dbd2621774ba84d017cff3b98734d63e75fd4f",
       "implementationCommit": "27df7e7cd2eda1698f96fbaa45c6d8cd801ad8bb",
-      "reportCommit": null,
+      "reportCommit": "5997d8405418ebbd92f4f4d54404f9a11a77fe70",
       "scope": "bounded-startup-gate-and-synthetic-config-isolation",
       "state": "local-gates-pass-packaged-startup-pass-prior-debug-exit-unresolved",
       "candidateSha256": "789a3820a67046af0ce3f23a8ab7e2953aa919a98479581f76fd2d944b5b5c7f",
