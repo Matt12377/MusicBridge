@@ -82,7 +82,7 @@
     "branch": "codex/task-076-digital-replica",
     "baseCommit": "7f890be5badee3e9ea08355729e29c5aefeec377",
     "state": "local-software-gates-pass-audible-replica-pending",
-    "implementationCommit": null,
+    "implementationCommit": "8aef55b44ab147c6e07d28c541473030cbce0c6a",
     "reportCommit": null,
     "previousTask": {
       "task": "TASK-075",
@@ -136,7 +136,7 @@
       "TASK-076历史核验与私有synthetic会话已通过本地软件Gate；实际可听Replica及正式provider接线须随073设备准入和079另验，当前始终blocked"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task076-r2-frozen-full-gates-pass-awaiting-local-commit",
+    "checkpoint": "task076-software-gates-pass-report-prepared",
     "nextTask": "TASK-077",
     "resultReport": "reports/TASK-076_RESULT.md",
     "candidateFingerprint": "489612f88769a67e09a9cda713b77258a0fdc3946cacc5c8ff7b1365f5ffc591"
