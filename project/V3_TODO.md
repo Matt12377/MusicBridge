@@ -7,7 +7,7 @@
 ## 开发队列
 
 - [x] **TASK-064：一致性快照与归档内容备份基础** — 本地自动 Gate 通过，Owner 未验收。SQLite Backup API、快照内引用闭包、内容字节完整校验、无覆盖发布。
-- [ ] **TASK-065：隔离恢复与基本索引重建** — 本地自动 Gate 通过，最终提交核验中。隔离目录恢复、重复恢复冲突、Manifest 重建、Quarantine；不覆盖当前用户数据。
+- [x] **TASK-065：隔离恢复与基本索引重建** — 本地自动 Gate 通过，激活/UI 与 Owner 未完成。隔离目录恢复、重复恢复冲突、Manifest 重建、Quarantine；不覆盖当前用户数据。
 - [ ] **TASK-066：桌面备份与恢复工作流** — 待开发。原生目录授权、Backup Archive Now、备份范围、后台任务、明确恢复确认。
 - [ ] **TASK-067：持久命令 outbox** — 待开发。跨 Renderer/应用重启恢复未确认命令，幂等与冲突提示。
 - [ ] **TASK-068：参考目录与版次修订** — 待开发。ReferenceSourceVersion、CatalogRevision、未知与缺失分开、合并拆分审核。

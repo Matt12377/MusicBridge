@@ -83,7 +83,7 @@
     "baseCommit": "7dab2bfdaa37d7dcb56e09f66e61f25a14e22420",
     "state": "local-automated-pass",
     "implementationCommit": "2aa79d23a87f41ad2daacbd063d80ba535a98e98",
-    "reportCommit": null,
+    "reportCommit": "284f98edbf46877c279088dcf361f48485d606b4",
     "previousTask": {
       "task": "TASK-064",
       "implementationCommit": "51c0329e96d11e39326d8347212aef82e3bc459d",
