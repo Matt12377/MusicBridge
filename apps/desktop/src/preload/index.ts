@@ -290,5 +290,18 @@ contextBridge.exposeInMainWorld(
       getCatalogSnapshot: request => ipcRenderer.invoke('referenceCatalog:snapshot', request),
       getCatalogHistory: request => ipcRenderer.invoke('referenceCatalog:history', request),
     },
+    {
+      chooseSpreadsheetWorkbook: request => outbox.submit('spreadsheetImports.chooseWorkbook', request),
+      listSpreadsheetSources: request => ipcRenderer.invoke('spreadsheetImports:sources', request),
+      getSpreadsheetSource: request => ipcRenderer.invoke('spreadsheetImports:source', request),
+      getSpreadsheetSourceRows: request => ipcRenderer.invoke('spreadsheetImports:sourceRows', request),
+      previewSpreadsheetImport: request => ipcRenderer.invoke('spreadsheetImports:preview', request),
+      applySpreadsheetImport: request => outbox.submit('spreadsheetImports.apply', request),
+      getSpreadsheetImportRevision: request => ipcRenderer.invoke('spreadsheetImports:revision', request),
+      listSpreadsheetImportHistory: request => ipcRenderer.invoke('spreadsheetImports:history', request),
+      previewSpreadsheetAdjustment: request => ipcRenderer.invoke('spreadsheetImports:adjustmentPreview', request),
+      adjustSpreadsheetInventory: request => outbox.submit('spreadsheetImports.adjust', request),
+      listSpreadsheetAdjustments: request => ipcRenderer.invoke('spreadsheetImports:adjustments', request),
+    },
   ),
 )

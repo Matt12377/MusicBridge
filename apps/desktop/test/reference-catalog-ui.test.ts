@@ -181,9 +181,10 @@ test('实际面板默认空来源；显式合成示例与独立确认才能登�
   const compiled = ts.transpileModule(script.content, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
   const contracts = await import('@music-bridge/contracts')
   const controllerModule = await import('../src/renderer/src/components/collection/reference-catalog-controller.js')
+  const displayModule = await import('../src/renderer/src/components/collection/collection-display.js')
   const f = controllerFixture()
   const module = { exports: {} as { default: import('vue').Component } }
-  new Function('require', 'module', 'exports', 'window', compiled)((name: string) => name === 'vue' ? vue : name === '@music-bridge/contracts' ? contracts : name.includes('reference-catalog-controller') ? controllerModule : require(name), module, module.exports, { musicBridge: f.api })
+  new Function('require', 'module', 'exports', 'window', compiled)((name: string) => name === 'vue' ? vue : name === '@music-bridge/contracts' ? contracts : name.includes('reference-catalog-controller') ? controllerModule : name.includes('collection-display') ? displayModule : require(name), module, module.exports, { musicBridge: f.api })
   interface Host { children: Host[]; parent: Host | null }
   const node = (): Host => ({ children: [], parent: null })
   const renderer = vue.createRenderer<Host, Host>({ createElement: node, createText: node, createComment: node, setText() {}, setElementText() {}, patchProp() {}, insert(child, parent) { child.parent = parent; parent.children.push(child) }, remove() {}, parentNode: n => n.parent, nextSibling: () => null })

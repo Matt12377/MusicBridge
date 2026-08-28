@@ -1,4 +1,5 @@
 import { installReferenceCatalogReads } from './reference-catalog-ipc.js'
+import { installSpreadsheetImportReads } from './spreadsheet-import-ipc.js'
 import { createCommandOutboxStore } from './command-outbox-store.js'
 import { createCommandOutboxService, type CommandOutboxService } from './command-outbox-service.js'
 import { createCommandOutboxExecutor } from './command-outbox-executor.js'
@@ -1199,6 +1200,7 @@ function registerIpcHandlers(
     return supervisor.request('recordingPrepared.list', { draftId })
   }))
   installReferenceCatalogReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installSpreadsheetImportReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   ipcMain.handle('recordingPrepared:selections', (event, preparationId: unknown) => invokeCore(event, () => {
     if (!isCollectionId(preparationId)) return publicIpcFailure('INVALID_IPC_REQUEST', 'PREP 请求无效或未确认')
     return supervisor.request('recordingPrepared.selections', { preparationId })

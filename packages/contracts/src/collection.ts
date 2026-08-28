@@ -10,7 +10,7 @@ export interface CollectionDescriptor {
   year: number | null;
   format: CollectionFormat;
   tapeType: 'I' | 'II' | 'III' | 'IV' | 'dat' | 'unknown';
-  identification: 'unidentified' | 'candidate' | 'verified';
+  identification: 'unidentified' | 'partial' | 'candidate' | 'verified';
 }
 export interface CollectionQuantities {
   sealedBlank: number;
@@ -43,6 +43,7 @@ export interface CollectionLot {
   skuId: string;
   lengthMinutes: number | null;
   quantityAcquired: number;
+  quantityAdjustment?: number;
   quantities: CollectionQuantities;
 }
 export interface CollectionCopy {
@@ -136,13 +137,21 @@ const quantityKeys = ['sealedBlank', 'openedBlank', 'legacyUsed', 'unclassified'
 export function isCollectionDescriptor(v: unknown): v is CollectionDescriptor {
   return record(v) && keys(v, descriptorKeys) && text(v.brand) && text(v.name) && text(v.edition, true)
     && (v.year === null || integer(v.year, 1900, 2200))
-    && ['cassette', 'dat'].includes(String(v.format))
-    && (v.format === 'dat' ? v.tapeType === 'dat' : ['I', 'II', 'III', 'IV', 'unknown'].includes(String(v.tapeType)))
-    && ['unidentified', 'candidate', 'verified'].includes(String(v.identification))
+    && typeof v.format === 'string' && ['cassette', 'dat'].includes(v.format)
+    && (v.format === 'dat' ? v.tapeType === 'dat' : typeof v.tapeType === 'string' && ['I', 'II', 'III', 'IV', 'unknown'].includes(v.tapeType))
+    && typeof v.identification === 'string' && ['unidentified', 'candidate', 'verified'].includes(v.identification)
     && (v.identification !== 'verified' || (typeof v.edition === 'string' && v.edition.trim().length > 0));
 }
 export function isCollectionQuantities(v: unknown): v is CollectionQuantities {
   return record(v) && keys(v, quantityKeys) && quantityKeys.every(k => integer(v[k]));
+}
+/** 导入与读取允许真实空字段；手工 receive 仍使用严格描述验证器。 */
+export function isImportedCollectionDescriptor(v: unknown): v is CollectionDescriptor {
+  if (isCollectionDescriptor(v)) return true;
+  return record(v) && keys(v, descriptorKeys) && text(v.brand, true) && text(v.name, true) && text(v.edition, true)
+    && (v.year === null || integer(v.year, 1900, 2200)) && (v.format === 'cassette' || v.format === 'dat')
+    && (v.format === 'dat' ? v.tapeType === 'dat' : typeof v.tapeType === 'string' && ['I', 'II', 'III', 'IV', 'unknown'].includes(v.tapeType))
+    && typeof v.identification === 'string' && ['unidentified', 'partial', 'candidate'].includes(v.identification);
 }
 export function isCollectionReceiveRequest(v: unknown): v is CollectionReceiveRequest {
   return record(v) && keys(v, ['commandId', 'model', 'lengthMinutes', 'quantities'])
@@ -180,7 +189,7 @@ export function isCollectionModel(v: unknown): v is CollectionModel {
   const countKeys = ['total', 'sealedBlank', 'openedBlank', 'legacyUsed', 'recorded', 'reserved', 'unavailable', 'unknown'];
   if (!record(v.counts) || !keys(v.counts, countKeys) || !countKeys.every(k => integer((v.counts as Record<string, unknown>)[k]))) return false;
   const counts = v.counts as unknown as CollectionCounts;
-  return isCollectionDescriptor(descriptor) && isCollectionId(v.id) && policy(v.collectorPolicy)
+  return isImportedCollectionDescriptor(descriptor) && isCollectionId(v.id) && policy(v.collectorPolicy)
     && integer(v.minimumSealedReserve) && integer(v.revision, 1)
     && Array.isArray(v.lengths) && v.lengths.length <= 100 && v.lengths.every(length)
     && counts.total === counts.sealedBlank + counts.openedBlank + counts.legacyUsed + counts.recorded + counts.reserved + counts.unavailable + counts.unknown;
@@ -190,10 +199,12 @@ export function isCollectionPage<T>(v: unknown, item: (v: unknown) => v is T): v
     && integer(v.limit, 1, 100) && integer(v.total) && Array.isArray(v.items) && v.items.length <= v.limit
     && v.items.every(item) && v.hasMore === (v.offset + v.items.length < v.total);
 }
-function isCollectionLot(v: unknown): v is CollectionLot {
-  return record(v) && keys(v, ['id', 'skuId', 'lengthMinutes', 'quantityAcquired', 'quantities'])
+export function isCollectionLot(v: unknown): v is CollectionLot {
+  return record(v) && keys(v, ['id', 'skuId', 'lengthMinutes', 'quantityAcquired', 'quantityAdjustment', 'quantities'])
     && isCollectionId(v.id) && isCollectionId(v.skuId) && length(v.lengthMinutes) && integer(v.quantityAcquired, 1)
-    && isCollectionQuantities(v.quantities) && Object.values(v.quantities).reduce((sum, n) => sum + n, 0) <= v.quantityAcquired;
+    && (v.quantityAdjustment === undefined || integer(v.quantityAdjustment, -1_000_000, 1_000_000))
+    && v.quantityAcquired + (v.quantityAdjustment ?? 0) >= 0
+    && isCollectionQuantities(v.quantities) && Object.values(v.quantities).reduce((sum, n) => sum + n, 0) <= v.quantityAcquired + (v.quantityAdjustment ?? 0);
 }
 function isCollectionCopy(v: unknown): v is CollectionCopy {
   return record(v) && keys(v, ['physicalId', 'lotId', 'skuId', 'lengthMinutes', 'packaging', 'usage', 'available', 'origin', 'revision', 'recordingTitle'])

@@ -1,3 +1,4 @@
+import { isSpreadsheetPageRequest, isSpreadsheetSourcePage, isSpreadsheetIdRequest, isSpreadsheetWorkbookSource, isSpreadsheetSourceRowsRequest, isSpreadsheetSourceRowsPage, isPreviewSpreadsheetImportRequest, isSpreadsheetImportPreview, isApplySpreadsheetImportRequest, isSpreadsheetImportResult, isSpreadsheetImportRevisionRequest, isSpreadsheetImportRevisionDetail, isSpreadsheetImportHistory, isSpreadsheetAdjustmentPreviewRequest, isSpreadsheetAdjustmentBalance, isAdjustSpreadsheetInventoryRequest, isSpreadsheetInventoryAdjustment, isSpreadsheetAdjustmentsRequest, isSpreadsheetAdjustmentsPage, isRegisterSpreadsheetWorkbookRequest, isChooseSpreadsheetWorkbookRequest, isSpreadsheetWorkbookReceipt } from './spreadsheet-import.js';
 import { isCommandOutboxDatasetId, isCommandOutboxContext, isCommandOutboxExecute, isCommandOutboxResult } from './command-outbox.js';
 import { isRegisterReferenceSourceRequest, isReferenceSourceVersion, isReferenceSourceListRequest, isReferenceSourcePage, isCatalogIdRequest, isReferenceSourceDetail, isPreviewCatalogRevisionRequest, isCatalogRevisionPreview, isPublishCatalogRevisionRequest, isCatalogRevisionDetail, isSetCatalogMatchRequest, isCatalogSnapshot, isCatalogHistoryRequest, isCatalogHistory } from './reference-catalog.js';
 import { isActivateRestoredDataset, isRestoreActivationView } from './recording-activation.js';
@@ -929,6 +930,18 @@ function isPlaylistDetail(value: unknown): value is PlaylistDetail {
 }
 
 function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
+  if (command === 'spreadsheetImports.sources') return isSpreadsheetPageRequest(payload);
+  if (command === 'spreadsheetImports.source') return isSpreadsheetIdRequest(payload);
+  if (command === 'spreadsheetImports.sourceRows') return isSpreadsheetSourceRowsRequest(payload);
+  if (command === 'spreadsheetImports.preview') return isPreviewSpreadsheetImportRequest(payload);
+  if (command === 'spreadsheetImports.apply') return isApplySpreadsheetImportRequest(payload);
+  if (command === 'spreadsheetImports.revision') return isSpreadsheetImportRevisionRequest(payload);
+  if (command === 'spreadsheetImports.history') return isSpreadsheetPageRequest(payload);
+  if (command === 'spreadsheetImports.adjustmentPreview') return isSpreadsheetAdjustmentPreviewRequest(payload);
+  if (command === 'spreadsheetImports.adjust') return isAdjustSpreadsheetInventoryRequest(payload);
+  if (command === 'spreadsheetImports.adjustments') return isSpreadsheetAdjustmentsRequest(payload);
+  if (command === 'spreadsheetImports.registerWorkbook') return isRegisterSpreadsheetWorkbookRequest(payload);
+  if (command === 'spreadsheetImports.workbookReceipt') return isChooseSpreadsheetWorkbookRequest(payload);
   if (command === 'recordingBackups.activationReceipt') return isActivateRestoredDataset(payload);
   if (command === 'commandOutbox.context') return isEmptyPayload(payload);
   if (command === 'commandOutbox.execute') return isCommandOutboxExecute(payload);
@@ -1451,6 +1464,18 @@ function isCommandResult(
   allowInternalResult = false,
 ): boolean {
   switch (command) {
+    case 'spreadsheetImports.sources': return isSpreadsheetSourcePage(value);
+    case 'spreadsheetImports.source': return isSpreadsheetWorkbookSource(value);
+    case 'spreadsheetImports.sourceRows': return isSpreadsheetSourceRowsPage(value);
+    case 'spreadsheetImports.preview': return isSpreadsheetImportPreview(value);
+    case 'spreadsheetImports.apply': return isSpreadsheetImportResult(value);
+    case 'spreadsheetImports.revision': return isSpreadsheetImportRevisionDetail(value);
+    case 'spreadsheetImports.history': return isSpreadsheetImportHistory(value);
+    case 'spreadsheetImports.adjustmentPreview': return isSpreadsheetAdjustmentBalance(value);
+    case 'spreadsheetImports.adjust': return isSpreadsheetInventoryAdjustment(value);
+    case 'spreadsheetImports.adjustments': return isSpreadsheetAdjustmentsPage(value);
+    case 'spreadsheetImports.registerWorkbook': return allowInternalResult && isSpreadsheetWorkbookSource(value);
+    case 'spreadsheetImports.workbookReceipt': return allowInternalResult && isSpreadsheetWorkbookReceipt(value);
     case 'recordingBackups.activationReceipt': return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['activation']) && (value.activation === null || isRestoreActivationView(value.activation));
     case 'commandOutbox.context': return isCommandOutboxContext(value);
     case 'commandOutbox.execute': return isCommandOutboxResult(value);

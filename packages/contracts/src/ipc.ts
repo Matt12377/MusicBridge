@@ -1,3 +1,4 @@
+import type { SpreadsheetPageRequest, SpreadsheetSourcePage, SpreadsheetIdRequest, SpreadsheetWorkbookSource, SpreadsheetSourceRowsRequest, SpreadsheetSourceRowsPage, PreviewSpreadsheetImportRequest, SpreadsheetImportPreview, ApplySpreadsheetImportRequest, SpreadsheetImportResult, SpreadsheetImportRevisionRequest, SpreadsheetImportRevisionDetail, SpreadsheetImportHistory, SpreadsheetAdjustmentPreviewRequest, SpreadsheetAdjustmentBalance, AdjustSpreadsheetInventoryRequest, SpreadsheetInventoryAdjustment, SpreadsheetAdjustmentsRequest, SpreadsheetAdjustmentsPage, RegisterSpreadsheetWorkbookRequest, ChooseSpreadsheetWorkbookRequest, SpreadsheetWorkbookReceipt } from './spreadsheet-import.js';
 import type { CommandOutboxContext, CommandOutboxExecute, CommandOutboxResult } from './command-outbox.js';
 import type { RegisterReferenceSourceRequest, ReferenceSourceVersion, ReferenceSourceListRequest, ReferenceSourcePage, CatalogIdRequest, ReferenceSourceDetail, PreviewCatalogRevisionRequest, CatalogRevisionPreview, PublishCatalogRevisionRequest, CatalogRevisionDetail, SetCatalogMatchRequest, CatalogSnapshot, CatalogHistoryRequest, CatalogHistory } from './reference-catalog.js';
 import type { ActivateRestoredDataset, RestoreActivationView } from './recording-activation.js';
@@ -58,6 +59,18 @@ import type { PublicAggregatedSearchResult } from './aggregated-search.js';
 export const IPC_VERSION = 1 as const;
 
 export const IPC_COMMANDS = [
+  'spreadsheetImports.sources',
+  'spreadsheetImports.source',
+  'spreadsheetImports.sourceRows',
+  'spreadsheetImports.preview',
+  'spreadsheetImports.apply',
+  'spreadsheetImports.revision',
+  'spreadsheetImports.history',
+  'spreadsheetImports.adjustmentPreview',
+  'spreadsheetImports.adjust',
+  'spreadsheetImports.adjustments',
+  'spreadsheetImports.registerWorkbook',
+  'spreadsheetImports.workbookReceipt',
   'referenceCatalog.registerSource',
   'referenceCatalog.sources',
   'referenceCatalog.source',
@@ -291,6 +304,18 @@ export type IpcEnvelope<T = unknown> = IpcRequest<T> | IpcResponse<T>;
 export interface IpcCommandPayloads {
   'commandOutbox.context': Record<string, never>;
   'commandOutbox.execute': CommandOutboxExecute;
+  'spreadsheetImports.sources': SpreadsheetPageRequest;
+  'spreadsheetImports.source': SpreadsheetIdRequest;
+  'spreadsheetImports.sourceRows': SpreadsheetSourceRowsRequest;
+  'spreadsheetImports.preview': PreviewSpreadsheetImportRequest;
+  'spreadsheetImports.apply': ApplySpreadsheetImportRequest;
+  'spreadsheetImports.revision': SpreadsheetImportRevisionRequest;
+  'spreadsheetImports.history': SpreadsheetPageRequest;
+  'spreadsheetImports.adjustmentPreview': SpreadsheetAdjustmentPreviewRequest;
+  'spreadsheetImports.adjust': AdjustSpreadsheetInventoryRequest;
+  'spreadsheetImports.adjustments': SpreadsheetAdjustmentsRequest;
+  'spreadsheetImports.registerWorkbook': RegisterSpreadsheetWorkbookRequest;
+  'spreadsheetImports.workbookReceipt': ChooseSpreadsheetWorkbookRequest;
   'referenceCatalog.registerSource': RegisterReferenceSourceRequest;
   'referenceCatalog.sources': ReferenceSourceListRequest;
   'referenceCatalog.source': CatalogIdRequest;
@@ -484,6 +509,18 @@ export interface IpcCommandPayloads {
 export interface IpcCommandResults {
   'commandOutbox.context': CommandOutboxContext;
   'commandOutbox.execute': CommandOutboxResult;
+  'spreadsheetImports.sources': SpreadsheetSourcePage;
+  'spreadsheetImports.source': SpreadsheetWorkbookSource;
+  'spreadsheetImports.sourceRows': SpreadsheetSourceRowsPage;
+  'spreadsheetImports.preview': SpreadsheetImportPreview;
+  'spreadsheetImports.apply': SpreadsheetImportResult;
+  'spreadsheetImports.revision': SpreadsheetImportRevisionDetail;
+  'spreadsheetImports.history': SpreadsheetImportHistory;
+  'spreadsheetImports.adjustmentPreview': SpreadsheetAdjustmentBalance;
+  'spreadsheetImports.adjust': SpreadsheetInventoryAdjustment;
+  'spreadsheetImports.adjustments': SpreadsheetAdjustmentsPage;
+  'spreadsheetImports.registerWorkbook': never;
+  'spreadsheetImports.workbookReceipt': never;
   'referenceCatalog.registerSource': ReferenceSourceVersion;
   'referenceCatalog.sources': ReferenceSourcePage;
   'referenceCatalog.source': ReferenceSourceDetail;
@@ -683,9 +720,11 @@ export interface IpcEventPayloads {
   'lyrics.match.changed': { state: LocalLyricsMatchSnapshot };
 }
 
-export type IpcInternalCommand = 'recordingBackups.activationReceipt' | 'recordingBackups.authorize' | 'recordingBackups.authorizationReceipt' | 'recordingArchive.authorize' | 'recordingArchive.authorizationReceipt' | 'recordingPrepared.select' | 'recordingPrepared.selectionReceipt' | 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
+export type IpcInternalCommand = 'spreadsheetImports.registerWorkbook' | 'spreadsheetImports.workbookReceipt' | 'recordingBackups.activationReceipt' | 'recordingBackups.authorize' | 'recordingBackups.authorizationReceipt' | 'recordingArchive.authorize' | 'recordingArchive.authorizationReceipt' | 'recordingPrepared.select' | 'recordingPrepared.selectionReceipt' | 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
 
 export interface IpcInternalCommandResults {
+  'spreadsheetImports.registerWorkbook': SpreadsheetWorkbookSource;
+  'spreadsheetImports.workbookReceipt': SpreadsheetWorkbookReceipt;
   'recordingBackups.activationReceipt': { activation: RestoreActivationView | null };
   'recordingBackups.authorize': BackupRootView;
   'recordingBackups.authorizationReceipt': { root: BackupRootView | null };

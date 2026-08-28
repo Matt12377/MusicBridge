@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { collectionModelLabel } from './collection-display'
 import { nextTick, ref } from 'vue'
 import type { CollectionDetail, CollectionPhoto, CollectionChangePhotoRequest } from '@music-bridge/contracts'
 import CollectionPhotoView from './CollectionPhoto.vue'
@@ -23,14 +24,14 @@ function change(photo: CollectionPhoto, action: CollectionChangePhotoRequest['ac
     <header><div><h3>实物照片 <span>{{ detail.photos?.length ?? 0 }} / 24</span></h3><p>照片只用于展示，不会增加库存。点击照片查看大图。</p></div><div class="photo-tools"><button v-if="detail.photos?.length" :disabled="busy" @click="refresh++">重新加载照片</button><button :disabled="busy || (detail.photos?.length ?? 0) >= 24" @click="emit('add')">添加实物照片</button></div></header>
     <div v-if="detail.photos?.length" class="photo-grid">
       <figure v-for="(photo, index) in detail.photos" :key="photo.id">
-        <button class="photo-open" :aria-label="`查看实物照片 ${index + 1}`" @click="show(photo)"><CollectionPhotoView :key="`${photo.id}:${refresh}`" :photo="photo" :alt="`${detail.model.brand} ${detail.model.name} 实物照片 ${index + 1}`" /></button>
+        <button class="photo-open" :aria-label="`查看实物照片 ${index + 1}`" @click="show(photo)"><CollectionPhotoView :key="`${photo.id}:${refresh}`" :photo="photo" :alt="`${collectionModelLabel(detail.model)} 实物照片 ${index + 1}`" /></button>
         <figcaption><span>{{ photo.physicalId ?? '型号实物照片' }}</span><span v-if="detail.model.featuredPhoto?.id === photo.id" class="featured">收藏墙代表图</span></figcaption>
         <div class="photo-actions"><button :disabled="busy || detail.model.featuredPhoto?.id === photo.id" @click="change(photo, 'feature')">设为代表图</button><button :disabled="busy" @click="removing = photo.id">移除照片</button></div>
         <div v-if="removing === photo.id" class="remove-confirm" role="group" aria-label="确认移除照片"><p>仅移除应用内副本，原文件和库存不变。</p><button :disabled="busy" @click="change(photo, 'remove')">确认移除</button><button @click="removing = undefined">取消</button></div>
       </figure>
     </div>
     <p v-else class="no-photo">添加型号照片即可开始，无需为每盘磁带建立编号。支持 PNG / JPEG，原文件保持不变。</p>
-    <dialog ref="viewer" aria-label="实物照片大图" @close="onClose"><button class="close-preview" @click="viewer?.close()">关闭大图</button><div v-if="preview" class="preview-image"><CollectionPhotoView :photo="preview" :alt="`${detail.model.brand} ${detail.model.name} 实物照片大图`" /></div></dialog>
+    <dialog ref="viewer" aria-label="实物照片大图" @close="onClose"><button class="close-preview" @click="viewer?.close()">关闭大图</button><div v-if="preview" class="preview-image"><CollectionPhotoView :photo="preview" :alt="`${collectionModelLabel(detail.model)} 实物照片大图`" /></div></dialog>
   </section>
 </template>
 <style scoped>

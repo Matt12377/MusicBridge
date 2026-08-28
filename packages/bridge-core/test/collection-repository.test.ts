@@ -14,7 +14,7 @@ import { authorizeSourceDirectory } from '../src/recording/source-files.js';
 const page = { offset: 0, limit: 100 };
 // 这些测试从当前库构造历史版本，必须移除后加目录表；真正schema14输入另由固定SQL夹具覆盖。
 function dropReferenceCatalog(db: DatabaseSync): void {
-  db.exec('DROP TABLE reference_catalog_ledger; DROP TABLE reference_catalog_snapshots; DROP TABLE reference_catalog_matches; DROP TABLE reference_catalog_heads; DROP TABLE reference_catalog_revisions; DROP TABLE reference_sources');
+  db.exec('DROP TABLE spreadsheet_adjustments; DROP TABLE spreadsheet_rows; DROP TABLE spreadsheet_effects; DROP TABLE spreadsheet_heads; DROP TABLE spreadsheet_revisions; DROP TABLE spreadsheet_source_rows; DROP TABLE spreadsheet_sources; DROP TABLE spreadsheet_ledger; DROP TABLE reference_catalog_ledger; DROP TABLE reference_catalog_snapshots; DROP TABLE reference_catalog_matches; DROP TABLE reference_catalog_heads; DROP TABLE reference_catalog_revisions; DROP TABLE reference_sources');
 }
 const photoImage = { dataUrl: 'data:image/jpeg;base64,/9j/2Q==', width: 1, height: 1 };
 const receipt = (overrides: Partial<CollectionReceiveRequest> = {}): CollectionReceiveRequest => ({
@@ -326,7 +326,7 @@ test('v1 库存迁移保留全部账本和实体；迁移失败仍保留 v1 可�
   const migrated = createCollectionRepository({ filePath });
   try { assert.deepEqual(migrated.detail(stock.modelId, page), before); } finally { migrated.close(); }
   const check = new DatabaseSync(filePath, { readOnly: true });
-  try { assert.equal(check.prepare('PRAGMA user_version').get()?.user_version, 15); assert.deepEqual(check.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(), ledger); }
+  try { assert.equal(check.prepare('PRAGMA user_version').get()?.user_version, 16); assert.deepEqual(check.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(), ledger); }
   finally { check.close(); }
 });
 

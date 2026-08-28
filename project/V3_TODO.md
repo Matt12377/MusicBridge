@@ -1,8 +1,8 @@
 # V3 剩余任务 TODO
 
-更新基线：TASK-067 最终提交 `b95ef2c26dc0bdbf89c64d8c99f79ad8f2b4a83a`。Owner 已授权持续开发到最终验收；当前为本地开发，不 push、不合并 main、不发布。2026-08-28 Owner 新授权按独立文件范围并行，智能体统一 GPT-5.6 Sol / High，原任务队列不变。
+更新基线：TASK-068 最终提交 `49a322db0ebd1ab32e5bf227c5614e0b0553de63`。Owner 已授权持续开发到最终验收；当前为本地开发，不 push、不合并 main、不发布。2026-08-28 Owner 新授权按独立文件范围并行，智能体统一 GPT-5.6 Sol / High，原任务队列不变。
 
-本表是任务拆分与依赖计划，不是完成声明。后续任务沿上一任务最终 HEAD 创建独立分支；当前已展开 TASK-064～068，其余任务开始前补详细范围和允许路径。具体子任务可根据已验证结果细分，不删减 PRD 范围。
+本表是任务拆分与依赖计划，不是完成声明。后续任务沿上一任务最终 HEAD 创建独立分支；当前已展开 TASK-064～069，其余任务开始前补详细范围和允许路径。具体子任务可根据已验证结果细分，不删减 PRD 范围。
 
 ## 开发队列
 
@@ -11,7 +11,7 @@
 - [x] **TASK-066：桌面备份与恢复工作流** — 本地自动 Gate 通过：77/818/186、安全22、Electron4、完整E2E50。独立维护库、内容位置绑定、显式激活/回滚与后台窗口；Owner未验收，大库冷启容量风险转TASK-078/Gate E。见 [TASK-066结果](../reports/TASK-066_RESULT.md)。
 - [x] **TASK-067：持久命令 outbox** — 本地自动 Gate 通过：82/827/279、安全27、Electron4、完整E2E54。Main持久账本、Core工作库身份隔离、人工恢复和PREP整批撤权；Owner未验收。见 [TASK-067结果](../reports/TASK-067_RESULT.md)。
 - [x] **TASK-068：参考目录与版次修订** — 本地自动 Gate 通过：95/847/291、安全27、Electron4；常规E2E56通过，固定native另跑1通过。来源原包、不可变目录、合并拆分审核与历史快照；Owner未验收。见 [TASK-068结果](../reports/TASK-068_RESULT.md)。
-- [ ] **TASK-069：Excel 非破坏导入** — 待开发。ImportBatch/Revision、重排去重、未知余量、保护人工更正与库存账本。
+- [ ] **TASK-069：Excel 非破坏导入** — 进行中。ImportBatch/Revision、重排去重、未知余量、保护人工更正与库存账本。
 - [ ] **TASK-070：Want List 与收藏完成度** — 待开发。Wanted 与 Owned 共存、型号完成度、长度覆盖与历史口径。
 - [ ] **TASK-071：Source Picker 与双库交互补齐** — 待开发。实体/数字关系选曲入口、下一步指引、照片/长名/窄窗/键盘和视觉 carryover。
 - [ ] **TASK-072：正式 Profile Snapshot / RecordingPlan / Preflight** — 待前置。容量、版本、执行格式、档案与设备约束；F-01 必须先确认。

@@ -85,13 +85,13 @@ test('并发重复请求与不同操作按 Root 串行，内容复用不重复�
 test('归档 schema 迁移可回滚；旧账本与执行资产不改写', async t => {
   const f = await executionFixture(t), job = await f.execution.start(await f.request()); await f.execution.idle();
   const before = f.repository.execution.asset(job.id); await f.execution.close(); f.repository.close();
-  const old = new DatabaseSync(f.filePath); old.exec('DROP TABLE reference_catalog_ledger; DROP TABLE reference_catalog_snapshots; DROP TABLE reference_catalog_matches; DROP TABLE reference_catalog_heads; DROP TABLE reference_catalog_revisions; DROP TABLE reference_sources; DROP TABLE archive_workflow_ledger; DROP TABLE archive_candidates; DROP TABLE archive_references; DROP TABLE archive_objects; DROP TABLE archive_operations; DROP TABLE archive_roots; PRAGMA user_version=12');
+  const old = new DatabaseSync(f.filePath); old.exec('DROP TABLE spreadsheet_adjustments; DROP TABLE spreadsheet_rows; DROP TABLE spreadsheet_effects; DROP TABLE spreadsheet_heads; DROP TABLE spreadsheet_revisions; DROP TABLE spreadsheet_source_rows; DROP TABLE spreadsheet_sources; DROP TABLE spreadsheet_ledger; DROP TABLE reference_catalog_ledger; DROP TABLE reference_catalog_snapshots; DROP TABLE reference_catalog_matches; DROP TABLE reference_catalog_heads; DROP TABLE reference_catalog_revisions; DROP TABLE reference_sources; DROP TABLE archive_workflow_ledger; DROP TABLE archive_candidates; DROP TABLE archive_references; DROP TABLE archive_objects; DROP TABLE archive_operations; DROP TABLE archive_roots; PRAGMA user_version=12');
   const ledger = old.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(); old.close();
   const failed = createCollectionRepository({ filePath: f.filePath, beforeCommit: action => { if (action === 'migrate-archive') throw new Error('合成迁移回滚'); } });
   assert.throws(() => failed.archive.operations()); failed.close();
   const check = new DatabaseSync(f.filePath); assert.equal(check.prepare('PRAGMA user_version').get()!.user_version, 12); assert.equal(check.prepare("SELECT count(*) n FROM sqlite_master WHERE name='archive_roots'").get()!.n, 0); check.close();
   const next = createCollectionRepository({ filePath: f.filePath }); try { assert.deepEqual(next.execution.asset(job.id), before); assert.deepEqual(next.archive.operations(), []); } finally { next.close(); }
-  const after = new DatabaseSync(f.filePath); try { assert.equal(after.prepare('PRAGMA user_version').get()!.user_version, 15); assert.deepEqual(after.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(), ledger); } finally { after.close(); }
+  const after = new DatabaseSync(f.filePath); try { assert.equal(after.prepare('PRAGMA user_version').get()!.user_version, 16); assert.deepEqual(after.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(), ledger); } finally { after.close(); }
 });
 
 test('撤销 Root 后恢复仍记录不可用；取消任务不在恢复中自动重放', async t => {

@@ -22,6 +22,7 @@ export default defineConfig({
         input: {
           index: path.join(currentDirectory, 'src/main/index.ts'),
           core: path.join(currentDirectory, 'src/main/core-entry.ts'),
+          'spreadsheet-worker': path.join(currentDirectory, '../../packages/bridge-core/src/collection/spreadsheet-worker.ts'),
         },
         output: {
           entryFileNames: '[name].js',

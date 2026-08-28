@@ -45,6 +45,12 @@ export function createCommandOutboxExecutor(options: {
     if (datasetId !== request.datasetId) return fail('OUTBOX_SCOPE_MISMATCH')
     const scope = request.datasetId
     switch (request.command) {
+      case 'spreadsheetImports.chooseWorkbook': {
+        const prior = await supervisor.requestInternal('spreadsheetImports.workbookReceipt', request.payload, scope)
+        if (prior.source) return prior.source
+        const absolutePath = await pick({ title: '选择 Excel 工作簿', message: '只读取这个工作簿。选择后先核对Sheet、字段与修订，明确批准才增加库存。', properties: ['openFile'], filters: [{ name: 'Excel 工作簿', extensions: ['xlsx', 'xls'] }] })
+        return absolutePath === null ? null : supervisor.requestInternal('spreadsheetImports.registerWorkbook', { ...request.payload, absolutePath }, scope)
+      }
       case 'recordingSources.chooseRoot': {
         const prior = await supervisor.requestInternal('recordingSources.rootReceipt', request.payload, scope)
         if (prior.root) return prior.root

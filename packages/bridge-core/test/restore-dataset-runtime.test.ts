@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { createRequire } from 'node:module';
+import { DatabaseSync } from 'node:sqlite';
+import type * as SheetJS from 'xlsx';
+import type { CanonicalReference, SpreadsheetImportPlan } from '@music-bridge/contracts';
 import { copyFile, link, mkdir, mkdtemp, readFile, readdir, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -11,13 +15,17 @@ import { createBackupWorkflowStore } from '../src/recording/backup-workflow-stor
 import { createBackupCoordinator } from '../src/recording/backup-coordinator.js';
 import { authorizeSourceDirectory, copyReadonlySource } from '../src/recording/source-files.js';
 import { prepareRestoredDataset } from '../src/recording/restore-activation-files.js';
+import { readSpreadsheetFile } from '../src/collection/spreadsheet-files.js';
+import { parseSpreadsheetWorkbook } from '../src/collection/spreadsheet-parser.js';
 
 const page = { offset: 0, limit: 1 };
 function addBusinessData(repository: CollectionRepository): void {
   repository.receive({ commandId: randomUUID(), model: { brand: '合成', name: '激活后新增', edition: '测试', year: 1990, format: 'cassette', tapeType: 'II', identification: 'verified' }, lengthMinutes: 60, quantities: { openedBlank: 1, sealedBlank: 0, legacyUsed: 0, unclassified: 0 } });
 }
-async function fixture(t: test.TestContext) {
-  const f = await archiveBackupFixture(t), backup = await f.api.createArchiveBackup(f.backupRequest);
+async function fixture(t: test.TestContext, beforeBackup?: (f: Awaited<ReturnType<typeof archiveBackupFixture>>) => Promise<void>) {
+  const f = await archiveBackupFixture(t);
+  await beforeBackup?.(f);
+  const backup = await f.api.createArchiveBackup(f.backupRequest);
   const privatePath = path.join(f.directory, '应用私有目录'), restorePath = path.join(f.directory, '隔离恢复');
   await mkdir(privatePath); await mkdir(restorePath);
   const privateRoot = { ...await authorizeSourceDirectory(privatePath), id: randomUUID() };
@@ -52,7 +60,7 @@ async function fixture(t: test.TestContext) {
   return { ...f, privatePath, defaultFile, storePath, restored, destinationId: destination.id, pending, prepare, open };
 }
 
-test('目录schema15默认工作库关闭后可冷开，保留dataset身份及库存', async t => {
+test('正式schema16默认工作库关闭后可冷开，保留dataset身份及库存', async t => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-catalog-cold-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const first = await openCollectionDataset(directory), datasetId = first.datasetId;
@@ -60,6 +68,88 @@ test('目录schema15默认工作库关闭后可冷开，保留dataset身份及�
   const cold = await openCollectionDataset(directory);
   try { assert.equal(cold.datasetId, datasetId); assert.equal(cold.repository.list(page).total, 1); }
   finally { cold.close(); }
+});
+
+test('真实合成工作簿原字节、类型化源行、修订与更正随Lot照片目录快照完整备份，隔离激活冷启逐列保留', async t => {
+  const importPage = { offset: 0, limit: 25 };
+  const XLSX: typeof SheetJS = createRequire(import.meta.url)('xlsx');
+  const inspectFacts = (filePath: string) => {
+    const db = new DatabaseSync(filePath, { readOnly: true });
+    try {
+      assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 16);
+      assert.equal(db.prepare('PRAGMA integrity_check').get()?.integrity_check, 'ok');
+      assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
+      return db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND (name GLOB 'spreadsheet_*' OR name GLOB 'reference_*' OR name GLOB 'inventory_*' OR name GLOB 'collection_*' OR name='physical_copies') ORDER BY name").all().map(({ name }) => [name, db.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all()]);
+    } finally { db.close(); }
+  };
+  const seedWorkbook = async (f: Awaited<ReturnType<typeof archiveBackupFixture>>) => {
+    const book = XLSX.utils.book_new();
+    const sheet = XLSX.utils.aoa_to_sheet([
+      ['品牌', '型号', '版次候选', '时长', 'Quantity', 'Used', '价格', '购买日期', 'Notes'],
+      ['合成备份', '原字节型号', '1990候选', 90, 10, 3, 32.5, 45000, '保留原备注\r\n不归一原文件'],
+    ]);
+    sheet['E2'] = { t: 'n', f: 'SUM(4,6)', v: 10 };
+    sheet['H2'] = { t: 'n', v: 45000, z: 'yyyy-mm-dd' };
+    book.Workbook = { WBProps: { date1904: true } };
+    XLSX.utils.book_append_sheet(book, sheet, '合成库存');
+    const workbookPath = path.join(f.directory, '合成完整备份.xlsx');
+    await writeFile(workbookPath, XLSX.write(book, { type: 'buffer', bookType: 'xlsx', compression: true }));
+    const file = await readSpreadsheetFile(workbookPath), parsed = await parseSpreadsheetWorkbook(file.bytes, file.fileFormat);
+    const source = f.repository.spreadsheetImports.registerSource({ commandId: randomUUID(), bytes: file.bytes, displayName: file.displayName, workbook: parsed });
+    assert.equal(source.workbookHash, createHash('sha256').update(file.bytes).digest('hex')); assert.equal(source.dateSystem, '1904');
+    const plan: SpreadsheetImportPlan = { sourceId: source.id, sheetName: '合成库存', format: 'cassette', headerRow: 1, columns: { brand: 1, model: 2, edition: 3, year: null, iec: null, length: 4, quantity: 5, used: 6, price: 7, purchaseDate: 8, notes: 9 }, sourceRelationship: 'independent', previousRevisionId: null, decisions: [{ rowIndex: 2, action: 'new', formulaConfirmed: true }] };
+    const preview = f.repository.spreadsheetImports.preview({ ...plan, page: importPage });
+    const result = f.repository.spreadsheetImports.apply({ ...plan, commandId: randomUUID(), baselineFingerprint: preview.baselineFingerprint, userConfirmed: true });
+    const revision = f.repository.spreadsheetImports.revision({ revisionId: result.revision.id, page: importPage }), row = revision.rows.items[0]!;
+    assert.equal(row.normalized.quantity, 10); assert.equal(row.normalized.price?.value, 32.5); assert.equal(row.normalized.purchaseDate?.value, 45000);
+    assert.equal(row.normalized.versionCandidate, '1990候选'); assert.equal(row.normalized.descriptor.edition, '');
+    const sourceRows = f.repository.spreadsheetImports.sourceRows({ sourceId: source.id, sheetName: plan.sheetName, page: importPage });
+    assert.equal(sourceRows.items[1]?.cells.find(cell => cell.columnIndex === 5)?.formula, 'SUM(4,6)');
+    assert.equal(sourceRows.items[1]?.cells.find(cell => cell.columnIndex === 8)?.numberFormat, 'yyyy-mm-dd');
+    const copy = f.repository.materialize({ commandId: randomUUID(), lotId: row.lotId!, bucket: 'legacyUsed', action: 'register-legacy' });
+    assert.ok(copy.physicalId, '明确登记一盘实体后才给该实体附照片');
+    f.repository.addPhoto({ commandId: randomUUID(), modelId: row.modelId!, physicalId: copy.physicalId, image: { dataUrl: 'data:image/jpeg;base64,/9j/2Q==', width: 1, height: 1 } });
+    const item: CanonicalReference = { referenceId: 'synthetic-import', bookId: 'synthetic-backup', brand: '合成备份', series: '', edition: '', model: '原字节型号', lengths: [90], iec: 'unknown', era: null, image: { kind: 'none' }, pages: ['1'], notes: '明确合成目录资料', confidence: 'unknown' };
+    const rawPack = JSON.stringify({ schemaVersion: 1, bookId: item.bookId, title: '合成导入目录', sourceVersion: '1', items: [item] });
+    const catalogSource = f.repository.catalog.registerSource({ commandId: randomUUID(), rawPack, packHash: createHash('sha256').update(rawPack).digest('hex'), userConfirmed: true });
+    const catalogPlan = { sourceId: catalogSource.id, expectedCurrentRevisionId: null, items: [item], mappings: [] };
+    const catalogPreview = f.repository.catalog.previewRevision(catalogPlan);
+    const published = f.repository.catalog.publishRevision({ ...catalogPlan, commandId: randomUUID(), baselineFingerprint: catalogPreview.baselineFingerprint, userConfirmed: true });
+    const matched = f.repository.catalog.setMatch({ commandId: randomUUID(), revisionId: published.revision.id, expectedMatchVersion: 0, match: { referenceId: item.referenceId, modelId: row.modelId!, status: 'confirmed', availability: 'unknown' }, userConfirmed: true });
+    assert.equal(matched.snapshot.entries[0]?.stockCount, 10);
+    const balanceRequest = { revisionId: revision.revision.id, rowId: row.id }, balance = f.repository.spreadsheetImports.adjustmentPreview(balanceRequest);
+    const adjustment = f.repository.spreadsheetImports.adjust({ ...balanceRequest, commandId: randomUUID(), lotId: row.lotId!, expectedBalanceFingerprint: balance.balanceFingerprint, legacyUsedDelta: -1, unclassifiedDelta: 2, userConfirmed: true });
+    assert.equal(adjustment.after.quantityAcquired, 10); assert.equal(adjustment.after.quantityAdjustment, 1); assert.equal(adjustment.after.materializedCount, 1);
+    const detail = f.repository.detail(row.modelId!, importPage);
+    assert.equal(detail.model.counts.total, 11); assert.equal(detail.photos?.length, 1); assert.equal(detail.copies.items[0]?.physicalId, copy.physicalId);
+    return { workbookPath, bytes: file.bytes, source, sourceRows, revision, row, matched, adjustment, detail, facts: inspectFacts(f.filePath) };
+  };
+  let seeded: Awaited<ReturnType<typeof seedWorkbook>> | undefined;
+  const f = await fixture(t, async base => { seeded = await seedWorkbook(base); });
+  assert.ok(seeded);
+  const expected = seeded, restoredFile = path.join(f.pending.prepared.database.path, 'collection.sqlite');
+  assert.deepEqual(inspectFacts(restoredFile), expected.facts, '完整备份和隔离复制保持原始事实逐列相等');
+  const checkRestored = (repository: CollectionRepository) => {
+    assert.deepEqual(repository.spreadsheetImports.source({ id: expected.source.id }), expected.source);
+    assert.deepEqual(repository.spreadsheetImports.sourceRows({ sourceId: expected.source.id, sheetName: '合成库存', page: importPage }), expected.sourceRows);
+    assert.deepEqual(repository.spreadsheetImports.revision({ revisionId: expected.revision.revision.id, page: importPage }), expected.revision);
+    assert.deepEqual(repository.spreadsheetImports.adjustments({ revisionId: expected.revision.revision.id, rowId: expected.row.id, page: importPage }).items, [expected.adjustment]);
+    assert.deepEqual(repository.detail(expected.row.modelId!, importPage), expected.detail);
+    assert.deepEqual(repository.catalog.snapshot({ id: expected.matched.snapshot.id }), expected.matched.snapshot);
+    assert.equal(repository.catalog.revision({ id: expected.matched.revision.id }).currentEntries[0]?.stockCount, 11, '动态拥有数量11不覆写历史时点10');
+  };
+  const before = await readFile(f.defaultFile), opened = await f.open(f.privatePath), datasetId = opened.datasetId;
+  try { assert.equal(opened.pendingActivationId, f.pending.id); checkRestored(opened.repository); opened.commit(); }
+  finally { opened.close(); }
+  assert.deepEqual(await readFile(f.defaultFile), before, '激活不得修改旧默认工作库');
+  await rm(expected.workbookPath); await rename(f.restored.path, f.restored.path + '-离线'); await rm(f.root.root.path, { recursive: true });
+  const cold = await f.open(f.privatePath);
+  try { assert.equal(cold.datasetId, datasetId); assert.equal(cold.pendingActivationId, undefined); checkRestored(cold.repository); }
+  finally { cold.close(); }
+  assert.deepEqual(inspectFacts(restoredFile), expected.facts);
+  const db = new DatabaseSync(restoredFile, { readOnly: true });
+  try { assert.deepEqual(Buffer.from(db.prepare('SELECT bytes FROM spreadsheet_sources WHERE id=?').get(expected.source.id)!.bytes as Uint8Array), expected.bytes); }
+  finally { db.close(); }
 });
 
 test('启动先选择已确认候选，仅运行成功后commit切换持久指针，旧库原样保留', async t => {

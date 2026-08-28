@@ -13,6 +13,7 @@ const state = shallowRef(controller.state)
 const entries = computed(() => state.value.overview?.entries.filter((item) => !item.acknowledged && item.state !== 'dismissed') ?? [])
 const visibleEntries = computed(() => entries.value.slice(0, visibleCount.value))
 const labels: Record<CommandOutboxTrackedCommand, string> = {
+  'spreadsheetImports.chooseWorkbook': '选择Excel工作簿', 'spreadsheetImports.apply': '确认Excel导入修订', 'spreadsheetImports.adjust': '确认Excel库存数量更正',
   'referenceCatalog.registerSource': '登记参考资料版本', 'referenceCatalog.publishRevision': '发布参考目录修订', 'referenceCatalog.setMatch': '确认目录关联与缺失状态',
   'collection.receive': '库存入库', 'collection.materialize': '登记实物副本', 'collection.updateCopy': '更新实物副本',
   'collection.setPolicy': '更新库存使用策略', 'collection.addPhoto': '添加库存照片', 'collection.changePhoto': '修改库存照片',

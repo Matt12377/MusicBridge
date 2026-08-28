@@ -1,18 +1,21 @@
 <script setup lang="ts">
+import { canManuallyReceiveModel } from './collection-display'
 import { computed, onMounted, ref } from 'vue'
 import { isCollectionReceiveRequest, type CollectionDescriptor, type CollectionModel, type CollectionReceiveRequest } from '@music-bridge/contracts'
 
 const props = defineProps<{ model?: CollectionModel; busy: boolean; error: string; retryable: boolean }>()
 const emit = defineEmits<{ close: []; save: [request: CollectionReceiveRequest]; retry: [] }>()
 const dialog = ref<HTMLDialogElement>()
-const descriptor = ref<CollectionDescriptor>({ brand: props.model?.brand ?? '', name: props.model?.name ?? '', edition: props.model?.edition ?? '', year: props.model?.year ?? null, format: props.model?.format ?? 'cassette', tapeType: props.model?.tapeType ?? 'unknown', identification: props.model?.identification ?? 'unidentified' })
+const descriptor = ref<CollectionDescriptor>({ brand: props.model?.brand ?? '', name: props.model?.name ?? '', edition: props.model?.edition ?? '', year: props.model?.year ?? null, format: props.model?.format ?? 'cassette', tapeType: props.model?.tapeType ?? 'unknown', identification: props.model?.identification === 'candidate' ? 'candidate' : props.model?.identification === 'verified' ? 'verified' : 'unidentified' })
 const minutes = ref<number | ''>('')
 const year = ref<number | ''>(descriptor.value.year ?? '')
 const quantities = ref({ sealedBlank: 0, openedBlank: 0, legacyUsed: 0, unclassified: 0 })
 const validation = ref('')
 const locked = computed(() => props.busy || props.retryable)
+const unsupportedImport = computed(() => !!props.model && !canManuallyReceiveModel(props.model))
 const title = computed(() => props.model ? '补充库存' : '添加磁带')
 function save(): void {
+  if (unsupportedImport.value) { validation.value = '请从 Excel 导入历史核对源行，并使用独立数量更正。'; return }
   const request: CollectionReceiveRequest = { commandId: crypto.randomUUID(), model: { ...descriptor.value, year: year.value === '' ? null : Number(year.value), tapeType: descriptor.value.format === 'dat' ? 'dat' : descriptor.value.tapeType }, lengthMinutes: minutes.value === '' ? null : Number(minutes.value), quantities: { ...quantities.value } }
   if (!isCollectionReceiveRequest(request)) { validation.value = '请填写品牌、型号和正确的数量；每批合计 1–10,000 盘。确认版次时必须填写包装版本。'; return }
   validation.value = ''
@@ -26,7 +29,8 @@ onMounted(() => dialog.value?.showModal())
     <form @submit.prevent="save">
       <header><h2>{{ title }}</h2><button type="button" :disabled="locked" aria-label="关闭录入" @click="emit('close')">关闭</button></header>
       <p class="muted">按实际状态录入，不确定的磁带请放入“未分类”。同版次不同时长会归在一个型号下。</p>
-      <fieldset :disabled="locked">
+      <p v-if="unsupportedImport" class="muted">此导入型号尚有待确认资料。请从 Excel 导入历史核对源行，并使用独立数量更正。</p>
+      <fieldset :disabled="locked || unsupportedImport">
         <div class="fields">
           <label>品牌<input v-model.trim="descriptor.brand" required maxlength="120" :readonly="!!model" autofocus></label>
           <label>型号<input v-model.trim="descriptor.name" required maxlength="120" :readonly="!!model"></label>
@@ -46,7 +50,7 @@ onMounted(() => dialog.value?.showModal())
         </div>
       </fieldset>
       <p v-if="validation || error" role="alert" class="inventory-error">{{ validation || error }}</p>
-      <footer><button v-if="retryable" type="button" :disabled="busy" @click="emit('retry')">重试原操作</button><button class="primary" type="submit" :disabled="locked">{{ busy ? '正在保存…' : '保存库存' }}</button></footer>
+      <footer><button v-if="retryable" type="button" :disabled="busy" @click="emit('retry')">重试原操作</button><button class="primary" type="submit" :disabled="locked || unsupportedImport">{{ busy ? '正在保存…' : '保存库存' }}</button></footer>
     </form>
   </dialog>
 </template>

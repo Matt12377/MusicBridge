@@ -67,7 +67,7 @@ function openRepository(file: string, required: boolean, check: () => void): Col
     try {
       inspection.exec('PRAGMA trusted_schema=OFF; PRAGMA query_only=ON;');
       const version = Number(inspection.prepare('PRAGMA user_version').get()?.user_version);
-      if (!Number.isInteger(version) || version < 1 || version > 15 || inspection.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || inspection.prepare('PRAGMA foreign_key_check').all().length) unavailable();
+      if (!Number.isInteger(version) || version < 1 || version > 16 || inspection.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || inspection.prepare('PRAGMA foreign_key_check').all().length) unavailable();
       inspection.prepare('SELECT id FROM collection_models LIMIT 1').all();
     } finally { inspection.close(); }
   }

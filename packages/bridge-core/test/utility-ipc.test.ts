@@ -20,6 +20,11 @@ import { randomUUID } from 'node:crypto';
 import { executionFixture } from './helpers/execution-fixture.js';
 import { createTestBridgeRuntime } from '../src/runtime.js';
 import type { IpcCommandPayloads, IpcCommandResults, IpcResponse } from '@music-bridge/contracts';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import { createRequire } from 'node:module';
+import { createDatasetCommandBoundary } from '../src/recording/dataset-identity.js';
 
 class FakePort implements UtilityPort {
   readonly messages: unknown[] = [];
@@ -40,6 +45,44 @@ class FakePort implements UtilityPort {
     this.listener?.({ data: message });
   }
 }
+
+test('Excel正式IPC读取真实合成字节并只返回摘要，原commandId回执重试不再读文件，scope末端复核', async t => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-excel-ipc-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const XLSX = createRequire(import.meta.url)('xlsx') as typeof import('xlsx'), book = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([['品牌', '数量'], ['合成品牌', 10]]), '库存');
+  const bytes = XLSX.write(book, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+  const absolutePath = path.join(directory, '合成.xlsx'); await writeFile(absolutePath, bytes);
+  const id = randomUUID(), datasetId = randomUUID(), commandId = randomUUID(); let scopeChecks = 0, registrations = 0;
+  let receipt: import('@music-bridge/contracts').SpreadsheetWorkbookSource | null = null;
+  const source = { id, workbookHash: 'a'.repeat(64), displayName: '合成.xlsx', fileFormat: 'xlsx' as const, parserVersion: 'sheetjs-ce-0.20.3' as const, dateSystem: '1900' as const, byteLength: bytes.length, createdAt: '2026-08-28T00:00:00.000Z', sheets: [{ name: '库存', rowCount: 2, nonEmptyCellCount: 4 }] };
+  const imports = {
+    sourceReceipt: () => ({ source: receipt }),
+    registerSource: (input: { bytes: Uint8Array; displayName: string; workbook: import('@music-bridge/contracts').ParsedSpreadsheetWorkbook }) => {
+      registrations++; assert.deepEqual(Buffer.from(input.bytes), bytes); assert.equal(input.displayName, '合成.xlsx');
+      assert.equal(input.workbook.sheets[0]?.rows[1]?.cells[0]?.value, '合成品牌'); assert.ok(scopeChecks >= 2);
+      receipt = source; return source;
+    },
+    source: () => source,
+  };
+  const port = new FakePort(), runtime = Object.assign(makeRuntime(), { collection: { spreadsheetImports: imports } as unknown as import('../src/collection/repository.js').CollectionRepository,
+    commandOutbox: createDatasetCommandBoundary({ datasetId, assertCurrent: () => { scopeChecks++; } }) });
+  await attachCoreRuntimePort(port, runtime);
+  async function rpc(command: string, payload: unknown, scope = datasetId) {
+    const requestId = randomUUID(); port.send({ version: 1, id: requestId, command, payload, expectedDatasetId: scope });
+    const deadline = Date.now() + 5000;
+    while (!port.messages.some(message => (message as { id?: string }).id === requestId) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 5));
+    return port.messages.find(message => (message as { id?: string }).id === requestId) as { ok: boolean; result?: unknown; error?: { code: string } };
+  }
+  const first = await rpc('spreadsheetImports.registerWorkbook', { commandId, absolutePath });
+  assert.equal(first?.ok, true); assert.deepEqual(first.result, source); assert.equal(registrations, 1);
+  await rm(absolutePath);
+  assert.deepEqual((await rpc('spreadsheetImports.registerWorkbook', { commandId, absolutePath })).result, source); assert.equal(registrations, 1);
+  assert.deepEqual((await rpc('spreadsheetImports.workbookReceipt', { commandId })).result, { source });
+  assert.deepEqual((await rpc('spreadsheetImports.source', { id })).result, source);
+  assert.equal((await rpc('spreadsheetImports.registerWorkbook', { commandId: randomUUID(), absolutePath }, randomUUID())).error?.code, 'OUTBOX_SCOPE_MISMATCH');
+  assert.equal(JSON.stringify(port.messages).includes(directory), false);
+});
 
 test('工作库指针提交在runtime启动之后、ready发布之前；提交失败不发布ready', async () => {
   const port = new FakePort(), runtime = makeRuntime();

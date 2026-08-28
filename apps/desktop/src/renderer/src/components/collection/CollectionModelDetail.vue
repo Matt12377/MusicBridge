@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { canManuallyReceiveModel, collectionModelLabel } from './collection-display'
 import { computed, ref, watch } from 'vue'
 import type { CollectionChangePhotoRequest, CollectionCopy, CollectionDetail, CollectionMaterializeRequest, CollectionPolicyRequest, CollectionUpdateCopyRequest, CollectorPolicy } from '@music-bridge/contracts'
 import CollectionPhotos from './CollectionPhotos.vue'
@@ -9,6 +10,7 @@ const policy = ref<CollectorPolicy>('normal')
 const reserve = ref(0)
 watch(() => props.detail.model, model => { policy.value = model.collectorPolicy; reserve.value = model.minimumSealedReserve }, { immediate: true })
 const protectedSealed = computed(() => ['collector', 'preserve-sealed'].includes(props.detail.model.collectorPolicy) || props.detail.model.counts.sealedBlank <= props.detail.model.minimumSealedReserve)
+const manualReceiveAllowed = computed(() => canManuallyReceiveModel(props.detail.model))
 const maxPageTotal = computed(() => Math.max(props.detail.lots.total, props.detail.copies.total))
 const countItems = [
   ['total', '全部实物', 'total'], ['sealedBlank', '未开封空白', 'sealed'], ['openedBlank', '已拆空白', 'opened'],
@@ -31,8 +33,9 @@ function state(copy: CollectionCopy): string {
 
 <template>
   <section class="model-detail" aria-label="磁带型号详情">
-    <div class="detail-toolbar"><button type="button" @click="emit('close')">← 返回收藏</button><button type="button" :disabled="busy" @click="emit('receive')">补充库存</button></div>
-    <h2>{{ detail.model.brand }} {{ detail.model.name }}</h2>
+    <div class="detail-toolbar"><button type="button" @click="emit('close')">← 返回收藏</button><button type="button" :disabled="busy || !manualReceiveAllowed" @click="emit('receive')">补充库存</button></div>
+    <h2>{{ collectionModelLabel(detail.model) }}</h2>
+    <p v-if="!manualReceiveAllowed" class="muted">导入型号的资料尚待确认，不能通过普通入库补充。请从 Excel 导入历史核对源行，再单独确认数量更正。</p>
     <p class="muted">{{ detail.model.edition || '版次待确认' }} · {{ detail.model.format === 'dat' ? 'DAT' : '卡式磁带' }} · {{ detail.model.lengths.map(n => n ? `${n} 分钟` : '时长待确认').join(' / ') }}</p>
     <CollectionPhotos :detail="detail" :busy="busy" @add="emit('addPhoto', $event)" @change="emit('changePhoto', $event)" />
     <dl class="counts"><div v-for="[key, label, testId] in countItems" :key="key"><dt>{{ label }}</dt><dd :data-testid="`inventory-${testId}`">{{ detail.model.counts[key] }}</dd></div></dl>

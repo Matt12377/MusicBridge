@@ -1,4 +1,6 @@
 import { BackupWorkflowError } from './recording/backup-workflow-store.js';
+import { readSpreadsheetFile, SpreadsheetReadError } from './collection/spreadsheet-files.js';
+import { parseSpreadsheetWorkbook, SpreadsheetParseError } from './collection/spreadsheet-parser.js';
 import { DatasetScopeError } from './recording/dataset-identity.js';
 import { createSyntheticRoonLibrary } from './roon/synthetic-library.js';
 import { appendFileSync, chmodSync, writeFileSync } from 'node:fs';
@@ -77,6 +79,7 @@ function failureForError(id: string, error: unknown): IpcFailure {
   if (error instanceof DatasetScopeError) return responseFailure(id, error.code, error.message);
   if (error instanceof BackupWorkflowError) return responseFailure(id, error.code === 'BACKUP_CONFLICT' ? 'INVENTORY_CONFLICT' : 'INVENTORY_UNAVAILABLE', error.message);
   if (error instanceof CollectionError) return responseFailure(id, error.code, error.message);
+  if (error instanceof SpreadsheetReadError || error instanceof SpreadsheetParseError) return responseFailure(id, 'INVALID_IPC_REQUEST', error.message);
   const bridgeError = asBridgeError(error);
   if (bridgeError.code === 'NETEASE_NOT_CONFIGURED') {
     return responseFailure(id, 'AUTH_REQUIRED', 'Provider login required');
@@ -252,6 +255,28 @@ async function dispatch(
     case 'recordingExecution.cancel': return executionFor(runtime).cancel(request.payload as IpcCommandPayloads['recordingExecution.cancel']);
     case 'recordingExecution.cancelRead': return executionFor(runtime).cancelRead((request.payload as IpcCommandPayloads['recordingExecution.cancelRead']).id);
     case 'recordingExecution.verify': return executionFor(runtime).verify(request.payload as IpcCommandPayloads['recordingExecution.verify']);
+    case 'spreadsheetImports.registerWorkbook': {
+      const payload = request.payload as IpcCommandPayloads['spreadsheetImports.registerWorkbook'];
+      const repository = collectionFor(runtime).spreadsheetImports, prior = repository.sourceReceipt({ commandId: payload.commandId });
+      if (prior.source) return prior.source;
+      const file = await readSpreadsheetFile(payload.absolutePath);
+      const workbook = await parseSpreadsheetWorkbook(file.bytes, file.fileFormat);
+      // 原生选择及解析均会跨异步边界，写入前必须再次核对原工作库。
+      if (!runtime.commandOutbox || !request.expectedDatasetId) throw new DatasetScopeError();
+      runtime.commandOutbox.assertScope(request.expectedDatasetId);
+      return repository.registerSource({ commandId: payload.commandId, bytes: file.bytes, displayName: file.displayName, workbook });
+    }
+    case 'spreadsheetImports.workbookReceipt': return collectionFor(runtime).spreadsheetImports.sourceReceipt(request.payload as IpcCommandPayloads['spreadsheetImports.workbookReceipt']);
+    case 'spreadsheetImports.sources': return collectionFor(runtime).spreadsheetImports.sources(request.payload as IpcCommandPayloads['spreadsheetImports.sources']);
+    case 'spreadsheetImports.source': return collectionFor(runtime).spreadsheetImports.source(request.payload as IpcCommandPayloads['spreadsheetImports.source']);
+    case 'spreadsheetImports.sourceRows': return collectionFor(runtime).spreadsheetImports.sourceRows(request.payload as IpcCommandPayloads['spreadsheetImports.sourceRows']);
+    case 'spreadsheetImports.preview': return collectionFor(runtime).spreadsheetImports.preview(request.payload as IpcCommandPayloads['spreadsheetImports.preview']);
+    case 'spreadsheetImports.apply': return collectionFor(runtime).spreadsheetImports.apply(request.payload as IpcCommandPayloads['spreadsheetImports.apply']);
+    case 'spreadsheetImports.revision': return collectionFor(runtime).spreadsheetImports.revision(request.payload as IpcCommandPayloads['spreadsheetImports.revision']);
+    case 'spreadsheetImports.history': return collectionFor(runtime).spreadsheetImports.history(request.payload as IpcCommandPayloads['spreadsheetImports.history']);
+    case 'spreadsheetImports.adjustmentPreview': return collectionFor(runtime).spreadsheetImports.adjustmentPreview(request.payload as IpcCommandPayloads['spreadsheetImports.adjustmentPreview']);
+    case 'spreadsheetImports.adjust': return collectionFor(runtime).spreadsheetImports.adjust(request.payload as IpcCommandPayloads['spreadsheetImports.adjust']);
+    case 'spreadsheetImports.adjustments': return collectionFor(runtime).spreadsheetImports.adjustments(request.payload as IpcCommandPayloads['spreadsheetImports.adjustments']);
     case 'referenceCatalog.registerSource': return collectionFor(runtime).catalog.registerSource(request.payload as IpcCommandPayloads['referenceCatalog.registerSource']);
     case 'referenceCatalog.sources': return collectionFor(runtime).catalog.sources(request.payload as IpcCommandPayloads['referenceCatalog.sources']);
     case 'referenceCatalog.source': return collectionFor(runtime).catalog.source(request.payload as IpcCommandPayloads['referenceCatalog.source']);

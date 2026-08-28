@@ -1,3 +1,4 @@
+import { createSpreadsheetImportStore, spreadsheetImportMigration, type SpreadsheetImportStore } from './spreadsheet-import-store.js';
 import { createCollectionSnapshot, type CollectionSnapshot } from '../recording/backup-snapshot.js';
 import { createReferenceCatalogStore, referenceCatalogMigration, type ReferenceCatalogStore } from './reference-catalog-store.js';
 import type { RootCapability } from '../recording/source-files.js';
@@ -39,6 +40,7 @@ const conflict = (message: string): never => { throw new CollectionError('INVENT
 const unavailable = (): never => { throw new CollectionError('INVENTORY_UNAVAILABLE', '库存暂时不可用，请重试；现有数据不会被自动清除。'); };
 
 export interface CollectionRepository {
+  spreadsheetImports: SpreadsheetImportStore;
   catalog: ReferenceCatalogStore;
   recordingProfiles: RecordingProfilesStore;
   execution: ExecutionStore;
@@ -64,7 +66,7 @@ export interface CollectionRepository {
   close(): void;
 }
 interface ModelRow { id: string; descriptor: string; policy: CollectorPolicy; minimum_sealed: number; revision: number }
-interface LotRow { id: string; sku_id: string; model_id: string; minutes: number; acquired: number; sealed: number; opened: number; legacy: number; unknown: number }
+interface LotRow { quantity_adjustment: number; id: string; sku_id: string; model_id: string; minutes: number; acquired: number; sealed: number; opened: number; legacy: number; unknown: number }
 interface CopyRow { recording_title?: string | null; physical_id: string; lot_id: string; sku_id: string; model_id: string; minutes: number; packaging: CollectionCopy['packaging']; usage: CollectionCopy['usage']; available: number; origin: CollectionCopy['origin']; revision: number; reserved_from: string | null }
 interface PhotoRow { id: string; model_id: string; physical_id: string | null; width: number; height: number }
 
@@ -169,15 +171,17 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
       // WAL 恢复期间，首次版本读取也可能遇到短暂锁；先设置等待，再访问数据库内容。
       db.exec('PRAGMA busy_timeout=1000');
       const version = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-      if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].includes(version)) return unavailable();
+      if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].includes(version)) return unavailable();
       if (version === 0 && Number(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").get()?.n) !== 0) return unavailable();
       db.exec('PRAGMA trusted_schema=OFF; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
-      if (version < 15) {
+      if (version < 16) {
+        // 重建被其他表引用的批次表：事务外暂关检查，提交前核验，退出时始终恢复。
+        db.exec('PRAGMA foreign_keys=OFF');
         db.exec('BEGIN IMMEDIATE');
         try {
           // 等待写锁后重读版本，避免两个首次连接同时执行迁移。
           const currentVersion = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-          if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].includes(currentVersion)) return unavailable();
+          if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].includes(currentVersion)) return unavailable();
           if (currentVersion === 0) db.exec(schema);
           if (currentVersion < 2) { db.exec(photoMigration); options.beforeCommit?.('migrate-photos'); }
           if (currentVersion < 3) { db.exec(physicalMusicMigration); options.beforeCommit?.('migrate-music'); }
@@ -193,8 +197,11 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
           if (currentVersion < 13) { db.exec(archiveMigration); options.beforeCommit?.('migrate-archive'); }
           if (currentVersion < 14) { db.exec(archiveWorkflowMigration); options.beforeCommit?.('migrate-archive-workflow'); }
           if (currentVersion < 15) { db.exec(referenceCatalogMigration); options.beforeCommit?.('migrate-reference-catalog'); }
+          if (currentVersion < 16) { db.exec(spreadsheetImportMigration); options.beforeCommit?.('migrate-spreadsheet-imports'); }
+          if (db.prepare('PRAGMA foreign_key_check').get()) return unavailable();
           db.exec('COMMIT');
         } catch (error) { db.exec('ROLLBACK'); throw error; }
+        finally { db.exec('PRAGMA foreign_keys=ON'); }
       }
       database = db;
       return db;
@@ -358,10 +365,32 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
     db.prepare('INSERT INTO physical_copies(physical_id,lot_id,packaging,usage,available,origin) VALUES (?,?,?,?,1,?)').run(physicalId, request.lotId, packaging, usage, origin);
     return { result: { modelId: lot.model_id, lotId: lot.id, physicalId }, evidence: { kind: 'POOL_TO_COPY', bucket: request.bucket, before: lot[column], after: lot[column] - 1, packaging, usage, origin } };
   }
+  function receiveInTransaction(db: DatabaseSync, request: CollectionReceiveRequest, privateIdentity?: string): { result: CollectionMutationResult; evidence: unknown } {
+        const descriptor = { ...request.model, brand: normalized(request.model.brand), name: normalized(request.model.name), edition: normalized(request.model.edition) };
+        const { identification: _identification, ...identity } = descriptor;
+        const identityKey = privateIdentity ?? createHash('sha256').update(canonical({ ...identity, brand: identity.brand.toLocaleLowerCase('en-US'), name: identity.name.toLocaleLowerCase('en-US'), edition: identity.edition.toLocaleLowerCase('en-US') })).digest('hex');
+        let modelId = one<{ id: string }>(db, 'SELECT id FROM collection_models WHERE identity_key=?', identityKey)?.id;
+        if (!modelId) {
+          if (count(db, 'SELECT COUNT(*) AS n FROM collection_models') >= 10_000) return conflict('型号数量已达当前上限。');
+          modelId = randomUUID(); db.prepare('INSERT INTO collection_models(id,identity_key,descriptor) VALUES (?,?,?)').run(modelId, identityKey, JSON.stringify(descriptor));
+        }
+        const amount = Object.values(request.quantities).reduce((sum, n) => sum + n, 0);
+        if (counts(db, modelId).total + amount > 1_000_000) return conflict('该型号库存已达当前上限。');
+        let skuId = one<{ id: string }>(db, 'SELECT id FROM collection_skus WHERE model_id=? AND minutes=?', modelId, request.lengthMinutes ?? 0)?.id;
+        if (!skuId) {
+          if (count(db, 'SELECT COUNT(*) AS n FROM collection_skus WHERE model_id=?', modelId) >= 100) return conflict('该型号时长种类已达当前上限。');
+          skuId = randomUUID(); db.prepare('INSERT INTO collection_skus VALUES (?,?,?)').run(skuId, modelId, request.lengthMinutes ?? 0);
+        }
+        const lotId = randomUUID(), q = request.quantities;
+        db.prepare('INSERT INTO inventory_lots(id,sku_id,acquired,sealed,opened,legacy,unknown) VALUES (?,?,?,?,?,?,?)').run(lotId, skuId, amount, q.sealedBlank, q.openedBlank, q.legacyUsed, q.unclassified);
+        return { result: { modelId, lotId }, evidence: { kind: 'RECEIVE', quantityAcquired: amount, quantities: q } };
+  }
+
   const music = createPhysicalMusicRepository({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   const links = createPhysicalLinksRepository({ read: guarded, conflict, unavailable, music, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   const media = createMediaPlanningStore({ read: guarded, conflict, unavailable, stock: mediaStock, stockOne: mediaStockOne, reservationStock: reservedMediaStock, reserve: reserveMediaStock, release: releaseMediaStock, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   return {
+    spreadsheetImports: createSpreadsheetImportStore({ read: guarded, conflict, receive: receiveInTransaction, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     catalog: createReferenceCatalogStore({ read: guarded, model, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     music, links,
     archive: createArchiveStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
@@ -393,7 +422,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
         const copies = many<CopyRow>(db, `${copySelect} WHERE s.model_id=? ORDER BY c.rowid DESC LIMIT ? OFFSET ?`, modelId, page.limit, page.offset);
         const detail: CollectionDetail = { model: model(db, modelId),
           photos: many<PhotoRow>(db, 'SELECT id,model_id,physical_id,width,height FROM collection_photos WHERE model_id=? ORDER BY rowid', modelId).map(publicPhoto),
-          lots: paged(lots.map((r): CollectionLot => ({ id: r.id, skuId: r.sku_id, lengthMinutes: r.minutes || null, quantityAcquired: r.acquired,
+          lots: paged(lots.map((r): CollectionLot => ({ id: r.id, skuId: r.sku_id, lengthMinutes: r.minutes || null, quantityAcquired: r.acquired, quantityAdjustment: r.quantity_adjustment,
             quantities: { sealedBlank: r.sealed, openedBlank: r.opened, legacyUsed: r.legacy, unclassified: r.unknown } })), page,
           count(db, 'SELECT COUNT(*) AS n FROM inventory_lots l JOIN collection_skus s ON s.id=l.sku_id WHERE s.model_id=?', modelId)),
           copies: paged(copies.map(publicCopy), page, count(db, 'SELECT COUNT(*) AS n FROM physical_copies c JOIN inventory_lots l ON l.id=c.lot_id JOIN collection_skus s ON s.id=l.sku_id WHERE s.model_id=?', modelId)),
@@ -402,28 +431,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
         return detail;
       });
     },
-    receive(request) {
-      return transaction('receive', request, isCollectionReceiveRequest(request), db => {
-        const descriptor = { ...request.model, brand: normalized(request.model.brand), name: normalized(request.model.name), edition: normalized(request.model.edition) };
-        const { identification: _identification, ...identity } = descriptor;
-        const identityKey = createHash('sha256').update(canonical({ ...identity, brand: identity.brand.toLocaleLowerCase('en-US'), name: identity.name.toLocaleLowerCase('en-US'), edition: identity.edition.toLocaleLowerCase('en-US') })).digest('hex');
-        let modelId = one<{ id: string }>(db, 'SELECT id FROM collection_models WHERE identity_key=?', identityKey)?.id;
-        if (!modelId) {
-          if (count(db, 'SELECT COUNT(*) AS n FROM collection_models') >= 10_000) return conflict('型号数量已达当前上限。');
-          modelId = randomUUID(); db.prepare('INSERT INTO collection_models(id,identity_key,descriptor) VALUES (?,?,?)').run(modelId, identityKey, JSON.stringify(descriptor));
-        }
-        const amount = Object.values(request.quantities).reduce((sum, n) => sum + n, 0);
-        if (counts(db, modelId).total + amount > 1_000_000) return conflict('该型号库存已达当前上限。');
-        let skuId = one<{ id: string }>(db, 'SELECT id FROM collection_skus WHERE model_id=? AND minutes=?', modelId, request.lengthMinutes ?? 0)?.id;
-        if (!skuId) {
-          if (count(db, 'SELECT COUNT(*) AS n FROM collection_skus WHERE model_id=?', modelId) >= 100) return conflict('该型号时长种类已达当前上限。');
-          skuId = randomUUID(); db.prepare('INSERT INTO collection_skus VALUES (?,?,?)').run(skuId, modelId, request.lengthMinutes ?? 0);
-        }
-        const lotId = randomUUID(), q = request.quantities;
-        db.prepare('INSERT INTO inventory_lots VALUES (?,?,?,?,?,?,?)').run(lotId, skuId, amount, q.sealedBlank, q.openedBlank, q.legacyUsed, q.unclassified);
-        return { result: { modelId, lotId }, evidence: { kind: 'RECEIVE', quantityAcquired: amount, quantities: q } };
-      });
-    },
+    receive(request) { return transaction('receive', request, isCollectionReceiveRequest(request), db => receiveInTransaction(db, request)); },
     materialize(request) { return transaction('materialize', request, isCollectionMaterializeRequest(request), db => materializeInTransaction(db, request)); },
     updateCopy(request) {
       return transaction('update-copy', request, isCollectionUpdateCopyRequest(request), db => {

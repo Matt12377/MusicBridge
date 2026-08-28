@@ -5,6 +5,7 @@ import { archiveDigest, archiveManifest, type OwnedArchiveOperation } from './ar
 import type { StoredArchiveOperation } from './archive-store.js';
 import { backupFail } from './backup-files.js';
 import { verifyReferenceCatalogDatabase } from '../collection/reference-catalog-store.js';
+import { verifySpreadsheetImportDatabase } from '../collection/spreadsheet-import-store.js';
 
 export interface BackupObject { sha256: string; size: number; rootIds: string[] }
 export interface BackupOperation { operationId: string; rootId: string; manifestHash: string; manifestSize: number }
@@ -16,8 +17,9 @@ export function readBackupIndex(databasePath: string): { index: BackupIndex; own
   try {
     db.exec('PRAGMA trusted_schema=OFF; PRAGMA query_only=ON;');
     const version = db.prepare('PRAGMA user_version').get()?.user_version;
-    if (version !== 14 && version !== 15 || db.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || db.prepare('PRAGMA foreign_key_check').all().length) backupFail();
-    if (version === 15) verifyReferenceCatalogDatabase(db);
+    if (version !== 14 && version !== 15 && version !== 16 || db.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || db.prepare('PRAGMA foreign_key_check').all().length) backupFail();
+    if (version === 15 || version === 16) verifyReferenceCatalogDatabase(db);
+    if (version === 16) verifySpreadsheetImportDatabase(db);
     const count = Number(db.prepare('SELECT count(*) n FROM archive_operations').get()?.n);
     if (count > 10000) backupFail();
     const operations: BackupOperation[] = [], owned: OwnedArchiveOperation[] = [], incompleteOperationIds: string[] = [];

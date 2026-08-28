@@ -1,3 +1,4 @@
+import { isChooseSpreadsheetWorkbookRequest, isSpreadsheetWorkbookSource, isApplySpreadsheetImportRequest, isSpreadsheetImportResult, isAdjustSpreadsheetInventoryRequest, isSpreadsheetInventoryAdjustment, type ChooseSpreadsheetWorkbookRequest, type SpreadsheetWorkbookSource } from './spreadsheet-import.js';
 import { isCollectionId, isCollectionReceiveRequest, isCollectionMaterializeRequest, isCollectionUpdateCopyRequest, isCollectionPolicyRequest, isCollectionAddPhotoRequest, isCollectionChangePhotoRequest, isCollectionMutationResult } from './collection.js';
 import { isRegisterReferenceSourceRequest, isPublishCatalogRevisionRequest, isSetCatalogMatchRequest, isReferenceSourceVersion, isCatalogRevisionDetail } from './reference-catalog.js';
 import { isSaveReleaseRequest, isSaveLegacyRequest, isAddMusicPhotoRequest, isRemoveMusicPhotoRequest, isMusicMutationResult } from './physical-music.js';
@@ -20,6 +21,7 @@ import { isActivateRestoredDataset, isRestoreActivationView, type ActivateRestor
 
 /** 只允许原有公开领域写命令，不能从任意 IPC 名称推导重放权限。 */
 export const COMMAND_OUTBOX_COMMANDS = [
+  'spreadsheetImports.apply', 'spreadsheetImports.adjust',
   'referenceCatalog.registerSource', 'referenceCatalog.publishRevision', 'referenceCatalog.setMatch',
   'collection.receive', 'collection.materialize', 'collection.updateCopy', 'collection.setPolicy', 'collection.addPhoto', 'collection.changePhoto',
   'physicalMusic.saveRelease', 'physicalMusic.saveLegacy', 'physicalMusic.addPhoto', 'physicalMusic.removePhoto',
@@ -35,6 +37,7 @@ export const COMMAND_OUTBOX_COMMANDS = [
   'recordingBackups.start', 'recordingBackups.cancel', 'recordingBackups.revoke',
 ] as const;
 export const COMMAND_OUTBOX_SPECIAL_COMMANDS = [
+  'spreadsheetImports.chooseWorkbook',
   'recordingSources.chooseRoot', 'recordingSources.choose', 'recordingPreparation.chooseDestination',
   'recordingPrepared.choose', 'recordingArchive.choose', 'recordingBackups.choose', 'recordingBackups.activate',
 ] as const;
@@ -43,6 +46,8 @@ export type CommandOutboxSpecialCommand = typeof COMMAND_OUTBOX_SPECIAL_COMMANDS
 export type CommandOutboxTrackedCommand = CommandOutboxCommand | CommandOutboxSpecialCommand;
 /** 复用叶级领域验证器；不反向导入总 IPC validator，避免运行时模块循环。 */
 const ordinaryValidators = {
+  'spreadsheetImports.apply': [isApplySpreadsheetImportRequest, isSpreadsheetImportResult],
+  'spreadsheetImports.adjust': [isAdjustSpreadsheetInventoryRequest, isSpreadsheetInventoryAdjustment],
   'referenceCatalog.registerSource': [isRegisterReferenceSourceRequest, isReferenceSourceVersion],
   'referenceCatalog.publishRevision': [isPublishCatalogRevisionRequest, isCatalogRevisionDetail],
   'referenceCatalog.setMatch': [isSetCatalogMatchRequest, isCatalogRevisionDetail],
@@ -96,6 +101,7 @@ type Guarded<F> = F extends (value: unknown) => value is infer V ? V : never;
 export type CommandOutboxExecute = { [C in CommandOutboxCommand]: { datasetId: string; command: C; payload: Guarded<typeof ordinaryValidators[C][0]> } }[CommandOutboxCommand];
 export type CommandOutboxResult = { [C in CommandOutboxCommand]: { command: C; result: Guarded<typeof ordinaryValidators[C][1]> } }[CommandOutboxCommand];
 export interface CommandOutboxSpecialPayloads {
+  'spreadsheetImports.chooseWorkbook': ChooseSpreadsheetWorkbookRequest;
   'recordingSources.chooseRoot': { commandId: string };
   'recordingSources.choose': SourceSelection;
   'recordingPreparation.chooseDestination': { commandId: string };
@@ -105,6 +111,7 @@ export interface CommandOutboxSpecialPayloads {
   'recordingBackups.activate': ActivateRestoredDataset;
 }
 export interface CommandOutboxSpecialResults {
+  'spreadsheetImports.chooseWorkbook': SpreadsheetWorkbookSource | null;
   'recordingSources.chooseRoot': SourceRoot | null;
   'recordingSources.choose': SourceJob | null;
   'recordingPreparation.chooseDestination': PreparationDestination | null;
@@ -117,6 +124,8 @@ export type CommandOutboxRequest = CommandOutboxExecute | { [C in CommandOutboxS
 export type CommandOutboxDispatchResult = CommandOutboxResult | { [C in CommandOutboxSpecialCommand]: { command: C; result: CommandOutboxSpecialResults[C] } }[CommandOutboxSpecialCommand];
 export interface CommandOutboxContext { datasetId: string }
 export const MAX_COMMAND_OUTBOX_PAYLOAD_BYTES = 2 * 1024 * 1024;
+/** 两万行人工对应及公式确认只携带定位信息，不包含工作簿或原始单元格。 */
+export const MAX_COMMAND_OUTBOX_SPREADSHEET_APPLY_BYTES = 3 * 1024 * 1024;
 export const MAX_COMMAND_OUTBOX_TOTAL_BYTES = 64 * 1024 * 1024;
 export const MAX_COMMAND_OUTBOX_ENTRIES = 1000;
 export const COMMAND_OUTBOX_STATES = ['pending', 'sending', 'uncertain', 'succeeded', 'rejected', 'dismissed'] as const;
@@ -148,7 +157,8 @@ export const isCommandOutboxTrackedCommand = (v: unknown): v is CommandOutboxTra
 export function isCommandOutboxContext(v: unknown): v is CommandOutboxContext { return record(v) && keys(v, ['datasetId']) && isCommandOutboxDatasetId(v.datasetId); }
 function envelope(v: unknown): v is Record<string, unknown> {
   if (!record(v) || !keys(v, ['datasetId', 'command', 'payload']) || !isCommandOutboxDatasetId(v.datasetId) || !record(v.payload) || !isCollectionId(v.payload.commandId)) return false;
-  try { return new TextEncoder().encode(JSON.stringify(v)).byteLength <= MAX_COMMAND_OUTBOX_PAYLOAD_BYTES; } catch { return false; }
+  const limit = v.command === 'spreadsheetImports.apply' ? MAX_COMMAND_OUTBOX_SPREADSHEET_APPLY_BYTES : MAX_COMMAND_OUTBOX_PAYLOAD_BYTES;
+  try { return new TextEncoder().encode(JSON.stringify(v)).byteLength <= limit; } catch { return false; }
 }
 export function isCommandOutboxExecute(v: unknown): v is CommandOutboxExecute {
   return envelope(v) && isCommandOutboxCommand(v.command) && ordinaryValidators[v.command][0](v.payload);
@@ -161,6 +171,7 @@ export function isCommandOutboxRequest(v: unknown): v is CommandOutboxRequest {
     case 'recordingSources.choose': return isSourceSelection(v.payload);
     case 'recordingPrepared.choose': return isSelectPreparedRequest(v.payload);
     case 'recordingBackups.choose': return isAuthorizeBackupRoot(v.payload);
+    case 'spreadsheetImports.chooseWorkbook': return isChooseSpreadsheetWorkbookRequest(v.payload);
     case 'recordingBackups.activate': return isActivateRestoredDataset(v.payload);
     default: return false;
   }
@@ -179,6 +190,7 @@ export function isCommandOutboxDispatchResult(v: unknown): v is CommandOutboxDis
     case 'recordingPrepared.choose': return v.result === null || isPreparedSelection(v.result);
     case 'recordingArchive.choose': return v.result === null || isArchiveRootView(v.result);
     case 'recordingBackups.choose': return v.result === null || isBackupRootView(v.result);
+    case 'spreadsheetImports.chooseWorkbook': return v.result === null || isSpreadsheetWorkbookSource(v.result);
     case 'recordingBackups.activate': return isRestoreActivationView(v.result);
     default: return false;
   }

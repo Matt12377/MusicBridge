@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { collectionModelLabel } from './collection-display'
 import { nextTick, ref } from 'vue'
 import type { CollectionModel, CollectionReceiveRequest } from '@music-bridge/contracts'
 import { useCollection } from '../../composables/useCollection'
@@ -7,6 +8,11 @@ import CollectionModelDetail from './CollectionModelDetail.vue'
 import CollectionPhoto from './CollectionPhoto.vue'
 import PhysicalMusicView from './PhysicalMusicView.vue'
 import ReferenceCatalogPanel from './ReferenceCatalogPanel.vue'
+import SpreadsheetImportPanel from './SpreadsheetImportPanel.vue'
+
+const spreadsheetOpen = ref(false)
+const spreadsheetTrigger = ref<HTMLButtonElement>()
+function closeSpreadsheet(): void { spreadsheetOpen.value = false; void nextTick(() => spreadsheetTrigger.value?.focus({ preventScroll: true })) }
 
 const referenceOpen = ref(false)
 const referenceTrigger = ref<HTMLButtonElement>()
@@ -62,7 +68,8 @@ function onTabKeydown(event: KeyboardEvent): void {
         @click="selectedView = view.id" @keydown="onTabKeydown"
       >{{ view.label }}</button>
     </div>
-    <button ref="referenceTrigger" class="reference-entry" type="button" @click="referenceOpen = true">参考目录与版次</button>
+    <div class="collection-tools"><button ref="spreadsheetTrigger" class="reference-entry" type="button" @click="spreadsheetOpen = true">Excel 导入</button>
+    <button ref="referenceTrigger" class="reference-entry" type="button" @click="referenceOpen = true">参考目录与版次</button></div>
     </div>
 
     <div
@@ -102,10 +109,10 @@ function onTabKeydown(event: KeyboardEvent): void {
         <p v-if="loading" role="status" class="collection-status">正在读取库存…</p>
         <div v-if="catalog?.items.length" class="inventory-grid">
           <button v-for="model in catalog.items" :key="model.id" class="inventory-card" type="button" @click="inventory.openModel(model.id)">
-            <div v-if="model.featuredPhoto" class="inventory-card-photo"><CollectionPhoto :photo="model.featuredPhoto" :alt="`${model.brand} ${model.name} 实物代表图`" /></div>
+            <div v-if="model.featuredPhoto" class="inventory-card-photo"><CollectionPhoto :photo="model.featuredPhoto" :alt="`${collectionModelLabel(model)} 实物代表图`" /></div>
             <div v-else class="inventory-placeholder" aria-hidden="true"><svg viewBox="0 0 220 130" fill="none"><rect x="20" y="20" width="180" height="95" rx="12" stroke="currentColor"/><rect x="36" y="35" width="148" height="48" rx="8" stroke="currentColor"/><circle cx="64" cy="59" r="14" stroke="currentColor"/><circle cx="156" cy="59" r="14" stroke="currentColor"/><path d="M78 59h64M55 115l10-20h90l10 20" stroke="currentColor"/></svg><span>实物照片待添加</span></div>
             <span v-if="model.featuredPhoto" class="inventory-photo-source">实物照片{{ model.featuredPhoto.physicalId ? ` · ${model.featuredPhoto.physicalId}` : '' }}</span>
-            <span class="inventory-card-title">{{ model.brand }} {{ model.name }}</span>
+            <span class="inventory-card-title">{{ collectionModelLabel(model) }}</span>
             <span class="inventory-card-edition">{{ model.edition || '版次待确认' }} · {{ model.lengths.map(n => n ? `${n} min` : '时长待确认').join(' / ') }}</span>
             <span class="inventory-card-counts"><span>未开封 <b>{{ model.counts.sealedBlank }}</b></span><span>已拆空白 <b>{{ model.counts.openedBlank }}</b></span><span>全部 <b>{{ model.counts.total }}</b></span></span>
           </button>
@@ -126,6 +133,7 @@ function onTabKeydown(event: KeyboardEvent): void {
         <p :id="`collection-status-${view.id}`" class="collection-status">录入后打开型号，即可添加实物照片；也可清除筛选查看全部收藏。</p>
       </div>
     </div>
+    <SpreadsheetImportPanel v-if="spreadsheetOpen" @close="closeSpreadsheet" @changed="inventory.load(); detail && inventory.openModel(detail.model.id)" />
     <ReferenceCatalogPanel v-if="referenceOpen" @close="closeReference" />
     <CollectionReceiveDialog v-if="receiving" :model="receiveModel" :busy="saving" :error="error" :retryable="!!pending" @close="receiving = false" @save="receive" @retry="retry" />
   </section>
@@ -133,6 +141,7 @@ function onTabKeydown(event: KeyboardEvent): void {
 
 <style scoped>
 .collection-view { max-width: 1240px; margin: 0 auto; padding: 24px 36px 40px; }
+.collection-tools { display: flex; gap: 10px; flex-wrap: wrap; }
 .collection-context { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
 .reference-entry { min-height: 44px; padding: 8px 14px; border: 1px solid var(--mb-glass-border); border-radius: 9px; color: var(--mb-text-primary); background: var(--mb-glass-clear); font-size: 13px; }
 .reference-entry:focus-visible { outline: 2px solid var(--mb-accent); outline-offset: 3px; }

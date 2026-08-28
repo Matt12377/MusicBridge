@@ -13,7 +13,7 @@ import { createCollectionRepository } from '../src/collection/repository.js';
 import { readBackupIndex } from '../src/recording/backup-index.js';
 import { isolateRestoredDatabase, verifyRestoredDatabaseIsolation } from '../src/recording/restore-database.js';
 
-test('固定旧schema14仍可校验，目录schema15迁移后快照与隔离恢复保留库存事实', async t => {
+test('固定旧schema14仍可校验，正式schema16迁移只增加零调整额且隔离恢复保留原逐列事实', async t => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-catalog-backup-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const filePath = path.join(directory, 'collection.sqlite');
@@ -25,15 +25,15 @@ test('固定旧schema14仍可校验，目录schema15迁移后快照与隔离恢�
   assert.deepEqual(await readFile(filePath), before, '只读验证旧备份不得迁移或修改原件');
   const inspect = () => {
     const db = new DatabaseSync(filePath, { readOnly: true });
-    try { return { version: db.prepare('PRAGMA user_version').get()?.user_version, ledger: db.prepare('SELECT * FROM inventory_ledger ORDER BY command_id').all(), copies: db.prepare('SELECT * FROM physical_copies ORDER BY physical_id').all(), lots: db.prepare('SELECT * FROM inventory_lots ORDER BY id').all(), photos: db.prepare('SELECT * FROM collection_photos ORDER BY id').all() }; }
+    try { return { version: db.prepare('PRAGMA user_version').get()?.user_version, ledger: db.prepare('SELECT * FROM inventory_ledger ORDER BY command_id').all(), copies: db.prepare('SELECT * FROM physical_copies ORDER BY physical_id').all(), lots: db.prepare('SELECT * FROM inventory_lots ORDER BY id').all().map(row => ({ ...row })), photos: db.prepare('SELECT * FROM collection_photos ORDER BY id').all() }; }
     finally { db.close(); }
   };
   const original = inspect(), repository = createCollectionRepository({ filePath });
   try { repository.list({ offset: 0, limit: 20 }); } finally { repository.close(); }
-  assert.equal(inspect().version, 15, '目录schema必须由正式迁移创建');
+  assert.equal(inspect().version, 16, 'schema16必须由正式迁移创建，不能只改user_version');
   assert.deepEqual(readBackupIndex(filePath).index, { operations: [], objects: [], incompleteOperationIds: [] });
   isolateRestoredDatabase(filePath); verifyRestoredDatabaseIsolation(filePath);
-  assert.deepEqual(inspect(), { ...original, version: 15 });
+  assert.deepEqual(inspect(), { ...original, version: 16, lots: original.lots.map(lot => ({ ...lot, quantity_adjustment: 0 })) });
 });
 
 
@@ -53,7 +53,7 @@ test('含参考资料与历史拥有快照的真实数据库备份可隔离恢�
   assert.equal(matched.currentCounts.owned, 1); assert.equal(matched.currentEntries[0]?.stockCount, 5);
   const destinationPath = path.join(directory, '快照'); await mkdir(destinationPath);
   const snapshot = await repository.backupSnapshot({ ...await authorizeSourceDirectory(destinationPath), id: randomUUID() });
-  assert.equal(snapshot.schemaVersion, 15);
+  assert.equal(snapshot.schemaVersion, 16);
   const restoredPath = path.join(destinationPath, 'collection.sqlite');
   readBackupIndex(restoredPath); isolateRestoredDatabase(restoredPath); verifyRestoredDatabaseIsolation(restoredPath); readBackupIndex(restoredPath);
   const restored = createCollectionRepository({ filePath: restoredPath });
@@ -209,4 +209,76 @@ test('备份元数据摘要在读取前执行较小的大小上限', async t => 
   const { hashBackupFile } = await import('../src/recording/backup-files.js');
   await writeFile(path.join(f.destination.path, 'oversize.json'), 'x'.repeat(4096));
   await assert.rejects(hashBackupFile(f.destination, 'oversize.json', f.backupRequest.signal, 1024));
+});
+
+
+test('固定旧schema15备份可只读校验，原照片与参考拥有快照不迁移不改字节', async t => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-schema15-readonly-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const filePath = path.join(directory, 'collection.sqlite'), seed = new DatabaseSync(filePath);
+  try { seed.exec(await readFile(new URL('./fixtures/collection-schema15.sql', import.meta.url), 'utf8')); }
+  finally { seed.close(); }
+  const before = await readFile(filePath), inspect = new DatabaseSync(filePath, { readOnly: true });
+  try {
+    assert.equal(inspect.prepare('PRAGMA user_version').get()?.user_version, 15);
+    assert.equal(inspect.prepare("SELECT count(*) n FROM sqlite_master WHERE type='table' AND name LIKE 'spreadsheet_%'").get()?.n, 0);
+    assert.equal(inspect.prepare('PRAGMA table_info(inventory_lots)').all().some(row => row.name === 'quantity_adjustment'), false);
+    assert.equal(inspect.prepare('SELECT count(*) n FROM collection_photos').get()?.n, 1);
+    const snapshots = inspect.prepare('SELECT data FROM reference_catalog_snapshots').all().map(row => JSON.parse(String(row.data)));
+    assert.equal(snapshots.length, 2); assert.ok(snapshots.some(snapshot => snapshot.counts.owned === 1 && snapshot.entries[0].stockCount === 5));
+  } finally { inspect.close(); }
+  assert.deepEqual(readBackupIndex(filePath).index, { operations: [], objects: [], incompleteOperationIds: [] });
+  assert.deepEqual(await readFile(filePath), before, '旧schema15校验只能读取，不能借校验修改旧备份');
+});
+
+test('正式schema16隔离副本撤销路径授权但逐列保留固定旧schema15库存与目录事实', async t => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-schema16-isolation-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const filePath = path.join(directory, 'collection.sqlite'), seed = new DatabaseSync(filePath);
+  try { seed.exec(await readFile(new URL('./fixtures/collection-schema15.sql', import.meta.url), 'utf8')); } finally { seed.close(); }
+  const repository = createCollectionRepository({ filePath });
+  try { repository.list({ offset: 0, limit: 25 }); } finally { repository.close(); }
+  const facts = () => {
+    const db = new DatabaseSync(filePath, { readOnly: true });
+    try {
+      assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 16);
+      return db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND (name GLOB 'inventory_*' OR name GLOB 'collection_*' OR name GLOB 'reference_*' OR name GLOB 'spreadsheet_*' OR name='physical_copies') ORDER BY name").all().map(({ name }) => [name, db.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all()]);
+    } finally { db.close(); }
+  };
+  const before = facts();
+  isolateRestoredDatabase(filePath); verifyRestoredDatabaseIsolation(filePath);
+  assert.deepEqual(facts(), before, '撤销历史路径授权不能更改库存、照片、参考目录或导入事实');
+});
+
+test('schema16工作簿源bytes篡改即使恢复原不可变trigger也拒绝备份校验，原库不受损', async t => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-workbook-tamper-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const filePath = path.join(directory, 'collection.sqlite'), seed = new DatabaseSync(filePath);
+  try { seed.exec(await readFile(new URL('./fixtures/collection-schema15.sql', import.meta.url), 'utf8')); } finally { seed.close(); }
+  const repository = createCollectionRepository({ filePath }); t.after(() => repository.close());
+  const bytes = Buffer.from('仅用于源字节完整性测试的合成内容');
+  const source = repository.spreadsheetImports.registerSource({ commandId: randomUUID(), bytes, displayName: 'synthetic-integrity.xlsx', workbook: { fileFormat: 'xlsx', parserVersion: 'sheetjs-ce-0.20.3', dateSystem: '1900', sheets: [{ name: '合成库存', rows: [{ rowIndex: 1, cells: [{ columnIndex: 1, type: 'number', value: 10 }] }] }] } });
+  const destinationPath = path.join(directory, '快照'); await mkdir(destinationPath);
+  const snapshot = await repository.backupSnapshot({ ...await authorizeSourceDirectory(destinationPath), id: randomUUID() });
+  assert.equal(snapshot.schemaVersion, 16);
+  const restoredPath = path.join(destinationPath, 'collection.sqlite');
+  readBackupIndex(restoredPath);
+  const db = new DatabaseSync(restoredPath);
+  try {
+    assert.deepEqual(Buffer.from(db.prepare('SELECT bytes FROM spreadsheet_sources WHERE id=?').get(source.id)!.bytes as Uint8Array), bytes);
+    const trigger = String(db.prepare("SELECT sql FROM sqlite_master WHERE name='spreadsheet_sources_no_update'").get()?.sql);
+    assert.match(trigger, /CREATE TRIGGER/u);
+    db.exec('DROP TRIGGER spreadsheet_sources_no_update');
+    const changed = Buffer.from(bytes); changed[0] = changed[0]! ^ 1;
+    db.prepare('UPDATE spreadsheet_sources SET bytes=? WHERE id=?').run(changed, source.id);
+    db.exec(trigger);
+    assert.equal(db.prepare('PRAGMA integrity_check').get()?.integrity_check, 'ok');
+    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
+  } finally { db.close(); }
+  const evidence = await readFile(restoredPath);
+  assert.throws(() => readBackupIndex(restoredPath), /工作簿|导入|BACKUP/u);
+  assert.deepEqual(await readFile(restoredPath), evidence, '只读拒绝保留篡改证据，不能修补源Hash');
+  const original = new DatabaseSync(filePath, { readOnly: true });
+  try { assert.deepEqual(Buffer.from(original.prepare('SELECT bytes FROM spreadsheet_sources WHERE id=?').get(source.id)!.bytes as Uint8Array), bytes); }
+  finally { original.close(); }
 });

@@ -80,3 +80,4 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 - [TASK-067](TASK-067-command-outbox.md)：跨Renderer/应用重启未确认命令、工作库身份隔离和人工恢复入口（本地自动 Gate 通过；Owner未验收）。
 
 - [TASK-068](TASK-068-reference-catalog.md)：参考资料版本、目录修订、合并拆分审核与Unknown/Missing边界（本地自动Gate通过，Owner未验收）。
+- [TASK-069](TASK-069-excel-import.md)：Excel原行追踪、非破坏导入修订与明确数量账本更正（进行中）。
