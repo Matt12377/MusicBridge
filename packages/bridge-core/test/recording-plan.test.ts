@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createCollectionRepository } from '../src/collection/repository.js';
 import { createRecordingPlanCoordinator } from '../src/recording/plan-coordinator.js';
-import { verifyRecordingPlanDatabase } from '../src/recording/plan-integrity.js';
+import { recordingPlanContent, verifyRecordingPlanDatabase } from '../src/recording/plan-integrity.js';
 import { archiveObjectPath } from '../src/recording/archive-files.js';
 import { createRecordingPlanStore } from '../src/recording/plan-store.js';
 import { mediaFingerprint } from '../src/recording/media-store.js';
@@ -83,6 +83,31 @@ test('当前Session overrides形成新Plan快照，旧asset与旧Plan保持原�
   assert.deepEqual(f.plans.version({ id: first.id }).plan, first);
   const result = await f.plans.preflight({ planVersionId: first.id, readId: randomUUID() });
   assert.equal(result.checks.find(c => c.category === 'profile')?.state, 'passed');
+});
+
+test('同内容规划仅增加revision时预检归类版本失配，旧Plan与库存保持不变', async t => {
+  const f = await fixture(t), request = await f.planRequest(), original = await f.plans.freeze(request);
+  const history = f.plans.list({ draftId: original.draftId });
+  const preview = await f.media.preview({ draftId: original.draftId, spec: f.layout.spec, page: { offset: 0, limit: 25 } });
+  const updated = await f.media.save({ commandId: randomUUID(), draftId: original.draftId, planId: f.plan.id, expectedRevision: f.plan.revision, expectedDraftRevision: preview.draftRevision, inputFingerprint: preview.inputFingerprint, spec: f.layout.spec });
+  assert.equal(updated.revision, original.mediaPlanRevision + 1);
+  assert.deepEqual(updated.reservation, f.plan.reservation);
+  const current = f.repository.recordingPlans.capture(f.planSelection, original.profileSnapshot);
+  assert.deepEqual(current.material, { ...recordingPlanContent(original), mediaPlanRevision: updated.revision }, '重存后仅规划revision变化，实体、参数和容量没有变化');
+  const before = facts(f.filePath);
+  const result = await f.plans.preflight({ readId: randomUUID(), planVersionId: original.id });
+  assert.deepEqual(result.checks.filter(check => check.state === 'blocked'), [{ category: 'versions', state: 'blocked', code: 'VERSION_MISMATCH' }]);
+  assert.equal(result.state, 'blocked'); assert.equal(result.formalReady, false);
+  assert.deepEqual(f.plans.list({ draftId: original.draftId }), history);
+  assert.deepEqual(await f.plans.freeze(request), original, '旧命令仍返回原不可变回执，不生成新准入');
+  assert.deepEqual(facts(f.filePath), before);
+
+  f.repository.updateCopy({ commandId: randomUUID(), physicalId: original.physicalCopy.physicalId, expectedRevision: original.physicalCopy.revision, action: 'mark-unavailable' });
+  const unavailableFacts = facts(f.filePath);
+  const unavailable = await f.plans.preflight({ readId: randomUUID(), planVersionId: original.id });
+  assert.deepEqual(unavailable.checks.find(check => check.category === 'physical-copy'), { category: 'physical-copy', state: 'blocked', code: 'COPY_UNAVAILABLE' }, '同时存在规划revision差异时，真实副本失效仍保留原分类');
+  assert.deepEqual(f.plans.list({ draftId: original.draftId }), history);
+  assert.deepEqual(facts(f.filePath), unavailableFacts);
 });
 
 test('已冻结历史不回填当前副本，预留释放或副本不可用后预检明确阻断', async t => {

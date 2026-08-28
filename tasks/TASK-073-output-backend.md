@@ -29,3 +29,14 @@
 后续明确转交：task070_store在Core4文件交回后负责output-helper.ts及其test/fixture；task071_picker在桌面接线交回后负责native-output-package脚本/声明、output-bootstrap/core-entry、构建pin/extraResources接线及对应测试。root保留output-service/runtime/utility与E2E；私有协议/loader已由root实现。最终原生候选9源码及3产物冻结后独立审查。
 
 本地固定原生Gate入口：先运行`node scripts/build-output-helper.mjs`与`node scripts/test-output-helper.mjs`，核对三文件pin；再以`MUSIC_BRIDGE_OUTPUT_NATIVE_GATE=1`运行Core verify及桌面E2E。该变量仅控制测试选择，无真实设备授权含义；未开启时真实native用例明确skip而不伪报执行。桌面测试内部的BUNDLED_OUTPUT_GATE只启用合成helper加载。完整E2E另保留MUSIC_BRIDGE_NATIVE_GATE=1用于原FFmpeg用例。
+
+## 2026-08-29 继续开发：无设备检查交互与既有边界复核
+
+第二阶段基线`0a9ec3520b01066260df6f593e26c7b21167b83f`，仍在TASK073同一独立分支；上一阶段报告不改写。Owner继续开发授权不扩展为真实设备/测试音授权。
+
+- task071_picker：新RecordingOutputPanel与controller及相邻单元测试，RecordingPlanPanel最小接入。用户明确选择冻结Plan和非空Side/Program后才能手动无设备检查；运行/取消/失败/通过区分，切换与卸载使迟到结果失效，不提升Formal或Gate B。沿用既有tokens、焦点、可访问性与720窗口。
+- task070_store：包内正常退出未验证的根因调查；先只读确认probe/产品边界，若产品bug先真实RED，再经root批准最小改动。不新增测试后门，不放松Fuses或sender，不执行第三轮旧probe。
+- restore_index_details：旧TASK072的同内容revision变化预检误分类P3，先真实业务RED再最小分类修复，不改变保守阻断和不可变Plan。
+- root：新UI实际Electron E2E/截图/axe、统一build与所有Gate、阶段报告与完整TODO；共享Main/runtime/合同改动须先分配单一writer。
+
+每个新增模块或delta先SPEC再QUALITY、最多两轮；不重开上一已封版候选的第三轮审查。真实Gate B仍NOT_RUN，TASK074仍未启动。证据保留`reports/runtime/task-073-output-ui/`；不push、合并、安装或发布。

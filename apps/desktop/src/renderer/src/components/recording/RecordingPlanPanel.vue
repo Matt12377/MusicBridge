@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import type { MasterDraft, RecordingPreflightCheck, RecordingSessionOverrides } from '@music-bridge/contracts'
 import { createRecordingPlanController, type RecordingPlanContext } from './recording-plan-controller'
+import RecordingOutputPanel from './RecordingOutputPanel.vue'
 
 const props = defineProps<{ draft: MasterDraft; initialContext?: RecordingPlanContext }>()
 const emit = defineEmits<{ close: [] }>()
@@ -71,6 +72,7 @@ onBeforeUnmount(() => { controller.dispose(); dialog.value?.close() })
       <p v-if="!state.preflight">本次尚未完成预检。Gate B 状态为 NOT_RUN，正式输出被阻断。</p>
       <div v-else role="status"><p><strong>正式输出被阻断</strong> · Gate B {{ state.preflight.gateB }} · 核验时间 {{ state.preflight.checkedAt }}</p><ul class="checks"><li v-for="check in state.preflight.checks" :key="check.category"><strong>{{ categories[check.category] }}</strong>：{{ check.state === 'passed' ? '本次核验通过' : check.state === 'blocked' ? '阻断' : '尚未完成' }}<span v-if="check.code"> · {{ reasons[check.code] }}（{{ check.code }}）</span></li></ul></div>
     </section>
+    <RecordingOutputPanel :plan="state.version" />
     <div v-if="state.reading" role="status"><p>正在只读核验计划资料；完整文件核验可能需要一些时间。</p><button v-if="state.readId" type="button" :disabled="state.cancelling" @click="controller.cancelRead">{{ state.cancelling ? '正在取消读取…' : '取消本次只读核验' }}</button></div>
     <p v-if="state.status === 'loading' || state.sending" role="status">{{ state.sending ? '正在等待冻结回执…' : '正在读取计划资料…' }}</p>
     <p v-if="state.notice" role="status">{{ state.notice }}</p>

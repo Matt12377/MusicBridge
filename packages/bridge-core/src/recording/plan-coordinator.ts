@@ -74,6 +74,7 @@ export function createRecordingPlanCoordinator({ store, operationTimeoutMs = 30 
         checked.set('backend', { category: 'backend', state: 'not-run', code: 'BACKEND_NOT_CERTIFIED' });
         try {
           const selection = selectionFor(plan), input = store.capture(selection, plan.profileSnapshot);
+          if (input.material.mediaPlanRevision !== plan.mediaPlanRevision) return planFail('versions', 'VERSION_MISMATCH');
           if (!planSame(input.material, recordingPlanContent(plan))) return planFail('physical-copy', 'COPY_UNAVAILABLE');
           for (const category of ['versions','physical-copy','capacity','profile'] as const) checked.set(category, { category, state: 'passed' });
           await checkFiles(input, signal, checked);
