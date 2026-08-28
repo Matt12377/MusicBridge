@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef } from 'vue'
 import type { DraftProgramType, MasterDraft, MasterDraftResult, MasterDraftSummary, Page, AppendMasterDraftRequest } from '@music-bridge/contracts'
+import BackupRestorePanel from './BackupRestorePanel.vue'
 import MediaPlanningPanel from './MediaPlanningPanel.vue'
 import MasterVersionsPanel from './MasterVersionsPanel.vue'
 import PreparationPanel from './PreparationPanel.vue'
@@ -10,6 +11,15 @@ import SourceEvidencePanel from './SourceEvidencePanel.vue'
 import type { DraftSourceSnapshot } from '@music-bridge/contracts'
 import MasterSourcePicker from './MasterSourcePicker.vue'
 const emit = defineEmits<{ 'open-collection': [] }>()
+const backupRestore = ref(false), backupTrigger = ref<HTMLButtonElement>()
+async function closeBackupRestore(): Promise<void> { backupRestore.value = false; await nextTick(); backupTrigger.value?.focus() }
+async function activatedDataset(): Promise<void> {
+  ++generation; draft.value = undefined; catalog.value = undefined; sourceSnapshot.value = undefined; pending.value = undefined;
+  title.value = ''; trackIds.value = []; sourceTrackId.value = ''; picker.value = false;
+  mediaPlanning.value = false; masterVersions.value = false; execution.value = false; prepared.value = false; preparation.value = false;
+  error.value = ''; notice.value = '已加载恢复后的工作库；旧工作库和历史目录权限保持不变。';
+  await list();
+}
 const api = window.musicBridge
 const catalog = shallowRef<Page<MasterDraftSummary>>(), draft = shallowRef<MasterDraft>()
 const loading = ref(false), saving = ref(false), picker = ref(false), error = ref(''), notice = ref(''), discarding = ref(false)
@@ -104,11 +114,14 @@ onUnmounted(() => { alive = false; ++generation })
         <p class="recording-subtitle">选好音乐，再为它找到一盘合适的磁带。</p>
       </div>
       <div class="recording-secondary" aria-label="录音资料">
+        <button ref="backupTrigger" type="button" @click="backupRestore = true">备份与恢复</button>
         <button type="button" disabled aria-describedby="recording-secondary-status">母版</button>
         <button type="button" disabled aria-describedby="recording-secondary-status">录音记录</button>
         <span id="recording-secondary-status">尚未接入</span>
       </div>
     </header>
+
+    <BackupRestorePanel v-if="backupRestore" @close="closeBackupRestore" @activated="activatedDataset" />
 
     <ol class="recording-steps" aria-label="录音准备步骤">
       <li aria-current="step"><span>01</span><strong>选择音乐</strong></li>

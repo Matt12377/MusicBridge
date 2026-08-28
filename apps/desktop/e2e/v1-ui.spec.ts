@@ -4,6 +4,7 @@ import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { verifyBackupRestoreWorkflow, verifyInactiveWindowRestore } from './task-066-workflows.js'
 
 const desktopRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const electronEntry = path.join(desktopRoot, 'dist/main/index.js')
@@ -1126,35 +1127,7 @@ test('Music Source Sidebar supports source recovery, Zone Popover and collapsed 
 })
 
 test('关闭窗口只隐藏，激活恢复同一窗口并保留播放状态', async () => {
-  const search = sidebarSearch()
-  await search.fill('synthetic')
-  await expect(page.getByText('Synthetic Track 1', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: '播放 Synthetic Track 1', exact: true }).click()
-  await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
-  await expect.poll(async () => (await page.evaluate(() => window.musicBridge.getPlaybackState())).state).toBe('playing')
-
-  const hidden = await electronApp.evaluate(({ BrowserWindow }) => {
-    const window = BrowserWindow.getAllWindows()[0]
-    if (!window) return false
-    window.close()
-    return !window.isVisible()
-  })
-  expect(hidden).toBe(true)
-  expect((await page.evaluate(() => window.musicBridge.getPlaybackState())).state).toBe('playing')
-
-  const visible = await electronApp.evaluate(({ app, BrowserWindow }) => {
-    app.emit('activate')
-    const window = BrowserWindow.getAllWindows()[0]
-    return Boolean(window && window.isVisible())
-  })
-  expect(visible).toBe(true)
-  await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
-
-  await electronApp.evaluate(({ BrowserWindow }) => {
-    BrowserWindow.getAllWindows()[0]?.webContents.send('app:command', 'show-queue')
-  })
-  await expect(page.locator('.playback-inspector').getByRole('heading', { name: '播放队列', exact: true }).first()).toBeVisible()
-  expect((await page.evaluate(() => window.musicBridge.getPlaybackState())).state).toBe('playing')
+  await verifyInactiveWindowRestore({ electronApp, page })
 })
 
 test('退出命令完成 Core 清理并结束 Electron 进程', async () => {
@@ -2686,4 +2659,14 @@ test('V3 执行资产固定原生构建：真实转换、文件验证与冷启�
   expect(await page.evaluate(id => window.musicBridge.listExecutionAssets(id), draft.draftId)).toEqual(history)
   await page.getByRole('button', { name: '重新验证此资产', exact: true }).click()
   await expect(page.getByText('本次文件验证通过', { exact: true })).toBeVisible()
+})
+
+test('V3 备份恢复工作流保留明确确认、真实文件、回执重试和冷启动历史', async () => {
+  const session = { electronApp, page }
+  try {
+    await verifyBackupRestoreWorkflow({ session, electronEntry, desktopRoot, diagnosticDirectory, axeSource })
+  } finally {
+    electronApp = session.electronApp
+    page = session.page
+  }
 })

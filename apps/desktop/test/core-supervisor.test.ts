@@ -2,8 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { randomUUID } from 'node:crypto'
 
-import { IPC_VERSION } from '@music-bridge/contracts'
+import { IPC_VERSION, type ActivateRestoredDataset, type RestoreActivationView } from '@music-bridge/contracts'
 import {
+  CoreIpcError,
   CoreSupervisor,
   type CoreChildProcess,
   type CoreMessagePort,
@@ -429,4 +430,98 @@ test('CoreSupervisor does not reintroduce parent environment secrets into Core',
     if (previous === undefined) delete process.env[canaryName]
     else process.env[canaryName] = previous
   }
+})
+
+function activationRequest(): ActivateRestoredDataset {
+  return { commandId: randomUUID(), restoreJobId: randomUUID(), expectedActiveId: null, userConfirmed: true, stopPlaybackConfirmed: true }
+}
+
+test('显式恢复激活只在 prepared 后停止播放与重启，同命令并发和失回执重试不重复重启', async t => {
+  const { supervisor } = makeHarness(), request = activationRequest(), calls: string[] = []
+  const activationId = randomUUID()
+  assert.notEqual(activationId, request.commandId)
+  let state: RestoreActivationView['state'] = 'preparing'
+  const view = (): RestoreActivationView => ({ id: activationId, restoreJobId: request.restoreJobId, previousId: null, state, createdAt: new Date(0).toISOString(), contentIncluded: false })
+  t.mock.method(supervisor, 'request', (async (command: string) => {
+    calls.push(command)
+    if (command === 'recordingBackups.activate') return view()
+    if (command === 'recordingBackups.overview') { if (state === 'preparing') state = 'prepared'; return { roots: [], jobs: [], activations: [view()] } }
+    if (command === 'playback.stop') return { state: 'idle', queue: [], currentIndex: -1 }
+    throw new Error('不应调用其他业务操作')
+  }) as typeof supervisor.request)
+  t.mock.method(supervisor, 'restart', async (_env?: NodeJS.ProcessEnv, options?: { readyTimeoutMs?: number }) => {
+    calls.push('restart'); assert.equal(options?.readyTimeoutMs, 30 * 60_000); state = 'active'
+  })
+  assert.equal(typeof supervisor.activateRestoredDataset, 'function')
+  const results = await Promise.all([supervisor.activateRestoredDataset(request), supervisor.activateRestoredDataset(request)])
+  assert.ok(results.every(result => result.state === 'active'))
+  assert.deepEqual(calls, ['recordingBackups.activate', 'recordingBackups.overview', 'playback.stop', 'restart', 'recordingBackups.overview'])
+  const replay = await supervisor.activateRestoredDataset(request)
+  assert.equal(replay.state, 'active')
+  assert.equal(calls.filter(call => call === 'restart').length, 1)
+  assert.equal(calls.at(-1), 'recordingBackups.activate')
+})
+
+for (const state of ['failed', 'rolled-back'] as const) {
+  test(`激活 ${state} 回执不会再次停止播放、重启或自动重试`, async t => {
+    const { supervisor } = makeHarness(), request = activationRequest(), calls: string[] = []
+    const result: RestoreActivationView = { id: randomUUID(), restoreJobId: request.restoreJobId, previousId: null, state, createdAt: new Date(0).toISOString(), contentIncluded: false, issue: state === 'failed' ? 'PREPARATION_FAILED' : 'BOOT_FAILED' }
+    t.mock.method(supervisor, 'request', (async (command: string) => { calls.push(command); return result }) as typeof supervisor.request)
+    t.mock.method(supervisor, 'restart', async () => { calls.push('restart') })
+    assert.equal(typeof supervisor.activateRestoredDataset, 'function')
+    assert.deepEqual(await supervisor.activateRestoredDataset(request), result)
+    assert.deepEqual(calls, ['recordingBackups.activate'])
+  })
+}
+
+test('恢复激活准备轮询有界，超时不会停止播放或重启', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+  const { supervisor } = makeHarness(), request = activationRequest(), calls: string[] = []
+  const view: RestoreActivationView = { id: randomUUID(), restoreJobId: request.restoreJobId, previousId: null, state: 'preparing', createdAt: new Date(0).toISOString() }
+  t.mock.method(supervisor, 'request', (async (command: string) => { calls.push(command); return command === 'recordingBackups.activate' ? view : { roots: [], jobs: [], activations: [view] } }) as typeof supervisor.request)
+  assert.equal(typeof supervisor.activateRestoredDataset, 'function')
+  const pending = supervisor.activateRestoredDataset(request).then(() => undefined, error => error as { code: string })
+  await new Promise(resolve => setImmediate(resolve)); t.mock.timers.tick(30 * 60_000 + 1)
+  const failure = await pending
+  assert.equal(failure?.code, 'TIMEOUT'); assert.ok(!calls.includes('playback.stop'))
+})
+
+test('显式重启可单次延长 ready 期限，普通启动仍使用原期限且参数必须有界', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = makeHarness()
+  const restarting = harness.supervisor.restart(undefined, { readyTimeoutMs: 100 }).then(() => undefined, error => error)
+  await new Promise(resolve => setImmediate(resolve)); t.mock.timers.tick(40); await new Promise(resolve => setImmediate(resolve))
+  const childrenBeforeReady = harness.children.length
+  ready(harness.channels.at(-1)!); assert.equal(await restarting, undefined)
+  const ordinary = makeHarness(), starting = ordinary.supervisor.start().then(() => undefined, error => error)
+  t.mock.timers.tick(21); await new Promise(resolve => setImmediate(resolve)); t.mock.timers.tick(21)
+  const failure = await starting
+  t.mock.timers.reset(); await harness.supervisor.shutdown()
+  assert.equal(childrenBeforeReady, 1, '延长 ready 的显式重启不应按旧期限提前杀进程')
+  assert.equal(failure.code, 'TIMEOUT'); assert.equal(ordinary.children.length, 2)
+  await assert.rejects(ordinary.supervisor.restart(undefined, { readyTimeoutMs: 30 * 60_000 + 1 }))
+})
+
+test('激活单航班拒绝同编号改参及其他命令，未确认请求不进入 Core', async t => {
+  const { supervisor } = makeHarness(), request = activationRequest()
+  let resolveActivation: (value: RestoreActivationView) => void = () => undefined, calls = 0
+  t.mock.method(supervisor, 'request', (() => { calls += 1; return new Promise<RestoreActivationView>(resolve => { resolveActivation = resolve }) }) as typeof supervisor.request)
+  await assert.rejects(supervisor.activateRestoredDataset({ ...request, userConfirmed: false } as unknown as ActivateRestoredDataset), error => error instanceof CoreIpcError && error.code === 'INVALID_IPC_REQUEST')
+  const pending = supervisor.activateRestoredDataset(request)
+  await assert.rejects(supervisor.activateRestoredDataset({ ...request, restoreJobId: randomUUID() }), error => error instanceof CoreIpcError && error.code === 'INVENTORY_CONFLICT')
+  await assert.rejects(supervisor.activateRestoredDataset({ ...request, commandId: randomUUID() }), error => error instanceof CoreIpcError && error.code === 'INVENTORY_CONFLICT')
+  resolveActivation({ id: randomUUID(), restoreJobId: request.restoreJobId, previousId: null, state: 'active', createdAt: new Date(0).toISOString(), contentIncluded: false })
+  await pending; assert.equal(calls, 1)
+})
+
+test('激活停止播放失败时不重启 Core，保留当前工作库', async t => {
+  const { supervisor } = makeHarness(), request = activationRequest(), calls: string[] = []
+  t.mock.method(supervisor, 'request', (async (command: string) => {
+    calls.push(command)
+    if (command === 'playback.stop') throw new CoreIpcError('TIMEOUT', '合成停止播放超时')
+    return { id: randomUUID(), restoreJobId: request.restoreJobId, previousId: null, state: 'prepared', createdAt: new Date(0).toISOString(), contentIncluded: false }
+  }) as typeof supervisor.request)
+  t.mock.method(supervisor, 'restart', async () => { calls.push('restart') })
+  await assert.rejects(supervisor.activateRestoredDataset(request), error => error instanceof CoreIpcError && error.code === 'TIMEOUT')
+  assert.deepEqual(calls, ['recordingBackups.activate', 'playback.stop'])
 })

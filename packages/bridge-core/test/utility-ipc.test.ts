@@ -41,6 +41,20 @@ class FakePort implements UtilityPort {
   }
 }
 
+test('工作库指针提交在runtime启动之后、ready发布之前；提交失败不发布ready', async () => {
+  const port = new FakePort(), runtime = makeRuntime();
+  let committed = false;
+  await attachCoreRuntimePort(port, runtime, { beforeReady: () => {
+    assert.equal(port.messages.length, 0);
+    committed = true;
+  } });
+  assert.equal(committed, true);
+  assert.equal((port.messages.at(-1) as { event: string }).event, 'core.ready');
+  const failedPort = new FakePort();
+  await assert.rejects(attachCoreRuntimePort(failedPort, makeRuntime(), { beforeReady: () => { throw new Error('合成提交失败'); } }));
+  assert.deepEqual(failedPort.messages, []);
+});
+
 test('归档正式 IPC 完成目录回执、初始化、预览与后台确认，不返回私有 capability', async t => {
   const f = await executionFixture(t), executed = await f.execution.start(await f.request()); await f.execution.idle();
   await f.execution.close(); await f.preparation.close(); await f.versions.close(); await f.sources.close();
@@ -1199,4 +1213,42 @@ test('录音 Profile 通过正式 IPC 持久化，模板列表不是当前播放
   assert.deepEqual(port.messages.at(-1), { version: 1, id: 'profile-retry', ok: true, result: profile });
   port.send({ version: 1, id: 'profile-list', command: 'recordingProfiles.list', payload: {} }); await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(port.messages.at(-1), { version: 1, id: 'profile-list', ok: true, result: { profiles: [profile] } });
+});
+
+test('备份恢复概览初始为空，不默认授权或扫描用户目录', async t => {
+  const runtime = createTestBridgeRuntime(); t.after(() => runtime.shutdown());
+  const port = new FakePort(); await attachCoreRuntimePort(port, runtime);
+  const id = randomUUID(); port.send({ version: 1, id, command: 'recordingBackups.overview', payload: {} });
+  await new Promise(resolve => setImmediate(resolve));
+  const response = port.messages.find(value => typeof value === 'object' && value !== null && 'id' in value && value.id === id);
+  assert.deepEqual(response, { version: 1, id, ok: true, result: { roots: [], jobs: [], activations: [] } });
+});
+
+test('备份正式 IPC 经过目录授权、确认和后台真实文件任务，不向公开概览暴露路径', async t => {
+  const { mkdtemp, mkdir, rm, readdir } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os'), path = await import('node:path');
+  const directory = await mkdtemp(path.join(tmpdir(), 'musicbridge-backup-ipc-'));
+  const target = path.join(directory, '备份'); await mkdir(target);
+  const runtime = createTestBridgeRuntime(); const port = new FakePort(); await attachCoreRuntimePort(port, runtime);
+  try {
+    const rpc = async (command: string, payload: unknown): Promise<any> => {
+      const id = randomUUID(); port.send({ version: 1, id, command, payload });
+      for (let i = 0; i < 500; i++) {
+        const response = port.messages.find((v: any) => v.id === id) as any;
+        if (response) { assert.equal(response.ok, true, JSON.stringify(response.error)); return response.result; }
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      assert.fail('备份 IPC 超时');
+    };
+    const commandId = randomUUID();
+    const root = await rpc('recordingBackups.authorize', { commandId, kind: 'backup-destination', absolutePath: target });
+    assert.deepEqual(await readdir(target), []);
+    assert.equal((await rpc('recordingBackups.authorizationReceipt', { commandId, kind: 'backup-destination' })).root.id, root.id);
+    const request = { commandId: randomUUID(), kind: 'backup', rootId: root.id, mode: 'metadata', userConfirmed: true };
+    const job = await rpc('recordingBackups.start', request); await runtime.backups!.idle();
+    const result = await rpc('recordingBackups.overview', {});
+    assert.equal(result.jobs[0].state, 'succeeded'); assert.equal(result.jobs[0].id, job.id);
+    assert.equal(JSON.stringify(result).includes(directory), false);
+    assert.equal((await rpc('recordingBackups.start', request)).id, job.id);
+  } finally { await runtime.shutdown(); await rm(directory, { recursive: true, force: true }); }
 });

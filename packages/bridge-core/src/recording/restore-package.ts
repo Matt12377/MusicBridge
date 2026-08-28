@@ -51,6 +51,7 @@ export async function verifyRestoredArchive(directory: RootCapability, signal: A
 export interface RestoreArchiveOptions {
   backup: RootCapability; destination: RootCapability; protectedRoots: readonly RootCapability[];
   id: string; userConfirmed: boolean; signal: AbortSignal; copy?: typeof copyReadonlySource;
+  expectedBackupIdentity?: { id: string; manifestHash: string };
 }
 /** 恢复收据仅证明隔离候选，不能据此切换当前 Runtime 或恢复历史目录权限。 */
 export async function restoreArchiveBackup(options: RestoreArchiveOptions): Promise<{ directory: RootCapability; manifest: RestoredArchiveManifest }> {
@@ -62,6 +63,9 @@ export async function restoreArchiveBackup(options: RestoreArchiveOptions): Prom
     const original = await verifyArchiveBackup(backup, signal), sourceText = await readBackupText(backup, 'Backup.json', 32 * 1024 * 1024, signal);
     if (!same(JSON.parse(sourceText), original)) backupFail();
     const sourceManifestHash = archiveDigest(sourceText), absolute = path.join(destination.path, id);
+    const expected = options.expectedBackupIdentity;
+    if (expected && (!isCollectionId(expected.id) || !/^[a-f0-9]{64}$/u.test(expected.manifestHash) || original.id !== expected.id || sourceManifestHash !== expected.manifestHash)) backupFail();
+    if (!same(JSON.parse(await readBackupText(backup, 'Complete.json', 1024, signal)), { schemaVersion: 1, id: original.id, manifestHash: sourceManifestHash })) backupFail();
     const existing = await lstat(absolute).catch(error => { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw error; });
     if (existing) {
       if (!existing.isDirectory() || existing.isSymbolicLink()) backupFail('BACKUP_DESTINATION_INVALID');

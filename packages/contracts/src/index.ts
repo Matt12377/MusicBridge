@@ -1,3 +1,4 @@
+export * from './recording-backups.js';
 export * from './errors.js';
 export * from './aggregated-search.js';
 export * from './favorites.js';
@@ -28,3 +29,4 @@ export * from './execution-assets.js';
 export * from './audio-conversion.js';
 export * from './converted-execution.js';
 export * from './recording-archive.js';
+export * from './recording-activation.js';

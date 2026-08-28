@@ -1,7 +1,9 @@
+import { BackupWorkflowError } from './recording/backup-workflow-store.js';
 import { createSyntheticRoonLibrary } from './roon/synthetic-library.js';
 import { appendFileSync, chmodSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { CollectionError, createCollectionRepository, type CollectionRepository } from './collection/repository.js';
+import { CollectionError, type CollectionRepository } from './collection/repository.js';
+import { openCollectionDataset } from './recording/restore-dataset-runtime.js';
 import {
   IPC_VERSION,
   parseIpcRuntimeMessage,
@@ -70,6 +72,7 @@ function requestId(value: unknown): string | undefined {
 }
 
 function failureForError(id: string, error: unknown): IpcFailure {
+  if (error instanceof BackupWorkflowError) return responseFailure(id, error.code === 'BACKUP_CONFLICT' ? 'INVENTORY_CONFLICT' : 'INVENTORY_UNAVAILABLE', error.message);
   if (error instanceof CollectionError) return responseFailure(id, error.code, error.message);
   const bridgeError = asBridgeError(error);
   if (bridgeError.code === 'NETEASE_NOT_CONFIGURED') {
@@ -127,6 +130,11 @@ function postReady(port: UtilityPort, runtime: CoreRuntime): void {
     event: 'core.ready',
     payload: { state: runtime.getState() },
   } satisfies CoreRuntimeEvent);
+}
+
+function backupsFor(runtime: CoreRuntimeForIpc) {
+  if (!runtime.backups) throw new CollectionError('INVENTORY_UNAVAILABLE', '备份维护服务尚未就绪。');
+  return runtime.backups;
 }
 
 function collectionFor(runtime: CoreRuntimeForIpc): CollectionRepository {
@@ -198,6 +206,13 @@ async function dispatch(
     case 'recordingProfiles.save': return collectionFor(runtime).recordingProfiles.save(request.payload as IpcCommandPayloads['recordingProfiles.save']);
     case 'recordingProfiles.session': return collectionFor(runtime).recordingProfiles.session((request.payload as IpcCommandPayloads['recordingProfiles.session']).draftId);
     case 'recordingProfiles.saveSession': return collectionFor(runtime).recordingProfiles.saveSession(request.payload as IpcCommandPayloads['recordingProfiles.saveSession']);
+    case 'recordingBackups.overview': return backupsFor(runtime).overview();
+    case 'recordingBackups.activate': return backupsFor(runtime).activate(request.payload as IpcCommandPayloads['recordingBackups.activate']);
+    case 'recordingBackups.authorize': return backupsFor(runtime).authorize(request.payload as IpcCommandPayloads['recordingBackups.authorize']);
+    case 'recordingBackups.authorizationReceipt': return backupsFor(runtime).authorizationReceipt(request.payload as IpcCommandPayloads['recordingBackups.authorizationReceipt']);
+    case 'recordingBackups.start': return backupsFor(runtime).start(request.payload as IpcCommandPayloads['recordingBackups.start']);
+    case 'recordingBackups.cancel': return backupsFor(runtime).cancel(request.payload as IpcCommandPayloads['recordingBackups.cancel']);
+    case 'recordingBackups.revoke': return backupsFor(runtime).revoke(request.payload as IpcCommandPayloads['recordingBackups.revoke']);
     case 'recordingArchive.roots': return archiveFor(runtime).roots();
     case 'recordingArchive.authorize': { const p = request.payload as IpcCommandPayloads['recordingArchive.authorize']; return archiveFor(runtime).authorize(p.commandId, p.absolutePath); }
     case 'recordingArchive.authorizationReceipt': return archiveFor(runtime).authorizationReceipt((request.payload as IpcCommandPayloads['recordingArchive.authorizationReceipt']).commandId);
@@ -532,7 +547,7 @@ async function dispatch(
 export async function attachCoreRuntimePort(
   port: UtilityPort,
   runtime: CoreRuntimeForIpc,
-  options: { exitAfterShutdown?: boolean } = {},
+  options: { exitAfterShutdown?: boolean; beforeReady?: () => void } = {},
 ): Promise<void> {
   port.on('message', (event) => {
     void (async () => {
@@ -561,6 +576,7 @@ export async function attachCoreRuntimePort(
   });
   port.start();
   await runtime.start();
+  options.beforeReady?.();
   postReady(port, runtime);
 }
 
@@ -630,14 +646,24 @@ export async function runCoreUtilityProcess(
         process.exitCode = 1;
         return;
       }
+      let dataset: Awaited<ReturnType<typeof openCollectionDataset>> | undefined;
       try {
         const recordingConverter = await createRecordingConverter?.();
+        const dataDirectory = env.MUSIC_BRIDGE_DATA_DIRECTORY;
+        if (dataDirectory !== undefined && (!dataDirectory || dataDirectory.length > 1024 || !path.isAbsolute(dataDirectory) || dataDirectory.includes('\0'))) throw new Error('Core 数据目录不可用');
+        if (dataDirectory) dataset = await openCollectionDataset(dataDirectory);
+        const datasetOptions = dataset ? {
+          collectionRepository: dataset.repository,
+          backupWorkflowStore: dataset.store,
+          backupPrivateRoot: dataset.privateRoot,
+          ...(dataset.contentBinding ? { backupContentBinding: dataset.contentBinding } : {}),
+        } : {};
         const runtime =
           env.MUSIC_BRIDGE_CORE_TEST_MODE === '1'
             ? createTestBridgeRuntime({
                 ...(recordingConverter ? { recordingConverter } : {}),
                 ...(env.MUSIC_BRIDGE_UI_E2E === '1' && env.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY === '1' ? { roonLibrary: createSyntheticRoonLibrary() } : {}),
-                ...(env.MUSIC_BRIDGE_DATA_DIRECTORY ? { collectionRepository: createCollectionRepository({ filePath: path.join(env.MUSIC_BRIDGE_DATA_DIRECTORY, 'collection.v1.sqlite') }) } : {}),
+                ...datasetOptions,
                 authorized: env.MUSIC_BRIDGE_UI_E2E === '1',
                 ...(env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE === 'profile-unavailable' || env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE === 'expired'
                   ? { accountMode: env.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE }
@@ -658,7 +684,7 @@ export async function runCoreUtilityProcess(
                 const onRoonImageShape = createRoonImageShapeRecorder(env);
                 return createBridgeRuntime({
                   ...(recordingConverter ? { recordingConverter } : {}),
-                  collectionRepository: createCollectionRepository({ filePath: path.join(dataDirectory, 'collection.v1.sqlite') }),
+                  ...datasetOptions,
                   lyricsMatchRepository: createLyricsMatchRepository({
                     filePath: path.join(dataDirectory, 'lyrics-matches.v1.json'),
                   }),
@@ -672,7 +698,7 @@ export async function runCoreUtilityProcess(
                   },
                 });
               })();
-        await attachCoreRuntimePort(port, runtime, { exitAfterShutdown: true });
+        await attachCoreRuntimePort(port, runtime, { exitAfterShutdown: true, beforeReady: () => dataset?.commit() });
         if (isCrashProbeEnabled(env)) {
           const configuredDelay = Number(env.MUSIC_BRIDGE_CORE_CRASH_DELAY_MS);
           const delayMs = Number.isSafeInteger(configuredDelay) && configuredDelay >= 25
@@ -681,6 +707,8 @@ export async function runCoreUtilityProcess(
           setTimeout(() => process.exit(71), delayMs);
         }
       } catch {
+        dataset?.fail();
+        dataset?.close();
         process.exitCode = 1;
         process.exit(1);
       }

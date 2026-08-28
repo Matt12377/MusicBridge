@@ -1,3 +1,5 @@
+import type { ActivateRestoredDataset, RestoreActivationView } from './recording-activation.js';
+import type { BackupOverview, BackupRootView, AuthorizeBackupRoot, StartBackupJob, BackupJobView } from './recording-backups.js';
 import type { ArchiveRootView, InitializeArchiveRequest, ArchiveProposal, StartArchiveRequest, PreviewArchiveRequest, ArchiveOperationView, ArchiveHistory, ArchiveCheck, VerifyArchiveRequest } from './recording-archive.js';
 import type { RecordingProfileVersion, RecordingProfileHistory, RecordingSessionSettings, SaveRecordingProfileRequest, SaveRecordingSessionRequest } from './recording-profile.js';
 import type { ExecutionHistory, ExecutionProposal, ExecutionJob, ExecutionAssetCheck, PreviewExecutionRequest, StartExecutionRequest, VerifyExecutionRequest } from './execution-assets.js';
@@ -83,6 +85,13 @@ export const IPC_COMMANDS = [
   'library.playlist',
   'library.dailyRecommendations',
   'favorites.list',
+  'recordingBackups.overview',
+  'recordingBackups.activate',
+  'recordingBackups.authorize',
+  'recordingBackups.authorizationReceipt',
+  'recordingBackups.start',
+  'recordingBackups.cancel',
+  'recordingBackups.revoke',
   'recordingArchive.roots',
   'recordingArchive.initialize',
   'recordingArchive.revokeRoot',
@@ -265,6 +274,13 @@ export type IpcResponse<TResult = unknown> =
 export type IpcEnvelope<T = unknown> = IpcRequest<T> | IpcResponse<T>;
 
 export interface IpcCommandPayloads {
+  'recordingBackups.overview': Record<string, never>;
+  'recordingBackups.activate': ActivateRestoredDataset;
+  'recordingBackups.authorize': AuthorizeBackupRoot & { absolutePath: string };
+  'recordingBackups.authorizationReceipt': AuthorizeBackupRoot;
+  'recordingBackups.start': StartBackupJob;
+  'recordingBackups.cancel': { commandId: string; id: string };
+  'recordingBackups.revoke': { commandId: string; id: string };
   'recordingArchive.roots': Record<string, never>;
   'recordingArchive.initialize': InitializeArchiveRequest;
   'recordingArchive.revokeRoot': { commandId: string; id: string };
@@ -439,6 +455,13 @@ export interface IpcCommandPayloads {
 }
 
 export interface IpcCommandResults {
+  'recordingBackups.overview': BackupOverview;
+  'recordingBackups.activate': RestoreActivationView;
+  'recordingBackups.authorize': BackupRootView;
+  'recordingBackups.authorizationReceipt': { root: BackupRootView | null };
+  'recordingBackups.start': BackupJobView;
+  'recordingBackups.cancel': BackupJobView;
+  'recordingBackups.revoke': BackupRootView;
   'recordingArchive.roots': { roots: readonly ArchiveRootView[] };
   'recordingArchive.initialize': ArchiveRootView;
   'recordingArchive.revokeRoot': ArchiveRootView;
@@ -621,9 +644,11 @@ export interface IpcEventPayloads {
   'lyrics.match.changed': { state: LocalLyricsMatchSnapshot };
 }
 
-export type IpcInternalCommand = 'recordingArchive.authorize' | 'recordingArchive.authorizationReceipt' | 'recordingPrepared.select' | 'recordingPrepared.selectionReceipt' | 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
+export type IpcInternalCommand = 'recordingBackups.authorize' | 'recordingBackups.authorizationReceipt' | 'recordingArchive.authorize' | 'recordingArchive.authorizationReceipt' | 'recordingPrepared.select' | 'recordingPrepared.selectionReceipt' | 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
 
 export interface IpcInternalCommandResults {
+  'recordingBackups.authorize': BackupRootView;
+  'recordingBackups.authorizationReceipt': { root: BackupRootView | null };
   'recordingArchive.authorize': ArchiveRootView;
   'recordingArchive.authorizationReceipt': { root: ArchiveRootView | null };
   'recordingPrepared.select': PreparedSelection;

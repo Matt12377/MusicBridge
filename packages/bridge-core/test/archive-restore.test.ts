@@ -7,6 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { archiveBackupFixture } from './helpers/archive-backup-fixture.js';
 import { authorizeSourceDirectory } from '../src/recording/source-files.js';
 import { createCollectionRepository } from '../src/collection/repository.js';
+import { archiveDigest } from '../src/recording/archive-files.js';
 
 async function setup(t: test.TestContext, mode: 'archive-content' | 'metadata' = 'archive-content', prepared = false) {
   const f = await archiveBackupFixture(t, prepared), backup = await f.api.createArchiveBackup({ ...f.backupRequest, mode });
@@ -33,6 +34,20 @@ test('完整备份恢复成隔离候选，旧目录权限撤销而库存和版�
   } finally { repository.close(); }
   assert.deepEqual(await readFile(f.filePath), original);
   assert.equal((await f.api.verifyArchiveBackup(f.backup.directory, f.restoreRequest.signal)).id, f.backup.manifest.id);
+});
+
+test('恢复必须匹配调用方已确认的备份编号与原始清单字节，不能换成另一份有效包', async t => {
+  const f = await setup(t, 'metadata');
+  const firstHash = archiveDigest(await readFile(path.join(f.backup.directory.path, 'Backup.json')));
+  const second = await f.api.createArchiveBackup({ ...f.backupRequest, id: randomUUID(), mode: 'metadata' });
+  const request = { ...f.restoreRequest, backup: second.directory, expectedBackupIdentity: { id: f.backup.manifest.id, manifestHash: firstHash } };
+  await assert.rejects(f.restoreApi.restoreArchiveBackup(request));
+  assert.deepEqual(await readdir(f.restoreRequest.destination.path), []);
+  await assert.rejects(f.restoreApi.restoreArchiveBackup({ ...request, backup: f.backup.directory, expectedBackupIdentity: { id: f.backup.manifest.id, manifestHash: '0'.repeat(64) } }));
+  assert.deepEqual(await readdir(f.restoreRequest.destination.path), []);
+  const result = await f.restoreApi.restoreArchiveBackup({ ...request, backup: f.backup.directory });
+  assert.equal(result.manifest.sourceBackupId, f.backup.manifest.id);
+  assert.equal(result.manifest.sourceManifestHash, firstHash);
 });
 
 test('恢复回执重复返回同一候选，候选库新写入后重试显式冲突且不覆盖新数据', async t => {

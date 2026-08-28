@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 
 import {
   IPC_VERSION,
+  isActivateRestoredDataset,
   parseIpcRuntimeMessage,
   validateIpcInternalResponseForCommand,
   validateIpcResponseForCommand,
@@ -13,6 +14,8 @@ import {
   type IpcInternalCommandResults,
   type PublicErrorCode,
   type TypedIpcEvent,
+  type ActivateRestoredDataset,
+  type RestoreActivationView,
 } from '@music-bridge/contracts'
 
 export interface CoreMessagePort {
@@ -71,6 +74,7 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 2_000
 const PREPARED_FILE_REQUEST_TIMEOUT_MS = 35 * 60_000
 const LIBRARY_REQUEST_TIMEOUT_MS = 10_000
 const PLAYBACK_REQUEST_TIMEOUT_MS = 60_000
+const RESTORE_ACTIVATION_TIMEOUT_MS = 30 * 60_000
 
 export class CoreSupervisor {
   private child: CoreChildProcess | undefined
@@ -79,6 +83,8 @@ export class CoreSupervisor {
   private restartPromise: Promise<void> | undefined
   private manualRestartPromise: Promise<void> | undefined
   private shutdownPromise: Promise<void> | undefined
+  private readyTimeoutOverride: number | undefined
+  private activationFlight: { request: ActivateRestoredDataset; promise: Promise<RestoreActivationView> } | undefined
   private shuttingDown = false
   private restartCount = 0
   private readonly pending = new Map<string, PendingRequest>()
@@ -180,7 +186,11 @@ export class CoreSupervisor {
     return this.shutdownPromise
   }
 
-  async restart(env?: NodeJS.ProcessEnv): Promise<void> {
+  async restart(env?: NodeJS.ProcessEnv, options?: { readyTimeoutMs?: number }): Promise<void> {
+    const timeout = options?.readyTimeoutMs
+    if (timeout !== undefined && (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > RESTORE_ACTIVATION_TIMEOUT_MS)) {
+      throw new CoreIpcError('INVALID_IPC_REQUEST', 'Core 重启等待期限无效')
+    }
     if (this.manualRestartPromise) return this.manualRestartPromise
     const restart = (async (): Promise<void> => {
       await this.shutdown()
@@ -188,7 +198,9 @@ export class CoreSupervisor {
       this.shutdownPromise = undefined
       this.shuttingDown = false
       this._status = 'stopped'
-      await this.start()
+      this.readyTimeoutOverride = timeout
+      try { await this.start() }
+      finally { this.readyTimeoutOverride = undefined }
     })()
     this.manualRestartPromise = restart
     try {
@@ -196,6 +208,49 @@ export class CoreSupervisor {
     } finally {
       if (this.manualRestartPromise === restart) this.manualRestartPromise = undefined
     }
+  }
+
+  /** 显式激活只复制并切换收藏工作库；账号恢复仍由既有 onReady 安全通道处理。 */
+  async activateRestoredDataset(request: ActivateRestoredDataset): Promise<RestoreActivationView> {
+    if (!isActivateRestoredDataset(request)) throw new CoreIpcError('INVALID_IPC_REQUEST', '激活必须明确确认停止播放和切换工作库')
+    if (this.activationFlight) {
+      const prior = this.activationFlight.request
+      if (prior.commandId !== request.commandId || prior.restoreJobId !== request.restoreJobId || prior.expectedActiveId !== request.expectedActiveId) {
+        throw new CoreIpcError('INVENTORY_CONFLICT', '已有工作库切换正在处理')
+      }
+      return this.activationFlight.promise
+    }
+    const accepted = { ...request }
+    const promise = this.activateRestoredDatasetInternal(accepted)
+    this.activationFlight = { request: accepted, promise }
+    try { return await promise }
+    finally { if (this.activationFlight?.promise === promise) this.activationFlight = undefined }
+  }
+
+  private async activateRestoredDatasetInternal(request: ActivateRestoredDataset): Promise<RestoreActivationView> {
+    const deadline = Date.now() + RESTORE_ACTIVATION_TIMEOUT_MS
+    let result = await this.request('recordingBackups.activate', request)
+    const activationId = result.id
+    if (result.restoreJobId !== request.restoreJobId) throw new CoreIpcError('INVENTORY_CONFLICT', '激活回执与请求的恢复任务不一致')
+    const current = async (): Promise<RestoreActivationView> => {
+      const view = (await this.request('recordingBackups.overview', {})).activations.find(item => item.id === activationId)
+      if (!view || view.restoreJobId !== request.restoreJobId) throw new CoreIpcError('INVENTORY_CONFLICT', '激活回执与当前维护记录不一致')
+      return view
+    }
+    while (result.state === 'preparing' || result.state === 'activating') {
+      if (Date.now() >= deadline) throw new CoreIpcError('TIMEOUT', '激活准备超时；请刷新状态，不会自动重试')
+      result = await current()
+      if (result.state === 'preparing' || result.state === 'activating') await this.delay(250)
+    }
+    // 失回执重试直接返回持久终态；失败和回滚不再触发停止或重启。
+    if (result.state !== 'prepared') return result
+    await this.request('playback.stop', {})
+    await this.restart(undefined, { readyTimeoutMs: RESTORE_ACTIVATION_TIMEOUT_MS })
+    result = await current()
+    if (result.state !== 'active' && result.state !== 'rolled-back') {
+      throw new CoreIpcError('NOT_READY', 'Core 已重启，但尚未取得工作库切换终态')
+    }
+    return result
   }
 
   private async startWithOneRetry(): Promise<void> {
@@ -253,7 +308,7 @@ export class CoreSupervisor {
         this.port = undefined
       }
       child.kill()
-    }, this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS)
+    }, this.readyTimeoutOverride ?? this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS)
 
     const handleExit = (code: number): void => {
       clearTimeout(readyTimer)

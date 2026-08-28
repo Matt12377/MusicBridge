@@ -261,5 +261,13 @@ contextBridge.exposeInMainWorld(
       verifyArchive: request => ipcRenderer.invoke('recordingArchive:verify', request),
       cancelArchiveRead: id => ipcRenderer.invoke('recordingArchive:cancelRead', id),
     },
+    {
+      activateRestoredDataset: request => ipcRenderer.invoke('recordingBackups:activate', request),
+      getBackupOverview: () => ipcRenderer.invoke('recordingBackups:overview'),
+      chooseBackupRoot: request => ipcRenderer.invoke('recordingBackups:choose', request),
+      startBackupJob: request => ipcRenderer.invoke('recordingBackups:start', request),
+      cancelBackupJob: request => ipcRenderer.invoke('recordingBackups:cancel', request),
+      revokeBackupRoot: request => ipcRenderer.invoke('recordingBackups:revoke', request),
+    },
   ),
 )

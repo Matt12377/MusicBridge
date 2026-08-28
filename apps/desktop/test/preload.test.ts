@@ -126,6 +126,12 @@ test('Preload exposes only sanitized business methods', async () => {
   )
 
   assert.deepEqual(PUBLIC_API_KEYS, [
+    'activateRestoredDataset',
+    'getBackupOverview',
+    'chooseBackupRoot',
+    'startBackupJob',
+    'cancelBackupJob',
+    'revokeBackupRoot',
     'listArchiveRoots',
     'chooseArchiveRoot',
     'initializeArchiveRoot',
@@ -292,6 +298,12 @@ test('Preload exposes only sanitized business methods', async () => {
     'onRemoteCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
+    'activateRestoredDataset',
+    'getBackupOverview',
+    'chooseBackupRoot',
+    'startBackupJob',
+    'cancelBackupJob',
+    'revokeBackupRoot',
     'listArchiveRoots',
     'chooseArchiveRoot',
     'initializeArchiveRoot',

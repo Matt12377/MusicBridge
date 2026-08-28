@@ -1,4 +1,4 @@
-import type { RecordingProfilesPublicApi, RecordingExecutionPublicApi, RecordingArchivePublicApi } from '@music-bridge/contracts'
+import type { RecordingProfilesPublicApi, RecordingExecutionPublicApi, RecordingArchivePublicApi, RecordingBackupsPublicApi } from '@music-bridge/contracts'
 import type { PreparedPublicApi } from '@music-bridge/contracts'
 import type { PreparationPublicApi } from '@music-bridge/contracts'
 import type { MasterVersionsPublicApi } from '@music-bridge/contracts'
@@ -57,7 +57,7 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
   autoReconnect: false,
 }
 
-export interface MusicBridgePublicApi extends RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
+export interface MusicBridgePublicApi extends RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
   getAppInfo: () => Promise<AppInfo>
   getCoreHealth: () => Promise<PublicBridgeState>
   getCoreState: () => Promise<PublicBridgeState>
@@ -131,6 +131,12 @@ export interface MusicBridgePublicApi extends RecordingArchivePublicApi, Recordi
 }
 
 export const PUBLIC_API_KEYS = [
+  'activateRestoredDataset',
+  'getBackupOverview',
+  'chooseBackupRoot',
+  'startBackupJob',
+  'cancelBackupJob',
+  'revokeBackupRoot',
   'listArchiveRoots',
   'chooseArchiveRoot',
   'initializeArchiveRoot',
@@ -455,9 +461,11 @@ export function createPreloadApi(
   recordingProfilesApi?: RecordingProfilesPublicApi,
   recordingExecutionApi?: RecordingExecutionPublicApi,
   recordingArchiveApi?: RecordingArchivePublicApi,
+  recordingBackupsApi?: RecordingBackupsPublicApi,
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   return Object.freeze({
+    ...(recordingBackupsApi ?? { activateRestoredDataset: collectionUnavailable, getBackupOverview: collectionUnavailable, chooseBackupRoot: collectionUnavailable, startBackupJob: collectionUnavailable, cancelBackupJob: collectionUnavailable, revokeBackupRoot: collectionUnavailable }),
     ...(recordingArchiveApi ?? { listArchiveRoots: collectionUnavailable, chooseArchiveRoot: collectionUnavailable, initializeArchiveRoot: collectionUnavailable, revokeArchiveRoot: collectionUnavailable, previewArchive: collectionUnavailable, startArchive: collectionUnavailable, listArchives: collectionUnavailable, getArchiveOperation: collectionUnavailable, cancelArchive: collectionUnavailable, resumeArchive: collectionUnavailable, verifyArchive: collectionUnavailable, cancelArchiveRead: collectionUnavailable }),
     ...(recordingProfilesApi ?? { listRecordingProfiles: collectionUnavailable, getRecordingProfileHistory: collectionUnavailable, getRecordingProfileVersion: collectionUnavailable, saveRecordingProfile: collectionUnavailable, getRecordingSession: collectionUnavailable, saveRecordingSession: collectionUnavailable }),
     ...(recordingExecutionApi ?? { listExecutionAssets: collectionUnavailable, previewExecutionAsset: collectionUnavailable, startExecutionAsset: collectionUnavailable, getExecutionJob: collectionUnavailable, cancelExecutionJob: collectionUnavailable, cancelExecutionRead: collectionUnavailable, verifyExecutionAsset: collectionUnavailable }),

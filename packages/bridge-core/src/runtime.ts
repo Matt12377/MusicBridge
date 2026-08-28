@@ -1,3 +1,7 @@
+import type { ArchiveContentBinding } from './recording/backup-package.js';
+import type { RootCapability } from './recording/source-files.js';
+import { createBackupCoordinator, type BackupCoordinator } from './recording/backup-coordinator.js';
+import { createBackupWorkflowStore, type BackupWorkflowStore } from './recording/backup-workflow-store.js';
 import { createExecutionCoordinator, type ExecutionCoordinator } from './recording/execution-coordinator.js';
 import { createArchiveCoordinator, type ArchiveCoordinator } from './recording/archive-coordinator.js';
 import { assertSourceOutsideArchives } from './recording/archive-input.js';
@@ -109,6 +113,7 @@ export interface CoreRuntime {
   prepared?: PreparedCoordinator;
   execution?: ExecutionCoordinator;
   archive?: ArchiveCoordinator;
+  backups?: BackupCoordinator;
   readonly collection?: CollectionRepository;
   start(): Promise<void>;
   shutdown(): Promise<void>;
@@ -189,6 +194,9 @@ export interface BridgeRuntimeOptions {
   /** 仅由受信任的 Core 组合层注入；不从 Renderer 或系统 PATH 自动配置。 */
   recordingConverter?: FfmpegConverter;
   collectionRepository?: CollectionRepository;
+  backupWorkflowStore?: BackupWorkflowStore;
+  backupPrivateRoot?: RootCapability;
+  backupContentBinding?: ArchiveContentBinding;
   env?: NodeJS.ProcessEnv;
   logger?: Logger;
   roonSdk?: RoonSdk;
@@ -794,8 +802,10 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   const preparation = options.collectionRepository && sources ? createPreparationCoordinator({ store: options.collectionRepository.preparations, sourceStore: options.collectionRepository.sources, sources }) : undefined;
   const prepared = options.collectionRepository && preparation ? createPreparedCoordinator({ store: options.collectionRepository.prepared, preparationStore: options.collectionRepository.preparations, preparation, sourceStore: options.collectionRepository.sources }) : undefined;
   const execution = options.collectionRepository && sources && preparation ? createExecutionCoordinator({ store: options.collectionRepository.execution, profiles: options.collectionRepository.recordingProfiles, preparationStore: options.collectionRepository.preparations, preparedStore: options.collectionRepository.prepared, mediaStore: options.collectionRepository.media, sourceStore: options.collectionRepository.sources, sources, preparation, ...(options.recordingConverter ? { converter: options.recordingConverter } : {}) }) : undefined;
+  const backups = options.backupWorkflowStore && options.collectionRepository ? createBackupCoordinator({ store: options.backupWorkflowStore, repository: options.collectionRepository, ...(options.backupPrivateRoot ? { privateRoot: options.backupPrivateRoot } : {}), ...(options.backupContentBinding ? { contentBinding: options.backupContentBinding } : {}) }) : undefined;
   const archive = options.collectionRepository && sources && preparation ? createArchiveCoordinator({ store: options.collectionRepository.archive, executionStore: options.collectionRepository.execution, preparationStore: options.collectionRepository.preparations, sourceStore: options.collectionRepository.sources, sources, preparation }) : undefined;
   const cleanup = async (): Promise<void> => {
+    await backups?.close();
     await archive?.close();
     await execution?.close();
     await prepared?.close();
@@ -1130,6 +1140,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     ...(prepared ? { prepared } : {}),
     ...(execution ? { execution } : {}),
     ...(archive ? { archive } : {}),
+    ...(backups ? { backups } : {}),
     ...(options.collectionRepository ? { collection: options.collectionRepository, physicalLinks: createPhysicalLinksCoordinator({ repository: options.collectionRepository.links, library: roonLibrary }), masterDrafts: createMasterDraftsCoordinator({ repository: options.collectionRepository.drafts, library: roonLibrary }) } : {}),
     listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),
     async checkFavorite(descriptor) {
@@ -1169,12 +1180,16 @@ export interface TestBridgeRuntimeOptions {
   recordingConverter?: FfmpegConverter;
   roonLibrary?: RoonPublicLibrary;
   collectionRepository?: CollectionRepository;
+  backupWorkflowStore?: BackupWorkflowStore;
+  backupPrivateRoot?: RootCapability;
+  backupContentBinding?: ArchiveContentBinding;
   authorized?: boolean
   accountMode?: 'ready' | 'profile-unavailable' | 'expired'
 }
 
 export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}): CoreRuntime {
   const collection = options.collectionRepository ?? createCollectionRepository({ filePath: ':memory:' });
+  const backups = createBackupCoordinator({ store: options.backupWorkflowStore ?? createBackupWorkflowStore({ filePath: ':memory:' }), repository: collection, ...(options.backupPrivateRoot ? { privateRoot: options.backupPrivateRoot } : {}), ...(options.backupContentBinding ? { contentBinding: options.backupContentBinding } : {}) });
   const sources = createSourceEvidenceService({ store: collection.sources, drafts: collection.drafts, validateAuthorization: root => assertSourceOutsideArchives(root.path, collection.archive) });
   const mediaPlanning = createMediaPlanningCoordinator({ store: collection.media, drafts: collection.drafts, sources });
   const masterVersions = createMasterVersionsCoordinator({ store: collection.versions, mediaStore: collection.media, media: mediaPlanning, drafts: collection.drafts, sourceStore: collection.sources, sources });
@@ -1336,6 +1351,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       diagnostics.record({ component: 'core', level: 'info', event: 'core_ready', state: 'ready' });
     },
     async shutdown() {
+      await backups.close();
       await archive.close();
       await execution.close();
       await prepared.close();
@@ -1711,7 +1727,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     },
     collection,
     sources,
-    mediaPlanning, masterVersions, preparation, prepared, execution, archive,
+    mediaPlanning, masterVersions, preparation, prepared, execution, archive, backups,
     physicalLinks: createPhysicalLinksCoordinator({ repository: collection.links, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
     masterDrafts: createMasterDraftsCoordinator({ repository: collection.drafts, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
     listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),

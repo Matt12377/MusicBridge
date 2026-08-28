@@ -1,3 +1,4 @@
+import { isActivateRestoredDataset, isAuthorizeBackupRoot, isStartBackupJob } from '@music-bridge/contracts'
 import { isInitializeArchiveRequest, isPreviewArchiveRequest, isStartArchiveRequest, isVerifyArchiveRequest } from '@music-bridge/contracts'
 import { isSaveRecordingProfileRequest, isSaveRecordingSessionRequest, isPreviewExecutionRequest, isStartExecutionRequest, isVerifyExecutionRequest } from '@music-bridge/contracts'
 import { isSelectPreparedRequest, isPreviewPreparedImportRequest, isStartPreparedImportRequest, isReviewPreparedRequest, isFreezePreparedRequest } from '@music-bridge/contracts'
@@ -290,8 +291,8 @@ function showMainWindow(command?: 'show-queue'): void {
   const target = mainWindow
   if (!target || target.isDestroyed()) return
   if (target.isMinimized()) target.restore()
-  target.show()
-  target.focus()
+  if (isUiE2e) target.showInactive()
+  else { target.show(); target.focus() }
   if (command) sendRendererCommand(command)
 }
 
@@ -1139,6 +1140,36 @@ function registerIpcHandlers(
     return supervisor.request('recordingMedia.release', request)
   }))
   let sourcePickerBusy = false
+  ipcMain.handle('recordingBackups:activate', (event, request: unknown) => invokeCore(event, () => {
+    if (!isActivateRestoredDataset(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '激活恢复工作库需要确认停止播放和重启 Core')
+    return supervisor.activateRestoredDataset(request)
+  }))
+  ipcMain.handle('recordingBackups:overview', event => invokeCore(event, () => supervisor.request('recordingBackups.overview', {})))
+  ipcMain.handle('recordingBackups:start', (event, request: unknown) => invokeCore(event, () => {
+    if (!isStartBackupJob(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '备份或恢复请求无效，必须明确确认范围和目标')
+    return supervisor.request('recordingBackups.start', request)
+  }))
+  ipcMain.handle('recordingBackups:cancel', (event, request: unknown) => invokeCore(event, () => {
+    if (!isSourceAction(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '备份任务取消编号无效')
+    return supervisor.request('recordingBackups.cancel', request)
+  }))
+  ipcMain.handle('recordingBackups:revoke', (event, request: unknown) => invokeCore(event, () => {
+    if (!isSourceAction(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '备份目录撤权编号无效')
+    return supervisor.request('recordingBackups.revoke', request)
+  }))
+  ipcMain.handle('recordingBackups:choose', (event, request: unknown) => invokeCore(event, async () => {
+    if (!isAuthorizeBackupRoot(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '备份目录选择用途或编号无效')
+    const prior = await supervisor.requestInternal('recordingBackups.authorizationReceipt', request)
+    if (prior.root) return prior.root
+    if (sourcePickerBusy) return publicIpcFailure('NOT_READY', '目录或文件选择器已打开')
+    sourcePickerBusy = true
+    const titles = { 'backup-destination': '选择备份目标目录', 'backup-source': '选择已有备份目录', 'restore-destination': '选择隔离恢复目标目录' }
+    try {
+      const chosen = await dialog.showOpenDialog(requireTrustedRenderer(event), { title: titles[request.kind], message: '本次选择只记录目录授权，不创建或覆盖文件。备份和恢复需要在返回界面后单独确认。', properties: ['openDirectory'] })
+      if (chosen.canceled || !chosen.filePaths[0]) return null
+      return await supervisor.requestInternal('recordingBackups.authorize', { ...request, absolutePath: chosen.filePaths[0] })
+    } finally { sourcePickerBusy = false }
+  }))
   ipcMain.handle('recordingArchive:roots', event => invokeCore(event, () => supervisor.request('recordingArchive.roots', {})))
   ipcMain.handle('recordingArchive:initialize', (event, request: unknown) => invokeCore(event, () => {
     if (!isInitializeArchiveRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档请求无效或尚未明确确认')
@@ -1759,10 +1790,12 @@ function createWindow(supervisor: CoreSupervisor): BrowserWindow {
     height: 640,
     minWidth: 720,
     minHeight: 480,
-    show: !isStartupTest,
+    // E2E 默认不弹出原生窗口；后台仍渲染，保留截图和 DOM 键盘测试。
+    show: !isStartupTest && !isUiE2e,
     backgroundColor: '#10131a',
     webPreferences: {
       ...buildBrowserWindowWebPreferences(),
+      ...(isUiE2e ? { backgroundThrottling: false } : {}),
       preload: path.join(currentDirectory, '../preload/index.cjs'),
     },
   })
@@ -2021,6 +2054,7 @@ async function waitForCoreRestartCredentialRecovery(
 
 async function bootstrap(): Promise<void> {
   await app.whenReady()
+  if (isUiE2e && process.platform === 'darwin') app.setActivationPolicy('accessory')
   app.setAboutPanelOptions({ applicationName: APPLICATION_NAME })
   installApplicationMenu()
   await installRendererProtocol()

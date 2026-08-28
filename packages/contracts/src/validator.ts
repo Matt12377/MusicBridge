@@ -1,3 +1,5 @@
+import { isActivateRestoredDataset, isRestoreActivationView } from './recording-activation.js';
+import { isBackupOverview, isBackupRootView, isAuthorizeBackupRoot, isStartBackupJob, isBackupJobView } from './recording-backups.js';
 import { isArchiveRootView, isInitializeArchiveRequest, isArchiveProposal, isStartArchiveRequest, isPreviewArchiveRequest, isArchiveOperationView, isArchiveHistory, isArchiveCheck, isVerifyArchiveRequest } from './recording-archive.js';
 import { isRecordingProfileVersion, isRecordingProfileHistory, isRecordingSessionSettings, isSaveRecordingProfileRequest, isSaveRecordingSessionRequest } from './recording-profile.js';
 import { isExecutionHistory, isExecutionProposal, isExecutionJob, isExecutionAssetCheck, isPreviewExecutionRequest, isStartExecutionRequest, isVerifyExecutionRequest } from './execution-assets.js';
@@ -940,6 +942,12 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'recordingProfiles.save') return isSaveRecordingProfileRequest(payload);
   if (command === 'recordingProfiles.session') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
   if (command === 'recordingProfiles.saveSession') return isSaveRecordingSessionRequest(payload);
+  if (command === 'recordingBackups.authorize') return isRecord(payload) && hasOnlyKeys(payload, ['commandId','kind','absolutePath']) && isAuthorizeBackupRoot({ commandId: payload.commandId, kind: payload.kind }) && isSourcePrivatePath(payload.absolutePath);
+  if (command === 'recordingBackups.authorizationReceipt') return isAuthorizeBackupRoot(payload);
+  if (command === 'recordingBackups.start') return isStartBackupJob(payload);
+  if (command === 'recordingBackups.activate') return isActivateRestoredDataset(payload);
+  if (command === 'recordingBackups.cancel' || command === 'recordingBackups.revoke') return isSourceAction(payload);
+  if (command === 'recordingBackups.overview') return isRecord(payload) && hasOnlyKeys(payload, []);
   if (command === 'recordingArchive.roots') return isRecord(payload) && hasOnlyKeys(payload, []);
   if (command === 'recordingArchive.initialize') return isInitializeArchiveRequest(payload);
   if (command === 'recordingArchive.revokeRoot' || command === 'recordingArchive.cancel' || command === 'recordingArchive.resume') return isSourceAction(payload);
@@ -1448,6 +1456,13 @@ function isCommandResult(
     case 'recordingProfiles.save': return isRecordingProfileVersion(value);
     case 'recordingProfiles.session': return isRecord(value) && hasOnlyKeys(value, ['session']) && (value.session === null || isRecordingSessionSettings(value.session));
     case 'recordingProfiles.saveSession': return isRecordingSessionSettings(value);
+    case 'recordingBackups.authorize': return allowInternalResult && isBackupRootView(value);
+    case 'recordingBackups.authorizationReceipt': return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['root']) && (value.root === null || isBackupRootView(value.root));
+    case 'recordingBackups.start':
+    case 'recordingBackups.cancel': return isBackupJobView(value);
+    case 'recordingBackups.revoke': return isBackupRootView(value);
+    case 'recordingBackups.overview': return isBackupOverview(value);
+    case 'recordingBackups.activate': return isRestoreActivationView(value);
     case 'recordingArchive.roots': return isRecord(value) && hasOnlyKeys(value, ['roots']) && Array.isArray(value.roots) && value.roots.length <= 100 && value.roots.every(isArchiveRootView) && new Set(value.roots.map(root => root.id)).size === value.roots.length;
     case 'recordingArchive.initialize':
     case 'recordingArchive.revokeRoot': return isArchiveRootView(value);

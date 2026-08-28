@@ -3,7 +3,7 @@ import { open, readdir, statfs } from 'node:fs/promises';
 import path from 'node:path';
 import { isCollectionId } from '@music-bridge/contracts';
 import type { CollectionRepository } from '../collection/repository.js';
-import { archiveDigest, previewArchiveRoot, verifyArchiveObjects } from './archive-files.js';
+import { archiveDigest, previewArchiveRoot, verifyArchiveObjects, type OwnedArchiveOperation } from './archive-files.js';
 import { authorizeSourceDirectory, copyReadonlySource, type RootCapability } from './source-files.js';
 import { BackupError, backupFail, checkBackupRoot, createBackupDirectory, hashBackupFile, syncBackupRoot, writeBackupText, readBackupText, type BackupFile } from './backup-files.js';
 import { readBackupIndex, type BackupIndex } from './backup-index.js';
@@ -52,10 +52,20 @@ export async function verifyArchiveBackup(directory: RootCapability, signal: Abo
   try { return await verifyPackage(directory, signal, true); }
   catch (error) { if (signal.aborted) throw signal.reason; if (error instanceof BackupError) throw error; return backupFail(); }
 }
+/** 仅为已核验的恢复内容提供位置，不修改历史操作或恢复旧目录授权。 */
+export interface ArchiveContentReadSession {
+  resolve(operation: OwnedArchiveOperation): RootCapability | undefined;
+  verify(signal: AbortSignal): Promise<void>;
+}
+export interface ArchiveContentBinding {
+  readonly protectedRoots: readonly RootCapability[];
+  open(signal: AbortSignal): Promise<ArchiveContentReadSession>;
+}
 export interface CreateArchiveBackupOptions {
   repository: CollectionRepository; destination: RootCapability; id: string; mode: 'metadata' | 'archive-content'; userConfirmed: boolean; signal: AbortSignal;
   afterSnapshot?: () => Promise<void>;
   copy?: typeof copyReadonlySource;
+  contentBinding?: ArchiveContentBinding;
 }
 /** 内部能力边界；桌面选择器与持久化命令确认由后续工作流负责，不开放任意路径 IPC。 */
 export async function createArchiveBackup(options: CreateArchiveBackupOptions): Promise<{ directory: RootCapability; manifest: ArchiveBackupManifest }> {
@@ -63,8 +73,9 @@ export async function createArchiveBackup(options: CreateArchiveBackupOptions): 
   try {
     signal.throwIfAborted();
     if (options.userConfirmed !== true || !isCollectionId(id) || !['metadata','archive-content'].includes(mode)) backupFail('BACKUP_DESTINATION_INVALID');
-    const protectedRoots = [...repository.sources.roots(), ...repository.preparations.destinations(), ...repository.archive.candidates().map(c => c.parent), ...repository.archive.operations().flatMap(op => op.owned ? [op.owned.archive.root] : [])];
+    const protectedRoots = [...repository.sources.roots(), ...repository.preparations.destinations(), ...repository.archive.candidates().map(c => c.parent), ...repository.archive.operations().flatMap(op => op.owned ? [op.owned.archive.root] : []), ...options.contentBinding?.protectedRoots ?? []];
     await checkBackupRoot(destination); await previewArchiveRoot(destination.path, protectedRoots);
+    const binding = mode === 'archive-content' ? await options.contentBinding?.open(signal) : undefined;
     const directory = await createBackupDirectory(destination, id), databaseRoot = await createBackupDirectory(directory, 'database');
     const snapshot = await repository.backupSnapshot(databaseRoot);
     signal.throwIfAborted();
@@ -74,20 +85,25 @@ export async function createArchiveBackup(options: CreateArchiveBackupOptions): 
     const manifests = await createBackupDirectory(directory, 'manifests'), objects = await createBackupDirectory(directory, 'objects');
     const total = index.objects.reduce((n, o) => n + o.size, 0), space = await statfs(destination.path, { bigint: true });
     if (!Number.isSafeInteger(total) || total > 1_099_511_627_776 || mode === 'archive-content' && space.bavail * space.bsize < BigInt(total) + 16_777_216n) backupFail('BACKUP_IO_ERROR');
+    const boundRoots = new Map(owned.flatMap(op => { const root = binding?.resolve(op); return root ? [[op.id, root] as const] : []; }));
     const checkLiveRoots = (): void => {
       if (mode !== 'archive-content') return;
-      for (const op of owned) if (!same(repository.archive.root(op.archive.id), op.archive)) backupFail('BACKUP_INCOMPLETE');
+      for (const op of owned) {
+        const bound = boundRoots.get(op.id);
+        if (bound ? !same(binding?.resolve(op), bound) : !same(repository.archive.root(op.archive.id), op.archive)) backupFail('BACKUP_INCOMPLETE');
+      }
     };
     checkLiveRoots();
     for (const op of owned) {
       signal.throwIfAborted(); checkLiveRoots();
-      if (mode === 'archive-content') await verifyArchiveObjects(op, signal);
+      if (mode === 'archive-content' && !boundRoots.has(op.id)) await verifyArchiveObjects(op, signal);
       await writeBackupText(manifests, `${op.id}.json`, op.manifest);
     }
     if (mode === 'archive-content') {
       for (const object of index.objects) {
         signal.throwIfAborted(); checkLiveRoots(); await checkBackupRoot(objects);
-        const source = owned.find(op => op.archive.id === object.rootIds[0])?.archive.objects;
+        const operation = owned.find(op => op.files.some(file => file.sha256 === object.sha256));
+        const source = operation && (boundRoots.get(operation.id) ?? operation.archive.objects);
         if (!source) backupFail();
         const target = await open(path.join(objects.path, object.sha256), constants.O_CREAT | constants.O_EXCL | constants.O_RDWR | constants.O_NOFOLLOW, 0o600);
         try { await (options.copy ?? copyReadonlySource)(source, object.sha256, object, target, signal); }
@@ -101,6 +117,7 @@ export async function createArchiveBackup(options: CreateArchiveBackupOptions): 
     if (Buffer.byteLength(encoded) > 32 * 1024 * 1024) backupFail();
     await writeBackupText(directory, 'Backup.json', encoded);
     await verifyPackage(directory, signal, false);
+    await binding?.verify(signal);
     signal.throwIfAborted(); checkLiveRoots(); await checkBackupRoot(destination);
     // 完成标记是唯一发布边界；中途失败只留下隔离目录，不自动删除或覆盖它。
     await writeBackupText(directory, 'Complete.json', JSON.stringify({ schemaVersion: 1, id, manifestHash: archiveDigest(encoded) }) + '\n');
