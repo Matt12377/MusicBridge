@@ -133,7 +133,7 @@
       "scope": "output-ui-package-exit-preflight-classification",
       "state": "local-automated-pass-packaged-exit-fail",
       "implementationCommit": "d5bf0725e5457e2146b0e049b0d6eed6f48d3621",
-      "reportCommit": null,
+      "reportCommit": "bbc375482b0e1e67637e1447753c0b49250222aa",
       "gates": {
         "automated": "contracts134-core957-desktop447-pass-both-native-zero-skip",
         "security": "28-of-28-pass",
