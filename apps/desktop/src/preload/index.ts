@@ -7,6 +7,7 @@ import type {
 } from '@music-bridge/contracts'
 
 import { createPreloadApi } from './api.js'
+import { createRecordingAttemptClient } from './recording-attempt-client.js'
 import { createCommandOutboxClient } from './command-outbox-client.js'
 import { summarizePreloadRoonImage } from './image-diagnostic.js'
 import { unwrapRoonImageIpc, type RoonImageIpcEnvelope } from '../roon-image-ipc.js'
@@ -327,5 +328,6 @@ contextBridge.exposeInMainWorld(
       checkRecordingOutput: request => ipcRenderer.invoke('recordingOutput:check', request),
       cancelRecordingOutputCheck: runId => ipcRenderer.invoke('recordingOutput:cancel', { runId }),
     },
+    createRecordingAttemptClient((channel, value) => ipcRenderer.invoke(channel, value)),
   ),
 )

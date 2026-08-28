@@ -1,4 +1,5 @@
 import type { RecordingOutputStatus, RecordingOutputCheckRequest, RecordingOutputCancelRequest, RecordingOutputCheckResult } from './recording-output.js';
+import type { ListRecordingAttemptsRequest, RecordingAttemptIdRequest, BeginRecordingAttemptRequest, ConfirmRecordingAttemptRequest, BeginRecordingAttemptSideRequest, StopRecordingAttemptRequest, RecordingAttemptsPage, RecordingAttempt } from './recording-attempts.js';
 import type { RecordingPlanHistoryRequest, RecordingPlanIdRequest, PreviewRecordingPlanRequest, FreezeRecordingPlanRequest, RecordingPreflightRequest, RecordingPlanHistory, RecordingPlanVersion, RecordingPlanProposal, RecordingPreflightResult } from './recording-plans.js';
 import type { SpreadsheetPageRequest, SpreadsheetSourcePage, SpreadsheetIdRequest, SpreadsheetWorkbookSource, SpreadsheetSourceRowsRequest, SpreadsheetSourceRowsPage, PreviewSpreadsheetImportRequest, SpreadsheetImportPreview, ApplySpreadsheetImportRequest, SpreadsheetImportResult, SpreadsheetImportRevisionRequest, SpreadsheetImportRevisionDetail, SpreadsheetImportHistory, SpreadsheetAdjustmentPreviewRequest, SpreadsheetAdjustmentBalance, AdjustSpreadsheetInventoryRequest, SpreadsheetInventoryAdjustment, SpreadsheetAdjustmentsRequest, SpreadsheetAdjustmentsPage, RegisterSpreadsheetWorkbookRequest, ChooseSpreadsheetWorkbookRequest, SpreadsheetWorkbookReceipt } from './spreadsheet-import.js';
 import type { ListWantEntriesRequest, WantEntriesPage, SaveWantEntryRequest, WantEntry, CancelWantEntryRequest, GetWantEntryHistoryRequest, WantEntryHistory, GetCollectionProgressRequest, CollectionProgress, CaptureCollectionProgressRequest, CollectionProgressSnapshotSummary, ListCollectionProgressSnapshotsRequest, CollectionProgressSnapshotsPage, GetCollectionProgressSnapshotRequest, CollectionProgressSnapshotDetail, GetCollectionModelLengthsRequest, CollectionModelLengths } from './collection-progress.js';
@@ -153,6 +154,12 @@ export const IPC_COMMANDS = [
   'recordingOutput.status',
   'recordingOutput.check',
   'recordingOutput.cancel',
+  'recordingAttempts.list',
+  'recordingAttempts.get',
+  'recordingAttempts.begin',
+  'recordingAttempts.confirm',
+  'recordingAttempts.beginSide',
+  'recordingAttempts.stop',
   'recordingProfiles.list',
   'recordingProfiles.history',
   'recordingProfiles.version',
@@ -386,6 +393,12 @@ export interface IpcCommandPayloads {
   'recordingOutput.status': Record<string, never>;
   'recordingOutput.check': RecordingOutputCheckRequest;
   'recordingOutput.cancel': RecordingOutputCancelRequest;
+  'recordingAttempts.list': ListRecordingAttemptsRequest;
+  'recordingAttempts.get': RecordingAttemptIdRequest;
+  'recordingAttempts.begin': BeginRecordingAttemptRequest;
+  'recordingAttempts.confirm': ConfirmRecordingAttemptRequest;
+  'recordingAttempts.beginSide': BeginRecordingAttemptSideRequest;
+  'recordingAttempts.stop': StopRecordingAttemptRequest;
   'recordingProfiles.list': {};
   'recordingProfiles.history': { profileId: string };
   'recordingProfiles.version': { versionId: string };
@@ -609,6 +622,12 @@ export interface IpcCommandResults {
   'recordingOutput.status': RecordingOutputStatus;
   'recordingOutput.check': RecordingOutputCheckResult;
   'recordingOutput.cancel': { cancelled: true };
+  'recordingAttempts.list': RecordingAttemptsPage;
+  'recordingAttempts.get': { attempt: RecordingAttempt | null };
+  'recordingAttempts.begin': RecordingAttempt;
+  'recordingAttempts.confirm': RecordingAttempt;
+  'recordingAttempts.beginSide': RecordingAttempt;
+  'recordingAttempts.stop': RecordingAttempt;
   'recordingProfiles.list': { profiles: readonly RecordingProfileVersion[] };
   'recordingProfiles.history': RecordingProfileHistory;
   'recordingProfiles.version': RecordingProfileVersion;

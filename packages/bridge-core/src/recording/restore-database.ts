@@ -1,14 +1,20 @@
 import { DatabaseSync } from 'node:sqlite';
 import { backupFail } from './backup-files.js';
+import { verifyRecordingAttemptDatabase } from './attempt-integrity.js';
+import { recoverRecordingAttempts } from './attempt-store.js';
 
 /** 只修改恢复目录内的独立副本；所有不可变版本/账本/旧路径事实原样保留。 */
 export function isolateRestoredDatabase(filePath: string): void {
   const db = new DatabaseSync(filePath, { allowExtension: false });
   try {
-    db.exec('PRAGMA trusted_schema=OFF; PRAGMA foreign_keys=ON; PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL; BEGIN IMMEDIATE;');
+    db.exec('PRAGMA trusted_schema=OFF; PRAGMA foreign_keys=ON;');
+    // 损坏历史必须在journal模式变更之前拒绝，连数据库文件头也不提前改写。
+    if (db.prepare('PRAGMA user_version').get()?.user_version === 19) verifyRecordingAttemptDatabase(db);
+    db.exec('PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL; BEGIN IMMEDIATE;');
     try {
       const version = db.prepare('PRAGMA user_version').get()?.user_version;
-      if (version !== 14 && version !== 15 && version !== 16 && version !== 17 && version !== 18) backupFail();
+      if (version !== 14 && version !== 15 && version !== 16 && version !== 17 && version !== 18 && version !== 19) backupFail();
+      if (version === 19) { verifyRecordingAttemptDatabase(db); recoverRecordingAttempts(db, new Date().toISOString()); }
       for (const table of ['source_roots', 'preparation_destinations']) db.exec(`UPDATE ${table} SET data=json_set(data,'$.authorized',json('false'))`);
       db.exec("UPDATE prepared_selections SET data=json_set(data,'$.root.authorized',json('false')); UPDATE archive_roots SET authorized=0; UPDATE archive_candidates SET authorized=0;");
       for (const table of ['source_jobs', 'version_jobs', 'preparation_jobs', 'prepared_jobs', 'execution_jobs']) {
@@ -23,6 +29,10 @@ export function verifyRestoredDatabaseIsolation(filePath: string): void {
   const db = new DatabaseSync(filePath, { readOnly: true, allowExtension: false });
   try {
     db.exec('PRAGMA trusted_schema=OFF; PRAGMA query_only=ON;');
+    if (db.prepare('PRAGMA user_version').get()?.user_version === 19) {
+      verifyRecordingAttemptDatabase(db);
+      if (db.prepare("SELECT 1 FROM recording_attempts WHERE status='in-progress' LIMIT 1").get()) backupFail();
+    }
     for (const table of ['source_roots', 'preparation_destinations']) {
       if (db.prepare(`SELECT 1 FROM ${table} WHERE json_extract(data,'$.authorized') IS NOT 0 LIMIT 1`).get()) backupFail();
     }

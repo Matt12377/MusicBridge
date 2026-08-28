@@ -1,3 +1,4 @@
+import { AttemptError } from './recording/attempt-integrity.js';
 import { OutputCheckError } from './recording/output-error.js';
 import type { PinnedOutputHelper } from './recording/bundled-output-helper.js';
 import { RecordingPlanError } from './recording/plan-integrity.js';
@@ -79,6 +80,11 @@ function requestId(value: unknown): string | undefined {
 }
 
 function failureForError(id: string, error: unknown): IpcFailure {
+  if (error instanceof AttemptError) {
+    const code = error.code === 'BACKEND_NOT_CERTIFIED' ? 'NOT_READY' : error.code === 'INVALID_REQUEST' ? 'INVALID_IPC_REQUEST'
+      : ['PLAN_CHANGED', 'COPY_UNAVAILABLE', 'ATTEMPT_CONFLICT', 'VERSION_MISMATCH', 'INVALID_TRANSITION', 'COMMAND_CONFLICT'].includes(error.code) ? 'INVENTORY_CONFLICT' : 'INVENTORY_UNAVAILABLE';
+    return responseFailure(id, code, '录音操作未获确认，请刷新计划与录音状态；未认证后端不能开始正式录音。');
+  }
   if (error instanceof OutputCheckError) return responseFailure(id, 'INVENTORY_CONFLICT', error.message);
   if (error instanceof RecordingPlanError) return responseFailure(id, 'INVENTORY_CONFLICT', error.message);
   if (error instanceof DatasetScopeError) return responseFailure(id, error.code, error.message);
@@ -166,6 +172,10 @@ function executionFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.execution) throw new CollectionError('INVENTORY_UNAVAILABLE', '执行资产服务尚未就绪，请重试。');
   return runtime.execution;
 }
+function recordingAttemptsFor(runtime: CoreRuntimeForIpc) {
+  if (!runtime.recordingAttempts) throw new AttemptError('CLOSED');
+  return runtime.recordingAttempts;
+}
 function recordingOutputFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.recordingOutput) throw new OutputCheckError('HELPER_UNAVAILABLE');
   return runtime.recordingOutput;
@@ -206,6 +216,7 @@ async function dispatch(
   runtime: CoreRuntimeForIpc,
   request: IpcRequest,
 ): Promise<unknown> {
+  if (request.command.startsWith('recordingAttempts.') && (!request.expectedDatasetId || !runtime.commandOutbox)) throw new DatasetScopeError();
   if (request.expectedDatasetId !== undefined) {
     if (!runtime.commandOutbox) throw new CollectionError('INVENTORY_UNAVAILABLE', '工作库身份尚未就绪。');
     runtime.commandOutbox.assertScope(request.expectedDatasetId);
@@ -248,6 +259,12 @@ async function dispatch(
     case 'recordingBackups.start': return backupsFor(runtime).start(request.payload as IpcCommandPayloads['recordingBackups.start']);
     case 'recordingBackups.cancel': return backupsFor(runtime).cancel(request.payload as IpcCommandPayloads['recordingBackups.cancel']);
     case 'recordingBackups.revoke': return backupsFor(runtime).revoke(request.payload as IpcCommandPayloads['recordingBackups.revoke']);
+    case 'recordingAttempts.list': return recordingAttemptsFor(runtime).list(request.payload as IpcCommandPayloads['recordingAttempts.list']);
+    case 'recordingAttempts.get': return recordingAttemptsFor(runtime).get(request.payload as IpcCommandPayloads['recordingAttempts.get']);
+    case 'recordingAttempts.begin': return recordingAttemptsFor(runtime).begin(request.payload as IpcCommandPayloads['recordingAttempts.begin']);
+    case 'recordingAttempts.confirm': return recordingAttemptsFor(runtime).confirm(request.payload as IpcCommandPayloads['recordingAttempts.confirm']);
+    case 'recordingAttempts.beginSide': return recordingAttemptsFor(runtime).beginSide(request.payload as IpcCommandPayloads['recordingAttempts.beginSide']);
+    case 'recordingAttempts.stop': return recordingAttemptsFor(runtime).stop(request.payload as IpcCommandPayloads['recordingAttempts.stop']);
     case 'recordingOutput.status': return recordingOutputFor(runtime).status();
     case 'recordingOutput.check': return recordingOutputFor(runtime).check(request.payload as IpcCommandPayloads['recordingOutput.check']);
     case 'recordingOutput.cancel': return recordingOutputFor(runtime).cancel(request.payload as IpcCommandPayloads['recordingOutput.cancel']);

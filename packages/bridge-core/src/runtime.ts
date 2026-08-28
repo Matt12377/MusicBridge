@@ -1,3 +1,4 @@
+import { createRecordingAttemptCoordinator, type RecordingAttemptCoordinator } from './recording/attempt-coordinator.js';
 import { createRecordingOutputService, type RecordingOutputService } from './recording/output-service.js';
 import type { PinnedOutputHelper } from './recording/bundled-output-helper.js';
 import { createRecordingPlanCoordinator, type RecordingPlanCoordinator } from './recording/plan-coordinator.js';
@@ -121,6 +122,7 @@ export interface CoreRuntime {
   archive?: ArchiveCoordinator;
   recordingPlans?: RecordingPlanCoordinator;
   recordingOutput?: RecordingOutputService;
+  recordingAttempts?: RecordingAttemptCoordinator;
   backups?: BackupCoordinator;
   readonly collection?: CollectionRepository;
   start(): Promise<void>;
@@ -816,7 +818,12 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   const archive = options.collectionRepository && sources && preparation ? createArchiveCoordinator({ store: options.collectionRepository.archive, executionStore: options.collectionRepository.execution, preparationStore: options.collectionRepository.preparations, sourceStore: options.collectionRepository.sources, sources, preparation }) : undefined;
   const recordingPlans = options.collectionRepository ? createRecordingPlanCoordinator({ store: options.collectionRepository.recordingPlans }) : undefined;
   const recordingOutput = createRecordingOutputService({ ...(options.collectionRepository ? { store: options.collectionRepository.recordingPlans } : {}), ...(options.recordingOutputHelper ? { helper: options.recordingOutputHelper } : {}) });
+  const recordingAttempts = options.collectionRepository ? createRecordingAttemptCoordinator({ store: options.collectionRepository.recordingAttempts, assertCurrent: () => {
+    if (options.collectionDatasetIdentity) options.collectionDatasetIdentity.assertCurrent();
+    else options.collectionRepository!.list({ offset: 0, limit: 1 });
+  } }) : undefined;
   const cleanup = async (): Promise<void> => {
+    await recordingAttempts?.close();
     await recordingOutput.close();
     await recordingPlans?.close();
     await backups?.close();
@@ -1155,6 +1162,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     ...(execution ? { execution } : {}),
     ...(archive ? { archive } : {}),
     ...(recordingPlans ? { recordingPlans } : {}),
+    ...(recordingAttempts ? { recordingAttempts } : {}),
     recordingOutput,
     ...(backups ? { backups } : {}),
     ...(options.collectionRepository ? { collection: options.collectionRepository, physicalLinks: createPhysicalLinksCoordinator({ repository: options.collectionRepository.links, library: roonLibrary }), masterDrafts: createMasterDraftsCoordinator({ repository: options.collectionRepository.drafts, library: roonLibrary }) } : {}),
@@ -1217,6 +1225,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
   const prepared = createPreparedCoordinator({ store: collection.prepared, preparationStore: collection.preparations, preparation, sourceStore: collection.sources });
   const execution = createExecutionCoordinator({ store: collection.execution, profiles: collection.recordingProfiles, preparationStore: collection.preparations, preparedStore: collection.prepared, mediaStore: collection.media, sourceStore: collection.sources, sources, preparation, ...(options.recordingConverter ? { converter: options.recordingConverter } : {}) });
   const recordingPlans = createRecordingPlanCoordinator({ store: collection.recordingPlans });
+  const recordingAttempts = createRecordingAttemptCoordinator({ store: collection.recordingAttempts, assertCurrent: () => { commandOutbox.context(); } });
   const recordingOutput = createRecordingOutputService({ store: collection.recordingPlans, ...(options.recordingOutputHelper ? { helper: options.recordingOutputHelper } : {}) });
   const archive = createArchiveCoordinator({ store: collection.archive, executionStore: collection.execution, preparationStore: collection.preparations, sourceStore: collection.sources, sources, preparation });
   const accountMode = options.accountMode ?? 'ready'
@@ -1374,6 +1383,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       diagnostics.record({ component: 'core', level: 'info', event: 'core_ready', state: 'ready' });
     },
     async shutdown() {
+      await recordingAttempts.close();
       await recordingOutput.close();
       await recordingPlans.close();
       await backups.close();
@@ -1753,7 +1763,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     collection,
     commandOutbox,
     sources,
-    mediaPlanning, masterVersions, preparation, prepared, execution, archive, backups, recordingPlans, recordingOutput,
+    mediaPlanning, masterVersions, preparation, prepared, execution, archive, backups, recordingPlans, recordingOutput, recordingAttempts,
     physicalLinks: createPhysicalLinksCoordinator({ repository: collection.links, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
     masterDrafts: createMasterDraftsCoordinator({ repository: collection.drafts, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
     listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),

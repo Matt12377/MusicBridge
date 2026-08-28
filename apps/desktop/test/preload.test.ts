@@ -19,16 +19,17 @@ import type {
 } from '@music-bridge/contracts'
 import { createPreloadApi, PUBLIC_API_KEYS } from '../src/preload/api.js'
 import { summarizePreloadRoonImage } from '../src/preload/image-diagnostic.js'
+import { createRecordingAttemptClient } from '../src/preload/recording-attempt-client.js'
 import { createCommandOutboxClient } from '../src/preload/command-outbox-client.js'
 import { unwrapRoonImageIpc } from '../src/roon-image-ipc.js'
 
-test('实际Preload入口将输出三API直接送到有限IPC，不经过outbox或打开设备', async () => {
+test('实际Preload入口将输出与Attempt有限API直接送到IPC，不经过outbox或打开设备', async () => {
   const source = await readFile(path.resolve('src/preload/index.ts'), 'utf8')
   const calls: Array<[string, unknown]> = [], runId = '73000000-0000-4000-8000-000000000001'
   let exposed: ReturnType<typeof createPreloadApi> | undefined
   const modules: Record<string, unknown> = {
     electron: { contextBridge: { exposeInMainWorld: (name: string, api: ReturnType<typeof createPreloadApi>) => { assert.equal(name, 'musicBridge'); exposed = api } }, ipcRenderer: { invoke: async (channel: string, payload: unknown) => { calls.push([channel, structuredClone(payload)]); return channel === 'commandOutbox:context' ? { datasetId: runId } : { reply: channel } } } },
-    './api.js': { createPreloadApi }, './command-outbox-client.js': { createCommandOutboxClient },
+    './recording-attempt-client.js': { createRecordingAttemptClient }, './api.js': { createPreloadApi }, './command-outbox-client.js': { createCommandOutboxClient },
     './image-diagnostic.js': { summarizePreloadRoonImage }, '../roon-image-ipc.js': { unwrapRoonImageIpc },
   }
   runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, {
@@ -43,6 +44,21 @@ test('实际Preload入口将输出三API直接送到有限IPC，不经过outbox�
   assert.deepEqual(await exposed.checkRecordingOutput(request), { reply: 'recordingOutput:check' })
   assert.deepEqual(await exposed.cancelRecordingOutputCheck(runId), { reply: 'recordingOutput:cancel' })
   assert.deepEqual(calls, [['recordingOutput:status', {}], ['recordingOutput:check', request], ['recordingOutput:cancel', { runId }]])
+  const attemptApi = exposed as unknown as Record<string, (request: unknown) => Promise<unknown>>
+  const attemptCalls: Array<[string, string, unknown, unknown]> = [
+    ['listRecordingAttempts', 'list', { page: { offset: 0, limit: 25 } }, { page: { offset: 0, limit: 25 } }],
+    ['getRecordingAttempt', 'get', runId, { attemptId: runId }],
+    ['beginRecordingAttempt', 'begin', { commandId: runId, planVersionId: runId, planContentHash: 'a'.repeat(64), userConfirmed: true }, undefined],
+    ['confirmRecordingAttempt', 'confirm', { commandId: runId, attemptId: runId, expectedRevision: 1, kind: 'flip', userConfirmed: true }, undefined],
+    ['beginRecordingAttemptSide', 'beginSide', { commandId: runId, attemptId: runId, expectedRevision: 2, side: 'B', userConfirmed: true }, undefined],
+    ['stopRecordingAttempt', 'stop', { commandId: runId, attemptId: runId }, undefined],
+  ]
+  calls.length = 0
+  for (const [name, channel, payload] of attemptCalls) {
+    assert.equal(typeof attemptApi[name], 'function', `缺少Attempt Preload入口${name}`)
+    assert.deepEqual(await attemptApi[name]!(payload), { reply: `recordingAttempts:${channel}` })
+  }
+  assert.deepEqual(calls, attemptCalls.map(([, channel, payload, wire]) => [`recordingAttempts:${channel}`, { datasetId: runId, payload: wire ?? payload }]))
 })
 
 test('Preload 图片诊断保持 sandbox 本地实现，不引入 contracts 运行期依赖', async () => {
@@ -152,10 +168,16 @@ test('Preload exposes only sanitized business methods', async () => {
     () => () => undefined,
   )
 
-  for (const name of ['getRecordingOutputStatus', 'checkRecordingOutput', 'cancelRecordingOutputCheck', 'listRecordingPlans', 'getRecordingPlanVersion', 'previewRecordingPlan', 'freezeRecordingPlan', 'preflightRecordingPlan', 'cancelRecordingPlanRead']) {
+  for (const name of ['listRecordingAttempts', 'getRecordingAttempt', 'beginRecordingAttempt', 'confirmRecordingAttempt', 'beginRecordingAttemptSide', 'stopRecordingAttempt', 'getRecordingOutputStatus', 'checkRecordingOutput', 'cancelRecordingOutputCheck', 'listRecordingPlans', 'getRecordingPlanVersion', 'previewRecordingPlan', 'freezeRecordingPlan', 'preflightRecordingPlan', 'cancelRecordingPlanRead']) {
     assert.equal(typeof (api as unknown as Record<string, unknown>)[name], 'function', `缺少受限业务API ${name}`)
   }
   assert.deepEqual(PUBLIC_API_KEYS, [
+    'listRecordingAttempts',
+    'getRecordingAttempt',
+    'beginRecordingAttempt',
+    'confirmRecordingAttempt',
+    'beginRecordingAttemptSide',
+    'stopRecordingAttempt',
     'getRecordingOutputStatus',
     'checkRecordingOutput',
     'cancelRecordingOutputCheck',
@@ -364,6 +386,12 @@ test('Preload exposes only sanitized business methods', async () => {
     'onRemoteCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
+    'listRecordingAttempts',
+    'getRecordingAttempt',
+    'beginRecordingAttempt',
+    'confirmRecordingAttempt',
+    'beginRecordingAttemptSide',
+    'stopRecordingAttempt',
     'getRecordingOutputStatus',
     'checkRecordingOutput',
     'cancelRecordingOutputCheck',
@@ -721,4 +749,29 @@ test('PREP批次不确认不完整的成功信封，不把残缺结果当整批�
   assert.equal(typeof client.submitPreparedRevocations, 'function')
   await assert.rejects(client.submitPreparedRevocations([{ commandId: id, id }, { commandId: other, id: other }]), /OUTBOX_RESULT_UNKNOWN/u)
   assert.equal(acknowledgements, 0)
+})
+
+
+test('Attempt客户端固定Renderer工作库、先复制确认意图且绝不自动重放', async () => {
+  const module = await import('../src/preload/recording-attempt-client.js').catch(() => ({}))
+  assert.ok('createRecordingAttemptClient' in module, '缺少绑定原工作库的Attempt客户端')
+  const calls: Array<[string, unknown]> = []
+  let resolveScope!: (value: unknown) => void
+  const scope = new Promise(resolve => { resolveScope = resolve })
+  const datasetId = '74000000-0000-4000-8000-000000000001'
+  const client = (module as typeof import('../src/preload/recording-attempt-client.js')).createRecordingAttemptClient(async (channel, value) => {
+    calls.push([channel, structuredClone(value)])
+    if (channel === 'commandOutbox:context') return scope
+    return { captured: true }
+  })
+  const request = { commandId: datasetId, planVersionId: datasetId, planContentHash: 'a'.repeat(64), userConfirmed: true as const }
+  const started = client.beginRecordingAttempt(request)
+  request.planContentHash = 'b'.repeat(64)
+  resolveScope({ datasetId })
+  await started
+  await client.stopRecordingAttempt({ commandId: datasetId, attemptId: datasetId })
+  assert.deepEqual(calls.map(([channel]) => channel), ['commandOutbox:context', 'recordingAttempts:begin', 'recordingAttempts:stop'])
+  assert.deepEqual(calls[1]![1], { datasetId, payload: { ...request, planContentHash: 'a'.repeat(64) } })
+  const invalid = (module as typeof import('../src/preload/recording-attempt-client.js')).createRecordingAttemptClient(async () => ({ datasetId: '/private/invalid-scope' }))
+  await assert.rejects(invalid.listRecordingAttempts({ page: { offset: 0, limit: 25 } }), error => error instanceof Error && error.message.includes('OUTBOX_SCOPE_MISMATCH') && !error.message.includes('/private'))
 })

@@ -89,3 +89,5 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 - [TASK-072](TASK-072-recording-plan.md)：F-01 已确认；不可变 Profile Snapshot / RecordingPlan 与执行 Preflight（本地自动阶段通过，Gate B 未认证仍阻断）。
 
 - [TASK-073 输出后端与Gate B](TASK-073-output-backend.md)：无设备阶段、输出面板、隔离生命周期及启动退出/配置隔离本地Gate通过；真实Gate B待验。Owner已授权后续软件任务顺序开发至TASK079，实机与人工验收分别保留。
+
+- [TASK-074](TASK-074-recording-attempts.md)：录音Attempt状态机、不可变事实、崩溃中断及介质保护；开发中，真实输出准入仍阻断。

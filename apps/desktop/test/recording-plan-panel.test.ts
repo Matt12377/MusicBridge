@@ -32,7 +32,8 @@ async function mounted(t: test.TestContext, api: unknown) {
   const script = compileScript(descriptor, { id: 'recording-plan-panel' })
   const controller = await import('../src/renderer/src/components/recording/recording-plan-controller.js')
   const outputPanel = { default: vue.defineComponent({ props: ['plan'], setup: props => () => vue.h('section', { 'data-testid': 'output-panel-embedding', 'data-plan-id': props.plan?.id ?? '' }) }) }
-  const load = (name: string) => name === 'vue' ? vue : name === './recording-plan-controller' ? controller : name === './RecordingOutputPanel.vue' ? outputPanel : require(name)
+  const attemptPanel = { default: vue.defineComponent({ props: ['plan'], setup: props => () => vue.h('section', { 'data-testid': 'attempt-panel-embedding', 'data-plan-id': props.plan?.id ?? '' }) }) }
+  const load = (name: string) => name === 'vue' ? vue : name === './recording-plan-controller' ? controller : name === './RecordingOutputPanel.vue' ? outputPanel : name === './RecordingAttemptPanel.vue' ? attemptPanel : require(name)
   const compile = (content: string) => ts.transpileModule(content, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
   const module = { exports: {} as { default: import('vue').Component } }
   new Function('require', 'module', 'exports', 'window', compile(script.content))(load, module, module.exports, { musicBridge: api })
@@ -80,4 +81,11 @@ test('无设备子面板常驻接收明确历史版本，未选择时不自动�
   const output = () => panel.all().find(node => node.props['data-testid'] === 'output-panel-embedding')
   assert.ok(output(), '缺少无设备面板接线'); assert.equal(output()!.props['data-plan-id'], '')
   await panel.click('查看计划第 1 版'); assert.equal(output()!.props['data-plan-id'], id(30))
+})
+
+test('Attempt面板常驻接收明确Plan，未选择时保持空上下文', async t => {
+  const f = fixture(), panel = await mounted(t, f.api)
+  const attempt = () => panel.all().find(node => node.props['data-testid'] === 'attempt-panel-embedding')
+  assert.ok(attempt(), '缺少正式录音尝试面板接线'); assert.equal(attempt()!.props['data-plan-id'], '')
+  await panel.click('查看计划第 1 版'); assert.equal(attempt()!.props['data-plan-id'], id(30))
 })

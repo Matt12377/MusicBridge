@@ -48,6 +48,53 @@ class FakePort implements UtilityPort {
   }
 }
 
+test('Attempt专用IPC要求原工作库身份，六方法直接派发且错误不泄露内部内容', async () => {
+  const datasetId = randomUUID(), id = randomUUID(), calls: Array<[string, unknown]> = [];
+  const service: Record<string, unknown> = {};
+  const cases: Array<[string, unknown]> = [
+    ['list', { page: { offset: 0, limit: 25 } }], ['get', { attemptId: id }],
+    ['begin', { commandId: id, planVersionId: id, planContentHash: 'a'.repeat(64), userConfirmed: true }],
+    ['confirm', { commandId: id, attemptId: id, expectedRevision: 1, kind: 'physical-stop', side: 'A', userConfirmed: true }],
+    ['beginSide', { commandId: id, attemptId: id, expectedRevision: 1, side: 'B', userConfirmed: true }],
+    ['stop', { commandId: id, attemptId: id }],
+  ];
+  let failure: Error | undefined;
+  for (const [method] of cases) service[method] = (payload: unknown) => { if (failure) throw failure; calls.push([method, payload]); return { dispatched: method }; };
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { recordingAttempts: service, commandOutbox: createDatasetCommandBoundary({ datasetId, assertCurrent: () => {} }) }) as unknown as CoreRuntimeForIpc);
+  async function rpc(method: string, payload: unknown, scope?: string) {
+    const requestId = randomUUID(); port.send({ version: 1, id: requestId, command: `recordingAttempts.${method}`, payload, ...(scope ? { expectedDatasetId: scope } : {}) });
+    await new Promise(resolve => setImmediate(resolve));
+    return port.messages.find(m => (m as { id?: string }).id === requestId) as { ok: boolean; result?: unknown; error?: { code: string; message: string } };
+  }
+  for (const [method, payload] of cases) {
+    assert.equal((await rpc(method, payload)).error?.code, 'OUTBOX_SCOPE_MISMATCH');
+    assert.equal((await rpc(method, payload, randomUUID())).error?.code, 'OUTBOX_SCOPE_MISMATCH');
+  }
+  assert.equal(calls.length, 0);
+  for (const [method, payload] of cases) assert.deepEqual((await rpc(method, payload, datasetId)).result, { dispatched: method });
+  assert.deepEqual(calls, cases);
+  const { AttemptError } = await import('../src/recording/attempt-integrity.js');
+  for (const [code, publicCode] of [['BACKEND_NOT_CERTIFIED', 'NOT_READY'], ['INVALID_REQUEST', 'INVALID_IPC_REQUEST'], ['VERSION_MISMATCH', 'INVENTORY_CONFLICT'], ['IO_ERROR', 'INVENTORY_UNAVAILABLE']] as const) {
+    failure = new AttemptError(code); failure.message = '/private/synthetic-error';
+    const reply = await rpc('begin', cases[2]![1], datasetId);
+    assert.equal(reply.error?.code, publicCode); assert.equal(reply.error!.message.includes('/private'), false);
+  }
+});
+
+test('实际Runtime提供Attempt读取但未认证Begin零新增，关闭后旧服务不可用', async () => {
+  const runtime = createTestBridgeRuntime();
+  try {
+    const service = (runtime as unknown as { recordingAttempts?: { list(request: unknown): Promise<unknown>; begin(request: unknown): Promise<unknown> } }).recordingAttempts;
+    assert.ok(service, '缺少实际Runtime Attempt服务');
+    assert.deepEqual(await service.list({ page: { offset: 0, limit: 25 } }), { items: [], offset: 0, limit: 25, total: 0, hasMore: false });
+    await assert.rejects(service.begin({ commandId: randomUUID(), planVersionId: randomUUID(), planContentHash: 'a'.repeat(64), userConfirmed: true }), /BACKEND_NOT_CERTIFIED/u);
+    assert.deepEqual(await service.list({ page: { offset: 0, limit: 25 } }), { items: [], offset: 0, limit: 25, total: 0, hasMore: false });
+    await runtime.shutdown();
+    await assert.rejects(Promise.resolve().then(() => service.list({ page: { offset: 0, limit: 25 } })), /CLOSED/u);
+  } finally { await runtime.shutdown(); }
+});
+
 test('无设备输出IPC只暴露status/check/cancel，错误安全映射且拒绝设备Start', async () => {
   const port = new FakePort(), id = randomUUID(), calls: unknown[] = [];
   const status = { backend: { id: 'musicbridge-coreaudio-hal', version: '0.1.0', halAdapterCompiled: false }, syntheticCheck: { available: false, helperSha256: null, protocolVersion: 1 }, deviceAccess: 'not-authorized', gateB: 'NOT_RUN', formalReady: false };

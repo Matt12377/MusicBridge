@@ -19,9 +19,9 @@ async function fixture(t: test.TestContext, beforeCommit?: (action: string) => v
   return { repository, filePath };
 }
 function preserved(db: DatabaseSync) {
-  return db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT GLOB 'recording_plan*' AND name NOT GLOB 'sqlite_*' AND name NOT GLOB 'spreadsheet_*' AND name NOT GLOB 'collection_progress_*' AND name NOT GLOB 'collection_want*' ORDER BY name").all().map(({ name }) => [name, db.prepare(name === 'inventory_lots' ? 'SELECT id,sku_id,acquired,sealed,opened,legacy,unknown FROM inventory_lots ORDER BY rowid' : `SELECT * FROM ${name} ORDER BY rowid`).all()]);
+  return db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT GLOB 'recording_plan*' AND name NOT GLOB 'recording_attempt*' AND name NOT GLOB 'sqlite_*' AND name NOT GLOB 'spreadsheet_*' AND name NOT GLOB 'collection_progress_*' AND name NOT GLOB 'collection_want*' ORDER BY name").all().map(({ name }) => [name, db.prepare(name === 'inventory_lots' ? 'SELECT id,sku_id,acquired,sealed,opened,legacy,unknown FROM inventory_lots ORDER BY rowid' : `SELECT * FROM ${name} ORDER BY rowid`).all()]);
 }
-test('固定schema15迁移18保留原库存/实体/照片/目录快照，新增调整额为0且外键恢复开启', async t => {
+test('固定schema15迁移19保留原库存/实体/照片/目录快照，新增调整额为0且外键恢复开启', async t => {
   const { repository, filePath } = await fixture(t), before = new DatabaseSync(filePath, { readOnly: true });
   const history = preserved(before); assert.equal(before.prepare('PRAGMA user_version').get()?.user_version, 15); before.close();
   const exec = DatabaseSync.prototype.exec, restored: number[] = [];
@@ -29,7 +29,7 @@ test('固定schema15迁移18保留原库存/实体/照片/目录快照，新增�
   try { assert.equal(repository.list(page).items[0]?.counts.total, 5); } finally { DatabaseSync.prototype.exec = exec; repository.close(); }
   const db = new DatabaseSync(filePath, { readOnly: true });
   try {
-    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 18); assert.deepEqual(preserved(db), history);
+    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 19); assert.deepEqual(preserved(db), history);
     assert.equal(db.prepare('SELECT SUM(quantity_adjustment) n FROM inventory_lots').get()?.n, 0);
     assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []); assert.ok(restored.includes(1));
   } finally { db.close(); }

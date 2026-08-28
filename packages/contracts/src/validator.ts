@@ -1,4 +1,5 @@
 import { isRecordingOutputStatus, isRecordingOutputCheckRequest, isRecordingOutputCancelRequest, isRecordingOutputCheckResult } from './recording-output.js';
+import { isListRecordingAttemptsRequest, isRecordingAttemptIdRequest, isBeginRecordingAttemptRequest, isConfirmRecordingAttemptRequest, isBeginRecordingAttemptSideRequest, isStopRecordingAttemptRequest, isRecordingAttemptsPage, isRecordingAttempt } from './recording-attempts.js';
 import { isRecordingPlanHistoryRequest, isRecordingPlanIdRequest, isPreviewRecordingPlanRequest, isFreezeRecordingPlanRequest, isRecordingPreflightRequest, isRecordingPlanHistory, isRecordingPlanVersion, isRecordingPlanProposal, isRecordingPreflightResult } from './recording-plans.js';
 import { isSpreadsheetPageRequest, isSpreadsheetSourcePage, isSpreadsheetIdRequest, isSpreadsheetWorkbookSource, isSpreadsheetSourceRowsRequest, isSpreadsheetSourceRowsPage, isPreviewSpreadsheetImportRequest, isSpreadsheetImportPreview, isApplySpreadsheetImportRequest, isSpreadsheetImportResult, isSpreadsheetImportRevisionRequest, isSpreadsheetImportRevisionDetail, isSpreadsheetImportHistory, isSpreadsheetAdjustmentPreviewRequest, isSpreadsheetAdjustmentBalance, isAdjustSpreadsheetInventoryRequest, isSpreadsheetInventoryAdjustment, isSpreadsheetAdjustmentsRequest, isSpreadsheetAdjustmentsPage, isRegisterSpreadsheetWorkbookRequest, isChooseSpreadsheetWorkbookRequest, isSpreadsheetWorkbookReceipt } from './spreadsheet-import.js';
 import { isListWantEntriesRequest, isWantEntriesPage, isSaveWantEntryRequest, isWantEntry, isCancelWantEntryRequest, isGetWantEntryHistoryRequest, isWantEntryHistory, isGetCollectionProgressRequest, isCollectionProgress, isCaptureCollectionProgressRequest, isCollectionProgressSnapshotSummary, isListCollectionProgressSnapshotsRequest, isCollectionProgressSnapshotsPage, isGetCollectionProgressSnapshotRequest, isCollectionProgressSnapshotDetail, isGetCollectionModelLengthsRequest, isCollectionModelLengths } from './collection-progress.js';
@@ -981,6 +982,12 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'recordingOutput.status') return isEmptyPayload(payload);
   if (command === 'recordingOutput.check') return isRecordingOutputCheckRequest(payload);
   if (command === 'recordingOutput.cancel') return isRecordingOutputCancelRequest(payload);
+  if (command === 'recordingAttempts.list') return isListRecordingAttemptsRequest(payload);
+  if (command === 'recordingAttempts.get') return isRecordingAttemptIdRequest(payload);
+  if (command === 'recordingAttempts.begin') return isBeginRecordingAttemptRequest(payload);
+  if (command === 'recordingAttempts.confirm') return isConfirmRecordingAttemptRequest(payload);
+  if (command === 'recordingAttempts.beginSide') return isBeginRecordingAttemptSideRequest(payload);
+  if (command === 'recordingAttempts.stop') return isStopRecordingAttemptRequest(payload);
   if (command === 'recordingProfiles.list') return isRecord(payload) && hasOnlyKeys(payload, []);
   if (command === 'recordingProfiles.history') return isRecord(payload) && hasOnlyKeys(payload, ['profileId']) && isCollectionId(payload.profileId);
   if (command === 'recordingProfiles.version') return isRecord(payload) && hasOnlyKeys(payload, ['versionId']) && isCollectionId(payload.versionId);
@@ -1538,6 +1545,12 @@ function isCommandResult(
     case 'recordingOutput.status': return isRecordingOutputStatus(value);
     case 'recordingOutput.check': return isRecordingOutputCheckResult(value);
     case 'recordingOutput.cancel': return isRecord(value) && hasOnlyKeys(value, ['cancelled']) && value.cancelled === true;
+    case 'recordingAttempts.list': return isRecordingAttemptsPage(value);
+    case 'recordingAttempts.get': return isRecord(value) && hasOnlyKeys(value, ['attempt']) && (value.attempt === null || isRecordingAttempt(value.attempt));
+    case 'recordingAttempts.begin':
+    case 'recordingAttempts.confirm':
+    case 'recordingAttempts.beginSide':
+    case 'recordingAttempts.stop': return isRecordingAttempt(value);
     case 'recordingProfiles.list': return isRecord(value) && hasOnlyKeys(value, ['profiles']) && Array.isArray(value.profiles) && value.profiles.length <= 100 && value.profiles.every(isRecordingProfileVersion);
     case 'recordingProfiles.history': return isRecordingProfileHistory(value);
     case 'recordingProfiles.version': return isRecordingProfileVersion(value);

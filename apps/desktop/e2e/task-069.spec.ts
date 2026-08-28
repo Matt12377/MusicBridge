@@ -107,7 +107,7 @@ test('V3 Excel：真实XLSX/XLS与11API，重导不增量、修订保留旧Lot�
   await close()
   const db = new DatabaseSync(path.join(directory, 'data', 'collection.v1.sqlite'), { readOnly: true })
   try {
-    expect(db.prepare('PRAGMA user_version').get()?.user_version).toBe(18)
+    expect(db.prepare('PRAGMA user_version').get()?.user_version).toBe(19)
     expect(db.prepare('SELECT count(*) n FROM inventory_lots').get()?.n).toBe(4)
     expect(db.prepare('SELECT acquired,quantity_adjustment FROM inventory_lots WHERE id=?').get(changed.lotId!)).toMatchObject({ acquired: 10, quantity_adjustment: 2 })
     expect(db.prepare('SELECT count(*) n FROM physical_copies').get()?.n).toBe(0)

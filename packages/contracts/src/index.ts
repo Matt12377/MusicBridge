@@ -36,3 +36,4 @@ export * from './spreadsheet-import.js';
 export * from './collection-progress.js';
 export * from './recording-plans.js';
 export * from './recording-output.js';
+export * from './recording-attempts.js';
