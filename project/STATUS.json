@@ -83,7 +83,7 @@
     "baseCommit": "017dfef43d615b26db770c206dec2e38105bd1e5",
     "state": "local-automated-pass-real-acceptance-pending",
     "implementationCommit": "5a322b603b6072a549f100189ab977da8d4b73c7",
-    "reportCommit": null,
+    "reportCommit": "76b97f87b4fb37abd56f3336a1821aa9f1811212",
     "previousTask": {
       "task": "TASK-073",
       "implementationCommit": "27df7e7cd2eda1698f96fbaa45c6d8cd801ad8bb",
