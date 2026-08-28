@@ -1,6 +1,6 @@
 # V3 剩余任务 TODO
 
-当前进度：TASK-072已封版；TASK-073无设备底座与面板本地Gate通过（134/957/447、安全28、Electron4、完整E2E80，双native开启、零skip），版本误分类P3已修复；实际包正常退出仍FAIL。TASK073隔离生命周期内核76断言及ASan/UBSan/TSan通过，真实Gate B待专门授权；F-01已确认。Owner已授权持续开发到最终验收；仅本地开发，不push、不合并main、不发布。按独立路径并行，智能体统一GPT-5.6 Sol / High，原任务队列不变。
+当前进度：TASK-073第四阶段本地Gate通过（134/957/461、安全28、Electron4、完整E2E80，双native开启、零skip）；启动/退出等待与合成旧配置隔离已修复。新包无CDP启动自退出约0.7秒、code0、无强制信号及残留；旧调试连接退出FAIL保留，Gate B仍未执行。Owner最新目标为持续开发全部任务至TASK-079；软件阶段沿独立分支顺序推进，实机和人工验收单独待验。仅本地开发，不push、不合并main、不发布；智能体统一GPT-5.6 Sol / High，完整队列不删减。
 
 本表是任务拆分与依赖计划，不是完成声明。后续任务沿上一任务最终 HEAD 创建独立分支；当前已展开 TASK-064～073，其余任务开始前补详细范围和允许路径。具体子任务可根据已验证结果细分，不删减 PRD 范围。
 
@@ -15,8 +15,8 @@
 - [x] **TASK-070：Want List 与收藏完成度** — 本地自动Gate通过：118/897/337、安全27、Electron4、完整E2E66（固定native开启，零skip）。Wanted与Owned正交、实际持有长度、不可变历史和预算分页；Owner未验收。见 [TASK-070结果](../reports/TASK-070_RESULT.md)。
 - [x] **TASK-071：Source Picker 与双库交互补齐** — 本地自动Gate通过：118/897/395、安全27、Electron4、完整E2E73（固定native开启，零skip）。关系选曲、明确历史上下文、下一步指引、按需照片/单图重试与焦点返回；Owner及既有视觉carryover保留。见 [TASK-071结果](../reports/TASK-071_RESULT.md)。
 - [x] **TASK-072：正式 Profile Snapshot / RecordingPlan / Preflight** — 本地自动Gate通过：127/922/414、安全27、Electron4、完整E2E75（固定native开启，零skip）。不可变计划/当前参数快照、八类预检、schema18备份恢复；F01已确认，Gate B未认证仍阻断，Owner未验收。见 [TASK-072结果](../reports/TASK-072_RESULT.md)。
-- [ ] **TASK-073：输出后端与 Gate B** — 无设备底座与面板本地Gate通过（134/957/447、安全28、Electron4、完整E2E80）；明确Plan/Side、取消与焦点交互已验证。实际包正常退出15秒超时FAIL保留；隔离生命周期内核76断言及ASan/UBSan/TSan通过，未接设备或应用；见[生命周期结果](../reports/TASK-073_OUTPUT_LIFECYCLE_RESULT.md)。真实设备生命周期、配置认证与Gate B未完成。见[TASK073面板结果](../reports/TASK-073_OUTPUT_UI_RESULT.md)。
-- [ ] **TASK-074：正式录音 Attempt 状态机** — 待前置。Cassette 翻面、DAT Program、中断不续播、三层结束与人工完成确认。
+- [ ] **TASK-073：输出后端与 Gate B** — 无设备底座、面板和隔离生命周期内核已交付；第四阶段修复启动退出验证及合成旧配置隔离，当前本地Gate为134/957/461、安全28、Electron4、完整E2E80。新包启动自退出通过；旧调试连接退出FAIL保留。真实HAL接入、设备生命周期/配置认证与Gate B仍待实机，不标完整任务完成。Owner已授权后续软件阶段继续，见[本轮结果](../reports/TASK-073_EXIT_LIFECYCLE_RESULT.md)。
+- [ ] **TASK-074：正式录音 Attempt 状态机** — 已获持续开发授权，待TASK073本地阶段最终HEAD接续。Cassette翻面、DAT Program、中断不续播、三层完成确认及可能写入介质保护；真实准入仍受Gate B阻断。
 - [ ] **TASK-075：录音档案、检索与双库同步** — 待前置。完成后同一 Physical Copy 幂等登记，归档搜索和版本事实不重写。
 - [ ] **TASK-076：Digital Replica** — 待前置。按历史执行事实精确重播，缺失/变更/恢复异常阻断，不替换来源。
 - [ ] **TASK-077：J-Card 与 Printed Artifact** — 待前置。封面/曲目/模板快照、打印导出、旧印刷品不随模板变化。
