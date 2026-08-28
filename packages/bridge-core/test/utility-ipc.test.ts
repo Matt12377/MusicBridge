@@ -1,4 +1,5 @@
 import { RecordingPlanError } from '../src/recording/plan-integrity.js';
+import { OutputCheckError } from '../src/recording/output-error.js';
 import { createMediaPlanningCoordinator } from '../src/recording/media-coordinator.js';
 import { createSourceEvidenceService } from '../src/recording/source-evidence.js';
 import assert from 'node:assert/strict';
@@ -46,6 +47,29 @@ class FakePort implements UtilityPort {
     this.listener?.({ data: message });
   }
 }
+
+test('无设备输出IPC只暴露status/check/cancel，错误安全映射且拒绝设备Start', async () => {
+  const port = new FakePort(), id = randomUUID(), calls: unknown[] = [];
+  const status = { backend: { id: 'musicbridge-coreaudio-hal', version: '0.1.0', halAdapterCompiled: false }, syntheticCheck: { available: false, helperSha256: null, protocolVersion: 1 }, deviceAccess: 'not-authorized', gateB: 'NOT_RUN', formalReady: false };
+  const service = { status: () => status, check: (request: unknown) => { calls.push(request); throw new OutputCheckError('HELPER_UNAVAILABLE'); }, cancel: (request: unknown) => { calls.push(request); return { cancelled: true }; } };
+  await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { recordingOutput: service }) as unknown as CoreRuntimeForIpc);
+  const rpc = async (command: string, payload: unknown) => { const requestId = randomUUID(); port.send({ version: 1, id: requestId, command, payload }); await new Promise(resolve => setImmediate(resolve)); return port.messages.find(m => (m as { id?: string }).id === requestId) as { ok: boolean; result?: unknown; error?: { code: string; message: string } }; };
+  assert.deepEqual((await rpc('recordingOutput.status', {})).result, status);
+  const request = { runId: id, planVersionId: id, side: 'A' };
+  const failure = await rpc('recordingOutput.check', request); assert.equal(failure.error?.code, 'INVENTORY_CONFLICT'); assert.match(failure.error!.message, /HELPER_UNAVAILABLE/u);
+  assert.deepEqual((await rpc('recordingOutput.cancel', { runId: id })).result, { cancelled: true }); assert.deepEqual(calls, [request, { runId: id }]);
+  assert.equal((await rpc('recordingOutput.startDevice', { deviceId: 1 })).ok, false);
+});
+
+test('实际测试Runtime无固定输出包时明确禁用，关闭后不能复用服务', async () => {
+  const runtime = createTestBridgeRuntime();
+  try {
+    assert.ok(runtime.recordingOutput);
+    const status = await runtime.recordingOutput.status(); assert.equal(status.syntheticCheck.available, false); assert.equal(status.deviceAccess, 'not-authorized'); assert.equal(status.formalReady, false);
+    await assert.rejects(runtime.recordingOutput.check({ runId: randomUUID(), planVersionId: randomUUID(), side: 'A' }), /HELPER_UNAVAILABLE/u);
+  } finally { await runtime.shutdown(); }
+  await assert.rejects(runtime.recordingOutput!.status(), /CLOSED/u);
+});
 
 test('Excel正式IPC读取真实合成字节并只返回摘要，原commandId回执重试不再读文件，scope末端复核', async t => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-excel-ipc-'));

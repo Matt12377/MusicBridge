@@ -14,6 +14,7 @@ test('打包准入绑定应用编译时清单，拒绝缺包、内容漂移、�
   try {
     assert.deepEqual(await captureNativeConverter(root), { schemaVersion: 1, manifestSha256: null })
     await mkdir(dist, { recursive: true })
+    await writeFile(path.join(dist, 'output-build.json'), JSON.stringify({ schemaVersion: 1, manifestSha256: null }))
     await writeFile(path.join(dist, 'converter-build.json'), JSON.stringify({ schemaVersion: 1, manifestSha256: null }))
     await assert.rejects(verifyNativeConverterPackage(root))
     for (const dir of ['bin', 'lib', 'legal']) await mkdir(path.join(bundle, dir), { recursive: true })

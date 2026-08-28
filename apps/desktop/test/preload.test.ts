@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
+import { runInNewContext } from 'node:vm'
+import ts from 'typescript'
 
 import type {
   Page,
@@ -17,6 +19,31 @@ import type {
 } from '@music-bridge/contracts'
 import { createPreloadApi, PUBLIC_API_KEYS } from '../src/preload/api.js'
 import { summarizePreloadRoonImage } from '../src/preload/image-diagnostic.js'
+import { createCommandOutboxClient } from '../src/preload/command-outbox-client.js'
+import { unwrapRoonImageIpc } from '../src/roon-image-ipc.js'
+
+test('实际Preload入口将输出三API直接送到有限IPC，不经过outbox或打开设备', async () => {
+  const source = await readFile(path.resolve('src/preload/index.ts'), 'utf8')
+  const calls: Array<[string, unknown]> = [], runId = '73000000-0000-4000-8000-000000000001'
+  let exposed: ReturnType<typeof createPreloadApi> | undefined
+  const modules: Record<string, unknown> = {
+    electron: { contextBridge: { exposeInMainWorld: (name: string, api: ReturnType<typeof createPreloadApi>) => { assert.equal(name, 'musicBridge'); exposed = api } }, ipcRenderer: { invoke: async (channel: string, payload: unknown) => { calls.push([channel, structuredClone(payload)]); return channel === 'commandOutbox:context' ? { datasetId: runId } : { reply: channel } } } },
+    './api.js': { createPreloadApi }, './command-outbox-client.js': { createCommandOutboxClient },
+    './image-diagnostic.js': { summarizePreloadRoonImage }, '../roon-image-ipc.js': { unwrapRoonImageIpc },
+  }
+  runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, {
+    exports: {}, process: { contextIsolated: true, env: {} },
+    require: (name: string) => { assert.ok(Object.hasOwn(modules, name), `非预期依赖 ${name}`); return modules[name] },
+  })
+  assert.ok(exposed)
+  for (const name of ['getRecordingOutputStatus', 'checkRecordingOutput', 'cancelRecordingOutputCheck']) assert.equal(typeof (exposed as unknown as Record<string, unknown>)[name], 'function', name)
+  calls.length = 0
+  const request = { runId, planVersionId: '73000000-0000-4000-8000-000000000002', side: 'Program' as const }
+  assert.deepEqual(await exposed.getRecordingOutputStatus(), { reply: 'recordingOutput:status' })
+  assert.deepEqual(await exposed.checkRecordingOutput(request), { reply: 'recordingOutput:check' })
+  assert.deepEqual(await exposed.cancelRecordingOutputCheck(runId), { reply: 'recordingOutput:cancel' })
+  assert.deepEqual(calls, [['recordingOutput:status', {}], ['recordingOutput:check', request], ['recordingOutput:cancel', { runId }]])
+})
 
 test('Preload 图片诊断保持 sandbox 本地实现，不引入 contracts 运行期依赖', async () => {
   const source = await readFile(path.resolve('src/preload/index.ts'), 'utf8')
@@ -125,10 +152,13 @@ test('Preload exposes only sanitized business methods', async () => {
     () => () => undefined,
   )
 
-  for (const name of ['listRecordingPlans', 'getRecordingPlanVersion', 'previewRecordingPlan', 'freezeRecordingPlan', 'preflightRecordingPlan', 'cancelRecordingPlanRead']) {
+  for (const name of ['getRecordingOutputStatus', 'checkRecordingOutput', 'cancelRecordingOutputCheck', 'listRecordingPlans', 'getRecordingPlanVersion', 'previewRecordingPlan', 'freezeRecordingPlan', 'preflightRecordingPlan', 'cancelRecordingPlanRead']) {
     assert.equal(typeof (api as unknown as Record<string, unknown>)[name], 'function', `缺少受限业务API ${name}`)
   }
   assert.deepEqual(PUBLIC_API_KEYS, [
+    'getRecordingOutputStatus',
+    'checkRecordingOutput',
+    'cancelRecordingOutputCheck',
     'listRecordingPlans',
     'getRecordingPlanVersion',
     'previewRecordingPlan',
@@ -334,6 +364,9 @@ test('Preload exposes only sanitized business methods', async () => {
     'onRemoteCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
+    'getRecordingOutputStatus',
+    'checkRecordingOutput',
+    'cancelRecordingOutputCheck',
     'listRecordingPlans',
     'getRecordingPlanVersion',
     'previewRecordingPlan',

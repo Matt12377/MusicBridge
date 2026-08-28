@@ -20,3 +20,5 @@ diagnostics/
 apps/desktop/out/
 apps/desktop/release/
 apps/desktop/native/ffmpeg/
+apps/desktop/native/output/
+native/output-helper/.build/

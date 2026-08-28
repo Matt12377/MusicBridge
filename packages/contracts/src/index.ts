@@ -35,3 +35,4 @@ export * from './reference-catalog.js';
 export * from './spreadsheet-import.js';
 export * from './collection-progress.js';
 export * from './recording-plans.js';
+export * from './recording-output.js';

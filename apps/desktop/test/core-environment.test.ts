@@ -208,6 +208,14 @@ test('打包转换器合成 Gate 只在显式桌面 E2E 模式转发，不允许
   }
 })
 
+test('无设备输出包Gate只向明确UI E2E转发，忽略路径和设备授权环境输入', () => {
+  for (const uiE2e of [false, true]) {
+    const env = buildCoreEnvironment({ MUSIC_BRIDGE_BUNDLED_OUTPUT_GATE: '1', MUSIC_BRIDGE_OUTPUT_PATH: '/untrusted', MUSIC_BRIDGE_OUTPUT_DEVICE_AUTHORIZED: '1' }, { startupTest: false, uiE2e, coreCrashGate: false })
+    assert.equal(env.MUSIC_BRIDGE_BUNDLED_OUTPUT_GATE, uiE2e ? '1' : undefined)
+    assert.equal(env.MUSIC_BRIDGE_OUTPUT_PATH, undefined); assert.equal(env.MUSIC_BRIDGE_OUTPUT_DEVICE_AUTHORIZED, undefined)
+  }
+})
+
 test('转换器只从固定开发或 ASAR 资源目录加载，普通合成测试不启用原生后端', () => {
   const host = { platform: 'darwin', arch: 'arm64', entryDirectory: '/workspace/apps/desktop/dist/main', resourcesDirectory: '/Applications/Music Bridge.app/Contents/Resources' }
   assert.equal(bundledConverterRoot({}, host), '/workspace/apps/desktop/native/ffmpeg/darwin-arm64')

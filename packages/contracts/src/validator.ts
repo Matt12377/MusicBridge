@@ -1,3 +1,4 @@
+import { isRecordingOutputStatus, isRecordingOutputCheckRequest, isRecordingOutputCancelRequest, isRecordingOutputCheckResult } from './recording-output.js';
 import { isRecordingPlanHistoryRequest, isRecordingPlanIdRequest, isPreviewRecordingPlanRequest, isFreezeRecordingPlanRequest, isRecordingPreflightRequest, isRecordingPlanHistory, isRecordingPlanVersion, isRecordingPlanProposal, isRecordingPreflightResult } from './recording-plans.js';
 import { isSpreadsheetPageRequest, isSpreadsheetSourcePage, isSpreadsheetIdRequest, isSpreadsheetWorkbookSource, isSpreadsheetSourceRowsRequest, isSpreadsheetSourceRowsPage, isPreviewSpreadsheetImportRequest, isSpreadsheetImportPreview, isApplySpreadsheetImportRequest, isSpreadsheetImportResult, isSpreadsheetImportRevisionRequest, isSpreadsheetImportRevisionDetail, isSpreadsheetImportHistory, isSpreadsheetAdjustmentPreviewRequest, isSpreadsheetAdjustmentBalance, isAdjustSpreadsheetInventoryRequest, isSpreadsheetInventoryAdjustment, isSpreadsheetAdjustmentsRequest, isSpreadsheetAdjustmentsPage, isRegisterSpreadsheetWorkbookRequest, isChooseSpreadsheetWorkbookRequest, isSpreadsheetWorkbookReceipt } from './spreadsheet-import.js';
 import { isListWantEntriesRequest, isWantEntriesPage, isSaveWantEntryRequest, isWantEntry, isCancelWantEntryRequest, isGetWantEntryHistoryRequest, isWantEntryHistory, isGetCollectionProgressRequest, isCollectionProgress, isCaptureCollectionProgressRequest, isCollectionProgressSnapshotSummary, isListCollectionProgressSnapshotsRequest, isCollectionProgressSnapshotsPage, isGetCollectionProgressSnapshotRequest, isCollectionProgressSnapshotDetail, isGetCollectionModelLengthsRequest, isCollectionModelLengths } from './collection-progress.js';
@@ -977,6 +978,9 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'recordingPlans.preview') return isPreviewRecordingPlanRequest(payload);
   if (command === 'recordingPlans.freeze') return isFreezeRecordingPlanRequest(payload);
   if (command === 'recordingPlans.preflight') return isRecordingPreflightRequest(payload);
+  if (command === 'recordingOutput.status') return isEmptyPayload(payload);
+  if (command === 'recordingOutput.check') return isRecordingOutputCheckRequest(payload);
+  if (command === 'recordingOutput.cancel') return isRecordingOutputCancelRequest(payload);
   if (command === 'recordingProfiles.list') return isRecord(payload) && hasOnlyKeys(payload, []);
   if (command === 'recordingProfiles.history') return isRecord(payload) && hasOnlyKeys(payload, ['profileId']) && isCollectionId(payload.profileId);
   if (command === 'recordingProfiles.version') return isRecord(payload) && hasOnlyKeys(payload, ['versionId']) && isCollectionId(payload.versionId);
@@ -1531,6 +1535,9 @@ function isCommandResult(
     case 'recordingPlans.freeze': return isRecordingPlanVersion(value);
     case 'recordingPlans.preflight': return isRecordingPreflightResult(value);
     case 'recordingPlans.cancelRead': return isRecord(value) && hasOnlyKeys(value, ['cancelled']) && value.cancelled === true;
+    case 'recordingOutput.status': return isRecordingOutputStatus(value);
+    case 'recordingOutput.check': return isRecordingOutputCheckResult(value);
+    case 'recordingOutput.cancel': return isRecord(value) && hasOnlyKeys(value, ['cancelled']) && value.cancelled === true;
     case 'recordingProfiles.list': return isRecord(value) && hasOnlyKeys(value, ['profiles']) && Array.isArray(value.profiles) && value.profiles.length <= 100 && value.profiles.every(isRecordingProfileVersion);
     case 'recordingProfiles.history': return isRecordingProfileHistory(value);
     case 'recordingProfiles.version': return isRecordingProfileVersion(value);

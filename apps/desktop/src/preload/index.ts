@@ -322,5 +322,10 @@ contextBridge.exposeInMainWorld(
       preflightRecordingPlan: request => ipcRenderer.invoke('recordingPlans:preflight', request),
       cancelRecordingPlanRead: id => ipcRenderer.invoke('recordingPlans:cancelRead', { id }),
     },
+    {
+      getRecordingOutputStatus: () => ipcRenderer.invoke('recordingOutput:status', {}),
+      checkRecordingOutput: request => ipcRenderer.invoke('recordingOutput:check', request),
+      cancelRecordingOutputCheck: runId => ipcRenderer.invoke('recordingOutput:cancel', { runId }),
+    },
   ),
 )

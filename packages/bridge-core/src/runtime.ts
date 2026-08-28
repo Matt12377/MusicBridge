@@ -1,3 +1,5 @@
+import { createRecordingOutputService, type RecordingOutputService } from './recording/output-service.js';
+import type { PinnedOutputHelper } from './recording/bundled-output-helper.js';
 import { createRecordingPlanCoordinator, type RecordingPlanCoordinator } from './recording/plan-coordinator.js';
 import { randomUUID } from 'node:crypto';
 import { createDatasetCommandBoundary, type DatasetIdentity } from './recording/dataset-identity.js';
@@ -118,6 +120,7 @@ export interface CoreRuntime {
   execution?: ExecutionCoordinator;
   archive?: ArchiveCoordinator;
   recordingPlans?: RecordingPlanCoordinator;
+  recordingOutput?: RecordingOutputService;
   backups?: BackupCoordinator;
   readonly collection?: CollectionRepository;
   start(): Promise<void>;
@@ -199,6 +202,7 @@ export interface BridgeRuntimeOptions {
   collectionDatasetIdentity?: DatasetIdentity;
   /** 仅由受信任的 Core 组合层注入；不从 Renderer 或系统 PATH 自动配置。 */
   recordingConverter?: FfmpegConverter;
+  recordingOutputHelper?: PinnedOutputHelper;
   collectionRepository?: CollectionRepository;
   backupWorkflowStore?: BackupWorkflowStore;
   backupPrivateRoot?: RootCapability;
@@ -811,7 +815,9 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   const backups = options.backupWorkflowStore && options.collectionRepository ? createBackupCoordinator({ store: options.backupWorkflowStore, repository: options.collectionRepository, ...(options.backupPrivateRoot ? { privateRoot: options.backupPrivateRoot } : {}), ...(options.backupContentBinding ? { contentBinding: options.backupContentBinding } : {}) }) : undefined;
   const archive = options.collectionRepository && sources && preparation ? createArchiveCoordinator({ store: options.collectionRepository.archive, executionStore: options.collectionRepository.execution, preparationStore: options.collectionRepository.preparations, sourceStore: options.collectionRepository.sources, sources, preparation }) : undefined;
   const recordingPlans = options.collectionRepository ? createRecordingPlanCoordinator({ store: options.collectionRepository.recordingPlans }) : undefined;
+  const recordingOutput = createRecordingOutputService({ ...(options.collectionRepository ? { store: options.collectionRepository.recordingPlans } : {}), ...(options.recordingOutputHelper ? { helper: options.recordingOutputHelper } : {}) });
   const cleanup = async (): Promise<void> => {
+    await recordingOutput.close();
     await recordingPlans?.close();
     await backups?.close();
     await archive?.close();
@@ -1149,6 +1155,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     ...(execution ? { execution } : {}),
     ...(archive ? { archive } : {}),
     ...(recordingPlans ? { recordingPlans } : {}),
+    recordingOutput,
     ...(backups ? { backups } : {}),
     ...(options.collectionRepository ? { collection: options.collectionRepository, physicalLinks: createPhysicalLinksCoordinator({ repository: options.collectionRepository.links, library: roonLibrary }), masterDrafts: createMasterDraftsCoordinator({ repository: options.collectionRepository.drafts, library: roonLibrary }) } : {}),
     ...(options.collectionDatasetIdentity ? { commandOutbox: createDatasetCommandBoundary(options.collectionDatasetIdentity) } : {}),
@@ -1189,6 +1196,7 @@ const SYNTHETIC_QR_IMAGE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3
 export interface TestBridgeRuntimeOptions {
   collectionDatasetIdentity?: DatasetIdentity;
   recordingConverter?: FfmpegConverter;
+  recordingOutputHelper?: PinnedOutputHelper;
   roonLibrary?: RoonPublicLibrary;
   collectionRepository?: CollectionRepository;
   backupWorkflowStore?: BackupWorkflowStore;
@@ -1209,6 +1217,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
   const prepared = createPreparedCoordinator({ store: collection.prepared, preparationStore: collection.preparations, preparation, sourceStore: collection.sources });
   const execution = createExecutionCoordinator({ store: collection.execution, profiles: collection.recordingProfiles, preparationStore: collection.preparations, preparedStore: collection.prepared, mediaStore: collection.media, sourceStore: collection.sources, sources, preparation, ...(options.recordingConverter ? { converter: options.recordingConverter } : {}) });
   const recordingPlans = createRecordingPlanCoordinator({ store: collection.recordingPlans });
+  const recordingOutput = createRecordingOutputService({ store: collection.recordingPlans, ...(options.recordingOutputHelper ? { helper: options.recordingOutputHelper } : {}) });
   const archive = createArchiveCoordinator({ store: collection.archive, executionStore: collection.execution, preparationStore: collection.preparations, sourceStore: collection.sources, sources, preparation });
   const accountMode = options.accountMode ?? 'ready'
   const syntheticAuthorized = options.authorized === true && accountMode !== 'expired'
@@ -1365,6 +1374,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       diagnostics.record({ component: 'core', level: 'info', event: 'core_ready', state: 'ready' });
     },
     async shutdown() {
+      await recordingOutput.close();
       await recordingPlans.close();
       await backups.close();
       await archive.close();
@@ -1743,7 +1753,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     collection,
     commandOutbox,
     sources,
-    mediaPlanning, masterVersions, preparation, prepared, execution, archive, backups, recordingPlans,
+    mediaPlanning, masterVersions, preparation, prepared, execution, archive, backups, recordingPlans, recordingOutput,
     physicalLinks: createPhysicalLinksCoordinator({ repository: collection.links, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
     masterDrafts: createMasterDraftsCoordinator({ repository: collection.drafts, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
     listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),

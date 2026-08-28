@@ -1,3 +1,4 @@
+import type { RecordingOutputStatus, RecordingOutputCheckRequest, RecordingOutputCancelRequest, RecordingOutputCheckResult } from './recording-output.js';
 import type { RecordingPlanHistoryRequest, RecordingPlanIdRequest, PreviewRecordingPlanRequest, FreezeRecordingPlanRequest, RecordingPreflightRequest, RecordingPlanHistory, RecordingPlanVersion, RecordingPlanProposal, RecordingPreflightResult } from './recording-plans.js';
 import type { SpreadsheetPageRequest, SpreadsheetSourcePage, SpreadsheetIdRequest, SpreadsheetWorkbookSource, SpreadsheetSourceRowsRequest, SpreadsheetSourceRowsPage, PreviewSpreadsheetImportRequest, SpreadsheetImportPreview, ApplySpreadsheetImportRequest, SpreadsheetImportResult, SpreadsheetImportRevisionRequest, SpreadsheetImportRevisionDetail, SpreadsheetImportHistory, SpreadsheetAdjustmentPreviewRequest, SpreadsheetAdjustmentBalance, AdjustSpreadsheetInventoryRequest, SpreadsheetInventoryAdjustment, SpreadsheetAdjustmentsRequest, SpreadsheetAdjustmentsPage, RegisterSpreadsheetWorkbookRequest, ChooseSpreadsheetWorkbookRequest, SpreadsheetWorkbookReceipt } from './spreadsheet-import.js';
 import type { ListWantEntriesRequest, WantEntriesPage, SaveWantEntryRequest, WantEntry, CancelWantEntryRequest, GetWantEntryHistoryRequest, WantEntryHistory, GetCollectionProgressRequest, CollectionProgress, CaptureCollectionProgressRequest, CollectionProgressSnapshotSummary, ListCollectionProgressSnapshotsRequest, CollectionProgressSnapshotsPage, GetCollectionProgressSnapshotRequest, CollectionProgressSnapshotDetail, GetCollectionModelLengthsRequest, CollectionModelLengths } from './collection-progress.js';
@@ -149,6 +150,9 @@ export const IPC_COMMANDS = [
   'recordingPlans.freeze',
   'recordingPlans.preflight',
   'recordingPlans.cancelRead',
+  'recordingOutput.status',
+  'recordingOutput.check',
+  'recordingOutput.cancel',
   'recordingProfiles.list',
   'recordingProfiles.history',
   'recordingProfiles.version',
@@ -379,6 +383,9 @@ export interface IpcCommandPayloads {
   'recordingPlans.freeze': FreezeRecordingPlanRequest;
   'recordingPlans.preflight': RecordingPreflightRequest;
   'recordingPlans.cancelRead': RecordingPlanIdRequest;
+  'recordingOutput.status': Record<string, never>;
+  'recordingOutput.check': RecordingOutputCheckRequest;
+  'recordingOutput.cancel': RecordingOutputCancelRequest;
   'recordingProfiles.list': {};
   'recordingProfiles.history': { profileId: string };
   'recordingProfiles.version': { versionId: string };
@@ -599,6 +606,9 @@ export interface IpcCommandResults {
   'recordingPlans.freeze': RecordingPlanVersion;
   'recordingPlans.preflight': RecordingPreflightResult;
   'recordingPlans.cancelRead': { cancelled: true };
+  'recordingOutput.status': RecordingOutputStatus;
+  'recordingOutput.check': RecordingOutputCheckResult;
+  'recordingOutput.cancel': { cancelled: true };
   'recordingProfiles.list': { profiles: readonly RecordingProfileVersion[] };
   'recordingProfiles.history': RecordingProfileHistory;
   'recordingProfiles.version': RecordingProfileVersion;

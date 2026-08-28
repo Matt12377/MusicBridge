@@ -3,9 +3,9 @@ wave: WAVE-5
 status: active
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-072
-activeBranch: codex/task-072-recording-plan
-activeBaseCommit: 6323b3431ec7beeaba851155c062f9fae4bf41ea
+activeTask: TASK-073
+activeBranch: codex/task-073-output-backend
+activeBaseCommit: 6c94350575ab2a21f7aeef36713b9a3d868e4bdf
 order:
   - TASK-048
   - TASK-049
@@ -32,5 +32,6 @@ order:
   - TASK-070
   - TASK-071
   - TASK-072
-stopAfter: TASK-072
-reviewBoundary: immutable-recording-plan-profile-snapshot-and-blocked-preflight
+  - TASK-073
+stopAfter: TASK-073
+reviewBoundary: fixed-synthetic-frame-pump-and-device-gate-not-run

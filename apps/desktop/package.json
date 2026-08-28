@@ -115,6 +115,11 @@
     "beforePack": "./scripts/native-converter-package.mjs",
     "extraResources": [
       {
+        "from": "native/output/darwin-arm64",
+        "to": "output/darwin-arm64",
+        "filter": ["manifest.json", "bin/output-helper", "build/core-audio-adapter.o"]
+      },
+      {
         "from": "native/ffmpeg/darwin-arm64",
         "to": "ffmpeg/darwin-arm64",
         "filter": [

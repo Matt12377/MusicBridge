@@ -78,36 +78,41 @@
   },
   "v3Development": {
     "wave": "WAVE-5",
-    "task": "TASK-072",
-    "branch": "codex/task-072-recording-plan",
-    "baseCommit": "6323b3431ec7beeaba851155c062f9fae4bf41ea",
-    "state": "local-gates-pass-owner-pending",
-    "implementationCommit": "cab05c2c8eb367dbabfd703b4bd6eef9a96d046f",
-    "reportCommit": "79d7ff88cd7c99b6a75a98cd096afdea4f88d2b4",
+    "task": "TASK-073",
+    "branch": "codex/task-073-output-backend",
+    "baseCommit": "6c94350575ab2a21f7aeef36713b9a3d868e4bdf",
+    "state": "in-progress",
+    "implementationCommit": null,
+    "reportCommit": null,
     "previousTask": {
-      "task": "TASK-071",
-      "implementationCommit": "5672a3928eb12746d55264b5da07967b09627f44",
-      "reportCommit": "8248b9cdae78a79f078add1c3fa3f3805ab28da4",
-      "finalCommit": "6323b3431ec7beeaba851155c062f9fae4bf41ea"
+      "task": "TASK-072",
+      "implementationCommit": "cab05c2c8eb367dbabfd703b4bd6eef9a96d046f",
+      "reportCommit": "79d7ff88cd7c99b6a75a98cd096afdea4f88d2b4",
+      "finalCommit": "6c94350575ab2a21f7aeef36713b9a3d868e4bdf"
     },
     "authorization": "continuous-development-owner-authorized-parallel-sol-high-no-push-no-release",
     "f01": "OWNER_APPROVED_f01-permanent-execution-v1",
     "gates": {
-      "automated": "contracts127-core922-desktop414-typecheck-build-pass",
-      "spec": "core2-desktop2-integration2-pass-no-third-round",
-      "quality": "core1-bounded-pass-desktop2-integration2-pass",
+      "automated": "contracts134-core956-desktop427-pass-native-enabled-zero-skip",
+      "spec": "core1-desktop1-native2-pass",
+      "quality": "core1-desktop1-native1-pass",
       "realProvider": "NOT_RUN",
       "realRoon": "NOT_RUN",
       "realRecording": "NOT_RUN",
       "ownerProductAcceptance": "NOT_RUN",
-      "security": "27-of-27-pass",
+      "security": "28-of-28-pass",
       "electron": "4-of-4-pass",
-      "e2e": "75-of-75-pass-native-enabled-zero-skip",
-      "controlPlane": "legacy-scope-pass",
-      "boundaries": "pass",
-      "cycles": "205-files-pass",
-      "e2eTypes": "pass",
-      "capacity": "R020_TASK_078_GATE_E_PENDING"
+      "e2e": "77-of-77-pass-both-native-enabled-zero-skip",
+      "controlPlane": "PASS-WAVE3-scope",
+      "boundaries": "PASS",
+      "cycles": "215-files-pass",
+      "e2eTypes": "PASS",
+      "capacity": "R020_TASK_078_GATE_E_PENDING",
+      "outputBackendCertification": "NOT_RUN",
+      "nativeSynthetic": "pump19-process25-pass",
+      "framePumpSanitizers": "asan-ubsan-tsan-pass-only-shared-pump",
+      "package": "local-ad-hoc-build-codesign-asar23-native16-and-actual-check-pass",
+      "packagedNormalExit": "NOT_VERIFIED-probe-cleanup-required-SIGKILL"
     },
     "carryover": [
       "完整 V3 范围保持；仅本地顺序推进",
@@ -116,12 +121,13 @@
       "TASK-047 实际歌词与既有视觉 carryover 保留",
       "归档只支持已验证的本地硬链接/fsync 文件系统；多应用实例共写未支持",
       "R-020 大库冷启扫描与2秒ready策略待TASK-078/Gate E验证",
-      "TASK072 P3：同内容媒体规划仅revision变化可能误归因为COPY_UNAVAILABLE，保守阻断不放行；后续补版本分类行为测试"
+      "TASK072 P3：同内容媒体规划仅revision变化可能误归因为COPY_UNAVAILABLE，保守阻断不放行；后续补版本分类行为测试",
+      "TASK073实际包合成check通过；CDP探针清理需SIGKILL且已close，无残留；正常包退出未验证，保留NOT_READY日志至TASK078复核"
     ],
-    "checkpoint": "task072-final-sealed-next-task073",
+    "checkpoint": "task073-synthetic-stage-verified-device-stage-pending",
     "todo": "project/V3_TODO.md",
-    "nextTask": "TASK-073",
-    "resultReport": "reports/TASK-072_RESULT.md",
-    "candidateFingerprint": "dce1eb19c141f14f67acc015a0438e3d961c71e9a2ea2b339a05b6b9731f3ca7"
+    "nextTask": "TASK-074",
+    "resultReport": "reports/TASK-073_RESULT.md",
+    "phase": "synthetic-only-device-stage-pending"
   }
 }

@@ -1,3 +1,5 @@
+import { OutputCheckError } from './recording/output-error.js';
+import type { PinnedOutputHelper } from './recording/bundled-output-helper.js';
 import { RecordingPlanError } from './recording/plan-integrity.js';
 import { BackupWorkflowError } from './recording/backup-workflow-store.js';
 import { readSpreadsheetFile, SpreadsheetReadError } from './collection/spreadsheet-files.js';
@@ -77,6 +79,7 @@ function requestId(value: unknown): string | undefined {
 }
 
 function failureForError(id: string, error: unknown): IpcFailure {
+  if (error instanceof OutputCheckError) return responseFailure(id, 'INVENTORY_CONFLICT', error.message);
   if (error instanceof RecordingPlanError) return responseFailure(id, 'INVENTORY_CONFLICT', error.message);
   if (error instanceof DatasetScopeError) return responseFailure(id, error.code, error.message);
   if (error instanceof BackupWorkflowError) return responseFailure(id, error.code === 'BACKUP_CONFLICT' ? 'INVENTORY_CONFLICT' : 'INVENTORY_UNAVAILABLE', error.message);
@@ -163,6 +166,10 @@ function executionFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.execution) throw new CollectionError('INVENTORY_UNAVAILABLE', '执行资产服务尚未就绪，请重试。');
   return runtime.execution;
 }
+function recordingOutputFor(runtime: CoreRuntimeForIpc) {
+  if (!runtime.recordingOutput) throw new OutputCheckError('HELPER_UNAVAILABLE');
+  return runtime.recordingOutput;
+}
 function recordingPlansFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.recordingPlans) throw new CollectionError('INVENTORY_UNAVAILABLE', '录音计划服务尚未就绪，请重试。');
   return runtime.recordingPlans;
@@ -241,6 +248,9 @@ async function dispatch(
     case 'recordingBackups.start': return backupsFor(runtime).start(request.payload as IpcCommandPayloads['recordingBackups.start']);
     case 'recordingBackups.cancel': return backupsFor(runtime).cancel(request.payload as IpcCommandPayloads['recordingBackups.cancel']);
     case 'recordingBackups.revoke': return backupsFor(runtime).revoke(request.payload as IpcCommandPayloads['recordingBackups.revoke']);
+    case 'recordingOutput.status': return recordingOutputFor(runtime).status();
+    case 'recordingOutput.check': return recordingOutputFor(runtime).check(request.payload as IpcCommandPayloads['recordingOutput.check']);
+    case 'recordingOutput.cancel': return recordingOutputFor(runtime).cancel(request.payload as IpcCommandPayloads['recordingOutput.cancel']);
     case 'recordingPlans.list': return recordingPlansFor(runtime).list(request.payload as IpcCommandPayloads['recordingPlans.list']);
     case 'recordingPlans.version': return recordingPlansFor(runtime).version(request.payload as IpcCommandPayloads['recordingPlans.version']);
     case 'recordingPlans.preview': return recordingPlansFor(runtime).preview(request.payload as IpcCommandPayloads['recordingPlans.preview']);
@@ -706,6 +716,7 @@ function createRoonImageShapeRecorder(
 export async function runCoreUtilityProcess(
   env: NodeJS.ProcessEnv = process.env,
   createRecordingConverter?: () => Promise<FfmpegConverter | undefined>,
+  createRecordingOutputHelper?: () => Promise<PinnedOutputHelper | undefined>,
 ): Promise<void> {
   const parentPort = (process as unknown as ProcessWithParentPort).parentPort;
   if (!parentPort) {
@@ -723,6 +734,7 @@ export async function runCoreUtilityProcess(
       let dataset: Awaited<ReturnType<typeof openCollectionDataset>> | undefined;
       try {
         const recordingConverter = await createRecordingConverter?.();
+        const recordingOutputHelper = await createRecordingOutputHelper?.();
         const dataDirectory = env.MUSIC_BRIDGE_DATA_DIRECTORY;
         if (dataDirectory !== undefined && (!dataDirectory || dataDirectory.length > 1024 || !path.isAbsolute(dataDirectory) || dataDirectory.includes('\0'))) throw new Error('Core 数据目录不可用');
         if (dataDirectory) dataset = await openCollectionDataset(dataDirectory);
@@ -737,6 +749,7 @@ export async function runCoreUtilityProcess(
           env.MUSIC_BRIDGE_CORE_TEST_MODE === '1'
             ? createTestBridgeRuntime({
                 ...(recordingConverter ? { recordingConverter } : {}),
+                ...(recordingOutputHelper ? { recordingOutputHelper } : {}),
                 ...(env.MUSIC_BRIDGE_UI_E2E === '1' && env.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY === '1' ? { roonLibrary: createSyntheticRoonLibrary() } : {}),
                 ...datasetOptions,
                 authorized: env.MUSIC_BRIDGE_UI_E2E === '1',
@@ -759,6 +772,7 @@ export async function runCoreUtilityProcess(
                 const onRoonImageShape = createRoonImageShapeRecorder(env);
                 return createBridgeRuntime({
                   ...(recordingConverter ? { recordingConverter } : {}),
+                ...(recordingOutputHelper ? { recordingOutputHelper } : {}),
                   ...datasetOptions,
                   lyricsMatchRepository: createLyricsMatchRepository({
                     filePath: path.join(dataDirectory, 'lyrics-matches.v1.json'),

@@ -121,3 +121,5 @@ TASK071最终本地Gate：118/897/395、安全27、Electron4、完整73E2E含固
 2026-08-28 Owner 确认 F-01 保守保留方案并要求全速开发。由 TASK-071 最终 `6323b3431ec7beeaba851155c062f9fae4bf41ea` 建立 `codex/task-072-recording-plan`；完整 TASK064～079 保持。计划冻结不等于正式输出准入，Gate B 尚未运行。独立职责、RED/GREEN、SPEC 后 QUALITY、完整 Gate 后封版。
 
 TASK072本地自动阶段通过127/922/414、安全27、Electron4、完整E2E75；不可变Plan/参数快照/预检与schema18备份恢复已实现，F01已批准。TASK073在最终封版后接续，真实Gate B/Owner仍NOT_RUN；保留预检版本分类P3及历史carryover。
+
+2026-08-28 TASK073从TASK072最终6c94350575ab2a21f7aeef36713b9a3d868e4bdf建立独立树。共享原生帧泵、Core只读执行输入与合同三路并行Sol/High；固定synthetic helper无设备执行，HAL只编译，真实Gate B保持NOT_RUN。

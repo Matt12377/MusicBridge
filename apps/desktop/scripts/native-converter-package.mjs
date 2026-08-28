@@ -1,6 +1,7 @@
 import { lstat, readFile, realpath } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
+import { verifyNativeOutputPackage } from './native-output-package.mjs'
 
 const digest = bytes => createHash('sha256').update(bytes).digest('hex')
 const bundleRoot = appDirectory => path.join(appDirectory, 'native/ffmpeg/darwin-arm64')
@@ -48,4 +49,5 @@ export default async function beforePack(context) {
     throw new Error('当前转换器只准入 macOS arm64 本地包；需关闭自动签名发现、设置 mac.identity=null 并启用 Fuses ad-hoc 重签。发布签名尚未放行。')
   }
   await verifyNativeConverterPackage(await realpath(context.packager.info.appDir))
+  await verifyNativeOutputPackage(await realpath(context.packager.info.appDir))
 }

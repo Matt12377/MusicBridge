@@ -555,6 +555,20 @@ test('outbox包装保留归档长操作预算，普通控制请求仍按短期�
 })
 
 
+for (const command of ['recordingOutput.check', 'recordingOutput.status', 'recordingOutput.cancel'] as const) {
+  test(`${command} 只有完整文件检查使用长期限，状态和取消保留短期限`, async t => {
+    t.mock.timers.enable({ apis: ['setTimeout'] })
+    const harness = makeHarness(), starting = harness.supervisor.start(); ready(harness.channels[0]!); await starting
+    const runId = randomUUID(), payload = command === 'recordingOutput.check' ? { runId, planVersionId: randomUUID(), side: 'A' } : command === 'recordingOutput.cancel' ? { runId } : {}
+    let settled = false
+    const pending = harness.supervisor.request(command, payload as never).then(() => { settled = true; return undefined }, error => { settled = true; return error })
+    t.mock.timers.tick(45); await new Promise<void>(resolve => setImmediate(resolve)); const early = settled
+    if (command === 'recordingOutput.check') t.mock.timers.tick(35 * 60_000)
+    const result = await pending; t.mock.timers.reset(); await harness.supervisor.shutdown()
+    assert.equal(early, command !== 'recordingOutput.check'); assert.equal(result.code, 'TIMEOUT')
+  })
+}
+
 for (const command of ['recordingPlans.preview', 'recordingPlans.freeze', 'recordingPlans.preflight'] as const) {
   test(`${command} 及outbox冻结使用有界文件核对期限`, async t => {
     t.mock.timers.enable({ apis: ['setTimeout'] });
