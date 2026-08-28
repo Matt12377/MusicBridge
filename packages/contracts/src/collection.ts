@@ -46,7 +46,10 @@ export interface CollectionLot {
   quantityAdjustment?: number;
   quantities: CollectionQuantities;
 }
+/** 当前内容认知不是旧档案存在的推论；原实体身份和来源不变。 */
+export type PhysicalRecordingSummary = { revision: number } & ({ state: 'confirmed-recording'; recordingId: string } | { state: 'unknown' | 'erased' });
 export interface CollectionCopy {
+  recordingState?: PhysicalRecordingSummary;
   recordingTitle?: string;
   physicalId: string;
   lotId: string;
@@ -206,9 +209,15 @@ export function isCollectionLot(v: unknown): v is CollectionLot {
     && v.quantityAcquired + (v.quantityAdjustment ?? 0) >= 0
     && isCollectionQuantities(v.quantities) && Object.values(v.quantities).reduce((sum, n) => sum + n, 0) <= v.quantityAcquired + (v.quantityAdjustment ?? 0);
 }
+export function isPhysicalRecordingSummary(v: unknown): v is PhysicalRecordingSummary {
+  return record(v) && keys(v, ['revision', 'state', 'recordingId']) && integer(v.revision, 0, Number.MAX_SAFE_INTEGER)
+    && (v.state === 'confirmed-recording' ? v.revision >= 1 && typeof v.recordingId === 'string' && v.recordingId.length === 36 && isCollectionId(v.recordingId)
+      : (v.state === 'unknown' || v.state === 'erased' && v.revision >= 1) && v.recordingId === undefined);
+}
 function isCollectionCopy(v: unknown): v is CollectionCopy {
-  return record(v) && keys(v, ['physicalId', 'lotId', 'skuId', 'lengthMinutes', 'packaging', 'usage', 'available', 'origin', 'revision', 'recordingTitle'])
-    && (v.recordingTitle === undefined || (v.usage === 'recorded' && typeof v.recordingTitle === 'string' && v.recordingTitle.length > 0 && v.recordingTitle.length <= 240 && !/[\u0000-\u001f\u007f]/u.test(v.recordingTitle)))
+  return record(v) && keys(v, ['physicalId', 'lotId', 'skuId', 'lengthMinutes', 'packaging', 'usage', 'available', 'origin', 'revision', 'recordingTitle', 'recordingState'])
+    && (v.recordingState === undefined || isPhysicalRecordingSummary(v.recordingState) && (v.recordingState.state === 'confirmed-recording' || v.recordingTitle === undefined))
+    && (v.recordingTitle === undefined || ((v.usage === 'recorded' || record(v.recordingState) && v.recordingState.state === 'confirmed-recording' && (v.usage === 'reserved' || v.usage === 'unknown')) && typeof v.recordingTitle === 'string' && v.recordingTitle.length > 0 && v.recordingTitle.length <= 240 && !/[\u0000-\u001f\u007f]/u.test(v.recordingTitle)))
     && isPhysicalId(v.physicalId) && isCollectionId(v.lotId) && isCollectionId(v.skuId) && length(v.lengthMinutes)
     && ['sealed', 'opened', 'unknown'].includes(String(v.packaging)) && ['blank', 'reserved', 'recorded', 'unknown', 'erased'].includes(String(v.usage))
     && typeof v.available === 'boolean' && ['blank-pool', 'legacy-registration', 'unclassified'].includes(String(v.origin)) && integer(v.revision, 1);

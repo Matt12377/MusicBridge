@@ -8,6 +8,7 @@ import PreparationPanel from './PreparationPanel.vue'
 import PreparedPanel from './PreparedPanel.vue'
 import ExecutionPanel from './ExecutionPanel.vue'
 import RecordingPlanPanel from './RecordingPlanPanel.vue'
+import RecordingRecordsPanel from './RecordingRecordsPanel.vue'
 import type { RecordingPlanContext } from './recording-plan-controller'
 import SourceEvidencePanel from './SourceEvidencePanel.vue'
 import RecordingNextStep from './RecordingNextStep.vue'
@@ -15,6 +16,8 @@ import { createRecordingWorkflowController, type RecordingWorkflowSelection } fr
 import { getRecordingNextStep, type RecordingNextAction } from './recording-next-step'
 import MasterSourcePicker from './MasterSourcePicker.vue'
 const emit = defineEmits<{ 'open-collection': [] }>()
+const recordsOpen = ref(false), recordsTrigger = ref<HTMLButtonElement>()
+function closeRecords(): void { recordsOpen.value = false; void nextTick(() => recordsTrigger.value?.focus({ preventScroll: true })) }
 const backupRestore = ref(false), backupTrigger = ref<HTMLButtonElement>()
 async function closeBackupRestore(): Promise<void> { backupRestore.value = false; await nextTick(); backupTrigger.value?.focus() }
 async function activatedDataset(): Promise<void> {
@@ -180,11 +183,12 @@ onUnmounted(() => { alive = false; ++generation; workflow.dispose(); for (const 
       <div class="recording-secondary" aria-label="录音资料">
         <button ref="backupTrigger" type="button" @click="backupRestore = true">备份与恢复</button>
         <button type="button" disabled aria-describedby="recording-secondary-status">母版</button>
-        <button type="button" disabled aria-describedby="recording-secondary-status">录音记录</button>
+        <button ref="recordsTrigger" type="button" @click="recordsOpen = true">录音档案</button>
         <span id="recording-secondary-status">尚未接入</span>
       </div>
     </header>
 
+    <RecordingRecordsPanel v-if="recordsOpen" :draft-id="draft?.id" @close="closeRecords" />
     <BackupRestorePanel v-if="backupRestore" @close="closeBackupRestore" @activated="activatedDataset" />
 
     <ol class="recording-steps" aria-label="录音准备步骤">

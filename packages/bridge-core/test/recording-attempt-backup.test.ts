@@ -51,9 +51,10 @@ test('终态Attempt关联实体篡改为空白或已擦除，即使恢复trigger
   await f.attempts.stop({ commandId: randomUUID(), attemptId: a.id });
   const db = new DatabaseSync(f.filePath); t.after(() => db.close());
   const trigger = String(db.prepare("SELECT sql FROM sqlite_schema WHERE name='recording_attempt_copy_no_blank'").get()!.sql);
+  const contentTrigger = String(db.prepare("SELECT sql FROM sqlite_schema WHERE name='recording_record_content_copy_guard'").get()!.sql);
   for (const usage of ['blank', 'erased']) {
-    db.exec('DROP TRIGGER recording_attempt_copy_no_blank');
-    db.prepare('UPDATE physical_copies SET usage=?,reserved_from=NULL WHERE physical_id=?').run(usage, a.physicalId); db.exec(trigger);
+    db.exec('DROP TRIGGER recording_attempt_copy_no_blank; DROP TRIGGER recording_record_content_copy_guard;');
+    db.prepare('UPDATE physical_copies SET usage=?,reserved_from=NULL WHERE physical_id=?').run(usage, a.physicalId); db.exec(trigger); db.exec(contentTrigger);
     assert.throws(() => verifyRecordingAttemptDatabase(db)); assert.throws(() => readBackupIndex(f.filePath));
   }
 });

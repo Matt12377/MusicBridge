@@ -1,4 +1,4 @@
-import { isCollectionId, isPhysicalId, isCollectionPhotoImage, type CollectionPhotoImage } from './collection.js';
+import { isCollectionId, isPhysicalId, isCollectionPhotoImage, isPhysicalRecordingSummary, type PhysicalRecordingSummary, type CollectionPhotoImage } from './collection.js';
 import type { Page, PageRequest } from './library.js';
 
 export interface MusicTrack { title: string; artist: string; position: number; disc?: number; side?: 'A' | 'B'; durationSeconds?: number }
@@ -10,9 +10,9 @@ export interface CommercialRelease extends MusicContent {
   noiseReduction?: string; tapeCondition?: string; jCardCondition?: string; caseCondition?: string;
 }
 export type MusicKind = 'cd' | 'cassette' | 'personal-cassette' | 'personal-dat';
-export interface MusicEntry { id: string; kind: MusicKind; title: string; artist: string; quantity: number; revision: number; contentStatus: 'commercial' | 'legacy' | 'missing'; modelId?: string; photo?: MusicPhoto }
+export interface MusicEntry { id: string; kind: MusicKind; title: string; artist: string; quantity: number; revision: number; contentStatus: 'commercial' | 'legacy' | 'missing' | 'formal' | 'formal-current-unknown'; modelId?: string; photo?: MusicPhoto; recordingState?: PhysicalRecordingSummary }
 export interface MusicPhoto { id: string; releaseId: string; width: number; height: number; source: 'user-photo' }
-export interface MusicDetail { entry: MusicEntry; release?: CommercialRelease; recording?: MusicContent; photos: readonly MusicPhoto[] }
+export interface MusicDetail { entry: MusicEntry; release?: CommercialRelease; recording?: MusicContent; photos: readonly MusicPhoto[]; formal?: PhysicalRecordingSummary }
 export interface MusicFilter { query?: string; kind?: MusicKind }
 export interface SaveReleaseRequest { commandId: string; id?: string; expectedRevision?: number; release: CommercialRelease }
 export interface SaveLegacyRequest { commandId: string; physicalId: string; expectedRevision: number; content: MusicContent }
@@ -62,12 +62,22 @@ export function isAddMusicPhotoRequest(v: unknown): v is AddMusicPhotoRequest { 
 export function isRemoveMusicPhotoRequest(v: unknown): v is RemoveMusicPhotoRequest { return record(v) && keys(v, ['commandId', 'id', 'photoId', 'expectedRevision']) && isCollectionId(v.commandId) && isCollectionId(v.id) && isCollectionId(v.photoId) && integer(v.expectedRevision); }
 export function isMusicPhoto(v: unknown): v is MusicPhoto { return record(v) && keys(v, ['id', 'releaseId', 'width', 'height', 'source']) && isCollectionId(v.id) && isCollectionId(v.releaseId) && integer(v.width, 1, 1200) && integer(v.height, 1, 1200) && v.source === 'user-photo'; }
 export function isMusicEntry(v: unknown): v is MusicEntry {
-  if (!record(v) || !keys(v, ['id', 'kind', 'title', 'artist', 'quantity', 'revision', 'contentStatus', 'modelId', 'photo']) || !text(v.title) || !text(v.artist) || !integer(v.quantity, 1, 10000) || !integer(v.revision)) return false;
+  if (!record(v) || !keys(v, ['id', 'kind', 'title', 'artist', 'quantity', 'revision', 'contentStatus', 'modelId', 'photo', 'recordingState']) || !text(v.title) || !integer(v.quantity, 1, 10000) || !integer(v.revision)) return false;
+  if (v.contentStatus === 'formal' || v.contentStatus === 'formal-current-unknown') return text(v.artist, true) && ['personal-cassette', 'personal-dat'].includes(String(v.kind))
+    && typeof v.id === 'string' && v.id.trim() === v.id && isPhysicalId(v.id) && v.id.startsWith(v.kind === 'personal-dat' ? 'MB-D-' : 'MB-C-') && isCollectionId(v.modelId) && v.quantity === 1 && v.photo === undefined
+    && isPhysicalRecordingSummary(v.recordingState) && (v.contentStatus === 'formal' ? v.recordingState.state === 'confirmed-recording' : v.recordingState.state !== 'confirmed-recording');
+  if (!text(v.artist) || v.recordingState !== undefined) return false;
   return ['cd', 'cassette'].includes(String(v.kind)) ? isCollectionId(v.id) && v.contentStatus === 'commercial' && v.modelId === undefined && (v.photo === undefined || isMusicPhoto(v.photo) && v.photo.releaseId === v.id)
     : ['personal-cassette', 'personal-dat'].includes(String(v.kind)) && isPhysicalId(v.id) && isCollectionId(v.modelId) && v.quantity === 1 && ['missing', 'legacy'].includes(String(v.contentStatus)) && v.photo === undefined;
 }
 export function isMusicDetail(v: unknown): v is MusicDetail {
-  return record(v) && keys(v, ['entry', 'release', 'recording', 'photos']) && isMusicEntry(v.entry) && Array.isArray(v.photos) && v.photos.length <= 24 && v.photos.every(p => isMusicPhoto(p) && p.releaseId === (v.entry as MusicEntry).id)
+  if (!record(v) || !keys(v, ['entry', 'release', 'recording', 'photos', 'formal']) || !isMusicEntry(v.entry) || !Array.isArray(v.photos) || v.photos.length > 24) return false;
+  if (v.entry.contentStatus === 'formal' || v.entry.contentStatus === 'formal-current-unknown') {
+    const current = v.entry.recordingState;
+    return v.release === undefined && v.recording === undefined && v.photos.length === 0 && isPhysicalRecordingSummary(v.formal) && !!current
+      && current.state === v.formal.state && current.revision === v.formal.revision && (current.state !== 'confirmed-recording' || v.formal.state === 'confirmed-recording' && current.recordingId === v.formal.recordingId);
+  }
+  return v.formal === undefined && v.photos.every(p => isMusicPhoto(p) && p.releaseId === (v.entry as MusicEntry).id)
     && (v.entry.contentStatus === 'commercial' ? isCommercialRelease(v.release) && v.release.format === v.entry.kind && v.recording === undefined
       : v.release === undefined && v.photos.length === 0 && (v.entry.contentStatus === 'legacy' ? isMusicContent(v.recording) : v.recording === undefined));
 }

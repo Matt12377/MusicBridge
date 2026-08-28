@@ -1,3 +1,4 @@
+import { createRecordingRecordClient } from './recording-record-client.js'
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   RemoteCoreTunnelState,
@@ -329,5 +330,6 @@ contextBridge.exposeInMainWorld(
       cancelRecordingOutputCheck: runId => ipcRenderer.invoke('recordingOutput:cancel', { runId }),
     },
     createRecordingAttemptClient((channel, value) => ipcRenderer.invoke(channel, value)),
+    createRecordingRecordClient((channel, value) => ipcRenderer.invoke(channel, value)),
   ),
 )

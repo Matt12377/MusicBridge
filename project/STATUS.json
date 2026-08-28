@@ -78,19 +78,19 @@
   },
   "v3Development": {
     "wave": "WAVE-5",
-    "task": "TASK-074",
-    "branch": "codex/task-074-recording-attempts",
-    "baseCommit": "017dfef43d615b26db770c206dec2e38105bd1e5",
-    "state": "local-automated-pass-real-acceptance-pending",
-    "implementationCommit": "5a322b603b6072a549f100189ab977da8d4b73c7",
-    "reportCommit": "76b97f87b4fb37abd56f3336a1821aa9f1811212",
+    "task": "TASK-075",
+    "branch": "codex/task-075-recording-records",
+    "baseCommit": "af572126a2abeefdf361e8db2c9ac4a457b7a8be",
+    "state": "local-software-complete-real-acceptance-pending",
+    "implementationCommit": null,
+    "reportCommit": null,
     "previousTask": {
-      "task": "TASK-073",
-      "implementationCommit": "27df7e7cd2eda1698f96fbaa45c6d8cd801ad8bb",
-      "reportCommit": "5997d8405418ebbd92f4f4d54404f9a11a77fe70",
-      "finalCommit": "017dfef43d615b26db770c206dec2e38105bd1e5",
+      "task": "TASK-074",
+      "implementationCommit": "5a322b603b6072a549f100189ab977da8d4b73c7",
+      "reportCommit": "76b97f87b4fb37abd56f3336a1821aa9f1811212",
+      "finalCommit": "af572126a2abeefdf361e8db2c9ac4a457b7a8be",
       "hardwareAcceptance": "NOT_RUN",
-      "report": "reports/TASK-073_EXIT_LIFECYCLE_RESULT.md"
+      "report": "reports/TASK-074_RESULT.md"
     },
     "authorization": "owner-continuous-software-development-through079-sol-high-no-push-no-release",
     "f01": "OWNER_APPROVED_f01-permanent-execution-v1",
@@ -113,15 +113,18 @@
       "outputBackendCertification": "NOT_RUN"
     },
     "gates": {
-      "automated": "contracts147-core1005-desktop483-pass",
+      "automated": "contracts162-core1035-desktop505-pass-zero-skip",
       "security": "29-of-29-pass",
       "electron": "4-of-4-pass",
-      "e2e": "83-of-83-pass-both-native-zero-skip",
+      "e2e": "86-of-86-pass-both-native-zero-skip",
       "outputBackendCertification": "NOT_RUN",
       "realRecording": "NOT_RUN",
       "ownerProductAcceptance": "NOT_RUN",
-      "review": "spec-quality-pass-r023-bounded-carryover",
-      "candidateFingerprint": "cdf60ab56579ac0ca259f79b8fd9a6fbbe6683d5b180c2101d3ef72dfe678230"
+      "review": "SPEC-QUALITY-PASS-core-contract-ipc-ui-e2e-bounded",
+      "controlPlane": "PASS",
+      "boundaries": "PASS",
+      "cycles": "PASS-234-files",
+      "nativePins": "16-of-16-unchanged"
     },
     "carryover": [
       "完整 V3 范围保持；仅本地顺序推进",
@@ -132,11 +135,12 @@
       "R-020 大库冷启扫描与2秒ready策略待TASK-078/Gate E验证",
       "R-021：旧包根CDP退出15秒超时FAIL保留；新包无CDP启动自退出code0/close通过，未复测执行后退出，不能据此关闭旧场景",
       "R-022：FakeDriver join/静止契约未证明真实HAL；未链接应用或helper，真实设备与Gate B须独立授权及测量",
-      "R-023：Attempt逐写全历史/回执验证存在规模风险；TASK078测量并优化，真实driver接入前解除，不宣称实时Stop保证"
+      "R-023：Attempt逐写全历史/回执及Record照片闭包验证、档案全量搜索存在规模风险；TASK078测量并优化，真实driver接入前解除，不宣称实时Stop保证"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task074-software-gates-complete-task075-next",
-    "nextTask": "TASK-075",
-    "resultReport": "reports/TASK-074_RESULT.md"
+    "checkpoint": "task075-all-local-gates-pass-awaiting-local-commit-identities",
+    "nextTask": "TASK-076",
+    "resultReport": "reports/TASK-075_RESULT.md",
+    "candidateFingerprint": "c60e2ae0a5c6531846fe9e1f65fd8debc0d7b6da95cae52e5cf655d9e5a5a396"
   }
 }

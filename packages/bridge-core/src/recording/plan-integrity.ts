@@ -1,3 +1,4 @@
+import { recordingReservationMatchesPlan } from './record-integrity.js';
 import type { DatabaseSync } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
 import { mediaFingerprint } from './media-store.js';
@@ -99,7 +100,7 @@ export function captureRecordingPlan(db: DatabaseSync, selection: dto.RecordingP
   const expectedMediaLayout = resolveMediaLayout(master.content.tracks.map(track => ({ trackId: track.trackId, durationMs: track.source.technical.durationMs, basis: 'verified-sources' })), layout.spec);
   if (media.sourceBasis !== 'verified-sources' || !planSame(media.layout, expectedMediaLayout)) return planFail();
   const copy = db.prepare('SELECT c.*,l.sku_id,s.model_id,s.minutes,m.descriptor,m.policy,m.minimum_sealed,m.revision model_revision FROM physical_copies c JOIN inventory_lots l ON l.id=c.lot_id JOIN collection_skus s ON s.id=l.sku_id JOIN collection_models m ON m.id=s.model_id WHERE c.physical_id=?').get(reservation.physical_id!);
-  if (!copy || copy.usage !== 'reserved' || copy.available !== 1 || copy.sku_id !== layout.reservation.skuId || copy.model_id !== layout.reservation.modelId || copy.packaging !== layout.reservation.packaging || !['blank','erased'].includes(String(copy.reserved_from))) return planFail('physical-copy', 'COPY_UNAVAILABLE');
+  if (!copy || copy.usage !== 'reserved' || copy.available !== 1 || copy.sku_id !== layout.reservation.skuId || copy.model_id !== layout.reservation.modelId || copy.packaging !== layout.reservation.packaging || (!['blank','erased'].includes(String(copy.reserved_from)) && !(['recorded','unknown'].includes(String(copy.reserved_from)) && recordingReservationMatchesPlan(db, String(copy.physical_id), layout.planId, Number(planRow.revision))))) return planFail('physical-copy', 'COPY_UNAVAILABLE');
   const descriptor = JSON.parse(String(copy.descriptor)) as dto.CollectionDescriptor;
   if (copy.minutes !== layout.lengthMinutes || descriptor.format !== layout.spec.format || !Number.isSafeInteger(copy.minutes) || Number(copy.minutes) <= 0) return planFail('capacity', 'CAPACITY_EXCEEDED');
   const physicalCopy: dto.CollectionCopy = { physicalId: String(copy.physical_id), lotId: String(copy.lot_id), skuId: String(copy.sku_id), lengthMinutes: Number(copy.minutes), packaging: copy.packaging as dto.CollectionCopy['packaging'], usage: 'reserved', available: true, origin: copy.origin as dto.CollectionCopy['origin'], revision: Number(copy.revision) };

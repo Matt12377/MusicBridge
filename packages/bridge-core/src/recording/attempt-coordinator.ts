@@ -118,6 +118,8 @@ export function createRecordingAttemptCoordinator({ store, admissionProvider, as
     } finally { clearTimeout(timer); }
   }
   return {
+    /** 只检查内部生命周期槽；不会请求停止、推断设备静止或启动输出。 */
+    assertExecutionIdle(): void { open(); if (slot) return attemptFail('ATTEMPT_CONFLICT'); },
     list(request: dto.ListRecordingAttemptsRequest) { open(); return store.list(request); },
     get(request: dto.RecordingAttemptIdRequest) { open(); return store.get(request); },
     begin(request: dto.BeginRecordingAttemptRequest) { return perform('begin', request, value => execute(value as dto.BeginRecordingAttemptRequest)); },

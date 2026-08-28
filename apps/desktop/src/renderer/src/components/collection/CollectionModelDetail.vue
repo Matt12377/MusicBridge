@@ -5,7 +5,7 @@ import type { CollectionChangePhotoRequest, CollectionCopy, CollectionDetail, Co
 import CollectionPhotos from './CollectionPhotos.vue'
 
 const props = defineProps<{ detail: CollectionDetail; busy: boolean }>()
-const emit = defineEmits<{ showRecording: [physicalId: string]; close: []; receive: []; page: [offset: number]; materialize: [request: CollectionMaterializeRequest]; updateCopy: [request: CollectionUpdateCopyRequest]; policy: [request: CollectionPolicyRequest]; addPhoto: [physicalId?: string]; changePhoto: [request: CollectionChangePhotoRequest] }>()
+const emit = defineEmits<{ showRecords: [physicalId: string]; showRecording: [physicalId: string]; close: []; receive: []; page: [offset: number]; materialize: [request: CollectionMaterializeRequest]; updateCopy: [request: CollectionUpdateCopyRequest]; policy: [request: CollectionPolicyRequest]; addPhoto: [physicalId?: string]; changePhoto: [request: CollectionChangePhotoRequest] }>()
 const policy = ref<CollectorPolicy>('normal')
 const reserve = ref(0)
 watch(() => props.detail.model, model => { policy.value = model.collectorPolicy; reserve.value = model.minimumSealedReserve }, { immediate: true })
@@ -76,6 +76,7 @@ function state(copy: CollectionCopy): string {
     <article v-for="copy in detail.copies.items" :key="copy.physicalId" class="copy">
       <div><strong>{{ copy.physicalId }}</strong><p class="muted">{{ copy.lengthMinutes ? `${copy.lengthMinutes} 分钟 · ` : '' }}{{ state(copy) }}</p></div>
       <div class="copy-actions">
+        <button :disabled="busy" @click="emit('showRecords', copy.physicalId)">档案与当前内容</button>
         <button v-if="copy.usage === 'recorded'" :disabled="busy" @click="emit('showRecording', copy.physicalId)">查看录音内容</button>
         <button :aria-label="`添加单盘照片 ${copy.physicalId}`" :disabled="busy || (detail.model.photoCount ?? 0) >= 24" @click="emit('addPhoto', copy.physicalId)">添加照片</button>
         <button v-if="copy.usage === 'reserved'" :disabled="busy" @click="update(copy, 'cancel-reservation')">取消预留</button>

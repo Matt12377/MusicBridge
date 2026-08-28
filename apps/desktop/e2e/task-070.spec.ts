@@ -142,7 +142,7 @@ test('V3完成度：真实九API，Owned与Wanted正交、长度守恒及取消�
   await close()
   const db = new DatabaseSync(path.join(directory, 'data', 'collection.v1.sqlite'), { readOnly: true })
   try {
-    expect(db.prepare('PRAGMA user_version').get()?.user_version).toBe(19)
+    expect(db.prepare('PRAGMA user_version').get()?.user_version).toBe(20)
     expect(db.prepare('SELECT count(*) n FROM inventory_lots').get()?.n).toBe(4)
     expect(db.prepare('SELECT count(*) n FROM physical_copies').get()?.n).toBe(1)
     expect(db.prepare('SELECT count(*) n FROM inventory_ledger').get()?.n).toBe(7)

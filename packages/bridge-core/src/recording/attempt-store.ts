@@ -1,3 +1,5 @@
+import { beginPhysicalRecording, registerCompletedRecording, type RecordingRecordBudgets } from './record-store.js';
+import { recordingPermitMatchesPlan, verifyRecordingRecordDatabase } from './record-integrity.js';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
@@ -9,7 +11,7 @@ import { AttemptError, attemptFail, attemptPlan, parseAttempt, replayAttemptEven
   MAX_ATTEMPTS, MAX_ATTEMPT_EVENTS, MAX_ATTEMPT_RECEIPTS, MAX_ATTEMPT_BYTES, MAX_ATTEMPT_DATABASE_BYTES,
   type AttemptCommand, type AttemptRequest, type AttemptStoredEvent, type AttemptEventData, type AttemptReceiptData } from './attempt-integrity.js';
 
-interface Access { read<T>(fn: (db: DatabaseSync) => T): T; beforeCommit?: (action: string) => void; databaseBudgetBytes?: number }
+interface Access extends RecordingRecordBudgets { read<T>(fn: (db: DatabaseSync) => T): T; beforeCommit?: (action: string) => void; databaseBudgetBytes?: number }
 function get(db: DatabaseSync, id: string): dto.RecordingAttempt | null {
   const row = db.prepare('SELECT * FROM recording_attempts WHERE id=?').get(id); if (!row) return null;
   const current = parseAttempt(row.data), last = db.prepare('SELECT data FROM recording_attempt_events WHERE attempt_id=? ORDER BY revision DESC LIMIT 1').get(id);
@@ -48,8 +50,9 @@ export function recoverRecordingAttempts(db: DatabaseSync, at: string): void {
   }
 }
 
-export function createRecordingAttemptStore({ read, beforeCommit, databaseBudgetBytes = MAX_ATTEMPT_DATABASE_BYTES }: Access) {
+export function createRecordingAttemptStore({ read, beforeCommit, databaseBudgetBytes = MAX_ATTEMPT_DATABASE_BYTES, metadataBudgetBytes, visualBudgetBytes }: Access) {
   if (!Number.isSafeInteger(databaseBudgetBytes) || databaseBudgetBytes < MAX_ATTEMPT_BYTES * 5 || databaseBudgetBytes > MAX_ATTEMPT_DATABASE_BYTES) return attemptFail('INVALID_REQUEST');
+  const recordBudgets = { ...(metadataBudgetBytes === undefined ? {} : { metadataBudgetBytes }), ...(visualBudgetBytes === undefined ? {} : { visualBudgetBytes }) };
   const plans = createRecordingPlanStore({ read, conflict: () => attemptFail('PLAN_CHANGED') });
   function cached(db: DatabaseSync, action: AttemptCommand, request: AttemptRequest): dto.RecordingAttempt | undefined {
     const row = db.prepare('SELECT fingerprint,result FROM recording_attempt_receipts WHERE command_id=?').get(request.commandId);
@@ -60,7 +63,7 @@ export function createRecordingAttemptStore({ read, beforeCommit, databaseBudget
   function transaction<T>(action: string, fn: (db: DatabaseSync) => T): T {
     return read(db => {
       db.exec('BEGIN IMMEDIATE');
-      try { verifyRecordingAttemptDatabase(db); const result = fn(db); beforeCommit?.(action); db.exec('COMMIT'); return result; }
+      try { verifyRecordingAttemptDatabase(db); if (Number(db.prepare('PRAGMA user_version').get()!.user_version) >= 20) verifyRecordingRecordDatabase(db); const result = fn(db); beforeCommit?.(action); db.exec('COMMIT'); return result; }
       catch (error) { db.exec('ROLLBACK'); if (error instanceof RecordingAttemptStateError) return attemptFail(error.code); if (error instanceof AttemptError) throw error; return attemptFail(); }
     });
   }
@@ -75,7 +78,13 @@ export function createRecordingAttemptStore({ read, beforeCommit, databaseBudget
     const body = JSON.stringify(receipt), result = JSON.stringify(after);
     const added = Buffer.byteLength(body) + Buffer.byteLength(result) + (changed ? Buffer.byteLength(JSON.stringify({ event, after })) + Buffer.byteLength(result) - (before ? Buffer.byteLength(JSON.stringify(before)) : 0) : 0);
     reserveBudget(db, added, changed, true, action === 'stop', databaseBudgetBytes);
-    if (changed) append(db, before, after, event);
+    if (changed) {
+      append(db, before, after, event);
+      if (Number(db.prepare('PRAGMA user_version').get()!.user_version) >= 20) {
+        if (!before) beginPhysicalRecording(db, after, plan, recordBudgets);
+        if (after.status === 'completed' && before?.status !== 'completed') registerCompletedRecording(db, after, recordBudgets);
+      }
+    }
     db.prepare('INSERT INTO recording_attempt_receipts VALUES(?,?,?,?,?,?)').run(request.commandId, mediaFingerprint({ action, request }), body, after.id, after.revision, result);
     return after;
   }
@@ -117,7 +126,7 @@ export function createRecordingAttemptStore({ read, beforeCommit, databaseBudget
         if (Number(db.prepare('SELECT count(*) n FROM recording_attempts').get()!.n) >= MAX_ATTEMPTS) return attemptFail('BUDGET_EXCEEDED');
         const current = this.capture(request.planVersionId, request.planContentHash, verified.receipt.recipe.side);
         if (current.facts.identity !== verified.facts.identity) return attemptFail('PLAN_CHANGED');
-        if (db.prepare('SELECT 1 FROM recording_attempts WHERE physical_id=? LIMIT 1').get(current.plan.physicalCopy.physicalId)) return attemptFail('COPY_UNAVAILABLE');
+        if (db.prepare('SELECT 1 FROM recording_attempts WHERE physical_id=? LIMIT 1').get(current.plan.physicalCopy.physicalId) && !recordingPermitMatchesPlan(db, current.plan.physicalCopy.physicalId, current.plan.layout.planId, current.plan.mediaPlanRevision)) return attemptFail('COPY_UNAVAILABLE');
         return command(db, 'begin', request, { type: 'begin', runId, at: new Date().toISOString() }, current.plan);
       });
     },
@@ -132,7 +141,9 @@ export function createRecordingAttemptStore({ read, beforeCommit, databaseBudget
         if (after.revision === before.revision) return before;
         const added = Buffer.byteLength(JSON.stringify({ event, after })) + Buffer.byteLength(JSON.stringify(after)) - Buffer.byteLength(JSON.stringify(before));
         reserveBudget(db, added, true, false, ['recover', 'interrupt', 'fail', 'abort', 'engine-cutoff', 'stop-ack', 'cleanup-quiescent'].includes(event.type), databaseBudgetBytes);
-        append(db, before, after, event); return after;
+        append(db, before, after, event);
+        if (Number(db.prepare('PRAGMA user_version').get()!.user_version) >= 20 && after.status === 'completed' && before.status !== 'completed') registerCompletedRecording(db, after, recordBudgets);
+        return after;
       });
     },
   };

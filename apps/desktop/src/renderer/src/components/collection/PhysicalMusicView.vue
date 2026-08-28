@@ -4,8 +4,11 @@ import type { MusicDetail, MusicEntry, MusicFilter, MusicMutationResult, Page } 
 import PhysicalMusicEditor from './PhysicalMusicEditor.vue'
 import PhysicalRelations from './PhysicalRelations.vue'
 import CollectionPhotoView from './CollectionPhoto.vue'
+import RecordingRecordsPanel from '../recording/RecordingRecordsPanel.vue'
 const props = defineProps<{ requestedId?: string; active: boolean }>()
 const emit = defineEmits<{ model: [id: string] }>()
+const recordsOpen = ref(false), recordsTrigger = ref<HTMLButtonElement>()
+function closeRecords(): void { recordsOpen.value = false; void nextTick(() => recordsTrigger.value?.focus({ preventScroll: true })) }
 const api = window.musicBridge
 const catalog = shallowRef<Page<MusicEntry>>()
 const matrixMode = ref(false), relationsBusy = ref(false)
@@ -67,8 +70,10 @@ onUnmounted(() => { active = false; ++generation })
     <p v-if="error" role="alert">{{ error }} <button v-if="pending && !editing" :disabled="saving" @click="retry">重试原操作</button><button v-else-if="!pending" :disabled="loading" @click="detail ? open(detail.entry.id) : load()">刷新音乐库</button></p>
     <p v-if="notice" role="status">{{ notice }}</p><p v-if="loading" role="status">正在读取音乐资料…</p>
     <template v-if="detail">
-      <header><button :disabled="saving || !!pending || relationsBusy" @click="back">← 返回音乐库</button><button :disabled="saving || !!pending || relationsBusy" @click="editing = true">{{ detail.release ? '编辑资料' : '补录录音内容' }}</button></header>
-      <p class="accent">{{ labels[detail.entry.kind] }} · {{ detail.release ? completeness[detail.release.completeness] : detail.recording ? '历史补录，非正式录音证据' : '已录音，内容待补录' }}</p>
+      <header><button :disabled="saving || !!pending || relationsBusy" @click="back">← 返回音乐库</button><button v-if="!detail.formal" :disabled="saving || !!pending || relationsBusy" @click="editing = true">{{ detail.release ? '编辑资料' : '补录录音内容' }}</button></header>
+      <p class="accent">{{ labels[detail.entry.kind] }} · {{ detail.release ? completeness[detail.release.completeness] : detail.formal ? (detail.formal.state === 'confirmed-recording' ? '正式录音，当前内容已确认' : '正式历史保留，当前内容非已确认录音') : detail.recording ? '历史补录，非正式录音证据' : '已录音，内容待补录' }}</p>
+      <button v-if="detail.entry.kind === 'personal-cassette' || detail.entry.kind === 'personal-dat'" ref="recordsTrigger" type="button" @click="recordsOpen = true">档案与当前内容</button>
+      <p v-if="detail.formal">正式档案只读；当前内容与处置请在“档案与当前内容”查看，不使用历史补录覆盖。</p>
       <h2>{{ detail.entry.title }}</h2><p>{{ detail.entry.artist }}</p>
       <div class="identity"><span>实物数量 {{ detail.entry.quantity }}</span><span>{{ detail.entry.id }}</span><span v-if="!detail.release">曲目源关系待后续补齐</span></div>
       <p v-if="detail.entry.modelId">本记录沿用原磁带编号，不增加库存。<button @click="emit('model', detail.entry.modelId!)">查看磁带型号与单盘</button></p>
@@ -81,7 +86,8 @@ onUnmounted(() => { active = false; ++generation })
         <div class="photos"><figure v-for="(photo, index) in detail.photos" :key="photo.id"><button class="photo" :aria-label="`查看发行版照片 ${index + 1}`" @click="showPhoto(photo)"><CollectionPhotoView :photo="photo" :load-photo="api.getPhysicalMusicPhoto" :alt="`${detail.entry.title} 实物照片 ${index + 1}`" /></button><figcaption>实物照片 {{ index + 1 }} <button :disabled="saving || !!pending || relationsBusy" @click="removing = photo.id">移除</button></figcaption><div v-if="removing === photo.id"><p>仅移除展示副本。</p><button :disabled="saving || !!pending || relationsBusy" @click="removePhoto(photo.id)">确认移除照片</button><button @click="removing = undefined">取消</button></div></figure></div>
       </section>
       <PhysicalRelations v-if="detail.release" :key="detail.entry.id" :release="detail.entry" @physical="open" @changed="open(detail.entry.id)" @busy="relationsBusy = $event" />
-      <h3>曲目</h3><p v-if="!(detail.release ?? detail.recording)?.tracks.length">曲目待补录，不推测录音内容。</p>
+      <p v-if="detail.formal">曲目与完成时配置保存在只读录音档案。</p>
+      <h3 v-else>曲目</h3><p v-if="!detail.formal && !(detail.release ?? detail.recording)?.tracks.length">曲目待补录，不推测录音内容。</p>
       <ol class="track-list"><li v-for="(track, index) in (detail.release ?? detail.recording)?.tracks" :key="index"><span class="track-position">{{ track.side ? `${track.side} 面` : track.disc ? `CD ${track.disc}` : '' }} · {{ track.position }}</span><span>{{ track.title }}<small>{{ track.artist }}</small></span><span>{{ track.durationSeconds ? `${Math.floor(track.durationSeconds / 60)}:${String(track.durationSeconds % 60).padStart(2, '0')}` : '时长待补录' }}</span></li></ol>
     </template>
     <template v-else-if="matrixMode">
@@ -96,7 +102,8 @@ onUnmounted(() => { active = false; ++generation })
       <div v-else-if="catalog && !loading && !error" class="empty"><h3>{{ query || kind ? '没有符合筛选的音乐' : '还没有实体音乐记录' }}</h3><p>添加原版 CD 或磁带；已登记的旧录音会自动出现在这里。</p></div>
       <nav v-if="catalog && catalog.total > catalog.limit" aria-label="实体音乐分页" class="pagination"><button :disabled="loading || catalog.offset === 0" @click="load(Math.max(0, catalog.offset - 24))">上一页</button><span>{{ catalog.offset + 1 }}–{{ catalog.offset + catalog.items.length }} / {{ catalog.total }}</span><button :disabled="loading || !catalog.hasMore" @click="load(catalog.offset + 24)">下一页</button></nav>
     </template>
-    <PhysicalMusicEditor v-if="editing" :detail="detail" :busy="saving" :error="error" :retryable="!!pending" @close="editing = false" @release="request => mutate(() => api.savePhysicalRelease(request))" @legacy="request => mutate(() => api.saveLegacyRecording(request))" @retry="retry" />
+    <RecordingRecordsPanel v-if="recordsOpen && detail" :physical-id="detail.entry.id" @close="closeRecords" @changed="open(detail.entry.id)" />
+    <PhysicalMusicEditor v-if="editing && !detail?.formal" :detail="detail" :busy="saving" :error="error" :retryable="!!pending" @close="editing = false" @release="request => mutate(() => api.savePhysicalRelease(request))" @legacy="request => mutate(() => api.saveLegacyRecording(request))" @retry="retry" />
     <dialog ref="viewer" aria-label="发行版照片大图" @close="closePhoto"><button @click="viewer?.close()">关闭大图</button><div v-if="preview" class="preview"><CollectionPhotoView :photo="preview" :load-photo="api.getPhysicalMusicPhoto" alt="发行版实物照片大图" interactive /></div></dialog>
   </section>
 </template>

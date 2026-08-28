@@ -1,3 +1,4 @@
+import { installRecordingRecordHandlers } from './recording-record-ipc.js'
 import { installRecordingAttemptHandlers } from './recording-attempt-ipc.js'
 import { installRecordingPlanReads } from './recording-plan-ipc.js'
 import { installRecordingOutputReads } from './recording-output-ipc.js'
@@ -1207,6 +1208,7 @@ function registerIpcHandlers(
   installSpreadsheetImportReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   installRecordingPlanReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   installRecordingOutputReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installRecordingRecordHandlers({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   installRecordingAttemptHandlers({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   installCollectionProgressReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   ipcMain.handle('recordingPrepared:selections', (event, preparationId: unknown) => invokeCore(event, () => {

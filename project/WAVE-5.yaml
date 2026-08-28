@@ -3,9 +3,9 @@ wave: WAVE-5
 status: active
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-074
-activeBranch: codex/task-074-recording-attempts
-activeBaseCommit: 017dfef43d615b26db770c206dec2e38105bd1e5
+activeTask: TASK-075
+activeBranch: codex/task-075-recording-records
+activeBaseCommit: af572126a2abeefdf361e8db2c9ac4a457b7a8be
 order:
   - TASK-048
   - TASK-049

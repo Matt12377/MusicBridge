@@ -1,3 +1,4 @@
+import { recordingAttempt20Protection } from './record-integrity.js';
 import type { DatabaseSync } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
 import { mediaFingerprint } from './media-store.js';
@@ -53,7 +54,9 @@ export function replayAttemptEvent(id: string, plan: dto.RecordingPlanVersion, b
 export function verifyRecordingAttemptDatabase(db: DatabaseSync): void {
   try {
     const objects = db.prepare("SELECT sql FROM sqlite_schema WHERE name GLOB 'recording_attempt*'").all();
-    if (objects.length !== recordingAttemptSchema.length || objects.some(row => !recordingAttemptSchema.includes(String(row.sql) as typeof recordingAttemptSchema[number]))) return attemptFail();
+    const version = Number(db.prepare('PRAGMA user_version').get()!.user_version);
+    const expectedSchema: readonly string[] = version >= 20 ? recordingAttemptSchema.map(sql => recordingAttempt20Protection.find(replacement => replacement.split(' BEFORE ')[0] === sql.split(' BEFORE ')[0]) ?? sql) : recordingAttemptSchema;
+    if (objects.length !== expectedSchema.length || objects.some(row => !expectedSchema.includes(String(row.sql)))) return attemptFail();
     let bytes = 0;
     for (const [table, maximum, columns] of [
       ['recording_attempts', MAX_ATTEMPTS, ['data']], ['recording_attempt_events', MAX_ATTEMPT_EVENTS, ['data']], ['recording_attempt_receipts', MAX_ATTEMPT_RECEIPTS, ['request', 'result']],
@@ -78,7 +81,8 @@ export function verifyRecordingAttemptDatabase(db: DatabaseSync): void {
       }
       if (!previous || mediaFingerprint(previous) !== mediaFingerprint(current)) return attemptFail();
       const heldCopy = db.prepare('SELECT usage FROM physical_copies WHERE physical_id=?').get(current.physicalId);
-      if (!heldCopy || heldCopy.usage === 'blank' || heldCopy.usage === 'erased') return attemptFail();
+      if (!heldCopy || heldCopy.usage === 'blank' || version < 20 && heldCopy.usage === 'erased') return attemptFail();
+      if (version >= 20 && heldCopy.usage === 'erased' && !db.prepare("SELECT 1 FROM recording_record_current WHERE physical_id=? AND json_extract(data,'$.knowledge.state')='erased'").get(current.physicalId)) return attemptFail();
       if (current.status === 'in-progress') {
         if (++active > 1) return attemptFail();
         const reservation = db.prepare('SELECT physical_id FROM media_reservations WHERE plan_id=?').get(plan.layout.planId);

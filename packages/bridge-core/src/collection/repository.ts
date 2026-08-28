@@ -1,3 +1,6 @@
+import { createRecordingRecordStore, migrateRecordingRecords, type RecordingRecordStore } from '../recording/record-store.js';
+import { RecordingRecordError, verifyRecordingRecordDatabase } from '../recording/record-integrity.js';
+import { getRecordingCopyProjection } from '../recording/record-projections.js';
 import { createRecordingPlanStore, recordingPlansMigration, type RecordingPlanStore } from '../recording/plan-store.js';
 import { RecordingPlanError } from '../recording/plan-integrity.js';
 import { AttemptError, recordingAttemptsMigration, assertRecordingAttemptCopyReleasable } from '../recording/attempt-integrity.js';
@@ -45,6 +48,7 @@ const conflict = (message: string): never => { throw new CollectionError('INVENT
 const unavailable = (): never => { throw new CollectionError('INVENTORY_UNAVAILABLE', '库存暂时不可用，请重试；现有数据不会被自动清除。'); };
 
 export interface CollectionRepository {
+  recordingRecords: RecordingRecordStore;
   recordingAttempts: RecordingAttemptStore;
   recordingPlans: RecordingPlanStore;
   collectionProgress: CollectionProgressStore;
@@ -179,17 +183,17 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
       // WAL 恢复期间，首次版本读取也可能遇到短暂锁；先设置等待，再访问数据库内容。
       db.exec('PRAGMA busy_timeout=1000');
       const version = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-      if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19].includes(version)) return unavailable();
+      if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].includes(version)) return unavailable();
       if (version === 0 && Number(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").get()?.n) !== 0) return unavailable();
       db.exec('PRAGMA trusted_schema=OFF; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
-      if (version < 19) {
+      if (version < 20) {
         // 重建被其他表引用的批次表：事务外暂关检查，提交前核验，退出时始终恢复。
         db.exec('PRAGMA foreign_keys=OFF');
         db.exec('BEGIN IMMEDIATE');
         try {
           // 等待写锁后重读版本，避免两个首次连接同时执行迁移。
           const currentVersion = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-          if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19].includes(currentVersion)) return unavailable();
+          if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].includes(currentVersion)) return unavailable();
           if (currentVersion === 0) db.exec(schema);
           if (currentVersion < 2) { db.exec(photoMigration); options.beforeCommit?.('migrate-photos'); }
           if (currentVersion < 3) { db.exec(physicalMusicMigration); options.beforeCommit?.('migrate-music'); }
@@ -209,13 +213,14 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
           if (currentVersion < 17) { db.exec(collectionProgressMigration); options.beforeCommit?.('migrate-collection-progress'); }
           if (currentVersion < 18) { db.exec(recordingPlansMigration); options.beforeCommit?.('migrate-recording-plans'); }
           if (currentVersion < 19) { db.exec(recordingAttemptsMigration); options.beforeCommit?.('migrate-recording-attempts'); }
+          if (currentVersion < 20) { migrateRecordingRecords(db); options.beforeCommit?.('migrate-recording-records'); }
           if (db.prepare('PRAGMA foreign_key_check').get()) return unavailable();
           db.exec('COMMIT');
         } catch (error) { db.exec('ROLLBACK'); throw error; }
         finally { db.exec('PRAGMA foreign_keys=ON'); }
       }
       db.exec('BEGIN IMMEDIATE');
-      try { recoverRecordingAttempts(db, new Date().toISOString()); options.beforeCommit?.('recover-recording-attempts'); db.exec('COMMIT'); }
+      try { verifyRecordingRecordDatabase(db); recoverRecordingAttempts(db, new Date().toISOString()); options.beforeCommit?.('recover-recording-attempts'); db.exec('COMMIT'); }
       catch (error) { db.exec('ROLLBACK'); throw error; }
       database = db;
       return db;
@@ -223,7 +228,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
   }
   function guarded<T>(operation: (db: DatabaseSync) => T): T {
     try { return operation(open()); }
-    catch (error) { if (error instanceof CollectionError || error instanceof RecordingPlanError || error instanceof AttemptError) throw error; return unavailable(); }
+    catch (error) { if (error instanceof CollectionError || error instanceof RecordingPlanError || error instanceof AttemptError || error instanceof RecordingRecordError) throw error; return unavailable(); }
   }
   function one<T>(db: DatabaseSync, sql: string, ...values: SQLInputValue[]): T | undefined {
     return db.prepare(sql).get(...values) as unknown as T | undefined;
@@ -269,9 +274,9 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
     if (m.collectorPolicy === 'collector') conflict('该型号设为收藏保护，请先明确修改保护策略。');
     if (sealed && (m.collectorPolicy === 'preserve-sealed' || m.counts.sealedBlank <= m.minimumSealedReserve)) conflict('该操作触及封存保护或最低保留数量。');
   }
-  function publicCopy(row: CopyRow): CollectionCopy {
+  function publicCopy(db: DatabaseSync, row: CopyRow): CollectionCopy {
     return { physicalId: row.physical_id, lotId: row.lot_id, skuId: row.sku_id, lengthMinutes: row.minutes || null,
-      packaging: row.packaging, usage: row.usage, available: row.available === 1, origin: row.origin, revision: row.revision, ...(row.usage === 'recorded' && row.recording_title ? { recordingTitle: row.recording_title } : {}) };
+      packaging: row.packaging, usage: row.usage, available: row.available === 1, origin: row.origin, revision: row.revision, ...(getRecordingCopyProjection(db, row.physical_id) ?? (row.usage === 'recorded' && row.recording_title ? { recordingTitle: row.recording_title } : {})) };
   }
   function transaction<T extends { commandId: string }>(action: string, request: T, valid: boolean,
     operation: (db: DatabaseSync) => { result: CollectionMutationResult; evidence: unknown }): CollectionMutationResult {
@@ -302,7 +307,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
   ), copies AS (
     SELECT l.sku_id,SUM(c.packaging='opened') opened,SUM(c.packaging='sealed') sealed
     FROM physical_copies c JOIN inventory_lots l ON l.id=c.lot_id
-    WHERE c.available=1 AND c.usage IN ('blank','erased') AND c.packaging IN ('opened','sealed') GROUP BY l.sku_id
+    WHERE c.available=1 AND c.usage IN ('blank','erased') AND NOT EXISTS(SELECT 1 FROM recording_record_current rc WHERE rc.physical_id=c.physical_id) AND c.packaging IN ('opened','sealed') GROUP BY l.sku_id
   ), balances AS (
     SELECT s.id sku_id,s.model_id,s.minutes,COALESCE(p.opened,0)+COALESCE(c.opened,0) opened,COALESCE(p.sealed,0)+COALESCE(c.sealed,0) sealed
     FROM collection_skus s LEFT JOIN pools p ON p.sku_id=s.id LEFT JOIN copies c ON c.sku_id=s.id
@@ -339,7 +344,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
     const sku = one<{ id: string; model_id: string }>(db, 'SELECT id,model_id FROM collection_skus WHERE id=?', request.skuId);
     if (!sku) return conflict('库存时长规格不存在。');
     ensureConsumable(db, sku.model_id, request.packaging === 'sealed');
-    let copy = one<CopyRow>(db, `${copySelect} WHERE l.sku_id=? AND c.available=1 AND c.usage IN ('blank','erased') AND c.packaging=? ORDER BY c.physical_id LIMIT 1`, request.skuId, request.packaging);
+    let copy = one<CopyRow>(db, `${copySelect} WHERE l.sku_id=? AND c.available=1 AND c.usage IN ('blank','erased') AND NOT EXISTS(SELECT 1 FROM recording_record_current rc WHERE rc.physical_id=c.physical_id) AND c.packaging=? ORDER BY c.physical_id LIMIT 1`, request.skuId, request.packaging);
     let poolEvidence: unknown;
     if (!copy) {
       const column = request.packaging === 'opened' ? 'opened' : 'sealed';
@@ -350,7 +355,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
       copy = one<CopyRow>(db, `${copySelect} WHERE c.physical_id=?`, materialized.result.physicalId);
     }
     if (!copy || !['blank','erased'].includes(copy.usage)) return conflict('副本已被其他操作占用。');
-    const before = publicCopy(copy);
+    const before = publicCopy(db, copy);
     db.prepare("UPDATE physical_copies SET usage='reserved',reserved_from=usage,revision=revision+1 WHERE physical_id=?").run(copy.physical_id);
     const reservation: MediaReservation = { physicalId: copy.physical_id, modelId: sku.model_id, skuId: sku.id, packaging: request.packaging };
     mediaStockLedger(db, 'recording-reserve', request, { modelId: sku.model_id, lotId: copy.lot_id, physicalId: copy.physical_id }, { planId: request.planId, before, reservation, ...(poolEvidence ? { poolEvidence } : {}) });
@@ -361,7 +366,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
     const copy = one<CopyRow>(db, `${copySelect} WHERE c.physical_id=?`, reservation.physicalId);
     if (!copy || copy.usage !== 'reserved' || !['blank','erased'].includes(copy.reserved_from ?? '')) return conflict('预留副本状态不一致，请停止并检查库存。');
     db.prepare('UPDATE physical_copies SET usage=reserved_from,reserved_from=NULL,revision=revision+1 WHERE physical_id=?').run(copy.physical_id);
-    mediaStockLedger(db, 'recording-release', request, { modelId: copy.model_id, lotId: copy.lot_id, physicalId: copy.physical_id }, { planId: request.planId, before: publicCopy(copy), restoredUsage: copy.reserved_from });
+    mediaStockLedger(db, 'recording-release', request, { modelId: copy.model_id, lotId: copy.lot_id, physicalId: copy.physical_id }, { planId: request.planId, before: publicCopy(db, copy), restoredUsage: copy.reserved_from });
   }
   function materializeInTransaction(db: DatabaseSync, request: CollectionMaterializeRequest) {
     const lot = one<LotRow>(db, `${lotSelect} WHERE l.id=?`, request.lotId);
@@ -405,6 +410,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
   const links = createPhysicalLinksRepository({ read: guarded, conflict, unavailable, music, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   const media = createMediaPlanningStore({ read: guarded, conflict, unavailable, stock: mediaStock, stockOne: mediaStockOne, reservationStock: reservedMediaStock, reserve: reserveMediaStock, release: releaseMediaStock, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   return {
+    recordingRecords: createRecordingRecordStore({ read: guarded, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     recordingAttempts: createRecordingAttemptStore({ read: guarded, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     recordingPlans: createRecordingPlanStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     collectionProgress: createCollectionProgressStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
@@ -443,7 +449,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
           lots: paged(lots.map((r): CollectionLot => ({ id: r.id, skuId: r.sku_id, lengthMinutes: r.minutes || null, quantityAcquired: r.acquired, quantityAdjustment: r.quantity_adjustment,
             quantities: { sealedBlank: r.sealed, openedBlank: r.opened, legacyUsed: r.legacy, unclassified: r.unknown } })), page,
           count(db, 'SELECT COUNT(*) AS n FROM inventory_lots l JOIN collection_skus s ON s.id=l.sku_id WHERE s.model_id=?', modelId)),
-          copies: paged(copies.map(publicCopy), page, count(db, 'SELECT COUNT(*) AS n FROM physical_copies c JOIN inventory_lots l ON l.id=c.lot_id JOIN collection_skus s ON s.id=l.sku_id WHERE s.model_id=?', modelId)),
+          copies: paged(copies.map(row => publicCopy(db, row)), page, count(db, 'SELECT COUNT(*) AS n FROM physical_copies c JOIN inventory_lots l ON l.id=c.lot_id JOIN collection_skus s ON s.id=l.sku_id WHERE s.model_id=?', modelId)),
         };
         if (!isCollectionDetail(detail)) return unavailable();
         return detail;
@@ -467,7 +473,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
           usage = reservedFrom as 'blank' | 'erased'; reservedFrom = null;
         } else available = request.action === 'mark-available' ? 1 : 0;
         db.prepare('UPDATE physical_copies SET usage=?,available=?,reserved_from=?,revision=revision+1 WHERE physical_id=?').run(usage, available, reservedFrom, request.physicalId);
-        return { result: { modelId: copy.model_id, lotId: copy.lot_id, physicalId: copy.physical_id }, evidence: { kind: request.action, before: publicCopy(copy), after: { usage, available: available === 1, revision: copy.revision + 1 } } };
+        return { result: { modelId: copy.model_id, lotId: copy.lot_id, physicalId: copy.physical_id }, evidence: { kind: request.action, before: publicCopy(db, copy), after: { usage, available: available === 1, revision: copy.revision + 1 } } };
       });
     },
     setPolicy(request) {

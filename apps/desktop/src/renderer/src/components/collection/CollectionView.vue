@@ -7,10 +7,15 @@ import CollectionReceiveDialog from './CollectionReceiveDialog.vue'
 import CollectionModelDetail from './CollectionModelDetail.vue'
 import CollectionPhoto from './CollectionPhoto.vue'
 import PhysicalMusicView from './PhysicalMusicView.vue'
+import RecordingRecordsPanel from '../recording/RecordingRecordsPanel.vue'
 import ReferenceCatalogPanel from './ReferenceCatalogPanel.vue'
 import SpreadsheetImportPanel from './SpreadsheetImportPanel.vue'
 import CollectionProgressPanel from './CollectionProgressPanel.vue'
 
+const recordPhysicalId = ref('')
+let recordOrigin: HTMLElement | undefined
+function showRecords(id: string): void { recordOrigin = document.activeElement as HTMLElement; recordPhysicalId.value = id }
+function closeRecords(): void { recordPhysicalId.value = ''; void nextTick(() => recordOrigin?.isConnected && recordOrigin.focus({ preventScroll: true })) }
 const progressOpen = ref(false)
 const progressTrigger = ref<HTMLButtonElement>()
 function closeProgress(): void { progressOpen.value = false; void nextTick(() => progressTrigger.value?.focus({ preventScroll: true })) }
@@ -63,6 +68,7 @@ function onTabKeydown(event: KeyboardEvent): void {
 </script>
 
 <template>
+  <RecordingRecordsPanel v-if="recordPhysicalId" :physical-id="recordPhysicalId" @close="closeRecords" @changed="detail && inventory.openModel(detail.model.id)" />
   <section class="collection-view" data-component="CollectionView" aria-label="实体收藏">
     <div class="collection-context">
     <div ref="tabs" class="collection-tabs" role="tablist" aria-label="收藏视图">
@@ -87,7 +93,7 @@ function onTabKeydown(event: KeyboardEvent): void {
         <p v-else-if="notice" role="status">{{ notice }}</p>
       </div>
       <CollectionModelDetail v-if="view.id === 'tapes' && detail" :detail="detail" :busy="blocked"
-        @show-recording="showRecording" @close="inventory.closeModel" @receive="beginReceive(detail.model)" @page="inventory.openModel(detail.model.id, $event)"
+        @show-records="showRecords" @show-recording="showRecording" @close="inventory.closeModel" @receive="beginReceive(detail.model)" @page="inventory.openModel(detail.model.id, $event)"
         @materialize="request => inventory.mutate(() => collectionApi.materializeCollectionCopy(request))"
         @update-copy="request => inventory.mutate(() => collectionApi.updateCollectionCopy(request))"
         @add-photo="inventory.addPhoto"

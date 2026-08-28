@@ -1,3 +1,4 @@
+import type { ListRecordingRecordsRequest, RecordingRecordIdRequest, RecordingVisualRequest, PhysicalRecordingHistoryRequest, PreviewPhysicalRecordingDispositionRequest, ApplyPhysicalRecordingDispositionRequest, RecordingRecordsPage, RecordingRecordDetail, RecordingVisualResult, PhysicalRecordingHistory, PhysicalRecordingDispositionProposal, ApplyPhysicalRecordingDispositionResult } from './recording-records.js';
 import type { RecordingOutputStatus, RecordingOutputCheckRequest, RecordingOutputCancelRequest, RecordingOutputCheckResult } from './recording-output.js';
 import type { ListRecordingAttemptsRequest, RecordingAttemptIdRequest, BeginRecordingAttemptRequest, ConfirmRecordingAttemptRequest, BeginRecordingAttemptSideRequest, StopRecordingAttemptRequest, RecordingAttemptsPage, RecordingAttempt } from './recording-attempts.js';
 import type { RecordingPlanHistoryRequest, RecordingPlanIdRequest, PreviewRecordingPlanRequest, FreezeRecordingPlanRequest, RecordingPreflightRequest, RecordingPlanHistory, RecordingPlanVersion, RecordingPlanProposal, RecordingPreflightResult } from './recording-plans.js';
@@ -154,6 +155,12 @@ export const IPC_COMMANDS = [
   'recordingOutput.status',
   'recordingOutput.check',
   'recordingOutput.cancel',
+  'recordingRecords.list',
+  'recordingRecords.get',
+  'recordingRecords.visual',
+  'recordingRecords.history',
+  'recordingRecords.previewDisposition',
+  'recordingRecords.applyDisposition',
   'recordingAttempts.list',
   'recordingAttempts.get',
   'recordingAttempts.begin',
@@ -393,6 +400,12 @@ export interface IpcCommandPayloads {
   'recordingOutput.status': Record<string, never>;
   'recordingOutput.check': RecordingOutputCheckRequest;
   'recordingOutput.cancel': RecordingOutputCancelRequest;
+  'recordingRecords.list': ListRecordingRecordsRequest;
+  'recordingRecords.get': RecordingRecordIdRequest;
+  'recordingRecords.visual': RecordingVisualRequest;
+  'recordingRecords.history': PhysicalRecordingHistoryRequest;
+  'recordingRecords.previewDisposition': PreviewPhysicalRecordingDispositionRequest;
+  'recordingRecords.applyDisposition': ApplyPhysicalRecordingDispositionRequest;
   'recordingAttempts.list': ListRecordingAttemptsRequest;
   'recordingAttempts.get': RecordingAttemptIdRequest;
   'recordingAttempts.begin': BeginRecordingAttemptRequest;
@@ -622,6 +635,12 @@ export interface IpcCommandResults {
   'recordingOutput.status': RecordingOutputStatus;
   'recordingOutput.check': RecordingOutputCheckResult;
   'recordingOutput.cancel': { cancelled: true };
+  'recordingRecords.list': RecordingRecordsPage;
+  'recordingRecords.get': { record: RecordingRecordDetail | null };
+  'recordingRecords.visual': RecordingVisualResult;
+  'recordingRecords.history': PhysicalRecordingHistory;
+  'recordingRecords.previewDisposition': PhysicalRecordingDispositionProposal;
+  'recordingRecords.applyDisposition': ApplyPhysicalRecordingDispositionResult;
   'recordingAttempts.list': RecordingAttemptsPage;
   'recordingAttempts.get': { attempt: RecordingAttempt | null };
   'recordingAttempts.begin': RecordingAttempt;

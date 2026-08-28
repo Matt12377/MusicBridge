@@ -48,6 +48,51 @@ class FakePort implements UtilityPort {
   }
 }
 
+test('档案六IPC在Core重验原工作库，拒绝缺失或跨库scope且不派发处置', async () => {
+  const datasetId = randomUUID(), id = randomUUID(), calls: Array<[string, unknown]> = [];
+  const preview = { physicalId: 'MB-C-00427', expectedPhysicalRevision: 1, expectedContentRevision: 0, expectedAttempt: null, intent: { action: 'mark-content-unknown' } };
+  const cases: Array<[string, unknown]> = [
+    ['list', { page: { offset: 0, limit: 25 } }], ['get', { id }], ['visual', { recordingId: id, attachmentId: id }],
+    ['history', { physicalId: preview.physicalId, page: { offset: 0, limit: 25 } }], ['previewDisposition', preview],
+    ['applyDisposition', { ...preview, commandId: id, proposalFingerprint: 'a'.repeat(64), userConfirmed: true }],
+  ];
+  let failure: Error | undefined;
+  const service = Object.fromEntries(cases.map(([method]) => [method, (payload: unknown) => { if (failure) throw failure; calls.push([method, payload]); return { dispatched: method }; }]));
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { recordingRecords: service, commandOutbox: createDatasetCommandBoundary({ datasetId, assertCurrent: () => {} }) }) as unknown as CoreRuntimeForIpc);
+  async function rpc(method: string, payload: unknown, scope?: string) {
+    const requestId = randomUUID(); port.send({ version: 1, id: requestId, command: `recordingRecords.${method}`, payload, ...(scope ? { expectedDatasetId: scope } : {}) });
+    await new Promise(resolve => setImmediate(resolve));
+    return port.messages.find(m => (m as { id?: string }).id === requestId) as { ok: boolean; result?: unknown; error?: { code: string; message: string } };
+  }
+  for (const [method, payload] of cases) {
+    assert.equal((await rpc(method, payload)).error?.code, 'OUTBOX_SCOPE_MISMATCH');
+    assert.equal((await rpc(method, payload, randomUUID())).error?.code, 'OUTBOX_SCOPE_MISMATCH');
+  }
+  assert.equal(calls.length, 0);
+  for (const [method, payload] of cases) assert.deepEqual((await rpc(method, payload, datasetId)).result, { dispatched: method });
+  assert.deepEqual(calls, cases);
+  assert.equal((await rpc('registerCompleted', { id }, datasetId)).ok, false);
+  const { RecordingRecordError } = await import('../src/recording/record-integrity.js');
+  for (const [code, publicCode] of [['INVALID_REQUEST', 'INVALID_IPC_REQUEST'], ['NOT_READY', 'NOT_READY'], ['CONFLICT', 'INVENTORY_CONFLICT'], ['COMMAND_CONFLICT', 'INVENTORY_CONFLICT'], ['BUDGET_EXCEEDED', 'INVENTORY_UNAVAILABLE'], ['NOT_FOUND', 'INVENTORY_UNAVAILABLE'], ['IO_ERROR', 'INVENTORY_UNAVAILABLE'], ['CLOSED', 'INVENTORY_UNAVAILABLE']] as const) {
+    failure = new RecordingRecordError(code); failure.message = '/private/synthetic-record-error';
+    const result = await rpc('applyDisposition', cases[5]![1], datasetId);
+    assert.equal(result.error?.code, publicCode); assert.equal(result.error!.message.includes('/private'), false);
+  }
+});
+
+test('实际Runtime提供空档案读取且关闭后旧服务失效，不创建演示记录', async () => {
+  const runtime = createTestBridgeRuntime();
+  try {
+    const service = (runtime as unknown as { recordingRecords?: { list(request: unknown): Promise<unknown>; get(request: unknown): Promise<unknown> } }).recordingRecords;
+    assert.ok(service, '缺少实际Runtime录音档案服务');
+    assert.deepEqual(await service.list({ page: { offset: 0, limit: 25 } }), { items: [], offset: 0, limit: 25, total: 0, hasMore: false });
+    assert.deepEqual(await service.get({ id: randomUUID() }), { record: null });
+    await runtime.shutdown();
+    await assert.rejects(Promise.resolve().then(() => service.list({ page: { offset: 0, limit: 25 } })), /CLOSED/u);
+  } finally { await runtime.shutdown(); }
+});
+
 test('Attempt专用IPC要求原工作库身份，六方法直接派发且错误不泄露内部内容', async () => {
   const datasetId = randomUUID(), id = randomUUID(), calls: Array<[string, unknown]> = [];
   const service: Record<string, unknown> = {};

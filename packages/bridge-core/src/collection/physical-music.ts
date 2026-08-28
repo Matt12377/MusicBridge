@@ -1,3 +1,4 @@
+import { formalRecordingMusicSelect, getRecordingCopyProjection } from '../recording/record-projections.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
 import { isMusicId, isMusicFilter, isSaveReleaseRequest, isSaveLegacyRequest, isMusicMutationResult, isMusicDetail, isAddMusicPhotoRequest, isRemoveMusicPhotoRequest, isCollectionPhotoImage, isCollectionId,
@@ -35,11 +36,19 @@ export function createPhysicalMusicRepository(access: Access): PhysicalMusicRepo
       const photos = db.prepare('SELECT id,release_id,width,height FROM music_photos WHERE release_id=? ORDER BY rowid').all(id).map(photo);
       result = { entry: { id, kind: data.format, title: data.title, artist: data.artist, quantity: data.quantity, revision: Number(release.revision), contentStatus: 'commercial', ...(photos[0] ? { photo: photos[0] } : {}) }, release: data, photos };
     } else {
-      const row = db.prepare(`${personalSelect} WHERE c.physical_id=? AND c.usage='recorded' AND c.origin='legacy-registration'`).get(id);
+      const projection = getRecordingCopyProjection(db, id);
+      const row = db.prepare(`${personalSelect} WHERE c.physical_id=?${projection ? '' : " AND c.usage='recorded' AND c.origin='legacy-registration'"}`).get(id);
       if (!row) return conflict('音乐实物不存在，请刷新收藏。');
       const model = JSON.parse(String(row.descriptor)) as { format: string };
       const recording = row.data ? JSON.parse(String(row.data)) as MusicContent : undefined;
-      result = { entry: { id, kind: model.format === 'dat' ? 'personal-dat' : 'personal-cassette', title: recording?.title ?? '已录音，内容待补录', artist: recording?.artist ?? '艺术家待补录', quantity: 1, revision: Number(row.revision), contentStatus: recording ? 'legacy' : 'missing', modelId: String(row.model_id) }, ...(recording ? { recording } : {}), photos: [] };
+      if (projection) {
+        const entry = db.prepare(`SELECT title,artist FROM (${formalRecordingMusicSelect}) WHERE id=?`).get(id);
+        if (!entry) return unavailable();
+        result = { entry: { id, kind: model.format === 'dat' ? 'personal-dat' : 'personal-cassette', title: String(entry.title), artist: String(entry.artist), quantity: 1, revision: Number(row.revision),
+          contentStatus: projection.recordingState.state === 'confirmed-recording' ? 'formal' : 'formal-current-unknown', modelId: String(row.model_id), recordingState: projection.recordingState }, formal: projection.recordingState, photos: [] };
+      } else {
+        result = { entry: { id, kind: model.format === 'dat' ? 'personal-dat' : 'personal-cassette', title: recording?.title ?? '已录音，内容待补录', artist: recording?.artist ?? '艺术家待补录', quantity: 1, revision: Number(row.revision), contentStatus: recording ? 'legacy' : 'missing', modelId: String(row.model_id) }, ...(recording ? { recording } : {}), photos: [] };
+      }
     }
     if (!isMusicDetail(result)) return unavailable();
     return result;
@@ -67,7 +76,7 @@ export function createPhysicalMusicRepository(access: Access): PhysicalMusicRepo
     list(page, filter = {}) {
       if (!Number.isSafeInteger(page?.offset) || page.offset < 0 || page.offset > 1_000_000 || !Number.isSafeInteger(page?.limit) || page.limit < 1 || page.limit > 100 || !isMusicFilter(filter)) return conflict('音乐库分页或筛选无效。');
       return read(db => {
-        const union = `SELECT id,json_extract(data,'$.title') title,json_extract(data,'$.artist') artist,json_extract(data,'$.format') kind FROM music_releases UNION ALL SELECT c.physical_id,COALESCE(json_extract(r.data,'$.title'),'已录音，内容待补录'),COALESCE(json_extract(r.data,'$.artist'),'艺术家待补录'),CASE WHEN json_extract(m.descriptor,'$.format')='dat' THEN 'personal-dat' ELSE 'personal-cassette' END FROM physical_copies c JOIN inventory_lots l ON l.id=c.lot_id JOIN collection_skus s ON s.id=l.sku_id JOIN collection_models m ON m.id=s.model_id LEFT JOIN legacy_recording_content r ON r.physical_id=c.physical_id WHERE c.usage='recorded' AND c.origin='legacy-registration'`;
+        const union = `SELECT id,json_extract(data,'$.title') title,json_extract(data,'$.artist') artist,json_extract(data,'$.format') kind FROM music_releases UNION ALL SELECT c.physical_id,COALESCE(json_extract(r.data,'$.title'),'已录音，内容待补录'),COALESCE(json_extract(r.data,'$.artist'),'艺术家待补录'),CASE WHEN json_extract(m.descriptor,'$.format')='dat' THEN 'personal-dat' ELSE 'personal-cassette' END FROM physical_copies c JOIN inventory_lots l ON l.id=c.lot_id JOIN collection_skus s ON s.id=l.sku_id JOIN collection_models m ON m.id=s.model_id LEFT JOIN legacy_recording_content r ON r.physical_id=c.physical_id WHERE c.usage='recorded' AND c.origin='legacy-registration' AND NOT EXISTS(SELECT 1 FROM recording_record_current h WHERE h.physical_id=c.physical_id) UNION ALL ${formalRecordingMusicSelect}`;
         const conditions: string[] = [], values: SQLInputValue[] = [];
         if (filter.query?.trim()) { conditions.push("instr(lower(title || ' ' || artist),?)>0"); values.push(filter.query.trim().toLowerCase()); }
         if (filter.kind) { conditions.push('kind=?'); values.push(filter.kind); }
@@ -93,7 +102,7 @@ export function createPhysicalMusicRepository(access: Access): PhysicalMusicRepo
     saveLegacy(request) {
       return transaction('save-legacy', request, isSaveLegacyRequest(request), db => {
         const row = db.prepare(`${personalSelect} WHERE c.physical_id=?`).get(request.physicalId);
-        if (!row || row.usage !== 'recorded' || row.origin !== 'legacy-registration') return conflict('只能补录已经登记的旧录音，不能把空白磁带直接标记为录音完成。');
+        if (!row || row.usage !== 'recorded' || row.origin !== 'legacy-registration' || getRecordingCopyProjection(db, request.physicalId)) return conflict('只能补录已经登记的旧录音，不能把空白磁带直接标记为录音完成。');
         if (Number(row.revision) !== request.expectedRevision) return conflict('单盘资料已改变，请刷新后重试。');
         const format = (JSON.parse(String(row.descriptor)) as { format: string }).format;
         if (request.content.tracks.some(t => format === 'cassette' ? t.side === undefined || t.disc !== undefined : t.side !== undefined || t.disc !== undefined)) return conflict('旧录音曲目分面与介质不一致。');

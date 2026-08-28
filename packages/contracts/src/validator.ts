@@ -1,3 +1,4 @@
+import { isListRecordingRecordsRequest, isRecordingRecordIdRequest, isRecordingVisualRequest, isPhysicalRecordingHistoryRequest, isPreviewPhysicalRecordingDispositionRequest, isApplyPhysicalRecordingDispositionRequest, isRecordingRecordsPage, isRecordingRecordDetail, isRecordingVisualResult, isPhysicalRecordingHistory, isPhysicalRecordingDispositionProposal, isApplyPhysicalRecordingDispositionResult } from './recording-records.js';
 import { isRecordingOutputStatus, isRecordingOutputCheckRequest, isRecordingOutputCancelRequest, isRecordingOutputCheckResult } from './recording-output.js';
 import { isListRecordingAttemptsRequest, isRecordingAttemptIdRequest, isBeginRecordingAttemptRequest, isConfirmRecordingAttemptRequest, isBeginRecordingAttemptSideRequest, isStopRecordingAttemptRequest, isRecordingAttemptsPage, isRecordingAttempt } from './recording-attempts.js';
 import { isRecordingPlanHistoryRequest, isRecordingPlanIdRequest, isPreviewRecordingPlanRequest, isFreezeRecordingPlanRequest, isRecordingPreflightRequest, isRecordingPlanHistory, isRecordingPlanVersion, isRecordingPlanProposal, isRecordingPreflightResult } from './recording-plans.js';
@@ -982,6 +983,12 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'recordingOutput.status') return isEmptyPayload(payload);
   if (command === 'recordingOutput.check') return isRecordingOutputCheckRequest(payload);
   if (command === 'recordingOutput.cancel') return isRecordingOutputCancelRequest(payload);
+  if (command === 'recordingRecords.list') return isListRecordingRecordsRequest(payload);
+  if (command === 'recordingRecords.get') return isRecordingRecordIdRequest(payload);
+  if (command === 'recordingRecords.visual') return isRecordingVisualRequest(payload);
+  if (command === 'recordingRecords.history') return isPhysicalRecordingHistoryRequest(payload);
+  if (command === 'recordingRecords.previewDisposition') return isPreviewPhysicalRecordingDispositionRequest(payload);
+  if (command === 'recordingRecords.applyDisposition') return isApplyPhysicalRecordingDispositionRequest(payload);
   if (command === 'recordingAttempts.list') return isListRecordingAttemptsRequest(payload);
   if (command === 'recordingAttempts.get') return isRecordingAttemptIdRequest(payload);
   if (command === 'recordingAttempts.begin') return isBeginRecordingAttemptRequest(payload);
@@ -1545,6 +1552,12 @@ function isCommandResult(
     case 'recordingOutput.status': return isRecordingOutputStatus(value);
     case 'recordingOutput.check': return isRecordingOutputCheckResult(value);
     case 'recordingOutput.cancel': return isRecord(value) && hasOnlyKeys(value, ['cancelled']) && value.cancelled === true;
+    case 'recordingRecords.list': return isRecordingRecordsPage(value);
+    case 'recordingRecords.get': return isRecord(value) && hasOnlyKeys(value, ['record']) && (value.record === null || isRecordingRecordDetail(value.record));
+    case 'recordingRecords.visual': return isRecordingVisualResult(value);
+    case 'recordingRecords.history': return isPhysicalRecordingHistory(value);
+    case 'recordingRecords.previewDisposition': return isPhysicalRecordingDispositionProposal(value);
+    case 'recordingRecords.applyDisposition': return isApplyPhysicalRecordingDispositionResult(value);
     case 'recordingAttempts.list': return isRecordingAttemptsPage(value);
     case 'recordingAttempts.get': return isRecord(value) && hasOnlyKeys(value, ['attempt']) && (value.attempt === null || isRecordingAttempt(value.attempt));
     case 'recordingAttempts.begin':

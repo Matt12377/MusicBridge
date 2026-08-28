@@ -23,11 +23,13 @@ import { createRecordingAttemptClient } from '../src/preload/recording-attempt-c
 import { createCommandOutboxClient } from '../src/preload/command-outbox-client.js'
 import { unwrapRoonImageIpc } from '../src/roon-image-ipc.js'
 
-test('实际Preload入口将输出与Attempt有限API直接送到IPC，不经过outbox或打开设备', async () => {
+test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，不经过outbox或打开设备', async () => {
   const source = await readFile(path.resolve('src/preload/index.ts'), 'utf8')
   const calls: Array<[string, unknown]> = [], runId = '73000000-0000-4000-8000-000000000001'
   let exposed: ReturnType<typeof createPreloadApi> | undefined
+  const recordModule = await import('../src/preload/recording-record-client.js').catch(() => ({}))
   const modules: Record<string, unknown> = {
+    './recording-record-client.js': recordModule,
     electron: { contextBridge: { exposeInMainWorld: (name: string, api: ReturnType<typeof createPreloadApi>) => { assert.equal(name, 'musicBridge'); exposed = api } }, ipcRenderer: { invoke: async (channel: string, payload: unknown) => { calls.push([channel, structuredClone(payload)]); return channel === 'commandOutbox:context' ? { datasetId: runId } : { reply: channel } } } },
     './recording-attempt-client.js': { createRecordingAttemptClient }, './api.js': { createPreloadApi }, './command-outbox-client.js': { createCommandOutboxClient },
     './image-diagnostic.js': { summarizePreloadRoonImage }, '../roon-image-ipc.js': { unwrapRoonImageIpc },
@@ -59,6 +61,21 @@ test('实际Preload入口将输出与Attempt有限API直接送到IPC，不经过
     assert.deepEqual(await attemptApi[name]!(payload), { reply: `recordingAttempts:${channel}` })
   }
   assert.deepEqual(calls, attemptCalls.map(([, channel, payload, wire]) => [`recordingAttempts:${channel}`, { datasetId: runId, payload: wire ?? payload }]))
+  const preview = { physicalId: 'MB-C-00427', expectedPhysicalRevision: 1, expectedContentRevision: 0, expectedAttempt: null, intent: { action: 'mark-content-unknown' } }
+  const recordCalls: Array<[string, string, unknown, unknown?]> = [
+    ['listRecordingRecords', 'list', { page: { offset: 0, limit: 25 } }],
+    ['getRecordingRecord', 'get', runId, { id: runId }],
+    ['getRecordingRecordVisual', 'visual', { recordingId: runId, attachmentId: runId }],
+    ['getPhysicalRecordingHistory', 'history', { physicalId: preview.physicalId, page: { offset: 0, limit: 25 } }],
+    ['previewPhysicalRecordingDisposition', 'previewDisposition', preview],
+    ['applyPhysicalRecordingDisposition', 'applyDisposition', { ...preview, commandId: runId, proposalFingerprint: 'a'.repeat(64), userConfirmed: true }],
+  ]
+  calls.length = 0
+  for (const [name, channel, payload] of recordCalls) {
+    assert.equal(typeof attemptApi[name], 'function', `缺少档案Preload入口${name}`)
+    assert.deepEqual(await attemptApi[name]!(payload), { reply: `recordingRecords:${channel}` })
+  }
+  assert.deepEqual(calls, recordCalls.map(([, channel, payload, wire]) => [`recordingRecords:${channel}`, { datasetId: runId, payload: wire ?? payload }]))
 })
 
 test('Preload 图片诊断保持 sandbox 本地实现，不引入 contracts 运行期依赖', async () => {
@@ -172,6 +189,12 @@ test('Preload exposes only sanitized business methods', async () => {
     assert.equal(typeof (api as unknown as Record<string, unknown>)[name], 'function', `缺少受限业务API ${name}`)
   }
   assert.deepEqual(PUBLIC_API_KEYS, [
+    'listRecordingRecords',
+    'getRecordingRecord',
+    'getRecordingRecordVisual',
+    'getPhysicalRecordingHistory',
+    'previewPhysicalRecordingDisposition',
+    'applyPhysicalRecordingDisposition',
     'listRecordingAttempts',
     'getRecordingAttempt',
     'beginRecordingAttempt',
@@ -386,6 +409,12 @@ test('Preload exposes only sanitized business methods', async () => {
     'onRemoteCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
+    'listRecordingRecords',
+    'getRecordingRecord',
+    'getRecordingRecordVisual',
+    'getPhysicalRecordingHistory',
+    'previewPhysicalRecordingDisposition',
+    'applyPhysicalRecordingDisposition',
     'listRecordingAttempts',
     'getRecordingAttempt',
     'beginRecordingAttempt',

@@ -24,7 +24,7 @@ function inventoryBytes(db: DatabaseSync) {
     .map(table => [table, db.prepare(table === 'inventory_lots' ? 'SELECT id,sku_id,acquired,sealed,opened,legacy,unknown FROM inventory_lots ORDER BY rowid' : `SELECT * FROM ${table} ORDER BY rowid`).all()]);
 }
 
-test('固定旧schema14迁移为当前schema19，库存/照片/永久编号和原账本逐行守恒', async t => {
+test('固定旧schema14迁移为当前schema20，库存/照片/永久编号和原账本逐行守恒', async t => {
   const filePath = await oldDatabase(t), before = new DatabaseSync(filePath, { readOnly: true });
   const inventory = inventoryBytes(before); before.close();
   const repository = createCollectionRepository({ filePath });
@@ -32,7 +32,7 @@ test('固定旧schema14迁移为当前schema19，库存/照片/永久编号和�
   repository.close();
   const after = new DatabaseSync(filePath, { readOnly: true });
   try {
-    assert.equal(after.prepare('PRAGMA user_version').get()?.user_version, 19);
+    assert.equal(after.prepare('PRAGMA user_version').get()?.user_version, 20);
     assert.deepEqual(inventoryBytes(after), inventory);
     assert.deepEqual(after.prepare('PRAGMA foreign_key_check').all(), []);
   } finally { after.close(); }
@@ -51,7 +51,7 @@ test('schema14目录迁移提交前中断回滚整个迁移，冷开可再次迁
   const recovered = createCollectionRepository({ filePath });
   try { assert.equal(recovered.list(page).items[0]?.counts.total, 5); } finally { recovered.close(); }
   const after = new DatabaseSync(filePath, { readOnly: true });
-  try { assert.equal(after.prepare('PRAGMA user_version').get()?.user_version, 19); } finally { after.close(); }
+  try { assert.equal(after.prepare('PRAGMA user_version').get()?.user_version, 20); } finally { after.close(); }
 });
 
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');

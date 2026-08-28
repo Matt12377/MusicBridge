@@ -10,6 +10,8 @@
     "e2e/task-072.spec.ts",
     "e2e/task-072-workflows.ts",
     "e2e/task-073.spec.ts",
+    "e2e/task-074.spec.ts",
+    "e2e/task-075.spec.ts",
     "src/renderer/src/env.d.ts"
   ]
 }
