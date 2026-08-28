@@ -9,7 +9,7 @@
 - [x] **TASK-064：一致性快照与归档内容备份基础** — 本地自动 Gate 通过，Owner 未验收。SQLite Backup API、快照内引用闭包、内容字节完整校验、无覆盖发布。
 - [x] **TASK-065：隔离恢复与基本索引重建** — 本地自动 Gate 通过，激活/UI 与 Owner 未完成。隔离目录恢复、重复恢复冲突、Manifest 重建、Quarantine；不覆盖当前用户数据。
 - [x] **TASK-066：桌面备份与恢复工作流** — 本地自动 Gate 通过：77/818/186、安全22、Electron4、完整E2E50。独立维护库、内容位置绑定、显式激活/回滚与后台窗口；Owner未验收，大库冷启容量风险转TASK-078/Gate E。见 [TASK-066结果](../reports/TASK-066_RESULT.md)。
-- [ ] **TASK-067：持久命令 outbox** — 进行中。Main持久账本、Core工作库身份守卫与人工恢复入口并行开发。跨 Renderer/应用重启恢复未确认命令，幂等与冲突提示。
+- [x] **TASK-067：持久命令 outbox** — 本地自动 Gate 通过：82/827/279、安全27、Electron4、完整E2E54。Main持久账本、Core工作库身份隔离、人工恢复和PREP整批撤权；Owner未验收。见 [TASK-067结果](../reports/TASK-067_RESULT.md)。
 - [ ] **TASK-068：参考目录与版次修订** — 待开发。ReferenceSourceVersion、CatalogRevision、未知与缺失分开、合并拆分审核。
 - [ ] **TASK-069：Excel 非破坏导入** — 待开发。ImportBatch/Revision、重排去重、未知余量、保护人工更正与库存账本。
 - [ ] **TASK-070：Want List 与收藏完成度** — 待开发。Wanted 与 Owned 共存、型号完成度、长度覆盖与历史口径。

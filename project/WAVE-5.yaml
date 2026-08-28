@@ -28,4 +28,4 @@ order:
   - TASK-066
   - TASK-067
 stopAfter: TASK-067
-reviewBoundary: persistent-outbox-dataset-scoped-no-automatic-replay
+reviewBoundary: task-067-local-automated-pass-owner-and-capacity-pending
