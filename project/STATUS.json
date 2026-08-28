@@ -82,7 +82,7 @@
     "branch": "codex/task-075-recording-records",
     "baseCommit": "af572126a2abeefdf361e8db2c9ac4a457b7a8be",
     "state": "local-software-complete-real-acceptance-pending",
-    "implementationCommit": null,
+    "implementationCommit": "f84bd8e2f9d3b7d79163496950acc545ff649155",
     "reportCommit": null,
     "previousTask": {
       "task": "TASK-074",
@@ -138,7 +138,7 @@
       "R-023：Attempt逐写全历史/回执及Record照片闭包验证、档案全量搜索存在规模风险；TASK078测量并优化，真实driver接入前解除，不宣称实时Stop保证"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task075-all-local-gates-pass-awaiting-local-commit-identities",
+    "checkpoint": "task075-local-implementation-committed-result-report-ready",
     "nextTask": "TASK-076",
     "resultReport": "reports/TASK-075_RESULT.md",
     "candidateFingerprint": "c60e2ae0a5c6531846fe9e1f65fd8debc0d7b6da95cae52e5cf655d9e5a5a396"
