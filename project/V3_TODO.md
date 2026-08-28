@@ -11,7 +11,7 @@
 - [x] **TASK-066：桌面备份与恢复工作流** — 本地自动 Gate 通过：77/818/186、安全22、Electron4、完整E2E50。独立维护库、内容位置绑定、显式激活/回滚与后台窗口；Owner未验收，大库冷启容量风险转TASK-078/Gate E。见 [TASK-066结果](../reports/TASK-066_RESULT.md)。
 - [x] **TASK-067：持久命令 outbox** — 本地自动 Gate 通过：82/827/279、安全27、Electron4、完整E2E54。Main持久账本、Core工作库身份隔离、人工恢复和PREP整批撤权；Owner未验收。见 [TASK-067结果](../reports/TASK-067_RESULT.md)。
 - [x] **TASK-068：参考目录与版次修订** — 本地自动 Gate 通过：95/847/291、安全27、Electron4；常规E2E56通过，固定native另跑1通过。来源原包、不可变目录、合并拆分审核与历史快照；Owner未验收。见 [TASK-068结果](../reports/TASK-068_RESULT.md)。
-- [ ] **TASK-069：Excel 非破坏导入** — 进行中。ImportBatch/Revision、重排去重、未知余量、保护人工更正与库存账本。
+- [x] **TASK-069：Excel 非破坏导入** — 本地自动Gate通过：107/881/316、安全27、Electron4、完整E2E60（固定native开启，零skip）。原始字节与源行、显式来源关系、非破坏修订、独立数量账本及备份恢复；Owner未验收。见 [TASK-069结果](../reports/TASK-069_RESULT.md)。
 - [ ] **TASK-070：Want List 与收藏完成度** — 待开发。Wanted 与 Owned 共存、型号完成度、长度覆盖与历史口径。
 - [ ] **TASK-071：Source Picker 与双库交互补齐** — 待开发。实体/数字关系选曲入口、下一步指引、照片/长名/窄窗/键盘和视觉 carryover。
 - [ ] **TASK-072：正式 Profile Snapshot / RecordingPlan / Preflight** — 待前置。容量、版本、执行格式、档案与设备约束；F-01 必须先确认。
