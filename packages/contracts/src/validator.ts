@@ -1,3 +1,4 @@
+import { isRecordingPlanHistoryRequest, isRecordingPlanIdRequest, isPreviewRecordingPlanRequest, isFreezeRecordingPlanRequest, isRecordingPreflightRequest, isRecordingPlanHistory, isRecordingPlanVersion, isRecordingPlanProposal, isRecordingPreflightResult } from './recording-plans.js';
 import { isSpreadsheetPageRequest, isSpreadsheetSourcePage, isSpreadsheetIdRequest, isSpreadsheetWorkbookSource, isSpreadsheetSourceRowsRequest, isSpreadsheetSourceRowsPage, isPreviewSpreadsheetImportRequest, isSpreadsheetImportPreview, isApplySpreadsheetImportRequest, isSpreadsheetImportResult, isSpreadsheetImportRevisionRequest, isSpreadsheetImportRevisionDetail, isSpreadsheetImportHistory, isSpreadsheetAdjustmentPreviewRequest, isSpreadsheetAdjustmentBalance, isAdjustSpreadsheetInventoryRequest, isSpreadsheetInventoryAdjustment, isSpreadsheetAdjustmentsRequest, isSpreadsheetAdjustmentsPage, isRegisterSpreadsheetWorkbookRequest, isChooseSpreadsheetWorkbookRequest, isSpreadsheetWorkbookReceipt } from './spreadsheet-import.js';
 import { isListWantEntriesRequest, isWantEntriesPage, isSaveWantEntryRequest, isWantEntry, isCancelWantEntryRequest, isGetWantEntryHistoryRequest, isWantEntryHistory, isGetCollectionProgressRequest, isCollectionProgress, isCaptureCollectionProgressRequest, isCollectionProgressSnapshotSummary, isListCollectionProgressSnapshotsRequest, isCollectionProgressSnapshotsPage, isGetCollectionProgressSnapshotRequest, isCollectionProgressSnapshotDetail, isGetCollectionModelLengthsRequest, isCollectionModelLengths } from './collection-progress.js';
 import { isCommandOutboxDatasetId, isCommandOutboxContext, isCommandOutboxExecute, isCommandOutboxResult } from './command-outbox.js';
@@ -971,6 +972,11 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'recordingSources.revoke' || command === 'recordingSources.cancel') return isSourceAction(payload);
   if (command === 'recordingSources.confirm' || command === 'recordingSources.recheck') return isSourceConfirmation(payload);
   if (command === 'recordingVersions.list') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
+  if (command === 'recordingPlans.list') return isRecordingPlanHistoryRequest(payload);
+  if (command === 'recordingPlans.version' || command === 'recordingPlans.cancelRead') return isRecordingPlanIdRequest(payload);
+  if (command === 'recordingPlans.preview') return isPreviewRecordingPlanRequest(payload);
+  if (command === 'recordingPlans.freeze') return isFreezeRecordingPlanRequest(payload);
+  if (command === 'recordingPlans.preflight') return isRecordingPreflightRequest(payload);
   if (command === 'recordingProfiles.list') return isRecord(payload) && hasOnlyKeys(payload, []);
   if (command === 'recordingProfiles.history') return isRecord(payload) && hasOnlyKeys(payload, ['profileId']) && isCollectionId(payload.profileId);
   if (command === 'recordingProfiles.version') return isRecord(payload) && hasOnlyKeys(payload, ['versionId']) && isCollectionId(payload.versionId);
@@ -1519,6 +1525,12 @@ function isCommandResult(
     case 'recordingSources.recheck': return isSourceJob(value);
     case 'recordingSources.confirm': return isSourceBinding(value);
     case 'recordingVersions.list': return isVersionHistory(value);
+    case 'recordingPlans.list': return isRecordingPlanHistory(value);
+    case 'recordingPlans.version': return isRecord(value) && hasOnlyKeys(value, ['plan']) && (value.plan === null || isRecordingPlanVersion(value.plan));
+    case 'recordingPlans.preview': return isRecordingPlanProposal(value);
+    case 'recordingPlans.freeze': return isRecordingPlanVersion(value);
+    case 'recordingPlans.preflight': return isRecordingPreflightResult(value);
+    case 'recordingPlans.cancelRead': return isRecord(value) && hasOnlyKeys(value, ['cancelled']) && value.cancelled === true;
     case 'recordingProfiles.list': return isRecord(value) && hasOnlyKeys(value, ['profiles']) && Array.isArray(value.profiles) && value.profiles.length <= 100 && value.profiles.every(isRecordingProfileVersion);
     case 'recordingProfiles.history': return isRecordingProfileHistory(value);
     case 'recordingProfiles.version': return isRecordingProfileVersion(value);

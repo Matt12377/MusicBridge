@@ -32,6 +32,7 @@ const labels: Record<CommandOutboxTrackedCommand, string> = {
   'recordingPreparation.start': '开始文件准备', 'recordingPreparation.cancel': '取消文件准备',
   'recordingPrepared.choose': '选择准备文件', 'recordingPrepared.revoke': '撤销准备文件授权',
   'recordingPrepared.startImport': '开始导入准备文件', 'recordingPrepared.cancel': '取消准备文件导入', 'recordingPrepared.freeze': '冻结准备文件',
+  'recordingPlans.freeze': '冻结录音计划',
   'recordingProfiles.save': '保存录音配置', 'recordingProfiles.saveSession': '保存录音会话配置',
   'recordingExecution.start': '生成执行资产', 'recordingExecution.cancel': '取消执行资产生成',
   'recordingArchive.choose': '选择归档目录', 'recordingArchive.initialize': '初始化归档目录',

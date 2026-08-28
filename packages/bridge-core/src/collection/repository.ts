@@ -1,3 +1,5 @@
+import { createRecordingPlanStore, recordingPlansMigration, type RecordingPlanStore } from '../recording/plan-store.js';
+import { RecordingPlanError } from '../recording/plan-integrity.js';
 import { createCollectionProgressStore, collectionProgressMigration, type CollectionProgressStore } from './collection-progress-store.js';
 import { createSpreadsheetImportStore, spreadsheetImportMigration, type SpreadsheetImportStore } from './spreadsheet-import-store.js';
 import { createCollectionSnapshot, type CollectionSnapshot } from '../recording/backup-snapshot.js';
@@ -41,6 +43,7 @@ const conflict = (message: string): never => { throw new CollectionError('INVENT
 const unavailable = (): never => { throw new CollectionError('INVENTORY_UNAVAILABLE', '库存暂时不可用，请重试；现有数据不会被自动清除。'); };
 
 export interface CollectionRepository {
+  recordingPlans: RecordingPlanStore;
   collectionProgress: CollectionProgressStore;
   spreadsheetImports: SpreadsheetImportStore;
   catalog: ReferenceCatalogStore;
@@ -173,17 +176,17 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
       // WAL 恢复期间，首次版本读取也可能遇到短暂锁；先设置等待，再访问数据库内容。
       db.exec('PRAGMA busy_timeout=1000');
       const version = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-      if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17].includes(version)) return unavailable();
+      if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].includes(version)) return unavailable();
       if (version === 0 && Number(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").get()?.n) !== 0) return unavailable();
       db.exec('PRAGMA trusted_schema=OFF; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
-      if (version < 17) {
+      if (version < 18) {
         // 重建被其他表引用的批次表：事务外暂关检查，提交前核验，退出时始终恢复。
         db.exec('PRAGMA foreign_keys=OFF');
         db.exec('BEGIN IMMEDIATE');
         try {
           // 等待写锁后重读版本，避免两个首次连接同时执行迁移。
           const currentVersion = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-          if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17].includes(currentVersion)) return unavailable();
+          if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].includes(currentVersion)) return unavailable();
           if (currentVersion === 0) db.exec(schema);
           if (currentVersion < 2) { db.exec(photoMigration); options.beforeCommit?.('migrate-photos'); }
           if (currentVersion < 3) { db.exec(physicalMusicMigration); options.beforeCommit?.('migrate-music'); }
@@ -201,6 +204,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
           if (currentVersion < 15) { db.exec(referenceCatalogMigration); options.beforeCommit?.('migrate-reference-catalog'); }
           if (currentVersion < 16) { db.exec(spreadsheetImportMigration); options.beforeCommit?.('migrate-spreadsheet-imports'); }
           if (currentVersion < 17) { db.exec(collectionProgressMigration); options.beforeCommit?.('migrate-collection-progress'); }
+          if (currentVersion < 18) { db.exec(recordingPlansMigration); options.beforeCommit?.('migrate-recording-plans'); }
           if (db.prepare('PRAGMA foreign_key_check').get()) return unavailable();
           db.exec('COMMIT');
         } catch (error) { db.exec('ROLLBACK'); throw error; }
@@ -212,7 +216,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
   }
   function guarded<T>(operation: (db: DatabaseSync) => T): T {
     try { return operation(open()); }
-    catch (error) { if (error instanceof CollectionError) throw error; return unavailable(); }
+    catch (error) { if (error instanceof CollectionError || error instanceof RecordingPlanError) throw error; return unavailable(); }
   }
   function one<T>(db: DatabaseSync, sql: string, ...values: SQLInputValue[]): T | undefined {
     return db.prepare(sql).get(...values) as unknown as T | undefined;
@@ -393,6 +397,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
   const links = createPhysicalLinksRepository({ read: guarded, conflict, unavailable, music, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   const media = createMediaPlanningStore({ read: guarded, conflict, unavailable, stock: mediaStock, stockOne: mediaStockOne, reservationStock: reservedMediaStock, reserve: reserveMediaStock, release: releaseMediaStock, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   return {
+    recordingPlans: createRecordingPlanStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     collectionProgress: createCollectionProgressStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     spreadsheetImports: createSpreadsheetImportStore({ read: guarded, conflict, receive: receiveInTransaction, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     catalog: createReferenceCatalogStore({ read: guarded, model, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),

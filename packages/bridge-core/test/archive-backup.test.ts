@@ -13,7 +13,7 @@ import { createCollectionRepository } from '../src/collection/repository.js';
 import { readBackupIndex } from '../src/recording/backup-index.js';
 import { isolateRestoredDatabase, verifyRestoredDatabaseIsolation } from '../src/recording/restore-database.js';
 
-test('固定旧schema14仍可校验，正式schema17迁移只增加零调整额且隔离恢复保留原逐列事实', async t => {
+test('固定旧schema14仍可校验，正式schema18迁移只增加零调整额且隔离恢复保留原逐列事实', async t => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-catalog-backup-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const filePath = path.join(directory, 'collection.sqlite');
@@ -30,10 +30,10 @@ test('固定旧schema14仍可校验，正式schema17迁移只增加零调整额�
   };
   const original = inspect(), repository = createCollectionRepository({ filePath });
   try { repository.list({ offset: 0, limit: 20 }); } finally { repository.close(); }
-  assert.equal(inspect().version, 17, 'schema17必须由正式迁移创建，不能只改user_version');
+  assert.equal(inspect().version, 18, 'schema18必须由正式迁移创建，不能只改user_version');
   assert.deepEqual(readBackupIndex(filePath).index, { operations: [], objects: [], incompleteOperationIds: [] });
   isolateRestoredDatabase(filePath); verifyRestoredDatabaseIsolation(filePath);
-  assert.deepEqual(inspect(), { ...original, version: 17, lots: original.lots.map(lot => ({ ...lot, quantity_adjustment: 0 })) });
+  assert.deepEqual(inspect(), { ...original, version: 18, lots: original.lots.map(lot => ({ ...lot, quantity_adjustment: 0 })) });
 });
 
 
@@ -53,7 +53,7 @@ test('含参考资料与历史拥有快照的真实数据库备份可隔离恢�
   assert.equal(matched.currentCounts.owned, 1); assert.equal(matched.currentEntries[0]?.stockCount, 5);
   const destinationPath = path.join(directory, '快照'); await mkdir(destinationPath);
   const snapshot = await repository.backupSnapshot({ ...await authorizeSourceDirectory(destinationPath), id: randomUUID() });
-  assert.equal(snapshot.schemaVersion, 17);
+  assert.equal(snapshot.schemaVersion, 18);
   const restoredPath = path.join(destinationPath, 'collection.sqlite');
   readBackupIndex(restoredPath); isolateRestoredDatabase(restoredPath); verifyRestoredDatabaseIsolation(restoredPath); readBackupIndex(restoredPath);
   const restored = createCollectionRepository({ filePath: restoredPath });
@@ -231,8 +231,8 @@ test('固定旧schema15备份可只读校验，原照片与参考拥有快照不
   assert.deepEqual(await readFile(filePath), before, '旧schema15校验只能读取，不能借校验修改旧备份');
 });
 
-test('正式schema17隔离副本撤销路径授权但逐列保留固定旧schema15库存与目录事实', async t => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-schema17-isolation-'));
+test('正式schema18隔离副本撤销路径授权但逐列保留固定旧schema15库存与目录事实', async t => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-schema18-isolation-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const filePath = path.join(directory, 'collection.sqlite'), seed = new DatabaseSync(filePath);
   try { seed.exec(await readFile(new URL('./fixtures/collection-schema15.sql', import.meta.url), 'utf8')); } finally { seed.close(); }
@@ -241,7 +241,7 @@ test('正式schema17隔离副本撤销路径授权但逐列保留固定旧schema
   const facts = () => {
     const db = new DatabaseSync(filePath, { readOnly: true });
     try {
-      assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 17);
+      assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 18);
       return db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND (name GLOB 'inventory_*' OR name GLOB 'collection_*' OR name GLOB 'reference_*' OR name GLOB 'spreadsheet_*' OR name='physical_copies') ORDER BY name").all().map(({ name }) => [name, db.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all()]);
     } finally { db.close(); }
   };
@@ -250,7 +250,7 @@ test('正式schema17隔离副本撤销路径授权但逐列保留固定旧schema
   assert.deepEqual(facts(), before, '撤销历史路径授权不能更改库存、照片、参考目录或导入事实');
 });
 
-test('schema17工作簿源bytes篡改即使恢复原不可变trigger也拒绝备份校验，原库不受损', async t => {
+test('schema18工作簿源bytes篡改即使恢复原不可变trigger也拒绝备份校验，原库不受损', async t => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-workbook-tamper-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const filePath = path.join(directory, 'collection.sqlite'), seed = new DatabaseSync(filePath);
@@ -260,7 +260,7 @@ test('schema17工作簿源bytes篡改即使恢复原不可变trigger也拒绝备
   const source = repository.spreadsheetImports.registerSource({ commandId: randomUUID(), bytes, displayName: 'synthetic-integrity.xlsx', workbook: { fileFormat: 'xlsx', parserVersion: 'sheetjs-ce-0.20.3', dateSystem: '1900', sheets: [{ name: '合成库存', rows: [{ rowIndex: 1, cells: [{ columnIndex: 1, type: 'number', value: 10 }] }] }] } });
   const destinationPath = path.join(directory, '快照'); await mkdir(destinationPath);
   const snapshot = await repository.backupSnapshot({ ...await authorizeSourceDirectory(destinationPath), id: randomUUID() });
-  assert.equal(snapshot.schemaVersion, 17);
+  assert.equal(snapshot.schemaVersion, 18);
   const restoredPath = path.join(destinationPath, 'collection.sqlite');
   readBackupIndex(restoredPath);
   const db = new DatabaseSync(restoredPath);
@@ -284,22 +284,22 @@ test('schema17工作簿源bytes篡改即使恢复原不可变trigger也拒绝备
 });
 
 
-test('固定schema16备份只读验证原bytes，迁移17后完整性及隔离逐列保留导入事实', async t => {
+test('固定schema16备份只读验证原bytes，迁移18后完整性及隔离逐列保留导入事实', async t => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-progress-migration-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const filePath = path.join(directory, 'collection.sqlite'), seed = new DatabaseSync(filePath);
   seed.exec(await readFile(new URL('./fixtures/collection-schema16.sql', import.meta.url), 'utf8')); seed.close();
   const before = await readFile(filePath);
   readBackupIndex(filePath); assert.deepEqual(await readFile(filePath), before);
-  const inspect = () => { const db = new DatabaseSync(filePath, { readOnly: true }); try { return db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('collection_wants','collection_want_events','collection_progress_snapshots','collection_progress_ledger') ORDER BY name").all().map(({ name }) => [name, db.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all()]); } finally { db.close(); } };
+  const inspect = () => { const db = new DatabaseSync(filePath, { readOnly: true }); try { return db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT GLOB 'recording_plan*' AND name NOT IN ('collection_wants','collection_want_events','collection_progress_snapshots','collection_progress_ledger') ORDER BY name").all().map(({ name }) => [name, db.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all()]); } finally { db.close(); } };
   const original = inspect(), repository = createCollectionRepository({ filePath });
   try { assert.equal(repository.collectionProgress.wants({ page: { offset: 0, limit: 25 } }).total, 0); } finally { repository.close(); }
-  assert.deepEqual(inspect(), original, '17迁移不修改16的Excel原字节、照片、余额和目录事实');
+  assert.deepEqual(inspect(), original, '18迁移不修改16的Excel原字节、照片、余额和目录事实');
   readBackupIndex(filePath); isolateRestoredDatabase(filePath); verifyRestoredDatabaseIsolation(filePath);
   assert.deepEqual(inspect(), original);
 });
 
-test('schema17求购版本篡改恢复trigger后仍被备份full check拒绝，校验不写损坏副本', async t => {
+test('schema18求购版本篡改恢复trigger后仍被备份full check拒绝，校验不写损坏副本', async t => {
   const f = await setup(t), repository = f.repository;
   const item: CanonicalReference = { referenceId: 'integrity-want', bookId: 'progress-backup', brand: '合成', series: '', edition: '', model: '完整性型号', lengths: [60], iec: 'II', era: null, image: { kind: 'none' }, pages: ['1'], notes: '', confidence: 'high' };
   const rawPack = JSON.stringify({ schemaVersion: 1, bookId: item.bookId, title: '合成求购目录', sourceVersion: '1', items: [item] });
@@ -308,10 +308,90 @@ test('schema17求购版本篡改恢复trigger后仍被备份full check拒绝，�
   const revision = repository.catalog.publishRevision({ ...plan, commandId: randomUUID(), baselineFingerprint: preview.baselineFingerprint, userConfirmed: true }).revision;
   const wanted = repository.collectionProgress.saveWant({ id: null, expectedVersion: 0, commandId: randomUUID(), revisionId: revision.id, referenceId: item.referenceId, priority: 'normal', preferredCondition: '', notes: '原始备注', targetLengthMinutes: null, packagingTarget: '', priceTarget: null, userConfirmed: true });
   const directory = path.join(f.directory, 'progress-snapshot'); await mkdir(directory);
-  const result = await repository.backupSnapshot({ ...await authorizeSourceDirectory(directory), id: randomUUID() }); assert.equal(result.schemaVersion, 17);
+  const result = await repository.backupSnapshot({ ...await authorizeSourceDirectory(directory), id: randomUUID() }); assert.equal(result.schemaVersion, 18);
   const file = path.join(directory, 'collection.sqlite'); readBackupIndex(file);
   const db = new DatabaseSync(file);
   try { const sql = String(db.prepare("SELECT sql FROM sqlite_master WHERE name='collection_want_events_no_update'").get()?.sql); assert.match(sql, /CREATE TRIGGER/u); db.exec('DROP TRIGGER collection_want_events_no_update'); db.prepare("UPDATE collection_want_events SET data=json_set(data,'$.notes','被篡改') WHERE id=?").run(wanted.id); db.exec(sql); assert.equal(db.prepare('PRAGMA integrity_check').get()?.integrity_check, 'ok'); } finally { db.close(); }
   const evidence = await readFile(file); assert.throws(() => readBackupIndex(file), /收藏|BACKUP/u); assert.deepEqual(await readFile(file), evidence);
   assert.equal(repository.collectionProgress.wantHistory({ id: wanted.id, page: { offset: 0, limit: 25 } }).items[0]?.notes, '原始备注');
+});
+
+test('F01已批准的新备份不再标记保留政策未决，旧标记包仍只读验证', async t => {
+  const f = await setup(t), result = await f.api.createArchiveBackup(f.backupRequest);
+  assert.deepEqual(result.manifest.exclusions, ['unarchived-source-and-working-files', 'provider-credentials-and-roon-sessions']);
+  const legacy = { ...result.manifest, exclusions: [...result.manifest.exclusions, 'formal-recording-retention-policy-not-decided'] };
+  const text = JSON.stringify(legacy, null, 2) + '\n';
+  await writeFile(path.join(result.directory.path, 'Backup.json'), text);
+  await writeFile(path.join(result.directory.path, 'Complete.json'), JSON.stringify({ schemaVersion: 1, id: legacy.id, manifestHash: archiveDigest(text) }) + '\n');
+  const before = await readFile(path.join(result.directory.path, 'Backup.json'));
+  assert.deepEqual(await f.api.verifyArchiveBackup(result.directory, f.backupRequest.signal), legacy);
+  assert.deepEqual(await readFile(path.join(result.directory.path, 'Backup.json')), before);
+});
+
+test('固定schema17备份只读验证，升级18及隔离恢复不修改旧列事实', async t => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-plan-migration-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const filePath = path.join(directory, 'collection.sqlite'), seed = new DatabaseSync(filePath);
+  seed.exec(await readFile(new URL('./fixtures/collection-schema17.sql', import.meta.url), 'utf8')); seed.close();
+  const before = await readFile(filePath); readBackupIndex(filePath); assert.deepEqual(await readFile(filePath), before);
+  const oldNames = (() => { const db = new DatabaseSync(filePath, { readOnly: true }); try { return db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all().map(row => String(row.name)); } finally { db.close(); } })();
+  const inspect = () => { const db = new DatabaseSync(filePath, { readOnly: true }); try { return oldNames.map(name => [name, db.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all()]); } finally { db.close(); } };
+  const original = inspect(), repository = createCollectionRepository({ filePath });
+  try { repository.list({ offset: 0, limit: 1 }); } finally { repository.close(); }
+  const db = new DatabaseSync(filePath, { readOnly: true });
+  try { assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 18); } finally { db.close(); }
+  assert.deepEqual(inspect(), original); readBackupIndex(filePath);
+  isolateRestoredDatabase(filePath); verifyRestoredDatabaseIsolation(filePath); readBackupIndex(filePath);
+  assert.deepEqual(inspect(), original);
+});
+
+test('正式计划与当前参数快照进入完整备份和隔离恢复，归档音频字节守恒', async t => {
+  const { recordingPlanFixture } = await import('./helpers/recording-plan-fixture.js');
+  const f = await recordingPlanFixture(t), plan = await f.plans.freeze(await f.planRequest());
+  const result = await f.api.createArchiveBackup(f.backupRequest);
+  const database = path.join(result.directory.path, 'database', 'collection.sqlite');
+  const db = new DatabaseSync(database, { readOnly: true });
+  try {
+    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 18);
+    assert.deepEqual(JSON.parse(String(db.prepare('SELECT data FROM recording_plan_versions WHERE id=?').get(plan.id)?.data)), plan);
+    assert.equal(db.prepare('SELECT count(*) n FROM recording_plan_ledger').get()?.n, 1);
+  } finally { db.close(); }
+  for (const audio of plan.execution.audio) assert.ok(result.manifest.objects.some(object => object.sha256 === audio.audio.sha256));
+  const before = await f.api.verifyArchiveBackup(result.directory, f.backupRequest.signal);
+  assert.equal(before.contentIncluded, true);
+  const target = path.join(f.directory, '计划隔离恢复'); await mkdir(target);
+  const destination = { ...await authorizeSourceDirectory(target), id: randomUUID() };
+  const { restoreArchiveBackup, verifyRestoredArchive } = await import('../src/recording/restore-package.js');
+  const recovered = await restoreArchiveBackup({ backup: result.directory, destination, protectedRoots: [...f.repository.sources.roots(), ...f.repository.preparations.destinations(), f.root.root], id: randomUUID(), userConfirmed: true, signal: f.backupRequest.signal });
+  assert.equal((await verifyRestoredArchive(recovered.directory, f.backupRequest.signal)).contentIncluded, true);
+  const restoredDatabase = path.join(recovered.directory.path, 'database', 'collection.sqlite');
+  verifyRestoredDatabaseIsolation(restoredDatabase); readBackupIndex(restoredDatabase);
+  const restored = createCollectionRepository({ filePath: restoredDatabase });
+  const { createRecordingPlanCoordinator } = await import('../src/recording/plan-coordinator.js');
+  const restoredPlans = createRecordingPlanCoordinator({ store: restored.recordingPlans });
+  try {
+    assert.deepEqual(restored.recordingPlans.version({ id: plan.id }).plan, plan);
+    const preflight = await restoredPlans.preflight({ readId: randomUUID(), planVersionId: plan.id });
+    assert.equal(preflight.formalReady, false);
+    assert.ok(preflight.checks.some(check => check.category !== 'backend' && check.state === 'blocked'));
+  } finally { await restoredPlans.close(); restored.close(); }
+  assert.deepEqual(await f.api.verifyArchiveBackup(result.directory, f.backupRequest.signal), before, '隔离恢复不修改原备份');
+  assert.deepEqual(f.repository.recordingPlans.version({ id: plan.id }).plan, plan);
+});
+
+test('schema18计划快照或账本篡改恢复trigger后仍被备份拒绝，原库不变', async t => {
+  const { recordingPlanFixture } = await import('./helpers/recording-plan-fixture.js');
+  const f = await recordingPlanFixture(t), plan = await f.plans.freeze(await f.planRequest());
+  const snapshot = await f.repository.backupSnapshot(f.destination), database = path.join(f.destination.path, snapshot.relative);
+  const db = new DatabaseSync(database);
+  try {
+    const triggers = db.prepare("SELECT name,sql FROM sqlite_master WHERE type='trigger' AND tbl_name='recording_plan_versions'").all();
+    for (const trigger of triggers) db.exec(`DROP TRIGGER ${trigger.name}`);
+    db.prepare("UPDATE recording_plan_versions SET data=json_set(data,'$.profileSnapshot.settings.effective.recordLevel','被篡改') WHERE id=?").run(plan.id);
+    for (const trigger of triggers) db.exec(String(trigger.sql));
+  } finally { db.close(); }
+  const damaged = await readFile(database);
+  assert.throws(() => readBackupIndex(database));
+  assert.deepEqual(await readFile(database), damaged);
+  assert.deepEqual(f.repository.recordingPlans.version({ id: plan.id }).plan, plan);
 });

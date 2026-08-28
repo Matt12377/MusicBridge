@@ -3,9 +3,9 @@ wave: WAVE-5
 status: active
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-071
-activeBranch: codex/task-071-source-picker
-activeBaseCommit: 72db8616ddbb461b93e9ffa960576af052c2bdf6
+activeTask: TASK-072
+activeBranch: codex/task-072-recording-plan
+activeBaseCommit: 6323b3431ec7beeaba851155c062f9fae4bf41ea
 order:
   - TASK-048
   - TASK-049
@@ -31,5 +31,6 @@ order:
   - TASK-069
   - TASK-070
   - TASK-071
-stopAfter: TASK-071
-reviewBoundary: registered-relations-source-picker-and-explicit-workflow-context
+  - TASK-072
+stopAfter: TASK-072
+reviewBoundary: immutable-recording-plan-profile-snapshot-and-blocked-preflight

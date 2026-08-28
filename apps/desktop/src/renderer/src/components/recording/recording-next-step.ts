@@ -28,7 +28,7 @@ export interface RecordingWorkflowState {
   error: string
 }
 export type RecordingNextAction =
-  | { type: 'retry-pending' | 'save-draft' | 'refresh' | 'pick-source' | 'media' | 'versions' | 'choose-context' | 'execution' }
+  | { type: 'retry-pending' | 'save-draft' | 'refresh' | 'pick-source' | 'media' | 'versions' | 'choose-context' | 'execution' | 'recording-plan' }
   | { type: 'source'; trackId: string }
   | { type: 'preparation'; layoutId?: string }
   | { type: 'prepared'; preparationId?: string }
@@ -153,5 +153,7 @@ export function getRecordingNextStep(input: {
   const modeMatches = (mode: string) => selected.path === 'direct' ? ['direct', 'direct-converted'].includes(mode) : ['prepared-reference', 'prepared-derivative'].includes(mode)
   const runningExecution = facts.execution.jobs.some(job => job.layoutVersionId === layout.id && modeMatches(job.mode) && job.state === 'running')
   const published = facts.execution.assets.some(asset => asset.layoutVersionId === layout.id && asset.masterVersionId === layout.masterVersionId && modeMatches(asset.mode) && asset.preparedVersionId === preparedId)
-  return next(3, runningExecution ? '执行资产准备进行中' : '检查本次执行参数与资产', `${runningExecution ? '请查看所选布局与路径的任务。' : published ? '已有对应发布历史，当前文件可用性仍需显式核验。' : '请在执行面板确认参数、目录与资产检查。'}正式预检仍待 TASK072 / F-01；这里不会开始正式录音。`, runningExecution ? '查看本次执行资产任务' : '检查本次执行资产', { type: 'execution' })
+  if (runningExecution) return next(3, '执行资产准备进行中', '请查看所选布局与路径的任务；不会开始正式录音。', '查看本次执行资产任务', { type: 'execution' })
+  if (published) return next(3, '选择执行资产与归档，冻结计划', '已有对应执行资产，当前文件可用性仍需显式核验。F-01 保留政策已确认。请选择具体资产及 FINALIZED 归档再确认计划；Gate B 尚未认证，正式录音被阻断。', '确认本次计划与预检', { type: 'recording-plan' })
+  return next(3, '检查本次执行参数与资产', '请在执行面板确认参数、目录与资产检查，再明确选择归档和计划。F-01 保留政策已确认；正式预检仍受 Gate B 未认证阻断，不会开始正式录音。', '检查本次执行资产', { type: 'execution' })
 }

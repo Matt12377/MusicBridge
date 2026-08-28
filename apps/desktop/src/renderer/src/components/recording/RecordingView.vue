@@ -7,6 +7,8 @@ import MasterVersionsPanel from './MasterVersionsPanel.vue'
 import PreparationPanel from './PreparationPanel.vue'
 import PreparedPanel from './PreparedPanel.vue'
 import ExecutionPanel from './ExecutionPanel.vue'
+import RecordingPlanPanel from './RecordingPlanPanel.vue'
+import type { RecordingPlanContext } from './recording-plan-controller'
 import SourceEvidencePanel from './SourceEvidencePanel.vue'
 import RecordingNextStep from './RecordingNextStep.vue'
 import { createRecordingWorkflowController, type RecordingWorkflowSelection } from './recording-workflow-controller'
@@ -18,7 +20,7 @@ async function closeBackupRestore(): Promise<void> { backupRestore.value = false
 async function activatedDataset(): Promise<void> {
   ++generation; draft.value = undefined; catalog.value = undefined; workflow.reset(); pending.value = undefined;
   title.value = ''; trackIds.value = []; sourceTrackId.value = ''; picker.value = false;
-  mediaPlanning.value = false; masterVersions.value = false; execution.value = false; prepared.value = false; preparation.value = false;
+  mediaPlanning.value = false; masterVersions.value = false; execution.value = false; prepared.value = false; preparation.value = false; recordingPlan.value = false; initialRecordingPlanContext.value = undefined;
   error.value = ''; notice.value = '已加载恢复后的工作库；旧工作库和历史目录权限保持不变。';
   await list();
 }
@@ -34,6 +36,11 @@ const catalog = shallowRef<Page<MasterDraftSummary>>(), draft = shallowRef<Maste
 const loading = ref(false), saving = ref(false), picker = ref(false), error = ref(''), notice = ref(''), discarding = ref(false)
 const mediaPlanning = ref(false), masterVersions = ref(false)
 const initialMediaPlanId = ref<string>(), initialVersionPlanId = ref<string>()
+const recordingPlan = ref(false), recordingPlanTrigger = ref<HTMLButtonElement>()
+const initialRecordingPlanContext = shallowRef<RecordingPlanContext>()
+let recordingPlanOpener: HTMLElement | undefined
+function openRecordingPlan(context?: RecordingPlanContext): void { recordingPlanOpener = activeTrigger(); initialRecordingPlanContext.value = context; recordingPlan.value = true }
+async function closeRecordingPlan(): Promise<void> { recordingPlan.value = false; await refreshAfterClose(recordingPlanOpener, recordingPlanTrigger.value) }
 const initialExecutionContext = shallowRef<{ layoutId: string; mode: ExecutionMode; preparedId?: string }>()
 let mediaOpener: HTMLElement | undefined, versionsOpener: HTMLElement | undefined, executionOpener: HTMLElement | undefined, preparationOpener: HTMLElement | undefined, preparedOpener: HTMLElement | undefined
 const focusCleanups = new Set<() => void>()
@@ -106,6 +113,10 @@ async function nextAction(action: RecordingNextAction): Promise<void> {
     case 'execution': {
       const selection = workflowState.value.selection
       openExecution({ layoutId: selection.layoutId ?? '', mode: selection.path === 'direct' ? 'direct' : 'prepared-reference', ...(selection.preparedId ? { preparedId: selection.preparedId } : {}) }); break
+    }
+    case 'recording-plan': {
+      const selection = workflowState.value.selection
+      openRecordingPlan({ layoutId: selection.layoutId ?? '', mode: selection.path === 'direct' ? 'direct' : 'prepared-reference', ...(selection.preparedId ? { preparedId: selection.preparedId } : {}) }); break
     }
     case 'choose-context': break // 组件把焦点交给首个尚未选择的有效上下文。
   }
@@ -209,6 +220,7 @@ onUnmounted(() => { alive = false; ++generation; workflow.dispose(); for (const 
       <button ref="preparationTrigger" :disabled="blocked" @click="openPreparation()">Logic 工作区</button>
       <button ref="preparedTrigger" :disabled="blocked" @click="openPrepared()">原始 Render 与 PREP</button>
       <button ref="executionTrigger" :disabled="blocked" @click="openExecution()">录音参数与执行资产</button>
+      <button ref="recordingPlanTrigger" :disabled="blocked || dirty" @click="openRecordingPlan()">计划与预检</button>
       <p id="draft-freeze-status" class="draft-estimate">冻结前需完成实际源验证、最终分面与磁带预留；可在版本面板查看提案和历史。</p>
       <p v-if="dirty" class="draft-estimate" role="status">有未保存的修改；添加更多曲目前请先保存或撤销。</p>
       <div v-if="discarding" class="discard"><p>返回会放弃当前未保存的修改，已保存草稿不变。</p><button @click="back(true)">放弃未保存修改并返回</button><button @click="discarding = false">继续编辑</button></div>
@@ -219,6 +231,7 @@ onUnmounted(() => { alive = false; ++generation; workflow.dispose(); for (const 
     <MasterVersionsPanel v-if="draft && masterVersions" :draft="draft" :initial-plan-id="initialVersionPlanId" @close="closeMasterVersions" @prepare="openPreparation" />
     <PreparationPanel v-if="draft && preparation" :draft="draft" :initial-layout-id="preparationLayoutId" @close="closePreparation" @import-render="openPrepared" />
     <PreparedPanel v-if="draft && prepared" :draft="draft" :initial-preparation-id="preparedId" @close="closePrepared" />
+    <RecordingPlanPanel v-if="draft && recordingPlan" :key="`${draft.id}:${draft.revision}`" :draft="draft" :initial-context="initialRecordingPlanContext" @close="closeRecordingPlan" />
     <ExecutionPanel v-if="draft && execution" :draft="draft" :initial-context="initialExecutionContext" @close="closeExecution" />
     <MediaPlanningPanel v-if="draft && mediaPlanning" :draft="draft" :initial-plan-id="initialMediaPlanId" @close="closeMediaPlanning" />
     <SourceEvidencePanel v-if="draft && sourceTrackId" :draft-id="draft.id" :track-id="sourceTrackId" :title="draft.tracks.find(t => t.id === sourceTrackId)?.metadata.title ?? '曲目'" @close="closeSources" />

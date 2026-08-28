@@ -125,7 +125,16 @@ test('Preload exposes only sanitized business methods', async () => {
     () => () => undefined,
   )
 
+  for (const name of ['listRecordingPlans', 'getRecordingPlanVersion', 'previewRecordingPlan', 'freezeRecordingPlan', 'preflightRecordingPlan', 'cancelRecordingPlanRead']) {
+    assert.equal(typeof (api as unknown as Record<string, unknown>)[name], 'function', `缺少受限业务API ${name}`)
+  }
   assert.deepEqual(PUBLIC_API_KEYS, [
+    'listRecordingPlans',
+    'getRecordingPlanVersion',
+    'previewRecordingPlan',
+    'freezeRecordingPlan',
+    'preflightRecordingPlan',
+    'cancelRecordingPlanRead',
     'getCommandOutbox',
     'retryCommandOutbox',
     'dismissCommandOutbox',
@@ -325,6 +334,12 @@ test('Preload exposes only sanitized business methods', async () => {
     'onRemoteCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
+    'listRecordingPlans',
+    'getRecordingPlanVersion',
+    'previewRecordingPlan',
+    'freezeRecordingPlan',
+    'preflightRecordingPlan',
+    'cancelRecordingPlanRead',
     'getCommandOutbox',
     'retryCommandOutbox',
     'dismissCommandOutbox',

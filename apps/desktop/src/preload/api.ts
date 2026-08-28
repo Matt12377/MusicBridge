@@ -1,3 +1,4 @@
+import type { RecordingPlansPublicApi } from '@music-bridge/contracts'
 import type { CollectionProgressPublicApi } from '@music-bridge/contracts'
 import type { SpreadsheetImportPublicApi } from '@music-bridge/contracts'
 import type { ReferenceCatalogPublicApi } from '@music-bridge/contracts'
@@ -61,7 +62,7 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
   autoReconnect: false,
 }
 
-export interface MusicBridgePublicApi extends CollectionProgressPublicApi, SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
+export interface MusicBridgePublicApi extends RecordingPlansPublicApi, CollectionProgressPublicApi, SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
   getAppInfo: () => Promise<AppInfo>
   getCoreHealth: () => Promise<PublicBridgeState>
   getCoreState: () => Promise<PublicBridgeState>
@@ -135,6 +136,12 @@ export interface MusicBridgePublicApi extends CollectionProgressPublicApi, Sprea
 }
 
 export const PUBLIC_API_KEYS = [
+  'listRecordingPlans',
+  'getRecordingPlanVersion',
+  'previewRecordingPlan',
+  'freezeRecordingPlan',
+  'preflightRecordingPlan',
+  'cancelRecordingPlanRead',
   'getCommandOutbox',
   'retryCommandOutbox',
   'dismissCommandOutbox',
@@ -504,9 +511,11 @@ export function createPreloadApi(
   referenceCatalogApi?: ReferenceCatalogPublicApi,
   spreadsheetImportApi?: SpreadsheetImportPublicApi,
   collectionProgressApi?: CollectionProgressPublicApi,
+  recordingPlansApi?: RecordingPlansPublicApi,
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   return Object.freeze({
+    ...(recordingPlansApi ?? { listRecordingPlans: collectionUnavailable, getRecordingPlanVersion: collectionUnavailable, previewRecordingPlan: collectionUnavailable, freezeRecordingPlan: collectionUnavailable, preflightRecordingPlan: collectionUnavailable, cancelRecordingPlanRead: collectionUnavailable }),
     ...(commandOutboxApi ?? { getCommandOutbox: collectionUnavailable, retryCommandOutbox: collectionUnavailable, dismissCommandOutbox: collectionUnavailable, acknowledgeCommandOutbox: collectionUnavailable }),
     ...(recordingBackupsApi ?? { activateRestoredDataset: collectionUnavailable, getBackupOverview: collectionUnavailable, chooseBackupRoot: collectionUnavailable, startBackupJob: collectionUnavailable, cancelBackupJob: collectionUnavailable, revokeBackupRoot: collectionUnavailable }),
     ...(recordingArchiveApi ?? { listArchiveRoots: collectionUnavailable, chooseArchiveRoot: collectionUnavailable, initializeArchiveRoot: collectionUnavailable, revokeArchiveRoot: collectionUnavailable, previewArchive: collectionUnavailable, startArchive: collectionUnavailable, listArchives: collectionUnavailable, getArchiveOperation: collectionUnavailable, cancelArchive: collectionUnavailable, resumeArchive: collectionUnavailable, verifyArchive: collectionUnavailable, cancelArchiveRead: collectionUnavailable }),

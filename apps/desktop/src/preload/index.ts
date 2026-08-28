@@ -314,5 +314,13 @@ contextBridge.exposeInMainWorld(
       getCollectionProgressSnapshot: request => ipcRenderer.invoke('collectionProgress:snapshot', request),
       getCollectionModelLengths: request => ipcRenderer.invoke('collectionProgress:modelLengths', request),
     },
+    {
+      listRecordingPlans: draftId => ipcRenderer.invoke('recordingPlans:list', { draftId }),
+      getRecordingPlanVersion: id => ipcRenderer.invoke('recordingPlans:version', { id }),
+      previewRecordingPlan: request => ipcRenderer.invoke('recordingPlans:preview', request),
+      freezeRecordingPlan: request => outbox.submit('recordingPlans.freeze', request),
+      preflightRecordingPlan: request => ipcRenderer.invoke('recordingPlans:preflight', request),
+      cancelRecordingPlanRead: id => ipcRenderer.invoke('recordingPlans:cancelRead', { id }),
+    },
   ),
 )

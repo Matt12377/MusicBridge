@@ -25,17 +25,15 @@
 
 ### F-01：Execution Asset 长期保留
 
-最终补丁新增 Direct Execution WAV，但没有完整指定它与 Reference Dependent / Preserve Exact Sources 的长期保留关系。冻结前需明确：
+**OWNER_APPROVED，2026-08-28。** Owner 在确认完整保守方案后明确回复“确认并全速开发”。政策标识 `f01-permanent-execution-v1`：
 
-- 成功录音使用的 Direct Execution Asset 是否永久归档；
-- Prepared Execution Derivative 的保存和清理条件；
-- 只保留源文件、只保留执行音频、两者都保留时，分别承诺“重建”还是“精确重播”；
-- 失败或取消 Attempt 的临时执行资产如何清理；
-- 哪些 Content Objects 必须包含在完整备份中。
+- 成功录音永久保留实际执行音频（Direct Execution Asset / Prepared Execution Derivative）及完整谱系。
+- 原始源按明确选择的 Reference Dependent / Preserve Exact Sources 策略处理；Prepared 原始 Logic Render 永久保留，不被派生文件覆盖。
+- 失败或取消的资产不自动删除，只能通过后续明确清理操作处理；本任务不实现清理命令。
+- 完整归档内容备份包含已归档音频和谱系。仅元数据备份不得宣称包含音频。
+- 精确重播依赖已归档、完整验证的实际执行音频；重建依赖所需原始源、转换器和其他依赖。缺少依赖时不承诺重建，不自动替换来源。
 
-当前不代替 Owner 选择该策略，不实现自动清理，不把“编译成功”写成“已永久归档”。原始源与原始 Logic Render 的只读/不可覆盖边界不变。
-
-F-01 继续阻断相关录音/归档规则冻结，不阻断不触及源文件、存储和音频执行的 TASK-048 导航基础。开始开发不将整体 `FREEZE_PENDING` 改成已冻结。
+此批准解除 F-01 政策前置，不等于输出后端认证、真实设备授权或产品验收。TASK-072 将计划身份冻结与执行准入分开：冻结不可变参数和引用，Preflight 在 Gate B 未认证时保持阻断，禁止开始正式录音。历史未决快照保持原值，不改写旧事实；整体技术 Gate 仍按各自证据记录。
 
 ### 测试配置在 Gate 启动前锁定
 

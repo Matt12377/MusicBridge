@@ -115,3 +115,9 @@ TASK070最终自动Gate：118/897/337、安全27、Electron4、完整66E2E含固
 从TASK070最终72db8616ddbb461b93e9ffa960576af052c2bdf6独立接续，复用公开API，不新增正式Plan/schema。三个互斥Renderer模块并行，root集成；明确用户所选历史谱系、异步失效、近可视照片读取和安全重试。完整TODO与F01/真实验收边界不变。
 
 TASK071最终本地Gate：118/897/395、安全27、Electron4、完整73E2E含固定native零skip；SPEC与QUALITY各两轮PASS。root最终额外修正旧outbox测试持锁生命周期并增加GC压力，不改生产锁实现，原失败与对照保留。23代码测试文件与13原生文件候选一致，12截图实际查看。TASK072必须先确认F01保留政策，正式Plan/Attempt与Owner验收不因本任务通过而解锁。
+
+## TASK-072 启动
+
+2026-08-28 Owner 确认 F-01 保守保留方案并要求全速开发。由 TASK-071 最终 `6323b3431ec7beeaba851155c062f9fae4bf41ea` 建立 `codex/task-072-recording-plan`；完整 TASK064～079 保持。计划冻结不等于正式输出准入，Gate B 尚未运行。独立职责、RED/GREEN、SPEC 后 QUALITY、完整 Gate 后封版。
+
+TASK072本地自动阶段通过127/922/414、安全27、Electron4、完整E2E75；不可变Plan/参数快照/预检与schema18备份恢复已实现，F01已批准。TASK073在最终封版后接续，真实Gate B/Owner仍NOT_RUN；保留预检版本分类P3及历史carryover。

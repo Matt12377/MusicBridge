@@ -1,3 +1,4 @@
+import { RecordingPlanError } from './recording/plan-integrity.js';
 import { BackupWorkflowError } from './recording/backup-workflow-store.js';
 import { readSpreadsheetFile, SpreadsheetReadError } from './collection/spreadsheet-files.js';
 import { parseSpreadsheetWorkbook, SpreadsheetParseError } from './collection/spreadsheet-parser.js';
@@ -76,6 +77,7 @@ function requestId(value: unknown): string | undefined {
 }
 
 function failureForError(id: string, error: unknown): IpcFailure {
+  if (error instanceof RecordingPlanError) return responseFailure(id, 'INVENTORY_CONFLICT', error.message);
   if (error instanceof DatasetScopeError) return responseFailure(id, error.code, error.message);
   if (error instanceof BackupWorkflowError) return responseFailure(id, error.code === 'BACKUP_CONFLICT' ? 'INVENTORY_CONFLICT' : 'INVENTORY_UNAVAILABLE', error.message);
   if (error instanceof CollectionError) return responseFailure(id, error.code, error.message);
@@ -161,6 +163,10 @@ function executionFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.execution) throw new CollectionError('INVENTORY_UNAVAILABLE', '执行资产服务尚未就绪，请重试。');
   return runtime.execution;
 }
+function recordingPlansFor(runtime: CoreRuntimeForIpc) {
+  if (!runtime.recordingPlans) throw new CollectionError('INVENTORY_UNAVAILABLE', '录音计划服务尚未就绪，请重试。');
+  return runtime.recordingPlans;
+}
 function archiveFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.archive) throw new CollectionError('INVENTORY_UNAVAILABLE', '归档服务尚未就绪，请重试。');
   return runtime.archive;
@@ -235,6 +241,12 @@ async function dispatch(
     case 'recordingBackups.start': return backupsFor(runtime).start(request.payload as IpcCommandPayloads['recordingBackups.start']);
     case 'recordingBackups.cancel': return backupsFor(runtime).cancel(request.payload as IpcCommandPayloads['recordingBackups.cancel']);
     case 'recordingBackups.revoke': return backupsFor(runtime).revoke(request.payload as IpcCommandPayloads['recordingBackups.revoke']);
+    case 'recordingPlans.list': return recordingPlansFor(runtime).list(request.payload as IpcCommandPayloads['recordingPlans.list']);
+    case 'recordingPlans.version': return recordingPlansFor(runtime).version(request.payload as IpcCommandPayloads['recordingPlans.version']);
+    case 'recordingPlans.preview': return recordingPlansFor(runtime).preview(request.payload as IpcCommandPayloads['recordingPlans.preview']);
+    case 'recordingPlans.freeze': return recordingPlansFor(runtime).freeze(request.payload as IpcCommandPayloads['recordingPlans.freeze']);
+    case 'recordingPlans.preflight': return recordingPlansFor(runtime).preflight(request.payload as IpcCommandPayloads['recordingPlans.preflight']);
+    case 'recordingPlans.cancelRead': return recordingPlansFor(runtime).cancelRead(request.payload as IpcCommandPayloads['recordingPlans.cancelRead']);
     case 'recordingArchive.roots': return archiveFor(runtime).roots();
     case 'recordingArchive.authorize': { const p = request.payload as IpcCommandPayloads['recordingArchive.authorize']; return archiveFor(runtime).authorize(p.commandId, p.absolutePath); }
     case 'recordingArchive.authorizationReceipt': return archiveFor(runtime).authorizationReceipt((request.payload as IpcCommandPayloads['recordingArchive.authorizationReceipt']).commandId);

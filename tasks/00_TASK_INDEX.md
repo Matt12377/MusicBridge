@@ -85,3 +85,5 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 - [TASK-070](TASK-070-want-completion.md)：求购目标、当前持有长度与不可变收藏完成度（本地自动Gate通过，Owner未验收）。
 
 - [TASK-071](TASK-071-source-picker.md)：关系选曲、明确历史上下文的下一步与照片按需读取（本地自动Gate通过，Owner未验收；TASK072须先确认F01）。
+
+- [TASK-072](TASK-072-recording-plan.md)：F-01 已确认；不可变 Profile Snapshot / RecordingPlan 与执行 Preflight（开发中，Gate B 未认证仍阻断）。

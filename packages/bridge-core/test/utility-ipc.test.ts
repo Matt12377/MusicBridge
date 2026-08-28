@@ -1,3 +1,4 @@
+import { RecordingPlanError } from '../src/recording/plan-integrity.js';
 import { createMediaPlanningCoordinator } from '../src/recording/media-coordinator.js';
 import { createSourceEvidenceService } from '../src/recording/source-evidence.js';
 import assert from 'node:assert/strict';
@@ -1294,4 +1295,30 @@ test('备份正式 IPC 经过目录授权、确认和后台真实文件任务，
     assert.equal(JSON.stringify(result).includes(directory), false);
     assert.equal((await rpc('recordingBackups.start', request)).id, job.id);
   } finally { await runtime.shutdown(); await rm(directory, { recursive: true, force: true }); }
+});
+
+
+test('计划只读IPC逐项派发，缺失服务有界失败且无任意正式Start入口', async () => {
+  const port = new FakePort(), id = randomUUID(), calls: unknown[] = [];
+  const plans = {
+    list: (request: unknown) => { calls.push(['list', request]); return { draftId: id, versions: [] }; },
+    version: (request: unknown) => { calls.push(['version', request]); return { plan: null }; },
+    preview: () => { throw new RecordingPlanError('archive', 'ARCHIVE_INVALID'); },
+    cancelRead: (readId: unknown) => { calls.push(['cancelRead', readId]); return { cancelled: true }; },
+  };
+  const runtime = Object.assign(makeRuntime(), { recordingPlans: plans }) as unknown as CoreRuntimeForIpc;
+  await attachCoreRuntimePort(port, runtime);
+  const rpc = async (command: string, payload: unknown) => {
+    const requestId = randomUUID(); port.send({ version: 1, id: requestId, command, payload });
+    await new Promise(resolve => setImmediate(resolve));
+    return port.messages.find(m => (m as { id?: string }).id === requestId) as { ok: boolean; result?: unknown; error?: { code: string } };
+  };
+  assert.deepEqual((await rpc('recordingPlans.list', { draftId: id })).result, { draftId: id, versions: [] });
+  assert.deepEqual((await rpc('recordingPlans.version', { id })).result, { plan: null });
+  assert.deepEqual((await rpc('recordingPlans.cancelRead', { id })).result, { cancelled: true });
+  assert.deepEqual(calls, [['list', { draftId: id }], ['version', { id }], ['cancelRead', { id }]]);
+  assert.equal((await rpc('recordingPlans.start', { id })).ok, false);
+  const error = await rpc('recordingPlans.preview', { readId: id, selection: { assetId: id, archiveOperationId: id } });
+  assert.equal(error.error?.code, 'INVENTORY_CONFLICT');
+  assert.match(JSON.stringify(error), /ARCHIVE_INVALID/u);
 });

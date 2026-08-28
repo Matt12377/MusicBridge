@@ -140,3 +140,27 @@ test('关闭后的迟到事实读取不抢走用户焦点，也不覆盖切草�
     assert.strictEqual(doc.activeElement, scenario === 'other-focus' ? other : doc.body, scenario)
   }
 })
+
+
+test('计划与预检只接显式工作上下文，手动入口清空上下文，激活工作库关闭面板', async t => {
+  const f = apiFixture(), view = await mounted(t, f.api); await view.invoke('open', firstId)
+  const state = view.setup.workflowState as { selection: Record<string, string> }
+  state.selection = { layoutId: 'explicit-layout', path: 'prep', preparedId: 'explicit-prep' }
+  await view.invoke('nextAction', { type: 'recording-plan' })
+  assert.deepEqual(view.setup.initialRecordingPlanContext, { layoutId: 'explicit-layout', mode: 'prepared-reference', preparedId: 'explicit-prep' })
+  assert.equal(view.setup.recordingPlan, true)
+  await view.invoke('openRecordingPlan'); assert.equal(view.setup.initialRecordingPlanContext, undefined)
+  await view.invoke('activatedDataset'); assert.equal(view.setup.recordingPlan, false)
+})
+
+test('计划面板关闭归还本次实际触发焦点，迟到刷新不抢用户焦点', async t => {
+  const doc = focusDocument(), f = apiFixture(), view = await mounted(t, f.api, doc); await view.invoke('open', firstId)
+  const trigger = doc.element(); doc.activeElement = trigger; await view.invoke('openRecordingPlan'); doc.activeElement = doc.body
+  await view.invoke('closeRecordingPlan'); assert.strictEqual(doc.activeElement, trigger)
+  doc.activeElement = trigger; await view.invoke('openRecordingPlan'); doc.activeElement = doc.body
+  let resolve!: (value: DraftSourceSnapshot) => void
+  f.api.getDraftSources = async () => new Promise(done => { resolve = done })
+  const closing = view.invoke('closeRecordingPlan'); await new Promise<void>(done => setImmediate(done))
+  doc.interact('keydown'); resolve(sources(firstId)); await closing
+  assert.strictEqual(doc.activeElement, doc.body)
+})

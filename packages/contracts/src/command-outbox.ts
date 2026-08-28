@@ -1,3 +1,4 @@
+import { isFreezeRecordingPlanRequest, isRecordingPlanVersion } from './recording-plans.js';
 import { isChooseSpreadsheetWorkbookRequest, isSpreadsheetWorkbookSource, isApplySpreadsheetImportRequest, isSpreadsheetImportResult, isAdjustSpreadsheetInventoryRequest, isSpreadsheetInventoryAdjustment, type ChooseSpreadsheetWorkbookRequest, type SpreadsheetWorkbookSource } from './spreadsheet-import.js';
 import { isSaveWantEntryRequest, isCancelWantEntryRequest, isCaptureCollectionProgressRequest, isWantEntry, isCollectionProgressSnapshotSummary } from './collection-progress.js';
 import { isCollectionId, isCollectionReceiveRequest, isCollectionMaterializeRequest, isCollectionUpdateCopyRequest, isCollectionPolicyRequest, isCollectionAddPhotoRequest, isCollectionChangePhotoRequest, isCollectionMutationResult } from './collection.js';
@@ -34,6 +35,7 @@ export const COMMAND_OUTBOX_COMMANDS = [
   'recordingVersions.freeze', 'recordingVersions.cancel',
   'recordingPreparation.revoke', 'recordingPreparation.start', 'recordingPreparation.cancel',
   'recordingPrepared.revoke', 'recordingPrepared.startImport', 'recordingPrepared.cancel', 'recordingPrepared.freeze',
+  'recordingPlans.freeze',
   'recordingProfiles.save', 'recordingProfiles.saveSession', 'recordingExecution.start', 'recordingExecution.cancel',
   'recordingArchive.initialize', 'recordingArchive.revokeRoot', 'recordingArchive.start', 'recordingArchive.cancel', 'recordingArchive.resume',
   'recordingBackups.start', 'recordingBackups.cancel', 'recordingBackups.revoke',
@@ -89,6 +91,7 @@ const ordinaryValidators = {
   'recordingPrepared.startImport': [isStartPreparedImportRequest, isPreparedImportJob],
   'recordingPrepared.cancel': [isSourceAction, isPreparedImportJob],
   'recordingPrepared.freeze': [isFreezePreparedRequest, isFrozenPrepared],
+  'recordingPlans.freeze': [isFreezeRecordingPlanRequest, isRecordingPlanVersion],
   'recordingProfiles.save': [isSaveRecordingProfileRequest, isRecordingProfileVersion],
   'recordingProfiles.saveSession': [isSaveRecordingSessionRequest, isRecordingSessionSettings],
   'recordingExecution.start': [isStartExecutionRequest, isExecutionJob],

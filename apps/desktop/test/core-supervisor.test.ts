@@ -553,3 +553,22 @@ test('outbox包装保留归档长操作预算，普通控制请求仍按短期�
   await harness.supervisor.shutdown()
   assert.equal(early, false, 'outbox内部归档操作不能退回20ms测试短期限')
 })
+
+
+for (const command of ['recordingPlans.preview', 'recordingPlans.freeze', 'recordingPlans.preflight'] as const) {
+  test(`${command} 及outbox冻结使用有界文件核对期限`, async t => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const harness = makeHarness(), starting = harness.supervisor.start(); ready(harness.channels[0]!); await starting;
+    const id = randomUUID(), selection = { assetId: id, archiveOperationId: id };
+    const payload = command === 'recordingPlans.preview' ? { readId: id, selection } : command === 'recordingPlans.freeze' ? { commandId: id, selection, proposalFingerprint: 'a'.repeat(64), userConfirmed: true } : { readId: id, planVersionId: id };
+    let settled = false;
+    const pending = (command === 'recordingPlans.freeze'
+      ? harness.supervisor.request('commandOutbox.execute', { datasetId: id, command, payload: payload as never })
+      : harness.supervisor.request(command, payload as never)).then(() => { settled = true; return undefined }, error => { settled = true; return error });
+    t.mock.timers.tick(45); await Promise.resolve(); const timedOutEarly = settled;
+    const sent = harness.channels[0]!.port2.sent.at(-1) as { id: string };
+    harness.channels[0]!.port2.receive({ version: 1, id: sent.id, ok: false, error: { code: 'INVALID_IPC_REQUEST', message: '合成结束文件核对' } });
+    const result = await pending; t.mock.timers.reset(); await harness.supervisor.shutdown();
+    assert.equal(timedOutEarly, false); assert.equal(result.code, 'INVALID_IPC_REQUEST');
+  });
+}

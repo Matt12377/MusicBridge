@@ -8,8 +8,8 @@ import { preparedExecutionFixture } from './prepared-execution-fixture.js';
 import { createArchiveCoordinator } from '../../src/recording/archive-coordinator.js';
 import { authorizeSourceDirectory } from '../../src/recording/source-files.js';
 
-export async function archiveBackupFixture(t: test.TestContext, prepared = false) {
-  const f = await (prepared ? preparedExecutionFixture(t) : executionFixture(t));
+export async function archiveBackupFixture(t: test.TestContext, prepared = false, options: { format?: 'cassette' | 'dat' } = {}) {
+  const f = await (prepared ? preparedExecutionFixture(t) : executionFixture(t, options));
   const archive = createArchiveCoordinator({ store: f.repository.archive, executionStore: f.repository.execution, preparationStore: f.repository.preparations, sourceStore: f.repository.sources, sources: f.sources, preparation: f.preparation });
   t.after(() => archive.close());
   const parent = path.join(f.directory, '归档'), destinationPath = path.join(f.directory, '备份');

@@ -193,6 +193,7 @@ test('面板使用可编译原生dialog、独立确认和就近反馈，App入�
   const { descriptor, errors } = parse(source)
   assert.deepEqual(errors, [])
   assert.deepEqual(compileTemplate({ source: descriptor.template!.content, filename: 'CommandOutboxPanel.vue', id: 'outbox' }).errors, [])
+  assert.match(source, /'recordingPlans\.freeze': '冻结录音计划'/u)
   assert.match(source, /<dialog\b/u)
   assert.match(source, /aria-labelledby="outbox-title"/u)
   assert.match(source, /@cancel\.prevent="close"/u)
