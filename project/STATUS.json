@@ -82,7 +82,7 @@
     "branch": "codex/task-063-archive-workflow",
     "baseCommit": "4cdffc25cae80aa80003d1b331025d1a9b5fbcd3",
     "state": "local-automated-pass",
-    "implementationCommit": null,
+    "implementationCommit": "ddee7e5f724bedbeb155c310f3a90873cd91b7ab",
     "reportCommit": null,
     "previousTask": {
       "task": "TASK-062",
@@ -118,6 +118,6 @@
       "TASK-047 实际歌词与既有视觉 carryover 保留",
       "归档只支持已验证的本地硬链接/fsync 文件系统；多应用实例共写未支持"
     ],
-    "checkpoint": "archive-workflow-local-gates-pass-implementation-commit-pending"
+    "checkpoint": "archive-workflow-report-commit-pending"
   }
 }
