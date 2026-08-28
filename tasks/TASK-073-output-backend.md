@@ -51,3 +51,9 @@
 - root唯一控制文档与最终报告writer（本任务、ADR033、STATUS、V3_TODO、RISK_REGISTER和阶段结果）、统一验证；task070_store和task071_picker承担非作者的限定SPEC→QUALITY，最多两轮。没有Main/Core/Contracts/Renderer接线，不新增Attempt或认证回执。
 
 真实RED先于生产行为；正常与故障顺序、资源计数、迟到回调、帧泵尾块/欠载/停止、sanitizer分别给出新鲜证据。只称合成生命周期测试，formalReady=false/Gate B NOT_RUN保持；真实HAL资源静止保证和B01～B15仍需后续专门授权与测量。
+
+## 2026-08-29 设备计划补充
+
+Owner说明目前没有设备连接，后续计划使用RME或Apogee声卡，录音机为Sony卡座。这是用户提供的计划，不是系统枚举结果；声卡品牌仍为候选，具体型号、连接方式、输出后端和测量配置尚未确定。
+
+目前无需Owner补充型号；待设备接入时再确认实际配置及设备操作范围。持续开发授权保持，但该说明不新增设备枚举/open、音频设置修改、测试音、录音或故障注入授权，也不构成兼容性或音质验证。formalReady=false、Gate B NOT_RUN、TASK073进行中及后续任务依赖保持不变。

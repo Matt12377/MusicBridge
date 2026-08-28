@@ -189,6 +189,21 @@
       },
       "resultReport": "reports/TASK-073_OUTPUT_LIFECYCLE_RESULT.md",
       "candidateSha256": "cc18251a24ec249abca97d196b9a2a03181e3f49e17eb42dbfe0b89e83b21616"
+    },
+    "deviceTestPlanning": {
+      "confirmedOn": "2026-08-29",
+      "source": "owner-statement-not-device-enumeration",
+      "connectionState": "no-devices-connected",
+      "audioInterfaceBrandCandidates": ["RME", "Apogee"],
+      "audioInterfaceModel": null,
+      "plannedRecorder": {
+        "brand": "Sony",
+        "type": "cassette-deck",
+        "model": null
+      },
+      "measurementConfiguration": "PENDING",
+      "deviceOperationsAuthorization": "NOT_GRANTED",
+      "outputBackendCertification": "NOT_RUN"
     }
   }
 }
