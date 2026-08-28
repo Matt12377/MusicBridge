@@ -81,8 +81,8 @@
     "task": "TASK-062",
     "branch": "codex/task-062-archive-foundation",
     "baseCommit": "e785308b3ccf31cd01f4947f88c9942330b15d07",
-    "state": "validated-awaiting-local-commits",
-    "implementationCommit": null,
+    "state": "report-written-awaiting-status-lock",
+    "implementationCommit": "62a20a6db58c5a94a537f84032931e89da20a5b4",
     "reportCommit": null,
     "previousTask": {
       "task": "TASK-061",
@@ -123,6 +123,8 @@
       "运行时撤权、全局期限和公开恢复状态待产品接线；不把 private 内核当产品 API"
     ],
     "implementationScope": "archive-transaction-foundation-no-public-ipc-no-formal-recording",
-    "retentionBoundary": "F01_UNRESOLVED_ONLY_VERIFIED_COMMITTED_STAGING_DUPLICATES_FINALIZED"
+    "retentionBoundary": "F01_UNRESOLVED_ONLY_VERIFIED_COMMITTED_STAGING_DUPLICATES_FINALIZED",
+    "resultReport": "reports/TASK-062_RESULT.md",
+    "nextTask": "TASK-063"
   }
 }
