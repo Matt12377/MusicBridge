@@ -31,7 +31,7 @@ function change(photo: CollectionPhoto, action: CollectionChangePhotoRequest['ac
       </figure>
     </div>
     <p v-else class="no-photo">添加型号照片即可开始，无需为每盘磁带建立编号。支持 PNG / JPEG，原文件保持不变。</p>
-    <dialog ref="viewer" aria-label="实物照片大图" @close="onClose"><button class="close-preview" @click="viewer?.close()">关闭大图</button><div v-if="preview" class="preview-image"><CollectionPhotoView :photo="preview" :alt="`${collectionModelLabel(detail.model)} 实物照片大图`" /></div></dialog>
+    <dialog ref="viewer" aria-label="实物照片大图" @close="onClose"><button class="close-preview" @click="viewer?.close()">关闭大图</button><div v-if="preview" class="preview-image"><CollectionPhotoView :photo="preview" :alt="`${collectionModelLabel(detail.model)} 实物照片大图`" interactive /></div></dialog>
   </section>
 </template>
 <style scoped>

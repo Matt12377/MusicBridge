@@ -9,7 +9,7 @@ import { executionFrameLimit } from '@music-bridge/contracts'
 import RecordingProfileSettings from './RecordingProfileSettings.vue'
 import ArchivePanel from './ArchivePanel.vue'
 
-const props = defineProps<{ draft: MasterDraft }>()
+const props = defineProps<{ draft: MasterDraft; initialContext?: { layoutId: string; mode: ExecutionMode; preparedId?: string } }>()
 const emit = defineEmits<{ close: [] }>()
 const api = window.musicBridge, dialog = ref<HTMLDialogElement>()
 const versions = shallowRef<VersionHistory>(), prepared = shallowRef<PreparedHistory>()
@@ -17,7 +17,7 @@ const history = shallowRef<ExecutionHistory>()
 const destinations = shallowRef<readonly PreparationDestination[]>([])
 const session = shallowRef<RecordingSessionSettings | null>(null)
 const layoutId = ref(''), destinationId = ref(''), preparedId = ref('')
-const mode = ref<ExecutionMode>('direct')
+const mode = ref<ExecutionMode>(props.initialContext?.mode ?? 'direct')
 const usesPrepared = computed(() => mode.value === 'prepared-reference' || mode.value === 'prepared-derivative')
 const loading = ref(true), busy = ref(false), error = ref(''), notice = ref('')
 const profileState = ref({ busy: true, dirty: false })
@@ -56,10 +56,11 @@ function statusText(job: ExecutionJob): string {
   if (job.state === 'interrupted') return '任务中断；重启只验证完整产物，不重编译。请检查保留目录后再决定是否新建任务。'
   return job.failure ? failures[job.failure] : '任务未完成'
 }
-let alive = true, generation = 0, timer: ReturnType<typeof setTimeout> | undefined
+let alive = true, generation = 0, initialContextApplied = false, timer: ReturnType<typeof setTimeout> | undefined
 function invalidate(): void { proposal.value = undefined; confirmed.value = false }
 watch([layoutId,destinationId,preparedId,mode,session], invalidate)
-watch(layoutId, () => { preparedId.value = '' })
+// 先同步清除旧布局的PREP，再由初始上下文填入已核对的新PREP，避免下一tick误清空。
+watch(layoutId, () => { preparedId.value = '' }, { flush: 'sync' })
 watch(() => profileState.value.dirty, dirty => { if (dirty) invalidate() })
 async function refresh(initial = false): Promise<void> {
   if (initial) loading.value = true
@@ -69,8 +70,23 @@ async function refresh(initial = false): Promise<void> {
       api.listExecutionAssets(props.draft.id), api.listPreparationDestinations(),
     ])
     if (!alive) return
+    if (v.draftId !== props.draft.id || p.draftId !== props.draft.id || h.draftId !== props.draft.id) throw new Error('执行历史与当前草稿不一致')
     versions.value = v; prepared.value = p; history.value = h; destinations.value = d.destinations
-    if (!layoutId.value) layoutId.value = v.layouts[0]?.id ?? ''
+    if (props.initialContext !== undefined) {
+      if (!initialContextApplied) {
+        const initial = props.initialContext
+        const initialLayout = v.layouts.find(item => item.id === initial.layoutId && item.draftId === props.draft.id && v.masters.some(master => master.id === item.masterVersionId && master.draftId === props.draft.id))
+        const needsPrepared = initial.mode === 'prepared-reference' || initial.mode === 'prepared-derivative'
+        const initialPrepared = p.preps.find(item => item.id === initial.preparedId && item.draftId === props.draft.id && item.layoutVersionId === initialLayout?.id && item.masterVersionId === initialLayout?.masterVersionId)
+        initialContextApplied = true
+        if (initialLayout && ['direct', 'direct-converted', 'prepared-reference', 'prepared-derivative'].includes(initial.mode) && (needsPrepared ? !!initialPrepared : initial.preparedId === undefined)) {
+          layoutId.value = initialLayout.id; mode.value = initial.mode; preparedId.value = initialPrepared?.id ?? ''
+        } else {
+          layoutId.value = ''; preparedId.value = ''
+          error.value = '本次选择的布局、母版或 PREP 已不匹配，请明确重选；不会自动改用首条布局或 Direct。'
+        }
+      }
+    } else if (!layoutId.value) layoutId.value = v.layouts[0]?.id ?? ''
     if (!destinationId.value) destinationId.value = d.destinations.find(x => x.authorized)?.id ?? ''
     if (timer) clearTimeout(timer)
     if (h.jobs.some(j => j.state === 'running')) timer = setTimeout(() => { void refresh() }, 700)

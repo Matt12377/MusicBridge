@@ -3,9 +3,9 @@ wave: WAVE-5
 status: active
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-070
-activeBranch: codex/task-070-want-completion
-activeBaseCommit: d2735054e7f1481db9eccf058c5d400ba87b3019
+activeTask: TASK-071
+activeBranch: codex/task-071-source-picker
+activeBaseCommit: 72db8616ddbb461b93e9ffa960576af052c2bdf6
 order:
   - TASK-048
   - TASK-049
@@ -30,5 +30,6 @@ order:
   - TASK-068
   - TASK-069
   - TASK-070
-stopAfter: TASK-070
-reviewBoundary: orthogonal-wants-current-stock-and-immutable-progress
+  - TASK-071
+stopAfter: TASK-071
+reviewBoundary: registered-relations-source-picker-and-explicit-workflow-context

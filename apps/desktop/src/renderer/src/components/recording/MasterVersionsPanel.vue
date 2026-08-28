@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import type { MasterDraft, MediaPlan, VersionHistory, VersionJob, VersionProposal, FreezeVersionsRequest } from '@music-bridge/contracts'
 import VersionTimeline from './VersionTimeline.vue'
-const props = defineProps<{ draft: MasterDraft }>()
+const props = defineProps<{ draft: MasterDraft; initialPlanId?: string }>()
 const emit = defineEmits<{ close: []; prepare: [layoutId: string] }>()
 const api = window.musicBridge, dialog = ref<HTMLDialogElement>()
 const history = shallowRef<VersionHistory>(), plans = shallowRef<readonly MediaPlan[]>([]), proposal = shallowRef<VersionProposal>()
@@ -15,15 +15,22 @@ const ready = computed(() => !!current.value?.reservation && !current.value.requ
 const masterLabel = computed(() => proposal.value?.masterAction === 'reuse' ? '复用已有母版' : '创建新母版')
 const failure = { SOURCE_INVALID: '源文件已变化、离线或授权失效，请重新校验。', INPUT_CHANGED: '草稿、分面或预留已改变，请重新预览。', IO_ERROR: '复核或保存失败，未生成部分版本。请检查状态后重新预览。', CANCELLED: '复核已取消，未创建版本。' }
 const jobLabel = (job: VersionJob): string => job.state === 'running' ? '正在完整复核源文件…' : job.state === 'completed' ? '母版与布局已冻结；尚未开始录音。' : job.state === 'interrupted' ? '上次复核已中断，不会自动重播，请重新预览。' : job.failure ? failure[job.failure] : '任务未完成，请刷新。'
-let alive = true, generation = 0, timer: ReturnType<typeof setTimeout> | undefined
+let alive = true, generation = 0, initialPlanApplied = false, timer: ReturnType<typeof setTimeout> | undefined
 watch([planId, sampleRate], () => { ++generation; proposal.value = undefined; confirmed.value = false; notice.value = '' })
 async function refresh(initial = false): Promise<void> {
   if (initial) loading.value = true
   try {
     const [versions, media] = await Promise.all([api.listMasterVersions(props.draft.id), api.listMediaPlans(props.draft.id)])
     if (!alive) return
-    history.value = versions; plans.value = media.plans
-    if (!planId.value) planId.value = media.plans.find(p => p.reservation)?.id ?? media.plans[0]?.id ?? ''
+    if (versions.draftId !== props.draft.id || media.draftId !== props.draft.id) throw new Error('版本或规划与当前草稿不一致')
+    history.value = versions; plans.value = media.plans.filter(item => item.draftId === props.draft.id)
+    if (props.initialPlanId !== undefined) {
+      if (!initialPlanApplied) {
+        planId.value = plans.value.find(item => item.id === props.initialPlanId)?.id ?? ''
+        initialPlanApplied = true
+        if (props.initialPlanId && !planId.value) error.value = '本次选择的规划已不可用，请明确重选；不会自动切换其他规划。'
+      }
+    } else if (!planId.value) planId.value = plans.value.find(p => p.reservation)?.id ?? plans.value[0]?.id ?? ''
     if (versions.jobs[0]) notice.value = jobLabel(versions.jobs[0])
     if (timer) clearTimeout(timer)
     if (versions.jobs.some(j => j.state === 'running')) timer = setTimeout(() => { void refresh() }, 800)
@@ -72,7 +79,7 @@ onBeforeUnmount(() => { alive = false; ++generation; if (timer) clearTimeout(tim
     <header><div><p class="kicker">录音准备 · 03</p><h2 id="versions-title">母版与布局版本</h2><p class="muted">{{ draft.title }}</p></div><button :disabled="busy || !!pending" @click="close">关闭</button></header>
     <p class="intro">母版锁定曲目、曲序、实际源和曲间规则；布局锁定磁带分面与帧级时间线。只改分面会复用母版，历史不会被覆盖。</p>
     <section aria-labelledby="version-proposal-title"><h3 id="version-proposal-title">冻结提案</h3>
-      <div class="fields"><label>已保存的规划<select aria-label="已保存的规划" v-model="planId" :disabled="blocked || !plans.length"><option v-if="!plans.length" value="">尚无规划</option><option v-for="item in plans" :key="item.id" :value="item.id">{{ item.spec.format === 'cassette' ? 'Cassette A/B' : 'DAT Program' }} · {{ item.reservation?.physicalId ?? '未预留' }} · {{ item.id.slice(0, 8) }}</option></select></label><label>规划采样率<select aria-label="规划采样率" v-model.number="sampleRate" :disabled="blocked"><option :value="44100">44,100 Hz</option><option :value="48000">48,000 Hz</option><option :value="88200">88,200 Hz</option><option :value="96000">96,000 Hz</option><option :value="176400">176,400 Hz</option><option :value="192000">192,000 Hz</option></select></label></div>
+      <div class="fields"><label>已保存的规划<select aria-label="已保存的规划" v-model="planId" :disabled="blocked || !plans.length"><option value="">{{ plans.length ? '请选择已保存的规划' : '尚无规划' }}</option><option v-for="item in plans" :key="item.id" :value="item.id">{{ item.spec.format === 'cassette' ? 'Cassette A/B' : 'DAT Program' }} · {{ item.reservation?.physicalId ?? '未预留' }} · {{ item.id.slice(0, 8) }}</option></select></label><label>规划采样率<select aria-label="规划采样率" v-model.number="sampleRate" :disabled="blocked"><option :value="44100">44,100 Hz</option><option :value="48000">48,000 Hz</option><option :value="88200">88,200 Hz</option><option :value="96000">96,000 Hz</option><option :value="176400">176,400 Hz</option><option :value="192000">192,000 Hz</option></select></label></div>
       <p class="muted">采样率是此布局的显式规划时基，后续编译需验证精确帧数；它不是设备认证或输出格式选择。</p>
       <p v-if="!ready && !loading" class="warning">请先在“分面与选择磁带”保存最新规划并预留磁带，全部曲目需完成实际源校验和人工确认。</p>
       <button class="primary" :disabled="blocked || !ready" @click="preview">预览冻结提案</button>

@@ -3,7 +3,7 @@ import { collectionModelLabel } from '../collection/collection-display'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import type { MasterDraft, MediaCandidate, MediaCandidateReason, MediaLayoutSpec, MediaPlan, MediaPreview } from '@music-bridge/contracts'
 import CollectionPhoto from '../collection/CollectionPhoto.vue'
-const props = defineProps<{ draft: MasterDraft }>()
+const props = defineProps<{ draft: MasterDraft; initialPlanId?: string }>()
 const emit = defineEmits<{ close: [] }>()
 const api = window.musicBridge
 const dialog = ref<HTMLDialogElement>(), plans = shallowRef<readonly MediaPlan[]>([]), plan = shallowRef<MediaPlan>()
@@ -20,7 +20,7 @@ const reasons: Record<MediaCandidateReason, string> = { 'capacity-unknown': '介
 const duration = (ms?: number): string => ms === undefined ? '时长未知' : `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}.${String(ms % 1000).padStart(3, '0')}`
 const cloneSpec = (): MediaLayoutSpec => JSON.parse(JSON.stringify(spec.value)) as MediaLayoutSpec
 const trackTitle = (id: string): string => props.draft.tracks.find(t => t.id === id)?.metadata.title ?? '草稿曲目'
-let alive = true, generation = 0
+let alive = true, generation = 0, initialPlanApplied = false
 watch(spec, () => { ++generation; preview.value = undefined; selected.value = undefined; confirmed.value = false; notice.value = '' }, { deep: true, flush: 'sync' })
 function changeFormat(): void {
   spec.value.splitAfter = spec.value.format === 'dat' ? 0 : Math.max(1, Math.ceil(props.draft.tracks.length / 2))
@@ -44,11 +44,14 @@ async function calculate(offset = 0): Promise<void> {
 }
 async function selectPlan(id: string): Promise<void> {
   if (busy.value || pending.value) return
+  if (!id) { planId.value = ''; plan.value = undefined; preview.value = undefined; selected.value = undefined; confirmed.value = false; initialPlanApplied = true; return }
   loading.value = true; error.value = ''
   try {
     const current = await api.getMediaPlan(id)
     if (!alive) return
+    if (current.id !== id || current.draftId !== props.draft.id) throw new Error('规划与当前草稿不一致')
     plan.value = current; planId.value = current.id; spec.value = JSON.parse(JSON.stringify(current.spec)) as MediaLayoutSpec
+    initialPlanApplied = true
     await calculate()
   } catch { if (alive) error.value = '已存规划暂时无法读取，请关闭后重试。' }
   finally { if (alive) loading.value = false }
@@ -58,8 +61,16 @@ async function load(): Promise<void> {
   try {
     const result = await api.listMediaPlans(props.draft.id)
     if (!alive) return
-    plans.value = result.plans
-    if (result.plans[0]) await selectPlan(result.plans[0].id)
+    if (result.draftId !== props.draft.id) throw new Error('规划列表与当前草稿不一致')
+    plans.value = result.plans.filter(item => item.draftId === props.draft.id)
+    if (props.initialPlanId !== undefined) {
+      const requested = initialPlanApplied ? planId.value : props.initialPlanId
+      if (requested && plans.value.some(item => item.id === requested)) await selectPlan(requested)
+      else {
+        await selectPlan('')
+        if (requested) error.value = '本次选择的规划已不可用，请明确重选；不会自动切换其他规划。'
+      }
+    } else if (plans.value[0]) await selectPlan(plans.value[0].id)
     else await calculate()
   } catch { if (alive) error.value = '规划列表无法读取，不会把读取失败当成空列表。请重试。' }
   finally { if (alive) loading.value = false }
@@ -113,7 +124,7 @@ onBeforeUnmount(() => { alive = false; ++generation; dialog.value?.close() })
   <dialog ref="dialog" class="media-panel" aria-labelledby="media-panel-title" @cancel.prevent="close">
     <header><div><p class="kicker">录音准备 · 02</p><h2 id="media-panel-title">分面与选择磁带</h2><p>{{ draft.title }}</p></div><button :disabled="busy" @click="close">关闭</button></header>
     <p class="intro">先按曲长规划，再从现有库存中选择。浏览不占库存，明确预留才分配一盘；此处不冻结母版，也不操作录音设备。</p>
-    <label v-if="plans.length > 1">已存规划<select v-model="planId" :disabled="blocked" @change="selectPlan(planId)"><option v-for="item in plans" :key="item.id" :value="item.id">{{ item.id.slice(0, 8) }} · {{ item.reservation?.physicalId ?? '未预留' }}</option></select></label>
+    <label v-if="plans.length">已存规划<select v-model="planId" :disabled="blocked" @change="selectPlan(planId)"><option value="">请选择已存规划，或计算新规划</option><option v-for="item in plans" :key="item.id" :value="item.id">{{ item.id.slice(0, 8) }} · {{ item.reservation?.physicalId ?? '未预留' }}</option></select></label>
     <section aria-labelledby="media-layout-title"><h3 id="media-layout-title">分面规划</h3>
       <fieldset :disabled="blocked"><legend class="sr-only">分面设置</legend><div class="fields">
         <label>介质格式<select aria-label="介质格式" v-model="spec.format" @change="changeFormat"><option value="cassette">Cassette · A/B 面</option><option value="dat">DAT · 连续 Program</option></select></label>
@@ -141,7 +152,7 @@ onBeforeUnmount(() => { alive = false; ++generation; dialog.value?.close() })
     </section>
     <section v-if="plan?.reservation" class="reservation" aria-labelledby="media-reservation-title"><h3 id="media-reservation-title">这份规划的预留</h3><strong>{{ plan.reservation.physicalId }}</strong><p>已关联永久实体编号。保存新设置不会自动更换这盘磁带。</p><button :disabled="blocked" @click="releasing = true">取消这盘预留</button><div v-if="releasing" class="confirmation"><p>取消后恢复这盘原来的空白或已擦除状态，保留实体编号；不会返池或增加拥有总数。</p><button :disabled="blocked" @click="release">确认取消预留</button><button :disabled="blocked" @click="releasing = false">保留预留</button></div></section>
     <section v-if="preview" aria-labelledby="media-stock-title"><h3 id="media-stock-title">现有库存</h3><p class="muted">优先已拆空白，遵守封存保护与型号最低保留量。容量按磁带标称时长逐面估算，正式录音仍需容量和设备预检。</p><p v-if="!plan" class="muted">先保存分面规划，再选择磁带预留。</p><p v-if="!preview.candidates.items.length">当前没有这种格式的可用空白或已擦除库存。</p>
-      <div class="candidates"><article v-for="item in preview.candidates.items" :key="`${item.skuId}-${item.packaging}`" :data-media-packaging="item.packaging" class="candidate"><div class="photo"><CollectionPhoto v-if="item.model.featuredPhoto" :photo="item.model.featuredPhoto" :alt="`${collectionModelLabel(item.model)} 实物照片`" /><span v-else>尚无实物照片</span></div><div class="candidate-body"><h4>{{ collectionModelLabel(item.model) }}</h4><p>{{ item.model.edition }} · {{ item.model.year ?? '年份未知' }} · {{ item.model.tapeType }} · {{ item.lengthMinutes ?? '时长未知' }}{{ item.lengthMinutes ? ' 分钟' : '' }}</p><p>{{ item.packaging === 'opened' ? '已拆空白 / 已擦除' : '未拆封空白' }} · 可用 {{ item.availableCount }} · 可预留 {{ item.reservableCount }}</p><p :class="item.status === 'recommended' ? 'fit' : 'muted'">{{ item.status === 'recommended' ? '逐面适配 · 待正式预检' : item.status === 'pending' ? '待确认' : '不满足当前条件' }}</p><ul v-if="item.reasons.length" class="muted"><li v-for="reason in item.reasons" :key="reason">{{ reasons[reason] }}</li></ul><button :disabled="blocked || !canReserve || item.status !== 'recommended'" @click="selected = item; confirmed = false">选择这类磁带</button></div></article></div>
+      <div class="candidates"><article v-for="item in preview.candidates.items" :key="`${item.skuId}-${item.packaging}`" :data-media-packaging="item.packaging" class="candidate"><div class="photo"><CollectionPhoto v-if="item.model.featuredPhoto" :photo="item.model.featuredPhoto" :alt="`${collectionModelLabel(item.model)} 实物照片`" interactive /><span v-else>尚无实物照片</span></div><div class="candidate-body"><h4>{{ collectionModelLabel(item.model) }}</h4><p>{{ item.model.edition }} · {{ item.model.year ?? '年份未知' }} · {{ item.model.tapeType }} · {{ item.lengthMinutes ?? '时长未知' }}{{ item.lengthMinutes ? ' 分钟' : '' }}</p><p>{{ item.packaging === 'opened' ? '已拆空白 / 已擦除' : '未拆封空白' }} · 可用 {{ item.availableCount }} · 可预留 {{ item.reservableCount }}</p><p :class="item.status === 'recommended' ? 'fit' : 'muted'">{{ item.status === 'recommended' ? '逐面适配 · 待正式预检' : item.status === 'pending' ? '待确认' : '不满足当前条件' }}</p><ul v-if="item.reasons.length" class="muted"><li v-for="reason in item.reasons" :key="reason">{{ reasons[reason] }}</li></ul><button :disabled="blocked || !canReserve || item.status !== 'recommended'" @click="selected = item; confirmed = false">选择这类磁带</button></div></article></div>
       <nav v-if="preview.candidates.total > preview.candidates.limit" aria-label="库存推荐分页"><button :disabled="blocked || !preview.candidates.offset" @click="calculate(Math.max(0, preview.candidates.offset - 12))">上一页</button><span>{{ preview.candidates.offset + 1 }}–{{ preview.candidates.offset + preview.candidates.items.length }} / {{ preview.candidates.total }}</span><button :disabled="blocked || !preview.candidates.hasMore" @click="calculate(preview.candidates.offset + 12)">下一页</button></nav>
       <div v-if="selected" class="confirmation"><h4>预留 {{ collectionModelLabel(selected.model) }}</h4><p>{{ selected.lengthMinutes }} 分钟 · {{ selected.packaging === 'opened' ? '已拆' : '未拆' }}。提交时再次检查库存与保护条件。</p><label class="check"><input v-model="confirmed" type="checkbox" :disabled="blocked">我确认预留一盘，暂不开始录音</label><div class="actions"><button class="primary" :disabled="blocked || !confirmed || !canReserve" @click="reserve">确认预留一盘</button><button :disabled="blocked" @click="selected = undefined; confirmed = false">取消选择</button></div></div>
     </section>

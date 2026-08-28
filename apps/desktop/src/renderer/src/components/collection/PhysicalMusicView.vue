@@ -97,7 +97,7 @@ onUnmounted(() => { active = false; ++generation })
       <nav v-if="catalog && catalog.total > catalog.limit" aria-label="实体音乐分页" class="pagination"><button :disabled="loading || catalog.offset === 0" @click="load(Math.max(0, catalog.offset - 24))">上一页</button><span>{{ catalog.offset + 1 }}–{{ catalog.offset + catalog.items.length }} / {{ catalog.total }}</span><button :disabled="loading || !catalog.hasMore" @click="load(catalog.offset + 24)">下一页</button></nav>
     </template>
     <PhysicalMusicEditor v-if="editing" :detail="detail" :busy="saving" :error="error" :retryable="!!pending" @close="editing = false" @release="request => mutate(() => api.savePhysicalRelease(request))" @legacy="request => mutate(() => api.saveLegacyRecording(request))" @retry="retry" />
-    <dialog ref="viewer" aria-label="发行版照片大图" @close="closePhoto"><button @click="viewer?.close()">关闭大图</button><div v-if="preview" class="preview"><CollectionPhotoView :photo="preview" :load-photo="api.getPhysicalMusicPhoto" alt="发行版实物照片大图" /></div></dialog>
+    <dialog ref="viewer" aria-label="发行版照片大图" @close="closePhoto"><button @click="viewer?.close()">关闭大图</button><div v-if="preview" class="preview"><CollectionPhotoView :photo="preview" :load-photo="api.getPhysicalMusicPhoto" alt="发行版实物照片大图" interactive /></div></dialog>
   </section>
 </template>
 <style scoped>

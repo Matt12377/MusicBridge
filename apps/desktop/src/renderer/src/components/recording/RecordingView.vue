@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef } from 'vue'
-import type { DraftProgramType, MasterDraft, MasterDraftResult, MasterDraftSummary, Page, AppendMasterDraftRequest } from '@music-bridge/contracts'
+import type { DraftProgramType, MasterDraft, MasterDraftResult, MasterDraftSummary, Page, AppendMasterDraftRequest, ExecutionMode } from '@music-bridge/contracts'
 import BackupRestorePanel from './BackupRestorePanel.vue'
 import MediaPlanningPanel from './MediaPlanningPanel.vue'
 import MasterVersionsPanel from './MasterVersionsPanel.vue'
@@ -8,34 +8,62 @@ import PreparationPanel from './PreparationPanel.vue'
 import PreparedPanel from './PreparedPanel.vue'
 import ExecutionPanel from './ExecutionPanel.vue'
 import SourceEvidencePanel from './SourceEvidencePanel.vue'
-import type { DraftSourceSnapshot } from '@music-bridge/contracts'
+import RecordingNextStep from './RecordingNextStep.vue'
+import { createRecordingWorkflowController, type RecordingWorkflowSelection } from './recording-workflow-controller'
+import { getRecordingNextStep, type RecordingNextAction } from './recording-next-step'
 import MasterSourcePicker from './MasterSourcePicker.vue'
 const emit = defineEmits<{ 'open-collection': [] }>()
 const backupRestore = ref(false), backupTrigger = ref<HTMLButtonElement>()
 async function closeBackupRestore(): Promise<void> { backupRestore.value = false; await nextTick(); backupTrigger.value?.focus() }
 async function activatedDataset(): Promise<void> {
-  ++generation; draft.value = undefined; catalog.value = undefined; sourceSnapshot.value = undefined; pending.value = undefined;
+  ++generation; draft.value = undefined; catalog.value = undefined; workflow.reset(); pending.value = undefined;
   title.value = ''; trackIds.value = []; sourceTrackId.value = ''; picker.value = false;
   mediaPlanning.value = false; masterVersions.value = false; execution.value = false; prepared.value = false; preparation.value = false;
   error.value = ''; notice.value = '已加载恢复后的工作库；旧工作库和历史目录权限保持不变。';
   await list();
 }
 const api = window.musicBridge
+const workflow = createRecordingWorkflowController({ api, onChange: () => { workflowState.value = { ...workflow.state } } })
+const workflowState = shallowRef({ ...workflow.state })
+const sourceSnapshot = computed(() => workflowState.value.status === 'ready' ? workflowState.value.facts?.sources : undefined)
+const nextStep = computed(() => {
+  const result = getRecordingNextStep({ draft: draft.value, pending: !!pending.value, dirty: dirty.value, busy: saving.value || loading.value, workflow: workflowState.value })
+  return result.action.type === 'save-draft' && !title.value.trim() ? { ...result, disabled: true, description: '请先填写草稿标题，再保存当前修改。' } : result
+})
 const catalog = shallowRef<Page<MasterDraftSummary>>(), draft = shallowRef<MasterDraft>()
 const loading = ref(false), saving = ref(false), picker = ref(false), error = ref(''), notice = ref(''), discarding = ref(false)
 const mediaPlanning = ref(false), masterVersions = ref(false)
+const initialMediaPlanId = ref<string>(), initialVersionPlanId = ref<string>()
+const initialExecutionContext = shallowRef<{ layoutId: string; mode: ExecutionMode; preparedId?: string }>()
+let mediaOpener: HTMLElement | undefined, versionsOpener: HTMLElement | undefined, executionOpener: HTMLElement | undefined, preparationOpener: HTMLElement | undefined, preparedOpener: HTMLElement | undefined
+const focusCleanups = new Set<() => void>()
+function activeTrigger(): HTMLElement | undefined { const target = document.activeElement; return target && 'focus' in target ? target as HTMLElement : undefined }
+async function refreshAfterClose(opener?: HTMLElement, fallback?: HTMLElement): Promise<void> {
+  const token = generation, target = opener?.isConnected ? opener : fallback
+  let interacted = false
+  const cancelRestore = () => { interacted = true }
+  const cleanup = () => { document.removeEventListener('pointerdown', cancelRestore); document.removeEventListener('keydown', cancelRestore); focusCleanups.delete(cleanup) }
+  document.addEventListener('pointerdown', cancelRestore); document.addEventListener('keydown', cancelRestore); focusCleanups.add(cleanup)
+  try {
+    await refreshWorkflow(); await nextTick()
+    if (alive && token === generation && !interacted && target?.isConnected && (document.activeElement === document.body || document.activeElement === target)) target.focus()
+  } finally { cleanup() }
+}
+function openMediaPlanning(planId?: string): void { mediaOpener = activeTrigger(); initialMediaPlanId.value = planId; mediaPlanning.value = true }
+function openMasterVersions(planId?: string): void { versionsOpener = activeTrigger(); initialVersionPlanId.value = planId; masterVersions.value = true }
+function openExecution(context?: { layoutId: string; mode: ExecutionMode; preparedId?: string }): void { executionOpener = activeTrigger(); initialExecutionContext.value = context; execution.value = true }
 const execution = ref(false), executionTrigger = ref<HTMLButtonElement>()
-async function closeExecution(): Promise<void> { execution.value = false; await nextTick(); executionTrigger.value?.focus() }
+async function closeExecution(): Promise<void> { execution.value = false; await refreshAfterClose(executionOpener, executionTrigger.value) }
 const prepared = ref(false), preparedId = ref(''), preparedTrigger = ref<HTMLButtonElement>()
-function openPrepared(id = ''): void { preparation.value = false; preparedId.value = id; prepared.value = true }
-async function closePrepared(): Promise<void> { prepared.value = false; await nextTick(); preparedTrigger.value?.focus() }
+function openPrepared(id = ''): void { preparedOpener = activeTrigger(); preparation.value = false; preparedId.value = id; prepared.value = true }
+async function closePrepared(): Promise<void> { prepared.value = false; await refreshAfterClose(preparedOpener, preparedTrigger.value) }
 const preparation = ref(false), preparationLayoutId = ref(''), preparationTrigger = ref<HTMLButtonElement>()
-function openPreparation(layoutId = ''): void { masterVersions.value = false; preparationLayoutId.value = layoutId; preparation.value = true }
-async function closePreparation(): Promise<void> { preparation.value = false; await nextTick(); preparationTrigger.value?.focus() }
-const sourceTrackId = ref(''), sourceSnapshot = shallowRef<DraftSourceSnapshot>()
+function openPreparation(layoutId = ''): void { preparationOpener = activeTrigger(); masterVersions.value = false; preparationLayoutId.value = layoutId; preparation.value = true }
+async function closePreparation(): Promise<void> { preparation.value = false; await refreshAfterClose(preparationOpener, preparationTrigger.value) }
+const sourceTrackId = ref('')
 const pending = shallowRef<() => Promise<MasterDraftResult>>()
 const title = ref(''), programType = ref<DraftProgramType>('compilation'), trackIds = ref<string[]>([])
-const blocked = computed(() => saving.value || !!pending.value)
+const blocked = computed(() => saving.value || loading.value || !!pending.value)
 const dirty = computed(() => !!draft.value && (title.value !== draft.value.title || programType.value !== draft.value.programType || JSON.stringify(trackIds.value) !== JSON.stringify(draft.value.tracks.map(t => t.id))))
 const tracks = computed(() => trackIds.value.map(id => draft.value!.tracks.find(t => t.id === id)!))
 const types = { compilation: 'Compilation · 精选', concert: 'Concert · 演出', continuous: 'Continuous Program · 连续节目' }
@@ -48,17 +76,42 @@ async function list(offset = 0): Promise<void> {
   finally { if (alive && token === generation) loading.value = false }
 }
 async function open(id: string): Promise<void> {
-  const token = ++generation; loading.value = true
+  const token = ++generation; loading.value = true; workflow.reset()
   try {
     const result = await api.getMasterDraft(id)
-    const sources = await api.getDraftSources(id)
-    if (alive && token === generation) { sourceSnapshot.value = sources; draft.value = result; title.value = result.title; programType.value = result.programType; trackIds.value = result.tracks.map(t => t.id) }
+    if (alive && token === generation) {
+      draft.value = result; title.value = result.title; programType.value = result.programType; trackIds.value = result.tracks.map(t => t.id)
+      workflow.setDraft(result); await workflow.refresh()
+    }
   } catch { if (alive && token === generation) error.value = '草稿详情暂时无法读取，请刷新后重试。' }
   finally { if (alive && token === generation) loading.value = false }
 }
-async function closeSources(): Promise<void> { sourceTrackId.value = ''; if (draft.value) { try { sourceSnapshot.value = await api.getDraftSources(draft.value.id) } catch { error.value = '源验证状态暂时无法读取，请刷新。' } } }
-function sourceLabel(id: string): string { const binding = sourceSnapshot.value?.tracks.find(t => t.trackId === id)?.binding; return binding?.sourceLockEligible ? '源已验证' : binding ? '已绑定 · 待确认或重新校验' : '来源未验证' }
-function back(force = false): void { if (dirty.value && !force) { discarding.value = true; return }; draft.value = undefined; trackIds.value = []; discarding.value = false; notice.value = ''; error.value = ''; void list() }
+async function refreshWorkflow(): Promise<void> { if (draft.value) await workflow.refresh() }
+async function closeSources(): Promise<void> { sourceTrackId.value = ''; await refreshWorkflow() }
+async function closeMediaPlanning(): Promise<void> { mediaPlanning.value = false; await refreshAfterClose(mediaOpener) }
+async function closeMasterVersions(): Promise<void> { masterVersions.value = false; await refreshAfterClose(versionsOpener) }
+function selectWorkflow(selection: Partial<RecordingWorkflowSelection>): void { if (!blocked.value && !dirty.value) workflow.select(selection) }
+async function nextAction(action: RecordingNextAction): Promise<void> {
+  if (nextStep.value.disabled) return
+  switch (action.type) {
+    case 'retry-pending': await retry(); break
+    case 'save-draft': save(); break
+    case 'refresh': await refreshWorkflow(); break
+    case 'pick-source': picker.value = true; break
+    case 'source': sourceTrackId.value = action.trackId; break
+    case 'media': openMediaPlanning(workflowState.value.selection.planId); break
+    case 'versions': openMasterVersions(workflowState.value.selection.planId ?? ''); break
+    case 'preparation': openPreparation(action.layoutId); break
+    case 'prepared': openPrepared(action.preparationId); break
+    case 'execution': {
+      const selection = workflowState.value.selection
+      openExecution({ layoutId: selection.layoutId ?? '', mode: selection.path === 'direct' ? 'direct' : 'prepared-reference', ...(selection.preparedId ? { preparedId: selection.preparedId } : {}) }); break
+    }
+    case 'choose-context': break // 组件把焦点交给首个尚未选择的有效上下文。
+  }
+}
+function sourceLabel(id: string): string { if (workflowState.value.status !== 'ready') return workflowState.value.status === 'error' ? '源状态读取失败' : '源状态尚未读取完成'; const binding = sourceSnapshot.value?.tracks.find(t => t.trackId === id)?.binding; return binding?.sourceLockEligible ? '源已验证' : binding ? '已绑定 · 待确认或重新校验' : '来源未验证' }
+function back(force = false): void { if (dirty.value && !force) { discarding.value = true; return }; draft.value = undefined; workflow.reset(); trackIds.value = []; discarding.value = false; notice.value = ''; error.value = ''; void list() }
 async function retry(): Promise<void> {
   if (!pending.value || saving.value) return
   saving.value = true; error.value = ''; notice.value = ''
@@ -102,7 +155,7 @@ async function play(trackId: string): Promise<void> {
   } catch { if (alive) error.value = '试听未能启动，请检查 Roon 和播放设备；没有开始正式录音。' }
 }
 onMounted(() => { void list() })
-onUnmounted(() => { alive = false; ++generation })
+onUnmounted(() => { alive = false; ++generation; workflow.dispose(); for (const cleanup of focusCleanups) cleanup() })
 </script>
 
 <template>
@@ -124,9 +177,9 @@ onUnmounted(() => { alive = false; ++generation })
     <BackupRestorePanel v-if="backupRestore" @close="closeBackupRestore" @activated="activatedDataset" />
 
     <ol class="recording-steps" aria-label="录音准备步骤">
-      <li aria-current="step"><span>01</span><strong>选择音乐</strong></li>
-      <li><span>02</span><strong>选择磁带</strong></li>
-      <li><span>03</span><strong>确认与预检</strong></li>
+      <li :aria-current="nextStep.step === 1 ? 'step' : undefined"><span>01</span><strong>选择音乐</strong></li>
+      <li :aria-current="nextStep.step === 2 ? 'step' : undefined"><span>02</span><strong>选择磁带</strong></li>
+      <li :aria-current="nextStep.step === 3 ? 'step' : undefined"><span>03</span><strong>确认与预检</strong></li>
     </ol>
 
     <div v-if="!draft" class="recording-start">
@@ -141,6 +194,7 @@ onUnmounted(() => { alive = false; ++generation })
 
     <section v-else class="draft-detail" aria-label="录音草稿详情">
       <div class="draft-toolbar"><button :disabled="blocked" @click="back()">返回草稿列表</button><button :disabled="blocked || dirty" @click="picker = true">继续从 Roon 添加</button></div>
+      <div><RecordingNextStep :state="workflowState" :next-step="nextStep" :disabled="blocked || dirty" @action="nextAction" @select="selectWorkflow" /></div>
       <h3>{{ draft.title }}</h3><p class="draft-id">草稿编号 {{ draft.id }} · {{ draft.trackCount }} 首 · {{ types[draft.programType] }}</p>
       <p class="draft-evidence">{{ sourceSnapshot?.sourceLockEligible ? '全部曲目已满足源验证条件，最终布局及冻结仍待完成。' : 'Roon 信息仅用于选曲；需逐首绑定实际源文件、校验并确认，才能继续冻结。' }}</p>
       <fieldset :disabled="blocked"><legend class="sr-only">编辑录音草稿</legend>
@@ -148,13 +202,13 @@ onUnmounted(() => { alive = false; ++generation })
         <p class="draft-estimate">已保存草稿的初步时长：{{ duration(draft.estimatedDurationMs) }}。精选按相邻曲目额外 5 秒估算，不等于最终分面或执行时间线。</p>
         <ol class="draft-tracks"><li v-for="(track, index) in tracks" :key="track.id"><span class="position">{{ index + 1 }}</span><div class="track-title"><strong>{{ track.metadata.title }}</strong><small>{{ [track.metadata.artist, track.metadata.album, track.metadata.version].filter(Boolean).join(' · ') || '元数据待核实' }}</small><small>{{ sourceLabel(track.id) }} · {{ duration(track.metadata.durationMs) }}</small></div><div class="track-actions"><button :disabled="dirty" @click="sourceTrackId = track.id">绑定实际源文件</button><button :aria-label="`上移 ${track.metadata.title}`" :disabled="index === 0" @click="move(index, -1)">上移</button><button :aria-label="`下移 ${track.metadata.title}`" :disabled="index === tracks.length - 1" @click="move(index, 1)">下移</button><button :aria-label="`移除 ${track.metadata.title}`" @click="trackIds = trackIds.filter(id => id !== track.id)">移除</button><button @click="play(track.id)">试听 {{ track.metadata.title }}</button></div></li></ol>
         <p v-if="!tracks.length" class="draft-estimate">草稿还没有曲目。可先保存，再继续从 Roon 添加。</p>
-        <div class="draft-toolbar"><button :disabled="!dirty || !title.trim()" @click="save">保存草稿修改</button><button :disabled="!dirty" @click="open(draft.id)">撤销未保存修改</button><button :disabled="dirty || !sourceSnapshot?.sourceLockEligible" aria-describedby="draft-freeze-status" @click="masterVersions = true">冻结母版</button></div>
+        <div class="draft-toolbar"><button :disabled="!dirty || !title.trim()" @click="save">保存草稿修改</button><button :disabled="!dirty" @click="open(draft.id)">撤销未保存修改</button><button :disabled="dirty || !sourceSnapshot?.sourceLockEligible" aria-describedby="draft-freeze-status" @click="openMasterVersions()">冻结母版</button></div>
       </fieldset>
-      <button class="recording-primary" :disabled="blocked || dirty || !draft.trackCount" @click="mediaPlanning = true">分面与选择磁带</button>
-      <button :disabled="blocked || dirty" @click="masterVersions = true">母版与布局版本</button>
+      <button :disabled="blocked || dirty || !draft.trackCount" @click="openMediaPlanning()">分面与选择磁带</button>
+      <button :disabled="blocked || dirty" @click="openMasterVersions()">母版与布局版本</button>
       <button ref="preparationTrigger" :disabled="blocked" @click="openPreparation()">Logic 工作区</button>
       <button ref="preparedTrigger" :disabled="blocked" @click="openPrepared()">原始 Render 与 PREP</button>
-      <button ref="executionTrigger" :disabled="blocked" @click="execution = true">录音参数与执行资产</button>
+      <button ref="executionTrigger" :disabled="blocked" @click="openExecution()">录音参数与执行资产</button>
       <p id="draft-freeze-status" class="draft-estimate">冻结前需完成实际源验证、最终分面与磁带预留；可在版本面板查看提案和历史。</p>
       <p v-if="dirty" class="draft-estimate" role="status">有未保存的修改；添加更多曲目前请先保存或撤销。</p>
       <div v-if="discarding" class="discard"><p>返回会放弃当前未保存的修改，已保存草稿不变。</p><button @click="back(true)">放弃未保存修改并返回</button><button @click="discarding = false">继续编辑</button></div>
@@ -162,11 +216,11 @@ onUnmounted(() => { alive = false; ++generation })
     <p v-if="loading" class="draft-message" role="status">正在读取草稿…</p><p v-if="notice" class="draft-message" role="status">{{ notice }}</p>
     <p v-if="error && !picker" class="draft-message" role="alert">{{ error }} <button v-if="pending" :disabled="saving" @click="retry">重试原操作</button><button v-else :disabled="loading" @click="error = ''; draft ? open(draft.id) : list()">刷新草稿</button></p>
     <section v-if="!draft && catalog?.items.length" class="draft-library" aria-label="已保存的录音草稿"><h3>继续一份草稿</h3><div class="draft-grid"><button v-for="item in catalog.items" :key="item.id" class="draft-card" @click="open(item.id)"><span>继续草稿 {{ item.title }}</span><small>{{ item.trackCount }} 首 · {{ duration(item.estimatedDurationMs) }} · {{ item.sourceLockEligible ? '源已验证' : '来源待验证' }}</small></button></div><nav v-if="catalog.total > catalog.limit" aria-label="草稿分页"><button :disabled="loading || !catalog.offset" @click="list(Math.max(0, catalog.offset - 12))">上一页</button><button :disabled="loading || !catalog.hasMore" @click="list(catalog.offset + 12)">下一页</button></nav></section>
-    <MasterVersionsPanel v-if="draft && masterVersions" :draft="draft" @close="masterVersions = false" @prepare="openPreparation" />
+    <MasterVersionsPanel v-if="draft && masterVersions" :draft="draft" :initial-plan-id="initialVersionPlanId" @close="closeMasterVersions" @prepare="openPreparation" />
     <PreparationPanel v-if="draft && preparation" :draft="draft" :initial-layout-id="preparationLayoutId" @close="closePreparation" @import-render="openPrepared" />
     <PreparedPanel v-if="draft && prepared" :draft="draft" :initial-preparation-id="preparedId" @close="closePrepared" />
-    <ExecutionPanel v-if="draft && execution" :draft="draft" @close="closeExecution" />
-    <MediaPlanningPanel v-if="draft && mediaPlanning" :draft="draft" @close="mediaPlanning = false" />
+    <ExecutionPanel v-if="draft && execution" :draft="draft" :initial-context="initialExecutionContext" @close="closeExecution" />
+    <MediaPlanningPanel v-if="draft && mediaPlanning" :draft="draft" :initial-plan-id="initialMediaPlanId" @close="closeMediaPlanning" />
     <SourceEvidencePanel v-if="draft && sourceTrackId" :draft-id="draft.id" :track-id="sourceTrackId" :title="draft.tracks.find(t => t.id === sourceTrackId)?.metadata.title ?? '曲目'" @close="closeSources" />
     <MasterSourcePicker v-if="picker" :draft="draft" :busy="saving" :pending="!!pending" :error="error" @close="picker = false; error = ''" @confirm="append" @retry="retry" />
 
@@ -194,7 +248,7 @@ h2 { margin: 0; font-size: clamp(22px, 2.4vw, 30px); letter-spacing: -.035em; li
 .recording-start { display: flex; min-height: 320px; align-items: center; flex-direction: column; justify-content: center; padding: 36px 24px; border: 1px solid var(--mb-glass-border); border-radius: 18px; background: var(--mb-bg-base); text-align: center; }
 .recording-symbol { display: grid; width: 62px; height: 62px; place-items: center; margin-bottom: 22px; border: 1px solid var(--mb-glass-border); border-radius: 16px; color: var(--mb-accent); background: var(--mb-accent-soft); }
 .recording-symbol svg { width: 29px; height: 29px; }
-h3 { margin: 0; font-size: 22px; font-weight: 550; letter-spacing: -.02em; }
+h3 { margin: 0; overflow-wrap: anywhere; font-size: 22px; font-weight: 550; letter-spacing: -.02em; }
 .recording-description { max-width: 410px; margin: 16px 0 24px; color: var(--mb-text-secondary); font-size: 13px; line-height: 1.9; }
 .recording-primary { min-height: 40px; padding: 0 22px; border-radius: 9px; color: var(--mb-bg-deep); background: var(--mb-accent); font-size: 13px; font-weight: 600; }
 .recording-status { margin: 20px 0 0; color: var(--mb-text-secondary); font-size: 12px; line-height: 1.8; }

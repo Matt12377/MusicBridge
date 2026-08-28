@@ -6,6 +6,7 @@
     "e2e/task-068.spec.ts",
     "e2e/task-069.spec.ts",
     "e2e/task-070.spec.ts",
+    "e2e/task-071.spec.ts",
     "src/renderer/src/env.d.ts"
   ]
 }

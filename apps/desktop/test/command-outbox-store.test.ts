@@ -248,10 +248,16 @@ test('同进程生命周期排他，第二实例失败与close不释放第一实
 
 test('跨进程锁不误抢存活Main，实际SIGKILL后恢复已提交在途记录', { timeout: 15_000 }, async t => {
   const f = await fixture(t), id = f.store.confirm(request()).entry.id; f.store.close()
-  const child = spawn(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', `
+  const child = spawn(process.execPath, ['--expose-gc', '--import', 'tsx', '--input-type=module', '-e', `
     import { createCommandOutboxStore } from ${JSON.stringify(moduleUrl)};
     const store = createCommandOutboxStore({filePath:process.argv[1]}); store.markSending(process.argv[2]);
-    process.send('ready'); setInterval(()=>{},1000);
+    // 模拟Main由service/IPC闭包持有账本；仅保活进程不能阻止DatabaseSync被GC关闭。
+    globalThis.outboxGateStore = store;
+    setInterval(()=>{},1000);
+    setImmediate(async () => {
+      for (let cycle = 0; cycle < 6; cycle++) { globalThis.gc(); await new Promise(resolve => setImmediate(resolve)); }
+      process.send('ready');
+    });
   `, f.filePath, id], { cwd: path.resolve(import.meta.dirname, '..'), stdio: ['ignore', 'ignore', 'pipe', 'ipc'] })
   t.after(async () => { if (child.exitCode === null && child.signalCode === null) { const done = once(child, 'exit'); child.kill('SIGKILL'); await done } })
   const ready = await Promise.race([once(child, 'message'), once(child, 'exit').then(() => { throw new Error('子进程未持有账本') })]); assert.equal(ready[0], 'ready')
