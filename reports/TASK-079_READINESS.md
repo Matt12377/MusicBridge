@@ -71,3 +71,22 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 | 语法与diff-check | PASS，均exit 0 | Node `--check`和Git空白检查通过 |
 
 当前只允许本地提交；没有push、main合并、签名、公证、安装或发布。真实收据尚未创建，因为设备、资料、配置、测量计划与逐次操作授权均未建立。receipt seal只用于发现正常历史漂移，不是数字签名；若将来要求对抗本机恶意写入，必须另建Owner控制签名或外部只追加账本。
+
+## 候选清单追加加固
+
+- 本切片起点：`9e20a02679425fb97f081dd26529def4dbb5006e`
+- 实现提交：`04b77e45d48713f7437011e6e9bf51f87858c600`
+- RED：candidate manifest 内部聚合摘要即使自洽，受控文件单项 SHA 仍可伪造而被正式仓库身份校验接受；另一个仅可被 `Date.parse` 读取、但不是规范 UTC ISO 的授权时间也曾进入控制链。
+- GREEN：正式 CLI 现在从精确 `candidateCommit:<relativePath>` 读取每个受控 Git blob 并重算 SHA-256；Owner accepted 的技术引用也执行相同重算。收据、授权、Plan、Preflight 和 B-14 三层事件统一拒绝非规范 UTC ISO 时间。
+- 变更仍只涉及 TASK-079 证据验证器、专项测试、任务规格与运行手册；没有修改应用、Core、合同、数据库或设备代码，没有枚举、打开、配置或发声。
+
+| 入口 | 新鲜结果 | 边界 |
+| --- | --- | --- |
+| 证据验证器专项 | PASS，26/26，exit 0 | 覆盖伪受控文件摘要与非规范时间 RED；不是真实 Gate |
+| readiness 专项 | PASS，13/13，exit 0 | Owner 103 项 pending、外部 5 类 not-run |
+| evidence 模板 CLI | PASS，exit 0 | 空模板，不是真实收据 |
+| 标准 `pnpm verify` | PASS，exit 0 | Contracts 186/186；Bridge Core 1241/1242、0 fail、1 条件性 skip；Desktop 643/643；三包构建成功 |
+| 控制/边界/循环 | PASS，均 exit 0 | `CONTROL_PLANE=PASS`、`BOUNDARIES=PASS`、`CYCLES=PASS files=259` |
+| Node 语法与 `git diff --check` | PASS，均 exit 0 | 当前切片语法和空白检查通过 |
+
+真实收据仍为零，Gate A～E、B-01～B-15、U-01～U-10 与 Owner 103 项决定没有运行或升级；`Gate B=NOT_RUN`、`formalReady=false`。
