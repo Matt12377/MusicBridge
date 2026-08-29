@@ -50,3 +50,24 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 ## 接续条件
 
 设备接入后，先由Owner明确当次操作范围并冻结精确配置和测量计划，再按TASK-079规格依次执行真实资料授权、Gate B、Gate A/C/D/E真实样本、Replica/录音/打印和Owner逐项验收。任何缺样本、超时、超阈值、身份漂移或未预期设备/数据操作都停止；ACK、EOF、进程退出或FakeDriver不能代替输出端无声和实体停止证据。
+
+## 真实证据基础设施追加检查点
+
+- 本切片起点：`7c5db990dd79cf9aaf7e95d1a74306e73c81ec62`
+- 实现提交：`e43f39f1f0994cc66a2be275ee4c7f715e9783d0`
+- 变更范围：空证据模板、真实证据收据验证器、25项专项测试、Gate B运行手册和TASK-079允许路径；没有修改应用、Core、合同、数据库或设备代码。
+- 设备边界：没有枚举、打开、配置或发声；没有读取真实资料、Logic、Roon、账号或凭据；`Gate B=NOT_RUN`、`formalReady=false`。
+
+两名独立审查者在第二轮最终复审中仍退回可构造假PASS的P0/P1。按照两轮复审上限，主任务没有派第三轮代理，而是逐项完成RED→GREEN并作最终静态裁决：逐case附件事实源、非PASS失败事实、Owner技术seal与同候选引用、rejected/deferred正交、receipt独占附件窗口、完整匿名配置、grant→Plan→Preflight链、B-13～B-15附件/证书交叉验证、匿名环境seal、dirty候选拒绝、JSON转义/非法UTF-8扫描、路径组件复核和receipt seal回归均已进入测试。
+
+| 入口 | 新鲜结果 | 边界 |
+| --- | --- | --- |
+| 证据验证器专项 | PASS，25/25，exit 0 | 只证明收据基础设施测试，不是任何真实Gate通过 |
+| readiness专项 | PASS，13/13，exit 0 | 仍为Owner pending 103、外部not-run 5 |
+| readiness默认CLI | PASS，exit 0 | `ready=false`、设备未连接且未授权 |
+| evidence模板CLI | PASS，exit 0 | `template=true`、`receipt=null`；不是真实证据 |
+| 标准`pnpm verify` | PASS，exit 0 | Contracts 186/186；Bridge Core 1241/1242、0 fail、1条件性skip；Desktop 643/643；三包构建成功 |
+| 控制/边界/循环 | PASS，均exit 0 | `CONTROL_PLANE=PASS`、`BOUNDARIES=PASS`、`CYCLES=PASS files=259` |
+| 语法与diff-check | PASS，均exit 0 | Node `--check`和Git空白检查通过 |
+
+当前只允许本地提交；没有push、main合并、签名、公证、安装或发布。真实收据尚未创建，因为设备、资料、配置、测量计划与逐次操作授权均未建立。receipt seal只用于发现正常历史漂移，不是数字签名；若将来要求对抗本机恶意写入，必须另建Owner控制签名或外部只追加账本。
