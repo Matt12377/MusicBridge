@@ -6,7 +6,7 @@
 - 分支：`codex/task-078-v3-acceptance`
 - 实现提交：`2656b904a168e6afcbfddc5453d8793d347710d7`
 - 冻结候选：620 个受控文件，SHA-256 `9d53a9719e21f812fc6adc5907f53fd691e3d44b4f18880e676e2d8834c5d290`
-- 报告提交：待本报告提交后由最终身份提交锁定
+- 报告提交：`93824b6ea9246fbd5c5c08b4c56d92ed62588ef0`
 - GitHub：未 push；未合并 `main`；未签名、公证、安装或发布
 
 TASK-078 的**本地自动软件子范围**通过：双 native 全量验证、Security、Electron mock、完整 E2E、控制/边界/循环、16 个固定 native pin 和 101 条 mapped fresh 证据均已得到新鲜退出码与原始日志。正式 V3 整门仍未通过：B-13、B-15 未映射，Gate B、真实设备、真实资料、实体打印和 Owner 接受均保持 `NOT_RUN`，`formalReady=false`。

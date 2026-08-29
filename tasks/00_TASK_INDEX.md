@@ -97,3 +97,5 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 - [TASK-076](TASK-076-digital-replica.md)：历史执行音频/原始Render与有限Replica会话；本地软件Gate通过（174/1066/532、安全29、Electron4、E2E88），可听播放及Owner待验。
 
 - [TASK-077](TASK-077-j-card.md)：基础J-Card、Artwork归属与不可变Printed Artifact；本地软件Gate184/1088/601、安全29、Electron4、E2E90通过，真实打印/Owner待验。
+
+- [TASK-078](TASK-078-v3-acceptance.md)：103条验收映射、合成全链路、容量与退出证据收口；本地软件子范围完成，objects-limit/joint正式容量、实机与Owner分别保留。
