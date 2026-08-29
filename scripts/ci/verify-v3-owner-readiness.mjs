@@ -38,7 +38,7 @@ const HARDWARE_EVIDENCE_CONTROL = {
   previousImplementationCommit: 'a6d3c798452dc01b3cd49657c94397fefeb5bbcd',
   previousReportCommit: 'cf6d570fc87861010493d4e8d3c2237e9931d54f',
   contractV2ImplementationCommit: '7f373784de01b4be72f93c6c1ed117cac417deb2',
-  contractV2ReportCommit: null,
+  contractV2ReportCommit: 'fde4f6cb42facc975f2ff9c457f0e7dcde516d9d',
   focusedVerification: { tests: 33, passed: 33, failed: 0 },
   independentReviewRound1: 'RED_STANDALONE_B15_CERTIFICATE',
   independentReviewRound2Final: 'RED_DEPENDENCY_ORDER_AND_SUBJECT_BINDING',

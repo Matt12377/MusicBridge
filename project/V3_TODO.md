@@ -24,7 +24,7 @@
 - [x] TASK-079 / Real-logic技术收据：覆盖MVP-08/09/10与D-05～D-08；真实Workspace、工程/导出Hash、Marker/Timeline、criterion、环境别名与逐scope固定结论形成闭包，不由普通文件存在或Owner单份观察替代。
 - [x] TASK-079 / Real-roon技术收据：9个声明real-roon的scope已完成逐项事实闭包，并与A-02 real-input、B-09 real-output/hardware形成精确组合边界；专项、readiness、CLI和静态Gate均GREEN。
 - [x] TASK-079 / Hardware技术收据主任务实现：非B四scope与Gate B输出测量已分层；旧实现完成28/28专项GREEN。配置身份不冒充完整Gate B，可听Replica、实体完成和库存结果仍待实机。
-- [x] TASK-079 / Hardware evidence contract v2 主任务加固：新增配置前后观察、observer execution、四scope typed evidence、三层授权绑定、B-15 identity有效期/适用scope与U-10同事件依赖；实现=`7f373784…`，专项33/33。
+- [x] TASK-079 / Hardware evidence contract v2 主任务加固：新增配置前后观察、observer execution、四scope typed evidence、三层授权绑定、B-15 identity有效期/适用scope与U-10同事件依赖；实现=`7f373784…`，报告=`fde4f6cb…`，专项33/33。
 - [ ] TASK-079 / Hardware技术收据独立规格闭包：第二轮最终复审仍为RED；contract v2由主任务裁决并完成回归，尚未取得独立PASS，真实hardware与Gate B仍为`NOT_RUN`。
 - [x] TASK-079 / objects-limit重新准入与安全停止：fresh空间门已从不足变为通过；window-02因owned authority漏计两个旧保留根而在30.351秒由控制面停止，child=`SIGTERM`、PG empty、78个partial checkpoint与fixture原样保留，结论为`CONTROL_FAILURE_NOT_A_SEED_NOT_A_CAPACITY_PASS`。
 - [x] TASK-079 / Capacity authority issuer：初始RED为脚本不存在、3/3失败；两轮独立规格复审分别退回4项与3项P1，按上限不做第三轮。主任务关闭approved窗口末步发布、失败authority owned继承和损坏/漂移/symlink重放审计，最终专项12/12、py_compile、readiness 15/15、evidence 28/28、标准verify与静态Gate均PASS。实现=`a167eba9…`，报告=`cf6de5a…`；签发器不执行benchmark、不清理证据，也不授予新窗口。
