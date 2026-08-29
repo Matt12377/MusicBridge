@@ -81,7 +81,7 @@
     "task": "TASK-079",
     "branch": "codex/task-079-v3-final-acceptance",
     "baseCommit": "fac7363b4a6481591e207dda7cca77f0ae8d3cd4",
-    "state": "no-device-control-main-green-hardware-independent-r2-final-red-capacity-authority-pending-external-not-run",
+    "state": "no-device-control-main-green-hardware-independent-r2-final-red-objects-generation-pass-measure-issuer-green-external-not-run",
     "evidenceInfrastructure": {
       "state": "PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES",
       "receiptFoundation": {
@@ -160,7 +160,7 @@
     "gates": {
       "readinessControl": "PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO",
       "externalEvidenceProfiles": "REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED",
-      "capacityAuthority": "PENDING_NEW_FRESH_AUTHORITY_AFTER_PREAUTH_ISSUER_FIX",
+      "capacityAuthority": "OBJECTS_GENERATION_PASS_MEASURE_ISSUER_GREEN_FRESH_MEASURE_AUTHORITY_REQUIRED",
       "softwareBaseline": "TASK078_PASS_101_MAPPED_2_UNMAPPED_PENDING_EXTERNAL_NOT_RUN_FORMAL_READY_FALSE",
       "externalGate": "NOT_RUN",
       "realInput": "NOT_RUN",
@@ -183,13 +183,13 @@
       "R-020 大库冷启扫描与2秒ready策略待TASK-078/Gate E验证",
       "R-021：真实钥匙串无CDP普通Quit15秒FAIL保留；新隔离候选包空库及执行读取后两种mock-keychain普通Quit均code0/close且无进程残留，仅软件隔离诊断，不关闭真实钥匙串/Owner验收",
       "R-022：FakeDriver join/静止契约未证明真实HAL；未链接应用或helper，真实设备与Gate B须独立授权及测量",
-      "R-023：history-limit正式生成/measure/queued-stop已PASS；objects-limit window-01超时和window-02控制失败证据永久保留且不可重放。fresh空间门通过，57个既有base/carryover roots保持；capacity issuer已关闭42个generated contracts JS的候选来源缺口，以固定src/tsconfig/package、私有Node/libnode/TypeScript工具链副本、243 pins与15秒Git超时fail-closed，专项17/17。第三窗口仍需fresh authority复核与一次性签发；measure/queued-stop/joint未授权。",
+      "R-023：history-limit正式生成/measure/queued-stop已PASS；objects-limit window-01超时和window-02控制失败证据永久保留且不可重放。objects-limit generation window-03已在fresh authority下正式PASS，557个checkpoint、seed与fixture完整封存；measure issuer专项11/11并通过第二轮最终规格复审，当前仍需绑定新HEAD的fresh measure authority审计与一次性签发。measure/queued-stop/joint未运行。",
       "TASK-079 hardware evidence contract v2：主任务33/33专项GREEN；configuration observation、observer execution、typed scope evidence、B-15 identity有效期和U-10同事件依赖已加固。第二轮独立复审最终RED保留，未做第三轮且independentPass=false。真实hardware与Gate B均NOT_RUN。",
       "TASK-076历史核验与私有synthetic会话已通过本地软件Gate；实际可听Replica及正式provider接线须随073设备准入和079另验，当前始终blocked",
       "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task079-capacity-derived-source-closure-main-green-fresh-authority-pending-external-not-run",
+    "checkpoint": "task079-objects-generation-pass-measure-issuer-green-fresh-measure-authority-required-external-not-run",
     "nextTask": null,
     "resultReport": "reports/TASK-079_READINESS.md",
     "task078SoftwareCheckpoints": {
@@ -924,6 +924,39 @@
         "freshWindowAuthorized": false,
         "deviceOpened": false,
         "gateB": "NOT_RUN"
+      },
+      "capacityMeasureWindowIssuer": {
+        "state": "IMPLEMENTED_GREEN_FRESH_MEASURE_AUTHORITY_NOT_ISSUED",
+        "implementationCommit": "fc23f559790b02aefe3292271364f3564c8e8fc8",
+        "initialRed": "missing-production-script-7-of-7-fail",
+        "focusedVerification": {
+          "tests": 11,
+          "passed": 11,
+          "failed": 0
+        },
+        "pythonCompile": "PASS",
+        "independentReviewRound1": "SPEC_RED_P1_2__QUALITY_RED_P2_3",
+        "independentReviewRound2Final": "SPEC_PASS__QUALITY_BOUNDED_PASS_P2_3",
+        "thirdReviewPerformed": false,
+        "rootClosure": {
+          "inherited": 59,
+          "addedExisting": 4,
+          "existing": 63,
+          "future": 1,
+          "authorized": 64
+        },
+        "plannedBytes": 4249378816,
+        "mainAdjudication": [
+          "runtime-is-bounded-before-json-replay-audit-but-directory-enumeration-p2-remains",
+          "derived-contract-build-reuses-generation-issuer-helper-with-existing-focused-coverage",
+          "consumer-command-shape-statically-matches-frozen-supervisor-load-window-contract"
+        ],
+        "writesAuthorityOnly": true,
+        "executesBenchmark": false,
+        "freshMeasureAuthorityIssued": false,
+        "measureRun": "NOT_RUN",
+        "deviceOpened": false,
+        "gateB": "NOT_RUN"
       }
     },
     "capacityHistoryLimitWindow01": {
@@ -949,6 +982,6 @@
       "closeReceiptSha256": "4c18479e33b6392ff511a09b057d3e296dc3873d1c9be09d7d5f67c38eff39be",
       "replay": "PROHIBITED"
     },
-    "capacityGate": "R023_OBJECTS_LIMIT_WINDOW02_CONTROL_COVERAGE_FAILURE_SEALED__WINDOW03_PREAUTH_ISSUER_INTERNAL_NO_AUTHORITY_NO_GENERATION__REPLAY_AND_CARRYOVER_SHAPES_FIXED_19_PASS__FRESH_WINDOW_MEASURE_QUEUE_JOINT_NOT_AUTHORIZED"
+    "capacityGate": "R023_OBJECTS_LIMIT_WINDOW03_GENERATION_PASS__MEASURE_ISSUER_11_PASS__FRESH_MEASURE_AUTHORITY_NOT_ISSUED__MEASURE_QUEUE_JOINT_NOT_RUN"
   }
 }

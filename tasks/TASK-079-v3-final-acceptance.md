@@ -37,12 +37,14 @@
 - `scripts/ci/test/verify-v3-owner-evidence.test.mjs`
 - `scripts/ci/issue-v3-capacity-window.py`
 - `scripts/ci/test/issue-v3-capacity-window.test.mjs`
+- `scripts/ci/issue-v3-capacity-measure-window.py`
+- `scripts/ci/test/issue-v3-capacity-measure-window.test.mjs`
 - `reports/TASK-079_REAL_GATE_RUNBOOK.md`
 - `reports/TASK-079_READINESS.md`
 
 除非后续真实 RED 明确证明需要生产修复，否则本无设备阶段不修改应用、Core、合同、数据库或原生输出代码。任何生产修复必须先单独冻结允许路径并执行 RED→GREEN；不能为了让清单变绿而放宽真实 Gate。
 
-TASK-078 的 `objects-limit` 重新准入在 2026-08-30 暴露出独立控制面 RED：仓库只有 capacity window 消费器，没有可测试的 exclusive-create authority 签发器；临时签发遗漏已封存的旧 partial output 与 fixture，运行在独立审计发现后立即终止。新增的 capacity issuer 只负责从显式旧 owned manifest、终态 carryover close 和当前 source pins 构造 fail-closed generation authority，不运行 benchmark、不清理证据、不自动重试，也不授权新的窗口。第三个窗口仍需独立的新鲜授权决定。
+TASK-078 的 `objects-limit` 重新准入在 2026-08-30 暴露出独立控制面 RED：仓库只有 capacity window 消费器，没有可测试的 exclusive-create authority 签发器；临时签发遗漏已封存的旧 partial output 与 fixture，运行在独立审计发现后立即终止。新增的 generation issuer 只负责从显式旧 owned manifest、终态 carryover close 和当前 source pins 构造 fail-closed generation authority，不运行 benchmark、不清理证据、不自动重试。window-03 generation 正式 PASS 后，measure 又暴露出独立 issuer 缺口；新 measure issuer 继承59个既有受控根，加入seed、fixture、新authority与issuer identity，并仅预授权一个future output，形成63+1精确闭包。它同样只写authority，不执行measure；下一步仍需独立fresh审计后才可一次性签发。
 
 ## 自动验证
 
@@ -53,6 +55,8 @@ node --test scripts/ci/test/verify-v3-owner-evidence.test.mjs
 node scripts/ci/verify-v3-owner-evidence.mjs
 /usr/bin/python3 -m py_compile scripts/ci/issue-v3-capacity-window.py
 node --test scripts/ci/test/issue-v3-capacity-window.test.mjs
+/usr/bin/python3 -m py_compile scripts/ci/issue-v3-capacity-measure-window.py
+node --test scripts/ci/test/issue-v3-capacity-measure-window.test.mjs
 git diff --check
 ```
 

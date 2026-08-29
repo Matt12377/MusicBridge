@@ -13,9 +13,9 @@ const MATRIX_SHA256 = '12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7f
 const EXTERNAL_KINDS = ['real-input', 'real-logic', 'real-roon', 'hardware', 'owner']
 const UNMAPPED_PENDING = ['B-13', 'B-15']
 const READINESS_CONTROL = 'PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO'
-const DEVELOPMENT_STATE = 'no-device-control-main-green-hardware-independent-r2-final-red-capacity-authority-pending-external-not-run'
+const DEVELOPMENT_STATE = 'no-device-control-main-green-hardware-independent-r2-final-red-objects-generation-pass-measure-issuer-green-external-not-run'
 const EXTERNAL_EVIDENCE_PROFILES = 'REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED'
-const CAPACITY_AUTHORITY = 'PENDING_NEW_FRESH_AUTHORITY_AFTER_PREAUTH_ISSUER_FIX'
+const CAPACITY_AUTHORITY = 'OBJECTS_GENERATION_PASS_MEASURE_ISSUER_GREEN_FRESH_MEASURE_AUTHORITY_REQUIRED'
 const EVIDENCE_INFRASTRUCTURE = {
   state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
   receiptFoundation: {
@@ -99,6 +99,29 @@ const CAPACITY_WINDOW_ISSUER = {
   deviceOpened: false,
   gateB: 'NOT_RUN',
 }
+const CAPACITY_MEASURE_WINDOW_ISSUER = {
+  state: 'IMPLEMENTED_GREEN_FRESH_MEASURE_AUTHORITY_NOT_ISSUED',
+  implementationCommit: 'fc23f559790b02aefe3292271364f3564c8e8fc8',
+  initialRed: 'missing-production-script-7-of-7-fail',
+  focusedVerification: { tests: 11, passed: 11, failed: 0 },
+  pythonCompile: 'PASS',
+  independentReviewRound1: 'SPEC_RED_P1_2__QUALITY_RED_P2_3',
+  independentReviewRound2Final: 'SPEC_PASS__QUALITY_BOUNDED_PASS_P2_3',
+  thirdReviewPerformed: false,
+  rootClosure: { inherited: 59, addedExisting: 4, existing: 63, future: 1, authorized: 64 },
+  plannedBytes: 4249378816,
+  mainAdjudication: [
+    'runtime-is-bounded-before-json-replay-audit-but-directory-enumeration-p2-remains',
+    'derived-contract-build-reuses-generation-issuer-helper-with-existing-focused-coverage',
+    'consumer-command-shape-statically-matches-frozen-supervisor-load-window-contract',
+  ],
+  writesAuthorityOnly: true,
+  executesBenchmark: false,
+  freshMeasureAuthorityIssued: false,
+  measureRun: 'NOT_RUN',
+  deviceOpened: false,
+  gateB: 'NOT_RUN',
+}
 const hash = bytes => createHash('sha256').update(bytes).digest('hex')
 const fail = code => { throw new Error(code) }
 const check = (condition, code) => { if (!condition) fail(code) }
@@ -174,6 +197,7 @@ function validateControlIdentity(status, wave) {
   check(JSON.stringify(current.evidenceInfrastructure) === JSON.stringify(EVIDENCE_INFRASTRUCTURE), 'CONTROL_STATE')
   check(JSON.stringify(current.hardwareEvidenceControl) === JSON.stringify(HARDWARE_EVIDENCE_CONTROL), 'CONTROL_STATE')
   check(JSON.stringify(current.task078SoftwareCheckpoints?.capacityWindowIssuer) === JSON.stringify(CAPACITY_WINDOW_ISSUER), 'CONTROL_STATE')
+  check(JSON.stringify(current.task078SoftwareCheckpoints?.capacityMeasureWindowIssuer) === JSON.stringify(CAPACITY_MEASURE_WINDOW_ISSUER), 'CONTROL_STATE')
   const device = current.deviceTestPlanning
   check(device && device.connectionState === 'no-devices-connected' && device.deviceOperationsAuthorization === 'NOT_GRANTED' && device.measurementConfiguration === 'PENDING' && device.outputBackendCertification === 'NOT_RUN', 'CONTROL_STATE')
   check(Array.isArray(device.audioInterfaceBrandCandidates) && JSON.stringify(device.audioInterfaceBrandCandidates) === JSON.stringify(['RME', 'Apogee']) && device.audioInterfaceModel === null, 'CONTROL_STATE')

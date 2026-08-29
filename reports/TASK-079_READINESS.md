@@ -200,7 +200,7 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - 新鲜验证：capacity issuer专项17/17；Owner evidence+readiness专项48/48；两个默认CLI PASS且`ready=false`；标准`pnpm verify` exit 0；`CONTROL_PLANE=PASS`、`BOUNDARIES=PASS`、`CYCLES=PASS files=259`；Python compile与`git diff --check`均PASS。
 - 本切片没有运行真实issuer，没有创建window-03、seed或benchmark进程；`freshWindowAuthorized=false`，objects-limit measure、large queued-stop与joint仍未授权。设备、Roon、真实资料和Owner状态不变。
 
-### 当前机器真相同步
+### window-03签发前机器真相同步（历史快照）
 
 - hardware contract v2主任务：33/33专项GREEN；独立第二轮最终结论：RED；未执行第三轮，`independentPass=false`。
 - 真实hardware和Gate B：均为`NOT_RUN`；没有设备操作或真实数据写入。
@@ -214,3 +214,12 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - RED先复现无关phase close导致`ISSUER_INTERNAL`；随后扩展为顶层`null/list/string/number/boolean`与generation close嵌套primitive表驱动负例，并断言失败前无window/seed。GREEN兼容无关phase字符串window，对generation形状异常稳定返回`REPLAY_AUDIT`。提交：`6009b3cb8f830cfd69fbbb7640be0bf6b70b3272`、`751146c5a36aa5ec15a45355d8f726b990a05575`。
 - 独立只读复核还发现carryover链式嵌套解析风险。主任务追加RED→GREEN：terminal控制对象形状异常映射`CARRYOVER_TERMINAL`，partial/supervisor覆盖形状异常映射`CARRYOVER_COVERAGE`，不再泄漏为内部异常。提交：`5879c92142b6089f11daac0b3eb4460a66ffbe1d`。
 - 新鲜专项为19/19、Python compile与`git diff --check`均PASS。旧fresh authority审计绑定旧HEAD和旧issuer SHA，不能用于新代码；机器状态保持`freshWindowAuthorized=false`，下一步必须重新进行独立只读准入后才能签发全新window。measure、large queued-stop、joint及全部设备/Owner门仍未授权。
+
+#### Objects-limit generation window-03 PASS 与 measure issuer
+
+- generation window UUID=`2a30115c-5552-4453-acd9-73eca830a7e8`，window SHA256=`4068c0682d70456c13a4ca32248f9b5e5f9a15eaba814130204a95ec93bef4d0`。该窗口在第二次fresh审计后一次性签发，并只消费authority回执中的supervisor命令。
+- generation自然exit 0，supervisor与seed均确认`targetReached=true`、`verifiedPassed=true`；共557个checkpoint，authority/source稳定、PG empty、zombie列表为空、没有sidecar。seed metadata SHA256=`632d8e4b0c01ffec07adc72344e7bcc877e5f1d764e7745af856c6ba44492309`，SQLite SHA256=`7ec9b3bed1642503cc9fcee70c6156b54eb43834b0a457050ec51607f2e1ab3a`。该seed只属于non-performance生成阶段，不冒充measure成绩。
+- measure authority issuer实现提交=`fc23f559790b02aefe3292271364f3564c8e8fc8`。TDD初始RED为生产脚本缺失、7/7失败；GREEN扩展到11/11。issuer完整绑定generation PASS、243个source pins、59个继承根、seed、fixture、新authority与issuer identity，形成63个existing roots加唯一future output，共64个授权根；planned bytes=`4249378816`。
+- 第一轮独立复审为SPEC RED（2项P1）与QUALITY RED（3项P2）；修复authority details接受边界及publish后fsync回滚双状态后，第二轮最终为SPEC PASS、QUALITY限定PASS，P0/P1=0，3项P2按两轮上限封存，未执行第三轮复审。
+- 新鲜验证：measure issuer专项11/11、Python compile、readiness 15/15及默认CLI、标准`pnpm verify`、三包生产构建与`git diff --check`均exit 0；本轮可见Desktop 643/643。全量验证没有连接设备、Roon或真实资料。
+- 当前尚未签发measure authority，也未运行measure、large queued-stop或joint。下一步必须把fresh审计绑定到包含本节机器状态的当前HEAD和issuer blob；只有审计PASS后才允许一次性签发并消费唯一命令。`hardware=NOT_RUN`、`Gate B=NOT_RUN`、Owner 103项仍为`pending`、`formalReady=false`。
