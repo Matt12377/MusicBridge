@@ -90,3 +90,12 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 | Node 语法与 `git diff --check` | PASS，均 exit 0 | 当前切片语法和空白检查通过 |
 
 真实收据仍为零，Gate A～E、B-01～B-15、U-01～U-10 与 Owner 103 项决定没有运行或升级；`Gate B=NOT_RUN`、`formalReady=false`。
+
+## 机器状态同步检查点
+
+- 本切片起点：`c66da1c741db87414976686ede6e02387f93ea7d`
+- 实现提交：`9a991a6fc5f24261bf7c600cc214084d4e75c324`
+- RED：`project/STATUS.json` 仍只记录初始 readiness 实现/报告，缺少收据基础设施与 candidate closure 的最终身份；原验证器会接受删除或伪造这些检查点的 STATUS。
+- GREEN：STATUS 新增两段固定检查点链，readiness 验证器逐字段锁定 base/implementation/report/final SHA 和 25→26 专项计数；缺失、错 SHA、错计数均以 `CONTROL_STATE` 拒绝。顶层初始 readiness 提交保留原义，不用后续状态提交冒充最初实现。
+- 新鲜验证：readiness 14/14、证据专项 26/26、两个默认 CLI、Node 语法、控制面、边界、循环及 `git diff --check` 全部 exit 0；标准 `pnpm verify` exit 0，Contracts 186/186、Bridge Core 1241/1242（0 fail、1 条件性 skip）、Desktop 643/643，三包构建成功。
+- 边界不变：无设备、无真实资料、无真实收据；不 push、不合并 `main`、不签名、公证、安装或发布。
