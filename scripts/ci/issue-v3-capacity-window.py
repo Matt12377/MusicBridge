@@ -517,7 +517,16 @@ def reject_replay_label(runtime, label):
                 value, _ = strict_json(candidate)
             except IssueError:
                 fail('REPLAY_AUDIT')
-            observed = value.get('label') if value.get('scope') == 'musicbridge-capacity-generation-window' else value.get('window', {}).get('label')
+            if not isinstance(value, dict):
+                fail('REPLAY_AUDIT')
+            scope = value.get('scope')
+            if scope == 'musicbridge-capacity-generation-window':
+                observed = value.get('label')
+            else:
+                nested_window = value.get('window')
+                if scope == 'musicbridge-capacity-generation-close' and nested_window is not None and not isinstance(nested_window, dict):
+                    fail('REPLAY_AUDIT')
+                observed = nested_window.get('label') if isinstance(nested_window, dict) else None
             if observed == label:
                 fail('REPLAY_LABEL')
 

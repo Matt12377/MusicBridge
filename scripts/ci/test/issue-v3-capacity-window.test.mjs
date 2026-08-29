@@ -294,6 +294,35 @@ test('旧 authority window 损坏或为符号链接时 replay 审计 fail-closed
   assert.match(linkedCloseResult.stderr, /REPLAY_AUDIT/)
 })
 
+test('replay 审计忽略其他阶段的字符串 window，但拒绝 generation 与顶层 primitive 形状', () => {
+  const unrelated = fixture()
+  json(join(unrelated.runtime, 'phase-window-close.json'), {
+    schemaVersion: 1,
+    scope: 'musicbridge-capacity-phase-window-close',
+    window: 'phase-window'
+  })
+  const unrelatedResult = spawnSync(python, args(unrelated), { encoding: 'utf8' })
+  assert.equal(unrelatedResult.status, 0, unrelatedResult.stderr)
+
+  const malformedGeneration = fixture()
+  json(join(malformedGeneration.runtime, 'generation-window-close.json'), {
+    schemaVersion: 1,
+    scope: 'musicbridge-capacity-generation-close',
+    window: 'generation-window'
+  })
+  const malformedGenerationResult = spawnSync(python, args(malformedGeneration), { encoding: 'utf8' })
+  assert.notEqual(malformedGenerationResult.status, 0)
+  assert.match(malformedGenerationResult.stderr, /REPLAY_AUDIT/)
+  assert.doesNotMatch(malformedGenerationResult.stderr, /ISSUER_INTERNAL/)
+
+  const primitive = fixture()
+  json(join(primitive.runtime, 'primitive-window-close.json'), 'primitive-window')
+  const primitiveResult = spawnSync(python, args(primitive), { encoding: 'utf8' })
+  assert.notEqual(primitiveResult.status, 0)
+  assert.match(primitiveResult.stderr, /REPLAY_AUDIT/)
+  assert.doesNotMatch(primitiveResult.stderr, /ISSUER_INTERNAL/)
+})
+
 test('签发中途失败目录由下一 fresh authority 纳入 owned 闭包', () => {
   const f = fixture(); writeFileSync(join(f.root, 'tracked.txt'), 'dirty\n')
   const failed = spawnSync(python, args(f), { encoding: 'utf8' })
