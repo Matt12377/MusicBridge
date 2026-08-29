@@ -155,3 +155,24 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - 两轮复审上限：第二轮最终意见后未派第三轮。主任务完成依赖前置、subject binding、manifest 对齐和 Replica correlation 的静态裁决，再执行最终回归；因此这里记录的是主任务裁决后的验证结果，不伪称第三方最终复审 PASS。
 - 新鲜结果：证据专项 28/28、readiness 15/15、两个默认 CLI、Node 语法、控制面、边界、循环及 `git diff --check` 全部 exit 0。STATUS 为 `REAL_INPUT_REAL_LOGIC_REAL_ROON_HARDWARE_PREPARED`。
 - 边界：配置身份收据只证明被引用 B-15 技术窗口和候选配置身份，不等于完整 Gate B 认证；JSON、SHA 与本地 seal 也不是外部设备签名。当前没有设备连接、枚举、打开、配置、发声、录音、拔插或故障注入，没有可听 Replica 或实体库存结果；`hardware=NOT_RUN`、`Gate B=NOT_RUN`、Owner 103 项仍 `pending`、`formalReady=false`。
+
+### Capacity authority issuer 与 window-02 控制失败
+
+- 本切片起点：`764c7cf32ce2ced743742f20bc99dbbbf799bdf0`
+- 实现提交：`a167eba9a96e2fa50766ca67f14dcc57743cc8b8`
+- 新鲜空间复核已满足固定 `planned bytes + 10 GiB` 门，但临时 window-02 authority 漏计 window-01 的 partial output 与 fixture。独立审计发现后立即终止子进程组；执行约 30.351 秒，child=`SIGTERM`、进程组为空、无 zombie，78 个 partial checkpoint 与新 fixture 原样保留。该窗口没有 seed，不是容量 PASS，禁止重放。
+- window-02 close SHA256=`294d639ca38e3ace0d0ffbf8f96fc37198b1739e3bc5913bd53530d053ae332c`；完整 carryover inventory SHA256=`d9b4e84096a8a565aec0fa54d314288f5095b1693d7f0f33cc91b3d3e207f4cc`。measure、large queued-stop 与 joint 均未授权、未运行。
+- TDD 初始 RED 为仓库内缺少 durable issuer、3/3 失败。实现只 exclusive-create 控制 authority，不运行 benchmark、不删除证据、不授予重试；它绑定仓库分支/HEAD、Git blob、supervisor/consumer、旧 owned manifest、terminal close、四个 carryover 根、容量投影与不可重放 label。
+- 第一轮独立规格复审的 4 项 P1 已关闭。第二轮最终复审仍以 3 项 P1 退回；按两轮上限没有第三次代理复审。主任务随后补齐 approved window 最后一步原子发布、失败 authority owned 继承、损坏/漂移/符号链接 replay fail-closed，并加入相应负例。这里记录主任务裁决后的验证结果，不把第二轮 RED 改写为独立复审 PASS。
+
+| 入口 | 新鲜结果 | 边界 |
+| --- | --- | --- |
+| capacity issuer 专项 | PASS，12/12，exit 0 | 覆盖真实 carryover、终态进程、marker 漂移、consumer、replay、失败目录继承及发布前故障；没有签发真实窗口 |
+| Python compile | PASS，exit 0 | `issue-v3-capacity-window.py` 可编译 |
+| readiness 专项与默认 CLI | PASS，15/15 与 exit 0 | `ready=false`、Owner 103 项 pending、外部 5 类 not-run |
+| evidence 专项与模板 CLI | PASS，28/28 与 exit 0 | 空模板，不是真实收据 |
+| 标准 `pnpm verify` | PASS，exit 0 | Contracts 186/186；Bridge Core 1241/1242、0 fail、1 条件性 skip；Desktop 643/643；三包构建成功 |
+| 控制/边界/循环 | PASS，均 exit 0 | `CONTROL_PLANE=PASS`、`BOUNDARIES=PASS`、`CYCLES=PASS files=259` |
+| `git diff --check` | PASS，exit 0 | 无空白错误 |
+
+当前没有签发或运行 window-03。新的 objects-limit generation 仍需要独立 fresh authority 决定；它通过后才可按线性顺序进入 measure、large queued-stop 与 joint。设备、Roon、真实资料和 Owner Gate 的状态没有变化。
