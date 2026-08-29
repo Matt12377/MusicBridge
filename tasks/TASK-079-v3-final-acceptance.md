@@ -58,6 +58,8 @@ Readiness 的机器状态不能只比较提交 SHA 字符串；默认 CLI 必须
 
 Owner accepted 的前置按 scope 分层：B-01～B-15 必须引用同 scope 的技术 PASS；非 B scope 只有在冻结 TASK-078 矩阵 fresh 已通过且外部门仅为 `owner` 时，才允许零技术引用的 Owner 观察。任何还要求真实输入、Logic、Roon 或硬件的条目继续 fail-closed，不能由 Owner 单份观察替代缺失技术证据。
 
+外部门技术收据按类别独立实现，不使用宽松的通用 PASS。首个 `real-input-observation` 只覆盖矩阵声明的 real-input 子门，固定七类附件、criterion SHA、候选和授权链，并由匿名 source alias/内容 SHA、只读不改原件事实共同支持。多外部门 scope 必须由 Owner 引用的技术收据集合精确覆盖全部非 owner requirements；A-02 只有 real-input 收据时仍拒绝。
+
 TASK-078 的严格 fresh validator 已在其原工作树以完整、未跟踪的 runtime 日志与收据通过并由最终报告锁定。TASK-079 新工作树不复制这些大体积 runtime 证据，因此不重放该入口；本任务以固定矩阵 SHA256 `12f15170…`、最终基线 `fac7363…` 与103/101/2实际内容复核继承软件封条。缺少旧 runtime 文件时的 `PATH_UNAVAILABLE` 不是新的验收失败，也不能被改写成重跑授权。
 
 ## 停止条件

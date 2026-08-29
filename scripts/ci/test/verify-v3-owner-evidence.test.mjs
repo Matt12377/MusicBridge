@@ -241,6 +241,93 @@ function syncSampleArtifact(fixture) {
   artifact.sizeBytes = bytes.length
 }
 
+function realInputFixture(t, scopeId = 'MVP-05') {
+  const fixture = actualFixture(t)
+  const receipt = fixture.envelope.receipt
+  receipt.receiptId = 'real-input-window-01'
+  mkdirSync(path.join(fixture.root, `reports/runtime/task-079-v3-final-acceptance/receipts/${receipt.receiptId}`), { recursive: true })
+  receipt.kind = 'real-input-observation'
+  receipt.scopeIds = [scopeId]
+  receipt.configuration = null
+  receipt.configurationFingerprintSha256 = null
+  receipt.measurements = null
+  receipt.artifacts = []
+  const matrix = JSON.parse(readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json'), 'utf8'))
+  const entry = matrix.entries.find(value => value.id === scopeId)
+  const criterionSha256 = sha256(Buffer.from(JSON.stringify(entry.source)))
+  upsertJsonArtifact(fixture, 'external-observation', 'external-observation', {
+    sourceAliases: ['source-01'],
+    sourceSha256s: ['d'.repeat(64)],
+  })
+  receipt.caseEvidence = {
+    type: 'real-input',
+    externalKind: 'real-input',
+    criterionSha256,
+    sourceCount: 1,
+    authorizedRead: true,
+    contentHashesVerified: true,
+    originalBytesUnchanged: true,
+    criterionSatisfied: true,
+    observationArtifactIds: ['external-observation'],
+  }
+  syncCaseArtifact(fixture)
+  receipt.environmentFingerprint = upsertJsonArtifact(fixture, 'environment-seal', 'environment-seal', {
+    runId: receipt.receiptId,
+    osFamily: 'macos',
+    architecture: 'arm64',
+    externalKind: 'real-input',
+    dataSourceAlias: 'source-root-01',
+  })
+  const controlledFiles = [
+    { relativePath: 'project/V3_ACCEPTANCE.json', sha256: receipt.matrixSha256 },
+    { relativePath: 'scripts/ci/verify-v3-owner-evidence.mjs', sha256: '8'.repeat(64) },
+  ]
+  receipt.candidateManifestSha256 = upsertJsonArtifact(fixture, 'candidate-manifest', 'candidate-manifest', {
+    candidateCommit: receipt.candidateCommit,
+    candidateTree: receipt.candidateTree,
+    controlledFiles,
+    controlledFilesSha256: sha256(Buffer.from(JSON.stringify(controlledFiles))),
+  })
+  receipt.authorizationSha256 = upsertJsonArtifact(fixture, 'authorization-seal', 'authorization-seal', {
+    scopeId,
+    runId: receipt.receiptId,
+    candidateCommit: receipt.candidateCommit,
+    candidateTree: receipt.candidateTree,
+    candidateManifestSha256: receipt.candidateManifestSha256,
+    externalKind: 'real-input',
+    criterionSha256,
+    allowedOperations: ['read-source', 'hash-source'],
+    allowedDataClasses: ['anonymous-real-input'],
+    grantedAt: '2026-08-29T05:50:00.000Z',
+    expiresAt: '2026-08-29T06:10:00.000Z',
+  })
+  receipt.planSha256 = upsertJsonArtifact(fixture, 'plan-seal', 'plan-seal', {
+    scopeId,
+    runId: receipt.receiptId,
+    candidateCommit: receipt.candidateCommit,
+    candidateTree: receipt.candidateTree,
+    candidateManifestSha256: receipt.candidateManifestSha256,
+    externalKind: 'real-input',
+    criterionSha256,
+    grantSha256: receipt.authorizationSha256,
+    frozenAt: '2026-08-29T05:55:00.000Z',
+  })
+  receipt.preflightSha256 = upsertJsonArtifact(fixture, 'preflight-seal', 'preflight-seal', {
+    scopeId,
+    runId: receipt.receiptId,
+    candidateCommit: receipt.candidateCommit,
+    candidateTree: receipt.candidateTree,
+    candidateManifestSha256: receipt.candidateManifestSha256,
+    externalKind: 'real-input',
+    criterionSha256,
+    grantSha256: receipt.authorizationSha256,
+    planSha256: receipt.planSha256,
+    observedAt: '2026-08-29T05:58:00.000Z',
+    passed: true,
+  })
+  return fixture
+}
+
 function writeReceiptSeal(root, receiptId, receiptBytes) {
   const relativePath = `reports/runtime/task-079-v3-final-acceptance/receipts/${receiptId}.sealed.sha256`
   writeFileSync(path.join(root, relativePath), `${sha256(receiptBytes)}\n`)
@@ -458,6 +545,50 @@ test('技术证据与Owner观察必须分离且单份收据不能声明全局rea
   const realRoonRequired = structuredClone(ownerOnly)
   realRoonRequired.receipt.scopeIds = ['U-01']
   assert.throws(() => validateV3EvidenceEnvelope(realRoonRequired, { root: owner.root }), /OWNER_BOUNDARY/u)
+
+  const input = realInputFixture(t)
+  mkdirSync(path.join(input.root, 'project'), { recursive: true })
+  writeFileSync(path.join(input.root, 'project/V3_ACCEPTANCE.json'), readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json')))
+  assert.equal(validateV3EvidenceEnvelope(input.envelope, { root: input.root }).verdict, 'passed')
+  const detachedCase = structuredClone(input.envelope)
+  detachedCase.receipt.caseEvidence.sourceCount = 2
+  assert.throws(() => validateV3EvidenceEnvelope(detachedCase, { root: input.root }), /CASE_EVIDENCE/u)
+  const extraInput = realInputFixture(t)
+  mkdirSync(path.join(extraInput.root, 'project'), { recursive: true })
+  writeFileSync(path.join(extraInput.root, 'project/V3_ACCEPTANCE.json'), readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json')))
+  upsertJsonArtifact(extraInput, 'extra-event', 'event-log', { event: 'unscoped-extra' })
+  assert.throws(() => validateV3EvidenceEnvelope(extraInput.envelope, { root: extraInput.root }), /ARTIFACT/u)
+  const inputBytes = Buffer.from(JSON.stringify(input.envelope))
+  const inputPath = `reports/runtime/task-079-v3-final-acceptance/receipts/${input.envelope.receipt.receiptId}.json`
+  writeFileSync(path.join(input.root, inputPath), inputBytes)
+  writeReceiptSeal(input.root, input.envelope.receipt.receiptId, inputBytes)
+  const inputOwner = structuredClone(input.envelope)
+  inputOwner.receipt.receiptId = 'owner-input-window-01'
+  inputOwner.receipt.kind = 'owner-observed'
+  inputOwner.receipt.artifacts = []
+  inputOwner.receipt.caseEvidence = null
+  inputOwner.receipt.verdict = null
+  inputOwner.receipt.ownerDecision = 'accepted'
+  inputOwner.receipt.referencedTechnicalReceipts = [{ receiptId: input.envelope.receipt.receiptId, receiptSha256: sha256(inputBytes) }]
+  assert.equal(validateV3EvidenceEnvelope(inputOwner, { root: input.root }).verdict, 'accepted')
+
+  const multiExternal = realInputFixture(t, 'A-02')
+  mkdirSync(path.join(multiExternal.root, 'project'), { recursive: true })
+  writeFileSync(path.join(multiExternal.root, 'project/V3_ACCEPTANCE.json'), readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json')))
+  assert.equal(validateV3EvidenceEnvelope(multiExternal.envelope, { root: multiExternal.root }).verdict, 'passed')
+  const multiBytes = Buffer.from(JSON.stringify(multiExternal.envelope))
+  const multiPath = `reports/runtime/task-079-v3-final-acceptance/receipts/${multiExternal.envelope.receipt.receiptId}.json`
+  writeFileSync(path.join(multiExternal.root, multiPath), multiBytes)
+  writeReceiptSeal(multiExternal.root, multiExternal.envelope.receipt.receiptId, multiBytes)
+  const incompleteOwner = structuredClone(multiExternal.envelope)
+  incompleteOwner.receipt.receiptId = 'owner-a02-window-01'
+  incompleteOwner.receipt.kind = 'owner-observed'
+  incompleteOwner.receipt.artifacts = []
+  incompleteOwner.receipt.caseEvidence = null
+  incompleteOwner.receipt.verdict = null
+  incompleteOwner.receipt.ownerDecision = 'accepted'
+  incompleteOwner.receipt.referencedTechnicalReceipts = [{ receiptId: multiExternal.envelope.receipt.receiptId, receiptSha256: sha256(multiBytes) }]
+  assert.throws(() => validateV3EvidenceEnvelope(incompleteOwner, { root: multiExternal.root }), /OWNER_BOUNDARY/u)
 })
 
 test('scope必须来自冻结103项且每份技术收据只覆盖一个B-01至B-15用例', t => {

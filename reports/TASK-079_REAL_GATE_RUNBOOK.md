@@ -22,6 +22,8 @@ node scripts/ci/verify-v3-owner-evidence.mjs --receipt-id <匿名收据ID>
 
 Readiness CLI 还会在当前 TASK-079 Git 仓库中核对证据基础设施检查点：分支必须正确，每个 base/实现/报告/最终 SHA 必须解析为真实 commit，两段链必须按祖先关系线性连接，最后一个 candidate closure 必须是当前 HEAD 的祖先。只复制 STATUS 文本、交换提交顺序或指向另一个仓库不能通过。
 
+`real-input-observation` 用于 MVP-05、MVP-11、MVP-23、A-04，以及 A-02 的 real-input 子门。它必须绑定矩阵 source criterion SHA、同候选授权→Plan→Preflight链、匿名数据源环境、唯一 `external-observation` 和唯一 `case-evidence`；观察附件逐项保存匿名 source alias 与内容 SHA，数量必须匹配，并确认已授权读取、内容 Hash 已核、原字节未变且 criterion 满足。窗口角色固定为七类，不能夹带未参与判定的附件。A-02 仍同时要求 real-roon 收据，单份 real-input PASS 不足以让 Owner accepted。
+
 receipt seal 用独占创建、`fsync`、回读和同 ID 不同内容拒绝来发现正常历史漂移；它不是数字签名，也不对抗拥有本机文件写权限的恶意用户同时删除或替换收据与 seal。若未来需要该威胁模型，必须引入 Owner 控制签名或外部只追加账本，不能把本地 seal 描述成不可抵赖证明。
 
 ## 2. 准入顺序
