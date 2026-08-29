@@ -7,7 +7,7 @@
 - 工作树：`worktree/task-079-v3-final-acceptance`
 - TASK-078 软件矩阵：SHA256 `12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7fe4ba944`
 - 实现提交：`1f102fba93e42d0f84b985c04d84af08b06b2231`
-- 报告提交：待本报告提交后由最终身份提交锁定
+- 报告提交：`93feee20c2edbd027546b44cc908aee27ef785b1`
 - GitHub：未 push；未合并 `main`；未安装、签名、公证或发布
 
 本阶段完成的是**无设备就绪控制面**，当前结论固定为 `READY=false`。验证器确认清单结构、TASK-078冻结身份、TASK-079控制身份和所有外部门保持fail-closed；它不认证声卡、卡座、真实输入、Logic/Roon、可听Replica、实录、实体打印或Owner接受。

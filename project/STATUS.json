@@ -78,19 +78,19 @@
   },
   "v3Development": {
     "wave": "WAVE-5",
-    "task": "TASK-078",
-    "branch": "codex/task-078-v3-acceptance",
-    "baseCommit": "c54cf8b71b493482d8ad061d38123c444d718ad0",
-    "state": "local-software-complete-external-and-capacity-carryover",
-    "implementationCommit": "2656b904a168e6afcbfddc5453d8793d347710d7",
-    "reportCommit": "93824b6ea9246fbd5c5c08b4c56d92ed62588ef0",
+    "task": "TASK-079",
+    "branch": "codex/task-079-v3-final-acceptance",
+    "baseCommit": "fac7363b4a6481591e207dda7cca77f0ae8d3cd4",
+    "state": "no-device-readiness-complete-external-not-run",
+    "implementationCommit": "1f102fba93e42d0f84b985c04d84af08b06b2231",
+    "reportCommit": "93feee20c2edbd027546b44cc908aee27ef785b1",
     "previousTask": {
-      "task": "TASK-077",
-      "implementationCommit": "8d8c6730d4c21effe5b8dc1a0d89859ed2858df2",
-      "reportCommit": "437f9d571860e89dcd31d266c2013223c8880f4a",
-      "finalCommit": "c54cf8b71b493482d8ad061d38123c444d718ad0",
+      "task": "TASK-078",
+      "implementationCommit": "2656b904a168e6afcbfddc5453d8793d347710d7",
+      "reportCommit": "93824b6ea9246fbd5c5c08b4c56d92ed62588ef0",
+      "finalCommit": "fac7363b4a6481591e207dda7cca77f0ae8d3cd4",
       "hardwareAcceptance": "NOT_RUN",
-      "report": "reports/TASK-077_RESULT.md"
+      "report": "reports/TASK-078_RESULT.md"
     },
     "authorization": "owner-continuous-software-development-through079-sol-high-no-push-no-release",
     "f01": "OWNER_APPROVED_f01-permanent-execution-v1",
@@ -113,14 +113,14 @@
       "outputBackendCertification": "NOT_RUN"
     },
     "gates": {
-      "automated": "PASS_186_1242_643_ZERO_SKIP_BUILD_GREEN",
-      "security": "PASS_29_ZERO_SKIP",
-      "electron": "PASS_4_ZERO_SKIP_MOCK_KEYCHAIN",
-      "e2e": "PASS_91_ZERO_SKIP_MOCK_KEYCHAIN_DUAL_NATIVE",
-      "review": "FRESH_MATRIX_AND_FINAL_REPORT_INDEPENDENT_PASS_P0_P1_P2_ZERO",
-      "acceptanceMatrix": "PASS_101_MAPPED_2_UNMAPPED_PENDING_EXTERNAL_NOT_RUN_FORMAL_READY_FALSE",
-      "capacity": "PARTIAL_HISTORY_LIMIT_PASS_OBJECTS_CERTIFICATE_AND_LADDER_PASS_FORMAL_OBJECTS_STORAGE_ADMISSION_PENDING_JOINT_PENDING",
-      "packagedQuit": "PASS_2_MOCK_KEYCHAIN_NORMAL_QUIT_SYSTEM_KEYCHAIN_FAIL_RETAINED",
+      "readinessControl": "PASS_13_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO",
+      "softwareBaseline": "TASK078_PASS_101_MAPPED_2_UNMAPPED_PENDING_EXTERNAL_NOT_RUN_FORMAL_READY_FALSE",
+      "externalGate": "NOT_RUN",
+      "realInput": "NOT_RUN",
+      "realLogic": "NOT_RUN",
+      "realRoon": "NOT_RUN",
+      "hardware": "NOT_RUN",
+      "ownerDecisions": "PENDING_103",
       "audibleReplica": "NOT_RUN",
       "outputBackendCertification": "NOT_RUN",
       "realRecording": "NOT_RUN",
@@ -141,10 +141,10 @@
       "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task078-implementation-report-review-identity-locked-next079",
-    "nextTask": "TASK-079",
-    "resultReport": "reports/TASK-078_RESULT.md",
-    "softwareCheckpoints": {
+    "checkpoint": "task079-no-device-readiness-implementation-report-identity-locked-external-not-run",
+    "nextTask": null,
+    "resultReport": "reports/TASK-079_READINESS.md",
+    "task078SoftwareCheckpoints": {
       "startupPolicy": "48-focused-pass-spec-quality-r1-pass-capacity-startup-pending",
       "pdfPreview": "36-focused-and-real-electron-pass-23-pages-content-unchanged-spec-quality-r1-pass",
       "acceptanceIndex": {

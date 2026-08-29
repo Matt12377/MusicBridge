@@ -1,12 +1,12 @@
 # V3 剩余任务 TODO
 
-当前进度：TASK-078本地自动软件子范围已通过并完成独立复审，报告提交 `93824b6ea9246fbd5c5c08b4c56d92ed62588ef0`；正在锁定最终身份，随后只从最终HEAD建立TASK-079独立分支。objects-limit/joint正式容量、可听Replica、TASK073真实HAL/Gate B、实体纸张与最终Owner仍待验；旧系统钥匙串退出FAIL与R020～023保持追踪。仅本地开发至079，不push、不合并main、不发布；智能体统一GPT-5.6 Sol / High。
+当前进度：TASK-078本地自动软件子范围已在最终HEAD `fac7363b4a6481591e207dda7cca77f0ae8d3cd4` 封版；TASK-079已从此精确基线建立独立分支。当前无设备，只开发fail-closed就绪控制面，不枚举、不打开、不配置设备。objects-limit/joint正式容量、可听Replica、TASK073真实HAL/Gate B、实体纸张与最终Owner仍待验；旧系统钥匙串退出FAIL与R020～023保持追踪。仅本地开发，不push、不合并main、不发布；智能体统一GPT-5.6 Sol / High。
 
 本表是任务拆分与依赖计划，不是完成声明。后续任务沿上一任务最终 HEAD 创建独立分支；当前已展开 TASK-064～078，其余任务开始前补详细范围和允许路径。具体子任务可根据已验证结果细分，不删减 PRD 范围。
 
 ## 实时进度面板
 
-> **当前执行：** `TASK-078 / 报告已提交，正在锁定最终身份并接续TASK-079`。冻结候选620文件、SHA256=`9d53a971…`，fresh verify/E2E前后四次身份一致；verify为Contracts 186/186、Bridge Core 1242/1242、Desktop 643/643，全部0 skip且构建PASS，E2E为91/91，既有7份证据逐字节未变；Security 29/29、Electron mock 4/4、矩阵规则19/19、native pin 16/16均PASS。正式矩阵经独立审查P0/P1/P2=0与`--require-fresh`确认：101 mapped passed、2 unmapped/pending、0 failed、外部门`NOT_RUN`、`formalReady=false`；最终独立审查回执SHA256=`a550c5cd…`。objects-limit 正式window-02仍因存储准入不足未创建。设备未打开，Gate B=`NOT_RUN`。
+> **当前执行：** `TASK-079 / 无设备 readiness 阶段已本地封版，等待真实外部条件`。实现 `1f102fba…`、报告 `93feee20…`；13项TDD、标准verify、控制/边界/259文件循环均PASS，独立两轮审查最终P0/P1=0。默认校验仍为`READY=false`，严格ready模式因103条Owner pending、5类外部条件not-run及设备未授权而按预期拒绝。控制面精确绑定TASK-078最终HEAD、冻结矩阵SHA、101 mapped passed、B-13/B-15 pending和TASK-079身份。设备未枚举/打开/配置，Gate B=`NOT_RUN`，`formalReady=false`。
 
 - [x] TASK-064～072：本地软件阶段完成；真实账号、真实数据和 Owner 验收仍按各任务报告保留。
 - [ ] TASK-073：软件底座完成；真实 HAL、RME/Apogee 设备配置及 Gate B 等设备连接后执行，当前 `NOT_RUN`。
@@ -30,7 +30,11 @@
 - [ ] TASK-078 / objects-limit 正式window-02：`NOT_ISSUED_STORAGE_ADMISSION`。2026-08-29T13:01:27.099079Z准入快照可用13,353,312,256B（12.44GiB），正式入口保守投影需20,360,829,340B（计划9,623,411,100B + 10GiB余量），短缺7,007,517,084B（约6.53GiB）；未创建window、未签发authority、未运行、不可重放。安全阈值保持不变，先继续低空间Gate。
 - [ ] TASK-078 / 剩余容量：history-limit generation/measure/large queued-stop均已正式PASS；objects-limit证书与非正式阶梯PASS，正式generation因磁盘安全准入尚未签发，后续measure/queued-stop及joint仍按线性顺序等待。当前继续执行不需要大容量fixture的自动Gate。
 - [x] TASK-078 / 本地软件最终收口：完整双native verify为Contracts 186/186、Bridge Core 1242/1242、Desktop 643/643，全部0 fail/0 skip且构建PASS；security 29/29、Electron mock 4/4、fresh E2E 91/91，均0 skip；101条mapped fresh已正式写入并通过矩阵及结果报告两轮独立审查（均P0/P1/P2=0），2条真实设备缺口保持pending。报告提交已锁定；实机、Owner与容量carryover未因此完成。
-- [ ] TASK-079：真实环境与 Owner 最终验收；当前没有设备连接，不枚举、不打开、不配置设备。
+- [x] TASK-079 / 独立工作树：从TASK-078最终HEAD `fac7363b…`建立 `codex/task-079-v3-final-acceptance`，工作树初始清洁。
+- [x] TASK-079 / readiness TDD：首个RED为验证模块不存在；首轮GREEN后继续关闭冻结矩阵双改、STATUS外部门矛盾、symlink和错误码缺口，最终13/13；默认清单校验PASS且明确`READY=false`，严格ready模式按预期拒绝。
+- [x] TASK-079 / fail-closed清单：103条Owner决定全部pending，real-input/real-logic/real-roon/hardware/owner五类全部not-run；RME/Apogee与Sony仅记录品牌意向，型号、配置、测量计划为空。
+- [x] TASK-079 / readiness独立审查与提交：两轮后P0=0/P1=0，唯一P2为TODO计数落后且已修正；标准verify与控制/边界/循环通过，实现`1f102fba…`、报告`93feee20…`已锁定。
+- [ ] TASK-079 / 真实环境与 Owner 最终验收：当前没有设备连接，不枚举、不打开、不配置设备；等待精确设备、资料和操作授权。
 
 ## 开发队列
 
@@ -49,7 +53,7 @@
 - [x] **TASK-076：Digital Replica（本地软件阶段）** — 本地Gate通过：174/1066/532、安全29、Electron4、完整E2E88，双native零skip。历史归档执行音频/原Render核验、恢复binding、有限只读会话与取消收口；生产播放保持blocked，可听Replica及正式provider仍待073/079，不冒称真实播放，见[TASK-076结果](../reports/TASK-076_RESULT.md)。
 - [x] **TASK-077：J-Card 与 Printed Artifact（本地软件阶段）** — 本地Gate通过：184/1088/601、安全29、Electron4、完整E2E90，双native零skip。完成事务自动打印请求、Master Artwork版本、不可变PDF/预览、原生无覆盖导出与schema21恢复；实际PDF23页独立几何/内容/视觉通过，纸张/盒型与Owner待验，见[TASK-077结果](../reports/TASK-077_RESULT.md)。
 - [x] **TASK-078：V3 全链路自动验收（本地软件子范围）** — 101条mapped fresh证据与完整自动Gate通过，结果报告和独立审查已提交；B-13/B-15、objects-limit/joint正式容量、系统钥匙串旧FAIL、实机与Owner保持carryover，不把局部封版写成V3整门通过。
-- [ ] **TASK-079：真实环境与最终 Owner 验收** — 待 Owner。授权实物/库存表/Source Roots/Logic/设备实录；Owner 明确逐项接受。
+- [ ] **TASK-079：真实环境与最终 Owner 验收** — 无设备readiness控制面开发中；任务规格见[TASK-079](../tasks/TASK-079-v3-final-acceptance.md)。真实实物/库存表/Source Roots/Logic/Roon、设备实录、实体打印与Owner逐项接受仍待外部条件。
 
 ## TASK-078 本轮软件检查点
 
