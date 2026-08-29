@@ -16,7 +16,7 @@ node scripts/ci/verify-v3-owner-evidence.mjs --receipt-id <匿名收据ID>
 
 入口只从固定本地根按安全 ID 解析收据。每份技术收据的全部附件必须位于 `receipts/<receipt-id>/` 独占窗口；逐组件拒绝软链接/硬链接并在读取后复核组件身份、大小和 SHA-256，同时拒绝收据或附件被 Git 跟踪。附件当前只允许严格 UTF-8 的 JSON/plain/CSV；JSON 在解析转义后扫描敏感键和值，未实现安全元数据解析前不接受 WAV/PNG/PDF。失败只输出稳定错误码，不打印私密值。默认无参数入口只校验空模板，输出独立的 `V3_OWNER_EVIDENCE_TEMPLATE=PASS`，不能与真实收据通过混淆。
 
-技术 PASS 的 `caseEvidence` 必须与唯一 `case-evidence` JSON 附件逐字节语义一致；B-13 捕获、B-14 三层事件和 B-15 旧证书还要解析各自独立附件交叉验证。`failed/timed-out/stopped/inconclusive` 必须保存对应的非 PASS 事实并使用 Gate 白名单 reason code，不能仅修改 verdict。Owner accepted 只接受已有首次 seal、同候选/tree/矩阵且更早的技术 PASS；rejected/deferred 与技术 PASS 正交，可在技术失败或未运行时如实保存。
+技术 PASS 的 `caseEvidence` 必须与唯一 `case-evidence` JSON 附件逐字节语义一致；B-13 捕获、B-14 三层事件和 B-15 旧证书还要解析各自独立附件交叉验证。`failed/timed-out/stopped/inconclusive` 必须保存对应的非 PASS 事实并使用 Gate 白名单 reason code，不能仅修改 verdict。B-01～B-15 的 Owner accepted 只接受已有首次 seal、同候选/tree/矩阵且更早的技术 PASS。对非 B scope，只有冻结 TASK-078 矩阵中 fresh 已通过且外部门精确只有 `owner` 的条目，才允许 Owner 观察本身作为零技术引用的 accepted；含 `real-input`、`real-logic`、`real-roon` 或 `hardware` 的条目不得借此越级。rejected/deferred 与技术 PASS 正交，可在技术失败或未运行时如实保存。
 
 正式 CLI 不信任 candidate manifest 自报的聚合摘要：它从 manifest 列出的每个受控相对路径读取精确 `candidateCommit:<relativePath>` Git blob，逐文件重算 SHA-256，再复核聚合摘要。候选提交不存在、路径重复/越界、blob 缺失或任一摘要不符时都拒绝。收据、授权、Plan、Preflight 与 B-14 三层事件的时间戳必须是规范 UTC ISO（`YYYY-MM-DDTHH:mm:ss.sssZ`）；仅能被 `Date.parse` 解析但不规范的文本不能进入证据链。
 

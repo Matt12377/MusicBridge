@@ -446,6 +446,18 @@ test('技术证据与Owner观察必须分离且单份收据不能声明全局rea
   assert.equal(validateV3EvidenceEnvelope(ownerEnvelope, { root: owner.root }).verdict, 'rejected')
   ownerEnvelope.receipt.ownerDecision = 'deferred'
   assert.equal(validateV3EvidenceEnvelope(ownerEnvelope, { root: owner.root }).verdict, 'deferred')
+
+  mkdirSync(path.join(owner.root, 'project'), { recursive: true })
+  writeFileSync(path.join(owner.root, 'project/V3_ACCEPTANCE.json'), readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json')))
+  const ownerOnly = structuredClone(ownerEnvelope)
+  ownerOnly.receipt.scopeIds = ['MVP-01']
+  ownerOnly.receipt.ownerDecision = 'accepted'
+  ownerOnly.receipt.referencedTechnicalReceipts = []
+  assert.equal(validateV3EvidenceEnvelope(ownerOnly, { root: owner.root }).verdict, 'accepted')
+
+  const realRoonRequired = structuredClone(ownerOnly)
+  realRoonRequired.receipt.scopeIds = ['U-01']
+  assert.throws(() => validateV3EvidenceEnvelope(realRoonRequired, { root: owner.root }), /OWNER_BOUNDARY/u)
 })
 
 test('scope必须来自冻结103项且每份技术收据只覆盖一个B-01至B-15用例', t => {

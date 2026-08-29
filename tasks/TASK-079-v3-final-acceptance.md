@@ -56,6 +56,8 @@ git diff --check
 
 Readiness 的机器状态不能只比较提交 SHA 字符串；默认 CLI 必须确认当前 TASK-079 仓库与分支，并验证两段证据基础设施检查点的 commit 对象、线性祖先关系以及 candidate closure 到当前 HEAD 的可达性。
 
+Owner accepted 的前置按 scope 分层：B-01～B-15 必须引用同 scope 的技术 PASS；非 B scope 只有在冻结 TASK-078 矩阵 fresh 已通过且外部门仅为 `owner` 时，才允许零技术引用的 Owner 观察。任何还要求真实输入、Logic、Roon 或硬件的条目继续 fail-closed，不能由 Owner 单份观察替代缺失技术证据。
+
 TASK-078 的严格 fresh validator 已在其原工作树以完整、未跟踪的 runtime 日志与收据通过并由最终报告锁定。TASK-079 新工作树不复制这些大体积 runtime 证据，因此不重放该入口；本任务以固定矩阵 SHA256 `12f15170…`、最终基线 `fac7363…` 与103/101/2实际内容复核继承软件封条。缺少旧 runtime 文件时的 `PATH_UNAVAILABLE` 不是新的验收失败，也不能被改写成重跑授权。
 
 ## 停止条件

@@ -583,6 +583,26 @@ function validateTechnicalSeals(receipt, artifacts, artifactContents) {
   check(times.every(Number.isFinite) && times.every((value, index) => index === 0 || times[index - 1] <= value), 'RECEIPT_STATE')
 }
 
+function ownerOnlyScopeHasFreshSoftwareBaseline(root, scopeId) {
+  let bytes
+  try {
+    bytes = safeFile(root, 'project/V3_ACCEPTANCE.json', { exactPath: 'project/V3_ACCEPTANCE.json', limit: 16 * 1024 * 1024 })
+  } catch {
+    fail('OWNER_BOUNDARY')
+  }
+  check(createHash('sha256').update(bytes).digest('hex') === MATRIX_SHA256, 'OWNER_BOUNDARY')
+  let matrix
+  try { matrix = JSON.parse(bytes.toString('utf8')) } catch { fail('OWNER_BOUNDARY') }
+  check(matrix?.task === 'TASK-078' && matrix.formalReady === false && matrix.externalGate === 'NOT_RUN' && Array.isArray(matrix.entries), 'OWNER_BOUNDARY')
+  const matches = matrix.entries.filter(entry => entry?.id === scopeId)
+  check(matches.length === 1, 'OWNER_BOUNDARY')
+  const entry = matches[0]
+  check(entry.status === 'mapped' && entry.freshGate?.state === 'passed' && Array.isArray(entry.freshGate.evidenceIds) && entry.freshGate.evidenceIds.length > 0, 'OWNER_BOUNDARY')
+  check(Array.isArray(entry.externalRequirements) && entry.externalRequirements.length > 0, 'OWNER_BOUNDARY')
+  check(entry.externalRequirements.every(requirement => requirement?.kind === 'owner' && requirement.state === 'not-run'), 'OWNER_BOUNDARY')
+  return true
+}
+
 function validateReceipt(receipt, root) {
   exactKeys(receipt, [
     'receiptId',
@@ -649,7 +669,9 @@ function validateReceipt(receipt, root) {
     check(receipt.configuration === null && receipt.configurationFingerprintSha256 === null && receipt.measurements === null && receipt.caseEvidence === null, 'OWNER_BOUNDARY')
     check(['accepted', 'rejected', 'deferred'].includes(receipt.ownerDecision), 'OWNER_BOUNDARY')
     check(Array.isArray(receipt.referencedTechnicalReceipts) && receipt.referencedTechnicalReceipts.length <= 32, 'OWNER_BOUNDARY')
-    if (receipt.ownerDecision === 'accepted') check(receipt.referencedTechnicalReceipts.length > 0, 'OWNER_BOUNDARY')
+    if (receipt.ownerDecision === 'accepted' && receipt.referencedTechnicalReceipts.length === 0) {
+      check(!OUTPUT_SCOPES.has(receipt.scopeIds[0]) && ownerOnlyScopeHasFreshSoftwareBaseline(root, receipt.scopeIds[0]), 'OWNER_BOUNDARY')
+    }
     const ids = new Set()
     for (const reference of receipt.referencedTechnicalReceipts) {
       exactKeys(reference, ['receiptId', 'receiptSha256'], 'OWNER_BOUNDARY')
