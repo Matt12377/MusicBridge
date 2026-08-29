@@ -168,6 +168,25 @@ function upsertJsonArtifact(fixture, artifactId, role, value) {
   return artifact.sha256
 }
 
+function readJsonArtifact(fixture, role) {
+  const artifact = fixture.envelope.receipt.artifacts.find(value => value.role === role)
+  assert.ok(artifact, `missing ${role} fixture artifact`)
+  return JSON.parse(readFileSync(path.join(fixture.root, artifact.relativePath), 'utf8'))
+}
+
+function rewriteJsonArtifact(fixture, role, value) {
+  const artifact = fixture.envelope.receipt.artifacts.find(item => item.role === role)
+  assert.ok(artifact, `missing ${role} fixture artifact`)
+  return upsertJsonArtifact(fixture, artifact.artifactId, role, value)
+}
+
+function removeArtifactByRole(fixture, role) {
+  const artifact = fixture.envelope.receipt.artifacts.find(value => value.role === role)
+  assert.ok(artifact, `missing ${role} fixture artifact`)
+  rmSync(path.join(fixture.root, artifact.relativePath))
+  fixture.envelope.receipt.artifacts = fixture.envelope.receipt.artifacts.filter(value => value !== artifact)
+}
+
 function syncControlSeals(fixture, {
   grantedAt = '2026-08-29T05:50:00.000Z',
   frozenAt = '2026-08-29T05:55:00.000Z',
@@ -497,14 +516,16 @@ const HARDWARE_CASES = {
   },
 }
 
-function hardwareDependencyFixture(t, scopeId) {
+function hardwareDependencyFixture(t, scopeId, { interruptionKind = 'roon-offline' } = {}) {
   if (scopeId === 'B-09') {
     const fixture = actualFixture(t)
     fixture.envelope.receipt.observedAt = '2026-08-29T05:40:00.000Z'
+    fixture.envelope.receipt.caseEvidence.injectionKind = interruptionKind
     upsertJsonArtifact(fixture, 'hardware-subject-binding', 'hardware-subject-binding', {
       scopeId, windowCorrelationSha256: 'e'.repeat(64), attemptAlias: 'attempt-01', physicalCopyAlias: 'physical-copy-01',
       side: null, eventCorrelationSha256: 'f'.repeat(64), completionCorrelationSha256: null,
     })
+    syncCaseArtifact(fixture)
     syncControlSeals(fixture, { grantedAt: '2026-08-29T05:20:00.000Z', frozenAt: '2026-08-29T05:25:00.000Z', preflightObservedAt: '2026-08-29T05:30:00.000Z', expiresAt: '2026-08-29T05:45:00.000Z' })
     return fixture
   }
@@ -538,10 +559,10 @@ function hardwareDependencyFixture(t, scopeId) {
   return fixture
 }
 
-function installHardwareDependencies(t, fixture, scopeId) {
+function installHardwareDependencies(t, fixture, scopeId, options = {}) {
   const scopes = scopeId === 'MVP-16' ? ['B-07', 'B-14'] : scopeId === 'U-05' ? ['B-14'] : scopeId === 'U-10' ? ['B-09'] : []
   return scopes.map(scope => {
-    const dependency = hardwareDependencyFixture(t, scope)
+    const dependency = hardwareDependencyFixture(t, scope, options)
     return { ...installTechnicalReceipt(dependency, fixture.root), scopeId: scope }
   })
 }
@@ -568,7 +589,93 @@ function syncHardwareDependencySeals(fixture, dependencyReceiptsSha256) {
   receipt.preflightSha256 = upsertJsonArtifact(fixture, 'preflight-seal', 'preflight-seal', preflight)
 }
 
-function hardwareFixture(t, scopeId = 'MVP-16') {
+function hardwareScopeEvidence(scopeId, facts) {
+  if (scopeId === 'MVP-16') {
+    return {
+      attemptAlias: facts.attemptAlias,
+      physicalCopyAlias: facts.physicalCopyAlias,
+      sideAStartEventSha256: facts.sideAStartEventSha256,
+      sideAStopEventSha256: facts.sideAStopEventSha256,
+      flipConfirmationSha256: facts.flipConfirmationSha256,
+      sideBStartEventSha256: facts.sideBStartEventSha256,
+      sideBStopEventSha256: facts.sideBStopEventSha256,
+    }
+  }
+  if (scopeId === 'MVP-18') {
+    const source = {
+      recordingAlias: facts.recordingAlias,
+      targetKind: facts.targetKind,
+      frozenTargetSha256: facts.frozenTargetSha256,
+      selectedTargetSha256: facts.selectedTargetSha256,
+      expectedFrameCount: facts.expectedFrameCount,
+    }
+    const output = {
+      replicaRunAlias: facts.replicaRunAlias,
+      outputEndpointAlias: facts.outputEndpointAlias,
+      outputRunCorrelationSha256: facts.outputRunCorrelationSha256,
+      outputContentSha256: facts.outputContentSha256,
+      submittedFrameCount: facts.submittedFrameCount,
+      observedFrameCount: facts.observedFrameCount,
+      endpointDrained: facts.endpointDrained,
+    }
+    return {
+      source,
+      sourceSha256: sha256(Buffer.from(JSON.stringify(source))),
+      output,
+      outputSha256: sha256(Buffer.from(JSON.stringify(output))),
+    }
+  }
+  if (scopeId === 'U-05') {
+    return {
+      attemptAlias: facts.attemptAlias,
+      physicalCopyAlias: facts.physicalCopyAlias,
+      datasetAlias: facts.datasetAlias,
+      beforeInventory: structuredClone(facts.beforeInventory),
+      afterInventory: structuredClone(facts.afterInventory),
+      beforeInventorySha256: facts.beforeInventorySha256,
+      afterInventorySha256: facts.afterInventorySha256,
+      completionEventSha256: facts.completionEventSha256,
+      duplicateCompletionEventSha256: facts.duplicateCompletionEventSha256,
+      restartEventSha256: facts.restartEventSha256,
+      preRestartCompletedStateSha256: facts.preRestartCompletedStateSha256,
+      postRestartStateSha256: facts.postRestartStateSha256,
+    }
+  }
+  if (scopeId === 'U-10') {
+    return {
+      attemptAlias: facts.attemptAlias,
+      physicalCopyAlias: facts.physicalCopyAlias,
+      interruptionKind: facts.interruptionKind,
+      interruptionEventSha256: facts.eventCorrelationSha256,
+      windowStartedAt: '2026-08-29T05:20:00.000Z',
+      windowEndedAt: '2026-08-29T06:00:00.000Z',
+    }
+  }
+  throw new Error(`unsupported hardware scope evidence: ${scopeId}`)
+}
+
+function syncHardwareControlBindings(fixture, {
+  configurationObservationSha256,
+  configurationCertificateSha256,
+  observerRelativePath,
+  observerSha256,
+}) {
+  const receipt = fixture.envelope.receipt
+  const bindings = { configurationObservationSha256, configurationCertificateSha256, observerRelativePath, observerSha256 }
+  const authorization = { ...readJsonArtifact(fixture, 'authorization-seal'), ...bindings }
+  receipt.authorizationSha256 = rewriteJsonArtifact(fixture, 'authorization-seal', authorization)
+  const plan = { ...readJsonArtifact(fixture, 'plan-seal'), ...bindings, grantSha256: receipt.authorizationSha256 }
+  receipt.planSha256 = rewriteJsonArtifact(fixture, 'plan-seal', plan)
+  const preflight = {
+    ...readJsonArtifact(fixture, 'preflight-seal'),
+    ...bindings,
+    grantSha256: receipt.authorizationSha256,
+    planSha256: receipt.planSha256,
+  }
+  receipt.preflightSha256 = rewriteJsonArtifact(fixture, 'preflight-seal', preflight)
+}
+
+function hardwareFixture(t, scopeId = 'MVP-16', { u10DependencyInterruptionKind = 'roon-offline' } = {}) {
   const contract = HARDWARE_CASES[scopeId]
   const fixture = externalFixture(t, {
     receiptId: 'hardware-window-01',
@@ -592,7 +699,7 @@ function hardwareFixture(t, scopeId = 'MVP-16') {
     caseEvidence: { type: 'hardware', observedOutcome: contract.outcome, criterionSatisfied: true },
   })
   const binding = installHardwareConfigurationCertificate(t, fixture)
-  const dependencyReceipts = installHardwareDependencies(t, fixture, scopeId)
+  const dependencyReceipts = installHardwareDependencies(t, fixture, scopeId, { interruptionKind: u10DependencyInterruptionKind })
   const dependencyReceiptsSha256 = sha256(Buffer.from(JSON.stringify(dependencyReceipts)))
   syncHardwareDependencySeals(fixture, dependencyReceiptsSha256)
   const observationArtifact = fixture.envelope.receipt.artifacts.find(artifact => artifact.role === 'external-observation')
@@ -604,7 +711,100 @@ function hardwareFixture(t, scopeId = 'MVP-16') {
   observation.facts.observedConfigurationFingerprintSha256 = binding.configurationFingerprintSha256
   observation.factsSha256 = sha256(Buffer.from(JSON.stringify(observation.facts)))
   upsertJsonArtifact(fixture, 'external-observation', 'external-observation', observation)
+  const configurationObservationSha256 = upsertJsonArtifact(fixture, 'configuration-observation', 'configuration-observation', {
+    schemaVersion: 2,
+    kind: 'hardware-configuration-observation',
+    runId: fixture.envelope.receipt.receiptId,
+    scopeId,
+    observedBeforeAt: '2026-08-29T05:58:05.000Z',
+    observedAfterAt: '2026-08-29T05:59:45.000Z',
+    beforeConfiguration: structuredClone(binding.configuration),
+    afterConfiguration: structuredClone(binding.configuration),
+    beforeFingerprintSha256: binding.configurationFingerprintSha256,
+    afterFingerprintSha256: binding.configurationFingerprintSha256,
+    stable: true,
+  })
+  const scopeEvidenceSha256 = upsertJsonArtifact(fixture, 'scope-evidence', 'scope-evidence', {
+    schemaVersion: 2,
+    kind: 'hardware-scope-evidence',
+    scopeId,
+    runId: fixture.envelope.receipt.receiptId,
+    correlationSha256: fixture.envelope.receipt.caseEvidence.correlationSha256,
+    observedAt: observation.observedAt,
+    observerExecutionId: 'hardware-observer-execution-01',
+    evidence: hardwareScopeEvidence(scopeId, observation.facts),
+  })
+  syncHardwareControlBindings(fixture, {
+    configurationObservationSha256,
+    configurationCertificateSha256: binding.certificateSha256,
+    observerRelativePath: observation.observerRelativePath,
+    observerSha256: observation.observerSha256,
+  })
+  upsertJsonArtifact(fixture, 'observer-execution', 'observer-execution', {
+    schemaVersion: 2,
+    kind: 'hardware-observer-execution',
+    executionId: 'hardware-observer-execution-01',
+    runId: fixture.envelope.receipt.receiptId,
+    scopeId,
+    observerRelativePath: observation.observerRelativePath,
+    observerSha256: observation.observerSha256,
+    grantSha256: fixture.envelope.receipt.authorizationSha256,
+    planSha256: fixture.envelope.receipt.planSha256,
+    preflightSha256: fixture.envelope.receipt.preflightSha256,
+    correlationSha256: fixture.envelope.receipt.caseEvidence.correlationSha256,
+    completedOperations: contract.operations,
+    factsSha256: observation.factsSha256,
+    scopeEvidenceSha256,
+    startedAt: '2026-08-29T05:58:10.000Z',
+    completedAt: '2026-08-29T05:59:40.000Z',
+    exitCode: 0,
+    signal: null,
+    timedOut: false,
+  })
   return fixture
+}
+
+function installAcceptanceMatrix(fixture) {
+  mkdirSync(path.join(fixture.root, 'project'), { recursive: true })
+  writeFileSync(path.join(fixture.root, 'project/V3_ACCEPTANCE.json'), readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json')))
+}
+
+function mutateHardwareFacts(fixture, mutate) {
+  const observation = readJsonArtifact(fixture, 'external-observation')
+  mutate(observation.facts)
+  observation.factsSha256 = sha256(Buffer.from(JSON.stringify(observation.facts)))
+  rewriteJsonArtifact(fixture, 'external-observation', observation)
+  const execution = readJsonArtifact(fixture, 'observer-execution')
+  execution.factsSha256 = observation.factsSha256
+  rewriteJsonArtifact(fixture, 'observer-execution', execution)
+}
+
+function mutateHardwareIdentity(fixture, mutate) {
+  const observation = readJsonArtifact(fixture, 'external-observation')
+  const certificateId = observation.facts.configurationCertificateId
+  const certificatePath = path.join(fixture.root, `reports/runtime/task-079-v3-final-acceptance/receipts/${certificateId}.hardware-certificate.json`)
+  const certificate = JSON.parse(readFileSync(certificatePath, 'utf8'))
+  mutate(certificate)
+  const certificateBytes = Buffer.from(JSON.stringify(certificate))
+  const certificateSha256 = sha256(certificateBytes)
+  writeFileSync(certificatePath, certificateBytes)
+  writeFileSync(path.join(fixture.root, `reports/runtime/task-079-v3-final-acceptance/receipts/${certificateId}.hardware-certificate.sealed.sha256`), `${certificateSha256}\n`)
+  observation.facts.configurationCertificateSha256 = certificateSha256
+  observation.factsSha256 = sha256(Buffer.from(JSON.stringify(observation.facts)))
+  rewriteJsonArtifact(fixture, 'external-observation', observation)
+  const configurationObservationArtifact = fixture.envelope.receipt.artifacts.find(value => value.role === 'configuration-observation')
+  syncHardwareControlBindings(fixture, {
+    configurationObservationSha256: configurationObservationArtifact.sha256,
+    configurationCertificateSha256: certificateSha256,
+    observerRelativePath: observation.observerRelativePath,
+    observerSha256: observation.observerSha256,
+  })
+  const execution = readJsonArtifact(fixture, 'observer-execution')
+  execution.grantSha256 = fixture.envelope.receipt.authorizationSha256
+  execution.planSha256 = fixture.envelope.receipt.planSha256
+  execution.preflightSha256 = fixture.envelope.receipt.preflightSha256
+  execution.factsSha256 = observation.factsSha256
+  rewriteJsonArtifact(fixture, 'observer-execution', execution)
 }
 
 function installTechnicalReceipt(sourceFixture, targetRoot) {
@@ -702,8 +902,8 @@ function installHardwareConfigurationCertificate(t, fixture) {
   }
   const certificateId = 'gate-b-config-cert-01'
   const certificate = {
-    schemaVersion: 1,
-    kind: 'hardware-configuration-certificate',
+    schemaVersion: 2,
+    kind: 'b15-configuration-identity',
     certificateId,
     scopeId: 'B-15',
     candidateCommit: source.envelope.receipt.candidateCommit,
@@ -714,6 +914,9 @@ function installHardwareConfigurationCertificate(t, fixture) {
     sourceReceiptId: reference.receiptId,
     sourceReceiptSha256: reference.receiptSha256,
     issuedAt: '2026-08-29T05:45:00.000Z',
+    validFrom: '2026-08-29T05:45:00.000Z',
+    validUntil: '2026-08-29T06:15:00.000Z',
+    permittedScopeIds: Object.keys(HARDWARE_CASES),
     verdict: 'passed',
   }
   const bytes = Buffer.from(JSON.stringify(certificate))
@@ -724,6 +927,7 @@ function installHardwareConfigurationCertificate(t, fixture) {
     certificateId,
     certificateSha256: sha256(bytes),
     configurationFingerprintSha256: certificate.configurationFingerprintSha256,
+    configuration: structuredClone(source.envelope.receipt.configuration),
     sourceReceiptId: reference.receiptId,
   }
 }
@@ -1219,11 +1423,7 @@ test('hardware四个scope使用逐项事实且不能互相代替', t => {
   const failedHardware = hardwareFixture(t, 'U-10')
   mkdirSync(path.join(failedHardware.root, 'project'), { recursive: true })
   writeFileSync(path.join(failedHardware.root, 'project/V3_ACCEPTANCE.json'), readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json')))
-  const failedArtifact = failedHardware.envelope.receipt.artifacts.find(artifact => artifact.role === 'external-observation')
-  const failedObservation = JSON.parse(readFileSync(path.join(failedHardware.root, failedArtifact.relativePath), 'utf8'))
-  failedObservation.facts.physicalStopObserved = false
-  failedObservation.factsSha256 = sha256(Buffer.from(JSON.stringify(failedObservation.facts)))
-  upsertJsonArtifact(failedHardware, 'external-observation', 'external-observation', failedObservation)
+  mutateHardwareFacts(failedHardware, facts => { facts.physicalStopObserved = false })
   failedHardware.envelope.receipt.caseEvidence.observedOutcome = null
   failedHardware.envelope.receipt.caseEvidence.criterionSatisfied = false
   failedHardware.envelope.receipt.verdict = 'failed'
@@ -1233,6 +1433,79 @@ test('hardware四个scope使用逐项事实且不能互相代替', t => {
   failedHardware.envelope.receipt.verdict = 'passed'
   failedHardware.envelope.receipt.reasonCodes = []
   assert.throws(() => validateV3EvidenceEnvelope(failedHardware.envelope, { root: failedHardware.root }), /CASE_EVIDENCE/u)
+})
+
+test('hardware PASS必须拒绝缺失配置观察、observer执行与scope证据闭包', t => {
+  for (const role of ['configuration-observation', 'observer-execution', 'scope-evidence']) {
+    const fixture = hardwareFixture(t, 'MVP-18')
+    installAcceptanceMatrix(fixture)
+    removeArtifactByRole(fixture, role)
+    assert.throws(() => validateV3EvidenceEnvelope(fixture.envelope, { root: fixture.root }), /ARTIFACT|CASE_EVIDENCE|RECEIPT_STATE/u, role)
+  }
+})
+
+test('hardware scope证据拒绝MVP18自洽伪facts与U05自哈希伪库存事件', t => {
+  const replica = hardwareFixture(t, 'MVP-18')
+  installAcceptanceMatrix(replica)
+  mutateHardwareFacts(replica, facts => {
+    facts.frozenTargetSha256 = 'a'.repeat(64)
+    facts.selectedTargetSha256 = 'a'.repeat(64)
+    facts.outputContentSha256 = 'a'.repeat(64)
+    facts.expectedFrameCount = 2048
+    facts.submittedFrameCount = 2048
+    facts.observedFrameCount = 2048
+  })
+  assert.throws(() => validateV3EvidenceEnvelope(replica.envelope, { root: replica.root }), /CASE_EVIDENCE/u)
+
+  const inventory = hardwareFixture(t, 'U-05')
+  installAcceptanceMatrix(inventory)
+  mutateHardwareFacts(inventory, facts => {
+    facts.beforeInventory = { sealedBlank: 6, openedBlank: 1, recorded: 1, total: 8 }
+    facts.afterInventory = { sealedBlank: 6, openedBlank: 0, recorded: 2, total: 8 }
+    facts.beforeInventorySha256 = sha256(Buffer.from(JSON.stringify(facts.beforeInventory)))
+    facts.afterInventorySha256 = sha256(Buffer.from(JSON.stringify(facts.afterInventory)))
+    facts.completionEventSha256 = 'a'.repeat(64)
+    facts.duplicateCompletionEventSha256 = 'b'.repeat(64)
+    facts.restartEventSha256 = 'c'.repeat(64)
+  })
+  assert.throws(() => validateV3EvidenceEnvelope(inventory.envelope, { root: inventory.root }), /CASE_EVIDENCE/u)
+})
+
+test('hardware observer执行失败或更换未授权source均不能PASS', t => {
+  const failedExecution = hardwareFixture(t, 'MVP-16')
+  installAcceptanceMatrix(failedExecution)
+  const execution = readJsonArtifact(failedExecution, 'observer-execution')
+  execution.exitCode = 1
+  rewriteJsonArtifact(failedExecution, 'observer-execution', execution)
+  assert.throws(() => validateV3EvidenceEnvelope(failedExecution.envelope, { root: failedExecution.root }), /CASE_EVIDENCE|RECEIPT_STATE/u)
+
+  const swappedSource = hardwareFixture(t, 'MVP-16')
+  installAcceptanceMatrix(swappedSource)
+  const observation = readJsonArtifact(swappedSource, 'external-observation')
+  observation.observerSha256 = 'a'.repeat(64)
+  rewriteJsonArtifact(swappedSource, 'external-observation', observation)
+  const swappedExecution = readJsonArtifact(swappedSource, 'observer-execution')
+  swappedExecution.observerSha256 = observation.observerSha256
+  rewriteJsonArtifact(swappedSource, 'observer-execution', swappedExecution)
+  assert.throws(() => validateV3EvidenceEnvelope(swappedSource.envelope, { root: swappedSource.root }), /CASE_EVIDENCE|RECEIPT_STATE/u)
+})
+
+test('hardware配置identity必须覆盖授权与观察窗口且限制scope', t => {
+  const expired = hardwareFixture(t, 'MVP-18')
+  installAcceptanceMatrix(expired)
+  mutateHardwareIdentity(expired, identity => { identity.validUntil = '2026-08-29T05:49:59.000Z' })
+  assert.throws(() => validateV3EvidenceEnvelope(expired.envelope, { root: expired.root }), /CASE_EVIDENCE/u)
+
+  const unauthorizedScope = hardwareFixture(t, 'U-05')
+  installAcceptanceMatrix(unauthorizedScope)
+  mutateHardwareIdentity(unauthorizedScope, identity => { identity.permittedScopeIds = ['MVP-16', 'MVP-18', 'U-10'] })
+  assert.throws(() => validateV3EvidenceEnvelope(unauthorizedScope.envelope, { root: unauthorizedScope.root }), /CASE_EVIDENCE/u)
+})
+
+test('U10的roon-offline不能由普通B09 track-change依赖替代', t => {
+  const fixture = hardwareFixture(t, 'U-10', { u10DependencyInterruptionKind: 'roon-track-change' })
+  installAcceptanceMatrix(fixture)
+  assert.throws(() => validateV3EvidenceEnvelope(fixture.envelope, { root: fixture.root }), /CASE_EVIDENCE/u)
 })
 
 test('hardware Owner组合精确覆盖且U10绑定同一实体与中断窗口', t => {
@@ -1276,13 +1549,13 @@ test('hardware Owner组合精确覆盖且U10绑定同一实体与中断窗口', 
   const eventMismatchHardware = hardwareFixture(t, 'U-10')
   mkdirSync(path.join(eventMismatchHardware.root, 'project'), { recursive: true })
   writeFileSync(path.join(eventMismatchHardware.root, 'project/V3_ACCEPTANCE.json'), readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json')))
-  const eventMismatchArtifact = eventMismatchHardware.envelope.receipt.artifacts.find(artifact => artifact.role === 'external-observation')
-  const eventMismatchObservation = JSON.parse(readFileSync(path.join(eventMismatchHardware.root, eventMismatchArtifact.relativePath), 'utf8'))
-  eventMismatchObservation.facts.interruptionKind = 'manual-stop'
-  eventMismatchObservation.factsSha256 = sha256(Buffer.from(JSON.stringify(eventMismatchObservation.facts)))
-  upsertJsonArtifact(eventMismatchHardware, 'external-observation', 'external-observation', eventMismatchObservation)
   assert.equal(validateV3EvidenceEnvelope(eventMismatchHardware.envelope, { root: eventMismatchHardware.root }).verdict, 'passed')
   const eventMismatchRoon = realRoonFixture(t, 'U-10')
+  const eventMismatchArtifact = eventMismatchRoon.envelope.receipt.artifacts.find(artifact => artifact.role === 'external-observation')
+  const eventMismatchObservation = JSON.parse(readFileSync(path.join(eventMismatchRoon.root, eventMismatchArtifact.relativePath), 'utf8'))
+  eventMismatchObservation.facts.eventCorrelationSha256 = 'a'.repeat(64)
+  eventMismatchObservation.factsSha256 = sha256(Buffer.from(JSON.stringify(eventMismatchObservation.facts)))
+  upsertJsonArtifact(eventMismatchRoon, 'external-observation', 'external-observation', eventMismatchObservation)
   const eventMismatchReferences = [
     installTechnicalReceipt(eventMismatchHardware, eventMismatchHardware.root),
     installTechnicalReceipt(eventMismatchRoon, eventMismatchHardware.root),
