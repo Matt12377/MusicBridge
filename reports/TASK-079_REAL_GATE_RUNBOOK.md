@@ -28,6 +28,8 @@ Readiness CLI 还会在当前 TASK-079 Git 仓库中核对证据基础设施检�
 
 `real-roon-observation` 仅用于 MVP-02/14/22、A-02、B-09 与 U-01/06/07/10。九个 scope 使用各自固定事实 schema，不接受通用“Roon 已观察”布尔值：分别覆盖 V2 页面/播放回归、选曲推荐与正式重验、实体/数字关系及自录谱系、Roon 条目到真实输入映射、外部 Roon 接管、关系分类、多专辑逐曲谱系、预验证流程边界和离线历史保留。唯一观察附件只允许匿名环境、受控 observer 相对路径与候选 Hash、授权链中的窗口 correlation、规范 UTC、逐 scope 事实及其摘要；禁止真实 Core/Zone/session、曲目/艺人/专辑名、账号、URL 或路径。A-02 的 Owner accepted 必须把 real-roon 映射的 source alias/SHA 与 real-input 观察逐项对齐；B-09 必须同时引用 real-output 作为 hardware 子门与 real-roon 子门，并交叉核对同一窗口 correlation、事件 correlation 和 action kind。Roon ACK、订阅回调、Attempt/UI 状态不能替代输出端测量。
 
+`hardware-observation` 只准用于 MVP-16、MVP-18、U-05 与 U-10；B-09～B-15 继续使用 real-output，不扩宽 hardware scope。唯一观察附件绑定匿名硬件环境、逐 scope 固定的候选 observer 路径/Hash、授权窗口 correlation、规范 UTC、逐 scope facts 和摘要。配置身份收据必须递归验证其源 B-15 receipt/seal、候选/tree/manifest、矩阵、配置指纹和签发时间；它只证明本次引用的配置身份闭包，不得被称为完整 Gate B 认证。MVP-16 的 B-07+B-14、U-05 的 B-14、U-10 的 B-09 依赖按精确顺序列出，聚合摘要贯穿授权→Plan→Preflight；每份依赖在 hardware 授权前 PASS，并用独立 subject-binding 对齐窗口、Attempt、实体副本及 Side/完成/事件 correlation。MVP-18 还要求 Replica profile、冻结目标/输出内容 Hash、expected/submitted/observed 全帧一致、endpoint drain 与同窗口 correlation。U-10 同时与 real-roon 对齐 `roon-offline` 事件类型和状态事实。技术收据不证明听感合格，仍需独立 Owner 观察。
+
 receipt seal 用独占创建、`fsync`、回读和同 ID 不同内容拒绝来发现正常历史漂移；它不是数字签名，也不对抗拥有本机文件写权限的恶意用户同时删除或替换收据与 seal。若未来需要该威胁模型，必须引入 Owner 控制签名或外部只追加账本，不能把本地 seal 描述成不可抵赖证明。
 
 ## 2. 准入顺序

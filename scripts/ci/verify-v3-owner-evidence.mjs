@@ -11,8 +11,8 @@ const BASE_COMMIT = 'fac7363b4a6481591e207dda7cca77f0ae8d3cd4'
 const EVIDENCE_ROOT = 'reports/runtime/task-079-v3-final-acceptance'
 const TEMPLATE_PATH = 'project/V3_OWNER_EVIDENCE_TEMPLATE.json'
 const MATRIX_SHA256 = '12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7fe4ba944'
-const EVIDENCE_KINDS = new Set(['real-output-measurement', 'real-input-observation', 'real-logic-observation', 'real-roon-observation', 'owner-observed'])
-const TECHNICAL_KINDS = new Set(['real-output-measurement', 'real-input-observation', 'real-logic-observation', 'real-roon-observation'])
+const EVIDENCE_KINDS = new Set(['real-output-measurement', 'real-input-observation', 'real-logic-observation', 'real-roon-observation', 'hardware-observation', 'owner-observed'])
+const TECHNICAL_KINDS = new Set(['real-output-measurement', 'real-input-observation', 'real-logic-observation', 'real-roon-observation', 'hardware-observation'])
 const SCOPE_IDS = new Set([
   ...Array.from({ length: 30 }, (_, index) => `MVP-${String(index + 1).padStart(2, '0')}`),
   ...Array.from({ length: 11 }, (_, index) => `A-${String(index + 1).padStart(2, '0')}`),
@@ -62,6 +62,13 @@ const REAL_ROON_CASES = new Map([
   ['U-06', { outcome: 'multi-release-lineage-preserved', connectionState: 'connected', operations: ['browse-library', 'select-track', 'inspect-recording-lineage'] }],
   ['U-07', { outcome: 'preliminary-flow-bounded', connectionState: 'connected', operations: ['browse-library', 'select-track', 'read-inventory-recommendation', 'inspect-recording-gate'] }],
   ['U-10', { outcome: 'offline-history-preserved', connectionState: 'offline-observed', operations: ['observe-roon-offline', 'inspect-physical-history', 'inspect-attempt-state'] }],
+])
+const HARDWARE_FAILED_REASONS = new Set(['hardware-unavailable', 'configuration-mismatch', 'observation-mismatch', 'physical-state-mismatch'])
+const HARDWARE_CASES = new Map([
+  ['MVP-16', { outcome: 'formal-ab-flow-completed', observerPath: 'packages/bridge-core/src/recording/execution-coordinator.ts', operations: ['observe-device-output', 'observe-side-flow', 'observe-physical-completion', 'inspect-attempt-state'] }],
+  ['MVP-18', { outcome: 'digital-replica-output-observed', observerPath: 'packages/bridge-core/src/recording/replica-coordinator.ts', operations: ['observe-device-output', 'observe-replica-flow', 'inspect-archive-binding'] }],
+  ['U-05', { outcome: 'physical-inventory-transition-preserved', observerPath: 'packages/bridge-core/src/recording/archive-transactions.ts', operations: ['observe-physical-completion', 'inspect-inventory-transition', 'inspect-recovery-idempotency'] }],
+  ['U-10', { outcome: 'interrupted-medium-state-preserved', observerPath: 'packages/bridge-core/src/recording/attempt-coordinator.ts', operations: ['observe-physical-stop', 'inspect-attempt-state', 'inspect-medium-state'] }],
 ])
 const CONFIGURATION_KEYS = [
   'audioInterfaceAlias',
@@ -265,7 +272,7 @@ function validateReceiptSeal(root, receiptId, receiptBytes, code = 'OWNER_BOUNDA
 function validateArtifact(root, artifact, receiptId) {
   exactKeys(artifact, ['artifactId', 'role', 'relativePath', 'sha256', 'sizeBytes', 'mediaType'], 'ARTIFACT')
   check(safeLabel(artifact.artifactId), 'ARTIFACT')
-  check(['independent-output-capture', 'external-observation', 'measurement-contract', 'candidate-manifest', 'authorization-seal', 'plan-seal', 'preflight-seal', 'event-log', 'completion-attestation', 'configuration-seal', 'case-evidence', 'environment-seal'].includes(artifact.role), 'ARTIFACT')
+  check(['independent-output-capture', 'external-observation', 'measurement-contract', 'candidate-manifest', 'authorization-seal', 'plan-seal', 'preflight-seal', 'event-log', 'completion-attestation', 'configuration-seal', 'case-evidence', 'environment-seal', 'hardware-subject-binding'].includes(artifact.role), 'ARTIFACT')
   check(sha256(artifact.sha256), 'ARTIFACT')
   check(Number.isInteger(artifact.sizeBytes) && artifact.sizeBytes > 0 && artifact.sizeBytes <= 16 * 1024 * 1024, 'ARTIFACT')
   check(['application/json', 'text/plain', 'text/csv'].includes(artifact.mediaType), 'ARTIFACT')
@@ -403,6 +410,49 @@ function validateConfigurationCertificate(root, certificateId, expectedSha256, e
   check(certificate.schemaVersion === 1 && certificate.kind === 'configuration-certificate' && certificate.certificateId === certificateId && certificate.scopeId === 'B-15', 'CASE_EVIDENCE')
   check(gitSha(certificate.candidateCommit) && gitSha(certificate.candidateTree) && certificate.matrixSha256 === MATRIX_SHA256, 'CASE_EVIDENCE')
   check(certificate.configurationFingerprintSha256 === expectedFingerprintSha256 && certificate.verdict === 'passed', 'CASE_EVIDENCE')
+  return certificate
+}
+
+function validateHardwareConfigurationCertificate(root, certificateId, expectedSha256, expectedFingerprintSha256, receipt, authorizationGrantedAt) {
+  const relativePath = `${EVIDENCE_ROOT}/receipts/${certificateId}.hardware-certificate.json`
+  const sealPath = `${EVIDENCE_ROOT}/receipts/${certificateId}.hardware-certificate.sealed.sha256`
+  let bytes
+  let sealBytes
+  try {
+    checkUntracked(root, relativePath)
+    checkUntracked(root, sealPath)
+    bytes = safeFile(root, relativePath, { exactPath: relativePath })
+    sealBytes = safeFile(root, sealPath, { exactPath: sealPath, limit: 128 })
+  } catch { fail('CASE_EVIDENCE') }
+  const digest = createHash('sha256').update(bytes).digest('hex')
+  check(digest === expectedSha256 && sealBytes.toString('utf8') === `${digest}\n`, 'CASE_EVIDENCE')
+  let certificate
+  try { certificate = JSON.parse(bytes.toString('utf8')) } catch { fail('CASE_EVIDENCE') }
+  exactKeys(certificate, ['schemaVersion', 'kind', 'certificateId', 'scopeId', 'candidateCommit', 'candidateTree', 'candidateManifestSha256', 'matrixSha256', 'configurationFingerprintSha256', 'sourceReceiptId', 'sourceReceiptSha256', 'issuedAt', 'verdict'], 'CASE_EVIDENCE')
+  check(certificate.schemaVersion === 1 && certificate.kind === 'hardware-configuration-certificate' && certificate.certificateId === certificateId && certificate.scopeId === 'B-15', 'CASE_EVIDENCE')
+  check(certificate.candidateCommit === receipt.candidateCommit && certificate.candidateTree === receipt.candidateTree && certificate.matrixSha256 === receipt.matrixSha256, 'CASE_EVIDENCE')
+  check(certificate.candidateManifestSha256 === receipt.candidateManifestSha256 && certificate.configurationFingerprintSha256 === expectedFingerprintSha256 && certificate.verdict === 'passed', 'CASE_EVIDENCE')
+  check(safeLabel(certificate.sourceReceiptId) && sha256(certificate.sourceReceiptSha256) && canonicalTimestamp(certificate.issuedAt) && canonicalTimestamp(authorizationGrantedAt), 'CASE_EVIDENCE')
+  const sourceRelativePath = `${EVIDENCE_ROOT}/receipts/${certificate.sourceReceiptId}.json`
+  let sourceBytes
+  try {
+    checkUntracked(root, sourceRelativePath)
+    sourceBytes = safeFile(root, sourceRelativePath, { exactPath: sourceRelativePath })
+    validateReceiptSeal(root, certificate.sourceReceiptId, sourceBytes)
+  } catch { fail('CASE_EVIDENCE') }
+  check(createHash('sha256').update(sourceBytes).digest('hex') === certificate.sourceReceiptSha256, 'CASE_EVIDENCE')
+  let sourceEnvelope
+  try { sourceEnvelope = JSON.parse(sourceBytes.toString('utf8')) } catch { fail('CASE_EVIDENCE') }
+  const source = sourceEnvelope?.receipt
+  check(source?.receiptId === certificate.sourceReceiptId && source.kind === 'real-output-measurement' && JSON.stringify(source.scopeIds) === JSON.stringify(['B-15']), 'CASE_EVIDENCE')
+  check(source.verdict === 'passed' && source.candidateCommit === certificate.candidateCommit && source.candidateTree === certificate.candidateTree, 'CASE_EVIDENCE')
+  check(source.candidateManifestSha256 === certificate.candidateManifestSha256 && source.matrixSha256 === certificate.matrixSha256 && source.configurationFingerprintSha256 === certificate.configurationFingerprintSha256, 'CASE_EVIDENCE')
+  let sourceResult
+  try { sourceResult = validateV3EvidenceEnvelope(sourceEnvelope, { root }) } catch { fail('CASE_EVIDENCE') }
+  check(sourceResult.verdict === 'passed', 'CASE_EVIDENCE')
+  const times = [source.observedAt, certificate.issuedAt, authorizationGrantedAt].map(Date.parse)
+  check(times.every(Number.isFinite) && times.every((value, index) => index === 0 || times[index - 1] <= value), 'CASE_EVIDENCE')
+  return certificate
 }
 
 function validateCaseEvidence(receiptCaseEvidence, gateId, receiptId, configurationFingerprintSha256, verdict, artifacts, artifactContents, root) {
@@ -613,8 +663,9 @@ function validateTechnicalSeals(receipt, artifacts, artifactContents) {
   check(times.every(Number.isFinite) && times.every((value, index) => index === 0 || times[index - 1] <= value), 'RECEIPT_STATE')
 }
 
-function validateExternalSeals(receipt, artifacts, artifactContents, criterionSha256, { externalKind, environmentAliasKey, allowedOperations, allowedDataClasses }) {
+function validateExternalSeals(receipt, artifacts, artifactContents, criterionSha256, { externalKind, environmentAliasKey, allowedOperations, allowedDataClasses, dependencyReceiptsSha256 = null }) {
   const scopeId = receipt.scopeIds[0]
+  const dependencyKeys = dependencyReceiptsSha256 === null ? [] : ['dependencyReceiptsSha256']
   const environment = parseSingleArtifact(artifacts, artifactContents, 'environment-seal')
   exactKeys(environment.value, ['runId', 'osFamily', 'architecture', 'externalKind', environmentAliasKey], 'RECEIPT_STATE')
   check(environment.value.runId === receipt.receiptId && environment.value.osFamily === 'macos' && ['arm64', 'x64'].includes(environment.value.architecture), 'RECEIPT_STATE')
@@ -634,24 +685,27 @@ function validateExternalSeals(receipt, artifacts, artifactContents, criterionSh
   check(candidateManifest.artifact.sha256 === receipt.candidateManifestSha256, 'RECEIPT_STATE')
 
   const authorization = parseSingleArtifact(artifacts, artifactContents, 'authorization-seal')
-  exactKeys(authorization.value, ['scopeId', 'runId', 'candidateCommit', 'candidateTree', 'candidateManifestSha256', 'externalKind', 'correlationSha256', 'criterionSha256', 'allowedOperations', 'allowedDataClasses', 'grantedAt', 'expiresAt'], 'RECEIPT_STATE')
+  exactKeys(authorization.value, ['scopeId', 'runId', 'candidateCommit', 'candidateTree', 'candidateManifestSha256', 'externalKind', 'correlationSha256', 'criterionSha256', ...dependencyKeys, 'allowedOperations', 'allowedDataClasses', 'grantedAt', 'expiresAt'], 'RECEIPT_STATE')
   check(authorization.value.scopeId === scopeId && authorization.value.runId === receipt.receiptId && authorization.value.candidateCommit === receipt.candidateCommit && authorization.value.candidateTree === receipt.candidateTree, 'RECEIPT_STATE')
   check(authorization.value.candidateManifestSha256 === receipt.candidateManifestSha256 && authorization.value.externalKind === externalKind && authorization.value.correlationSha256 === receipt.caseEvidence.correlationSha256 && authorization.value.criterionSha256 === criterionSha256, 'RECEIPT_STATE')
   check(sha256(authorization.value.correlationSha256), 'RECEIPT_STATE')
+  if (dependencyReceiptsSha256 !== null) check(sha256(dependencyReceiptsSha256) && authorization.value.dependencyReceiptsSha256 === dependencyReceiptsSha256, 'RECEIPT_STATE')
   check(JSON.stringify(authorization.value.allowedOperations) === JSON.stringify(allowedOperations) && JSON.stringify(authorization.value.allowedDataClasses) === JSON.stringify(allowedDataClasses), 'RECEIPT_STATE')
   check(canonicalTimestamp(authorization.value.grantedAt) && canonicalTimestamp(authorization.value.expiresAt) && authorization.artifact.sha256 === receipt.authorizationSha256, 'RECEIPT_STATE')
 
   const plan = parseSingleArtifact(artifacts, artifactContents, 'plan-seal')
-  exactKeys(plan.value, ['scopeId', 'runId', 'candidateCommit', 'candidateTree', 'candidateManifestSha256', 'externalKind', 'correlationSha256', 'criterionSha256', 'grantSha256', 'frozenAt'], 'RECEIPT_STATE')
+  exactKeys(plan.value, ['scopeId', 'runId', 'candidateCommit', 'candidateTree', 'candidateManifestSha256', 'externalKind', 'correlationSha256', 'criterionSha256', ...dependencyKeys, 'grantSha256', 'frozenAt'], 'RECEIPT_STATE')
   check(plan.value.scopeId === scopeId && plan.value.runId === receipt.receiptId && plan.value.candidateCommit === receipt.candidateCommit && plan.value.candidateTree === receipt.candidateTree, 'RECEIPT_STATE')
   check(plan.value.candidateManifestSha256 === receipt.candidateManifestSha256 && plan.value.externalKind === externalKind && plan.value.correlationSha256 === receipt.caseEvidence.correlationSha256 && plan.value.criterionSha256 === criterionSha256 && plan.value.grantSha256 === receipt.authorizationSha256, 'RECEIPT_STATE')
+  if (dependencyReceiptsSha256 !== null) check(plan.value.dependencyReceiptsSha256 === dependencyReceiptsSha256, 'RECEIPT_STATE')
   check(canonicalTimestamp(plan.value.frozenAt) && plan.artifact.sha256 === receipt.planSha256, 'RECEIPT_STATE')
 
   const preflight = parseSingleArtifact(artifacts, artifactContents, 'preflight-seal')
-  exactKeys(preflight.value, ['scopeId', 'runId', 'candidateCommit', 'candidateTree', 'candidateManifestSha256', 'externalKind', 'correlationSha256', 'criterionSha256', 'grantSha256', 'planSha256', 'observedAt', 'passed'], 'RECEIPT_STATE')
+  exactKeys(preflight.value, ['scopeId', 'runId', 'candidateCommit', 'candidateTree', 'candidateManifestSha256', 'externalKind', 'correlationSha256', 'criterionSha256', ...dependencyKeys, 'grantSha256', 'planSha256', 'observedAt', 'passed'], 'RECEIPT_STATE')
   check(preflight.value.scopeId === scopeId && preflight.value.runId === receipt.receiptId && preflight.value.candidateCommit === receipt.candidateCommit && preflight.value.candidateTree === receipt.candidateTree, 'RECEIPT_STATE')
   check(preflight.value.candidateManifestSha256 === receipt.candidateManifestSha256 && preflight.value.externalKind === externalKind && preflight.value.correlationSha256 === receipt.caseEvidence.correlationSha256 && preflight.value.criterionSha256 === criterionSha256, 'RECEIPT_STATE')
   check(preflight.value.grantSha256 === receipt.authorizationSha256 && preflight.value.planSha256 === receipt.planSha256 && preflight.value.passed === true, 'RECEIPT_STATE')
+  if (dependencyReceiptsSha256 !== null) check(preflight.value.dependencyReceiptsSha256 === dependencyReceiptsSha256, 'RECEIPT_STATE')
   check(canonicalTimestamp(preflight.value.observedAt) && preflight.artifact.sha256 === receipt.preflightSha256, 'RECEIPT_STATE')
 
   const times = [authorization.value.grantedAt, plan.value.frozenAt, preflight.value.observedAt, receipt.observedAt, authorization.value.expiresAt].map(Date.parse)
@@ -772,7 +826,9 @@ function validateRealRoonFacts(scopeId, facts) {
     return facts.selectionObserved === true && facts.sourceVerified === false && facts.logicCompleted === false && facts.recommendationLabel === 'preliminary-estimate' && facts.reasonShown === true && facts.playbackTakeoverCount === 0 && facts.reservationCount === 0 && facts.formalStartCount === 0
   }
   if (scopeId === 'U-10') {
-    exactKeys(facts, ['roonAvailableBefore', 'roonAvailableAfter', 'attemptState', 'completedClaimed', 'blankInventoryIncrement', 'physicalRecordPreserved', 'historyPreserved', 'manualBackfillMarkerPreserved'], 'CASE_EVIDENCE')
+    exactKeys(facts, ['attemptAlias', 'physicalCopyAlias', 'eventCorrelationSha256', 'interruptionKind', 'roonAvailableBefore', 'roonAvailableAfter', 'attemptState', 'completedClaimed', 'blankInventoryIncrement', 'physicalRecordPreserved', 'historyPreserved', 'manualBackfillMarkerPreserved'], 'CASE_EVIDENCE')
+    check(safeLabel(facts.attemptAlias) && safeLabel(facts.physicalCopyAlias) && sha256(facts.eventCorrelationSha256), 'CASE_EVIDENCE')
+    check(facts.interruptionKind === 'roon-offline', 'CASE_EVIDENCE')
     check(['roonAvailableBefore', 'roonAvailableAfter', 'completedClaimed', 'physicalRecordPreserved', 'historyPreserved', 'manualBackfillMarkerPreserved'].every(key => typeof facts[key] === 'boolean'), 'CASE_EVIDENCE')
     check(['interrupted', 'completed'].includes(facts.attemptState) && Number.isInteger(facts.blankInventoryIncrement) && facts.blankInventoryIncrement >= 0, 'CASE_EVIDENCE')
     return facts.roonAvailableBefore === true && facts.roonAvailableAfter === false && facts.attemptState === 'interrupted' && facts.completedClaimed === false && facts.blankInventoryIncrement === 0 && facts.physicalRecordPreserved === true && facts.historyPreserved === true && facts.manualBackfillMarkerPreserved === true
@@ -812,6 +868,147 @@ function validateRealRoonCase(receipt, artifacts, artifactContents, entry) {
   check(times.every(Number.isFinite) && times.every((value, index) => index === 0 || times[index - 1] <= value), 'CASE_EVIDENCE')
   const factsPassed = validateRealRoonFacts(scopeId, observation.facts)
   const passed = evidence.connectionState === contract.connectionState && factsPassed
+  check(evidence.criterionSatisfied === passed, 'CASE_EVIDENCE')
+  check(receipt.verdict === 'passed' ? passed && evidence.observedOutcome === contract.outcome : !passed && evidence.observedOutcome === null, 'CASE_EVIDENCE')
+  return criterionSha256
+}
+
+function validateHardwareFacts(scopeId, facts, root, receipt, authorizationGrantedAt) {
+  const configurationKeys = ['configurationCertificateId', 'configurationCertificateSha256', 'certifiedConfigurationFingerprintSha256', 'observedConfigurationFingerprintSha256']
+  const validateConfigurationBinding = () => {
+    check(safeLabel(facts.configurationCertificateId) && sha256(facts.configurationCertificateSha256), 'CASE_EVIDENCE')
+    check(sha256(facts.certifiedConfigurationFingerprintSha256) && sha256(facts.observedConfigurationFingerprintSha256), 'CASE_EVIDENCE')
+    validateHardwareConfigurationCertificate(root, facts.configurationCertificateId, facts.configurationCertificateSha256, facts.certifiedConfigurationFingerprintSha256, receipt, authorizationGrantedAt)
+    return facts.certifiedConfigurationFingerprintSha256 === facts.observedConfigurationFingerprintSha256
+  }
+  if (scopeId === 'MVP-16') {
+    exactKeys(facts, ['attemptAlias', 'physicalCopyAlias', 'mediaKind', 'sideSequence', 'completionCorrelationSha256', 'sideAStartEventSha256', 'sideAStopEventSha256', 'flipConfirmationSha256', 'sideBStartEventSha256', 'sideBStopEventSha256', 'sideAStartedAt', 'sideAStoppedAt', 'flippedAt', 'sideBStartedAt', 'sideBStoppedAt', 'explicitSideAStartCount', 'explicitSideBStartCount', 'sideAOutputObserved', 'sideAStoppedBeforeFlip', 'flipExplicitlyConfirmed', 'sideBOutputObserved', 'physicalRecordingConfirmed', 'finalVerificationConfirmed', 'attemptState', 'unresolvedInterruptionCount', 'automaticSideBStartCount', 'fallbackCount', ...configurationKeys], 'CASE_EVIDENCE')
+    check(safeLabel(facts.attemptAlias) && safeLabel(facts.physicalCopyAlias) && facts.mediaKind === 'cassette', 'CASE_EVIDENCE')
+    check(JSON.stringify(facts.sideSequence) === JSON.stringify(['side-a', 'side-b']), 'CASE_EVIDENCE')
+    check(facts.completionCorrelationSha256 === receipt.caseEvidence.correlationSha256 && ['sideAStartEventSha256', 'sideAStopEventSha256', 'flipConfirmationSha256', 'sideBStartEventSha256', 'sideBStopEventSha256'].every(key => sha256(facts[key])), 'CASE_EVIDENCE')
+    const eventTimes = ['sideAStartedAt', 'sideAStoppedAt', 'flippedAt', 'sideBStartedAt', 'sideBStoppedAt'].map(key => facts[key])
+    check(eventTimes.every(canonicalTimestamp) && eventTimes.map(Date.parse).every((value, index, values) => index === 0 || values[index - 1] < value), 'CASE_EVIDENCE')
+    check(['sideAOutputObserved', 'sideAStoppedBeforeFlip', 'flipExplicitlyConfirmed', 'sideBOutputObserved', 'physicalRecordingConfirmed', 'finalVerificationConfirmed'].every(key => typeof facts[key] === 'boolean'), 'CASE_EVIDENCE')
+    check(['completed', 'interrupted'].includes(facts.attemptState), 'CASE_EVIDENCE')
+    check([facts.explicitSideAStartCount, facts.explicitSideBStartCount, facts.unresolvedInterruptionCount, facts.automaticSideBStartCount, facts.fallbackCount].every(value => Number.isInteger(value) && value >= 0), 'CASE_EVIDENCE')
+    return validateConfigurationBinding() && facts.explicitSideAStartCount === 1 && facts.explicitSideBStartCount === 1 && facts.sideAOutputObserved === true && facts.sideAStoppedBeforeFlip === true && facts.flipExplicitlyConfirmed === true && facts.sideBOutputObserved === true && facts.physicalRecordingConfirmed === true && facts.finalVerificationConfirmed === true && facts.attemptState === 'completed' && facts.unresolvedInterruptionCount === 0 && facts.automaticSideBStartCount === 0 && facts.fallbackCount === 0
+  }
+  if (scopeId === 'MVP-18') {
+    exactKeys(facts, ['recordingAlias', 'replicaRunAlias', 'targetKind', 'frozenTargetSha256', 'selectedTargetSha256', 'outputEndpointAlias', 'playbackProfileKind', 'outputRunCorrelationSha256', 'outputContentSha256', 'productionProviderReady', 'outputEndpointSignalObserved', 'expectedFrameCount', 'submittedFrameCount', 'observedFrameCount', 'endpointDrained', 'runState', 'automaticSubstitutionCount', 'currentMasterLookupCount', 'currentDefaultProfileLookupCount', 'attemptMutationCount', 'inventoryMutationCount', ...configurationKeys], 'CASE_EVIDENCE')
+    check(safeLabel(facts.recordingAlias) && safeLabel(facts.replicaRunAlias) && safeLabel(facts.outputEndpointAlias), 'CASE_EVIDENCE')
+    check(['actual-execution', 'original-render'].includes(facts.targetKind) && sha256(facts.frozenTargetSha256) && sha256(facts.selectedTargetSha256), 'CASE_EVIDENCE')
+    check(facts.playbackProfileKind === 'replica-playback' && facts.outputRunCorrelationSha256 === receipt.caseEvidence.correlationSha256 && sha256(facts.outputContentSha256), 'CASE_EVIDENCE')
+    check(typeof facts.productionProviderReady === 'boolean' && typeof facts.outputEndpointSignalObserved === 'boolean' && typeof facts.endpointDrained === 'boolean' && ['completed', 'interrupted'].includes(facts.runState), 'CASE_EVIDENCE')
+    check([facts.expectedFrameCount, facts.submittedFrameCount, facts.observedFrameCount, facts.automaticSubstitutionCount, facts.currentMasterLookupCount, facts.currentDefaultProfileLookupCount, facts.attemptMutationCount, facts.inventoryMutationCount].every(value => Number.isInteger(value) && value >= 0), 'CASE_EVIDENCE')
+    return validateConfigurationBinding() && facts.frozenTargetSha256 === facts.selectedTargetSha256 && facts.outputContentSha256 === facts.selectedTargetSha256 && facts.productionProviderReady === true && facts.outputEndpointSignalObserved === true && facts.expectedFrameCount > 0 && facts.submittedFrameCount === facts.expectedFrameCount && facts.observedFrameCount === facts.expectedFrameCount && facts.endpointDrained === true && facts.runState === 'completed' && [facts.automaticSubstitutionCount, facts.currentMasterLookupCount, facts.currentDefaultProfileLookupCount, facts.attemptMutationCount, facts.inventoryMutationCount].every(value => value === 0)
+  }
+  if (scopeId === 'U-05') {
+    exactKeys(facts, ['attemptAlias', 'physicalCopyAlias', 'datasetAlias', 'completionCorrelationSha256', 'completionEventSha256', 'duplicateCompletionEventSha256', 'restartEventSha256', 'physicalRecordingConfirmed', 'beforeInventory', 'afterInventory', 'beforeInventorySha256', 'afterInventorySha256', 'duplicateCompletionSubmissionCount', 'applicationRestartCount', 'recordingRecordDelta', 'selfRecordedLibraryEntryDelta', 'modelContentEntryDelta', 'additionalPhysicalCopyCount', 'samePhysicalCopyAcrossViews', 'postRestartStateSha256', 'preRestartCompletedStateSha256', ...configurationKeys], 'CASE_EVIDENCE')
+    check(safeLabel(facts.attemptAlias) && safeLabel(facts.physicalCopyAlias) && safeLabel(facts.datasetAlias), 'CASE_EVIDENCE')
+    check(facts.completionCorrelationSha256 === receipt.caseEvidence.correlationSha256 && ['completionEventSha256', 'duplicateCompletionEventSha256', 'restartEventSha256', 'beforeInventorySha256', 'afterInventorySha256'].every(key => sha256(facts[key])), 'CASE_EVIDENCE')
+    const inventoryKeys = ['sealedBlank', 'openedBlank', 'recorded', 'total']
+    for (const inventory of [facts.beforeInventory, facts.afterInventory]) {
+      exactKeys(inventory, inventoryKeys, 'CASE_EVIDENCE')
+      check(inventoryKeys.every(key => Number.isInteger(inventory[key]) && inventory[key] >= 0), 'CASE_EVIDENCE')
+      check(inventory.total === inventory.sealedBlank + inventory.openedBlank + inventory.recorded, 'CASE_EVIDENCE')
+    }
+    check(typeof facts.physicalRecordingConfirmed === 'boolean' && typeof facts.samePhysicalCopyAcrossViews === 'boolean', 'CASE_EVIDENCE')
+    check([facts.duplicateCompletionSubmissionCount, facts.applicationRestartCount, facts.recordingRecordDelta, facts.selfRecordedLibraryEntryDelta, facts.modelContentEntryDelta, facts.additionalPhysicalCopyCount].every(value => Number.isInteger(value) && value >= 0), 'CASE_EVIDENCE')
+    check(sha256(facts.postRestartStateSha256) && sha256(facts.preRestartCompletedStateSha256), 'CASE_EVIDENCE')
+    const expectedBefore = { sealedBlank: 5, openedBlank: 1, recorded: 1, total: 7 }
+    const expectedAfter = { sealedBlank: 5, openedBlank: 0, recorded: 2, total: 7 }
+    const inventoryHashesMatch = facts.beforeInventorySha256 === createHash('sha256').update(JSON.stringify(facts.beforeInventory)).digest('hex') && facts.afterInventorySha256 === createHash('sha256').update(JSON.stringify(facts.afterInventory)).digest('hex')
+    return validateConfigurationBinding() && inventoryHashesMatch && facts.physicalRecordingConfirmed === true && JSON.stringify(facts.beforeInventory) === JSON.stringify(expectedBefore) && JSON.stringify(facts.afterInventory) === JSON.stringify(expectedAfter) && facts.duplicateCompletionSubmissionCount >= 1 && facts.applicationRestartCount >= 1 && facts.recordingRecordDelta === 1 && facts.selfRecordedLibraryEntryDelta === 1 && facts.modelContentEntryDelta === 1 && facts.additionalPhysicalCopyCount === 0 && facts.samePhysicalCopyAcrossViews === true && facts.postRestartStateSha256 === facts.preRestartCompletedStateSha256
+  }
+  if (scopeId === 'U-10') {
+    exactKeys(facts, ['attemptAlias', 'physicalCopyAlias', 'eventCorrelationSha256', 'interruptionKind', 'physicalStopObserved', 'attemptState', 'completedClaimed', 'automaticResumeCount', 'automaticRerecordCount', 'blankInventoryIncrement', 'possibleWriteStatePreserved', 'physicalRecordPreserved', 'historyPreserved', 'manualBackfillMarkerPreserved', ...configurationKeys], 'CASE_EVIDENCE')
+    check(safeLabel(facts.attemptAlias) && safeLabel(facts.physicalCopyAlias) && sha256(facts.eventCorrelationSha256), 'CASE_EVIDENCE')
+    check(['roon-offline', 'device-removed', 'route-changed', 'asset-failure', 'engine-terminated', 'manual-stop'].includes(facts.interruptionKind), 'CASE_EVIDENCE')
+    check(['physicalStopObserved', 'completedClaimed', 'possibleWriteStatePreserved', 'physicalRecordPreserved', 'historyPreserved', 'manualBackfillMarkerPreserved'].every(key => typeof facts[key] === 'boolean'), 'CASE_EVIDENCE')
+    check(['interrupted', 'completed'].includes(facts.attemptState), 'CASE_EVIDENCE')
+    check([facts.automaticResumeCount, facts.automaticRerecordCount, facts.blankInventoryIncrement].every(value => Number.isInteger(value) && value >= 0), 'CASE_EVIDENCE')
+    return validateConfigurationBinding() && facts.physicalStopObserved === true && facts.attemptState === 'interrupted' && facts.completedClaimed === false && facts.automaticResumeCount === 0 && facts.automaticRerecordCount === 0 && facts.blankInventoryIncrement === 0 && facts.possibleWriteStatePreserved === true && facts.physicalRecordPreserved === true && facts.historyPreserved === true && facts.manualBackfillMarkerPreserved === true
+  }
+  fail('CASE_EVIDENCE')
+}
+
+function validateHardwareDependencies(root, dependencies, scopeId, receipt, configurationFingerprintSha256, authorizationGrantedAt, hardwareFacts) {
+  const expectedScopes = scopeId === 'MVP-16' ? ['B-07', 'B-14'] : scopeId === 'U-05' ? ['B-14'] : scopeId === 'U-10' ? ['B-09'] : []
+  check(Array.isArray(dependencies) && dependencies.length === expectedScopes.length, 'CASE_EVIDENCE')
+  check(JSON.stringify(dependencies.map(value => value.scopeId)) === JSON.stringify(expectedScopes), 'CASE_EVIDENCE')
+  const ids = new Set()
+  for (const dependency of dependencies) {
+    exactKeys(dependency, ['receiptId', 'receiptSha256', 'scopeId'], 'CASE_EVIDENCE')
+    check(safeLabel(dependency.receiptId) && sha256(dependency.receiptSha256) && !ids.has(dependency.receiptId), 'CASE_EVIDENCE')
+    ids.add(dependency.receiptId)
+    const relativePath = `${EVIDENCE_ROOT}/receipts/${dependency.receiptId}.json`
+    let bytes
+    try {
+      checkUntracked(root, relativePath)
+      bytes = safeFile(root, relativePath, { exactPath: relativePath })
+      validateReceiptSeal(root, dependency.receiptId, bytes)
+    } catch { fail('CASE_EVIDENCE') }
+    check(createHash('sha256').update(bytes).digest('hex') === dependency.receiptSha256, 'CASE_EVIDENCE')
+    let envelope
+    try { envelope = JSON.parse(bytes.toString('utf8')) } catch { fail('CASE_EVIDENCE') }
+    const technical = envelope?.receipt
+    check(technical?.receiptId === dependency.receiptId && technical.kind === 'real-output-measurement' && JSON.stringify(technical.scopeIds) === JSON.stringify([dependency.scopeId]), 'CASE_EVIDENCE')
+    check(technical.verdict === 'passed' && technical.candidateCommit === receipt.candidateCommit && technical.candidateTree === receipt.candidateTree && technical.matrixSha256 === receipt.matrixSha256, 'CASE_EVIDENCE')
+    check(technical.configurationFingerprintSha256 === configurationFingerprintSha256 && Date.parse(technical.observedAt) <= Date.parse(authorizationGrantedAt), 'CASE_EVIDENCE')
+    let result
+    try { result = validateV3EvidenceEnvelope(envelope, { root }) } catch { fail('CASE_EVIDENCE') }
+    check(result.verdict === 'passed', 'CASE_EVIDENCE')
+    const bindingArtifacts = technical.artifacts.filter(artifact => artifact.role === 'hardware-subject-binding' && artifact.mediaType === 'application/json')
+    check(bindingArtifacts.length === 1, 'CASE_EVIDENCE')
+    const bindingArtifact = bindingArtifacts[0]
+    let bindingBytes
+    try { bindingBytes = safeFile(root, bindingArtifact.relativePath, { prefix: `${EVIDENCE_ROOT}/receipts/${technical.receiptId}` }) } catch { fail('CASE_EVIDENCE') }
+    check(bindingBytes.length === bindingArtifact.sizeBytes && createHash('sha256').update(bindingBytes).digest('hex') === bindingArtifact.sha256, 'CASE_EVIDENCE')
+    let binding
+    try { binding = JSON.parse(bindingBytes.toString('utf8')) } catch { fail('CASE_EVIDENCE') }
+    exactKeys(binding, ['scopeId', 'windowCorrelationSha256', 'attemptAlias', 'physicalCopyAlias', 'side', 'eventCorrelationSha256', 'completionCorrelationSha256'], 'CASE_EVIDENCE')
+    check(binding.scopeId === dependency.scopeId && binding.windowCorrelationSha256 === receipt.caseEvidence.correlationSha256, 'CASE_EVIDENCE')
+    check(binding.attemptAlias === hardwareFacts.attemptAlias && binding.physicalCopyAlias === hardwareFacts.physicalCopyAlias, 'CASE_EVIDENCE')
+    if (dependency.scopeId === 'B-07') check(binding.side === 'side-a' && binding.eventCorrelationSha256 === null && binding.completionCorrelationSha256 === null, 'CASE_EVIDENCE')
+    if (dependency.scopeId === 'B-14') check(binding.side === 'both-sides' && binding.eventCorrelationSha256 === null && binding.completionCorrelationSha256 === hardwareFacts.completionCorrelationSha256, 'CASE_EVIDENCE')
+    if (dependency.scopeId === 'B-09') {
+      check(binding.side === null && binding.eventCorrelationSha256 === hardwareFacts.eventCorrelationSha256 && binding.completionCorrelationSha256 === null, 'CASE_EVIDENCE')
+      check(technical.caseEvidence?.correlationSha256 === binding.windowCorrelationSha256 && technical.caseEvidence?.eventCorrelationSha256 === binding.eventCorrelationSha256, 'CASE_EVIDENCE')
+    }
+  }
+}
+
+function validateHardwareCase(receipt, artifacts, artifactContents, entry, root) {
+  const scopeId = receipt.scopeIds[0]
+  const contract = HARDWARE_CASES.get(scopeId)
+  const criterionSha256 = createHash('sha256').update(JSON.stringify(entry.source)).digest('hex')
+  const caseArtifact = parseSingleArtifact(artifacts, artifactContents, 'case-evidence')
+  check(JSON.stringify(caseArtifact.value) === JSON.stringify(receipt.caseEvidence), 'CASE_EVIDENCE')
+  exactKeys(receipt.caseEvidence, ['type', 'externalKind', 'correlationSha256', 'criterionSha256', 'dependencyReceiptsSha256', 'observedOutcome', 'criterionSatisfied', 'observationArtifactIds'], 'CASE_EVIDENCE')
+  const evidence = receipt.caseEvidence
+  check(contract !== undefined && evidence.type === 'hardware' && evidence.externalKind === 'hardware' && sha256(evidence.correlationSha256) && evidence.criterionSha256 === criterionSha256 && sha256(evidence.dependencyReceiptsSha256), 'CASE_EVIDENCE')
+  check(typeof evidence.criterionSatisfied === 'boolean' && (evidence.observedOutcome === contract.outcome || evidence.observedOutcome === null), 'CASE_EVIDENCE')
+  check(Array.isArray(evidence.observationArtifactIds) && JSON.stringify(evidence.observationArtifactIds) === JSON.stringify(['external-observation']), 'CASE_EVIDENCE')
+  const artifact = artifacts.find(value => value.artifactId === 'external-observation')
+  check(artifact?.role === 'external-observation' && artifactContents.has(artifact.artifactId), 'CASE_EVIDENCE')
+  let observation
+  try { observation = JSON.parse(artifactContents.get(artifact.artifactId).toString('utf8')) } catch { fail('CASE_EVIDENCE') }
+  exactKeys(observation, ['hardwareEnvironmentAlias', 'observerRelativePath', 'observerSha256', 'correlationSha256', 'observedAt', 'dependencyReceipts', 'facts', 'factsSha256'], 'CASE_EVIDENCE')
+  check(safeLabel(observation.hardwareEnvironmentAlias) && safeArtifactPath(observation.observerRelativePath) && !path.isAbsolute(observation.observerRelativePath), 'CASE_EVIDENCE')
+  check(observation.observerRelativePath === contract.observerPath, 'CASE_EVIDENCE')
+  check(sha256(observation.observerSha256) && observation.correlationSha256 === evidence.correlationSha256 && canonicalTimestamp(observation.observedAt), 'CASE_EVIDENCE')
+  check(observation.factsSha256 === createHash('sha256').update(JSON.stringify(observation.facts)).digest('hex'), 'CASE_EVIDENCE')
+  check(evidence.dependencyReceiptsSha256 === createHash('sha256').update(JSON.stringify(observation.dependencyReceipts)).digest('hex'), 'CASE_EVIDENCE')
+  const environment = parseSingleArtifact(artifacts, artifactContents, 'environment-seal')
+  check(environment.value?.hardwareEnvironmentAlias === observation.hardwareEnvironmentAlias, 'CASE_EVIDENCE')
+  const manifest = parseSingleArtifact(artifacts, artifactContents, 'candidate-manifest')
+  check(manifest.value?.controlledFiles?.some(value => value.relativePath === observation.observerRelativePath && value.sha256 === observation.observerSha256), 'CASE_EVIDENCE')
+  const preflight = parseSingleArtifact(artifacts, artifactContents, 'preflight-seal')
+  const authorization = parseSingleArtifact(artifacts, artifactContents, 'authorization-seal')
+  const times = [preflight.value.observedAt, observation.observedAt, receipt.observedAt, authorization.value.expiresAt].map(Date.parse)
+  check(times.every(Number.isFinite) && times.every((value, index) => index === 0 || times[index - 1] <= value), 'CASE_EVIDENCE')
+  const passed = validateHardwareFacts(scopeId, observation.facts, root, receipt, authorization.value.grantedAt)
+  validateHardwareDependencies(root, observation.dependencyReceipts, scopeId, receipt, observation.facts.certifiedConfigurationFingerprintSha256, authorization.value.grantedAt, observation.facts)
   check(evidence.criterionSatisfied === passed, 'CASE_EVIDENCE')
   check(receipt.verdict === 'passed' ? passed && evidence.observedOutcome === contract.outcome : !passed && evidence.observedOutcome === null, 'CASE_EVIDENCE')
   return criterionSha256
@@ -981,6 +1178,28 @@ function validateReceipt(receipt, root) {
     if (receipt.verdict === 'timed-out') check(JSON.stringify(receipt.reasonCodes) === JSON.stringify(['roon-observation-timeout']), 'RECEIPT_STATE')
     if (receipt.verdict === 'stopped') check(JSON.stringify(receipt.reasonCodes) === JSON.stringify(['operation-stopped']), 'RECEIPT_STATE')
     if (receipt.verdict === 'inconclusive') check(JSON.stringify(receipt.reasonCodes) === JSON.stringify(['evidence-inconclusive']), 'RECEIPT_STATE')
+  } else if (receipt.kind === 'hardware-observation') {
+    const scopeId = receipt.scopeIds[0]
+    const contract = HARDWARE_CASES.get(scopeId)
+    check(contract !== undefined && !OUTPUT_SCOPES.has(scopeId), 'SCOPE')
+    const expectedRoles = ['authorization-seal', 'candidate-manifest', 'case-evidence', 'environment-seal', 'external-observation', 'plan-seal', 'preflight-seal'].sort()
+    check(JSON.stringify(receipt.artifacts.map(artifact => artifact.role).sort()) === JSON.stringify(expectedRoles), 'ARTIFACT')
+    const entry = matrixScope(root, scopeId)
+    check(Array.isArray(entry.externalRequirements) && entry.externalRequirements.some(requirement => requirement?.kind === 'hardware' && requirement.state === 'not-run'), 'SCOPE')
+    check(receipt.configuration === null && receipt.configurationFingerprintSha256 === null && receipt.measurements === null, 'CONFIGURATION')
+    check(receipt.ownerDecision === null && Array.isArray(receipt.referencedTechnicalReceipts) && receipt.referencedTechnicalReceipts.length === 0, 'OWNER_BOUNDARY')
+    const criterionSha256 = validateHardwareCase(receipt, receipt.artifacts, artifactContents, entry, root)
+    validateExternalSeals(receipt, receipt.artifacts, artifactContents, criterionSha256, {
+      externalKind: 'hardware',
+      environmentAliasKey: 'hardwareEnvironmentAlias',
+      allowedOperations: contract.operations,
+      allowedDataClasses: ['anonymous-hardware'],
+      dependencyReceiptsSha256: receipt.caseEvidence.dependencyReceiptsSha256,
+    })
+    if (receipt.verdict === 'failed') check(receipt.reasonCodes.length === 1 && HARDWARE_FAILED_REASONS.has(receipt.reasonCodes[0]), 'RECEIPT_STATE')
+    if (receipt.verdict === 'timed-out') check(JSON.stringify(receipt.reasonCodes) === JSON.stringify(['hardware-observation-timeout']), 'RECEIPT_STATE')
+    if (receipt.verdict === 'stopped') check(JSON.stringify(receipt.reasonCodes) === JSON.stringify(['operation-stopped']), 'RECEIPT_STATE')
+    if (receipt.verdict === 'inconclusive') check(JSON.stringify(receipt.reasonCodes) === JSON.stringify(['evidence-inconclusive']), 'RECEIPT_STATE')
   } else if (receipt.kind === 'owner-observed') {
     check(receipt.configuration === null && receipt.configurationFingerprintSha256 === null && receipt.measurements === null && receipt.caseEvidence === null, 'OWNER_BOUNDARY')
     check(['accepted', 'rejected', 'deferred'].includes(receipt.ownerDecision), 'OWNER_BOUNDARY')
@@ -1023,6 +1242,8 @@ function validateReceipt(receipt, root) {
           ? 'real-logic'
           : technical.receipt.kind === 'real-roon-observation'
             ? 'real-roon'
+            : technical.receipt.kind === 'hardware-observation' && !OUTPUT_SCOPES.has(receipt.scopeIds[0])
+              ? 'hardware'
             : null
       if (externalKind !== null) {
         check(!referencedExternalKinds.has(externalKind), 'OWNER_BOUNDARY')
@@ -1046,6 +1267,16 @@ function validateReceipt(receipt, root) {
         const roonObservation = readExternalObservation(root, technicalByExternalKind.get('real-roon'))
         const sourceIndex = inputObservation.sourceAliases?.indexOf(roonObservation.facts?.sourceAlias)
         check(sourceIndex >= 0 && inputObservation.sourceSha256s?.[sourceIndex] === roonObservation.facts?.sourceSha256, 'OWNER_BOUNDARY')
+      }
+      if (receipt.scopeIds[0] === 'U-10') {
+        const hardware = technicalByExternalKind.get('hardware')
+        const roon = technicalByExternalKind.get('real-roon')
+        check(hardware?.caseEvidence?.correlationSha256 === roon?.caseEvidence?.correlationSha256, 'OWNER_BOUNDARY')
+        const hardwareFacts = readExternalObservation(root, hardware).facts
+        const roonFacts = readExternalObservation(root, roon).facts
+        for (const key of ['attemptAlias', 'physicalCopyAlias', 'eventCorrelationSha256', 'interruptionKind', 'attemptState', 'completedClaimed', 'blankInventoryIncrement', 'physicalRecordPreserved', 'historyPreserved', 'manualBackfillMarkerPreserved']) {
+          check(hardwareFacts?.[key] === roonFacts?.[key], 'OWNER_BOUNDARY')
+        }
       }
     }
   }

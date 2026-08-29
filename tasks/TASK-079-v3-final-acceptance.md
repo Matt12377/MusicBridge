@@ -64,6 +64,8 @@ Owner accepted 的前置按 scope 分层：B-01～B-15 必须引用同 scope 的
 
 `real-roon-observation` 只覆盖矩阵声明的九个 real-roon 子门，并以九套精确事实 schema 从匿名受控观察附件重算结论。observer 路径/Hash 必须存在于候选 manifest，窗口 correlation 必须贯穿授权、Plan、Preflight 和观察附件。A-02 只有在 real-input 与 real-roon 的 source alias/SHA 相同后才闭包；B-09 只有在 real-output/hardware 与 real-roon 同时 PASS，且窗口 correlation、事件 correlation、action kind 相同时才允许 Owner accepted。真实 Roon 尚未连接或授权时，收据验证器准备完成也不改变 `realRoon=NOT_RUN`。
 
+`hardware-observation` 仅覆盖非 B 的 MVP-16、MVP-18、U-05 与 U-10；B-09～B-15 的 hardware 子门继续由同 scope `real-output-measurement` 承担，禁止跨 scope 借 B-14 或普通输出收据冒充完整 A/B 实录、Replica、库存守恒或实体中断。四个 scope 分别重算 A/B 人工翻面与实体确认、冻结历史 Replica 到真实输出端、5/1/1→5/0/2 且重启/重复完成不增殖、以及中断后实体介质与历史保留。每份 hardware 观察还必须引用同候选、同 manifest、同配置指纹且能递归验证其源 B-15 技术 PASS 的配置身份收据；该身份收据不等于完整 Gate B 已认证。MVP-16 依赖 B-07+B-14、U-05 依赖 B-14、U-10 依赖 B-09，依赖集合摘要进入授权→Plan→Preflight，并通过独立 subject-binding 对齐窗口、Attempt、实体副本、Side/完成/事件 correlation，且必须早于 hardware 授权。U-10 还与 real-roon 交叉匹配事件类型和状态事实。验证器准备完成不等于设备已连接、配置已认证、Replica 已可听、实体已录制或 Owner 已接受。
+
 TASK-078 的严格 fresh validator 已在其原工作树以完整、未跟踪的 runtime 日志与收据通过并由最终报告锁定。TASK-079 新工作树不复制这些大体积 runtime 证据，因此不重放该入口；本任务以固定矩阵 SHA256 `12f15170…`、最终基线 `fac7363…` 与103/101/2实际内容复核继承软件封条。缺少旧 runtime 文件时的 `PATH_UNAVAILABLE` 不是新的验收失败，也不能被改写成重跑授权。
 
 ## 停止条件

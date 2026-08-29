@@ -45,7 +45,7 @@ const controlStatus = {
     },
     gates: {
       readinessControl: 'PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO',
-      externalEvidenceProfiles: 'REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED_HARDWARE_PENDING',
+      externalEvidenceProfiles: 'REAL_INPUT_REAL_LOGIC_REAL_ROON_HARDWARE_PREPARED',
       externalGate: 'NOT_RUN',
       realInput: 'NOT_RUN',
       realLogic: 'NOT_RUN',
