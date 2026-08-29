@@ -85,6 +85,7 @@ const sha256 = value => typeof value === 'string' && /^[0-9a-f]{64}$/u.test(valu
 const gitSha = value => typeof value === 'string' && /^[0-9a-f]{40}$/u.test(value)
 const safeLabel = value => typeof value === 'string' && /^[a-z][a-z0-9-]{2,31}$/u.test(value)
 const safeVersion = value => typeof value === 'string' && /^(?:v)?[0-9]+(?:\.[0-9]+){1,3}(?:-[a-z0-9.-]+)?$/u.test(value)
+const canonicalTimestamp = value => typeof value === 'string' && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString() === value
 const safeArtifactPath = value => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9._/-]*$/u.test(value) && !value.includes('//') && !value.includes('%') && !value.includes('..')
 const exactKeys = (value, expected, code = 'SHAPE') => {
   check(value && typeof value === 'object' && !Array.isArray(value), code)
@@ -161,7 +162,13 @@ function gitText(root, arguments_) {
   return result.stdout.trim()
 }
 
-export function validateRepositoryReceiptIdentity(root, receipt) {
+function gitBytes(root, arguments_) {
+  const result = spawnSync('git', arguments_, { cwd: root, encoding: null, stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 32 * 1024 * 1024 })
+  check(result.error === undefined && result.signal === null && result.status === 0 && Buffer.isBuffer(result.stdout), 'RECEIPT_STATE')
+  return result.stdout
+}
+
+export function validateRepositoryReceiptIdentity(root, receipt, controlledFiles = undefined) {
   check(realpathSync(gitText(root, ['rev-parse', '--show-toplevel'])) === realpathSync(root), 'RECEIPT_STATE')
   check(gitText(root, ['branch', '--show-current']) === 'codex/task-079-v3-final-acceptance', 'RECEIPT_STATE')
   check(gitText(root, ['rev-parse', 'HEAD']) === receipt.candidateCommit, 'RECEIPT_STATE')
@@ -169,6 +176,28 @@ export function validateRepositoryReceiptIdentity(root, receipt) {
   check(gitText(root, ['status', '--porcelain=v1', '--untracked-files=all']) === '', 'RECEIPT_STATE')
   const matrixBytes = safeFile(root, 'project/V3_ACCEPTANCE.json', { exactPath: 'project/V3_ACCEPTANCE.json' })
   check(createHash('sha256').update(matrixBytes).digest('hex') === receipt.matrixSha256, 'RECEIPT_STATE')
+  if (controlledFiles !== undefined) {
+    check(Array.isArray(controlledFiles) && controlledFiles.length > 0 && controlledFiles.length <= 256, 'RECEIPT_STATE')
+    const seen = new Set()
+    for (const entry of controlledFiles) {
+      exactKeys(entry, ['relativePath', 'sha256'], 'RECEIPT_STATE')
+      check(safeArtifactPath(entry.relativePath) && !path.isAbsolute(entry.relativePath) && sha256(entry.sha256) && !seen.has(entry.relativePath), 'RECEIPT_STATE')
+      seen.add(entry.relativePath)
+      const committedBytes = gitBytes(root, ['show', `${receipt.candidateCommit}:${entry.relativePath}`])
+      check(createHash('sha256').update(committedBytes).digest('hex') === entry.sha256, 'RECEIPT_STATE')
+    }
+  }
+}
+
+function readControlledFiles(root, envelope) {
+  check(envelope?.receipt?.kind === 'real-output-measurement', 'RECEIPT_STATE')
+  const matches = envelope.receipt.artifacts.filter(artifact => artifact.role === 'candidate-manifest' && artifact.mediaType === 'application/json')
+  check(matches.length === 1, 'RECEIPT_STATE')
+  const bytes = safeFile(root, matches[0].relativePath, { exactPath: matches[0].relativePath })
+  let manifest
+  try { manifest = JSON.parse(bytes.toString('utf8')) } catch { fail('RECEIPT_STATE') }
+  check(Array.isArray(manifest.controlledFiles), 'RECEIPT_STATE')
+  return manifest.controlledFiles
 }
 
 export function sealReceipt(root, receiptId, receiptBytes) {
@@ -466,7 +495,7 @@ function validateCaseEvidence(receiptCaseEvidence, gateId, receiptId, configurat
     }
     check(caseEvidence.physicalStopMs === null || (typeof caseEvidence.physicalStopMs === 'number' && Number.isFinite(caseEvidence.physicalStopMs) && caseEvidence.physicalStopMs >= 0), 'CASE_EVIDENCE')
     const rawTimes = ['sourceEofAt', 'backendDrainedAt', 'physicalCompletedAt', 'completedAt'].map(key => caseEvidence[key])
-    check(rawTimes.every(value => value === null || (typeof value === 'string' && !Number.isNaN(Date.parse(value)))), 'CASE_EVIDENCE')
+    check(rawTimes.every(value => value === null || canonicalTimestamp(value)), 'CASE_EVIDENCE')
     check(typeof caseEvidence.completedAfterAllLayers === 'boolean', 'CASE_EVIDENCE')
     const times = rawTimes.map(value => value === null ? Number.NaN : Date.parse(value))
     const passed = presentIds.length === 3 && times.every(Number.isFinite) && times[3] >= Math.max(...times.slice(0, 3)) && caseEvidence.completedAfterAllLayers === true
@@ -514,6 +543,7 @@ function validateTechnicalSeals(receipt, artifacts, artifactContents) {
   check(authorization.value.candidateManifestSha256 === receipt.candidateManifestSha256 && authorization.value.configurationFingerprintSha256 === receipt.configurationFingerprintSha256 && authorization.value.measurementContractSha256 === measurementContract.artifact.sha256, 'RECEIPT_STATE')
   for (const key of ['allowedOperations', 'allowedInjectionKinds', 'allowedDataClasses']) check(Array.isArray(authorization.value[key]) && new Set(authorization.value[key]).size === authorization.value[key].length && authorization.value[key].every(safeLabel), 'RECEIPT_STATE')
   check(authorization.value.allowedOperations.length > 0 && authorization.value.allowedDataClasses.length > 0, 'RECEIPT_STATE')
+  check(canonicalTimestamp(authorization.value.grantedAt) && canonicalTimestamp(authorization.value.expiresAt), 'RECEIPT_STATE')
   if (['B-09', 'B-10', 'B-11', 'B-12'].includes(scopeId)) check(authorization.value.allowedInjectionKinds.includes(receipt.caseEvidence.injectionKind), 'RECEIPT_STATE')
   else check(authorization.value.allowedInjectionKinds.length === 0, 'RECEIPT_STATE')
   check(authorization.artifact.sha256 === receipt.authorizationSha256, 'RECEIPT_STATE')
@@ -522,12 +552,14 @@ function validateTechnicalSeals(receipt, artifacts, artifactContents) {
   exactKeys(plan.value, ['scopeId', 'runId', 'candidateCommit', 'candidateTree', 'candidateManifestSha256', 'configurationFingerprintSha256', 'measurementContractSha256', 'grantSha256', 'frozenAt'], 'RECEIPT_STATE')
   check(plan.value.scopeId === scopeId && plan.value.runId === receipt.receiptId && plan.value.candidateCommit === receipt.candidateCommit && plan.value.candidateTree === receipt.candidateTree && plan.value.candidateManifestSha256 === receipt.candidateManifestSha256 && plan.value.configurationFingerprintSha256 === receipt.configurationFingerprintSha256, 'RECEIPT_STATE')
   check(plan.value.measurementContractSha256 === measurementContract.artifact.sha256 && plan.value.grantSha256 === receipt.authorizationSha256, 'RECEIPT_STATE')
+  check(canonicalTimestamp(plan.value.frozenAt), 'RECEIPT_STATE')
   check(plan.artifact.sha256 === receipt.planSha256, 'RECEIPT_STATE')
 
   const preflight = parseSingleArtifact(artifacts, artifactContents, 'preflight-seal')
   exactKeys(preflight.value, ['scopeId', 'runId', 'candidateCommit', 'candidateTree', 'candidateManifestSha256', 'configurationFingerprintSha256', 'measurementContractSha256', 'grantSha256', 'planSha256', 'observedAt', 'passed'], 'RECEIPT_STATE')
   check(preflight.value.scopeId === scopeId && preflight.value.runId === receipt.receiptId && preflight.value.candidateCommit === receipt.candidateCommit && preflight.value.candidateTree === receipt.candidateTree && preflight.value.candidateManifestSha256 === receipt.candidateManifestSha256, 'RECEIPT_STATE')
   check(preflight.value.configurationFingerprintSha256 === receipt.configurationFingerprintSha256 && preflight.value.measurementContractSha256 === measurementContract.artifact.sha256 && preflight.value.grantSha256 === receipt.authorizationSha256 && preflight.value.planSha256 === receipt.planSha256 && preflight.value.passed === true, 'RECEIPT_STATE')
+  check(canonicalTimestamp(preflight.value.observedAt), 'RECEIPT_STATE')
   check(preflight.artifact.sha256 === receipt.preflightSha256, 'RECEIPT_STATE')
 
   const configurationSeal = parseSingleArtifact(artifacts, artifactContents, 'configuration-seal')
@@ -576,7 +608,7 @@ function validateReceipt(receipt, root) {
     'referencedTechnicalReceipts',
   ], 'RECEIPT_STATE')
   check(safeLabel(receipt.receiptId) && EVIDENCE_KINDS.has(receipt.kind), 'RECEIPT_STATE')
-  check(typeof receipt.observedAt === 'string' && !Number.isNaN(Date.parse(receipt.observedAt)) && new Date(receipt.observedAt).toISOString() === receipt.observedAt, 'RECEIPT_STATE')
+  check(canonicalTimestamp(receipt.observedAt), 'RECEIPT_STATE')
   check(gitSha(receipt.candidateCommit) && receipt.candidateCommit !== BASE_COMMIT && !/^([0-9a-f])\1{39}$/u.test(receipt.candidateCommit), 'RECEIPT_STATE')
   check(gitSha(receipt.candidateTree) && !/^([0-9a-f])\1{39}$/u.test(receipt.candidateTree) && sha256(receipt.candidateManifestSha256), 'RECEIPT_STATE')
   check(receipt.matrixSha256 === MATRIX_SHA256, 'RECEIPT_STATE')
@@ -668,7 +700,19 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (receiptId) {
       check(result.receiptId === receiptId, 'RECEIPT_STATE')
       checkUntracked(root, relativePath)
-      validateRepositoryReceiptIdentity(root, envelope.receipt)
+      if (envelope.receipt.kind === 'real-output-measurement') {
+        validateRepositoryReceiptIdentity(root, envelope.receipt, readControlledFiles(root, envelope))
+      } else if (envelope.receipt.referencedTechnicalReceipts.length > 0) {
+        for (const reference of envelope.receipt.referencedTechnicalReceipts) {
+          const technicalPath = `${EVIDENCE_ROOT}/receipts/${reference.receiptId}.json`
+          const technicalBytes = safeFile(root, technicalPath, { exactPath: technicalPath })
+          let technicalEnvelope
+          try { technicalEnvelope = JSON.parse(technicalBytes.toString('utf8')) } catch { fail('RECEIPT_STATE') }
+          validateRepositoryReceiptIdentity(root, technicalEnvelope.receipt, readControlledFiles(root, technicalEnvelope))
+        }
+      } else {
+        validateRepositoryReceiptIdentity(root, envelope.receipt)
+      }
       sealReceipt(root, receiptId, bytes)
       console.log(`V3_OWNER_EVIDENCE_RECEIPT=PASS ${JSON.stringify(result)}；单份收据不代表完整TASK-079或V3验收通过。`)
     } else {

@@ -167,7 +167,7 @@ function upsertJsonArtifact(fixture, artifactId, role, value) {
   return artifact.sha256
 }
 
-function syncControlSeals(fixture) {
+function syncControlSeals(fixture, { grantedAt = '2026-08-29T05:50:00.000Z' } = {}) {
   const receipt = fixture.envelope.receipt
   const scopeId = receipt.scopeIds[0]
   const measurementContractSha256 = receipt.artifacts.find(artifact => artifact.role === 'measurement-contract').sha256
@@ -200,7 +200,7 @@ function syncControlSeals(fixture) {
     allowedOperations: ['read-evidence', ...(['B-09', 'B-10', 'B-11', 'B-12'].includes(scopeId) ? ['measure-output', 'inject-fault'] : [])],
     allowedInjectionKinds: ['B-09', 'B-10', 'B-11', 'B-12'].includes(scopeId) ? [receipt.caseEvidence.injectionKind] : [],
     allowedDataClasses: ['anonymous-technical-evidence'],
-    grantedAt: '2026-08-29T05:50:00.000Z',
+    grantedAt,
     expiresAt: '2026-08-29T06:10:00.000Z',
   })
   receipt.planSha256 = upsertJsonArtifact(fixture, 'plan-seal', 'plan-seal', {
@@ -709,6 +709,12 @@ test('environmentFingerprint必须来自当前窗口匿名环境seal而非任意
   assert.throws(() => validateV3EvidenceEnvelope(fixture.envelope, { root: fixture.root }), /RECEIPT_STATE/u)
 })
 
+test('授权PlanPreflight与完成层时间必须使用规范UTC ISO而非仅Date.parse可读', t => {
+  const fixture = actualFixture(t)
+  syncControlSeals(fixture, { grantedAt: '2026-08-29T05:50:00Z' })
+  assert.throws(() => validateV3EvidenceEnvelope(fixture.envelope, { root: fixture.root }), /RECEIPT_STATE/u)
+})
+
 test('真实CLI候选身份必须拒绝tracked、index与非忽略untracked工作区漂移', t => {
   const root = mkdtempSync(path.join(tmpdir(), 'task079-candidate-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))
@@ -721,12 +727,19 @@ test('真实CLI候选身份必须拒绝tracked、index与非忽略untracked工�
   const candidateCommit = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim()
   const candidateTree = spawnSync('git', ['rev-parse', 'HEAD^{tree}'], { cwd: root, encoding: 'utf8' }).stdout.trim()
   const receipt = { candidateCommit, candidateTree, matrixSha256: '12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7fe4ba944' }
-  assert.doesNotThrow(() => validateRepositoryReceiptIdentity(root, receipt))
+  const controlledFiles = [
+    { relativePath: 'project/V3_ACCEPTANCE.json', sha256: receipt.matrixSha256 },
+    { relativePath: 'tracked.txt', sha256: sha256(Buffer.from('frozen\n')) },
+  ]
+  assert.doesNotThrow(() => validateRepositoryReceiptIdentity(root, receipt, controlledFiles))
+  const falseManifest = structuredClone(controlledFiles)
+  falseManifest[1].sha256 = '9'.repeat(64)
+  assert.throws(() => validateRepositoryReceiptIdentity(root, receipt, falseManifest), /RECEIPT_STATE/u)
   writeFileSync(path.join(root, 'tracked.txt'), 'drifted\n')
-  assert.throws(() => validateRepositoryReceiptIdentity(root, receipt), /RECEIPT_STATE/u)
+  assert.throws(() => validateRepositoryReceiptIdentity(root, receipt, controlledFiles), /RECEIPT_STATE/u)
   assert.equal(spawnSync('git', ['checkout', '--', 'tracked.txt'], { cwd: root }).status, 0)
   writeFileSync(path.join(root, 'untracked.txt'), 'drifted\n')
-  assert.throws(() => validateRepositoryReceiptIdentity(root, receipt), /RECEIPT_STATE/u)
+  assert.throws(() => validateRepositoryReceiptIdentity(root, receipt, controlledFiles), /RECEIPT_STATE/u)
 })
 
 test('receipt seal首次独占创建、同内容幂等回读且拒绝同ID异内容', t => {
