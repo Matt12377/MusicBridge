@@ -183,13 +183,13 @@
       "R-020 大库冷启扫描与2秒ready策略待TASK-078/Gate E验证",
       "R-021：真实钥匙串无CDP普通Quit15秒FAIL保留；新隔离候选包空库及执行读取后两种mock-keychain普通Quit均code0/close且无进程残留，仅软件隔离诊断，不关闭真实钥匙串/Owner验收",
       "R-022：FakeDriver join/静止契约未证明真实HAL；未链接应用或helper，真实设备与Gate B须独立授权及测量",
-      "R-023：history-limit正式生成/measure/queued-stop已PASS；objects-limit window-01超时证据永久保留。fresh空间复核已通过，但window-02 authority漏计旧partial output与fixture，独立审计发现后在30.351秒安全终止并封存为控制失败；78个partial checkpoint与新fixture保留，进程组为空。window-02不是seed或容量PASS且不可重放，measure/queued-stop/joint未授权。受测试的exclusive-create issuer进入RED→GREEN与独立复审；第三窗口仍需fresh authority决定。",
+      "R-023：history-limit正式生成/measure/queued-stop已PASS；objects-limit window-01超时和window-02控制失败证据永久保留且不可重放。fresh空间门通过，57个既有base/carryover roots保持；capacity issuer已关闭42个generated contracts JS的候选来源缺口，以固定src/tsconfig/package、私有Node/libnode/TypeScript工具链副本、243 pins与15秒Git超时fail-closed，专项17/17。第三窗口仍需fresh authority复核与一次性签发；measure/queued-stop/joint未授权。",
       "TASK-079 hardware evidence contract v2：主任务33/33专项GREEN；configuration observation、observer execution、typed scope evidence、B-15 identity有效期和U-10同事件依赖已加固。第二轮独立复审最终RED保留，未做第三轮且independentPass=false。真实hardware与Gate B均NOT_RUN。",
       "TASK-076历史核验与私有synthetic会话已通过本地软件Gate；实际可听Replica及正式provider接线须随073设备准入和079另验，当前始终blocked",
       "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task079-hardware-contract-v2-main-green-independent-r2-final-red-capacity-authority-pending-external-not-run",
+    "checkpoint": "task079-capacity-derived-source-closure-main-green-fresh-authority-pending-external-not-run",
     "nextTask": null,
     "resultReport": "reports/TASK-079_READINESS.md",
     "task078SoftwareCheckpoints": {
@@ -855,17 +855,26 @@
         "gateB": "NOT_RUN"
       },
       "capacityWindowIssuer": {
-        "state": "IMPLEMENTED_MAIN_ADJUDICATION_AFTER_FINAL_REVIEW_RED",
-        "initialRed": "script-missing-3of3-fail",
-        "focusedVerification": { "tests": 12, "passed": 12, "failed": 0 },
-        "pythonCompile": "PASS",
-        "independentReviewRound1": "SPEC_RED_P1_4_FIXED",
-        "independentReviewRound2Final": "SPEC_RED_P1_3_FIXED_BY_MAIN_WITHOUT_THIRD_REVIEW",
-        "mainAdjudication": [
-          "approved-window-last-step-atomic-publish",
-          "terminal-failed-authority-owned-carryover",
-          "malformed-drifted-symlink-replay-audit-fail-closed"
+        "state": "DERIVED_SOURCE_CLOSURE_MAIN_GREEN_AFTER_FINAL_QUALITY_P2_ADJUDICATION",
+        "previousImplementationCommit": "a167eba95ae9bbb4205808153a5694216161ba76",
+        "previousReportCommit": "cf6de5ad1b6e1be0a6836474424e39727b61337b",
+        "implementationCommits": [
+          "ecf253ed7e2c5afc0d96e190f8aabf3fb65f0001",
+          "089994d166788326fac104e371593f905b9b17b6"
         ],
+        "initialRed": "generated-contract-dist-source-candidate-1of2-fail",
+        "focusedVerification": { "tests": 17, "passed": 17, "failed": 0 },
+        "pythonCompile": "PASS",
+        "independentReviewRound1": "SPEC_RED_P1_3__QUALITY_RED_P1_1_P2_3",
+        "independentReviewRound2Final": "SPEC_PASS__QUALITY_RED_P2_2",
+        "mainAdjudication": [
+          "candidate-tracked-src-tsconfig-package-rebuilds-untracked-dist-exact-set-and-bytes",
+          "issuer-candidate-build-and-toolchain-facts-enter-owned-manifest-window-hash-closure",
+          "fixed-tsconfig-no-resolve-prevents-candidate-output-boundary-expansion",
+          "verified-node-libnode-typescript-and-libs-run-from-private-toolchain-copy",
+          "git-candidate-reads-have-fifteen-second-fail-closed-timeouts"
+        ],
+        "candidatePreflight": { "sourcePins": 243, "derivedJs": 42, "buildInputs": 44, "exactBytes": true },
         "writesAuthorityOnly": true,
         "executesBenchmark": false,
         "freshWindowAuthorized": false,
@@ -896,6 +905,6 @@
       "closeReceiptSha256": "4c18479e33b6392ff511a09b057d3e296dc3873d1c9be09d7d5f67c38eff39be",
       "replay": "PROHIBITED"
     },
-    "capacityGate": "R023_OBJECTS_LIMIT_WINDOW02_CONTROL_COVERAGE_FAILURE_SEALED__NO_SEED_NO_REPLAY__ISSUER_IMPLEMENTED_MAIN_ADJUDICATION_12_PASS__FRESH_WINDOW_MEASURE_QUEUE_JOINT_NOT_AUTHORIZED"
+    "capacityGate": "R023_OBJECTS_LIMIT_WINDOW02_CONTROL_COVERAGE_FAILURE_SEALED__NO_SEED_NO_REPLAY__ISSUER_DERIVED_SOURCE_CLOSURE_17_PASS__FRESH_WINDOW_MEASURE_QUEUE_JOINT_NOT_AUTHORIZED"
   }
 }
