@@ -363,6 +363,63 @@ function fixture() {
   return f
 }
 
+function recursiveFiles(directory, suffix) {
+  const result = []
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name)
+    if (entry.isDirectory()) result.push(...recursiveFiles(path, suffix))
+    else if (entry.isFile() && entry.name.endsWith(suffix)) result.push(path)
+  }
+  return result.sort()
+}
+
+function refreshGenerationSourceProof(f, sourcePins) {
+  json(f.generationSource, { schemaVersion: 1, scope: 'musicbridge-capacity-source-pins', files: sourcePins })
+  json(join(f.seed, 'source-before.json'), { files: sourcePins })
+  cpSync(join(f.seed, 'source-before.json'), join(f.seed, 'source-after.json'))
+  const window = JSON.parse(readFileSync(f.generationWindow))
+  window.sourceManifest = { file: 'source-pins.json', sha256: sha(f.generationSource) }
+  json(f.generationWindow, window)
+  const proof = JSON.parse(readFileSync(f.generationSupervisor))
+  proof.generation.windowSha256 = sha(f.generationWindow)
+  proof.generation.sourceManifestSha256 = sha(f.generationSource)
+  for (const name of ['source-before.json', 'source-after.json']) {
+    proof.generation.files[name] = { exists: true, size: statSync(join(f.seed, name)).size, sha256: sha(join(f.seed, name)) }
+  }
+  json(f.generationSupervisor, proof)
+}
+
+function installDerivedGenerationProof(f) {
+  const workspaceRoot = dirname(dirname(dirname(sourceIssuer)))
+  const contractRoot = join(workspaceRoot, 'packages/contracts')
+  for (const relative of ['packages/contracts/package.json', 'packages/contracts/tsconfig.json']) {
+    const destination = join(f.generationRoot, relative); mkdirSync(dirname(destination), { recursive: true })
+    cpSync(join(workspaceRoot, relative), destination)
+  }
+  const sourceFiles = recursiveFiles(join(contractRoot, 'src'), '.ts')
+  const distFiles = recursiveFiles(join(contractRoot, 'dist'), '.js')
+  assert.equal(sourceFiles.length, 42); assert.equal(distFiles.length, 42)
+  const sourcePaths = sourceFiles.map((path) => `packages/contracts/src/${path.slice(join(contractRoot, 'src').length + 1)}`)
+  const distPaths = distFiles.map((path) => `packages/contracts/dist/${path.slice(join(contractRoot, 'dist').length + 1)}`)
+  for (const [paths, base] of [[sourcePaths, workspaceRoot], [distPaths, workspaceRoot]]) {
+    for (const relative of paths) {
+      const destination = join(f.generationRoot, relative); mkdirSync(dirname(destination), { recursive: true })
+      cpSync(join(base, relative), destination)
+    }
+  }
+  git(f.generationRoot, 'add', 'packages/contracts/package.json', 'packages/contracts/tsconfig.json', 'packages/contracts/src')
+  git(f.generationRoot, 'commit', '-m', 'frozen tracked contract inputs')
+  f.generationHead = git(f.generationRoot, 'rev-parse', 'HEAD')
+  const runtimeSources = f.generationSourcePaths.slice(0, 2)
+  const fillers = f.generationSourcePaths.slice(2, 157)
+  const frozenPaths = [...runtimeSources, 'packages/contracts/package.json', 'packages/contracts/tsconfig.json',
+    ...sourcePaths, ...distPaths, ...fillers]
+  assert.equal(frozenPaths.length, 243)
+  const sourcePins = Object.fromEntries(frozenPaths.map((relative) => [relative, sha(join(f.generationRoot, relative))]))
+  refreshGenerationSourceProof(f, sourcePins)
+  return { distPaths, sourcePins }
+}
+
 function args(f, extra = []) {
   return [
     f.issuer, '--repo-root', f.root, '--runtime-root', f.runtime,
@@ -533,6 +590,32 @@ test('旧 generation source proof保持冻结时，当前候选source可由新HE
     assert.notEqual(source.files[f.sourcePaths[2]], frozen.files[f.generationSourcePaths[2]])
     assert.equal(source.files[f.sourcePaths[2]], sha(changed))
   } finally { cleanup(f) }
+})
+
+test('generation冻结manifest允许42个untracked dist且必须由受控构建逐字重算', () => {
+  {
+    const f = fixture()
+    try {
+      installDerivedGenerationProof(f)
+      const result = run(f)
+      assert.equal(result.status, 0, result.stderr)
+    } finally { cleanup(f) }
+  }
+  for (const freezeTamper of [false, true]) {
+    const f = fixture()
+    try {
+      const derived = installDerivedGenerationProof(f)
+      const target = join(f.generationRoot, derived.distPaths[0])
+      writeFileSync(target, 'tampered derived output\n')
+      if (freezeTamper) {
+        derived.sourcePins[derived.distPaths[0]] = sha(target)
+        refreshGenerationSourceProof(f, derived.sourcePins)
+      }
+      const result = run(f)
+      assert.notEqual(result.status, 0); assert.match(result.stderr, /GENERATION_PROOF/)
+      assert.equal(existsSync(join(f.runtime, 'objects-measure-window/window.json')), false)
+    } finally { cleanup(f) }
+  }
 })
 
 test('旧 terminal/partial 任一事实、文件数量或marker漂移都拒绝签发', () => {

@@ -322,7 +322,7 @@ def validate_seed(helper, runtime, seed_label, generation, proof):
     }
 
 
-def validate_generation_proof(helper, module, options, generation_root, runtime):
+def validate_generation_proof(helper, module, options, generation_root, runtime, toolchain):
     window_path = same_regular_file(
         helper, options.generation_window, options.expected_generation_window_sha256,
         'GENERATION_PROOF')
@@ -357,12 +357,31 @@ def validate_generation_proof(helper, module, options, generation_root, runtime)
             or not isinstance(owned.get('roots'), list) \
             or len(owned['roots']) != EXPECTED_GENERATION_ROOTS:
         fail('GENERATION_PROOF')
+    try:
+        derived = helper.candidate_contract_dist(
+            generation_root, options.expected_generation_head,
+            sorted(frozen_source_files),
+            toolchain['buildNode'], toolchain['buildNodeSha256'],
+            toolchain['buildNodeLibrary'], toolchain['buildNodeLibrarySha256'],
+            toolchain['typescriptCompiler'], toolchain['typescriptCompilerSha256'],
+            toolchain['typescriptLibraryManifestSha256'])
+    except Exception as error:
+        raise IssueError('GENERATION_PROOF') from error
+    derived_files = derived.get('files') if isinstance(derived, dict) else None
+    expected_derived = {
+        relative for relative in frozen_source_files
+        if relative.startswith('packages/contracts/dist/')}
+    if not isinstance(derived_files, dict) or set(derived_files) != expected_derived:
+        fail('GENERATION_PROOF')
     for relative, digest in frozen_source_files.items():
         file = generation_root / relative
         try:
             if helper.stable_sha256(file) != digest:
                 fail('GENERATION_PROOF')
-            if relative not in GENERATION_RUNTIME_SOURCES \
+            if relative in derived_files:
+                if derived_files[relative] != digest:
+                    fail('GENERATION_PROOF')
+            elif relative not in GENERATION_RUNTIME_SOURCES \
                     and hashlib.sha256(helper.git_blob(
                         generation_root, options.expected_generation_head, relative)).hexdigest() != digest:
                 fail('GENERATION_PROOF')
@@ -796,7 +815,8 @@ def issue(options):
         options.expected_typescript_library_manifest_sha256)
     source_paths, source_files, build = candidate_sources(
         helper, module, root, options.expected_head, options.expected_source_count, toolchain)
-    generation = validate_generation_proof(helper, module, options, generation_root, runtime)
+    generation = validate_generation_proof(
+        helper, module, options, generation_root, runtime, toolchain)
     carryover = validate_measure_carryover(helper, module, options, runtime)
     reject_replay(helper, runtime, options.window_dir_name, options.label)
 
@@ -960,7 +980,7 @@ def issue(options):
     pending = parent / 'window.pending.json'
     window_sha = helper.exclusive_json(pending, window)
     # 发布前再次复核完整 generation proof、签发器与仓库身份。
-    validate_generation_proof(helper, module, options, generation_root, runtime)
+    validate_generation_proof(helper, module, options, generation_root, runtime, toolchain)
     validate_measure_carryover(helper, module, options, runtime)
     same_regular_file(helper, issuer_path, options.expected_issuer_sha256, 'ISSUER_IDENTITY')
     same_regular_file(helper, supervisor_path, options.expected_supervisor_sha256,

@@ -1,12 +1,12 @@
 # V3 剩余任务 TODO
 
-当前进度：TASK-078本地自动软件子范围已在最终HEAD `fac7363b4a6481591e207dda7cca77f0ae8d3cd4` 封版；TASK-079继续在独立分支。当前无设备，只开发fail-closed就绪控制面，不枚举、不打开、不配置设备。objects-limit generation window-03 已正式PASS。第一次measure在29个回执/273个样本后因900秒执行期限终止，sample-30 clone与partial保留，PG empty、0 zombie、authority stable；同UUID/label永久禁止重放。根因已固定为107次约1.99GB clone/open-audit/full-hash生命周期与900秒窗口数学不闭合，受测Stop指标、身份与空间没有漂移。3-group clone v2的SPEC R1检出2项P0/2项P1后均已完成RED→GREEN；SPEC R2最终P0也已通过真实issuer↔tracked supervisor互操作TDD修复，R2历史FAIL按两轮上限保留且不启动第三轮。实现提交=`1086dedb…`；主线程新鲜验证为capacity 86/86、supervisor 11/11、issuer 21/21、`pnpm verify` exit 0、typecheck/build/static gates/diff-check通过。当前正在同步STATUS/readiness/TODO，仍未签发新窗口、未运行正式measure。queued-stop/joint、可听Replica、TASK073真实HAL/Gate B、实体纸张与最终Owner仍待验。仅本地开发，不push、不合并main、不发布；智能体统一GPT-5.6 Sol / High。
+当前进度：TASK-078本地自动软件子范围已在最终HEAD `fac7363b4a6481591e207dda7cca77f0ae8d3cd4` 封版；TASK-079继续在独立分支。当前无设备，只开发fail-closed就绪控制面，不枚举、不打开、不配置设备。objects-limit generation window-03 已正式PASS。第一次measure在29个回执/273个样本后因900秒执行期限终止，sample-30 clone与partial保留，PG empty、0 zombie、authority stable；同UUID/label永久禁止重放。3-group clone v2已提交并完成主线程验证。新fresh audit对HEAD `cb45578a…`返回PASS后，唯一issuer尝试在pre-create阶段以`GENERATION_PROOF` fail-closed：42个受控contracts dist生成物字节与封存SHA一致，但不在TASK078 Git tree，生产proof误对它们强制`git_blob`。没有authority目录、consume或measure；window/label-02停止使用。当前正在补derived-build proof RED→GREEN，修复后重新提交并使用全新名称fresh audit。queued-stop/joint、可听Replica、TASK073真实HAL/Gate B、实体纸张与最终Owner仍待验。仅本地开发，不push、不合并main、不发布；智能体统一GPT-5.6 Sol / High。
 
 本表是任务拆分与依赖计划，不是完成声明。后续任务沿上一任务最终 HEAD 创建独立分支；当前已展开 TASK-064～078，其余任务开始前补详细范围和允许路径。具体子任务可根据已验证结果细分，不删减 PRD 范围。
 
 ## 实时进度面板
 
-> **当前执行：** `TASK-079 / 3-group measure v2状态封存`。旧measure window UUID=`1bcbe626…`、SHA=`5c646834…`已终态失败，close SHA=`c88e1461…`；29个完整回执、273个样本与第30个clone继续原样保留，同window/label不重放。R1的2项P0/2项P1与R2的1项P0均已完成TDD修复；新实现保持5预热+100正式、105个durable Stop round receipt、1575样本、3次group full hash与900秒限制。实现提交=`1086dedb…`，主线程capacity 86/86、supervisor 11/11、issuer 21/21及全仓`pnpm verify`均通过。正在更新机器状态与readiness并重新运行15项控制测试；完成后进入fresh audit，未审计前新authority仍为`NOT_ISSUED`。queued-stop/joint未运行，设备/Roon/真实资料未操作，Gate B=`NOT_RUN`，`formalReady=false`。
+> **当前执行：** `TASK-079 / generation derived-dist proof TDD`。旧measure window-01与partial继续原样保留且不重放；v2第一次新签发尝试使用window/label-02，在创建authority目录前以`GENERATION_PROOF`停止，没有消费命令或正式measure。根因是production proof没有区分Git tracked source、受控派生dist与两个generation runtime文件。正在让42个dist必须经固定Node/libnode/TypeScript工具链重新派生并精确比对，而不是直接豁免；其余tracked source仍须匹配TASK078 HEAD Git blob。修复提交与新fresh audit完成前，新authority为`NOT_ISSUED`。queued-stop/joint未运行，设备/Roon/真实资料未操作，Gate B=`NOT_RUN`，`formalReady=false`。
 
 - [x] TASK-079 / 真实证据 JSON 模板：只跟踪 `template=true`、`ready=false`、`receipt=null` 空模板；实际收据固定留在忽略目录且一份只覆盖一个B项。
 - [x] TASK-079 / 收据校验器复审修复TDD：复审后RED为17/19，扩展后25/25专项GREEN；覆盖逐case事实、失败/超时/停止/不确定终态、Owner与证书闭包、独占窗口、完整配置/授权/环境seal、dirty候选、隐私解码与receipt seal。
