@@ -99,3 +99,9 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - GREEN：STATUS 新增两段固定检查点链，readiness 验证器逐字段锁定 base/implementation/report/final SHA 和 25→26 专项计数；缺失、错 SHA、错计数均以 `CONTROL_STATE` 拒绝。顶层初始 readiness 提交保留原义，不用后续状态提交冒充最初实现。
 - 新鲜验证：readiness 14/14、证据专项 26/26、两个默认 CLI、Node 语法、控制面、边界、循环及 `git diff --check` 全部 exit 0；标准 `pnpm verify` exit 0，Contracts 186/186、Bridge Core 1241/1242（0 fail、1 条件性 skip）、Desktop 643/643，三包构建成功。
 - 边界不变：无设备、无真实资料、无真实收据；不 push、不合并 `main`、不签名、公证、安装或发布。
+
+### Readiness Gate 计数修正
+
+- 实现提交：`4ec0711c52b7f3fff5ac0a9d0ed3c26a791eb280`
+- 完成审计发现 STATUS 的 `readinessControl` 仍为 `PASS_13...`，与当前 14/14 专项矛盾。先以专项 RED 证明验证器会接受旧计数，再把机器状态更新为 `PASS_14...` 并由验证器精确锁定。
+- 新鲜结果：readiness 14/14、默认 CLI、Node 语法、控制面、边界、循环和 `git diff --check` 全部 exit 0。软件包代码未变化，沿用紧邻前一检查点的新鲜完整 `pnpm verify`：Contracts 186/186、Bridge Core 1241/1242（0 fail、1 条件性 skip）、Desktop 643/643及三包构建 PASS。
