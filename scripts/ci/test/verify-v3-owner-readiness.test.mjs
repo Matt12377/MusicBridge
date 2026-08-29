@@ -16,6 +16,23 @@ const controlStatus = {
     task: 'TASK-079',
     branch: 'codex/task-079-v3-final-acceptance',
     baseCommit: 'fac7363b4a6481591e207dda7cca77f0ae8d3cd4',
+    evidenceInfrastructure: {
+      state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
+      receiptFoundation: {
+        baseCommit: '7c5db990dd79cf9aaf7e95d1a74306e73c81ec62',
+        implementationCommit: 'e43f39f1f0994cc66a2be275ee4c7f715e9783d0',
+        reportCommit: '23da9a122988929a0f79c02df744834613031205',
+        finalCommit: '9e20a02679425fb97f081dd26529def4dbb5006e',
+        focusedTests: 25,
+      },
+      candidateClosure: {
+        baseCommit: '9e20a02679425fb97f081dd26529def4dbb5006e',
+        implementationCommit: '04b77e45d48713f7437011e6e9bf51f87858c600',
+        reportCommit: '98bce05e0453a8f6095b72129f3a6b3ee553a211',
+        finalCommit: 'c66da1c741db87414976686ede6e02387f93ea7d',
+        focusedTests: 26,
+      },
+    },
     deviceTestPlanning: {
       connectionState: 'no-devices-connected',
       audioInterfaceBrandCandidates: ['RME', 'Apogee'],
@@ -206,6 +223,24 @@ test('STATUS v3Development与WAVE-5必须精确指向TASK079基线', () => {
     [controlStatus, controlWave.replace('activeBaseCommit: fac7363b4a6481591e207dda7cca77f0ae8d3cd4', `activeBaseCommit: ${'0'.repeat(40)}`)],
   ]) {
     assert.throws(() => validateOwnerReadiness(readiness(), { root, status, wave }), /CONTROL_IDENTITY/u)
+  }
+})
+
+test('STATUS必须锁定两段证据基础设施检查点而非停留在初始readiness', () => {
+  assert.equal(validateOwnerReadiness(readiness(), { root, status: controlStatus, wave: controlWave }).ready, false)
+  for (const edit of [
+    value => { delete value.v3Development.evidenceInfrastructure },
+    value => { value.v3Development.evidenceInfrastructure.state = 'PASS_25_FOCUSED' },
+    value => { value.v3Development.evidenceInfrastructure.receiptFoundation.finalCommit = '0'.repeat(40) },
+    value => { value.v3Development.evidenceInfrastructure.receiptFoundation.focusedTests = 24 },
+    value => { value.v3Development.evidenceInfrastructure.candidateClosure.baseCommit = '0'.repeat(40) },
+    value => { value.v3Development.evidenceInfrastructure.candidateClosure.implementationCommit = '0'.repeat(40) },
+    value => { value.v3Development.evidenceInfrastructure.candidateClosure.reportCommit = '0'.repeat(40) },
+    value => { value.v3Development.evidenceInfrastructure.candidateClosure.finalCommit = '0'.repeat(40) },
+    value => { value.v3Development.evidenceInfrastructure.candidateClosure.focusedTests = 25 },
+  ]) {
+    const status = structuredClone(controlStatus); edit(status)
+    assert.throws(() => validateOwnerReadiness(readiness(), { root, status, wave: controlWave }), /CONTROL_STATE/u)
   }
 })
 

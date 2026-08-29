@@ -11,6 +11,23 @@ const MATRIX_PATH = 'project/V3_ACCEPTANCE.json'
 const MATRIX_SHA256 = '12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7fe4ba944'
 const EXTERNAL_KINDS = ['real-input', 'real-logic', 'real-roon', 'hardware', 'owner']
 const UNMAPPED_PENDING = ['B-13', 'B-15']
+const EVIDENCE_INFRASTRUCTURE = {
+  state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
+  receiptFoundation: {
+    baseCommit: '7c5db990dd79cf9aaf7e95d1a74306e73c81ec62',
+    implementationCommit: 'e43f39f1f0994cc66a2be275ee4c7f715e9783d0',
+    reportCommit: '23da9a122988929a0f79c02df744834613031205',
+    finalCommit: '9e20a02679425fb97f081dd26529def4dbb5006e',
+    focusedTests: 25,
+  },
+  candidateClosure: {
+    baseCommit: '9e20a02679425fb97f081dd26529def4dbb5006e',
+    implementationCommit: '04b77e45d48713f7437011e6e9bf51f87858c600',
+    reportCommit: '98bce05e0453a8f6095b72129f3a6b3ee553a211',
+    finalCommit: 'c66da1c741db87414976686ede6e02387f93ea7d',
+    focusedTests: 26,
+  },
+}
 const hash = bytes => createHash('sha256').update(bytes).digest('hex')
 const fail = code => { throw new Error(code) }
 const check = (condition, code) => { if (!condition) fail(code) }
@@ -50,6 +67,7 @@ function safeFile(root, relativePath, allowedPaths, limit = 16 * 1024 * 1024) {
 function validateControlIdentity(status, wave) {
   const current = status?.v3Development
   check(current && current.task === TASK && current.branch === 'codex/task-079-v3-final-acceptance' && current.baseCommit === BASE_COMMIT, 'CONTROL_IDENTITY')
+  check(JSON.stringify(current.evidenceInfrastructure) === JSON.stringify(EVIDENCE_INFRASTRUCTURE), 'CONTROL_STATE')
   const device = current.deviceTestPlanning
   check(device && device.connectionState === 'no-devices-connected' && device.deviceOperationsAuthorization === 'NOT_GRANTED' && device.measurementConfiguration === 'PENDING' && device.outputBackendCertification === 'NOT_RUN', 'CONTROL_STATE')
   check(Array.isArray(device.audioInterfaceBrandCandidates) && JSON.stringify(device.audioInterfaceBrandCandidates) === JSON.stringify(['RME', 'Apogee']) && device.audioInterfaceModel === null, 'CONTROL_STATE')

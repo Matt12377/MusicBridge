@@ -81,7 +81,24 @@
     "task": "TASK-079",
     "branch": "codex/task-079-v3-final-acceptance",
     "baseCommit": "fac7363b4a6481591e207dda7cca77f0ae8d3cd4",
-    "state": "no-device-readiness-complete-external-not-run",
+    "state": "no-device-evidence-control-complete-external-not-run",
+    "evidenceInfrastructure": {
+      "state": "PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES",
+      "receiptFoundation": {
+        "baseCommit": "7c5db990dd79cf9aaf7e95d1a74306e73c81ec62",
+        "implementationCommit": "e43f39f1f0994cc66a2be275ee4c7f715e9783d0",
+        "reportCommit": "23da9a122988929a0f79c02df744834613031205",
+        "finalCommit": "9e20a02679425fb97f081dd26529def4dbb5006e",
+        "focusedTests": 25
+      },
+      "candidateClosure": {
+        "baseCommit": "9e20a02679425fb97f081dd26529def4dbb5006e",
+        "implementationCommit": "04b77e45d48713f7437011e6e9bf51f87858c600",
+        "reportCommit": "98bce05e0453a8f6095b72129f3a6b3ee553a211",
+        "finalCommit": "c66da1c741db87414976686ede6e02387f93ea7d",
+        "focusedTests": 26
+      }
+    },
     "implementationCommit": "1f102fba93e42d0f84b985c04d84af08b06b2231",
     "reportCommit": "93feee20c2edbd027546b44cc908aee27ef785b1",
     "previousTask": {
@@ -141,7 +158,7 @@
       "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task079-no-device-readiness-implementation-report-identity-locked-external-not-run",
+    "checkpoint": "task079-evidence-infrastructure-candidate-closure-locked-external-not-run",
     "nextTask": null,
     "resultReport": "reports/TASK-079_READINESS.md",
     "task078SoftwareCheckpoints": {
