@@ -43,6 +43,7 @@ const controlStatus = {
       outputBackendCertification: 'NOT_RUN',
     },
     gates: {
+      readinessControl: 'PASS_14_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO',
       externalGate: 'NOT_RUN',
       realInput: 'NOT_RUN',
       realLogic: 'NOT_RUN',
@@ -246,6 +247,7 @@ test('STATUS必须锁定两段证据基础设施检查点而非停留在初始re
 
 test('STATUS设备与外部门状态不能和readiness清单互相矛盾', () => {
   for (const edit of [
+    value => { value.v3Development.gates.readinessControl = 'PASS_13_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO' },
     value => { value.v3Development.deviceTestPlanning.connectionState = 'connected' },
     value => { value.v3Development.deviceTestPlanning.deviceOperationsAuthorization = 'GRANTED' },
     value => { value.v3Development.deviceTestPlanning.measurementConfiguration = 'READY' },
