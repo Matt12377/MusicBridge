@@ -6,7 +6,7 @@
 
 ## 实时进度面板
 
-> **当前执行：** `TASK-079 / hardware 技术收据 TDD 设计与 RED`。real-roon 九个 scope 的独立事实 schema、候选 observer、授权窗口 correlation、A-02 输入映射与 B-09 双收据闭包已由实现/报告两提交封版；正在拆分非 B hardware 与 Gate B 输出测量的职责和负例。设备、真实 Roon 和真实资料仍未读取或操作，五类外部门、真实 Gate 与 Owner 103 项决定全部保持未运行，Gate B=`NOT_RUN`，`formalReady=false`。
+> **当前执行：** `TASK-079 / 无设备检查点封版与实机接续包`。real-input、real-logic、real-roon、hardware 四类技术收据验证器均已完成本地实现/报告；正在锁定最终 TODO 提交和提交后身份回归。设备、真实 Roon 和真实资料仍未读取或操作，五类外部门、真实 Gate 与 Owner 103 项决定全部保持未运行；下一运行段等待设备/资料及逐次授权，Gate B=`NOT_RUN`，`formalReady=false`。
 
 - [x] TASK-079 / 真实证据 JSON 模板：只跟踪 `template=true`、`ready=false`、`receipt=null` 空模板；实际收据固定留在忽略目录且一份只覆盖一个B项。
 - [x] TASK-079 / 收据校验器复审修复TDD：复审后RED为17/19，扩展后25/25专项GREEN；覆盖逐case事实、失败/超时/停止/不确定终态、Owner与证书闭包、独占窗口、完整配置/授权/环境seal、dirty候选、隐私解码与receipt seal。
@@ -23,11 +23,11 @@
 - [x] TASK-079 / Real-input技术收据：固定七角色窗口、矩阵criterion SHA、候选/授权链、匿名source alias+内容SHA、授权读取/Hash核验/原字节不变；多外部门scope按集合精确覆盖。
 - [x] TASK-079 / Real-logic技术收据：覆盖MVP-08/09/10与D-05～D-08；真实Workspace、工程/导出Hash、Marker/Timeline、criterion、环境别名与逐scope固定结论形成闭包，不由普通文件存在或Owner单份观察替代。
 - [x] TASK-079 / Real-roon技术收据：9个声明real-roon的scope已完成逐项事实闭包，并与A-02 real-input、B-09 real-output/hardware形成精确组合边界；专项、readiness、CLI和静态Gate均GREEN。
-- [ ] TASK-079 / Hardware技术收据：TDD设计与RED进行中；非B硬件scope与Gate B输出测量分层，真实设备配置、可听Replica、实体完成及库存守恒不得互相替代。
+- [x] TASK-079 / Hardware技术收据：非B四scope与Gate B输出测量已分层；B-15源收据、依赖前置、运行主体绑定、Replica帧闭包与U-10联合收据完成专项GREEN。配置身份不冒充完整Gate B，可听Replica、实体完成和库存结果仍待实机。
 - [x] TASK-079 / Gate B 运行手册：逐项覆盖 B-01～B-15、共同测量时基、无声判据、P50/P95/P99/max、失败/超时保留、停止条件和 RME/Apogee + Sony 待冻结配置。
 - [x] TASK-079 / 独立规格与质量复审：第二轮已完成并退回（规格复审7项P0，隐私复审1项P0/5项P1）；按两轮上限不启动第三轮，主任务逐项修复、补RED/GREEN并完成最终静态裁决。
-- [x] TASK-079 / 本轮回归：追加加固后26/26专项、readiness 15/15、两个默认CLI、Node语法、标准`verify`、控制/边界/循环和diff-check全部exit 0；Contracts 186/186、Bridge Core 1241/1242（0 fail、1条件性skip）、Desktop 643/643及三包构建PASS。
-- [x] TASK-079 / 本地检查点：证据基础设施实现`e43f39f1…`、报告`23da9a12…`；candidate closure实现`04b77e45…`、报告`98bce05e…`；STATUS同步实现`9a991a6f…`、报告`ea257111…`；计数修正实现`4ec0711c…`、报告`9a93bc13…`；Git可达性实现`5bd46e10…`、报告`932fb71b…`；Owner-only闭包实现`a8b1d762…`、报告`9011701a…`；real-input实现`d9c795de909fd8a8e890fab5f0f151beaafb9b3b`、报告`6d0b93a04d0f8e1d398e33ef4505f1efb3ba68a7`；real-logic实现`2f1bbdc830567db357cf89737a163edc77ab2ab4`、报告`bbabb34d4e2a6883d781904c67a3e1e37b383090`；real-roon实现`03c8b7900519b79edc3c4fb7d661403aff1a1ff4`、报告`b9fbf2f42a3428aeec4b87fceae5368d052bebc0`；未push、未合并main、未发布。
+- [x] TASK-079 / 本轮回归：hardware追加加固后28/28专项、readiness 15/15、两个默认CLI、Node语法、控制/边界/循环和diff-check全部exit 0；软件包代码未变化，沿用紧邻前一软件检查点的标准`verify`：Contracts 186/186、Bridge Core 1241/1242（0 fail、1条件性skip）、Desktop 643/643及三包构建PASS。
+- [x] TASK-079 / 本地检查点：证据基础设施实现`e43f39f1…`、报告`23da9a12…`；candidate closure实现`04b77e45…`、报告`98bce05e…`；STATUS同步实现`9a991a6f…`、报告`ea257111…`；计数修正实现`4ec0711c…`、报告`9a93bc13…`；Git可达性实现`5bd46e10…`、报告`932fb71b…`；Owner-only闭包实现`a8b1d762…`、报告`9011701a…`；real-input实现`d9c795de909fd8a8e890fab5f0f151beaafb9b3b`、报告`6d0b93a04d0f8e1d398e33ef4505f1efb3ba68a7`；real-logic实现`2f1bbdc830567db357cf89737a163edc77ab2ab4`、报告`bbabb34d4e2a6883d781904c67a3e1e37b383090`；real-roon实现`03c8b7900519b79edc3c4fb7d661403aff1a1ff4`、报告`b9fbf2f42a3428aeec4b87fceae5368d052bebc0`；hardware实现`a6d3c798452dc01b3cd49657c94397fefeb5bbcd`、报告`cf6d570fc87861010493d4e8d3c2237e9931d54f`；未push、未合并main、未发布。
 - [ ] TASK-079 / 真实 Gate A～E、U-01～U-10、实体录音/打印/Replica 与 Owner 103 项决定：等待相应设备、资料及逐次授权，当前不运行。
 
 - [x] TASK-064～072：本地软件阶段完成；真实账号、真实数据和 Owner 验收仍按各任务报告保留。
