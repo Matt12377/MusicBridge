@@ -1,0 +1,580 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-079",
+  "baseCommit": "fac7363b4a6481591e207dda7cca77f0ae8d3cd4",
+  "phase": "no-device-readiness",
+  "ready": false,
+  "softwareBaseline": {
+    "task": "TASK-078",
+    "finalCommit": "fac7363b4a6481591e207dda7cca77f0ae8d3cd4",
+    "matrixPath": "project/V3_ACCEPTANCE.json",
+    "matrixSha256": "12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7fe4ba944",
+    "entries": 103,
+    "mappedPassed": 101,
+    "unmappedPending": [
+      "B-13",
+      "B-15"
+    ],
+    "externalGate": "NOT_RUN",
+    "formalReady": false
+  },
+  "devicePlan": {
+    "connectionState": "not-connected",
+    "operationsAuthorized": false,
+    "audioInterfaceBrands": [
+      "RME",
+      "Apogee"
+    ],
+    "audioInterfaceModel": null,
+    "recorderBrand": "Sony",
+    "recorderKind": "cassette-deck",
+    "recorderModel": null,
+    "configurationState": "pending",
+    "measurementPlanState": "pending"
+  },
+  "externalRequirements": [
+    {
+      "kind": "real-input",
+      "state": "not-run",
+      "evidenceIds": []
+    },
+    {
+      "kind": "real-logic",
+      "state": "not-run",
+      "evidenceIds": []
+    },
+    {
+      "kind": "real-roon",
+      "state": "not-run",
+      "evidenceIds": []
+    },
+    {
+      "kind": "hardware",
+      "state": "not-run",
+      "evidenceIds": []
+    },
+    {
+      "kind": "owner",
+      "state": "not-run",
+      "evidenceIds": []
+    }
+  ],
+  "ownerDecisions": [
+    {
+      "id": "MVP-01",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-02",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-03",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-04",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-05",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-06",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-07",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-08",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-09",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-10",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-11",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-12",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-13",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-14",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-15",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-16",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-17",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-18",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-19",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-20",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-21",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-22",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-23",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-24",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-25",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-26",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-27",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-28",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-29",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "MVP-30",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "A-01",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "A-02",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "A-03",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "A-04",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "A-05",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "A-06",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "A-07",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "A-08",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "A-09",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "A-10",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "A-11",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "B-01",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "B-02",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "B-03",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "B-04",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "B-05",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "B-06",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "B-07",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "B-08",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "B-09",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "B-10",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "B-11",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "B-12",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "B-13",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "B-14",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "B-15",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "C-01",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "C-02",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "C-03",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "C-04",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "C-05",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "C-06",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "C-07",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "C-08",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "C-09",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "C-10",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "C-11",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "D-01",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "D-02",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "D-03",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "D-04",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "D-05",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "D-06",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "D-07",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "D-08",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "D-09",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "D-10",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "D-11",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "E-01",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "E-02",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "E-03",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "E-04",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "E-05",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "E-06",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "E-07",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "E-08",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "E-09",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "E-10",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "E-11",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "E-12",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "E-13",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "E-14",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "E-15",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "U-01",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "U-02",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "U-03",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "U-04",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "U-05",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "U-06",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "U-07",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "U-08",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "U-09",
+      "state": "pending",
+      "evidenceIds": []
+    },
+    {
+      "id": "U-10",
+      "state": "pending",
+      "evidenceIds": []
+    }
+  ],
+  "evidence": []
+}

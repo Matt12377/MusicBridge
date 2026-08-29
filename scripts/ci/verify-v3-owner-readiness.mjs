@@ -1,0 +1,155 @@
+import { createHash } from 'node:crypto'
+import { lstatSync, readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+// 本入口只校验 TASK-079 无设备就绪清单。成功表示控制文件可信，不表示真实 Gate 或 Owner 验收通过。
+const TASK = 'TASK-079'
+const BASE_COMMIT = 'fac7363b4a6481591e207dda7cca77f0ae8d3cd4'
+const MATRIX_BASE_COMMIT = 'c54cf8b71b493482d8ad061d38123c444d718ad0'
+const MATRIX_PATH = 'project/V3_ACCEPTANCE.json'
+const MATRIX_SHA256 = '12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7fe4ba944'
+const EXTERNAL_KINDS = ['real-input', 'real-logic', 'real-roon', 'hardware', 'owner']
+const UNMAPPED_PENDING = ['B-13', 'B-15']
+const hash = bytes => createHash('sha256').update(bytes).digest('hex')
+const fail = code => { throw new Error(code) }
+const check = (condition, code) => { if (!condition) fail(code) }
+const gitSha = value => typeof value === 'string' && /^[0-9a-f]{40}$/u.test(value)
+const sha256 = value => typeof value === 'string' && /^[0-9a-f]{64}$/u.test(value)
+const ERROR_CODES = new Set([
+  'ARGUMENTS', 'SHAPE', 'ROOT_REQUIRED', 'IDENTITY', 'CONTROL_IDENTITY', 'CONTROL_STATE',
+  'BASELINE_PATH', 'SOFTWARE_BASELINE', 'READY_CONTRADICTION', 'DEVICE_STATE',
+  'EXTERNAL_STATE', 'OWNER_STATE', 'EVIDENCE_NOT_ALLOWED', 'READY_REQUIRED', 'INVALID_READINESS',
+])
+
+export function normalizeReadinessError(error) {
+  return error instanceof Error && ERROR_CODES.has(error.message) ? error.message : 'INVALID_READINESS'
+}
+
+function keys(value, required) {
+  check(value && typeof value === 'object' && !Array.isArray(value), 'SHAPE')
+  check(required.every(key => Object.hasOwn(value, key)), 'SHAPE')
+  check(Object.keys(value).every(key => required.includes(key)), 'SHAPE')
+}
+
+function safeFile(root, relativePath, allowedPaths, limit = 16 * 1024 * 1024) {
+  check(allowedPaths.includes(relativePath), 'BASELINE_PATH')
+  let current = path.resolve(root)
+  for (const part of relativePath.split('/')) {
+    check(part && part !== '.' && part !== '..', 'BASELINE_PATH')
+    current = path.join(current, part)
+    let stat
+    try { stat = lstatSync(current) } catch { fail('BASELINE_PATH') }
+    check(!stat.isSymbolicLink(), 'BASELINE_PATH')
+  }
+  const stat = lstatSync(current)
+  check(stat.isFile() && stat.size <= limit, 'BASELINE_PATH')
+  return readFileSync(current)
+}
+
+function validateControlIdentity(status, wave) {
+  const current = status?.v3Development
+  check(current && current.task === TASK && current.branch === 'codex/task-079-v3-final-acceptance' && current.baseCommit === BASE_COMMIT, 'CONTROL_IDENTITY')
+  const device = current.deviceTestPlanning
+  check(device && device.connectionState === 'no-devices-connected' && device.deviceOperationsAuthorization === 'NOT_GRANTED' && device.measurementConfiguration === 'PENDING' && device.outputBackendCertification === 'NOT_RUN', 'CONTROL_STATE')
+  check(Array.isArray(device.audioInterfaceBrandCandidates) && JSON.stringify(device.audioInterfaceBrandCandidates) === JSON.stringify(['RME', 'Apogee']) && device.audioInterfaceModel === null, 'CONTROL_STATE')
+  check(device.plannedRecorder?.brand === 'Sony' && device.plannedRecorder?.type === 'cassette-deck' && device.plannedRecorder?.model === null, 'CONTROL_STATE')
+  const gates = current.gates
+  const notRun = ['externalGate', 'realInput', 'realLogic', 'realRoon', 'hardware', 'audibleReplica', 'outputBackendCertification', 'realRecording', 'paperPrint', 'ownerProductAcceptance']
+  check(gates && notRun.every(key => gates[key] === 'NOT_RUN') && gates.ownerDecisions === 'PENDING_103', 'CONTROL_STATE')
+  check(typeof wave === 'string', 'CONTROL_IDENTITY')
+  const values = new Map()
+  for (const line of wave.split('\n')) {
+    const match = /^(activeTask|activeBranch|activeBaseCommit): (.+)$/u.exec(line)
+    if (!match) continue
+    check(!values.has(match[1]), 'CONTROL_IDENTITY')
+    values.set(match[1], match[2])
+  }
+  check(values.size === 3, 'CONTROL_IDENTITY')
+  check(values.get('activeTask') === TASK && values.get('activeBranch') === 'codex/task-079-v3-final-acceptance' && values.get('activeBaseCommit') === BASE_COMMIT, 'CONTROL_IDENTITY')
+}
+
+function validateSoftwareBaseline(baseline, matrix, matrixBytes) {
+  keys(baseline, ['task', 'finalCommit', 'matrixPath', 'matrixSha256', 'entries', 'mappedPassed', 'unmappedPending', 'externalGate', 'formalReady'])
+  check(baseline.task === 'TASK-078' && baseline.finalCommit === BASE_COMMIT && gitSha(baseline.finalCommit), 'SOFTWARE_BASELINE')
+  check(baseline.matrixPath === MATRIX_PATH && sha256(baseline.matrixSha256) && baseline.matrixSha256 === MATRIX_SHA256 && baseline.matrixSha256 === hash(matrixBytes), 'SOFTWARE_BASELINE')
+  check(matrix && typeof matrix === 'object' && matrix.task === 'TASK-078' && matrix.baseCommit === MATRIX_BASE_COMMIT, 'SOFTWARE_BASELINE')
+  check(matrix.externalGate === 'NOT_RUN' && matrix.formalReady === false, 'SOFTWARE_BASELINE')
+  check(Array.isArray(matrix.entries) && matrix.entries.length === 103, 'SOFTWARE_BASELINE')
+  const mappedPassed = matrix.entries.filter(entry => entry.status === 'mapped' && entry.freshGate?.state === 'passed')
+  const unmappedPending = matrix.entries.filter(entry => entry.status === 'unmapped' && entry.freshGate?.state === 'pending').map(entry => entry.id).sort()
+  check(mappedPassed.length === 101 && JSON.stringify(unmappedPending) === JSON.stringify(UNMAPPED_PENDING), 'SOFTWARE_BASELINE')
+  check(baseline.entries === 103 && baseline.mappedPassed === 101, 'SOFTWARE_BASELINE')
+  check(Array.isArray(baseline.unmappedPending) && JSON.stringify([...baseline.unmappedPending].sort()) === JSON.stringify(UNMAPPED_PENDING), 'SOFTWARE_BASELINE')
+  check(baseline.externalGate === 'NOT_RUN' && baseline.formalReady === false, 'SOFTWARE_BASELINE')
+}
+
+export function validateOwnerReadiness(readiness, { root, matrix, status, wave } = {}) {
+  check(typeof root === 'string', 'ROOT_REQUIRED')
+  keys(readiness, ['schemaVersion', 'task', 'baseCommit', 'phase', 'ready', 'softwareBaseline', 'devicePlan', 'externalRequirements', 'ownerDecisions', 'evidence'])
+  check(readiness.schemaVersion === 1 && readiness.task === TASK && readiness.baseCommit === BASE_COMMIT && gitSha(readiness.baseCommit), 'IDENTITY')
+  check(readiness.phase === 'no-device-readiness' && readiness.ready === false, 'READY_CONTRADICTION')
+
+  const matrixBytes = safeFile(root, readiness.softwareBaseline?.matrixPath, [MATRIX_PATH])
+  let actualMatrix = matrix
+  if (!actualMatrix) {
+    try { actualMatrix = JSON.parse(matrixBytes.toString('utf8')) } catch { fail('SOFTWARE_BASELINE') }
+  }
+  validateSoftwareBaseline(readiness.softwareBaseline, actualMatrix, matrixBytes)
+  let actualStatus = status
+  if (!actualStatus) {
+    try { actualStatus = JSON.parse(safeFile(root, 'project/STATUS.json', ['project/STATUS.json']).toString('utf8')) } catch (error) { if (error instanceof Error && error.message === 'BASELINE_PATH') throw error; fail('CONTROL_IDENTITY') }
+  }
+  const actualWave = wave ?? safeFile(root, 'project/WAVE-5.yaml', ['project/WAVE-5.yaml']).toString('utf8')
+  validateControlIdentity(actualStatus, actualWave)
+
+  keys(readiness.devicePlan, ['connectionState', 'operationsAuthorized', 'audioInterfaceBrands', 'audioInterfaceModel', 'recorderBrand', 'recorderKind', 'recorderModel', 'configurationState', 'measurementPlanState'])
+  check(readiness.devicePlan.connectionState === 'not-connected' && readiness.devicePlan.operationsAuthorized === false, 'DEVICE_STATE')
+  check(Array.isArray(readiness.devicePlan.audioInterfaceBrands) && JSON.stringify(readiness.devicePlan.audioInterfaceBrands) === JSON.stringify(['RME', 'Apogee']), 'DEVICE_STATE')
+  check(readiness.devicePlan.audioInterfaceModel === null && readiness.devicePlan.recorderBrand === 'Sony' && readiness.devicePlan.recorderKind === 'cassette-deck' && readiness.devicePlan.recorderModel === null, 'DEVICE_STATE')
+  check(readiness.devicePlan.configurationState === 'pending' && readiness.devicePlan.measurementPlanState === 'pending', 'DEVICE_STATE')
+
+  check(Array.isArray(readiness.externalRequirements) && readiness.externalRequirements.length === EXTERNAL_KINDS.length, 'EXTERNAL_STATE')
+  const external = new Set()
+  for (const requirement of readiness.externalRequirements) {
+    keys(requirement, ['kind', 'state', 'evidenceIds'])
+    check(EXTERNAL_KINDS.includes(requirement.kind) && !external.has(requirement.kind), 'EXTERNAL_STATE')
+    check(requirement.state === 'not-run' && Array.isArray(requirement.evidenceIds) && requirement.evidenceIds.length === 0, 'EXTERNAL_STATE')
+    external.add(requirement.kind)
+  }
+  check(EXTERNAL_KINDS.every(kind => external.has(kind)), 'EXTERNAL_STATE')
+
+  const requiredIds = new Set(actualMatrix.entries.map(entry => entry.id))
+  check(requiredIds.size === 103 && Array.isArray(readiness.ownerDecisions) && readiness.ownerDecisions.length === 103, 'OWNER_STATE')
+  const decisions = new Set()
+  for (const decision of readiness.ownerDecisions) {
+    keys(decision, ['id', 'state', 'evidenceIds'])
+    check(requiredIds.has(decision.id) && !decisions.has(decision.id), 'OWNER_STATE')
+    check(decision.state === 'pending' && Array.isArray(decision.evidenceIds) && decision.evidenceIds.length === 0, 'OWNER_STATE')
+    decisions.add(decision.id)
+  }
+  check([...requiredIds].every(id => decisions.has(id)), 'OWNER_STATE')
+  check(Array.isArray(readiness.evidence) && readiness.evidence.length === 0, 'EVIDENCE_NOT_ALLOWED')
+
+  return {
+    ready: false,
+    ownerPending: 103,
+    externalNotRun: 5,
+    deviceConnected: false,
+    deviceOperationsAuthorized: false,
+  }
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    check(process.argv.slice(2).every(argument => argument === '--require-ready') && process.argv.slice(2).length <= 1, 'ARGUMENTS')
+    const root = process.cwd()
+    const readiness = JSON.parse(safeFile(root, 'project/V3_OWNER_ACCEPTANCE.json', ['project/V3_OWNER_ACCEPTANCE.json']).toString('utf8'))
+    const result = validateOwnerReadiness(readiness, { root })
+    if (process.argv.includes('--require-ready') && !result.ready) fail('READY_REQUIRED')
+    console.log(`V3_OWNER_READINESS=PASS ${JSON.stringify(result)}；控制文件有效，真实设备与Owner验收仍未运行。`)
+  } catch (error) {
+    console.error(`V3_OWNER_READINESS=FAIL ${normalizeReadinessError(error)}`)
+    process.exitCode = 1
+  }
+}
