@@ -1,14 +1,17 @@
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import test from 'node:test'
 
 const issuer = new URL('../issue-v3-capacity-window.py', import.meta.url).pathname
 const typescript = new URL('../../../packages/contracts/node_modules/typescript/bin/tsc', import.meta.url).pathname
 const typescriptCompiler = realpathSync(new URL('../../../packages/contracts/node_modules/typescript/lib/_tsc.js', import.meta.url).pathname)
 const python = '/usr/bin/python3'
+const buildNode = realpathSync(process.execPath)
+const buildNodeLibrary = realpathSync(join(dirname(dirname(buildNode)), 'lib', readdirSync(join(dirname(dirname(buildNode)), 'lib')).find(name => /^libnode\.[0-9]+\.dylib$/.test(name))))
 
 function json(path, value) { writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`) }
 function git(cwd, ...args) { return execFileSync('/usr/bin/git', args, { cwd, encoding: 'utf8' }).trim() }
@@ -78,7 +81,13 @@ def _validate_owned_manifest(path, runtime, window_id, profile):
 
 function BunlessStat(path) { return JSON.parse(execFileSync(python, ['-c', `import json,os; s=os.stat(${JSON.stringify(path)}); print(json.dumps({'dev':s.st_dev,'ino':s.st_ino}))`], { encoding: 'utf8' })) }
 function sha(path) { return execFileSync('/usr/bin/shasum', ['-a', '256', path], { encoding: 'utf8' }).split(' ')[0] }
-function args(f, extra = []) { return [f.issuer, '--repo-root', f.root, '--runtime-root', f.runtime, '--supervisor', f.supervisor, '--expected-supervisor-sha256', sha(f.supervisor), '--expected-source-count', String(f.sourcePaths.length), '--base-owned-manifest', f.baseOwned, '--expected-base-owned-sha256', sha(f.baseOwned), '--carryover-inventory', f.inventory, '--expected-carryover-inventory-sha256', sha(f.inventory), '--window-dir-name', 'new-window', '--label', 'new-seed', '--profile', 'objects-limit', '--expected-branch', 'main', '--expected-head', f.head, '--consumer-python', realpathSync(python), '--expected-consumer-sha256', sha(realpathSync(python)), '--issuer-repo-root', f.root, '--expected-issuer-branch', 'main', '--expected-issuer-head', f.head, '--expected-issuer-sha256', sha(f.issuer), '--build-node', realpathSync(process.execPath), '--expected-build-node-sha256', sha(realpathSync(process.execPath)), '--typescript-compiler', typescriptCompiler, '--expected-typescript-compiler-sha256', sha(typescriptCompiler), ...extra] }
+function typescriptLibraryManifestSha() {
+  const files = {}
+  for (const name of readdirSync(dirname(typescriptCompiler)).filter(name => /^lib(?:\.[A-Za-z0-9.-]+)?\.d\.ts$/.test(name)).sort()) files[name] = createHash('sha256').update(readFileSync(join(dirname(typescriptCompiler), name))).digest('hex')
+  return createHash('sha256').update(JSON.stringify({ files })).digest('hex')
+}
+const typescriptLibraryManifestSha256 = typescriptLibraryManifestSha()
+function args(f, extra = []) { return [f.issuer, '--repo-root', f.root, '--runtime-root', f.runtime, '--supervisor', f.supervisor, '--expected-supervisor-sha256', sha(f.supervisor), '--expected-source-count', String(f.sourcePaths.length), '--base-owned-manifest', f.baseOwned, '--expected-base-owned-sha256', sha(f.baseOwned), '--carryover-inventory', f.inventory, '--expected-carryover-inventory-sha256', sha(f.inventory), '--window-dir-name', 'new-window', '--label', 'new-seed', '--profile', 'objects-limit', '--expected-branch', 'main', '--expected-head', f.head, '--consumer-python', realpathSync(python), '--expected-consumer-sha256', sha(realpathSync(python)), '--issuer-repo-root', f.root, '--expected-issuer-branch', 'main', '--expected-issuer-head', f.head, '--expected-issuer-sha256', sha(f.issuer), '--build-node', buildNode, '--expected-build-node-sha256', sha(buildNode), '--build-node-library', buildNodeLibrary, '--expected-build-node-library-sha256', sha(buildNodeLibrary), '--typescript-compiler', typescriptCompiler, '--expected-typescript-compiler-sha256', sha(typescriptCompiler), '--expected-typescript-library-manifest-sha256', typescriptLibraryManifestSha256, ...extra] }
 
 function generatedContractFixture() {
   const generated = 'packages/contracts/dist/example.js'
@@ -161,7 +170,15 @@ test('由候选源码生成的 untracked contracts dist 可绑定并签发', () 
   const result = spawnSync(python, args(f), { encoding: 'utf8' })
   assert.equal(result.status, 0, result.stderr)
   const pins = JSON.parse(readFileSync(join(f.runtime, 'new-window/source-pins.json'), 'utf8'))
+  const issuerFact = JSON.parse(readFileSync(join(f.runtime, 'new-window/issuer-identity/owner.json'), 'utf8'))
   assert.equal(pins.files[f.generated], sha(join(f.root, f.generated)))
+  assert.deepEqual(new Set(Object.keys(issuerFact.build.inputs)), new Set(['packages/contracts/src/example.ts', 'packages/contracts/tsconfig.json', 'packages/contracts/package.json']))
+  assert.equal(issuerFact.build.command.includes('--noCheck'), true)
+  assert.equal(issuerFact.build.command.includes('--noResolve'), true)
+  assert.deepEqual(issuerFact.build.environment, { PATH: '/usr/bin:/bin', LANG: 'C', LC_ALL: 'C', NO_COLOR: '1' })
+  assert.equal(issuerFact.build.privateToolchain.nodeSha256, sha(buildNode))
+  assert.equal(issuerFact.build.privateToolchain.nodeLibrarySha256, sha(buildNodeLibrary))
+  assert.equal(issuerFact.build.privateToolchain.typescriptLibraryManifestSha256, typescriptLibraryManifestSha256)
 })
 
 test('由候选源码生成后被篡改的 contracts dist 拒绝签发', () => {

@@ -20,6 +20,8 @@ ROOT_NAME = re.compile(r'^[A-Za-z0-9-]{1,64}$', re.ASCII)
 SHA256 = re.compile(r'^[0-9a-f]{64}$', re.ASCII)
 GIT_SHA = re.compile(r'^[0-9a-f]{40}$', re.ASCII)
 CONTRACT_DIST_JS = re.compile(r'^packages/contracts/dist/([a-z0-9-]+)\.js$', re.ASCII)
+NODE_LIBRARY = re.compile(r'^libnode\.[0-9]+\.dylib$', re.ASCII)
+TYPESCRIPT_LIBRARY = re.compile(r'^lib(?:\.[A-Za-z0-9.-]+)?\.d\.ts$', re.ASCII)
 CONTRACT_TSCONFIG = {
     'compilerOptions': {
         'target': 'ES2023', 'module': 'NodeNext', 'moduleResolution': 'NodeNext', 'lib': ['ES2023'],
@@ -35,6 +37,7 @@ GENERATION_LIMITS = {'executionMs': 1200000, 'killGraceMs': 1000, 'closeMs': 200
                      'minimumFreeBytes': 10 * 1024 ** 3, 'maximumOwnedBytes': 16 * 1024 ** 3}
 OBJECTS_LIMIT_PLANNED_BYTES = 9_623_411_100
 _FAILURE_CONTEXT = None
+GIT_TIMEOUT_SECONDS = 15
 
 
 class IssueError(Exception):
@@ -205,7 +208,11 @@ def git_value(root, *arguments):
     try:
         return subprocess.check_output(
             ['/usr/bin/git', *arguments], cwd=root, text=True, stderr=subprocess.DEVNULL,
-            env={key: value for key, value in os.environ.items() if not key.startswith('GIT_')}).strip()
+            timeout=GIT_TIMEOUT_SECONDS,
+            env={**{key: value for key, value in os.environ.items() if not key.startswith('GIT_')},
+                 'GIT_OPTIONAL_LOCKS': '0', 'GIT_NO_LAZY_FETCH': '1'}).strip()
+    except subprocess.TimeoutExpired:
+        fail('REPOSITORY_TIMEOUT')
     except (OSError, subprocess.CalledProcessError):
         fail('REPOSITORY_IDENTITY')
 
@@ -214,7 +221,11 @@ def git_blob(root, head, relative):
     try:
         return subprocess.check_output(
             ['/usr/bin/git', 'show', f'{head}:{relative}'], cwd=root, stderr=subprocess.DEVNULL,
-            env={key: value for key, value in os.environ.items() if not key.startswith('GIT_')})
+            timeout=GIT_TIMEOUT_SECONDS,
+            env={**{key: value for key, value in os.environ.items() if not key.startswith('GIT_')},
+                 'GIT_OPTIONAL_LOCKS': '0', 'GIT_NO_LAZY_FETCH': '1'})
+    except subprocess.TimeoutExpired:
+        fail('SOURCE_TIMEOUT')
     except (OSError, subprocess.CalledProcessError):
         fail('SOURCE_CANDIDATE')
 
@@ -224,7 +235,11 @@ def git_paths(root, head, prefix):
         output = subprocess.check_output(
             ['/usr/bin/git', 'ls-tree', '-r', '--name-only', head, '--', prefix],
             cwd=root, text=True, stderr=subprocess.DEVNULL,
-            env={key: value for key, value in os.environ.items() if not key.startswith('GIT_')})
+            timeout=GIT_TIMEOUT_SECONDS,
+            env={**{key: value for key, value in os.environ.items() if not key.startswith('GIT_')},
+                 'GIT_OPTIONAL_LOCKS': '0', 'GIT_NO_LAZY_FETCH': '1'})
+    except subprocess.TimeoutExpired:
+        fail('SOURCE_TIMEOUT')
     except (OSError, subprocess.CalledProcessError):
         fail('SOURCE_CANDIDATE')
     return [line for line in output.splitlines() if line]
@@ -247,8 +262,73 @@ def verified_file(path, expected_sha256, error_code, executable=False):
     return resolved
 
 
+def copy_verified_file(source, destination, expected_sha256, mode):
+    source = Path(source)
+    destination = Path(destination)
+    source_flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0)
+    destination_flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, 'O_NOFOLLOW', 0)
+    source_descriptor = None
+    destination_descriptor = None
+    try:
+        source_descriptor = os.open(source, source_flags)
+        destination_descriptor = os.open(destination, destination_flags, mode)
+    except OSError:
+        if source_descriptor is not None:
+            os.close(source_descriptor)
+        fail('BUILD_TOOLCHAIN_IDENTITY')
+    try:
+        before = os.fstat(source_descriptor)
+        if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+            fail('BUILD_TOOLCHAIN_IDENTITY')
+        digest = hashlib.sha256()
+        while True:
+            chunk = os.read(source_descriptor, 1024 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+            written = 0
+            while written < len(chunk):
+                written += os.write(destination_descriptor, chunk[written:])
+        os.fsync(destination_descriptor)
+        after = os.fstat(source_descriptor)
+    finally:
+        os.close(source_descriptor)
+        os.close(destination_descriptor)
+    try:
+        named = source.lstat()
+    except OSError:
+        fail('BUILD_TOOLCHAIN_IDENTITY')
+    fields = ('st_dev', 'st_ino', 'st_size', 'st_mtime_ns', 'st_ctime_ns', 'st_nlink')
+    if (digest.hexdigest() != expected_sha256
+            or any(getattr(before, key) != getattr(after, key) or getattr(after, key) != getattr(named, key)
+                   for key in fields)):
+        fail('BUILD_TOOLCHAIN_IDENTITY')
+    os.chmod(destination, mode)
+    if stable_sha256(destination) != expected_sha256:
+        fail('BUILD_TOOLCHAIN_IDENTITY')
+    return destination
+
+
+def typescript_library_manifest(directory, expected_sha256):
+    directory = canonical_directory(directory)
+    files = {}
+    for path in sorted(directory.iterdir(), key=lambda value: value.name):
+        if TYPESCRIPT_LIBRARY.fullmatch(path.name):
+            if not ordinary(path):
+                fail('BUILD_TOOLCHAIN_IDENTITY')
+            files[path.name] = stable_sha256(path)
+    manifest = {'files': files}
+    encoded = json.dumps(manifest, sort_keys=True, separators=(',', ':')).encode('utf-8')
+    if not files or SHA256.fullmatch(str(expected_sha256 or '')) is None \
+            or hashlib.sha256(encoded).hexdigest() != expected_sha256:
+        fail('BUILD_TOOLCHAIN_IDENTITY')
+    return directory, files
+
+
 def candidate_contract_dist(root, head, source_paths, build_node, expected_build_node_sha256,
-                            typescript_compiler, expected_typescript_compiler_sha256):
+                            build_node_library, expected_build_node_library_sha256,
+                            typescript_compiler, expected_typescript_compiler_sha256,
+                            expected_typescript_library_manifest_sha256):
     """用固定编译器从候选提交重建 JS，只接受一一对应且字节完全一致的 dist。"""
     derived = {}
     for relative in source_paths:
@@ -259,6 +339,14 @@ def candidate_contract_dist(root, head, source_paths, build_node, expected_build
             derived[relative] = match.group(1)
     if not derived:
         return {'files': {}, 'provenance': None}
+
+    if (NODE_LIBRARY.fullmatch(build_node_library.name) is None
+            or build_node_library.parent != build_node.parent.parent / 'lib'
+            or typescript_compiler.name != '_tsc.js'):
+        fail('BUILD_TOOLCHAIN_IDENTITY')
+    verified_file(build_node_library, expected_build_node_library_sha256, 'BUILD_TOOLCHAIN_IDENTITY')
+    typescript_library_directory, typescript_libraries = typescript_library_manifest(
+        typescript_compiler.parent, expected_typescript_library_manifest_sha256)
 
     tracked_sources = git_paths(root, head, 'packages/contracts/src')
     expected_sources = {f'packages/contracts/src/{stem}.ts' for stem in derived.values()}
@@ -278,16 +366,33 @@ def candidate_contract_dist(root, head, source_paths, build_node, expected_build
 
     with tempfile.TemporaryDirectory(prefix='musicbridge-contract-candidate-') as temporary:
         temporary_root = Path(temporary)
+        private_toolchain = temporary_root / 'toolchain'
+        private_node_directory = private_toolchain / 'bin'
+        private_node_library_directory = private_toolchain / 'lib'
+        private_typescript_directory = private_toolchain / 'typescript/lib'
+        private_node_directory.mkdir(parents=True, mode=0o700)
+        private_node_library_directory.mkdir(mode=0o700)
+        private_typescript_directory.mkdir(parents=True, mode=0o700)
+        private_node = copy_verified_file(
+            build_node, private_node_directory / 'node', expected_build_node_sha256, 0o500)
+        private_node_library = copy_verified_file(
+            build_node_library, private_node_library_directory / build_node_library.name,
+            expected_build_node_library_sha256, 0o400)
+        private_typescript_compiler = copy_verified_file(
+            typescript_compiler, private_typescript_directory / '_tsc.js',
+            expected_typescript_compiler_sha256, 0o400)
+        for name, expected_sha256 in typescript_libraries.items():
+            copy_verified_file(typescript_library_directory / name, private_typescript_directory / name,
+                               expected_sha256, 0o400)
         for relative, blob in blobs.items():
             destination = temporary_root / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes(blob)
         package_root = temporary_root / 'packages/contracts'
-        command = [str(build_node), str(typescript_compiler), '--project', str(package_root / 'tsconfig.json'),
+        command = [str(private_node), str(private_typescript_compiler), '--project',
+                   str(package_root / 'tsconfig.json'),
                    '--pretty', 'false', '--incremental', 'false', '--noCheck', '--noResolve']
         environment = {'PATH': '/usr/bin:/bin', 'LANG': 'C', 'LC_ALL': 'C', 'NO_COLOR': '1'}
-        verified_file(build_node, expected_build_node_sha256, 'BUILD_TOOLCHAIN_IDENTITY', executable=True)
-        verified_file(typescript_compiler, expected_typescript_compiler_sha256, 'BUILD_TOOLCHAIN_IDENTITY')
         try:
             completed = subprocess.run(
                 command, cwd=package_root, env=environment,
@@ -297,8 +402,13 @@ def candidate_contract_dist(root, head, source_paths, build_node, expected_build
             fail('BUILD_TIMEOUT')
         except OSError:
             fail('BUILD_EXECUTION')
-        verified_file(build_node, expected_build_node_sha256, 'BUILD_TOOLCHAIN_IDENTITY', executable=True)
-        verified_file(typescript_compiler, expected_typescript_compiler_sha256, 'BUILD_TOOLCHAIN_IDENTITY')
+        if (stable_sha256(private_node) != expected_build_node_sha256
+                or stable_sha256(private_node_library) != expected_build_node_library_sha256
+                or stable_sha256(private_typescript_compiler) != expected_typescript_compiler_sha256):
+            fail('BUILD_TOOLCHAIN_IDENTITY')
+        for name, expected_sha256 in typescript_libraries.items():
+            if stable_sha256(private_typescript_directory / name) != expected_sha256:
+                fail('BUILD_TOOLCHAIN_IDENTITY')
         if completed.returncode != 0:
             fail('BUILD_EXIT')
         if completed.stdout:
@@ -330,6 +440,12 @@ def candidate_contract_dist(root, head, source_paths, build_node, expected_build
                 'timeoutMs': 120000,
                 'compilerExitCode': 0,
                 'compilerOutputBytes': 0,
+                'privateToolchain': {
+                    'nodeSha256': expected_build_node_sha256,
+                    'nodeLibrarySha256': expected_build_node_library_sha256,
+                    'typescriptCompilerSha256': expected_typescript_compiler_sha256,
+                    'typescriptLibraryManifestSha256': expected_typescript_library_manifest_sha256
+                },
                 'outputs': result
             }
         }
@@ -374,8 +490,11 @@ def parse_args(argv):
     parser.add_argument('--expected-issuer-sha256', required=True)
     parser.add_argument('--build-node', required=True)
     parser.add_argument('--expected-build-node-sha256', required=True)
+    parser.add_argument('--build-node-library', required=True)
+    parser.add_argument('--expected-build-node-library-sha256', required=True)
     parser.add_argument('--typescript-compiler', required=True)
     parser.add_argument('--expected-typescript-compiler-sha256', required=True)
+    parser.add_argument('--expected-typescript-library-manifest-sha256', required=True)
     return parser.parse_args(argv)
 
 
@@ -472,6 +591,8 @@ def issue(options):
         fail('ISSUER_IDENTITY')
     build_node = verified_file(options.build_node, options.expected_build_node_sha256,
                                'BUILD_TOOLCHAIN_IDENTITY', executable=True)
+    build_node_library = verified_file(
+        options.build_node_library, options.expected_build_node_library_sha256, 'BUILD_TOOLCHAIN_IDENTITY')
     typescript_compiler = verified_file(options.typescript_compiler, options.expected_typescript_compiler_sha256,
                                         'BUILD_TOOLCHAIN_IDENTITY')
     if SAFE.fullmatch(options.window_dir_name) is None or SAFE.fullmatch(options.label) is None:
@@ -596,7 +717,9 @@ def issue(options):
         fail('SOURCE_MANIFEST')
     derived_sources = candidate_contract_dist(
         root, options.expected_head, source_paths, build_node, options.expected_build_node_sha256,
-        typescript_compiler, options.expected_typescript_compiler_sha256)
+        build_node_library, options.expected_build_node_library_sha256,
+        typescript_compiler, options.expected_typescript_compiler_sha256,
+        options.expected_typescript_library_manifest_sha256)
     issuer_fact = {
         'schemaVersion': 1,
         'scope': 'musicbridge-capacity-authority-issuer',
@@ -612,11 +735,15 @@ def issue(options):
         },
         'buildToolchain': {
             'node': {'path': str(build_node), 'sha256': options.expected_build_node_sha256},
+            'nodeLibrary': {
+                'path': str(build_node_library), 'sha256': options.expected_build_node_library_sha256
+            },
             'typescriptCompiler': {
                 'path': str(typescript_compiler),
                 'sha256': options.expected_typescript_compiler_sha256,
-                'mode': 'candidate-source-no-check-js-emit'
-            }
+                'mode': 'candidate-source-no-check-no-resolve-js-emit'
+            },
+            'typescriptLibraryManifestSha256': options.expected_typescript_library_manifest_sha256
         },
         'build': derived_sources['provenance']
     }
@@ -661,7 +788,10 @@ def issue(options):
 
     verified_file(issuer_path, options.expected_issuer_sha256, 'ISSUER_IDENTITY')
     verified_file(build_node, options.expected_build_node_sha256, 'BUILD_TOOLCHAIN_IDENTITY', executable=True)
+    verified_file(build_node_library, options.expected_build_node_library_sha256, 'BUILD_TOOLCHAIN_IDENTITY')
     verified_file(typescript_compiler, options.expected_typescript_compiler_sha256, 'BUILD_TOOLCHAIN_IDENTITY')
+    typescript_library_manifest(typescript_compiler.parent,
+                                options.expected_typescript_library_manifest_sha256)
     if (git_value(root, 'rev-parse', 'HEAD^{commit}') != options.expected_head
             or git_value(root, 'branch', '--show-current') != options.expected_branch
             or git_value(issuer_repo, 'rev-parse', 'HEAD^{commit}') != options.expected_issuer_head
