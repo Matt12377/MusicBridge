@@ -13,9 +13,9 @@ const MATRIX_SHA256 = '12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7f
 const EXTERNAL_KINDS = ['real-input', 'real-logic', 'real-roon', 'hardware', 'owner']
 const UNMAPPED_PENDING = ['B-13', 'B-15']
 const READINESS_CONTROL = 'PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO'
-const DEVELOPMENT_STATE = 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-timeout-partial-preserved-external-not-run'
+const DEVELOPMENT_STATE = 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-v2-verified-awaiting-fresh-audit-external-not-run'
 const EXTERNAL_EVIDENCE_PROFILES = 'REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED'
-const CAPACITY_AUTHORITY = 'OBJECTS_MEASURE_WINDOW01_EXECUTION_TIMEOUT_PARTIAL_PRESERVED_DIAGNOSIS_REQUIRED'
+const CAPACITY_AUTHORITY = 'OBJECTS_MEASURE_V2_IMPLEMENTED_VERIFIED_AWAITING_FRESH_AUDIT_NOT_ISSUED'
 const EVIDENCE_INFRASTRUCTURE = {
   state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
   receiptFoundation: {
@@ -134,6 +134,33 @@ const CAPACITY_MEASURE_WINDOW_ISSUER = {
     zombies: [],
     authorityStable: true,
     replay: 'PROHIBITED',
+  },
+  measureRecoveryV2: {
+    state: 'IMPLEMENTED_VERIFIED_AWAITING_FRESH_AUDIT_NOT_ISSUED',
+    baseCommit: '74367bc3f6d1a96a3fabef0ebcbaa3b22ba82ba6',
+    implementationCommit: '1086dedb78d9ee4ed43238d82c3dc52823f4e4c1',
+    measurePlan: { groupCloneCount: 3, fullHashCount: 3, stopRoundReceiptCount: 105, sampleCount: 1575 },
+    focusedVerification: {
+      capacity: { tests: 86, passed: 86, failed: 0 },
+      supervisor: { tests: 11, passed: 11, failed: 0 },
+      issuer: { tests: 21, passed: 21, failed: 0 },
+    },
+    fullVerify: 'PASS',
+    staticGates: { controlPlane: 'PASS', boundaries: 'PASS', cycles: 'PASS_259_FILES' },
+    independentReviewRound1: 'SPEC_FAIL_P0_2_P1_2',
+    independentReviewRound2Final: 'SPEC_FAIL_P0_1',
+    thirdReviewPerformed: false,
+    mainAdjudication: 'R2_P0_FIXED_BY_REAL_ISSUER_SUPERVISOR_INTEROP_21_PASS',
+    legacyCarryover: {
+      format: 'legacy-107-clone-partial-v1', roots: 2, receiptCount: 29, sampleCount: 273,
+      retainedClone: 'sample-30', contentSha256Verified: false, replay: 'PROHIBITED',
+    },
+    rootClosure: { existing: 65, future: 1, authorized: 66 },
+    freshAudit: 'NOT_RUN',
+    freshAuthorityIssued: false,
+    measureRun: 'NOT_RUN',
+    deviceOpened: false,
+    gateB: 'NOT_RUN',
   },
   deviceOpened: false,
   gateB: 'NOT_RUN',

@@ -231,3 +231,13 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - 终态保留29个完整sample receipt、273条sample；第30个clone与partial原样保留。`source-after.json`、`end-budget.json`、`summary.json`与`exit.json`尚未形成，因此`samplesValid=false`、`receiptsValid=false`、`verifiedComplete=false`、`verifiedPassed=false`、`thresholdPassed=false`。这不是measure PASS。
 - authority准入与终态均保持window/source/owned/seed稳定，source pins=243、owned roots=64、spaceValid=true；失败不是身份或空间漂移。stdout只有TAP header，stderr只有Node SQLite experimental warning，没有泄漏凭据、设备或真实数据。
 - 该UUID、window-dir与label=`r023-objects-limit-measure-01`永久禁止重放；剩余窗口时间不构成重试授权。当前只读分析105轮合同、每轮阶段耗时与900秒执行包络，冻结最小RED前不修改生产代码、不签发新measure。large queued-stop、joint、设备、Roon、真实资料与Owner门均未运行。
+
+#### Objects-limit measure v2：3-group生命周期与fresh audit前置
+
+- 基线提交=`74367bc3f6d1a96a3fabef0ebcbaa3b22ba82ba6`，实现提交=`1086dedb78d9ee4ed43238d82c3dc52823f4e4c1`。旧window-01及其29个receipt、273条sample、`sample-30` clone继续原样保留；旧UUID/window-dir/label不可重放。
+- 根因闭包：旧入口对约1.99GB SQLite执行107次clone/open-audit/full-hash生命周期，固定900秒无法容纳。v2保持门槛与样本口径不变，把执行结构改为progress/stop/read三个group clone、三个group full hash、105个durable Stop round receipt与1575条sample；每个metric仍为5个warmup加100个formal。
+- 双仓身份：TASK078 generation仓库只提供冻结seed/runtime/evidence；TASK079 candidate仓库提供当前代码与source pins。window固定`candidateRepository:{root,branch,head}`，supervisor显式把规范TASK078 runtime传给benchmark，禁止从candidate root反推runtime。supervisor源码以`O_EXCL`安装到每个window并由window与consume command共同绑定。
+- legacy carryover按`legacy-107-clone-partial-v1`精确验证29个非补零receipt、273条sample拼接、`sample-30` owner/WAL/SHM及SQLite稳定stat/大小。旧close没有封存2GB SQLite内容Hash，因此明确`contentSha256Verified=false`；验证器不读取或哈希该SQLite，且继续保持`verifiedPassed=false`。
+- TDD与复审：SPEC R1=`FAIL (P0=2/P1=2)`，四项均完成RED→GREEN；SPEC R2最终=`FAIL (P0=1)`，发现真实issuer与tracked supervisor的完整legacy返回合同不兼容。按两轮上限未启动第三轮；主任务以真实production互操作RED→GREEN修复并由issuer 21/21覆盖，机器状态明确记录`R2_P0_FIXED_BY_REAL_ISSUER_SUPERVISOR_INTEROP_21_PASS`，不改写R2历史结论。
+- 新鲜主线程验证：capacity 86/86、supervisor 11/11、issuer 21/21、标准`pnpm verify`、三包typecheck/build、Python compile、Node syntax、`CONTROL_PLANE=PASS`、`BOUNDARIES=PASS`、`CYCLES=PASS files=259`及`git diff --check`全部exit 0。
+- 当前状态=`IMPLEMENTED_VERIFIED_AWAITING_FRESH_AUDIT_NOT_ISSUED`。root闭包为65个existing roots加唯一future output，共66个授权根；这些数字只是待审合同。新的fresh audit、authority签发和measure run均为`NOT_RUN`。下一分支基线仍是本任务最终HEAD；在状态提交完成并重新审计当前HEAD、issuer及supervisor blob前，不得签发或消费新window。
