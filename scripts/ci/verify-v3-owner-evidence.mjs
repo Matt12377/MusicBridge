@@ -11,8 +11,8 @@ const BASE_COMMIT = 'fac7363b4a6481591e207dda7cca77f0ae8d3cd4'
 const EVIDENCE_ROOT = 'reports/runtime/task-079-v3-final-acceptance'
 const TEMPLATE_PATH = 'project/V3_OWNER_EVIDENCE_TEMPLATE.json'
 const MATRIX_SHA256 = '12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7fe4ba944'
-const EVIDENCE_KINDS = new Set(['real-output-measurement', 'real-input-observation', 'owner-observed'])
-const TECHNICAL_KINDS = new Set(['real-output-measurement', 'real-input-observation'])
+const EVIDENCE_KINDS = new Set(['real-output-measurement', 'real-input-observation', 'real-logic-observation', 'owner-observed'])
+const TECHNICAL_KINDS = new Set(['real-output-measurement', 'real-input-observation', 'real-logic-observation'])
 const SCOPE_IDS = new Set([
   ...Array.from({ length: 30 }, (_, index) => `MVP-${String(index + 1).padStart(2, '0')}`),
   ...Array.from({ length: 11 }, (_, index) => `A-${String(index + 1).padStart(2, '0')}`),
@@ -41,6 +41,16 @@ const NONPASS_REASONS = {
   'B-15': new Set(['configuration-not-certified', 'operation-stopped', 'evidence-inconclusive']),
 }
 const REAL_INPUT_NONPASS_REASONS = new Set(['source-unavailable', 'authorization-expired', 'hash-mismatch', 'source-modified', 'operation-stopped', 'evidence-inconclusive'])
+const REAL_LOGIC_NONPASS_REASONS = new Set(['workspace-unavailable', 'export-unavailable', 'hash-mismatch', 'marker-mismatch', 'timeline-mismatch', 'operation-stopped', 'evidence-inconclusive'])
+const REAL_LOGIC_OUTCOMES = new Map([
+  ['MVP-08', 'workspace-generated'],
+  ['MVP-09', 'exports-reimported'],
+  ['MVP-10', 'prepared-master-frozen'],
+  ['D-05', 'timeline-rebuilt'],
+  ['D-06', 'accepted-variance'],
+  ['D-07', 'requires-new-layout'],
+  ['D-08', 'freeze-blocked'],
+])
 const CONFIGURATION_KEYS = [
   'audioInterfaceAlias',
   'recorderAlias',
@@ -585,12 +595,12 @@ function validateTechnicalSeals(receipt, artifacts, artifactContents) {
   check(times.every(Number.isFinite) && times.every((value, index) => index === 0 || times[index - 1] <= value), 'RECEIPT_STATE')
 }
 
-function validateRealInputSeals(receipt, artifacts, artifactContents, criterionSha256) {
+function validateExternalSeals(receipt, artifacts, artifactContents, criterionSha256, { externalKind, environmentAliasKey, allowedOperations, allowedDataClasses }) {
   const scopeId = receipt.scopeIds[0]
   const environment = parseSingleArtifact(artifacts, artifactContents, 'environment-seal')
-  exactKeys(environment.value, ['runId', 'osFamily', 'architecture', 'externalKind', 'dataSourceAlias'], 'RECEIPT_STATE')
+  exactKeys(environment.value, ['runId', 'osFamily', 'architecture', 'externalKind', environmentAliasKey], 'RECEIPT_STATE')
   check(environment.value.runId === receipt.receiptId && environment.value.osFamily === 'macos' && ['arm64', 'x64'].includes(environment.value.architecture), 'RECEIPT_STATE')
-  check(environment.value.externalKind === 'real-input' && safeLabel(environment.value.dataSourceAlias) && environment.artifact.sha256 === receipt.environmentFingerprint, 'RECEIPT_STATE')
+  check(environment.value.externalKind === externalKind && safeLabel(environment.value[environmentAliasKey]) && environment.artifact.sha256 === receipt.environmentFingerprint, 'RECEIPT_STATE')
 
   const candidateManifest = parseSingleArtifact(artifacts, artifactContents, 'candidate-manifest')
   exactKeys(candidateManifest.value, ['candidateCommit', 'candidateTree', 'controlledFiles', 'controlledFilesSha256'], 'RECEIPT_STATE')
@@ -608,20 +618,20 @@ function validateRealInputSeals(receipt, artifacts, artifactContents, criterionS
   const authorization = parseSingleArtifact(artifacts, artifactContents, 'authorization-seal')
   exactKeys(authorization.value, ['scopeId', 'runId', 'candidateCommit', 'candidateTree', 'candidateManifestSha256', 'externalKind', 'criterionSha256', 'allowedOperations', 'allowedDataClasses', 'grantedAt', 'expiresAt'], 'RECEIPT_STATE')
   check(authorization.value.scopeId === scopeId && authorization.value.runId === receipt.receiptId && authorization.value.candidateCommit === receipt.candidateCommit && authorization.value.candidateTree === receipt.candidateTree, 'RECEIPT_STATE')
-  check(authorization.value.candidateManifestSha256 === receipt.candidateManifestSha256 && authorization.value.externalKind === 'real-input' && authorization.value.criterionSha256 === criterionSha256, 'RECEIPT_STATE')
-  check(JSON.stringify(authorization.value.allowedOperations) === JSON.stringify(['read-source', 'hash-source']) && JSON.stringify(authorization.value.allowedDataClasses) === JSON.stringify(['anonymous-real-input']), 'RECEIPT_STATE')
+  check(authorization.value.candidateManifestSha256 === receipt.candidateManifestSha256 && authorization.value.externalKind === externalKind && authorization.value.criterionSha256 === criterionSha256, 'RECEIPT_STATE')
+  check(JSON.stringify(authorization.value.allowedOperations) === JSON.stringify(allowedOperations) && JSON.stringify(authorization.value.allowedDataClasses) === JSON.stringify(allowedDataClasses), 'RECEIPT_STATE')
   check(canonicalTimestamp(authorization.value.grantedAt) && canonicalTimestamp(authorization.value.expiresAt) && authorization.artifact.sha256 === receipt.authorizationSha256, 'RECEIPT_STATE')
 
   const plan = parseSingleArtifact(artifacts, artifactContents, 'plan-seal')
   exactKeys(plan.value, ['scopeId', 'runId', 'candidateCommit', 'candidateTree', 'candidateManifestSha256', 'externalKind', 'criterionSha256', 'grantSha256', 'frozenAt'], 'RECEIPT_STATE')
   check(plan.value.scopeId === scopeId && plan.value.runId === receipt.receiptId && plan.value.candidateCommit === receipt.candidateCommit && plan.value.candidateTree === receipt.candidateTree, 'RECEIPT_STATE')
-  check(plan.value.candidateManifestSha256 === receipt.candidateManifestSha256 && plan.value.externalKind === 'real-input' && plan.value.criterionSha256 === criterionSha256 && plan.value.grantSha256 === receipt.authorizationSha256, 'RECEIPT_STATE')
+  check(plan.value.candidateManifestSha256 === receipt.candidateManifestSha256 && plan.value.externalKind === externalKind && plan.value.criterionSha256 === criterionSha256 && plan.value.grantSha256 === receipt.authorizationSha256, 'RECEIPT_STATE')
   check(canonicalTimestamp(plan.value.frozenAt) && plan.artifact.sha256 === receipt.planSha256, 'RECEIPT_STATE')
 
   const preflight = parseSingleArtifact(artifacts, artifactContents, 'preflight-seal')
   exactKeys(preflight.value, ['scopeId', 'runId', 'candidateCommit', 'candidateTree', 'candidateManifestSha256', 'externalKind', 'criterionSha256', 'grantSha256', 'planSha256', 'observedAt', 'passed'], 'RECEIPT_STATE')
   check(preflight.value.scopeId === scopeId && preflight.value.runId === receipt.receiptId && preflight.value.candidateCommit === receipt.candidateCommit && preflight.value.candidateTree === receipt.candidateTree, 'RECEIPT_STATE')
-  check(preflight.value.candidateManifestSha256 === receipt.candidateManifestSha256 && preflight.value.externalKind === 'real-input' && preflight.value.criterionSha256 === criterionSha256, 'RECEIPT_STATE')
+  check(preflight.value.candidateManifestSha256 === receipt.candidateManifestSha256 && preflight.value.externalKind === externalKind && preflight.value.criterionSha256 === criterionSha256, 'RECEIPT_STATE')
   check(preflight.value.grantSha256 === receipt.authorizationSha256 && preflight.value.planSha256 === receipt.planSha256 && preflight.value.passed === true, 'RECEIPT_STATE')
   check(canonicalTimestamp(preflight.value.observedAt) && preflight.artifact.sha256 === receipt.preflightSha256, 'RECEIPT_STATE')
 
@@ -649,6 +659,42 @@ function validateRealInputCase(receipt, artifacts, artifactContents, entry) {
     check(new Set(observation.sourceSha256s).size === observation.sourceSha256s.length && observation.sourceSha256s.every(sha256), 'CASE_EVIDENCE')
   }
   const passed = evidence.authorizedRead === true && evidence.contentHashesVerified === true && evidence.originalBytesUnchanged === true && evidence.criterionSatisfied === true
+  check(receipt.verdict === 'passed' ? passed : !passed, 'CASE_EVIDENCE')
+  return criterionSha256
+}
+
+function validateRealLogicCase(receipt, artifacts, artifactContents, entry) {
+  const criterionSha256 = createHash('sha256').update(JSON.stringify(entry.source)).digest('hex')
+  const caseArtifact = parseSingleArtifact(artifacts, artifactContents, 'case-evidence')
+  check(JSON.stringify(caseArtifact.value) === JSON.stringify(receipt.caseEvidence), 'CASE_EVIDENCE')
+  exactKeys(receipt.caseEvidence, ['type', 'externalKind', 'criterionSha256', 'workspaceOpened', 'exportCount', 'exportHashesVerified', 'markerEvidenceVerified', 'timelineEvidenceVerified', 'observedOutcome', 'criterionSatisfied', 'observationArtifactIds'], 'CASE_EVIDENCE')
+  const evidence = receipt.caseEvidence
+  const expectedOutcome = REAL_LOGIC_OUTCOMES.get(receipt.scopeIds[0])
+  check(expectedOutcome !== undefined && evidence.type === 'real-logic' && evidence.externalKind === 'real-logic' && evidence.criterionSha256 === criterionSha256, 'CASE_EVIDENCE')
+  check(typeof evidence.workspaceOpened === 'boolean' && Number.isInteger(evidence.exportCount) && evidence.exportCount >= 1 && evidence.exportCount <= 32, 'CASE_EVIDENCE')
+  check(typeof evidence.exportHashesVerified === 'boolean' && typeof evidence.markerEvidenceVerified === 'boolean' && typeof evidence.timelineEvidenceVerified === 'boolean' && typeof evidence.criterionSatisfied === 'boolean', 'CASE_EVIDENCE')
+  check(evidence.observedOutcome === expectedOutcome, 'CASE_EVIDENCE')
+  check(Array.isArray(evidence.observationArtifactIds) && evidence.observationArtifactIds.length === 1 && new Set(evidence.observationArtifactIds).size === 1, 'CASE_EVIDENCE')
+  const artifactId = evidence.observationArtifactIds[0]
+  const artifact = artifacts.find(value => value.artifactId === artifactId)
+  check(artifact?.role === 'external-observation' && artifactContents.has(artifactId), 'CASE_EVIDENCE')
+  let observation
+  try { observation = JSON.parse(artifactContents.get(artifactId).toString('utf8')) } catch { fail('CASE_EVIDENCE') }
+  exactKeys(observation, ['workspaceAlias', 'projectSha256', 'exports'], 'CASE_EVIDENCE')
+  check(safeLabel(observation.workspaceAlias) && sha256(observation.projectSha256), 'CASE_EVIDENCE')
+  const environment = parseSingleArtifact(artifacts, artifactContents, 'environment-seal')
+  check(environment.value?.logicWorkspaceAlias === observation.workspaceAlias, 'CASE_EVIDENCE')
+  check(Array.isArray(observation.exports) && observation.exports.length === evidence.exportCount, 'CASE_EVIDENCE')
+  const aliases = new Set()
+  const hashes = new Set()
+  for (const item of observation.exports) {
+    exactKeys(item, ['exportAlias', 'sha256', 'markerCount', 'timelineSha256'], 'CASE_EVIDENCE')
+    check(safeLabel(item.exportAlias) && !aliases.has(item.exportAlias) && sha256(item.sha256) && !hashes.has(item.sha256), 'CASE_EVIDENCE')
+    check(Number.isInteger(item.markerCount) && item.markerCount >= 1 && item.markerCount <= 10000 && sha256(item.timelineSha256), 'CASE_EVIDENCE')
+    aliases.add(item.exportAlias)
+    hashes.add(item.sha256)
+  }
+  const passed = evidence.workspaceOpened === true && evidence.exportHashesVerified === true && evidence.markerEvidenceVerified === true && evidence.timelineEvidenceVerified === true && evidence.criterionSatisfied === true
   check(receipt.verdict === 'passed' ? passed : !passed, 'CASE_EVIDENCE')
   return criterionSha256
 }
@@ -757,8 +803,30 @@ function validateReceipt(receipt, root) {
     check(receipt.configuration === null && receipt.configurationFingerprintSha256 === null && receipt.measurements === null, 'CONFIGURATION')
     check(receipt.ownerDecision === null && Array.isArray(receipt.referencedTechnicalReceipts) && receipt.referencedTechnicalReceipts.length === 0, 'OWNER_BOUNDARY')
     const criterionSha256 = validateRealInputCase(receipt, receipt.artifacts, artifactContents, entry)
-    validateRealInputSeals(receipt, receipt.artifacts, artifactContents, criterionSha256)
+    validateExternalSeals(receipt, receipt.artifacts, artifactContents, criterionSha256, {
+      externalKind: 'real-input',
+      environmentAliasKey: 'dataSourceAlias',
+      allowedOperations: ['read-source', 'hash-source'],
+      allowedDataClasses: ['anonymous-real-input'],
+    })
     if (receipt.verdict !== 'passed') check(receipt.reasonCodes.every(reason => REAL_INPUT_NONPASS_REASONS.has(reason)), 'RECEIPT_STATE')
+  } else if (receipt.kind === 'real-logic-observation') {
+    const scopeId = receipt.scopeIds[0]
+    check(!OUTPUT_SCOPES.has(scopeId), 'SCOPE')
+    const expectedRoles = ['authorization-seal', 'candidate-manifest', 'case-evidence', 'environment-seal', 'external-observation', 'plan-seal', 'preflight-seal'].sort()
+    check(JSON.stringify(receipt.artifacts.map(artifact => artifact.role).sort()) === JSON.stringify(expectedRoles), 'ARTIFACT')
+    const entry = matrixScope(root, scopeId)
+    check(Array.isArray(entry.externalRequirements) && entry.externalRequirements.some(requirement => requirement?.kind === 'real-logic' && requirement.state === 'not-run'), 'SCOPE')
+    check(receipt.configuration === null && receipt.configurationFingerprintSha256 === null && receipt.measurements === null, 'CONFIGURATION')
+    check(receipt.ownerDecision === null && Array.isArray(receipt.referencedTechnicalReceipts) && receipt.referencedTechnicalReceipts.length === 0, 'OWNER_BOUNDARY')
+    const criterionSha256 = validateRealLogicCase(receipt, receipt.artifacts, artifactContents, entry)
+    validateExternalSeals(receipt, receipt.artifacts, artifactContents, criterionSha256, {
+      externalKind: 'real-logic',
+      environmentAliasKey: 'logicWorkspaceAlias',
+      allowedOperations: ['open-workspace', 'read-export', 'hash-export', 'inspect-marker', 'inspect-timeline'],
+      allowedDataClasses: ['anonymous-real-logic'],
+    })
+    if (receipt.verdict !== 'passed') check(receipt.reasonCodes.every(reason => REAL_LOGIC_NONPASS_REASONS.has(reason)), 'RECEIPT_STATE')
   } else if (receipt.kind === 'owner-observed') {
     check(receipt.configuration === null && receipt.configurationFingerprintSha256 === null && receipt.measurements === null && receipt.caseEvidence === null, 'OWNER_BOUNDARY')
     check(['accepted', 'rejected', 'deferred'].includes(receipt.ownerDecision), 'OWNER_BOUNDARY')
@@ -785,7 +853,15 @@ function validateReceipt(receipt, root) {
       check(Date.parse(technical.receipt.observedAt) <= Date.parse(receipt.observedAt), 'OWNER_BOUNDARY')
       const result = validateV3EvidenceEnvelope(technical, { root })
       if (receipt.ownerDecision === 'accepted') check(result.verdict === 'passed', 'OWNER_BOUNDARY')
-      if (technical.receipt.kind === 'real-input-observation') referencedExternalKinds.add('real-input')
+      const externalKind = technical.receipt.kind === 'real-input-observation'
+        ? 'real-input'
+        : technical.receipt.kind === 'real-logic-observation'
+          ? 'real-logic'
+          : null
+      if (externalKind !== null) {
+        check(!referencedExternalKinds.has(externalKind), 'OWNER_BOUNDARY')
+        referencedExternalKinds.add(externalKind)
+      }
     }
     if (receipt.ownerDecision === 'accepted' && receipt.referencedTechnicalReceipts.length > 0) {
       if (OUTPUT_SCOPES.has(receipt.scopeIds[0])) check(referencedExternalKinds.size === 0, 'OWNER_BOUNDARY')

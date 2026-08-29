@@ -241,12 +241,12 @@ function syncSampleArtifact(fixture) {
   artifact.sizeBytes = bytes.length
 }
 
-function realInputFixture(t, scopeId = 'MVP-05') {
+function externalFixture(t, { receiptId, kind, scopeId, externalKind, environmentAliasKey, environmentAlias, allowedOperations, allowedDataClasses, caseEvidence, observation }) {
   const fixture = actualFixture(t)
   const receipt = fixture.envelope.receipt
-  receipt.receiptId = 'real-input-window-01'
-  mkdirSync(path.join(fixture.root, `reports/runtime/task-079-v3-final-acceptance/receipts/${receipt.receiptId}`), { recursive: true })
-  receipt.kind = 'real-input-observation'
+  receipt.receiptId = receiptId
+  mkdirSync(path.join(fixture.root, `reports/runtime/task-079-v3-final-acceptance/receipts/${receiptId}`), { recursive: true })
+  receipt.kind = kind
   receipt.scopeIds = [scopeId]
   receipt.configuration = null
   receipt.configurationFingerprintSha256 = null
@@ -255,19 +255,11 @@ function realInputFixture(t, scopeId = 'MVP-05') {
   const matrix = JSON.parse(readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json'), 'utf8'))
   const entry = matrix.entries.find(value => value.id === scopeId)
   const criterionSha256 = sha256(Buffer.from(JSON.stringify(entry.source)))
-  upsertJsonArtifact(fixture, 'external-observation', 'external-observation', {
-    sourceAliases: ['source-01'],
-    sourceSha256s: ['d'.repeat(64)],
-  })
+  upsertJsonArtifact(fixture, 'external-observation', 'external-observation', observation)
   receipt.caseEvidence = {
-    type: 'real-input',
-    externalKind: 'real-input',
+    ...caseEvidence,
+    externalKind,
     criterionSha256,
-    sourceCount: 1,
-    authorizedRead: true,
-    contentHashesVerified: true,
-    originalBytesUnchanged: true,
-    criterionSatisfied: true,
     observationArtifactIds: ['external-observation'],
   }
   syncCaseArtifact(fixture)
@@ -275,8 +267,8 @@ function realInputFixture(t, scopeId = 'MVP-05') {
     runId: receipt.receiptId,
     osFamily: 'macos',
     architecture: 'arm64',
-    externalKind: 'real-input',
-    dataSourceAlias: 'source-root-01',
+    externalKind,
+    [environmentAliasKey]: environmentAlias,
   })
   const controlledFiles = [
     { relativePath: 'project/V3_ACCEPTANCE.json', sha256: receipt.matrixSha256 },
@@ -294,10 +286,10 @@ function realInputFixture(t, scopeId = 'MVP-05') {
     candidateCommit: receipt.candidateCommit,
     candidateTree: receipt.candidateTree,
     candidateManifestSha256: receipt.candidateManifestSha256,
-    externalKind: 'real-input',
+    externalKind,
     criterionSha256,
-    allowedOperations: ['read-source', 'hash-source'],
-    allowedDataClasses: ['anonymous-real-input'],
+    allowedOperations,
+    allowedDataClasses,
     grantedAt: '2026-08-29T05:50:00.000Z',
     expiresAt: '2026-08-29T06:10:00.000Z',
   })
@@ -307,7 +299,7 @@ function realInputFixture(t, scopeId = 'MVP-05') {
     candidateCommit: receipt.candidateCommit,
     candidateTree: receipt.candidateTree,
     candidateManifestSha256: receipt.candidateManifestSha256,
-    externalKind: 'real-input',
+    externalKind,
     criterionSha256,
     grantSha256: receipt.authorizationSha256,
     frozenAt: '2026-08-29T05:55:00.000Z',
@@ -318,7 +310,7 @@ function realInputFixture(t, scopeId = 'MVP-05') {
     candidateCommit: receipt.candidateCommit,
     candidateTree: receipt.candidateTree,
     candidateManifestSha256: receipt.candidateManifestSha256,
-    externalKind: 'real-input',
+    externalKind,
     criterionSha256,
     grantSha256: receipt.authorizationSha256,
     planSha256: receipt.planSha256,
@@ -326,6 +318,66 @@ function realInputFixture(t, scopeId = 'MVP-05') {
     passed: true,
   })
   return fixture
+}
+
+function realInputFixture(t, scopeId = 'MVP-05') {
+  return externalFixture(t, {
+    receiptId: 'real-input-window-01',
+    kind: 'real-input-observation',
+    scopeId,
+    externalKind: 'real-input',
+    environmentAliasKey: 'dataSourceAlias',
+    environmentAlias: 'source-root-01',
+    allowedOperations: ['read-source', 'hash-source'],
+    allowedDataClasses: ['anonymous-real-input'],
+    observation: { sourceAliases: ['source-01'], sourceSha256s: ['d'.repeat(64)] },
+    caseEvidence: {
+      type: 'real-input',
+      sourceCount: 1,
+      authorizedRead: true,
+      contentHashesVerified: true,
+      originalBytesUnchanged: true,
+      criterionSatisfied: true,
+    },
+  })
+}
+
+const REAL_LOGIC_OUTCOMES = {
+  'MVP-08': 'workspace-generated',
+  'MVP-09': 'exports-reimported',
+  'MVP-10': 'prepared-master-frozen',
+  'D-05': 'timeline-rebuilt',
+  'D-06': 'accepted-variance',
+  'D-07': 'requires-new-layout',
+  'D-08': 'freeze-blocked',
+}
+
+function realLogicFixture(t, scopeId = 'D-05') {
+  return externalFixture(t, {
+    receiptId: 'real-logic-window-01',
+    kind: 'real-logic-observation',
+    scopeId,
+    externalKind: 'real-logic',
+    environmentAliasKey: 'logicWorkspaceAlias',
+    environmentAlias: 'logic-workspace-01',
+    allowedOperations: ['open-workspace', 'read-export', 'hash-export', 'inspect-marker', 'inspect-timeline'],
+    allowedDataClasses: ['anonymous-real-logic'],
+    observation: {
+      workspaceAlias: 'logic-workspace-01',
+      projectSha256: 'b'.repeat(64),
+      exports: [{ exportAlias: 'export-a-01', sha256: 'c'.repeat(64), markerCount: 3, timelineSha256: 'd'.repeat(64) }],
+    },
+    caseEvidence: {
+      type: 'real-logic',
+      workspaceOpened: true,
+      exportCount: 1,
+      exportHashesVerified: true,
+      markerEvidenceVerified: true,
+      timelineEvidenceVerified: true,
+      observedOutcome: REAL_LOGIC_OUTCOMES[scopeId],
+      criterionSatisfied: true,
+    },
+  })
 }
 
 function writeReceiptSeal(root, receiptId, receiptBytes) {
@@ -589,6 +641,45 @@ test('技术证据与Owner观察必须分离且单份收据不能声明全局rea
   incompleteOwner.receipt.ownerDecision = 'accepted'
   incompleteOwner.receipt.referencedTechnicalReceipts = [{ receiptId: multiExternal.envelope.receipt.receiptId, receiptSha256: sha256(multiBytes) }]
   assert.throws(() => validateV3EvidenceEnvelope(incompleteOwner, { root: multiExternal.root }), /OWNER_BOUNDARY/u)
+
+  let logic
+  for (const scopeId of Object.keys(REAL_LOGIC_OUTCOMES)) {
+    const candidate = realLogicFixture(t, scopeId)
+    mkdirSync(path.join(candidate.root, 'project'), { recursive: true })
+    writeFileSync(path.join(candidate.root, 'project/V3_ACCEPTANCE.json'), readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json')))
+    assert.equal(validateV3EvidenceEnvelope(candidate.envelope, { root: candidate.root }).verdict, 'passed', scopeId)
+    if (scopeId === 'D-05') logic = candidate
+  }
+  const logicBytes = Buffer.from(JSON.stringify(logic.envelope))
+  const logicPath = `reports/runtime/task-079-v3-final-acceptance/receipts/${logic.envelope.receipt.receiptId}.json`
+  writeFileSync(path.join(logic.root, logicPath), logicBytes)
+  writeReceiptSeal(logic.root, logic.envelope.receipt.receiptId, logicBytes)
+  const logicOwner = structuredClone(logic.envelope)
+  logicOwner.receipt.receiptId = 'owner-logic-window-01'
+  logicOwner.receipt.kind = 'owner-observed'
+  logicOwner.receipt.artifacts = []
+  logicOwner.receipt.caseEvidence = null
+  logicOwner.receipt.verdict = null
+  logicOwner.receipt.ownerDecision = 'accepted'
+  logicOwner.receipt.referencedTechnicalReceipts = [{ receiptId: logic.envelope.receipt.receiptId, receiptSha256: sha256(logicBytes) }]
+  assert.equal(validateV3EvidenceEnvelope(logicOwner, { root: logic.root }).verdict, 'accepted')
+
+  const wrongLogicOutcome = realLogicFixture(t, 'D-07')
+  mkdirSync(path.join(wrongLogicOutcome.root, 'project'), { recursive: true })
+  writeFileSync(path.join(wrongLogicOutcome.root, 'project/V3_ACCEPTANCE.json'), readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json')))
+  wrongLogicOutcome.envelope.receipt.caseEvidence.observedOutcome = 'accepted-variance'
+  syncCaseArtifact(wrongLogicOutcome)
+  assert.throws(() => validateV3EvidenceEnvelope(wrongLogicOutcome.envelope, { root: wrongLogicOutcome.root }), /CASE_EVIDENCE/u)
+
+  const mismatchedWorkspace = realLogicFixture(t)
+  mkdirSync(path.join(mismatchedWorkspace.root, 'project'), { recursive: true })
+  writeFileSync(path.join(mismatchedWorkspace.root, 'project/V3_ACCEPTANCE.json'), readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json')))
+  upsertJsonArtifact(mismatchedWorkspace, 'external-observation', 'external-observation', {
+    workspaceAlias: 'logic-workspace-02',
+    projectSha256: 'b'.repeat(64),
+    exports: [{ exportAlias: 'export-a-01', sha256: 'c'.repeat(64), markerCount: 3, timelineSha256: 'd'.repeat(64) }],
+  })
+  assert.throws(() => validateV3EvidenceEnvelope(mismatchedWorkspace.envelope, { root: mismatchedWorkspace.root }), /CASE_EVIDENCE/u)
 })
 
 test('scope必须来自冻结103项且每份技术收据只覆盖一个B-01至B-15用例', t => {

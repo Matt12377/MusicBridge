@@ -24,6 +24,8 @@ Readiness CLI 还会在当前 TASK-079 Git 仓库中核对证据基础设施检�
 
 `real-input-observation` 用于 MVP-05、MVP-11、MVP-23、A-04，以及 A-02 的 real-input 子门。它必须绑定矩阵 source criterion SHA、同候选授权→Plan→Preflight链、匿名数据源环境、唯一 `external-observation` 和唯一 `case-evidence`；观察附件逐项保存匿名 source alias 与内容 SHA，数量必须匹配，并确认已授权读取、内容 Hash 已核、原字节未变且 criterion 满足。窗口角色固定为七类，不能夹带未参与判定的附件。A-02 仍同时要求 real-roon 收据，单份 real-input PASS 不足以让 Owner accepted。
 
+`real-logic-observation` 仅用于 MVP-08、MVP-09、MVP-10 与 D-05～D-08。它沿用同一候选、criterion、授权→Plan→Preflight封条，但操作权限固定为打开匿名工作区、只读导出、计算导出 Hash、检查 Marker 与 Timeline；数据类别固定为 `anonymous-real-logic`。唯一观察附件必须把匿名工作区与环境 seal 交叉绑定，保存工程 Hash，以及每个导出的匿名别名、内容 Hash、Marker 数和 Timeline Hash。每个 scope 的结论固定为 `workspace-generated`、`exports-reimported`、`prepared-master-frozen`、`timeline-rebuilt`、`accepted-variance`、`requires-new-layout` 或 `freeze-blocked` 中的对应一项，不能跨 scope 借用。文件存在、工作区曾打开或 Owner 单独确认都不能替代导出 Hash、Marker、Timeline 与 criterion 同时满足。
+
 receipt seal 用独占创建、`fsync`、回读和同 ID 不同内容拒绝来发现正常历史漂移；它不是数字签名，也不对抗拥有本机文件写权限的恶意用户同时删除或替换收据与 seal。若未来需要该威胁模型，必须引入 Owner 控制签名或外部只追加账本，不能把本地 seal 描述成不可抵赖证明。
 
 ## 2. 准入顺序

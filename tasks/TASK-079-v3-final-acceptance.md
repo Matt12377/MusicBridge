@@ -60,6 +60,8 @@ Owner accepted 的前置按 scope 分层：B-01～B-15 必须引用同 scope 的
 
 外部门技术收据按类别独立实现，不使用宽松的通用 PASS。首个 `real-input-observation` 只覆盖矩阵声明的 real-input 子门，固定七类附件、criterion SHA、候选和授权链，并由匿名 source alias/内容 SHA、只读不改原件事实共同支持。多外部门 scope 必须由 Owner 引用的技术收据集合精确覆盖全部非 owner requirements；A-02 只有 real-input 收据时仍拒绝。
 
+`real-logic-observation` 只覆盖 MVP-08/09/10 与 D-05～D-08，固定匿名工作区、工程 Hash、导出 Hash、Marker 数和 Timeline Hash，并把环境 workspace alias 与观察附件交叉绑定。七个 scope 各自具有唯一允许结论，不能用其他 Logic case 的结论、普通文件存在或 Owner 单份观察替代。Owner accepted 必须引用同 scope、同候选且已 seal 的 real-logic PASS；真实 Logic 尚未授权或运行时继续保持 `NOT_RUN`。
+
 TASK-078 的严格 fresh validator 已在其原工作树以完整、未跟踪的 runtime 日志与收据通过并由最终报告锁定。TASK-079 新工作树不复制这些大体积 runtime 证据，因此不重放该入口；本任务以固定矩阵 SHA256 `12f15170…`、最终基线 `fac7363…` 与103/101/2实际内容复核继承软件封条。缺少旧 runtime 文件时的 `PATH_UNAVAILABLE` 不是新的验收失败，也不能被改写成重跑授权。
 
 ## 停止条件
