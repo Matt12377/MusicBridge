@@ -108,7 +108,7 @@ function validateControlIdentity(status, wave) {
   check(device.plannedRecorder?.brand === 'Sony' && device.plannedRecorder?.type === 'cassette-deck' && device.plannedRecorder?.model === null, 'CONTROL_STATE')
   const gates = current.gates
   const notRun = ['externalGate', 'realInput', 'realLogic', 'realRoon', 'hardware', 'audibleReplica', 'outputBackendCertification', 'realRecording', 'paperPrint', 'ownerProductAcceptance']
-  check(gates && gates.readinessControl === READINESS_CONTROL && gates.externalEvidenceProfiles === 'REAL_INPUT_REAL_LOGIC_PREPARED_REAL_ROON_HARDWARE_PENDING', 'CONTROL_STATE')
+  check(gates && gates.readinessControl === READINESS_CONTROL && gates.externalEvidenceProfiles === 'REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED_HARDWARE_PENDING', 'CONTROL_STATE')
   check(notRun.every(key => gates[key] === 'NOT_RUN') && gates.ownerDecisions === 'PENDING_103', 'CONTROL_STATE')
   check(typeof wave === 'string', 'CONTROL_IDENTITY')
   const values = new Map()

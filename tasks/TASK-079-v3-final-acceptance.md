@@ -62,6 +62,8 @@ Owner accepted 的前置按 scope 分层：B-01～B-15 必须引用同 scope 的
 
 `real-logic-observation` 只覆盖 MVP-08/09/10 与 D-05～D-08，固定匿名工作区、工程 Hash、导出 Hash、Marker 数和 Timeline Hash，并把环境 workspace alias 与观察附件交叉绑定。七个 scope 各自具有唯一允许结论，不能用其他 Logic case 的结论、普通文件存在或 Owner 单份观察替代。Owner accepted 必须引用同 scope、同候选且已 seal 的 real-logic PASS；真实 Logic 尚未授权或运行时继续保持 `NOT_RUN`。
 
+`real-roon-observation` 只覆盖矩阵声明的九个 real-roon 子门，并以九套精确事实 schema 从匿名受控观察附件重算结论。observer 路径/Hash 必须存在于候选 manifest，窗口 correlation 必须贯穿授权、Plan、Preflight 和观察附件。A-02 只有在 real-input 与 real-roon 的 source alias/SHA 相同后才闭包；B-09 只有在 real-output/hardware 与 real-roon 同时 PASS，且窗口 correlation、事件 correlation、action kind 相同时才允许 Owner accepted。真实 Roon 尚未连接或授权时，收据验证器准备完成也不改变 `realRoon=NOT_RUN`。
+
 TASK-078 的严格 fresh validator 已在其原工作树以完整、未跟踪的 runtime 日志与收据通过并由最终报告锁定。TASK-079 新工作树不复制这些大体积 runtime 证据，因此不重放该入口；本任务以固定矩阵 SHA256 `12f15170…`、最终基线 `fac7363…` 与103/101/2实际内容复核继承软件封条。缺少旧 runtime 文件时的 `PATH_UNAVAILABLE` 不是新的验收失败，也不能被改写成重跑授权。
 
 ## 停止条件

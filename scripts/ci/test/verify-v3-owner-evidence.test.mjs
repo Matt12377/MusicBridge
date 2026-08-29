@@ -135,6 +135,8 @@ function actualFixture(t) {
         },
         caseEvidence: {
           type: 'output-stop',
+          correlationSha256: 'e'.repeat(64),
+          eventCorrelationSha256: 'f'.repeat(64),
           injectionKind: 'roon-track-change',
           interrupted: true,
           outputEndpointMeasured: true,
@@ -195,6 +197,7 @@ function syncControlSeals(fixture, { grantedAt = '2026-08-29T05:50:00.000Z' } = 
     candidateCommit: receipt.candidateCommit,
     candidateTree: receipt.candidateTree,
     candidateManifestSha256: receipt.candidateManifestSha256,
+    ...(scopeId === 'B-09' ? { correlationSha256: receipt.caseEvidence.correlationSha256 } : {}),
     configurationFingerprintSha256: receipt.configurationFingerprintSha256,
     measurementContractSha256,
     allowedOperations: ['read-evidence', ...(['B-09', 'B-10', 'B-11', 'B-12'].includes(scopeId) ? ['measure-output', 'inject-fault'] : [])],
@@ -209,6 +212,7 @@ function syncControlSeals(fixture, { grantedAt = '2026-08-29T05:50:00.000Z' } = 
     candidateCommit: receipt.candidateCommit,
     candidateTree: receipt.candidateTree,
     candidateManifestSha256: receipt.candidateManifestSha256,
+    ...(scopeId === 'B-09' ? { correlationSha256: receipt.caseEvidence.correlationSha256 } : {}),
     configurationFingerprintSha256: receipt.configurationFingerprintSha256,
     measurementContractSha256,
     grantSha256: receipt.authorizationSha256,
@@ -220,6 +224,7 @@ function syncControlSeals(fixture, { grantedAt = '2026-08-29T05:50:00.000Z' } = 
     candidateCommit: receipt.candidateCommit,
     candidateTree: receipt.candidateTree,
     candidateManifestSha256: receipt.candidateManifestSha256,
+    ...(scopeId === 'B-09' ? { correlationSha256: receipt.caseEvidence.correlationSha256 } : {}),
     configurationFingerprintSha256: receipt.configurationFingerprintSha256,
     measurementContractSha256,
     grantSha256: receipt.authorizationSha256,
@@ -241,7 +246,7 @@ function syncSampleArtifact(fixture) {
   artifact.sizeBytes = bytes.length
 }
 
-function externalFixture(t, { receiptId, kind, scopeId, externalKind, environmentAliasKey, environmentAlias, allowedOperations, allowedDataClasses, caseEvidence, observation }) {
+function externalFixture(t, { receiptId, kind, scopeId, externalKind, environmentAliasKey, environmentAlias, allowedOperations, allowedDataClasses, caseEvidence, observation, controlledFilesExtra = [] }) {
   const fixture = actualFixture(t)
   const receipt = fixture.envelope.receipt
   receipt.receiptId = receiptId
@@ -259,6 +264,7 @@ function externalFixture(t, { receiptId, kind, scopeId, externalKind, environmen
   receipt.caseEvidence = {
     ...caseEvidence,
     externalKind,
+    correlationSha256: 'e'.repeat(64),
     criterionSha256,
     observationArtifactIds: ['external-observation'],
   }
@@ -273,6 +279,7 @@ function externalFixture(t, { receiptId, kind, scopeId, externalKind, environmen
   const controlledFiles = [
     { relativePath: 'project/V3_ACCEPTANCE.json', sha256: receipt.matrixSha256 },
     { relativePath: 'scripts/ci/verify-v3-owner-evidence.mjs', sha256: '8'.repeat(64) },
+    ...controlledFilesExtra,
   ]
   receipt.candidateManifestSha256 = upsertJsonArtifact(fixture, 'candidate-manifest', 'candidate-manifest', {
     candidateCommit: receipt.candidateCommit,
@@ -287,6 +294,7 @@ function externalFixture(t, { receiptId, kind, scopeId, externalKind, environmen
     candidateTree: receipt.candidateTree,
     candidateManifestSha256: receipt.candidateManifestSha256,
     externalKind,
+    correlationSha256: receipt.caseEvidence.correlationSha256,
     criterionSha256,
     allowedOperations,
     allowedDataClasses,
@@ -300,6 +308,7 @@ function externalFixture(t, { receiptId, kind, scopeId, externalKind, environmen
     candidateTree: receipt.candidateTree,
     candidateManifestSha256: receipt.candidateManifestSha256,
     externalKind,
+    correlationSha256: receipt.caseEvidence.correlationSha256,
     criterionSha256,
     grantSha256: receipt.authorizationSha256,
     frozenAt: '2026-08-29T05:55:00.000Z',
@@ -311,6 +320,7 @@ function externalFixture(t, { receiptId, kind, scopeId, externalKind, environmen
     candidateTree: receipt.candidateTree,
     candidateManifestSha256: receipt.candidateManifestSha256,
     externalKind,
+    correlationSha256: receipt.caseEvidence.correlationSha256,
     criterionSha256,
     grantSha256: receipt.authorizationSha256,
     planSha256: receipt.planSha256,
@@ -378,6 +388,78 @@ function realLogicFixture(t, scopeId = 'D-05') {
       criterionSatisfied: true,
     },
   })
+}
+
+const REAL_ROON_CASES = {
+  'MVP-02': { outcome: 'v2-regression-observed', connectionState: 'connected', operations: ['browse-library', 'observe-playback'], facts: { requiredPageCount: 8, openedPageCount: 8, playbackStarted: true, playbackContinued: true, playbackStateBeforeSha256: '1'.repeat(64), playbackStateAfterSha256: '1'.repeat(64) } },
+  'MVP-14': { outcome: 'inventory-recommendation-observed', connectionState: 'connected', operations: ['browse-library', 'select-track', 'read-inventory-recommendation'], facts: { selectionSha256: '1'.repeat(64), recommendationSelectionSha256: '1'.repeat(64), reasonShown: true, availableCountShown: true, sideFitShown: true, revalidatedBeforeFormalRecording: true } },
+  'MVP-22': { outcome: 'relationship-lineage-separated', connectionState: 'connected', operations: ['browse-library', 'inspect-relationship', 'inspect-recording-lineage'], facts: { physicalReleaseAlias: 'physical-release-01', digitalReleaseAlias: 'digital-release-01', releaseRelationType: 'release-link', recordedLineageType: 'recorded-track-lineage', recordedTrackCount: 3, tracedTrackCount: 3 } },
+  'A-02': { outcome: 'roon-file-mapping-confirmed', connectionState: 'connected', operations: ['browse-library', 'inspect-reference', 'confirm-file-mapping'], facts: { roonEntryAlias: 'roon-entry-01', sourceAlias: 'source-01', sourceSha256: 'd'.repeat(64), mappingSha256: '2'.repeat(64), mappingConfirmedAt: '2026-08-29T05:59:50.000Z', mappingConfirmed: true } },
+  'B-09': { outcome: 'external-takeover-interrupted', connectionState: 'connected', operations: ['observe-zone', 'observe-queue', 'observe-attempt-state', 'inject-external-roon-change'], facts: { actionKind: 'roon-track-change', beforeStateSha256: '1'.repeat(64), afterStateSha256: '2'.repeat(64), eventCorrelationSha256: 'f'.repeat(64), changeObserved: true, attemptState: 'interrupted', exclusiveControlClaimed: false } },
+  'U-01': { outcome: 'physical-roon-relationship-observed', connectionState: 'connected', operations: ['browse-library', 'inspect-relationship'], facts: { physicalItemTypes: ['cd', 'original-cassette'], singleLibraryVisible: true, relationClassesObserved: ['exact', 'probable', 'related', 'unmatched'], unmatchedVisible: true } },
+  'U-06': { outcome: 'multi-release-lineage-preserved', connectionState: 'connected', operations: ['browse-library', 'select-track', 'inspect-recording-lineage'], facts: { albumCount: 2, trackCount: 4, tracedTrackCount: 4, recordingType: 'self-recorded', commercialExactCreated: false, originalInventoryIncrement: 0 } },
+  'U-07': { outcome: 'preliminary-flow-bounded', connectionState: 'connected', operations: ['browse-library', 'select-track', 'read-inventory-recommendation', 'inspect-recording-gate'], facts: { selectionObserved: true, sourceVerified: false, logicCompleted: false, recommendationLabel: 'preliminary-estimate', reasonShown: true, playbackTakeoverCount: 0, reservationCount: 0, formalStartCount: 0 } },
+  'U-10': { outcome: 'offline-history-preserved', connectionState: 'offline-observed', operations: ['observe-roon-offline', 'inspect-physical-history', 'inspect-attempt-state'], facts: { roonAvailableBefore: true, roonAvailableAfter: false, attemptState: 'interrupted', completedClaimed: false, blankInventoryIncrement: 0, physicalRecordPreserved: true, historyPreserved: true, manualBackfillMarkerPreserved: true } },
+}
+
+function realRoonFixture(t, scopeId = 'U-01') {
+  const contract = REAL_ROON_CASES[scopeId]
+  return externalFixture(t, {
+    receiptId: 'real-roon-window-01',
+    kind: 'real-roon-observation',
+    scopeId,
+    externalKind: 'real-roon',
+    environmentAliasKey: 'roonEnvironmentAlias',
+    environmentAlias: 'roon-environment-01',
+    allowedOperations: contract.operations,
+    allowedDataClasses: ['anonymous-real-roon'],
+    controlledFilesExtra: [{ relativePath: 'packages/bridge-core/src/roon/adapter.ts', sha256: '9'.repeat(64) }],
+    observation: {
+      roonEnvironmentAlias: 'roon-environment-01',
+      connectionState: contract.connectionState,
+      observerRelativePath: 'packages/bridge-core/src/roon/adapter.ts',
+      observerSha256: '9'.repeat(64),
+      correlationSha256: 'e'.repeat(64),
+      observedAt: '2026-08-29T05:59:55.000Z',
+      facts: contract.facts,
+      factsSha256: sha256(Buffer.from(JSON.stringify(contract.facts))),
+    },
+    caseEvidence: {
+      type: 'real-roon',
+      connectionState: contract.connectionState,
+      observedOutcome: contract.outcome,
+      criterionSatisfied: true,
+    },
+  })
+}
+
+function installTechnicalReceipt(sourceFixture, targetRoot) {
+  const receipt = sourceFixture.envelope.receipt
+  for (const artifact of receipt.artifacts) {
+    const targetPath = path.join(targetRoot, artifact.relativePath)
+    mkdirSync(path.dirname(targetPath), { recursive: true })
+    writeFileSync(targetPath, readFileSync(path.join(sourceFixture.root, artifact.relativePath)))
+  }
+  const bytes = Buffer.from(JSON.stringify(sourceFixture.envelope))
+  const relativePath = `reports/runtime/task-079-v3-final-acceptance/receipts/${receipt.receiptId}.json`
+  writeFileSync(path.join(targetRoot, relativePath), bytes)
+  writeReceiptSeal(targetRoot, receipt.receiptId, bytes)
+  return { receiptId: receipt.receiptId, receiptSha256: sha256(bytes) }
+}
+
+function ownerEnvelopeFrom(fixture, receiptId, references) {
+  const envelope = structuredClone(fixture.envelope)
+  envelope.receipt.receiptId = receiptId
+  envelope.receipt.kind = 'owner-observed'
+  envelope.receipt.configuration = null
+  envelope.receipt.configurationFingerprintSha256 = null
+  envelope.receipt.measurements = null
+  envelope.receipt.artifacts = []
+  envelope.receipt.caseEvidence = null
+  envelope.receipt.verdict = null
+  envelope.receipt.ownerDecision = 'accepted'
+  envelope.receipt.referencedTechnicalReceipts = references
+  return envelope
 }
 
 function writeReceiptSeal(root, receiptId, receiptBytes) {
@@ -543,6 +625,8 @@ test('技术证据与Owner观察必须分离且单份收据不能声明全局rea
   assert.throws(() => validateV3EvidenceEnvelope(envelope, { root }), /OWNER_BOUNDARY/u)
 
   const owner = actualFixture(t)
+  mkdirSync(path.join(owner.root, 'project'), { recursive: true })
+  writeFileSync(path.join(owner.root, 'project/V3_ACCEPTANCE.json'), readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json')))
   owner.envelope.receipt.scopeIds = ['B-13']
   syncControlSeals(owner)
   owner.envelope.receipt.measurements = null
@@ -680,6 +764,136 @@ test('技术证据与Owner观察必须分离且单份收据不能声明全局rea
     exports: [{ exportAlias: 'export-a-01', sha256: 'c'.repeat(64), markerCount: 3, timelineSha256: 'd'.repeat(64) }],
   })
   assert.throws(() => validateV3EvidenceEnvelope(mismatchedWorkspace.envelope, { root: mismatchedWorkspace.root }), /CASE_EVIDENCE/u)
+
+  const roonFixtures = new Map()
+  for (const scopeId of Object.keys(REAL_ROON_CASES)) {
+    const candidate = realRoonFixture(t, scopeId)
+    mkdirSync(path.join(candidate.root, 'project'), { recursive: true })
+    writeFileSync(path.join(candidate.root, 'project/V3_ACCEPTANCE.json'), readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json')))
+    assert.equal(validateV3EvidenceEnvelope(candidate.envelope, { root: candidate.root }).verdict, 'passed', scopeId)
+    roonFixtures.set(scopeId, candidate)
+  }
+  const wrongRoonEvent = realRoonFixture(t, 'U-07')
+  mkdirSync(path.join(wrongRoonEvent.root, 'project'), { recursive: true })
+  writeFileSync(path.join(wrongRoonEvent.root, 'project/V3_ACCEPTANCE.json'), readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json')))
+  const wrongObservation = {
+    roonEnvironmentAlias: 'roon-environment-01',
+    connectionState: 'connected',
+    observerRelativePath: 'packages/bridge-core/src/roon/adapter.ts',
+    observerSha256: '9'.repeat(64),
+    correlationSha256: 'e'.repeat(64),
+    observedAt: '2026-08-29T05:59:55.000Z',
+    facts: REAL_ROON_CASES['MVP-02'].facts,
+    factsSha256: sha256(Buffer.from(JSON.stringify(REAL_ROON_CASES['MVP-02'].facts))),
+  }
+  upsertJsonArtifact(wrongRoonEvent, 'external-observation', 'external-observation', wrongObservation)
+  assert.throws(() => validateV3EvidenceEnvelope(wrongRoonEvent.envelope, { root: wrongRoonEvent.root }), /CASE_EVIDENCE/u)
+
+  const privateRoonField = realRoonFixture(t, 'U-01')
+  mkdirSync(path.join(privateRoonField.root, 'project'), { recursive: true })
+  writeFileSync(path.join(privateRoonField.root, 'project/V3_ACCEPTANCE.json'), readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json')))
+  const privateArtifact = privateRoonField.envelope.receipt.artifacts.find(artifact => artifact.role === 'external-observation')
+  const privateObservation = JSON.parse(readFileSync(path.join(privateRoonField.root, privateArtifact.relativePath), 'utf8'))
+  privateObservation.zoneName = 'living-room'
+  upsertJsonArtifact(privateRoonField, 'external-observation', 'external-observation', privateObservation)
+  assert.throws(() => validateV3EvidenceEnvelope(privateRoonField.envelope, { root: privateRoonField.root }), /CASE_EVIDENCE/u)
+
+  const failedRoon = realRoonFixture(t, 'U-07')
+  mkdirSync(path.join(failedRoon.root, 'project'), { recursive: true })
+  writeFileSync(path.join(failedRoon.root, 'project/V3_ACCEPTANCE.json'), readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json')))
+  const failedArtifact = failedRoon.envelope.receipt.artifacts.find(artifact => artifact.role === 'external-observation')
+  const failedObservation = JSON.parse(readFileSync(path.join(failedRoon.root, failedArtifact.relativePath), 'utf8'))
+  failedObservation.facts.formalStartCount = 1
+  failedObservation.factsSha256 = sha256(Buffer.from(JSON.stringify(failedObservation.facts)))
+  upsertJsonArtifact(failedRoon, 'external-observation', 'external-observation', failedObservation)
+  failedRoon.envelope.receipt.caseEvidence.observedOutcome = null
+  failedRoon.envelope.receipt.caseEvidence.criterionSatisfied = false
+  failedRoon.envelope.receipt.verdict = 'failed'
+  failedRoon.envelope.receipt.reasonCodes = ['event-mismatch']
+  syncCaseArtifact(failedRoon)
+  assert.equal(validateV3EvidenceEnvelope(failedRoon.envelope, { root: failedRoon.root }).verdict, 'failed')
+  failedRoon.envelope.receipt.verdict = 'passed'
+  failedRoon.envelope.receipt.reasonCodes = []
+  assert.throws(() => validateV3EvidenceEnvelope(failedRoon.envelope, { root: failedRoon.root }), /CASE_EVIDENCE/u)
+
+  const roonOnlyA02 = roonFixtures.get('A-02')
+  const roonOnlyReference = installTechnicalReceipt(roonOnlyA02, roonOnlyA02.root)
+  const roonOnlyOwner = structuredClone(roonOnlyA02.envelope)
+  roonOnlyOwner.receipt.receiptId = 'owner-roon-a02-window-01'
+  roonOnlyOwner.receipt.kind = 'owner-observed'
+  roonOnlyOwner.receipt.artifacts = []
+  roonOnlyOwner.receipt.caseEvidence = null
+  roonOnlyOwner.receipt.verdict = null
+  roonOnlyOwner.receipt.ownerDecision = 'accepted'
+  roonOnlyOwner.receipt.referencedTechnicalReceipts = [roonOnlyReference]
+  assert.throws(() => validateV3EvidenceEnvelope(roonOnlyOwner, { root: roonOnlyA02.root }), /OWNER_BOUNDARY/u)
+
+  const roonOnlyU10 = roonFixtures.get('U-10')
+  const roonOnlyU10Reference = installTechnicalReceipt(roonOnlyU10, roonOnlyU10.root)
+  const roonOnlyU10Owner = ownerEnvelopeFrom(roonOnlyU10, 'owner-roon-u10-window-01', [roonOnlyU10Reference])
+  assert.throws(() => validateV3EvidenceEnvelope(roonOnlyU10Owner, { root: roonOnlyU10.root }), /OWNER_BOUNDARY/u)
+
+  const outputB09 = actualFixture(t)
+  mkdirSync(path.join(outputB09.root, 'project'), { recursive: true })
+  writeFileSync(path.join(outputB09.root, 'project/V3_ACCEPTANCE.json'), readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json')))
+  const outputReference = installTechnicalReceipt(outputB09, outputB09.root)
+  const ownerB09 = structuredClone(outputB09.envelope)
+  ownerB09.receipt.receiptId = 'owner-b09-window-01'
+  ownerB09.receipt.kind = 'owner-observed'
+  ownerB09.receipt.configuration = null
+  ownerB09.receipt.configurationFingerprintSha256 = null
+  ownerB09.receipt.measurements = null
+  ownerB09.receipt.artifacts = []
+  ownerB09.receipt.caseEvidence = null
+  ownerB09.receipt.verdict = null
+  ownerB09.receipt.ownerDecision = 'accepted'
+  ownerB09.receipt.referencedTechnicalReceipts = [outputReference]
+  assert.throws(() => validateV3EvidenceEnvelope(ownerB09, { root: outputB09.root }), /OWNER_BOUNDARY/u)
+  const roonB09Reference = installTechnicalReceipt(roonFixtures.get('B-09'), outputB09.root)
+  ownerB09.receipt.referencedTechnicalReceipts.push(roonB09Reference)
+  assert.equal(validateV3EvidenceEnvelope(ownerB09, { root: outputB09.root }).verdict, 'accepted')
+
+  const roonA02Reference = installTechnicalReceipt(roonFixtures.get('A-02'), multiExternal.root)
+  incompleteOwner.receipt.referencedTechnicalReceipts.push(roonA02Reference)
+  assert.equal(validateV3EvidenceEnvelope(incompleteOwner, { root: multiExternal.root }).verdict, 'accepted')
+
+  const mismatchedB09Output = actualFixture(t)
+  mkdirSync(path.join(mismatchedB09Output.root, 'project'), { recursive: true })
+  writeFileSync(path.join(mismatchedB09Output.root, 'project/V3_ACCEPTANCE.json'), readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json')))
+  const mismatchedB09Roon = realRoonFixture(t, 'B-09')
+  mkdirSync(path.join(mismatchedB09Roon.root, 'project'), { recursive: true })
+  writeFileSync(path.join(mismatchedB09Roon.root, 'project/V3_ACCEPTANCE.json'), readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json')))
+  const b09ObservationArtifact = mismatchedB09Roon.envelope.receipt.artifacts.find(artifact => artifact.role === 'external-observation')
+  const b09Observation = JSON.parse(readFileSync(path.join(mismatchedB09Roon.root, b09ObservationArtifact.relativePath), 'utf8'))
+  b09Observation.facts.eventCorrelationSha256 = 'a'.repeat(64)
+  b09Observation.factsSha256 = sha256(Buffer.from(JSON.stringify(b09Observation.facts)))
+  upsertJsonArtifact(mismatchedB09Roon, 'external-observation', 'external-observation', b09Observation)
+  assert.equal(validateV3EvidenceEnvelope(mismatchedB09Roon.envelope, { root: mismatchedB09Roon.root }).verdict, 'passed')
+  const mismatchedB09References = [
+    installTechnicalReceipt(mismatchedB09Output, mismatchedB09Output.root),
+    installTechnicalReceipt(mismatchedB09Roon, mismatchedB09Output.root),
+  ]
+  const mismatchedB09Owner = ownerEnvelopeFrom(mismatchedB09Output, 'owner-b09-mismatch-window-01', mismatchedB09References)
+  assert.throws(() => validateV3EvidenceEnvelope(mismatchedB09Owner, { root: mismatchedB09Output.root }), /OWNER_BOUNDARY/u)
+
+  const mismatchedA02Input = realInputFixture(t, 'A-02')
+  mkdirSync(path.join(mismatchedA02Input.root, 'project'), { recursive: true })
+  writeFileSync(path.join(mismatchedA02Input.root, 'project/V3_ACCEPTANCE.json'), readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json')))
+  const mismatchedA02Roon = realRoonFixture(t, 'A-02')
+  mkdirSync(path.join(mismatchedA02Roon.root, 'project'), { recursive: true })
+  writeFileSync(path.join(mismatchedA02Roon.root, 'project/V3_ACCEPTANCE.json'), readFileSync(path.join(projectRoot, 'project/V3_ACCEPTANCE.json')))
+  const a02ObservationArtifact = mismatchedA02Roon.envelope.receipt.artifacts.find(artifact => artifact.role === 'external-observation')
+  const a02Observation = JSON.parse(readFileSync(path.join(mismatchedA02Roon.root, a02ObservationArtifact.relativePath), 'utf8'))
+  a02Observation.facts.sourceSha256 = 'c'.repeat(64)
+  a02Observation.factsSha256 = sha256(Buffer.from(JSON.stringify(a02Observation.facts)))
+  upsertJsonArtifact(mismatchedA02Roon, 'external-observation', 'external-observation', a02Observation)
+  assert.equal(validateV3EvidenceEnvelope(mismatchedA02Roon.envelope, { root: mismatchedA02Roon.root }).verdict, 'passed')
+  const mismatchedA02References = [
+    installTechnicalReceipt(mismatchedA02Input, mismatchedA02Input.root),
+    installTechnicalReceipt(mismatchedA02Roon, mismatchedA02Input.root),
+  ]
+  const mismatchedA02Owner = ownerEnvelopeFrom(mismatchedA02Input, 'owner-a02-mismatch-window-01', mismatchedA02References)
+  assert.throws(() => validateV3EvidenceEnvelope(mismatchedA02Owner, { root: mismatchedA02Input.root }), /OWNER_BOUNDARY/u)
 })
 
 test('scope必须来自冻结103项且每份技术收据只覆盖一个B-01至B-15用例', t => {
@@ -806,6 +1020,10 @@ test('B09至B12故障类型、恢复状态和输出端测量不可跨用', t => 
   for (const [gateId, injectionKind] of allowed) {
     const fixture = actualFixture(t)
     fixture.envelope.receipt.scopeIds = [gateId]
+    if (gateId !== 'B-09') {
+      delete fixture.envelope.receipt.caseEvidence.correlationSha256
+      delete fixture.envelope.receipt.caseEvidence.eventCorrelationSha256
+    }
     fixture.envelope.receipt.caseEvidence.injectionKind = injectionKind
     fixture.envelope.receipt.caseEvidence.recoveredState = gateId === 'B-12' ? 'interrupted' : null
     syncControlSeals(fixture)
