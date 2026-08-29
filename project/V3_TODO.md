@@ -6,7 +6,7 @@
 
 ## 实时进度面板
 
-> **当前执行：** `TASK-079 / 本地证据控制面与机器状态已封存，真实环境 Gate 等待外部条件`。证据检查点已从“字符串相等”加固为当前TASK-079仓库真实commit对象、线性祖先链与HEAD可达性验证；实现`5bd46e10…`、报告`932fb71b…`已本地提交，readiness扩展为15/15。设备仍未枚举/打开/配置，真实Gate A～E/B-01～B-15/U-01～U-10与Owner 103项决定全部保持未运行，Gate B=`NOT_RUN`，`formalReady=false`；设备接入并取得逐次授权后从本行继续。
+> **当前执行：** `TASK-079 / Owner 103项证据闭包继续开发`。已修复非B且外部门仅为Owner的scope无法合法accepted的问题：固定软件矩阵fresh通过后可由Owner观察独立闭包，含real-input/logic/roon/hardware的条目仍拒绝越级；实现`a8b1d762…`、报告`9011701a…`已本地提交。设备仍未枚举/打开/配置，真实Gate A～E/B-01～B-15/U-01～U-10与Owner 103项决定全部保持未运行，Gate B=`NOT_RUN`，`formalReady=false`。
 
 - [x] TASK-079 / 真实证据 JSON 模板：只跟踪 `template=true`、`ready=false`、`receipt=null` 空模板；实际收据固定留在忽略目录且一份只覆盖一个B项。
 - [x] TASK-079 / 收据校验器复审修复TDD：复审后RED为17/19，扩展后25/25专项GREEN；覆盖逐case事实、失败/超时/停止/不确定终态、Owner与证书闭包、独占窗口、完整配置/授权/环境seal、dirty候选、隐私解码与receipt seal。
@@ -19,10 +19,11 @@
 - [x] TASK-079 / STATUS机器状态同步：锁定收据基础设施与candidate closure两段base/实现/报告/最终SHA及25→26专项计数；删除、错SHA或错计数均由readiness拒绝。
 - [x] TASK-079 / Readiness Gate计数一致性：STATUS先关闭旧`PASS_13...`漂移，并随Git可达性新增专项同步为`PASS_15...`；验证器精确锁定当前计数，不再静默落后。
 - [x] TASK-079 / Git检查点可达性：readiness确认仓库根、TASK-079分支、七个真实commit对象、两段线性祖先关系及最终closure到HEAD可达；交换顺序或复制状态文本均拒绝。
+- [x] TASK-079 / Owner-only scope闭包：非B scope仅当TASK-078矩阵`mapped + fresh passed`且外部门精确只有owner时允许零技术引用accepted；U-01等仍需real-roon/hardware的条目保持阻断。
 - [x] TASK-079 / Gate B 运行手册：逐项覆盖 B-01～B-15、共同测量时基、无声判据、P50/P95/P99/max、失败/超时保留、停止条件和 RME/Apogee + Sony 待冻结配置。
 - [x] TASK-079 / 独立规格与质量复审：第二轮已完成并退回（规格复审7项P0，隐私复审1项P0/5项P1）；按两轮上限不启动第三轮，主任务逐项修复、补RED/GREEN并完成最终静态裁决。
 - [x] TASK-079 / 本轮回归：追加加固后26/26专项、readiness 15/15、两个默认CLI、Node语法、标准`verify`、控制/边界/循环和diff-check全部exit 0；Contracts 186/186、Bridge Core 1241/1242（0 fail、1条件性skip）、Desktop 643/643及三包构建PASS。
-- [x] TASK-079 / 本地检查点：证据基础设施实现`e43f39f1…`、报告`23da9a12…`；candidate closure实现`04b77e45…`、报告`98bce05e…`；STATUS同步实现`9a991a6f…`、报告`ea257111…`；计数修正实现`4ec0711c…`、报告`9a93bc13…`；Git可达性实现`5bd46e108e9ae2f6aac20c33fd6d9f2927971561`、报告`932fb71b253a628c5acfda2b63230dc9e1b0ebee`；未push、未合并main、未发布。
+- [x] TASK-079 / 本地检查点：证据基础设施实现`e43f39f1…`、报告`23da9a12…`；candidate closure实现`04b77e45…`、报告`98bce05e…`；STATUS同步实现`9a991a6f…`、报告`ea257111…`；计数修正实现`4ec0711c…`、报告`9a93bc13…`；Git可达性实现`5bd46e10…`、报告`932fb71b…`；Owner-only闭包实现`a8b1d7629346f7bf578589fea4706f39b4fe0341`、报告`9011701ab45bd1cef5882ceab4a36ee6a84ea2a1`；未push、未合并main、未发布。
 - [ ] TASK-079 / 真实 Gate A～E、U-01～U-10、实体录音/打印/Replica 与 Owner 103 项决定：等待相应设备、资料及逐次授权，当前不运行。
 
 - [x] TASK-064～072：本地软件阶段完成；真实账号、真实数据和 Owner 验收仍按各任务报告保留。
