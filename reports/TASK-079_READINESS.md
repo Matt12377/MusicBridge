@@ -10,7 +10,7 @@
 - 报告提交：`93feee20c2edbd027546b44cc908aee27ef785b1`
 - GitHub：未 push；未合并 `main`；未安装、签名、公证或发布
 
-本阶段完成的是**无设备就绪控制面**，当前结论固定为 `READY=false`。验证器确认清单结构、TASK-078冻结身份、TASK-079控制身份和所有外部门保持fail-closed；它不认证声卡、卡座、真实输入、Logic/Roon、可听Replica、实录、实体打印或Owner接受。
+基础 readiness 控制、主任务修复与本地回归已经完成，当前结论固定为 `READY=false`；完整无设备证据控制面尚未取得独立闭包。hardware evidence contract v2 在主任务实现后为33/33专项GREEN，但第二轮独立复审最终RED继续保留，未执行第三轮且没有独立PASS。capacity issuer同样只记录主任务裁决后的12/12回归，新的fresh authority仍待独立决定。当前readiness验证器已精确要求这组机器真相并通过15/15；它不认证声卡、卡座、真实输入、Logic/Roon、可听Replica、实录、实体打印或Owner接受。
 
 ## 实现
 
@@ -26,7 +26,7 @@
 - RED-02：同计数篡改矩阵并同步自报hash时未被拒绝，定点测试9/10；加入冻结SHA硬锚后关闭。
 - RED-03：独立SPEC审查指出STATUS外部门可与清单矛盾、CLI错误未归一和缺实际符号链接回归；新增RED后修复，最终focused 13/13通过。
 
-## 当前验证
+## 初始 readiness 切片验证（历史快照）
 
 | 入口 | 结果 | 含义 |
 | --- | --- | --- |
@@ -151,10 +151,19 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 
 - 实现提交：`a6d3c798452dc01b3cd49657c94397fefeb5bbcd`
 - RED：新增 `hardware-observation` 的四个正例先被旧验证器以 `RECEIPT_STATE` 拒绝，Owner 聚合也无法闭合非 B hardware。第一轮复审随后证明 standalone B-15 certificate 可自造；修复其源收据递归验证后，第二轮又证明 B-07/B-14/B-09 依赖可晚于 hardware Preflight 且来自其他 Attempt/实体。
-- GREEN：hardware 只覆盖 MVP-16/MVP-18/U-05/U-10，B-09～B-15 继续由 real-output 承担。配置身份收据递归验证源 B-15 receipt/seal、候选/tree/manifest、矩阵、指纹与时间；依赖集合摘要冻结进授权→Plan→Preflight，依赖必须早于 hardware 授权，并用 `hardware-subject-binding` 对齐窗口、Attempt、Physical Copy、Side/完成/事件 correlation。MVP-18 额外锁定 Replica profile、同窗口、目标/输出 Hash、expected/submitted/observed 全帧与 endpoint drain；U-10 与 real-roon 对齐 `roon-offline` 事件及状态事实。
-- 两轮复审上限：第二轮最终意见后未派第三轮。主任务完成依赖前置、subject binding、manifest 对齐和 Replica correlation 的静态裁决，再执行最终回归；因此这里记录的是主任务裁决后的验证结果，不伪称第三方最终复审 PASS。
-- 新鲜结果：证据专项 28/28、readiness 15/15、两个默认 CLI、Node 语法、控制面、边界、循环及 `git diff --check` 全部 exit 0。STATUS 为 `REAL_INPUT_REAL_LOGIC_REAL_ROON_HARDWARE_PREPARED`。
+- 主任务修复与回归 GREEN：hardware 只覆盖 MVP-16/MVP-18/U-05/U-10，B-09～B-15 继续由 real-output 承担。配置身份收据递归验证源 B-15 receipt/seal、候选/tree/manifest、矩阵、指纹与时间；依赖集合摘要冻结进授权→Plan→Preflight，依赖必须早于 hardware 授权，并用 `hardware-subject-binding` 对齐窗口、Attempt、Physical Copy、Side/完成/事件 correlation。MVP-18 额外锁定 Replica profile、同窗口、目标/输出 Hash、expected/submitted/observed 全帧与 endpoint drain；U-10 与 real-roon 对齐 `roon-offline` 事件及状态事实。
+- 两轮复审上限：第二轮最终意见后未派第三轮。主任务完成依赖前置、subject binding、manifest 对齐和 Replica correlation 的静态裁决，再执行最终回归。当前独立审查状态仍为 `R2_FINAL_RED`、`independentPass=false`；28/28只表示主任务裁决后的回归GREEN，不改写为第三方最终复审PASS。
+- hardware v1切片完成时：证据专项 28/28；readiness 15/15和默认CLI是在旧 `HARDWARE_PREPARED` 状态契约下取得的历史结果。该旧契约随后由contract v2机器状态取代；此处只保留历史，不得沿用其GREEN冒充当前验证。
 - 边界：配置身份收据只证明被引用 B-15 技术窗口和候选配置身份，不等于完整 Gate B 认证；JSON、SHA 与本地 seal 也不是外部设备签名。当前没有设备连接、枚举、打开、配置、发声、录音、拔插或故障注入，没有可听 Replica 或实体库存结果；`hardware=NOT_RUN`、`Gate B=NOT_RUN`、Owner 103 项仍 `pending`、`formalReady=false`。
+
+#### Hardware evidence contract v2 主任务加固
+
+- 实现提交：`7f373784de01b4be72f93c6c1ed117cac417deb2`
+- 新增 `configuration-observation`、`observer-execution` 与 `scope-evidence` 三类强制 artifact。配置观察从完整 before/after 配置独立重算指纹；observer execution 绑定候选 source、授权、Plan、Preflight、操作集合、退出状态与scope evidence；MVP-16、MVP-18、U-05、U-10分别使用typed evidence交叉验证事件、Replica源/输出帧、库存/重启和离线中断窗口。
+- 原 `hardware-configuration-certificate` 明确降级为 schema v2 `b15-configuration-identity`，加入有效期与四个适用scope；它不能宣称完整Gate B认证。U-10依赖必须是同一 `roon-offline` 事件，普通B-09 `roon-track-change`不可替代。
+- 攻击回归覆盖删除三类artifact、MVP-18自洽伪facts、U-05自哈希库存、observer失败/换source、过期或漏scope identity、U-10错依赖；hardware/U-10定向7/7、evidence完整33/33、readiness 15/15均PASS。
+- 标准`pnpm verify`完成 Contracts 186/186、Bridge Core 1242/1242、Desktop 643/643与三包构建；控制面、边界、两个默认CLI、Node语法和`git diff --check`均PASS。
+- 独立复审状态未被改写：R2最终仍为RED、`independentPass=false`、未执行第三轮。没有设备或真实数据操作；`hardware=NOT_RUN`、`Gate B=NOT_RUN`、`formalReady=false`。
 
 ### Capacity authority issuer 与 window-02 控制失败
 
@@ -165,7 +174,9 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - TDD 初始 RED 为仓库内缺少 durable issuer、3/3 失败。实现只 exclusive-create 控制 authority，不运行 benchmark、不删除证据、不授予重试；它绑定仓库分支/HEAD、Git blob、supervisor/consumer、旧 owned manifest、terminal close、四个 carryover 根、容量投影与不可重放 label。
 - 第一轮独立规格复审的 4 项 P1 已关闭。第二轮最终复审仍以 3 项 P1 退回；按两轮上限没有第三次代理复审。主任务随后补齐 approved window 最后一步原子发布、失败 authority owned 继承、损坏/漂移/符号链接 replay fail-closed，并加入相应负例。这里记录主任务裁决后的验证结果，不把第二轮 RED 改写为独立复审 PASS。
 
-| 入口 | 新鲜结果 | 边界 |
+下表是capacity issuer切片完成时的历史验证快照；本次机器真相同步后的live readiness结果见后文。
+
+| 入口 | 切片完成时结果 | 边界 |
 | --- | --- | --- |
 | capacity issuer 专项 | PASS，12/12，exit 0 | 覆盖真实 carryover、终态进程、marker 漂移、consumer、replay、失败目录继承及发布前故障；没有签发真实窗口 |
 | Python compile | PASS，exit 0 | `issue-v3-capacity-window.py` 可编译 |
@@ -175,4 +186,11 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 | 控制/边界/循环 | PASS，均 exit 0 | `CONTROL_PLANE=PASS`、`BOUNDARIES=PASS`、`CYCLES=PASS files=259` |
 | `git diff --check` | PASS，exit 0 | 无空白错误 |
 
-当前没有签发或运行 window-03。新的 objects-limit generation 仍需要独立 fresh authority 决定；它通过后才可按线性顺序进入 measure、large queued-stop 与 joint。设备、Roon、真实资料和 Owner Gate 的状态没有变化。
+当前没有签发或运行 window-03，机器状态保持 `capacityAuthority=PENDING_FRESH_WINDOW_AUTHORIZATION`。新的 objects-limit generation 仍需要独立 fresh authority 决定；它通过后才可按线性顺序进入 measure、large queued-stop 与 joint。设备、Roon、真实资料和 Owner Gate 的状态没有变化。
+
+### 当前机器真相同步
+
+- hardware contract v2主任务：33/33专项GREEN；独立第二轮最终结论：RED；未执行第三轮，`independentPass=false`。
+- 真实hardware和Gate B：均为`NOT_RUN`；没有设备操作或真实数据写入。
+- capacity authority：`PENDING_FRESH_WINDOW_AUTHORIZATION`；`freshWindowAuthorized=false`，没有签发或运行新窗口。
+- 本次live校验：STATUS JSON解析与字段级真相断言PASS；readiness focused 15/15、默认CLI exit 0且仍为`ready=false`；evidence focused 33/33与模板CLI exit 0；`git diff --check` PASS。旧 `HARDWARE_PREPARED` 精确契约已移除，机器状态不能再掩盖独立R2最终RED。

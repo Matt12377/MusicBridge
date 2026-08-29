@@ -13,6 +13,9 @@ const MATRIX_SHA256 = '12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7f
 const EXTERNAL_KINDS = ['real-input', 'real-logic', 'real-roon', 'hardware', 'owner']
 const UNMAPPED_PENDING = ['B-13', 'B-15']
 const READINESS_CONTROL = 'PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO'
+const DEVELOPMENT_STATE = 'no-device-control-main-green-hardware-independent-r2-final-red-capacity-authority-pending-external-not-run'
+const EXTERNAL_EVIDENCE_PROFILES = 'REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED'
+const CAPACITY_AUTHORITY = 'PENDING_FRESH_WINDOW_AUTHORIZATION'
 const EVIDENCE_INFRASTRUCTURE = {
   state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
   receiptFoundation: {
@@ -29,6 +32,48 @@ const EVIDENCE_INFRASTRUCTURE = {
     finalCommit: 'c66da1c741db87414976686ede6e02387f93ea7d',
     focusedTests: 26,
   },
+}
+const HARDWARE_EVIDENCE_CONTROL = {
+  state: 'CONTRACT_V2_MAIN_GREEN_AFTER_INDEPENDENT_R2_FINAL_RED',
+  previousImplementationCommit: 'a6d3c798452dc01b3cd49657c94397fefeb5bbcd',
+  previousReportCommit: 'cf6d570fc87861010493d4e8d3c2237e9931d54f',
+  contractV2ImplementationCommit: '7f373784de01b4be72f93c6c1ed117cac417deb2',
+  contractV2ReportCommit: null,
+  focusedVerification: { tests: 33, passed: 33, failed: 0 },
+  independentReviewRound1: 'RED_STANDALONE_B15_CERTIFICATE',
+  independentReviewRound2Final: 'RED_DEPENDENCY_ORDER_AND_SUBJECT_BINDING',
+  mainAdjudication: [
+    'dependency-receipts-must-precede-hardware-authorization',
+    'hardware-subject-binding-aligns-window-attempt-physical-copy-side-and-event',
+    'replica-manifest-frame-and-endpoint-correlation',
+    'configuration-observation-recomputes-before-and-after-fingerprint',
+    'observer-execution-binds-authority-plan-preflight-source-and-operations',
+    'typed-scope-evidence-binds-mvp16-mvp18-u05-u10',
+    'b15-identity-has-expiry-and-never-claims-full-gate-b-certification',
+    'u10-roon-offline-rejects-track-change-dependency',
+  ],
+  independentPass: false,
+  thirdReviewPerformed: false,
+  hardwareRun: 'NOT_RUN',
+  gateB: 'NOT_RUN',
+}
+const CAPACITY_WINDOW_ISSUER = {
+  state: 'IMPLEMENTED_MAIN_ADJUDICATION_AFTER_FINAL_REVIEW_RED',
+  initialRed: 'script-missing-3of3-fail',
+  focusedVerification: { tests: 12, passed: 12, failed: 0 },
+  pythonCompile: 'PASS',
+  independentReviewRound1: 'SPEC_RED_P1_4_FIXED',
+  independentReviewRound2Final: 'SPEC_RED_P1_3_FIXED_BY_MAIN_WITHOUT_THIRD_REVIEW',
+  mainAdjudication: [
+    'approved-window-last-step-atomic-publish',
+    'terminal-failed-authority-owned-carryover',
+    'malformed-drifted-symlink-replay-audit-fail-closed',
+  ],
+  writesAuthorityOnly: true,
+  executesBenchmark: false,
+  freshWindowAuthorized: false,
+  deviceOpened: false,
+  gateB: 'NOT_RUN',
 }
 const hash = bytes => createHash('sha256').update(bytes).digest('hex')
 const fail = code => { throw new Error(code) }
@@ -101,14 +146,17 @@ export function validateEvidenceCheckpointRepository(root, infrastructure = EVID
 function validateControlIdentity(status, wave) {
   const current = status?.v3Development
   check(current && current.task === TASK && current.branch === 'codex/task-079-v3-final-acceptance' && current.baseCommit === BASE_COMMIT, 'CONTROL_IDENTITY')
+  check(current.state === DEVELOPMENT_STATE, 'CONTROL_STATE')
   check(JSON.stringify(current.evidenceInfrastructure) === JSON.stringify(EVIDENCE_INFRASTRUCTURE), 'CONTROL_STATE')
+  check(JSON.stringify(current.hardwareEvidenceControl) === JSON.stringify(HARDWARE_EVIDENCE_CONTROL), 'CONTROL_STATE')
+  check(JSON.stringify(current.task078SoftwareCheckpoints?.capacityWindowIssuer) === JSON.stringify(CAPACITY_WINDOW_ISSUER), 'CONTROL_STATE')
   const device = current.deviceTestPlanning
   check(device && device.connectionState === 'no-devices-connected' && device.deviceOperationsAuthorization === 'NOT_GRANTED' && device.measurementConfiguration === 'PENDING' && device.outputBackendCertification === 'NOT_RUN', 'CONTROL_STATE')
   check(Array.isArray(device.audioInterfaceBrandCandidates) && JSON.stringify(device.audioInterfaceBrandCandidates) === JSON.stringify(['RME', 'Apogee']) && device.audioInterfaceModel === null, 'CONTROL_STATE')
   check(device.plannedRecorder?.brand === 'Sony' && device.plannedRecorder?.type === 'cassette-deck' && device.plannedRecorder?.model === null, 'CONTROL_STATE')
   const gates = current.gates
   const notRun = ['externalGate', 'realInput', 'realLogic', 'realRoon', 'hardware', 'audibleReplica', 'outputBackendCertification', 'realRecording', 'paperPrint', 'ownerProductAcceptance']
-  check(gates && gates.readinessControl === READINESS_CONTROL && gates.externalEvidenceProfiles === 'REAL_INPUT_REAL_LOGIC_REAL_ROON_HARDWARE_PREPARED', 'CONTROL_STATE')
+  check(gates && gates.readinessControl === READINESS_CONTROL && gates.externalEvidenceProfiles === EXTERNAL_EVIDENCE_PROFILES && gates.capacityAuthority === CAPACITY_AUTHORITY, 'CONTROL_STATE')
   check(notRun.every(key => gates[key] === 'NOT_RUN') && gates.ownerDecisions === 'PENDING_103', 'CONTROL_STATE')
   check(typeof wave === 'string', 'CONTROL_IDENTITY')
   const values = new Map()
