@@ -651,17 +651,26 @@ def issue(options):
     if close_path.parent != runtime:
         fail('CARRYOVER_TERMINAL')
     close_value, close_sha = strict_json(close_path)
-    if close_sha != terminal['sha256'] or not isinstance(close_value, dict) or close_value.get('scope') != 'musicbridge-capacity-generation-close' or close_value.get('safety', {}).get('replayAllowed') is not False:
+    if close_sha != terminal['sha256'] or not isinstance(close_value, dict) or close_value.get('scope') != 'musicbridge-capacity-generation-close':
+        fail('CARRYOVER_TERMINAL')
+    close_safety = close_value.get('safety', {})
+    if not isinstance(close_safety, dict) or close_safety.get('replayAllowed') is not False:
         fail('CARRYOVER_TERMINAL')
     terminal_parent_name = close_path.name.removesuffix('-close.json')
     terminal_parent = runtime / terminal_parent_name
     terminal_window_path = terminal_parent / 'window.json'
     terminal_window, terminal_window_sha = strict_json(terminal_window_path)
+    if not isinstance(terminal_window, dict):
+        fail('CARRYOVER_TERMINAL')
     close_window = close_value.get('window')
-    if not isinstance(close_window, dict) or terminal_window_sha != close_window.get('sha256') or close_window.get('id') != terminal_window.get('id') or close_window.get('profile') != options.profile or terminal_window.get('profile') != options.profile or terminal_window.get('ownedManifest', {}).get('sha256') != base_sha or base_path != terminal_parent / 'owned-roots.json':
+    terminal_owned_manifest = terminal_window.get('ownedManifest')
+    if not isinstance(close_window, dict) or not isinstance(terminal_owned_manifest, dict) or terminal_window_sha != close_window.get('sha256') or close_window.get('id') != terminal_window.get('id') or close_window.get('profile') != options.profile or terminal_window.get('profile') != options.profile or terminal_owned_manifest.get('sha256') != base_sha or base_path != terminal_parent / 'owned-roots.json':
         fail('CARRYOVER_TERMINAL')
     safety = close_value.get('safety', {}); supervisor = close_value.get('supervisor', {})
-    if close_value.get('state') != 'SEALED_CONTROL_COVERAGE_FAILURE' or close_value.get('stopReason', {}).get('code') != 'OWNED_MANIFEST_INCOMPLETE_PREEXISTING_CONTROLLED_ROOTS' or close_value.get('verdict') != 'CONTROL_FAILURE_NOT_A_SEED_NOT_A_CAPACITY_PASS' or safety.get('remainingProcesses') != 0 or safety.get('processGroupEmpty') is not True or safety.get('retryAuthorized') is not False or safety.get('jointAuthorized') is not False or supervisor.get('groupEmpty') is not True or supervisor.get('zombies') != []:
+    stop_reason = close_value.get('stopReason', {})
+    if not isinstance(safety, dict) or not isinstance(supervisor, dict) or not isinstance(stop_reason, dict):
+        fail('CARRYOVER_TERMINAL')
+    if close_value.get('state') != 'SEALED_CONTROL_COVERAGE_FAILURE' or stop_reason.get('code') != 'OWNED_MANIFEST_INCOMPLETE_PREEXISTING_CONTROLLED_ROOTS' or close_value.get('verdict') != 'CONTROL_FAILURE_NOT_A_SEED_NOT_A_CAPACITY_PASS' or safety.get('remainingProcesses') != 0 or safety.get('processGroupEmpty') is not True or safety.get('retryAuthorized') is not False or safety.get('jointAuthorized') is not False or supervisor.get('groupEmpty') is not True or supervisor.get('zombies') != []:
         fail('CARRYOVER_TERMINAL')
     declared = {}
     omitted = close_value.get('omittedPreexistingRoots')
@@ -677,15 +686,28 @@ def issue(options):
         if entry['marker'].get('relative') != marker or SHA256.fullmatch(str(entry['marker'].get('sha256', ''))) is None:
             fail('CARRYOVER_COVERAGE')
         declared[label] = {'relative': marker, 'sha256': entry['marker']['sha256'], 'device': entry['device'], 'inode': entry['inode']}
-    current_output = close_value.get('partialEvidence', {}).get('outputLabel')
+    partial_evidence = close_value.get('partialEvidence', {})
     current_fixture_value = close_value.get('fixture', {})
+    if not isinstance(partial_evidence, dict) or not isinstance(current_fixture_value, dict):
+        fail('CARRYOVER_COVERAGE')
+    current_output = partial_evidence.get('outputLabel')
     current_fixture = current_fixture_value.get('label')
     if SAFE.fullmatch(str(current_output or '')) is None or re.fullmatch(r'musicbridge-version-[A-Za-z0-9]+', str(current_fixture or '')) is None:
         fail('CARRYOVER_COVERAGE')
     terminal_supervisor_path = terminal_parent / 'supervision' / 'supervisor.json'
     terminal_supervisor, terminal_supervisor_sha = strict_json(terminal_supervisor_path)
-    command_fact = terminal_supervisor.get('generation', {}).get('files', {}).get('command.json', {})
-    if terminal_supervisor_sha != supervisor.get('sha256') or terminal_supervisor.get('generation', {}).get('outputDirectory') != str(runtime / current_output) or command_fact.get('exists') is not True or SHA256.fullmatch(str(command_fact.get('sha256', ''))) is None:
+    if not isinstance(terminal_supervisor, dict):
+        fail('CARRYOVER_COVERAGE')
+    terminal_generation = terminal_supervisor.get('generation', {})
+    if not isinstance(terminal_generation, dict):
+        fail('CARRYOVER_COVERAGE')
+    terminal_files = terminal_generation.get('files', {})
+    if not isinstance(terminal_files, dict):
+        fail('CARRYOVER_COVERAGE')
+    command_fact = terminal_files.get('command.json', {})
+    if not isinstance(command_fact, dict):
+        fail('CARRYOVER_COVERAGE')
+    if terminal_supervisor_sha != supervisor.get('sha256') or terminal_generation.get('outputDirectory') != str(runtime / current_output) or command_fact.get('exists') is not True or SHA256.fullmatch(str(command_fact.get('sha256', ''))) is None:
         fail('CARRYOVER_COVERAGE')
     fixture_marker = current_fixture_value.get('marker')
     if type(current_fixture_value.get('device')) is not int or type(current_fixture_value.get('inode')) is not int or not isinstance(fixture_marker, dict) or fixture_marker.get('relative') != 'capacity-owner.json' or SHA256.fullmatch(str(fixture_marker.get('sha256', ''))) is None:
