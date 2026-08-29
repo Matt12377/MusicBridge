@@ -1,12 +1,12 @@
 # V3 剩余任务 TODO
 
-当前进度：TASK-078本地自动软件子范围已在最终HEAD `fac7363b4a6481591e207dda7cca77f0ae8d3cd4` 封版；TASK-079继续在独立分支。当前无设备，只开发fail-closed就绪控制面，不枚举、不打开、不配置设备。objects-limit generation window-03 已在第二次fresh准入后受控执行并自然exit 0：supervisor passed、targetReached、verifiedPassed、557 checkpoints、authority/source stable、PG empty、0 zombie、无sidecar；独立终态审计确认正式PASS。该seed明确为non-performance。measure issuer已完成RED→GREEN与两轮复审：11/11专项、SPEC PASS、QUALITY限定PASS，P0/P1=0；当前进入fresh measure authority独立审计，审计通过前不签发。objects-limit measure/queued-stop/joint、可听Replica、TASK073真实HAL/Gate B、实体纸张与最终Owner仍待验。仅本地开发，不push、不合并main、不发布；智能体统一GPT-5.6 Sol / High。
+当前进度：TASK-078本地自动软件子范围已在最终HEAD `fac7363b4a6481591e207dda7cca77f0ae8d3cd4` 封版；TASK-079继续在独立分支。当前无设备，只开发fail-closed就绪控制面，不枚举、不打开、不配置设备。objects-limit generation window-03 已正式PASS。measure issuer也已完成11/11与两轮复审；fresh measure authority审计PASS后一次性签发并运行。该measure window在29个回执/273个样本后因900秒执行期限终止，sample-30 clone与partial保留，PG empty、0 zombie、authority stable；同UUID/label永久禁止重放。当前只读定位105轮与900秒包络的真实矛盾，未宣称measure PASS。queued-stop/joint、可听Replica、TASK073真实HAL/Gate B、实体纸张与最终Owner仍待验。仅本地开发，不push、不合并main、不发布；智能体统一GPT-5.6 Sol / High。
 
 本表是任务拆分与依赖计划，不是完成声明。后续任务沿上一任务最终 HEAD 创建独立分支；当前已展开 TASK-064～078，其余任务开始前补详细范围和允许路径。具体子任务可根据已验证结果细分，不删减 PRD 范围。
 
 ## 实时进度面板
 
-> **当前执行：** `TASK-079 / fresh measure authority独立审计`。generation window UUID=`2a30115c…`、SHA=`4068c068…`已正式PASS；seed SHA=`632d8e4b…`、SQLite SHA=`7ec9b3be…`。新measure issuer实现提交=`fc23f55…`，11/11专项GREEN，精确继承59 roots并新增4个existing roots，future output为第64个授权根；两轮复审最终SPEC PASS、QUALITY限定PASS，P0/P1=0，3项P2按上限封存。现在只做fresh身份、空间和不可重放审计；未签发measure window，measure/queued-stop/joint仍未运行，设备/Roon/真实资料未操作，Gate B=`NOT_RUN`，`formalReady=false`。
+> **当前执行：** `TASK-079 / objects-limit measure timeout根因分析与TDD准备`。measure window UUID=`1bcbe626…`、SHA=`5c646834…`已终态失败，close SHA=`c88e1461…`。执行879,259.255ms，29个完整回执、273个样本；第30个clone和partial按合同保留，进程组为空、无zombie，authority从准入到终态稳定。同window/label不重放。正在核对每轮阶段耗时、105轮语义与900秒包络，修复前不签发新measure。queued-stop/joint仍未运行，设备/Roon/真实资料未操作，Gate B=`NOT_RUN`，`formalReady=false`。
 
 - [x] TASK-079 / 真实证据 JSON 模板：只跟踪 `template=true`、`ready=false`、`receipt=null` 空模板；实际收据固定留在忽略目录且一份只覆盖一个B项。
 - [x] TASK-079 / 收据校验器复审修复TDD：复审后RED为17/19，扩展后25/25专项GREEN；覆盖逐case事实、失败/超时/停止/不确定终态、Owner与证书闭包、独占窗口、完整配置/授权/环境seal、dirty候选、隐私解码与receipt seal。
@@ -35,7 +35,9 @@
 - [x] TASK-079 / objects-limit window-03 fresh authority重取：第二次独立审计绑定HEAD `4f94ee5…`与issuer SHA `49246d9c…`并PASS；一次性签发window UUID `2a30115c…`、SHA `4068c068…`，随后只消费回执中的唯一supervisor命令。
 - [x] TASK-079 / objects-limit generation window-03：自然exit 0，supervisor `passed=true`、child exit 0、targetReached/verifiedPassed=true、557 checkpoints、authority/source stable、PG empty、0 zombie、无sidecar；seed为non-performance，不冒充measure。
 - [x] TASK-079 / objects-limit measure issuer：初始RED为生产脚本缺失、7/7失败；最终11/11专项GREEN。完整绑定generation PASS、243 pins、59+4 existing roots、唯一future output、seed/fixture/sidecar、dead PG、replay与原子发布；实现=`fc23f55…`。R1退回2项P1/3项P2，R2最终SPEC PASS、QUALITY限定PASS，P0/P1=0、3项P2按两轮上限封存。
-- [ ] TASK-079 / objects-limit measure fresh authority：generation终态、measure输入与空间预审及issuer实现均PASS；当前进行fresh只读审计。审计通过前不签发、不运行measure，且必须使用generation window-03唯一seed与全新measure window/label。
+- [x] TASK-079 / objects-limit measure fresh authority：只读审计绑定HEAD `e891446…`、issuer SHA `caab03df…`及完整generation链并PASS；一次性签发window UUID `1bcbe626…`、SHA `5c646834…`，只消费回执中的唯一命令。
+- [x] TASK-079 / objects-limit measure window-01终态封存：`EXECUTION_TIMEOUT`，879,259.255ms；29 receipts、273 samples，sample-30 clone与partial保留；PG empty、0 zombie、authority stable；close SHA=`c88e1461…`。同UUID/label禁止重放，不是measure PASS。
+- [ ] TASK-079 / objects-limit measure timeout根因与TDD：核对105轮、每轮操作/样本语义及900秒包络，冻结最小RED后才允许生产修复；新窗口须另行fresh审计和新label。
 - [x] TASK-079 / 上一检查点回归：hardware contract v2为33/33专项、readiness 15/15，证据校验、标准verify、控制/边界/循环和diff-check全部exit 0；这些结果只证明主任务测试GREEN，不关闭hardware独立R2最终RED。最终closure HEAD=`123420cbd8b5b8c83cf1c4df1a3c614944cd5f0d`；软件包回归为Contracts 186/186、Bridge Core 1242/1242、Desktop 643/643及三包构建PASS。
 - [x] TASK-079 / 本地检查点：证据基础设施实现`e43f39f1…`、报告`23da9a12…`；candidate closure实现`04b77e45…`、报告`98bce05e…`；STATUS同步实现`9a991a6f…`、报告`ea257111…`；计数修正实现`4ec0711c…`、报告`9a93bc13…`；Git可达性实现`5bd46e10…`、报告`932fb71b…`；Owner-only闭包实现`a8b1d762…`、报告`9011701a…`；real-input实现`d9c795de…`、报告`6d0b93a0…`；real-logic实现`2f1bbdc8…`、报告`bbabb34d…`；real-roon实现`03c8b790…`、报告`b9fbf2f4…`；hardware v1实现`a6d3c798…`、报告`cf6d570f…`；capacity issuer v1实现`a167eba9…`、报告`cf6de5a…`；hardware v2实现`7f373784…`、报告`fde4f6cb…`、封存`123420cb…`；capacity issuer derived closure实现`ecf253ed…`、加固`089994d…`、状态`e51c01d…`。未push、未合并main、未发布。
 - [ ] TASK-079 / 真实 Gate A～E、U-01～U-10、实体录音/打印/Replica 与 Owner 103 项决定：等待相应设备、资料及逐次授权，当前不运行。

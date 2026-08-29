@@ -223,3 +223,11 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - 第一轮独立复审为SPEC RED（2项P1）与QUALITY RED（3项P2）；修复authority details接受边界及publish后fsync回滚双状态后，第二轮最终为SPEC PASS、QUALITY限定PASS，P0/P1=0，3项P2按两轮上限封存，未执行第三轮复审。
 - 新鲜验证：measure issuer专项11/11、Python compile、readiness 15/15及默认CLI、标准`pnpm verify`、三包生产构建与`git diff --check`均exit 0；本轮可见Desktop 643/643。全量验证没有连接设备、Roon或真实资料。
 - 当前尚未签发measure authority，也未运行measure、large queued-stop或joint。下一步必须把fresh审计绑定到包含本节机器状态的当前HEAD和issuer blob；只有审计PASS后才允许一次性签发并消费唯一命令。`hardware=NOT_RUN`、`Gate B=NOT_RUN`、Owner 103项仍为`pending`、`formalReady=false`。
+
+#### Objects-limit measure window-01 终态失败封存
+
+- fresh只读审计绑定TASK-079 HEAD=`e891446c61ddcbbbbda1e3be660757bf7d15598e`与issuer SHA256=`caab03df9699acd2a571d461a5947a14ba2d32bae2e9568b22ae78f9ebd5225d`后PASS。一次性签发window UUID=`1bcbe626-0ad2-401b-9140-7dbcf67cdce3`、window SHA256=`5c646834b03e775b27959aaec4b0db25c4ffd84c064a835058f4171cbcfa45ea`；回执为`ISSUED_NOT_EXECUTED`，64个授权根、243 pins、planned bytes=`4249378816`，随后只原样消费回执中的唯一六项命令。
+- supervisor在879,259.255ms后以`EXECUTION_TIMEOUT`终止child；code=`-15`、signal=`SIGTERM`，PGID 4733已清空，zombie列表为空。close SHA256=`c88e14612044ca2e2e5784d655da6e8c0db861d45c6b893a0c4a27bb8c28b8e5`，supervisor SHA256=`350833cad62544542f155df46e156d0f88a5dd80f3d25451923edb1132d1cdc5`。
+- 终态保留29个完整sample receipt、273条sample；第30个clone与partial原样保留。`source-after.json`、`end-budget.json`、`summary.json`与`exit.json`尚未形成，因此`samplesValid=false`、`receiptsValid=false`、`verifiedComplete=false`、`verifiedPassed=false`、`thresholdPassed=false`。这不是measure PASS。
+- authority准入与终态均保持window/source/owned/seed稳定，source pins=243、owned roots=64、spaceValid=true；失败不是身份或空间漂移。stdout只有TAP header，stderr只有Node SQLite experimental warning，没有泄漏凭据、设备或真实数据。
+- 该UUID、window-dir与label=`r023-objects-limit-measure-01`永久禁止重放；剩余窗口时间不构成重试授权。当前只读分析105轮合同、每轮阶段耗时与900秒执行包络，冻结最小RED前不修改生产代码、不签发新measure。large queued-stop、joint、设备、Roon、真实资料与Owner门均未运行。

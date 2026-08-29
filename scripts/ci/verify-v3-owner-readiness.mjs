@@ -13,9 +13,9 @@ const MATRIX_SHA256 = '12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7f
 const EXTERNAL_KINDS = ['real-input', 'real-logic', 'real-roon', 'hardware', 'owner']
 const UNMAPPED_PENDING = ['B-13', 'B-15']
 const READINESS_CONTROL = 'PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO'
-const DEVELOPMENT_STATE = 'no-device-control-main-green-hardware-independent-r2-final-red-objects-generation-pass-measure-issuer-green-external-not-run'
+const DEVELOPMENT_STATE = 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-timeout-partial-preserved-external-not-run'
 const EXTERNAL_EVIDENCE_PROFILES = 'REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED'
-const CAPACITY_AUTHORITY = 'OBJECTS_GENERATION_PASS_MEASURE_ISSUER_GREEN_FRESH_MEASURE_AUTHORITY_REQUIRED'
+const CAPACITY_AUTHORITY = 'OBJECTS_MEASURE_WINDOW01_EXECUTION_TIMEOUT_PARTIAL_PRESERVED_DIAGNOSIS_REQUIRED'
 const EVIDENCE_INFRASTRUCTURE = {
   state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
   receiptFoundation: {
@@ -100,7 +100,7 @@ const CAPACITY_WINDOW_ISSUER = {
   gateB: 'NOT_RUN',
 }
 const CAPACITY_MEASURE_WINDOW_ISSUER = {
-  state: 'IMPLEMENTED_GREEN_FRESH_MEASURE_AUTHORITY_NOT_ISSUED',
+  state: 'ISSUED_ONCE_MEASURE_TIMEOUT_PARTIAL_PRESERVED_NONREPLAY',
   implementationCommit: 'fc23f559790b02aefe3292271364f3564c8e8fc8',
   initialRed: 'missing-production-script-7-of-7-fail',
   focusedVerification: { tests: 11, passed: 11, failed: 0 },
@@ -117,8 +117,24 @@ const CAPACITY_MEASURE_WINDOW_ISSUER = {
   ],
   writesAuthorityOnly: true,
   executesBenchmark: false,
-  freshMeasureAuthorityIssued: false,
-  measureRun: 'NOT_RUN',
+  freshMeasureAuthorityIssued: true,
+  measureRun: 'EXECUTION_TIMEOUT_PARTIAL_PRESERVED_NONREPLAY',
+  measureWindow: {
+    windowId: '1bcbe626-0ad2-401b-9140-7dbcf67cdce3',
+    windowSha256: '5c646834b03e775b27959aaec4b0db25c4ffd84c064a835058f4171cbcfa45ea',
+    closeSha256: 'c88e14612044ca2e2e5784d655da6e8c0db861d45c6b893a0c4a27bb8c28b8e5',
+    supervisorSha256: '350833cad62544542f155df46e156d0f88a5dd80f3d25451923edb1132d1cdc5',
+    state: 'FAILED_EXECUTION_TIMEOUT',
+    elapsedMs: 879259.2549999972,
+    receiptCount: 29,
+    sampleCount: 273,
+    retainedClone: 'sample-30',
+    partialPreserved: true,
+    groupEmpty: true,
+    zombies: [],
+    authorityStable: true,
+    replay: 'PROHIBITED',
+  },
   deviceOpened: false,
   gateB: 'NOT_RUN',
 }
