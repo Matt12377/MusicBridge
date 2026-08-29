@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { spawnSync } from 'node:child_process'
 import { normalizeReadinessError, validateOwnerReadiness } from '../verify-v3-owner-readiness.mjs'
 
 const root = fileURLToPath(new URL('../../../', import.meta.url))
@@ -43,7 +44,7 @@ const controlStatus = {
       outputBackendCertification: 'NOT_RUN',
     },
     gates: {
-      readinessControl: 'PASS_14_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO',
+      readinessControl: 'PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO',
       externalGate: 'NOT_RUN',
       realInput: 'NOT_RUN',
       realLogic: 'NOT_RUN',
@@ -245,9 +246,44 @@ test('STATUS必须锁定两段证据基础设施检查点而非停留在初始re
   }
 })
 
+test('证据检查点必须是当前TASK079仓库中线性可达的真实Git提交', async t => {
+  const module = await import('../verify-v3-owner-readiness.mjs')
+  assert.equal(typeof module.validateEvidenceCheckpointRepository, 'function')
+  const temporaryRoot = mkdtempSync(path.join(tmpdir(), 'task079-checkpoints-'))
+  t.after(() => rmSync(temporaryRoot, { recursive: true, force: true }))
+  const git = (...arguments_) => {
+    const result = spawnSync('git', arguments_, { cwd: temporaryRoot, encoding: 'utf8' })
+    assert.equal(result.status, 0, result.stderr)
+    return result.stdout.trim()
+  }
+  git('init', '-b', 'codex/task-079-v3-final-acceptance')
+  git('config', 'user.email', 'task079@example.invalid')
+  git('config', 'user.name', 'TASK079 Test')
+  const commits = []
+  for (let index = 0; index < 7; index += 1) {
+    writeFileSync(path.join(temporaryRoot, 'checkpoint.txt'), `${index}\n`)
+    git('add', 'checkpoint.txt')
+    git('commit', '-m', `checkpoint-${index}`)
+    commits.push(git('rev-parse', 'HEAD'))
+  }
+  const infrastructure = {
+    state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
+    receiptFoundation: {
+      baseCommit: commits[0], implementationCommit: commits[1], reportCommit: commits[2], finalCommit: commits[3], focusedTests: 25,
+    },
+    candidateClosure: {
+      baseCommit: commits[3], implementationCommit: commits[4], reportCommit: commits[5], finalCommit: commits[6], focusedTests: 26,
+    },
+  }
+  assert.doesNotThrow(() => module.validateEvidenceCheckpointRepository(temporaryRoot, infrastructure))
+  const reversed = structuredClone(infrastructure)
+  ;[reversed.candidateClosure.implementationCommit, reversed.candidateClosure.reportCommit] = [reversed.candidateClosure.reportCommit, reversed.candidateClosure.implementationCommit]
+  assert.throws(() => module.validateEvidenceCheckpointRepository(temporaryRoot, reversed), /CONTROL_REPOSITORY/u)
+})
+
 test('STATUS设备与外部门状态不能和readiness清单互相矛盾', () => {
   for (const edit of [
-    value => { value.v3Development.gates.readinessControl = 'PASS_13_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO' },
+    value => { value.v3Development.gates.readinessControl = 'PASS_14_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO' },
     value => { value.v3Development.deviceTestPlanning.connectionState = 'connected' },
     value => { value.v3Development.deviceTestPlanning.deviceOperationsAuthorization = 'GRANTED' },
     value => { value.v3Development.deviceTestPlanning.measurementConfiguration = 'READY' },

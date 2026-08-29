@@ -20,6 +20,8 @@ node scripts/ci/verify-v3-owner-evidence.mjs --receipt-id <匿名收据ID>
 
 正式 CLI 不信任 candidate manifest 自报的聚合摘要：它从 manifest 列出的每个受控相对路径读取精确 `candidateCommit:<relativePath>` Git blob，逐文件重算 SHA-256，再复核聚合摘要。候选提交不存在、路径重复/越界、blob 缺失或任一摘要不符时都拒绝。收据、授权、Plan、Preflight 与 B-14 三层事件的时间戳必须是规范 UTC ISO（`YYYY-MM-DDTHH:mm:ss.sssZ`）；仅能被 `Date.parse` 解析但不规范的文本不能进入证据链。
 
+Readiness CLI 还会在当前 TASK-079 Git 仓库中核对证据基础设施检查点：分支必须正确，每个 base/实现/报告/最终 SHA 必须解析为真实 commit，两段链必须按祖先关系线性连接，最后一个 candidate closure 必须是当前 HEAD 的祖先。只复制 STATUS 文本、交换提交顺序或指向另一个仓库不能通过。
+
 receipt seal 用独占创建、`fsync`、回读和同 ID 不同内容拒绝来发现正常历史漂移；它不是数字签名，也不对抗拥有本机文件写权限的恶意用户同时删除或替换收据与 seal。若未来需要该威胁模型，必须引入 Owner 控制签名或外部只追加账本，不能把本地 seal 描述成不可抵赖证明。
 
 ## 2. 准入顺序

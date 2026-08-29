@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
-import { lstatSync, readFileSync } from 'node:fs'
+import { lstatSync, readFileSync, realpathSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -11,7 +12,7 @@ const MATRIX_PATH = 'project/V3_ACCEPTANCE.json'
 const MATRIX_SHA256 = '12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7fe4ba944'
 const EXTERNAL_KINDS = ['real-input', 'real-logic', 'real-roon', 'hardware', 'owner']
 const UNMAPPED_PENDING = ['B-13', 'B-15']
-const READINESS_CONTROL = 'PASS_14_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO'
+const READINESS_CONTROL = 'PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO'
 const EVIDENCE_INFRASTRUCTURE = {
   state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
   receiptFoundation: {
@@ -36,6 +37,7 @@ const gitSha = value => typeof value === 'string' && /^[0-9a-f]{40}$/u.test(valu
 const sha256 = value => typeof value === 'string' && /^[0-9a-f]{64}$/u.test(value)
 const ERROR_CODES = new Set([
   'ARGUMENTS', 'SHAPE', 'ROOT_REQUIRED', 'IDENTITY', 'CONTROL_IDENTITY', 'CONTROL_STATE',
+  'CONTROL_REPOSITORY',
   'BASELINE_PATH', 'SOFTWARE_BASELINE', 'READY_CONTRADICTION', 'DEVICE_STATE',
   'EXTERNAL_STATE', 'OWNER_STATE', 'EVIDENCE_NOT_ALLOWED', 'READY_REQUIRED', 'INVALID_READINESS',
 ])
@@ -63,6 +65,37 @@ function safeFile(root, relativePath, allowedPaths, limit = 16 * 1024 * 1024) {
   const stat = lstatSync(current)
   check(stat.isFile() && stat.size <= limit, 'BASELINE_PATH')
   return readFileSync(current)
+}
+
+function gitResult(root, arguments_) {
+  return spawnSync('git', arguments_, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+}
+
+export function validateEvidenceCheckpointRepository(root, infrastructure = EVIDENCE_INFRASTRUCTURE) {
+  check(typeof root === 'string', 'ROOT_REQUIRED')
+  check(infrastructure?.state === EVIDENCE_INFRASTRUCTURE.state, 'CONTROL_REPOSITORY')
+  const receipt = infrastructure.receiptFoundation
+  const closure = infrastructure.candidateClosure
+  check(receipt?.focusedTests === 25 && closure?.focusedTests === 26 && closure.baseCommit === receipt.finalCommit, 'CONTROL_REPOSITORY')
+  const commits = [
+    receipt.baseCommit, receipt.implementationCommit, receipt.reportCommit, receipt.finalCommit,
+    closure.implementationCommit, closure.reportCommit, closure.finalCommit,
+  ]
+  check(commits.every(gitSha) && new Set(commits).size === commits.length, 'CONTROL_REPOSITORY')
+  const top = gitResult(root, ['rev-parse', '--show-toplevel'])
+  check(top.error === undefined && top.signal === null && top.status === 0 && realpathSync(top.stdout.trim()) === realpathSync(root), 'CONTROL_REPOSITORY')
+  const branch = gitResult(root, ['branch', '--show-current'])
+  check(branch.error === undefined && branch.signal === null && branch.status === 0 && branch.stdout.trim() === 'codex/task-079-v3-final-acceptance', 'CONTROL_REPOSITORY')
+  for (const commit of commits) {
+    const object = gitResult(root, ['cat-file', '-e', `${commit}^{commit}`])
+    check(object.error === undefined && object.signal === null && object.status === 0, 'CONTROL_REPOSITORY')
+  }
+  for (let index = 1; index < commits.length; index += 1) {
+    const ancestry = gitResult(root, ['merge-base', '--is-ancestor', commits[index - 1], commits[index]])
+    check(ancestry.error === undefined && ancestry.signal === null && ancestry.status === 0, 'CONTROL_REPOSITORY')
+  }
+  const headAncestry = gitResult(root, ['merge-base', '--is-ancestor', commits.at(-1), 'HEAD'])
+  check(headAncestry.error === undefined && headAncestry.signal === null && headAncestry.status === 0, 'CONTROL_REPOSITORY')
 }
 
 function validateControlIdentity(status, wave) {
@@ -165,6 +198,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const root = process.cwd()
     const readiness = JSON.parse(safeFile(root, 'project/V3_OWNER_ACCEPTANCE.json', ['project/V3_OWNER_ACCEPTANCE.json']).toString('utf8'))
     const result = validateOwnerReadiness(readiness, { root })
+    validateEvidenceCheckpointRepository(root)
     if (process.argv.includes('--require-ready') && !result.ready) fail('READY_REQUIRED')
     console.log(`V3_OWNER_READINESS=PASS ${JSON.stringify(result)}；控制文件有效，真实设备与Owner验收仍未运行。`)
   } catch (error) {
