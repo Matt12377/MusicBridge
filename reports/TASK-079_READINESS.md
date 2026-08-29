@@ -120,3 +120,12 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - RED：技术收据限定 B-01～B-15，但 Owner `accepted` 原先对全部 103 scope 一律要求同 scope 技术引用，导致 MVP/A/C/D/E 中外部门仅为 Owner 的条目永远无法合法接受。
 - GREEN：非 B scope 只有在固定 SHA 的 TASK-078 矩阵中 `mapped + fresh passed`，且 `externalRequirements` 非空并精确全部为 `owner/not-run` 时，才允许零技术引用的 Owner accepted。MVP-01 正例通过；仍要求 `real-roon` 的 U-01 负例保持 `OWNER_BOUNDARY`。B-01～B-15继续要求同 scope、同候选且已 seal 的技术 PASS。
 - 新鲜结果：证据专项 26/26、readiness 15/15、两个默认 CLI、Node 语法、控制面、边界、循环和 `git diff --check` 全部 exit 0。没有创建真实收据或写入 Owner 决定。
+
+### Real-input 技术收据
+
+- 实现提交：`d9c795de909fd8a8e890fab5f0f151beaafb9b3b`
+- 新增 `real-input-observation`，覆盖 MVP-05/MVP-11/MVP-23/A-04，以及 A-02 的 real-input 子门。收据绑定固定矩阵 source criterion SHA、候选 manifest、授权→Plan→Preflight、匿名数据源环境、唯一观察附件与唯一 case 附件。
+- PASS 必须同时证明已授权读取、内容 SHA 已核、原始字节未变、criterion 满足；匿名 source alias 与 SHA 数量逐项一致。Case 自报与附件分离、夹带额外未判定角色、scope 不声明 real-input 或非 PASS 事实不足均拒绝。
+- Owner accepted 对非 B scope 会从矩阵重算全部非 owner requirements，并要求引用技术收据集合精确覆盖。MVP-05 可由一份 real-input PASS 闭包；A-02 只有 real-input 仍缺 real-roon，因此保持 `OWNER_BOUNDARY`。
+- 新鲜结果：证据专项 26/26、readiness 15/15、两个默认 CLI、Node 语法、控制面、边界、循环及 `git diff --check` 全部 exit 0。STATUS 为 `REAL_INPUT_PREPARED_REAL_LOGIC_REAL_ROON_HARDWARE_PENDING`。
+- 当前没有读取真实 Source Root、Excel、《磁带大全》或 FLAC，没有创建实际收据；五类外部门和 Owner 103 项仍全部 `not-run/pending`。
