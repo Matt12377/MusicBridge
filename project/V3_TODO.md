@@ -6,7 +6,20 @@
 
 ## 实时进度面板
 
-> **当前执行：** `TASK-079 / 无设备 readiness 阶段已本地封版，等待真实外部条件`。实现 `1f102fba…`、报告 `93feee20…`；13项TDD、标准verify、控制/边界/259文件循环均PASS，独立两轮审查最终P0/P1=0。默认校验仍为`READY=false`，严格ready模式因103条Owner pending、5类外部条件not-run及设备未授权而按预期拒绝。控制面精确绑定TASK-078最终HEAD、冻结矩阵SHA、101 mapped passed、B-13/B-15 pending和TASK-079身份。设备未枚举/打开/配置，Gate B=`NOT_RUN`，`formalReady=false`。
+> **当前执行：** `TASK-079 / 无设备真实证据基础设施已本地封板，等待外部条件`。复审修复25/25、readiness 13/13、两个默认CLI、标准`verify`、控制/边界/循环与diff-check均通过；实现`e43f39f1…`、报告`23da9a12…`已锁定。第二轮独立复审退回的问题由主任务按两轮上限完成RED→GREEN和最终静态裁决，没有派第三轮复审。设备仍未枚举/打开/配置，真实Gate A～E/B-01～B-15/U-01～U-10与Owner 103项决定全部保持未运行，Gate B=`NOT_RUN`，`formalReady=false`。
+
+- [x] TASK-079 / 真实证据 JSON 模板：只跟踪 `template=true`、`ready=false`、`receipt=null` 空模板；实际收据固定留在忽略目录且一份只覆盖一个B项。
+- [x] TASK-079 / 收据校验器复审修复TDD：复审后RED为17/19，扩展后25/25专项GREEN；覆盖逐case事实、失败/超时/停止/不确定终态、Owner与证书闭包、独占窗口、完整配置/授权/环境seal、dirty候选、隐私解码与receipt seal。
+- [x] TASK-079 / 第二轮最终复审P0-A：逐case JSON附件成为事实源；完整PASS事实不能只改verdict伪装失败；每类非PASS reason受Gate白名单约束。
+- [x] TASK-079 / 第二轮最终复审P0-B：Owner accepted校验技术receipt seal及同候选/tree/矩阵/时间；rejected/deferred不强制技术PASS；技术附件固定在receipt独占窗口。
+- [x] TASK-079 / 第二轮最终复审P0-C：配置指纹覆盖完整匿名路由/驱动/固件/电平/测量身份；授权→Plan→Preflight形成同run显式Hash链。
+- [x] TASK-079 / 第二轮最终复审P0-D：B-13输出捕获、B-14三层事件与B-15前后证书解析实际附件并交叉验证；B-14非PASS允许如实缺层且不得声明Completed。
+- [x] TASK-079 / 第二轮最终复审P1收口：匿名环境seal、CLI dirty/index/untracked拒绝、candidate manifest受控文件摘要、fatal UTF-8/JSON解码后敏感扫描、路径组件前后身份复核已加入；WAV/PNG/PDF在安全解析器建立前不准入。
+- [x] TASK-079 / Gate B 运行手册：逐项覆盖 B-01～B-15、共同测量时基、无声判据、P50/P95/P99/max、失败/超时保留、停止条件和 RME/Apogee + Sony 待冻结配置。
+- [x] TASK-079 / 独立规格与质量复审：第二轮已完成并退回（规格复审7项P0，隐私复审1项P0/5项P1）；按两轮上限不启动第三轮，主任务逐项修复、补RED/GREEN并完成最终静态裁决。
+- [x] TASK-079 / 本轮回归：修复后25/25专项、readiness 13/13、两个默认CLI、Node语法、标准`verify`、控制/边界/循环和diff-check全部exit 0；Bridge Core如实记录1条条件性skip。
+- [x] TASK-079 / 本地检查点：实现`e43f39f1f0994cc66a2be275ee4c7f715e9783d0`，报告`23da9a122988929a0f79c02df744834613031205`；未push、未合并main、未发布。
+- [ ] TASK-079 / 真实 Gate A～E、U-01～U-10、实体录音/打印/Replica 与 Owner 103 项决定：等待相应设备、资料及逐次授权，当前不运行。
 
 - [x] TASK-064～072：本地软件阶段完成；真实账号、真实数据和 Owner 验收仍按各任务报告保留。
 - [ ] TASK-073：软件底座完成；真实 HAL、RME/Apogee 设备配置及 Gate B 等设备连接后执行，当前 `NOT_RUN`。
