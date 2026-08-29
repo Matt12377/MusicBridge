@@ -138,3 +138,11 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - 外部类别共用的只是严格候选和授权封条解析；`real-input` 与 `real-logic` 各自保留固定操作、固定匿名数据类别、固定 case schema、固定非 PASS reason 白名单，不能借通用字段构造宽松 PASS。Owner 对多外部门 scope 仍要求引用集合精确覆盖全部非 owner requirements，重复同类技术收据也拒绝。
 - 新鲜结果：证据专项 26/26、readiness 15/15、两个默认 CLI、Node 语法、控制面、边界、循环及 `git diff --check` 全部 exit 0。STATUS 为 `REAL_INPUT_REAL_LOGIC_PREPARED_REAL_ROON_HARDWARE_PENDING`。
 - 没有打开真实 Logic、读取工程或导出音频，也没有创建实际收据；`realLogic=NOT_RUN`、五类外部门均 `not-run`、Owner 103 项 `pending`、`formalReady=false`。
+
+### Real-roon 技术收据
+
+- 实现提交：`03c8b7900519b79edc3c4fb7d661403aff1a1ff4`
+- RED：新增 `real-roon-observation` 首先被旧验证器以 `RECEIPT_STATE` 拒绝；旧 Owner 聚合还允许 B-09 只凭 real-output 越过 real-roon 子门，并且 A-02 只检查收据类别时可拼接无关的输入与 Roon 映射。
+- GREEN：MVP-02/14/22、A-02、B-09 与 U-01/06/07/10 使用九套精确事实 schema；唯一观察附件绑定候选 manifest 中的 observer 路径/Hash、匿名 Roon 环境、授权窗口 correlation、规范 UTC 和事实摘要。A-02 交叉核对 real-input 的 source alias/SHA；B-09 精确要求 real-output/hardware 与 real-roon 同窗口、同事件 correlation、同 action kind；U-10 只有 real-roon 时仍因缺 hardware 拒绝。
+- 新鲜结果：证据专项 26/26、readiness 15/15、两个默认 CLI、Node 语法、控制面、边界、循环及 `git diff --check` 全部 exit 0。STATUS 为 `REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED_HARDWARE_PENDING`。
+- 当前没有连接真实 Roon、读取真实媒体资料、执行 Zone/输出控制或创建实际收据；`realRoon=NOT_RUN`、Gate A～E 与 Owner 103 项决定不变。候选 Hash、收据 seal 和 correlation 只证明本地字节闭包，不能充当远端 Roon 证明或对抗具有本机写权限的恶意伪造。
