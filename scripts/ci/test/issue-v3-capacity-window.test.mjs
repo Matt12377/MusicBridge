@@ -304,23 +304,31 @@ test('replay 审计忽略其他阶段的字符串 window，但拒绝 generation 
   const unrelatedResult = spawnSync(python, args(unrelated), { encoding: 'utf8' })
   assert.equal(unrelatedResult.status, 0, unrelatedResult.stderr)
 
-  const malformedGeneration = fixture()
-  json(join(malformedGeneration.runtime, 'generation-window-close.json'), {
-    schemaVersion: 1,
-    scope: 'musicbridge-capacity-generation-close',
-    window: 'generation-window'
-  })
-  const malformedGenerationResult = spawnSync(python, args(malformedGeneration), { encoding: 'utf8' })
-  assert.notEqual(malformedGenerationResult.status, 0)
-  assert.match(malformedGenerationResult.stderr, /REPLAY_AUDIT/)
-  assert.doesNotMatch(malformedGenerationResult.stderr, /ISSUER_INTERNAL/)
+  for (const [name, window] of [['null', null], ['array', []], ['string', 'generation-window'], ['number', 0], ['boolean', true]]) {
+    const malformedGeneration = fixture()
+    json(join(malformedGeneration.runtime, `generation-${name}-close.json`), {
+      schemaVersion: 1,
+      scope: 'musicbridge-capacity-generation-close',
+      window
+    })
+    const result = spawnSync(python, args(malformedGeneration), { encoding: 'utf8' })
+    assert.notEqual(result.status, 0, `generation ${name}`)
+    assert.match(result.stderr, /REPLAY_AUDIT/)
+    assert.doesNotMatch(result.stderr, /ISSUER_INTERNAL/)
+    assert.equal(existsSync(join(malformedGeneration.runtime, 'new-window')), false)
+    assert.equal(existsSync(join(malformedGeneration.runtime, 'new-seed')), false)
+  }
 
-  const primitive = fixture()
-  json(join(primitive.runtime, 'primitive-window-close.json'), 'primitive-window')
-  const primitiveResult = spawnSync(python, args(primitive), { encoding: 'utf8' })
-  assert.notEqual(primitiveResult.status, 0)
-  assert.match(primitiveResult.stderr, /REPLAY_AUDIT/)
-  assert.doesNotMatch(primitiveResult.stderr, /ISSUER_INTERNAL/)
+  for (const [name, value] of [['null', null], ['array', []], ['string', 'primitive-window'], ['number', 0], ['boolean', true]]) {
+    const primitive = fixture()
+    json(join(primitive.runtime, `primitive-${name}-close.json`), value)
+    const result = spawnSync(python, args(primitive), { encoding: 'utf8' })
+    assert.notEqual(result.status, 0, `top-level ${name}`)
+    assert.match(result.stderr, /REPLAY_AUDIT/)
+    assert.doesNotMatch(result.stderr, /ISSUER_INTERNAL/)
+    assert.equal(existsSync(join(primitive.runtime, 'new-window')), false)
+    assert.equal(existsSync(join(primitive.runtime, 'new-seed')), false)
+  }
 })
 
 test('签发中途失败目录由下一 fresh authority 纳入 owned 闭包', () => {

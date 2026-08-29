@@ -524,7 +524,7 @@ def reject_replay_label(runtime, label):
                 observed = value.get('label')
             else:
                 nested_window = value.get('window')
-                if scope == 'musicbridge-capacity-generation-close' and nested_window is not None and not isinstance(nested_window, dict):
+                if scope == 'musicbridge-capacity-generation-close' and 'window' in value and not isinstance(nested_window, dict):
                     fail('REPLAY_AUDIT')
                 observed = nested_window.get('label') if isinstance(nested_window, dict) else None
             if observed == label:
