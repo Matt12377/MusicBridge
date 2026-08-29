@@ -105,3 +105,11 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - 实现提交：`4ec0711c52b7f3fff5ac0a9d0ed3c26a791eb280`
 - 完成审计发现 STATUS 的 `readinessControl` 仍为 `PASS_13...`，与当前 14/14 专项矛盾。先以专项 RED 证明验证器会接受旧计数，再把机器状态更新为 `PASS_14...` 并由验证器精确锁定。
 - 新鲜结果：readiness 14/14、默认 CLI、Node 语法、控制面、边界、循环和 `git diff --check` 全部 exit 0。软件包代码未变化，沿用紧邻前一检查点的新鲜完整 `pnpm verify`：Contracts 186/186、Bridge Core 1241/1242（0 fail、1 条件性 skip）、Desktop 643/643及三包构建 PASS。
+
+### Git 检查点可达性加固
+
+- 实现提交：`5bd46e108e9ae2f6aac20c33fd6d9f2927971561`
+- RED：原 readiness 只比较 STATUS 中的 SHA 字符串，无法证明这些对象属于当前仓库、顺序正确或可从当前 HEAD 到达。
+- GREEN：默认 CLI 现在验证 TASK-079 仓库根与分支、七个不重复 commit 对象、收据基础设施到 candidate closure 的逐段祖先关系，以及最终 closure 到当前 HEAD 的可达性；交换实现/报告顺序的测试固定返回 `CONTROL_REPOSITORY`。
+- 新鲜结果：readiness 15/15、证据专项 26/26、两个默认 CLI、Node 语法、控制面、边界、循环及 `git diff --check` 全部 exit 0。软件包代码未变化，紧邻前一检查点的完整 `pnpm verify` 结果继续有效。
+- 真实 Gate 边界不变：没有设备、真实资料、真实收据或 Owner 决定，`ready=false`、`formalReady=false`。
