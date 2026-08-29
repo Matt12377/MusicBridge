@@ -146,3 +146,12 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - GREEN：MVP-02/14/22、A-02、B-09 与 U-01/06/07/10 使用九套精确事实 schema；唯一观察附件绑定候选 manifest 中的 observer 路径/Hash、匿名 Roon 环境、授权窗口 correlation、规范 UTC 和事实摘要。A-02 交叉核对 real-input 的 source alias/SHA；B-09 精确要求 real-output/hardware 与 real-roon 同窗口、同事件 correlation、同 action kind；U-10 只有 real-roon 时仍因缺 hardware 拒绝。
 - 新鲜结果：证据专项 26/26、readiness 15/15、两个默认 CLI、Node 语法、控制面、边界、循环及 `git diff --check` 全部 exit 0。STATUS 为 `REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED_HARDWARE_PENDING`。
 - 当前没有连接真实 Roon、读取真实媒体资料、执行 Zone/输出控制或创建实际收据；`realRoon=NOT_RUN`、Gate A～E 与 Owner 103 项决定不变。候选 Hash、收据 seal 和 correlation 只证明本地字节闭包，不能充当远端 Roon 证明或对抗具有本机写权限的恶意伪造。
+
+### Hardware 技术收据
+
+- 实现提交：`a6d3c798452dc01b3cd49657c94397fefeb5bbcd`
+- RED：新增 `hardware-observation` 的四个正例先被旧验证器以 `RECEIPT_STATE` 拒绝，Owner 聚合也无法闭合非 B hardware。第一轮复审随后证明 standalone B-15 certificate 可自造；修复其源收据递归验证后，第二轮又证明 B-07/B-14/B-09 依赖可晚于 hardware Preflight 且来自其他 Attempt/实体。
+- GREEN：hardware 只覆盖 MVP-16/MVP-18/U-05/U-10，B-09～B-15 继续由 real-output 承担。配置身份收据递归验证源 B-15 receipt/seal、候选/tree/manifest、矩阵、指纹与时间；依赖集合摘要冻结进授权→Plan→Preflight，依赖必须早于 hardware 授权，并用 `hardware-subject-binding` 对齐窗口、Attempt、Physical Copy、Side/完成/事件 correlation。MVP-18 额外锁定 Replica profile、同窗口、目标/输出 Hash、expected/submitted/observed 全帧与 endpoint drain；U-10 与 real-roon 对齐 `roon-offline` 事件及状态事实。
+- 两轮复审上限：第二轮最终意见后未派第三轮。主任务完成依赖前置、subject binding、manifest 对齐和 Replica correlation 的静态裁决，再执行最终回归；因此这里记录的是主任务裁决后的验证结果，不伪称第三方最终复审 PASS。
+- 新鲜结果：证据专项 28/28、readiness 15/15、两个默认 CLI、Node 语法、控制面、边界、循环及 `git diff --check` 全部 exit 0。STATUS 为 `REAL_INPUT_REAL_LOGIC_REAL_ROON_HARDWARE_PREPARED`。
+- 边界：配置身份收据只证明被引用 B-15 技术窗口和候选配置身份，不等于完整 Gate B 认证；JSON、SHA 与本地 seal 也不是外部设备签名。当前没有设备连接、枚举、打开、配置、发声、录音、拔插或故障注入，没有可听 Replica 或实体库存结果；`hardware=NOT_RUN`、`Gate B=NOT_RUN`、Owner 103 项仍 `pending`、`formalReady=false`。
