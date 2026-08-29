@@ -6,7 +6,7 @@
 
 ## 实时进度面板
 
-> **当前执行：** `TASK-079 / 实机与真实资料接续待运行`。无设备条件下可安全开发的 real-input、real-logic、real-roon、hardware 四类技术收据验证器及提交后回归均已完成；下一运行段等待设备、真实资料及逐次操作授权后按运行手册执行。当前没有读取或操作设备/Roon/真实资料，五类外部门、真实 Gate 与 Owner 103 项决定全部保持未运行，Gate B=`NOT_RUN`，`formalReady=false`。
+> **当前执行：** `TASK-079 / capacity fresh authority 待决定`。window-02 漏计旧 partial output/fixture 后已安全终止并封存；受测试的 exclusive-create issuer 已完成主任务裁决，专项12/12与标准回归PASS，但第二轮独立复审原结论如实保留为RED，不伪称独立PASS。当前禁止自动签发或运行window-03；measure/queued-stop/joint未授权。设备/Roon/真实资料仍未读取或操作，Gate B=`NOT_RUN`，`formalReady=false`。
 
 - [x] TASK-079 / 真实证据 JSON 模板：只跟踪 `template=true`、`ready=false`、`receipt=null` 空模板；实际收据固定留在忽略目录且一份只覆盖一个B项。
 - [x] TASK-079 / 收据校验器复审修复TDD：复审后RED为17/19，扩展后25/25专项GREEN；覆盖逐case事实、失败/超时/停止/不确定终态、Owner与证书闭包、独占窗口、完整配置/授权/环境seal、dirty候选、隐私解码与receipt seal。
@@ -24,6 +24,8 @@
 - [x] TASK-079 / Real-logic技术收据：覆盖MVP-08/09/10与D-05～D-08；真实Workspace、工程/导出Hash、Marker/Timeline、criterion、环境别名与逐scope固定结论形成闭包，不由普通文件存在或Owner单份观察替代。
 - [x] TASK-079 / Real-roon技术收据：9个声明real-roon的scope已完成逐项事实闭包，并与A-02 real-input、B-09 real-output/hardware形成精确组合边界；专项、readiness、CLI和静态Gate均GREEN。
 - [x] TASK-079 / Hardware技术收据：非B四scope与Gate B输出测量已分层；B-15源收据、依赖前置、运行主体绑定、Replica帧闭包与U-10联合收据完成专项GREEN。配置身份不冒充完整Gate B，可听Replica、实体完成和库存结果仍待实机。
+- [x] TASK-079 / objects-limit重新准入与安全停止：fresh空间门已从不足变为通过；window-02因owned authority漏计两个旧保留根而在30.351秒由控制面停止，child=`SIGTERM`、PG empty、78个partial checkpoint与fixture原样保留，结论为`CONTROL_FAILURE_NOT_A_SEED_NOT_A_CAPACITY_PASS`。
+- [x] TASK-079 / Capacity authority issuer：初始RED为脚本不存在、3/3失败；两轮独立规格复审分别退回4项与3项P1，按上限不做第三轮。主任务关闭approved窗口末步发布、失败authority owned继承和损坏/漂移/symlink重放审计，最终专项12/12、py_compile、readiness 15/15、evidence 28/28、标准verify与静态Gate均PASS。实现=`a167eba9…`，报告=`cf6de5a…`；签发器不执行benchmark、不清理证据，也不授予新窗口。
 - [x] TASK-079 / Gate B 运行手册：逐项覆盖 B-01～B-15、共同测量时基、无声判据、P50/P95/P99/max、失败/超时保留、停止条件和 RME/Apogee + Sony 待冻结配置。
 - [x] TASK-079 / 独立规格与质量复审：第二轮已完成并退回（规格复审7项P0，隐私复审1项P0/5项P1）；按两轮上限不启动第三轮，主任务逐项修复、补RED/GREEN并完成最终静态裁决。
 - [x] TASK-079 / 本轮回归：hardware追加加固后28/28专项、readiness 15/15、两个默认CLI、Node语法、控制/边界/循环和diff-check全部exit 0；软件包代码未变化，沿用紧邻前一软件检查点的标准`verify`：Contracts 186/186、Bridge Core 1241/1242（0 fail、1条件性skip）、Desktop 643/643及三包构建PASS。
@@ -49,8 +51,8 @@
 - [x] TASK-078 / large queued-stop与生成监督器：queued-stop精确开放objects-small/history-limit/objects-limit/joint，保持N105与900秒；大档强制target-reached，joint强制六轴。生成监督器独立1200秒scope，绑定243 pins、owned/空间、fixture/checkpoint、自然退出与PG empty；两轮审查关闭3个P1，最终23/23、py_compile/diff-check及SPEC/QUALITY全PASS。
 - [x] TASK-078 / objects-limit object-audit certificate：window-01的部分fixture继续原样保留且不重放。共享凭证已完成RED→GREEN：Attempt/Record/Print合法增量提交精确复用，未知触发器、beforeCommit、外连接写、rollback/COMMIT失败回退完整审计；Repository自然接线证明next Begin对历史4MiB PDF为0次hash读取。新鲜99/99回归、容量聚焦3/3、typecheck/diff-check均PASS。
 - [x] TASK-078 / objects-limit 非正式扩展阶梯：10/25/50 records分别6.485s/16.586s/36.006s，print object分别41,945,600/104,864,000/209,728,000B，全部target-reached；每条约0.649/0.663/0.720s，呈近线性增长。该结果仅用于验证优化方向，不替代正式objects-limit容量PASS。原始阶梯日志已保留；最终源码哈希逐项复核一致，证据 `r023-objects-ladder-02.json` SHA256=`79919f73…`，验证日志SHA256=`9dc1bb50…`、exit收据SHA256=`e3c57c92…`。
-- [ ] TASK-078 / objects-limit 正式window-02：`NOT_ISSUED_STORAGE_ADMISSION`。2026-08-29T13:01:27.099079Z准入快照可用13,353,312,256B（12.44GiB），正式入口保守投影需20,360,829,340B（计划9,623,411,100B + 10GiB余量），短缺7,007,517,084B（约6.53GiB）；未创建window、未签发authority、未运行、不可重放。安全阈值保持不变，先继续低空间Gate。
-- [ ] TASK-078 / 剩余容量：history-limit generation/measure/large queued-stop均已正式PASS；objects-limit证书与非正式阶梯PASS，正式generation因磁盘安全准入尚未签发，后续measure/queued-stop及joint仍按线性顺序等待。当前继续执行不需要大容量fixture的自动Gate。
+- [ ] TASK-078 / objects-limit 正式window-02：空间已重新准入，但本次authority漏计旧window-01 partial output与fixture；运行在独立审计发现后终止并永久封存，未形成seed或容量PASS，window/UUID/label不得重放。失败close SHA256=`294d639c…`，完整carryover inventory SHA256=`d9b4e840…`。
+- [ ] TASK-078 / 剩余容量：history-limit generation/measure/large queued-stop均已正式PASS；objects-limit window-02为控制失败，measure/queued-stop/joint均未授权、未运行。capacity issuer已完成主任务裁决和回归，下一步仍需独立fresh authority决定；不自动签发第三个窗口。
 - [x] TASK-078 / 本地软件最终收口：完整双native verify为Contracts 186/186、Bridge Core 1242/1242、Desktop 643/643，全部0 fail/0 skip且构建PASS；security 29/29、Electron mock 4/4、fresh E2E 91/91，均0 skip；101条mapped fresh已正式写入并通过矩阵及结果报告两轮独立审查（均P0/P1/P2=0），2条真实设备缺口保持pending。报告提交已锁定；实机、Owner与容量carryover未因此完成。
 - [x] TASK-079 / 独立工作树：从TASK-078最终HEAD `fac7363b…`建立 `codex/task-079-v3-final-acceptance`，工作树初始清洁。
 - [x] TASK-079 / readiness TDD：首个RED为验证模块不存在；首轮GREEN后继续关闭冻结矩阵双改、STATUS外部门矛盾、symlink和错误码缺口，最终13/13；默认清单校验PASS且明确`READY=false`，严格ready模式按预期拒绝。
