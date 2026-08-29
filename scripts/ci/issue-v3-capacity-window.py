@@ -12,12 +12,24 @@ import re
 import stat
 import subprocess
 import sys
+import tempfile
 import uuid
 
 SAFE = re.compile(r'^[a-z0-9-]{1,64}$', re.ASCII)
 ROOT_NAME = re.compile(r'^[A-Za-z0-9-]{1,64}$', re.ASCII)
 SHA256 = re.compile(r'^[0-9a-f]{64}$', re.ASCII)
 GIT_SHA = re.compile(r'^[0-9a-f]{40}$', re.ASCII)
+CONTRACT_DIST_JS = re.compile(r'^packages/contracts/dist/([a-z0-9-]+)\.js$', re.ASCII)
+CONTRACT_TSCONFIG = {
+    'compilerOptions': {
+        'target': 'ES2023', 'module': 'NodeNext', 'moduleResolution': 'NodeNext', 'lib': ['ES2023'],
+        'rootDir': 'src', 'outDir': 'dist', 'strict': True, 'noUncheckedIndexedAccess': True,
+        'exactOptionalPropertyTypes': True, 'noImplicitOverride': True, 'useUnknownInCatchVariables': True,
+        'esModuleInterop': True, 'forceConsistentCasingInFileNames': True, 'skipLibCheck': True,
+        'declaration': True, 'sourceMap': True
+    },
+    'include': ['src/**/*.ts']
+}
 MARKERS = {'owner.json', 'capacity-owner.json', 'seed.json', 'command.json', 'r020-owner.json'}
 GENERATION_LIMITS = {'executionMs': 1200000, 'killGraceMs': 1000, 'closeMs': 2000,
                      'minimumFreeBytes': 10 * 1024 ** 3, 'maximumOwnedBytes': 16 * 1024 ** 3}
@@ -38,6 +50,34 @@ def sha256(path):
     with Path(path).open('rb') as stream:
         for chunk in iter(lambda: stream.read(1024 * 1024), b''):
             digest.update(chunk)
+    return digest.hexdigest()
+
+
+def stable_sha256(path):
+    path = Path(path)
+    flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError:
+        fail('FILE_CHANGED')
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+            fail('FILE_CHANGED')
+        digest = hashlib.sha256()
+        for chunk in iter(lambda: os.read(descriptor, 1024 * 1024), b''):
+            digest.update(chunk)
+        after = os.fstat(descriptor)
+    finally:
+        os.close(descriptor)
+    try:
+        named = path.lstat()
+    except OSError:
+        fail('FILE_CHANGED')
+    fields = ('st_dev', 'st_ino', 'st_size', 'st_mtime_ns', 'st_ctime_ns', 'st_nlink')
+    if any(getattr(before, key) != getattr(after, key) or getattr(after, key) != getattr(named, key)
+           for key in fields):
+        fail('FILE_CHANGED')
     return digest.hexdigest()
 
 
@@ -102,7 +142,8 @@ def record_terminal_failure(code):
     receipt = parent / 'issuer-failure.json'
     if receipt.exists() or receipt.is_symlink():
         return
-    created = [name for name in ('owner.json', 'source-pins.json', 'owned-roots.json', 'window.pending.json', 'window.json')
+    created = [name for name in ('owner.json', 'issuer-identity/owner.json', 'source-pins.json',
+                                 'owned-roots.json', 'window.pending.json', 'window.json')
                if ordinary(parent / name)]
     try:
         exclusive_json(receipt, {
@@ -178,6 +219,122 @@ def git_blob(root, head, relative):
         fail('SOURCE_CANDIDATE')
 
 
+def git_paths(root, head, prefix):
+    try:
+        output = subprocess.check_output(
+            ['/usr/bin/git', 'ls-tree', '-r', '--name-only', head, '--', prefix],
+            cwd=root, text=True, stderr=subprocess.DEVNULL,
+            env={key: value for key, value in os.environ.items() if not key.startswith('GIT_')})
+    except (OSError, subprocess.CalledProcessError):
+        fail('SOURCE_CANDIDATE')
+    return [line for line in output.splitlines() if line]
+
+
+def verified_file(path, expected_sha256, error_code, executable=False):
+    supplied = Path(path)
+    if not supplied.is_absolute() or SHA256.fullmatch(str(expected_sha256 or '')) is None:
+        fail(error_code)
+    try:
+        resolved = supplied.resolve(strict=True)
+    except OSError:
+        fail(error_code)
+    try:
+        observed_sha256 = stable_sha256(resolved)
+    except IssueError:
+        fail(error_code)
+    if executable and not os.access(resolved, os.X_OK) or observed_sha256 != expected_sha256:
+        fail(error_code)
+    return resolved
+
+
+def candidate_contract_dist(root, head, source_paths, build_node, expected_build_node_sha256,
+                            typescript_compiler, expected_typescript_compiler_sha256):
+    """用固定编译器从候选提交重建 JS，只接受一一对应且字节完全一致的 dist。"""
+    derived = {}
+    for relative in source_paths:
+        if relative.startswith('packages/contracts/dist/'):
+            match = CONTRACT_DIST_JS.fullmatch(relative)
+            if match is None:
+                fail('SOURCE_MANIFEST')
+            derived[relative] = match.group(1)
+    if not derived:
+        return {'files': {}, 'provenance': None}
+
+    tracked_sources = git_paths(root, head, 'packages/contracts/src')
+    expected_sources = {f'packages/contracts/src/{stem}.ts' for stem in derived.values()}
+    if set(tracked_sources) != expected_sources:
+        fail('SOURCE_CANDIDATE')
+
+    inputs = [*tracked_sources, 'packages/contracts/tsconfig.json', 'packages/contracts/package.json']
+    blobs = {relative: git_blob(root, head, relative) for relative in inputs}
+    try:
+        tsconfig = json.loads(blobs['packages/contracts/tsconfig.json'].decode('utf-8'))
+        package = json.loads(blobs['packages/contracts/package.json'].decode('utf-8'))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        fail('SOURCE_CONFIGURATION')
+    if tsconfig != CONTRACT_TSCONFIG or not isinstance(package, dict) or package.get('type') != 'module':
+        fail('SOURCE_CONFIGURATION')
+    input_hashes = {relative: hashlib.sha256(blob).hexdigest() for relative, blob in blobs.items()}
+
+    with tempfile.TemporaryDirectory(prefix='musicbridge-contract-candidate-') as temporary:
+        temporary_root = Path(temporary)
+        for relative, blob in blobs.items():
+            destination = temporary_root / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(blob)
+        package_root = temporary_root / 'packages/contracts'
+        command = [str(build_node), str(typescript_compiler), '--project', str(package_root / 'tsconfig.json'),
+                   '--pretty', 'false', '--incremental', 'false', '--noCheck', '--noResolve']
+        environment = {'PATH': '/usr/bin:/bin', 'LANG': 'C', 'LC_ALL': 'C', 'NO_COLOR': '1'}
+        verified_file(build_node, expected_build_node_sha256, 'BUILD_TOOLCHAIN_IDENTITY', executable=True)
+        verified_file(typescript_compiler, expected_typescript_compiler_sha256, 'BUILD_TOOLCHAIN_IDENTITY')
+        try:
+            completed = subprocess.run(
+                command, cwd=package_root, env=environment,
+                stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                timeout=120, check=False)
+        except subprocess.TimeoutExpired:
+            fail('BUILD_TIMEOUT')
+        except OSError:
+            fail('BUILD_EXECUTION')
+        verified_file(build_node, expected_build_node_sha256, 'BUILD_TOOLCHAIN_IDENTITY', executable=True)
+        verified_file(typescript_compiler, expected_typescript_compiler_sha256, 'BUILD_TOOLCHAIN_IDENTITY')
+        if completed.returncode != 0:
+            fail('BUILD_EXIT')
+        if completed.stdout:
+            fail('BUILD_OUTPUT')
+        built_files = {
+            str(path.relative_to(temporary_root)): path
+            for path in (package_root / 'dist').rglob('*.js')
+            if ordinary(path)
+        }
+        if set(built_files) != set(derived):
+            fail('EMIT_SET')
+        result = {}
+        for relative, built in built_files.items():
+            live = root / relative
+            try:
+                live_sha256 = stable_sha256(live)
+            except IssueError:
+                fail('EMIT_BYTES')
+            if sha256(built) != live_sha256:
+                fail('EMIT_BYTES')
+            result[relative] = live_sha256
+        return {
+            'files': result,
+            'provenance': {
+                'candidateHead': head,
+                'inputs': input_hashes,
+                'command': command,
+                'environment': environment,
+                'timeoutMs': 120000,
+                'compilerExitCode': 0,
+                'compilerOutputBytes': 0,
+                'outputs': result
+            }
+        }
+
+
 def load_supervisor(path):
     spec = importlib.util.spec_from_file_location('musicbridge_capacity_supervisor', path)
     if spec is None or spec.loader is None:
@@ -211,6 +368,14 @@ def parse_args(argv):
     parser.add_argument('--expected-head', required=True)
     parser.add_argument('--consumer-python', default=sys.executable)
     parser.add_argument('--expected-consumer-sha256', required=True)
+    parser.add_argument('--issuer-repo-root', required=True)
+    parser.add_argument('--expected-issuer-branch', required=True)
+    parser.add_argument('--expected-issuer-head', required=True)
+    parser.add_argument('--expected-issuer-sha256', required=True)
+    parser.add_argument('--build-node', required=True)
+    parser.add_argument('--expected-build-node-sha256', required=True)
+    parser.add_argument('--typescript-compiler', required=True)
+    parser.add_argument('--expected-typescript-compiler-sha256', required=True)
     return parser.parse_args(argv)
 
 
@@ -288,6 +453,27 @@ def issue(options):
         fail('SUPERVISOR_IDENTITY')
     if SHA256.fullmatch(options.expected_supervisor_sha256) is None or sha256(supervisor_path) != options.expected_supervisor_sha256:
         fail('SUPERVISOR_IDENTITY')
+    issuer_path = verified_file(Path(__file__), options.expected_issuer_sha256, 'ISSUER_IDENTITY')
+    issuer_repo = canonical_directory(Path(options.issuer_repo_root))
+    if GIT_SHA.fullmatch(options.expected_issuer_head) is None:
+        fail('ISSUER_IDENTITY')
+    try:
+        issuer_relative = str(issuer_path.relative_to(issuer_repo))
+        issuer_repo_matches = (
+            git_value(issuer_repo, 'rev-parse', '--show-toplevel') == str(issuer_repo)
+            and git_value(issuer_repo, 'rev-parse', 'HEAD^{commit}') == options.expected_issuer_head
+            and git_value(issuer_repo, 'branch', '--show-current') == options.expected_issuer_branch
+            and hashlib.sha256(git_blob(issuer_repo, options.expected_issuer_head, issuer_relative)).hexdigest()
+            == options.expected_issuer_sha256
+        )
+    except (IssueError, ValueError):
+        fail('ISSUER_IDENTITY')
+    if not issuer_repo_matches:
+        fail('ISSUER_IDENTITY')
+    build_node = verified_file(options.build_node, options.expected_build_node_sha256,
+                               'BUILD_TOOLCHAIN_IDENTITY', executable=True)
+    typescript_compiler = verified_file(options.typescript_compiler, options.expected_typescript_compiler_sha256,
+                                        'BUILD_TOOLCHAIN_IDENTITY')
     if SAFE.fullmatch(options.window_dir_name) is None or SAFE.fullmatch(options.label) is None:
         fail('LABEL_INVALID')
     if GIT_SHA.fullmatch(options.expected_head) is None or git_value(root, 'rev-parse', '--show-toplevel') != str(root) or git_value(root, 'rev-parse', 'HEAD^{commit}') != options.expected_head or git_value(root, 'branch', '--show-current') != options.expected_branch:
@@ -394,7 +580,7 @@ def issue(options):
         if existing is not None and existing != row:
             fail('OWNED_DUPLICATE')
         unique[row['path']] = row
-    if len(unique) + 1 > 64:
+    if len(unique) + 2 > 64:
         fail('OWNED_COUNT')
 
     window_id = str(uuid.uuid4())
@@ -405,17 +591,56 @@ def issue(options):
     _FAILURE_CONTEXT = {'parent': parent, 'runtime': runtime, 'windowId': window_id}
     owner = {'scope': 'musicbridge-capacity-generation-window', 'owner': 'root', 'id': window_id}
     owner_sha = exclusive_json(parent / 'owner.json', owner)
-    parent_info = parent.stat()
-    unique[str(parent)] = {'path': str(parent), 'device': parent_info.st_dev, 'inode': parent_info.st_ino,
-                           'marker': {'relative': 'owner.json', 'sha256': owner_sha}}
-
     source_root, source_paths = module._expected_source_paths(root)
     if Path(source_root) != root or options.expected_source_count != len(source_paths):
         fail('SOURCE_MANIFEST')
+    derived_sources = candidate_contract_dist(
+        root, options.expected_head, source_paths, build_node, options.expected_build_node_sha256,
+        typescript_compiler, options.expected_typescript_compiler_sha256)
+    issuer_fact = {
+        'schemaVersion': 1,
+        'scope': 'musicbridge-capacity-authority-issuer',
+        'owner': 'root',
+        'id': window_id,
+        'issuer': {'path': str(issuer_path), 'sha256': options.expected_issuer_sha256},
+        'issuerRepository': {
+            'root': str(issuer_repo), 'branch': options.expected_issuer_branch,
+            'head': options.expected_issuer_head, 'relativePath': issuer_relative
+        },
+        'candidateRepository': {
+            'root': str(root), 'branch': options.expected_branch, 'head': options.expected_head
+        },
+        'buildToolchain': {
+            'node': {'path': str(build_node), 'sha256': options.expected_build_node_sha256},
+            'typescriptCompiler': {
+                'path': str(typescript_compiler),
+                'sha256': options.expected_typescript_compiler_sha256,
+                'mode': 'candidate-source-no-check-js-emit'
+            }
+        },
+        'build': derived_sources['provenance']
+    }
+    issuer_identity = parent / 'issuer-identity'
+    try:
+        issuer_identity.mkdir(mode=0o700)
+    except OSError as error:
+        raise IssueError('EXCLUSIVE_CREATE') from error
+    issuer_fact_sha = exclusive_json(issuer_identity / 'owner.json', issuer_fact)
+    parent_info = parent.stat()
+    unique[str(parent)] = {'path': str(parent), 'device': parent_info.st_dev, 'inode': parent_info.st_ino,
+                           'marker': {'relative': 'owner.json', 'sha256': owner_sha}}
+    issuer_identity_info = issuer_identity.stat()
+    unique[str(issuer_identity)] = {
+        'path': str(issuer_identity), 'device': issuer_identity_info.st_dev, 'inode': issuer_identity_info.st_ino,
+        'marker': {'relative': 'owner.json', 'sha256': issuer_fact_sha}}
+
     files = {}
     for relative in source_paths:
         identity = module._strict_identity(root / relative)
-        if relative not in {
+        if relative in derived_sources['files']:
+            if identity['sha256'] != derived_sources['files'][relative]:
+                fail('EMIT_BYTES')
+        elif relative not in {
             'reports/runtime/task-078-v3-acceptance/capacity-phase-supervisor.py',
             'reports/runtime/task-078-v3-acceptance/test_capacity_phase_supervisor.py'
         } and hashlib.sha256(git_blob(root, options.expected_head, relative)).hexdigest() != identity['sha256']:
@@ -434,6 +659,15 @@ def issue(options):
     if source_result.get('fileCount') != options.expected_source_count or owned_result.get('rootCount') != len(unique) or owned_result.get('plannedBytes') != OBJECTS_LIMIT_PLANNED_BYTES or type(owned_result.get('ownedBytes')) is not int or type(owned_result.get('availableBytes')) is not int or owned_result['ownedBytes'] + OBJECTS_LIMIT_PLANNED_BYTES > GENERATION_LIMITS['maximumOwnedBytes'] or owned_result['availableBytes'] - OBJECTS_LIMIT_PLANNED_BYTES < GENERATION_LIMITS['minimumFreeBytes']:
         fail('AUTHORITY_PREFLIGHT')
 
+    verified_file(issuer_path, options.expected_issuer_sha256, 'ISSUER_IDENTITY')
+    verified_file(build_node, options.expected_build_node_sha256, 'BUILD_TOOLCHAIN_IDENTITY', executable=True)
+    verified_file(typescript_compiler, options.expected_typescript_compiler_sha256, 'BUILD_TOOLCHAIN_IDENTITY')
+    if (git_value(root, 'rev-parse', 'HEAD^{commit}') != options.expected_head
+            or git_value(root, 'branch', '--show-current') != options.expected_branch
+            or git_value(issuer_repo, 'rev-parse', 'HEAD^{commit}') != options.expected_issuer_head
+            or git_value(issuer_repo, 'branch', '--show-current') != options.expected_issuer_branch):
+        fail('REPOSITORY_IDENTITY')
+
     issued = datetime.datetime.now(datetime.timezone.utc)
     deadline = issued + datetime.timedelta(seconds=1200)
     window = {
@@ -450,11 +684,12 @@ def issue(options):
         'sourceFileCount': source_result.get('fileCount'), 'ownedRootCount': owned_result.get('rootCount'),
         'ownedBytes': owned_result.get('ownedBytes'), 'plannedBytes': owned_result.get('plannedBytes'),
         'availableBytes': owned_result.get('availableBytes'), 'deadlineAt': window['deadlineAt'],
-        'consumeCommand': None
+        'issuerFact': {'file': 'issuer-identity/owner.json', 'sha256': issuer_fact_sha}, 'consumeCommand': None
     }
     # approved authority 是最后一步发布；此前先持久化目录与 pending 文件。
     pending_path = parent / 'window.pending.json'
     window_sha = exclusive_json(pending_path, window)
+    fsync_directory(issuer_identity)
     fsync_directory(parent)
     fsync_directory(runtime)
     os.rename(pending_path, parent / 'window.json')
