@@ -155,6 +155,52 @@ def same_regular_file(helper, path, expected_sha256, error_code):
     return Path(path).resolve(strict=True)
 
 
+def filesystem_available_bytes(path):
+    try:
+        space = os.statvfs(path)
+    except OSError:
+        return None
+    return space.f_bavail * space.f_frsize
+
+
+def authority_preflight_snapshot(options, runtime, output, planned):
+    return {
+        'schemaVersion': 1,
+        'scope': 'musicbridge-capacity-measure-authority-preflight',
+        'phase': 'source-manifest',
+        'failedCheck': None,
+        'sourceValidated': False,
+        'ownedValidated': False,
+        'candidateRepositoryValidated': False,
+        'windowValidated': False,
+        'expectedSourceFileCount': options.expected_source_count,
+        'observedSourceFileCount': None,
+        'expectedAuthorizedRootCount': EXPECTED_MEASURE_AUTHORIZED_ROOTS,
+        'observedAuthorizedRootCount': None,
+        'plannedBytes': planned,
+        'observedPlannedBytes': None,
+        'ownedBytes': None,
+        'availableBytes': None,
+        'maximumOwnedBytes': MEASURE_LIMITS['maximumOwnedBytes'],
+        'minimumFreeBytes': MEASURE_LIMITS['minimumFreeBytes'],
+        'filesystemAvailableBytesBefore': filesystem_available_bytes(runtime),
+        'filesystemAvailableBytesAfter': None,
+        'futureOutputAbsent': not output.exists() and not output.is_symlink(),
+        'sourceCountMatches': None,
+        'rootCountMatches': None,
+        'plannedBytesMatches': None,
+        'ownedBudgetWithinLimit': None,
+        'freeReserveAfterPlanSatisfied': None,
+    }
+
+
+def fail_authority_preflight(diagnostic, runtime, code, phase, failed_check):
+    diagnostic['phase'] = phase
+    diagnostic['failedCheck'] = failed_check
+    diagnostic['filesystemAvailableBytesAfter'] = filesystem_available_bytes(runtime)
+    fail(code)
+
+
 def record_terminal_failure(helper, code):
     global _FAILURE_CONTEXT
     context = _FAILURE_CONTEXT
@@ -180,6 +226,8 @@ def record_terminal_failure(helper, code):
         'replayAllowed': False,
         'recordedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='milliseconds'),
     }
+    if isinstance(context.get('preflight'), dict):
+        value['preflight'] = context['preflight']
     try:
         helper.exclusive_json(receipt, value)
         helper.fsync_directory(parent)
@@ -839,6 +887,9 @@ def issue(options):
         'path': str(installed_supervisor_path),
         'sha256': options.expected_supervisor_sha256,
     }
+    installed_module = load_python(
+        installed_supervisor_path, 'musicbridge_capacity_measure_installed_supervisor',
+        'SUPERVISOR_INSTALL')
     issuer_identity = parent / 'issuer-identity'
     try:
         issuer_identity.mkdir(mode=0o700)
@@ -931,21 +982,83 @@ def issue(options):
     }
     owned_sha = helper.exclusive_json(parent / 'owned-roots.json', owned)
     planned = 2 * generation['seed']['snapshotBytes'] + 256 * 1024 ** 2
+    preflight = authority_preflight_snapshot(options, runtime, output, planned)
+    _FAILURE_CONTEXT['preflight'] = preflight
     try:
         source_result = module._validate_source_manifest(parent / 'source-pins.json', root)
+    except Exception as error:
+        try:
+            fail_authority_preflight(
+                preflight, runtime, 'AUTHORITY_PREFLIGHT_SOURCE',
+                'source-manifest', 'validator-exception')
+        except IssueError as failure:
+            raise failure from error
+    preflight['sourceValidated'] = True
+    if not isinstance(source_result, dict):
+        fail_authority_preflight(
+            preflight, runtime, 'AUTHORITY_PREFLIGHT_SOURCE',
+            'source-manifest', 'validator-result')
+    preflight['observedSourceFileCount'] = source_result.get('fileCount')
+    preflight['sourceCountMatches'] = (
+        source_result.get('fileCount') == options.expected_source_count)
+    if not preflight['sourceCountMatches']:
+        fail_authority_preflight(
+            preflight, runtime, 'AUTHORITY_PREFLIGHT_SOURCE',
+            'source-manifest', 'file-count')
+
+    preflight['phase'] = 'owned-manifest'
+    try:
         owned_result = module._validate_owned_manifest(
             parent / 'owned-roots.json', runtime, window_id, 'objects-limit',
             planned_bytes=planned, future_path=output, future_state='absent')
     except Exception as error:
-        raise IssueError('AUTHORITY_PREFLIGHT') from error
-    if source_result.get('fileCount') != options.expected_source_count \
-            or owned_result.get('rootCount') != EXPECTED_MEASURE_AUTHORIZED_ROOTS \
-            or owned_result.get('plannedBytes') != planned \
-            or type(owned_result.get('ownedBytes')) is not int \
-            or type(owned_result.get('availableBytes')) is not int \
-            or owned_result['ownedBytes'] + planned > MEASURE_LIMITS['maximumOwnedBytes'] \
-            or owned_result['availableBytes'] - planned < MEASURE_LIMITS['minimumFreeBytes']:
-        fail('AUTHORITY_PREFLIGHT')
+        try:
+            fail_authority_preflight(
+                preflight, runtime, 'AUTHORITY_PREFLIGHT_OWNED',
+                'owned-manifest', 'validator-exception')
+        except IssueError as failure:
+            raise failure from error
+    preflight['ownedValidated'] = True
+    if not isinstance(owned_result, dict):
+        fail_authority_preflight(
+            preflight, runtime, 'AUTHORITY_PREFLIGHT_OWNED',
+            'owned-manifest', 'validator-result')
+    preflight['observedAuthorizedRootCount'] = owned_result.get('rootCount')
+    preflight['observedPlannedBytes'] = owned_result.get('plannedBytes')
+    preflight['ownedBytes'] = owned_result.get('ownedBytes')
+    preflight['availableBytes'] = owned_result.get('availableBytes')
+    preflight['rootCountMatches'] = (
+        owned_result.get('rootCount') == EXPECTED_MEASURE_AUTHORIZED_ROOTS)
+    preflight['plannedBytesMatches'] = owned_result.get('plannedBytes') == planned
+    if not preflight['rootCountMatches']:
+        fail_authority_preflight(
+            preflight, runtime, 'AUTHORITY_PREFLIGHT_OWNED',
+            'owned-manifest', 'root-count')
+    if not preflight['plannedBytesMatches']:
+        fail_authority_preflight(
+            preflight, runtime, 'AUTHORITY_PREFLIGHT_OWNED',
+            'owned-manifest', 'planned-bytes')
+    preflight['phase'] = 'facts'
+    if type(owned_result.get('ownedBytes')) is not int:
+        fail_authority_preflight(
+            preflight, runtime, 'AUTHORITY_PREFLIGHT_FACTS',
+            'facts', 'owned-bytes-type')
+    if type(owned_result.get('availableBytes')) is not int:
+        fail_authority_preflight(
+            preflight, runtime, 'AUTHORITY_PREFLIGHT_FACTS',
+            'facts', 'available-bytes-type')
+    preflight['ownedBudgetWithinLimit'] = (
+        owned_result['ownedBytes'] + planned <= MEASURE_LIMITS['maximumOwnedBytes'])
+    preflight['freeReserveAfterPlanSatisfied'] = (
+        owned_result['availableBytes'] - planned >= MEASURE_LIMITS['minimumFreeBytes'])
+    if not preflight['ownedBudgetWithinLimit']:
+        fail_authority_preflight(
+            preflight, runtime, 'AUTHORITY_PREFLIGHT_FACTS',
+            'facts', 'maximum-owned-bytes')
+    if not preflight['freeReserveAfterPlanSatisfied']:
+        fail_authority_preflight(
+            preflight, runtime, 'AUTHORITY_PREFLIGHT_FACTS',
+            'facts', 'minimum-free-bytes')
 
     issued = datetime.datetime.now(datetime.timezone.utc)
     deadline = issued + datetime.timedelta(seconds=900)
@@ -972,11 +1085,30 @@ def issue(options):
         'ownedManifest': {'file': 'owned-roots.json', 'sha256': owned_sha},
         'sourceManifest': {'file': 'source-pins.json', 'sha256': source_sha},
     }
+    preflight['phase'] = 'candidate-repository'
     try:
-        module._validate_measure_window(window, issued.timestamp())
-        module._validate_candidate_repository(window, runtime)
+        installed_module._validate_candidate_repository(window, runtime)
     except (Exception, SystemExit) as error:
-        raise IssueError('AUTHORITY_PREFLIGHT') from error
+        try:
+            fail_authority_preflight(
+                preflight, runtime, 'AUTHORITY_PREFLIGHT_CANDIDATE',
+                'candidate-repository', 'validator-exception')
+        except IssueError as failure:
+            raise failure from error
+    preflight['candidateRepositoryValidated'] = True
+    preflight['phase'] = 'window'
+    try:
+        installed_module._validate_measure_window(window, issued.timestamp())
+    except (Exception, SystemExit) as error:
+        try:
+            fail_authority_preflight(
+                preflight, runtime, 'AUTHORITY_PREFLIGHT_WINDOW',
+                'window', 'validator-exception')
+        except IssueError as failure:
+            raise failure from error
+    preflight['windowValidated'] = True
+    preflight['phase'] = 'complete'
+    preflight['filesystemAvailableBytesAfter'] = filesystem_available_bytes(runtime)
     pending = parent / 'window.pending.json'
     window_sha = helper.exclusive_json(pending, window)
     # 发布前再次复核完整 generation proof、签发器与仓库身份。

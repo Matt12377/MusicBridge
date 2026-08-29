@@ -179,8 +179,14 @@ def _validate_candidate_repository(window, runtime=None):
   def git(*args): return subprocess.check_output(['/usr/bin/git',*args],cwd=root,text=True).strip()
   if git('branch','--show-current') != candidate['branch'] or git('rev-parse','HEAD^{commit}') != candidate['head']: raise ValueError('CANDIDATE_REPOSITORY')
   return root
+def _validate_supervisor_identity(window):
+  supervisor=window.get('supervisor') if isinstance(window,dict) else None
+  script=Path(__file__).resolve(strict=True)
+  if not isinstance(supervisor,dict) or set(supervisor) != {'path','sha256'} or Path(supervisor.get('path','')) != script or supervisor.get('sha256') != _sha(script): raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
+  return _strict_identity(script)
 def _validate_measure_window(window, now):
   if not isinstance(window,dict) or set(window) != _MEASURE_KEYS or window.get('measurePlan') != _MEASURE_PLAN or window.get('limits') != _MEASURE_LIMITS: raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
+  _validate_supervisor_identity(window)
   _validate_candidate_repository(window)
   return True
 def _validate_measure_carryover(window_path, close_path, output_path, runtime, expected_window_sha256, expected_close_sha256, expected_command_sha256, expected_window_id, expected_label):
@@ -453,6 +459,18 @@ function args(f, extra = []) {
 }
 
 function run(f, extra = []) { return spawnSync(python, args(f, extra), { encoding: 'utf8' }) }
+function runWithPreflightInjection(f, injection) {
+  const bridge = [
+    'import importlib.util, sys',
+    "spec=importlib.util.spec_from_file_location('issuer_under_test', sys.argv[1])",
+    'issuer=importlib.util.module_from_spec(spec); spec.loader.exec_module(issuer)',
+    'original_load=issuer.load_python',
+    `def injected_load(path,name,error_code):\n module=original_load(path,name,error_code)\n${injection.split('\n').map((line) => ` ${line}`).join('\n')}\n return module`,
+    'issuer.load_python=injected_load',
+    'raise SystemExit(issuer.main(sys.argv[2:]))',
+  ].join('\n')
+  return spawnSync(python, ['-c', bridge, f.issuer, ...args(f).slice(1)], { encoding: 'utf8' })
+}
 function cleanup(f) { rmSync(f.root, { recursive: true, force: true }); rmSync(f.generationRoot, { recursive: true, force: true }); rmSync(f.externalFixture, { recursive: true, force: true }) }
 
 test('签发 measure authority v2：65 个既存 roots 加唯一 future output，固定plan且不运行 benchmark', () => {
@@ -528,6 +546,70 @@ test('issuer窗口通过supervisor v2 exact-key与candidate repository消费前�
     ].join(';'), installedSupervisor, join(parent, 'window.json'), f.runtime], { encoding: 'utf8' })
     assert.equal(validation.status, 0, validation.stderr)
   } finally { cleanup(f) }
+})
+
+test('authority preflight按稳定子阶段失败并只记录安全数值与布尔快照', () => {
+  const cases = [
+    {
+      name: 'source', errorCode: 'AUTHORITY_PREFLIGHT_SOURCE', phase: 'source-manifest', failedCheck: 'validator-exception',
+      injection: "if name=='musicbridge_capacity_measure_supervisor':\n def reject(*args,**kwargs): raise ValueError('injected secret source detail')\n module._validate_source_manifest=reject",
+    },
+    {
+      name: 'owned', errorCode: 'AUTHORITY_PREFLIGHT_OWNED', phase: 'owned-manifest', failedCheck: 'validator-exception',
+      injection: "if name=='musicbridge_capacity_measure_supervisor':\n def reject(*args,**kwargs): raise ValueError('injected secret owned detail')\n module._validate_owned_manifest=reject",
+    },
+    {
+      name: 'space', errorCode: 'AUTHORITY_PREFLIGHT_FACTS', phase: 'facts', failedCheck: 'minimum-free-bytes',
+      injection: "if name=='musicbridge_capacity_measure_supervisor':\n original_owned=module._validate_owned_manifest\n def low_space(*args,**kwargs):\n  result=dict(original_owned(*args,**kwargs)); result['availableBytes']=kwargs['planned_bytes']+module._MEASURE_LIMITS['minimumFreeBytes']-1; return result\n module._validate_owned_manifest=low_space",
+    },
+    {
+      name: 'candidate', errorCode: 'AUTHORITY_PREFLIGHT_CANDIDATE', phase: 'candidate-repository', failedCheck: 'validator-exception',
+      injection: "if name=='musicbridge_capacity_measure_installed_supervisor':\n def reject(*args,**kwargs): raise ValueError('injected secret candidate detail')\n module._validate_candidate_repository=reject",
+    },
+    {
+      name: 'window', errorCode: 'AUTHORITY_PREFLIGHT_WINDOW', phase: 'window', failedCheck: 'validator-exception',
+      injection: "if name=='musicbridge_capacity_measure_installed_supervisor':\n def reject(*args,**kwargs): raise SystemExit('injected secret window detail')\n module._validate_measure_window=reject",
+    },
+  ]
+  const expectedKeys = [
+    'schemaVersion', 'scope', 'phase', 'failedCheck', 'sourceValidated', 'ownedValidated',
+    'candidateRepositoryValidated', 'windowValidated', 'expectedSourceFileCount',
+    'observedSourceFileCount', 'expectedAuthorizedRootCount', 'observedAuthorizedRootCount',
+    'plannedBytes', 'observedPlannedBytes', 'ownedBytes', 'availableBytes',
+    'maximumOwnedBytes', 'minimumFreeBytes', 'filesystemAvailableBytesBefore',
+    'filesystemAvailableBytesAfter', 'futureOutputAbsent', 'sourceCountMatches',
+    'rootCountMatches', 'plannedBytesMatches', 'ownedBudgetWithinLimit',
+    'freeReserveAfterPlanSatisfied',
+  ].sort()
+  for (const scenario of cases) {
+    const f = fixture()
+    try {
+      const result = runWithPreflightInjection(f, scenario.injection)
+      assert.notEqual(result.status, 0, `${scenario.name} unexpectedly passed`)
+      assert.match(result.stderr, new RegExp(`CAPACITY_MEASURE_WINDOW_ISSUER=${scenario.errorCode}`))
+      const failure = JSON.parse(readFileSync(join(f.runtime, 'objects-measure-window/issuer-failure.json')))
+      assert.equal(failure.errorCode, scenario.errorCode)
+      assert.deepEqual(Object.keys(failure.preflight).sort(), expectedKeys)
+      assert.equal(failure.preflight.scope, 'musicbridge-capacity-measure-authority-preflight')
+      assert.equal(failure.preflight.phase, scenario.phase)
+      assert.equal(failure.preflight.failedCheck, scenario.failedCheck)
+      assert.equal(typeof failure.preflight.plannedBytes, 'number')
+      assert.equal(typeof failure.preflight.filesystemAvailableBytesBefore, 'number')
+      assert.equal(failure.preflight.futureOutputAbsent, true)
+      assert.equal(JSON.stringify(failure.preflight).includes('injected secret'), false)
+      assert.equal(JSON.stringify(failure.preflight).includes(f.root), false)
+      assert.equal(JSON.stringify(failure.preflight).includes(f.runtime), false)
+      if (scenario.name === 'space') {
+        assert.equal(failure.preflight.sourceValidated, true)
+        assert.equal(failure.preflight.ownedValidated, true)
+        assert.equal(failure.preflight.freeReserveAfterPlanSatisfied, false)
+        assert.equal(
+          failure.preflight.availableBytes - failure.preflight.plannedBytes,
+          failure.preflight.minimumFreeBytes - 1,
+        )
+      }
+    } finally { cleanup(f) }
+  }
 })
 
 test('production issuer与真实tracked supervisor v2精确互操作完整legacy partial合同', () => {
