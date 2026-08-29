@@ -129,3 +129,12 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - Owner accepted 对非 B scope 会从矩阵重算全部非 owner requirements，并要求引用技术收据集合精确覆盖。MVP-05 可由一份 real-input PASS 闭包；A-02 只有 real-input 仍缺 real-roon，因此保持 `OWNER_BOUNDARY`。
 - 新鲜结果：证据专项 26/26、readiness 15/15、两个默认 CLI、Node 语法、控制面、边界、循环及 `git diff --check` 全部 exit 0。STATUS 为 `REAL_INPUT_PREPARED_REAL_LOGIC_REAL_ROON_HARDWARE_PENDING`。
 - 当前没有读取真实 Source Root、Excel、《磁带大全》或 FLAC，没有创建实际收据；五类外部门和 Owner 103 项仍全部 `not-run/pending`。
+
+### Real-logic 技术收据
+
+- 实现提交：`2f1bbdc830567db357cf89737a163edc77ab2ab4`
+- RED：新增 `real-logic-observation` 正例首先被旧验证器以 `RECEIPT_STATE` 拒绝；随后独立负例证明，仅替换观察附件中的匿名 Workspace 而不同步环境 seal 时，旧实现不会拒绝。
+- GREEN：MVP-08/09/10 与 D-05～D-08 现在分别绑定矩阵 source criterion SHA、候选 manifest、授权→Plan→Preflight、匿名 Logic Workspace、工程 Hash、导出 Hash、Marker 数与 Timeline Hash。七个 scope 使用固定且互不替代的结论；环境 Workspace alias 与观察附件交叉验证，Owner accepted 只接受同 scope、同候选且已 seal 的 real-logic PASS。
+- 外部类别共用的只是严格候选和授权封条解析；`real-input` 与 `real-logic` 各自保留固定操作、固定匿名数据类别、固定 case schema、固定非 PASS reason 白名单，不能借通用字段构造宽松 PASS。Owner 对多外部门 scope 仍要求引用集合精确覆盖全部非 owner requirements，重复同类技术收据也拒绝。
+- 新鲜结果：证据专项 26/26、readiness 15/15、两个默认 CLI、Node 语法、控制面、边界、循环及 `git diff --check` 全部 exit 0。STATUS 为 `REAL_INPUT_REAL_LOGIC_PREPARED_REAL_ROON_HARDWARE_PENDING`。
+- 没有打开真实 Logic、读取工程或导出音频，也没有创建实际收据；`realLogic=NOT_RUN`、五类外部门均 `not-run`、Owner 103 项 `pending`、`formalReady=false`。
