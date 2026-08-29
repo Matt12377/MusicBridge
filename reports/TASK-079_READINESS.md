@@ -188,6 +188,18 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 
 当前没有签发或运行 window-03，机器状态保持 `capacityAuthority=PENDING_FRESH_WINDOW_AUTHORIZATION`。新的 objects-limit generation 仍需要独立 fresh authority 决定；它通过后才可按线性顺序进入 measure、large queued-stop 与 joint。设备、Roon、真实资料和 Owner Gate 的状态没有变化。
 
+#### Capacity issuer 生成型 contracts 候选闭包
+
+- 基线：`123420cbd8b5b8c83cf1c4df1a3c614944cd5f0d`；实现提交：`ecf253ed7e2c5afc0d96e190f8aabf3fb65f0001`、`089994d166788326fac104e371593f905b9b17b6`；机器状态提交：`e51c01d4c077c1d0caf644146aed5d51e01699dd`。
+- 独立 fresh authority 审计发现 243 项 source pins 中有 42 个 `packages/contracts/dist/*.js` 不在 TASK-078 Git tree。旧 issuer 对合法生成物确定性返回 `SOURCE_CANDIDATE`；最小 TDD 为 2 条中 1 PASS / 1 FAIL，篡改负例保持拒绝。
+- GREEN 从 TASK-078 `expected-head` 读取完整 42 个 tracked TypeScript source、固定 `tsconfig.json` 与 `package.json`，要求 source/dist stem exact-set。构建配置必须与冻结契约全等并使用 `--noCheck --noResolve`；生成 JS 与 live source pins 逐文件字节 SHA-256 相同才可继续。
+- issuer自身必须匹配TASK-079仓库root/branch/HEAD及tracked blob。candidate、issuer、全部44个构建输入、argv/env/timeout/output、Node、libnode、TypeScript compiler与标准库manifest事实写入 `issuer-identity/owner.json`；其marker SHA经`owned-roots.json`进入approved window SHA闭包。
+- 工具链从已验证文件描述符复制到0700私有临时目录后执行，避免路径换入竞态；所有Git候选读取使用15秒超时及禁止lazy fetch，构建timeout/exec/exit/output和emit set/bytes使用稳定错误码。候选tsconfig越界、package缺失、source-count失败、工具链Hash错误均有fail-closed负例。
+- 第一轮独立复审为规格3项P1、质量1项P1/3项P2 RED。第二轮最终规格PASS，质量剩余2项P2；按两轮上限未派第三轮。主任务裁决关闭私有工具链执行与Git超时后执行完整回归，不把该裁决改写成第三轮独立PASS。
+- 实际 TASK-078 只读预检：branch=`codex/task-078-v3-acceptance`、HEAD=`fac7363b4a6481591e207dda7cca77f0ae8d3cd4`；source pins=243、derived JS=42、candidate build inputs=44、compiler exit=0、stdout=0 bytes、exact bytes=42/42。
+- 新鲜验证：capacity issuer专项17/17；Owner evidence+readiness专项48/48；两个默认CLI PASS且`ready=false`；标准`pnpm verify` exit 0；`CONTROL_PLANE=PASS`、`BOUNDARIES=PASS`、`CYCLES=PASS files=259`；Python compile与`git diff --check`均PASS。
+- 本切片没有运行真实issuer，没有创建window-03、seed或benchmark进程；`freshWindowAuthorized=false`，objects-limit measure、large queued-stop与joint仍未授权。设备、Roon、真实资料和Owner状态不变。
+
 ### 当前机器真相同步
 
 - hardware contract v2主任务：33/33专项GREEN；独立第二轮最终结论：RED；未执行第三轮，`independentPass=false`。
