@@ -6,7 +6,7 @@
 
 ## 实时进度面板
 
-> **当前执行：** `TASK-079 / 无设备检查点封版与实机接续包`。real-input、real-logic、real-roon、hardware 四类技术收据验证器均已完成本地实现/报告；正在锁定最终 TODO 提交和提交后身份回归。设备、真实 Roon 和真实资料仍未读取或操作，五类外部门、真实 Gate 与 Owner 103 项决定全部保持未运行；下一运行段等待设备/资料及逐次授权，Gate B=`NOT_RUN`，`formalReady=false`。
+> **当前执行：** `TASK-079 / 实机与真实资料接续待运行`。无设备条件下可安全开发的 real-input、real-logic、real-roon、hardware 四类技术收据验证器及提交后回归均已完成；下一运行段等待设备、真实资料及逐次操作授权后按运行手册执行。当前没有读取或操作设备/Roon/真实资料，五类外部门、真实 Gate 与 Owner 103 项决定全部保持未运行，Gate B=`NOT_RUN`，`formalReady=false`。
 
 - [x] TASK-079 / 真实证据 JSON 模板：只跟踪 `template=true`、`ready=false`、`receipt=null` 空模板；实际收据固定留在忽略目录且一份只覆盖一个B项。
 - [x] TASK-079 / 收据校验器复审修复TDD：复审后RED为17/19，扩展后25/25专项GREEN；覆盖逐case事实、失败/超时/停止/不确定终态、Owner与证书闭包、独占窗口、完整配置/授权/环境seal、dirty候选、隐私解码与receipt seal。
