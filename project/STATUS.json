@@ -160,7 +160,7 @@
     "gates": {
       "readinessControl": "PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO",
       "externalEvidenceProfiles": "REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED",
-      "capacityAuthority": "PENDING_FRESH_WINDOW_AUTHORIZATION",
+      "capacityAuthority": "PENDING_NEW_FRESH_AUTHORITY_AFTER_PREAUTH_ISSUER_FIX",
       "softwareBaseline": "TASK078_PASS_101_MAPPED_2_UNMAPPED_PENDING_EXTERNAL_NOT_RUN_FORMAL_READY_FALSE",
       "externalGate": "NOT_RUN",
       "realInput": "NOT_RUN",
@@ -802,9 +802,24 @@
         "state": "PASS",
         "nativeGate": true,
         "outputNativeGate": true,
-        "contracts": { "tests": 186, "passed": 186, "failed": 0, "skipped": 0 },
-        "bridgeCore": { "tests": 1242, "passed": 1242, "failed": 0, "skipped": 0 },
-        "desktop": { "tests": 643, "passed": 643, "failed": 0, "skipped": 0 },
+        "contracts": {
+          "tests": 186,
+          "passed": 186,
+          "failed": 0,
+          "skipped": 0
+        },
+        "bridgeCore": {
+          "tests": 1242,
+          "passed": 1242,
+          "failed": 0,
+          "skipped": 0
+        },
+        "desktop": {
+          "tests": 643,
+          "passed": 643,
+          "failed": 0,
+          "skipped": 0
+        },
         "build": "PASS",
         "redLogSha256": "fcdd6c321fa65f4860fc3e84f3ad27065402fe38e5d8b602b99436bbd5e474ce",
         "greenLogSha256": "c23b011e1258ae72fb41f705064fff4c394d19eda3887d230a8c97ddcba97e96",
@@ -842,7 +857,12 @@
         "candidateFiles": 620,
         "candidateSha256": "9d53a9719e21f812fc6adc5907f53fd691e3d44b4f18880e676e2d8834c5d290",
         "candidateStableBeforeAfter": true,
-        "e2e": { "tests": 91, "passed": 91, "failed": 0, "skipped": 0 },
+        "e2e": {
+          "tests": 91,
+          "passed": 91,
+          "failed": 0,
+          "skipped": 0
+        },
         "e2eLogSha256": "b8f00ca3e51e70c0f4ec07b8c20af7d031fb217bf7ba24c8f9700d538ac8a801",
         "e2eReceiptSha256": "c6532f6aed6dda35fc522514a71da41a8758db8fda11b1ada17c3a8bfae115db",
         "mappedPassed": 101,
@@ -855,15 +875,22 @@
         "gateB": "NOT_RUN"
       },
       "capacityWindowIssuer": {
-        "state": "DERIVED_SOURCE_CLOSURE_MAIN_GREEN_AFTER_FINAL_QUALITY_P2_ADJUDICATION",
+        "state": "PREAUTH_REPLAY_AUDIT_ROOT_CAUSE_FIXED_FRESH_AUTHORITY_REQUIRED",
         "previousImplementationCommit": "a167eba95ae9bbb4205808153a5694216161ba76",
         "previousReportCommit": "cf6de5ad1b6e1be0a6836474424e39727b61337b",
         "implementationCommits": [
           "ecf253ed7e2c5afc0d96e190f8aabf3fb65f0001",
-          "089994d166788326fac104e371593f905b9b17b6"
+          "089994d166788326fac104e371593f905b9b17b6",
+          "6009b3cb8f830cfd69fbbb7640be0bf6b70b3272",
+          "751146c5a36aa5ec15a45355d8f726b990a05575",
+          "5879c92142b6089f11daac0b3eb4460a66ffbe1d"
         ],
         "initialRed": "generated-contract-dist-source-candidate-1of2-fail",
-        "focusedVerification": { "tests": 17, "passed": 17, "failed": 0 },
+        "focusedVerification": {
+          "tests": 19,
+          "passed": 19,
+          "failed": 0
+        },
         "pythonCompile": "PASS",
         "independentReviewRound1": "SPEC_RED_P1_3__QUALITY_RED_P1_1_P2_3",
         "independentReviewRound2Final": "SPEC_PASS__QUALITY_RED_P2_2",
@@ -872,9 +899,26 @@
           "issuer-candidate-build-and-toolchain-facts-enter-owned-manifest-window-hash-closure",
           "fixed-tsconfig-no-resolve-prevents-candidate-output-boundary-expansion",
           "verified-node-libnode-typescript-and-libs-run-from-private-toolchain-copy",
-          "git-candidate-reads-have-fifteen-second-fail-closed-timeouts"
+          "git-candidate-reads-have-fifteen-second-fail-closed-timeouts",
+          "replay-audit-type-guards-unrelated-phase-and-generation-close-shapes",
+          "carryover-terminal-and-coverage-nested-shapes-fail-with-stable-codes"
         ],
-        "candidatePreflight": { "sourcePins": 243, "derivedJs": 42, "buildInputs": 44, "exactBytes": true },
+        "candidatePreflight": {
+          "sourcePins": 243,
+          "derivedJs": 42,
+          "buildInputs": 44,
+          "exactBytes": true
+        },
+        "preAuthorityIssueAttempt": {
+          "state": "ISSUER_INTERNAL_BEFORE_EXCLUSIVE_CREATE",
+          "authorityDirectoryCreated": false,
+          "authorityFilesCreated": 0,
+          "windowCreated": false,
+          "seedCreated": false,
+          "generationStarted": false,
+          "replayed": false,
+          "rootCause": "unrelated-phase-close-string-window-not-type-guarded"
+        },
         "writesAuthorityOnly": true,
         "executesBenchmark": false,
         "freshWindowAuthorized": false,
@@ -905,6 +949,6 @@
       "closeReceiptSha256": "4c18479e33b6392ff511a09b057d3e296dc3873d1c9be09d7d5f67c38eff39be",
       "replay": "PROHIBITED"
     },
-    "capacityGate": "R023_OBJECTS_LIMIT_WINDOW02_CONTROL_COVERAGE_FAILURE_SEALED__NO_SEED_NO_REPLAY__ISSUER_DERIVED_SOURCE_CLOSURE_17_PASS__FRESH_WINDOW_MEASURE_QUEUE_JOINT_NOT_AUTHORIZED"
+    "capacityGate": "R023_OBJECTS_LIMIT_WINDOW02_CONTROL_COVERAGE_FAILURE_SEALED__WINDOW03_PREAUTH_ISSUER_INTERNAL_NO_AUTHORITY_NO_GENERATION__REPLAY_AND_CARRYOVER_SHAPES_FIXED_19_PASS__FRESH_WINDOW_MEASURE_QUEUE_JOINT_NOT_AUTHORIZED"
   }
 }

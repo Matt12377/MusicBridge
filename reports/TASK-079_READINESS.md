@@ -206,3 +206,11 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - 真实hardware和Gate B：均为`NOT_RUN`；没有设备操作或真实数据写入。
 - capacity authority：`PENDING_FRESH_WINDOW_AUTHORIZATION`；`freshWindowAuthorized=false`，没有签发或运行新窗口。
 - 本次live校验：STATUS JSON解析与字段级真相断言PASS；readiness focused 15/15、默认CLI exit 0且仍为`ready=false`；evidence focused 33/33与模板CLI exit 0；`git diff --check` PASS。旧 `HARDWARE_PREPARED` 精确契约已移除，机器状态不能再掩盖独立R2最终RED。
+
+#### Objects-limit window-03 pre-authority 失败闭包与 replay 形状加固
+
+- 独立fresh准入只读审计曾对HEAD `507a9265c7a387067ed6c916ce0821501a707230`与issuer SHA `a3ee9436527044898ca92dd0d99156171f27fdd6289ab1c71bf8b4a385c1b9cd`给出一次性issuer命令。该命令实际执行一次后返回`ISSUER_INTERNAL`，但发生在exclusive-create之前：`r023-objects-limit-generation-window-03`、`r023-objects-limit-seed-03`、authority文件和generation进程均未创建；没有consumer、benchmark、设备或真实数据操作，也没有重放旧window。
+- 只读诊断固定根因：runtime内15个合法历史phase/legacy close使用字符串`window`；旧replay scanner把所有close都按generation嵌套对象调用`.get()`。首个枚举触发文件为`r023-progress-window-02-close.json`，但触发顺序不构成身份保证。
+- RED先复现无关phase close导致`ISSUER_INTERNAL`；随后扩展为顶层`null/list/string/number/boolean`与generation close嵌套primitive表驱动负例，并断言失败前无window/seed。GREEN兼容无关phase字符串window，对generation形状异常稳定返回`REPLAY_AUDIT`。提交：`6009b3cb8f830cfd69fbbb7640be0bf6b70b3272`、`751146c5a36aa5ec15a45355d8f726b990a05575`。
+- 独立只读复核还发现carryover链式嵌套解析风险。主任务追加RED→GREEN：terminal控制对象形状异常映射`CARRYOVER_TERMINAL`，partial/supervisor覆盖形状异常映射`CARRYOVER_COVERAGE`，不再泄漏为内部异常。提交：`5879c92142b6089f11daac0b3eb4460a66ffbe1d`。
+- 新鲜专项为19/19、Python compile与`git diff --check`均PASS。旧fresh authority审计绑定旧HEAD和旧issuer SHA，不能用于新代码；机器状态保持`freshWindowAuthorized=false`，下一步必须重新进行独立只读准入后才能签发全新window。measure、large queued-stop、joint及全部设备/Owner门仍未授权。

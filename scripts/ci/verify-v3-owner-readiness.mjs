@@ -15,7 +15,7 @@ const UNMAPPED_PENDING = ['B-13', 'B-15']
 const READINESS_CONTROL = 'PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO'
 const DEVELOPMENT_STATE = 'no-device-control-main-green-hardware-independent-r2-final-red-capacity-authority-pending-external-not-run'
 const EXTERNAL_EVIDENCE_PROFILES = 'REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED'
-const CAPACITY_AUTHORITY = 'PENDING_FRESH_WINDOW_AUTHORIZATION'
+const CAPACITY_AUTHORITY = 'PENDING_NEW_FRESH_AUTHORITY_AFTER_PREAUTH_ISSUER_FIX'
 const EVIDENCE_INFRASTRUCTURE = {
   state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
   receiptFoundation: {
@@ -58,15 +58,18 @@ const HARDWARE_EVIDENCE_CONTROL = {
   gateB: 'NOT_RUN',
 }
 const CAPACITY_WINDOW_ISSUER = {
-  state: 'DERIVED_SOURCE_CLOSURE_MAIN_GREEN_AFTER_FINAL_QUALITY_P2_ADJUDICATION',
+  state: 'PREAUTH_REPLAY_AUDIT_ROOT_CAUSE_FIXED_FRESH_AUTHORITY_REQUIRED',
   previousImplementationCommit: 'a167eba95ae9bbb4205808153a5694216161ba76',
   previousReportCommit: 'cf6de5ad1b6e1be0a6836474424e39727b61337b',
   implementationCommits: [
     'ecf253ed7e2c5afc0d96e190f8aabf3fb65f0001',
     '089994d166788326fac104e371593f905b9b17b6',
+    '6009b3cb8f830cfd69fbbb7640be0bf6b70b3272',
+    '751146c5a36aa5ec15a45355d8f726b990a05575',
+    '5879c92142b6089f11daac0b3eb4460a66ffbe1d',
   ],
   initialRed: 'generated-contract-dist-source-candidate-1of2-fail',
-  focusedVerification: { tests: 17, passed: 17, failed: 0 },
+  focusedVerification: { tests: 19, passed: 19, failed: 0 },
   pythonCompile: 'PASS',
   independentReviewRound1: 'SPEC_RED_P1_3__QUALITY_RED_P1_1_P2_3',
   independentReviewRound2Final: 'SPEC_PASS__QUALITY_RED_P2_2',
@@ -76,8 +79,20 @@ const CAPACITY_WINDOW_ISSUER = {
     'fixed-tsconfig-no-resolve-prevents-candidate-output-boundary-expansion',
     'verified-node-libnode-typescript-and-libs-run-from-private-toolchain-copy',
     'git-candidate-reads-have-fifteen-second-fail-closed-timeouts',
+    'replay-audit-type-guards-unrelated-phase-and-generation-close-shapes',
+    'carryover-terminal-and-coverage-nested-shapes-fail-with-stable-codes',
   ],
   candidatePreflight: { sourcePins: 243, derivedJs: 42, buildInputs: 44, exactBytes: true },
+  preAuthorityIssueAttempt: {
+    state: 'ISSUER_INTERNAL_BEFORE_EXCLUSIVE_CREATE',
+    authorityDirectoryCreated: false,
+    authorityFilesCreated: 0,
+    windowCreated: false,
+    seedCreated: false,
+    generationStarted: false,
+    replayed: false,
+    rootCause: 'unrelated-phase-close-string-window-not-type-guarded',
+  },
   writesAuthorityOnly: true,
   executesBenchmark: false,
   freshWindowAuthorized: false,
