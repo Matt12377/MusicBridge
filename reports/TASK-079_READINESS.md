@@ -113,3 +113,10 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - GREEN：默认 CLI 现在验证 TASK-079 仓库根与分支、七个不重复 commit 对象、收据基础设施到 candidate closure 的逐段祖先关系，以及最终 closure 到当前 HEAD 的可达性；交换实现/报告顺序的测试固定返回 `CONTROL_REPOSITORY`。
 - 新鲜结果：readiness 15/15、证据专项 26/26、两个默认 CLI、Node 语法、控制面、边界、循环及 `git diff --check` 全部 exit 0。软件包代码未变化，紧邻前一检查点的完整 `pnpm verify` 结果继续有效。
 - 真实 Gate 边界不变：没有设备、真实资料、真实收据或 Owner 决定，`ready=false`、`formalReady=false`。
+
+### Owner-only scope 闭包修复
+
+- 实现提交：`a8b1d7629346f7bf578589fea4706f39b4fe0341`
+- RED：技术收据限定 B-01～B-15，但 Owner `accepted` 原先对全部 103 scope 一律要求同 scope 技术引用，导致 MVP/A/C/D/E 中外部门仅为 Owner 的条目永远无法合法接受。
+- GREEN：非 B scope 只有在固定 SHA 的 TASK-078 矩阵中 `mapped + fresh passed`，且 `externalRequirements` 非空并精确全部为 `owner/not-run` 时，才允许零技术引用的 Owner accepted。MVP-01 正例通过；仍要求 `real-roon` 的 U-01 负例保持 `OWNER_BOUNDARY`。B-01～B-15继续要求同 scope、同候选且已 seal 的技术 PASS。
+- 新鲜结果：证据专项 26/26、readiness 15/15、两个默认 CLI、Node 语法、控制面、边界、循环和 `git diff --check` 全部 exit 0。没有创建真实收据或写入 Owner 决定。
