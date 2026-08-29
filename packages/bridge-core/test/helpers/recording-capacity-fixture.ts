@@ -3,7 +3,7 @@ import type test from 'node:test';
 import { createHash, randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { performance } from 'node:perf_hooks';
-import { constants, closeSync, copyFileSync, existsSync, fsyncSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, rmdirSync, statfsSync, unlinkSync, writeFileSync } from 'node:fs';
+import { constants, closeSync, copyFileSync, fsyncSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, rmdirSync, statfsSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { recordingRecordFixture, freezeRerecordPlan } from './recording-record-fixture.js';
@@ -199,6 +199,69 @@ export interface CapacityClone {
   parent: string; label: string; directory: string; filePath: string; marker: { id: string; scope: string; label: string };
   device: number; inode: number; parentDevice: number; parentInode: number;
 }
+export type CapacityMeasureGroup = 'progress' | 'stop' | 'read';
+export type CapacityMeasurePhase = 'copy' | 'open-audit' | 'operation' | 'round-fsync' | 'final-hash' | 'cleanup';
+export interface CapacityMeasureSample extends CapacitySample {
+  metric: string; warmup: boolean; details: unknown;
+}
+export interface CapacityStopRoundResult {
+  attemptId: string; commandId: string; inProgressBefore: 0; inProgressAfter: 0;
+  attemptStatus: 'aborted'; attemptReason: 'user-stop'; coordinatorClosed: true; repositoryOpen: true;
+  samples: CapacityMeasureSample[];
+}
+export interface CapacityStopRoundReceipt extends CapacityStopRoundResult {
+  schemaVersion: 1; scope: 'musicbridge-capacity-measure-stop-round'; group: 'stop';
+  groupMarker: CapacityClone['marker']; roundIndex: number; sampleCount: 6; recordedAt: string;
+}
+const STOP_METRICS = ['signalAborted', 'driverStopInvoked', 'driverStopAck', 'driverCloseInvoked', 'driverCloseResolved', 'receiptSettled'] as const;
+export function capacityMeasurePlan() {
+  return { groups: ['progress', 'stop', 'read'] as CapacityMeasureGroup[], progressRounds: 105, stopRounds: 105,
+    readOperations: 8, readRoundsPerOperation: 105, stopMetricsPerRound: 6,
+    totalSamples: 1575, warmupPerSeries: 5, formalPerSeries: 100 };
+}
+export function appendCapacityMeasureStage(parent: string, group: CapacityMeasureGroup, phase: CapacityMeasurePhase, details: unknown): void {
+  if (realpathSync(parent) !== parent) throw new Error('容量measure阶段目录身份无效');
+  const file = path.join(parent, 'measure-stages.jsonl');
+  const fd = openSync(file, constants.O_CREAT | constants.O_APPEND | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
+  try {
+    writeFileSync(fd, JSON.stringify({ schemaVersion: 1, scope: 'musicbridge-capacity-measure-stage', group, phase,
+      recordedAt: new Date().toISOString(), details }) + '\n');
+    fsyncSync(fd);
+  } finally { closeSync(fd); }
+  const directory = openSync(parent, constants.O_RDONLY); try { fsyncSync(directory); } finally { closeSync(directory); }
+}
+export async function runCapacityStopRounds(
+  clone: CapacityClone, rounds: number, execute: (roundIndex: number) => Promise<CapacityStopRoundResult>,
+  onDurableReceipt?: (receipt: CapacityStopRoundReceipt) => void | Promise<void>,
+): Promise<CapacityStopRoundReceipt[]> {
+  if (!Number.isSafeInteger(rounds) || rounds < 1 || rounds > 105) throw new Error('Stop round数量无效');
+  const receipts: CapacityStopRoundReceipt[] = [], attempts = new Set<string>(), commands = new Set<string>();
+  appendCapacityMeasureStage(clone.parent, 'stop', 'operation', { rounds });
+  try {
+    for (let roundIndex = 1; roundIndex <= rounds; roundIndex += 1) {
+      const result = await execute(roundIndex);
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(result.attemptId)
+        || !/^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(result.commandId)
+        || attempts.has(result.attemptId) || commands.has(result.commandId)
+        || result.inProgressBefore !== 0 || result.inProgressAfter !== 0 || result.attemptStatus !== 'aborted'
+        || result.attemptReason !== 'user-stop' || result.coordinatorClosed !== true || result.repositoryOpen !== true
+        || !Array.isArray(result.samples) || result.samples.length !== STOP_METRICS.length
+        || result.samples.some((sample, index) => sample.metric !== STOP_METRICS[index]
+          || !Number.isFinite(sample.durationMs) || sample.durationMs < 0 || sample.warmup !== (roundIndex <= 5)
+          || !['ok', 'failed', 'timeout'].includes(sample.outcome))) throw new Error('Stop round事实无效');
+      attempts.add(result.attemptId); commands.add(result.commandId);
+      const receipt: CapacityStopRoundReceipt = { schemaVersion: 1, scope: 'musicbridge-capacity-measure-stop-round',
+        group: 'stop', groupMarker: clone.marker, roundIndex, ...result, sampleCount: 6, recordedAt: new Date().toISOString() };
+      durableJson(path.join(clone.parent, `${clone.label}.round-${String(roundIndex).padStart(3, '0')}.receipt.json`), receipt);
+      receipts.push(receipt);
+      await onDurableReceipt?.(receipt);
+    }
+  } finally {
+    appendCapacityMeasureStage(clone.parent, 'stop', 'round-fsync', { requestedRounds: rounds, completedRounds: receipts.length,
+      lastReceipt: receipts.length ? `${clone.label}.round-${String(receipts.length).padStart(3, '0')}.receipt.json` : null });
+  }
+  return receipts;
+}
 export function createCapacityClone(parent: string, label: string, seed: string): CapacityClone {
   if (realpathSync(parent) !== parent || !/^[a-z0-9-]{1,64}$/u.test(label)) throw new Error('容量clone父目录或label无效');
   const info = lstatSync(seed); if (!info.isFile() || info.isSymbolicLink() || info.nlink !== 1) throw new Error('种子不是独占普通文件');
@@ -206,11 +269,12 @@ export function createCapacityClone(parent: string, label: string, seed: string)
   const directory = path.join(parent, label); mkdirSync(directory);
   const marker = { id: randomUUID(), scope: 'musicbridge-capacity-clone-only', label };
   durableJson(path.join(directory, 'owner.json'), marker);
-  const filePath = path.join(directory, 'sample.sqlite'); copyFileSync(seed, filePath, constants.COPYFILE_EXCL);
+  const filePath = path.join(directory, 'sample.sqlite'); copyFileSync(seed, filePath, constants.COPYFILE_EXCL | constants.COPYFILE_FICLONE);
   const stat = lstatSync(directory), parentStat = lstatSync(parent);
   return { parent, label, directory, filePath, marker, device: stat.dev, inode: stat.ino, parentDevice: parentStat.dev, parentInode: parentStat.ino };
 }
-export function finishCapacityClone(clone: CapacityClone, result: { outcome: CapacitySample['outcome']; resourcesClosed: boolean; samples: unknown }): string {
+export function finishCapacityClone(clone: CapacityClone, result: { outcome: CapacitySample['outcome']; resourcesClosed: boolean; samples: unknown;
+  onPhase?: (phase: 'final-hash' | 'cleanup', details: unknown) => void }): string {
   const check = () => {
     if (!result.resourcesClosed || realpathSync(clone.parent) !== clone.parent || realpathSync(clone.directory) !== clone.directory || path.dirname(clone.directory) !== clone.parent || path.basename(clone.directory) !== clone.label) throw new Error('容量clone未关闭或路径身份变化');
     const info = lstatSync(clone.directory), parentInfo = lstatSync(clone.parent);
@@ -220,12 +284,17 @@ export function finishCapacityClone(clone: CapacityClone, result: { outcome: Cap
   };
   check();
   const receipt = path.join(clone.parent, `${clone.label}.receipt.json`);
-  durableJson(receipt, { ...result, marker: clone.marker, sqliteSha256: hashCapacityFile(clone.filePath), retained: result.outcome !== 'ok' });
+  const sqliteSha256 = hashCapacityFile(clone.filePath), retained = result.outcome !== 'ok';
+  const { onPhase, ...receiptResult } = result;
+  durableJson(receipt, { ...receiptResult, marker: clone.marker, sqliteSha256, retained });
+  onPhase?.('final-hash', { receipt: path.basename(receipt), sqliteSha256, retained });
   if (result.outcome === 'ok') {
     check(); // 持久receipt完成后再复核，失败/超时永不删。
+    // cleanup事实也必须先持久化；此后只做删除，避免“已删clone但阶段receipt写失败”。
+    onPhase?.('cleanup', { receipt: path.basename(receipt), retained: false, action: 'delete-after-stage' });
     for (const name of readdirSync(clone.directory)) unlinkSync(path.join(clone.directory, name));
     rmdirSync(clone.directory);
-  }
+  } else onPhase?.('cleanup', { receipt: path.basename(receipt), retained: true, action: 'retain' });
   return receipt;
 }
 

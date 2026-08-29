@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHash, randomUUID, type Hash, type BinaryLike } from 'node:crypto';
-import { fork } from 'node:child_process';
+import { fork, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import { DatabaseSync } from 'node:sqlite';
 import { isMasterArtworkImage, isRecordingPrintPdfBase64 } from '@music-bridge/contracts';
@@ -149,6 +149,120 @@ test('容量clone仅在持久receipt及关闭后按owner删除；失败、错mar
   assert.throws(() => api.finishCapacityClone(changed, { outcome: 'ok', resourcesClosed: true, samples: [] }));
   assert.equal(existsSync(changed.directory), true);
   assert.throws(() => api.createCapacityClone(directory, '../outside', seed));
+});
+
+test('measure group生命周期固定为3次完整clone/hash，stop组105轮receipt与1575样本精确闭包', async t => {
+  const api = await import('./helpers/recording-capacity-fixture.js');
+  const benchmark = readFileSync(new URL('./benchmarks/recording-capacity.ts', import.meta.url), 'utf8');
+  assert.match(benchmark, /const stopGroup = openGroup\('stop'\)/u);
+  assert.match(benchmark, /running\(stopGroup\.repository\)/u, '105轮必须复用同一个长期Repository');
+  assert.equal(benchmark.match(/createCapacityClone\(output, `group-\$\{group\}`/gu)?.length, 1,
+    'benchmark只能从统一group入口创建clone');
+  assert.doesNotMatch(benchmark, /sample-\$\{\+\+nextCopy\}/u, '不得退回每轮sample clone');
+  assert.doesNotMatch(benchmark, /sha\(seedPath\)/u, '正式measure不得在authority已验证seed后再次做完整hash');
+  assert.deepEqual(api.capacityMeasurePlan(), {
+    groups: ['progress', 'stop', 'read'], progressRounds: 105, stopRounds: 105,
+    readOperations: 8, readRoundsPerOperation: 105, stopMetricsPerRound: 6,
+    totalSamples: 1575, warmupPerSeries: 5, formalPerSeries: 100,
+  });
+  const plan = api.capacityMeasurePlan();
+  assert.equal(plan.progressRounds + plan.stopRounds * plan.stopMetricsPerRound
+    + plan.readOperations * plan.readRoundsPerOperation, plan.totalSamples, 'group样本必须精确拼接');
+  const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'musicbridge-capacity-group-')));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const seed = path.join(directory, 'seed.sqlite'); writeFileSync(seed, 'synthetic group seed');
+  const clone = api.createCapacityClone(directory, 'group-stop', seed);
+  api.appendCapacityMeasureStage(directory, 'stop', 'copy', { clone: clone.marker });
+  api.appendCapacityMeasureStage(directory, 'stop', 'open-audit', { inProgress: 0 });
+  const seenAttempts = new Set<string>(), seenCommands = new Set<string>();
+  const receipts = await api.runCapacityStopRounds(clone, 105, async roundIndex => {
+    const attemptId = randomUUID(), commandId = randomUUID(); seenAttempts.add(attemptId); seenCommands.add(commandId);
+    return { attemptId, commandId, inProgressBefore: 0 as const, inProgressAfter: 0 as const,
+      attemptStatus: 'aborted' as const, attemptReason: 'user-stop' as const, coordinatorClosed: true as const, repositoryOpen: true as const,
+      samples: ['signalAborted', 'driverStopInvoked', 'driverStopAck', 'driverCloseInvoked', 'driverCloseResolved', 'receiptSettled']
+        .map(metric => ({ metric, durationMs: roundIndex, warmup: roundIndex <= 5, outcome: 'ok' as const, details: null })) };
+  });
+  assert.equal(receipts.length, 105); assert.equal(seenAttempts.size, 105); assert.equal(seenCommands.size, 105);
+  for (let index = 1; index <= 105; index += 1) {
+    const receipt = JSON.parse(readFileSync(path.join(directory, `group-stop.round-${String(index).padStart(3, '0')}.receipt.json`), 'utf8'));
+    assert.deepEqual(Object.keys(receipt).sort(), ['attemptId', 'attemptReason', 'attemptStatus', 'commandId', 'coordinatorClosed',
+      'group', 'groupMarker', 'inProgressAfter', 'inProgressBefore', 'recordedAt', 'repositoryOpen', 'roundIndex',
+      'sampleCount', 'samples', 'schemaVersion', 'scope'].sort());
+    assert.equal(receipt.roundIndex, index); assert.deepEqual(receipt.groupMarker, clone.marker);
+    assert.equal(receipt.samples.length, 6); assert.equal(receipt.inProgressBefore, 0); assert.equal(receipt.inProgressAfter, 0);
+  }
+  api.finishCapacityClone(clone, { outcome: 'ok', resourcesClosed: true, samples: receipts.flatMap(value => value.samples),
+    onPhase: (phase, details) => api.appendCapacityMeasureStage(directory, 'stop', phase, details) });
+  assert.equal(existsSync(clone.directory), false);
+  for (const group of ['progress', 'read'] as const) {
+    const groupClone = api.createCapacityClone(directory, `group-${group}`, seed);
+    api.appendCapacityMeasureStage(directory, group, 'copy', { clone: groupClone.marker });
+    api.appendCapacityMeasureStage(directory, group, 'open-audit', { inProgress: 0 });
+    api.appendCapacityMeasureStage(directory, group, 'operation', { complete: true });
+    api.appendCapacityMeasureStage(directory, group, 'round-fsync', { complete: true });
+    api.finishCapacityClone(groupClone, { outcome: 'ok', resourcesClosed: true, samples: [],
+      onPhase: (phase, details) => api.appendCapacityMeasureStage(directory, group, phase, details) });
+  }
+  assert.equal(readdirSync(directory).filter(name => /^group-(progress|stop|read)\.receipt\.json$/u.test(name)).length, 3,
+    '三个group各做一次完整hash/最终receipt，不能退回107次sample clone');
+  const stages = readFileSync(path.join(directory, 'measure-stages.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line));
+  assert.equal(stages.length, 18);
+  for (const group of ['progress', 'stop', 'read']) assert.deepEqual(stages.filter(row => row.group === group).map(row => row.phase),
+    ['copy', 'open-audit', 'operation', 'round-fsync', 'final-hash', 'cleanup']);
+  assert.deepEqual([...new Set(stages.map(row => row.phase))], ['copy', 'open-audit', 'operation', 'round-fsync', 'final-hash', 'cleanup']);
+});
+
+test('measure CLI只接受显式规范TASK078 runtime-root，generate拒绝该参数', t => {
+  const candidateRoot = realpathSync(new URL('../../../', import.meta.url).pathname);
+  const benchmark = new URL('./benchmarks/recording-capacity.ts', import.meta.url).pathname;
+  const temporary = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'musicbridge-capacity-runtime-root-')));
+  t.after(() => rmSync(temporary, { recursive: true, force: true }));
+  const task078 = path.join(temporary, 'task-078-v3-acceptance');
+  const runtime = path.join(task078, 'reports/runtime/task-078-v3-acceptance');
+  mkdirSync(runtime, { recursive: true });
+  const symlink = path.join(temporary, 'runtime-link'); symlinkSync(runtime, symlink, 'dir');
+  const base = ['--import', 'tsx', benchmark, '--phase', 'measure', '--profile', 'objects-limit',
+    '--label', 'runtime-root-red', '--seed-label', 'objects-seed', '--window', 'window-red'];
+  const invoke = (args: string[]) => spawnSync(process.execPath, args, { cwd: candidateRoot, encoding: 'utf8' });
+  const rejected = [
+    { args: base, error: /measure必须显式提供TASK078 runtime-root/u },
+    { args: [...base, '--runtime-root', 'reports/runtime/task-078-v3-acceptance'], error: /runtime-root必须是绝对规范目录/u },
+    { args: [...base, '--runtime-root', symlink], error: /runtime-root不得是符号链接/u },
+    { args: [...base, '--runtime-root', temporary], error: /runtime-root结构必须绑定TASK078/u },
+    { args: [...base, '--runtime-root', candidateRoot], error: /runtime-root不得等于TASK079 candidate root/u },
+  ];
+  for (const item of rejected) {
+    const result = invoke(item.args);
+    assert.notEqual(result.status, 0, `非法runtime不得启动measure: ${item.args.at(-1)}`);
+    assert.match(`${result.stdout}\n${result.stderr}`, item.error);
+  }
+  const generated = invoke(['--import', 'tsx', benchmark, '--phase', 'generate', '--profile', 'pilot',
+    '--label', 'generate-runtime-red', '--runtime-root', runtime]);
+  assert.notEqual(generated.status, 0);
+  assert.match(`${generated.stdout}\n${generated.stderr}`, /generate不得接受runtime-root/u);
+  assert.equal(existsSync(path.join(runtime, 'runtime-root-red')), false, 'runtime拒绝必须发生在创建输出目录之前');
+});
+
+test('stop group第30轮故障保留clone、前29个durable receipts与partial samples，不伪写成功终态', async t => {
+  const api = await import('./helpers/recording-capacity-fixture.js');
+  const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'musicbridge-capacity-group-failure-')));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const seed = path.join(directory, 'seed.sqlite'); writeFileSync(seed, 'synthetic failure seed');
+  const clone = api.createCapacityClone(directory, 'group-stop', seed), samples = path.join(directory, 'samples.jsonl');
+  await assert.rejects(api.runCapacityStopRounds(clone, 105, async roundIndex => {
+    if (roundIndex === 30) throw new Error('ROUND_30_FAULT');
+    const rows = ['signalAborted', 'driverStopInvoked', 'driverStopAck', 'driverCloseInvoked', 'driverCloseResolved', 'receiptSettled']
+      .map(metric => ({ metric, durationMs: roundIndex, warmup: roundIndex <= 5, outcome: 'ok' as const, details: null }));
+    return { attemptId: randomUUID(), commandId: randomUUID(), inProgressBefore: 0 as const, inProgressAfter: 0 as const,
+      attemptStatus: 'aborted' as const, attemptReason: 'user-stop' as const,
+      coordinatorClosed: true as const, repositoryOpen: true as const, samples: rows };
+  }, receipt => writeFileSync(samples, receipt.samples.map(row => JSON.stringify(row)).join('\n') + '\n', { flag: 'a' })), /ROUND_30_FAULT/u);
+  assert.equal(readdirSync(directory).filter(name => /^group-stop\.round-\d{3}\.receipt\.json$/u.test(name)).length, 29);
+  assert.equal(existsSync(clone.directory), true); assert.equal(readFileSync(samples, 'utf8').trim().split('\n').length, 29 * 6);
+  assert.equal(existsSync(path.join(directory, 'group-stop.receipt.json')), false, '失败group不能伪造完整hash/成功终态receipt');
+  const stages = readFileSync(path.join(directory, 'measure-stages.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line));
+  assert.deepEqual(stages.map(row => row.phase), ['operation', 'round-fsync']); assert.equal(stages[1].details.completedRounds, 29);
+  assert.equal(existsSync(path.join(directory, 'summary.json')), false); assert.equal(existsSync(path.join(directory, 'exit.json')), false);
 });
 
 test('容量统计使用nearest-rank并保留失败/超时，少量样本不伪报P99', async () => {

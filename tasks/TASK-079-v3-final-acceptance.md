@@ -39,12 +39,19 @@
 - `scripts/ci/test/issue-v3-capacity-window.test.mjs`
 - `scripts/ci/issue-v3-capacity-measure-window.py`
 - `scripts/ci/test/issue-v3-capacity-measure-window.test.mjs`
+- `scripts/ci/capacity-phase-supervisor-v2.py`
+- `scripts/ci/test/capacity-phase-supervisor-v2.test.mjs`
+- `packages/bridge-core/test/benchmarks/recording-capacity.ts`
+- `packages/bridge-core/test/helpers/recording-capacity-fixture.ts`
+- `packages/bridge-core/test/recording-capacity.test.ts`
 - `reports/TASK-079_REAL_GATE_RUNBOOK.md`
 - `reports/TASK-079_READINESS.md`
 
 除非后续真实 RED 明确证明需要生产修复，否则本无设备阶段不修改应用、Core、合同、数据库或原生输出代码。任何生产修复必须先单独冻结允许路径并执行 RED→GREEN；不能为了让清单变绿而放宽真实 Gate。
 
 TASK-078 的 `objects-limit` 重新准入在 2026-08-30 暴露出独立控制面 RED：仓库只有 capacity window 消费器，没有可测试的 exclusive-create authority 签发器；临时签发遗漏已封存的旧 partial output 与 fixture，运行在独立审计发现后立即终止。新增的 generation issuer 只负责从显式旧 owned manifest、终态 carryover close 和当前 source pins 构造 fail-closed generation authority，不运行 benchmark、不清理证据、不自动重试。window-03 generation 正式 PASS 后，measure 又暴露出独立 issuer 缺口；新 measure issuer 继承59个既有受控根，加入seed、fixture、新authority与issuer identity，并仅预授权一个future output，形成63+1精确闭包。它同样只写authority，不执行measure；下一步仍需独立fresh审计后才可一次性签发。
+
+第一次objects-limit measure在fresh authority下运行至29个完整回执后，以`EXECUTION_TIMEOUT`终态停止并保留第30个clone和全部partial。只读根因复核证明107次约1.99GB clone/open-audit/full-hash生命周期与固定900秒窗口数学不闭合；该失败不是受测Stop指标、身份或空间漂移。后续生产改动只允许在上述冻结路径内以RED→GREEN把1575个样本重构为3个group clone、105个durable Stop round receipt，并让新issuer显式继承旧measure window与partial根。旧UUID/window/label禁止重放，旧partial禁止删除、移动或吸收；不通过新独立复审与fresh authority审计不得签发下一窗口。
 
 ## 自动验证
 

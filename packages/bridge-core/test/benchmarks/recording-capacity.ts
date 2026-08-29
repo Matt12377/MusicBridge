@@ -2,14 +2,16 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { appendFileSync, closeSync, existsSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync, backup } from 'node:sqlite';
 import { performance } from 'node:perf_hooks';
 import { createCapacitySeed, summarizeCapacitySamples, readCapacityBudget, capacityProfile, createCapacityClone, finishCapacityClone,
-  hashCapacityFile, checkCapacitySpace, type CapacitySample, type CapacityProfileName } from '../helpers/recording-capacity-fixture.js';
+  hashCapacityFile, checkCapacitySpace, appendCapacityMeasureStage, capacityMeasurePlan, runCapacityStopRounds,
+  type CapacityMeasureGroup, type CapacityMeasureSample, type CapacitySample,
+  type CapacityProfileName } from '../helpers/recording-capacity-fixture.js';
 import { createCollectionRepository } from '../../src/collection/repository.js';
 import { createRecordingAttemptCoordinator, type RecordingAttemptDriverRequest } from '../../src/recording/attempt-coordinator.js';
 import { createRecordingRecordCoordinator } from '../../src/recording/record-coordinator.js';
@@ -20,7 +22,7 @@ if (realpathSync(process.cwd()) !== realpathSync(root)) throw new Error('容量�
 const options = new Map<string, string>();
 for (let i = 2; i < process.argv.length; i += 2) {
   const key = process.argv[i], value = process.argv[i + 1];
-  if (!key || !value || !['--phase', '--profile', '--label', '--seed-label', '--window'].includes(key) || options.has(key)) throw new Error('容量入口参数无效');
+  if (!key || !value || !['--phase', '--profile', '--label', '--seed-label', '--window', '--runtime-root'].includes(key) || options.has(key)) throw new Error('容量入口参数无效');
   options.set(key, value);
 }
 const phase = options.get('--phase'), profile = options.get('--profile'), label = options.get('--label');
@@ -29,7 +31,26 @@ const profileDefinition = capacityProfile(profile as CapacityProfileName);
 const seedLabel = options.get('--seed-label'), window = options.get('--window');
 if (phase === 'measure' && (!seedLabel || !/^[a-z0-9-]{1,64}$/u.test(seedLabel) || !window || !/^[a-z0-9-]{1,64}$/u.test(window))) throw new Error('性能采样需明确种子与总控已批准的独占窗口标签');
 if (phase === 'generate' && !['pilot', 'history-small'].includes(profile) && (!window || !/^[a-z0-9-]{1,64}$/u.test(window))) throw new Error('新增大profile生成需明确已批准独占窗口');
-const runtime = path.join(root, 'reports/runtime/task-078-v3-acceptance');
+const runtimeOption = options.get('--runtime-root');
+if (phase === 'generate' && runtimeOption !== undefined) throw new Error('generate不得接受runtime-root');
+if (phase === 'measure' && runtimeOption === undefined) throw new Error('measure必须显式提供TASK078 runtime-root');
+function validatedMeasureRuntime(value: string): string {
+  if (!path.isAbsolute(value)) throw new Error('runtime-root必须是绝对规范目录');
+  if (path.resolve(value) === realpathSync(root)) throw new Error('runtime-root不得等于TASK079 candidate root');
+  let info;
+  try { info = lstatSync(value); } catch { throw new Error('runtime-root必须是存在的绝对规范目录'); }
+  if (info.isSymbolicLink()) throw new Error('runtime-root不得是符号链接');
+  if (!info.isDirectory()) throw new Error('runtime-root必须是存在的绝对规范目录');
+  const canonical = realpathSync(value);
+  if (canonical !== value) throw new Error('runtime-root必须是绝对规范目录');
+  const runtimeParent = path.dirname(canonical), reports = path.dirname(runtimeParent), task078 = path.dirname(reports);
+  if (path.basename(canonical) !== 'task-078-v3-acceptance' || path.basename(runtimeParent) !== 'runtime'
+      || path.basename(reports) !== 'reports' || path.basename(task078) !== 'task-078-v3-acceptance') {
+    throw new Error('runtime-root结构必须绑定TASK078');
+  }
+  return canonical;
+}
+const runtime = phase === 'measure' ? validatedMeasureRuntime(runtimeOption!) : path.join(root, 'reports/runtime/task-078-v3-acceptance');
 const output = path.join(runtime, label); mkdirSync(output);
 const json = (name: string, value: unknown) => {
   const fd = openSync(path.join(output, name), 'wx');
@@ -73,35 +94,50 @@ test(`R023 ${phase} ${profile}`, { timeout: 45 * 60_000 }, async t => {
     schema: number; profile: string; fixtureDirectory: string; snapshotSha256: string; marker: { id: string; scope: string };
     nextPlanId: string; nextPlanHash: string; recordingId: string; completedPhysicalId: string; growth?: { state: string };
   };
-  assert.equal(seed.schema, 21); assert.equal(seed.profile, profile); assert.equal(sha(seedPath), seed.snapshotSha256);
+  assert.equal(seed.schema, 21); assert.equal(seed.profile, profile);
   if (seed.growth) assert.equal(seed.growth.state, 'target-reached', '未达到profile目标的种子不可作为该档测量');
   assert.ok(path.basename(seed.fixtureDirectory).startsWith('musicbridge-version-'));
   assert.deepEqual(JSON.parse(readFileSync(path.join(seed.fixtureDirectory, 'capacity-owner.json'), 'utf8')), seed.marker);
   assert.equal(seed.marker.scope, 'musicbridge-capacity-synthetic-only');
   json('measurement.json', { seedLabel, seedSha256: seed.snapshotSha256, profile, window, classification: 'software-only/exclusive-window',
     cache: '新DatabaseSync实例，OS页缓存未清理；不是物理冷盘。此入口不测新Node进程或UI ready。',
-    warmup: 5, readSamples: 100, progressSamples: 100, stopSamples: profile === 'pilot' ? 10 : 100,
+    measurePlan: { groupCloneCount: 3, fullHashCount: 3, stopRoundReceiptCount: 105, sampleCount: 1575 },
     excluded: ['真实设备无声', '新进程冷启', '完整恢复50s', '真实Print领取/写入', '父IPC排队Stop'] });
   const grouped = new Map<string, CapacitySample[]>();
   const allSamples: unknown[] = [];
-  function sample(metric: string, durationMs: number, warmup: boolean, outcome: CapacitySample['outcome'] = 'ok', details: unknown = null): void {
+  const samplePath = path.join(output, 'samples.jsonl');
+  function sample(metric: string, durationMs: number, warmup: boolean, outcome: CapacitySample['outcome'] = 'ok', details: unknown = null): CapacityMeasureSample {
     const row = { metric, durationMs, warmup, outcome, details }; allSamples.push(row);
-    appendFileSync(path.join(output, 'samples.jsonl'), JSON.stringify(row) + '\n');
+    const fd = openSync(samplePath, 'a'); try { appendFileSync(fd, JSON.stringify(row) + '\n'); fsyncSync(fd); } finally { closeSync(fd); }
     if (!warmup) { const values = grouped.get(metric) ?? []; values.push({ durationMs, outcome }); grouped.set(metric, values); }
+    return row;
   }
-  let nextCopy = 0;
-  function copy() {
-    const clone = createCapacityClone(output, `sample-${++nextCopy}`, seedPath), filePath = clone.filePath;
-    const repository = createCollectionRepository({ filePath });
+  function commitSamples(rows: CapacityMeasureSample[]): void {
+    const fd = openSync(samplePath, 'a');
+    try { appendFileSync(fd, rows.map(row => JSON.stringify(row)).join('\n') + '\n'); fsyncSync(fd); } finally { closeSync(fd); }
+    for (const row of rows) {
+      allSamples.push(row);
+      if (!row.warmup) { const values = grouped.get(row.metric) ?? []; values.push({ durationMs: row.durationMs, outcome: row.outcome }); grouped.set(row.metric, values); }
+    }
+  }
+  function openGroup(group: CapacityMeasureGroup) {
+    const clone = createCapacityClone(output, `group-${group}`, seedPath), filePath = clone.filePath;
+    appendCapacityMeasureStage(output, group, 'copy', { groupMarker: clone.marker, seedSha256: seed.snapshotSha256 });
+    const repository = createCollectionRepository({ filePath }), auditDb = new DatabaseSync(filePath, { readOnly: true });
     // 打开及完整审计在计时外；独立冷开指标由总控/A另测同一seed。
-    try { repository.recordingPlans.version({ id: seed.nextPlanId }); }
-    catch (error) { repository.close(); finishCapacityClone(clone, { outcome: 'failed', resourcesClosed: true, samples: [] }); throw error; }
-    return { filePath, repository, clone };
+    try {
+      repository.recordingPlans.version({ id: seed.nextPlanId });
+      assert.equal(auditDb.prepare("SELECT count(*) n FROM recording_attempts WHERE status='in-progress'").get()!.n, 0);
+      appendCapacityMeasureStage(output, group, 'open-audit', { groupMarker: clone.marker, inProgress: 0 });
+    } catch (error) {
+      auditDb.close(); repository.close(); throw error;
+    }
+    return { group, filePath, repository, auditDb, clone };
   }
-  async function running() {
-    const f = copy(); let driver: RecordingAttemptDriverRequest | undefined;
+  async function running(repository: ReturnType<typeof createCollectionRepository>) {
+    let driver: RecordingAttemptDriverRequest | undefined;
     const times: Record<string, number> = {};
-    const coordinator = createRecordingAttemptCoordinator({ store: f.repository.recordingAttempts, admissionProvider: {
+    const coordinator = createRecordingAttemptCoordinator({ store: repository.recordingAttempts, admissionProvider: {
       async authorize() {}, async start(request) {
         driver = request;
         request.signal.addEventListener('abort', () => { times.signalAborted = performance.now(); }, { once: true });
@@ -110,41 +146,74 @@ test(`R023 ${phase} ${profile}`, { timeout: 45 * 60_000 }, async t => {
       },
     } });
     try {
-      const attempt = await coordinator.begin({ commandId: randomUUID(), planVersionId: seed.nextPlanId, planContentHash: seed.nextPlanHash, userConfirmed: true });
-      return { ...f, coordinator, attempt, driver: driver!, times, async close() { try { await coordinator.close(); } finally { f.repository.close(); } } };
-    } catch (error) { try { await coordinator.close(); } finally { f.repository.close(); } finishCapacityClone(f.clone, { outcome: 'failed', resourcesClosed: true, samples: [] }); throw error; }
+      const beginCommandId = randomUUID();
+      const attempt = await coordinator.begin({ commandId: beginCommandId, planVersionId: seed.nextPlanId, planContentHash: seed.nextPlanHash, userConfirmed: true });
+      return { coordinator, attempt, beginCommandId, driver: driver!, times };
+    } catch (error) { await coordinator.close(); throw error; }
   }
 
-  const progress = await running();
+  const plan = capacityMeasurePlan(); assert.equal(plan.totalSamples, 1575);
+  const progressGroup = openGroup('progress'), progress = await running(progressGroup.repository);
+  appendCapacityMeasureStage(output, 'progress', 'operation', { rounds: plan.progressRounds });
+  let progressOutcome: CapacitySample['outcome'] = 'ok';
   try {
-    for (let i = 0; i < 105; ++i) {
+    for (let i = 0; i < plan.progressRounds; ++i) {
       const start = performance.now(), frames = i + 1;
       progress.driver.onEvent({ type: 'progress', side: progress.driver.side, runId: progress.driver.runId, at: new Date().toISOString(), sourceFramesRead: frames, submittedFrames: frames, consumedFrames: frames });
       const durationMs = performance.now() - start;
       const state = progress.coordinator.get({ attemptId: progress.attempt.id }).attempt!;
       sample('progress', durationMs, i < 5, state.sides[0]!.consumedFrames === frames && state.status === 'in-progress' ? 'ok' : 'failed');
     }
-  } catch (error) { await progress.close(); finishCapacityClone(progress.clone, { outcome: 'failed', resourcesClosed: true, samples: allSamples }); throw error; }
-  await progress.close(); finishCapacityClone(progress.clone, { outcome: allSamples.some(value => (value as CapacitySample).outcome !== 'ok') ? 'failed' : 'ok', resourcesClosed: true, samples: allSamples });
-
-  const stopCount = profile === 'pilot' ? 10 : 100;
-  for (let i = 0; i < stopCount + 5; ++i) {
-    const f = await running(), received = performance.now(), sampleStart = allSamples.length; let outcome: CapacitySample['outcome'] = 'ok';
-    try { await f.coordinator.stop({ commandId: randomUUID(), attemptId: f.attempt.id }); }
-    catch { outcome = 'failed'; }
-    f.times.receiptSettled = performance.now();
-    try { await f.coordinator.close(); } catch { outcome = 'failed'; }
-    finally { f.repository.close(); }
-    for (const key of ['signalAborted', 'driverStopInvoked', 'driverStopAck', 'driverCloseInvoked', 'driverCloseResolved', 'receiptSettled']) {
-      const at = f.times[key]; if (at === undefined) outcome = 'failed';
-      sample(key, (at ?? performance.now()) - received, i < 5, outcome, { sample: i, observed: at !== undefined });
-    }
-    finishCapacityClone(f.clone, { outcome, resourcesClosed: true, samples: allSamples.slice(sampleStart) });
+    if (allSamples.some(value => (value as CapacitySample).outcome !== 'ok')) throw new Error('PROGRESS_GROUP_FAILED');
+  } catch (error) { progressOutcome = 'failed'; throw error; }
+  finally {
+    let closeError: unknown;
+    appendCapacityMeasureStage(output, 'progress', 'round-fsync', { completedSamples: allSamples.length,
+      expectedSamples: plan.progressRounds });
+    try { await progress.coordinator.close(); } catch (error) { progressOutcome = 'failed'; closeError = error; }
+    progressGroup.auditDb.close(); progressGroup.repository.close();
+    if (progressOutcome === 'ok') finishCapacityClone(progressGroup.clone, { outcome: 'ok', resourcesClosed: true, samples: allSamples.slice(0, plan.progressRounds),
+      onPhase: (phaseName, details) => appendCapacityMeasureStage(output, 'progress', phaseName, details) });
+    if (closeError) throw closeError;
   }
-  const reading = copy();
+
+  const stopGroup = openGroup('stop'), stopStart = allSamples.length;
+  let stopOutcome: CapacitySample['outcome'] = 'ok';
+  try {
+    await runCapacityStopRounds(stopGroup.clone, plan.stopRounds, async roundIndex => {
+      const inProgressBefore = Number(stopGroup.auditDb.prepare("SELECT count(*) n FROM recording_attempts WHERE status='in-progress'").get()!.n);
+      assert.equal(inProgressBefore, 0, '每轮Begin前不得存在in-progress Attempt');
+      const f = await running(stopGroup.repository), received = performance.now(), commandId = randomUUID();
+      let outcome: CapacitySample['outcome'] = 'ok', stopError: unknown;
+      try { await f.coordinator.stop({ commandId, attemptId: f.attempt.id }); }
+      catch (error) { outcome = 'failed'; stopError = error; }
+      f.times.receiptSettled = performance.now();
+      try { await f.coordinator.close(); } catch (error) { outcome = 'failed'; stopError ??= error; }
+      const terminal = stopGroup.repository.recordingAttempts.get({ attemptId: f.attempt.id }).attempt!;
+      const inProgressAfter = Number(stopGroup.auditDb.prepare("SELECT count(*) n FROM recording_attempts WHERE status='in-progress'").get()!.n);
+      const samples: CapacityMeasureSample[] = ['signalAborted', 'driverStopInvoked', 'driverStopAck', 'driverCloseInvoked', 'driverCloseResolved', 'receiptSettled'].map(key => {
+        const at = f.times[key]; if (at === undefined) outcome = 'failed';
+        return { metric: key, durationMs: (at ?? performance.now()) - received, warmup: roundIndex <= 5, outcome,
+          details: { roundIndex, observed: at !== undefined, attemptId: f.attempt.id, commandId } };
+      });
+      if (stopError || outcome !== 'ok') throw stopError ?? new Error('STOP_ROUND_FAILED');
+      assert.equal(inProgressAfter, 0); assert.equal(terminal.status, 'aborted'); assert.equal(terminal.reason, 'user-stop');
+      return { attemptId: f.attempt.id, commandId, inProgressBefore: 0 as const, inProgressAfter: 0 as const,
+        attemptStatus: 'aborted' as const, attemptReason: 'user-stop' as const,
+        coordinatorClosed: true as const, repositoryOpen: true as const, samples };
+    }, receipt => commitSamples(receipt.samples));
+  } catch (error) { stopOutcome = 'failed'; throw error; }
+  finally {
+    stopGroup.auditDb.close(); stopGroup.repository.close();
+    if (stopOutcome === 'ok') finishCapacityClone(stopGroup.clone, { outcome: 'ok', resourcesClosed: true, samples: allSamples.slice(stopStart),
+      onPhase: (phaseName, details) => appendCapacityMeasureStage(output, 'stop', phaseName, details) });
+  }
+
+  const reading = openGroup('read');
   const records = createRecordingRecordCoordinator({ store: reading.repository.recordingRecords, assertCurrent() {}, assertExecutionIdle() {} });
   const readingStart = allSamples.length; let readingOutcome: CapacitySample['outcome'] = 'ok';
   try {
+    appendCapacityMeasureStage(output, 'read', 'operation', { operations: plan.readOperations, roundsPerOperation: plan.readRoundsPerOperation });
     const detail = records.get({ id: seed.recordingId }).record!, attachment = detail.record.visuals.photos;
     assert.equal(attachment.state, 'captured');
     const job = reading.repository.recordingPrints.list({ recordingId: seed.recordingId, page: { offset: 0, limit: 25 } }).items[0]!;
@@ -162,7 +231,7 @@ test(`R023 ${phase} ${profile}`, { timeout: 45 * 60_000 }, async t => {
     ];
     for (const [metric, action] of operations) {
       const expected = action();
-      for (let i = 0; i < 105; ++i) {
+      for (let i = 0; i < plan.readRoundsPerOperation; ++i) {
         const started = performance.now(); let actual: unknown, outcome: CapacitySample['outcome'] = 'ok';
         try { actual = action(); } catch { outcome = 'failed'; }
         const durationMs = performance.now() - started;
@@ -173,7 +242,14 @@ test(`R023 ${phase} ${profile}`, { timeout: 45 * 60_000 }, async t => {
     }
     const db = new DatabaseSync(reading.filePath, { readOnly: true }); try { json('end-budget.json', readCapacityBudget(db)); } finally { db.close(); }
   } catch (error) { readingOutcome = 'failed'; throw error; }
-  finally { records.close(); reading.repository.close(); finishCapacityClone(reading.clone, { outcome: readingOutcome, resourcesClosed: true, samples: allSamples.slice(readingStart) }); }
+  finally {
+    appendCapacityMeasureStage(output, 'read', 'round-fsync', { completedSamples: allSamples.length - readingStart,
+      expectedSamples: plan.readOperations * plan.readRoundsPerOperation });
+    records.close(); reading.auditDb.close(); reading.repository.close();
+    if (readingOutcome === 'ok') finishCapacityClone(reading.clone, { outcome: 'ok', resourcesClosed: true, samples: allSamples.slice(readingStart),
+      onPhase: (phaseName, details) => appendCapacityMeasureStage(output, 'read', phaseName, details) });
+  }
+  assert.equal(allSamples.length, plan.totalSamples, '正式measure样本必须精确拼接为1575条');
   const metrics = Object.fromEntries([...grouped].map(([name, values]) => [name, summarizeCapacitySamples(values)]));
   const limits: Record<string, { max: number; p95?: number }> = {
     progress: { max: 100, p95: 50 }, signalAborted: { max: 100 }, driverStopInvoked: { max: 100 }, receiptSettled: { max: 2000, p95: 500 },

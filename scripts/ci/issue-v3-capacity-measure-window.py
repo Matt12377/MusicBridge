@@ -24,9 +24,20 @@ MEASURE_LIMITS = {
     'minimumFreeBytes': 10 * 1024 ** 3,
     'maximumOwnedBytes': 16 * 1024 ** 3,
 }
+MEASURE_PLAN = {
+    'groupCloneCount': 3,
+    'fullHashCount': 3,
+    'stopRoundReceiptCount': 105,
+    'sampleCount': 1575,
+}
+SUPERVISOR_RELATIVE = 'scripts/ci/capacity-phase-supervisor-v2.py'
+GENERATION_RUNTIME_SOURCES = {
+    'reports/runtime/task-078-v3-acceptance/capacity-phase-supervisor.py',
+    'reports/runtime/task-078-v3-acceptance/test_capacity_phase_supervisor.py',
+}
 EXPECTED_GENERATION_ROOTS = 59
-EXPECTED_MEASURE_EXISTING_ROOTS = 63
-EXPECTED_MEASURE_AUTHORIZED_ROOTS = 64
+EXPECTED_MEASURE_EXISTING_ROOTS = 65
+EXPECTED_MEASURE_AUTHORIZED_ROOTS = 66
 EXPECTED_CHECKPOINTS = 557
 _FAILURE_CONTEXT = None
 
@@ -54,6 +65,9 @@ def load_python(path, name, error_code):
 def parse_args(argv):
     parser = argparse.ArgumentParser(allow_abbrev=False)
     parser.add_argument('--repo-root', required=True)
+    parser.add_argument('--generation-repo-root', required=True)
+    parser.add_argument('--expected-generation-branch', required=True)
+    parser.add_argument('--expected-generation-head', required=True)
     parser.add_argument('--runtime-root', required=True)
     parser.add_argument('--supervisor', required=True)
     parser.add_argument('--expected-supervisor-sha256', required=True)
@@ -62,6 +76,14 @@ def parse_args(argv):
     parser.add_argument('--expected-generation-window-sha256', required=True)
     parser.add_argument('--generation-supervisor', required=True)
     parser.add_argument('--expected-generation-supervisor-sha256', required=True)
+    parser.add_argument('--previous-measure-window', required=True)
+    parser.add_argument('--expected-previous-measure-window-id', required=True)
+    parser.add_argument('--expected-previous-measure-window-sha256', required=True)
+    parser.add_argument('--previous-measure-close', required=True)
+    parser.add_argument('--expected-previous-measure-close-sha256', required=True)
+    parser.add_argument('--previous-measure-output', required=True)
+    parser.add_argument('--expected-previous-measure-output-label', required=True)
+    parser.add_argument('--expected-previous-measure-output-command-sha256', required=True)
     parser.add_argument('--window-dir-name', required=True)
     parser.add_argument('--label', required=True)
     parser.add_argument('--seed-label', required=True)
@@ -142,7 +164,7 @@ def record_terminal_failure(helper, code):
     receipt = parent / 'issuer-failure.json'
     if receipt.exists() or receipt.is_symlink():
         return
-    names = ('owner.json', 'issuer-identity/owner.json', 'source-pins.json',
+    names = ('owner.json', 'supervisor.py', 'issuer-identity/owner.json', 'source-pins.json',
              'owned-roots.json', 'window.pending.json', 'window.json')
     created = [name for name in names if ordinary(parent / name)]
     value = {
@@ -300,7 +322,7 @@ def validate_seed(helper, runtime, seed_label, generation, proof):
     }
 
 
-def validate_generation_proof(helper, module, options, root, runtime, source_files):
+def validate_generation_proof(helper, module, options, generation_root, runtime):
     window_path = same_regular_file(
         helper, options.generation_window, options.expected_generation_window_sha256,
         'GENERATION_PROOF')
@@ -324,13 +346,30 @@ def validate_generation_proof(helper, module, options, root, runtime, source_fil
     owned_path = parent / 'owned-roots.json'
     source, source_sha = read_json(helper, source_path, error_code='GENERATION_PROOF')
     owned, owned_sha = read_json(helper, owned_path, error_code='GENERATION_PROOF')
+    frozen_source_files = source.get('files') if isinstance(source, dict) else None
     if window.get('sourceManifest') != {'file': 'source-pins.json', 'sha256': source_sha} \
             or window.get('ownedManifest') != {'file': 'owned-roots.json', 'sha256': owned_sha} \
-            or not isinstance(source, dict) or source.get('files') != source_files \
+            or not isinstance(frozen_source_files, dict) or not frozen_source_files \
+            or any(Path(relative).is_absolute() or '..' in Path(relative).parts
+                   or SHA256.fullmatch(str(digest or '')) is None
+                   for relative, digest in frozen_source_files.items()) \
             or not isinstance(owned, dict) or owned.get('windowId') != window['id'] \
             or not isinstance(owned.get('roots'), list) \
             or len(owned['roots']) != EXPECTED_GENERATION_ROOTS:
         fail('GENERATION_PROOF')
+    for relative, digest in frozen_source_files.items():
+        file = generation_root / relative
+        try:
+            if helper.stable_sha256(file) != digest:
+                fail('GENERATION_PROOF')
+            if relative not in GENERATION_RUNTIME_SOURCES \
+                    and hashlib.sha256(helper.git_blob(
+                        generation_root, options.expected_generation_head, relative)).hexdigest() != digest:
+                fail('GENERATION_PROOF')
+        except IssueError:
+            raise
+        except Exception as error:
+            raise IssueError('GENERATION_PROOF') from error
     roots = []
     seen = set()
     for row in owned['roots']:
@@ -396,7 +435,7 @@ def validate_generation_proof(helper, module, options, root, runtime, source_fil
             or authority.get('sourcePinsValid') is not True
             or authority.get('ownedRootsValid') is not True
             or authority.get('spaceValid') is not True
-            or authority.get('sourceFileCount') != options.expected_source_count
+            or authority.get('sourceFileCount') != len(frozen_source_files)
             or authority.get('ownedRootCount') != EXPECTED_GENERATION_ROOTS):
         fail('GENERATION_PROOF')
     pgid = proof.get('pgid')
@@ -433,15 +472,247 @@ def unique_roots(rows):
     return result
 
 
+def expected_legacy_carryover(module, options, output, roots):
+    evidence = getattr(module, '_LEGACY_CARRYOVER_EVIDENCE', None)
+    evidence_keys = {
+        'format', 'windowId', 'label', 'windowSha256', 'closeSha256', 'commandSha256',
+        'seedLabel', 'seedSha256', 'files', 'receiptSha256', 'receiptManifestSha256',
+        'retainedOwner', 'retainedOwnerSha256', 'sqliteBytes', 'wal', 'shm'}
+    if not isinstance(evidence, dict) or set(evidence) != evidence_keys \
+            or evidence.get('format') != 'legacy-107-clone-partial-v1' \
+            or evidence.get('windowId') != options.expected_previous_measure_window_id \
+            or evidence.get('label') != options.expected_previous_measure_output_label \
+            or evidence.get('windowSha256') != options.expected_previous_measure_window_sha256 \
+            or evidence.get('closeSha256') != options.expected_previous_measure_close_sha256 \
+            or evidence.get('commandSha256') != options.expected_previous_measure_output_command_sha256 \
+            or SAFE.fullmatch(str(evidence.get('seedLabel', ''))) is None \
+            or SHA256.fullmatch(str(evidence.get('seedSha256', ''))) is None \
+            or SHA256.fullmatch(str(evidence.get('receiptManifestSha256', ''))) is None \
+            or SHA256.fullmatch(str(evidence.get('retainedOwnerSha256', ''))) is None \
+            or type(evidence.get('sqliteBytes')) is not int or evidence['sqliteBytes'] <= 0:
+        fail('MEASURE_CARRYOVER')
+    files = evidence.get('files')
+    fixed_names = {'command.json', 'measurement.json', 'source-before.json', 'samples.jsonl'}
+    if not isinstance(files, dict) or set(files) != fixed_names:
+        fail('MEASURE_CARRYOVER')
+    for name, identity in files.items():
+        if not isinstance(identity, dict) or set(identity) != {'size', 'sha256'} \
+                or type(identity.get('size')) is not int or identity['size'] < 0 \
+                or SHA256.fullmatch(str(identity.get('sha256', ''))) is None:
+            fail('MEASURE_CARRYOVER')
+    if files['command.json']['sha256'] != options.expected_previous_measure_output_command_sha256:
+        fail('MEASURE_CARRYOVER')
+    receipts = evidence.get('receiptSha256')
+    if not isinstance(receipts, (list, tuple)) or len(receipts) != 29 \
+            or any(SHA256.fullmatch(str(value or '')) is None for value in receipts):
+        fail('MEASURE_CARRYOVER')
+    retained_owner = evidence.get('retainedOwner')
+    if not isinstance(retained_owner, dict) or set(retained_owner) != {'id', 'scope', 'label'} \
+            or not strict_uuid4(retained_owner.get('id')) \
+            or retained_owner.get('scope') != 'musicbridge-capacity-clone-only' \
+            or retained_owner.get('label') != 'sample-30':
+        fail('MEASURE_CARRYOVER')
+    for name in ('wal', 'shm'):
+        identity = evidence.get(name)
+        if not isinstance(identity, dict) or set(identity) != {'size', 'sha256'} \
+                or type(identity.get('size')) is not int or identity['size'] < 0 \
+                or SHA256.fullmatch(str(identity.get('sha256', ''))) is None:
+            fail('MEASURE_CARRYOVER')
+    receipt_names = [f'sample-{index}.receipt.json' for index in range(1, 30)]
+    metric_counts = {
+        'progress': 105, 'signalAborted': 28, 'driverStopInvoked': 28,
+        'driverStopAck': 28, 'driverCloseInvoked': 28,
+        'driverCloseResolved': 28, 'receiptSettled': 28,
+    }
+    return {
+        'valid': True,
+        'terminal': {
+            'windowId': options.expected_previous_measure_window_id,
+            'label': options.expected_previous_measure_output_label,
+            'state': 'failed',
+            'failure': 'EXECUTION_TIMEOUT',
+            'windowSha256': options.expected_previous_measure_window_sha256,
+            'closeSha256': options.expected_previous_measure_close_sha256,
+            'groupEmpty': True,
+            'zombies': [],
+            'authorityStable': True,
+            'replayAllowed': False,
+        },
+        'partial': {
+            'format': evidence['format'],
+            'outputDirectory': str(output),
+            'commandSha256': options.expected_previous_measure_output_command_sha256,
+            'partialExists': True,
+            'partialPreserved': True,
+            'verifiedPassed': False,
+            'sampleCount': 273,
+            'receiptCount': 29,
+            'samplesSha256': files['samples.jsonl']['sha256'],
+            'samplesMatchReceipts': True,
+            'receiptManifestSha256': evidence['receiptManifestSha256'],
+            'receiptNames': receipt_names,
+            'metricCounts': metric_counts,
+            'retainedDirectories': ['sample-30'],
+            'retainedClone': {
+                'directoryName': 'sample-30',
+                'ownerSha256': evidence['retainedOwnerSha256'],
+                'sqlite': {
+                    'size': evidence['sqliteBytes'],
+                    'nlink': 1,
+                    'contentSha256Verified': False,
+                    'verification': 'stable-lstat-size-only-no-content-read',
+                },
+                'wal': dict(evidence['wal']),
+                'shm': dict(evidence['shm']),
+            },
+            'unexpectedEntries': [],
+        },
+        'roots': roots,
+    }
+
+
+def validate_measure_carryover(helper, module, options, runtime):
+    window_path = same_regular_file(
+        helper, options.previous_measure_window,
+        options.expected_previous_measure_window_sha256, 'MEASURE_CARRYOVER')
+    close_path = same_regular_file(
+        helper, options.previous_measure_close,
+        options.expected_previous_measure_close_sha256, 'MEASURE_CARRYOVER')
+    if window_path.name != 'window.json' or close_path.name != 'close.json' \
+            or window_path.parent.parent != runtime or close_path.parent != window_path.parent:
+        fail('MEASURE_CARRYOVER')
+    try:
+        output = helper.canonical_directory(options.previous_measure_output, runtime)
+    except Exception as error:
+        raise IssueError('MEASURE_CARRYOVER') from error
+    if output.parent != runtime or output.name != options.expected_previous_measure_output_label:
+        fail('MEASURE_CARRYOVER')
+    command_path = same_regular_file(
+        helper, output / 'command.json',
+        options.expected_previous_measure_output_command_sha256, 'MEASURE_CARRYOVER')
+    owner, _ = read_json(helper, window_path.parent / 'owner.json', error_code='MEASURE_CARRYOVER')
+    if owner != {
+            'scope': 'musicbridge-capacity-measure-window',
+            'owner': 'root',
+            'id': options.expected_previous_measure_window_id}:
+        fail('MEASURE_CARRYOVER')
+    expected = {
+        'windowId': options.expected_previous_measure_window_id,
+        'windowSha256': options.expected_previous_measure_window_sha256,
+        'closeSha256': options.expected_previous_measure_close_sha256,
+        'label': options.expected_previous_measure_output_label,
+        'outputCommandSha256': options.expected_previous_measure_output_command_sha256,
+    }
+    try:
+        observed = module._validate_measure_carryover(
+            window_path, close_path, output, runtime,
+            expected['windowSha256'], expected['closeSha256'],
+            expected['outputCommandSha256'], expected['windowId'], expected['label'])
+    except Exception as error:
+        raise IssueError('MEASURE_CARRYOVER') from error
+    try:
+        roots = [
+            helper.current_root(window_path.parent, 'owner.json'),
+            helper.current_root(output, 'command.json'),
+        ]
+    except Exception as error:
+        raise IssueError('MEASURE_CARRYOVER') from error
+    expected_result = expected_legacy_carryover(module, options, output, roots)
+    if observed != expected_result:
+        fail('MEASURE_CARRYOVER')
+    try:
+        checked_roots = [helper.root_identity(row) for row in observed['roots']]
+    except Exception as error:
+        raise IssueError('MEASURE_CARRYOVER') from error
+    if checked_roots != roots or command_path != output / 'command.json':
+        fail('MEASURE_CARRYOVER')
+    return {
+        'windowPath': window_path,
+        'closePath': close_path,
+        'output': output,
+        'roots': roots,
+        'terminal': observed['terminal'],
+        'partial': observed['partial'],
+    }
+
+
+def install_supervisor(source, destination, expected_sha256):
+    source_fd = None
+    destination_fd = None
+    flags = getattr(os, 'O_NOFOLLOW', 0)
+    digest = hashlib.sha256()
+    try:
+        source_fd = os.open(source, os.O_RDONLY | flags)
+        before = os.fstat(source_fd)
+        if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+            fail('SUPERVISOR_INSTALL')
+        destination_fd = os.open(
+            destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | flags, 0o700)
+        while True:
+            chunk = os.read(source_fd, 1024 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+            view = memoryview(chunk)
+            while view:
+                written = os.write(destination_fd, view)
+                if written <= 0:
+                    fail('SUPERVISOR_INSTALL')
+                view = view[written:]
+        os.fchmod(destination_fd, 0o700)
+        os.fsync(destination_fd)
+        after = os.fstat(source_fd)
+        if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != \
+                (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns) \
+                or digest.hexdigest() != expected_sha256:
+            fail('SUPERVISOR_INSTALL')
+    except IssueError:
+        raise
+    except OSError as error:
+        raise IssueError('SUPERVISOR_INSTALL') from error
+    finally:
+        if destination_fd is not None:
+            os.close(destination_fd)
+        if source_fd is not None:
+            os.close(source_fd)
+    try:
+        fsync_directory(Path(destination).parent)
+    except OSError as error:
+        raise IssueError('SUPERVISOR_INSTALL') from error
+
+
+def validate_window_file(helper, path, expected, expected_sha256, installed_supervisor):
+    try:
+        value, observed_sha256 = helper.strict_json(path)
+    except Exception as error:
+        raise IssueError('WINDOW_IDENTITY') from error
+    if not isinstance(value, dict):
+        fail('WINDOW_IDENTITY')
+    if value.get('supervisor') != installed_supervisor:
+        fail('SUPERVISOR_IDENTITY')
+    if value != expected or observed_sha256 != expected_sha256:
+        fail('WINDOW_IDENTITY')
+    same_regular_file(
+        helper, installed_supervisor['path'], installed_supervisor['sha256'],
+        'SUPERVISOR_IDENTITY')
+
+
 def issue(options):
     global _FAILURE_CONTEXT
     if SAFE.fullmatch(options.window_dir_name or '') is None \
             or SAFE.fullmatch(options.label or '') is None \
             or SAFE.fullmatch(options.seed_label or '') is None \
+            or SAFE.fullmatch(options.expected_previous_measure_output_label or '') is None \
             or options.profile != 'objects-limit' \
             or options.window_dir_name in {options.label, options.seed_label} \
-            or options.label == options.seed_label \
+            or options.label in {options.seed_label, options.expected_previous_measure_output_label} \
+            or options.window_dir_name == options.expected_previous_measure_output_label \
+            or not strict_uuid4(options.expected_previous_measure_window_id) \
+            or SHA256.fullmatch(options.expected_previous_measure_window_sha256 or '') is None \
+            or SHA256.fullmatch(options.expected_previous_measure_close_sha256 or '') is None \
+            or SHA256.fullmatch(options.expected_previous_measure_output_command_sha256 or '') is None \
             or GIT_SHA.fullmatch(options.expected_head or '') is None \
+            or GIT_SHA.fullmatch(options.expected_generation_head or '') is None \
             or GIT_SHA.fullmatch(options.expected_issuer_head or '') is None:
         fail('INPUT')
     helper_path = Path(options.generation_issuer_helper).resolve(strict=True)
@@ -455,19 +726,29 @@ def issue(options):
     same_regular_file(helper, helper_path, options.expected_generation_issuer_helper_sha256,
                       'HELPER_IDENTITY')
     root = helper.canonical_directory(options.repo_root)
-    runtime = helper.canonical_directory(options.runtime_root, root)
+    generation_root = helper.canonical_directory(options.generation_repo_root)
+    if generation_root == root:
+        fail('REPOSITORY_IDENTITY')
+    runtime = helper.canonical_directory(options.runtime_root, generation_root)
     issuer_repo = helper.canonical_directory(options.issuer_repo_root)
     supervisor_path = same_regular_file(
         helper, options.supervisor, options.expected_supervisor_sha256, 'SUPERVISOR_IDENTITY')
-    if supervisor_path.parent != runtime:
+    try:
+        supervisor_relative = str(supervisor_path.relative_to(issuer_repo))
+    except ValueError:
+        fail('SUPERVISOR_IDENTITY')
+    if supervisor_relative != SUPERVISOR_RELATIVE:
         fail('SUPERVISOR_IDENTITY')
     module = load_python(supervisor_path, 'musicbridge_capacity_measure_supervisor',
                          'SUPERVISOR_IDENTITY')
     required_supervisor = (
         '_expected_source_paths', '_strict_identity', '_validate_source_manifest',
-        '_validate_owned_manifest', '_validate_measure_authority', '_MEASURE_LIMITS')
+        '_validate_owned_manifest', '_validate_measure_authority',
+        '_validate_measure_carryover', '_validate_measure_window',
+        '_validate_candidate_repository', '_MEASURE_LIMITS', '_MEASURE_PLAN')
     if any(not hasattr(module, name) for name in required_supervisor) \
-            or module._MEASURE_LIMITS != MEASURE_LIMITS:
+            or module._MEASURE_LIMITS != MEASURE_LIMITS \
+            or module._MEASURE_PLAN != MEASURE_PLAN:
         fail('SUPERVISOR_CONTRACT')
     consumer = same_regular_file(
         helper, options.consumer_python, options.expected_consumer_sha256,
@@ -482,11 +763,18 @@ def issue(options):
         fail('ISSUER_IDENTITY')
     if helper.git_value(root, 'rev-parse', 'HEAD^{commit}') != options.expected_head \
             or helper.git_value(root, 'branch', '--show-current') != options.expected_branch \
+            or helper.git_value(generation_root, 'rev-parse', 'HEAD^{commit}') \
+            != options.expected_generation_head \
+            or helper.git_value(generation_root, 'branch', '--show-current') \
+            != options.expected_generation_branch \
             or helper.git_value(issuer_repo, 'rev-parse', 'HEAD^{commit}') != options.expected_issuer_head \
             or helper.git_value(issuer_repo, 'branch', '--show-current') != options.expected_issuer_branch \
             or hashlib.sha256(helper.git_blob(
                 issuer_repo, options.expected_issuer_head, issuer_relative)).hexdigest() \
-            != options.expected_issuer_sha256:
+            != options.expected_issuer_sha256 \
+            or hashlib.sha256(helper.git_blob(
+                issuer_repo, options.expected_issuer_head, supervisor_relative)).hexdigest() \
+            != options.expected_supervisor_sha256:
         fail('REPOSITORY_IDENTITY')
     toolchain = {
         'buildNode': same_regular_file(helper, options.build_node,
@@ -508,8 +796,8 @@ def issue(options):
         options.expected_typescript_library_manifest_sha256)
     source_paths, source_files, build = candidate_sources(
         helper, module, root, options.expected_head, options.expected_source_count, toolchain)
-    generation = validate_generation_proof(
-        helper, module, options, root, runtime, source_files)
+    generation = validate_generation_proof(helper, module, options, generation_root, runtime)
+    carryover = validate_measure_carryover(helper, module, options, runtime)
     reject_replay(helper, runtime, options.window_dir_name, options.label)
 
     parent = runtime / options.window_dir_name
@@ -524,6 +812,13 @@ def issue(options):
     }
     owner = {'scope': 'musicbridge-capacity-measure-window', 'owner': 'root', 'id': window_id}
     owner_sha = helper.exclusive_json(parent / 'owner.json', owner)
+    installed_supervisor_path = parent / 'supervisor.py'
+    install_supervisor(supervisor_path, installed_supervisor_path,
+                       options.expected_supervisor_sha256)
+    installed_supervisor = {
+        'path': str(installed_supervisor_path),
+        'sha256': options.expected_supervisor_sha256,
+    }
     issuer_identity = parent / 'issuer-identity'
     try:
         issuer_identity.mkdir(mode=0o700)
@@ -541,8 +836,37 @@ def issue(options):
                              'branch': options.expected_issuer_branch,
                              'head': options.expected_issuer_head,
                              'relativePath': issuer_relative},
-        'candidateRepository': {'root': str(root), 'branch': options.expected_branch,
-                                'head': options.expected_head},
+        'measureRepository': {'root': str(root), 'branch': options.expected_branch,
+                              'head': options.expected_head},
+        'generationRepository': {
+            'root': str(generation_root),
+            'branch': options.expected_generation_branch,
+            'head': options.expected_generation_head,
+        },
+        'supervisor': installed_supervisor,
+        'supervisorSource': {
+            'path': str(supervisor_path),
+            'relativePath': supervisor_relative,
+            'sha256': options.expected_supervisor_sha256,
+        },
+        'previousMeasure': {
+            'window': {
+                'path': str(carryover['windowPath']),
+                'id': options.expected_previous_measure_window_id,
+                'sha256': options.expected_previous_measure_window_sha256,
+            },
+            'close': {
+                'path': str(carryover['closePath']),
+                'sha256': options.expected_previous_measure_close_sha256,
+            },
+            'output': {
+                'path': str(carryover['output']),
+                'label': options.expected_previous_measure_output_label,
+                'commandSha256': options.expected_previous_measure_output_command_sha256,
+            },
+            'terminal': carryover['terminal'],
+            'partial': carryover['partial'],
+        },
         'generation': {
             'window': {'path': str(generation['windowPath']),
                        'sha256': generation['windowSha256']},
@@ -569,6 +893,7 @@ def issue(options):
     roots.extend((
         helper.current_root(generation['seed']['directory'], 'seed.json'),
         helper.current_root(generation['seed']['fixture'], 'capacity-owner.json'),
+        *carryover['roots'],
         helper.current_root(parent, 'owner.json'),
         helper.current_root(issuer_identity, 'owner.json'),
     ))
@@ -612,6 +937,13 @@ def issue(options):
         'issuedAt': issued.isoformat(timespec='milliseconds'),
         'deadlineAt': deadline.isoformat(timespec='milliseconds'),
         'limits': dict(MEASURE_LIMITS),
+        'measurePlan': dict(MEASURE_PLAN),
+        'supervisor': installed_supervisor,
+        'candidateRepository': {
+            'root': str(root),
+            'branch': options.expected_branch,
+            'head': options.expected_head,
+        },
         'seed': {
             'metadataSha256': generation['seed']['metadataSha256'],
             'snapshotSha256': generation['seed']['snapshotSha256'],
@@ -620,19 +952,49 @@ def issue(options):
         'ownedManifest': {'file': 'owned-roots.json', 'sha256': owned_sha},
         'sourceManifest': {'file': 'source-pins.json', 'sha256': source_sha},
     }
+    try:
+        module._validate_measure_window(window, issued.timestamp())
+        module._validate_candidate_repository(window, runtime)
+    except (Exception, SystemExit) as error:
+        raise IssueError('AUTHORITY_PREFLIGHT') from error
     pending = parent / 'window.pending.json'
     window_sha = helper.exclusive_json(pending, window)
     # 发布前再次复核完整 generation proof、签发器与仓库身份。
-    validate_generation_proof(helper, module, options, root, runtime, source_files)
+    validate_generation_proof(helper, module, options, generation_root, runtime)
+    validate_measure_carryover(helper, module, options, runtime)
     same_regular_file(helper, issuer_path, options.expected_issuer_sha256, 'ISSUER_IDENTITY')
+    same_regular_file(helper, supervisor_path, options.expected_supervisor_sha256,
+                      'SUPERVISOR_IDENTITY')
+    same_regular_file(helper, installed_supervisor_path, options.expected_supervisor_sha256,
+                      'SUPERVISOR_IDENTITY')
     if helper.git_value(root, 'rev-parse', 'HEAD^{commit}') != options.expected_head \
-            or helper.git_value(issuer_repo, 'rev-parse', 'HEAD^{commit}') != options.expected_issuer_head:
+            or helper.git_value(root, 'branch', '--show-current') != options.expected_branch \
+            or helper.git_value(generation_root, 'rev-parse', 'HEAD^{commit}') \
+            != options.expected_generation_head \
+            or helper.git_value(generation_root, 'branch', '--show-current') \
+            != options.expected_generation_branch \
+            or helper.git_value(issuer_repo, 'rev-parse', 'HEAD^{commit}') != options.expected_issuer_head \
+            or helper.git_value(issuer_repo, 'branch', '--show-current') != options.expected_issuer_branch \
+            or hashlib.sha256(helper.git_blob(
+                issuer_repo, options.expected_issuer_head, supervisor_relative)).hexdigest() \
+            != options.expected_supervisor_sha256:
         fail('REPOSITORY_IDENTITY')
+    validate_window_file(helper, pending, window, window_sha, installed_supervisor)
     fsync_directory(issuer_identity)
     fsync_directory(parent)
     fsync_directory(runtime)
     published = parent / 'window.json'
     os.rename(pending, published)
+    try:
+        validate_window_file(helper, published, window, window_sha, installed_supervisor)
+    except IssueError:
+        try:
+            os.rename(published, pending)
+            fsync_directory(parent)
+            fsync_directory(runtime)
+        except OSError:
+            _FAILURE_CONTEXT = None
+        raise
     try:
         fsync_directory(parent)
         fsync_directory(runtime)
@@ -676,7 +1038,7 @@ def issue(options):
         'availableBytes': owned_result.get('availableBytes'),
         'deadlineAt': window['deadlineAt'],
         'issuerFact': {'file': 'issuer-identity/owner.json', 'sha256': issuer_fact_sha},
-        'consumeCommand': [str(consumer), str(supervisor_path), '--window',
+        'consumeCommand': [str(consumer), str(installed_supervisor_path), '--window',
                            str(published), '--window-sha256', window_sha],
     }
     _FAILURE_CONTEXT = None
