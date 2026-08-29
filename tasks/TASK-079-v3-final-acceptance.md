@@ -35,10 +35,14 @@
 - `project/V3_OWNER_EVIDENCE_TEMPLATE.json`
 - `scripts/ci/verify-v3-owner-evidence.mjs`
 - `scripts/ci/test/verify-v3-owner-evidence.test.mjs`
+- `scripts/ci/issue-v3-capacity-window.py`
+- `scripts/ci/test/issue-v3-capacity-window.test.mjs`
 - `reports/TASK-079_REAL_GATE_RUNBOOK.md`
 - `reports/TASK-079_READINESS.md`
 
 除非后续真实 RED 明确证明需要生产修复，否则本无设备阶段不修改应用、Core、合同、数据库或原生输出代码。任何生产修复必须先单独冻结允许路径并执行 RED→GREEN；不能为了让清单变绿而放宽真实 Gate。
+
+TASK-078 的 `objects-limit` 重新准入在 2026-08-30 暴露出独立控制面 RED：仓库只有 capacity window 消费器，没有可测试的 exclusive-create authority 签发器；临时签发遗漏已封存的旧 partial output 与 fixture，运行在独立审计发现后立即终止。新增的 capacity issuer 只负责从显式旧 owned manifest、终态 carryover close 和当前 source pins 构造 fail-closed generation authority，不运行 benchmark、不清理证据、不自动重试，也不授权新的窗口。第三个窗口仍需独立的新鲜授权决定。
 
 ## 自动验证
 
@@ -47,6 +51,8 @@ node --test scripts/ci/test/verify-v3-owner-readiness.test.mjs
 node scripts/ci/verify-v3-owner-readiness.mjs
 node --test scripts/ci/test/verify-v3-owner-evidence.test.mjs
 node scripts/ci/verify-v3-owner-evidence.mjs
+/usr/bin/python3 -m py_compile scripts/ci/issue-v3-capacity-window.py
+node --test scripts/ci/test/issue-v3-capacity-window.test.mjs
 git diff --check
 ```
 

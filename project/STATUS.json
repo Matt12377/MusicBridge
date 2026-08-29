@@ -154,7 +154,7 @@
       "R-020 大库冷启扫描与2秒ready策略待TASK-078/Gate E验证",
       "R-021：真实钥匙串无CDP普通Quit15秒FAIL保留；新隔离候选包空库及执行读取后两种mock-keychain普通Quit均code0/close且无进程残留，仅软件隔离诊断，不关闭真实钥匙串/Owner验收",
       "R-022：FakeDriver join/静止契约未证明真实HAL；未链接应用或helper，真实设备与Gate B须独立授权及测量",
-      "R-023：history-limit正式生成/measure/queued-stop已PASS；objects-limit window-01超时部分证据永久保留且不重放。共享对象审计凭证、Repository自然接线与10/25/50非正式阶梯已PASS，99项回归全绿；正式objects-limit window-02因当前可用空间不足固定“计划生成字节+10GiB”安全准入而未签发，继续执行低空间自动Gate；joint正式窗口仍待。软件证据不宣称真实设备/实体打印认证",
+      "R-023：history-limit正式生成/measure/queued-stop已PASS；objects-limit window-01超时证据永久保留。fresh空间复核已通过，但window-02 authority漏计旧partial output与fixture，独立审计发现后在30.351秒安全终止并封存为控制失败；78个partial checkpoint与新fixture保留，进程组为空。window-02不是seed或容量PASS且不可重放，measure/queued-stop/joint未授权。受测试的exclusive-create issuer进入RED→GREEN与独立复审；第三窗口仍需fresh authority决定。",
       "TASK-076历史核验与私有synthetic会话已通过本地软件Gate；实际可听Replica及正式provider接线须随073设备准入和079另验，当前始终blocked",
       "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验"
     ],
@@ -199,7 +199,7 @@
       "capacityObjectCertificate": "begin-full-raw-exact-progress-candidate-2b7c65930afadc9ad1aac374c1c63827377891753a0bf7fc1d058ca4a1f4e28c-author55-adjacent40-root55-types0-spec1-quality1-pass-window04-natural-exit1-105raw-100of100-success-p50-74.855167-p95-82.591707-p99-110.116917-max-112.051958-thresholds-50-100-fail-audit-window-source-seed-unchanged-321-pins-peak-rss-483262464-retained-77038873bytes-9files",
       "capacityObjectCertificateEvidence": "window-4797f3e7ce59ae3738b538f02e3fc1ab3460513a23b670158c4a10fb3d3ab431-summary-1c3d959162bfa2c3bb5bc476da83ddf54249ca7f2d3002e95bdda8333cffbd8f-samples-365f1ef5a9644deb6e112a6931cbab43e8c793777aafb4c27fe210a553e1b130-receipt-376fd90d10616f6d1922b0fad6f2089ba7e7e5890ce95e0cfde02624c3eb279a-gatelog-e64221663a1cde895ff281bb31edd2cc9fd1479f03440ad55427b6e418a79897-gateexit-4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865-close-addendum-da7a82345dd91563a057e398954fbf0778a28d1dcd48923fcfd993a573ffb3be-inventory-addendum-fbf2e6e74b7c9f31f1b2a65554f8bb20b19dc417fe97df301b095d50799e71e3",
       "capacityProcessPhases": "cold-recovery-phase-red-fixed-60-pass-types-pass-spec2-quality-pass-no-scale-run",
-      "capacityPhaseSupervisor": "generation-supervisor-pass-direct-measure-supervisor-two-review-rounds-r2-p0-0-p1-5-p2-1-all-red-green-root-adjudication-pass39-pycompile-diffcheck-pass-window02-preparing",
+      "capacityPhaseSupervisor": "generation-supervisor-and-consumer-pass__window02-control-coverage-failure-exposed-missing-durable-issuer__no-replay",
       "capacityAttemptStatement": "candidate-02909979a8b9f4e337f6a644fb5d9e62c6c8b8a96ea6c1ddd5c687b452527a0b-spec-quality-pass-attempt39-print17-types-pass-window-natural-exit1-100of100-success-p50-67.708583-p95-72.653875-p99-102.705792-max107.700667-thresholds-50-100-fail-source321-window-seed-audit-unchanged-retained-77038890bytes-9files",
       "capacityAttemptStatementEvidence": "window-45d7b4bc4227e6849f1f63c6de3d451c52670a586a02c9f5f884002897283519-summary-0872f7eba34fac3d2b56cf589f3fde9f792723a4740a98b7d7ac896ae6ab9b9d-samples-81f4409458bdc2c7faf6b8cc2ff8f120b6972515693cbc6a674a8cad787edcd8-receipt-49fe3ee8ecb81e77ac009f765310d6c20bbb54be01826a038f3fa807a25a20f1-gate-1d972376fac221d003e6c6f8fa632b7578b420c7c2c787552a410a3aaa4d73a5-close-1de60d0f4a6f19b4c954c6ca12b81240a2f5c6b5b3a956a25e06124818cb7df0-inventory-a52ad50c6af567db18d7e520ca507ad6adfe6d690784d8ef869c1fad8ebb4151",
       "capacityAttemptReceiptPrefix": "candidate-bad5a62baa7b8472ab7ff59844659730640c83d18989d492f510f5cf803340c2-spec-quality-pass-attempt40-print17-types-pass-window-natural-exit1-100of100-success-p50-48.326875-p95-50.709208-p99-52.153042-max54.535917-p95-threshold50-fail-by0.709208-max100-pass-source321-window-seed-audit-unchanged-retained-77038905bytes-9files",
@@ -729,23 +729,35 @@
         }
       },
       "capacityObjectsLimitGenerationWindow02": {
-        "state": "NOT_ISSUED_STORAGE_ADMISSION",
-        "windowId": null,
-        "availableBytes": 13353312256,
+        "state": "SEALED_CONTROL_COVERAGE_FAILURE",
+        "windowId": "04290e7f-71be-419c-ace7-2ed86529331a",
+        "availableBytesAtAdmission": 42668736512,
         "plannedGenerationBytes": 9623411100,
         "minimumFreeReserveBytes": 10737418240,
-        "requiredAvailableBytes": 20360829340,
-        "shortfallBytes": 7007517084,
+        "maximumOwnedBytes": 17179869184,
         "thresholdChanged": false,
-        "authoritySigned": false,
-        "windowCreated": false,
+        "authoritySigned": true,
+        "windowCreated": true,
+        "executionStarted": true,
+        "declaredOwnedRootCount": 53,
+        "omittedPreexistingRootCount": 2,
+        "checkpointCount": 78,
+        "elapsedMs": 30351.47862500162,
+        "supervisorExitCode": 1,
+        "childExitSignal": "SIGTERM",
+        "groupEmpty": true,
+        "zombies": [],
+        "seedExists": false,
+        "verifiedPassed": false,
+        "closeSha256": "294d639ca38e3ace0d0ffbf8f96fc37198b1739e3bc5913bd53530d053ae332c",
+        "carryoverInventorySha256": "d9b4e84096a8a565aec0fa54d314288f5095b1693d7f0f33cc91b3d3e207f4cc",
         "replayAllowed": false,
-        "previousWindow01ReplayAllowed": false,
-        "nextAction": "CONTINUE_LOW_STORAGE_AUTOMATED_GATES_AND_WAIT_FOR_SAFE_CAPACITY_ADMISSION",
+        "retryAuthorized": false,
+        "jointAuthorized": false,
+        "nextAction": "REQUIRE_EXPLICIT_FRESH_AUTHORITY_DECISION_BEFORE_ANY_NEW_WINDOW",
         "deviceOpened": false,
         "gateB": "NOT_RUN",
-        "observedAt": "2026-08-29T13:01:27.099079Z",
-        "availableBytesClassification": "point-in-time-admission-snapshot"
+        "classification": "control-failure-not-capacity-result"
       },
       "fullBridgeCoreInterim": {
         "state": "PASS_WITH_EXPECTED_NATIVE_OPT_IN_SKIP",
@@ -811,6 +823,24 @@
         "proposalSha256": "12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7fe4ba944",
         "deviceOpened": false,
         "gateB": "NOT_RUN"
+      },
+      "capacityWindowIssuer": {
+        "state": "IMPLEMENTED_MAIN_ADJUDICATION_AFTER_FINAL_REVIEW_RED",
+        "initialRed": "script-missing-3of3-fail",
+        "focusedVerification": { "tests": 12, "passed": 12, "failed": 0 },
+        "pythonCompile": "PASS",
+        "independentReviewRound1": "SPEC_RED_P1_4_FIXED",
+        "independentReviewRound2Final": "SPEC_RED_P1_3_FIXED_BY_MAIN_WITHOUT_THIRD_REVIEW",
+        "mainAdjudication": [
+          "approved-window-last-step-atomic-publish",
+          "terminal-failed-authority-owned-carryover",
+          "malformed-drifted-symlink-replay-audit-fail-closed"
+        ],
+        "writesAuthorityOnly": true,
+        "executesBenchmark": false,
+        "freshWindowAuthorized": false,
+        "deviceOpened": false,
+        "gateB": "NOT_RUN"
       }
     },
     "capacityHistoryLimitWindow01": {
@@ -836,6 +866,6 @@
       "closeReceiptSha256": "4c18479e33b6392ff511a09b057d3e296dc3873d1c9be09d7d5f67c38eff39be",
       "replay": "PROHIBITED"
     },
-    "capacityGate": "R023_OBJECTS_CERTIFICATE_AND_NONFORMAL_LADDER_PASS__FORMAL_OBJECTS_LIMIT_NOT_ISSUED_STORAGE_ADMISSION"
+    "capacityGate": "R023_OBJECTS_LIMIT_WINDOW02_CONTROL_COVERAGE_FAILURE_SEALED__NO_SEED_NO_REPLAY__ISSUER_IMPLEMENTED_MAIN_ADJUDICATION_12_PASS__FRESH_WINDOW_MEASURE_QUEUE_JOINT_NOT_AUTHORIZED"
   }
 }
