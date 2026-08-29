@@ -32,6 +32,10 @@
 - `tasks/00_TASK_INDEX.md`
 - `scripts/ci/verify-v3-owner-readiness.mjs`
 - `scripts/ci/test/verify-v3-owner-readiness.test.mjs`
+- `project/V3_OWNER_EVIDENCE_TEMPLATE.json`
+- `scripts/ci/verify-v3-owner-evidence.mjs`
+- `scripts/ci/test/verify-v3-owner-evidence.test.mjs`
+- `reports/TASK-079_REAL_GATE_RUNBOOK.md`
 - `reports/TASK-079_READINESS.md`
 
 除非后续真实 RED 明确证明需要生产修复，否则本无设备阶段不修改应用、Core、合同、数据库或原生输出代码。任何生产修复必须先单独冻结允许路径并执行 RED→GREEN；不能为了让清单变绿而放宽真实 Gate。
@@ -41,10 +45,14 @@
 ```bash
 node --test scripts/ci/test/verify-v3-owner-readiness.test.mjs
 node scripts/ci/verify-v3-owner-readiness.mjs
+node --test scripts/ci/test/verify-v3-owner-evidence.test.mjs
+node scripts/ci/verify-v3-owner-evidence.mjs
 git diff --check
 ```
 
 就绪验证器的正常无设备结果必须是 `READY=false`、所有外部类别 `not-run`、Owner 103 条全部 `pending`。只有显式的后续本地证据录入模式才允许改变这些状态；本阶段不提供自动升级开关。
+
+真实证据使用独立收据验证器，不能给现有 readiness 验证器增加放宽分支。Git 只跟踪 `template=true`、`ready=false`、`receipt=null` 的空模板；实际收据按不透明 ID 分别写入已忽略的 `reports/runtime/task-079-v3-final-acceptance/receipts/<receipt-id>.json`，该收据的全部附件只允许位于 `receipts/<receipt-id>/` 独占目录，并用 `--receipt-id <receipt-id>` 校验，不覆盖历史窗口。逐 case 事实、失败终态、Owner 技术引用、配置证书、候选身份和授权链必须由实际附件与 seal 交叉验证；单份技术收据、Owner 观察或模板通过都不能自动改写 `project/V3_OWNER_ACCEPTANCE.json`、Gate 状态或 `formalReady`。
 
 TASK-078 的严格 fresh validator 已在其原工作树以完整、未跟踪的 runtime 日志与收据通过并由最终报告锁定。TASK-079 新工作树不复制这些大体积 runtime 证据，因此不重放该入口；本任务以固定矩阵 SHA256 `12f15170…`、最终基线 `fac7363…` 与103/101/2实际内容复核继承软件封条。缺少旧 runtime 文件时的 `PATH_UNAVAILABLE` 不是新的验收失败，也不能被改写成重跑授权。
 
