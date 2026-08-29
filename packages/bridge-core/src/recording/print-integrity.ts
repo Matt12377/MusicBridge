@@ -1,8 +1,10 @@
+import { isMasterArtworkBytes, isRecordingPrintPdfBytes } from './object-format-integrity.js';
 import { createHash } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
 import { mediaFingerprint } from './media-store.js';
 import { createRecordingPrintRequest } from './print-facts.js';
+import { receiptCertificateValue, type CertifiedObjectMetadata, type ObjectAuditCertificateSession } from './object-audit-certificate.js';
 
 export type RecordingPrintErrorCode = 'INVALID_REQUEST'|'NOT_FOUND'|'NOT_APPLICABLE'|'CONFLICT'|'COMMAND_CONFLICT'|'BUDGET_EXCEEDED'|'IO_ERROR'|'CLOSED';
 export class RecordingPrintError extends Error { constructor(readonly code:RecordingPrintErrorCode='IO_ERROR'){super(`印刷品操作未完成，请核实当前资料。[${code}]`);} }
@@ -44,25 +46,71 @@ export function printRecordPlan(db:DatabaseSync,id:string):{record:dto.Recording
  const planRow=db.prepare('SELECT data FROM recording_plan_versions WHERE id=?').get(record.completion.planVersionId);if(!planRow)printFail();
  const plan:unknown=JSON.parse(String(planRow.data));if(!dto.isRecordingPlanVersion(plan))printFail();return {record,plan};
 }
-export function printObject(db:DatabaseSync,sha:string):{bytes:Buffer;mime:string;width:number|null;height:number|null}{
- const row=db.prepare('SELECT * FROM recording_print_objects WHERE sha256=?').get(sha);if(!row||!(row.content instanceof Uint8Array)||printHash(row.content)!==sha)printFail();
+interface PrintObject {bytes:Buffer;mime:string;width:number|null;height:number|null}
+interface EncodedPrintObject {bytes:Buffer|null;size:number;mime:string;width:number|null;height:number|null;base64:string|null}
+function decodePrintObject(row:ReturnType<ReturnType<DatabaseSync['prepare']>['get']>,sha:string):EncodedPrintObject{
+ if(!row||!(row.content instanceof Uint8Array)||printHash(row.content)!==sha)printFail();
  const bytes=Buffer.from(row.content),mime=String(row.mime),width=row.width===null?null:Number(row.width),height=row.height===null?null:Number(row.height);
- if(mime==='image/jpeg'){if(!dto.isMasterArtworkImage({dataUrl:`data:image/jpeg;base64,${bytes.toString('base64')}`,width,height}))printFail();}
- else if(mime!=='application/pdf'||width!==null||height!==null||!dto.isRecordingPrintPdfBase64(bytes.toString('base64')))printFail();
- return {bytes,mime,width,height};
+ const base64=bytes.toString('base64');
+ if(mime==='image/jpeg'){if(!isMasterArtworkBytes(bytes,width,height))printFail();}
+ else if(mime!=='application/pdf'||width!==null||height!==null||!isRecordingPrintPdfBytes(bytes))printFail();
+ return {bytes,size:bytes.length,mime,width,height,base64};
+}
+export function printObject(db:DatabaseSync,sha:string):PrintObject{
+ const object=decodePrintObject(db.prepare('SELECT * FROM recording_print_objects WHERE sha256=?').get(sha),sha);if(!object.bytes)printFail();return {bytes:object.bytes,mime:object.mime,width:object.width,height:object.height};
 }
 export function printImage(db:DatabaseSync,sha:string):dto.CollectionPhotoImage{const object=printObject(db,sha);if(object.mime!=='image/jpeg')printFail();return {dataUrl:`data:image/jpeg;base64,${object.bytes.toString('base64')}`,width:object.width!,height:object.height!};}
+export interface RecordingPrintSnapshotBudget {maxBytes?:number;maxEntries?:number}
+interface PrintObjectAccessor {
+	 get(sha:string,requireRaw?:boolean):EncodedPrintObject;receipt(row:Record<string,unknown>):boolean;observeReceipt(row:Record<string,unknown>):void;clear():void;
+}
+function plainObjects(db:DatabaseSync):PrintObjectAccessor{return {get:sha=>decodePrintObject(db.prepare('SELECT * FROM recording_print_objects WHERE sha256=?').get(sha),sha),receipt:()=>false,observeReceipt(){},clear(){}};}
+function objectImage(object:EncodedPrintObject):dto.CollectionPhotoImage {if(object.mime!=='image/jpeg'||object.base64===null)printFail();return {dataUrl:`data:image/jpeg;base64,${object.base64}`,width:object.width!,height:object.height!};}
+function certifiedMetadata(row:ReturnType<ReturnType<DatabaseSync['prepare']>['get']>,sha:string):CertifiedObjectMetadata|null {
+ if(!row||row.storage!=='blob'||!Number.isSafeInteger(Number(row.size))||Number(row.size)<0)return null;
+ return {scope:'print-object',sha256:sha,size:Number(row.size),storage:String(row.storage),mime:String(row.mime),width:row.width===null?null:Number(row.width),height:row.height===null?null:Number(row.height)};
+}
+function snapshotObjects(db:DatabaseSync,budget:RecordingPrintSnapshotBudget,certificate?:ObjectAuditCertificateSession):PrintObjectAccessor{
+ const maxBytes=budget.maxBytes??128*1024**2,maxEntries=budget.maxEntries??1024;
+ if(!db.isTransaction||!Number.isSafeInteger(maxBytes)||maxBytes<1||maxBytes>128*1024**2||!Number.isSafeInteger(maxEntries)||maxEntries<1||maxEntries>1024)printFail('INVALID_REQUEST');
+ const cache=new Map<string,EncodedPrintObject>();let retainedBytes=0;
+	 const get=(sha:string,requireRaw=false):EncodedPrintObject=>{
+	  const metadata=certifiedMetadata(db.prepare('SELECT length(content) size,typeof(content) storage,mime,width,height FROM recording_print_objects WHERE sha256=?').get(sha),sha);
+	  if(!requireRaw&&metadata&&certificate?.matchesObject(metadata))return {bytes:null,size:metadata.size,mime:metadata.mime!,width:metadata.width,height:metadata.height,base64:null};
+  // 即使命中仍读取同一事务的实际raw和全部metadata，不以数据库自报SHA代替字节相等。
+  const row=db.prepare('SELECT * FROM recording_print_objects WHERE sha256=?').get(sha),prior=cache.get(sha);
+  if(prior){
+   if(!row||!(row.content instanceof Uint8Array)||!prior.bytes?.equals(row.content)||row.mime!==prior.mime||row.width!==prior.width||row.height!==prior.height)printFail();
+   return prior;
+  }
+  const object=decodePrintObject(row,sha);
+  certificate?.observeObject({scope:'print-object',sha256:sha,size:object.size,storage:'blob',mime:object.mime,width:object.width,height:object.height});
+  // Buffer、UTF-16编码字符串、key/mime和条目元数据计费；临时SQL row/guard分配不冒称RSS上界。
+  const cost=object.size+(object.base64?.length??0)*2+sha.length*2+object.mime.length*2+512;
+  if(cache.size<maxEntries&&retainedBytes+cost<=maxBytes){cache.set(sha,object);retainedBytes+=cost;}
+  return object;
+ };
+ return {get,receipt:row=>certificate?.matchesReceipt(`${String(row.kind)}:${String(row.id)}`,receiptCertificateValue(row))??false,observeReceipt(row){certificate?.observeReceipt(`${String(row.kind)}:${String(row.id)}`,receiptCertificateValue(row));},clear(){cache.clear();retainedBytes=0;}};
+}
 export function printJob(db:DatabaseSync,id:string):dto.RecordingPrintJob{const row=db.prepare('SELECT data FROM recording_print_jobs WHERE id=?').get(id);if(!row)printFail('NOT_FOUND');const job=printParse(row.data,dto.isRecordingPrintJob);if(job.id!==id)printFail();return job;}
 export type PrintLeaseIdentity=Pick<dto.RecordingPrintLease,'leaseId'|'workerId'|'jobId'|'requestId'|'inputHash'>;
 export interface PrintEvent {job:dto.RecordingPrintJob;lease:PrintLeaseIdentity|null}
 const same=(a:unknown,b:unknown)=>mediaFingerprint(a)===mediaFingerprint(b);
-function artwork(db:DatabaseSync,snapshot:dto.RecordingArtworkSnapshot,masterId?:string):void {
+function artwork(db:DatabaseSync,snapshot:dto.RecordingArtworkSnapshot,objects:PrintObjectAccessor,masterId?:string):void {
  if(snapshot.state!=='captured')return;
  const v=snapshot.version,row=db.prepare('SELECT data FROM master_artwork_versions WHERE id=?').get(v.id);if(!row||!same(JSON.parse(String(row.data)),v)||masterId&&v.masterVersionId!==masterId)printFail();
- const object=printObject(db,v.sha256);if(object.bytes.length!==v.size||object.width!==v.width||object.height!==v.height||object.mime!==v.mimeType)printFail();
+ const object=objects.get(v.sha256);if(object.size!==v.size||object.width!==v.width||object.height!==v.height||object.mime!==v.mimeType)printFail();
 }
 /** 只读闭包校验；不依赖record-store，防止完成登记的循环导入。 */
 export function verifyRecordingPrintDatabase(db:DatabaseSync):void {
+ verifyPrintDatabase(db,plainObjects(db));
+}
+/** 仅供Attempt已BEGIN IMMEDIATE、无await/写入的单次审计；返回/异常即销毁，不跨调用复用。 */
+export function verifyRecordingPrintSnapshot(db:DatabaseSync,budget:RecordingPrintSnapshotBudget={},certificate?:ObjectAuditCertificateSession):void {
+ const objects=snapshotObjects(db,budget,certificate);
+ try{verifyPrintDatabase(db,objects);}finally{objects.clear();}
+}
+function verifyPrintDatabase(db:DatabaseSync,objectAccess:PrintObjectAccessor):void {
  try{
   const schema=db.prepare("SELECT sql FROM sqlite_schema WHERE name GLOB 'recording_print*' OR name GLOB 'master_artwork*'").all();
   if(schema.length!==printSchema.length||schema.some(row=>!printSchema.includes(String(row.sql)))||db.prepare('PRAGMA foreign_key_check').get())printFail();checkPrintBudgets(db);
@@ -71,12 +119,12 @@ export function verifyRecordingPrintDatabase(db:DatabaseSync):void {
    const version=printParse(row.data,dto.isMasterArtworkVersion);if(version.id!==row.id||version.masterVersionId!==row.master_id||version.sequence!==row.sequence||version.sha256!==row.sha256)printFail();
    const master=db.prepare('SELECT data FROM master_versions WHERE id=?').get(version.masterVersionId);if(!master||!dto.isMasterVersion(JSON.parse(String(master.data))))printFail();
    if(version.sequence>1){const previous=db.prepare('SELECT data FROM master_artwork_versions WHERE master_id=? AND sequence=?').get(version.masterVersionId,version.sequence-1);if(!previous||printParse(previous.data,dto.isMasterArtworkVersion).createdAt>version.createdAt)printFail();}
-   artwork(db,{state:'captured',version});objects.add(version.sha256);
+   artwork(db,{state:'captured',version},objectAccess);objects.add(version.sha256);
    const head=db.prepare('SELECT version_id FROM master_artwork_current WHERE master_id=?').get(version.masterVersionId),last=db.prepare('SELECT id FROM master_artwork_versions WHERE master_id=? ORDER BY sequence DESC LIMIT 1').get(version.masterVersionId);if(!head||head.version_id!==last?.id)printFail();
   }
   for(const row of db.prepare('SELECT * FROM master_artwork_current').iterate())if(!db.prepare('SELECT 1 FROM master_artwork_versions WHERE id=? AND master_id=?').get(String(row.version_id),String(row.master_id)))printFail();
   for(const row of db.prepare('SELECT id FROM recording_records').iterate()){
-   const {record,plan}=printRecordPlan(db,String(row.id));artwork(db,record.visuals.artwork,plan.master.id);
+   const {record,plan}=printRecordPlan(db,String(row.id));artwork(db,record.visuals.artwork,objectAccess,plan.master.id);
    if(record.schemaVersion===2&&record.printRequestId!==null){const request=db.prepare('SELECT recording_id FROM recording_print_requests WHERE id=?').get(record.printRequestId);if(request?.recording_id!==record.id)printFail();}
   }
   for(const row of db.prepare('SELECT * FROM recording_print_requests').iterate()){
@@ -110,27 +158,33 @@ export function verifyRecordingPrintDatabase(db:DatabaseSync):void {
    if(artifact.recordingId!==request.recordingId||artifact.inputHash!==request.inputHash||artifact.templateHash!==request.templateHash||artifact.createdAt<request.createdAt||!same(artifact.artwork,facts.artwork))printFail();
    const ready=db.prepare('SELECT data FROM recording_print_jobs WHERE request_id=?').get(artifact.requestId);
    if(!ready||printParse(ready.data,dto.isRecordingPrintJob).updatedAt!==artifact.createdAt)printFail();
-   const pdf=printObject(db,artifact.pdfSha256),preview=printObject(db,artifact.previewSha256);if(pdf.mime!=='application/pdf'||pdf.bytes.length!==artifact.size||preview.mime!=='image/jpeg'||preview.bytes.length!==artifact.previewSize)printFail();objects.add(artifact.pdfSha256);objects.add(artifact.previewSha256);
+   const pdf=objectAccess.get(artifact.pdfSha256),preview=objectAccess.get(artifact.previewSha256);if(pdf.mime!=='application/pdf'||pdf.size!==artifact.size||preview.mime!=='image/jpeg'||preview.size!==artifact.previewSize)printFail();objects.add(artifact.pdfSha256);objects.add(artifact.previewSha256);
   }
-  for(const row of db.prepare('SELECT sha256 FROM recording_print_objects').iterate()){if(!objects.has(String(row.sha256)))printFail();printObject(db,String(row.sha256));}
-  verifyReceipts(db);
+  for(const row of db.prepare('SELECT sha256 FROM recording_print_objects').iterate()){if(!objects.has(String(row.sha256)))printFail();objectAccess.get(String(row.sha256));}
+  verifyReceipts(db,objectAccess);
   for(const row of db.prepare("SELECT id FROM recording_print_requests WHERE json_extract(data,'$.origin')='historical-backfill'").iterate())if(!db.prepare("SELECT 1 FROM recording_print_receipts WHERE kind='request' AND json_extract(result,'$.request.id')=? AND json_extract(result,'$.revision')=1").get(String(row.id)))printFail();
  }catch(error){if(error instanceof RecordingPrintError)throw error;printFail();}
 }
-function verifyReceipts(db:DatabaseSync):void {
- for(const row of db.prepare('SELECT * FROM recording_print_receipts').iterate()){
-  const request=JSON.parse(String(row.request)),result=JSON.parse(String(row.result));let original:unknown=request;
+function verifyReceipts(db:DatabaseSync,objects:PrintObjectAccessor):void {
+	 for(const row of db.prepare('SELECT * FROM recording_print_receipts').iterate()){
+	  const request=JSON.parse(String(row.request)),result=JSON.parse(String(row.result)),certified=objects.receipt(row);let original:unknown=request;
   if(row.kind==='artwork'){
    if(!dto.isMasterArtworkVersion(result))printFail();const version=db.prepare('SELECT data FROM master_artwork_versions WHERE id=?').get(result.id);if(!version||!same(result,JSON.parse(String(version.data))))printFail();
-   original={...request,image:printImage(db,result.sha256)};if(!dto.isSaveMasterArtworkRequest(original)||row.id!==`command:${original.commandId}`||original.masterVersionId!==result.masterVersionId)printFail();
+	   const image=objects.get(result.sha256,!certified);if(image.mime!==result.mimeType||image.size!==result.size||image.width!==result.width||image.height!==result.height)printFail();
+   // 图像来自本次真实raw校验；只拆字段规则，原完整请求及canonical仍使用实际编码。
+	   if(!certified){original={...request,image:objectImage(image)};if(!dto.isSaveMasterArtworkRequestFields(original))printFail();}
+	   if(row.id!==`command:${request.commandId}`||request.masterVersionId!==result.masterVersionId)printFail();
    const previous=result.sequence===1?null:db.prepare('SELECT id FROM master_artwork_versions WHERE master_id=? AND sequence=?').get(result.masterVersionId,result.sequence-1)?.id;
-   if(original.expectedVersionId!==previous)printFail();
+	   if(request.expectedVersionId!==previous)printFail();
   }else{
    if(!dto.isRecordingPrintJob(result))printFail();const event=db.prepare('SELECT data FROM recording_print_events WHERE job_id=? AND revision=?').get(result.id,result.revision);if(!event||!same((JSON.parse(String(event.data)) as PrintEvent).job,result))printFail();
    if(row.kind==='complete'){
     const artifact=printParse(db.prepare('SELECT data FROM recording_print_artifacts WHERE id=?').get(result.artifactId!)?.data,dto.isPrintedArtifact);
-    original={...request,pdfBase64:printObject(db,artifact.pdfSha256).bytes.toString('base64'),preview:printImage(db,artifact.previewSha256)};
-    if(!dto.isCompleteRecordingPrintRequest(original)||result.state!=='ready'||original.pdfSha256!==artifact.pdfSha256||original.pageCount!==artifact.pageCount||original.rendererVersion!==artifact.rendererVersion)printFail();
+	    // 新回执必须用真实raw重建原请求fingerprint；对象证书只可替代已认证旧回执的raw读取。
+	    const pdf=objects.get(artifact.pdfSha256,!certified),preview=objects.get(artifact.previewSha256,!certified);
+	    if(pdf.mime!=='application/pdf'||pdf.size!==artifact.size||preview.mime!=='image/jpeg'||preview.size!==artifact.previewSize)printFail();
+	    if(!certified){if(pdf.base64===null)printFail();original={...request,pdfBase64:pdf.base64,preview:objectImage(preview)};if(!dto.isCompleteRecordingPrintRequestFields(original))printFail();}
+	    if(result.state!=='ready'||request.pdfSha256!==artifact.pdfSha256||request.pageCount!==artifact.pageCount||request.rendererVersion!==artifact.rendererVersion)printFail();
    }else if(row.kind==='fail'){if(!dto.isFailRecordingPrintRequest(original)||result.state!=='failed'||original.errorCode!==result.errorCode)printFail();}
    else if(row.kind==='retry'){if(!dto.isRetryRecordingPrintRequest(original)||result.state!=='pending'||original.jobId!==result.id||original.expectedRevision!==result.revision-1)printFail();}
    else if(row.kind==='request'){if(!dto.isRequestRecordingPrintRequest(original)||original.recordingId!==result.request.recordingId||original.expectedRecordHash!==result.request.recordingContentHash)printFail();}
@@ -140,7 +194,8 @@ function verifyReceipts(db:DatabaseSync):void {
     if(!lease||row.id!==`lease:${req.leaseId}`||lease.leaseId!==req.leaseId||lease.workerId!==req.workerId||lease.jobId!==req.jobId||lease.inputHash!==req.inputHash)printFail();
    }else if(row.id!==`command:${(original as dto.RetryRecordingPrintRequest).commandId}`)printFail();
   }
-  if(mediaFingerprint(original)!==row.fingerprint)printFail();
+	  if(certified){if(row.kind!=='artwork'&&row.kind!=='complete')printFail();}
+	  else {if(mediaFingerprint(original)!==row.fingerprint)printFail();if(row.kind==='artwork'||row.kind==='complete')objects.observeReceipt(row);}
  }
  // 每个显式版本与每次明确状态修改都必须拥有不可变回执；恢复和自动创建不需要伪命令。
  for(const row of db.prepare('SELECT id FROM master_artwork_versions').iterate())if(!db.prepare("SELECT 1 FROM recording_print_receipts WHERE kind='artwork' AND json_extract(result,'$.id')=?").get(String(row.id)))printFail();

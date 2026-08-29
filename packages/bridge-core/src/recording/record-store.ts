@@ -26,10 +26,10 @@ function writePermit(db:DatabaseSync,permit:dto.RerecordPermit):void {
   db.prepare('INSERT INTO recording_record_permits VALUES(?,?,?,?,?)').run(permit.id,permit.state==='available'?1:2,permit.physicalId,permit.state,JSON.stringify(permit));
 }
 /** 调用方拥有Attempt事务；首次Completed后才拍快照，任何预算失败令整个完成事务回滚。 */
-export function registerCompletedRecording(db:DatabaseSync,completion:dto.RecordingAttempt,budgets:RecordingRecordBudgets={},legacy=false):void {
+export function registerCompletedRecording(db:DatabaseSync,completion:dto.RecordingAttempt,budgets:RecordingRecordBudgets={},legacy=false):number {
   assertBudgets(budgets);
-  if(completion.status!=='completed') return;
-  const existing=db.prepare('SELECT attempt_revision FROM recording_records WHERE attempt_id=?').get(completion.id); if(existing) return;
+  if(completion.status!=='completed') return 0;
+  const existing=db.prepare('SELECT attempt_revision FROM recording_records WHERE attempt_id=?').get(completion.id); if(existing) return 0;
   const first=db.prepare("SELECT revision,data FROM recording_attempt_events WHERE attempt_id=? AND json_extract(data,'$.after.status')='completed' ORDER BY revision LIMIT 1").get(completion.id);
   if(!first || first.revision!==completion.revision || mediaFingerprint((JSON.parse(String(first.data)) as {after:dto.RecordingAttempt}).after)!==mediaFingerprint(completion)) return recordFail();
   const planRow=db.prepare('SELECT data FROM recording_plan_versions WHERE id=?').get(completion.planVersionId); if(!planRow) return recordFail();
@@ -38,7 +38,8 @@ export function registerCompletedRecording(db:DatabaseSync,completion:dto.Record
   const model=db.prepare('SELECT descriptor FROM collection_models WHERE id=?').get(base.modelId); if(!model) return recordFail();
   const printing=!legacy&&Number(db.prepare('PRAGMA user_version').get()?.user_version)>=21;
   const printRequestId=printing&&plan.layout.spec.format==='cassette'?randomUUID():null;
-  const visuals=captureRecordingVisuals(db,id,completion.physicalId,legacy);
+  let insertedVisuals=0;
+  const visuals=captureRecordingVisuals(db,id,completion.physicalId,legacy,()=>{++insertedVisuals;});
   const body={...(printing?{schemaVersion:2 as const,printRequestId}:{schemaVersion:1 as const}),id,createdAt:completion.endedAt!,completion:completion as dto.CompletedRecordingAttempt,
     media:legacy?{...base,snapshotSource:'legacy-plan-only' as const}:{...base,snapshotSource:'completion' as const,descriptor:JSON.parse(String(model.descriptor)) as dto.CollectionDescriptor},visuals:printing?{...visuals,artwork:captureMasterArtwork(db,plan.master.id),jCard:{state:'not-captured' as const,reason:plan.layout.spec.format==='cassette'?'not-provided' as const:'not-applicable' as const}}:visuals};
   const candidate={...body,contentHash:mediaFingerprint(body)};
@@ -46,16 +47,23 @@ export function registerCompletedRecording(db:DatabaseSync,completion:dto.Record
   const before=readContentHead(db,completion.physicalId);
   db.prepare('INSERT INTO recording_records VALUES(?,?,?,?,?,?)').run(id,completion.id,completion.revision,completion.physicalId,completion.planVersionId,JSON.stringify(record));
   if(printRequestId)registerRecordingPrint(db,record,plan,printRequestId,'completion',record.createdAt);
+  let physicalMutations=0;
   if(!legacy) withPhysicalRecordingMutation(db,completion.physicalId,'completed',()=>{
-    db.prepare("UPDATE physical_copies SET usage='recorded',reserved_from=NULL,revision=revision+1 WHERE physical_id=? AND usage='reserved'").run(completion.physicalId);
+    const updated=db.prepare("UPDATE physical_copies SET usage='recorded',reserved_from=NULL,revision=revision+1 WHERE physical_id=? AND usage='reserved'").run(completion.physicalId);
+    if(Number(updated.changes)!==1)return recordFail();physicalMutations+=1;
     const reservation=db.prepare('SELECT plan_id FROM media_reservations WHERE physical_id=?').get(completion.physicalId);
-    if(reservation) { db.prepare('DELETE FROM media_reservations WHERE physical_id=?').run(completion.physicalId); db.prepare('UPDATE media_plans SET revision=revision+1 WHERE id=?').run(String(reservation.plan_id)); }
+    if(reservation) {
+      const removed=db.prepare('DELETE FROM media_reservations WHERE physical_id=?').run(completion.physicalId),revised=db.prepare('UPDATE media_plans SET revision=revision+1 WHERE id=?').run(String(reservation.plan_id));
+      if(Number(removed.changes)!==1||Number(revised.changes)!==1)return recordFail();physicalMutations+=2;
+    }
   });
   appendContent(db,before,{state:'confirmed-recording',recordingId:id,confirmedAt:completion.endedAt!,evidence:{kind:'completed-attempt',attemptId:completion.id,revision:completion.revision}},{kind:legacy?'legacy-completed':'completed',attemptId:completion.id,revision:completion.revision,recordingId:id,recordingContentHash:record.contentHash});
   checkRecordingRecordBudgets(db,budgets.metadataBudgetBytes,budgets.visualBudgetBytes);
+  // record + 可选Print三行 + 可选visual + guard两行 + 实体／预留写 + content两行。
+  return 1+(printRequestId?3:0)+insertedVisuals+(legacy?0:2+physicalMutations)+2;
 }
 /** 准入已经完成；与新Attempt的持久化边界同事务使旧当前内容失效并一次消费许可。 */
-export function beginPhysicalRecording(db:DatabaseSync,attempt:dto.RecordingAttempt,plan:dto.RecordingPlanVersion,budgets:RecordingRecordBudgets={}):void {
+export function beginPhysicalRecording(db:DatabaseSync,attempt:dto.RecordingAttempt,plan:dto.RecordingPlanVersion,budgets:RecordingRecordBudgets={}):2|3 {
   const before=readContentHead(db,attempt.physicalId), priorAttempt=db.prepare('SELECT 1 FROM recording_attempts WHERE physical_id=? AND id<>? LIMIT 1').get(attempt.physicalId,attempt.id);
   const permit=availableRecordingPermit(db,attempt.physicalId);
   if(priorAttempt || before.revision>0 || permit) {
@@ -66,6 +74,7 @@ export function beginPhysicalRecording(db:DatabaseSync,attempt:dto.RecordingAtte
   }
   appendContent(db,before,{state:'unknown',reason:'new-attempt',since:attempt.createdAt},{kind:'begin',attemptId:attempt.id,revision:attempt.revision,...(permit?{permitId:permit.id}:{})});
   checkRecordingRecordBudgets(db,budgets.metadataBudgetBytes,budgets.visualBudgetBytes);
+  return permit ? 3 : 2;
 }
 /** 外层已关闭FK并拥有迁移事务。保留旧表每列事实，只扩大受控重录reserved_from。 */
 export function migrateRecordingRecords(db:DatabaseSync):void {

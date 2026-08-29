@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { once } from 'node:events';
-import { randomUUID } from 'node:crypto';
-import { mkdir, readdir, rm, readFile, writeFile } from 'node:fs/promises';
+import { randomUUID, createHash } from 'node:crypto';
+import { mkdir, readdir, rm, readFile, writeFile, lstat } from 'node:fs/promises';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { executionFixture } from './helpers/execution-fixture.js';
@@ -47,7 +47,21 @@ for (const cut of ['INTENT_WRITTEN','STAGED','VERIFIED','PROMOTED','DB_COMMITTED
     const reopened = createCollectionRepository({ filePath: f.filePath });
     try {
       const resumed = createArchiveTransactionRunner({ store: reopened.archive });
-      for (let i = 0; i < 10; i++) await resumed.recover();
+      let firstSnapshot: unknown;
+      for (let i = 1; i <= 10; i++) {
+        await resumed.recover();
+        if (![1, 2, 10].includes(i)) continue;
+        const snapshot = {
+          phase: reopened.archive.operation(request.id)!.phase,
+          references: reopened.archive.references(request.id),
+          objects: (await readdir(f.archive.objects.path)).sort(),
+          inventory: reopened.detail(f.layout.reservation.modelId, { offset: 0, limit: 25 }),
+        };
+        assert.equal(snapshot.phase, 'FINALIZED');
+        assert.equal(snapshot.references.length, f.inputs.length);
+        if (i === 1) firstSnapshot = snapshot;
+        else assert.deepEqual(snapshot, firstSnapshot, `第${i}次恢复必须与第一次相同`);
+      }
       assert.equal(reopened.archive.operation(request.id)!.phase, 'FINALIZED'); assert.equal(reopened.archive.references(request.id).length, f.inputs.length);
       assert.equal((await readdir(f.archive.objects.path)).length, new Set(f.inputs.map(f => f.sha256)).size);
     } finally { reopened.close(); }
@@ -119,6 +133,68 @@ for (const cut of ['PROMOTED', 'DB_COMMITTED'] as const) {
     } finally { resumed.close(); }
   });
 }
+
+test('真实复制首块落盘后SIGKILL，保留partial且冷恢复1/2/10次不改源、库存或重复引用', { timeout: 20_000 }, async t => {
+  const f = await setup(t), request = f.archiveRequest;
+  const digest = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
+  const sourceFiles = [f.file, ...f.inputs.map(input => {
+    assert.ok('source' in input);
+    return path.join(input.source.path, input.relative);
+  })];
+  const sources = await Promise.all(sourceFiles.map(async file => ({ file, sha256: digest(await readFile(file)), stat: await lstat(file, { bigint: true }) })));
+  const beforeInventory = f.repository.detail(f.layout.reservation.modelId, { offset: 0, limit: 25 });
+  const business = (repository: typeof f.repository) => repository.recordingRecords.read(db =>
+    ['prepared_versions', 'recording_plan_versions', 'recording_records', 'physical_copies', 'inventory_ledger'].map(table => [table, db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all()]));
+  const beforeBusiness = business(f.repository);
+  f.repository.archive.request(request);
+  const { fork } = await import('node:child_process');
+  const child = fork(new URL('./helpers/archive-crash-child.ts', import.meta.url), [f.filePath, request.id, 'COPY_PARTIAL'], { execArgv: ['--import', 'tsx'], stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
+  t.after(async () => {
+    if (child.exitCode !== null || child.signalCode !== null) return;
+    const closed = once(child, 'close'); child.kill('SIGKILL'); await closed;
+  });
+  const [checkpoint] = await Promise.race([
+    once(child, 'message', { signal: AbortSignal.timeout(5_000) }),
+    once(child, 'exit').then(() => { throw new Error('合成子进程未到复制中检查点'); }),
+  ]);
+  assert.equal(checkpoint.phase, 'COPY_PARTIAL');
+  assert.ok(checkpoint.size > 0 && checkpoint.size < checkpoint.expectedSize);
+  const closed = once(child, 'close'); child.kill('SIGKILL');
+  assert.deepEqual(await closed, [null, 'SIGKILL']);
+  const resumed = createCollectionRepository({ filePath: f.filePath });
+  try {
+    const operation = resumed.archive.operation(request.id)!;
+    assert.equal(operation.phase, 'INTENT_WRITTEN');
+    assert.equal(resumed.archive.references(request.id).length, 0);
+    assert.deepEqual(business(resumed), beforeBusiness, '复制中断不新增Frozen PREP、正式Plan或完成档案');
+    assert.deepEqual(await readdir(f.archive.objects.path), []);
+    const partials = (await readdir(operation.owned!.staging.path)).filter(name => name.includes('.partial-'));
+    assert.equal(partials.length, 1);
+    const partialPath = path.join(operation.owned!.staging.path, partials[0]!);
+    const partial = await readFile(partialPath);
+    assert.equal(partial.length, checkpoint.size);
+    const runner = createArchiveTransactionRunner({ store: resumed.archive });
+    let firstReferences: unknown;
+    for (let i = 1; i <= 10; ++i) {
+      assert.deepEqual(await runner.recover(), [{ id: request.id, available: true }]);
+      if (![1, 2, 10].includes(i)) continue;
+      assert.equal(resumed.archive.operation(request.id)!.phase, 'FINALIZED');
+      const references = resumed.archive.references(request.id);
+      assert.equal(references.length, f.inputs.length);
+      if (i === 1) firstReferences = references; else assert.deepEqual(references, firstReferences);
+      assert.equal((await readdir(f.archive.objects.path)).length, new Set(f.inputs.map(file => file.sha256)).size);
+      for (const input of f.inputs) assert.equal(digest(await readFile(archiveObjectPath(f.archive, input.sha256))), input.sha256);
+      assert.deepEqual(await readFile(partialPath), partial, '未完成的partial不覆盖、不自动清理');
+      assert.deepEqual(resumed.detail(f.layout.reservation.modelId, { offset: 0, limit: 25 }), beforeInventory);
+      assert.deepEqual(business(resumed), beforeBusiness);
+    }
+    for (const source of sources) {
+      assert.equal(digest(await readFile(source.file)), source.sha256);
+      const after = await lstat(source.file, { bigint: true });
+      assert.equal(after.ino, source.stat.ino); assert.equal(after.mtimeNs, source.stat.mtimeNs); assert.equal(after.ctimeNs, source.stat.ctimeNs);
+    }
+  } finally { resumed.close(); }
+});
 
 test('DB 已提交后的取消只中断本次运行，恢复仍完成收尾且不重读源', async t => {
   const f = await setup(t), store = f.repository.archive, controller = new AbortController(); store.request(f.archiveRequest);

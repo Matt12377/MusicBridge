@@ -137,9 +137,13 @@ export function isRecordingPrintPdfBase64(v: unknown): v is string {
   if (typeof v !== 'string' || v.length < 16 || v.length > Math.ceil(MAX_RECORDING_PRINT_PDF_BYTES / 3) * 4 || v.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/u.test(v)) return false;
   try { const decoded = atob(v); return decoded.length <= MAX_RECORDING_PRINT_PDF_BYTES && decoded.startsWith('%PDF-') && /%%EOF[\r\n\t ]*$/u.test(decoded) && btoa(decoded) === v; } catch { return false; }
 }
-export function isCompleteRecordingPrintRequest(v: unknown): v is CompleteRecordingPrintRequest {
+/** 仅验证请求字段；两个内容字段保持unknown，调用者必须另验实际内容。 */
+export function isCompleteRecordingPrintRequestFields(v: unknown): v is Omit<CompleteRecordingPrintRequest, 'pdfBase64' | 'preview'> & { pdfBase64: unknown; preview: unknown } {
   return record(v) && keys(v, ['leaseId', 'workerId', 'jobId', 'inputHash', 'pdfBase64', 'pdfSha256', 'preview', 'pageCount', 'rendererVersion']) && leaseFields(v)
-    && isRecordingPrintPdfBase64(v.pdfBase64) && hash(v.pdfSha256) && isMasterArtworkImage(v.preview) && integer(v.pageCount, 1, MAX_RECORDING_PRINT_PAGES) && renderer(v.rendererVersion);
+    && hash(v.pdfSha256) && integer(v.pageCount, 1, MAX_RECORDING_PRINT_PAGES) && renderer(v.rendererVersion);
+}
+export function isCompleteRecordingPrintRequest(v: unknown): v is CompleteRecordingPrintRequest {
+  return isCompleteRecordingPrintRequestFields(v) && isRecordingPrintPdfBase64(v.pdfBase64) && isMasterArtworkImage(v.preview);
 }
 export function isFailRecordingPrintRequest(v: unknown): v is FailRecordingPrintRequest { return record(v) && keys(v, ['leaseId', 'workerId', 'jobId', 'inputHash', 'errorCode']) && leaseFields(v) && errorCode(v.errorCode); }
 export function isRecordingPrintPdfResult(v: unknown): v is RecordingPrintPdfResult {

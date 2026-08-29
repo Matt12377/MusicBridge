@@ -1,3 +1,4 @@
+import { testElectronArguments } from '../scripts/test-keychain.mjs'
 import { _electron as electron, expect, test, type ElectronApplication, type Page, type Locator } from '@playwright/test'
 import { createRequire } from 'node:module'
 import { randomUUID } from 'node:crypto'
@@ -11,7 +12,7 @@ const axe = await readFile(createRequire(import.meta.url).resolve('axe-core/axe.
 let app: ElectronApplication | undefined, page: Page, directory: string
 async function launch(enabled: boolean) {
   const env = Object.fromEntries(Object.entries(process.env).filter(([k, v]) => v !== undefined && !/^(MUSIC_BRIDGE_|NETEASE_|ROON_)/u.test(k))) as Record<string, string>
-  app = await electron.launch({ args: [path.join(root, 'dist/main/index.js')], cwd: root, env: { ...env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: directory, ...(enabled ? { MUSIC_BRIDGE_BUNDLED_OUTPUT_GATE: '1' } : {}) } })
+  app = await electron.launch({ args: testElectronArguments([path.join(root, 'dist/main/index.js')]), cwd: root, env: { ...env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: directory, ...(enabled ? { MUSIC_BRIDGE_BUNDLED_OUTPUT_GATE: '1' } : {}) } })
   page = await app.firstWindow(); await page.waitForLoadState('domcontentloaded'); await expect(page.locator('#home-heading')).toBeVisible()
   await expect.poll(async () => (await page.evaluate(() => window.musicBridge.getCoreHealth())).runtime).toBe('ready')
 }

@@ -91,13 +91,14 @@ for (const mode of ['startup', 'ui'] as const) {
     assert.ok(declaration, '必须执行现有Main中的精确命名函数')
     const compiled = ts.transpileModule(declaration.getText(source), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText
     let homeReads = 0
-    let currentUserData = ''
+    const currentUserData = userData
     const migrationCalls: Parameters<typeof migrateRoonConfig>[0][] = []
     const result = await runInNewContext(compiled + '\nprepareCoreDataDirectory()', {
       isStartupTest: mode === 'startup', isUiE2e: mode === 'ui',
+      syntheticUserDataDirectory: userData,
       startupTestConfiguration: { userDataDirectory: userData, uiE2eUserDataDirectory: userData },
       app: {
-        setPath(name: string, value: string) { assert.equal(name, 'userData'); assert.equal(value, userData); currentUserData = value },
+        setPath() { assert.fail('prepare 不得在 ready 后切换用户路径') },
         getPath(name: string) {
           if (name === 'home') { ++homeReads; throw new Error('合成启动禁止解析用户home') }
           assert.equal(name, 'userData'); assert.equal(currentUserData, userData); return currentUserData

@@ -3,14 +3,14 @@ import type test from 'node:test';
 import { randomUUID } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { preparationFixture } from './preparation-fixture.js';
+import { preparationFixture, type RecordingFixtureOptions } from './preparation-fixture.js';
 import { recordingProfileContent } from './recording-profile-fixture.js';
 import { createPreparationCoordinator } from '../../src/recording/preparation-coordinator.js';
 import { compileExecutionFile } from '../../src/recording/preparation-files.js';
 import type { FfmpegConverter } from '../../src/recording/audio-converter.js';
 
 type Hooks = { compile?: typeof compileExecutionFile; afterPublish?: () => Promise<void>; operationTimeoutMs?: number; converter?: FfmpegConverter };
-export async function executionFixture(t: test.TestContext, options: Hooks & { beforeCommit?: (action: string) => void; emptyB?: boolean; format?: 'cassette' | 'dat' } = {}) {
+export async function executionFixture(t: test.TestContext, options: RecordingFixtureOptions & Hooks & { beforeCommit?: (action: string) => void; emptyB?: boolean; format?: 'cassette' | 'dat' } = {}) {
   const f = await preparationFixture(t, options), v = await f.freeze(); await f.versions.idle();
   assert.ok('execution' in f.repository, '缺少持久化执行资产仓库');
   const { createExecutionCoordinator } = await import('../../src/recording/execution-coordinator.js');

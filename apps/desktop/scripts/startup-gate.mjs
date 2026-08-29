@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 
 import electron from 'electron'
 import { runStartupProcess } from './startup-gate-process.mjs'
+import { parseTestKeychainMode, testElectronArguments } from './test-keychain.mjs'
 
 const desktopRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const mode = process.argv[2]
@@ -14,9 +15,17 @@ const coreRestartCredentialRecoveryGate =
   process.env.MUSIC_BRIDGE_CORE_RESTART_CREDENTIAL_RECOVERY_GATE === '1'
 
 if (mode !== 'development' && mode !== 'production') {
-  console.error('用法：node scripts/startup-gate.mjs <development|production>')
+  console.error('用法：node scripts/startup-gate.mjs <development|production> [--keychain=mock|system]')
   process.exit(2)
 }
+
+let keychainMode
+try { keychainMode = parseTestKeychainMode(process.argv.slice(3)) } catch {
+  console.error('测试钥匙串模式无效')
+  process.exit(2)
+}
+console.log(`KEYCHAIN_MODE=${keychainMode}`)
+if (keychainMode === 'mock') console.log('REAL_KEYCHAIN_GATE=NOT_RUN')
 
 function commandPath(name) {
   const suffix = process.platform === 'win32' ? '.cmd' : ''
@@ -54,6 +63,7 @@ try {
     delete childEnvironment.NETEASE_COOKIE
     delete childEnvironment.MUSIC_BRIDGE_CREDENTIAL_RECOVERY_GATE
     delete childEnvironment.MUSIC_BRIDGE_CREDENTIAL_COLD_START_STAGE
+    delete childEnvironment.MUSIC_BRIDGE_TEST_KEYCHAIN_MODE
 
     const expectedMarker = credentialVaultGate
       ? 'CREDENTIAL_VAULT_GATE_PASS'
@@ -62,7 +72,7 @@ try {
         : crashGate
           ? 'CORE_CRASH_GATE_PASS'
           : 'DESKTOP_STARTUP_READY'
-    const result = await runStartupProcess(electron, ['dist/main/index.js'], {
+    const result = await runStartupProcess(electron, testElectronArguments(['dist/main/index.js'], keychainMode), {
       cwd: desktopRoot, env: childEnvironment,
       readyMarker: 'DESKTOP_STARTUP_READY', expectedMarker,
     })
@@ -72,9 +82,9 @@ try {
       if (result.failure?.endsWith('-timeout')) console.error('DESKTOP_STARTUP_TIMEOUT=true')
       exitCode = 1
     } else {
-      console.log(
-        `${credentialVaultGate ? 'CREDENTIAL_VAULT_GATE' : coreRestartCredentialRecoveryGate ? 'CORE_RESTART_CREDENTIAL_RECOVERY_GATE' : crashGate ? 'CORE_CRASH_GATE' : 'DESKTOP_STARTUP_PASS'}=${mode}`,
-      )
+      const resultMarker = credentialVaultGate ? 'CREDENTIAL_VAULT_GATE' : coreRestartCredentialRecoveryGate ? 'CORE_RESTART_CREDENTIAL_RECOVERY_GATE' : crashGate ? 'CORE_CRASH_GATE' : 'DESKTOP_STARTUP_PASS'
+      const labeledMarker = keychainMode === 'mock' ? resultMarker.replace(/_(GATE|PASS)$/u, '_MOCK_$1') : resultMarker
+      console.log(`${labeledMarker}=${mode}`)
     }
   }
 } catch {

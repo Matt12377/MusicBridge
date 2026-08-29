@@ -5,6 +5,7 @@ const style = `
 @page { size:103.1875mm 101.6mm; margin:0 }
 * { box-sizing:border-box }
 html,body { margin:0; padding:0; background:white; color:#172323; font-family:"PingFang SC","Noto Sans CJK SC","Heiti SC",sans-serif; font-size:8.5pt; -webkit-print-color-adjust:exact; print-color-adjust:exact }
+@media screen { html,body { overflow:hidden } }
 .sheet { position:relative; width:103.1875mm; height:101.6mm; break-after:page; page-break-after:always }
 .sheet:last-child { break-after:auto; page-break-after:auto }
 .fold { position:absolute; top:0; bottom:0; border-left:0.15mm dashed #b1bab7; pointer-events:none }

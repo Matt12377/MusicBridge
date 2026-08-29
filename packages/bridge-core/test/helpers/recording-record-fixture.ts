@@ -1,10 +1,11 @@
 import type test from 'node:test';
 import { randomUUID } from 'node:crypto';
 import { recordingAttemptFixture } from './recording-attempt-fixture.js';
+import type { RecordingFixtureOptions } from './preparation-fixture.js';
 
 /** 复用真实冻结Plan/音频/归档，仅输出驱动由私有合成provider提供。 */
-export async function recordingRecordFixture(t: test.TestContext, format: 'cassette' | 'dat' = 'cassette') {
-  const f = await recordingAttemptFixture(t, format);
+export async function recordingRecordFixture(t: test.TestContext, format: 'cassette' | 'dat' = 'cassette', options: RecordingFixtureOptions = {}) {
+  const f = await recordingAttemptFixture(t, format, options);
   async function readyForFinal() {
     let attempt = await f.attempts.begin(f.beginRequest());
     for (let i = 0; i < attempt.sides.length; ++i) {

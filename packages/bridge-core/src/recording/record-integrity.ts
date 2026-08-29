@@ -1,7 +1,9 @@
-import { verifyRecordingPrintDatabase } from './print-integrity.js';
+import { isCollectionPhotoBytes } from './object-format-integrity.js';
+import { verifyRecordingPrintDatabase, verifyRecordingPrintSnapshot, type RecordingPrintSnapshotBudget } from './print-integrity.js';
 import type { DatabaseSync } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
 import { mediaFingerprint } from './media-store.js';
+import type { ObjectAuditCertificateSession } from './object-audit-certificate.js';
 
 export type RecordingRecordErrorCode = 'INVALID_REQUEST' | 'NOT_READY' | 'NOT_FOUND' | 'CONFLICT' | 'COMMAND_CONFLICT' | 'BUDGET_EXCEEDED' | 'IO_ERROR' | 'CLOSED';
 export class RecordingRecordError extends Error {
@@ -64,11 +66,15 @@ export function availableRecordingPermit(db: DatabaseSync, physicalId: string): 
   const value = rows[0] ? JSON.parse(String(rows[0].data)) as dto.RerecordPermit : null;
   if (value && !dto.isRerecordPermit(value)) return recordFail(); return value;
 }
-export function readPhysicalRecordingState(db: DatabaseSync, physicalId: string): dto.PhysicalRecordingState {
+type LatestAttemptRow = { id: unknown; revision: unknown; status: unknown };
+function physicalRecordingState(db: DatabaseSync, physicalId: string, latest: LatestAttemptRow | null): dto.PhysicalRecordingState {
   const copy = db.prepare('SELECT revision FROM physical_copies WHERE physical_id=?').get(physicalId); if (!copy) return recordFail('NOT_FOUND');
-  const latest = db.prepare('SELECT id,revision,status FROM recording_attempts WHERE physical_id=? ORDER BY rowid DESC LIMIT 1').get(physicalId);
   const value = { ...readContentHead(db,physicalId), physicalRevision: Number(copy.revision), latestAttempt: latest ? { id: String(latest.id), revision: Number(latest.revision), status: latest.status as dto.RecordingAttemptStatus } : null, activeRerecordPermit: availableRecordingPermit(db,physicalId) };
   if (!dto.isPhysicalRecordingState(value)) return recordFail(); return value;
+}
+export function readPhysicalRecordingState(db: DatabaseSync, physicalId: string): dto.PhysicalRecordingState {
+  const latest=db.prepare('SELECT id,revision,status FROM recording_attempts WHERE physical_id=? ORDER BY rowid DESC LIMIT 1').get(physicalId) as LatestAttemptRow|undefined;
+  return physicalRecordingState(db,physicalId,latest??null);
 }
 export function withPhysicalRecordingMutation<T>(db: DatabaseSync, physicalId: string, action: string, fn: () => T): T {
   db.prepare('INSERT INTO recording_record_write_guard VALUES(?,?)').run(physicalId,action);
@@ -102,29 +108,44 @@ export function recordingReservationMatchesPlan(db: DatabaseSync, physicalId: st
 
 /** 不依赖处置服务：按不可变事件/首次完成/许可闭包核验，不通过修复生成合法历史。 */
 export function verifyRecordingRecordDatabase(db: DatabaseSync): void {
+  verifyRecordDatabase(db);
+}
+export type RecordingRecordSnapshotBudget = RecordingPrintSnapshotBudget;
+/** Attempt事务审计专用：局部Print结果在本次同步调用结束前丢弃，公开校验不启用。 */
+export function verifyRecordingRecordSnapshot(db: DatabaseSync, budget: RecordingRecordSnapshotBudget = {}, certificate?: ObjectAuditCertificateSession): void {
+  if (!db.isTransaction) return recordFail('INVALID_REQUEST');
+  verifyRecordDatabase(db,budget,certificate);
+}
+function verifyRecordDatabase(db: DatabaseSync, snapshotBudget?: RecordingRecordSnapshotBudget, certificate?: ObjectAuditCertificateSession): void {
   try {
     const objects=db.prepare("SELECT sql FROM sqlite_schema WHERE name GLOB 'recording_record*'").all();
     if (objects.length!==recordSchema.length || objects.some(row=>!recordSchema.includes(String(row.sql)))) return recordFail();
     if (db.prepare('SELECT 1 FROM recording_record_write_guard').get() || db.prepare('PRAGMA foreign_key_check').get()) return recordFail();
     checkRecordingRecordBudgets(db);
-    if(Number(db.prepare('PRAGMA user_version').get()?.user_version)>=21)verifyRecordingPrintDatabase(db);
+    if(Number(db.prepare('PRAGMA user_version').get()?.user_version)>=21||certificate?.requiresPrintAudit){if(snapshotBudget)verifyRecordingPrintSnapshot(db,snapshotBudget,certificate);else verifyRecordingPrintDatabase(db);}
+    const latestAttempts=new Map<string,LatestAttemptRow>();
+    for(const row of db.prepare('SELECT physical_id,id,revision,status FROM recording_attempts ORDER BY rowid').iterate())latestAttempts.set(String(row.physical_id),row as LatestAttemptRow);
     const referencedVisuals=new Set<string>();
     for(const row of db.prepare('SELECT id FROM recording_records').iterate()) {
       const record=readRecordingRecord(db,String(row.id))!, completed=db.prepare("SELECT revision,data FROM recording_attempt_events WHERE attempt_id=? AND json_extract(data,'$.after.status')='completed' ORDER BY revision LIMIT 1").get(record.completion.id);
       if(!completed || completed.revision!==record.completion.revision || mediaFingerprint((JSON.parse(String(completed.data)) as {after:unknown}).after)!==mediaFingerprint(record.completion)) return recordFail();
       const planRow=db.prepare('SELECT data FROM recording_plan_versions WHERE id=?').get(record.completion.planVersionId); if(!planRow) return recordFail();
       const plan=JSON.parse(String(planRow.data)) as dto.RecordingPlanVersion; if(!dto.isRecordingPlanVersion(plan)) return recordFail();
-      if(!dto.isRecordingRecordDetail({record,plan,current:readPhysicalRecordingState(db,record.completion.physicalId)})) return recordFail();
+      if(!dto.isRecordingRecordDetail({record,plan,current:physicalRecordingState(db,record.completion.physicalId,latestAttempts.get(record.completion.physicalId)??null)})) return recordFail();
       if(record.visuals.photos.state==='captured') for(const attachment of record.visuals.photos.attachments) {
-        const visual=db.prepare('SELECT * FROM recording_record_visuals WHERE sha256=?').get(attachment.sha256);
-        if(!visual || !(visual.content instanceof Uint8Array) || visual.content.length!==attachment.size || visual.width!==attachment.width || visual.height!==attachment.height) return recordFail();
+        const visual=db.prepare('SELECT length(content) size,typeof(content) storage,width,height FROM recording_record_visuals WHERE sha256=?').get(attachment.sha256);
+        if(!visual || visual.storage!=='blob' || visual.size!==attachment.size || visual.width!==attachment.width || visual.height!==attachment.height) return recordFail();
         referencedVisuals.add(attachment.sha256);
       }
     }
-    for(const row of db.prepare('SELECT * FROM recording_record_visuals').iterate()) {
-      const bytes=row.content; if(!(bytes instanceof Uint8Array) || !referencedVisuals.has(String(row.sha256)) || !dto.isCollectionPhotoImage({dataUrl:`data:image/jpeg;base64,${Buffer.from(bytes).toString('base64')}`,width:row.width,height:row.height})) return recordFail();
+    for(const row of db.prepare('SELECT sha256,length(content) size,typeof(content) storage,width,height FROM recording_record_visuals').iterate()) {
+      const sha256=String(row.sha256),metadata={scope:'record-visual' as const,sha256,size:Number(row.size),storage:String(row.storage),width:row.width===null?null:Number(row.width),height:row.height===null?null:Number(row.height)};
+      if(!referencedVisuals.has(sha256)||metadata.storage!=='blob'||!Number.isSafeInteger(metadata.size)||metadata.size<0)return recordFail();
+      if(certificate?.matchesObject(metadata))continue;
+      const raw=db.prepare('SELECT content FROM recording_record_visuals WHERE sha256=?').get(sha256)?.content;
+      const bytes=raw; if(!(bytes instanceof Uint8Array) || bytes.byteLength!==metadata.size || !isCollectionPhotoBytes(bytes,metadata.width,metadata.height)) return recordFail();
       // mediaFingerprint用于JSON，照片必须按原始字节SHA-256校验。
-      if(hashBytes(bytes)!==row.sha256) return recordFail();
+      if(hashBytes(bytes)!==sha256) return recordFail();certificate?.observeObject(metadata);
     }
     for(const row of db.prepare('SELECT * FROM recording_record_current').iterate()) {
       const physicalId=String(row.physical_id); let before:RecordingContentHead={physicalId,revision:0,knowledge:{state:'unknown',reason:'unverified'}}, previousHash=''; let last:RecordingContentEvent|undefined;
@@ -138,7 +159,7 @@ export function verifyRecordingRecordDatabase(db: DatabaseSync): void {
       if(!last || row.revision!==before.revision || mediaFingerprint(before)!==mediaFingerprint(JSON.parse(String(row.data))) || row.event_hash!==previousHash) return recordFail();
       const copy=db.prepare('SELECT usage,revision FROM physical_copies WHERE physical_id=?').get(physicalId);
       if(!copy || copy.usage!==last.usage || Number(copy.revision)<last.physicalRevision) return recordFail();
-      readPhysicalRecordingState(db,physicalId);
+      physicalRecordingState(db,physicalId,latestAttempts.get(physicalId)??null);
     }
     if(db.prepare('SELECT 1 FROM recording_record_events e WHERE NOT EXISTS(SELECT 1 FROM recording_record_current c WHERE c.physical_id=e.physical_id) LIMIT 1').get()) return recordFail();
     for(const row of db.prepare('SELECT * FROM recording_record_permits ORDER BY id,revision').iterate()) validatePermit(db,row);

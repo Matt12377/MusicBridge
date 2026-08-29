@@ -40,7 +40,7 @@ interface Task { cancelled?: RecordingPrintRenderError; window?: RecordingPrintW
 const fail = (code: RecordingPrintRenderErrorCode): never => { throw new RecordingPrintRenderError(code) }
 const defaultFactory: RecordingPrintWindowFactory = async options => { const { BrowserWindow } = await import('electron'); return new BrowserWindow(options) }
 const engineVersion = (value?: string) => value && /^\d{1,3}(?:\.\d{1,6}){1,3}$/u.test(value) ? value : 'none'
-const rendererVersion = `jp0-v1-box1-electron-${engineVersion(process.versions.electron)}-chrome-${engineVersion(process.versions.chrome)}`
+const rendererVersion = `jp0-v1-box1-preview2-electron-${engineVersion(process.versions.electron)}-chrome-${engineVersion(process.versions.chrome)}`
 
 /** 只生成受信任历史事实的PDF；没有打印机、文件路径、页面脚本或任意URL公共入口。 */
 export function createRecordingPrintRenderer({ createWindow = defaultFactory, timeoutMs = 60_000 }: Options = {}) {

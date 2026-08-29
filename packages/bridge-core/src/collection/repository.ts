@@ -5,8 +5,9 @@ import { RecordingRecordError, verifyRecordingRecordDatabase } from '../recordin
 import { getRecordingCopyProjection } from '../recording/record-projections.js';
 import { createRecordingPlanStore, recordingPlansMigration, type RecordingPlanStore } from '../recording/plan-store.js';
 import { RecordingPlanError } from '../recording/plan-integrity.js';
-import { AttemptError, recordingAttemptsMigration, assertRecordingAttemptCopyReleasable } from '../recording/attempt-integrity.js';
+import { AttemptError, recordingAttemptsMigration, assertRecordingAttemptCopyReleasable, createRecordingAttemptAudit } from '../recording/attempt-integrity.js';
 import { createRecordingAttemptStore, recoverRecordingAttempts, type RecordingAttemptStore } from '../recording/attempt-store.js';
+import { createObjectAuditCertificateManager } from '../recording/object-audit-certificate.js';
 import { createCollectionProgressStore, collectionProgressMigration, type CollectionProgressStore } from './collection-progress-store.js';
 import { createSpreadsheetImportStore, spreadsheetImportMigration, type SpreadsheetImportStore } from './spreadsheet-import-store.js';
 import { createCollectionSnapshot, type CollectionSnapshot } from '../recording/backup-snapshot.js';
@@ -163,6 +164,8 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
   let database: DatabaseSync | undefined;
   let closed = false;
   let activeSnapshots = 0;
+  const attemptAudit = createRecordingAttemptAudit();
+  const objectCertificates = createObjectAuditCertificateManager(options.beforeCommit !== undefined);
 
   function open(): DatabaseSync {
     if (closed) return unavailable();
@@ -224,8 +227,13 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
         finally { db.exec('PRAGMA foreign_keys=ON'); }
       }
       db.exec('BEGIN IMMEDIATE');
-      try { verifyRecordingRecordDatabase(db); recoverRecordingPrints(db); recoverRecordingAttempts(db, new Date().toISOString()); options.beforeCommit?.('recover-recording-attempts'); db.exec('COMMIT'); }
-      catch (error) { db.exec('ROLLBACK'); throw error; }
+      try {
+        verifyRecordingRecordDatabase(db); recoverRecordingPrints(db);
+        const attemptCandidate = recoverRecordingAttempts(db, new Date().toISOString(), options.beforeCommit ? undefined : attemptAudit);
+        options.beforeCommit?.('recover-recording-attempts'); db.exec('COMMIT');
+        if (!options.beforeCommit) attemptAudit.publish(db, attemptCandidate);
+      }
+      catch (error) { attemptAudit.clear(db); db.exec('ROLLBACK'); throw error; }
       database = db;
       return db;
     } catch (error) { db.close(); throw error; }
@@ -414,9 +422,9 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
   const links = createPhysicalLinksRepository({ read: guarded, conflict, unavailable, music, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   const media = createMediaPlanningStore({ read: guarded, conflict, unavailable, stock: mediaStock, stockOne: mediaStockOne, reservationStock: reservedMediaStock, reserve: reserveMediaStock, release: releaseMediaStock, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   return {
-    recordingPrints: createRecordingPrintStore({ read: guarded, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
+    recordingPrints: createRecordingPrintStore({ read: guarded, objectCertificates, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     recordingRecords: createRecordingRecordStore({ read: guarded, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
-    recordingAttempts: createRecordingAttemptStore({ read: guarded, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
+    recordingAttempts: createRecordingAttemptStore({ read: guarded, attemptAudit, objectCertificates, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     recordingPlans: createRecordingPlanStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     collectionProgress: createCollectionProgressStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     spreadsheetImports: createSpreadsheetImportStore({ read: guarded, conflict, receive: receiveInTransaction, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),

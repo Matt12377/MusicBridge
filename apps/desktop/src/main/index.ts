@@ -1,6 +1,7 @@
 import { installRecordingPrintHandlers } from './recording-print-ipc.js'
 import { createRecordingPrintWorker } from './recording-print-worker.js'
 import { createRecordingPrintRenderer } from './recording-print-renderer.js'
+import { createLifecycleProbe } from './lifecycle-probe.js'
 import { exportRecordingPrintPdf } from './recording-print-export.js'
 import { installRecordingRecordHandlers } from './recording-record-ipc.js'
 import { installRecordingReplicaHandlers } from './recording-replica-ipc.js'
@@ -75,7 +76,7 @@ import {
 } from '@music-bridge/contracts'
 import { pickCollectionPhoto, CollectionPhotoImportError } from './collection-photos'
 import { appendFileSync, chmodSync } from 'node:fs'
-import { mkdir, mkdtemp, readFile, realpath } from 'node:fs/promises'
+import { mkdir, readFile, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -96,6 +97,7 @@ import {
   CoreIpcError,
   CoreSupervisor,
   type CoreSupervisorLifecycle,
+  type CoreStartupClient,
   type CoreChildProcess,
   type CoreMessagePort,
 } from './core-supervisor.js'
@@ -123,6 +125,7 @@ import {
   RemoteCoreTunnelManager,
 } from './remote-core-tunnel.js'
 import {
+  initializeStartupTestPaths,
   readStartupTestConfiguration,
   type ElectronColdStartStage,
 } from './startup-test-config.js'
@@ -151,6 +154,8 @@ const currentDirectory = path.dirname(currentFile)
 const startupTestConfiguration = readStartupTestConfiguration()
 const isStartupTest = startupTestConfiguration.isStartupTest
 const isUiE2e = process.env.MUSIC_BRIDGE_UI_E2E === '1'
+const syntheticUserDataDirectory = initializeStartupTestPaths(startupTestConfiguration, isUiE2e, app)
+const lifecycleProbe = createLifecycleProbe({ enabled: isUiE2e, sink: line => console.log(line.trimEnd()) })
 const isCoreCrashGate = startupTestConfiguration.coreCrashGate
 const isCredentialVaultGate = startupTestConfiguration.credentialVaultGate
 const isCoreRestartCredentialRecoveryGate =
@@ -171,9 +176,11 @@ function stopRecordingPrintWorker(): void {
   recordingPrintEpoch++
   const previous = recordingPrintWorker
   recordingPrintWorker = undefined
-  void previous?.stop()
+  if (previous) lifecycleProbe.mark('print-stop-requested')
+  const stopping = previous?.stop()
+  if (stopping) lifecycleProbe.observe(stopping, 'print-stop-settled', 'print-stop-failed')
 }
-async function startRecordingPrintWorker(supervisor: CoreSupervisor): Promise<void> {
+async function startRecordingPrintWorker(supervisor: CoreStartupClient): Promise<void> {
   stopRecordingPrintWorker()
   const epoch = recordingPrintEpoch
   try {
@@ -1632,6 +1639,7 @@ function createWindow(supervisor: CoreSupervisor): BrowserWindow {
   void window.loadURL(`${RENDERER_SCHEME}://${RENDERER_HOST}${RENDERER_ENTRY_PATH}`)
 
   window.webContents.once('did-finish-load', () => {
+    lifecycleProbe.mark('ui-loaded')
     if (isStartupTest && !isCoreCrashGate && supervisor.status === 'ready') {
       void window.webContents
         .executeJavaScript(
@@ -1746,7 +1754,7 @@ async function reconnectRemoteCoreDevelopment(): Promise<RemoteCoreTunnelState> 
 function createCoreSupervisor(
   dataDirectory: string,
   options: {
-    onReady?: () => Promise<void> | void
+    onReady?: (client: CoreStartupClient) => Promise<void> | void
     onEvent?: (event: TypedIpcEvent) => void
     onLifecycle?: (event: CoreSupervisorLifecycle) => void
   } = {},
@@ -1789,16 +1797,7 @@ async function prepareCoreDataDirectory(): Promise<{
   dataDirectory: string
   credentialVault: CredentialVault
 }> {
-  if (isStartupTest) {
-    const userDataDirectory = startupTestConfiguration.userDataDirectory
-    if (!userDataDirectory) {
-      throw new Error('Electron startup test userData directory is missing')
-    }
-    app.setPath('userData', userDataDirectory)
-  } else if (isUiE2e) {
-    app.setPath('userData', startupTestConfiguration.uiE2eUserDataDirectory ?? await mkdtemp(path.join(app.getPath('temp'), 'musicbridge-ui-e2e-')))
-  }
-  const dataDirectory = path.join(app.getPath('userData'), 'data')
+  const dataDirectory = path.join(syntheticUserDataDirectory ?? app.getPath('userData'), 'data')
   await mkdir(dataDirectory, { recursive: true, mode: 0o700 })
   const result = await migrateRoonConfig(isStartupTest || isUiE2e ? { mode: 'synthetic-test' } : {
     legacyPath: path.join(
@@ -1864,6 +1863,7 @@ async function waitForCoreRestartCredentialRecovery(
 }
 
 async function bootstrap(): Promise<void> {
+  lifecycleProbe.mark('bootstrap-start')
   await app.whenReady()
   if (isUiE2e && process.platform === 'darwin') app.setActivationPolicy('accessory')
   app.setAboutPanelOptions({ applicationName: APPLICATION_NAME })
@@ -1872,6 +1872,7 @@ async function bootstrap(): Promise<void> {
   installSessionSecurity(session.defaultSession)
 
   const prepared = await prepareCoreDataDirectory()
+  lifecycleProbe.mark('data-prepared')
   if (isCredentialVaultGate && !isCoreRestartCredentialRecoveryGate && !isElectronColdStartGate) {
     try {
       const passed = await runCredentialVaultGate(prepared.credentialVault)
@@ -1888,19 +1889,21 @@ async function bootstrap(): Promise<void> {
   let initialProvisioningComplete = false
   let supervisor: CoreSupervisor
   supervisor = createCoreSupervisor(prepared.dataDirectory, {
-    onReady: async () => {
-      await startRecordingPrintWorker(supervisor)
-      if (!initialProvisioningComplete) return
+    onReady: async client => {
+      lifecycleProbe.mark('core-ready-received')
+      await startRecordingPrintWorker(client)
+      if (!initialProvisioningComplete) { lifecycleProbe.mark('onready-complete'); return }
       await restoreProviderCredential({
         vault: prepared.credentialVault,
         core: {
           verifyCredential: async (credential) =>
-            (await supervisor.requestInternal('auth.verifyCredential', { credential })).status,
+            (await client.requestInternal('auth.verifyCredential', { credential })).status,
           setCredential: (credential) =>
-            supervisor.request('auth.setCredential', { credential }),
-          clearCredential: () => supervisor.request('auth.clearCredential', {}),
+            client.request('auth.setCredential', { credential }),
+          clearCredential: () => client.request('auth.clearCredential', {}),
         },
       })
+      lifecycleProbe.mark('onready-complete')
     },
     onEvent: (event) => {
       if (event.event === 'auth.changed' && event.payload.state.status === 'expired') {
@@ -1908,6 +1911,9 @@ async function bootstrap(): Promise<void> {
       }
     },
     onLifecycle: (event) => {
+      if (event.event === 'spawn') lifecycleProbe.mark('core-spawn')
+      else if (event.event === 'ready') lifecycleProbe.mark('supervisor-ready')
+      else if (event.event === 'exit') lifecycleProbe.mark('core-exit', event.code)
       if (event.event !== 'ready') stopRecordingPrintWorker()
       const level = event.event === 'exit' || event.event === 'failed' ? 'warn' : 'info'
       mainDiagnostics.recordLifecycle(`core_${event.event}`, level)
@@ -1991,6 +1997,7 @@ void bootstrap().catch(() => {
 })
 
 app.on('before-quit', (event) => {
+  lifecycleProbe.mark('before-quit')
   if (quitAfterCoreShutdown) {
     destroyTray()
     return
@@ -2002,15 +2009,26 @@ app.on('before-quit', (event) => {
   event.preventDefault()
   quitAfterCoreShutdown = true
   stopRecordingPrintWorker()
+  lifecycleProbe.mark('remote-stop-start')
   void remoteCoreTunnelManager.stop().catch(() => undefined).finally(() => {
+    lifecycleProbe.mark('remote-stop-end')
+    lifecycleProbe.mark('core-shutdown-start')
     void coreSupervisor?.shutdown().finally(async () => {
+      lifecycleProbe.mark('core-shutdown-end')
       // 原生对话框可能仍未返回；退出有界，不等待用户完成新的选择。
       let timer: ReturnType<typeof setTimeout> | undefined
-      try { await Promise.race([commandOutbox?.close().catch(() => undefined), new Promise<void>(resolve => { timer = setTimeout(resolve, 1000) })]) }
-      finally { if (timer) clearTimeout(timer); destroyTray(); app.quit() }
+      try {
+        if (commandOutbox) lifecycleProbe.mark('outbox-close-start')
+        const closing = commandOutbox?.close().catch(() => undefined)
+        if (closing) lifecycleProbe.observe(closing, 'outbox-close-end', 'outbox-close-end')
+        await Promise.race([closing, new Promise<void>(resolve => { timer = setTimeout(() => { lifecycleProbe.mark('outbox-close-timeout'); resolve() }, 1000) })])
+      }
+      finally { if (timer) clearTimeout(timer); destroyTray(); lifecycleProbe.mark('app-quit-reissued'); app.quit() }
     })
   })
 })
+
+app.on('will-quit', () => lifecycleProbe.mark('will-quit'))
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin' && !quitAfterCoreShutdown) {

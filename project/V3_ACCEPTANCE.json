@@ -1,0 +1,4971 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-078",
+  "baseCommit": "c54cf8b71b493482d8ad061d38123c444d718ad0",
+  "formalReady": false,
+  "externalGate": "NOT_RUN",
+  "sources": [
+    {
+      "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+      "sha256": "992be9c00b0bff286419a07cb3978b4491e4d50d83e63d82b790d86a4a01c578"
+    },
+    {
+      "path": "project/V3_DEVELOPMENT_PACK.md",
+      "sha256": "7ed9f58e8da3559d4d075eecd10c230e3e2053cc5e2a61728b9966946e2cbd5f"
+    }
+  ],
+  "entries": [
+    {
+      "id": "MVP-01",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1647,
+        "text": "1. 现有侧栏增加收藏、录音两个独立入口，不增加第二套永久侧栏。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "line": 1149,
+          "testName": "V3 收藏与录音分开，收藏视图支持键盘、搜索返回和收起侧栏",
+          "evidenceKind": "native-no-device",
+          "covers": "同一侧栏双入口、收藏视图和键盘导航。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-e2e-01-native-no-device"
+        ]
+      }
+    },
+    {
+      "id": "MVP-02",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1648,
+        "text": "2. V2 原有页面和播放能力无回归。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "line": 493,
+          "testName": "v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation",
+          "evidenceKind": "native-no-device",
+          "covers": "Home/Settings/推荐与Renderer隔离的合成账号回归。"
+        },
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "line": 731,
+          "testName": "search, library pagination, playlist detail, queue controls and lyrics states",
+          "evidenceKind": "native-no-device",
+          "covers": "Search/Library/Playlist/Queue/Lyrics合成回归。"
+        },
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "line": 1195,
+          "testName": "V3 导航不触发播放变更 IPC，保留正在播放的曲目、队列和 Zone",
+          "evidenceKind": "native-no-device",
+          "covers": "进入V3不改曲目、队列或Zone。"
+        }
+      ],
+      "gaps": [
+        "真实Roon/NetEase账号、听感与TASK047歌词Owner回归不由合成界面替代。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "real-roon",
+          "state": "not-run",
+          "gap": "未连接真实Roon/Provider账号或操作真实Zone。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-e2e-01-native-no-device"
+        ]
+      }
+    },
+    {
+      "id": "MVP-03",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1649,
+        "text": "3. 收藏双视图与独立录音页可用；无 V3 概览页或设备页，母版和录音记录为录音页内的次级入口。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "line": 1149,
+          "testName": "V3 收藏与录音分开，收藏视图支持键盘、搜索返回和收起侧栏",
+          "evidenceKind": "native-no-device",
+          "covers": "双收藏视图与独立录音页。"
+        },
+        {
+          "path": "apps/desktop/e2e/task-071.spec.ts",
+          "line": 59,
+          "testName": "V3交互：唯一下一步跟随草稿修改、源面板关闭与读取失败，不伪装正式预检",
+          "evidenceKind": "native-no-device",
+          "covers": "草稿修改与源读取错误不伪造正式预检。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-e2e-01-native-no-device"
+        ]
+      }
+    },
+    {
+      "id": "MVP-04",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1650,
+        "text": "4. Personal Master 可创建。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 504,
+          "testName": "选曲草稿持久化独立身份、幂等追加和显式曲序，不把浏览信息当 Source Lock",
+          "evidenceKind": "synthetic",
+          "covers": "明确选曲、顺序与独立草稿身份。"
+        },
+        {
+          "path": "packages/bridge-core/test/master-versions.test.ts",
+          "line": 56,
+          "testName": "完整复核实际合成源后原子冻结；重试幂等，历史不随草稿改变且不可 SQL 覆写或删除",
+          "evidenceKind": "synthetic",
+          "covers": "显式确认后冻结真实文件支撑的母版版本。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "MVP-05",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1651,
+        "text": "5. Exact Digital Sources 可锁定。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "line": 32,
+          "testName": "Gate A：实际文件全量 Hash/技术参数与人工映射独立；只读并跨重启保留",
+          "evidenceKind": "synthetic",
+          "covers": "全量SHA、技术参数与人工映射独立。"
+        },
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "line": 166,
+          "testName": "Gate A-02：真实编码的合成 FLAC 与 AIFF 均只探测技术块，标签不参与证据",
+          "evidenceKind": "synthetic",
+          "covers": "真实编码的合成FLAC/AIFF探测。"
+        }
+      ],
+      "gaps": [
+        "实际用户授权音乐样本尚未验证；完整格式支持不由两类文件外推。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "real-input",
+          "state": "not-run",
+          "gap": "尚未使用Owner真实授权文件/工作簿/参考资料验证。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "MVP-06",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1652,
+        "text": "6. Compilation 默认 5 秒间隔。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/execution-compiler.test.ts",
+          "line": 120,
+          "testName": "最终 96k WAV 的两个 Gap 各 480000 帧，源首尾静音和全部 PCM 字节保留",
+          "evidenceKind": "synthetic",
+          "covers": "最终执行WAV两个Gap各480000帧，源自带静音不删除。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "MVP-07",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1653,
+        "text": "7. Cassette A/B Layout 可生成。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/media-planning.test.ts",
+          "line": 10,
+          "testName": "分面按每面真实边界计算 Gap，Lead-in/Tail 独立，源顺序不改变",
+          "evidenceKind": "software",
+          "covers": "逐面Gap/Lead-in/Tail计算与源顺序。"
+        },
+        {
+          "path": "packages/bridge-core/test/master-versions.test.ts",
+          "line": 75,
+          "testName": "D-02 分面变化新建 Layout 并复用 Master；D-03 改曲序提出新母版并保留谱系",
+          "evidenceKind": "synthetic",
+          "covers": "分界只产生Layout，曲序变更产生Master。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic",
+          "final-verify-01-software"
+        ]
+      }
+    },
+    {
+      "id": "MVP-08",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1654,
+        "text": "8. Logic Preparation Workspace 可生成。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/preparation.test.ts",
+          "line": 36,
+          "testName": "Preparation 正式协调器从冻结版本生成实际工作副本与谱系，草稿变化不重写历史，回执不重复导出",
+          "evidenceKind": "synthetic",
+          "covers": "冻结版本导出实际工作副本与谱系，重复回执不复制。"
+        },
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "line": 2108,
+          "testName": "V3 Logic 工作区：原生授权、确认复制、回执重试、Finder 与冷启动历史",
+          "evidenceKind": "native-no-device",
+          "covers": "原生授权到工作区/回执/Finder与冷启。"
+        }
+      ],
+      "gaps": [
+        "未在真实Logic中打开工作区并导出。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "real-logic",
+          "state": "not-run",
+          "gap": "未操作真实Logic工作区、导出或完成Owner人工时间线验收。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic",
+          "final-e2e-01-native-no-device"
+        ]
+      }
+    },
+    {
+      "id": "MVP-09",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1655,
+        "text": "9. Logic A/B WAV 可重新导入。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/prepared-render.test.ts",
+          "line": 54,
+          "testName": "原始 Render 从选择、确认保存、实际 Marker 到 Frozen PREP 保持独立身份与幂等",
+          "evidenceKind": "synthetic",
+          "covers": "合成A/B原件、人工Marker与独立PREP。"
+        }
+      ],
+      "gaps": [
+        "真实Logic导出文件及人工Marker录入验收未执行。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "real-logic",
+          "state": "not-run",
+          "gap": "未操作真实Logic工作区、导出或完成Owner人工时间线验收。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "MVP-10",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1656,
+        "text": "10. Prepared Master 可冻结。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/prepared-render.test.ts",
+          "line": 54,
+          "testName": "原始 Render 从选择、确认保存、实际 Marker 到 Frozen PREP 保持独立身份与幂等",
+          "evidenceKind": "synthetic",
+          "covers": "明确确认、Conformance与冻结幂等。"
+        },
+        {
+          "path": "packages/bridge-core/test/prepared-render.test.ts",
+          "line": 158,
+          "testName": "未确认 Marker、需要新母版或布局均不能靠伪造接受状态冻结 PREP",
+          "evidenceKind": "synthetic",
+          "covers": "未确认、结构变化不能冻结。"
+        }
+      ],
+      "gaps": [
+        "真实Logic工作链及人工最终确认未验。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "real-logic",
+          "state": "not-run",
+          "gap": "未操作真实Logic工作区、导出或完成Owner人工时间线验收。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "MVP-11",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1657,
+        "text": "11. 现有磁带 Excel 可批量导入。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "apps/desktop/e2e/task-069.spec.ts",
+          "line": 60,
+          "testName": "V3 Excel：真实XLSX/XLS与11API，重导不增量、修订保留旧Lot且独立更正跨冷启动",
+          "evidenceKind": "native-no-device",
+          "covers": "合成XLSX/XLS经真实解析器导入、重导、修订与冷启。"
+        }
+      ],
+      "gaps": [
+        "未读取Owner实际Excel；真实列含义与原行人工审核待验。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "real-input",
+          "state": "not-run",
+          "gap": "尚未使用Owner真实授权文件/工作簿/参考资料验证。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-e2e-01-native-no-device"
+        ]
+      }
+    },
+    {
+      "id": "MVP-12",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1658,
+        "text": "12. Blank Cassette / DAT 可库存管理，型号详情显示未开封空白、已拆空白、已录音及待确认数量与单盘录音内容。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 55,
+          "testName": "已用三盘与未知七盘不能算可用空白，也不自动分配实体 ID",
+          "evidenceKind": "synthetic",
+          "covers": "Legacy与Unknown不当空白，不自动编号。"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 219,
+          "testName": "DAT 使用独立永久序列，重复补货不修改已有保护与确认信息",
+          "evidenceKind": "synthetic",
+          "covers": "DAT独立编号与保护。"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-record-disposition.test.ts",
+          "line": 57,
+          "testName": "Completed正式记录从同一实体进入双库，不改变origin或数量且不走旧录音编辑",
+          "evidenceKind": "synthetic",
+          "covers": "两个库按同盘投影且不加数量。"
+        }
+      ],
+      "gaps": [
+        "U03/U05完整7盘同数据集链由078专用纵切补证，不能仅相加单测数。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "MVP-13",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1659,
+        "text": "13. Physical Copy 可分配永久 ID。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 64,
+          "testName": "拆封在一个事务内把 Pool 8 转为 Pool 7 + Copy 1",
+          "evidenceKind": "synthetic",
+          "covers": "Pool转Copy原子分配。"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 219,
+          "testName": "DAT 使用独立永久序列，重复补货不修改已有保护与确认信息",
+          "evidenceKind": "synthetic",
+          "covers": "DAT永久序号不复用且补货不改旧信息。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "MVP-14",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1660,
+        "text": "14. 从 Roon 选曲后按现有空白库存推荐介质，显示原因、可用数量和分面适配，正式录音前重新验证。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/media-planning.test.ts",
+          "line": 42,
+          "testName": "总时长装得下但 A 面超长仍排除；不把未知兼容性当成可正式使用",
+          "evidenceKind": "software",
+          "covers": "逐面容量与未知兼容性阻断。"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 649,
+          "testName": "库存候选仅计可用空白和已擦除，未知/旧录音/预留/不可用不混入",
+          "evidenceKind": "synthetic",
+          "covers": "可用空白/已擦除候选排除未知与占用。"
+        },
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "line": 1929,
+          "testName": "V3 分面与库存：浏览不写入，明确预留、取消与冷启动保持实体守恒",
+          "evidenceKind": "native-no-device",
+          "covers": "真实IPC浏览不预留、显式操作保持守恒。"
+        }
+      ],
+      "gaps": [
+        "真实Roon来源选曲和设备适配仍待独立验收。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "real-roon",
+          "state": "not-run",
+          "gap": "未连接真实Roon/Provider账号或操作真实Zone。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic",
+          "final-verify-01-software",
+          "final-e2e-01-native-no-device"
+        ]
+      }
+    },
+    {
+      "id": "MVP-15",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1661,
+        "text": "15. Equipment / Recording Profile 可复用。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/recording-profile.test.ts",
+          "line": 35,
+          "testName": "保存 Profile 产生可复用版本，命令幂等且修改默认值不修改历史",
+          "evidenceKind": "synthetic",
+          "covers": "版本复用、幂等、默认更新不改历史。"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-profile.test.ts",
+          "line": 45,
+          "testName": "Session 只覆盖变化项，明确 null 不回退默认；旧参数不受新 Profile 影响",
+          "evidenceKind": "synthetic",
+          "covers": "overrides与显式null不回退。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "MVP-16",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1662,
+        "text": "16. Formal Recording Mode 可完成 A/B 流程。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/recording-attempt.test.ts",
+          "line": 1423,
+          "testName": "真实A/B冻结资产到三层完成的持久链：翻面确认不输出，B必须新边界",
+          "evidenceKind": "synthetic",
+          "covers": "私有合成provider驱动持久A/B三层状态机，B必须显式开始。"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-attempt.test.ts",
+          "line": 1152,
+          "testName": "生产未认证Begin固定拒绝，正式历史/账本/库存均不写且不调用驱动",
+          "evidenceKind": "synthetic",
+          "covers": "生产无认证零driver、零写入。"
+        }
+      ],
+      "gaps": [
+        "正式录音后端仍NOT_RUN；没有真实音频输出、实体录制或A/B实机完成证据。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "hardware",
+          "state": "not-run",
+          "gap": "Gate B真实设备配置、输出端测量与实体录制未认证；禁止formalReady。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "MVP-17",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1663,
+        "text": "17. Recording Archive 可保存并查询；自录磁带自动进入同一实体音乐库，同时保留型号归属和唯一实体身份，不双计库存。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/recording-record.test.ts",
+          "line": 11,
+          "testName": "首次Completed同事务生成不可变档案、当前内容与recorded状态，不新增库存或重复登记",
+          "evidenceKind": "synthetic",
+          "covers": "首次完成记录/current/usage原子登记且不重复。"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-record-disposition.test.ts",
+          "line": 136,
+          "testName": "六API只读链：编号别名/冻结元数据/日期分页及不存在附件不伪成功",
+          "evidenceKind": "synthetic",
+          "covers": "冻结元数据、日期、编号、分页读取。"
+        }
+      ],
+      "gaps": [
+        "合成Completed不代表已录制真实磁带；跨全部历史对象的078单数据集链待补。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "MVP-18",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1664,
+        "text": "18. Digital Replica 可播放。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/recording-replica-input.test.ts",
+          "line": 19,
+          "testName": "历史Direct完成后不依赖预留和原工作目录，读取归档完整PCM且不写事实",
+          "evidenceKind": "synthetic",
+          "covers": "历史归档实际PCM只读FD，不依赖现预留或工作目录。"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-replica-session.test.ts",
+          "line": 53,
+          "testName": "生产没有provider时拒绝启动且零会话、零输入读取，不把合成核验冒充播放",
+          "evidenceKind": "synthetic",
+          "covers": "生产启动NOT_READY零会话，合成核验不冒播放。"
+        }
+      ],
+      "gaps": [
+        "可听Digital Replica尚未提供真实provider/设备认证；这里只覆盖历史核验与受控会话。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "hardware",
+          "state": "not-run",
+          "gap": "Gate B真实设备配置、输出端测量与实体录制未认证；禁止formalReady。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "MVP-19",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1665,
+        "text": "19. 基础 J-Card 可生成。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "apps/desktop/e2e/task-077.spec.ts",
+          "line": 29,
+          "testName": "Completed持久任务在真实App冷启自动生成PDF，公开八API保持历史字节、导出取消零写与改图不回填",
+          "evidenceKind": "native-no-device",
+          "covers": "真实Electron自动PDF生成、历史字节和导出取消保护。"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-print-backup.test.ts",
+          "line": 5,
+          "testName": "schema21完整音频备份同时保留Artwork/PDF/preview/request/event原字节，隔离恢复不重生成",
+          "evidenceKind": "synthetic",
+          "covers": "PDF/Artwork/preview与任务随完整备份恢复原字节。"
+        }
+      ],
+      "gaps": [
+        "物理尺寸、中文全量与200曲内容须另关联本轮独立PDF解析/栅格证据；本矩阵不把Core假PDF当真实PDF。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic",
+          "final-e2e-01-native-no-device"
+        ]
+      }
+    },
+    {
+      "id": "MVP-20",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1666,
+        "text": "20. CD 可录入。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 347,
+          "testName": "原版实体发行版独立于库存，命令幂等、更新冲突与重启持久化",
+          "evidenceKind": "synthetic",
+          "covers": "原版CD录入、幂等、冲突与重启，不影响库存。"
+        },
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "line": 1548,
+          "testName": "V3 实体音乐库录入原版 CD，重启后仍在且不改变空白库存",
+          "evidenceKind": "native-no-device",
+          "covers": "实际UI到SQLite的CD录入/冷启。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic",
+          "final-e2e-01-native-no-device"
+        ]
+      }
+    },
+    {
+      "id": "MVP-21",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1667,
+        "text": "21. 原版磁带可录入。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 440,
+          "testName": "Roon 关系不凭同名合并数字对象，Related 不计同版收藏，原版磁带不能冒充 CD Rip",
+          "evidenceKind": "synthetic",
+          "covers": "原版磁带实际录入、Related关系与跨冷开保持。"
+        }
+      ],
+      "gaps": [
+        "现有合成原版磁带仓库覆盖不等于原版磁带完整原生选图UI纵切；与CD UI路径共用部分须如实区分。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "MVP-22",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1668,
+        "text": "22. 原版 Physical Release 可关联 Roon Digital Release，自录磁带可追溯各曲目数字源；原版关联与自录谱系不混淆。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 440,
+          "testName": "Roon 关系不凭同名合并数字对象，Related 不计同版收藏，原版磁带不能冒充 CD Rip",
+          "evidenceKind": "synthetic",
+          "covers": "Related不计同版拥有、CD Rip不能混给原版磁带。"
+        },
+        {
+          "path": "packages/bridge-core/test/physical-links-coordinator.test.ts",
+          "line": 38,
+          "testName": "离线保留实体关系，旧引用不重连；重新定位必须明确确认当前专辑",
+          "evidenceKind": "synthetic",
+          "covers": "离线不删资料；重定位要求显式确认。"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-record-disposition.test.ts",
+          "line": 57,
+          "testName": "Completed正式记录从同一实体进入双库，不改变origin或数量且不走旧录音编辑",
+          "evidenceKind": "synthetic",
+          "covers": "自录走同一实体且不能旧legacy编辑。"
+        }
+      ],
+      "gaps": [
+        "真实Roon发行版匹配和自录逐曲源的Owner确认未验。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "real-roon",
+          "state": "not-run",
+          "gap": "未连接真实Roon/Provider账号或操作真实Zone。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "MVP-23",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1669,
+        "text": "23. 《磁带大全》可建立 Canonical Collection Set。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/reference-catalog-store.test.ts",
+          "line": 83,
+          "testName": "登记资料原UTF8与hash不可变，BOM与空行保存；重复命令/相同原包幂等且不写库存",
+          "evidenceKind": "synthetic",
+          "covers": "来源原UTF8/hash不可变且不建库存。"
+        },
+        {
+          "path": "packages/bridge-core/test/reference-catalog-store.test.ts",
+          "line": 102,
+          "testName": "重复reference页与时长只占一个分母；冲突身份或不同ID重复canonical拒绝，preview只读",
+          "evidenceKind": "synthetic",
+          "covers": "去重页/时长、冲突canonical拒绝、preview只读。"
+        }
+      ],
+      "gaps": [
+        "未导入实际《磁带大全》授权资料；只有合成SourcePack。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "real-input",
+          "state": "not-run",
+          "gap": "尚未使用Owner真实授权文件/工作簿/参考资料验证。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "MVP-24",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1670,
+        "text": "24. Blank Tape Collection Wall 以实物照片为主，按品牌与年代展示；照片卡片、型号详情和 J-Card 式录音内容需独立视觉验收。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "apps/desktop/e2e/task-071.spec.ts",
+          "line": 151,
+          "testName": "V3交互：两库照片按需读取、失败单图重试、长名与横竖图保持原始资料",
+          "evidenceKind": "native-no-device",
+          "covers": "真实按需照片读取、失败重试、长名及横竖比例。"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 259,
+          "testName": "品牌、关键词与年代查询在分页前筛选，不改变全量库存",
+          "evidenceKind": "synthetic",
+          "covers": "按品牌/年代在分页前筛选。"
+        }
+      ],
+      "gaps": [
+        "品牌年代照片墙与J-Card内容的Owner独立审美/可用性验收未执行。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic",
+          "final-e2e-01-native-no-device"
+        ]
+      }
+    },
+    {
+      "id": "MVP-25",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1671,
+        "text": "25. 同型号同版次不同时长只计算一个收藏项目。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 45,
+          "testName": "同型号版次不同时长只产生一个型号；版次不同独立保存",
+          "evidenceKind": "synthetic",
+          "covers": "同版多长度只有一个model，异版分开。"
+        },
+        {
+          "path": "packages/bridge-core/test/reference-catalog-store.test.ts",
+          "line": 102,
+          "testName": "重复reference页与时长只占一个分母；冲突身份或不同ID重复canonical拒绝，preview只读",
+          "evidenceKind": "synthetic",
+          "covers": "资料去重不多计分母。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "MVP-26",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1672,
+        "text": "26. 拥有任一时长即视为该 Collection Model 已收藏。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/collection-progress-store.test.ts",
+          "line": 38,
+          "testName": "Owned90再Wanted46仍分子1，品牌/系列守恒，读取不改库存与目录历史",
+          "evidenceKind": "synthetic",
+          "covers": "拥有任一长度只计一次Owned，Wanted正交。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "MVP-27",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1673,
+        "text": "27. 多时长收藏信息仍可查看。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/collection-progress-store.test.ts",
+          "line": 49,
+          "testName": "候选不Owned、空known不AllLengths，未知/目录外长度分别计数且不重复Copy",
+          "evidenceKind": "synthetic",
+          "covers": "真实持有、未知与目录外长度独立，不双计Copy。"
+        },
+        {
+          "path": "apps/desktop/e2e/task-070.spec.ts",
+          "line": 98,
+          "testName": "V3完成度：真实九API，Owned与Wanted正交、长度守恒及取消后的不可变历史跨冷启",
+          "evidenceKind": "native-no-device",
+          "covers": "真实API长度守恒及历史跨冷启。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic",
+          "final-e2e-01-native-no-device"
+        ]
+      }
+    },
+    {
+      "id": "MVP-28",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1674,
+        "text": "28. Owned / Missing / Unknown / Wanted 可管理。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/reference-catalog-store.test.ts",
+          "line": 134,
+          "testName": "Unknown/Missing/Candidate/NeedsReview独立，确认同型号不能贡献两个canonical，库存和照片不变",
+          "evidenceKind": "synthetic",
+          "covers": "状态独立、不把候选当Missing/Owned。"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-progress-store.test.ts",
+          "line": 62,
+          "testName": "Want编辑/取消版本历史、幂等冲突；cancel终态且提交故障不留部分账本",
+          "evidenceKind": "synthetic",
+          "covers": "Wanted版本/取消幂等且保留历史。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "MVP-29",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1675,
+        "text": "29. Series / Brand / Book Completion 可计算。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/collection-progress-store.test.ts",
+          "line": 38,
+          "testName": "Owned90再Wanted46仍分子1，品牌/系列守恒，读取不改库存与目录历史",
+          "evidenceKind": "synthetic",
+          "covers": "总体/品牌/系列完成度分子守恒。"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-progress-store.test.ts",
+          "line": 163,
+          "testName": "分页保留整体统计与同一fingerprint，Renderer不能伪造参考标签或跳过确认",
+          "evidenceKind": "synthetic",
+          "covers": "分页保持全批统计与指纹，标签不可伪造。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "MVP-30",
+      "source": {
+        "path": "docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md",
+        "line": 1676,
+        "text": "30. Missing Collection Models 可进入 Want List。"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/collection-progress-store.test.ts",
+          "line": 62,
+          "testName": "Want编辑/取消版本历史、幂等冲突；cancel终态且提交故障不留部分账本",
+          "evidenceKind": "synthetic",
+          "covers": "精确目标求购新增/编辑/取消持久化。"
+        },
+        {
+          "path": "apps/desktop/e2e/task-070.spec.ts",
+          "line": 232,
+          "testName": "V3完成度：720窄窗键盘、明确求购与快照确认、旧口径提示及axe截图",
+          "evidenceKind": "native-no-device",
+          "covers": "明确选择参考项、确认求购与快照。"
+        }
+      ],
+      "gaps": [
+        "现有新增Wanted测试目标为Owned或Unknown；Missing参考项明确加入Wanted的专项状态组合尚需补证。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic",
+          "final-e2e-01-native-no-device"
+        ]
+      }
+    },
+    {
+      "id": "A-01",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 61,
+        "text": "| A-01 | 只有 Roon Reference | 可 Draft/试听，不可 Source Lock、Freeze 或正式录音 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 504,
+          "testName": "选曲草稿持久化独立身份、幂等追加和显式曲序，不把浏览信息当 Source Lock",
+          "evidenceKind": "synthetic",
+          "covers": "Roon浏览信息只建未验证草稿。"
+        },
+        {
+          "path": "packages/bridge-core/test/master-versions.test.ts",
+          "line": 6,
+          "testName": "冻结版本初始为空；读取历史不会把草稿或预留自动升级为母版",
+          "evidenceKind": "synthetic",
+          "covers": "草稿或预留不升级母版。"
+        }
+      ],
+      "gaps": [
+        "Roon实际试听是外部能力；软件映射只覆盖未验证来源不能冻结。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "A-02",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 62,
+        "text": "| A-02 | 用户确认 Roon 条目对应实际 FLAC | 技术参数、完整文件 SHA-256、映射确认和时间戳齐备后才可 Lock |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "line": 166,
+          "testName": "Gate A-02：真实编码的合成 FLAC 与 AIFF 均只探测技术块，标签不参与证据",
+          "evidenceKind": "synthetic",
+          "covers": "合成FLAC/AIFF技术块只读探测。"
+        },
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "line": 32,
+          "testName": "Gate A：实际文件全量 Hash/技术参数与人工映射独立；只读并跨重启保留",
+          "evidenceKind": "synthetic",
+          "covers": "完整Hash/技术参数/人工映射/时间分开持久。"
+        }
+      ],
+      "gaps": [
+        "真实授权Watched Folder FLAC与Roon人工对应尚未验。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "real-input",
+          "state": "not-run",
+          "gap": "尚未使用Owner真实授权文件/工作簿/参考资料验证。"
+        },
+        {
+          "kind": "real-roon",
+          "state": "not-run",
+          "gap": "未连接真实Roon/Provider账号或操作真实Zone。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "A-03",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 63,
+        "text": "| A-03 | Roon 桌面导出文件，尚未验证 | Acquisition 不自动使 Verification 通过 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "line": 53,
+          "testName": "Gate A：Roon 导出只证明选中文件；改动后不能用旧证据确认；全量重验不同 Hash 失效",
+          "evidenceKind": "synthetic",
+          "covers": "Acquisition不自动确认，源变更不能沿用旧标签。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "A-04",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 64,
+        "text": "| A-04 | 导出文件经过 Hash/技术探测并确认 | 可作为本次精确输入；不宣称与 Watched Folder 原件字节相同 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "line": 53,
+          "testName": "Gate A：Roon 导出只证明选中文件；改动后不能用旧证据确认；全量重验不同 Hash 失效",
+          "evidenceKind": "synthetic",
+          "covers": "仅确认所选导出文件身份，不宣称Watched Folder字节相同。"
+        }
+      ],
+      "gaps": [
+        "真实Roon导出操作与实际文件对应仍未验。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "real-input",
+          "state": "not-run",
+          "gap": "尚未使用Owner真实授权文件/工作簿/参考资料验证。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "A-05",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 65,
+        "text": "| A-05 | 完全相同文件移动到授权 Root 内另一位置 | 通过相同完整 Hash 更新定位，历史内容身份不变 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "line": 89,
+          "testName": "Gate A：显式相同 Hash 重新定位保留内容身份；不同内容不能凭相似名字替换",
+          "evidenceKind": "synthetic",
+          "covers": "授权内显式移动重连保留完整内容身份。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "A-06",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 66,
+        "text": "| A-06 | 同名、同歌手、相近时长但内容不同 | 不自动重连，仅候选或 CONTENT_CHANGED |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "line": 89,
+          "testName": "Gate A：显式相同 Hash 重新定位保留内容身份；不同内容不能凭相似名字替换",
+          "evidenceKind": "synthetic",
+          "covers": "相似名字不同内容不能替换。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "A-07",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 67,
+        "text": "| A-07 | 网络 Root 暂时离线 | SOURCE_ROOT_OFFLINE，不标记 MISSING，不删除绑定 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "line": 67,
+          "testName": "Gate A：Root 离线、单文件丢失、撤销授权互不混淆；历史绑定不删除",
+          "evidenceKind": "synthetic",
+          "covers": "离线/文件丢失/撤权区分且历史不删。"
+        }
+      ],
+      "gaps": [
+        "真实网络挂载掉线未操作，现为隔离文件系统故障。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "A-08",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 68,
+        "text": "| A-08 | 元数据、文件 Hash、音频载荷 Hash、声学指纹 | 用途分离；声学指纹和歌词签名不能升级为精确证据 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "line": 32,
+          "testName": "Gate A：实际文件全量 Hash/技术参数与人工映射独立；只读并跨重启保留",
+          "evidenceKind": "synthetic",
+          "covers": "浏览/技术/完整Hash/人工映射分离。"
+        },
+        {
+          "path": "packages/bridge-core/test/execution-compiler.test.ts",
+          "line": 239,
+          "testName": "转换输出回读实际整数/浮点及扩展 WAV，整文件和 PCM 分别 Hash；旧复制入口仍拒绝",
+          "evidenceKind": "synthetic",
+          "covers": "整文件与PCM载荷分别Hash。"
+        }
+      ],
+      "gaps": [
+        "声学指纹只候选的独立升级负例未单列；不能由歌词签名测试推断。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "A-09",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 69,
+        "text": "| A-09 | DSD 或特殊格式参与转换 | 源规格、转换器/版本、参数与执行派生谱系如实记录；不支持时明确阻断 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/execution-compiler.test.ts",
+          "line": 196,
+          "testName": "明确不支持的格式、畸形 RIFF/重复数据/错误块对齐在写入前阻断",
+          "evidenceKind": "synthetic",
+          "covers": "不支持/畸形音频在写入前阻断。"
+        },
+        {
+          "path": "packages/bridge-core/test/execution-assets.test.ts",
+          "line": 160,
+          "testName": "V2 未配置固定转换器时明确拒绝，不自动搜索或启用系统 FFmpeg",
+          "evidenceKind": "synthetic",
+          "covers": "禁止自动使用系统转换器。"
+        }
+      ],
+      "gaps": [
+        "DSD实际转换未实现/未测；明确阻断不代表支持DSD。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "A-10",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 70,
+        "text": "| A-10 | 校验后源内容变化或读取中变化 | 不使用旧验证标签继续 Freeze/编译；源与编译输入 Hash 可核对 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "line": 186,
+          "testName": "校验期间撤销 Root、移除曲目或改变文件均不能提交迟到结果",
+          "evidenceKind": "synthetic",
+          "covers": "验证期间改变文件/曲目/权限不提交迟到。"
+        },
+        {
+          "path": "packages/bridge-core/test/execution-compiler.test.ts",
+          "line": 175,
+          "testName": "复制期间源变化、取消、撤权不产生成功回执",
+          "evidenceKind": "synthetic",
+          "covers": "编译期间变化/取消/撤权不返回成功。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "A-11",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 71,
+        "text": "| A-11 | 未授权目录、越出 Root 的路径或链接 | 不自动扩展访问范围；返回有界错误，不泄漏私密路径到公开日志 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "line": 78,
+          "testName": "Gate A：未授权路径、目录及符号链接拒绝；未知音频不会生成绑定",
+          "evidenceKind": "synthetic",
+          "covers": "目录/链接/未知音频拒绝。"
+        },
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "line": 202,
+          "testName": "含点路径段的请求不通过规范化绕过 Root 路径护栏",
+          "evidenceKind": "synthetic",
+          "covers": "不能规范化绕过Root护栏。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "B-01",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 85,
+        "text": "| B-01 | 编译三首固定源 | Formal 播放前完成编译、Hash 和帧级 Manifest 验证；录音时不逐首临时转换 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/execution-plan.test.ts",
+          "line": 32,
+          "testName": "数据库 Frozen M/L 到 Direct 实际文件：保留各面源帧，使用执行时基重新算 Gap",
+          "evidenceKind": "synthetic",
+          "covers": "冻结身份到真实执行文件计划。"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-plan.test.ts",
+          "line": 23,
+          "testName": "Plan预览、冻结、预检不改库存或旧事实；无GateB明确阻断而非正式就绪",
+          "evidenceKind": "synthetic",
+          "covers": "无GateB拒绝正式准入，Freeze不改变库存。"
+        }
+      ],
+      "gaps": [
+        "Formal硬件准入未认证，现为离线编译/冻结和拒绝路径。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "B-02",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 86,
+        "text": "| B-02 | Direct Compilation 两个默认曲间边界 | 每段零样本恰为 Fs×5 帧；96 kHz 时各 480,000 帧；检查最终执行文件，不只检查中间数组 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/execution-compiler.test.ts",
+          "line": 120,
+          "testName": "最终 96k WAV 的两个 Gap 各 480000 帧，源首尾静音和全部 PCM 字节保留",
+          "evidenceKind": "synthetic",
+          "covers": "检查最终WAV两个零样本Gap各480000帧。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "B-03",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 87,
+        "text": "| B-03 | 原文件自带首尾静音 | 原有静音保留；不把听感间隔大于五秒误判为编译错误 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/execution-compiler.test.ts",
+          "line": 120,
+          "testName": "最终 96k WAV 的两个 Gap 各 480000 帧，源首尾静音和全部 PCM 字节保留",
+          "evidenceKind": "synthetic",
+          "covers": "原源首尾静音及全PCM原样保留。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "B-04",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 88,
+        "text": "| B-04 | Prepared Render 已有间隔 | 不再插入 Gap；合规 Render 直接用，不合规时创建独立 Derivative |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/execution-assets.test.ts",
+          "line": 146,
+          "testName": "V2 PREP Derivative 使用实际 Render 位深生成独立文件，保留原件且不加 Gap",
+          "evidenceKind": "synthetic",
+          "covers": "格式不同时独立Derivative且不加Gap。"
+        },
+        {
+          "path": "packages/bridge-core/test/execution-compiler.test.ts",
+          "line": 151,
+          "testName": "Prepared 返回同一原始 Render Hash，不复制或再次加 Gap",
+          "evidenceKind": "synthetic",
+          "covers": "合规Render复用原Hash不再插Gap。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "B-05",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 89,
+        "text": "| B-05 | 混合采样率/格式源 | 编译时统一固定格式，谱系完整；同一 Side/Program 不在运行时切换布局或采样率 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/execution-assets.test.ts",
+          "line": 114,
+          "testName": "V2 转换任务明确预览后发布所有中间文件和最终音频，命令幂等且无路径泄漏",
+          "evidenceKind": "synthetic",
+          "covers": "固定格式实际转换中间文件与最终音频保存。"
+        },
+        {
+          "path": "packages/bridge-core/test/execution-plan.test.ts",
+          "line": 101,
+          "testName": "V2 Direct 保留冻结源及 Master/Layout，按输出率精确计划静音并报告 SRC 范围",
+          "evidenceKind": "synthetic",
+          "covers": "冻结源/M/L及输出率静音与SRC范围。"
+        }
+      ],
+      "gaps": [
+        "真正设备运行时格式保持未测；不以离线转换替代。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "B-06",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 90,
+        "text": "| B-06 | Smart、在线回退、Shuffle、Radio、普通队列续播 | 正式路径全部禁用，失败不会换源或换后端 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/recording-attempt.test.ts",
+          "line": 1152,
+          "testName": "生产未认证Begin固定拒绝，正式历史/账本/库存均不写且不调用驱动",
+          "evidenceKind": "synthetic",
+          "covers": "未认证不调用driver/普通队列。"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-replica-session.test.ts",
+          "line": 53,
+          "testName": "生产没有provider时拒绝启动且零会话、零输入读取，不把合成核验冒充播放",
+          "evidenceKind": "synthetic",
+          "covers": "禁止无provider假启动或静默替代。"
+        }
+      ],
+      "gaps": [
+        "实际认证backend对Smart/Radio/Shuffle/自动换源的完整外部行为矩阵未执行。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "B-07",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 91,
+        "text": "| B-07 | A 面播放结束 | 输出进入已定义的结束状态，等待人工翻面，不自动开始 B 面 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/recording-attempt-state.test.ts",
+          "line": 71,
+          "testName": "A排空和实体停止后仍不开始B；必须翻面确认和新的显式B边界",
+          "evidenceKind": "software",
+          "covers": "等实体停止和翻面，B需新显式边界。"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-attempt.test.ts",
+          "line": 1423,
+          "testName": "真实A/B冻结资产到三层完成的持久链：翻面确认不输出，B必须新边界",
+          "evidenceKind": "synthetic",
+          "covers": "私有合成provider持久A/B完成。"
+        }
+      ],
+      "gaps": [
+        "实际设备排空/翻面/实体录制尚未验。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic",
+          "final-verify-01-software"
+        ]
+      }
+    },
+    {
+      "id": "B-08",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 92,
+        "text": "| B-08 | DAT Continuous 执行 | 不走 A/B 翻面流程；配置和容量匹配，不宣称未验证的自动 Track ID 写入 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/recording-attempt.test.ts",
+          "line": 1221,
+          "testName": "DAT独立Program身份固定；分页与越界保留正确total",
+          "evidenceKind": "synthetic",
+          "covers": "DAT只有Program且不伪双面。"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-plan.test.ts",
+          "line": 286,
+          "testName": "DAT计划使用完整Program容量而非半面，当前预检不操作实体或输出后端",
+          "evidenceKind": "synthetic",
+          "covers": "实际Program容量非半面。"
+        }
+      ],
+      "gaps": [
+        "DAT实际录制及Track ID写入未认证；软件不声明自动写ID。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "B-09",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 93,
+        "text": "| B-09 | Roon 外部切歌、Zone/输出变化 | 标记 Interrupted，按测量合同停止安全输出，不把外部接管当独占控制成功 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/recording-attempt-state.test.ts",
+          "line": 130,
+          "testName": "重启所有非终态只Interrupted一次，保留已完成A/翻面和帧事实，不自动开始B",
+          "evidenceKind": "software",
+          "covers": "保留首因/帧事实的中断状态机。"
+        }
+      ],
+      "gaps": [
+        "没有真实Roon外部切歌或Zone接管注入；无输出端停止时间测量，现映射只为中断状态基础。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "hardware",
+          "state": "not-run",
+          "gap": "Gate B真实设备配置、输出端测量与实体录制未认证；禁止formalReady。"
+        },
+        {
+          "kind": "real-roon",
+          "state": "not-run",
+          "gap": "未连接真实Roon/Provider账号或操作真实Zone。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-software"
+        ]
+      }
+    },
+    {
+      "id": "B-10",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 94,
+        "text": "| B-10 | 声卡拔出、路由/采样率变化 | Interrupted；不回退系统扬声器或另一设备，不自动续播 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/recording-attempt.test.ts",
+          "line": 1171,
+          "testName": "停止回执不伪造驱动ACK/排空，迟到成功和旧runId不能覆盖首个终态",
+          "evidenceKind": "synthetic",
+          "covers": "首终因不被迟到成功覆盖，ACK不作排空。"
+        }
+      ],
+      "gaps": [
+        "未枚举/打开设备；拔出/路由/采样率变化与禁止系统扬声器回退的真实矩阵尚未执行。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "hardware",
+          "state": "not-run",
+          "gap": "Gate B真实设备配置、输出端测量与实体录制未认证；禁止formalReady。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "B-11",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 95,
+        "text": "| B-11 | 执行资产读取失败、网络读取故障、underrun | Interrupted，记录事件与各测量时间，不播放替代内容 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/recording-attempt.test.ts",
+          "line": 1346,
+          "testName": "start未产生进度即失败保存Failed，不能与已输出中断混淆",
+          "evidenceKind": "synthetic",
+          "covers": "启动失败与已输出中断分开。"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-replica-session.test.ts",
+          "line": 116,
+          "testName": "输入内部撤权signal直达provider，scope检查失败不允许迟到成功",
+          "evidenceKind": "synthetic",
+          "covers": "输入失效/切库可达provider且阻止迟到成功。"
+        }
+      ],
+      "gaps": [
+        "真实网络/underrun输出端T_detect、cutoff、tail未测；私有driver不代表硬件。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "hardware",
+          "state": "not-run",
+          "gap": "Gate B真实设备配置、输出端测量与实体录制未认证；禁止formalReady。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "B-12",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 96,
+        "text": "| B-12 | 引擎/应用强制退出后重启 | 未结束 Attempt 恢复为 Interrupted，不显示 Completed，不自动开始新录音 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/recording-attempt.test.ts",
+          "line": 1193,
+          "testName": "冷启将未结束Attempt仅中断一次，恢复不调用任何driver且不伪造cleanup",
+          "evidenceKind": "synthetic",
+          "covers": "重启只Interrupted一次、不调用driver或伪cleanup。"
+        }
+      ],
+      "gaps": [
+        "真实正在输出时App/引擎终止后的设备尾音与物理状态没有测量。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "hardware",
+          "state": "not-run",
+          "gap": "Gate B真实设备配置、输出端测量与实体录制未认证；禁止formalReady。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "B-13",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 97,
+        "text": "| B-13 | 故障提示 | 正式音频输出内没有通知音；只使用静默提示或已确认独立通路 |"
+      },
+      "status": "unmapped",
+      "mappings": [],
+      "gaps": [
+        "尚无正式音频通道通知音隔离的专门测试；生产无准入是阻断，不构成已验证静默提示/独立通路。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "hardware",
+          "state": "not-run",
+          "gap": "Gate B真实设备配置、输出端测量与实体录制未认证；禁止formalReady。"
+        }
+      ],
+      "freshGate": {
+        "state": "pending",
+        "evidenceIds": []
+      }
+    },
+    {
+      "id": "B-14",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 98,
+        "text": "| B-14 | 源读取结束、设备排空、用户确认实体完成 | 三者分开取证；不到三层确认不可 Completed |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/recording-attempt-state.test.ts",
+          "line": 47,
+          "testName": "源EOF不等后端排空；停止ACK和资源静止不授予软件或实体完成",
+          "evidenceKind": "software",
+          "covers": "EOF/ACK/cleanup/软件/实体完成独立。"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-attempt.test.ts",
+          "line": 1423,
+          "testName": "真实A/B冻结资产到三层完成的持久链：翻面确认不输出，B必须新边界",
+          "evidenceKind": "synthetic",
+          "covers": "私有合成驱动与人工确认状态持久链。"
+        }
+      ],
+      "gaps": [
+        "设备真实drained与实体录制完成均未取证；SourceEOF绝不等于输出端无声。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "hardware",
+          "state": "not-run",
+          "gap": "Gate B真实设备配置、输出端测量与实体录制未认证；禁止formalReady。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic",
+          "final-verify-01-software"
+        ]
+      }
+    },
+    {
+      "id": "B-15",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 99,
+        "text": "| B-15 | 输出设备/软件/缓冲配置改变 | 原 Certified 记录不覆盖未测试配置；重新匹配证据或降为未验收 |"
+      },
+      "status": "unmapped",
+      "mappings": [],
+      "gaps": [
+        "尚无Certified生产配置或实际配置变更复认证矩阵；所有生产准入仍NOT_RUN，不能将恒阻断当认证范围测试完成。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "hardware",
+          "state": "not-run",
+          "gap": "Gate B真实设备配置、输出端测量与实体录制未认证；禁止formalReady。"
+        }
+      ],
+      "freshGate": {
+        "state": "pending",
+        "evidenceIds": []
+      }
+    },
+    {
+      "id": "C-01",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 121,
+        "text": "| C-01 | 同一个 Workbook 导入两次 | 第二次不增加数量或副本，保留 ImportBatch 溯源 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/spreadsheet-import-store.test.ts",
+          "line": 80,
+          "testName": "同文件同Sheet换commandId不会加数量，Unknown品牌型号保持空值且每原行私有身份隔离",
+          "evidenceKind": "synthetic",
+          "covers": "同工作簿Hash/Sheet换command不加量。"
+        },
+        {
+          "path": "apps/desktop/e2e/task-069.spec.ts",
+          "line": 60,
+          "testName": "V3 Excel：真实XLSX/XLS与11API，重导不增量、修订保留旧Lot且独立更正跨冷启动",
+          "evidenceKind": "native-no-device",
+          "covers": "真实解析器和11API重导幂等。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic",
+          "final-e2e-01-native-no-device"
+        ]
+      }
+    },
+    {
+      "id": "C-02",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 122,
+        "text": "| C-02 | 总数 10、Legacy Used 3 | Legacy Used 3 + Unclassified Remainder 7 = 10，不能自动把 7 标为 Sealed/Blank |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/spreadsheet-import-store.test.ts",
+          "line": 63,
+          "testName": "实际原字节Hash/typed rows持久，预览不写库存；10/Used3只建Legacy3+Unknown7且不分配实体",
+          "evidenceKind": "synthetic",
+          "covers": "10/Used3只分Legacy3+Unknown7、不实例化。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "C-03",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 123,
+        "text": "| C-03 | Pool 8 中实例化一盘 | Pool 7 + Copy 1 = 8，单一事务，无双计数 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 64,
+          "testName": "拆封在一个事务内把 Pool 8 转为 Pool 7 + Copy 1",
+          "evidenceKind": "synthetic",
+          "covers": "Pool8→7+Copy1原子守恒。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "C-04",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 124,
+        "text": "| C-04 | 从 Legacy Used 登记旧录音 | Legacy Used 减一、Copy 加一，总数不变，不凭导入预分配永久 ID |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 76,
+          "testName": "旧录音登记从 Legacy Used 转出，标为历史来源且总数不增加",
+          "evidenceKind": "synthetic",
+          "covers": "LegacyUsed减1、Copy加1、历史标识且不增量。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "C-05",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 125,
+        "text": "| C-05 | 已人工确认 Edition/照片/状态后重新导入 | 只给更正建议，人工记录和历史不被覆盖 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/spreadsheet-import-store.test.ts",
+          "line": 167,
+          "testName": "独立数量更正绑定当前余额，原acquired不改；已物化实体/照片/原行不被消耗",
+          "evidenceKind": "synthetic",
+          "covers": "已物化实体/照片/原行保护，初始acquired不覆盖。"
+        },
+        {
+          "path": "packages/bridge-core/test/spreadsheet-import-store.test.ts",
+          "line": 93,
+          "testName": "重排行唯一匹配不加量，修改行保留建议，插入只有明确new才增加；过期基线拒绝",
+          "evidenceKind": "synthetic",
+          "covers": "修改只建议、不覆盖旧Lot。"
+        }
+      ],
+      "gaps": [
+        "Edition人工确认后同原行重导的专项字段断言尚需核对，不能仅凭所有照片测试通过宣布全部人工覆盖保护。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "C-06",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 126,
+        "text": "| C-06 | Owned 型号补购另一长度 | Ownership=Owned 与 WantIntent=Wanted 共存，收藏分子不重复增加 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/collection-progress-store.test.ts",
+          "line": 38,
+          "testName": "Owned90再Wanted46仍分子1，品牌/系列守恒，读取不改库存与目录历史",
+          "evidenceKind": "synthetic",
+          "covers": "Owned与Wanted正交、分子仍1。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "C-07",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 127,
+        "text": "| C-07 | 表格改动、增删行或重新排序 | Import Revision 比对，不能把 Row Index 单独当库存身份造成重复或误覆盖 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/spreadsheet-import-store.test.ts",
+          "line": 93,
+          "testName": "重排行唯一匹配不加量，修改行保留建议，插入只有明确new才增加；过期基线拒绝",
+          "evidenceKind": "synthetic",
+          "covers": "重排唯一匹配/改行建议/明确新增与旧baseline拒绝。"
+        },
+        {
+          "path": "packages/bridge-core/test/spreadsheet-import-store.test.ts",
+          "line": 107,
+          "testName": "重复行歧义必须人工对应；missing Used保持Unknown；公式缓存不能自动当确认数量",
+          "evidenceKind": "synthetic",
+          "covers": "重复歧义人工对应，不把RowIndex当身份。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "C-08",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 128,
+        "text": "| C-08 | 相同 Ledger 命令或恢复重复执行 | 幂等；失败回滚；不出现负余额、重复 ID 或额外库存 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 109,
+          "testName": "两个独立进程并发提交相同命令，只有一个数量和账本结果",
+          "evidenceKind": "synthetic",
+          "covers": "同命令跨进程只有一笔量/账本。"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 158,
+          "testName": "提交前故障回滚数量、实体 ID 及账本；可安全重试",
+          "evidenceKind": "synthetic",
+          "covers": "数量/永久ID/ledger回滚，明确重试恢复。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "C-09",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 129,
+        "text": "| C-09 | 未匹配或疑似版次 | Unknown/Candidate 不自动成为 Missing 或确认的 Owned |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/reference-catalog-store.test.ts",
+          "line": 134,
+          "testName": "Unknown/Missing/Candidate/NeedsReview独立，确认同型号不能贡献两个canonical，库存和照片不变",
+          "evidenceKind": "synthetic",
+          "covers": "Unknown/Candidate/NeedsReview不自动Missing/Owned。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "C-10",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 130,
+        "text": "| C-10 | 同版次多个时长和多个副本 | 收藏分子只加一个 Collection Model，Length Coverage 和实体数量独立 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/collection-progress-store.test.ts",
+          "line": 49,
+          "testName": "候选不Owned、空known不AllLengths，未知/目录外长度分别计数且不重复Copy",
+          "evidenceKind": "synthetic",
+          "covers": "已知/未知/目录外长度与Copy不双计。"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 45,
+          "testName": "同型号版次不同时长只产生一个型号；版次不同独立保存",
+          "evidenceKind": "synthetic",
+          "covers": "版次归组而非按时长建model。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "C-11",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 131,
+        "text": "| C-11 | 目录合并、拆分、新增 | 新 CatalogRevision、映射或 Needs Review；历史完成度不被覆盖 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/reference-catalog-store.test.ts",
+          "line": 152,
+          "testName": "合并保留多型号确认但只计一次；拆分全部NeedsReview，新增只改新分母且历史snapshot不覆盖",
+          "evidenceKind": "synthetic",
+          "covers": "合并去重、拆分NeedsReview、新分母与旧snapshot不覆盖。"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-progress-store.test.ts",
+          "line": 71,
+          "testName": "旧revision目标原标签需复核、不拆分复制；显式编辑可重绑当前",
+          "evidenceKind": "synthetic",
+          "covers": "旧Want不自动复制/迁移，只显式重绑。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "D-01",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 141,
+        "text": "| D-01 | PREP-001 绑定 M1/L1/P1/R1 | 所有身份、Hash 和实际 Timeline 引用可核对 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/prepared-render.test.ts",
+          "line": 54,
+          "testName": "原始 Render 从选择、确认保存、实际 Marker 到 Frozen PREP 保持独立身份与幂等",
+          "evidenceKind": "synthetic",
+          "covers": "真实保留Render/Marker/PREP各自身份与幂等。"
+        },
+        {
+          "path": "packages/bridge-core/test/execution-plan.test.ts",
+          "line": 76,
+          "testName": "Prepared 的实际时间线、人工确认、原件 Hash 和输入谱系逐一核验",
+          "evidenceKind": "synthetic",
+          "covers": "人工确认/原件Hash/输入谱系逐项核验。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "D-02",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 142,
+        "text": "| D-02 | 只改 A/B 分界，曲序不变 | 新 LayoutVersion，MasterVersion 不变 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/master-versions.test.ts",
+          "line": 75,
+          "testName": "D-02 分面变化新建 Layout 并复用 Master；D-03 改曲序提出新母版并保留谱系",
+          "evidenceKind": "synthetic",
+          "covers": "只改分面新Layout复用Master。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "D-03",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 143,
+        "text": "| D-03 | 改全局曲序、增删曲、换源或换 Live/Studio | 生成 Proposed MasterVersion，经确认后冻结，不伪装成 Layout 更新 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/master-versions.test.ts",
+          "line": 75,
+          "testName": "D-02 分面变化新建 Layout 并复用 Master；D-03 改曲序提出新母版并保留谱系",
+          "evidenceKind": "synthetic",
+          "covers": "曲序变更新Master并保留谱系。"
+        },
+        {
+          "path": "packages/bridge-core/test/render-conformance.test.ts",
+          "line": 8,
+          "testName": "Render 五态依据逐曲身份、精确帧与人工确认，不靠文件名或总时长猜测",
+          "evidenceKind": "software",
+          "covers": "曲目/顺序/源与节目身份变化必须新Master。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic",
+          "final-verify-01-software"
+        ]
+      }
+    },
+    {
+      "id": "D-04",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 144,
+        "text": "| D-04 | 当前项目改为 L2 | 旧 PREP 不兼容 L2，仍对 L1 与历史 Recording 有效 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/prepared-render.test.ts",
+          "line": 158,
+          "testName": "未确认 Marker、需要新母版或布局均不能靠伪造接受状态冻结 PREP",
+          "evidenceKind": "synthetic",
+          "covers": "需要新布局不能冻结PREP。"
+        },
+        {
+          "path": "packages/bridge-core/test/master-versions.test.ts",
+          "line": 56,
+          "testName": "完整复核实际合成源后原子冻结；重试幂等，历史不随草稿改变且不可 SQL 覆写或删除",
+          "evidenceKind": "synthetic",
+          "covers": "旧冻结版本不随当前草稿变。"
+        }
+      ],
+      "gaps": [
+        "历史PREP对应L1仍可用、当前L2不兼容由多个局部用例交叉覆盖；无真实Logic跨版次现场。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "D-05",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 145,
+        "text": "| D-05 | Logic 改 Fade/Gap 或曲目边界 | 重新建立 RenderTimeline、用户确认及 Conformance Report，不只比较文件总时长 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/render-conformance.test.ts",
+          "line": 8,
+          "testName": "Render 五态依据逐曲身份、精确帧与人工确认，不靠文件名或总时长猜测",
+          "evidenceKind": "software",
+          "covers": "逐曲实际帧/人工确认、不仅比较总时长。"
+        }
+      ],
+      "gaps": [
+        "实际Logic修改Fade/Gap并再次导出的用户操作尚未验。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "real-logic",
+          "state": "not-run",
+          "gap": "未操作真实Logic工作区、导出或完成Owner人工时间线验收。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-software"
+        ]
+      }
+    },
+    {
+      "id": "D-06",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 146,
+        "text": "| D-06 | 曲序/曲目/分面不变，时序变化且仍适配 | 明确 ACCEPTED_VARIANCE，保留计划时间线，实际执行引用确认后的 RenderTimeline |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/execution-plan.test.ts",
+          "line": 84,
+          "testName": "已接受的 Render 时序差异使用实际帧，不回退计划 Marker；DAT/空 B 同样成立",
+          "evidenceKind": "synthetic",
+          "covers": "实际使用确认后的Render帧，不回退计划Marker。"
+        }
+      ],
+      "gaps": [
+        "真实Logic差异接受流程仍待Owner验证。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "real-logic",
+          "state": "not-run",
+          "gap": "未操作真实Logic工作区、导出或完成Owner人工时间线验收。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "D-07",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 147,
+        "text": "| D-07 | 分面改变、容量不适配、结构性 Lead-in/Tail 改变 | REQUIRES_NEW_LAYOUT，旧 PREP 不能直接投入新 Plan |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/render-conformance.test.ts",
+          "line": 8,
+          "testName": "Render 五态依据逐曲身份、精确帧与人工确认，不靠文件名或总时长猜测",
+          "evidenceKind": "software",
+          "covers": "换面、结构性边界/容量变化须新Layout。"
+        },
+        {
+          "path": "packages/bridge-core/test/prepared-render.test.ts",
+          "line": 158,
+          "testName": "未确认 Marker、需要新母版或布局均不能靠伪造接受状态冻结 PREP",
+          "evidenceKind": "synthetic",
+          "covers": "不能伪造接受态绕过新布局。"
+        }
+      ],
+      "gaps": [
+        "真实Logic更长Render/Lead-in/Tail变动仍未验。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "real-logic",
+          "state": "not-run",
+          "gap": "未操作真实Logic工作区、导出或完成Owner人工时间线验收。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic",
+          "final-verify-01-software"
+        ]
+      }
+    },
+    {
+      "id": "D-08",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 148,
+        "text": "| D-08 | Marker 候选或未确认导出 | 不自动变为档案事实；未达导入条件则阻断 Freeze |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/prepared-render.test.ts",
+          "line": 158,
+          "testName": "未确认 Marker、需要新母版或布局均不能靠伪造接受状态冻结 PREP",
+          "evidenceKind": "synthetic",
+          "covers": "未确认Marker、母版或布局不通过冻结。"
+        }
+      ],
+      "gaps": [
+        "真实Logic导出及人工确认来源尚未验。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "real-logic",
+          "state": "not-run",
+          "gap": "未操作真实Logic工作区、导出或完成Owner人工时间线验收。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "D-09",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 149,
+        "text": "| D-09 | Prepared 与 Execution Format 不同 | 保留原 Render，创建带转换谱系的独立 Execution Derivative |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/execution-assets.test.ts",
+          "line": 146,
+          "testName": "V2 PREP Derivative 使用实际 Render 位深生成独立文件，保留原件且不加 Gap",
+          "evidenceKind": "synthetic",
+          "covers": "从实际Render位深生成独立文件，保原件、不加Gap。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "D-10",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 150,
+        "text": "| D-10 | Plan 引用不匹配的 M/L/P/R/Execution Hash | Preflight 拒绝，不自行修正或替换 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/execution-plan.test.ts",
+          "line": 56,
+          "testName": "错误 M/L/内容/时间线/绑定引用拒绝，不根据当前草稿替换冻结事实",
+          "evidenceKind": "synthetic",
+          "covers": "错误引用拒绝、不自动替换当前版本。"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-plan.test.ts",
+          "line": 137,
+          "testName": "归档需FINALIZED，已冻结后对象损坏不能复用历史verified判据",
+          "evidenceKind": "synthetic",
+          "covers": "历史verified不能掩盖当前对象损坏。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "D-11",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 151,
+        "text": "| D-11 | 更新默认 Profile、Artwork 或 J-Card 模板 | 已完成 Recording Snapshot 与 Printed Artifact 不变 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/recording-plan.test.ts",
+          "line": 72,
+          "testName": "当前Session overrides形成新Plan快照，旧asset与旧Plan保持原值；旧Plan预检不使用后来参数",
+          "evidenceKind": "synthetic",
+          "covers": "新参数快照不改旧asset/旧Plan。"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-print-store.test.ts",
+          "line": 98,
+          "testName": "Artwork明确Master归属、CAS与命令幂等，Completed捕获旧版且后改不漂移",
+          "evidenceKind": "synthetic",
+          "covers": "新Artwork不回填已Completed捕获版本。"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-print-store.test.ts",
+          "line": 112,
+          "testName": "失败不回滚Completed；明确重试、私有lease、完成幂等与旧PDF字节保持",
+          "evidenceKind": "synthetic",
+          "covers": "重试固定facts、PDF原字节与回执。"
+        }
+      ],
+      "gaps": [
+        "当前只有jp0-basic-v1模板，真实第二模板切换尚不存在；不可变模板ID/hash保护不等于跨模板UI验收。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "E-01",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 165,
+        "text": "| E-01 | 复制开始前空间不足 | 不产生正式对象，源文件不变 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/archive-files.test.ts",
+          "line": 92,
+          "testName": "空间不足、取消不创建暂存；复制时源被替换不会晋级",
+          "evidenceKind": "synthetic",
+          "covers": "复制前不足空间不建暂存、不改源。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "E-02",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 166,
+        "text": "| E-02 | 复制中空间耗尽 | staging 可恢复或清理，没有可引用的半成品 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/archive-files.test.ts",
+          "line": 58,
+          "testName": "部分复制失败保留现场；同一意图恢复不覆盖半成品或重新写原件",
+          "evidenceKind": "synthetic",
+          "covers": "失败现场保留、半成品不可晋级或覆盖原件。"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-backup.test.ts",
+          "line": 166,
+          "testName": "复制中磁盘写满留下未完成目录，源与已完成归档不受损",
+          "evidenceKind": "synthetic",
+          "covers": "中途ENOSPC不完成，源/旧归档不受损。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "E-03",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 167,
+        "text": "| E-03 | 复制中强制结束进程 | 重启恢复未完成操作，不伪造 Frozen PREP |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "line": 41,
+          "testName": "INTENT_WRITTEN 中断后冷连接重复恢复 1/2/10 次无重复对象或引用",
+          "evidenceKind": "synthetic",
+          "covers": "INTENT_WRITTEN时中断后冷连接恢复幂等。",
+          "template": "${cut} 中断后冷连接重复恢复 1/2/10 次无重复对象或引用"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-files.test.ts",
+          "line": 58,
+          "testName": "部分复制失败保留现场；同一意图恢复不覆盖半成品或重新写原件",
+          "evidenceKind": "synthetic",
+          "covers": "部分复制不生成正式可引用对象。"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "line": 137,
+          "testName": "真实复制首块落盘后SIGKILL，保留partial且冷恢复1/2/10次不改源、库存或重复引用",
+          "evidenceKind": "synthetic",
+          "covers": "真实生产copyReadonlySource首个64KiB写入并fsync后由父进程SIGKILL；保留partial，在冷连接第1/2/10次恢复逐次核正式对象Hash、引用、库存、PREP/Plan/Record及源字节和inode/mtime/ctime。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "E-04",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 168,
+        "text": "| E-04 | Hash/同步完成后崩溃 | 可验证后继续 Promote 或清理，不重复创建对象 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "line": 41,
+          "testName": "VERIFIED 中断后冷连接重复恢复 1/2/10 次无重复对象或引用",
+          "evidenceKind": "synthetic",
+          "covers": "VERIFIED后中断、冷连接10次恢复不重复。",
+          "template": "${cut} 中断后冷连接重复恢复 1/2/10 次无重复对象或引用"
+        }
+      ],
+      "gaps": [
+        "该窗口用受控异常而非实际进程强杀；Hash/同步系统调用的实际崩溃时序另保留边界。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "E-05",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 169,
+        "text": "| E-05 | Promote 后、DB Commit 前崩溃 | 读取 Operation Manifest，验证正式 Hash，幂等补交或 Quarantine |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "line": 121,
+          "testName": "真实子进程 PROMOTED 后 SIGKILL，SQLite/WAL 冷恢复与对象 Hash 保持一致",
+          "evidenceKind": "synthetic",
+          "covers": "PROMOTED后真实子进程SIGKILL，冷恢复不重读原件。",
+          "template": "真实子进程 ${cut} 后 SIGKILL，SQLite/WAL 冷恢复与对象 Hash 保持一致"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "line": 71,
+          "testName": "文件发布后 SQLite 提交回滚，不提前引用；下次只补交不复制",
+          "evidenceKind": "synthetic",
+          "covers": "DB提交失败不提前引用、只补交。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "E-06",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 170,
+        "text": "| E-06 | DB Commit 后、Finalize 前崩溃 | 验证对象后完成清理，不重复关联或计数 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "line": 121,
+          "testName": "真实子进程 DB_COMMITTED 后 SIGKILL，SQLite/WAL 冷恢复与对象 Hash 保持一致",
+          "evidenceKind": "synthetic",
+          "covers": "DB_COMMITTED后真实SIGKILL，冷恢复不重复引用。",
+          "template": "真实子进程 ${cut} 后 SIGKILL，SQLite/WAL 冷恢复与对象 Hash 保持一致"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "line": 199,
+          "testName": "DB 已提交后的取消只中断本次运行，恢复仍完成收尾且不重读源",
+          "evidenceKind": "synthetic",
+          "covers": "恢复收尾不重读源。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "E-07",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 171,
+        "text": "| E-07 | 同一恢复执行 1/2/10 次 | 最终对象、引用和库存相同，无重复 Content Object |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "line": 41,
+          "testName": "INTENT_WRITTEN 中断后冷连接重复恢复 1/2/10 次无重复对象或引用",
+          "evidenceKind": "synthetic",
+          "covers": "INTENT_WRITTEN后冷连接第1/2/10次逐次比FINALIZED、引用、对象名集合与库存详情；每次等于第1次，不把异常注入称真进程SIGKILL。",
+          "template": "${cut} 中断后冷连接重复恢复 1/2/10 次无重复对象或引用"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "line": 41,
+          "testName": "STAGED 中断后冷连接重复恢复 1/2/10 次无重复对象或引用",
+          "evidenceKind": "synthetic",
+          "covers": "STAGED后冷连接第1/2/10次逐次比FINALIZED、引用、对象名集合与库存详情；每次等于第1次，不把异常注入称真进程SIGKILL。",
+          "template": "${cut} 中断后冷连接重复恢复 1/2/10 次无重复对象或引用"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "line": 41,
+          "testName": "VERIFIED 中断后冷连接重复恢复 1/2/10 次无重复对象或引用",
+          "evidenceKind": "synthetic",
+          "covers": "VERIFIED后冷连接第1/2/10次逐次比FINALIZED、引用、对象名集合与库存详情；每次等于第1次，不把异常注入称真进程SIGKILL。",
+          "template": "${cut} 中断后冷连接重复恢复 1/2/10 次无重复对象或引用"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "line": 41,
+          "testName": "PROMOTED 中断后冷连接重复恢复 1/2/10 次无重复对象或引用",
+          "evidenceKind": "synthetic",
+          "covers": "PROMOTED后冷连接第1/2/10次逐次比FINALIZED、引用、对象名集合与库存详情；每次等于第1次，不把异常注入称真进程SIGKILL。",
+          "template": "${cut} 中断后冷连接重复恢复 1/2/10 次无重复对象或引用"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "line": 41,
+          "testName": "DB_COMMITTED 中断后冷连接重复恢复 1/2/10 次无重复对象或引用",
+          "evidenceKind": "synthetic",
+          "covers": "DB_COMMITTED后冷连接第1/2/10次逐次比FINALIZED、引用、对象名集合与库存详情；每次等于第1次，不把异常注入称真进程SIGKILL。",
+          "template": "${cut} 中断后冷连接重复恢复 1/2/10 次无重复对象或引用"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "line": 137,
+          "testName": "真实复制首块落盘后SIGKILL，保留partial且冷恢复1/2/10次不改源、库存或重复引用",
+          "evidenceKind": "synthetic",
+          "covers": "真实生产copyReadonlySource首个64KiB写入并fsync后由父进程SIGKILL；保留partial，在冷连接第1/2/10次恢复逐次核正式对象Hash、引用、库存、PREP/Plan/Record及源字节和inode/mtime/ctime。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "E-08",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 172,
+        "text": "| E-08 | Archive Root 中途离线 | 明确失败/待恢复，原始源不受影响 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/archive-files.test.ts",
+          "line": 80,
+          "testName": "目录离线、替换和符号链接失效；越界输入不能写意图",
+          "evidenceKind": "synthetic",
+          "covers": "离线/目录替换/链接导致能力失效。"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-workflow.test.ts",
+          "line": 143,
+          "testName": "复制中 archive 立即中断，不提交引用、不删除部分文件，冷启动不自动重放取消",
+          "evidenceKind": "synthetic",
+          "covers": "复制中撤销archive授权中断并保留部分现场。",
+          "template": "复制中 ${action} 立即中断，不提交引用、不删除部分文件，冷启动不自动重放取消"
+        }
+      ],
+      "gaps": [
+        "真实网络Archive Root复制中掉线未测，当前是隔离目录与权限模拟。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "E-09",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 173,
+        "text": "| E-09 | 正式文件 Hash 不符 | Quarantine，阻止 Freeze/执行，不覆盖既有正常共享对象 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/archive-files.test.ts",
+          "line": 68,
+          "testName": "Hash 或格式错误不发布；损坏的已有对象不会被新副本覆盖",
+          "evidenceKind": "synthetic",
+          "covers": "坏对象不发布、不覆盖原有共享对象。"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-restore.test.ts",
+          "line": 109,
+          "testName": "Manifest 索引标记 changed 为 Quarantine 问题，不删除或改写共享对象",
+          "evidenceKind": "synthetic",
+          "covers": "改写对象标为Quarantine且不删除。",
+          "template": "Manifest 索引标记 ${fault} 为 Quarantine 问题，不删除或改写共享对象"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "E-10",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 174,
+        "text": "| E-10 | 完全相同内容重复导入 | 内容去重、引用正确，业务对象身份不混淆 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "line": 91,
+          "testName": "并发重复请求与不同操作按 Root 串行，内容复用不重复建对象",
+          "evidenceKind": "synthetic",
+          "covers": "按Root串行、相同内容复用而业务操作独立。"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-backup.test.ts",
+          "line": 179,
+          "testName": "多个操作共享内容只备份一次，SQLite 照片和库存随快照保留",
+          "evidenceKind": "synthetic",
+          "covers": "共享内容只备份一次，照片/库存仍保留。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "E-11",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 175,
+        "text": "| E-11 | 数据库有引用但文件缺失 | ArchiveRecoveryRequired；相关 Formal/Replica 阻断 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "line": 80,
+          "testName": "已提交对象丢失或损坏必须记录恢复要求，反复恢复不删引用或伪成功",
+          "evidenceKind": "synthetic",
+          "covers": "缺失/损坏记录恢复要求，不能伪成功或删引用。"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-replica-input.test.ts",
+          "line": 35,
+          "testName": "FINALIZED真实对象保持单链接，额外硬链或改写字节不能消费",
+          "evidenceKind": "synthetic",
+          "covers": "真正字节改变或硬链不能消费。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "E-12",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 176,
+        "text": "| E-12 | 一致性备份后恢复 | Master/PREP/Recording/Inventory 关系完整，已声明包含的内容文件可用 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/archive-restore.test.ts",
+          "line": 21,
+          "testName": "完整备份恢复成隔离候选，旧目录权限撤销而库存和版本关系不改写",
+          "evidenceKind": "synthetic",
+          "covers": "库存/版本关系保留而旧权限撤销。"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-print-backup.test.ts",
+          "line": 5,
+          "testName": "schema21完整音频备份同时保留Artwork/PDF/preview/request/event原字节，隔离恢复不重生成",
+          "evidenceKind": "synthetic",
+          "covers": "最新Record/Print/Artwork对象原字节恢复。"
+        },
+        {
+          "path": "packages/bridge-core/test/restore-content-binding.test.ts",
+          "line": 45,
+          "testName": "原归档离线后从恢复对象再次全内容备份，复核与再次隔离恢复成功",
+          "evidenceKind": "synthetic",
+          "covers": "从恢复对象再次全内容备份并再次恢复。"
+        },
+        {
+          "path": "apps/desktop/e2e/task-078.spec.ts",
+          "line": 130,
+          "testName": "V3同数据集7盘：幂等Completed、Replica历史核验、真实J-Card与完整备份激活冷启守恒",
+          "evidenceKind": "native-no-device",
+          "covers": "真实App公开API执行archive-content备份、verify、隔离restore；19库存/Record/Print业务表和PDF/preview原字节保持。真实UI激活后旧scope拒绝，导航重挂仍需显式reload；旧归档移离后恢复binding的Replica历史仍verified，冷启保持。J-Card由真实worker生成/导出，未伪造IPC结果；无设备且mock-keychain不证明系统钥匙串。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic",
+          "final-e2e-01-native-no-device"
+        ]
+      }
+    },
+    {
+      "id": "E-13",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 177,
+        "text": "| E-13 | 同一备份恢复两次 | 不重复、不丢关系、不覆盖恢复后更新的用户数据，冲突显式处理 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/archive-restore.test.ts",
+          "line": 53,
+          "testName": "恢复回执重复返回同一候选，候选库新写入后重试显式冲突且不覆盖新数据",
+          "evidenceKind": "synthetic",
+          "covers": "重复返回原候选，新写入后显式冲突不覆盖。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "E-14",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 178,
+        "text": "| E-14 | 从 Manifest 重建基本索引 | 不伪造已完成状态；无法恢复字段明确标记缺失 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/archive-restore.test.ts",
+          "line": 96,
+          "testName": "无数据库时从 Manifest 重建基本索引，重复检查不改文件、不伪造完成或库存",
+          "evidenceKind": "synthetic",
+          "covers": "historyTrusted=false/inventoryReconstructed=false，缺失完成字段显式保留。"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-restore.test.ts",
+          "line": 131,
+          "testName": "原生 Archive Root 的 Operations Manifest 也可重建基本索引，不依赖备份包",
+          "evidenceKind": "synthetic",
+          "covers": "原生Operations Manifest也可基本索引，不依赖备份DB。"
+        }
+      ],
+      "gaps": [
+        "基本索引不是库存或Completed重建；丢失字段无法推断且必须维持未知。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "E-15",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 179,
+        "text": "| E-15 | 源文件和既有归档对象前后比对 | 故障注入不修改源或无关对象；清理受 operation 所有权约束 |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/archive-files.test.ts",
+          "line": 34,
+          "testName": "完整阶段、只读源保护与原子对象发布；重复 Finalize 不删除对象",
+          "evidenceKind": "synthetic",
+          "covers": "源不改、原子对象发布、重复Finalize不删对象。"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-files.test.ts",
+          "line": 106,
+          "testName": "暂存 link 后进程中断：恢复只移除同 inode 的成功副本别名，保留失败半成品",
+          "evidenceKind": "synthetic",
+          "covers": "只删同inode成功别名，不删失败半成品。"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-backup.test.ts",
+          "line": 147,
+          "testName": "复制中断或取消不发布完成标记，原件和活动数据库不变",
+          "evidenceKind": "synthetic",
+          "covers": "源与活动DB原样，无完成标记。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "U-01",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 212,
+        "text": "| U-01 | 录入原版 CD 与原版磁带，并确认 Roon 关系 | 同一实体音乐库可浏览和筛选；Exact/Probable/Related 有区别，未匹配不当作不存在 | MVP 20～22、Gate A |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 347,
+          "testName": "原版实体发行版独立于库存，命令幂等、更新冲突与重启持久化",
+          "evidenceKind": "synthetic",
+          "covers": "CD本地录入、筛选与重启。"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 440,
+          "testName": "Roon 关系不凭同名合并数字对象，Related 不计同版收藏，原版磁带不能冒充 CD Rip",
+          "evidenceKind": "synthetic",
+          "covers": "Exact/Related/版次与自录不混。"
+        },
+        {
+          "path": "packages/bridge-core/test/physical-links-coordinator.test.ts",
+          "line": 38,
+          "testName": "离线保留实体关系，旧引用不重连；重新定位必须明确确认当前专辑",
+          "evidenceKind": "synthetic",
+          "covers": "未匹配/离线不删除本地资料。"
+        }
+      ],
+      "gaps": [
+        "真实Roon关系确认与Owner实体对应未验。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "real-roon",
+          "state": "not-run",
+          "gap": "未连接真实Roon/Provider账号或操作真实Zone。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    },
+    {
+      "id": "U-02",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 213,
+        "text": "| U-02 | 打开含实物照片、参考图、缺图、长名称的收藏库 | 照片是主体，型号/版次/数量可读；图片来源清楚，图框稳定、不误裁；可用键盘进入详情 | MVP 24、视觉及 Owner |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "apps/desktop/e2e/task-071.spec.ts",
+          "line": 151,
+          "testName": "V3交互：两库照片按需读取、失败单图重试、长名与横竖图保持原始资料",
+          "evidenceKind": "native-no-device",
+          "covers": "合成横竖照片按需读取/失败重试/长名/无图与键盘入口。"
+        }
+      ],
+      "gaps": [
+        "真实实物/参考图视觉与Owner评审独立，不以axe替代美观确认。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-e2e-01-native-no-device"
+        ]
+      }
+    },
+    {
+      "id": "U-03",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 214,
+        "text": "| U-03 | 合成型号拥有 7 盘：未开封空白 5、已拆空白 1、已录音 1 | 型号只占一个收藏卡位；详情数量为 7，按时长可展开，未知数量不算空白；不为了展示批量实例化 | MVP 12、25～27、Gate C |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "line": 1259,
+          "testName": "V3 真实库存录入、实例化与刷新后数量保持一致",
+          "evidenceKind": "native-no-device",
+          "covers": "现有数量/实例化/刷新守恒。"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-progress-store.test.ts",
+          "line": 49,
+          "testName": "候选不Owned、空known不AllLengths，未知/目录外长度分别计数且不重复Copy",
+          "evidenceKind": "synthetic",
+          "covers": "长度展开与真实实体不双计。"
+        },
+        {
+          "path": "apps/desktop/e2e/task-078.spec.ts",
+          "line": 130,
+          "testName": "V3同数据集7盘：幂等Completed、Replica历史核验、真实J-Card与完整备份激活冷启守恒",
+          "evidenceKind": "native-no-device",
+          "covers": "同一合成型号预留前由真实Core核总7盘、5封存/1拆封/1旧录音、仅旧录音1盘实例化；私有Fake仅建立后续Completed前置，不冒称UI录制。真实App API随后核同一型号与两实体，并在隔离恢复激活、显式reload及冷启后保持；mock-keychain仅隔离软件链。"
+        }
+      ],
+      "gaps": [],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic",
+          "final-e2e-01-native-no-device"
+        ]
+      }
+    },
+    {
+      "id": "U-04",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 215,
+        "text": "| U-04 | 从型号详情打开已录音副本 | 显示实体编号、标题、J-Card/封面及 A/B 曲目；未知旧录音显示待补录；跳到实体音乐库仍是同一副本 | MVP 17、19、Gate D/E |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "apps/desktop/e2e/task-075.spec.ts",
+          "line": 138,
+          "testName": "V3受控完成档案展示冻结事实，照片按需读取与单图重试不启动录音",
+          "evidenceKind": "native-no-device",
+          "covers": "冻结档案、照片按需/重试与真实详情。"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 366,
+          "testName": "历史自录只补已有单盘内容，两个库仍指向相同身份且不伪造正式录音",
+          "evidenceKind": "synthetic",
+          "covers": "未知legacy补录/同一副本身份，不增库存。"
+        }
+      ],
+      "gaps": [
+        "J-Card从型号单盘跳转与同一7盘闭环待078纵切，不以分别打开详情替代。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic",
+          "final-e2e-01-native-no-device"
+        ]
+      }
+    },
+    {
+      "id": "U-05",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 216,
+        "text": "| U-05 | U-03 的已拆空白完成录音后重复发送完成通知或重启恢复 | 总数仍为 7：未开封空白 5、已拆空白 0、已录音 2；实体音乐库自动出现一次自录条目，型号下内容一致 | MVP 12、17、Gate C/E |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/recording-record.test.ts",
+          "line": 11,
+          "testName": "首次Completed同事务生成不可变档案、当前内容与recorded状态，不新增库存或重复登记",
+          "evidenceKind": "synthetic",
+          "covers": "合成首次Completed及重复通知只一条双库记录。"
+        },
+        {
+          "path": "apps/desktop/e2e/task-078.spec.ts",
+          "line": 130,
+          "testName": "V3同数据集7盘：幂等Completed、Replica历史核验、真实J-Card与完整备份激活冷启守恒",
+          "evidenceKind": "native-no-device",
+          "covers": "同一7盘fixture以私有Fake建立Completed前置，重复同一确认DTO只一条Record，5/1/1变5/0/2且总数仍7。随后真实App API核一条自录加一条旧录音、双库同physicalId，无commercial重复登记；恢复激活和冷启不增库存或记录。不是实机或UI录音证据。"
+        }
+      ],
+      "gaps": [
+        "真实实体录制硬件与听感仍未验；Completed来自私有Fake前置，不是从UI录制真实磁带。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "hardware",
+          "state": "not-run",
+          "gap": "Gate B真实设备配置、输出端测量与实体录制未认证；禁止formalReady。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic",
+          "final-e2e-01-native-no-device"
+        ]
+      }
+    },
+    {
+      "id": "U-06",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 217,
+        "text": "| U-06 | 新增跨多张 Roon 专辑的自录精选 | 可追溯每首录音源；类型为自录，不自动生成商业 Exact 关系或增加原版拥有数量 | MVP 22、Gate A/D |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "line": 1776,
+          "testName": "V3 录音选曲草稿：取消不写入、跨专辑选曲、排序与重启保留未验证来源",
+          "evidenceKind": "native-no-device",
+          "covers": "跨专辑明确选曲/排序/冷启未验证源。"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 455,
+          "testName": "关联提交失败不留下数字孤儿或部分关系；历史副本不能作为商业原版关联",
+          "evidenceKind": "synthetic",
+          "covers": "自录单盘不能建立商业原版关系。"
+        }
+      ],
+      "gaps": [
+        "真实Roon多专辑与实体录制未验；自录录制不能由合成草稿视为完成。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "real-roon",
+          "state": "not-run",
+          "gap": "未连接真实Roon/Provider账号或操作真实Zone。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic",
+          "final-e2e-01-native-no-device"
+        ]
+      }
+    },
+    {
+      "id": "U-07",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 218,
+        "text": "| U-07 | 开始录音并从 Roon 选曲，尚未完成源验证或 Logic | 可先看标为初步估算的库存推荐及理由；不自动接管播放、预留介质或允许正式开录 | MVP 4、14、V2 Regression |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "line": 1770,
+          "testName": "V3 录音选曲入口可用，选曲前不要求库存或设备",
+          "evidenceKind": "native-no-device",
+          "covers": "选曲前不要求库存或设备。"
+        },
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "line": 1929,
+          "testName": "V3 分面与库存：浏览不写入，明确预留、取消与冷启动保持实体守恒",
+          "evidenceKind": "native-no-device",
+          "covers": "浏览估算不自动预留。"
+        },
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "line": 1195,
+          "testName": "V3 导航不触发播放变更 IPC，保留正在播放的曲目、队列和 Zone",
+          "evidenceKind": "native-no-device",
+          "covers": "不改现播放/队列/Zone。"
+        }
+      ],
+      "gaps": [
+        "真实Roon来源与设备互动未验。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "real-roon",
+          "state": "not-run",
+          "gap": "未连接真实Roon/Provider账号或操作真实Zone。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-e2e-01-native-no-device"
+        ]
+      }
+    },
+    {
+      "id": "U-08",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 219,
+        "text": "| U-08 | 候选含已拆空白、封存收藏、已录音、预留、未知和不适配时长 | 只推荐已拥有且合规可用库存；约束内优先已拆空白；逐面检查容量；无候选时明确原因、不自动擦除 | MVP 12、14、Gate C |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "line": 649,
+          "testName": "库存候选仅计可用空白和已擦除，未知/旧录音/预留/不可用不混入",
+          "evidenceKind": "synthetic",
+          "covers": "只计可用空白/合法已擦除，排除未知/预留/不可用。"
+        },
+        {
+          "path": "packages/bridge-core/test/media-planning.test.ts",
+          "line": 51,
+          "testName": "收藏保护与最低未拆保留线跨 SKU 生效；无源或布局冲突不能预留",
+          "evidenceKind": "software",
+          "covers": "CollectorPolicy/最低保留线参与。"
+        },
+        {
+          "path": "packages/bridge-core/test/media-planning.test.ts",
+          "line": 42,
+          "testName": "总时长装得下但 A 面超长仍排除；不把未知兼容性当成可正式使用",
+          "evidenceKind": "software",
+          "covers": "各面容量不足不可用，不猜兼容性。"
+        }
+      ],
+      "gaps": [
+        "约束内“优先已拆空白”的排序专项断言需单独补证，不能由候选过滤推定排序正确。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic",
+          "final-verify-01-software"
+        ]
+      }
+    },
+    {
+      "id": "U-09",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 220,
+        "text": "| U-09 | 选定磁带后改变曲序/间隔，或导入更长的 Logic Render | 重新计算布局、推荐与容量；不自动换磁带，不用旧适配结论进入正式录音 | MVP 7、9、14、Gate B/D |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "line": 226,
+          "testName": "分面重新取实际源时长，绑定与内容变化使旧规划失效且不能回退估算",
+          "evidenceKind": "synthetic",
+          "covers": "源变化使旧规划失效、不回估算。"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-plan.test.ts",
+          "line": 48,
+          "testName": "preview后会话、实体可用性或预留变化均拒绝冻结，不能凭旧确认写Plan",
+          "evidenceKind": "synthetic",
+          "covers": "预留/可用性变化不能凭旧确认冻结。"
+        },
+        {
+          "path": "packages/bridge-core/test/render-conformance.test.ts",
+          "line": 8,
+          "testName": "Render 五态依据逐曲身份、精确帧与人工确认，不靠文件名或总时长猜测",
+          "evidenceKind": "software",
+          "covers": "更长Render/结构变化要求新布局。"
+        }
+      ],
+      "gaps": [
+        "真实Logic改长Render尚未验；自动不得换磁带的软件路径与实际人工流程分列。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic",
+          "final-verify-01-software"
+        ]
+      }
+    },
+    {
+      "id": "U-10",
+      "source": {
+        "path": "project/V3_DEVELOPMENT_PACK.md",
+        "line": 221,
+        "text": "| U-10 | 录音中断、旧录音人工补录或 Roon 暂时离线 | 不伪造 Completed、不把可能写入的磁带自动退为空白；旧录音保留补录标记；实体记录和历史不因数字链接离线被删除 | MVP 12、17、22、Gate B/C/E |"
+      },
+      "status": "mapped",
+      "mappings": [
+        {
+          "path": "packages/bridge-core/test/recording-attempt.test.ts",
+          "line": 1204,
+          "testName": "开始后的实体不能从规划或手工释放为空白，库存数量不变",
+          "evidenceKind": "synthetic",
+          "covers": "中断后不自动回空白且不增数量。"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-record-disposition.test.ts",
+          "line": 78,
+          "testName": "unknown处置只新增认知历史，原档案可检索但两库不泄露旧标题",
+          "evidenceKind": "synthetic",
+          "covers": "未知内容不借旧标题，旧档案可查询。"
+        },
+        {
+          "path": "packages/bridge-core/test/physical-links-coordinator.test.ts",
+          "line": 38,
+          "testName": "离线保留实体关系，旧引用不重连；重新定位必须明确确认当前专辑",
+          "evidenceKind": "synthetic",
+          "covers": "离线不删资料、不自动重定位。"
+        }
+      ],
+      "gaps": [
+        "真实输出中断/实体停机/Roon离线的联合实机证据仍缺。"
+      ],
+      "externalRequirements": [
+        {
+          "kind": "owner",
+          "state": "not-run",
+          "gap": "Owner产品/视觉/真实操作接受未执行，自动软件证据不可替代。"
+        },
+        {
+          "kind": "hardware",
+          "state": "not-run",
+          "gap": "Gate B真实设备配置、输出端测量与实体录制未认证；禁止formalReady。"
+        },
+        {
+          "kind": "real-roon",
+          "state": "not-run",
+          "gap": "未连接真实Roon/Provider账号或操作真实Zone。"
+        }
+      ],
+      "freshGate": {
+        "state": "passed",
+        "evidenceIds": [
+          "final-verify-01-synthetic"
+        ]
+      }
+    }
+  ],
+  "evidence": [
+    {
+      "id": "final-verify-01-synthetic",
+      "kind": "synthetic",
+      "executedAt": "2026-08-29T13:38:18.968Z",
+      "command": [
+        "corepack",
+        "pnpm@10.17.1",
+        "verify"
+      ],
+      "exitCode": 0,
+      "candidate": {
+        "path": "reports/runtime/task-078-v3-acceptance/candidate-final-fresh-01.json",
+        "sha256": "9d53a9719e21f812fc6adc5907f53fd691e3d44b4f18880e676e2d8834c5d290"
+      },
+      "log": {
+        "path": "reports/runtime/task-078-v3-acceptance/final-verify-01.log",
+        "sha256": "80b3d255fbbe158510f7666ee26542a907a087f7f9b38bbd3f3643f2e3b119f0"
+      },
+      "cases": [
+        {
+          "path": "packages/bridge-core/test/archive-backup.test.ts",
+          "testName": "复制中断或取消不发布完成标记，原件和活动数据库不变",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-backup.test.ts",
+          "testName": "复制中磁盘写满留下未完成目录，源与已完成归档不受损",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-backup.test.ts",
+          "testName": "多个操作共享内容只备份一次，SQLite 照片和库存随快照保留",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-files.test.ts",
+          "testName": "完整阶段、只读源保护与原子对象发布；重复 Finalize 不删除对象",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-files.test.ts",
+          "testName": "部分复制失败保留现场；同一意图恢复不覆盖半成品或重新写原件",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-files.test.ts",
+          "testName": "Hash 或格式错误不发布；损坏的已有对象不会被新副本覆盖",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-files.test.ts",
+          "testName": "目录离线、替换和符号链接失效；越界输入不能写意图",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-files.test.ts",
+          "testName": "空间不足、取消不创建暂存；复制时源被替换不会晋级",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-files.test.ts",
+          "testName": "暂存 link 后进程中断：恢复只移除同 inode 的成功副本别名，保留失败半成品",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-restore.test.ts",
+          "testName": "完整备份恢复成隔离候选，旧目录权限撤销而库存和版本关系不改写",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-restore.test.ts",
+          "testName": "恢复回执重复返回同一候选，候选库新写入后重试显式冲突且不覆盖新数据",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-restore.test.ts",
+          "testName": "无数据库时从 Manifest 重建基本索引，重复检查不改文件、不伪造完成或库存",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-restore.test.ts",
+          "testName": "Manifest 索引标记 changed 为 Quarantine 问题，不删除或改写共享对象",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-restore.test.ts",
+          "testName": "原生 Archive Root 的 Operations Manifest 也可重建基本索引，不依赖备份包",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "testName": "DB_COMMITTED 中断后冷连接重复恢复 1/2/10 次无重复对象或引用",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "testName": "INTENT_WRITTEN 中断后冷连接重复恢复 1/2/10 次无重复对象或引用",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "testName": "PROMOTED 中断后冷连接重复恢复 1/2/10 次无重复对象或引用",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "testName": "STAGED 中断后冷连接重复恢复 1/2/10 次无重复对象或引用",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "testName": "VERIFIED 中断后冷连接重复恢复 1/2/10 次无重复对象或引用",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "testName": "文件发布后 SQLite 提交回滚，不提前引用；下次只补交不复制",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "testName": "已提交对象丢失或损坏必须记录恢复要求，反复恢复不删引用或伪成功",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "testName": "并发重复请求与不同操作按 Root 串行，内容复用不重复建对象",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "testName": "真实子进程 DB_COMMITTED 后 SIGKILL，SQLite/WAL 冷恢复与对象 Hash 保持一致",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "testName": "真实子进程 PROMOTED 后 SIGKILL，SQLite/WAL 冷恢复与对象 Hash 保持一致",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "testName": "真实复制首块落盘后SIGKILL，保留partial且冷恢复1/2/10次不改源、库存或重复引用",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-transactions.test.ts",
+          "testName": "DB 已提交后的取消只中断本次运行，恢复仍完成收尾且不重读源",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/archive-workflow.test.ts",
+          "testName": "复制中 archive 立即中断，不提交引用、不删除部分文件，冷启动不自动重放取消",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-progress-store.test.ts",
+          "testName": "Owned90再Wanted46仍分子1，品牌/系列守恒，读取不改库存与目录历史",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-progress-store.test.ts",
+          "testName": "候选不Owned、空known不AllLengths，未知/目录外长度分别计数且不重复Copy",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-progress-store.test.ts",
+          "testName": "Want编辑/取消版本历史、幂等冲突；cancel终态且提交故障不留部分账本",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-progress-store.test.ts",
+          "testName": "旧revision目标原标签需复核、不拆分复制；显式编辑可重绑当前",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-progress-store.test.ts",
+          "testName": "分页保留整体统计与同一fingerprint，Renderer不能伪造参考标签或跳过确认",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "testName": "同型号版次不同时长只产生一个型号；版次不同独立保存",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "testName": "已用三盘与未知七盘不能算可用空白，也不自动分配实体 ID",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "testName": "拆封在一个事务内把 Pool 8 转为 Pool 7 + Copy 1",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "testName": "旧录音登记从 Legacy Used 转出，标为历史来源且总数不增加",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "testName": "两个独立进程并发提交相同命令，只有一个数量和账本结果",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "testName": "提交前故障回滚数量、实体 ID 及账本；可安全重试",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "testName": "DAT 使用独立永久序列，重复补货不修改已有保护与确认信息",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "testName": "品牌、关键词与年代查询在分页前筛选，不改变全量库存",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "testName": "原版实体发行版独立于库存，命令幂等、更新冲突与重启持久化",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "testName": "历史自录只补已有单盘内容，两个库仍指向相同身份且不伪造正式录音",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "testName": "Roon 关系不凭同名合并数字对象，Related 不计同版收藏，原版磁带不能冒充 CD Rip",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "testName": "关联提交失败不留下数字孤儿或部分关系；历史副本不能作为商业原版关联",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "testName": "选曲草稿持久化独立身份、幂等追加和显式曲序，不把浏览信息当 Source Lock",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/collection-repository.test.ts",
+          "testName": "库存候选仅计可用空白和已擦除，未知/旧录音/预留/不可用不混入",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/execution-assets.test.ts",
+          "testName": "V2 转换任务明确预览后发布所有中间文件和最终音频，命令幂等且无路径泄漏",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/execution-assets.test.ts",
+          "testName": "V2 PREP Derivative 使用实际 Render 位深生成独立文件，保留原件且不加 Gap",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/execution-assets.test.ts",
+          "testName": "V2 未配置固定转换器时明确拒绝，不自动搜索或启用系统 FFmpeg",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/execution-compiler.test.ts",
+          "testName": "最终 96k WAV 的两个 Gap 各 480000 帧，源首尾静音和全部 PCM 字节保留",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/execution-compiler.test.ts",
+          "testName": "Prepared 返回同一原始 Render Hash，不复制或再次加 Gap",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/execution-compiler.test.ts",
+          "testName": "复制期间源变化、取消、撤权不产生成功回执",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/execution-compiler.test.ts",
+          "testName": "明确不支持的格式、畸形 RIFF/重复数据/错误块对齐在写入前阻断",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/execution-compiler.test.ts",
+          "testName": "转换输出回读实际整数/浮点及扩展 WAV，整文件和 PCM 分别 Hash；旧复制入口仍拒绝",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/execution-plan.test.ts",
+          "testName": "数据库 Frozen M/L 到 Direct 实际文件：保留各面源帧，使用执行时基重新算 Gap",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/execution-plan.test.ts",
+          "testName": "错误 M/L/内容/时间线/绑定引用拒绝，不根据当前草稿替换冻结事实",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/execution-plan.test.ts",
+          "testName": "Prepared 的实际时间线、人工确认、原件 Hash 和输入谱系逐一核验",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/execution-plan.test.ts",
+          "testName": "已接受的 Render 时序差异使用实际帧，不回退计划 Marker；DAT/空 B 同样成立",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/execution-plan.test.ts",
+          "testName": "V2 Direct 保留冻结源及 Master/Layout，按输出率精确计划静音并报告 SRC 范围",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/master-versions.test.ts",
+          "testName": "冻结版本初始为空；读取历史不会把草稿或预留自动升级为母版",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/master-versions.test.ts",
+          "testName": "完整复核实际合成源后原子冻结；重试幂等，历史不随草稿改变且不可 SQL 覆写或删除",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/master-versions.test.ts",
+          "testName": "D-02 分面变化新建 Layout 并复用 Master；D-03 改曲序提出新母版并保留谱系",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/physical-links-coordinator.test.ts",
+          "testName": "离线保留实体关系，旧引用不重连；重新定位必须明确确认当前专辑",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/preparation.test.ts",
+          "testName": "Preparation 正式协调器从冻结版本生成实际工作副本与谱系，草稿变化不重写历史，回执不重复导出",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/prepared-render.test.ts",
+          "testName": "原始 Render 从选择、确认保存、实际 Marker 到 Frozen PREP 保持独立身份与幂等",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/prepared-render.test.ts",
+          "testName": "未确认 Marker、需要新母版或布局均不能靠伪造接受状态冻结 PREP",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-attempt.test.ts",
+          "testName": "生产未认证Begin固定拒绝，正式历史/账本/库存均不写且不调用驱动",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-attempt.test.ts",
+          "testName": "停止回执不伪造驱动ACK/排空，迟到成功和旧runId不能覆盖首个终态",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-attempt.test.ts",
+          "testName": "冷启将未结束Attempt仅中断一次，恢复不调用任何driver且不伪造cleanup",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-attempt.test.ts",
+          "testName": "开始后的实体不能从规划或手工释放为空白，库存数量不变",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-attempt.test.ts",
+          "testName": "DAT独立Program身份固定；分页与越界保留正确total",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-attempt.test.ts",
+          "testName": "start未产生进度即失败保存Failed，不能与已输出中断混淆",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-attempt.test.ts",
+          "testName": "真实A/B冻结资产到三层完成的持久链：翻面确认不输出，B必须新边界",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-plan.test.ts",
+          "testName": "Plan预览、冻结、预检不改库存或旧事实；无GateB明确阻断而非正式就绪",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-plan.test.ts",
+          "testName": "preview后会话、实体可用性或预留变化均拒绝冻结，不能凭旧确认写Plan",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-plan.test.ts",
+          "testName": "当前Session overrides形成新Plan快照，旧asset与旧Plan保持原值；旧Plan预检不使用后来参数",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-plan.test.ts",
+          "testName": "归档需FINALIZED，已冻结后对象损坏不能复用历史verified判据",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-plan.test.ts",
+          "testName": "DAT计划使用完整Program容量而非半面，当前预检不操作实体或输出后端",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-print-backup.test.ts",
+          "testName": "schema21完整音频备份同时保留Artwork/PDF/preview/request/event原字节，隔离恢复不重生成",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-print-store.test.ts",
+          "testName": "Artwork明确Master归属、CAS与命令幂等，Completed捕获旧版且后改不漂移",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-print-store.test.ts",
+          "testName": "失败不回滚Completed；明确重试、私有lease、完成幂等与旧PDF字节保持",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-profile.test.ts",
+          "testName": "保存 Profile 产生可复用版本，命令幂等且修改默认值不修改历史",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-profile.test.ts",
+          "testName": "Session 只覆盖变化项，明确 null 不回退默认；旧参数不受新 Profile 影响",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-record-disposition.test.ts",
+          "testName": "Completed正式记录从同一实体进入双库，不改变origin或数量且不走旧录音编辑",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-record-disposition.test.ts",
+          "testName": "unknown处置只新增认知历史，原档案可检索但两库不泄露旧标题",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-record-disposition.test.ts",
+          "testName": "六API只读链：编号别名/冻结元数据/日期分页及不存在附件不伪成功",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-record.test.ts",
+          "testName": "首次Completed同事务生成不可变档案、当前内容与recorded状态，不新增库存或重复登记",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-replica-input.test.ts",
+          "testName": "历史Direct完成后不依赖预留和原工作目录，读取归档完整PCM且不写事实",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-replica-input.test.ts",
+          "testName": "FINALIZED真实对象保持单链接，额外硬链或改写字节不能消费",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-replica-session.test.ts",
+          "testName": "生产没有provider时拒绝启动且零会话、零输入读取，不把合成核验冒充播放",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-replica-session.test.ts",
+          "testName": "输入内部撤权signal直达provider，scope检查失败不允许迟到成功",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/reference-catalog-store.test.ts",
+          "testName": "登记资料原UTF8与hash不可变，BOM与空行保存；重复命令/相同原包幂等且不写库存",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/reference-catalog-store.test.ts",
+          "testName": "重复reference页与时长只占一个分母；冲突身份或不同ID重复canonical拒绝，preview只读",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/reference-catalog-store.test.ts",
+          "testName": "Unknown/Missing/Candidate/NeedsReview独立，确认同型号不能贡献两个canonical，库存和照片不变",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/reference-catalog-store.test.ts",
+          "testName": "合并保留多型号确认但只计一次；拆分全部NeedsReview，新增只改新分母且历史snapshot不覆盖",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/restore-content-binding.test.ts",
+          "testName": "原归档离线后从恢复对象再次全内容备份，复核与再次隔离恢复成功",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "testName": "Gate A：实际文件全量 Hash/技术参数与人工映射独立；只读并跨重启保留",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "testName": "Gate A：Roon 导出只证明选中文件；改动后不能用旧证据确认；全量重验不同 Hash 失效",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "testName": "Gate A：Root 离线、单文件丢失、撤销授权互不混淆；历史绑定不删除",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "testName": "Gate A：未授权路径、目录及符号链接拒绝；未知音频不会生成绑定",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "testName": "Gate A：显式相同 Hash 重新定位保留内容身份；不同内容不能凭相似名字替换",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "testName": "Gate A-02：真实编码的合成 FLAC 与 AIFF 均只探测技术块，标签不参与证据",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "testName": "校验期间撤销 Root、移除曲目或改变文件均不能提交迟到结果",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "testName": "含点路径段的请求不通过规范化绕过 Root 路径护栏",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/source-evidence.test.ts",
+          "testName": "分面重新取实际源时长，绑定与内容变化使旧规划失效且不能回退估算",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/spreadsheet-import-store.test.ts",
+          "testName": "实际原字节Hash/typed rows持久，预览不写库存；10/Used3只建Legacy3+Unknown7且不分配实体",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/spreadsheet-import-store.test.ts",
+          "testName": "同文件同Sheet换commandId不会加数量，Unknown品牌型号保持空值且每原行私有身份隔离",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/spreadsheet-import-store.test.ts",
+          "testName": "重排行唯一匹配不加量，修改行保留建议，插入只有明确new才增加；过期基线拒绝",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/spreadsheet-import-store.test.ts",
+          "testName": "重复行歧义必须人工对应；missing Used保持Unknown；公式缓存不能自动当确认数量",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/spreadsheet-import-store.test.ts",
+          "testName": "独立数量更正绑定当前余额，原acquired不改；已物化实体/照片/原行不被消耗",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "final-verify-01-software",
+      "kind": "software",
+      "executedAt": "2026-08-29T13:38:18.968Z",
+      "command": [
+        "corepack",
+        "pnpm@10.17.1",
+        "verify"
+      ],
+      "exitCode": 0,
+      "candidate": {
+        "path": "reports/runtime/task-078-v3-acceptance/candidate-final-fresh-01.json",
+        "sha256": "9d53a9719e21f812fc6adc5907f53fd691e3d44b4f18880e676e2d8834c5d290"
+      },
+      "log": {
+        "path": "reports/runtime/task-078-v3-acceptance/final-verify-01.log",
+        "sha256": "80b3d255fbbe158510f7666ee26542a907a087f7f9b38bbd3f3643f2e3b119f0"
+      },
+      "cases": [
+        {
+          "path": "packages/bridge-core/test/media-planning.test.ts",
+          "testName": "分面按每面真实边界计算 Gap，Lead-in/Tail 独立，源顺序不改变",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/media-planning.test.ts",
+          "testName": "总时长装得下但 A 面超长仍排除；不把未知兼容性当成可正式使用",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/media-planning.test.ts",
+          "testName": "收藏保护与最低未拆保留线跨 SKU 生效；无源或布局冲突不能预留",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-attempt-state.test.ts",
+          "testName": "源EOF不等后端排空；停止ACK和资源静止不授予软件或实体完成",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-attempt-state.test.ts",
+          "testName": "A排空和实体停止后仍不开始B；必须翻面确认和新的显式B边界",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/recording-attempt-state.test.ts",
+          "testName": "重启所有非终态只Interrupted一次，保留已完成A/翻面和帧事实，不自动开始B",
+          "outcome": "passed"
+        },
+        {
+          "path": "packages/bridge-core/test/render-conformance.test.ts",
+          "testName": "Render 五态依据逐曲身份、精确帧与人工确认，不靠文件名或总时长猜测",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "final-e2e-01-native-no-device",
+      "kind": "native-no-device",
+      "executedAt": "2026-08-29T13:41:01.115Z",
+      "command": [
+        "env",
+        "MUSIC_BRIDGE_TEST_KEYCHAIN_MODE=mock",
+        "corepack",
+        "pnpm@10.17.1",
+        "--dir",
+        "apps/desktop",
+        "run",
+        "test:e2e",
+        "--output=/Users/yihe/VSCode/MusicBridge/worktree/task-078-v3-acceptance/reports/runtime/task-078-v3-acceptance/final-e2e-01-output"
+      ],
+      "exitCode": 0,
+      "candidate": {
+        "path": "reports/runtime/task-078-v3-acceptance/candidate-final-fresh-01.json",
+        "sha256": "9d53a9719e21f812fc6adc5907f53fd691e3d44b4f18880e676e2d8834c5d290"
+      },
+      "log": {
+        "path": "reports/runtime/task-078-v3-acceptance/final-e2e-01.log",
+        "sha256": "b8f00ca3e51e70c0f4ec07b8c20af7d031fb217bf7ba24c8f9700d538ac8a801"
+      },
+      "cases": [
+        {
+          "path": "apps/desktop/e2e/task-069.spec.ts",
+          "testName": "V3 Excel：真实XLSX/XLS与11API，重导不增量、修订保留旧Lot且独立更正跨冷启动",
+          "outcome": "passed"
+        },
+        {
+          "path": "apps/desktop/e2e/task-070.spec.ts",
+          "testName": "V3完成度：真实九API，Owned与Wanted正交、长度守恒及取消后的不可变历史跨冷启",
+          "outcome": "passed"
+        },
+        {
+          "path": "apps/desktop/e2e/task-070.spec.ts",
+          "testName": "V3完成度：720窄窗键盘、明确求购与快照确认、旧口径提示及axe截图",
+          "outcome": "passed"
+        },
+        {
+          "path": "apps/desktop/e2e/task-071.spec.ts",
+          "testName": "V3交互：唯一下一步跟随草稿修改、源面板关闭与读取失败，不伪装正式预检",
+          "outcome": "passed"
+        },
+        {
+          "path": "apps/desktop/e2e/task-071.spec.ts",
+          "testName": "V3交互：两库照片按需读取、失败单图重试、长名与横竖图保持原始资料",
+          "outcome": "passed"
+        },
+        {
+          "path": "apps/desktop/e2e/task-075.spec.ts",
+          "testName": "V3受控完成档案展示冻结事实，照片按需读取与单图重试不启动录音",
+          "outcome": "passed"
+        },
+        {
+          "path": "apps/desktop/e2e/task-077.spec.ts",
+          "testName": "Completed持久任务在真实App冷启自动生成PDF，公开八API保持历史字节、导出取消零写与改图不回填",
+          "outcome": "passed"
+        },
+        {
+          "path": "apps/desktop/e2e/task-078.spec.ts",
+          "testName": "V3同数据集7盘：幂等Completed、Replica历史核验、真实J-Card与完整备份激活冷启守恒",
+          "outcome": "passed"
+        },
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "testName": "v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation",
+          "outcome": "passed"
+        },
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "testName": "search, library pagination, playlist detail, queue controls and lyrics states",
+          "outcome": "passed"
+        },
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "testName": "V3 收藏与录音分开，收藏视图支持键盘、搜索返回和收起侧栏",
+          "outcome": "passed"
+        },
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "testName": "V3 导航不触发播放变更 IPC，保留正在播放的曲目、队列和 Zone",
+          "outcome": "passed"
+        },
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "testName": "V3 真实库存录入、实例化与刷新后数量保持一致",
+          "outcome": "passed"
+        },
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "testName": "V3 实体音乐库录入原版 CD，重启后仍在且不改变空白库存",
+          "outcome": "passed"
+        },
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "testName": "V3 录音选曲入口可用，选曲前不要求库存或设备",
+          "outcome": "passed"
+        },
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "testName": "V3 录音选曲草稿：取消不写入、跨专辑选曲、排序与重启保留未验证来源",
+          "outcome": "passed"
+        },
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "testName": "V3 分面与库存：浏览不写入，明确预留、取消与冷启动保持实体守恒",
+          "outcome": "passed"
+        },
+        {
+          "path": "apps/desktop/e2e/v1-ui.spec.ts",
+          "testName": "V3 Logic 工作区：原生授权、确认复制、回执重试、Finder 与冷启动历史",
+          "outcome": "passed"
+        }
+      ]
+    }
+  ]
+}

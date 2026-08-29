@@ -93,3 +93,32 @@ test('v2未来Artwork不可冒充完成时快照，照片仍只能同实体photo
  assert.equal(c.isRecordingPrintFacts({...facts(),sides:[{...facts().sides[0],tracks:Array.from({length:201},(_,index)=>({position:index+1,trackId:id(100+index),title:'曲目'}))},facts().sides[1]]}),false);
  assert.equal(c.isCompleteRecordingPrintRequest({leaseId:id(84),workerId:id(85),jobId:id(83),inputHash:hash('e'),pdfBase64:pdf,pdfSha256:hash('f'),preview:image,pageCount:25,rendererVersion:'test-v1'}),false);
 })
+
+test('R023字段拆分：未验payload保持unknown，公开完整guard仍拒绝坏图像和PDF',()=>{
+ const complete={leaseId:id(84),workerId:id(85),jobId:id(83),inputHash:hash('e'),pdfBase64:pdf,pdfSha256:hash('f'),preview:image,pageCount:2,rendererVersion:'test-v1'};
+ const save={commandId:id(90),masterVersionId:id(2),expectedVersionId:null,image,userConfirmed:true};
+ for(const value of [null,undefined,'wrong',{},12]){
+  assert.equal(c.isCompleteRecordingPrintRequestFields({...complete,pdfBase64:value,preview:value}),true);
+  assert.equal(c.isCompleteRecordingPrintRequest({...complete,pdfBase64:value,preview:value}),false);
+  assert.equal(c.isSaveMasterArtworkRequestFields({...save,image:value}),true);
+  assert.equal(c.isSaveMasterArtworkRequest({...save,image:value}),false);
+ }
+ for(const patch of [{leaseId:id(84)+'\n'},{workerId:''},{jobId:null},{inputHash:'A'.repeat(64)},{pdfSha256:'wrong'},{pageCount:0},{pageCount:25},{pageCount:1.5},{rendererVersion:'bad\n'},{rendererVersion:''},{trusted:true}]){
+  assert.equal(c.isCompleteRecordingPrintRequestFields({...complete,...patch}),false);assert.equal(c.isCompleteRecordingPrintRequest({...complete,...patch}),false);
+ }
+ for(const patch of [{commandId:''},{masterVersionId:null},{expectedVersionId:'bad'},{userConfirmed:false},{trusted:true}]){
+  assert.equal(c.isSaveMasterArtworkRequestFields({...save,...patch}),false);assert.equal(c.isSaveMasterArtworkRequest({...save,...patch}),false);
+ }
+ assert.equal(c.isCompleteRecordingPrintRequest(complete),true);assert.equal(c.isSaveMasterArtworkRequest(save),true);
+});
+test('R023尺寸共享：原JPEG编码长度与Artwork实际字节界限不合并收紧',()=>{
+ for(const width of [0,1,1200,1201,1.5,NaN,'1',null])for(const height of [0,1,1200,1201]){
+  assert.equal(c.isCollectionPhotoDimensions(width,height),typeof width==='number'&&Number.isSafeInteger(width)&&width>=1&&width<=1200&&height>=1&&height<=1200);
+  assert.equal(c.isCollectionPhotoImage({...image,width,height}),c.isCollectionPhotoDimensions(width,height));
+ }
+ for(const size of [c.MAX_COLLECTION_PHOTO_BYTES-1,c.MAX_COLLECTION_PHOTO_BYTES,c.MAX_COLLECTION_PHOTO_BYTES+1,c.MAX_COLLECTION_PHOTO_BYTES+2,c.MAX_COLLECTION_PHOTO_BYTES+3]){
+  const bytes=Buffer.alloc(size);bytes.set([255,216,255]);const value={...image,dataUrl:'data:image/jpeg;base64,'+bytes.toString('base64')};
+  assert.equal(c.isCollectionPhotoImage(value),Math.ceil(size/3)*4<=Math.ceil(c.MAX_COLLECTION_PHOTO_BYTES/3)*4);
+  assert.equal(c.isMasterArtworkImage(value),size<=c.MAX_MASTER_ARTWORK_BYTES);
+ }
+});

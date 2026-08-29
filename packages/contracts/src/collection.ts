@@ -237,8 +237,10 @@ export function isCollectionPhoto(v: unknown): v is CollectionPhoto {
   return record(v) && keys(v, ['id', 'modelId', 'physicalId', 'width', 'height', 'source']) && isCollectionId(v.id) && isCollectionId(v.modelId)
     && (v.physicalId === undefined || isPhysicalId(v.physicalId)) && integer(v.width, 1, 1200) && integer(v.height, 1, 1200) && v.source === 'user-photo';
 }
+/** 图像容器与原字节校验共用尺寸规则；此谓词不证明图像内容有效。 */
+export function isCollectionPhotoDimensions(width: unknown, height: unknown): boolean { return integer(width, 1, 1200) && integer(height, 1, 1200); }
 export function isCollectionPhotoImage(v: unknown): v is CollectionPhotoImage {
-  return record(v) && keys(v, ['dataUrl', 'width', 'height']) && integer(v.width, 1, 1200) && integer(v.height, 1, 1200)
+  return record(v) && keys(v, ['dataUrl', 'width', 'height']) && isCollectionPhotoDimensions(v.width, v.height)
     && typeof v.dataUrl === 'string' && v.dataUrl.length <= 23 + Math.ceil(MAX_COLLECTION_PHOTO_BYTES / 3) * 4
     && /^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]*={0,2}$/u.test(v.dataUrl) && (v.dataUrl.length - 23) % 4 === 0;
 }

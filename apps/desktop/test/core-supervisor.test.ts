@@ -37,7 +37,7 @@ class FakePort implements CoreMessagePort {
 
 class FakeChild implements CoreChildProcess {
   readonly posted: unknown[] = []
-  private exitListener: ((code: number) => void) | undefined
+  private exitListeners: Array<(code: number) => void> = []
   killed = false
 
   postMessage(message: unknown): void {
@@ -46,7 +46,7 @@ class FakeChild implements CoreChildProcess {
 
   once(event: 'exit', listener: (code: number) => void): void {
     assert.equal(event, 'exit')
-    this.exitListener = listener
+    this.exitListeners.push(listener)
   }
 
   kill(): boolean {
@@ -56,7 +56,8 @@ class FakeChild implements CoreChildProcess {
   }
 
   exit(code: number): void {
-    this.exitListener?.(code)
+    const listeners = this.exitListeners.splice(0)
+    for (const listener of listeners) listener(code)
   }
 }
 
@@ -82,6 +83,7 @@ function makeHarness() {
     cwd: '/tmp',
     dependencies,
     requestTimeoutMs: 20,
+    startupTimeoutMs: 20,
   })
   return { channels, children, dependencies, forkOptions, supervisor }
 }
@@ -196,7 +198,7 @@ test('CoreSupervisor records bounded lifecycle states without process details', 
   await new Promise((resolve) => setImmediate(resolve))
   await supervisor.shutdown()
 
-  assert.deepEqual(lifecycle, ['spawn', 'ready', 'exit', 'restart', 'spawn', 'ready', 'stopped'])
+  assert.deepEqual(lifecycle, ['spawn', 'ready', 'exit', 'restart', 'spawn', 'ready', 'exit', 'stopped'])
 })
 
 test('CoreSupervisor request timeout and shutdown are bounded', async () => {
@@ -486,7 +488,7 @@ test('恢复激活准备轮询有界，超时不会停止播放或重启', async
   assert.equal(failure?.code, 'TIMEOUT'); assert.ok(!calls.includes('playback.stop'))
 })
 
-test('显式重启可单次延长 ready 期限，普通启动仍使用原期限且参数必须有界', async t => {
+test('显式重启可单次延长启动期限，后续普通启动不继承override且参数必须有界', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
   const harness = makeHarness()
   const restarting = harness.supervisor.restart(undefined, { readyTimeoutMs: 100 }).then(() => undefined, error => error)
@@ -601,3 +603,127 @@ for (const command of ['recordingPlans.preview', 'recordingPlans.freeze', 'recor
     assert.equal(timedOutEarly, false); assert.equal(result.code, 'INVALID_IPC_REQUEST');
   });
 }
+
+function startupHarness(options: { startupTimeoutMs?: number; onReady?: (client: import('../src/main/core-supervisor.js').CoreStartupClient) => Promise<void> | void } = {}) {
+  const base = makeHarness(), events: string[] = []
+  const supervisor = new CoreSupervisor({ entryPath: '/tmp/core-entry.js', cwd: '/tmp', dependencies: base.dependencies, ...options, onLifecycle: event => events.push(event.event), onEvent: event => events.push(event.event) })
+  return { ...base, supervisor, events }
+}
+const flushStartup = () => new Promise<void>(resolve => setImmediate(resolve))
+function startupDeferred() { let resolve!: () => void; const promise = new Promise<void>(done => { resolve = done }); return { promise, resolve } }
+
+test('普通启动独立60秒预算，普通IPC仍两秒且启动参数只能收紧', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const h = startupHarness(), pending = h.supervisor.start()
+  t.mock.timers.tick(2_001); await flushStartup()
+  assert.equal(h.children.length, 1); assert.equal(h.children[0]!.killed, false)
+  ready(h.channels[0]!); await pending
+  const request = h.supervisor.request('core.ping', {}).catch(error => error)
+  t.mock.timers.tick(2_001); assert.equal((await request).code, 'TIMEOUT')
+  for (const startupTimeoutMs of [0, 60_001, Infinity, 1.5]) assert.throws(() => startupHarness({ startupTimeoutMs }))
+})
+
+test('onReady未完成时重复start共等、普通IPC及ready健康事件不能提前放行', async () => {
+  const gate = startupDeferred(), h = startupHarness({ onReady: () => gate.promise }), first = h.supervisor.start()
+  ready(h.channels[0]!); await flushStartup()
+  let secondDone = false; const second = h.supervisor.start().then(() => { secondDone = true })
+  await flushStartup()
+  assert.equal(secondDone, false); assert.equal(h.supervisor.status, 'starting')
+  await assert.rejects(h.supervisor.request('core.ping', {}), { code: 'NOT_READY' })
+  h.channels[0]!.port2.receive({ version: 1, event: 'core.health', payload: { state: { runtime: 'ready', roon: 'disconnected', provider: 'missing', activeStreamCount: 0, activePlaybackPresent: false } } })
+  assert.equal(h.events.includes('core.ready'), false); assert.equal(h.events.includes('core.health'), false)
+  gate.resolve(); await first; await second
+  assert.equal(h.supervisor.status, 'ready'); assert.equal(h.events.filter(v => v === 'core.ready').length, 1)
+})
+
+test('总启动deadline覆盖恢复hook，旧hook迟到与旧client不能使重试跨代ready', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const gates = [startupDeferred(), startupDeferred()], clients: import('../src/main/core-supervisor.js').CoreStartupClient[] = []
+  const h = startupHarness({ startupTimeoutMs: 40, onReady: client => { clients.push(client); return gates[clients.length - 1]!.promise } })
+  const pending = h.supervisor.start().catch(error => error)
+  ready(h.channels[0]!); await flushStartup(); t.mock.timers.tick(41); await flushStartup()
+  assert.equal(h.children.length, 2); assert.equal(h.children[0]!.killed, true)
+  ready(h.channels[1]!); await flushStartup(); gates[0]!.resolve(); await flushStartup()
+  assert.equal(h.supervisor.status, 'starting'); assert.equal(h.events.includes('ready'), false)
+  await assert.rejects(clients[0]!.request('core.ping', {}), { code: 'NOT_READY' })
+  t.mock.timers.tick(41); assert.equal((await pending).code, 'TIMEOUT')
+  gates[1]!.resolve(); await flushStartup(); assert.equal(h.supervisor.status, 'failed'); assert.equal(h.events.includes('ready'), false)
+})
+
+test('同步throw恢复hook不逸出message listener且不提前显示ready', async () => {
+  const h = startupHarness({ onReady: () => { throw new Error('/private/synthetic-hook') } }), pending = h.supervisor.start().catch(error => error)
+  assert.doesNotThrow(() => ready(h.channels[0]!)); await flushStartup()
+  assert.equal(h.children.length, 2); assert.doesNotThrow(() => ready(h.channels[1]!))
+  const error = await pending; assert.equal(error.code, 'INTERNAL_ERROR'); assert.doesNotMatch(error.message, /private/)
+  assert.equal(h.supervisor.status, 'failed'); assert.equal(h.events.includes('ready'), false); assert.equal(h.events.includes('core.ready'), false)
+})
+
+test('私有启动client可恢复安全消息，hook后可供worker用但退出即失效', async () => {
+  let client!: import('../src/main/core-supervisor.js').CoreStartupClient
+  const h = startupHarness({ onReady: async value => { client = value; assert.deepEqual(await value.request('core.ping', {}), { pong: true }) } }), first = h.supervisor.start()
+  ready(h.channels[0]!); await flushStartup()
+  const sent = h.channels[0]!.port2.sent.at(-1) as { id: string }; assert.ok(sent)
+  h.channels[0]!.port2.receive({ version: 1, id: sent.id, ok: true, result: { pong: true } }); await first
+  const worker = client.request('core.ping', {}), next = h.channels[0]!.port2.sent.at(-1) as { id: string }
+  h.channels[0]!.port2.receive({ version: 1, id: next.id, ok: true, result: { pong: true } }); await worker
+  const old = client; h.children[0]!.exit(1); await flushStartup()
+  await assert.rejects(old.request('core.ping', {}), { code: 'NOT_READY' })
+  ready(h.channels[1]!); await flushStartup(); const request = h.channels[1]!.port2.sent.at(-1) as { id: string }
+  h.channels[1]!.port2.receive({ version: 1, id: request.id, ok: true, result: { pong: true } }); await flushStartup()
+  assert.equal(h.supervisor.status, 'ready'); await assert.rejects(old.requestInternal('auth.verifyCredential', { credential: 'synthetic' }), { code: 'NOT_READY' })
+})
+
+test('hook中退出只由当前start重试一次，不重复并发fork', async () => {
+  const gate = startupDeferred(), h = startupHarness({ onReady: () => gate.promise }), pending = h.supervisor.start()
+  ready(h.channels[0]!); await flushStartup(); h.children[0]!.exit(1); await flushStartup()
+  assert.equal(h.children.length, 2); ready(h.channels[1]!); gate.resolve(); await pending
+  assert.equal(h.supervisor.status, 'ready'); assert.equal(h.children.length, 2)
+})
+
+test('hook中shutdown立即撤销client并终止start，不因迟到完成或失败重启', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const gate = startupDeferred(); let client!: import('../src/main/core-supervisor.js').CoreStartupClient
+  const h = startupHarness({ onReady: value => { client = value; return gate.promise } }), starting = h.supervisor.start().catch(error => error)
+  ready(h.channels[0]!); await flushStartup(); const closing = h.supervisor.shutdown(); await flushStartup()
+  await assert.rejects(client.request('core.ping', {}), { code: 'NOT_READY' })
+  t.mock.timers.tick(2_001); await flushStartup(); t.mock.timers.tick(251); await closing
+  const outcome = await starting; assert.equal(outcome.code, 'NOT_READY'); gate.resolve(); await flushStartup()
+  assert.equal(h.children.length, 1); assert.equal(h.supervisor.status, 'stopped')
+})
+
+
+test('撤销启动client不吞正常shutdown回执，Core自行code0退出不需kill', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const h = startupHarness(), starting = h.supervisor.start(); ready(h.channels[0]!); await starting
+  let acknowledged = false
+  const request = h.supervisor.request.bind(h.supervisor)
+  t.mock.method(h.supervisor, 'request', (async (command, payload, scope) => { const result = await request(command, payload, scope); if (command === 'core.shutdown') acknowledged = true; return result }) as typeof h.supervisor.request)
+  const shutdown = h.supervisor.shutdown(); await flushStartup()
+  const sent = h.channels[0]!.port2.sent.at(-1) as { id: string; command: string }; assert.equal(sent.command, 'core.shutdown')
+  h.channels[0]!.port2.receive({ version: 1, id: sent.id, ok: true, result: { stopped: true } })
+  await flushStartup(); assert.equal(acknowledged, true, '撤销startup capability后仍需收取shutdown协议回执')
+  h.children[0]!.exit(0)
+  let done = false; void shutdown.then(() => { done = true }); await flushStartup()
+  assert.equal(done, true, '正常shutdown回执和exit后应立即完成，无需等请求超时')
+  assert.equal(h.children[0]!.killed, false); assert.equal(h.supervisor.status, 'stopped')
+})
+
+test('自动崩溃重启的hook pending期间start复用重启，不并发fork', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const gate = startupDeferred(); let hooks = 0
+  const h = startupHarness({ onReady: () => ++hooks === 1 ? undefined : gate.promise })
+  const initial = h.supervisor.start(); ready(h.channels[0]!); await initial
+  h.children[0]!.exit(1); await flushStartup(); ready(h.channels[1]!); await flushStartup()
+  let done = false; const repeated = h.supervisor.start().then(() => { done = true })
+  await flushStartup(); assert.equal(h.children.length, 2); assert.equal(done, false)
+  gate.resolve(); await repeated; assert.equal(h.supervisor.status, 'ready')
+})
+
+test('复用自动重启的start在恢复失败时拒绝，不把failed当成功完成', async () => {
+  let hooks = 0
+  const h = startupHarness({ onReady: () => { if (++hooks > 1) throw new Error('合成恢复失败') } })
+  const initial = h.supervisor.start(); ready(h.channels[0]!); await initial
+  h.children[0]!.exit(1); await flushStartup()
+  const repeated = h.supervisor.start().then(() => 'unexpected-success', error => error.code)
+  ready(h.channels[1]!); assert.equal(await repeated, 'INTERNAL_ERROR'); assert.equal(h.supervisor.status, 'failed')
+})

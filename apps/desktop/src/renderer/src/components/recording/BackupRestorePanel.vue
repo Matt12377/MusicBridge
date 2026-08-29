@@ -148,7 +148,7 @@ onUnmounted(() => { alive = false; ++generation; if (timer) clearTimeout(timer);
     </section>
     <section aria-labelledby="backup-activation-heading" :aria-busy="busy && pendingActivation"><h3 id="backup-activation-heading">切换到恢复工作库</h3>
       <p>这是隔离恢复之后的独立确认：复制一份新的收藏与录音工作库，再停止播放并重启 Core。旧工作库和隔离恢复包保留，不覆盖；旧目录权限不会恢复，账号和 Roon 继续沿用原安全配置。</p>
-      <p class="muted">切换会丢弃未保存的录音编辑。完成后不会自动播放，请检查工作库和播放设备后再手动播放。</p>
+      <p class="muted">切换成功后需要你点击“重新加载窗口”，才能加载新的录音上下文；未保存的旧窗口表单会被丢弃。已停止的播放不会恢复，未确认操作不会自动重放。</p>
       <fieldset :disabled="blocked || loading || activationRunning"><legend class="sr-only">工作库切换确认</legend>
         <label>待激活的隔离恢复<select v-model="activationRestoreId"><option value="">请选择已完成的隔离恢复</option><option v-for="job in restoreCandidates" :key="job.id" :value="job.id">{{ job.createdAt }} · {{ job.id.slice(0,8) }}</option></select></label>
         <p v-if="selectedRestore?.summary?.mode === 'metadata'" class="muted">此恢复仅含元数据与清单，不包含音频字节；切换工作库不会使缺失音频变为可用。</p>

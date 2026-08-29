@@ -1,11 +1,12 @@
 import type test from 'node:test';
 import { randomUUID } from 'node:crypto';
 import { recordingPlanFixture } from './recording-plan-fixture.js';
+import type { RecordingFixtureOptions } from './preparation-fixture.js';
 import { createRecordingAttemptCoordinator, type RecordingAttemptAdmissionProvider, type RecordingAttemptDriverRequest } from '../../src/recording/attempt-coordinator.js';
 
 /** 只在测试构造器注入受控驱动；不注册IPC/环境认证入口，不触设备。 */
-export async function recordingAttemptFixture(t: test.TestContext, format: 'cassette' | 'dat' = 'cassette') {
-  const f = await recordingPlanFixture(t, false, { format });
+export async function recordingAttemptFixture(t: test.TestContext, format: 'cassette' | 'dat' = 'cassette', options: RecordingFixtureOptions = {}) {
+  const f = await recordingPlanFixture(t, false, { ...options, format });
   const frozenPlan = await f.plans.freeze(await f.planRequest());
   const starts: RecordingAttemptDriverRequest[] = [];
   let stops = 0, closes = 0;

@@ -4,7 +4,9 @@ import * as dto from '@music-bridge/contracts';
 import { mediaFingerprint } from './media-store.js';
 import { createRecordingPrintRequest } from './print-facts.js';
 import { RecordingPrintError,printFail,printHash,printSchema,printImage,printObject,printParse,printJob,printRecordPlan,checkPrintBudgets,verifyRecordingPrintDatabase,type RecordingPrintBudgets,type PrintLeaseIdentity,type PrintEvent } from './print-integrity.js';
-interface Access extends RecordingPrintBudgets {read<T>(fn:(db:DatabaseSync)=>T):T;beforeCommit?:(action:string)=>void}
+import { verifyRecordingRecordSnapshot, type RecordingRecordSnapshotBudget } from './record-integrity.js';
+import { createObjectAuditCertificateManager, type ObjectAuditCertificateAction, type ObjectAuditCertificateManager, type ObjectAuditCertificateSession } from './object-audit-certificate.js';
+interface Access extends RecordingPrintBudgets {read<T>(fn:(db:DatabaseSync)=>T):T;beforeCommit?:(action:string)=>void;objectAudit?:RecordingRecordSnapshotBudget;objectCertificates?:ObjectAuditCertificateManager}
 const now=()=>new Date().toISOString();
 function append(db:DatabaseSync,job:dto.RecordingPrintJob,kind:string,lease:PrintLeaseIdentity|null=null):void{
  if(!dto.isRecordingPrintJob(job))printFail();
@@ -14,11 +16,11 @@ function append(db:DatabaseSync,job:dto.RecordingPrintJob,kind:string,lease:Prin
  db.prepare('INSERT INTO recording_print_jobs VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data,lease=excluded.lease').run(job.id,job.request.id,JSON.stringify(job),lease?JSON.stringify(lease):null);
  db.prepare('INSERT INTO recording_print_events VALUES(?,?,?,?,?,?)').run(job.id,job.revision,kind,JSON.stringify(data),previousHash,hash);
 }
-function putObject(db:DatabaseSync,bytes:Buffer,mime:'image/jpeg'|'application/pdf',width:number|null=null,height:number|null=null):string{
+function putObject(db:DatabaseSync,bytes:Buffer,mime:'image/jpeg'|'application/pdf',width:number|null=null,height:number|null=null):{sha256:string;inserted:boolean}{
  const sha=printHash(bytes),prior=db.prepare('SELECT * FROM recording_print_objects WHERE sha256=?').get(sha);
  if(prior){const object=printObject(db,sha);if(object.mime!==mime||object.width!==width||object.height!==height||!object.bytes.equals(bytes))printFail();}
  else db.prepare('INSERT INTO recording_print_objects VALUES(?,?,?,?,?)').run(sha,mime,bytes,width,height);
- return sha;
+ return {sha256:sha,inserted:!prior};
 }
 function receipt<T>(db:DatabaseSync,id:string,kind:string,request:unknown,result:T,storedRequest:unknown=request):T{
  db.prepare('INSERT INTO recording_print_receipts VALUES(?,?,?,?,?)').run(id,kind,mediaFingerprint(request),JSON.stringify(storedRequest),JSON.stringify(result));return result;
@@ -48,8 +50,25 @@ export function recoverRecordingPrints(db:DatabaseSync):void{
  verifyRecordingPrintDatabase(db);
 }
 export function createRecordingPrintStore(access:Access){
- function transaction<T>(action:string,fn:(db:DatabaseSync)=>T):T{
-  return access.read(db=>{db.exec('BEGIN IMMEDIATE');try{verifyRecordingPrintDatabase(db);const result=fn(db);checkPrintBudgets(db,access);verifyRecordingPrintDatabase(db);access.beforeCommit?.(action);db.exec('COMMIT');return result;}catch(error){db.exec('ROLLBACK');if(error instanceof RecordingPrintError)throw error;return printFail();}});
+ const objectCertificates=access.objectCertificates??createObjectAuditCertificateManager(access.beforeCommit!==undefined);
+ function transaction<T>(action:string,certificateAction:ObjectAuditCertificateAction,fn:(db:DatabaseSync,certificate?:ObjectAuditCertificateSession)=>T):T{
+  return access.read(db=>{
+   try{db.exec('BEGIN IMMEDIATE');}catch(error){objectCertificates.clear(db);throw error;}
+   const optimized=access.beforeCommit===undefined&&['print-claim','print-complete'].includes(certificateAction),certificate=objectCertificates.begin(db,optimized?certificateAction:'other');
+   try{
+    if(optimized){if(!certificate.reuseSnapshot()){verifyRecordingRecordSnapshot(db,access.objectAudit,certificate);certificate.observeSnapshotVerified();}}
+    else verifyRecordingPrintDatabase(db);
+    const result=fn(db,optimized?certificate:undefined);checkPrintBudgets(db,access);
+    // claim只追加已局部验证的投影/事件；complete必须在提交前核验新对象、artifact、事件和receipt闭包。
+    if(optimized&&certificateAction==='print-complete'){verifyRecordingRecordSnapshot(db,access.objectAudit,certificate);certificate.observeSnapshotVerified();}
+    else if(!optimized)verifyRecordingPrintDatabase(db);
+    access.beforeCommit?.(action);
+    if(access.beforeCommit!==undefined)verifyRecordingPrintDatabase(db);
+    let candidate=optimized?certificate.candidate():null;
+    if(optimized&&!candidate){verifyRecordingRecordSnapshot(db,access.objectAudit);candidate=null;}
+    db.exec('COMMIT');objectCertificates.publish(db,candidate);return result;
+   }catch(error){objectCertificates.clear(db);if(db.isTransaction)try{db.exec('ROLLBACK');}catch{/* 保留原始故障 */}if(error instanceof RecordingPrintError)throw error;return printFail();}
+  });
  }
  function matchLease(db:DatabaseSync,request:Pick<dto.FailRecordingPrintRequest,'jobId'|'leaseId'|'workerId'|'inputHash'>):dto.RecordingPrintJob{
   const job=printJob(db,request.jobId),row=db.prepare('SELECT lease FROM recording_print_jobs WHERE id=?').get(job.id);const lease:PrintLeaseIdentity|null=row?.lease?JSON.parse(String(row.lease)):null;
@@ -66,12 +85,12 @@ export function createRecordingPrintStore(access:Access){
    });
   },
   artworkSave(request:dto.SaveMasterArtworkRequest):dto.MasterArtworkVersion{
-   if(!dto.isSaveMasterArtworkRequest(request))printFail('INVALID_REQUEST');return transaction('save-master-artwork',db=>{
+   if(!dto.isSaveMasterArtworkRequest(request))printFail('INVALID_REQUEST');return transaction('save-master-artwork','other',db=>{
     const prior=cached<dto.MasterArtworkVersion>(db,`command:${request.commandId}`,'artwork',request);if(prior)return prior;
     if(!db.prepare('SELECT 1 FROM master_versions WHERE id=?').get(request.masterVersionId))printFail('NOT_FOUND');
     const snapshot=captureMasterArtwork(db,request.masterVersionId),current=snapshot.state==='captured'?snapshot.version:null;
     if((current?.id??null)!==request.expectedVersionId)printFail('CONFLICT');if((current?.sequence??0)>=dto.MAX_MASTER_ARTWORK_VERSIONS)printFail('BUDGET_EXCEEDED');
-    const bytes=Buffer.from(request.image.dataUrl.slice(23),'base64'),sha256=putObject(db,bytes,'image/jpeg',request.image.width,request.image.height);
+    const bytes=Buffer.from(request.image.dataUrl.slice(23),'base64'),{sha256}=putObject(db,bytes,'image/jpeg',request.image.width,request.image.height);
     const version:dto.MasterArtworkVersion={id:randomUUID(),masterVersionId:request.masterVersionId,sequence:(current?.sequence??0)+1,createdAt:now(),sha256,size:bytes.length,width:request.image.width,height:request.image.height,mimeType:'image/jpeg'};
     db.prepare('INSERT INTO master_artwork_versions VALUES(?,?,?,?,?)').run(version.id,version.masterVersionId,version.sequence,sha256,JSON.stringify(version));
     db.prepare('INSERT INTO master_artwork_current VALUES(?,?) ON CONFLICT(master_id) DO UPDATE SET version_id=excluded.version_id').run(version.masterVersionId,version.id);
@@ -86,7 +105,7 @@ export function createRecordingPrintStore(access:Access){
    });
   },
   request(request:dto.RequestRecordingPrintRequest):dto.RecordingPrintJob{
-   if(!dto.isRequestRecordingPrintRequest(request))printFail('INVALID_REQUEST');return transaction('request-recording-print',db=>{
+   if(!dto.isRequestRecordingPrintRequest(request))printFail('INVALID_REQUEST');return transaction('request-recording-print','other',db=>{
     const prior=cached<dto.RecordingPrintJob>(db,`command:${request.commandId}`,'request',request);if(prior)return prior;
     const {record,plan}=printRecordPlan(db,request.recordingId);if(record.contentHash!==request.expectedRecordHash)printFail('CONFLICT');if(plan.layout.spec.format!=='cassette')printFail('NOT_APPLICABLE');
     const existing=db.prepare('SELECT j.id FROM recording_print_jobs j JOIN recording_print_requests r ON r.id=j.request_id WHERE r.recording_id=?').get(record.id);
@@ -95,7 +114,7 @@ export function createRecordingPrintStore(access:Access){
    });
   },
   retry(request:dto.RetryRecordingPrintRequest):dto.RecordingPrintJob{
-   if(!dto.isRetryRecordingPrintRequest(request))printFail('INVALID_REQUEST');return transaction('retry-recording-print',db=>{
+   if(!dto.isRetryRecordingPrintRequest(request))printFail('INVALID_REQUEST');return transaction('retry-recording-print','other',db=>{
     const prior=cached<dto.RecordingPrintJob>(db,`command:${request.commandId}`,'retry',request);if(prior)return prior;
     const job=printJob(db,request.jobId);if(job.revision!==request.expectedRevision||job.state!=='failed')printFail('CONFLICT');
     const next:dto.RecordingPrintJob={...job,state:'pending',revision:job.revision+1,updatedAt:now(),errorCode:null};append(db,next,'retry');return receipt(db,`command:${request.commandId}`,'retry',request,next);
@@ -106,29 +125,30 @@ export function createRecordingPrintStore(access:Access){
    // 无任务/已有租约仅返回空，不读取对象；真正领取仍在写事务中完整校验并再次判定。
    const actionable=access.read(db=>!db.prepare("SELECT 1 FROM recording_print_jobs WHERE json_extract(data,'$.state')='rendering' LIMIT 1").get()&&Boolean(db.prepare("SELECT 1 FROM recording_print_jobs WHERE json_extract(data,'$.state')='pending' LIMIT 1").get()));
    if(!actionable)return {lease:null};
-   return transaction('claim-recording-print',db=>{
-    if(db.prepare("SELECT 1 FROM recording_print_jobs WHERE json_extract(data,'$.state')='rendering'").get())return {lease:null};
-    const row=db.prepare("SELECT id FROM recording_print_jobs WHERE json_extract(data,'$.state')='pending' ORDER BY rowid LIMIT 1").get();if(!row)return {lease:null};const job=printJob(db,String(row.id));
+   return transaction('claim-recording-print','print-claim',(db,certificate)=>{
+    if(db.prepare("SELECT 1 FROM recording_print_jobs WHERE json_extract(data,'$.state')='rendering'").get()){certificate?.expectPrintMutations(0);return {lease:null};}
+    const row=db.prepare("SELECT id FROM recording_print_jobs WHERE json_extract(data,'$.state')='pending' ORDER BY rowid LIMIT 1").get();if(!row){certificate?.expectPrintMutations(0);return {lease:null};}const job=printJob(db,String(row.id));
     const facts=printParse(db.prepare('SELECT facts FROM recording_print_requests WHERE id=?').get(job.request.id)!.facts,dto.isRecordingPrintFacts);
     const identity:PrintLeaseIdentity={leaseId:randomUUID(),workerId:request.workerId,jobId:job.id,requestId:job.request.id,inputHash:job.request.inputHash};
     append(db,{...job,state:'rendering',revision:job.revision+1,updatedAt:now()},'claim',identity);
-    const lease:dto.RecordingPrintLease={...identity,facts,artworkImage:facts.artwork.state==='captured'?printImage(db,facts.artwork.version.sha256):null,templateId:job.request.templateId};if(!dto.isRecordingPrintLease(lease))printFail();return {lease};
+    const lease:dto.RecordingPrintLease={...identity,facts,artworkImage:facts.artwork.state==='captured'?printImage(db,facts.artwork.version.sha256):null,templateId:job.request.templateId};if(!dto.isRecordingPrintLease(lease))printFail();certificate?.expectPrintMutations(2);return {lease};
    });
   },
   complete(request:dto.CompleteRecordingPrintRequest):dto.RecordingPrintJob{
-   if(!dto.isCompleteRecordingPrintRequest(request))printFail('INVALID_REQUEST');return transaction('complete-recording-print',db=>{
-    const prior=cached<dto.RecordingPrintJob>(db,`lease:${request.leaseId}`,'complete',request);if(prior)return prior;
+   if(!dto.isCompleteRecordingPrintRequest(request))printFail('INVALID_REQUEST');return transaction('complete-recording-print','print-complete',(db,certificate)=>{
+    const prior=cached<dto.RecordingPrintJob>(db,`lease:${request.leaseId}`,'complete',request);if(prior){certificate?.expectPrintMutations(0);return prior;}
     const job=matchLease(db,request),pdf=Buffer.from(request.pdfBase64,'base64'),preview=Buffer.from(request.preview.dataUrl.slice(23),'base64');if(printHash(pdf)!==request.pdfSha256)printFail('INVALID_REQUEST');
-    const pdfSha256=putObject(db,pdf,'application/pdf'),previewSha256=putObject(db,preview,'image/jpeg',request.preview.width,request.preview.height);
+    const pdfObject=putObject(db,pdf,'application/pdf'),previewObject=putObject(db,preview,'image/jpeg',request.preview.width,request.preview.height),pdfSha256=pdfObject.sha256,previewSha256=previewObject.sha256;
     const facts=printParse(db.prepare('SELECT facts FROM recording_print_requests WHERE id=?').get(job.request.id)!.facts,dto.isRecordingPrintFacts);
     const artifact:dto.PrintedArtifact={id:randomUUID(),requestId:job.request.id,recordingId:job.request.recordingId,createdAt:now(),inputHash:job.request.inputHash,templateId:job.request.templateId,templateHash:job.request.templateHash,rendererVersion:request.rendererVersion,pdfSha256,size:pdf.length,pageCount:request.pageCount,geometry:structuredClone(dto.RECORDING_PRINT_GEOMETRY),previewSha256,previewSize:preview.length,artwork:facts.artwork};
     db.prepare('INSERT INTO recording_print_artifacts VALUES(?,?,?,?,?)').run(artifact.id,artifact.requestId,pdfSha256,previewSha256,JSON.stringify(artifact));
     const next:dto.RecordingPrintJob={...job,state:'ready',revision:job.revision+1,updatedAt:artifact.createdAt,artifactId:artifact.id};append(db,next,'complete');
-    const {pdfBase64:_,preview:__,...identity}=request;return receipt(db,`lease:${request.leaseId}`,'complete',request,next,identity);
+    const {pdfBase64:_,preview:__,...identity}=request;const result=receipt(db,`lease:${request.leaseId}`,'complete',request,next,identity);
+    certificate?.expectPrintMutations((4+Number(pdfObject.inserted)+Number(previewObject.inserted)) as 4|5|6);return result;
    });
   },
   fail(request:dto.FailRecordingPrintRequest):dto.RecordingPrintJob{
-   if(!dto.isFailRecordingPrintRequest(request))printFail('INVALID_REQUEST');return transaction('fail-recording-print',db=>{
+   if(!dto.isFailRecordingPrintRequest(request))printFail('INVALID_REQUEST');return transaction('fail-recording-print','other',db=>{
     const prior=cached<dto.RecordingPrintJob>(db,`lease:${request.leaseId}`,'fail',request);if(prior)return prior;const job=matchLease(db,request);
     const next:dto.RecordingPrintJob={...job,state:'failed',revision:job.revision+1,updatedAt:now(),errorCode:request.errorCode};append(db,next,'fail');return receipt(db,`lease:${request.leaseId}`,'fail',request,next);
    });

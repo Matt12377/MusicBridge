@@ -15,17 +15,27 @@ import RecordingNextStep from './RecordingNextStep.vue'
 import { createRecordingWorkflowController, type RecordingWorkflowSelection } from './recording-workflow-controller'
 import { getRecordingNextStep, type RecordingNextAction } from './recording-next-step'
 import MasterSourcePicker from './MasterSourcePicker.vue'
-const emit = defineEmits<{ 'open-collection': [] }>()
+const props = withDefaults(defineProps<{ reloadRequired?: boolean }>(), { reloadRequired: false })
+const emit = defineEmits<{ 'open-collection': []; 'reload-required': [] }>()
 const recordsOpen = ref(false), recordsTrigger = ref<HTMLButtonElement>()
 function closeRecords(): void { recordsOpen.value = false; void nextTick(() => recordsTrigger.value?.focus({ preventScroll: true })) }
 const backupRestore = ref(false), backupTrigger = ref<HTMLButtonElement>()
+const activatedHere = ref(false), reloading = ref(false), reloadTrigger = ref<HTMLButtonElement>()
+const reloadRequired = computed(() => props.reloadRequired || activatedHere.value)
 async function closeBackupRestore(): Promise<void> { backupRestore.value = false; await nextTick(); backupTrigger.value?.focus() }
 async function activatedDataset(): Promise<void> {
+  if (!alive || reloadRequired.value) return
+  activatedHere.value = true; emit('reload-required'); backupRestore.value = false; recordsOpen.value = false
   ++generation; draft.value = undefined; catalog.value = undefined; workflow.reset(); pending.value = undefined;
   title.value = ''; trackIds.value = []; sourceTrackId.value = ''; picker.value = false;
   mediaPlanning.value = false; masterVersions.value = false; execution.value = false; prepared.value = false; preparation.value = false; recordingPlan.value = false; initialRecordingPlanContext.value = undefined;
-  error.value = ''; notice.value = '已加载恢复后的工作库；旧工作库和历史目录权限保持不变。';
-  await list();
+  error.value = ''; notice.value = ''; loading.value = false
+  await nextTick(); if (alive && reloadRequired.value) reloadTrigger.value?.focus()
+}
+function reloadWindow(): void {
+  if (!alive || !reloadRequired.value || reloading.value) return
+  reloading.value = true
+  window.location.reload()
 }
 const api = window.musicBridge
 const workflow = createRecordingWorkflowController({ api, onChange: () => { workflowState.value = { ...workflow.state } } })
@@ -73,7 +83,7 @@ async function closePreparation(): Promise<void> { preparation.value = false; aw
 const sourceTrackId = ref('')
 const pending = shallowRef<() => Promise<MasterDraftResult>>()
 const title = ref(''), programType = ref<DraftProgramType>('compilation'), trackIds = ref<string[]>([])
-const blocked = computed(() => saving.value || loading.value || !!pending.value)
+const blocked = computed(() => reloadRequired.value || saving.value || loading.value || !!pending.value)
 const dirty = computed(() => !!draft.value && (title.value !== draft.value.title || programType.value !== draft.value.programType || JSON.stringify(trackIds.value) !== JSON.stringify(draft.value.tracks.map(t => t.id))))
 const tracks = computed(() => trackIds.value.map(id => draft.value!.tracks.find(t => t.id === id)!))
 const types = { compilation: 'Compilation · 精选', concert: 'Concert · 演出', continuous: 'Continuous Program · 连续节目' }
@@ -168,7 +178,7 @@ async function play(trackId: string): Promise<void> {
     await api.playRoonTrack(current.reference, zone.zoneId)
   } catch { if (alive) error.value = '试听未能启动，请检查 Roon 和播放设备；没有开始正式录音。' }
 }
-onMounted(() => { void list() })
+onMounted(() => { if (!reloadRequired.value) void list() })
 onUnmounted(() => { alive = false; ++generation; workflow.dispose(); for (const cleanup of focusCleanups) cleanup() })
 </script>
 
@@ -181,12 +191,19 @@ onUnmounted(() => { alive = false; ++generation; workflow.dispose(); for (const 
         <p class="recording-subtitle">选好音乐，再为它找到一盘合适的磁带。</p>
       </div>
       <div class="recording-secondary" aria-label="录音资料">
-        <button ref="backupTrigger" type="button" @click="backupRestore = true">备份与恢复</button>
+        <button ref="backupTrigger" type="button" :disabled="blocked" @click="backupRestore = true">备份与恢复</button>
         <button type="button" disabled aria-describedby="recording-secondary-status">母版</button>
-        <button ref="recordsTrigger" type="button" @click="recordsOpen = true">录音档案</button>
+        <button ref="recordsTrigger" type="button" :disabled="reloadRequired" @click="recordsOpen = true">录音档案</button>
         <span id="recording-secondary-status">尚未接入</span>
       </div>
     </header>
+
+    <section v-if="reloadRequired" class="dataset-reload" data-testid="dataset-reload-required" aria-labelledby="dataset-reload-title">
+      <h3 id="dataset-reload-title">工作库已切换，需要重新加载窗口</h3>
+      <p>旧窗口的录音上下文已停用，未保存的表单将被丢弃。旧工作库保留，已停止的播放不会恢复，未确认操作不会自动重放。</p>
+      <button ref="reloadTrigger" class="recording-primary" type="button" :disabled="reloading" @click="reloadWindow">重新加载窗口</button>
+      <p v-if="reloading" role="status">正在重新加载窗口…</p>
+    </section>
 
     <RecordingRecordsPanel v-if="recordsOpen" :draft-id="draft?.id" @close="closeRecords" />
     <BackupRestorePanel v-if="backupRestore" @close="closeBackupRestore" @activated="activatedDataset" />
@@ -243,12 +260,16 @@ onUnmounted(() => { alive = false; ++generation; workflow.dispose(); for (const 
 
     <footer class="recording-footer">
       <p>先整理收藏也可以，选曲前不需要预留磁带。</p>
-      <button type="button" @click="emit('open-collection')">查看空白磁带收藏 <span aria-hidden="true">→</span></button>
+      <button type="button" :disabled="reloadRequired" @click="emit('open-collection')">查看空白磁带收藏 <span aria-hidden="true">→</span></button>
     </footer>
   </section>
 </template>
 
 <style scoped>
+.dataset-reload { margin: 24px 0; padding: 20px; border: 1px solid var(--mb-accent); border-radius: 12px; background: var(--mb-bg-base); }
+.dataset-reload p { color: var(--mb-text-secondary); font-size: 14px; line-height: 1.75; overflow-wrap: anywhere; }
+.dataset-reload button { min-height: 44px; }
+.dataset-reload button:focus-visible { outline: 2px solid var(--mb-accent); outline-offset: 3px; }
 .recording-view { max-width: 1120px; margin: 0 auto; padding: 32px 36px 40px; }
 .recording-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .recording-kicker { margin: 0 0 10px; color: var(--mb-accent); font-size: 12px; letter-spacing: .08em; }

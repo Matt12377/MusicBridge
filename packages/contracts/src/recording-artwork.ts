@@ -38,9 +38,13 @@ export function isRecordingArtworkSnapshot(v: unknown): v is RecordingArtworkSna
 }
 export function isGetMasterArtworkRequest(v: unknown): v is GetMasterArtworkRequest { return record(v) && keys(v, ['masterVersionId', 'versionId']) && uuid(v.masterVersionId) && (v.versionId === undefined || uuid(v.versionId)); }
 export function isPickMasterArtworkRequest(v: unknown): v is PickMasterArtworkRequest { return record(v) && keys(v, ['masterVersionId']) && uuid(v.masterVersionId); }
-export function isSaveMasterArtworkRequest(v: unknown): v is SaveMasterArtworkRequest {
+/** 仅验证请求字段；image仍为unknown，不代表已验证完整请求。 */
+export function isSaveMasterArtworkRequestFields(v: unknown): v is Omit<SaveMasterArtworkRequest, 'image'> & { image: unknown } {
   return record(v) && keys(v, ['commandId', 'masterVersionId', 'expectedVersionId', 'image', 'userConfirmed']) && uuid(v.commandId) && uuid(v.masterVersionId)
-    && (v.expectedVersionId === null || uuid(v.expectedVersionId)) && isMasterArtworkImage(v.image) && v.userConfirmed === true;
+    && (v.expectedVersionId === null || uuid(v.expectedVersionId)) && v.userConfirmed === true;
+}
+export function isSaveMasterArtworkRequest(v: unknown): v is SaveMasterArtworkRequest {
+  return isSaveMasterArtworkRequestFields(v) && isMasterArtworkImage(v.image);
 }
 export function isMasterArtworkResult(v: unknown): v is MasterArtworkResult {
   if (!record(v) || !keys(v, ['masterVersionId', 'currentVersion', 'version', 'image']) || !uuid(v.masterVersionId)) return false;

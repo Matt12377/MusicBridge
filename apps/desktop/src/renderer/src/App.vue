@@ -146,6 +146,7 @@ function localDayKey(now = Date.now()): string {
 
 const appInfo = ref<AppInfo | null>(null)
 const currentView = ref<ViewId>('home')
+const recordingReloadRequired = ref(false)
 const nowPlayingReturnView = ref<ViewId>('home')
 const sidebar = useSidebarState()
 const searchReturnSource = ref<SidebarSource>({ type: 'home' })
@@ -2669,6 +2670,8 @@ onUnmounted(() => {
 
         <RecordingView
           v-else-if="currentView === 'recording'"
+          :reload-required="recordingReloadRequired"
+          @reload-required="recordingReloadRequired = true"
           @open-collection="openTapeCollection"
         />
 

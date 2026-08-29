@@ -1,3 +1,4 @@
+import { testElectronArguments } from '../scripts/test-keychain.mjs'
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
 import { mkdtemp, readFile, rm, mkdir, readdir } from 'node:fs/promises'
 import os from 'node:os'
@@ -153,7 +154,7 @@ export async function verifyBackupRestoreWorkflow({ session, electronEntry, desk
     await electronApp.close()
     const oldDatabasePath = path.join(diagnosticDirectory, 'data', 'collection.v1.sqlite')
     const oldDatabaseBytes = await readFile(oldDatabasePath)
-    session.electronApp = electronApp = await electron.launch({ args: [electronEntry], cwd: desktopRoot, env: environment }); session.page = page = await electronApp.firstWindow()
+    session.electronApp = electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: environment }); session.page = page = await electronApp.firstWindow()
     await page.setViewportSize({ width: 720, height: 800 })
     await expect.poll(async () => (await page.evaluate(() => window.musicBridge.getCoreHealth())).runtime).toBe('ready')
     expect(await page.evaluate(() => window.musicBridge.getBackupOverview())).toEqual(history)
@@ -179,7 +180,10 @@ export async function verifyBackupRestoreWorkflow({ session, electronEntry, desk
     const activatedCore = await electronApp.evaluate(({ app }) => app.getAppMetrics().filter(p => p.name === 'Music Bridge Core' || p.serviceName === 'Music Bridge Core').map(p => ({ pid: p.pid, created: p.creationTime })))
     expect(activatedCore).toHaveLength(1); expect(activatedCore).not.toEqual(beforeCore)
     await retryActivation.click()
-    await expect(activationPanel.getByText('已切换到恢复工作库；旧库保留，播放不会自动恢复。', { exact: true })).toBeVisible()
+    // 激活回执确认后旧面板关闭；用户明确重载前不能继续使用旧录音上下文。
+    await expect(activationPanel).not.toBeVisible()
+    await expect(page.getByTestId('dataset-reload-required')).toBeVisible()
+    await expect(page.getByRole('button', { name: '录音档案', exact: true })).toBeDisabled()
     expect(await electronApp.evaluate(({ app }) => app.getAppMetrics().filter(p => p.name === 'Music Bridge Core' || p.serviceName === 'Music Bridge Core').map(p => ({ pid: p.pid, created: p.creationTime })))).toEqual(activatedCore)
     const activated = (await page.evaluate(() => window.musicBridge.getBackupOverview())).activations
     expect(activated).toHaveLength(1); expect(activated[0]).toMatchObject({ restoreJobId: restored.id, state: 'active', contentIncluded: false })
@@ -190,6 +194,17 @@ export async function verifyBackupRestoreWorkflow({ session, electronEntry, desk
     const oldDatabase = new DatabaseSync(oldDatabasePath, { readOnly: true })
     try { expect(oldDatabase.prepare('SELECT id FROM collection_models ORDER BY id').all().map(row => row.id)).toEqual([retainedStock.modelId, laterStock.modelId].sort()) }
     finally { oldDatabase.close() }
+    await Promise.all([
+      page.waitForEvent('domcontentloaded'),
+      page.getByRole('button', { name: '重新加载窗口', exact: true }).click(),
+    ])
+    await expect(page.getByTestId('dataset-reload-required')).not.toBeVisible()
+    await expect.poll(async () => (await page.evaluate(() => window.musicBridge.getCoreHealth())).runtime).toBe('ready')
+    expect(await electronApp.evaluate(({ app }) => app.getAppMetrics().filter(p => p.name === 'Music Bridge Core' || p.serviceName === 'Music Bridge Core').map(p => ({ pid: p.pid, created: p.creationTime })))).toEqual(activatedCore)
+    await page.locator('[data-sidebar-source="recording"]').click()
+    await page.getByRole('button', { name: '备份与恢复', exact: true }).click()
+    await expect(activationPanel.getByText('已切换到恢复工作库；旧库保留，播放不会自动恢复。', { exact: true })).toBeVisible()
+    expect((await page.evaluate(() => window.musicBridge.getBackupOverview())).activations).toEqual(activated)
     await page.evaluate(axeSource)
     const activeA11y = await page.evaluate(async () => (window as typeof window & { axe: { run(root: Element): Promise<{ violations: { impact: string | null }[] }> } }).axe.run(document.querySelector('dialog[open]')!))
     expect(activeA11y.violations.filter(v => v.impact === 'critical' || v.impact === 'serious')).toEqual([])
@@ -197,7 +212,7 @@ export async function verifyBackupRestoreWorkflow({ session, electronEntry, desk
     await activationPanel.getByText('已切换到恢复工作库；旧库保留，播放不会自动恢复。', { exact: true }).scrollIntoViewIfNeeded()
     await page.screenshot({ path: test.info().outputPath('restored-dataset-active-720.png') })
     await electronApp.close()
-    session.electronApp = electronApp = await electron.launch({ args: [electronEntry], cwd: desktopRoot, env: environment }); session.page = page = await electronApp.firstWindow()
+    session.electronApp = electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: environment }); session.page = page = await electronApp.firstWindow()
     await expect.poll(async () => (await page.evaluate(() => window.musicBridge.getCoreHealth())).runtime).toBe('ready')
     expect((await page.evaluate(() => window.musicBridge.getBackupOverview())).activations).toEqual(activated)
     expect((await page.evaluate(() => window.musicBridge.listCollection({ offset: 0, limit: 100 }))).items.map(item => item.id)).toEqual([retainedStock.modelId])

@@ -1,0 +1,832 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { createHash, randomUUID, type Hash, type BinaryLike } from 'node:crypto';
+import { fork } from 'node:child_process';
+import { once } from 'node:events';
+import { DatabaseSync } from 'node:sqlite';
+import { isMasterArtworkImage, isRecordingPrintPdfBase64 } from '@music-bridge/contracts';
+import { mkdtempSync, realpathSync, writeFileSync, existsSync, readFileSync, rmSync, mkdirSync, lstatSync, readdirSync, symlinkSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+test('容量对象使用合法JPEG段和PDF偏移，精确字节/不同身份/固定上限可复核', async () => {
+  const api = await import('./helpers/recording-capacity-fixture.js');
+  for (const bytes of [4096, 1024 * 1024]) {
+    const a = api.capacityJpeg({ bytes, id: 'sample-a' }), b = api.capacityJpeg({ bytes, id: 'sample-b' });
+    assert.equal(a.length, bytes); assert.notDeepEqual(a, b);
+    assert.equal(isMasterArtworkImage({ dataUrl: `data:image/jpeg;base64,${a.toString('base64')}`, width: 1, height: 1 }), true);
+  }
+  for (const bytes of [4096, 4 * 1024 * 1024]) {
+    const pdf = api.capacityPdf({ bytes, id: 'sample-a' }); assert.equal(pdf.length, bytes);
+    assert.equal(isRecordingPrintPdfBase64(pdf.toString('base64')), true);
+    const text = pdf.toString(), offset = Number(/startxref\n(\d+)\n%%EOF/u.exec(text)![1]);
+    assert.equal(text.slice(offset, offset + 4), 'xref');
+    assert.notEqual(createHash('sha256').update(pdf).digest('hex'), createHash('sha256').update(api.capacityPdf({ bytes, id: 'sample-b' })).digest('hex'));
+  }
+  assert.throws(() => api.capacityJpeg({ bytes: 1024 * 1024 + 1, id: 'too-large' }));
+  assert.throws(() => api.capacityPdf({ bytes: 4 * 1024 * 1024 + 1, id: 'too-large' }));
+});
+
+test('规模描述及增长判定区分已达目标、联合边界与尚未达到，不改性能门槛', async () => {
+  const api = await import('./helpers/recording-capacity-fixture.js');
+  const profile = api.capacityProfile('objects-small');
+  assert.equal(profile.records, 25); assert.equal(profile.photoBytes, 32 * 1024 ** 2); assert.equal(profile.printObjectBytes, 32 * 1024 ** 2);
+  const budget = { attemptBytes: 0, planBytes: 0, recordBytes: 0, printBytes: 0, photoBytes: 0, printObjectBytes: 0, attempts: 0, events: 0, receipts: 0, records: 0, plans: 0, printJobs: 0, printReceipts: 0 };
+  assert.equal(api.capacityGrowth(profile, budget).state, 'continue');
+  assert.equal(api.capacityGrowth(profile, { ...budget, records: 25, photoBytes: profile.photoBytes, printObjectBytes: profile.printObjectBytes }).state, 'target-reached');
+  assert.equal(api.capacityGrowth(profile, { ...budget, planBytes: Math.ceil(.9 * 128 * 1024 ** 2) }).state, 'joint-boundary');
+  assert.throws(() => api.capacityProfile('invented' as never));
+  assert.throws(() => api.capacityGrowth(profile, { ...budget, events: 100001 }));
+  const history = api.capacityProfile('history-limit');
+  assert.equal(history.generationLimitMs, 1_200_000);
+  assert.equal(api.capacityGrowth(history, { ...budget, records: 1, attemptBytes: history.attemptBytes }).state, 'target-reached');
+  assert.equal(api.capacityGrowth(history, { ...budget, records: 1 }, history.progressEvents).state, 'target-reached');
+  for (const name of ['objects-limit', 'joint'] as const) {
+    const value = api.capacityProfile(name);
+    assert.equal(api.capacityGrowth(value, { ...budget, records: value.records, attemptBytes: value.attemptBytes,
+      recordBytes: value.recordBytes, printBytes: value.printBytes,
+      photoBytes: value.photoBytes, printObjectBytes: value.printObjectBytes }, value.progressEvents).state, 'target-reached');
+    assert.equal(api.capacityGrowth(value, { ...budget, records: value.records, photoBytes: value.photoBytes - 1, printObjectBytes: value.printObjectBytes }, value.progressEvents).state, 'continue');
+  }
+});
+
+test('joint六轴包含Record／Print元数据50%目标，任一未达继续且非目标硬边界优先停止', async () => {
+  const api = await import('./helpers/recording-capacity-fixture.js');
+  const profile = api.capacityProfile('joint');
+  const mib64 = 64 * 1024 ** 2;
+  assert.equal(profile.progressEvents, 50_000); assert.equal(profile.attemptBytes, mib64);
+  assert.equal(profile.recordBytes, mib64); assert.equal(profile.printBytes, mib64);
+  assert.equal(profile.photoBytes, 512 * 1024 ** 2); assert.equal(profile.printObjectBytes, 512 * 1024 ** 2);
+  const reached = { attemptBytes: profile.attemptBytes, planBytes: 0, recordBytes: profile.recordBytes, printBytes: profile.printBytes,
+    photoBytes: profile.photoBytes, printObjectBytes: profile.printObjectBytes, attempts: 0, events: 0, receipts: 0,
+    records: profile.records, plans: 0, printJobs: 0, printReceipts: 0 };
+  assert.equal(api.capacityGrowth(profile, reached, profile.progressEvents - 1).state, 'continue');
+  assert.equal(api.capacityGrowth(profile, { ...reached, attemptBytes: profile.attemptBytes - 1 }, profile.progressEvents).state, 'continue');
+  assert.deepEqual(api.capacityGrowth(profile, { ...reached, recordBytes: profile.recordBytes - 1 }, profile.progressEvents).state, 'continue');
+  assert.deepEqual(api.capacityGrowth(profile, { ...reached, printBytes: profile.printBytes - 1 }, profile.progressEvents).state, 'continue');
+  const complete = api.capacityGrowth(profile, reached, profile.progressEvents);
+  assert.equal(complete.state, 'target-reached');
+  assert.deepEqual(complete.reached, { attemptEvents: true, attemptBytes: true, recordBytes: true, printBytes: true, photoBytes: true, printObjectBytes: true });
+  assert.deepEqual(complete.structural, { records: true });
+  const boundary = api.capacityGrowth(profile, { ...reached, planBytes: Math.ceil(.9 * 128 * 1024 ** 2) }, profile.progressEvents);
+  assert.equal(boundary.state, 'joint-boundary'); assert.deepEqual(boundary.boundary, ['planBytes']);
+  const objects = api.capacityProfile('objects-limit');
+  const objectTargets = { ...reached, attemptBytes: 0, recordBytes: Math.ceil(.9 * 128 * 1024 ** 2), printBytes: 0,
+    records: objects.records, photoBytes: objects.photoBytes, printObjectBytes: objects.printObjectBytes };
+  assert.deepEqual(api.capacityGrowth(objects, objectTargets).boundary, ['recordBytes'], '未选择的metadata轴达到硬边界不能被零target豁免');
+  assert.equal(api.capacityHistoryReached(profile, reached, profile.progressEvents - 1), false);
+  assert.equal(api.capacityHistoryReached(profile, { ...reached, attemptBytes: profile.attemptBytes - 1 }, profile.progressEvents), false);
+  assert.equal(api.capacityHistoryReached(profile, reached, profile.progressEvents), true);
+  const history = api.capacityProfile('history-limit');
+  assert.equal(api.capacityHistoryReached(history, { ...reached, attemptBytes: history.attemptBytes }, 0), true, 'history-limit维持先到者语义');
+});
+
+test('缩小对象流程：同库两次真实Completed保留不同照片及PDF，移除source照片不改变历史', { timeout: 60_000 }, async t => {
+  const api = await import('./helpers/recording-capacity-fixture.js');
+  const f = await api.createCapacityObjectProbe(t);
+  assert.equal(f.manifest.classification, 'functional-object-probe/non-performance');
+  assert.deepEqual(f.manifest.planPreparation,{strategy:'prebuilt-before-object-growth',prepared:3,beforeFirstAttempt:true});
+  assert.equal(f.manifest.budget.records, 2); assert.equal(f.manifest.budget.plans, 3);
+  assert.equal(f.manifest.growth.state, 'target-reached');
+  assert.equal(f.manifest.removedSourcePhotos, 2);
+  assert.equal(f.db.prepare('SELECT count(*) n FROM collection_photos').get()!.n, 0);
+  assert.equal(f.db.prepare('SELECT count(DISTINCT sha256) n FROM recording_record_visuals').get()!.n, 2);
+  assert.ok(f.manifest.budget.photoBytes + f.manifest.budget.printObjectBytes <= 16 * 1024);
+  assert.equal(f.db.prepare("SELECT count(*) n FROM recording_attempts WHERE status='in-progress'").get()!.n, 0);
+  assert.equal(f.manifest.integrity, 'passed');
+});
+
+test('R023 Repository自然接线：预建next plan后Print完成凭证可由下一Begin复用', {timeout:60_000},async t=>{
+  const api=await import('./helpers/recording-capacity-fixture.js'),f=await api.createCapacityObjectLadder(t,3);
+  const pdf=api.capacityPdf({bytes:4*1024**2,id:'record-2-pdf'}),prototype=Object.getPrototypeOf(createHash('sha256')) as {update:Hash['update']},update=prototype.update;let reads=0;
+  t.mock.method(prototype,'update',function(this:Hash,value:BinaryLike,...rest:unknown[]){if(value instanceof Uint8Array&&Buffer.from(value).equals(pdf))++reads;return Reflect.apply(update,this,[value,...rest]);});
+  const request={commandId:randomUUID(),planVersionId:f.nextPlan.id,planContentHash:f.nextPlan.contentHash,userConfirmed:true} as const;
+  const attempt=await f.attempts.begin(request);assert.equal(reads,0,'Repository必须给Attempt/Print注入同一manager，下一Begin不得重读历史PDF BLOB');
+  await f.attempts.stop({commandId:randomUUID(),attemptId:attempt.id});
+});
+
+test('缩小joint流程：manifest同时封存六轴target、actual与reached，不冒充正式容量成绩', { timeout: 60_000 }, async t => {
+  const api = await import('./helpers/recording-capacity-fixture.js');
+  const f = await api.createCapacityJointProbe(t);
+  assert.equal(f.manifest.classification, 'functional-joint-probe/non-performance');
+  const axes = ['attemptEvents', 'attemptBytes', 'recordBytes', 'printBytes', 'photoBytes', 'printObjectBytes'] as const;
+  assert.deepEqual(Object.keys(f.manifest.axes.targets), axes);
+  assert.deepEqual(Object.keys(f.manifest.axes.actual), axes);
+  assert.deepEqual(Object.keys(f.manifest.axes.reached), axes);
+  assert.deepEqual(f.manifest.axes.reached, f.manifest.growth.reached);
+  assert.equal(f.manifest.axes.targets.attemptEvents, 4);
+  assert.equal(f.manifest.axes.actual.attemptEvents, 4);
+  assert.equal(f.manifest.axes.targets.attemptBytes, 0);
+  assert.equal(f.manifest.axes.actual.attemptBytes, f.manifest.budget.attemptBytes);
+  assert.deepEqual(f.manifest.structural, { records: { target: 2, actual: 2, reached: true } });
+  assert.equal(f.manifest.growth.state, 'target-reached');
+  assert.equal(f.manifest.targets.recordBytes, 1); assert.equal(f.manifest.targets.printBytes, 1);
+  assert.ok(f.manifest.budget.recordBytes >= f.manifest.targets.recordBytes);
+  assert.ok(f.manifest.budget.printBytes >= f.manifest.targets.printBytes);
+  assert.equal(f.manifest.progressEvents, f.manifest.targets.progressEvents);
+  assert.equal(f.manifest.deviceOpened, false); assert.equal(f.manifest.formalReady, false);
+});
+
+test('容量clone仅在持久receipt及关闭后按owner删除；失败、错marker、空间不足均保留', async t => {
+  const api = await import('./helpers/recording-capacity-fixture.js');
+  const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'musicbridge-capacity-safety-')));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const seed = path.join(directory, 'seed.sqlite'); writeFileSync(seed, 'synthetic');
+  api.assertCapacitySpace({ availableBytes: 11 * 1024 ** 3, plannedBytes: 1024 ** 3, ownedBytes: 0 });
+  assert.throws(() => api.assertCapacitySpace({ availableBytes: 11 * 1024 ** 3 - 1, plannedBytes: 1024 ** 3, ownedBytes: 0 }));
+  assert.throws(() => api.assertCapacitySpace({ availableBytes: 100 * 1024 ** 3, plannedBytes: 1, ownedBytes: 16 * 1024 ** 3 }));
+  const first = api.createCapacityClone(directory, 'success', seed);
+  assert.throws(() => api.finishCapacityClone(first, { outcome: 'ok', resourcesClosed: false, samples: [{ durationMs: 3000 }] }));
+  assert.equal(existsSync(first.directory), true);
+  const receipt = api.finishCapacityClone(first, { outcome: 'ok', resourcesClosed: true, samples: [{ durationMs: 3000 }] });
+  assert.equal(existsSync(first.directory), false); assert.equal(existsSync(seed), true);
+  assert.equal(JSON.parse(readFileSync(receipt, 'utf8')).samples[0].durationMs, 3000, '慢成功样本不得删除');
+  const failed = api.createCapacityClone(directory, 'failed', seed);
+  api.finishCapacityClone(failed, { outcome: 'failed', resourcesClosed: true, samples: [] });
+  assert.equal(existsSync(failed.directory), true);
+  const changed = api.createCapacityClone(directory, 'changed', seed);
+  writeFileSync(path.join(changed.directory, 'owner.json'), '{}');
+  assert.throws(() => api.finishCapacityClone(changed, { outcome: 'ok', resourcesClosed: true, samples: [] }));
+  assert.equal(existsSync(changed.directory), true);
+  assert.throws(() => api.createCapacityClone(directory, '../outside', seed));
+});
+
+test('容量统计使用nearest-rank并保留失败/超时，少量样本不伪报P99', async () => {
+  const api = await import('./helpers/recording-capacity-fixture.js');
+  const values = Array.from({ length: 100 }, (_, i) => ({ durationMs: i + 1, outcome: 'ok' as const }));
+  assert.deepEqual(api.summarizeCapacitySamples(values), { attempts: 100, successes: 100, failures: 0, timeouts: 0, p50: 50, p95: 95, p99: 99, max: 100, complete: true });
+  const partial = api.summarizeCapacitySamples([...values.slice(0, 9), { durationMs: 1000, outcome: 'timeout' }]);
+  assert.equal(partial.attempts, 10); assert.equal(partial.timeouts, 1); assert.equal(partial.p99, null); assert.equal(partial.complete, false);
+  for (const durationMs of [NaN, Infinity, -1]) assert.throws(() => api.summarizeCapacitySamples([{ durationMs, outcome: 'ok' }]));
+  assert.throws(() => api.summarizeCapacitySamples([]));
+});
+
+test('联合预算按UTF8实际合计，不把三个独立行上限误当可同时达顶', async () => {
+  const api = await import('./helpers/recording-capacity-fixture.js');
+  const empty = { attemptBytes: 0, planBytes: 0, recordBytes: 0, printBytes: 0, photoBytes: 0, printObjectBytes: 0, attempts: 0, events: 0, receipts: 0, records: 0, plans: 0, printJobs: 0, printReceipts: 0 };
+  api.assertCapacityBudget(empty);
+  assert.throws(() => api.assertCapacityBudget({ ...empty, attemptBytes: 128 * 1024 * 1024 + 1 }));
+  assert.throws(() => api.assertCapacityBudget({ ...empty, events: 100001 }));
+  assert.throws(() => api.assertCapacityBudget({ ...empty, printObjectBytes: 1024 * 1024 * 1024 + 1 }));
+  assert.throws(() => api.assertCapacityBudget({ ...empty, records: -1 }));
+});
+
+test('functional-pilot：正式完成+独立冻结Plan和100条真实进度，联合预算及历史闭包合法', { timeout: 60_000 }, async t => {
+  const api = await import('./helpers/recording-capacity-fixture.js');
+  const f = await api.createCapacityPilot(t);
+  t.diagnostic(JSON.stringify(f.manifest));
+  assert.equal(f.manifest.classification, 'functional-pilot/non-performance');
+  assert.equal(f.manifest.budget.records, 1); assert.equal(f.manifest.budget.plans, 2);
+  assert.equal(f.manifest.progressEvents, 100);
+  assert.notEqual(f.manifest.completedPhysicalId, f.manifest.nextPhysicalId);
+  assert.ok(f.manifest.budget.photoBytes + f.manifest.budget.printObjectBytes <= 4 * 1024 * 1024);
+  assert.equal(f.manifest.integrity, 'passed');
+  assert.equal(f.manifest.formalReady, false); assert.equal(f.manifest.deviceOpened, false);
+});
+
+// 此短进程只验证传输监督，不把合成receipt冒充真实cold业务。
+const transportPrelude = `process.once('message', message => {
+  const base = { version: 1, requestId: message.requestId, childPid: process.pid };
+  const ready = { ...base, type: 'ready' };
+  const result = { kind: 'cold', planId: message.task.planId, planHash: message.task.planHash,
+    budget: Object.fromEntries('attemptBytes,planBytes,recordBytes,printBytes,photoBytes,printObjectBytes,attempts,events,receipts,records,plans,printJobs,printReceipts'.split(',').map(k => [k, 0])),
+    repositoryOpenMs: 1, fullAuditMs: 1, databaseCloseMs: 1, childMeasuredMs: 3,
+    clock: 'child-relative', deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' };
+  const receipt = { ...base, type: 'receipt', result };
+`;
+async function processTransport(t: test.TestContext, script: string) {
+  const { runCapacityCold } = await import('./helpers/recording-capacity-process.js');
+  const { createCapacityClone } = await import('./helpers/recording-capacity-fixture.js');
+  const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'musicbridge-capacity-process-')));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const seed = path.join(directory, 'seed.sqlite'); writeFileSync(seed, '仅进程传输合成输入');
+  const clone = createCapacityClone(directory, 'late-close', seed), file = path.join(directory, 'child.mjs');
+  writeFileSync(file, transportPrelude + script + '\n});');
+  let child: ReturnType<typeof fork> | undefined, actualClose = false;
+  const launch: typeof fork = (_file, args) => {
+    child = fork(file, Array.isArray(args) ? args : [], { execArgv: [], stdio: ['ignore', 'pipe', 'pipe', 'ipc'] });
+    child.once('close', () => { actualClose = true; }); return child;
+  };
+  t.after(async () => { if (child && !actualClose) await once(child, 'close'); });
+  return { directory, clone, launch, closed: () => actualClose, run: (limits: import('./helpers/recording-capacity-process.js').CapacityProcessOptions = {}) => runCapacityCold({ clone, planId: randomUUID(), planHash: 'a'.repeat(64) }, { ...limits, launch }) };
+}
+
+for (const code of [0, 7]) test(`进程设施：receipt先到仍等真实close，退出码${code}不被改写`, { timeout: 10_000 }, async t => {
+  const f = await processTransport(t, `process.send(ready); process.send(receipt); setTimeout(() => { process.exitCode = ${code}; process.disconnect(); }, 120);`);
+  const receipt = await f.run();
+  assert.equal(f.closed(), true, '收到receipt仍须等待本次进程真实close');
+  assert.equal(receipt.outcome, code === 0 ? 'ok' : 'failed'); assert.equal(receipt.code, code); assert.equal(receipt.signal, null);
+  assert.equal(receipt.closed, true); assert.ok(receipt.forkToCloseMs - receipt.timings.receiptMs! >= 100);
+  assert.equal(!!receipt.result, code === 0); assert.deepEqual(receipt.cleanup, { termSent: false, killSent: false });
+  assert.equal(existsSync(f.clone.directory), true, '监督器不自动删除工作目录');
+});
+
+test('进程设施：执行期限涵盖receipt后的等待，超时无成功result且保留clone', { timeout: 10_000 }, async t => {
+  const f = await processTransport(t, 'process.send(ready); process.send(receipt); setInterval(() => {}, 1000);');
+  const receipt = await f.run({ executionTimeoutMs: 100, killGraceMs: 20, closeTimeoutMs: 100 });
+  assert.equal(receipt.outcome, 'timeout'); assert.equal(receipt.failure, 'TIMEOUT'); assert.equal(receipt.result, undefined);
+  assert.equal(receipt.cleanup.termSent, true); assert.equal(receipt.closed, true); assert.equal(existsSync(f.clone.directory), true);
+});
+
+test('进程设施：真实exit后stdio被短后代持有，close超时不kill已退出PID且不伪报closed', { timeout: 10_000 }, async t => {
+  const f = await processTransport(t, `
+    process.send(ready); process.send(receipt);
+    Promise.all([import('node:child_process'), import('node:fs'), import('node:path'), import('node:url')]).then(([cp, fs, path, url]) => {
+      const holder = cp.spawn(process.execPath, ['-e', 'setTimeout(() => {}, 250)'], { stdio: ['ignore', process.stdout, process.stderr] });
+      fs.writeFileSync(path.join(path.dirname(url.fileURLToPath(import.meta.url)), 'holder-pid'), String(holder.pid));
+      holder.unref(); process.disconnect();
+    });`);
+  const result = await f.run({ executionTimeoutMs: 2000, closeTimeoutMs: 20 });
+  assert.equal(result.outcome, 'failed'); assert.equal(result.failure, 'CLOSE_TIMEOUT'); assert.equal(result.closed, false);
+  assert.equal(result.code, 0); assert.equal(result.result, undefined); assert.deepEqual(result.cleanup, { termSent: false, killSent: false });
+  // 只检查本fixture显式创建的短后代自然退出，不扫描/终止其他进程。
+  const pid = Number(readFileSync(path.join(f.directory, 'holder-pid'), 'utf8'));
+  const alive = () => { try { process.kill(pid, 0); return true; } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ESRCH') return false; throw error; } };
+  for (let i = 0; i < 100 && alive(); ++i) await new Promise(resolve => setTimeout(resolve, 10));
+  assert.equal(alive(), false); assert.equal(existsSync(f.clone.directory), true);
+});
+
+test('进程设施：限额不能放宽、spawn异常与无receipt退出均固定失败', { timeout: 10_000 }, async t => {
+  const f = await processTransport(t, 'process.send(ready); process.disconnect();');
+  for (const limits of [{ executionTimeoutMs: 50001 }, { killGraceMs: 1001 }, { closeTimeoutMs: 2001 }, { executionTimeoutMs: NaN }]) await assert.rejects(f.run(limits), /只能收紧/u);
+  const result = await f.run(); assert.equal(result.failure, 'INVALID_PROTOCOL'); assert.equal(result.closed, true); assert.equal(result.result, undefined);
+  const { runCapacityCold } = await import('./helpers/recording-capacity-process.js');
+  const failed = await runCapacityCold({ clone: f.clone, planId: randomUUID(), planHash: 'a'.repeat(64) }, { launch: () => { throw new Error('不公开合成内部路径'); } });
+  assert.equal(failed.failure, 'SPAWN_FAILED'); assert.equal(failed.closed, false); assert.equal(JSON.stringify(failed).includes('不公开合成内部路径'), false);
+});
+
+test('进程设施：私有任务严格拒绝尾换行UUID/hash、未知字段和非字符串格式', async t => {
+  const api = await import('./helpers/recording-capacity-process.js');
+  const f = await processTransport(t, 'process.disconnect();');
+  const task = { kind: 'cold', clone: f.clone, planId: randomUUID(), planHash: 'a'.repeat(64), databaseSha256: 'b'.repeat(64) };
+  assert.equal(api.isCapacityChildTask(task), true);
+  for (const changed of [{ ...task, planId: task.planId + '\n' }, { ...task, planHash: task.planHash + '\n' }, { ...task, planHash: [task.planHash] }, { ...task, unexpected: true }]) {
+    assert.equal(api.isCapacityChildTask(changed), false);
+  }
+});
+
+for (const [name, script] of [
+  ['旧request', "process.send({ ...ready, requestId: '00000000-0000-4000-8000-000000000000' });"],
+  ['错误PID', 'process.send({ ...ready, childPid: process.pid + 1 });'],
+  ['重复ready', 'process.send(ready); process.send(ready);'],
+  ['缺ready', 'process.send(receipt);'],
+  ['未知字段', "process.send({ ...ready, path: 'synthetic-private-path' });"],
+  ['非法result', 'process.send(ready); process.send({ ...receipt, result: { ...result, formalReady: true } });'],
+  ['重复receipt', 'process.send(ready); process.send(receipt); process.send(receipt);'],
+  ['输出越界', "process.stdout.write('x'.repeat(16385));"],
+] as const) test(`进程设施：${name}固定失败，不泄漏原始消息`, { timeout: 10_000 }, async t => {
+  const f = await processTransport(t, script + ' setInterval(() => {}, 1000);');
+  const receipt = await f.run({ executionTimeoutMs: 2000, killGraceMs: 20, closeTimeoutMs: 100 });
+  assert.equal(receipt.outcome, 'failed'); assert.equal(receipt.failure, name === '输出越界' ? 'OUTPUT_LIMIT' : 'INVALID_PROTOCOL');
+  assert.equal(receipt.result, undefined); assert.equal(JSON.stringify(receipt).includes('synthetic-private-path'), false); assert.equal(receipt.closed, true);
+});
+
+async function tinyCold(t: test.TestContext, active = false) {
+  const { recordingAttemptFixture } = await import('./helpers/recording-attempt-fixture.js');
+  const { createCapacityClone, hashCapacityFile } = await import('./helpers/recording-capacity-fixture.js');
+  const f = await recordingAttemptFixture(t), plan = f.frozenPlan;
+  if (active) await f.attempts.begin(f.beginRequest());
+  const seed = path.join(f.directory, 'closed-seed.sqlite'), db = new DatabaseSync(f.filePath);
+  try { db.prepare('VACUUM INTO ?').run(seed); } finally { db.close(); }
+  const clone = createCapacityClone(f.directory, 'cold-child', seed);
+  return { ...f, plan, clone, seed, seedHash: hashCapacityFile(seed) };
+}
+test('进程设施：真实新Node首次打开冻结Plan并完整核验闭包，关闭后才成功', { timeout: 20_000 }, async t => {
+  const { runCapacityCold } = await import('./helpers/recording-capacity-process.js');
+  const { hashCapacityFile } = await import('./helpers/recording-capacity-fixture.js');
+  const f = await tinyCold(t), result = await runCapacityCold({ clone: f.clone, planId: f.plan.id, planHash: f.plan.contentHash });
+  assert.equal(result.outcome, 'ok', JSON.stringify(result)); assert.notEqual(result.childPid, process.pid); assert.ok(result.childPid! > 0);
+  assert.equal(result.closed, true); assert.equal(result.code, 0); assert.equal(result.signal, null);
+  assert.equal(result.result?.kind, 'cold'); if (result.result?.kind !== 'cold') return;
+  assert.equal(result.result.budget.plans, 1); assert.ok(result.result.repositoryOpenMs > 0); assert.ok(result.result.fullAuditMs > 0);
+  assert.equal(result.result.planHash, f.plan.contentHash); assert.equal(result.result.formalReady, false);
+  assert.equal(hashCapacityFile(f.seed), f.seedHash, '不打开/改写原关闭seed');
+});
+
+test('进程设施：原关闭快照含活动Attempt时拒绝，不让启动自动恢复掩盖前提', { timeout: 20_000 }, async t => {
+  const { runCapacityCold } = await import('./helpers/recording-capacity-process.js');
+  const { hashCapacityFile } = await import('./helpers/recording-capacity-fixture.js');
+  const f = await tinyCold(t, true), before = hashCapacityFile(f.clone.filePath);
+  const result = await runCapacityCold({ clone: f.clone, planId: f.plan.id, planHash: f.plan.contentHash });
+  assert.equal(result.outcome, 'failed'); assert.equal(result.failure, 'AUDIT_FAILED'); assert.equal(result.result, undefined);
+  assert.equal(hashCapacityFile(f.clone.filePath), before, '不能先自动恢复活动Attempt再当作合格cold样本');
+});
+
+for (const fault of ['plan-hash', 'database-tamper', 'owner-tamper'] as const) test(`进程设施：${fault}拒绝且保留原clone`, { timeout: 20_000 }, async t => {
+  const { runCapacityCold } = await import('./helpers/recording-capacity-process.js');
+  const f = await tinyCold(t);
+  if (fault === 'database-tamper') {
+    const db = new DatabaseSync(f.clone.filePath);
+    try {
+      const trigger = String(db.prepare("SELECT sql FROM sqlite_master WHERE name='recording_plan_versions_no_update'").get()!.sql);
+      db.exec("DROP TRIGGER recording_plan_versions_no_update; UPDATE recording_plan_versions SET data='{}'"); db.exec(trigger);
+    } finally { db.close(); }
+  }
+  if (fault === 'owner-tamper') writeFileSync(path.join(f.clone.directory, 'owner.json'), '{}');
+  const result = await runCapacityCold({ clone: f.clone, planId: f.plan.id, planHash: fault === 'plan-hash' ? '0'.repeat(64) : f.plan.contentHash });
+  assert.equal(result.outcome, 'failed'); assert.equal(result.result, undefined); assert.equal(existsSync(f.clone.filePath), true);
+  assert.equal(result.failure, fault === 'owner-tamper' ? 'INPUT_INVALID' : 'AUDIT_FAILED');
+});
+
+test('进程设施：完整备份真实新进程复制音频对象并撤销旧路径权限，不激活', { timeout: 20_000 }, async t => {
+  const { archiveBackupFixture } = await import('./helpers/archive-backup-fixture.js');
+  const { runCapacityRecovery } = await import('./helpers/recording-capacity-process.js');
+  const { hashCapacityFile } = await import('./helpers/recording-capacity-fixture.js');
+  const f = await archiveBackupFixture(t), backup = await f.api.createArchiveBackup(f.backupRequest);
+  const root = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'musicbridge-capacity-recovery-'))), id = randomUUID();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  writeFileSync(path.join(root, 'owner.json'), JSON.stringify({ id, scope: 'musicbridge-capacity-recovery-only' }));
+  const destinationPath = path.join(root, 'sample'); mkdirSync(destinationPath);
+  const expected = { id: backup.manifest.id, manifestHash: hashCapacityFile(path.join(backup.directory.path, 'Backup.json')) };
+  const result = await runCapacityRecovery({ backupPath: backup.directory.path, destinationPath, expected, owner: { root, id },
+    protectedRootPaths: [...new Set([...f.repository.sources.roots(), ...f.repository.preparations.destinations(), f.root.root].map(r => r.path))] });
+  assert.equal(result.outcome, 'ok', JSON.stringify(result)); assert.equal(result.closed, true); assert.equal(result.code, 0); assert.notEqual(result.childPid, process.pid);
+  assert.equal(result.result?.kind, 'restore'); if (result.result?.kind !== 'restore') return;
+  const receipt = result.result, target = path.join(destinationPath, receipt.id);
+  assert.equal(receipt.state, 'isolated-pending-activation'); assert.equal(receipt.contentIncluded, true); assert.ok(receipt.objectCount > 0);
+  assert.equal(receipt.objectCount, backup.manifest.objects.length); assert.equal(receipt.sourceManifestHash, expected.manifestHash);
+  for (const object of backup.manifest.objects) assert.equal(hashCapacityFile(path.join(target, 'objects', object.sha256)), object.sha256);
+  const db = new DatabaseSync(path.join(target, 'database', 'collection.sqlite'), { readOnly: true });
+  try {
+    assert.ok(Number(db.prepare('SELECT count(*) n FROM source_roots').get()!.n) > 0);
+    assert.equal(db.prepare("SELECT count(*) n FROM source_roots WHERE json_extract(data,'$.authorized') IS NOT 0").get()!.n, 0);
+    assert.equal(db.prepare('SELECT count(*) n FROM archive_roots WHERE authorized<>0').get()!.n, 0);
+    assert.equal(db.prepare("SELECT count(*) n FROM prepared_selections WHERE json_extract(data,'$.root.authorized') IS NOT 0").get()!.n, 0);
+  } finally { db.close(); }
+  assert.equal(hashCapacityFile(path.join(backup.directory.path, 'Backup.json')), expected.manifestHash);
+  assert.equal(existsSync(path.join(target, 'RestoreComplete.json')), true);
+  // 独立空目标重试损坏包：不能只跑isolate而漏掉真实音频对象核验。
+  const brokenTarget = path.join(root, 'broken'); mkdirSync(brokenTarget);
+  writeFileSync(path.join(backup.directory.path, 'objects', backup.manifest.objects[0]!.sha256), '合成损坏音频对象');
+  const broken = await runCapacityRecovery({ backupPath: backup.directory.path, destinationPath: brokenTarget, expected, owner: { root, id }, protectedRootPaths: [f.root.root.path] });
+  assert.equal(broken.outcome, 'failed'); assert.equal(broken.failure, 'RESTORE_FAILED'); assert.equal(broken.result, undefined);
+  assert.equal(existsSync(brokenTarget), true);
+});
+
+test('phase设施：没有窗口授权时拒绝，不能凭普通标签启动容量流程', async () => {
+  const { runCapacityPhase } = await import('./helpers/recording-capacity-phases.js');
+  await assert.rejects(runCapacityPhase({ phase: 'cold', profile: 'history-small', label: 'not-approved' } as never), /CAPACITY_PHASE_INVALID_INPUT/u);
+});
+
+test('phase设施：print-write实际25秒执行包络，其他phase仍保持通用50秒与53秒admission', async () => {
+  const api = await import('./helpers/recording-capacity-phases.js');
+  assert.deepEqual(api.capacityPhaseEffectiveOperationLimits('print-write'), { executionMs: 25_000, killGraceMs: 1_000, closeMs: 2_000, admissionReserveMs: 28_000 });
+  for (const phase of ['prepare-backup','cold','full-recovery','queued-stop'] as const) {
+    assert.deepEqual(api.capacityPhaseEffectiveOperationLimits(phase), { executionMs: 50_000, killGraceMs: 1_000, closeMs: 2_000, admissionReserveMs: 53_000 });
+  }
+});
+
+// 外层协议测试只使用微型文字文件和受控operation，不运行真实seed或N10容量负载。
+async function phaseFixture(t: test.TestContext, phase: import('./helpers/recording-capacity-phases.js').CapacityPhaseName = 'cold',
+  printSamples: 10 | 105 = 105, selectedProfile?: import('./helpers/recording-capacity-phases.js').CapacityPhaseProfile) {
+  const api = await import('./helpers/recording-capacity-phases.js');
+  const runtime = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'musicbridge-phase-test-')));
+  const fixture = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'musicbridge-version-')));
+  t.after(() => { rmSync(runtime, { recursive: true, force: true }); rmSync(fixture, { recursive: true, force: true }); });
+  const hash = (file: string) => createHash('sha256').update(readFileSync(file)).digest('hex');
+  const put = (file: string, value: unknown) => { writeFileSync(file, JSON.stringify(value)); return hash(file); };
+  const seed = path.join(runtime, 'seed'), windowRoot = path.join(runtime, 'window'), output = path.join(windowRoot, 'run'); mkdirSync(seed); mkdirSync(windowRoot);
+  const marker = { id: randomUUID(), scope: 'musicbridge-capacity-synthetic-only' }, id = randomUUID();
+  put(path.join(fixture, 'capacity-owner.json'), marker); writeFileSync(path.join(seed, 'seed.sqlite'), '仅外层协议测试，不是SQLite容量seed');
+  const profile = selectedProfile ?? (phase === 'queued-stop' || phase === 'print-write' ? 'objects-small' as const : 'history-small' as const);
+  const jointTargets = { attemptEvents: 50_000, attemptBytes: 64 * 1024 ** 2, recordBytes: 64 * 1024 ** 2,
+    printBytes: 64 * 1024 ** 2, photoBytes: 512 * 1024 ** 2, printObjectBytes: 512 * 1024 ** 2 };
+  const metadata = { schema: 21, profile, fixtureDirectory: fixture, snapshotSha256: hash(path.join(seed, 'seed.sqlite')), marker,
+    nextPlanId: randomUUID(), nextPlanHash: 'a'.repeat(64), integrity: 'passed',
+    ...(['history-limit','objects-limit','joint'].includes(profile) ? { growth: { state: 'target-reached' } } : {}),
+    ...(profile === 'joint' ? { axes: { targets: jointTargets, actual: jointTargets,
+      reached: Object.fromEntries(Object.keys(jointTargets).map(key => [key, true])) } } : {}) };
+  const metadataSha256 = put(path.join(seed, 'seed.json'), metadata);
+  put(path.join(seed, 'exit.json'), { exit: 0 });
+  put(path.join(windowRoot, 'owner.json'), { scope: 'musicbridge-capacity-phase-window', owner: 'root', id });
+  const entry = (directory: string, relative: 'owner.json' | 'capacity-owner.json' | 'seed.json' | 'command.json' | 'r020-owner.json') => {
+    const s = lstatSync(directory); return { path: directory, device: s.dev, inode: s.ino, marker: { relative, sha256: hash(path.join(directory, relative)) } };
+  };
+  const inventory: import('./helpers/recording-capacity-phases.js').CapacityOwnedManifest = { schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only', windowId: id,
+    roots: [entry(windowRoot, 'owner.json'), entry(seed, 'seed.json'), entry(fixture, 'capacity-owner.json')] };
+  const sourceSha = put(path.join(windowRoot, 'source-pins.json'), api.capacityPhaseSourcePins());
+  let at = Date.now();
+  const w: import('./helpers/recording-capacity-phases.js').CapacityPhaseWindow = { schemaVersion: 1, scope: 'musicbridge-capacity-phase-window', owner: 'root', id, state: 'approved',
+    phase, profile, label: 'run', seed: { label: 'seed', metadataSha256, snapshotSha256: metadata.snapshotSha256 }, n: phase === 'queued-stop' ? 105 : phase === 'print-write' ? printSamples : 10,
+    issuedAt: new Date(at - 1000).toISOString(), deadlineAt: new Date(at + (phase === 'queued-stop' || phase === 'print-write' && printSamples === 105 ? 899000 : 800000)).toISOString(), limits: { ...api.CAPACITY_PHASE_LIMITS },
+    ownedManifest: { file: 'owned-roots.json', sha256: '' }, sourceManifest: { file: 'source-pins.json', sha256: sourceSha } };
+  const args: import('./helpers/recording-capacity-phases.js').CapacityPhaseArguments = { phase, profile, label: 'run', seedLabel: 'seed',
+    windowPath: path.join(windowRoot, 'window.json'), windowSha256: '', ownedRootsPath: path.join(windowRoot, 'owned-roots.json'), ownedRootsSha256: '' };
+  const seal = () => { w.ownedManifest.sha256 = put(args.ownedRootsPath, inventory); args.ownedRootsSha256 = w.ownedManifest.sha256; args.windowSha256 = put(args.windowPath, w); };
+  seal();
+  const options = { runtimeRoot: runtime, now: () => at, availableBytes: () => 100 * 1024 ** 3 };
+  let fakePid = 98765;
+  const coldResult = (input: import('./helpers/recording-capacity-process.js').CapacityColdInput): import('./helpers/recording-capacity-process.js').CapacityProcessResult => ({
+    outcome: 'ok', requestId: randomUUID(), childPid: ++fakePid, code: 0, signal: null, closed: true, cleanup: { termSent: false, killSent: false }, forkToCloseMs: 10, phase: 'exited', timings: {},
+    result: { kind: 'cold', planId: input.planId, planHash: input.planHash, budget: { attemptBytes: 0, planBytes: 0, recordBytes: 0, printBytes: 0, photoBytes: 0, printObjectBytes: 0, attempts: 0, events: 0, receipts: 0, records: 0, plans: 0, printJobs: 0, printReceipts: 0 },
+      repositoryOpenMs: 1, fullAuditMs: 1, databaseCloseMs: 1, childMeasuredMs: 3, clock: 'child-relative', deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' } });
+  const queuedResult = (input: import('./helpers/recording-capacity-process.js').CapacityQueuedStopInput, values: Partial<{
+    progressMs: number; abortMs: number; invokeMs: number; ackMs: number; receiptMs: number; parentReceiptMs: number; closeInvokedMs: number; closeResolvedMs: number;
+  }> = {}): import('./helpers/recording-capacity-process.js').CapacityProcessResult => {
+    const childPid = ++fakePid, progressMs = values.progressMs ?? 10, closeResolvedMs = values.closeResolvedMs ?? 20;
+    return { outcome: 'ok', requestId: randomUUID(), childPid, code: 0, signal: null, closed: true,
+      cleanup: { termSent: false, killSent: false }, forkToCloseMs: 30, phase: 'exited',
+      timings: { clock: 'parent-relative', readyMs: 5, receiptMs: 20, exitMs: 25, sendStopToReceiptMs: values.parentReceiptMs ?? 12, receiptToChildCloseMs: 5 },
+      processGroup: { pgid: childPid, managed: true, groupEmpty: true, zombies: [] },
+      result: { kind: 'queue', planId: input.planId, planHash: input.planHash, attemptId: randomUUID(), order: ['progress', 'stop'], progressFrames: 1,
+        fullAuditMs: 3, beginMs: 4, progressMs, abortObserved: true, driverStopInvoked: true, driverStopAcknowledged: true,
+        stopReceivedToAbortMs: values.abortMs ?? 1, stopReceivedToDriverStopInvokedMs: values.invokeMs ?? 2,
+        stopReceivedToDriverStopAckMs: values.ackMs ?? 3, stopReceivedToReceiptMs: values.receiptMs ?? 15,
+        driverCloseInvoked: true, driverCloseResolved: true, stopReceivedToDriverCloseInvokedMs: values.closeInvokedMs ?? 16,
+        stopReceivedToDriverCloseResolvedMs: closeResolvedMs, childMeasuredMs: Math.max(progressMs, closeResolvedMs) + 5, clock: 'child-relative',
+        deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' } };
+  };
+  const printResult = (input: import('./helpers/recording-capacity-process.js').CapacityPrintWriteInput, values: Partial<{ claimMs: number; completeMs: number }> = {}): import('./helpers/recording-capacity-process.js').CapacityProcessResult => {
+    const childPid = ++fakePid, attemptId = randomUUID(), recordingId = randomUUID(), jobId = randomUUID(), requestId = randomUUID(), leaseId = randomUUID(), workerId = randomUUID(), artifactId = randomUUID();
+    const inputHash = 'b'.repeat(64), pdfSha256 = 'c'.repeat(64), previewSha256 = 'd'.repeat(64), claimMs = values.claimMs ?? 20, completeMs = values.completeMs ?? 30;
+    return { outcome: 'ok', requestId: randomUUID(), childPid, code: 0, signal: null, closed: true, cleanup: { termSent: false, killSent: false }, forkToCloseMs: 100,
+      phase: 'exited', timings: {}, processGroup: { pgid: childPid, managed: true, groupEmpty: true, zombies: [] },
+      result: { kind: 'print-write', planId: input.planId, planHash: input.planHash, attemptId, recordingId, jobId, requestId, inputHash,
+        events: [{ revision: 1, kind: 'create' }, { revision: 2, kind: 'claim' }, { revision: 3, kind: 'complete' }],
+        lease: { leaseId, workerId, jobId, requestId, inputHash }, job: { id: jobId, requestId, inputHash, state: 'ready', revision: 3, artifactId },
+        artifact: { id: artifactId, requestId, recordingId, inputHash, pdfSha256, previewSha256, size: 4096, previewSize: 1024, pageCount: 1 },
+        completeReceipt: { id: `lease:${leaseId}`, kind: 'complete', fingerprint: 'e'.repeat(64) },
+        pdf: { sha256: pdfSha256, size: 4096, mime: 'application/pdf', width: null, height: null },
+        preview: { sha256: previewSha256, size: 1024, mime: 'image/jpeg', width: 1, height: 1 },
+        claimMs, completeMs, idempotent: true, childMeasuredMs: claimMs + completeMs + 10, clock: 'child-relative', deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' } };
+  };
+  return { api, runtime, fixture, seed, output, windowRoot, inventory, args, w, seal, put, hash, entry, options, coldResult, queuedResult, printResult, advance: (ms: number) => { at += ms; } };
+}
+
+test('phase设施：新入口参数严格，未知/重复/缺少窗口hash不接受', async () => {
+  const { parseCapacityPhaseArguments } = await import('./helpers/recording-capacity-phases.js');
+  for (const args of [[], ['--phase','cold'], ['--phase','cold','--phase','cold'], ['--invented','yes'], ['--phase']]) assert.throws(() => parseCapacityPhaseArguments(args), /CAPACITY_PHASE_INVALID_INPUT/u);
+});
+
+for (const fault of ['owner','purpose','n','limit','expired','window-hash','inventory-hash','source-pins','seed-hash','symlink'] as const) test(`phase设施：${fault}前置拒绝且不建输出`, async t => {
+  const f = await phaseFixture(t); let calls = 0;
+  if (fault === 'owner') f.put(path.join(f.windowRoot, 'owner.json'), { scope: f.w.scope, owner: 'other', id: f.w.id });
+  if (fault === 'purpose') f.w.phase = 'prepare-backup';
+  if (fault === 'n') (f.w as unknown as { n: number }).n = 9;
+  if (fault === 'limit') (f.w.limits as unknown as { executionMs: number }).executionMs = 50001;
+  if (fault === 'expired') f.advance(900000);
+  if (fault === 'source-pins') { const source = f.api.capacityPhaseSourcePins(); delete source.files['package.json']; f.w.sourceManifest.sha256 = f.put(path.join(f.windowRoot, 'source-pins.json'), source); }
+  if (fault === 'seed-hash') writeFileSync(path.join(f.seed, 'seed.sqlite'), '已变更');
+  if (fault === 'symlink') symlinkSync(f.seed, path.join(f.windowRoot, 'linked'));
+  f.seal();
+  if (fault === 'window-hash') f.args.windowSha256 = '0'.repeat(64);
+  if (fault === 'inventory-hash') f.args.ownedRootsSha256 = '0'.repeat(64);
+  await assert.rejects(f.api.runCapacityPhase(f.args, { ...f.options, cold: async input => { ++calls; return f.coldResult(input); } }));
+  assert.equal(calls, 0); assert.equal(existsSync(f.output), false);
+});
+
+test('phase设施：N10固定、不补抽，raw及单样本回执落盘后才清理cold clone', async t => {
+  const f = await phaseFixture(t); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options, cold: async input => {
+    ++calls;
+    if (calls > 1) { const previous = `sample-${String(calls - 1).padStart(2, '0')}`; assert.equal(existsSync(path.join(f.output, previous)), false); assert.equal(existsSync(path.join(f.output, previous + '.json')), true); assert.equal(existsSync(path.join(f.output, previous + '.receipt.json')), true); }
+    assert.equal(existsSync(input.clone.filePath), true); return f.coldResult(input);
+  } });
+  assert.equal(calls, 10); assert.equal(summary.state, 'passed'); assert.equal(summary.successes, 10); assert.equal(summary.p99, null);
+  assert.equal(readFileSync(path.join(f.output, 'samples.jsonl'), 'utf8').trim().split('\n').length, 10);
+  assert.equal(readdirSync(f.output).some(name => /^sample-\d\d$/u.test(name)), false);
+  assert.equal(existsSync(path.join(f.seed, 'seed.sqlite')), true, 'inventory计费不赋删除权限');
+});
+
+for (const failure of ['timeout','unknown-close','over-limit','throw'] as const) test(`phase设施：${failure}保留失败目录与不完整结果，不补抽`, async t => {
+  const f = await phaseFixture(t); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options, cold: async input => {
+    ++calls; if (failure === 'throw') throw new Error('不公开内部错误');
+    const r = f.coldResult(input);
+    if (failure === 'timeout') { r.outcome = 'timeout'; r.failure = 'TIMEOUT'; delete r.result; }
+    if (failure === 'unknown-close') r.closed = false;
+    if (failure === 'over-limit') r.forkToCloseMs = 50001;
+    return r;
+  } });
+  assert.equal(calls, 1); assert.equal(summary.state, 'incomplete'); assert.equal(summary.attempted, 1); assert.equal(summary.unrun, 9);
+  assert.equal(existsSync(path.join(f.output, 'sample-01', 'sample.sqlite')), true);
+  assert.equal(existsSync(path.join(f.output, 'sample-01.json')), true);
+  assert.equal(JSON.stringify(summary).includes('不公开内部错误'), false);
+});
+
+test('phase设施：窗口不足下一完整50s及清理余量时停止，剩余样本不伪完成', async t => {
+  const f = await phaseFixture(t); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options, cold: async input => { ++calls; f.advance(750000); return f.coldResult(input); } });
+  assert.equal(calls, 1); assert.equal(summary.attempted, 1); assert.equal(summary.state, 'incomplete'); assert.equal(summary.failure, 'CAPACITY_PHASE_DEADLINE');
+});
+
+test('phase设施：当前operation返回时窗口已到期，失败clone不得清理', async t => {
+  const f = await phaseFixture(t);
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options, cold: async input => { f.advance(900000); return f.coldResult(input); } });
+  assert.notEqual(summary.state, 'passed'); assert.equal(summary.attempted, 1);
+  assert.equal(existsSync(path.join(f.output, 'sample-01', 'sample.sqlite')), true);
+});
+
+test('phase设施：单样本回执持久化失败时保留clone，不能先清理再报错', async t => {
+  const f = await phaseFixture(t);
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options, cold: async input => { f.put(path.join(f.output, 'sample-01.json'), { collision: true }); return f.coldResult(input); } });
+  assert.notEqual(summary.state, 'passed'); assert.equal(summary.attempted, 1);
+  assert.equal(existsSync(path.join(f.output, 'sample-01', 'sample.sqlite')), true);
+  assert.deepEqual(JSON.parse(readFileSync(path.join(f.output, 'sample-01.json'), 'utf8')), { collision: true });
+});
+
+test('phase设施：磁盘余量不足立即拒绝，旧inventory保持只读', async t => {
+  const f = await phaseFixture(t), before = f.hash(path.join(f.seed, 'seed.sqlite'));
+  await assert.rejects(f.api.runCapacityPhase(f.args, { ...f.options, availableBytes: () => 10 * 1024 ** 3, cold: async input => f.coldResult(input) }), /CAPACITY_PHASE_SPACE/u);
+  assert.equal(existsSync(f.output), false); assert.equal(f.hash(path.join(f.seed, 'seed.sqlite')), before);
+});
+
+async function phaseBackup(f: Awaited<ReturnType<typeof phaseFixture>>, databaseBytes = 64) {
+  const previous = path.join(f.runtime, 'prior-window'), output = path.join(previous, 'backup-run'), backupPath = path.join(output, 'backup', randomUUID());
+  mkdirSync(backupPath, { recursive: true }); f.put(path.join(previous, 'command.json'), { synthetic: true });
+  const manifestHash = f.put(path.join(backupPath, 'Backup.json'), { synthetic: '仅外层核验测试，不是正式备份包' });
+  const receipt = { schemaVersion: 1, kind: 'capacity-full-backup', state: 'verified', mode: 'archive-content', contentIncluded: true,
+    id: randomUUID(), backupPath, manifestHash, databaseSha256: 'd'.repeat(64), databaseBytes, objectCount: 1, objectBytes: 16, manifestBytes: 16, preparationMs: 1,
+    protectedRootPaths: [f.fixture, f.seed], seedLabel: f.args.seedLabel, seedSha256: f.w.seed.snapshotSha256, profile: f.args.profile, sourceManifestSha256: f.w.sourceManifest.sha256 };
+  const receiptSha256 = f.put(path.join(output, 'backup-receipt.json'), receipt);
+  f.inventory.roots.push(f.entry(previous, 'command.json')); f.args.backupLabel = 'backup-run'; f.w.backup = { label: 'backup-run', outputDirectory: output, receiptSha256 }; f.seal();
+  return receipt;
+}
+
+test('phase设施：十份恢复树预检总投影超16GiB时不启动第一份', async t => {
+  const f = await phaseFixture(t, 'full-recovery'); await phaseBackup(f, 1024 ** 3); let calls = 0;
+  await assert.rejects(f.api.runCapacityPhase(f.args, { ...f.options, recovery: async () => { ++calls; throw new Error(); } }), /CAPACITY_PHASE_SPACE/u);
+  assert.equal(calls, 0); assert.equal(existsSync(f.output), false);
+});
+
+test('phase设施：恢复N10完整树全部保留，准备耗时不跨时钟扣减', async t => {
+  const f = await phaseFixture(t, 'full-recovery'), backup = await phaseBackup(f); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options, recovery: async input => {
+    ++calls; writeFileSync(path.join(input.destinationPath, 'retained'), '合成外层恢复操作');
+    return { outcome: 'ok', requestId: randomUUID(), childPid: 98765 + calls, closed: true, code: 0, signal: null, cleanup: { termSent: false, killSent: false }, forkToCloseMs: 100, phase: 'exited', timings: {},
+      result: { kind: 'restore', id: randomUUID(), sourceBackupId: backup.id, sourceManifestHash: backup.manifestHash, state: 'isolated-pending-activation', contentIncluded: true,
+        objectCount: 1, objectBytes: 16, databaseSha256: 'd'.repeat(64), verifyBackupMs: 1, restoreMs: 1, verifyRestoredMs: 1, childMeasuredMs: 3, clock: 'child-relative', deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' } };
+  } });
+  assert.equal(calls, 10); assert.equal(summary.state, 'passed');
+  for (let i = 1; i <= 10; ++i) { const name = `sample-${String(i).padStart(2, '0')}`; assert.equal(existsSync(path.join(f.output, 'restores', name, 'retained')), true); assert.ok(JSON.parse(readFileSync(path.join(f.output, name + '.json'), 'utf8')).preparationMs >= 0); }
+});
+
+for (const mode of ['success','throw','deleted-protection','source-changed','seed-changed'] as const) test(`phase设施：prepare-backup ${mode}仅执行一次且不发布partial`, async t => {
+  const f = await phaseFixture(t, 'prepare-backup'); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options, prepare: async input => {
+    ++calls; assert.equal(existsSync(input.clone.filePath), true);
+    if (mode === 'throw') throw new Error('合成备份失败，内部细节不可输出');
+    const id = randomUUID(), backupPath = path.join(input.output, 'backup', id); mkdirSync(backupPath, { recursive: true });
+    const manifestHash = f.put(path.join(backupPath, 'Backup.json'), { synthetic: '仅外层测试' });
+    if (mode === 'source-changed') f.put(path.join(f.windowRoot, 'source-pins.json'), { changed: true });
+    if (mode === 'seed-changed') writeFileSync(path.join(f.seed, 'seed.sqlite'), '采样期间身份已变化');
+    return { id, backupPath, manifestHash, databaseSha256: 'd'.repeat(64), databaseBytes: 64, objectCount: 1, objectBytes: 16, manifestBytes: 16, preparationMs: 1,
+      protectedRootPaths: mode === 'deleted-protection' ? [input.clone.directory] : [f.fixture, f.seed] };
+  } });
+  assert.equal(calls, 1); assert.equal(summary.state, mode === 'success' ? 'prepared' : 'failed');
+  assert.equal(existsSync(path.join(f.output, 'backup-receipt.json')), mode === 'success');
+  assert.equal(existsSync(path.join(f.output, 'backup-source')), mode !== 'success');
+  assert.equal(existsSync(path.join(f.seed, 'seed.sqlite')), true);
+});
+
+for (const phase of ['cold','full-recovery'] as const) for (const changed of ['source','seed'] as const) test(`phase设施：${phase}采样期间身份${changed}变化立即失败并保留当前样本`, async t => {
+  const f = await phaseFixture(t, phase), backup = phase === 'full-recovery' ? await phaseBackup(f) : undefined; let calls = 0;
+  const mutate = () => {
+    ++calls;
+    if (changed === 'source') f.put(path.join(f.windowRoot, 'source-pins.json'), { changed: true });
+    else writeFileSync(path.join(f.seed, 'seed.sqlite'), '采样期间身份已变化');
+  };
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options,
+    cold: async input => { mutate(); return f.coldResult(input); },
+    recovery: async input => {
+      mutate(); writeFileSync(path.join(input.destinationPath, 'retained'), '合成外层恢复操作');
+      return { outcome: 'ok', requestId: randomUUID(), childPid: 98765 + calls, closed: true, code: 0, signal: null, cleanup: { termSent: false, killSent: false }, forkToCloseMs: 100, phase: 'exited', timings: {},
+        result: { kind: 'restore', id: randomUUID(), sourceBackupId: backup!.id, sourceManifestHash: backup!.manifestHash, state: 'isolated-pending-activation', contentIncluded: true,
+          objectCount: 1, objectBytes: 16, databaseSha256: 'd'.repeat(64), verifyBackupMs: 1, restoreMs: 1, verifyRestoredMs: 1, childMeasuredMs: 3, clock: 'child-relative', deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' } };
+    }
+  });
+  assert.equal(calls, 1); assert.equal(summary.state, 'incomplete'); assert.equal(summary.attempted, 1); assert.equal(summary.failures, 1); assert.equal(summary.successes, 0); assert.equal(summary.unrun, 9);
+  assert.equal(summary.failure, changed === 'source' ? 'CAPACITY_PHASE_SOURCE_CHANGED' : 'CAPACITY_PHASE_SEED_INVALID');
+  assert.equal(existsSync(path.join(f.output, ...(phase === 'cold' ? ['sample-01','sample.sqlite'] : ['restores','sample-01','retained']))), true);
+  const rows = readFileSync(path.join(f.output, 'samples.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line));
+  assert.equal(rows.length, 1); assert.equal(rows[0].outcome, 'failed'); assert.equal(rows[0].result.result, undefined);
+  assert.equal(JSON.parse(readFileSync(path.join(f.output, 'sample-01.json'), 'utf8')).outcome, 'failed');
+});
+
+test('phase设施：相同child PID不能被计作十个独立新进程', async t => {
+  const f = await phaseFixture(t); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options, cold: async input => { ++calls; return { ...f.coldResult(input), childPid: 98765 }; } });
+  assert.equal(calls, 2); assert.equal(summary.state, 'incomplete'); assert.equal(summary.successes, 1); assert.equal(summary.failures, 1);
+  assert.equal(existsSync(path.join(f.output, 'sample-02')), true);
+});
+
+test('queued-stop phase：仅objects-small及三种大档、固定5预热+100正式900秒窗口可进入', async t => {
+  for (const profile of ['objects-small','history-limit','objects-limit','joint'] as const) {
+    const accepted = await phaseFixture(t, 'queued-stop', 105, profile);
+    assert.deepEqual(accepted.api.parseCapacityPhaseArguments([
+      '--phase', 'queued-stop', '--profile', profile, '--label', accepted.args.label, '--seed-label', accepted.args.seedLabel,
+      '--window', accepted.args.windowPath, '--window-sha256', accepted.args.windowSha256,
+      '--owned-roots', accepted.args.ownedRootsPath, '--owned-roots-sha256', accepted.args.ownedRootsSha256,
+    ]), accepted.args, '正式CLI应通过同一严格参数解析器进入queued-stop phase');
+    if (profile !== 'objects-small') {
+      let calls = 0;
+      const summary = await accepted.api.runCapacityPhase(accepted.args, { ...accepted.options, queuedStop: async () => { ++calls; throw new Error('受控首样本失败'); } });
+      assert.equal(calls, 1, `${profile}须越过schema验证进入首样本`);
+      assert.equal(summary.state, 'incomplete'); assert.equal(summary.attempted, 1); assert.equal(summary.unrun, 104);
+    }
+  }
+  for (const phase of ['prepare-backup','cold'] as const) {
+    const rejected = await phaseFixture(t, phase, 105, 'joint');
+    assert.throws(() => rejected.api.parseCapacityPhaseArguments([
+      '--phase', phase, '--profile', 'joint', '--label', rejected.args.label, '--seed-label', rejected.args.seedLabel,
+      '--window', rejected.args.windowPath, '--window-sha256', rejected.args.windowSha256,
+      '--owned-roots', rejected.args.ownedRootsPath, '--owned-roots-sha256', rejected.args.ownedRootsSha256,
+    ]), /CAPACITY_PHASE_INVALID_INPUT/u, `${phase}不得因union扩展而顺带开放大档`);
+  }
+  for (const fault of ['profile', 'n', 'duration', 'missing-growth', 'missing-axes', 'axis-not-reached'] as const) {
+    const f = await phaseFixture(t, 'queued-stop', 105, 'joint'); let calls = 0;
+    if (fault === 'profile') { f.args.profile = 'history-small'; f.w.profile = 'history-small'; }
+    else if (fault === 'n') (f.w as unknown as { n: number }).n = 104;
+    else if (fault === 'duration') f.w.deadlineAt = new Date(Date.parse(f.w.deadlineAt) - 1).toISOString();
+    else if (fault === 'missing-growth') {
+      const metadataPath = path.join(f.seed, 'seed.json'), metadata = JSON.parse(readFileSync(metadataPath, 'utf8'));
+      delete metadata.growth; f.w.seed.metadataSha256 = f.put(metadataPath, metadata);
+      f.inventory.roots.find(root => root.path === f.seed)!.marker.sha256 = f.w.seed.metadataSha256;
+    } else {
+      const metadataPath = path.join(f.seed, 'seed.json'), metadata = JSON.parse(readFileSync(metadataPath, 'utf8'));
+      if (fault === 'missing-axes') delete metadata.axes; else metadata.axes.reached.printBytes = false;
+      f.w.seed.metadataSha256 = f.put(metadataPath, metadata);
+      f.inventory.roots.find(root => root.path === f.seed)!.marker.sha256 = f.w.seed.metadataSha256;
+    }
+    f.seal();
+    await assert.rejects(f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async input => { ++calls; return f.queuedResult(input); } }),
+      ['missing-growth','missing-axes','axis-not-reached'].includes(fault) ? /CAPACITY_PHASE_SEED_INVALID/u : /CAPACITY_PHASE_(?:INVALID_INPUT|WINDOW_INVALID)/u);
+    assert.equal(calls, 0); assert.equal(existsSync(f.output), false);
+  }
+});
+
+test('queued-stop phase：105个独立clone先固化raw回执/hash再清理，预热不进入正式分布', { timeout: 30_000 }, async t => {
+  const f = await phaseFixture(t, 'queued-stop'), markers = new Set<string>(); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async input => {
+    ++calls; markers.add(input.clone.marker.id);
+    if (calls > 1) {
+      const previous = `sample-${String(calls - 1).padStart(3, '0')}`;
+      assert.equal(existsSync(path.join(f.output, previous)), false);
+      const receipt = path.join(f.output, `${previous}-raw-receipt.json`), hashFile = path.join(f.output, `${previous}-raw-receipt.sha256.json`);
+      assert.equal(existsSync(receipt), true); assert.equal(JSON.parse(readFileSync(hashFile, 'utf8')).sha256, f.hash(receipt));
+      assert.equal(existsSync(path.join(f.output, `${previous}.receipt.json`)), true);
+    }
+    return f.queuedResult(input, { progressMs: calls <= 5 ? 80 : 10 });
+  } });
+  assert.equal(calls, 105); assert.equal(markers.size, 105); assert.equal(summary.state, 'passed');
+  assert.equal(summary.planned, 105); assert.equal(summary.attempted, 105); assert.equal(summary.successes, 105); assert.equal(summary.unrun, 0);
+  assert.deepEqual(summary.queuedStop?.counts, { warmup: 5, formal: 100 });
+  assert.deepEqual(summary.queuedStop?.childProgressMs, { n: 100, p50: 10, p95: 10, p99: 10, max: 10, limitP95: 50, limitMax: 100, passed: true });
+  assert.equal(summary.queuedStop?.stopReceivedToAbortMs.max, 1);
+  assert.equal(summary.queuedStop?.stopReceivedToDriverStopInvokedMs.max, 2);
+  assert.equal(summary.queuedStop?.stopReceivedToDriverStopAckMs.max, 3, 'ACK须与receipt/close分列');
+  assert.equal(summary.queuedStop?.stopReceivedToReceiptMs.max, 15);
+  assert.equal(summary.queuedStop?.parentSendStopToReceiptMs.max, 12);
+  assert.equal(summary.queuedStop?.driverCloseResolvedMs.max, 20);
+  assert.equal(summary.queuedStop?.passed, true);
+  assert.equal(readFileSync(path.join(f.output, 'samples.jsonl'), 'utf8').trim().split('\n').length, 105);
+  assert.equal(readdirSync(f.output).some(name => /^sample-\d{3}$/u.test(name)), false);
+});
+
+test('queued-stop phase：正式阈值失败保留完整100样本分布且不伪报PASS', { timeout: 30_000 }, async t => {
+  const f = await phaseFixture(t, 'queued-stop'); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async input => {
+    ++calls; return calls === 6
+      ? f.queuedResult(input, { progressMs: 101, abortMs: 101, invokeMs: 102, ackMs: 103, receiptMs: 2001, parentReceiptMs: 2001, closeInvokedMs: 2002, closeResolvedMs: 2003 })
+      : f.queuedResult(input);
+  } });
+  assert.equal(calls, 105); assert.equal(summary.attempted, 105); assert.equal(summary.state, 'failed');
+  assert.equal(summary.queuedStop?.childProgressMs.max, 101); assert.equal(summary.queuedStop?.childProgressMs.p95, 10);
+  assert.equal(summary.queuedStop?.childProgressMs.passed, false); assert.equal(summary.queuedStop?.passed, false);
+  assert.equal(summary.queuedStop?.stopReceivedToAbortMs.passed, false);
+  assert.equal(summary.queuedStop?.stopReceivedToDriverStopInvokedMs.passed, false);
+  assert.equal(summary.queuedStop?.stopReceivedToReceiptMs.passed, false);
+  assert.equal(summary.queuedStop?.parentSendStopToReceiptMs.passed, false);
+  assert.equal(summary.queuedStop?.driverCloseResolvedMs.passed, false);
+  assert.equal(summary.failure, 'CAPACITY_PHASE_THRESHOLD_FAILED');
+});
+
+for (const mode of ['timeout', 'not-natural', 'identity-drift', 'persistence'] as const) test(`queued-stop phase：${mode}首错即停并保留当前clone`, async t => {
+  const f = await phaseFixture(t, 'queued-stop'); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async input => {
+    ++calls;
+    if (mode === 'identity-drift') f.put(path.join(f.windowRoot, 'source-pins.json'), { changed: true });
+    if (mode === 'persistence') f.put(path.join(f.output, 'sample-001-raw-receipt.json'), { collision: true });
+    const result = f.queuedResult(input);
+    if (mode === 'timeout') { result.outcome = 'timeout'; result.failure = 'TIMEOUT'; result.cleanup.termSent = true; delete result.result; }
+    if (mode === 'not-natural') result.processGroup!.groupEmpty = false;
+    return result;
+  } });
+  assert.equal(calls, 1); assert.equal(summary.attempted, 1); assert.equal(summary.unrun, 104); assert.equal(summary.state, 'incomplete');
+  assert.equal(existsSync(path.join(f.output, 'sample-001', 'sample.sqlite')), true);
+  assert.equal(JSON.stringify(summary).includes('设备静音'), false); assert.equal(summary.formalReady, false); assert.equal(summary.gateB, 'NOT_RUN');
+});
+
+test('print-write phase：只允许objects-small且pilot10与formal 5+100窗口身份分离', async t => {
+  for (const count of [10, 105] as const) {
+    const f = await phaseFixture(t, 'print-write', count);
+    assert.deepEqual(f.api.parseCapacityPhaseArguments([
+      '--phase', 'print-write', '--profile', 'objects-small', '--label', f.args.label, '--seed-label', f.args.seedLabel,
+      '--window', f.args.windowPath, '--window-sha256', f.args.windowSha256, '--owned-roots', f.args.ownedRootsPath, '--owned-roots-sha256', f.args.ownedRootsSha256,
+    ]), f.args);
+    assert.equal(f.w.n, count);
+  }
+  const wrong = await phaseFixture(t, 'print-write', 10); wrong.args.profile = 'history-small'; wrong.w.profile = 'history-small'; wrong.seal();
+  await assert.rejects(wrong.api.runCapacityPhase(wrong.args, { ...wrong.options, printWrite: async input => wrong.printResult(input) }), /CAPACITY_PHASE_(?:INVALID_INPUT|WINDOW_INVALID)/u);
+});
+
+test('print-write pilot：10个独立clone与新PID全成功，但不冒充formal阈值判定', async t => {
+  const f = await phaseFixture(t, 'print-write', 10), markers = new Set<string>(), limits: unknown[] = []; let calls = 0;
+  const seedBefore = f.hash(path.join(f.seed, 'seed.sqlite'));
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options, printWrite: async (input, options) => { ++calls; markers.add(input.clone.marker.id); limits.push(options); return f.printResult(input, { claimMs: 2100, completeMs: 2200 }); } });
+  assert.equal(calls, 10); assert.equal(markers.size, 10); assert.equal(summary.state, 'passed');
+  assert.equal(limits.length, 10); for (const value of limits) assert.deepEqual(value, { executionTimeoutMs: 25_000, killGraceMs: 1_000, closeTimeoutMs: 2_000 });
+  assert.deepEqual(JSON.parse(readFileSync(path.join(f.output, 'input.json'), 'utf8')).effectiveOperationLimits,
+    { executionMs: 25_000, killGraceMs: 1_000, closeMs: 2_000, admissionReserveMs: 28_000 });
+  assert.deepEqual(summary.printWrite?.counts, { pilot: 10, warmup: 0, formal: 0 }); assert.equal(summary.printWrite?.mode, 'pilot');
+  assert.equal(summary.printWrite?.claimMs.n, 10); assert.equal(summary.printWrite?.claimMs.max, 2100); assert.equal(summary.printWrite?.claimMs.passed, null);
+  assert.equal(summary.printWrite?.completeMs.passed, null); assert.equal(summary.printWrite?.passed, null);
+  assert.equal(f.hash(path.join(f.seed, 'seed.sqlite')), seedBefore);
+  assert.equal(readFileSync(path.join(f.output, 'samples.jsonl'), 'utf8').trim().split('\n').length, 10);
+  assert.equal(readdirSync(f.output).some(name => /^sample-\d{3}$/u.test(name)), false);
+});
+
+test('print-write formal：5预热不入正式分布，100个claim/complete max各自不超过2000ms', { timeout: 30_000 }, async t => {
+  const f = await phaseFixture(t, 'print-write', 105); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options, printWrite: async input => {
+    ++calls; return f.printResult(input, calls <= 5 ? { claimMs: 5000, completeMs: 6000 } : { claimMs: 100, completeMs: 200 });
+  } });
+  assert.equal(calls, 105); assert.equal(summary.state, 'passed'); assert.equal(summary.planned, 105);
+  assert.deepEqual(summary.printWrite?.counts, { pilot: 0, warmup: 5, formal: 100 }); assert.equal(summary.printWrite?.mode, 'formal');
+  assert.deepEqual(summary.printWrite?.claimMs, { n: 100, p50: 100, p95: 100, p99: 100, max: 100, limitMax: 2000, passed: true });
+  assert.deepEqual(summary.printWrite?.completeMs, { n: 100, p50: 200, p95: 200, p99: 200, max: 200, limitMax: 2000, passed: true });
+  assert.equal(summary.printWrite?.passed, true);
+});
+
+test('print-write formal：剩余执行加kill grace加close预算再多1ms时允许启动，不额外硬编码2秒', { timeout: 30_000 }, async t => {
+  const f = await phaseFixture(t, 'print-write', 105); let calls = 0;
+  const minimum = 25_000 + f.api.CAPACITY_PHASE_LIMITS.killGraceMs + f.api.CAPACITY_PHASE_LIMITS.closeMs;
+  assert.equal(minimum, 28_000);
+  // formal窗口从fixture当前时刻尚余899000ms；推进后精确保留28001ms。
+  f.advance(870999);
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options, printWrite: async input => { ++calls; f.advance(2); return f.printResult(input); } });
+  assert.equal(calls, 1); assert.equal(summary.attempted, 1); assert.equal(summary.state, 'incomplete'); assert.equal(summary.failure, 'CAPACITY_PHASE_DEADLINE');
+  const raw = path.join(f.output, 'sample-001-raw-receipt.json');
+  assert.deepEqual(JSON.parse(readFileSync(path.join(f.output, 'sample-001-raw-receipt.sha256.json'), 'utf8')), { sha256: f.hash(raw) });
+  assert.equal(existsSync(path.join(f.output, 'sample-001-retention.json')), true); assert.equal(existsSync(path.join(f.output, 'sample-001.receipt.json')), true);
+  assert.equal(existsSync(path.join(f.output, 'sample-002-intent.json')), false);
+});
+
+test('print-write formal：剩余时间恰好等于执行加kill grace加close预算时拒绝启动', async t => {
+  const f = await phaseFixture(t, 'print-write', 105); let calls = 0;
+  f.advance(871000); // 精确保留28000ms；边界必须fail closed。
+  await assert.rejects(f.api.runCapacityPhase(f.args, { ...f.options, printWrite: async input => { ++calls; return f.printResult(input); } }), /CAPACITY_PHASE_DEADLINE/u);
+  assert.equal(calls, 0); assert.equal(existsSync(f.output), false);
+});
+
+test('print-write phase：自然成功回执超过实际25秒执行包络仍首错停止并保留clone', async t => {
+  const f = await phaseFixture(t, 'print-write', 10); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options, printWrite: async input => {
+    ++calls; const result = f.printResult(input); result.forkToCloseMs = 25_001; return result;
+  } });
+  assert.equal(calls, 1); assert.equal(summary.state, 'incomplete'); assert.equal(summary.attempted, 1); assert.equal(summary.unrun, 9);
+  assert.equal(summary.failure, 'CAPACITY_PHASE_OPERATION_FAILED');
+  assert.equal(existsSync(path.join(f.output, 'sample-001', 'sample.sqlite')), true);
+  assert.equal(existsSync(path.join(f.output, 'sample-001-raw-receipt.json')), true);
+  assert.equal(existsSync(path.join(f.output, 'sample-002-intent.json')), false);
+});
+
+test('print-write formal：业务全成功但任一正式max超2秒仍保留105分布并判FAIL', { timeout: 30_000 }, async t => {
+  const f = await phaseFixture(t, 'print-write', 105); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options, printWrite: async input => { ++calls; return f.printResult(input, calls === 6 ? { completeMs: 2001 } : {}); } });
+  assert.equal(calls, 105); assert.equal(summary.state, 'failed'); assert.equal(summary.successes, 105);
+  assert.equal(summary.printWrite?.completeMs.max, 2001); assert.equal(summary.printWrite?.completeMs.passed, false); assert.equal(summary.printWrite?.passed, false);
+  assert.equal(summary.failure, 'CAPACITY_PHASE_THRESHOLD_FAILED');
+});
+
+for (const mode of ['failed', 'not-natural', 'pg-not-empty', 'identity-drift'] as const) test(`print-write phase：${mode}首错即停并保留当前clone`, async t => {
+  const f = await phaseFixture(t, 'print-write', 10); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options, printWrite: async input => {
+    ++calls; const result = f.printResult(input);
+    if (mode === 'failed') { result.outcome = 'failed'; result.failure = 'PRINT_WRITE_FAILED'; delete result.result; }
+    if (mode === 'not-natural') result.cleanup.termSent = true;
+    if (mode === 'pg-not-empty') result.processGroup!.groupEmpty = false;
+    if (mode === 'identity-drift') f.put(path.join(f.windowRoot, 'source-pins.json'), { changed: true });
+    return result;
+  } });
+  assert.equal(calls, 1); assert.equal(summary.attempted, 1); assert.equal(summary.unrun, 9); assert.equal(summary.state, 'incomplete');
+  assert.equal(existsSync(path.join(f.output, 'sample-001', 'sample.sqlite')), true);
+});
+
+test('print-write phase：retention证据碰撞时必须在清理前首错停止并保留当前clone', async t => {
+  const f = await phaseFixture(t, 'print-write', 10); let calls = 0;
+  const collision = { collision: true };
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options, printWrite: async input => {
+    ++calls;
+    f.put(path.join(f.output, 'sample-001-retention.json'), collision);
+    return f.printResult(input);
+  } });
+  assert.equal(calls, 1); assert.equal(summary.attempted, 1); assert.equal(summary.unrun, 9); assert.equal(summary.state, 'incomplete');
+  assert.equal(existsSync(path.join(f.output, 'sample-001', 'sample.sqlite')), true);
+  assert.equal(summary.failure, 'CAPACITY_PHASE_PERSISTENCE_FAILED');
+  const rawReceipt = path.join(f.output, 'sample-001-raw-receipt.json');
+  assert.equal(existsSync(rawReceipt), true);
+  assert.deepEqual(JSON.parse(readFileSync(path.join(f.output, 'sample-001-raw-receipt.sha256.json'), 'utf8')), { sha256: f.hash(rawReceipt) });
+  assert.deepEqual(JSON.parse(readFileSync(path.join(f.output, 'sample-001-retention.json'), 'utf8')), collision);
+  assert.equal(existsSync(path.join(f.output, 'sample-002-intent.json')), false);
+});

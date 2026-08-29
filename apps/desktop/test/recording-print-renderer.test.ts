@@ -53,7 +53,7 @@ test('渲染器只创建独立受限隐藏窗口，PDF选项固定真实尺寸�
   assert.ok(Buffer.from(result.pdfBase64, 'base64').includes(Buffer.from('/MediaBox [0 0 292.5 ')), '发布真实页盒必须为精确JP0宽度')
   assert.equal(result.pdfSha256, createHash('sha256').update(Buffer.from(result.pdfBase64, 'base64')).digest('hex')); assert.equal(result.preview.width, 390)
   assert.equal(h.ses.beforeRequest, null); assert.equal(h.ses.permissionCheck, null); assert.equal(h.ses.permissionRequest, null)
-  assert.equal(result.rendererVersion, `jp0-v1-box1-electron-${process.versions.electron ?? 'none'}-chrome-${process.versions.chrome ?? 'none'}`)
+  assert.equal(result.rendererVersion, `jp0-v1-box1-preview2-electron-${process.versions.electron ?? 'none'}-chrome-${process.versions.chrome ?? 'none'}`)
   assert.ok(result.rendererVersion.length <= 120 && !result.rendererVersion.includes('/')); renderer.close(); assert.equal(h.values().destroyCount, 1)
 })
 

@@ -78,7 +78,19 @@ test('Record快照被改后重算自身Hash仍须被独立完成事件绑定拒�
   const record=JSON.parse(String(db.prepare('SELECT data FROM recording_records').get()!.data));record.media.descriptor.brand='被篡改品牌';
   const {contentHash:_,...body}=record;record.contentHash=mediaFingerprint(body);
   db.exec('DROP TRIGGER recording_records_no_update');db.prepare('UPDATE recording_records SET data=?').run(JSON.stringify(record));db.exec(trigger);
-  assert.throws(()=>verifyRecordingRecordDatabase(db));
+ assert.throws(()=>verifyRecordingRecordDatabase(db));
+});
+
+test('R023 Record完整审计一次读取Attempt物理索引，不按每条Record反复扫描历史表',async t=>{
+ const f=await recordingRecordFixture(t),pending=await f.readyForFinal();await f.attempts.confirm(pending.request);
+ const db=new DatabaseSync(f.filePath);t.after(()=>db.close());let perRecordScans=0,bulkScans=0;
+ const inspected=new Proxy(db,{get(target,key){if(key==='prepare')return (sql:string)=>{
+  if(sql==='SELECT id,revision,status FROM recording_attempts WHERE physical_id=? ORDER BY rowid DESC LIMIT 1')++perRecordScans;
+  if(sql==='SELECT physical_id,id,revision,status FROM recording_attempts ORDER BY rowid')++bulkScans;
+  return target.prepare(sql);
+ };const value=Reflect.get(target,key,target);return typeof value==='function'?value.bind(target):value;}});
+ const {verifyRecordingRecordDatabase}=await import('../src/recording/record-integrity.js');verifyRecordingRecordDatabase(inspected);
+ assert.equal(perRecordScans,0,'完整审计不得为每条Record反复扫描recording_attempts');assert.equal(bulkScans,1);
 });
 
 test('真实新Plan重录准入失败不消费，Begin原子unknown+许可消费；A/B续读使用同一冻结身份',async t=>{

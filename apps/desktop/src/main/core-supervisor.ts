@@ -61,6 +61,19 @@ export class CoreIpcError extends Error {
   }
 }
 
+export interface CoreStartupClient {
+  request: CoreSupervisor['request']
+  requestInternal: CoreSupervisor['requestInternal']
+}
+interface StartupAttempt {
+  generation: number
+  child: CoreChildProcess
+  port: CoreMessagePort
+  valid: boolean
+  readyReceived: boolean
+  cancelStart(error: CoreIpcError): void
+}
+
 interface PendingRequest {
   command: IpcCommand
   internal: boolean
@@ -70,6 +83,7 @@ interface PendingRequest {
 }
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 2_000
+const DEFAULT_STARTUP_TIMEOUT_MS = 60_000
 // 两份 WAV 的完整 Hash 读取各自最多 15 分钟；撤销仍走短控制请求。
 const PREPARED_FILE_REQUEST_TIMEOUT_MS = 35 * 60_000
 const LIBRARY_REQUEST_TIMEOUT_MS = 10_000
@@ -77,6 +91,8 @@ const PLAYBACK_REQUEST_TIMEOUT_MS = 60_000
 const RESTORE_ACTIVATION_TIMEOUT_MS = 30 * 60_000
 
 export class CoreSupervisor {
+  private startupGeneration = 0
+  private startupAttempt: StartupAttempt | undefined
   private child: CoreChildProcess | undefined
   private port: CoreMessagePort | undefined
   private startPromise: Promise<void> | undefined
@@ -97,11 +113,17 @@ export class CoreSupervisor {
       env?: NodeJS.ProcessEnv
       dependencies: CoreSupervisorDependencies
       requestTimeoutMs?: number
+      startupTimeoutMs?: number
       onEvent?: (event: TypedIpcEvent) => void
-      onReady?: () => Promise<void> | void
+      onReady?: (client: CoreStartupClient) => Promise<void> | void
       onLifecycle?: (event: CoreSupervisorLifecycle) => void
     },
-  ) {}
+  ) {
+    const timeout = options.startupTimeoutMs
+    if (timeout !== undefined && (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > DEFAULT_STARTUP_TIMEOUT_MS)) {
+      throw new CoreIpcError('INVALID_IPC_REQUEST', 'Core 启动等待期限无效')
+    }
+  }
 
   get status(): CoreSupervisorStatus {
     return this._status
@@ -112,11 +134,16 @@ export class CoreSupervisor {
   }
 
   async start(): Promise<void> {
-    if (this._status === 'ready') return
     if (this.startPromise) return this.startPromise
+    if (this.restartPromise) {
+      await this.restartPromise
+      if (this._status !== 'ready' || this.shuttingDown) throw new CoreIpcError('INTERNAL_ERROR', 'Core 重启恢复未完成')
+      return
+    }
     if (this.shuttingDown) {
       throw new CoreIpcError('NOT_READY', 'Core supervisor is shutting down')
     }
+    if (this._status === 'ready') return
     this.startPromise = this.startWithOneRetry()
     try {
       await this.startPromise
@@ -146,8 +173,12 @@ export class CoreSupervisor {
     payload: IpcCommandPayloads[TCommand],
     internal: boolean,
     expectedDatasetId?: string,
+    startup?: StartupAttempt,
   ): Promise<unknown> {
-    if (this._status !== 'ready' || !this.port) {
+    const permitted = startup
+      ? startup.valid && startup.readyReceived && startup.generation === this.startupGeneration && this.startupAttempt === startup && this.child === startup.child && this.port === startup.port && !this.shuttingDown
+      : this._status === 'ready'
+    if (!permitted || !this.port) {
       throw new CoreIpcError('NOT_READY', 'Core is not ready')
     }
     const id = randomUUID()
@@ -266,6 +297,7 @@ export class CoreSupervisor {
         this._status = 'ready'
         return
       } catch (error) {
+        if (this.shuttingDown) throw error
         if (this.restartCount >= 1) {
           this._status = 'failed'
           this.options.onLifecycle?.({ event: 'failed' })
@@ -302,20 +334,38 @@ export class CoreSupervisor {
       resolveReady = resolve
       rejectReady = reject
     })
-    const readyTimer = setTimeout(() => {
+    const attempt: StartupAttempt = {
+      generation: ++this.startupGeneration, child, port: channel.port2, valid: true, readyReceived: false,
+      cancelStart: error => {
+        clearTimeout(readyTimer)
+        attempt.valid = false
+        if (!settled) { settled = true; rejectReady(error) }
+      },
+    }
+    this.startupAttempt = attempt
+    let completedReady = false
+    const failStart = (error: CoreIpcError): void => {
       if (settled) return
-      settled = true
-      rejectReady(new CoreIpcError('TIMEOUT', 'Core ready timed out'))
+      attempt.cancelStart(error)
       channel.port2.close()
       if (this.child === child) {
         this.child = undefined
         this.port = undefined
+        this.rejectPending(error)
       }
-      child.kill()
-    }, this.readyTimeoutOverride ?? this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS)
+      try { child.kill() } catch { /* 启动已失败，不能让清理异常逸出计时器。 */ }
+    }
+    const readyTimer = setTimeout(() => {
+      failStart(new CoreIpcError('TIMEOUT', 'Core 启动与恢复等待超时'))
+    }, this.readyTimeoutOverride ?? this.options.startupTimeoutMs ?? DEFAULT_STARTUP_TIMEOUT_MS)
+    const startupClient: CoreStartupClient = {
+      request: <C extends IpcCommand>(command: C, payload: IpcCommandPayloads[C], expectedDatasetId?: string) => this.sendRequest(command, payload, false, expectedDatasetId, attempt) as Promise<IpcCommandResults[C]>,
+      requestInternal: <C extends IpcInternalCommand>(command: C, payload: IpcCommandPayloads[C], expectedDatasetId?: string) => this.sendRequest(command, payload, true, expectedDatasetId, attempt) as Promise<IpcInternalCommandResults[C]>,
+    }
 
     const handleExit = (code: number): void => {
       clearTimeout(readyTimer)
+      attempt.valid = false
       if (this.child !== child) return
       this.options.onLifecycle?.({ event: 'exit', code })
       this.child = undefined
@@ -328,7 +378,7 @@ export class CoreSupervisor {
           new CoreIpcError('INTERNAL_ERROR', code === 0 ? 'Core stopped before ready' : 'Core crashed'),
         )
       }
-      if (readyReceived && !this.shuttingDown && !this.restartPromise) {
+      if (completedReady && !this.shuttingDown && !this.restartPromise) {
         this.restartPromise = this.restartAfterCrash()
         void this.restartPromise.finally(() => {
           this.restartPromise = undefined
@@ -338,32 +388,37 @@ export class CoreSupervisor {
 
     child.once('exit', handleExit)
     channel.port2.on('message', (event) => {
+      if (this.child !== child || this.port !== channel.port2) return
       const parsed = parseIpcRuntimeMessage(event.data)
       if (!parsed.ok) return
       const message = parsed.value
       if ('event' in message) {
-        if (message.event === 'core.ready' && !settled && !readyReceived) {
-          readyReceived = true
-          clearTimeout(readyTimer)
-          this._status = 'ready'
-          void Promise.resolve(this.options.onReady?.()).then(
-            () => {
-              if (settled) return
-              settled = true
-              this.options.onLifecycle?.({ event: 'ready' })
-              resolveReady()
-            },
-            () => {
-              if (settled) return
-              settled = true
-              this._status = 'failed'
-              this.options.onLifecycle?.({ event: 'failed' })
-              rejectReady(new CoreIpcError('INTERNAL_ERROR', 'Core readiness recovery failed'))
-              readyReceived = false
-              child.kill()
-            },
-          )
+        if (!attempt.valid) return
+        if (message.event === 'core.ready') {
+          if (!settled && !readyReceived) {
+            readyReceived = true
+            attempt.readyReceived = true
+            void Promise.resolve().then(() => {
+              if (!attempt.valid || settled || this.shuttingDown) return
+              return this.options.onReady?.(startupClient)
+            }).then(
+              () => {
+                if (settled || !attempt.valid || this.child !== child || this.shuttingDown) return
+                settled = true
+                completedReady = true
+                clearTimeout(readyTimer)
+                this._status = 'ready'
+                this.options.onLifecycle?.({ event: 'ready' })
+                this.options.onEvent?.(message)
+                resolveReady()
+              },
+              () => failStart(new CoreIpcError('INTERNAL_ERROR', 'Core 启动恢复未完成')),
+            )
+          }
+          return
         }
+        // Core自己的ready不等于Main恢复完成；不把早到health转发成UI就绪。
+        if (message.event === 'core.health' && !completedReady) return
         this.options.onEvent?.(message)
         return
       }
@@ -393,14 +448,7 @@ export class CoreSupervisor {
     try {
       child.postMessage({ type: 'musicbridge.core.port' }, [channel.port1])
     } catch {
-      clearTimeout(readyTimer)
-      channel.port2.close()
-      if (this.child === child) {
-        this.child = undefined
-        this.port = undefined
-      }
-      child.kill()
-      throw new CoreIpcError('INTERNAL_ERROR', 'Core process could not be started')
+      failStart(new CoreIpcError('INTERNAL_ERROR', 'Core process could not be started'))
     }
     return ready
   }
@@ -433,6 +481,7 @@ export class CoreSupervisor {
 
   private async shutdownInternal(): Promise<void> {
     this.shuttingDown = true
+    this.startupAttempt?.cancelStart(new CoreIpcError('NOT_READY', 'Core supervisor is shutting down'))
     const child = this.child
     const port = this.port
     if (!child) {

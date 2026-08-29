@@ -1,4 +1,4 @@
-import { realpathSync } from 'node:fs'
+import { mkdtempSync, realpathSync, statSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
@@ -38,10 +38,36 @@ function validateUserDataDirectory(value: string, expectedName = /^musicbridge-t
   }
 
   const resolvedPath = realpathSync(requestedPath)
-  if (!isPathInside(temporaryRoot, resolvedPath)) {
+  if (!isPathInside(temporaryRoot, resolvedPath) || !statSync(resolvedPath).isDirectory()) {
     throw new Error(`${STARTUP_USER_DATA_ENV} must be a unique directory below the system temp directory`)
   }
   return resolvedPath
+}
+
+// 仅在 Main 顶层调用一次；session 的目录必须在 ready 与首次 protocol 使用前固定。
+export function initializeStartupTestPaths(
+  configuration: StartupTestConfiguration,
+  isUiE2e: boolean,
+  application: {
+    isReady(): boolean
+    setPath(name: 'userData' | 'sessionData', value: string): void
+  },
+): string | undefined {
+  if (!configuration.isStartupTest && !isUiE2e) return undefined
+  if (application.isReady()) throw new Error('测试数据目录必须在 app ready 前初始化')
+
+  let directory: string
+  if (configuration.isStartupTest) {
+    if (!configuration.userDataDirectory) throw new Error('Electron startup test userData directory is missing')
+    directory = validateUserDataDirectory(configuration.userDataDirectory)
+  } else if (configuration.uiE2eUserDataDirectory) {
+    directory = validateUserDataDirectory(configuration.uiE2eUserDataDirectory, /^musicbridge-ui-(?:e2e|diagnostics)-[A-Za-z0-9._-]+$/)
+  } else {
+    directory = mkdtempSync(path.join(realpathSync(os.tmpdir()), 'musicbridge-ui-e2e-'))
+  }
+  application.setPath('userData', directory)
+  application.setPath('sessionData', directory)
+  return directory
 }
 
 function readColdStartStage(environment: NodeJS.ProcessEnv): ElectronColdStartStage | undefined {

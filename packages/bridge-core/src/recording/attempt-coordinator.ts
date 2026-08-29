@@ -20,7 +20,9 @@ interface Options {
   store: RecordingAttemptStore; admissionProvider?: RecordingAttemptAdmissionProvider; assertCurrent?: () => void; assertReplicaIdle?: () => void;
   operationTimeoutMs?: number; closeTimeoutMs?: number;
 }
-interface Slot { controller: AbortController; attemptId?: string; side?: dto.RenderSide; runId?: string; handle?: RecordingAttemptDriver; wantsClose: boolean; closing?: Promise<void>; pendingStart?: Promise<RecordingAttemptDriver> }
+type CleanupType = 'engine-cutoff' | 'stop-ack' | 'cleanup-quiescent';
+type CleanupEvent = { type: CleanupType; side: dto.RenderSide; runId: string; at: string };
+interface Slot { controller: AbortController; attemptId?: string; side?: dto.RenderSide; runId?: string; handle?: RecordingAttemptDriver; wantsClose: boolean; closing?: Promise<void>; pendingStart?: Promise<RecordingAttemptDriver>; stopCleanup?: Map<CleanupType, CleanupEvent>; terminalPersisted?: boolean }
 
 export function createRecordingAttemptCoordinator({ store, admissionProvider, assertCurrent = () => {}, assertReplicaIdle = () => {}, operationTimeoutMs = 30 * 60_000, closeTimeoutMs = 5_000 }: Options) {
   if (!Number.isSafeInteger(operationTimeoutMs) || operationTimeoutMs < 1 || operationTimeoutMs > 30 * 60_000 || !Number.isSafeInteger(closeTimeoutMs) || closeTimeoutMs < 1 || closeTimeoutMs > 5_000) return attemptFail('INVALID_REQUEST');
@@ -37,17 +39,21 @@ export function createRecordingAttemptCoordinator({ store, admissionProvider, as
   function finishHandle(current: Slot): Promise<void> {
     current.wantsClose = true;
     if (current.closing) return current.closing;
+    // 先锁存关闭Promise；driver.stop可能同步回报事件并再次进入finishHandle。
+    let resolveClose!: () => void, rejectClose!: (error: unknown) => void;
+    current.closing = new Promise<void>((resolve, reject) => { resolveClose = resolve; rejectClose = reject; });
+    current.closing.catch(() => undefined);
     const finish = async () => {
       const handle = current.handle ?? await current.pendingStart;
       if (handle) {
         current.handle = handle;
         // stop请求失败也必须尝试close；没有静止证明前继续持有slot。
-        try { await bounded(Promise.resolve().then(() => handle.stop()), closeTimeoutMs); } catch { /* close仍需执行。 */ }
+        try { await bounded(handle.stop(), closeTimeoutMs); } catch { /* close仍需执行。 */ }
         await handle.close();
       }
       if (slot === current) slot = undefined;
     };
-    current.closing = finish(); current.closing.catch(() => undefined); return current.closing;
+    void finish().then(resolveClose, rejectClose); return current.closing;
   }
   function interrupt(current: Slot, reason: 'backend-failure' | 'protocol-error' | 'backend-timeout' | 'plan-changed'): void {
     if (!current.attemptId || !current.side || !current.runId) return;
@@ -56,13 +62,21 @@ export function createRecordingAttemptCoordinator({ store, admissionProvider, as
   }
   function onEvent(current: Slot, event: RecordingAttemptEvent): void {
     if (!current.attemptId || slot !== current) return;
-    if (!isRecordingAttemptEvent(event) || !('runId' in event) || event.type === 'begin-side') { interrupt(current, 'protocol-error'); return; }
+    const valid = isRecordingAttemptEvent(event);
+    // 安全停止已派发时，只接收清理证据；同步驱动故障不能抢占即将登记的用户停止。
+    if (current.controller.signal.aborted && (!valid || !['engine-cutoff', 'stop-ack', 'cleanup-quiescent'].includes(event.type))) return;
+    if (!valid || !('runId' in event) || event.type === 'begin-side') { interrupt(current, 'protocol-error'); return; }
     if (event.runId !== current.runId || event.side !== current.side) return;
+    if (current.stopCleanup && (event.type === 'engine-cutoff' || event.type === 'stop-ack' || event.type === 'cleanup-quiescent')) {
+      // 三种单调事实各保留首个合法回报和到达顺序，不让同步abort监听先进入持久审计。
+      if (!current.stopCleanup.has(event.type)) current.stopCleanup.set(event.type, { ...event } as CleanupEvent);
+      return;
+    }
     try {
       assertCurrent();
       const state = store.event(current.attemptId, event);
       if (state.status !== 'in-progress' || event.type === 'backend-drained') void finishHandle(current);
-    } catch { interrupt(current, 'protocol-error'); }
+    } catch { if (!current.controller.signal.aborted) interrupt(current, 'protocol-error'); }
   }
   function perform(action: AttemptCommand, value: AttemptRequest, fn: (request: AttemptRequest) => Promise<dto.RecordingAttempt>): Promise<dto.RecordingAttempt> {
     try { open(); if (!validAttemptRequest(action, value)) return Promise.reject(new AttemptError('INVALID_REQUEST')); }
@@ -134,7 +148,24 @@ export function createRecordingAttemptCoordinator({ store, admissionProvider, as
     stop(request: dto.StopRecordingAttemptRequest) {
       return perform('stop', request, async value => {
         const current = value as dto.StopRecordingAttemptRequest;
-        try { return store.command('stop', current, { type: 'abort', reason: 'user-stop', at: eventTime(current.attemptId) }); }
+        let observedCleanup: CleanupEvent[] = [];
+        // perform已核scope、DTO和命令身份；仅停止精确绑定的自建slot，不等待同步全链审计。
+        const active = slot?.attemptId === current.attemptId ? slot : undefined;
+        if (active) {
+          const cleanup = new Map<CleanupType, CleanupEvent>();
+          active.stopCleanup = cleanup;
+          try { active.controller.abort(); void finishHandle(active); }
+          finally {
+            // 已有句柄此时已调用stop；无句柄时仍由finishHandle等待并关闭迟到的start。
+            delete active.stopCleanup; observedCleanup = [...cleanup.values()];
+          }
+        }
+        const at = observedCleanup.reduce((latest, event) => event.at > latest ? event.at : latest, eventTime(current.attemptId));
+        try {
+          const result = store.stop(current, { type: 'abort', reason: 'user-stop', at }, observedCleanup);
+          if (active && result.status !== 'in-progress') active.terminalPersisted = true;
+          return result;
+        }
         catch (error) { if (slot?.attemptId === current.attemptId) interrupt(slot, 'backend-failure'); throw error; }
         finally {
           // 数据库拒写不能挡住安全停止；回执失败与真实driver停止各自保留事实。
@@ -148,8 +179,13 @@ export function createRecordingAttemptCoordinator({ store, admissionProvider, as
       const current = slot;
       if (current) {
         current.controller.abort();
-        if (current.attemptId) {
-          try { assertCurrent(); store.event(current.attemptId, { type: 'recover', at: eventTime(current.attemptId) }); } catch { /* 安全关闭继续，不能伪造持久化成功。 */ }
+        if (current.attemptId && !current.terminalPersisted) {
+          try {
+            assertCurrent();
+            if (store.get({ attemptId: current.attemptId }).attempt?.status === 'in-progress') {
+              store.event(current.attemptId, { type: 'recover', at: eventTime(current.attemptId) });
+            }
+          } catch { /* 安全关闭继续，不能伪造持久化成功。 */ }
         }
       }
       closing = bounded(Promise.allSettled([...commands.values()].map(value => value.promise)).then(async () => { if (current) await finishHandle(current); }), closeTimeoutMs);
