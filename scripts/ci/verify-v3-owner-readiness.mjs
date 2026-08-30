@@ -390,6 +390,7 @@ const CAPACITY_QUEUED_STOP_CONTROL_PLANE = {
   },
   architectureResolution: {
     implementationCommit: 'ed73b59fca177cc1804d4010fe863f8fb57001a0',
+    coverageEnhancementCommit: 'fefbea78e65ce8deb37bc727ad93b3b7d955ab30',
     contract: {
       path: 'packages/contracts/capacity-process-failure-lineage-v1.json',
       sha256: 'd9d1c792971e27b666a9c2fcf7ea7942f3af75b6e500c3f9502f1bcf33157927',
@@ -404,24 +405,25 @@ const CAPACITY_QUEUED_STOP_CONTROL_PLANE = {
     sourcePinCount: 243,
     historicalSourcePinCountsAcceptedReadOnly: [241, 243],
     goldenCorpus: {
-      tests: 1, passed: 1, validDepths: [0, 1, 2, 3],
+      tests: 2, passed: 2, validDepths: [0, 1, 2, 3],
       rejections: [
         'DIRECT_HEAD_COUNT', 'ORPHAN', 'CYCLE', 'FORK', 'TIME_ORDER',
-        'PID_MISMATCH', 'IDENTITY_MISMATCH', 'AUTHORITY_DEPTH_MISMATCH',
+        'PID_MISMATCH', 'IDENTITY_MISMATCH', 'AUTHORITY_DEPTH_MISMATCH', 'DEPTH_LIMIT',
       ],
     },
     focusedVerification: {
       issuer: 'PASS_71_OF_71', supervisor: 'PASS_58_OF_58',
-      bridgeCapacityAndConformance: 'PASS', bridgeTypecheck: 'PASS',
+      bridgeCapacityAndConformance: 'PASS_139_OF_139', bridgeTypecheck: 'PASS',
     },
     fullVerification: {
       pnpmVerify: 'PASS', contracts: 'PASS_186_OF_186',
-      bridgeCore: 'PASS_1296_WITH_1_CONDITIONAL_SKIP', desktop: 'PASS_643_OF_643',
+      bridgeCore: 'PASS_1297_WITH_1_CONDITIONAL_SKIP', desktop: 'PASS_643_OF_643',
       build: 'PASS', controlPlane: 'PASS', boundaries: 'PASS', cycles: 'PASS_259_FILES',
-      readinessFocused: 'PASS_15_OF_15',
+      readinessFocused: 'PASS_16_OF_16',
       readiness: 'PASS_READY_FALSE_OWNER_PENDING_103_EXTERNAL_NOT_RUN_5', diffCheck: 'PASS',
     },
     review: { specification: 'PASS', quality: 'PASS', additionalReviewLoop: false },
+    coverageEnhancementReview: { specification: 'PASS', quality: 'PASS', additionalReviewLoop: false },
     newWindowIssued: false, newWindowAuthorized: false, runtimeMutated: false,
   },
   formalRun: 'NOT_RUN_ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED_ZERO_SAMPLES',
@@ -540,16 +542,19 @@ export function validateArchitectureCheckpointRepository(
   root,
   architectureCommit = CAPACITY_QUEUED_STOP_CONTROL_PLANE.architectureResolution.implementationCommit,
   parentCommit = CAPACITY_JOINT_GENERATION_CONTROL_PLANE.implementationCommit,
+  coverageCommit = CAPACITY_QUEUED_STOP_CONTROL_PLANE.architectureResolution.coverageEnhancementCommit,
 ) {
-  check(typeof root === 'string' && gitSha(architectureCommit) && gitSha(parentCommit)
-    && architectureCommit !== parentCommit, 'CONTROL_REPOSITORY')
-  for (const commit of [parentCommit, architectureCommit]) {
+  check(typeof root === 'string' && gitSha(architectureCommit) && gitSha(parentCommit) && gitSha(coverageCommit)
+    && new Set([parentCommit, architectureCommit, coverageCommit]).size === 3, 'CONTROL_REPOSITORY')
+  for (const commit of [parentCommit, architectureCommit, coverageCommit]) {
     const object = gitResult(root, ['cat-file', '-e', `${commit}^{commit}`])
     check(object.error === undefined && object.signal === null && object.status === 0, 'CONTROL_REPOSITORY')
   }
   const parentAncestry = gitResult(root, ['merge-base', '--is-ancestor', parentCommit, architectureCommit])
-  const headAncestry = gitResult(root, ['merge-base', '--is-ancestor', architectureCommit, 'HEAD'])
+  const coverageAncestry = gitResult(root, ['merge-base', '--is-ancestor', architectureCommit, coverageCommit])
+  const headAncestry = gitResult(root, ['merge-base', '--is-ancestor', coverageCommit, 'HEAD'])
   check(parentAncestry.error === undefined && parentAncestry.signal === null && parentAncestry.status === 0
+    && coverageAncestry.error === undefined && coverageAncestry.signal === null && coverageAncestry.status === 0
     && headAncestry.error === undefined && headAncestry.signal === null && headAncestry.status === 0, 'CONTROL_REPOSITORY')
 }
 

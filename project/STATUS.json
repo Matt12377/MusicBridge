@@ -1374,6 +1374,7 @@
         },
         "architectureResolution": {
           "implementationCommit": "ed73b59fca177cc1804d4010fe863f8fb57001a0",
+          "coverageEnhancementCommit": "fefbea78e65ce8deb37bc727ad93b3b7d955ab30",
           "contract": {
             "path": "packages/contracts/capacity-process-failure-lineage-v1.json",
             "sha256": "d9d1c792971e27b666a9c2fcf7ea7942f3af75b6e500c3f9502f1bcf33157927",
@@ -1398,8 +1399,8 @@
             243
           ],
           "goldenCorpus": {
-            "tests": 1,
-            "passed": 1,
+            "tests": 2,
+            "passed": 2,
             "validDepths": [
               0,
               1,
@@ -1414,29 +1415,35 @@
               "TIME_ORDER",
               "PID_MISMATCH",
               "IDENTITY_MISMATCH",
-              "AUTHORITY_DEPTH_MISMATCH"
+              "AUTHORITY_DEPTH_MISMATCH",
+              "DEPTH_LIMIT"
             ]
           },
           "focusedVerification": {
             "issuer": "PASS_71_OF_71",
             "supervisor": "PASS_58_OF_58",
-            "bridgeCapacityAndConformance": "PASS",
+            "bridgeCapacityAndConformance": "PASS_139_OF_139",
             "bridgeTypecheck": "PASS"
           },
           "fullVerification": {
             "pnpmVerify": "PASS",
             "contracts": "PASS_186_OF_186",
-            "bridgeCore": "PASS_1296_WITH_1_CONDITIONAL_SKIP",
+            "bridgeCore": "PASS_1297_WITH_1_CONDITIONAL_SKIP",
             "desktop": "PASS_643_OF_643",
             "build": "PASS",
             "controlPlane": "PASS",
             "boundaries": "PASS",
             "cycles": "PASS_259_FILES",
-            "readinessFocused": "PASS_15_OF_15",
+            "readinessFocused": "PASS_16_OF_16",
             "readiness": "PASS_READY_FALSE_OWNER_PENDING_103_EXTERNAL_NOT_RUN_5",
             "diffCheck": "PASS"
           },
           "review": {
+            "specification": "PASS",
+            "quality": "PASS",
+            "additionalReviewLoop": false
+          },
+          "coverageEnhancementReview": {
             "specification": "PASS",
             "quality": "PASS",
             "additionalReviewLoop": false

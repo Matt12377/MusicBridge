@@ -418,6 +418,7 @@ const controlStatus = {
         },
         architectureResolution: {
           implementationCommit: 'ed73b59fca177cc1804d4010fe863f8fb57001a0',
+          coverageEnhancementCommit: 'fefbea78e65ce8deb37bc727ad93b3b7d955ab30',
           contract: {
             path: 'packages/contracts/capacity-process-failure-lineage-v1.json',
             sha256: 'd9d1c792971e27b666a9c2fcf7ea7942f3af75b6e500c3f9502f1bcf33157927',
@@ -432,24 +433,25 @@ const controlStatus = {
           sourcePinCount: 243,
           historicalSourcePinCountsAcceptedReadOnly: [241, 243],
           goldenCorpus: {
-            tests: 1, passed: 1, validDepths: [0, 1, 2, 3],
+            tests: 2, passed: 2, validDepths: [0, 1, 2, 3],
             rejections: [
               'DIRECT_HEAD_COUNT', 'ORPHAN', 'CYCLE', 'FORK', 'TIME_ORDER',
-              'PID_MISMATCH', 'IDENTITY_MISMATCH', 'AUTHORITY_DEPTH_MISMATCH',
+              'PID_MISMATCH', 'IDENTITY_MISMATCH', 'AUTHORITY_DEPTH_MISMATCH', 'DEPTH_LIMIT',
             ],
           },
           focusedVerification: {
             issuer: 'PASS_71_OF_71', supervisor: 'PASS_58_OF_58',
-            bridgeCapacityAndConformance: 'PASS', bridgeTypecheck: 'PASS',
+            bridgeCapacityAndConformance: 'PASS_139_OF_139', bridgeTypecheck: 'PASS',
           },
           fullVerification: {
             pnpmVerify: 'PASS', contracts: 'PASS_186_OF_186',
-            bridgeCore: 'PASS_1296_WITH_1_CONDITIONAL_SKIP', desktop: 'PASS_643_OF_643',
+            bridgeCore: 'PASS_1297_WITH_1_CONDITIONAL_SKIP', desktop: 'PASS_643_OF_643',
             build: 'PASS', controlPlane: 'PASS', boundaries: 'PASS', cycles: 'PASS_259_FILES',
-            readinessFocused: 'PASS_15_OF_15',
+            readinessFocused: 'PASS_16_OF_16',
             readiness: 'PASS_READY_FALSE_OWNER_PENDING_103_EXTERNAL_NOT_RUN_5', diffCheck: 'PASS',
           },
           review: { specification: 'PASS', quality: 'PASS', additionalReviewLoop: false },
+          coverageEnhancementReview: { specification: 'PASS', quality: 'PASS', additionalReviewLoop: false },
           newWindowIssued: false, newWindowAuthorized: false, runtimeMutated: false,
         },
         formalRun: 'NOT_RUN_ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED_ZERO_SAMPLES',
@@ -713,12 +715,31 @@ test('证据检查点必须是当前TASK079仓库中线性可达的真实Git提�
   }
   assert.doesNotThrow(() => module.validateEvidenceCheckpointRepository(temporaryRoot, infrastructure, commits[7]))
   assert.throws(() => module.validateEvidenceCheckpointRepository(temporaryRoot, infrastructure, '0'.repeat(40)), /CONTROL_REPOSITORY/u)
-  assert.doesNotThrow(() => module.validateArchitectureCheckpointRepository(temporaryRoot, commits[7], commits[6]))
-  assert.throws(() => module.validateArchitectureCheckpointRepository(temporaryRoot, '0'.repeat(40), commits[6]), /CONTROL_REPOSITORY/u)
-  assert.throws(() => module.validateArchitectureCheckpointRepository(temporaryRoot, commits[6], commits[7]), /CONTROL_REPOSITORY/u)
+  assert.doesNotThrow(() => module.validateArchitectureCheckpointRepository(temporaryRoot, commits[6], commits[5], commits[7]))
+  assert.throws(() => module.validateArchitectureCheckpointRepository(temporaryRoot, '0'.repeat(40), commits[5], commits[7]), /CONTROL_REPOSITORY/u)
+  assert.throws(() => module.validateArchitectureCheckpointRepository(temporaryRoot, commits[5], commits[6], commits[7]), /CONTROL_REPOSITORY/u)
+  assert.throws(() => module.validateArchitectureCheckpointRepository(temporaryRoot, commits[6], commits[5], '0'.repeat(40)), /CONTROL_REPOSITORY/u)
+  assert.throws(() => module.validateArchitectureCheckpointRepository(temporaryRoot, commits[6], commits[5], commits[4]), /CONTROL_REPOSITORY/u)
   const reversed = structuredClone(infrastructure)
   ;[reversed.candidateClosure.implementationCommit, reversed.candidateClosure.reportCommit] = [reversed.candidateClosure.reportCommit, reversed.candidateClosure.implementationCommit]
   assert.throws(() => module.validateEvidenceCheckpointRepository(temporaryRoot, reversed, commits[7]), /CONTROL_REPOSITORY/u)
+})
+
+test('STATUS必须锁定谱系覆盖增强检查点与最新验证计数', () => {
+  assert.equal(validateOwnerReadiness(readiness(), { root, status: controlStatus, wave: controlWave }).ready, false)
+  for (const edit of [
+    value => { delete value.v3Development.task078SoftwareCheckpoints.capacityQueuedStopControlPlane.architectureResolution.coverageEnhancementCommit },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityQueuedStopControlPlane.architectureResolution.coverageEnhancementCommit = '0'.repeat(40) },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityQueuedStopControlPlane.architectureResolution.goldenCorpus.tests = 1 },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityQueuedStopControlPlane.architectureResolution.goldenCorpus.rejections.pop() },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityQueuedStopControlPlane.architectureResolution.focusedVerification.bridgeCapacityAndConformance = 'PASS' },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityQueuedStopControlPlane.architectureResolution.fullVerification.bridgeCore = 'PASS_1296_WITH_1_CONDITIONAL_SKIP' },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityQueuedStopControlPlane.architectureResolution.fullVerification.readinessFocused = 'PASS_15_OF_15' },
+    value => { delete value.v3Development.task078SoftwareCheckpoints.capacityQueuedStopControlPlane.architectureResolution.coverageEnhancementReview },
+  ]) {
+    const status = structuredClone(controlStatus); edit(status)
+    assert.throws(() => validateOwnerReadiness(readiness(), { root, status, wave: controlWave }), /CONTROL_STATE/u)
+  }
 })
 
 test('STATUS设备与外部门状态不能和readiness清单互相矛盾', () => {
