@@ -461,11 +461,112 @@ def _directory_bytes(directory, maximum=16 * 1024 ** 3, maximum_entries=200000):
     return total, count
 
 
+def _planned_generation_plan(profile):
+    if profile != 'joint': raise ValueError('OWNED_SPACE')
+    mib = 1024 ** 2
+    final_axis_bytes = 64 * mib + 64 * mib + 64 * mib + 512 * mib + 512 * mib
+    active_record_workspace_bytes = 16 * mib
+    evidence_allowance_bytes = 128 * mib
+    return {
+        'model': 'serial-single-output-plus-bounded-growth-v1',
+        'activeOutputMaximum': 1,
+        'finalAxisBytes': final_axis_bytes,
+        'activeOutputBytes': final_axis_bytes,
+        'activeRecordWorkspaceBytes': active_record_workspace_bytes,
+        'evidenceAllowanceBytes': evidence_allowance_bytes,
+        'plannedBytes': 2 * final_axis_bytes + active_record_workspace_bytes + evidence_allowance_bytes,
+    }
+
+
+def _joint_generation_plan_valid(value):
+    expected = _planned_generation_plan('joint')
+    if not isinstance(value, dict) or set(value) != set(expected): return False
+    for key, expected_value in expected.items():
+        observed = value.get(key)
+        if type(expected_value) is int:
+            if type(observed) is not int or observed != expected_value: return False
+        elif type(observed) is not str or observed != expected_value: return False
+    return True
+
+
+def _joint_axes_valid(value):
+    mib = 1024 ** 2
+    targets = {
+        'attemptEvents': 50_000,
+        'attemptBytes': 64 * mib,
+        'recordBytes': 64 * mib,
+        'printBytes': 64 * mib,
+        'photoBytes': 512 * mib,
+        'printObjectBytes': 512 * mib,
+    }
+    if not isinstance(value, dict) or set(value) != {'targets', 'actual', 'reached'}: return False
+    observed_targets = value.get('targets'); actual = value.get('actual'); reached = value.get('reached')
+    if not isinstance(observed_targets, dict) or set(observed_targets) != set(targets) \
+            or any(type(observed_targets[key]) is not int or observed_targets[key] != target
+                   for key, target in targets.items()) \
+            or not isinstance(actual, dict) or set(actual) != set(targets) \
+            or not isinstance(reached, dict) or set(reached) != set(targets):
+        return False
+    return all(type(actual[key]) is int and actual[key] >= target for key, target in targets.items()) \
+        and all(type(reached[key]) is bool and reached[key] is True for key in targets)
+
+
+def _joint_plan_preparation_valid(value, budget):
+    keys = {'strategy', 'prepared', 'beforeFirstAttempt', 'preparedBeforeFirstAttempt',
+            'activePlanMaximum', 'unconsumedAtSeal'}
+    if not isinstance(value, dict) or set(value) != keys or not isinstance(budget, dict): return False
+    records = budget.get('records')
+    return type(records) is int and records >= 1 \
+        and value.get('strategy') == 'serial-create-consume-one-active' \
+        and type(value.get('prepared')) is int and value['prepared'] == records + 1 \
+        and type(value.get('beforeFirstAttempt')) is bool and value['beforeFirstAttempt'] is True \
+        and type(value.get('preparedBeforeFirstAttempt')) is int and value['preparedBeforeFirstAttempt'] == 1 \
+        and type(value.get('activePlanMaximum')) is int and value['activePlanMaximum'] == 1 \
+        and type(value.get('unconsumedAtSeal')) is int and value['unconsumedAtSeal'] == 1
+
+
+def _joint_generation_contract_valid(value):
+    return isinstance(value, dict) and _joint_generation_plan_valid(value.get('generationPlan')) \
+        and _joint_axes_valid(value.get('axes')) \
+        and _joint_plan_preparation_valid(value.get('planPreparation'), value.get('budget'))
+
+
+def _joint_generation_seed_valid(value):
+    return isinstance(value, dict) and type(value.get('schema')) is int and value.get('schema') == 21 \
+        and type(value.get('profile')) is str and value.get('profile') == 'joint' \
+        and value.get('integrity') == 'passed' and value.get('growth', {}).get('state') == 'target-reached' \
+        and _uuid4(value.get('nextPlanId')) and type(value.get('nextPlanHash')) is str \
+        and _SHA256.fullmatch(value['nextPlanHash']) is not None \
+        and isinstance(value.get('budget'), dict) and isinstance(value.get('fixtureDirectory'), str) \
+        and isinstance(value.get('marker'), dict) and set(value['marker']) == {'id', 'scope'} \
+        and _uuid4(value['marker'].get('id')) and value['marker'].get('scope') == 'musicbridge-capacity-synthetic-only' \
+        and _joint_generation_contract_valid(value)
+
+
+def _joint_generation_space_valid(value, plan, snapshot_bytes, fixture_bytes,
+                                  pre_snapshot_output_bytes, terminal_output_bytes):
+    if not isinstance(value, dict) or set(value) != {'availableBytes', 'plannedBytes', 'ownedBytes'} \
+            or not _joint_generation_plan_valid(plan) \
+            or any(type(item) is not int or item < 0 for item in (
+                snapshot_bytes, fixture_bytes, pre_snapshot_output_bytes, terminal_output_bytes)) \
+            or snapshot_bytes <= 0 or fixture_bytes <= 0:
+        return False
+    if any(type(value.get(key)) is not int or value[key] < 0 for key in value): return False
+    planned = value['plannedBytes']; owned = value['ownedBytes']; available = value['availableBytes']
+    return snapshot_bytes <= fixture_bytes \
+        and planned == fixture_bytes + plan['evidenceAllowanceBytes'] \
+        and owned == fixture_bytes + pre_snapshot_output_bytes \
+        and owned + planned <= plan['plannedBytes'] \
+        and owned + planned <= 16 * 1024 ** 3 \
+        and fixture_bytes + terminal_output_bytes <= plan['plannedBytes'] \
+        and available - planned >= 10 * 1024 ** 3
+
+
 def _planned_generation_bytes(profile):
     mib = 1024 ** 2; gib = 1024 ** 3
     if profile == 'history-limit': axes, max_records = (int(.9 * 128 * mib + .999999), 0, 0, 0, 0), 1
     elif profile == 'objects-limit': axes, max_records = (0, 0, 0, int(.9 * gib + .999999), int(.9 * gib + .999999)), 220
-    elif profile == 'joint': axes, max_records = (64 * mib, 64 * mib, 64 * mib, 512 * mib, 512 * mib), 130
+    elif profile == 'joint': return _planned_generation_plan(profile)['plannedBytes']
     else: raise ValueError('OWNED_SPACE')
     # 与 createCapacitySeed 的写前投影保持同一公式，不能漏掉每条 Record 的工作余量。
     return 3 * sum(axes) + max_records * 16 * mib + 128 * mib
@@ -622,7 +723,8 @@ def _validate_measure_seed(runtime, window):
             or metadata.get('integrity') != 'passed' or metadata.get('growth', {}).get('state') != 'target-reached' \
             or not _uuid4(metadata.get('nextPlanId')) or _SHA256.fullmatch(str(metadata.get('nextPlanHash', ''))) is None \
             or metadata.get('snapshotSha256') != expected.get('snapshotSha256') \
-            or not isinstance(metadata.get('budget'), dict) or not isinstance(metadata.get('fixtureDirectory'), str):
+            or not isinstance(metadata.get('budget'), dict) or not isinstance(metadata.get('fixtureDirectory'), str) \
+            or window.get('profile') == 'joint' and not _joint_generation_seed_valid(metadata):
         raise ValueError('SEED_INVALID')
     try: fixture = _fixture_snapshot(metadata['fixtureDirectory'])
     except ValueError as error: raise ValueError('SEED_INVALID') from error
@@ -741,8 +843,10 @@ def _validate_generation_fixture(output):
             raise ValueError('SEED_FIXTURE')
     after = _fixture_snapshot(fixture)
     if before != after: raise ValueError('FIXTURE_CHANGED')
+    fixture_bytes, fixture_entries = _directory_bytes(fixture)
     return {'valid': True, 'checkpointCount': len(checkpoints), 'latestCheckpoint': checkpoints[-1].name,
             'fixtureDirectory': str(fixture), 'seedBound': seed is not None, 'identityStable': True,
+            'fixtureBytes': fixture_bytes, 'fixtureEntries': fixture_entries,
             'device': before['device'], 'inode': before['inode'], 'markerDevice': before['markerDevice'],
             'markerInode': before['markerInode'], 'markerSha256': before['markerSha256'],
             'marker': before['marker']}
@@ -769,11 +873,17 @@ def _generation_artifacts(runtime, label, expected=None):
     sidecars = [f'seed.sqlite{suffix}' for suffix in ('-wal', '-shm', '-journal')]
     no_sidecars = not any((output / name).exists() or (output / name).is_symlink() for name in sidecars)
     seed = _read_json(output / 'seed.json') if output_exists else None
+    space_receipt = _read_json(output / 'space-before-snapshot.json') if output_exists else None
     exit_receipt = _read_json(output / 'exit.json') if output_exists else None
     before = _read_json(output / 'source-before.json') if output_exists else None
     after = _read_json(output / 'source-after.json') if output_exists else None
     command = _read_json(output / 'command.json') if output_exists else None
     target_reached = (seed.get('growth', {}).get('state') == 'target-reached') if isinstance(seed, dict) else None
+    joint_seed_valid = (expected is None or expected.get('profile') != 'joint'
+                        or _joint_generation_seed_valid(seed))
+    generation_plan_valid = (expected is None or expected.get('profile') != 'joint'
+                             or isinstance(seed, dict) and _joint_generation_plan_valid(seed.get('generationPlan')))
+    generation_space_valid = expected is None or expected.get('profile') != 'joint'
     seed_sha_matches = False
     seed_profile_matches = False
     command_matches = False
@@ -795,6 +905,14 @@ def _generation_artifacts(runtime, label, expected=None):
         try:
             fixture_identity = _validate_generation_fixture(output); fixture_identity_valid = True
         except ValueError as error: fixture_error = str(error)
+    if expected is not None and expected.get('profile') == 'joint' and isinstance(seed, dict) and fixture_identity_valid:
+        try:
+            terminal_output_bytes, _ = _directory_bytes(output)
+            pre_snapshot_output_bytes = sum(files[name]['size'] for name in ('source-before.json', 'command.json', *checkpoints))
+            generation_space_valid = _joint_generation_space_valid(
+                space_receipt, seed.get('generationPlan'), files['seed.sqlite']['size'],
+                fixture_identity['fixtureBytes'], pre_snapshot_output_bytes, terminal_output_bytes)
+        except (KeyError, TypeError, ValueError): generation_space_valid = False
     if expected is not None and callable(expected.get('authorityProbe')):
         try:
             observed = expected['authorityProbe']()
@@ -807,7 +925,8 @@ def _generation_artifacts(runtime, label, expected=None):
     verified = (expected is not None and output_exists and all_required and len(checkpoints) > 0 and not unexpected
                 and no_sidecars and exit_receipt == {'exit': 0} and target_reached is True
                 and seed_profile_matches and seed_sha_matches and before is not None and before == after and command_matches
-                and fixture_identity_valid and authority_stable)
+                and fixture_identity_valid and authority_stable and joint_seed_valid
+                and generation_plan_valid and generation_space_valid)
     return {
         'profile': expected['profile'] if expected is not None else None,
         'label': expected['label'] if expected is not None else label,
@@ -840,6 +959,9 @@ def _generation_artifacts(runtime, label, expected=None):
         'authority': authority,
         'authorityError': authority_error,
         'targetReached': target_reached,
+        'generationPlanValid': generation_plan_valid,
+        'jointSeedValid': joint_seed_valid,
+        'generationSpaceValid': generation_space_valid,
         'targetVerdict': 'CHILD_SEED_TARGET_REACHED' if target_reached is True else 'CHILD_SEED_EVIDENCE_REQUIRED',
         'verifiedPassed': verified
     }

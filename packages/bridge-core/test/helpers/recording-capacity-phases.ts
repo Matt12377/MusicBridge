@@ -8,7 +8,7 @@ import { createCollectionRepository } from '../../src/collection/repository.js';
 import { readBackupIndex } from '../../src/recording/backup-index.js';
 import { createArchiveBackup, verifyArchiveBackup } from '../../src/recording/backup-package.js';
 import { authorizeSourceDirectory } from '../../src/recording/source-files.js';
-import { assertCapacitySpace, capacityDirectoryBytes, capacityMeasureWorkingBytes, capacityProfile, createCapacityClone,
+import { assertCapacitySpace, capacityDirectoryBytes, capacityGenerationPlan, capacityMeasureWorkingBytes, capacityProfile, createCapacityClone,
   createCapacityQueuedStopAggregateGuard, finishCapacityClone, hashCapacityFile, type CapacityClone,
   type CapacityMeasureAggregateGuard } from './recording-capacity-fixture.js';
 import { isCapacityRequestId, runCapacityCold, runCapacityPrintWrite, runCapacityQueuedStop, runCapacityRecovery, type CapacityProcessResult, type CapacityPrintWriteReceipt, type CapacityQueuedStopReceipt } from './recording-capacity-process.js';
@@ -58,7 +58,7 @@ export interface CapacityOwnedManifest {
   schemaVersion: 1; scope: 'musicbridge-capacity-owned-roots'; access: 'count-only'; windowId: string; roots: CapacityOwnedRoot[];
 }
 export interface CapacitySourceManifest { schemaVersion: 1; scope: 'musicbridge-capacity-source-pins'; files: Record<string, string> }
-interface Seed { schema: number; profile: string; fixtureDirectory: string; snapshotSha256: string; marker: { id: string; scope: string }; nextPlanId: string; nextPlanHash: string; integrity: string; growth?: { state: string }; axes?: unknown }
+interface Seed { schema: number; profile: string; fixtureDirectory: string; snapshotSha256: string; marker: { id: string; scope: string }; nextPlanId: string; nextPlanHash: string; integrity: string; growth?: { state: string }; axes?: unknown; generationPlan?: unknown }
 export interface CapacityBackupInfo {
   id: string; backupPath: string; manifestHash: string; databaseSha256: string; databaseBytes: number;
   objectCount: number; objectBytes: number; manifestBytes: number; protectedRootPaths: string[]; preparationMs: number;
@@ -119,6 +119,10 @@ function validJointAxes(v: unknown): boolean {
   return JSON.stringify(v.targets) === JSON.stringify(targets)
     && Object.entries(v.actual).every(([key, value]) => integer(value) && value >= targets[key as keyof typeof targets])
     && Object.values(v.reached).every(value => value === true);
+}
+function validJointGenerationPlan(v: unknown): boolean {
+  if (!exact(v, 'model,activeOutputMaximum,finalAxisBytes,activeOutputBytes,activeRecordWorkspaceBytes,evidenceAllowanceBytes,plannedBytes')) return false;
+  return Object.entries(capacityGenerationPlan(capacityProfile('joint'))).every(([key, value]) => v[key] === value);
 }
 function canonical(directory: string): void { if (!path.isAbsolute(directory) || realpathSync(directory) !== directory || !lstatSync(directory).isDirectory()) invalid('INVALID_INPUT'); }
 function json(file: string, expected?: string, maximum = 2 * 1024 ** 2): unknown {
@@ -388,7 +392,7 @@ export async function runCapacityPhase(args: CapacityPhaseArguments, options: Ca
   const largeQueued = args.phase === 'queued-stop' && args.profile !== 'objects-small';
   if (!seed || seed.schema !== 21 || seed.profile !== args.profile || seed.integrity !== 'passed'
     || (largeQueued ? seed.growth?.state !== 'target-reached' : seed.growth && seed.growth.state !== 'target-reached')
-    || (args.profile === 'joint' && !validJointAxes(seed.axes))
+    || (args.profile === 'joint' && (!validJointGenerationPlan(seed.generationPlan) || !validJointAxes(seed.axes)))
     || !isCapacityRequestId(seed.nextPlanId) || !sha(seed.nextPlanHash) || seed.snapshotSha256 !== w.seed.snapshotSha256 || hashCapacityFile(seedPath) !== w.seed.snapshotSha256
     || typeof seed.fixtureDirectory !== 'string' || !/^musicbridge-version-[A-Za-z0-9]+$/u.test(path.basename(seed.fixtureDirectory))) invalid('SEED_INVALID');
   canonical(seed.fixtureDirectory);

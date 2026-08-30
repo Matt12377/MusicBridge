@@ -53,6 +53,20 @@ test('规模描述及增长判定区分已达目标、联合边界与尚未达�
 test('joint六轴包含Record／Print元数据50%目标，任一未达继续且非目标硬边界优先停止', async () => {
   const api = await import('./helpers/recording-capacity-fixture.js');
   const profile = api.capacityProfile('joint');
+  assert.deepEqual(api.capacityGenerationPlan(profile), {
+    model: 'serial-single-output-plus-bounded-growth-v1', activeOutputMaximum: 1,
+    finalAxisBytes: 1_275_068_416, activeOutputBytes: 1_275_068_416,
+    activeRecordWorkspaceBytes: 16 * 1024 ** 2, evidenceAllowanceBytes: 128 * 1024 ** 2,
+    plannedBytes: 2_701_131_776,
+  });
+  const plan = api.capacityGenerationPlan(profile);
+  assert.deepEqual(api.capacityGenerationSnapshotProjection(plan, 1_000, 2_000), {
+    plannedWriteBytes: 2_000 + 128 * 1024 ** 2,
+    totalProjectedBytes: 3_000 + 128 * 1024 ** 2,
+  });
+  assert.throws(() => api.capacityGenerationSnapshotProjection(
+    plan, plan.plannedBytes - plan.evidenceAllowanceBytes - 2_000 + 1, 2_000,
+  ), /joint快照写入前投影超过冻结generation预算/u);
   const mib64 = 64 * 1024 ** 2;
   assert.equal(profile.progressEvents, 50_000); assert.equal(profile.attemptBytes, mib64);
   assert.equal(profile.recordBytes, mib64); assert.equal(profile.printBytes, mib64);
@@ -124,6 +138,16 @@ test('缩小joint流程：manifest同时封存六轴target、actual与reached，
   assert.ok(f.manifest.budget.recordBytes >= f.manifest.targets.recordBytes);
   assert.ok(f.manifest.budget.printBytes >= f.manifest.targets.printBytes);
   assert.equal(f.manifest.progressEvents, f.manifest.targets.progressEvents);
+  assert.deepEqual(f.manifest.generationPlan, {
+    model: 'serial-single-output-plus-bounded-growth-v1', activeOutputMaximum: 1,
+    finalAxisBytes: 12_290, activeOutputBytes: 12_290,
+    activeRecordWorkspaceBytes: 16 * 1024 ** 2, evidenceAllowanceBytes: 128 * 1024 ** 2,
+    plannedBytes: 151_019_524,
+  });
+  assert.deepEqual(f.manifest.planPreparation, {
+    strategy: 'serial-create-consume-one-active', prepared: 3, beforeFirstAttempt: true, preparedBeforeFirstAttempt: 1,
+    activePlanMaximum: 1, unconsumedAtSeal: 1,
+  });
   assert.equal(f.manifest.deviceOpened, false); assert.equal(f.manifest.formalReady, false);
 });
 
@@ -669,10 +693,14 @@ async function phaseFixture(t: test.TestContext, phase: import('./helpers/record
   const profile = selectedProfile ?? (phase === 'queued-stop' || phase === 'print-write' ? 'objects-small' as const : 'history-small' as const);
   const jointTargets = { attemptEvents: 50_000, attemptBytes: 64 * 1024 ** 2, recordBytes: 64 * 1024 ** 2,
     printBytes: 64 * 1024 ** 2, photoBytes: 512 * 1024 ** 2, printObjectBytes: 512 * 1024 ** 2 };
+  const jointGenerationPlan = { model: 'serial-single-output-plus-bounded-growth-v1', activeOutputMaximum: 1,
+    finalAxisBytes: 1_275_068_416, activeOutputBytes: 1_275_068_416,
+    activeRecordWorkspaceBytes: 16 * 1024 ** 2, evidenceAllowanceBytes: 128 * 1024 ** 2,
+    plannedBytes: 2_701_131_776 };
   const metadata = { schema: 21, profile, fixtureDirectory: fixture, snapshotSha256: hash(path.join(seed, 'seed.sqlite')), marker,
     nextPlanId: randomUUID(), nextPlanHash: 'a'.repeat(64), integrity: 'passed',
     ...(['history-limit','objects-limit','joint'].includes(profile) ? { growth: { state: 'target-reached' } } : {}),
-    ...(profile === 'joint' ? { axes: { targets: jointTargets, actual: jointTargets,
+    ...(profile === 'joint' ? { generationPlan: jointGenerationPlan, axes: { targets: jointTargets, actual: jointTargets,
       reached: Object.fromEntries(Object.keys(jointTargets).map(key => [key, true])) } } : {}) };
   const metadataSha256 = put(path.join(seed, 'seed.json'), metadata);
   put(path.join(seed, 'exit.json'), { exit: 0 });
@@ -911,7 +939,7 @@ test('queued-stop phase：仅objects-small及三种大档、固定5预热+100正
       '--owned-roots', rejected.args.ownedRootsPath, '--owned-roots-sha256', rejected.args.ownedRootsSha256,
     ]), /CAPACITY_PHASE_INVALID_INPUT/u, `${phase}不得因union扩展而顺带开放大档`);
   }
-  for (const fault of ['profile', 'n', 'duration', 'missing-growth', 'missing-axes', 'axis-not-reached'] as const) {
+  for (const fault of ['profile', 'n', 'duration', 'missing-growth', 'missing-generation-plan', 'wrong-generation-plan', 'missing-axes', 'axis-not-reached'] as const) {
     const f = await phaseFixture(t, 'queued-stop', 105, 'joint'); let calls = 0;
     if (fault === 'profile') { f.args.profile = 'history-small'; f.w.profile = 'history-small'; }
     else if (fault === 'n') (f.w as unknown as { n: number }).n = 104;
@@ -922,13 +950,17 @@ test('queued-stop phase：仅objects-small及三种大档、固定5预热+100正
       f.inventory.roots.find(root => root.path === f.seed)!.marker.sha256 = f.w.seed.metadataSha256;
     } else {
       const metadataPath = path.join(f.seed, 'seed.json'), metadata = JSON.parse(readFileSync(metadataPath, 'utf8'));
-      if (fault === 'missing-axes') delete metadata.axes; else metadata.axes.reached.printBytes = false;
+      if (fault === 'missing-generation-plan') delete metadata.generationPlan;
+      else if (fault === 'wrong-generation-plan') metadata.generationPlan.plannedBytes = 6_140_461_056;
+      else if (fault === 'missing-axes') delete metadata.axes;
+      else metadata.axes.reached.printBytes = false;
       f.w.seed.metadataSha256 = f.put(metadataPath, metadata);
       f.inventory.roots.find(root => root.path === f.seed)!.marker.sha256 = f.w.seed.metadataSha256;
     }
     f.seal();
     await assert.rejects(f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async input => { ++calls; return f.queuedResult(input); } }),
-      ['missing-growth','missing-axes','axis-not-reached'].includes(fault) ? /CAPACITY_PHASE_SEED_INVALID/u : /CAPACITY_PHASE_(?:INVALID_INPUT|WINDOW_INVALID)/u);
+      ['missing-growth','missing-generation-plan','wrong-generation-plan','missing-axes','axis-not-reached'].includes(fault)
+        ? /CAPACITY_PHASE_SEED_INVALID/u : /CAPACITY_PHASE_(?:INVALID_INPUT|WINDOW_INVALID)/u);
     assert.equal(calls, 0); assert.equal(existsSync(f.output), false);
   }
 });

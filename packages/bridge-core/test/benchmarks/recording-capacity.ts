@@ -10,7 +10,8 @@ import { DatabaseSync, backup } from 'node:sqlite';
 import { performance } from 'node:perf_hooks';
 import { createCapacitySeed, summarizeCapacitySamples, readCapacityBudget, capacityProfile, createCapacityClone, finishCapacityClone,
   hashCapacityFile, checkCapacitySpace, appendCapacityMeasureStage, capacityMeasurePlan, runCapacityStopRounds,
-  prepareCapacityStopPlans, summarizeCapacityFixtureTree, capacityMeasureWorkingBytes, createCapacityMeasureAggregateGuard,
+  prepareCapacityStopPlans, summarizeCapacityFixtureTree, capacityDirectoryBytes, capacityGenerationPlan, capacityGenerationSnapshotProjection,
+  capacityMeasureWorkingBytes, createCapacityMeasureAggregateGuard,
   type CapacityMeasureGroup, type CapacityMeasureSample, type CapacitySample,
   type CapacityProfileName, type CapacityStopWorkspace, type CapacityMeasureAggregateGuard } from '../helpers/recording-capacity-fixture.js';
 import { createCollectionRepository } from '../../src/collection/repository.js';
@@ -83,6 +84,7 @@ test(`R023 ${phase} ${profile}`, { timeout: 45 * 60_000 }, async t => {
   t.after(() => { const finalPins = pins(); json('source-after.json', finalPins); assert.deepEqual(finalPins, initialPins, '测量过程中生产代码变化，不能作为冻结候选证据'); });
   if (phase === 'generate') {
     const marker = { id: randomUUID(), scope: 'musicbridge-capacity-synthetic-only' }; let marked = false, checkpoint = 0;
+    const generationPlan = profile === 'joint' ? capacityGenerationPlan(profileDefinition) : undefined;
     const f = await createCapacitySeed(t, { profile: profile as CapacityProfileName, retainDirectory: true, checkpoint(value) {
       const fixtureDirectory = (value as { fixtureDirectory: string }).fixtureDirectory;
       if (!marked) { writeFileSync(path.join(fixtureDirectory, 'capacity-owner.json'), JSON.stringify(marker), { flag: 'wx' }); marked = true; }
@@ -91,8 +93,19 @@ test(`R023 ${phase} ${profile}`, { timeout: 45 * 60_000 }, async t => {
     assert.equal(f.manifest.budget.attempts, f.manifest.budget.records, '种子只能保留Completed，nextPlan不能提前Begin');
     assert.equal(f.db.prepare("SELECT count(*) n FROM recording_attempts WHERE status='in-progress'").get()!.n, 0);
     if (!marked) writeFileSync(path.join(f.directory, 'capacity-owner.json'), JSON.stringify(marker), { flag: 'wx' });
-    json('space-before-snapshot.json', checkCapacitySpace(output, 2 * (f.manifest.budget.photoBytes + f.manifest.budget.printObjectBytes + f.manifest.budget.attemptBytes) + 256 * 1024 ** 2));
+    const generationOwnedBytes = capacityDirectoryBytes(output) + capacityDirectoryBytes(f.directory);
+    const projectedSnapshotBytes = generationPlan ? capacityDirectoryBytes(f.directory) : 0;
+    const generationProjection = generationPlan
+      ? capacityGenerationSnapshotProjection(generationPlan, generationOwnedBytes, projectedSnapshotBytes)
+      : undefined;
+    const snapshotPlannedBytes = generationPlan
+      ? generationProjection!.plannedWriteBytes
+      : 2 * (f.manifest.budget.photoBytes + f.manifest.budget.printObjectBytes + f.manifest.budget.attemptBytes) + 256 * 1024 ** 2;
+    json('space-before-snapshot.json', checkCapacitySpace(output, snapshotPlannedBytes, generationOwnedBytes));
     const snapshot = path.join(output, 'seed.sqlite'); await backup(f.db, snapshot);
+    if (generationPlan && capacityDirectoryBytes(output) + capacityDirectoryBytes(f.directory) > generationPlan.plannedBytes) {
+      throw new Error('joint快照与活动输出超过冻结generation预算');
+    }
     const record = f.db.prepare('SELECT id,data FROM recording_records WHERE attempt_id=?').get(f.manifest.completedAttemptId)!;
     json('seed.json', { ...f.manifest, marker, fixtureDirectory: f.directory, snapshotSha256: sha(snapshot),
       nextPlanHash: f.nextPlan.contentHash, recordingId: String(record.id), recordSha256: createHash('sha256').update(String(record.data)).digest('hex'),

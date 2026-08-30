@@ -45,6 +45,7 @@
 - `scripts/ci/test/capacity-phase-supervisor-v2.test.mjs`
 - `packages/bridge-core/test/benchmarks/recording-capacity.ts`
 - `packages/bridge-core/test/helpers/recording-capacity-fixture.ts`
+- `packages/bridge-core/test/helpers/recording-capacity-phases.ts`
 - `packages/bridge-core/test/recording-capacity.test.ts`
 - `reports/TASK-079_REAL_GATE_RUNBOOK.md`
 - `reports/TASK-079_READINESS.md`

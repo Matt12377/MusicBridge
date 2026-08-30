@@ -170,6 +170,37 @@ export function capacityAxes(profile: CapacityProfile, budget: CapacityBudget, p
   };
 }
 
+export interface CapacityGenerationPlan {
+  model: 'serial-single-output-plus-bounded-growth-v1'; activeOutputMaximum: 1;
+  finalAxisBytes: number; activeOutputBytes: number; activeRecordWorkspaceBytes: number;
+  evidenceAllowanceBytes: number; plannedBytes: number;
+}
+
+/** joint逐Record创建并消费Plan，只计最终集合、唯一活动输出、单Record工作区和有界证据。 */
+export function capacityGenerationPlan(profile: CapacityProfile): CapacityGenerationPlan {
+  if (profile.name !== 'joint') throw new Error('容量generation计划只适用于joint');
+  const finalAxisBytes = profile.photoBytes + profile.printObjectBytes + profile.attemptBytes + profile.recordBytes + profile.printBytes;
+  const activeRecordWorkspaceBytes = 16 * 1024 ** 2, evidenceAllowanceBytes = 128 * 1024 ** 2;
+  const plannedBytes = finalAxisBytes * 2 + activeRecordWorkspaceBytes + evidenceAllowanceBytes;
+  if (![finalAxisBytes, plannedBytes].every(value => Number.isSafeInteger(value) && value > 0)
+    || plannedBytes > 16 * 1024 ** 3) throw new Error('容量generation计划无效');
+  return { model: 'serial-single-output-plus-bounded-growth-v1', activeOutputMaximum: 1,
+    finalAxisBytes, activeOutputBytes: finalAxisBytes, activeRecordWorkspaceBytes, evidenceAllowanceBytes, plannedBytes };
+}
+
+export function capacityGenerationSnapshotProjection(plan: CapacityGenerationPlan, currentOwnedBytes: number,
+  projectedSnapshotBytes: number): { plannedWriteBytes: number; totalProjectedBytes: number } {
+  if (![currentOwnedBytes, projectedSnapshotBytes].every(value => Number.isSafeInteger(value) && value >= 0)) {
+    throw new Error('joint快照写入前投影无效');
+  }
+  const plannedWriteBytes = projectedSnapshotBytes + plan.evidenceAllowanceBytes;
+  const totalProjectedBytes = currentOwnedBytes + plannedWriteBytes;
+  if (!Number.isSafeInteger(totalProjectedBytes) || totalProjectedBytes > plan.plannedBytes) {
+    throw new Error('joint快照写入前投影超过冻结generation预算');
+  }
+  return { plannedWriteBytes, totalProjectedBytes };
+}
+
 /** 已批准的空间硬门槛：写入预测后至少10GiB，自建活动数据最多16GiB。 */
 export function assertCapacitySpace(value: { availableBytes: number; plannedBytes: number; ownedBytes: number }): void {
   if (Object.values(value).some(n => !Number.isSafeInteger(n) || n < 0) || value.availableBytes - value.plannedBytes < 10 * 1024 ** 3
@@ -742,8 +773,9 @@ export async function createCapacityObjectLadder(t:test.TestContext,records:3|10
 async function createCapacityObjects(t: test.TestContext, profile: CapacityProfile,
   options: { retainDirectory?: boolean; checkpoint?: (value: unknown) => void }, functional?: 'object' | 'joint') {
   const started = performance.now();
+  const generationPlan = profile.name === 'joint' ? capacityGenerationPlan(profile) : undefined;
   // SQLite/WAL/备份副本+执行工作文件的保守自建上界；不预分配这些字节。
-  const estimatedBytes = (profile.photoBytes + profile.printObjectBytes + profile.attemptBytes + profile.recordBytes + profile.printBytes) * 3
+  const estimatedBytes = generationPlan?.plannedBytes ?? (profile.photoBytes + profile.printObjectBytes + profile.attemptBytes + profile.recordBytes + profile.printBytes) * 3
     + profile.maxRecords * 16 * 1024 ** 2 + 128 * 1024 ** 2;
   checkCapacitySpace(realpathSync(os.tmpdir()), estimatedBytes, 0);
   const f = await recordingRecordFixture(t, 'cassette', { ...options, stockQuantities: { openedBlank: profile.maxRecords + 1, sealedBlank: 0, legacyUsed: 0, unclassified: 0 } });
@@ -751,22 +783,29 @@ async function createCapacityObjects(t: test.TestContext, profile: CapacityProfi
   let progressEvents = 0, removedSourcePhotos = 0, budget = readCapacityBudget(db);
   const checkpoint = () => {
     budget = readCapacityBudget(db);
-    checkCapacitySpace(f.directory, 64 * 1024 ** 2);
+    const workingBytes = capacityDirectoryBytes(f.directory);
+    if (generationPlan) {
+      const maximumWorkingBytes = generationPlan.activeOutputBytes + generationPlan.activeRecordWorkspaceBytes + generationPlan.evidenceAllowanceBytes;
+      if (workingBytes > maximumWorkingBytes) throw new Error('joint活动输出超过冻结generation预算');
+      checkCapacitySpace(f.directory, generationPlan.plannedBytes - workingBytes, workingBytes);
+    } else checkCapacitySpace(f.directory, 64 * 1024 ** 2);
     options.checkpoint?.({ fixtureDirectory: f.directory, generationMs: performance.now() - started, profile, budget, progressEvents, partial: true });
     if (performance.now() - started > profile.generationLimitMs) throw new Error('容量种子生成达到已批准期限，保留partial且未达到目标');
   };
   // 只预建达到对象/结构目标所需的计划及一个next plan；不为maxRecords上界制造永远不用的预留。
   const photoRecords=profile.photoBytes===0?0:Math.ceil(profile.photoBytes/(profile.name==='objects-small'?Math.ceil(profile.photoBytes/profile.records):24*1024**2));
   const printRecords=profile.printObjectBytes===0?0:Math.ceil(profile.printObjectBytes/(profile.name==='objects-small'?Math.ceil(profile.printObjectBytes/profile.records):5*1024**2));
-  const preparedRecords=profile.name==='joint'?profile.maxRecords:Math.min(profile.maxRecords,Math.max(profile.records,photoRecords,printRecords));
+  const preparedRecords=Math.min(profile.maxRecords,Math.max(profile.records,photoRecords,printRecords));
   const plans:CapacityPlan[]=[f.frozenPlan];
-  for(let index=1;index<=preparedRecords;++index){plans.push(await newCapacityPlan(f,index+1));checkpoint();}
-  const planPreparation={strategy:'prebuilt-before-object-growth' as const,prepared:plans.length,beforeFirstAttempt:true as const};
+  if(profile.name!=='joint')for(let index=1;index<=preparedRecords;++index){plans.push(await newCapacityPlan(f,index+1));checkpoint();}
+  let jointActivePlans=profile.name==='joint'?1:0,jointActivePlanMaximum=jointActivePlans,jointPrepared=plans.length;
   let completed: Awaited<ReturnType<typeof finishCapacityAttempt>>['completed'] | undefined;
   let firstCompleted: typeof completed;
   let pdfSha256 = '', jpegSha256 = '';
   for (let index = 0; index < profile.maxRecords; ++index) {
     checkpoint();
+    if(profile.name==='joint'&&index>0){assert.equal(jointActivePlans,0);plans.push(await newCapacityPlan(f,index+1));++jointPrepared;++jointActivePlans;jointActivePlanMaximum=Math.max(jointActivePlanMaximum,jointActivePlans);checkpoint();}
+    if(profile.name==='joint')assert.equal(jointActivePlans,1);
     const plan=plans[index]!;
     const modelId = plan.layout.reservation.modelId, physicalId = plan.physicalCopy.physicalId;
     const perRecordPhoto = profile.name === 'objects-small' ? Math.ceil(profile.photoBytes / profile.records) : Math.min(24 * 1024 ** 2, Math.max(0, profile.photoBytes - budget.photoBytes));
@@ -783,6 +822,7 @@ async function createCapacityObjects(t: test.TestContext, profile: CapacityProfi
       return capacityHistoryReached(profile, budget, count);
     });
     completed = finished.completed; progressEvents += index ? 0 : finished.actualProgress - progressEvents;
+    if(profile.name==='joint'){assert.equal(jointActivePlans,1);--jointActivePlans;f.attempts.assertExecutionIdle();}
     firstCompleted ??= completed;
     const raw = db.prepare('SELECT id,data FROM recording_records WHERE attempt_id=?').get(completed.id)!;
     const recordData = String(raw.data), record = JSON.parse(recordData) as { visuals: { photos: { state: string; attachments: { sha256: string; sourcePhotoId: string }[] } } };
@@ -813,15 +853,22 @@ async function createCapacityObjects(t: test.TestContext, profile: CapacityProfi
   assert.ok(completed && firstCompleted);
   checkpoint();
   const growth = capacityGrowth(profile, budget, progressEvents);
+  if(profile.name==='joint'){assert.equal(jointActivePlans,0);plans.push(await newCapacityPlan(f,budget.records+1));++jointPrepared;++jointActivePlans;jointActivePlanMaximum=Math.max(jointActivePlanMaximum,jointActivePlans);checkpoint();}
   const nextPlan=plans[budget.records]!;
   f.attempts.assertExecutionIdle(); verifyRecordingPlanDatabase(db); verifyRecordingAttemptDatabase(db); verifyRecordingRecordDatabase(db); checkpoint();
   const classification = functional === 'object' ? 'functional-object-probe/non-performance' : functional === 'joint'
     ? 'functional-joint-probe/non-performance' : 'capacity-seed/non-performance';
   const axes = capacityAxes(profile, budget, progressEvents);
   const structural = { records: { target: profile.records, actual: budget.records, reached: growth.structural.records } };
+  const planPreparation = profile.name === 'joint'
+    ? { strategy: 'serial-create-consume-one-active' as const, prepared: jointPrepared, beforeFirstAttempt: true as const,
+      preparedBeforeFirstAttempt: 1 as const,
+      activePlanMaximum: jointActivePlanMaximum, unconsumedAtSeal: jointActivePlans }
+    : { strategy: 'prebuilt-before-object-growth' as const, prepared: plans.length, beforeFirstAttempt: true as const };
   const manifest = { schema: 21, classification, profile: profile.name,
     budget, progressEvents, completedPhysicalId: firstCompleted.physicalId, nextPhysicalId: nextPlan.physicalCopy.physicalId, nextPlanId: nextPlan.id,
     completedAttemptId: firstCompleted.id, integrity: 'passed' as const, generationMs: performance.now() - started, deviceOpened: false, formalReady: false, gateB: 'NOT_RUN',
-    pdfSha256, jpegSha256, growth, axes, structural, targets: profile, removedSourcePhotos, planPreparation };
+    pdfSha256, jpegSha256, growth, axes, structural, targets: profile, removedSourcePhotos, planPreparation,
+    ...(generationPlan ? { generationPlan } : {}) };
   return { ...f, db, nextPlan, completed: firstCompleted, manifest };
 }

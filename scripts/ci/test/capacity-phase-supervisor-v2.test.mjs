@@ -118,6 +118,19 @@ try:
       future_path=future, future_state='absent' if future is not None else None)
   elif method == 'measure-plan':
     value=module._measure_planned_bytes(payload['snapshotBytes'])
+  elif method == 'generation-plan':
+    value=module._planned_generation_plan(payload['profile'])
+  elif method == 'generation-plan-valid':
+    value=module._joint_generation_plan_valid(payload['value'])
+  elif method == 'generation-plan-valid-float':
+    candidate=module._planned_generation_plan('joint'); candidate['finalAxisBytes']=float(candidate['finalAxisBytes'])
+    value=module._joint_generation_plan_valid(candidate)
+  elif method == 'measure-seed':
+    value=module._validate_measure_seed(pathlib.Path(payload['runtime']), payload['window'])
+  elif method == 'generation-artifacts':
+    expected=dict(payload['expected']); expected['entry']=pathlib.Path(expected['entry']); expected['root']=pathlib.Path(expected['root'])
+    expected['authorityProbe']=lambda: {'authorityStable':True,'sourcePinsValid':True,'ownedRootsValid':True,'spaceValid':True}
+    value=module._generation_artifacts(pathlib.Path(payload['runtime']), payload['label'], expected)
   elif method == 'owned-transition':
     runtime=pathlib.Path(payload['runtime']); future=pathlib.Path(payload['future'])
     available=iter([payload['admissionAvailableBytes'], payload['terminalAvailableBytes']])
@@ -725,6 +738,79 @@ function windowValue(f) {
   }
 }
 
+function jointMeasureSeed(f, mutate = () => {}) {
+  const fixture = realpathSync(mkdtempSync(join(tmpdir(), 'musicbridge-version-')))
+  const marker = { id: randomUUID(), scope: 'musicbridge-capacity-synthetic-only' }
+  json(join(fixture, 'capacity-owner.json'), marker)
+  const seedLabel = 'joint-seed', seedDirectory = join(f.runtime, seedLabel)
+  mkdirSync(seedDirectory); writeFileSync(join(seedDirectory, 'seed.sqlite'), 'joint seed\n')
+  const snapshotSha256 = sha(join(seedDirectory, 'seed.sqlite'))
+  const generationPlan = {
+    model: 'serial-single-output-plus-bounded-growth-v1', activeOutputMaximum: 1,
+    finalAxisBytes: 1_275_068_416, activeOutputBytes: 1_275_068_416,
+    activeRecordWorkspaceBytes: 16 * 1024 ** 2, evidenceAllowanceBytes: 128 * 1024 ** 2,
+    plannedBytes: 2_701_131_776,
+  }
+  const axisTargets = { attemptEvents: 50_000, attemptBytes: 64 * 1024 ** 2,
+    recordBytes: 64 * 1024 ** 2, printBytes: 64 * 1024 ** 2,
+    photoBytes: 512 * 1024 ** 2, printObjectBytes: 512 * 1024 ** 2 }
+  const axes = { targets: axisTargets, actual: { ...axisTargets },
+    reached: Object.fromEntries(Object.keys(axisTargets).map(key => [key, true])) }
+  const planPreparation = { strategy: 'serial-create-consume-one-active', prepared: 2,
+    beforeFirstAttempt: true, preparedBeforeFirstAttempt: 1, activePlanMaximum: 1, unconsumedAtSeal: 1 }
+  const metadata = { schema: 21, profile: 'joint', integrity: 'passed', growth: { state: 'target-reached' },
+    nextPlanId: randomUUID(), nextPlanHash: 'a'.repeat(64), snapshotSha256, budget: { records: 1 },
+    fixtureDirectory: fixture, marker, generationPlan, axes, planPreparation }
+  mutate(metadata)
+  json(join(seedDirectory, 'seed.json'), metadata)
+  const window = { profile: 'joint', seedLabel,
+    seed: { metadataSha256: sha(join(seedDirectory, 'seed.json')), snapshotSha256,
+      fixtureOwnerSha256: sha(join(fixture, 'capacity-owner.json')) } }
+  return { window, fixture }
+}
+
+function jointGenerationArtifacts(f, mutateSeed = () => {}, mutateSpace = () => {}) {
+  const label = 'joint-generation', output = join(f.runtime, label); mkdirSync(output)
+  const fixture = realpathSync(mkdtempSync(join(tmpdir(), 'musicbridge-version-')))
+  const marker = { id: randomUUID(), scope: 'musicbridge-capacity-synthetic-only' }
+  json(join(fixture, 'capacity-owner.json'), marker)
+  const entry = join(f.candidate, 'packages/bridge-core/test/benchmarks/recording-capacity.ts')
+  const window = randomUUID(), generationPlan = {
+    model: 'serial-single-output-plus-bounded-growth-v1', activeOutputMaximum: 1,
+    finalAxisBytes: 1_275_068_416, activeOutputBytes: 1_275_068_416,
+    activeRecordWorkspaceBytes: 16 * 1024 ** 2, evidenceAllowanceBytes: 128 * 1024 ** 2,
+    plannedBytes: 2_701_131_776,
+  }
+  const axisTargets = { attemptEvents: 50_000, attemptBytes: 64 * 1024 ** 2,
+    recordBytes: 64 * 1024 ** 2, printBytes: 64 * 1024 ** 2,
+    photoBytes: 512 * 1024 ** 2, printObjectBytes: 512 * 1024 ** 2 }
+  const axes = { targets: axisTargets, actual: { ...axisTargets },
+    reached: Object.fromEntries(Object.keys(axisTargets).map(key => [key, true])) }
+  const planPreparation = { strategy: 'serial-create-consume-one-active', prepared: 2,
+    beforeFirstAttempt: true, preparedBeforeFirstAttempt: 1, activePlanMaximum: 1, unconsumedAtSeal: 1 }
+  writeFileSync(join(output, 'seed.sqlite'), 'joint seed\n')
+  const seed = { schema: 21, profile: 'joint', integrity: 'passed', growth: { state: 'target-reached' },
+    nextPlanId: randomUUID(), nextPlanHash: 'a'.repeat(64), budget: { records: 1 }, fixtureDirectory: fixture, marker,
+    snapshotSha256: sha(join(output, 'seed.sqlite')), generationPlan, axes, planPreparation }
+  mutateSeed(seed)
+  json(join(output, 'seed.json'), seed)
+  const source = { frozen: true }
+  json(join(output, 'source-before.json'), source); json(join(output, 'source-after.json'), source)
+  json(join(output, 'command.json'), { executable: process.execPath,
+    args: [entry, '--phase', 'generate', '--profile', 'joint', '--label', label, '--window', window],
+    cwd: f.candidate, node: 'v22.23.2', phase: 'generate', profile: 'joint', window })
+  json(join(output, 'checkpoint-1.json'), { fixtureDirectory: fixture })
+  const fixtureBytes = statSync(join(fixture, 'capacity-owner.json')).size
+  const preSnapshotOutputBytes = ['source-before.json', 'command.json', 'checkpoint-1.json']
+    .reduce((total, name) => total + statSync(join(output, name)).size, 0)
+  const plannedBytes = fixtureBytes + generationPlan.evidenceAllowanceBytes
+  const space = { availableBytes: plannedBytes + 10 * 1024 ** 3 + 1, plannedBytes,
+    ownedBytes: fixtureBytes + preSnapshotOutputBytes }
+  mutateSpace(space); json(join(output, 'space-before-snapshot.json'), space)
+  json(join(output, 'exit.json'), { exit: 0 })
+  return { label, fixture, expected: { profile: 'joint', label, entry, root: f.candidate, node: process.execPath, window } }
+}
+
 function sourceManifest(f) {
   const files = Object.fromEntries(f.candidateFiles.map(relative => [relative, sha(join(f.candidate, relative))]))
   const manifest = join(f.authority, 'source-pins-candidate.json')
@@ -1018,6 +1104,135 @@ test('measure最坏写入计划只计一个顺序clone与256MiB增长余量', ()
       assert.equal(bridge(f.script, 'measure-plan', { snapshotBytes: invalid }).ok, false)
     }
   } finally { f.cleanup() }
+})
+
+test('joint generation预算只保留一个活动输出和一个活动Record工作区', () => {
+  const f = copiedSupervisor()
+  try {
+    assert.deepEqual(bridge(f.script, 'generation-plan', { profile: 'joint' }), {
+      ok: true,
+      value: {
+        model: 'serial-single-output-plus-bounded-growth-v1', activeOutputMaximum: 1,
+        finalAxisBytes: 1_275_068_416, activeOutputBytes: 1_275_068_416,
+        activeRecordWorkspaceBytes: 16 * 1024 ** 2, evidenceAllowanceBytes: 128 * 1024 ** 2,
+        plannedBytes: 2_701_131_776,
+      },
+    })
+  } finally { f.cleanup() }
+})
+
+test('joint generation预算拒绝旧130 Record预建值和额外字段', () => {
+  const f = copiedSupervisor()
+  try {
+    const exactPlan = bridge(f.script, 'generation-plan', { profile: 'joint' }).value
+    assert.deepEqual(bridge(f.script, 'generation-plan-valid', { value: exactPlan }), { ok: true, value: true })
+    assert.deepEqual(bridge(f.script, 'generation-plan-valid', {
+      value: { ...exactPlan, plannedBytes: 6_140_461_056 },
+    }), { ok: true, value: false })
+    assert.deepEqual(bridge(f.script, 'generation-plan-valid', {
+      value: { ...exactPlan, unboundedRecordCount: 130 },
+    }), { ok: true, value: false })
+    assert.deepEqual(bridge(f.script, 'generation-plan-valid', {
+      value: { ...exactPlan, activeOutputMaximum: true },
+    }), { ok: true, value: false })
+    assert.deepEqual(bridge(f.script, 'generation-plan-valid-float', {}), { ok: true, value: false })
+    assert.equal(bridge(f.script, 'generation-plan', { profile: 'objects-limit' }).ok, false)
+  } finally { f.cleanup() }
+})
+
+test('joint measure seed消费端拒绝缺失或错误generation预算合同', () => {
+  const mutations = [
+    null,
+    value => { delete value.generationPlan },
+    value => { value.generationPlan.plannedBytes = 6_140_461_056 },
+    value => { delete value.axes },
+    value => { value.axes.reached.photoBytes = false },
+    value => { delete value.planPreparation },
+    value => { value.planPreparation.strategy = 'prebuilt-before-object-growth' },
+    value => { value.planPreparation.activePlanMaximum = 2 },
+  ]
+  for (const mutate of mutations) {
+    const f = copiedSupervisor(); let fixture
+    try {
+      const prepared = jointMeasureSeed(f, mutate ?? (() => {})); fixture = prepared.fixture
+      const observed = bridge(f.script, 'measure-seed', { runtime: f.runtime, window: prepared.window })
+      assert.equal(observed.ok, mutate === null, observed.error)
+      if (mutate !== null) assert.equal(observed.error, 'SEED_INVALID')
+    } finally {
+      if (fixture) rmSync(fixture, { recursive: true, force: true })
+      f.cleanup()
+    }
+  }
+  const rawMutations = [
+    value => value.replace('"schema": 21', '"schema": 21.0'),
+    value => value.replace('"nextPlanHash": "' + 'a'.repeat(64) + '"', '"nextPlanHash": ' + '1'.repeat(64)),
+    value => value.replace('"attemptEvents": 50000', '"attemptEvents": 50000.0'),
+  ]
+  for (const mutateRaw of rawMutations) {
+    const f = copiedSupervisor(); let fixture
+    try {
+      const prepared = jointMeasureSeed(f); fixture = prepared.fixture
+      const metadataPath = join(f.runtime, prepared.window.seedLabel, 'seed.json')
+      const before = readFileSync(metadataPath, 'utf8'), after = mutateRaw(before)
+      assert.notEqual(after, before); writeFileSync(metadataPath, after)
+      prepared.window.seed.metadataSha256 = sha(metadataPath)
+      const observed = bridge(f.script, 'measure-seed', { runtime: f.runtime, window: prepared.window })
+      assert.deepEqual(observed, { ok: false, error: 'SEED_INVALID' })
+    } finally {
+      if (fixture) rmSync(fixture, { recursive: true, force: true })
+      f.cleanup()
+    }
+  }
+})
+
+test('joint generation artifacts仅在精确预算合同存在时verifiedPassed', () => {
+  const cases = [
+    { expected: true },
+    { expected: false, seed: value => { delete value.generationPlan } },
+    { expected: false, seed: value => { value.generationPlan.plannedBytes = 6_140_461_056 } },
+    { expected: false, seed: value => { delete value.schema } },
+    { expected: false, seed: value => { delete value.axes } },
+    { expected: false, seed: value => { value.axes.actual.attemptBytes = false } },
+    { expected: false, seed: value => { delete value.planPreparation } },
+    { expected: false, seed: value => { value.planPreparation.beforeFirstAttempt = false } },
+    { expected: false, seed: value => { value.planPreparation.activePlanMaximum = 2 } },
+    { expected: false, space: value => { value.ownedBytes = 0 } },
+  ]
+  for (const item of cases) {
+    const f = copiedSupervisor(); let prepared
+    try {
+      prepared = jointGenerationArtifacts(f, item.seed, item.space)
+      const observed = bridge(f.script, 'generation-artifacts', {
+        runtime: f.runtime, label: prepared.label, expected: prepared.expected,
+      })
+      assert.equal(observed.ok, true, observed.error)
+      assert.equal(observed.value.verifiedPassed, item.expected, JSON.stringify(observed.value))
+    } finally {
+      if (prepared?.fixture) rmSync(prepared.fixture, { recursive: true, force: true })
+      f.cleanup()
+    }
+  }
+  for (const mutateRaw of [
+    value => value.replace('"schema": 21', '"schema": 21.0'),
+    value => value.replace('"nextPlanHash": "' + 'a'.repeat(64) + '"', '"nextPlanHash": ' + '1'.repeat(64)),
+    value => value.replace('"attemptEvents": 50000', '"attemptEvents": 50000.0'),
+  ]) {
+    const f = copiedSupervisor(); let prepared
+    try {
+      prepared = jointGenerationArtifacts(f)
+      const metadataPath = join(f.runtime, prepared.label, 'seed.json')
+      const before = readFileSync(metadataPath, 'utf8'), after = mutateRaw(before)
+      assert.notEqual(after, before); writeFileSync(metadataPath, after)
+      const observed = bridge(f.script, 'generation-artifacts', {
+        runtime: f.runtime, label: prepared.label, expected: prepared.expected,
+      })
+      assert.equal(observed.ok, true, observed.error)
+      assert.equal(observed.value.verifiedPassed, false, JSON.stringify(observed.value))
+    } finally {
+      if (prepared?.fixture) rmSync(prepared.fixture, { recursive: true, force: true })
+      f.cleanup()
+    }
+  }
 })
 
 test('terminal authority以不超过授权plan的真实future output替代预算且仍验证root marker与空间', () => {
