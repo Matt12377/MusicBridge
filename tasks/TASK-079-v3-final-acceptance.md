@@ -101,7 +101,7 @@ window-02的历史owned manifest保持74 roots且不得回写。下一全新succ
 
 Python supervisor对generation artifacts与measure seed共用严格joint合同，拒绝缺失/伪造的generation plan、axes、串行Plan preparation、fixture/marker、snapshot identity与空间收据，并严格区分`bool`/`int`、浮点形式整数和字符串SHA。新鲜结果为capacity `92/92`、supervisor `32/32`，readiness `15/15`，独立终审P0/P1/P2均为0。该实现检查点已push并由`git ls-remote`核对精确SHA。
 
-本节只关闭joint软件预算重构。正式issuer、generation、measure均未运行，未创建新authority/UUID/window/label；设备、Gate B、Owner 103项、可听Replica、实体录音与打印均保持`NOT_RUN`或pending。
+本节只关闭joint软件预算重构。正式三条exclusive issuer尚未支持joint，generation、measure、queued-stop均未运行，未创建新authority/UUID/window/label；设备、Gate B、Owner 103项、可听Replica、实体录音与打印均保持`NOT_RUN`或pending。
 
 ### Objects-limit queued-stop PROCESS_EXIT统一谱系合同（架构检查点）
 
@@ -113,7 +113,7 @@ issuer与installed supervisor加载同一Python evaluator；TypeScript consumer�
 
 下一新一代仍使用5 warmup + 100 formal、50秒单次执行上限、900秒总窗口、单active clone、snapshot=`1,990,471,680`字节、evidence allowance=`268,435,456`字节和planned=`2,258,907,136`字节；source pins为243。安全迁移顺序固定为：先提交并push架构与状态检查点；再对精确远端HEAD、contract/helper blob、历史window-06/07 nonreplay闭包、exact direct roots=76、transitive billing roots=78、runtime路径和空间做fresh只读审计；只有另行显式授权后，才允许用全新UUID/window-dir/label唯一签发并只消费一次。window-07不重放，架构GREEN不授予新窗口、benchmark或恢复权。
 
-因此`BLOCKED_THREE_DISTINCT_LOCATIONS_SAME_RECURSIVE_FAILURE_LINEAGE_DEFECT`在软件架构层解除；执行状态改为`ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED`。正式queued-stop样本仍为0且`NOT_RUN`，joint正式generation/measure、设备、Gate B、真实资料/Logic/Roon、可听Replica、实体录音/打印和Owner 103项验收继续为`NOT_RUN`或pending。
+因此`BLOCKED_THREE_DISTINCT_LOCATIONS_SAME_RECURSIVE_FAILURE_LINEAGE_DEFECT`在软件架构层解除；执行状态改为`ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED`。正式objects-limit queued-stop样本仍为0且`NOT_RUN`，joint正式generation/measure/queued-stop、设备、Gate B、真实资料/Logic/Roon、可听Replica、实体录音/打印和Owner 103项验收继续为`NOT_RUN`或pending。
 
 ### Window-08 授权前只读审计与安全等待工作
 
@@ -130,6 +130,16 @@ issuer与installed supervisor加载同一Python evaluator；TypeScript consumer�
 当前仍未收到recovery-07/window-08一次性授权；未创建UUID、目录、label、recovery/window、consumer、output或样本。Gate B、设备和Owner验收均保持`NOT_RUN`。
 
 Hardware contract v2的R2 RED继续保留，不重签为PASS。只读裁决确认其原dependency order与subject binding技术缺口已由`7f373784…`和既有负例关闭；现有`independentPass=false`是独立审查身份缺口，可作为当前无设备软件及容量阶段的bounded carryover，不阻挡未来window08。任何真实Hardware/Gate B收据生成前，必须新鲜显式独立只读复审，或由Owner明确承担不复审风险；本阶段不启动第三轮修复/复审循环。
+
+### Objects-limit 后继与 Joint 正式三阶段路线
+
+R-023现有schema、TypeScript phase与installed supervisor已经分别支持`joint`的generation、measure与large queued-stop；其中queued-stop合同明确允许`objects-small/history-limit/objects-limit/joint`、固定5次预热+100次正式样本和900秒窗口。另一方面，`issue-v3-capacity-window.py`、`issue-v3-capacity-measure-window.py`与`issue-v3-capacity-queued-stop-window.py`三条exclusive issuer仍把profile固定为`objects-limit`。因此“joint generation/measure已支持”不能推出joint queued-stop已经关闭，也不能推出三条正式issuer可签发joint。
+
+实现提交`1acf77c36d03851befcf983e4bdd85801b625ff6`通过readiness RED→GREEN把唯一合法路线写入`project/STATUS.json`并由validator精确锁定：order 0必须先取得objects-limit queued-stop正式PASS；order 1为joint generate；order 2只消费joint generate PASS执行joint measure；order 3只消费joint measure PASS执行joint queued-stop。三阶段各自使用不同process、clock和close receipt，分别要求fresh audit、唯一authority、一次性window与Owner明确授权；禁止authority继承、receipt复用、旧窗口重放、跳级及任一非PASS后的继续执行。
+
+当前状态为`WAITING_OBJECTS_LIMIT_QUEUED_STOP_PASS_AND_JOINT_ISSUER_SUPPORT`。runtime schema support为PASS，但三条exclusive issuer均为`NOT_IMPLEMENTED_OBJECTS_LIMIT_ONLY`；objects-limit queued-stop和joint三阶段全部`NOT_RUN`，`readyToAuthorize=false`、`deviceOpened=false`、Gate B=`NOT_RUN`、Owner acceptance=`NOT_RUN`。本切片没有签发或运行recovery-07/window-08，也没有创建UUID、authority、supervisor、child、output、close或样本。
+
+TDD证据为readiness 17/17、joint/queued-stop聚焦schema测试3/3、joint supervisor聚焦测试4/4；标准`corepack pnpm@10.17.1 verify`、control-plane、boundaries、cycles `files=259`和diff-check均通过。规格复审先PASS，质量审查随后PASS。该证据只封存路线与fail-closed状态，不授予objects-limit window-08或任何joint阶段执行权。
 
 ## 自动验证
 
