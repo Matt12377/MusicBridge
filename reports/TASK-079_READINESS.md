@@ -8,7 +8,7 @@
 - TASK-078 软件矩阵：SHA256 `12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7fe4ba944`
 - 实现提交：`1f102fba93e42d0f84b985c04d84af08b06b2231`
 - 报告提交：`93feee20c2edbd027546b44cc908aee27ef785b1`
-- 最新架构实现：`ed73b5984a30f2f7a3d9d1505969795dfa5d68cb`；状态报告提交与远端HEAD在本检查点封存后另行精确核对。`5464ae…`继续作为joint预算历史实现锚，`main`/PR未合并，未安装、签名、公证或发布
+- 最新架构实现：`ed73b5984a30f2f7a3d9d1505969795dfa5d68cb`；状态报告检查点`e9416cb7e2510da327598798bff6f448be19c8a9`已push，HEAD/upstream/FETCH_HEAD/ls-remote四方核对同SHA。`5464ae…`继续作为joint预算历史实现锚，`main`/PR未合并，未安装、签名、公证或发布
 
 基础 readiness 控制、主任务修复与本地回归已经完成，当前结论固定为 `READY=false`；完整无设备证据控制面尚未取得独立闭包。hardware evidence contract v2 在主任务实现后为33/33专项GREEN，但第二轮独立复审最终RED继续保留，未执行第三轮且没有独立PASS。objects-limit window-06只关闭软件measure；queued-stop window-06/07均为零样本不可重放历史终态。三位置谱系语义分叉已由统一合同架构检查点解除，但下一全新窗口尚未签发或授权，正式benchmark仍为`NOT_RUN`。joint单活动输出预算软件检查点已GREEN，但正式generation/measure仍为`NOT_RUN`。当前readiness验证器继续精确要求这组机器真相；它不认证声卡、卡座、真实输入、Logic/Roon、可听Replica、实录、实体打印或Owner接受。
 
