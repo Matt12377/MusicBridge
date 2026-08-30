@@ -389,7 +389,7 @@ const CAPACITY_QUEUED_STOP_CONTROL_PLANE = {
     requiredDecision: 'FRESH_REMOTE_HEAD_AUDIT_THEN_EXPLICIT_NEW_WINDOW_AUTHORIZATION',
   },
   architectureResolution: {
-    implementationCommit: 'ed73b5984a30f2f7a3d9d1505969795dfa5d68cb',
+    implementationCommit: 'ed73b59fca177cc1804d4010fe863f8fb57001a0',
     contract: {
       path: 'packages/contracts/capacity-process-failure-lineage-v1.json',
       sha256: 'd9d1c792971e27b666a9c2fcf7ea7942f3af75b6e500c3f9502f1bcf33157927',
@@ -536,6 +536,23 @@ export function validateEvidenceCheckpointRepository(root, infrastructure = EVID
     && headAncestry.error === undefined && headAncestry.signal === null && headAncestry.status === 0, 'CONTROL_REPOSITORY')
 }
 
+export function validateArchitectureCheckpointRepository(
+  root,
+  architectureCommit = CAPACITY_QUEUED_STOP_CONTROL_PLANE.architectureResolution.implementationCommit,
+  parentCommit = CAPACITY_JOINT_GENERATION_CONTROL_PLANE.implementationCommit,
+) {
+  check(typeof root === 'string' && gitSha(architectureCommit) && gitSha(parentCommit)
+    && architectureCommit !== parentCommit, 'CONTROL_REPOSITORY')
+  for (const commit of [parentCommit, architectureCommit]) {
+    const object = gitResult(root, ['cat-file', '-e', `${commit}^{commit}`])
+    check(object.error === undefined && object.signal === null && object.status === 0, 'CONTROL_REPOSITORY')
+  }
+  const parentAncestry = gitResult(root, ['merge-base', '--is-ancestor', parentCommit, architectureCommit])
+  const headAncestry = gitResult(root, ['merge-base', '--is-ancestor', architectureCommit, 'HEAD'])
+  check(parentAncestry.error === undefined && parentAncestry.signal === null && parentAncestry.status === 0
+    && headAncestry.error === undefined && headAncestry.signal === null && headAncestry.status === 0, 'CONTROL_REPOSITORY')
+}
+
 function validateControlIdentity(status, wave) {
   const current = status?.v3Development
   check(current && current.task === TASK && current.branch === 'codex/task-079-v3-final-acceptance' && current.baseCommit === BASE_COMMIT, 'CONTROL_IDENTITY')
@@ -644,6 +661,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const readiness = JSON.parse(safeFile(root, 'project/V3_OWNER_ACCEPTANCE.json', ['project/V3_OWNER_ACCEPTANCE.json']).toString('utf8'))
     const result = validateOwnerReadiness(readiness, { root })
     validateEvidenceCheckpointRepository(root)
+    validateArchitectureCheckpointRepository(root)
     if (process.argv.includes('--require-ready') && !result.ready) fail('READY_REQUIRED')
     console.log(`V3_OWNER_READINESS=PASS ${JSON.stringify(result)}；控制文件有效，真实设备与Owner验收仍未运行。`)
   } catch (error) {

@@ -417,7 +417,7 @@ const controlStatus = {
           requiredDecision: 'FRESH_REMOTE_HEAD_AUDIT_THEN_EXPLICIT_NEW_WINDOW_AUTHORIZATION',
         },
         architectureResolution: {
-          implementationCommit: 'ed73b5984a30f2f7a3d9d1505969795dfa5d68cb',
+          implementationCommit: 'ed73b59fca177cc1804d4010fe863f8fb57001a0',
           contract: {
             path: 'packages/contracts/capacity-process-failure-lineage-v1.json',
             sha256: 'd9d1c792971e27b666a9c2fcf7ea7942f3af75b6e500c3f9502f1bcf33157927',
@@ -684,6 +684,7 @@ test('STATUS必须锁定两段证据基础设施检查点而非停留在初始re
 test('证据检查点必须是当前TASK079仓库中线性可达的真实Git提交', async t => {
   const module = await import('../verify-v3-owner-readiness.mjs')
   assert.equal(typeof module.validateEvidenceCheckpointRepository, 'function')
+  assert.equal(typeof module.validateArchitectureCheckpointRepository, 'function')
   const temporaryRoot = mkdtempSync(path.join(tmpdir(), 'task079-checkpoints-'))
   t.after(() => rmSync(temporaryRoot, { recursive: true, force: true }))
   const git = (...arguments_) => {
@@ -712,6 +713,9 @@ test('证据检查点必须是当前TASK079仓库中线性可达的真实Git提�
   }
   assert.doesNotThrow(() => module.validateEvidenceCheckpointRepository(temporaryRoot, infrastructure, commits[7]))
   assert.throws(() => module.validateEvidenceCheckpointRepository(temporaryRoot, infrastructure, '0'.repeat(40)), /CONTROL_REPOSITORY/u)
+  assert.doesNotThrow(() => module.validateArchitectureCheckpointRepository(temporaryRoot, commits[7], commits[6]))
+  assert.throws(() => module.validateArchitectureCheckpointRepository(temporaryRoot, '0'.repeat(40), commits[6]), /CONTROL_REPOSITORY/u)
+  assert.throws(() => module.validateArchitectureCheckpointRepository(temporaryRoot, commits[6], commits[7]), /CONTROL_REPOSITORY/u)
   const reversed = structuredClone(infrastructure)
   ;[reversed.candidateClosure.implementationCommit, reversed.candidateClosure.reportCommit] = [reversed.candidateClosure.reportCommit, reversed.candidateClosure.implementationCommit]
   assert.throws(() => module.validateEvidenceCheckpointRepository(temporaryRoot, reversed, commits[7]), /CONTROL_REPOSITORY/u)

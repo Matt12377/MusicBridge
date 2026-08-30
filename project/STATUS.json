@@ -1373,7 +1373,7 @@
           "requiredDecision": "FRESH_REMOTE_HEAD_AUDIT_THEN_EXPLICIT_NEW_WINDOW_AUTHORIZATION"
         },
         "architectureResolution": {
-          "implementationCommit": "ed73b5984a30f2f7a3d9d1505969795dfa5d68cb",
+          "implementationCommit": "ed73b59fca177cc1804d4010fe863f8fb57001a0",
           "contract": {
             "path": "packages/contracts/capacity-process-failure-lineage-v1.json",
             "sha256": "d9d1c792971e27b666a9c2fcf7ea7942f3af75b6e500c3f9502f1bcf33157927",

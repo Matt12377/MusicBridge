@@ -105,7 +105,7 @@ Python supervisor对generation artifacts与measure seed共用严格joint合同�
 
 ### Objects-limit queued-stop PROCESS_EXIT统一谱系合同（架构检查点）
 
-实现提交`ed73b5984a30f2f7a3d9d1505969795dfa5d68cb`解除三位置语义分叉造成的架构阻塞，但不改写历史停止事实。新版本化合同为`packages/contracts/capacity-process-failure-lineage-v1.json`，SHA256=`d9d1c792971e27b666a9c2fcf7ea7942f3af75b6e500c3f9502f1bcf33157927`；共享Python纯函数为`scripts/ci/capacity_process_failure_lineage.py`，SHA256=`458c3e5233bba9f4834d8986ccdceb568bd42e06805ef5a872a363d2b707e9e7`。合同固定单一direct head、head→leaf顺序、最大递归深度64，并明确`processFailureCarryoverCount`是direct head数量、linked authority的`processFailureCount`是其前驱可达深度；billing roots覆盖整条可达链。
+实现提交`ed73b59fca177cc1804d4010fe863f8fb57001a0`解除三位置语义分叉造成的架构阻塞，但不改写历史停止事实。新版本化合同为`packages/contracts/capacity-process-failure-lineage-v1.json`，SHA256=`d9d1c792971e27b666a9c2fcf7ea7942f3af75b6e500c3f9502f1bcf33157927`；共享Python纯函数为`scripts/ci/capacity_process_failure_lineage.py`，SHA256=`458c3e5233bba9f4834d8986ccdceb568bd42e06805ef5a872a363d2b707e9e7`。合同固定单一direct head、head→leaf顺序、最大递归深度64，并明确`processFailureCarryoverCount`是direct head数量、linked authority的`processFailureCount`是其前驱可达深度；billing roots覆盖整条可达链。
 
 issuer与installed supervisor加载同一Python evaluator；TypeScript consumer使用同合同的等价解释器。三者通过同一golden corpus逐项比较完全相同的规范化结果，覆盖leaf、depth1、depth2、depth3，以及direct count、orphan、cycle、fork、time order、PID、root identity和authority depth错误。既有241-file历史source manifest继续只读兼容；包含新合同与helper的新候选source manifest固定为243 files，且installed supervisor在加载前按source pins复核两者文件身份。旧window/close schema、历史owned roots与既有收据均未升级或重写。
 
