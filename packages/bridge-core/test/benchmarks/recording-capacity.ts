@@ -10,11 +10,15 @@ import { DatabaseSync, backup } from 'node:sqlite';
 import { performance } from 'node:perf_hooks';
 import { createCapacitySeed, summarizeCapacitySamples, readCapacityBudget, capacityProfile, createCapacityClone, finishCapacityClone,
   hashCapacityFile, checkCapacitySpace, appendCapacityMeasureStage, capacityMeasurePlan, runCapacityStopRounds,
+  prepareCapacityStopPlans, summarizeCapacityFixtureTree,
   type CapacityMeasureGroup, type CapacityMeasureSample, type CapacitySample,
-  type CapacityProfileName } from '../helpers/recording-capacity-fixture.js';
+  type CapacityProfileName, type CapacityStopWorkspace } from '../helpers/recording-capacity-fixture.js';
 import { createCollectionRepository } from '../../src/collection/repository.js';
 import { createRecordingAttemptCoordinator, type RecordingAttemptDriverRequest } from '../../src/recording/attempt-coordinator.js';
 import { createRecordingRecordCoordinator } from '../../src/recording/record-coordinator.js';
+import { verifyRecordingAttemptDatabase } from '../../src/recording/attempt-integrity.js';
+import { verifyRecordingRecordDatabase } from '../../src/recording/record-integrity.js';
+import { verifyRecordingPlanDatabase } from '../../src/recording/plan-integrity.js';
 
 // 此文件不在默认*.test.ts glob；只有明确CLI阶段和唯一标签才会创建证据目录。
 const root = fileURLToPath(new URL('../../../../', import.meta.url));
@@ -99,6 +103,11 @@ test(`R023 ${phase} ${profile}`, { timeout: 45 * 60_000 }, async t => {
   assert.ok(path.basename(seed.fixtureDirectory).startsWith('musicbridge-version-'));
   assert.deepEqual(JSON.parse(readFileSync(path.join(seed.fixtureDirectory, 'capacity-owner.json'), 'utf8')), seed.marker);
   assert.equal(seed.marker.scope, 'musicbridge-capacity-synthetic-only');
+  const fixtureBefore = summarizeCapacityFixtureTree(seed.fixtureDirectory); json('fixture-before.json', fixtureBefore);
+  t.after(() => {
+    const fixtureAfter = summarizeCapacityFixtureTree(seed.fixtureDirectory); json('fixture-after.json', fixtureAfter);
+    assert.deepEqual(fixtureAfter, fixtureBefore, 'measure不得改写共享generation fixture的身份或内容');
+  });
   json('measurement.json', { seedLabel, seedSha256: seed.snapshotSha256, profile, window, classification: 'software-only/exclusive-window',
     cache: '新DatabaseSync实例，OS页缓存未清理；不是物理冷盘。此入口不测新Node进程或UI ready。',
     measurePlan: { groupCloneCount: 3, fullHashCount: 3, stopRoundReceiptCount: 105, sampleCount: 1575 },
@@ -134,7 +143,7 @@ test(`R023 ${phase} ${profile}`, { timeout: 45 * 60_000 }, async t => {
     }
     return { group, filePath, repository, auditDb, clone };
   }
-  async function running(repository: ReturnType<typeof createCollectionRepository>) {
+  async function running(repository: ReturnType<typeof createCollectionRepository>, selectedPlan: { id: string; contentHash: string } = { id: seed.nextPlanId, contentHash: seed.nextPlanHash }) {
     let driver: RecordingAttemptDriverRequest | undefined;
     const times: Record<string, number> = {};
     const coordinator = createRecordingAttemptCoordinator({ store: repository.recordingAttempts, admissionProvider: {
@@ -147,7 +156,7 @@ test(`R023 ${phase} ${profile}`, { timeout: 45 * 60_000 }, async t => {
     } });
     try {
       const beginCommandId = randomUUID();
-      const attempt = await coordinator.begin({ commandId: beginCommandId, planVersionId: seed.nextPlanId, planContentHash: seed.nextPlanHash, userConfirmed: true });
+      const attempt = await coordinator.begin({ commandId: beginCommandId, planVersionId: selectedPlan.id, planContentHash: selectedPlan.contentHash, userConfirmed: true });
       return { coordinator, attempt, beginCommandId, driver: driver!, times };
     } catch (error) { await coordinator.close(); throw error; }
   }
@@ -178,12 +187,18 @@ test(`R023 ${phase} ${profile}`, { timeout: 45 * 60_000 }, async t => {
   }
 
   const stopGroup = openGroup('stop'), stopStart = allSamples.length;
-  let stopOutcome: CapacitySample['outcome'] = 'ok';
+  let stopOutcome: CapacitySample['outcome'] = 'ok', stopWorkspace: CapacityStopWorkspace | undefined;
   try {
+    // 计时前经公开Core路径准备独立实体及冻结Plan；不重放physical copy，不伪造rerecord permit。
+    const template = stopGroup.repository.recordingPlans.version({ id: seed.nextPlanId }).plan!;
+    const prepared = await prepareCapacityStopPlans(stopGroup.repository, template, plan.stopRounds, path.join(stopGroup.clone.directory, 'group-stop-workspace'));
+    const stopPlans = prepared.plans; stopWorkspace = prepared.workspace;
+    verifyRecordingPlanDatabase(stopGroup.auditDb); verifyRecordingAttemptDatabase(stopGroup.auditDb); verifyRecordingRecordDatabase(stopGroup.auditDb);
+    assert.equal(stopPlans.length, plan.stopRounds); assert.equal(new Set(stopPlans.map(value => value.physicalCopy.physicalId)).size, plan.stopRounds);
     await runCapacityStopRounds(stopGroup.clone, plan.stopRounds, async roundIndex => {
       const inProgressBefore = Number(stopGroup.auditDb.prepare("SELECT count(*) n FROM recording_attempts WHERE status='in-progress'").get()!.n);
       assert.equal(inProgressBefore, 0, '每轮Begin前不得存在in-progress Attempt');
-      const f = await running(stopGroup.repository), received = performance.now(), commandId = randomUUID();
+      const f = await running(stopGroup.repository, stopPlans[roundIndex - 1]!), received = performance.now(), commandId = randomUUID();
       let outcome: CapacitySample['outcome'] = 'ok', stopError: unknown;
       try { await f.coordinator.stop({ commandId, attemptId: f.attempt.id }); }
       catch (error) { outcome = 'failed'; stopError = error; }
@@ -202,11 +217,16 @@ test(`R023 ${phase} ${profile}`, { timeout: 45 * 60_000 }, async t => {
         attemptStatus: 'aborted' as const, attemptReason: 'user-stop' as const,
         coordinatorClosed: true as const, repositoryOpen: true as const, samples };
     }, receipt => commitSamples(receipt.samples));
+    verifyRecordingPlanDatabase(stopGroup.auditDb); verifyRecordingAttemptDatabase(stopGroup.auditDb); verifyRecordingRecordDatabase(stopGroup.auditDb);
   } catch (error) { stopOutcome = 'failed'; throw error; }
   finally {
     stopGroup.auditDb.close(); stopGroup.repository.close();
-    if (stopOutcome === 'ok') finishCapacityClone(stopGroup.clone, { outcome: 'ok', resourcesClosed: true, samples: allSamples.slice(stopStart),
-      onPhase: (phaseName, details) => appendCapacityMeasureStage(output, 'stop', phaseName, details) });
+    if (stopOutcome === 'ok') {
+      assert.ok(stopWorkspace);
+      finishCapacityClone(stopGroup.clone, { outcome: 'ok', resourcesClosed: true, samples: allSamples.slice(stopStart),
+        ownedWorkspace: stopWorkspace,
+        onPhase: (phaseName, details) => appendCapacityMeasureStage(output, 'stop', phaseName, details) });
+    }
   }
 
   const reading = openGroup('read');

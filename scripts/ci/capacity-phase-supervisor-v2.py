@@ -1,5 +1,6 @@
 import argparse
 import datetime
+import decimal
 import hashlib
 import json
 import math
@@ -231,8 +232,9 @@ _MEASURE_THRESHOLDS = {
     'queryLastPage': {'max': 1000, 'p95': 250}, 'queryChinese': {'max': 1000, 'p95': 250},
     'emptyPoll': {'max': 50}, 'pdf': {'max': 1000, 'p95': 250}, 'photo': {'max': 1000, 'p95': 250}}
 _MEASURE_REQUIRED_FILES = ('command.json', 'measurement.json', 'samples.jsonl', 'source-before.json',
-                           'source-after.json', 'end-budget.json', 'summary.json', 'exit.json',
-                           'measure-stages.jsonl')
+                           'source-after.json', 'fixture-before.json', 'fixture-after.json',
+                           'end-budget.json', 'summary.json', 'exit.json', 'measure-stages.jsonl')
+_STOP_WORKSPACE_RECEIPT = 'group-stop.workspace.receipt.json'
 _MEASURE_GROUPS = ('progress', 'stop', 'read')
 _STOP_METRICS = ('signalAborted', 'driverStopInvoked', 'driverStopAck',
                  'driverCloseInvoked', 'driverCloseResolved', 'receiptSettled')
@@ -502,8 +504,12 @@ def _validate_owned_manifest(manifest_path, runtime, window_id, profile, planned
     planned = _planned_generation_bytes(profile) if planned_bytes is None else planned_bytes
     if type(planned) is not int or planned < 0 or planned > 16 * 1024 ** 3:
         raise ValueError('OWNED_SPACE')
+    # terminal 已把真实 future output 计入 total；此时没有尚未落盘的未来预算，不能重复叠加 admission plan。
+    remaining_planned = 0 if future_path is not None and future_state == 'present' else planned
     space = os.statvfs(runtime); available = space.f_bavail * space.f_frsize
-    if total + planned > 16 * 1024 ** 3 or available - planned < 10 * 1024 ** 3: raise ValueError('OWNED_SPACE')
+    if total + remaining_planned > 16 * 1024 ** 3 \
+            or available - remaining_planned < 10 * 1024 ** 3:
+        raise ValueError('OWNED_SPACE')
     return {'valid': True, 'rootCount': len(roots) + len(future_roots),
             'minimalRootCount': len(minimal) + len(future_roots), 'entryCount': entries,
             'ownedBytes': total, 'plannedBytes': planned, 'availableBytes': available,
@@ -1189,6 +1195,168 @@ def _measure_metric_stats(formal):
             'max': values[-1] if values else None, 'complete': len(values) == len(formal)}
 
 
+def _safe_tree_relative(value):
+    if not isinstance(value, str) or len(value) > 4096 or '\x00' in value or '\\' in value:
+        return False
+    if value == '': return True
+    return not value.startswith('/') and not value.endswith('/') \
+        and all(part not in ('', '.', '..') for part in value.split('/'))
+
+
+def _js_number(value):
+    if type(value) is int:
+        if abs(value) > 2 ** 53 - 1: raise ValueError('JS_NUMBER')
+        return str(value)
+    if type(value) is not float or not math.isfinite(value): raise ValueError('JS_NUMBER')
+    if value == 0: return '0'
+    # Python repr 与 ECMAScript Number::toString 都以最短 round-trip 十进制为基础；
+    # 这里补齐两者对 fixed/scientific 阈值及 exponent 前导零的格式差异。
+    raw = repr(value).lower(); decimal_value = decimal.Decimal(raw); magnitude = abs(value)
+    if 1e-6 <= magnitude < 1e21:
+        fixed = format(decimal_value, 'f')
+        if '.' in fixed: fixed = fixed.rstrip('0').rstrip('.')
+        return fixed
+    coefficient, exponent = format(decimal_value.normalize(), 'e').lower().split('e')
+    coefficient = coefficient.rstrip('0').rstrip('.')
+    exponent_value = int(exponent)
+    return f'{coefficient}e{"+" if exponent_value >= 0 else ""}{exponent_value}'
+
+
+def _js_compact_json(value):
+    if value is None: return 'null'
+    if value is True: return 'true'
+    if value is False: return 'false'
+    if type(value) in (int, float): return _js_number(value)
+    if isinstance(value, str): return json.dumps(value, ensure_ascii=False, separators=(',', ':'))
+    if isinstance(value, list): return '[' + ','.join(_js_compact_json(item) for item in value) + ']'
+    if isinstance(value, dict) and all(isinstance(key, str) for key in value):
+        return '{' + ','.join(
+            f'{json.dumps(key, ensure_ascii=False)}:{_js_compact_json(item)}'
+            for key, item in value.items()) + '}'
+    raise ValueError('JS_JSON')
+
+
+def _tree_entries_sha256(entries):
+    try:
+        digest = hashlib.sha256()
+        for entry in entries: digest.update(_js_compact_json(entry).encode('utf-8'))
+        return digest.hexdigest()
+    except (UnicodeEncodeError, ValueError):
+        return None
+
+
+def _validate_tree_entries(entries, database_content_excluded):
+    if not isinstance(entries, list) or not 1 <= len(entries) <= 4096:
+        return None
+    seen = set(); directories = set(); file_count = 0; directory_count = 0; file_bytes = 0
+    database_files = []
+    exact_keys = {'relative', 'type', 'device', 'inode', 'mode', 'size', 'mtimeMs', 'ctimeMs',
+                  'contentSha256', 'contentSha256Verified'}
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict) or set(entry) != exact_keys:
+            return None
+        relative = entry.get('relative'); kind = entry.get('type')
+        if not _safe_tree_relative(relative) or relative in seen or kind not in {'directory', 'file'}:
+            return None
+        if index == 0 and (relative != '' or kind != 'directory') or index > 0 and relative == '':
+            return None
+        parent = relative.rpartition('/')[0] if relative else None
+        if parent is not None and parent not in directories:
+            return None
+        for key in ('device', 'inode', 'mode', 'size'):
+            if type(entry.get(key)) is not int or not 0 <= entry[key] <= 2 ** 53 - 1:
+                return None
+        for key in ('mtimeMs', 'ctimeMs'):
+            if type(entry.get(key)) not in (int, float) or not math.isfinite(entry[key]) or entry[key] < 0:
+                return None
+        database = kind == 'file' and re.search(
+            r'(?:\.sqlite(?:-(?:wal|shm|journal))?|\.db(?:-(?:wal|shm|journal))?)$', relative) is not None
+        verified = entry.get('contentSha256Verified'); content_sha = entry.get('contentSha256')
+        if kind == 'directory':
+            if verified is not False or content_sha is not None:
+                return None
+            directories.add(relative); directory_count += 1
+        else:
+            expected_verified = not (database_content_excluded and database)
+            if verified is not expected_verified \
+                    or expected_verified and _SHA256.fullmatch(str(content_sha or '')) is None \
+                    or not expected_verified and content_sha is not None:
+                return None
+            if database_content_excluded and database: database_files.append(relative)
+            file_count += 1; file_bytes += entry['size']
+            if file_bytes > 2 ** 53 - 1: return None
+        seen.add(relative)
+    tree_sha256 = _tree_entries_sha256(entries)
+    if tree_sha256 is None: return None
+    return {'directories': directory_count, 'files': file_count, 'bytes': file_bytes,
+            'databaseFiles': database_files, 'paths': seen, 'treeSha256': tree_sha256}
+
+
+def _validate_fixture_tree(value, expected_root=None):
+    exact_keys = {'scope', 'root', 'entries', 'treeSha256', 'databaseContentSha256Verified',
+                  'excludedDatabaseFiles'}
+    if not isinstance(value, dict) or set(value) != exact_keys \
+            or value.get('scope') != 'musicbridge-capacity-fixture-tree' \
+            or value.get('databaseContentSha256Verified') is not False \
+            or _SHA256.fullmatch(str(value.get('treeSha256', ''))) is None:
+        return False
+    root = value.get('root')
+    if not isinstance(root, str) or len(root) > 4096 or '\x00' in root or not os.path.isabs(root) \
+            or os.path.normpath(root) != root or expected_root is not None and root != expected_root:
+        return False
+    counts = _validate_tree_entries(value.get('entries'), True)
+    return counts is not None and value['treeSha256'] == counts['treeSha256'] \
+        and bool(counts['databaseFiles']) \
+        and value.get('excludedDatabaseFiles') == counts['databaseFiles']
+
+
+def _validate_workspace_tree(value):
+    exact_keys = {'marker', 'directories', 'files', 'bytes', 'treeSha256', 'entries'}
+    if not isinstance(value, dict) or set(value) != exact_keys \
+            or _SHA256.fullmatch(str(value.get('treeSha256', ''))) is None:
+        return False
+    marker = value.get('marker')
+    if not isinstance(marker, dict) or set(marker) != {'id', 'scope'} or not _uuid4(marker.get('id')) \
+            or marker.get('scope') != 'musicbridge-capacity-stop-workspace':
+        return False
+    counts = _validate_tree_entries(value.get('entries'), False)
+    if counts is None or any(type(value.get(key)) is not int for key in ('directories', 'files', 'bytes')):
+        return False
+    return value['treeSha256'] == counts['treeSha256'] \
+        and value['directories'] == counts['directories'] and value['files'] == counts['files'] \
+        and value['bytes'] == counts['bytes'] \
+        and {'', 'owner.json', 'source', 'execution', 'archive', 'source/fixture.wav'} <= counts['paths']
+
+
+def _retained_workspace_identity(workspace):
+    try:
+        root_info = workspace.lstat()
+        if workspace.is_symlink() or not stat.S_ISDIR(root_info.st_mode) \
+                or workspace.resolve(strict=True) != workspace:
+            return None
+        entry_count = 0; total_bytes = 0
+        pending = [workspace]
+        while pending:
+            directory = pending.pop()
+            for item in directory.iterdir():
+                entry_count += 1
+                if entry_count > 4096: return None
+                relative = item.relative_to(workspace).as_posix()
+                if not _safe_tree_relative(relative): return None
+                info = item.lstat()
+                if stat.S_ISDIR(info.st_mode) and not item.is_symlink():
+                    if item.resolve(strict=True) != item: return None
+                    pending.append(item)
+                elif stat.S_ISREG(info.st_mode) and not item.is_symlink() and info.st_nlink == 1:
+                    total_bytes += info.st_size
+                    if total_bytes > 2 ** 53 - 1: return None
+                else: return None
+        return {'device': root_info.st_dev, 'inode': root_info.st_ino,
+                'entryCount': entry_count, 'bytes': total_bytes}
+    except OSError:
+        return None
+
+
 def _measure_artifacts(runtime, label, expected=None):
     if _SAFE.fullmatch(label) is None: raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
     runtime = Path(runtime).resolve(strict=True); output = runtime / label
@@ -1201,9 +1369,12 @@ def _measure_artifacts(runtime, label, expected=None):
                            if re.fullmatch(r'group-stop\.round-(?:00[1-9]|0[1-9][0-9]|10[0-5])\.receipt\.json', name)
                            and _ordinary_file(output / name)]
     round_receipt_names.sort(key=lambda name: int(re.search(r'round-(\d{3})', name).group(1)))
+    workspace_receipt_names = [_STOP_WORKSPACE_RECEIPT] \
+        if _ordinary_file(output / _STOP_WORKSPACE_RECEIPT) else []
     retained_names = [f'group-{group}' for group in _MEASURE_GROUPS
                       if (output / f'group-{group}').is_dir() and not (output / f'group-{group}').is_symlink()]
-    allowed = set(_MEASURE_REQUIRED_FILES) | set(group_receipt_names) | set(round_receipt_names) | set(retained_names)
+    allowed = set(_MEASURE_REQUIRED_FILES) | set(group_receipt_names) | set(round_receipt_names) \
+        | set(workspace_receipt_names) | set(retained_names)
     unexpected = [name for name in entries if name not in allowed]
     command = _read_json(output / 'command.json') if output_exists else None
     measurement = _read_json(output / 'measurement.json') if output_exists else None
@@ -1212,6 +1383,19 @@ def _measure_artifacts(runtime, label, expected=None):
     summary = _read_json(output / 'summary.json') if output_exists else None
     end_budget = _read_json(output / 'end-budget.json') if output_exists else None
     exit_receipt = _read_json(output / 'exit.json') if output_exists else None
+    fixture_tree_valid = False; fixture_tree_inventory = []
+    try:
+        fixture_before, fixture_before_identity = _strict_json(output / 'fixture-before.json')
+        fixture_after, fixture_after_identity = _strict_json(output / 'fixture-after.json')
+        expected_fixture_root = expected.get('seedFixtureDirectory') if expected is not None else None
+        fixture_tree_valid = fixture_before == fixture_after \
+            and (expected is None or isinstance(expected_fixture_root, str)) \
+            and _validate_fixture_tree(fixture_before, expected_fixture_root)
+        fixture_tree_inventory = [
+            {'name': 'fixture-before.json', 'identity': fixture_before_identity},
+            {'name': 'fixture-after.json', 'identity': fixture_after_identity}]
+    except (OSError, ValueError):
+        fixture_tree_valid = False
     samples = []
     samples_valid = False; samples_well_formed = False
     if files['samples.jsonl']['exists']:
@@ -1243,14 +1427,25 @@ def _measure_artifacts(runtime, label, expected=None):
             try: value, identity = _strict_json(path)
             except ValueError: receipts_valid = False; break
             marker = value.get('marker') if isinstance(value, dict) else None
-            exact_keys = {'outcome', 'resourcesClosed', 'samples', 'marker', 'sqliteSha256', 'retained'}
+            exact_keys = {'outcome', 'resourcesClosed', 'samples', 'marker', 'sqliteSha256', 'retained',
+                          'workspaceReceipt', 'workspaceTreeSha256'}
+            workspace_name = value.get('workspaceReceipt') if isinstance(value, dict) else None
+            workspace_sha = value.get('workspaceTreeSha256') if isinstance(value, dict) else None
+            workspace_fields_valid = workspace_name is None and workspace_sha is None
+            if group == 'stop' and workspace_name == _STOP_WORKSPACE_RECEIPT \
+                    and _SHA256.fullmatch(str(workspace_sha or '')) is not None:
+                workspace_fields_valid = True
+            if group != 'stop' and (workspace_name is not None or workspace_sha is not None):
+                workspace_fields_valid = False
             if not isinstance(value, dict) or set(value) != exact_keys or value.get('outcome') not in {'ok', 'failed', 'timeout'} \
                     or value.get('resourcesClosed') is not True or type(value.get('retained')) is not bool \
                     or value['retained'] is not (value['outcome'] != 'ok') or not isinstance(value.get('samples'), list) \
                     or not isinstance(marker, dict) or set(marker) != {'id', 'scope', 'label'} \
                     or not _uuid4(marker.get('id')) or marker.get('scope') != 'musicbridge-capacity-clone-only' \
                     or marker.get('label') != f'group-{group}' \
-                    or _SHA256.fullmatch(str(value.get('sqliteSha256', ''))) is None:
+                    or _SHA256.fullmatch(str(value.get('sqliteSha256', ''))) is None \
+                    or not workspace_fields_valid \
+                    or group == 'stop' and value['outcome'] == 'ok' and workspace_name != _STOP_WORKSPACE_RECEIPT:
                 receipts_valid = False; break
             group_markers[group] = marker
             receipt_samples.extend(value['samples'])
@@ -1262,20 +1457,55 @@ def _measure_artifacts(runtime, label, expected=None):
                     marker_value, marker_identity = _strict_json(clone / 'owner.json')
                     sqlite_identity = _strict_identity(clone / 'sample.sqlite')
                 except (OSError, ValueError): receipts_valid = False; break
+                allowed_clone_entries = {'owner.json', 'sample.sqlite', 'group-stop-workspace'} \
+                    if group == 'stop' else {'owner.json', 'sample.sqlite'}
+                retained_workspace = clone / 'group-stop-workspace'
+                retained_workspace_identity = _retained_workspace_identity(retained_workspace) \
+                    if 'group-stop-workspace' in clone_entries else None
                 if clone.is_symlink() or not stat.S_ISDIR(clone_identity.st_mode) or canonical != clone \
-                        or clone_entries != ['owner.json', 'sample.sqlite'] \
+                        or set(clone_entries) not in ({'owner.json', 'sample.sqlite'}, allowed_clone_entries) \
+                        or 'group-stop-workspace' in clone_entries and retained_workspace_identity is None \
                         or marker_value != marker or sqlite_identity['sha256'] != value['sqliteSha256']:
                     receipts_valid = False; break
                 retained_inventory.append({'path': str(clone), 'device': clone_identity.st_dev,
                                            'inode': clone_identity.st_ino, 'marker': marker_identity,
-                                           'sqlite': sqlite_identity})
+                                           'sqlite': sqlite_identity,
+                                           'workspace': retained_workspace_identity})
             elif clone.exists() or clone.is_symlink():
                 receipts_valid = False; break
             receipt_inventory.append({'name': name, 'identity': identity, 'outcome': value['outcome'],
                                       'retained': value['retained'], 'sampleCount': len(value['samples']),
-                                      'marker': marker, 'sqliteSha256': value['sqliteSha256']})
+                                      'marker': marker, 'sqliteSha256': value['sqliteSha256'],
+                                      'workspaceReceipt': workspace_name,
+                                      'workspaceTreeSha256': workspace_sha})
         receipts_valid = receipts_valid and receipt_samples == samples \
             and set(retained_names) == {item['marker']['label'] for item in receipt_inventory if item['retained']}
+
+    workspace_receipt_valid = False; workspace_receipt_inventory = None
+    if workspace_receipt_names and isinstance(group_markers.get('stop'), dict):
+        try:
+            workspace_receipt, workspace_identity = _strict_json(output / _STOP_WORKSPACE_RECEIPT)
+            exact_keys = {'schemaVersion', 'scope', 'groupMarker', 'workspace', 'recordedAt'}
+            try: workspace_recorded = datetime.datetime.fromisoformat(workspace_receipt['recordedAt'])
+            except (KeyError, TypeError, ValueError): workspace_recorded = None
+            stop_receipt = next((item for item in receipt_inventory if item['marker']['label'] == 'group-stop'), None)
+            workspace_value = workspace_receipt.get('workspace') if isinstance(workspace_receipt, dict) else None
+            workspace_receipt_valid = isinstance(workspace_receipt, dict) \
+                and set(workspace_receipt) == exact_keys and workspace_receipt.get('schemaVersion') == 1 \
+                and workspace_receipt.get('scope') == 'musicbridge-capacity-stop-workspace-tree' \
+                and workspace_receipt.get('groupMarker') == group_markers['stop'] \
+                and workspace_recorded is not None and workspace_recorded.utcoffset() is not None \
+                and _validate_workspace_tree(workspace_value) and stop_receipt is not None \
+                and stop_receipt['workspaceReceipt'] == _STOP_WORKSPACE_RECEIPT \
+                and stop_receipt['workspaceTreeSha256'] == workspace_value['treeSha256']
+            workspace_receipt_inventory = {
+                'name': _STOP_WORKSPACE_RECEIPT, 'identity': workspace_identity,
+                'treeSha256': workspace_value.get('treeSha256') if isinstance(workspace_value, dict) else None}
+        except (OSError, ValueError):
+            workspace_receipt_valid = False
+    if len(group_receipt_names) == 3:
+        receipts_valid = receipts_valid and workspace_receipt_valid \
+            and not (output / 'group-stop').exists() and not (output / 'group-stop').is_symlink()
 
     stages = []; stage_evidence_valid = False; partial_stages_valid = False
     if files['measure-stages.jsonl']['exists']:
@@ -1311,11 +1541,15 @@ def _measure_artifacts(runtime, label, expected=None):
             retained_info = retained_stop.lstat()
             retained_entries = sorted(item.name for item in retained_stop.iterdir())
             allowed_retained = {'owner.json', 'sample.sqlite', 'sample.sqlite-wal',
-                                'sample.sqlite-shm', 'sample.sqlite-journal'}
+                                'sample.sqlite-shm', 'sample.sqlite-journal', 'group-stop-workspace'}
+            retained_files = [name for name in retained_entries if name != 'group-stop-workspace']
+            retained_workspace_identity = _retained_workspace_identity(retained_stop / 'group-stop-workspace') \
+                if 'group-stop-workspace' in retained_entries else None
             if retained_stop.resolve(strict=True) != retained_stop or retained_stop.is_symlink() \
                     or not stat.S_ISDIR(retained_info.st_mode) or not {'owner.json', 'sample.sqlite'} <= set(retained_entries) \
                     or not set(retained_entries) <= allowed_retained \
-                    or not all(_ordinary_file(retained_stop / name) for name in retained_entries) \
+                    or not all(_ordinary_file(retained_stop / name) for name in retained_files) \
+                    or 'group-stop-workspace' in retained_entries and retained_workspace_identity is None \
                     or not isinstance(stop_marker, dict) or set(stop_marker) != {'id', 'scope', 'label'} \
                     or not _uuid4(stop_marker.get('id')) \
                     or stop_marker.get('scope') != 'musicbridge-capacity-clone-only' \
@@ -1323,7 +1557,8 @@ def _measure_artifacts(runtime, label, expected=None):
                 partial_rounds_valid = False
             else:
                 retained_inventory.append({'path': str(retained_stop), 'device': retained_info.st_dev,
-                                           'inode': retained_info.st_ino, 'marker': marker_identity})
+                                           'inode': retained_info.st_ino, 'marker': marker_identity,
+                                           'workspace': retained_workspace_identity})
         except (OSError, ValueError):
             partial_rounds_valid = False
     for expected_index, name in enumerate(round_receipt_names, 1):
@@ -1426,7 +1661,8 @@ def _measure_artifacts(runtime, label, expected=None):
     exit_valid = exit_receipt in ({'exit': 0}, {'exit': 1})
     exit_consistent = exit_receipt == {'exit': 0 if threshold_passed else 1}
     verified_complete = expected is not None and output_exists and all_required and not unexpected \
-        and samples_valid and receipts_valid and round_receipts_valid and stage_evidence_valid \
+        and samples_valid and receipts_valid and workspace_receipt_valid and fixture_tree_valid \
+        and round_receipts_valid and stage_evidence_valid \
         and command_matches and measurement_matches and summary_complete \
         and exit_valid and end_budget_matches and before is not None and before == after and authority_stable
     verified = verified_complete and threshold_passed and exit_consistent
@@ -1443,6 +1679,9 @@ def _measure_artifacts(runtime, label, expected=None):
         'files': files, 'unexpectedEntries': unexpected, 'sampleCount': len(samples),
         'measurePlan': dict(_MEASURE_PLAN),
         'samplesValid': samples_valid, 'receiptCount': len(group_receipt_names), 'receiptsValid': receipts_valid,
+        'workspaceReceiptValid': workspace_receipt_valid,
+        'workspaceReceiptInventory': workspace_receipt_inventory,
+        'fixtureTreeValid': fixture_tree_valid, 'fixtureTreeInventory': fixture_tree_inventory,
         'roundReceiptCount': len(round_receipt_names), 'roundReceiptsValid': round_receipts_valid,
         'roundReceiptInventory': round_inventory, 'stageEvidenceValid': stage_evidence_valid,
         'stageCount': len(stages), 'partialEvidenceValid': partial_evidence_valid,
@@ -1586,9 +1825,11 @@ def _main_generation(argv):
 def _measurement_identity_closure(value):
     if not isinstance(value, dict): return None
     keys = ('files', 'receiptInventory', 'retainedInventory', 'roundReceiptInventory',
+            'workspaceReceiptInventory', 'fixtureTreeInventory',
             'unexpectedEntries', 'measurePlan', 'sampleCount', 'receiptCount',
             'roundReceiptCount', 'stageCount', 'samplesValid', 'receiptsValid',
-            'roundReceiptsValid', 'stageEvidenceValid', 'partialEvidenceValid')
+            'workspaceReceiptValid', 'fixtureTreeValid', 'roundReceiptsValid',
+            'stageEvidenceValid', 'partialEvidenceValid')
     return {key: value.get(key) for key in keys}
 
 
@@ -1676,6 +1917,7 @@ def _main_measure(argv, loaded=None):
                 'sourceManifestSha256': window['sourceManifest']['sha256'],
                 'seedBudget': authority_initial.get('seedBudget'),
                 'seedSnapshotSha256': window['seed']['snapshotSha256'],
+                'seedFixtureDirectory': authority_initial.get('_snapshot', {}).get('seedFixture', {}).get('path'),
                 'authorityProbe': terminal_authority}
     result = supervise(command, time.monotonic() + (deadline - time.time()), parent / 'supervision',
                        grace=window['limits']['killGraceMs'] / 1000,

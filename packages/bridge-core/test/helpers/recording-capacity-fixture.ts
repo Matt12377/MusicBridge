@@ -3,10 +3,19 @@ import type test from 'node:test';
 import { createHash, randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { performance } from 'node:perf_hooks';
-import { constants, closeSync, copyFileSync, fsyncSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, rmdirSync, statfsSync, unlinkSync, writeFileSync } from 'node:fs';
+import { constants, closeSync, copyFileSync, fsyncSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, rmSync, statfsSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { recordingRecordFixture, freezeRerecordPlan } from './recording-record-fixture.js';
+import type { CollectionRepository } from '../../src/collection/repository.js';
+import { createSourceEvidenceService } from '../../src/recording/source-evidence.js';
+import { createMediaPlanningCoordinator } from '../../src/recording/media-coordinator.js';
+import { createMasterVersionsCoordinator } from '../../src/recording/versions-coordinator.js';
+import { createPreparationCoordinator } from '../../src/recording/preparation-coordinator.js';
+import { createExecutionCoordinator } from '../../src/recording/execution-coordinator.js';
+import { createArchiveCoordinator } from '../../src/recording/archive-coordinator.js';
+import { createRecordingPlanCoordinator } from '../../src/recording/plan-coordinator.js';
+import type { RecordingPlanVersion } from '@music-bridge/contracts';
 import { verifyRecordingAttemptDatabase } from '../../src/recording/attempt-integrity.js';
 import { verifyRecordingRecordDatabase } from '../../src/recording/record-integrity.js';
 import { verifyRecordingPlanDatabase } from '../../src/recording/plan-integrity.js';
@@ -190,6 +199,35 @@ export function hashCapacityFile(file: string): string {
     return hash.digest('hex');
   } finally { closeSync(fd); }
 }
+interface CapacityTreeEntry {
+  relative: string; type: 'directory' | 'file'; device: number; inode: number; mode: number; size: number;
+  mtimeMs: number; ctimeMs: number; contentSha256: string | null; contentSha256Verified: boolean;
+}
+function summarizeCapacityTree(root: string, excludeDatabaseContent: boolean) {
+  if (!path.isAbsolute(root) || realpathSync(root) !== root) throw new Error('容量树根目录身份无效');
+  const entries: CapacityTreeEntry[] = [], hash = createHash('sha256');
+  const walk = (relative: string): void => {
+    const absolute = relative ? path.join(root, relative) : root, info = lstatSync(absolute);
+    if (info.isSymbolicLink() || !info.isDirectory() && !info.isFile()) throw new Error('容量树包含异常对象');
+    const database = excludeDatabaseContent && /(?:\.sqlite(?:-(?:wal|shm|journal))?|\.db(?:-(?:wal|shm|journal))?)$/u.test(relative);
+    const entry: CapacityTreeEntry = { relative, type: info.isDirectory() ? 'directory' : 'file', device: info.dev, inode: info.ino,
+      mode: info.mode, size: info.size, mtimeMs: info.mtimeMs, ctimeMs: info.ctimeMs,
+      contentSha256: info.isFile() && !database ? hashCapacityFile(absolute) : null,
+      contentSha256Verified: info.isFile() && !database };
+    entries.push(entry); hash.update(JSON.stringify(entry));
+    if (info.isDirectory()) {
+      for (const name of readdirSync(absolute).sort()) walk(path.join(relative, name));
+      const fd = openSync(absolute, constants.O_RDONLY | constants.O_NOFOLLOW); try { fsyncSync(fd); } finally { closeSync(fd); }
+    }
+  };
+  walk('');
+  return { root, entries, treeSha256: hash.digest('hex'), databaseContentSha256Verified: !excludeDatabaseContent,
+    excludedDatabaseFiles: entries.filter(entry => entry.type === 'file' && !entry.contentSha256Verified).map(entry => entry.relative) };
+}
+/** 共享generation fixture只核身份和非DB内容；大SQLite明确不读、不hash。 */
+export function summarizeCapacityFixtureTree(root: string) {
+  return { scope: 'musicbridge-capacity-fixture-tree' as const, ...summarizeCapacityTree(root, true) };
+}
 function durableJson(file: string, value: unknown): void {
   const fd = openSync(file, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
   try { writeFileSync(fd, JSON.stringify(value, null, 2) + '\n'); fsyncSync(fd); } finally { closeSync(fd); }
@@ -218,6 +256,118 @@ export function capacityMeasurePlan() {
   return { groups: ['progress', 'stop', 'read'] as CapacityMeasureGroup[], progressRounds: 105, stopRounds: 105,
     readOperations: 8, readRoundsPerOperation: 105, stopMetricsPerRound: 6,
     totalSamples: 1575, warmupPerSeries: 5, formalPerSeries: 100 };
+}
+
+/**
+ * Stop量测不能重放同一实体。在正式计时前用公开Core路径准备独立库存、分面、冻结版本、
+ * 执行资产、归档与Recording Plan；每个plan绑定不同physical copy，Attempt保护不需要permit或特例。
+ */
+export interface CapacityStopWorkspace {
+  path: string; marker: { id: string; scope: 'musicbridge-capacity-stop-workspace' };
+  device: number; inode: number; parentDevice: number; parentInode: number;
+}
+export interface CapacityPreparedStopPlans { plans: RecordingPlanVersion[]; workspace: CapacityStopWorkspace }
+function capacityStopWav(): Buffer {
+  const value = Buffer.alloc(44 + 44101 * 4); value.write('RIFF'); value.writeUInt32LE(value.length - 8, 4); value.write('WAVEfmt ', 8);
+  value.writeUInt32LE(16, 16); value.writeUInt16LE(1, 20); value.writeUInt16LE(2, 22); value.writeUInt32LE(44100, 24);
+  value.writeUInt32LE(176400, 28); value.writeUInt16LE(4, 32); value.writeUInt16LE(16, 34); value.write('data', 36); value.writeUInt32LE(value.length - 44, 40);
+  return value;
+}
+function createCapacityStopWorkspace(workspacePath: string): CapacityStopWorkspace {
+  const parent = path.dirname(workspacePath);
+  if (!path.isAbsolute(workspacePath) || realpathSync(parent) !== parent || path.basename(workspacePath) !== 'group-stop-workspace') throw new Error('Stop workspace路径无效');
+  mkdirSync(workspacePath);
+  const marker = { id: randomUUID(), scope: 'musicbridge-capacity-stop-workspace' as const };
+  durableJson(path.join(workspacePath, 'owner.json'), marker);
+  for (const name of ['source', 'execution', 'archive']) mkdirSync(path.join(workspacePath, name));
+  const source = path.join(workspacePath, 'source', 'fixture.wav'), fd = openSync(source, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
+  try { writeFileSync(fd, capacityStopWav()); fsyncSync(fd); } finally { closeSync(fd); }
+  for (const directory of [path.join(workspacePath, 'source'), workspacePath, parent]) {
+    const directoryFd = openSync(directory, constants.O_RDONLY); try { fsyncSync(directoryFd); } finally { closeSync(directoryFd); }
+  }
+  const info = lstatSync(workspacePath), parentInfo = lstatSync(parent);
+  return { path: workspacePath, marker, device: info.dev, inode: info.ino, parentDevice: parentInfo.dev, parentInode: parentInfo.ino };
+}
+function checkCapacityStopWorkspace(workspace: CapacityStopWorkspace, clone: CapacityClone) {
+  const parent = path.dirname(workspace.path), info = lstatSync(workspace.path), parentInfo = lstatSync(parent);
+  if (parent !== clone.directory || realpathSync(workspace.path) !== workspace.path || path.basename(workspace.path) !== 'group-stop-workspace'
+    || info.dev !== workspace.device || info.ino !== workspace.inode || parentInfo.dev !== workspace.parentDevice || parentInfo.ino !== workspace.parentInode
+    || JSON.stringify(JSON.parse(readFileSync(path.join(workspace.path, 'owner.json'), 'utf8'))) !== JSON.stringify(workspace.marker)) throw new Error('Stop workspace身份变化');
+  const tree = summarizeCapacityTree(workspace.path, false);
+  return { marker: workspace.marker, directories: tree.entries.filter(value => value.type === 'directory').length,
+    files: tree.entries.filter(value => value.type === 'file').length,
+    bytes: tree.entries.filter(value => value.type === 'file').reduce((sum, value) => sum + value.size, 0),
+    treeSha256: tree.treeSha256, entries: tree.entries };
+}
+export async function prepareCapacityStopPlans(repository: CollectionRepository, template: RecordingPlanVersion, count: number, workspacePath: string): Promise<CapacityPreparedStopPlans> {
+  if (!Number.isSafeInteger(count) || count < 1 || count > 105) throw new Error('Stop plan数量无效');
+  if (template.layout.spec.format !== 'cassette') throw new Error('Stop plan模板与objects-limit不匹配');
+  const workspace = createCapacityStopWorkspace(workspacePath);
+  const sourceFile = path.join(workspace.path, 'source', 'fixture.wav');
+  repository.receive({ commandId: randomUUID(), model: { brand: 'TDK', name: 'SA', edition: '合成', year: 1990,
+    format: 'cassette', tapeType: 'II', identification: 'verified' }, lengthMinutes: 60,
+    quantities: { openedBlank: count, sealedBlank: 0, legacyUsed: 0, unclassified: 0 } });
+  const sources = createSourceEvidenceService({ store: repository.sources, drafts: repository.drafts });
+  const media = createMediaPlanningCoordinator({ store: repository.media, drafts: repository.drafts, sources });
+  const versions = createMasterVersionsCoordinator({ store: repository.versions, mediaStore: repository.media, media,
+    drafts: repository.drafts, sourceStore: repository.sources, sources });
+  const preparation = createPreparationCoordinator({ store: repository.preparations, sourceStore: repository.sources, sources });
+  const execution = createExecutionCoordinator({ store: repository.execution, profiles: repository.recordingProfiles,
+    preparationStore: repository.preparations, preparedStore: repository.prepared, mediaStore: repository.media,
+    sourceStore: repository.sources, sources, preparation });
+  const archive = createArchiveCoordinator({ store: repository.archive, executionStore: repository.execution,
+    preparationStore: repository.preparations, sourceStore: repository.sources, sources, preparation });
+  const plans = createRecordingPlanCoordinator({ store: repository.recordingPlans });
+  const result: RecordingPlanVersion[] = [];
+  try {
+    const sourceRoot = await sources.authorize(randomUUID(), path.join(workspace.path, 'source'));
+    const destination = await preparation.authorize(randomUUID(), path.join(workspace.path, 'execution'));
+    const selectedArchive = await archive.authorize(randomUUID(), path.join(workspace.path, 'archive'));
+    const archiveRoot = await archive.initialize({ commandId: randomUUID(), id: selectedArchive.id, userConfirmed: true });
+    if (archiveRoot.state !== 'ready') throw new Error('Stop workspace归档授权未就绪');
+    for (let index = 1; index <= count; index += 1) {
+      const draft = repository.drafts.append({ commandId: randomUUID(), fingerprint: createHash('sha256').update(`capacity-stop-${index}-${randomUUID()}`).digest('hex'),
+        title: `Stop容量合成录音第${index}册`, programType: 'compilation', metadata: [1, 2, 3].map(track => ({ title: `Stop合成曲目 ${index}-${track}` })) });
+      for (const trackId of draft.trackIds) {
+        const job = sources.start({ commandId: randomUUID(), draftId: draft.draftId, trackId, rootId: sourceRoot.id, acquisition: 'userFileBind' }, sourceFile);
+        await sources.idle();
+        if (sources.job(job.id).job?.state !== 'completed') throw new Error('Stop plan源绑定未完成');
+        const binding = repository.sources.linked(draft.draftId, trackId)!;
+        await sources.confirm({ commandId: randomUUID(), id: binding.id, draftId: draft.draftId, trackId, userConfirmed: true });
+      }
+      const mediaPreview = await media.preview({ draftId: draft.draftId, spec: template.layout.spec, page: { offset: 0, limit: 25 } });
+      const saved = await media.save({ commandId: randomUUID(), draftId: draft.draftId, expectedDraftRevision: mediaPreview.draftRevision,
+        inputFingerprint: mediaPreview.inputFingerprint, spec: template.layout.spec });
+      const reserved = await media.reserve({ commandId: randomUUID(), planId: saved.id, expectedRevision: saved.revision,
+        skuId: template.layout.reservation.skuId, packaging: 'opened', userConfirmed: true });
+      const versionPreview = await versions.preview({ planId: reserved.id, sampleRate: 96000 });
+      const version = await versions.freeze({ commandId: randomUUID(), planId: reserved.id, sampleRate: 96000,
+        proposalFingerprint: versionPreview.proposalFingerprint, userConfirmed: true });
+      await versions.idle();
+      const layoutVersionId = versions.job(version.id).job?.layoutVersionId;
+      if (!layoutVersionId) throw new Error('Stop plan布局冻结未完成');
+      const session = repository.recordingProfiles.saveSession({ commandId: randomUUID(), draftId: draft.draftId, expectedRevision: 0,
+        profileVersionId: template.profileSnapshot.settings.profile.id, overrides: { recordLevel: 'Stop容量合成人工电平' }, userConfirmed: true });
+      const executionSelection = { layoutVersionId, destinationId: destination.id, mode: 'direct' as const, sessionRevision: session.revision };
+      const executionPreview = await execution.preview({ ...executionSelection, readId: randomUUID() });
+      const executionJob = await execution.start({ ...executionSelection, commandId: randomUUID(),
+        proposalFingerprint: executionPreview.proposalFingerprint, userConfirmed: true });
+      await execution.idle();
+      if (execution.job(executionJob.id).job?.state !== 'completed') throw new Error('Stop plan执行资产未完成');
+      const archiveSelection = { rootId: archiveRoot.id, assetId: executionJob.id, sourcePolicy: 'preserve-exact-sources' as const };
+      const archivePreview = await archive.preview({ ...archiveSelection, readId: randomUUID() });
+      const archiveRequest = { ...archiveSelection, commandId: randomUUID(), proposalFingerprint: archivePreview.proposalFingerprint, userConfirmed: true as const };
+      await archive.start(archiveRequest); await archive.idle();
+      if (repository.archive.operation(archiveRequest.commandId)?.phase !== 'FINALIZED') throw new Error('Stop plan归档未完成');
+      const selection = { assetId: executionJob.id, archiveOperationId: archiveRequest.commandId };
+      const planPreview = await plans.preview({ selection, readId: randomUUID() });
+      result.push(await plans.freeze({ commandId: randomUUID(), selection, proposalFingerprint: planPreview.proposalFingerprint, userConfirmed: true }));
+    }
+    if (new Set(result.map(value => value.physicalCopy.physicalId)).size !== count) throw new Error('Stop plan未绑定独立实体');
+    return { plans: result, workspace };
+  } finally {
+    await plans.close(); await archive.close(); await execution.close(); await preparation.close(); await versions.close(); await sources.close();
+  }
 }
 export function appendCapacityMeasureStage(parent: string, group: CapacityMeasureGroup, phase: CapacityMeasurePhase, details: unknown): void {
   if (realpathSync(parent) !== parent) throw new Error('容量measure阶段目录身份无效');
@@ -274,26 +424,42 @@ export function createCapacityClone(parent: string, label: string, seed: string)
   return { parent, label, directory, filePath, marker, device: stat.dev, inode: stat.ino, parentDevice: parentStat.dev, parentInode: parentStat.ino };
 }
 export function finishCapacityClone(clone: CapacityClone, result: { outcome: CapacitySample['outcome']; resourcesClosed: boolean; samples: unknown;
-  onPhase?: (phase: 'final-hash' | 'cleanup', details: unknown) => void }): string {
+  ownedWorkspace?: CapacityStopWorkspace; onPhase?: (phase: 'final-hash' | 'cleanup', details: unknown) => void }): string {
   const check = () => {
     if (!result.resourcesClosed || realpathSync(clone.parent) !== clone.parent || realpathSync(clone.directory) !== clone.directory || path.dirname(clone.directory) !== clone.parent || path.basename(clone.directory) !== clone.label) throw new Error('容量clone未关闭或路径身份变化');
     const info = lstatSync(clone.directory), parentInfo = lstatSync(clone.parent);
     if (info.dev !== clone.device || info.ino !== clone.inode || parentInfo.dev !== clone.parentDevice || parentInfo.ino !== clone.parentInode) throw new Error('容量clone目录身份变化');
     assert.deepEqual(JSON.parse(readFileSync(path.join(clone.directory, 'owner.json'), 'utf8')), clone.marker);
-    for (const name of readdirSync(clone.directory)) if (!['owner.json', 'sample.sqlite', 'sample.sqlite-wal', 'sample.sqlite-shm', 'sample.sqlite-journal'].includes(name) || !lstatSync(path.join(clone.directory, name)).isFile() || lstatSync(path.join(clone.directory, name)).isSymbolicLink()) throw new Error('容量clone包含非预期对象');
+    const files = ['owner.json', 'sample.sqlite', 'sample.sqlite-wal', 'sample.sqlite-shm', 'sample.sqlite-journal'];
+    for (const name of readdirSync(clone.directory)) {
+      const value = lstatSync(path.join(clone.directory, name));
+      if (result.ownedWorkspace && name === 'group-stop-workspace') {
+        if (clone.label !== 'group-stop' || result.ownedWorkspace.path !== path.join(clone.directory, name) || !value.isDirectory() || value.isSymbolicLink()) throw new Error('容量clone的Stop workspace无效');
+      } else if (!files.includes(name) || !value.isFile() || value.isSymbolicLink()) throw new Error('容量clone包含非预期对象');
+    }
+    if (result.ownedWorkspace && !readdirSync(clone.directory).includes('group-stop-workspace')) throw new Error('容量clone缺少Stop workspace');
   };
   check();
+  const workspaceTree = result.ownedWorkspace ? checkCapacityStopWorkspace(result.ownedWorkspace, clone) : null;
+  const workspaceReceipt = workspaceTree ? path.join(clone.parent, `${clone.label}.workspace.receipt.json`) : null;
+  if (workspaceReceipt) durableJson(workspaceReceipt, { schemaVersion: 1, scope: 'musicbridge-capacity-stop-workspace-tree',
+    groupMarker: clone.marker, workspace: workspaceTree, recordedAt: new Date().toISOString() });
   const receipt = path.join(clone.parent, `${clone.label}.receipt.json`);
   const sqliteSha256 = hashCapacityFile(clone.filePath), retained = result.outcome !== 'ok';
-  const { onPhase, ...receiptResult } = result;
-  durableJson(receipt, { ...receiptResult, marker: clone.marker, sqliteSha256, retained });
-  onPhase?.('final-hash', { receipt: path.basename(receipt), sqliteSha256, retained });
+  const { onPhase, ownedWorkspace: _ownedWorkspace, ...receiptResult } = result;
+  durableJson(receipt, { ...receiptResult, marker: clone.marker, sqliteSha256, retained,
+    workspaceReceipt: workspaceReceipt ? path.basename(workspaceReceipt) : null,
+    workspaceTreeSha256: workspaceTree?.treeSha256 ?? null });
+  onPhase?.('final-hash', { receipt: path.basename(receipt), sqliteSha256, retained,
+    workspaceReceipt: workspaceReceipt ? path.basename(workspaceReceipt) : null, workspaceTreeSha256: workspaceTree?.treeSha256 ?? null });
   if (result.outcome === 'ok') {
     check(); // 持久receipt完成后再复核，失败/超时永不删。
+    if (result.ownedWorkspace) assert.deepEqual(checkCapacityStopWorkspace(result.ownedWorkspace, clone), workspaceTree,
+      'Stop workspace在封存与清理之间发生变化');
     // cleanup事实也必须先持久化；此后只做删除，避免“已删clone但阶段receipt写失败”。
     onPhase?.('cleanup', { receipt: path.basename(receipt), retained: false, action: 'delete-after-stage' });
-    for (const name of readdirSync(clone.directory)) unlinkSync(path.join(clone.directory, name));
-    rmdirSync(clone.directory);
+    // group可包含自建workspace；只有最终receipt与cleanup阶段都持久化后才整体递归删除。
+    rmSync(clone.directory, { recursive: true });
   } else onPhase?.('cleanup', { receipt: path.basename(receipt), retained: true, action: 'retain' });
   return receipt;
 }

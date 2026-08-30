@@ -25,7 +25,7 @@ function sha(path) {
 
 function bridge(script, method, payload) {
   const code = `
-import importlib.util, json, pathlib, sys
+import importlib.util, json, pathlib, sys, types
 spec=importlib.util.spec_from_file_location('capacity_phase_supervisor_v2', sys.argv[1])
 module=importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 method=sys.argv[2]; payload=json.loads(sys.argv[3])
@@ -43,6 +43,7 @@ try:
     value=list(module._validate_measure_window(payload['window'], payload['now']))
   elif method == 'artifacts':
     value=module._measure_artifacts(pathlib.Path(payload['runtime']), payload['label'])
+  elif method == 'js-json': value=module._js_compact_json(payload['value'])
   elif method == 'artifacts-expected':
     expected=dict(payload['expected']); expected['entry']=pathlib.Path(expected['entry']); expected['root']=pathlib.Path(expected['root'])
     value=module._measure_artifacts(pathlib.Path(payload['runtime']), payload['label'], expected)
@@ -65,6 +66,27 @@ try:
   elif method == 'owned':
     value=module._validate_owned_manifest(pathlib.Path(payload['manifest']), pathlib.Path(payload['runtime']),
       payload['windowId'], 'objects-limit', planned_bytes=0)
+  elif method == 'owned-transition':
+    runtime=pathlib.Path(payload['runtime']); future=pathlib.Path(payload['future'])
+    available=iter([payload['admissionAvailableBytes'], payload['terminalAvailableBytes']])
+    module.os.statvfs=lambda path: types.SimpleNamespace(f_bavail=next(available), f_frsize=1)
+    original_directory_bytes=module._directory_bytes
+    def controlled_directory_bytes(path):
+      if pathlib.Path(path) == future: return payload['futureBytes'], 2
+      return original_directory_bytes(path)
+    module._directory_bytes=controlled_directory_bytes
+    admission=module._validate_owned_manifest(
+      pathlib.Path(payload['manifest']), runtime, payload['windowId'], 'objects-limit',
+      planned_bytes=payload['plannedBytes'], future_path=future, future_state='absent')
+    future.mkdir()
+    marker=future/'command.json'
+    if payload.get('symlinkMarker'):
+      target=runtime/'outside-command.json'; target.write_text('{}\\n'); marker.symlink_to(target)
+    else: marker.write_text('{}\\n')
+    terminal=module._validate_owned_manifest(
+      pathlib.Path(payload['manifest']), runtime, payload['windowId'], 'objects-limit',
+      planned_bytes=payload['plannedBytes'], future_path=future, future_state='present')
+    value={'admission':admission,'terminal':terminal}
   elif method == 'carryover':
     if 'legacyEvidence' in payload: module._LEGACY_CARRYOVER_EVIDENCE=payload['legacyEvidence']
     if payload.get('forbidSqliteRead'):
@@ -247,7 +269,49 @@ function legacyCarryover(f, mutate = () => {}) {
 }
 
 function groupReceipt(group, groupMarker, samples, outcome = 'ok') {
-  return { outcome, resourcesClosed: true, samples, marker: groupMarker, sqliteSha256: 'a'.repeat(64), retained: outcome !== 'ok' }
+  return { outcome, resourcesClosed: true, samples, marker: groupMarker, sqliteSha256: 'a'.repeat(64), retained: outcome !== 'ok',
+    workspaceReceipt: null, workspaceTreeSha256: null }
+}
+
+function treeEntry(relative, type, size, contentSha256Verified = type === 'file') {
+  return {
+    relative, type, device: 1, inode: 100 + relative.length, mode: type === 'directory' ? 0o40700 : 0o100600,
+    size, mtimeMs: 1_788_000_000_000, ctimeMs: 1_788_000_000_000,
+    contentSha256: contentSha256Verified ? createHash('sha256').update(relative).digest('hex') : null,
+    contentSha256Verified,
+  }
+}
+
+function treeSha256(entries) {
+  const hash = createHash('sha256')
+  for (const entry of entries) hash.update(JSON.stringify(entry))
+  return hash.digest('hex')
+}
+
+function fixtureTree() {
+  const value = {
+    scope: 'musicbridge-capacity-fixture-tree', root: '/synthetic/musicbridge-version-fixture',
+    entries: [treeEntry('', 'directory', 160, false), treeEntry('capacity-owner.json', 'file', 120),
+      treeEntry('seed.sqlite', 'file', 2_000_000_000, false)],
+    treeSha256: '', databaseContentSha256Verified: false, excludedDatabaseFiles: ['seed.sqlite'],
+  }
+  value.treeSha256 = treeSha256(value.entries)
+  return value
+}
+
+function workspaceReceipt(groupMarker) {
+  const entries = [treeEntry('', 'directory', 160, false), treeEntry('archive', 'directory', 64, false),
+    treeEntry('execution', 'directory', 64, false), treeEntry('owner.json', 'file', 120),
+    treeEntry('source', 'directory', 96, false), treeEntry('source/fixture.wav', 'file', 176_448)]
+  const workspace = {
+    marker: { id: randomUUID(), scope: 'musicbridge-capacity-stop-workspace' },
+    directories: entries.filter(value => value.type === 'directory').length,
+    files: entries.filter(value => value.type === 'file').length,
+    bytes: entries.filter(value => value.type === 'file').reduce((sum, value) => sum + value.size, 0),
+    treeSha256: treeSha256(entries), entries,
+  }
+  return { schemaVersion: 1, scope: 'musicbridge-capacity-stop-workspace-tree', groupMarker, workspace,
+    recordedAt: new Date(1_788_000_000_000).toISOString() }
 }
 
 function roundReceipt(index, groupMarker, samples) {
@@ -288,6 +352,9 @@ function baseFiles(output, rows) {
   json(join(output, 'command.json'), { phase: 'measure' })
   json(join(output, 'measurement.json'), { measurePlan: plan })
   json(join(output, 'source-before.json'), { files: {} })
+  const fixture = fixtureTree()
+  json(join(output, 'fixture-before.json'), fixture)
+  json(join(output, 'fixture-after.json'), fixture)
   writeFileSync(join(output, 'samples.jsonl'), rows.map(row => JSON.stringify(row)).join('\n') + '\n', { flag: 'wx' })
 }
 
@@ -301,13 +368,22 @@ function completeArtifacts(runtime, mutate = () => {}) {
   json(join(output, 'end-budget.json'), { fixed: true })
   json(join(output, 'summary.json'), { fullR023Passed: false })
   json(join(output, 'exit.json'), { exit: 0 })
-  for (const group of ['progress', 'stop', 'read']) json(join(output, `group-${group}.receipt.json`), groupReceipt(group, markers[group], rows[group]))
+  const workspace = workspaceReceipt(markers.stop)
+  json(join(output, 'group-stop.workspace.receipt.json'), workspace)
+  for (const group of ['progress', 'stop', 'read']) {
+    const receipt = groupReceipt(group, markers[group], rows[group])
+    if (group === 'stop') {
+      receipt.workspaceReceipt = 'group-stop.workspace.receipt.json'
+      receipt.workspaceTreeSha256 = workspace.workspace.treeSha256
+    }
+    json(join(output, `group-${group}.receipt.json`), receipt)
+  }
   for (let index = 1; index <= 105; index += 1) {
     json(join(output, `group-stop.round-${String(index).padStart(3, '0')}.receipt.json`),
       roundReceipt(index, markers.stop, rows.stop.slice((index - 1) * 6, index * 6)))
   }
   writeFileSync(join(output, 'measure-stages.jsonl'), stages().map(row => JSON.stringify(row)).join('\n') + '\n', { flag: 'wx' })
-  mutate({ output, rows, markers })
+  mutate({ output, rows, markers, workspace })
   return { label, output }
 }
 
@@ -365,6 +441,27 @@ function ownedManifest(f, count, windowId) {
   return manifest
 }
 
+function ownedTransition(f) {
+  const windowId = randomUUID(), root = join(f.runtime, 'owned-transition-root')
+  const future = join(f.runtime, 'objects-measure-v2'); mkdirSync(root)
+  json(join(root, 'owner.json'), { scope: 'test', id: windowId })
+  const info = statSync(root)
+  const manifest = join(f.authority, 'owned-transition.json')
+  json(manifest, {
+    schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only', windowId,
+    roots: [{ path: root, device: info.dev, inode: info.ino,
+      marker: { relative: 'owner.json', sha256: sha(join(root, 'owner.json')) } }],
+    futureRoots: [future],
+  })
+  const plannedBytes = 4_249_378_816
+  return {
+    manifest, runtime: f.runtime, windowId, future, plannedBytes,
+    futureBytes: 13 * 1024 ** 3,
+    admissionAvailableBytes: plannedBytes + 10 * 1024 ** 3 + 1,
+    terminalAvailableBytes: 10 * 1024 ** 3 + 1,
+  }
+}
+
 test('v2从window绑定独立TASK079 candidate，绝不反推TASK078 runtime root', () => {
   assert.equal(existsSync(sourceSupervisor), true, '先写测试时生产v2脚本必须缺失并形成RED')
   const f = copiedSupervisor()
@@ -412,8 +509,17 @@ test('measure命令与artifact验证精确绑定显式TASK078 runtime-root', () 
     })
     const expected = { profile: 'objects-limit', label: window.label, seedLabel: window.seedLabel,
       window: window.id, node: '/Users/yihe/.nvm/versions/node/v22.23.2/bin/node', entry, root: f.candidate,
-      runtime: f.runtime, seedSnapshotSha256: '2'.repeat(64) }
-    assert.equal(bridge(f.script, 'artifacts-expected', { runtime: f.runtime, label: artifacts.label, expected }).value.commandMatchesWindow, true)
+      runtime: f.runtime, seedSnapshotSha256: '2'.repeat(64),
+      seedFixtureDirectory: '/synthetic/musicbridge-version-fixture' }
+    const bound = bridge(f.script, 'artifacts-expected', { runtime: f.runtime, label: artifacts.label, expected }).value
+    assert.equal(bound.commandMatchesWindow, true)
+    assert.equal(bound.fixtureTreeValid, true)
+    for (const name of ['fixture-before.json', 'fixture-after.json']) {
+      const fixturePath = join(artifacts.output, name), fixture = JSON.parse(readFileSync(fixturePath))
+      fixture.root = '/synthetic/musicbridge-version-replacement'; rmSync(fixturePath); json(fixturePath, fixture)
+    }
+    assert.equal(bridge(f.script, 'artifacts-expected', { runtime: f.runtime, label: artifacts.label, expected }).value.fixtureTreeValid, false,
+      '自洽的fixture摘要也必须绑定authority验证过的generation fixture根')
     const commandPath = join(artifacts.output, 'command.json'), command = JSON.parse(readFileSync(commandPath))
     command.args.splice(-2); rmSync(commandPath); json(commandPath, command)
     assert.equal(bridge(f.script, 'artifacts-expected', { runtime: f.runtime, label: artifacts.label, expected }).value.commandMatchesWindow, false)
@@ -458,7 +564,53 @@ test('owned roots上限精确为68', () => {
   }
 })
 
-test('完整measure只接受3 group receipts、105 stop rounds、1575 samples与完整stage闭包', () => {
+test('terminal authority以真实future output替代admission planned预算且仍验证root marker与空间', () => {
+  {
+    const f = copiedSupervisor()
+    try {
+      const payload = ownedTransition(f)
+      assert.ok(payload.futureBytes < 16 * 1024 ** 3)
+      assert.ok(payload.futureBytes + payload.plannedBytes > 16 * 1024 ** 3)
+      const observed = bridge(f.script, 'owned-transition', payload)
+      assert.equal(observed.ok, true, observed.error)
+      assert.equal(observed.value.admission.plannedBytes, payload.plannedBytes)
+      assert.equal(observed.value.terminal.plannedBytes, payload.plannedBytes, '终态仍保留窗口固定授权计划的既有证据语义')
+      assert.equal(observed.value.terminal.ownedBytes, payload.futureBytes + statSync(join(f.runtime, 'owned-transition-root/owner.json')).size)
+      assert.equal(observed.value.terminal.futureRootIdentities[payload.future].marker.sha256, sha(join(payload.future, 'command.json')))
+    } finally { f.cleanup() }
+  }
+  for (const mutate of [
+    payload => { payload.admissionAvailableBytes = payload.plannedBytes + 10 * 1024 ** 3 - 1 },
+    payload => { payload.futureBytes = 16 * 1024 ** 3 },
+    payload => { payload.symlinkMarker = true },
+    payload => { payload.terminalAvailableBytes = 10 * 1024 ** 3 - 1 },
+  ]) {
+    const f = copiedSupervisor()
+    try {
+      const payload = ownedTransition(f); mutate(payload)
+      assert.equal(bridge(f.script, 'owned-transition', payload).ok, false)
+    } finally { f.cleanup() }
+  }
+})
+
+test('tree hash的Python compact JSON与JSON.stringify整数及非整数毫秒一致', () => {
+  const f = copiedSupervisor()
+  try {
+    const values = [
+      { mtimeMs: 1_788_000_000_000, ctimeMs: 1_788_000_000_001 },
+      { mtimeMs: 1_788_000_000_000.125, ctimeMs: 1_788_000_000_000.75 },
+      { lowerFixed: 0.000001, scientific: 0.0000001, safeInteger: 1_000_000_000_000_000 },
+      { largeScientific: 1e21, relative: '归档/换行\n文件' },
+    ]
+    for (const value of values) {
+      const observed = bridge(f.script, 'js-json', { value })
+      assert.equal(observed.ok, true, observed.error)
+      assert.equal(observed.value, JSON.stringify(value))
+    }
+  } finally { f.cleanup() }
+})
+
+test('完整measure精确接受workspace receipt、fixture前后摘要与既有完整闭包', () => {
   const f = copiedSupervisor()
   try {
     const a = completeArtifacts(f.runtime)
@@ -466,12 +618,16 @@ test('完整measure只接受3 group receipts、105 stop rounds、1575 samples与
     assert.equal(observed.ok, true)
     assert.equal(observed.value.samplesValid, true)
     assert.equal(observed.value.receiptsValid, true)
+    assert.equal(observed.value.workspaceReceiptValid, true)
+    assert.equal(observed.value.fixtureTreeValid, true)
     assert.equal(observed.value.roundReceiptsValid, true)
     assert.equal(observed.value.stageEvidenceValid, true)
     assert.equal(observed.value.receiptCount, 3)
     assert.equal(observed.value.roundReceiptCount, 105)
     assert.deepEqual(observed.value.measurePlan, plan)
     assert.deepEqual(observed.value.unexpectedEntries, [])
+    assert.equal('workspaceReceipt' in observed.value, false, '公开结果不得泄漏workspace tree内容')
+    assert.equal('fixtureBefore' in observed.value, false, '公开结果不得泄漏fixture tree内容')
   } finally { f.cleanup() }
 })
 
@@ -501,6 +657,102 @@ test('缺round、重复Attempt、marker漂移、stop拼接错与多余文件均�
       assert.equal(observed.ok, true)
       assert.equal(observed.value.receiptsValid && observed.value.roundReceiptsValid
         && observed.value.stageEvidenceValid && observed.value.unexpectedEntries.length === 0, false)
+    } finally { f.cleanup() }
+  }
+})
+
+test('workspace receipt缺失、额外、篡改、非普通文件及成功残留workspace均拒绝', () => {
+  const mutations = [
+    ({ output }) => rmSync(join(output, 'group-stop.workspace.receipt.json')),
+    ({ output }) => json(join(output, 'group-stop.workspace.extra.json'), { schemaVersion: 1 }),
+    ({ output }) => {
+      const path = join(output, 'group-stop.workspace.receipt.json'), value = JSON.parse(readFileSync(path))
+      value.scope = 'musicbridge-capacity-stop-workspace-tree-drift'; rmSync(path); json(path, value)
+    },
+    ({ output }) => {
+      const path = join(output, 'group-stop.workspace.receipt.json'), value = JSON.parse(readFileSync(path))
+      value.groupMarker.id = randomUUID(); rmSync(path); json(path, value)
+    },
+    ({ output }) => {
+      const path = join(output, 'group-stop.receipt.json'), value = JSON.parse(readFileSync(path))
+      value.workspaceTreeSha256 = 'd'.repeat(64); rmSync(path); json(path, value)
+    },
+    ({ output }) => {
+      const path = join(output, 'group-stop.workspace.receipt.json'), value = JSON.parse(readFileSync(path))
+      value.workspace.files += 1; rmSync(path); json(path, value)
+    },
+    ({ output }) => {
+      const path = join(output, 'group-stop.workspace.receipt.json'), value = JSON.parse(readFileSync(path))
+      value.workspace.entries[1].relative = '../escape'; rmSync(path); json(path, value)
+    },
+    ({ output }) => {
+      const workspacePath = join(output, 'group-stop.workspace.receipt.json')
+      const workspace = JSON.parse(readFileSync(workspacePath)); workspace.workspace.entries[3].contentSha256 = 'd'.repeat(64)
+      workspace.workspace.treeSha256 = 'e'.repeat(64); rmSync(workspacePath); json(workspacePath, workspace)
+      const groupPath = join(output, 'group-stop.receipt.json'), group = JSON.parse(readFileSync(groupPath))
+      group.workspaceTreeSha256 = workspace.workspace.treeSha256; rmSync(groupPath); json(groupPath, group)
+    },
+    ({ output }) => {
+      const path = join(output, 'group-stop.workspace.receipt.json'), target = join(output, '..', 'workspace-receipt-target.json')
+      rmSync(path); json(target, workspaceReceipt(marker('stop'))); symlinkSync(target, path)
+    },
+    ({ output }) => linkSync(join(output, 'group-stop.workspace.receipt.json'), join(output, '..', 'workspace-receipt-hardlink.json')),
+    ({ output }) => {
+      const path = join(output, 'group-stop.receipt.json'), value = JSON.parse(readFileSync(path))
+      value.workspaceTreeSha256 = 'not-a-sha256'; rmSync(path); json(path, value)
+    },
+    ({ output }) => {
+      const workspace = join(output, 'group-stop/group-stop-workspace'); mkdirSync(workspace, { recursive: true })
+      json(join(workspace, 'owner.json'), { id: randomUUID(), scope: 'musicbridge-capacity-stop-workspace' })
+    },
+  ]
+  for (const mutate of mutations) {
+    const f = copiedSupervisor()
+    try {
+      const a = completeArtifacts(f.runtime, mutate)
+      const observed = bridge(f.script, 'artifacts', { runtime: f.runtime, label: a.label })
+      assert.equal(observed.ok, true)
+      assert.equal(observed.value.receiptsValid && observed.value.workspaceReceiptValid
+        && observed.value.unexpectedEntries.length === 0, false)
+    } finally { f.cleanup() }
+  }
+})
+
+test('fixture摘要必须精确闭合且SQLite内容明确未hash', () => {
+  const mutations = [
+    ({ output }) => rmSync(join(output, 'fixture-after.json')),
+    ({ output }) => {
+      const path = join(output, 'fixture-after.json'), value = JSON.parse(readFileSync(path))
+      value.treeSha256 = 'd'.repeat(64); rmSync(path); json(path, value)
+    },
+    ({ output }) => {
+      const path = join(output, 'fixture-before.json'), value = JSON.parse(readFileSync(path))
+      value.databaseContentSha256Verified = true; rmSync(path); json(path, value)
+    },
+    ({ output }) => {
+      const path = join(output, 'fixture-before.json'), value = JSON.parse(readFileSync(path))
+      const sqlite = value.entries.find(entry => entry.relative === 'seed.sqlite')
+      sqlite.contentSha256Verified = true; sqlite.contentSha256 = 'e'.repeat(64); rmSync(path); json(path, value)
+    },
+    ({ output }) => {
+      const path = join(output, 'fixture-before.json'), value = JSON.parse(readFileSync(path))
+      value.extra = true; rmSync(path); json(path, value)
+    },
+    ({ output }) => {
+      for (const name of ['fixture-before.json', 'fixture-after.json']) {
+        const path = join(output, name), value = JSON.parse(readFileSync(path))
+        value.entries[1].contentSha256 = 'd'.repeat(64); value.treeSha256 = 'e'.repeat(64)
+        rmSync(path); json(path, value)
+      }
+    },
+  ]
+  for (const mutate of mutations) {
+    const f = copiedSupervisor()
+    try {
+      const a = completeArtifacts(f.runtime, mutate)
+      const observed = bridge(f.script, 'artifacts', { runtime: f.runtime, label: a.label })
+      assert.equal(observed.ok, true)
+      assert.equal(observed.value.fixtureTreeValid, false)
     } finally { f.cleanup() }
   }
 })
@@ -569,6 +821,23 @@ test('legacy carryover拒绝receipt缺失、内容漂移与samples拼接漂移',
     try { assert.equal(bridge(f.script, 'carryover', legacyCarryover(f, mutate)).ok, false) }
     finally { f.cleanup() }
   }
+})
+
+test('prebuild或stop partial可保留受控workspace但绝不误判成功', () => {
+  const f = copiedSupervisor()
+  try {
+    const a = partialArtifacts(f.runtime)
+    const workspace = join(a.output, 'group-stop/group-stop-workspace'); mkdirSync(workspace)
+    json(join(workspace, 'owner.json'), { id: randomUUID(), scope: 'musicbridge-capacity-stop-workspace' })
+    for (const name of ['source', 'execution', 'archive']) mkdirSync(join(workspace, name))
+    writeFileSync(join(workspace, 'source/fixture.wav'), 'partial fixture')
+    const observed = bridge(f.script, 'artifacts', { runtime: f.runtime, label: a.label })
+    assert.equal(observed.ok, true)
+    assert.equal(observed.value.partialEvidenceValid, true)
+    assert.equal(observed.value.verifiedComplete, false)
+    assert.equal(observed.value.verifiedPassed, false)
+    assert.deepEqual(observed.value.unexpectedEntries, [])
+  } finally { f.cleanup() }
 })
 
 test('legacy carryover拒绝v2 artifact及任意多余顶层entry', () => {

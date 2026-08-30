@@ -3,7 +3,7 @@ import test from 'node:test';
 import { createHash, randomUUID, type Hash, type BinaryLike } from 'node:crypto';
 import { fork, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
-import { DatabaseSync } from 'node:sqlite';
+import { DatabaseSync, backup } from 'node:sqlite';
 import { isMasterArtworkImage, isRecordingPrintPdfBase64 } from '@music-bridge/contracts';
 import { mkdtempSync, realpathSync, writeFileSync, existsSync, readFileSync, rmSync, mkdirSync, lstatSync, readdirSync, symlinkSync } from 'node:fs';
 import os from 'node:os';
@@ -155,7 +155,14 @@ test('measure group生命周期固定为3次完整clone/hash，stop组105轮rece
   const api = await import('./helpers/recording-capacity-fixture.js');
   const benchmark = readFileSync(new URL('./benchmarks/recording-capacity.ts', import.meta.url), 'utf8');
   assert.match(benchmark, /const stopGroup = openGroup\('stop'\)/u);
-  assert.match(benchmark, /running\(stopGroup\.repository\)/u, '105轮必须复用同一个长期Repository');
+  assert.match(benchmark, /prepareCapacityStopPlans\(\s*stopGroup\.repository,\s*template,\s*plan\.stopRounds,\s*path\.join\(\s*stopGroup\.clone\.directory,\s*'group-stop-workspace'\s*\)\s*\)/u,
+    '105轮必须在计时前经公开Core路径准备独立physical copy与frozen plan');
+  assert.match(benchmark, /running\(stopGroup\.repository, stopPlans\[roundIndex - 1\]!\)/u, '每轮必须在同一长期Repository消费不同Plan');
+  assert.equal(benchmark.match(/verifyRecordingPlanDatabase\(stopGroup\.auditDb\)/gu)?.length, 2, 'Stop计时前后都必须复核Plan DB');
+  assert.equal(benchmark.match(/verifyRecordingAttemptDatabase\(stopGroup\.auditDb\)/gu)?.length, 2, 'Stop计时前后都必须复核Attempt DB');
+  assert.equal(benchmark.match(/verifyRecordingRecordDatabase\(stopGroup\.auditDb\)/gu)?.length, 2, 'Stop计时前后都必须复核Record DB');
+  assert.match(benchmark, /ownedWorkspace:\s*stopWorkspace/u, 'Stop final receipt必须绑定受控workspace后统一清理');
+  assert.match(benchmark, /fixture-before\.json/u); assert.match(benchmark, /fixture-after\.json/u);
   assert.equal(benchmark.match(/createCapacityClone\(output, `group-\$\{group\}`/gu)?.length, 1,
     'benchmark只能从统一group入口创建clone');
   assert.doesNotMatch(benchmark, /sample-\$\{\+\+nextCopy\}/u, '不得退回每轮sample clone');
@@ -210,6 +217,77 @@ test('measure group生命周期固定为3次完整clone/hash，stop组105轮rece
   for (const group of ['progress', 'stop', 'read']) assert.deepEqual(stages.filter(row => row.group === group).map(row => row.phase),
     ['copy', 'open-audit', 'operation', 'round-fsync', 'final-hash', 'cleanup']);
   assert.deepEqual([...new Set(stages.map(row => row.phase))], ['copy', 'open-audit', 'operation', 'round-fsync', 'final-hash', 'cleanup']);
+});
+
+test('measure stop group在单一clone内每轮都从合法隔离基线Begin，不复用已停止physical copy', { timeout: 60_000 }, async t => {
+  const api = await import('./helpers/recording-capacity-fixture.js');
+  const { createRecordingAttemptCoordinator } = await import('../src/recording/attempt-coordinator.js');
+  const { createCollectionRepository } = await import('../src/collection/repository.js');
+  const f = await api.createCapacityPilot(t);
+  const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'musicbridge-capacity-stop-workspace-')));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const seed = path.join(directory, 'seed.sqlite'); await backup(f.db, seed);
+  const clone = api.createCapacityClone(directory, 'group-stop', seed), repository = createCollectionRepository({ filePath: clone.filePath });
+  let repositoryClosed = false; t.after(() => { if (!repositoryClosed) repository.close(); });
+  const sharedBefore = api.summarizeCapacityFixtureTree(f.directory), workspacePath = path.join(clone.directory, 'group-stop-workspace');
+  assert.equal(sharedBefore.databaseContentSha256Verified, false, '共享fixture中的SQLite只能核身份，不能读取或hash');
+  const template = repository.recordingPlans.version({ id: f.nextPlan.id }).plan!;
+  const prepared = await api.prepareCapacityStopPlans(repository, template, 2, workspacePath), stopPlans = prepared.plans;
+  assert.equal(realpathSync(prepared.workspace.path), workspacePath);
+  assert.ok(repository.sources.roots().some(root => root.path === path.join(workspacePath, 'source')));
+  assert.ok(repository.preparations.destinations().some(root => root.path === path.join(workspacePath, 'execution')));
+  assert.ok(repository.archive.candidates().some(root => root.parent.path === path.join(workspacePath, 'archive')));
+  const coordinator = () => createRecordingAttemptCoordinator({ store: repository.recordingAttempts, admissionProvider: {
+    async authorize() {}, async start() { return { async stop() {}, async close() {} }; },
+  } });
+  const round = async (plan: typeof f.nextPlan) => {
+    const service = coordinator();
+    const attempt = await service.begin({ commandId: randomUUID(), planVersionId: plan.id,
+      planContentHash: plan.contentHash, userConfirmed: true });
+    await service.stop({ commandId: randomUUID(), attemptId: attempt.id });
+    await service.close();
+    return attempt;
+  };
+  const first = await round(stopPlans[0]!);
+  const second = await round(stopPlans[1]!);
+  assert.notEqual(first.id, second.id);
+  assert.notEqual(first.physicalId, second.physicalId);
+  const blocked = coordinator();
+  await assert.rejects(blocked.begin({ commandId: randomUUID(), planVersionId: stopPlans[0]!.id,
+    planContentHash: stopPlans[0]!.contentHash, userConfirmed: true }), { code: 'COPY_UNAVAILABLE' });
+  await blocked.close();
+  assert.deepEqual(api.summarizeCapacityFixtureTree(f.directory), sharedBefore, '预建和Stop不得改写封存seed fixture的任何身份或内容');
+  assert.ok(readdirSync(workspacePath, { recursive: true }).length > 8, '新源、execution与archive文件必须只写入传入workspace');
+  repository.close(); repositoryClosed = true;
+  const receipt = api.finishCapacityClone(clone, { outcome: 'ok', resourcesClosed: true, samples: [], ownedWorkspace: prepared.workspace,
+    onPhase: (phase, details) => api.appendCapacityMeasureStage(directory, 'stop', phase, details) });
+  const final = JSON.parse(readFileSync(receipt, 'utf8'));
+  assert.match(final.sqliteSha256, /^[0-9a-f]{64}$/u); assert.match(final.workspaceTreeSha256, /^[0-9a-f]{64}$/u);
+  assert.equal(existsSync(path.join(directory, final.workspaceReceipt)), true, 'workspace树receipt必须在统一清理前持久化');
+  assert.equal(existsSync(workspacePath), false, '最终group receipt持久化后workspace与clone统一清理');
+});
+
+test('stop workspace最终receipt写入故障时整体保留clone、SQLite与workspace', { timeout: 60_000 }, async t => {
+  const api = await import('./helpers/recording-capacity-fixture.js');
+  const { createCollectionRepository } = await import('../src/collection/repository.js');
+  const f = await api.createCapacityPilot(t);
+  const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'musicbridge-capacity-stop-retention-')));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const seed = path.join(directory, 'seed.sqlite'); await backup(f.db, seed);
+  const clone = api.createCapacityClone(directory, 'group-stop', seed), repository = createCollectionRepository({ filePath: clone.filePath });
+  let repositoryClosed = false; t.after(() => { if (!repositoryClosed) repository.close(); });
+  const template = repository.recordingPlans.version({ id: f.nextPlan.id }).plan!;
+  const prepared = await api.prepareCapacityStopPlans(repository, template, 1, path.join(clone.directory, 'group-stop-workspace'));
+  repository.close(); repositoryClosed = true;
+  writeFileSync(path.join(directory, 'group-stop.receipt.json'), '故意占用最终receipt路径', { flag: 'wx' });
+  assert.throws(() => api.finishCapacityClone(clone, { outcome: 'ok', resourcesClosed: true, samples: [], ownedWorkspace: prepared.workspace,
+    onPhase: (phase, details) => api.appendCapacityMeasureStage(directory, 'stop', phase, details) }));
+  assert.equal(existsSync(clone.filePath), true, 'final receipt失败必须保留SQLite');
+  assert.equal(existsSync(prepared.workspace.path), true, 'final receipt失败必须保留整个workspace');
+  assert.equal(existsSync(path.join(directory, 'group-stop.workspace.receipt.json')), true, '故障发生前的workspace树receipt保持可审计');
+  symlinkSync(seed, path.join(prepared.workspace.path, 'unexpected-link'));
+  assert.throws(() => api.finishCapacityClone(clone, { outcome: 'ok', resourcesClosed: true, samples: [], ownedWorkspace: prepared.workspace }), /异常对象/u);
+  assert.equal(existsSync(clone.filePath), true, 'workspace异常对象不得触发递归清理');
 });
 
 test('measure CLI只接受显式规范TASK078 runtime-root，generate拒绝该参数', t => {
