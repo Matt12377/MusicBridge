@@ -240,6 +240,29 @@ _MEASURE_GROUPS = ('progress', 'stop', 'read')
 _STOP_METRICS = ('signalAborted', 'driverStopInvoked', 'driverStopAck',
                  'driverCloseInvoked', 'driverCloseResolved', 'receiptSettled')
 _STAGE_PHASES = ('copy', 'open-audit', 'operation', 'round-fsync', 'final-hash', 'cleanup')
+_QUEUED_STOP_KEYS = {'schemaVersion', 'scope', 'owner', 'id', 'state', 'phase', 'profile',
+                     'label', 'seedLabel', 'seed', 'n', 'issuedAt', 'deadlineAt', 'limits',
+                     'ownedManifest', 'sourceManifest', 'queuedStopPlan', 'supervisor',
+                     'candidateRepository', 'measureCarryover', 'toolchain', 'issuer'}
+_QUEUED_STOP_LIMITS = {'executionMs': 50000, 'killGraceMs': 1000, 'closeMs': 2000,
+                       'minimumFreeBytes': 10 * 1024 ** 3, 'maximumOwnedBytes': 16 * 1024 ** 3}
+_QUEUED_STOP_ALLOWANCE = 256 * 1024 ** 2
+_QUEUED_STOP_SNAPSHOT_BYTES = 1_990_471_680
+_QUEUED_STOP_AUDIT = 'queued-stop-aggregate-budget.jsonl'
+_QUEUED_STOP_MODEL = 'serial-single-clone-plus-bounded-growth-v1'
+_QUEUED_STOP_EXISTING_ROOTS = 73
+_QUEUED_STOP_MEASURE_WINDOW_ID = 'afc81a99-d15d-4179-8326-5774a5c40b62'
+_QUEUED_STOP_SEED = {'metadataSha256': '632d8e4b0c01ffec07adc72344e7bcc877e5f1d764e7745af856c6ba44492309',
+                     'snapshotSha256': '7ec9b3bed1642503cc9fcee70c6156b54eb43834b0a457050ec51607f2e1ab3a',
+                     'fixtureOwnerSha256': '8e885bdee2c2acd6ba6b189f6de6c88bcb5e3a4b84d838a9b56e30987eb716c1'}
+_QUEUED_STOP_CARRYOVER = {
+    'window': 'cfac8e19336a181de00c68d458d046065cd821a0dca48cc4fc78af0e15c15227',
+    'close': '1c93f6c6ec1a0b58619f87127d3e2c7d11a1cfcce1c155b3576a84eda2af84b7',
+    'ownedManifest': 'cd6faddd3b205f290e379cec95af9c20a6fbbbbfd2c7989ef07ff2712bc3c4ab',
+    'sourceManifest': '71bfb77f9c706ae9d31f580d4067f7ff427ee1099c341f03915d39ab1edff503',
+    'supervision': '18ef840fe99b861ca8881c7c7be09b70c13431df02d88ddf282e29f2169cdc92',
+    'supervisor': 'aaf871474dfe8129bae76ff8d2f07ed4f9a1200801d9108d005e6bbd1823e743',
+    'output': '4a0417df8056764a5ba6a24ffda42d7be590cb4bfbd480b5d7188d8d609b8231'}
 
 
 def _measure_planned_bytes(snapshot_bytes):
@@ -2261,6 +2284,793 @@ def _measure_artifacts(runtime, label, expected=None):
         'verifiedComplete': verified_complete, 'verifiedPassed': verified}
 
 
+def _queued_stop_times(window):
+    try:
+        issued = datetime.datetime.fromisoformat(window['issuedAt'])
+        deadline = datetime.datetime.fromisoformat(window['deadlineAt'])
+    except (KeyError, TypeError, ValueError) as error:
+        raise SystemExit('CAPACITY_SUPERVISOR_INPUT') from error
+    if issued.utcoffset() is None or deadline.utcoffset() is None \
+            or deadline - issued != datetime.timedelta(seconds=900):
+        raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
+    return issued.timestamp(), deadline.timestamp()
+
+
+def _queued_stop_planned_bytes(snapshot_bytes):
+    if type(snapshot_bytes) is not int or snapshot_bytes <= 0:
+        raise ValueError('QUEUED_STOP_PLAN')
+    planned = snapshot_bytes + _QUEUED_STOP_ALLOWANCE
+    if planned > _QUEUED_STOP_LIMITS['maximumOwnedBytes']:
+        raise ValueError('QUEUED_STOP_PLAN')
+    return planned
+
+
+def _queued_stop_exact_binding(value, keys):
+    return isinstance(value, dict) and set(value) == set(keys) \
+        and isinstance(value.get('path'), str) and Path(value['path']).is_absolute() \
+        and _SHA256.fullmatch(str(value.get('sha256', ''))) is not None
+
+
+def _queued_stop_identity_schema(value):
+    return _queued_stop_exact_binding(value, {'path', 'sha256'})
+
+
+def _validate_queued_stop_window(window, now):
+    required = {'schemaVersion': 1, 'scope': 'musicbridge-capacity-queued-stop-window',
+                'owner': 'root', 'state': 'approved', 'phase': 'queued-stop',
+                'profile': 'objects-limit', 'n': 105}
+    if not isinstance(window, dict) or set(window) != _QUEUED_STOP_KEYS \
+            or any(window.get(key) != value for key, value in required.items()) \
+            or not _uuid4(window.get('id')) or _SAFE.fullmatch(str(window.get('label', ''))) is None \
+            or _SAFE.fullmatch(str(window.get('seedLabel', ''))) is None \
+            or window.get('limits') != _QUEUED_STOP_LIMITS:
+        raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
+    seed = window.get('seed')
+    if not isinstance(seed, dict) or set(seed) != {'label', 'metadataSha256', 'snapshotSha256', 'fixtureOwnerSha256'} \
+            or seed.get('label') != window['seedLabel'] \
+            or any(seed.get(key) != expected for key, expected in _QUEUED_STOP_SEED.items()) \
+            or any(_SHA256.fullmatch(str(seed.get(key, ''))) is None
+                   for key in ('metadataSha256', 'snapshotSha256', 'fixtureOwnerSha256')):
+        raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
+    plan = window.get('queuedStopPlan')
+    plan_keys = {'warmupCount', 'formalCount', 'sampleCount', 'activeCloneMaximum',
+                 'snapshotBytes', 'evidenceAllowanceBytes', 'plannedBytes', 'model', 'aggregateAudit'}
+    try: expected_planned = _queued_stop_planned_bytes(plan.get('snapshotBytes'))
+    except (AttributeError, ValueError) as error: raise SystemExit('CAPACITY_SUPERVISOR_INPUT') from error
+    if not isinstance(plan, dict) or set(plan) != plan_keys \
+            or plan.get('warmupCount') != 5 or plan.get('formalCount') != 100 \
+            or plan.get('sampleCount') != 105 or plan.get('activeCloneMaximum') != 1 \
+            or plan.get('snapshotBytes') != _QUEUED_STOP_SNAPSHOT_BYTES \
+            or plan.get('evidenceAllowanceBytes') != _QUEUED_STOP_ALLOWANCE \
+            or plan.get('plannedBytes') != expected_planned \
+            or plan.get('model') != _QUEUED_STOP_MODEL or plan.get('aggregateAudit') != _QUEUED_STOP_AUDIT:
+        raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
+    for key, name in (('ownedManifest', 'owned-roots.json'), ('sourceManifest', 'source-pins.json')):
+        value = window.get(key)
+        if not isinstance(value, dict) or set(value) != {'file', 'sha256'} \
+                or value.get('file') != name or _SHA256.fullmatch(str(value.get('sha256', ''))) is None:
+            raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
+    carry = window.get('measureCarryover')
+    carry_keys = {'window', 'close', 'ownedManifest', 'sourceManifest', 'supervision', 'supervisor', 'output'}
+    if not isinstance(carry, dict) or set(carry) != carry_keys \
+            or not _queued_stop_exact_binding(carry.get('close'), {'path', 'sha256'}) \
+            or not _queued_stop_exact_binding(carry.get('ownedManifest'), {'path', 'sha256'}) \
+            or not _queued_stop_exact_binding(carry.get('sourceManifest'), {'path', 'sha256'}) \
+            or not _queued_stop_exact_binding(carry.get('supervision'), {'path', 'sha256'}) \
+            or not _queued_stop_exact_binding(carry.get('supervisor'), {'path', 'sha256'}):
+        raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
+    previous_window = carry.get('window')
+    output = carry.get('output')
+    if not _queued_stop_exact_binding(previous_window, {'path', 'id', 'sha256'}) \
+            or previous_window.get('id') != _QUEUED_STOP_MEASURE_WINDOW_ID \
+            or previous_window.get('sha256') != _QUEUED_STOP_CARRYOVER['window'] \
+            or any(carry[key]['sha256'] != _QUEUED_STOP_CARRYOVER[key]
+                   for key in ('close', 'ownedManifest', 'sourceManifest', 'supervision', 'supervisor')) \
+            or not isinstance(output, dict) or set(output) != {'path', 'label', 'commandSha256'} \
+            or not isinstance(output.get('path'), str) or not Path(output['path']).is_absolute() \
+            or _SAFE.fullmatch(str(output.get('label', ''))) is None \
+            or _SHA256.fullmatch(str(output.get('commandSha256', ''))) is None:
+        raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
+    if output['commandSha256'] != _QUEUED_STOP_CARRYOVER['output']:
+        raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
+    toolchain = window.get('toolchain'); issuer = window.get('issuer')
+    if not isinstance(toolchain, dict) or set(toolchain) != {'node', 'tsxLoader', 'consumerPython'} \
+            or any(not _queued_stop_identity_schema(toolchain.get(key))
+                   for key in ('node', 'tsxLoader', 'consumerPython')) \
+            or not isinstance(issuer, dict) or set(issuer) != {'path', 'sha256', 'fact'} \
+            or not _queued_stop_exact_binding(issuer, {'path', 'sha256', 'fact'}) \
+            or not _queued_stop_identity_schema(issuer.get('fact')):
+        raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
+    _validate_supervisor_identity(window)
+    try: _validate_candidate_repository(window)
+    except ValueError as error: raise SystemExit('CAPACITY_SUPERVISOR_INPUT') from error
+    issued, deadline = _queued_stop_times(window)
+    if deadline <= now or issued > now + 1:
+        raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
+    return issued, deadline
+
+
+def _validate_queued_stop_bound_file(binding, expected_path=None, executable=False, maximum=32 * 1024 * 1024):
+    if not _queued_stop_identity_schema(binding):
+        raise ValueError('QUEUED_STOP_IDENTITY')
+    supplied = Path(binding['path'])
+    try:
+        canonical = supplied.resolve(strict=True); identity = _strict_identity(supplied, maximum)
+    except (OSError, ValueError) as error:
+        raise ValueError('QUEUED_STOP_IDENTITY') from error
+    if supplied != canonical or expected_path is not None \
+            and canonical != Path(expected_path).resolve(strict=True) \
+            or identity['sha256'] != binding['sha256'] \
+            or executable and not os.access(canonical, os.X_OK):
+        raise ValueError('QUEUED_STOP_IDENTITY')
+    return identity
+
+
+def _validate_queued_stop_bound_identities(window, parent, candidate):
+    toolchain = window['toolchain']; issuer = window['issuer']
+    issuer_path = candidate / 'scripts/ci/issue-v3-capacity-queued-stop-window.py'
+    identities = {
+        'node': _validate_queued_stop_bound_file(
+            toolchain['node'], executable=True, maximum=256 * 1024 * 1024),
+        'tsxLoader': _validate_queued_stop_bound_file(toolchain['tsxLoader']),
+        'consumerPython': _validate_queued_stop_bound_file(
+            toolchain['consumerPython'], expected_path=Path(sys.executable), executable=True),
+        'issuer': _validate_queued_stop_bound_file(
+            {'path': issuer['path'], 'sha256': issuer['sha256']}, expected_path=issuer_path),
+        'issuerFact': _validate_queued_stop_bound_file(
+            issuer['fact'], expected_path=Path(parent) / 'issuer-identity' / 'owner.json', maximum=1024 * 1024),
+    }
+    try: fact, fact_identity = _strict_json(issuer['fact']['path'], 1024 * 1024)
+    except ValueError as error: raise ValueError('QUEUED_STOP_IDENTITY') from error
+    fact_keys = {'schemaVersion', 'scope', 'windowId', 'issuerRepository', 'candidateRepository',
+                 'supervisorSource', 'toolchain', 'measureCarryover'}
+    issuer_repo = fact.get('issuerRepository') if isinstance(fact, dict) else None
+    supervisor_source = fact.get('supervisorSource') if isinstance(fact, dict) else None
+    if not _queued_exact(fact, fact_keys) or fact.get('schemaVersion') != 1 \
+            or fact.get('scope') != 'musicbridge-capacity-queued-stop-authority-issuer' \
+            or fact.get('windowId') != window['id'] or fact.get('candidateRepository') != window['candidateRepository'] \
+            or fact.get('toolchain') != toolchain or fact.get('measureCarryover') != window['measureCarryover'] \
+            or not isinstance(issuer_repo, dict) \
+            or set(issuer_repo) != {'root', 'branch', 'head', 'relativePath', 'sha256'} \
+            or issuer_repo.get('sha256') != issuer['sha256'] \
+            or not isinstance(supervisor_source, dict) \
+            or set(supervisor_source) != {'path', 'relativePath', 'sha256'} \
+            or supervisor_source.get('relativePath') != 'scripts/ci/capacity-phase-supervisor-v2.py' \
+            or supervisor_source.get('path') != str(candidate / supervisor_source['relativePath']) \
+            or supervisor_source.get('sha256') != window['supervisor']['sha256']:
+        raise ValueError('QUEUED_STOP_IDENTITY')
+    issuer_root = Path(str(issuer_repo.get('root', '')))
+    issuer_relative = issuer_repo.get('relativePath')
+    if not issuer_root.is_absolute() or not isinstance(issuer_relative, str) \
+            or issuer_root / issuer_relative != Path(issuer['path']) \
+            or _GIT_SHA.fullmatch(str(issuer_repo.get('head', ''))) is None \
+            or _git_value(issuer_root, 'branch', '--show-current') != issuer_repo.get('branch') \
+            or _git_value(issuer_root, 'rev-parse', 'HEAD^{commit}') != issuer_repo.get('head'):
+        raise ValueError('QUEUED_STOP_IDENTITY')
+    try:
+        issuer_blob = subprocess.check_output(
+            ['/usr/bin/git', 'show', f"{issuer_repo['head']}:{issuer_relative}"], cwd=issuer_root,
+            stderr=subprocess.DEVNULL)
+        supervisor_blob = subprocess.check_output(
+            ['/usr/bin/git', 'show', f"{window['candidateRepository']['head']}:scripts/ci/capacity-phase-supervisor-v2.py"],
+            cwd=candidate, stderr=subprocess.DEVNULL)
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise ValueError('QUEUED_STOP_IDENTITY') from error
+    if hashlib.sha256(issuer_blob).hexdigest() != issuer['sha256'] \
+            or hashlib.sha256(supervisor_blob).hexdigest() != window['supervisor']['sha256'] \
+            or identities['issuerFact'] != fact_identity:
+        raise ValueError('QUEUED_STOP_IDENTITY')
+    return identities
+
+
+def _validate_phase_source_manifest(manifest_path, root):
+    try: manifest, identity = _strict_json(manifest_path)
+    except ValueError as error: raise ValueError('QUEUED_STOP_SOURCE') from error
+    if not isinstance(manifest, dict) or set(manifest) != {'schemaVersion', 'scope', 'files'} \
+            or manifest.get('schemaVersion') != 1 \
+            or manifest.get('scope') != 'musicbridge-capacity-source-pins' \
+            or not isinstance(manifest.get('files'), dict):
+        raise ValueError('QUEUED_STOP_SOURCE')
+    root, paths = _expected_source_paths(root)
+    excluded = {'scripts/ci/capacity-phase-supervisor-v2.py',
+                'scripts/ci/issue-v3-capacity-measure-window.py'}
+    paths = [value for value in paths if value not in excluded]
+    if len(paths) != 241 or set(manifest['files']) != set(paths):
+        raise ValueError('QUEUED_STOP_SOURCE')
+    identities = {}
+    for relative in paths:
+        file = root / relative
+        try: observed = _strict_identity(file)
+        except ValueError as error: raise ValueError('QUEUED_STOP_SOURCE') from error
+        if file.resolve() != file or observed['sha256'] != manifest['files'].get(relative):
+            raise ValueError('QUEUED_STOP_SOURCE')
+        identities[relative] = observed
+    if _strict_identity(manifest_path) != identity:
+        raise ValueError('QUEUED_STOP_SOURCE')
+    return {'valid': True, 'fileCount': 241, 'manifestIdentity': identity,
+            'fileIdentities': identities}
+
+
+def _validate_queued_stop_measure_carryover(carry, runtime):
+    runtime = Path(runtime).resolve(strict=True)
+    window_path = Path(carry['window']['path']); close_path = Path(carry['close']['path'])
+    owned_path = Path(carry['ownedManifest']['path']); source_path = Path(carry['sourceManifest']['path'])
+    supervision_path = Path(carry['supervision']['path']); supervisor_path = Path(carry['supervisor']['path'])
+    output = Path(carry['output']['path'])
+    if window_path.parent.parent != runtime or close_path.parent != window_path.parent \
+            or owned_path.parent != window_path.parent or source_path.parent != window_path.parent \
+            or supervision_path != window_path.parent / 'supervision' / 'supervisor.json' \
+            or supervisor_path != window_path.parent / 'supervisor.py' \
+            or output.parent != runtime or output.name != carry['output']['label']:
+        raise ValueError('QUEUED_STOP_MEASURE_CARRYOVER')
+    try:
+        window, window_identity = _strict_json(window_path)
+        close, close_identity = _strict_json(close_path)
+        supervision, supervision_identity = _strict_json(supervision_path)
+        supervisor_identity = _strict_identity(supervisor_path)
+        command_identity = _strict_identity(output / 'command.json')
+    except ValueError as error: raise ValueError('QUEUED_STOP_MEASURE_CARRYOVER') from error
+    bindings = ((window_identity, carry['window']['sha256']), (close_identity, carry['close']['sha256']),
+                (supervision_identity, carry['supervision']['sha256']),
+                (supervisor_identity, carry['supervisor']['sha256']),
+                (command_identity, carry['output']['commandSha256']))
+    if any(identity['sha256'] != expected for identity, expected in bindings) \
+            or window.get('id') != carry['window']['id'] or window.get('profile') != 'objects-limit' \
+            or window.get('scope') != 'musicbridge-capacity-measure-window' \
+            or close.get('scope') != 'musicbridge-capacity-measure-window-close' \
+            or close.get('windowId') != window.get('id') or close.get('state') != 'passed' \
+            or close.get('failure') is not None or close.get('code') != 0 \
+            or close.get('signals') != [] or close.get('groupEmpty') is not True or close.get('zombies') != [] \
+            or close.get('windowSha256') != carry['window']['sha256'] \
+            or close.get('ownedManifestSha256') != carry['ownedManifest']['sha256'] \
+            or close.get('sourceManifestSha256') != carry['sourceManifest']['sha256'] \
+            or close.get('supervisorSha256') != carry['supervision']['sha256'] \
+            or close.get('deviceOpened') is not False or close.get('formalReady') is not False \
+            or close.get('gateB') != 'NOT_RUN' \
+            or close.get('replayPolicy') != 'terminal-window-id-and-label-never-reuse' \
+            or supervision.get('passed') is not True or supervision.get('code') != 0 \
+            or supervision.get('signals') != [] or supervision.get('groupEmpty') is not True \
+            or supervision.get('zombies') != []:
+        raise ValueError('QUEUED_STOP_MEASURE_CARRYOVER')
+    measurement = close.get('measurement'); admission = close.get('authorityAdmission'); terminal = close.get('authorityTerminal')
+    if not isinstance(measurement, dict) or measurement.get('verifiedComplete') is not True \
+            or measurement.get('verifiedPassed') is not True or measurement.get('thresholdPassed') is not True \
+            or measurement.get('sampleCount') != 1575 or measurement.get('receiptCount') != 3 \
+            or measurement.get('roundReceiptCount') != 105 or measurement.get('stageCount') != 18 \
+            or measurement.get('aggregateBudgetValid') is not True \
+            or measurement.get('aggregateBudgetRowCount') != 2383 \
+            or measurement.get('aggregateBudgetSnapshotBytes') != 1_990_471_680 \
+            or measurement.get('aggregateBudgetLimitBytes') != 2_258_907_136 \
+            or measurement.get('aggregateOutputBytes') != 5_544_090 \
+            or not isinstance(admission, dict) or admission.get('authorityStable') is not True \
+            or admission.get('sourceFileCount') != 243 or admission.get('ownedRootCount') != 71 \
+            or admission.get('plannedBytes') != 2_258_907_136 \
+            or not isinstance(terminal, dict) or terminal.get('authorityStable') is not True \
+            or terminal.get('sourceFileCount') != 243 or terminal.get('ownedRootCount') != 71 \
+            or terminal.get('plannedBytes') != 2_258_907_136:
+        raise ValueError('QUEUED_STOP_MEASURE_CARRYOVER')
+    frozen = _validate_frozen_owned_roots(
+        owned_path, runtime, carry['ownedManifest']['sha256'], window['id'], output, 'present',
+        'QUEUED_STOP_MEASURE_CARRYOVER')
+    if len(frozen['roots']) != 70:
+        raise ValueError('QUEUED_STOP_MEASURE_CARRYOVER')
+    try: source, source_identity = _strict_json(source_path)
+    except ValueError as error: raise ValueError('QUEUED_STOP_MEASURE_CARRYOVER') from error
+    if source_identity['sha256'] != carry['sourceManifest']['sha256'] \
+            or not isinstance(source, dict) or not isinstance(source.get('files'), dict) \
+            or len(source['files']) != 243:
+        raise ValueError('QUEUED_STOP_MEASURE_CARRYOVER')
+    output_root = _carryover_root_identity(output, 'command.json')
+    roots = [*frozen['roots'], output_root]
+    if len({row['path'] for row in roots}) != 71:
+        raise ValueError('QUEUED_STOP_MEASURE_CARRYOVER')
+    return {'valid': True, 'roots': roots, 'window': window, 'close': close,
+            'windowIdentity': window_identity, 'closeIdentity': close_identity,
+            'outputIdentity': output_root}
+
+
+def _validate_queued_stop_owned_manifest(manifest_path, runtime, window_id, parent, carry_roots,
+                                         planned_bytes, terminal=False):
+    runtime = Path(runtime).resolve(strict=True); parent = Path(parent).resolve(strict=True)
+    try: manifest, manifest_identity = _strict_json(manifest_path)
+    except ValueError as error: raise ValueError('QUEUED_STOP_OWNED') from error
+    if not isinstance(manifest, dict) or set(manifest) != {'schemaVersion', 'scope', 'access', 'windowId', 'roots'} \
+            or manifest.get('schemaVersion') != 1 or manifest.get('scope') != 'musicbridge-capacity-owned-roots' \
+            or manifest.get('access') != 'count-only' or manifest.get('windowId') != window_id \
+            or not isinstance(manifest.get('roots'), list) or len(manifest['roots']) != _QUEUED_STOP_EXISTING_ROOTS:
+        raise ValueError('QUEUED_STOP_OWNED')
+    rows = []; seen = set(); temp_root = Path(tempfile.gettempdir()).resolve(strict=True)
+    for row in manifest['roots']:
+        if not isinstance(row, dict) or set(row) != {'path', 'device', 'inode', 'marker'} \
+                or type(row.get('device')) is not int or type(row.get('inode')) is not int:
+            raise ValueError('QUEUED_STOP_OWNED')
+        path = Path(str(row.get('path', ''))); marker = row.get('marker')
+        try: info = path.lstat(); canonical = path.resolve(strict=True)
+        except OSError as error: raise ValueError('QUEUED_STOP_OWNED') from error
+        fixture = path.parent == temp_root and re.fullmatch(r'musicbridge-version-[A-Za-z0-9]+', path.name)
+        app_clone = path.parent == temp_root and re.fullmatch(r'musicbridge-ui-diagnostics-r021-[A-Za-z0-9]{6}', path.name)
+        if not path.is_absolute() or path.is_symlink() or canonical != path or not stat.S_ISDIR(info.st_mode) \
+                or str(path) in seen or info.st_dev != row['device'] or info.st_ino != row['inode'] \
+                or not (_inside(runtime, path) and path != runtime or fixture or app_clone) \
+                or not isinstance(marker, dict) or set(marker) != {'relative', 'sha256'} \
+                or marker.get('relative') not in _MARKERS \
+                or _SHA256.fullmatch(str(marker.get('sha256', ''))) is None:
+            raise ValueError('QUEUED_STOP_OWNED')
+        try: marker_identity = _strict_identity(path / marker['relative'])
+        except ValueError as error: raise ValueError('QUEUED_STOP_OWNED') from error
+        if marker_identity['sha256'] != marker['sha256']:
+            raise ValueError('QUEUED_STOP_OWNED')
+        seen.add(str(path)); rows.append(row)
+    required = {row['path'] for row in carry_roots} | {str(parent), str(parent / 'issuer-identity')}
+    if seen != required or len(required) != _QUEUED_STOP_EXISTING_ROOTS:
+        raise ValueError('QUEUED_STOP_OWNED')
+    minimal = [Path(value) for value in sorted(seen)
+               if not any(value != other and _inside(Path(other), Path(value)) for other in seen)]
+    owned_bytes = 0
+    for root in minimal:
+        size, _ = _directory_bytes(root)
+        owned_bytes += size
+        if owned_bytes > _QUEUED_STOP_LIMITS['maximumOwnedBytes']:
+            raise ValueError('QUEUED_STOP_SPACE')
+    reserve = 0 if terminal else planned_bytes
+    available = os.statvfs(parent).f_bavail * os.statvfs(parent).f_frsize
+    if owned_bytes + reserve > _QUEUED_STOP_LIMITS['maximumOwnedBytes'] \
+            or available - reserve < _QUEUED_STOP_LIMITS['minimumFreeBytes']:
+        raise ValueError('QUEUED_STOP_SPACE')
+    return {'valid': True, 'rootCount': len(rows), 'ownedBytes': owned_bytes,
+            'plannedBytes': planned_bytes, 'remainingPlannedBytes': reserve,
+            'availableBytes': available, 'manifestIdentity': manifest_identity}
+
+
+def _validate_queued_stop_authority(parent, runtime, repo_root, window_sha256,
+                                    terminal=False, initial=None):
+    parent = Path(parent).resolve(strict=True); runtime = Path(runtime).resolve(strict=True)
+    try:
+        window, window_identity = _strict_json(parent / 'window.json')
+        owner, owner_identity = _strict_json(parent / 'owner.json')
+    except ValueError as error: raise ValueError('QUEUED_STOP_AUTHORITY') from error
+    if window_identity['sha256'] != window_sha256 \
+            or owner != {'scope': window.get('scope'), 'owner': 'root', 'id': window.get('id')}:
+        raise ValueError('QUEUED_STOP_AUTHORITY')
+    _validate_queued_stop_window(window, time.time() if not terminal else
+                                 datetime.datetime.fromisoformat(window['issuedAt']).timestamp())
+    candidate = _validate_candidate_repository(window, runtime)
+    if candidate != Path(repo_root).resolve(strict=True):
+        raise ValueError('QUEUED_STOP_AUTHORITY')
+    bound_identities = _validate_queued_stop_bound_identities(window, parent, candidate)
+    carry = _validate_queued_stop_measure_carryover(window['measureCarryover'], runtime)
+    source = _validate_phase_source_manifest(parent / 'source-pins.json', candidate)
+    if source['manifestIdentity']['sha256'] != window['sourceManifest']['sha256']:
+        raise ValueError('QUEUED_STOP_AUTHORITY')
+    owned = _validate_queued_stop_owned_manifest(
+        parent / 'owned-roots.json', runtime, window['id'], parent, carry['roots'],
+        window['queuedStopPlan']['plannedBytes'], terminal=terminal)
+    if owned['manifestIdentity']['sha256'] != window['ownedManifest']['sha256']:
+        raise ValueError('QUEUED_STOP_AUTHORITY')
+    value = {'authorityStable': True, 'windowStable': True, 'ownerStable': True,
+             'sourceManifestStable': True, 'ownedManifestStable': True,
+             'sourcePinsValid': True, 'ownedRootsValid': True, 'measureCarryoverValid': True,
+             'spaceValid': True, 'windowSha256Observed': window_identity['sha256'],
+             'ownerSha256Observed': owner_identity['sha256'], 'sourceFileCount': source['fileCount'],
+             'ownedRootCount': owned['rootCount'], 'ownedBytes': owned['ownedBytes'],
+             'plannedBytes': owned['plannedBytes'], 'remainingPlannedBytes': owned['remainingPlannedBytes'],
+             'availableBytes': owned['availableBytes'], 'candidateRepository': window['candidateRepository'],
+             'toolchainStable': True, 'issuerStable': True,
+             '_snapshot': {'window': window_identity, 'owner': owner_identity,
+                           'source': source['manifestIdentity'], 'owned': owned['manifestIdentity'],
+                           'node': bound_identities['node'], 'tsxLoader': bound_identities['tsxLoader'],
+                           'consumerPython': bound_identities['consumerPython'],
+                           'issuer': bound_identities['issuer'], 'issuerFact': bound_identities['issuerFact']}}
+    if initial is not None:
+        for key in ('window', 'owner', 'source', 'owned', 'node', 'tsxLoader',
+                    'consumerPython', 'issuer', 'issuerFact'):
+            if initial.get('_snapshot', {}).get(key) != value['_snapshot'][key]:
+                raise ValueError('QUEUED_STOP_AUTHORITY_DRIFT')
+    return value
+
+
+def _queued_stop_budget(output, plan):
+    file = Path(output) / _QUEUED_STOP_AUDIT
+    result = {'valid': False, 'rowCount': 0, 'finalOutputBytes': None, 'fileIdentity': None}
+    try:
+        identity = _strict_identity(file, 16 * 1024 * 1024)
+        rows, observed_identity = _legacy_jsonl(file)
+        if observed_identity != identity: return result
+        if not rows: return result
+        keys = {'schemaVersion', 'scope', 'sequence', 'checkpoint', 'group', 'activeClone',
+                'snapshotBytes', 'limitBytes', 'outputBytesBefore', 'plannedBytes', 'recordedAt'}
+        if len(rows) != 843:
+            return result
+        checkpoints = ('clone-before-write', 'clone-after-write', 'operation-returned',
+                       'sample-evidence-written', 'retention-written',
+                       'group-receipt-before-write', 'group-receipt-after-write',
+                       'clone-after-cleanup')
+        expected = [(None, 'output-created', None), (None, 'input-written', None)]
+        for sample in range(1, 106):
+            group = f'sample-{sample:03d}'
+            expected.extend((group, checkpoint,
+                             None if checkpoint in ('clone-before-write', 'clone-after-cleanup') else group)
+                            for checkpoint in checkpoints)
+        expected.append((None, 'terminal-written', None))
+        for index, (row, shape) in enumerate(zip(rows, expected), 1):
+            group, checkpoint, active_clone = shape
+            if not isinstance(row, dict) or set(row) != keys or row.get('schemaVersion') != 1 \
+                    or row.get('scope') != 'musicbridge-capacity-queued-stop-aggregate-budget' \
+                    or row.get('sequence') != index or row.get('checkpoint') != checkpoint \
+                    or row.get('group') != group or row.get('activeClone') != active_clone \
+                    or row.get('snapshotBytes') != plan['snapshotBytes'] \
+                    or row.get('limitBytes') != plan['plannedBytes'] \
+                    or type(row.get('outputBytesBefore')) is not int \
+                    or type(row.get('plannedBytes')) is not int \
+                    or not 0 <= row['outputBytesBefore'] <= plan['plannedBytes'] \
+                    or not 0 <= row['plannedBytes'] <= plan['plannedBytes'] - row['outputBytesBefore'] \
+                    or datetime.datetime.fromisoformat(str(row.get('recordedAt'))).utcoffset() is None:
+                return result
+        if rows[-1]['activeClone'] is not None or rows[-1]['plannedBytes'] != 0: return result
+        tree_bytes, _ = _directory_bytes(output, maximum=plan['plannedBytes'])
+        result.update(valid=tree_bytes <= plan['plannedBytes'], rowCount=len(rows),
+                      finalOutputBytes=tree_bytes, fileIdentity=identity)
+    except (OSError, ValueError, TypeError):
+        pass
+    return result
+
+
+def _queued_exact(value, keys):
+    return isinstance(value, dict) and set(value) == set(keys)
+
+
+def _queued_number(value):
+    return type(value) in (int, float) and math.isfinite(value) and 0 <= value <= 2 ** 53 - 1
+
+
+def _queued_space_valid(value, maximum_planned):
+    return _queued_exact(value, {'availableBytes', 'plannedBytes', 'ownedBytes'}) \
+        and all(type(value.get(key)) is int and value[key] >= 0
+                for key in ('availableBytes', 'plannedBytes', 'ownedBytes')) \
+        and value['plannedBytes'] <= maximum_planned \
+        and value['availableBytes'] - value['plannedBytes'] >= _QUEUED_STOP_LIMITS['minimumFreeBytes'] \
+        and value['ownedBytes'] + value['plannedBytes'] <= _QUEUED_STOP_LIMITS['maximumOwnedBytes']
+
+
+def _queued_distribution(values, limit_p95=None, limit_max=None):
+    values = sorted(values)
+    def rank(percent): return values[math.ceil(len(values) * percent) - 1] if values else None
+    result = {'n': len(values), 'p50': rank(.5), 'p95': rank(.95),
+              'p99': rank(.99), 'max': values[-1] if values else None}
+    if limit_p95 is not None:
+        result.update(limitP95=limit_p95, limitMax=limit_max,
+                      passed=len(values) == 100 and result['p95'] <= limit_p95
+                      and result['max'] <= limit_max)
+    elif limit_max is not None:
+        result.update(limitMax=limit_max,
+                      passed=len(values) == 100 and result['max'] <= limit_max)
+    return result
+
+
+def _queued_stop_measurement(raw, plan_id=None, plan_hash=None):
+    raw_keys = {'outcome', 'requestId', 'childPid', 'code', 'signal', 'closed', 'cleanup',
+                'forkToCloseMs', 'phase', 'timings', 'processGroup', 'result'}
+    timing_keys = {'clock', 'readyMs', 'receiptMs', 'exitMs',
+                   'sendStopToReceiptMs', 'receiptToChildCloseMs'}
+    result_keys = {'kind', 'planId', 'planHash', 'attemptId', 'order', 'progressFrames',
+                   'fullAuditMs', 'beginMs', 'progressMs', 'abortObserved',
+                   'driverStopInvoked', 'driverStopAcknowledged', 'stopReceivedToAbortMs',
+                   'stopReceivedToDriverStopInvokedMs', 'stopReceivedToDriverStopAckMs',
+                   'stopReceivedToReceiptMs', 'driverCloseInvoked', 'driverCloseResolved',
+                   'stopReceivedToDriverCloseInvokedMs', 'stopReceivedToDriverCloseResolvedMs',
+                   'childMeasuredMs', 'clock', 'deviceOpened', 'formalReady', 'gateB'}
+    if not _queued_exact(raw, raw_keys) or raw.get('outcome') != 'ok' \
+            or not _uuid4(raw.get('requestId')) or type(raw.get('childPid')) is not int \
+            or raw['childPid'] <= 0 or raw.get('code') != 0 or raw.get('signal') is not None \
+            or raw.get('closed') is not True or raw.get('cleanup') != {'termSent': False, 'killSent': False} \
+            or raw.get('phase') != 'exited' or not _queued_number(raw.get('forkToCloseMs')) \
+            or raw['forkToCloseMs'] > _QUEUED_STOP_LIMITS['executionMs']:
+        return None
+    timings = raw.get('timings'); group = raw.get('processGroup'); value = raw.get('result')
+    if not _queued_exact(timings, timing_keys) or timings.get('clock') != 'parent-relative' \
+            or not all(_queued_number(timings.get(key)) for key in timing_keys - {'clock'}) \
+            or not timings['readyMs'] <= timings['receiptMs'] <= timings['exitMs'] <= raw['forkToCloseMs'] \
+            or timings['receiptMs'] + timings['receiptToChildCloseMs'] > raw['forkToCloseMs'] \
+            or not _queued_exact(group, {'pgid', 'managed', 'groupEmpty', 'zombies'}) \
+            or group != {'pgid': raw['childPid'], 'managed': True, 'groupEmpty': True, 'zombies': []} \
+            or not _queued_exact(value, result_keys) or value.get('kind') != 'queue' \
+            or not _uuid4(value.get('planId')) or _SHA256.fullmatch(str(value.get('planHash', ''))) is None \
+            or plan_id is not None and value['planId'] != plan_id \
+            or plan_hash is not None and value['planHash'] != plan_hash \
+            or not _uuid4(value.get('attemptId')) or value.get('order') != ['progress', 'stop'] \
+            or value.get('progressFrames') != 1 or value.get('abortObserved') is not True \
+            or value.get('driverStopInvoked') is not True or value.get('driverStopAcknowledged') is not True \
+            or value.get('driverCloseInvoked') is not True or value.get('driverCloseResolved') is not True \
+            or value.get('clock') != 'child-relative' or value.get('deviceOpened') is not False \
+            or value.get('formalReady') is not False or value.get('gateB') != 'NOT_RUN':
+        return None
+    numeric = ('fullAuditMs', 'beginMs', 'progressMs', 'stopReceivedToAbortMs',
+               'stopReceivedToDriverStopInvokedMs', 'stopReceivedToDriverStopAckMs',
+               'stopReceivedToReceiptMs', 'stopReceivedToDriverCloseInvokedMs',
+               'stopReceivedToDriverCloseResolvedMs', 'childMeasuredMs')
+    if not all(_queued_number(value.get(key)) for key in numeric) \
+            or not value['stopReceivedToAbortMs'] <= value['stopReceivedToDriverStopInvokedMs'] \
+            <= value['stopReceivedToDriverStopAckMs'] <= value['stopReceivedToReceiptMs'] \
+            <= value['stopReceivedToDriverCloseInvokedMs'] \
+            <= value['stopReceivedToDriverCloseResolvedMs'] <= value['childMeasuredMs']:
+        return None
+    return {'childProgressMs': value['progressMs'],
+            'stopReceivedToAbortMs': value['stopReceivedToAbortMs'],
+            'stopReceivedToDriverStopInvokedMs': value['stopReceivedToDriverStopInvokedMs'],
+            'stopReceivedToDriverStopAckMs': value['stopReceivedToDriverStopAckMs'],
+            'stopReceivedToReceiptMs': value['stopReceivedToReceiptMs'],
+            'parentSendStopToReceiptMs': timings['sendStopToReceiptMs'],
+            'parentReceiptToChildCloseMs': timings['receiptToChildCloseMs'],
+            'driverCloseInvokedMs': value['stopReceivedToDriverCloseInvokedMs'],
+            'driverCloseResolvedMs': value['stopReceivedToDriverCloseResolvedMs']}
+
+
+def _queued_stop_summary(measurements):
+    field = lambda key: [value[key] for value in measurements]
+    summary = {'counts': {'warmup': 5, 'formal': 100},
+               'childProgressMs': _queued_distribution(field('childProgressMs'), 50, 100),
+               'stopReceivedToAbortMs': _queued_distribution(field('stopReceivedToAbortMs'), limit_max=100),
+               'stopReceivedToDriverStopInvokedMs': _queued_distribution(
+                   field('stopReceivedToDriverStopInvokedMs'), limit_max=100),
+               'stopReceivedToDriverStopAckMs': _queued_distribution(field('stopReceivedToDriverStopAckMs')),
+               'stopReceivedToReceiptMs': _queued_distribution(field('stopReceivedToReceiptMs'), 500, 2000),
+               'parentSendStopToReceiptMs': _queued_distribution(field('parentSendStopToReceiptMs'), limit_max=2000),
+               'parentReceiptToChildCloseMs': _queued_distribution(field('parentReceiptToChildCloseMs')),
+               'driverCloseInvokedMs': _queued_distribution(field('driverCloseInvokedMs')),
+               'driverCloseResolvedMs': _queued_distribution(field('driverCloseResolvedMs'), limit_max=250),
+               'passed': False}
+    summary['passed'] = all(summary[key]['passed'] for key in (
+        'childProgressMs', 'stopReceivedToAbortMs', 'stopReceivedToDriverStopInvokedMs',
+        'stopReceivedToReceiptMs', 'parentSendStopToReceiptMs', 'driverCloseResolvedMs'))
+    return summary
+
+
+def _validate_queued_stop_artifacts(parent, expected=None):
+    parent = Path(parent)
+    window = expected.get('window') if isinstance(expected, dict) else None
+    window_sha256 = expected.get('windowSha256') if isinstance(expected, dict) else None
+    output = parent / str(window.get('label', '')) if isinstance(window, dict) else parent
+    result = {'outputDirectory': str(output), 'verifiedComplete': False, 'verifiedPassed': False,
+              'fileCount': 0, 'sampleCount': 0, 'uniqueChildPids': 0,
+              'aggregateBudgetValid': False, 'unexpectedEntries': []}
+    try:
+        if not output.is_dir() or output.is_symlink(): return result
+        expected_names = {'owner.json', 'input.json', 'samples.jsonl', 'summary.json', 'exit.json', _QUEUED_STOP_AUDIT}
+        for index in range(1, 106):
+            name = f'sample-{index:03d}'
+            expected_names.update((f'{name}-intent.json', f'{name}-raw-receipt.json',
+                                   f'{name}-raw-receipt.sha256.json', f'{name}.json',
+                                   f'{name}-retention.json', f'{name}.receipt.json'))
+        entries = list(output.iterdir()); observed_names = {entry.name for entry in entries}
+        result['fileCount'] = len(entries); result['unexpectedEntries'] = sorted(observed_names - expected_names)
+        if observed_names != expected_names or len(entries) != 636 \
+                or any(not _ordinary_file(entry) or entry.stat().st_nlink != 1 for entry in entries):
+            return result
+        owner, _ = _strict_json(output / 'owner.json')
+        input_value, _ = _strict_json(output / 'input.json')
+        args = input_value.get('args') if isinstance(input_value, dict) else None
+        initial_space = input_value.get('initialSpace') if isinstance(input_value, dict) else None
+        operation_limits = input_value.get('effectiveOperationLimits') if isinstance(input_value, dict) else None
+        if not _queued_exact(owner, {'scope', 'id', 'windowId', 'label'}) \
+                or owner.get('scope') != 'musicbridge-capacity-phase-output' or not _uuid4(owner.get('id')) \
+                or owner.get('windowId') != window['id'] or owner.get('label') != window['label'] \
+                or not _queued_exact(input_value, {'args', 'windowId', 'seedSha256', 'sourceManifestSha256',
+                                                   'initialSpace', 'effectiveOperationLimits', 'classification',
+                                                   'cache', 'n', 'warmup', 'formalSamples', 'clocks', 'backend',
+                                                   'deviceOpened', 'formalReady', 'gateB'}) \
+                or not _queued_exact(args, {'phase', 'profile', 'label', 'seedLabel', 'windowPath',
+                                            'windowSha256', 'ownedRootsPath', 'ownedRootsSha256'}) \
+                or args.get('phase') != 'queued-stop' or args.get('profile') != 'objects-limit' \
+                or args.get('label') != window['label'] or args.get('seedLabel') != window['seedLabel'] \
+                or args.get('windowPath') != str(parent / 'window.json') \
+                or args.get('ownedRootsPath') != str(parent / 'owned-roots.json') \
+                or _SHA256.fullmatch(str(window_sha256 or '')) is None \
+                or args.get('windowSha256') != window_sha256 \
+                or args.get('ownedRootsSha256') != window['ownedManifest']['sha256'] \
+                or input_value.get('windowId') != window['id'] \
+                or input_value.get('seedSha256') != window['seed']['snapshotSha256'] \
+                or input_value.get('sourceManifestSha256') != window['sourceManifest']['sha256'] \
+                or not _queued_space_valid(initial_space, window['queuedStopPlan']['plannedBytes']) \
+                or initial_space.get('plannedBytes') != window['queuedStopPlan']['plannedBytes'] \
+                or operation_limits != {'executionMs': 50000, 'killGraceMs': 1000, 'closeMs': 2000,
+                                         'admissionReserveMs': 53000} \
+                or input_value.get('classification') != 'software-only/exclusive-window' \
+                or not isinstance(input_value.get('cache'), str) or not input_value['cache'] \
+                or input_value.get('n') != 105 or input_value.get('warmup') != 5 \
+                or input_value.get('formalSamples') != 100 \
+                or input_value.get('clocks') != 'parent与child分栏，不跨进程相减' \
+                or input_value.get('backend') != 'private-immediate-fake' \
+                or input_value.get('deviceOpened') is not False \
+                or input_value.get('formalReady') is not False or input_value.get('gateB') != 'NOT_RUN':
+            return result
+        rows, _ = _legacy_jsonl(output / 'samples.jsonl')
+        if len(rows) != 105: return result
+        child_pids = set(); request_ids = set(); attempt_ids = set(); marker_ids = set()
+        valid = True; measurements = []; plan_id = None; plan_hash = None
+        durations = []
+        for index in range(1, 106):
+            name = f'sample-{index:03d}'
+            intent, _ = _strict_json(output / f'{name}-intent.json')
+            raw, raw_identity = _strict_json(output / f'{name}-raw-receipt.json')
+            raw_hash, _ = _strict_json(output / f'{name}-raw-receipt.sha256.json')
+            row, _ = _strict_json(output / f'{name}.json')
+            retention, _ = _strict_json(output / f'{name}-retention.json')
+            receipt, _ = _strict_json(output / f'{name}.receipt.json')
+            pid = raw.get('childPid'); raw_result = raw.get('result') if isinstance(raw, dict) else None
+            measurement = _queued_stop_measurement(raw, plan_id, plan_hash)
+            if measurement is not None and plan_id is None:
+                plan_id = raw_result['planId']; plan_hash = raw_result['planHash']
+            if index > 5 and measurement is not None: measurements.append(measurement)
+            row_keys = {'index', 'phase', 'profile', 'warmup', 'preparationMs',
+                        'outcome', 'result', 'beforeSpace'}
+            before_space = row.get('beforeSpace') if isinstance(row, dict) else None
+            marker = receipt.get('marker') if isinstance(receipt, dict) else None
+            request_id = raw.get('requestId') if isinstance(raw, dict) else None
+            attempt_id = raw_result.get('attemptId') if isinstance(raw_result, dict) else None
+            marker_id = marker.get('id') if isinstance(marker, dict) else None
+            if intent != {'index': index, 'phase': 'queued-stop', 'profile': 'objects-limit',
+                          'windowId': window['id'], 'seedSha256': window['seed']['snapshotSha256'],
+                          'state': 'operation-not-yet-returned'} \
+                    or raw_hash != {'sha256': raw_identity['sha256']} \
+                    or measurement is None or pid in child_pids or request_id in request_ids \
+                    or attempt_id in attempt_ids or marker_id in marker_ids \
+                    or not _queued_exact(row, row_keys) or not _queued_number(row.get('preparationMs')) \
+                    or row.get('index') != index or row.get('warmup') is not (index <= 5) \
+                    or row.get('phase') != 'queued-stop' or row.get('profile') != 'objects-limit' \
+                    or row.get('outcome') != 'ok' or row.get('result') != raw or rows[index - 1] != row \
+                    or not _queued_space_valid(before_space, window['queuedStopPlan']['plannedBytes']) \
+                    or not _queued_exact(retention, {'retained', 'resourcesClosed', 'space'}) \
+                    or retention.get('retained') is not False or retention.get('resourcesClosed') is not True \
+                    or retention.get('space') != {'availableBytes': retention.get('space', {}).get('availableBytes'),
+                                                  'plannedBytes': 0,
+                                                  'ownedBytes': retention.get('space', {}).get('ownedBytes')} \
+                    or not _queued_space_valid(retention['space'], window['queuedStopPlan']['plannedBytes']) \
+                    or not _queued_exact(receipt, {'outcome', 'resourcesClosed', 'samples', 'marker',
+                                                   'sqliteSha256', 'retained', 'workspaceReceipt',
+                                                   'workspaceTreeSha256'}) \
+                    or receipt.get('outcome') != 'ok' or receipt.get('resourcesClosed') is not True \
+                    or receipt.get('samples') != [raw] or receipt.get('retained') is not False \
+                    or receipt.get('workspaceReceipt') is not None or receipt.get('workspaceTreeSha256') is not None \
+                    or not _queued_exact(marker, {'id', 'scope', 'label'}) or not _uuid4(marker.get('id')) \
+                    or marker.get('scope') != 'musicbridge-capacity-clone-only' or marker.get('label') != name \
+                    or _SHA256.fullmatch(str(receipt.get('sqliteSha256', ''))) is None:
+                valid = False
+            child_pids.add(pid)
+            request_ids.add(request_id); attempt_ids.add(attempt_id); marker_ids.add(marker_id)
+            if measurement is not None: durations.append(raw['forkToCloseMs'])
+        summary, _ = _strict_json(output / 'summary.json')
+        exit_value, _ = _strict_json(output / 'exit.json')
+        queue = summary.get('queuedStop') if isinstance(summary, dict) else None
+        expected_queue = _queued_stop_summary(measurements)
+        sorted_durations = sorted(durations)
+        expected_median = (sorted_durations[52] + sorted_durations[52]) / 2 if len(sorted_durations) == 105 else None
+        summary_valid = _queued_exact(summary, {'phase', 'profile', 'state', 'planned', 'attempted',
+                                                'successes', 'failures', 'timeouts', 'unrun', 'minMs',
+                                                'medianMs', 'maxMs', 'p99', 'queuedStop', 'deviceOpened',
+                                                'formalReady', 'gateB'}) \
+            and summary.get('phase') == 'queued-stop' and summary.get('profile') == 'objects-limit' \
+            and summary.get('state') == 'passed' and summary.get('planned') == 105 \
+            and summary.get('attempted') == 105 and summary.get('successes') == 105 \
+            and summary.get('failures') == 0 and summary.get('timeouts') == 0 and summary.get('unrun') == 0 \
+            and summary.get('minMs') == (sorted_durations[0] if len(sorted_durations) == 105 else None) \
+            and summary.get('medianMs') == expected_median \
+            and summary.get('maxMs') == (sorted_durations[-1] if len(sorted_durations) == 105 else None) \
+            and summary.get('p99') is None and queue == expected_queue and queue.get('passed') is True \
+            and summary.get('deviceOpened') is False \
+            and summary.get('formalReady') is False and summary.get('gateB') == 'NOT_RUN' \
+            and exit_value == {'exit': 0}
+        aggregate = _queued_stop_budget(output, window['queuedStopPlan'])
+        result.update(sampleCount=len(rows), uniqueChildPids=len(child_pids),
+                      aggregateBudgetValid=aggregate['valid'], aggregateBudget=aggregate)
+        complete = valid and summary_valid and len(child_pids) == 105 and aggregate['valid']
+        result['verifiedComplete'] = complete; result['verifiedPassed'] = complete
+    except (OSError, ValueError, TypeError, KeyError):
+        pass
+    return result
+
+
+def _reject_queued_stop_replay(runtime, parent, window):
+    runtime = Path(runtime).resolve(strict=True); parent = Path(parent).resolve(strict=True)
+    target = {window.get('id'), window.get('label'), parent.name}
+    for candidate in runtime.iterdir():
+        if candidate == parent: continue
+        paths = []
+        if candidate.is_dir() and not candidate.is_symlink():
+            paths.extend((candidate / 'window.json', candidate / 'close.json', candidate / 'issuer-failure.json'))
+        elif candidate.is_file() and not candidate.is_symlink() and candidate.name.endswith('-close.json'):
+            paths.append(candidate)
+        for path in paths:
+            value = _read_json(path)
+            if not isinstance(value, dict): continue
+            observed = {value.get('id'), value.get('windowId'), value.get('label'),
+                        value.get('window'), value.get('windowDirName')}
+            if target & observed: raise ValueError('QUEUED_STOP_REPLAY')
+    if (parent / 'close.json').exists() or (parent / 'close.json').is_symlink() \
+            or (parent / 'issuer-failure.json').exists() or (parent / 'issuer-failure.json').is_symlink():
+        raise ValueError('QUEUED_STOP_REPLAY')
+    return True
+
+
+def _write_queued_stop_close(parent, window, result, admission, terminal_probe, artifact_probe):
+    parent = Path(parent)
+    try: artifacts = artifact_probe()
+    except Exception as error: artifacts = {'verifiedComplete': False, 'verifiedPassed': False,
+                                             'probeError': type(error).__name__}
+    if artifacts.get('verifiedComplete') is not True or artifacts.get('verifiedPassed') is not True:
+        if result.get('failure') is None: result['failure'] = 'QUEUED_STOP_EVIDENCE_FAILED'
+        result['passed'] = False
+    try: terminal = terminal_probe()
+    except Exception as error:
+        terminal = {'authorityStable': False, 'error': type(error).__name__}
+        result['failure'] = 'AUTHORITY_DRIFT'; result['passed'] = False
+    value = {'schemaVersion': 1, 'scope': 'musicbridge-capacity-queued-stop-window-close',
+             'windowId': window['id'], 'profile': window['profile'], 'label': window['label'],
+             'seedLabel': window['seedLabel'], 'closedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+             'state': 'passed' if result.get('passed') is True else 'failed',
+             'failure': result.get('failure'), 'pid': result.get('pid'), 'pgid': result.get('pgid'),
+             'managedProcessGroup': result.get('managedProcessGroup'), 'code': result.get('code'),
+             'exitSignal': result.get('exitSignal'), 'signals': result.get('signals'),
+             'groupEmpty': result.get('groupEmpty'), 'zombies': result.get('zombies'),
+             'elapsedMs': result.get('elapsedMs'), 'windowSha256': admission.get('windowSha256Observed'),
+             'sourceManifestSha256': window['sourceManifest']['sha256'],
+             'ownedManifestSha256': window['ownedManifest']['sha256'], 'seed': window['seed'],
+             'measureCarryover': window['measureCarryover'],
+             'authorityAdmission': {key: value for key, value in admission.items() if key != '_snapshot'},
+             'authorityTerminal': {key: value for key, value in terminal.items() if key != '_snapshot'},
+             'queuedStop': artifacts,
+             'supervisorSha256': _sha(parent / 'supervision' / 'supervisor.json')
+                 if _ordinary_file(parent / 'supervision' / 'supervisor.json') else None,
+             'stdout': result.get('stdout'), 'stderr': result.get('stderr'),
+             'deviceOpened': False, 'formalReady': False, 'gateB': 'NOT_RUN',
+             'replayPolicy': 'terminal-window-id-and-label-never-reuse'}
+    _write(parent / 'close.json', value)
+    return value
+
+
+def _main_queued_stop(argv, loaded=None):
+    runtime, parent, window, loaded_identity = loaded if loaded is not None else _load_window(argv)
+    _, deadline = _validate_queued_stop_window(window, time.time())
+    try: _require_loaded_window_identity(parent, loaded_identity)
+    except ValueError as error: raise SystemExit('CAPACITY_SUPERVISOR_INPUT') from error
+    try: _reject_queued_stop_replay(runtime, parent, window)
+    except ValueError as error: raise SystemExit('CAPACITY_SUPERVISOR_INPUT') from error
+    try:
+        root = _validate_candidate_repository(window, runtime)
+        admission = _validate_queued_stop_authority(
+            parent, runtime, root, loaded_identity['sha256'], terminal=False)
+    except ValueError as error: raise SystemExit('CAPACITY_SUPERVISOR_INPUT') from error
+    output = parent / window['label']
+    if output.exists() or output.is_symlink() or (parent / 'supervision').exists() \
+            or (parent / 'close.json').exists() or (parent / 'close.json').is_symlink():
+        raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
+    node = Path(window['toolchain']['node']['path'])
+    tsx_loader = Path(window['toolchain']['tsxLoader']['path'])
+    entry = root / 'packages/bridge-core/test/benchmarks/recording-capacity-process.ts'
+    try: _strict_identity(entry, 8 * 1024 * 1024)
+    except ValueError as error: raise SystemExit('CAPACITY_SUPERVISOR_INPUT') from error
+    command = [str(node), '--import', str(tsx_loader), str(entry), '--phase', 'queued-stop',
+               '--profile', 'objects-limit', '--label', window['label'],
+               '--seed-label', window['seedLabel'], '--window', str(parent / 'window.json'),
+               '--window-sha256', loaded_identity['sha256'], '--owned-roots', str(parent / 'owned-roots.json'),
+               '--owned-roots-sha256', window['ownedManifest']['sha256']]
+    environment = {'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'LANG': 'C', 'LC_ALL': 'C',
+                   'TZ': 'UTC', 'CI': '1', 'TMPDIR': str(Path(tempfile.gettempdir()).resolve(strict=True))}
+    expected = {'window': window, 'windowSha256': loaded_identity['sha256']}
+    def terminal_authority():
+        _reject_queued_stop_replay(runtime, parent, window)
+        return _validate_queued_stop_authority(
+            parent, runtime, root, loaded_identity['sha256'], terminal=True, initial=admission)
+    result = supervise(command, time.monotonic() + (deadline - time.time()), parent / 'supervision',
+                       grace=window['limits']['killGraceMs'] / 1000,
+                       close_budget=window['limits']['closeMs'] / 1000,
+                       artifact_probe=lambda: _validate_queued_stop_artifacts(parent, expected),
+                       cwd=root, environment=environment, capture_output=True, stdin=subprocess.DEVNULL,
+                       artifact_name='queuedStop', artifact_failure='QUEUED_STOP_EVIDENCE_FAILED')
+    _write_queued_stop_close(parent, window, result, admission, terminal_authority,
+                             lambda: _validate_queued_stop_artifacts(parent, expected))
+    return 0 if result.get('passed') is True else 1
+
+
 def _generation_times(window):
     try:
         issued = datetime.datetime.fromisoformat(window['issuedAt'])
@@ -2499,31 +3309,12 @@ def _main_measure(argv, loaded=None):
     return 0 if result.get('passed') is True else 1
 
 
-def _main_phase(argv):
-    if '--' not in argv: raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
-    split = argv.index('--')
-    runtime, parent, window, _ = _load_window(argv[:split])
-    required = {'schemaVersion': 1, 'scope': 'musicbridge-capacity-phase-window', 'owner': 'root', 'state': 'approved'}
-    if any(window.get(key) != value for key, value in required.items()): raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
-    issued_value = datetime.datetime.fromisoformat(window['issuedAt'])
-    deadline_value = datetime.datetime.fromisoformat(window['deadlineAt'])
-    if issued_value.utcoffset() is None or deadline_value.utcoffset() is None: raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
-    issued = issued_value.timestamp()
-    deadline = deadline_value.timestamp()
-    if deadline <= time.time() or deadline - issued > 900 or issued > time.time() + 1: raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
-    root = _runtime_repo_root()
-    node = Path('/Users/yihe/.nvm/versions/node/v22.23.2/bin/node')
-    entry = root / 'packages/bridge-core/test/benchmarks/recording-capacity-process.ts'
-    phase_args = argv[split + 1:]
-    command = [str(node), '--import', 'tsx', str(entry), *phase_args]
-    result = supervise(command, time.monotonic() + (deadline - time.time()), parent / 'supervision')
-    return 0 if result['passed'] else 1
-
-
 def main(argv):
-    if '--' in argv: return _main_phase(argv)
+    # 旧版phase通过`--`任意透传命令；successor只允许由scope固定构造consumer。
+    if '--' in argv: raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
     loaded = _load_window(argv); _, _, window, _ = loaded
     if window.get('scope') == 'musicbridge-capacity-measure-window': return _main_measure(argv, loaded=loaded)
+    if window.get('scope') == 'musicbridge-capacity-queued-stop-window': return _main_queued_stop(argv, loaded=loaded)
     return _main_generation(argv)
 
 

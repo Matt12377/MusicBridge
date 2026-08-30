@@ -70,6 +70,27 @@ try:
     module._measure_artifacts=artifacts; module.supervise=supervise
     loaded=(pathlib.Path(payload['runtime']), pathlib.Path(payload['authority']), payload['window'], {'sha256': payload['windowSha256']})
     value={'exit':module._main_measure([], loaded=loaded), **captured}
+  elif method == 'queued-window':
+    value=list(module._validate_queued_stop_window(payload['window'], payload['now']))
+  elif method == 'queued-artifacts':
+    value=module._validate_queued_stop_artifacts(pathlib.Path(payload['parent']), payload.get('expected'))
+  elif method == 'queued-bound-identities':
+    value=module._validate_queued_stop_bound_identities(
+      payload['window'], pathlib.Path(payload['parent']), pathlib.Path(payload['candidate']))
+  elif method == 'queued-command':
+    captured={}
+    module._require_loaded_window_identity=lambda *args, **kwargs: True
+    module._reject_queued_stop_replay=lambda *args, **kwargs: True
+    module._validate_queued_stop_authority=lambda *args, **kwargs: {'authorityStable': True}
+    module._write_queued_stop_close=lambda *args, **kwargs: captured.update(close=True)
+    module._validate_queued_stop_artifacts=lambda *args, **kwargs: {'verifiedComplete': True, 'verifiedPassed': True}
+    def supervise(command, deadline, supervision, **kwargs):
+      captured['command']=[str(item) for item in command]; captured['cwd']=str(kwargs.get('cwd'))
+      captured['environment']=kwargs.get('environment'); kwargs['artifact_probe']()
+      return {'passed':True,'failure':None,'code':0,'signals':[],'groupEmpty':True,'zombies':[]}
+    module.supervise=supervise
+    loaded=(pathlib.Path(payload['runtime']), pathlib.Path(payload['authority']), payload['window'], {'sha256': payload['windowSha256']})
+    value={'exit':module._main_queued_stop([], loaded=loaded), **captured}
   elif method == 'owned':
     future=pathlib.Path(payload['future']) if payload.get('future') else None
     value=module._validate_owned_manifest(pathlib.Path(payload['manifest']), pathlib.Path(payload['runtime']),
@@ -182,8 +203,12 @@ function copiedSupervisor() {
     'scripts/ci/capacity-phase-supervisor-v2.py', 'scripts/ci/issue-v3-capacity-measure-window.py',
   ]
   for (const relative of candidateFiles) {
-    const path = join(candidate, relative); mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, `${relative}\n`)
+    const path = join(candidate, relative); mkdirSync(dirname(path), { recursive: true })
+    if (relative === 'scripts/ci/capacity-phase-supervisor-v2.py') copyFileSync(sourceSupervisor, path)
+    else writeFileSync(path, `${relative}\n`)
   }
+  writeFileSync(join(candidate, 'scripts/ci/issue-v3-capacity-queued-stop-window.py'), 'queued issuer\n')
+  writeFileSync(join(candidate, 'tsx-loader.mjs'), 'export {}\n')
   for (const relative of ['packages/bridge-core/src', 'packages/bridge-core/test/helpers', 'packages/contracts/src', 'packages/contracts/dist']) {
     mkdirSync(join(candidate, relative), { recursive: true })
   }
@@ -200,6 +225,134 @@ function copiedSupervisor() {
 
 function sample(metric, index) {
   return { metric, durationMs: 1, warmup: index < 5, outcome: 'ok', details: null }
+}
+
+const queuedLimits = { executionMs: 50_000, killGraceMs: 1_000, closeMs: 2_000,
+  minimumFreeBytes: 10 * 1024 ** 3, maximumOwnedBytes: 16 * 1024 ** 3 }
+
+function queuedWindowValue(f) {
+  const now = Date.now(), snapshotBytes = 1_990_471_680
+  return {
+    schemaVersion: 1, scope: 'musicbridge-capacity-queued-stop-window', owner: 'root', id: randomUUID(), state: 'approved',
+    phase: 'queued-stop', profile: 'objects-limit', label: 'objects-limit-queued-stop-formal-01',
+    seedLabel: 'r023-objects-limit-seed-03',
+    seed: { label: 'r023-objects-limit-seed-03', metadataSha256: '632d8e4b0c01ffec07adc72344e7bcc877e5f1d764e7745af856c6ba44492309',
+      snapshotSha256: '7ec9b3bed1642503cc9fcee70c6156b54eb43834b0a457050ec51607f2e1ab3a',
+      fixtureOwnerSha256: '8e885bdee2c2acd6ba6b189f6de6c88bcb5e3a4b84d838a9b56e30987eb716c1' },
+    n: 105, issuedAt: new Date(now).toISOString(), deadlineAt: new Date(now + 900_000).toISOString(), limits: queuedLimits,
+    ownedManifest: { file: 'owned-roots.json', sha256: '4'.repeat(64) },
+    sourceManifest: { file: 'source-pins.json', sha256: '5'.repeat(64) },
+    queuedStopPlan: { warmupCount: 5, formalCount: 100, sampleCount: 105, activeCloneMaximum: 1,
+      snapshotBytes, evidenceAllowanceBytes: 256 * 1024 ** 2, plannedBytes: snapshotBytes + 256 * 1024 ** 2,
+      model: 'serial-single-clone-plus-bounded-growth-v1', aggregateAudit: 'queued-stop-aggregate-budget.jsonl' },
+    supervisor: { path: f.script, sha256: sha(f.script) },
+    toolchain: {
+      node: { path: process.execPath, sha256: 'd'.repeat(64) },
+      tsxLoader: { path: join(f.candidate, 'tsx-loader.mjs'), sha256: 'e'.repeat(64) },
+      consumerPython: { path: python, sha256: 'f'.repeat(64) },
+    },
+    issuer: { path: sourceSupervisor, sha256: 'a'.repeat(64),
+      fact: { path: join(f.authority, 'issuer-identity/owner.json'), sha256: 'b'.repeat(64) } },
+    candidateRepository: { root: f.candidate, branch: f.candidateBranch, head: f.head },
+    measureCarryover: {
+      window: { path: join(f.runtime, 'r023-objects-limit-measure-window-06/window.json'), id: 'afc81a99-d15d-4179-8326-5774a5c40b62', sha256: 'cfac8e19336a181de00c68d458d046065cd821a0dca48cc4fc78af0e15c15227' },
+      close: { path: join(f.runtime, 'r023-objects-limit-measure-window-06/close.json'), sha256: '1c93f6c6ec1a0b58619f87127d3e2c7d11a1cfcce1c155b3576a84eda2af84b7' },
+      ownedManifest: { path: join(f.runtime, 'r023-objects-limit-measure-window-06/owned-roots.json'), sha256: 'cd6faddd3b205f290e379cec95af9c20a6fbbbbfd2c7989ef07ff2712bc3c4ab' },
+      sourceManifest: { path: join(f.runtime, 'r023-objects-limit-measure-window-06/source-pins.json'), sha256: '71bfb77f9c706ae9d31f580d4067f7ff427ee1099c341f03915d39ab1edff503' },
+      supervision: { path: join(f.runtime, 'r023-objects-limit-measure-window-06/supervision/supervisor.json'), sha256: '18ef840fe99b861ca8881c7c7be09b70c13431df02d88ddf282e29f2169cdc92' },
+      supervisor: { path: join(f.runtime, 'r023-objects-limit-measure-window-06/supervisor.py'), sha256: 'aaf871474dfe8129bae76ff8d2f07ed4f9a1200801d9108d005e6bbd1823e743' },
+      output: { path: join(f.runtime, 'r023-objects-limit-measure-06'), label: 'r023-objects-limit-measure-06', commandSha256: '4a0417df8056764a5ba6a24ffda42d7be590cb4bfbd480b5d7188d8d609b8231' },
+    },
+  }
+}
+
+function sealQueuedIdentity(f, window) {
+  const issuerPath = join(f.candidate, 'scripts/ci/issue-v3-capacity-queued-stop-window.py')
+  const supervisorPath = join(f.candidate, 'scripts/ci/capacity-phase-supervisor-v2.py')
+  const tsxPath = join(f.candidate, 'tsx-loader.mjs')
+  window.toolchain = { node: { path: process.execPath, sha256: sha(process.execPath) },
+    tsxLoader: { path: tsxPath, sha256: sha(tsxPath) }, consumerPython: { path: python, sha256: sha(python) } }
+  window.issuer.path = issuerPath; window.issuer.sha256 = sha(issuerPath)
+  const factPath = join(f.authority, 'issuer-identity/owner.json')
+  json(factPath, { schemaVersion: 1, scope: 'musicbridge-capacity-queued-stop-authority-issuer', windowId: window.id,
+    issuerRepository: { root: f.candidate, branch: f.candidateBranch, head: f.head,
+      relativePath: 'scripts/ci/issue-v3-capacity-queued-stop-window.py', sha256: window.issuer.sha256 },
+    candidateRepository: window.candidateRepository,
+    supervisorSource: { path: supervisorPath, relativePath: 'scripts/ci/capacity-phase-supervisor-v2.py', sha256: window.supervisor.sha256 },
+    toolchain: window.toolchain, measureCarryover: window.measureCarryover })
+  window.issuer.fact = { path: factPath, sha256: sha(factPath) }
+  return window
+}
+
+function completeQueuedArtifacts(f, window, mutate = () => {}) {
+  const output = join(f.authority, window.label); mkdirSync(output)
+  const planId = randomUUID(), planHash = 'e'.repeat(64)
+  json(join(output, 'owner.json'), { scope: 'musicbridge-capacity-phase-output', id: randomUUID(), windowId: window.id, label: window.label })
+  json(join(output, 'input.json'), { args: { phase: 'queued-stop', profile: 'objects-limit', label: window.label,
+    seedLabel: window.seedLabel, windowPath: join(f.authority, 'window.json'), windowSha256: 'd'.repeat(64),
+    ownedRootsPath: join(f.authority, 'owned-roots.json'), ownedRootsSha256: window.ownedManifest.sha256 },
+    windowId: window.id, seedSha256: window.seed.snapshotSha256, sourceManifestSha256: window.sourceManifest.sha256,
+    initialSpace: { availableBytes: 16 * 1024 ** 3, plannedBytes: window.queuedStopPlan.plannedBytes, ownedBytes: 1 },
+    effectiveOperationLimits: { executionMs: 50_000, killGraceMs: 1_000, closeMs: 2_000, admissionReserveMs: 53_000 },
+    classification: 'software-only/exclusive-window', cache: 'test', n: 105, warmup: 5, formalSamples: 100,
+    clocks: 'parent与child分栏，不跨进程相减', backend: 'private-immediate-fake', deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' })
+  const rows = [], pids = []
+  for (let index = 1; index <= 105; index += 1) {
+    const name = `sample-${String(index).padStart(3, '0')}`, childPid = 10_000 + index; pids.push(childPid)
+    const receipt = { outcome: 'ok', requestId: randomUUID(), childPid, code: 0, signal: null, closed: true,
+      cleanup: { termSent: false, killSent: false }, forkToCloseMs: 10, phase: 'exited',
+      timings: { readyMs: 1, clock: 'parent-relative', receiptMs: 2, sendStopToReceiptMs: 1, exitMs: 3, receiptToChildCloseMs: 1 },
+      processGroup: { pgid: childPid, managed: true, groupEmpty: true, zombies: [] },
+      result: { kind: 'queue', planId, planHash, attemptId: randomUUID(), order: ['progress','stop'],
+        progressFrames: 1, fullAuditMs: 1, beginMs: 1, progressMs: 1, abortObserved: true, driverStopInvoked: true,
+        driverStopAcknowledged: true, stopReceivedToAbortMs: 1, stopReceivedToDriverStopInvokedMs: 1,
+        stopReceivedToDriverStopAckMs: 1, stopReceivedToReceiptMs: 1, childMeasuredMs: 2, clock: 'child-relative',
+        deviceOpened: false, formalReady: false, gateB: 'NOT_RUN', driverCloseInvoked: true, driverCloseResolved: true,
+        stopReceivedToDriverCloseInvokedMs: 1, stopReceivedToDriverCloseResolvedMs: 1 } }
+    const row = { index, phase: 'queued-stop', profile: 'objects-limit', warmup: index <= 5, preparationMs: 1,
+      outcome: 'ok', result: receipt, beforeSpace: { availableBytes: 16 * 1024 ** 3, plannedBytes: window.queuedStopPlan.plannedBytes, ownedBytes: 1 } }
+    json(join(output, `${name}-intent.json`), { index, phase: 'queued-stop', profile: 'objects-limit', windowId: window.id,
+      seedSha256: window.seed.snapshotSha256, state: 'operation-not-yet-returned' })
+    json(join(output, `${name}-raw-receipt.json`), receipt)
+    json(join(output, `${name}-raw-receipt.sha256.json`), { sha256: sha(join(output, `${name}-raw-receipt.json`)) })
+    json(join(output, `${name}.json`), row)
+    json(join(output, `${name}-retention.json`), { retained: false, resourcesClosed: true,
+      space: { availableBytes: 16 * 1024 ** 3, plannedBytes: 0, ownedBytes: 1 } })
+    json(join(output, `${name}.receipt.json`), { outcome: 'ok', resourcesClosed: true, samples: [receipt],
+      marker: { id: randomUUID(), scope: 'musicbridge-capacity-clone-only', label: name }, sqliteSha256: 'f'.repeat(64), retained: false,
+      workspaceReceipt: null, workspaceTreeSha256: null })
+    rows.push(row)
+  }
+  writeFileSync(join(output, 'samples.jsonl'), rows.map(row => JSON.stringify(row)).join('\n') + '\n')
+  json(join(output, 'summary.json'), { phase: 'queued-stop', profile: 'objects-limit', state: 'passed', planned: 105,
+    attempted: 105, successes: 105, failures: 0, timeouts: 0, unrun: 0, minMs: 10, medianMs: 10, maxMs: 10, p99: null,
+    queuedStop: { counts: { warmup: 5, formal: 100 }, childProgressMs: { n: 100, p50: 1, p95: 1, p99: 1, max: 1, limitP95: 50, limitMax: 100, passed: true },
+      stopReceivedToAbortMs: { n: 100, p50: 1, p95: 1, p99: 1, max: 1, limitMax: 100, passed: true },
+      stopReceivedToDriverStopInvokedMs: { n: 100, p50: 1, p95: 1, p99: 1, max: 1, limitMax: 100, passed: true },
+      stopReceivedToDriverStopAckMs: { n: 100, p50: 1, p95: 1, p99: 1, max: 1 },
+      stopReceivedToReceiptMs: { n: 100, p50: 1, p95: 1, p99: 1, max: 1, limitP95: 500, limitMax: 2000, passed: true },
+      parentSendStopToReceiptMs: { n: 100, p50: 1, p95: 1, p99: 1, max: 1, limitMax: 2000, passed: true },
+      parentReceiptToChildCloseMs: { n: 100, p50: 1, p95: 1, p99: 1, max: 1 },
+      driverCloseInvokedMs: { n: 100, p50: 1, p95: 1, p99: 1, max: 1 },
+      driverCloseResolvedMs: { n: 100, p50: 1, p95: 1, p99: 1, max: 1, limitMax: 250, passed: true }, passed: true },
+    deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' })
+  json(join(output, 'exit.json'), { exit: 0 })
+  const aggregate = [], aggregateRow = (checkpoint, group, activeClone, plannedBytes = 0) => aggregate.push({ schemaVersion: 1,
+    scope: 'musicbridge-capacity-queued-stop-aggregate-budget', sequence: aggregate.length + 1, checkpoint, group,
+    activeClone, snapshotBytes: window.queuedStopPlan.snapshotBytes, limitBytes: window.queuedStopPlan.plannedBytes,
+    outputBytesBefore: 1, plannedBytes, recordedAt: new Date().toISOString() })
+  aggregateRow('output-created', null, null); aggregateRow('input-written', null, null)
+  for (let index = 1; index <= 105; index += 1) {
+    const group = `sample-${String(index).padStart(3, '0')}`
+    aggregateRow('clone-before-write', group, null, window.queuedStopPlan.snapshotBytes)
+    for (const checkpoint of ['clone-after-write', 'operation-returned', 'sample-evidence-written', 'retention-written',
+      'group-receipt-before-write', 'group-receipt-after-write']) aggregateRow(checkpoint, group, group)
+    aggregateRow('clone-after-cleanup', group, null)
+  }
+  aggregateRow('terminal-written', null, null)
+  writeFileSync(join(output, 'queued-stop-aggregate-budget.jsonl'), aggregate.map(row => JSON.stringify(row)).join('\n') + '\n')
+  mutate({ output, rows, pids })
+  return output
 }
 
 function completeSamples(stopRounds = 105) {
@@ -1198,5 +1351,106 @@ test('legacy carryover拒绝retained clone子项、owner、sidecar、sqlite size
     const f = copiedSupervisor()
     try { assert.equal(bridge(f.script, 'carryover', legacyCarryover(f, mutate)).ok, false) }
     finally { f.cleanup() }
+  }
+})
+
+test('queued-stop successor只接受冻结exact schema、900秒、S加256MiB与self/candidate identity', () => {
+  const f = copiedSupervisor()
+  try {
+    const window = queuedWindowValue(f)
+    assert.equal(bridge(f.script, 'queued-window', { window, now: Date.now() / 1000 }).ok, true)
+    for (const [mutation, mutate] of [
+      value => { value.scope = 'musicbridge-capacity-phase-window' },
+      value => { value.n = 104 },
+      value => { value.profile = 'history-limit' },
+      value => { value.seed.label = 'other-seed' },
+      value => { value.seed.snapshotSha256 = '0'.repeat(64) },
+      value => { value.queuedStopPlan.warmupCount = 4 },
+      value => { value.queuedStopPlan.formalCount = 99 },
+      value => { value.queuedStopPlan.activeCloneMaximum = 2 },
+      value => { value.queuedStopPlan.snapshotBytes -= 1; value.queuedStopPlan.plannedBytes -= 1 },
+      value => { value.queuedStopPlan.evidenceAllowanceBytes -= 1 },
+      value => { value.queuedStopPlan.plannedBytes -= 1 },
+      value => { value.queuedStopPlan.aggregateAudit = '../escape.jsonl' },
+      value => { value.deadlineAt = new Date(Date.parse(value.issuedAt) + 899_999).toISOString() },
+      value => { delete value.measureCarryover.supervision },
+      value => { value.measureCarryover.window.id = randomUUID() },
+      value => { value.measureCarryover.close.sha256 = '0'.repeat(64) },
+      value => { value.candidateRepository.head = 'f'.repeat(40) },
+      value => { value.supervisor.sha256 = 'f'.repeat(64) },
+      value => { value.extra = true },
+    ].entries()) {
+      const changed = structuredClone(window); mutate(changed)
+      assert.equal(bridge(f.script, 'queued-window', { window: changed, now: Date.now() / 1000 }).ok, false, `mutation ${mutation}`)
+    }
+  } finally { f.cleanup() }
+})
+
+test('queued-stop successor固定构造Node命令且旧双横线透传永久拒绝', () => {
+  const f = copiedSupervisor()
+  try {
+    const window = queuedWindowValue(f), windowSha256 = 'd'.repeat(64)
+    const observed = bridge(f.script, 'queued-command', { runtime: f.runtime, authority: f.authority, window, windowSha256 })
+    assert.equal(observed.ok, true, observed.error)
+    assert.deepEqual(observed.value.command, [window.toolchain.node.path, '--import', window.toolchain.tsxLoader.path,
+      join(f.candidate, 'packages/bridge-core/test/benchmarks/recording-capacity-process.ts'),
+      '--phase', 'queued-stop', '--profile', 'objects-limit', '--label', window.label,
+      '--seed-label', window.seedLabel, '--window', join(f.authority, 'window.json'), '--window-sha256', windowSha256,
+      '--owned-roots', join(f.authority, 'owned-roots.json'), '--owned-roots-sha256', window.ownedManifest.sha256,
+    ])
+    assert.equal(observed.value.cwd, f.candidate)
+    assert.equal(observed.value.close, true)
+    const legacy = spawnSync(python, [f.script, '--window', join(f.authority, 'window.json'), '--window-sha256', windowSha256, '--', '--phase', 'queued-stop'], { encoding: 'utf8' })
+    assert.notEqual(legacy.status, 0)
+  } finally { f.cleanup() }
+})
+
+test('queued-stop admission实际复核toolchain、issuer fact与candidate HEAD blob身份', () => {
+  const f = copiedSupervisor()
+  try {
+    const window = sealQueuedIdentity(f, queuedWindowValue(f))
+    const observed = bridge(f.script, 'queued-bound-identities', { window, parent: f.authority, candidate: f.candidate })
+    assert.equal(observed.ok, true, observed.error)
+    assert.deepEqual(Object.keys(observed.value).sort(), ['consumerPython','issuer','issuerFact','node','tsxLoader'])
+    const changed = structuredClone(window); changed.toolchain.node.sha256 = '0'.repeat(64)
+    assert.equal(bridge(f.script, 'queued-bound-identities', { window: changed, parent: f.authority, candidate: f.candidate }).ok, false)
+  } finally { f.cleanup() }
+})
+
+test('queued-stop successor完整636文件闭包并拒绝PID、raw hash、receipt、summary、aggregate和unexpected漂移', () => {
+  {
+    const f = copiedSupervisor()
+    try {
+      const window = queuedWindowValue(f), output = completeQueuedArtifacts(f, window)
+      const observed = bridge(f.script, 'queued-artifacts', { parent: f.authority,
+        expected: { window, windowSha256: 'd'.repeat(64) } })
+      assert.equal(observed.ok, true, observed.error)
+      assert.equal(observed.value.verifiedComplete, true)
+      assert.equal(observed.value.verifiedPassed, true)
+      assert.equal(observed.value.fileCount, 636)
+      assert.equal(observed.value.sampleCount, 105)
+      assert.equal(observed.value.uniqueChildPids, 105)
+      assert.equal(observed.value.aggregateBudgetValid, true)
+      assert.equal(output.startsWith(f.authority), true)
+    } finally { f.cleanup() }
+  }
+  const mutations = [
+    ({ output }) => rmSync(join(output, 'sample-105.receipt.json')),
+    ({ output }) => { const p = join(output, 'sample-002-raw-receipt.json'), v = JSON.parse(readFileSync(p)); v.childPid = 10001; rmSync(p); json(p, v) },
+    ({ output }) => { const p = join(output, 'sample-003-raw-receipt.sha256.json'), v = JSON.parse(readFileSync(p)); v.sha256 = '0'.repeat(64); rmSync(p); json(p, v) },
+    ({ output }) => { const p = join(output, 'summary.json'), v = JSON.parse(readFileSync(p)); v.queuedStop.passed = false; rmSync(p); json(p, v) },
+    ({ output }) => { const p = join(output, 'exit.json'); rmSync(p); json(p, { exit: 1 }) },
+    ({ output }) => { const p = join(output, 'queued-stop-aggregate-budget.jsonl'); writeFileSync(p, JSON.stringify({ schemaVersion: 1, scope: 'musicbridge-capacity-queued-stop-aggregate-budget', sequence: 1, checkpoint: 'terminal', group: 'queued-stop', activeClone: null, snapshotBytes: 1, limitBytes: 1, outputBytesBefore: 1, plannedBytes: 1, recordedAt: new Date().toISOString() }) + '\n') },
+    ({ output }) => writeFileSync(join(output, 'unexpected.bin'), 'x'),
+  ]
+  for (const mutate of mutations) {
+    const f = copiedSupervisor()
+    try {
+      const window = queuedWindowValue(f); completeQueuedArtifacts(f, window, mutate)
+      const observed = bridge(f.script, 'queued-artifacts', { parent: f.authority,
+        expected: { window, windowSha256: 'd'.repeat(64) } })
+      assert.equal(observed.ok, true, observed.error)
+      assert.equal(observed.value.verifiedPassed, false)
+    } finally { f.cleanup() }
   }
 })

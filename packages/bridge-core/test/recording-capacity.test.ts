@@ -933,8 +933,83 @@ test('queued-stop phase：仅objects-small及三种大档、固定5预热+100正
   }
 });
 
+test('queued-stop successor：独立scope只接受完整S+256MiB计划与exact 73 roots', async t => {
+  for (const [rootCount, accepted] of [[72, false], [73, true], [74, false]] as const) {
+    const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
+    const outer = f.w as unknown as Record<string, unknown>, seed = outer.seed as Record<string, unknown>;
+    outer.scope = 'musicbridge-capacity-queued-stop-window';
+    seed.fixtureOwnerSha256 = f.hash(path.join(f.fixture, 'capacity-owner.json'));
+    outer.seedLabel = 'seed';
+    outer.queuedStopPlan = { warmupCount: 5, formalCount: 100, sampleCount: 105, activeCloneMaximum: 1,
+      snapshotBytes: lstatSync(path.join(f.seed, 'seed.sqlite')).size, evidenceAllowanceBytes: 256 * 1024 ** 2,
+      plannedBytes: lstatSync(path.join(f.seed, 'seed.sqlite')).size + 256 * 1024 ** 2,
+      model: 'serial-single-clone-plus-bounded-growth-v1', aggregateAudit: 'queued-stop-aggregate-budget.jsonl' };
+    outer.supervisor = { path: path.join(f.windowRoot, 'supervisor.py'), sha256: '1'.repeat(64) };
+    outer.candidateRepository = { root: f.api.CAPACITY_PHASE_REPO_ROOT, branch: 'codex/test', head: '2'.repeat(40) };
+    outer.toolchain = { node: { path: '/test/node', sha256: '5'.repeat(64) },
+      tsxLoader: { path: '/test/tsx-loader.mjs', sha256: '6'.repeat(64) },
+      consumerPython: { path: '/test/python', sha256: '7'.repeat(64) } };
+    outer.issuer = { path: '/test/issue-v3-capacity-queued-stop-window.py', sha256: '8'.repeat(64),
+      fact: { path: path.join(f.windowRoot, 'issuer-identity/owner.json'), sha256: '9'.repeat(64) } };
+    const proof = (name: string) => ({ path: path.join(f.runtime, name), sha256: '3'.repeat(64) });
+    outer.measureCarryover = {
+      window: { ...proof('measure/window.json'), id: randomUUID() }, close: proof('measure/close.json'),
+      ownedManifest: proof('measure/owned-roots.json'), sourceManifest: proof('measure/source-pins.json'),
+      supervision: proof('measure/supervision/supervisor.json'), supervisor: proof('measure/supervisor.py'),
+      output: { path: path.join(f.runtime, 'measure-output'), label: 'measure-output', commandSha256: '4'.repeat(64) },
+    };
+    f.put(path.join(f.windowRoot, 'owner.json'), { scope: outer.scope, owner: 'root', id: outer.id });
+    f.inventory.roots.find(root => root.path === f.windowRoot)!.marker.sha256 = f.hash(path.join(f.windowRoot, 'owner.json'));
+    while (f.inventory.roots.length < rootCount) {
+      const directory = path.join(f.runtime, `carry-${String(f.inventory.roots.length).padStart(2, '0')}`); mkdirSync(directory);
+      f.put(path.join(directory, 'owner.json'), { scope: 'controlled-carryover', index: f.inventory.roots.length });
+      f.inventory.roots.push(f.entry(directory, 'owner.json'));
+    }
+    f.seal(); let calls = 0;
+    if (accepted) {
+      const summary = await f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async () => { ++calls; throw new Error('受控停止'); } });
+      assert.equal(calls, 1); assert.equal(summary.state, 'incomplete');
+    } else {
+      await assert.rejects(f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async input => { ++calls; return f.queuedResult(input); } }),
+        /CAPACITY_PHASE_(?:WINDOW_INVALID|INVENTORY_INVALID)/u);
+      assert.equal(calls, 0); assert.equal(existsSync(f.output), false);
+    }
+  }
+});
+
+test('legacy queued-stop窗口保持旧空间模型且不生成successor aggregate', async t => {
+  const f = await phaseFixture(t, 'queued-stop'); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async () => { ++calls; throw new Error('受控停止'); } });
+  assert.equal(calls, 1); assert.equal(summary.state, 'incomplete');
+  const input = JSON.parse(readFileSync(path.join(f.output, 'input.json'), 'utf8'));
+  assert.equal(input.initialSpace.plannedBytes, 3 * lstatSync(path.join(f.seed, 'seed.sqlite')).size + 64 * 1024 ** 2);
+  assert.equal(existsSync(path.join(f.output, 'queued-stop-aggregate-budget.jsonl')), false);
+});
+
 test('queued-stop phase：105个独立clone先固化raw回执/hash再清理，预热不进入正式分布', { timeout: 30_000 }, async t => {
-  const f = await phaseFixture(t, 'queued-stop'), markers = new Set<string>(); let calls = 0;
+  const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit'), markers = new Set<string>(); let calls = 0;
+  const outer = f.w as unknown as Record<string, unknown>, seed = outer.seed as Record<string, unknown>;
+  outer.scope = 'musicbridge-capacity-queued-stop-window'; seed.fixtureOwnerSha256 = f.hash(path.join(f.fixture, 'capacity-owner.json'));
+  outer.seedLabel = 'seed'; const snapshotBytes = lstatSync(path.join(f.seed, 'seed.sqlite')).size;
+  outer.queuedStopPlan = { warmupCount: 5, formalCount: 100, sampleCount: 105, activeCloneMaximum: 1,
+    snapshotBytes, evidenceAllowanceBytes: 256 * 1024 ** 2, plannedBytes: snapshotBytes + 256 * 1024 ** 2,
+    model: 'serial-single-clone-plus-bounded-growth-v1', aggregateAudit: 'queued-stop-aggregate-budget.jsonl' };
+  outer.supervisor = { path: path.join(f.windowRoot, 'supervisor.py'), sha256: '1'.repeat(64) };
+  outer.candidateRepository = { root: f.api.CAPACITY_PHASE_REPO_ROOT, branch: 'codex/test', head: '2'.repeat(40) };
+  outer.toolchain = { node: { path: '/test/node', sha256: '5'.repeat(64) }, tsxLoader: { path: '/test/tsx-loader.mjs', sha256: '6'.repeat(64) },
+    consumerPython: { path: '/test/python', sha256: '7'.repeat(64) } };
+  outer.issuer = { path: '/test/issue-v3-capacity-queued-stop-window.py', sha256: '8'.repeat(64),
+    fact: { path: path.join(f.windowRoot, 'issuer-identity/owner.json'), sha256: '9'.repeat(64) } };
+  const proof = (name: string) => ({ path: path.join(f.runtime, name), sha256: '3'.repeat(64) });
+  outer.measureCarryover = { window: { ...proof('measure/window.json'), id: randomUUID() }, close: proof('measure/close.json'),
+    ownedManifest: proof('measure/owned-roots.json'), sourceManifest: proof('measure/source-pins.json'),
+    supervision: proof('measure/supervision/supervisor.json'), supervisor: proof('measure/supervisor.py'),
+    output: { path: path.join(f.runtime, 'measure-output'), label: 'measure-output', commandSha256: '4'.repeat(64) } };
+  f.put(path.join(f.windowRoot, 'owner.json'), { scope: outer.scope, owner: 'root', id: outer.id });
+  f.inventory.roots.find(root => root.path === f.windowRoot)!.marker.sha256 = f.hash(path.join(f.windowRoot, 'owner.json'));
+  while (f.inventory.roots.length < 73) { const directory = path.join(f.runtime, `carry-${String(f.inventory.roots.length).padStart(2, '0')}`); mkdirSync(directory);
+    f.put(path.join(directory, 'owner.json'), { scope: 'controlled-carryover', index: f.inventory.roots.length }); f.inventory.roots.push(f.entry(directory, 'owner.json')); }
+  f.seal();
   const summary = await f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async input => {
     ++calls; markers.add(input.clone.marker.id);
     if (calls > 1) {
@@ -958,6 +1033,14 @@ test('queued-stop phase：105个独立clone先固化raw回执/hash再清理，�
   assert.equal(summary.queuedStop?.driverCloseResolvedMs.max, 20);
   assert.equal(summary.queuedStop?.passed, true);
   assert.equal(readFileSync(path.join(f.output, 'samples.jsonl'), 'utf8').trim().split('\n').length, 105);
+  const aggregate = readFileSync(path.join(f.output, 'queued-stop-aggregate-budget.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line));
+  assert.ok(aggregate.length >= 4 * 105, '每轮clone创建、业务落盘与清理都必须进入aggregate审计');
+  assert.ok(aggregate.every(row => row.scope === 'musicbridge-capacity-queued-stop-aggregate-budget'
+    && row.snapshotBytes === lstatSync(path.join(f.seed, 'seed.sqlite')).size
+    && row.limitBytes === row.snapshotBytes + 256 * 1024 ** 2
+    && row.outputBytesBefore <= row.limitBytes
+    && row.plannedBytes <= row.limitBytes - row.outputBytesBefore));
+  assert.equal(Math.max(...aggregate.map(row => row.activeClone === null ? 0 : 1)), 1);
   assert.equal(readdirSync(f.output).some(name => /^sample-\d{3}$/u.test(name)), false);
 });
 
@@ -979,7 +1062,7 @@ test('queued-stop phase：正式阈值失败保留完整100样本分布且不伪
   assert.equal(summary.failure, 'CAPACITY_PHASE_THRESHOLD_FAILED');
 });
 
-for (const mode of ['timeout', 'not-natural', 'identity-drift', 'persistence'] as const) test(`queued-stop phase：${mode}首错即停并保留当前clone`, async t => {
+for (const mode of ['timeout', 'not-natural', 'zombie', 'identity-drift', 'persistence'] as const) test(`queued-stop phase：${mode}首错即停并保留当前clone`, async t => {
   const f = await phaseFixture(t, 'queued-stop'); let calls = 0;
   const summary = await f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async input => {
     ++calls;
@@ -988,6 +1071,7 @@ for (const mode of ['timeout', 'not-natural', 'identity-drift', 'persistence'] a
     const result = f.queuedResult(input);
     if (mode === 'timeout') { result.outcome = 'timeout'; result.failure = 'TIMEOUT'; result.cleanup.termSent = true; delete result.result; }
     if (mode === 'not-natural') result.processGroup!.groupEmpty = false;
+    if (mode === 'zombie') result.processGroup!.zombies = [result.childPid!];
     return result;
   } });
   assert.equal(calls, 1); assert.equal(summary.attempted, 1); assert.equal(summary.unrun, 104); assert.equal(summary.state, 'incomplete');

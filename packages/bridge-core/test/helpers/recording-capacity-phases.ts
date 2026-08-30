@@ -8,7 +8,9 @@ import { createCollectionRepository } from '../../src/collection/repository.js';
 import { readBackupIndex } from '../../src/recording/backup-index.js';
 import { createArchiveBackup, verifyArchiveBackup } from '../../src/recording/backup-package.js';
 import { authorizeSourceDirectory } from '../../src/recording/source-files.js';
-import { assertCapacitySpace, capacityProfile, createCapacityClone, finishCapacityClone, hashCapacityFile, type CapacityClone } from './recording-capacity-fixture.js';
+import { assertCapacitySpace, capacityDirectoryBytes, capacityMeasureWorkingBytes, capacityProfile, createCapacityClone,
+  createCapacityQueuedStopAggregateGuard, finishCapacityClone, hashCapacityFile, type CapacityClone,
+  type CapacityMeasureAggregateGuard } from './recording-capacity-fixture.js';
 import { isCapacityRequestId, runCapacityCold, runCapacityPrintWrite, runCapacityQueuedStop, runCapacityRecovery, type CapacityProcessResult, type CapacityPrintWriteReceipt, type CapacityQueuedStopReceipt } from './recording-capacity-process.js';
 
 export const CAPACITY_PHASE_REPO_ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
@@ -31,11 +33,21 @@ export interface CapacityPhaseArguments {
   windowPath: string; windowSha256: string; ownedRootsPath: string; ownedRootsSha256: string; backupLabel?: string;
 }
 export interface CapacityPhaseWindow {
-  schemaVersion: 1; scope: 'musicbridge-capacity-phase-window'; owner: 'root'; id: string; state: 'approved';
-  phase: CapacityPhaseName; profile: CapacityPhaseProfile; label: string; seed: { label: string; metadataSha256: string; snapshotSha256: string };
+  schemaVersion: 1; scope: 'musicbridge-capacity-phase-window' | 'musicbridge-capacity-queued-stop-window'; owner: 'root'; id: string; state: 'approved';
+  phase: CapacityPhaseName; profile: CapacityPhaseProfile; label: string; seedLabel?: string;
+  seed: { label: string; metadataSha256: string; snapshotSha256: string; fixtureOwnerSha256?: string };
   n: 10 | 105; issuedAt: string; deadlineAt: string; limits: typeof CAPACITY_PHASE_LIMITS;
   ownedManifest: { file: 'owned-roots.json'; sha256: string }; sourceManifest: { file: 'source-pins.json'; sha256: string };
   backup?: { label: string; outputDirectory: string; receiptSha256: string };
+  queuedStopPlan?: { warmupCount: 5; formalCount: 100; sampleCount: 105; activeCloneMaximum: 1;
+    snapshotBytes: number; evidenceAllowanceBytes: number; plannedBytes: number;
+    model: 'serial-single-clone-plus-bounded-growth-v1'; aggregateAudit: 'queued-stop-aggregate-budget.jsonl' };
+  supervisor?: { path: string; sha256: string };
+  candidateRepository?: { root: string; branch: string; head: string };
+  toolchain?: { node: { path: string; sha256: string }; tsxLoader: { path: string; sha256: string };
+    consumerPython: { path: string; sha256: string } };
+  issuer?: { path: string; sha256: string; fact: { path: string; sha256: string } };
+  measureCarryover?: unknown;
 }
 export interface CapacityOwnedRoot {
   path: string; device: number; inode: number;
@@ -164,22 +176,53 @@ function validArguments(v: unknown): v is CapacityPhaseArguments {
     && (v.phase === 'full-recovery' ? label(v.backupLabel) : v.backupLabel === undefined);
 }
 function validWindow(v: unknown): v is CapacityPhaseWindow {
-  if (!exact(v, 'schemaVersion,scope,owner,id,state,phase,profile,label,seed,n,issuedAt,deadlineAt,limits,ownedManifest,sourceManifest' + (v && typeof v === 'object' && 'backup' in v ? ',backup' : ''))) return false;
-  return v.schemaVersion === 1 && v.scope === 'musicbridge-capacity-phase-window' && v.owner === 'root' && isCapacityRequestId(v.id) && v.state === 'approved'
+  const successor = !!v && typeof v === 'object' && !Array.isArray(v)
+    && (v as { scope?: unknown }).scope === 'musicbridge-capacity-queued-stop-window';
+  const keys = successor
+    ? 'schemaVersion,scope,owner,id,state,phase,profile,label,seedLabel,seed,n,issuedAt,deadlineAt,limits,ownedManifest,sourceManifest,queuedStopPlan,supervisor,candidateRepository,toolchain,issuer,measureCarryover'
+    : 'schemaVersion,scope,owner,id,state,phase,profile,label,seed,n,issuedAt,deadlineAt,limits,ownedManifest,sourceManifest' + (v && typeof v === 'object' && 'backup' in v ? ',backup' : '');
+  if (!exact(v, keys)) return false;
+  const seedKeys = successor ? 'label,metadataSha256,snapshotSha256,fixtureOwnerSha256' : 'label,metadataSha256,snapshotSha256';
+  const plan = v.queuedStopPlan, supervisor = v.supervisor, candidate = v.candidateRepository;
+  const toolchain = v.toolchain, issuer = v.issuer;
+  const carryover = v.measureCarryover as Record<string, unknown> | undefined;
+  const bound = (value: unknown, extra = '') => exact(value, `path,sha256${extra}`)
+    && typeof value.path === 'string' && path.isAbsolute(value.path) && sha(value.sha256);
+  const carryoverValid = !successor || exact(carryover, 'window,close,ownedManifest,sourceManifest,supervision,supervisor,output')
+    && bound(carryover.window, ',id') && isCapacityRequestId((carryover.window as Record<string, unknown>).id)
+    && bound(carryover.close) && bound(carryover.ownedManifest) && bound(carryover.sourceManifest)
+    && bound(carryover.supervision) && bound(carryover.supervisor)
+    && exact(carryover.output, 'path,label,commandSha256') && typeof carryover.output.path === 'string'
+    && path.isAbsolute(carryover.output.path) && label(carryover.output.label) && sha(carryover.output.commandSha256);
+  return v.schemaVersion === 1 && (successor || v.scope === 'musicbridge-capacity-phase-window') && v.owner === 'root' && isCapacityRequestId(v.id) && v.state === 'approved'
     && capacityPhaseProfiles.includes(v.profile as CapacityPhaseProfile)
     && ((v.phase === 'queued-stop' && queuedStopProfiles.includes(v.profile as CapacityPhaseProfile) && v.n === 105)
       || (v.phase === 'print-write' && v.profile === 'objects-small' && (v.n === 10 || v.n === 105))
       || (['prepare-backup','cold','full-recovery'].includes(String(v.phase)) && smallPhaseProfiles.includes(v.profile as CapacityPhaseProfile) && v.n === 10))
     && typeof v.issuedAt === 'string' && typeof v.deadlineAt === 'string' && exact(v.limits, Object.keys(CAPACITY_PHASE_LIMITS).join(','))
     && Object.entries(CAPACITY_PHASE_LIMITS).every(([key, value]) => (v.limits as Record<string, unknown>)[key] === value)
-    && exact(v.seed, 'label,metadataSha256,snapshotSha256') && label(v.seed.label) && sha(v.seed.metadataSha256) && sha(v.seed.snapshotSha256)
+    && exact(v.seed, seedKeys) && label(v.seed.label) && sha(v.seed.metadataSha256) && sha(v.seed.snapshotSha256)
     && exact(v.ownedManifest, 'file,sha256') && v.ownedManifest.file === 'owned-roots.json' && sha(v.ownedManifest.sha256)
     && exact(v.sourceManifest, 'file,sha256') && v.sourceManifest.file === 'source-pins.json' && sha(v.sourceManifest.sha256)
-    && (v.phase === 'full-recovery' ? exact(v.backup, 'label,outputDirectory,receiptSha256') && label(v.backup.label) && typeof v.backup.outputDirectory === 'string' && sha(v.backup.receiptSha256) : v.backup === undefined);
+    && (v.phase === 'full-recovery' ? exact(v.backup, 'label,outputDirectory,receiptSha256') && label(v.backup.label) && typeof v.backup.outputDirectory === 'string' && sha(v.backup.receiptSha256) : v.backup === undefined)
+    && (!successor || v.phase === 'queued-stop' && v.profile === 'objects-limit' && v.seedLabel === v.seed.label
+      && sha(v.seed.fixtureOwnerSha256) && exact(plan, 'warmupCount,formalCount,sampleCount,activeCloneMaximum,snapshotBytes,evidenceAllowanceBytes,plannedBytes,model,aggregateAudit')
+      && plan.warmupCount === 5 && plan.formalCount === 100 && plan.sampleCount === 105 && plan.activeCloneMaximum === 1
+      && integer(plan.snapshotBytes) && plan.snapshotBytes > 0 && plan.evidenceAllowanceBytes === 256 * 1024 ** 2
+      && plan.plannedBytes === plan.snapshotBytes + plan.evidenceAllowanceBytes
+      && plan.model === 'serial-single-clone-plus-bounded-growth-v1' && plan.aggregateAudit === 'queued-stop-aggregate-budget.jsonl'
+      && exact(supervisor, 'path,sha256') && typeof supervisor.path === 'string' && path.isAbsolute(supervisor.path) && sha(supervisor.sha256)
+      && exact(candidate, 'root,branch,head') && typeof candidate.root === 'string' && path.isAbsolute(candidate.root)
+      && typeof candidate.branch === 'string' && candidate.branch.length > 0 && candidate.branch.length <= 255
+      && typeof candidate.head === 'string' && /^[a-f0-9]{40}$/u.test(candidate.head)
+      && exact(toolchain, 'node,tsxLoader,consumerPython') && bound(toolchain.node) && bound(toolchain.tsxLoader) && bound(toolchain.consumerPython)
+      && exact(issuer, 'path,sha256,fact') && typeof issuer.path === 'string' && path.isAbsolute(issuer.path) && sha(issuer.sha256)
+      && bound(issuer.fact) && carryoverValid);
 }
-function validInventory(v: unknown, windowId: string): v is CapacityOwnedManifest {
+function validInventory(v: unknown, windowId: string, exactRootCount?: number): v is CapacityOwnedManifest {
   return exact(v, 'schemaVersion,scope,access,windowId,roots') && v.schemaVersion === 1 && v.scope === 'musicbridge-capacity-owned-roots' && v.access === 'count-only' && v.windowId === windowId
-    && Array.isArray(v.roots) && v.roots.length > 0 && v.roots.length <= 64 && v.roots.every(r => exact(r, 'path,device,inode,marker') && typeof r.path === 'string' && integer(r.device) && integer(r.inode)
+    && Array.isArray(v.roots) && (exactRootCount === undefined ? v.roots.length > 0 && v.roots.length <= 64 : v.roots.length === exactRootCount)
+    && v.roots.every(r => exact(r, 'path,device,inode,marker') && typeof r.path === 'string' && integer(r.device) && integer(r.inode)
       && exact(r.marker, 'relative,sha256') && ['owner.json','capacity-owner.json','seed.json','command.json','r020-owner.json'].includes(String(r.marker.relative)) && typeof r.marker.relative === 'string' && sha(r.marker.sha256));
 }
 function validBackup(v: unknown): v is BackupReceipt {
@@ -229,7 +272,7 @@ function queuedStopMeasurement(result: CapacityProcessResult, planId: string, pl
   const receipt = result.result;
   if (result.outcome !== 'ok' || !result.closed || result.code !== 0 || result.signal !== null || result.phase !== 'exited'
     || result.cleanup.termSent || result.cleanup.killSent || !Number.isSafeInteger(result.childPid) || result.childPid! <= 0 || result.childPid === process.pid
-    || result.processGroup?.managed !== true || result.processGroup.pgid !== result.childPid || result.processGroup.groupEmpty !== true
+    || result.processGroup?.managed !== true || result.processGroup.pgid !== result.childPid || result.processGroup.groupEmpty !== true || result.processGroup.zombies.length
     || result.timings.clock !== 'parent-relative' || !finite(result.timings.sendStopToReceiptMs) || !finite(result.timings.receiptToChildCloseMs)
     || receipt?.kind !== 'queue' || receipt.planId !== planId || receipt.planHash !== planHash) return undefined;
   const q = receipt as CapacityQueuedStopReceipt;
@@ -325,7 +368,9 @@ export async function runCapacityPhase(args: CapacityPhaseArguments, options: Ca
   }
   const effectiveOperationLimits = capacityPhaseEffectiveOperationLimits(args.phase);
   windowCheck(effectiveOperationLimits.admissionReserveMs);
-  const inventoryValue = json(args.ownedRootsPath, args.ownedRootsSha256); if (!validInventory(inventoryValue, w.id)) invalid('INVENTORY_INVALID'); const inventory = inventoryValue;
+  const inventoryValue = json(args.ownedRootsPath, args.ownedRootsSha256);
+  if (!validInventory(inventoryValue, w.id, w.scope === 'musicbridge-capacity-queued-stop-window' ? 73 : undefined)) invalid('INVENTORY_INVALID');
+  const inventory = inventoryValue;
   const sourcePath = path.join(windowRoot, 'source-pins.json'), source = json(sourcePath, w.sourceManifest.sha256);
   if (!exact(source, 'schemaVersion,scope,files') || source.schemaVersion !== 1 || source.scope !== 'musicbridge-capacity-source-pins' || !source.files || typeof source.files !== 'object' || Array.isArray(source.files)) invalid('SOURCE_CHANGED');
   const sourceFiles = source.files as Record<string, unknown>;
@@ -345,6 +390,8 @@ export async function runCapacityPhase(args: CapacityPhaseArguments, options: Ca
   canonical(seed.fixtureDirectory);
   if (!exact(seed.marker, 'id,scope') || !isCapacityRequestId(seed.marker.id) || seed.marker.scope !== 'musicbridge-capacity-synthetic-only'
     || JSON.stringify(json(path.join(seed.fixtureDirectory, 'capacity-owner.json'))) !== JSON.stringify(seed.marker)
+    || w.scope === 'musicbridge-capacity-queued-stop-window'
+      && hashCapacityFile(path.join(seed.fixtureDirectory, 'capacity-owner.json')) !== w.seed.fixtureOwnerSha256
     || ['-wal','-shm','-journal'].some(suffix => existsSync(seedPath + suffix))) invalid('SEED_INVALID');
   const tempRoot = realpathSync(os.tmpdir()), seen = new Set<string>();
   for (const r of inventory.roots) {
@@ -384,9 +431,17 @@ export async function runCapacityPhase(args: CapacityPhaseArguments, options: Ca
     return { availableBytes: available, plannedBytes: planned, ownedBytes: owned };
   }
   const planned = args.phase === 'queued-stop' ? 105 : args.phase === 'print-write' ? w.n : 10;
-  const d = lstatSync(seedPath).size, restoreBound = backupReceipt ? 3 * backupReceipt.databaseBytes + backupReceipt.objectBytes + backupReceipt.manifestBytes + 64 * 1024 ** 2 : 0;
-  const initialSpace = space(args.phase === 'full-recovery' ? 10 * restoreBound : 3 * d + 64 * 1024 ** 2);
+  const d = lstatSync(seedPath).size, successorQueuedStop = w.scope === 'musicbridge-capacity-queued-stop-window';
+  const queuedStopWorkingBytes = successorQueuedStop ? capacityMeasureWorkingBytes(d) : 3 * d + 64 * 1024 ** 2;
+  if (successorQueuedStop
+    && (w.queuedStopPlan?.snapshotBytes !== d || w.queuedStopPlan.plannedBytes !== queuedStopWorkingBytes)) invalid('WINDOW_INVALID');
+  const restoreBound = backupReceipt ? 3 * backupReceipt.databaseBytes + backupReceipt.objectBytes + backupReceipt.manifestBytes + 64 * 1024 ** 2 : 0;
+  const initialSpace = space(args.phase === 'full-recovery' ? 10 * restoreBound
+    : successorQueuedStop ? queuedStopWorkingBytes : 3 * d + 64 * 1024 ** 2);
   const output = path.join(windowRoot, args.label); mkdirSync(output); syncDirectory(windowRoot);
+  const queuedStopAggregate: CapacityMeasureAggregateGuard | undefined = successorQueuedStop
+    ? createCapacityQueuedStopAggregateGuard(output, d) : undefined;
+  queuedStopAggregate?.check({ checkpoint: 'output-created' });
   durable(path.join(output, 'owner.json'), { scope: 'musicbridge-capacity-phase-output', id: randomUUID(), windowId: w.id, label: args.label });
   durable(path.join(output, 'input.json'), { args, windowId: w.id, seedSha256: w.seed.snapshotSha256, sourceManifestSha256: w.sourceManifest.sha256, initialSpace,
     effectiveOperationLimits,
@@ -395,6 +450,7 @@ export async function runCapacityPhase(args: CapacityPhaseArguments, options: Ca
     ...(args.phase === 'print-write' ? { mode: planned === 10 ? 'pilot' : 'formal', pilotSamples: planned === 10 ? 10 : 0, warmup: planned === 105 ? 5 : 0,
       formalSamples: planned === 105 ? 100 : 0, claimLimitMaxMs: 2000, completeLimitMaxMs: 2000, backend: 'private-immediate-fake' } : {}),
     deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' });
+  queuedStopAggregate?.check({ checkpoint: 'input-written' });
   const rows: { outcome: string; durationMs: number }[] = [], queueMeasurements: QueueMeasurement[] = [], printMeasurements: PrintWriteMeasurement[] = [], childPids = new Set<number>(); let failure: string | undefined, prepared = false;
   try {
     if (args.phase === 'prepare-backup') {
@@ -416,9 +472,12 @@ export async function runCapacityPhase(args: CapacityPhaseArguments, options: Ca
       const recoveryOwner = { root: path.join(output, 'restores'), id: randomUUID() };
       if (args.phase === 'full-recovery') { mkdirSync(recoveryOwner.root); durable(path.join(recoveryOwner.root, 'owner.json'), { id: recoveryOwner.id, scope: 'musicbridge-capacity-recovery-only' }); }
       for (let index = 1; index <= planned; ++index) {
-        windowCheck(effectiveOperationLimits.admissionReserveMs); seedCheck(); const beforeSpace = space(args.phase === 'full-recovery' ? (11 - index) * restoreBound : 3 * d + 64 * 1024 ** 2);
+        windowCheck(effectiveOperationLimits.admissionReserveMs); seedCheck();
+        const beforeSpace = space(args.phase === 'full-recovery' ? (11 - index) * restoreBound
+          : successorQueuedStop ? Math.max(0, queuedStopWorkingBytes - capacityDirectoryBytes(output)) : 3 * d + 64 * 1024 ** 2);
         const name = `sample-${String(index).padStart(args.phase === 'queued-stop' || args.phase === 'print-write' ? 3 : 2, '0')}`, preparedAt = performance.now(); let clone: CapacityClone | undefined, destinationPath: string | undefined;
-        if (args.phase === 'cold' || args.phase === 'queued-stop' || args.phase === 'print-write') clone = createCapacityClone(output, name, seedPath);
+        if (args.phase === 'cold' || args.phase === 'print-write' || args.phase === 'queued-stop' && !successorQueuedStop) clone = createCapacityClone(output, name, seedPath);
+        else if (successorQueuedStop) clone = createCapacityClone(output, name, seedPath, queuedStopWorkingBytes, queuedStopAggregate);
         else { destinationPath = path.join(recoveryOwner.root, name); mkdirSync(destinationPath); syncDirectory(recoveryOwner.root); }
         durable(path.join(output, `${name}-intent.json`), { index, phase: args.phase, profile: args.profile, windowId: w.id, seedSha256: w.seed.snapshotSha256, state: 'operation-not-yet-returned' });
         const preparationMs = performance.now() - preparedAt, operationStarted = performance.now();
@@ -440,6 +499,7 @@ export async function runCapacityPhase(args: CapacityPhaseArguments, options: Ca
           const row = { index, phase: args.phase, profile: args.profile, preparationMs, outcome: 'failed', failure: 'CAPACITY_PHASE_OPERATION_FAILED', childIdentity: 'unknown', resourcesClosed: false, durationMs, beforeSpace };
           raw(path.join(output, 'samples.jsonl'), row); durable(path.join(output, `${name}.json`), row); invalid('OPERATION_FAILED');
         }
+        queuedStopAggregate?.check({ group: name, checkpoint: 'operation-returned' });
         let identityFailure: string | undefined;
         // 子进程关闭后、发布成功或清理clone前复核本次样本的完整输入身份。
         try { windowCheck(); sourceCheck(); seedCheck(); } catch (error) { identityFailure = capacityPhaseFailureCode(error); }
@@ -462,6 +522,7 @@ export async function runCapacityPhase(args: CapacityPhaseArguments, options: Ca
           }
           raw(path.join(output, 'samples.jsonl'), row); durable(path.join(output, `${name}.json`), row);
         } catch { invalid('PERSISTENCE_FAILED'); }
+        queuedStopAggregate?.check({ group: name, checkpoint: 'sample-evidence-written' });
         if (identityFailure) throw new Error(identityFailure);
         if (queueMeasurement && index > 5) queueMeasurements.push(queueMeasurement);
         if (printMeasurement && (planned === 10 || index > 5)) printMeasurements.push(printMeasurement);
@@ -469,6 +530,7 @@ export async function runCapacityPhase(args: CapacityPhaseArguments, options: Ca
         try {
           durable(path.join(output, `${name}-retention.json`), { retained: args.phase === 'full-recovery' || outcome !== 'ok', resourcesClosed: result.closed, space: retentionSpace });
         } catch { invalid('PERSISTENCE_FAILED'); }
+        queuedStopAggregate?.check({ group: name, checkpoint: 'retention-written' });
         // retention 与空间证据先落盘；其后才允许清理成功 clone，任何碰撞或 fsync 失败都保留现场。
         if (clone && result.closed) finishCapacityClone(clone, { outcome, resourcesClosed: true, samples: [result] });
         if (!ok) invalid('OPERATION_FAILED');
@@ -487,5 +549,6 @@ export async function runCapacityPhase(args: CapacityPhaseArguments, options: Ca
     unrun: args.phase === 'prepare-backup' ? 10 : planned - attempts, minMs: values[0] ?? null, medianMs: values.length ? (values[Math.floor((values.length - 1) / 2)]! + values[Math.ceil((values.length - 1) / 2)]!) / 2 : null,
     maxMs: values.at(-1) ?? null, p99: null, ...(queueSummary ? { queuedStop: queueSummary } : {}), ...(printSummary ? { printWrite: printSummary } : {}), ...(failure ? { failure } : {}), deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' };
   durable(path.join(output, 'summary.json'), summary); durable(path.join(output, 'exit.json'), { exit: summary.state === 'passed' || summary.state === 'prepared' ? 0 : 1 });
+  queuedStopAggregate?.check({ checkpoint: 'terminal-written' });
   return summary;
 }

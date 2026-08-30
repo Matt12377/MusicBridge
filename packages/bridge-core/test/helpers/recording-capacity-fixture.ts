@@ -251,10 +251,11 @@ export interface CapacityClone {
 export type CapacityMeasureGroup = 'progress' | 'stop' | 'read';
 export type CapacityMeasurePhase = 'copy' | 'open-audit' | 'operation' | 'round-fsync' | 'final-hash' | 'cleanup';
 export interface CapacityMeasureAggregateCheck {
-  group?: CapacityMeasureGroup; checkpoint: string; plannedBytes?: number;
+  group?: string; checkpoint: string; plannedBytes?: number;
 }
 export interface CapacityMeasureAggregateGuard {
   readonly parent: string; readonly snapshotBytes: number; readonly limitBytes: number; readonly stopped: boolean;
+  groupForLabel(label: string): string | undefined;
   check(input: CapacityMeasureAggregateCheck): {
     sequence: number; outputBytesBefore: number; outputBytesAfter: number; plannedBytes: number; limitBytes: number;
   };
@@ -282,10 +283,12 @@ export function capacityMeasurePlan() {
  * measure 的 S+256MiB 是 output 全树的逻辑字节硬上限，不只是磁盘余量预测。
  * 每次成功检查先持久化审计行；一旦越界或出现第二个clone，本guard不再写入，重复调用稳定停止并保留现场。
  */
-export function createCapacityMeasureAggregateGuard(parent: string, snapshotBytes: number): CapacityMeasureAggregateGuard {
+function createCapacityAggregateGuard(parent: string, snapshotBytes: number, options: {
+  auditFile: string; scope: string; groupForLabel(label: string): string | undefined;
+}): CapacityMeasureAggregateGuard {
   if (!path.isAbsolute(parent) || realpathSync(parent) !== parent) throw new Error('容量measure aggregate目录身份无效');
   const limitBytes = capacityMeasureWorkingBytes(snapshotBytes), parentInfo = lstatSync(parent);
-  const groupIdentities = new Map<CapacityMeasureGroup, { device: number; inode: number; owner: {
+  const groupIdentities = new Map<string, { device: number; inode: number; owner: {
     device: number; inode: number; nlink: number; content: string;
   } }>();
   let sequence = 0, terminal: Error | undefined;
@@ -302,13 +305,13 @@ export function createCapacityMeasureAggregateGuard(parent: string, snapshotByte
     const currentInfo = lstatSync(parent);
     if (canonical !== parent || !currentInfo.isDirectory() || currentInfo.isSymbolicLink()
       || currentInfo.dev !== parentInfo.dev || currentInfo.ino !== parentInfo.ino) return stop();
-    let activeClones: Array<{ name: string; group: CapacityMeasureGroup; device: number; inode: number }>, outputBytesBefore: number;
+    let activeClones: Array<{ name: string; group: string; device: number; inode: number }>, outputBytesBefore: number;
     try {
       activeClones = readdirSync(parent).flatMap(name => {
-        const matched = /^group-(progress|stop|read)$/u.exec(name); if (!matched) return [];
+        const group = options.groupForLabel(name); if (!group) return [];
         const info = lstatSync(path.join(parent, name));
         if (!info.isDirectory() || info.isSymbolicLink()) return stop();
-        return [{ name, group: matched[1] as CapacityMeasureGroup, device: info.dev, inode: info.ino }];
+        return [{ name, group, device: info.dev, inode: info.ino }];
       });
       outputBytesBefore = capacityDirectoryBytes(parent);
     } catch { return stop(); }
@@ -347,12 +350,12 @@ export function createCapacityMeasureAggregateGuard(parent: string, snapshotByte
     const expectedIdentity = input.group ? groupIdentities.get(input.group) : undefined;
     if (expectedIdentity && !activeClone && input.checkpoint !== 'clone-after-cleanup') return stop();
     if (outputBytesBefore > limitBytes || plannedBytes > limitBytes - outputBytesBefore) return stop();
-    const row = { schemaVersion: 1, scope: 'musicbridge-capacity-measure-aggregate-budget', sequence: sequence + 1,
+    const row = { schemaVersion: 1, scope: options.scope, sequence: sequence + 1,
       checkpoint: input.checkpoint, group: input.group ?? null, activeClone: activeClone?.name ?? null,
       snapshotBytes, limitBytes, outputBytesBefore, plannedBytes, recordedAt: new Date().toISOString() };
     const line = JSON.stringify(row) + '\n', auditBytes = Buffer.byteLength(line);
     if (auditBytes > limitBytes - outputBytesBefore - plannedBytes) return stop();
-    const file = path.join(parent, 'measure-aggregate-budget.jsonl');
+    const file = path.join(parent, options.auditFile);
     const fd = openSync(file, constants.O_CREAT | constants.O_APPEND | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
     try { writeFileSync(fd, line); fsyncSync(fd); } finally { closeSync(fd); }
     const directory = openSync(parent, constants.O_RDONLY | constants.O_NOFOLLOW);
@@ -363,7 +366,23 @@ export function createCapacityMeasureAggregateGuard(parent: string, snapshotByte
     sequence += 1;
     return { sequence, outputBytesBefore, outputBytesAfter, plannedBytes, limitBytes };
   };
-  return { parent, snapshotBytes, limitBytes, get stopped() { return terminal !== undefined; }, check };
+  return { parent, snapshotBytes, limitBytes, groupForLabel: options.groupForLabel,
+    get stopped() { return terminal !== undefined; }, check };
+}
+
+export function createCapacityMeasureAggregateGuard(parent: string, snapshotBytes: number): CapacityMeasureAggregateGuard {
+  return createCapacityAggregateGuard(parent, snapshotBytes, {
+    auditFile: 'measure-aggregate-budget.jsonl', scope: 'musicbridge-capacity-measure-aggregate-budget',
+    groupForLabel: label => /^group-(progress|stop|read)$/u.exec(label)?.[1],
+  });
+}
+
+/** queued-stop 逐轮串行复制同一个seed；output全树同样受S+256MiB硬上限约束。 */
+export function createCapacityQueuedStopAggregateGuard(parent: string, snapshotBytes: number): CapacityMeasureAggregateGuard {
+  return createCapacityAggregateGuard(parent, snapshotBytes, {
+    auditFile: 'queued-stop-aggregate-budget.jsonl', scope: 'musicbridge-capacity-queued-stop-aggregate-budget',
+    groupForLabel: label => /^sample-\d{3}$/u.test(label) ? label : undefined,
+  });
 }
 
 /**
@@ -534,7 +553,7 @@ export function createCapacityClone(parent: string, label: string, seed: string,
   if (realpathSync(parent) !== parent || !/^[a-z0-9-]{1,64}$/u.test(label)) throw new Error('容量clone父目录或label无效');
   const info = lstatSync(seed); if (!info.isFile() || info.isSymbolicLink() || info.nlink !== 1) throw new Error('种子不是独占普通文件');
   checkCapacitySpace(parent, plannedBytes ?? info.size * 3 + 64 * 1024 ** 2);
-  const group = /^group-(progress|stop|read)$/u.exec(label)?.[1] as CapacityMeasureGroup | undefined;
+  const group = aggregateGuard?.groupForLabel(label) ?? /^group-(progress|stop|read)$/u.exec(label)?.[1];
   if (aggregateGuard && (!group || aggregateGuard.parent !== parent || aggregateGuard.snapshotBytes !== info.size
     || plannedBytes !== aggregateGuard.limitBytes)) throw new Error('容量measure aggregate clone参数无效');
   const marker = { id: randomUUID(), scope: 'musicbridge-capacity-clone-only', label };
@@ -550,7 +569,7 @@ export function createCapacityClone(parent: string, label: string, seed: string,
 }
 export function finishCapacityClone(clone: CapacityClone, result: { outcome: CapacitySample['outcome']; resourcesClosed: boolean; samples: unknown;
   ownedWorkspace?: CapacityStopWorkspace; onPhase?: (phase: 'final-hash' | 'cleanup', details: unknown) => void }): string {
-  const group = /^group-(progress|stop|read)$/u.exec(clone.label)?.[1] as CapacityMeasureGroup | undefined;
+  const group = clone.aggregateGuard?.groupForLabel(clone.label) ?? /^group-(progress|stop|read)$/u.exec(clone.label)?.[1];
   if (clone.aggregateGuard && !group) throw new Error('容量measure aggregate clone身份无效');
   const durableAggregateJson = (file: string, value: unknown, checkpoint: string) => {
     const bytes = Buffer.byteLength(JSON.stringify(value, null, 2) + '\n');
