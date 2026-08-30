@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "scope": "musicbridge-capacity-process-failure-lineage-contract",
+  "failure": "PROCESS_EXIT",
+  "maximumReachableDepth": 64,
+  "exactDirectHeadCount": 1,
+  "ordering": "head-to-leaf",
+  "fieldSemantics": {
+    "processFailureCarryoverCount": "directHeadCount",
+    "processFailureCount": "predecessorReachableDepth"
+  },
+  "verdicts": [
+    "PASS",
+    "DIRECT_HEAD_COUNT",
+    "ORPHAN",
+    "CYCLE",
+    "FORK",
+    "DEPTH_LIMIT",
+    "TIME_ORDER",
+    "PID_MISMATCH",
+    "IDENTITY_MISMATCH",
+    "AUTHORITY_DEPTH_MISMATCH"
+  ]
+}

@@ -2,6 +2,7 @@ import argparse
 import datetime
 import decimal
 import hashlib
+import importlib.util
 import json
 import math
 import os
@@ -14,6 +15,22 @@ import sys
 import tempfile
 import time
 import uuid
+
+
+def _lineage_module(repository_root=None):
+    path = Path(repository_root) / 'scripts/ci/capacity_process_failure_lineage.py' \
+        if repository_root is not None else Path(__file__).resolve().with_name(
+            'capacity_process_failure_lineage.py')
+    spec = importlib.util.spec_from_file_location('musicbridge_capacity_failure_lineage', path)
+    if spec is None or spec.loader is None:
+        raise ValueError('LINEAGE_CONTRACT')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def evaluate_process_failure_lineage(case, contract):
+    return _lineage_module().evaluate_process_failure_lineage(case, contract)
 
 
 def _write(file, value):
@@ -445,8 +462,10 @@ def _expected_source_paths(root):
     root = Path(root).resolve(strict=True)
     names = ['package.json', 'pnpm-lock.yaml', 'packages/bridge-core/package.json',
              'packages/contracts/package.json',
+             'packages/contracts/capacity-process-failure-lineage-v1.json',
              'packages/bridge-core/test/benchmarks/recording-capacity.ts',
              'packages/bridge-core/test/benchmarks/recording-capacity-process.ts',
+             'scripts/ci/capacity_process_failure_lineage.py',
              'scripts/ci/capacity-phase-supervisor-v2.py',
              'scripts/ci/issue-v3-capacity-measure-window.py']
     def walk(relative, suffix):
@@ -3243,6 +3262,7 @@ def _queued_stop_process_authority(value, window, window_identity, owner_identit
         keys |= {'processFailureCarryoverValid', 'processFailureCount'}
         stable.add('processFailureCarryoverValid')
     planned = window['queuedStopPlan']['plannedBytes']
+    # window字段是direct head数；递归深度在完整链收集后由canonical evaluator精确核对。
     return _queued_exact(value, keys) \
         and all(value.get(key) is True for key in stable) \
         and value.get('windowSha256Observed') == window_identity['sha256'] \
@@ -3251,7 +3271,8 @@ def _queued_stop_process_authority(value, window, window_identity, owner_identit
         and value.get('ownedRootCount') == owned_count \
         and value.get('issuerFailureCount') == window['issuerFailureCarryoverCount'] \
         and value.get('prechildFailureCount') == window['prechildFailureCarryoverCount'] \
-        and (process_count is None or value.get('processFailureCount') == process_count) \
+        and (process_count is None or type(value.get('processFailureCount')) is int
+             and 1 <= value['processFailureCount'] <= 64) \
         and value.get('candidateRepository') == window['candidateRepository'] \
         and value.get('plannedBytes') == planned \
         and value.get('remainingPlannedBytes') == remaining \
@@ -3261,7 +3282,7 @@ def _queued_stop_process_authority(value, window, window_identity, owner_identit
         and value['availableBytes'] - remaining >= _QUEUED_STOP_LIMITS['minimumFreeBytes']
 
 
-def _validate_queued_stop_process_failures(carryover, runtime):
+def _validate_queued_stop_process_failures(carryover, runtime, lineage_contract=None):
     """冻结已消费且PROCESS_EXIT的queued-stop authority；历史owned schema不得升级或重写。"""
     error_code = 'QUEUED_STOP_PROCESS_FAILURE'
     audit_code = 'QUEUED_STOP_PROCESS_FAILURE_AUDIT'
@@ -3312,6 +3333,7 @@ def _validate_queued_stop_process_failures(carryover, runtime):
     queued_keys = {'outputDirectory', 'verifiedComplete', 'verifiedPassed', 'fileCount',
                    'sampleCount', 'uniqueChildPids', 'aggregateBudgetValid', 'unexpectedEntries'}
     roots = []; billing_roots = []; snapshots = []; declared = set(); seen = set()
+    lineage_nodes = []; direct_root_ids = []
     seen_windows = set(); seen_dirs = set(); seen_labels = set()
     if len(carryover) != 1:
         raise ValueError(error_code)
@@ -3406,7 +3428,10 @@ def _validate_queued_stop_process_failures(carryover, runtime):
                 or not _queued_exact(source, {'schemaVersion', 'scope', 'files'}) \
                 or source.get('schemaVersion') != 1 \
                 or source.get('scope') != 'musicbridge-capacity-source-pins' \
-                or not isinstance(source_files, dict) or len(source_files) != 241 \
+                or not isinstance(source_files, dict) or len(source_files) not in (241, 243) \
+                or len(source_files) == 243 and any(relative not in source_files for relative in (
+                    'scripts/ci/capacity_process_failure_lineage.py',
+                    'packages/contracts/capacity-process-failure-lineage-v1.json')) \
                 or any(not isinstance(relative, str) or Path(relative).is_absolute()
                        or '..' in Path(relative).parts or _SHA256.fullmatch(str(digest)) is None
                        for relative, digest in source_files.items()):
@@ -3614,6 +3639,15 @@ def _validate_queued_stop_process_failures(carryover, runtime):
             raise ValueError(error_code)
         admission = close.get('authorityAdmission') if isinstance(close, dict) else None
         terminal = close.get('authorityTerminal') if isinstance(close, dict) else None
+        observed_process_counts = []
+        if linked:
+            for authority in (admission, terminal):
+                value = authority.get('processFailureCount') if isinstance(authority, dict) else None
+                if type(value) is not int or not 1 <= value <= 64:
+                    raise ValueError(error_code)
+                observed_process_counts.append(value)
+            if len(set(observed_process_counts)) != 1:
+                raise ValueError(error_code)
         if not _queued_exact(close, close_keys) or close.get('schemaVersion') != 1 \
                 or close.get('scope') != 'musicbridge-capacity-queued-stop-window-close' \
                 or close.get('windowId') != window_id or close.get('profile') != 'objects-limit' \
@@ -3636,11 +3670,11 @@ def _validate_queued_stop_process_failures(carryover, runtime):
                 or close.get('gateB') != 'NOT_RUN' \
                 or close.get('replayPolicy') != 'terminal-window-id-and-label-never-reuse' \
                 or not _queued_stop_process_authority(
-                    admission, window, window_identity, owner_identity, 241,
+                    admission, window, window_identity, owner_identity, len(source_files),
                     expected_owned_count,
                     window['queuedStopPlan']['plannedBytes']) \
                 or not _queued_stop_process_authority(
-                    terminal, window, window_identity, owner_identity, 241,
+                    terminal, window, window_identity, owner_identity, len(source_files),
                     expected_owned_count, 0):
             raise ValueError(error_code)
         try:
@@ -3663,7 +3697,22 @@ def _validate_queued_stop_process_failures(carryover, runtime):
             raise ValueError(error_code)
         root_row = {'path': str(root), 'device': root_info.st_dev, 'inode': root_info.st_ino,
                     'marker': {'relative': 'owner.json', 'sha256': owner_identity['sha256']}}
-        if is_head: roots.append(root_row)
+        if is_head:
+            roots.append(root_row); direct_root_ids.append(window_id)
+        canonical_instant = lambda value: value.astimezone(datetime.timezone.utc).isoformat(
+            timespec='milliseconds').replace('+00:00', 'Z')
+        predecessor_ids = [process_carryover[0]['windowId']] if linked else []
+        predecessor_identities = [json.dumps(predecessor_root, sort_keys=True,
+                                               separators=(',', ':'))] if linked else []
+        lineage_nodes.append({
+            'id': window_id, 'predecessorIds': predecessor_ids,
+            'predecessorRootIdentities': predecessor_identities,
+            'issuedAt': canonical_instant(issued_at), 'deadlineAt': canonical_instant(deadline_at),
+            'closedAt': canonical_instant(closed_at), 'pid': close['pid'], 'pgid': close['pgid'],
+            'supervisionPid': supervision['pid'], 'closePid': close['pid'],
+            'rootIdentity': json.dumps(root_row, sort_keys=True, separators=(',', ':')),
+            'authorityReachableDepth': observed_process_counts[0] if linked else None,
+        })
         billing_roots.append(root_row)
         snapshots.append({
             'root': root_row,
@@ -3698,9 +3747,17 @@ def _validate_queued_stop_process_failures(carryover, runtime):
             raise ValueError(error_code)
         if linked:
             pending.append((process_carryover[0], issued_at, False))
+    lineage = _lineage_module()
+    if lineage_contract is None:
+        lineage_contract = lineage.load_contract(Path(__file__).resolve().parents[2])
+    lineage_result = lineage.evaluate_process_failure_lineage(
+        {'directRootIds': direct_root_ids, 'nodes': lineage_nodes}, lineage_contract)
+    if lineage_result['verdict'] != 'PASS':
+        raise ValueError(f"{error_code}_{lineage_result['verdict']}")
     if declared != discovered:
         raise ValueError(audit_code)
-    return {'roots': roots, 'billingRoots': billing_roots, 'snapshots': snapshots}
+    return {'roots': roots, 'billingRoots': billing_roots, 'snapshots': snapshots,
+            'contractLineage': lineage_result}
 
 
 def _validate_queued_stop_bound_identities(window, parent, candidate):
@@ -3760,13 +3817,28 @@ def _validate_queued_stop_bound_identities(window, parent, candidate):
         raise ValueError('QUEUED_STOP_PRECHILD_FAILURE')
     identities['prechildFailureRoots'] = prechild_failures['roots']
     identities['prechildFailures'] = prechild_failures['snapshots']
+    source_pins, _ = _strict_json(Path(parent) / 'source-pins.json')
+    source_files = source_pins.get('files') if isinstance(source_pins, dict) else None
+    lineage_relatives = ('scripts/ci/capacity_process_failure_lineage.py',
+                         'packages/contracts/capacity-process-failure-lineage-v1.json')
+    if not isinstance(source_files, dict):
+        raise ValueError('QUEUED_STOP_PROCESS_FAILURE')
+    for relative in lineage_relatives:
+        digest = source_files.get(relative)
+        if _SHA256.fullmatch(str(digest or '')) is None:
+            raise ValueError('QUEUED_STOP_PROCESS_FAILURE')
+        _validate_queued_stop_bound_file({'path': str(candidate / relative), 'sha256': digest},
+                                         expected_path=candidate / relative)
+    lineage = _lineage_module(candidate)
+    lineage_contract = lineage.load_contract(candidate)
     process_failures = _validate_queued_stop_process_failures(
-        fact['processFailureCarryover'], Path(parent).parent)
+        fact['processFailureCarryover'], Path(parent).parent, lineage_contract)
     if len(process_failures['roots']) != window['processFailureCarryoverCount']:
         raise ValueError('QUEUED_STOP_PROCESS_FAILURE')
     identities['processFailureRoots'] = process_failures['roots']
     identities['processFailureBillingRoots'] = process_failures['billingRoots']
     identities['processFailures'] = process_failures['snapshots']
+    identities['processFailureLineage'] = process_failures['contractLineage']
     identities['buildHelper'] = _validate_queued_stop_bound_file(
         {'path': build_helper['path'], 'sha256': build_helper['sha256']},
         expected_path=candidate / build_helper['relativePath'])

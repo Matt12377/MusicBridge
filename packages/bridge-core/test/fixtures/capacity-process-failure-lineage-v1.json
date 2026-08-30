@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "scope": "musicbridge-capacity-process-failure-lineage-corpus",
+  "contract": "packages/contracts/capacity-process-failure-lineage-v1.json",
+  "cases": [
+    {
+      "name": "leaf-window03",
+      "directRootIds": ["window03"],
+      "nodes": [
+        {"id":"window03","predecessorIds":[],"predecessorRootIdentities":[],"issuedAt":"2026-08-30T10:00:00.000Z","deadlineAt":"2026-08-30T10:15:00.000Z","closedAt":"2026-08-30T10:01:00.000Z","pid":303,"pgid":303,"supervisionPid":303,"closePid":303,"rootIdentity":"root-03","authorityReachableDepth":null}
+      ],
+      "expected": {"verdict":"PASS","directHeadCount":1,"reachableDepth":1,"orderedDirectRoots":["window03"],"billingRoots":["window03"],"failure":null}
+    },
+    {
+      "name": "linked-depth1-window05-to03",
+      "directRootIds": ["window05"],
+      "nodes": [
+        {"id":"window05","predecessorIds":["window03"],"predecessorRootIdentities":["root-03"],"issuedAt":"2026-08-30T10:02:00.000Z","deadlineAt":"2026-08-30T10:17:00.000Z","closedAt":"2026-08-30T10:03:00.000Z","pid":305,"pgid":305,"supervisionPid":305,"closePid":305,"rootIdentity":"root-05","authorityReachableDepth":1},
+        {"id":"window03","predecessorIds":[],"predecessorRootIdentities":[],"issuedAt":"2026-08-30T10:00:00.000Z","deadlineAt":"2026-08-30T10:15:00.000Z","closedAt":"2026-08-30T10:01:00.000Z","pid":303,"pgid":303,"supervisionPid":303,"closePid":303,"rootIdentity":"root-03","authorityReachableDepth":null}
+      ],
+      "expected": {"verdict":"PASS","directHeadCount":1,"reachableDepth":2,"orderedDirectRoots":["window05"],"billingRoots":["window05","window03"],"failure":null}
+    },
+    {
+      "name": "linked-depth2-window06-to05-to03",
+      "directRootIds": ["window06"],
+      "nodes": [
+        {"id":"window06","predecessorIds":["window05"],"predecessorRootIdentities":["root-05"],"issuedAt":"2026-08-30T10:04:00.000Z","deadlineAt":"2026-08-30T10:19:00.000Z","closedAt":"2026-08-30T10:05:00.000Z","pid":306,"pgid":306,"supervisionPid":306,"closePid":306,"rootIdentity":"root-06","authorityReachableDepth":2},
+        {"id":"window05","predecessorIds":["window03"],"predecessorRootIdentities":["root-03"],"issuedAt":"2026-08-30T10:02:00.000Z","deadlineAt":"2026-08-30T10:17:00.000Z","closedAt":"2026-08-30T10:03:00.000Z","pid":305,"pgid":305,"supervisionPid":305,"closePid":305,"rootIdentity":"root-05","authorityReachableDepth":1},
+        {"id":"window03","predecessorIds":[],"predecessorRootIdentities":[],"issuedAt":"2026-08-30T10:00:00.000Z","deadlineAt":"2026-08-30T10:15:00.000Z","closedAt":"2026-08-30T10:01:00.000Z","pid":303,"pgid":303,"supervisionPid":303,"closePid":303,"rootIdentity":"root-03","authorityReachableDepth":null}
+      ],
+      "expected": {"verdict":"PASS","directHeadCount":1,"reachableDepth":3,"orderedDirectRoots":["window06"],"billingRoots":["window06","window05","window03"],"failure":null}
+    },
+    {
+      "name": "linked-depth3-window07-to06-to05-to03",
+      "directRootIds": ["window07"],
+      "nodes": [
+        {"id":"window07","predecessorIds":["window06"],"predecessorRootIdentities":["root-06"],"issuedAt":"2026-08-30T10:06:00.000Z","deadlineAt":"2026-08-30T10:21:00.000Z","closedAt":"2026-08-30T10:07:00.000Z","pid":307,"pgid":307,"supervisionPid":307,"closePid":307,"rootIdentity":"root-07","authorityReachableDepth":3},
+        {"id":"window06","predecessorIds":["window05"],"predecessorRootIdentities":["root-05"],"issuedAt":"2026-08-30T10:04:00.000Z","deadlineAt":"2026-08-30T10:19:00.000Z","closedAt":"2026-08-30T10:05:00.000Z","pid":306,"pgid":306,"supervisionPid":306,"closePid":306,"rootIdentity":"root-06","authorityReachableDepth":2},
+        {"id":"window05","predecessorIds":["window03"],"predecessorRootIdentities":["root-03"],"issuedAt":"2026-08-30T10:02:00.000Z","deadlineAt":"2026-08-30T10:17:00.000Z","closedAt":"2026-08-30T10:03:00.000Z","pid":305,"pgid":305,"supervisionPid":305,"closePid":305,"rootIdentity":"root-05","authorityReachableDepth":1},
+        {"id":"window03","predecessorIds":[],"predecessorRootIdentities":[],"issuedAt":"2026-08-30T10:00:00.000Z","deadlineAt":"2026-08-30T10:15:00.000Z","closedAt":"2026-08-30T10:01:00.000Z","pid":303,"pgid":303,"supervisionPid":303,"closePid":303,"rootIdentity":"root-03","authorityReachableDepth":null}
+      ],
+      "expected": {"verdict":"PASS","directHeadCount":1,"reachableDepth":4,"orderedDirectRoots":["window07"],"billingRoots":["window07","window06","window05","window03"],"failure":null}
+    },
+    {
+      "name": "reject-direct-head-count",
+      "directRootIds": ["window05","window03"],
+      "nodes": [],
+      "expected": {"verdict":"DIRECT_HEAD_COUNT","directHeadCount":2,"reachableDepth":0,"orderedDirectRoots":["window05","window03"],"billingRoots":[],"failure":"DIRECT_HEAD_COUNT"}
+    },
+    {
+      "name": "reject-orphan",
+      "directRootIds": ["window06"],
+      "nodes": [{"id":"window06","predecessorIds":["missing"],"predecessorRootIdentities":["root-missing"],"issuedAt":"2026-08-30T10:04:00.000Z","deadlineAt":"2026-08-30T10:19:00.000Z","closedAt":"2026-08-30T10:05:00.000Z","pid":306,"pgid":306,"supervisionPid":306,"closePid":306,"rootIdentity":"root-06","authorityReachableDepth":1}],
+      "expected": {"verdict":"ORPHAN","directHeadCount":1,"reachableDepth":1,"orderedDirectRoots":["window06"],"billingRoots":["window06"],"failure":"ORPHAN"}
+    },
+    {
+      "name": "reject-cycle",
+      "directRootIds": ["window06"],
+      "nodes": [
+        {"id":"window06","predecessorIds":["window05"],"predecessorRootIdentities":["root-05"],"issuedAt":"2026-08-30T10:04:00.000Z","deadlineAt":"2026-08-30T10:19:00.000Z","closedAt":"2026-08-30T10:05:00.000Z","pid":306,"pgid":306,"supervisionPid":306,"closePid":306,"rootIdentity":"root-06","authorityReachableDepth":2},
+        {"id":"window05","predecessorIds":["window06"],"predecessorRootIdentities":["root-06"],"issuedAt":"2026-08-30T10:02:00.000Z","deadlineAt":"2026-08-30T10:17:00.000Z","closedAt":"2026-08-30T10:03:00.000Z","pid":305,"pgid":305,"supervisionPid":305,"closePid":305,"rootIdentity":"root-05","authorityReachableDepth":2}
+      ],
+      "expected": {"verdict":"CYCLE","directHeadCount":1,"reachableDepth":2,"orderedDirectRoots":["window06"],"billingRoots":["window06","window05"],"failure":"CYCLE"}
+    },
+    {
+      "name": "reject-fork",
+      "directRootIds": ["window06"],
+      "nodes": [{"id":"window06","predecessorIds":["window05","window03"],"predecessorRootIdentities":["root-05","root-03"],"issuedAt":"2026-08-30T10:04:00.000Z","deadlineAt":"2026-08-30T10:19:00.000Z","closedAt":"2026-08-30T10:05:00.000Z","pid":306,"pgid":306,"supervisionPid":306,"closePid":306,"rootIdentity":"root-06","authorityReachableDepth":2}],
+      "expected": {"verdict":"FORK","directHeadCount":1,"reachableDepth":1,"orderedDirectRoots":["window06"],"billingRoots":["window06"],"failure":"FORK"}
+    },
+    {
+      "name": "reject-time-order",
+      "directRootIds": ["window05"],
+      "nodes": [
+        {"id":"window05","predecessorIds":["window03"],"predecessorRootIdentities":["root-03"],"issuedAt":"2026-08-30T10:02:00.000Z","deadlineAt":"2026-08-30T10:17:00.000Z","closedAt":"2026-08-30T10:03:00.000Z","pid":305,"pgid":305,"supervisionPid":305,"closePid":305,"rootIdentity":"root-05","authorityReachableDepth":1},
+        {"id":"window03","predecessorIds":[],"predecessorRootIdentities":[],"issuedAt":"2026-08-30T10:00:00.000Z","deadlineAt":"2026-08-30T10:15:00.000Z","closedAt":"2026-08-30T10:02:30.000Z","pid":303,"pgid":303,"supervisionPid":303,"closePid":303,"rootIdentity":"root-03","authorityReachableDepth":null}
+      ],
+      "expected": {"verdict":"TIME_ORDER","directHeadCount":1,"reachableDepth":2,"orderedDirectRoots":["window05"],"billingRoots":["window05","window03"],"failure":"TIME_ORDER"}
+    },
+    {
+      "name": "reject-pid",
+      "directRootIds": ["window03"],
+      "nodes": [{"id":"window03","predecessorIds":[],"predecessorRootIdentities":[],"issuedAt":"2026-08-30T10:00:00.000Z","deadlineAt":"2026-08-30T10:15:00.000Z","closedAt":"2026-08-30T10:01:00.000Z","pid":303,"pgid":303,"supervisionPid":999,"closePid":303,"rootIdentity":"root-03","authorityReachableDepth":null}],
+      "expected": {"verdict":"PID_MISMATCH","directHeadCount":1,"reachableDepth":1,"orderedDirectRoots":["window03"],"billingRoots":["window03"],"failure":"PID_MISMATCH"}
+    },
+    {
+      "name": "reject-identity",
+      "directRootIds": ["window05"],
+      "nodes": [
+        {"id":"window05","predecessorIds":["window03"],"predecessorRootIdentities":["wrong-root"],"issuedAt":"2026-08-30T10:02:00.000Z","deadlineAt":"2026-08-30T10:17:00.000Z","closedAt":"2026-08-30T10:03:00.000Z","pid":305,"pgid":305,"supervisionPid":305,"closePid":305,"rootIdentity":"root-05","authorityReachableDepth":1},
+        {"id":"window03","predecessorIds":[],"predecessorRootIdentities":[],"issuedAt":"2026-08-30T10:00:00.000Z","deadlineAt":"2026-08-30T10:15:00.000Z","closedAt":"2026-08-30T10:01:00.000Z","pid":303,"pgid":303,"supervisionPid":303,"closePid":303,"rootIdentity":"root-03","authorityReachableDepth":null}
+      ],
+      "expected": {"verdict":"IDENTITY_MISMATCH","directHeadCount":1,"reachableDepth":2,"orderedDirectRoots":["window05"],"billingRoots":["window05","window03"],"failure":"IDENTITY_MISMATCH"}
+    },
+    {
+      "name": "reject-authority-depth",
+      "directRootIds": ["window06"],
+      "nodes": [
+        {"id":"window06","predecessorIds":["window05"],"predecessorRootIdentities":["root-05"],"issuedAt":"2026-08-30T10:04:00.000Z","deadlineAt":"2026-08-30T10:19:00.000Z","closedAt":"2026-08-30T10:05:00.000Z","pid":306,"pgid":306,"supervisionPid":306,"closePid":306,"rootIdentity":"root-06","authorityReachableDepth":1},
+        {"id":"window05","predecessorIds":["window03"],"predecessorRootIdentities":["root-03"],"issuedAt":"2026-08-30T10:02:00.000Z","deadlineAt":"2026-08-30T10:17:00.000Z","closedAt":"2026-08-30T10:03:00.000Z","pid":305,"pgid":305,"supervisionPid":305,"closePid":305,"rootIdentity":"root-05","authorityReachableDepth":1},
+        {"id":"window03","predecessorIds":[],"predecessorRootIdentities":[],"issuedAt":"2026-08-30T10:00:00.000Z","deadlineAt":"2026-08-30T10:15:00.000Z","closedAt":"2026-08-30T10:01:00.000Z","pid":303,"pgid":303,"supervisionPid":303,"closePid":303,"rootIdentity":"root-03","authorityReachableDepth":null}
+      ],
+      "expected": {"verdict":"AUTHORITY_DEPTH_MISMATCH","directHeadCount":1,"reachableDepth":3,"orderedDirectRoots":["window06"],"billingRoots":["window06","window05","window03"],"failure":"AUTHORITY_DEPTH_MISMATCH"}
+    }
+  ]
+}

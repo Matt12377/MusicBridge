@@ -158,6 +158,7 @@ function raw(file: string, value: unknown): void {
   syncDirectory(path.dirname(file));
 }
 const pinFiles = ['package.json','pnpm-lock.yaml','packages/bridge-core/package.json','packages/contracts/package.json',
+  'packages/contracts/capacity-process-failure-lineage-v1.json','scripts/ci/capacity_process_failure_lineage.py',
   'packages/bridge-core/test/benchmarks/recording-capacity.ts','packages/bridge-core/test/benchmarks/recording-capacity-process.ts'];
 /** 包括真实运行加载的Core、测试helpers和合同dist，不以Git HEAD代替未提交文件身份。 */
 export function capacityPhaseSourcePins(): CapacitySourceManifest {
@@ -172,6 +173,57 @@ export function capacityPhaseSourcePins(): CapacitySourceManifest {
   }
   walk('packages/bridge-core/src', '.ts'); walk('packages/bridge-core/test/helpers', '.ts'); walk('packages/contracts/src', '.ts'); walk('packages/contracts/dist', '.js');
   return { schemaVersion: 1, scope: 'musicbridge-capacity-source-pins', files: Object.fromEntries(names.sort().map(file => [file, hashCapacityFile(path.join(CAPACITY_PHASE_REPO_ROOT, file))])) };
+}
+
+interface ProcessFailureLineageContract {
+  schemaVersion: 1; scope: 'musicbridge-capacity-process-failure-lineage-contract'; failure: 'PROCESS_EXIT';
+  maximumReachableDepth: number; exactDirectHeadCount: 1; ordering: 'head-to-leaf';
+  fieldSemantics: { processFailureCarryoverCount: 'directHeadCount'; processFailureCount: 'predecessorReachableDepth' };
+  verdicts: string[];
+}
+interface ProcessFailureLineageNode {
+  id: string; predecessorIds: string[]; predecessorRootIdentities: string[];
+  issuedAt: string; deadlineAt: string; closedAt: string; pid: number; pgid: number;
+  supervisionPid: number; closePid: number; rootIdentity: string; authorityReachableDepth: number | null;
+}
+export interface ProcessFailureLineageCase { directRootIds: string[]; nodes: ProcessFailureLineageNode[] }
+export interface ProcessFailureLineageResult {
+  verdict: string; directHeadCount: number; reachableDepth: number; orderedDirectRoots: string[];
+  billingRoots: string[]; failure: string | null;
+}
+export function evaluateProcessFailureLineage(value: ProcessFailureLineageCase, contract: ProcessFailureLineageContract): ProcessFailureLineageResult {
+  const direct = value.directRootIds, byId = new Map(value.nodes.map(node => [node.id, node]));
+  const result = (billingRoots: string[], failure: string | null): ProcessFailureLineageResult => ({
+    verdict: failure ?? 'PASS', directHeadCount: direct.length, reachableDepth: billingRoots.length,
+    orderedDirectRoots: direct, billingRoots, failure,
+  });
+  if (direct.length !== contract.exactDirectHeadCount) return result([], 'DIRECT_HEAD_COUNT');
+  const billing: string[] = [], seen = new Set<string>(); let currentId = direct[0]!;
+  for (;;) {
+    if (seen.has(currentId)) return result(billing, 'CYCLE');
+    const node = byId.get(currentId); if (!node) return result(billing, 'ORPHAN');
+    seen.add(currentId); billing.push(currentId);
+    if (billing.length > contract.maximumReachableDepth) return result(billing, 'DEPTH_LIMIT');
+    if (node.predecessorIds.length > 1) return result(billing, 'FORK');
+    if (!node.predecessorIds.length) break;
+    currentId = node.predecessorIds[0]!;
+  }
+  const instant = (text: string) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u.test(text) ? Date.parse(text) : Number.NaN;
+  for (const [index, id] of billing.entries()) {
+    const node = byId.get(id)!;
+    const issued = instant(node.issuedAt), deadline = instant(node.deadlineAt), closed = instant(node.closedAt);
+    if (![issued, deadline, closed].every(Number.isFinite) || issued > closed || closed > deadline) return result(billing, 'TIME_ORDER');
+    if (!Number.isSafeInteger(node.pid) || node.pid <= 0
+      || [node.pgid,node.supervisionPid,node.closePid].some(pid => pid !== node.pid)) return result(billing, 'PID_MISMATCH');
+    if (node.predecessorRootIdentities.length !== node.predecessorIds.length) return result(billing, 'IDENTITY_MISMATCH');
+    if (node.predecessorIds.length) {
+      const predecessor = byId.get(node.predecessorIds[0]!); if (!predecessor) return result(billing, 'ORPHAN');
+      if (node.predecessorRootIdentities[0] !== predecessor.rootIdentity) return result(billing, 'IDENTITY_MISMATCH');
+      if (instant(predecessor.closedAt) > issued) return result(billing, 'TIME_ORDER');
+      if (node.authorityReachableDepth !== billing.length - index - 1) return result(billing, 'AUTHORITY_DEPTH_MISMATCH');
+    } else if (node.authorityReachableDepth !== null) return result(billing, 'AUTHORITY_DEPTH_MISMATCH');
+  }
+  return result(billing, null);
 }
 export function parseCapacityPhaseArguments(argv: string[]): CapacityPhaseArguments {
   const map: Record<string, string> = {}, keys = ['phase','profile','label','seed-label','window','window-sha256','owned-roots','owned-roots-sha256','backup-label'];
@@ -472,7 +524,7 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
   const baseOwnedRoots = inventory.roots.slice(0, 73), reachableProcessRoots: string[] = [];
   const declaredProcessCloses = new Set<string>(), seenProcessRoots = new Set<string>();
   const seenProcessIds = new Set<string>(), seenProcessDirs = new Set<string>(), seenProcessLabels = new Set<string>();
-  const processStableChecks: Array<() => void> = [];
+  const processStableChecks: Array<() => void> = [], lineageNodes: ProcessFailureLineageNode[] = [];
   const rowKeys = 'root,windowId,windowDirName,label,failure,code,sampleCount,deviceOpened,formalReady,gateB,files';
   const leafWindowKeys = 'schemaVersion,scope,owner,id,state,phase,profile,label,seedLabel,seed,n,issuerFailureCarryoverCount,prechildFailureCarryoverCount,issuedAt,deadlineAt,limits,ownedManifest,sourceManifest,queuedStopPlan,supervisor,candidateRepository,toolchain,issuer,measureCarryover';
   const leafFactKeys = 'schemaVersion,scope,windowId,issuerRepository,candidateRepository,supervisorSource,toolchain,buildHelper,buildToolchain,build,issuerFailureCarryover,prechildFailureCarryover,measureCarryover';
@@ -642,6 +694,11 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
       || typeof environment.TMPDIR !== 'string' || !path.isAbsolute(environment.TMPDIR)
       || !same(start.environmentKeys, Object.keys(environment).sort()) || start.stdin !== 'DEVNULL'
       || start.stdout !== binding('stdout').path || start.stderr !== binding('stderr').path) invalid('WINDOW_INVALID');
+    const admission = close.authorityAdmission as Record<string, unknown>;
+    const terminal = close.authorityTerminal as Record<string, unknown>;
+    const authorityDepth = linked ? admission?.processFailureCount : null;
+    if (linked && (!Number.isSafeInteger(authorityDepth) || Number(authorityDepth) < 1
+      || authorityDepth !== terminal?.processFailureCount)) invalid('WINDOW_INVALID');
     if (!exact(close, closeKeys) || close.schemaVersion !== 1
       || close.scope !== 'musicbridge-capacity-queued-stop-window-close' || close.windowId !== windowId
       || close.profile !== 'objects-limit' || close.label !== processLabel || close.seedLabel !== nodeWindow.seedLabel
@@ -659,6 +716,15 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
       || !close.authorityTerminal || typeof close.authorityTerminal !== 'object' || Array.isArray(close.authorityTerminal)) invalid('WINDOW_INVALID');
     seenProcessRoots.add(root); seenProcessIds.add(windowId); seenProcessDirs.add(windowDirName); seenProcessLabels.add(processLabel);
     reachableProcessRoots.push(root); declaredProcessCloses.add(binding('close').path);
+    lineageNodes.push({
+      id: windowId,
+      predecessorIds: linked ? [String((processCarryover[0] as Record<string, unknown>).windowId)] : [],
+      predecessorRootIdentities: predecessorRoot ? [JSON.stringify(predecessorRoot)] : [],
+      issuedAt: new Date(issuedAt).toISOString(), deadlineAt: new Date(deadlineAt).toISOString(),
+      closedAt: new Date(closedAt).toISOString(), pid: Number(pid), pgid: Number(supervision.pgid),
+      supervisionPid: Number(supervision.pid), closePid: Number(close.pid),
+      rootIdentity: JSON.stringify(ownerRoot), authorityReachableDepth: linked ? Number(authorityDepth) : null,
+    });
     processStableChecks.push(() => {
       if (!same(readdirSync(root).sort(), expectedRootEntries) || !same(readdirSync(issuerDirectory).sort(), ['owner.json'])
         || !same(readdirSync(supervisionDirectory).sort(), expectedSupervisionEntries)
@@ -673,6 +739,13 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
   const outerIssuedAt = utcInstant(window.issuedAt, true);
   if (outerIssuedAt === undefined) invalid('WINDOW_INVALID');
   const processRoots = processValue.map(value => validateProcessRow(value, outerIssuedAt));
+  const contract = JSON.parse(readFileSync(path.join(CAPACITY_PHASE_REPO_ROOT,
+    'packages/contracts/capacity-process-failure-lineage-v1.json'), 'utf8')) as ProcessFailureLineageContract;
+  const lineage = evaluateProcessFailureLineage({
+    directRootIds: processValue.map(value => String((value as Record<string, unknown>).windowId)),
+    nodes: lineageNodes,
+  }, contract);
+  if (lineage.verdict !== 'PASS') invalid('WINDOW_INVALID');
   function auditProcessCloses(): void {
     const discovered = new Set<string>();
     for (const entry of readdirSync(runtime).sort()) {

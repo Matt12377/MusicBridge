@@ -920,11 +920,14 @@ function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>,
     const startPath = path.join(supervisionRoot, 'supervisor-start.json'); f.put(startPath, documents.supervisorStart);
     const supervisionPath = path.join(supervisionRoot, 'supervisor.json'); f.put(supervisionPath, documents.supervision);
     const closePath = path.join(node.root, 'close.json');
+    const predecessorDepth = (value: ProcessNodeFixture | undefined): number => value ? 1 + predecessorDepth(value.predecessor) : 0;
+    const processAuthority = node.predecessor ? { processFailureCarryoverValid: true,
+      processFailureCount: predecessorDepth(node.predecessor) } : {};
     const close = { schemaVersion: 1, scope: 'musicbridge-capacity-queued-stop-window-close', windowId: node.id, profile: 'objects-limit', label: node.label,
       seedLabel: 'seed', closedAt: processTimestamp(node.issuedMs + elapsedMs, true), state: 'failed', failure: 'PROCESS_EXIT', pid: node.pid, pgid: node.pid,
       managedProcessGroup: true, code: 1, exitSignal: null, signals: [], groupEmpty: true, zombies: [], elapsedMs,
       windowSha256: f.hash(windowPath), sourceManifestSha256: f.hash(sourceManifestPath), ownedManifestSha256: f.hash(ownedManifestPath), seed: outer.seed,
-      measureCarryover: outer.measureCarryover, authorityAdmission: {}, authorityTerminal: {}, queuedStop,
+      measureCarryover: outer.measureCarryover, authorityAdmission: processAuthority, authorityTerminal: processAuthority, queuedStop,
       supervisorSha256: f.hash(supervisionPath), stdout: logFact(stdoutPath), stderr: logFact(stderrPath), deviceOpened: false, formalReady: false,
       gateB: 'NOT_RUN', replayPolicy: 'terminal-window-id-and-label-never-reuse' };
     f.put(closePath, close); chmodSync(node.root, 0o700); chmodSync(issuerIdentity, 0o700);

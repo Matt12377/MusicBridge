@@ -10,6 +10,8 @@ import test from 'node:test'
 const sourceSupervisor = new URL('../capacity-phase-supervisor-v2.py', import.meta.url).pathname
 const sourceBuildHelper = new URL('../issue-v3-capacity-window.py', import.meta.url).pathname
 const sourceRecoveryTool = new URL('../create-v3-capacity-measure-root-recovery.py', import.meta.url).pathname
+const sourceLineageHelper = new URL('../capacity_process_failure_lineage.py', import.meta.url).pathname
+const sourceLineageContract = new URL('../../../packages/contracts/capacity-process-failure-lineage-v1.json', import.meta.url).pathname
 const python = '/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/bin/python3.14'
 const plan = { groupCloneCount: 3, fullHashCount: 3, stopRoundReceiptCount: 105, sampleCount: 1575 }
 const stopMetrics = ['signalAborted', 'driverStopInvoked', 'driverStopAck', 'driverCloseInvoked', 'driverCloseResolved', 'receiptSettled']
@@ -274,6 +276,9 @@ function copiedSupervisor() {
   const authority = join(runtime, 'objects-measure-v2-window'); mkdirSync(authority)
   const script = join(authority, 'supervisor.py')
   copyFileSync(sourceSupervisor, script, constants.COPYFILE_EXCL)
+  copyFileSync(sourceLineageHelper, join(authority, 'capacity_process_failure_lineage.py'))
+  const directContract = join(script, '../../../packages/contracts/capacity-process-failure-lineage-v1.json')
+  mkdirSync(dirname(directContract), { recursive: true }); copyFileSync(sourceLineageContract, directContract)
   const repoBranch = 'codex/task-078-v3-acceptance'
   for (const args of [
     ['init', '-b', repoBranch], ['config', 'user.name', 'Capacity Test'],
@@ -287,11 +292,14 @@ function copiedSupervisor() {
     'packages/bridge-core/test/benchmarks/recording-capacity.ts',
     'packages/bridge-core/test/benchmarks/recording-capacity-process.ts',
     'packages/contracts/src/generated.ts', 'packages/contracts/dist/generated.js',
+    'packages/contracts/capacity-process-failure-lineage-v1.json', 'scripts/ci/capacity_process_failure_lineage.py',
     'scripts/ci/capacity-phase-supervisor-v2.py', 'scripts/ci/issue-v3-capacity-measure-window.py',
   ]
   for (const relative of candidateFiles) {
     const path = join(candidate, relative); mkdirSync(dirname(path), { recursive: true })
     if (relative === 'scripts/ci/capacity-phase-supervisor-v2.py') copyFileSync(sourceSupervisor, path)
+    else if (relative === 'scripts/ci/capacity_process_failure_lineage.py') copyFileSync(sourceLineageHelper, path)
+    else if (relative === 'packages/contracts/capacity-process-failure-lineage-v1.json') copyFileSync(sourceLineageContract, path)
     else writeFileSync(path, `${relative}\n`)
   }
   copyFileSync(sourceBuildHelper, join(candidate, 'scripts/ci/issue-v3-capacity-window.py'))
@@ -389,8 +397,12 @@ function sealQueuedIdentity(f, window) {
   const libraryManifestSha256 = createHash('sha256').update(JSON.stringify({ files: { 'lib.d.ts': sha(typescriptLibrary) } })).digest('hex')
   const distRelative = 'packages/contracts/dist/generated.js'
   writeFileSync(join(f.candidate, distRelative), 'export const generated = true\n')
+  const lineageHelperRelative = 'scripts/ci/capacity_process_failure_lineage.py'
+  const lineageContractRelative = 'packages/contracts/capacity-process-failure-lineage-v1.json'
   json(join(f.authority, 'source-pins.json'), { schemaVersion: 1, scope: 'musicbridge-capacity-source-pins',
-    files: { [distRelative]: sha(join(f.candidate, distRelative)) } })
+    files: { [distRelative]: sha(join(f.candidate, distRelative)),
+      [lineageHelperRelative]: sha(join(f.candidate, lineageHelperRelative)),
+      [lineageContractRelative]: sha(join(f.candidate, lineageContractRelative)) } })
   const buildToolchain = {
     node: { path: process.execPath, sha256: sha(process.execPath) },
     nodeLibrary: { path: buildNodeLibrary, sha256: sha(buildNodeLibrary) },
@@ -1033,6 +1045,7 @@ function queuedProcessFailure(f, mutate = () => {}, suffix = '') {
   json(owned, { schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only',
     windowId, roots })
   const window = { ...template, id: windowId, label,
+    issuedAt: '2026-08-30T10:51:28.210+00:00', deadlineAt: '2026-08-30T11:06:28.210+00:00',
     issuerFailureCarryoverCount: 1, prechildFailureCarryoverCount: 1,
     supervisor: { path: supervisor, sha256: sha(supervisor) },
     ownedManifest: { file: 'owned-roots.json', sha256: sha(owned) },
@@ -1112,10 +1125,37 @@ function linkedQueuedProcessFailure(f) {
   replaceJson(head.fixture.issuerFact,value=>{value.processFailureCarryover=[predecessor]})
   replaceJson(head.fixture.owned,value=>{value.roots.splice(0,73,...structuredClone(leaf.fixture.historicalRoots));value.roots.splice(73,0,rootRow(leaf.root));value.roots[value.roots.length-1]=rootRow(head.fixture.issuerIdentity)})
   replaceJson(head.fixture.windowPath,value=>{value.processFailureCarryoverCount=1;value.issuedAt='2026-08-30T10:52:28.210+00:00';value.deadlineAt='2026-08-30T11:07:28.210+00:00'})
-  replaceJson(head.fixture.closePath,value=>{for(const authority of [value.authorityAdmission,value.authorityTerminal]){authority.processFailureCarryoverValid=true;authority.processFailureCount=1;authority.ownedRootCount=76}})
+  replaceJson(head.fixture.closePath,value=>{value.closedAt='2026-08-30T10:52:58.666686+00:00';for(const authority of [value.authorityAdmission,value.authorityTerminal]){authority.processFailureCarryoverValid=true;authority.processFailureCount=1;authority.ownedRootCount=76}})
   head.fixture.historicalRoots=leaf.fixture.historicalRoots
   refreshQueuedProcessRow(head)
   return {leaf,head}
+}
+
+function successorQueuedProcessFailure(f, predecessor, suffix = '-06') {
+  const successor = queuedProcessFailure(f, () => {}, suffix)
+  const predecessorRow = structuredClone(predecessor); delete predecessorRow.fixture
+  replaceJson(successor.fixture.issuerFact, value => { value.processFailureCarryover = [predecessorRow] })
+  replaceJson(successor.fixture.owned, value => {
+    value.roots.splice(0, 73, ...structuredClone(predecessor.fixture.historicalRoots))
+    value.roots.splice(73, 0, rootRow(predecessor.root))
+    value.roots[value.roots.length - 1] = rootRow(successor.fixture.issuerIdentity)
+  })
+  replaceJson(successor.fixture.windowPath, value => {
+    value.processFailureCarryoverCount = 1
+    value.issuedAt = '2026-08-30T10:53:28.210+00:00'
+    value.deadlineAt = '2026-08-30T11:08:28.210+00:00'
+  })
+  replaceJson(successor.fixture.closePath, value => {
+    value.closedAt = '2026-08-30T10:53:58.666686+00:00'
+    for (const authority of [value.authorityAdmission, value.authorityTerminal]) {
+      authority.processFailureCarryoverValid = true
+      authority.processFailureCount = 2
+      authority.ownedRootCount = 76
+    }
+  })
+  successor.fixture.historicalRoots = predecessor.fixture.historicalRoots
+  refreshQueuedProcessRow(successor)
+  return successor
 }
 
 function disappearedFrozenOwnedFixture(remapped = true) {
@@ -1999,6 +2039,19 @@ test('queued-stop PROCESS_EXIT head压缩递归验证window05到window03并返�
   } finally { f.cleanup() }
 })
 
+test('queued-stop PROCESS_EXIT第二层后继区分direct head与递归reachable depth',()=>{
+  const f=copiedSupervisor()
+  try {
+    const {leaf,head}=linkedQueuedProcessFailure(f),successor=successorQueuedProcessFailure(f,head)
+    const direct=structuredClone(successor);delete direct.fixture
+    const observed=bridge(f.script,'queued-process-failures',{runtime:f.runtime,carryover:[direct]})
+    assert.equal(observed.ok,true,observed.error)
+    assert.deepEqual(observed.value.billingRoots.map(value=>value.path),[successor.root,head.root,leaf.root])
+    assert.equal(observed.value.contractLineage.directHeadCount,1)
+    assert.equal(observed.value.contractLineage.reachableDepth,3)
+  } finally { f.cleanup() }
+})
+
 test('queued-stop PROCESS_EXIT head压缩拒绝owned[73]错配、fork/cycle与orphan',async t=>{
   for(const [name,mutate] of [
     ['owned[73]',({head})=>{replaceJson(head.fixture.owned,v=>{v.roots[73]=structuredClone(v.roots[0])});refreshQueuedProcessRow(head)}],
@@ -2471,7 +2524,7 @@ test('queued-stop admission实际复核toolchain、issuer fact与candidate HEAD 
     assert.equal(observed.ok, true, observed.error)
     assert.deepEqual(Object.keys(observed.value).sort(), ['buildHelper','buildNode','buildNodeLibrary','consumerPython',
       'issuer','issuerFact','issuerFailureRoots','issuerFailures','node','prechildFailureRoots','prechildFailures',
-      'processFailureBillingRoots','processFailureRoots','processFailures','tsxLoader','typescriptCompiler','typescriptLibraries'])
+      'processFailureBillingRoots','processFailureLineage','processFailureRoots','processFailures','tsxLoader','typescriptCompiler','typescriptLibraries'])
     assert.equal(observed.value.issuerFailures[0].issuerIdentity.path,
       join(observed.value.issuerFailureRoots[0].path, 'issuer-identity'))
     const changed = structuredClone(window); changed.toolchain.node.sha256 = '0'.repeat(64)

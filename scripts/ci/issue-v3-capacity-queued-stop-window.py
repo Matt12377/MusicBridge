@@ -24,7 +24,7 @@ MARKERS = {'owner.json', 'capacity-owner.json', 'seed.json', 'command.json', 'r0
 LIMITS = {'executionMs': 50_000, 'killGraceMs': 1_000, 'closeMs': 2_000,
           'minimumFreeBytes': 10 * 1024 ** 3, 'maximumOwnedBytes': 16 * 1024 ** 3}
 EVIDENCE_ALLOWANCE = 256 * 1024 ** 2
-EXPECTED_SOURCE_COUNT = 241
+EXPECTED_SOURCE_COUNT = 243
 EXPECTED_MEASURE_ROOTS = 70
 EXPECTED_CONCRETE_ROOTS = 71
 EXPECTED_LIVE_MEASURE_ROOTS = 63
@@ -33,6 +33,8 @@ EXPECTED_PREFLIGHT_ROOTS = 74
 EXPECTED_AUTHORITY_ROOTS = 76
 RECOVERY_MODEL = 'exact75-v2-replacement-closure'
 RECOVERY_TOOL_RELATIVE = 'scripts/ci/create-v3-capacity-measure-root-recovery.py'
+LINEAGE_HELPER_RELATIVE = 'scripts/ci/capacity_process_failure_lineage.py'
+LINEAGE_CONTRACT_RELATIVE = 'packages/contracts/capacity-process-failure-lineage-v1.json'
 FROZEN_MEASURE = {
     'windowId': 'afc81a99-d15d-4179-8326-5774a5c40b62',
     'windowSha256': 'cfac8e19336a181de00c68d458d046065cd821a0dca48cc4fc78af0e15c15227',
@@ -56,6 +58,20 @@ def process_failure_stderr(pid):
         + b'(Use `node --trace-warnings ...` to show where the warning was created)\n'
     )
 _FAILURE = None
+
+
+def _lineage_module():
+    path = Path(__file__).resolve().with_name('capacity_process_failure_lineage.py')
+    spec = importlib.util.spec_from_file_location('musicbridge_capacity_failure_lineage', path)
+    if spec is None or spec.loader is None:
+        raise ValueError('LINEAGE_CONTRACT')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def evaluate_process_failure_lineage(case, contract):
+    return _lineage_module().evaluate_process_failure_lineage(case, contract)
 
 
 class IssueError(Exception):
@@ -567,6 +583,7 @@ def source_paths(root):
     base = [
         'package.json', 'pnpm-lock.yaml', 'packages/bridge-core/package.json',
         'packages/contracts/package.json',
+        LINEAGE_CONTRACT_RELATIVE, LINEAGE_HELPER_RELATIVE,
         'packages/bridge-core/test/benchmarks/recording-capacity.ts',
         'packages/bridge-core/test/benchmarks/recording-capacity-process.ts',
     ]
@@ -1373,7 +1390,7 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
                       'remainingPlannedBytes', 'availableBytes', 'candidateRepository',
                       'toolchainStable', 'issuerStable'}
     roots = []; facts = []; snapshots = []; declared = set(); billing_roots = []
-    linked_authority_counts = []
+    lineage_nodes = []; direct_root_ids = []
     seen_roots = set(); seen_windows = set(); seen_dirs = set(); seen_labels = set()
     pending = [(row, None, index == 0) for index, row in enumerate(rows)]
     if len(pending) != 1:
@@ -1600,7 +1617,9 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
                 or set(source) != {'schemaVersion', 'scope', 'files'} \
                 or source.get('schemaVersion') != 1 \
                 or source.get('scope') != 'musicbridge-capacity-source-pins' \
-                or not isinstance(source.get('files'), dict) or len(source['files']) != EXPECTED_SOURCE_COUNT \
+                or not isinstance(source.get('files'), dict) or len(source['files']) not in (241, 243) \
+                or len(source['files']) == 243 and any(relative not in source['files'] for relative in (
+                    LINEAGE_HELPER_RELATIVE, LINEAGE_CONTRACT_RELATIVE)) \
                 or any(not isinstance(key, str) or SHA256.fullmatch(str(value)) is None
                        for key, value in source['files'].items()) \
                 or set(owned) != {'schemaVersion', 'scope', 'access', 'windowId', 'roots'} \
@@ -1677,7 +1696,7 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
                         'issuerStable')) \
                     or authority.get('windowSha256Observed') != window_sha \
                     or authority.get('ownerSha256Observed') != owner_sha \
-                    or authority.get('sourceFileCount') != 241 \
+                    or authority.get('sourceFileCount') != len(source['files']) \
                     or authority.get('ownedRootCount') != expected_owned_count \
                     or authority.get('issuerFailureCount') != 1 \
                     or authority.get('prechildFailureCount') != 1 \
@@ -1689,8 +1708,8 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
                 fail('PRIOR_PROCESS_FAILURE')
             if linked:
                 observed_process_counts.append(authority['processFailureCount'])
-        if linked:
-            linked_authority_counts.append(observed_process_counts)
+        if linked and len(set(observed_process_counts)) != 1:
+            fail('PRIOR_PROCESS_FAILURE')
 
         if set(supervision) != supervision_keys or supervision.get('passed') is not False \
                 or supervision.get('failure') != failure_code or supervision.get('code') != 1 \
@@ -1780,7 +1799,21 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
         if nested and current_fact != row:
             fail('PRIOR_PROCESS_FAILURE')
         if is_head:
-            roots.append(parent_root); facts.append(current_fact)
+            roots.append(parent_root); facts.append(current_fact); direct_root_ids.append(window_id)
+        canonical_instant = lambda value: value.astimezone(datetime.timezone.utc).isoformat(
+            timespec='milliseconds').replace('+00:00', 'Z')
+        predecessor_ids = [process_carryover[0]['windowId']] if linked else []
+        predecessor_identities = [json.dumps(predecessor_root, sort_keys=True,
+                                               separators=(',', ':'))] if linked else []
+        lineage_nodes.append({
+            'id': window_id, 'predecessorIds': predecessor_ids,
+            'predecessorRootIdentities': predecessor_identities,
+            'issuedAt': canonical_instant(issued_at), 'deadlineAt': canonical_instant(deadline_at),
+            'closedAt': canonical_instant(closed_at), 'pid': close['pid'], 'pgid': close['pgid'],
+            'supervisionPid': supervision['pid'], 'closePid': close['pid'],
+            'rootIdentity': json.dumps(parent_root, sort_keys=True, separators=(',', ':')),
+            'authorityReachableDepth': observed_process_counts[0] if linked else None,
+        })
         billing_roots.append(parent_root)
         snapshots.append({
             'windowId': window_id, 'issuedAt': window['issuedAt'], 'closedAt': close['closedAt'],
@@ -1803,14 +1836,16 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
             fail('PRIOR_PROCESS_FAILURE')
         if linked:
             pending.append((process_carryover[0], issued_at, False))
-    for index, counts in enumerate(linked_authority_counts):
-        expected_count = len(snapshots) - index - 1
-        if counts != [expected_count, expected_count]:
-            fail('PRIOR_PROCESS_FAILURE')
+    lineage = _lineage_module()
+    contract = lineage.load_contract(Path(__file__).resolve().parents[2])
+    lineage_result = lineage.evaluate_process_failure_lineage(
+        {'directRootIds': direct_root_ids, 'nodes': lineage_nodes}, contract)
+    if lineage_result['verdict'] != 'PASS':
+        fail(f"PRIOR_PROCESS_FAILURE_{lineage_result['verdict']}")
     if declared != discovered:
         fail('PRIOR_PROCESS_FAILURE_AUDIT')
     return {'roots': roots, 'facts': facts, 'billingRoots': billing_roots,
-            'snapshots': snapshots}
+            'snapshots': snapshots, 'contractLineage': lineage_result}
 
 
 def copy_supervisor(source, destination, expected_sha):
@@ -2208,6 +2243,7 @@ def issue(options):
             or second_process_failures['roots'] != process_failures['roots'] \
             or second_process_failures['billingRoots'] != process_failures['billingRoots'] \
             or second_process_failures['snapshots'] != process_failures['snapshots'] \
+            or second_process_failures['contractLineage'] != process_failures['contractLineage'] \
             or second_process_failures['lineage'] != process_failures['lineage']:
         fail('PRIOR_PROCESS_FAILURE_DRIFT')
     if strict_json(parent / 'source-pins.json', source_sha)[0] != source_manifest(
