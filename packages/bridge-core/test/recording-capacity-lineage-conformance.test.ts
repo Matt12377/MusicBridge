@@ -12,6 +12,11 @@ const contractPath = path.join(root, 'packages/contracts/capacity-process-failur
 const corpus = JSON.parse(readFileSync(corpusPath, 'utf8')) as { cases: Array<{ name: string; expected: unknown } & Record<string, unknown>> };
 const contract = JSON.parse(readFileSync(contractPath, 'utf8'));
 
+test('PROCESS_EXIT golden corpus 覆盖合同声明的全部 verdict', () => {
+  const observed = [...new Set(corpus.cases.map(value => (value.expected as { verdict: string }).verdict))].sort();
+  assert.deepEqual(observed, [...contract.verdicts].sort());
+});
+
 function python(entry: string): unknown[] {
   const program = `import importlib.util,json,sys\ns=importlib.util.spec_from_file_location('entry',sys.argv[1]);m=importlib.util.module_from_spec(s);s.loader.exec_module(m)\ncontract=json.load(open(sys.argv[2]));corpus=json.load(open(sys.argv[3]));print(json.dumps([m.evaluate_process_failure_lineage(case,contract) for case in corpus['cases']]))`;
   const result = spawnSync('/usr/bin/python3', ['-c', program, entry, contractPath, corpusPath], { encoding: 'utf8' });
