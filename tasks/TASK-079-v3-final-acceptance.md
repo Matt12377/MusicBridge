@@ -41,6 +41,7 @@
 - `scripts/ci/test/issue-v3-capacity-measure-window.test.mjs`
 - `scripts/ci/issue-v3-capacity-queued-stop-window.py`
 - `scripts/ci/test/issue-v3-capacity-queued-stop-window.test.mjs`
+- `scripts/ci/terminalize-v3-capacity-queued-stop-prechild.py`
 - `scripts/ci/capacity-phase-supervisor-v2.py`
 - `scripts/ci/test/capacity-phase-supervisor-v2.test.mjs`
 - `packages/bridge-core/test/benchmarks/recording-capacity.ts`

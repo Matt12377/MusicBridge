@@ -75,6 +75,9 @@ try:
     value=list(module._validate_queued_stop_window(payload['window'], payload['now']))
   elif method == 'queued-artifacts':
     value=module._validate_queued_stop_artifacts(pathlib.Path(payload['parent']), payload.get('expected'))
+  elif method == 'queued-replay':
+    value=module._reject_queued_stop_replay(
+      pathlib.Path(payload['runtime']), pathlib.Path(payload['parent']), payload['window'])
   elif method == 'queued-bound-identities':
     value=module._validate_queued_stop_bound_identities(
       payload['window'], pathlib.Path(payload['parent']), pathlib.Path(payload['candidate']))
@@ -89,19 +92,31 @@ try:
     module._validate_candidate_repository=lambda *args, **kwargs: repo
     module._validate_queued_stop_bound_identities=lambda *args, **kwargs: {
       **{key:fixed for key in ('node','tsxLoader','consumerPython','issuer','issuerFact','buildHelper','buildNode','buildNodeLibrary','typescriptCompiler')},
-      'typescriptLibraries':{'sha256':'2'*64,'files':{}},'issuerFailureRoots':[],'issuerFailures':payload['failures']}
+      'typescriptLibraries':{'sha256':'2'*64,'files':{}},
+      'issuerFailureRoots':[],'issuerFailures':payload['failures'],
+      'prechildFailureRoots':[],'prechildFailures':payload.get('prechildFailures', [])}
     module._validate_queued_stop_measure_carryover=lambda *args, **kwargs: {'roots':[]}
     module._validate_phase_source_manifest=lambda *args, **kwargs: {'fileCount':241,'manifestIdentity':{'sha256':'3'*64}}
     module._validate_queued_stop_owned_manifest=lambda *args, **kwargs: {
-      'rootCount':74,'ownedBytes':1,'plannedBytes':2,'remainingPlannedBytes':0,'availableBytes':3,
+      'rootCount':75,'ownedBytes':1,'plannedBytes':2,'remainingPlannedBytes':0,'availableBytes':3,
       'manifestIdentity':{'sha256':'4'*64}}
     value=module._validate_queued_stop_authority(
       parent,runtime,repo,payload['windowSha256'],terminal=payload.get('terminal',False),initial=payload.get('initial'))
   elif method == 'queued-command':
     captured={}
     module._require_loaded_window_identity=lambda *args, **kwargs: True
-    module._reject_queued_stop_replay=lambda *args, **kwargs: True
-    module._validate_queued_stop_authority=lambda *args, **kwargs: {'authorityStable': True}
+    if not payload.get('injectReplayAfterAdmission'):
+      module._reject_queued_stop_replay=lambda *args, **kwargs: True
+      module._validate_queued_stop_authority=lambda *args, **kwargs: {'authorityStable': True}
+    else:
+      admission_count={'value':0}
+      def admission(*args, **kwargs):
+        admission_count['value']+=1
+        if admission_count['value'] == 1:
+          collision=pathlib.Path(payload['runtime'])/'injected-replay-close.json'
+          collision.write_text(json.dumps({'scope':'test-close','label':payload['window']['label']}))
+        return {'authorityStable': True}
+      module._validate_queued_stop_authority=admission
     module._write_queued_stop_close=lambda *args, **kwargs: captured.update(close=True)
     module._validate_queued_stop_artifacts=lambda *args, **kwargs: {'verifiedComplete': True, 'verifiedPassed': True}
     def supervise(command, deadline, supervision, **kwargs):
@@ -242,6 +257,8 @@ function copiedSupervisor() {
     else writeFileSync(path, `${relative}\n`)
   }
   copyFileSync(sourceBuildHelper, join(candidate, 'scripts/ci/issue-v3-capacity-window.py'))
+  writeFileSync(join(candidate, 'scripts/ci/terminalize-v3-capacity-queued-stop-prechild.py'),
+    'queued prechild terminalizer\n')
   writeFileSync(join(candidate, 'packages/contracts/tsconfig.json'), '{}\n')
   writeFileSync(join(candidate, 'scripts/ci/issue-v3-capacity-queued-stop-window.py'), 'queued issuer\n')
   writeFileSync(join(candidate, 'tsx-loader.mjs'), 'export {}\n')
@@ -272,6 +289,7 @@ function queuedWindowValue(f) {
     schemaVersion: 1, scope: 'musicbridge-capacity-queued-stop-window', owner: 'root', id: randomUUID(), state: 'approved',
     phase: 'queued-stop', profile: 'objects-limit', label: 'objects-limit-queued-stop-formal-01',
     issuerFailureCarryoverCount: 1,
+    prechildFailureCarryoverCount: 1,
     seedLabel: 'r023-objects-limit-seed-03',
     seed: { label: 'r023-objects-limit-seed-03', metadataSha256: '632d8e4b0c01ffec07adc72344e7bcc877e5f1d764e7745af856c6ba44492309',
       snapshotSha256: '7ec9b3bed1642503cc9fcee70c6156b54eb43834b0a457050ec51607f2e1ab3a',
@@ -380,6 +398,64 @@ function sealQueuedIdentity(f, window) {
       ownedManifest: { path: join(priorRoot, 'owned-roots.json'), sha256: sha(join(priorRoot, 'owned-roots.json')) },
     },
   }]
+  const prechildRoot = join(f.runtime, 'objects-queued-prechild-window')
+  const prechildWindowId = randomUUID(), prechildLabel = 'objects-queued-prechild-run'
+  mkdirSync(join(prechildRoot, 'issuer-identity'), { recursive: true })
+  const prechildOwner = join(prechildRoot, 'owner.json')
+  const prechildSupervisor = join(prechildRoot, 'supervisor.py')
+  const prechildFact = join(prechildRoot, 'issuer-identity/owner.json')
+  const prechildSource = join(prechildRoot, 'source-pins.json')
+  const prechildOwned = join(prechildRoot, 'owned-roots.json')
+  const prechildWindow = join(prechildRoot, 'window.json')
+  json(prechildOwner, { scope: 'musicbridge-capacity-queued-stop-window', owner: 'root', id: prechildWindowId })
+  writeFileSync(prechildSupervisor, 'prechild installed supervisor\n')
+  json(prechildFact, { schemaVersion: 1, scope: 'musicbridge-capacity-queued-stop-authority-issuer',
+    windowId: prechildWindowId, candidateRepository: window.candidateRepository })
+  json(prechildSource, { schemaVersion: 1, scope: 'musicbridge-capacity-source-pins', files: {} })
+  json(prechildOwned, { schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only',
+    windowId: prechildWindowId, roots: [] })
+  json(prechildWindow, { schemaVersion: 1, scope: 'musicbridge-capacity-queued-stop-window', owner: 'root',
+    id: prechildWindowId, state: 'approved', phase: 'queued-stop', profile: 'objects-limit', label: prechildLabel,
+    candidateRepository: window.candidateRepository,
+    supervisor: { path: prechildSupervisor, sha256: sha(prechildSupervisor) },
+    sourceManifest: { file: 'source-pins.json', sha256: sha(prechildSource) },
+    ownedManifest: { file: 'owned-roots.json', sha256: sha(prechildOwned) } })
+  const prechildTrigger = join(f.runtime, 'objects-generation-prechild-close.json')
+  json(prechildTrigger, { schemaVersion: 1, scope: 'musicbridge-capacity-generation-close',
+    window: { id: randomUUID(), label: 'objects-generation-prechild' } })
+  const terminalizerPath = join(f.candidate, 'scripts/ci/terminalize-v3-capacity-queued-stop-prechild.py')
+  const prechildFailure = join(prechildRoot, 'prechild-failure.json')
+  const triggerValue = JSON.parse(readFileSync(prechildTrigger))
+  json(prechildFailure, { schemaVersion: 1, scope: 'musicbridge-capacity-queued-stop-prechild-failure',
+    state: 'TERMINAL_PRECHILD_CONTROL_FAILURE', windowId: prechildWindowId,
+    windowDirName: 'objects-queued-prechild-window', label: prechildLabel,
+    failure: 'QUEUED_STOP_REPLAY_AUDIT_TYPE_ERROR', observedExitCode: 1,
+    windowSha256: sha(prechildWindow),
+    authorityFiles: { ownerSha256: sha(prechildOwner), supervisorSha256: sha(prechildSupervisor),
+      issuerFactSha256: sha(prechildFact), sourceManifestSha256: sha(prechildSource),
+      ownedManifestSha256: sha(prechildOwned) },
+    trigger: { path: prechildTrigger, sha256: sha(prechildTrigger), scope: triggerValue.scope,
+      windowId: triggerValue.window.id, label: triggerValue.window.label, fieldType: 'dict',
+      role: 'isolated-reproduction-witness-not-historical-order' },
+    reproduction: { type: 'TypeError', messageCode: 'UNHASHABLE_DICT',
+      fullRuntimeReproduced: true, isolatedWitnessReproduced: true }, authorityAdmission: 'NOT_RUN',
+    supervisionStarted: false, benchmarkStarted: false, childSpawned: false, outputCreated: false,
+    sampleCount: 0, windowConsumed: true, deviceOpened: false, formalReady: false, gateB: 'NOT_RUN',
+    replayAllowed: false, replayPolicy: 'terminal-window-id-and-label-never-reuse',
+    recovery: { repositoryRoot: f.candidate, branch: f.candidateBranch, head: f.head,
+      scriptPath: terminalizerPath, scriptRelativePath: 'scripts/ci/terminalize-v3-capacity-queued-stop-prechild.py',
+      scriptSha256: sha(terminalizerPath) }, recordedAt: '2026-08-30T08:00:00.000+00:00' })
+  const prechildFailureCarryover = [{ root: prechildRoot, windowId: prechildWindowId,
+    windowDirName: 'objects-queued-prechild-window', label: prechildLabel,
+    errorCode: 'QUEUED_STOP_REPLAY_AUDIT_TYPE_ERROR', files: {
+      owner: { path: prechildOwner, sha256: sha(prechildOwner) },
+      supervisor: { path: prechildSupervisor, sha256: sha(prechildSupervisor) },
+      issuerFact: { path: prechildFact, sha256: sha(prechildFact) },
+      sourceManifest: { path: prechildSource, sha256: sha(prechildSource) },
+      ownedManifest: { path: prechildOwned, sha256: sha(prechildOwned) },
+      window: { path: prechildWindow, sha256: sha(prechildWindow) },
+      failure: { path: prechildFailure, sha256: sha(prechildFailure) },
+    } }]
   const factPath = join(f.authority, 'issuer-identity/owner.json')
   json(factPath, { schemaVersion: 1, scope: 'musicbridge-capacity-queued-stop-authority-issuer', windowId: window.id,
     issuerRepository: { root: f.candidate, branch: f.candidateBranch, head: f.head,
@@ -388,7 +464,8 @@ function sealQueuedIdentity(f, window) {
     supervisorSource: { path: supervisorPath, relativePath: 'scripts/ci/capacity-phase-supervisor-v2.py', sha256: window.supervisor.sha256 },
     toolchain: window.toolchain,
     buildHelper: { path: buildHelperPath, relativePath: 'scripts/ci/issue-v3-capacity-window.py', sha256: sha(buildHelperPath) },
-    buildToolchain, build, issuerFailureCarryover, measureCarryover: window.measureCarryover })
+    buildToolchain, build, issuerFailureCarryover, prechildFailureCarryover,
+    measureCarryover: window.measureCarryover })
   window.issuer.fact = { path: factPath, sha256: sha(factPath) }
   return window
 }
@@ -1684,6 +1761,8 @@ test('queued-stop successor只接受冻结exact schema、900秒、S加256MiB与s
       value => { value.queuedStopPlan.plannedBytes -= 1 },
       value => { value.queuedStopPlan.aggregateAudit = '../escape.jsonl' },
       value => { value.issuerFailureCarryoverCount = 0 },
+      value => { value.prechildFailureCarryoverCount = 0 },
+      value => { delete value.prechildFailureCarryoverCount },
       value => { value.deadlineAt = new Date(Date.parse(value.issuedAt) + 899_999).toISOString() },
       value => { delete value.measureCarryover.supervision },
       value => { value.measureCarryover.window.id = randomUUID() },
@@ -1717,6 +1796,131 @@ test('queued-stop successor固定构造Node命令且旧双横线透传永久拒�
   } finally { f.cleanup() }
 })
 
+test('queued-stop admission后新增replay身份必须在spawn前停止', () => {
+  const f = copiedSupervisor()
+  try {
+    const window = queuedWindowValue(f), windowSha256 = 'd'.repeat(64)
+    const observed = bridge(f.script, 'queued-command', {
+      runtime: f.runtime, authority: f.authority, window, windowSha256,
+      injectReplayAfterAdmission: true,
+    })
+    assert.equal(observed.ok, false)
+    assert.equal(observed.error, 'CAPACITY_SUPERVISOR_INPUT')
+  } finally { f.cleanup() }
+})
+
+test('queued-stop replay审计兼容历史close内嵌window对象且仍拒绝内嵌身份碰撞', () => {
+  const f = copiedSupervisor()
+  try {
+    const window = queuedWindowValue(f)
+    const historicalClose = join(f.runtime, 'objects-generation-window-01-close.json')
+    json(historicalClose, {
+      schemaVersion: 1,
+      scope: 'musicbridge-capacity-generation-close',
+      window: {
+        id: randomUUID(),
+        label: 'objects-generation-01',
+        phase: 'generation',
+        profile: 'objects-limit',
+        executionLimitMs: 120_000,
+        sha256: 'a'.repeat(64),
+      },
+    })
+    assert.equal(bridge(f.script, 'queued-replay', {
+      runtime: f.runtime, parent: f.authority, window,
+    }).ok, true)
+
+    const collided = JSON.parse(readFileSync(historicalClose))
+    rmSync(historicalClose)
+    collided.window.id = window.id
+    json(historicalClose, collided)
+    const nestedIdCollision = bridge(f.script, 'queued-replay', {
+      runtime: f.runtime, parent: f.authority, window,
+    })
+    assert.equal(nestedIdCollision.ok, false)
+    assert.equal(nestedIdCollision.error, 'QUEUED_STOP_REPLAY')
+
+    rmSync(historicalClose)
+    collided.window.id = randomUUID()
+    collided.window.label = window.label
+    json(historicalClose, collided)
+    const nestedLabelCollision = bridge(f.script, 'queued-replay', {
+      runtime: f.runtime, parent: f.authority, window,
+    })
+    assert.equal(nestedLabelCollision.ok, false)
+    assert.equal(nestedLabelCollision.error, 'QUEUED_STOP_REPLAY')
+
+    for (const mutate of [
+      value => { value.label = {} },
+      value => { value.window = [] },
+      value => { value.window.id = [] },
+      value => { value.window.label = false },
+    ]) {
+      rmSync(historicalClose)
+      const malformed = {
+        schemaVersion: 1,
+        scope: 'musicbridge-capacity-generation-close',
+        window: { id: randomUUID(), label: 'objects-generation-01' },
+      }
+      mutate(malformed)
+      json(historicalClose, malformed)
+      const observed = bridge(f.script, 'queued-replay', {
+        runtime: f.runtime, parent: f.authority, window,
+      })
+      assert.equal(observed.ok, false)
+      assert.equal(observed.error, 'QUEUED_STOP_REPLAY_AUDIT')
+    }
+    rmSync(historicalClose)
+    const outsideClose = join(f.temp, 'outside-generation-close.json')
+    json(outsideClose, { schemaVersion: 1, scope: 'musicbridge-capacity-generation-close',
+      window: { id: randomUUID(), label: 'objects-generation-outside' } })
+    symlinkSync(outsideClose, historicalClose)
+    const closeSymlink = bridge(f.script, 'queued-replay', {
+      runtime: f.runtime, parent: f.authority, window,
+    })
+    assert.equal(closeSymlink.ok, false)
+    assert.equal(closeSymlink.error, 'QUEUED_STOP_REPLAY_AUDIT')
+    rmSync(historicalClose)
+    const outsideAuthority = join(f.temp, 'outside-authority')
+    mkdirSync(outsideAuthority)
+    json(join(outsideAuthority, 'window.json'), { id: randomUUID(), label: 'outside-window' })
+    symlinkSync(outsideAuthority, join(f.runtime, 'objects-symlink-window'))
+    const authoritySymlink = bridge(f.script, 'queued-replay', {
+      runtime: f.runtime, parent: f.authority, window,
+    })
+    assert.equal(authoritySymlink.ok, false)
+    assert.equal(authoritySymlink.error, 'QUEUED_STOP_REPLAY_AUDIT')
+    rmSync(join(f.runtime, 'objects-symlink-window'))
+    const currentPrechild = join(f.authority, 'prechild-failure.json')
+    json(currentPrechild, { scope: 'musicbridge-capacity-queued-stop-prechild-failure',
+      windowId: window.id, label: window.label })
+    const currentTerminal = bridge(f.script, 'queued-replay', {
+      runtime: f.runtime, parent: f.authority, window,
+    })
+    assert.equal(currentTerminal.ok, false)
+    assert.equal(currentTerminal.error, 'QUEUED_STOP_REPLAY')
+    rmSync(currentPrechild)
+    const priorPrechild = join(f.runtime, 'objects-prior-prechild-window')
+    mkdirSync(priorPrechild)
+    const priorReceipt = join(priorPrechild, 'prechild-failure.json')
+    json(priorReceipt, { scope: 'musicbridge-capacity-queued-stop-prechild-failure',
+      windowId: randomUUID(), label: window.label })
+    const priorCollision = bridge(f.script, 'queued-replay', {
+      runtime: f.runtime, parent: f.authority, window,
+    })
+    assert.equal(priorCollision.ok, false)
+    assert.equal(priorCollision.error, 'QUEUED_STOP_REPLAY')
+    rmSync(priorReceipt)
+    json(priorReceipt, { scope: 'musicbridge-capacity-queued-stop-prechild-failure',
+      windowId: {}, label: 'prior-prechild' })
+    const malformedPrechild = bridge(f.script, 'queued-replay', {
+      runtime: f.runtime, parent: f.authority, window,
+    })
+    assert.equal(malformedPrechild.ok, false)
+    assert.equal(malformedPrechild.error, 'QUEUED_STOP_REPLAY_AUDIT')
+  } finally { f.cleanup() }
+})
+
 test('queued-stop admission实际复核toolchain、issuer fact与candidate HEAD blob身份', () => {
   const f = copiedSupervisor()
   try {
@@ -1724,13 +1928,35 @@ test('queued-stop admission实际复核toolchain、issuer fact与candidate HEAD 
     const observed = bridge(f.script, 'queued-bound-identities', { window, parent: f.authority, candidate: f.candidate })
     assert.equal(observed.ok, true, observed.error)
     assert.deepEqual(Object.keys(observed.value).sort(), ['buildHelper','buildNode','buildNodeLibrary','consumerPython',
-      'issuer','issuerFact','issuerFailureRoots','issuerFailures','node','tsxLoader','typescriptCompiler','typescriptLibraries'])
+      'issuer','issuerFact','issuerFailureRoots','issuerFailures','node','prechildFailureRoots','prechildFailures',
+      'tsxLoader','typescriptCompiler','typescriptLibraries'])
     assert.equal(observed.value.issuerFailures[0].issuerIdentity.path,
       join(observed.value.issuerFailureRoots[0].path, 'issuer-identity'))
     const changed = structuredClone(window); changed.toolchain.node.sha256 = '0'.repeat(64)
     assert.equal(bridge(f.script, 'queued-bound-identities', { window: changed, parent: f.authority, candidate: f.candidate }).ok, false)
     const wrongCount = structuredClone(window); wrongCount.issuerFailureCarryoverCount = 2
     assert.equal(bridge(f.script, 'queued-bound-identities', { window: wrongCount, parent: f.authority, candidate: f.candidate }).ok, false)
+    const wrongPrechildCount = structuredClone(window); wrongPrechildCount.prechildFailureCarryoverCount = 2
+    assert.equal(bridge(f.script, 'queued-bound-identities', {
+      window: wrongPrechildCount, parent: f.authority, candidate: f.candidate,
+    }).ok, false)
+    const factPath = window.issuer.fact.path, factBytes = readFileSync(factPath)
+    const malformedFact = JSON.parse(factBytes)
+    malformedFact.prechildFailureCarryover[0].root = {}
+    rmSync(factPath); json(factPath, malformedFact)
+    const malformedWindow = structuredClone(window); malformedWindow.issuer.fact.sha256 = sha(factPath)
+    const malformedRoot = bridge(f.script, 'queued-bound-identities', {
+      window: malformedWindow, parent: f.authority, candidate: f.candidate,
+    })
+    assert.equal(malformedRoot.ok, false)
+    assert.equal(malformedRoot.error, 'QUEUED_STOP_PRECHILD_FAILURE')
+    rmSync(factPath); writeFileSync(factPath, factBytes)
+    const prechildRoot = observed.value.prechildFailureRoots[0].path
+    writeFileSync(join(prechildRoot, 'unexpected.txt'), 'unexpected\n')
+    assert.equal(bridge(f.script, 'queued-bound-identities', {
+      window, parent: f.authority, candidate: f.candidate,
+    }).ok, false)
+    rmSync(join(prechildRoot, 'unexpected.txt'))
     const priorRoot = observed.value.issuerFailureRoots[0].path, extra = join(priorRoot, 'unexpected.txt')
     const priorIssuerIdentity = join(priorRoot, 'issuer-identity'), replacementIdentity = join(priorRoot, 'issuer-identity-new')
     mkdirSync(replacementIdentity); renameSync(join(priorIssuerIdentity, 'owner.json'), join(replacementIdentity, 'owner.json'))
@@ -1753,7 +1979,7 @@ test('queued-stop admission实际复核toolchain、issuer fact与candidate HEAD 
   } finally { f.cleanup() }
 })
 
-test('queued-stop owned闭包动态接受72个carryover加当前authority形成74根', () => {
+test('queued-stop owned闭包动态接受73个carryover加当前authority形成75根', () => {
   const f = copiedSupervisor()
   try {
     const windowId = randomUUID(), issuerIdentity = join(f.authority, 'issuer-identity')
@@ -1761,7 +1987,7 @@ test('queued-stop owned闭包动态接受72个carryover加当前authority形成7
     json(join(f.authority, 'owner.json'), { scope: 'musicbridge-capacity-queued-stop-window', owner: 'root', id: windowId })
     json(join(issuerIdentity, 'owner.json'), { scope: 'musicbridge-capacity-queued-stop-authority-issuer', windowId })
     const carryRoots = []
-    for (let index = 0; index < 72; index += 1) {
+    for (let index = 0; index < 73; index += 1) {
       const root = join(f.runtime, `queued-carry-${String(index).padStart(2, '0')}`)
       mkdirSync(root); json(join(root, 'owner.json'), { scope: 'queued-carry', index })
       carryRoots.push(rootRow(root))
@@ -1772,7 +1998,7 @@ test('queued-stop owned闭包动态接受72个carryover加当前authority形成7
     const payload = { manifest, runtime: f.runtime, windowId, parent: f.authority, carryRoots, plannedBytes: 0 }
     const observed = bridge(f.script, 'queued-owned', payload)
     assert.equal(observed.ok, true, observed.error)
-    assert.equal(observed.value.rootCount, 74)
+    assert.equal(observed.value.rootCount, 75)
     const incomplete = JSON.parse(readFileSync(manifest)); incomplete.roots.splice(0, 1)
     rmSync(manifest); json(manifest, incomplete)
     assert.equal(bridge(f.script, 'queued-owned', payload).ok, false)
@@ -1790,8 +2016,10 @@ test('queued-stop authority admission到terminal逐项比较issuer failure身份
       queuedStopPlan: { plannedBytes: 2 }, candidateRepository: { root: f.candidate }, measureCarryover: {} })
     const failures = [{ rootIdentity: { path: join(f.runtime, 'prior'), inode: 1 },
       issuerIdentity: { path: join(f.runtime, 'prior/issuer-identity'), inode: 2 }, files: {} }]
+    const prechildFailures = [{ rootIdentity: { path: join(f.runtime, 'prechild'), inode: 4 },
+      issuerIdentity: { path: join(f.runtime, 'prechild/issuer-identity'), inode: 5 }, files: {} }]
     const payload = { parent: f.authority, runtime: f.runtime, repo: f.candidate,
-      windowSha256: sha(windowPath), failures }
+      windowSha256: sha(windowPath), failures, prechildFailures }
     const admission = bridge(f.script, 'queued-authority-snapshot', payload)
     assert.equal(admission.ok, true, admission.error)
     const terminal = structuredClone(payload)
@@ -1800,6 +2028,12 @@ test('queued-stop authority admission到terminal逐项比较issuer failure身份
     const observed = bridge(f.script, 'queued-authority-snapshot', terminal)
     assert.equal(observed.ok, false)
     assert.match(observed.error, /QUEUED_STOP_AUTHORITY_DRIFT/u)
+    const prechildTerminal = structuredClone(payload)
+    prechildTerminal.initial = admission.value; prechildTerminal.terminal = true
+    prechildTerminal.prechildFailures[0].rootIdentity.inode = 6
+    const prechildObserved = bridge(f.script, 'queued-authority-snapshot', prechildTerminal)
+    assert.equal(prechildObserved.ok, false)
+    assert.match(prechildObserved.error, /QUEUED_STOP_AUTHORITY_DRIFT/u)
   } finally { f.cleanup() }
 })
 

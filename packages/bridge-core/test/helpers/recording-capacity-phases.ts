@@ -36,6 +36,7 @@ export interface CapacityPhaseWindow {
   schemaVersion: 1; scope: 'musicbridge-capacity-phase-window' | 'musicbridge-capacity-queued-stop-window'; owner: 'root'; id: string; state: 'approved';
   phase: CapacityPhaseName; profile: CapacityPhaseProfile; label: string; seedLabel?: string;
   issuerFailureCarryoverCount?: number;
+  prechildFailureCarryoverCount?: number;
   seed: { label: string; metadataSha256: string; snapshotSha256: string; fixtureOwnerSha256?: string };
   n: 10 | 105; issuedAt: string; deadlineAt: string; limits: typeof CAPACITY_PHASE_LIMITS;
   ownedManifest: { file: 'owned-roots.json'; sha256: string }; sourceManifest: { file: 'source-pins.json'; sha256: string };
@@ -184,7 +185,7 @@ function validWindow(v: unknown): v is CapacityPhaseWindow {
   const successor = !!v && typeof v === 'object' && !Array.isArray(v)
     && (v as { scope?: unknown }).scope === 'musicbridge-capacity-queued-stop-window';
   const keys = successor
-    ? 'schemaVersion,scope,owner,id,state,phase,profile,label,seedLabel,seed,n,issuerFailureCarryoverCount,issuedAt,deadlineAt,limits,ownedManifest,sourceManifest,queuedStopPlan,supervisor,candidateRepository,toolchain,issuer,measureCarryover'
+    ? 'schemaVersion,scope,owner,id,state,phase,profile,label,seedLabel,seed,n,issuerFailureCarryoverCount,prechildFailureCarryoverCount,issuedAt,deadlineAt,limits,ownedManifest,sourceManifest,queuedStopPlan,supervisor,candidateRepository,toolchain,issuer,measureCarryover'
     : 'schemaVersion,scope,owner,id,state,phase,profile,label,seed,n,issuedAt,deadlineAt,limits,ownedManifest,sourceManifest' + (v && typeof v === 'object' && 'backup' in v ? ',backup' : '');
   if (!exact(v, keys)) return false;
   const seedKeys = successor ? 'label,metadataSha256,snapshotSha256,fixtureOwnerSha256' : 'label,metadataSha256,snapshotSha256';
@@ -213,6 +214,8 @@ function validWindow(v: unknown): v is CapacityPhaseWindow {
     && (!successor || v.phase === 'queued-stop' && v.profile === 'objects-limit' && v.seedLabel === v.seed.label
       && integer(v.issuerFailureCarryoverCount) && v.issuerFailureCarryoverCount >= 1
       && v.issuerFailureCarryoverCount <= 64
+      && integer(v.prechildFailureCarryoverCount) && v.prechildFailureCarryoverCount >= 1
+      && v.prechildFailureCarryoverCount <= 64
       && sha(v.seed.fixtureOwnerSha256) && exact(plan, 'warmupCount,formalCount,sampleCount,activeCloneMaximum,snapshotBytes,evidenceAllowanceBytes,plannedBytes,model,aggregateAudit')
       && plan.warmupCount === 5 && plan.formalCount === 100 && plan.sampleCount === 105 && plan.activeCloneMaximum === 1
       && integer(plan.snapshotBytes) && plan.snapshotBytes > 0 && plan.evidenceAllowanceBytes === 256 * 1024 ** 2
@@ -377,7 +380,7 @@ export async function runCapacityPhase(args: CapacityPhaseArguments, options: Ca
   windowCheck(effectiveOperationLimits.admissionReserveMs);
   const inventoryValue = json(args.ownedRootsPath, args.ownedRootsSha256);
   if (!validInventory(inventoryValue, w.id, w.scope === 'musicbridge-capacity-queued-stop-window'
-    ? 73 + (w.issuerFailureCarryoverCount ?? 0) : undefined)) invalid('INVENTORY_INVALID');
+    ? 73 + (w.issuerFailureCarryoverCount ?? 0) + (w.prechildFailureCarryoverCount ?? 0) : undefined)) invalid('INVENTORY_INVALID');
   const inventory = inventoryValue;
   const sourcePath = path.join(windowRoot, 'source-pins.json'), source = json(sourcePath, w.sourceManifest.sha256);
   if (!exact(source, 'schemaVersion,scope,files') || source.schemaVersion !== 1 || source.scope !== 'musicbridge-capacity-source-pins' || !source.files || typeof source.files !== 'object' || Array.isArray(source.files)) invalid('SOURCE_CHANGED');

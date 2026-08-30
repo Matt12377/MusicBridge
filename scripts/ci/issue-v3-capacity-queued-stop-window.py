@@ -684,6 +684,191 @@ def validate_prior_issuer_failures(options, runtime):
             'snapshots': [snapshot for _, _, snapshot in ordered]}
 
 
+def validate_prior_prechild_failures(options, runtime):
+    rows = options.prior_prechild_failure
+    if not isinstance(rows, list) or not rows or len(rows) > 64:
+        fail('PRIOR_PRECHILD_FAILURE')
+    discovered = set()
+    try: runtime_entries = sorted(runtime.iterdir(), key=lambda value: value.name)
+    except OSError as error: raise IssueError('PRIOR_PRECHILD_FAILURE_AUDIT') from error
+    for entry in runtime_entries:
+        failure_path = entry / 'prechild-failure.json'
+        if not entry.is_dir() or entry.is_symlink():
+            if failure_path.exists() or failure_path.is_symlink(): fail('PRIOR_PRECHILD_FAILURE_AUDIT')
+            continue
+        if not failure_path.exists() and not failure_path.is_symlink(): continue
+        try: failure, _ = strict_json(failure_path, maximum=1024 * 1024)
+        except IssueError as error: raise IssueError('PRIOR_PRECHILD_FAILURE_AUDIT') from error
+        if not isinstance(failure, dict) or not isinstance(failure.get('scope'), str):
+            fail('PRIOR_PRECHILD_FAILURE_AUDIT')
+        if failure['scope'] != 'musicbridge-capacity-queued-stop-prechild-failure':
+            fail('PRIOR_PRECHILD_FAILURE_AUDIT')
+        discovered.add(str(failure_path))
+    expected_failure_keys = {
+        'schemaVersion', 'scope', 'state', 'windowId', 'windowDirName', 'label', 'failure',
+        'observedExitCode', 'windowSha256', 'authorityFiles', 'trigger', 'reproduction',
+        'authorityAdmission', 'supervisionStarted', 'benchmarkStarted', 'childSpawned',
+        'outputCreated', 'sampleCount', 'windowConsumed', 'deviceOpened', 'formalReady',
+        'gateB', 'replayAllowed', 'replayPolicy', 'recovery', 'recordedAt'}
+    authority_keys = {'ownerSha256', 'supervisorSha256', 'issuerFactSha256',
+                      'sourceManifestSha256', 'ownedManifestSha256'}
+    recovery_keys = {'repositoryRoot', 'branch', 'head', 'scriptPath',
+                     'scriptRelativePath', 'scriptSha256'}
+    trigger_keys = {'path', 'sha256', 'scope', 'windowId', 'label', 'fieldType', 'role'}
+    reproduction = {'type': 'TypeError', 'messageCode': 'UNHASHABLE_DICT',
+                    'fullRuntimeReproduced': True, 'isolatedWitnessReproduced': True}
+    roots = []; facts = []; snapshots = []; declared = set()
+    seen_roots = set(); seen_windows = set(); seen_dirs = set(); seen_labels = set()
+    for row in rows:
+        if not isinstance(row, (list, tuple)) or len(row) != 12:
+            fail('PRIOR_PRECHILD_FAILURE')
+        (failure_name, failure_sha, owner_sha, supervisor_sha, issuer_fact_sha,
+         source_sha, owned_sha, window_sha, window_id, window_dir_name, label, error_code) = row
+        if any(SHA256.fullmatch(str(value or '')) is None for value in (
+                failure_sha, owner_sha, supervisor_sha, issuer_fact_sha,
+                source_sha, owned_sha, window_sha)) \
+                or UUID4.fullmatch(str(window_id or '')) is None \
+                or SAFE.fullmatch(str(window_dir_name or '')) is None \
+                or SAFE.fullmatch(str(label or '')) is None \
+                or error_code != 'QUEUED_STOP_REPLAY_AUDIT_TYPE_ERROR':
+            fail('PRIOR_PRECHILD_FAILURE')
+        failure_path = Path(failure_name)
+        parent = canonical_directory(failure_path.parent, runtime)
+        issuer_identity = canonical_directory(parent / 'issuer-identity', parent)
+        if failure_path != parent / 'prechild-failure.json' or parent != runtime / window_dir_name \
+                or str(parent) in seen_roots or window_id in seen_windows \
+                or window_dir_name in seen_dirs or label in seen_labels:
+            fail('PRIOR_PRECHILD_FAILURE')
+        expected_entries = {'owner.json', 'supervisor.py', 'issuer-identity', 'source-pins.json',
+                            'owned-roots.json', 'window.json', 'prechild-failure.json'}
+        try:
+            parent_entries = {path.name for path in parent.iterdir()}
+            issuer_entries = {path.name for path in issuer_identity.iterdir()}
+        except OSError as error: raise IssueError('PRIOR_PRECHILD_FAILURE') from error
+        if parent_entries != expected_entries or issuer_entries != {'owner.json'}:
+            fail('PRIOR_PRECHILD_FAILURE')
+        owner, observed_owner_sha = strict_json(parent / 'owner.json', owner_sha, maximum=1024 * 1024)
+        issuer_fact, observed_issuer_fact_sha = strict_json(
+            issuer_identity / 'owner.json', issuer_fact_sha, maximum=1024 * 1024)
+        source, observed_source_sha = strict_json(parent / 'source-pins.json', source_sha)
+        owned, observed_owned_sha = strict_json(parent / 'owned-roots.json', owned_sha)
+        window, observed_window_sha = strict_json(parent / 'window.json', window_sha)
+        failure, observed_failure_sha = strict_json(failure_path, failure_sha, maximum=1024 * 1024)
+        supervisor = verified_file(parent / 'supervisor.py', supervisor_sha, 'PRIOR_PRECHILD_FAILURE')
+        if not all(isinstance(value, dict) for value in
+                   (owner, issuer_fact, source, owned, window, failure)):
+            fail('PRIOR_PRECHILD_FAILURE')
+        authority = failure.get('authorityFiles') if isinstance(failure, dict) else None
+        trigger = failure.get('trigger') if isinstance(failure, dict) else None
+        recovery = failure.get('recovery') if isinstance(failure, dict) else None
+        try: recorded = datetime.datetime.fromisoformat(failure.get('recordedAt'))
+        except (AttributeError, TypeError, ValueError) as error:
+            raise IssueError('PRIOR_PRECHILD_FAILURE') from error
+        if owner != {'scope': 'musicbridge-capacity-queued-stop-window', 'owner': 'root', 'id': window_id} \
+                or not isinstance(window, dict) or window.get('schemaVersion') != 1 \
+                or window.get('scope') != 'musicbridge-capacity-queued-stop-window' \
+                or window.get('id') != window_id or window.get('label') != label \
+                or window.get('state') != 'approved' or window.get('phase') != 'queued-stop' \
+                or window.get('profile') != 'objects-limit' \
+                or window.get('supervisor') != {'path': str(supervisor), 'sha256': supervisor_sha} \
+                or window.get('sourceManifest') != {'file': 'source-pins.json', 'sha256': source_sha} \
+                or window.get('ownedManifest') != {'file': 'owned-roots.json', 'sha256': owned_sha} \
+                or not isinstance(issuer_fact, dict) or issuer_fact.get('schemaVersion') != 1 \
+                or issuer_fact.get('scope') != 'musicbridge-capacity-queued-stop-authority-issuer' \
+                or issuer_fact.get('windowId') != window_id \
+                or issuer_fact.get('candidateRepository') != window.get('candidateRepository') \
+                or set(source) != {'schemaVersion', 'scope', 'files'} \
+                or source.get('schemaVersion') != 1 \
+                or source.get('scope') != 'musicbridge-capacity-source-pins' \
+                or not isinstance(source.get('files'), dict) \
+                or set(owned) != {'schemaVersion', 'scope', 'access', 'windowId', 'roots'} \
+                or owned.get('schemaVersion') != 1 \
+                or owned.get('scope') != 'musicbridge-capacity-owned-roots' \
+                or owned.get('access') != 'count-only' or owned.get('windowId') != window_id \
+                or not isinstance(owned.get('roots'), list) \
+                or not isinstance(failure, dict) or set(failure) != expected_failure_keys \
+                or failure.get('schemaVersion') != 1 \
+                or failure.get('scope') != 'musicbridge-capacity-queued-stop-prechild-failure' \
+                or failure.get('state') != 'TERMINAL_PRECHILD_CONTROL_FAILURE' \
+                or failure.get('windowId') != window_id or failure.get('windowDirName') != window_dir_name \
+                or failure.get('label') != label or failure.get('failure') != error_code \
+                or failure.get('observedExitCode') != 1 or failure.get('windowSha256') != window_sha \
+                or not isinstance(authority, dict) or set(authority) != authority_keys \
+                or authority != {'ownerSha256': owner_sha, 'supervisorSha256': supervisor_sha,
+                                  'issuerFactSha256': issuer_fact_sha,
+                                  'sourceManifestSha256': source_sha, 'ownedManifestSha256': owned_sha} \
+                or not isinstance(trigger, dict) or set(trigger) != trigger_keys \
+                or trigger.get('scope') != 'musicbridge-capacity-generation-close' \
+                or trigger.get('fieldType') != 'dict' \
+                or trigger.get('role') != 'isolated-reproduction-witness-not-historical-order' \
+                or SHA256.fullmatch(str(trigger.get('sha256', ''))) is None \
+                or not isinstance(trigger.get('path'), str) \
+                or not isinstance(trigger.get('windowId'), str) or not isinstance(trigger.get('label'), str) \
+                or failure.get('reproduction') != reproduction \
+                or failure.get('authorityAdmission') != 'NOT_RUN' \
+                or any(failure.get(key) is not False for key in (
+                    'supervisionStarted', 'benchmarkStarted', 'childSpawned', 'outputCreated',
+                    'deviceOpened', 'formalReady', 'replayAllowed')) \
+                or failure.get('sampleCount') != 0 or failure.get('windowConsumed') is not True \
+                or failure.get('gateB') != 'NOT_RUN' \
+                or failure.get('replayPolicy') != 'terminal-window-id-and-label-never-reuse' \
+                or not isinstance(recovery, dict) or set(recovery) != recovery_keys \
+                or any(not isinstance(recovery.get(key), str) for key in recovery_keys) \
+                or not 1 <= len(recovery.get('branch', '')) <= 255 \
+                or recovery.get('scriptRelativePath') != \
+                    'scripts/ci/terminalize-v3-capacity-queued-stop-prechild.py' \
+                or GIT_SHA.fullmatch(str(recovery.get('head', ''))) is None \
+                or SHA256.fullmatch(str(recovery.get('scriptSha256', ''))) is None \
+                or recorded.utcoffset() is None:
+            fail('PRIOR_PRECHILD_FAILURE')
+        trigger_path = Path(trigger['path'])
+        if not trigger_path.is_absolute() or trigger_path.parent != runtime:
+            fail('PRIOR_PRECHILD_FAILURE')
+        trigger_value, trigger_sha = strict_json(trigger_path, trigger['sha256'])
+        nested = trigger_value.get('window') if isinstance(trigger_value, dict) else None
+        if not isinstance(trigger_value, dict) or trigger_value.get('scope') != trigger['scope'] \
+                or not isinstance(nested, dict) \
+                or nested.get('id') != trigger['windowId'] or nested.get('label') != trigger['label']:
+            fail('PRIOR_PRECHILD_FAILURE')
+        try:
+            recovery_root = canonical_directory(recovery['repositoryRoot'])
+            script_path = Path(recovery['scriptPath'])
+        except (IssueError, OSError, TypeError, ValueError) as error:
+            raise IssueError('PRIOR_PRECHILD_FAILURE') from error
+        if script_path != recovery_root / recovery['scriptRelativePath']:
+            fail('PRIOR_PRECHILD_FAILURE')
+        try:
+            script_blob = git_blob(recovery_root, recovery['head'], recovery['scriptRelativePath'])
+        except IssueError as error: raise IssueError('PRIOR_PRECHILD_FAILURE') from error
+        if hashlib.sha256(script_blob).hexdigest() != recovery['scriptSha256']:
+            fail('PRIOR_PRECHILD_FAILURE')
+        files = {
+            'owner': {'path': str(parent / 'owner.json'), 'sha256': observed_owner_sha},
+            'supervisor': {'path': str(supervisor), 'sha256': supervisor_sha},
+            'issuerFact': {'path': str(issuer_identity / 'owner.json'), 'sha256': observed_issuer_fact_sha},
+            'sourceManifest': {'path': str(parent / 'source-pins.json'), 'sha256': observed_source_sha},
+            'ownedManifest': {'path': str(parent / 'owned-roots.json'), 'sha256': observed_owned_sha},
+            'window': {'path': str(parent / 'window.json'), 'sha256': observed_window_sha},
+            'failure': {'path': str(failure_path), 'sha256': observed_failure_sha},
+        }
+        root = current_root(parent, 'owner.json')
+        roots.append(root)
+        facts.append({'root': str(parent), 'windowId': window_id, 'windowDirName': window_dir_name,
+                      'label': label, 'errorCode': error_code, 'files': files})
+        snapshots.append({
+            'root': directory_snapshot(parent, expected_entries),
+            'issuerIdentity': directory_snapshot(issuer_identity, {'owner.json'}),
+            'trigger': file_snapshot(trigger_path, trigger_sha),
+            'files': {key: file_snapshot(value['path'], value['sha256']) for key, value in files.items()},
+        })
+        seen_roots.add(str(parent)); seen_windows.add(window_id); seen_dirs.add(window_dir_name)
+        seen_labels.add(label); declared.add(str(failure_path))
+    if declared != discovered: fail('PRIOR_PRECHILD_FAILURE_AUDIT')
+    ordered = sorted(zip(roots, facts, snapshots), key=lambda value: value[0]['path'])
+    return {'roots': [root for root, _, _ in ordered], 'facts': [fact for _, fact, _ in ordered],
+            'snapshots': [snapshot for _, _, snapshot in ordered]}
+
+
 def copy_supervisor(source, destination, expected_sha):
     if destination.exists() or destination.is_symlink():
         fail('EXCLUSIVE_CREATE')
@@ -768,6 +953,10 @@ def parse_args(argv):
     parser.add_argument('--prior-issuer-failure', action='append', nargs=9,
                         metavar=('FAILURE', 'FAILURE_SHA256', 'OWNER_SHA256', 'SUPERVISOR_SHA256',
                                  'ISSUER_FACT_SHA256', 'WINDOW_ID', 'WINDOW_DIR_NAME', 'LABEL', 'ERROR_CODE'))
+    parser.add_argument('--prior-prechild-failure', action='append', nargs=12,
+                        metavar=('FAILURE', 'FAILURE_SHA256', 'OWNER_SHA256', 'SUPERVISOR_SHA256',
+                                 'ISSUER_FACT_SHA256', 'SOURCE_SHA256', 'OWNED_SHA256', 'WINDOW_SHA256',
+                                 'WINDOW_ID', 'WINDOW_DIR_NAME', 'LABEL', 'ERROR_CODE'))
     return parser.parse_args(argv)
 
 
@@ -829,7 +1018,7 @@ def record_failure(code):
 
 
 def build_window_payload(*, window_id, label, seed_label, seed, issued_at, deadline_at,
-                         owned_sha, source_sha, plan, issuer_failure_count,
+                         owned_sha, source_sha, plan, issuer_failure_count, prechild_failure_count,
                          installed_supervisor, supervisor_sha,
                          candidate_root, candidate_branch, candidate_head, measure_facts,
                          node, node_sha, tsx, tsx_sha, consumer, consumer_sha,
@@ -840,6 +1029,7 @@ def build_window_payload(*, window_id, label, seed_label, seed, issued_at, deadl
         'id': window_id, 'state': 'approved', 'phase': 'queued-stop', 'profile': 'objects-limit',
         'label': label, 'seedLabel': seed_label, 'seed': seed, 'n': 105,
         'issuerFailureCarryoverCount': issuer_failure_count,
+        'prechildFailureCarryoverCount': prechild_failure_count,
         'issuedAt': issued_at, 'deadlineAt': deadline_at, 'limits': dict(LIMITS),
         'ownedManifest': {'file': 'owned-roots.json', 'sha256': owned_sha},
         'sourceManifest': {'file': 'source-pins.json', 'sha256': source_sha},
@@ -899,6 +1089,7 @@ def issue(options):
         build_node_library, typescript_compiler)
     source = source_manifest(root, options.expected_head, derived['files'])
     prior_failures = validate_prior_issuer_failures(options, runtime)
+    prechild_failures = validate_prior_prechild_failures(options, runtime)
     window_id = str(uuid.uuid4())
     parent = runtime / options.window_dir_name
     try:
@@ -940,11 +1131,12 @@ def issue(options):
         },
         'build': derived['provenance'],
         'issuerFailureCarryover': prior_failures['facts'],
+        'prechildFailureCarryover': prechild_failures['facts'],
         'measureCarryover': measure['facts'],
     })
-    roots = unique_roots([*measure['roots'], *prior_failures['roots'], current_root(parent, 'owner.json'),
-                          current_root(issuer_identity, 'owner.json')])
-    expected_authority_roots = BASE_AUTHORITY_ROOTS + len(prior_failures['roots'])
+    roots = unique_roots([*measure['roots'], *prior_failures['roots'], *prechild_failures['roots'],
+                          current_root(parent, 'owner.json'), current_root(issuer_identity, 'owner.json')])
+    expected_authority_roots = BASE_AUTHORITY_ROOTS + len(prior_failures['roots']) + len(prechild_failures['roots'])
     if len(roots) != expected_authority_roots:
         fail('OWNED_COUNT')
     source_sha = exclusive_json(parent / 'source-pins.json', source)
@@ -965,6 +1157,7 @@ def issue(options):
         issued_at=issued.isoformat(timespec='milliseconds'),
         deadline_at=deadline.isoformat(timespec='milliseconds'), owned_sha=owned_sha,
         source_sha=source_sha, plan=plan, issuer_failure_count=len(prior_failures['roots']),
+        prechild_failure_count=len(prechild_failures['roots']),
         installed_supervisor=str(installed),
         supervisor_sha=options.expected_supervisor_sha256, candidate_root=str(root),
         candidate_branch=options.expected_branch, candidate_head=options.expected_head,
@@ -997,10 +1190,15 @@ def issue(options):
     except Exception as error:
         raise IssueError('BUILD_TOOLCHAIN_IDENTITY') from error
     second_prior_failures = validate_prior_issuer_failures(options, runtime)
+    second_prechild_failures = validate_prior_prechild_failures(options, runtime)
     if second_prior_failures['facts'] != prior_failures['facts'] \
             or second_prior_failures['roots'] != prior_failures['roots'] \
             or second_prior_failures['snapshots'] != prior_failures['snapshots']:
         fail('PRIOR_ISSUER_FAILURE_DRIFT')
+    if second_prechild_failures['facts'] != prechild_failures['facts'] \
+            or second_prechild_failures['roots'] != prechild_failures['roots'] \
+            or second_prechild_failures['snapshots'] != prechild_failures['snapshots']:
+        fail('PRIOR_PRECHILD_FAILURE_DRIFT')
     if strict_json(parent / 'source-pins.json', source_sha)[0] != source_manifest(
             root, options.expected_head, derived['files']) \
             or strict_json(parent / 'owned-roots.json', owned_sha)[0] != owned \
@@ -1020,6 +1218,7 @@ def issue(options):
             'windowPath': str(parent / 'window.json'), 'windowSha256': window_sha,
             'profile': 'objects-limit', 'label': options.label, 'seedLabel': options.seed_label,
             'sourceFileCount': len(source['files']), 'ownedRootCount': len(roots),
+            'prechildFailureCarryoverCount': len(prechild_failures['roots']),
             **budget_second, 'deadlineAt': window['deadlineAt'],
             'issuerFact': {'file': 'issuer-identity/owner.json', 'sha256': issuer_fact_sha},
             'ownerSha256': owner_sha, 'consumeCommand': consume,

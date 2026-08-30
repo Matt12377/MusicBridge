@@ -965,12 +965,15 @@ test('queued-stop phase：仅objects-small及三种大档、固定5预热+100正
   }
 });
 
-test('queued-stop successor：按issuer failure carryover精确接受74 roots', async t => {
-  for (const [rootCount, accepted] of [[73, false], [74, true], [75, false]] as const) {
+test('queued-stop successor：按issuer与prechild failure carryover精确接受75 roots', async t => {
+  for (const [rootCount, prechildCount, accepted] of [
+    [75, undefined, false], [75, 0, false], [74, 1, false], [75, 1, true], [76, 1, false],
+  ] as const) {
     const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
     const outer = f.w as unknown as Record<string, unknown>, seed = outer.seed as Record<string, unknown>;
     outer.scope = 'musicbridge-capacity-queued-stop-window';
     outer.issuerFailureCarryoverCount = 1;
+    if (prechildCount !== undefined) outer.prechildFailureCarryoverCount = prechildCount;
     seed.fixtureOwnerSha256 = f.hash(path.join(f.fixture, 'capacity-owner.json'));
     outer.seedLabel = 'seed';
     outer.queuedStopPlan = { warmupCount: 5, formalCount: 100, sampleCount: 105, activeCloneMaximum: 1,
@@ -1024,6 +1027,7 @@ test('queued-stop phase：105个独立clone先固化raw回执/hash再清理，�
   const outer = f.w as unknown as Record<string, unknown>, seed = outer.seed as Record<string, unknown>;
   outer.scope = 'musicbridge-capacity-queued-stop-window'; seed.fixtureOwnerSha256 = f.hash(path.join(f.fixture, 'capacity-owner.json'));
   outer.issuerFailureCarryoverCount = 1;
+  outer.prechildFailureCarryoverCount = 1;
   outer.seedLabel = 'seed'; const snapshotBytes = lstatSync(path.join(f.seed, 'seed.sqlite')).size;
   outer.queuedStopPlan = { warmupCount: 5, formalCount: 100, sampleCount: 105, activeCloneMaximum: 1,
     snapshotBytes, evidenceAllowanceBytes: 256 * 1024 ** 2, plannedBytes: snapshotBytes + 256 * 1024 ** 2,
@@ -1041,7 +1045,7 @@ test('queued-stop phase：105个独立clone先固化raw回执/hash再清理，�
     output: { path: path.join(f.runtime, 'measure-output'), label: 'measure-output', commandSha256: '4'.repeat(64) } };
   f.put(path.join(f.windowRoot, 'owner.json'), { scope: outer.scope, owner: 'root', id: outer.id });
   f.inventory.roots.find(root => root.path === f.windowRoot)!.marker.sha256 = f.hash(path.join(f.windowRoot, 'owner.json'));
-  while (f.inventory.roots.length < 74) { const directory = path.join(f.runtime, `carry-${String(f.inventory.roots.length).padStart(2, '0')}`); mkdirSync(directory);
+  while (f.inventory.roots.length < 75) { const directory = path.join(f.runtime, `carry-${String(f.inventory.roots.length).padStart(2, '0')}`); mkdirSync(directory);
     f.put(path.join(directory, 'owner.json'), { scope: 'controlled-carryover', index: f.inventory.roots.length }); f.inventory.roots.push(f.entry(directory, 'owner.json')); }
   f.seal();
   const summary = await f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async input => {

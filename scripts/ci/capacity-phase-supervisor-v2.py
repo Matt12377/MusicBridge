@@ -243,6 +243,7 @@ _STOP_METRICS = ('signalAborted', 'driverStopInvoked', 'driverStopAck',
 _STAGE_PHASES = ('copy', 'open-audit', 'operation', 'round-fsync', 'final-hash', 'cleanup')
 _QUEUED_STOP_KEYS = {'schemaVersion', 'scope', 'owner', 'id', 'state', 'phase', 'profile',
                      'label', 'seedLabel', 'seed', 'n', 'issuerFailureCarryoverCount',
+                     'prechildFailureCarryoverCount',
                      'issuedAt', 'deadlineAt', 'limits',
                      'ownedManifest', 'sourceManifest', 'queuedStopPlan', 'supervisor',
                      'candidateRepository', 'measureCarryover', 'toolchain', 'issuer'}
@@ -2449,6 +2450,8 @@ def _validate_queued_stop_window(window, now):
             or _SAFE.fullmatch(str(window.get('seedLabel', ''))) is None \
             or type(window.get('issuerFailureCarryoverCount')) is not int \
             or not 1 <= window['issuerFailureCarryoverCount'] <= 64 \
+            or type(window.get('prechildFailureCarryoverCount')) is not int \
+            or not 1 <= window['prechildFailureCarryoverCount'] <= 64 \
             or window.get('limits') != _QUEUED_STOP_LIMITS:
         raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
     seed = window.get('seed')
@@ -2675,6 +2678,245 @@ def _validate_queued_stop_issuer_failures(carryover, runtime):
     return {'roots': [root for root, _ in ordered], 'snapshots': [snapshot for _, snapshot in ordered]}
 
 
+def _validate_queued_stop_prechild_failures(carryover, runtime):
+    runtime = Path(runtime).resolve(strict=True)
+    if not isinstance(carryover, list) or not carryover or len(carryover) > 64:
+        raise ValueError('QUEUED_STOP_PRECHILD_FAILURE')
+    discovered = set()
+    try: entries = sorted(runtime.iterdir(), key=lambda value: value.name)
+    except OSError as error: raise ValueError('QUEUED_STOP_PRECHILD_FAILURE_AUDIT') from error
+    for entry in entries:
+        failure_path = entry / 'prechild-failure.json'
+        if not entry.is_dir() or entry.is_symlink():
+            if failure_path.exists() or failure_path.is_symlink():
+                raise ValueError('QUEUED_STOP_PRECHILD_FAILURE_AUDIT')
+            continue
+        if not failure_path.exists() and not failure_path.is_symlink(): continue
+        try: failure, _ = _strict_json(failure_path, 1024 * 1024)
+        except ValueError as error: raise ValueError('QUEUED_STOP_PRECHILD_FAILURE_AUDIT') from error
+        if not isinstance(failure, dict) or not isinstance(failure.get('scope'), str):
+            raise ValueError('QUEUED_STOP_PRECHILD_FAILURE_AUDIT')
+        if failure['scope'] != 'musicbridge-capacity-queued-stop-prechild-failure':
+            raise ValueError('QUEUED_STOP_PRECHILD_FAILURE_AUDIT')
+        discovered.add(str(failure_path))
+    row_keys = {'root', 'windowId', 'windowDirName', 'label', 'errorCode', 'files'}
+    file_keys = {'owner', 'supervisor', 'issuerFact', 'sourceManifest',
+                 'ownedManifest', 'window', 'failure'}
+    failure_keys = {
+        'schemaVersion', 'scope', 'state', 'windowId', 'windowDirName', 'label', 'failure',
+        'observedExitCode', 'windowSha256', 'authorityFiles', 'trigger', 'reproduction',
+        'authorityAdmission', 'supervisionStarted', 'benchmarkStarted', 'childSpawned',
+        'outputCreated', 'sampleCount', 'windowConsumed', 'deviceOpened', 'formalReady',
+        'gateB', 'replayAllowed', 'replayPolicy', 'recovery', 'recordedAt'}
+    roots = []; snapshots = []; declared = set()
+    seen_roots = set(); seen_windows = set(); seen_dirs = set(); seen_labels = set()
+    for row in carryover:
+        if not _queued_exact(row, row_keys) or not isinstance(row.get('root'), str) \
+                or not isinstance(row.get('windowDirName'), str) \
+                or not isinstance(row.get('label'), str) or not _uuid4(row.get('windowId')) \
+                or _SAFE.fullmatch(row['windowDirName']) is None \
+                or _SAFE.fullmatch(row['label']) is None \
+                or row.get('errorCode') != 'QUEUED_STOP_REPLAY_AUDIT_TYPE_ERROR' \
+                or not isinstance(row.get('files'), dict) or set(row['files']) != file_keys \
+                or any(not _queued_exact(binding, {'path', 'sha256'})
+                       or not isinstance(binding.get('path'), str)
+                       or _SHA256.fullmatch(str(binding.get('sha256', ''))) is None
+                       for binding in row['files'].values()):
+            raise ValueError('QUEUED_STOP_PRECHILD_FAILURE')
+        root = Path(row['root']); window_id = row['windowId']; directory = row['windowDirName']
+        label = row['label']; files = row['files']; issuer_identity = root / 'issuer-identity'
+        expected_entries = {'owner.json', 'supervisor.py', 'issuer-identity', 'source-pins.json',
+                            'owned-roots.json', 'window.json', 'prechild-failure.json'}
+        try:
+            root_info = root.lstat(); canonical = root.resolve(strict=True)
+            issuer_info = issuer_identity.lstat(); issuer_canonical = issuer_identity.resolve(strict=True)
+            root_entries = {value.name for value in root.iterdir()}
+            issuer_entries = {value.name for value in issuer_identity.iterdir()}
+        except OSError as error: raise ValueError('QUEUED_STOP_PRECHILD_FAILURE') from error
+        if not root.is_absolute() or root.is_symlink() or canonical != root or root.parent != runtime \
+                or root != runtime / directory or not stat.S_ISDIR(root_info.st_mode) \
+                or issuer_identity.is_symlink() or issuer_canonical != issuer_identity \
+                or not stat.S_ISDIR(issuer_info.st_mode) or root_entries != expected_entries \
+                or issuer_entries != {'owner.json'} or str(root) in seen_roots \
+                or window_id in seen_windows or directory in seen_dirs or label in seen_labels:
+            raise ValueError('QUEUED_STOP_PRECHILD_FAILURE')
+        identities = {
+            'owner': _validate_queued_stop_bound_file(files['owner'], root / 'owner.json', maximum=1024 * 1024),
+            'supervisor': _validate_queued_stop_bound_file(files['supervisor'], root / 'supervisor.py'),
+            'issuerFact': _validate_queued_stop_bound_file(
+                files['issuerFact'], issuer_identity / 'owner.json', maximum=1024 * 1024),
+            'sourceManifest': _validate_queued_stop_bound_file(files['sourceManifest'], root / 'source-pins.json'),
+            'ownedManifest': _validate_queued_stop_bound_file(files['ownedManifest'], root / 'owned-roots.json'),
+            'window': _validate_queued_stop_bound_file(files['window'], root / 'window.json'),
+            'failure': _validate_queued_stop_bound_file(
+                files['failure'], root / 'prechild-failure.json', maximum=1024 * 1024),
+        }
+        try:
+            owner, owner_identity = _strict_json(root / 'owner.json', 1024 * 1024)
+            issuer_fact, issuer_fact_identity = _strict_json(issuer_identity / 'owner.json', 1024 * 1024)
+            source, source_identity = _strict_json(root / 'source-pins.json')
+            owned, owned_identity = _strict_json(root / 'owned-roots.json')
+            window, window_identity = _strict_json(root / 'window.json')
+            failure, failure_identity = _strict_json(root / 'prechild-failure.json', 1024 * 1024)
+            if not all(isinstance(value, dict) for value in
+                       (owner, issuer_fact, source, owned, window, failure)):
+                raise ValueError('schema')
+            recorded = datetime.datetime.fromisoformat(str(failure.get('recordedAt')))
+        except (AttributeError, OSError, ValueError, TypeError) as error:
+            raise ValueError('QUEUED_STOP_PRECHILD_FAILURE') from error
+        authority = failure.get('authorityFiles') if isinstance(failure, dict) else None
+        trigger = failure.get('trigger') if isinstance(failure, dict) else None
+        recovery = failure.get('recovery') if isinstance(failure, dict) else None
+        expected_authority = {
+            'ownerSha256': files['owner']['sha256'], 'supervisorSha256': files['supervisor']['sha256'],
+            'issuerFactSha256': files['issuerFact']['sha256'],
+            'sourceManifestSha256': files['sourceManifest']['sha256'],
+            'ownedManifestSha256': files['ownedManifest']['sha256']}
+        if any(identities[key] != observed for key, observed in (
+                ('owner', owner_identity), ('issuerFact', issuer_fact_identity),
+                ('sourceManifest', source_identity), ('ownedManifest', owned_identity),
+                ('window', window_identity), ('failure', failure_identity))) \
+                or owner != {'scope': 'musicbridge-capacity-queued-stop-window', 'owner': 'root', 'id': window_id} \
+                or not isinstance(window, dict) or window.get('schemaVersion') != 1 \
+                or window.get('scope') != 'musicbridge-capacity-queued-stop-window' \
+                or window.get('id') != window_id or window.get('label') != label \
+                or window.get('state') != 'approved' or window.get('phase') != 'queued-stop' \
+                or window.get('profile') != 'objects-limit' \
+                or window.get('supervisor') != {'path': str(root / 'supervisor.py'),
+                                                'sha256': files['supervisor']['sha256']} \
+                or window.get('sourceManifest') != {'file': 'source-pins.json',
+                                                    'sha256': files['sourceManifest']['sha256']} \
+                or window.get('ownedManifest') != {'file': 'owned-roots.json',
+                                                   'sha256': files['ownedManifest']['sha256']} \
+                or not isinstance(issuer_fact, dict) or issuer_fact.get('schemaVersion') != 1 \
+                or issuer_fact.get('scope') != 'musicbridge-capacity-queued-stop-authority-issuer' \
+                or issuer_fact.get('windowId') != window_id \
+                or issuer_fact.get('candidateRepository') != window.get('candidateRepository') \
+                or not _queued_exact(source, {'schemaVersion', 'scope', 'files'}) \
+                or source.get('schemaVersion') != 1 \
+                or source.get('scope') != 'musicbridge-capacity-source-pins' \
+                or not isinstance(source.get('files'), dict) \
+                or not _queued_exact(owned, {'schemaVersion', 'scope', 'access', 'windowId', 'roots'}) \
+                or owned.get('schemaVersion') != 1 \
+                or owned.get('scope') != 'musicbridge-capacity-owned-roots' \
+                or owned.get('access') != 'count-only' or owned.get('windowId') != window_id \
+                or not isinstance(owned.get('roots'), list) or not _queued_exact(failure, failure_keys) \
+                or failure.get('schemaVersion') != 1 \
+                or failure.get('scope') != 'musicbridge-capacity-queued-stop-prechild-failure' \
+                or failure.get('state') != 'TERMINAL_PRECHILD_CONTROL_FAILURE' \
+                or failure.get('windowId') != window_id or failure.get('windowDirName') != directory \
+                or failure.get('label') != label or failure.get('failure') != row['errorCode'] \
+                or failure.get('observedExitCode') != 1 \
+                or failure.get('windowSha256') != files['window']['sha256'] \
+                or authority != expected_authority \
+                or failure.get('reproduction') != {
+                    'type': 'TypeError', 'messageCode': 'UNHASHABLE_DICT',
+                    'fullRuntimeReproduced': True, 'isolatedWitnessReproduced': True} \
+                or failure.get('authorityAdmission') != 'NOT_RUN' \
+                or any(failure.get(key) is not False for key in (
+                    'supervisionStarted', 'benchmarkStarted', 'childSpawned', 'outputCreated',
+                    'deviceOpened', 'formalReady', 'replayAllowed')) \
+                or failure.get('sampleCount') != 0 or failure.get('windowConsumed') is not True \
+                or failure.get('gateB') != 'NOT_RUN' \
+                or failure.get('replayPolicy') != 'terminal-window-id-and-label-never-reuse' \
+                or not isinstance(trigger, dict) \
+                or set(trigger) != {'path', 'sha256', 'scope', 'windowId', 'label', 'fieldType', 'role'} \
+                or trigger.get('scope') != 'musicbridge-capacity-generation-close' \
+                or trigger.get('fieldType') != 'dict' \
+                or trigger.get('role') != 'isolated-reproduction-witness-not-historical-order' \
+                or any(not isinstance(trigger.get(key), str) for key in (
+                    'path', 'sha256', 'scope', 'windowId', 'label', 'fieldType', 'role')) \
+                or not isinstance(recovery, dict) \
+                or set(recovery) != {'repositoryRoot', 'branch', 'head', 'scriptPath',
+                                     'scriptRelativePath', 'scriptSha256'} \
+                or any(not isinstance(recovery.get(key), str) for key in (
+                    'repositoryRoot', 'branch', 'head', 'scriptPath',
+                    'scriptRelativePath', 'scriptSha256')) \
+                or not 1 <= len(recovery.get('branch', '')) <= 255 \
+                or recovery.get('scriptRelativePath') != \
+                    'scripts/ci/terminalize-v3-capacity-queued-stop-prechild.py' \
+                or _GIT_SHA.fullmatch(str(recovery.get('head', ''))) is None \
+                or _SHA256.fullmatch(str(recovery.get('scriptSha256', ''))) is None \
+                or recorded.utcoffset() is None:
+            raise ValueError('QUEUED_STOP_PRECHILD_FAILURE')
+        trigger_path = Path(str(trigger.get('path', '')))
+        try:
+            trigger_value, trigger_identity = _strict_json(trigger_path)
+            trigger_canonical = trigger_path.resolve(strict=True)
+        except (OSError, TypeError, ValueError) as error:
+            raise ValueError('QUEUED_STOP_PRECHILD_FAILURE') from error
+        nested = trigger_value.get('window') if isinstance(trigger_value, dict) else None
+        if not trigger_path.is_absolute() or trigger_path.is_symlink() \
+                or trigger_canonical != trigger_path or trigger_path.parent != runtime \
+                or not trigger_path.name.endswith('-close.json') \
+                or trigger_identity['sha256'] != trigger.get('sha256') \
+                or not isinstance(trigger_value, dict) \
+                or trigger_value.get('scope') != trigger.get('scope') or not isinstance(nested, dict) \
+                or nested.get('id') != trigger.get('windowId') or nested.get('label') != trigger.get('label'):
+            raise ValueError('QUEUED_STOP_PRECHILD_FAILURE')
+        try:
+            recovery_root = Path(recovery['repositoryRoot'])
+            recovery_script = Path(recovery['scriptPath'])
+            recovery_canonical = recovery_root.resolve(strict=True)
+        except (OSError, TypeError, ValueError) as error:
+            raise ValueError('QUEUED_STOP_PRECHILD_FAILURE') from error
+        if not recovery_root.is_absolute() or recovery_canonical != recovery_root \
+                or recovery_root.is_symlink() \
+                or recovery_script != recovery_root / recovery['scriptRelativePath']:
+            raise ValueError('QUEUED_STOP_PRECHILD_FAILURE')
+        try:
+            script_blob = subprocess.check_output(
+                ['/usr/bin/git', 'show', f"{recovery['head']}:{recovery['scriptRelativePath']}"],
+                cwd=recovery_root, stderr=subprocess.DEVNULL)
+        except (OSError, subprocess.CalledProcessError) as error:
+            raise ValueError('QUEUED_STOP_PRECHILD_FAILURE') from error
+        if hashlib.sha256(script_blob).hexdigest() != recovery['scriptSha256']:
+            raise ValueError('QUEUED_STOP_PRECHILD_FAILURE')
+        try:
+            root_after = root.lstat(); issuer_after = issuer_identity.lstat()
+            root_entries_after = {value.name for value in root.iterdir()}
+            issuer_entries_after = {value.name for value in issuer_identity.iterdir()}
+            identities_after = {
+                role: _validate_queued_stop_bound_file(
+                    files[role],
+                    {'owner': root / 'owner.json', 'supervisor': root / 'supervisor.py',
+                     'issuerFact': issuer_identity / 'owner.json',
+                     'sourceManifest': root / 'source-pins.json',
+                     'ownedManifest': root / 'owned-roots.json', 'window': root / 'window.json',
+                     'failure': root / 'prechild-failure.json'}[role],
+                    maximum=1024 * 1024 if role in {'owner', 'issuerFact', 'failure'} else None)
+                for role in files}
+        except (OSError, TypeError, ValueError) as error:
+            raise ValueError('QUEUED_STOP_PRECHILD_FAILURE') from error
+        directory_fields = ('st_dev', 'st_ino', 'st_mtime_ns', 'st_ctime_ns', 'st_nlink')
+        if any(getattr(root_info, key) != getattr(root_after, key) for key in directory_fields) \
+                or any(getattr(issuer_info, key) != getattr(issuer_after, key) for key in directory_fields) \
+                or root_entries_after != expected_entries or issuer_entries_after != {'owner.json'} \
+                or identities_after != identities:
+            raise ValueError('QUEUED_STOP_PRECHILD_FAILURE')
+        root_row = {'path': str(root), 'device': root_info.st_dev, 'inode': root_info.st_ino,
+                    'marker': {'relative': 'owner.json', 'sha256': identities['owner']['sha256']}}
+        roots.append(root_row)
+        snapshots.append({
+            'root': root_row,
+            'rootIdentity': {'path': str(root), 'device': root_info.st_dev, 'inode': root_info.st_ino,
+                             'mtimeNs': root_info.st_mtime_ns, 'ctimeNs': root_info.st_ctime_ns,
+                             'nlink': root_info.st_nlink,
+                             'entries': sorted(root_entries)},
+            'issuerIdentity': {'path': str(issuer_identity), 'device': issuer_info.st_dev,
+                               'inode': issuer_info.st_ino, 'mtimeNs': issuer_info.st_mtime_ns,
+                               'ctimeNs': issuer_info.st_ctime_ns, 'nlink': issuer_info.st_nlink,
+                               'entries': sorted(issuer_entries)},
+            'windowId': window_id, 'windowDirName': directory, 'label': label,
+            'errorCode': row['errorCode'], 'trigger': trigger_identity, 'files': identities})
+        seen_roots.add(str(root)); seen_windows.add(window_id); seen_dirs.add(directory)
+        seen_labels.add(label); declared.add(str(root / 'prechild-failure.json'))
+    if declared != discovered:
+        raise ValueError('QUEUED_STOP_PRECHILD_FAILURE_AUDIT')
+    ordered = sorted(zip(roots, snapshots), key=lambda value: value[0]['path'])
+    return {'roots': [root for root, _ in ordered], 'snapshots': [snapshot for _, snapshot in ordered]}
+
+
 def _validate_queued_stop_bound_identities(window, parent, candidate):
     toolchain = window['toolchain']; issuer = window['issuer']
     issuer_path = candidate / 'scripts/ci/issue-v3-capacity-queued-stop-window.py'
@@ -2693,7 +2935,7 @@ def _validate_queued_stop_bound_identities(window, parent, candidate):
     except ValueError as error: raise ValueError('QUEUED_STOP_IDENTITY') from error
     fact_keys = {'schemaVersion', 'scope', 'windowId', 'issuerRepository', 'candidateRepository',
                  'supervisorSource', 'toolchain', 'buildHelper', 'buildToolchain', 'build',
-                 'issuerFailureCarryover', 'measureCarryover'}
+                 'issuerFailureCarryover', 'prechildFailureCarryover', 'measureCarryover'}
     issuer_repo = fact.get('issuerRepository') if isinstance(fact, dict) else None
     supervisor_source = fact.get('supervisorSource') if isinstance(fact, dict) else None
     build_helper = fact.get('buildHelper') if isinstance(fact, dict) else None
@@ -2725,6 +2967,12 @@ def _validate_queued_stop_bound_identities(window, parent, candidate):
         raise ValueError('QUEUED_STOP_ISSUER_FAILURE')
     identities['issuerFailureRoots'] = prior_failures['roots']
     identities['issuerFailures'] = prior_failures['snapshots']
+    prechild_failures = _validate_queued_stop_prechild_failures(
+        fact['prechildFailureCarryover'], Path(parent).parent)
+    if len(prechild_failures['roots']) != window['prechildFailureCarryoverCount']:
+        raise ValueError('QUEUED_STOP_PRECHILD_FAILURE')
+    identities['prechildFailureRoots'] = prechild_failures['roots']
+    identities['prechildFailures'] = prechild_failures['snapshots']
     identities['buildHelper'] = _validate_queued_stop_bound_file(
         {'path': build_helper['path'], 'sha256': build_helper['sha256']},
         expected_path=candidate / build_helper['relativePath'])
@@ -3007,7 +3255,8 @@ def _validate_queued_stop_authority(parent, runtime, repo_root, window_sha256,
     source = _validate_phase_source_manifest(parent / 'source-pins.json', candidate)
     if source['manifestIdentity']['sha256'] != window['sourceManifest']['sha256']:
         raise ValueError('QUEUED_STOP_AUTHORITY')
-    carry_roots = [*carry['roots'], *bound_identities['issuerFailureRoots']]
+    carry_roots = [*carry['roots'], *bound_identities['issuerFailureRoots'],
+                   *bound_identities['prechildFailureRoots']]
     owned = _validate_queued_stop_owned_manifest(
         parent / 'owned-roots.json', runtime, window['id'], parent, carry_roots,
         window['queuedStopPlan']['plannedBytes'], terminal=terminal)
@@ -3017,9 +3266,11 @@ def _validate_queued_stop_authority(parent, runtime, repo_root, window_sha256,
              'sourceManifestStable': True, 'ownedManifestStable': True,
              'sourcePinsValid': True, 'ownedRootsValid': True, 'measureCarryoverValid': True,
              'issuerFailureCarryoverValid': True,
+             'prechildFailureCarryoverValid': True,
              'spaceValid': True, 'windowSha256Observed': window_identity['sha256'],
              'ownerSha256Observed': owner_identity['sha256'], 'sourceFileCount': source['fileCount'],
              'ownedRootCount': owned['rootCount'], 'issuerFailureCount': len(bound_identities['issuerFailures']),
+             'prechildFailureCount': len(bound_identities['prechildFailures']),
              'ownedBytes': owned['ownedBytes'],
              'plannedBytes': owned['plannedBytes'], 'remainingPlannedBytes': owned['remainingPlannedBytes'],
              'availableBytes': owned['availableBytes'], 'candidateRepository': window['candidateRepository'],
@@ -3034,11 +3285,13 @@ def _validate_queued_stop_authority(parent, runtime, repo_root, window_sha256,
                            'buildNodeLibrary': bound_identities['buildNodeLibrary'],
                            'typescriptCompiler': bound_identities['typescriptCompiler'],
                            'typescriptLibraries': bound_identities['typescriptLibraries'],
-                           'issuerFailures': bound_identities['issuerFailures']}}
+                           'issuerFailures': bound_identities['issuerFailures'],
+                           'prechildFailures': bound_identities['prechildFailures']}}
     if initial is not None:
         for key in ('window', 'owner', 'source', 'owned', 'node', 'tsxLoader',
                     'consumerPython', 'issuer', 'issuerFact', 'buildHelper', 'buildNode',
-                    'buildNodeLibrary', 'typescriptCompiler', 'typescriptLibraries', 'issuerFailures'):
+                    'buildNodeLibrary', 'typescriptCompiler', 'typescriptLibraries', 'issuerFailures',
+                    'prechildFailures'):
             if initial.get('_snapshot', {}).get(key) != value['_snapshot'][key]:
                 raise ValueError('QUEUED_STOP_AUTHORITY_DRIFT')
     return value
@@ -3344,24 +3597,50 @@ def _validate_queued_stop_artifacts(parent, expected=None):
     return result
 
 
+def _queued_stop_replay_identities(value):
+    if not isinstance(value, dict): raise ValueError('QUEUED_STOP_REPLAY_AUDIT')
+    observed = set()
+    for key in ('id', 'windowId', 'label', 'window', 'windowDirName'):
+        identity = value.get(key)
+        if identity is None: continue
+        if key == 'window' and isinstance(identity, dict):
+            if value.get('scope') != 'musicbridge-capacity-generation-close':
+                raise ValueError('QUEUED_STOP_REPLAY_AUDIT')
+            for nested_key in ('id', 'windowId', 'label', 'windowDirName'):
+                nested = identity.get(nested_key)
+                if nested is None: continue
+                if not isinstance(nested, str): raise ValueError('QUEUED_STOP_REPLAY_AUDIT')
+                observed.add(nested)
+            if not isinstance(identity.get('id'), str) or not isinstance(identity.get('label'), str):
+                raise ValueError('QUEUED_STOP_REPLAY_AUDIT')
+            continue
+        if not isinstance(identity, str): raise ValueError('QUEUED_STOP_REPLAY_AUDIT')
+        observed.add(identity)
+    return observed
+
+
 def _reject_queued_stop_replay(runtime, parent, window):
     runtime = Path(runtime).resolve(strict=True); parent = Path(parent).resolve(strict=True)
-    target = {window.get('id'), window.get('label'), parent.name}
-    for candidate in runtime.iterdir():
+    target = _queued_stop_replay_identities({
+        'id': window.get('id'), 'label': window.get('label'), 'windowDirName': parent.name})
+    for candidate in sorted(runtime.iterdir(), key=lambda value: value.name):
         if candidate == parent: continue
+        if candidate.is_symlink(): raise ValueError('QUEUED_STOP_REPLAY_AUDIT')
         paths = []
         if candidate.is_dir() and not candidate.is_symlink():
-            paths.extend((candidate / 'window.json', candidate / 'close.json', candidate / 'issuer-failure.json'))
+            paths.extend((candidate / 'window.json', candidate / 'close.json',
+                          candidate / 'issuer-failure.json', candidate / 'prechild-failure.json'))
         elif candidate.is_file() and not candidate.is_symlink() and candidate.name.endswith('-close.json'):
             paths.append(candidate)
         for path in paths:
-            value = _read_json(path)
-            if not isinstance(value, dict): continue
-            observed = {value.get('id'), value.get('windowId'), value.get('label'),
-                        value.get('window'), value.get('windowDirName')}
+            if not path.exists() and not path.is_symlink(): continue
+            try: value, _ = _strict_json(path, 32 * 1024 * 1024)
+            except ValueError as error: raise ValueError('QUEUED_STOP_REPLAY_AUDIT') from error
+            observed = _queued_stop_replay_identities(value)
             if target & observed: raise ValueError('QUEUED_STOP_REPLAY')
     if (parent / 'close.json').exists() or (parent / 'close.json').is_symlink() \
-            or (parent / 'issuer-failure.json').exists() or (parent / 'issuer-failure.json').is_symlink():
+            or (parent / 'issuer-failure.json').exists() or (parent / 'issuer-failure.json').is_symlink() \
+            or (parent / 'prechild-failure.json').exists() or (parent / 'prechild-failure.json').is_symlink():
         raise ValueError('QUEUED_STOP_REPLAY')
     return True
 
@@ -3431,6 +3710,13 @@ def _main_queued_stop(argv, loaded=None):
     environment = {'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'LANG': 'C', 'LC_ALL': 'C',
                    'TZ': 'UTC', 'CI': '1', 'TMPDIR': str(Path(tempfile.gettempdir()).resolve(strict=True))}
     expected = {'window': window, 'windowSha256': loaded_identity['sha256']}
+    try:
+        _require_loaded_window_identity(parent, loaded_identity)
+        _reject_queued_stop_replay(runtime, parent, window)
+        _validate_queued_stop_authority(
+            parent, runtime, root, loaded_identity['sha256'], terminal=False, initial=admission)
+    except ValueError as error:
+        raise SystemExit('CAPACITY_SUPERVISOR_INPUT') from error
     def terminal_authority():
         _reject_queued_stop_replay(runtime, parent, window)
         return _validate_queued_stop_authority(
