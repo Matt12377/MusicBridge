@@ -81,7 +81,7 @@
     "task": "TASK-079",
     "branch": "codex/task-079-v3-final-acceptance",
     "baseCommit": "fac7363b4a6481591e207dda7cca77f0ae8d3cd4",
-    "state": "no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-carryover-green-formal-not-run-joint-external-pending",
+    "state": "no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-carryover-green-formal-not-run-joint-budget-software-green-formal-not-run-external-pending",
     "evidenceInfrastructure": {
       "state": "PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES",
       "receiptFoundation": {
@@ -160,7 +160,7 @@
     "gates": {
       "readinessControl": "PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO",
       "externalEvidenceProfiles": "REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED",
-      "capacityAuthority": "OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_CARRYOVER_GREEN_FORMAL_NOT_RUN_JOINT_PENDING",
+      "capacityAuthority": "OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_CARRYOVER_GREEN_FORMAL_NOT_RUN_JOINT_BUDGET_SOFTWARE_GREEN_FORMAL_NOT_RUN",
       "softwareBaseline": "TASK078_PASS_101_MAPPED_2_UNMAPPED_PENDING_EXTERNAL_NOT_RUN_FORMAL_READY_FALSE",
       "externalGate": "NOT_RUN",
       "realInput": "NOT_RUN",
@@ -183,13 +183,13 @@
       "R-020 大库冷启扫描与2秒ready策略待TASK-078/Gate E验证",
       "R-021：真实钥匙串无CDP普通Quit15秒FAIL保留；新隔离候选包空库及执行读取后两种mock-keychain普通Quit均code0/close且无进程残留，仅软件隔离诊断，不关闭真实钥匙串/Owner验收",
       "R-022：FakeDriver join/静止契约未证明真实HAL；未链接应用或helper，真实设备与Gate B须独立授权及测量",
-      "R-023：history-limit正式生成/measure/queued-stop已PASS；objects-limit旧generation与measure失败证据永久保留，window-06软件measure PASS。queued-stop first-class控制面提交7d67f506已GREEN；window-01在issuer阶段以SOURCE_CANDIDATE终止，未写approved window、未运行benchmark且永久禁止重放。提交33d8856c完成42个contracts/dist派生输出的固定重建，提交f285bf3将window-01 direct-child issuer failure及目录/文件身份纳入下一authority的issue/admission/terminal闭包，下一闭包为exact 74 roots；下一approved authority尚未签发，未预分配后继UUID/window/label，formal run=NOT_RUN。joint仍待单活动输出预算重构；设备、Gate B与Owner验收均NOT_RUN。",
+      "R-023：history-limit正式生成/measure/queued-stop已PASS；objects-limit旧generation与measure失败证据永久保留，window-06软件measure PASS。queued-stop first-class控制面提交7d67f506已GREEN；window-01在issuer阶段以SOURCE_CANDIDATE终止，未写approved window、未运行benchmark且永久禁止重放。提交33d8856c完成42个contracts/dist派生输出的固定重建，提交f285bf3将window-01 direct-child issuer failure及目录/文件身份纳入下一authority的issue/admission/terminal闭包，下一闭包为exact 74 roots；下一approved authority尚未签发，未预分配后继UUID/window/label，formal run=NOT_RUN。joint单活动输出预算软件检查点提交5464ae06已GREEN，plannedBytes从6140461056收敛为2701131776；正式generation/measure、设备、Gate B与Owner验收均NOT_RUN。",
       "TASK-079 hardware evidence contract v2：主任务33/33专项GREEN；configuration observation、observer execution、typed scope evidence、B-15 identity有效期和U-10同事件依赖已加固。第二轮独立复审最终RED保留，未做第三轮且independentPass=false。真实hardware与Gate B均NOT_RUN。",
       "TASK-076历史核验与私有synthetic会话已通过本地软件Gate；实际可听Replica及正式provider接线须随073设备准入和079另验，当前始终blocked",
       "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task079-objects-queued-stop-window01-terminal-issuer-failure-carried-forward-exact74-next-authority-not-issued-run-not-run",
+    "checkpoint": "task079-joint-single-active-output-budget-software-green-formal-generation-measure-not-run",
     "nextTask": null,
     "resultReport": "reports/TASK-079_READINESS.md",
     "task078SoftwareCheckpoints": {
@@ -1270,6 +1270,85 @@
         "deviceOpened": false,
         "gateB": "NOT_RUN",
         "ownerAcceptance": "NOT_RUN"
+      },
+      "capacityJointGenerationControlPlane": {
+        "state": "SOFTWARE_GREEN_FORMAL_GENERATION_NOT_RUN_MEASURE_NOT_RUN",
+        "implementationCommit": "5464ae06355832a76dc394c4cde5eed28acb4846",
+        "previousPlannedBytes": 6140461056,
+        "generationPlan": {
+          "model": "serial-single-output-plus-bounded-growth-v1",
+          "activeOutputMaximum": 1,
+          "finalAxisBytes": 1275068416,
+          "activeOutputBytes": 1275068416,
+          "activeRecordWorkspaceBytes": 16777216,
+          "evidenceAllowanceBytes": 134217728,
+          "plannedBytes": 2701131776
+        },
+        "planPreparation": {
+          "strategy": "serial-create-consume-one-active",
+          "preparedBeforeFirstAttempt": 1,
+          "activePlanMaximum": 1,
+          "unconsumedAtSeal": 1
+        },
+        "consumerContract": {
+          "supervisorGenerationArtifacts": "EXACT",
+          "supervisorMeasureSeed": "EXACT",
+          "phaseGenerationPlanAndAxes": "EXACT",
+          "strictJsonTypes": true,
+          "snapshotPrewriteProjection": true,
+          "terminalOutputBound": true
+        },
+        "focusedVerification": {
+          "capacity": {
+            "tests": 92,
+            "passed": 92,
+            "failed": 0
+          },
+          "supervisor": {
+            "tests": 32,
+            "passed": 32,
+            "failed": 0
+          },
+          "generationIssuer": {
+            "tests": 19,
+            "passed": 19,
+            "failed": 0
+          },
+          "measureIssuer": {
+            "tests": 25,
+            "passed": 25,
+            "failed": 0
+          },
+          "queuedStopIssuer": {
+            "tests": 9,
+            "passed": 9,
+            "failed": 0
+          },
+          "fourCapacityControlSuites": {
+            "tests": 85,
+            "passed": 85,
+            "failed": 0
+          },
+          "bridgeCoreTypecheck": "PASS",
+          "pythonCompile": "PASS",
+          "fullVerify": "PASS",
+          "staticGates": {
+            "controlPlane": "PASS",
+            "boundaries": "PASS",
+            "cycles": "PASS_259_FILES"
+          }
+        },
+        "independentReview": {
+          "p0": 0,
+          "p1": 0,
+          "p2": 0
+        },
+        "formalGeneration": "NOT_RUN",
+        "formalMeasure": "NOT_RUN",
+        "deviceOpened": false,
+        "formalReady": false,
+        "gateB": "NOT_RUN",
+        "ownerAcceptance": "NOT_RUN"
       }
     },
     "capacityHistoryLimitWindow01": {
@@ -1295,6 +1374,6 @@
       "closeReceiptSha256": "4c18479e33b6392ff511a09b057d3e296dc3873d1c9be09d7d5f67c38eff39be",
       "replay": "PROHIBITED"
     },
-    "capacityGate": "R023_OBJECTS_LIMIT_GENERATION_WINDOW03_PASS__MEASURE_WINDOW01_TIMEOUT_PARTIAL_NONREPLAY__WINDOW04_AUTHORITY_DRIFT_COPY_UNAVAILABLE_PARTIAL_NONREPLAY_PLANNED4249378816_UNCHANGED__WINDOW05_PRECREATE_IDENTITY_REJECTED_NO_PATH_UUID_AUTHORITY_NONREUSE__WINDOW06_SOFTWARE_MEASURE_PASS__QUEUED_STOP_WINDOW01_TERMINAL_ISSUER_SOURCE_CANDIDATE_NONREPLAY_BENCHMARK_NOT_RUN__DERIVED_BUILD_FIXED__NEXT_AUTHORITY_NOT_ISSUED_RUN_NOT_RUN__JOINT_PENDING"
+    "capacityGate": "R023_OBJECTS_LIMIT_GENERATION_WINDOW03_PASS__MEASURE_WINDOW01_TIMEOUT_PARTIAL_NONREPLAY__WINDOW04_AUTHORITY_DRIFT_COPY_UNAVAILABLE_PARTIAL_NONREPLAY_PLANNED4249378816_UNCHANGED__WINDOW05_PRECREATE_IDENTITY_REJECTED_NO_PATH_UUID_AUTHORITY_NONREUSE__WINDOW06_SOFTWARE_MEASURE_PASS__QUEUED_STOP_WINDOW01_TERMINAL_ISSUER_SOURCE_CANDIDATE_NONREPLAY_BENCHMARK_NOT_RUN__DERIVED_BUILD_FIXED__NEXT_AUTHORITY_NOT_ISSUED_RUN_NOT_RUN__JOINT_BUDGET_SOFTWARE_GREEN_FORMAL_GENERATION_MEASURE_NOT_RUN"
   }
 }

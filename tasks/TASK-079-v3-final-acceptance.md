@@ -2,7 +2,7 @@
 
 基线 `fac7363b4a6481591e207dda7cca77f0ae8d3cd4`，分支 `codex/task-079-v3-final-acceptance`，独立树 `worktree/task-079-v3-final-acceptance`。TASK-078 的本地自动软件子范围已经封版；本任务承接尚未运行的真实输入、真实 Logic/Roon、真实设备、实体打印和 Owner 产品验收，不重写 TASK-078 的软件证据。
 
-当前没有设备连接。Owner 后续计划使用 RME 或 Apogee 声卡与 Sony 卡座，但具体型号、连接、采样率、声道、缓冲、时钟、测量方法和故障注入范围尚未冻结。本阶段禁止枚举、打开、配置或发声，禁止读取真实音乐、库存、照片、Excel、Logic 工程、Roon/Provider 账号或凭据。验证清洁的`codex/task-079-v3-final-acceptance`代码评审检查点`f285bf3de7ef9b23be5370759a4e591dd3280414`已push并核对远端SHA；没有授权`main`/PR合并、签名、公证、安装或发布。
+当前没有设备连接。Owner 后续计划使用 RME 或 Apogee 声卡与 Sony 卡座，但具体型号、连接、采样率、声道、缓冲、时钟、测量方法和故障注入范围尚未冻结。本阶段禁止枚举、打开、配置或发声，禁止读取真实音乐、库存、照片、Excel、Logic 工程、Roon/Provider 账号或凭据。验证清洁的`codex/task-079-v3-final-acceptance`实现评审检查点`5464ae06355832a76dc394c4cde5eed28acb4846`已push并核对远端SHA；没有授权`main`/PR合并、签名、公证、安装或发布。
 
 ## 无设备阶段范围
 
@@ -88,7 +88,15 @@ supervisor在`320,039.741875ms`自然exit 0，1575个samples、3个group receipt
 
 根因是source manifest把42个被Git忽略、由tracked TypeScript生成的`packages/contracts/dist/*.js`误当作候选提交blob执行`git show`。提交`33d8856c7f4a1e93edce90ba2c9f31d406d9272a`复用已验证的capacity build helper，从候选HEAD的42个source、固定tsconfig/package和固定Node/libnode/TypeScript工具链重建dist，要求exact emit set与逐字节SHA一致；issuer fact绑定helper、构建输入、argv/env、工具链、标准库manifest与输出，supervisor在admission和terminal两端重新核验并拒绝helper、标准库或派生证明漂移。
 
-上述结果只证明修复后的控制面GREEN。代码检查点`f285bf3de7ef9b23be5370759a4e591dd3280414`已推送并由`git ls-remote`精确核对；下一approved authority仍为`NEXT_NOT_ISSUED`、`formalRun=NOT_RUN`，没有后继UUID/window-dir/label或PASS收据。下一步是同步机器状态并在新的精确远端HEAD上做新鲜只读预检，满足后才可用全新名称唯一签发。joint不得复用objects seed，且现有joint计划超过单活动输出预算，须先重构；设备、Gate B、Owner 103项、可听Replica、实体录音与打印均保持`NOT_RUN`或pending。
+上述结果只证明修复后的queued-stop控制面GREEN。下一approved authority仍为`NEXT_NOT_ISSUED`、`formalRun=NOT_RUN`，没有后继UUID/window-dir/label或PASS收据。同步机器状态后必须在新的精确远端HEAD上重做新鲜只读预检，满足后才可用全新名称唯一签发。
+
+### Joint 单活动输出预算软件GREEN
+
+实现提交`5464ae06355832a76dc394c4cde5eed28acb4846`将joint generation从旧静态预算`6,140,461,056`字节收敛为`2,701,131,776`字节：最终六轴`1,275,068,416`、唯一活动输出`1,275,068,416`、单Record工作区`16,777,216`与证据余量`134,217,728`。Plan按Record串行创建/消费，manifest封存`preparedBeforeFirstAttempt=1`、`activePlanMaximum=1`、`unconsumedAtSeal=1`；写snapshot前先核验冻结投影，终态再核验fixture和generation output逻辑字节。
+
+Python supervisor对generation artifacts与measure seed共用严格joint合同，拒绝缺失/伪造的generation plan、axes、串行Plan preparation、fixture/marker、snapshot identity与空间收据，并严格区分`bool`/`int`、浮点形式整数和字符串SHA。新鲜结果为capacity `92/92`、supervisor `32/32`，readiness `15/15`，独立终审P0/P1/P2均为0。该实现检查点已push并由`git ls-remote`核对精确SHA。
+
+本节只关闭joint软件预算重构。正式issuer、generation、measure均未运行，未创建新authority/UUID/window/label；设备、Gate B、Owner 103项、可听Replica、实体录音与打印均保持`NOT_RUN`或pending。
 
 ## 自动验证
 

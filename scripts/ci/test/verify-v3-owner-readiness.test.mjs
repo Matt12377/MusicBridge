@@ -17,7 +17,7 @@ const controlStatus = {
     task: 'TASK-079',
     branch: 'codex/task-079-v3-final-acceptance',
     baseCommit: 'fac7363b4a6481591e207dda7cca77f0ae8d3cd4',
-    state: 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-carryover-green-formal-not-run-joint-external-pending',
+    state: 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-carryover-green-formal-not-run-joint-budget-software-green-formal-not-run-external-pending',
     evidenceInfrastructure: {
       state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
       receiptFoundation: {
@@ -71,7 +71,7 @@ const controlStatus = {
     gates: {
       readinessControl: 'PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO',
       externalEvidenceProfiles: 'REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED',
-      capacityAuthority: 'OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_CARRYOVER_GREEN_FORMAL_NOT_RUN_JOINT_PENDING',
+      capacityAuthority: 'OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_CARRYOVER_GREEN_FORMAL_NOT_RUN_JOINT_BUDGET_SOFTWARE_GREEN_FORMAL_NOT_RUN',
       externalGate: 'NOT_RUN',
       realInput: 'NOT_RUN',
       realLogic: 'NOT_RUN',
@@ -340,6 +340,39 @@ const controlStatus = {
         gateB: 'NOT_RUN',
         ownerAcceptance: 'NOT_RUN',
       },
+      capacityJointGenerationControlPlane: {
+        state: 'SOFTWARE_GREEN_FORMAL_GENERATION_NOT_RUN_MEASURE_NOT_RUN',
+        implementationCommit: '5464ae06355832a76dc394c4cde5eed28acb4846',
+        previousPlannedBytes: 6140461056,
+        generationPlan: {
+          model: 'serial-single-output-plus-bounded-growth-v1',
+          activeOutputMaximum: 1, finalAxisBytes: 1275068416, activeOutputBytes: 1275068416,
+          activeRecordWorkspaceBytes: 16777216, evidenceAllowanceBytes: 134217728,
+          plannedBytes: 2701131776,
+        },
+        planPreparation: {
+          strategy: 'serial-create-consume-one-active', preparedBeforeFirstAttempt: 1,
+          activePlanMaximum: 1, unconsumedAtSeal: 1,
+        },
+        consumerContract: {
+          supervisorGenerationArtifacts: 'EXACT', supervisorMeasureSeed: 'EXACT',
+          phaseGenerationPlanAndAxes: 'EXACT', strictJsonTypes: true,
+          snapshotPrewriteProjection: true, terminalOutputBound: true,
+        },
+        focusedVerification: {
+          capacity: { tests: 92, passed: 92, failed: 0 },
+          supervisor: { tests: 32, passed: 32, failed: 0 },
+          generationIssuer: { tests: 19, passed: 19, failed: 0 },
+          measureIssuer: { tests: 25, passed: 25, failed: 0 },
+          queuedStopIssuer: { tests: 9, passed: 9, failed: 0 },
+          fourCapacityControlSuites: { tests: 85, passed: 85, failed: 0 },
+          bridgeCoreTypecheck: 'PASS', pythonCompile: 'PASS', fullVerify: 'PASS',
+          staticGates: { controlPlane: 'PASS', boundaries: 'PASS', cycles: 'PASS_259_FILES' },
+        },
+        independentReview: { p0: 0, p1: 0, p2: 0 },
+        formalGeneration: 'NOT_RUN', formalMeasure: 'NOT_RUN', deviceOpened: false,
+        formalReady: false, gateB: 'NOT_RUN', ownerAcceptance: 'NOT_RUN',
+      },
     },
   },
 }
@@ -544,7 +577,7 @@ test('证据检查点必须是当前TASK079仓库中线性可达的真实Git提�
   git('config', 'user.email', 'task079@example.invalid')
   git('config', 'user.name', 'TASK079 Test')
   const commits = []
-  for (let index = 0; index < 7; index += 1) {
+  for (let index = 0; index < 8; index += 1) {
     writeFileSync(path.join(temporaryRoot, 'checkpoint.txt'), `${index}\n`)
     git('add', 'checkpoint.txt')
     git('commit', '-m', `checkpoint-${index}`)
@@ -559,10 +592,11 @@ test('证据检查点必须是当前TASK079仓库中线性可达的真实Git提�
       baseCommit: commits[3], implementationCommit: commits[4], reportCommit: commits[5], finalCommit: commits[6], focusedTests: 26,
     },
   }
-  assert.doesNotThrow(() => module.validateEvidenceCheckpointRepository(temporaryRoot, infrastructure))
+  assert.doesNotThrow(() => module.validateEvidenceCheckpointRepository(temporaryRoot, infrastructure, commits[7]))
+  assert.throws(() => module.validateEvidenceCheckpointRepository(temporaryRoot, infrastructure, '0'.repeat(40)), /CONTROL_REPOSITORY/u)
   const reversed = structuredClone(infrastructure)
   ;[reversed.candidateClosure.implementationCommit, reversed.candidateClosure.reportCommit] = [reversed.candidateClosure.reportCommit, reversed.candidateClosure.implementationCommit]
-  assert.throws(() => module.validateEvidenceCheckpointRepository(temporaryRoot, reversed), /CONTROL_REPOSITORY/u)
+  assert.throws(() => module.validateEvidenceCheckpointRepository(temporaryRoot, reversed, commits[7]), /CONTROL_REPOSITORY/u)
 })
 
 test('STATUS设备与外部门状态不能和readiness清单互相矛盾', () => {
@@ -605,6 +639,9 @@ test('STATUS设备与外部门状态不能和readiness清单互相矛盾', () =>
     value => { value.v3Development.task078SoftwareCheckpoints.capacityMeasureWindowIssuer.gateB = 'PASS' },
     value => { delete value.v3Development.task078SoftwareCheckpoints.capacityQueuedStopControlPlane },
     value => { value.v3Development.task078SoftwareCheckpoints.capacityQueuedStopControlPlane.formalRun = 'PASS' },
+    value => { delete value.v3Development.task078SoftwareCheckpoints.capacityJointGenerationControlPlane },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityJointGenerationControlPlane.generationPlan.plannedBytes = 6_140_461_056 },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityJointGenerationControlPlane.formalGeneration = 'PASS' },
     value => { value.v3Development.gates.readinessControl = 'PASS_14_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO' },
     value => { value.v3Development.gates.externalEvidenceProfiles = 'ALL_PREPARED' },
     value => { value.v3Development.gates.capacityAuthority = 'AUTHORIZED' },

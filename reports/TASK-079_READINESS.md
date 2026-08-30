@@ -8,9 +8,9 @@
 - TASK-078 软件矩阵：SHA256 `12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7fe4ba944`
 - 实现提交：`1f102fba93e42d0f84b985c04d84af08b06b2231`
 - 报告提交：`93feee20c2edbd027546b44cc908aee27ef785b1`
-- GitHub：`codex/task-079-v3-final-acceptance`最新代码评审检查点`f285bf3de7ef9b23be5370759a4e591dd3280414`已push，`git ls-remote`确认同SHA；更早的`b3df42a…`历史检查点仍可达，`main`/PR未合并，未安装、签名、公证或发布
+- GitHub：`codex/task-079-v3-final-acceptance`最新实现评审检查点`5464ae06355832a76dc394c4cde5eed28acb4846`已push，`git ls-remote`确认同SHA；更早的`f285bf3…`和`b3df42a…`历史检查点仍可达，`main`/PR未合并，未安装、签名、公证或发布
 
-基础 readiness 控制、主任务修复与本地回归已经完成，当前结论固定为 `READY=false`；完整无设备证据控制面尚未取得独立闭包。hardware evidence contract v2 在主任务实现后为33/33专项GREEN，但第二轮独立复审最终RED继续保留，未执行第三轮且没有独立PASS。objects-limit successor fresh audit已绑定候选HEAD `a457414fffd141390ec2ff4536452a0f654b1370`，window-06唯一签发并只消费一次后取得软件measure PASS；该结果不覆盖queued-stop、joint、真实设备Gate B或Owner验收。当前readiness验证器继续精确要求这组机器真相；它不认证声卡、卡座、真实输入、Logic/Roon、可听Replica、实录、实体打印或Owner接受。
+基础 readiness 控制、主任务修复与本地回归已经完成，当前结论固定为 `READY=false`；完整无设备证据控制面尚未取得独立闭包。hardware evidence contract v2 在主任务实现后为33/33专项GREEN，但第二轮独立复审最终RED继续保留，未执行第三轮且没有独立PASS。objects-limit window-06只关闭软件measure；queued-stop下一authority仍未签发。joint单活动输出预算软件检查点已GREEN，但正式generation/measure仍为`NOT_RUN`。当前readiness验证器继续精确要求这组机器真相；它不认证声卡、卡座、真实输入、Logic/Roon、可听Replica、实录、实体打印或Owner接受。
 
 ## 实现
 
@@ -282,3 +282,11 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - failure carryover修复提交=`f285bf3de7ef9b23be5370759a4e591dd3280414`。issuer现要求声明的prior failure集合与runtime内direct-child queued issuer failure精确相等，并将window-01 failure SHA、issuer fact SHA、owner SHA、installed supervisor SHA及目录/文件身份带入issue/admission/terminal闭包。首轮历史authority仍为exact73；下一authority以71个冻结measure roots + 1个prior issuer failure + authority parent + issuer identity形成exact74。后续合法失败即使发生在source-pins、owned-roots、pending或window阶段，也必须使用其真实终态文件集合，缺失或夹带均fail-closed。
 - 新鲜验证：capacity `92/92`、supervisor `28/28`、queued-stop issuer `9/9`、四套capacity控制面合并`81/81`、Bridge Core typecheck、标准`pnpm verify`、`CONTROL_PLANE=PASS`、`BOUNDARIES=PASS`、`CYCLES=PASS files=259`、Python compile与`git diff --check`均PASS。Contracts `186/186`、Bridge Core `1250/1251`（0 fail、1 条件性skip）、Desktop `643/643`及三包生产构建由标准verify通过。
 - 当前机器结论：window-01=`TERMINAL_ISSUER_FAILURE`且benchmark=`NOT_RUN`；下一approved authority=`NEXT_NOT_ISSUED`、formal run=`NOT_RUN`，没有后继UUID/window-dir/label。代码检查点`f285bf3…`已推送并精确核对远端；当前机器状态同步完成后，再对新的精确远端HEAD执行新鲜只读预检，通过后也只能以全新身份签发一次。joint、设备Gate B与Owner验收均未升级。
+
+#### Joint 单活动输出预算软件检查点
+
+- 实现提交=`5464ae06355832a76dc394c4cde5eed28acb4846`，旧静态generation预算=`6,140,461,056`字节，新`serial-single-output-plus-bounded-growth-v1`预算=`2,701,131,776`字节。完整plan为最终六轴`1,275,068,416`、唯一活动输出`1,275,068,416`、单Record工作区`16,777,216`、证据余量`134,217,728`。
+- Plan逐Record串行创建和消费，manifest封存`preparedBeforeFirstAttempt=1`、`activePlanMaximum=1`、`unconsumedAtSeal=1`。snapshot写入前验证fixture与未来output投影，终态验证fixture和generation output逻辑字节不超出冻结plan。
+- TypeScript phase精确消费generation plan与axes；Python supervisor的generation artifacts与measure seed另外精确消费串行Plan preparation、fixture/marker、snapshot identity与空间收据。严格类型校验拒绝`bool`冒充`int`、浮点形式整数及数字型SHA。
+- 新鲜验证：capacity `92/92`，supervisor `32/32`，generation/measure/queued-stop issuer静态总数`19/19 + 25/25 + 9/9`，四套控制面合计`85/85`，readiness `15/15`，Bridge Core typecheck、Python compile、标准`pnpm verify`、control/boundaries/cycles与diff-check均PASS。独立终审P0/P1/P2均为0。
+- `git ls-remote`已确认远端分支精确到`5464ae06355832a76dc394c4cde5eed28acb4846`。本检查点未运行正式issuer、generation或measure，未创建新authority/UUID/window/label；`deviceOpened=false`、`formalReady=false`、Gate B、Owner 103项、可听Replica、实体录音与打印均为`NOT_RUN`或pending。

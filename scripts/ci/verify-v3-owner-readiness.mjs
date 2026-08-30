@@ -13,9 +13,9 @@ const MATRIX_SHA256 = '12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7f
 const EXTERNAL_KINDS = ['real-input', 'real-logic', 'real-roon', 'hardware', 'owner']
 const UNMAPPED_PENDING = ['B-13', 'B-15']
 const READINESS_CONTROL = 'PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO'
-const DEVELOPMENT_STATE = 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-carryover-green-formal-not-run-joint-external-pending'
+const DEVELOPMENT_STATE = 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-carryover-green-formal-not-run-joint-budget-software-green-formal-not-run-external-pending'
 const EXTERNAL_EVIDENCE_PROFILES = 'REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED'
-const CAPACITY_AUTHORITY = 'OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_CARRYOVER_GREEN_FORMAL_NOT_RUN_JOINT_PENDING'
+const CAPACITY_AUTHORITY = 'OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_CARRYOVER_GREEN_FORMAL_NOT_RUN_JOINT_BUDGET_SOFTWARE_GREEN_FORMAL_NOT_RUN'
 const EVIDENCE_INFRASTRUCTURE = {
   state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
   receiptFoundation: {
@@ -312,6 +312,39 @@ const CAPACITY_QUEUED_STOP_CONTROL_PLANE = {
   gateB: 'NOT_RUN',
   ownerAcceptance: 'NOT_RUN',
 }
+const CAPACITY_JOINT_GENERATION_CONTROL_PLANE = {
+  state: 'SOFTWARE_GREEN_FORMAL_GENERATION_NOT_RUN_MEASURE_NOT_RUN',
+  implementationCommit: '5464ae06355832a76dc394c4cde5eed28acb4846',
+  previousPlannedBytes: 6140461056,
+  generationPlan: {
+    model: 'serial-single-output-plus-bounded-growth-v1',
+    activeOutputMaximum: 1, finalAxisBytes: 1275068416, activeOutputBytes: 1275068416,
+    activeRecordWorkspaceBytes: 16777216, evidenceAllowanceBytes: 134217728,
+    plannedBytes: 2701131776,
+  },
+  planPreparation: {
+    strategy: 'serial-create-consume-one-active', preparedBeforeFirstAttempt: 1,
+    activePlanMaximum: 1, unconsumedAtSeal: 1,
+  },
+  consumerContract: {
+    supervisorGenerationArtifacts: 'EXACT', supervisorMeasureSeed: 'EXACT',
+    phaseGenerationPlanAndAxes: 'EXACT', strictJsonTypes: true,
+    snapshotPrewriteProjection: true, terminalOutputBound: true,
+  },
+  focusedVerification: {
+    capacity: { tests: 92, passed: 92, failed: 0 },
+    supervisor: { tests: 32, passed: 32, failed: 0 },
+    generationIssuer: { tests: 19, passed: 19, failed: 0 },
+    measureIssuer: { tests: 25, passed: 25, failed: 0 },
+    queuedStopIssuer: { tests: 9, passed: 9, failed: 0 },
+    fourCapacityControlSuites: { tests: 85, passed: 85, failed: 0 },
+    bridgeCoreTypecheck: 'PASS', pythonCompile: 'PASS', fullVerify: 'PASS',
+    staticGates: { controlPlane: 'PASS', boundaries: 'PASS', cycles: 'PASS_259_FILES' },
+  },
+  independentReview: { p0: 0, p1: 0, p2: 0 },
+  formalGeneration: 'NOT_RUN', formalMeasure: 'NOT_RUN', deviceOpened: false,
+  formalReady: false, gateB: 'NOT_RUN', ownerAcceptance: 'NOT_RUN',
+}
 const hash = bytes => createHash('sha256').update(bytes).digest('hex')
 const fail = code => { throw new Error(code) }
 const check = (condition, code) => { if (!condition) fail(code) }
@@ -353,7 +386,8 @@ function gitResult(root, arguments_) {
   return spawnSync('git', arguments_, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
 }
 
-export function validateEvidenceCheckpointRepository(root, infrastructure = EVIDENCE_INFRASTRUCTURE) {
+export function validateEvidenceCheckpointRepository(root, infrastructure = EVIDENCE_INFRASTRUCTURE,
+                                                     jointCommit = CAPACITY_JOINT_GENERATION_CONTROL_PLANE.implementationCommit) {
   check(typeof root === 'string', 'ROOT_REQUIRED')
   check(infrastructure?.state === EVIDENCE_INFRASTRUCTURE.state, 'CONTROL_REPOSITORY')
   const receipt = infrastructure.receiptFoundation
@@ -363,7 +397,7 @@ export function validateEvidenceCheckpointRepository(root, infrastructure = EVID
     receipt.baseCommit, receipt.implementationCommit, receipt.reportCommit, receipt.finalCommit,
     closure.implementationCommit, closure.reportCommit, closure.finalCommit,
   ]
-  check(commits.every(gitSha) && new Set(commits).size === commits.length, 'CONTROL_REPOSITORY')
+  check(commits.every(gitSha) && gitSha(jointCommit) && new Set([...commits, jointCommit]).size === commits.length + 1, 'CONTROL_REPOSITORY')
   const top = gitResult(root, ['rev-parse', '--show-toplevel'])
   check(top.error === undefined && top.signal === null && top.status === 0 && realpathSync(top.stdout.trim()) === realpathSync(root), 'CONTROL_REPOSITORY')
   const branch = gitResult(root, ['branch', '--show-current'])
@@ -372,12 +406,16 @@ export function validateEvidenceCheckpointRepository(root, infrastructure = EVID
     const object = gitResult(root, ['cat-file', '-e', `${commit}^{commit}`])
     check(object.error === undefined && object.signal === null && object.status === 0, 'CONTROL_REPOSITORY')
   }
+  const jointObject = gitResult(root, ['cat-file', '-e', `${jointCommit}^{commit}`])
+  check(jointObject.error === undefined && jointObject.signal === null && jointObject.status === 0, 'CONTROL_REPOSITORY')
   for (let index = 1; index < commits.length; index += 1) {
     const ancestry = gitResult(root, ['merge-base', '--is-ancestor', commits[index - 1], commits[index]])
     check(ancestry.error === undefined && ancestry.signal === null && ancestry.status === 0, 'CONTROL_REPOSITORY')
   }
-  const headAncestry = gitResult(root, ['merge-base', '--is-ancestor', commits.at(-1), 'HEAD'])
-  check(headAncestry.error === undefined && headAncestry.signal === null && headAncestry.status === 0, 'CONTROL_REPOSITORY')
+  const jointAncestry = gitResult(root, ['merge-base', '--is-ancestor', commits.at(-1), jointCommit])
+  const headAncestry = gitResult(root, ['merge-base', '--is-ancestor', jointCommit, 'HEAD'])
+  check(jointAncestry.error === undefined && jointAncestry.signal === null && jointAncestry.status === 0
+    && headAncestry.error === undefined && headAncestry.signal === null && headAncestry.status === 0, 'CONTROL_REPOSITORY')
 }
 
 function validateControlIdentity(status, wave) {
@@ -389,6 +427,7 @@ function validateControlIdentity(status, wave) {
   check(JSON.stringify(current.task078SoftwareCheckpoints?.capacityWindowIssuer) === JSON.stringify(CAPACITY_WINDOW_ISSUER), 'CONTROL_STATE')
   check(JSON.stringify(current.task078SoftwareCheckpoints?.capacityMeasureWindowIssuer) === JSON.stringify(CAPACITY_MEASURE_WINDOW_ISSUER), 'CONTROL_STATE')
   check(JSON.stringify(current.task078SoftwareCheckpoints?.capacityQueuedStopControlPlane) === JSON.stringify(CAPACITY_QUEUED_STOP_CONTROL_PLANE), 'CONTROL_STATE')
+  check(JSON.stringify(current.task078SoftwareCheckpoints?.capacityJointGenerationControlPlane) === JSON.stringify(CAPACITY_JOINT_GENERATION_CONTROL_PLANE), 'CONTROL_STATE')
   const device = current.deviceTestPlanning
   check(device && device.connectionState === 'no-devices-connected' && device.deviceOperationsAuthorization === 'NOT_GRANTED' && device.measurementConfiguration === 'PENDING' && device.outputBackendCertification === 'NOT_RUN', 'CONTROL_STATE')
   check(Array.isArray(device.audioInterfaceBrandCandidates) && JSON.stringify(device.audioInterfaceBrandCandidates) === JSON.stringify(['RME', 'Apogee']) && device.audioInterfaceModel === null, 'CONTROL_STATE')
