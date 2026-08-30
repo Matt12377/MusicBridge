@@ -8,9 +8,11 @@
 - TASK-078 软件矩阵：SHA256 `12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7fe4ba944`
 - 实现提交：`1f102fba93e42d0f84b985c04d84af08b06b2231`
 - 报告提交：`93feee20c2edbd027546b44cc908aee27ef785b1`
-- 最新架构实现：`ed73b59fca177cc1804d4010fe863f8fb57001a0`；状态报告检查点`e9416cb7e2510da327598798bff6f448be19c8a9`已push，HEAD/upstream/FETCH_HEAD/ls-remote四方核对同SHA。`5464ae…`继续作为joint预算历史实现锚，`main`/PR未合并，未安装、签名、公证或发布
+- 最新架构实现：`ed73b59fca177cc1804d4010fe863f8fb57001a0`；状态报告检查点`e9416cb7e2510da327598798bff6f448be19c8a9`、远端回执`886cc19e55b57875f5fa5d1a66591dbebe86acbe`与身份检查点`9ea344bab062a1d958b497a1c5f60ff4578cfa56`均为已push历史锚。当前运行身份必须由fresh Git/remote审计取得，不从本行历史措辞推断。`5464ae…`继续作为joint预算历史实现锚，`main`/PR未合并，未安装、签名、公证或发布
 
 基础 readiness 控制、主任务修复与本地回归已经完成，当前结论固定为 `READY=false`；完整无设备证据控制面尚未取得独立闭包。hardware evidence contract v2 在主任务实现后为33/33专项GREEN，但第二轮独立复审最终RED继续保留，未执行第三轮且没有独立PASS。objects-limit window-06只关闭软件measure；queued-stop window-06/07均为零样本不可重放历史终态。三位置谱系语义分叉已由统一合同架构检查点解除，但下一全新窗口尚未签发或授权，正式benchmark仍为`NOT_RUN`。joint单活动输出预算软件检查点已GREEN，但正式generation/measure仍为`NOT_RUN`。当前readiness验证器继续精确要求这组机器真相；它不认证声卡、卡座、真实输入、Logic/Roon、可听Replica、实录、实体打印或Owner接受。
+
+Hardware contract v2 R2 RED的只读裁决进一步区分了“技术缺口”与“审查身份”：原R2指出的dependency order与subject binding已由`7f373784…`及现有负例测试关闭；当前`independentPass=false`是独立审查身份未重签，不改写为PASS。它可作为bounded carryover，不阻挡本轮无设备软件封板、objects-limit/joint容量阶段或未来window08；但在生成任何真实Hardware/Gate B收据前，必须取得一次新的显式独立只读复审，或由Owner明确承担不复审风险。本阶段不启动第三轮修复/复审循环。
 
 ## 实现
 
@@ -311,3 +313,13 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - RED首先证明共享conformance缺少TS evaluator；GREEN后corpus `1/1`、issuer `71/71`、supervisor `58/58`、Bridge capacity/conformance与typecheck通过。标准`pnpm verify` exit 0：Contracts `186/186`、Bridge Core `1296`通过且1项显式原生Gate skip、Desktop `643/643`，三包构建PASS。control-plane、boundaries、cycles `files=259`、readiness `15/15`、实际readiness和diff-check均PASS；规格审查与质量审查依次PASS。
 - 软件架构状态由`BLOCKED_THREE_DISTINCT_LOCATIONS_SAME_RECURSIVE_FAILURE_LINEAGE_DEFECT`迁移为`ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED`。下一代参数保持5 warmup + 100 formal、50秒单次、900秒总窗口、单active clone、planned bytes=`2,258,907,136`、source pins=243；先push当前检查点，再对精确远端HEAD、contract/helper身份、window-06/07 nonreplay闭包、direct roots=76、billing roots=78、runtime路径和空间做fresh只读审计，最后仍需显式新窗口授权。
 - 本检查点没有签发UUID/window-dir/label，没有执行supervisor、child或benchmark，也没有创建output、close或样本；window-07继续不重放。formal queued-stop=`NOT_RUN`且样本0，joint正式generation/measure、设备、Gate B、真实资料/Logic/Roon、可听Replica、实体录音/打印与Owner 103项均未升级。`main`/PR合并、安装、签名、公证和发布未授权。
+
+#### Window-08 授权前只读审计与等待期覆盖增强
+
+- 对远端检查点`9ea344bab062a1d958b497a1c5f60ff4578cfa56`完成fresh只读审计：指定worktree、分支、HEAD、upstream与`ls-remote`一致，工作区/index/untracked为空；canonical contract/helper哈希、201个tracked输入+42个派生dist的243 source集合、六项绝对工具链身份、window-06/07 nonreplay链、76 direct roots与78 billing roots均一致。window-07目录仍只有六类authority文件，没有supervision、close、child、output或样本。
+- 空间门在审计中曾连续失败：`available-planned`比冻结10 GiB保留线短约202～242 MiB。Owner随后按既有安全范围删除三个旧worktree的ignored `node_modules`缓存，但APFS `df`前后没有显示等量回收；不得把后续变化归因于该删除。等待期测试结束后的只读快照于`2026-08-30T15:05:09.000Z`显示available=`16,634,286,080`、planned=`2,258,907,136`、after=`14,375,378,944`，仅证明当次空间门PASS。卷空间可实时波动，正式签发前仍必须对最终远端HEAD重新审计，历史PASS或HOLD均不自动沿用。
+- 当前只完成参数草案：下一只读恢复名为`r023-objects-limit-measure-root-recovery-07`，下一窗口目录/label为`r023-objects-limit-queued-stop-window-08`/`r023-objects-limit-queued-stop-08`；UUID、recovery SHA、window SHA、source/owned manifest SHA及消费命令只能在显式授权后的唯一签发中产生。window-07没有close，不能伪装成`--prior-process-failure`；合法direct process head仍是window-06。
+- 等待期安全增强提交=`fefbea78e65ce8deb37bc727ad93b3b7d955ab30`。RED精确证明合同已声明`DEPTH_LIMIT`但golden corpus未覆盖；GREEN加入65层单链，并以合同verdict集合双向精确断言防止未来漏项。新鲜聚焦结果：corpus完整性+三消费者`2/2`、issuer`71/71`、installed supervisor`58/58`、Bridge capacity+conformance`139/139`、`git diff --check`均PASS；规格审查后质量审查依次PASS。
+- 初次报告审查发现人类文档已记录新覆盖，但STATUS/validator仍锁定旧1/1与1296，因机器真相漂移而阻断。机器同步提交=`df624b4`：专门RED→GREEN锁定coverage commit、2/2、`DEPTH_LIMIT`、139/139、1297+1 skip和readiness 16/16，并核验joint parent→architecture→coverage→HEAD线性可达；修复后SPEC复审与QUALITY审查依次PASS。
+- 机器同步后的安全封板全量`corepack pnpm@10.17.1 verify` exit 0：Contracts `186/186`、Bridge Core `1297`通过且1项显式原生Gate skip、Desktop `643/643`，三包生产构建PASS；`CONTROL_PLANE=PASS`、`BOUNDARIES=PASS`、`CYCLES=PASS files=259`、readiness `16/16`与默认CLI（`ready=false`）均exit 0。
+- 此增强没有修改生产代码、合同或243 source pins，不构成窗口授权。`newWindowAuthorized=false`、正式queued-stop=`NOT_RUN`且样本0；Gate B、设备与Owner 103项继续`NOT_RUN`或pending。

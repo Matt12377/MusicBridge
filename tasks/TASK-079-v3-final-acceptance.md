@@ -115,6 +115,22 @@ issuer与installed supervisor加载同一Python evaluator；TypeScript consumer�
 
 因此`BLOCKED_THREE_DISTINCT_LOCATIONS_SAME_RECURSIVE_FAILURE_LINEAGE_DEFECT`在软件架构层解除；执行状态改为`ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED`。正式queued-stop样本仍为0且`NOT_RUN`，joint正式generation/measure、设备、Gate B、真实资料/Logic/Roon、可听Replica、实体录音/打印和Owner 103项验收继续为`NOT_RUN`或pending。
 
+### Window-08 授权前只读审计与安全等待工作
+
+远端检查点`9ea344bab062a1d958b497a1c5f60ff4578cfa56`的fresh只读审计确认Git身份、canonical contract/helper、toolchain、243 source集合、window-06/07永久nonreplay、76 direct roots和78 transitive billing roots一致。window-07仍只有六类authority文件，缺少close不产生重放权。recovery-04/05/06均为只读历史；后继只能另建绑定最终远端HEAD的recovery-07，再以全新window-08身份唯一签发。
+
+空间门在审计期间曾因卷空间波动短缺约202～242MiB。Owner按安全范围删除三个旧worktree的ignored `node_modules`缓存后，APFS `df`未显示等量回收，不能据此建立清理因果；后续一次只读快照显示available=`16,634,286,080`、planned=`2,258,907,136`、after=`14,375,378,944`，高于minimum=`10,737,418,240`。该瞬时PASS不跨HEAD或跨时间授权；正式签发前必须重读空间、identity、contract/helper、toolchain、source pins和历史nonreplay闭包。
+
+等待期测试增强提交`fefbea78e65ce8deb37bc727ad93b3b7d955ab30`补齐合同`DEPTH_LIMIT`的65层共同corpus，并加入合同verdict全集双向断言。TDD为1项缺失RED→2/2 GREEN；issuer`71/71`、installed supervisor`58/58`、Bridge capacity+conformance`139/139`、diff-check及SPEC→QUALITY审查均PASS。该提交只改测试，不修改生产、243 source pins或正式窗口状态。
+
+机器真相同步提交`df624b4`把STATUS、readiness validator与测试fixture精确锁定到coverage commit=`fefbea78…`、共同corpus`2/2`、`DEPTH_LIMIT`、139/139、Bridge Core 1297+1 conditional skip及readiness`16/16`，并验证joint→architecture→coverage→HEAD线性可达；独立SPEC复审与QUALITY审查均PASS。
+
+安全封板的标准`pnpm verify`为exit 0：Contracts`186/186`、Bridge Core `1297`通过且1项显式原生Gate skip、Desktop`643/643`，三包生产构建PASS；control-plane、boundaries、cycles`files=259`、readiness`16/16`及默认`ready=false`CLI均PASS。
+
+当前仍未收到recovery-07/window-08一次性授权；未创建UUID、目录、label、recovery/window、consumer、output或样本。Gate B、设备和Owner验收均保持`NOT_RUN`。
+
+Hardware contract v2的R2 RED继续保留，不重签为PASS。只读裁决确认其原dependency order与subject binding技术缺口已由`7f373784…`和既有负例关闭；现有`independentPass=false`是独立审查身份缺口，可作为当前无设备软件及容量阶段的bounded carryover，不阻挡未来window08。任何真实Hardware/Gate B收据生成前，必须新鲜显式独立只读复审，或由Owner明确承担不复审风险；本阶段不启动第三轮修复/复审循环。
+
 ## 自动验证
 
 ```bash
