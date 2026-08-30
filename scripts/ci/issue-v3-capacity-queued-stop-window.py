@@ -1373,6 +1373,7 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
                       'remainingPlannedBytes', 'availableBytes', 'candidateRepository',
                       'toolchainStable', 'issuerStable'}
     roots = []; facts = []; snapshots = []; declared = set(); billing_roots = []
+    linked_authority_counts = []
     seen_roots = set(); seen_windows = set(); seen_dirs = set(); seen_labels = set()
     pending = [(row, None, index == 0) for index, row in enumerate(rows)]
     if len(pending) != 1:
@@ -1664,6 +1665,7 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
                               'unexpectedEntries': []} \
                 or (parent / label).exists() or (parent / label).is_symlink():
             fail('PRIOR_PROCESS_FAILURE')
+        observed_process_counts = []
         for authority, remaining in ((admission, window['queuedStopPlan']['plannedBytes']),
                                      (terminal, 0)):
             if not isinstance(authority, dict) or set(authority) != expected_authority_keys \
@@ -1682,8 +1684,13 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
                     or authority.get('remainingPlannedBytes') != remaining \
                     or authority.get('candidateRepository') != window.get('candidateRepository') \
                     or linked and (authority.get('processFailureCarryoverValid') is not True
-                                   or authority.get('processFailureCount') != 1):
+                                   or type(authority.get('processFailureCount')) is not int
+                                   or not 1 <= authority['processFailureCount'] <= 64):
                 fail('PRIOR_PROCESS_FAILURE')
+            if linked:
+                observed_process_counts.append(authority['processFailureCount'])
+        if linked:
+            linked_authority_counts.append(observed_process_counts)
 
         if set(supervision) != supervision_keys or supervision.get('passed') is not False \
                 or supervision.get('failure') != failure_code or supervision.get('code') != 1 \
@@ -1796,6 +1803,10 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
             fail('PRIOR_PROCESS_FAILURE')
         if linked:
             pending.append((process_carryover[0], issued_at, False))
+    for index, counts in enumerate(linked_authority_counts):
+        expected_count = len(snapshots) - index - 1
+        if counts != [expected_count, expected_count]:
+            fail('PRIOR_PROCESS_FAILURE')
     if declared != discovered:
         fail('PRIOR_PROCESS_FAILURE_AUDIT')
     return {'roots': roots, 'facts': facts, 'billingRoots': billing_roots,

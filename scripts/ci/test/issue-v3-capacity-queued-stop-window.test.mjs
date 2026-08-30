@@ -273,6 +273,28 @@ function linkedProcessFailure(f, mutate = () => {}) {
   return {leaf,head,predecessor}
 }
 
+function successorProcessFailure(f, predecessor, suffix = '-06') {
+  const successor=priorProcessFailure(f,suffix),predecessorFact=processFailureFact(predecessor)
+  const fact=JSON.parse(readFileSync(successor.issuerFact));fact.processFailureCarryover=[predecessorFact];put(successor.issuerFact,fact)
+  const owned=JSON.parse(readFileSync(successor.owned));owned.roots.splice(0,73,...structuredClone(predecessor.historicalRoots))
+  owned.roots.splice(73,0,rootIdentity(predecessor.parent,'owner.json'))
+  owned.roots[owned.roots.length-1]=rootIdentity(successor.issuerIdentity,'owner.json');put(successor.owned,owned)
+  successor.historicalRoots=predecessor.historicalRoots
+  const window=JSON.parse(readFileSync(successor.window));window.processFailureCarryoverCount=1
+  window.issuedAt='2026-08-30T10:53:28.210+00:00';window.deadlineAt='2026-08-30T11:08:28.210+00:00'
+  window.issuer.fact.sha256=sha(successor.issuerFact);window.ownedManifest.sha256=sha(successor.owned);put(successor.window,window)
+  const start=JSON.parse(readFileSync(successor.supervisorStart));start.command[start.command.indexOf('--window-sha256')+1]=sha(successor.window)
+  start.command[start.command.indexOf('--owned-roots-sha256')+1]=sha(successor.owned);put(successor.supervisorStart,start)
+  const close=JSON.parse(readFileSync(successor.close));close.closedAt='2026-08-30T10:53:58.666686+00:00'
+  close.windowSha256=sha(successor.window);close.ownedManifestSha256=sha(successor.owned)
+  for(const authority of [close.authorityAdmission,close.authorityTerminal]) {
+    authority.processFailureCarryoverValid=true;authority.processFailureCount=2
+    authority.ownedRootCount=76;authority.windowSha256Observed=sha(successor.window)
+  }
+  put(successor.close,close);refreshProcessFailure(successor)
+  return successor
+}
+
 function refreshProcessFailure(value) {
   const fact=JSON.parse(readFileSync(value.issuerFact)),owned=JSON.parse(readFileSync(value.owned))
   owned.roots[owned.roots.length-1]=rootIdentity(value.issuerIdentity,'owner.json');put(value.owned,owned)
@@ -547,6 +569,8 @@ test('下一authority必须把已发布但pre-child失败的完整authority作�
 test('下一authority必须把已终态PROCESS_EXIT完整目录作为独立carryover根',()=>{const f=fixture();try{const prior=priorProcessFailure(f),o=options(f);o.prior_process_failure=[prior.argv];const r=pythonCall("o=types.SimpleNamespace(**json.loads(sys.argv[2]));value=m.validate_prior_process_failures(o,m.Path(sys.argv[3]),json.loads(sys.argv[4]));print(json.dumps(value))",JSON.stringify(o),f.runtime,JSON.stringify(prior.historicalRoots));assert.equal(r.status,0,r.stderr);const value=JSON.parse(r.stdout);assert.equal(value.roots.length,1);assert.equal(value.facts[0].windowId,prior.windowId);assert.equal(value.roots[0].path,prior.parent);assert.deepEqual(Object.keys(value.facts[0].files).sort(),['close','issuerFact','ownedManifest','owner','sourceManifest','stderr','stdout','supervision','supervisor','supervisorStart','window']);assert.equal(value.facts[0].files.stderr.sha256,'0dfbd76c742fe7754a435fcb368a34dabe21adbdd23338ee9145ad5afb157298');assert.deepEqual(value.snapshots[0].supervision.entries,['stderr.log','stdout.log','supervisor-start.json','supervisor.json'])}finally{cleanup(f)}})
 
 test('PROCESS_EXIT head压缩递归接受window05到window03并计费完整可达链',()=>{const f=fixture();try{const {leaf,head}=linkedProcessFailure(f);writeFileSync(head.stderr,'CAPACITY_PHASE_OPERATION_FAILED\n(node:97229) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n');const start=JSON.parse(readFileSync(head.supervisorStart));start.pid=97229;start.pgid=97229;put(head.supervisorStart,start);const supervision=JSON.parse(readFileSync(head.supervision));supervision.pid=97229;supervision.pgid=97229;put(head.supervision,supervision);const close=JSON.parse(readFileSync(head.close));close.pid=97229;close.pgid=97229;put(head.close,close);refreshProcessFailure(head);const o=options(f);o.prior_process_failure=[head.argv];const r=pythonCall("o=types.SimpleNamespace(**json.loads(sys.argv[2]));v=m.validate_prior_process_failures(o,m.Path(sys.argv[3]),json.loads(sys.argv[4]));print(json.dumps({'roots':[x['path'] for x in v['roots']],'billing':[x['path'] for x in v['billingRoots']],'snapshots':[x['windowId'] for x in v['snapshots']]}))",JSON.stringify(o),f.runtime,JSON.stringify(head.historicalRoots));assert.equal(r.status,0,r.stdout+r.stderr);const v=JSON.parse(r.stdout);assert.deepEqual(v.roots,[head.parent]);assert.deepEqual(v.billing.sort(),[leaf.parent,head.parent].sort());assert.deepEqual(v.snapshots,[head.windowId,leaf.windowId])}finally{cleanup(f)}})
+
+test('PROCESS_EXIT第二层后继接受递归累计processFailureCount',()=>{const f=fixture();try{const {leaf,head}=linkedProcessFailure(f),successor=successorProcessFailure(f,head),o=options(f);o.prior_process_failure=[successor.argv];const r=pythonCall("o=types.SimpleNamespace(**json.loads(sys.argv[2]));v=m.validate_prior_process_failures(o,m.Path(sys.argv[3]),json.loads(sys.argv[4]));print(json.dumps({'billing':[x['path'] for x in v['billingRoots']],'snapshots':[x['windowId'] for x in v['snapshots']]}))",JSON.stringify(o),f.runtime,JSON.stringify(successor.historicalRoots));assert.equal(r.status,0,r.stdout+r.stderr);const v=JSON.parse(r.stdout);assert.deepEqual(v.billing.sort(),[leaf.parent,head.parent,successor.parent].sort());assert.deepEqual(v.snapshots,[successor.windowId,head.windowId,leaf.windowId])}finally{cleanup(f)}})
 
 test('PROCESS_EXIT head压缩拒绝nested row与owned[73]错配、reorder、fork/cycle及orphan',async t=>{for(const [name,mutate] of [
   ['nested row',({head})=>{const fact=JSON.parse(readFileSync(head.issuerFact));fact.processFailureCarryover[0].files.stderr.sha256='f'.repeat(64);put(head.issuerFact,fact);refreshProcessFailure(head)}],
