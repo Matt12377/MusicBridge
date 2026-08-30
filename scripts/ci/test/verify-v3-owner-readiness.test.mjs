@@ -17,7 +17,7 @@ const controlStatus = {
     task: 'TASK-079',
     branch: 'codex/task-079-v3-final-acceptance',
     baseCommit: 'fac7363b4a6481591e207dda7cca77f0ae8d3cd4',
-    state: 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-window06-process-exit-terminal-window07-nonreplay-no-samples-canonical-lineage-architecture-green-new-window-not-authorized-joint-formal-not-run-external-pending',
+    state: 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-window06-process-exit-terminal-window07-nonreplay-no-samples-canonical-lineage-architecture-green-new-window-not-authorized-joint-three-stage-route-defined-issuers-not-implemented-external-pending',
     evidenceInfrastructure: {
       state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
       receiptFoundation: {
@@ -71,7 +71,7 @@ const controlStatus = {
     gates: {
       readinessControl: 'PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO',
       externalEvidenceProfiles: 'REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED',
-      capacityAuthority: 'OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_WINDOW06_PROCESS_EXIT_TERMINAL_WINDOW07_NONREPLAY_NO_CHILD_NO_SAMPLES_CANONICAL_LINEAGE_ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED_JOINT_FORMAL_NOT_RUN',
+      capacityAuthority: 'OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_WINDOW06_PROCESS_EXIT_TERMINAL_WINDOW07_NONREPLAY_NO_CHILD_NO_SAMPLES_CANONICAL_LINEAGE_ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED_JOINT_GENERATE_MEASURE_QUEUED_STOP_NOT_RUN_ISSUERS_NOT_IMPLEMENTED',
       externalGate: 'NOT_RUN',
       realInput: 'NOT_RUN',
       realLogic: 'NOT_RUN',
@@ -447,7 +447,7 @@ const controlStatus = {
             pnpmVerify: 'PASS', contracts: 'PASS_186_OF_186',
             bridgeCore: 'PASS_1297_WITH_1_CONDITIONAL_SKIP', desktop: 'PASS_643_OF_643',
             build: 'PASS', controlPlane: 'PASS', boundaries: 'PASS', cycles: 'PASS_259_FILES',
-            readinessFocused: 'PASS_16_OF_16',
+            readinessFocused: 'PASS_17_OF_17',
             readiness: 'PASS_READY_FALSE_OWNER_PENDING_103_EXTERNAL_NOT_RUN_5', diffCheck: 'PASS',
           },
           review: { specification: 'PASS', quality: 'PASS', additionalReviewLoop: false },
@@ -455,13 +455,13 @@ const controlStatus = {
           newWindowIssued: false, newWindowAuthorized: false, runtimeMutated: false,
         },
         formalRun: 'NOT_RUN_ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED_ZERO_SAMPLES',
-        joint: 'SOFTWARE_GREEN_FORMAL_GENERATION_NOT_RUN_MEASURE_NOT_RUN',
+        joint: 'SOFTWARE_GREEN_FORMAL_GENERATION_MEASURE_QUEUED_STOP_NOT_RUN',
         deviceOpened: false,
         gateB: 'NOT_RUN',
         ownerAcceptance: 'NOT_RUN',
       },
       capacityJointGenerationControlPlane: {
-        state: 'SOFTWARE_GREEN_FORMAL_GENERATION_NOT_RUN_MEASURE_NOT_RUN',
+        state: 'SOFTWARE_GREEN_FORMAL_GENERATION_MEASURE_QUEUED_STOP_NOT_RUN',
         implementationCommit: '5464ae06355832a76dc394c4cde5eed28acb4846',
         previousPlannedBytes: 6140461056,
         generationPlan: {
@@ -490,8 +490,52 @@ const controlStatus = {
           staticGates: { controlPlane: 'PASS', boundaries: 'PASS', cycles: 'PASS_259_FILES' },
         },
         independentReview: { p0: 0, p1: 0, p2: 0 },
-        formalGeneration: 'NOT_RUN', formalMeasure: 'NOT_RUN', deviceOpened: false,
+        formalGeneration: 'NOT_RUN', formalMeasure: 'NOT_RUN', formalQueuedStop: 'NOT_RUN', deviceOpened: false,
         formalReady: false, gateB: 'NOT_RUN', ownerAcceptance: 'NOT_RUN',
+      },
+      capacityFormalRouteControl: {
+        schemaVersion: 1,
+        state: 'WAITING_OBJECTS_LIMIT_QUEUED_STOP_PASS_AND_JOINT_ISSUER_SUPPORT',
+        prerequisite: {
+          order: 0, profile: 'objects-limit', phase: 'queued-stop', state: 'NOT_RUN',
+          requiredResult: 'PASS', currentWindow: 'NOT_ISSUED',
+        },
+        stages: [
+          {
+            order: 1, profile: 'joint', phase: 'generate', state: 'NOT_RUN',
+            consumes: 'objects-limit:queued-stop:PASS', produces: 'joint-generation-seed',
+            runtimeSchemaSupport: 'PASS', exclusiveIssuerSupport: 'NOT_IMPLEMENTED_OBJECTS_LIMIT_ONLY',
+            processScope: 'joint-generation-process', clockScope: 'joint-generation-stage-clock',
+            receiptScope: 'joint-generation-window-close', requiresFreshProcess: true,
+            requiresFreshClock: true, receiptReuseAllowed: false,
+            freshAuditRequired: true, uniqueAuthorityRequired: true, oneTimeWindowRequired: true,
+            ownerAuthorizationRequired: true,
+          },
+          {
+            order: 2, profile: 'joint', phase: 'measure', state: 'NOT_RUN',
+            consumes: 'joint:generate:PASS', produces: 'joint-measure-close',
+            runtimeSchemaSupport: 'PASS', exclusiveIssuerSupport: 'NOT_IMPLEMENTED_OBJECTS_LIMIT_ONLY',
+            processScope: 'joint-measure-process', clockScope: 'joint-measure-stage-clock',
+            receiptScope: 'joint-measure-window-close', requiresFreshProcess: true,
+            requiresFreshClock: true, receiptReuseAllowed: false,
+            freshAuditRequired: true, uniqueAuthorityRequired: true, oneTimeWindowRequired: true,
+            ownerAuthorizationRequired: true,
+          },
+          {
+            order: 3, profile: 'joint', phase: 'queued-stop', state: 'NOT_RUN',
+            consumes: 'joint:measure:PASS', produces: 'joint-queued-stop-close',
+            runtimeSchemaSupport: 'PASS', exclusiveIssuerSupport: 'NOT_IMPLEMENTED_OBJECTS_LIMIT_ONLY',
+            processScope: 'joint-queued-stop-process', clockScope: 'joint-queued-stop-stage-clock',
+            receiptScope: 'joint-queued-stop-window-close', requiresFreshProcess: true,
+            requiresFreshClock: true, receiptReuseAllowed: false,
+            freshAuditRequired: true, uniqueAuthorityRequired: true, oneTimeWindowRequired: true,
+            ownerAuthorizationRequired: true,
+          },
+        ],
+        linearNoSkip: true, authorityCannotBeInherited: true, stopOnNonPass: true,
+        oldWindowReplayAllowed: false, readyToAuthorize: false,
+        nextAction: 'TDD_EXTEND_THREE_EXCLUSIVE_ISSUERS_BEFORE_ANY_JOINT_AUTHORIZATION',
+        deviceOpened: false, gateB: 'NOT_RUN', ownerAcceptance: 'NOT_RUN',
       },
     },
   },
@@ -736,6 +780,31 @@ test('STATUS必须锁定谱系覆盖增强检查点与最新验证计数', () =>
     value => { value.v3Development.task078SoftwareCheckpoints.capacityQueuedStopControlPlane.architectureResolution.fullVerification.bridgeCore = 'PASS_1296_WITH_1_CONDITIONAL_SKIP' },
     value => { value.v3Development.task078SoftwareCheckpoints.capacityQueuedStopControlPlane.architectureResolution.fullVerification.readinessFocused = 'PASS_15_OF_15' },
     value => { delete value.v3Development.task078SoftwareCheckpoints.capacityQueuedStopControlPlane.architectureResolution.coverageEnhancementReview },
+  ]) {
+    const status = structuredClone(controlStatus); edit(status)
+    assert.throws(() => validateOwnerReadiness(readiness(), { root, status, wave: controlWave }), /CONTROL_STATE/u)
+  }
+})
+
+test('STATUS必须锁定objects-limit后继joint三阶段线性路线与逐阶段授权边界', () => {
+  assert.equal(validateOwnerReadiness(readiness(), { root, status: controlStatus, wave: controlWave }).ready, false)
+  for (const edit of [
+    value => { delete value.v3Development.task078SoftwareCheckpoints.capacityFormalRouteControl },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityFormalRouteControl.prerequisite.state = 'PASS' },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityFormalRouteControl.stages.pop() },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityFormalRouteControl.stages.reverse() },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityFormalRouteControl.stages[0].exclusiveIssuerSupport = 'PASS' },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityFormalRouteControl.stages[1].freshAuditRequired = false },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityFormalRouteControl.stages[2].ownerAuthorizationRequired = false },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityFormalRouteControl.stages[2].processScope = 'joint-measure-process' },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityFormalRouteControl.stages[2].clockScope = 'joint-measure-stage-clock' },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityFormalRouteControl.stages[2].receiptScope = 'joint-measure-window-close' },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityFormalRouteControl.stages[2].receiptReuseAllowed = true },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityFormalRouteControl.authorityCannotBeInherited = false },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityFormalRouteControl.oldWindowReplayAllowed = true },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityFormalRouteControl.readyToAuthorize = true },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityFormalRouteControl.gateB = 'PASS' },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityJointGenerationControlPlane.formalQueuedStop = 'PASS' },
   ]) {
     const status = structuredClone(controlStatus); edit(status)
     assert.throws(() => validateOwnerReadiness(readiness(), { root, status, wave: controlWave }), /CONTROL_STATE/u)

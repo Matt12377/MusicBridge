@@ -81,7 +81,7 @@
     "task": "TASK-079",
     "branch": "codex/task-079-v3-final-acceptance",
     "baseCommit": "fac7363b4a6481591e207dda7cca77f0ae8d3cd4",
-    "state": "no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-window06-process-exit-terminal-window07-nonreplay-no-samples-canonical-lineage-architecture-green-new-window-not-authorized-joint-formal-not-run-external-pending",
+    "state": "no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-window06-process-exit-terminal-window07-nonreplay-no-samples-canonical-lineage-architecture-green-new-window-not-authorized-joint-three-stage-route-defined-issuers-not-implemented-external-pending",
     "evidenceInfrastructure": {
       "state": "PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES",
       "receiptFoundation": {
@@ -160,7 +160,7 @@
     "gates": {
       "readinessControl": "PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO",
       "externalEvidenceProfiles": "REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED",
-      "capacityAuthority": "OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_WINDOW06_PROCESS_EXIT_TERMINAL_WINDOW07_NONREPLAY_NO_CHILD_NO_SAMPLES_CANONICAL_LINEAGE_ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED_JOINT_FORMAL_NOT_RUN",
+      "capacityAuthority": "OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_WINDOW06_PROCESS_EXIT_TERMINAL_WINDOW07_NONREPLAY_NO_CHILD_NO_SAMPLES_CANONICAL_LINEAGE_ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED_JOINT_GENERATE_MEASURE_QUEUED_STOP_NOT_RUN_ISSUERS_NOT_IMPLEMENTED",
       "softwareBaseline": "TASK078_PASS_101_MAPPED_2_UNMAPPED_PENDING_EXTERNAL_NOT_RUN_FORMAL_READY_FALSE",
       "externalGate": "NOT_RUN",
       "realInput": "NOT_RUN",
@@ -183,13 +183,13 @@
       "R-020 大库冷启扫描与2秒ready策略待TASK-078/Gate E验证",
       "R-021：真实钥匙串无CDP普通Quit15秒FAIL保留；新隔离候选包空库及执行读取后两种mock-keychain普通Quit均code0/close且无进程残留，仅软件隔离诊断，不关闭真实钥匙串/Owner验收",
       "R-022：FakeDriver join/静止契约未证明真实HAL；未链接应用或helper，真实设备与Gate B须独立授权及测量",
-      "R-023：history-limit正式生成/measure/queued-stop已PASS；objects-limit旧generation与measure失败证据永久保留，measure window-06软件PASS。queued-stop window-06在候选168cbcbd上以PROCESS_EXIT形成零样本终态，close SHA256=0f48aa490d52fdfe8f15c57c0caef68375d6c7082c70621064592d6be3c75299，永久禁止重放。window-07 UUID=5f5df917-cb23-453b-906c-4e4395cec1ad、SHA256=0bac4fcc26057f94dc17eab902b2affbf34438ae0d3fae7fa43bd779e6182331已签发并只消费一次，但installed supervisor在authority admission前以CAPACITY_SUPERVISOR_INPUT拒绝；未创建supervision、close、child、benchmark output或样本。三位置停止后，架构实现ed73b598统一版本化JSON合同、共享Python evaluator、TS等价解释器及单一golden corpus，固定direct head=1、linked authority前驱可达深度、head-to-leaf计费、时序/PID/身份语义；issuer71/71、supervisor58/58、Bridge corpus及全量Gate GREEN。原架构语义阻塞已解除，但未签发或授权新窗口。window-07不重放；formal queued-stop、joint正式generation/measure、设备、Gate B与Owner验收均NOT_RUN。",
+      "R-023：history-limit正式生成/measure/queued-stop已PASS；objects-limit旧generation与measure失败证据永久保留，measure window-06软件PASS。queued-stop window-06在候选168cbcbd上以PROCESS_EXIT形成零样本终态，close SHA256=0f48aa490d52fdfe8f15c57c0caef68375d6c7082c70621064592d6be3c75299，永久禁止重放。window-07 UUID=5f5df917-cb23-453b-906c-4e4395cec1ad、SHA256=0bac4fcc26057f94dc17eab902b2affbf34438ae0d3fae7fa43bd779e6182331已签发并只消费一次，但installed supervisor在authority admission前以CAPACITY_SUPERVISOR_INPUT拒绝；未创建supervision、close、child、benchmark output或样本。三位置停止后，架构实现ed73b598统一版本化JSON合同、共享Python evaluator、TS等价解释器及单一golden corpus，固定direct head=1、linked authority前驱可达深度、head-to-leaf计费、时序/PID/身份语义；issuer71/71、supervisor58/58、Bridge corpus及全量Gate GREEN。原架构语义阻塞已解除，但未签发或授权新窗口。window-07不重放；formal objects-limit queued-stop与joint正式generation/measure/queued-stop均NOT_RUN。joint三阶段runtime schema已支持，但三条exclusive issuer仍只接受objects-limit，任何joint授权前必须先TDD扩展。设备、Gate B与Owner验收均NOT_RUN。",
       "TASK-079 hardware evidence contract v2：主任务33/33专项GREEN；configuration observation、observer execution、typed scope evidence、B-15 identity有效期和U-10同事件依赖已加固。第二轮独立复审最终RED保留，未做第三轮且independentPass=false。真实hardware与Gate B均NOT_RUN。",
       "TASK-076历史核验与私有synthetic会话已通过本地软件Gate；实际可听Replica及正式provider接线须随073设备准入和079另验，当前始终blocked",
       "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task079-queued-stop-canonical-lineage-architecture-green-new-window-not-authorized-no-samples-gateb-not-run",
+    "checkpoint": "task079-objects-queued-stop-then-joint-generate-measure-queued-stop-route-defined-issuers-not-implemented-gateb-not-run",
     "nextTask": null,
     "resultReport": "reports/TASK-079_READINESS.md",
     "task078SoftwareCheckpoints": {
@@ -1434,7 +1434,7 @@
             "controlPlane": "PASS",
             "boundaries": "PASS",
             "cycles": "PASS_259_FILES",
-            "readinessFocused": "PASS_16_OF_16",
+            "readinessFocused": "PASS_17_OF_17",
             "readiness": "PASS_READY_FALSE_OWNER_PENDING_103_EXTERNAL_NOT_RUN_5",
             "diffCheck": "PASS"
           },
@@ -1453,13 +1453,13 @@
           "runtimeMutated": false
         },
         "formalRun": "NOT_RUN_ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED_ZERO_SAMPLES",
-        "joint": "SOFTWARE_GREEN_FORMAL_GENERATION_NOT_RUN_MEASURE_NOT_RUN",
+        "joint": "SOFTWARE_GREEN_FORMAL_GENERATION_MEASURE_QUEUED_STOP_NOT_RUN",
         "deviceOpened": false,
         "gateB": "NOT_RUN",
         "ownerAcceptance": "NOT_RUN"
       },
       "capacityJointGenerationControlPlane": {
-        "state": "SOFTWARE_GREEN_FORMAL_GENERATION_NOT_RUN_MEASURE_NOT_RUN",
+        "state": "SOFTWARE_GREEN_FORMAL_GENERATION_MEASURE_QUEUED_STOP_NOT_RUN",
         "implementationCommit": "5464ae06355832a76dc394c4cde5eed28acb4846",
         "previousPlannedBytes": 6140461056,
         "generationPlan": {
@@ -1532,8 +1532,92 @@
         },
         "formalGeneration": "NOT_RUN",
         "formalMeasure": "NOT_RUN",
+        "formalQueuedStop": "NOT_RUN",
         "deviceOpened": false,
         "formalReady": false,
+        "gateB": "NOT_RUN",
+        "ownerAcceptance": "NOT_RUN"
+      },
+      "capacityFormalRouteControl": {
+        "schemaVersion": 1,
+        "state": "WAITING_OBJECTS_LIMIT_QUEUED_STOP_PASS_AND_JOINT_ISSUER_SUPPORT",
+        "prerequisite": {
+          "order": 0,
+          "profile": "objects-limit",
+          "phase": "queued-stop",
+          "state": "NOT_RUN",
+          "requiredResult": "PASS",
+          "currentWindow": "NOT_ISSUED"
+        },
+        "stages": [
+          {
+            "order": 1,
+            "profile": "joint",
+            "phase": "generate",
+            "state": "NOT_RUN",
+            "consumes": "objects-limit:queued-stop:PASS",
+            "produces": "joint-generation-seed",
+            "runtimeSchemaSupport": "PASS",
+            "exclusiveIssuerSupport": "NOT_IMPLEMENTED_OBJECTS_LIMIT_ONLY",
+            "processScope": "joint-generation-process",
+            "clockScope": "joint-generation-stage-clock",
+            "receiptScope": "joint-generation-window-close",
+            "requiresFreshProcess": true,
+            "requiresFreshClock": true,
+            "receiptReuseAllowed": false,
+            "freshAuditRequired": true,
+            "uniqueAuthorityRequired": true,
+            "oneTimeWindowRequired": true,
+            "ownerAuthorizationRequired": true
+          },
+          {
+            "order": 2,
+            "profile": "joint",
+            "phase": "measure",
+            "state": "NOT_RUN",
+            "consumes": "joint:generate:PASS",
+            "produces": "joint-measure-close",
+            "runtimeSchemaSupport": "PASS",
+            "exclusiveIssuerSupport": "NOT_IMPLEMENTED_OBJECTS_LIMIT_ONLY",
+            "processScope": "joint-measure-process",
+            "clockScope": "joint-measure-stage-clock",
+            "receiptScope": "joint-measure-window-close",
+            "requiresFreshProcess": true,
+            "requiresFreshClock": true,
+            "receiptReuseAllowed": false,
+            "freshAuditRequired": true,
+            "uniqueAuthorityRequired": true,
+            "oneTimeWindowRequired": true,
+            "ownerAuthorizationRequired": true
+          },
+          {
+            "order": 3,
+            "profile": "joint",
+            "phase": "queued-stop",
+            "state": "NOT_RUN",
+            "consumes": "joint:measure:PASS",
+            "produces": "joint-queued-stop-close",
+            "runtimeSchemaSupport": "PASS",
+            "exclusiveIssuerSupport": "NOT_IMPLEMENTED_OBJECTS_LIMIT_ONLY",
+            "processScope": "joint-queued-stop-process",
+            "clockScope": "joint-queued-stop-stage-clock",
+            "receiptScope": "joint-queued-stop-window-close",
+            "requiresFreshProcess": true,
+            "requiresFreshClock": true,
+            "receiptReuseAllowed": false,
+            "freshAuditRequired": true,
+            "uniqueAuthorityRequired": true,
+            "oneTimeWindowRequired": true,
+            "ownerAuthorizationRequired": true
+          }
+        ],
+        "linearNoSkip": true,
+        "authorityCannotBeInherited": true,
+        "stopOnNonPass": true,
+        "oldWindowReplayAllowed": false,
+        "readyToAuthorize": false,
+        "nextAction": "TDD_EXTEND_THREE_EXCLUSIVE_ISSUERS_BEFORE_ANY_JOINT_AUTHORIZATION",
+        "deviceOpened": false,
         "gateB": "NOT_RUN",
         "ownerAcceptance": "NOT_RUN"
       }
@@ -1561,6 +1645,6 @@
       "closeReceiptSha256": "4c18479e33b6392ff511a09b057d3e296dc3873d1c9be09d7d5f67c38eff39be",
       "replay": "PROHIBITED"
     },
-    "capacityGate": "R023_OBJECTS_LIMIT_GENERATION_WINDOW03_PASS__MEASURE_WINDOW01_TIMEOUT_PARTIAL_NONREPLAY__WINDOW04_AUTHORITY_DRIFT_COPY_UNAVAILABLE_PARTIAL_NONREPLAY_PLANNED4249378816_UNCHANGED__WINDOW05_PRECREATE_IDENTITY_REJECTED_NO_PATH_UUID_AUTHORITY_NONREUSE__WINDOW06_SOFTWARE_MEASURE_PASS__QUEUED_STOP_WINDOW06_PROCESS_EXIT_TERMINAL_NONREPLAY__WINDOW07_CONSUMED_INPUT_REJECTED_NO_CHILD_ZERO_SAMPLE_NONREPLAY__CANONICAL_LINEAGE_ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED__JOINT_BUDGET_SOFTWARE_GREEN_FORMAL_GENERATION_MEASURE_NOT_RUN"
+    "capacityGate": "R023_OBJECTS_LIMIT_GENERATION_WINDOW03_PASS__MEASURE_WINDOW01_TIMEOUT_PARTIAL_NONREPLAY__WINDOW04_AUTHORITY_DRIFT_COPY_UNAVAILABLE_PARTIAL_NONREPLAY_PLANNED4249378816_UNCHANGED__WINDOW05_PRECREATE_IDENTITY_REJECTED_NO_PATH_UUID_AUTHORITY_NONREUSE__WINDOW06_SOFTWARE_MEASURE_PASS__QUEUED_STOP_WINDOW06_PROCESS_EXIT_TERMINAL_NONREPLAY__WINDOW07_CONSUMED_INPUT_REJECTED_NO_CHILD_ZERO_SAMPLE_NONREPLAY__CANONICAL_LINEAGE_ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED__JOINT_RUNTIME_SCHEMA_SUPPORTS_GENERATE_MEASURE_QUEUED_STOP__THREE_EXCLUSIVE_ISSUERS_OBJECTS_LIMIT_ONLY__JOINT_THREE_STAGE_FORMAL_NOT_RUN"
   }
 }
