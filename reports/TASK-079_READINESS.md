@@ -8,9 +8,9 @@
 - TASK-078 软件矩阵：SHA256 `12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7fe4ba944`
 - 实现提交：`1f102fba93e42d0f84b985c04d84af08b06b2231`
 - 报告提交：`93feee20c2edbd027546b44cc908aee27ef785b1`
-- GitHub：`codex/task-079-v3-final-acceptance`最新实现评审检查点`5464ae06355832a76dc394c4cde5eed28acb4846`已push，`git ls-remote`确认同SHA；更早的`f285bf3…`和`b3df42a…`历史检查点仍可达，`main`/PR未合并，未安装、签名、公证或发布
+- GitHub：`codex/task-079-v3-final-acceptance`最新实现评审检查点`ab5f33912e29ec8206358b3c7521d0752710b13b`已push并fetch复核同SHA；`5464ae…`继续作为joint预算历史实现锚，更早的`f285bf3…`和`b3df42a…`历史检查点仍可达，`main`/PR未合并，未安装、签名、公证或发布
 
-基础 readiness 控制、主任务修复与本地回归已经完成，当前结论固定为 `READY=false`；完整无设备证据控制面尚未取得独立闭包。hardware evidence contract v2 在主任务实现后为33/33专项GREEN，但第二轮独立复审最终RED继续保留，未执行第三轮且没有独立PASS。objects-limit window-06只关闭软件measure；queued-stop下一authority仍未签发。joint单活动输出预算软件检查点已GREEN，但正式generation/measure仍为`NOT_RUN`。当前readiness验证器继续精确要求这组机器真相；它不认证声卡、卡座、真实输入、Logic/Roon、可听Replica、实录、实体打印或Owner接受。
+基础 readiness 控制、主任务修复与本地回归已经完成，当前结论固定为 `READY=false`；完整无设备证据控制面尚未取得独立闭包。hardware evidence contract v2 在主任务实现后为33/33专项GREEN，但第二轮独立复审最终RED继续保留，未执行第三轮且没有独立PASS。objects-limit window-06只关闭软件measure；queued-stop window-02已在child前形成零样本不可重放终态，下一全新successor仍未签发，正式benchmark仍为`NOT_RUN`。joint单活动输出预算软件检查点已GREEN，但正式generation/measure仍为`NOT_RUN`。当前readiness验证器继续精确要求这组机器真相；它不认证声卡、卡座、真实输入、Logic/Roon、可听Replica、实录、实体打印或Owner接受。
 
 ## 实现
 
@@ -279,9 +279,12 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - 首次签发使用window-dir=`r023-objects-limit-queued-stop-window-01`、label=`r023-objects-limit-queued-stop-01`。issuer在创建owner、installed supervisor与issuer identity后以`SOURCE_CANDIDATE`终止；failure UUID=`c9e11b19-6e83-4d8c-959c-1b57b61aa71d`，failure SHA256=`e18619e0c24306b0aaf7d84fe3f970faecbbe844780b5f1abb0f6ae47f108329`，`windowWritten=false`、`replayAllowed=false`。没有consumer或benchmark进程，window-01全部身份永久禁止重放。
 - 根因是旧issuer把42个被Git忽略的`packages/contracts/dist/*.js`当作tracked blob校验。最小RED证明真实候选的派生文件无法通过旧`source_manifest`，而候选源码本身没有漂移。
 - 修复提交=`33d8856c7f4a1e93edce90ba2c9f31d406d9272a`。issuer使用tracked、Hash固定的`issue-v3-capacity-window.py` helper，从候选HEAD的42个TypeScript source、`tsconfig.json`及`package.json`重建dist；Node、libnode、TypeScript compiler、标准库manifest、Git输入、命令/环境和42个输出SHA全部写入issuer fact。supervisor在admission与terminal两端复核helper Git blob、工具链、标准库manifest、构建输入和source pins派生输出，任一漂移均fail-closed。
-- failure carryover修复提交=`f285bf3de7ef9b23be5370759a4e591dd3280414`。issuer现要求声明的prior failure集合与runtime内direct-child queued issuer failure精确相等，并将window-01 failure SHA、issuer fact SHA、owner SHA、installed supervisor SHA及目录/文件身份带入issue/admission/terminal闭包。首轮历史authority仍为exact73；下一authority以71个冻结measure roots + 1个prior issuer failure + authority parent + issuer identity形成exact74。后续合法失败即使发生在source-pins、owned-roots、pending或window阶段，也必须使用其真实终态文件集合，缺失或夹带均fail-closed。
+- failure carryover修复提交=`f285bf3de7ef9b23be5370759a4e591dd3280414`。issuer现要求声明的prior failure集合与runtime内direct-child queued issuer failure精确相等，并将window-01 failure SHA、issuer fact SHA、owner SHA、installed supervisor SHA及目录/文件身份带入issue/admission/terminal闭包。首轮历史authority仍为exact73；随后签发的window-02以71个冻结measure roots + 1个prior issuer failure + authority parent + issuer identity形成历史exact74。后续合法失败即使发生在source-pins、owned-roots、pending或window阶段，也必须使用其真实终态文件集合，缺失或夹带均fail-closed。
 - 新鲜验证：capacity `92/92`、supervisor `28/28`、queued-stop issuer `9/9`、四套capacity控制面合并`81/81`、Bridge Core typecheck、标准`pnpm verify`、`CONTROL_PLANE=PASS`、`BOUNDARIES=PASS`、`CYCLES=PASS files=259`、Python compile与`git diff --check`均PASS。Contracts `186/186`、Bridge Core `1250/1251`（0 fail、1 条件性skip）、Desktop `643/643`及三包生产构建由标准verify通过。
-- 当前机器结论：window-01=`TERMINAL_ISSUER_FAILURE`且benchmark=`NOT_RUN`；下一approved authority=`NEXT_NOT_ISSUED`、formal run=`NOT_RUN`，没有后继UUID/window-dir/label。代码检查点`f285bf3…`已推送并精确核对远端；当前机器状态同步完成后，再对新的精确远端HEAD执行新鲜只读预检，通过后也只能以全新身份签发一次。joint、设备Gate B与Owner验收均未升级。
+- window-02随后以历史exact74闭包唯一签发并消费。旧supervisor在admission/child之前扫描generation close的嵌套`window`对象时触发`TypeError: unhashable type: 'dict'`；UUID=`c7528bf4-d5a4-4a7e-8d73-f738370d1774`、window-dir=`r023-objects-limit-queued-stop-window-02`、label=`r023-objects-limit-queued-stop-02`永久禁止重放。该历史owned manifest保持74 roots，不能用后继口径回写。
+- 提交`ab5f33912e29ec8206358b3c7521d0752710b13b`加入严格replay类型保护、spawn前二次authority复核、prechild终态carryover、TS exact75 consumer和一次性terminalizer。terminalizer绑定清洁已push HEAD与脚本SHA运行一次，生成`TERMINAL_PRECHILD_CONTROL_FAILURE`收据SHA256=`0b372f0ca99be6226b614a5898ccaf002e3129ad1cbdbd36903dc784339465ae`；文件为`0400`、单链接且无pending。收据固定`authorityAdmission=NOT_RUN`、supervision/child/benchmark/output均false、`sampleCount=0`、`deviceOpened=false`、`formalReady=false`、Gate B=`NOT_RUN`、`replayAllowed=false`。新鲜回归为queued-stop两套`52/52`、四套容量控制面`96/96`、Bridge Core容量`92/92`，完整`pnpm verify`、control、boundaries与cycles均exit 0；第二轮终审P0/P1均为0。
+- trigger close只用于隔离复现旧类型错误，角色为`isolated-reproduction-witness-not-historical-order`，不构成历史首个枚举项或执行顺序证明。下一全新successor才是71个冻结roots + 1个prior issuer failure + 1个prior prechild failure + authority parent + issuer identity=`exact75`。
+- 当前机器结论：window-01与window-02均为terminal/nonreplay；下一successor=`NEXT_NOT_ISSUED`、formal run=`NOT_RUN`，没有UUID/window-dir/label。代码检查点`ab5f339…`已push并fetch复核；状态检查点提交后必须对其新的精确远端HEAD执行fresh只读预检，通过后也只能用全新身份签发一次。joint、设备Gate B与Owner验收均未升级。
 
 #### Joint 单活动输出预算软件检查点
 
@@ -289,4 +292,4 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - Plan逐Record串行创建和消费，manifest封存`preparedBeforeFirstAttempt=1`、`activePlanMaximum=1`、`unconsumedAtSeal=1`。snapshot写入前验证fixture与未来output投影，终态验证fixture和generation output逻辑字节不超出冻结plan。
 - TypeScript phase精确消费generation plan与axes；Python supervisor的generation artifacts与measure seed另外精确消费串行Plan preparation、fixture/marker、snapshot identity与空间收据。严格类型校验拒绝`bool`冒充`int`、浮点形式整数及数字型SHA。
 - 新鲜验证：capacity `92/92`，supervisor `32/32`，generation/measure/queued-stop issuer静态总数`19/19 + 25/25 + 9/9`，四套控制面合计`85/85`，readiness `15/15`，Bridge Core typecheck、Python compile、标准`pnpm verify`、control/boundaries/cycles与diff-check均PASS。独立终审P0/P1/P2均为0。
-- `git ls-remote`已确认远端分支精确到`5464ae06355832a76dc394c4cde5eed28acb4846`。本检查点未运行正式issuer、generation或measure，未创建新authority/UUID/window/label；`deviceOpened=false`、`formalReady=false`、Gate B、Owner 103项、可听Replica、实体录音与打印均为`NOT_RUN`或pending。
+- `5464ae06355832a76dc394c4cde5eed28acb4846`仍是最新分支HEAD `ab5f339…`的可达祖先和joint预算实现锚。本检查点未运行正式joint issuer、generation或measure，未创建joint authority/UUID/window/label；`deviceOpened=false`、`formalReady=false`、Gate B、Owner 103项、可听Replica、实体录音与打印均为`NOT_RUN`或pending。

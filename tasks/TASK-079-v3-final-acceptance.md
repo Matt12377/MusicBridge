@@ -2,7 +2,7 @@
 
 基线 `fac7363b4a6481591e207dda7cca77f0ae8d3cd4`，分支 `codex/task-079-v3-final-acceptance`，独立树 `worktree/task-079-v3-final-acceptance`。TASK-078 的本地自动软件子范围已经封版；本任务承接尚未运行的真实输入、真实 Logic/Roon、真实设备、实体打印和 Owner 产品验收，不重写 TASK-078 的软件证据。
 
-当前没有设备连接。Owner 后续计划使用 RME 或 Apogee 声卡与 Sony 卡座，但具体型号、连接、采样率、声道、缓冲、时钟、测量方法和故障注入范围尚未冻结。本阶段禁止枚举、打开、配置或发声，禁止读取真实音乐、库存、照片、Excel、Logic 工程、Roon/Provider 账号或凭据。验证清洁的`codex/task-079-v3-final-acceptance`实现评审检查点`5464ae06355832a76dc394c4cde5eed28acb4846`已push并核对远端SHA；没有授权`main`/PR合并、签名、公证、安装或发布。
+当前没有设备连接。Owner 后续计划使用 RME 或 Apogee 声卡与 Sony 卡座，但具体型号、连接、采样率、声道、缓冲、时钟、测量方法和故障注入范围尚未冻结。本阶段禁止枚举、打开、配置或发声，禁止读取真实音乐、库存、照片、Excel、Logic 工程、Roon/Provider 账号或凭据。验证清洁的`codex/task-079-v3-final-acceptance`实现评审检查点`ab5f33912e29ec8206358b3c7521d0752710b13b`已push并核对远端SHA；没有授权`main`/PR合并、签名、公证、安装或发布。
 
 ## 无设备阶段范围
 
@@ -81,7 +81,7 @@ supervisor在`320,039.741875ms`自然exit 0，1575个samples、3个group receipt
 
 提交`7d67f5069233fbbc5b00a9170c2639b9e237edf2`新增独立queued-stop issuer、supervisor校验路径与容量fixture aggregate guard，并只绑定冻结的measure window-06身份。首次authority schema为exact 73 roots：71个冻结measure roots、1个authority parent和1个issuer identity；输出嵌套在authority parent中。正式计划固定105 samples（5 warmup + 100 formal）、单active clone、单次执行上限50秒、总窗口900秒，snapshot=`1,990,471,680`、evidence allowance=`268,435,456`、planned=`2,258,907,136`字节；aggregate预期843行，成功终态预期636个输出文件。
 
-提交`f285bf3de7ef9b23be5370759a4e591dd3280414`关闭window-01失败遗漏：issuer必须发现并声明runtime中全部direct-child queued issuer failure，声明集合与实际集合精确相等；failure、issuer fact、owner和installed supervisor的目录/文件身份写入authority并由supervisor在admission与terminal逐项复核。首轮历史闭包保持exact73；下一authority携带1个prior issuer failure后为71 + 1 + authority parent + issuer identity=`exact 74`。实现同时允许失败在source-pins、owned-roots、pending或window等更晚合法阶段终止，但不放宽错误身份或目录形状。
+提交`f285bf3de7ef9b23be5370759a4e591dd3280414`关闭window-01失败遗漏：issuer必须发现并声明runtime中全部direct-child queued issuer failure，声明集合与实际集合精确相等；failure、issuer fact、owner和installed supervisor的目录/文件身份写入authority并由supervisor在admission与terminal逐项复核。首轮历史闭包保持exact73；随后签发的window-02携带1个prior issuer failure，为71 + 1 + authority parent + issuer identity=`exact 74`。实现同时允许失败在source-pins、owned-roots、pending或window等更晚合法阶段终止，但不放宽错误身份或目录形状。
 
 当前回归结果为capacity `92/92`、supervisor `28/28`、issuer `9/9`、四套capacity控制面合并`81/81`，`corepack pnpm@10.17.1 verify` exit 0，control plane、boundaries与cycles均PASS，cycles扫描259个文件。issuer只负责exclusive authority发布，不执行benchmark；supervisor拒绝透传参数，并精确复核候选、工具链、issuer fact、window-06与window-01 carryover、105个唯一进程/请求/Attempt/marker、50秒闭包、PG/zombie、分布阈值、aggregate序列和输出集合。
 
@@ -89,7 +89,11 @@ supervisor在`320,039.741875ms`自然exit 0，1575个samples、3个group receipt
 
 根因是source manifest把42个被Git忽略、由tracked TypeScript生成的`packages/contracts/dist/*.js`误当作候选提交blob执行`git show`。提交`33d8856c7f4a1e93edce90ba2c9f31d406d9272a`复用已验证的capacity build helper，从候选HEAD的42个source、固定tsconfig/package和固定Node/libnode/TypeScript工具链重建dist，要求exact emit set与逐字节SHA一致；issuer fact绑定helper、构建输入、argv/env、工具链、标准库manifest与输出，supervisor在admission和terminal两端重新核验并拒绝helper、标准库或派生证明漂移。
 
-上述结果只证明修复后的queued-stop控制面GREEN。下一approved authority仍为`NEXT_NOT_ISSUED`、`formalRun=NOT_RUN`，没有后继UUID/window-dir/label或PASS收据。同步机器状态后必须在新的精确远端HEAD上重做新鲜只读预检，满足后才可用全新名称唯一签发。
+window-02随后以历史`exact 74`闭包唯一签发：71个冻结measure roots、1个window-01 issuer failure、authority parent与issuer identity。旧installed supervisor在admission与child之前扫描历史generation close时，把嵌套`window`对象放入set并触发`TypeError: unhashable type: 'dict'`；因此authority已经消费，但`authorityAdmission=NOT_RUN`、supervision/child/benchmark/output均未开始，样本数为0。UUID=`c7528bf4-d5a4-4a7e-8d73-f738370d1774`、window-dir=`r023-objects-limit-queued-stop-window-02`、label=`r023-objects-limit-queued-stop-02`永久禁止重放。
+
+提交`ab5f33912e29ec8206358b3c7521d0752710b13b`修复严格replay类型检查、spawn前二次authority复核、prechild终态carryover和TS exact75 consumer，并新增只写零样本终态收据的terminalizer。该terminalizer在清洁、已push的精确HEAD上只运行一次，生成`TERMINAL_PRECHILD_CONTROL_FAILURE`收据SHA256=`0b372f0ca99be6226b614a5898ccaf002e3129ad1cbdbd36903dc784339465ae`；收据为`0400`单链接，无pending，`benchmarkStarted=false`、`childSpawned=false`、`sampleCount=0`、`deviceOpened=false`、`formalReady=false`、Gate B=`NOT_RUN`、`replayAllowed=false`。用于隔离复现的generation close只承担`isolated-reproduction-witness-not-historical-order`角色，不证明历史枚举顺序。新鲜验证为queued-stop issuer/terminalizer与supervisor合计`52/52`、四套容量控制面`96/96`、Bridge Core容量`92/92`、full verify/control/boundaries均exit 0；第二轮终审P0/P1均为0。
+
+window-02的历史owned manifest保持74 roots且不得回写。下一全新successor才是71个冻结roots + 1个prior issuer failure + 1个prior prechild failure + authority parent + issuer identity=`exact 75`。当前successor仍为`NEXT_NOT_ISSUED`、`formalRun=NOT_RUN`，UUID/window-dir/label均为空；必须先把本状态提交并push，再绑定新的精确远端HEAD完成新鲜只读预检，满足后才能用全新身份唯一签发。上述结果只证明控制面终态与后继闭包GREEN，不是objects-limit queued-stop正式性能PASS。
 
 ### Joint 单活动输出预算软件GREEN
 
