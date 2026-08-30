@@ -8,6 +8,7 @@ import { spawnSync } from 'node:child_process'
 import test from 'node:test'
 
 const sourceSupervisor = new URL('../capacity-phase-supervisor-v2.py', import.meta.url).pathname
+const sourceBuildHelper = new URL('../issue-v3-capacity-window.py', import.meta.url).pathname
 const python = '/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/bin/python3.14'
 const plan = { groupCloneCount: 3, fullHashCount: 3, stopRoundReceiptCount: 105, sampleCount: 1575 }
 const stopMetrics = ['signalAborted', 'driverStopInvoked', 'driverStopAck', 'driverCloseInvoked', 'driverCloseResolved', 'receiptSettled']
@@ -200,6 +201,7 @@ function copiedSupervisor() {
     'package.json', 'pnpm-lock.yaml', 'packages/bridge-core/package.json', 'packages/contracts/package.json',
     'packages/bridge-core/test/benchmarks/recording-capacity.ts',
     'packages/bridge-core/test/benchmarks/recording-capacity-process.ts',
+    'packages/contracts/src/generated.ts',
     'scripts/ci/capacity-phase-supervisor-v2.py', 'scripts/ci/issue-v3-capacity-measure-window.py',
   ]
   for (const relative of candidateFiles) {
@@ -207,6 +209,8 @@ function copiedSupervisor() {
     if (relative === 'scripts/ci/capacity-phase-supervisor-v2.py') copyFileSync(sourceSupervisor, path)
     else writeFileSync(path, `${relative}\n`)
   }
+  copyFileSync(sourceBuildHelper, join(candidate, 'scripts/ci/issue-v3-capacity-window.py'))
+  writeFileSync(join(candidate, 'packages/contracts/tsconfig.json'), '{}\n')
   writeFileSync(join(candidate, 'scripts/ci/issue-v3-capacity-queued-stop-window.py'), 'queued issuer\n')
   writeFileSync(join(candidate, 'tsx-loader.mjs'), 'export {}\n')
   for (const relative of ['packages/bridge-core/src', 'packages/bridge-core/test/helpers', 'packages/contracts/src', 'packages/contracts/dist']) {
@@ -273,13 +277,53 @@ function sealQueuedIdentity(f, window) {
   window.toolchain = { node: { path: process.execPath, sha256: sha(process.execPath) },
     tsxLoader: { path: tsxPath, sha256: sha(tsxPath) }, consumerPython: { path: python, sha256: sha(python) } }
   window.issuer.path = issuerPath; window.issuer.sha256 = sha(issuerPath)
+  const buildHelperPath = join(f.candidate, 'scripts/ci/issue-v3-capacity-window.py')
+  const buildRoot = join(f.temp, 'queued-build-toolchain')
+  const buildNodeLibrary = join(buildRoot, 'libnode.141.dylib')
+  const typescriptDirectory = join(buildRoot, 'typescript/lib')
+  const typescriptCompiler = join(typescriptDirectory, '_tsc.js')
+  const typescriptLibrary = join(typescriptDirectory, 'lib.d.ts')
+  mkdirSync(typescriptDirectory, { recursive: true })
+  writeFileSync(buildNodeLibrary, 'node library\n')
+  writeFileSync(typescriptCompiler, 'typescript compiler\n')
+  writeFileSync(typescriptLibrary, 'interface Test {}\n')
+  const libraryManifestSha256 = createHash('sha256').update(JSON.stringify({ files: { 'lib.d.ts': sha(typescriptLibrary) } })).digest('hex')
+  const distRelative = 'packages/contracts/dist/generated.js'
+  writeFileSync(join(f.candidate, distRelative), 'export const generated = true\n')
+  json(join(f.authority, 'source-pins.json'), { schemaVersion: 1, scope: 'musicbridge-capacity-source-pins',
+    files: { [distRelative]: sha(join(f.candidate, distRelative)) } })
+  const buildToolchain = {
+    node: { path: process.execPath, sha256: sha(process.execPath) },
+    nodeLibrary: { path: buildNodeLibrary, sha256: sha(buildNodeLibrary) },
+    typescriptCompiler: { path: typescriptCompiler, sha256: sha(typescriptCompiler) },
+    typescriptLibraryManifestSha256: libraryManifestSha256,
+  }
+  const build = {
+    candidateHead: f.head,
+    inputs: {
+      'packages/contracts/package.json': sha(join(f.candidate, 'packages/contracts/package.json')),
+      'packages/contracts/tsconfig.json': sha(join(f.candidate, 'packages/contracts/tsconfig.json')),
+      'packages/contracts/src/generated.ts': sha(join(f.candidate, 'packages/contracts/src/generated.ts')),
+    },
+    command: ['/private/toolchain/bin/node', '/private/toolchain/typescript/lib/_tsc.js', '--project',
+      '/private/packages/contracts/tsconfig.json', '--pretty', 'false', '--incremental', 'false', '--noCheck', '--noResolve'],
+    environment: { PATH: '/usr/bin:/bin', LANG: 'C', LC_ALL: 'C', NO_COLOR: '1' },
+    timeoutMs: 120000, compilerExitCode: 0, compilerOutputBytes: 0,
+    privateToolchain: { nodeSha256: buildToolchain.node.sha256,
+      nodeLibrarySha256: buildToolchain.nodeLibrary.sha256,
+      typescriptCompilerSha256: buildToolchain.typescriptCompiler.sha256,
+      typescriptLibraryManifestSha256: libraryManifestSha256 },
+    outputs: { [distRelative]: sha(join(f.candidate, distRelative)) },
+  }
   const factPath = join(f.authority, 'issuer-identity/owner.json')
   json(factPath, { schemaVersion: 1, scope: 'musicbridge-capacity-queued-stop-authority-issuer', windowId: window.id,
     issuerRepository: { root: f.candidate, branch: f.candidateBranch, head: f.head,
       relativePath: 'scripts/ci/issue-v3-capacity-queued-stop-window.py', sha256: window.issuer.sha256 },
     candidateRepository: window.candidateRepository,
     supervisorSource: { path: supervisorPath, relativePath: 'scripts/ci/capacity-phase-supervisor-v2.py', sha256: window.supervisor.sha256 },
-    toolchain: window.toolchain, measureCarryover: window.measureCarryover })
+    toolchain: window.toolchain,
+    buildHelper: { path: buildHelperPath, relativePath: 'scripts/ci/issue-v3-capacity-window.py', sha256: sha(buildHelperPath) },
+    buildToolchain, build, measureCarryover: window.measureCarryover })
   window.issuer.fact = { path: factPath, sha256: sha(factPath) }
   return window
 }
@@ -807,7 +851,7 @@ test('v2从window绑定独立TASK079 candidate，绝不反推TASK078 runtime roo
     assert.equal(bridge(f.script, 'candidate', { window: runtimeDerived, runtime: f.runtime }).ok, false)
     assert.deepEqual(bridge(f.script, 'target', { window, runtime: f.runtime }), { ok: true, value: {
       root: f.candidate, cwd: f.candidate, entry: join(f.candidate, 'packages/bridge-core/test/benchmarks/recording-capacity.ts') } })
-    assert.equal(bridge(f.script, 'source', { manifest: sourceManifest(f), root: f.candidate }).value, 8)
+    assert.equal(bridge(f.script, 'source', { manifest: sourceManifest(f), root: f.candidate }).value, 9)
     json(join(f.authority, 'owner.json'), { scope: window.scope, owner: 'root', id: window.id })
     json(join(f.authority, 'window.json'), window)
     const loaded = bridge(f.script, 'load', { window: join(f.authority, 'window.json'), windowSha256: sha(join(f.authority, 'window.json')) })
@@ -1411,10 +1455,34 @@ test('queued-stop admission实际复核toolchain、issuer fact与candidate HEAD 
     const window = sealQueuedIdentity(f, queuedWindowValue(f))
     const observed = bridge(f.script, 'queued-bound-identities', { window, parent: f.authority, candidate: f.candidate })
     assert.equal(observed.ok, true, observed.error)
-    assert.deepEqual(Object.keys(observed.value).sort(), ['consumerPython','issuer','issuerFact','node','tsxLoader'])
+    assert.deepEqual(Object.keys(observed.value).sort(), ['buildHelper','buildNode','buildNodeLibrary','consumerPython',
+      'issuer','issuerFact','node','tsxLoader','typescriptCompiler','typescriptLibraries'])
     const changed = structuredClone(window); changed.toolchain.node.sha256 = '0'.repeat(64)
     assert.equal(bridge(f.script, 'queued-bound-identities', { window: changed, parent: f.authority, candidate: f.candidate }).ok, false)
   } finally { f.cleanup() }
+})
+
+test('queued-stop admission拒绝build helper、TypeScript标准库与派生输出证明漂移', () => {
+  const mutations = [
+    ({ fact }) => writeFileSync(fact.buildHelper.path, 'drifted helper\n'),
+    ({ fact }) => writeFileSync(join(dirname(fact.buildToolchain.typescriptCompiler.path), 'lib.d.ts'), 'drifted library\n'),
+    ({ f }) => {
+      const path = join(f.authority, 'source-pins.json')
+      rmSync(path); json(path, { schemaVersion: 1, scope: 'musicbridge-capacity-source-pins',
+        files: { 'packages/contracts/dist/generated.js': '0'.repeat(64) } })
+    },
+  ]
+  for (const mutate of mutations) {
+    const f = copiedSupervisor()
+    try {
+      const window = sealQueuedIdentity(f, queuedWindowValue(f))
+      const fact = JSON.parse(readFileSync(window.issuer.fact.path))
+      mutate({ f, fact })
+      assert.equal(bridge(f.script, 'queued-bound-identities', {
+        window, parent: f.authority, candidate: f.candidate,
+      }).ok, false)
+    } finally { f.cleanup() }
+  }
 })
 
 test('queued-stop successor完整636文件闭包并拒绝PID、raw hash、receipt、summary、aggregate和unexpected漂移', () => {

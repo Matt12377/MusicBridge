@@ -4,6 +4,7 @@
 import argparse
 import datetime
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -286,15 +287,68 @@ def source_paths(root):
     return names
 
 
-def source_manifest(root, head):
+def source_manifest(root, head, derived_files):
+    derived_files = dict(derived_files)
+    if any(not isinstance(relative, str) or not relative.startswith('packages/contracts/dist/')
+           or SHA256.fullmatch(str(digest or '')) is None
+           for relative, digest in derived_files.items()):
+        fail('SOURCE_CANDIDATE')
     files = {}
-    for relative in source_paths(root):
+    paths = source_paths(root)
+    dist_paths = {relative for relative in paths if relative.startswith('packages/contracts/dist/')}
+    if set(derived_files) != dist_paths:
+        fail('SOURCE_CANDIDATE')
+    for relative in paths:
         path = root / relative
         digest = sha256(path)
-        if hashlib.sha256(git_blob(root, head, relative)).hexdigest() != digest:
+        expected = derived_files.get(relative)
+        if expected is None:
+            expected = hashlib.sha256(git_blob(root, head, relative)).hexdigest()
+        if expected != digest:
             fail('SOURCE_CANDIDATE')
         files[relative] = digest
     return {'schemaVersion': 1, 'scope': 'musicbridge-capacity-source-pins', 'files': files}
+
+
+def load_build_helper(root, head):
+    relative = 'scripts/ci/issue-v3-capacity-window.py'
+    path = root / relative
+    expected = hashlib.sha256(git_blob(root, head, relative)).hexdigest()
+    if not ordinary(path) or sha256(path) != expected:
+        fail('BUILD_HELPER_IDENTITY')
+    spec = importlib.util.spec_from_file_location('musicbridge_capacity_build_helper', path)
+    if spec is None or spec.loader is None:
+        fail('BUILD_HELPER_IDENTITY')
+    module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)
+    except Exception as error:
+        raise IssueError('BUILD_HELPER_IDENTITY') from error
+    if not callable(getattr(module, 'candidate_contract_dist', None)) \
+            or not callable(getattr(module, 'typescript_library_manifest', None)):
+        fail('BUILD_HELPER_IDENTITY')
+    return module, path, relative, expected
+
+
+def rebuild_contract_dist(helper, root, head, paths, options, build_node,
+                          build_node_library, typescript_compiler):
+    try:
+        value = helper.candidate_contract_dist(
+            root, head, paths, build_node, options.expected_build_node_sha256,
+            build_node_library, options.expected_build_node_library_sha256,
+            typescript_compiler, options.expected_typescript_compiler_sha256,
+            options.expected_typescript_library_manifest_sha256)
+    except Exception as error:
+        code = str(error)
+        if code in {'BUILD_TOOLCHAIN_IDENTITY', 'SOURCE_CANDIDATE', 'SOURCE_CONFIGURATION',
+                    'BUILD_TIMEOUT', 'BUILD_EXECUTION', 'BUILD_EXIT', 'BUILD_OUTPUT',
+                    'EMIT_SET', 'EMIT_BYTES', 'SOURCE_MANIFEST'}:
+            raise IssueError(code) from error
+        raise IssueError('SOURCE_CANDIDATE') from error
+    if not isinstance(value, dict) or set(value) != {'files', 'provenance'} \
+            or not isinstance(value.get('files'), dict) or not isinstance(value.get('provenance'), dict):
+        fail('SOURCE_CANDIDATE')
+    return value
 
 
 def validate_repository(root, branch, head):
@@ -510,6 +564,13 @@ def parse_args(argv):
     parser.add_argument('--expected-issuer-branch', required=True)
     parser.add_argument('--expected-issuer-head', required=True)
     parser.add_argument('--expected-issuer-sha256', required=True)
+    parser.add_argument('--build-node', required=True)
+    parser.add_argument('--expected-build-node-sha256', required=True)
+    parser.add_argument('--build-node-library', required=True)
+    parser.add_argument('--expected-build-node-library-sha256', required=True)
+    parser.add_argument('--typescript-compiler', required=True)
+    parser.add_argument('--expected-typescript-compiler-sha256', required=True)
+    parser.add_argument('--expected-typescript-library-manifest-sha256', required=True)
     return parser.parse_args(argv)
 
 
@@ -623,6 +684,21 @@ def issue(options):
     tsx = verified_file(options.tsx_loader, options.expected_tsx_loader_sha256, 'TSX_IDENTITY')
     consumer = verified_file(options.consumer_python, options.expected_consumer_sha256,
                              'CONSUMER_IDENTITY', executable=True)
+    build_node = verified_file(options.build_node, options.expected_build_node_sha256,
+                               'BUILD_TOOLCHAIN_IDENTITY', executable=True)
+    build_node_library = verified_file(
+        options.build_node_library, options.expected_build_node_library_sha256,
+        'BUILD_TOOLCHAIN_IDENTITY')
+    typescript_compiler = verified_file(
+        options.typescript_compiler, options.expected_typescript_compiler_sha256,
+        'BUILD_TOOLCHAIN_IDENTITY')
+    build_helper, build_helper_path, build_helper_relative, build_helper_sha = \
+        load_build_helper(root, options.expected_head)
+    paths = source_paths(root)
+    derived = rebuild_contract_dist(
+        build_helper, root, options.expected_head, paths, options, build_node,
+        build_node_library, typescript_compiler)
+    source = source_manifest(root, options.expected_head, derived['files'])
     window_id = str(uuid.uuid4())
     parent = runtime / options.window_dir_name
     try:
@@ -652,13 +728,23 @@ def issue(options):
         'toolchain': {'node': {'path': str(node), 'sha256': options.expected_node_sha256},
                       'tsxLoader': {'path': str(tsx), 'sha256': options.expected_tsx_loader_sha256},
                       'consumerPython': {'path': str(consumer), 'sha256': options.expected_consumer_sha256}},
+        'buildHelper': {'path': str(build_helper_path), 'relativePath': build_helper_relative,
+                        'sha256': build_helper_sha},
+        'buildToolchain': {
+            'node': {'path': str(build_node), 'sha256': options.expected_build_node_sha256},
+            'nodeLibrary': {'path': str(build_node_library),
+                            'sha256': options.expected_build_node_library_sha256},
+            'typescriptCompiler': {'path': str(typescript_compiler),
+                                   'sha256': options.expected_typescript_compiler_sha256},
+            'typescriptLibraryManifestSha256': options.expected_typescript_library_manifest_sha256,
+        },
+        'build': derived['provenance'],
         'measureCarryover': measure['facts'],
     })
     roots = unique_roots([*measure['roots'], current_root(parent, 'owner.json'),
                           current_root(issuer_identity, 'owner.json')])
     if len(roots) != EXPECTED_AUTHORITY_ROOTS:
         fail('OWNED_COUNT')
-    source = source_manifest(root, options.expected_head)
     source_sha = exclusive_json(parent / 'source-pins.json', source)
     owned = {'schemaVersion': 1, 'scope': 'musicbridge-capacity-owned-roots', 'access': 'count-only',
              'windowId': window_id, 'roots': list(roots.values())}
@@ -698,7 +784,17 @@ def issue(options):
     verified_file(node, options.expected_node_sha256, 'NODE_IDENTITY', executable=True)
     verified_file(tsx, options.expected_tsx_loader_sha256, 'TSX_IDENTITY')
     verified_file(consumer, options.expected_consumer_sha256, 'CONSUMER_IDENTITY', executable=True)
-    if strict_json(parent / 'source-pins.json', source_sha)[0] != source_manifest(root, options.expected_head) \
+    verified_file(build_helper_path, build_helper_sha, 'BUILD_HELPER_IDENTITY')
+    verified_file(build_node, options.expected_build_node_sha256, 'BUILD_TOOLCHAIN_IDENTITY', executable=True)
+    verified_file(build_node_library, options.expected_build_node_library_sha256, 'BUILD_TOOLCHAIN_IDENTITY')
+    verified_file(typescript_compiler, options.expected_typescript_compiler_sha256, 'BUILD_TOOLCHAIN_IDENTITY')
+    try:
+        build_helper.typescript_library_manifest(
+            typescript_compiler.parent, options.expected_typescript_library_manifest_sha256)
+    except Exception as error:
+        raise IssueError('BUILD_TOOLCHAIN_IDENTITY') from error
+    if strict_json(parent / 'source-pins.json', source_sha)[0] != source_manifest(
+            root, options.expected_head, derived['files']) \
             or strict_json(parent / 'owned-roots.json', owned_sha)[0] != owned \
             or strict_json(pending, window_sha)[0] != window:
         fail('AUTHORITY_DRIFT')

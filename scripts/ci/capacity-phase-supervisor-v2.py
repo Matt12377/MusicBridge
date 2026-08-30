@@ -204,6 +204,7 @@ def _sha(file):
 _SAFE = re.compile(r'^[a-z0-9-]{1,64}$', re.ASCII)
 _SHA256 = re.compile(r'^[0-9a-f]{64}$', re.ASCII)
 _GIT_SHA = re.compile(r'^[0-9a-f]{40}$', re.ASCII)
+_TYPESCRIPT_LIBRARY = re.compile(r'^lib(?:\.[A-Za-z0-9.-]+)?\.d\.ts$', re.ASCII)
 _GENERATION_PROFILES = {'history-limit', 'objects-limit', 'joint'}
 _GENERATION_KEYS = {'schemaVersion', 'scope', 'owner', 'id', 'state', 'phase', 'profile', 'label', 'n',
                     'issuedAt', 'deadlineAt', 'limits', 'ownedManifest', 'sourceManifest'}
@@ -2423,9 +2424,13 @@ def _validate_queued_stop_bound_identities(window, parent, candidate):
     try: fact, fact_identity = _strict_json(issuer['fact']['path'], 1024 * 1024)
     except ValueError as error: raise ValueError('QUEUED_STOP_IDENTITY') from error
     fact_keys = {'schemaVersion', 'scope', 'windowId', 'issuerRepository', 'candidateRepository',
-                 'supervisorSource', 'toolchain', 'measureCarryover'}
+                 'supervisorSource', 'toolchain', 'buildHelper', 'buildToolchain', 'build',
+                 'measureCarryover'}
     issuer_repo = fact.get('issuerRepository') if isinstance(fact, dict) else None
     supervisor_source = fact.get('supervisorSource') if isinstance(fact, dict) else None
+    build_helper = fact.get('buildHelper') if isinstance(fact, dict) else None
+    build_toolchain = fact.get('buildToolchain') if isinstance(fact, dict) else None
+    build = fact.get('build') if isinstance(fact, dict) else None
     if not _queued_exact(fact, fact_keys) or fact.get('schemaVersion') != 1 \
             or fact.get('scope') != 'musicbridge-capacity-queued-stop-authority-issuer' \
             or fact.get('windowId') != window['id'] or fact.get('candidateRepository') != window['candidateRepository'] \
@@ -2437,8 +2442,38 @@ def _validate_queued_stop_bound_identities(window, parent, candidate):
             or set(supervisor_source) != {'path', 'relativePath', 'sha256'} \
             or supervisor_source.get('relativePath') != 'scripts/ci/capacity-phase-supervisor-v2.py' \
             or supervisor_source.get('path') != str(candidate / supervisor_source['relativePath']) \
-            or supervisor_source.get('sha256') != window['supervisor']['sha256']:
+            or supervisor_source.get('sha256') != window['supervisor']['sha256'] \
+            or not isinstance(build_helper, dict) \
+            or set(build_helper) != {'path', 'relativePath', 'sha256'} \
+            or build_helper.get('relativePath') != 'scripts/ci/issue-v3-capacity-window.py' \
+            or build_helper.get('path') != str(candidate / build_helper['relativePath']) \
+            or not isinstance(build_toolchain, dict) \
+            or set(build_toolchain) != {'node', 'nodeLibrary', 'typescriptCompiler',
+                                        'typescriptLibraryManifestSha256'} \
+            or _SHA256.fullmatch(str(build_toolchain.get('typescriptLibraryManifestSha256', ''))) is None:
         raise ValueError('QUEUED_STOP_IDENTITY')
+    identities['buildHelper'] = _validate_queued_stop_bound_file(
+        {'path': build_helper['path'], 'sha256': build_helper['sha256']},
+        expected_path=candidate / build_helper['relativePath'])
+    identities['buildNode'] = _validate_queued_stop_bound_file(
+        build_toolchain['node'], executable=True, maximum=256 * 1024 * 1024)
+    identities['buildNodeLibrary'] = _validate_queued_stop_bound_file(
+        build_toolchain['nodeLibrary'], maximum=256 * 1024 * 1024)
+    identities['typescriptCompiler'] = _validate_queued_stop_bound_file(
+        build_toolchain['typescriptCompiler'], maximum=32 * 1024 * 1024)
+    typescript_directory = Path(build_toolchain['typescriptCompiler']['path']).parent
+    library_files = {}
+    try:
+        for path in sorted(typescript_directory.iterdir(), key=lambda value: value.name):
+            if _TYPESCRIPT_LIBRARY.fullmatch(path.name):
+                library_files[path.name] = _strict_identity(path, 8 * 1024 * 1024)['sha256']
+    except (OSError, ValueError) as error:
+        raise ValueError('QUEUED_STOP_IDENTITY') from error
+    library_manifest = hashlib.sha256(json.dumps(
+        {'files': library_files}, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    if not library_files or library_manifest != build_toolchain['typescriptLibraryManifestSha256']:
+        raise ValueError('QUEUED_STOP_IDENTITY')
+    identities['typescriptLibraries'] = {'sha256': library_manifest, 'files': library_files}
     issuer_root = Path(str(issuer_repo.get('root', '')))
     issuer_relative = issuer_repo.get('relativePath')
     if not issuer_root.is_absolute() or not isinstance(issuer_relative, str) \
@@ -2454,12 +2489,67 @@ def _validate_queued_stop_bound_identities(window, parent, candidate):
         supervisor_blob = subprocess.check_output(
             ['/usr/bin/git', 'show', f"{window['candidateRepository']['head']}:scripts/ci/capacity-phase-supervisor-v2.py"],
             cwd=candidate, stderr=subprocess.DEVNULL)
+        helper_blob = subprocess.check_output(
+            ['/usr/bin/git', 'show', f"{window['candidateRepository']['head']}:{build_helper['relativePath']}"],
+            cwd=candidate, stderr=subprocess.DEVNULL)
     except (OSError, subprocess.CalledProcessError) as error:
         raise ValueError('QUEUED_STOP_IDENTITY') from error
     if hashlib.sha256(issuer_blob).hexdigest() != issuer['sha256'] \
             or hashlib.sha256(supervisor_blob).hexdigest() != window['supervisor']['sha256'] \
+            or hashlib.sha256(helper_blob).hexdigest() != build_helper['sha256'] \
             or identities['issuerFact'] != fact_identity:
         raise ValueError('QUEUED_STOP_IDENTITY')
+    build_keys = {'candidateHead', 'inputs', 'command', 'environment', 'timeoutMs',
+                  'compilerExitCode', 'compilerOutputBytes', 'privateToolchain', 'outputs'}
+    private_keys = {'nodeSha256', 'nodeLibrarySha256', 'typescriptCompilerSha256',
+                    'typescriptLibraryManifestSha256'}
+    expected_private = {
+        'nodeSha256': build_toolchain['node']['sha256'],
+        'nodeLibrarySha256': build_toolchain['nodeLibrary']['sha256'],
+        'typescriptCompilerSha256': build_toolchain['typescriptCompiler']['sha256'],
+        'typescriptLibraryManifestSha256': build_toolchain['typescriptLibraryManifestSha256'],
+    }
+    if not _queued_exact(build, build_keys) or build.get('candidateHead') != window['candidateRepository']['head'] \
+            or not isinstance(build.get('inputs'), dict) or not isinstance(build.get('outputs'), dict) \
+            or not isinstance(build.get('command'), list) or len(build['command']) != 10 \
+            or not str(build['command'][0]).endswith('/toolchain/bin/node') \
+            or not str(build['command'][1]).endswith('/toolchain/typescript/lib/_tsc.js') \
+            or build['command'][2] != '--project' \
+            or not str(build['command'][3]).endswith('/packages/contracts/tsconfig.json') \
+            or build['command'][4:] != ['--pretty', 'false', '--incremental', 'false', '--noCheck', '--noResolve'] \
+            or build.get('environment') != {'PATH': '/usr/bin:/bin', 'LANG': 'C', 'LC_ALL': 'C', 'NO_COLOR': '1'} \
+            or build.get('timeoutMs') != 120000 or build.get('compilerExitCode') != 0 \
+            or build.get('compilerOutputBytes') != 0 \
+            or not _queued_exact(build.get('privateToolchain'), private_keys) \
+            or build['privateToolchain'] != expected_private:
+        raise ValueError('QUEUED_STOP_IDENTITY')
+    try: source_pins, _ = _strict_json(Path(parent) / 'source-pins.json')
+    except ValueError as error: raise ValueError('QUEUED_STOP_IDENTITY') from error
+    source_files = source_pins.get('files') if isinstance(source_pins, dict) else None
+    expected_outputs = {relative: digest for relative, digest in source_files.items()
+                        if relative.startswith('packages/contracts/dist/')} \
+        if isinstance(source_files, dict) else None
+    if not expected_outputs or build['outputs'] != expected_outputs:
+        raise ValueError('QUEUED_STOP_IDENTITY')
+    expected_inputs = {'packages/contracts/package.json', 'packages/contracts/tsconfig.json'}
+    for relative in expected_outputs:
+        match = re.fullmatch(r'packages/contracts/dist/([a-z0-9-]+)\.js', relative, re.ASCII)
+        if match is None:
+            raise ValueError('QUEUED_STOP_IDENTITY')
+        expected_inputs.add(f'packages/contracts/src/{match.group(1)}.ts')
+    if set(build['inputs']) != expected_inputs:
+        raise ValueError('QUEUED_STOP_IDENTITY')
+    for relative, expected_sha in build['inputs'].items():
+        if not isinstance(relative, str) or _SHA256.fullmatch(str(expected_sha or '')) is None:
+            raise ValueError('QUEUED_STOP_IDENTITY')
+        try:
+            blob = subprocess.check_output(
+                ['/usr/bin/git', 'show', f"{window['candidateRepository']['head']}:{relative}"],
+                cwd=candidate, stderr=subprocess.DEVNULL)
+        except (OSError, subprocess.CalledProcessError) as error:
+            raise ValueError('QUEUED_STOP_IDENTITY') from error
+        if hashlib.sha256(blob).hexdigest() != expected_sha:
+            raise ValueError('QUEUED_STOP_IDENTITY')
     return identities
 
 
@@ -2660,10 +2750,16 @@ def _validate_queued_stop_authority(parent, runtime, repo_root, window_sha256,
                            'source': source['manifestIdentity'], 'owned': owned['manifestIdentity'],
                            'node': bound_identities['node'], 'tsxLoader': bound_identities['tsxLoader'],
                            'consumerPython': bound_identities['consumerPython'],
-                           'issuer': bound_identities['issuer'], 'issuerFact': bound_identities['issuerFact']}}
+                           'issuer': bound_identities['issuer'], 'issuerFact': bound_identities['issuerFact'],
+                           'buildHelper': bound_identities['buildHelper'],
+                           'buildNode': bound_identities['buildNode'],
+                           'buildNodeLibrary': bound_identities['buildNodeLibrary'],
+                           'typescriptCompiler': bound_identities['typescriptCompiler'],
+                           'typescriptLibraries': bound_identities['typescriptLibraries']}}
     if initial is not None:
         for key in ('window', 'owner', 'source', 'owned', 'node', 'tsxLoader',
-                    'consumerPython', 'issuer', 'issuerFact'):
+                    'consumerPython', 'issuer', 'issuerFact', 'buildHelper', 'buildNode',
+                    'buildNodeLibrary', 'typescriptCompiler', 'typescriptLibraries'):
             if initial.get('_snapshot', {}).get(key) != value['_snapshot'][key]:
                 raise ValueError('QUEUED_STOP_AUTHORITY_DRIFT')
     return value
