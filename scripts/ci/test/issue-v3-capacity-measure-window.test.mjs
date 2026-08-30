@@ -132,6 +132,9 @@ _MEASURE_LIMITS={'executionMs':900000,'killGraceMs':1000,'closeMs':2000,'minimum
 _MEASURE_PLAN={'groupCloneCount':3,'fullHashCount':3,'stopRoundReceiptCount':105,'sampleCount':1575}
 _MEASURE_KEYS={'schemaVersion','scope','owner','id','state','phase','profile','label','seedLabel','n','issuedAt','deadlineAt','limits','seed','ownedManifest','sourceManifest','measurePlan','supervisor','candidateRepository'}
 _LEGACY_CARRYOVER_EVIDENCE=None
+def _measure_planned_bytes(snapshot_bytes):
+  if type(snapshot_bytes) is not int or snapshot_bytes <= 0: raise ValueError('OWNED_SPACE')
+  return snapshot_bytes+256*1024**2
 def _sha(path): return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 def _strict_json(path):
   path=Path(path); data=json.loads(path.read_text())
@@ -146,14 +149,17 @@ def _validate_source_manifest(path, root):
           'fileIdentities':{p:_strict_identity(Path(root)/p) for p in expected}}
 def _validate_owned_manifest(path, runtime, window_id, profile, planned_bytes=None, future_path=None, future_state=None):
   value,ident=_strict_json(path)
-  if value.get('windowId') != window_id or profile != 'objects-limit' or len(value.get('roots',[])) != 65: raise ValueError('OWNED_MANIFEST')
+  if value.get('windowId') != window_id or profile != 'objects-limit' or len(value.get('roots',[])) != 70: raise ValueError('OWNED_MANIFEST')
   if value.get('futureRoots') != [str(future_path)] or future_state != 'absent' or Path(future_path).exists(): raise ValueError('OWNED_MANIFEST')
-  roots={}
+  roots={}; paths=[]
   for row in value['roots']:
     p=Path(row['path']); marker=p/row['marker']['relative']; info=p.stat()
     if info.st_dev != row['device'] or info.st_ino != row['inode'] or _sha(marker) != row['marker']['sha256']: raise ValueError('OWNED_MANIFEST')
-    roots[str(p)]={}
-  return {'rootCount':66,'ownedBytes':4096,'plannedBytes':planned_bytes,'availableBytes':64*1024**3,
+    roots[str(p)]={}; paths.append(p)
+  minimal=[p for p in sorted(paths,key=lambda item:(len(item.parts),str(item)))
+           if not any(p != other and p.is_relative_to(other) for other in paths)]
+  owned_bytes=sum(item.stat().st_size for root in minimal for item in root.rglob('*') if item.is_file())
+  return {'valid':True,'rootCount':71,'ownedBytes':owned_bytes,'plannedBytes':planned_bytes,'availableBytes':64*1024**3,
           'manifestSha256':ident['sha256'],'manifestIdentity':ident,'rootIdentities':roots,
           'futureRoots':[str(future_path)],'futureRootIdentities':{}}
 def _validate_measure_authority(parent, runtime, repo_root, window_sha256, initial=None):
@@ -189,6 +195,31 @@ def _validate_measure_window(window, now):
   _validate_supervisor_identity(window)
   _validate_candidate_repository(window)
   return True
+def _terminal_manifest(parent, expected_owned_sha256, expected_window_id):
+  parent=Path(parent); value,ident=_strict_json(parent/'owned-roots.json')
+  if ident['sha256'] != expected_owned_sha256 or value.get('windowId') != expected_window_id or len(value.get('roots',[])) != 65: raise ValueError('TERMINAL_CARRYOVER')
+  roots=[]
+  for row in value['roots']:
+    path=Path(row['path']); info=path.stat(); marker=path/row['marker']['relative']
+    if info.st_dev != row['device'] or info.st_ino != row['inode'] or _sha(marker) != row['marker']['sha256']: raise ValueError('TERMINAL_CARRYOVER')
+    roots.append(row)
+  return roots
+def _validate_measure_issuer_failure_carryover(parent, runtime, expected_owned_sha256, expected_failure_sha256, expected_window_id, expected_dir_name, expected_label):
+  parent=Path(parent); failure,identity=_strict_json(parent/'issuer-failure.json')
+  if parent != Path(runtime)/expected_dir_name or identity['sha256'] != expected_failure_sha256 or failure != {'schemaVersion':1,'scope':'musicbridge-capacity-measure-authority-issuer-failure','state':'TERMINAL_ISSUER_FAILURE','windowId':expected_window_id,'windowDirName':expected_dir_name,'label':expected_label,'errorCode':'AUTHORITY_PREFLIGHT','authorityFilesCreated':['owner.json','supervisor.py','issuer-identity/owner.json','source-pins.json','owned-roots.json'],'windowWritten':False,'replayAllowed':False}: raise ValueError('TERMINAL_CARRYOVER')
+  if (Path(runtime)/expected_label).exists() or (parent/'window.json').exists(): raise ValueError('TERMINAL_CARRYOVER')
+  return {'valid':True,'terminal':{'state':'TERMINAL_ISSUER_FAILURE','replayAllowed':False},
+          'roots':_terminal_manifest(parent,expected_owned_sha256,expected_window_id)}
+def _validate_measure_v2_terminal_carryover(window_path, close_path, output, runtime, expected_owned_sha256, expected_window_sha256, expected_close_sha256, expected_command_sha256, expected_window_id, expected_label):
+  window_path=Path(window_path); close_path=Path(close_path); output=Path(output); parent=window_path.parent
+  window,wi=_strict_json(window_path); close,ci=_strict_json(close_path); command,cmdi=_strict_json(output/'command.json')
+  if parent.parent != Path(runtime) or close_path.parent != parent or output != Path(runtime)/expected_label or wi['sha256'] != expected_window_sha256 or ci['sha256'] != expected_close_sha256 or cmdi['sha256'] != expected_command_sha256: raise ValueError('TERMINAL_CARRYOVER')
+  if window != {'schemaVersion':1,'scope':'musicbridge-capacity-measure-window','id':expected_window_id,'label':expected_label} or close != {'schemaVersion':1,'scope':'musicbridge-capacity-measure-window-close','windowId':expected_window_id,'label':expected_label,'state':'failed','failure':'AUTHORITY_DRIFT','childFailure':'COPY_UNAVAILABLE','groupEmpty':True,'zombies':[],'verifiedPassed':False,'replayAllowed':False} or command != {'schemaVersion':1,'phase':'measure','profile':'objects-limit','window':expected_window_id,'label':expected_label}: raise ValueError('TERMINAL_CARRYOVER')
+  roots=_terminal_manifest(parent,expected_owned_sha256,expected_window_id)
+  info=output.stat(); output_root={'path':str(output),'device':info.st_dev,'inode':info.st_ino,'marker':{'relative':'command.json','sha256':cmdi['sha256']}}
+  return {'valid':True,'terminal':{'state':'failed','failure':'AUTHORITY_DRIFT','replayAllowed':False},
+          'partial':{'benchmarkFailureCode':'COPY_UNAVAILABLE','verifiedPassed':False},
+          'roots':roots,'outputRoot':output_root}
 def _validate_measure_carryover(window_path, close_path, output_path, runtime, expected_window_sha256, expected_close_sha256, expected_command_sha256, expected_window_id, expected_label):
   global _LEGACY_CARRYOVER_EVIDENCE
   expected={'windowSha256':expected_window_sha256,'closeSha256':expected_close_sha256,'outputCommandSha256':expected_command_sha256,'windowId':expected_window_id,'label':expected_label}
@@ -350,6 +381,49 @@ function fixture() {
     authorityStable: true, verifiedPassed: false, replayAllowed: false,
   })
 
+  const terminalCommonRoots = [
+    ...generationRoots,
+    identity(seed, 'seed.json'), identity(externalFixture, 'capacity-owner.json'),
+    identity(previousMeasure, 'owner.json'), identity(previousMeasureOutput, 'command.json'),
+  ]
+  assert.equal(terminalCommonRoots.length, 63)
+  const terminalIssuerDirName = 'terminal-issuer-window', terminalIssuerLabel = 'terminal-issuer-output'
+  const terminalIssuer = join(runtime, terminalIssuerDirName); mkdirSync(join(terminalIssuer, 'issuer-identity'), { recursive: true })
+  const terminalIssuerId = randomUUID()
+  json(join(terminalIssuer, 'owner.json'), { scope: 'musicbridge-capacity-measure-window', owner: 'root', id: terminalIssuerId })
+  json(join(terminalIssuer, 'issuer-identity/owner.json'), { scope: 'musicbridge-capacity-authority-issuer', id: terminalIssuerId })
+  const terminalIssuerOwned = join(terminalIssuer, 'owned-roots.json')
+  json(terminalIssuerOwned, { schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only', windowId: terminalIssuerId,
+    roots: [...terminalCommonRoots, identity(terminalIssuer, 'owner.json'), identity(join(terminalIssuer, 'issuer-identity'), 'owner.json')],
+    futureRoots: [join(runtime, terminalIssuerLabel)] })
+  writeFileSync(join(terminalIssuer, 'supervisor.py'), '# frozen terminal supervisor\n')
+  json(join(terminalIssuer, 'source-pins.json'), { schemaVersion: 1 })
+  const terminalIssuerFailure = join(terminalIssuer, 'issuer-failure.json')
+  json(terminalIssuerFailure, { schemaVersion: 1, scope: 'musicbridge-capacity-measure-authority-issuer-failure',
+    state: 'TERMINAL_ISSUER_FAILURE', windowId: terminalIssuerId, windowDirName: terminalIssuerDirName,
+    label: terminalIssuerLabel, errorCode: 'AUTHORITY_PREFLIGHT',
+    authorityFilesCreated: ['owner.json', 'supervisor.py', 'issuer-identity/owner.json', 'source-pins.json', 'owned-roots.json'],
+    windowWritten: false, replayAllowed: false })
+
+  const terminalMeasureDirName = 'terminal-measure-window', terminalMeasureLabel = 'terminal-measure-output'
+  const terminalMeasure = join(runtime, terminalMeasureDirName); mkdirSync(join(terminalMeasure, 'issuer-identity'), { recursive: true })
+  const terminalMeasureId = randomUUID()
+  json(join(terminalMeasure, 'owner.json'), { scope: 'musicbridge-capacity-measure-window', owner: 'root', id: terminalMeasureId })
+  json(join(terminalMeasure, 'issuer-identity/owner.json'), { scope: 'musicbridge-capacity-authority-issuer', id: terminalMeasureId })
+  const terminalMeasureOwned = join(terminalMeasure, 'owned-roots.json')
+  json(terminalMeasureOwned, { schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only', windowId: terminalMeasureId,
+    roots: [...terminalCommonRoots, identity(terminalMeasure, 'owner.json'), identity(join(terminalMeasure, 'issuer-identity'), 'owner.json')],
+    futureRoots: [join(runtime, terminalMeasureLabel)] })
+  const terminalMeasureWindow = join(terminalMeasure, 'window.json')
+  json(terminalMeasureWindow, { schemaVersion: 1, scope: 'musicbridge-capacity-measure-window', id: terminalMeasureId, label: terminalMeasureLabel })
+  const terminalMeasureOutput = join(runtime, terminalMeasureLabel); mkdirSync(terminalMeasureOutput)
+  const terminalMeasureCommand = join(terminalMeasureOutput, 'command.json')
+  json(terminalMeasureCommand, { schemaVersion: 1, phase: 'measure', profile: 'objects-limit', window: terminalMeasureId, label: terminalMeasureLabel })
+  const terminalMeasureClose = join(terminalMeasure, 'close.json')
+  json(terminalMeasureClose, { schemaVersion: 1, scope: 'musicbridge-capacity-measure-window-close', windowId: terminalMeasureId,
+    label: terminalMeasureLabel, state: 'failed', failure: 'AUTHORITY_DRIFT', childFailure: 'COPY_UNAVAILABLE',
+    groupEmpty: true, zombies: [], verifiedPassed: false, replayAllowed: false })
+
   execFileSync('/usr/bin/git', ['init', '-b', 'main'], { cwd: root })
   git(root, 'config', 'user.email', 'test@example.invalid'); git(root, 'config', 'user.name', 'Test')
   const fixtureIssuer = join(root, 'scripts/ci/issue-v3-capacity-measure-window.py')
@@ -364,6 +438,10 @@ function fixture() {
     generationSource, generationOwned, seed, seedLabel, externalFixture,
     previousMeasure, previousMeasureId, previousMeasureLabel, previousMeasureWindow,
     previousMeasureClose, previousMeasureOutput, previousMeasureCommand,
+    terminalIssuer, terminalIssuerDirName, terminalIssuerLabel, terminalIssuerId, terminalIssuerOwned, terminalIssuerFailure,
+    terminalMeasure, terminalMeasureDirName, terminalMeasureLabel, terminalMeasureId, terminalMeasureOwned,
+    terminalMeasureWindow, terminalMeasureClose, terminalMeasureOutput, terminalMeasureCommand,
+    terminalMeasureCommandSha: sha(terminalMeasureCommand),
     issuer: fixtureIssuer, helper: fixtureHelper, head: git(root, 'rev-parse', 'HEAD'),
   }
   return f
@@ -444,6 +522,21 @@ function args(f, extra = []) {
     '--previous-measure-output', f.previousMeasureOutput,
     '--expected-previous-measure-output-label', f.previousMeasureLabel,
     '--expected-previous-measure-output-command-sha256', sha(f.previousMeasureCommand),
+    '--terminal-issuer-failure', f.terminalIssuerFailure,
+    '--expected-terminal-issuer-failure-sha256', sha(f.terminalIssuerFailure),
+    '--expected-terminal-issuer-window-id', f.terminalIssuerId,
+    '--expected-terminal-issuer-window-dir-name', f.terminalIssuerDirName,
+    '--expected-terminal-issuer-label', f.terminalIssuerLabel,
+    '--expected-terminal-issuer-owned-sha256', sha(f.terminalIssuerOwned),
+    '--terminal-measure-window', f.terminalMeasureWindow,
+    '--expected-terminal-measure-window-id', f.terminalMeasureId,
+    '--expected-terminal-measure-window-sha256', sha(f.terminalMeasureWindow),
+    '--terminal-measure-close', f.terminalMeasureClose,
+    '--expected-terminal-measure-close-sha256', sha(f.terminalMeasureClose),
+    '--terminal-measure-output', f.terminalMeasureOutput,
+    '--expected-terminal-measure-output-label', f.terminalMeasureLabel,
+    '--expected-terminal-measure-output-command-sha256', f.terminalMeasureCommandSha,
+    '--expected-terminal-measure-owned-sha256', sha(f.terminalMeasureOwned),
     '--window-dir-name', 'objects-measure-window', '--label', 'objects-measure',
     '--seed-label', f.seedLabel, '--profile', 'objects-limit', '--expected-branch', 'main',
     '--expected-head', f.head, '--consumer-python', python, '--expected-consumer-sha256', sha(python),
@@ -473,7 +566,7 @@ function runWithPreflightInjection(f, injection) {
 }
 function cleanup(f) { rmSync(f.root, { recursive: true, force: true }); rmSync(f.generationRoot, { recursive: true, force: true }); rmSync(f.externalFixture, { recursive: true, force: true }) }
 
-test('签发 measure authority v2：65 个既存 roots 加唯一 future output，固定plan且不运行 benchmark', () => {
+test('签发 measure authority v3：历史terminal union形成70 existing与71 authorized且不运行 benchmark', () => {
   const f = fixture()
   try {
     const result = run(f)
@@ -482,18 +575,19 @@ test('签发 measure authority v2：65 个既存 roots 加唯一 future output�
     const parent = join(f.runtime, 'objects-measure-window')
     const window = JSON.parse(readFileSync(join(parent, 'window.json'), 'utf8'))
     const owned = JSON.parse(readFileSync(join(parent, 'owned-roots.json'), 'utf8'))
-    assert.equal(owned.roots.length, 65)
-    assert.equal(new Set(owned.roots.map((row) => row.path)).size, 65)
+    assert.equal(owned.roots.length, 70)
+    assert.equal(new Set(owned.roots.map((row) => row.path)).size, 70)
     assert.deepEqual(
       new Set(owned.roots.map((row) => row.path)),
       new Set([
-        ...JSON.parse(readFileSync(f.generationOwned)).roots.map((row) => row.path),
-        f.seed, f.externalFixture, f.previousMeasure, f.previousMeasureOutput,
+        ...JSON.parse(readFileSync(f.terminalIssuerOwned)).roots.map((row) => row.path),
+        ...JSON.parse(readFileSync(f.terminalMeasureOwned)).roots.map((row) => row.path),
+        f.terminalMeasureOutput,
         parent, join(parent, 'issuer-identity'),
       ]),
     )
     assert.deepEqual(owned.futureRoots, [join(f.runtime, 'objects-measure')])
-    assert.equal(receipt.ownedRootCount, 66)
+    assert.equal(receipt.ownedRootCount, 71)
     assert.equal(window.scope, 'musicbridge-capacity-measure-window')
     assert.equal(window.profile, 'objects-limit'); assert.equal(window.label, 'objects-measure')
     assert.equal(window.seedLabel, f.seedLabel); assert.equal(window.n, 105)
@@ -516,6 +610,14 @@ test('签发 measure authority v2：65 个既存 roots 加唯一 future output�
     assert.equal(issuer.previousMeasure.partial.receiptNames.length, 29)
     assert.match(issuer.previousMeasure.partial.receiptManifestSha256, /^[0-9a-f]{64}$/u)
     assert.equal(issuer.previousMeasure.partial.retainedClone.sqlite.contentSha256Verified, false)
+    assert.equal(issuer.terminalCarryovers.issuerFailure.windowId, f.terminalIssuerId)
+    assert.equal(issuer.terminalCarryovers.issuerFailure.terminal.state, 'TERMINAL_ISSUER_FAILURE')
+    assert.equal(issuer.terminalCarryovers.measureFailure.window.id, f.terminalMeasureId)
+    assert.equal(issuer.terminalCarryovers.measureFailure.terminal.failure, 'AUTHORITY_DRIFT')
+    assert.equal(issuer.terminalCarryovers.measureFailure.partial.benchmarkFailureCode, 'COPY_UNAVAILABLE')
+    assert.deepEqual(issuer.terminalCarryovers.rootUnion, {
+      historicalExisting: 68, newAuthorityRoots: 2, existing: 70, future: 1, authorized: 71,
+    })
     assert.deepEqual(issuer.measureRepository, { root: f.root, branch: 'main', head: f.head })
     assert.deepEqual(issuer.generationRepository, { root: f.generationRoot, branch: 'generation', head: f.generationHead })
     assert.notEqual(issuer.measureRepository.root, issuer.generationRepository.root)
@@ -526,6 +628,64 @@ test('签发 measure authority v2：65 个既存 roots 加唯一 future output�
     assert.equal(currentSource.files['scripts/ci/issue-v3-capacity-measure-window.py'], sha(f.issuer))
     assert.deepEqual(window.candidateRepository, { root: f.root, branch: 'main', head: f.head })
     assert.deepEqual(receipt.consumeCommand, [python, installedSupervisor, '--window', join(parent, 'window.json'), '--window-sha256', sha(join(parent, 'window.json'))])
+  } finally { cleanup(f) }
+})
+
+test('window03/04 terminal receipt、manifest union或present output任一漂移都拒绝签发', () => {
+  const scenarios = [
+    (f) => {
+      const value = JSON.parse(readFileSync(f.terminalIssuerFailure)); value.errorCode = 'DRIFT'; json(f.terminalIssuerFailure, value)
+      return ['--expected-terminal-issuer-failure-sha256', sha(f.terminalIssuerFailure)]
+    },
+    (f) => {
+      const value = JSON.parse(readFileSync(f.terminalMeasureClose)); value.failure = 'DRIFT'; json(f.terminalMeasureClose, value)
+      return ['--expected-terminal-measure-close-sha256', sha(f.terminalMeasureClose)]
+    },
+    (f) => {
+      const replacement = join(f.runtime, 'terminal-union-extra'); mkdirSync(replacement); json(join(replacement, 'owner.json'), { scope: 'extra' })
+      const value = JSON.parse(readFileSync(f.terminalIssuerOwned)); value.roots[0] = identity(replacement, 'owner.json')
+      json(f.terminalIssuerOwned, value)
+      return ['--expected-terminal-issuer-owned-sha256', sha(f.terminalIssuerOwned)]
+    },
+    (f) => {
+      const alias = join(f.terminalIssuer, 'failure-copy.json'); cpSync(f.terminalIssuerFailure, alias)
+      return ['--terminal-issuer-failure', alias, '--expected-terminal-issuer-failure-sha256', sha(alias)]
+    },
+    (f) => { rmSync(f.terminalMeasureOutput, { recursive: true }); return [] },
+  ]
+  for (const mutate of scenarios) {
+    const f = fixture()
+    try {
+      const result = run(f, mutate(f))
+      assert.notEqual(result.status, 0)
+      assert.match(result.stderr, /MEASURE_TERMINAL_CARRYOVER/u)
+      assert.equal(existsSync(join(f.runtime, 'objects-measure-window')), false)
+    } finally { cleanup(f) }
+  }
+})
+
+test('pending写入后terminal output inode替换必须阻止发布stale owned manifest', () => {
+  const f = fixture()
+  try {
+    const bridge = [
+      'import importlib.util,pathlib,shutil,sys',
+      "spec=importlib.util.spec_from_file_location('issuer_under_test',sys.argv[1])",
+      'module=importlib.util.module_from_spec(spec); spec.loader.exec_module(module)',
+      'original=module.validate_terminal_carryovers; calls=0',
+      'def replace_on_revalidation(*args,**kwargs):',
+      ' global calls',
+      ' calls+=1',
+      ' if calls==2:',
+      '  options=args[2]; output=pathlib.Path(options.terminal_measure_output); old=output.with_name(output.name+"-old")',
+      '  output.rename(old); output.mkdir(); shutil.copyfile(old/"command.json",output/"command.json")',
+      ' return original(*args,**kwargs)',
+      'module.validate_terminal_carryovers=replace_on_revalidation',
+      'raise SystemExit(module.main(sys.argv[2:]))',
+    ].join('\n')
+    const result = spawnSync(python, ['-c', bridge, f.issuer, ...args(f).slice(1)], { encoding: 'utf8' })
+    assert.notEqual(result.status, 0)
+    assert.match(result.stderr, /MEASURE_TERMINAL_CARRYOVER/u)
+    assert.equal(existsSync(join(f.runtime, 'objects-measure-window/window.json')), false)
   } finally { cleanup(f) }
 })
 

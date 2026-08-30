@@ -5,7 +5,7 @@ import { fork, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import { DatabaseSync, backup } from 'node:sqlite';
 import { isMasterArtworkImage, isRecordingPrintPdfBase64 } from '@music-bridge/contracts';
-import { mkdtempSync, realpathSync, writeFileSync, existsSync, readFileSync, rmSync, mkdirSync, lstatSync, readdirSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, realpathSync, writeFileSync, existsSync, readFileSync, rmSync, mkdirSync, lstatSync, linkSync, readdirSync, symlinkSync, truncateSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -151,9 +151,58 @@ test('容量clone仅在持久receipt及关闭后按owner删除；失败、错mar
   assert.throws(() => api.createCapacityClone(directory, '../outside', seed));
 });
 
+test('measure output aggregate预算写前及阶段复核，失败clone保留后禁止第二clone，超额稳定停止', async t => {
+  const api = await import('./helpers/recording-capacity-fixture.js');
+  const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'musicbridge-capacity-aggregate-')));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const seed = path.join(directory, 'seed.sqlite'); writeFileSync(seed, 'aggregate-seed');
+  const output = path.join(directory, 'output'); mkdirSync(output);
+  const guard = api.createCapacityMeasureAggregateGuard(output, lstatSync(seed).size);
+  const clone = api.createCapacityClone(output, 'group-progress', seed,
+    api.capacityMeasureWorkingBytes(lstatSync(seed).size), guard);
+  api.appendCapacityMeasureStage(output, 'progress', 'copy', { groupMarker: clone.marker }, guard);
+  const audits = () => readFileSync(path.join(output, 'measure-aggregate-budget.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line));
+  assert.ok(audits().some(row => row.checkpoint === 'clone-before-write' && row.plannedBytes > lstatSync(seed).size),
+    'clone写前必须同时预留seed、owner与写后审计');
+  assert.ok(audits().some(row => row.checkpoint === 'stage-copy-after-write'));
+  assert.ok(audits().every(row => row.outputBytesBefore + row.plannedBytes <= row.limitBytes
+    && row.limitBytes === api.capacityMeasureWorkingBytes(lstatSync(seed).size)), '每条审计都必须直接证明写前投影未越界');
+  api.finishCapacityClone(clone, { outcome: 'failed', resourcesClosed: true, samples: [],
+    onPhase: (phase, details) => api.appendCapacityMeasureStage(output, 'progress', phase, details, guard) });
+  assert.equal(existsSync(clone.directory), true, '失败clone必须保留');
+  const auditCount = audits().length;
+  assert.throws(() => api.createCapacityClone(output, 'group-stop', seed,
+    api.capacityMeasureWorkingBytes(lstatSync(seed).size), guard), /aggregate预算/u);
+  assert.equal(existsSync(path.join(output, 'group-stop')), false, '失败clone存在时不得创建第二clone');
+  assert.equal(audits().length, auditCount, '拒绝第二clone后不得继续写审计输出');
+
+  const isolated = path.join(directory, 'over-limit'); mkdirSync(isolated);
+  const isolatedGuard = api.createCapacityMeasureAggregateGuard(isolated, lstatSync(seed).size);
+  const limit = api.capacityMeasureWorkingBytes(lstatSync(seed).size);
+  const externalGrowth = path.join(isolated, 'external-growth.bin'); writeFileSync(externalGrowth, ''); truncateSync(externalGrowth, limit + 1);
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    assert.throws(() => isolatedGuard.check({ group: 'read', checkpoint: 'stage-operation-before-write' }),
+      /aggregate预算/u, '超过S+256MiB后每次都必须稳定停止');
+  }
+  assert.equal(readdirSync(isolated).length, 1, '超额guard不得再写审计或清理失败证据');
+
+  const hardlinkOutput = path.join(directory, 'hardlink-output'); mkdirSync(hardlinkOutput);
+  const hardlinkGuard = api.createCapacityMeasureAggregateGuard(hardlinkOutput, lstatSync(seed).size);
+  linkSync(seed, path.join(hardlinkOutput, 'aliased.sqlite'));
+  assert.throws(() => hardlinkGuard.check({ checkpoint: 'hardlink-probe' }), /aggregate预算/u,
+    'aggregate逻辑字节不能接受同一inode通过硬链接重复计数');
+});
+
 test('measure group生命周期固定为3次完整clone/hash，stop组105轮receipt与1575样本精确闭包', async t => {
   const api = await import('./helpers/recording-capacity-fixture.js');
+  const snapshotBytes = 1_990_471_680;
+  assert.equal(api.capacityMeasureWorkingBytes(snapshotBytes), snapshotBytes + 256 * 1024 ** 2,
+    '三个group严格串行，最坏瞬时空间只能计一个clone与固定增长余量');
+  for (const invalid of [-1, 0.5, Number.MAX_SAFE_INTEGER]) assert.throws(() => api.capacityMeasureWorkingBytes(invalid));
   const benchmark = readFileSync(new URL('./benchmarks/recording-capacity.ts', import.meta.url), 'utf8');
+  const helper = readFileSync(new URL('./helpers/recording-capacity-fixture.ts', import.meta.url), 'utf8');
+  assert.match(helper, /plannedBytes \?\? info\.size \* 3 \+ 64 \* 1024 \*\* 2/u,
+    '非measure clone默认空间计划必须继续保留3*S+64MiB');
   assert.match(benchmark, /const stopGroup = openGroup\('stop'\)/u);
   assert.match(benchmark, /prepareCapacityStopPlans\(\s*stopGroup\.repository,\s*template,\s*plan\.stopRounds,\s*path\.join\(\s*stopGroup\.clone\.directory,\s*'group-stop-workspace'\s*\)\s*\)/u,
     '105轮必须在计时前经公开Core路径准备独立physical copy与frozen plan');
@@ -163,8 +212,12 @@ test('measure group生命周期固定为3次完整clone/hash，stop组105轮rece
   assert.equal(benchmark.match(/verifyRecordingRecordDatabase\(stopGroup\.auditDb\)/gu)?.length, 2, 'Stop计时前后都必须复核Record DB');
   assert.match(benchmark, /ownedWorkspace:\s*stopWorkspace/u, 'Stop final receipt必须绑定受控workspace后统一清理');
   assert.match(benchmark, /fixture-before\.json/u); assert.match(benchmark, /fixture-after\.json/u);
-  assert.equal(benchmark.match(/createCapacityClone\(output, `group-\$\{group\}`/gu)?.length, 1,
+  assert.equal(benchmark.match(/createCapacityClone\(output, `group-\$\{group\}`, seedPath,/gu)?.length, 1,
     'benchmark只能从统一group入口创建clone');
+  assert.match(benchmark, /createCapacityMeasureAggregateGuard\(output,\s*lstatSync\(measureSeedPath!\)\.size\)/u,
+    '正式measure必须把S+256MiB绑定到output aggregate guard');
+  assert.ok(benchmark.indexOf('createCapacityMeasureAggregateGuard(output, lstatSync(measureSeedPath!).size)')
+    < benchmark.indexOf("json('source-before.json', initialPins)"), 'aggregate guard必须先于首个measure output写入建立');
   assert.doesNotMatch(benchmark, /sample-\$\{\+\+nextCopy\}/u, '不得退回每轮sample clone');
   assert.doesNotMatch(benchmark, /sha\(seedPath\)/u, '正式measure不得在authority已验证seed后再次做完整hash');
   assert.deepEqual(api.capacityMeasurePlan(), {

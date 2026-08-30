@@ -36,8 +36,8 @@ GENERATION_RUNTIME_SOURCES = {
     'reports/runtime/task-078-v3-acceptance/test_capacity_phase_supervisor.py',
 }
 EXPECTED_GENERATION_ROOTS = 59
-EXPECTED_MEASURE_EXISTING_ROOTS = 65
-EXPECTED_MEASURE_AUTHORIZED_ROOTS = 66
+EXPECTED_MEASURE_EXISTING_ROOTS = 70
+EXPECTED_MEASURE_AUTHORIZED_ROOTS = 71
 EXPECTED_CHECKPOINTS = 557
 _FAILURE_CONTEXT = None
 
@@ -84,6 +84,21 @@ def parse_args(argv):
     parser.add_argument('--previous-measure-output', required=True)
     parser.add_argument('--expected-previous-measure-output-label', required=True)
     parser.add_argument('--expected-previous-measure-output-command-sha256', required=True)
+    parser.add_argument('--terminal-issuer-failure', required=True)
+    parser.add_argument('--expected-terminal-issuer-failure-sha256', required=True)
+    parser.add_argument('--expected-terminal-issuer-window-id', required=True)
+    parser.add_argument('--expected-terminal-issuer-window-dir-name', required=True)
+    parser.add_argument('--expected-terminal-issuer-label', required=True)
+    parser.add_argument('--expected-terminal-issuer-owned-sha256', required=True)
+    parser.add_argument('--terminal-measure-window', required=True)
+    parser.add_argument('--expected-terminal-measure-window-id', required=True)
+    parser.add_argument('--expected-terminal-measure-window-sha256', required=True)
+    parser.add_argument('--terminal-measure-close', required=True)
+    parser.add_argument('--expected-terminal-measure-close-sha256', required=True)
+    parser.add_argument('--terminal-measure-output', required=True)
+    parser.add_argument('--expected-terminal-measure-output-label', required=True)
+    parser.add_argument('--expected-terminal-measure-output-command-sha256', required=True)
+    parser.add_argument('--expected-terminal-measure-owned-sha256', required=True)
     parser.add_argument('--window-dir-name', required=True)
     parser.add_argument('--label', required=True)
     parser.add_argument('--seed-label', required=True)
@@ -703,6 +718,112 @@ def validate_measure_carryover(helper, module, options, runtime):
     }
 
 
+def validate_terminal_carryovers(helper, module, options, runtime, generation, legacy):
+    """验证 window03/04 终态并从两份冻结 manifest 构造精确历史 root union。"""
+    try:
+        issuer_failure = same_regular_file(
+            helper, options.terminal_issuer_failure,
+            options.expected_terminal_issuer_failure_sha256, 'MEASURE_TERMINAL_CARRYOVER')
+        if issuer_failure.name != 'issuer-failure.json':
+            fail('MEASURE_TERMINAL_CARRYOVER')
+        issuer_observed = module._validate_measure_issuer_failure_carryover(
+            issuer_failure.parent, runtime,
+            options.expected_terminal_issuer_owned_sha256,
+            options.expected_terminal_issuer_failure_sha256,
+            options.expected_terminal_issuer_window_id,
+            options.expected_terminal_issuer_window_dir_name,
+            options.expected_terminal_issuer_label)
+        terminal_window = same_regular_file(
+            helper, options.terminal_measure_window,
+            options.expected_terminal_measure_window_sha256, 'MEASURE_TERMINAL_CARRYOVER')
+        terminal_close = same_regular_file(
+            helper, options.terminal_measure_close,
+            options.expected_terminal_measure_close_sha256, 'MEASURE_TERMINAL_CARRYOVER')
+        terminal_output = helper.canonical_directory(options.terminal_measure_output, runtime)
+        terminal_observed = module._validate_measure_v2_terminal_carryover(
+            terminal_window, terminal_close, terminal_output, runtime,
+            options.expected_terminal_measure_owned_sha256,
+            options.expected_terminal_measure_window_sha256,
+            options.expected_terminal_measure_close_sha256,
+            options.expected_terminal_measure_output_command_sha256,
+            options.expected_terminal_measure_window_id,
+            options.expected_terminal_measure_output_label)
+    except IssueError:
+        raise
+    except Exception as error:
+        raise IssueError('MEASURE_TERMINAL_CARRYOVER') from error
+    if not isinstance(issuer_observed, dict) or set(issuer_observed) != {'valid', 'terminal', 'roots'} \
+            or issuer_observed.get('valid') is not True \
+            or not isinstance(terminal_observed, dict) \
+            or set(terminal_observed) != {'valid', 'terminal', 'partial', 'roots', 'outputRoot'} \
+            or terminal_observed.get('valid') is not True:
+        fail('MEASURE_TERMINAL_CARRYOVER')
+    issuer_roots = issuer_observed['roots']
+    terminal_roots = terminal_observed['roots']
+    output_root = terminal_observed['outputRoot']
+    if not isinstance(issuer_roots, list) or not isinstance(terminal_roots, list) \
+            or not isinstance(output_root, dict) or len(issuer_roots) != 65 \
+            or len(terminal_roots) != 65 \
+            or not isinstance(issuer_observed['terminal'], dict) \
+            or not isinstance(terminal_observed['terminal'], dict) \
+            or not isinstance(terminal_observed['partial'], dict):
+        fail('MEASURE_TERMINAL_CARRYOVER')
+    try:
+        checked = [helper.root_identity(row) for row in (*issuer_roots, *terminal_roots, output_root)]
+        if checked != [*issuer_roots, *terminal_roots, output_root]:
+            fail('MEASURE_TERMINAL_CARRYOVER')
+        baseline = unique_roots([
+            *generation['roots'],
+            helper.current_root(generation['seed']['directory'], 'seed.json'),
+            helper.current_root(generation['seed']['fixture'], 'capacity-owner.json'),
+            *legacy['roots'],
+        ])
+        expected = unique_roots([
+            *baseline.values(),
+            helper.current_root(issuer_failure.parent, 'owner.json'),
+            helper.current_root(issuer_failure.parent / 'issuer-identity', 'owner.json'),
+            helper.current_root(terminal_window.parent, 'owner.json'),
+            helper.current_root(terminal_window.parent / 'issuer-identity', 'owner.json'),
+            helper.current_root(terminal_output, 'command.json'),
+        ])
+        observed = unique_roots([*issuer_roots, *terminal_roots, output_root])
+        if len(baseline) != 63 or len(expected) != 68 or observed != expected \
+                or terminal_output.name != options.expected_terminal_measure_output_label \
+                or terminal_window.parent.parent != runtime \
+                or terminal_close.parent != terminal_window.parent \
+                or issuer_failure.parent.parent != runtime:
+            fail('MEASURE_TERMINAL_CARRYOVER')
+    except Exception as error:
+        raise IssueError('MEASURE_TERMINAL_CARRYOVER') from error
+    return {
+        'roots': list(observed.values()),
+        'issuerFailure': {
+            'path': str(issuer_failure),
+            'sha256': options.expected_terminal_issuer_failure_sha256,
+            'ownedManifestSha256': options.expected_terminal_issuer_owned_sha256,
+            'windowId': options.expected_terminal_issuer_window_id,
+            'windowDirName': options.expected_terminal_issuer_window_dir_name,
+            'label': options.expected_terminal_issuer_label,
+            'terminal': issuer_observed['terminal'],
+        },
+        'measureFailure': {
+            'window': {'path': str(terminal_window),
+                       'id': options.expected_terminal_measure_window_id,
+                       'sha256': options.expected_terminal_measure_window_sha256},
+            'close': {'path': str(terminal_close),
+                      'sha256': options.expected_terminal_measure_close_sha256},
+            'output': {'path': str(terminal_output),
+                       'label': options.expected_terminal_measure_output_label,
+                       'commandSha256': options.expected_terminal_measure_output_command_sha256},
+            'ownedManifestSha256': options.expected_terminal_measure_owned_sha256,
+            'terminal': terminal_observed['terminal'],
+            'partial': terminal_observed['partial'],
+        },
+        'rootUnion': {'historicalExisting': 68, 'newAuthorityRoots': 2,
+                      'existing': 70, 'future': 1, 'authorized': 71},
+    }
+
+
 def install_supervisor(source, destination, expected_sha256):
     source_fd = None
     destination_fd = None
@@ -811,7 +932,8 @@ def issue(options):
     required_supervisor = (
         '_expected_source_paths', '_strict_identity', '_validate_source_manifest',
         '_validate_owned_manifest', '_validate_measure_authority',
-        '_validate_measure_carryover', '_validate_measure_window',
+        '_validate_measure_carryover', '_validate_measure_issuer_failure_carryover',
+        '_validate_measure_v2_terminal_carryover', '_measure_planned_bytes', '_validate_measure_window',
         '_validate_candidate_repository', '_MEASURE_LIMITS', '_MEASURE_PLAN')
     if any(not hasattr(module, name) for name in required_supervisor) \
             or module._MEASURE_LIMITS != MEASURE_LIMITS \
@@ -866,6 +988,8 @@ def issue(options):
     generation = validate_generation_proof(
         helper, module, options, generation_root, runtime, toolchain)
     carryover = validate_measure_carryover(helper, module, options, runtime)
+    terminal_carryovers = validate_terminal_carryovers(
+        helper, module, options, runtime, generation, carryover)
     reject_replay(helper, runtime, options.window_dir_name, options.label)
 
     parent = runtime / options.window_dir_name
@@ -938,6 +1062,11 @@ def issue(options):
             'terminal': carryover['terminal'],
             'partial': carryover['partial'],
         },
+        'terminalCarryovers': {
+            'issuerFailure': terminal_carryovers['issuerFailure'],
+            'measureFailure': terminal_carryovers['measureFailure'],
+            'rootUnion': terminal_carryovers['rootUnion'],
+        },
         'generation': {
             'window': {'path': str(generation['windowPath']),
                        'sha256': generation['windowSha256']},
@@ -960,11 +1089,8 @@ def issue(options):
         'build': build,
     }
     issuer_fact_sha = helper.exclusive_json(issuer_identity / 'owner.json', issuer_fact)
-    roots = list(generation['roots'])
+    roots = list(terminal_carryovers['roots'])
     roots.extend((
-        helper.current_root(generation['seed']['directory'], 'seed.json'),
-        helper.current_root(generation['seed']['fixture'], 'capacity-owner.json'),
-        *carryover['roots'],
         helper.current_root(parent, 'owner.json'),
         helper.current_root(issuer_identity, 'owner.json'),
     ))
@@ -981,7 +1107,7 @@ def issue(options):
         'roots': list(root_map.values()), 'futureRoots': [str(output)],
     }
     owned_sha = helper.exclusive_json(parent / 'owned-roots.json', owned)
-    planned = 2 * generation['seed']['snapshotBytes'] + 256 * 1024 ** 2
+    planned = module._measure_planned_bytes(generation['seed']['snapshotBytes'])
     preflight = authority_preflight_snapshot(options, runtime, output, planned)
     _FAILURE_CONTEXT['preflight'] = preflight
     try:
@@ -1114,6 +1240,29 @@ def issue(options):
     # 发布前再次复核完整 generation proof、签发器与仓库身份。
     validate_generation_proof(helper, module, options, generation_root, runtime, toolchain)
     validate_measure_carryover(helper, module, options, runtime)
+    refreshed_terminal = validate_terminal_carryovers(
+        helper, module, options, runtime, generation, carryover)
+    if refreshed_terminal != terminal_carryovers:
+        fail('MEASURE_TERMINAL_CARRYOVER')
+    try:
+        refreshed_owned = installed_module._validate_owned_manifest(
+            parent / 'owned-roots.json', runtime, window_id, 'objects-limit',
+            planned_bytes=planned, future_path=output, future_state='absent')
+    except Exception as error:
+        raise IssueError('MEASURE_TERMINAL_CARRYOVER') from error
+    stable_owned_keys = ('rootCount', 'plannedBytes', 'manifestSha256',
+                         'rootIdentities', 'futureRoots', 'futureRootIdentities')
+    if any(refreshed_owned.get(key) != owned_result.get(key) for key in stable_owned_keys):
+        fail('MEASURE_TERMINAL_CARRYOVER')
+    refreshed_owned_bytes = refreshed_owned.get('ownedBytes')
+    refreshed_available_bytes = refreshed_owned.get('availableBytes')
+    if refreshed_owned.get('valid') is not True \
+            or type(refreshed_owned_bytes) is not int or refreshed_owned_bytes < 0 \
+            or refreshed_owned_bytes > installed_module._MEASURE_LIMITS['maximumOwnedBytes'] \
+            or type(refreshed_available_bytes) is not int \
+            or refreshed_available_bytes - planned \
+            < installed_module._MEASURE_LIMITS['minimumFreeBytes']:
+        fail('MEASURE_TERMINAL_CARRYOVER')
     same_regular_file(helper, issuer_path, options.expected_issuer_sha256, 'ISSUER_IDENTITY')
     same_regular_file(helper, supervisor_path, options.expected_supervisor_sha256,
                       'SUPERVISOR_IDENTITY')

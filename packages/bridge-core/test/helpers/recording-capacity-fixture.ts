@@ -178,7 +178,10 @@ export function assertCapacitySpace(value: { availableBytes: number; plannedByte
 export function capacityDirectoryBytes(directory: string): number {
   const info = lstatSync(directory);
   if (info.isSymbolicLink()) throw new Error('容量目录不能含符号链接');
-  if (info.isFile()) return info.size;
+  if (info.isFile()) {
+    if (info.nlink !== 1) throw new Error('容量目录不能含硬链接文件');
+    return info.size;
+  }
   if (!info.isDirectory()) throw new Error('容量目录包含非普通文件');
   return readdirSync(directory).reduce((total, name) => total + capacityDirectoryBytes(path.join(directory, name)), 0);
 }
@@ -186,6 +189,13 @@ export function checkCapacitySpace(directory: string, plannedBytes: number, owne
   const space = statfsSync(directory, { bigint: true });
   const availableBytes = Number(space.bavail * space.bsize);
   assertCapacitySpace({ availableBytes, plannedBytes, ownedBytes }); return { availableBytes, plannedBytes, ownedBytes };
+}
+/** measure 的三个 group 严格串行；任一时刻最多保留一个完整 clone，并预留256MiB写增长。 */
+export function capacityMeasureWorkingBytes(snapshotBytes: number): number {
+  const planned = snapshotBytes + 256 * 1024 ** 2;
+  if (!Number.isSafeInteger(snapshotBytes) || snapshotBytes <= 0 || !Number.isSafeInteger(planned)
+    || planned > 16 * 1024 ** 3) throw new Error('容量measure写入计划无效');
+  return planned;
 }
 /** 分块hash，避免大SQLite整文件进入Node堆；绑定同一只读普通inode。 */
 export function hashCapacityFile(file: string): string {
@@ -236,9 +246,19 @@ function durableJson(file: string, value: unknown): void {
 export interface CapacityClone {
   parent: string; label: string; directory: string; filePath: string; marker: { id: string; scope: string; label: string };
   device: number; inode: number; parentDevice: number; parentInode: number;
+  aggregateGuard?: CapacityMeasureAggregateGuard;
 }
 export type CapacityMeasureGroup = 'progress' | 'stop' | 'read';
 export type CapacityMeasurePhase = 'copy' | 'open-audit' | 'operation' | 'round-fsync' | 'final-hash' | 'cleanup';
+export interface CapacityMeasureAggregateCheck {
+  group?: CapacityMeasureGroup; checkpoint: string; plannedBytes?: number;
+}
+export interface CapacityMeasureAggregateGuard {
+  readonly parent: string; readonly snapshotBytes: number; readonly limitBytes: number; readonly stopped: boolean;
+  check(input: CapacityMeasureAggregateCheck): {
+    sequence: number; outputBytesBefore: number; outputBytesAfter: number; plannedBytes: number; limitBytes: number;
+  };
+}
 export interface CapacityMeasureSample extends CapacitySample {
   metric: string; warmup: boolean; details: unknown;
 }
@@ -256,6 +276,57 @@ export function capacityMeasurePlan() {
   return { groups: ['progress', 'stop', 'read'] as CapacityMeasureGroup[], progressRounds: 105, stopRounds: 105,
     readOperations: 8, readRoundsPerOperation: 105, stopMetricsPerRound: 6,
     totalSamples: 1575, warmupPerSeries: 5, formalPerSeries: 100 };
+}
+
+/**
+ * measure 的 S+256MiB 是 output 全树的逻辑字节硬上限，不只是磁盘余量预测。
+ * 每次成功检查先持久化审计行；一旦越界或出现第二个clone，本guard不再写入，重复调用稳定停止并保留现场。
+ */
+export function createCapacityMeasureAggregateGuard(parent: string, snapshotBytes: number): CapacityMeasureAggregateGuard {
+  if (!path.isAbsolute(parent) || realpathSync(parent) !== parent) throw new Error('容量measure aggregate目录身份无效');
+  const limitBytes = capacityMeasureWorkingBytes(snapshotBytes), parentInfo = lstatSync(parent);
+  let sequence = 0, terminal: Error | undefined;
+  const stop = (): never => {
+    terminal ??= new Error('容量measure output aggregate预算超限或单clone约束失效，保留证据并停止');
+    throw terminal;
+  };
+  const check = (input: CapacityMeasureAggregateCheck) => {
+    if (terminal) throw terminal;
+    const plannedBytes = input.plannedBytes ?? 0;
+    if (!/^[a-z0-9][a-z0-9:-]{0,95}$/u.test(input.checkpoint) || !Number.isSafeInteger(plannedBytes) || plannedBytes < 0) return stop();
+    let canonical: string;
+    try { canonical = realpathSync(parent); } catch { return stop(); }
+    const currentInfo = lstatSync(parent);
+    if (canonical !== parent || !currentInfo.isDirectory() || currentInfo.isSymbolicLink()
+      || currentInfo.dev !== parentInfo.dev || currentInfo.ino !== parentInfo.ino) return stop();
+    let activeClones: string[], outputBytesBefore: number;
+    try {
+      activeClones = readdirSync(parent).filter(name => /^group-(progress|stop|read)$/u.test(name)).filter(name => {
+        const info = lstatSync(path.join(parent, name));
+        if (!info.isDirectory() || info.isSymbolicLink()) return stop();
+        return true;
+      });
+      outputBytesBefore = capacityDirectoryBytes(parent);
+    } catch { return stop(); }
+    if (activeClones.length > 1 || input.group && activeClones.length === 1 && activeClones[0] !== `group-${input.group}`) return stop();
+    if (outputBytesBefore > limitBytes || plannedBytes > limitBytes - outputBytesBefore) return stop();
+    const row = { schemaVersion: 1, scope: 'musicbridge-capacity-measure-aggregate-budget', sequence: sequence + 1,
+      checkpoint: input.checkpoint, group: input.group ?? null, activeClone: activeClones[0] ?? null,
+      snapshotBytes, limitBytes, outputBytesBefore, plannedBytes, recordedAt: new Date().toISOString() };
+    const line = JSON.stringify(row) + '\n', auditBytes = Buffer.byteLength(line);
+    if (auditBytes > limitBytes - outputBytesBefore - plannedBytes) return stop();
+    const file = path.join(parent, 'measure-aggregate-budget.jsonl');
+    const fd = openSync(file, constants.O_CREAT | constants.O_APPEND | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
+    try { writeFileSync(fd, line); fsyncSync(fd); } finally { closeSync(fd); }
+    const directory = openSync(parent, constants.O_RDONLY | constants.O_NOFOLLOW);
+    try { fsyncSync(directory); } finally { closeSync(directory); }
+    let outputBytesAfter: number;
+    try { outputBytesAfter = capacityDirectoryBytes(parent); } catch { return stop(); }
+    if (outputBytesAfter > limitBytes || plannedBytes > limitBytes - outputBytesAfter) return stop();
+    sequence += 1;
+    return { sequence, outputBytesBefore, outputBytesAfter, plannedBytes, limitBytes };
+  };
+  return { parent, snapshotBytes, limitBytes, get stopped() { return terminal !== undefined; }, check };
 }
 
 /**
@@ -369,16 +440,21 @@ export async function prepareCapacityStopPlans(repository: CollectionRepository,
     await plans.close(); await archive.close(); await execution.close(); await preparation.close(); await versions.close(); await sources.close();
   }
 }
-export function appendCapacityMeasureStage(parent: string, group: CapacityMeasureGroup, phase: CapacityMeasurePhase, details: unknown): void {
+export function appendCapacityMeasureStage(parent: string, group: CapacityMeasureGroup, phase: CapacityMeasurePhase, details: unknown,
+  aggregateGuard?: CapacityMeasureAggregateGuard): void {
   if (realpathSync(parent) !== parent) throw new Error('容量measure阶段目录身份无效');
   const file = path.join(parent, 'measure-stages.jsonl');
+  const line = JSON.stringify({ schemaVersion: 1, scope: 'musicbridge-capacity-measure-stage', group, phase,
+    recordedAt: new Date().toISOString(), details }) + '\n';
+  // 写前同时为写后审计预留固定空间；checkpoint/details都有界，审计行不会超过1KiB。
+  aggregateGuard?.check({ group, checkpoint: `stage-${phase}-before-write`, plannedBytes: Buffer.byteLength(line) + 1024 });
   const fd = openSync(file, constants.O_CREAT | constants.O_APPEND | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
   try {
-    writeFileSync(fd, JSON.stringify({ schemaVersion: 1, scope: 'musicbridge-capacity-measure-stage', group, phase,
-      recordedAt: new Date().toISOString(), details }) + '\n');
+    writeFileSync(fd, line);
     fsyncSync(fd);
   } finally { closeSync(fd); }
   const directory = openSync(parent, constants.O_RDONLY); try { fsyncSync(directory); } finally { closeSync(directory); }
+  aggregateGuard?.check({ group, checkpoint: `stage-${phase}-after-write` });
 }
 export async function runCapacityStopRounds(
   clone: CapacityClone, rounds: number, execute: (roundIndex: number) => Promise<CapacityStopRoundResult>,
@@ -386,7 +462,7 @@ export async function runCapacityStopRounds(
 ): Promise<CapacityStopRoundReceipt[]> {
   if (!Number.isSafeInteger(rounds) || rounds < 1 || rounds > 105) throw new Error('Stop round数量无效');
   const receipts: CapacityStopRoundReceipt[] = [], attempts = new Set<string>(), commands = new Set<string>();
-  appendCapacityMeasureStage(clone.parent, 'stop', 'operation', { rounds });
+  appendCapacityMeasureStage(clone.parent, 'stop', 'operation', { rounds }, clone.aggregateGuard);
   try {
     for (let roundIndex = 1; roundIndex <= rounds; roundIndex += 1) {
       const result = await execute(roundIndex);
@@ -402,29 +478,49 @@ export async function runCapacityStopRounds(
       attempts.add(result.attemptId); commands.add(result.commandId);
       const receipt: CapacityStopRoundReceipt = { schemaVersion: 1, scope: 'musicbridge-capacity-measure-stop-round',
         group: 'stop', groupMarker: clone.marker, roundIndex, ...result, sampleCount: 6, recordedAt: new Date().toISOString() };
-      durableJson(path.join(clone.parent, `${clone.label}.round-${String(roundIndex).padStart(3, '0')}.receipt.json`), receipt);
+      const receiptFile = path.join(clone.parent, `${clone.label}.round-${String(roundIndex).padStart(3, '0')}.receipt.json`);
+      const receiptBytes = Buffer.byteLength(JSON.stringify(receipt, null, 2) + '\n');
+      clone.aggregateGuard?.check({ group: 'stop', checkpoint: 'stop-round-receipt-before-write', plannedBytes: receiptBytes + 1024 });
+      durableJson(receiptFile, receipt);
+      clone.aggregateGuard?.check({ group: 'stop', checkpoint: 'stop-round-receipt-after-write' });
       receipts.push(receipt);
       await onDurableReceipt?.(receipt);
     }
   } finally {
     appendCapacityMeasureStage(clone.parent, 'stop', 'round-fsync', { requestedRounds: rounds, completedRounds: receipts.length,
-      lastReceipt: receipts.length ? `${clone.label}.round-${String(receipts.length).padStart(3, '0')}.receipt.json` : null });
+      lastReceipt: receipts.length ? `${clone.label}.round-${String(receipts.length).padStart(3, '0')}.receipt.json` : null }, clone.aggregateGuard);
   }
   return receipts;
 }
-export function createCapacityClone(parent: string, label: string, seed: string): CapacityClone {
+export function createCapacityClone(parent: string, label: string, seed: string, plannedBytes?: number,
+  aggregateGuard?: CapacityMeasureAggregateGuard): CapacityClone {
   if (realpathSync(parent) !== parent || !/^[a-z0-9-]{1,64}$/u.test(label)) throw new Error('容量clone父目录或label无效');
   const info = lstatSync(seed); if (!info.isFile() || info.isSymbolicLink() || info.nlink !== 1) throw new Error('种子不是独占普通文件');
-  checkCapacitySpace(parent, info.size * 3 + 64 * 1024 ** 2);
-  const directory = path.join(parent, label); mkdirSync(directory);
+  checkCapacitySpace(parent, plannedBytes ?? info.size * 3 + 64 * 1024 ** 2);
+  const group = /^group-(progress|stop|read)$/u.exec(label)?.[1] as CapacityMeasureGroup | undefined;
+  if (aggregateGuard && (!group || aggregateGuard.parent !== parent || aggregateGuard.snapshotBytes !== info.size
+    || plannedBytes !== aggregateGuard.limitBytes)) throw new Error('容量measure aggregate clone参数无效');
   const marker = { id: randomUUID(), scope: 'musicbridge-capacity-clone-only', label };
+  aggregateGuard?.check({ group: group!, checkpoint: 'clone-before-write',
+    plannedBytes: info.size + Buffer.byteLength(JSON.stringify(marker, null, 2) + '\n') + 1024 });
+  const directory = path.join(parent, label); mkdirSync(directory);
   durableJson(path.join(directory, 'owner.json'), marker);
   const filePath = path.join(directory, 'sample.sqlite'); copyFileSync(seed, filePath, constants.COPYFILE_EXCL | constants.COPYFILE_FICLONE);
   const stat = lstatSync(directory), parentStat = lstatSync(parent);
-  return { parent, label, directory, filePath, marker, device: stat.dev, inode: stat.ino, parentDevice: parentStat.dev, parentInode: parentStat.ino };
+  aggregateGuard?.check({ group: group!, checkpoint: 'clone-after-write' });
+  return { parent, label, directory, filePath, marker, device: stat.dev, inode: stat.ino, parentDevice: parentStat.dev,
+    parentInode: parentStat.ino, ...(aggregateGuard ? { aggregateGuard } : {}) };
 }
 export function finishCapacityClone(clone: CapacityClone, result: { outcome: CapacitySample['outcome']; resourcesClosed: boolean; samples: unknown;
   ownedWorkspace?: CapacityStopWorkspace; onPhase?: (phase: 'final-hash' | 'cleanup', details: unknown) => void }): string {
+  const group = /^group-(progress|stop|read)$/u.exec(clone.label)?.[1] as CapacityMeasureGroup | undefined;
+  if (clone.aggregateGuard && !group) throw new Error('容量measure aggregate clone身份无效');
+  const durableAggregateJson = (file: string, value: unknown, checkpoint: string) => {
+    const bytes = Buffer.byteLength(JSON.stringify(value, null, 2) + '\n');
+    clone.aggregateGuard?.check({ group: group!, checkpoint: `${checkpoint}-before-write`, plannedBytes: bytes + 1024 });
+    durableJson(file, value);
+    clone.aggregateGuard?.check({ group: group!, checkpoint: `${checkpoint}-after-write` });
+  };
   const check = () => {
     if (!result.resourcesClosed || realpathSync(clone.parent) !== clone.parent || realpathSync(clone.directory) !== clone.directory || path.dirname(clone.directory) !== clone.parent || path.basename(clone.directory) !== clone.label) throw new Error('容量clone未关闭或路径身份变化');
     const info = lstatSync(clone.directory), parentInfo = lstatSync(clone.parent);
@@ -442,14 +538,15 @@ export function finishCapacityClone(clone: CapacityClone, result: { outcome: Cap
   check();
   const workspaceTree = result.ownedWorkspace ? checkCapacityStopWorkspace(result.ownedWorkspace, clone) : null;
   const workspaceReceipt = workspaceTree ? path.join(clone.parent, `${clone.label}.workspace.receipt.json`) : null;
-  if (workspaceReceipt) durableJson(workspaceReceipt, { schemaVersion: 1, scope: 'musicbridge-capacity-stop-workspace-tree',
-    groupMarker: clone.marker, workspace: workspaceTree, recordedAt: new Date().toISOString() });
+  if (workspaceReceipt) durableAggregateJson(workspaceReceipt, { schemaVersion: 1, scope: 'musicbridge-capacity-stop-workspace-tree',
+    groupMarker: clone.marker, workspace: workspaceTree, recordedAt: new Date().toISOString() }, 'workspace-receipt');
   const receipt = path.join(clone.parent, `${clone.label}.receipt.json`);
   const sqliteSha256 = hashCapacityFile(clone.filePath), retained = result.outcome !== 'ok';
   const { onPhase, ownedWorkspace: _ownedWorkspace, ...receiptResult } = result;
-  durableJson(receipt, { ...receiptResult, marker: clone.marker, sqliteSha256, retained,
+  const receiptValue = { ...receiptResult, marker: clone.marker, sqliteSha256, retained,
     workspaceReceipt: workspaceReceipt ? path.basename(workspaceReceipt) : null,
-    workspaceTreeSha256: workspaceTree?.treeSha256 ?? null });
+    workspaceTreeSha256: workspaceTree?.treeSha256 ?? null };
+  durableAggregateJson(receipt, receiptValue, 'group-receipt');
   onPhase?.('final-hash', { receipt: path.basename(receipt), sqliteSha256, retained,
     workspaceReceipt: workspaceReceipt ? path.basename(workspaceReceipt) : null, workspaceTreeSha256: workspaceTree?.treeSha256 ?? null });
   if (result.outcome === 'ok') {
@@ -460,6 +557,7 @@ export function finishCapacityClone(clone: CapacityClone, result: { outcome: Cap
     onPhase?.('cleanup', { receipt: path.basename(receipt), retained: false, action: 'delete-after-stage' });
     // group可包含自建workspace；只有最终receipt与cleanup阶段都持久化后才整体递归删除。
     rmSync(clone.directory, { recursive: true });
+    clone.aggregateGuard?.check({ group: group!, checkpoint: 'clone-after-cleanup' });
   } else onPhase?.('cleanup', { receipt: path.basename(receipt), retained: true, action: 'retain' });
   return receipt;
 }

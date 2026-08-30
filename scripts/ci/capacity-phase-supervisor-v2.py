@@ -233,12 +233,23 @@ _MEASURE_THRESHOLDS = {
     'emptyPoll': {'max': 50}, 'pdf': {'max': 1000, 'p95': 250}, 'photo': {'max': 1000, 'p95': 250}}
 _MEASURE_REQUIRED_FILES = ('command.json', 'measurement.json', 'samples.jsonl', 'source-before.json',
                            'source-after.json', 'fixture-before.json', 'fixture-after.json',
-                           'end-budget.json', 'summary.json', 'exit.json', 'measure-stages.jsonl')
+                           'end-budget.json', 'summary.json', 'exit.json', 'measure-stages.jsonl',
+                           'measure-aggregate-budget.jsonl')
 _STOP_WORKSPACE_RECEIPT = 'group-stop.workspace.receipt.json'
 _MEASURE_GROUPS = ('progress', 'stop', 'read')
 _STOP_METRICS = ('signalAborted', 'driverStopInvoked', 'driverStopAck',
                  'driverCloseInvoked', 'driverCloseResolved', 'receiptSettled')
 _STAGE_PHASES = ('copy', 'open-audit', 'operation', 'round-fsync', 'final-hash', 'cleanup')
+
+
+def _measure_planned_bytes(snapshot_bytes):
+    """三个 measure group 严格串行：峰值只允许一个完整 clone 加固定增长余量。"""
+    if type(snapshot_bytes) is not int or snapshot_bytes <= 0:
+        raise ValueError('OWNED_SPACE')
+    planned = snapshot_bytes + 256 * 1024 ** 2
+    if planned > 16 * 1024 ** 3:
+        raise ValueError('OWNED_SPACE')
+    return planned
 _LEGACY_CARRYOVER_EVIDENCE = {
     'format': 'legacy-107-clone-partial-v1',
     'windowId': '1bcbe626-0ad2-401b-9140-7dbcf67cdce3',
@@ -441,10 +452,11 @@ def _validate_owned_manifest(manifest_path, runtime, window_id, profile, planned
     except ValueError as error: raise ValueError('OWNED_MANIFEST') from error
     manifest_keys = {'schemaVersion', 'scope', 'access', 'windowId', 'roots'}
     if future_path is not None: manifest_keys.add('futureRoots')
+    maximum_roots = 70 if future_path is not None else 68
     if not isinstance(manifest, dict) or set(manifest) != manifest_keys \
             or manifest.get('schemaVersion') != 1 or manifest.get('scope') != 'musicbridge-capacity-owned-roots' \
             or manifest.get('access') != 'count-only' or manifest.get('windowId') != window_id \
-            or not isinstance(manifest.get('roots'), list) or not 1 <= len(manifest['roots']) <= 68:
+            or not isinstance(manifest.get('roots'), list) or not 1 <= len(manifest['roots']) <= maximum_roots:
         raise ValueError('OWNED_MANIFEST')
     runtime = Path(runtime).resolve(strict=True); temp_root = Path(tempfile.gettempdir()).resolve(strict=True)
     future_roots = []; future_identities = {}
@@ -500,6 +512,7 @@ def _validate_owned_manifest(manifest_path, runtime, window_id, profile, planned
         if total > 16 * 1024 ** 3: raise ValueError('OWNED_SPACE')
     if future_path is not None and future_state == 'present':
         value, count = _directory_bytes(Path(future_path)); total += value; entries += count
+        if planned_bytes is not None and value > planned_bytes: raise ValueError('OWNED_SPACE')
         if total > 16 * 1024 ** 3: raise ValueError('OWNED_SPACE')
     planned = _planned_generation_bytes(profile) if planned_bytes is None else planned_bytes
     if type(planned) is not int or planned < 0 or planned > 16 * 1024 ** 3:
@@ -621,7 +634,7 @@ def _validate_measure_authority_once(parent, runtime, repo_root, window_sha256, 
         raise ValueError('AUTHORITY_INVALID')
     seed = _validate_measure_seed(runtime, window)
     source = _validate_source_manifest(source_path, repo_root)
-    planned = 2 * seed['snapshotBytes'] + 256 * 1024 ** 2
+    planned = _measure_planned_bytes(seed['snapshotBytes'])
     output = runtime / window['label']
     owned = _validate_owned_manifest(
         owned_path, runtime, window['id'], window['profile'], planned_bytes=planned,
@@ -940,6 +953,481 @@ def _legacy_same_lstat(file, before):
     keys = ('st_dev', 'st_ino', 'st_mode', 'st_nlink', 'st_size', 'st_mtime_ns', 'st_ctime_ns')
     if any(getattr(before, key) != getattr(after, key) for key in keys):
         raise ValueError('MEASURE_CARRYOVER')
+
+
+def _frozen_identity_matches(expected, observed):
+    required = {'device', 'inode', 'size', 'sha256'}
+    allowed = required | {'mtimeNs', 'ctimeNs'}
+    return isinstance(expected, dict) and required <= set(expected) <= allowed \
+        and all(expected[key] == observed.get(key) for key in expected)
+
+
+def _validate_frozen_owned_roots(manifest_path, runtime, expected_sha256, window_id,
+                                 future_path, future_state, error_code):
+    """复核冻结owned manifest的目录/marker identity；不读取根内大型文件。"""
+    try:
+        runtime = Path(runtime).resolve(strict=True)
+        supplied_manifest = Path(manifest_path)
+        canonical_manifest = supplied_manifest.resolve(strict=True)
+        manifest, manifest_identity = _strict_json(canonical_manifest)
+    except (OSError, ValueError) as error:
+        raise ValueError(error_code) from error
+    if not supplied_manifest.is_absolute() or supplied_manifest != canonical_manifest \
+            or canonical_manifest.name != 'owned-roots.json' \
+            or _SHA256.fullmatch(str(expected_sha256 or '')) is None \
+            or manifest_identity['sha256'] != expected_sha256 \
+            or not isinstance(manifest, dict) \
+            or set(manifest) != {'schemaVersion', 'scope', 'access', 'windowId', 'roots', 'futureRoots'} \
+            or manifest.get('schemaVersion') != 1 \
+            or manifest.get('scope') != 'musicbridge-capacity-owned-roots' \
+            or manifest.get('access') != 'count-only' or manifest.get('windowId') != window_id \
+            or not isinstance(manifest.get('roots'), list) or not 1 <= len(manifest['roots']) <= 70:
+        raise ValueError(error_code)
+    future = Path(future_path)
+    if future_state not in {'absent', 'present'} or not future.is_absolute() \
+            or future.parent != runtime or _SAFE.fullmatch(future.name) is None \
+            or manifest.get('futureRoots') != [str(future)]:
+        raise ValueError(error_code)
+    if future_state == 'absent':
+        if future.exists() or future.is_symlink(): raise ValueError(error_code)
+    else:
+        try: future_info = future.lstat(); canonical_future = future.resolve(strict=True)
+        except OSError as error: raise ValueError(error_code) from error
+        if future.is_symlink() or canonical_future != future or not stat.S_ISDIR(future_info.st_mode):
+            raise ValueError(error_code)
+
+    temp_roots = {Path(tempfile.gettempdir()).resolve(strict=True), Path('/tmp').resolve(strict=True)}
+    rows = []; seen = set()
+    for declared in manifest['roots']:
+        if not isinstance(declared, dict) or set(declared) != {'path', 'device', 'inode', 'marker'} \
+                or type(declared.get('device')) is not int or type(declared.get('inode')) is not int \
+                or not isinstance(declared.get('path'), str):
+            raise ValueError(error_code)
+        path = Path(declared['path']); marker = declared.get('marker')
+        try: info = path.lstat(); canonical = path.resolve(strict=True)
+        except OSError as error: raise ValueError(error_code) from error
+        if not path.is_absolute() or path.is_symlink() or canonical != path \
+                or not stat.S_ISDIR(info.st_mode) or str(path) in seen \
+                or info.st_dev != declared['device'] or info.st_ino != declared['inode'] \
+                or not isinstance(marker, dict) or set(marker) != {'relative', 'sha256'} \
+                or marker.get('relative') not in _MARKERS \
+                or _SHA256.fullmatch(str(marker.get('sha256', ''))) is None:
+            raise ValueError(error_code)
+        in_runtime = _inside(runtime, path) and path != runtime
+        fixture = path.parent in temp_roots and re.fullmatch(r'musicbridge-version-[A-Za-z0-9]+', path.name)
+        app_clone = path.parent == Path(tempfile.gettempdir()).resolve(strict=True) \
+            and re.fullmatch(r'musicbridge-ui-diagnostics-r021-[A-Za-z0-9]{6}', path.name)
+        if not in_runtime and not (fixture and marker['relative'] == 'capacity-owner.json') \
+                and not (app_clone and marker['relative'] == 'r020-owner.json'):
+            raise ValueError(error_code)
+        try: marker_identity = _strict_identity(path / marker['relative'], 8 * 1024 * 1024)
+        except ValueError as error: raise ValueError(error_code) from error
+        if marker_identity['sha256'] != marker['sha256']: raise ValueError(error_code)
+        seen.add(str(path))
+        rows.append({'path': str(path), 'device': info.st_dev, 'inode': info.st_ino,
+                     'marker': {'relative': marker['relative'], 'sha256': marker_identity['sha256']}})
+    try: current_manifest = _strict_identity(canonical_manifest, 8 * 1024 * 1024)
+    except ValueError as error: raise ValueError(error_code) from error
+    if current_manifest != manifest_identity \
+            or future_state == 'absent' and (future.exists() or future.is_symlink()):
+        raise ValueError(error_code)
+    return {'roots': rows, 'manifestIdentity': manifest_identity, 'future': future}
+
+
+def _validate_measure_issuer_failure_carryover(parent, runtime, expected_owned_sha256,
+                                               expected_failure_sha256, expected_window_id,
+                                               expected_dir_name, expected_label):
+    """验证未发布window03的终态issuer失败目录，保留其完整owned identity闭包。"""
+    error_code = 'MEASURE_ISSUER_FAILURE_CARRYOVER'
+    supplied_parent = Path(parent); supplied_runtime = Path(runtime)
+    try: parent = supplied_parent.resolve(strict=True); runtime = supplied_runtime.resolve(strict=True)
+    except OSError as error: raise ValueError(error_code) from error
+    if not supplied_parent.is_absolute() or supplied_parent != parent \
+            or not supplied_runtime.is_absolute() or supplied_runtime != runtime \
+            or parent.parent != runtime or parent.name != expected_dir_name \
+            or _SAFE.fullmatch(str(expected_dir_name or '')) is None \
+            or _SAFE.fullmatch(str(expected_label or '')) is None or not _uuid4(expected_window_id) \
+            or _SHA256.fullmatch(str(expected_failure_sha256 or '')) is None:
+        raise ValueError(error_code)
+    try:
+        parent_info = parent.lstat()
+        owner, _ = _strict_json(parent / 'owner.json')
+        failure, failure_identity = _strict_json(parent / 'issuer-failure.json')
+        _strict_identity(parent / 'supervisor.py', 8 * 1024 * 1024)
+        _strict_json(parent / 'issuer-identity' / 'owner.json')
+        _strict_json(parent / 'source-pins.json')
+    except (OSError, ValueError) as error:
+        raise ValueError(error_code) from error
+    created = ['owner.json', 'supervisor.py', 'issuer-identity/owner.json',
+               'source-pins.json', 'owned-roots.json']
+    try: recorded = datetime.datetime.fromisoformat(failure.get('recordedAt'))
+    except (AttributeError, TypeError, ValueError): recorded = None
+    if parent.is_symlink() or not stat.S_ISDIR(parent_info.st_mode) \
+            or owner != {'scope': 'musicbridge-capacity-measure-window', 'owner': 'root', 'id': expected_window_id} \
+            or failure_identity['sha256'] != expected_failure_sha256 \
+            or not isinstance(failure, dict) \
+            or set(failure) != {'schemaVersion', 'scope', 'state', 'windowId', 'windowDirName',
+                                'label', 'errorCode', 'authorityFilesCreated', 'windowWritten',
+                                'replayAllowed', 'recordedAt'} \
+            or failure.get('schemaVersion') != 1 \
+            or failure.get('scope') != 'musicbridge-capacity-measure-authority-issuer-failure' \
+            or failure.get('state') != 'TERMINAL_ISSUER_FAILURE' \
+            or failure.get('windowId') != expected_window_id \
+            or failure.get('windowDirName') != expected_dir_name or failure.get('label') != expected_label \
+            or failure.get('errorCode') != 'AUTHORITY_PREFLIGHT' \
+            or failure.get('authorityFilesCreated') != created \
+            or failure.get('windowWritten') is not False or failure.get('replayAllowed') is not False \
+            or recorded is None or recorded.utcoffset() is None \
+            or (parent / 'window.json').exists() or (parent / 'window.json').is_symlink() \
+            or (parent / 'window.pending.json').exists() or (parent / 'window.pending.json').is_symlink():
+        raise ValueError(error_code)
+    frozen = _validate_frozen_owned_roots(
+        parent / 'owned-roots.json', runtime, expected_owned_sha256, expected_window_id,
+        runtime / expected_label, 'absent', error_code)
+    observed_paths = {row['path'] for row in frozen['roots']}
+    if str(parent) not in observed_paths or str(parent / 'issuer-identity') not in observed_paths:
+        raise ValueError(error_code)
+    try: current_failure = _strict_identity(parent / 'issuer-failure.json', 8 * 1024 * 1024)
+    except ValueError as error: raise ValueError(error_code) from error
+    if current_failure != failure_identity: raise ValueError(error_code)
+    return {'valid': True,
+            'terminal': {'windowId': expected_window_id, 'windowDirName': expected_dir_name,
+                         'label': expected_label, 'state': 'TERMINAL_ISSUER_FAILURE',
+                         'errorCode': 'AUTHORITY_PREFLIGHT', 'windowWritten': False,
+                         'replayAllowed': False, 'failureSha256': expected_failure_sha256,
+                         'ownedManifestSha256': expected_owned_sha256},
+            'roots': frozen['roots']}
+
+
+def _stable_sqlite_lstat(file, error_code):
+    try: info = os.lstat(file)
+    except OSError as error: raise ValueError(error_code) from error
+    if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size <= 0:
+        raise ValueError(error_code)
+    return info
+
+
+def _same_sqlite_lstat(file, before, error_code):
+    try: after = os.lstat(file)
+    except OSError as error: raise ValueError(error_code) from error
+    keys = ('st_dev', 'st_ino', 'st_mode', 'st_nlink', 'st_size', 'st_mtime_ns', 'st_ctime_ns')
+    if any(getattr(before, key) != getattr(after, key) for key in keys): raise ValueError(error_code)
+
+
+def _validate_measure_v2_terminal_carryover(window_path, close_path, output, runtime,
+                                            expected_owned_sha256, expected_window_sha256,
+                                            expected_close_sha256, expected_command_sha256,
+                                            expected_window_id, expected_label):
+    """验证window04 v2终态partial；retained SQLite仅做stable lstat/size。"""
+    error_code = 'MEASURE_V2_TERMINAL_CARRYOVER'
+    supplied = (Path(window_path), Path(close_path), Path(output), Path(runtime))
+    try:
+        window_path, close_path, output, runtime = (path.resolve(strict=True) for path in supplied)
+    except OSError as error:
+        raise ValueError(error_code) from error
+    expected_hashes = (expected_owned_sha256, expected_window_sha256,
+                       expected_close_sha256, expected_command_sha256)
+    if any(not path.is_absolute() or path != canonical for path, canonical in zip(supplied,
+           (window_path, close_path, output, runtime))) \
+            or any(_SHA256.fullmatch(str(value or '')) is None for value in expected_hashes) \
+            or window_path.name != 'window.json' or close_path.name != 'close.json' \
+            or window_path.parent != close_path.parent or window_path.parent.parent != runtime \
+            or output.parent != runtime or output.name != expected_label \
+            or _SAFE.fullmatch(str(expected_label or '')) is None or not _uuid4(expected_window_id):
+        raise ValueError(error_code)
+    parent = window_path.parent
+    try:
+        window, window_identity = _strict_json(window_path)
+        close, close_identity = _strict_json(close_path)
+        command, command_identity = _strict_json(output / 'command.json')
+        owner, _ = _strict_json(parent / 'owner.json')
+    except ValueError as error:
+        raise ValueError(error_code) from error
+    if window_identity['sha256'] != expected_window_sha256 \
+            or close_identity['sha256'] != expected_close_sha256 \
+            or command_identity['sha256'] != expected_command_sha256 \
+            or not isinstance(window, dict) or set(window) != _MEASURE_KEYS \
+            or any(window.get(key) != value for key, value in {
+                'schemaVersion': 1, 'scope': 'musicbridge-capacity-measure-window', 'owner': 'root',
+                'id': expected_window_id, 'state': 'approved', 'phase': 'measure',
+                'profile': 'objects-limit', 'label': expected_label, 'n': 105}.items()) \
+            or window.get('limits') != _MEASURE_LIMITS or window.get('measurePlan') != _MEASURE_PLAN \
+            or owner != {'scope': 'musicbridge-capacity-measure-window', 'owner': 'root', 'id': expected_window_id}:
+        raise ValueError(error_code)
+    try:
+        issued = datetime.datetime.fromisoformat(window['issuedAt'])
+        deadline = datetime.datetime.fromisoformat(window['deadlineAt'])
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError(error_code) from error
+    seed = window.get('seed'); supervisor = window.get('supervisor'); candidate = window.get('candidateRepository')
+    if issued.utcoffset() is None or deadline.utcoffset() is None \
+            or deadline - issued != datetime.timedelta(seconds=900) \
+            or _SAFE.fullmatch(str(window.get('seedLabel', ''))) is None \
+            or not isinstance(seed, dict) or set(seed) != {'metadataSha256', 'snapshotSha256', 'fixtureOwnerSha256'} \
+            or any(_SHA256.fullmatch(str(seed.get(key, ''))) is None for key in seed) \
+            or window.get('ownedManifest') != {'file': 'owned-roots.json', 'sha256': expected_owned_sha256} \
+            or not isinstance(window.get('sourceManifest'), dict) \
+            or window['sourceManifest'].get('file') != 'source-pins.json' \
+            or _SHA256.fullmatch(str(window['sourceManifest'].get('sha256', ''))) is None \
+            or not isinstance(supervisor, dict) or set(supervisor) != {'path', 'sha256'} \
+            or supervisor.get('path') != str(parent / 'supervisor.py') \
+            or _SHA256.fullmatch(str(supervisor.get('sha256', ''))) is None \
+            or not isinstance(candidate, dict) or set(candidate) != {'root', 'branch', 'head'} \
+            or not isinstance(candidate.get('root'), str) or not Path(candidate['root']).is_absolute() \
+            or not isinstance(candidate.get('branch'), str) or not candidate['branch'] \
+            or _GIT_SHA.fullmatch(str(candidate.get('head', ''))) is None:
+        raise ValueError(error_code)
+    if os.path.normpath(candidate['root']) != candidate['root']:
+        raise ValueError(error_code)
+    try:
+        supervisor_identity = _strict_identity(parent / 'supervisor.py', 8 * 1024 * 1024)
+        source_identity = _strict_identity(parent / 'source-pins.json', 8 * 1024 * 1024)
+    except ValueError as error: raise ValueError(error_code) from error
+    if supervisor_identity['sha256'] != supervisor['sha256'] \
+            or source_identity['sha256'] != window['sourceManifest']['sha256']:
+        raise ValueError(error_code)
+
+    frozen = _validate_frozen_owned_roots(
+        parent / 'owned-roots.json', runtime, expected_owned_sha256, expected_window_id,
+        output, 'present', error_code)
+    observed_paths = {row['path'] for row in frozen['roots']}
+    if str(parent) not in observed_paths or str(parent / 'issuer-identity') not in observed_paths:
+        raise ValueError(error_code)
+    authority_admission = close.get('authorityAdmission') if isinstance(close, dict) else None
+    authority_terminal = close.get('authorityTerminal') if isinstance(close, dict) else None
+    measurement = close.get('measurement') if isinstance(close, dict) else None
+    source_sha = window['sourceManifest']['sha256']
+    stable_admission = ('authorityStable', 'windowStable', 'ownerStable', 'sourceManifestStable',
+                        'ownedManifestStable', 'sourcePinsValid', 'ownedRootsValid', 'spaceValid', 'seedValid')
+    if not isinstance(close, dict) or close.get('schemaVersion') != 1 \
+            or close.get('scope') != 'musicbridge-capacity-measure-window-close' \
+            or close.get('windowId') != expected_window_id or close.get('profile') != 'objects-limit' \
+            or close.get('label') != expected_label or close.get('seedLabel') != window['seedLabel'] \
+            or close.get('state') != 'failed' or close.get('failure') != 'AUTHORITY_DRIFT' \
+            or close.get('managedProcessGroup') is not True or close.get('code') != 1 \
+            or close.get('exitSignal') is not None or close.get('signals') != [] \
+            or close.get('groupEmpty') is not True or close.get('zombies') != [] \
+            or close.get('windowSha256') != expected_window_sha256 \
+            or close.get('ownedManifestSha256') != expected_owned_sha256 \
+            or close.get('sourceManifestSha256') != source_sha or close.get('seed') != seed \
+            or close.get('deviceOpened') is not False or close.get('formalReady') is not False \
+            or close.get('gateB') != 'NOT_RUN' \
+            or close.get('replayPolicy') != 'terminal-window-id-and-label-never-reuse' \
+            or not isinstance(authority_admission, dict) \
+            or any(authority_admission.get(key) is not True for key in stable_admission) \
+            or authority_admission.get('windowSha256Observed') != expected_window_sha256 \
+            or authority_admission.get('sourceManifestSha256Observed') != source_sha \
+            or authority_admission.get('ownedManifestSha256Observed') != expected_owned_sha256 \
+            or authority_admission.get('ownedRootCount') != len(frozen['roots']) + 1 \
+            or type(authority_admission.get('plannedBytes')) is not int \
+            or not 0 < authority_admission['plannedBytes'] <= 16 * 1024 ** 3 \
+            or not isinstance(authority_terminal, dict) \
+            or authority_terminal != {'authorityStable': False, 'error': 'AUTHORITY_DRIFT'} \
+            or not isinstance(measurement, dict):
+        raise ValueError(error_code)
+    fixed = ('command.json', 'measurement.json', 'samples.jsonl', 'source-before.json',
+             'source-after.json', 'end-budget.json', 'summary.json', 'exit.json',
+             'measure-stages.jsonl')
+    files = measurement.get('files')
+    if measurement.get('profile') != 'objects-limit' or measurement.get('label') != expected_label \
+            or measurement.get('seedLabel') != window['seedLabel'] \
+            or measurement.get('window') != expected_window_id \
+            or measurement.get('windowSha256') != expected_window_sha256 \
+            or measurement.get('ownedManifestSha256') != expected_owned_sha256 \
+            or measurement.get('sourceManifestSha256') != source_sha \
+            or measurement.get('outputDirectory') != str(output) \
+            or measurement.get('outputDirectoryExists') is not True \
+            or measurement.get('partialExists') is not True or measurement.get('partialPreserved') is not True \
+            or measurement.get('unexpectedEntries') != [] or measurement.get('sampleCount') != 111 \
+            or measurement.get('receiptCount') != 1 or measurement.get('roundReceiptCount') != 1 \
+            or measurement.get('stageCount') != 10 or measurement.get('measurePlan') != _MEASURE_PLAN \
+            or any(measurement.get(key) is not False for key in (
+                'samplesValid', 'receiptsValid', 'roundReceiptsValid', 'stageEvidenceValid',
+                'partialEvidenceValid', 'exitZero', 'summaryComplete', 'thresholdPassed',
+                'authorityStable', 'verifiedComplete', 'verifiedPassed')) \
+            or measurement.get('sourceBeforeEqualsAfter') is not True \
+            or measurement.get('childExitMatchesThreshold') is not True \
+            or measurement.get('commandMatchesWindow') is not True \
+            or measurement.get('measurementMatchesWindow') is not True \
+            or measurement.get('authority') is not None \
+            or measurement.get('authorityError') != 'AUTHORITY_DRIFT' \
+            or not isinstance(files, dict) or set(files) != set(fixed):
+        raise ValueError(error_code)
+    for name in fixed:
+        fact = files.get(name)
+        if not isinstance(fact, dict) or set(fact) != {'exists', 'size', 'sha256'}:
+            raise ValueError(error_code)
+        path = output / name
+        if fact['exists'] is True:
+            try: observed = _strict_identity(path, 8 * 1024 * 1024)
+            except ValueError as error: raise ValueError(error_code) from error
+            if fact['size'] != observed['size'] or fact['sha256'] != observed['sha256']:
+                raise ValueError(error_code)
+        elif fact != {'exists': False, 'size': None, 'sha256': None} \
+                or path.exists() or path.is_symlink():
+            raise ValueError(error_code)
+    present = {name for name in fixed if files[name]['exists'] is True}
+    allowed = present | {'group-progress.receipt.json', 'group-stop.round-001.receipt.json', 'group-stop'}
+    try: output_entries = {item.name for item in output.iterdir()}
+    except OSError as error: raise ValueError(error_code) from error
+    if output_entries != allowed: raise ValueError(error_code)
+
+    def command_option(name):
+        args = command.get('args') if isinstance(command, dict) else None
+        if not isinstance(args, list) or args.count(name) != 1: return None
+        index = args.index(name)
+        return args[index + 1] if index + 1 < len(args) else None
+    if not isinstance(command, dict) or command.get('phase') != 'measure' \
+            or command.get('profile') != 'objects-limit' or command.get('window') != expected_window_id \
+            or command.get('deviceOpened') is not False or command.get('formalReady') is not False \
+            or command.get('gateB') != 'NOT_RUN' or command_option('--phase') != 'measure' \
+            or command_option('--profile') != 'objects-limit' or command_option('--label') != expected_label \
+            or command_option('--seed-label') != window['seedLabel'] \
+            or command_option('--window') != expected_window_id \
+            or command_option('--runtime-root') != str(runtime):
+        raise ValueError(error_code)
+    try:
+        measurement_file, _ = _strict_json(output / 'measurement.json')
+        source_before, _ = _strict_json(output / 'source-before.json')
+        source_after, _ = _strict_json(output / 'source-after.json')
+        exit_receipt, _ = _strict_json(output / 'exit.json')
+    except ValueError as error: raise ValueError(error_code) from error
+    if not isinstance(measurement_file, dict) or measurement_file.get('window') != expected_window_id \
+            or measurement_file.get('profile') != 'objects-limit' \
+            or measurement_file.get('seedLabel') != window['seedLabel'] \
+            or measurement_file.get('seedSha256') != seed['snapshotSha256'] \
+            or measurement_file.get('measurePlan') != _MEASURE_PLAN \
+            or source_before != source_after or exit_receipt != {'exit': 1}:
+        raise ValueError(error_code)
+    try:
+        samples_identity = _strict_identity(output / 'samples.jsonl', 8 * 1024 * 1024)
+        samples = [json.loads(line) for line in (output / 'samples.jsonl').read_text().splitlines() if line]
+        if _strict_identity(output / 'samples.jsonl', 8 * 1024 * 1024) != samples_identity:
+            raise ValueError(error_code)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+        raise ValueError(error_code) from error
+    if len(samples) != 111 \
+            or any(not isinstance(row, dict) or row.get('metric') != 'progress' \
+                   or row.get('outcome') != 'ok' or row.get('warmup') is not (index < 5)
+                   for index, row in enumerate(samples[:105])) \
+            or [row.get('metric') for row in samples[105:] if isinstance(row, dict)] != list(_STOP_METRICS) \
+            or any(row.get('outcome') != 'ok' or row.get('warmup') is not True for row in samples[105:]):
+        raise ValueError(error_code)
+
+    receipts = measurement.get('receiptInventory'); retained_rows = measurement.get('retainedInventory')
+    if not isinstance(receipts, list) or len(receipts) != 1 or not isinstance(receipts[0], dict) \
+            or receipts[0].get('name') != 'group-progress.receipt.json' \
+            or receipts[0].get('outcome') != 'ok' or receipts[0].get('retained') is not False \
+            or receipts[0].get('sampleCount') != 105 \
+            or not isinstance(retained_rows, list) or len(retained_rows) != 1:
+        raise ValueError(error_code)
+    try:
+        progress, progress_identity = _strict_json(output / 'group-progress.receipt.json')
+        round_one, _ = _strict_json(output / 'group-stop.round-001.receipt.json')
+    except ValueError as error: raise ValueError(error_code) from error
+    if not _frozen_identity_matches(receipts[0].get('identity'), progress_identity) \
+            or progress.get('outcome') != 'ok' or progress.get('resourcesClosed') is not True \
+            or progress.get('retained') is not False or progress.get('samples') != samples[:105] \
+            or progress.get('marker') != receipts[0].get('marker') \
+            or round_one.get('schemaVersion') != 1 \
+            or round_one.get('scope') != 'musicbridge-capacity-measure-stop-round' \
+            or round_one.get('group') != 'stop' or round_one.get('roundIndex') != 1 \
+            or round_one.get('sampleCount') != 6 or round_one.get('samples') != samples[105:] \
+            or round_one.get('inProgressBefore') != 0 or round_one.get('inProgressAfter') != 0 \
+            or round_one.get('attemptStatus') != 'aborted' or round_one.get('attemptReason') != 'user-stop' \
+            or round_one.get('coordinatorClosed') is not True or round_one.get('repositoryOpen') is not True:
+        raise ValueError(error_code)
+    retained = Path(retained_rows[0].get('path', ''))
+    try:
+        retained_info = retained.lstat(); canonical_retained = retained.resolve(strict=True)
+        retained_entries = {item.name for item in retained.iterdir()}
+        retained_marker, retained_marker_identity = _strict_json(retained / 'owner.json')
+    except (OSError, ValueError) as error:
+        raise ValueError(error_code) from error
+    if retained != output / 'group-stop' or retained.is_symlink() or canonical_retained != retained \
+            or not stat.S_ISDIR(retained_info.st_mode) or retained_info.st_dev != retained_rows[0].get('device') \
+            or retained_info.st_ino != retained_rows[0].get('inode') \
+            or retained_entries != {'owner.json', 'sample.sqlite'} \
+            or retained_marker != round_one.get('groupMarker') \
+            or not _frozen_identity_matches(retained_rows[0].get('marker'), retained_marker_identity):
+        raise ValueError(error_code)
+    sqlite_before = _stable_sqlite_lstat(retained / 'sample.sqlite', error_code)
+    try: output_bytes, _ = _directory_bytes(output)
+    except (OSError, ValueError) as error: raise ValueError(error_code) from error
+    if output_bytes > authority_admission['plannedBytes']: raise ValueError(error_code)
+
+    try:
+        stages_identity = _strict_identity(output / 'measure-stages.jsonl', 8 * 1024 * 1024)
+        stages = [json.loads(line) for line in (output / 'measure-stages.jsonl').read_text().splitlines() if line]
+        if _strict_identity(output / 'measure-stages.jsonl', 8 * 1024 * 1024) != stages_identity:
+            raise ValueError(error_code)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+        raise ValueError(error_code) from error
+    expected_stages = [('progress', phase) for phase in _STAGE_PHASES] \
+        + [('stop', phase) for phase in _STAGE_PHASES[:4]]
+    if len(stages) != 10 or any(not isinstance(row, dict) for row in stages) \
+            or [(row.get('group'), row.get('phase')) for row in stages] != expected_stages \
+            or stages[-1].get('details') != {'requestedRounds': 105, 'completedRounds': 1,
+                                               'lastReceipt': 'group-stop.round-001.receipt.json'}:
+        raise ValueError(error_code)
+    if measurement.get('roundReceiptInventory') != []: raise ValueError(error_code)
+
+    capture_identities = {}
+    for key, name in (('stdout', 'stdout.log'), ('stderr', 'stderr.log')):
+        fact = close.get(key)
+        expected_path = parent / 'supervision' / name
+        if not isinstance(fact, dict) or fact.get('path') != str(expected_path) \
+                or fact.get('exists') is not True:
+            raise ValueError(error_code)
+        try: observed = _strict_identity(expected_path, 8 * 1024 * 1024)
+        except ValueError as error: raise ValueError(error_code) from error
+        if fact.get('size') != observed['size'] or fact.get('sha256') != observed['sha256']:
+            raise ValueError(error_code)
+        capture_identities[key] = observed
+    try:
+        stdout = (parent / 'supervision' / 'stdout.log').read_text()
+        supervision_identity = _strict_identity(parent / 'supervision' / 'supervisor.json', 8 * 1024 * 1024)
+    except (OSError, UnicodeDecodeError, ValueError) as error:
+        raise ValueError(error_code) from error
+    if "code: 'COPY_UNAVAILABLE'" not in stdout \
+            or close.get('supervisorSha256') != supervision_identity['sha256']:
+        raise ValueError(error_code)
+
+    _same_sqlite_lstat(retained / 'sample.sqlite', sqlite_before, error_code)
+    try:
+        current_window = _strict_identity(window_path, 8 * 1024 * 1024)
+        current_close = _strict_identity(close_path, 8 * 1024 * 1024)
+        current_command = _strict_identity(output / 'command.json', 8 * 1024 * 1024)
+        current_supervisor = _strict_identity(parent / 'supervisor.py', 8 * 1024 * 1024)
+        current_source = _strict_identity(parent / 'source-pins.json', 8 * 1024 * 1024)
+        current_supervision = _strict_identity(parent / 'supervision' / 'supervisor.json', 8 * 1024 * 1024)
+        current_stdout = _strict_identity(parent / 'supervision' / 'stdout.log', 8 * 1024 * 1024)
+        current_stderr = _strict_identity(parent / 'supervision' / 'stderr.log', 8 * 1024 * 1024)
+    except ValueError as error: raise ValueError(error_code) from error
+    if current_window != window_identity or current_close != close_identity \
+            or current_command != command_identity or current_supervisor != supervisor_identity \
+            or current_source != source_identity or current_supervision != supervision_identity \
+            or current_stdout != capture_identities['stdout'] or current_stderr != capture_identities['stderr']:
+        raise ValueError(error_code)
+    output_root = _carryover_root_identity(output, 'command.json')
+    _same_sqlite_lstat(retained / 'sample.sqlite', sqlite_before, error_code)
+    return {'valid': True,
+            'terminal': {'windowId': expected_window_id, 'label': expected_label,
+                         'state': 'failed', 'failure': 'AUTHORITY_DRIFT',
+                         'windowSha256': expected_window_sha256, 'closeSha256': expected_close_sha256,
+                         'groupEmpty': True, 'zombies': [], 'authorityAdmissionStable': True,
+                         'authorityTerminalStable': False, 'replayAllowed': False},
+            'partial': {'outputDirectory': str(output), 'commandSha256': expected_command_sha256,
+                        'benchmarkFailureCode': 'COPY_UNAVAILABLE', 'sampleCount': 111,
+                        'receiptCount': 1, 'roundReceiptCount': 1, 'stageCount': 10,
+                        'partialExists': True, 'partialPreserved': True, 'verifiedPassed': False,
+                        'retainedDirectory': 'group-stop',
+                        'outputBytes': output_bytes,
+                        'retainedSqlite': {'size': sqlite_before.st_size, 'nlink': sqlite_before.st_nlink,
+                                           'contentSha256Verified': False,
+                                           'verification': 'stable-lstat-size-only-no-content-read'},
+                        'unexpectedEntries': []},
+            'roots': frozen['roots'], 'outputRoot': output_root}
 
 
 def _legacy_jsonl(file):
@@ -1357,6 +1845,73 @@ def _retained_workspace_identity(workspace):
         return None
 
 
+def _validate_measure_aggregate_budget(output):
+    """验证新measure output的逐行aggregate预算与最终全树逻辑字节上限。"""
+    invalid = {'valid': False, 'rowCount': 0, 'snapshotBytes': None, 'limitBytes': None,
+               'finalOutputBytes': None, 'fileIdentity': None}
+    supplied = Path(output)
+    try:
+        output = supplied.resolve(strict=True); output_info = supplied.lstat()
+    except OSError:
+        return invalid
+    if not supplied.is_absolute() or supplied != output or supplied.is_symlink() \
+            or not stat.S_ISDIR(output_info.st_mode):
+        return invalid
+    file = output / 'measure-aggregate-budget.jsonl'
+    try:
+        identity = _strict_identity(file, 8 * 1024 * 1024)
+        text = file.read_text()
+        if not text.endswith('\n') or _strict_identity(file, 8 * 1024 * 1024) != identity:
+            return invalid
+        lines = text.splitlines()
+        if not lines or any(not line for line in lines): return invalid
+        rows = [json.loads(line) for line in lines]
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
+        return invalid
+    exact_keys = {'schemaVersion', 'scope', 'sequence', 'checkpoint', 'group', 'activeClone',
+                  'snapshotBytes', 'limitBytes', 'outputBytesBefore', 'plannedBytes', 'recordedAt'}
+    safe_max = 2 ** 53 - 1; groups = set(_MEASURE_GROUPS)
+    snapshot_bytes = None; limit_bytes = None
+    for sequence, row in enumerate(rows, 1):
+        if not isinstance(row, dict) or set(row) != exact_keys \
+                or row.get('schemaVersion') != 1 \
+                or row.get('scope') != 'musicbridge-capacity-measure-aggregate-budget' \
+                or type(row.get('sequence')) is not int or row['sequence'] != sequence \
+                or re.fullmatch(r'[a-z0-9][a-z0-9:-]{0,95}', str(row.get('checkpoint', '')),
+                                re.ASCII) is None:
+            return invalid
+        group = row.get('group'); active_clone = row.get('activeClone')
+        if group is not None and group not in groups \
+                or active_clone is not None and active_clone not in {f'group-{value}' for value in groups} \
+                or group is not None and active_clone is not None and active_clone != f'group-{group}':
+            return invalid
+        for key in ('snapshotBytes', 'limitBytes', 'outputBytesBefore', 'plannedBytes'):
+            if type(row.get(key)) is not int or not 0 <= row[key] <= safe_max:
+                return invalid
+        if row['snapshotBytes'] <= 0 \
+                or row['snapshotBytes'] > safe_max - 256 * 1024 ** 2 \
+                or row['limitBytes'] != row['snapshotBytes'] + 256 * 1024 ** 2 \
+                or row['plannedBytes'] > row['limitBytes'] - row['outputBytesBefore']:
+            return invalid
+        if snapshot_bytes is None:
+            snapshot_bytes = row['snapshotBytes']; limit_bytes = row['limitBytes']
+        elif row['snapshotBytes'] != snapshot_bytes or row['limitBytes'] != limit_bytes:
+            return invalid
+        try: recorded = datetime.datetime.fromisoformat(row['recordedAt'])
+        except (TypeError, ValueError): return invalid
+        if recorded.utcoffset() is None: return invalid
+    try:
+        final_bytes, _ = _directory_bytes(output)
+        final_bytes_again, _ = _directory_bytes(output)
+        current_identity = _strict_identity(file, 8 * 1024 * 1024)
+    except (OSError, ValueError):
+        return invalid
+    if final_bytes != final_bytes_again or final_bytes > limit_bytes or current_identity != identity:
+        return invalid
+    return {'valid': True, 'rowCount': len(rows), 'snapshotBytes': snapshot_bytes,
+            'limitBytes': limit_bytes, 'finalOutputBytes': final_bytes, 'fileIdentity': identity}
+
+
 def _measure_artifacts(runtime, label, expected=None):
     if _SAFE.fullmatch(label) is None: raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
     runtime = Path(runtime).resolve(strict=True); output = runtime / label
@@ -1376,6 +1931,10 @@ def _measure_artifacts(runtime, label, expected=None):
     allowed = set(_MEASURE_REQUIRED_FILES) | set(group_receipt_names) | set(round_receipt_names) \
         | set(workspace_receipt_names) | set(retained_names)
     unexpected = [name for name in entries if name not in allowed]
+    aggregate_budget = _validate_measure_aggregate_budget(output) if output_exists else {
+        'valid': False, 'rowCount': 0, 'snapshotBytes': None, 'limitBytes': None,
+        'finalOutputBytes': None, 'fileIdentity': None}
+    aggregate_budget_valid = aggregate_budget.get('valid') is True
     command = _read_json(output / 'command.json') if output_exists else None
     measurement = _read_json(output / 'measurement.json') if output_exists else None
     before = _read_json(output / 'source-before.json') if output_exists else None
@@ -1602,6 +2161,7 @@ def _measure_artifacts(runtime, label, expected=None):
             'lastReceipt': f'group-stop.round-{len(round_receipt_names):03d}.receipt.json'}
     partial_evidence_valid = output_exists and not receipts_valid and len(group_receipt_names) == 1 \
         and group_receipt_names == ['group-progress.receipt.json'] and retained_names == ['group-stop'] \
+        and aggregate_budget_valid \
         and 0 < len(round_receipt_names) < _MEASURE_PLAN['stopRoundReceiptCount'] \
         and samples_well_formed and len(samples) == 105 + 6 * len(round_receipt_names) \
         and all(row.get('metric') == 'progress' for row in samples[:105]) \
@@ -1662,7 +2222,7 @@ def _measure_artifacts(runtime, label, expected=None):
     exit_consistent = exit_receipt == {'exit': 0 if threshold_passed else 1}
     verified_complete = expected is not None and output_exists and all_required and not unexpected \
         and samples_valid and receipts_valid and workspace_receipt_valid and fixture_tree_valid \
-        and round_receipts_valid and stage_evidence_valid \
+        and round_receipts_valid and stage_evidence_valid and aggregate_budget_valid \
         and command_matches and measurement_matches and summary_complete \
         and exit_valid and end_budget_matches and before is not None and before == after and authority_stable
     verified = verified_complete and threshold_passed and exit_consistent
@@ -1685,6 +2245,12 @@ def _measure_artifacts(runtime, label, expected=None):
         'roundReceiptCount': len(round_receipt_names), 'roundReceiptsValid': round_receipts_valid,
         'roundReceiptInventory': round_inventory, 'stageEvidenceValid': stage_evidence_valid,
         'stageCount': len(stages), 'partialEvidenceValid': partial_evidence_valid,
+        'aggregateBudgetValid': aggregate_budget_valid,
+        'aggregateBudgetRowCount': aggregate_budget.get('rowCount'),
+        'aggregateBudgetSnapshotBytes': aggregate_budget.get('snapshotBytes'),
+        'aggregateBudgetLimitBytes': aggregate_budget.get('limitBytes'),
+        'aggregateOutputBytes': aggregate_budget.get('finalOutputBytes'),
+        'aggregateBudgetIdentity': aggregate_budget.get('fileIdentity'),
         'receiptInventory': receipt_inventory, 'retainedInventory': retained_inventory,
         'exitZero': exit_receipt == {'exit': 0}, 'sourceBeforeEqualsAfter': before is not None and before == after,
         'childExitMatchesThreshold': exit_consistent,
@@ -1829,7 +2395,9 @@ def _measurement_identity_closure(value):
             'unexpectedEntries', 'measurePlan', 'sampleCount', 'receiptCount',
             'roundReceiptCount', 'stageCount', 'samplesValid', 'receiptsValid',
             'workspaceReceiptValid', 'fixtureTreeValid', 'roundReceiptsValid',
-            'stageEvidenceValid', 'partialEvidenceValid')
+            'stageEvidenceValid', 'partialEvidenceValid', 'aggregateBudgetValid',
+            'aggregateBudgetRowCount', 'aggregateBudgetSnapshotBytes',
+            'aggregateBudgetLimitBytes', 'aggregateOutputBytes', 'aggregateBudgetIdentity')
     return {key: value.get(key) for key in keys}
 
 

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { constants, copyFileSync, existsSync, linkSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
+import { constants, copyFileSync, existsSync, linkSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -23,6 +23,11 @@ function sha(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex')
 }
 
+function identity(path) {
+  const info = statSync(path)
+  return { device: info.dev, inode: info.ino, size: info.size, sha256: sha(path) }
+}
+
 function bridge(script, method, payload) {
   const code = `
 import importlib.util, json, pathlib, sys, types
@@ -43,6 +48,8 @@ try:
     value=list(module._validate_measure_window(payload['window'], payload['now']))
   elif method == 'artifacts':
     value=module._measure_artifacts(pathlib.Path(payload['runtime']), payload['label'])
+  elif method == 'aggregate-budget':
+    value=module._validate_measure_aggregate_budget(pathlib.Path(payload['output']))
   elif method == 'js-json': value=module._js_compact_json(payload['value'])
   elif method == 'artifacts-expected':
     expected=dict(payload['expected']); expected['entry']=pathlib.Path(expected['entry']); expected['root']=pathlib.Path(expected['root'])
@@ -64,8 +71,12 @@ try:
     loaded=(pathlib.Path(payload['runtime']), pathlib.Path(payload['authority']), payload['window'], {'sha256': payload['windowSha256']})
     value={'exit':module._main_measure([], loaded=loaded), **captured}
   elif method == 'owned':
+    future=pathlib.Path(payload['future']) if payload.get('future') else None
     value=module._validate_owned_manifest(pathlib.Path(payload['manifest']), pathlib.Path(payload['runtime']),
-      payload['windowId'], 'objects-limit', planned_bytes=0)
+      payload['windowId'], 'objects-limit', planned_bytes=0,
+      future_path=future, future_state='absent' if future is not None else None)
+  elif method == 'measure-plan':
+    value=module._measure_planned_bytes(payload['snapshotBytes'])
   elif method == 'owned-transition':
     runtime=pathlib.Path(payload['runtime']); future=pathlib.Path(payload['future'])
     available=iter([payload['admissionAvailableBytes'], payload['terminalAvailableBytes']])
@@ -110,6 +121,33 @@ try:
       pathlib.Path(payload['window']), pathlib.Path(payload['close']), pathlib.Path(payload['output']),
       pathlib.Path(payload['runtime']), payload['windowSha256'], payload['closeSha256'],
       payload['commandSha256'], payload['windowId'], payload['label'])
+  elif method in ('issuer-failure-carryover', 'v2-terminal-carryover'):
+    if payload.get('forbidSqliteRead'):
+      strict_identity=module._strict_identity; sha256=module._sha
+      read_bytes=pathlib.Path.read_bytes; read_text=pathlib.Path.read_text
+      def guarded_identity(file, maximum=None):
+        if pathlib.Path(file).name == 'sample.sqlite': raise AssertionError('sample.sqlite content read')
+        return strict_identity(file, maximum)
+      def guarded_sha(file):
+        if pathlib.Path(file).name == 'sample.sqlite': raise AssertionError('sample.sqlite content hash')
+        return sha256(file)
+      def guarded_read_bytes(file):
+        if file.name == 'sample.sqlite': raise AssertionError('sample.sqlite read_bytes')
+        return read_bytes(file)
+      def guarded_read_text(file, *args, **kwargs):
+        if file.name == 'sample.sqlite': raise AssertionError('sample.sqlite read_text')
+        return read_text(file, *args, **kwargs)
+      module._strict_identity=guarded_identity; module._sha=guarded_sha
+      pathlib.Path.read_bytes=guarded_read_bytes; pathlib.Path.read_text=guarded_read_text
+    if method == 'issuer-failure-carryover':
+      value=module._validate_measure_issuer_failure_carryover(
+        pathlib.Path(payload['parent']), pathlib.Path(payload['runtime']), payload['ownedSha256'],
+        payload['failureSha256'], payload['windowId'], payload['dirName'], payload['label'])
+    else:
+      value=module._validate_measure_v2_terminal_carryover(
+        pathlib.Path(payload['window']), pathlib.Path(payload['close']), pathlib.Path(payload['output']),
+        pathlib.Path(payload['runtime']), payload['ownedSha256'], payload['windowSha256'],
+        payload['closeSha256'], payload['commandSha256'], payload['windowId'], payload['label'])
   else: raise RuntimeError('unknown method')
   print(json.dumps({'ok':True,'value':value}, sort_keys=True))
 except (SystemExit, ValueError) as error:
@@ -358,6 +396,22 @@ function baseFiles(output, rows) {
   writeFileSync(join(output, 'samples.jsonl'), rows.map(row => JSON.stringify(row)).join('\n') + '\n', { flag: 'wx' })
 }
 
+function aggregateBudgetRows(group = 'progress', activeClone = `group-${group}`) {
+  const snapshotBytes = 1024 * 1024, limitBytes = snapshotBytes + 256 * 1024 ** 2
+  return [
+    { schemaVersion: 1, scope: 'musicbridge-capacity-measure-aggregate-budget', sequence: 1,
+      checkpoint: 'clone-before-write', group, activeClone: null, snapshotBytes, limitBytes,
+      outputBytesBefore: 1024, plannedBytes: snapshotBytes, recordedAt: new Date(1_788_000_000_000).toISOString() },
+    { schemaVersion: 1, scope: 'musicbridge-capacity-measure-aggregate-budget', sequence: 2,
+      checkpoint: 'clone-after-write', group, activeClone, snapshotBytes, limitBytes,
+      outputBytesBefore: snapshotBytes + 4096, plannedBytes: 0, recordedAt: new Date(1_788_000_000_001).toISOString() },
+  ]
+}
+
+function writeAggregateBudget(output, rows = aggregateBudgetRows()) {
+  writeFileSync(join(output, 'measure-aggregate-budget.jsonl'), rows.map(row => JSON.stringify(row)).join('\n') + '\n', { flag: 'wx' })
+}
+
 function completeArtifacts(runtime, mutate = () => {}) {
   const label = 'objects-measure-v2'
   const output = join(runtime, label); mkdirSync(output)
@@ -383,6 +437,7 @@ function completeArtifacts(runtime, mutate = () => {}) {
       roundReceipt(index, markers.stop, rows.stop.slice((index - 1) * 6, index * 6)))
   }
   writeFileSync(join(output, 'measure-stages.jsonl'), stages().map(row => JSON.stringify(row)).join('\n') + '\n', { flag: 'wx' })
+  writeAggregateBudget(output)
   mutate({ output, rows, markers, workspace })
   return { label, output }
 }
@@ -400,6 +455,7 @@ function partialArtifacts(runtime) {
       roundReceipt(index, stopMarker, rows.stop.slice((index - 1) * 6, index * 6)))
   }
   writeFileSync(join(output, 'measure-stages.jsonl'), stages(['progress'], 29).concat(stages(['stop'], 29).slice(0, 4)).map(row => JSON.stringify(row)).join('\n') + '\n', { flag: 'wx' })
+  writeAggregateBudget(output, aggregateBudgetRows('stop', 'group-stop'))
   return { label, output }
 }
 
@@ -427,7 +483,7 @@ function sourceManifest(f) {
   return manifest
 }
 
-function ownedManifest(f, count, windowId) {
+function ownedManifest(f, count, windowId, future = null) {
   const roots = []
   for (let index = 0; index < count; index += 1) {
     const path = join(f.runtime, `owned-${String(index).padStart(2, '0')}`); mkdirSync(path)
@@ -437,7 +493,8 @@ function ownedManifest(f, count, windowId) {
       marker: { relative: 'owner.json', sha256: sha(join(path, 'owner.json')) } })
   }
   const manifest = join(f.authority, `owned-${count}.json`)
-  json(manifest, { schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only', windowId, roots })
+  json(manifest, { schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only', windowId, roots,
+    ...(future ? { futureRoots: [future] } : {}) })
   return manifest
 }
 
@@ -456,10 +513,133 @@ function ownedTransition(f) {
   const plannedBytes = 4_249_378_816
   return {
     manifest, runtime: f.runtime, windowId, future, plannedBytes,
-    futureBytes: 13 * 1024 ** 3,
+    futureBytes: plannedBytes,
     admissionAvailableBytes: plannedBytes + 10 * 1024 ** 3 + 1,
     terminalAvailableBytes: 10 * 1024 ** 3 + 1,
   }
+}
+
+function rootRow(path, markerName = 'owner.json') {
+  const info = statSync(path)
+  return { path, device: info.dev, inode: info.ino,
+    marker: { relative: markerName, sha256: sha(join(path, markerName)) } }
+}
+
+function issuerFailureCarryover(f, mutate = () => {}) {
+  const windowId = randomUUID(), dirName = 'objects-measure-window-03', label = 'objects-measure-03'
+  const parent = join(f.runtime, dirName), issuerIdentity = join(parent, 'issuer-identity')
+  const inherited = join(f.runtime, 'inherited-root'); mkdirSync(inherited); mkdirSync(issuerIdentity, { recursive: true })
+  json(join(inherited, 'owner.json'), { scope: 'test-inherited' })
+  json(join(parent, 'owner.json'), { scope: 'musicbridge-capacity-measure-window', owner: 'root', id: windowId })
+  json(join(issuerIdentity, 'owner.json'), { scope: 'musicbridge-capacity-measure-authority-issuer', id: windowId })
+  copyFileSync(f.script, join(parent, 'supervisor.py'), constants.COPYFILE_EXCL)
+  json(join(parent, 'source-pins.json'), { schemaVersion: 1, scope: 'musicbridge-capacity-source-pins', files: {} })
+  const future = join(f.runtime, label)
+  json(join(parent, 'owned-roots.json'), {
+    schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only', windowId,
+    roots: [rootRow(inherited), rootRow(parent), rootRow(issuerIdentity)], futureRoots: [future],
+  })
+  json(join(parent, 'issuer-failure.json'), {
+    schemaVersion: 1, scope: 'musicbridge-capacity-measure-authority-issuer-failure',
+    state: 'TERMINAL_ISSUER_FAILURE', windowId, windowDirName: dirName, label,
+    errorCode: 'AUTHORITY_PREFLIGHT',
+    authorityFilesCreated: ['owner.json', 'supervisor.py', 'issuer-identity/owner.json', 'source-pins.json', 'owned-roots.json'],
+    windowWritten: false, replayAllowed: false, recordedAt: new Date().toISOString(),
+  })
+  mutate({ parent, inherited, issuerIdentity, future })
+  return { parent, runtime: f.runtime, ownedSha256: sha(join(parent, 'owned-roots.json')),
+    failureSha256: sha(join(parent, 'issuer-failure.json')), windowId, dirName, label }
+}
+
+function v2TerminalCarryover(f, mutate = () => {}) {
+  const windowId = randomUUID(), dirName = 'objects-measure-window-04', label = 'objects-measure-04'
+  const parent = join(f.runtime, dirName), issuerIdentity = join(parent, 'issuer-identity')
+  const inherited = join(f.runtime, 'terminal-inherited-root'), output = join(f.runtime, label)
+  mkdirSync(inherited); mkdirSync(issuerIdentity, { recursive: true }); mkdirSync(output)
+  json(join(inherited, 'owner.json'), { scope: 'test-terminal-inherited' })
+  json(join(parent, 'owner.json'), { scope: 'musicbridge-capacity-measure-window', owner: 'root', id: windowId })
+  json(join(issuerIdentity, 'owner.json'), { scope: 'musicbridge-capacity-measure-authority-issuer', id: windowId })
+  copyFileSync(f.script, join(parent, 'supervisor.py'), constants.COPYFILE_EXCL)
+  json(join(parent, 'source-pins.json'), { schemaVersion: 1, scope: 'musicbridge-capacity-source-pins', files: {} })
+  json(join(parent, 'owned-roots.json'), {
+    schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only', windowId,
+    roots: [rootRow(inherited), rootRow(parent), rootRow(issuerIdentity)], futureRoots: [output],
+  })
+  const ownedSha256 = sha(join(parent, 'owned-roots.json'))
+  const sourceSha256 = sha(join(parent, 'source-pins.json'))
+  const window = windowValue(f)
+  Object.assign(window, { id: windowId, label, supervisor: { path: join(parent, 'supervisor.py'), sha256: sha(join(parent, 'supervisor.py')) },
+    ownedManifest: { file: 'owned-roots.json', sha256: ownedSha256 },
+    sourceManifest: { file: 'source-pins.json', sha256: sourceSha256 } })
+  json(join(parent, 'window.json'), window)
+  const entry = join(f.candidate, 'packages/bridge-core/test/benchmarks/recording-capacity.ts')
+  json(join(output, 'command.json'), {
+    executable: '/test/node', args: [entry, '--phase', 'measure', '--profile', 'objects-limit', '--label', label,
+      '--seed-label', window.seedLabel, '--window', windowId, '--runtime-root', f.runtime],
+    cwd: `${f.candidate}/`, node: 'v22.23.2', phase: 'measure', profile: 'objects-limit', window: windowId,
+    deviceOpened: false, formalReady: false, gateB: 'NOT_RUN',
+  })
+  json(join(output, 'measurement.json'), { seedLabel: window.seedLabel, seedSha256: window.seed.snapshotSha256,
+    profile: 'objects-limit', window: windowId, measurePlan: plan })
+  const rows = completeSamples(1), allRows = [...rows.progress, ...rows.stop]
+  writeFileSync(join(output, 'samples.jsonl'), allRows.map(row => JSON.stringify(row)).join('\n') + '\n', { flag: 'wx' })
+  json(join(output, 'source-before.json'), { files: {} }); json(join(output, 'source-after.json'), { files: {} })
+  json(join(output, 'exit.json'), { exit: 1 })
+  const progressMarker = marker('progress'), stopMarker = marker('stop')
+  json(join(output, 'group-progress.receipt.json'), groupReceipt('progress', progressMarker, rows.progress))
+  json(join(output, 'group-stop.round-001.receipt.json'), roundReceipt(1, stopMarker, rows.stop))
+  writeFileSync(join(output, 'measure-stages.jsonl'),
+    stages(['progress'], 1).concat(stages(['stop'], 1).slice(0, 4)).map(row => JSON.stringify(row)).join('\n') + '\n', { flag: 'wx' })
+  const retained = join(output, 'group-stop'); mkdirSync(retained)
+  json(join(retained, 'owner.json'), stopMarker); writeFileSync(join(retained, 'sample.sqlite'), 'sqlite bytes are never read\n')
+  const supervision = join(parent, 'supervision'); mkdirSync(supervision)
+  writeFileSync(join(supervision, 'stdout.log'), "TAP version 13\n  code: 'COPY_UNAVAILABLE'\n")
+  writeFileSync(join(supervision, 'stderr.log'), 'SQLite experimental warning\n')
+  json(join(supervision, 'supervisor.json'), { passed: false, failure: null, code: 1, groupEmpty: true, zombies: [] })
+  const present = ['command.json', 'measurement.json', 'samples.jsonl', 'source-before.json', 'source-after.json',
+    'exit.json', 'measure-stages.jsonl']
+  const files = Object.fromEntries(present.map(name => [name, { exists: true, size: statSync(join(output, name)).size, sha256: sha(join(output, name)) }]))
+  for (const name of ['end-budget.json', 'summary.json']) files[name] = { exists: false, size: null, sha256: null }
+  const close = {
+    schemaVersion: 1, scope: 'musicbridge-capacity-measure-window-close', windowId,
+    profile: 'objects-limit', label, seedLabel: window.seedLabel, state: 'failed', failure: 'AUTHORITY_DRIFT',
+    managedProcessGroup: true, code: 1, exitSignal: null, signals: [], groupEmpty: true, zombies: [],
+    windowSha256: sha(join(parent, 'window.json')), sourceManifestSha256: sourceSha256, ownedManifestSha256: ownedSha256,
+    seed: window.seed,
+    authorityAdmission: { authorityStable: true, windowStable: true, ownerStable: true,
+      sourceManifestStable: true, ownedManifestStable: true, sourcePinsValid: true, ownedRootsValid: true,
+      spaceValid: true, seedValid: true, windowSha256Observed: sha(join(parent, 'window.json')),
+      sourceManifestSha256Observed: sourceSha256, ownedManifestSha256Observed: ownedSha256,
+      ownedRootCount: 4, plannedBytes: 4_249_378_816, seedSnapshotBytes: 1_990_471_680 },
+    authorityTerminal: { authorityStable: false, error: 'AUTHORITY_DRIFT' },
+    measurement: { profile: 'objects-limit', label, seedLabel: window.seedLabel, window: windowId,
+      windowSha256: sha(join(parent, 'window.json')), ownedManifestSha256: ownedSha256,
+      sourceManifestSha256: sourceSha256, outputDirectory: output, outputDirectoryExists: true,
+      partialExists: true, partialPreserved: true, files, unexpectedEntries: [], sampleCount: 111,
+      measurePlan: plan, samplesValid: false, receiptCount: 1, receiptsValid: false,
+      roundReceiptCount: 1, roundReceiptsValid: false, roundReceiptInventory: [],
+      stageEvidenceValid: false, stageCount: 10, partialEvidenceValid: false,
+      receiptInventory: [{ name: 'group-progress.receipt.json', identity: identity(join(output, 'group-progress.receipt.json')),
+        outcome: 'ok', retained: false, sampleCount: 105, marker: progressMarker, sqliteSha256: 'a'.repeat(64) }],
+      retainedInventory: [{ path: retained, device: statSync(retained).dev, inode: statSync(retained).ino,
+        marker: identity(join(retained, 'owner.json')) }],
+      exitZero: false, sourceBeforeEqualsAfter: true, childExitMatchesThreshold: true,
+      commandMatchesWindow: true, measurementMatchesWindow: true, summaryComplete: false,
+      thresholdPassed: false, authorityStable: false, authority: null, authorityError: 'AUTHORITY_DRIFT',
+      verifiedComplete: false, verifiedPassed: false },
+    stdout: { path: join(supervision, 'stdout.log'), exists: true, size: statSync(join(supervision, 'stdout.log')).size,
+      sha256: sha(join(supervision, 'stdout.log')) },
+    stderr: { path: join(supervision, 'stderr.log'), exists: true, size: statSync(join(supervision, 'stderr.log')).size,
+      sha256: sha(join(supervision, 'stderr.log')) },
+    supervisorSha256: sha(join(supervision, 'supervisor.json')),
+    deviceOpened: false, formalReady: false, gateB: 'NOT_RUN',
+    replayPolicy: 'terminal-window-id-and-label-never-reuse',
+  }
+  mutate({ parent, inherited, issuerIdentity, output, retained, window, close })
+  json(join(parent, 'close.json'), close)
+  return { runtime: f.runtime, window: join(parent, 'window.json'), close: join(parent, 'close.json'), output,
+    ownedSha256, windowSha256: sha(join(parent, 'window.json')), closeSha256: sha(join(parent, 'close.json')),
+    commandSha256: sha(join(output, 'command.json')), windowId, label, forbidSqliteRead: true }
 }
 
 test('v2从window绑定独立TASK079 candidate，绝不反推TASK078 runtime root', () => {
@@ -554,7 +734,7 @@ test('measure窗口只接受精确measurePlan、900秒限制与self identity', (
   } finally { f.cleanup() }
 })
 
-test('owned roots上限精确为68', () => {
+test('无future的generation roots仍以68为上限', () => {
   for (const [count, accepted] of [[68, true], [69, false]]) {
     const f = copiedSupervisor()
     try {
@@ -564,13 +744,39 @@ test('owned roots上限精确为68', () => {
   }
 })
 
-test('terminal authority以真实future output替代admission planned预算且仍验证root marker与空间', () => {
+test('measure允许70个existing roots且只允许一个future形成71个授权根', () => {
+  for (const [count, accepted] of [[70, true], [71, false]]) {
+    const f = copiedSupervisor()
+    try {
+      const windowId = randomUUID(), future = join(f.runtime, 'future-output')
+      const manifest = ownedManifest(f, count, windowId, future)
+      const observed = bridge(f.script, 'owned', { manifest, runtime: f.runtime, windowId, future })
+      assert.equal(observed.ok, accepted)
+      if (accepted) assert.equal(observed.value.rootCount, 71)
+    } finally { f.cleanup() }
+  }
+})
+
+test('measure最坏写入计划只计一个顺序clone与256MiB增长余量', () => {
+  const f = copiedSupervisor()
+  try {
+    const snapshotBytes = 1_990_471_680
+    assert.deepEqual(bridge(f.script, 'measure-plan', { snapshotBytes }), {
+      ok: true,
+      value: snapshotBytes + 256 * 1024 ** 2,
+    })
+    for (const invalid of [-1, 0.5, '1990449152']) {
+      assert.equal(bridge(f.script, 'measure-plan', { snapshotBytes: invalid }).ok, false)
+    }
+  } finally { f.cleanup() }
+})
+
+test('terminal authority以不超过授权plan的真实future output替代预算且仍验证root marker与空间', () => {
   {
     const f = copiedSupervisor()
     try {
       const payload = ownedTransition(f)
-      assert.ok(payload.futureBytes < 16 * 1024 ** 3)
-      assert.ok(payload.futureBytes + payload.plannedBytes > 16 * 1024 ** 3)
+      assert.equal(payload.futureBytes, payload.plannedBytes)
       const observed = bridge(f.script, 'owned-transition', payload)
       assert.equal(observed.ok, true, observed.error)
       assert.equal(observed.value.admission.plannedBytes, payload.plannedBytes)
@@ -581,7 +787,7 @@ test('terminal authority以真实future output替代admission planned预算且�
   }
   for (const mutate of [
     payload => { payload.admissionAvailableBytes = payload.plannedBytes + 10 * 1024 ** 3 - 1 },
-    payload => { payload.futureBytes = 16 * 1024 ** 3 },
+    payload => { payload.futureBytes = payload.plannedBytes + 1 },
     payload => { payload.symlinkMarker = true },
     payload => { payload.terminalAvailableBytes = 10 * 1024 ** 3 - 1 },
   ]) {
@@ -610,6 +816,61 @@ test('tree hash的Python compact JSON与JSON.stringify整数及非整数毫秒�
   } finally { f.cleanup() }
 })
 
+test('measure aggregate预算逐行闭合且拒绝缺失、篡改、乱序与全树超限', () => {
+  {
+    const f = copiedSupervisor()
+    try {
+      const output = join(f.runtime, 'aggregate-valid'); mkdirSync(output); writeAggregateBudget(output)
+      const observed = bridge(f.script, 'aggregate-budget', { output })
+      assert.equal(observed.ok, true, observed.error)
+      assert.equal(observed.value.valid, true)
+      assert.equal(observed.value.rowCount, 2)
+      assert.equal(observed.value.finalOutputBytes <= observed.value.limitBytes, true)
+    } finally { f.cleanup() }
+  }
+  const mutations = [
+    ({ rows }) => { rows[0].extra = true },
+    ({ rows }) => { rows[1].sequence = 3 },
+    ({ rows }) => { rows[0].recordedAt = '2026-08-30T00:00:00' },
+    ({ rows }) => { rows[0].snapshotBytes = 0 },
+    ({ rows }) => { rows[1].limitBytes += 1 },
+    ({ rows }) => { rows[0].outputBytesBefore = Number.MAX_SAFE_INTEGER + 1 },
+    ({ rows }) => { rows[0].outputBytesBefore = rows[0].limitBytes; rows[0].plannedBytes = 1 },
+    ({ rows }) => { rows[1].activeClone = 'group-stop' },
+    ({ output, rows }) => {
+      const file = join(output, 'logical-over-limit.bin'); writeFileSync(file, '')
+      truncateSync(file, rows[0].limitBytes + 1)
+    },
+  ]
+  for (const mutate of mutations) {
+    const f = copiedSupervisor()
+    try {
+      const output = join(f.runtime, 'aggregate-invalid'); mkdirSync(output)
+      const rows = aggregateBudgetRows(); mutate({ output, rows }); writeAggregateBudget(output, rows)
+      const observed = bridge(f.script, 'aggregate-budget', { output })
+      assert.equal(observed.ok, true, observed.error)
+      assert.equal(observed.value.valid, false)
+    } finally { f.cleanup() }
+  }
+  {
+    const f = copiedSupervisor()
+    try {
+      const output = join(f.runtime, 'aggregate-missing'); mkdirSync(output)
+      assert.equal(bridge(f.script, 'aggregate-budget', { output }).value.valid, false)
+    } finally { f.cleanup() }
+  }
+  for (const fixture of [completeArtifacts, partialArtifacts]) {
+    const f = copiedSupervisor()
+    try {
+      const artifact = fixture(f.runtime); rmSync(join(artifact.output, 'measure-aggregate-budget.jsonl'))
+      const observed = bridge(f.script, 'artifacts', { runtime: f.runtime, label: artifact.label })
+      assert.equal(observed.value.aggregateBudgetValid, false)
+      assert.equal(observed.value.verifiedComplete, false)
+      if (fixture === partialArtifacts) assert.equal(observed.value.partialEvidenceValid, false)
+    } finally { f.cleanup() }
+  }
+})
+
 test('完整measure精确接受workspace receipt、fixture前后摘要与既有完整闭包', () => {
   const f = copiedSupervisor()
   try {
@@ -622,6 +883,8 @@ test('完整measure精确接受workspace receipt、fixture前后摘要与既有�
     assert.equal(observed.value.fixtureTreeValid, true)
     assert.equal(observed.value.roundReceiptsValid, true)
     assert.equal(observed.value.stageEvidenceValid, true)
+    assert.equal(observed.value.aggregateBudgetValid, true)
+    assert.equal(observed.value.aggregateBudgetRowCount, 2)
     assert.equal(observed.value.receiptCount, 3)
     assert.equal(observed.value.roundReceiptCount, 105)
     assert.deepEqual(observed.value.measurePlan, plan)
@@ -769,10 +1032,73 @@ test('第30轮partial保留group-stop与前29 rounds且绝不verifiedPassed', ()
     assert.equal(observed.value.receiptCount, 1)
     assert.equal(observed.value.roundReceiptCount, 29)
     assert.equal(observed.value.stageCount, 10)
+    assert.equal(observed.value.aggregateBudgetValid, true)
     assert.equal(observed.value.sampleCount, 279)
     assert.equal(observed.value.verifiedComplete, false)
     assert.equal(observed.value.verifiedPassed, false)
   } finally { f.cleanup() }
+})
+
+test('window03 issuer失败carryover冻结manifest roots且future保持未创建', () => {
+  {
+    const f = copiedSupervisor()
+    try {
+      const payload = issuerFailureCarryover(f)
+      const observed = bridge(f.script, 'issuer-failure-carryover', payload)
+      assert.equal(observed.ok, true, observed.error)
+      assert.equal(observed.value.roots.length, 3)
+      assert.equal(observed.value.terminal.state, 'TERMINAL_ISSUER_FAILURE')
+      assert.equal(observed.value.terminal.replayAllowed, false)
+      const wrongHash = structuredClone(payload); wrongHash.failureSha256 = 'f'.repeat(64)
+      assert.equal(bridge(f.script, 'issuer-failure-carryover', wrongHash).ok, false)
+    } finally { f.cleanup() }
+  }
+  for (const mutate of [
+    ({ inherited }) => { rmSync(join(inherited, 'owner.json')); json(join(inherited, 'owner.json'), { scope: 'drift' }) },
+    ({ future }) => mkdirSync(future),
+    ({ parent }) => json(join(parent, 'window.json'), { state: 'unexpectedly-published' }),
+  ]) {
+    const f = copiedSupervisor()
+    try { assert.equal(bridge(f.script, 'issuer-failure-carryover', issuerFailureCarryover(f, mutate)).ok, false) }
+    finally { f.cleanup() }
+  }
+})
+
+test('window04 v2终态partial冻结失败语义并只lstat retained SQLite', () => {
+  {
+    const f = copiedSupervisor()
+    try {
+      const payload = v2TerminalCarryover(f)
+      const observed = bridge(f.script, 'v2-terminal-carryover', payload)
+      assert.equal(observed.ok, true, observed.error)
+      assert.equal(observed.value.roots.length, 3)
+      assert.equal(observed.value.outputRoot.path, payload.output)
+      assert.equal(observed.value.terminal.failure, 'AUTHORITY_DRIFT')
+      assert.equal(observed.value.partial.benchmarkFailureCode, 'COPY_UNAVAILABLE')
+      assert.equal(observed.value.partial.retainedSqlite.contentSha256Verified, false)
+      assert.ok(observed.value.partial.retainedSqlite.size > 0)
+      const wrongHash = structuredClone(payload); wrongHash.commandSha256 = 'f'.repeat(64)
+      assert.equal(bridge(f.script, 'v2-terminal-carryover', wrongHash).ok, false)
+    } finally { f.cleanup() }
+  }
+  for (const mutate of [
+    ({ close }) => { close.authorityTerminal = { authorityStable: true } },
+    ({ output }) => writeFileSync(join(output, 'unexpected.bin'), 'x'),
+    ({ retained, output }) => {
+      rmSync(join(retained, 'sample.sqlite'))
+      const target = join(dirname(output), 'sqlite-target'); writeFileSync(target, 'sqlite bytes are never read\n')
+      symlinkSync(target, join(retained, 'sample.sqlite'))
+    },
+    ({ parent, close }) => {
+      writeFileSync(join(parent, 'supervision/stdout.log'), 'TAP failed without frozen benchmark code\n')
+      close.stdout.size = statSync(join(parent, 'supervision/stdout.log')).size
+      close.stdout.sha256 = sha(join(parent, 'supervision/stdout.log'))
+    },
+  ]) {
+    const f = copiedSupervisor()
+    try { assert.equal(bridge(f.script, 'v2-terminal-carryover', v2TerminalCarryover(f, mutate)).ok, false) }
+    finally { f.cleanup() }
+  }
 })
 
 test('旧timeout carryover按legacy 107-clone格式验证29 receipts、273 samples且不读取sqlite', () => {

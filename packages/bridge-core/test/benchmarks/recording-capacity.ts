@@ -10,9 +10,9 @@ import { DatabaseSync, backup } from 'node:sqlite';
 import { performance } from 'node:perf_hooks';
 import { createCapacitySeed, summarizeCapacitySamples, readCapacityBudget, capacityProfile, createCapacityClone, finishCapacityClone,
   hashCapacityFile, checkCapacitySpace, appendCapacityMeasureStage, capacityMeasurePlan, runCapacityStopRounds,
-  prepareCapacityStopPlans, summarizeCapacityFixtureTree,
+  prepareCapacityStopPlans, summarizeCapacityFixtureTree, capacityMeasureWorkingBytes, createCapacityMeasureAggregateGuard,
   type CapacityMeasureGroup, type CapacityMeasureSample, type CapacitySample,
-  type CapacityProfileName, type CapacityStopWorkspace } from '../helpers/recording-capacity-fixture.js';
+  type CapacityProfileName, type CapacityStopWorkspace, type CapacityMeasureAggregateGuard } from '../helpers/recording-capacity-fixture.js';
 import { createCollectionRepository } from '../../src/collection/repository.js';
 import { createRecordingAttemptCoordinator, type RecordingAttemptDriverRequest } from '../../src/recording/attempt-coordinator.js';
 import { createRecordingRecordCoordinator } from '../../src/recording/record-coordinator.js';
@@ -56,10 +56,16 @@ function validatedMeasureRuntime(value: string): string {
 }
 const runtime = phase === 'measure' ? validatedMeasureRuntime(runtimeOption!) : path.join(root, 'reports/runtime/task-078-v3-acceptance');
 const output = path.join(runtime, label); mkdirSync(output);
+let measureAggregateGuard: CapacityMeasureAggregateGuard | undefined;
+const measureSeedPath = phase === 'measure' ? path.join(runtime, seedLabel!, 'seed.sqlite') : undefined;
+if (phase === 'measure') measureAggregateGuard = createCapacityMeasureAggregateGuard(output, lstatSync(measureSeedPath!).size);
 const json = (name: string, value: unknown) => {
+  const payload = JSON.stringify(value, null, 2) + '\n', checkpoint = name.toLowerCase().replace(/[^a-z0-9-]/gu, '-');
+  measureAggregateGuard?.check({ checkpoint: `json-${checkpoint}-before-write`, plannedBytes: Buffer.byteLength(payload) + 1024 });
   const fd = openSync(path.join(output, name), 'wx');
-  try { writeFileSync(fd, JSON.stringify(value, null, 2) + '\n'); fsyncSync(fd); } finally { closeSync(fd); }
+  try { writeFileSync(fd, payload); fsyncSync(fd); } finally { closeSync(fd); }
   const directory = openSync(output, 'r'); try { fsyncSync(directory); } finally { closeSync(directory); }
+  measureAggregateGuard?.check({ checkpoint: `json-${checkpoint}-after-write` });
 };
 const sha = hashCapacityFile;
 const codePaths = ['attempt', 'record', 'print'].flatMap(group => ['store', 'coordinator', 'integrity'].map(kind => `packages/bridge-core/src/recording/${group}-${kind}.ts`));
@@ -68,7 +74,9 @@ const initialPins = pins(); json('source-before.json', initialPins);
 json('command.json', { executable: process.execPath, args: process.argv.slice(1), cwd: root, node: process.version, platform: process.platform, arch: process.arch,
   osVersion: os.version(), logicalCpus: os.cpus().length, cache: 'OS cache未知/可能warm；未清cache，不是物理冷盘', profileDefinition,
   phase, profile, window: window ?? null, deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' });
-const recordExit = (code: number) => { if (!existsSync(path.join(output, 'exit.json'))) json('exit.json', { exit: code }); };
+const recordExit = (code: number) => {
+  if (!existsSync(path.join(output, 'exit.json')) && !measureAggregateGuard?.stopped) json('exit.json', { exit: code });
+};
 process.once('exit', code => recordExit(code));
 
 test(`R023 ${phase} ${profile}`, { timeout: 45 * 60_000 }, async t => {
@@ -93,7 +101,7 @@ test(`R023 ${phase} ${profile}`, { timeout: 45 * 60_000 }, async t => {
     return;
   }
 
-  const seedDirectory = path.join(runtime, seedLabel!), seedPath = path.join(seedDirectory, 'seed.sqlite');
+  const seedDirectory = path.join(runtime, seedLabel!), seedPath = measureSeedPath!;
   const seed = JSON.parse(readFileSync(path.join(seedDirectory, 'seed.json'), 'utf8')) as {
     schema: number; profile: string; fixtureDirectory: string; snapshotSha256: string; marker: { id: string; scope: string };
     nextPlanId: string; nextPlanHash: string; recordingId: string; completedPhysicalId: string; growth?: { state: string };
@@ -116,28 +124,34 @@ test(`R023 ${phase} ${profile}`, { timeout: 45 * 60_000 }, async t => {
   const allSamples: unknown[] = [];
   const samplePath = path.join(output, 'samples.jsonl');
   function sample(metric: string, durationMs: number, warmup: boolean, outcome: CapacitySample['outcome'] = 'ok', details: unknown = null): CapacityMeasureSample {
-    const row = { metric, durationMs, warmup, outcome, details }; allSamples.push(row);
-    const fd = openSync(samplePath, 'a'); try { appendFileSync(fd, JSON.stringify(row) + '\n'); fsyncSync(fd); } finally { closeSync(fd); }
+    const row = { metric, durationMs, warmup, outcome, details }, line = JSON.stringify(row) + '\n'; allSamples.push(row);
+    measureAggregateGuard!.check({ checkpoint: 'sample-before-write', plannedBytes: Buffer.byteLength(line) + 1024 });
+    const fd = openSync(samplePath, 'a'); try { appendFileSync(fd, line); fsyncSync(fd); } finally { closeSync(fd); }
+    measureAggregateGuard!.check({ checkpoint: 'sample-after-write' });
     if (!warmup) { const values = grouped.get(metric) ?? []; values.push({ durationMs, outcome }); grouped.set(metric, values); }
     return row;
   }
   function commitSamples(rows: CapacityMeasureSample[]): void {
+    const payload = rows.map(row => JSON.stringify(row)).join('\n') + '\n';
+    measureAggregateGuard!.check({ group: 'stop', checkpoint: 'stop-samples-before-write', plannedBytes: Buffer.byteLength(payload) + 1024 });
     const fd = openSync(samplePath, 'a');
-    try { appendFileSync(fd, rows.map(row => JSON.stringify(row)).join('\n') + '\n'); fsyncSync(fd); } finally { closeSync(fd); }
+    try { appendFileSync(fd, payload); fsyncSync(fd); } finally { closeSync(fd); }
+    measureAggregateGuard!.check({ group: 'stop', checkpoint: 'stop-samples-after-write' });
     for (const row of rows) {
       allSamples.push(row);
       if (!row.warmup) { const values = grouped.get(row.metric) ?? []; values.push({ durationMs: row.durationMs, outcome: row.outcome }); grouped.set(row.metric, values); }
     }
   }
   function openGroup(group: CapacityMeasureGroup) {
-    const clone = createCapacityClone(output, `group-${group}`, seedPath), filePath = clone.filePath;
-    appendCapacityMeasureStage(output, group, 'copy', { groupMarker: clone.marker, seedSha256: seed.snapshotSha256 });
+    const clone = createCapacityClone(output, `group-${group}`, seedPath,
+      capacityMeasureWorkingBytes(lstatSync(seedPath).size), measureAggregateGuard), filePath = clone.filePath;
+    appendCapacityMeasureStage(output, group, 'copy', { groupMarker: clone.marker, seedSha256: seed.snapshotSha256 }, measureAggregateGuard);
     const repository = createCollectionRepository({ filePath }), auditDb = new DatabaseSync(filePath, { readOnly: true });
     // 打开及完整审计在计时外；独立冷开指标由总控/A另测同一seed。
     try {
       repository.recordingPlans.version({ id: seed.nextPlanId });
       assert.equal(auditDb.prepare("SELECT count(*) n FROM recording_attempts WHERE status='in-progress'").get()!.n, 0);
-      appendCapacityMeasureStage(output, group, 'open-audit', { groupMarker: clone.marker, inProgress: 0 });
+      appendCapacityMeasureStage(output, group, 'open-audit', { groupMarker: clone.marker, inProgress: 0 }, measureAggregateGuard);
     } catch (error) {
       auditDb.close(); repository.close(); throw error;
     }
@@ -163,7 +177,7 @@ test(`R023 ${phase} ${profile}`, { timeout: 45 * 60_000 }, async t => {
 
   const plan = capacityMeasurePlan(); assert.equal(plan.totalSamples, 1575);
   const progressGroup = openGroup('progress'), progress = await running(progressGroup.repository);
-  appendCapacityMeasureStage(output, 'progress', 'operation', { rounds: plan.progressRounds });
+  appendCapacityMeasureStage(output, 'progress', 'operation', { rounds: plan.progressRounds }, measureAggregateGuard);
   let progressOutcome: CapacitySample['outcome'] = 'ok';
   try {
     for (let i = 0; i < plan.progressRounds; ++i) {
@@ -178,11 +192,11 @@ test(`R023 ${phase} ${profile}`, { timeout: 45 * 60_000 }, async t => {
   finally {
     let closeError: unknown;
     appendCapacityMeasureStage(output, 'progress', 'round-fsync', { completedSamples: allSamples.length,
-      expectedSamples: plan.progressRounds });
+      expectedSamples: plan.progressRounds }, measureAggregateGuard);
     try { await progress.coordinator.close(); } catch (error) { progressOutcome = 'failed'; closeError = error; }
     progressGroup.auditDb.close(); progressGroup.repository.close();
     if (progressOutcome === 'ok') finishCapacityClone(progressGroup.clone, { outcome: 'ok', resourcesClosed: true, samples: allSamples.slice(0, plan.progressRounds),
-      onPhase: (phaseName, details) => appendCapacityMeasureStage(output, 'progress', phaseName, details) });
+      onPhase: (phaseName, details) => appendCapacityMeasureStage(output, 'progress', phaseName, details, measureAggregateGuard) });
     if (closeError) throw closeError;
   }
 
@@ -191,7 +205,9 @@ test(`R023 ${phase} ${profile}`, { timeout: 45 * 60_000 }, async t => {
   try {
     // 计时前经公开Core路径准备独立实体及冻结Plan；不重放physical copy，不伪造rerecord permit。
     const template = stopGroup.repository.recordingPlans.version({ id: seed.nextPlanId }).plan!;
+    measureAggregateGuard!.check({ group: 'stop', checkpoint: 'stop-preparation-before-write' });
     const prepared = await prepareCapacityStopPlans(stopGroup.repository, template, plan.stopRounds, path.join(stopGroup.clone.directory, 'group-stop-workspace'));
+    measureAggregateGuard!.check({ group: 'stop', checkpoint: 'stop-preparation-after-write' });
     const stopPlans = prepared.plans; stopWorkspace = prepared.workspace;
     verifyRecordingPlanDatabase(stopGroup.auditDb); verifyRecordingAttemptDatabase(stopGroup.auditDb); verifyRecordingRecordDatabase(stopGroup.auditDb);
     assert.equal(stopPlans.length, plan.stopRounds); assert.equal(new Set(stopPlans.map(value => value.physicalCopy.physicalId)).size, plan.stopRounds);
@@ -225,7 +241,7 @@ test(`R023 ${phase} ${profile}`, { timeout: 45 * 60_000 }, async t => {
       assert.ok(stopWorkspace);
       finishCapacityClone(stopGroup.clone, { outcome: 'ok', resourcesClosed: true, samples: allSamples.slice(stopStart),
         ownedWorkspace: stopWorkspace,
-        onPhase: (phaseName, details) => appendCapacityMeasureStage(output, 'stop', phaseName, details) });
+        onPhase: (phaseName, details) => appendCapacityMeasureStage(output, 'stop', phaseName, details, measureAggregateGuard) });
     }
   }
 
@@ -233,7 +249,8 @@ test(`R023 ${phase} ${profile}`, { timeout: 45 * 60_000 }, async t => {
   const records = createRecordingRecordCoordinator({ store: reading.repository.recordingRecords, assertCurrent() {}, assertExecutionIdle() {} });
   const readingStart = allSamples.length; let readingOutcome: CapacitySample['outcome'] = 'ok';
   try {
-    appendCapacityMeasureStage(output, 'read', 'operation', { operations: plan.readOperations, roundsPerOperation: plan.readRoundsPerOperation });
+    appendCapacityMeasureStage(output, 'read', 'operation', { operations: plan.readOperations,
+      roundsPerOperation: plan.readRoundsPerOperation }, measureAggregateGuard);
     const detail = records.get({ id: seed.recordingId }).record!, attachment = detail.record.visuals.photos;
     assert.equal(attachment.state, 'captured');
     const job = reading.repository.recordingPrints.list({ recordingId: seed.recordingId, page: { offset: 0, limit: 25 } }).items[0]!;
@@ -264,10 +281,10 @@ test(`R023 ${phase} ${profile}`, { timeout: 45 * 60_000 }, async t => {
   } catch (error) { readingOutcome = 'failed'; throw error; }
   finally {
     appendCapacityMeasureStage(output, 'read', 'round-fsync', { completedSamples: allSamples.length - readingStart,
-      expectedSamples: plan.readOperations * plan.readRoundsPerOperation });
+      expectedSamples: plan.readOperations * plan.readRoundsPerOperation }, measureAggregateGuard);
     records.close(); reading.auditDb.close(); reading.repository.close();
     if (readingOutcome === 'ok') finishCapacityClone(reading.clone, { outcome: 'ok', resourcesClosed: true, samples: allSamples.slice(readingStart),
-      onPhase: (phaseName, details) => appendCapacityMeasureStage(output, 'read', phaseName, details) });
+      onPhase: (phaseName, details) => appendCapacityMeasureStage(output, 'read', phaseName, details, measureAggregateGuard) });
   }
   assert.equal(allSamples.length, plan.totalSamples, '正式measure样本必须精确拼接为1575条');
   const metrics = Object.fromEntries([...grouped].map(([name, values]) => [name, summarizeCapacitySamples(values)]));
