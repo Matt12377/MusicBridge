@@ -49,11 +49,12 @@ FROZEN_MEASURE = {
     'measureLabel': 'r023-objects-limit-measure-06',
     'seedLabel': 'r023-objects-limit-seed-03',
 }
-PROCESS_FAILURE_STDERR = (
-    b'CAPACITY_PHASE_OPERATION_FAILED\n'
-    b'(node:313) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n'
-    b'(Use `node --trace-warnings ...` to show where the warning was created)\n'
-)
+def process_failure_stderr(pid):
+    return (
+        b'CAPACITY_PHASE_OPERATION_FAILED\n'
+        + f'(node:{pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n'.encode()
+        + b'(Use `node --trace-warnings ...` to show where the warning was created)\n'
+    )
 _FAILURE = None
 
 
@@ -1371,14 +1372,43 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
                       'issuerFailureCount', 'prechildFailureCount', 'ownedBytes', 'plannedBytes',
                       'remainingPlannedBytes', 'availableBytes', 'candidateRepository',
                       'toolchainStable', 'issuerStable'}
-    roots = []; facts = []; snapshots = []; declared = set()
+    roots = []; facts = []; snapshots = []; declared = set(); billing_roots = []
     seen_roots = set(); seen_windows = set(); seen_dirs = set(); seen_labels = set()
-    for row in rows:
-        if not isinstance(row, (list, tuple)) or len(row) != 16:
-            fail('PRIOR_PROCESS_FAILURE')
-        (close_name, close_sha, owner_sha, supervisor_sha, issuer_fact_sha, source_sha,
-         owned_sha, window_sha, supervision_sha, start_sha, stdout_sha, stderr_sha,
-         window_id, window_dir_name, label, failure_code) = row
+    pending = [(row, None, index == 0) for index, row in enumerate(rows)]
+    if len(pending) != 1:
+        fail('PRIOR_PROCESS_FAILURE')
+    while pending:
+        row, successor_issued_at, is_head = pending.pop(0)
+        nested = isinstance(row, dict)
+        if nested:
+            row_keys = {'root', 'windowId', 'windowDirName', 'label', 'failure', 'code',
+                        'sampleCount', 'deviceOpened', 'formalReady', 'gateB', 'files'}
+            file_keys = {'owner', 'supervisor', 'issuerFact', 'sourceManifest', 'ownedManifest',
+                         'window', 'close', 'supervision', 'supervisorStart', 'stdout', 'stderr'}
+            if set(row) != row_keys or not isinstance(row.get('files'), dict) \
+                    or set(row['files']) != file_keys \
+                    or any(not isinstance(value, dict) or set(value) != {'path', 'sha256'}
+                           for value in row['files'].values()):
+                fail('PRIOR_PROCESS_FAILURE')
+            files = row['files']
+            close_name = files['close']['path']; close_sha = files['close']['sha256']
+            owner_sha = files['owner']['sha256']; supervisor_sha = files['supervisor']['sha256']
+            issuer_fact_sha = files['issuerFact']['sha256']; source_sha = files['sourceManifest']['sha256']
+            owned_sha = files['ownedManifest']['sha256']; window_sha = files['window']['sha256']
+            supervision_sha = files['supervision']['sha256']; start_sha = files['supervisorStart']['sha256']
+            stdout_sha = files['stdout']['sha256']; stderr_sha = files['stderr']['sha256']
+            window_id = row['windowId']; window_dir_name = row['windowDirName']; label = row['label']
+            failure_code = row['failure']
+            if row.get('root') != str(Path(close_name).parent) or row.get('code') != 1 \
+                    or row.get('sampleCount') != 0 or row.get('deviceOpened') is not False \
+                    or row.get('formalReady') is not False or row.get('gateB') != 'NOT_RUN':
+                fail('PRIOR_PROCESS_FAILURE')
+        else:
+            if not isinstance(row, (list, tuple)) or len(row) != 16:
+                fail('PRIOR_PROCESS_FAILURE')
+            (close_name, close_sha, owner_sha, supervisor_sha, issuer_fact_sha, source_sha,
+             owned_sha, window_sha, supervision_sha, start_sha, stdout_sha, stderr_sha,
+             window_id, window_dir_name, label, failure_code) = row
         if any(SHA256.fullmatch(str(value or '')) is None for value in (
                 close_sha, owner_sha, supervisor_sha, issuer_fact_sha, source_sha, owned_sha,
                 window_sha, supervision_sha, start_sha, stdout_sha, stderr_sha)) \
@@ -1424,7 +1454,7 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
             stderr_bytes = stderr_path.read_bytes()
         except OSError as error:
             raise IssueError('PRIOR_PROCESS_FAILURE') from error
-        if stderr_bytes != PROCESS_FAILURE_STDERR \
+        if stderr_bytes != process_failure_stderr(supervision.get('pid')) \
                 or file_snapshot(stderr_path, stderr_sha) != stderr_snapshot:
             fail('PRIOR_PROCESS_FAILURE')
         if not all(isinstance(value, dict) for value in
@@ -1449,6 +1479,18 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
         plan = window.get('queuedStopPlan')
         seed = window.get('seed')
         measure_carryover = window.get('measureCarryover')
+        process_carryover = issuer_fact.get('processFailureCarryover')
+        leaf = 'processFailureCarryover' not in issuer_fact \
+            and 'processFailureCarryoverCount' not in window
+        linked = set(issuer_fact) == issuer_fact_keys | {'processFailureCarryover'} \
+            and set(window) == window_keys | {'processFailureCarryoverCount'} \
+            and window.get('processFailureCarryoverCount') == 1 \
+            and isinstance(process_carryover, list) and len(process_carryover) == 1
+        if not leaf and not linked:
+            fail('PRIOR_PROCESS_FAILURE')
+        expected_owned_count = 75 if leaf else 76
+        expected_authority_keys = authority_keys if leaf else \
+            authority_keys | {'processFailureCarryoverValid', 'processFailureCount'}
         def hash_fact(value):
             return isinstance(value, dict) and set(value) == {'path', 'sha256'} \
                 and isinstance(value.get('path'), str) and Path(value['path']).is_absolute() \
@@ -1540,7 +1582,8 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
         except (AttributeError, TypeError, ValueError) as error:
             raise IssueError('PRIOR_PROCESS_FAILURE') from error
         if owner != {'scope': 'musicbridge-capacity-queued-stop-window', 'owner': 'root', 'id': window_id} \
-                or set(issuer_fact) != issuer_fact_keys \
+                or set(issuer_fact) != (issuer_fact_keys if leaf else
+                                        issuer_fact_keys | {'processFailureCarryover'}) \
                 or issuer_fact.get('schemaVersion') != 1 \
                 or issuer_fact.get('scope') != 'musicbridge-capacity-queued-stop-authority-issuer' \
                 or issuer_fact.get('windowId') != window_id \
@@ -1563,8 +1606,11 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
                 or owned.get('schemaVersion') != 1 \
                 or owned.get('scope') != 'musicbridge-capacity-owned-roots' \
                 or owned.get('access') != 'count-only' or owned.get('windowId') != window_id \
-                or not isinstance(owned.get('roots'), list) or len(owned['roots']) != 75 \
-                or set(window) != window_keys or window.get('schemaVersion') != 1 \
+                or not isinstance(owned.get('roots'), list) \
+                or len(owned['roots']) != expected_owned_count \
+                or set(window) != (window_keys if leaf else
+                                   window_keys | {'processFailureCarryoverCount'}) \
+                or window.get('schemaVersion') != 1 \
                 or window.get('scope') != 'musicbridge-capacity-queued-stop-window' \
                 or window.get('owner') != 'root' or window.get('id') != window_id \
                 or window.get('state') != 'approved' or window.get('phase') != 'queued-stop' \
@@ -1607,7 +1653,8 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
                 or close.get('gateB') != 'NOT_RUN' \
                 or close.get('replayPolicy') != 'terminal-window-id-and-label-never-reuse' \
                 or issued_at.utcoffset() is None or deadline_at.utcoffset() is None \
-                or closed_at.utcoffset() is None or deadline_at <= issued_at:
+                or closed_at.utcoffset() is None or deadline_at <= issued_at \
+                or successor_issued_at is not None and closed_at > successor_issued_at:
             fail('PRIOR_PROCESS_FAILURE')
 
         if not isinstance(queued, dict) or set(queued) != queued_keys \
@@ -1619,7 +1666,7 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
             fail('PRIOR_PROCESS_FAILURE')
         for authority, remaining in ((admission, window['queuedStopPlan']['plannedBytes']),
                                      (terminal, 0)):
-            if not isinstance(authority, dict) or set(authority) != authority_keys \
+            if not isinstance(authority, dict) or set(authority) != expected_authority_keys \
                     or any(authority.get(key) is not True for key in (
                         'authorityStable', 'windowStable', 'ownerStable', 'sourceManifestStable',
                         'ownedManifestStable', 'sourcePinsValid', 'ownedRootsValid',
@@ -1629,11 +1676,13 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
                     or authority.get('windowSha256Observed') != window_sha \
                     or authority.get('ownerSha256Observed') != owner_sha \
                     or authority.get('sourceFileCount') != 241 \
-                    or authority.get('ownedRootCount') != 75 \
+                    or authority.get('ownedRootCount') != expected_owned_count \
                     or authority.get('issuerFailureCount') != 1 \
                     or authority.get('prechildFailureCount') != 1 \
                     or authority.get('remainingPlannedBytes') != remaining \
-                    or authority.get('candidateRepository') != window.get('candidateRepository'):
+                    or authority.get('candidateRepository') != window.get('candidateRepository') \
+                    or linked and (authority.get('processFailureCarryoverValid') is not True
+                                   or authority.get('processFailureCount') != 1):
                 fail('PRIOR_PROCESS_FAILURE')
 
         if set(supervision) != supervision_keys or supervision.get('passed') is not False \
@@ -1680,11 +1729,24 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
         validated_owned = unique_roots(owned['roots'])
         parent_root = current_root(parent, 'owner.json')
         issuer_root = current_root(issuer_identity, 'owner.json')
-        if len(validated_owned) != 75 or validated_owned.get(str(parent)) != parent_root \
+        predecessor_root = None
+        if linked:
+            predecessor_path = Path(process_carryover[0].get('root', '')) \
+                if isinstance(process_carryover[0], dict) else Path('')
+            try:
+                predecessor_root = current_root(predecessor_path, 'owner.json')
+            except (IssueError, OSError, TypeError, ValueError) as error:
+                raise IssueError('PRIOR_PROCESS_FAILURE') from error
+        expected_tail = [parent_root, issuer_root] if leaf else \
+            [predecessor_root, parent_root, issuer_root]
+        if len(validated_owned) != expected_owned_count \
+                or owned['roots'][:73] + expected_tail != owned['roots'] \
+                or validated_owned.get(str(parent)) != parent_root \
                 or validated_owned.get(str(issuer_identity)) != issuer_root:
             fail('PRIOR_PROCESS_FAILURE')
-        inherited_roots = [root for root in owned['roots']
-                           if root.get('path') not in {str(parent), str(issuer_identity)}]
+        inherited_roots = owned['roots'][:73]
+        if expected_inherited_roots is not None and inherited_roots != expected_inherited_roots:
+            fail('PRIOR_PROCESS_FAILURE_LINEAGE')
         files = {
             'owner': {'path': str(parent / 'owner.json'), 'sha256': observed_owner_sha},
             'supervisor': {'path': str(installed_supervisor), 'sha256': supervisor_sha},
@@ -1703,11 +1765,18 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
             'stdout': {'path': str(stdout_path), 'sha256': stdout_sha},
             'stderr': {'path': str(stderr_path), 'sha256': stderr_sha},
         }
-        facts.append({'root': str(parent), 'windowId': window_id, 'windowDirName': window_dir_name,
-                      'label': label, 'failure': failure_code, 'code': 1, 'sampleCount': 0,
-                      'deviceOpened': False, 'formalReady': False, 'gateB': 'NOT_RUN',
-                      'files': files})
+        current_fact = {'root': str(parent), 'windowId': window_id,
+                        'windowDirName': window_dir_name, 'label': label,
+                        'failure': failure_code, 'code': 1, 'sampleCount': 0,
+                        'deviceOpened': False, 'formalReady': False, 'gateB': 'NOT_RUN',
+                        'files': files}
+        if nested and current_fact != row:
+            fail('PRIOR_PROCESS_FAILURE')
+        if is_head:
+            roots.append(parent_root); facts.append(current_fact)
+        billing_roots.append(parent_root)
         snapshots.append({
+            'windowId': window_id, 'issuedAt': window['issuedAt'], 'closedAt': close['closedAt'],
             'root': directory_snapshot(parent, parent_entries),
             'issuerIdentity': directory_snapshot(issuer_identity, {'owner.json'}),
             'supervision': directory_snapshot(supervision_directory, supervision_entries),
@@ -1721,14 +1790,16 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
             'files': {key: file_snapshot(value['path'], value['sha256'])
                       for key, value in files.items()},
         })
-        roots.append(parent_root)
         seen_roots.add(str(parent)); seen_windows.add(window_id); seen_dirs.add(window_dir_name)
         seen_labels.add(label); declared.add(str(close_path))
+        if len(declared) > 64:
+            fail('PRIOR_PROCESS_FAILURE')
+        if linked:
+            pending.append((process_carryover[0], issued_at, False))
     if declared != discovered:
         fail('PRIOR_PROCESS_FAILURE_AUDIT')
-    ordered = sorted(zip(roots, facts, snapshots), key=lambda value: value[0]['path'])
-    return {'roots': [root for root, _, _ in ordered], 'facts': [fact for _, fact, _ in ordered],
-            'snapshots': [snapshot for _, _, snapshot in ordered]}
+    return {'roots': roots, 'facts': facts, 'billingRoots': billing_roots,
+            'snapshots': snapshots}
 
 
 def copy_supervisor(source, destination, expected_sha):
@@ -1975,12 +2046,12 @@ def issue(options):
     expected_process_inherited = [*measure['roots'], *prior_failures['roots'],
                                   *prechild_failures['roots']]
     process_failures = validate_prior_process_failures(options, runtime)
-    if len(process_failures['snapshots']) != 1:
+    if not 1 <= len(process_failures['snapshots']) <= 64:
         fail('EXACT76_V3_CARRYOVER')
-    process_failures['lineage'] = validate_process_recovery_lineage(
-        runtime, process_failures['snapshots'][0]['historicalMeasure'],
-        process_failures['snapshots'][0]['inheritedRoots'], expected_process_inherited,
-        measure['recoveryMappings'])
+    process_failures['lineage'] = [validate_process_recovery_lineage(
+        runtime, snapshot['historicalMeasure'], snapshot['inheritedRoots'],
+        expected_process_inherited, measure['recoveryMappings'])
+        for snapshot in process_failures['snapshots']]
     if len(prior_failures['roots']) != 1 or len(prechild_failures['roots']) != 1 \
             or len(process_failures['roots']) != 1:
         fail('EXACT76_V3_CARRYOVER')
@@ -1992,7 +2063,9 @@ def issue(options):
     if len(preflight_roots) != EXPECTED_PREFLIGHT_ROOTS \
             or any(row['device'] != current_device for row in preflight_roots.values()):
         fail('EXACT76_V3_PREFLIGHT')
-    owned_facts(list(preflight_roots.values()), planned, runtime)
+    preflight_billing_roots = unique_roots(
+        [*preflight_roots.values(), *process_failures['billingRoots']])
+    owned_facts(list(preflight_billing_roots.values()), planned, runtime)
     window_id = str(uuid.uuid4())
     parent = runtime / options.window_dir_name
     try:
@@ -2046,7 +2119,8 @@ def issue(options):
     owned = {'schemaVersion': 1, 'scope': 'musicbridge-capacity-owned-roots', 'access': 'count-only',
              'windowId': window_id, 'roots': list(roots.values())}
     owned_sha = exclusive_json(parent / 'owned-roots.json', owned)
-    budget = owned_facts(list(roots.values()), planned, runtime)
+    billing_roots = unique_roots([*roots.values(), *process_failures['billingRoots']])
+    budget = owned_facts(list(billing_roots.values()), planned, runtime)
     issued = datetime.datetime.now(datetime.timezone.utc)
     deadline = issued + datetime.timedelta(seconds=900)
     plan = {'warmupCount': 5, 'formalCount': 100, 'sampleCount': 105,
@@ -2105,12 +2179,12 @@ def issue(options):
     second_expected_process_inherited = [*second_measure['roots'], *second_prior_failures['roots'],
                                          *second_prechild_failures['roots']]
     second_process_failures = validate_prior_process_failures(options, runtime)
-    if len(second_process_failures['snapshots']) != 1:
+    if not 1 <= len(second_process_failures['snapshots']) <= 64:
         fail('PRIOR_PROCESS_FAILURE_DRIFT')
-    second_process_failures['lineage'] = validate_process_recovery_lineage(
-        runtime, second_process_failures['snapshots'][0]['historicalMeasure'],
-        second_process_failures['snapshots'][0]['inheritedRoots'],
+    second_process_failures['lineage'] = [validate_process_recovery_lineage(
+        runtime, snapshot['historicalMeasure'], snapshot['inheritedRoots'],
         second_expected_process_inherited, second_measure['recoveryMappings'])
+        for snapshot in second_process_failures['snapshots']]
     if second_prior_failures['facts'] != prior_failures['facts'] \
             or second_prior_failures['roots'] != prior_failures['roots'] \
             or second_prior_failures['snapshots'] != prior_failures['snapshots']:
@@ -2121,6 +2195,7 @@ def issue(options):
         fail('PRIOR_PRECHILD_FAILURE_DRIFT')
     if second_process_failures['facts'] != process_failures['facts'] \
             or second_process_failures['roots'] != process_failures['roots'] \
+            or second_process_failures['billingRoots'] != process_failures['billingRoots'] \
             or second_process_failures['snapshots'] != process_failures['snapshots'] \
             or second_process_failures['lineage'] != process_failures['lineage']:
         fail('PRIOR_PROCESS_FAILURE_DRIFT')
@@ -2142,7 +2217,9 @@ def issue(options):
     if len(roots_second) != EXPECTED_AUTHORITY_ROOTS \
             or any(row['device'] != current_device for row in roots_second.values()):
         fail('OWNED_DRIFT')
-    budget_second = owned_facts(list(roots_second.values()), planned, runtime)
+    billing_roots_second = unique_roots(
+        [*roots_second.values(), *second_process_failures['billingRoots']])
+    budget_second = owned_facts(list(billing_roots_second.values()), planned, runtime)
     os.rename(pending, parent / 'window.json')
     fsync_directory(parent)
     fsync_directory(runtime)

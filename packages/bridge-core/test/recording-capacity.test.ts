@@ -838,29 +838,106 @@ function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>,
   f.put(path.join(issuerCarryover, 'owner.json'), { scope: 'musicbridge-capacity-issuer-failure' });
   const prechildCarryover = path.join(f.runtime, 'prechild-carryover'); mkdirSync(prechildCarryover);
   f.put(path.join(prechildCarryover, 'owner.json'), { scope: 'musicbridge-capacity-prechild-failure' });
-  const processCarryover = path.join(f.runtime, 'process-carryover'); mkdirSync(processCarryover);
-  f.put(path.join(processCarryover, 'owner.json'), { scope: 'musicbridge-capacity-process-failure' });
-  mkdirSync(path.join(processCarryover, 'issuer-identity'));
-  mkdirSync(path.join(processCarryover, 'supervision'));
-  const processFile = (relative: string) => {
-    const file = path.join(processCarryover, relative);
-    f.put(file, { scope: 'musicbridge-capacity-process-failure-evidence', relative });
-    return { path: file, sha256: f.hash(file) };
-  };
-  const processFiles = {
-    owner: { path: path.join(processCarryover, 'owner.json'), sha256: f.hash(path.join(processCarryover, 'owner.json')) },
-    supervisor: processFile('supervisor.py'), issuerFact: processFile('issuer-identity/owner.json'),
-    sourceManifest: processFile('source-pins.json'), ownedManifest: processFile('owned-roots.json'),
-    window: processFile('window.json'), close: processFile('close.json'),
-    supervision: processFile('supervision/supervisor.json'), supervisorStart: processFile('supervision/supervisor-start.json'),
-    stdout: processFile('supervision/stdout.log'), stderr: processFile('supervision/stderr.log'),
-  };
   const proof = (name: string) => ({ path: path.join(f.runtime, name), sha256: '3'.repeat(64) });
   outer.measureCarryover = { window: { ...proof('measure/window.json'), id: historicalWindowId }, close: proof('measure/close.json'),
     ownedManifest: { path: historicalManifest, sha256: f.hash(historicalManifest) }, sourceManifest: proof('measure/source-pins.json'),
     supervision: proof('measure/supervision/supervisor.json'), supervisor: proof('measure/supervisor.py'),
     output: { path: measureOutput, label: 'measure-output', commandSha256: f.hash(path.join(measureOutput, 'command.json')) },
     measureRootRecovery: { path: recovery, sha256: f.hash(recovery) } };
+  const baseRoots = [...liveRoots, ...mappings.map(value => {
+    const { role: _role, ...root } = value.replacementRoot; return root;
+  }), f.entry(measureOutput, 'command.json'), f.entry(issuerCarryover, 'owner.json'), f.entry(prechildCarryover, 'owner.json')];
+  assert.equal(baseRoots.length, 73);
+  type ProcessNodeFixture = {
+    root: string; id: string; label: string; pid: number; issuedMs: number; predecessor?: ProcessNodeFixture;
+    stderrPid?: number; supervisorBytes?: number; mutate?: (documents: Record<string, any>) => void; row?: Record<string, any>;
+  };
+  const processTimestamp = (milliseconds: number, microseconds = false) => {
+    const value = new Date(milliseconds).toISOString().replace(/Z$/u, '+00:00');
+    return microseconds ? value.replace(/(\.\d{3})\+00:00$/u, '$1000+00:00') : value;
+  };
+  let nextProcessPid = 31_000;
+  const makeProcessNode = (name: string, predecessor?: ProcessNodeFixture, issuedOffsetMs = -120_000): ProcessNodeFixture => {
+    const root = path.join(f.runtime, name); mkdirSync(root); mkdirSync(path.join(root, 'issuer-identity')); mkdirSync(path.join(root, 'supervision'));
+    return { root, id: randomUUID(), label: `${name}-run`, pid: nextProcessPid++,
+      issuedMs: Date.parse(String(outer.issuedAt)) + issuedOffsetMs, ...(predecessor ? { predecessor } : {}) };
+  };
+  const sealProcessNode = (node: ProcessNodeFixture): Record<string, any> => {
+    const predecessorRow = node.predecessor ? sealProcessNode(node.predecessor) : undefined;
+    const issuerIdentity = path.join(node.root, 'issuer-identity'), supervisionRoot = path.join(node.root, 'supervision');
+    const ownerPath = path.join(node.root, 'owner.json'), supervisorPath = path.join(node.root, 'supervisor.py');
+    f.put(ownerPath, { scope: outer.scope, owner: 'root', id: node.id });
+    writeFileSync(supervisorPath, '#!/usr/bin/env python3\n# process failure fixture\n'.padEnd(node.supervisorBytes ?? 48, '#'));
+    const sourceManifestPath = path.join(node.root, 'source-pins.json'); f.put(sourceManifestPath, f.api.capacityPhaseSourcePins());
+    const nodeIssuerFact = {
+      schemaVersion: 1, scope: 'musicbridge-capacity-queued-stop-authority-issuer', windowId: node.id,
+      issuerRepository: { root: candidate, branch: 'codex/exact75-test', head: candidateHead, relativePath: recoveryRelative, sha256: f.hash(recoveryTool) },
+      candidateRepository: outer.candidateRepository, supervisorSource: { path: supervisorPath, sha256: f.hash(supervisorPath) }, toolchain: outer.toolchain,
+      buildHelper: { path: recoveryTool, relativePath: recoveryRelative, sha256: f.hash(recoveryTool) },
+      buildToolchain: { node: outer.toolchain, nodeLibrary: outer.toolchain, typescriptCompiler: outer.toolchain, typescriptLibraryManifestSha256: 'a'.repeat(64) },
+      build: {}, issuerFailureCarryover: [{ root: issuerCarryover }], prechildFailureCarryover: [{ root: prechildCarryover }],
+      ...(predecessorRow ? { processFailureCarryover: [predecessorRow] } : {}), measureCarryover: outer.measureCarryover,
+    };
+    const issuerFactPath = path.join(issuerIdentity, 'owner.json'); f.put(issuerFactPath, nodeIssuerFact);
+    const ownedManifestPath = path.join(node.root, 'owned-roots.json');
+    const nodeRoots = [...baseRoots, ...(node.predecessor ? [f.entry(node.predecessor.root, 'owner.json')] : []),
+      f.entry(node.root, 'owner.json'), f.entry(issuerIdentity, 'owner.json')];
+    f.put(ownedManifestPath, { schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only', windowId: node.id, roots: nodeRoots });
+    const nodeWindow: Record<string, any> = {
+      schemaVersion: 1, scope: outer.scope, owner: 'root', id: node.id, state: 'approved', phase: 'queued-stop', profile: 'objects-limit', label: node.label,
+      seedLabel: 'seed', seed: outer.seed, n: 105, issuerFailureCarryoverCount: 1, prechildFailureCarryoverCount: 1,
+      ...(node.predecessor ? { processFailureCarryoverCount: 1 } : {}),
+      issuedAt: processTimestamp(node.issuedMs), deadlineAt: processTimestamp(node.issuedMs + 900_000), limits: outer.limits,
+      ownedManifest: { file: 'owned-roots.json', sha256: f.hash(ownedManifestPath) }, sourceManifest: { file: 'source-pins.json', sha256: f.hash(sourceManifestPath) },
+      queuedStopPlan: outer.queuedStopPlan, supervisor: { path: supervisorPath, sha256: f.hash(supervisorPath) }, candidateRepository: outer.candidateRepository,
+      toolchain: outer.toolchain, issuer: { path: recoveryTool, sha256: f.hash(recoveryTool), fact: { path: issuerFactPath, sha256: f.hash(issuerFactPath) } },
+      measureCarryover: outer.measureCarryover,
+    };
+    const windowPath = path.join(node.root, 'window.json');
+    const stdoutPath = path.join(supervisionRoot, 'stdout.log'), stderrPath = path.join(supervisionRoot, 'stderr.log');
+    writeFileSync(stdoutPath, '');
+    writeFileSync(stderrPath, `CAPACITY_PHASE_OPERATION_FAILED\n(node:${node.stderrPid ?? node.pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use \`node --trace-warnings ...\` to show where the warning was created)\n`);
+    const outputDirectory = path.join(node.root, node.label), elapsedMs = 650.25;
+    const logFact = (file: string) => ({ path: file, exists: true, size: lstatSync(file).size, sha256: f.hash(file) });
+    const queuedStop = { outputDirectory, verifiedComplete: false, verifiedPassed: false, fileCount: 0, sampleCount: 0,
+      uniqueChildPids: 0, aggregateBudgetValid: false, unexpectedEntries: [] };
+    const documents: Record<string, any> = { owner: JSON.parse(readFileSync(ownerPath, 'utf8')), issuerFact: nodeIssuerFact,
+      ownedManifest: JSON.parse(readFileSync(ownedManifestPath, 'utf8')), window: nodeWindow,
+      supervisorStart: { pid: node.pid, pgid: node.pid, command: ['/test/node','--import','/test/tsx-loader.mjs',path.join(candidate, 'packages/bridge-core/test/benchmarks/recording-capacity-process.ts'),
+        '--phase','queued-stop','--profile','objects-limit','--label',node.label,'--seed-label','seed','--window',path.join(node.root, 'window.json'),
+        '--window-sha256','0'.repeat(64),'--owned-roots',path.join(node.root, 'owned-roots.json'),'--owned-roots-sha256','0'.repeat(64)],
+        managedProcessGroup: true, startedMonotonic: 100, deadlineMonotonic: 1_000, cwd: candidate,
+        environmentKeys: ['CI','LANG','LC_ALL','PATH','TMPDIR','TZ'], environment: { PATH: '/usr/bin:/bin:/usr/sbin:/sbin', LANG: 'C', LC_ALL: 'C', TZ: 'UTC', CI: '1', TMPDIR: os.tmpdir() },
+        stdin: 'DEVNULL', stdout: stdoutPath, stderr: stderrPath },
+      supervision: { passed: false, failure: 'PROCESS_EXIT', pid: node.pid, pgid: node.pid, code: 1, exitSignal: null, signals: [], groupEmpty: true, zombies: [],
+        elapsedMs, managedProcessGroup: true, stdout: logFact(stdoutPath), stderr: logFact(stderrPath), queuedStop },
+    };
+    node.mutate?.(documents);
+    f.put(issuerFactPath, documents.issuerFact); f.put(ownedManifestPath, documents.ownedManifest);
+    documents.window.ownedManifest.sha256 = f.hash(ownedManifestPath); documents.window.issuer.fact.sha256 = f.hash(issuerFactPath); f.put(windowPath, documents.window);
+    documents.supervisorStart.command[15] = f.hash(windowPath);
+    documents.supervisorStart.command[19] = f.hash(ownedManifestPath);
+    const startPath = path.join(supervisionRoot, 'supervisor-start.json'); f.put(startPath, documents.supervisorStart);
+    const supervisionPath = path.join(supervisionRoot, 'supervisor.json'); f.put(supervisionPath, documents.supervision);
+    const closePath = path.join(node.root, 'close.json');
+    const close = { schemaVersion: 1, scope: 'musicbridge-capacity-queued-stop-window-close', windowId: node.id, profile: 'objects-limit', label: node.label,
+      seedLabel: 'seed', closedAt: processTimestamp(node.issuedMs + elapsedMs, true), state: 'failed', failure: 'PROCESS_EXIT', pid: node.pid, pgid: node.pid,
+      managedProcessGroup: true, code: 1, exitSignal: null, signals: [], groupEmpty: true, zombies: [], elapsedMs,
+      windowSha256: f.hash(windowPath), sourceManifestSha256: f.hash(sourceManifestPath), ownedManifestSha256: f.hash(ownedManifestPath), seed: outer.seed,
+      measureCarryover: outer.measureCarryover, authorityAdmission: {}, authorityTerminal: {}, queuedStop,
+      supervisorSha256: f.hash(supervisionPath), stdout: logFact(stdoutPath), stderr: logFact(stderrPath), deviceOpened: false, formalReady: false,
+      gateB: 'NOT_RUN', replayPolicy: 'terminal-window-id-and-label-never-reuse' };
+    f.put(closePath, close); chmodSync(node.root, 0o700); chmodSync(issuerIdentity, 0o700);
+    const binding = (relative: string) => ({ path: path.join(node.root, relative), sha256: f.hash(path.join(node.root, relative)) });
+    node.row = { root: node.root, windowId: node.id, windowDirName: path.basename(node.root), label: node.label, failure: 'PROCESS_EXIT', code: 1,
+      sampleCount: 0, deviceOpened: false, formalReady: false, gateB: 'NOT_RUN', files: { owner: binding('owner.json'), supervisor: binding('supervisor.py'),
+        issuerFact: binding('issuer-identity/owner.json'), sourceManifest: binding('source-pins.json'), ownedManifest: binding('owned-roots.json'),
+        window: binding('window.json'), close: binding('close.json'), supervision: binding('supervision/supervisor.json'),
+        supervisorStart: binding('supervision/supervisor-start.json'), stdout: binding('supervision/stdout.log'), stderr: binding('supervision/stderr.log') } };
+    return node.row;
+  };
+  const processCarryover = path.join(f.runtime, 'process-carryover');
+  const leafProcess = makeProcessNode('process-carryover'); const processRow = sealProcessNode(leafProcess);
   f.put(path.join(f.windowRoot, 'owner.json'), { scope: outer.scope, owner: 'root', id: outer.id });
   const issuerIdentity = path.join(f.windowRoot, 'issuer-identity'); mkdirSync(issuerIdentity);
   const issuerFact = {
@@ -870,18 +947,13 @@ function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>,
     buildHelper: { path: recoveryTool, relativePath: recoveryRelative, sha256: f.hash(recoveryTool) },
     buildToolchain: { node: outer.toolchain, nodeLibrary: outer.toolchain, typescriptCompiler: outer.toolchain, typescriptLibraryManifestSha256: 'a'.repeat(64) },
     build: {}, issuerFailureCarryover: [{ root: issuerCarryover }], prechildFailureCarryover: [{ root: prechildCarryover }],
-    processFailureCarryover: [{ root: processCarryover, windowId: randomUUID(),
-      windowDirName: path.basename(processCarryover), label: 'process-carryover', failure: 'PROCESS_EXIT',
-      code: 1, sampleCount: 0, deviceOpened: false, formalReady: false, gateB: 'NOT_RUN', files: processFiles }],
+    processFailureCarryover: [processRow],
     measureCarryover: outer.measureCarryover,
   };
   const issuerFactPath = path.join(issuerIdentity, 'owner.json'); const issuerFactSha256 = f.put(issuerFactPath, issuerFact);
   outer.issuer = { path: recoveryTool, sha256: f.hash(recoveryTool), fact: { path: issuerFactPath, sha256: issuerFactSha256 } };
   chmodSync(f.windowRoot, 0o700); chmodSync(issuerIdentity, 0o700);
-  f.inventory.roots = [...liveRoots, ...mappings.map(value => {
-    const { role: _role, ...root } = value.replacementRoot; return root;
-  }), f.entry(measureOutput, 'command.json'), f.entry(issuerCarryover, 'owner.json'), f.entry(prechildCarryover, 'owner.json'),
-  f.entry(processCarryover, 'owner.json'),
+  f.inventory.roots = [...baseRoots, f.entry(processCarryover, 'owner.json'),
   f.entry(f.windowRoot, 'owner.json'), f.entry(issuerIdentity, 'owner.json')];
   if (rootCount < f.inventory.roots.length) f.inventory.roots.splice(rootCount);
   if (rootCount > f.inventory.roots.length) {
@@ -890,14 +962,43 @@ function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>,
     f.put(path.join(directory, 'owner.json'), { scope: 'arbitrary-count-padding' });
     f.inventory.roots.push(f.entry(directory, 'owner.json'));
   }
+  const setProcessHead = (head: ProcessNodeFixture) => {
+    const row = sealProcessNode(head), fact = JSON.parse(readFileSync(issuerFactPath, 'utf8')); fact.processFailureCarryover = [row];
+    const sha256 = f.put(issuerFactPath, fact); (outer.issuer as Record<string, any>).fact.sha256 = sha256;
+    f.inventory.roots[f.inventory.roots.length - 3] = f.entry(head.root, 'owner.json');
+    f.inventory.roots[f.inventory.roots.length - 1] = f.entry(issuerIdentity, 'owner.json');
+  };
   return { outer, seed, recovery, recoveryDirectory, mappings, historicalManifest, historicalRoots, liveRoots,
     historicalDevice, currentDevice,
-    measureOutput, issuerCarryover, prechildCarryover, processCarryover, candidate, candidateHead, recoveryTool, git };
+    measureOutput, issuerCarryover, prechildCarryover, processCarryover, leafProcess, makeProcessNode, sealProcessNode, setProcessHead,
+    candidate, candidateHead, recoveryTool, git };
 }
 
 test('phase设施：新入口参数严格，未知/重复/缺少窗口hash不接受', async () => {
   const { parseCapacityPhaseArguments } = await import('./helpers/recording-capacity-phases.js');
   for (const args of [[], ['--phase','cold'], ['--phase','cold','--phase','cold'], ['--invented','yes'], ['--phase']]) assert.throws(() => parseCapacityPhaseArguments(args), /CAPACITY_PHASE_INVALID_INPUT/u);
+});
+
+test('phase设施：UTC毫秒时间同时接受Z与Python +00:00，并拒绝非UTC或缺少毫秒', async t => {
+  const accepted = await phaseFixture(t);
+  accepted.w.issuedAt = accepted.w.issuedAt.replace(/Z$/u, '+00:00');
+  accepted.w.deadlineAt = accepted.w.deadlineAt.replace(/Z$/u, '+00:00');
+  accepted.seal(); let calls = 0;
+  const summary = await accepted.api.runCapacityPhase(accepted.args, { ...accepted.options,
+    cold: async input => { ++calls; return accepted.coldResult(input); } });
+  assert.equal(calls, 10); assert.equal(summary.state, 'passed');
+
+  for (const [name, mutate] of [
+    ['non-utc', (value: string) => value.replace(/Z$/u, '+08:00')],
+    ['missing-milliseconds', (value: string) => value.replace(/\.\d{3}Z$/u, 'Z')],
+    ['missing-zone', (value: string) => value.replace(/Z$/u, '')],
+  ] as const) await t.test(name, async () => {
+    const rejected = await phaseFixture(t);
+    rejected.w.issuedAt = mutate(rejected.w.issuedAt); rejected.seal(); let rejectedCalls = 0;
+    await assert.rejects(rejected.api.runCapacityPhase(rejected.args, { ...rejected.options,
+      cold: async input => { ++rejectedCalls; return rejected.coldResult(input); } }), /CAPACITY_PHASE_WINDOW_INVALID/u);
+    assert.equal(rejectedCalls, 0); assert.equal(existsSync(rejected.output), false);
+  });
 });
 
 for (const fault of ['owner','purpose','n','limit','expired','window-hash','inventory-hash','source-pins','seed-hash','symlink'] as const) test(`phase设施：${fault}前置拒绝且不建输出`, async t => {
@@ -1122,6 +1223,75 @@ test('queued-stop successor：按三类failure carryover精确接受76 roots', a
       assert.equal(calls, 0); assert.equal(existsSync(f.output), false);
     }
   }
+});
+
+test('queued-stop successor：current outer只接受exact1 process head与固定76 direct roots', async t => {
+  const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
+  const configured = configureExact75V2Recovery(f, 76);
+  const second = configured.makeProcessNode('process-second'); const secondRow = configured.sealProcessNode(second);
+  const issuerFactPath = path.join(f.windowRoot, 'issuer-identity', 'owner.json');
+  const issuerFact = JSON.parse(readFileSync(issuerFactPath, 'utf8'));
+  issuerFact.processFailureCarryover = [configured.leafProcess.row, secondRow]; configured.outer.processFailureCarryoverCount = 2;
+  const issuerFactSha256 = f.put(issuerFactPath, issuerFact); (configured.outer.issuer as Record<string, any>).fact.sha256 = issuerFactSha256;
+  f.inventory.roots.splice(f.inventory.roots.length - 2, 0, f.entry(second.root, 'owner.json'));
+  f.inventory.roots[f.inventory.roots.length - 1] = f.entry(path.join(f.windowRoot, 'issuer-identity'), 'owner.json');
+  f.seal(); let calls = 0;
+  await assert.rejects(f.api.runCapacityPhase(f.args, { ...f.options,
+    queuedStop: async input => { ++calls; return f.queuedResult(input); } }), /CAPACITY_PHASE_(?:WINDOW|INVENTORY)_INVALID/u);
+  assert.equal(calls, 0); assert.equal(existsSync(f.output), false);
+});
+
+test('queued-stop successor：递归PROCESS_EXIT单链接受latest head并拒绝嵌套漂移、重排、环、分叉与orphan', async t => {
+  const run = async (fault: 'none' | 'nested-window' | 'reordered-roots' | 'cycle' | 'fork' | 'orphan' | 'stderr-pid' | 'time-order' | 'duplicate-id' | 'duplicate-label') => {
+    const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
+    const configured = configureExact75V2Recovery(f, 76);
+    const linked = configured.makeProcessNode('process-linked', configured.leafProcess, -60_000);
+    if (fault === 'nested-window') configured.leafProcess.mutate = documents => { documents.window.id = randomUUID(); };
+    if (fault === 'reordered-roots') linked.mutate = documents => {
+      [documents.ownedManifest.roots[0], documents.ownedManifest.roots[1]] = [documents.ownedManifest.roots[1], documents.ownedManifest.roots[0]];
+    };
+    if (fault === 'fork') linked.mutate = documents => { documents.issuerFact.processFailureCarryover.push(configured.leafProcess.row); };
+    if (fault === 'orphan') configured.sealProcessNode(configured.makeProcessNode('process-orphan', undefined, -90_000));
+    if (fault === 'stderr-pid') configured.leafProcess.stderrPid = configured.leafProcess.pid + 1;
+    if (fault === 'time-order') configured.leafProcess.issuedMs = linked.issuedMs + 10_000;
+    if (fault === 'duplicate-id') linked.id = configured.leafProcess.id;
+    if (fault === 'duplicate-label') linked.label = configured.leafProcess.label;
+    if (fault === 'cycle') {
+      configured.sealProcessNode(linked);
+      linked.mutate = documents => { documents.issuerFact.processFailureCarryover = [linked.row]; };
+    }
+    configured.setProcessHead(linked); f.seal(); let calls = 0;
+    const execution = f.api.runCapacityPhase(f.args, { ...f.options,
+      queuedStop: async () => { ++calls; throw new Error(fault === 'none' ? '受控停止' : '不应调用'); } });
+    if (fault === 'none') {
+      const summary = await execution; assert.equal(calls, 1); assert.equal(summary.state, 'incomplete');
+    } else {
+      await assert.rejects(execution, /CAPACITY_PHASE_(?:WINDOW|INVENTORY)_INVALID/u);
+      assert.equal(calls, 0); assert.equal(existsSync(f.output), false);
+    }
+  };
+  for (const fault of ['none','nested-window','reordered-roots','cycle','fork','orphan','stderr-pid','time-order','duplicate-id','duplicate-label'] as const) {
+    await t.test(fault, () => run(fault));
+  }
+});
+
+test('queued-stop successor：ownedBytes计入direct roots与递归可达process ancestors的union', async t => {
+  const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
+  const configured = configureExact75V2Recovery(f, 76);
+  configured.leafProcess.supervisorBytes = 1024 * 1024;
+  const linked = configured.makeProcessNode('process-linked', configured.leafProcess, -60_000);
+  configured.setProcessHead(linked); f.seal();
+  const capacity = await import('./helpers/recording-capacity-fixture.js');
+  const roots = f.inventory.roots.map(root => root.path);
+  const direct = [...new Set(roots)].sort().filter(root => !roots.some(other => other !== root && root.startsWith(other + path.sep)))
+    .reduce((total, root) => total + capacity.capacityDirectoryBytes(root), 0);
+  const inherited = capacity.capacityDirectoryBytes(configured.leafProcess.root);
+  let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options,
+    queuedStop: async () => { ++calls; throw new Error('受控停止'); } });
+  assert.equal(calls, 1); assert.equal(summary.state, 'incomplete');
+  const input = JSON.parse(readFileSync(path.join(f.output, 'input.json'), 'utf8'));
+  assert.equal(input.initialSpace.ownedBytes, direct + inherited);
 });
 
 test('queued-stop successor：process failure fact语义、shape、文件及root身份漂移时不进入样本', async t => {

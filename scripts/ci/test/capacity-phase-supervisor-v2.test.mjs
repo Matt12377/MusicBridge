@@ -100,6 +100,10 @@ try:
       pathlib.Path(payload['manifest']), pathlib.Path(payload['runtime']), payload['windowId'],
       pathlib.Path(payload['parent']), payload['carryRoots'], payload['plannedBytes'],
       payload.get('expectedDevice'))
+  elif method == 'queued-transitive-billing':
+    value=module._apply_queued_stop_transitive_billing(
+      payload['value'], payload['directRoots'], payload['processRoots'],
+      pathlib.Path(payload['parent']), payload.get('terminal',False))
   elif method == 'frozen-owned':
     try:
       value=module._validate_frozen_owned_roots(
@@ -119,7 +123,9 @@ try:
       'typescriptLibraries':{'sha256':'2'*64,'files':{}},
       'issuerFailureRoots':payload.get('issuerFailureRoots',[]),'issuerFailures':payload['failures'],
       'prechildFailureRoots':payload.get('prechildFailureRoots',[]),'prechildFailures':payload.get('prechildFailures', []),
-      'processFailureRoots':payload.get('processFailureRoots',[]),'processFailures':payload.get('processFailures', [])}
+      'processFailureRoots':payload.get('processFailureRoots',[]),
+      'processFailureBillingRoots':payload.get('processFailureBillingRoots',[]),
+      'processFailures':payload.get('processFailures', [])}
     module._validate_queued_stop_measure_carryover=lambda *args, **kwargs: {
       'roots':payload.get('measureRoots',[]),
       'rootRecovery': {'liveDeviceRemap': {'currentDevice': runtime.lstat().st_dev},'mappings':[]}}
@@ -129,6 +135,7 @@ try:
     module._validate_queued_stop_owned_manifest=lambda *args, **kwargs: {
       'rootCount':76,'ownedBytes':1,'plannedBytes':2,'remainingPlannedBytes':0,'availableBytes':3,
       'manifestIdentity':{'sha256':'4'*64}}
+    module._apply_queued_stop_transitive_billing=lambda value, *args, **kwargs: value
     value=module._validate_queued_stop_authority(
       parent,runtime,repo,payload['windowSha256'],terminal=payload.get('terminal',False),initial=payload.get('initial'))
   elif method == 'queued-command':
@@ -981,9 +988,9 @@ function rootRow(path, markerName = 'owner.json') {
     marker: { relative: markerName, sha256: sha(join(path, markerName)) } }
 }
 
-function queuedProcessFailure(f, mutate = () => {}) {
-  const windowId = randomUUID(), windowDirName = 'objects-queued-process-window',
-    label = 'objects-queued-process-run', parent = join(f.runtime, windowDirName)
+function queuedProcessFailure(f, mutate = () => {}, suffix = '') {
+  const windowId = randomUUID(), windowDirName = `objects-queued-process-window${suffix}`,
+    label = `objects-queued-process-run${suffix}`, parent = join(f.runtime, windowDirName)
   const issuerIdentity = join(parent, 'issuer-identity'), supervisionDirectory = join(parent, 'supervision')
   mkdirSync(issuerIdentity, { recursive: true }); mkdirSync(supervisionDirectory)
   const owner = join(parent, 'owner.json'), supervisor = join(parent, 'supervisor.py')
@@ -1018,7 +1025,7 @@ function queuedProcessFailure(f, mutate = () => {}) {
     issuerFailureCarryover: [{}], prechildFailureCarryover: [{}], measureCarryover: template.measureCarryover })
   const historicalRoots = []
   for (let index = 0; index < 73; index += 1) {
-    const root = join(f.runtime, `process-history-${String(index).padStart(2, '0')}`)
+    const root = join(f.runtime, `process-history${suffix}-${String(index).padStart(2, '0')}`)
     mkdirSync(root); json(join(root, 'owner.json'), { scope: 'process-history', index })
     historicalRoots.push(rootRow(root))
   }
@@ -1084,6 +1091,31 @@ function queuedProcessFailure(f, mutate = () => {}) {
     sampleCount: 0, deviceOpened: false, formalReady: false, gateB: 'NOT_RUN', files,
     fixture: { parent, issuerIdentity, supervisionDirectory, owner, supervisor, issuerFact, source, owned,
       windowPath, closePath, supervision, supervisorStart, stdout, stderr, historicalRoots } }
+}
+
+function refreshQueuedProcessRow(row) {
+  const x=row.fixture
+  replaceJson(x.owned,value=>{value.roots[value.roots.length-1]=rootRow(x.issuerIdentity)})
+  replaceJson(x.windowPath,value=>{value.issuer.fact.sha256=sha(x.issuerFact);value.ownedManifest.sha256=sha(x.owned)})
+  replaceJson(x.supervisorStart,value=>{value.command[value.command.indexOf('--window-sha256')+1]=sha(x.windowPath);value.command[value.command.indexOf('--owned-roots-sha256')+1]=sha(x.owned)})
+  replaceJson(x.supervision,value=>{value.stdout={path:x.stdout,exists:true,size:statSync(x.stdout).size,sha256:sha(x.stdout)};value.stderr={path:x.stderr,exists:true,size:statSync(x.stderr).size,sha256:sha(x.stderr)}})
+  replaceJson(x.closePath,value=>{value.windowSha256=sha(x.windowPath);value.ownedManifestSha256=sha(x.owned);value.supervisorSha256=sha(x.supervision);value.stdout=JSON.parse(readFileSync(x.supervision)).stdout;value.stderr=JSON.parse(readFileSync(x.supervision)).stderr;value.authorityAdmission.windowSha256Observed=sha(x.windowPath);value.authorityTerminal.windowSha256Observed=sha(x.windowPath)})
+  row.files=Object.fromEntries(Object.entries({owner:x.owner,supervisor:x.supervisor,issuerFact:x.issuerFact,
+    sourceManifest:x.source,ownedManifest:x.owned,window:x.windowPath,close:x.closePath,supervision:x.supervision,
+    supervisorStart:x.supervisorStart,stdout:x.stdout,stderr:x.stderr}).map(([role,path])=>[role,{path,sha256:sha(path)}]))
+  return row
+}
+
+function linkedQueuedProcessFailure(f) {
+  const leaf=queuedProcessFailure(f,()=>{},'-03'),head=queuedProcessFailure(f,()=>{},'-05')
+  const predecessor=structuredClone(leaf);delete predecessor.fixture
+  replaceJson(head.fixture.issuerFact,value=>{value.processFailureCarryover=[predecessor]})
+  replaceJson(head.fixture.owned,value=>{value.roots.splice(0,73,...structuredClone(leaf.fixture.historicalRoots));value.roots.splice(73,0,rootRow(leaf.root));value.roots[value.roots.length-1]=rootRow(head.fixture.issuerIdentity)})
+  replaceJson(head.fixture.windowPath,value=>{value.processFailureCarryoverCount=1;value.issuedAt='2026-08-30T10:52:28.210+00:00';value.deadlineAt='2026-08-30T11:07:28.210+00:00'})
+  replaceJson(head.fixture.closePath,value=>{for(const authority of [value.authorityAdmission,value.authorityTerminal]){authority.processFailureCarryoverValid=true;authority.processFailureCount=1;authority.ownedRootCount=76}})
+  head.fixture.historicalRoots=leaf.fixture.historicalRoots
+  refreshQueuedProcessRow(head)
+  return {leaf,head}
 }
 
 function disappearedFrozenOwnedFixture(remapped = true) {
@@ -1949,6 +1981,33 @@ test('queued-stop PROCESS_EXIT carryover严格冻结exact75 authority、日志�
   }
 })
 
+test('queued-stop PROCESS_EXIT head压缩递归验证window05到window03并返回全链billing roots',()=>{
+  const f=copiedSupervisor()
+  try {
+    const {leaf,head}=linkedQueuedProcessFailure(f)
+    writeFileSync(head.fixture.stderr,'CAPACITY_PHASE_OPERATION_FAILED\n(node:97229) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n')
+    replaceJson(head.fixture.supervisorStart,v=>{v.pid=97229;v.pgid=97229})
+    replaceJson(head.fixture.supervision,v=>{v.pid=97229;v.pgid=97229})
+    replaceJson(head.fixture.closePath,v=>{v.pid=97229;v.pgid=97229})
+    refreshQueuedProcessRow(head)
+    const direct=structuredClone(head);delete direct.fixture
+    const observed=bridge(f.script,'queued-process-failures',{runtime:f.runtime,carryover:[direct]})
+    assert.equal(observed.ok,true,observed.error)
+    assert.deepEqual(observed.value.roots.map(v=>v.path),[head.root])
+    assert.deepEqual(observed.value.billingRoots.map(v=>v.path).sort(),[leaf.root,head.root].sort())
+    assert.deepEqual(observed.value.snapshots.map(v=>v.windowId),[head.windowId,leaf.windowId])
+  } finally { f.cleanup() }
+})
+
+test('queued-stop PROCESS_EXIT head压缩拒绝owned[73]错配、fork/cycle与orphan',async t=>{
+  for(const [name,mutate] of [
+    ['owned[73]',({head})=>{replaceJson(head.fixture.owned,v=>{v.roots[73]=structuredClone(v.roots[0])});refreshQueuedProcessRow(head)}],
+    ['fork',({head})=>{replaceJson(head.fixture.issuerFact,v=>{v.processFailureCarryover.push(structuredClone(v.processFailureCarryover[0]))});refreshQueuedProcessRow(head)}],
+    ['cycle',({head})=>{const self=structuredClone(head);delete self.fixture;replaceJson(head.fixture.issuerFact,v=>{v.processFailureCarryover=[self]});refreshQueuedProcessRow(head)}],
+    ['orphan',({f})=>{queuedProcessFailure(f,()=>{},'-orphan')}],
+  ]) await t.test(name,()=>{const f=copiedSupervisor();try{const chain=linkedQueuedProcessFailure(f);mutate({...chain,f});const direct=structuredClone(chain.head);delete direct.fixture;const observed=bridge(f.script,'queued-process-failures',{runtime:f.runtime,carryover:[direct]});assert.equal(observed.ok,false)}finally{f.cleanup()}})
+})
+
 test('旧timeout carryover按legacy 107-clone格式验证29 receipts、273 samples且不读取sqlite', () => {
   const f = copiedSupervisor()
   try {
@@ -2412,7 +2471,7 @@ test('queued-stop admission实际复核toolchain、issuer fact与candidate HEAD 
     assert.equal(observed.ok, true, observed.error)
     assert.deepEqual(Object.keys(observed.value).sort(), ['buildHelper','buildNode','buildNodeLibrary','consumerPython',
       'issuer','issuerFact','issuerFailureRoots','issuerFailures','node','prechildFailureRoots','prechildFailures',
-      'processFailureRoots','processFailures','tsxLoader','typescriptCompiler','typescriptLibraries'])
+      'processFailureBillingRoots','processFailureRoots','processFailures','tsxLoader','typescriptCompiler','typescriptLibraries'])
     assert.equal(observed.value.issuerFailures[0].issuerIdentity.path,
       join(observed.value.issuerFailureRoots[0].path, 'issuer-identity'))
     const changed = structuredClone(window); changed.toolchain.node.sha256 = '0'.repeat(64)
@@ -2492,11 +2551,35 @@ test('queued-stop owned闭包动态接受74个carryover加当前authority形成e
   } finally { f.cleanup() }
 })
 
+test('queued-stop传递计费计算direct roots与递归process roots的去重union', () => {
+  const f = copiedSupervisor()
+  try {
+    const direct = join(f.runtime, 'billing-direct'), process = join(f.runtime, 'billing-process')
+    const nested = join(process, 'nested')
+    mkdirSync(direct); mkdirSync(nested, { recursive: true })
+    writeFileSync(join(direct, 'direct.bin'), Buffer.alloc(17))
+    writeFileSync(join(process, 'process.bin'), Buffer.alloc(23))
+    writeFileSync(join(nested, 'nested.bin'), Buffer.alloc(31))
+    const value = { rootCount: 76, ownedBytes: 0, plannedBytes: 0,
+      remainingPlannedBytes: 0, availableBytes: 0, manifestIdentity: { sha256: '4'.repeat(64) } }
+    const observed = bridge(f.script, 'queued-transitive-billing', {
+      value, directRoots: [{ path: direct }, { path: nested }], processRoots: [{ path: process }],
+      parent: f.authority, terminal: true,
+    })
+    assert.equal(observed.ok, true, observed.error)
+    assert.equal(observed.value.ownedBytes, 71)
+    assert.equal(observed.value.remainingPlannedBytes, 0)
+    assert.ok(observed.value.availableBytes >= 10 * 1024 ** 3)
+  } finally { f.cleanup() }
+})
+
 test('queued-stop authority admission到terminal逐项比较issuer failure身份快照', () => {
   const f = copiedSupervisor()
   try {
     const windowId = randomUUID(), windowPath = join(f.authority, 'window.json')
+    const issuerIdentity = join(f.authority, 'issuer-identity'); mkdirSync(issuerIdentity)
     json(join(f.authority, 'owner.json'), { scope: 'musicbridge-capacity-queued-stop-window', owner: 'root', id: windowId })
+    json(join(issuerIdentity, 'owner.json'), { scope: 'musicbridge-capacity-queued-stop-authority-issuer', windowId })
     json(windowPath, { scope: 'musicbridge-capacity-queued-stop-window', id: windowId,
       issuedAt: '2026-08-30T00:00:00.000Z',
       sourceManifest: { sha256: '3'.repeat(64) }, ownedManifest: { sha256: '4'.repeat(64) },
@@ -2542,9 +2625,10 @@ test('queued-stop authority admission到terminal逐项比较issuer failure身份
 
 test('queued-stop admission与terminal使用recovery谱系翻译PROCESS_EXIT inherited roots', async t => {
   const source=readFileSync(sourceSupervisor,'utf8'),authority=source.slice(source.indexOf('def _validate_queued_stop_authority('),source.indexOf('def _queued_stop_budget('))
-  assert.match(authority,/process_lineage = _validate_queued_stop_process_recovery_lineage\(/u)
+  assert.match(authority,/process_lineage = \[_validate_queued_stop_process_recovery_lineage\(/u)
+  assert.match(authority,/_apply_queued_stop_transitive_billing\([\s\S]*processFailureBillingRoots/u)
   assert.match(authority,/'processFailureLineage': process_lineage/u)
-  assert.match(authority,/'prechildFailures', 'processFailures', 'processFailureLineage'/u)
+  assert.match(authority,/'prechildFailures', 'processFailures', 'processFailureBillingRoots',[\s\S]*'processFailureLineage'/u)
   await t.test('跨代正例',()=>{const f=queuedProcessLineageFixture();try{const observed=bridge(f.script,'queued-process-lineage',{runtime:f.runtime,historicalMeasure:f.historicalMeasure,oldInherited:f.oldInherited,currentRoots:f.currentRoots,currentMappings:f.currentMappings});assert.equal(observed.ok,true,observed.error);assert.equal(observed.value.translated,true)}finally{f.cleanup()}})
   for(const [name,mutate] of [['historicalRoot漂移',(f,p)=>{p.currentMappings[0].historicalRoot.inode+=1}],['映射重排',(f,p)=>{[p.currentMappings[0],p.currentMappings[1]]=[p.currentMappings[1],p.currentMappings[0]]}],['旧receipt漂移',(f,p)=>{const binding=rewriteRootRecovery(f,r=>{r.repository.clean=false});p.historicalMeasure.measureRootRecovery=binding}],['新增任意根',(f,p)=>{p.currentRoots.push(structuredClone(p.currentRoots[0]))}],['marker替换',(f,p)=>{p.currentRoots[0].marker.sha256='f'.repeat(64)}],['issuer-prechild互换',(f,p)=>{[p.currentRoots[71],p.currentRoots[72]]=[p.currentRoots[72],p.currentRoots[71]]}]])await t.test(name,()=>{const f=queuedProcessLineageFixture();try{const payload={runtime:f.runtime,historicalMeasure:structuredClone(f.historicalMeasure),oldInherited:structuredClone(f.oldInherited),currentRoots:structuredClone(f.currentRoots),currentMappings:structuredClone(f.currentMappings)};mutate(f,payload);const observed=bridge(f.script,'queued-process-lineage',payload);assert.equal(observed.ok,false);assert.match(observed.error,/QUEUED_STOP_PROCESS_FAILURE_LINEAGE/u)}finally{f.cleanup()}})
 })

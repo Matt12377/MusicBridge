@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { constants, closeSync, existsSync, fsyncSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, statfsSync, writeFileSync } from 'node:fs';
+import { constants, closeSync, existsSync, fsyncSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, statfsSync, writeFileSync, type Stats } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -112,6 +112,16 @@ export const capacityPhaseFailureCode = (error: unknown): string => error instan
 const sha = (v: unknown): v is string => typeof v === 'string' && /^[a-f0-9]{64}$/u.test(v);
 const label = (v: unknown): v is string => typeof v === 'string' && /^[a-z0-9-]{1,64}$/u.test(v);
 const integer = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
+const utcMillisecondPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}(?:Z|\+00:00)$/u;
+const utcTimestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3,6}(?:Z|\+00:00)$/u;
+function utcInstant(value: unknown, millisecondsOnly: boolean): number | undefined {
+  if (typeof value !== 'string' || !(millisecondsOnly ? utcMillisecondPattern : utcTimestampPattern).test(value)) return undefined;
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return undefined;
+  const normalized = value.replace(/\+00:00$/u, 'Z');
+  if (millisecondsOnly && new Date(parsed).toISOString() !== normalized) return undefined;
+  return parsed;
+}
 const inside = (parent: string, child: string) => parent === child || child.startsWith(parent + path.sep);
 function exact(v: unknown, keys: string): v is Record<string, unknown> { return !!v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).sort().join(',') === keys.split(',').sort().join(','); }
 const jointAxisKeys = 'attemptEvents,attemptBytes,recordBytes,printBytes,photoBytes,printObjectBytes';
@@ -218,8 +228,7 @@ function validWindow(v: unknown): v is CapacityPhaseWindow {
       && v.issuerFailureCarryoverCount <= 64
       && integer(v.prechildFailureCarryoverCount) && v.prechildFailureCarryoverCount >= 1
       && v.prechildFailureCarryoverCount <= 64
-      && integer(v.processFailureCarryoverCount) && v.processFailureCarryoverCount >= 1
-      && v.processFailureCarryoverCount <= 64
+      && v.processFailureCarryoverCount === 1
       && sha(v.seed.fixtureOwnerSha256) && exact(plan, 'warmupCount,formalCount,sampleCount,activeCloneMaximum,snapshotBytes,evidenceAllowanceBytes,plannedBytes,model,aggregateAudit')
       && plan.warmupCount === 5 && plan.formalCount === 100 && plan.sampleCount === 105 && plan.activeCloneMaximum === 1
       && integer(plan.snapshotBytes) && plan.snapshotBytes > 0 && plan.evidenceAllowanceBytes === 256 * 1024 ** 2
@@ -332,8 +341,9 @@ function sameRecoveryRow(left: RecoveryRootRow, right: RecoveryRootRow): boolean
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+interface SuccessorRecoveryValidation { check: () => void; processRoots: string[] }
 function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string, windowRoot: string, seedPath: string, seed: Seed,
-  inventory: CapacityOwnedManifest): () => void {
+  inventory: CapacityOwnedManifest): SuccessorRecoveryValidation {
   const carryover = window.measureCarryover as Record<string, Record<string, unknown>>;
   const binding = carryover.measureRootRecovery!, receiptPath = String(binding.path), recoveryRoot = path.dirname(receiptPath);
   if (path.dirname(recoveryRoot) !== runtime || path.basename(receiptPath) !== 'recovery.json'
@@ -459,26 +469,234 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
     supervision: 'supervision/supervisor.json', supervisorStart: 'supervision/supervisor-start.json',
     stdout: 'supervision/stdout.log', stderr: 'supervision/stderr.log',
   } as const;
-  const processRoots = processValue.map(value => {
-    if (!exact(value, 'root,windowId,windowDirName,label,failure,code,sampleCount,deviceOpened,formalReady,gateB,files')
-      || typeof value.root !== 'string' || !path.isAbsolute(value.root) || path.normalize(value.root) !== value.root
-      || path.dirname(value.root) !== runtime || path.basename(value.root) !== value.windowDirName
-      || !isCapacityRequestId(value.windowId) || !label(value.windowDirName) || !label(value.label)
-      || value.failure !== 'PROCESS_EXIT' || value.code !== 1 || value.sampleCount !== 0
-      || value.deviceOpened !== false || value.formalReady !== false || value.gateB !== 'NOT_RUN'
-      || !exact(value.files, Object.keys(processFileRelatives).join(','))) invalid('WINDOW_INVALID');
-    canonical(value.root);
-    const rootInfo = lstatSync(value.root);
-    const files = value.files as Record<string, unknown>;
-    for (const [role, relative] of Object.entries(processFileRelatives)) {
-      const file = files[role];
-      if (!exact(file, 'path,sha256') || file.path !== path.join(value.root, relative) || !sha(file.sha256)
-        || !directRegularFile(file.path) || hashCapacityFile(file.path) !== file.sha256) invalid('WINDOW_INVALID');
+  const baseOwnedRoots = inventory.roots.slice(0, 73), reachableProcessRoots: string[] = [];
+  const declaredProcessCloses = new Set<string>(), seenProcessRoots = new Set<string>();
+  const seenProcessIds = new Set<string>(), seenProcessDirs = new Set<string>(), seenProcessLabels = new Set<string>();
+  const processStableChecks: Array<() => void> = [];
+  const rowKeys = 'root,windowId,windowDirName,label,failure,code,sampleCount,deviceOpened,formalReady,gateB,files';
+  const leafWindowKeys = 'schemaVersion,scope,owner,id,state,phase,profile,label,seedLabel,seed,n,issuerFailureCarryoverCount,prechildFailureCarryoverCount,issuedAt,deadlineAt,limits,ownedManifest,sourceManifest,queuedStopPlan,supervisor,candidateRepository,toolchain,issuer,measureCarryover';
+  const leafFactKeys = 'schemaVersion,scope,windowId,issuerRepository,candidateRepository,supervisorSource,toolchain,buildHelper,buildToolchain,build,issuerFailureCarryover,prechildFailureCarryover,measureCarryover';
+  const queuedKeys = 'outputDirectory,verifiedComplete,verifiedPassed,fileCount,sampleCount,uniqueChildPids,aggregateBudgetValid,unexpectedEntries';
+  const supervisionKeys = 'passed,failure,pid,pgid,code,exitSignal,signals,groupEmpty,zombies,elapsedMs,managedProcessGroup,stdout,stderr,queuedStop';
+  const startKeys = 'pid,pgid,command,managedProcessGroup,startedMonotonic,deadlineMonotonic,cwd,environmentKeys,environment,stdin,stdout,stderr';
+  const closeKeys = 'schemaVersion,scope,windowId,profile,label,seedLabel,closedAt,state,failure,pid,pgid,managedProcessGroup,code,exitSignal,signals,groupEmpty,zombies,elapsedMs,windowSha256,sourceManifestSha256,ownedManifestSha256,seed,measureCarryover,authorityAdmission,authorityTerminal,queuedStop,supervisorSha256,stdout,stderr,deviceOpened,formalReady,gateB,replayPolicy';
+  const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
+  const expectedBasePaths = [...liveRoots.map(root => root.path), ...receipt.mappings.map(value => value.replacementRoot.path),
+    outputPath, ...carryoverRoots];
+  if (!same(baseOwnedRoots.map(root => root.path), expectedBasePaths)) invalid('INVENTORY_INVALID');
+  const withoutRole = (value: RecoveryReplacementRoot): RecoveryRootRow => ({ path: value.path, device: value.device,
+    inode: value.inode, marker: value.marker });
+  function processRecoveryLineage(measure: unknown, inherited: unknown[]): void {
+    if (!exact(measure, 'window,close,ownedManifest,sourceManifest,supervision,supervisor,output,measureRootRecovery')
+      || !exact(measure.measureRootRecovery, 'path,sha256') || typeof measure.measureRootRecovery.path !== 'string'
+      || !sha(measure.measureRootRecovery.sha256)) invalid('WINDOW_INVALID');
+    if (same(measure.measureRootRecovery, carryover.measureRootRecovery)) {
+      if (!same(inherited, baseOwnedRoots)) invalid('WINDOW_INVALID');
+      return;
     }
-    return { root: value.root, device: rootInfo.dev, inode: rootInfo.ino,
-      ownerSha256: (files.owner as Record<string, unknown>).sha256 as string };
-  });
+    const oldReceiptValue = json(measure.measureRootRecovery.path, measure.measureRootRecovery.sha256, 4 * 1024 ** 2);
+    const oldHistoricalManifest = exact(oldReceiptValue, keys) && exact(oldReceiptValue.historicalManifest, 'path,sha256')
+      ? oldReceiptValue.historicalManifest : undefined;
+    if (!exact(oldReceiptValue, keys) || !Array.isArray(oldReceiptValue.mappings) || oldReceiptValue.mappings.length !== 7
+      || !oldHistoricalManifest || !exact(measure.ownedManifest, 'path,sha256')
+      || oldHistoricalManifest.path !== measure.ownedManifest.path
+      || oldHistoricalManifest.sha256 !== measure.ownedManifest.sha256) invalid('WINDOW_INVALID');
+    const oldMappings = oldReceiptValue.mappings as RecoveryMapping[];
+    if (oldMappings.some(value => !exact(value, 'historicalRoot,state,recovered,replacementRoot')
+      || !validRecoveryRoot(value.historicalRoot, false) || !validRecoveryRoot(value.replacementRoot, true))) invalid('WINDOW_INVALID');
+    const oldHistorical = oldMappings.map(value => value.historicalRoot);
+    const currentHistorical = receipt.mappings.map(value => value.historicalRoot);
+    const oldReplacements = oldMappings.map(value => withoutRole(value.replacementRoot));
+    const currentReplacements = receipt.mappings.map(value => withoutRole(value.replacementRoot));
+    if (!same(inherited.slice(0, 63), baseOwnedRoots.slice(0, 63))
+      || !same(inherited.slice(63, 70), oldReplacements)
+      || !same(baseOwnedRoots.slice(63, 70), currentReplacements)
+      || !same(oldHistorical, currentHistorical)
+      || !same(inherited.slice(70), baseOwnedRoots.slice(70))) invalid('WINDOW_INVALID');
+  }
+  function validateProcessRow(value: unknown, successorIssuedAt: number): { root: string; device: number; inode: number; ownerSha256: string } {
+    if (!exact(value, rowKeys) || typeof value.root !== 'string' || !path.isAbsolute(value.root)
+      || path.normalize(value.root) !== value.root || path.dirname(value.root) !== runtime
+      || path.basename(value.root) !== value.windowDirName || !isCapacityRequestId(value.windowId)
+      || !label(value.windowDirName) || !label(value.label) || value.failure !== 'PROCESS_EXIT' || value.code !== 1
+      || value.sampleCount !== 0 || value.deviceOpened !== false || value.formalReady !== false
+      || value.gateB !== 'NOT_RUN' || !exact(value.files, Object.keys(processFileRelatives).join(','))) invalid('WINDOW_INVALID');
+    const root = value.root, windowId = value.windowId, windowDirName = value.windowDirName, processLabel = value.label;
+    if (seenProcessRoots.has(root) || seenProcessIds.has(windowId) || seenProcessDirs.has(windowDirName)
+      || seenProcessLabels.has(processLabel) || seenProcessRoots.size >= 64) invalid('WINDOW_INVALID');
+    canonical(root);
+    const rootInfo = lstatSync(root), issuerDirectory = path.join(root, 'issuer-identity');
+    const supervisionDirectory = path.join(root, 'supervision'); canonical(issuerDirectory); canonical(supervisionDirectory);
+    const issuerInfo = lstatSync(issuerDirectory), supervisionInfo = lstatSync(supervisionDirectory);
+    const directoryIdentity = (info: Stats) => [info.dev, info.ino, info.mode, info.nlink, info.mtimeMs, info.ctimeMs];
+    const rootDirectoryIdentity = directoryIdentity(rootInfo), issuerDirectoryIdentity = directoryIdentity(issuerInfo);
+    const supervisionDirectoryIdentity = directoryIdentity(supervisionInfo);
+    const expectedRootEntries = ['close.json','issuer-identity','owned-roots.json','owner.json','source-pins.json','supervision','supervisor.py','window.json'];
+    const expectedSupervisionEntries = ['stderr.log','stdout.log','supervisor-start.json','supervisor.json'];
+    if (!same(readdirSync(root).sort(), expectedRootEntries) || !same(readdirSync(issuerDirectory).sort(), ['owner.json'])
+      || !same(readdirSync(supervisionDirectory).sort(), expectedSupervisionEntries)) invalid('WINDOW_INVALID');
+    const files = value.files as Record<string, unknown>, fileHashes = new Map<string, string>();
+    for (const [role, relative] of Object.entries(processFileRelatives)) {
+      const file = files[role], maximum = ['stdout','stderr'].includes(role) ? 64 * 1024
+        : ['owner','issuerFact'].includes(role) ? 1024 * 1024 : 32 * 1024 * 1024;
+      if (!exact(file, 'path,sha256') || file.path !== path.join(root, relative) || !sha(file.sha256)
+        || !directRegularFile(file.path) || lstatSync(file.path).size > maximum
+        || hashCapacityFile(file.path) !== file.sha256) invalid('WINDOW_INVALID');
+      fileHashes.set(file.path, file.sha256);
+    }
+    type ProcessBinding = { path: string; sha256: string };
+    const binding = (role: keyof typeof processFileRelatives): ProcessBinding => files[role] as ProcessBinding;
+    const owner = json(binding('owner').path, binding('owner').sha256);
+    const fact = json(binding('issuerFact').path, binding('issuerFact').sha256) as Record<string, unknown>;
+    const source = json(binding('sourceManifest').path, binding('sourceManifest').sha256) as Record<string, unknown>;
+    const owned = json(binding('ownedManifest').path, binding('ownedManifest').sha256) as Record<string, unknown>;
+    const nodeWindow = json(binding('window').path, binding('window').sha256) as Record<string, unknown>;
+    const close = json(binding('close').path, binding('close').sha256) as Record<string, unknown>;
+    const supervision = json(binding('supervision').path, binding('supervision').sha256) as Record<string, unknown>;
+    const start = json(binding('supervisorStart').path, binding('supervisorStart').sha256) as Record<string, unknown>;
+    const processCarryover = fact.processFailureCarryover;
+    const leaf = !('processFailureCarryover' in fact) && !('processFailureCarryoverCount' in nodeWindow);
+    const linked = exact(fact, `${leafFactKeys},processFailureCarryover`) && exact(nodeWindow, `${leafWindowKeys},processFailureCarryoverCount`)
+      && nodeWindow.processFailureCarryoverCount === 1 && Array.isArray(processCarryover) && processCarryover.length === 1;
+    if (!(leaf && exact(fact, leafFactKeys) && exact(nodeWindow, leafWindowKeys)) && !linked) invalid('WINDOW_INVALID');
+    const issuedAt = utcInstant(nodeWindow.issuedAt, true), deadlineAt = utcInstant(nodeWindow.deadlineAt, true);
+    const closedAt = utcInstant(close.closedAt, false), expectedOwnedCount = linked ? 76 : 75;
+    if (!same(owner, { scope: 'musicbridge-capacity-queued-stop-window', owner: 'root', id: windowId })
+      || nodeWindow.schemaVersion !== 1 || nodeWindow.scope !== 'musicbridge-capacity-queued-stop-window'
+      || nodeWindow.owner !== 'root' || nodeWindow.id !== windowId || nodeWindow.state !== 'approved'
+      || nodeWindow.phase !== 'queued-stop' || nodeWindow.profile !== 'objects-limit' || nodeWindow.label !== processLabel
+      || nodeWindow.n !== 105 || nodeWindow.issuerFailureCarryoverCount !== 1 || nodeWindow.prechildFailureCarryoverCount !== 1
+      || !same(nodeWindow.limits, CAPACITY_PHASE_LIMITS) || !same(nodeWindow.queuedStopPlan, window.queuedStopPlan)
+      || issuedAt === undefined || deadlineAt === undefined || closedAt === undefined || deadlineAt - issuedAt !== 900_000
+      || closedAt < issuedAt || closedAt > deadlineAt || closedAt > successorIssuedAt
+      || !exact(nodeWindow.sourceManifest, 'file,sha256') || nodeWindow.sourceManifest.file !== 'source-pins.json'
+      || nodeWindow.sourceManifest.sha256 !== binding('sourceManifest').sha256
+      || !exact(nodeWindow.ownedManifest, 'file,sha256') || nodeWindow.ownedManifest.file !== 'owned-roots.json'
+      || nodeWindow.ownedManifest.sha256 !== binding('ownedManifest').sha256
+      || !exact(nodeWindow.supervisor, 'path,sha256') || nodeWindow.supervisor.path !== binding('supervisor').path
+      || nodeWindow.supervisor.sha256 !== binding('supervisor').sha256
+      || !exact(nodeWindow.issuer, 'path,sha256,fact') || !same(nodeWindow.issuer.fact, binding('issuerFact'))
+      || fact.schemaVersion !== 1 || fact.scope !== 'musicbridge-capacity-queued-stop-authority-issuer'
+      || fact.windowId !== windowId || !same(fact.candidateRepository, nodeWindow.candidateRepository)
+      || !same(fact.toolchain, nodeWindow.toolchain) || !same(fact.measureCarryover, nodeWindow.measureCarryover)
+      || !Array.isArray(fact.issuerFailureCarryover) || fact.issuerFailureCarryover.length !== 1
+      || !Array.isArray(fact.prechildFailureCarryover) || fact.prechildFailureCarryover.length !== 1
+      || !exact(source, 'schemaVersion,scope,files') || source.schemaVersion !== 1
+      || source.scope !== 'musicbridge-capacity-source-pins' || !source.files || typeof source.files !== 'object'
+      || Array.isArray(source.files) || Object.keys(source.files).length === 0
+      || Object.entries(source.files as Record<string, unknown>).some(([relative, digest]) => path.isAbsolute(relative)
+        || relative.split(path.sep).includes('..') || !sha(digest))
+      || !exact(owned, 'schemaVersion,scope,access,windowId,roots') || owned.schemaVersion !== 1
+      || owned.scope !== 'musicbridge-capacity-owned-roots' || owned.access !== 'count-only'
+      || owned.windowId !== windowId || !Array.isArray(owned.roots) || owned.roots.length !== expectedOwnedCount) invalid('WINDOW_INVALID');
+    const inherited = owned.roots.slice(0, 73) as unknown[];
+    processRecoveryLineage(nodeWindow.measureCarryover, inherited);
+    const ownerRoot = { path: root, device: rootInfo.dev, inode: rootInfo.ino,
+      marker: { relative: 'owner.json', sha256: binding('owner').sha256 } };
+    const issuerRoot = { path: issuerDirectory, device: issuerInfo.dev, inode: issuerInfo.ino,
+      marker: { relative: 'owner.json', sha256: binding('issuerFact').sha256 } };
+    let predecessorRoot: RecoveryRootRow | undefined;
+    if (linked) {
+      const predecessor = processCarryover[0]! as Record<string, unknown>;
+      if (!exact(predecessor, rowKeys) || typeof predecessor.root !== 'string' || !exact(predecessor.files, Object.keys(processFileRelatives).join(','))) invalid('WINDOW_INVALID');
+      const predecessorOwner = (predecessor.files as Record<string, Record<string, unknown>>).owner;
+      if (!exact(predecessorOwner, 'path,sha256') || predecessorOwner.path !== path.join(predecessor.root, 'owner.json')
+        || !sha(predecessorOwner.sha256)) invalid('WINDOW_INVALID');
+      const predecessorInfo = lstatSync(predecessor.root);
+      predecessorRoot = { path: predecessor.root, device: predecessorInfo.dev, inode: predecessorInfo.ino,
+        marker: { relative: 'owner.json', sha256: predecessorOwner.sha256 } };
+    }
+    const expectedOwned = [...inherited, ...(predecessorRoot ? [predecessorRoot] : []), ownerRoot, issuerRoot];
+    if (!same(owned.roots, expectedOwned)) invalid('INVENTORY_INVALID');
+    const outputDirectory = path.join(root, processLabel), queued = supervision.queuedStop;
+    const stdoutBytes = readFileSync(binding('stdout').path, 'utf8');
+    const stderrBytes = readFileSync(binding('stderr').path, 'utf8');
+    const pid = supervision.pid;
+    const logFact = (role: 'stdout' | 'stderr') => ({ path: binding(role).path, exists: true,
+      size: lstatSync(binding(role).path).size, sha256: binding(role).sha256 });
+    const stdoutFact = logFact('stdout'), stderrFact = logFact('stderr');
+    if (!exact(queued, queuedKeys) || !same(queued, { outputDirectory, verifiedComplete: false, verifiedPassed: false,
+      fileCount: 0, sampleCount: 0, uniqueChildPids: 0, aggregateBudgetValid: false, unexpectedEntries: [] })
+      || existsSync(outputDirectory) || stdoutBytes !== '' || !integer(pid) || pid <= 0
+      || stderrBytes !== `CAPACITY_PHASE_OPERATION_FAILED\n(node:${pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use \`node --trace-warnings ...\` to show where the warning was created)\n`
+      || !exact(supervision, supervisionKeys) || supervision.passed !== false || supervision.failure !== 'PROCESS_EXIT'
+      || supervision.pgid !== pid || supervision.code !== 1 || supervision.exitSignal !== null
+      || !same(supervision.signals, []) || supervision.groupEmpty !== true || !same(supervision.zombies, [])
+      || supervision.managedProcessGroup !== true || typeof supervision.elapsedMs !== 'number'
+      || !Number.isFinite(supervision.elapsedMs) || supervision.elapsedMs < 0
+      || !same(supervision.stdout, stdoutFact) || !same(supervision.stderr, stderrFact)) invalid('WINDOW_INVALID');
+    const candidate = nodeWindow.candidateRepository as Record<string, unknown>;
+    const toolchain = nodeWindow.toolchain as Record<string, Record<string, unknown>>;
+    const expectedCommand = [toolchain.node?.path, '--import', toolchain.tsxLoader?.path,
+      path.join(String(candidate.root), 'packages/bridge-core/test/benchmarks/recording-capacity-process.ts'),
+      '--phase','queued-stop','--profile','objects-limit','--label',processLabel,'--seed-label',nodeWindow.seedLabel,
+      '--window',binding('window').path,'--window-sha256',binding('window').sha256,
+      '--owned-roots',binding('ownedManifest').path,'--owned-roots-sha256',binding('ownedManifest').sha256];
+    const environment = start.environment as Record<string, unknown>;
+    if (!exact(start, startKeys) || start.pid !== pid || start.pgid !== pid || !same(start.command, expectedCommand)
+      || start.managedProcessGroup !== true || typeof start.startedMonotonic !== 'number'
+      || typeof start.deadlineMonotonic !== 'number' || start.deadlineMonotonic <= start.startedMonotonic
+      || start.cwd !== candidate.root || !exact(environment, 'CI,LANG,LC_ALL,PATH,TMPDIR,TZ')
+      || environment.PATH !== '/usr/bin:/bin:/usr/sbin:/sbin' || environment.LANG !== 'C'
+      || environment.LC_ALL !== 'C' || environment.TZ !== 'UTC' || environment.CI !== '1'
+      || typeof environment.TMPDIR !== 'string' || !path.isAbsolute(environment.TMPDIR)
+      || !same(start.environmentKeys, Object.keys(environment).sort()) || start.stdin !== 'DEVNULL'
+      || start.stdout !== binding('stdout').path || start.stderr !== binding('stderr').path) invalid('WINDOW_INVALID');
+    if (!exact(close, closeKeys) || close.schemaVersion !== 1
+      || close.scope !== 'musicbridge-capacity-queued-stop-window-close' || close.windowId !== windowId
+      || close.profile !== 'objects-limit' || close.label !== processLabel || close.seedLabel !== nodeWindow.seedLabel
+      || close.state !== 'failed' || close.failure !== 'PROCESS_EXIT' || close.pid !== pid || close.pgid !== pid
+      || close.managedProcessGroup !== true || close.code !== 1 || close.exitSignal !== null
+      || !same(close.signals, []) || close.groupEmpty !== true || !same(close.zombies, [])
+      || close.elapsedMs !== supervision.elapsedMs || close.windowSha256 !== binding('window').sha256
+      || close.sourceManifestSha256 !== binding('sourceManifest').sha256
+      || close.ownedManifestSha256 !== binding('ownedManifest').sha256 || !same(close.seed, nodeWindow.seed)
+      || !same(close.measureCarryover, nodeWindow.measureCarryover) || !same(close.queuedStop, queued)
+      || close.supervisorSha256 !== binding('supervision').sha256 || !same(close.stdout, stdoutFact)
+      || !same(close.stderr, stderrFact) || close.deviceOpened !== false || close.formalReady !== false
+      || close.gateB !== 'NOT_RUN' || close.replayPolicy !== 'terminal-window-id-and-label-never-reuse'
+      || !close.authorityAdmission || typeof close.authorityAdmission !== 'object' || Array.isArray(close.authorityAdmission)
+      || !close.authorityTerminal || typeof close.authorityTerminal !== 'object' || Array.isArray(close.authorityTerminal)) invalid('WINDOW_INVALID');
+    seenProcessRoots.add(root); seenProcessIds.add(windowId); seenProcessDirs.add(windowDirName); seenProcessLabels.add(processLabel);
+    reachableProcessRoots.push(root); declaredProcessCloses.add(binding('close').path);
+    processStableChecks.push(() => {
+      if (!same(readdirSync(root).sort(), expectedRootEntries) || !same(readdirSync(issuerDirectory).sort(), ['owner.json'])
+        || !same(readdirSync(supervisionDirectory).sort(), expectedSupervisionEntries)
+        || !same(directoryIdentity(lstatSync(root)), rootDirectoryIdentity)
+        || !same(directoryIdentity(lstatSync(issuerDirectory)), issuerDirectoryIdentity)
+        || !same(directoryIdentity(lstatSync(supervisionDirectory)), supervisionDirectoryIdentity)
+        || [...fileHashes].some(([file, digest]) => !directRegularFile(file) || hashCapacityFile(file) !== digest)) invalid('WINDOW_INVALID');
+    });
+    if (linked) validateProcessRow(processCarryover[0]!, issuedAt);
+    return { root, device: rootInfo.dev, inode: rootInfo.ino, ownerSha256: binding('owner').sha256 };
+  }
+  const outerIssuedAt = utcInstant(window.issuedAt, true);
+  if (outerIssuedAt === undefined) invalid('WINDOW_INVALID');
+  const processRoots = processValue.map(value => validateProcessRow(value, outerIssuedAt));
+  function auditProcessCloses(): void {
+    const discovered = new Set<string>();
+    for (const entry of readdirSync(runtime).sort()) {
+      const root = path.join(runtime, entry), closePath = path.join(root, 'close.json');
+      const info = lstatSync(root);
+      if (!info.isDirectory() || info.isSymbolicLink()) {
+        if (existsSync(closePath)) invalid('WINDOW_INVALID');
+        continue;
+      }
+      if (!existsSync(closePath)) continue;
+      if (!directRegularFile(closePath)) invalid('WINDOW_INVALID');
+      let candidate: Record<string, unknown>;
+      try { candidate = JSON.parse(readFileSync(closePath, 'utf8')) as Record<string, unknown>; }
+      catch { invalid('WINDOW_INVALID'); }
+      if (candidate.scope === 'musicbridge-capacity-queued-stop-window-close'
+        && candidate.state === 'failed' && candidate.failure === 'PROCESS_EXIT') discovered.add(closePath);
+    }
+    if (!same([...discovered].sort(), [...declaredProcessCloses].sort())) invalid('WINDOW_INVALID');
+  }
+  auditProcessCloses();
   carryoverRoots.push(...processRoots.map(value => value.root));
+  const expectedInventoryOrder = [...baseOwnedRoots.map(root => root.path), ...processRoots.map(value => value.root),
+    path.dirname(issuerIdentity), issuerIdentity];
+  if (!same(inventory.roots.map(root => root.path), expectedInventoryOrder)) invalid('INVENTORY_INVALID');
   const expectedPaths = new Set([...liveRoots.map(root => root.path), ...replacements, outputPath, ...carryoverRoots,
     path.dirname(issuerIdentity), issuerIdentity]);
   const inventoryPaths = new Set(inventory.roots.map(root => root.path));
@@ -531,8 +749,10 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
         || !directRegularFile(ownerPath) || (lstatSync(ownerPath).mode & 0o777) !== 0o400
         || hashCapacityFile(ownerPath) !== replacement.marker.sha256) invalid('INVENTORY_INVALID');
     }
+    for (const check of processStableChecks) check();
+    auditProcessCloses();
   };
-  stable(); return stable;
+  stable(); return { check: stable, processRoots: reachableProcessRoots };
 }
 function validBackup(v: unknown): v is BackupReceipt {
   return exact(v, 'id,backupPath,manifestHash,databaseSha256,databaseBytes,objectCount,objectBytes,manifestBytes,protectedRootPaths,preparationMs,schemaVersion,kind,state,mode,contentIncluded,seedLabel,seedSha256,profile,sourceManifestSha256')
@@ -667,13 +887,14 @@ export async function runCapacityPhase(args: CapacityPhaseArguments, options: Ca
     || args.ownedRootsPath !== path.join(windowRoot, 'owned-roots.json') || args.ownedRootsSha256 !== w.ownedManifest.sha256) invalid('WINDOW_INVALID');
   const ownerPath = path.join(windowRoot, 'owner.json'), owner = json(ownerPath), ownerSha = hashCapacityFile(ownerPath), rootIdentity = lstatSync(windowRoot);
   if (!exact(owner, 'scope,owner,id') || owner.scope !== w.scope || owner.owner !== 'root' || owner.id !== w.id) invalid('WINDOW_INVALID');
-  const issued = Date.parse(w.issuedAt), deadline = Date.parse(w.deadlineAt);
-  if (!Number.isFinite(issued) || !Number.isFinite(deadline) || new Date(issued).toISOString() !== w.issuedAt || new Date(deadline).toISOString() !== w.deadlineAt
+  const issued = utcInstant(w.issuedAt, true), deadline = utcInstant(w.deadlineAt, true);
+  if (issued === undefined || deadline === undefined
     || issued > now() || deadline <= issued || deadline - issued > 900_000
     || (w.phase === 'queued-stop' || w.phase === 'print-write' && w.n === 105) && deadline - issued !== 900_000) invalid('WINDOW_INVALID');
-  let recoveryCheck = () => {};
+  const effectiveDeadline = deadline;
+  let recoveryCheck = () => {}, processBillingRoots: string[] = [];
   function windowEnvelopeCheck(minimum = 0) {
-    if (now() + minimum >= deadline) invalid('DEADLINE');
+    if (now() + minimum >= effectiveDeadline) invalid('DEADLINE');
     const s = lstatSync(windowRoot); if (s.dev !== rootIdentity.dev || s.ino !== rootIdentity.ino || hashCapacityFile(ownerPath) !== ownerSha || hashCapacityFile(args.windowPath) !== args.windowSha256) invalid('WINDOW_INVALID');
   }
   function windowCheck(minimum = 0) {
@@ -708,7 +929,10 @@ export async function runCapacityPhase(args: CapacityPhaseArguments, options: Ca
   if (!exact(seed.marker, 'id,scope') || !isCapacityRequestId(seed.marker.id) || seed.marker.scope !== 'musicbridge-capacity-synthetic-only'
     || !successorQueuedStop && JSON.stringify(json(path.join(seed.fixtureDirectory, 'capacity-owner.json'))) !== JSON.stringify(seed.marker)
     || ['-wal','-shm','-journal'].some(suffix => existsSync(seedPath + suffix))) invalid('SEED_INVALID');
-  if (successorQueuedStop) recoveryCheck = successorRecoveryValidator(w, runtime, windowRoot, seedPath, seed, inventory);
+  if (successorQueuedStop) {
+    const recoveryValidation = successorRecoveryValidator(w, runtime, windowRoot, seedPath, seed, inventory);
+    recoveryCheck = recoveryValidation.check; processBillingRoots = recoveryValidation.processRoots;
+  }
   const tempRoot = realpathSync(os.tmpdir()), seen = new Set<string>();
   for (const r of inventory.roots) {
     canonical(r.path); if (seen.has(r.path)) invalid('INVENTORY_INVALID'); seen.add(r.path);
@@ -739,7 +963,8 @@ export async function runCapacityPhase(args: CapacityPhaseArguments, options: Ca
       if (s.isFile()) return s.size; if (!s.isDirectory()) invalid('INVENTORY_INVALID');
       let total = 0; for (const name of readdirSync(directory)) { total += size(path.join(directory, name), depth + 1); if (!integer(total) || total > CAPACITY_PHASE_LIMITS.maximumOwnedBytes) invalid('SPACE'); } return total;
     }
-    return minimalRoots(inventory.roots.map(r => r.path)).reduce((total, root) => total + size(root, 0), 0);
+    return minimalRoots([...inventory.roots.map(r => r.path), ...processBillingRoots])
+      .reduce((total, root) => total + size(root, 0), 0);
   }
   function space(planned: number) {
     const owned = ownedBytes(), stat = options.availableBytes ? undefined : statfsSync(windowRoot, { bigint: true });

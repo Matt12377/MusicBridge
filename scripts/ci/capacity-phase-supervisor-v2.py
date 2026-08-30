@@ -254,11 +254,12 @@ _QUEUED_STOP_SNAPSHOT_BYTES = 1_990_471_680
 _QUEUED_STOP_AUDIT = 'queued-stop-aggregate-budget.jsonl'
 _QUEUED_STOP_MODEL = 'serial-single-clone-plus-bounded-growth-v1'
 _QUEUED_STOP_BASE_ROOTS = 73
-_QUEUED_STOP_PROCESS_FAILURE_STDERR = (
-    b'CAPACITY_PHASE_OPERATION_FAILED\n'
-    b'(node:313) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n'
-    b'(Use `node --trace-warnings ...` to show where the warning was created)\n'
-)
+def _queued_stop_process_failure_stderr(pid):
+    return (
+        b'CAPACITY_PHASE_OPERATION_FAILED\n'
+        + f'(node:{pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n'.encode()
+        + b'(Use `node --trace-warnings ...` to show where the warning was created)\n'
+    )
 _QUEUED_STOP_MEASURE_WINDOW_ID = 'afc81a99-d15d-4179-8326-5774a5c40b62'
 _QUEUED_STOP_SEED = {'metadataSha256': '632d8e4b0c01ffec07adc72344e7bcc877e5f1d764e7745af856c6ba44492309',
                      'snapshotSha256': '7ec9b3bed1642503cc9fcee70c6156b54eb43834b0a457050ec51607f2e1ab3a',
@@ -3237,6 +3238,10 @@ def _queued_stop_process_authority(value, window, window_identity, owner_identit
         'ownedManifestStable', 'sourcePinsValid', 'ownedRootsValid',
         'measureCarryoverValid', 'issuerFailureCarryoverValid',
         'prechildFailureCarryoverValid', 'spaceValid', 'toolchainStable', 'issuerStable'}
+    process_count = window.get('processFailureCarryoverCount')
+    if process_count is not None:
+        keys |= {'processFailureCarryoverValid', 'processFailureCount'}
+        stable.add('processFailureCarryoverValid')
     planned = window['queuedStopPlan']['plannedBytes']
     return _queued_exact(value, keys) \
         and all(value.get(key) is True for key in stable) \
@@ -3246,6 +3251,7 @@ def _queued_stop_process_authority(value, window, window_identity, owner_identit
         and value.get('ownedRootCount') == owned_count \
         and value.get('issuerFailureCount') == window['issuerFailureCarryoverCount'] \
         and value.get('prechildFailureCount') == window['prechildFailureCarryoverCount'] \
+        and (process_count is None or value.get('processFailureCount') == process_count) \
         and value.get('candidateRepository') == window['candidateRepository'] \
         and value.get('plannedBytes') == planned \
         and value.get('remainingPlannedBytes') == remaining \
@@ -3305,9 +3311,13 @@ def _validate_queued_stop_process_failures(carryover, runtime):
                   'stdout', 'stderr'}
     queued_keys = {'outputDirectory', 'verifiedComplete', 'verifiedPassed', 'fileCount',
                    'sampleCount', 'uniqueChildPids', 'aggregateBudgetValid', 'unexpectedEntries'}
-    roots = []; snapshots = []; declared = set(); seen = set()
+    roots = []; billing_roots = []; snapshots = []; declared = set(); seen = set()
     seen_windows = set(); seen_dirs = set(); seen_labels = set()
-    for row in carryover:
+    if len(carryover) != 1:
+        raise ValueError(error_code)
+    pending = [(carryover[0], None, True)]
+    while pending:
+        row, successor_issued_at, is_head = pending.pop(0)
         if not _queued_exact(row, row_keys) or row.get('failure') != 'PROCESS_EXIT' \
                 or row.get('code') != 1 or row.get('sampleCount') != 0 \
                 or row.get('deviceOpened') is not False or row.get('formalReady') is not False \
@@ -3382,6 +3392,16 @@ def _validate_queued_stop_process_failures(carryover, runtime):
                 ('supervision', supervision_identity), ('supervisorStart', start_identity))):
             raise ValueError(error_code)
         source_files = source.get('files') if isinstance(source, dict) else None
+        process_carryover = fact.get('processFailureCarryover') if isinstance(fact, dict) else None
+        leaf = isinstance(fact, dict) and 'processFailureCarryover' not in fact \
+            and 'processFailureCarryoverCount' not in window
+        linked = _queued_exact(fact, fact_keys | {'processFailureCarryover'}) \
+            and _queued_exact(window, window_keys | {'processFailureCarryoverCount'}) \
+            and window.get('processFailureCarryoverCount') == 1 \
+            and isinstance(process_carryover, list) and len(process_carryover) == 1
+        if not leaf and not linked:
+            raise ValueError(error_code)
+        expected_owned_count = 75 if leaf else 76
         if owner != {'scope': 'musicbridge-capacity-queued-stop-window', 'owner': 'root', 'id': window_id} \
                 or not _queued_exact(source, {'schemaVersion', 'scope', 'files'}) \
                 or source.get('schemaVersion') != 1 \
@@ -3391,7 +3411,9 @@ def _validate_queued_stop_process_failures(carryover, runtime):
                        or '..' in Path(relative).parts or _SHA256.fullmatch(str(digest)) is None
                        for relative, digest in source_files.items()):
             raise ValueError(error_code)
-        if not _queued_exact(window, window_keys) or window.get('schemaVersion') != 1 \
+        if not _queued_exact(window, window_keys if leaf else
+                             window_keys | {'processFailureCarryoverCount'}) \
+                or window.get('schemaVersion') != 1 \
                 or window.get('scope') != 'musicbridge-capacity-queued-stop-window' \
                 or window.get('owner') != 'root' or window.get('id') != window_id \
                 or window.get('state') != 'approved' or window.get('phase') != 'queued-stop' \
@@ -3406,6 +3428,7 @@ def _validate_queued_stop_process_failures(carryover, runtime):
                 or window.get('ownedManifest') != {'file': 'owned-roots.json',
                                                    'sha256': owned_identity['sha256']} \
                 or issued_at.utcoffset() is None or deadline_at.utcoffset() is None \
+                or successor_issued_at is not None and closed_at > successor_issued_at \
                 or deadline_at - issued_at != datetime.timedelta(seconds=900):
             raise ValueError(error_code)
         try:
@@ -3465,7 +3488,8 @@ def _validate_queued_stop_process_failures(carryover, runtime):
             and Path(measure_carry['output']['path']).is_absolute() \
             and _SAFE.fullmatch(str(measure_carry['output'].get('label', ''))) is not None \
             and _SHA256.fullmatch(str(measure_carry['output'].get('commandSha256', ''))) is not None
-        if not _queued_exact(fact, fact_keys) or fact.get('schemaVersion') != 1 \
+        if not _queued_exact(fact, fact_keys if leaf else fact_keys | {'processFailureCarryover'}) \
+                or fact.get('schemaVersion') != 1 \
                 or fact.get('scope') != 'musicbridge-capacity-queued-stop-authority-issuer' \
                 or fact.get('windowId') != window_id \
                 or fact.get('candidateRepository') != window.get('candidateRepository') \
@@ -3497,15 +3521,41 @@ def _validate_queued_stop_process_failures(carryover, runtime):
                 or owned.get('schemaVersion') != 1 \
                 or owned.get('scope') != 'musicbridge-capacity-owned-roots' \
                 or owned.get('access') != 'count-only' or owned.get('windowId') != window_id \
-                or not isinstance(owned.get('roots'), list) or len(owned['roots']) != 75:
+                or not isinstance(owned.get('roots'), list) \
+                or len(owned['roots']) != expected_owned_count:
             raise ValueError(error_code)
-        current_paths = {str(root), str(issuer_directory)}
-        carry_roots = [item for item in owned['roots']
-                       if isinstance(item, dict) and item.get('path') not in current_paths]
+        predecessor_root = None
+        if linked:
+            predecessor_path = Path(process_carryover[0].get('root', '')) \
+                if isinstance(process_carryover[0], dict) else Path('')
+            predecessor_files = process_carryover[0].get('files') \
+                if isinstance(process_carryover[0], dict) else None
+            try: predecessor_info = predecessor_path.lstat()
+            except OSError as error: raise ValueError(error_code) from error
+            if not isinstance(predecessor_files, dict) \
+                    or not _queued_stop_exact_binding(
+                        predecessor_files.get('owner'), {'path', 'sha256'}) \
+                    or predecessor_files['owner']['path'] != str(predecessor_path / 'owner.json'):
+                raise ValueError(error_code)
+            predecessor_root = {'path': str(predecessor_path), 'device': predecessor_info.st_dev,
+                                'inode': predecessor_info.st_ino,
+                                'marker': {'relative': 'owner.json',
+                                           'sha256': predecessor_files['owner']['sha256']}}
+        carry_roots = owned['roots'][:73]
+        expected_tail = [
+            {'path': str(root), 'device': root_info.st_dev, 'inode': root_info.st_ino,
+             'marker': {'relative': 'owner.json', 'sha256': owner_identity['sha256']}},
+            {'path': str(issuer_directory), 'device': issuer_info.st_dev, 'inode': issuer_info.st_ino,
+             'marker': {'relative': 'owner.json', 'sha256': fact_identity['sha256']}},
+        ]
+        if linked: expected_tail.insert(0, predecessor_root)
+        if owned['roots'] != [*carry_roots, *expected_tail]:
+            raise ValueError(error_code)
+        direct_carry_roots = [*carry_roots, predecessor_root] if linked else carry_roots
         frozen_owned = _validate_queued_stop_owned_manifest(
-            expected_paths['ownedManifest'], runtime, window_id, root, carry_roots, 0,
+            expected_paths['ownedManifest'], runtime, window_id, root, direct_carry_roots, 0,
             expected_device=root_info.st_dev, terminal=True)
-        if frozen_owned['rootCount'] != 75:
+        if frozen_owned['rootCount'] != expected_owned_count:
             raise ValueError(error_code)
         queued = supervision.get('queuedStop') if isinstance(supervision, dict) else None
         captures = {
@@ -3513,7 +3563,8 @@ def _validate_queued_stop_process_failures(carryover, runtime):
                        'size': identities['stdout']['size'], 'sha256': identities['stdout']['sha256']},
             'stderr': {'path': str(expected_paths['stderr']), 'exists': True,
                        'size': identities['stderr']['size'], 'sha256': identities['stderr']['sha256']}}
-        if stdout_bytes != b'' or stderr_bytes != _QUEUED_STOP_PROCESS_FAILURE_STDERR \
+        if stdout_bytes != b'' \
+                or stderr_bytes != _queued_stop_process_failure_stderr(supervision.get('pid')) \
                 or not _queued_exact(queued, queued_keys) \
                 or queued != {'outputDirectory': str(root / label), 'verifiedComplete': False,
                               'verifiedPassed': False, 'fileCount': 0, 'sampleCount': 0,
@@ -3585,10 +3636,12 @@ def _validate_queued_stop_process_failures(carryover, runtime):
                 or close.get('gateB') != 'NOT_RUN' \
                 or close.get('replayPolicy') != 'terminal-window-id-and-label-never-reuse' \
                 or not _queued_stop_process_authority(
-                    admission, window, window_identity, owner_identity, 241, 75,
+                    admission, window, window_identity, owner_identity, 241,
+                    expected_owned_count,
                     window['queuedStopPlan']['plannedBytes']) \
                 or not _queued_stop_process_authority(
-                    terminal, window, window_identity, owner_identity, 241, 75, 0):
+                    terminal, window, window_identity, owner_identity, 241,
+                    expected_owned_count, 0):
             raise ValueError(error_code)
         try:
             root_after = root.lstat(); issuer_after = issuer_directory.lstat()
@@ -3610,7 +3663,8 @@ def _validate_queued_stop_process_failures(carryover, runtime):
             raise ValueError(error_code)
         root_row = {'path': str(root), 'device': root_info.st_dev, 'inode': root_info.st_ino,
                     'marker': {'relative': 'owner.json', 'sha256': owner_identity['sha256']}}
-        roots.append(root_row)
+        if is_head: roots.append(root_row)
+        billing_roots.append(root_row)
         snapshots.append({
             'root': root_row,
             'rootIdentity': {'path': str(root), 'device': root_info.st_dev, 'inode': root_info.st_ino,
@@ -3640,10 +3694,13 @@ def _validate_queued_stop_process_failures(carryover, runtime):
             'stdout': captures['stdout'], 'stderr': captures['stderr']})
         declared.add(str(expected_paths['close'])); seen.add(str(root)); seen_windows.add(window_id)
         seen_dirs.add(row['windowDirName']); seen_labels.add(label)
+        if len(declared) > 64:
+            raise ValueError(error_code)
+        if linked:
+            pending.append((process_carryover[0], issued_at, False))
     if declared != discovered:
         raise ValueError(audit_code)
-    ordered = sorted(zip(roots, snapshots), key=lambda value: value[0]['path'])
-    return {'roots': [root for root, _ in ordered], 'snapshots': [snapshot for _, snapshot in ordered]}
+    return {'roots': roots, 'billingRoots': billing_roots, 'snapshots': snapshots}
 
 
 def _validate_queued_stop_bound_identities(window, parent, candidate):
@@ -3708,6 +3765,7 @@ def _validate_queued_stop_bound_identities(window, parent, candidate):
     if len(process_failures['roots']) != window['processFailureCarryoverCount']:
         raise ValueError('QUEUED_STOP_PROCESS_FAILURE')
     identities['processFailureRoots'] = process_failures['roots']
+    identities['processFailureBillingRoots'] = process_failures['billingRoots']
     identities['processFailures'] = process_failures['snapshots']
     identities['buildHelper'] = _validate_queued_stop_bound_file(
         {'path': build_helper['path'], 'sha256': build_helper['sha256']},
@@ -3972,6 +4030,25 @@ def _validate_queued_stop_owned_manifest(manifest_path, runtime, window_id, pare
             'availableBytes': available, 'manifestIdentity': manifest_identity}
 
 
+def _apply_queued_stop_transitive_billing(value, direct_roots, process_roots, parent, terminal):
+    paths = {row['path'] for row in [*direct_roots, *process_roots]}
+    minimal = [Path(path) for path in sorted(paths)
+               if not any(path != other and _inside(Path(other), Path(path)) for other in paths)]
+    owned_bytes = 0
+    for root in minimal:
+        size, _ = _directory_bytes(root)
+        owned_bytes += size
+        if owned_bytes > _QUEUED_STOP_LIMITS['maximumOwnedBytes']:
+            raise ValueError('QUEUED_STOP_SPACE')
+    reserve = 0 if terminal else value['plannedBytes']
+    available = os.statvfs(parent).f_bavail * os.statvfs(parent).f_frsize
+    if owned_bytes + reserve > _QUEUED_STOP_LIMITS['maximumOwnedBytes'] \
+            or available - reserve < _QUEUED_STOP_LIMITS['minimumFreeBytes']:
+        raise ValueError('QUEUED_STOP_SPACE')
+    return {**value, 'ownedBytes': owned_bytes, 'remainingPlannedBytes': reserve,
+            'availableBytes': available}
+
+
 def _validate_queued_stop_process_recovery_lineage(
         runtime, historical_measure, old_inherited, current_roots, current_mappings):
     code = 'QUEUED_STOP_PROCESS_FAILURE_LINEAGE'
@@ -4072,12 +4149,12 @@ def _validate_queued_stop_authority(parent, runtime, repo_root, window_sha256,
     expected_process_inherited = [*carry['roots'], *bound_identities['issuerFailureRoots'],
                                   *bound_identities['prechildFailureRoots']]
     if len(expected_process_inherited) != _QUEUED_STOP_BASE_ROOTS \
-            or len(bound_identities['processFailures']) != 1:
+            or not 1 <= len(bound_identities['processFailures']) <= 64:
         raise ValueError('QUEUED_STOP_PROCESS_FAILURE_ROOTS')
-    process_lineage = _validate_queued_stop_process_recovery_lineage(
-        runtime, bound_identities['processFailures'][0].get('historicalMeasure'),
-        bound_identities['processFailures'][0].get('inheritedRoots'),
+    process_lineage = [_validate_queued_stop_process_recovery_lineage(
+        runtime, snapshot.get('historicalMeasure'), snapshot.get('inheritedRoots'),
         expected_process_inherited, carry['rootRecovery'].get('mappings'))
+        for snapshot in bound_identities['processFailures']]
     source = _validate_phase_source_manifest(parent / 'source-pins.json', candidate)
     if source['manifestIdentity']['sha256'] != window['sourceManifest']['sha256']:
         raise ValueError('QUEUED_STOP_AUTHORITY')
@@ -4088,6 +4165,12 @@ def _validate_queued_stop_authority(parent, runtime, repo_root, window_sha256,
         parent / 'owned-roots.json', runtime, window['id'], parent, carry_roots,
         window['queuedStopPlan']['plannedBytes'],
         carry['rootRecovery']['liveDeviceRemap']['currentDevice'], terminal=terminal)
+    direct_billing_roots = [*carry_roots,
+                            _carryover_root_identity(parent, 'owner.json'),
+                            _carryover_root_identity(parent / 'issuer-identity', 'owner.json')]
+    owned = _apply_queued_stop_transitive_billing(
+        owned, direct_billing_roots, bound_identities['processFailureBillingRoots'],
+        parent, terminal)
     if owned['manifestIdentity']['sha256'] != window['ownedManifest']['sha256']:
         raise ValueError('QUEUED_STOP_AUTHORITY')
     value = {'authorityStable': True, 'windowStable': True, 'ownerStable': True,
@@ -4119,13 +4202,15 @@ def _validate_queued_stop_authority(parent, runtime, repo_root, window_sha256,
                            'issuerFailures': bound_identities['issuerFailures'],
                            'prechildFailures': bound_identities['prechildFailures'],
                            'processFailures': bound_identities['processFailures'],
+                           'processFailureBillingRoots': bound_identities['processFailureBillingRoots'],
                            'processFailureLineage': process_lineage}}
     if initial is not None:
         for key in ('window', 'owner', 'source', 'owned', 'node', 'tsxLoader',
                     'consumerPython', 'issuer', 'issuerFact', 'buildHelper', 'buildNode',
                     'buildNodeLibrary', 'typescriptCompiler', 'typescriptLibraries',
                     'measureRootRecovery', 'issuerFailures',
-                    'prechildFailures', 'processFailures', 'processFailureLineage'):
+                    'prechildFailures', 'processFailures', 'processFailureBillingRoots',
+                    'processFailureLineage'):
             if initial.get('_snapshot', {}).get(key) != value['_snapshot'][key]:
                 raise ValueError('QUEUED_STOP_AUTHORITY_DRIFT')
     return value
