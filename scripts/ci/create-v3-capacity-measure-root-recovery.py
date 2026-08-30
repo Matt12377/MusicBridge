@@ -105,6 +105,45 @@ def stable_sha256(path, expected=None, maximum=None):
     }
 
 
+def stable_sha256_at(directory_fd, name, expected=None, maximum=None):
+    if not isinstance(name, str) or '/' in name or name in {'', '.', '..'}:
+        fail('FILE_IDENTITY')
+    flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_CLOEXEC', 0)
+    try:
+        descriptor = os.open(name, flags, dir_fd=directory_fd)
+    except OSError as error:
+        raise RecoveryError('FILE_IDENTITY') from error
+    digest = hashlib.sha256()
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+            fail('FILE_IDENTITY')
+        if maximum is not None and before.st_size > maximum:
+            fail('FILE_SIZE')
+        for chunk in iter(lambda: os.read(descriptor, 1024 * 1024), b''):
+            digest.update(chunk)
+        after = os.fstat(descriptor)
+    finally:
+        os.close(descriptor)
+    try:
+        named = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+    except OSError as error:
+        raise RecoveryError('FILE_IDENTITY') from error
+    fields = ('st_dev', 'st_ino', 'st_size', 'st_mtime_ns', 'st_ctime_ns', 'st_nlink')
+    if not stat.S_ISREG(named.st_mode) or any(
+            getattr(before, key) != getattr(after, key)
+            or getattr(after, key) != getattr(named, key) for key in fields):
+        fail('FILE_CHANGED')
+    observed = digest.hexdigest()
+    if expected is not None and observed != expected:
+        fail('HASH_MISMATCH')
+    return {
+        'sha256': observed, 'device': after.st_dev, 'inode': after.st_ino,
+        'size': after.st_size, 'mtimeNs': after.st_mtime_ns, 'ctimeNs': after.st_ctime_ns,
+        'nlink': after.st_nlink,
+    }
+
+
 def strict_json(path, expected=None, maximum=16 * 1024 * 1024):
     identity = stable_sha256(path, expected=expected, maximum=maximum)
     try:
@@ -199,7 +238,7 @@ def _same_directory_object(left, right):
         and left.st_dev == right.st_dev and left.st_ino == right.st_ino
 
 
-def _publish_completed_pending(runtime, pending, final, expected, missing):
+def _publish_completed_pending(runtime, pending, final, expected, missing, validate_inventory):
     runtime_fd = None
     pending_fd = None
     lock_identity = None
@@ -207,8 +246,14 @@ def _publish_completed_pending(runtime, pending, final, expected, missing):
     expected_entries = sorted(
         ['recovery.json'] + [f'replacement-{index:03d}' for index in range(1, 8)])
     flags = os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0) | getattr(os, 'O_CLOEXEC', 0)
+    live_device_remap = validate_live_device_remap(
+        expected.get('liveDeviceRemap') if isinstance(expected, dict) else None,
+        error_code='PUBLISH_IDENTITY')
+    current_device = live_device_remap['currentDevice']
     try:
         runtime_fd = os.open(runtime, flags)
+        if os.fstat(runtime_fd).st_dev != current_device:
+            fail('PUBLISH_IDENTITY')
         try:
             os.mkdir(lock_name, mode=0o700, dir_fd=runtime_fd)
         except OSError as error:
@@ -222,6 +267,7 @@ def _publish_completed_pending(runtime, pending, final, expected, missing):
         named_pending = os.stat(pending.name, dir_fd=runtime_fd, follow_symlinks=False)
         pending_entries = sorted(os.listdir(pending_fd))
         if not _same_directory_object(pending_identity, named_pending) \
+                or pending_identity.st_dev != current_device \
                 or stat.S_IMODE(pending_identity.st_mode) != 0o700 \
                 or pending_entries != expected_entries:
             fail('PUBLISH_IDENTITY')
@@ -240,16 +286,22 @@ def _publish_completed_pending(runtime, pending, final, expected, missing):
         if not _same_directory_object(pending_identity, named_pending) \
                 or sorted(os.listdir(pending_fd)) != pending_entries:
             fail('PUBLISH_IDENTITY')
+        validate_inventory()
+        named_pending = os.stat(pending.name, dir_fd=runtime_fd, follow_symlinks=False)
+        if not _same_directory_object(pending_identity, named_pending) \
+                or sorted(os.listdir(pending_fd)) != pending_entries:
+            fail('PUBLISH_IDENTITY')
         _rename_noreplace(runtime_fd, pending.name, final.name)
 
         published = os.stat(final.name, dir_fd=runtime_fd, follow_symlinks=False)
         still_open = os.fstat(pending_fd)
         if not _same_directory_object(pending_identity, published) \
                 or not _same_directory_object(pending_identity, still_open) \
+                or published.st_dev != current_device \
                 or sorted(os.listdir(pending_fd)) != pending_entries:
             fail('PUBLISH_IDENTITY')
         validate_completed_pending(final, final, expected)
-        require_originals_absent(missing)
+        validate_inventory()
         os.fsync(runtime_fd)
     except FileNotFoundError as error:
         raise RecoveryError('PUBLISH_IDENTITY') from error
@@ -350,14 +402,56 @@ def validate_root_row(row):
 
 
 def validate_present_root(row):
-    path = canonical_directory(row['path'])
-    info = path.stat()
-    if info.st_dev != row['device'] or info.st_ino != row['inode']:
-        fail('MEASURE_OWNED_MANIFEST')
-    marker = path / row['marker']['relative']
-    if stable_sha256(marker, expected=row['marker']['sha256'], maximum=1024 * 1024)['sha256'] \
-            != row['marker']['sha256']:
-        fail('MEASURE_OWNED_MANIFEST')
+    path = Path(row['path'])
+    descriptor = None
+    flags = os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0) \
+        | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_CLOEXEC', 0)
+    try:
+        resolved_before = path.resolve(strict=True)
+        named_before = path.lstat()
+        descriptor = os.open(path, flags)
+        opened_before = os.fstat(descriptor)
+        if path != resolved_before or path.is_symlink() \
+                or not _same_directory_object(opened_before, named_before) \
+                or opened_before.st_ino != row['inode']:
+            fail('MEASURE_OWNED_MANIFEST')
+        marker_identity = stable_sha256_at(
+            descriptor, row['marker']['relative'], expected=row['marker']['sha256'],
+            maximum=1024 * 1024)
+        opened_after = os.fstat(descriptor)
+        named_after = path.lstat()
+        resolved_after = path.resolve(strict=True)
+        if marker_identity['sha256'] != row['marker']['sha256'] \
+                or path != resolved_after or path.is_symlink() \
+                or not _same_directory_object(opened_before, opened_after) \
+                or not _same_directory_object(opened_after, named_after):
+            fail('MEASURE_OWNED_MANIFEST')
+        return opened_after.st_dev
+    except RecoveryError as error:
+        if str(error) == 'MEASURE_OWNED_MANIFEST':
+            raise
+        raise RecoveryError('MEASURE_OWNED_MANIFEST') from error
+    except OSError as error:
+        raise RecoveryError('MEASURE_OWNED_MANIFEST') from error
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
+
+def validate_live_device_remap(value, error_code='MEASURE_OWNED_MANIFEST'):
+    keys = {'mode', 'historicalDevice', 'currentDevice', 'liveRootCount'}
+    if not isinstance(value, dict) or set(value) != keys \
+            or value.get('mode') not in {'UNCHANGED', 'REMAPPED'} \
+            or type(value.get('historicalDevice')) is not int \
+            or type(value.get('currentDevice')) is not int \
+            or type(value.get('liveRootCount')) is not int \
+            or value.get('liveRootCount') != LIVE_ROOT_COUNT:
+        fail(error_code)
+    expected_mode = ('UNCHANGED'
+                     if value['historicalDevice'] == value['currentDevice'] else 'REMAPPED')
+    if value['mode'] != expected_mode:
+        fail(error_code)
+    return value
 
 
 def validate_manifest(options, runtime, declared_missing=None):
@@ -390,7 +484,11 @@ def validate_manifest(options, runtime, declared_missing=None):
     rows = [validate_root_row(row) for row in value['roots']]
     if len({row['path'] for row in rows}) != len(rows):
         fail('MEASURE_OWNED_MANIFEST')
+    historical_devices = {row['device'] for row in rows}
+    if len(historical_devices) != 1:
+        fail('MEASURE_OWNED_MANIFEST')
     missing = []
+    live_devices = []
     for row in rows:
         try:
             Path(row['path']).lstat()
@@ -403,13 +501,24 @@ def validate_manifest(options, runtime, declared_missing=None):
         else:
             if declared_missing is not None and row['path'] in declared_missing:
                 fail('ORIGINAL_ROOT_PRESENT')
-            validate_present_root(row)
+            live_devices.append(validate_present_root(row))
     if len(missing) != MISSING_ROOT_COUNT:
         fail('MISSING_ROOT_EVIDENCE')
     if len(rows) - len(missing) != LIVE_ROOT_COUNT \
             or value['futureRoots'][0] in {row['path'] for row in rows}:
         fail('MEASURE_OWNED_MANIFEST')
-    return path, identity, missing
+    runtime_device = runtime.stat().st_dev
+    current_devices = set(live_devices)
+    if len(live_devices) != LIVE_ROOT_COUNT or current_devices != {runtime_device}:
+        fail('MEASURE_OWNED_MANIFEST')
+    historical_device = next(iter(historical_devices))
+    remap = validate_live_device_remap({
+        'mode': 'UNCHANGED' if historical_device == runtime_device else 'REMAPPED',
+        'historicalDevice': historical_device,
+        'currentDevice': runtime_device,
+        'liveRootCount': len(live_devices),
+    })
+    return path, identity, missing, remap
 
 
 def validate_evidence(paths, missing):
@@ -484,7 +593,8 @@ def pending_owner_marker(historical_root):
     }
 
 
-def pending_value(name, manifest_fact, repository, recovery_tool, benchmark, missing):
+def pending_value(name, manifest_fact, repository, recovery_tool, benchmark, missing,
+                  live_device_remap):
     return {
         'schemaVersion': 1,
         'scope': 'musicbridge-capacity-measure-root-recovery-pending',
@@ -494,6 +604,7 @@ def pending_value(name, manifest_fact, repository, recovery_tool, benchmark, mis
         'repository': repository,
         'recoveryTool': recovery_tool,
         'activeBenchmarkInput': benchmark,
+        'liveDeviceRemap': live_device_remap,
         'plans': [
             {
                 'directoryName': f'replacement-{index:03d}',
@@ -505,17 +616,20 @@ def pending_value(name, manifest_fact, repository, recovery_tool, benchmark, mis
     }
 
 
-def validate_pending_value(value, name, manifest_fact, repository, recovery_tool, benchmark, missing):
+def validate_pending_value(value, name, manifest_fact, repository, recovery_tool, benchmark, missing,
+                           live_device_remap):
     keys = {'schemaVersion', 'scope', 'state', 'recoveryDirectoryName', 'historicalManifest',
-            'repository', 'recoveryTool', 'activeBenchmarkInput', 'plans'}
+            'repository', 'recoveryTool', 'activeBenchmarkInput', 'liveDeviceRemap', 'plans'}
     if not isinstance(value, dict) or set(value) != keys or value.get('schemaVersion') != 1 \
             or value.get('scope') != 'musicbridge-capacity-measure-root-recovery-pending' \
             or value.get('state') != 'PENDING' or value.get('recoveryDirectoryName') != name \
             or value.get('historicalManifest') != manifest_fact \
             or value.get('repository') != repository or value.get('recoveryTool') != recovery_tool \
             or value.get('activeBenchmarkInput') != benchmark \
+            or value.get('liveDeviceRemap') != live_device_remap \
             or not isinstance(value.get('plans'), list) or len(value['plans']) != MISSING_ROOT_COUNT:
         fail('PENDING_INVALID')
+    validate_live_device_remap(value['liveDeviceRemap'], error_code='PENDING_INVALID')
     for index, (plan, row) in enumerate(zip(value['plans'], missing), 1):
         marker = plan.get('ownerMarker') if isinstance(plan, dict) else None
         if not isinstance(plan, dict) or set(plan) != {'directoryName', 'historicalRoot', 'ownerMarker'} \
@@ -531,7 +645,7 @@ def validate_pending_value(value, name, manifest_fact, repository, recovery_tool
     return value
 
 
-def directory_identity(path, expected_entries=None):
+def directory_identity(path, expected_entries=None, expected_device=None):
     path = Path(path)
     try:
         info = path.lstat()
@@ -539,13 +653,15 @@ def directory_identity(path, expected_entries=None):
     except OSError as error:
         raise RecoveryError('PENDING_INVALID') from error
     if path.is_symlink() or not stat.S_ISDIR(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o700 \
-            or expected_entries is not None and entries != sorted(expected_entries):
+            or expected_entries is not None and entries != sorted(expected_entries) \
+            or expected_device is not None and info.st_dev != expected_device:
         fail('PENDING_INVALID')
     return info, entries
 
 
-def replacement_row(path, marker_sha):
-    info, _ = directory_identity(path, expected_entries=['owner.json'])
+def replacement_row(path, marker_sha, expected_device):
+    info, _ = directory_identity(
+        path, expected_entries=['owner.json'], expected_device=expected_device)
     marker_path = Path(path) / 'owner.json'
     try:
         marker_identity = stable_sha256(marker_path, expected=marker_sha, maximum=1024 * 1024)
@@ -560,7 +676,9 @@ def replacement_row(path, marker_sha):
     }
 
 
-def build_receipt(name, window_id, manifest_fact, repository, recovery_tool, benchmark, plans, pending):
+def build_receipt(name, window_id, manifest_fact, repository, recovery_tool, benchmark, plans, pending,
+                  live_device_remap):
+    validate_live_device_remap(live_device_remap, error_code='PENDING_INVALID')
     mappings = []
     for plan in plans:
         replacement = pending / plan['directoryName']
@@ -569,7 +687,8 @@ def build_receipt(name, window_id, manifest_fact, repository, recovery_tool, ben
             'historicalRoot': plan['historicalRoot'],
             'state': 'LOST',
             'recovered': False,
-            'replacementRoot': replacement_row(replacement, marker_sha),
+            'replacementRoot': replacement_row(
+                replacement, marker_sha, live_device_remap['currentDevice']),
         })
     return {
         'schemaVersion': 1,
@@ -581,6 +700,7 @@ def build_receipt(name, window_id, manifest_fact, repository, recovery_tool, ben
         'historicalManifest': manifest_fact,
         'repository': repository,
         'recoveryTool': recovery_tool,
+        'liveDeviceRemap': live_device_remap,
         'mappings': mappings,
         'activeBenchmarkInput': benchmark,
         'contentRecovered': False,
@@ -600,12 +720,30 @@ def receipt_for_final_path(receipt, pending, final):
 
 
 def validate_completed_pending(pending, final, expected):
+    live_device_remap = validate_live_device_remap(
+        expected.get('liveDeviceRemap') if isinstance(expected, dict) else None,
+        error_code='PENDING_INVALID')
     receipt_path = pending / 'recovery.json'
     value, _ = strict_json(receipt_path, maximum=4 * 1024 * 1024)
     if stat.S_IMODE(receipt_path.stat().st_mode) != 0o400 or value != expected:
         fail('PENDING_INVALID')
     expected_entries = ['recovery.json'] + [f'replacement-{index:03d}' for index in range(1, 8)]
-    directory_identity(pending, expected_entries=expected_entries)
+    directory_identity(
+        pending, expected_entries=expected_entries,
+        expected_device=live_device_remap['currentDevice'])
+    for index, mapping in enumerate(value['mappings'], 1):
+        replacement = mapping['replacementRoot']
+        expected_path = final / f'replacement-{index:03d}'
+        if replacement.get('path') != str(expected_path) \
+                or replacement.get('device') != live_device_remap['currentDevice']:
+            fail('PENDING_INVALID')
+        marker_sha = replacement.get('marker', {}).get('sha256')
+        observed = replacement_row(
+            pending / Path(replacement['path']).name, marker_sha,
+            live_device_remap['currentDevice'])
+        for key in ('device', 'inode', 'role', 'marker'):
+            if observed[key] != replacement.get(key):
+                fail('PENDING_INVALID')
 
 
 def parse_args(argv):
@@ -638,7 +776,7 @@ def issue(options):
         fail('RECOVERY_DIRECTORY_EXISTS')
 
     declared_missing = evidence_directories(options.evidence_json)
-    manifest_path, manifest_identity, missing = validate_manifest(
+    manifest_path, manifest_identity, missing, live_device_remap = validate_manifest(
         options, runtime, declared_missing=declared_missing)
     validate_evidence(options.evidence_json, missing)
     require_originals_absent(missing)
@@ -672,7 +810,7 @@ def issue(options):
                 fail('PENDING_INVALID')
             plan = validate_pending_value(
                 value, options.recovery_dir_name, manifest_fact, repository,
-                recovery_tool, benchmark, missing)
+                recovery_tool, benchmark, missing, live_device_remap)
         elif (pending / 'recovery.json').exists():
             plan = None
         else:
@@ -681,7 +819,7 @@ def issue(options):
         mkdir_exclusive(pending)
         plan = pending_value(
             options.recovery_dir_name, manifest_fact, repository,
-            recovery_tool, benchmark, missing)
+            recovery_tool, benchmark, missing, live_device_remap)
         exclusive_bytes(pending_path, receipt_bytes(plan))
 
     if plan is not None:
@@ -705,7 +843,8 @@ def issue(options):
             marker_bytes = compact_json(item['ownerMarker'])
             marker_sha = hashlib.sha256(marker_bytes).hexdigest()
             if destination.exists() or destination.is_symlink():
-                replacement_row(destination, marker_sha)
+                replacement_row(
+                    destination, marker_sha, live_device_remap['currentDevice'])
                 try:
                     marker_value = json.loads(marker_path.read_bytes().decode('utf-8'))
                 except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -721,7 +860,7 @@ def issue(options):
 
         pending_receipt = build_receipt(
             options.recovery_dir_name, options.expected_window_id, manifest_fact, repository, recovery_tool,
-            benchmark, plan['plans'], pending)
+            benchmark, plan['plans'], pending, live_device_remap)
         final_receipt = receipt_for_final_path(pending_receipt, pending, final)
         completed_receipt = final_receipt
         recovery_path = pending / 'recovery.json'
@@ -756,17 +895,26 @@ def issue(options):
             'repository': repository,
             'recoveryTool': recovery_tool,
             'activeBenchmarkInput': benchmark,
+            'liveDeviceRemap': live_device_remap,
             'plans': plans,
-        }, options.recovery_dir_name, manifest_fact, repository, recovery_tool, benchmark, missing)
+        }, options.recovery_dir_name, manifest_fact, repository, recovery_tool, benchmark, missing,
+            live_device_remap)
         expected = receipt_for_final_path(build_receipt(
             options.recovery_dir_name, options.expected_window_id, manifest_fact, repository, recovery_tool,
-            benchmark, plans, pending), pending, final)
+            benchmark, plans, pending, live_device_remap), pending, final)
         validate_completed_pending(pending, final, expected)
         completed_receipt = expected
 
-    # 发布前重读全部外部身份；历史路径重现或候选漂移一律停止并保留 pending。
-    require_originals_absent(missing)
-    validate_manifest(options, runtime, declared_missing=declared_missing)
+    def validate_bound_inventory():
+        require_originals_absent(missing)
+        _, _, refreshed_missing, refreshed_remap = validate_manifest(
+            options, runtime, declared_missing=declared_missing)
+        require_originals_absent(missing)
+        if refreshed_missing != missing or refreshed_remap != live_device_remap:
+            fail('PENDING_INVALID')
+
+    # 发布前及发布锁内重读全部外部身份；历史路径重现或候选漂移一律停止。
+    validate_bound_inventory()
     validate_evidence(options.evidence_json, missing)
     current_snapshot = snapshot.lstat()
     snapshot_fields = ('st_dev', 'st_ino', 'st_size', 'st_mtime_ns', 'st_ctime_ns', 'st_nlink')
@@ -776,7 +924,8 @@ def issue(options):
            for key in snapshot_fields):
         fail('BENCHMARK_INPUT')
     validate_repository(options)
-    _publish_completed_pending(runtime, pending, final, completed_receipt, missing)
+    _publish_completed_pending(
+        runtime, pending, final, completed_receipt, missing, validate_bound_inventory)
     return {
         'state': 'PUBLISHED',
         'recoveryDirectoryName': options.recovery_dir_name,

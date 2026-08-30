@@ -86,7 +86,8 @@ try:
   elif method == 'queued-owned':
     value=module._validate_queued_stop_owned_manifest(
       pathlib.Path(payload['manifest']), pathlib.Path(payload['runtime']), payload['windowId'],
-      pathlib.Path(payload['parent']), payload['carryRoots'], payload['plannedBytes'])
+      pathlib.Path(payload['parent']), payload['carryRoots'], payload['plannedBytes'],
+      payload.get('expectedDevice'))
   elif method == 'frozen-owned':
     try:
       value=module._validate_frozen_owned_roots(
@@ -106,7 +107,8 @@ try:
       'typescriptLibraries':{'sha256':'2'*64,'files':{}},
       'issuerFailureRoots':[],'issuerFailures':payload['failures'],
       'prechildFailureRoots':[],'prechildFailures':payload.get('prechildFailures', [])}
-    module._validate_queued_stop_measure_carryover=lambda *args, **kwargs: {'roots':[]}
+    module._validate_queued_stop_measure_carryover=lambda *args, **kwargs: {
+      'roots':[], 'rootRecovery': {'liveDeviceRemap': {'currentDevice': runtime.lstat().st_dev}}}
     module._validate_phase_source_manifest=lambda *args, **kwargs: {'fileCount':241,'manifestIdentity':{'sha256':'3'*64}}
     module._validate_queued_stop_owned_manifest=lambda *args, **kwargs: {
       'rootCount':75,'ownedBytes':1,'plannedBytes':2,'remainingPlannedBytes':0,'availableBytes':3,
@@ -959,7 +961,7 @@ function rootRow(path, markerName = 'owner.json') {
     marker: { relative: markerName, sha256: sha(join(path, markerName)) } }
 }
 
-function disappearedFrozenOwnedFixture() {
+function disappearedFrozenOwnedFixture(remapped = true) {
   const f = copiedSupervisor()
   const windowId = randomUUID(), historical = join(f.runtime, 'historical-measure-window')
   const future = join(f.runtime, 'historical-measure-output'), seed = join(f.runtime, 'historical-durable-seed')
@@ -980,6 +982,8 @@ function disappearedFrozenOwnedFixture() {
   json(join(seed, 'seed.json'), { schema: 21, profile: 'objects-limit', fixtureDirectory: disappeared[0].path,
     snapshotSha256: sha(join(seed, 'seed.sqlite')) })
   present.unshift(rootRow(seed, 'seed.json'))
+  const currentDevice = statSync(f.runtime).dev, historicalDevice = currentDevice + (remapped ? 1 : 0)
+  for (const row of [...present, ...disappeared]) row.device = historicalDevice
   const manifest = join(historical, 'owned-roots.json')
   json(manifest, { schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only',
     windowId, roots: [...present, ...disappeared], futureRoots: [future] })
@@ -1001,6 +1005,7 @@ function disappearedFrozenOwnedFixture() {
   json(recovery, { schemaVersion: 1, scope: 'musicbridge-capacity-measure-root-recovery', access: 'read-only',
     state: 'PUBLISHED', model: 'exact75-v2-replacement-closure',
     windowId, historicalManifest: { path: manifest, sha256: frozenHashes.manifest },
+    liveDeviceRemap: { mode: remapped ? 'REMAPPED' : 'UNCHANGED', historicalDevice, currentDevice, liveRootCount: 63 },
     repository: { root: f.candidate, branch: f.candidateBranch, head: f.head, clean: true, pushedHead: true },
     recoveryTool: { path: recoveryTool, relativePath: 'scripts/ci/create-v3-capacity-measure-root-recovery.py',
       workingSha256: sha(recoveryTool), gitBlobSha256: sha(recoveryTool) },
@@ -1878,6 +1883,8 @@ test('冻结measure以exact75-v2只读收据把7个LOST根替换为durable contr
     assert.equal(observed.value.roots.some(row => row.path === f.replacements[0].path), true)
     assert.deepEqual({ window: sha(f.window), close: sha(f.close), manifest: sha(f.manifest) }, f.frozenHashes)
     const receipt = JSON.parse(readFileSync(f.recovery, 'utf8'))
+    assert.deepEqual(receipt.liveDeviceRemap, { mode: 'REMAPPED', historicalDevice: f.present[0].device,
+      currentDevice: statSync(f.runtime).dev, liveRootCount: 63 })
     assert.equal(receipt.mappings.length, 7)
     assert.equal(JSON.parse(readFileSync(join(f.seed, 'seed.json'))).fixtureDirectory, f.disappeared[0].path)
     assert.equal(receipt.mappings[0].historicalRoot.path, f.disappeared[0].path)
@@ -1897,6 +1904,47 @@ test('冻结measure以exact75-v2只读收据把7个LOST根替换为durable contr
     assert.deepEqual(receipt.activeBenchmarkInput,
       { model: 'durable-seed-snapshot', path: join(f.seed, 'seed.sqlite'), sha256: sha(join(f.seed, 'seed.sqlite')) })
   } finally { f.cleanup() }
+})
+
+test('冻结measure由相同历史与当前device派生UNCHANGED', () => {
+  const f = disappearedFrozenOwnedFixture(false)
+  try {
+    const observed = bridge(f.script, 'frozen-owned', {
+      manifest: f.manifest, runtime: f.runtime, manifestSha256: f.frozenHashes.manifest,
+      windowId: f.windowId, future: f.future, measureRootRecovery: f.measureRootRecovery })
+    assert.equal(observed.ok, true, observed.error)
+    assert.equal(observed.value.rootRecovery.liveDeviceRemap.mode, 'UNCHANGED')
+  } finally { f.cleanup() }
+})
+
+test('measure root recovery拒绝非exact或不自洽liveDeviceRemap及设备集合', () => {
+  const cases = [
+    f => rewriteRootRecovery(f, receipt => { delete receipt.liveDeviceRemap }),
+    f => rewriteRootRecovery(f, receipt => { receipt.liveDeviceRemap.extra = true }),
+    f => rewriteRootRecovery(f, receipt => { receipt.liveDeviceRemap.mode = 'UNCHANGED' }),
+    f => rewriteRootRecovery(f, receipt => { receipt.liveDeviceRemap.liveRootCount = 62 }),
+    f => { const manifest = JSON.parse(readFileSync(f.manifest)); manifest.roots[0].device += 1
+      rmSync(f.manifest); json(f.manifest, manifest); f.frozenHashes.manifest = sha(f.manifest)
+      return rewriteRootRecovery(f, receipt => { receipt.historicalManifest.sha256 = f.frozenHashes.manifest }) },
+    f => { const manifest = JSON.parse(readFileSync(f.manifest)); manifest.roots[0].inode += 1
+      rmSync(f.manifest); json(f.manifest, manifest); f.frozenHashes.manifest = sha(f.manifest)
+      return rewriteRootRecovery(f, receipt => { receipt.historicalManifest.sha256 = f.frozenHashes.manifest }) },
+    f => { writeFileSync(join(f.seed, 'seed.json'), 'marker drift\n'); return f.measureRootRecovery },
+    f => rewriteRootRecovery(f, receipt => { receipt.liveDeviceRemap.currentDevice += 1 }),
+    f => rewriteRootRecovery(f, receipt => { receipt.mappings[0].replacementRoot.device += 1 }),
+  ]
+  for (const mutate of cases) {
+    const f = disappearedFrozenOwnedFixture()
+    try {
+      const observed = bridge(f.script, 'frozen-owned', {
+        manifest: f.manifest, runtime: f.runtime, manifestSha256: f.frozenHashes.manifest,
+        windowId: f.windowId, future: f.future, measureRootRecovery: mutate(f) })
+      assert.equal(observed.ok, false)
+    } finally {
+      for (const row of f.disappeared) rmSync(row.path, { recursive: true, force: true })
+      f.cleanup()
+    }
+  }
 })
 
 test('measure root recovery拒绝缺项、夹带、旧路径重现、身份漂移、marker-only复制与replacement冒充fixture', () => {
@@ -1950,7 +1998,10 @@ test('63个live历史根加7个historical-control-only根、output与两类carry
     json(join(f.authority, 'owner.json'), { scope: 'musicbridge-capacity-queued-stop-window', owner: 'root', id: f.windowId })
     json(join(issuerIdentity, 'owner.json'), { scope: 'musicbridge-capacity-queued-stop-authority-issuer', windowId: f.windowId })
     const outputRoot = rootRow(f.future, 'command.json')
-    const measureRoots = [...f.present, ...f.replacements.map(({ role: _role, ...root }) => root)]
+    const measureRoots = [
+      ...f.present.map(root => ({ ...root, device: statSync(root.path).dev })),
+      ...f.replacements.map(({ role: _role, ...root }) => root),
+    ]
     assert.equal(measureRoots.length, 70)
     const priorRoots = []
     for (const name of ['prior-issuer-failure', 'prior-prechild-failure']) {
@@ -1962,10 +2013,13 @@ test('63个live历史根加7个historical-control-only根、output与两类carry
     const manifest = join(f.authority, 'owned-roots.json')
     json(manifest, { schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only',
       windowId: f.windowId, roots: [...carryRoots, rootRow(f.authority), rootRow(issuerIdentity)] })
-    const observed = bridge(f.script, 'queued-owned', { manifest, runtime: f.runtime, windowId: f.windowId,
-      parent: f.authority, carryRoots, plannedBytes: 0 })
+    const expectedDevice = statSync(f.runtime).dev
+    const payload = { manifest, runtime: f.runtime, windowId: f.windowId,
+      parent: f.authority, carryRoots, plannedBytes: 0, expectedDevice }
+    const observed = bridge(f.script, 'queued-owned', payload)
     assert.equal(observed.ok, true, observed.error)
     assert.equal(observed.value.rootCount, 75)
+    assert.equal(bridge(f.script, 'queued-owned', { ...payload, expectedDevice: expectedDevice + 1 }).ok, false)
   } finally { f.cleanup() }
 })
 

@@ -759,7 +759,7 @@ async function phaseFixture(t: test.TestContext, phase: import('./helpers/record
   return { api, runtime, fixture, seed, output, windowRoot, inventory, args, w, seal, put, hash, entry, options, coldResult, queuedResult, printResult, advance: (ms: number) => { at += ms; } };
 }
 
-function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>, rootCount: number) {
+function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>, rootCount: number, remapped = true) {
   const outer = f.w as unknown as Record<string, unknown>, seed = outer.seed as Record<string, unknown>;
   outer.scope = 'musicbridge-capacity-queued-stop-window';
   outer.issuerFailureCarryoverCount = 1; outer.prechildFailureCarryoverCount = 1; outer.seedLabel = 'seed';
@@ -802,9 +802,12 @@ function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>,
     f.put(path.join(directory, 'owner.json'), { scope: 'musicbridge-capacity-measure-live', index });
     liveRoots.push(f.entry(directory, 'owner.json'));
   }
-  const historicalRoots = [...liveRoots, ...lostRoots];
+  const currentDevice = lstatSync(f.runtime).dev;
+  const historicalDevice = remapped ? currentDevice + 1 : currentDevice;
+  const historicalRoots = [...liveRoots, ...lostRoots].map(root => ({ ...root, device: historicalDevice }));
+  const historicalLostRoots = historicalRoots.slice(63);
   const recoveryDirectory = path.join(f.runtime, 'measure-root-recovery-v1'); mkdirSync(recoveryDirectory);
-  const mappings = lostRoots.map((historicalRoot, index) => {
+  const mappings = historicalLostRoots.map((historicalRoot, index) => {
     const directory = path.join(recoveryDirectory, `replacement-${String(index + 1).padStart(3, '0')}`); mkdirSync(directory);
     f.put(path.join(directory, 'owner.json'), { schemaVersion: 1, scope: 'musicbridge-capacity-historical-control-only',
       id: randomUUID(), role: 'historical-control-only', recovered: false, historicalRoot });
@@ -824,6 +827,7 @@ function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>,
     repository: { root: candidate, branch: 'codex/exact75-test', head: candidateHead, clean: true, pushedHead: true },
     recoveryTool: { path: recoveryTool, relativePath: recoveryRelative,
       workingSha256: f.hash(recoveryTool), gitBlobSha256: f.hash(recoveryTool) }, mappings,
+    liveDeviceRemap: { mode: remapped ? 'REMAPPED' : 'UNCHANGED', historicalDevice, currentDevice, liveRootCount: 63 },
     activeBenchmarkInput: { model: 'durable-seed-snapshot', path: path.join(f.seed, 'seed.sqlite'), sha256: f.hash(path.join(f.seed, 'seed.sqlite')) },
     contentRecovered: false, historicalManifestRewritten: false, deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' });
   chmodSync(recoveryDirectory, 0o700); chmodSync(recovery, 0o400);
@@ -865,6 +869,7 @@ function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>,
     f.inventory.roots.push(f.entry(directory, 'owner.json'));
   }
   return { outer, seed, recovery, recoveryDirectory, mappings, historicalManifest, historicalRoots, liveRoots,
+    historicalDevice, currentDevice,
     measureOutput, issuerCarryover, prechildCarryover, candidate, candidateHead, recoveryTool, git };
 }
 
@@ -1094,6 +1099,14 @@ test('queued-stop successor：按issuer与prechild failure carryover精确接受
   }
 });
 
+test('queued-stop successor：未发生st_dev重映射时使用UNCHANGED合同', async t => {
+  const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
+  configureExact75V2Recovery(f, 75, false);
+  f.seal(); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async () => { ++calls; throw new Error('受控停止'); } });
+  assert.equal(calls, 1); assert.equal(summary.state, 'incomplete');
+});
+
 test('queued-stop successor：70根冻结manifest按63 live、7 replacement、output、双carryover及parent/issuer闭包', async t => {
   for (const fault of ['arbitrary-replaces-live', 'arbitrary-replaces-output', 'live-root-absent', 'mapping-not-in-manifest'] as const) {
     await t.test(fault, async () => {
@@ -1123,6 +1136,39 @@ test('queued-stop successor：70根冻结manifest按63 live、7 replacement、ou
         chmodSync(configured.recovery, 0o600); const recoverySha = f.put(configured.recovery, receipt); chmodSync(configured.recovery, 0o400);
         (configured.outer.measureCarryover as Record<string, Record<string, unknown>>).measureRootRecovery!.sha256 = recoverySha;
       }
+      f.seal(); let calls = 0;
+      await assert.rejects(f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async () => { ++calls; throw new Error('RED sentinel'); } }),
+        /CAPACITY_PHASE_(?:WINDOW_INVALID|INVENTORY_INVALID)/u);
+      assert.equal(calls, 0); assert.equal(existsSync(f.output), false);
+    });
+  }
+});
+
+test('queued-stop successor：只接受全量一致的live st_dev挂载代际映射', async t => {
+  for (const fault of ['mode-conflict', 'current-device-third', 'live-count', 'missing-field', 'mixed-historical-device', 'inventory-noncurrent-device'] as const) {
+    await t.test(fault, async () => {
+      const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
+      const configured = configureExact75V2Recovery(f, 75);
+      const receipt = JSON.parse(readFileSync(configured.recovery, 'utf8'));
+      if (fault === 'mode-conflict') receipt.liveDeviceRemap.mode = 'UNCHANGED';
+      if (fault === 'current-device-third') receipt.liveDeviceRemap.currentDevice += 1;
+      if (fault === 'live-count') receipt.liveDeviceRemap.liveRootCount = 62;
+      if (fault === 'missing-field') delete receipt.liveDeviceRemap;
+      if (fault === 'mixed-historical-device') {
+        const manifest = JSON.parse(readFileSync(configured.historicalManifest, 'utf8'));
+        manifest.roots[1].device += 1;
+        const manifestSha = f.put(configured.historicalManifest, manifest);
+        receipt.historicalManifest.sha256 = manifestSha;
+        (configured.outer.measureCarryover as Record<string, Record<string, unknown>>).ownedManifest!.sha256 = manifestSha;
+      }
+      if (fault === 'inventory-noncurrent-device') {
+        const output = f.inventory.roots.find(root => root.path === configured.measureOutput)!;
+        output.device = configured.historicalDevice;
+      }
+      chmodSync(configured.recovery, 0o600);
+      const recoverySha = f.put(configured.recovery, receipt);
+      chmodSync(configured.recovery, 0o400);
+      (configured.outer.measureCarryover as Record<string, Record<string, unknown>>).measureRootRecovery!.sha256 = recoverySha;
       f.seal(); let calls = 0;
       await assert.rejects(f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async () => { ++calls; throw new Error('RED sentinel'); } }),
         /CAPACITY_PHASE_(?:WINDOW_INVALID|INVENTORY_INVALID)/u);

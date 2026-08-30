@@ -249,11 +249,45 @@ def validate_root(row):
             or SHA256.fullmatch(str(marker.get('sha256', ''))) is None:
         fail('OWNED_IDENTITY')
     path = canonical_directory(row.get('path'))
-    info = path.stat()
-    if info.st_dev != row.get('device') or info.st_ino != row.get('inode') \
-            or sha256(path / marker['relative']) != marker['sha256']:
+    directory_flags = os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0) | getattr(os, 'O_NOFOLLOW', 0)
+    marker_flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0)
+    try:
+        directory_fd = os.open(path, directory_flags)
+        try:
+            before = os.fstat(directory_fd); named_before = path.lstat()
+            marker_fd = os.open(marker['relative'], marker_flags, dir_fd=directory_fd)
+            digest = hashlib.sha256()
+            try:
+                marker_before = os.fstat(marker_fd)
+                if not stat.S_ISREG(marker_before.st_mode) or marker_before.st_nlink != 1:
+                    fail('OWNED_IDENTITY')
+                for chunk in iter(lambda: os.read(marker_fd, 1024 * 1024), b''):
+                    digest.update(chunk)
+                marker_after = os.fstat(marker_fd)
+            finally:
+                os.close(marker_fd)
+            marker_named = os.stat(
+                marker['relative'], dir_fd=directory_fd, follow_symlinks=False)
+            after = os.fstat(directory_fd); named_after = path.lstat()
+        finally:
+            os.close(directory_fd)
+    except OSError as error:
+        raise IssueError('OWNED_IDENTITY') from error
+    directory_fields = ('st_dev', 'st_ino', 'st_mtime_ns', 'st_ctime_ns', 'st_nlink')
+    marker_fields = ('st_dev', 'st_ino', 'st_size', 'st_mtime_ns', 'st_ctime_ns', 'st_nlink')
+    if not stat.S_ISDIR(before.st_mode) \
+            or any(getattr(before, key) != getattr(after, key)
+                   or getattr(after, key) != getattr(named_after, key)
+                   or getattr(before, key) != getattr(named_before, key)
+                   for key in directory_fields) \
+            or not stat.S_ISREG(marker_named.st_mode) \
+            or any(getattr(marker_before, key) != getattr(marker_after, key)
+                   or getattr(marker_after, key) != getattr(marker_named, key)
+                   for key in marker_fields) \
+            or before.st_dev != row.get('device') or before.st_ino != row.get('inode') \
+            or digest.hexdigest() != marker['sha256']:
         fail('OWNED_IDENTITY')
-    return {'path': str(path), 'device': info.st_dev, 'inode': info.st_ino,
+    return {'path': str(path), 'device': before.st_dev, 'inode': before.st_ino,
             'marker': dict(marker)}
 
 
@@ -315,7 +349,7 @@ def validate_measure_root_recovery(options, runtime, owned_path, owned, seed, sn
         fail('MEASURE_ROOT_RECOVERY')
     receipt_keys = {
         'schemaVersion', 'scope', 'access', 'state', 'model', 'windowId',
-        'historicalManifest', 'repository', 'recoveryTool', 'mappings',
+        'historicalManifest', 'liveDeviceRemap', 'repository', 'recoveryTool', 'mappings',
         'activeBenchmarkInput', 'contentRecovered', 'historicalManifestRewritten',
         'deviceOpened', 'formalReady', 'gateB'}
     historical_manifest = receipt.get('historicalManifest') if isinstance(receipt, dict) else None
@@ -379,7 +413,19 @@ def validate_measure_root_recovery(options, runtime, owned_path, owned, seed, sn
 
     historical_rows = [historical_root(row) for row in owned.get('roots', [])]
     if len(historical_rows) != EXPECTED_MEASURE_ROOTS \
-            or len({row['path'] for row in historical_rows}) != EXPECTED_MEASURE_ROOTS:
+            or len({row['path'] for row in historical_rows}) != EXPECTED_MEASURE_ROOTS \
+            or len({row['device'] for row in historical_rows}) != 1:
+        fail('MEASURE_ROOT_RECOVERY')
+    historical_device = historical_rows[0]['device']
+    current_device = runtime.stat().st_dev
+    live_device_remap = receipt.get('liveDeviceRemap')
+    expected_remap_mode = 'UNCHANGED' if historical_device == current_device else 'REMAPPED'
+    if not isinstance(live_device_remap, dict) \
+            or set(live_device_remap) != {
+                'mode', 'historicalDevice', 'currentDevice', 'liveRootCount'} \
+            or live_device_remap != {
+                'mode': expected_remap_mode, 'historicalDevice': historical_device,
+                'currentDevice': current_device, 'liveRootCount': EXPECTED_LIVE_MEASURE_ROOTS}:
         fail('MEASURE_ROOT_RECOVERY')
     live = []
     absent = []
@@ -388,7 +434,8 @@ def validate_measure_root_recovery(options, runtime, owned_path, owned, seed, sn
             absent.append(row)
         else:
             try:
-                observed = validate_root(row)
+                # 设备代际允许整体 remap；路径、inode 与 marker 仍必须和冻结历史完全一致。
+                observed = validate_root({**row, 'device': current_device})
             except IssueError as error:
                 raise IssueError('MEASURE_ROOT_RECOVERY') from error
             live.append(observed)
@@ -431,6 +478,7 @@ def validate_measure_root_recovery(options, runtime, owned_path, owned, seed, sn
                 or replacement_root['path'] in replacement_paths \
                 or replacement_root['path'] in {row['path'] for row in historical_rows} \
                 or replacement_root['path'] in {str(seed), str(snapshot)} \
+                or replacement_root['device'] != current_device \
                 or replacement_directory['device'] != replacement['device'] \
                 or replacement_directory['inode'] != replacement['inode'] \
                 or stat.S_IMODE(replacement_path.stat().st_mode) != 0o700 \
@@ -465,6 +513,7 @@ def validate_measure_root_recovery(options, runtime, owned_path, owned, seed, sn
         'replacementSnapshots': replacement_snapshots,
         'absentRoots': absent,
         'activeBenchmarkInput': expected_active_input,
+        'liveDeviceRemap': live_device_remap,
     }
 
 
@@ -727,6 +776,7 @@ def validate_measure(options, runtime):
         'replacementSnapshots': recovery['replacementSnapshots'],
         'absentRoots': recovery['absentRoots'],
         'activeBenchmarkInput': recovery['activeBenchmarkInput'],
+        'liveDeviceRemap': recovery['liveDeviceRemap'],
     }
 
 
@@ -1321,7 +1371,9 @@ def issue(options):
     planned = measure['snapshotBytes'] + EVIDENCE_ALLOWANCE
     preflight_roots = unique_roots(
         [*measure['roots'], *prior_failures['roots'], *prechild_failures['roots']])
-    if len(preflight_roots) != EXPECTED_PREFLIGHT_ROOTS:
+    current_device = measure['liveDeviceRemap']['currentDevice']
+    if len(preflight_roots) != EXPECTED_PREFLIGHT_ROOTS \
+            or any(row['device'] != current_device for row in preflight_roots.values()):
         fail('EXACT75_V2_PREFLIGHT')
     owned_facts(list(preflight_roots.values()), planned, runtime)
     window_id = str(uuid.uuid4())
@@ -1368,7 +1420,8 @@ def issue(options):
     })
     roots = unique_roots([*measure['roots'], *prior_failures['roots'], *prechild_failures['roots'],
                           current_root(parent, 'owner.json'), current_root(issuer_identity, 'owner.json')])
-    if len(roots) != EXPECTED_AUTHORITY_ROOTS:
+    if len(roots) != EXPECTED_AUTHORITY_ROOTS \
+            or any(row['device'] != current_device for row in roots.values()):
         fail('OWNED_COUNT')
     source_sha = exclusive_json(parent / 'source-pins.json', source)
     owned = {'schemaVersion': 1, 'scope': 'musicbridge-capacity-owned-roots', 'access': 'count-only',
@@ -1408,7 +1461,8 @@ def issue(options):
             or second_measure['directorySnapshot'] != measure['directorySnapshot'] \
             or second_measure['replacementSnapshots'] != measure['replacementSnapshots'] \
             or second_measure['absentRoots'] != measure['absentRoots'] \
-            or second_measure['activeBenchmarkInput'] != measure['activeBenchmarkInput']:
+            or second_measure['activeBenchmarkInput'] != measure['activeBenchmarkInput'] \
+            or second_measure['liveDeviceRemap'] != measure['liveDeviceRemap']:
         fail('MEASURE_DRIFT')
     validate_repository(root, options.expected_branch, options.expected_head)
     validate_repository(issuer_repo, options.expected_issuer_branch, options.expected_issuer_head)
@@ -1451,7 +1505,8 @@ def issue(options):
             or any(not path_is_absent(row['path']) for row in measure['absentRoots']):
         fail('MEASURE_DRIFT')
     roots_second = unique_roots(owned['roots'])
-    if len(roots_second) != EXPECTED_AUTHORITY_ROOTS:
+    if len(roots_second) != EXPECTED_AUTHORITY_ROOTS \
+            or any(row['device'] != current_device for row in roots_second.values()):
         fail('OWNED_DRIFT')
     budget_second = owned_facts(list(roots_second.values()), planned, runtime)
     os.rename(pending, parent / 'window.json')

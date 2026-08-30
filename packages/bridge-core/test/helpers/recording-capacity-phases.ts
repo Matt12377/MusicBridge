@@ -247,6 +247,7 @@ interface RecoveryReplacementRoot extends RecoveryRootRow { role: 'historical-co
 interface RecoveryMapping { historicalRoot: RecoveryRootRow; state: 'LOST'; recovered: false; replacementRoot: RecoveryReplacementRoot }
 interface RootRecoveryReceipt {
   mappings: RecoveryMapping[]; activeBenchmarkInput: { model: 'durable-seed-snapshot'; path: string; sha256: string };
+  liveDeviceRemap: { mode: 'UNCHANGED' | 'REMAPPED'; historicalDevice: number; currentDevice: number; liveRootCount: number };
 }
 const recoveryToolRelative = 'scripts/ci/create-v3-capacity-measure-root-recovery.py';
 const recoveryHistoricalRootCount = 70, recoveryLostRootCount = 7, recoveryLiveRootCount = 63;
@@ -267,6 +268,38 @@ function validRecoveryRoot(value: unknown, replacement: boolean): value is Recov
 function directRegularFile(file: string): boolean {
   try { const info = lstatSync(file); return info.isFile() && !info.isSymbolicLink() && info.nlink === 1; }
   catch { return false; }
+}
+
+function stableRecoveryRoot(root: RecoveryRootRow, expectedDevice: number): void {
+  canonical(root.path);
+  const flags = constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW;
+  const directoryFd = openSync(root.path, flags);
+  try {
+    const before = fstatSync(directoryFd), namedBefore = lstatSync(root.path);
+    type DirectoryIdentity = { dev: number; ino: number; mode: number; nlink: number; mtimeMs: number; ctimeMs: number };
+    const sameDirectory = (left: DirectoryIdentity, right: DirectoryIdentity) =>
+      left.dev === right.dev && left.ino === right.ino && left.mode === right.mode && left.nlink === right.nlink
+      && left.mtimeMs === right.mtimeMs && left.ctimeMs === right.ctimeMs;
+    if (!before.isDirectory() || before.dev !== expectedDevice || before.ino !== root.inode
+      || !sameDirectory(before, namedBefore)) invalid('INVENTORY_INVALID');
+    const markerPath = path.join(root.path, root.marker.relative);
+    const markerFd = openSync(markerPath,
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+    try {
+      const markerBefore = fstatSync(markerFd);
+      if (!markerBefore.isFile() || markerBefore.nlink !== 1 || markerBefore.size > 8 * 1024 ** 2) invalid('INVENTORY_INVALID');
+      const bytes = readFileSync(markerFd), markerAfter = fstatSync(markerFd), markerNamed = lstatSync(markerPath);
+      if (markerBefore.dev !== markerAfter.dev || markerBefore.ino !== markerAfter.ino
+        || markerBefore.size !== markerAfter.size || markerAfter.dev !== markerNamed.dev
+        || markerAfter.ino !== markerNamed.ino || markerAfter.size !== markerNamed.size
+        || markerAfter.mtimeMs !== markerNamed.mtimeMs || markerAfter.ctimeMs !== markerNamed.ctimeMs
+        || markerAfter.nlink !== markerNamed.nlink
+        || createHash('sha256').update(bytes).digest('hex') !== root.marker.sha256) invalid('INVENTORY_INVALID');
+    } finally { closeSync(markerFd); }
+    const after = fstatSync(directoryFd), namedAfter = lstatSync(root.path);
+    canonical(root.path);
+    if (!sameDirectory(before, after) || !sameDirectory(after, namedAfter)) invalid('INVENTORY_INVALID');
+  } finally { closeSync(directoryFd); }
 }
 
 function gitEnvironment(): NodeJS.ProcessEnv {
@@ -304,7 +337,7 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
     || !directRegularFile(receiptPath) || (lstatSync(recoveryRoot).mode & 0o777) !== 0o700
     || (lstatSync(receiptPath).mode & 0o777) !== 0o400) invalid('WINDOW_INVALID');
   const receiptValue = json(receiptPath, String(binding.sha256));
-  const keys = 'schemaVersion,scope,access,state,model,windowId,historicalManifest,repository,recoveryTool,mappings,activeBenchmarkInput,contentRecovered,historicalManifestRewritten,deviceOpened,formalReady,gateB';
+  const keys = 'schemaVersion,scope,access,state,model,windowId,historicalManifest,repository,recoveryTool,mappings,activeBenchmarkInput,liveDeviceRemap,contentRecovered,historicalManifestRewritten,deviceOpened,formalReady,gateB';
   if (!exact(receiptValue, keys) || receiptValue.schemaVersion !== 1 || receiptValue.scope !== 'musicbridge-capacity-measure-root-recovery'
     || receiptValue.access !== 'read-only' || receiptValue.state !== 'PUBLISHED' || receiptValue.model !== 'exact75-v2-replacement-closure'
     || receiptValue.windowId !== carryover.window!.id
@@ -323,10 +356,17 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
     || !exact(receiptValue.activeBenchmarkInput, 'model,path,sha256')
     || receiptValue.activeBenchmarkInput.model !== 'durable-seed-snapshot' || receiptValue.activeBenchmarkInput.path !== seedPath
     || receiptValue.activeBenchmarkInput.sha256 !== window.seed.snapshotSha256
+    || !exact(receiptValue.liveDeviceRemap, 'mode,historicalDevice,currentDevice,liveRootCount')
+    || !['UNCHANGED', 'REMAPPED'].includes(String(receiptValue.liveDeviceRemap.mode))
+    || !integer(receiptValue.liveDeviceRemap.historicalDevice) || !integer(receiptValue.liveDeviceRemap.currentDevice)
+    || receiptValue.liveDeviceRemap.liveRootCount !== recoveryLiveRootCount
+    || (receiptValue.liveDeviceRemap.mode === 'UNCHANGED') !== (receiptValue.liveDeviceRemap.historicalDevice === receiptValue.liveDeviceRemap.currentDevice)
+    || lstatSync(runtime).dev !== receiptValue.liveDeviceRemap.currentDevice
     || receiptValue.contentRecovered !== false || receiptValue.historicalManifestRewritten !== false
     || receiptValue.deviceOpened !== false || receiptValue.formalReady !== false || receiptValue.gateB !== 'NOT_RUN'
     || !Array.isArray(receiptValue.mappings) || receiptValue.mappings.length !== 7) invalid('WINDOW_INVALID');
   const receipt = receiptValue as unknown as RootRecoveryReceipt;
+  const remap = receipt.liveDeviceRemap;
   const historicalValue = json(String(receiptValue.historicalManifest.path), String(receiptValue.historicalManifest.sha256));
   if (!exact(historicalValue, 'schemaVersion,scope,access,windowId,roots') || historicalValue.schemaVersion !== 1
     || historicalValue.scope !== 'musicbridge-capacity-owned-roots' || historicalValue.access !== 'count-only'
@@ -338,15 +378,14 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
     if (!validInventory({ schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only',
       windowId: String(historicalValue.windowId), roots: [root] }, String(historicalValue.windowId))) invalid('WINDOW_INVALID');
     if (!path.isAbsolute(root.path) || path.normalize(root.path) !== root.path || historicalPaths.has(root.path)) invalid('WINDOW_INVALID');
+    if (root.device !== remap.historicalDevice) invalid('WINDOW_INVALID');
     historicalPaths.add(root.path);
     if (missingPath(root.path)) {
       if (root.marker.relative !== 'capacity-owner.json') invalid('WINDOW_INVALID');
       absentRoots.push(root);
     } else {
-      canonical(root.path); const info = lstatSync(root.path);
-      if (info.dev !== root.device || info.ino !== root.inode
-        || !directRegularFile(path.join(root.path, root.marker.relative))
-        || hashCapacityFile(path.join(root.path, root.marker.relative)) !== root.marker.sha256) invalid('WINDOW_INVALID');
+      try { stableRecoveryRoot(root, remap.currentDevice); }
+      catch { invalid('WINDOW_INVALID'); }
       liveRoots.push(root);
     }
   }
@@ -370,7 +409,7 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
       || owner.role !== 'historical-control-only' || owner.recovered !== false
       || JSON.stringify(owner.historicalRoot) !== JSON.stringify(original)) invalid('WINDOW_INVALID');
     const info = lstatSync(String(replacement.path));
-    if (info.dev !== replacement.device || info.ino !== replacement.inode
+    if (replacement.device !== remap.currentDevice || info.dev !== replacement.device || info.ino !== replacement.inode
       || hashCapacityFile(path.join(String(replacement.path), 'owner.json')) !== replacement.marker.sha256
       || !inventory.roots.some(root => root.path === replacement.path && root.device === replacement.device
         && root.inode === replacement.inode && root.marker.relative === 'owner.json'
@@ -407,7 +446,13 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
   const expectedPaths = new Set([...liveRoots.map(root => root.path), ...replacements, outputPath, ...carryoverRoots,
     path.dirname(issuerIdentity), issuerIdentity]);
   const inventoryPaths = new Set(inventory.roots.map(root => root.path));
+  for (const root of liveRoots) {
+    const current = inventory.roots.find(value => value.path === root.path);
+    if (!current || current.device !== remap.currentDevice || current.inode !== root.inode
+      || current.marker.relative !== root.marker.relative || current.marker.sha256 !== root.marker.sha256) invalid('INVENTORY_INVALID');
+  }
   if (expectedPaths.size !== 75 || inventoryPaths.size !== 75 || inventoryPaths.size !== inventory.roots.length
+    || inventory.roots.some(root => root.device !== remap.currentDevice)
     || [...expectedPaths].some(value => !inventoryPaths.has(value)) || [...inventoryPaths].some(value => !expectedPaths.has(value))) invalid('INVENTORY_INVALID');
   const repository = receiptValue.repository as Record<string, unknown>, tool = receiptValue.recoveryTool as Record<string, unknown>;
   const repositoryRoot = String(repository.root), repositoryHead = String(repository.head), repositoryBranch = String(repository.branch);
@@ -426,16 +471,15 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
   const recoveryEntries = ['recovery.json', ...[...replacements].map(value => path.basename(value))].sort();
   const stable = () => {
     repositoryStable();
-    if (!directRegularFile(receiptPath) || (lstatSync(receiptPath).mode & 0o777) !== 0o400
+    if (lstatSync(runtime).dev !== remap.currentDevice
+      || !directRegularFile(receiptPath) || (lstatSync(receiptPath).mode & 0o777) !== 0o400
       || (lstatSync(recoveryRoot).mode & 0o777) !== 0o700
       || JSON.stringify(readdirSync(recoveryRoot).sort()) !== JSON.stringify(recoveryEntries)
       || hashCapacityFile(receiptPath) !== binding.sha256
       || hashCapacityFile(String((receiptValue.historicalManifest as Record<string, unknown>).path)) !== (receiptValue.historicalManifest as Record<string, unknown>).sha256
       || hashCapacityFile(seedPath) !== receipt.activeBenchmarkInput.sha256) invalid('WINDOW_INVALID');
     for (const root of liveRoots) {
-      canonical(root.path); const info = lstatSync(root.path), markerPath = path.join(root.path, root.marker.relative);
-      if (info.dev !== root.device || info.ino !== root.inode || !directRegularFile(markerPath)
-        || hashCapacityFile(markerPath) !== root.marker.sha256) invalid('INVENTORY_INVALID');
+      stableRecoveryRoot(root, remap.currentDevice);
     }
     for (const value of receipt.mappings) {
       const original = value.historicalRoot, replacement = value.replacementRoot;

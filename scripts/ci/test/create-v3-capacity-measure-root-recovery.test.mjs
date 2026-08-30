@@ -163,6 +163,14 @@ function replaceOption(args, option, value) {
   return result
 }
 
+function rewriteHistoricalDevices(f, deviceForIndex) {
+  const value = JSON.parse(readFileSync(f.manifest))
+  value.roots = value.roots.map((row, index) => ({ ...row, device: deviceForIndex(index, row) }))
+  rmSync(f.manifest)
+  json(f.manifest, value)
+  return replaceOption(f.args, '--expected-measure-owned-sha256', sha(f.manifest))
+}
+
 test('成功时发布7个全新historical-control-only根，旧fixture永久LOST且不复制marker', () => {
   const f = fixture()
   try {
@@ -185,7 +193,7 @@ test('成功时发布7个全新historical-control-only根，旧fixture永久LOST
     const receipt = JSON.parse(readFileSync(receiptPath))
     assert.deepEqual(Object.keys(receipt).sort(), [
       'access', 'activeBenchmarkInput', 'contentRecovered', 'deviceOpened', 'formalReady', 'gateB',
-      'historicalManifest', 'historicalManifestRewritten', 'mappings', 'model', 'recoveryTool',
+      'historicalManifest', 'historicalManifestRewritten', 'liveDeviceRemap', 'mappings', 'model', 'recoveryTool',
       'repository', 'schemaVersion', 'scope', 'state', 'windowId',
     ])
     assert.equal(receipt.scope, 'musicbridge-capacity-measure-root-recovery')
@@ -206,6 +214,15 @@ test('成功时发布7个全新historical-control-only根，旧fixture永久LOST
     assert.equal(receipt.deviceOpened, false)
     assert.equal(receipt.formalReady, false)
     assert.equal(receipt.gateB, 'NOT_RUN')
+    assert.deepEqual(Object.keys(receipt.liveDeviceRemap).sort(), [
+      'currentDevice', 'historicalDevice', 'liveRootCount', 'mode',
+    ])
+    assert.deepEqual(receipt.liveDeviceRemap, {
+      mode: 'UNCHANGED',
+      historicalDevice: statSync(f.runtime).dev,
+      currentDevice: statSync(f.runtime).dev,
+      liveRootCount: 63,
+    })
     assert.equal(receipt.mappings.length, 7)
     for (const [index, mapping] of receipt.mappings.entries()) {
       assert.deepEqual(mapping.historicalRoot, f.missing[index].row)
@@ -225,6 +242,41 @@ test('成功时发布7个全新historical-control-only根，旧fixture永久LOST
       assert.equal(marker.recovered, false)
     }
     assert.equal(run(f).status, 1, '已发布终态必须拒绝重复运行')
+  } finally { f.cleanup() }
+})
+
+test('70个历史root统一旧device时允许REMAPPED且replacement全部落在currentDevice', () => {
+  const f = fixture()
+  try {
+    const currentDevice = statSync(f.runtime).dev
+    const historicalDevice = currentDevice + 101
+    const args = rewriteHistoricalDevices(f, () => historicalDevice)
+    const result = run(f, args)
+    assert.equal(result.status, 0, result.stderr)
+    const receipt = JSON.parse(readFileSync(join(f.recovery, 'recovery.json')))
+    assert.deepEqual(receipt.liveDeviceRemap, {
+      mode: 'REMAPPED', historicalDevice, currentDevice, liveRootCount: 63,
+    })
+    assert.equal(receipt.mappings.length, 7)
+    for (const mapping of receipt.mappings) {
+      assert.equal(mapping.state, 'LOST')
+      assert.equal(mapping.replacementRoot.device, currentDevice)
+      assert.equal(statSync(mapping.replacementRoot.path).dev, currentDevice)
+    }
+  } finally { f.cleanup() }
+})
+
+test('70个历史root混合device时在创建pending前拒绝', () => {
+  const f = fixture()
+  try {
+    const historicalDevice = statSync(f.runtime).dev + 101
+    const args = rewriteHistoricalDevices(
+      f, index => index === 69 ? historicalDevice + 1 : historicalDevice)
+    const result = run(f, args)
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /MEASURE_OWNED_MANIFEST/u)
+    assert.equal(existsSync(f.pending), false)
+    assert.equal(existsSync(f.recovery), false)
   } finally { f.cleanup() }
 })
 
@@ -346,10 +398,43 @@ test('已持久化且身份匹配的pending中断可恢复并原子发布', () =
     assert.equal(interrupted.status, 75, interrupted.stderr)
     assert.equal(existsSync(f.pending), true)
     assert.equal(existsSync(f.recovery), false)
+    const pendingRemap = JSON.parse(readFileSync(join(f.pending, 'pending.json'))).liveDeviceRemap
+    assert.deepEqual(pendingRemap, {
+      mode: 'UNCHANGED', historicalDevice: statSync(f.runtime).dev,
+      currentDevice: statSync(f.runtime).dev, liveRootCount: 63,
+    })
     const resumed = run(f)
     assert.equal(resumed.status, 0, resumed.stderr)
     assert.equal(existsSync(f.pending), false)
     assert.equal(existsSync(join(f.recovery, 'recovery.json')), true)
+    const finalRemap = JSON.parse(readFileSync(join(f.recovery, 'recovery.json'))).liveDeviceRemap
+    assert.deepEqual(finalRemap, pendingRemap)
+  } finally { f.cleanup() }
+})
+
+test('pending后观测到currentDevice漂移时恢复必须fail closed', () => {
+  const f = fixture()
+  try {
+    const interrupted = run(f, f.args, { MUSICBRIDGE_TEST_STOP_AFTER_REPLACEMENTS: '1' })
+    assert.equal(interrupted.status, 75, interrupted.stderr)
+    assert.equal(existsSync(f.pending), true)
+    const pendingRemap = JSON.parse(readFileSync(join(f.pending, 'pending.json'))).liveDeviceRemap
+    assert.deepEqual(Object.keys(pendingRemap).sort(), [
+      'currentDevice', 'historicalDevice', 'liveRootCount', 'mode',
+    ])
+    const resumed = runMonkeypatched(f, `
+original=module.validate_manifest
+def drift(*args, **kwargs):
+  path, identity, missing, remap = original(*args, **kwargs)
+  changed = dict(remap)
+  changed['currentDevice'] += 1
+  changed['mode'] = ('UNCHANGED' if changed['historicalDevice'] == changed['currentDevice'] else 'REMAPPED')
+  return path, identity, missing, changed
+module.validate_manifest=drift`)
+    assert.equal(resumed.status, 1)
+    assert.match(resumed.stderr, /PENDING_INVALID/u)
+    assert.equal(existsSync(f.pending), true)
+    assert.equal(existsSync(f.recovery), false)
   } finally { f.cleanup() }
 })
 
@@ -368,6 +453,44 @@ test('pending中若有人把旧fixture marker复制成replacement，恢复必须
   } finally { f.cleanup() }
 })
 
+test('live marker读取完成时目录被换包，即使调用返回后复原也必须拒绝', () => {
+  const f = fixture()
+  try {
+    const target = f.present[0].path
+    const marker = join(target, 'owner.json')
+    const backup = `${target}.scan-swap`
+    const result = runMonkeypatched(f, `
+target=${JSON.stringify(target)}
+marker=${JSON.stringify(marker)}
+backup=${JSON.stringify(backup)}
+marker_identity=module.os.stat(marker)
+state={'swapped': False}
+original_read=module.os.read
+original_validate=module.validate_present_root
+def read_and_swap(descriptor, size):
+  data=original_read(descriptor, size)
+  opened=module.os.fstat(descriptor)
+  if not data and not state['swapped'] and opened.st_dev == marker_identity.st_dev and opened.st_ino == marker_identity.st_ino:
+    module.os.rename(target, backup)
+    module.os.symlink(backup, target)
+    state['swapped']=True
+  return data
+def validate_and_restore(row):
+  try:
+    return original_validate(row)
+  finally:
+    if state['swapped']:
+      module.os.unlink(target)
+      module.os.rename(backup, target)
+      state['swapped']=False
+module.os.read=read_and_swap
+module.validate_present_root=validate_and_restore`)
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /MEASURE_OWNED_MANIFEST/u)
+    assert.equal(existsSync(f.recovery), false)
+  } finally { f.cleanup() }
+})
+
 test('发布窗口内final并发出现时no-replace发布必须fail closed并保留原pending', () => {
   const f = fixture()
   try {
@@ -380,6 +503,24 @@ module._rename_noreplace=collide`)
     assert.equal(result.status, 1)
     assert.match(result.stderr, /PUBLISH_FAILED/u)
     assert.equal(existsSync(f.pending), true)
+  } finally { f.cleanup() }
+})
+
+test('rename调用点替换live目录inode时发布锁内最终扫描必须拒绝', () => {
+  const f = fixture()
+  try {
+    const target = f.present[1].path
+    const displaced = `${target}.publish-swap`
+    const result = runMonkeypatched(f, `
+original=module._rename_noreplace
+def swap_live_inode(runtime_fd, pending_name, final_name):
+  module.os.rename(${JSON.stringify(target)}, ${JSON.stringify(displaced)})
+  module.os.mkdir(${JSON.stringify(target)}, mode=0o700)
+  module.os.rename(${JSON.stringify(displaced + '/owner.json')}, ${JSON.stringify(target + '/owner.json')})
+  return original(runtime_fd, pending_name, final_name)
+module._rename_noreplace=swap_live_inode`)
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /MEASURE_OWNED_MANIFEST|PUBLISH_IDENTITY/u)
   } finally { f.cleanup() }
 })
 

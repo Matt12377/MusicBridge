@@ -156,7 +156,7 @@ const run=f=>spawnSync(python,args(f),{encoding:'utf8'}), cleanup=f=>rmSync(f.ro
 function options(f){const value={};const values=args(f);for(let i=1;i<values.length;i+=2)value[values[i].slice(2).replaceAll('-','_')]=values[i+1];return value}
 function pythonCall(body,...values){const bridge=`import importlib.util,json,sys,types\ns=importlib.util.spec_from_file_location('issuer',sys.argv[1]);m=importlib.util.module_from_spec(s);s.loader.exec_module(m)\n${body}`;return spawnSync(python,['-B','-c',bridge,sourceIssuer,...values],{encoding:'utf8'})}
 
-function directRecoveryFixture() {
+function directRecoveryFixture(remapped = true) {
   const temp=realpathSync(mkdtempSync(join(tmpdir(),'queued-recovery-validator-')))
   const repo=join(temp,'repo'),remote=join(temp,'remote.git'),runtime=join(temp,'runtime')
   mkdirSync(join(repo,'scripts/ci'),{recursive:true});mkdirSync(runtime)
@@ -168,18 +168,20 @@ function directRecoveryFixture() {
   const seed=join(runtime,'durable-seed'),snapshot=join(seed,'seed.sqlite');mkdirSync(seed);writeFileSync(snapshot,'durable seed input\n')
   put(join(seed,'seed.json'),{scope:'durable-seed'});const live=[rootIdentity(seed,'seed.json')]
   for(let index=1;index<63;index++){const path=join(runtime,`live-${String(index).padStart(2,'0')}`);mkdirSync(path);put(join(path,'owner.json'),{scope:'live',index});live.push(rootIdentity(path,'owner.json'))}
+  const currentDevice=lstatSync(runtime).dev,historicalDevice=currentDevice+(remapped?1:0)
+  for(const row of live)row.device=historicalDevice
   const fixtureOwner={id:randomUUID(),scope:'musicbridge-capacity-synthetic-only'},fixtureOwnerPath=join(temp,'fixture-owner.json');put(fixtureOwnerPath,fixtureOwner)
   const absent=[]
   for(let index=0;index<7;index++){
     const path=join(temp,`lost-${index}`),marker=index===0?{relative:'capacity-owner.json',sha256:sha(fixtureOwnerPath)}:{relative:'capacity-owner.json',sha256:String(index+1).repeat(64)}
-    absent.push({path,device:1,inode:index+1,marker})
+    absent.push({path,device:historicalDevice,inode:index+1,marker})
   }
   const historical=join(runtime,'historical');mkdirSync(historical)
   const ownedPath=join(historical,'owned-roots.json'),owned={schemaVersion:1,scope:'musicbridge-capacity-owned-roots',access:'count-only',windowId,roots:[...live,...absent],futureRoots:[join(runtime,'historical-output')]};put(ownedPath,owned)
   const recoveryRoot=join(runtime,'measure-root-recovery-v1');mkdirSync(recoveryRoot);chmodSync(recoveryRoot,0o700)
   const replacements=absent.map((historicalRoot,index)=>{const path=join(recoveryRoot,`replacement-${String(index+1).padStart(3,'0')}`);mkdirSync(path);chmodSync(path,0o700);put(join(path,'owner.json'),{schemaVersion:1,scope:'musicbridge-capacity-historical-control-only',id:randomUUID(),role:'historical-control-only',historicalRoot,recovered:false});chmodSync(join(path,'owner.json'),0o400);return {...rootIdentity(path,'owner.json'),role:'historical-control-only'}})
   const tool=join(repo,'scripts/ci/create-v3-capacity-measure-root-recovery.py'),receiptPath=join(recoveryRoot,'recovery.json')
-  const receipt={schemaVersion:1,scope:'musicbridge-capacity-measure-root-recovery',access:'read-only',state:'PUBLISHED',model:'exact75-v2-replacement-closure',windowId,historicalManifest:{path:ownedPath,sha256:sha(ownedPath)},repository:{root:repo,branch:'main',head,clean:true,pushedHead:true},recoveryTool:{path:tool,relativePath:'scripts/ci/create-v3-capacity-measure-root-recovery.py',workingSha256:sha(tool),gitBlobSha256:sha(tool)},mappings:absent.map((historicalRoot,index)=>({historicalRoot,state:'LOST',recovered:false,replacementRoot:replacements[index]})),activeBenchmarkInput:{model:'durable-seed-snapshot',path:snapshot,sha256:sha(snapshot)},contentRecovered:false,historicalManifestRewritten:false,deviceOpened:false,formalReady:false,gateB:'NOT_RUN'}
+  const receipt={schemaVersion:1,scope:'musicbridge-capacity-measure-root-recovery',access:'read-only',state:'PUBLISHED',model:'exact75-v2-replacement-closure',windowId,historicalManifest:{path:ownedPath,sha256:sha(ownedPath)},liveDeviceRemap:{mode:remapped?'REMAPPED':'UNCHANGED',historicalDevice,currentDevice,liveRootCount:63},repository:{root:repo,branch:'main',head,clean:true,pushedHead:true},recoveryTool:{path:tool,relativePath:'scripts/ci/create-v3-capacity-measure-root-recovery.py',workingSha256:sha(tool),gitBlobSha256:sha(tool)},mappings:absent.map((historicalRoot,index)=>({historicalRoot,state:'LOST',recovered:false,replacementRoot:replacements[index]})),activeBenchmarkInput:{model:'durable-seed-snapshot',path:snapshot,sha256:sha(snapshot)},contentRecovered:false,historicalManifestRewritten:false,deviceOpened:false,formalReady:false,gateB:'NOT_RUN'}
   put(receiptPath,receipt);chmodSync(receiptPath,0o400)
   const options={measure_root_recovery:receiptPath,expected_measure_root_recovery_sha256:sha(receiptPath),expected_measure_window_id:windowId,expected_measure_owned_sha256:sha(ownedPath),repo_root:repo,expected_branch:'main',expected_head:head,expected_seed_snapshot_sha256:sha(snapshot),expected_seed_fixture_owner_sha256:sha(fixtureOwnerPath)}
   return {temp,repo,remote,runtime,seed,snapshot,ownedPath,owned,recoveryRoot,receiptPath,receipt,replacements,absent,options,tool,cleanup:()=>rmSync(temp,{recursive:true,force:true})}
@@ -342,7 +344,22 @@ test('pre-child terminalizer对畸形authority、candidate与witness返回域错
 })
 
 test('queued-stop issuer生产入口存在且拒绝空参数',()=>{assert.equal(existsSync(sourceIssuer),true);const r=spawnSync(python,[sourceIssuer],{encoding:'utf8'});assert.equal(r.status,2);assert.match(r.stderr,/required/u)})
-test('validate_measure_root_recovery直接接受真实63 live加7 absent且durable seed是唯一输入',()=>{const f=directRecoveryFixture();try{const r=validateDirectRecovery(f);assert.equal(r.status,0,r.stdout+r.stderr);assert.deepEqual(JSON.parse(r.stdout),{live:63,replacement:7,input:{model:'durable-seed-snapshot',path:f.snapshot,sha256:sha(f.snapshot)}})}finally{f.cleanup()}})
+test('validate_measure_root_recovery直接接受统一设备代际映射的真实63 live加7 absent',()=>{const f=directRecoveryFixture();try{const r=validateDirectRecovery(f);assert.equal(r.status,0,r.stdout+r.stderr);assert.deepEqual(JSON.parse(r.stdout),{live:63,replacement:7,input:{model:'durable-seed-snapshot',path:f.snapshot,sha256:sha(f.snapshot)}});assert.deepEqual(JSON.parse(readFileSync(f.receiptPath)).liveDeviceRemap,{mode:'REMAPPED',historicalDevice:f.owned.roots[0].device,currentDevice:lstatSync(f.runtime).dev,liveRootCount:63})}finally{f.cleanup()}})
+test('validate_measure_root_recovery由相同历史与当前device派生UNCHANGED',()=>{const f=directRecoveryFixture(false);try{const r=validateDirectRecovery(f);assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(JSON.parse(readFileSync(f.receiptPath)).liveDeviceRemap.mode,'UNCHANGED')}finally{f.cleanup()}})
+test('validate_measure_root_recovery拒绝非exact或不自洽liveDeviceRemap及设备集合',async t=>{
+  const cases=[
+    ['缺remap',f=>rewriteDirectRecovery(f,r=>{delete r.liveDeviceRemap})],
+    ['remap夹带',f=>rewriteDirectRecovery(f,r=>{r.liveDeviceRemap.extra=true})],
+    ['mode不由device派生',f=>rewriteDirectRecovery(f,r=>{r.liveDeviceRemap.mode='UNCHANGED'})],
+    ['部分映射',f=>rewriteDirectRecovery(f,r=>{r.liveDeviceRemap.liveRootCount=62})],
+    ['混合历史device',f=>{f.owned.roots[0].device+=1;put(f.ownedPath,f.owned);f.options.expected_measure_owned_sha256=sha(f.ownedPath);rewriteDirectRecovery(f,r=>{r.historicalManifest.sha256=sha(f.ownedPath)})}],
+    ['live inode漂移',f=>{f.owned.roots[0].inode+=1;put(f.ownedPath,f.owned);f.options.expected_measure_owned_sha256=sha(f.ownedPath);rewriteDirectRecovery(f,r=>{r.historicalManifest.sha256=sha(f.ownedPath)})}],
+    ['live marker漂移',f=>writeFileSync(join(f.seed,'seed.json'),'marker drift\n')],
+    ['混合当前device声明',f=>rewriteDirectRecovery(f,r=>{r.liveDeviceRemap.currentDevice+=1})],
+    ['replacement非当前device',f=>rewriteDirectRecovery(f,r=>{r.mappings[0].replacementRoot.device+=1})],
+  ]
+  for(const [name,mutate] of cases)await t.test(name,()=>{const f=directRecoveryFixture();try{mutate(f);const r=validateDirectRecovery(f);assert.equal(r.status,1,r.stdout+r.stderr);assert.match(r.stdout,/MEASURE_ROOT_RECOVERY/u)}finally{f.cleanup()}})
+})
 test('validate_measure_root_recovery直接拒绝权限、symlink、hardlink、inode与目录项漂移',async t=>{
   const cases=[
     ['receipt权限',f=>chmodSync(f.receiptPath,0o600)],

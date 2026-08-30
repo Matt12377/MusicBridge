@@ -383,6 +383,50 @@ def _strict_identity(file, maximum=None):
             'sha256': digest.hexdigest()}
 
 
+def _strict_root_marker(path, marker, expected_device, expected_inode, error_code):
+    path = Path(path)
+    directory_flags = os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0) | getattr(os, 'O_NOFOLLOW', 0)
+    marker_flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0)
+    try:
+        directory_fd = os.open(path, directory_flags)
+        try:
+            before = os.fstat(directory_fd); named_before = path.lstat()
+            marker_fd = os.open(marker['relative'], marker_flags, dir_fd=directory_fd)
+            digest = hashlib.sha256()
+            try:
+                marker_before = os.fstat(marker_fd)
+                if not stat.S_ISREG(marker_before.st_mode) or marker_before.st_nlink != 1:
+                    raise ValueError(error_code)
+                for chunk in iter(lambda: os.read(marker_fd, 1024 * 1024), b''):
+                    digest.update(chunk)
+                marker_after = os.fstat(marker_fd)
+            finally:
+                os.close(marker_fd)
+            marker_named = os.stat(
+                marker['relative'], dir_fd=directory_fd, follow_symlinks=False)
+            after = os.fstat(directory_fd); named_after = path.lstat()
+        finally:
+            os.close(directory_fd)
+    except (OSError, TypeError, ValueError) as error:
+        raise ValueError(error_code) from error
+    directory_fields = ('st_dev', 'st_ino', 'st_mtime_ns', 'st_ctime_ns', 'st_nlink')
+    marker_fields = ('st_dev', 'st_ino', 'st_size', 'st_mtime_ns', 'st_ctime_ns', 'st_nlink')
+    if not stat.S_ISDIR(before.st_mode) \
+            or before.st_dev != expected_device or before.st_ino != expected_inode \
+            or any(getattr(before, key) != getattr(after, key)
+                   or getattr(after, key) != getattr(named_after, key)
+                   or getattr(before, key) != getattr(named_before, key)
+                   for key in directory_fields) \
+            or not stat.S_ISREG(marker_named.st_mode) \
+            or any(getattr(marker_before, key) != getattr(marker_after, key)
+                   or getattr(marker_after, key) != getattr(marker_named, key)
+                   for key in marker_fields) \
+            or digest.hexdigest() != marker['sha256']:
+        raise ValueError(error_code)
+    return {'path': str(path), 'device': before.st_dev, 'inode': before.st_ino,
+            'marker': {'relative': marker['relative'], 'sha256': marker['sha256']}}
+
+
 def _strict_json(file, maximum=8 * 1024 * 1024):
     identity = _strict_identity(file, maximum)
     try: value = json.loads(Path(file).read_text())
@@ -1129,11 +1173,11 @@ def _frozen_identity_matches(expected, observed):
 
 
 def _validate_measure_root_recovery(binding, runtime, manifest_path, manifest_sha256, window_id,
-                                    missing_roots, candidate_repository, expected_seed_sha256,
+                                    missing_roots, expected_live_device_remap, candidate_repository, expected_seed_sha256,
                                     expected_fixture_owner_sha256, error_code):
     """验证exact75-v2替代闭包；历史根保持LOST，替代根仅提供计数控制身份。"""
     receipt_keys = {'schemaVersion', 'scope', 'access', 'state', 'model', 'windowId',
-                    'historicalManifest', 'repository', 'recoveryTool', 'mappings',
+                    'historicalManifest', 'liveDeviceRemap', 'repository', 'recoveryTool', 'mappings',
                     'activeBenchmarkInput', 'contentRecovered', 'historicalManifestRewritten',
                     'deviceOpened', 'formalReady', 'gateB'}
     repository_keys = {'root', 'branch', 'head', 'clean', 'pushedHead'}
@@ -1165,6 +1209,7 @@ def _validate_measure_root_recovery(binding, runtime, manifest_path, manifest_sh
             or receipt.get('windowId') != window_id \
             or receipt.get('historicalManifest') != {
                 'path': str(manifest_path), 'sha256': manifest_sha256} \
+            or receipt.get('liveDeviceRemap') != expected_live_device_remap \
             or receipt.get('contentRecovered') is not False \
             or receipt.get('historicalManifestRewritten') is not False \
             or receipt.get('deviceOpened') is not False \
@@ -1242,6 +1287,7 @@ def _validate_measure_root_recovery(binding, runtime, manifest_path, manifest_sh
                 or str(path) in replacement_paths \
                 or any(_inside(Path(other), path) or _inside(path, Path(other))
                        for other in replacement_paths) \
+                or info.st_dev != expected_live_device_remap['currentDevice'] \
                 or info.st_dev != replacement['device'] \
                 or info.st_ino != replacement['inode'] or entries != ['owner.json'] \
                 or not isinstance(marker, dict) or set(marker) != {'relative', 'sha256'} \
@@ -1315,6 +1361,7 @@ def _validate_measure_root_recovery(binding, runtime, manifest_path, manifest_sh
         raise ValueError(error_code)
     return {'roots': roots, 'receiptIdentity': receipt_identity,
             'replacementSnapshots': snapshots, 'benchmarkIdentity': seed_identity,
+            'liveDeviceRemap': expected_live_device_remap,
             'recoveryDirectory': {
                 'device': recovery_root_info.st_dev, 'inode': recovery_root_info.st_ino,
                 'mtimeNs': recovery_root_info.st_mtime_ns, 'ctimeNs': recovery_root_info.st_ctime_ns,
@@ -1358,6 +1405,7 @@ def _validate_frozen_owned_roots(manifest_path, runtime, expected_sha256, window
         if future.is_symlink() or canonical_future != future or not stat.S_ISDIR(future_info.st_mode):
             raise ValueError(error_code)
 
+    runtime_device = runtime.lstat().st_dev
     temp_roots = {Path(tempfile.gettempdir()).resolve(strict=True), Path('/tmp').resolve(strict=True)}
     rows = []; missing = []; seen = set()
     for declared in manifest['roots']:
@@ -1386,22 +1434,29 @@ def _validate_frozen_owned_roots(manifest_path, runtime, expected_sha256, window
                 raise ValueError(error_code)
             missing.append(declared); seen.add(str(path)); continue
         except OSError as error: raise ValueError(error_code) from error
+        expected_device = runtime_device if root_recovery is not None else declared['device']
         if path.is_symlink() or canonical != path or not stat.S_ISDIR(info.st_mode) \
-                or info.st_dev != declared['device'] or info.st_ino != declared['inode']:
+                or info.st_dev != expected_device or info.st_ino != declared['inode']:
             raise ValueError(error_code)
-        try: marker_identity = _strict_identity(path / marker['relative'], 8 * 1024 * 1024)
-        except ValueError as error: raise ValueError(error_code) from error
-        if marker_identity['sha256'] != marker['sha256']: raise ValueError(error_code)
+        observed = _strict_root_marker(
+            path, marker, expected_device, declared['inode'], error_code)
         seen.add(str(path))
-        rows.append({'path': str(path), 'device': info.st_dev, 'inode': info.st_ino,
-                     'marker': {'relative': marker['relative'], 'sha256': marker_identity['sha256']}})
+        rows.append(observed)
     recovery = None
     if root_recovery is not None:
-        if len(manifest['roots']) != 70 or len(rows) != 63 or len(missing) != 7:
+        historical_devices = {row['device'] for row in manifest['roots']}
+        if len(manifest['roots']) != 70 or len(rows) != 63 or len(missing) != 7 \
+                or len(historical_devices) != 1:
             raise ValueError(error_code)
+        historical_device = next(iter(historical_devices))
+        live_device_remap = {
+            'mode': 'UNCHANGED' if historical_device == runtime_device else 'REMAPPED',
+            'historicalDevice': historical_device, 'currentDevice': runtime_device,
+            'liveRootCount': 63}
         recovery = _validate_measure_root_recovery(
             root_recovery, runtime, canonical_manifest, expected_sha256, window_id, missing,
-            candidate_repository, expected_seed_sha256, expected_fixture_owner_sha256, error_code)
+            live_device_remap, candidate_repository, expected_seed_sha256,
+            expected_fixture_owner_sha256, error_code)
         live_paths = [Path(row['path']) for row in rows]
         replacement_paths = [Path(row['path']) for row in recovery['roots']]
         if any(_inside(live, replacement) or _inside(replacement, live)
@@ -3421,8 +3476,10 @@ def _validate_queued_stop_measure_carryover(carry, runtime, candidate_repository
 
 
 def _validate_queued_stop_owned_manifest(manifest_path, runtime, window_id, parent, carry_roots,
-                                         planned_bytes, terminal=False):
+                                         planned_bytes, expected_device=None, terminal=False):
     runtime = Path(runtime).resolve(strict=True); parent = Path(parent).resolve(strict=True)
+    if expected_device is None:
+        expected_device = runtime.lstat().st_dev
     expected_root_count = len(carry_roots) + 2
     try: manifest, manifest_identity = _strict_json(manifest_path)
     except ValueError as error: raise ValueError('QUEUED_STOP_OWNED') from error
@@ -3442,17 +3499,16 @@ def _validate_queued_stop_owned_manifest(manifest_path, runtime, window_id, pare
         fixture = path.parent == temp_root and re.fullmatch(r'musicbridge-version-[A-Za-z0-9]+', path.name)
         app_clone = path.parent == temp_root and re.fullmatch(r'musicbridge-ui-diagnostics-r021-[A-Za-z0-9]{6}', path.name)
         if not path.is_absolute() or path.is_symlink() or canonical != path or not stat.S_ISDIR(info.st_mode) \
-                or str(path) in seen or info.st_dev != row['device'] or info.st_ino != row['inode'] \
+                or str(path) in seen or row['device'] != expected_device \
+                or info.st_dev != row['device'] or info.st_ino != row['inode'] \
                 or not (_inside(runtime, path) and path != runtime or fixture or app_clone) \
                 or not isinstance(marker, dict) or set(marker) != {'relative', 'sha256'} \
                 or marker.get('relative') not in _MARKERS \
                 or _SHA256.fullmatch(str(marker.get('sha256', ''))) is None:
             raise ValueError('QUEUED_STOP_OWNED')
-        try: marker_identity = _strict_identity(path / marker['relative'])
-        except ValueError as error: raise ValueError('QUEUED_STOP_OWNED') from error
-        if marker_identity['sha256'] != marker['sha256']:
-            raise ValueError('QUEUED_STOP_OWNED')
-        seen.add(str(path)); rows.append(row)
+        observed = _strict_root_marker(
+            path, marker, expected_device, row['inode'], 'QUEUED_STOP_OWNED')
+        seen.add(str(path)); rows.append(observed)
     required = {row['path'] for row in carry_roots} | {str(parent), str(parent / 'issuer-identity')}
     if seen != required or len(required) != expected_root_count \
             or expected_root_count < _QUEUED_STOP_BASE_ROOTS:
@@ -3502,7 +3558,8 @@ def _validate_queued_stop_authority(parent, runtime, repo_root, window_sha256,
                    *bound_identities['prechildFailureRoots']]
     owned = _validate_queued_stop_owned_manifest(
         parent / 'owned-roots.json', runtime, window['id'], parent, carry_roots,
-        window['queuedStopPlan']['plannedBytes'], terminal=terminal)
+        window['queuedStopPlan']['plannedBytes'],
+        carry['rootRecovery']['liveDeviceRemap']['currentDevice'], terminal=terminal)
     if owned['manifestIdentity']['sha256'] != window['ownedManifest']['sha256']:
         raise ValueError('QUEUED_STOP_AUTHORITY')
     value = {'authorityStable': True, 'windowStable': True, 'ownerStable': True,
