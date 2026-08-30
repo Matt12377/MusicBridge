@@ -2,7 +2,7 @@
 
 基线 `fac7363b4a6481591e207dda7cca77f0ae8d3cd4`，分支 `codex/task-079-v3-final-acceptance`，独立树 `worktree/task-079-v3-final-acceptance`。TASK-078 的本地自动软件子范围已经封版；本任务承接尚未运行的真实输入、真实 Logic/Roon、真实设备、实体打印和 Owner 产品验收，不重写 TASK-078 的软件证据。
 
-当前没有设备连接。Owner 后续计划使用 RME 或 Apogee 声卡与 Sony 卡座，但具体型号、连接、采样率、声道、缓冲、时钟、测量方法和故障注入范围尚未冻结。本阶段禁止枚举、打开、配置或发声，禁止读取真实音乐、库存、照片、Excel、Logic 工程、Roon/Provider 账号或凭据；不 push、不合并 `main`、不签名、公证、安装或发布。
+当前没有设备连接。Owner 后续计划使用 RME 或 Apogee 声卡与 Sony 卡座，但具体型号、连接、采样率、声道、缓冲、时钟、测量方法和故障注入范围尚未冻结。本阶段禁止枚举、打开、配置或发声，禁止读取真实音乐、库存、照片、Excel、Logic 工程、Roon/Provider 账号或凭据。Owner允许把验证清洁的`codex/task-079-v3-final-acceptance`分支检查点push供外部评审；当前尚未push，且没有授权`main`/PR合并、签名、公证、安装或发布。
 
 ## 无设备阶段范围
 
@@ -55,6 +55,10 @@ TASK-078 的 `objects-limit` 重新准入在 2026-08-30 暴露出独立控制面
 
 measure v2第一次新签发名称`window/label-02`在exclusive-create前以`GENERATION_PROOF`停止；修复42个contracts dist的固定工具链派生证明后，fresh audit对提交`3836db3f…`给出PASS。第二个唯一名称`window/label-03`在写入owner、installed supervisor、issuer identity、source pins与owned roots后以`AUTHORITY_PREFLIGHT`终态关闭，failure UUID=`57f2d338-357f-43db-9cb4-e21dbfe619d5`且`replayAllowed=false`；没有approved window、consume或measure。只读重建稳定证明根因是issuer用tracked-source位置加载的supervisor模块校验指向per-window安装副本的`window.supervisor.path`。生产修复提交`bf2ae144…`改由安装副本模块执行自身identity、candidate与window校验，并把预检终态拆为source、owned、facts、candidate、window五阶段安全诊断；异常文本、仓库路径和runtime路径不得进入receipt。02/03名称均永久禁止重放，新HEAD未通过fresh audit前不得签发后继窗口。
 
+measure window-04在绑定候选HEAD `cfca7be9b7adc42045c371fe3648f3db6e9c4c8d`的fresh audit后一次性签发并消费。UUID=`02f6042a-b797-437d-a8da-45afa2dd1f4`、window SHA256=`afdd51b40e412265eac85a000132168df83bf4a5b42f65150651a5b6dca3006b`、label=`r023-objects-limit-measure-04`。progress group完成105个样本，Stop第1轮写入durable receipt后，第2轮因复用同一Physical Copy而由正式Attempt链返回`COPY_UNAVAILABLE`；child自然exit 1，supervisor在terminal authority复核将终态收敛为`AUTHORITY_DRIFT`。close SHA256=`1baf8d8ba6d02d524a2368f4d5ce4e4854dba5d866d4dfcfbaac46e0666704f1`，elapsed=`62295.937791ms`，共111 samples、1个group receipt、1个Stop round receipt；group-stop clone与partial保留，PG empty、zombie=`[]`、`deviceOpened=false`、Gate B=`NOT_RUN`。该UUID、window-dir和label永久禁止重放，不能写成measure PASS。
+
+修复提交`54b6353e9b12a2bdfdecf3c9bb452a53d34a00f5`为105个Stop回合预置105个不同、合法且冻结的Physical Copy/Plan，仍走正式receive→source authorization→media reservation→layout freeze→execution→archive→recording plan链，并保持105个SQLite commit/fsync、105个durable round receipt、1575样本、3个group clone与3次full hash；同Plan重放负例仍必须返回`COPY_UNAVAILABLE`。terminal authority复核在future output已经存在时只扣尚未形成的remaining plan，避免现有output与完整planned bytes重复计数，同时保持公开`plannedBytes=4249378816`合同。clone-owned workspace的文件树receipt、generation fixture before/after相等、tree digest、父目录、符号链接、多余项、成功清理和失败partial保留全部进入supervisor fail-closed闭包；不读取或哈希旧legacy carryover的大型SQLite。新鲜结果为capacity 88/88、supervisor 16/16、issuer 23/23和Bridge Core typecheck全部exit 0。文档/STATUS同步及当前HEAD独立fresh audit完成前，不得签发或消费任何后继窗口；后继必须使用全新UUID/window-dir/label，02/03/04不重放。
+
 ## 自动验证
 
 ```bash
@@ -66,6 +70,9 @@ node scripts/ci/verify-v3-owner-evidence.mjs
 node --test scripts/ci/test/issue-v3-capacity-window.test.mjs
 /usr/bin/python3 -m py_compile scripts/ci/issue-v3-capacity-measure-window.py
 node --test scripts/ci/test/issue-v3-capacity-measure-window.test.mjs
+node --test --import tsx packages/bridge-core/test/recording-capacity.test.ts
+node --test scripts/ci/test/capacity-phase-supervisor-v2.test.mjs
+corepack pnpm@10.17.1 --filter @music-bridge/bridge-core typecheck
 git diff --check
 ```
 

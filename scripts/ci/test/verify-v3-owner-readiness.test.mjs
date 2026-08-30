@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -17,7 +17,7 @@ const controlStatus = {
     task: 'TASK-079',
     branch: 'codex/task-079-v3-final-acceptance',
     baseCommit: 'fac7363b4a6481591e207dda7cca77f0ae8d3cd4',
-    state: 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-v2-verified-awaiting-fresh-audit-external-not-run',
+    state: 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window04-nonreplay-stop-reentry-fixed-awaiting-fresh-audit-external-not-run',
     evidenceInfrastructure: {
       state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
       receiptFoundation: {
@@ -71,7 +71,7 @@ const controlStatus = {
     gates: {
       readinessControl: 'PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO',
       externalEvidenceProfiles: 'REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED',
-      capacityAuthority: 'OBJECTS_MEASURE_V2_PREFLIGHT_IDENTITY_FIX_VERIFIED_AWAITING_FRESH_AUDIT_NOT_ISSUED',
+      capacityAuthority: 'OBJECTS_MEASURE_WINDOW04_FAILED_NONREPLAY_STOP_REENTRY_FIXED_AWAITING_FRESH_AUDIT_NOT_ISSUED',
       externalGate: 'NOT_RUN',
       realInput: 'NOT_RUN',
       realLogic: 'NOT_RUN',
@@ -164,15 +164,16 @@ const controlStatus = {
           replay: 'PROHIBITED',
         },
         measureRecoveryV2: {
-          state: 'PREFLIGHT_IDENTITY_FIX_VERIFIED_AWAITING_FRESH_AUDIT_NOT_ISSUED',
+          state: 'WINDOW04_FAILED_NONREPLAY_STOP_REENTRY_FIXED_AWAITING_FRESH_AUDIT_NOT_ISSUED',
           baseCommit: '74367bc3f6d1a96a3fabef0ebcbaa3b22ba82ba6',
           implementationCommit: '1086dedb78d9ee4ed43238d82c3dc52823f4e4c1',
           derivedProofCommit: '3836db3f83b3d209b025f3a32445b57c3fc454fe',
           preflightFixCommit: 'bf2ae1449cb826dae21cecb8b0c466e3f505aa75',
+          stopReentryFixCommit: '54b6353e9b12a2bdfdecf3c9bb452a53d34a00f5',
           measurePlan: { groupCloneCount: 3, fullHashCount: 3, stopRoundReceiptCount: 105, sampleCount: 1575 },
           focusedVerification: {
-            capacity: { tests: 86, passed: 86, failed: 0 },
-            supervisor: { tests: 11, passed: 11, failed: 0 },
+            capacity: { tests: 88, passed: 88, failed: 0 },
+            supervisor: { tests: 16, passed: 16, failed: 0 },
             issuer: { tests: 23, passed: 23, failed: 0 },
           },
           fullVerify: 'PASS',
@@ -199,6 +200,32 @@ const controlStatus = {
               authorityFileCount: 5, windowWritten: false, replay: 'PROHIBITED',
             },
           },
+          window04Terminal: {
+            windowId: '02f6042a-b797-437d-a8da-45afa2dd1f4',
+            windowDirName: 'r023-objects-limit-measure-window-04',
+            label: 'r023-objects-limit-measure-04',
+            candidateCommit: 'cfca7be9b7adc42045c371fe3648f3db6e9c4c8d',
+            windowSha256: 'afdd51b40e412265eac85a000132168df83bf4a5b42f65150651a5b6dca3006b',
+            closeSha256: '1baf8d8ba6d02d524a2368f4d5ce4e4854dba5d866d4dfcfbaac46e0666704f1',
+            ownedManifestSha256: 'b6cad8f1701a4b3815810046e11088544027932c00d9ca002c1d4f875add1d9e',
+            sourceManifestSha256: 'de474098354a741fc7a4210c9586ad3904453f98c191c5ccb449d3a9bfc32a29',
+            progressReceiptSha256: 'b7c3d6e7d25461ff5b3d1bf77c7b1be9ebb74a3060a90498f2307ed0804cc323',
+            stopRoundReceiptSha256: '5e497472bb5ab6b69eb1e2a2e050442760ee7218b64c0192fb1b352222d7df92',
+            samplesSha256: 'cbeec9cc8e9d087bf0c596259d6eead06ff2f673f105890be407090d20670664',
+            stagesSha256: '0a6fb64a9c663237cbe7257856f56f4151709637307b066defcd0de94ee62a9e',
+            state: 'FAILED_AUTHORITY_DRIFT', benchmarkFailureCode: 'COPY_UNAVAILABLE',
+            elapsedMs: 62295.937791, exitCode: 1, sampleCount: 111, receiptCount: 1,
+            stopRoundReceiptCount: 1, retainedClone: 'group-stop', partialPreserved: true,
+            groupEmpty: true, zombies: [], admissionAuthorityStable: true,
+            terminalAuthorityStable: false, replay: 'PROHIBITED', deviceOpened: false, gateB: 'NOT_RUN',
+          },
+          postWindow04Fix: {
+            implementationCommit: '54b6353e9b12a2bdfdecf3c9bb452a53d34a00f5',
+            productionCopyUnavailableProtection: 'UNCHANGED', stopPlans: 105, physicalCopies: 'DISTINCT',
+            workspaceReceipt: 'DURABLE_TREE_BOUND', fixtureDatabaseContentSha256Verified: false,
+            terminalSpace: 'PRESENT_FUTURE_REPLACES_REMAINING_PLANNED_BYTES',
+            treeDigest: 'RECOMPUTED_AND_FIXTURE_ROOT_AUTHORITY_BOUND',
+          },
           preflightRootCause: {
             state: 'FIXED_VERIFIED',
             cause: 'TRACKED_SOURCE_MODULE_VALIDATED_INSTALLED_SUPERVISOR_PATH',
@@ -206,9 +233,9 @@ const controlStatus = {
             stages: ['source-manifest', 'owned-manifest', 'facts', 'candidate-repository', 'window'],
             safeDiagnostics: true,
           },
-          freshAudit: 'PASS_ON_3836_INVALIDATED_BY_PREFLIGHT_FIX',
+          freshAudit: 'REQUIRED_ON_54B6353',
           freshAuthorityIssued: false,
-          measureRun: 'NOT_RUN',
+          measureRun: 'WINDOW04_FAILED_NONREPLAY_NEXT_NOT_RUN',
           deviceOpened: false,
           gateB: 'NOT_RUN',
         },
@@ -464,6 +491,12 @@ test('STATUS设备与外部门状态不能和readiness清单互相矛盾', () =>
     value => { value.v3Development.task078SoftwareCheckpoints.capacityMeasureWindowIssuer.measureRecoveryV2.focusedVerification.issuer.passed = 20 },
     value => { value.v3Development.task078SoftwareCheckpoints.capacityMeasureWindowIssuer.measureRecoveryV2.freshAuthorityIssued = true },
     value => { value.v3Development.task078SoftwareCheckpoints.capacityMeasureWindowIssuer.measureRecoveryV2.legacyCarryover.contentSha256Verified = true },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityMeasureWindowIssuer.measureRecoveryV2.window04Terminal.windowId = randomUUID() },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityMeasureWindowIssuer.measureRecoveryV2.window04Terminal.closeSha256 = '0'.repeat(64) },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityMeasureWindowIssuer.measureRecoveryV2.window04Terminal.benchmarkFailureCode = 'PASS' },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityMeasureWindowIssuer.measureRecoveryV2.window04Terminal.replay = 'ALLOWED' },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityMeasureWindowIssuer.measureRecoveryV2.window04Terminal.deviceOpened = true },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityMeasureWindowIssuer.measureRecoveryV2.postWindow04Fix.implementationCommit = '0'.repeat(40) },
     value => { value.v3Development.task078SoftwareCheckpoints.capacityMeasureWindowIssuer.gateB = 'PASS' },
     value => { value.v3Development.gates.readinessControl = 'PASS_14_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO' },
     value => { value.v3Development.gates.externalEvidenceProfiles = 'ALL_PREPARED' },

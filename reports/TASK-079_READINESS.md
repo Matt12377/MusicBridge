@@ -8,7 +8,7 @@
 - TASK-078 软件矩阵：SHA256 `12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7fe4ba944`
 - 实现提交：`1f102fba93e42d0f84b985c04d84af08b06b2231`
 - 报告提交：`93feee20c2edbd027546b44cc908aee27ef785b1`
-- GitHub：未 push；未合并 `main`；未安装、签名、公证或发布
+- GitHub：Owner已授权把验证清洁的`codex/task-079-v3-final-acceptance`分支检查点push供外部评审；当前尚未push、没有远端SHA；`main`/PR未合并，未安装、签名、公证或发布
 
 基础 readiness 控制、主任务修复与本地回归已经完成，当前结论固定为 `READY=false`；完整无设备证据控制面尚未取得独立闭包。hardware evidence contract v2 在主任务实现后为33/33专项GREEN，但第二轮独立复审最终RED继续保留，未执行第三轮且没有独立PASS。capacity issuer同样只记录主任务裁决后的12/12回归，新的fresh authority仍待独立决定。当前readiness验证器已精确要求这组机器真相并通过15/15；它不认证声卡、卡座、真实输入、Logic/Roon、可听Replica、实录、实体打印或Owner接受。
 
@@ -70,7 +70,7 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 | 控制/边界/循环 | PASS，均exit 0 | `CONTROL_PLANE=PASS`、`BOUNDARIES=PASS`、`CYCLES=PASS files=259` |
 | 语法与diff-check | PASS，均exit 0 | Node `--check`和Git空白检查通过 |
 
-当前只允许本地提交；没有push、main合并、签名、公证、安装或发布。真实收据尚未创建，因为设备、资料、配置、测量计划与逐次操作授权均未建立。receipt seal只用于发现正常历史漂移，不是数字签名；若将来要求对抗本机恶意写入，必须另建Owner控制签名或外部只追加账本。
+当前允许将验证清洁的`codex/task-079-v3-final-acceptance`分支检查点push供外部评审，但尚未push，也不预写远端SHA；`main`/PR合并、签名、公证、安装或发布没有授权。真实收据尚未创建，因为设备、资料、配置、测量计划与逐次操作授权均未建立。receipt seal只用于发现正常历史漂移，不是数字签名；若将来要求对抗本机恶意写入，必须另建Owner控制签名或外部只追加账本。
 
 ## 候选清单追加加固
 
@@ -98,7 +98,7 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - RED：`project/STATUS.json` 仍只记录初始 readiness 实现/报告，缺少收据基础设施与 candidate closure 的最终身份；原验证器会接受删除或伪造这些检查点的 STATUS。
 - GREEN：STATUS 新增两段固定检查点链，readiness 验证器逐字段锁定 base/implementation/report/final SHA 和 25→26 专项计数；缺失、错 SHA、错计数均以 `CONTROL_STATE` 拒绝。顶层初始 readiness 提交保留原义，不用后续状态提交冒充最初实现。
 - 新鲜验证：readiness 14/14、证据专项 26/26、两个默认 CLI、Node 语法、控制面、边界、循环及 `git diff --check` 全部 exit 0；标准 `pnpm verify` exit 0，Contracts 186/186、Bridge Core 1241/1242（0 fail、1 条件性 skip）、Desktop 643/643，三包构建成功。
-- 边界不变：无设备、无真实资料、无真实收据；不 push、不合并 `main`、不签名、公证、安装或发布。
+- 边界不变：无设备、无真实资料、无真实收据；只允许把验证清洁的TASK-079同名分支检查点push供外部评审，当前尚未push；`main`/PR合并、签名、公证、安装或发布仍未授权。
 
 ### Readiness Gate 计数修正
 
@@ -243,4 +243,15 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - 第一次新名称`window/label-02`在exclusive-create前以`GENERATION_PROOF`停止，没有authority目录、consume或measure；修复42个contracts dist固定工具链派生证明后，fresh audit对`3836db3f…`PASS。第二个唯一名称`window/label-03`在创建5项authority文件后以`AUTHORITY_PREFLIGHT`终态关闭，failure UUID=`57f2d338-357f-43db-9cb4-e21dbfe619d5`、`windowWritten=false`、`replayAllowed=false`，同名永久禁止重放。
 - window-03只读重建对同一内存window稳定得到：tracked-source模块因`__file__`不等于`window.supervisor.path`而拒绝，per-window安装副本模块PASS。production RED复现后，提交`bf2ae1449cb826dae21cecb8b0c466e3f505aa75`改为由安装副本执行identity/candidate/window自校验；tracked supervisor继续负责冻结合同、generation、carryover、source与owned验证。
 - 失败回执新增source、owned、facts、candidate、window五阶段稳定代码及无路径的数值/布尔快照。完整issuer 23/23、五场景定向测试、Node syntax、Python compile与`git diff --check`均PASS；不记录底层异常文本、candidate路径或runtime路径。
-- 当前状态=`PREFLIGHT_IDENTITY_FIX_VERIFIED_AWAITING_FRESH_AUDIT_NOT_ISSUED`。root闭包为65个existing roots加唯一future output，共66个授权根；这些数字只是待审合同。`3836db3f…`上的旧audit已被新代码提交失效，新fresh audit、authority签发和measure run仍未完成。在状态提交完成并重新审计当前HEAD、issuer及supervisor blob前，不得签发或消费window-04。
+- 此处状态=`PREFLIGHT_IDENTITY_FIX_VERIFIED_AWAITING_FRESH_AUDIT_NOT_ISSUED`是window-04签发前的历史快照。root闭包当时为65个existing roots加唯一future output，共66个授权根；`3836db3f…`上的旧audit被后续代码提交失效。window-04的实际终态与后续修复见下一节。
+
+#### Objects-limit measure window-04终态与Stop/authority闭包修复
+
+- fresh audit绑定候选HEAD `cfca7be9b7adc42045c371fe3648f3db6e9c4c8d`后，一次性签发并消费window UUID=`02f6042a-b797-437d-a8da-45afa2dd1f4`、window-dir=`r023-objects-limit-measure-window-04`、label=`r023-objects-limit-measure-04`。window SHA256=`afdd51b40e412265eac85a000132168df83bf4a5b42f65150651a5b6dca3006b`，owned manifest SHA256=`b6cad8f1701a4b3815810046e11088544027932c00d9ca002c1d4f875add1d9e`，source manifest SHA256=`de474098354a741fc7a4210c9586ad3904453f98c191c5ccb449d3a9bfc32a29`。
+- progress group完成105个样本并写入receipt SHA256=`b7c3d6e7d25461ff5b3d1bf77c7b1be9ebb74a3060a90498f2307ed0804cc323`。Stop第1轮形成durable receipt SHA256=`5e497472bb5ab6b69eb1e2a2e050442760ee7218b64c0192fb1b352222d7df92`；第2轮因复用同一Physical Copy而由正式Attempt链返回`COPY_UNAVAILABLE`。child自然exit 1，supervisor在terminal authority复核将终态收敛为`AUTHORITY_DRIFT`，两者必须分层记录。
+- close SHA256=`1baf8d8ba6d02d524a2368f4d5ce4e4854dba5d866d4dfcfbaac46e0666704f1`；elapsed=`62295.937791ms`，共111 samples、1个group receipt、1个Stop round receipt。samples SHA256=`cbeec9cc8e9d087bf0c596259d6eead06ff2f673f105890be407090d20670664`，stages SHA256=`0a6fb64a9c663237cbe7257856f56f4151709637307b066defcd0de94ee62a9e`。group-stop clone与partial保留，PG empty、zombie=`[]`、`deviceOpened=false`、`formalReady=false`、Gate B=`NOT_RUN`。UUID、window-dir、label永久禁止重放；该结果不是measure PASS。
+- 修复提交=`54b6353e9b12a2bdfdecf3c9bb452a53d34a00f5`。Stop measure现在为105轮分别预置不同、合法、冻结的Physical Copy/Plan，仍经过正式receive、source authorization、media reservation、layout freeze、execution、archive与recording plan链；每轮保留真实SQLite commit/fsync和durable receipt，3-group、3次full hash及1575样本口径不变，同Plan重放负例仍返回`COPY_UNAVAILABLE`。
+- terminal authority空间复核在future output已存在时只扣尚未形成的remaining plan，避免output与完整计划空间重复计数；公开`plannedBytes=4249378816`合同保持不变。supervisor把clone-owned workspace tree receipt与generation fixture before/after纳入闭包，验证root/schema/entries/tree digest、父目录、符号链接、多余项和成功清理；运行失败时只允许在受控group-stop clone内保留partial。旧legacy carryover SQLite继续只做稳定lstat/size验证，不读取或哈希内容。
+- 新鲜验证：`node --test --import tsx packages/bridge-core/test/recording-capacity.test.ts`为88/88；`node --test scripts/ci/test/capacity-phase-supervisor-v2.test.mjs`为16/16；measure issuer专项为23/23；`corepack pnpm@10.17.1 --filter @music-bridge/bridge-core typecheck` exit 0。以上只证明修复切片GREEN，不关闭capacity正式measure、queued-stop/joint、真实设备、Gate B或Owner验收。
+- 当前尚未签发后继窗口。必须先同步文档与STATUS、确认工作树和验证清洁，再由独立只读fresh audit绑定当前HEAD、issuer及supervisor blob；PASS后也只能使用全新UUID/window-dir/label一次性签发。02/03/04和旧partial不得重放、覆盖、移动或吸收。
+- Owner允许把验证清洁的`codex/task-079-v3-final-acceptance`分支检查点push供外部评审；当前尚未push，因此没有可记录的远端SHA。push不代表PR或`main`合并，也不代表签名、公证、安装、发布或外部评审结论。

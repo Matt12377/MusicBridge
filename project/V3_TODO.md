@@ -1,12 +1,12 @@
 # V3 剩余任务 TODO
 
-当前进度：TASK-078本地自动软件子范围已在最终HEAD `fac7363b4a6481591e207dda7cca77f0ae8d3cd4` 封版；TASK-079继续在独立分支。当前无设备，只开发fail-closed就绪控制面，不枚举、不打开、不配置设备。objects-limit generation window-03 已正式PASS。第一次measure在29个回执/273个样本后因900秒执行期限终止，sample-30 clone与partial保留，PG empty、0 zombie、authority stable；同UUID/label永久禁止重放。3-group clone v2已提交并完成主线程验证。window/label-02在pre-create `GENERATION_PROOF`终止且未创建authority；derived proof修复后fresh audit PASS。window/label-03随后在authority预检以`AUTHORITY_PREFLIGHT`终态关闭，没有approved window、consume或measure；只读重建确认tracked-source模块错误校验installed supervisor路径。修复提交=`bf2ae144…`，issuer 23/23及五阶段安全诊断GREEN；当前等待包含机器状态的新HEAD fresh audit，禁止重用02/03。queued-stop/joint、可听Replica、TASK073真实HAL/Gate B、实体纸张与最终Owner仍待验。仅本地开发，不push、不合并main、不发布；智能体统一GPT-5.6 Sol / High。
+当前进度：TASK-078本地自动软件子范围已在最终HEAD `fac7363b4a6481591e207dda7cca77f0ae8d3cd4` 封版；TASK-079继续在独立分支。当前无设备，只开发fail-closed就绪控制面，不枚举、不打开、不配置设备。objects-limit generation window-03 已正式PASS。第一次measure在29个回执/273个样本后因900秒执行期限终止，sample-30 clone与partial保留，PG empty、0 zombie、authority stable；同UUID/label永久禁止重放。3-group clone v2后，window/label-02在pre-create `GENERATION_PROOF`终止，window/label-03以`AUTHORITY_PREFLIGHT`终态关闭，均未运行measure且永久禁用。window-04随后一次性签发并消费，在105个progress样本和第1个Stop回执后，child以`COPY_UNAVAILABLE`退出，supervisor终态收敛为`AUTHORITY_DRIFT`；partial保留、PG empty、0 zombie，UUID/dir/label永久禁止重放。修复提交=`54b6353e…`已用105个不同冻结Physical Copy/Plan关闭Stop重入，并完成terminal space、tree与fixture authority闭包；capacity 88/88、supervisor 16/16、issuer 23/23、typecheck均exit 0。当前同步文档/机器状态并准备对新HEAD做fresh audit，尚未签发后继窗口。queued-stop/joint、可听Replica、TASK073真实HAL/Gate B、实体纸张与最终Owner仍待验。Owner允许将验证清洁的`codex/task-079-v3-final-acceptance`分支检查点push供外部评审；当前尚未push，`main`/PR合并、签名、公证和发布未授权；智能体统一GPT-5.6 Sol / High。
 
 本表是任务拆分与依赖计划，不是完成声明。后续任务沿上一任务最终 HEAD 创建独立分支；当前已展开 TASK-064～078，其余任务开始前补详细范围和允许路径。具体子任务可根据已验证结果细分，不删减 PRD 范围。
 
 ## 实时进度面板
 
-> **当前执行：** `TASK-079 / preflight fix状态封存与fresh audit`。window/label-03 failure UUID=`57f2d338…`、`replayAllowed=false`，没有approved window、consume或正式measure；02/03永久禁用。根因修复提交=`bf2ae144…`：window由per-window安装副本自校验，tracked supervisor继续验证冻结合同、generation、carryover、source与owned；source/owned/facts/candidate/window五阶段失败码和安全数值快照已覆盖。完整issuer 23/23、定向五场景、syntax/compile/diff-check均GREEN。当前同步STATUS/Readiness并准备对新HEAD做fresh audit；audit完成前不签发window-04。queued-stop/joint未运行，设备/Roon/真实资料未操作，Gate B=`NOT_RUN`，`formalReady=false`。
+> **当前执行：** `TASK-079 / window-04封存、Stop与authority闭包修复后的新HEAD同步`。window-04 UUID=`02f6042a-b797-437d-a8da-45afa2dd1f4`、window SHA=`afdd51b4…`、close SHA=`1baf8d8b…`；child实际失败=`COPY_UNAVAILABLE`，supervisor终态=`AUTHORITY_DRIFT`，elapsed=`62,295.938ms`，111 samples、1个group receipt、1个Stop round receipt，partial保留、PG empty、zombie=`[]`、`deviceOpened=false`、Gate B=`NOT_RUN`。02/03/04永久禁用。实现`54b6353e…`以105个不同冻结Physical Copy/Plan执行Stop回合，终态空间只扣尚未形成的future output，并把clone workspace tree与generation fixture before/after纳入fail-closed authority验证及成功清理边界；capacity 88/88、supervisor 16/16、issuer 23/23、typecheck均exit 0。当前尚未push；完成文档/STATUS同步、清洁验证与新HEAD fresh audit前，不签发或消费后继窗口。queued-stop/joint未运行，设备/Roon/真实资料未操作，`formalReady=false`。
 
 - [x] TASK-079 / 真实证据 JSON 模板：只跟踪 `template=true`、`ready=false`、`receipt=null` 空模板；实际收据固定留在忽略目录且一份只覆盖一个B项。
 - [x] TASK-079 / 收据校验器复审修复TDD：复审后RED为17/19，扩展后25/25专项GREEN；覆盖逐case事实、失败/超时/停止/不确定终态、Owner与证书闭包、独占窗口、完整配置/授权/环境seal、dirty候选、隐私解码与receipt seal。
@@ -39,8 +39,12 @@
 - [x] TASK-079 / objects-limit measure window-01终态封存：`EXECUTION_TIMEOUT`，879,259.255ms；29 receipts、273 samples，sample-30 clone与partial保留；PG empty、0 zombie、authority stable；close SHA=`c88e1461…`。同UUID/label禁止重放，不是measure PASS。
 - [x] TASK-079 / objects-limit measure timeout根因与TDD：阶段回执证明105个Stop指标回合自身总耗时不足1秒，约99.89%时间消耗在107次完整clone/open-audit/hash；保持1575样本、105回合和900秒门槛不变，最小RED已固定并改为progress/stop/read三个长生命周期group。
 - [x] TASK-079 / objects-limit measure v2集成：实现提交=`1086dedb…`。SPEC R1=`FAIL (P0=2/P1=2)`、SPEC R2=`FAIL (P0=1)`的全部缺口均完成RED→GREEN；按两轮上限未开启第三轮复审，主任务以真实issuer↔tracked supervisor互操作和issuer 21/21裁决R2 P0已关闭。capacity 86/86、supervisor 11/11、`pnpm verify`、typecheck/build/static gates/diff-check全部exit 0；新authority仍须fresh audit后另行唯一签发。
+- [x] TASK-079 / objects-limit measure window-04终态封存：一次性window UUID=`02f6042a…`、window SHA=`afdd51b4…`；105个progress样本完成后，Stop第2轮尝试重用同一Physical Copy而触发`COPY_UNAVAILABLE`，child exit 1，supervisor在terminal authority复核收敛为`AUTHORITY_DRIFT`，close SHA=`1baf8d8b…`。111 samples、progress receipt与Stop round-001 receipt保留，group-stop partial保留；PG empty、0 zombie、设备未打开、Gate B=`NOT_RUN`。window-dir/UUID/label永久禁止重放，不是measure PASS。
+- [x] TASK-079 / Stop重入、terminal space/tree/fixture authority闭包：实现提交=`54b6353e…`。Stop measure预置105个不同的合法Physical Copy与冻结Plan，保持真实SQLite commit/fsync、105个durable round receipt、1575样本及3-group/3-full-hash口径；同Plan重放仍返回`COPY_UNAVAILABLE`。terminal复核在future output已存在时不再重复扣完整计划空间，公开`plannedBytes`合同保持固定；supervisor校验clone-owned workspace tree receipt、generation fixture before/after相等、目录/符号链接/多余项与成功清理，失败partial只在受控clone内保留。capacity 88/88、supervisor 16/16、issuer 23/23及Bridge Core typecheck全部exit 0。
+- [ ] TASK-079 / 新HEAD fresh audit与唯一后继窗口：先同步STATUS与Readiness、完成清洁检查并让独立只读审计绑定当前HEAD、issuer及supervisor blob；PASS前不签发。后继必须使用全新UUID/window-dir/label，02/03/04和全部终态证据不得重放、覆盖、移动或吸收。
+- [ ] TASK-079 / 外部评审分支检查点：Owner已授权把验证清洁的`codex/task-079-v3-final-acceptance`检查点push供外部评审；当前尚未push，不预写远端SHA。push后须记录本地HEAD、远端分支SHA及验证边界；`main`/PR合并、签名、公证、安装和发布仍未授权。
 - [x] TASK-079 / 上一检查点回归：hardware contract v2为33/33专项、readiness 15/15，证据校验、标准verify、控制/边界/循环和diff-check全部exit 0；这些结果只证明主任务测试GREEN，不关闭hardware独立R2最终RED。最终closure HEAD=`123420cbd8b5b8c83cf1c4df1a3c614944cd5f0d`；软件包回归为Contracts 186/186、Bridge Core 1242/1242、Desktop 643/643及三包构建PASS。
-- [x] TASK-079 / 本地检查点：证据基础设施实现`e43f39f1…`、报告`23da9a12…`；candidate closure实现`04b77e45…`、报告`98bce05e…`；STATUS同步实现`9a991a6f…`、报告`ea257111…`；计数修正实现`4ec0711c…`、报告`9a93bc13…`；Git可达性实现`5bd46e10…`、报告`932fb71b…`；Owner-only闭包实现`a8b1d762…`、报告`9011701a…`；real-input实现`d9c795de…`、报告`6d0b93a0…`；real-logic实现`2f1bbdc8…`、报告`bbabb34d…`；real-roon实现`03c8b790…`、报告`b9fbf2f4…`；hardware v1实现`a6d3c798…`、报告`cf6d570f…`；capacity issuer v1实现`a167eba9…`、报告`cf6de5a…`；hardware v2实现`7f373784…`、报告`fde4f6cb…`、封存`123420cb…`；capacity issuer derived closure实现`ecf253ed…`、加固`089994d…`、状态`e51c01d…`。未push、未合并main、未发布。
+- [x] TASK-079 / 本地检查点：证据基础设施实现`e43f39f1…`、报告`23da9a12…`；candidate closure实现`04b77e45…`、报告`98bce05e…`；STATUS同步实现`9a991a6f…`、报告`ea257111…`；计数修正实现`4ec0711c…`、报告`9a93bc13…`；Git可达性实现`5bd46e10…`、报告`932fb71b…`；Owner-only闭包实现`a8b1d762…`、报告`9011701a…`；real-input实现`d9c795de…`、报告`6d0b93a0…`；real-logic实现`2f1bbdc8…`、报告`bbabb34d…`；real-roon实现`03c8b790…`、报告`b9fbf2f4…`；hardware v1实现`a6d3c798…`、报告`cf6d570f…`；capacity issuer v1实现`a167eba9…`、报告`cf6de5a…`；hardware v2实现`7f373784…`、报告`fde4f6cb…`、封存`123420cb…`；capacity issuer derived closure实现`ecf253ed…`、加固`089994d…`、状态`e51c01d…`；Stop/authority闭包实现`54b6353e…`。当前检查点尚未push、未合并main、未发布。
 - [ ] TASK-079 / 真实 Gate A～E、U-01～U-10、实体录音/打印/Replica 与 Owner 103 项决定：等待相应设备、资料及逐次授权，当前不运行。
 
 - [x] TASK-064～072：本地软件阶段完成；真实账号、真实数据和 Owner 验收仍按各任务报告保留。
@@ -115,7 +119,7 @@
 - [ ] TASK-047：真实 Roon / NetEase 歌词验证。
 - [ ] TASK-061：固定原生转换器发布准入。
 - [ ] TASK-040/041：签名、公证、安装和 Beta 分发验收（若另行授权发布）。
-- [ ] main 集成、GitHub push、签名、公证和发布分别授权；不属于当前自动执行范围。
+- [ ] Owner已授权验证清洁的`codex/task-079-v3-final-acceptance`分支检查点push供外部评审；当前尚未push。`main`/PR合并、签名、公证、安装和发布仍须分别授权，不属于当前自动执行范围。
 
 ## 完成判定
 

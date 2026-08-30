@@ -81,7 +81,7 @@
     "task": "TASK-079",
     "branch": "codex/task-079-v3-final-acceptance",
     "baseCommit": "fac7363b4a6481591e207dda7cca77f0ae8d3cd4",
-    "state": "no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-v2-verified-awaiting-fresh-audit-external-not-run",
+    "state": "no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window04-nonreplay-stop-reentry-fixed-awaiting-fresh-audit-external-not-run",
     "evidenceInfrastructure": {
       "state": "PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES",
       "receiptFoundation": {
@@ -137,7 +137,7 @@
       "hardwareAcceptance": "NOT_RUN",
       "report": "reports/TASK-078_RESULT.md"
     },
-    "authorization": "owner-continuous-software-development-through079-sol-high-no-push-no-release",
+    "authorization": "owner-continuous-software-development-through079-sol-high-task-branch-verified-checkpoint-push-authorized-main-release-not-authorized",
     "f01": "OWNER_APPROVED_f01-permanent-execution-v1",
     "deviceTestPlanning": {
       "confirmedOn": "2026-08-29",
@@ -160,7 +160,7 @@
     "gates": {
       "readinessControl": "PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO",
       "externalEvidenceProfiles": "REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED",
-      "capacityAuthority": "OBJECTS_MEASURE_V2_PREFLIGHT_IDENTITY_FIX_VERIFIED_AWAITING_FRESH_AUDIT_NOT_ISSUED",
+      "capacityAuthority": "OBJECTS_MEASURE_WINDOW04_FAILED_NONREPLAY_STOP_REENTRY_FIXED_AWAITING_FRESH_AUDIT_NOT_ISSUED",
       "softwareBaseline": "TASK078_PASS_101_MAPPED_2_UNMAPPED_PENDING_EXTERNAL_NOT_RUN_FORMAL_READY_FALSE",
       "externalGate": "NOT_RUN",
       "realInput": "NOT_RUN",
@@ -183,13 +183,13 @@
       "R-020 大库冷启扫描与2秒ready策略待TASK-078/Gate E验证",
       "R-021：真实钥匙串无CDP普通Quit15秒FAIL保留；新隔离候选包空库及执行读取后两种mock-keychain普通Quit均code0/close且无进程残留，仅软件隔离诊断，不关闭真实钥匙串/Owner验收",
       "R-022：FakeDriver join/静止契约未证明真实HAL；未链接应用或helper，真实设备与Gate B须独立授权及测量",
-      "R-023：history-limit正式生成/measure/queued-stop已PASS；objects-limit旧generation失败证据永久保留。generation window-03正式PASS后，measure window-01在fresh authority下运行至29个回执/273个样本后EXECUTION_TIMEOUT；sample-30 clone与partial完整保留，PG empty、0 zombie、authority stable，同UUID/label禁止重放。3-group measure v2已完成主线程验证；window/label-02在pre-create GENERATION_PROOF终止，window/label-03以AUTHORITY_PREFLIGHT终态关闭，均不得重放且没有consume/measure。已修复tracked-source supervisor误校验installed path的身份边界并补五阶段安全诊断，当前新authority仍未签发，等待新HEAD fresh audit；queued-stop/joint未运行。",
+      "R-023：history-limit正式生成/measure/queued-stop已PASS；objects-limit旧generation失败证据永久保留。generation window-03正式PASS；measure window-01以EXECUTION_TIMEOUT保留29回执/273样本和sample-30。window/label-02在pre-create GENERATION_PROOF终止，window/label-03以AUTHORITY_PREFLIGHT关闭。window-04一次性消费后由child COPY_UNAVAILABLE触发终态AUTHORITY_DRIFT，保留1个Stop回执、111样本和group-stop partial；PG empty、0 zombie、未开设备，02/03/04均永久禁止重放。提交54b6353保持生产COPY_UNAVAILABLE保护，改用105个独立physical copy/plan，闭合workspace/fixture树摘要、authority根绑定与终态空间计算；容量88/88、supervisor16/16、issuer23/23。后继authority仍须新HEAD fresh audit；queued-stop/joint未运行。",
       "TASK-079 hardware evidence contract v2：主任务33/33专项GREEN；configuration observation、observer execution、typed scope evidence、B-15 identity有效期和U-10同事件依赖已加固。第二轮独立复审最终RED保留，未做第三轮且independentPass=false。真实hardware与Gate B均NOT_RUN。",
       "TASK-076历史核验与私有synthetic会话已通过本地软件Gate；实际可听Replica及正式provider接线须随073设备准入和079另验，当前始终blocked",
       "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task079-objects-measure-v2-preflight-fix-verified-awaiting-fresh-audit-not-issued-external-not-run",
+    "checkpoint": "task079-window04-nonreplay-stop-reentry-fix-54b6353-verified-awaiting-fresh-audit-task-branch-push-authorized-external-not-run",
     "nextTask": null,
     "resultReport": "reports/TASK-079_READINESS.md",
     "task078SoftwareCheckpoints": {
@@ -972,11 +972,12 @@
           "replay": "PROHIBITED"
         },
         "measureRecoveryV2": {
-          "state": "PREFLIGHT_IDENTITY_FIX_VERIFIED_AWAITING_FRESH_AUDIT_NOT_ISSUED",
+          "state": "WINDOW04_FAILED_NONREPLAY_STOP_REENTRY_FIXED_AWAITING_FRESH_AUDIT_NOT_ISSUED",
           "baseCommit": "74367bc3f6d1a96a3fabef0ebcbaa3b22ba82ba6",
           "implementationCommit": "1086dedb78d9ee4ed43238d82c3dc52823f4e4c1",
           "derivedProofCommit": "3836db3f83b3d209b025f3a32445b57c3fc454fe",
           "preflightFixCommit": "bf2ae1449cb826dae21cecb8b0c466e3f505aa75",
+          "stopReentryFixCommit": "54b6353e9b12a2bdfdecf3c9bb452a53d34a00f5",
           "measurePlan": {
             "groupCloneCount": 3,
             "fullHashCount": 3,
@@ -984,8 +985,8 @@
             "sampleCount": 1575
           },
           "focusedVerification": {
-            "capacity": { "tests": 86, "passed": 86, "failed": 0 },
-            "supervisor": { "tests": 11, "passed": 11, "failed": 0 },
+            "capacity": { "tests": 88, "passed": 88, "failed": 0 },
+            "supervisor": { "tests": 16, "passed": 16, "failed": 0 },
             "issuer": { "tests": 23, "passed": 23, "failed": 0 }
           },
           "fullVerify": "PASS",
@@ -1028,6 +1029,46 @@
               "replay": "PROHIBITED"
             }
           },
+          "window04Terminal": {
+            "windowId": "02f6042a-b797-437d-a8da-45afa2dd1f4",
+            "windowDirName": "r023-objects-limit-measure-window-04",
+            "label": "r023-objects-limit-measure-04",
+            "candidateCommit": "cfca7be9b7adc42045c371fe3648f3db6e9c4c8d",
+            "windowSha256": "afdd51b40e412265eac85a000132168df83bf4a5b42f65150651a5b6dca3006b",
+            "closeSha256": "1baf8d8ba6d02d524a2368f4d5ce4e4854dba5d866d4dfcfbaac46e0666704f1",
+            "ownedManifestSha256": "b6cad8f1701a4b3815810046e11088544027932c00d9ca002c1d4f875add1d9e",
+            "sourceManifestSha256": "de474098354a741fc7a4210c9586ad3904453f98c191c5ccb449d3a9bfc32a29",
+            "progressReceiptSha256": "b7c3d6e7d25461ff5b3d1bf77c7b1be9ebb74a3060a90498f2307ed0804cc323",
+            "stopRoundReceiptSha256": "5e497472bb5ab6b69eb1e2a2e050442760ee7218b64c0192fb1b352222d7df92",
+            "samplesSha256": "cbeec9cc8e9d087bf0c596259d6eead06ff2f673f105890be407090d20670664",
+            "stagesSha256": "0a6fb64a9c663237cbe7257856f56f4151709637307b066defcd0de94ee62a9e",
+            "state": "FAILED_AUTHORITY_DRIFT",
+            "benchmarkFailureCode": "COPY_UNAVAILABLE",
+            "elapsedMs": 62295.937791,
+            "exitCode": 1,
+            "sampleCount": 111,
+            "receiptCount": 1,
+            "stopRoundReceiptCount": 1,
+            "retainedClone": "group-stop",
+            "partialPreserved": true,
+            "groupEmpty": true,
+            "zombies": [],
+            "admissionAuthorityStable": true,
+            "terminalAuthorityStable": false,
+            "replay": "PROHIBITED",
+            "deviceOpened": false,
+            "gateB": "NOT_RUN"
+          },
+          "postWindow04Fix": {
+            "implementationCommit": "54b6353e9b12a2bdfdecf3c9bb452a53d34a00f5",
+            "productionCopyUnavailableProtection": "UNCHANGED",
+            "stopPlans": 105,
+            "physicalCopies": "DISTINCT",
+            "workspaceReceipt": "DURABLE_TREE_BOUND",
+            "fixtureDatabaseContentSha256Verified": false,
+            "terminalSpace": "PRESENT_FUTURE_REPLACES_REMAINING_PLANNED_BYTES",
+            "treeDigest": "RECOMPUTED_AND_FIXTURE_ROOT_AUTHORITY_BOUND"
+          },
           "preflightRootCause": {
             "state": "FIXED_VERIFIED",
             "cause": "TRACKED_SOURCE_MODULE_VALIDATED_INSTALLED_SUPERVISOR_PATH",
@@ -1041,9 +1082,9 @@
             ],
             "safeDiagnostics": true
           },
-          "freshAudit": "PASS_ON_3836_INVALIDATED_BY_PREFLIGHT_FIX",
+          "freshAudit": "REQUIRED_ON_54B6353",
           "freshAuthorityIssued": false,
-          "measureRun": "NOT_RUN",
+          "measureRun": "WINDOW04_FAILED_NONREPLAY_NEXT_NOT_RUN",
           "deviceOpened": false,
           "gateB": "NOT_RUN"
         },
@@ -1074,6 +1115,6 @@
       "closeReceiptSha256": "4c18479e33b6392ff511a09b057d3e296dc3873d1c9be09d7d5f67c38eff39be",
       "replay": "PROHIBITED"
     },
-    "capacityGate": "R023_OBJECTS_LIMIT_GENERATION_WINDOW03_PASS__MEASURE_WINDOW01_TIMEOUT_PARTIAL_NONREPLAY__MEASURE_V2_VERIFIED_AWAITING_FRESH_AUDIT_NOT_ISSUED__QUEUE_JOINT_NOT_RUN"
+    "capacityGate": "R023_OBJECTS_LIMIT_GENERATION_WINDOW03_PASS__MEASURE_WINDOW01_TIMEOUT_PARTIAL_NONREPLAY__WINDOW04_AUTHORITY_DRIFT_COPY_UNAVAILABLE_PARTIAL_NONREPLAY__STOP_REENTRY_FIXED_54B6353_AWAITING_FRESH_AUDIT__QUEUE_JOINT_NOT_RUN"
   }
 }
