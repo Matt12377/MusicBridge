@@ -285,6 +285,9 @@ export function capacityMeasurePlan() {
 export function createCapacityMeasureAggregateGuard(parent: string, snapshotBytes: number): CapacityMeasureAggregateGuard {
   if (!path.isAbsolute(parent) || realpathSync(parent) !== parent) throw new Error('容量measure aggregate目录身份无效');
   const limitBytes = capacityMeasureWorkingBytes(snapshotBytes), parentInfo = lstatSync(parent);
+  const groupIdentities = new Map<CapacityMeasureGroup, { device: number; inode: number; owner: {
+    device: number; inode: number; nlink: number; content: string;
+  } }>();
   let sequence = 0, terminal: Error | undefined;
   const stop = (): never => {
     terminal ??= new Error('容量measure output aggregate预算超限或单clone约束失效，保留证据并停止');
@@ -299,19 +302,53 @@ export function createCapacityMeasureAggregateGuard(parent: string, snapshotByte
     const currentInfo = lstatSync(parent);
     if (canonical !== parent || !currentInfo.isDirectory() || currentInfo.isSymbolicLink()
       || currentInfo.dev !== parentInfo.dev || currentInfo.ino !== parentInfo.ino) return stop();
-    let activeClones: string[], outputBytesBefore: number;
+    let activeClones: Array<{ name: string; group: CapacityMeasureGroup; device: number; inode: number }>, outputBytesBefore: number;
     try {
-      activeClones = readdirSync(parent).filter(name => /^group-(progress|stop|read)$/u.test(name)).filter(name => {
+      activeClones = readdirSync(parent).flatMap(name => {
+        const matched = /^group-(progress|stop|read)$/u.exec(name); if (!matched) return [];
         const info = lstatSync(path.join(parent, name));
         if (!info.isDirectory() || info.isSymbolicLink()) return stop();
-        return true;
+        return [{ name, group: matched[1] as CapacityMeasureGroup, device: info.dev, inode: info.ino }];
       });
       outputBytesBefore = capacityDirectoryBytes(parent);
     } catch { return stop(); }
-    if (activeClones.length > 1 || input.group && activeClones.length === 1 && activeClones[0] !== `group-${input.group}`) return stop();
+    if (activeClones.length > 1 || input.group && activeClones.length === 1 && activeClones[0]!.group !== input.group) return stop();
+    const activeClone = activeClones[0];
+    if (activeClone) {
+      let owner: { device: number; inode: number; nlink: number; content: string };
+      try {
+        const ownerPath = path.join(parent, activeClone.name, 'owner.json');
+        if (realpathSync(ownerPath) !== ownerPath) return stop();
+        const fd = openSync(ownerPath, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+        try {
+          const before = fstatSync(fd), content = readFileSync(fd, 'utf8'), after = fstatSync(fd), named = lstatSync(ownerPath);
+          if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1 || named.isSymbolicLink() || !named.isFile()
+            || ['dev', 'ino', 'nlink', 'size', 'mtimeMs', 'ctimeMs'].some(key => before[key as keyof typeof before] !== after[key as keyof typeof after]
+              || after[key as keyof typeof after] !== named[key as keyof typeof named])) return stop();
+          const marker = JSON.parse(content) as unknown;
+          if (!marker || typeof marker !== 'object' || Array.isArray(marker)
+            || JSON.stringify(Object.keys(marker).sort()) !== JSON.stringify(['id', 'label', 'scope'])
+            || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(String((marker as { id?: unknown }).id))
+            || (marker as { scope?: unknown }).scope !== 'musicbridge-capacity-clone-only'
+            || (marker as { label?: unknown }).label !== activeClone.name) return stop();
+          owner = { device: before.dev, inode: before.ino, nlink: before.nlink, content };
+        } finally { closeSync(fd); }
+        const directoryAfter = lstatSync(path.join(parent, activeClone.name));
+        if (!directoryAfter.isDirectory() || directoryAfter.isSymbolicLink()
+          || directoryAfter.dev !== activeClone.device || directoryAfter.ino !== activeClone.inode) return stop();
+      } catch { return stop(); }
+      const bound = groupIdentities.get(activeClone.group);
+      if (!bound && input.checkpoint !== 'clone-after-write') return stop();
+      if (bound && (bound.device !== activeClone.device || bound.inode !== activeClone.inode
+        || bound.owner.device !== owner.device || bound.owner.inode !== owner.inode || bound.owner.nlink !== owner.nlink
+        || bound.owner.content !== owner.content)) return stop();
+      groupIdentities.set(activeClone.group, { device: activeClone.device, inode: activeClone.inode, owner });
+    }
+    const expectedIdentity = input.group ? groupIdentities.get(input.group) : undefined;
+    if (expectedIdentity && !activeClone && input.checkpoint !== 'clone-after-cleanup') return stop();
     if (outputBytesBefore > limitBytes || plannedBytes > limitBytes - outputBytesBefore) return stop();
     const row = { schemaVersion: 1, scope: 'musicbridge-capacity-measure-aggregate-budget', sequence: sequence + 1,
-      checkpoint: input.checkpoint, group: input.group ?? null, activeClone: activeClones[0] ?? null,
+      checkpoint: input.checkpoint, group: input.group ?? null, activeClone: activeClone?.name ?? null,
       snapshotBytes, limitBytes, outputBytesBefore, plannedBytes, recordedAt: new Date().toISOString() };
     const line = JSON.stringify(row) + '\n', auditBytes = Buffer.byteLength(line);
     if (auditBytes > limitBytes - outputBytesBefore - plannedBytes) return stop();

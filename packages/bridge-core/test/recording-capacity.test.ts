@@ -5,7 +5,7 @@ import { fork, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import { DatabaseSync, backup } from 'node:sqlite';
 import { isMasterArtworkImage, isRecordingPrintPdfBase64 } from '@music-bridge/contracts';
-import { mkdtempSync, realpathSync, writeFileSync, existsSync, readFileSync, rmSync, mkdirSync, lstatSync, linkSync, readdirSync, symlinkSync, truncateSync } from 'node:fs';
+import { mkdtempSync, realpathSync, writeFileSync, existsSync, readFileSync, rmSync, mkdirSync, lstatSync, linkSync, readdirSync, renameSync, symlinkSync, truncateSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -191,6 +191,39 @@ test('measure output aggregate预算写前及阶段复核，失败clone保留后
   linkSync(seed, path.join(hardlinkOutput, 'aliased.sqlite'));
   assert.throws(() => hardlinkGuard.check({ checkpoint: 'hardlink-probe' }), /aggregate预算/u,
     'aggregate逻辑字节不能接受同一inode通过硬链接重复计数');
+
+  const identityOutput = path.join(directory, 'identity-output'); mkdirSync(identityOutput);
+  const identitySeed = path.join(directory, 'identity-seed.sqlite'); writeFileSync(identitySeed, 'identity-seed');
+  const identityGuard = api.createCapacityMeasureAggregateGuard(identityOutput, lstatSync(identitySeed).size);
+  const identityClone = api.createCapacityClone(identityOutput, 'group-progress', identitySeed,
+    api.capacityMeasureWorkingBytes(lstatSync(identitySeed).size), identityGuard);
+  renameSync(identityClone.directory, `${identityClone.directory}-moved`); mkdirSync(identityClone.directory);
+  const identityAudit = path.join(identityOutput, 'measure-aggregate-budget.jsonl');
+  const identityAuditBytes = lstatSync(identityAudit).size;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    assert.throws(() => identityGuard.check({ group: 'progress', checkpoint: 'group-identity-probe' }), /aggregate预算/u,
+      '活动group目录被替换后必须稳定停止');
+  }
+  assert.equal(identityGuard.stopped, true);
+  assert.equal(lstatSync(identityAudit).size, identityAuditBytes, '身份漂移后不得继续写aggregate审计');
+
+  const ownerOutput = path.join(directory, 'owner-output'); mkdirSync(ownerOutput);
+  const ownerSeed = path.join(directory, 'owner-seed.sqlite'); writeFileSync(ownerSeed, 'owner-seed');
+  const ownerGuard = api.createCapacityMeasureAggregateGuard(ownerOutput, lstatSync(ownerSeed).size);
+  const ownerClone = api.createCapacityClone(ownerOutput, 'group-progress', ownerSeed,
+    api.capacityMeasureWorkingBytes(lstatSync(ownerSeed).size), ownerGuard);
+  const ownerAudit = path.join(ownerOutput, 'measure-aggregate-budget.jsonl');
+  const ownerAuditBytes = lstatSync(ownerAudit).size, ownerDirectoryIdentity = lstatSync(ownerClone.directory);
+  writeFileSync(path.join(ownerClone.directory, 'owner.json'), '{}\n');
+  const ownerDirectoryAfterTamper = lstatSync(ownerClone.directory);
+  assert.equal(ownerDirectoryAfterTamper.dev, ownerDirectoryIdentity.dev);
+  assert.equal(ownerDirectoryAfterTamper.ino, ownerDirectoryIdentity.ino, '本用例只改变owner marker，不改变group目录身份');
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    assert.throws(() => ownerGuard.check({ group: 'progress', checkpoint: 'group-owner-probe' }), /aggregate预算/u,
+      '活动group的owner marker变化后必须稳定停止');
+  }
+  assert.equal(ownerGuard.stopped, true);
+  assert.equal(lstatSync(ownerAudit).size, ownerAuditBytes, 'owner marker漂移后不得继续写aggregate审计');
 });
 
 test('measure group生命周期固定为3次完整clone/hash，stop组105轮receipt与1575样本精确闭包', async t => {
