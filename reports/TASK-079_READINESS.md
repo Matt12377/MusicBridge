@@ -8,9 +8,9 @@
 - TASK-078 软件矩阵：SHA256 `12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7fe4ba944`
 - 实现提交：`1f102fba93e42d0f84b985c04d84af08b06b2231`
 - 报告提交：`93feee20c2edbd027546b44cc908aee27ef785b1`
-- GitHub：`codex/task-079-v3-final-acceptance`最新实现评审检查点`ab5f33912e29ec8206358b3c7521d0752710b13b`已push并fetch复核同SHA；`5464ae…`继续作为joint预算历史实现锚，更早的`f285bf3…`和`b3df42a…`历史检查点仍可达，`main`/PR未合并，未安装、签名、公证或发布
+- 最新架构实现：`ed73b5984a30f2f7a3d9d1505969795dfa5d68cb`；状态报告提交与远端HEAD在本检查点封存后另行精确核对。`5464ae…`继续作为joint预算历史实现锚，`main`/PR未合并，未安装、签名、公证或发布
 
-基础 readiness 控制、主任务修复与本地回归已经完成，当前结论固定为 `READY=false`；完整无设备证据控制面尚未取得独立闭包。hardware evidence contract v2 在主任务实现后为33/33专项GREEN，但第二轮独立复审最终RED继续保留，未执行第三轮且没有独立PASS。objects-limit window-06只关闭软件measure；queued-stop window-02已在child前形成零样本不可重放终态，下一全新successor仍未签发，正式benchmark仍为`NOT_RUN`。joint单活动输出预算软件检查点已GREEN，但正式generation/measure仍为`NOT_RUN`。当前readiness验证器继续精确要求这组机器真相；它不认证声卡、卡座、真实输入、Logic/Roon、可听Replica、实录、实体打印或Owner接受。
+基础 readiness 控制、主任务修复与本地回归已经完成，当前结论固定为 `READY=false`；完整无设备证据控制面尚未取得独立闭包。hardware evidence contract v2 在主任务实现后为33/33专项GREEN，但第二轮独立复审最终RED继续保留，未执行第三轮且没有独立PASS。objects-limit window-06只关闭软件measure；queued-stop window-06/07均为零样本不可重放历史终态。三位置谱系语义分叉已由统一合同架构检查点解除，但下一全新窗口尚未签发或授权，正式benchmark仍为`NOT_RUN`。joint单活动输出预算软件检查点已GREEN，但正式generation/measure仍为`NOT_RUN`。当前readiness验证器继续精确要求这组机器真相；它不认证声卡、卡座、真实输入、Logic/Roon、可听Replica、实录、实体打印或Owner接受。
 
 ## 实现
 
@@ -303,3 +303,11 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - window-07的回执命令只消费一次，installed supervisor在authority admission前返回`CAPACITY_SUPERVISOR_INPUT`、exit 1。只读定位到第三处同类缺口：`_validate_queued_stop_process_failures`仍按单层计数解释递归链。窗口目录只有owner、installed supervisor、issuer identity、source pins、owned roots和window六类authority文件；没有supervision目录、close、child、benchmark output或样本。这里没有可宣称的正式性能结果，也不能把缺少close解释为可重放授权；window-07保持不重放。
 - 同一递归失败谱系已连续在TS consumer runtime、issuer和installed supervisor三个不同位置暴露。按工程调试阈值停止第四次补丁、第四个验证循环和新窗口签发，状态为`BLOCKED_THREE_DISTINCT_LOCATIONS_SAME_RECURSIVE_FAILURE_LINEAGE_DEFECT`。继续前需要架构层统一谱系解析/计数合同的裁决，或Owner明确覆盖停止阈值；不能再做局部补丁串接。
 - 边界保持：未枚举、打开、配置或驱动设备，没有真实资料/Logic/Roon/Provider操作；formal queued-stop没有样本，joint正式generation/measure、Gate B、可听Replica、实体录音/打印和Owner 103项验收均为`NOT_RUN`或pending。`main`/PR合并、安装、签名、公证和发布未授权。
+
+#### Objects-limit queued-stop统一谱系合同：架构阻塞解除、执行仍未授权
+
+- 实现提交=`ed73b5984a30f2f7a3d9d1505969795dfa5d68cb`。版本化合同SHA256=`d9d1c792971e27b666a9c2fcf7ea7942f3af75b6e500c3f9502f1bcf33157927`，共享Python evaluator SHA256=`458c3e5233bba9f4834d8986ccdceb568bd42e06805ef5a872a363d2b707e9e7`。`processFailureCarryoverCount`固定为direct head count，linked authority的`processFailureCount`固定为predecessor reachable depth，billing roots固定为head→leaf全链；最大深度64。
+- issuer、installed supervisor与TypeScript consumer共同运行同一golden corpus，固定leaf、depth1/2/3及direct/orphan/cycle/fork/time/PID/identity/authority-depth失败。Python两入口共享一个纯函数；TS消费者使用同一JSON合同的等价解释器。新候选source pins由241增至243，历史241-file收据仍只读接受，不修改旧schema或旧close。
+- RED首先证明共享conformance缺少TS evaluator；GREEN后corpus `1/1`、issuer `71/71`、supervisor `58/58`、Bridge capacity/conformance与typecheck通过。标准`pnpm verify` exit 0：Contracts `186/186`、Bridge Core `1296`通过且1项显式原生Gate skip、Desktop `643/643`，三包构建PASS。control-plane、boundaries、cycles `files=259`、readiness `15/15`、实际readiness和diff-check均PASS；规格审查与质量审查依次PASS。
+- 软件架构状态由`BLOCKED_THREE_DISTINCT_LOCATIONS_SAME_RECURSIVE_FAILURE_LINEAGE_DEFECT`迁移为`ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED`。下一代参数保持5 warmup + 100 formal、50秒单次、900秒总窗口、单active clone、planned bytes=`2,258,907,136`、source pins=243；先push当前检查点，再对精确远端HEAD、contract/helper身份、window-06/07 nonreplay闭包、direct roots=76、billing roots=78、runtime路径和空间做fresh只读审计，最后仍需显式新窗口授权。
+- 本检查点没有签发UUID/window-dir/label，没有执行supervisor、child或benchmark，也没有创建output、close或样本；window-07继续不重放。formal queued-stop=`NOT_RUN`且样本0，joint正式generation/measure、设备、Gate B、真实资料/Logic/Roon、可听Replica、实体录音/打印与Owner 103项均未升级。`main`/PR合并、安装、签名、公证和发布未授权。

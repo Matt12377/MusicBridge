@@ -103,6 +103,18 @@ Python supervisor对generation artifacts与measure seed共用严格joint合同�
 
 本节只关闭joint软件预算重构。正式issuer、generation、measure均未运行，未创建新authority/UUID/window/label；设备、Gate B、Owner 103项、可听Replica、实体录音与打印均保持`NOT_RUN`或pending。
 
+### Objects-limit queued-stop PROCESS_EXIT统一谱系合同（架构检查点）
+
+实现提交`ed73b5984a30f2f7a3d9d1505969795dfa5d68cb`解除三位置语义分叉造成的架构阻塞，但不改写历史停止事实。新版本化合同为`packages/contracts/capacity-process-failure-lineage-v1.json`，SHA256=`d9d1c792971e27b666a9c2fcf7ea7942f3af75b6e500c3f9502f1bcf33157927`；共享Python纯函数为`scripts/ci/capacity_process_failure_lineage.py`，SHA256=`458c3e5233bba9f4834d8986ccdceb568bd42e06805ef5a872a363d2b707e9e7`。合同固定单一direct head、head→leaf顺序、最大递归深度64，并明确`processFailureCarryoverCount`是direct head数量、linked authority的`processFailureCount`是其前驱可达深度；billing roots覆盖整条可达链。
+
+issuer与installed supervisor加载同一Python evaluator；TypeScript consumer使用同合同的等价解释器。三者通过同一golden corpus逐项比较完全相同的规范化结果，覆盖leaf、depth1、depth2、depth3，以及direct count、orphan、cycle、fork、time order、PID、root identity和authority depth错误。既有241-file历史source manifest继续只读兼容；包含新合同与helper的新候选source manifest固定为243 files，且installed supervisor在加载前按source pins复核两者文件身份。旧window/close schema、历史owned roots与既有收据均未升级或重写。
+
+新鲜证据：共享corpus `1/1`；queued-stop issuer tracked suite `71/71`；installed supervisor tracked suite `58/58`；Bridge capacity与conformance全绿、Bridge Core typecheck exit 0；标准`corepack pnpm@10.17.1 verify` exit 0，其中Contracts `186/186`、Bridge Core `1296`通过/`1`条件性skip、Desktop `643/643`并完成三包生产构建。`CONTROL_PLANE=PASS`、`BOUNDARIES=PASS`、`CYCLES=PASS files=259`、readiness `15/15`、实际`V3_OWNER_READINESS=PASS`且`ready=false`、`git diff --check`均通过。规格审查先PASS，随后质量审查PASS；没有开启新的修复/复审循环。
+
+下一新一代仍使用5 warmup + 100 formal、50秒单次执行上限、900秒总窗口、单active clone、snapshot=`1,990,471,680`字节、evidence allowance=`268,435,456`字节和planned=`2,258,907,136`字节；source pins为243。安全迁移顺序固定为：先提交并push架构与状态检查点；再对精确远端HEAD、contract/helper blob、历史window-06/07 nonreplay闭包、exact direct roots=76、transitive billing roots=78、runtime路径和空间做fresh只读审计；只有另行显式授权后，才允许用全新UUID/window-dir/label唯一签发并只消费一次。window-07不重放，架构GREEN不授予新窗口、benchmark或恢复权。
+
+因此`BLOCKED_THREE_DISTINCT_LOCATIONS_SAME_RECURSIVE_FAILURE_LINEAGE_DEFECT`在软件架构层解除；执行状态改为`ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED`。正式queued-stop样本仍为0且`NOT_RUN`，joint正式generation/measure、设备、Gate B、真实资料/Logic/Roon、可听Replica、实体录音/打印和Owner 103项验收继续为`NOT_RUN`或pending。
+
 ## 自动验证
 
 ```bash

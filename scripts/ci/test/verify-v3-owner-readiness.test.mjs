@@ -17,7 +17,7 @@ const controlStatus = {
     task: 'TASK-079',
     branch: 'codex/task-079-v3-final-acceptance',
     baseCommit: 'fac7363b4a6481591e207dda7cca77f0ae8d3cd4',
-    state: 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-window06-process-exit-terminal-window07-consumed-input-rejected-no-samples-three-location-architecture-stop-blocked-joint-formal-not-run-external-pending',
+    state: 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-window06-process-exit-terminal-window07-nonreplay-no-samples-canonical-lineage-architecture-green-new-window-not-authorized-joint-formal-not-run-external-pending',
     evidenceInfrastructure: {
       state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
       receiptFoundation: {
@@ -71,7 +71,7 @@ const controlStatus = {
     gates: {
       readinessControl: 'PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO',
       externalEvidenceProfiles: 'REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED',
-      capacityAuthority: 'OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_WINDOW06_PROCESS_EXIT_TERMINAL_WINDOW07_CONSUMED_ONCE_SUPERVISOR_INPUT_REJECTED_NO_CHILD_NO_SAMPLES_ARCHITECTURE_STOP_BLOCKED_JOINT_FORMAL_NOT_RUN',
+      capacityAuthority: 'OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_WINDOW06_PROCESS_EXIT_TERMINAL_WINDOW07_NONREPLAY_NO_CHILD_NO_SAMPLES_CANONICAL_LINEAGE_ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED_JOINT_FORMAL_NOT_RUN',
       externalGate: 'NOT_RUN',
       realInput: 'NOT_RUN',
       realLogic: 'NOT_RUN',
@@ -287,7 +287,7 @@ const controlStatus = {
         gateB: 'NOT_RUN',
       },
       capacityQueuedStopControlPlane: {
-        state: 'WINDOW06_PROCESS_EXIT_TERMINAL_WINDOW07_CONSUMED_INPUT_REJECTED_NO_CHILD_NO_SAMPLES_THREE_LOCATION_ARCHITECTURE_STOP_BLOCKED',
+        state: 'WINDOW06_PROCESS_EXIT_TERMINAL_WINDOW07_NONREPLAY_NO_CHILD_NO_SAMPLES_CANONICAL_LINEAGE_ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED',
         implementationCommit: '7d67f5069233fbbc5b00a9170c2639b9e237edf2',
         derivedBuildFix: {
           implementationCommit: '33d8856c7f4a1e93edce90ba2c9f31d406d9272a',
@@ -403,7 +403,7 @@ const controlStatus = {
           deviceOpened: false, gateB: 'NOT_RUN',
         },
         blockingAudit: {
-          state: 'BLOCKED_THREE_DISTINCT_LOCATIONS_SAME_RECURSIVE_FAILURE_LINEAGE_DEFECT',
+          state: 'RESOLVED_CANONICAL_LINEAGE_CONTRACT_GREEN_NEW_WINDOW_NOT_AUTHORIZED',
           implementationCheckpoints: [
             '168cbcbd7a15130b6bd90e115024aefdb789da67',
             '36d92a85c28e4d8a7faa6d95ebf8014263c10b26',
@@ -414,9 +414,45 @@ const controlStatus = {
             'installed-supervisor-recursive-process-count',
           ],
           fourthPatchAttempted: false, newWindowAuthorized: false,
-          requiredDecision: 'ARCHITECTURAL_REFACTOR_OR_EXPLICIT_OWNER_OVERRIDE',
+          requiredDecision: 'FRESH_REMOTE_HEAD_AUDIT_THEN_EXPLICIT_NEW_WINDOW_AUTHORIZATION',
         },
-        formalRun: 'BLOCKED_PRECHILD_NO_SAMPLES',
+        architectureResolution: {
+          implementationCommit: 'ed73b5984a30f2f7a3d9d1505969795dfa5d68cb',
+          contract: {
+            path: 'packages/contracts/capacity-process-failure-lineage-v1.json',
+            sha256: 'd9d1c792971e27b666a9c2fcf7ea7942f3af75b6e500c3f9502f1bcf33157927',
+            schemaVersion: 1, maximumReachableDepth: 64, directHeadCount: 1,
+            processFailureCountMeaning: 'PREDECESSOR_REACHABLE_DEPTH', billingOrder: 'HEAD_TO_LEAF',
+          },
+          sharedPythonEvaluator: {
+            path: 'scripts/ci/capacity_process_failure_lineage.py',
+            sha256: '458c3e5233bba9f4834d8986ccdceb568bd42e06805ef5a872a363d2b707e9e7',
+          },
+          consumers: ['queued-stop-issuer', 'installed-supervisor', 'typescript-capacity-consumer'],
+          sourcePinCount: 243,
+          historicalSourcePinCountsAcceptedReadOnly: [241, 243],
+          goldenCorpus: {
+            tests: 1, passed: 1, validDepths: [0, 1, 2, 3],
+            rejections: [
+              'DIRECT_HEAD_COUNT', 'ORPHAN', 'CYCLE', 'FORK', 'TIME_ORDER',
+              'PID_MISMATCH', 'IDENTITY_MISMATCH', 'AUTHORITY_DEPTH_MISMATCH',
+            ],
+          },
+          focusedVerification: {
+            issuer: 'PASS_71_OF_71', supervisor: 'PASS_58_OF_58',
+            bridgeCapacityAndConformance: 'PASS', bridgeTypecheck: 'PASS',
+          },
+          fullVerification: {
+            pnpmVerify: 'PASS', contracts: 'PASS_186_OF_186',
+            bridgeCore: 'PASS_1296_WITH_1_CONDITIONAL_SKIP', desktop: 'PASS_643_OF_643',
+            build: 'PASS', controlPlane: 'PASS', boundaries: 'PASS', cycles: 'PASS_259_FILES',
+            readinessFocused: 'PASS_15_OF_15',
+            readiness: 'PASS_READY_FALSE_OWNER_PENDING_103_EXTERNAL_NOT_RUN_5', diffCheck: 'PASS',
+          },
+          review: { specification: 'PASS', quality: 'PASS', additionalReviewLoop: false },
+          newWindowIssued: false, newWindowAuthorized: false, runtimeMutated: false,
+        },
+        formalRun: 'NOT_RUN_ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED_ZERO_SAMPLES',
         joint: 'SOFTWARE_GREEN_FORMAL_GENERATION_NOT_RUN_MEASURE_NOT_RUN',
         deviceOpened: false,
         gateB: 'NOT_RUN',
