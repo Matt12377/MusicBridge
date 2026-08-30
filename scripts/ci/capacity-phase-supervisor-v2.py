@@ -1179,7 +1179,8 @@ def _frozen_identity_matches(expected, observed):
 
 def _validate_measure_root_recovery(binding, runtime, manifest_path, manifest_sha256, window_id,
                                     missing_roots, expected_live_device_remap, candidate_repository, expected_seed_sha256,
-                                    expected_fixture_owner_sha256, error_code):
+                                    expected_fixture_owner_sha256, error_code,
+                                    historical_repository=False):
     """验证exact75-v2替代闭包；历史根保持LOST，替代根仅提供计数控制身份。"""
     receipt_keys = {'schemaVersion', 'scope', 'access', 'state', 'model', 'windowId',
                     'historicalManifest', 'liveDeviceRemap', 'repository', 'recoveryTool', 'mappings',
@@ -1254,10 +1255,11 @@ def _validate_measure_root_recovery(binding, runtime, manifest_path, manifest_sh
         raise ValueError(error_code) from error
     if not candidate.is_absolute() or candidate != canonical_candidate or candidate.is_symlink() \
             or not stat.S_ISDIR(candidate_info.st_mode) or Path(tool.get('path', '')) != recovery_tool \
-            or working_identity['sha256'] != tool['workingSha256'] \
-            or hashlib.sha256(blob).hexdigest() != tool['gitBlobSha256'] \
+            or hashlib.sha256(blob).hexdigest() != tool['gitBlobSha256']:
+        raise ValueError(error_code)
+    if not historical_repository and (working_identity['sha256'] != tool['workingSha256'] \
             or top != str(candidate) or branch != repository['branch'] or head != repository['head'] \
-            or upstream != head or dirty:
+            or upstream != head or dirty):
         raise ValueError(error_code)
 
     mappings = receipt.get('mappings')
@@ -1364,7 +1366,7 @@ def _validate_measure_root_recovery(binding, runtime, manifest_path, manifest_sh
     except ValueError as error: raise ValueError(error_code) from error
     if receipt_after != receipt_identity:
         raise ValueError(error_code)
-    return {'roots': roots, 'receiptIdentity': receipt_identity,
+    return {'roots': roots, 'mappings': mappings, 'receiptIdentity': receipt_identity,
             'replacementSnapshots': snapshots, 'benchmarkIdentity': seed_identity,
             'liveDeviceRemap': expected_live_device_remap,
             'recoveryDirectory': {
@@ -3628,6 +3630,12 @@ def _validate_queued_stop_process_failures(carryover, runtime):
             'failure': 'PROCESS_EXIT', 'code': 1, 'sampleCount': 0,
             'deviceOpened': False, 'formalReady': False, 'gateB': 'NOT_RUN',
             'inheritedRoots': carry_roots,
+            'historicalMeasure': {
+                'measureRootRecovery': measure_carry['measureRootRecovery'],
+                'window': {'id': measure_carry['window']['id']},
+                'ownedManifest': measure_carry['ownedManifest'],
+                'candidateRepository': candidate,
+            },
             'files': identities,
             'stdout': captures['stdout'], 'stderr': captures['stderr']})
         declared.add(str(expected_paths['close'])); seen.add(str(root)); seen_windows.add(window_id)
@@ -3964,6 +3972,83 @@ def _validate_queued_stop_owned_manifest(manifest_path, runtime, window_id, pare
             'availableBytes': available, 'manifestIdentity': manifest_identity}
 
 
+def _validate_queued_stop_process_recovery_lineage(
+        runtime, historical_measure, old_inherited, current_roots, current_mappings):
+    code = 'QUEUED_STOP_PROCESS_FAILURE_LINEAGE'
+    runtime = Path(runtime).resolve(strict=True)
+    if not isinstance(historical_measure, dict) \
+            or set(historical_measure) != {
+                'measureRootRecovery', 'window', 'ownedManifest', 'candidateRepository'} \
+            or not isinstance(old_inherited, list) or len(old_inherited) != 73 \
+            or not isinstance(current_roots, list) or len(current_roots) != 73 \
+            or not isinstance(current_mappings, list) or len(current_mappings) != 7:
+        raise ValueError(code)
+    binding = historical_measure['measureRootRecovery']
+    window = historical_measure['window']
+    owned = historical_measure['ownedManifest']
+    candidate = historical_measure['candidateRepository']
+    if not _queued_stop_exact_binding(binding, {'path', 'sha256'}) \
+            or not _queued_exact(window, {'id'}) or not _uuid4(window.get('id')) \
+            or not _queued_stop_exact_binding(owned, {'path', 'sha256'}) \
+            or not _queued_exact(candidate, {'root', 'branch', 'head'}) \
+            or _GIT_SHA.fullmatch(str(candidate.get('head', ''))) is None:
+        raise ValueError(code)
+    try:
+        receipt, receipt_identity = _strict_json(Path(binding['path']), 4 * 1024 * 1024)
+    except ValueError as error:
+        raise ValueError(code) from error
+    mappings = receipt.get('mappings') if isinstance(receipt, dict) else None
+    remap = receipt.get('liveDeviceRemap') if isinstance(receipt, dict) else None
+    if receipt_identity['sha256'] != binding['sha256'] \
+            or not isinstance(mappings, list) or len(mappings) != 7 \
+            or not _queued_exact(remap, {
+                'mode', 'historicalDevice', 'currentDevice', 'liveRootCount'}) \
+            or type(remap.get('historicalDevice')) is not int \
+            or remap.get('currentDevice') != runtime.lstat().st_dev \
+            or remap.get('liveRootCount') != 63 \
+            or remap.get('mode') != (
+                'UNCHANGED' if remap['historicalDevice'] == remap['currentDevice'] else 'REMAPPED'):
+        raise ValueError(code)
+    missing = [mapping.get('historicalRoot') if isinstance(mapping, dict) else None
+               for mapping in mappings]
+    try:
+        old_recovery = _validate_measure_root_recovery(
+            binding, runtime, Path(owned['path']), owned['sha256'], window['id'], missing,
+            remap, None, None, None, code, historical_repository=True)
+    except ValueError as error:
+        raise ValueError(code) from error
+    if old_recovery['repository'] != {**candidate, 'clean': True, 'pushedHead': True}:
+        raise ValueError(code)
+    current_historical = []
+    current_replacements = []
+    for mapping in current_mappings:
+        if not isinstance(mapping, dict) \
+                or set(mapping) != {'historicalRoot', 'state', 'recovered', 'replacementRoot'} \
+                or mapping.get('state') != 'LOST' or mapping.get('recovered') is not False \
+                or not isinstance(mapping.get('historicalRoot'), dict) \
+                or set(mapping['historicalRoot']) != {'path', 'device', 'inode', 'marker'}:
+            raise ValueError(code)
+        replacement = mapping.get('replacementRoot')
+        if not isinstance(replacement, dict) \
+                or set(replacement) != {'path', 'device', 'inode', 'marker', 'role'} \
+                or replacement.get('role') != 'historical-control-only':
+            raise ValueError(code)
+        current_historical.append(mapping['historicalRoot'])
+        current_replacements.append({key: replacement[key]
+                                     for key in ('path', 'device', 'inode', 'marker')})
+    old_historical = [mapping['historicalRoot'] for mapping in old_recovery['mappings']]
+    if old_inherited[:63] != current_roots[:63] \
+            or old_inherited[63:70] != old_recovery['roots'] \
+            or current_roots[63:70] != current_replacements \
+            or old_historical != current_historical \
+            or old_inherited[70:] != current_roots[70:]:
+        raise ValueError(code)
+    return {'translated': True, 'stableRootCount': 66, 'replacementCount': 7,
+            'historicalRoots': old_historical,
+            'receipt': old_recovery['receiptIdentity'],
+            'recoveryDirectory': old_recovery['recoveryDirectory']}
+
+
 def _validate_queued_stop_authority(parent, runtime, repo_root, window_sha256,
                                     terminal=False, initial=None):
     parent = Path(parent).resolve(strict=True); runtime = Path(runtime).resolve(strict=True)
@@ -3987,10 +4072,12 @@ def _validate_queued_stop_authority(parent, runtime, repo_root, window_sha256,
     expected_process_inherited = [*carry['roots'], *bound_identities['issuerFailureRoots'],
                                   *bound_identities['prechildFailureRoots']]
     if len(expected_process_inherited) != _QUEUED_STOP_BASE_ROOTS \
-            or len(bound_identities['processFailures']) != 1 \
-            or bound_identities['processFailures'][0].get('inheritedRoots') != \
-            expected_process_inherited:
+            or len(bound_identities['processFailures']) != 1:
         raise ValueError('QUEUED_STOP_PROCESS_FAILURE_ROOTS')
+    process_lineage = _validate_queued_stop_process_recovery_lineage(
+        runtime, bound_identities['processFailures'][0].get('historicalMeasure'),
+        bound_identities['processFailures'][0].get('inheritedRoots'),
+        expected_process_inherited, carry['rootRecovery'].get('mappings'))
     source = _validate_phase_source_manifest(parent / 'source-pins.json', candidate)
     if source['manifestIdentity']['sha256'] != window['sourceManifest']['sha256']:
         raise ValueError('QUEUED_STOP_AUTHORITY')
@@ -4031,13 +4118,14 @@ def _validate_queued_stop_authority(parent, runtime, repo_root, window_sha256,
                            'measureRootRecovery': carry.get('rootRecovery'),
                            'issuerFailures': bound_identities['issuerFailures'],
                            'prechildFailures': bound_identities['prechildFailures'],
-                           'processFailures': bound_identities['processFailures']}}
+                           'processFailures': bound_identities['processFailures'],
+                           'processFailureLineage': process_lineage}}
     if initial is not None:
         for key in ('window', 'owner', 'source', 'owned', 'node', 'tsxLoader',
                     'consumerPython', 'issuer', 'issuerFact', 'buildHelper', 'buildNode',
                     'buildNodeLibrary', 'typescriptCompiler', 'typescriptLibraries',
                     'measureRootRecovery', 'issuerFailures',
-                    'prechildFailures', 'processFailures'):
+                    'prechildFailures', 'processFailures', 'processFailureLineage'):
             if initial.get('_snapshot', {}).get(key) != value['_snapshot'][key]:
                 raise ValueError('QUEUED_STOP_AUTHORITY_DRIFT')
     return value

@@ -91,6 +91,10 @@ try:
   elif method == 'queued-process-failures':
     value=module._validate_queued_stop_process_failures(
       payload['carryover'], pathlib.Path(payload['runtime']))
+  elif method == 'queued-process-lineage':
+    value=module._validate_queued_stop_process_recovery_lineage(
+      pathlib.Path(payload['runtime']),payload['historicalMeasure'],payload['oldInherited'],
+      payload['currentRoots'],payload['currentMappings'])
   elif method == 'queued-owned':
     value=module._validate_queued_stop_owned_manifest(
       pathlib.Path(payload['manifest']), pathlib.Path(payload['runtime']), payload['windowId'],
@@ -118,7 +122,9 @@ try:
       'processFailureRoots':payload.get('processFailureRoots',[]),'processFailures':payload.get('processFailures', [])}
     module._validate_queued_stop_measure_carryover=lambda *args, **kwargs: {
       'roots':payload.get('measureRoots',[]),
-      'rootRecovery': {'liveDeviceRemap': {'currentDevice': runtime.lstat().st_dev}}}
+      'rootRecovery': {'liveDeviceRemap': {'currentDevice': runtime.lstat().st_dev},'mappings':[]}}
+    module._validate_queued_stop_process_recovery_lineage=lambda *args, **kwargs: {
+      'translated':True,'stableRootCount':66,'replacementCount':7}
     module._validate_phase_source_manifest=lambda *args, **kwargs: {'fileCount':241,'manifestIdentity':{'sha256':'3'*64}}
     module._validate_queued_stop_owned_manifest=lambda *args, **kwargs: {
       'rootCount':76,'ownedBytes':1,'plannedBytes':2,'remainingPlannedBytes':0,'availableBytes':3,
@@ -1143,6 +1149,19 @@ function rewriteRootRecovery(f, mutate) {
   const receipt = JSON.parse(readFileSync(f.recovery, 'utf8')); mutate(receipt, f)
   rmSync(f.recovery); json(f.recovery, receipt)
   return { path: f.recovery, sha256: sha(f.recovery) }
+}
+
+function queuedProcessLineageFixture() {
+  const f=disappearedFrozenOwnedFixture(),currentRoot=join(f.runtime,'measure-root-recovery-v2')
+  mkdirSync(currentRoot);chmodSync(currentRoot,0o700)
+  const currentReplacements=f.disappeared.map((historicalRoot,index)=>{const path=join(currentRoot,`replacement-${String(index+1).padStart(3,'0')}`);mkdirSync(path);json(join(path,'owner.json'),{schemaVersion:1,scope:'musicbridge-capacity-historical-control-only',id:randomUUID(),role:'historical-control-only',historicalRoot,recovered:false});return {...rootRow(path),role:'historical-control-only'}})
+  const stable=f.present.map(row=>rootRow(row.path,row.marker.relative))
+  const suffix=[rootRow(f.future,'command.json')]
+  for(const name of ['issuer-failure','prechild-failure']){const path=join(f.runtime,`lineage-${name}`);mkdirSync(path);json(join(path,'owner.json'),{scope:name});suffix.push(rootRow(path))}
+  const receipt=JSON.parse(readFileSync(f.recovery,'utf8'))
+  const currentMappings=f.disappeared.map((historicalRoot,index)=>({historicalRoot,state:'LOST',recovered:false,replacementRoot:currentReplacements[index]}))
+  const historicalMeasure={measureRootRecovery:{path:f.recovery,sha256:sha(f.recovery)},window:{id:f.windowId},ownedManifest:{path:f.manifest,sha256:f.frozenHashes.manifest},candidateRepository:{root:f.candidate,branch:f.candidateBranch,head:f.head}}
+  return {...f,historicalMeasure,currentMappings,oldInherited:[...stable,...f.replacements.map(({role,...row})=>row),...suffix],currentRoots:[...stable,...currentReplacements.map(({role,...row})=>row),...suffix],receipt}
 }
 
 function issuerFailureCarryover(f, mutate = () => {}) {
@@ -2518,17 +2537,16 @@ test('queued-stop authority admission到terminal逐项比较issuer failure身份
     assert.equal(processObserved.ok, false)
     assert.match(processObserved.error, /QUEUED_STOP_AUTHORITY_DRIFT/u)
 
-    for (const [name, mutate] of [
-      ['新增任意根', roots => roots.push(root('extra', 83))],
-      ['marker替换', roots => { roots[0].marker.sha256 = 'f'.repeat(64) }],
-      ['issuer-prechild互换', roots => { [roots[71], roots[72]] = [roots[72], roots[71]] }],
-    ]) {
-      const drift = structuredClone(payload); mutate(drift.processFailures[0].inheritedRoots)
-      const rejected = bridge(f.script, 'queued-authority-snapshot', drift)
-      assert.equal(rejected.ok, false, name)
-      assert.match(rejected.error, /QUEUED_STOP_PROCESS_FAILURE_ROOTS/u)
-    }
   } finally { f.cleanup() }
+})
+
+test('queued-stop admission与terminal使用recovery谱系翻译PROCESS_EXIT inherited roots', async t => {
+  const source=readFileSync(sourceSupervisor,'utf8'),authority=source.slice(source.indexOf('def _validate_queued_stop_authority('),source.indexOf('def _queued_stop_budget('))
+  assert.match(authority,/process_lineage = _validate_queued_stop_process_recovery_lineage\(/u)
+  assert.match(authority,/'processFailureLineage': process_lineage/u)
+  assert.match(authority,/'prechildFailures', 'processFailures', 'processFailureLineage'/u)
+  await t.test('跨代正例',()=>{const f=queuedProcessLineageFixture();try{const observed=bridge(f.script,'queued-process-lineage',{runtime:f.runtime,historicalMeasure:f.historicalMeasure,oldInherited:f.oldInherited,currentRoots:f.currentRoots,currentMappings:f.currentMappings});assert.equal(observed.ok,true,observed.error);assert.equal(observed.value.translated,true)}finally{f.cleanup()}})
+  for(const [name,mutate] of [['historicalRoot漂移',(f,p)=>{p.currentMappings[0].historicalRoot.inode+=1}],['映射重排',(f,p)=>{[p.currentMappings[0],p.currentMappings[1]]=[p.currentMappings[1],p.currentMappings[0]]}],['旧receipt漂移',(f,p)=>{const binding=rewriteRootRecovery(f,r=>{r.repository.clean=false});p.historicalMeasure.measureRootRecovery=binding}],['新增任意根',(f,p)=>{p.currentRoots.push(structuredClone(p.currentRoots[0]))}],['marker替换',(f,p)=>{p.currentRoots[0].marker.sha256='f'.repeat(64)}],['issuer-prechild互换',(f,p)=>{[p.currentRoots[71],p.currentRoots[72]]=[p.currentRoots[72],p.currentRoots[71]]}]])await t.test(name,()=>{const f=queuedProcessLineageFixture();try{const payload={runtime:f.runtime,historicalMeasure:structuredClone(f.historicalMeasure),oldInherited:structuredClone(f.oldInherited),currentRoots:structuredClone(f.currentRoots),currentMappings:structuredClone(f.currentMappings)};mutate(f,payload);const observed=bridge(f.script,'queued-process-lineage',payload);assert.equal(observed.ok,false);assert.match(observed.error,/QUEUED_STOP_PROCESS_FAILURE_LINEAGE/u)}finally{f.cleanup()}})
 })
 
 test('queued-stop admission拒绝build helper、TypeScript标准库与派生输出证明漂移', () => {

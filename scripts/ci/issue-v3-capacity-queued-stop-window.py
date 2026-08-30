@@ -512,6 +512,7 @@ def validate_measure_root_recovery(options, runtime, owned_path, owned, seed, sn
         recovery_root, {'recovery.json', *(Path(path).name for path in replacement_paths)})
     return {
         'liveRoots': live, 'replacementRoots': replacements,
+        'mappings': mappings,
         'binding': {'path': str(receipt_path), 'sha256': receipt_sha},
         'receiptSnapshot': file_snapshot(receipt_path, receipt_sha),
         'directorySnapshot': recovery_directory_snapshot,
@@ -782,6 +783,7 @@ def validate_measure(options, runtime):
         'absentRoots': recovery['absentRoots'],
         'activeBenchmarkInput': recovery['activeBenchmarkInput'],
         'liveDeviceRemap': recovery['liveDeviceRemap'],
+        'recoveryMappings': recovery['mappings'],
     }
 
 
@@ -1137,11 +1139,177 @@ def validate_prior_prechild_failures(options, runtime):
             'snapshots': [snapshot for _, _, snapshot in ordered]}
 
 
-def validate_prior_process_failures(options, runtime, expected_inherited_roots):
+def validate_process_recovery_lineage(runtime, historical_measure, old_inherited,
+                                      current_roots, current_mappings):
+    code = 'PRIOR_PROCESS_FAILURE_LINEAGE'
+    runtime = Path(runtime)
+    if not isinstance(historical_measure, dict) \
+            or set(historical_measure) != {
+                'measureRootRecovery', 'window', 'ownedManifest', 'candidateRepository'} \
+            or not isinstance(old_inherited, list) or len(old_inherited) != 73 \
+            or not isinstance(current_roots, list) or len(current_roots) != 73 \
+            or not isinstance(current_mappings, list) or len(current_mappings) != 7:
+        fail(code)
+    binding = historical_measure['measureRootRecovery']
+    measure_window = historical_measure['window']
+    owned_binding = historical_measure['ownedManifest']
+    candidate = historical_measure['candidateRepository']
+    if not isinstance(binding, dict) or set(binding) != {'path', 'sha256'} \
+            or not isinstance(measure_window, dict) or set(measure_window) != {'id'} \
+            or UUID4.fullmatch(str(measure_window.get('id', ''))) is None \
+            or not isinstance(owned_binding, dict) or set(owned_binding) != {'path', 'sha256'} \
+            or not isinstance(candidate, dict) or set(candidate) != {'root', 'branch', 'head'} \
+            or GIT_SHA.fullmatch(str(candidate.get('head', ''))) is None:
+        fail(code)
+    receipt_path = Path(str(binding.get('path', '')))
+    try:
+        recovery_root = canonical_directory(receipt_path.parent, runtime)
+        receipt, receipt_sha = strict_json(receipt_path, binding['sha256'], maximum=4 * 1024 * 1024)
+        owned_path = Path(owned_binding['path'])
+        strict_json(owned_path, owned_binding['sha256'], maximum=16 * 1024 * 1024)
+    except (IssueError, OSError, TypeError, ValueError) as error:
+        raise IssueError(code) from error
+    receipt_keys = {
+        'schemaVersion', 'scope', 'access', 'state', 'model', 'windowId',
+        'historicalManifest', 'liveDeviceRemap', 'repository', 'recoveryTool', 'mappings',
+        'activeBenchmarkInput', 'contentRecovered', 'historicalManifestRewritten',
+        'deviceOpened', 'formalReady', 'gateB'}
+    expected_repository = {**candidate, 'clean': True, 'pushedHead': True}
+    repository = receipt.get('repository') if isinstance(receipt, dict) else None
+    tool = receipt.get('recoveryTool') if isinstance(receipt, dict) else None
+    mappings = receipt.get('mappings') if isinstance(receipt, dict) else None
+    remap = receipt.get('liveDeviceRemap') if isinstance(receipt, dict) else None
+    benchmark = receipt.get('activeBenchmarkInput') if isinstance(receipt, dict) else None
+    if receipt_path != recovery_root / 'recovery.json' or recovery_root.parent != runtime \
+            or stat.S_IMODE(recovery_root.stat().st_mode) != 0o700 \
+            or stat.S_IMODE(receipt_path.stat().st_mode) != 0o400 \
+            or not isinstance(receipt, dict) or set(receipt) != receipt_keys \
+            or receipt.get('schemaVersion') != 1 \
+            or receipt.get('scope') != 'musicbridge-capacity-measure-root-recovery' \
+            or receipt.get('access') != 'read-only' or receipt.get('state') != 'PUBLISHED' \
+            or receipt.get('model') != RECOVERY_MODEL \
+            or receipt.get('windowId') != measure_window['id'] \
+            or receipt.get('historicalManifest') != owned_binding \
+            or repository != expected_repository \
+            or not isinstance(remap, dict) \
+            or set(remap) != {'mode', 'historicalDevice', 'currentDevice', 'liveRootCount'} \
+            or type(remap.get('historicalDevice')) is not int \
+            or remap.get('currentDevice') != runtime.stat().st_dev \
+            or remap.get('liveRootCount') != 63 \
+            or remap.get('mode') != (
+                'UNCHANGED' if remap['historicalDevice'] == remap['currentDevice'] else 'REMAPPED') \
+            or not isinstance(benchmark, dict) \
+            or set(benchmark) != {'model', 'path', 'sha256'} \
+            or benchmark.get('model') != 'durable-seed-snapshot' \
+            or SHA256.fullmatch(str(benchmark.get('sha256', ''))) is None \
+            or receipt.get('contentRecovered') is not False \
+            or receipt.get('historicalManifestRewritten') is not False \
+            or receipt.get('deviceOpened') is not False or receipt.get('formalReady') is not False \
+            or receipt.get('gateB') != 'NOT_RUN' \
+            or not isinstance(tool, dict) \
+            or set(tool) != {'path', 'relativePath', 'workingSha256', 'gitBlobSha256'} \
+            or tool.get('relativePath') != RECOVERY_TOOL_RELATIVE \
+            or tool.get('workingSha256') != tool.get('gitBlobSha256') \
+            or SHA256.fullmatch(str(tool.get('workingSha256', ''))) is None \
+            or not isinstance(mappings, list) or len(mappings) != 7:
+        fail(code)
+    candidate_root = Path(candidate['root'])
+    try:
+        if tool['path'] != str(candidate_root / RECOVERY_TOOL_RELATIVE) \
+                or hashlib.sha256(git_blob(
+                    candidate_root, candidate['head'], RECOVERY_TOOL_RELATIVE)).hexdigest() != \
+                tool['gitBlobSha256']:
+            fail(code)
+    except IssueError as error:
+        raise IssueError(code) from error
+    benchmark_path = Path(benchmark['path'])
+    try:
+        if benchmark_path.resolve(strict=True) != benchmark_path \
+                or benchmark_path.is_symlink() or benchmark_path.name != 'seed.sqlite' \
+                or os.path.commonpath((str(runtime), str(benchmark_path))) != str(runtime) \
+                or sha256(benchmark_path) != benchmark['sha256']:
+            fail(code)
+    except (IssueError, OSError, TypeError, ValueError) as error:
+        raise IssueError(code) from error
+    old_replacements = []
+    historical_roots = []
+    replacement_names = []
+    marker_ids = set()
+    for mapping in mappings:
+        if not isinstance(mapping, dict) \
+                or set(mapping) != {'historicalRoot', 'state', 'recovered', 'replacementRoot'} \
+                or mapping.get('state') != 'LOST' or mapping.get('recovered') is not False:
+            fail(code)
+        try:
+            historical = historical_root(mapping['historicalRoot'])
+            replacement = mapping['replacementRoot']
+            if not isinstance(replacement, dict) \
+                    or set(replacement) != {'path', 'device', 'inode', 'marker', 'role'} \
+                    or replacement.get('role') != 'historical-control-only':
+                fail(code)
+            normalized = validate_root({key: replacement[key]
+                                        for key in ('path', 'device', 'inode', 'marker')})
+            replacement_path = Path(normalized['path'])
+            owner, owner_sha = strict_json(
+                replacement_path / 'owner.json', normalized['marker']['sha256'], maximum=1024 * 1024)
+        except (IssueError, KeyError, OSError, TypeError, ValueError) as error:
+            raise IssueError(code) from error
+        if replacement_path.parent != recovery_root \
+                or stat.S_IMODE(replacement_path.stat().st_mode) != 0o700 \
+                or stat.S_IMODE((replacement_path / 'owner.json').stat().st_mode) != 0o400 \
+                or set(owner) != {'schemaVersion', 'scope', 'id', 'role', 'historicalRoot', 'recovered'} \
+                or owner.get('schemaVersion') != 1 \
+                or owner.get('scope') != 'musicbridge-capacity-historical-control-only' \
+                or UUID4.fullmatch(str(owner.get('id', ''))) is None \
+                or owner['id'] in marker_ids \
+                or owner.get('role') != 'historical-control-only' \
+                or owner.get('historicalRoot') != historical or owner.get('recovered') is not False \
+                or owner_sha != normalized['marker']['sha256'] \
+                or not path_is_absent(historical['path']):
+            fail(code)
+        historical_roots.append(historical); old_replacements.append(normalized)
+        replacement_names.append(replacement_path.name)
+        marker_ids.add(owner['id'])
+    if len({row['path'] for row in historical_roots}) != 7 \
+            or sorted(path.name for path in recovery_root.iterdir()) != \
+            sorted(['recovery.json', *replacement_names]):
+        fail(code)
+    current_historical = []
+    current_replacements = []
+    for mapping in current_mappings:
+        if not isinstance(mapping, dict) \
+                or set(mapping) != {'historicalRoot', 'state', 'recovered', 'replacementRoot'} \
+                or mapping.get('state') != 'LOST' or mapping.get('recovered') is not False:
+            fail(code)
+        try:
+            current_historical.append(historical_root(mapping['historicalRoot']))
+            replacement = mapping['replacementRoot']
+            if not isinstance(replacement, dict) \
+                    or set(replacement) != {'path', 'device', 'inode', 'marker', 'role'} \
+                    or replacement.get('role') != 'historical-control-only':
+                fail(code)
+            current_replacements.append({key: replacement[key]
+                                         for key in ('path', 'device', 'inode', 'marker')})
+        except (IssueError, KeyError, TypeError) as error:
+            raise IssueError(code) from error
+    if old_inherited[:63] != current_roots[:63] \
+            or old_inherited[63:70] != old_replacements \
+            or current_roots[63:70] != current_replacements \
+            or historical_roots != current_historical \
+            or old_inherited[70:] != current_roots[70:]:
+        fail(code)
+    return {'translated': True, 'stableRootCount': 66, 'replacementCount': 7,
+            'historicalRoots': historical_roots,
+            'receipt': file_snapshot(receipt_path, receipt_sha),
+            'benchmark': file_snapshot(benchmark_path, benchmark['sha256']),
+            'recoveryDirectory': directory_snapshot(
+                recovery_root, {'recovery.json', *replacement_names})}
+
+
+def validate_prior_process_failures(options, runtime, expected_inherited_roots=None):
     rows = options.prior_process_failure
     if not isinstance(rows, list) or not rows or len(rows) > 64 \
-            or not isinstance(expected_inherited_roots, list) \
-            or len(expected_inherited_roots) != 73:
+            :
         fail('PRIOR_PROCESS_FAILURE')
     discovered = set()
     try:
@@ -1517,8 +1685,6 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots):
             fail('PRIOR_PROCESS_FAILURE')
         inherited_roots = [root for root in owned['roots']
                            if root.get('path') not in {str(parent), str(issuer_identity)}]
-        if inherited_roots != expected_inherited_roots:
-            fail('PRIOR_PROCESS_FAILURE')
         files = {
             'owner': {'path': str(parent / 'owner.json'), 'sha256': observed_owner_sha},
             'supervisor': {'path': str(installed_supervisor), 'sha256': supervisor_sha},
@@ -1546,6 +1712,12 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots):
             'issuerIdentity': directory_snapshot(issuer_identity, {'owner.json'}),
             'supervision': directory_snapshot(supervision_directory, supervision_entries),
             'inheritedRoots': inherited_roots,
+            'historicalMeasure': {
+                'measureRootRecovery': measure_carryover['measureRootRecovery'],
+                'window': {'id': measure_carryover['window']['id']},
+                'ownedManifest': measure_carryover['ownedManifest'],
+                'candidateRepository': candidate,
+            },
             'files': {key: file_snapshot(value['path'], value['sha256'])
                       for key, value in files.items()},
         })
@@ -1802,8 +1974,13 @@ def issue(options):
     measure = validate_measure(options, runtime)
     expected_process_inherited = [*measure['roots'], *prior_failures['roots'],
                                   *prechild_failures['roots']]
-    process_failures = validate_prior_process_failures(
-        options, runtime, expected_process_inherited)
+    process_failures = validate_prior_process_failures(options, runtime)
+    if len(process_failures['snapshots']) != 1:
+        fail('EXACT76_V3_CARRYOVER')
+    process_failures['lineage'] = validate_process_recovery_lineage(
+        runtime, process_failures['snapshots'][0]['historicalMeasure'],
+        process_failures['snapshots'][0]['inheritedRoots'], expected_process_inherited,
+        measure['recoveryMappings'])
     if len(prior_failures['roots']) != 1 or len(prechild_failures['roots']) != 1 \
             or len(process_failures['roots']) != 1:
         fail('EXACT76_V3_CARRYOVER')
@@ -1927,8 +2104,13 @@ def issue(options):
     second_prechild_failures = validate_prior_prechild_failures(options, runtime)
     second_expected_process_inherited = [*second_measure['roots'], *second_prior_failures['roots'],
                                          *second_prechild_failures['roots']]
-    second_process_failures = validate_prior_process_failures(
-        options, runtime, second_expected_process_inherited)
+    second_process_failures = validate_prior_process_failures(options, runtime)
+    if len(second_process_failures['snapshots']) != 1:
+        fail('PRIOR_PROCESS_FAILURE_DRIFT')
+    second_process_failures['lineage'] = validate_process_recovery_lineage(
+        runtime, second_process_failures['snapshots'][0]['historicalMeasure'],
+        second_process_failures['snapshots'][0]['inheritedRoots'],
+        second_expected_process_inherited, second_measure['recoveryMappings'])
     if second_prior_failures['facts'] != prior_failures['facts'] \
             or second_prior_failures['roots'] != prior_failures['roots'] \
             or second_prior_failures['snapshots'] != prior_failures['snapshots']:
@@ -1939,7 +2121,8 @@ def issue(options):
         fail('PRIOR_PRECHILD_FAILURE_DRIFT')
     if second_process_failures['facts'] != process_failures['facts'] \
             or second_process_failures['roots'] != process_failures['roots'] \
-            or second_process_failures['snapshots'] != process_failures['snapshots']:
+            or second_process_failures['snapshots'] != process_failures['snapshots'] \
+            or second_process_failures['lineage'] != process_failures['lineage']:
         fail('PRIOR_PROCESS_FAILURE_DRIFT')
     if strict_json(parent / 'source-pins.json', source_sha)[0] != source_manifest(
             root, options.expected_head, derived['files']) \
