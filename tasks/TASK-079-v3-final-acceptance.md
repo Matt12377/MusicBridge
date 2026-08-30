@@ -79,9 +79,13 @@ supervisor在`320,039.741875ms`自然exit 0，1575个samples、3个group receipt
 
 提交`7d67f5069233fbbc5b00a9170c2639b9e237edf2`新增独立queued-stop issuer、supervisor校验路径与容量fixture aggregate guard，并只绑定冻结的measure window-06身份。successor authority schema固定为exact 73 roots：71个既有受控根、1个authority parent和1个issuer identity；输出嵌套在authority parent中。正式计划固定105 samples（5 warmup + 100 formal）、单active clone、单次执行上限50秒、总窗口900秒，snapshot=`1,990,471,680`、evidence allowance=`268,435,456`、planned=`2,258,907,136`字节；aggregate预期843行，成功终态预期636个输出文件。
 
-TDD与回归结果为capacity `92/92`、supervisor `25/25`、issuer `5/5`，`corepack pnpm@10.17.1 verify` exit 0，control plane、boundaries与cycles均PASS，cycles扫描259个文件。issuer只负责exclusive authority发布，不执行benchmark；supervisor拒绝透传参数，并精确复核候选、工具链、issuer fact、window-06 carryover、105个唯一进程/请求/Attempt/marker、50秒闭包、PG/zombie、分布阈值、aggregate序列和输出集合。
+当前回归结果为capacity `92/92`、supervisor `26/26`、issuer `6/6`、四套capacity控制面合并`75/75`，`corepack pnpm@10.17.1 verify` exit 0，control plane、boundaries与cycles均PASS，cycles扫描259个文件。issuer只负责exclusive authority发布，不执行benchmark；supervisor拒绝透传参数，并精确复核候选、工具链、issuer fact、window-06 carryover、105个唯一进程/请求/Attempt/marker、50秒闭包、PG/zombie、分布阈值、aggregate序列和输出集合。
 
-上述结果只证明控制面GREEN。正式authority尚未签发，`authority.state=NOT_ISSUED`、`formalRun=NOT_RUN`，未创建新窗口、未分配新UUID/window-dir/label，也没有正式运行或PASS收据。下一步是形成稳定评审检查点并在该精确HEAD上做新鲜只读预检，满足后才可唯一签发。joint不得复用objects seed，且现有joint计划超过单活动输出预算，须先重构；设备、Gate B、Owner 103项、可听Replica、实体录音与打印均保持`NOT_RUN`或pending。
+首次正式签发尝试使用window-dir=`r023-objects-limit-queued-stop-window-01`、label=`r023-objects-limit-queued-stop-01`。issuer创建owner、installed supervisor与issuer identity后以`SOURCE_CANDIDATE`终止；failure UUID=`c9e11b19-6e83-4d8c-959c-1b57b61aa71d`、failure SHA256=`e18619e0c24306b0aaf7d84fe3f970faecbbe844780b5f1abb0f6ae47f108329`、`windowWritten=false`、`replayAllowed=false`。没有approved window、consumer或benchmark运行，window-01的UUID/window-dir/label永久禁止重放。
+
+根因是source manifest把42个被Git忽略、由tracked TypeScript生成的`packages/contracts/dist/*.js`误当作候选提交blob执行`git show`。提交`33d8856c7f4a1e93edce90ba2c9f31d406d9272a`复用已验证的capacity build helper，从候选HEAD的42个source、固定tsconfig/package和固定Node/libnode/TypeScript工具链重建dist，要求exact emit set与逐字节SHA一致；issuer fact绑定helper、构建输入、argv/env、工具链、标准库manifest与输出，supervisor在admission和terminal两端重新核验并拒绝helper、标准库或派生证明漂移。
+
+上述结果只证明修复后的控制面GREEN。下一approved authority仍为`NEXT_NOT_ISSUED`、`formalRun=NOT_RUN`，没有后继UUID/window-dir/label或PASS收据。下一步是形成稳定评审检查点并在该精确HEAD上做新鲜只读预检，满足后才可用全新名称唯一签发。joint不得复用objects seed，且现有joint计划超过单活动输出预算，须先重构；设备、Gate B、Owner 103项、可听Replica、实体录音与打印均保持`NOT_RUN`或pending。
 
 ## 自动验证
 

@@ -259,8 +259,20 @@ const CAPACITY_MEASURE_WINDOW_ISSUER = {
   gateB: 'NOT_RUN',
 }
 const CAPACITY_QUEUED_STOP_CONTROL_PLANE = {
-  state: 'CONTROL_PLANE_GREEN_FORMAL_AUTHORITY_NOT_ISSUED_RUN_NOT_RUN',
+  state: 'CONTROL_PLANE_GREEN_WINDOW01_TERMINAL_ISSUER_FAILURE_FIXED_NEXT_AUTHORITY_NOT_ISSUED_RUN_NOT_RUN',
   implementationCommit: '7d67f5069233fbbc5b00a9170c2639b9e237edf2',
+  derivedBuildFix: {
+    implementationCommit: '33d8856c7f4a1e93edce90ba2c9f31d406d9272a',
+    rootCause: 'UNTRACKED_CONTRACTS_DIST_TREATED_AS_GIT_BLOBS',
+    resolution: 'PINNED_REBUILD_PROVENANCE_BOUND_AT_ISSUE_ADMISSION_TERMINAL',
+    buildHelper: 'scripts/ci/issue-v3-capacity-window.py', derivedOutputCount: 42,
+  },
+  terminalIssuerWindow01: {
+    state: 'TERMINAL_ISSUER_FAILURE', windowId: 'c9e11b19-6e83-4d8c-959c-1b57b61aa71d',
+    windowDirName: 'r023-objects-limit-queued-stop-window-01', label: 'r023-objects-limit-queued-stop-01',
+    errorCode: 'SOURCE_CANDIDATE', failureSha256: 'e18619e0c24306b0aaf7d84fe3f970faecbbe844780b5f1abb0f6ae47f108329',
+    windowWritten: false, benchmarkRun: 'NOT_RUN', replay: 'PROHIBITED',
+  },
   frozenMeasureWindow06: {
     windowId: 'afc81a99-d15d-4179-8326-5774a5c40b62',
     candidateCommit: 'a457414fffd141390ec2ff4536452a0f654b1370',
@@ -278,12 +290,12 @@ const CAPACITY_QUEUED_STOP_CONTROL_PLANE = {
   },
   focusedVerification: {
     capacity: { tests: 92, passed: 92, failed: 0 },
-    supervisor: { tests: 25, passed: 25, failed: 0 },
-    issuer: { tests: 5, passed: 5, failed: 0 },
+    supervisor: { tests: 26, passed: 26, failed: 0 },
+    issuer: { tests: 6, passed: 6, failed: 0 },
   },
   fullVerify: 'PASS',
   staticGates: { controlPlane: 'PASS', boundaries: 'PASS', cycles: 'PASS_259_FILES' },
-  authority: { state: 'NOT_ISSUED', windowId: null, windowDirName: null, label: null },
+  authority: { state: 'NEXT_NOT_ISSUED', windowId: null, windowDirName: null, label: null },
   formalRun: 'NOT_RUN',
   joint: 'PENDING_SINGLE_ACTIVE_OUTPUT_BUDGET_REDESIGN',
   deviceOpened: false,

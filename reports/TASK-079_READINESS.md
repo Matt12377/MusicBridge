@@ -271,3 +271,13 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - window-06以全新UUID `afc81a99-d15d-4179-8326-5774a5c40b62`唯一签发并只消费一次。window SHA256=`cfac8e19336a181de00c68d458d046065cd821a0dca48cc4fc78af0e15c15227`，close SHA256=`1c93f6c6ec1a0b58619f87127d3e2c7d11a1cfcce1c155b3576a84eda2af84b7`，supervisor SHA256=`18ef840fe99b861ca8881c7c7be09b70c13431df02d88ddf282e29f2169cdc92`。
 - supervisor在`320,039.741875ms`自然exit 0，1575个samples、3个group receipts、105个Stop round receipts和18个stages全部形成；managed process group empty，zombie=`[]`。aggregate预算审计2383行，snapshot=`1,990,471,680`字节、limit/planned=`2,258,907,136`字节、最终output logical=`5,544,090`字节，`thresholdPassed=true`。
 - window-04失败事实及其历史`plannedBytes=4,249,378,816`继续原样保留，不以window-06的新预算改写。window-06只关闭objects-limit软件measure；large queued-stop、joint、整个TASK-079、设备Gate B与Owner验收仍未完成，`deviceOpened=false`、`formalReady=false`、Gate B=`NOT_RUN`。
+
+#### Objects-limit queued-stop window-01终止与派生构建闭包
+
+- first-class控制面实现提交=`7d67f5069233fbbc5b00a9170c2639b9e237edf2`，固定exact 73 roots、5 warmup + 100 formal、单active clone、50秒单操作/900秒总窗口、snapshot `1,990,471,680`字节与`268,435,456`字节evidence allowance；成功闭包预期843行aggregate与636个输出文件。
+- fresh只读空间准入首次因10GiB保留余量不足而停止，没有创建authority。只清理未被进程占用的JetBrains PyCharm 2026.1 cache后，空间门重新通过；历史证据、runtime、用户资料及TASK-078既有未跟踪目录均未删除或移动。
+- 首次签发使用window-dir=`r023-objects-limit-queued-stop-window-01`、label=`r023-objects-limit-queued-stop-01`。issuer在创建owner、installed supervisor与issuer identity后以`SOURCE_CANDIDATE`终止；failure UUID=`c9e11b19-6e83-4d8c-959c-1b57b61aa71d`，failure SHA256=`e18619e0c24306b0aaf7d84fe3f970faecbbe844780b5f1abb0f6ae47f108329`，`windowWritten=false`、`replayAllowed=false`。没有consumer或benchmark进程，window-01全部身份永久禁止重放。
+- 根因是旧issuer把42个被Git忽略的`packages/contracts/dist/*.js`当作tracked blob校验。最小RED证明真实候选的派生文件无法通过旧`source_manifest`，而候选源码本身没有漂移。
+- 修复提交=`33d8856c7f4a1e93edce90ba2c9f31d406d9272a`。issuer使用tracked、Hash固定的`issue-v3-capacity-window.py` helper，从候选HEAD的42个TypeScript source、`tsconfig.json`及`package.json`重建dist；Node、libnode、TypeScript compiler、标准库manifest、Git输入、命令/环境和42个输出SHA全部写入issuer fact。supervisor在admission与terminal两端复核helper Git blob、工具链、标准库manifest、构建输入和source pins派生输出，任一漂移均fail-closed。
+- 新鲜验证：capacity `92/92`、supervisor `26/26`、queued-stop issuer `6/6`、四套capacity控制面合并`75/75`、Bridge Core typecheck、标准`pnpm verify`、`CONTROL_PLANE=PASS`、`BOUNDARIES=PASS`、`CYCLES=PASS files=259`、Python AST与`git diff --check`均PASS。Contracts `186/186`、Bridge Core与Desktop完整测试及三包生产构建由标准verify通过。
+- 当前机器结论：window-01=`TERMINAL_ISSUER_FAILURE`且benchmark=`NOT_RUN`；下一approved authority=`NEXT_NOT_ISSUED`、formal run=`NOT_RUN`，没有后继UUID/window-dir/label。必须先推送包含本节与机器状态的稳定评审检查点，再对精确HEAD执行新鲜只读预检；通过后也只能以全新身份签发一次。joint、设备Gate B与Owner验收均未升级。

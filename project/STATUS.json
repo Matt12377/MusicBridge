@@ -183,13 +183,13 @@
       "R-020 大库冷启扫描与2秒ready策略待TASK-078/Gate E验证",
       "R-021：真实钥匙串无CDP普通Quit15秒FAIL保留；新隔离候选包空库及执行读取后两种mock-keychain普通Quit均code0/close且无进程残留，仅软件隔离诊断，不关闭真实钥匙串/Owner验收",
       "R-022：FakeDriver join/静止契约未证明真实HAL；未链接应用或helper，真实设备与Gate B须独立授权及测量",
-      "R-023：history-limit正式生成/measure/queued-stop已PASS；objects-limit旧generation与measure失败证据永久保留，window-06软件measure PASS。queued-stop first-class控制面提交7d67f506已GREEN并冻结window-06身份、exact73根、5+100样本、单active clone与预算/终态校验；正式authority尚未签发，未分配新UUID/window/label，formal run=NOT_RUN。joint仍待单活动输出预算重构；设备、Gate B与Owner验收均NOT_RUN。",
+      "R-023：history-limit正式生成/measure/queued-stop已PASS；objects-limit旧generation与measure失败证据永久保留，window-06软件measure PASS。queued-stop first-class控制面提交7d67f506已GREEN；window-01在issuer阶段以SOURCE_CANDIDATE终止，未写approved window、未运行benchmark且永久禁止重放。提交33d8856c完成42个contracts/dist派生输出的固定重建与issue/admission/terminal身份闭包；下一approved authority尚未签发，未预分配后继UUID/window/label，formal run=NOT_RUN。joint仍待单活动输出预算重构；设备、Gate B与Owner验收均NOT_RUN。",
       "TASK-079 hardware evidence contract v2：主任务33/33专项GREEN；configuration observation、observer execution、typed scope evidence、B-15 identity有效期和U-10同事件依赖已加固。第二轮独立复审最终RED保留，未做第三轮且independentPass=false。真实hardware与Gate B均NOT_RUN。",
       "TASK-076历史核验与私有synthetic会话已通过本地软件Gate；实际可听Replica及正式provider接线须随073设备准入和079另验，当前始终blocked",
       "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task079-objects-queued-stop-control-plane-green-formal-authority-not-issued-run-not-run",
+    "checkpoint": "task079-objects-queued-stop-window01-terminal-issuer-failure-derived-build-fixed-next-authority-not-issued-run-not-run",
     "nextTask": null,
     "resultReport": "reports/TASK-079_READINESS.md",
     "task078SoftwareCheckpoints": {
@@ -1175,8 +1175,26 @@
         "gateB": "NOT_RUN"
       },
       "capacityQueuedStopControlPlane": {
-        "state": "CONTROL_PLANE_GREEN_FORMAL_AUTHORITY_NOT_ISSUED_RUN_NOT_RUN",
+        "state": "CONTROL_PLANE_GREEN_WINDOW01_TERMINAL_ISSUER_FAILURE_FIXED_NEXT_AUTHORITY_NOT_ISSUED_RUN_NOT_RUN",
         "implementationCommit": "7d67f5069233fbbc5b00a9170c2639b9e237edf2",
+        "derivedBuildFix": {
+          "implementationCommit": "33d8856c7f4a1e93edce90ba2c9f31d406d9272a",
+          "rootCause": "UNTRACKED_CONTRACTS_DIST_TREATED_AS_GIT_BLOBS",
+          "resolution": "PINNED_REBUILD_PROVENANCE_BOUND_AT_ISSUE_ADMISSION_TERMINAL",
+          "buildHelper": "scripts/ci/issue-v3-capacity-window.py",
+          "derivedOutputCount": 42
+        },
+        "terminalIssuerWindow01": {
+          "state": "TERMINAL_ISSUER_FAILURE",
+          "windowId": "c9e11b19-6e83-4d8c-959c-1b57b61aa71d",
+          "windowDirName": "r023-objects-limit-queued-stop-window-01",
+          "label": "r023-objects-limit-queued-stop-01",
+          "errorCode": "SOURCE_CANDIDATE",
+          "failureSha256": "e18619e0c24306b0aaf7d84fe3f970faecbbe844780b5f1abb0f6ae47f108329",
+          "windowWritten": false,
+          "benchmarkRun": "NOT_RUN",
+          "replay": "PROHIBITED"
+        },
         "frozenMeasureWindow06": {
           "windowId": "afc81a99-d15d-4179-8326-5774a5c40b62",
           "candidateCommit": "a457414fffd141390ec2ff4536452a0f654b1370",
@@ -1210,13 +1228,13 @@
             "failed": 0
           },
           "supervisor": {
-            "tests": 25,
-            "passed": 25,
+            "tests": 26,
+            "passed": 26,
             "failed": 0
           },
           "issuer": {
-            "tests": 5,
-            "passed": 5,
+            "tests": 6,
+            "passed": 6,
             "failed": 0
           }
         },
@@ -1227,7 +1245,7 @@
           "cycles": "PASS_259_FILES"
         },
         "authority": {
-          "state": "NOT_ISSUED",
+          "state": "NEXT_NOT_ISSUED",
           "windowId": null,
           "windowDirName": null,
           "label": null
@@ -1262,6 +1280,6 @@
       "closeReceiptSha256": "4c18479e33b6392ff511a09b057d3e296dc3873d1c9be09d7d5f67c38eff39be",
       "replay": "PROHIBITED"
     },
-    "capacityGate": "R023_OBJECTS_LIMIT_GENERATION_WINDOW03_PASS__MEASURE_WINDOW01_TIMEOUT_PARTIAL_NONREPLAY__WINDOW04_AUTHORITY_DRIFT_COPY_UNAVAILABLE_PARTIAL_NONREPLAY_PLANNED4249378816_UNCHANGED__WINDOW05_PRECREATE_IDENTITY_REJECTED_NO_PATH_UUID_AUTHORITY_NONREUSE__WINDOW06_SOFTWARE_MEASURE_PASS__QUEUED_STOP_CONTROL_PLANE_GREEN_FORMAL_AUTHORITY_NOT_ISSUED_RUN_NOT_RUN__JOINT_PENDING"
+    "capacityGate": "R023_OBJECTS_LIMIT_GENERATION_WINDOW03_PASS__MEASURE_WINDOW01_TIMEOUT_PARTIAL_NONREPLAY__WINDOW04_AUTHORITY_DRIFT_COPY_UNAVAILABLE_PARTIAL_NONREPLAY_PLANNED4249378816_UNCHANGED__WINDOW05_PRECREATE_IDENTITY_REJECTED_NO_PATH_UUID_AUTHORITY_NONREUSE__WINDOW06_SOFTWARE_MEASURE_PASS__QUEUED_STOP_WINDOW01_TERMINAL_ISSUER_SOURCE_CANDIDATE_NONREPLAY_BENCHMARK_NOT_RUN__DERIVED_BUILD_FIXED__NEXT_AUTHORITY_NOT_ISSUED_RUN_NOT_RUN__JOINT_PENDING"
   }
 }
