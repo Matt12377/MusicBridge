@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { constants, copyFileSync, existsSync, linkSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs'
+import { constants, copyFileSync, existsSync, linkSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -78,6 +78,25 @@ try:
   elif method == 'queued-bound-identities':
     value=module._validate_queued_stop_bound_identities(
       payload['window'], pathlib.Path(payload['parent']), pathlib.Path(payload['candidate']))
+  elif method == 'queued-owned':
+    value=module._validate_queued_stop_owned_manifest(
+      pathlib.Path(payload['manifest']), pathlib.Path(payload['runtime']), payload['windowId'],
+      pathlib.Path(payload['parent']), payload['carryRoots'], payload['plannedBytes'])
+  elif method == 'queued-authority-snapshot':
+    parent=pathlib.Path(payload['parent']); runtime=pathlib.Path(payload['runtime']); repo=pathlib.Path(payload['repo'])
+    fixed={'device':1,'inode':1,'size':1,'mtimeNs':1,'ctimeNs':1,'sha256':'1'*64}
+    module._validate_queued_stop_window=lambda *args, **kwargs: (0, 1)
+    module._validate_candidate_repository=lambda *args, **kwargs: repo
+    module._validate_queued_stop_bound_identities=lambda *args, **kwargs: {
+      **{key:fixed for key in ('node','tsxLoader','consumerPython','issuer','issuerFact','buildHelper','buildNode','buildNodeLibrary','typescriptCompiler')},
+      'typescriptLibraries':{'sha256':'2'*64,'files':{}},'issuerFailureRoots':[],'issuerFailures':payload['failures']}
+    module._validate_queued_stop_measure_carryover=lambda *args, **kwargs: {'roots':[]}
+    module._validate_phase_source_manifest=lambda *args, **kwargs: {'fileCount':241,'manifestIdentity':{'sha256':'3'*64}}
+    module._validate_queued_stop_owned_manifest=lambda *args, **kwargs: {
+      'rootCount':74,'ownedBytes':1,'plannedBytes':2,'remainingPlannedBytes':0,'availableBytes':3,
+      'manifestIdentity':{'sha256':'4'*64}}
+    value=module._validate_queued_stop_authority(
+      parent,runtime,repo,payload['windowSha256'],terminal=payload.get('terminal',False),initial=payload.get('initial'))
   elif method == 'queued-command':
     captured={}
     module._require_loaded_window_identity=lambda *args, **kwargs: True
@@ -239,6 +258,7 @@ function queuedWindowValue(f) {
   return {
     schemaVersion: 1, scope: 'musicbridge-capacity-queued-stop-window', owner: 'root', id: randomUUID(), state: 'approved',
     phase: 'queued-stop', profile: 'objects-limit', label: 'objects-limit-queued-stop-formal-01',
+    issuerFailureCarryoverCount: 1,
     seedLabel: 'r023-objects-limit-seed-03',
     seed: { label: 'r023-objects-limit-seed-03', metadataSha256: '632d8e4b0c01ffec07adc72344e7bcc877e5f1d764e7745af856c6ba44492309',
       snapshotSha256: '7ec9b3bed1642503cc9fcee70c6156b54eb43834b0a457050ec51607f2e1ab3a',
@@ -315,6 +335,38 @@ function sealQueuedIdentity(f, window) {
       typescriptLibraryManifestSha256: libraryManifestSha256 },
     outputs: { [distRelative]: sha(join(f.candidate, distRelative)) },
   }
+  const priorRoot = join(f.runtime, 'objects-queued-prior-window')
+  const priorWindowId = randomUUID()
+  mkdirSync(join(priorRoot, 'issuer-identity'), { recursive: true })
+  json(join(priorRoot, 'owner.json'), { scope: 'musicbridge-capacity-queued-stop-window', owner: 'root', id: priorWindowId })
+  writeFileSync(join(priorRoot, 'supervisor.py'), 'prior supervisor\n')
+  json(join(priorRoot, 'issuer-identity/owner.json'), {
+    schemaVersion: 1, scope: 'musicbridge-capacity-queued-stop-authority-issuer', windowId: priorWindowId })
+  json(join(priorRoot, 'source-pins.json'), {
+    schemaVersion: 1, scope: 'musicbridge-capacity-source-pins', files: {} })
+  json(join(priorRoot, 'owned-roots.json'), {
+    schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only',
+    windowId: priorWindowId, roots: [] })
+  json(join(priorRoot, 'issuer-failure.json'), {
+    schemaVersion: 1, scope: 'musicbridge-capacity-queued-stop-authority-issuer-failure',
+    state: 'TERMINAL_ISSUER_FAILURE', windowId: priorWindowId,
+    windowDirName: 'objects-queued-prior-window', label: 'objects-queued-prior-run', errorCode: 'SOURCE_CANDIDATE',
+    authorityFilesCreated: ['owner.json', 'supervisor.py', 'issuer-identity/owner.json',
+      'source-pins.json', 'owned-roots.json'],
+    windowWritten: false, replayAllowed: false, recordedAt: '2026-08-30T03:58:58.329+00:00',
+  })
+  const issuerFailureCarryover = [{
+    root: priorRoot, windowId: priorWindowId, windowDirName: 'objects-queued-prior-window',
+    label: 'objects-queued-prior-run', errorCode: 'SOURCE_CANDIDATE',
+    files: {
+      owner: { path: join(priorRoot, 'owner.json'), sha256: sha(join(priorRoot, 'owner.json')) },
+      supervisor: { path: join(priorRoot, 'supervisor.py'), sha256: sha(join(priorRoot, 'supervisor.py')) },
+      issuerFact: { path: join(priorRoot, 'issuer-identity/owner.json'), sha256: sha(join(priorRoot, 'issuer-identity/owner.json')) },
+      failure: { path: join(priorRoot, 'issuer-failure.json'), sha256: sha(join(priorRoot, 'issuer-failure.json')) },
+      sourceManifest: { path: join(priorRoot, 'source-pins.json'), sha256: sha(join(priorRoot, 'source-pins.json')) },
+      ownedManifest: { path: join(priorRoot, 'owned-roots.json'), sha256: sha(join(priorRoot, 'owned-roots.json')) },
+    },
+  }]
   const factPath = join(f.authority, 'issuer-identity/owner.json')
   json(factPath, { schemaVersion: 1, scope: 'musicbridge-capacity-queued-stop-authority-issuer', windowId: window.id,
     issuerRepository: { root: f.candidate, branch: f.candidateBranch, head: f.head,
@@ -323,7 +375,7 @@ function sealQueuedIdentity(f, window) {
     supervisorSource: { path: supervisorPath, relativePath: 'scripts/ci/capacity-phase-supervisor-v2.py', sha256: window.supervisor.sha256 },
     toolchain: window.toolchain,
     buildHelper: { path: buildHelperPath, relativePath: 'scripts/ci/issue-v3-capacity-window.py', sha256: sha(buildHelperPath) },
-    buildToolchain, build, measureCarryover: window.measureCarryover })
+    buildToolchain, build, issuerFailureCarryover, measureCarryover: window.measureCarryover })
   window.issuer.fact = { path: factPath, sha256: sha(factPath) }
   return window
 }
@@ -1416,6 +1468,7 @@ test('queued-stop successor只接受冻结exact schema、900秒、S加256MiB与s
       value => { value.queuedStopPlan.evidenceAllowanceBytes -= 1 },
       value => { value.queuedStopPlan.plannedBytes -= 1 },
       value => { value.queuedStopPlan.aggregateAudit = '../escape.jsonl' },
+      value => { value.issuerFailureCarryoverCount = 0 },
       value => { value.deadlineAt = new Date(Date.parse(value.issuedAt) + 899_999).toISOString() },
       value => { delete value.measureCarryover.supervision },
       value => { value.measureCarryover.window.id = randomUUID() },
@@ -1456,9 +1509,82 @@ test('queued-stop admission实际复核toolchain、issuer fact与candidate HEAD 
     const observed = bridge(f.script, 'queued-bound-identities', { window, parent: f.authority, candidate: f.candidate })
     assert.equal(observed.ok, true, observed.error)
     assert.deepEqual(Object.keys(observed.value).sort(), ['buildHelper','buildNode','buildNodeLibrary','consumerPython',
-      'issuer','issuerFact','node','tsxLoader','typescriptCompiler','typescriptLibraries'])
+      'issuer','issuerFact','issuerFailureRoots','issuerFailures','node','tsxLoader','typescriptCompiler','typescriptLibraries'])
+    assert.equal(observed.value.issuerFailures[0].issuerIdentity.path,
+      join(observed.value.issuerFailureRoots[0].path, 'issuer-identity'))
     const changed = structuredClone(window); changed.toolchain.node.sha256 = '0'.repeat(64)
     assert.equal(bridge(f.script, 'queued-bound-identities', { window: changed, parent: f.authority, candidate: f.candidate }).ok, false)
+    const wrongCount = structuredClone(window); wrongCount.issuerFailureCarryoverCount = 2
+    assert.equal(bridge(f.script, 'queued-bound-identities', { window: wrongCount, parent: f.authority, candidate: f.candidate }).ok, false)
+    const priorRoot = observed.value.issuerFailureRoots[0].path, extra = join(priorRoot, 'unexpected.txt')
+    const priorIssuerIdentity = join(priorRoot, 'issuer-identity'), replacementIdentity = join(priorRoot, 'issuer-identity-new')
+    mkdirSync(replacementIdentity); renameSync(join(priorIssuerIdentity, 'owner.json'), join(replacementIdentity, 'owner.json'))
+    rmSync(priorIssuerIdentity, { recursive: true }); renameSync(replacementIdentity, priorIssuerIdentity)
+    const directoryReplaced = bridge(f.script, 'queued-bound-identities', { window, parent: f.authority, candidate: f.candidate })
+    assert.equal(directoryReplaced.ok, true, directoryReplaced.error)
+    assert.notDeepEqual(directoryReplaced.value.issuerFailures, observed.value.issuerFailures)
+    const priorOwner = join(priorRoot, 'owner.json'), priorOwnerBytes = readFileSync(priorOwner)
+    rmSync(priorOwner); writeFileSync(priorOwner, priorOwnerBytes)
+    const replaced = bridge(f.script, 'queued-bound-identities', { window, parent: f.authority, candidate: f.candidate })
+    assert.equal(replaced.ok, true, replaced.error)
+    assert.notDeepEqual(replaced.value.issuerFailures, observed.value.issuerFailures)
+    writeFileSync(extra, 'unexpected\n')
+    assert.equal(bridge(f.script, 'queued-bound-identities', { window, parent: f.authority, candidate: f.candidate }).ok, false)
+    rmSync(extra)
+    const unlisted = join(f.runtime, 'objects-queued-unlisted-window'); mkdirSync(unlisted)
+    json(join(unlisted, 'issuer-failure.json'), {
+      scope: 'musicbridge-capacity-queued-stop-authority-issuer-failure', windowId: randomUUID() })
+    assert.equal(bridge(f.script, 'queued-bound-identities', { window, parent: f.authority, candidate: f.candidate }).ok, false)
+  } finally { f.cleanup() }
+})
+
+test('queued-stop owned闭包动态接受72个carryover加当前authority形成74根', () => {
+  const f = copiedSupervisor()
+  try {
+    const windowId = randomUUID(), issuerIdentity = join(f.authority, 'issuer-identity')
+    mkdirSync(issuerIdentity)
+    json(join(f.authority, 'owner.json'), { scope: 'musicbridge-capacity-queued-stop-window', owner: 'root', id: windowId })
+    json(join(issuerIdentity, 'owner.json'), { scope: 'musicbridge-capacity-queued-stop-authority-issuer', windowId })
+    const carryRoots = []
+    for (let index = 0; index < 72; index += 1) {
+      const root = join(f.runtime, `queued-carry-${String(index).padStart(2, '0')}`)
+      mkdirSync(root); json(join(root, 'owner.json'), { scope: 'queued-carry', index })
+      carryRoots.push(rootRow(root))
+    }
+    const manifest = join(f.authority, 'owned-roots.json')
+    json(manifest, { schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only', windowId,
+      roots: [...carryRoots, rootRow(f.authority), rootRow(issuerIdentity)] })
+    const payload = { manifest, runtime: f.runtime, windowId, parent: f.authority, carryRoots, plannedBytes: 0 }
+    const observed = bridge(f.script, 'queued-owned', payload)
+    assert.equal(observed.ok, true, observed.error)
+    assert.equal(observed.value.rootCount, 74)
+    const incomplete = JSON.parse(readFileSync(manifest)); incomplete.roots.splice(0, 1)
+    rmSync(manifest); json(manifest, incomplete)
+    assert.equal(bridge(f.script, 'queued-owned', payload).ok, false)
+  } finally { f.cleanup() }
+})
+
+test('queued-stop authority admission到terminal逐项比较issuer failure身份快照', () => {
+  const f = copiedSupervisor()
+  try {
+    const windowId = randomUUID(), windowPath = join(f.authority, 'window.json')
+    json(join(f.authority, 'owner.json'), { scope: 'musicbridge-capacity-queued-stop-window', owner: 'root', id: windowId })
+    json(windowPath, { scope: 'musicbridge-capacity-queued-stop-window', id: windowId,
+      issuedAt: '2026-08-30T00:00:00.000Z',
+      sourceManifest: { sha256: '3'.repeat(64) }, ownedManifest: { sha256: '4'.repeat(64) },
+      queuedStopPlan: { plannedBytes: 2 }, candidateRepository: { root: f.candidate }, measureCarryover: {} })
+    const failures = [{ rootIdentity: { path: join(f.runtime, 'prior'), inode: 1 },
+      issuerIdentity: { path: join(f.runtime, 'prior/issuer-identity'), inode: 2 }, files: {} }]
+    const payload = { parent: f.authority, runtime: f.runtime, repo: f.candidate,
+      windowSha256: sha(windowPath), failures }
+    const admission = bridge(f.script, 'queued-authority-snapshot', payload)
+    assert.equal(admission.ok, true, admission.error)
+    const terminal = structuredClone(payload)
+    terminal.initial = admission.value; terminal.terminal = true
+    terminal.failures[0].issuerIdentity.inode = 3
+    const observed = bridge(f.script, 'queued-authority-snapshot', terminal)
+    assert.equal(observed.ok, false)
+    assert.match(observed.error, /QUEUED_STOP_AUTHORITY_DRIFT/u)
   } finally { f.cleanup() }
 })
 

@@ -27,7 +27,7 @@ EVIDENCE_ALLOWANCE = 256 * 1024 ** 2
 EXPECTED_SOURCE_COUNT = 241
 EXPECTED_MEASURE_ROOTS = 70
 EXPECTED_CONCRETE_ROOTS = 71
-EXPECTED_AUTHORITY_ROOTS = 73
+BASE_AUTHORITY_ROOTS = 73
 FROZEN_MEASURE = {
     'windowId': 'afc81a99-d15d-4179-8326-5774a5c40b62',
     'windowSha256': 'cfac8e19336a181de00c68d458d046065cd821a0dca48cc4fc78af0e15c15227',
@@ -90,6 +90,47 @@ def sha256(path):
            for key in fields):
         fail('FILE_CHANGED')
     return digest.hexdigest()
+
+
+def file_snapshot(path, expected_sha):
+    path = Path(path)
+    flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0)
+    try: descriptor = os.open(path, flags)
+    except OSError as error: raise IssueError('FILE_IDENTITY') from error
+    digest = hashlib.sha256()
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+            fail('FILE_IDENTITY')
+        for chunk in iter(lambda: os.read(descriptor, 1024 * 1024), b''): digest.update(chunk)
+        after = os.fstat(descriptor)
+    finally: os.close(descriptor)
+    try: named = path.lstat()
+    except OSError as error: raise IssueError('FILE_IDENTITY') from error
+    fields = ('st_dev', 'st_ino', 'st_size', 'st_mtime_ns', 'st_ctime_ns', 'st_nlink')
+    observed_sha = digest.hexdigest()
+    if observed_sha != expected_sha or any(
+            getattr(before, key) != getattr(after, key) or getattr(after, key) != getattr(named, key)
+            for key in fields):
+        fail('FILE_CHANGED')
+    return {'path': str(path), 'device': before.st_dev, 'inode': before.st_ino,
+            'size': before.st_size, 'mtimeNs': before.st_mtime_ns, 'ctimeNs': before.st_ctime_ns,
+            'sha256': observed_sha}
+
+
+def directory_snapshot(path, expected_entries):
+    path = Path(path)
+    try:
+        before = path.lstat(); entries = sorted(value.name for value in path.iterdir()); after = path.lstat()
+    except OSError as error:
+        raise IssueError('DIRECTORY_IDENTITY') from error
+    fields = ('st_dev', 'st_ino', 'st_mtime_ns', 'st_ctime_ns', 'st_nlink')
+    if path.is_symlink() or not stat.S_ISDIR(before.st_mode) \
+            or any(getattr(before, key) != getattr(after, key) for key in fields) \
+            or entries != sorted(expected_entries):
+        fail('DIRECTORY_IDENTITY')
+    return {'path': str(path), 'device': before.st_dev, 'inode': before.st_ino,
+            'mtimeNs': before.st_mtime_ns, 'ctimeNs': before.st_ctime_ns, 'entries': entries}
 
 
 def strict_json(path, expected_sha=None, maximum=16 * 1024 * 1024):
@@ -490,6 +531,159 @@ def replay_check(runtime, window_dir_name, label):
                 fail('REPLAY')
 
 
+def validate_prior_issuer_failures(options, runtime):
+    rows = options.prior_issuer_failure
+    if not isinstance(rows, list) or not rows or len(rows) > 64:
+        fail('PRIOR_ISSUER_FAILURE')
+    discovered = set()
+    try:
+        runtime_entries = sorted(runtime.iterdir(), key=lambda value: value.name)
+    except OSError as error:
+        raise IssueError('PRIOR_ISSUER_FAILURE_AUDIT') from error
+    for entry in runtime_entries:
+        failure_path = entry / 'issuer-failure.json'
+        try:
+            entry_info = entry.lstat()
+        except OSError as error:
+            raise IssueError('PRIOR_ISSUER_FAILURE_AUDIT') from error
+        if not stat.S_ISDIR(entry_info.st_mode) or entry.is_symlink():
+            if failure_path.exists() or failure_path.is_symlink():
+                fail('PRIOR_ISSUER_FAILURE_AUDIT')
+            continue
+        if not failure_path.exists() and not failure_path.is_symlink():
+            continue
+        try:
+            failure, _ = strict_json(failure_path, maximum=1024 * 1024)
+        except IssueError as error:
+            raise IssueError('PRIOR_ISSUER_FAILURE_AUDIT') from error
+        if not isinstance(failure, dict) or not isinstance(failure.get('scope'), str):
+            fail('PRIOR_ISSUER_FAILURE_AUDIT')
+        if failure['scope'] == 'musicbridge-capacity-queued-stop-authority-issuer-failure':
+            discovered.add(str(failure_path))
+    roots = []
+    facts = []
+    snapshots = []
+    seen_roots = set()
+    seen_windows = set()
+    seen_dirs = set()
+    seen_labels = set()
+    declared = set()
+    for row in rows:
+        if not isinstance(row, (list, tuple)) or len(row) != 9:
+            fail('PRIOR_ISSUER_FAILURE')
+        (failure_name, failure_sha, owner_sha, supervisor_sha, issuer_fact_sha,
+         window_id, window_dir_name, label, error_code) = row
+        if any(SHA256.fullmatch(str(value or '')) is None
+               for value in (failure_sha, owner_sha, supervisor_sha, issuer_fact_sha)) \
+                or UUID4.fullmatch(str(window_id or '')) is None \
+                or SAFE.fullmatch(str(window_dir_name or '')) is None \
+                or SAFE.fullmatch(str(label or '')) is None \
+                or re.fullmatch(r'[A-Z][A-Z0-9_]{1,63}', str(error_code or ''), re.ASCII) is None:
+            fail('PRIOR_ISSUER_FAILURE')
+        failure_path = Path(failure_name)
+        parent = canonical_directory(failure_path.parent, runtime)
+        issuer_identity = canonical_directory(parent / 'issuer-identity', parent)
+        if failure_path != parent / 'issuer-failure.json' or parent != runtime / window_dir_name \
+                or str(parent) in seen_roots or window_id in seen_windows \
+                or window_dir_name in seen_dirs or label in seen_labels:
+            fail('PRIOR_ISSUER_FAILURE')
+        owner, observed_owner_sha = strict_json(parent / 'owner.json', owner_sha)
+        failure, observed_failure_sha = strict_json(failure_path, failure_sha)
+        issuer_fact, observed_issuer_fact_sha = strict_json(
+            issuer_identity / 'owner.json', issuer_fact_sha)
+        supervisor = verified_file(parent / 'supervisor.py', supervisor_sha, 'PRIOR_ISSUER_FAILURE')
+        expected_failure_keys = {
+            'schemaVersion', 'scope', 'state', 'windowId', 'windowDirName', 'label', 'errorCode',
+            'authorityFilesCreated', 'windowWritten', 'replayAllowed', 'recordedAt'}
+        try:
+            recorded = datetime.datetime.fromisoformat(failure.get('recordedAt'))
+        except (AttributeError, TypeError, ValueError) as error:
+            raise IssueError('PRIOR_ISSUER_FAILURE') from error
+        core_created = ['owner.json', 'supervisor.py', 'issuer-identity/owner.json']
+        allowed_created = [core_created, [*core_created, 'source-pins.json'],
+                           [*core_created, 'source-pins.json', 'owned-roots.json'],
+                           [*core_created, 'source-pins.json', 'owned-roots.json', 'window.pending.json'],
+                           [*core_created, 'source-pins.json', 'owned-roots.json', 'window.json']]
+        created = failure.get('authorityFilesCreated')
+        if owner != {'scope': 'musicbridge-capacity-queued-stop-window', 'owner': 'root', 'id': window_id} \
+                or not isinstance(issuer_fact, dict) \
+                or issuer_fact.get('schemaVersion') != 1 \
+                or issuer_fact.get('scope') != 'musicbridge-capacity-queued-stop-authority-issuer' \
+                or issuer_fact.get('windowId') != window_id \
+                or not isinstance(failure, dict) or set(failure) != expected_failure_keys \
+                or failure.get('schemaVersion') != 1 \
+                or failure.get('scope') != 'musicbridge-capacity-queued-stop-authority-issuer-failure' \
+                or failure.get('state') != 'TERMINAL_ISSUER_FAILURE' \
+                or failure.get('windowId') != window_id or failure.get('windowDirName') != window_dir_name \
+                or failure.get('label') != label or failure.get('errorCode') != error_code \
+                or created not in allowed_created \
+                or failure.get('windowWritten') is not ('window.json' in created) \
+                or failure.get('replayAllowed') is not False \
+                or recorded.utcoffset() is None:
+            fail('PRIOR_ISSUER_FAILURE')
+        optional_roles = {'source-pins.json': 'sourceManifest', 'owned-roots.json': 'ownedManifest',
+                          'window.pending.json': 'pendingWindow', 'window.json': 'window'}
+        expected_parent_entries = {'owner.json', 'supervisor.py', 'issuer-identity', 'issuer-failure.json'} \
+            | {name for name in optional_roles if name in created}
+        try:
+            parent_entries = {path.name for path in parent.iterdir()}
+            issuer_entries = {path.name for path in issuer_identity.iterdir()}
+        except OSError as error:
+            raise IssueError('PRIOR_ISSUER_FAILURE') from error
+        if parent_entries != expected_parent_entries or issuer_entries != {'owner.json'}:
+            fail('PRIOR_ISSUER_FAILURE')
+        optional_facts = {}; optional_snapshots = {}
+        for name, role in optional_roles.items():
+            if name not in created: continue
+            value, digest = strict_json(parent / name)
+            if not isinstance(value, dict) or value.get('schemaVersion') != 1 \
+                    or name == 'source-pins.json' and (
+                        value.get('scope') != 'musicbridge-capacity-source-pins'
+                        or not isinstance(value.get('files'), dict)) \
+                    or name == 'owned-roots.json' and (
+                        value.get('scope') != 'musicbridge-capacity-owned-roots'
+                        or value.get('access') != 'count-only' or value.get('windowId') != window_id
+                        or not isinstance(value.get('roots'), list)) \
+                    or name in {'window.pending.json', 'window.json'} and (
+                        value.get('scope') != 'musicbridge-capacity-queued-stop-window'
+                        or value.get('id') != window_id):
+                fail('PRIOR_ISSUER_FAILURE')
+            optional_facts[role] = {'path': str(parent / name), 'sha256': digest}
+            optional_snapshots[role] = file_snapshot(parent / name, digest)
+        root = current_root(parent, 'owner.json')
+        snapshot = {
+            'root': directory_snapshot(parent, expected_parent_entries),
+            'issuerIdentity': directory_snapshot(issuer_identity, {'owner.json'}),
+            'files': {
+                'owner': file_snapshot(parent / 'owner.json', observed_owner_sha),
+                'supervisor': file_snapshot(supervisor, supervisor_sha),
+                'issuerFact': file_snapshot(
+                    issuer_identity / 'owner.json', observed_issuer_fact_sha),
+                'failure': file_snapshot(failure_path, observed_failure_sha), **optional_snapshots,
+            },
+        }
+        roots.append(root)
+        facts.append({
+            'root': str(parent), 'windowId': window_id, 'windowDirName': window_dir_name,
+            'label': label, 'errorCode': error_code,
+            'files': {
+                'owner': {'path': str(parent / 'owner.json'), 'sha256': observed_owner_sha},
+                'supervisor': {'path': str(supervisor), 'sha256': supervisor_sha},
+                'issuerFact': {'path': str(issuer_identity / 'owner.json'),
+                               'sha256': observed_issuer_fact_sha},
+                'failure': {'path': str(failure_path), 'sha256': observed_failure_sha}, **optional_facts,
+            },
+        })
+        snapshots.append(snapshot)
+        seen_roots.add(str(parent)); seen_windows.add(window_id); seen_dirs.add(window_dir_name)
+        seen_labels.add(label); declared.add(str(failure_path))
+    if declared != discovered:
+        fail('PRIOR_ISSUER_FAILURE_AUDIT')
+    ordered = sorted(zip(roots, facts, snapshots), key=lambda value: value[0]['path'])
+    return {'roots': [root for root, _, _ in ordered], 'facts': [fact for _, fact, _ in ordered],
+            'snapshots': [snapshot for _, _, snapshot in ordered]}
+
+
 def copy_supervisor(source, destination, expected_sha):
     if destination.exists() or destination.is_symlink():
         fail('EXCLUSIVE_CREATE')
@@ -571,6 +765,9 @@ def parse_args(argv):
     parser.add_argument('--typescript-compiler', required=True)
     parser.add_argument('--expected-typescript-compiler-sha256', required=True)
     parser.add_argument('--expected-typescript-library-manifest-sha256', required=True)
+    parser.add_argument('--prior-issuer-failure', action='append', nargs=9,
+                        metavar=('FAILURE', 'FAILURE_SHA256', 'OWNER_SHA256', 'SUPERVISOR_SHA256',
+                                 'ISSUER_FACT_SHA256', 'WINDOW_ID', 'WINDOW_DIR_NAME', 'LABEL', 'ERROR_CODE'))
     return parser.parse_args(argv)
 
 
@@ -632,7 +829,8 @@ def record_failure(code):
 
 
 def build_window_payload(*, window_id, label, seed_label, seed, issued_at, deadline_at,
-                         owned_sha, source_sha, plan, installed_supervisor, supervisor_sha,
+                         owned_sha, source_sha, plan, issuer_failure_count,
+                         installed_supervisor, supervisor_sha,
                          candidate_root, candidate_branch, candidate_head, measure_facts,
                          node, node_sha, tsx, tsx_sha, consumer, consumer_sha,
                          issuer_path, issuer_sha, issuer_fact_path, issuer_fact_sha):
@@ -641,6 +839,7 @@ def build_window_payload(*, window_id, label, seed_label, seed, issued_at, deadl
         'schemaVersion': 1, 'scope': 'musicbridge-capacity-queued-stop-window', 'owner': 'root',
         'id': window_id, 'state': 'approved', 'phase': 'queued-stop', 'profile': 'objects-limit',
         'label': label, 'seedLabel': seed_label, 'seed': seed, 'n': 105,
+        'issuerFailureCarryoverCount': issuer_failure_count,
         'issuedAt': issued_at, 'deadlineAt': deadline_at, 'limits': dict(LIMITS),
         'ownedManifest': {'file': 'owned-roots.json', 'sha256': owned_sha},
         'sourceManifest': {'file': 'source-pins.json', 'sha256': source_sha},
@@ -699,6 +898,7 @@ def issue(options):
         build_helper, root, options.expected_head, paths, options, build_node,
         build_node_library, typescript_compiler)
     source = source_manifest(root, options.expected_head, derived['files'])
+    prior_failures = validate_prior_issuer_failures(options, runtime)
     window_id = str(uuid.uuid4())
     parent = runtime / options.window_dir_name
     try:
@@ -739,11 +939,13 @@ def issue(options):
             'typescriptLibraryManifestSha256': options.expected_typescript_library_manifest_sha256,
         },
         'build': derived['provenance'],
+        'issuerFailureCarryover': prior_failures['facts'],
         'measureCarryover': measure['facts'],
     })
-    roots = unique_roots([*measure['roots'], current_root(parent, 'owner.json'),
+    roots = unique_roots([*measure['roots'], *prior_failures['roots'], current_root(parent, 'owner.json'),
                           current_root(issuer_identity, 'owner.json')])
-    if len(roots) != EXPECTED_AUTHORITY_ROOTS:
+    expected_authority_roots = BASE_AUTHORITY_ROOTS + len(prior_failures['roots'])
+    if len(roots) != expected_authority_roots:
         fail('OWNED_COUNT')
     source_sha = exclusive_json(parent / 'source-pins.json', source)
     owned = {'schemaVersion': 1, 'scope': 'musicbridge-capacity-owned-roots', 'access': 'count-only',
@@ -762,7 +964,8 @@ def issue(options):
         window_id=window_id, label=options.label, seed_label=options.seed_label, seed=seed,
         issued_at=issued.isoformat(timespec='milliseconds'),
         deadline_at=deadline.isoformat(timespec='milliseconds'), owned_sha=owned_sha,
-        source_sha=source_sha, plan=plan, installed_supervisor=str(installed),
+        source_sha=source_sha, plan=plan, issuer_failure_count=len(prior_failures['roots']),
+        installed_supervisor=str(installed),
         supervisor_sha=options.expected_supervisor_sha256, candidate_root=str(root),
         candidate_branch=options.expected_branch, candidate_head=options.expected_head,
         measure_facts=measure['facts'], node=str(node), node_sha=options.expected_node_sha256,
@@ -793,13 +996,18 @@ def issue(options):
             typescript_compiler.parent, options.expected_typescript_library_manifest_sha256)
     except Exception as error:
         raise IssueError('BUILD_TOOLCHAIN_IDENTITY') from error
+    second_prior_failures = validate_prior_issuer_failures(options, runtime)
+    if second_prior_failures['facts'] != prior_failures['facts'] \
+            or second_prior_failures['roots'] != prior_failures['roots'] \
+            or second_prior_failures['snapshots'] != prior_failures['snapshots']:
+        fail('PRIOR_ISSUER_FAILURE_DRIFT')
     if strict_json(parent / 'source-pins.json', source_sha)[0] != source_manifest(
             root, options.expected_head, derived['files']) \
             or strict_json(parent / 'owned-roots.json', owned_sha)[0] != owned \
             or strict_json(pending, window_sha)[0] != window:
         fail('AUTHORITY_DRIFT')
     roots_second = unique_roots(owned['roots'])
-    if len(roots_second) != EXPECTED_AUTHORITY_ROOTS:
+    if len(roots_second) != expected_authority_roots:
         fail('OWNED_DRIFT')
     budget_second = owned_facts(list(roots_second.values()), planned, runtime)
     os.rename(pending, parent / 'window.json')
