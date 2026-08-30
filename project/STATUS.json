@@ -81,7 +81,7 @@
     "task": "TASK-079",
     "branch": "codex/task-079-v3-final-acceptance",
     "baseCommit": "fac7363b4a6481591e207dda7cca77f0ae8d3cd4",
-    "state": "no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-control-green-formal-not-run-joint-external-pending",
+    "state": "no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-carryover-green-formal-not-run-joint-external-pending",
     "evidenceInfrastructure": {
       "state": "PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES",
       "receiptFoundation": {
@@ -160,7 +160,7 @@
     "gates": {
       "readinessControl": "PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO",
       "externalEvidenceProfiles": "REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED",
-      "capacityAuthority": "OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_CONTROL_GREEN_FORMAL_NOT_RUN_JOINT_PENDING",
+      "capacityAuthority": "OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_CARRYOVER_GREEN_FORMAL_NOT_RUN_JOINT_PENDING",
       "softwareBaseline": "TASK078_PASS_101_MAPPED_2_UNMAPPED_PENDING_EXTERNAL_NOT_RUN_FORMAL_READY_FALSE",
       "externalGate": "NOT_RUN",
       "realInput": "NOT_RUN",
@@ -183,13 +183,13 @@
       "R-020 大库冷启扫描与2秒ready策略待TASK-078/Gate E验证",
       "R-021：真实钥匙串无CDP普通Quit15秒FAIL保留；新隔离候选包空库及执行读取后两种mock-keychain普通Quit均code0/close且无进程残留，仅软件隔离诊断，不关闭真实钥匙串/Owner验收",
       "R-022：FakeDriver join/静止契约未证明真实HAL；未链接应用或helper，真实设备与Gate B须独立授权及测量",
-      "R-023：history-limit正式生成/measure/queued-stop已PASS；objects-limit旧generation与measure失败证据永久保留，window-06软件measure PASS。queued-stop first-class控制面提交7d67f506已GREEN；window-01在issuer阶段以SOURCE_CANDIDATE终止，未写approved window、未运行benchmark且永久禁止重放。提交33d8856c完成42个contracts/dist派生输出的固定重建与issue/admission/terminal身份闭包；下一approved authority尚未签发，未预分配后继UUID/window/label，formal run=NOT_RUN。joint仍待单活动输出预算重构；设备、Gate B与Owner验收均NOT_RUN。",
+      "R-023：history-limit正式生成/measure/queued-stop已PASS；objects-limit旧generation与measure失败证据永久保留，window-06软件measure PASS。queued-stop first-class控制面提交7d67f506已GREEN；window-01在issuer阶段以SOURCE_CANDIDATE终止，未写approved window、未运行benchmark且永久禁止重放。提交33d8856c完成42个contracts/dist派生输出的固定重建，提交f285bf3将window-01 direct-child issuer failure及目录/文件身份纳入下一authority的issue/admission/terminal闭包，下一闭包为exact 74 roots；下一approved authority尚未签发，未预分配后继UUID/window/label，formal run=NOT_RUN。joint仍待单活动输出预算重构；设备、Gate B与Owner验收均NOT_RUN。",
       "TASK-079 hardware evidence contract v2：主任务33/33专项GREEN；configuration observation、observer execution、typed scope evidence、B-15 identity有效期和U-10同事件依赖已加固。第二轮独立复审最终RED保留，未做第三轮且independentPass=false。真实hardware与Gate B均NOT_RUN。",
       "TASK-076历史核验与私有synthetic会话已通过本地软件Gate；实际可听Replica及正式provider接线须随073设备准入和079另验，当前始终blocked",
       "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task079-objects-queued-stop-window01-terminal-issuer-failure-derived-build-fixed-next-authority-not-issued-run-not-run",
+    "checkpoint": "task079-objects-queued-stop-window01-terminal-issuer-failure-carried-forward-exact74-next-authority-not-issued-run-not-run",
     "nextTask": null,
     "resultReport": "reports/TASK-079_READINESS.md",
     "task078SoftwareCheckpoints": {
@@ -1175,7 +1175,7 @@
         "gateB": "NOT_RUN"
       },
       "capacityQueuedStopControlPlane": {
-        "state": "CONTROL_PLANE_GREEN_WINDOW01_TERMINAL_ISSUER_FAILURE_FIXED_NEXT_AUTHORITY_NOT_ISSUED_RUN_NOT_RUN",
+        "state": "CONTROL_PLANE_GREEN_WINDOW01_TERMINAL_ISSUER_FAILURE_CARRIED_FORWARD_NEXT_AUTHORITY_NOT_ISSUED_RUN_NOT_RUN",
         "implementationCommit": "7d67f5069233fbbc5b00a9170c2639b9e237edf2",
         "derivedBuildFix": {
           "implementationCommit": "33d8856c7f4a1e93edce90ba2c9f31d406d9272a",
@@ -1183,6 +1183,15 @@
           "resolution": "PINNED_REBUILD_PROVENANCE_BOUND_AT_ISSUE_ADMISSION_TERMINAL",
           "buildHelper": "scripts/ci/issue-v3-capacity-window.py",
           "derivedOutputCount": 42
+        },
+        "failureCarryoverFix": {
+          "implementationCommit": "f285bf3de7ef9b23be5370759a4e591dd3280414",
+          "rootCause": "TERMINAL_ISSUER_FAILURE_OMITTED_FROM_NEXT_AUTHORITY",
+          "resolution": "EXACT_DIRECT_CHILD_QUEUED_FAILURE_INVENTORY_BOUND_AT_ISSUE_ADMISSION_TERMINAL",
+          "priorFailureCount": 1,
+          "issuerFactSha256": "5cd3828a073be9318c333741d96fb1f7dc555b10eb3e8d63fe6732847a866267",
+          "ownerSha256": "0ed4a2e3aa757efdb2d61cd9037ba487f15cd63360b69272510a6a11be3ea64a",
+          "supervisorSha256": "d7f953cc9954723cd9d26aa8c6b77b79af094b4372626bfb4618337febf8d79e"
         },
         "terminalIssuerWindow01": {
           "state": "TERMINAL_ISSUER_FAILURE",
@@ -1204,10 +1213,11 @@
           "snapshotBytes": 1990471680
         },
         "rootClosure": {
-          "concrete": 71,
+          "frozenMeasure": 71,
+          "priorIssuerFailures": 1,
           "authorityParent": 1,
           "issuerIdentity": 1,
-          "exact": 73
+          "exact": 74
         },
         "formalPlan": {
           "warmupCount": 5,
@@ -1228,13 +1238,18 @@
             "failed": 0
           },
           "supervisor": {
-            "tests": 26,
-            "passed": 26,
+            "tests": 28,
+            "passed": 28,
             "failed": 0
           },
           "issuer": {
-            "tests": 6,
-            "passed": 6,
+            "tests": 9,
+            "passed": 9,
+            "failed": 0
+          },
+          "fourCapacityControlSuites": {
+            "tests": 81,
+            "passed": 81,
             "failed": 0
           }
         },

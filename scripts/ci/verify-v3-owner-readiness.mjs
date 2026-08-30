@@ -13,9 +13,9 @@ const MATRIX_SHA256 = '12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7f
 const EXTERNAL_KINDS = ['real-input', 'real-logic', 'real-roon', 'hardware', 'owner']
 const UNMAPPED_PENDING = ['B-13', 'B-15']
 const READINESS_CONTROL = 'PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO'
-const DEVELOPMENT_STATE = 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-control-green-formal-not-run-joint-external-pending'
+const DEVELOPMENT_STATE = 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-carryover-green-formal-not-run-joint-external-pending'
 const EXTERNAL_EVIDENCE_PROFILES = 'REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED'
-const CAPACITY_AUTHORITY = 'OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_CONTROL_GREEN_FORMAL_NOT_RUN_JOINT_PENDING'
+const CAPACITY_AUTHORITY = 'OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_CARRYOVER_GREEN_FORMAL_NOT_RUN_JOINT_PENDING'
 const EVIDENCE_INFRASTRUCTURE = {
   state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
   receiptFoundation: {
@@ -259,13 +259,22 @@ const CAPACITY_MEASURE_WINDOW_ISSUER = {
   gateB: 'NOT_RUN',
 }
 const CAPACITY_QUEUED_STOP_CONTROL_PLANE = {
-  state: 'CONTROL_PLANE_GREEN_WINDOW01_TERMINAL_ISSUER_FAILURE_FIXED_NEXT_AUTHORITY_NOT_ISSUED_RUN_NOT_RUN',
+  state: 'CONTROL_PLANE_GREEN_WINDOW01_TERMINAL_ISSUER_FAILURE_CARRIED_FORWARD_NEXT_AUTHORITY_NOT_ISSUED_RUN_NOT_RUN',
   implementationCommit: '7d67f5069233fbbc5b00a9170c2639b9e237edf2',
   derivedBuildFix: {
     implementationCommit: '33d8856c7f4a1e93edce90ba2c9f31d406d9272a',
     rootCause: 'UNTRACKED_CONTRACTS_DIST_TREATED_AS_GIT_BLOBS',
     resolution: 'PINNED_REBUILD_PROVENANCE_BOUND_AT_ISSUE_ADMISSION_TERMINAL',
     buildHelper: 'scripts/ci/issue-v3-capacity-window.py', derivedOutputCount: 42,
+  },
+  failureCarryoverFix: {
+    implementationCommit: 'f285bf3de7ef9b23be5370759a4e591dd3280414',
+    rootCause: 'TERMINAL_ISSUER_FAILURE_OMITTED_FROM_NEXT_AUTHORITY',
+    resolution: 'EXACT_DIRECT_CHILD_QUEUED_FAILURE_INVENTORY_BOUND_AT_ISSUE_ADMISSION_TERMINAL',
+    priorFailureCount: 1,
+    issuerFactSha256: '5cd3828a073be9318c333741d96fb1f7dc555b10eb3e8d63fe6732847a866267',
+    ownerSha256: '0ed4a2e3aa757efdb2d61cd9037ba487f15cd63360b69272510a6a11be3ea64a',
+    supervisorSha256: 'd7f953cc9954723cd9d26aa8c6b77b79af094b4372626bfb4618337febf8d79e',
   },
   terminalIssuerWindow01: {
     state: 'TERMINAL_ISSUER_FAILURE', windowId: 'c9e11b19-6e83-4d8c-959c-1b57b61aa71d',
@@ -281,7 +290,7 @@ const CAPACITY_QUEUED_STOP_CONTROL_PLANE = {
     supervisorSha256: '18ef840fe99b861ca8881c7c7be09b70c13431df02d88ddf282e29f2169cdc92',
     snapshotBytes: 1990471680,
   },
-  rootClosure: { concrete: 71, authorityParent: 1, issuerIdentity: 1, exact: 73 },
+  rootClosure: { frozenMeasure: 71, priorIssuerFailures: 1, authorityParent: 1, issuerIdentity: 1, exact: 74 },
   formalPlan: {
     warmupCount: 5, formalCount: 100, sampleCount: 105,
     activeCloneMaximum: 1, executionTimeoutMs: 50000, windowTimeoutSeconds: 900,
@@ -290,8 +299,9 @@ const CAPACITY_QUEUED_STOP_CONTROL_PLANE = {
   },
   focusedVerification: {
     capacity: { tests: 92, passed: 92, failed: 0 },
-    supervisor: { tests: 26, passed: 26, failed: 0 },
-    issuer: { tests: 6, passed: 6, failed: 0 },
+    supervisor: { tests: 28, passed: 28, failed: 0 },
+    issuer: { tests: 9, passed: 9, failed: 0 },
+    fourCapacityControlSuites: { tests: 81, passed: 81, failed: 0 },
   },
   fullVerify: 'PASS',
   staticGates: { controlPlane: 'PASS', boundaries: 'PASS', cycles: 'PASS_259_FILES' },

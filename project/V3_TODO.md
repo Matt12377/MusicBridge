@@ -1,16 +1,16 @@
 # V3 剩余任务 TODO
 
-当前进度：TASK-078本地自动软件子范围已在最终HEAD `fac7363b4a6481591e207dda7cca77f0ae8d3cd4` 封版；TASK-079继续在独立分支。当前无设备，只开发fail-closed就绪控制面，不枚举、不打开、不配置设备。objects-limit generation window-03与measure window-06已软件PASS。queued-stop window-01在issuer阶段以`SOURCE_CANDIDATE`终止，未写approved window、未运行benchmark且永久禁止重放；提交`33d8856c…`已修复42个`contracts/dist`派生输出的固定重建与身份闭包。下一approved authority仍未签发、formal run仍为`NOT_RUN`，未预分配后继UUID/window/label。当前准备推送修复后的稳定外部评审检查点，再执行新鲜只读预检；joint仍待单活动输出预算重构。可听Replica、TASK073真实HAL/Gate B、实体纸张与最终Owner仍待验。`main`/PR合并、签名、公证和发布未授权；智能体统一GPT-5.6 Sol / High。
+当前进度：TASK-078本地自动软件子范围已在最终HEAD `fac7363b4a6481591e207dda7cca77f0ae8d3cd4` 封版；TASK-079继续在独立分支。当前无设备，只开发fail-closed就绪控制面，不枚举、不打开、不配置设备。objects-limit generation window-03与measure window-06已软件PASS。queued-stop window-01在issuer阶段以`SOURCE_CANDIDATE`终止，未写approved window、未运行benchmark且永久禁止重放；提交`33d8856c…`修复42个`contracts/dist`派生输出的固定重建，提交`f285bf3…`又将这份terminal issuer failure及其目录/文件身份强制带入下一authority的issue/admission/terminal闭包。`f285bf3…`已经推送并由远端精确SHA复核。下一approved authority仍未签发、formal run仍为`NOT_RUN`，未预分配后继UUID/window/label；当前同步机器状态后对精确远端HEAD执行新鲜只读预检。joint仍待单活动输出预算重构。可听Replica、TASK073真实HAL/Gate B、实体纸张与最终Owner仍待验。`main`/PR合并、签名、公证和发布未授权；智能体统一GPT-5.6 Sol / High。
 
 本表是任务拆分与依赖计划，不是完成声明。后续任务沿上一任务最终 HEAD 创建独立分支；当前已展开 TASK-064～078，其余任务开始前补详细范围和允许路径。具体子任务可根据已验证结果细分，不删减 PRD 范围。
 
 ## 实时进度面板
 
-> **当前执行：** `TASK-079 / queued-stop window-01终止封存，派生重建修复已GREEN，准备外部评审检查点`。控制面实现=`7d67f5069233fbbc5b00a9170c2639b9e237edf2`，派生闭包修复=`33d8856c7f4a1e93edce90ba2c9f31d406d9272a`；capacity=`92/92`、supervisor=`26/26`、issuer=`6/6`、四套capacity控制面合并=`75/75`，标准`pnpm verify` exit 0，control/boundaries/cycles=`PASS/PASS/PASS_259_FILES`。window-01 UUID=`c9e11b19…`、failure SHA256=`e18619e0…`，`windowWritten=false`、benchmark=`NOT_RUN`、replay=`PROHIBITED`。下一approved authority=`NEXT_NOT_ISSUED`、formal run=`NOT_RUN`，没有后继UUID/window/label；设备未打开，`formalReady=false`、Gate B/Owner=`NOT_RUN`。joint仍待单活动输出预算重构。
+> **当前执行：** `TASK-079 / queued-stop window-01失败身份已进入后继闭包，正在同步状态并准备window-02只读预检`。控制面实现=`7d67f5069233fbbc5b00a9170c2639b9e237edf2`，派生闭包修复=`33d8856c7f4a1e93edce90ba2c9f31d406d9272a`，failure carryover修复=`f285bf3de7ef9b23be5370759a4e591dd3280414`且已推送精确远端SHA；capacity=`92/92`、supervisor=`28/28`、issuer=`9/9`、四套capacity控制面合并=`81/81`，标准`pnpm verify` exit 0，control/boundaries/cycles=`PASS/PASS/PASS_259_FILES`。window-01 UUID=`c9e11b19…`、failure SHA256=`e18619e0…`，`windowWritten=false`、benchmark=`NOT_RUN`、replay=`PROHIBITED`。下一闭包为71个冻结measure roots + 1个prior issuer failure + authority parent + issuer identity=`exact 74`；下一approved authority=`NEXT_NOT_ISSUED`、formal run=`NOT_RUN`，没有后继UUID/window/label；设备未打开，`formalReady=false`、Gate B/Owner=`NOT_RUN`。joint仍待单活动输出预算重构。
 
 > **window-04 后 successor recovery v3：** window-04 的历史 `plannedBytes=4,249,378,816`、失败终态和保留证据不改写。后继按历史联集68个根闭包为 `existing=70`、`future=1`、`authorized=71`；冻结snapshot=`1,990,471,680`字节，`serial-single-clone-plus-bounded-growth-v1 plannedBytes=2,258,907,136`。window-06已按output全树hard cap与`measure-aggregate-budget.jsonl`闭合并软件PASS；这不升级queued-stop、joint、设备Gate B或Owner验收。
 
-> **queued-stop first-class控制面：** 从window-06冻结身份派生独立successor schema，闭包为71个既有受控根 + authority parent + issuer identity=`exact 73`；输出位于authority parent内，不额外扩张根集合。issuer只签发、不执行benchmark；supervisor精确校验843行aggregate与成功终态636个输出文件。window-01只留下terminal issuer failure，不是approved authority或运行收据；下一窗口仍须绑定修复后的精确HEAD重新预检、使用全新名称签发且只消费一次。
+> **queued-stop first-class控制面：** window-01首次签发时闭包为71个冻结measure roots + authority parent + issuer identity=`exact 73`。该次只留下一个terminal issuer failure，不是approved authority或运行收据；从下一窗口开始，这个direct-child failure必须逐项进入issuer fact、authority、admission和terminal身份快照，因此闭包动态增至`exact 74`。输出仍位于authority parent内。issuer只签发、不执行benchmark；supervisor精确校验843行aggregate与成功终态636个输出文件。下一窗口仍须绑定同步状态后的精确远端HEAD重新预检、使用全新名称签发且只消费一次。
 
 - [x] TASK-079 / 真实证据 JSON 模板：只跟踪 `template=true`、`ready=false`、`receipt=null` 空模板；实际收据固定留在忽略目录且一份只覆盖一个B项。
 - [x] TASK-079 / 收据校验器复审修复TDD：复审后RED为17/19，扩展后25/25专项GREEN；覆盖逐case事实、失败/超时/停止/不确定终态、Owner与证书闭包、独占窗口、完整配置/授权/环境seal、dirty候选、隐私解码与receipt seal。
@@ -47,12 +47,13 @@
 - [x] TASK-079 / Stop重入、terminal space/tree/fixture authority闭包：实现提交=`54b6353e…`。Stop measure预置105个不同的合法Physical Copy与冻结Plan，保持真实SQLite commit/fsync、105个durable round receipt、1575样本及3-group/3-full-hash口径；同Plan重放仍返回`COPY_UNAVAILABLE`。terminal复核在future output已存在时不再重复扣完整计划空间，公开`plannedBytes`合同保持固定；supervisor校验clone-owned workspace tree receipt、generation fixture before/after相等、目录/符号链接/多余项与成功清理，失败partial只在受控clone内保留。capacity 88/88、supervisor 16/16、issuer 23/23及Bridge Core typecheck全部exit 0。
 - [x] TASK-079 / window-04后 successor recovery v3：保留window-04历史`plannedBytes=4,249,378,816`与失败事实；后继口径为历史联集68、当前`existing=70`/`future=1`/`authorized=71`，snapshot=`1,990,471,680`，`serial-single-clone-plus-bounded-growth-v1 plannedBytes=2,258,907,136`。output全树hard cap、aggregate audit、单active clone、terminal stable stop及terminal carryover均已进入正式window-06并通过软件measure。
 - [x] TASK-079 / 新HEAD fresh audit与唯一后继window-06：fresh audit精确绑定`a457414f…`与supervisor `18ef840f…`；05 consumer identity前置拒绝未创建路径/UUID/authority并永久不复用。06使用全新UUID唯一签发、只消费一次并自然exit 0；1575 samples、3 group、105 Stop、18 stages、aggregate 2383行，阈值PASS、PG empty、0 zombie。
-- [x] TASK-079 / objects-limit queued-stop first-class控制面：提交`7d67f506…`完成exact73 roots、5+100、单active clone、50s/900s、S+256MiB aggregate预算、843行审计与636文件成功闭包；提交`33d8856c…`进一步绑定固定重建helper、Node/libnode、TypeScript compiler/标准库manifest、42个派生输出与Git输入；capacity 92/92、supervisor 26/26、issuer 6/6及全量软件Gate GREEN。
-- [ ] TASK-079 / objects-limit queued-stop正式窗口：window-01在issuer阶段以`SOURCE_CANDIDATE`终止，UUID=`c9e11b19…`、failure SHA=`e18619e0…`、approved window未写、benchmark未运行且永久禁止重放。先推送修复后的稳定评审检查点并做精确HEAD新鲜预检；下一authority仍未签发、formal run=`NOT_RUN`，不得预先分配后继UUID/window/label或写成PASS。
+- [x] TASK-079 / objects-limit queued-stop first-class控制面：提交`7d67f506…`完成首次exact73 roots、5+100、单active clone、50s/900s、S+256MiB aggregate预算、843行审计与636文件成功闭包；提交`33d8856c…`绑定固定重建helper、Node/libnode、TypeScript compiler/标准库manifest、42个派生输出与Git输入。
+- [x] TASK-079 / queued-stop prior issuer failure carryover：提交`f285bf3…`要求声明失败集合与runtime direct-child queued failure精确相等，并把window-01 failure、issuer fact、owner、installed supervisor的目录和文件身份带入issue/admission/terminal；下一闭包动态为exact74 roots。capacity 92/92、supervisor 28/28、issuer 9/9、四套控制面81/81及全量软件Gate GREEN；该代码检查点已推送并精确复核远端SHA。
+- [ ] TASK-079 / objects-limit queued-stop正式窗口：window-01在issuer阶段以`SOURCE_CANDIDATE`终止，UUID=`c9e11b19…`、failure SHA=`e18619e0…`、approved window未写、benchmark未运行且永久禁止重放。当前同步TODO/STATUS/READINESS后做精确远端HEAD新鲜只读预检；下一authority仍未签发、formal run=`NOT_RUN`，不得预先分配后继UUID或写成PASS。
 - [ ] TASK-079 / joint软件容量：现有计划不满足单活动输出预算，须先重构；不得以objects measure或queued-stop控制面GREEN升级joint、整个TASK-079、设备Gate B或Owner验收。
-- [x] TASK-079 / 外部评审分支检查点：验证清洁的`codex/task-079-v3-final-acceptance`检查点`b3df42ada9e798d8fb67396648bdc5599ef83eb3`已push；`git ls-remote`确认远端同SHA。只开放分支评审，`main`/PR合并、签名、公证、安装和发布仍未授权。
+- [x] TASK-079 / 外部评审分支检查点：验证清洁的`codex/task-079-v3-final-acceptance`代码检查点`f285bf3de7ef9b23be5370759a4e591dd3280414`已push；`git ls-remote`确认远端同SHA。只开放分支评审，`main`/PR合并、签名、公证、安装和发布仍未授权。
 - [x] TASK-079 / 上一检查点回归：hardware contract v2为33/33专项、readiness 15/15，证据校验、标准verify、控制/边界/循环和diff-check全部exit 0；这些结果只证明主任务测试GREEN，不关闭hardware独立R2最终RED。最终closure HEAD=`123420cbd8b5b8c83cf1c4df1a3c614944cd5f0d`；软件包回归为Contracts 186/186、Bridge Core 1242/1242、Desktop 643/643及三包构建PASS。
-- [x] TASK-079 / 本地与远端评审检查点：证据基础设施实现`e43f39f1…`、报告`23da9a12…`；candidate closure实现`04b77e45…`、报告`98bce05e…`；STATUS同步实现`9a991a6f…`、报告`ea257111…`；计数修正实现`4ec0711c…`、报告`9a93bc13…`；Git可达性实现`5bd46e10…`、报告`932fb71b…`；Owner-only闭包实现`a8b1d762…`、报告`9011701a…`；real-input实现`d9c795de…`、报告`6d0b93a0…`；real-logic实现`2f1bbdc8…`、报告`bbabb34d…`；real-roon实现`03c8b790…`、报告`b9fbf2f4…`；hardware v1实现`a6d3c798…`、报告`cf6d570f…`；capacity issuer v1实现`a167eba9…`、报告`cf6de5a…`；hardware v2实现`7f373784…`、报告`fde4f6cb…`、封存`123420cb…`；capacity issuer derived closure实现`ecf253ed…`、加固`089994d…`、状态`e51c01d…`；Stop/authority闭包实现`54b6353e…`，评审检查点`b3df42a…`已push并核对。未合并main、未发布。
+- [x] TASK-079 / 本地与远端评审检查点：证据基础设施实现`e43f39f1…`、报告`23da9a12…`；candidate closure实现`04b77e45…`、报告`98bce05e…`；STATUS同步实现`9a991a6f…`、报告`ea257111…`；计数修正实现`4ec0711c…`、报告`9a93bc13…`；Git可达性实现`5bd46e10…`、报告`932fb71b…`；Owner-only闭包实现`a8b1d762…`、报告`9011701a…`；real-input实现`d9c795de…`、报告`6d0b93a0…`；real-logic实现`2f1bbdc8…`、报告`bbabb34d…`；real-roon实现`03c8b790…`、报告`b9fbf2f4…`；hardware v1实现`a6d3c798…`、报告`cf6d570f…`；capacity issuer v1实现`a167eba9…`、报告`cf6de5a…`；hardware v2实现`7f373784…`、报告`fde4f6cb…`、封存`123420cb…`；capacity issuer derived closure实现`ecf253ed…`、加固`089994d…`、状态`e51c01d…`；Stop/authority闭包实现`54b6353e…`；queued-stop failure carryover实现`f285bf3…`已push并核对。未合并main、未发布。
 - [ ] TASK-079 / 真实 Gate A～E、U-01～U-10、实体录音/打印/Replica 与 Owner 103 项决定：等待相应设备、资料及逐次授权，当前不运行。
 
 - [x] TASK-064～072：本地软件阶段完成；真实账号、真实数据和 Owner 验收仍按各任务报告保留。
@@ -127,7 +128,7 @@
 - [ ] TASK-047：真实 Roon / NetEase 歌词验证。
 - [ ] TASK-061：固定原生转换器发布准入。
 - [ ] TASK-040/041：签名、公证、安装和 Beta 分发验收（若另行授权发布）。
-- [x] 验证清洁的`codex/task-079-v3-final-acceptance`评审检查点`b3df42a…`已push并由远端SHA确认。`main`/PR合并、签名、公证、安装和发布仍须分别授权，不属于当前自动执行范围。
+- [x] 验证清洁的`codex/task-079-v3-final-acceptance`最新代码评审检查点`f285bf3…`已push并由远端SHA确认。`main`/PR合并、签名、公证、安装和发布仍须分别授权，不属于当前自动执行范围。
 
 ## 完成判定
 

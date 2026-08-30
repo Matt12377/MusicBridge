@@ -8,7 +8,7 @@
 - TASK-078 软件矩阵：SHA256 `12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7fe4ba944`
 - 实现提交：`1f102fba93e42d0f84b985c04d84af08b06b2231`
 - 报告提交：`93feee20c2edbd027546b44cc908aee27ef785b1`
-- GitHub：`codex/task-079-v3-final-acceptance`评审检查点`b3df42ada9e798d8fb67396648bdc5599ef83eb3`已于`2026-08-30T01:17:11Z` push，`git ls-remote`确认同SHA；`main`/PR未合并，未安装、签名、公证或发布
+- GitHub：`codex/task-079-v3-final-acceptance`最新代码评审检查点`f285bf3de7ef9b23be5370759a4e591dd3280414`已push，`git ls-remote`确认同SHA；更早的`b3df42a…`历史检查点仍可达，`main`/PR未合并，未安装、签名、公证或发布
 
 基础 readiness 控制、主任务修复与本地回归已经完成，当前结论固定为 `READY=false`；完整无设备证据控制面尚未取得独立闭包。hardware evidence contract v2 在主任务实现后为33/33专项GREEN，但第二轮独立复审最终RED继续保留，未执行第三轮且没有独立PASS。objects-limit successor fresh audit已绑定候选HEAD `a457414fffd141390ec2ff4536452a0f654b1370`，window-06唯一签发并只消费一次后取得软件measure PASS；该结果不覆盖queued-stop、joint、真实设备Gate B或Owner验收。当前readiness验证器继续精确要求这组机器真相；它不认证声卡、卡座、真实输入、Logic/Roon、可听Replica、实录、实体打印或Owner接受。
 
@@ -274,10 +274,11 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 
 #### Objects-limit queued-stop window-01终止与派生构建闭包
 
-- first-class控制面实现提交=`7d67f5069233fbbc5b00a9170c2639b9e237edf2`，固定exact 73 roots、5 warmup + 100 formal、单active clone、50秒单操作/900秒总窗口、snapshot `1,990,471,680`字节与`268,435,456`字节evidence allowance；成功闭包预期843行aggregate与636个输出文件。
+- first-class控制面实现提交=`7d67f5069233fbbc5b00a9170c2639b9e237edf2`。首次authority固定exact 73 roots、5 warmup + 100 formal、单active clone、50秒单操作/900秒总窗口、snapshot `1,990,471,680`字节与`268,435,456`字节evidence allowance；成功闭包预期843行aggregate与636个输出文件。
 - fresh只读空间准入首次因10GiB保留余量不足而停止，没有创建authority。只清理未被进程占用的JetBrains PyCharm 2026.1 cache后，空间门重新通过；历史证据、runtime、用户资料及TASK-078既有未跟踪目录均未删除或移动。
 - 首次签发使用window-dir=`r023-objects-limit-queued-stop-window-01`、label=`r023-objects-limit-queued-stop-01`。issuer在创建owner、installed supervisor与issuer identity后以`SOURCE_CANDIDATE`终止；failure UUID=`c9e11b19-6e83-4d8c-959c-1b57b61aa71d`，failure SHA256=`e18619e0c24306b0aaf7d84fe3f970faecbbe844780b5f1abb0f6ae47f108329`，`windowWritten=false`、`replayAllowed=false`。没有consumer或benchmark进程，window-01全部身份永久禁止重放。
 - 根因是旧issuer把42个被Git忽略的`packages/contracts/dist/*.js`当作tracked blob校验。最小RED证明真实候选的派生文件无法通过旧`source_manifest`，而候选源码本身没有漂移。
 - 修复提交=`33d8856c7f4a1e93edce90ba2c9f31d406d9272a`。issuer使用tracked、Hash固定的`issue-v3-capacity-window.py` helper，从候选HEAD的42个TypeScript source、`tsconfig.json`及`package.json`重建dist；Node、libnode、TypeScript compiler、标准库manifest、Git输入、命令/环境和42个输出SHA全部写入issuer fact。supervisor在admission与terminal两端复核helper Git blob、工具链、标准库manifest、构建输入和source pins派生输出，任一漂移均fail-closed。
-- 新鲜验证：capacity `92/92`、supervisor `26/26`、queued-stop issuer `6/6`、四套capacity控制面合并`75/75`、Bridge Core typecheck、标准`pnpm verify`、`CONTROL_PLANE=PASS`、`BOUNDARIES=PASS`、`CYCLES=PASS files=259`、Python AST与`git diff --check`均PASS。Contracts `186/186`、Bridge Core与Desktop完整测试及三包生产构建由标准verify通过。
-- 当前机器结论：window-01=`TERMINAL_ISSUER_FAILURE`且benchmark=`NOT_RUN`；下一approved authority=`NEXT_NOT_ISSUED`、formal run=`NOT_RUN`，没有后继UUID/window-dir/label。必须先推送包含本节与机器状态的稳定评审检查点，再对精确HEAD执行新鲜只读预检；通过后也只能以全新身份签发一次。joint、设备Gate B与Owner验收均未升级。
+- failure carryover修复提交=`f285bf3de7ef9b23be5370759a4e591dd3280414`。issuer现要求声明的prior failure集合与runtime内direct-child queued issuer failure精确相等，并将window-01 failure SHA、issuer fact SHA、owner SHA、installed supervisor SHA及目录/文件身份带入issue/admission/terminal闭包。首轮历史authority仍为exact73；下一authority以71个冻结measure roots + 1个prior issuer failure + authority parent + issuer identity形成exact74。后续合法失败即使发生在source-pins、owned-roots、pending或window阶段，也必须使用其真实终态文件集合，缺失或夹带均fail-closed。
+- 新鲜验证：capacity `92/92`、supervisor `28/28`、queued-stop issuer `9/9`、四套capacity控制面合并`81/81`、Bridge Core typecheck、标准`pnpm verify`、`CONTROL_PLANE=PASS`、`BOUNDARIES=PASS`、`CYCLES=PASS files=259`、Python compile与`git diff --check`均PASS。Contracts `186/186`、Bridge Core `1250/1251`（0 fail、1 条件性skip）、Desktop `643/643`及三包生产构建由标准verify通过。
+- 当前机器结论：window-01=`TERMINAL_ISSUER_FAILURE`且benchmark=`NOT_RUN`；下一approved authority=`NEXT_NOT_ISSUED`、formal run=`NOT_RUN`，没有后继UUID/window-dir/label。代码检查点`f285bf3…`已推送并精确核对远端；当前机器状态同步完成后，再对新的精确远端HEAD执行新鲜只读预检，通过后也只能以全新身份签发一次。joint、设备Gate B与Owner验收均未升级。
