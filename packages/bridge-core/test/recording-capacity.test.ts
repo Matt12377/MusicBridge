@@ -1225,6 +1225,21 @@ test('queued-stop successor：按三类failure carryover精确接受76 roots', a
   }
 });
 
+test('queued-stop successor：真实CLI无runtime override时从受控window绝对路径解析runtime root', async t => {
+  const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
+  configureExact75V2Recovery(f, 76);
+  f.seal();
+  const { runtimeRoot: _runtimeRoot, ...cliOptions } = f.options;
+  let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, {
+    ...cliOptions,
+    queuedStop: async () => { ++calls; throw new Error('受控首样本停止'); },
+  });
+  assert.equal(calls, 1);
+  assert.equal(summary.state, 'incomplete');
+  assert.equal(summary.attempted, 1);
+});
+
 test('queued-stop successor：current outer只接受exact1 process head与固定76 direct roots', async t => {
   const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
   const configured = configureExact75V2Recovery(f, 76);

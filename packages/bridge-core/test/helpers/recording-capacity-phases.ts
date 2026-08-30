@@ -879,8 +879,9 @@ function printWriteSummary(values: PrintWriteMeasurement[], formal: boolean): Ca
 
 export async function runCapacityPhase(args: CapacityPhaseArguments, options: CapacityPhaseOptions = {}): Promise<CapacityPhaseSummary> {
   if (!validArguments(args)) invalid('INVALID_INPUT');
-  const runtime = options.runtimeRoot ?? path.join(CAPACITY_PHASE_REPO_ROOT, 'reports/runtime/task-078-v3-acceptance'), now = options.now ?? Date.now;
-  canonical(runtime); const windowRoot = path.dirname(args.windowPath); canonical(windowRoot);
+  const windowRoot = path.dirname(args.windowPath);
+  const runtime = options.runtimeRoot ?? path.dirname(windowRoot), now = options.now ?? Date.now;
+  canonical(runtime); canonical(windowRoot);
   if (path.dirname(windowRoot) !== runtime || !label(path.basename(windowRoot)) || path.basename(args.windowPath) !== 'window.json') invalid('WINDOW_INVALID');
   const windowValue = json(args.windowPath, args.windowSha256); if (!validWindow(windowValue)) invalid('WINDOW_INVALID'); const w = windowValue;
   if (w.phase !== args.phase || w.profile !== args.profile || w.label !== args.label || w.seed.label !== args.seedLabel || w.backup?.label !== args.backupLabel
