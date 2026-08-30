@@ -13,9 +13,9 @@ const MATRIX_SHA256 = '12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7f
 const EXTERNAL_KINDS = ['real-input', 'real-logic', 'real-roon', 'hardware', 'owner']
 const UNMAPPED_PENDING = ['B-13', 'B-15']
 const READINESS_CONTROL = 'PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO'
-const DEVELOPMENT_STATE = 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-joint-external-pending'
+const DEVELOPMENT_STATE = 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-control-green-formal-not-run-joint-external-pending'
 const EXTERNAL_EVIDENCE_PROFILES = 'REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED'
-const CAPACITY_AUTHORITY = 'OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_JOINT_PENDING'
+const CAPACITY_AUTHORITY = 'OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_CONTROL_GREEN_FORMAL_NOT_RUN_JOINT_PENDING'
 const EVIDENCE_INFRASTRUCTURE = {
   state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
   receiptFoundation: {
@@ -258,6 +258,38 @@ const CAPACITY_MEASURE_WINDOW_ISSUER = {
   deviceOpened: false,
   gateB: 'NOT_RUN',
 }
+const CAPACITY_QUEUED_STOP_CONTROL_PLANE = {
+  state: 'CONTROL_PLANE_GREEN_FORMAL_AUTHORITY_NOT_ISSUED_RUN_NOT_RUN',
+  implementationCommit: '7d67f5069233fbbc5b00a9170c2639b9e237edf2',
+  frozenMeasureWindow06: {
+    windowId: 'afc81a99-d15d-4179-8326-5774a5c40b62',
+    candidateCommit: 'a457414fffd141390ec2ff4536452a0f654b1370',
+    windowSha256: 'cfac8e19336a181de00c68d458d046065cd821a0dca48cc4fc78af0e15c15227',
+    closeSha256: '1c93f6c6ec1a0b58619f87127d3e2c7d11a1cfcce1c155b3576a84eda2af84b7',
+    supervisorSha256: '18ef840fe99b861ca8881c7c7be09b70c13431df02d88ddf282e29f2169cdc92',
+    snapshotBytes: 1990471680,
+  },
+  rootClosure: { concrete: 71, authorityParent: 1, issuerIdentity: 1, exact: 73 },
+  formalPlan: {
+    warmupCount: 5, formalCount: 100, sampleCount: 105,
+    activeCloneMaximum: 1, executionTimeoutMs: 50000, windowTimeoutSeconds: 900,
+    evidenceAllowanceBytes: 268435456, plannedBytes: 2258907136,
+    aggregateAuditRows: 843, successfulOutputFiles: 636,
+  },
+  focusedVerification: {
+    capacity: { tests: 92, passed: 92, failed: 0 },
+    supervisor: { tests: 25, passed: 25, failed: 0 },
+    issuer: { tests: 5, passed: 5, failed: 0 },
+  },
+  fullVerify: 'PASS',
+  staticGates: { controlPlane: 'PASS', boundaries: 'PASS', cycles: 'PASS_259_FILES' },
+  authority: { state: 'NOT_ISSUED', windowId: null, windowDirName: null, label: null },
+  formalRun: 'NOT_RUN',
+  joint: 'PENDING_SINGLE_ACTIVE_OUTPUT_BUDGET_REDESIGN',
+  deviceOpened: false,
+  gateB: 'NOT_RUN',
+  ownerAcceptance: 'NOT_RUN',
+}
 const hash = bytes => createHash('sha256').update(bytes).digest('hex')
 const fail = code => { throw new Error(code) }
 const check = (condition, code) => { if (!condition) fail(code) }
@@ -334,6 +366,7 @@ function validateControlIdentity(status, wave) {
   check(JSON.stringify(current.hardwareEvidenceControl) === JSON.stringify(HARDWARE_EVIDENCE_CONTROL), 'CONTROL_STATE')
   check(JSON.stringify(current.task078SoftwareCheckpoints?.capacityWindowIssuer) === JSON.stringify(CAPACITY_WINDOW_ISSUER), 'CONTROL_STATE')
   check(JSON.stringify(current.task078SoftwareCheckpoints?.capacityMeasureWindowIssuer) === JSON.stringify(CAPACITY_MEASURE_WINDOW_ISSUER), 'CONTROL_STATE')
+  check(JSON.stringify(current.task078SoftwareCheckpoints?.capacityQueuedStopControlPlane) === JSON.stringify(CAPACITY_QUEUED_STOP_CONTROL_PLANE), 'CONTROL_STATE')
   const device = current.deviceTestPlanning
   check(device && device.connectionState === 'no-devices-connected' && device.deviceOperationsAuthorization === 'NOT_GRANTED' && device.measurementConfiguration === 'PENDING' && device.outputBackendCertification === 'NOT_RUN', 'CONTROL_STATE')
   check(Array.isArray(device.audioInterfaceBrandCandidates) && JSON.stringify(device.audioInterfaceBrandCandidates) === JSON.stringify(['RME', 'Apogee']) && device.audioInterfaceModel === null, 'CONTROL_STATE')

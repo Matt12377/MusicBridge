@@ -39,6 +39,8 @@
 - `scripts/ci/test/issue-v3-capacity-window.test.mjs`
 - `scripts/ci/issue-v3-capacity-measure-window.py`
 - `scripts/ci/test/issue-v3-capacity-measure-window.test.mjs`
+- `scripts/ci/issue-v3-capacity-queued-stop-window.py`
+- `scripts/ci/test/issue-v3-capacity-queued-stop-window.test.mjs`
 - `scripts/ci/capacity-phase-supervisor-v2.py`
 - `scripts/ci/test/capacity-phase-supervisor-v2.test.mjs`
 - `packages/bridge-core/test/benchmarks/recording-capacity.ts`
@@ -73,6 +75,14 @@ fresh audit精确绑定候选HEAD `a457414fffd141390ec2ff4536452a0f654b1370`。�
 
 supervisor在`320,039.741875ms`自然exit 0，1575个samples、3个group receipts、105个Stop round receipts与18个stages全部形成；managed process group empty，zombie列表为空。aggregate预算审计共2383行，snapshot=`1,990,471,680`字节、limit/planned=`2,258,907,136`字节、最终output logical=`5,544,090`字节，`thresholdPassed=true`。这只关闭objects-limit软件measure；`deviceOpened=false`、`formalReady=false`、Gate B=`NOT_RUN`，large queued-stop、joint、整个TASK-079及Owner验收不得因此标记完成。
 
+### Objects-limit queued-stop first-class控制面GREEN
+
+提交`7d67f5069233fbbc5b00a9170c2639b9e237edf2`新增独立queued-stop issuer、supervisor校验路径与容量fixture aggregate guard，并只绑定冻结的measure window-06身份。successor authority schema固定为exact 73 roots：71个既有受控根、1个authority parent和1个issuer identity；输出嵌套在authority parent中。正式计划固定105 samples（5 warmup + 100 formal）、单active clone、单次执行上限50秒、总窗口900秒，snapshot=`1,990,471,680`、evidence allowance=`268,435,456`、planned=`2,258,907,136`字节；aggregate预期843行，成功终态预期636个输出文件。
+
+TDD与回归结果为capacity `92/92`、supervisor `25/25`、issuer `5/5`，`corepack pnpm@10.17.1 verify` exit 0，control plane、boundaries与cycles均PASS，cycles扫描259个文件。issuer只负责exclusive authority发布，不执行benchmark；supervisor拒绝透传参数，并精确复核候选、工具链、issuer fact、window-06 carryover、105个唯一进程/请求/Attempt/marker、50秒闭包、PG/zombie、分布阈值、aggregate序列和输出集合。
+
+上述结果只证明控制面GREEN。正式authority尚未签发，`authority.state=NOT_ISSUED`、`formalRun=NOT_RUN`，未创建新窗口、未分配新UUID/window-dir/label，也没有正式运行或PASS收据。下一步是形成稳定评审检查点并在该精确HEAD上做新鲜只读预检，满足后才可唯一签发。joint不得复用objects seed，且现有joint计划超过单活动输出预算，须先重构；设备、Gate B、Owner 103项、可听Replica、实体录音与打印均保持`NOT_RUN`或pending。
+
 ## 自动验证
 
 ```bash
@@ -84,6 +94,8 @@ node scripts/ci/verify-v3-owner-evidence.mjs
 node --test scripts/ci/test/issue-v3-capacity-window.test.mjs
 /usr/bin/python3 -m py_compile scripts/ci/issue-v3-capacity-measure-window.py
 node --test scripts/ci/test/issue-v3-capacity-measure-window.test.mjs
+/opt/homebrew/bin/python3 -m py_compile scripts/ci/issue-v3-capacity-queued-stop-window.py
+node --test scripts/ci/test/issue-v3-capacity-queued-stop-window.test.mjs
 node --test --import tsx packages/bridge-core/test/recording-capacity.test.ts
 node --test scripts/ci/test/capacity-phase-supervisor-v2.test.mjs
 corepack pnpm@10.17.1 --filter @music-bridge/bridge-core typecheck
