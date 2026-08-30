@@ -1,4 +1,31 @@
+import { createRecordingPrintCoordinator, type RecordingPrintCoordinator } from './recording/print-coordinator.js';
+import { createRecordingReplicaInput } from './recording/replica-input.js';
+import { createRecordingReplicaCoordinator, type RecordingReplicaCoordinator } from './recording/replica-coordinator.js';
+import { createRecordingRecordCoordinator, type RecordingRecordCoordinator } from './recording/record-coordinator.js';
+import { createRecordingAttemptCoordinator, type RecordingAttemptCoordinator } from './recording/attempt-coordinator.js';
+import { createRecordingOutputService, type RecordingOutputService } from './recording/output-service.js';
+import type { PinnedOutputHelper } from './recording/bundled-output-helper.js';
+import { createRecordingPlanCoordinator, type RecordingPlanCoordinator } from './recording/plan-coordinator.js';
+import { randomUUID } from 'node:crypto';
+import { createDatasetCommandBoundary, type DatasetIdentity } from './recording/dataset-identity.js';
+import type { ArchiveContentBinding } from './recording/backup-package.js';
+import type { RootCapability } from './recording/source-files.js';
+import { createBackupCoordinator, type BackupCoordinator } from './recording/backup-coordinator.js';
+import { createBackupWorkflowStore, type BackupWorkflowStore } from './recording/backup-workflow-store.js';
+import { createExecutionCoordinator, type ExecutionCoordinator } from './recording/execution-coordinator.js';
+import { createArchiveCoordinator, type ArchiveCoordinator } from './recording/archive-coordinator.js';
+import { assertSourceOutsideArchives } from './recording/archive-input.js';
+import type { FfmpegConverter } from './recording/audio-converter.js';
+import { createPreparedCoordinator, type PreparedCoordinator } from './recording/prepared-coordinator.js';
+import { createMasterVersionsCoordinator, type MasterVersionsCoordinator } from './recording/versions-coordinator.js';
+import { createPreparationCoordinator, type PreparationCoordinator } from './recording/preparation-coordinator.js';
+import { createMediaPlanningCoordinator, type MediaPlanningCoordinator } from './recording/media-coordinator.js';
+import { createSourceEvidenceService, type SourceEvidenceService } from './recording/source-evidence.js';
+import { createMasterDraftsCoordinator, type MasterDraftsCoordinator } from './recording/drafts-coordinator.js';
+import { createPhysicalLinksCoordinator, type PhysicalLinksCoordinator } from './collection/physical-links-coordinator.js';
+import type { RoonPublicLibrary } from './roon/public-library.js';
 import path from 'node:path';
+import { createCollectionRepository, type CollectionRepository } from './collection/repository.js';
 import {
   DiagnosticRingBuffer,
   type DiagnosticComponentSnapshot,
@@ -87,6 +114,24 @@ import { resolveRoonMatch } from './matching/candidate-resolution.js';
 export type CoreRuntimeEvent = TypedIpcEvent;
 
 export interface CoreRuntime {
+  readonly commandOutbox?: ReturnType<typeof createDatasetCommandBoundary>;
+  physicalLinks?: PhysicalLinksCoordinator;
+  masterDrafts?: MasterDraftsCoordinator;
+  sources?: SourceEvidenceService;
+  mediaPlanning?: MediaPlanningCoordinator;
+  masterVersions?: MasterVersionsCoordinator;
+  preparation?: PreparationCoordinator;
+  prepared?: PreparedCoordinator;
+  execution?: ExecutionCoordinator;
+  archive?: ArchiveCoordinator;
+  recordingPlans?: RecordingPlanCoordinator;
+  recordingOutput?: RecordingOutputService;
+  recordingAttempts?: RecordingAttemptCoordinator;
+  recordingRecords?: RecordingRecordCoordinator;
+  recordingPrints?: RecordingPrintCoordinator;
+  recordingReplica?: RecordingReplicaCoordinator;
+  backups?: BackupCoordinator;
+  readonly collection?: CollectionRepository;
   start(): Promise<void>;
   shutdown(): Promise<void>;
   ping(): { pong: true };
@@ -163,6 +208,14 @@ export interface CoreRuntime {
 }
 
 export interface BridgeRuntimeOptions {
+  collectionDatasetIdentity?: DatasetIdentity;
+  /** 仅由受信任的 Core 组合层注入；不从 Renderer 或系统 PATH 自动配置。 */
+  recordingConverter?: FfmpegConverter;
+  recordingOutputHelper?: PinnedOutputHelper;
+  collectionRepository?: CollectionRepository;
+  backupWorkflowStore?: BackupWorkflowStore;
+  backupPrivateRoot?: RootCapability;
+  backupContentBinding?: ArchiveContentBinding;
   env?: NodeJS.ProcessEnv;
   logger?: Logger;
   roonSdk?: RoonSdk;
@@ -747,6 +800,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
 
   roon.setStateHandler(() => {
     const libraryAvailable = roon.getLibraryService() !== undefined;
+    if (!libraryAvailable) roonLibrary.invalidateReferences();
     if (libraryAvailable !== matchLibraryAvailable) {
       matchLibraryAvailable = libraryAvailable;
       matchCache.invalidate();
@@ -761,7 +815,53 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     if (controller.updateRoonTime(event)) lyrics.updateRoonTime(event.positionMs);
   });
 
+  const sources = options.collectionRepository ? createSourceEvidenceService({ store: options.collectionRepository.sources, drafts: options.collectionRepository.drafts, validateAuthorization: root => assertSourceOutsideArchives(root.path, options.collectionRepository!.archive) }) : undefined;
+  const mediaPlanning = options.collectionRepository ? createMediaPlanningCoordinator({ store: options.collectionRepository.media, drafts: options.collectionRepository.drafts, ...(sources ? { sources } : {}) }) : undefined;
+  const masterVersions = options.collectionRepository && sources && mediaPlanning ? createMasterVersionsCoordinator({ store: options.collectionRepository.versions, mediaStore: options.collectionRepository.media, media: mediaPlanning, drafts: options.collectionRepository.drafts, sourceStore: options.collectionRepository.sources, sources }) : undefined;
+  const preparation = options.collectionRepository && sources ? createPreparationCoordinator({ store: options.collectionRepository.preparations, sourceStore: options.collectionRepository.sources, sources }) : undefined;
+  const prepared = options.collectionRepository && preparation ? createPreparedCoordinator({ store: options.collectionRepository.prepared, preparationStore: options.collectionRepository.preparations, preparation, sourceStore: options.collectionRepository.sources }) : undefined;
+  const execution = options.collectionRepository && sources && preparation ? createExecutionCoordinator({ store: options.collectionRepository.execution, profiles: options.collectionRepository.recordingProfiles, preparationStore: options.collectionRepository.preparations, preparedStore: options.collectionRepository.prepared, mediaStore: options.collectionRepository.media, sourceStore: options.collectionRepository.sources, sources, preparation, ...(options.recordingConverter ? { converter: options.recordingConverter } : {}) }) : undefined;
+  const backups = options.backupWorkflowStore && options.collectionRepository ? createBackupCoordinator({ store: options.backupWorkflowStore, repository: options.collectionRepository, ...(options.backupPrivateRoot ? { privateRoot: options.backupPrivateRoot } : {}), ...(options.backupContentBinding ? { contentBinding: options.backupContentBinding } : {}) }) : undefined;
+  const archive = options.collectionRepository && sources && preparation ? createArchiveCoordinator({ store: options.collectionRepository.archive, executionStore: options.collectionRepository.execution, preparationStore: options.collectionRepository.preparations, sourceStore: options.collectionRepository.sources, sources, preparation }) : undefined;
+  const recordingPlans = options.collectionRepository ? createRecordingPlanCoordinator({ store: options.collectionRepository.recordingPlans }) : undefined;
+  const recordingOutput = createRecordingOutputService({ ...(options.collectionRepository ? { store: options.collectionRepository.recordingPlans } : {}), ...(options.recordingOutputHelper ? { helper: options.recordingOutputHelper } : {}) });
+  let recordingReplica: RecordingReplicaCoordinator | undefined;
+  const assertReplicaCurrent = () => {
+    if (options.collectionDatasetIdentity) options.collectionDatasetIdentity.assertCurrent();
+    else options.collectionRepository!.list({ offset: 0, limit: 1 });
+  };
+  const recordingAttempts = options.collectionRepository ? createRecordingAttemptCoordinator({ store: options.collectionRepository.recordingAttempts, assertReplicaIdle: () => recordingReplica?.assertExecutionIdle(), assertCurrent: () => {
+    if (options.collectionDatasetIdentity) options.collectionDatasetIdentity.assertCurrent();
+    else options.collectionRepository!.list({ offset: 0, limit: 1 });
+  } }) : undefined;
+  const recordingRecords = options.collectionRepository && recordingAttempts ? createRecordingRecordCoordinator({
+    store: options.collectionRepository.recordingRecords,
+    assertCurrent: () => {
+      if (options.collectionDatasetIdentity) options.collectionDatasetIdentity.assertCurrent();
+      else options.collectionRepository!.list({ offset: 0, limit: 1 });
+    },
+    assertExecutionIdle: () => recordingAttempts.assertExecutionIdle(),
+  }) : undefined;
+  const recordingPrints = options.collectionRepository ? createRecordingPrintCoordinator({ store: options.collectionRepository.recordingPrints, assertCurrent: assertReplicaCurrent }) : undefined;
+  recordingReplica = options.collectionRepository && recordingAttempts ? createRecordingReplicaCoordinator({
+    input: createRecordingReplicaInput({ repository: options.collectionRepository, assertCurrent: assertReplicaCurrent, ...(options.backupContentBinding ? { contentBinding: options.backupContentBinding } : {}) }),
+    assertCurrent: assertReplicaCurrent, assertAttemptIdle: () => recordingAttempts.assertExecutionIdle(),
+  }) : undefined;
   const cleanup = async (): Promise<void> => {
+    await recordingReplica?.close();
+    await recordingPrints?.close();
+    await recordingRecords?.close();
+    await recordingAttempts?.close();
+    await recordingOutput.close();
+    await recordingPlans?.close();
+    await backups?.close();
+    await archive?.close();
+    await execution?.close();
+    await prepared?.close();
+    await preparation?.close();
+    await masterVersions?.close();
+    await sources?.close();
+    options.collectionRepository?.close();
     await control.stop();
     await controller.shutdown();
     removeControllerListener();
@@ -1082,6 +1182,22 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       return { stopped: true as const };
     },
 
+    ...(sources ? { sources } : {}),
+    ...(mediaPlanning ? { mediaPlanning } : {}),
+    ...(masterVersions ? { masterVersions } : {}),
+    ...(preparation ? { preparation } : {}),
+    ...(prepared ? { prepared } : {}),
+    ...(execution ? { execution } : {}),
+    ...(archive ? { archive } : {}),
+    ...(recordingPlans ? { recordingPlans } : {}),
+    ...(recordingAttempts ? { recordingAttempts } : {}),
+    ...(recordingRecords ? { recordingRecords } : {}),
+    ...(recordingPrints ? { recordingPrints } : {}),
+    ...(recordingReplica ? { recordingReplica } : {}),
+    recordingOutput,
+    ...(backups ? { backups } : {}),
+    ...(options.collectionRepository ? { collection: options.collectionRepository, physicalLinks: createPhysicalLinksCoordinator({ repository: options.collectionRepository.links, library: roonLibrary }), masterDrafts: createMasterDraftsCoordinator({ repository: options.collectionRepository.drafts, library: roonLibrary }) } : {}),
+    ...(options.collectionDatasetIdentity ? { commandOutbox: createDatasetCommandBoundary(options.collectionDatasetIdentity) } : {}),
     listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),
     async checkFavorite(descriptor) {
       return { favorite: await favoriteRepository.isFavorite(descriptor) };
@@ -1117,11 +1233,40 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
 const SYNTHETIC_QR_IMAGE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2IiB2aWV3Qm94PSIwIDAgMzMgMzMiIHNoYXBlLXJlbmRlcmluZz0iY3Jpc3BFZGdlcyI+PHBhdGggZmlsbD0iI2ZmZmZmZiIgZD0iTTAgMGgzM3YzM0gweiIvPjxwYXRoIHN0cm9rZT0iIzAwMDAwMCIgZD0iTTIgMi41aDdtMSAwaDFtMSAwaDJtNCAwaDFtMSAwaDNtMSAwaDdNMiAzLjVoMW01IDBoMW0xIDBoMW0xIDBoMW0xIDBoMm04IDBoMW01IDBoMU0yIDQuNWgxbTEgMGgzbTEgMGgxbTMgMGgybTEgMGgzbTIgMGgybTIgMGgxbTEgMGgzbTEgMGgxTTIgNS41aDFtMSAwaDNtMSAwaDFtMSAwaDFtNCAwaDJtMiAwaDNtMiAwaDFtMSAwaDNtMSAwaDFNMiA2LjVoMW0xIDBoM20xIDBoMW0zIDBoMW0zIDBoM20yIDBoMW0yIDBoMW0xIDBoM20xIDBoMU0yIDcuNWgxbTUgMGgxbTIgMGgybTIgMGgybTIgMGgzbTIgMGgxbTUgMGgxTTIgOC41aDdtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDdNMTAgOS41aDFtMiAwaDJtMyAwaDNNMiAxMC41aDFtMSAwaDJtMSAwaDNtMSAwaDJtMiAwaDFtMiAwaDVtMSAwaDFtMiAwaDFtMSAwaDJNNCAxMS41aDFtMiAwaDFtMiAwaDNtMSAwaDJtMiAwaDFtMiAwaDRtMSAwaDFtMSAwaDNNMiAxMi41aDFtMiAwaDJtMSAwaDFtNSAwaDJtMyAwaDJtMiAwaDdNMiAxMy41aDFtMSAwaDFtMSAwaDFtMiAwaDFtMSAwaDNtNyAwaDNtMiAwaDFtMiAwaDFNMiAxNC41aDNtMiAwaDJtMiAwaDJtMSAwaDFtMSAwaDFtMiAwaDFtMyAwaDFtMSAwaDFtMiAwaDJNMiAxNS41aDFtMSAwaDFtMSAwaDJtMiAwaDVtMSAwaDRtMSAwaDFtMiAwaDJtMiAwaDNNNSAxNi41aDFtMiAwaDFtMSAwaDFtMiAwaDFtMSAwaDFtMiAwaDFtMSAwaDJtMSAwaDFtMSAwaDFtMiAwaDNNNCAxNy41aDRtMSAwaDJtNSAwaDNtNSAwaDRNNCAxOC41aDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDJtMiAwaDJtMiAwaDRtMSAwaDJtMiAwaDFNMyAxOS41aDNtNCAwaDRtMiAwaDJtMiAwaDFtMSAwaDJtMSAwaDFtMSAwaDFtMSAwaDFNMiAyMC41aDFtMiAwaDFtMiAwaDFtMSAwaDNtMiAwaDZtMiAwaDFtMSAwaDFtMiAwaDFNMTEgMjEuNWgxbTMgMGgybTIgMGgybTIgMGgybTIgMGgzTTMgMjIuNWg2bTMgMGg1bTEgMGg5bTEgMGgyTTEwIDIzLjVoMW0xIDBoMW0xIDBoMW0zIDBoMW0yIDBoMm0zIDBoMW0yIDBoMk0yIDI0LjVoN20xIDBoMW0xIDBoMm0yIDBoMW0yIDBoNG0xIDBoMW0xIDBoMW0yIDBoMU0yIDI1LjVoMW01IDBoMW0xIDBoMW0yIDBoNG0xIDBoMW0zIDBoMW0zIDBoMU0yIDI2LjVoMW0xIDBoM20xIDBoMW0zIDBoMW02IDBoMm0xIDBoNW0xIDBoMU0yIDI3LjVoMW0xIDBoM20xIDBoMW0xIDBoMW0yIDBoMW0zIDBoMm00IDBoMW0xIDBoMm0zIDBoMU0yIDI4LjVoMW0xIDBoM20xIDBoMW0xIDBoMW0yIDBoMW0xIDBoMW00IDBoMW0xIDBoMm0xIDBoMW00IDBoMU0yIDI5LjVoMW01IDBoMW0yIDBoMW0xIDBoMm03IDBoM20xIDBoMm0xIDBoMU0yIDMwLjVoN20xIDBoMW0yIDBoMW0xIDBoMm0zIDBoNG01IDBoMSIvPjwvc3ZnPgo='
 
 export interface TestBridgeRuntimeOptions {
+  collectionDatasetIdentity?: DatasetIdentity;
+  recordingConverter?: FfmpegConverter;
+  recordingOutputHelper?: PinnedOutputHelper;
+  roonLibrary?: RoonPublicLibrary;
+  collectionRepository?: CollectionRepository;
+  backupWorkflowStore?: BackupWorkflowStore;
+  backupPrivateRoot?: RootCapability;
+  backupContentBinding?: ArchiveContentBinding;
   authorized?: boolean
   accountMode?: 'ready' | 'profile-unavailable' | 'expired'
 }
 
 export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}): CoreRuntime {
+  const collection = options.collectionRepository ?? createCollectionRepository({ filePath: ':memory:' });
+  const commandOutbox = createDatasetCommandBoundary(options.collectionDatasetIdentity ?? { datasetId: randomUUID(), assertCurrent: () => { collection.list({ offset: 0, limit: 1 }); } });
+  const backups = createBackupCoordinator({ store: options.backupWorkflowStore ?? createBackupWorkflowStore({ filePath: ':memory:' }), repository: collection, ...(options.backupPrivateRoot ? { privateRoot: options.backupPrivateRoot } : {}), ...(options.backupContentBinding ? { contentBinding: options.backupContentBinding } : {}) });
+  const sources = createSourceEvidenceService({ store: collection.sources, drafts: collection.drafts, validateAuthorization: root => assertSourceOutsideArchives(root.path, collection.archive) });
+  const mediaPlanning = createMediaPlanningCoordinator({ store: collection.media, drafts: collection.drafts, sources });
+  const masterVersions = createMasterVersionsCoordinator({ store: collection.versions, mediaStore: collection.media, media: mediaPlanning, drafts: collection.drafts, sourceStore: collection.sources, sources });
+  const preparation = createPreparationCoordinator({ store: collection.preparations, sourceStore: collection.sources, sources });
+  const prepared = createPreparedCoordinator({ store: collection.prepared, preparationStore: collection.preparations, preparation, sourceStore: collection.sources });
+  const execution = createExecutionCoordinator({ store: collection.execution, profiles: collection.recordingProfiles, preparationStore: collection.preparations, preparedStore: collection.prepared, mediaStore: collection.media, sourceStore: collection.sources, sources, preparation, ...(options.recordingConverter ? { converter: options.recordingConverter } : {}) });
+  const recordingPlans = createRecordingPlanCoordinator({ store: collection.recordingPlans });
+  let assertReplicaIdle = () => {};
+  const recordingAttempts = createRecordingAttemptCoordinator({ store: collection.recordingAttempts, assertReplicaIdle: () => assertReplicaIdle(), assertCurrent: () => { commandOutbox.context(); } });
+  const recordingReplica = createRecordingReplicaCoordinator({
+    input: createRecordingReplicaInput({ repository: collection, assertCurrent: () => { commandOutbox.context(); }, ...(options.backupContentBinding ? { contentBinding: options.backupContentBinding } : {}) }),
+    assertCurrent: () => { commandOutbox.context(); }, assertAttemptIdle: () => recordingAttempts.assertExecutionIdle(),
+  });
+  assertReplicaIdle = () => recordingReplica.assertExecutionIdle();
+  const recordingRecords = createRecordingRecordCoordinator({ store: collection.recordingRecords, assertCurrent: () => { commandOutbox.context(); }, assertExecutionIdle: () => recordingAttempts.assertExecutionIdle() });
+  const recordingPrints = createRecordingPrintCoordinator({ store: collection.recordingPrints, assertCurrent: () => { commandOutbox.context(); } });
+  const recordingOutput = createRecordingOutputService({ store: collection.recordingPlans, ...(options.recordingOutputHelper ? { helper: options.recordingOutputHelper } : {}) });
+  const archive = createArchiveCoordinator({ store: collection.archive, executionStore: collection.execution, preparationStore: collection.preparations, sourceStore: collection.sources, sources, preparation });
   const accountMode = options.accountMode ?? 'ready'
   const syntheticAuthorized = options.authorized === true && accountMode !== 'expired'
   const favoriteRepository = createLocalFavoriteRepository()
@@ -1272,10 +1417,25 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
   };
   return {
     async start() {
+      commandOutbox.context();
       state = { ...state, runtime: 'ready', roon: 'ready' };
       diagnostics.record({ component: 'core', level: 'info', event: 'core_ready', state: 'ready' });
     },
     async shutdown() {
+      await recordingReplica.close();
+      await recordingPrints.close();
+      await recordingRecords.close();
+      await recordingAttempts.close();
+      await recordingOutput.close();
+      await recordingPlans.close();
+      await backups.close();
+      await archive.close();
+      await execution.close();
+      await prepared.close();
+      await preparation.close();
+      await masterVersions.close();
+      await sources.close();
+      collection.close();
       playbackState = emptyPlaybackState();
       state = {
         ...state,
@@ -1586,6 +1746,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       return playbackState;
     },
     async browseRoonAlbums(page) {
+      if (options.roonLibrary) return options.roonLibrary.browseAlbums(page);
       return { items: [], offset: page.offset, limit: page.limit };
     },
     async browseRoonArtists(page) {
@@ -1597,7 +1758,8 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     async browseRoonPlaylists(page) {
       return { items: [], offset: page.offset, limit: page.limit };
     },
-    async browseRoonAlbum() {
+    async browseRoonAlbum(reference, page) {
+      if (options.roonLibrary) return options.roonLibrary.browseAlbum(reference, page);
       throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Synthetic runtime has no Roon Library', {
         httpStatus: 503,
       });
@@ -1640,6 +1802,12 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     async stopRoonTransport() {
       return { stopped: true as const };
     },
+    collection,
+    commandOutbox,
+    sources,
+    mediaPlanning, masterVersions, preparation, prepared, execution, archive, backups, recordingPlans, recordingOutput, recordingAttempts, recordingRecords, recordingPrints, recordingReplica,
+    physicalLinks: createPhysicalLinksCoordinator({ repository: collection.links, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
+    masterDrafts: createMasterDraftsCoordinator({ repository: collection.drafts, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
     listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),
     async checkFavorite(descriptor) {
       return { favorite: await favoriteRepository.isFavorite(descriptor) };

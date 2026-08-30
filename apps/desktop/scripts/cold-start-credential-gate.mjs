@@ -1,12 +1,23 @@
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 import electron from 'electron'
+import { runStartupProcess } from './startup-gate-process.mjs'
+import { parseTestKeychainMode, testElectronArguments } from './test-keychain.mjs'
 
 const desktopRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
+let keychainMode
+try { keychainMode = parseTestKeychainMode(process.argv.slice(2)) } catch {
+  console.error('测试钥匙串模式无效')
+  process.exit(2)
+}
+console.log(`KEYCHAIN_MODE=${keychainMode}`)
+if (keychainMode === 'mock') console.log('REAL_KEYCHAIN_GATE=NOT_RUN')
+const resultMarker = keychainMode === 'mock'
+  ? 'ELECTRON_COLD_START_CREDENTIAL_RECOVERY_MOCK_GATE'
+  : 'ELECTRON_COLD_START_CREDENTIAL_RECOVERY_GATE'
 const plaintextCredentialEnvironmentKeys = [
   'NETEASE_COOKIE',
   'MUSIC_U',
@@ -21,19 +32,6 @@ const plaintextCredentialEnvironmentKeys = [
 function commandPath(name) {
   const suffix = process.platform === 'win32' ? '.cmd' : ''
   return path.join(desktopRoot, 'node_modules', '.bin', `${name}${suffix}`)
-}
-
-function run(command, args, options = {}) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd: desktopRoot,
-      env: process.env,
-      stdio: 'inherit',
-      ...options,
-    })
-    child.once('error', reject)
-    child.once('exit', (code, signal) => resolve({ code, signal }))
-  })
 }
 
 function assertNoPlaintextCredentialEnvironment(environment) {
@@ -58,44 +56,23 @@ function runElectronStage(stage, userDataDirectory) {
     'MUSIC_BRIDGE_CREDENTIAL_VAULT_GATE',
     'MUSIC_BRIDGE_CORE_RESTART_CREDENTIAL_RECOVERY_GATE',
     'MUSIC_BRIDGE_CREDENTIAL_RECOVERY_GATE',
+    'MUSIC_BRIDGE_TEST_KEYCHAIN_MODE',
   ]) delete environment[key]
   assertNoPlaintextCredentialEnvironment(environment)
 
-  return new Promise((resolve) => {
-    const child = spawn(electron, ['dist/main/index.js'], {
-      cwd: desktopRoot,
-      env: environment,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
-    let stdout = ''
-    let stderr = ''
-    let settled = false
-    const timer = setTimeout(() => {
-      if (settled) return
-      settled = true
-      child.kill('SIGTERM')
-      resolve({ code: null, signal: 'SIGTERM', stdout, stderr, timedOut: true })
-    }, 30_000)
-
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk.toString()
-    })
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk.toString()
-    })
-    child.once('error', (error) => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      resolve({ code: null, signal: null, stdout, stderr, error, timedOut: false })
-    })
-    child.once('exit', (code, signal) => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      resolve({ code, signal, stdout, stderr, timedOut: false })
-    })
+  return runStartupProcess(electron, testElectronArguments(['dist/main/index.js'], keychainMode), {
+    cwd: desktopRoot, env: environment,
+    readyMarker: 'DESKTOP_STARTUP_READY',
+    expectedMarker: stage === 'seed' ? 'ELECTRON_COLD_START_SEED_PASS' : 'ELECTRON_COLD_START_RESTORE_PASS',
   })
+}
+
+function requireClosedSuccess(result, stage) {
+  if (result.failure || !result.markerSeen || !result.closed || result.code !== 0 || result.signal !== null) {
+    console.error(`ELECTRON_COLD_START_STAGE_FAIL=${stage}`)
+    console.error(`ELECTRON_COLD_START_REASON=${result.failure ?? 'process-exit'}`)
+    throw new Error('冷启动验证阶段失败')
+  }
 }
 
 async function pathExists(filePath) {
@@ -114,13 +91,13 @@ const vaultPath = path.join(userDataDirectory, 'data', 'netease.credential')
 let passed = false
 
 try {
-  const build = await run(commandPath('electron-vite'), ['build', '--mode', 'development'])
-  if (build.code !== 0) throw new Error('cold-start gate desktop build failed')
+  const build = await runStartupProcess(commandPath('electron-vite'), ['build', '--mode', 'development'], {
+    cwd: desktopRoot, env: process.env, output: 'inherit', exitTimeoutMs: 120_000,
+  })
+  requireClosedSuccess(build, 'build')
 
   const first = await runElectronStage('seed', userDataDirectory)
-  if (first.code !== 0 || !first.stdout.includes('ELECTRON_COLD_START_SEED_PASS')) {
-    throw new Error('cold-start seed Electron process did not exit cleanly')
-  }
+  requireClosedSuccess(first, 'seed')
   if (!(await pathExists(vaultPath))) {
     throw new Error('cold-start seed did not leave the encrypted vault for process B')
   }
@@ -134,20 +111,20 @@ try {
   }
 
   const second = await runElectronStage('restore', userDataDirectory)
-  if (second.code !== 0 || !second.stdout.includes('ELECTRON_COLD_START_RESTORE_PASS')) {
-    throw new Error('cold-start restore Electron process did not exit cleanly')
-  }
+  requireClosedSuccess(second, 'restore')
   if (await pathExists(vaultPath)) {
     throw new Error('cold-start restore did not delete the synthetic vault')
   }
-  passed = true
-} finally {
+  // 只有全部子进程已close且业务检查通过，才可删除自建合成目录。
   await rm(userDataDirectory, { recursive: true, force: true })
+  passed = true
+} catch {
+  // 失败保留合成目录；不打印子进程原始输出或内部异常。
 }
 
 if (!passed) {
-  process.stderr.write('ELECTRON_COLD_START_CREDENTIAL_RECOVERY_GATE_FAIL\n')
+  process.stderr.write(`${resultMarker}_FAIL\n`)
   process.exitCode = 1
 } else {
-  process.stdout.write('ELECTRON_COLD_START_CREDENTIAL_RECOVERY_GATE_PASS\n')
+  process.stdout.write(`${resultMarker}_PASS\n`)
 }

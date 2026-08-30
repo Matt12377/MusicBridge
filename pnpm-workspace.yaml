@@ -1,3 +1,6 @@
 packages:
   - apps/*
   - packages/*
+
+patchedDependencies:
+  electron-vite@5.0.0: patches/electron-vite@5.0.0.patch

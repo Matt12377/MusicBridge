@@ -1,0 +1,43 @@
+schemaVersion: 1
+wave: WAVE-5
+status: active
+source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
+developmentPack: project/V3_DEVELOPMENT_PACK.md
+activeTask: TASK-079
+activeBranch: codex/task-079-v3-final-acceptance
+activeBaseCommit: fac7363b4a6481591e207dda7cca77f0ae8d3cd4
+order:
+  - TASK-048
+  - TASK-049
+  - TASK-050
+  - TASK-051
+  - TASK-052
+  - TASK-053
+  - TASK-054
+  - TASK-055
+  - TASK-056
+  - TASK-057
+  - TASK-058
+  - TASK-059
+  - TASK-060
+  - TASK-061
+  - TASK-062
+  - TASK-063
+  - TASK-064
+  - TASK-065
+  - TASK-066
+  - TASK-067
+  - TASK-068
+  - TASK-069
+  - TASK-070
+  - TASK-071
+  - TASK-072
+  - TASK-073
+  - TASK-074
+  - TASK-075
+  - TASK-076
+  - TASK-077
+  - TASK-078
+  - TASK-079
+stopAfter: TASK-079
+reviewBoundary: local-software-gates-through079-real-device-and-owner-acceptance-pending

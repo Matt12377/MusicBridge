@@ -47,6 +47,7 @@ import RoonAlbumDetail from './components/RoonAlbumDetail.vue'
 import RoonBrowseDetail from './components/RoonBrowseDetail.vue'
 import MusicSidebar from './components/sidebar/MusicSidebar.vue'
 import ToolbarStatusPopover from './components/ToolbarStatusPopover.vue'
+import CommandOutboxPanel from './components/CommandOutboxPanel.vue'
 import { useLibrarySources } from './composables/useLibrarySources.js'
 import { appendPage } from './composables/libraryPagination.js'
 import {
@@ -92,12 +93,16 @@ import {
 import type { SidebarSource, ViewId } from './components/navigation.js'
 import { createZoneRefreshCoordinator, resolveZoneLifecycleStatus } from './zone-lifecycle.js'
 import { createOptimisticRoonPlayback } from './roon-playback-optimism.js'
+import CollectionView from './components/collection/CollectionView.vue'
+import RecordingView from './components/recording/RecordingView.vue'
 
 const LIBRARY_PAGE_SIZE = 20
 const SEARCH_DEBOUNCE_MS = 250
 
 const VIEW_LABELS: Record<ViewId, string> = {
   home: '主页',
+  collection: '收藏',
+  recording: '录音',
   search: '搜索结果',
   liked: '我喜欢的音乐',
   'daily-recommendations': '每日推荐',
@@ -141,6 +146,7 @@ function localDayKey(now = Date.now()): string {
 
 const appInfo = ref<AppInfo | null>(null)
 const currentView = ref<ViewId>('home')
+const recordingReloadRequired = ref(false)
 const nowPlayingReturnView = ref<ViewId>('home')
 const sidebar = useSidebarState()
 const searchReturnSource = ref<SidebarSource>({ type: 'home' })
@@ -206,6 +212,13 @@ const remoteCoreState = ref<RemoteCoreTunnelState>({
 })
 const remoteAutoStart = ref(false)
 const inspectorOpen = ref(false)
+const commandOutboxOpen = ref(false)
+const commandOutboxTrigger = ref<HTMLButtonElement>()
+async function closeCommandOutbox(): Promise<void> {
+  commandOutboxOpen.value = false
+  await nextTick()
+  commandOutboxTrigger.value?.focus({ preventScroll: true })
+}
 const inspectorReturnFocus = ref<HTMLElement | null>(null)
 const actionError = ref<string | null>(null)
 const actionDiagnosticId = ref<string | null>(null)
@@ -480,6 +493,10 @@ function viewForSource(source: SidebarSource): ViewId {
   switch (source.type) {
     case 'home':
       return 'home'
+    case 'collection':
+      return 'collection'
+    case 'recording':
+      return 'recording'
     case 'liked':
       return 'liked'
     case 'playlists':
@@ -505,6 +522,14 @@ function viewForSource(source: SidebarSource): ViewId {
     case 'roon-playlist':
       return 'roon-playlist-detail'
   }
+}
+
+// 只保留本次会话的视图选择，不承载库存、曲目或持久化数据。
+const collectionView = ref<'tapes' | 'music'>('tapes')
+
+function openTapeCollection(): void {
+  collectionView.value = 'tapes'
+  navigateSource({ type: 'collection' })
 }
 
 function navigateSource(source: SidebarSource): void {
@@ -2605,7 +2630,10 @@ onUnmounted(() => {
             <h1 v-if="currentView !== 'home'">{{ viewTitle }}</h1>
           </div>
         </div>
-        <ToolbarStatusPopover :core-state="coreState" :selected-zone="selectedZone" @diagnostics="navigate('diagnostics')" />
+        <div class="command-outbox-tools">
+          <button ref="commandOutboxTrigger" type="button" class="command-outbox-entry" aria-haspopup="dialog" @click="commandOutboxOpen = true">未确认操作</button>
+          <ToolbarStatusPopover :core-state="coreState" :selected-zone="selectedZone" @diagnostics="navigate('diagnostics')" />
+        </div>
       </header>
 
       <div class="workspace-body" :class="{ 'is-immersive': isImmersiveNowPlaying }">
@@ -2633,6 +2661,18 @@ onUnmounted(() => {
           @view-all-daily="navigate('daily-recommendations')"
           @open-settings="navigate('settings')"
           @retry-daily="refreshAccountProfile"
+        />
+
+        <CollectionView
+          v-else-if="currentView === 'collection'"
+          v-model="collectionView"
+        />
+
+        <RecordingView
+          v-else-if="currentView === 'recording'"
+          :reload-required="recordingReloadRequired"
+          @reload-required="recordingReloadRequired = true"
+          @open-collection="openTapeCollection"
         />
 
         <DailyRecommendationsView
@@ -3018,6 +3058,14 @@ onUnmounted(() => {
     />
 
     <div v-if="toastMessage" class="toast" role="status" aria-live="polite">{{ toastMessage }}</div>
+    <CommandOutboxPanel v-if="commandOutboxOpen" @close="closeCommandOutbox" />
 
   </main>
 </template>
+
+<style scoped>
+.command-outbox-tools { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.command-outbox-entry { min-height: 44px; padding: 8px 12px; border: 1px solid var(--mb-glass-border); border-radius: 8px; background: var(--mb-glass-clear); color: var(--mb-text-primary); font: inherit; font-size: 13px; cursor: pointer; }
+.command-outbox-entry:focus-visible { outline: 2px solid var(--mb-accent); outline-offset: 3px; }
+@media (hover: hover) and (pointer: fine) { .command-outbox-entry:hover { border-color: var(--mb-accent); } }
+</style>

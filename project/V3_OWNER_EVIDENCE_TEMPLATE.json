@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "task": "TASK-079",
+  "baseCommit": "fac7363b4a6481591e207dda7cca77f0ae8d3cd4",
+  "template": true,
+  "ready": false,
+  "evidenceRoot": "reports/runtime/task-079-v3-final-acceptance",
+  "receipt": null
+}

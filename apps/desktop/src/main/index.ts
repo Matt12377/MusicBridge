@@ -1,3 +1,31 @@
+import { installRecordingPrintHandlers } from './recording-print-ipc.js'
+import { createRecordingPrintWorker } from './recording-print-worker.js'
+import { createRecordingPrintRenderer } from './recording-print-renderer.js'
+import { createLifecycleProbe } from './lifecycle-probe.js'
+import { exportRecordingPrintPdf } from './recording-print-export.js'
+import { installRecordingRecordHandlers } from './recording-record-ipc.js'
+import { installRecordingReplicaHandlers } from './recording-replica-ipc.js'
+import { installRecordingAttemptHandlers } from './recording-attempt-ipc.js'
+import { installRecordingPlanReads } from './recording-plan-ipc.js'
+import { installRecordingOutputReads } from './recording-output-ipc.js'
+import { installCollectionProgressReads } from './collection-progress-ipc.js'
+import { installReferenceCatalogReads } from './reference-catalog-ipc.js'
+import { installSpreadsheetImportReads } from './spreadsheet-import-ipc.js'
+import { createCommandOutboxStore } from './command-outbox-store.js'
+import { createCommandOutboxService, type CommandOutboxService } from './command-outbox-service.js'
+import { createCommandOutboxExecutor } from './command-outbox-executor.js'
+import { installCommandOutboxIpc } from './command-outbox-ipc.js'
+
+import { isPreviewArchiveRequest, isVerifyArchiveRequest } from '@music-bridge/contracts'
+import { isPreviewExecutionRequest, isVerifyExecutionRequest } from '@music-bridge/contracts'
+import { isPreviewPreparedImportRequest, isReviewPreparedRequest } from '@music-bridge/contracts'
+import { isPreviewPreparationRequest } from '@music-bridge/contracts'
+import { isPreviewVersionsRequest } from '@music-bridge/contracts'
+import { isMediaLayoutSpec, isPreviewMediaRequest } from '@music-bridge/contracts'
+
+
+import { isAlbumQuery } from '@music-bridge/contracts'
+import { isMusicId, isMusicFilter } from '@music-bridge/contracts'
 import {
   app,
   BrowserWindow,
@@ -9,6 +37,7 @@ import {
   protocol,
   safeStorage,
   session,
+  shell,
   Tray,
   utilityProcess,
 } from 'electron'
@@ -36,7 +65,16 @@ import {
   MAX_PLAYBACK_QUEUE_ITEMS,
   summarizeRoonImageBinary,
   validateIpcEvent,
+  isCollectionId,
+  isCollectionReceiveRequest,
+  isCollectionMaterializeRequest,
+  isCollectionUpdateCopyRequest,
+  isCollectionPolicyRequest,
+  isCollectionFilter,
+  isCollectionAddPhotoRequest,
+  isCollectionChangePhotoRequest,
 } from '@music-bridge/contracts'
+import { pickCollectionPhoto, CollectionPhotoImportError } from './collection-photos'
 import { appendFileSync, chmodSync } from 'node:fs'
 import { mkdir, readFile, realpath } from 'node:fs/promises'
 import path from 'node:path'
@@ -59,6 +97,7 @@ import {
   CoreIpcError,
   CoreSupervisor,
   type CoreSupervisorLifecycle,
+  type CoreStartupClient,
   type CoreChildProcess,
   type CoreMessagePort,
 } from './core-supervisor.js'
@@ -86,6 +125,7 @@ import {
   RemoteCoreTunnelManager,
 } from './remote-core-tunnel.js'
 import {
+  initializeStartupTestPaths,
   readStartupTestConfiguration,
   type ElectronColdStartStage,
 } from './startup-test-config.js'
@@ -114,6 +154,8 @@ const currentDirectory = path.dirname(currentFile)
 const startupTestConfiguration = readStartupTestConfiguration()
 const isStartupTest = startupTestConfiguration.isStartupTest
 const isUiE2e = process.env.MUSIC_BRIDGE_UI_E2E === '1'
+const syntheticUserDataDirectory = initializeStartupTestPaths(startupTestConfiguration, isUiE2e, app)
+const lifecycleProbe = createLifecycleProbe({ enabled: isUiE2e, sink: line => console.log(line.trimEnd()) })
 const isCoreCrashGate = startupTestConfiguration.coreCrashGate
 const isCredentialVaultGate = startupTestConfiguration.credentialVaultGate
 const isCoreRestartCredentialRecoveryGate =
@@ -128,6 +170,30 @@ const roonImageGatePath = process.env.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH
 
 let mainWindow: BrowserWindow | undefined
 let coreSupervisor: CoreSupervisor | undefined
+let recordingPrintWorker: ReturnType<typeof createRecordingPrintWorker> | undefined
+let recordingPrintEpoch = 0
+function stopRecordingPrintWorker(): void {
+  recordingPrintEpoch++
+  const previous = recordingPrintWorker
+  recordingPrintWorker = undefined
+  if (previous) lifecycleProbe.mark('print-stop-requested')
+  const stopping = previous?.stop()
+  if (stopping) lifecycleProbe.observe(stopping, 'print-stop-settled', 'print-stop-failed')
+}
+async function startRecordingPrintWorker(supervisor: CoreStartupClient): Promise<void> {
+  stopRecordingPrintWorker()
+  const epoch = recordingPrintEpoch
+  try {
+    const { datasetId } = await supervisor.request('commandOutbox.context', {})
+    if (epoch !== recordingPrintEpoch || quitAfterCoreShutdown) return
+    recordingPrintWorker = createRecordingPrintWorker({ datasetId, requestInternal: supervisor.requestInternal.bind(supervisor), renderer: createRecordingPrintRenderer() })
+    recordingPrintWorker.start()
+  } catch {
+    mainDiagnostics.recordLifecycle('recording_print_worker_unavailable', 'warn')
+  }
+}
+
+let commandOutbox: CommandOutboxService | undefined
 let coreMode: RemoteCoreMode = 'local-core'
 let coreDataDirectory: string | undefined
 let remoteStreamPort: number | undefined
@@ -270,8 +336,8 @@ function showMainWindow(command?: 'show-queue'): void {
   const target = mainWindow
   if (!target || target.isDestroyed()) return
   if (target.isMinimized()) target.restore()
-  target.show()
-  target.focus()
+  if (isUiE2e) target.showInactive()
+  else { target.show(); target.focus() }
   if (command) sendRendererCommand(command)
 }
 
@@ -912,6 +978,20 @@ function registerIpcHandlers(
   supervisor: CoreSupervisor,
   credentialVault: CredentialVault,
 ): void {
+  if (!coreDataDirectory) throw new Error('命令outbox缺少私有数据目录')
+  const store = createCommandOutboxStore({ filePath: path.join(coreDataDirectory, 'command-outbox.v1.sqlite') })
+  let sourcePickerBusy = false
+  const executor = createCommandOutboxExecutor({ supervisor, pick: async options => {
+    if (sourcePickerBusy || quitAfterCoreShutdown || !mainWindow || mainWindow.isDestroyed()) throw new CoreIpcError('NOT_READY', '目录或文件选择器暂不可用')
+    sourcePickerBusy = true
+    try { return await dialog.showOpenDialog(mainWindow, options) }
+    finally { sourcePickerBusy = false }
+  } })
+  commandOutbox = createCommandOutboxService({ store, currentDataset: async () => (await supervisor.request('commandOutbox.context', {})).datasetId, ...executor })
+  installCommandOutboxIpc<Electron.IpcMainInvokeEvent>({
+    handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer,
+    context: () => supervisor.request('commandOutbox.context', {}), service: commandOutbox, store,
+  })
   if (isRoonImageGate) {
     ipcMain.handle('roon:image:diagnostic', (event, shape: unknown) => {
       requireTrustedRenderer(event)
@@ -1070,6 +1150,225 @@ function registerIpcHandlers(
   ipcMain.handle('library:daily-recommendations', (event) =>
     invokeCore(event, () => supervisor.request('library.dailyRecommendations', {})),
   )
+  ipcMain.handle('recordingVersions:list', (event, draftId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(draftId)) throw new Error('录音草稿编号无效。')
+    return supervisor.request('recordingVersions.list', { draftId })
+  }))
+  ipcMain.handle('recordingVersions:preview', (event, request: unknown) => invokeCore(event, () => {
+    if (!isPreviewVersionsRequest(request)) throw new Error('版本预览请求无效。')
+    return supervisor.request('recordingVersions.preview', request)
+  }))
+  ipcMain.handle('recordingVersions:job', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) throw new Error('版本任务编号无效。')
+    return supervisor.request('recordingVersions.job', { id })
+  }))
+  ipcMain.handle('recordingMedia:plans', (event, draftId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(draftId)) throw new Error('录音草稿编号无效。')
+    return supervisor.request('recordingMedia.plans', { draftId })
+  }))
+  ipcMain.handle('recordingMedia:detail', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) throw new Error('录音规划编号无效。')
+    return supervisor.request('recordingMedia.detail', { id })
+  }))
+  ipcMain.handle('recordingMedia:balance', (event, draftId: unknown, spec: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(draftId) || !isMediaLayoutSpec(spec)) throw new Error('分面输入无效。')
+    return supervisor.request('recordingMedia.balance', { draftId, spec })
+  }))
+  ipcMain.handle('recordingMedia:preview', (event, request: unknown) => invokeCore(event, () => {
+    if (!isPreviewMediaRequest(request)) throw new Error('分面预览请求无效。')
+    return supervisor.request('recordingMedia.preview', request)
+  }))
+  ipcMain.handle('recordingBackups:overview', event => invokeCore(event, () => supervisor.request('recordingBackups.overview', {})))
+  ipcMain.handle('recordingArchive:roots', event => invokeCore(event, () => supervisor.request('recordingArchive.roots', {})))
+  ipcMain.handle('recordingArchive:preview', (event, request: unknown) => invokeCore(event, () => {
+    if (!isPreviewArchiveRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档请求无效或尚未明确确认')
+    return supervisor.request('recordingArchive.preview', request)
+  }))
+  ipcMain.handle('recordingArchive:verify', (event, request: unknown) => invokeCore(event, () => {
+    if (!isVerifyArchiveRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档请求无效或尚未明确确认')
+    return supervisor.request('recordingArchive.verify', request)
+  }))
+  ipcMain.handle('recordingArchive:list', (event, draftId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(draftId)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档编号无效')
+    return supervisor.request('recordingArchive.list', { draftId })
+  }))
+  ipcMain.handle('recordingArchive:operation', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档编号无效')
+    return supervisor.request('recordingArchive.operation', { id })
+  }))
+  ipcMain.handle('recordingArchive:cancelRead', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档编号无效')
+    return supervisor.request('recordingArchive.cancelRead', { id })
+  }))
+  ipcMain.handle('recordingProfiles:list', event => invokeCore(event, () => supervisor.request('recordingProfiles.list', {})))
+  ipcMain.handle('recordingProfiles:history', (event, profileId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(profileId)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
+    return supervisor.request('recordingProfiles.history', { profileId })
+  }))
+  ipcMain.handle('recordingProfiles:version', (event, versionId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(versionId)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
+    return supervisor.request('recordingProfiles.version', { versionId })
+  }))
+  ipcMain.handle('recordingProfiles:session', (event, draftId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(draftId)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
+    return supervisor.request('recordingProfiles.session', { draftId })
+  }))
+  ipcMain.handle('recordingExecution:list', (event, draftId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(draftId)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
+    return supervisor.request('recordingExecution.list', { draftId })
+  }))
+  ipcMain.handle('recordingExecution:preview', (event, request: unknown) => invokeCore(event, () => {
+    if (!isPreviewExecutionRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
+    return supervisor.request('recordingExecution.preview', request)
+  }))
+  ipcMain.handle('recordingExecution:job', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
+    return supervisor.request('recordingExecution.job', { id })
+  }))
+  ipcMain.handle('recordingExecution:cancelRead', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
+    return supervisor.request('recordingExecution.cancelRead', { id })
+  }))
+  ipcMain.handle('recordingExecution:verify', (event, request: unknown) => invokeCore(event, () => {
+    if (!isVerifyExecutionRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
+    return supervisor.request('recordingExecution.verify', request)
+  }))
+  ipcMain.handle('recordingPrepared:list', (event, draftId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(draftId)) return publicIpcFailure('INVALID_IPC_REQUEST', 'PREP 请求无效或未确认')
+    return supervisor.request('recordingPrepared.list', { draftId })
+  }))
+  installReferenceCatalogReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installSpreadsheetImportReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installRecordingPlanReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installRecordingOutputReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installRecordingRecordHandlers({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installRecordingPrintHandlers({
+    handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor,
+    getEpoch: () => recordingPrintEpoch,
+    pickArtwork: event => pickCollectionPhoto(
+      () => dialog.showOpenDialog(requireTrustedRenderer(event), { title: '选择母版 Artwork（选择后需保存）', properties: ['openFile'], filters: [{ name: 'Artwork 图片', extensions: ['png', 'jpg', 'jpeg'] }] }),
+      bytes => nativeImage.createFromBuffer(bytes),
+    ),
+    exportPdf: (options, event) => exportRecordingPrintPdf({ ...options, select: () => dialog.showSaveDialog(requireTrustedRenderer(event), {
+      title: '导出历史 J-Card PDF（不覆盖已有文件）', defaultPath: `MusicBridge-${options.request.artifactId}.pdf`, filters: [{ name: 'PDF 文档', extensions: ['pdf'] }],
+    }) }),
+  })
+  installRecordingReplicaHandlers({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installRecordingAttemptHandlers({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installCollectionProgressReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  ipcMain.handle('recordingPrepared:selections', (event, preparationId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(preparationId)) return publicIpcFailure('INVALID_IPC_REQUEST', 'PREP 请求无效或未确认')
+    return supervisor.request('recordingPrepared.selections', { preparationId })
+  }))
+  ipcMain.handle('recordingPrepared:job', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', 'PREP 请求无效或未确认')
+    return supervisor.request('recordingPrepared.job', { id })
+  }))
+  ipcMain.handle('recordingPrepared:previewImport', (event, request: unknown) => invokeCore(event, () => {
+    if (!isPreviewPreparedImportRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', 'PREP 请求无效或未确认')
+    return supervisor.request('recordingPrepared.previewImport', request)
+  }))
+  ipcMain.handle('recordingPrepared:review', (event, request: unknown) => invokeCore(event, () => {
+    if (!isReviewPreparedRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', 'PREP 请求无效或未确认')
+    return supervisor.request('recordingPrepared.review', request)
+  }))
+  ipcMain.handle('recordingPreparation:destinations', event => invokeCore(event, () => supervisor.request('recordingPreparation.destinations', {})))
+  ipcMain.handle('recordingPreparation:list', (event, draftId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(draftId)) return publicIpcFailure('INVALID_IPC_REQUEST', '草稿编号无效')
+    return supervisor.request('recordingPreparation.list', { draftId })
+  }))
+  ipcMain.handle('recordingPreparation:preview', (event, request: unknown) => invokeCore(event, () => {
+    if (!isPreviewPreparationRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '工作区预览请求无效')
+    return supervisor.request('recordingPreparation.preview', request)
+  }))
+  ipcMain.handle('recordingPreparation:job', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '工作区任务编号无效')
+    return supervisor.request('recordingPreparation.job', { id })
+  }))
+  ipcMain.handle('recordingPreparation:open', (event, id: unknown) => invokeCore(event, async () => {
+    if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '工作区编号无效')
+    const context = await supervisor.requestInternal('recordingPreparation.context', { id })
+    const error = await shell.openPath(context.absolutePath)
+    if (error) return publicIpcFailure('NOT_READY', '无法打开工作区，请检查目标目录是否仍可用')
+    return { opened: true as const }
+  }))
+  ipcMain.handle('recordingSources:roots', event => invokeCore(event, () => supervisor.request('recordingSources.roots', {})))
+  ipcMain.handle('recordingSources:snapshot', (event, draftId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(draftId)) return publicIpcFailure('INVALID_IPC_REQUEST', '草稿编号无效')
+    return supervisor.request('recordingSources.snapshot', { draftId })
+  }))
+  ipcMain.handle('recordingSources:job', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '校验任务编号无效')
+    return supervisor.request('recordingSources.job', { id })
+  }))
+  ipcMain.handle('recordingDrafts:list', (event, page: unknown) => invokeCore(event, () => supervisor.request('recordingDrafts.list', { page: requireLibraryPage(page) })))
+  ipcMain.handle('recordingDrafts:detail', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '草稿编号无效')
+    return supervisor.request('recordingDrafts.detail', { id })
+  }))
+  ipcMain.handle('recordingDrafts:runtime', (event, draftId: unknown, trackId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(draftId) || !isCollectionId(trackId)) return publicIpcFailure('INVALID_IPC_REQUEST', '草稿曲目编号无效')
+    return supervisor.request('recordingDrafts.runtime', { draftId, trackId })
+  }))
+  ipcMain.handle('physicalLinks:digitalDetail', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '关联对象编号无效')
+    return supervisor.request('physicalLinks.digitalDetail', { id })
+  }))
+  ipcMain.handle('physicalLinks:physical', (event, releaseId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(releaseId)) return publicIpcFailure('INVALID_IPC_REQUEST', '关联对象编号无效')
+    return supervisor.request('physicalLinks.physical', { releaseId })
+  }))
+  ipcMain.handle('physicalLinks:runtime', (event, id: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '关联对象编号无效')
+    return supervisor.request('physicalLinks.runtime', { id })
+  }))
+  ipcMain.handle('physicalLinks:digitalList', (event, page: unknown) => invokeCore(event, () => supervisor.request('physicalLinks.digitalList', { page: requireLibraryPage(page) })))
+  ipcMain.handle('physicalLinks:search', (event, query: unknown, page: unknown) => invokeCore(event, () => {
+    if (!isAlbumQuery(query)) return publicIpcFailure('INVALID_IPC_REQUEST', '专辑查询无效')
+    return supervisor.request('physicalLinks.search', { query, page: requireLibraryPage(page) })
+  }))
+  ipcMain.handle('physicalLinks:matrix', (event, page: unknown, query: unknown) => invokeCore(event, () => {
+    if (query !== undefined && !isAlbumQuery(query)) return publicIpcFailure('INVALID_IPC_REQUEST', '矩阵查询无效')
+    return supervisor.request('physicalLinks.matrix', { page: requireLibraryPage(page), ...(query !== undefined ? { query } : {}) })
+  }))
+  ipcMain.handle('physicalMusic:list', (event, page: unknown, filter: unknown) => invokeCore(event, () => {
+    if (filter !== undefined && !isMusicFilter(filter)) return publicIpcFailure('INVALID_IPC_REQUEST', '音乐筛选无效')
+    return supervisor.request('physicalMusic.list', { page: requireLibraryPage(page), ...(filter ? { filter } : {}) })
+  }))
+  ipcMain.handle('physicalMusic:detail', (event, id: unknown) => invokeCore(event, () => {
+    if (!isMusicId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '音乐编号无效')
+    return supervisor.request('physicalMusic.detail', { id })
+  }))
+  ipcMain.handle('physicalMusic:photo', (event, photoId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(photoId)) return publicIpcFailure('INVALID_IPC_REQUEST', '照片编号无效')
+    return supervisor.request('physicalMusic.photo', { photoId })
+  }))
+  let photoPickerBusy = false
+  ipcMain.handle('collection:pick-photo', async (event) => {
+    const window = requireTrustedRenderer(event)
+    if (photoPickerBusy) return publicIpcFailure('NOT_READY', '照片选择器已打开')
+    photoPickerBusy = true
+    try {
+      return await pickCollectionPhoto(
+        () => dialog.showOpenDialog(window, { title: '添加实物照片', properties: ['openFile'], filters: [{ name: '实物照片', extensions: ['png', 'jpg', 'jpeg'] }] }),
+        bytes => nativeImage.createFromBuffer(bytes),
+      )
+    } catch (error) {
+      return publicIpcFailure('INVALID_IPC_REQUEST', error instanceof CollectionPhotoImportError ? error.message : '照片导入失败')
+    } finally { photoPickerBusy = false }
+  })
+  ipcMain.handle('collection:photo', (event, photoId: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(photoId)) return publicIpcFailure('INVALID_IPC_REQUEST', '照片编号无效')
+    return supervisor.request('collection.photo', { photoId })
+  }))
+  ipcMain.handle('collection:list', (event, page: unknown, filter: unknown) => invokeCore(event, () => {
+    if (filter !== undefined && !isCollectionFilter(filter)) return publicIpcFailure('INVALID_IPC_REQUEST', '库存筛选无效')
+    return supervisor.request('collection.list', { page: requireLibraryPage(page), ...(filter ? { filter } : {}) })
+  }))
+  ipcMain.handle('collection:detail', (event, modelId: unknown, page: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(modelId)) return publicIpcFailure('INVALID_IPC_REQUEST', '库存型号无效')
+    return supervisor.request('collection.detail', { modelId, page: requireLibraryPage(page) })
+  }))
   ipcMain.handle('favorites:list', (event, kind: unknown, page: unknown) =>
     invokeCore(event, () => {
       const favoriteKind = requireFavoriteKind(kind)
@@ -1310,10 +1609,12 @@ function createWindow(supervisor: CoreSupervisor): BrowserWindow {
     height: 640,
     minWidth: 720,
     minHeight: 480,
-    show: !isStartupTest,
+    // E2E 默认不弹出原生窗口；后台仍渲染，保留截图和 DOM 键盘测试。
+    show: !isStartupTest && !isUiE2e,
     backgroundColor: '#10131a',
     webPreferences: {
       ...buildBrowserWindowWebPreferences(),
+      ...(isUiE2e ? { backgroundThrottling: false } : {}),
       preload: path.join(currentDirectory, '../preload/index.cjs'),
     },
   })
@@ -1338,6 +1639,7 @@ function createWindow(supervisor: CoreSupervisor): BrowserWindow {
   void window.loadURL(`${RENDERER_SCHEME}://${RENDERER_HOST}${RENDERER_ENTRY_PATH}`)
 
   window.webContents.once('did-finish-load', () => {
+    lifecycleProbe.mark('ui-loaded')
     if (isStartupTest && !isCoreCrashGate && supervisor.status === 'ready') {
       void window.webContents
         .executeJavaScript(
@@ -1452,7 +1754,7 @@ async function reconnectRemoteCoreDevelopment(): Promise<RemoteCoreTunnelState> 
 function createCoreSupervisor(
   dataDirectory: string,
   options: {
-    onReady?: () => Promise<void> | void
+    onReady?: (client: CoreStartupClient) => Promise<void> | void
     onEvent?: (event: TypedIpcEvent) => void
     onLifecycle?: (event: CoreSupervisorLifecycle) => void
   } = {},
@@ -1495,27 +1797,17 @@ async function prepareCoreDataDirectory(): Promise<{
   dataDirectory: string
   credentialVault: CredentialVault
 }> {
-  if (isStartupTest) {
-    const userDataDirectory = startupTestConfiguration.userDataDirectory
-    if (!userDataDirectory) {
-      throw new Error('Electron startup test userData directory is missing')
-    }
-    app.setPath('userData', userDataDirectory)
-  } else if (isUiE2e) {
-    app.setPath('userData', path.join(app.getPath('temp'), 'musicbridge-task012-startup'))
-  }
-  const dataDirectory = path.join(app.getPath('userData'), 'data')
+  const dataDirectory = path.join(syntheticUserDataDirectory ?? app.getPath('userData'), 'data')
   await mkdir(dataDirectory, { recursive: true, mode: 0o700 })
-  const legacyPath = path.join(
-    app.getPath('home'),
-    'Library',
-    'Application Support',
-    'MusicBridgeAgent',
-    'data',
-    'config.json',
-  )
-  const result = await migrateRoonConfig({
-    legacyPath,
+  const result = await migrateRoonConfig(isStartupTest || isUiE2e ? { mode: 'synthetic-test' } : {
+    legacyPath: path.join(
+      app.getPath('home'),
+      'Library',
+      'Application Support',
+      'MusicBridgeAgent',
+      'data',
+      'config.json',
+    ),
     targetPath: path.join(dataDirectory, 'config.json'),
   })
   if (result.status === 'invalid') {
@@ -1571,13 +1863,16 @@ async function waitForCoreRestartCredentialRecovery(
 }
 
 async function bootstrap(): Promise<void> {
+  lifecycleProbe.mark('bootstrap-start')
   await app.whenReady()
+  if (isUiE2e && process.platform === 'darwin') app.setActivationPolicy('accessory')
   app.setAboutPanelOptions({ applicationName: APPLICATION_NAME })
   installApplicationMenu()
   await installRendererProtocol()
   installSessionSecurity(session.defaultSession)
 
   const prepared = await prepareCoreDataDirectory()
+  lifecycleProbe.mark('data-prepared')
   if (isCredentialVaultGate && !isCoreRestartCredentialRecoveryGate && !isElectronColdStartGate) {
     try {
       const passed = await runCredentialVaultGate(prepared.credentialVault)
@@ -1594,18 +1889,21 @@ async function bootstrap(): Promise<void> {
   let initialProvisioningComplete = false
   let supervisor: CoreSupervisor
   supervisor = createCoreSupervisor(prepared.dataDirectory, {
-    onReady: async () => {
-      if (!initialProvisioningComplete) return
+    onReady: async client => {
+      lifecycleProbe.mark('core-ready-received')
+      await startRecordingPrintWorker(client)
+      if (!initialProvisioningComplete) { lifecycleProbe.mark('onready-complete'); return }
       await restoreProviderCredential({
         vault: prepared.credentialVault,
         core: {
           verifyCredential: async (credential) =>
-            (await supervisor.requestInternal('auth.verifyCredential', { credential })).status,
+            (await client.requestInternal('auth.verifyCredential', { credential })).status,
           setCredential: (credential) =>
-            supervisor.request('auth.setCredential', { credential }),
-          clearCredential: () => supervisor.request('auth.clearCredential', {}),
+            client.request('auth.setCredential', { credential }),
+          clearCredential: () => client.request('auth.clearCredential', {}),
         },
       })
+      lifecycleProbe.mark('onready-complete')
     },
     onEvent: (event) => {
       if (event.event === 'auth.changed' && event.payload.state.status === 'expired') {
@@ -1613,6 +1911,10 @@ async function bootstrap(): Promise<void> {
       }
     },
     onLifecycle: (event) => {
+      if (event.event === 'spawn') lifecycleProbe.mark('core-spawn')
+      else if (event.event === 'ready') lifecycleProbe.mark('supervisor-ready')
+      else if (event.event === 'exit') lifecycleProbe.mark('core-exit', event.code)
+      if (event.event !== 'ready') stopRecordingPrintWorker()
       const level = event.event === 'exit' || event.event === 'failed' ? 'warn' : 'info'
       mainDiagnostics.recordLifecycle(`core_${event.event}`, level)
     },
@@ -1695,6 +1997,7 @@ void bootstrap().catch(() => {
 })
 
 app.on('before-quit', (event) => {
+  lifecycleProbe.mark('before-quit')
   if (quitAfterCoreShutdown) {
     destroyTray()
     return
@@ -1705,13 +2008,27 @@ app.on('before-quit', (event) => {
   }
   event.preventDefault()
   quitAfterCoreShutdown = true
+  stopRecordingPrintWorker()
+  lifecycleProbe.mark('remote-stop-start')
   void remoteCoreTunnelManager.stop().catch(() => undefined).finally(() => {
-    void coreSupervisor?.shutdown().finally(() => {
-      destroyTray()
-      app.quit()
+    lifecycleProbe.mark('remote-stop-end')
+    lifecycleProbe.mark('core-shutdown-start')
+    void coreSupervisor?.shutdown().finally(async () => {
+      lifecycleProbe.mark('core-shutdown-end')
+      // 原生对话框可能仍未返回；退出有界，不等待用户完成新的选择。
+      let timer: ReturnType<typeof setTimeout> | undefined
+      try {
+        if (commandOutbox) lifecycleProbe.mark('outbox-close-start')
+        const closing = commandOutbox?.close().catch(() => undefined)
+        if (closing) lifecycleProbe.observe(closing, 'outbox-close-end', 'outbox-close-end')
+        await Promise.race([closing, new Promise<void>(resolve => { timer = setTimeout(() => { lifecycleProbe.mark('outbox-close-timeout'); resolve() }, 1000) })])
+      }
+      finally { if (timer) clearTimeout(timer); destroyTray(); lifecycleProbe.mark('app-quit-reissued'); app.quit() }
     })
   })
 })
+
+app.on('will-quit', () => lifecycleProbe.mark('will-quit'))
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin' && !quitAfterCoreShutdown) {

@@ -2,8 +2,11 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import test from 'node:test'
+import { readTestKeychainMode } from '../scripts/test-keychain.mjs'
 
 const desktopRoot = path.resolve('.')
+const keychainMode = readTestKeychainMode()
+const testLabel = keychainMode === 'mock' ? '[mock 软件集成；系统钥匙串未验证]' : '[system]'
 
 function runStartupGate(
   mode: 'development' | 'production',
@@ -11,10 +14,11 @@ function runStartupGate(
   credentialVaultGate = false,
   coreRestartCredentialRecoveryGate = false,
 ) {
-  const result = spawnSync(process.execPath, ['scripts/startup-gate.mjs', mode], {
+  const result = spawnSync(process.execPath, ['scripts/startup-gate.mjs', mode, `--keychain=${keychainMode}`], {
     cwd: desktopRoot,
     encoding: 'utf8',
-    timeout: 60_000,
+    // 覆盖构建120秒、启动/退出各30秒及内层清理；外层不能提前杀掉清理进程。
+    timeout: 210_000,
     env: {
       ...process.env,
       ...(crashGate ? { MUSIC_BRIDGE_CORE_CRASH_GATE: '1' } : {}),
@@ -27,39 +31,36 @@ function runStartupGate(
 
   assert.equal(result.error, undefined, result.error?.message)
   assert.equal(result.status, 0, `${mode} startup gate failed:\n${result.stdout}\n${result.stderr}`)
+  assert.match(result.stdout, new RegExp(`^KEYCHAIN_MODE=${keychainMode}$`, 'm'))
+  if (keychainMode === 'mock') assert.match(result.stdout, /^REAL_KEYCHAIN_GATE=NOT_RUN$/m)
+  const resultMarker = credentialVaultGate ? 'CREDENTIAL_VAULT_GATE' : coreRestartCredentialRecoveryGate ? 'CORE_RESTART_CREDENTIAL_RECOVERY_GATE' : crashGate ? 'CORE_CRASH_GATE' : 'DESKTOP_STARTUP_PASS'
+  const labeledMarker = keychainMode === 'mock' ? resultMarker.replace(/_(GATE|PASS)$/u, '_MOCK_$1') : resultMarker
   assert.match(
     result.stdout,
-    new RegExp(
-      credentialVaultGate
-        ? `CREDENTIAL_VAULT_GATE=${mode}`
-        : coreRestartCredentialRecoveryGate
-          ? `CORE_RESTART_CREDENTIAL_RECOVERY_GATE=${mode}`
-          : crashGate
-            ? `CORE_CRASH_GATE=${mode}`
-            : `DESKTOP_STARTUP_PASS=${mode}`,
-    ),
+    new RegExp(`^${labeledMarker}=${mode}$`, 'm'),
   )
 }
 
-test('Electron startup and Core crash gates pass serially', () => {
+test(`${testLabel} Electron startup and Core crash gates pass serially`, () => {
   runStartupGate('development')
   runStartupGate('production')
   runStartupGate('development', true)
 })
 
-test('Electron safeStorage credential vault gate passes with a synthetic value', () => {
+test(`${testLabel} Electron safeStorage credential vault gate passes with a synthetic value`, () => {
   runStartupGate('development', false, true)
 })
 
-test('same-process Core restart credential recovery gate passes with a synthetic value', () => {
+test(`${testLabel} same-process Core restart credential recovery gate passes with a synthetic value`, () => {
   runStartupGate('development', false, false, true)
 })
 
-test('two-process Electron cold-start credential recovery gate passes with a synthetic value', () => {
-  const result = spawnSync(process.execPath, ['scripts/cold-start-credential-gate.mjs'], {
+test(`${testLabel} two-process Electron cold-start credential recovery gate passes with a synthetic value`, () => {
+  const result = spawnSync(process.execPath, ['scripts/cold-start-credential-gate.mjs', `--keychain=${keychainMode}`], {
     cwd: desktopRoot,
     encoding: 'utf8',
-    timeout: 120_000,
+    // 构建120秒、两阶段各最多60秒及内层清理余量；不能提前杀验证父进程。
+    timeout: 270_000,
   })
 
   assert.equal(result.error, undefined, result.error?.message)
@@ -68,5 +69,7 @@ test('two-process Electron cold-start credential recovery gate passes with a syn
     0,
     `Electron cold-start credential recovery gate failed:\n${result.stdout}\n${result.stderr}`,
   )
-  assert.match(result.stdout, /ELECTRON_COLD_START_CREDENTIAL_RECOVERY_GATE_PASS/)
+  assert.match(result.stdout, new RegExp(`^KEYCHAIN_MODE=${keychainMode}$`, 'm'))
+  if (keychainMode === 'mock') assert.match(result.stdout, /^REAL_KEYCHAIN_GATE=NOT_RUN$/m)
+  assert.match(result.stdout, new RegExp(`^ELECTRON_COLD_START_CREDENTIAL_RECOVERY_${keychainMode === 'mock' ? 'MOCK_' : ''}GATE_PASS$`, 'm'))
 })

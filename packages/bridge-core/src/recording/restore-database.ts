@@ -1,0 +1,48 @@
+import { recoverRecordingPrints } from './print-store.js';
+import { verifyRecordingRecordDatabase } from './record-integrity.js';
+import { DatabaseSync } from 'node:sqlite';
+import { backupFail } from './backup-files.js';
+import { verifyRecordingAttemptDatabase } from './attempt-integrity.js';
+import { recoverRecordingAttempts } from './attempt-store.js';
+
+/** 只修改恢复目录内的独立副本；所有不可变版本/账本/旧路径事实原样保留。 */
+export function isolateRestoredDatabase(filePath: string): void {
+  const db = new DatabaseSync(filePath, { allowExtension: false });
+  try {
+    db.exec('PRAGMA trusted_schema=OFF; PRAGMA foreign_keys=ON;');
+    // 损坏历史必须在journal模式变更之前拒绝，连数据库文件头也不提前改写。
+    if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 19) verifyRecordingAttemptDatabase(db);
+    if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 20) verifyRecordingRecordDatabase(db);
+    db.exec('PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL; BEGIN IMMEDIATE;');
+    try {
+      const version = db.prepare('PRAGMA user_version').get()?.user_version;
+      if (version !== 14 && version !== 15 && version !== 16 && version !== 17 && version !== 18 && version !== 19 && version !== 20 && version !== 21) backupFail();
+      if (version === 19 || version === 20 || version === 21) { verifyRecordingAttemptDatabase(db); recoverRecordingAttempts(db, new Date().toISOString()); }
+      if(version===21)recoverRecordingPrints(db);
+      for (const table of ['source_roots', 'preparation_destinations']) db.exec(`UPDATE ${table} SET data=json_set(data,'$.authorized',json('false'))`);
+      db.exec("UPDATE prepared_selections SET data=json_set(data,'$.root.authorized',json('false')); UPDATE archive_roots SET authorized=0; UPDATE archive_candidates SET authorized=0;");
+      for (const table of ['source_jobs', 'version_jobs', 'preparation_jobs', 'prepared_jobs', 'execution_jobs']) {
+        db.exec(`UPDATE ${table} SET data=json_set(data,'$.public.state','interrupted') WHERE json_extract(data,'$.public.state')='running'`);
+      }
+      if (db.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || db.prepare('PRAGMA foreign_key_check').all().length) backupFail();
+      db.exec('COMMIT');
+    } catch (error) { db.exec('ROLLBACK'); throw error; }
+  } finally { db.close(); }
+}
+export function verifyRestoredDatabaseIsolation(filePath: string): void {
+  const db = new DatabaseSync(filePath, { readOnly: true, allowExtension: false });
+  try {
+    db.exec('PRAGMA trusted_schema=OFF; PRAGMA query_only=ON;');
+    if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 19) {
+      verifyRecordingAttemptDatabase(db);
+      if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 20) verifyRecordingRecordDatabase(db);
+      if (db.prepare("SELECT 1 FROM recording_attempts WHERE status='in-progress' LIMIT 1").get()) backupFail();
+    }
+    for (const table of ['source_roots', 'preparation_destinations']) {
+      if (db.prepare(`SELECT 1 FROM ${table} WHERE json_extract(data,'$.authorized') IS NOT 0 LIMIT 1`).get()) backupFail();
+    }
+    for (const table of ['archive_roots', 'archive_candidates']) if (db.prepare(`SELECT 1 FROM ${table} WHERE authorized<>0 LIMIT 1`).get()) backupFail();
+    if (db.prepare("SELECT 1 FROM prepared_selections WHERE json_extract(data,'$.root.authorized') IS NOT 0 LIMIT 1").get()) backupFail();
+    for (const table of ['source_jobs', 'version_jobs', 'preparation_jobs', 'prepared_jobs', 'execution_jobs']) if (db.prepare(`SELECT 1 FROM ${table} WHERE json_extract(data,'$.public.state')='running' LIMIT 1`).get()) backupFail();
+  } finally { db.close(); }
+}

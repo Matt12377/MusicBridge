@@ -1,0 +1,37 @@
+# ADR-035：录音档案与当前实体内容分离
+
+状态：TASK-075采用，软件验证与实机验收分别记录。基线为TASK-074最终提交`af572126a2abeefdf361e8db2c9ac4a457b7a8be`。
+
+## 决策
+
+Completed是某次执行及人工确认的历史事实，不能证明后来这盘磁带仍含有同样内容。Record从首次Completed事件及其冻结Plan生成且不修改；当前内容独立维护confirmed-recording、unknown、erased头。后续Attempt cleanup不改Record快照，新Attempt的可能写入边界使当前内容unknown。旧Record保留、可检索，不再以旧标题表示当前内容。
+
+同一Physical ID始终对应原实体。Record登记、更换当前认知和重录均不增加库存，不将origin改为legacy。收藏与实体音乐库通过同一当前头投影；没有可靠Artist时保留未知。旧legacy编辑不能改正式档案。
+
+新Completed登记与Attempt事件、Record、当前头和usage在同一数据库事务中提交。照片仅快照本盘已有本地JPEG，不取型号代表图；独立不可变字节按sha256去重，不受原照片删除影响。最多24张/每张1MiB、总Blob1GiB、元数据128MiB，预算不足回滚，不丢图后声称完成。Artwork没有已取得的本地来源就标未采集；J-Card由077实现，不制造空白产物冒充已生成。
+
+## 旧数据迁移
+
+schema19没有冻结完成时型号描述或照片。schema20迁移只使用首次Completed事件和冻结Plan建立legacy-plan-only档案，不读取今天的描述或照片来补历史。descriptor不提供，视觉标未采集。旧physical_copies每列保持原值，即旧完成记录可仍有reserved占用；这是明确保留的历史差异，不暗改库存。新Completed使用completion来源并必须取得当时型号描述。
+
+历史与当前头均参与完整性验证、快照、恢复；不可通过读请求悄悄补登记。重复完成、冷启或恢复不新增同一Attempt的第二份Record，不以旧事件覆盖后来的处置。
+
+## 重录与人工处置
+
+五种处置均先预览后明确确认，使用实体revision、内容revision、前序Attempt和fingerprint做CAS。prepare-rerecord针对明确新MediaPlan在专用事务中预留同盘；schema20允许该路径的reserved_from为recorded/unknown，普通reserve/release不扩大范围。先预留，再按既有流程冻结Plan，避免先有Plan才能预留的依赖循环。
+
+许可绑定目标MediaPlan、预留revision、内容和实体revision、前序Attempt；只有所有准入通过且新Attempt持久化成功时消费一次。取消只恢复原recorded/unknown/erased，不回blank/sealed、不增加数量。声明已擦除只记录用户判断，不操作设备。活动许可仅允许取消，不在其间改内容头导致许可失配。
+
+已有内容头的实体即使没有Attempt，也不能经旧通用预留改变usage；普通候选排除这些需要专用许可的盘，但同SKU其它空白库存照常可用。许可有效时，旧介质计划编辑同样不能使其绑定revision失效。将已擦除盘重新标为内容未知或确认某次录音为当前时，同次处置把usage明确转为unknown或recorded，防止仍按已擦除空盘参与推荐。
+
+处置要求无活动Attempt和运行中的driver执行槽；已经开始的侧还需要可信停交、资源静止和实体停止确认。终态、Stop ACK、源EOF均不能单独证明这些条件。关闭服务先禁止新处置，再等待Attempt资源关闭。
+
+## IPC和检索
+
+六个有限API以窗口加载时的dataset scope直达Core；在等待scope前复制意图，Core末端复核身份。apply使用专用持久回执，重复commandId同体返回原结果、异体拒绝，不进入自动outbox。没有registerCompleted、任意文件路径、SQL、设备认证或删除历史入口。公开错误固定映射，不透传内部路径或栈。
+
+检索页最多25项，filter条件AND、query字段OR；冻结Track/Artist/Master/介质描述/Profile设备与完成日期参与查询。427同时查既有C/D同号，C-0427与完整ID限定介质，绝不猜测并分配实体编号。未知元数据不补造，参数绑定和LIKE转义保持输入为数据。
+
+## 验收边界
+
+本ADR不证明真实设备输出或听感。formalReady=false、Gate B未认证；无声卡时仍开发软件，但不枚举/打开/配置设备。R020～R023及Owner验收保留，尤其全历史重验成本待078测量优化，不能宣称实时Stop保证。

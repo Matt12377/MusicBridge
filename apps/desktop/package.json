@@ -9,7 +9,7 @@
     "prebuild": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
     "build": "electron-vite build --mode production",
     "pretypecheck": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
-    "typecheck": "vue-tsc --noEmit -p tsconfig.json",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.e2e.json",
     "pretest": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
     "test": "corepack pnpm@10.17.1 run test:unit",
     "pretest:unit": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
@@ -111,6 +111,24 @@
       "enableEmbeddedAsarIntegrityValidation": true,
       "onlyLoadAppFromAsar": true,
       "grantFileProtocolExtraPrivileges": false
-    }
+    },
+    "beforePack": "./scripts/native-converter-package.mjs",
+    "extraResources": [
+      {
+        "from": "native/output/darwin-arm64",
+        "to": "output/darwin-arm64",
+        "filter": ["manifest.json", "bin/output-helper", "build/core-audio-adapter.o"]
+      },
+      {
+        "from": "native/ffmpeg/darwin-arm64",
+        "to": "ffmpeg/darwin-arm64",
+        "filter": [
+          "manifest.json",
+          "bin/*",
+          "lib/*",
+          "legal/*"
+        ]
+      }
+    ]
   }
 }

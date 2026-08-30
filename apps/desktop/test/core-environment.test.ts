@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import { buildCoreEnvironment } from '../src/main/core-environment.js'
+import { bundledConverterRoot } from '../src/main/converter-bootstrap.js'
 
 test('Core environment keeps only runtime keys and test-only probes', () => {
   const environment: Record<string, string | undefined> = buildCoreEnvironment({
@@ -190,4 +191,39 @@ test('remote Core mode rejects an unknown local port profile', () => {
     remoteCoreMode: 'remote-core-development',
     remoteStreamPort: 38519,
   }))
+})
+
+test('合成 Roon 目录仅在明确 UI E2E 环境透传，正常运行忽略该开关', () => {
+  const parent = { MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY: '1' };
+  assert.equal(buildCoreEnvironment(parent, { startupTest: false, uiE2e: false, coreCrashGate: false }).MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY, undefined);
+  assert.equal(buildCoreEnvironment(parent, { startupTest: false, uiE2e: true, coreCrashGate: false }).MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY, '1');
+});
+
+test('打包转换器合成 Gate 只在显式桌面 E2E 模式转发，不允许生产环境或任意路径', () => {
+  const parent = { MUSIC_BRIDGE_BUNDLED_CONVERTER_GATE: '1', MUSIC_BRIDGE_FFMPEG_PATH: '/untrusted/ffmpeg' }
+  for (const uiE2e of [false,true]) {
+    const env = buildCoreEnvironment(parent, { startupTest: false, uiE2e, coreCrashGate: false })
+    assert.equal(env.MUSIC_BRIDGE_BUNDLED_CONVERTER_GATE, uiE2e ? '1' : undefined)
+    assert.equal(env.MUSIC_BRIDGE_FFMPEG_PATH, undefined)
+  }
+})
+
+test('无设备输出包Gate只向明确UI E2E转发，忽略路径和设备授权环境输入', () => {
+  for (const uiE2e of [false, true]) {
+    const env = buildCoreEnvironment({ MUSIC_BRIDGE_BUNDLED_OUTPUT_GATE: '1', MUSIC_BRIDGE_OUTPUT_PATH: '/untrusted', MUSIC_BRIDGE_OUTPUT_DEVICE_AUTHORIZED: '1' }, { startupTest: false, uiE2e, coreCrashGate: false })
+    assert.equal(env.MUSIC_BRIDGE_BUNDLED_OUTPUT_GATE, uiE2e ? '1' : undefined)
+    assert.equal(env.MUSIC_BRIDGE_OUTPUT_PATH, undefined); assert.equal(env.MUSIC_BRIDGE_OUTPUT_DEVICE_AUTHORIZED, undefined)
+  }
+})
+
+test('转换器只从固定开发或 ASAR 资源目录加载，普通合成测试不启用原生后端', () => {
+  const host = { platform: 'darwin', arch: 'arm64', entryDirectory: '/workspace/apps/desktop/dist/main', resourcesDirectory: '/Applications/Music Bridge.app/Contents/Resources' }
+  assert.equal(bundledConverterRoot({}, host), '/workspace/apps/desktop/native/ffmpeg/darwin-arm64')
+  assert.equal(bundledConverterRoot({}, { ...host, entryDirectory: host.resourcesDirectory + '/app.asar/dist/main' }), host.resourcesDirectory + '/ffmpeg/darwin-arm64')
+  assert.equal(bundledConverterRoot({}, { ...host, arch: 'x64' }), undefined)
+  assert.equal(bundledConverterRoot({}, { ...host, platform: 'linux' }), undefined)
+  const testEnv = { MUSIC_BRIDGE_CORE_TEST_MODE: '1' }
+  assert.equal(bundledConverterRoot(testEnv, host), undefined)
+  assert.equal(bundledConverterRoot({ ...testEnv, MUSIC_BRIDGE_BUNDLED_CONVERTER_GATE: '1' }, host), undefined)
+  assert.equal(bundledConverterRoot({ ...testEnv, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_BUNDLED_CONVERTER_GATE: '1', MUSIC_BRIDGE_FFMPEG_PATH: '/untrusted' }, host), '/workspace/apps/desktop/native/ffmpeg/darwin-arm64')
 })

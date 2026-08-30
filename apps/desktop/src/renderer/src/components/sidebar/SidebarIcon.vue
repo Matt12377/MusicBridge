@@ -1,5 +1,5 @@
 <script setup lang="ts">
-type IconName = 'chevron-down' | 'chevron-left' | 'chevron-right' | 'grid' | 'heart' | 'home' | 'list' | 'more' | 'music-note' | 'next' | 'pause' | 'play' | 'previous' | 'search' | 'speaker' | 'user'
+type IconName = 'chevron-down' | 'chevron-left' | 'chevron-right' | 'grid' | 'heart' | 'home' | 'list' | 'more' | 'music-note' | 'next' | 'pause' | 'play' | 'previous' | 'search' | 'speaker' | 'user' | 'cassette' | 'record'
 
 withDefaults(defineProps<{
   name: IconName
@@ -11,6 +11,14 @@ withDefaults(defineProps<{
 
 <template>
   <svg class="sidebar-icon" :width="size" :height="size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <g v-if="name === 'cassette'">
+      <rect x="2" y="5" width="20" height="14" rx="3" />
+      <circle cx="7.5" cy="10.5" r="2" /><circle cx="16.5" cy="10.5" r="2" />
+      <path d="M9.5 10.5h5M6 19l2-4h8l2 4" />
+    </g>
+    <g v-if="name === 'record'">
+      <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" />
+    </g>
     <path v-if="name === 'home'" d="m3.5 10.8 8.5-7 8.5 7v8.7a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5v-8.7Z" />
     <path v-if="name === 'home'" d="M9 21v-6.5h6V21" />
     <path v-if="name === 'heart'" d="M20.8 8.8c0 5.2-8.8 10.2-8.8 10.2S3.2 14 3.2 8.8A4.6 4.6 0 0 1 12 6.3a4.6 4.6 0 0 1 8.8 2.5Z" />
