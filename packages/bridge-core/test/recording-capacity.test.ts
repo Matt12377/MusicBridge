@@ -403,13 +403,14 @@ test('stop workspace最终receipt写入故障时整体保留clone、SQLite与wor
 test('measure CLI只接受显式规范TASK078 runtime-root，generate拒绝该参数', t => {
   const candidateRoot = realpathSync(new URL('../../../', import.meta.url).pathname);
   const benchmark = new URL('./benchmarks/recording-capacity.ts', import.meta.url).pathname;
+  const tsxLoader = import.meta.resolve('tsx');
   const temporary = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'musicbridge-capacity-runtime-root-')));
   t.after(() => rmSync(temporary, { recursive: true, force: true }));
   const task078 = path.join(temporary, 'task-078-v3-acceptance');
   const runtime = path.join(task078, 'reports/runtime/task-078-v3-acceptance');
   mkdirSync(runtime, { recursive: true });
   const symlink = path.join(temporary, 'runtime-link'); symlinkSync(runtime, symlink, 'dir');
-  const base = ['--import', 'tsx', benchmark, '--phase', 'measure', '--profile', 'objects-limit',
+  const base = ['--import', tsxLoader, benchmark, '--phase', 'measure', '--profile', 'objects-limit',
     '--label', 'runtime-root-red', '--seed-label', 'objects-seed', '--window', 'window-red'];
   const invoke = (args: string[]) => spawnSync(process.execPath, args, { cwd: candidateRoot, encoding: 'utf8' });
   const rejected = [
@@ -424,7 +425,7 @@ test('measure CLI只接受显式规范TASK078 runtime-root，generate拒绝该�
     assert.notEqual(result.status, 0, `非法runtime不得启动measure: ${item.args.at(-1)}`);
     assert.match(`${result.stdout}\n${result.stderr}`, item.error);
   }
-  const generated = invoke(['--import', 'tsx', benchmark, '--phase', 'generate', '--profile', 'pilot',
+  const generated = invoke(['--import', tsxLoader, benchmark, '--phase', 'generate', '--profile', 'pilot',
     '--label', 'generate-runtime-red', '--runtime-root', runtime]);
   assert.notEqual(generated.status, 0);
   assert.match(`${generated.stdout}\n${generated.stderr}`, /generate不得接受runtime-root/u);
