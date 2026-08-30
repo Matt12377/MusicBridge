@@ -14,12 +14,19 @@ import { recordingAttemptFixture } from './helpers/recording-attempt-fixture.js'
 
 function deferred<T>() { let resolve!: (value: T) => void, reject!: (reason: unknown) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; }
 const tick = () => new Promise<void>(resolve => setImmediate(resolve));
-async function until(check: () => boolean) { for (let i = 0; i < 100; ++i) { if (check()) return; await tick(); } assert.fail('有界等待未达到预期状态'); }
+async function until(check: () => boolean) {
+  // 并发CI中I/O回调与setImmediate轮数无稳定比例，按单调时钟给出真正的有界等待。
+  const deadline = performance.now() + 2_000;
+  while (!check()) {
+    if (performance.now() > deadline) assert.fail('有界等待未达到预期状态');
+    await new Promise(resolve => setTimeout(resolve, 1));
+  }
+}
 type Session = Extract<dto.RecordingReplicaRun, { kind: 'session' }>;
 function session(service: ReturnType<typeof createRecordingReplicaCoordinator>, runId: string): Session {
   const value = service.get({ runId }).run; assert.ok(value && value.kind === 'session'); assert.equal(dto.isRecordingReplicaRun(value), true); return value;
 }
-async function fixture(t: test.TestContext, options: { beforeInput?: () => Promise<void>; afterInput?: () => Promise<void> } = {}) {
+async function fixture(t: test.TestContext, options: { beforeInput?: () => Promise<void>; afterInput?: () => Promise<void>; beforeClose?: () => Promise<void> } = {}) {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-replica-session-'));
   const pcm = Buffer.alloc(64, 3), bytes = Buffer.alloc(108); bytes.write('RIFF'); bytes.writeUInt32LE(100, 4); bytes.write('WAVEfmt ', 8); bytes.writeUInt32LE(16, 16); bytes.writeUInt16LE(1, 20); bytes.writeUInt16LE(2, 22); bytes.writeUInt32LE(48000, 24); bytes.writeUInt32LE(192000, 28); bytes.writeUInt16LE(4, 32); bytes.writeUInt16LE(16, 34); bytes.write('data', 36); bytes.writeUInt32LE(64, 40); pcm.copy(bytes, 44);
   const file = path.join(directory, 'synthetic.wav'); await writeFile(file, bytes);
@@ -39,7 +46,7 @@ async function fixture(t: test.TestContext, options: { beforeInput?: () => Promi
       const linked = AbortSignal.any([signal, internalAbort.signal]);
       const current = () => { check(); linked.throwIfAborted(); };
       try { const result = await consume({ handle, audio, dataOffset: 44, inspection, signal: linked, checkOperation: current }); await options.afterInput?.(); current(); return result; }
-      finally { await handle.close(); ++closed; }
+      finally { await options.beforeClose?.(); await handle.close(); ++closed; }
     },
   };
   const calls: RecordingReplicaDriverRequest[] = [], completion = deferred<dto.ReplicaProgress & { pcmSha256: string }>(), quiescent = deferred<void>();
@@ -101,7 +108,7 @@ test('stop ACK不是静止，首个取消原因不被迟到成功覆盖，FD保�
 });
 
 test('关闭期间迟到start句柄必须停止并等待close，超时不能释放输入或伪终态', async t => {
-  const f = await fixture(t), late = deferred<Awaited<ReturnType<RecordingReplicaProvider['start']>>>();
+  const f = await fixture(t, { beforeClose: () => new Promise(resolve => setTimeout(resolve, 10)) }), late = deferred<Awaited<ReturnType<RecordingReplicaProvider['start']>>>();
   let started = 0, stopped = 0, closed = 0;
   const provider: RecordingReplicaProvider = { evidence: 'synthetic-only', async start() { ++started; return late.promise; } };
   const service = createRecordingReplicaCoordinator({ input: f.input, provider, closeTimeoutMs: 5 });
