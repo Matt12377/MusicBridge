@@ -864,13 +864,13 @@ async function prepareBackup(input: PreparationInput): Promise<CapacityBackupInf
   } finally { repository.close(); }
 }
 
-interface QueueMeasurement {
+export interface CapacityQueuedStopMeasurement {
   childProgressMs: number; stopReceivedToAbortMs: number; stopReceivedToDriverStopInvokedMs: number;
   stopReceivedToDriverStopAckMs: number; stopReceivedToReceiptMs: number; parentSendStopToReceiptMs: number;
   parentReceiptToChildCloseMs: number; driverCloseInvokedMs: number; driverCloseResolvedMs: number;
 }
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0;
-function queuedStopMeasurement(result: CapacityProcessResult, planId: string, planHash: string): QueueMeasurement | undefined {
+export function capacityQueuedStopMeasurement(result: CapacityProcessResult, planId: string, planHash: string): CapacityQueuedStopMeasurement | undefined {
   const receipt = result.result;
   if (result.outcome !== 'ok' || !result.closed || result.code !== 0 || result.signal !== null || result.phase !== 'exited'
     || result.cleanup.termSent || result.cleanup.killSent || !Number.isSafeInteger(result.childPid) || result.childPid! <= 0 || result.childPid === process.pid
@@ -903,8 +903,8 @@ function dualMetric(values: number[], limitP95: number, limitMax: number): Capac
   const metric = distribution(values); return { ...metric, limitP95, limitMax,
     passed: metric.n === 100 && metric.p95 !== null && metric.p95 <= limitP95 && metric.max !== null && metric.max <= limitMax };
 }
-function queuedStopSummary(values: QueueMeasurement[]): CapacityQueuedStopSummary {
-  const field = <K extends keyof QueueMeasurement>(key: K) => values.map(value => value[key]);
+export function capacityQueuedStopSummary(values: CapacityQueuedStopMeasurement[]): CapacityQueuedStopSummary {
+  const field = <K extends keyof CapacityQueuedStopMeasurement>(key: K) => values.map(value => value[key]);
   const summary: CapacityQueuedStopSummary = { counts: { warmup: 5, formal: 100 },
     childProgressMs: dualMetric(field('childProgressMs'), 50, 100),
     stopReceivedToAbortMs: maxMetric(field('stopReceivedToAbortMs'), 100),
@@ -1067,7 +1067,7 @@ export async function runCapacityPhase(args: CapacityPhaseArguments, options: Ca
       formalSamples: planned === 105 ? 100 : 0, claimLimitMaxMs: 2000, completeLimitMaxMs: 2000, backend: 'private-immediate-fake' } : {}),
     deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' });
   queuedStopAggregate?.check({ checkpoint: 'input-written' });
-  const rows: { outcome: string; durationMs: number }[] = [], queueMeasurements: QueueMeasurement[] = [], printMeasurements: PrintWriteMeasurement[] = [], childPids = new Set<number>(); let failure: string | undefined, prepared = false;
+  const rows: { outcome: string; durationMs: number }[] = [], queueMeasurements: CapacityQueuedStopMeasurement[] = [], printMeasurements: PrintWriteMeasurement[] = [], childPids = new Set<number>(); let failure: string | undefined, prepared = false;
   try {
     if (args.phase === 'prepare-backup') {
       const clone = createCapacityClone(output, 'backup-source', seedPath), controller = new AbortController();
@@ -1119,7 +1119,7 @@ export async function runCapacityPhase(args: CapacityPhaseArguments, options: Ca
         let identityFailure: string | undefined;
         // 子进程关闭后、发布成功或清理clone前复核本次样本的完整输入身份。
         try { windowCheck(); sourceCheck(); seedCheck(); } catch (error) { identityFailure = capacityPhaseFailureCode(error); }
-        const queueMeasurement = args.phase === 'queued-stop' ? queuedStopMeasurement(result, seed.nextPlanId, seed.nextPlanHash) : undefined;
+        const queueMeasurement = args.phase === 'queued-stop' ? capacityQueuedStopMeasurement(result, seed.nextPlanId, seed.nextPlanHash) : undefined;
         const printMeasurement = args.phase === 'print-write' ? printWriteMeasurement(result, seed.nextPlanId, seed.nextPlanHash) : undefined;
         const ok = !identityFailure && result.outcome === 'ok' && result.closed && result.code === 0 && result.signal === null && Number.isFinite(result.forkToCloseMs) && result.forkToCloseMs >= 0 && result.forkToCloseMs <= effectiveOperationLimits.executionMs
           && !result.cleanup.termSent && !result.cleanup.killSent
@@ -1154,7 +1154,7 @@ export async function runCapacityPhase(args: CapacityPhaseArguments, options: Ca
     }
     windowCheck(); sourceCheck(); seedCheck(); space(0);
   } catch (error) { failure = capacityPhaseFailureCode(error); }
-  const queueSummary = args.phase === 'queued-stop' ? queuedStopSummary(queueMeasurements) : undefined;
+  const queueSummary = args.phase === 'queued-stop' ? capacityQueuedStopSummary(queueMeasurements) : undefined;
   const printSummary = args.phase === 'print-write' ? printWriteSummary(printMeasurements, planned === 105) : undefined;
   if (!failure && queueSummary && !queueSummary.passed) failure = 'CAPACITY_PHASE_THRESHOLD_FAILED';
   if (!failure && printSummary?.passed === false) failure = 'CAPACITY_PHASE_THRESHOLD_FAILED';
