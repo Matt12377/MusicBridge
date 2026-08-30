@@ -25,6 +25,11 @@ function sha(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex')
 }
 
+function replaceJson(path, mutate) {
+  const value = JSON.parse(readFileSync(path, 'utf8')); mutate(value)
+  rmSync(path); json(path, value)
+}
+
 function identity(path) {
   const info = statSync(path)
   return { device: info.dev, inode: info.ino, size: info.size, sha256: sha(path) }
@@ -83,6 +88,9 @@ try:
   elif method == 'queued-bound-identities':
     value=module._validate_queued_stop_bound_identities(
       payload['window'], pathlib.Path(payload['parent']), pathlib.Path(payload['candidate']))
+  elif method == 'queued-process-failures':
+    value=module._validate_queued_stop_process_failures(
+      payload['carryover'], pathlib.Path(payload['runtime']))
   elif method == 'queued-owned':
     value=module._validate_queued_stop_owned_manifest(
       pathlib.Path(payload['manifest']), pathlib.Path(payload['runtime']), payload['windowId'],
@@ -105,13 +113,15 @@ try:
     module._validate_queued_stop_bound_identities=lambda *args, **kwargs: {
       **{key:fixed for key in ('node','tsxLoader','consumerPython','issuer','issuerFact','buildHelper','buildNode','buildNodeLibrary','typescriptCompiler')},
       'typescriptLibraries':{'sha256':'2'*64,'files':{}},
-      'issuerFailureRoots':[],'issuerFailures':payload['failures'],
-      'prechildFailureRoots':[],'prechildFailures':payload.get('prechildFailures', [])}
+      'issuerFailureRoots':payload.get('issuerFailureRoots',[]),'issuerFailures':payload['failures'],
+      'prechildFailureRoots':payload.get('prechildFailureRoots',[]),'prechildFailures':payload.get('prechildFailures', []),
+      'processFailureRoots':payload.get('processFailureRoots',[]),'processFailures':payload.get('processFailures', [])}
     module._validate_queued_stop_measure_carryover=lambda *args, **kwargs: {
-      'roots':[], 'rootRecovery': {'liveDeviceRemap': {'currentDevice': runtime.lstat().st_dev}}}
+      'roots':payload.get('measureRoots',[]),
+      'rootRecovery': {'liveDeviceRemap': {'currentDevice': runtime.lstat().st_dev}}}
     module._validate_phase_source_manifest=lambda *args, **kwargs: {'fileCount':241,'manifestIdentity':{'sha256':'3'*64}}
     module._validate_queued_stop_owned_manifest=lambda *args, **kwargs: {
-      'rootCount':75,'ownedBytes':1,'plannedBytes':2,'remainingPlannedBytes':0,'availableBytes':3,
+      'rootCount':76,'ownedBytes':1,'plannedBytes':2,'remainingPlannedBytes':0,'availableBytes':3,
       'manifestIdentity':{'sha256':'4'*64}}
     value=module._validate_queued_stop_authority(
       parent,runtime,repo,payload['windowSha256'],terminal=payload.get('terminal',False),initial=payload.get('initial'))
@@ -313,6 +323,7 @@ function queuedWindowValue(f) {
     phase: 'queued-stop', profile: 'objects-limit', label: 'objects-limit-queued-stop-formal-01',
     issuerFailureCarryoverCount: 1,
     prechildFailureCarryoverCount: 1,
+    processFailureCarryoverCount: 1,
     seedLabel: 'r023-objects-limit-seed-03',
     seed: { label: 'r023-objects-limit-seed-03', metadataSha256: '632d8e4b0c01ffec07adc72344e7bcc877e5f1d764e7745af856c6ba44492309',
       snapshotSha256: '7ec9b3bed1642503cc9fcee70c6156b54eb43834b0a457050ec51607f2e1ab3a',
@@ -480,6 +491,9 @@ function sealQueuedIdentity(f, window) {
       window: { path: prechildWindow, sha256: sha(prechildWindow) },
       failure: { path: prechildFailure, sha256: sha(prechildFailure) },
     } }]
+  const { fixture: ignoredProcessFixture, ...processFailure } = queuedProcessFailure(f)
+  void ignoredProcessFixture
+  const processFailureCarryover = [processFailure]
   const factPath = join(f.authority, 'issuer-identity/owner.json')
   json(factPath, { schemaVersion: 1, scope: 'musicbridge-capacity-queued-stop-authority-issuer', windowId: window.id,
     issuerRepository: { root: f.candidate, branch: f.candidateBranch, head: f.head,
@@ -488,7 +502,7 @@ function sealQueuedIdentity(f, window) {
     supervisorSource: { path: supervisorPath, relativePath: 'scripts/ci/capacity-phase-supervisor-v2.py', sha256: window.supervisor.sha256 },
     toolchain: window.toolchain,
     buildHelper: { path: buildHelperPath, relativePath: 'scripts/ci/issue-v3-capacity-window.py', sha256: sha(buildHelperPath) },
-    buildToolchain, build, issuerFailureCarryover, prechildFailureCarryover,
+    buildToolchain, build, issuerFailureCarryover, prechildFailureCarryover, processFailureCarryover,
     measureCarryover: window.measureCarryover })
   window.issuer.fact = { path: factPath, sha256: sha(factPath) }
   return window
@@ -959,6 +973,111 @@ function rootRow(path, markerName = 'owner.json') {
   const info = statSync(path)
   return { path, device: info.dev, inode: info.ino,
     marker: { relative: markerName, sha256: sha(join(path, markerName)) } }
+}
+
+function queuedProcessFailure(f, mutate = () => {}) {
+  const windowId = randomUUID(), windowDirName = 'objects-queued-process-window',
+    label = 'objects-queued-process-run', parent = join(f.runtime, windowDirName)
+  const issuerIdentity = join(parent, 'issuer-identity'), supervisionDirectory = join(parent, 'supervision')
+  mkdirSync(issuerIdentity, { recursive: true }); mkdirSync(supervisionDirectory)
+  const owner = join(parent, 'owner.json'), supervisor = join(parent, 'supervisor.py')
+  const issuerFact = join(issuerIdentity, 'owner.json'), source = join(parent, 'source-pins.json')
+  const owned = join(parent, 'owned-roots.json'), windowPath = join(parent, 'window.json')
+  const closePath = join(parent, 'close.json'), supervision = join(supervisionDirectory, 'supervisor.json')
+  const supervisorStart = join(supervisionDirectory, 'supervisor-start.json')
+  const stdout = join(supervisionDirectory, 'stdout.log'), stderr = join(supervisionDirectory, 'stderr.log')
+  json(owner, { scope: 'musicbridge-capacity-queued-stop-window', owner: 'root', id: windowId })
+  copyFileSync(sourceSupervisor, supervisor, constants.COPYFILE_EXCL)
+  const sourceFiles = Object.fromEntries(Array.from({ length: 241 }, (_, index) =>
+    [`synthetic/source-${String(index).padStart(3, '0')}.ts`, String((index % 9) + 1).repeat(64)]))
+  json(source, { schemaVersion: 1, scope: 'musicbridge-capacity-source-pins', files: sourceFiles })
+  const template = queuedWindowValue(f), candidateRepository = template.candidateRepository
+  json(issuerFact, { schemaVersion: 1, scope: 'musicbridge-capacity-queued-stop-authority-issuer', windowId,
+    issuerRepository: { root: f.candidate, branch: f.candidateBranch, head: f.head,
+      relativePath: 'scripts/ci/issue-v3-capacity-queued-stop-window.py',
+      sha256: sha(join(f.candidate, 'scripts/ci/issue-v3-capacity-queued-stop-window.py')) },
+    candidateRepository,
+    supervisorSource: { path: join(f.candidate, 'scripts/ci/capacity-phase-supervisor-v2.py'),
+      relativePath: 'scripts/ci/capacity-phase-supervisor-v2.py', sha256: sha(supervisor) },
+    toolchain: template.toolchain,
+    buildHelper: { path: join(f.candidate, 'scripts/ci/issue-v3-capacity-window.py'),
+      relativePath: 'scripts/ci/issue-v3-capacity-window.py',
+      sha256: sha(join(f.candidate, 'scripts/ci/issue-v3-capacity-window.py')) },
+    buildToolchain: { node: { path: process.execPath, sha256: sha(process.execPath) },
+      nodeLibrary: { path: join(f.candidate, 'tsx-loader.mjs'), sha256: sha(join(f.candidate, 'tsx-loader.mjs')) },
+      typescriptCompiler: { path: join(f.candidate, 'tsx-loader.mjs'), sha256: sha(join(f.candidate, 'tsx-loader.mjs')) },
+      typescriptLibraryManifestSha256: 'a'.repeat(64) },
+    build: { candidateHead: f.head, inputs: {}, command: [], environment: {}, timeoutMs: 1,
+      compilerExitCode: 0, compilerOutputBytes: 0, privateToolchain: {}, outputs: {} },
+    issuerFailureCarryover: [{}], prechildFailureCarryover: [{}], measureCarryover: template.measureCarryover })
+  const historicalRoots = []
+  for (let index = 0; index < 73; index += 1) {
+    const root = join(f.runtime, `process-history-${String(index).padStart(2, '0')}`)
+    mkdirSync(root); json(join(root, 'owner.json'), { scope: 'process-history', index })
+    historicalRoots.push(rootRow(root))
+  }
+  const roots = [...historicalRoots, rootRow(parent), rootRow(issuerIdentity)]
+  json(owned, { schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only',
+    windowId, roots })
+  const window = { ...template, id: windowId, label,
+    issuerFailureCarryoverCount: 1, prechildFailureCarryoverCount: 1,
+    supervisor: { path: supervisor, sha256: sha(supervisor) },
+    ownedManifest: { file: 'owned-roots.json', sha256: sha(owned) },
+    sourceManifest: { file: 'source-pins.json', sha256: sha(source) },
+    issuer: { path: join(f.candidate, 'scripts/ci/issue-v3-capacity-queued-stop-window.py'),
+      sha256: sha(join(f.candidate, 'scripts/ci/issue-v3-capacity-queued-stop-window.py')),
+      fact: { path: issuerFact, sha256: sha(issuerFact) } } }
+  delete window.processFailureCarryoverCount
+  json(windowPath, window)
+  writeFileSync(stdout, '')
+  writeFileSync(stderr, 'CAPACITY_PHASE_OPERATION_FAILED\n' +
+    '(node:313) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n' +
+    '(Use `node --trace-warnings ...` to show where the warning was created)\n')
+  const stdoutFact = { path: stdout, exists: true, size: 0, sha256: sha(stdout) }
+  const stderrFact = { path: stderr, exists: true, size: statSync(stderr).size, sha256: sha(stderr) }
+  const queuedStop = { outputDirectory: join(parent, label), verifiedComplete: false, verifiedPassed: false,
+    fileCount: 0, sampleCount: 0, uniqueChildPids: 0, aggregateBudgetValid: false, unexpectedEntries: [] }
+  const environment = { PATH: '/usr/bin:/bin:/usr/sbin:/sbin', LANG: 'C', LC_ALL: 'C',
+    TZ: 'UTC', CI: '1', TMPDIR: realpathSync(tmpdir()) }
+  json(supervisorStart, { pid: 313, pgid: 313,
+    command: [window.toolchain.node.path, '--import', window.toolchain.tsxLoader.path,
+      join(f.candidate, 'packages/bridge-core/test/benchmarks/recording-capacity-process.ts'),
+      '--phase', 'queued-stop', '--profile', 'objects-limit', '--label', label,
+      '--seed-label', window.seedLabel, '--window', windowPath, '--window-sha256', sha(windowPath),
+      '--owned-roots', owned, '--owned-roots-sha256', sha(owned)],
+    managedProcessGroup: true, startedMonotonic: 1, deadlineMonotonic: 2, cwd: f.candidate,
+    environmentKeys: ['CI', 'LANG', 'LC_ALL', 'PATH', 'TMPDIR', 'TZ'], environment,
+    stdin: 'DEVNULL', stdout, stderr })
+  json(supervision, { passed: false, failure: 'PROCESS_EXIT', pid: 313, pgid: 313, code: 1,
+    exitSignal: null, signals: [], groupEmpty: true, zombies: [], elapsedMs: 650.4,
+    managedProcessGroup: true, stdout: stdoutFact, stderr: stderrFact, queuedStop })
+  const authority = { authorityStable: true, windowStable: true, ownerStable: true,
+    sourceManifestStable: true, ownedManifestStable: true, sourcePinsValid: true, ownedRootsValid: true,
+    measureCarryoverValid: true, issuerFailureCarryoverValid: true, prechildFailureCarryoverValid: true,
+    spaceValid: true, windowSha256Observed: sha(windowPath), ownerSha256Observed: sha(owner),
+    sourceFileCount: 241, ownedRootCount: 75, issuerFailureCount: 1, prechildFailureCount: 1,
+    ownedBytes: 1, plannedBytes: window.queuedStopPlan.plannedBytes, remainingPlannedBytes: 0,
+    availableBytes: 20_000_000_000, candidateRepository, toolchainStable: true, issuerStable: true }
+  json(closePath, { schemaVersion: 1, scope: 'musicbridge-capacity-queued-stop-window-close', windowId,
+    profile: 'objects-limit', label, seedLabel: window.seedLabel,
+    closedAt: '2026-08-30T10:51:58.666686+00:00', state: 'failed', failure: 'PROCESS_EXIT',
+    pid: 313, pgid: 313, managedProcessGroup: true, code: 1, exitSignal: null, signals: [],
+    groupEmpty: true, zombies: [], elapsedMs: 650.4, windowSha256: sha(windowPath),
+    sourceManifestSha256: sha(source), ownedManifestSha256: sha(owned), seed: window.seed,
+    measureCarryover: window.measureCarryover,
+    authorityAdmission: { ...authority, remainingPlannedBytes: window.queuedStopPlan.plannedBytes },
+    authorityTerminal: authority, queuedStop, supervisorSha256: sha(supervision), stdout: stdoutFact,
+    stderr: stderrFact, deviceOpened: false, formalReady: false, gateB: 'NOT_RUN',
+    replayPolicy: 'terminal-window-id-and-label-never-reuse' })
+  mutate({ parent, issuerIdentity, supervisionDirectory, owner, supervisor, issuerFact, source, owned,
+    windowPath, closePath, supervision, supervisorStart, stdout, stderr, window, historicalRoots })
+  const files = Object.fromEntries(Object.entries({ owner, supervisor, issuerFact, sourceManifest: source,
+    ownedManifest: owned, window: windowPath, close: closePath, supervision, supervisorStart, stdout, stderr })
+    .map(([role, path]) => [role, { path, sha256: sha(path) }]))
+  return { root: parent, windowId, windowDirName, label, failure: 'PROCESS_EXIT', code: 1,
+    sampleCount: 0, deviceOpened: false, formalReady: false, gateB: 'NOT_RUN', files,
+    fixture: { parent, issuerIdentity, supervisionDirectory, owner, supervisor, issuerFact, source, owned,
+      windowPath, closePath, supervision, supervisorStart, stdout, stderr, historicalRoots } }
 }
 
 function disappearedFrozenOwnedFixture(remapped = true) {
@@ -1749,6 +1868,68 @@ test('window04 v2终态partial冻结失败语义并只lstat retained SQLite', ()
   }
 })
 
+test('queued-stop PROCESS_EXIT carryover严格冻结exact75 authority、日志与双稳定快照', () => {
+  {
+    const f = copiedSupervisor()
+    try {
+      const { fixture: ignored, ...row } = queuedProcessFailure(f)
+      void ignored
+      const observed = bridge(f.script, 'queued-process-failures', { runtime: f.runtime, carryover: [row] })
+      assert.equal(observed.ok, true, observed.error)
+      assert.equal(observed.value.roots.length, 1)
+      assert.equal(observed.value.snapshots[0].windowId, row.windowId)
+      assert.equal(observed.value.snapshots[0].failure, 'PROCESS_EXIT')
+      assert.deepEqual(observed.value.snapshots[0].inheritedRoots, ignored.historicalRoots)
+      assert.deepEqual(observed.value.snapshots[0].supervisionIdentity.entries,
+        ['stderr.log', 'stdout.log', 'supervisor-start.json', 'supervisor.json'])
+      assert.equal(observed.value.snapshots[0].stdout.size, 0)
+      assert.equal(row.files.stdout.sha256,
+        'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
+      assert.equal(row.files.stderr.sha256,
+        '0dfbd76c742fe7754a435fcb368a34dabe21adbdd23338ee9145ad5afb157298')
+    } finally { f.cleanup() }
+  }
+
+  {
+    const f = copiedSupervisor()
+    try {
+      const { fixture: ignored, ...row } = queuedProcessFailure(f, ({ stderr, supervision, closePath }) => {
+        writeFileSync(stderr, 'CAPACITY_PHASE_OPERATION_FAILED\n' +
+          '(node:314) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n' +
+          '(Use `node --trace-warnings ...` to show where the warning was created)\n')
+        const stderrFact = { path: stderr, exists: true, size: statSync(stderr).size, sha256: sha(stderr) }
+        replaceJson(supervision, value => { value.stderr = stderrFact })
+        replaceJson(closePath, value => { value.stderr = stderrFact; value.supervisorSha256 = sha(supervision) })
+      })
+      void ignored
+      assert.equal(bridge(f.script, 'queued-process-failures', {
+        runtime: f.runtime, carryover: [row],
+      }).ok, false)
+    } finally { f.cleanup() }
+  }
+  const mutations = [
+    ({ parent }) => writeFileSync(join(parent, 'unexpected.txt'), 'unexpected\n'),
+    ({ stdout }) => writeFileSync(stdout, 'unexpected stdout\n'),
+    ({ stderr }) => writeFileSync(stderr, 'CAPACITY_PHASE_OPERATION_FAILED\nsecret path\n'),
+    ({ closePath }) => replaceJson(closePath, value => { value.authorityTerminal.authorityStable = false }),
+    ({ closePath }) => replaceJson(closePath, value => { value.failure = 'AUTHORITY_DRIFT' }),
+    ({ supervision }) => replaceJson(supervision, value => { value.failure = null }),
+    ({ owned }) => replaceJson(owned, value => { value.roots.pop() }),
+    ({ issuerFact }) => replaceJson(issuerFact, value => { value.extra = true }),
+    ({ supervisionDirectory }) => writeFileSync(join(supervisionDirectory, 'extra.log'), 'x\n'),
+  ]
+  for (const mutate of mutations) {
+    const f = copiedSupervisor()
+    try {
+      const { fixture: ignored, ...row } = queuedProcessFailure(f, mutate)
+      void ignored
+      assert.equal(bridge(f.script, 'queued-process-failures', {
+        runtime: f.runtime, carryover: [row],
+      }).ok, false)
+    } finally { f.cleanup() }
+  }
+})
+
 test('旧timeout carryover按legacy 107-clone格式验证29 receipts、273 samples且不读取sqlite', () => {
   const f = copiedSupervisor()
   try {
@@ -1991,7 +2172,7 @@ test('measure root recovery拒绝缺项、夹带、旧路径重现、身份漂�
   }
 })
 
-test('63个live历史根加7个historical-control-only根、output与两类carryover保持successor exact75-v2', () => {
+test('63个live历史根加7个historical-control-only根、output与三类carryover保持successor exact76', () => {
   const f = disappearedFrozenOwnedFixture()
   try {
     const issuerIdentity = join(f.authority, 'issuer-identity'); mkdirSync(issuerIdentity)
@@ -2004,12 +2185,12 @@ test('63个live历史根加7个historical-control-only根、output与两类carry
     ]
     assert.equal(measureRoots.length, 70)
     const priorRoots = []
-    for (const name of ['prior-issuer-failure', 'prior-prechild-failure']) {
+    for (const name of ['prior-issuer-failure', 'prior-prechild-failure', 'prior-process-failure']) {
       const root = join(f.runtime, name); mkdirSync(root); json(join(root, 'owner.json'), { scope: name })
       priorRoots.push(rootRow(root))
     }
     const carryRoots = [...measureRoots, outputRoot, ...priorRoots]
-    assert.equal(carryRoots.length, 73)
+    assert.equal(carryRoots.length, 74)
     const manifest = join(f.authority, 'owned-roots.json')
     json(manifest, { schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only',
       windowId: f.windowId, roots: [...carryRoots, rootRow(f.authority), rootRow(issuerIdentity)] })
@@ -2018,7 +2199,7 @@ test('63个live历史根加7个historical-control-only根、output与两类carry
       parent: f.authority, carryRoots, plannedBytes: 0, expectedDevice }
     const observed = bridge(f.script, 'queued-owned', payload)
     assert.equal(observed.ok, true, observed.error)
-    assert.equal(observed.value.rootCount, 75)
+    assert.equal(observed.value.rootCount, 76)
     assert.equal(bridge(f.script, 'queued-owned', { ...payload, expectedDevice: expectedDevice + 1 }).ok, false)
   } finally { f.cleanup() }
 })
@@ -2044,6 +2225,8 @@ test('queued-stop successor只接受冻结exact schema、900秒、S加256MiB与s
       value => { value.issuerFailureCarryoverCount = 0 },
       value => { value.prechildFailureCarryoverCount = 0 },
       value => { delete value.prechildFailureCarryoverCount },
+      value => { value.processFailureCarryoverCount = 0 },
+      value => { delete value.processFailureCarryoverCount },
       value => { value.deadlineAt = new Date(Date.parse(value.issuedAt) + 899_999).toISOString() },
       value => { delete value.measureCarryover.supervision },
       value => { value.measureCarryover.window.id = randomUUID() },
@@ -2210,7 +2393,7 @@ test('queued-stop admission实际复核toolchain、issuer fact与candidate HEAD 
     assert.equal(observed.ok, true, observed.error)
     assert.deepEqual(Object.keys(observed.value).sort(), ['buildHelper','buildNode','buildNodeLibrary','consumerPython',
       'issuer','issuerFact','issuerFailureRoots','issuerFailures','node','prechildFailureRoots','prechildFailures',
-      'tsxLoader','typescriptCompiler','typescriptLibraries'])
+      'processFailureRoots','processFailures','tsxLoader','typescriptCompiler','typescriptLibraries'])
     assert.equal(observed.value.issuerFailures[0].issuerIdentity.path,
       join(observed.value.issuerFailureRoots[0].path, 'issuer-identity'))
     const changed = structuredClone(window); changed.toolchain.node.sha256 = '0'.repeat(64)
@@ -2220,6 +2403,10 @@ test('queued-stop admission实际复核toolchain、issuer fact与candidate HEAD 
     const wrongPrechildCount = structuredClone(window); wrongPrechildCount.prechildFailureCarryoverCount = 2
     assert.equal(bridge(f.script, 'queued-bound-identities', {
       window: wrongPrechildCount, parent: f.authority, candidate: f.candidate,
+    }).ok, false)
+    const wrongProcessCount = structuredClone(window); wrongProcessCount.processFailureCarryoverCount = 2
+    assert.equal(bridge(f.script, 'queued-bound-identities', {
+      window: wrongProcessCount, parent: f.authority, candidate: f.candidate,
     }).ok, false)
     const factPath = window.issuer.fact.path, factBytes = readFileSync(factPath)
     const malformedFact = JSON.parse(factBytes)
@@ -2260,7 +2447,7 @@ test('queued-stop admission实际复核toolchain、issuer fact与candidate HEAD 
   } finally { f.cleanup() }
 })
 
-test('queued-stop owned闭包动态接受73个carryover加当前authority形成75根', () => {
+test('queued-stop owned闭包动态接受74个carryover加当前authority形成exact76根', () => {
   const f = copiedSupervisor()
   try {
     const windowId = randomUUID(), issuerIdentity = join(f.authority, 'issuer-identity')
@@ -2268,7 +2455,7 @@ test('queued-stop owned闭包动态接受73个carryover加当前authority形成7
     json(join(f.authority, 'owner.json'), { scope: 'musicbridge-capacity-queued-stop-window', owner: 'root', id: windowId })
     json(join(issuerIdentity, 'owner.json'), { scope: 'musicbridge-capacity-queued-stop-authority-issuer', windowId })
     const carryRoots = []
-    for (let index = 0; index < 73; index += 1) {
+    for (let index = 0; index < 74; index += 1) {
       const root = join(f.runtime, `queued-carry-${String(index).padStart(2, '0')}`)
       mkdirSync(root); json(join(root, 'owner.json'), { scope: 'queued-carry', index })
       carryRoots.push(rootRow(root))
@@ -2279,7 +2466,7 @@ test('queued-stop owned闭包动态接受73个carryover加当前authority形成7
     const payload = { manifest, runtime: f.runtime, windowId, parent: f.authority, carryRoots, plannedBytes: 0 }
     const observed = bridge(f.script, 'queued-owned', payload)
     assert.equal(observed.ok, true, observed.error)
-    assert.equal(observed.value.rootCount, 75)
+    assert.equal(observed.value.rootCount, 76)
     const incomplete = JSON.parse(readFileSync(manifest)); incomplete.roots.splice(0, 1)
     rmSync(manifest); json(manifest, incomplete)
     assert.equal(bridge(f.script, 'queued-owned', payload).ok, false)
@@ -2299,8 +2486,17 @@ test('queued-stop authority admission到terminal逐项比较issuer failure身份
       issuerIdentity: { path: join(f.runtime, 'prior/issuer-identity'), inode: 2 }, files: {} }]
     const prechildFailures = [{ rootIdentity: { path: join(f.runtime, 'prechild'), inode: 4 },
       issuerIdentity: { path: join(f.runtime, 'prechild/issuer-identity'), inode: 5 }, files: {} }]
+    const root = (name, inode) => ({ path: join(f.runtime, name), device: 1, inode,
+      marker: { relative: 'owner.json', sha256: String(inode).repeat(64).slice(0, 64) } })
+    const measureRoots = Array.from({ length: 71 }, (_, index) => root(`measure-${index}`, index + 10))
+    const issuerFailureRoots = [root('prior', 81)], prechildFailureRoots = [root('prechild', 82)]
+    const inheritedRoots = structuredClone([...measureRoots, ...issuerFailureRoots, ...prechildFailureRoots])
+    const processFailures = [{ rootIdentity: { path: join(f.runtime, 'process'), inode: 7 },
+      supervisionIdentity: { path: join(f.runtime, 'process/supervision'), inode: 8 },
+      inheritedRoots, files: {} }]
     const payload = { parent: f.authority, runtime: f.runtime, repo: f.candidate,
-      windowSha256: sha(windowPath), failures, prechildFailures }
+      windowSha256: sha(windowPath), failures, prechildFailures, processFailures,
+      measureRoots, issuerFailureRoots, prechildFailureRoots }
     const admission = bridge(f.script, 'queued-authority-snapshot', payload)
     assert.equal(admission.ok, true, admission.error)
     const terminal = structuredClone(payload)
@@ -2315,6 +2511,23 @@ test('queued-stop authority admission到terminal逐项比较issuer failure身份
     const prechildObserved = bridge(f.script, 'queued-authority-snapshot', prechildTerminal)
     assert.equal(prechildObserved.ok, false)
     assert.match(prechildObserved.error, /QUEUED_STOP_AUTHORITY_DRIFT/u)
+    const processTerminal = structuredClone(payload)
+    processTerminal.initial = admission.value; processTerminal.terminal = true
+    processTerminal.processFailures[0].supervisionIdentity.inode = 9
+    const processObserved = bridge(f.script, 'queued-authority-snapshot', processTerminal)
+    assert.equal(processObserved.ok, false)
+    assert.match(processObserved.error, /QUEUED_STOP_AUTHORITY_DRIFT/u)
+
+    for (const [name, mutate] of [
+      ['新增任意根', roots => roots.push(root('extra', 83))],
+      ['marker替换', roots => { roots[0].marker.sha256 = 'f'.repeat(64) }],
+      ['issuer-prechild互换', roots => { [roots[71], roots[72]] = [roots[72], roots[71]] }],
+    ]) {
+      const drift = structuredClone(payload); mutate(drift.processFailures[0].inheritedRoots)
+      const rejected = bridge(f.script, 'queued-authority-snapshot', drift)
+      assert.equal(rejected.ok, false, name)
+      assert.match(rejected.error, /QUEUED_STOP_PROCESS_FAILURE_ROOTS/u)
+    }
   } finally { f.cleanup() }
 })
 

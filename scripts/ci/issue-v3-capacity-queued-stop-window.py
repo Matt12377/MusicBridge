@@ -29,8 +29,8 @@ EXPECTED_MEASURE_ROOTS = 70
 EXPECTED_CONCRETE_ROOTS = 71
 EXPECTED_LIVE_MEASURE_ROOTS = 63
 EXPECTED_RECOVERED_CONTROL_ROOTS = 7
-EXPECTED_PREFLIGHT_ROOTS = 73
-EXPECTED_AUTHORITY_ROOTS = 75
+EXPECTED_PREFLIGHT_ROOTS = 74
+EXPECTED_AUTHORITY_ROOTS = 76
 RECOVERY_MODEL = 'exact75-v2-replacement-closure'
 RECOVERY_TOOL_RELATIVE = 'scripts/ci/create-v3-capacity-measure-root-recovery.py'
 FROZEN_MEASURE = {
@@ -49,6 +49,11 @@ FROZEN_MEASURE = {
     'measureLabel': 'r023-objects-limit-measure-06',
     'seedLabel': 'r023-objects-limit-seed-03',
 }
+PROCESS_FAILURE_STDERR = (
+    b'CAPACITY_PHASE_OPERATION_FAILED\n'
+    b'(node:313) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n'
+    b'(Use `node --trace-warnings ...` to show where the warning was created)\n'
+)
 _FAILURE = None
 
 
@@ -1132,6 +1137,428 @@ def validate_prior_prechild_failures(options, runtime):
             'snapshots': [snapshot for _, _, snapshot in ordered]}
 
 
+def validate_prior_process_failures(options, runtime, expected_inherited_roots):
+    rows = options.prior_process_failure
+    if not isinstance(rows, list) or not rows or len(rows) > 64 \
+            or not isinstance(expected_inherited_roots, list) \
+            or len(expected_inherited_roots) != 73:
+        fail('PRIOR_PROCESS_FAILURE')
+    discovered = set()
+    try:
+        runtime_entries = sorted(runtime.iterdir(), key=lambda value: value.name)
+    except OSError as error:
+        raise IssueError('PRIOR_PROCESS_FAILURE_AUDIT') from error
+    for entry in runtime_entries:
+        close_path = entry / 'close.json'
+        try:
+            entry_info = entry.lstat()
+        except OSError as error:
+            raise IssueError('PRIOR_PROCESS_FAILURE_AUDIT') from error
+        if not stat.S_ISDIR(entry_info.st_mode) or entry.is_symlink():
+            if close_path.exists() or close_path.is_symlink():
+                fail('PRIOR_PROCESS_FAILURE_AUDIT')
+            continue
+        if not close_path.exists() and not close_path.is_symlink():
+            continue
+        try:
+            close, _ = strict_json(close_path, maximum=16 * 1024 * 1024)
+        except IssueError as error:
+            raise IssueError('PRIOR_PROCESS_FAILURE_AUDIT') from error
+        if isinstance(close, dict) \
+                and close.get('scope') == 'musicbridge-capacity-queued-stop-window-close' \
+                and close.get('state') == 'failed' and close.get('failure') == 'PROCESS_EXIT':
+            discovered.add(str(close_path))
+
+    parent_entries = {'owner.json', 'supervisor.py', 'issuer-identity', 'source-pins.json',
+                      'owned-roots.json', 'window.json', 'close.json', 'supervision'}
+    supervision_entries = {'supervisor-start.json', 'supervisor.json', 'stdout.log', 'stderr.log'}
+    issuer_fact_keys = {'schemaVersion', 'scope', 'windowId', 'issuerRepository',
+                        'candidateRepository', 'supervisorSource', 'toolchain', 'buildHelper',
+                        'buildToolchain', 'build', 'issuerFailureCarryover',
+                        'prechildFailureCarryover', 'measureCarryover'}
+    window_keys = {'schemaVersion', 'scope', 'owner', 'id', 'state', 'phase', 'profile', 'label',
+                   'seedLabel', 'seed', 'n', 'issuerFailureCarryoverCount',
+                   'prechildFailureCarryoverCount', 'issuedAt', 'deadlineAt', 'limits',
+                   'ownedManifest', 'sourceManifest', 'queuedStopPlan', 'supervisor', 'toolchain',
+                   'issuer', 'candidateRepository', 'measureCarryover'}
+    close_keys = {'schemaVersion', 'scope', 'windowId', 'profile', 'label', 'seedLabel',
+                  'closedAt', 'state', 'failure', 'pid', 'pgid', 'managedProcessGroup', 'code',
+                  'exitSignal', 'signals', 'groupEmpty', 'zombies', 'elapsedMs', 'windowSha256',
+                  'sourceManifestSha256', 'ownedManifestSha256', 'seed', 'measureCarryover',
+                  'authorityAdmission', 'authorityTerminal', 'queuedStop', 'supervisorSha256',
+                  'stdout', 'stderr', 'deviceOpened', 'formalReady', 'gateB', 'replayPolicy'}
+    supervision_keys = {'passed', 'failure', 'pid', 'pgid', 'code', 'exitSignal', 'signals',
+                        'groupEmpty', 'zombies', 'elapsedMs', 'managedProcessGroup', 'stdout',
+                        'stderr', 'queuedStop'}
+    start_keys = {'pid', 'pgid', 'command', 'managedProcessGroup', 'startedMonotonic',
+                  'deadlineMonotonic', 'cwd', 'environmentKeys', 'environment', 'stdin',
+                  'stdout', 'stderr'}
+    queued_keys = {'outputDirectory', 'verifiedComplete', 'verifiedPassed', 'fileCount',
+                   'sampleCount', 'uniqueChildPids', 'aggregateBudgetValid', 'unexpectedEntries'}
+    authority_keys = {'authorityStable', 'windowStable', 'ownerStable', 'sourceManifestStable',
+                      'ownedManifestStable', 'sourcePinsValid', 'ownedRootsValid',
+                      'measureCarryoverValid', 'issuerFailureCarryoverValid',
+                      'prechildFailureCarryoverValid', 'spaceValid', 'windowSha256Observed',
+                      'ownerSha256Observed', 'sourceFileCount', 'ownedRootCount',
+                      'issuerFailureCount', 'prechildFailureCount', 'ownedBytes', 'plannedBytes',
+                      'remainingPlannedBytes', 'availableBytes', 'candidateRepository',
+                      'toolchainStable', 'issuerStable'}
+    roots = []; facts = []; snapshots = []; declared = set()
+    seen_roots = set(); seen_windows = set(); seen_dirs = set(); seen_labels = set()
+    for row in rows:
+        if not isinstance(row, (list, tuple)) or len(row) != 16:
+            fail('PRIOR_PROCESS_FAILURE')
+        (close_name, close_sha, owner_sha, supervisor_sha, issuer_fact_sha, source_sha,
+         owned_sha, window_sha, supervision_sha, start_sha, stdout_sha, stderr_sha,
+         window_id, window_dir_name, label, failure_code) = row
+        if any(SHA256.fullmatch(str(value or '')) is None for value in (
+                close_sha, owner_sha, supervisor_sha, issuer_fact_sha, source_sha, owned_sha,
+                window_sha, supervision_sha, start_sha, stdout_sha, stderr_sha)) \
+                or UUID4.fullmatch(str(window_id or '')) is None \
+                or SAFE.fullmatch(str(window_dir_name or '')) is None \
+                or SAFE.fullmatch(str(label or '')) is None or failure_code != 'PROCESS_EXIT':
+            fail('PRIOR_PROCESS_FAILURE')
+        close_path = Path(close_name)
+        parent = canonical_directory(close_path.parent, runtime)
+        issuer_identity = canonical_directory(parent / 'issuer-identity', parent)
+        supervision_directory = canonical_directory(parent / 'supervision', parent)
+        if close_path != parent / 'close.json' or parent != runtime / window_dir_name \
+                or str(parent) in seen_roots or window_id in seen_windows \
+                or window_dir_name in seen_dirs or label in seen_labels:
+            fail('PRIOR_PROCESS_FAILURE')
+        if directory_snapshot(parent, parent_entries)['entries'] != sorted(parent_entries) \
+                or directory_snapshot(issuer_identity, {'owner.json'})['entries'] != ['owner.json'] \
+                or directory_snapshot(supervision_directory, supervision_entries)['entries'] != \
+                sorted(supervision_entries):
+            fail('PRIOR_PROCESS_FAILURE')
+
+        owner, observed_owner_sha = strict_json(parent / 'owner.json', owner_sha, maximum=1024 * 1024)
+        issuer_fact, observed_issuer_fact_sha = strict_json(
+            issuer_identity / 'owner.json', issuer_fact_sha)
+        source, observed_source_sha = strict_json(parent / 'source-pins.json', source_sha)
+        owned, observed_owned_sha = strict_json(parent / 'owned-roots.json', owned_sha)
+        window, observed_window_sha = strict_json(parent / 'window.json', window_sha)
+        close, observed_close_sha = strict_json(close_path, close_sha)
+        supervision, observed_supervision_sha = strict_json(
+            supervision_directory / 'supervisor.json', supervision_sha)
+        start, observed_start_sha = strict_json(
+            supervision_directory / 'supervisor-start.json', start_sha)
+        installed_supervisor = verified_file(
+            parent / 'supervisor.py', supervisor_sha, 'PRIOR_PROCESS_FAILURE')
+        stdout_path = supervision_directory / 'stdout.log'
+        stderr_path = supervision_directory / 'stderr.log'
+        stdout_snapshot = file_snapshot(stdout_path, stdout_sha)
+        stderr_snapshot = file_snapshot(stderr_path, stderr_sha)
+        if stdout_snapshot['size'] != 0 or stdout_sha != hashlib.sha256(b'').hexdigest() \
+                or stderr_snapshot['size'] <= 0:
+            fail('PRIOR_PROCESS_FAILURE')
+        try:
+            stderr_bytes = stderr_path.read_bytes()
+        except OSError as error:
+            raise IssueError('PRIOR_PROCESS_FAILURE') from error
+        if stderr_bytes != PROCESS_FAILURE_STDERR \
+                or file_snapshot(stderr_path, stderr_sha) != stderr_snapshot:
+            fail('PRIOR_PROCESS_FAILURE')
+        if not all(isinstance(value, dict) for value in
+                   (owner, issuer_fact, source, owned, window, close, supervision, start)):
+            fail('PRIOR_PROCESS_FAILURE')
+
+        expected_stdout = {'path': str(stdout_path), 'exists': True,
+                           'size': stdout_snapshot['size'], 'sha256': stdout_sha}
+        expected_stderr = {'path': str(stderr_path), 'exists': True,
+                           'size': stderr_snapshot['size'], 'sha256': stderr_sha}
+        queued = close.get('queuedStop')
+        admission = close.get('authorityAdmission')
+        terminal = close.get('authorityTerminal')
+        issuer = window.get('issuer')
+        candidate = window.get('candidateRepository')
+        issuer_repository = issuer_fact.get('issuerRepository')
+        supervisor_source = issuer_fact.get('supervisorSource')
+        toolchain = window.get('toolchain')
+        build_helper = issuer_fact.get('buildHelper')
+        build_toolchain = issuer_fact.get('buildToolchain')
+        build = issuer_fact.get('build')
+        plan = window.get('queuedStopPlan')
+        seed = window.get('seed')
+        measure_carryover = window.get('measureCarryover')
+        def hash_fact(value):
+            return isinstance(value, dict) and set(value) == {'path', 'sha256'} \
+                and isinstance(value.get('path'), str) and Path(value['path']).is_absolute() \
+                and SHA256.fullmatch(str(value.get('sha256', ''))) is not None
+        toolchain_valid = isinstance(toolchain, dict) \
+            and set(toolchain) == {'node', 'tsxLoader', 'consumerPython'} \
+            and all(hash_fact(toolchain.get(key)) for key in ('node', 'tsxLoader', 'consumerPython'))
+        candidate_valid = isinstance(candidate, dict) and set(candidate) == {'root', 'branch', 'head'} \
+            and isinstance(candidate.get('root'), str) and Path(candidate['root']).is_absolute() \
+            and isinstance(candidate.get('branch'), str) and 1 <= len(candidate['branch']) <= 255 \
+            and GIT_SHA.fullmatch(str(candidate.get('head', ''))) is not None
+        issuer_repository_valid = isinstance(issuer_repository, dict) \
+            and set(issuer_repository) == {'root', 'branch', 'head', 'relativePath', 'sha256'} \
+            and isinstance(issuer_repository.get('root'), str) \
+            and Path(issuer_repository['root']).is_absolute() \
+            and isinstance(issuer_repository.get('branch'), str) \
+            and 1 <= len(issuer_repository['branch']) <= 255 \
+            and GIT_SHA.fullmatch(str(issuer_repository.get('head', ''))) is not None \
+            and issuer_repository.get('relativePath') == \
+                'scripts/ci/issue-v3-capacity-queued-stop-window.py' \
+            and SHA256.fullmatch(str(issuer_repository.get('sha256', ''))) is not None
+        supervisor_source_valid = isinstance(supervisor_source, dict) \
+            and set(supervisor_source) == {'path', 'relativePath', 'sha256'} \
+            and isinstance(supervisor_source.get('path'), str) \
+            and Path(supervisor_source['path']).is_absolute() \
+            and supervisor_source.get('relativePath') == 'scripts/ci/capacity-phase-supervisor-v2.py' \
+            and supervisor_source.get('sha256') == supervisor_sha
+        build_helper_valid = isinstance(build_helper, dict) \
+            and set(build_helper) == {'path', 'relativePath', 'sha256'} \
+            and isinstance(build_helper.get('path'), str) and Path(build_helper['path']).is_absolute() \
+            and build_helper.get('relativePath') == 'scripts/ci/issue-v3-capacity-window.py' \
+            and SHA256.fullmatch(str(build_helper.get('sha256', ''))) is not None
+        build_toolchain_valid = isinstance(build_toolchain, dict) \
+            and set(build_toolchain) == {'node', 'nodeLibrary', 'typescriptCompiler',
+                                         'typescriptLibraryManifestSha256'} \
+            and all(hash_fact(build_toolchain.get(key))
+                    for key in ('node', 'nodeLibrary', 'typescriptCompiler')) \
+            and SHA256.fullmatch(str(build_toolchain.get(
+                'typescriptLibraryManifestSha256', ''))) is not None
+        build_valid = candidate_valid and isinstance(build, dict) and set(build) == {
+            'candidateHead', 'inputs', 'command', 'environment', 'timeoutMs', 'compilerExitCode',
+            'compilerOutputBytes', 'privateToolchain', 'outputs'} \
+            and build.get('candidateHead') == candidate.get('head')
+        if build_valid:
+            build_valid = isinstance(build.get('inputs'), dict) \
+                and isinstance(build.get('command'), list) \
+                and isinstance(build.get('environment'), dict) \
+                and isinstance(build.get('timeoutMs'), int) and build['timeoutMs'] > 0 \
+                and build.get('compilerExitCode') == 0 \
+                and isinstance(build.get('compilerOutputBytes'), int) \
+                and build['compilerOutputBytes'] >= 0 \
+                and isinstance(build.get('privateToolchain'), dict) \
+                and isinstance(build.get('outputs'), dict)
+        plan_valid = isinstance(plan, dict) and plan == {
+            'warmupCount': 5, 'formalCount': 100, 'sampleCount': 105,
+            'activeCloneMaximum': 1, 'snapshotBytes': FROZEN_MEASURE['seedSnapshotBytes'],
+            'evidenceAllowanceBytes': EVIDENCE_ALLOWANCE,
+            'plannedBytes': FROZEN_MEASURE['seedSnapshotBytes'] + EVIDENCE_ALLOWANCE,
+            'model': 'serial-single-clone-plus-bounded-growth-v1',
+            'aggregateAudit': 'queued-stop-aggregate-budget.jsonl'}
+        seed_valid = isinstance(seed, dict) and seed == {
+            'label': FROZEN_MEASURE['seedLabel'],
+            'metadataSha256': FROZEN_MEASURE['seedMetadataSha256'],
+            'snapshotSha256': FROZEN_MEASURE['seedSnapshotSha256'],
+            'fixtureOwnerSha256': FROZEN_MEASURE['seedFixtureOwnerSha256']}
+        measure_valid = isinstance(measure_carryover, dict) \
+            and set(measure_carryover) == {'window', 'close', 'ownedManifest', 'sourceManifest',
+                                           'supervision', 'supervisor', 'output',
+                                           'measureRootRecovery'} \
+            and all(hash_fact(measure_carryover.get(key)) for key in (
+                'close', 'ownedManifest', 'sourceManifest', 'supervision', 'supervisor',
+                'measureRootRecovery')) \
+            and isinstance(measure_carryover.get('window'), dict) \
+            and set(measure_carryover['window']) == {'path', 'id', 'sha256'} \
+            and isinstance(measure_carryover['window'].get('path'), str) \
+            and Path(measure_carryover['window']['path']).is_absolute() \
+            and UUID4.fullmatch(str(measure_carryover['window'].get('id', ''))) is not None \
+            and SHA256.fullmatch(str(measure_carryover['window'].get('sha256', ''))) is not None \
+            and isinstance(measure_carryover.get('output'), dict) \
+            and set(measure_carryover['output']) == {'path', 'label', 'commandSha256'} \
+            and isinstance(measure_carryover['output'].get('path'), str) \
+            and Path(measure_carryover['output']['path']).is_absolute() \
+            and SAFE.fullmatch(str(measure_carryover['output'].get('label', ''))) is not None \
+            and SHA256.fullmatch(str(measure_carryover['output'].get('commandSha256', ''))) is not None
+        try:
+            issued_at = datetime.datetime.fromisoformat(window.get('issuedAt'))
+            deadline_at = datetime.datetime.fromisoformat(window.get('deadlineAt'))
+            closed_at = datetime.datetime.fromisoformat(close.get('closedAt'))
+        except (AttributeError, TypeError, ValueError) as error:
+            raise IssueError('PRIOR_PROCESS_FAILURE') from error
+        if owner != {'scope': 'musicbridge-capacity-queued-stop-window', 'owner': 'root', 'id': window_id} \
+                or set(issuer_fact) != issuer_fact_keys \
+                or issuer_fact.get('schemaVersion') != 1 \
+                or issuer_fact.get('scope') != 'musicbridge-capacity-queued-stop-authority-issuer' \
+                or issuer_fact.get('windowId') != window_id \
+                or not isinstance(issuer_fact.get('issuerFailureCarryover'), list) \
+                or len(issuer_fact['issuerFailureCarryover']) != 1 \
+                or not isinstance(issuer_fact.get('prechildFailureCarryover'), list) \
+                or len(issuer_fact['prechildFailureCarryover']) != 1 \
+                or not candidate_valid or not issuer_repository_valid \
+                or not supervisor_source_valid or not toolchain_valid \
+                or not build_helper_valid or not build_toolchain_valid or not build_valid \
+                or not plan_valid or not seed_valid or not measure_valid \
+                or window.get('limits') != LIMITS \
+                or set(source) != {'schemaVersion', 'scope', 'files'} \
+                or source.get('schemaVersion') != 1 \
+                or source.get('scope') != 'musicbridge-capacity-source-pins' \
+                or not isinstance(source.get('files'), dict) or len(source['files']) != EXPECTED_SOURCE_COUNT \
+                or any(not isinstance(key, str) or SHA256.fullmatch(str(value)) is None
+                       for key, value in source['files'].items()) \
+                or set(owned) != {'schemaVersion', 'scope', 'access', 'windowId', 'roots'} \
+                or owned.get('schemaVersion') != 1 \
+                or owned.get('scope') != 'musicbridge-capacity-owned-roots' \
+                or owned.get('access') != 'count-only' or owned.get('windowId') != window_id \
+                or not isinstance(owned.get('roots'), list) or len(owned['roots']) != 75 \
+                or set(window) != window_keys or window.get('schemaVersion') != 1 \
+                or window.get('scope') != 'musicbridge-capacity-queued-stop-window' \
+                or window.get('owner') != 'root' or window.get('id') != window_id \
+                or window.get('state') != 'approved' or window.get('phase') != 'queued-stop' \
+                or window.get('profile') != 'objects-limit' or window.get('label') != label \
+                or window.get('n') != 105 or window.get('issuerFailureCarryoverCount') != 1 \
+                or window.get('prechildFailureCarryoverCount') != 1 \
+                or window.get('candidateRepository') != issuer_fact.get('candidateRepository') \
+                or window.get('toolchain') != issuer_fact.get('toolchain') \
+                or window.get('measureCarryover') != issuer_fact.get('measureCarryover') \
+                or window.get('ownedManifest') != {'file': 'owned-roots.json', 'sha256': owned_sha} \
+                or window.get('sourceManifest') != {'file': 'source-pins.json', 'sha256': source_sha} \
+                or window.get('supervisor') != {'path': str(installed_supervisor),
+                                                'sha256': supervisor_sha} \
+                or not isinstance(issuer, dict) or set(issuer) != {'path', 'sha256', 'fact'} \
+                or issuer.get('path') != str(Path(issuer_repository['root']) /
+                                             issuer_repository['relativePath']) \
+                or issuer.get('sha256') != issuer_repository['sha256'] \
+                or issuer.get('fact') != {'path': str(issuer_identity / 'owner.json'),
+                                          'sha256': issuer_fact_sha} \
+                or set(close) != close_keys or close.get('schemaVersion') != 1 \
+                or close.get('scope') != 'musicbridge-capacity-queued-stop-window-close' \
+                or close.get('windowId') != window_id or close.get('profile') != 'objects-limit' \
+                or close.get('label') != label or close.get('seedLabel') != window.get('seedLabel') \
+                or close.get('state') != 'failed' or close.get('failure') != failure_code \
+                or close.get('code') != 1 or close.get('exitSignal') is not None \
+                or close.get('signals') != [] or close.get('groupEmpty') is not True \
+                or close.get('zombies') != [] or close.get('managedProcessGroup') is not True \
+                or not isinstance(close.get('pid'), int) or close['pid'] <= 0 \
+                or close.get('pgid') != close.get('pid') \
+                or not isinstance(close.get('elapsedMs'), (int, float)) or close['elapsedMs'] < 0 \
+                or close.get('windowSha256') != window_sha \
+                or close.get('sourceManifestSha256') != source_sha \
+                or close.get('ownedManifestSha256') != owned_sha \
+                or close.get('seed') != window.get('seed') \
+                or close.get('measureCarryover') != window.get('measureCarryover') \
+                or close.get('supervisorSha256') != supervision_sha \
+                or close.get('stdout') != expected_stdout or close.get('stderr') != expected_stderr \
+                or any(close.get(key) is not False for key in
+                       ('deviceOpened', 'formalReady')) \
+                or close.get('gateB') != 'NOT_RUN' \
+                or close.get('replayPolicy') != 'terminal-window-id-and-label-never-reuse' \
+                or issued_at.utcoffset() is None or deadline_at.utcoffset() is None \
+                or closed_at.utcoffset() is None or deadline_at <= issued_at:
+            fail('PRIOR_PROCESS_FAILURE')
+
+        if not isinstance(queued, dict) or set(queued) != queued_keys \
+                or queued != {'outputDirectory': str(parent / label), 'verifiedComplete': False,
+                              'verifiedPassed': False, 'fileCount': 0, 'sampleCount': 0,
+                              'uniqueChildPids': 0, 'aggregateBudgetValid': False,
+                              'unexpectedEntries': []} \
+                or (parent / label).exists() or (parent / label).is_symlink():
+            fail('PRIOR_PROCESS_FAILURE')
+        for authority, remaining in ((admission, window['queuedStopPlan']['plannedBytes']),
+                                     (terminal, 0)):
+            if not isinstance(authority, dict) or set(authority) != authority_keys \
+                    or any(authority.get(key) is not True for key in (
+                        'authorityStable', 'windowStable', 'ownerStable', 'sourceManifestStable',
+                        'ownedManifestStable', 'sourcePinsValid', 'ownedRootsValid',
+                        'measureCarryoverValid', 'issuerFailureCarryoverValid',
+                        'prechildFailureCarryoverValid', 'spaceValid', 'toolchainStable',
+                        'issuerStable')) \
+                    or authority.get('windowSha256Observed') != window_sha \
+                    or authority.get('ownerSha256Observed') != owner_sha \
+                    or authority.get('sourceFileCount') != 241 \
+                    or authority.get('ownedRootCount') != 75 \
+                    or authority.get('issuerFailureCount') != 1 \
+                    or authority.get('prechildFailureCount') != 1 \
+                    or authority.get('remainingPlannedBytes') != remaining \
+                    or authority.get('candidateRepository') != window.get('candidateRepository'):
+                fail('PRIOR_PROCESS_FAILURE')
+
+        if set(supervision) != supervision_keys or supervision.get('passed') is not False \
+                or supervision.get('failure') != failure_code or supervision.get('code') != 1 \
+                or supervision.get('pid') != close.get('pid') \
+                or supervision.get('pgid') != close.get('pgid') \
+                or supervision.get('exitSignal') is not None or supervision.get('signals') != [] \
+                or supervision.get('groupEmpty') is not True or supervision.get('zombies') != [] \
+                or supervision.get('managedProcessGroup') is not True \
+                or supervision.get('elapsedMs') != close.get('elapsedMs') \
+                or supervision.get('stdout') != expected_stdout \
+                or supervision.get('stderr') != expected_stderr \
+                or supervision.get('queuedStop') != queued:
+            fail('PRIOR_PROCESS_FAILURE')
+        expected_command = [
+            window['toolchain']['node']['path'], '--import', window['toolchain']['tsxLoader']['path'],
+            str(Path(window['candidateRepository']['root']) /
+                'packages/bridge-core/test/benchmarks/recording-capacity-process.ts'),
+            '--phase', 'queued-stop', '--profile', 'objects-limit', '--label', label,
+            '--seed-label', window['seedLabel'], '--window', str(parent / 'window.json'),
+            '--window-sha256', window_sha, '--owned-roots', str(parent / 'owned-roots.json'),
+            '--owned-roots-sha256', owned_sha]
+        environment = start.get('environment')
+        if set(start) != start_keys or start.get('pid') != close.get('pid') \
+                or start.get('pgid') != close.get('pgid') \
+                or start.get('command') != expected_command \
+                or start.get('managedProcessGroup') is not True \
+                or not isinstance(start.get('startedMonotonic'), (int, float)) \
+                or not isinstance(start.get('deadlineMonotonic'), (int, float)) \
+                or start['deadlineMonotonic'] <= start['startedMonotonic'] \
+                or start.get('cwd') != window['candidateRepository']['root'] \
+                or start.get('environmentKeys') != ['CI', 'LANG', 'LC_ALL', 'PATH', 'TMPDIR', 'TZ'] \
+                or not isinstance(environment, dict) \
+                or set(environment) != {'PATH', 'LANG', 'LC_ALL', 'TZ', 'CI', 'TMPDIR'} \
+                or environment.get('PATH') != '/usr/bin:/bin:/usr/sbin:/sbin' \
+                or environment.get('LANG') != 'C' or environment.get('LC_ALL') != 'C' \
+                or environment.get('TZ') != 'UTC' or environment.get('CI') != '1' \
+                or not isinstance(environment.get('TMPDIR'), str) \
+                or not Path(environment['TMPDIR']).is_absolute() \
+                or start.get('stdin') != 'DEVNULL' or start.get('stdout') != str(stdout_path) \
+                or start.get('stderr') != str(stderr_path):
+            fail('PRIOR_PROCESS_FAILURE')
+
+        validated_owned = unique_roots(owned['roots'])
+        parent_root = current_root(parent, 'owner.json')
+        issuer_root = current_root(issuer_identity, 'owner.json')
+        if len(validated_owned) != 75 or validated_owned.get(str(parent)) != parent_root \
+                or validated_owned.get(str(issuer_identity)) != issuer_root:
+            fail('PRIOR_PROCESS_FAILURE')
+        inherited_roots = [root for root in owned['roots']
+                           if root.get('path') not in {str(parent), str(issuer_identity)}]
+        if inherited_roots != expected_inherited_roots:
+            fail('PRIOR_PROCESS_FAILURE')
+        files = {
+            'owner': {'path': str(parent / 'owner.json'), 'sha256': observed_owner_sha},
+            'supervisor': {'path': str(installed_supervisor), 'sha256': supervisor_sha},
+            'issuerFact': {'path': str(issuer_identity / 'owner.json'),
+                           'sha256': observed_issuer_fact_sha},
+            'sourceManifest': {'path': str(parent / 'source-pins.json'),
+                               'sha256': observed_source_sha},
+            'ownedManifest': {'path': str(parent / 'owned-roots.json'),
+                              'sha256': observed_owned_sha},
+            'window': {'path': str(parent / 'window.json'), 'sha256': observed_window_sha},
+            'close': {'path': str(close_path), 'sha256': observed_close_sha},
+            'supervision': {'path': str(supervision_directory / 'supervisor.json'),
+                            'sha256': observed_supervision_sha},
+            'supervisorStart': {'path': str(supervision_directory / 'supervisor-start.json'),
+                                'sha256': observed_start_sha},
+            'stdout': {'path': str(stdout_path), 'sha256': stdout_sha},
+            'stderr': {'path': str(stderr_path), 'sha256': stderr_sha},
+        }
+        facts.append({'root': str(parent), 'windowId': window_id, 'windowDirName': window_dir_name,
+                      'label': label, 'failure': failure_code, 'code': 1, 'sampleCount': 0,
+                      'deviceOpened': False, 'formalReady': False, 'gateB': 'NOT_RUN',
+                      'files': files})
+        snapshots.append({
+            'root': directory_snapshot(parent, parent_entries),
+            'issuerIdentity': directory_snapshot(issuer_identity, {'owner.json'}),
+            'supervision': directory_snapshot(supervision_directory, supervision_entries),
+            'inheritedRoots': inherited_roots,
+            'files': {key: file_snapshot(value['path'], value['sha256'])
+                      for key, value in files.items()},
+        })
+        roots.append(parent_root)
+        seen_roots.add(str(parent)); seen_windows.add(window_id); seen_dirs.add(window_dir_name)
+        seen_labels.add(label); declared.add(str(close_path))
+    if declared != discovered:
+        fail('PRIOR_PROCESS_FAILURE_AUDIT')
+    ordered = sorted(zip(roots, facts, snapshots), key=lambda value: value[0]['path'])
+    return {'roots': [root for root, _, _ in ordered], 'facts': [fact for _, fact, _ in ordered],
+            'snapshots': [snapshot for _, _, snapshot in ordered]}
+
+
 def copy_supervisor(source, destination, expected_sha):
     if destination.exists() or destination.is_symlink():
         fail('EXCLUSIVE_CREATE')
@@ -1222,6 +1649,11 @@ def parse_args(argv):
                         metavar=('FAILURE', 'FAILURE_SHA256', 'OWNER_SHA256', 'SUPERVISOR_SHA256',
                                  'ISSUER_FACT_SHA256', 'SOURCE_SHA256', 'OWNED_SHA256', 'WINDOW_SHA256',
                                  'WINDOW_ID', 'WINDOW_DIR_NAME', 'LABEL', 'ERROR_CODE'))
+    parser.add_argument('--prior-process-failure', action='append', nargs=16,
+                        metavar=('CLOSE', 'CLOSE_SHA256', 'OWNER_SHA256', 'SUPERVISOR_SHA256',
+                                 'ISSUER_FACT_SHA256', 'SOURCE_SHA256', 'OWNED_SHA256', 'WINDOW_SHA256',
+                                 'SUPERVISION_SHA256', 'SUPERVISOR_START_SHA256', 'STDOUT_SHA256',
+                                 'STDERR_SHA256', 'WINDOW_ID', 'WINDOW_DIR_NAME', 'LABEL', 'FAILURE'))
     return parser.parse_args(argv)
 
 
@@ -1286,6 +1718,7 @@ def record_failure(code):
 
 def build_window_payload(*, window_id, label, seed_label, seed, issued_at, deadline_at,
                          owned_sha, source_sha, plan, issuer_failure_count, prechild_failure_count,
+                         process_failure_count,
                          installed_supervisor, supervisor_sha,
                          candidate_root, candidate_branch, candidate_head, measure_facts,
                          node, node_sha, tsx, tsx_sha, consumer, consumer_sha,
@@ -1304,6 +1737,7 @@ def build_window_payload(*, window_id, label, seed_label, seed, issued_at, deadl
         'label': label, 'seedLabel': seed_label, 'seed': seed, 'n': 105,
         'issuerFailureCarryoverCount': issuer_failure_count,
         'prechildFailureCarryoverCount': prechild_failure_count,
+        'processFailureCarryoverCount': process_failure_count,
         'issuedAt': issued_at, 'deadlineAt': deadline_at, 'limits': dict(LIMITS),
         'ownedManifest': {'file': 'owned-roots.json', 'sha256': owned_sha},
         'sourceManifest': {'file': 'source-pins.json', 'sha256': source_sha},
@@ -1364,17 +1798,23 @@ def issue(options):
     source = source_manifest(root, options.expected_head, derived['files'])
     prior_failures = validate_prior_issuer_failures(options, runtime)
     prechild_failures = validate_prior_prechild_failures(options, runtime)
-    if len(prior_failures['roots']) != 1 or len(prechild_failures['roots']) != 1:
-        fail('EXACT75_V2_CARRYOVER')
     # recovery、历史根现状、durable seed 与 repo/tool 身份全部在分配新身份前完成。
     measure = validate_measure(options, runtime)
+    expected_process_inherited = [*measure['roots'], *prior_failures['roots'],
+                                  *prechild_failures['roots']]
+    process_failures = validate_prior_process_failures(
+        options, runtime, expected_process_inherited)
+    if len(prior_failures['roots']) != 1 or len(prechild_failures['roots']) != 1 \
+            or len(process_failures['roots']) != 1:
+        fail('EXACT76_V3_CARRYOVER')
     planned = measure['snapshotBytes'] + EVIDENCE_ALLOWANCE
     preflight_roots = unique_roots(
-        [*measure['roots'], *prior_failures['roots'], *prechild_failures['roots']])
+        [*measure['roots'], *prior_failures['roots'], *prechild_failures['roots'],
+         *process_failures['roots']])
     current_device = measure['liveDeviceRemap']['currentDevice']
     if len(preflight_roots) != EXPECTED_PREFLIGHT_ROOTS \
             or any(row['device'] != current_device for row in preflight_roots.values()):
-        fail('EXACT75_V2_PREFLIGHT')
+        fail('EXACT76_V3_PREFLIGHT')
     owned_facts(list(preflight_roots.values()), planned, runtime)
     window_id = str(uuid.uuid4())
     parent = runtime / options.window_dir_name
@@ -1416,9 +1856,11 @@ def issue(options):
         'build': derived['provenance'],
         'issuerFailureCarryover': prior_failures['facts'],
         'prechildFailureCarryover': prechild_failures['facts'],
+        'processFailureCarryover': process_failures['facts'],
         'measureCarryover': measure['facts'],
     })
     roots = unique_roots([*measure['roots'], *prior_failures['roots'], *prechild_failures['roots'],
+                          *process_failures['roots'],
                           current_root(parent, 'owner.json'), current_root(issuer_identity, 'owner.json')])
     if len(roots) != EXPECTED_AUTHORITY_ROOTS \
             or any(row['device'] != current_device for row in roots.values()):
@@ -1442,6 +1884,7 @@ def issue(options):
         deadline_at=deadline.isoformat(timespec='milliseconds'), owned_sha=owned_sha,
         source_sha=source_sha, plan=plan, issuer_failure_count=len(prior_failures['roots']),
         prechild_failure_count=len(prechild_failures['roots']),
+        process_failure_count=len(process_failures['roots']),
         installed_supervisor=str(installed),
         supervisor_sha=options.expected_supervisor_sha256, candidate_root=str(root),
         candidate_branch=options.expected_branch, candidate_head=options.expected_head,
@@ -1482,6 +1925,10 @@ def issue(options):
         raise IssueError('BUILD_TOOLCHAIN_IDENTITY') from error
     second_prior_failures = validate_prior_issuer_failures(options, runtime)
     second_prechild_failures = validate_prior_prechild_failures(options, runtime)
+    second_expected_process_inherited = [*second_measure['roots'], *second_prior_failures['roots'],
+                                         *second_prechild_failures['roots']]
+    second_process_failures = validate_prior_process_failures(
+        options, runtime, second_expected_process_inherited)
     if second_prior_failures['facts'] != prior_failures['facts'] \
             or second_prior_failures['roots'] != prior_failures['roots'] \
             or second_prior_failures['snapshots'] != prior_failures['snapshots']:
@@ -1490,6 +1937,10 @@ def issue(options):
             or second_prechild_failures['roots'] != prechild_failures['roots'] \
             or second_prechild_failures['snapshots'] != prechild_failures['snapshots']:
         fail('PRIOR_PRECHILD_FAILURE_DRIFT')
+    if second_process_failures['facts'] != process_failures['facts'] \
+            or second_process_failures['roots'] != process_failures['roots'] \
+            or second_process_failures['snapshots'] != process_failures['snapshots']:
+        fail('PRIOR_PROCESS_FAILURE_DRIFT')
     if strict_json(parent / 'source-pins.json', source_sha)[0] != source_manifest(
             root, options.expected_head, derived['files']) \
             or strict_json(parent / 'owned-roots.json', owned_sha)[0] != owned \
@@ -1520,6 +1971,7 @@ def issue(options):
             'profile': 'objects-limit', 'label': options.label, 'seedLabel': options.seed_label,
             'sourceFileCount': len(source['files']), 'ownedRootCount': len(roots),
             'prechildFailureCarryoverCount': len(prechild_failures['roots']),
+            'processFailureCarryoverCount': len(process_failures['roots']),
             **budget_second, 'deadlineAt': window['deadlineAt'],
             'issuerFact': {'file': 'issuer-identity/owner.json', 'sha256': issuer_fact_sha},
             'ownerSha256': owner_sha, 'consumeCommand': consume,

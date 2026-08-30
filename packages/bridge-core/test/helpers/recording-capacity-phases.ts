@@ -38,6 +38,7 @@ export interface CapacityPhaseWindow {
   phase: CapacityPhaseName; profile: CapacityPhaseProfile; label: string; seedLabel?: string;
   issuerFailureCarryoverCount?: number;
   prechildFailureCarryoverCount?: number;
+  processFailureCarryoverCount?: number;
   seed: { label: string; metadataSha256: string; snapshotSha256: string; fixtureOwnerSha256?: string };
   n: 10 | 105; issuedAt: string; deadlineAt: string; limits: typeof CAPACITY_PHASE_LIMITS;
   ownedManifest: { file: 'owned-roots.json'; sha256: string }; sourceManifest: { file: 'source-pins.json'; sha256: string };
@@ -186,7 +187,7 @@ function validWindow(v: unknown): v is CapacityPhaseWindow {
   const successor = !!v && typeof v === 'object' && !Array.isArray(v)
     && (v as { scope?: unknown }).scope === 'musicbridge-capacity-queued-stop-window';
   const keys = successor
-    ? 'schemaVersion,scope,owner,id,state,phase,profile,label,seedLabel,seed,n,issuerFailureCarryoverCount,prechildFailureCarryoverCount,issuedAt,deadlineAt,limits,ownedManifest,sourceManifest,queuedStopPlan,supervisor,candidateRepository,toolchain,issuer,measureCarryover'
+    ? 'schemaVersion,scope,owner,id,state,phase,profile,label,seedLabel,seed,n,issuerFailureCarryoverCount,prechildFailureCarryoverCount,processFailureCarryoverCount,issuedAt,deadlineAt,limits,ownedManifest,sourceManifest,queuedStopPlan,supervisor,candidateRepository,toolchain,issuer,measureCarryover'
     : 'schemaVersion,scope,owner,id,state,phase,profile,label,seed,n,issuedAt,deadlineAt,limits,ownedManifest,sourceManifest' + (v && typeof v === 'object' && 'backup' in v ? ',backup' : '');
   if (!exact(v, keys)) return false;
   const seedKeys = successor ? 'label,metadataSha256,snapshotSha256,fixtureOwnerSha256' : 'label,metadataSha256,snapshotSha256';
@@ -217,6 +218,8 @@ function validWindow(v: unknown): v is CapacityPhaseWindow {
       && v.issuerFailureCarryoverCount <= 64
       && integer(v.prechildFailureCarryoverCount) && v.prechildFailureCarryoverCount >= 1
       && v.prechildFailureCarryoverCount <= 64
+      && integer(v.processFailureCarryoverCount) && v.processFailureCarryoverCount >= 1
+      && v.processFailureCarryoverCount <= 64
       && sha(v.seed.fixtureOwnerSha256) && exact(plan, 'warmupCount,formalCount,sampleCount,activeCloneMaximum,snapshotBytes,evidenceAllowanceBytes,plannedBytes,model,aggregateAudit')
       && plan.warmupCount === 5 && plan.formalCount === 100 && plan.sampleCount === 105 && plan.activeCloneMaximum === 1
       && integer(plan.snapshotBytes) && plan.snapshotBytes > 0 && plan.evidenceAllowanceBytes === 256 * 1024 ** 2
@@ -368,10 +371,14 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
   const receipt = receiptValue as unknown as RootRecoveryReceipt;
   const remap = receipt.liveDeviceRemap;
   const historicalValue = json(String(receiptValue.historicalManifest.path), String(receiptValue.historicalManifest.sha256));
-  if (!exact(historicalValue, 'schemaVersion,scope,access,windowId,roots') || historicalValue.schemaVersion !== 1
+  if (!exact(historicalValue, 'schemaVersion,scope,access,windowId,roots,futureRoots') || historicalValue.schemaVersion !== 1
     || historicalValue.scope !== 'musicbridge-capacity-owned-roots' || historicalValue.access !== 'count-only'
     || historicalValue.windowId !== receiptValue.windowId || !Array.isArray(historicalValue.roots)
-    || historicalValue.roots.length !== recoveryHistoricalRootCount) invalid('WINDOW_INVALID');
+    || historicalValue.roots.length !== recoveryHistoricalRootCount || !Array.isArray(historicalValue.futureRoots)
+    || historicalValue.futureRoots.length !== 1 || typeof historicalValue.futureRoots[0] !== 'string'
+    || !path.isAbsolute(historicalValue.futureRoots[0]) || path.normalize(historicalValue.futureRoots[0]) !== historicalValue.futureRoots[0]
+    || !inside(runtime, historicalValue.futureRoots[0]) || historicalValue.futureRoots[0] === runtime) invalid('WINDOW_INVALID');
+  const historicalFutureRoot = historicalValue.futureRoots[0];
   const historicalRows = historicalValue.roots as RecoveryRootRow[], historicalPaths = new Set<string>();
   const liveRoots: RecoveryRootRow[] = [], absentRoots: RecoveryRootRow[] = [];
   for (const root of historicalRows) {
@@ -424,25 +431,54 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
     || inventory.roots.some(root => historical.has(root.path))) invalid('SEED_INVALID');
   const output = carryover.output!, outputPath = String(output.path), outputMarker = path.join(outputPath, 'command.json');
   canonical(outputPath);
-  if (!directRegularFile(outputMarker) || hashCapacityFile(outputMarker) !== output.commandSha256) invalid('INVENTORY_INVALID');
+  if (historicalFutureRoot !== outputPath || historicalPaths.has(outputPath)
+    || !directRegularFile(outputMarker) || hashCapacityFile(outputMarker) !== output.commandSha256) invalid('INVENTORY_INVALID');
   const issuerFactBinding = window.issuer!.fact, issuerFactPath = issuerFactBinding.path;
   if (!directRegularFile(issuerFactPath) || hashCapacityFile(issuerFactPath) !== issuerFactBinding.sha256
     || issuerFactPath !== path.join(windowRoot, 'issuer-identity', 'owner.json')) invalid('WINDOW_INVALID');
   const issuerIdentity = path.dirname(issuerFactPath); canonical(issuerIdentity);
   if ((lstatSync(windowRoot).mode & 0o777) !== 0o700 || (lstatSync(issuerIdentity).mode & 0o777) !== 0o700) invalid('WINDOW_INVALID');
   const issuerFact = json(issuerFactPath, issuerFactBinding.sha256) as Record<string, unknown>;
-  if (!exact(issuerFact, 'schemaVersion,scope,windowId,issuerRepository,candidateRepository,supervisorSource,toolchain,buildHelper,buildToolchain,build,issuerFailureCarryover,prechildFailureCarryover,measureCarryover')
+  if (!exact(issuerFact, 'schemaVersion,scope,windowId,issuerRepository,candidateRepository,supervisorSource,toolchain,buildHelper,buildToolchain,build,issuerFailureCarryover,prechildFailureCarryover,processFailureCarryover,measureCarryover')
     || issuerFact.schemaVersion !== 1 || issuerFact.scope !== 'musicbridge-capacity-queued-stop-authority-issuer'
     || issuerFact.windowId !== window.id || JSON.stringify(issuerFact.candidateRepository) !== JSON.stringify(window.candidateRepository)
     || JSON.stringify(issuerFact.measureCarryover) !== JSON.stringify(window.measureCarryover)) invalid('WINDOW_INVALID');
   const carryoverRoots = [issuerFact.issuerFailureCarryover, issuerFact.prechildFailureCarryover].flatMap((value, index) => {
-    const expectedCount = index === 0 ? window.issuerFailureCarryoverCount : window.prechildFailureCarryoverCount;
+    const expectedCount = [window.issuerFailureCarryoverCount, window.prechildFailureCarryoverCount][index];
     if (!Array.isArray(value) || value.length !== expectedCount) invalid('WINDOW_INVALID');
     return value.map(row => {
       if (!row || typeof row !== 'object' || Array.isArray(row) || typeof (row as Record<string, unknown>).root !== 'string') invalid('WINDOW_INVALID');
       return String((row as Record<string, unknown>).root);
     });
   });
+  const processValue = issuerFact.processFailureCarryover;
+  if (!Array.isArray(processValue) || processValue.length !== window.processFailureCarryoverCount) invalid('WINDOW_INVALID');
+  const processFileRelatives = {
+    owner: 'owner.json', supervisor: 'supervisor.py', issuerFact: 'issuer-identity/owner.json',
+    sourceManifest: 'source-pins.json', ownedManifest: 'owned-roots.json', window: 'window.json', close: 'close.json',
+    supervision: 'supervision/supervisor.json', supervisorStart: 'supervision/supervisor-start.json',
+    stdout: 'supervision/stdout.log', stderr: 'supervision/stderr.log',
+  } as const;
+  const processRoots = processValue.map(value => {
+    if (!exact(value, 'root,windowId,windowDirName,label,failure,code,sampleCount,deviceOpened,formalReady,gateB,files')
+      || typeof value.root !== 'string' || !path.isAbsolute(value.root) || path.normalize(value.root) !== value.root
+      || path.dirname(value.root) !== runtime || path.basename(value.root) !== value.windowDirName
+      || !isCapacityRequestId(value.windowId) || !label(value.windowDirName) || !label(value.label)
+      || value.failure !== 'PROCESS_EXIT' || value.code !== 1 || value.sampleCount !== 0
+      || value.deviceOpened !== false || value.formalReady !== false || value.gateB !== 'NOT_RUN'
+      || !exact(value.files, Object.keys(processFileRelatives).join(','))) invalid('WINDOW_INVALID');
+    canonical(value.root);
+    const rootInfo = lstatSync(value.root);
+    const files = value.files as Record<string, unknown>;
+    for (const [role, relative] of Object.entries(processFileRelatives)) {
+      const file = files[role];
+      if (!exact(file, 'path,sha256') || file.path !== path.join(value.root, relative) || !sha(file.sha256)
+        || !directRegularFile(file.path) || hashCapacityFile(file.path) !== file.sha256) invalid('WINDOW_INVALID');
+    }
+    return { root: value.root, device: rootInfo.dev, inode: rootInfo.ino,
+      ownerSha256: (files.owner as Record<string, unknown>).sha256 as string };
+  });
+  carryoverRoots.push(...processRoots.map(value => value.root));
   const expectedPaths = new Set([...liveRoots.map(root => root.path), ...replacements, outputPath, ...carryoverRoots,
     path.dirname(issuerIdentity), issuerIdentity]);
   const inventoryPaths = new Set(inventory.roots.map(root => root.path));
@@ -451,7 +487,12 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
     if (!current || current.device !== remap.currentDevice || current.inode !== root.inode
       || current.marker.relative !== root.marker.relative || current.marker.sha256 !== root.marker.sha256) invalid('INVENTORY_INVALID');
   }
-  if (expectedPaths.size !== 75 || inventoryPaths.size !== 75 || inventoryPaths.size !== inventory.roots.length
+  for (const processRoot of processRoots) {
+    const current = inventory.roots.find(value => value.path === processRoot.root);
+    if (!current || current.device !== processRoot.device || current.inode !== processRoot.inode
+      || current.marker.relative !== 'owner.json' || current.marker.sha256 !== processRoot.ownerSha256) invalid('INVENTORY_INVALID');
+  }
+  if (expectedPaths.size !== 76 || inventoryPaths.size !== 76 || inventoryPaths.size !== inventory.roots.length
     || inventory.roots.some(root => root.device !== remap.currentDevice)
     || [...expectedPaths].some(value => !inventoryPaths.has(value)) || [...inventoryPaths].some(value => !expectedPaths.has(value))) invalid('INVENTORY_INVALID');
   const repository = receiptValue.repository as Record<string, unknown>, tool = receiptValue.recoveryTool as Record<string, unknown>;
@@ -643,7 +684,8 @@ export async function runCapacityPhase(args: CapacityPhaseArguments, options: Ca
   windowCheck(effectiveOperationLimits.admissionReserveMs);
   const inventoryValue = json(args.ownedRootsPath, args.ownedRootsSha256);
   if (!validInventory(inventoryValue, w.id, w.scope === 'musicbridge-capacity-queued-stop-window'
-    ? 73 + (w.issuerFailureCarryoverCount ?? 0) + (w.prechildFailureCarryoverCount ?? 0) : undefined)) invalid('INVENTORY_INVALID');
+    ? 73 + (w.issuerFailureCarryoverCount ?? 0) + (w.prechildFailureCarryoverCount ?? 0)
+      + (w.processFailureCarryoverCount ?? 0) : undefined)) invalid('INVENTORY_INVALID');
   const inventory = inventoryValue;
   const sourcePath = path.join(windowRoot, 'source-pins.json'), source = json(sourcePath, w.sourceManifest.sha256);
   if (!exact(source, 'schemaVersion,scope,files') || source.schemaVersion !== 1 || source.scope !== 'musicbridge-capacity-source-pins' || !source.files || typeof source.files !== 'object' || Array.isArray(source.files)) invalid('SOURCE_CHANGED');

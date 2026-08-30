@@ -243,7 +243,7 @@ _STOP_METRICS = ('signalAborted', 'driverStopInvoked', 'driverStopAck',
 _STAGE_PHASES = ('copy', 'open-audit', 'operation', 'round-fsync', 'final-hash', 'cleanup')
 _QUEUED_STOP_KEYS = {'schemaVersion', 'scope', 'owner', 'id', 'state', 'phase', 'profile',
                      'label', 'seedLabel', 'seed', 'n', 'issuerFailureCarryoverCount',
-                     'prechildFailureCarryoverCount',
+                     'prechildFailureCarryoverCount', 'processFailureCarryoverCount',
                      'issuedAt', 'deadlineAt', 'limits',
                      'ownedManifest', 'sourceManifest', 'queuedStopPlan', 'supervisor',
                      'candidateRepository', 'measureCarryover', 'toolchain', 'issuer'}
@@ -254,6 +254,11 @@ _QUEUED_STOP_SNAPSHOT_BYTES = 1_990_471_680
 _QUEUED_STOP_AUDIT = 'queued-stop-aggregate-budget.jsonl'
 _QUEUED_STOP_MODEL = 'serial-single-clone-plus-bounded-growth-v1'
 _QUEUED_STOP_BASE_ROOTS = 73
+_QUEUED_STOP_PROCESS_FAILURE_STDERR = (
+    b'CAPACITY_PHASE_OPERATION_FAILED\n'
+    b'(node:313) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n'
+    b'(Use `node --trace-warnings ...` to show where the warning was created)\n'
+)
 _QUEUED_STOP_MEASURE_WINDOW_ID = 'afc81a99-d15d-4179-8326-5774a5c40b62'
 _QUEUED_STOP_SEED = {'metadataSha256': '632d8e4b0c01ffec07adc72344e7bcc877e5f1d764e7745af856c6ba44492309',
                      'snapshotSha256': '7ec9b3bed1642503cc9fcee70c6156b54eb43834b0a457050ec51607f2e1ab3a',
@@ -2746,6 +2751,8 @@ def _validate_queued_stop_window(window, now):
             or not 1 <= window['issuerFailureCarryoverCount'] <= 64 \
             or type(window.get('prechildFailureCarryoverCount')) is not int \
             or not 1 <= window['prechildFailureCarryoverCount'] <= 64 \
+            or type(window.get('processFailureCarryoverCount')) is not int \
+            or not 1 <= window['processFailureCarryoverCount'] <= 64 \
             or window.get('limits') != _QUEUED_STOP_LIMITS:
         raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
     seed = window.get('seed')
@@ -3212,6 +3219,425 @@ def _validate_queued_stop_prechild_failures(carryover, runtime):
     return {'roots': [root for root, _ in ordered], 'snapshots': [snapshot for _, snapshot in ordered]}
 
 
+def _queued_stop_process_authority(value, window, window_identity, owner_identity,
+                                   source_count, owned_count, remaining):
+    keys = {
+        'authorityStable', 'windowStable', 'ownerStable', 'sourceManifestStable',
+        'ownedManifestStable', 'sourcePinsValid', 'ownedRootsValid',
+        'measureCarryoverValid', 'issuerFailureCarryoverValid',
+        'prechildFailureCarryoverValid', 'spaceValid', 'windowSha256Observed',
+        'ownerSha256Observed', 'sourceFileCount', 'ownedRootCount',
+        'issuerFailureCount', 'prechildFailureCount', 'ownedBytes', 'plannedBytes',
+        'remainingPlannedBytes', 'availableBytes', 'candidateRepository',
+        'toolchainStable', 'issuerStable'}
+    stable = {
+        'authorityStable', 'windowStable', 'ownerStable', 'sourceManifestStable',
+        'ownedManifestStable', 'sourcePinsValid', 'ownedRootsValid',
+        'measureCarryoverValid', 'issuerFailureCarryoverValid',
+        'prechildFailureCarryoverValid', 'spaceValid', 'toolchainStable', 'issuerStable'}
+    planned = window['queuedStopPlan']['plannedBytes']
+    return _queued_exact(value, keys) \
+        and all(value.get(key) is True for key in stable) \
+        and value.get('windowSha256Observed') == window_identity['sha256'] \
+        and value.get('ownerSha256Observed') == owner_identity['sha256'] \
+        and value.get('sourceFileCount') == source_count \
+        and value.get('ownedRootCount') == owned_count \
+        and value.get('issuerFailureCount') == window['issuerFailureCarryoverCount'] \
+        and value.get('prechildFailureCount') == window['prechildFailureCarryoverCount'] \
+        and value.get('candidateRepository') == window['candidateRepository'] \
+        and value.get('plannedBytes') == planned \
+        and value.get('remainingPlannedBytes') == remaining \
+        and type(value.get('ownedBytes')) is int and value['ownedBytes'] >= 0 \
+        and type(value.get('availableBytes')) is int and value['availableBytes'] >= 0 \
+        and value['ownedBytes'] + remaining <= _QUEUED_STOP_LIMITS['maximumOwnedBytes'] \
+        and value['availableBytes'] - remaining >= _QUEUED_STOP_LIMITS['minimumFreeBytes']
+
+
+def _validate_queued_stop_process_failures(carryover, runtime):
+    """冻结已消费且PROCESS_EXIT的queued-stop authority；历史owned schema不得升级或重写。"""
+    error_code = 'QUEUED_STOP_PROCESS_FAILURE'
+    audit_code = 'QUEUED_STOP_PROCESS_FAILURE_AUDIT'
+    runtime = Path(runtime).resolve(strict=True)
+    if not isinstance(carryover, list) or not carryover or len(carryover) > 64:
+        raise ValueError(error_code)
+    discovered = set()
+    try: entries = sorted(runtime.iterdir(), key=lambda value: value.name)
+    except OSError as error: raise ValueError(audit_code) from error
+    for entry in entries:
+        close_path = entry / 'close.json'
+        try: entry_info = entry.lstat()
+        except OSError as error: raise ValueError(audit_code) from error
+        if not stat.S_ISDIR(entry_info.st_mode) or entry.is_symlink():
+            if close_path.exists() or close_path.is_symlink():
+                raise ValueError(audit_code)
+            continue
+        if not close_path.exists() and not close_path.is_symlink():
+            continue
+        try: close, _ = _strict_json(close_path, 8 * 1024 * 1024)
+        except ValueError as error: raise ValueError(audit_code) from error
+        if not isinstance(close, dict) or not isinstance(close.get('scope'), str):
+            raise ValueError(audit_code)
+        if close.get('scope') == 'musicbridge-capacity-queued-stop-window-close' \
+                and close.get('state') == 'failed' and close.get('failure') == 'PROCESS_EXIT':
+            discovered.add(str(close_path))
+    row_keys = {'root', 'windowId', 'windowDirName', 'label', 'failure', 'code',
+                'sampleCount', 'deviceOpened', 'formalReady', 'gateB', 'files'}
+    file_keys = {'owner', 'supervisor', 'issuerFact', 'sourceManifest', 'ownedManifest',
+                 'window', 'close', 'supervision', 'supervisorStart', 'stdout', 'stderr'}
+    window_keys = _QUEUED_STOP_KEYS - {'processFailureCarryoverCount'}
+    fact_keys = {'schemaVersion', 'scope', 'windowId', 'issuerRepository', 'candidateRepository',
+                 'supervisorSource', 'toolchain', 'buildHelper', 'buildToolchain', 'build',
+                 'issuerFailureCarryover', 'prechildFailureCarryover', 'measureCarryover'}
+    close_keys = {'schemaVersion', 'scope', 'windowId', 'profile', 'label', 'seedLabel',
+                  'closedAt', 'state', 'failure', 'pid', 'pgid', 'managedProcessGroup',
+                  'code', 'exitSignal', 'signals', 'groupEmpty', 'zombies', 'elapsedMs',
+                  'windowSha256', 'sourceManifestSha256', 'ownedManifestSha256', 'seed',
+                  'measureCarryover', 'authorityAdmission', 'authorityTerminal', 'queuedStop',
+                  'supervisorSha256', 'stdout', 'stderr', 'deviceOpened', 'formalReady',
+                  'gateB', 'replayPolicy'}
+    supervision_keys = {'passed', 'failure', 'pid', 'pgid', 'code', 'exitSignal', 'signals',
+                        'groupEmpty', 'zombies', 'elapsedMs', 'managedProcessGroup',
+                        'stdout', 'stderr', 'queuedStop'}
+    start_keys = {'pid', 'pgid', 'command', 'managedProcessGroup', 'startedMonotonic',
+                  'deadlineMonotonic', 'cwd', 'environmentKeys', 'environment', 'stdin',
+                  'stdout', 'stderr'}
+    queued_keys = {'outputDirectory', 'verifiedComplete', 'verifiedPassed', 'fileCount',
+                   'sampleCount', 'uniqueChildPids', 'aggregateBudgetValid', 'unexpectedEntries'}
+    roots = []; snapshots = []; declared = set(); seen = set()
+    seen_windows = set(); seen_dirs = set(); seen_labels = set()
+    for row in carryover:
+        if not _queued_exact(row, row_keys) or row.get('failure') != 'PROCESS_EXIT' \
+                or row.get('code') != 1 or row.get('sampleCount') != 0 \
+                or row.get('deviceOpened') is not False or row.get('formalReady') is not False \
+                or row.get('gateB') != 'NOT_RUN' \
+                or not _uuid4(row.get('windowId')) \
+                or _SAFE.fullmatch(str(row.get('windowDirName', ''))) is None \
+                or _SAFE.fullmatch(str(row.get('label', ''))) is None \
+                or not isinstance(row.get('root'), str) \
+                or not isinstance(row.get('files'), dict) or set(row['files']) != file_keys \
+                or any(not _queued_stop_exact_binding(binding, {'path', 'sha256'})
+                       for binding in row['files'].values()):
+            raise ValueError(error_code)
+        root = Path(row['root']); window_id = row['windowId']; label = row['label']
+        issuer_directory = root / 'issuer-identity'; supervision_directory = root / 'supervision'
+        expected_entries = {'owner.json', 'supervisor.py', 'issuer-identity', 'source-pins.json',
+                            'owned-roots.json', 'window.json', 'supervision', 'close.json'}
+        supervision_entries = {'supervisor.json', 'supervisor-start.json', 'stdout.log', 'stderr.log'}
+        try:
+            root_info = root.lstat(); issuer_info = issuer_directory.lstat()
+            supervision_info = supervision_directory.lstat()
+            root_canonical = root.resolve(strict=True)
+            issuer_canonical = issuer_directory.resolve(strict=True)
+            supervision_canonical = supervision_directory.resolve(strict=True)
+            root_entries = {entry.name for entry in root.iterdir()}
+            issuer_entries = {entry.name for entry in issuer_directory.iterdir()}
+            observed_supervision_entries = {entry.name for entry in supervision_directory.iterdir()}
+        except OSError as error: raise ValueError(error_code) from error
+        if not root.is_absolute() or root.is_symlink() or root_canonical != root \
+                or root.parent != runtime or root != runtime / row['windowDirName'] \
+                or not stat.S_ISDIR(root_info.st_mode) or root_entries != expected_entries \
+                or issuer_directory.is_symlink() or issuer_canonical != issuer_directory \
+                or not stat.S_ISDIR(issuer_info.st_mode) or issuer_entries != {'owner.json'} \
+                or supervision_directory.is_symlink() or supervision_canonical != supervision_directory \
+                or not stat.S_ISDIR(supervision_info.st_mode) \
+                or observed_supervision_entries != supervision_entries \
+                or str(root) in seen or window_id in seen_windows \
+                or row['windowDirName'] in seen_dirs or label in seen_labels:
+            raise ValueError(error_code)
+        files = row['files']
+        expected_paths = {
+            'owner': root / 'owner.json', 'supervisor': root / 'supervisor.py',
+            'issuerFact': issuer_directory / 'owner.json', 'sourceManifest': root / 'source-pins.json',
+            'ownedManifest': root / 'owned-roots.json', 'window': root / 'window.json',
+            'close': root / 'close.json', 'supervision': supervision_directory / 'supervisor.json',
+            'supervisorStart': supervision_directory / 'supervisor-start.json',
+            'stdout': supervision_directory / 'stdout.log', 'stderr': supervision_directory / 'stderr.log'}
+        maximums = {'owner': 1024 * 1024, 'issuerFact': 1024 * 1024,
+                    'stdout': 64 * 1024, 'stderr': 64 * 1024}
+        identities = {role: _validate_queued_stop_bound_file(
+            binding, expected_paths[role], maximum=maximums.get(role, 32 * 1024 * 1024))
+            for role, binding in files.items()}
+        try:
+            owner, owner_identity = _strict_json(expected_paths['owner'], 1024 * 1024)
+            fact, fact_identity = _strict_json(expected_paths['issuerFact'], 1024 * 1024)
+            source, source_identity = _strict_json(expected_paths['sourceManifest'])
+            owned, owned_identity = _strict_json(expected_paths['ownedManifest'])
+            window, window_identity = _strict_json(expected_paths['window'])
+            close, close_identity = _strict_json(expected_paths['close'])
+            supervision, supervision_identity = _strict_json(expected_paths['supervision'])
+            start, start_identity = _strict_json(expected_paths['supervisorStart'])
+            stdout_bytes = expected_paths['stdout'].read_bytes()
+            stderr_bytes = expected_paths['stderr'].read_bytes()
+            closed_at = datetime.datetime.fromisoformat(str(close.get('closedAt')))
+            issued_at = datetime.datetime.fromisoformat(str(window.get('issuedAt')))
+            deadline_at = datetime.datetime.fromisoformat(str(window.get('deadlineAt')))
+        except (OSError, UnicodeDecodeError, ValueError, TypeError) as error:
+            raise ValueError(error_code) from error
+        if any(identities[role] != identity for role, identity in (
+                ('owner', owner_identity), ('issuerFact', fact_identity),
+                ('sourceManifest', source_identity), ('ownedManifest', owned_identity),
+                ('window', window_identity), ('close', close_identity),
+                ('supervision', supervision_identity), ('supervisorStart', start_identity))):
+            raise ValueError(error_code)
+        source_files = source.get('files') if isinstance(source, dict) else None
+        if owner != {'scope': 'musicbridge-capacity-queued-stop-window', 'owner': 'root', 'id': window_id} \
+                or not _queued_exact(source, {'schemaVersion', 'scope', 'files'}) \
+                or source.get('schemaVersion') != 1 \
+                or source.get('scope') != 'musicbridge-capacity-source-pins' \
+                or not isinstance(source_files, dict) or len(source_files) != 241 \
+                or any(not isinstance(relative, str) or Path(relative).is_absolute()
+                       or '..' in Path(relative).parts or _SHA256.fullmatch(str(digest)) is None
+                       for relative, digest in source_files.items()):
+            raise ValueError(error_code)
+        if not _queued_exact(window, window_keys) or window.get('schemaVersion') != 1 \
+                or window.get('scope') != 'musicbridge-capacity-queued-stop-window' \
+                or window.get('owner') != 'root' or window.get('id') != window_id \
+                or window.get('state') != 'approved' or window.get('phase') != 'queued-stop' \
+                or window.get('profile') != 'objects-limit' or window.get('label') != label \
+                or window.get('n') != 105 or window.get('limits') != _QUEUED_STOP_LIMITS \
+                or window.get('issuerFailureCarryoverCount') != 1 \
+                or window.get('prechildFailureCarryoverCount') != 1 \
+                or window.get('supervisor') != {'path': str(expected_paths['supervisor']),
+                                                'sha256': identities['supervisor']['sha256']} \
+                or window.get('sourceManifest') != {'file': 'source-pins.json',
+                                                    'sha256': source_identity['sha256']} \
+                or window.get('ownedManifest') != {'file': 'owned-roots.json',
+                                                   'sha256': owned_identity['sha256']} \
+                or issued_at.utcoffset() is None or deadline_at.utcoffset() is None \
+                or deadline_at - issued_at != datetime.timedelta(seconds=900):
+            raise ValueError(error_code)
+        try:
+            expected_plan = _queued_stop_planned_bytes(window['queuedStopPlan']['snapshotBytes'])
+        except (KeyError, TypeError, ValueError) as error: raise ValueError(error_code) from error
+        if window.get('queuedStopPlan') != {
+                'warmupCount': 5, 'formalCount': 100, 'sampleCount': 105,
+                'activeCloneMaximum': 1, 'snapshotBytes': _QUEUED_STOP_SNAPSHOT_BYTES,
+                'evidenceAllowanceBytes': _QUEUED_STOP_ALLOWANCE, 'plannedBytes': expected_plan,
+                'model': _QUEUED_STOP_MODEL, 'aggregateAudit': _QUEUED_STOP_AUDIT}:
+            raise ValueError(error_code)
+        issuer = window.get('issuer'); issuer_repo = fact.get('issuerRepository') if isinstance(fact, dict) else None
+        supervisor_source = fact.get('supervisorSource') if isinstance(fact, dict) else None
+        candidate = window.get('candidateRepository') if isinstance(window, dict) else None
+        toolchain = window.get('toolchain') if isinstance(window, dict) else None
+        build_helper = fact.get('buildHelper') if isinstance(fact, dict) else None
+        build_toolchain = fact.get('buildToolchain') if isinstance(fact, dict) else None
+        build = fact.get('build') if isinstance(fact, dict) else None
+        measure_carry = window.get('measureCarryover') if isinstance(window, dict) else None
+        identity_shape = lambda value: _queued_stop_identity_schema(value)
+        candidate_valid = _queued_exact(candidate, {'root', 'branch', 'head'}) \
+            and isinstance(candidate.get('root'), str) and Path(candidate['root']).is_absolute() \
+            and isinstance(candidate.get('branch'), str) and 1 <= len(candidate['branch']) <= 255 \
+            and _GIT_SHA.fullmatch(str(candidate.get('head', ''))) is not None
+        toolchain_valid = _queued_exact(toolchain, {'node', 'tsxLoader', 'consumerPython'}) \
+            and all(identity_shape(toolchain.get(key)) for key in ('node', 'tsxLoader', 'consumerPython'))
+        build_helper_valid = _queued_exact(build_helper, {'path', 'relativePath', 'sha256'}) \
+            and build_helper.get('relativePath') == 'scripts/ci/issue-v3-capacity-window.py' \
+            and isinstance(build_helper.get('path'), str) and Path(build_helper['path']).is_absolute() \
+            and _SHA256.fullmatch(str(build_helper.get('sha256', ''))) is not None
+        build_toolchain_valid = _queued_exact(
+            build_toolchain, {'node', 'nodeLibrary', 'typescriptCompiler',
+                              'typescriptLibraryManifestSha256'}) \
+            and all(identity_shape(build_toolchain.get(key))
+                    for key in ('node', 'nodeLibrary', 'typescriptCompiler')) \
+            and _SHA256.fullmatch(str(build_toolchain.get('typescriptLibraryManifestSha256', ''))) is not None
+        build_valid = _queued_exact(build, {'candidateHead', 'inputs', 'command', 'environment',
+                                            'timeoutMs', 'compilerExitCode', 'compilerOutputBytes',
+                                            'privateToolchain', 'outputs'}) \
+            and build.get('candidateHead') == (candidate or {}).get('head') \
+            and isinstance(build.get('inputs'), dict) and isinstance(build.get('command'), list) \
+            and isinstance(build.get('environment'), dict) \
+            and type(build.get('timeoutMs')) is int and build['timeoutMs'] > 0 \
+            and build.get('compilerExitCode') == 0 \
+            and type(build.get('compilerOutputBytes')) is int and build['compilerOutputBytes'] >= 0 \
+            and isinstance(build.get('privateToolchain'), dict) and isinstance(build.get('outputs'), dict)
+        measure_valid = _queued_exact(measure_carry, {
+            'window', 'close', 'ownedManifest', 'sourceManifest', 'supervision', 'supervisor',
+            'output', 'measureRootRecovery'}) \
+            and all(_queued_stop_exact_binding(measure_carry.get(key), {'path', 'sha256'})
+                    for key in ('close', 'ownedManifest', 'sourceManifest', 'supervision',
+                                'supervisor', 'measureRootRecovery')) \
+            and _queued_stop_exact_binding(measure_carry.get('window'), {'path', 'id', 'sha256'}) \
+            and _uuid4(measure_carry['window'].get('id')) \
+            and _queued_exact(measure_carry.get('output'), {'path', 'label', 'commandSha256'}) \
+            and isinstance(measure_carry['output'].get('path'), str) \
+            and Path(measure_carry['output']['path']).is_absolute() \
+            and _SAFE.fullmatch(str(measure_carry['output'].get('label', ''))) is not None \
+            and _SHA256.fullmatch(str(measure_carry['output'].get('commandSha256', ''))) is not None
+        if not _queued_exact(fact, fact_keys) or fact.get('schemaVersion') != 1 \
+                or fact.get('scope') != 'musicbridge-capacity-queued-stop-authority-issuer' \
+                or fact.get('windowId') != window_id \
+                or fact.get('candidateRepository') != window.get('candidateRepository') \
+                or fact.get('toolchain') != window.get('toolchain') \
+                or fact.get('measureCarryover') != window.get('measureCarryover') \
+                or not candidate_valid or not toolchain_valid or not build_helper_valid \
+                or not build_toolchain_valid or not build_valid or not measure_valid \
+                or not isinstance(fact.get('issuerFailureCarryover'), list) \
+                or len(fact['issuerFailureCarryover']) != window['issuerFailureCarryoverCount'] \
+                or not isinstance(fact.get('prechildFailureCarryover'), list) \
+                or len(fact['prechildFailureCarryover']) != window['prechildFailureCarryoverCount'] \
+                or not _queued_exact(issuer, {'path', 'sha256', 'fact'}) \
+                or issuer.get('fact') != {'path': str(expected_paths['issuerFact']),
+                                          'sha256': fact_identity['sha256']} \
+                or not _queued_exact(issuer_repo, {'root', 'branch', 'head', 'relativePath', 'sha256'}) \
+                or issuer_repo.get('root') != window['candidateRepository'].get('root') \
+                or issuer_repo.get('branch') != window['candidateRepository'].get('branch') \
+                or issuer_repo.get('head') != window['candidateRepository'].get('head') \
+                or issuer_repo.get('relativePath') != 'scripts/ci/issue-v3-capacity-queued-stop-window.py' \
+                or issuer_repo.get('sha256') != issuer.get('sha256') \
+                or issuer.get('path') != str(Path(issuer_repo['root']) / issuer_repo['relativePath']) \
+                or not _queued_exact(supervisor_source, {'path', 'relativePath', 'sha256'}) \
+                or supervisor_source.get('relativePath') != 'scripts/ci/capacity-phase-supervisor-v2.py' \
+                or supervisor_source.get('path') != str(Path(candidate['root']) /
+                                                        supervisor_source['relativePath']) \
+                or supervisor_source.get('sha256') != identities['supervisor']['sha256']:
+            raise ValueError(error_code)
+        if not _queued_exact(owned, {'schemaVersion', 'scope', 'access', 'windowId', 'roots'}) \
+                or owned.get('schemaVersion') != 1 \
+                or owned.get('scope') != 'musicbridge-capacity-owned-roots' \
+                or owned.get('access') != 'count-only' or owned.get('windowId') != window_id \
+                or not isinstance(owned.get('roots'), list) or len(owned['roots']) != 75:
+            raise ValueError(error_code)
+        current_paths = {str(root), str(issuer_directory)}
+        carry_roots = [item for item in owned['roots']
+                       if isinstance(item, dict) and item.get('path') not in current_paths]
+        frozen_owned = _validate_queued_stop_owned_manifest(
+            expected_paths['ownedManifest'], runtime, window_id, root, carry_roots, 0,
+            expected_device=root_info.st_dev, terminal=True)
+        if frozen_owned['rootCount'] != 75:
+            raise ValueError(error_code)
+        queued = supervision.get('queuedStop') if isinstance(supervision, dict) else None
+        captures = {
+            'stdout': {'path': str(expected_paths['stdout']), 'exists': True,
+                       'size': identities['stdout']['size'], 'sha256': identities['stdout']['sha256']},
+            'stderr': {'path': str(expected_paths['stderr']), 'exists': True,
+                       'size': identities['stderr']['size'], 'sha256': identities['stderr']['sha256']}}
+        if stdout_bytes != b'' or stderr_bytes != _QUEUED_STOP_PROCESS_FAILURE_STDERR \
+                or not _queued_exact(queued, queued_keys) \
+                or queued != {'outputDirectory': str(root / label), 'verifiedComplete': False,
+                              'verifiedPassed': False, 'fileCount': 0, 'sampleCount': 0,
+                              'uniqueChildPids': 0, 'aggregateBudgetValid': False,
+                              'unexpectedEntries': []} \
+                or (root / label).exists() or (root / label).is_symlink():
+            raise ValueError(error_code)
+        pid = supervision.get('pid') if isinstance(supervision, dict) else None
+        if not _queued_exact(supervision, supervision_keys) \
+                or supervision.get('passed') is not False \
+                or supervision.get('failure') != 'PROCESS_EXIT' \
+                or type(pid) is not int or pid <= 0 or supervision.get('pgid') != pid \
+                or supervision.get('code') != 1 or supervision.get('exitSignal') is not None \
+                or supervision.get('signals') != [] or supervision.get('groupEmpty') is not True \
+                or supervision.get('zombies') != [] \
+                or supervision.get('managedProcessGroup') is not True \
+                or not _queued_number(supervision.get('elapsedMs')) \
+                or supervision.get('stdout') != captures['stdout'] \
+                or supervision.get('stderr') != captures['stderr']:
+            raise ValueError(error_code)
+        expected_command = [window['toolchain']['node']['path'], '--import',
+                            window['toolchain']['tsxLoader']['path'],
+                            str(Path(window['candidateRepository']['root']) /
+                                'packages/bridge-core/test/benchmarks/recording-capacity-process.ts'),
+                            '--phase', 'queued-stop', '--profile', 'objects-limit', '--label', label,
+                            '--seed-label', window['seedLabel'], '--window', str(expected_paths['window']),
+                            '--window-sha256', window_identity['sha256'], '--owned-roots',
+                            str(expected_paths['ownedManifest']), '--owned-roots-sha256',
+                            owned_identity['sha256']]
+        environment = start.get('environment') if isinstance(start, dict) else None
+        if not _queued_exact(start, start_keys) or start.get('pid') != pid or start.get('pgid') != pid \
+                or start.get('command') != expected_command or start.get('managedProcessGroup') is not True \
+                or not _queued_number(start.get('startedMonotonic')) \
+                or not _queued_number(start.get('deadlineMonotonic')) \
+                or start['deadlineMonotonic'] <= start['startedMonotonic'] \
+                or start.get('cwd') != window['candidateRepository']['root'] \
+                or not isinstance(environment, dict) \
+                or set(environment) != {'PATH', 'LANG', 'LC_ALL', 'TZ', 'CI', 'TMPDIR'} \
+                or {key: environment.get(key) for key in ('PATH', 'LANG', 'LC_ALL', 'TZ', 'CI')} != {
+                    'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'LANG': 'C', 'LC_ALL': 'C',
+                    'TZ': 'UTC', 'CI': '1'} \
+                or not isinstance(environment.get('TMPDIR'), str) \
+                or not Path(environment['TMPDIR']).is_absolute() \
+                or start.get('environmentKeys') != sorted(environment) \
+                or start.get('stdin') != 'DEVNULL' or start.get('stdout') != str(expected_paths['stdout']) \
+                or start.get('stderr') != str(expected_paths['stderr']):
+            raise ValueError(error_code)
+        admission = close.get('authorityAdmission') if isinstance(close, dict) else None
+        terminal = close.get('authorityTerminal') if isinstance(close, dict) else None
+        if not _queued_exact(close, close_keys) or close.get('schemaVersion') != 1 \
+                or close.get('scope') != 'musicbridge-capacity-queued-stop-window-close' \
+                or close.get('windowId') != window_id or close.get('profile') != 'objects-limit' \
+                or close.get('label') != label or close.get('seedLabel') != window['seedLabel'] \
+                or closed_at.utcoffset() is None or close.get('state') != 'failed' \
+                or close.get('failure') != 'PROCESS_EXIT' or close.get('pid') != pid \
+                or close.get('pgid') != pid or close.get('managedProcessGroup') is not True \
+                or close.get('code') != 1 or close.get('exitSignal') is not None \
+                or close.get('signals') != [] or close.get('groupEmpty') is not True \
+                or close.get('zombies') != [] or close.get('elapsedMs') != supervision['elapsedMs'] \
+                or close.get('windowSha256') != window_identity['sha256'] \
+                or close.get('sourceManifestSha256') != source_identity['sha256'] \
+                or close.get('ownedManifestSha256') != owned_identity['sha256'] \
+                or close.get('seed') != window.get('seed') \
+                or close.get('measureCarryover') != window.get('measureCarryover') \
+                or close.get('queuedStop') != queued \
+                or close.get('supervisorSha256') != supervision_identity['sha256'] \
+                or close.get('stdout') != captures['stdout'] or close.get('stderr') != captures['stderr'] \
+                or close.get('deviceOpened') is not False or close.get('formalReady') is not False \
+                or close.get('gateB') != 'NOT_RUN' \
+                or close.get('replayPolicy') != 'terminal-window-id-and-label-never-reuse' \
+                or not _queued_stop_process_authority(
+                    admission, window, window_identity, owner_identity, 241, 75,
+                    window['queuedStopPlan']['plannedBytes']) \
+                or not _queued_stop_process_authority(
+                    terminal, window, window_identity, owner_identity, 241, 75, 0):
+            raise ValueError(error_code)
+        try:
+            root_after = root.lstat(); issuer_after = issuer_directory.lstat()
+            supervision_after = supervision_directory.lstat()
+            entries_after = {entry.name for entry in root.iterdir()}
+            issuer_entries_after = {entry.name for entry in issuer_directory.iterdir()}
+            supervision_entries_after = {entry.name for entry in supervision_directory.iterdir()}
+            identities_after = {role: _validate_queued_stop_bound_file(
+                binding, expected_paths[role], maximum=maximums.get(role, 32 * 1024 * 1024))
+                for role, binding in files.items()}
+        except (OSError, ValueError) as error: raise ValueError(error_code) from error
+        directory_fields = ('st_dev', 'st_ino', 'st_mtime_ns', 'st_ctime_ns', 'st_nlink')
+        if any(getattr(root_info, key) != getattr(root_after, key) for key in directory_fields) \
+                or any(getattr(issuer_info, key) != getattr(issuer_after, key) for key in directory_fields) \
+                or any(getattr(supervision_info, key) != getattr(supervision_after, key)
+                       for key in directory_fields) \
+                or entries_after != expected_entries or issuer_entries_after != {'owner.json'} \
+                or supervision_entries_after != supervision_entries or identities_after != identities:
+            raise ValueError(error_code)
+        root_row = {'path': str(root), 'device': root_info.st_dev, 'inode': root_info.st_ino,
+                    'marker': {'relative': 'owner.json', 'sha256': owner_identity['sha256']}}
+        roots.append(root_row)
+        snapshots.append({
+            'root': root_row,
+            'rootIdentity': {'path': str(root), 'device': root_info.st_dev, 'inode': root_info.st_ino,
+                             'mtimeNs': root_info.st_mtime_ns, 'ctimeNs': root_info.st_ctime_ns,
+                             'nlink': root_info.st_nlink, 'entries': sorted(root_entries)},
+            'issuerIdentity': {'path': str(issuer_directory), 'device': issuer_info.st_dev,
+                               'inode': issuer_info.st_ino, 'mtimeNs': issuer_info.st_mtime_ns,
+                               'ctimeNs': issuer_info.st_ctime_ns, 'nlink': issuer_info.st_nlink,
+                               'entries': sorted(issuer_entries)},
+            'supervisionIdentity': {'path': str(supervision_directory),
+                                    'device': supervision_info.st_dev, 'inode': supervision_info.st_ino,
+                                    'mtimeNs': supervision_info.st_mtime_ns,
+                                    'ctimeNs': supervision_info.st_ctime_ns,
+                                    'nlink': supervision_info.st_nlink,
+                                    'entries': sorted(observed_supervision_entries)},
+            'windowId': window_id, 'windowDirName': row['windowDirName'], 'label': label,
+            'failure': 'PROCESS_EXIT', 'code': 1, 'sampleCount': 0,
+            'deviceOpened': False, 'formalReady': False, 'gateB': 'NOT_RUN',
+            'inheritedRoots': carry_roots,
+            'files': identities,
+            'stdout': captures['stdout'], 'stderr': captures['stderr']})
+        declared.add(str(expected_paths['close'])); seen.add(str(root)); seen_windows.add(window_id)
+        seen_dirs.add(row['windowDirName']); seen_labels.add(label)
+    if declared != discovered:
+        raise ValueError(audit_code)
+    ordered = sorted(zip(roots, snapshots), key=lambda value: value[0]['path'])
+    return {'roots': [root for root, _ in ordered], 'snapshots': [snapshot for _, snapshot in ordered]}
+
+
 def _validate_queued_stop_bound_identities(window, parent, candidate):
     toolchain = window['toolchain']; issuer = window['issuer']
     issuer_path = candidate / 'scripts/ci/issue-v3-capacity-queued-stop-window.py'
@@ -3230,7 +3656,8 @@ def _validate_queued_stop_bound_identities(window, parent, candidate):
     except ValueError as error: raise ValueError('QUEUED_STOP_IDENTITY') from error
     fact_keys = {'schemaVersion', 'scope', 'windowId', 'issuerRepository', 'candidateRepository',
                  'supervisorSource', 'toolchain', 'buildHelper', 'buildToolchain', 'build',
-                 'issuerFailureCarryover', 'prechildFailureCarryover', 'measureCarryover'}
+                 'issuerFailureCarryover', 'prechildFailureCarryover',
+                 'processFailureCarryover', 'measureCarryover'}
     issuer_repo = fact.get('issuerRepository') if isinstance(fact, dict) else None
     supervisor_source = fact.get('supervisorSource') if isinstance(fact, dict) else None
     build_helper = fact.get('buildHelper') if isinstance(fact, dict) else None
@@ -3268,6 +3695,12 @@ def _validate_queued_stop_bound_identities(window, parent, candidate):
         raise ValueError('QUEUED_STOP_PRECHILD_FAILURE')
     identities['prechildFailureRoots'] = prechild_failures['roots']
     identities['prechildFailures'] = prechild_failures['snapshots']
+    process_failures = _validate_queued_stop_process_failures(
+        fact['processFailureCarryover'], Path(parent).parent)
+    if len(process_failures['roots']) != window['processFailureCarryoverCount']:
+        raise ValueError('QUEUED_STOP_PROCESS_FAILURE')
+    identities['processFailureRoots'] = process_failures['roots']
+    identities['processFailures'] = process_failures['snapshots']
     identities['buildHelper'] = _validate_queued_stop_bound_file(
         {'path': build_helper['path'], 'sha256': build_helper['sha256']},
         expected_path=candidate / build_helper['relativePath'])
@@ -3551,11 +3984,19 @@ def _validate_queued_stop_authority(parent, runtime, repo_root, window_sha256,
         window['measureCarryover'], runtime, candidate_repository=window['candidateRepository'],
         expected_seed_sha256=window.get('seed', {}).get('snapshotSha256'),
         expected_fixture_owner_sha256=window.get('seed', {}).get('fixtureOwnerSha256'))
+    expected_process_inherited = [*carry['roots'], *bound_identities['issuerFailureRoots'],
+                                  *bound_identities['prechildFailureRoots']]
+    if len(expected_process_inherited) != _QUEUED_STOP_BASE_ROOTS \
+            or len(bound_identities['processFailures']) != 1 \
+            or bound_identities['processFailures'][0].get('inheritedRoots') != \
+            expected_process_inherited:
+        raise ValueError('QUEUED_STOP_PROCESS_FAILURE_ROOTS')
     source = _validate_phase_source_manifest(parent / 'source-pins.json', candidate)
     if source['manifestIdentity']['sha256'] != window['sourceManifest']['sha256']:
         raise ValueError('QUEUED_STOP_AUTHORITY')
     carry_roots = [*carry['roots'], *bound_identities['issuerFailureRoots'],
-                   *bound_identities['prechildFailureRoots']]
+                   *bound_identities['prechildFailureRoots'],
+                   *bound_identities['processFailureRoots']]
     owned = _validate_queued_stop_owned_manifest(
         parent / 'owned-roots.json', runtime, window['id'], parent, carry_roots,
         window['queuedStopPlan']['plannedBytes'],
@@ -3567,10 +4008,12 @@ def _validate_queued_stop_authority(parent, runtime, repo_root, window_sha256,
              'sourcePinsValid': True, 'ownedRootsValid': True, 'measureCarryoverValid': True,
              'issuerFailureCarryoverValid': True,
              'prechildFailureCarryoverValid': True,
+             'processFailureCarryoverValid': True,
              'spaceValid': True, 'windowSha256Observed': window_identity['sha256'],
              'ownerSha256Observed': owner_identity['sha256'], 'sourceFileCount': source['fileCount'],
              'ownedRootCount': owned['rootCount'], 'issuerFailureCount': len(bound_identities['issuerFailures']),
              'prechildFailureCount': len(bound_identities['prechildFailures']),
+             'processFailureCount': len(bound_identities['processFailures']),
              'ownedBytes': owned['ownedBytes'],
              'plannedBytes': owned['plannedBytes'], 'remainingPlannedBytes': owned['remainingPlannedBytes'],
              'availableBytes': owned['availableBytes'], 'candidateRepository': window['candidateRepository'],
@@ -3587,13 +4030,14 @@ def _validate_queued_stop_authority(parent, runtime, repo_root, window_sha256,
                            'typescriptLibraries': bound_identities['typescriptLibraries'],
                            'measureRootRecovery': carry.get('rootRecovery'),
                            'issuerFailures': bound_identities['issuerFailures'],
-                           'prechildFailures': bound_identities['prechildFailures']}}
+                           'prechildFailures': bound_identities['prechildFailures'],
+                           'processFailures': bound_identities['processFailures']}}
     if initial is not None:
         for key in ('window', 'owner', 'source', 'owned', 'node', 'tsxLoader',
                     'consumerPython', 'issuer', 'issuerFact', 'buildHelper', 'buildNode',
                     'buildNodeLibrary', 'typescriptCompiler', 'typescriptLibraries',
                     'measureRootRecovery', 'issuerFailures',
-                    'prechildFailures'):
+                    'prechildFailures', 'processFailures'):
             if initial.get('_snapshot', {}).get(key) != value['_snapshot'][key]:
                 raise ValueError('QUEUED_STOP_AUTHORITY_DRIFT')
     return value

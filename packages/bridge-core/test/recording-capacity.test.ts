@@ -762,7 +762,8 @@ async function phaseFixture(t: test.TestContext, phase: import('./helpers/record
 function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>, rootCount: number, remapped = true) {
   const outer = f.w as unknown as Record<string, unknown>, seed = outer.seed as Record<string, unknown>;
   outer.scope = 'musicbridge-capacity-queued-stop-window';
-  outer.issuerFailureCarryoverCount = 1; outer.prechildFailureCarryoverCount = 1; outer.seedLabel = 'seed';
+  outer.issuerFailureCarryoverCount = 1; outer.prechildFailureCarryoverCount = 1;
+  outer.processFailureCarryoverCount = 1; outer.seedLabel = 'seed';
   seed.fixtureOwnerSha256 = f.hash(path.join(f.fixture, 'capacity-owner.json'));
   const snapshotBytes = lstatSync(path.join(f.seed, 'seed.sqlite')).size;
   outer.queuedStopPlan = { warmupCount: 5, formalCount: 100, sampleCount: 105, activeCloneMaximum: 1,
@@ -819,7 +820,7 @@ function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>,
   const historicalDirectory = path.join(f.runtime, 'measure'); mkdirSync(historicalDirectory); const historicalWindowId = randomUUID();
   const historicalManifest = path.join(historicalDirectory, 'owned-roots.json');
   f.put(historicalManifest, { schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only',
-    windowId: historicalWindowId, roots: historicalRoots });
+    windowId: historicalWindowId, roots: historicalRoots, futureRoots: [path.join(f.runtime, 'measure-output')] });
   const recovery = path.join(recoveryDirectory, 'recovery.json');
   f.put(recovery, { schemaVersion: 1, scope: 'musicbridge-capacity-measure-root-recovery', access: 'read-only', state: 'PUBLISHED',
     model: 'exact75-v2-replacement-closure', windowId: historicalWindowId,
@@ -837,6 +838,23 @@ function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>,
   f.put(path.join(issuerCarryover, 'owner.json'), { scope: 'musicbridge-capacity-issuer-failure' });
   const prechildCarryover = path.join(f.runtime, 'prechild-carryover'); mkdirSync(prechildCarryover);
   f.put(path.join(prechildCarryover, 'owner.json'), { scope: 'musicbridge-capacity-prechild-failure' });
+  const processCarryover = path.join(f.runtime, 'process-carryover'); mkdirSync(processCarryover);
+  f.put(path.join(processCarryover, 'owner.json'), { scope: 'musicbridge-capacity-process-failure' });
+  mkdirSync(path.join(processCarryover, 'issuer-identity'));
+  mkdirSync(path.join(processCarryover, 'supervision'));
+  const processFile = (relative: string) => {
+    const file = path.join(processCarryover, relative);
+    f.put(file, { scope: 'musicbridge-capacity-process-failure-evidence', relative });
+    return { path: file, sha256: f.hash(file) };
+  };
+  const processFiles = {
+    owner: { path: path.join(processCarryover, 'owner.json'), sha256: f.hash(path.join(processCarryover, 'owner.json')) },
+    supervisor: processFile('supervisor.py'), issuerFact: processFile('issuer-identity/owner.json'),
+    sourceManifest: processFile('source-pins.json'), ownedManifest: processFile('owned-roots.json'),
+    window: processFile('window.json'), close: processFile('close.json'),
+    supervision: processFile('supervision/supervisor.json'), supervisorStart: processFile('supervision/supervisor-start.json'),
+    stdout: processFile('supervision/stdout.log'), stderr: processFile('supervision/stderr.log'),
+  };
   const proof = (name: string) => ({ path: path.join(f.runtime, name), sha256: '3'.repeat(64) });
   outer.measureCarryover = { window: { ...proof('measure/window.json'), id: historicalWindowId }, close: proof('measure/close.json'),
     ownedManifest: { path: historicalManifest, sha256: f.hash(historicalManifest) }, sourceManifest: proof('measure/source-pins.json'),
@@ -852,6 +870,9 @@ function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>,
     buildHelper: { path: recoveryTool, relativePath: recoveryRelative, sha256: f.hash(recoveryTool) },
     buildToolchain: { node: outer.toolchain, nodeLibrary: outer.toolchain, typescriptCompiler: outer.toolchain, typescriptLibraryManifestSha256: 'a'.repeat(64) },
     build: {}, issuerFailureCarryover: [{ root: issuerCarryover }], prechildFailureCarryover: [{ root: prechildCarryover }],
+    processFailureCarryover: [{ root: processCarryover, windowId: randomUUID(),
+      windowDirName: path.basename(processCarryover), label: 'process-carryover', failure: 'PROCESS_EXIT',
+      code: 1, sampleCount: 0, deviceOpened: false, formalReady: false, gateB: 'NOT_RUN', files: processFiles }],
     measureCarryover: outer.measureCarryover,
   };
   const issuerFactPath = path.join(issuerIdentity, 'owner.json'); const issuerFactSha256 = f.put(issuerFactPath, issuerFact);
@@ -860,17 +881,18 @@ function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>,
   f.inventory.roots = [...liveRoots, ...mappings.map(value => {
     const { role: _role, ...root } = value.replacementRoot; return root;
   }), f.entry(measureOutput, 'command.json'), f.entry(issuerCarryover, 'owner.json'), f.entry(prechildCarryover, 'owner.json'),
+  f.entry(processCarryover, 'owner.json'),
   f.entry(f.windowRoot, 'owner.json'), f.entry(issuerIdentity, 'owner.json')];
   if (rootCount < f.inventory.roots.length) f.inventory.roots.splice(rootCount);
   if (rootCount > f.inventory.roots.length) {
-    assert.equal(rootCount, 76, '仅76-root负例可增加一条任意root');
+    assert.equal(rootCount, 77, '仅77-root负例可增加一条任意root');
     const directory = path.join(f.runtime, 'arbitrary-count-padding'); mkdirSync(directory);
     f.put(path.join(directory, 'owner.json'), { scope: 'arbitrary-count-padding' });
     f.inventory.roots.push(f.entry(directory, 'owner.json'));
   }
   return { outer, seed, recovery, recoveryDirectory, mappings, historicalManifest, historicalRoots, liveRoots,
     historicalDevice, currentDevice,
-    measureOutput, issuerCarryover, prechildCarryover, candidate, candidateHead, recoveryTool, git };
+    measureOutput, issuerCarryover, prechildCarryover, processCarryover, candidate, candidateHead, recoveryTool, git };
 }
 
 test('phase设施：新入口参数严格，未知/重复/缺少窗口hash不接受', async () => {
@@ -1079,14 +1101,17 @@ test('queued-stop phase：仅objects-small及三种大档、固定5预热+100正
   }
 });
 
-test('queued-stop successor：按issuer与prechild failure carryover精确接受75 roots', async t => {
-  for (const [rootCount, prechildCount, accepted] of [
-    [75, undefined, false], [75, 0, false], [74, 1, false], [75, 1, true], [76, 1, false],
+test('queued-stop successor：按三类failure carryover精确接受76 roots', async t => {
+  for (const [rootCount, prechildCount, processCount, accepted] of [
+    [76, undefined, 1, false], [76, 0, 1, false], [76, 1, undefined, false], [76, 1, 0, false],
+    [75, 1, 1, false], [76, 1, 1, true], [77, 1, 1, false],
   ] as const) {
     const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
     const { outer } = configureExact75V2Recovery(f, rootCount);
     if (prechildCount === undefined) delete outer.prechildFailureCarryoverCount;
     else outer.prechildFailureCarryoverCount = prechildCount;
+    if (processCount === undefined) delete outer.processFailureCarryoverCount;
+    else outer.processFailureCarryoverCount = processCount;
     f.seal(); let calls = 0;
     if (accepted) {
       const summary = await f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async () => { ++calls; throw new Error('受控停止'); } });
@@ -1099,19 +1124,59 @@ test('queued-stop successor：按issuer与prechild failure carryover精确接受
   }
 });
 
+test('queued-stop successor：process failure fact语义、shape、文件及root身份漂移时不进入样本', async t => {
+  for (const fault of ['missing', 'count', 'row-extra', 'failure', 'code', 'files-extra', 'file-sha', 'file-path',
+    'nested-root', 'inode-drift'] as const) {
+    const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
+    const { outer, processCarryover } = configureExact75V2Recovery(f, 76);
+    const issuerIdentity = path.join(f.windowRoot, 'issuer-identity');
+    const issuerFactPath = path.join(issuerIdentity, 'owner.json');
+    const issuerFact = JSON.parse(readFileSync(issuerFactPath, 'utf8'));
+    if (fault === 'missing') delete issuerFact.processFailureCarryover;
+    else if (fault === 'count') issuerFact.processFailureCarryover = [];
+    else {
+      const row = issuerFact.processFailureCarryover[0];
+      if (fault === 'row-extra') row.extra = true;
+      if (fault === 'failure') row.failure = 'OTHER';
+      if (fault === 'code') row.code = 0;
+      if (fault === 'files-extra') row.files.extra = row.files.owner;
+      if (fault === 'file-sha') row.files.owner.sha256 = '4'.repeat(64);
+      if (fault === 'file-path') row.files.owner.path = row.files.close.path;
+      if (fault === 'nested-root') {
+        const nestedParent = path.join(f.runtime, 'nested-process-history'); mkdirSync(nestedParent);
+        const nestedRoot = path.join(nestedParent, path.basename(processCarryover));
+        renameSync(processCarryover, nestedRoot); row.root = nestedRoot;
+        for (const binding of Object.values(row.files) as Array<{ path: string }>) {
+          binding.path = path.join(nestedRoot, path.relative(processCarryover, binding.path));
+        }
+        const inventoryRoot = f.inventory.roots.find(root => root.path === processCarryover)!;
+        const info = lstatSync(nestedRoot); inventoryRoot.path = nestedRoot; inventoryRoot.device = info.dev; inventoryRoot.inode = info.ino;
+      }
+      if (fault === 'inode-drift') f.inventory.roots.find(root => root.path === processCarryover)!.inode += 1;
+    }
+    const issuerFactSha256 = f.put(issuerFactPath, issuerFact);
+    (outer.issuer as Record<string, unknown>).fact = { path: issuerFactPath, sha256: issuerFactSha256 };
+    f.inventory.roots.find(root => root.path === issuerIdentity)!.marker.sha256 = issuerFactSha256;
+    f.seal(); let calls = 0;
+    await assert.rejects(f.api.runCapacityPhase(f.args, { ...f.options,
+      queuedStop: async () => { ++calls; throw new Error('不应调用'); } }), /CAPACITY_PHASE_(?:WINDOW|INVENTORY)_INVALID/u);
+    assert.equal(calls, 0); assert.equal(existsSync(f.output), false);
+  }
+});
+
 test('queued-stop successor：未发生st_dev重映射时使用UNCHANGED合同', async t => {
   const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
-  configureExact75V2Recovery(f, 75, false);
+  configureExact75V2Recovery(f, 76, false);
   f.seal(); let calls = 0;
   const summary = await f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async () => { ++calls; throw new Error('受控停止'); } });
   assert.equal(calls, 1); assert.equal(summary.state, 'incomplete');
 });
 
-test('queued-stop successor：70根冻结manifest按63 live、7 replacement、output、双carryover及parent/issuer闭包', async t => {
+test('queued-stop successor：70根冻结manifest按63 live、7 replacement、output、三类carryover及parent/issuer闭包', async t => {
   for (const fault of ['arbitrary-replaces-live', 'arbitrary-replaces-output', 'live-root-absent', 'mapping-not-in-manifest'] as const) {
     await t.test(fault, async () => {
       const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
-      const configured = configureExact75V2Recovery(f, 75);
+      const configured = configureExact75V2Recovery(f, 76);
       assert.equal(configured.historicalRoots.length, 70); assert.equal(configured.liveRoots.length, 63);
       const arbitrary = path.join(f.runtime, `arbitrary-${fault}`); mkdirSync(arbitrary);
       f.put(path.join(arbitrary, 'owner.json'), { scope: 'arbitrary-count-padding', fault });
@@ -1148,7 +1213,7 @@ test('queued-stop successor：只接受全量一致的live st_dev挂载代际映
   for (const fault of ['mode-conflict', 'current-device-third', 'live-count', 'missing-field', 'mixed-historical-device', 'inventory-noncurrent-device'] as const) {
     await t.test(fault, async () => {
       const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
-      const configured = configureExact75V2Recovery(f, 75);
+      const configured = configureExact75V2Recovery(f, 76);
       const receipt = JSON.parse(readFileSync(configured.recovery, 'utf8'));
       if (fault === 'mode-conflict') receipt.liveDeviceRemap.mode = 'UNCHANGED';
       if (fault === 'current-device-third') receipt.liveDeviceRemap.currentDevice += 1;
@@ -1181,7 +1246,7 @@ test('queued-stop successor：live Git/blob及recovery直接条目权限在admis
   for (const fault of ['git-blob', 'head', 'upstream', 'dirty', 'branch-after-admission', 'recovery-mode-after-admission', 'recovery-entry-after-admission'] as const) {
     await t.test(fault, async () => {
       const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
-      const configured = configureExact75V2Recovery(f, 75);
+      const configured = configureExact75V2Recovery(f, 76);
       if (fault === 'git-blob') {
         configured.git(configured.candidate, ['update-index', '--assume-unchanged',
           'scripts/ci/create-v3-capacity-measure-root-recovery.py']);
@@ -1224,7 +1289,7 @@ test('queued-stop successor：consumer持续拒绝旧根重现、recovery漂移�
   for (const fault of ['historical-reappeared', 'receipt-drift', 'replacement-marker-drift', 'replacement-as-fixture'] as const) {
     await t.test(fault, async () => {
       const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
-      const configured = configureExact75V2Recovery(f, 75);
+      const configured = configureExact75V2Recovery(f, 76);
       if (fault === 'historical-reappeared') {
         const original = configured.mappings[0]!.historicalRoot; mkdirSync(original.path);
         f.put(path.join(original.path, 'capacity-owner.json'), { id: randomUUID(), scope: 'musicbridge-capacity-synthetic-only' });
@@ -1263,7 +1328,7 @@ test('legacy queued-stop窗口保持旧空间模型且不生成successor aggrega
 
 test('queued-stop phase：105个独立clone先固化raw回执/hash再清理，预热不进入正式分布', { timeout: 30_000 }, async t => {
   const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit'), markers = new Set<string>(); let calls = 0;
-  configureExact75V2Recovery(f, 75);
+  configureExact75V2Recovery(f, 76);
   f.seal();
   const summary = await f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async input => {
     ++calls; markers.add(input.clone.marker.id);
