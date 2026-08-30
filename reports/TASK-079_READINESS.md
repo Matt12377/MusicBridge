@@ -10,7 +10,7 @@
 - 报告提交：`93feee20c2edbd027546b44cc908aee27ef785b1`
 - GitHub：`codex/task-079-v3-final-acceptance`评审检查点`b3df42ada9e798d8fb67396648bdc5599ef83eb3`已于`2026-08-30T01:17:11Z` push，`git ls-remote`确认同SHA；`main`/PR未合并，未安装、签名、公证或发布
 
-基础 readiness 控制、主任务修复与本地回归已经完成，当前结论固定为 `READY=false`；完整无设备证据控制面尚未取得独立闭包。hardware evidence contract v2 在主任务实现后为33/33专项GREEN，但第二轮独立复审最终RED继续保留，未执行第三轮且没有独立PASS。capacity issuer同样只记录主任务裁决后的12/12回归，新的fresh authority仍待独立决定。当前readiness验证器已精确要求这组机器真相并通过15/15；它不认证声卡、卡座、真实输入、Logic/Roon、可听Replica、实录、实体打印或Owner接受。
+基础 readiness 控制、主任务修复与本地回归已经完成，当前结论固定为 `READY=false`；完整无设备证据控制面尚未取得独立闭包。hardware evidence contract v2 在主任务实现后为33/33专项GREEN，但第二轮独立复审最终RED继续保留，未执行第三轮且没有独立PASS。objects-limit successor fresh audit已绑定候选HEAD `a457414fffd141390ec2ff4536452a0f654b1370`，window-06唯一签发并只消费一次后取得软件measure PASS；该结果不覆盖queued-stop、joint、真实设备Gate B或Owner验收。当前readiness验证器继续精确要求这组机器真相；它不认证声卡、卡座、真实输入、Logic/Roon、可听Replica、实录、实体打印或Owner接受。
 
 ## 实现
 
@@ -253,14 +253,21 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - 修复提交=`54b6353e9b12a2bdfdecf3c9bb452a53d34a00f5`。Stop measure现在为105轮分别预置不同、合法、冻结的Physical Copy/Plan，仍经过正式receive、source authorization、media reservation、layout freeze、execution、archive与recording plan链；每轮保留真实SQLite commit/fsync和durable receipt，3-group、3次full hash及1575样本口径不变，同Plan重放负例仍返回`COPY_UNAVAILABLE`。
 - terminal authority空间复核在future output已存在时只扣尚未形成的remaining plan，避免output与完整计划空间重复计数；公开`plannedBytes=4249378816`合同保持不变。supervisor把clone-owned workspace tree receipt与generation fixture before/after纳入闭包，验证root/schema/entries/tree digest、父目录、符号链接、多余项和成功清理；运行失败时只允许在受控group-stop clone内保留partial。旧legacy carryover SQLite继续只做稳定lstat/size验证，不读取或哈希内容。
 - 新鲜验证：`node --test --import tsx packages/bridge-core/test/recording-capacity.test.ts`为88/88；`node --test scripts/ci/test/capacity-phase-supervisor-v2.test.mjs`为16/16；measure issuer专项为23/23；`corepack pnpm@10.17.1 --filter @music-bridge/bridge-core typecheck` exit 0。以上只证明修复切片GREEN，不关闭capacity正式measure、queued-stop/joint、真实设备、Gate B或Owner验收。
-- 当前尚未签发后继窗口。必须先同步文档与STATUS、确认工作树和验证清洁，再由独立只读fresh audit绑定当前HEAD、issuer及supervisor blob；PASS后也只能使用全新UUID/window-dir/label一次性签发。02/03/04和旧partial不得重放、覆盖、移动或吸收。
+- 本段记录修复提交时的签发前状态：必须先同步文档与STATUS、确认工作树和验证清洁，再由独立只读fresh audit绑定当前HEAD、issuer及supervisor blob；PASS后也只能使用全新UUID/window-dir/label一次性签发。该前置后续已由window-06关闭；02/03/04和旧partial仍不得重放、覆盖、移动或吸收。
 - 验证清洁的`codex/task-079-v3-final-acceptance`评审检查点`b3df42ada9e798d8fb67396648bdc5599ef83eb3`已于`2026-08-30T01:17:11Z` push，`git ls-remote`确认远端同SHA。该push不代表PR或`main`合并，也不代表签名、公证、安装、发布或外部评审结论。
 
-#### Window-04 后 successor recovery v3（当前未签发）
+#### Window-04 后 successor recovery v3（window-06签发前历史口径）
 
 - 本节是window-04终态之后的后继恢复口径，不回写历史。window-04公开合同继续保持历史`plannedBytes=4,249,378,816`，其`COPY_UNAVAILABLE`、child exit 1、supervisor `AUTHORITY_DRIFT`和受控partial保留事实均不改变，也不能被后继预算解释成旧窗口PASS。
 - successor recovery v3重新枚举window-03/04 terminal carryover及其余既有受控根：历史联集为68，当前闭包为`existing=70`、`future=1`、`authorized=71`。这里的`authorized=71`是后继候选authority的精确闭包口径，不表示已经创建或消费approved window。
 - 冻结seed snapshot为`1,990,471,680`字节。新的空间策略标识为`serial-single-clone-plus-bounded-growth-v1`，后继`plannedBytes=2,258,907,136`，即单一snapshot clone加固定256MiB增长与证据预算；它只适用于新后继窗口，不替换window-04的历史`4,249,378,816`。
 - measure运行期把整个output文件树的逻辑字节总和作为硬上限，而非只做启动前磁盘余量估计。每次写前与阶段后复核写入`measure-aggregate-budget.jsonl`；任一时刻只允许一个active group clone。检测到超额、第二clone、路径/身份漂移后进入terminal stable stop，不继续写阶段、退出或新clone，并保留失败现场供审计。
 - window-03与window-04继续作为terminal carryover进入后继owned闭包，不得重放、删除、移动、覆盖或吸收。issuer在发布后继authority前还必须完成第二次验证；验证失败或事实漂移时不得发布，剩余空间和未消费名称都不构成重试授权。
-- 当前尚未签发或消费任何新窗口，也没有新的正式measure结果。设备、Roon和真实资料均未操作，`deviceOpened=false`、`formalReady=false`、Gate B=`NOT_RUN`；queued-stop、joint与Owner验收仍未完成。
+- 本节记录window-06签发前的历史状态；后续实际结果见下一节。设备、Roon和真实资料均未操作，`deviceOpened=false`、`formalReady=false`、Gate B=`NOT_RUN`；queued-stop、joint与Owner验收仍未完成。
+
+#### Objects-limit measure window-06 软件PASS（当前状态）
+
+- fresh audit精确绑定候选HEAD `a457414fffd141390ec2ff4536452a0f654b1370`。序号05在consumer identity前置拒绝，未创建路径、UUID或authority，05永久不复用。
+- window-06以全新UUID `afc81a99-d15d-4179-8326-5774a5c40b62`唯一签发并只消费一次。window SHA256=`cfac8e19336a181de00c68d458d046065cd821a0dca48cc4fc78af0e15c15227`，close SHA256=`1c93f6c6ec1a0b58619f87127d3e2c7d11a1cfcce1c155b3576a84eda2af84b7`，supervisor SHA256=`18ef840fe99b861ca8881c7c7be09b70c13431df02d88ddf282e29f2169cdc92`。
+- supervisor在`320,039.741875ms`自然exit 0，1575个samples、3个group receipts、105个Stop round receipts和18个stages全部形成；managed process group empty，zombie=`[]`。aggregate预算审计2383行，snapshot=`1,990,471,680`字节、limit/planned=`2,258,907,136`字节、最终output logical=`5,544,090`字节，`thresholdPassed=true`。
+- window-04失败事实及其历史`plannedBytes=4,249,378,816`继续原样保留，不以window-06的新预算改写。window-06只关闭objects-limit软件measure；large queued-stop、joint、整个TASK-079、设备Gate B与Owner验收仍未完成，`deviceOpened=false`、`formalReady=false`、Gate B=`NOT_RUN`。

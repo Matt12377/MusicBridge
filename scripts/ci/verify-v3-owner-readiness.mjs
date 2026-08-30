@@ -13,9 +13,9 @@ const MATRIX_SHA256 = '12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7f
 const EXTERNAL_KINDS = ['real-input', 'real-logic', 'real-roon', 'hardware', 'owner']
 const UNMAPPED_PENDING = ['B-13', 'B-15']
 const READINESS_CONTROL = 'PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO'
-const DEVELOPMENT_STATE = 'no-device-control-main-green-hardware-independent-r2-final-red-objects-successor-v3-full-green-awaiting-fresh-audit-external-not-run'
+const DEVELOPMENT_STATE = 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-joint-external-pending'
 const EXTERNAL_EVIDENCE_PROFILES = 'REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED'
-const CAPACITY_AUTHORITY = 'OBJECTS_SUCCESSOR_V3_FULL_GREEN_AWAITING_FRESH_AUDIT_NOT_ISSUED'
+const CAPACITY_AUTHORITY = 'OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_JOINT_PENDING'
 const EVIDENCE_INFRASTRUCTURE = {
   state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
   receiptFoundation: {
@@ -100,7 +100,7 @@ const CAPACITY_WINDOW_ISSUER = {
   gateB: 'NOT_RUN',
 }
 const CAPACITY_MEASURE_WINDOW_ISSUER = {
-  state: 'ISSUED_ONCE_MEASURE_TIMEOUT_PARTIAL_PRESERVED_NONREPLAY',
+  state: 'WINDOW01_TIMEOUT_WINDOW04_FAILED_WINDOW06_SOFTWARE_PASS_NONREPLAY',
   implementationCommit: 'fc23f559790b02aefe3292271364f3564c8e8fc8',
   initialRed: 'missing-production-script-7-of-7-fail',
   focusedVerification: { tests: 11, passed: 11, failed: 0 },
@@ -136,7 +136,7 @@ const CAPACITY_MEASURE_WINDOW_ISSUER = {
     replay: 'PROHIBITED',
   },
   measureRecoveryV2: {
-    state: 'SUCCESSOR_V3_FULL_GREEN_AWAITING_FRESH_AUDIT_NOT_ISSUED',
+    state: 'WINDOW06_MEASURE_SOFTWARE_PASS_QUEUED_STOP_JOINT_PENDING',
     baseCommit: '74367bc3f6d1a96a3fabef0ebcbaa3b22ba82ba6',
     implementationCommit: '1086dedb78d9ee4ed43238d82c3dc52823f4e4c1',
     derivedProofCommit: '3836db3f83b3d209b025f3a32445b57c3fc454fe',
@@ -199,7 +199,7 @@ const CAPACITY_MEASURE_WINDOW_ISSUER = {
       treeDigest: 'RECOMPUTED_AND_FIXTURE_ROOT_AUTHORITY_BOUND',
     },
     successorAuthorityV3: {
-      state: 'FULL_GATES_GREEN_AWAITING_FRESH_AUDIT_NOT_ISSUED',
+      state: 'FRESH_AUDIT_PASS_WINDOW06_ISSUED_ONCE_CONSUMED_ONCE_MEASURE_PASS',
       historicalRootUnion: { window03: 65, window04: 65, intersection: 63, union: 67, terminalOutput: 1, historicalExisting: 68 },
       rootClosure: { historicalExisting: 68, currentAuthority: 2, existing: 70, future: 1, authorized: 71 },
       snapshotBytes: 1990471680,
@@ -219,7 +219,28 @@ const CAPACITY_MEASURE_WINDOW_ISSUER = {
         supervisor: { tests: 21, passed: 21, failed: 0 },
         issuer: { tests: 25, passed: 25, failed: 0 },
       },
-      fullVerify: 'PASS', freshAuthorityIssued: false, deviceOpened: false, gateB: 'NOT_RUN',
+      fullVerify: 'PASS',
+      freshAudit: { state: 'PASS', candidateCommit: 'a457414fffd141390ec2ff4536452a0f654b1370' },
+      window05PrecreateRejection: {
+        sequence: '05', state: 'CONSUMER_IDENTITY_PRECONDITION_REJECTED', pathCreated: false,
+        windowIdAllocated: false, authorityCreated: false, replay: 'PROHIBITED',
+      },
+      window06Measure: {
+        windowId: 'afc81a99-d15d-4179-8326-5774a5c40b62',
+        candidateCommit: 'a457414fffd141390ec2ff4536452a0f654b1370',
+        windowSha256: 'cfac8e19336a181de00c68d458d046065cd821a0dca48cc4fc78af0e15c15227',
+        closeSha256: '1c93f6c6ec1a0b58619f87127d3e2c7d11a1cfcce1c155b3576a84eda2af84b7',
+        supervisorSha256: '18ef840fe99b861ca8881c7c7be09b70c13431df02d88ddf282e29f2169cdc92',
+        state: 'PASSED', exitCode: 0, elapsedMs: 320039.741875, sampleCount: 1575,
+        groupReceiptCount: 3, stopRoundReceiptCount: 105, stageCount: 18,
+        aggregateBudget: {
+          rows: 2383, snapshotBytes: 1990471680, limitBytes: 2258907136,
+          plannedBytes: 2258907136, outputLogicalBytes: 5544090,
+        },
+        thresholdPassed: true, groupEmpty: true, zombies: [], issuedOnce: true,
+        consumedOnce: true, replay: 'PROHIBITED', deviceOpened: false, formalReady: false, gateB: 'NOT_RUN',
+      },
+      freshAuthorityIssued: true, deviceOpened: false, gateB: 'NOT_RUN',
     },
     preflightRootCause: {
       state: 'FIXED_VERIFIED',
@@ -228,9 +249,9 @@ const CAPACITY_MEASURE_WINDOW_ISSUER = {
       stages: ['source-manifest', 'owned-manifest', 'facts', 'candidate-repository', 'window'],
       safeDiagnostics: true,
     },
-    freshAudit: 'REQUIRED_ON_NEXT_COMMIT',
-    freshAuthorityIssued: false,
-    measureRun: 'WINDOW04_FAILED_NONREPLAY_NEXT_NOT_RUN',
+    freshAudit: 'PASS_BOUND_TO_A457414_WINDOW06',
+    freshAuthorityIssued: true,
+    measureRun: 'WINDOW06_SOFTWARE_PASS_QUEUED_STOP_JOINT_NOT_RUN',
     deviceOpened: false,
     gateB: 'NOT_RUN',
   },

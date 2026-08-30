@@ -57,7 +57,7 @@ measure v2第一次新签发名称`window/label-02`在exclusive-create前以`GEN
 
 measure window-04在绑定候选HEAD `cfca7be9b7adc42045c371fe3648f3db6e9c4c8d`的fresh audit后一次性签发并消费。UUID=`02f6042a-b797-437d-a8da-45eafa2dd1f4`、window SHA256=`afdd51b40e412265eac85a000132168df83bf4a5b42f65150651a5b6dca3006b`、label=`r023-objects-limit-measure-04`。progress group完成105个样本，Stop第1轮写入durable receipt后，第2轮因复用同一Physical Copy而由正式Attempt链返回`COPY_UNAVAILABLE`；child自然exit 1，supervisor在terminal authority复核将终态收敛为`AUTHORITY_DRIFT`。close SHA256=`1baf8d8ba6d02d524a2368f4d5ce4e4854dba5d866d4dfcfbaac46e0666704f1`，elapsed=`62295.937791ms`，共111 samples、1个group receipt、1个Stop round receipt；group-stop clone与partial保留，PG empty、zombie=`[]`、`deviceOpened=false`、Gate B=`NOT_RUN`。该UUID、window-dir和label永久禁止重放，不能写成measure PASS。
 
-修复提交`54b6353e9b12a2bdfdecf3c9bb452a53d34a00f5`为105个Stop回合预置105个不同、合法且冻结的Physical Copy/Plan，仍走正式receive→source authorization→media reservation→layout freeze→execution→archive→recording plan链，并保持105个SQLite commit/fsync、105个durable round receipt、1575样本、3个group clone与3次full hash；同Plan重放负例仍必须返回`COPY_UNAVAILABLE`。terminal authority复核在future output已经存在时只扣尚未形成的remaining plan，避免现有output与完整planned bytes重复计数，同时保持公开`plannedBytes=4249378816`合同。clone-owned workspace的文件树receipt、generation fixture before/after相等、tree digest、父目录、符号链接、多余项、成功清理和失败partial保留全部进入supervisor fail-closed闭包；不读取或哈希旧legacy carryover的大型SQLite。新鲜结果为capacity 88/88、supervisor 16/16、issuer 23/23和Bridge Core typecheck全部exit 0。文档/STATUS同步及当前HEAD独立fresh audit完成前，不得签发或消费任何后继窗口；后继必须使用全新UUID/window-dir/label，02/03/04不重放。
+修复提交`54b6353e9b12a2bdfdecf3c9bb452a53d34a00f5`为105个Stop回合预置105个不同、合法且冻结的Physical Copy/Plan，仍走正式receive→source authorization→media reservation→layout freeze→execution→archive→recording plan链，并保持105个SQLite commit/fsync、105个durable round receipt、1575样本、3个group clone与3次full hash；同Plan重放负例仍必须返回`COPY_UNAVAILABLE`。terminal authority复核在future output已经存在时只扣尚未形成的remaining plan，避免现有output与完整planned bytes重复计数，同时保持公开`plannedBytes=4249378816`合同。clone-owned workspace的文件树receipt、generation fixture before/after相等、tree digest、父目录、符号链接、多余项、成功清理和失败partial保留全部进入supervisor fail-closed闭包；不读取或哈希旧legacy carryover的大型SQLite。该修复提交时的新鲜结果为capacity 88/88、supervisor 16/16、issuer 23/23和Bridge Core typecheck全部exit 0；当时必须等待文档/STATUS同步及当前HEAD独立fresh audit，实际后继结果见window-06章节。02/03/04不重放。
 
 ### Window-04 后 successor recovery v3
 
@@ -65,7 +65,13 @@ measure window-04在绑定候选HEAD `cfca7be9b7adc42045c371fe3648f3db6e9c4c8d`�
 
 后继冻结snapshot为`1,990,471,680`字节，使用`serial-single-clone-plus-bounded-growth-v1`，`plannedBytes=2,258,907,136`。该预算只适用于尚未签发的新窗口，不替换旧window的合同。运行期以整个output树的逻辑字节总和为hard cap，写前和阶段后事实持久化到`measure-aggregate-budget.jsonl`；任一时刻只能有一个active clone。超额、第二clone或身份漂移必须进入terminal stable stop，停止新增输出并保留失败现场。
 
-后继issuer在发布authority前必须完成第二次验证，并重新确认window-03/04 carryover、70个existing roots、唯一future output、候选身份和空间事实；任何失败或漂移都不得发布。当前尚未签发或消费新窗口，没有新的正式measure结论；没有设备、Roon或真实资料操作，Gate B=`NOT_RUN`、`formalReady=false`。TASK-079、queued-stop、joint和Owner验收继续保持未完成。
+后继issuer在发布authority前必须完成第二次验证，并重新确认window-03/04 carryover、70个existing roots、唯一future output、候选身份和空间事实；任何失败或漂移都不得发布。该前置现已由下述window-06结果关闭；没有设备、Roon或真实资料操作，Gate B=`NOT_RUN`、`formalReady=false`。TASK-079、queued-stop、joint和Owner验收继续保持未完成。
+
+### Objects-limit measure window-06 软件PASS
+
+fresh audit精确绑定候选HEAD `a457414fffd141390ec2ff4536452a0f654b1370`。序号05在consumer identity前置条件拒绝，未创建路径、UUID或authority；05永久不复用。window-06以全新UUID `afc81a99-d15d-4179-8326-5774a5c40b62`唯一签发并只消费一次；window SHA256=`cfac8e19336a181de00c68d458d046065cd821a0dca48cc4fc78af0e15c15227`、close SHA256=`1c93f6c6ec1a0b58619f87127d3e2c7d11a1cfcce1c155b3576a84eda2af84b7`、supervisor SHA256=`18ef840fe99b861ca8881c7c7be09b70c13431df02d88ddf282e29f2169cdc92`。
+
+supervisor在`320,039.741875ms`自然exit 0，1575个samples、3个group receipts、105个Stop round receipts与18个stages全部形成；managed process group empty，zombie列表为空。aggregate预算审计共2383行，snapshot=`1,990,471,680`字节、limit/planned=`2,258,907,136`字节、最终output logical=`5,544,090`字节，`thresholdPassed=true`。这只关闭objects-limit软件measure；`deviceOpened=false`、`formalReady=false`、Gate B=`NOT_RUN`，large queued-stop、joint、整个TASK-079及Owner验收不得因此标记完成。
 
 ## 自动验证
 
