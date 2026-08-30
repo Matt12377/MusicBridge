@@ -13,9 +13,9 @@ const MATRIX_SHA256 = '12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7f
 const EXTERNAL_KINDS = ['real-input', 'real-logic', 'real-roon', 'hardware', 'owner']
 const UNMAPPED_PENDING = ['B-13', 'B-15']
 const READINESS_CONTROL = 'PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO'
-const DEVELOPMENT_STATE = 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-window02-terminal-prechild-nonreplay-successor-exact75-not-issued-formal-not-run-joint-budget-software-green-formal-not-run-external-pending'
+const DEVELOPMENT_STATE = 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-window06-process-exit-terminal-window07-consumed-input-rejected-no-samples-three-location-architecture-stop-blocked-joint-formal-not-run-external-pending'
 const EXTERNAL_EVIDENCE_PROFILES = 'REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED'
-const CAPACITY_AUTHORITY = 'OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_WINDOW02_TERMINAL_PRECHILD_NONREPLAY_SUCCESSOR_EXACT75_NOT_ISSUED_FORMAL_NOT_RUN_JOINT_BUDGET_SOFTWARE_GREEN_FORMAL_NOT_RUN'
+const CAPACITY_AUTHORITY = 'OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_WINDOW06_PROCESS_EXIT_TERMINAL_WINDOW07_CONSUMED_ONCE_SUPERVISOR_INPUT_REJECTED_NO_CHILD_NO_SAMPLES_ARCHITECTURE_STOP_BLOCKED_JOINT_FORMAL_NOT_RUN'
 const EVIDENCE_INFRASTRUCTURE = {
   state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
   receiptFoundation: {
@@ -259,7 +259,7 @@ const CAPACITY_MEASURE_WINDOW_ISSUER = {
   gateB: 'NOT_RUN',
 }
 const CAPACITY_QUEUED_STOP_CONTROL_PLANE = {
-  state: 'CONTROL_PLANE_GREEN_WINDOW01_TERMINAL_ISSUER_FAILURE_WINDOW02_TERMINAL_PRECHILD_FAILURE_CARRIED_FORWARD_SUCCESSOR_EXACT75_NOT_ISSUED_RUN_NOT_RUN',
+  state: 'WINDOW06_PROCESS_EXIT_TERMINAL_WINDOW07_CONSUMED_INPUT_REJECTED_NO_CHILD_NO_SAMPLES_THREE_LOCATION_ARCHITECTURE_STOP_BLOCKED',
   implementationCommit: '7d67f5069233fbbc5b00a9170c2639b9e237edf2',
   derivedBuildFix: {
     implementationCommit: '33d8856c7f4a1e93edce90ba2c9f31d406d9272a',
@@ -332,7 +332,11 @@ const CAPACITY_QUEUED_STOP_CONTROL_PLANE = {
     supervisorSha256: '18ef840fe99b861ca8881c7c7be09b70c13431df02d88ddf282e29f2169cdc92',
     snapshotBytes: 1990471680,
   },
-  rootClosure: { frozenMeasure: 71, priorIssuerFailures: 1, priorPrechildFailures: 1, authorityParent: 1, issuerIdentity: 1, exact: 75 },
+  rootClosure: {
+    frozenMeasure: 71, priorIssuerFailures: 1, priorPrechildFailures: 1,
+    priorProcessFailureHead: 1, authorityParent: 1, issuerIdentity: 1,
+    exactDirect: 76, transitiveBillingRootCount: 78,
+  },
   formalPlan: {
     warmupCount: 5, formalCount: 100, sampleCount: 105,
     activeCloneMaximum: 1, executionTimeoutMs: 50000, windowTimeoutSeconds: 900,
@@ -357,8 +361,34 @@ const CAPACITY_QUEUED_STOP_CONTROL_PLANE = {
   },
   fullVerify: 'PASS',
   staticGates: { controlPlane: 'PASS', boundaries: 'PASS', cycles: 'PASS_259_FILES' },
-  authority: { state: 'NEXT_NOT_ISSUED', windowId: null, windowDirName: null, label: null },
-  formalRun: 'NOT_RUN',
+  authority: {
+    state: 'ISSUED_AND_CONSUMED_ONCE_INPUT_REJECTED_NO_TERMINAL_RECEIPT_REPLAY_PROHIBITED',
+    candidateCommit: '3abc4c2f77475ede4159d7c1922396481cada48c',
+    windowId: '5f5df917-cb23-453b-906c-4e4395cec1ad',
+    windowDirName: 'r023-objects-limit-queued-stop-window-07',
+    label: 'r023-objects-limit-queued-stop-07',
+    windowSha256: '0bac4fcc26057f94dc17eab902b2affbf34438ae0d3fae7fa43bd779e6182331',
+    recoverySha256: 'f500b9b3f85962f88e40b0596ff2cf78a3e37458643b7eb687827b18a40e0ffb',
+    observedExitCode: 1, observedError: 'CAPACITY_SUPERVISOR_INPUT',
+    authorityAdmission: 'REJECTED_BEFORE_SUPERVISION', supervisionStarted: false,
+    childSpawned: false, benchmarkStarted: false, outputCreated: false, sampleCount: 0,
+    deviceOpened: false, gateB: 'NOT_RUN',
+  },
+  blockingAudit: {
+    state: 'BLOCKED_THREE_DISTINCT_LOCATIONS_SAME_RECURSIVE_FAILURE_LINEAGE_DEFECT',
+    implementationCheckpoints: [
+      '168cbcbd7a15130b6bd90e115024aefdb789da67',
+      '36d92a85c28e4d8a7faa6d95ebf8014263c10b26',
+      '3abc4c2f77475ede4159d7c1922396481cada48c',
+    ],
+    locations: [
+      'bridge-core-cli-runtime-root', 'queued-stop-issuer-recursive-process-count',
+      'installed-supervisor-recursive-process-count',
+    ],
+    fourthPatchAttempted: false, newWindowAuthorized: false,
+    requiredDecision: 'ARCHITECTURAL_REFACTOR_OR_EXPLICIT_OWNER_OVERRIDE',
+  },
+  formalRun: 'BLOCKED_PRECHILD_NO_SAMPLES',
   joint: 'SOFTWARE_GREEN_FORMAL_GENERATION_NOT_RUN_MEASURE_NOT_RUN',
   deviceOpened: false,
   gateB: 'NOT_RUN',
