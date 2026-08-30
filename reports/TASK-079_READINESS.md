@@ -247,7 +247,7 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 
 #### Objects-limit measure window-04终态与Stop/authority闭包修复
 
-- fresh audit绑定候选HEAD `cfca7be9b7adc42045c371fe3648f3db6e9c4c8d`后，一次性签发并消费window UUID=`02f6042a-b797-437d-a8da-45afa2dd1f4`、window-dir=`r023-objects-limit-measure-window-04`、label=`r023-objects-limit-measure-04`。window SHA256=`afdd51b40e412265eac85a000132168df83bf4a5b42f65150651a5b6dca3006b`，owned manifest SHA256=`b6cad8f1701a4b3815810046e11088544027932c00d9ca002c1d4f875add1d9e`，source manifest SHA256=`de474098354a741fc7a4210c9586ad3904453f98c191c5ccb449d3a9bfc32a29`。
+- fresh audit绑定候选HEAD `cfca7be9b7adc42045c371fe3648f3db6e9c4c8d`后，一次性签发并消费window UUID=`02f6042a-b797-437d-a8da-45eafa2dd1f4`、window-dir=`r023-objects-limit-measure-window-04`、label=`r023-objects-limit-measure-04`。window SHA256=`afdd51b40e412265eac85a000132168df83bf4a5b42f65150651a5b6dca3006b`，owned manifest SHA256=`b6cad8f1701a4b3815810046e11088544027932c00d9ca002c1d4f875add1d9e`，source manifest SHA256=`de474098354a741fc7a4210c9586ad3904453f98c191c5ccb449d3a9bfc32a29`。
 - progress group完成105个样本并写入receipt SHA256=`b7c3d6e7d25461ff5b3d1bf77c7b1be9ebb74a3060a90498f2307ed0804cc323`。Stop第1轮形成durable receipt SHA256=`5e497472bb5ab6b69eb1e2a2e050442760ee7218b64c0192fb1b352222d7df92`；第2轮因复用同一Physical Copy而由正式Attempt链返回`COPY_UNAVAILABLE`。child自然exit 1，supervisor在terminal authority复核将终态收敛为`AUTHORITY_DRIFT`，两者必须分层记录。
 - close SHA256=`1baf8d8ba6d02d524a2368f4d5ce4e4854dba5d866d4dfcfbaac46e0666704f1`；elapsed=`62295.937791ms`，共111 samples、1个group receipt、1个Stop round receipt。samples SHA256=`cbeec9cc8e9d087bf0c596259d6eead06ff2f673f105890be407090d20670664`，stages SHA256=`0a6fb64a9c663237cbe7257856f56f4151709637307b066defcd0de94ee62a9e`。group-stop clone与partial保留，PG empty、zombie=`[]`、`deviceOpened=false`、`formalReady=false`、Gate B=`NOT_RUN`。UUID、window-dir、label永久禁止重放；该结果不是measure PASS。
 - 修复提交=`54b6353e9b12a2bdfdecf3c9bb452a53d34a00f5`。Stop measure现在为105轮分别预置不同、合法、冻结的Physical Copy/Plan，仍经过正式receive、source authorization、media reservation、layout freeze、execution、archive与recording plan链；每轮保留真实SQLite commit/fsync和durable receipt，3-group、3次full hash及1575样本口径不变，同Plan重放负例仍返回`COPY_UNAVAILABLE`。
@@ -255,3 +255,12 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - 新鲜验证：`node --test --import tsx packages/bridge-core/test/recording-capacity.test.ts`为88/88；`node --test scripts/ci/test/capacity-phase-supervisor-v2.test.mjs`为16/16；measure issuer专项为23/23；`corepack pnpm@10.17.1 --filter @music-bridge/bridge-core typecheck` exit 0。以上只证明修复切片GREEN，不关闭capacity正式measure、queued-stop/joint、真实设备、Gate B或Owner验收。
 - 当前尚未签发后继窗口。必须先同步文档与STATUS、确认工作树和验证清洁，再由独立只读fresh audit绑定当前HEAD、issuer及supervisor blob；PASS后也只能使用全新UUID/window-dir/label一次性签发。02/03/04和旧partial不得重放、覆盖、移动或吸收。
 - 验证清洁的`codex/task-079-v3-final-acceptance`评审检查点`b3df42ada9e798d8fb67396648bdc5599ef83eb3`已于`2026-08-30T01:17:11Z` push，`git ls-remote`确认远端同SHA。该push不代表PR或`main`合并，也不代表签名、公证、安装、发布或外部评审结论。
+
+#### Window-04 后 successor recovery v3（当前未签发）
+
+- 本节是window-04终态之后的后继恢复口径，不回写历史。window-04公开合同继续保持历史`plannedBytes=4,249,378,816`，其`COPY_UNAVAILABLE`、child exit 1、supervisor `AUTHORITY_DRIFT`和受控partial保留事实均不改变，也不能被后继预算解释成旧窗口PASS。
+- successor recovery v3重新枚举window-03/04 terminal carryover及其余既有受控根：历史联集为68，当前闭包为`existing=70`、`future=1`、`authorized=71`。这里的`authorized=71`是后继候选authority的精确闭包口径，不表示已经创建或消费approved window。
+- 冻结seed snapshot为`1,990,471,680`字节。新的空间策略标识为`serial-single-clone-plus-bounded-growth-v1`，后继`plannedBytes=2,258,907,136`，即单一snapshot clone加固定256MiB增长与证据预算；它只适用于新后继窗口，不替换window-04的历史`4,249,378,816`。
+- measure运行期把整个output文件树的逻辑字节总和作为硬上限，而非只做启动前磁盘余量估计。每次写前与阶段后复核写入`measure-aggregate-budget.jsonl`；任一时刻只允许一个active group clone。检测到超额、第二clone、路径/身份漂移后进入terminal stable stop，不继续写阶段、退出或新clone，并保留失败现场供审计。
+- window-03与window-04继续作为terminal carryover进入后继owned闭包，不得重放、删除、移动、覆盖或吸收。issuer在发布后继authority前还必须完成第二次验证；验证失败或事实漂移时不得发布，剩余空间和未消费名称都不构成重试授权。
+- 当前尚未签发或消费任何新窗口，也没有新的正式measure结果。设备、Roon和真实资料均未操作，`deviceOpened=false`、`formalReady=false`、Gate B=`NOT_RUN`；queued-stop、joint与Owner验收仍未完成。
