@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { constants, copyFileSync, existsSync, linkSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs'
+import { chmodSync, constants, copyFileSync, existsSync, linkSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -9,6 +9,7 @@ import test from 'node:test'
 
 const sourceSupervisor = new URL('../capacity-phase-supervisor-v2.py', import.meta.url).pathname
 const sourceBuildHelper = new URL('../issue-v3-capacity-window.py', import.meta.url).pathname
+const sourceRecoveryTool = new URL('../create-v3-capacity-measure-root-recovery.py', import.meta.url).pathname
 const python = '/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/bin/python3.14'
 const plan = { groupCloneCount: 3, fullHashCount: 3, stopRoundReceiptCount: 105, sampleCount: 1575 }
 const stopMetrics = ['signalAborted', 'driverStopInvoked', 'driverStopAck', 'driverCloseInvoked', 'driverCloseResolved', 'receiptSettled']
@@ -29,7 +30,7 @@ function identity(path) {
   return { device: info.dev, inode: info.ino, size: info.size, sha256: sha(path) }
 }
 
-function bridge(script, method, payload) {
+function bridge(script, method, payload, environment = {}) {
   const code = `
 import importlib.util, json, pathlib, sys, types
 spec=importlib.util.spec_from_file_location('capacity_phase_supervisor_v2', sys.argv[1])
@@ -37,6 +38,7 @@ module=importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 method=sys.argv[2]; payload=json.loads(sys.argv[3])
 try:
   if method == 'repo-root': value=str(module._runtime_repo_root())
+  elif method == 'git-env': value={key:value for key,value in module._git_environment().items() if key.startswith('GIT_')}
   elif method == 'candidate': value=str(module._validate_candidate_repository(payload['window'], pathlib.Path(payload['runtime'])))
   elif method == 'target':
     root, entry=module._measure_execution_target(payload['window'], pathlib.Path(payload['runtime']))
@@ -85,6 +87,15 @@ try:
     value=module._validate_queued_stop_owned_manifest(
       pathlib.Path(payload['manifest']), pathlib.Path(payload['runtime']), payload['windowId'],
       pathlib.Path(payload['parent']), payload['carryRoots'], payload['plannedBytes'])
+  elif method == 'frozen-owned':
+    try:
+      value=module._validate_frozen_owned_roots(
+        pathlib.Path(payload['manifest']), pathlib.Path(payload['runtime']), payload['manifestSha256'],
+        payload['windowId'], pathlib.Path(payload['future']), 'present', 'FROZEN_OWNED',
+        root_recovery=payload['measureRootRecovery'])
+      value['future']=str(value['future'])
+    except TypeError as error:
+      raise ValueError(str(error)) from error
   elif method == 'queued-authority-snapshot':
     parent=pathlib.Path(payload['parent']); runtime=pathlib.Path(payload['runtime']); repo=pathlib.Path(payload['repo'])
     fixed={'device':1,'inode':1,'size':1,'mtimeNs':1,'ctimeNs':1,'sha256':'1'*64}
@@ -222,7 +233,9 @@ try:
 except (SystemExit, ValueError) as error:
   print(json.dumps({'ok':False,'error':str(error)}, sort_keys=True))
 `
-  const result = spawnSync(python, ['-c', code, script, method, JSON.stringify(payload)], { encoding: 'utf8' })
+  const result = spawnSync(python, ['-c', code, script, method, JSON.stringify(payload)], {
+    encoding: 'utf8', env: { ...process.env, ...environment },
+  })
   assert.equal(result.status, 0, result.stderr)
   return JSON.parse(result.stdout)
 }
@@ -248,7 +261,7 @@ function copiedSupervisor() {
     'package.json', 'pnpm-lock.yaml', 'packages/bridge-core/package.json', 'packages/contracts/package.json',
     'packages/bridge-core/test/benchmarks/recording-capacity.ts',
     'packages/bridge-core/test/benchmarks/recording-capacity-process.ts',
-    'packages/contracts/src/generated.ts',
+    'packages/contracts/src/generated.ts', 'packages/contracts/dist/generated.js',
     'scripts/ci/capacity-phase-supervisor-v2.py', 'scripts/ci/issue-v3-capacity-measure-window.py',
   ]
   for (const relative of candidateFiles) {
@@ -257,11 +270,13 @@ function copiedSupervisor() {
     else writeFileSync(path, `${relative}\n`)
   }
   copyFileSync(sourceBuildHelper, join(candidate, 'scripts/ci/issue-v3-capacity-window.py'))
+  copyFileSync(sourceRecoveryTool, join(candidate, 'scripts/ci/create-v3-capacity-measure-root-recovery.py'))
   writeFileSync(join(candidate, 'scripts/ci/terminalize-v3-capacity-queued-stop-prechild.py'),
     'queued prechild terminalizer\n')
   writeFileSync(join(candidate, 'packages/contracts/tsconfig.json'), '{}\n')
   writeFileSync(join(candidate, 'scripts/ci/issue-v3-capacity-queued-stop-window.py'), 'queued issuer\n')
   writeFileSync(join(candidate, 'tsx-loader.mjs'), 'export {}\n')
+  writeFileSync(join(candidate, 'packages/contracts/dist/generated.js'), 'export const generated = true\n')
   for (const relative of ['packages/bridge-core/src', 'packages/bridge-core/test/helpers', 'packages/contracts/src', 'packages/contracts/dist']) {
     mkdirSync(join(candidate, relative), { recursive: true })
   }
@@ -272,6 +287,12 @@ function copiedSupervisor() {
     const result = spawnSync('/usr/bin/git', args, { cwd: candidate, encoding: 'utf8' }); assert.equal(result.status, 0, result.stderr)
   }
   const head = spawnSync('/usr/bin/git', ['rev-parse', 'HEAD^{commit}'], { cwd: candidate, encoding: 'utf8' }).stdout.trim()
+  const candidateRemote = join(temp, 'candidate-remote.git')
+  for (const [cwd, args] of [[temp, ['init', '--bare', candidateRemote]],
+    [candidate, ['remote', 'add', 'origin', candidateRemote]],
+    [candidate, ['push', '-u', 'origin', 'codex/task-079-v3-final-acceptance']]]) {
+    const result = spawnSync('/usr/bin/git', args, { cwd, encoding: 'utf8' }); assert.equal(result.status, 0, result.stderr)
+  }
   return { temp, repo, repoBranch, repoHead, candidate, candidateBranch: 'codex/task-079-v3-final-acceptance', head,
     candidateFiles, runtime, authority, script, cleanup: () => rmSync(temp, { recursive: true, force: true }) }
 }
@@ -317,6 +338,7 @@ function queuedWindowValue(f) {
       supervision: { path: join(f.runtime, 'r023-objects-limit-measure-window-06/supervision/supervisor.json'), sha256: '18ef840fe99b861ca8881c7c7be09b70c13431df02d88ddf282e29f2169cdc92' },
       supervisor: { path: join(f.runtime, 'r023-objects-limit-measure-window-06/supervisor.py'), sha256: 'aaf871474dfe8129bae76ff8d2f07ed4f9a1200801d9108d005e6bbd1823e743' },
       output: { path: join(f.runtime, 'r023-objects-limit-measure-06'), label: 'r023-objects-limit-measure-06', commandSha256: '4a0417df8056764a5ba6a24ffda42d7be590cb4bfbd480b5d7188d8d609b8231' },
+      measureRootRecovery: { path: join(f.runtime, 'measure-root-recovery-v1/recovery.json'), sha256: '6'.repeat(64) },
     },
   }
 }
@@ -937,6 +959,68 @@ function rootRow(path, markerName = 'owner.json') {
     marker: { relative: markerName, sha256: sha(join(path, markerName)) } }
 }
 
+function disappearedFrozenOwnedFixture() {
+  const f = copiedSupervisor()
+  const windowId = randomUUID(), historical = join(f.runtime, 'historical-measure-window')
+  const future = join(f.runtime, 'historical-measure-output'), seed = join(f.runtime, 'historical-durable-seed')
+  mkdirSync(historical); mkdirSync(future)
+  json(join(future, 'command.json'), { phase: 'measure', windowId })
+  mkdirSync(seed); writeFileSync(join(seed, 'seed.sqlite'), 'durable benchmark seed\n')
+  const present = []
+  for (let index = 0; index < 62; index += 1) {
+    const root = join(f.runtime, `historical-present-${String(index).padStart(2, '0')}`); mkdirSync(root)
+    json(join(root, 'owner.json'), { scope: 'historical-present', index }); present.push(rootRow(root))
+  }
+  const disappeared = []
+  for (let index = 0; index < 7; index += 1) {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'musicbridge-version-')))
+    json(join(root, 'capacity-owner.json'), { scope: 'musicbridge-capacity-synthetic-only', index })
+    disappeared.push(rootRow(root, 'capacity-owner.json'))
+  }
+  json(join(seed, 'seed.json'), { schema: 21, profile: 'objects-limit', fixtureDirectory: disappeared[0].path,
+    snapshotSha256: sha(join(seed, 'seed.sqlite')) })
+  present.unshift(rootRow(seed, 'seed.json'))
+  const manifest = join(historical, 'owned-roots.json')
+  json(manifest, { schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only',
+    windowId, roots: [...present, ...disappeared], futureRoots: [future] })
+  const window = join(historical, 'window.json'), close = join(historical, 'close.json')
+  json(window, { scope: 'musicbridge-capacity-measure-window', id: windowId, state: 'approved' })
+  json(close, { scope: 'musicbridge-capacity-measure-window-close', windowId, state: 'passed',
+    windowSha256: sha(window), ownedManifestSha256: sha(manifest) })
+  const frozenHashes = { window: sha(window), close: sha(close), manifest: sha(manifest) }
+  const recoveryRoot = join(f.runtime, 'measure-root-recovery-v1'); mkdirSync(recoveryRoot); chmodSync(recoveryRoot, 0o700)
+  const replacements = disappeared.map((historicalRoot, index) => {
+    const root = join(recoveryRoot, `replacement-${String(index + 1).padStart(3, '0')}`); mkdirSync(root)
+    json(join(root, 'owner.json'), { schemaVersion: 1, scope: 'musicbridge-capacity-historical-control-only',
+      id: randomUUID(), role: 'historical-control-only', recovered: false, historicalRoot })
+    chmodSync(root, 0o700); chmodSync(join(root, 'owner.json'), 0o400)
+    return { ...rootRow(root), role: 'historical-control-only' }
+  })
+  const recovery = join(recoveryRoot, 'recovery.json'), recoveryTool = join(f.candidate,
+    'scripts/ci/create-v3-capacity-measure-root-recovery.py')
+  json(recovery, { schemaVersion: 1, scope: 'musicbridge-capacity-measure-root-recovery', access: 'read-only',
+    state: 'PUBLISHED', model: 'exact75-v2-replacement-closure',
+    windowId, historicalManifest: { path: manifest, sha256: frozenHashes.manifest },
+    repository: { root: f.candidate, branch: f.candidateBranch, head: f.head, clean: true, pushedHead: true },
+    recoveryTool: { path: recoveryTool, relativePath: 'scripts/ci/create-v3-capacity-measure-root-recovery.py',
+      workingSha256: sha(recoveryTool), gitBlobSha256: sha(recoveryTool) },
+    mappings: disappeared.map((historicalRoot, index) => ({ historicalRoot, state: 'LOST',
+      recovered: false, replacementRoot: replacements[index] })),
+    contentRecovered: false, historicalManifestRewritten: false,
+    activeBenchmarkInput: { model: 'durable-seed-snapshot', path: join(seed, 'seed.sqlite'), sha256: sha(join(seed, 'seed.sqlite')) },
+    deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' })
+  chmodSync(recovery, 0o400)
+  for (const row of disappeared) rmSync(row.path, { recursive: true })
+  return { ...f, windowId, historical, future, seed, present, disappeared, replacements, manifest, window,
+    close, recovery, measureRootRecovery: { path: recovery, sha256: sha(recovery) }, frozenHashes }
+}
+
+function rewriteRootRecovery(f, mutate) {
+  const receipt = JSON.parse(readFileSync(f.recovery, 'utf8')); mutate(receipt, f)
+  rmSync(f.recovery); json(f.recovery, receipt)
+  return { path: f.recovery, sha256: sha(f.recovery) }
+}
+
 function issuerFailureCarryover(f, mutate = () => {}) {
   const windowId = randomUUID(), dirName = 'objects-measure-window-03', label = 'objects-measure-03'
   const parent = join(f.runtime, dirName), issuerIdentity = join(parent, 'issuer-identity')
@@ -1066,12 +1150,30 @@ test('v2从window绑定独立TASK079 candidate，绝不反推TASK078 runtime roo
     assert.equal(bridge(f.script, 'candidate', { window: runtimeDerived, runtime: f.runtime }).ok, false)
     assert.deepEqual(bridge(f.script, 'target', { window, runtime: f.runtime }), { ok: true, value: {
       root: f.candidate, cwd: f.candidate, entry: join(f.candidate, 'packages/bridge-core/test/benchmarks/recording-capacity.ts') } })
-    assert.equal(bridge(f.script, 'source', { manifest: sourceManifest(f), root: f.candidate }).value, 9)
+    assert.equal(bridge(f.script, 'source', { manifest: sourceManifest(f), root: f.candidate }).value,
+      f.candidateFiles.length)
     json(join(f.authority, 'owner.json'), { scope: window.scope, owner: 'root', id: window.id })
     json(join(f.authority, 'window.json'), window)
     const loaded = bridge(f.script, 'load', { window: join(f.authority, 'window.json'), windowSha256: sha(join(f.authority, 'window.json')) })
     assert.equal(loaded.ok, true)
     assert.deepEqual(loaded.value.slice(0, 2), [f.runtime, f.authority])
+  } finally { f.cleanup() }
+})
+
+test('所有Git读取净化外部GIT注入、固定只读环境并拒绝candidate子目录冒充仓库根', () => {
+  const f = copiedSupervisor()
+  try {
+    const window = windowValue(f)
+    const injected = { GIT_DIR: join(f.temp, 'attacker.git'), GIT_WORK_TREE: f.runtime,
+      GIT_INDEX_FILE: join(f.temp, 'attacker.index'), GIT_CONFIG_COUNT: '99' }
+    const observed = bridge(f.script, 'candidate', { window, runtime: f.runtime }, injected)
+    assert.equal(observed.ok, true, observed.error)
+    const gitEnvironment = bridge(f.script, 'git-env', {}, injected)
+    assert.deepEqual(gitEnvironment.value, { GIT_NO_LAZY_FETCH: '1', GIT_OPTIONAL_LOCKS: '0' })
+
+    const nested = structuredClone(window)
+    nested.candidateRepository.root = join(f.candidate, 'packages')
+    assert.equal(bridge(f.script, 'candidate', { window: nested, runtime: f.runtime }).ok, false)
   } finally { f.cleanup() }
 })
 
@@ -1740,6 +1842,131 @@ test('legacy carryover拒绝retained clone子项、owner、sidecar、sqlite size
     try { assert.equal(bridge(f.script, 'carryover', legacyCarryover(f, mutate)).ok, false) }
     finally { f.cleanup() }
   }
+})
+
+test('queued-stop successor window逐项绑定单个只读measure root recovery收据', () => {
+  const f = copiedSupervisor()
+  try {
+    const window = queuedWindowValue(f)
+    window.measureCarryover.measureRootRecovery = {
+      path: join(f.authority, 'measure-root-recovery.json'), sha256: '6'.repeat(64) }
+    const observed = bridge(f.script, 'queued-window', { window, now: Date.now() / 1000 })
+    assert.equal(observed.ok, true, observed.error)
+    for (const mutate of [
+      value => { delete value.measureCarryover.measureRootRecovery },
+      value => { value.measureCarryover.measureRootRecovery.path = 'relative.json' },
+      value => { value.measureCarryover.measureRootRecovery.sha256 = '0'.repeat(63) },
+      value => { value.measureCarryover.measureRootRecovery.extra = true },
+    ]) {
+      const changed = structuredClone(window); mutate(changed)
+      assert.equal(bridge(f.script, 'queued-window', { window: changed, now: Date.now() / 1000 }).ok, false)
+    }
+  } finally { f.cleanup() }
+})
+
+test('冻结measure以exact75-v2只读收据把7个LOST根替换为durable control roots且不改写历史PASS证据', () => {
+  const f = disappearedFrozenOwnedFixture()
+  try {
+    const observed = bridge(f.script, 'frozen-owned', {
+      manifest: f.manifest, runtime: f.runtime, manifestSha256: f.frozenHashes.manifest,
+      windowId: f.windowId, future: f.future, measureRootRecovery: f.measureRootRecovery })
+    assert.equal(observed.ok, true, observed.error)
+    assert.equal(observed.value.roots.length, 70)
+    assert.deepEqual(new Set(observed.value.roots.map(row => row.path)),
+      new Set([...f.present, ...f.replacements].map(row => row.path)))
+    assert.equal(new Set([...observed.value.roots.map(row => row.path), f.future]).size, 71)
+    assert.equal(observed.value.roots.some(row => row.path === f.replacements[0].path), true)
+    assert.deepEqual({ window: sha(f.window), close: sha(f.close), manifest: sha(f.manifest) }, f.frozenHashes)
+    const receipt = JSON.parse(readFileSync(f.recovery, 'utf8'))
+    assert.equal(receipt.mappings.length, 7)
+    assert.equal(JSON.parse(readFileSync(join(f.seed, 'seed.json'))).fixtureDirectory, f.disappeared[0].path)
+    assert.equal(receipt.mappings[0].historicalRoot.path, f.disappeared[0].path)
+    assert.equal(receipt.mappings.every(row => row.state === 'LOST' && row.recovered === false), true)
+    assert.equal(receipt.mappings.every(row => row.replacementRoot.marker.relative === 'owner.json'), true)
+    const replacementOwners = receipt.mappings.map(row =>
+      JSON.parse(readFileSync(join(row.replacementRoot.path, 'owner.json'))))
+    assert.equal(replacementOwners.every(owner => owner.scope ===
+      'musicbridge-capacity-historical-control-only'), true)
+    assert.equal(replacementOwners.every(owner => /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(owner.id)), true)
+    assert.equal(new Set(replacementOwners.map(owner => owner.id)).size, 7)
+    assert.equal(receipt.mappings.every(row =>
+      row.replacementRoot.marker.sha256 !== row.historicalRoot.marker.sha256), true)
+    assert.equal('activeFixtureDirectory' in receipt, false)
+    assert.equal(receipt.contentRecovered, false)
+    assert.equal(receipt.historicalManifestRewritten, false)
+    assert.deepEqual(receipt.activeBenchmarkInput,
+      { model: 'durable-seed-snapshot', path: join(f.seed, 'seed.sqlite'), sha256: sha(join(f.seed, 'seed.sqlite')) })
+  } finally { f.cleanup() }
+})
+
+test('measure root recovery拒绝缺项、夹带、旧路径重现、身份漂移、marker-only复制与replacement冒充fixture', () => {
+  const cases = [
+    f => rewriteRootRecovery(f, receipt => { receipt.mappings.pop() }),
+    f => rewriteRootRecovery(f, receipt => { receipt.mappings.push(structuredClone(receipt.mappings[0])) }),
+    f => rewriteRootRecovery(f, receipt => { receipt.mappings[0].historicalRoot.path += '-drift' }),
+    f => rewriteRootRecovery(f, receipt => { receipt.mappings[0].historicalRoot.inode += 1 }),
+    f => rewriteRootRecovery(f, receipt => { receipt.mappings[0].historicalRoot.marker.sha256 = '0'.repeat(64) }),
+    f => { mkdirSync(f.disappeared[0].path); json(join(f.disappeared[0].path, 'capacity-owner.json'),
+      { scope: 'musicbridge-capacity-synthetic-only', index: 0 }); return f.measureRootRecovery },
+    f => { chmodSync(join(f.replacements[0].path, 'owner.json'), 0o600)
+      writeFileSync(join(f.replacements[0].path, 'owner.json'), 'marker drift\n'); return f.measureRootRecovery },
+    f => { const path = f.replacements[0].path; renameSync(path, `${path}-old`); mkdirSync(path)
+      json(join(path, 'owner.json'), { id: randomUUID(), scope: 'musicbridge-capacity-historical-control-only' })
+      return f.measureRootRecovery },
+    f => rewriteRootRecovery(f, receipt => { receipt.mappings[0].state = 'PRESENT' }),
+    f => rewriteRootRecovery(f, receipt => { receipt.mappings[0].recovered = true }),
+    f => rewriteRootRecovery(f, receipt => { receipt.contentRecovered = true }),
+    f => rewriteRootRecovery(f, receipt => { receipt.historicalManifestRewritten = true }),
+    f => rewriteRootRecovery(f, receipt => { receipt.activeFixtureDirectory = receipt.mappings[0].replacementRoot.path }),
+    f => rewriteRootRecovery(f, receipt => { receipt.activeBenchmarkInput = {
+      path: receipt.mappings[0].replacementRoot.path, sha256: receipt.mappings[0].replacementRoot.marker.sha256 } }),
+    f => rewriteRootRecovery(f, receipt => {
+      const mapping = receipt.mappings[0], replacement = mapping.replacementRoot.path
+      rmSync(replacement, { recursive: true }); mkdirSync(replacement)
+      json(join(replacement, 'capacity-owner.json'), { scope: 'musicbridge-capacity-synthetic-only', index: 0 })
+      mapping.replacementRoot = rootRow(replacement, 'capacity-owner.json')
+      assert.equal(mapping.replacementRoot.marker.sha256, mapping.historicalRoot.marker.sha256)
+    }),
+    f => ({ path: f.recovery, sha256: '0'.repeat(64) }),
+  ]
+  for (const mutate of cases) {
+    const f = disappearedFrozenOwnedFixture()
+    try {
+      const observed = bridge(f.script, 'frozen-owned', {
+        manifest: f.manifest, runtime: f.runtime, manifestSha256: f.frozenHashes.manifest,
+        windowId: f.windowId, future: f.future, measureRootRecovery: mutate(f) })
+      assert.equal(observed.ok, false)
+    } finally {
+      for (const row of f.disappeared) rmSync(row.path, { recursive: true, force: true })
+      f.cleanup()
+    }
+  }
+})
+
+test('63个live历史根加7个historical-control-only根、output与两类carryover保持successor exact75-v2', () => {
+  const f = disappearedFrozenOwnedFixture()
+  try {
+    const issuerIdentity = join(f.authority, 'issuer-identity'); mkdirSync(issuerIdentity)
+    json(join(f.authority, 'owner.json'), { scope: 'musicbridge-capacity-queued-stop-window', owner: 'root', id: f.windowId })
+    json(join(issuerIdentity, 'owner.json'), { scope: 'musicbridge-capacity-queued-stop-authority-issuer', windowId: f.windowId })
+    const outputRoot = rootRow(f.future, 'command.json')
+    const measureRoots = [...f.present, ...f.replacements.map(({ role: _role, ...root }) => root)]
+    assert.equal(measureRoots.length, 70)
+    const priorRoots = []
+    for (const name of ['prior-issuer-failure', 'prior-prechild-failure']) {
+      const root = join(f.runtime, name); mkdirSync(root); json(join(root, 'owner.json'), { scope: name })
+      priorRoots.push(rootRow(root))
+    }
+    const carryRoots = [...measureRoots, outputRoot, ...priorRoots]
+    assert.equal(carryRoots.length, 73)
+    const manifest = join(f.authority, 'owned-roots.json')
+    json(manifest, { schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only',
+      windowId: f.windowId, roots: [...carryRoots, rootRow(f.authority), rootRow(issuerIdentity)] })
+    const observed = bridge(f.script, 'queued-owned', { manifest, runtime: f.runtime, windowId: f.windowId,
+      parent: f.authority, carryRoots, plannedBytes: 0 })
+    assert.equal(observed.ok, true, observed.error)
+    assert.equal(observed.value.rootCount, 75)
+  } finally { f.cleanup() }
 })
 
 test('queued-stop successor只接受冻结exact schema、900秒、S加256MiB与self/candidate identity', () => {

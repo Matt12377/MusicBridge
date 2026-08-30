@@ -27,7 +27,12 @@ EVIDENCE_ALLOWANCE = 256 * 1024 ** 2
 EXPECTED_SOURCE_COUNT = 241
 EXPECTED_MEASURE_ROOTS = 70
 EXPECTED_CONCRETE_ROOTS = 71
-BASE_AUTHORITY_ROOTS = 73
+EXPECTED_LIVE_MEASURE_ROOTS = 63
+EXPECTED_RECOVERED_CONTROL_ROOTS = 7
+EXPECTED_PREFLIGHT_ROOTS = 73
+EXPECTED_AUTHORITY_ROOTS = 75
+RECOVERY_MODEL = 'exact75-v2-replacement-closure'
+RECOVERY_TOOL_RELATIVE = 'scripts/ci/create-v3-capacity-measure-root-recovery.py'
 FROZEN_MEASURE = {
     'windowId': 'afc81a99-d15d-4179-8326-5774a5c40b62',
     'windowSha256': 'cfac8e19336a181de00c68d458d046065cd821a0dca48cc4fc78af0e15c15227',
@@ -263,6 +268,206 @@ def unique_roots(rows):
     return result
 
 
+def historical_root(row):
+    if not isinstance(row, dict) or set(row) != {'path', 'device', 'inode', 'marker'}:
+        fail('MEASURE_ROOT_RECOVERY')
+    path_value = row.get('path')
+    marker = row.get('marker')
+    if not isinstance(path_value, str) or not Path(path_value).is_absolute() \
+            or os.path.abspath(path_value) != path_value \
+            or type(row.get('device')) is not int or row['device'] < 0 \
+            or type(row.get('inode')) is not int or row['inode'] <= 0 \
+            or not isinstance(marker, dict) or set(marker) != {'relative', 'sha256'} \
+            or marker.get('relative') not in MARKERS \
+            or SHA256.fullmatch(str(marker.get('sha256', ''))) is None:
+        fail('MEASURE_ROOT_RECOVERY')
+    return {'path': path_value, 'device': row['device'], 'inode': row['inode'],
+            'marker': dict(marker)}
+
+
+def path_is_absent(path):
+    try:
+        Path(path).lstat()
+    except FileNotFoundError:
+        return True
+    except OSError as error:
+        raise IssueError('MEASURE_ROOT_RECOVERY') from error
+    return False
+
+
+def validate_measure_root_recovery(options, runtime, owned_path, owned, seed, snapshot):
+    receipt_path = Path(options.measure_root_recovery)
+    try:
+        recovery_root = canonical_directory(receipt_path.parent, runtime)
+    except (IssueError, OSError, TypeError, ValueError) as error:
+        raise IssueError('MEASURE_ROOT_RECOVERY') from error
+    if receipt_path != recovery_root / 'recovery.json' or recovery_root.parent != runtime:
+        fail('MEASURE_ROOT_RECOVERY')
+    try:
+        receipt, receipt_sha = strict_json(
+            receipt_path, options.expected_measure_root_recovery_sha256,
+            maximum=4 * 1024 * 1024)
+        receipt_mode = stat.S_IMODE(receipt_path.stat().st_mode)
+        recovery_mode = stat.S_IMODE(recovery_root.stat().st_mode)
+    except (IssueError, OSError, TypeError, ValueError) as error:
+        raise IssueError('MEASURE_ROOT_RECOVERY') from error
+    if receipt_mode != 0o400 or recovery_mode != 0o700:
+        fail('MEASURE_ROOT_RECOVERY')
+    receipt_keys = {
+        'schemaVersion', 'scope', 'access', 'state', 'model', 'windowId',
+        'historicalManifest', 'repository', 'recoveryTool', 'mappings',
+        'activeBenchmarkInput', 'contentRecovered', 'historicalManifestRewritten',
+        'deviceOpened', 'formalReady', 'gateB'}
+    historical_manifest = receipt.get('historicalManifest') if isinstance(receipt, dict) else None
+    repository = receipt.get('repository') if isinstance(receipt, dict) else None
+    recovery_tool = receipt.get('recoveryTool') if isinstance(receipt, dict) else None
+    active_input = receipt.get('activeBenchmarkInput') if isinstance(receipt, dict) else None
+    if not isinstance(receipt, dict) or set(receipt) != receipt_keys \
+            or receipt.get('schemaVersion') != 1 \
+            or receipt.get('scope') != 'musicbridge-capacity-measure-root-recovery' \
+            or receipt.get('access') != 'read-only' or receipt.get('state') != 'PUBLISHED' \
+            or receipt.get('model') != RECOVERY_MODEL \
+            or receipt.get('windowId') != options.expected_measure_window_id \
+            or historical_manifest != {
+                'path': str(owned_path), 'sha256': options.expected_measure_owned_sha256} \
+            or receipt.get('contentRecovered') is not False \
+            or receipt.get('historicalManifestRewritten') is not False \
+            or receipt.get('deviceOpened') is not False or receipt.get('formalReady') is not False \
+            or receipt.get('gateB') != 'NOT_RUN':
+        fail('MEASURE_ROOT_RECOVERY')
+
+    expected_repository = canonical_directory(options.repo_root)
+    if not isinstance(repository, dict) \
+            or set(repository) != {'root', 'branch', 'head', 'clean', 'pushedHead'} \
+            or repository != {'root': str(expected_repository), 'branch': options.expected_branch,
+                               'head': options.expected_head, 'clean': True, 'pushedHead': True}:
+        fail('MEASURE_ROOT_RECOVERY_REPOSITORY')
+    try:
+        if git_value(expected_repository, 'branch', '--show-current') != options.expected_branch \
+                or git_value(expected_repository, 'rev-parse', 'HEAD^{commit}') != options.expected_head \
+                or git_value(expected_repository, 'status', '--porcelain=v1', '--untracked-files=all') != '' \
+                or git_value(expected_repository, 'rev-parse', '@{upstream}^{commit}') != options.expected_head:
+            fail('MEASURE_ROOT_RECOVERY_REPOSITORY')
+    except IssueError as error:
+        raise IssueError('MEASURE_ROOT_RECOVERY_REPOSITORY') from error
+    expected_tool_path = expected_repository / RECOVERY_TOOL_RELATIVE
+    if not isinstance(recovery_tool, dict) \
+            or set(recovery_tool) != {'path', 'relativePath', 'workingSha256', 'gitBlobSha256'} \
+            or recovery_tool.get('path') != str(expected_tool_path) \
+            or recovery_tool.get('relativePath') != RECOVERY_TOOL_RELATIVE \
+            or SHA256.fullmatch(str(recovery_tool.get('workingSha256', ''))) is None \
+            or recovery_tool.get('gitBlobSha256') != recovery_tool.get('workingSha256'):
+        fail('MEASURE_ROOT_RECOVERY_TOOL')
+    tool_sha = recovery_tool['workingSha256']
+    try:
+        tool_blob_sha = hashlib.sha256(git_blob(
+            expected_repository, options.expected_head, RECOVERY_TOOL_RELATIVE)).hexdigest()
+    except IssueError as error:
+        raise IssueError('MEASURE_ROOT_RECOVERY_TOOL') from error
+    if not ordinary(expected_tool_path) or sha256(expected_tool_path) != tool_sha \
+            or tool_blob_sha != tool_sha:
+        fail('MEASURE_ROOT_RECOVERY_TOOL')
+
+    expected_active_input = {
+        'model': 'durable-seed-snapshot', 'path': str(snapshot),
+        'sha256': options.expected_seed_snapshot_sha256}
+    if active_input != expected_active_input:
+        fail('MEASURE_ROOT_RECOVERY_INPUT')
+    snapshot_identity = file_snapshot(snapshot, options.expected_seed_snapshot_sha256)
+    if snapshot_identity['path'] != str(snapshot) or snapshot.parent != seed:
+        fail('MEASURE_ROOT_RECOVERY_INPUT')
+
+    historical_rows = [historical_root(row) for row in owned.get('roots', [])]
+    if len(historical_rows) != EXPECTED_MEASURE_ROOTS \
+            or len({row['path'] for row in historical_rows}) != EXPECTED_MEASURE_ROOTS:
+        fail('MEASURE_ROOT_RECOVERY')
+    live = []
+    absent = []
+    for row in historical_rows:
+        if path_is_absent(row['path']):
+            absent.append(row)
+        else:
+            try:
+                observed = validate_root(row)
+            except IssueError as error:
+                raise IssueError('MEASURE_ROOT_RECOVERY') from error
+            live.append(observed)
+    if len(live) != EXPECTED_LIVE_MEASURE_ROOTS \
+            or len(absent) != EXPECTED_RECOVERED_CONTROL_ROOTS:
+        fail('MEASURE_ROOT_RECOVERY_ABSENT_SET')
+    fixture_evidence = [row for row in absent
+                        if row['marker']['relative'] == 'capacity-owner.json'
+                        and row['marker']['sha256'] == options.expected_seed_fixture_owner_sha256]
+    if len(fixture_evidence) != 1:
+        fail('MEASURE_ROOT_RECOVERY_ABSENT_SET')
+
+    mappings = receipt.get('mappings')
+    if not isinstance(mappings, list) or len(mappings) != EXPECTED_RECOVERED_CONTROL_ROOTS:
+        fail('MEASURE_ROOT_RECOVERY_MAPPING')
+    replacements = []
+    replacement_snapshots = []
+    replacement_paths = set()
+    marker_ids = set()
+    for index, mapping in enumerate(mappings):
+        if not isinstance(mapping, dict) \
+                or set(mapping) != {'historicalRoot', 'state', 'recovered', 'replacementRoot'} \
+                or mapping.get('historicalRoot') != absent[index] \
+                or mapping.get('state') != 'LOST' or mapping.get('recovered') is not False:
+            fail('MEASURE_ROOT_RECOVERY_MAPPING')
+        replacement = mapping.get('replacementRoot')
+        if not isinstance(replacement, dict) \
+                or set(replacement) != {'path', 'device', 'inode', 'marker', 'role'} \
+                or replacement.get('role') != 'historical-control-only':
+            fail('MEASURE_ROOT_RECOVERY_MAPPING')
+        try:
+            replacement_root = validate_root({key: replacement[key]
+                                              for key in ('path', 'device', 'inode', 'marker')})
+            replacement_path = Path(replacement_root['path'])
+            replacement_directory = directory_snapshot(replacement_path, {'owner.json'})
+        except (IssueError, KeyError, OSError, TypeError, ValueError) as error:
+            raise IssueError('MEASURE_ROOT_RECOVERY_MAPPING') from error
+        if replacement.get('marker', {}).get('relative') != 'owner.json' \
+                or replacement_path.parent != recovery_root \
+                or replacement_root['path'] in replacement_paths \
+                or replacement_root['path'] in {row['path'] for row in historical_rows} \
+                or replacement_root['path'] in {str(seed), str(snapshot)} \
+                or replacement_directory['device'] != replacement['device'] \
+                or replacement_directory['inode'] != replacement['inode'] \
+                or stat.S_IMODE(replacement_path.stat().st_mode) != 0o700 \
+                or stat.S_IMODE((replacement_path / 'owner.json').stat().st_mode) != 0o400:
+            fail('MEASURE_ROOT_RECOVERY_MAPPING')
+        marker, marker_sha = strict_json(
+            replacement_path / 'owner.json', replacement['marker']['sha256'], maximum=1024 * 1024)
+        marker_keys = {'schemaVersion', 'scope', 'id', 'role', 'historicalRoot', 'recovered'}
+        if not isinstance(marker, dict) or set(marker) != marker_keys \
+                or marker.get('schemaVersion') != 1 \
+                or marker.get('scope') != 'musicbridge-capacity-historical-control-only' \
+                or UUID4.fullmatch(str(marker.get('id', ''))) is None \
+                or marker.get('role') != 'historical-control-only' \
+                or marker.get('historicalRoot') != absent[index] \
+                or marker.get('recovered') is not False \
+                or marker_sha == absent[index]['marker']['sha256'] \
+                or marker['id'] in marker_ids:
+            fail('MEASURE_ROOT_RECOVERY_MARKER')
+        replacement_paths.add(replacement_root['path'])
+        marker_ids.add(marker['id'])
+        replacements.append(replacement_root)
+        replacement_snapshots.append(replacement_directory)
+    if {mapping['historicalRoot']['path'] for mapping in mappings} != {row['path'] for row in absent}:
+        fail('MEASURE_ROOT_RECOVERY_ABSENT_SET')
+    recovery_directory_snapshot = directory_snapshot(
+        recovery_root, {'recovery.json', *(Path(path).name for path in replacement_paths)})
+    return {
+        'liveRoots': live, 'replacementRoots': replacements,
+        'binding': {'path': str(receipt_path), 'sha256': receipt_sha},
+        'receiptSnapshot': file_snapshot(receipt_path, receipt_sha),
+        'directorySnapshot': recovery_directory_snapshot,
+        'replacementSnapshots': replacement_snapshots,
+        'absentRoots': absent,
+        'activeBenchmarkInput': expected_active_input,
+    }
+
+
 def directory_bytes(path, maximum=16 * 1024 ** 3, maximum_entries=250_000):
     total = 0
     count = 0
@@ -485,14 +690,16 @@ def validate_measure(options, runtime):
             or seed_value.get('gateB') != 'NOT_RUN':
         fail('SEED_PASS')
     snapshot = seed / 'seed.sqlite'
-    fixture = canonical_directory(seed_value.get('fixtureDirectory'))
     if snapshot.stat().st_size != FROZEN_MEASURE['seedSnapshotBytes'] \
-            or sha256(snapshot) != options.expected_seed_snapshot_sha256 \
-            or sha256(fixture / 'capacity-owner.json') != options.expected_seed_fixture_owner_sha256:
+            or sha256(snapshot) != options.expected_seed_snapshot_sha256:
         fail('SEED_IDENTITY')
-    roots = unique_roots(owned['roots'])
-    required_roots = {str(window_path.parent), str(seed), str(fixture)}
+    recovery = validate_measure_root_recovery(
+        options, runtime, owned_path, owned, seed, snapshot)
+    roots = unique_roots([*recovery['liveRoots'], *recovery['replacementRoots']])
+    required_roots = {str(window_path.parent), str(seed)}
     if not required_roots.issubset(roots):
+        fail('MEASURE_OWNED')
+    if len(roots) != EXPECTED_MEASURE_ROOTS:
         fail('MEASURE_OWNED')
     output_root = validate_root(current_root(output, 'command.json'))
     if output_root['path'] in roots:
@@ -513,7 +720,13 @@ def validate_measure(options, runtime):
             'supervisor': {'path': str(installed_supervisor), 'sha256': options.expected_measure_supervisor_sha256},
             'output': {'path': str(output), 'label': options.expected_measure_label,
                        'commandSha256': options.expected_measure_output_command_sha256},
+            'measureRootRecovery': recovery['binding'],
         },
+        'recoverySnapshot': recovery['receiptSnapshot'],
+        'directorySnapshot': recovery['directorySnapshot'],
+        'replacementSnapshots': recovery['replacementSnapshots'],
+        'absentRoots': recovery['absentRoots'],
+        'activeBenchmarkInput': recovery['activeBenchmarkInput'],
     }
 
 
@@ -926,6 +1139,8 @@ def parse_args(argv):
     parser.add_argument('--expected-seed-metadata-sha256', required=True)
     parser.add_argument('--expected-seed-snapshot-sha256', required=True)
     parser.add_argument('--expected-seed-fixture-owner-sha256', required=True)
+    parser.add_argument('--measure-root-recovery', required=True)
+    parser.add_argument('--expected-measure-root-recovery-sha256', required=True)
     parser.add_argument('--window-dir-name', required=True)
     parser.add_argument('--label', required=True)
     parser.add_argument('--profile', required=True, choices=('objects-limit',))
@@ -969,6 +1184,8 @@ def validate_options(options):
             fail('SHA256')
     if UUID4.fullmatch(options.expected_measure_window_id or '') is None:
         fail('WINDOW_ID')
+    if not Path(options.measure_root_recovery).is_absolute():
+        fail('MEASURE_ROOT_RECOVERY')
     observed = {
         'windowId': options.expected_measure_window_id,
         'windowSha256': options.expected_measure_window_sha256,
@@ -1024,6 +1241,13 @@ def build_window_payload(*, window_id, label, seed_label, seed, issued_at, deadl
                          node, node_sha, tsx, tsx_sha, consumer, consumer_sha,
                          issuer_path, issuer_sha, issuer_fact_path, issuer_fact_sha):
     """构造冻结的outer合同；此纯函数不签发authority，也不绕过CLI的window-06冻结检查。"""
+    root_recovery = measure_facts.get('measureRootRecovery') \
+        if isinstance(measure_facts, dict) else None
+    if not isinstance(root_recovery, dict) or set(root_recovery) != {'path', 'sha256'} \
+            or not isinstance(root_recovery.get('path'), str) \
+            or not Path(root_recovery['path']).is_absolute() \
+            or SHA256.fullmatch(str(root_recovery.get('sha256', ''))) is None:
+        fail('MEASURE_ROOT_RECOVERY')
     return {
         'schemaVersion': 1, 'scope': 'musicbridge-capacity-queued-stop-window', 'owner': 'root',
         'id': window_id, 'state': 'approved', 'phase': 'queued-stop', 'profile': 'objects-limit',
@@ -1090,6 +1314,16 @@ def issue(options):
     source = source_manifest(root, options.expected_head, derived['files'])
     prior_failures = validate_prior_issuer_failures(options, runtime)
     prechild_failures = validate_prior_prechild_failures(options, runtime)
+    if len(prior_failures['roots']) != 1 or len(prechild_failures['roots']) != 1:
+        fail('EXACT75_V2_CARRYOVER')
+    # recovery、历史根现状、durable seed 与 repo/tool 身份全部在分配新身份前完成。
+    measure = validate_measure(options, runtime)
+    planned = measure['snapshotBytes'] + EVIDENCE_ALLOWANCE
+    preflight_roots = unique_roots(
+        [*measure['roots'], *prior_failures['roots'], *prechild_failures['roots']])
+    if len(preflight_roots) != EXPECTED_PREFLIGHT_ROOTS:
+        fail('EXACT75_V2_PREFLIGHT')
+    owned_facts(list(preflight_roots.values()), planned, runtime)
     window_id = str(uuid.uuid4())
     parent = runtime / options.window_dir_name
     try:
@@ -1098,8 +1332,6 @@ def issue(options):
         raise IssueError('EXCLUSIVE_CREATE') from error
     _FAILURE = {'parent': parent, 'runtime': runtime, 'windowId': window_id,
                 'windowDirName': options.window_dir_name, 'label': options.label}
-    measure = validate_measure(options, runtime)
-    planned = measure['snapshotBytes'] + EVIDENCE_ALLOWANCE
     owner_sha = exclusive_json(parent / 'owner.json', {
         'scope': 'musicbridge-capacity-queued-stop-window', 'owner': 'root', 'id': window_id})
     installed = parent / 'supervisor.py'
@@ -1136,8 +1368,7 @@ def issue(options):
     })
     roots = unique_roots([*measure['roots'], *prior_failures['roots'], *prechild_failures['roots'],
                           current_root(parent, 'owner.json'), current_root(issuer_identity, 'owner.json')])
-    expected_authority_roots = BASE_AUTHORITY_ROOTS + len(prior_failures['roots']) + len(prechild_failures['roots'])
-    if len(roots) != expected_authority_roots:
+    if len(roots) != EXPECTED_AUTHORITY_ROOTS:
         fail('OWNED_COUNT')
     source_sha = exclusive_json(parent / 'source-pins.json', source)
     owned = {'schemaVersion': 1, 'scope': 'musicbridge-capacity-owned-roots', 'access': 'count-only',
@@ -1171,7 +1402,13 @@ def issue(options):
     # 发布前第二次读取全部外部身份与空间；pending 字节也必须保持不变。
     second_measure = validate_measure(options, runtime)
     if second_measure['facts'] != measure['facts'] or second_measure['seed'] != measure['seed'] \
-            or second_measure['snapshotBytes'] != measure['snapshotBytes']:
+            or second_measure['snapshotBytes'] != measure['snapshotBytes'] \
+            or second_measure['roots'] != measure['roots'] \
+            or second_measure['recoverySnapshot'] != measure['recoverySnapshot'] \
+            or second_measure['directorySnapshot'] != measure['directorySnapshot'] \
+            or second_measure['replacementSnapshots'] != measure['replacementSnapshots'] \
+            or second_measure['absentRoots'] != measure['absentRoots'] \
+            or second_measure['activeBenchmarkInput'] != measure['activeBenchmarkInput']:
         fail('MEASURE_DRIFT')
     validate_repository(root, options.expected_branch, options.expected_head)
     validate_repository(issuer_repo, options.expected_issuer_branch, options.expected_issuer_head)
@@ -1204,8 +1441,17 @@ def issue(options):
             or strict_json(parent / 'owned-roots.json', owned_sha)[0] != owned \
             or strict_json(pending, window_sha)[0] != window:
         fail('AUTHORITY_DRIFT')
+    if file_snapshot(measure['facts']['measureRootRecovery']['path'],
+                     measure['facts']['measureRootRecovery']['sha256']) != measure['recoverySnapshot'] \
+            or directory_snapshot(
+                Path(measure['facts']['measureRootRecovery']['path']).parent,
+                measure['directorySnapshot']['entries']) != measure['directorySnapshot'] \
+            or any(directory_snapshot(snapshot['path'], {'owner.json'}) != snapshot
+                   for snapshot in measure['replacementSnapshots']) \
+            or any(not path_is_absent(row['path']) for row in measure['absentRoots']):
+        fail('MEASURE_DRIFT')
     roots_second = unique_roots(owned['roots'])
-    if len(roots_second) != expected_authority_roots:
+    if len(roots_second) != EXPECTED_AUTHORITY_ROOTS:
         fail('OWNED_DRIFT')
     budget_second = owned_facts(list(roots_second.values()), planned, runtime)
     os.rename(pending, parent / 'window.json')

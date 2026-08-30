@@ -5,7 +5,7 @@ import { fork, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import { DatabaseSync, backup } from 'node:sqlite';
 import { isMasterArtworkImage, isRecordingPrintPdfBase64 } from '@music-bridge/contracts';
-import { mkdtempSync, realpathSync, writeFileSync, existsSync, readFileSync, rmSync, mkdirSync, lstatSync, linkSync, readdirSync, renameSync, symlinkSync, truncateSync } from 'node:fs';
+import { chmodSync, mkdtempSync, realpathSync, writeFileSync, existsSync, readFileSync, rmSync, mkdirSync, lstatSync, linkSync, readdirSync, renameSync, symlinkSync, truncateSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -759,6 +759,115 @@ async function phaseFixture(t: test.TestContext, phase: import('./helpers/record
   return { api, runtime, fixture, seed, output, windowRoot, inventory, args, w, seal, put, hash, entry, options, coldResult, queuedResult, printResult, advance: (ms: number) => { at += ms; } };
 }
 
+function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>, rootCount: number) {
+  const outer = f.w as unknown as Record<string, unknown>, seed = outer.seed as Record<string, unknown>;
+  outer.scope = 'musicbridge-capacity-queued-stop-window';
+  outer.issuerFailureCarryoverCount = 1; outer.prechildFailureCarryoverCount = 1; outer.seedLabel = 'seed';
+  seed.fixtureOwnerSha256 = f.hash(path.join(f.fixture, 'capacity-owner.json'));
+  const snapshotBytes = lstatSync(path.join(f.seed, 'seed.sqlite')).size;
+  outer.queuedStopPlan = { warmupCount: 5, formalCount: 100, sampleCount: 105, activeCloneMaximum: 1,
+    snapshotBytes, evidenceAllowanceBytes: 256 * 1024 ** 2, plannedBytes: snapshotBytes + 256 * 1024 ** 2,
+    model: 'serial-single-clone-plus-bounded-growth-v1', aggregateAudit: 'queued-stop-aggregate-budget.jsonl' };
+  outer.supervisor = { path: path.join(f.windowRoot, 'supervisor.py'), sha256: '1'.repeat(64) };
+  const gitRoot = path.join(f.runtime, 'git-fixture'); mkdirSync(gitRoot);
+  const candidate = path.join(gitRoot, 'candidate'), upstream = path.join(gitRoot, 'upstream.git');
+  mkdirSync(candidate);
+  const gitEnvironment = { ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_'))),
+    GIT_OPTIONAL_LOCKS: '0', GIT_NO_LAZY_FETCH: '1' };
+  const git = (directory: string, args: string[]) => {
+    const result = spawnSync('/usr/bin/git', args, { cwd: directory, encoding: 'utf8', env: gitEnvironment });
+    assert.equal(result.status, 0, `git ${args.join(' ')}: ${result.stderr}`); return result.stdout.trim();
+  };
+  git(gitRoot, ['init', '--bare', upstream]); git(candidate, ['init', '-b', 'codex/exact75-test']);
+  git(candidate, ['config', 'user.name', 'MusicBridge Test']); git(candidate, ['config', 'user.email', 'musicbridge-test@example.invalid']);
+  const recoveryRelative = 'scripts/ci/create-v3-capacity-measure-root-recovery.py';
+  const recoveryTool = path.join(candidate, recoveryRelative); mkdirSync(path.dirname(recoveryTool), { recursive: true });
+  writeFileSync(recoveryTool, '#!/usr/bin/env python3\nprint("exact75 test tool")\n');
+  git(candidate, ['add', recoveryRelative]); git(candidate, ['commit', '-m', 'test: freeze recovery tool']);
+  git(candidate, ['remote', 'add', 'origin', upstream]); git(candidate, ['push', '-u', 'origin', 'HEAD']);
+  const candidateHead = git(candidate, ['rev-parse', 'HEAD^{commit}']);
+  outer.candidateRepository = { root: candidate, branch: 'codex/exact75-test', head: candidateHead };
+  outer.toolchain = { node: { path: '/test/node', sha256: '5'.repeat(64) }, tsxLoader: { path: '/test/tsx-loader.mjs', sha256: '6'.repeat(64) },
+    consumerPython: { path: '/test/python', sha256: '7'.repeat(64) } };
+  const lostRoots = [f.inventory.roots.find(root => root.path === f.fixture)!];
+  for (let index = 1; index < 7; index += 1) {
+    const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'musicbridge-version-')));
+    f.put(path.join(directory, 'capacity-owner.json'), { id: randomUUID(), scope: 'musicbridge-capacity-synthetic-only' });
+    lostRoots.push(f.entry(directory, 'capacity-owner.json')); rmSync(directory, { recursive: true });
+  }
+  rmSync(f.fixture, { recursive: true });
+  const liveRoots = [f.inventory.roots.find(root => root.path === f.seed)!];
+  for (let index = 1; index < 63; index += 1) {
+    const directory = path.join(f.runtime, `measure-live-${String(index).padStart(2, '0')}`); mkdirSync(directory);
+    f.put(path.join(directory, 'owner.json'), { scope: 'musicbridge-capacity-measure-live', index });
+    liveRoots.push(f.entry(directory, 'owner.json'));
+  }
+  const historicalRoots = [...liveRoots, ...lostRoots];
+  const recoveryDirectory = path.join(f.runtime, 'measure-root-recovery-v1'); mkdirSync(recoveryDirectory);
+  const mappings = lostRoots.map((historicalRoot, index) => {
+    const directory = path.join(recoveryDirectory, `replacement-${String(index + 1).padStart(3, '0')}`); mkdirSync(directory);
+    f.put(path.join(directory, 'owner.json'), { schemaVersion: 1, scope: 'musicbridge-capacity-historical-control-only',
+      id: randomUUID(), role: 'historical-control-only', recovered: false, historicalRoot });
+    chmodSync(directory, 0o700); chmodSync(path.join(directory, 'owner.json'), 0o400);
+    const identity = f.entry(directory, 'owner.json');
+    const replacementRoot = { ...identity, role: 'historical-control-only' as const };
+    return { historicalRoot, state: 'LOST' as const, recovered: false as const, replacementRoot };
+  });
+  const historicalDirectory = path.join(f.runtime, 'measure'); mkdirSync(historicalDirectory); const historicalWindowId = randomUUID();
+  const historicalManifest = path.join(historicalDirectory, 'owned-roots.json');
+  f.put(historicalManifest, { schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only',
+    windowId: historicalWindowId, roots: historicalRoots });
+  const recovery = path.join(recoveryDirectory, 'recovery.json');
+  f.put(recovery, { schemaVersion: 1, scope: 'musicbridge-capacity-measure-root-recovery', access: 'read-only', state: 'PUBLISHED',
+    model: 'exact75-v2-replacement-closure', windowId: historicalWindowId,
+    historicalManifest: { path: historicalManifest, sha256: f.hash(historicalManifest) },
+    repository: { root: candidate, branch: 'codex/exact75-test', head: candidateHead, clean: true, pushedHead: true },
+    recoveryTool: { path: recoveryTool, relativePath: recoveryRelative,
+      workingSha256: f.hash(recoveryTool), gitBlobSha256: f.hash(recoveryTool) }, mappings,
+    activeBenchmarkInput: { model: 'durable-seed-snapshot', path: path.join(f.seed, 'seed.sqlite'), sha256: f.hash(path.join(f.seed, 'seed.sqlite')) },
+    contentRecovered: false, historicalManifestRewritten: false, deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' });
+  chmodSync(recoveryDirectory, 0o700); chmodSync(recovery, 0o400);
+  const measureOutput = path.join(f.runtime, 'measure-output'); mkdirSync(measureOutput);
+  f.put(path.join(measureOutput, 'command.json'), { scope: 'musicbridge-capacity-measure-output', label: 'measure-output' });
+  const issuerCarryover = path.join(f.runtime, 'issuer-carryover'); mkdirSync(issuerCarryover);
+  f.put(path.join(issuerCarryover, 'owner.json'), { scope: 'musicbridge-capacity-issuer-failure' });
+  const prechildCarryover = path.join(f.runtime, 'prechild-carryover'); mkdirSync(prechildCarryover);
+  f.put(path.join(prechildCarryover, 'owner.json'), { scope: 'musicbridge-capacity-prechild-failure' });
+  const proof = (name: string) => ({ path: path.join(f.runtime, name), sha256: '3'.repeat(64) });
+  outer.measureCarryover = { window: { ...proof('measure/window.json'), id: historicalWindowId }, close: proof('measure/close.json'),
+    ownedManifest: { path: historicalManifest, sha256: f.hash(historicalManifest) }, sourceManifest: proof('measure/source-pins.json'),
+    supervision: proof('measure/supervision/supervisor.json'), supervisor: proof('measure/supervisor.py'),
+    output: { path: measureOutput, label: 'measure-output', commandSha256: f.hash(path.join(measureOutput, 'command.json')) },
+    measureRootRecovery: { path: recovery, sha256: f.hash(recovery) } };
+  f.put(path.join(f.windowRoot, 'owner.json'), { scope: outer.scope, owner: 'root', id: outer.id });
+  const issuerIdentity = path.join(f.windowRoot, 'issuer-identity'); mkdirSync(issuerIdentity);
+  const issuerFact = {
+    schemaVersion: 1, scope: 'musicbridge-capacity-queued-stop-authority-issuer', windowId: outer.id,
+    issuerRepository: { root: candidate, branch: 'codex/exact75-test', head: candidateHead, relativePath: recoveryRelative, sha256: f.hash(recoveryTool) },
+    candidateRepository: outer.candidateRepository, supervisorSource: outer.supervisor, toolchain: outer.toolchain,
+    buildHelper: { path: recoveryTool, relativePath: recoveryRelative, sha256: f.hash(recoveryTool) },
+    buildToolchain: { node: outer.toolchain, nodeLibrary: outer.toolchain, typescriptCompiler: outer.toolchain, typescriptLibraryManifestSha256: 'a'.repeat(64) },
+    build: {}, issuerFailureCarryover: [{ root: issuerCarryover }], prechildFailureCarryover: [{ root: prechildCarryover }],
+    measureCarryover: outer.measureCarryover,
+  };
+  const issuerFactPath = path.join(issuerIdentity, 'owner.json'); const issuerFactSha256 = f.put(issuerFactPath, issuerFact);
+  outer.issuer = { path: recoveryTool, sha256: f.hash(recoveryTool), fact: { path: issuerFactPath, sha256: issuerFactSha256 } };
+  chmodSync(f.windowRoot, 0o700); chmodSync(issuerIdentity, 0o700);
+  f.inventory.roots = [...liveRoots, ...mappings.map(value => {
+    const { role: _role, ...root } = value.replacementRoot; return root;
+  }), f.entry(measureOutput, 'command.json'), f.entry(issuerCarryover, 'owner.json'), f.entry(prechildCarryover, 'owner.json'),
+  f.entry(f.windowRoot, 'owner.json'), f.entry(issuerIdentity, 'owner.json')];
+  if (rootCount < f.inventory.roots.length) f.inventory.roots.splice(rootCount);
+  if (rootCount > f.inventory.roots.length) {
+    assert.equal(rootCount, 76, '仅76-root负例可增加一条任意root');
+    const directory = path.join(f.runtime, 'arbitrary-count-padding'); mkdirSync(directory);
+    f.put(path.join(directory, 'owner.json'), { scope: 'arbitrary-count-padding' });
+    f.inventory.roots.push(f.entry(directory, 'owner.json'));
+  }
+  return { outer, seed, recovery, recoveryDirectory, mappings, historicalManifest, historicalRoots, liveRoots,
+    measureOutput, issuerCarryover, prechildCarryover, candidate, candidateHead, recoveryTool, git };
+}
+
 test('phase设施：新入口参数严格，未知/重复/缺少窗口hash不接受', async () => {
   const { parseCapacityPhaseArguments } = await import('./helpers/recording-capacity-phases.js');
   for (const args of [[], ['--phase','cold'], ['--phase','cold','--phase','cold'], ['--invented','yes'], ['--phase']]) assert.throws(() => parseCapacityPhaseArguments(args), /CAPACITY_PHASE_INVALID_INPUT/u);
@@ -970,46 +1079,130 @@ test('queued-stop successor：按issuer与prechild failure carryover精确接受
     [75, undefined, false], [75, 0, false], [74, 1, false], [75, 1, true], [76, 1, false],
   ] as const) {
     const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
-    const outer = f.w as unknown as Record<string, unknown>, seed = outer.seed as Record<string, unknown>;
-    outer.scope = 'musicbridge-capacity-queued-stop-window';
-    outer.issuerFailureCarryoverCount = 1;
-    if (prechildCount !== undefined) outer.prechildFailureCarryoverCount = prechildCount;
-    seed.fixtureOwnerSha256 = f.hash(path.join(f.fixture, 'capacity-owner.json'));
-    outer.seedLabel = 'seed';
-    outer.queuedStopPlan = { warmupCount: 5, formalCount: 100, sampleCount: 105, activeCloneMaximum: 1,
-      snapshotBytes: lstatSync(path.join(f.seed, 'seed.sqlite')).size, evidenceAllowanceBytes: 256 * 1024 ** 2,
-      plannedBytes: lstatSync(path.join(f.seed, 'seed.sqlite')).size + 256 * 1024 ** 2,
-      model: 'serial-single-clone-plus-bounded-growth-v1', aggregateAudit: 'queued-stop-aggregate-budget.jsonl' };
-    outer.supervisor = { path: path.join(f.windowRoot, 'supervisor.py'), sha256: '1'.repeat(64) };
-    outer.candidateRepository = { root: f.api.CAPACITY_PHASE_REPO_ROOT, branch: 'codex/test', head: '2'.repeat(40) };
-    outer.toolchain = { node: { path: '/test/node', sha256: '5'.repeat(64) },
-      tsxLoader: { path: '/test/tsx-loader.mjs', sha256: '6'.repeat(64) },
-      consumerPython: { path: '/test/python', sha256: '7'.repeat(64) } };
-    outer.issuer = { path: '/test/issue-v3-capacity-queued-stop-window.py', sha256: '8'.repeat(64),
-      fact: { path: path.join(f.windowRoot, 'issuer-identity/owner.json'), sha256: '9'.repeat(64) } };
-    const proof = (name: string) => ({ path: path.join(f.runtime, name), sha256: '3'.repeat(64) });
-    outer.measureCarryover = {
-      window: { ...proof('measure/window.json'), id: randomUUID() }, close: proof('measure/close.json'),
-      ownedManifest: proof('measure/owned-roots.json'), sourceManifest: proof('measure/source-pins.json'),
-      supervision: proof('measure/supervision/supervisor.json'), supervisor: proof('measure/supervisor.py'),
-      output: { path: path.join(f.runtime, 'measure-output'), label: 'measure-output', commandSha256: '4'.repeat(64) },
-    };
-    f.put(path.join(f.windowRoot, 'owner.json'), { scope: outer.scope, owner: 'root', id: outer.id });
-    f.inventory.roots.find(root => root.path === f.windowRoot)!.marker.sha256 = f.hash(path.join(f.windowRoot, 'owner.json'));
-    while (f.inventory.roots.length < rootCount) {
-      const directory = path.join(f.runtime, `carry-${String(f.inventory.roots.length).padStart(2, '0')}`); mkdirSync(directory);
-      f.put(path.join(directory, 'owner.json'), { scope: 'controlled-carryover', index: f.inventory.roots.length });
-      f.inventory.roots.push(f.entry(directory, 'owner.json'));
-    }
+    const { outer } = configureExact75V2Recovery(f, rootCount);
+    if (prechildCount === undefined) delete outer.prechildFailureCarryoverCount;
+    else outer.prechildFailureCarryoverCount = prechildCount;
     f.seal(); let calls = 0;
     if (accepted) {
       const summary = await f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async () => { ++calls; throw new Error('受控停止'); } });
       assert.equal(calls, 1); assert.equal(summary.state, 'incomplete');
     } else {
-      await assert.rejects(f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async input => { ++calls; return f.queuedResult(input); } }),
+      await assert.rejects(f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async () => { ++calls; throw new Error('不应调用'); } }),
         /CAPACITY_PHASE_(?:WINDOW_INVALID|INVENTORY_INVALID)/u);
       assert.equal(calls, 0); assert.equal(existsSync(f.output), false);
     }
+  }
+});
+
+test('queued-stop successor：70根冻结manifest按63 live、7 replacement、output、双carryover及parent/issuer闭包', async t => {
+  for (const fault of ['arbitrary-replaces-live', 'arbitrary-replaces-output', 'live-root-absent', 'mapping-not-in-manifest'] as const) {
+    await t.test(fault, async () => {
+      const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
+      const configured = configureExact75V2Recovery(f, 75);
+      assert.equal(configured.historicalRoots.length, 70); assert.equal(configured.liveRoots.length, 63);
+      const arbitrary = path.join(f.runtime, `arbitrary-${fault}`); mkdirSync(arbitrary);
+      f.put(path.join(arbitrary, 'owner.json'), { scope: 'arbitrary-count-padding', fault });
+      if (fault === 'arbitrary-replaces-live') {
+        const index = f.inventory.roots.findIndex(root => root.path === configured.liveRoots[1]!.path);
+        f.inventory.roots[index] = f.entry(arbitrary, 'owner.json');
+      } else if (fault === 'arbitrary-replaces-output') {
+        const index = f.inventory.roots.findIndex(root => root.path === configured.measureOutput);
+        f.inventory.roots[index] = f.entry(arbitrary, 'owner.json');
+      } else if (fault === 'live-root-absent') {
+        rmSync(configured.liveRoots[1]!.path, { recursive: true });
+      } else {
+        const receipt = JSON.parse(readFileSync(configured.recovery, 'utf8'));
+        const mapping = receipt.mappings[1], replacement = mapping.replacementRoot;
+        mapping.historicalRoot = { ...mapping.historicalRoot,
+          path: path.join(os.tmpdir(), `musicbridge-version-${randomUUID().replaceAll('-', '')}`) };
+        const ownerPath = path.join(replacement.path, 'owner.json'); chmodSync(ownerPath, 0o600);
+        const owner = JSON.parse(readFileSync(ownerPath, 'utf8')); owner.historicalRoot = mapping.historicalRoot;
+        replacement.marker.sha256 = f.put(ownerPath, owner); chmodSync(ownerPath, 0o400);
+        const inventoryRoot = f.inventory.roots.find(root => root.path === replacement.path)!;
+        inventoryRoot.marker.sha256 = replacement.marker.sha256;
+        chmodSync(configured.recovery, 0o600); const recoverySha = f.put(configured.recovery, receipt); chmodSync(configured.recovery, 0o400);
+        (configured.outer.measureCarryover as Record<string, Record<string, unknown>>).measureRootRecovery!.sha256 = recoverySha;
+      }
+      f.seal(); let calls = 0;
+      await assert.rejects(f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async () => { ++calls; throw new Error('RED sentinel'); } }),
+        /CAPACITY_PHASE_(?:WINDOW_INVALID|INVENTORY_INVALID)/u);
+      assert.equal(calls, 0); assert.equal(existsSync(f.output), false);
+    });
+  }
+});
+
+test('queued-stop successor：live Git/blob及recovery直接条目权限在admission和windowCheck中拒绝漂移', async t => {
+  for (const fault of ['git-blob', 'head', 'upstream', 'dirty', 'branch-after-admission', 'recovery-mode-after-admission', 'recovery-entry-after-admission'] as const) {
+    await t.test(fault, async () => {
+      const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
+      const configured = configureExact75V2Recovery(f, 75);
+      if (fault === 'git-blob') {
+        configured.git(configured.candidate, ['update-index', '--assume-unchanged',
+          'scripts/ci/create-v3-capacity-measure-root-recovery.py']);
+        writeFileSync(configured.recoveryTool, '#!/usr/bin/env python3\nprint("working tree drift hidden from status")\n');
+        const receipt = JSON.parse(readFileSync(configured.recovery, 'utf8'));
+        receipt.recoveryTool.workingSha256 = f.hash(configured.recoveryTool);
+        receipt.recoveryTool.gitBlobSha256 = receipt.recoveryTool.workingSha256;
+        chmodSync(configured.recovery, 0o600); const recoverySha = f.put(configured.recovery, receipt); chmodSync(configured.recovery, 0o400);
+        (configured.outer.measureCarryover as Record<string, Record<string, unknown>>).measureRootRecovery!.sha256 = recoverySha;
+      } else if (fault === 'head') {
+        configured.git(configured.candidate, ['commit', '--allow-empty', '-m', 'test: head drift']);
+      } else if (fault === 'upstream') {
+        configured.git(configured.candidate, ['commit', '--allow-empty', '-m', 'test: upstream drift source']);
+        const driftHead = configured.git(configured.candidate, ['rev-parse', 'HEAD^{commit}']);
+        configured.git(configured.candidate, ['reset', '--hard', configured.candidateHead]);
+        configured.git(configured.candidate, ['update-ref', 'refs/remotes/origin/codex/exact75-test', driftHead]);
+      } else if (fault === 'dirty') {
+        writeFileSync(path.join(configured.candidate, 'untracked-drift'), 'dirty');
+      }
+      f.seal(); let calls = 0;
+      const run = f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async input => {
+        ++calls;
+        if (calls > 1) throw new Error('RED sentinel');
+        if (calls === 1 && fault === 'branch-after-admission') configured.git(configured.candidate, ['checkout', '-b', 'codex/drift']);
+        if (calls === 1 && fault === 'recovery-mode-after-admission') chmodSync(configured.recovery, 0o600);
+        if (calls === 1 && fault === 'recovery-entry-after-admission') writeFileSync(path.join(configured.recoveryDirectory, 'unexpected'), 'drift');
+        return f.queuedResult(input);
+      } });
+      if (['git-blob', 'head', 'upstream', 'dirty'].includes(fault)) {
+        await assert.rejects(run, /CAPACITY_PHASE_WINDOW_INVALID/u); assert.equal(calls, 0);
+      } else {
+        const summary = await run;
+        assert.equal(calls, 1); assert.equal(summary.state, 'incomplete'); assert.equal(summary.failure, 'CAPACITY_PHASE_WINDOW_INVALID');
+      }
+    });
+  }
+});
+
+test('queued-stop successor：consumer持续拒绝旧根重现、recovery漂移及replacement冒充fixture', async t => {
+  for (const fault of ['historical-reappeared', 'receipt-drift', 'replacement-marker-drift', 'replacement-as-fixture'] as const) {
+    await t.test(fault, async () => {
+      const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
+      const configured = configureExact75V2Recovery(f, 75);
+      if (fault === 'historical-reappeared') {
+        const original = configured.mappings[0]!.historicalRoot; mkdirSync(original.path);
+        f.put(path.join(original.path, 'capacity-owner.json'), { id: randomUUID(), scope: 'musicbridge-capacity-synthetic-only' });
+        t.after(() => rmSync(original.path, { recursive: true, force: true }));
+      } else if (fault === 'receipt-drift') {
+        const receipt = JSON.parse(readFileSync(configured.recovery, 'utf8')); receipt.contentRecovered = true;
+        chmodSync(configured.recovery, 0o600);
+        f.put(configured.recovery, receipt);
+      } else if (fault === 'replacement-marker-drift') {
+        const replacement = configured.mappings[0]!.replacementRoot;
+        chmodSync(path.join(replacement.path, 'owner.json'), 0o600);
+        f.put(path.join(replacement.path, 'owner.json'), { scope: 'drift' });
+      } else {
+        const metadataPath = path.join(f.seed, 'seed.json'), metadata = JSON.parse(readFileSync(metadataPath, 'utf8'));
+        metadata.fixtureDirectory = configured.mappings[0]!.replacementRoot.path;
+        const metadataSha256 = f.put(metadataPath, metadata);
+        configured.outer.seed = { ...(configured.outer.seed as Record<string, unknown>), metadataSha256 };
+        f.inventory.roots.find(root => root.path === f.seed)!.marker.sha256 = metadataSha256;
+      }
+      f.seal(); let calls = 0;
+      await assert.rejects(f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async input => { ++calls; return f.queuedResult(input); } }),
+        /CAPACITY_PHASE_(?:INVALID_INPUT|WINDOW_INVALID|INVENTORY_INVALID|SEED_INVALID)/u);
+      assert.equal(calls, 0); assert.equal(existsSync(f.output), false);
+    });
   }
 });
 
@@ -1024,29 +1217,7 @@ test('legacy queued-stop窗口保持旧空间模型且不生成successor aggrega
 
 test('queued-stop phase：105个独立clone先固化raw回执/hash再清理，预热不进入正式分布', { timeout: 30_000 }, async t => {
   const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit'), markers = new Set<string>(); let calls = 0;
-  const outer = f.w as unknown as Record<string, unknown>, seed = outer.seed as Record<string, unknown>;
-  outer.scope = 'musicbridge-capacity-queued-stop-window'; seed.fixtureOwnerSha256 = f.hash(path.join(f.fixture, 'capacity-owner.json'));
-  outer.issuerFailureCarryoverCount = 1;
-  outer.prechildFailureCarryoverCount = 1;
-  outer.seedLabel = 'seed'; const snapshotBytes = lstatSync(path.join(f.seed, 'seed.sqlite')).size;
-  outer.queuedStopPlan = { warmupCount: 5, formalCount: 100, sampleCount: 105, activeCloneMaximum: 1,
-    snapshotBytes, evidenceAllowanceBytes: 256 * 1024 ** 2, plannedBytes: snapshotBytes + 256 * 1024 ** 2,
-    model: 'serial-single-clone-plus-bounded-growth-v1', aggregateAudit: 'queued-stop-aggregate-budget.jsonl' };
-  outer.supervisor = { path: path.join(f.windowRoot, 'supervisor.py'), sha256: '1'.repeat(64) };
-  outer.candidateRepository = { root: f.api.CAPACITY_PHASE_REPO_ROOT, branch: 'codex/test', head: '2'.repeat(40) };
-  outer.toolchain = { node: { path: '/test/node', sha256: '5'.repeat(64) }, tsxLoader: { path: '/test/tsx-loader.mjs', sha256: '6'.repeat(64) },
-    consumerPython: { path: '/test/python', sha256: '7'.repeat(64) } };
-  outer.issuer = { path: '/test/issue-v3-capacity-queued-stop-window.py', sha256: '8'.repeat(64),
-    fact: { path: path.join(f.windowRoot, 'issuer-identity/owner.json'), sha256: '9'.repeat(64) } };
-  const proof = (name: string) => ({ path: path.join(f.runtime, name), sha256: '3'.repeat(64) });
-  outer.measureCarryover = { window: { ...proof('measure/window.json'), id: randomUUID() }, close: proof('measure/close.json'),
-    ownedManifest: proof('measure/owned-roots.json'), sourceManifest: proof('measure/source-pins.json'),
-    supervision: proof('measure/supervision/supervisor.json'), supervisor: proof('measure/supervisor.py'),
-    output: { path: path.join(f.runtime, 'measure-output'), label: 'measure-output', commandSha256: '4'.repeat(64) } };
-  f.put(path.join(f.windowRoot, 'owner.json'), { scope: outer.scope, owner: 'root', id: outer.id });
-  f.inventory.roots.find(root => root.path === f.windowRoot)!.marker.sha256 = f.hash(path.join(f.windowRoot, 'owner.json'));
-  while (f.inventory.roots.length < 75) { const directory = path.join(f.runtime, `carry-${String(f.inventory.roots.length).padStart(2, '0')}`); mkdirSync(directory);
-    f.put(path.join(directory, 'owner.json'), { scope: 'controlled-carryover', index: f.inventory.roots.length }); f.inventory.roots.push(f.entry(directory, 'owner.json')); }
+  configureExact75V2Recovery(f, 75);
   f.seal();
   const summary = await f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async input => {
     ++calls; markers.add(input.clone.marker.id);

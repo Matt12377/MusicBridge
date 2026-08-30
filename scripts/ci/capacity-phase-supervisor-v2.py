@@ -1015,12 +1015,29 @@ def _runtime_repo_root():
     return runtime.parents[2]
 
 
+def _git_environment():
+    environment = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
+    environment.update({'GIT_OPTIONAL_LOCKS': '0', 'GIT_NO_LAZY_FETCH': '1'})
+    return environment
+
+
 def _git_value(root, *arguments):
     try:
         return subprocess.check_output(
             ['/usr/bin/git', *arguments], cwd=root, text=True,
-            stderr=subprocess.DEVNULL).strip()
-    except (OSError, subprocess.CalledProcessError) as error:
+            stderr=subprocess.DEVNULL, timeout=15, env=_git_environment()).strip()
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+        raise ValueError('CANDIDATE_REPOSITORY') from error
+
+
+def _git_blob(root, revision_path):
+    if _git_value(root, 'rev-parse', '--show-toplevel') != str(root):
+        raise ValueError('CANDIDATE_REPOSITORY')
+    try:
+        return subprocess.check_output(
+            ['/usr/bin/git', 'show', revision_path], cwd=root, stderr=subprocess.DEVNULL,
+            timeout=15, env=_git_environment())
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
         raise ValueError('CANDIDATE_REPOSITORY') from error
 
 
@@ -1042,7 +1059,8 @@ def _validate_candidate_repository(window, runtime=None):
         try: runtime = Path(runtime).resolve(strict=True)
         except OSError as error: raise ValueError('CANDIDATE_REPOSITORY') from error
         if root == runtime.parents[2]: raise ValueError('CANDIDATE_REPOSITORY')
-    if _git_value(root, 'branch', '--show-current') != candidate['branch'] \
+    if _git_value(root, 'rev-parse', '--show-toplevel') != str(root) \
+            or _git_value(root, 'branch', '--show-current') != candidate['branch'] \
             or _git_value(root, 'rev-parse', 'HEAD^{commit}') != candidate['head']:
         raise ValueError('CANDIDATE_REPOSITORY')
     return root
@@ -1110,8 +1128,204 @@ def _frozen_identity_matches(expected, observed):
         and all(expected[key] == observed.get(key) for key in expected)
 
 
+def _validate_measure_root_recovery(binding, runtime, manifest_path, manifest_sha256, window_id,
+                                    missing_roots, candidate_repository, expected_seed_sha256,
+                                    expected_fixture_owner_sha256, error_code):
+    """验证exact75-v2替代闭包；历史根保持LOST，替代根仅提供计数控制身份。"""
+    receipt_keys = {'schemaVersion', 'scope', 'access', 'state', 'model', 'windowId',
+                    'historicalManifest', 'repository', 'recoveryTool', 'mappings',
+                    'activeBenchmarkInput', 'contentRecovered', 'historicalManifestRewritten',
+                    'deviceOpened', 'formalReady', 'gateB'}
+    repository_keys = {'root', 'branch', 'head', 'clean', 'pushedHead'}
+    tool_keys = {'path', 'relativePath', 'workingSha256', 'gitBlobSha256'}
+    mapping_keys = {'historicalRoot', 'state', 'recovered', 'replacementRoot'}
+    replacement_keys = {'path', 'device', 'inode', 'marker', 'role'}
+    marker_keys = {'schemaVersion', 'scope', 'id', 'role', 'recovered', 'historicalRoot'}
+    if not _queued_stop_exact_binding(binding, {'path', 'sha256'}):
+        raise ValueError(error_code)
+    supplied = Path(binding['path'])
+    try:
+        receipt_path = supplied.resolve(strict=True)
+        recovery_root = receipt_path.parent
+        recovery_root_info = recovery_root.lstat()
+        receipt, receipt_identity = _strict_json(receipt_path, 4 * 1024 * 1024)
+    except (OSError, ValueError) as error:
+        raise ValueError(error_code) from error
+    if supplied != receipt_path or supplied.is_symlink() or receipt_path.name != 'recovery.json' \
+            or recovery_root.parent != runtime or recovery_root.is_symlink() \
+            or not stat.S_ISDIR(recovery_root_info.st_mode) \
+            or stat.S_IMODE(recovery_root_info.st_mode) != 0o700 \
+            or stat.S_IMODE(receipt_path.stat().st_mode) != 0o400 \
+            or receipt_identity['sha256'] != binding['sha256'] \
+            or not isinstance(receipt, dict) or set(receipt) != receipt_keys \
+            or receipt.get('schemaVersion') != 1 \
+            or receipt.get('scope') != 'musicbridge-capacity-measure-root-recovery' \
+            or receipt.get('access') != 'read-only' or receipt.get('state') != 'PUBLISHED' \
+            or receipt.get('model') != 'exact75-v2-replacement-closure' \
+            or receipt.get('windowId') != window_id \
+            or receipt.get('historicalManifest') != {
+                'path': str(manifest_path), 'sha256': manifest_sha256} \
+            or receipt.get('contentRecovered') is not False \
+            or receipt.get('historicalManifestRewritten') is not False \
+            or receipt.get('deviceOpened') is not False \
+            or receipt.get('formalReady') is not False or receipt.get('gateB') != 'NOT_RUN':
+        raise ValueError(error_code)
+
+    repository = receipt.get('repository')
+    tool = receipt.get('recoveryTool')
+    if not isinstance(repository, dict) or set(repository) != repository_keys \
+            or not isinstance(repository.get('root'), str) \
+            or not isinstance(repository.get('branch'), str) or not repository['branch'] \
+            or _GIT_SHA.fullmatch(str(repository.get('head', ''))) is None \
+            or repository.get('clean') is not True or repository.get('pushedHead') is not True \
+            or not isinstance(tool, dict) or set(tool) != tool_keys \
+            or not isinstance(tool.get('path'), str) \
+            or tool.get('relativePath') != 'scripts/ci/create-v3-capacity-measure-root-recovery.py' \
+            or _SHA256.fullmatch(str(tool.get('workingSha256', ''))) is None \
+            or tool.get('gitBlobSha256') != tool.get('workingSha256'):
+        raise ValueError(error_code)
+    if candidate_repository is not None and (not isinstance(candidate_repository, dict) or repository != {
+            'root': candidate_repository.get('root'), 'branch': candidate_repository.get('branch'),
+            'head': candidate_repository.get('head'), 'clean': True, 'pushedHead': True}):
+        raise ValueError(error_code)
+    candidate = Path(repository['root'])
+    recovery_tool = candidate / tool['relativePath']
+    try:
+        canonical_candidate = candidate.resolve(strict=True)
+        candidate_info = candidate.lstat()
+        working_identity = _strict_identity(recovery_tool, 2 * 1024 * 1024)
+        blob = _git_blob(candidate, f"{repository['head']}:{tool['relativePath']}")
+        top = _git_value(candidate, 'rev-parse', '--show-toplevel')
+        branch = _git_value(candidate, 'branch', '--show-current')
+        head = _git_value(candidate, 'rev-parse', 'HEAD^{commit}')
+        upstream = _git_value(candidate, 'rev-parse', '@{u}^{commit}')
+        dirty = _git_value(candidate, 'status', '--porcelain=v1', '--untracked-files=all')
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        raise ValueError(error_code) from error
+    if not candidate.is_absolute() or candidate != canonical_candidate or candidate.is_symlink() \
+            or not stat.S_ISDIR(candidate_info.st_mode) or Path(tool.get('path', '')) != recovery_tool \
+            or working_identity['sha256'] != tool['workingSha256'] \
+            or hashlib.sha256(blob).hexdigest() != tool['gitBlobSha256'] \
+            or top != str(candidate) or branch != repository['branch'] or head != repository['head'] \
+            or upstream != head or dirty:
+        raise ValueError(error_code)
+
+    mappings = receipt.get('mappings')
+    if not isinstance(mappings, list) or len(mappings) != 7 \
+            or [row.get('historicalRoot') if isinstance(row, dict) else None for row in mappings] \
+            != missing_roots:
+        raise ValueError(error_code)
+    if expected_fixture_owner_sha256 is not None \
+            and sum(row['marker']['sha256'] == expected_fixture_owner_sha256
+                    for row in missing_roots) != 1:
+        raise ValueError(error_code)
+    roots = []; snapshots = []; replacement_paths = set(); marker_ids = set()
+    for mapping, historical in zip(mappings, missing_roots):
+        replacement = mapping.get('replacementRoot') if isinstance(mapping, dict) else None
+        if not isinstance(mapping, dict) or set(mapping) != mapping_keys \
+                or mapping.get('state') != 'LOST' \
+                or mapping.get('recovered') is not False or mapping.get('historicalRoot') != historical \
+                or not isinstance(replacement, dict) or set(replacement) != replacement_keys \
+                or replacement.get('role') != 'historical-control-only' \
+                or type(replacement.get('device')) is not int \
+                or type(replacement.get('inode')) is not int:
+            raise ValueError(error_code)
+        path = Path(str(replacement.get('path', ''))); marker = replacement.get('marker')
+        try:
+            info = path.lstat(); canonical = path.resolve(strict=True)
+            entries = sorted(item.name for item in path.iterdir())
+        except OSError as error:
+            raise ValueError(error_code) from error
+        if not path.is_absolute() or path.is_symlink() or canonical != path \
+                or not stat.S_ISDIR(info.st_mode) or not _inside(runtime, path) or path == runtime \
+                or path.parent != recovery_root or stat.S_IMODE(info.st_mode) != 0o700 \
+                or str(path) in replacement_paths \
+                or any(_inside(Path(other), path) or _inside(path, Path(other))
+                       for other in replacement_paths) \
+                or info.st_dev != replacement['device'] \
+                or info.st_ino != replacement['inode'] or entries != ['owner.json'] \
+                or not isinstance(marker, dict) or set(marker) != {'relative', 'sha256'} \
+                or marker.get('relative') != 'owner.json' \
+                or _SHA256.fullmatch(str(marker.get('sha256', ''))) is None \
+                or marker['sha256'] == historical['marker']['sha256']:
+            raise ValueError(error_code)
+        try:
+            owner, owner_identity = _strict_json(path / 'owner.json', 1024 * 1024)
+            info_after = path.lstat()
+            entries_after = sorted(item.name for item in path.iterdir())
+        except ValueError as error:
+            raise ValueError(error_code) from error
+        except OSError as error:
+            raise ValueError(error_code) from error
+        directory_fields = ('st_dev', 'st_ino', 'st_mtime_ns', 'st_ctime_ns', 'st_nlink')
+        if owner_identity['sha256'] != marker['sha256'] or not isinstance(owner, dict) \
+                or set(owner) != marker_keys or owner.get('schemaVersion') != 1 \
+                or owner.get('scope') != 'musicbridge-capacity-historical-control-only' \
+                or not _uuid4(owner.get('id')) or owner.get('id') in marker_ids \
+                or owner.get('role') != 'historical-control-only' \
+                or owner.get('recovered') is not False \
+                or owner.get('historicalRoot') != historical \
+                or stat.S_IMODE((path / 'owner.json').stat().st_mode) != 0o400 \
+                or entries_after != entries \
+                or any(getattr(info, key) != getattr(info_after, key) for key in directory_fields):
+            raise ValueError(error_code)
+        replacement_paths.add(str(path)); marker_ids.add(owner['id'])
+        roots.append({'path': str(path), 'device': info.st_dev, 'inode': info.st_ino,
+                      'marker': {'relative': 'owner.json', 'sha256': marker['sha256']}})
+        snapshots.append({
+            'root': {'device': info.st_dev, 'inode': info.st_ino, 'mtimeNs': info.st_mtime_ns,
+                     'ctimeNs': info.st_ctime_ns, 'nlink': info.st_nlink, 'entries': entries},
+            'marker': owner_identity})
+
+    benchmark = receipt.get('activeBenchmarkInput')
+    if not isinstance(benchmark, dict) or set(benchmark) != {'model', 'path', 'sha256'} \
+            or benchmark.get('model') != 'durable-seed-snapshot' \
+            or not isinstance(benchmark.get('path'), str) \
+            or _SHA256.fullmatch(str(benchmark.get('sha256', ''))) is None \
+            or expected_seed_sha256 is not None and benchmark['sha256'] != expected_seed_sha256:
+        raise ValueError(error_code)
+    seed = Path(benchmark['path'])
+    try:
+        canonical_seed = seed.resolve(strict=True); seed_identity = _strict_identity(seed)
+    except (OSError, ValueError) as error:
+        raise ValueError(error_code) from error
+    if not seed.is_absolute() or seed != canonical_seed or seed.is_symlink() or seed.name != 'seed.sqlite' \
+            or not _inside(runtime, seed) or seed_identity['sha256'] != benchmark['sha256'] \
+            or any(_inside(Path(path), seed) for path in replacement_paths):
+        raise ValueError(error_code)
+    for historical in missing_roots:
+        try: Path(historical['path']).lstat()
+        except FileNotFoundError: pass
+        except OSError as error: raise ValueError(error_code) from error
+        else: raise ValueError(error_code)
+    try:
+        recovery_root_after = recovery_root.lstat()
+        recovery_entries = sorted(item.name for item in recovery_root.iterdir())
+    except OSError as error:
+        raise ValueError(error_code) from error
+    recovery_fields = ('st_dev', 'st_ino', 'st_mtime_ns', 'st_ctime_ns', 'st_nlink')
+    expected_entries = sorted(['recovery.json', *(Path(path).name for path in replacement_paths)])
+    if recovery_entries != expected_entries \
+            or any(getattr(recovery_root_info, key) != getattr(recovery_root_after, key)
+                   for key in recovery_fields):
+        raise ValueError(error_code)
+    try: receipt_after = _strict_identity(receipt_path, 4 * 1024 * 1024)
+    except ValueError as error: raise ValueError(error_code) from error
+    if receipt_after != receipt_identity:
+        raise ValueError(error_code)
+    return {'roots': roots, 'receiptIdentity': receipt_identity,
+            'replacementSnapshots': snapshots, 'benchmarkIdentity': seed_identity,
+            'recoveryDirectory': {
+                'device': recovery_root_info.st_dev, 'inode': recovery_root_info.st_ino,
+                'mtimeNs': recovery_root_info.st_mtime_ns, 'ctimeNs': recovery_root_info.st_ctime_ns,
+                'nlink': recovery_root_info.st_nlink, 'entries': recovery_entries},
+            'repository': repository, 'recoveryToolIdentity': working_identity}
+
+
 def _validate_frozen_owned_roots(manifest_path, runtime, expected_sha256, window_id,
-                                 future_path, future_state, error_code):
+                                 future_path, future_state, error_code, root_recovery=None,
+                                 candidate_repository=None, expected_seed_sha256=None,
+                                 expected_fixture_owner_sha256=None):
     """复核冻结owned manifest的目录/marker identity；不读取根内大型文件。"""
     try:
         runtime = Path(runtime).resolve(strict=True)
@@ -1145,18 +1359,16 @@ def _validate_frozen_owned_roots(manifest_path, runtime, expected_sha256, window
             raise ValueError(error_code)
 
     temp_roots = {Path(tempfile.gettempdir()).resolve(strict=True), Path('/tmp').resolve(strict=True)}
-    rows = []; seen = set()
+    rows = []; missing = []; seen = set()
     for declared in manifest['roots']:
         if not isinstance(declared, dict) or set(declared) != {'path', 'device', 'inode', 'marker'} \
                 or type(declared.get('device')) is not int or type(declared.get('inode')) is not int \
                 or not isinstance(declared.get('path'), str):
             raise ValueError(error_code)
         path = Path(declared['path']); marker = declared.get('marker')
-        try: info = path.lstat(); canonical = path.resolve(strict=True)
-        except OSError as error: raise ValueError(error_code) from error
-        if not path.is_absolute() or path.is_symlink() or canonical != path \
-                or not stat.S_ISDIR(info.st_mode) or str(path) in seen \
-                or info.st_dev != declared['device'] or info.st_ino != declared['inode'] \
+        try: normalized = path.resolve(strict=False)
+        except (OSError, RuntimeError) as error: raise ValueError(error_code) from error
+        if not path.is_absolute() or normalized != path or str(path) in seen \
                 or not isinstance(marker, dict) or set(marker) != {'relative', 'sha256'} \
                 or marker.get('relative') not in _MARKERS \
                 or _SHA256.fullmatch(str(marker.get('sha256', ''))) is None:
@@ -1168,18 +1380,45 @@ def _validate_frozen_owned_roots(manifest_path, runtime, expected_sha256, window
         if not in_runtime and not (fixture and marker['relative'] == 'capacity-owner.json') \
                 and not (app_clone and marker['relative'] == 'r020-owner.json'):
             raise ValueError(error_code)
+        try: info = path.lstat(); canonical = path.resolve(strict=True)
+        except FileNotFoundError:
+            if root_recovery is None or not fixture or marker['relative'] != 'capacity-owner.json':
+                raise ValueError(error_code)
+            missing.append(declared); seen.add(str(path)); continue
+        except OSError as error: raise ValueError(error_code) from error
+        if path.is_symlink() or canonical != path or not stat.S_ISDIR(info.st_mode) \
+                or info.st_dev != declared['device'] or info.st_ino != declared['inode']:
+            raise ValueError(error_code)
         try: marker_identity = _strict_identity(path / marker['relative'], 8 * 1024 * 1024)
         except ValueError as error: raise ValueError(error_code) from error
         if marker_identity['sha256'] != marker['sha256']: raise ValueError(error_code)
         seen.add(str(path))
         rows.append({'path': str(path), 'device': info.st_dev, 'inode': info.st_ino,
                      'marker': {'relative': marker['relative'], 'sha256': marker_identity['sha256']}})
+    recovery = None
+    if root_recovery is not None:
+        if len(manifest['roots']) != 70 or len(rows) != 63 or len(missing) != 7:
+            raise ValueError(error_code)
+        recovery = _validate_measure_root_recovery(
+            root_recovery, runtime, canonical_manifest, expected_sha256, window_id, missing,
+            candidate_repository, expected_seed_sha256, expected_fixture_owner_sha256, error_code)
+        live_paths = [Path(row['path']) for row in rows]
+        replacement_paths = [Path(row['path']) for row in recovery['roots']]
+        if any(_inside(live, replacement) or _inside(replacement, live)
+               for live in live_paths for replacement in replacement_paths) \
+                or any(_inside(future, replacement) or _inside(replacement, future)
+                       for replacement in replacement_paths):
+            raise ValueError(error_code)
+        rows.extend(recovery['roots'])
+        if len(rows) != 70 or len({row['path'] for row in rows}) != 70:
+            raise ValueError(error_code)
     try: current_manifest = _strict_identity(canonical_manifest, 8 * 1024 * 1024)
     except ValueError as error: raise ValueError(error_code) from error
     if current_manifest != manifest_identity \
             or future_state == 'absent' and (future.exists() or future.is_symlink()):
         raise ValueError(error_code)
-    return {'roots': rows, 'manifestIdentity': manifest_identity, 'future': future}
+    return {'roots': rows, 'manifestIdentity': manifest_identity, 'future': future,
+            'rootRecovery': recovery}
 
 
 def _validate_measure_issuer_failure_carryover(parent, runtime, expected_owned_sha256,
@@ -2480,13 +2719,15 @@ def _validate_queued_stop_window(window, now):
                 or value.get('file') != name or _SHA256.fullmatch(str(value.get('sha256', ''))) is None:
             raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
     carry = window.get('measureCarryover')
-    carry_keys = {'window', 'close', 'ownedManifest', 'sourceManifest', 'supervision', 'supervisor', 'output'}
+    carry_keys = {'window', 'close', 'ownedManifest', 'sourceManifest', 'supervision', 'supervisor',
+                  'output', 'measureRootRecovery'}
     if not isinstance(carry, dict) or set(carry) != carry_keys \
             or not _queued_stop_exact_binding(carry.get('close'), {'path', 'sha256'}) \
             or not _queued_stop_exact_binding(carry.get('ownedManifest'), {'path', 'sha256'}) \
             or not _queued_stop_exact_binding(carry.get('sourceManifest'), {'path', 'sha256'}) \
             or not _queued_stop_exact_binding(carry.get('supervision'), {'path', 'sha256'}) \
-            or not _queued_stop_exact_binding(carry.get('supervisor'), {'path', 'sha256'}):
+            or not _queued_stop_exact_binding(carry.get('supervisor'), {'path', 'sha256'}) \
+            or not _queued_stop_exact_binding(carry.get('measureRootRecovery'), {'path', 'sha256'}):
         raise SystemExit('CAPACITY_SUPERVISOR_INPUT')
     previous_window = carry.get('window')
     output = carry.get('output')
@@ -2865,10 +3106,9 @@ def _validate_queued_stop_prechild_failures(carryover, runtime):
                 or recovery_script != recovery_root / recovery['scriptRelativePath']:
             raise ValueError('QUEUED_STOP_PRECHILD_FAILURE')
         try:
-            script_blob = subprocess.check_output(
-                ['/usr/bin/git', 'show', f"{recovery['head']}:{recovery['scriptRelativePath']}"],
-                cwd=recovery_root, stderr=subprocess.DEVNULL)
-        except (OSError, subprocess.CalledProcessError) as error:
+            script_blob = _git_blob(
+                recovery_root, f"{recovery['head']}:{recovery['scriptRelativePath']}")
+        except ValueError as error:
             raise ValueError('QUEUED_STOP_PRECHILD_FAILURE') from error
         if hashlib.sha256(script_blob).hexdigest() != recovery['scriptSha256']:
             raise ValueError('QUEUED_STOP_PRECHILD_FAILURE')
@@ -3000,20 +3240,18 @@ def _validate_queued_stop_bound_identities(window, parent, candidate):
     if not issuer_root.is_absolute() or not isinstance(issuer_relative, str) \
             or issuer_root / issuer_relative != Path(issuer['path']) \
             or _GIT_SHA.fullmatch(str(issuer_repo.get('head', ''))) is None \
+            or _git_value(issuer_root, 'rev-parse', '--show-toplevel') != str(issuer_root) \
             or _git_value(issuer_root, 'branch', '--show-current') != issuer_repo.get('branch') \
             or _git_value(issuer_root, 'rev-parse', 'HEAD^{commit}') != issuer_repo.get('head'):
         raise ValueError('QUEUED_STOP_IDENTITY')
     try:
-        issuer_blob = subprocess.check_output(
-            ['/usr/bin/git', 'show', f"{issuer_repo['head']}:{issuer_relative}"], cwd=issuer_root,
-            stderr=subprocess.DEVNULL)
-        supervisor_blob = subprocess.check_output(
-            ['/usr/bin/git', 'show', f"{window['candidateRepository']['head']}:scripts/ci/capacity-phase-supervisor-v2.py"],
-            cwd=candidate, stderr=subprocess.DEVNULL)
-        helper_blob = subprocess.check_output(
-            ['/usr/bin/git', 'show', f"{window['candidateRepository']['head']}:{build_helper['relativePath']}"],
-            cwd=candidate, stderr=subprocess.DEVNULL)
-    except (OSError, subprocess.CalledProcessError) as error:
+        issuer_blob = _git_blob(issuer_root, f"{issuer_repo['head']}:{issuer_relative}")
+        supervisor_blob = _git_blob(
+            candidate,
+            f"{window['candidateRepository']['head']}:scripts/ci/capacity-phase-supervisor-v2.py")
+        helper_blob = _git_blob(
+            candidate, f"{window['candidateRepository']['head']}:{build_helper['relativePath']}")
+    except ValueError as error:
         raise ValueError('QUEUED_STOP_IDENTITY') from error
     if hashlib.sha256(issuer_blob).hexdigest() != issuer['sha256'] \
             or hashlib.sha256(supervisor_blob).hexdigest() != window['supervisor']['sha256'] \
@@ -3064,10 +3302,8 @@ def _validate_queued_stop_bound_identities(window, parent, candidate):
         if not isinstance(relative, str) or _SHA256.fullmatch(str(expected_sha or '')) is None:
             raise ValueError('QUEUED_STOP_IDENTITY')
         try:
-            blob = subprocess.check_output(
-                ['/usr/bin/git', 'show', f"{window['candidateRepository']['head']}:{relative}"],
-                cwd=candidate, stderr=subprocess.DEVNULL)
-        except (OSError, subprocess.CalledProcessError) as error:
+            blob = _git_blob(candidate, f"{window['candidateRepository']['head']}:{relative}")
+        except ValueError as error:
             raise ValueError('QUEUED_STOP_IDENTITY') from error
         if hashlib.sha256(blob).hexdigest() != expected_sha:
             raise ValueError('QUEUED_STOP_IDENTITY')
@@ -3102,7 +3338,9 @@ def _validate_phase_source_manifest(manifest_path, root):
             'fileIdentities': identities}
 
 
-def _validate_queued_stop_measure_carryover(carry, runtime):
+def _validate_queued_stop_measure_carryover(carry, runtime, candidate_repository=None,
+                                            expected_seed_sha256=None,
+                                            expected_fixture_owner_sha256=None):
     runtime = Path(runtime).resolve(strict=True)
     window_path = Path(carry['window']['path']); close_path = Path(carry['close']['path'])
     owned_path = Path(carry['ownedManifest']['path']); source_path = Path(carry['sourceManifest']['path'])
@@ -3162,7 +3400,9 @@ def _validate_queued_stop_measure_carryover(carry, runtime):
         raise ValueError('QUEUED_STOP_MEASURE_CARRYOVER')
     frozen = _validate_frozen_owned_roots(
         owned_path, runtime, carry['ownedManifest']['sha256'], window['id'], output, 'present',
-        'QUEUED_STOP_MEASURE_CARRYOVER')
+        'QUEUED_STOP_MEASURE_CARRYOVER', root_recovery=carry['measureRootRecovery'],
+        candidate_repository=candidate_repository, expected_seed_sha256=expected_seed_sha256,
+        expected_fixture_owner_sha256=expected_fixture_owner_sha256)
     if len(frozen['roots']) != 70:
         raise ValueError('QUEUED_STOP_MEASURE_CARRYOVER')
     try: source, source_identity = _strict_json(source_path)
@@ -3177,7 +3417,7 @@ def _validate_queued_stop_measure_carryover(carry, runtime):
         raise ValueError('QUEUED_STOP_MEASURE_CARRYOVER')
     return {'valid': True, 'roots': roots, 'window': window, 'close': close,
             'windowIdentity': window_identity, 'closeIdentity': close_identity,
-            'outputIdentity': output_root}
+            'outputIdentity': output_root, 'rootRecovery': frozen['rootRecovery']}
 
 
 def _validate_queued_stop_owned_manifest(manifest_path, runtime, window_id, parent, carry_roots,
@@ -3251,7 +3491,10 @@ def _validate_queued_stop_authority(parent, runtime, repo_root, window_sha256,
     if candidate != Path(repo_root).resolve(strict=True):
         raise ValueError('QUEUED_STOP_AUTHORITY')
     bound_identities = _validate_queued_stop_bound_identities(window, parent, candidate)
-    carry = _validate_queued_stop_measure_carryover(window['measureCarryover'], runtime)
+    carry = _validate_queued_stop_measure_carryover(
+        window['measureCarryover'], runtime, candidate_repository=window['candidateRepository'],
+        expected_seed_sha256=window.get('seed', {}).get('snapshotSha256'),
+        expected_fixture_owner_sha256=window.get('seed', {}).get('fixtureOwnerSha256'))
     source = _validate_phase_source_manifest(parent / 'source-pins.json', candidate)
     if source['manifestIdentity']['sha256'] != window['sourceManifest']['sha256']:
         raise ValueError('QUEUED_STOP_AUTHORITY')
@@ -3285,12 +3528,14 @@ def _validate_queued_stop_authority(parent, runtime, repo_root, window_sha256,
                            'buildNodeLibrary': bound_identities['buildNodeLibrary'],
                            'typescriptCompiler': bound_identities['typescriptCompiler'],
                            'typescriptLibraries': bound_identities['typescriptLibraries'],
+                           'measureRootRecovery': carry.get('rootRecovery'),
                            'issuerFailures': bound_identities['issuerFailures'],
                            'prechildFailures': bound_identities['prechildFailures']}}
     if initial is not None:
         for key in ('window', 'owner', 'source', 'owned', 'node', 'tsxLoader',
                     'consumerPython', 'issuer', 'issuerFact', 'buildHelper', 'buildNode',
-                    'buildNodeLibrary', 'typescriptCompiler', 'typescriptLibraries', 'issuerFailures',
+                    'buildNodeLibrary', 'typescriptCompiler', 'typescriptLibraries',
+                    'measureRootRecovery', 'issuerFailures',
                     'prechildFailures'):
             if initial.get('_snapshot', {}).get(key) != value['_snapshot'][key]:
                 raise ValueError('QUEUED_STOP_AUTHORITY_DRIFT')
