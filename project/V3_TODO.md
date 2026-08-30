@@ -1,12 +1,12 @@
 # V3 剩余任务 TODO
 
-当前进度：TASK-078本地自动软件子范围已在最终HEAD `fac7363b4a6481591e207dda7cca77f0ae8d3cd4` 封版；TASK-079继续在独立分支。当前无设备，只开发fail-closed就绪控制面，不枚举、不打开、不配置设备。objects-limit generation window-03 已正式PASS。第一次measure在29个回执/273个样本后因900秒执行期限终止，sample-30 clone与partial保留，PG empty、0 zombie、authority stable；同UUID/label永久禁止重放。3-group clone v2已提交并完成主线程验证。新fresh audit对HEAD `cb45578a…`返回PASS后，唯一issuer尝试在pre-create阶段以`GENERATION_PROOF` fail-closed：42个受控contracts dist生成物字节与封存SHA一致，但不在TASK078 Git tree，生产proof误对它们强制`git_blob`。没有authority目录、consume或measure；window/label-02停止使用。当前正在补derived-build proof RED→GREEN，修复后重新提交并使用全新名称fresh audit。queued-stop/joint、可听Replica、TASK073真实HAL/Gate B、实体纸张与最终Owner仍待验。仅本地开发，不push、不合并main、不发布；智能体统一GPT-5.6 Sol / High。
+当前进度：TASK-078本地自动软件子范围已在最终HEAD `fac7363b4a6481591e207dda7cca77f0ae8d3cd4` 封版；TASK-079继续在独立分支。当前无设备，只开发fail-closed就绪控制面，不枚举、不打开、不配置设备。objects-limit generation window-03 已正式PASS。第一次measure在29个回执/273个样本后因900秒执行期限终止，sample-30 clone与partial保留，PG empty、0 zombie、authority stable；同UUID/label永久禁止重放。3-group clone v2已提交并完成主线程验证。window/label-02在pre-create `GENERATION_PROOF`终止且未创建authority；derived proof修复后fresh audit PASS。window/label-03随后在authority预检以`AUTHORITY_PREFLIGHT`终态关闭，没有approved window、consume或measure；只读重建确认tracked-source模块错误校验installed supervisor路径。修复提交=`bf2ae144…`，issuer 23/23及五阶段安全诊断GREEN；当前等待包含机器状态的新HEAD fresh audit，禁止重用02/03。queued-stop/joint、可听Replica、TASK073真实HAL/Gate B、实体纸张与最终Owner仍待验。仅本地开发，不push、不合并main、不发布；智能体统一GPT-5.6 Sol / High。
 
 本表是任务拆分与依赖计划，不是完成声明。后续任务沿上一任务最终 HEAD 创建独立分支；当前已展开 TASK-064～078，其余任务开始前补详细范围和允许路径。具体子任务可根据已验证结果细分，不删减 PRD 范围。
 
 ## 实时进度面板
 
-> **当前执行：** `TASK-079 / generation derived-dist proof TDD`。旧measure window-01与partial继续原样保留且不重放；v2第一次新签发尝试使用window/label-02，在创建authority目录前以`GENERATION_PROOF`停止，没有消费命令或正式measure。根因是production proof没有区分Git tracked source、受控派生dist与两个generation runtime文件。正在让42个dist必须经固定Node/libnode/TypeScript工具链重新派生并精确比对，而不是直接豁免；其余tracked source仍须匹配TASK078 HEAD Git blob。修复提交与新fresh audit完成前，新authority为`NOT_ISSUED`。queued-stop/joint未运行，设备/Roon/真实资料未操作，Gate B=`NOT_RUN`，`formalReady=false`。
+> **当前执行：** `TASK-079 / preflight fix状态封存与fresh audit`。window/label-03 failure UUID=`57f2d338…`、`replayAllowed=false`，没有approved window、consume或正式measure；02/03永久禁用。根因修复提交=`bf2ae144…`：window由per-window安装副本自校验，tracked supervisor继续验证冻结合同、generation、carryover、source与owned；source/owned/facts/candidate/window五阶段失败码和安全数值快照已覆盖。完整issuer 23/23、定向五场景、syntax/compile/diff-check均GREEN。当前同步STATUS/Readiness并准备对新HEAD做fresh audit；audit完成前不签发window-04。queued-stop/joint未运行，设备/Roon/真实资料未操作，Gate B=`NOT_RUN`，`formalReady=false`。
 
 - [x] TASK-079 / 真实证据 JSON 模板：只跟踪 `template=true`、`ready=false`、`receipt=null` 空模板；实际收据固定留在忽略目录且一份只覆盖一个B项。
 - [x] TASK-079 / 收据校验器复审修复TDD：复审后RED为17/19，扩展后25/25专项GREEN；覆盖逐case事实、失败/超时/停止/不确定终态、Owner与证书闭包、独占窗口、完整配置/授权/环境seal、dirty候选、隐私解码与receipt seal。
@@ -69,6 +69,7 @@
 - [x] TASK-079 / readiness TDD：首个RED为验证模块不存在；首轮GREEN后继续关闭冻结矩阵双改、STATUS外部门矛盾、symlink和错误码缺口，最终13/13；默认清单校验PASS且明确`READY=false`，严格ready模式按预期拒绝。
 - [x] TASK-079 / fail-closed清单：103条Owner决定全部pending，real-input/real-logic/real-roon/hardware/owner五类全部not-run；RME/Apogee与Sony仅记录品牌意向，型号、配置、测量计划为空。
 - [x] TASK-079 / readiness独立审查与提交：两轮后P0=0/P1=0，唯一P2为TODO计数落后且已修正；标准verify与控制/边界/循环通过，实现`1f102fba…`、报告`93feee20…`已锁定。
+- [x] TASK-079 / objects-limit measure v2预检身份修复：window/label-02与03终态不可重放；production RED证明tracked-source模块不能校验installed supervisor路径，改由安装副本自校验并补source/owned/facts/candidate/window五阶段安全诊断。issuer完整23/23及定向五场景通过，提交=`bf2ae144…`；新authority仍未签发。
 - [ ] TASK-079 / 真实环境与 Owner 最终验收：当前没有设备连接，不枚举、不打开、不配置设备；等待精确设备、资料和操作授权。
 
 ## 开发队列

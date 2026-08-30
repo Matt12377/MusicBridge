@@ -15,7 +15,7 @@ const UNMAPPED_PENDING = ['B-13', 'B-15']
 const READINESS_CONTROL = 'PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO'
 const DEVELOPMENT_STATE = 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-v2-verified-awaiting-fresh-audit-external-not-run'
 const EXTERNAL_EVIDENCE_PROFILES = 'REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED'
-const CAPACITY_AUTHORITY = 'OBJECTS_MEASURE_V2_IMPLEMENTED_VERIFIED_AWAITING_FRESH_AUDIT_NOT_ISSUED'
+const CAPACITY_AUTHORITY = 'OBJECTS_MEASURE_V2_PREFLIGHT_IDENTITY_FIX_VERIFIED_AWAITING_FRESH_AUDIT_NOT_ISSUED'
 const EVIDENCE_INFRASTRUCTURE = {
   state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
   receiptFoundation: {
@@ -136,14 +136,16 @@ const CAPACITY_MEASURE_WINDOW_ISSUER = {
     replay: 'PROHIBITED',
   },
   measureRecoveryV2: {
-    state: 'IMPLEMENTED_VERIFIED_AWAITING_FRESH_AUDIT_NOT_ISSUED',
+    state: 'PREFLIGHT_IDENTITY_FIX_VERIFIED_AWAITING_FRESH_AUDIT_NOT_ISSUED',
     baseCommit: '74367bc3f6d1a96a3fabef0ebcbaa3b22ba82ba6',
     implementationCommit: '1086dedb78d9ee4ed43238d82c3dc52823f4e4c1',
+    derivedProofCommit: '3836db3f83b3d209b025f3a32445b57c3fc454fe',
+    preflightFixCommit: 'bf2ae1449cb826dae21cecb8b0c466e3f505aa75',
     measurePlan: { groupCloneCount: 3, fullHashCount: 3, stopRoundReceiptCount: 105, sampleCount: 1575 },
     focusedVerification: {
       capacity: { tests: 86, passed: 86, failed: 0 },
       supervisor: { tests: 11, passed: 11, failed: 0 },
-      issuer: { tests: 21, passed: 21, failed: 0 },
+      issuer: { tests: 23, passed: 23, failed: 0 },
     },
     fullVerify: 'PASS',
     staticGates: { controlPlane: 'PASS', boundaries: 'PASS', cycles: 'PASS_259_FILES' },
@@ -156,7 +158,27 @@ const CAPACITY_MEASURE_WINDOW_ISSUER = {
       retainedClone: 'sample-30', contentSha256Verified: false, replay: 'PROHIBITED',
     },
     rootClosure: { existing: 65, future: 1, authorized: 66 },
-    freshAudit: 'NOT_RUN',
+    failedAttempts: {
+      derivedProof: {
+        windowDirName: 'r023-objects-limit-measure-window-02', label: 'r023-objects-limit-measure-02',
+        state: 'GENERATION_PROOF_PRECREATE_FAILURE', authorityDirectoryCreated: false,
+        windowWritten: false, replay: 'PROHIBITED',
+      },
+      identityPreflight: {
+        windowId: '57f2d338-357f-43db-9cb4-e21dbfe619d5',
+        windowDirName: 'r023-objects-limit-measure-window-03', label: 'r023-objects-limit-measure-03',
+        state: 'TERMINAL_ISSUER_FAILURE', errorCode: 'AUTHORITY_PREFLIGHT',
+        authorityFileCount: 5, windowWritten: false, replay: 'PROHIBITED',
+      },
+    },
+    preflightRootCause: {
+      state: 'FIXED_VERIFIED',
+      cause: 'TRACKED_SOURCE_MODULE_VALIDATED_INSTALLED_SUPERVISOR_PATH',
+      resolution: 'INSTALLED_SUPERVISOR_MODULE_SELF_VALIDATES_WINDOW',
+      stages: ['source-manifest', 'owned-manifest', 'facts', 'candidate-repository', 'window'],
+      safeDiagnostics: true,
+    },
+    freshAudit: 'PASS_ON_3836_INVALIDATED_BY_PREFLIGHT_FIX',
     freshAuthorityIssued: false,
     measureRun: 'NOT_RUN',
     deviceOpened: false,

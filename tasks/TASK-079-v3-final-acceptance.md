@@ -53,6 +53,8 @@ TASK-078 的 `objects-limit` 重新准入在 2026-08-30 暴露出独立控制面
 
 第一次objects-limit measure在fresh authority下运行至29个完整回执后，以`EXECUTION_TIMEOUT`终态停止并保留第30个clone和全部partial。只读根因复核证明107次约1.99GB clone/open-audit/full-hash生命周期与固定900秒窗口数学不闭合；该失败不是受测Stop指标、身份或空间漂移。后续生产改动只允许在上述冻结路径内以RED→GREEN把1575个样本重构为3个group clone、105个durable Stop round receipt，并让新issuer显式继承旧measure window与partial根。旧UUID/window/label禁止重放，旧partial禁止删除、移动或吸收；不通过新独立复审与fresh authority审计不得签发下一窗口。
 
+measure v2第一次新签发名称`window/label-02`在exclusive-create前以`GENERATION_PROOF`停止；修复42个contracts dist的固定工具链派生证明后，fresh audit对提交`3836db3f…`给出PASS。第二个唯一名称`window/label-03`在写入owner、installed supervisor、issuer identity、source pins与owned roots后以`AUTHORITY_PREFLIGHT`终态关闭，failure UUID=`57f2d338-357f-43db-9cb4-e21dbfe619d5`且`replayAllowed=false`；没有approved window、consume或measure。只读重建稳定证明根因是issuer用tracked-source位置加载的supervisor模块校验指向per-window安装副本的`window.supervisor.path`。生产修复提交`bf2ae144…`改由安装副本模块执行自身identity、candidate与window校验，并把预检终态拆为source、owned、facts、candidate、window五阶段安全诊断；异常文本、仓库路径和runtime路径不得进入receipt。02/03名称均永久禁止重放，新HEAD未通过fresh audit前不得签发后继窗口。
+
 ## 自动验证
 
 ```bash
