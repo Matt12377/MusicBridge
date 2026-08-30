@@ -2,7 +2,7 @@
 
 基线 `fac7363b4a6481591e207dda7cca77f0ae8d3cd4`，分支 `codex/task-079-v3-final-acceptance`，独立树 `worktree/task-079-v3-final-acceptance`。TASK-078 的本地自动软件子范围已经封版；本任务承接尚未运行的真实输入、真实 Logic/Roon、真实设备、实体打印和 Owner 产品验收，不重写 TASK-078 的软件证据。
 
-当前没有设备连接。Owner 后续计划使用 RME 或 Apogee 声卡与 Sony 卡座，但具体型号、连接、采样率、声道、缓冲、时钟、测量方法和故障注入范围尚未冻结。本阶段禁止枚举、打开、配置或发声，禁止读取真实音乐、库存、照片、Excel、Logic 工程、Roon/Provider 账号或凭据。Owner允许把验证清洁的`codex/task-079-v3-final-acceptance`分支检查点push供外部评审；当前尚未push，且没有授权`main`/PR合并、签名、公证、安装或发布。
+当前没有设备连接。Owner 后续计划使用 RME 或 Apogee 声卡与 Sony 卡座，但具体型号、连接、采样率、声道、缓冲、时钟、测量方法和故障注入范围尚未冻结。本阶段禁止枚举、打开、配置或发声，禁止读取真实音乐、库存、照片、Excel、Logic 工程、Roon/Provider 账号或凭据。验证清洁的`codex/task-079-v3-final-acceptance`评审检查点`b3df42ada9e798d8fb67396648bdc5599ef83eb3`已push并核对远端SHA；没有授权`main`/PR合并、签名、公证、安装或发布。
 
 ## 无设备阶段范围
 

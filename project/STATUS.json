@@ -189,7 +189,7 @@
       "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task079-window04-nonreplay-stop-reentry-fix-54b6353-verified-awaiting-fresh-audit-task-branch-push-authorized-external-not-run",
+    "checkpoint": "task079-window04-nonreplay-stop-reentry-fix-54b6353-review-checkpoint-b3df42a-pushed-remote-confirmed-awaiting-fresh-audit-external-not-run",
     "nextTask": null,
     "resultReport": "reports/TASK-079_READINESS.md",
     "task078SoftwareCheckpoints": {

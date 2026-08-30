@@ -8,7 +8,7 @@
 - TASK-078 软件矩阵：SHA256 `12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7fe4ba944`
 - 实现提交：`1f102fba93e42d0f84b985c04d84af08b06b2231`
 - 报告提交：`93feee20c2edbd027546b44cc908aee27ef785b1`
-- GitHub：Owner已授权把验证清洁的`codex/task-079-v3-final-acceptance`分支检查点push供外部评审；当前尚未push、没有远端SHA；`main`/PR未合并，未安装、签名、公证或发布
+- GitHub：`codex/task-079-v3-final-acceptance`评审检查点`b3df42ada9e798d8fb67396648bdc5599ef83eb3`已于`2026-08-30T01:17:11Z` push，`git ls-remote`确认同SHA；`main`/PR未合并，未安装、签名、公证或发布
 
 基础 readiness 控制、主任务修复与本地回归已经完成，当前结论固定为 `READY=false`；完整无设备证据控制面尚未取得独立闭包。hardware evidence contract v2 在主任务实现后为33/33专项GREEN，但第二轮独立复审最终RED继续保留，未执行第三轮且没有独立PASS。capacity issuer同样只记录主任务裁决后的12/12回归，新的fresh authority仍待独立决定。当前readiness验证器已精确要求这组机器真相并通过15/15；它不认证声卡、卡座、真实输入、Logic/Roon、可听Replica、实录、实体打印或Owner接受。
 
@@ -70,7 +70,7 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 | 控制/边界/循环 | PASS，均exit 0 | `CONTROL_PLANE=PASS`、`BOUNDARIES=PASS`、`CYCLES=PASS files=259` |
 | 语法与diff-check | PASS，均exit 0 | Node `--check`和Git空白检查通过 |
 
-当前允许将验证清洁的`codex/task-079-v3-final-acceptance`分支检查点push供外部评审，但尚未push，也不预写远端SHA；`main`/PR合并、签名、公证、安装或发布没有授权。真实收据尚未创建，因为设备、资料、配置、测量计划与逐次操作授权均未建立。receipt seal只用于发现正常历史漂移，不是数字签名；若将来要求对抗本机恶意写入，必须另建Owner控制签名或外部只追加账本。
+验证清洁的`codex/task-079-v3-final-acceptance`评审检查点`b3df42a…`已push并核对远端SHA；`main`/PR合并、签名、公证、安装或发布没有授权。真实收据尚未创建，因为设备、资料、配置、测量计划与逐次操作授权均未建立。receipt seal只用于发现正常历史漂移，不是数字签名；若将来要求对抗本机恶意写入，必须另建Owner控制签名或外部只追加账本。
 
 ## 候选清单追加加固
 
@@ -98,7 +98,7 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - RED：`project/STATUS.json` 仍只记录初始 readiness 实现/报告，缺少收据基础设施与 candidate closure 的最终身份；原验证器会接受删除或伪造这些检查点的 STATUS。
 - GREEN：STATUS 新增两段固定检查点链，readiness 验证器逐字段锁定 base/implementation/report/final SHA 和 25→26 专项计数；缺失、错 SHA、错计数均以 `CONTROL_STATE` 拒绝。顶层初始 readiness 提交保留原义，不用后续状态提交冒充最初实现。
 - 新鲜验证：readiness 14/14、证据专项 26/26、两个默认 CLI、Node 语法、控制面、边界、循环及 `git diff --check` 全部 exit 0；标准 `pnpm verify` exit 0，Contracts 186/186、Bridge Core 1241/1242（0 fail、1 条件性 skip）、Desktop 643/643，三包构建成功。
-- 边界不变：无设备、无真实资料、无真实收据；只允许把验证清洁的TASK-079同名分支检查点push供外部评审，当前尚未push；`main`/PR合并、签名、公证、安装或发布仍未授权。
+- 边界不变：无设备、无真实资料、无真实收据；TASK-079同名分支评审检查点`b3df42a…`已push并核对；`main`/PR合并、签名、公证、安装或发布仍未授权。
 
 ### Readiness Gate 计数修正
 
@@ -254,4 +254,4 @@ TASK-078严格fresh入口依赖其原工作树中未跟踪的runtime日志和收
 - terminal authority空间复核在future output已存在时只扣尚未形成的remaining plan，避免output与完整计划空间重复计数；公开`plannedBytes=4249378816`合同保持不变。supervisor把clone-owned workspace tree receipt与generation fixture before/after纳入闭包，验证root/schema/entries/tree digest、父目录、符号链接、多余项和成功清理；运行失败时只允许在受控group-stop clone内保留partial。旧legacy carryover SQLite继续只做稳定lstat/size验证，不读取或哈希内容。
 - 新鲜验证：`node --test --import tsx packages/bridge-core/test/recording-capacity.test.ts`为88/88；`node --test scripts/ci/test/capacity-phase-supervisor-v2.test.mjs`为16/16；measure issuer专项为23/23；`corepack pnpm@10.17.1 --filter @music-bridge/bridge-core typecheck` exit 0。以上只证明修复切片GREEN，不关闭capacity正式measure、queued-stop/joint、真实设备、Gate B或Owner验收。
 - 当前尚未签发后继窗口。必须先同步文档与STATUS、确认工作树和验证清洁，再由独立只读fresh audit绑定当前HEAD、issuer及supervisor blob；PASS后也只能使用全新UUID/window-dir/label一次性签发。02/03/04和旧partial不得重放、覆盖、移动或吸收。
-- Owner允许把验证清洁的`codex/task-079-v3-final-acceptance`分支检查点push供外部评审；当前尚未push，因此没有可记录的远端SHA。push不代表PR或`main`合并，也不代表签名、公证、安装、发布或外部评审结论。
+- 验证清洁的`codex/task-079-v3-final-acceptance`评审检查点`b3df42ada9e798d8fb67396648bdc5599ef83eb3`已于`2026-08-30T01:17:11Z` push，`git ls-remote`确认远端同SHA。该push不代表PR或`main`合并，也不代表签名、公证、安装、发布或外部评审结论。
