@@ -8,6 +8,7 @@ import type { TestContext } from 'node:test'
 import type { BackupJobView, CollectionCounts, CollectionDetail, RecordingReplicaInspection } from '@music-bridge/contracts'
 import { recordingRecordFixture } from '../../../packages/bridge-core/test/helpers/recording-record-fixture.js'
 import { createRecordingRecordCoordinator } from '../../../packages/bridge-core/src/recording/record-coordinator.js'
+import { waitForMainWindow } from './main-window.js'
 
 const desktopRoot = path.resolve(import.meta.dirname, '..')
 const pageRequest = { offset: 0, limit: 25 }
@@ -139,7 +140,7 @@ test('V3同数据集7盘：幂等Completed、Replica历史核验、真实J-Card�
     // 此链只验合成业务，使用Chromium内存钥匙串；真实系统钥匙串/普通Quit另列R021，不以此PASS替代。
     app = await electron.launch({ timeout: 150_000, args: testElectronArguments([path.join(desktopRoot, 'dist/main/index.js')], 'mock'), cwd: desktopRoot, env: { ...env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: directory } })
     expect(await app.evaluate(({ app, session }) => ({ userData: app.getPath('userData'), sessionData: app.getPath('sessionData'), storage: session.defaultSession.getStoragePath() }))).toEqual({ userData: directory, sessionData: directory, storage: directory })
-    page = await app.firstWindow(); await page.waitForLoadState('domcontentloaded')
+    page = await waitForMainWindow(app)
     await expect(page.locator('#home-heading')).toBeVisible()
     await expect.poll(async () => (await page.evaluate(() => window.musicBridge.getCoreHealth())).runtime, { timeout: 30_000 }).toBe('ready')
   }
