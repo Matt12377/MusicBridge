@@ -462,11 +462,11 @@ test('pending后观测到currentDevice漂移时恢复必须fail closed', () => {
     const resumed = runMonkeypatched(f, `
 original=module.validate_manifest
 def drift(*args, **kwargs):
-  path, identity, missing, remap = original(*args, **kwargs)
+  path, identity, missing, remap, root_remap = original(*args, **kwargs)
   changed = dict(remap)
   changed['currentDevice'] += 1
   changed['mode'] = ('UNCHANGED' if changed['historicalDevice'] == changed['currentDevice'] else 'REMAPPED')
-  return path, identity, missing, changed
+  return path, identity, missing, changed, root_remap
 module.validate_manifest=drift`)
     assert.equal(resumed.status, 1)
     assert.match(resumed.stderr, /PENDING_INVALID/u)
