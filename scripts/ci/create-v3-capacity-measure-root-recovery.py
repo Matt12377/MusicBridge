@@ -381,7 +381,7 @@ def validate_repository(options):
     }
 
 
-def validate_root_row(row):
+def validate_root_row(row, historical_runtime=None):
     if not isinstance(row, dict) or set(row) != {'path', 'device', 'inode', 'marker'} \
             or not isinstance(row.get('path'), str) or not Path(row['path']).is_absolute() \
             or type(row.get('device')) is not int or type(row.get('inode')) is not int:
@@ -393,7 +393,11 @@ def validate_root_row(row):
             or SHA256.fullmatch(str(marker.get('sha256', ''))) is None:
         fail('MEASURE_OWNED_MANIFEST')
     path = Path(row['path'])
-    if Path(os.path.normpath(str(path))) != path or path.resolve(strict=False) != path:
+    relocated = historical_runtime is not None \
+        and os.path.commonpath((str(historical_runtime), str(path))) == str(historical_runtime) \
+        and path != historical_runtime
+    if Path(os.path.normpath(str(path))) != path \
+            or path.resolve(strict=False) != path and not relocated:
         fail('MEASURE_OWNED_MANIFEST')
     return {
         'path': str(path), 'device': row['device'], 'inode': row['inode'],
@@ -527,7 +531,7 @@ def validate_manifest(options, runtime, declared_missing=None):
             or historical_runtime is not None and os.path.commonpath(
                 (str(historical_runtime), str(future))) != str(historical_runtime):
         fail('MEASURE_OWNED_MANIFEST')
-    rows = [validate_root_row(row) for row in value['roots']]
+    rows = [validate_root_row(row, historical_runtime) for row in value['roots']]
     if len({row['path'] for row in rows}) != len(rows):
         fail('MEASURE_OWNED_MANIFEST')
     historical_devices = {row['device'] for row in rows}
