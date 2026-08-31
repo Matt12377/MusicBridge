@@ -627,14 +627,32 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
     }
     const oldReceiptValue = relocateRuntimeValue(
       json(measure.measureRootRecovery.path, measure.measureRootRecovery.sha256, 4 * 1024 ** 2));
-    const oldReceiptKeys = 'schemaVersion,scope,access,state,model,windowId,historicalManifest,repository,recoveryTool,mappings,activeBenchmarkInput,liveDeviceRemap,contentRecovered,historicalManifestRewritten,deviceOpened,formalReady,gateB';
+    const oldRelocationReceipt = typeof oldReceiptValue === 'object' && oldReceiptValue !== null
+      && (oldReceiptValue as Record<string, unknown>).model === 'exact75-v3-runtime-relocation-closure';
+    const oldReceiptKeys = `schemaVersion,scope,access,state,model,windowId,historicalManifest,repository,recoveryTool,mappings,activeBenchmarkInput,liveDeviceRemap${oldRelocationReceipt ? ',liveRootRemap' : ''},contentRecovered,historicalManifestRewritten,deviceOpened,formalReady,gateB`;
     const oldHistoricalManifest = exact(oldReceiptValue, oldReceiptKeys) && exact(oldReceiptValue.historicalManifest, 'path,sha256')
       ? oldReceiptValue.historicalManifest : undefined;
-    if (!exact(oldReceiptValue, oldReceiptKeys) || oldReceiptValue.model !== 'exact75-v2-replacement-closure'
+    if (!exact(oldReceiptValue, oldReceiptKeys)
+      || !['exact75-v2-replacement-closure','exact75-v3-runtime-relocation-closure'].includes(String(oldReceiptValue.model))
       || !Array.isArray(oldReceiptValue.mappings) || oldReceiptValue.mappings.length !== 7
       || !oldHistoricalManifest || !exact(measure.ownedManifest, 'path,sha256')
       || oldHistoricalManifest.path !== measure.ownedManifest.path
       || oldHistoricalManifest.sha256 !== measure.ownedManifest.sha256) invalid('WINDOW_INVALID');
+    if (oldRelocationReceipt) {
+      const oldRootRelocation = oldReceiptValue.liveRootRemap as RootRecoveryReceipt['liveRootRemap'];
+      const sameRelocationRoot = (left: RecoveryRootRow, right: RecoveryRootRow) => validRelocationRoot(left)
+        && validRelocationRoot(right) && left.path === right.path && left.device === right.device && left.inode === right.inode
+        && left.marker.relative === right.marker.relative && left.marker.sha256 === right.marker.sha256;
+      if (!rootRelocation || !exact(oldRootRelocation, 'mode,historicalRuntime,currentRuntime,liveRootCount,mappings')
+        || oldRootRelocation.mode !== rootRelocation.mode
+        || oldRootRelocation.historicalRuntime !== rootRelocation.historicalRuntime
+        || oldRootRelocation.currentRuntime !== rootRelocation.currentRuntime
+        || oldRootRelocation.liveRootCount !== rootRelocation.liveRootCount
+        || !Array.isArray(oldRootRelocation.mappings) || oldRootRelocation.mappings.length !== rootRelocation.mappings.length
+        || oldRootRelocation.mappings.some((value, index) => !exact(value, 'historicalRoot,currentRoot')
+          || !sameRelocationRoot(value.historicalRoot, rootRelocation.mappings[index]!.historicalRoot)
+          || !sameRelocationRoot(value.currentRoot, rootRelocation.mappings[index]!.currentRoot))) invalid('WINDOW_INVALID');
+    }
     const oldMappings = oldReceiptValue.mappings as RecoveryMapping[];
     if (oldMappings.some(value => !exact(value, 'historicalRoot,state,recovered,replacementRoot')
       || !validRecoveryRoot(value.historicalRoot, false) || !validRecoveryRoot(value.replacementRoot, true))) invalid('WINDOW_INVALID');

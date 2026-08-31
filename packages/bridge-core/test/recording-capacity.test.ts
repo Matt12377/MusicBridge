@@ -982,11 +982,11 @@ function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>,
 function configureExact75V3Relocation(
   f: Awaited<ReturnType<typeof phaseFixture>>,
   rootCount: number,
-  processHeadModel: 'current-v3' | 'historical-v2' = 'current-v3',
+  processHeadModel: 'current-v3' | 'historical-v2' | 'historical-v3' | 'historical-v3-drift' = 'current-v3',
 ) {
   const configured = configureExact75V2Recovery(f, rootCount)
   const currentMeasure = configured.outer.measureCarryover as Record<string, Record<string, unknown>>
-  const historicalRuntime = path.join(f.runtime, 'historical-runtime-before-relocation')
+  const historicalRuntime = path.join(path.dirname(f.runtime), `${path.basename(f.runtime)}-historical-runtime-before-relocation`)
   if (processHeadModel === 'historical-v2') {
     const historicalRecoveryRoot = path.join(f.runtime, 'historical-v2-recovery'); mkdirSync(historicalRecoveryRoot)
     const historicalRecovery = path.join(historicalRecoveryRoot, 'recovery.json')
@@ -1038,7 +1038,20 @@ function configureExact75V3Relocation(
   chmodSync(configured.recovery, 0o600)
   const recoverySha = f.put(configured.recovery, receipt); chmodSync(configured.recovery, 0o400)
   currentMeasure.ownedManifest!.sha256 = manifestSha; currentMeasure.measureRootRecovery!.sha256 = recoverySha
-  if (processHeadModel === 'current-v3') {
+  if (processHeadModel === 'historical-v3' || processHeadModel === 'historical-v3-drift') {
+    const historicalRecoveryRoot = path.join(f.runtime, 'historical-v3-recovery'); mkdirSync(historicalRecoveryRoot)
+    const historicalRecovery = path.join(historicalRecoveryRoot, 'recovery.json')
+    const historicalReceipt = structuredClone(receipt)
+    if (processHeadModel === 'historical-v3-drift') historicalReceipt.liveRootRemap.mappings[0].currentRoot.marker.sha256 = 'f'.repeat(64)
+    f.put(historicalRecovery, historicalReceipt); chmodSync(historicalRecoveryRoot, 0o700); chmodSync(historicalRecovery, 0o400)
+    const historicalMeasure = structuredClone(currentMeasure)
+    historicalMeasure.measureRootRecovery = { path: historicalRecovery, sha256: f.hash(historicalRecovery) }
+    configured.outer.measureCarryover = historicalMeasure
+    rmSync(configured.leafProcess.root, { recursive: true })
+    const historicalProcess = configured.makeProcessNode('process-historical-v3')
+    configured.setProcessHead(historicalProcess)
+    configured.outer.measureCarryover = currentMeasure
+  } else if (processHeadModel === 'current-v3') {
     rmSync(configured.leafProcess.root, { recursive: true })
     const relocatedProcess = configured.makeProcessNode('process-relocated')
     configured.setProcessHead(relocatedProcess)
@@ -1358,6 +1371,31 @@ test('queued-stop successor：v3 runtime relocation接受由v2恢复收据冻结
   assert.equal(calls, 1);
   assert.equal(summary.state, 'incomplete');
   assert.equal(summary.unrun, 104);
+});
+
+test('queued-stop successor：v3 runtime relocation接受由不同v3恢复收据冻结的PROCESS_EXIT head', async t => {
+  const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
+  configureExact75V3Relocation(f, 76, 'historical-v3');
+  f.seal(); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, {
+    ...f.options,
+    queuedStop: async () => { ++calls; throw new Error('受控首样本停止'); },
+  });
+  assert.equal(calls, 1);
+  assert.equal(summary.state, 'incomplete');
+  assert.equal(summary.unrun, 104);
+});
+
+test('queued-stop successor：历史v3恢复收据的runtime relocation漂移时首样本前拒绝', async t => {
+  const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
+  configureExact75V3Relocation(f, 76, 'historical-v3-drift');
+  f.seal(); let calls = 0;
+  await assert.rejects(f.api.runCapacityPhase(f.args, {
+    ...f.options,
+    queuedStop: async () => { ++calls; throw new Error('不应进入样本'); },
+  }), /CAPACITY_PHASE_WINDOW_INVALID/u);
+  assert.equal(calls, 0);
+  assert.equal(existsSync(f.output), false);
 });
 
 test('queued-stop successor：真实CLI无runtime override时从受控window绝对路径解析runtime root', async t => {
