@@ -3205,7 +3205,7 @@ def _validate_queued_stop_issuer_failures(carryover, runtime):
     return {'roots': [root for root, _ in ordered], 'snapshots': [snapshot for _, snapshot in ordered]}
 
 
-def _validate_queued_stop_prechild_failures(carryover, runtime):
+def _validate_queued_stop_prechild_failures(carryover, runtime, runtime_relocation=None):
     runtime = Path(runtime).resolve(strict=True)
     if not isinstance(carryover, list) or not carryover or len(carryover) > 64:
         raise ValueError('QUEUED_STOP_PRECHILD_FAILURE')
@@ -3288,6 +3288,13 @@ def _validate_queued_stop_prechild_failures(carryover, runtime):
             if not all(isinstance(value, dict) for value in
                        (owner, issuer_fact, source, owned, window, failure)):
                 raise ValueError('schema')
+            if runtime_relocation is not None:
+                issuer_fact = _relocate_runtime_value(
+                    issuer_fact, runtime_relocation, runtime, 'QUEUED_STOP_PRECHILD_FAILURE')
+                window = _relocate_runtime_value(
+                    window, runtime_relocation, runtime, 'QUEUED_STOP_PRECHILD_FAILURE')
+                failure = _relocate_runtime_value(
+                    failure, runtime_relocation, runtime, 'QUEUED_STOP_PRECHILD_FAILURE')
             recorded = datetime.datetime.fromisoformat(str(failure.get('recordedAt')))
         except (AttributeError, OSError, ValueError, TypeError) as error:
             raise ValueError('QUEUED_STOP_PRECHILD_FAILURE') from error
@@ -3385,15 +3392,20 @@ def _validate_queued_stop_prechild_failures(carryover, runtime):
             recovery_root = Path(recovery['repositoryRoot'])
             recovery_script = Path(recovery['scriptPath'])
             recovery_canonical = recovery_root.resolve(strict=True)
+            recovery_root_info = recovery_root.lstat()
+            recovery_script_canonical = recovery_script.resolve(strict=True)
+            recovery_script_info = recovery_script.lstat()
         except (OSError, TypeError, ValueError) as error:
             raise ValueError('QUEUED_STOP_PRECHILD_FAILURE') from error
-        if not recovery_root.is_absolute() or recovery_canonical != recovery_root \
-                or recovery_root.is_symlink() \
-                or recovery_script != recovery_root / recovery['scriptRelativePath']:
+        if not recovery_root.is_absolute() or recovery_root.is_symlink() \
+                or not stat.S_ISDIR(recovery_root_info.st_mode) \
+                or recovery_script != recovery_root / recovery['scriptRelativePath'] \
+                or recovery_script.is_symlink() or not stat.S_ISREG(recovery_script_info.st_mode) \
+                or recovery_script_canonical != recovery_canonical / recovery['scriptRelativePath']:
             raise ValueError('QUEUED_STOP_PRECHILD_FAILURE')
         try:
             script_blob = _git_blob(
-                recovery_root, f"{recovery['head']}:{recovery['scriptRelativePath']}")
+                recovery_canonical, f"{recovery['head']}:{recovery['scriptRelativePath']}")
         except ValueError as error:
             raise ValueError('QUEUED_STOP_PRECHILD_FAILURE') from error
         if hashlib.sha256(script_blob).hexdigest() != recovery['scriptSha256']:
@@ -4024,7 +4036,8 @@ def _validate_queued_stop_bound_identities(window, parent, candidate, runtime_re
     identities['issuerFailureRoots'] = prior_failures['roots']
     identities['issuerFailures'] = prior_failures['snapshots']
     prechild_failures = _validate_queued_stop_prechild_failures(
-        fact['prechildFailureCarryover'], Path(parent).parent)
+        fact['prechildFailureCarryover'], Path(parent).parent,
+        runtime_relocation=runtime_relocation)
     if len(prechild_failures['roots']) != window['prechildFailureCarryoverCount']:
         raise ValueError('QUEUED_STOP_PRECHILD_FAILURE')
     identities['prechildFailureRoots'] = prechild_failures['roots']
