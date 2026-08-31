@@ -294,6 +294,13 @@ def _valid_queued_stop_process_failure_stderr(value, pid):
     return value in {
         f'CAPACITY_PHASE_{code}'.encode() + suffix for code in _CAPACITY_PHASE_FAILURE_CODES
     }
+
+
+def _valid_retained_process_failure_stderr(value, pid):
+    return value == (
+        f'(node:{pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n'
+        '(Use `node --trace-warnings ...` to show where the warning was created)\n'
+    ).encode()
 _QUEUED_STOP_MEASURE_WINDOW_ID = 'afc81a99-d15d-4179-8326-5774a5c40b62'
 _QUEUED_STOP_SEED = {'metadataSha256': '632d8e4b0c01ffec07adc72344e7bcc877e5f1d764e7745af856c6ba44492309',
                      'snapshotSha256': '7ec9b3bed1642503cc9fcee70c6156b54eb43834b0a457050ec51607f2e1ab3a',
@@ -3839,14 +3846,16 @@ def _validate_queued_stop_process_failures(
                            'verifiedPassed': False, 'fileCount': 12, 'sampleCount': 0,
                            'uniqueChildPids': 0, 'aggregateBudgetValid': False,
                            'unexpectedEntries': ['sample-001']}
-        empty_failure = stdout_bytes == b'' and queued == empty_queued \
+        empty_failure = stdout_bytes == b'' \
+            and _valid_queued_stop_process_failure_stderr(stderr_bytes, supervision.get('pid')) \
+            and queued == empty_queued \
             and not (root / label).exists() and not (root / label).is_symlink()
         retained_failure = stdout_bytes == b'CAPACITY_PHASE_INCOMPLETE\n' \
+            and _valid_retained_process_failure_stderr(stderr_bytes, supervision.get('pid')) \
             and queued == retained_queued and _validate_retained_process_failure_output(
                 root / label, window, window_identity['sha256'], owned_identity['sha256'],
                 source_identity['sha256'])
-        if not _valid_queued_stop_process_failure_stderr(stderr_bytes, supervision.get('pid')) \
-                or not _queued_exact(queued, queued_keys) or not (empty_failure or retained_failure):
+        if not _queued_exact(queued, queued_keys) or not (empty_failure or retained_failure):
             raise ValueError(error_code)
         pid = supervision.get('pid') if isinstance(supervision, dict) else None
         if not _queued_exact(supervision, supervision_keys) \

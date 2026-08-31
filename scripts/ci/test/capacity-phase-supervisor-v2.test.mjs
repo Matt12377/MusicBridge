@@ -2079,6 +2079,7 @@ test('queued-stop PROCESS_EXIT carryover接受严格校验后的首样本preflig
   try {
     const row=queuedProcessFailure(f),output=join(row.fixture.parent,row.label);mkdirSync(output)
     writeFileSync(row.fixture.stdout,'CAPACITY_PHASE_INCOMPLETE\n')
+    writeFileSync(row.fixture.stderr,'(node:313) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n')
     const partial={outputDirectory:output,verifiedComplete:false,verifiedPassed:false,fileCount:12,
       sampleCount:0,uniqueChildPids:0,aggregateBudgetValid:false,unexpectedEntries:['sample-001']}
     replaceJson(row.fixture.supervision,value=>{value.queuedStop=partial})

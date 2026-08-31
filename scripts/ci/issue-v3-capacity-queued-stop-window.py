@@ -69,6 +69,13 @@ def valid_process_failure_stderr(value, pid):
     }
 
 
+def valid_retained_process_failure_stderr(value, pid):
+    return value == (
+        f'(node:{pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n'
+        '(Use `node --trace-warnings ...` to show where the warning was created)\n'
+    ).encode()
+
+
 def _validate_retained_process_failure_output(output, window, window_sha256,
                                                owned_sha256, source_sha256):
     return _lineage_module().validate_retained_preflight_failure(
@@ -1745,8 +1752,7 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
             stderr_bytes = stderr_path.read_bytes()
         except OSError as error:
             raise IssueError('PRIOR_PROCESS_FAILURE') from error
-        if not valid_process_failure_stderr(stderr_bytes, supervision.get('pid')) \
-                or file_snapshot(stderr_path, stderr_sha) != stderr_snapshot:
+        if file_snapshot(stderr_path, stderr_sha) != stderr_snapshot:
             fail('PRIOR_PROCESS_FAILURE')
         if not all(isinstance(value, dict) for value in
                    (owner, issuer_fact, source, owned, window, close, supervision, start)):
@@ -1959,9 +1965,11 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
                            'uniqueChildPids': 0, 'aggregateBudgetValid': False,
                            'unexpectedEntries': ['sample-001']}
         empty_failure = stdout_bytes == b'' and stdout_sha == hashlib.sha256(b'').hexdigest() \
+            and valid_process_failure_stderr(stderr_bytes, supervision.get('pid')) \
             and queued == empty_queued and not (parent / label).exists() \
             and not (parent / label).is_symlink()
         retained_failure = stdout_bytes == b'CAPACITY_PHASE_INCOMPLETE\n' \
+            and valid_retained_process_failure_stderr(stderr_bytes, supervision.get('pid')) \
             and queued == retained_queued \
             and _validate_retained_process_failure_output(
                 parent / label, window, window_sha, owned_sha, source_sha)

@@ -635,6 +635,7 @@ test('PROCESS_EXIT carryover接受消费者输出的有界WINDOW_INVALID失败�
 test('PROCESS_EXIT carryover接受已固化的首样本preflight失败输出而不把它冒充样本',()=>{const f=fixture();try{
   const prior=priorProcessFailure(f),output=join(prior.parent,prior.label);mkdirSync(output)
   writeFileSync(prior.stdout,'CAPACITY_PHASE_INCOMPLETE\n')
+  writeFileSync(prior.stderr,'(node:313) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n')
   const partial={outputDirectory:output,verifiedComplete:false,verifiedPassed:false,fileCount:12,
     sampleCount:0,uniqueChildPids:0,aggregateBudgetValid:false,unexpectedEntries:['sample-001']}
   put(prior.supervision,{...JSON.parse(readFileSync(prior.supervision)),queuedStop:partial})
