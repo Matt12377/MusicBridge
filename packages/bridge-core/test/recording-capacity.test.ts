@@ -999,6 +999,7 @@ function configureExact75V3Relocation(f: Awaited<ReturnType<typeof phaseFixture>
   const recoverySha = f.put(configured.recovery, receipt); chmodSync(configured.recovery, 0o400)
   const measure = configured.outer.measureCarryover as Record<string, Record<string, unknown>>
   measure.ownedManifest!.sha256 = manifestSha; measure.measureRootRecovery!.sha256 = recoverySha
+  rmSync(configured.leafProcess.root, { recursive: true })
   const relocatedProcess = configured.makeProcessNode('process-relocated')
   configured.setProcessHead(relocatedProcess)
   const issuerFactPath = String((configured.outer.issuer as Record<string, any>).fact.path)
