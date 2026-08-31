@@ -6,6 +6,12 @@
 
 ## 实时进度面板
 
+> **当前执行：** `TASK-081 / joint generation专用issuer TDD`。TASK-080 Draft PR #22 的GitHub Verify、Security、dependency audit与Electron/Playwright Gate全部GREEN，仍未Ready或merge。现有generation issuer是objects-limit失败恢复专用路径，不能只扩展profile枚举后冒充joint首阶段；TASK-081新增专用入口，必须精确消费`objects-limit:queued-stop:PASS`并输出一次性joint generation authority。本任务不签发、不消费、不运行任何正式窗口。
+
+- [ ] TASK-081 / 最小RED：专用joint generation issuer当前不存在，不能从objects-limit恢复issuer或readiness路线文字推导签发能力。
+- [ ] TASK-081 / 合同GREEN：前驱close、候选身份、source/owned/toolchain、joint 2,701,131,776字节计划与一次性窗口全部精确绑定；任一非PASS、漂移、重放或空间不足均在发布前停止。
+- [ ] TASK-081 / 软件封板：聚焦测试、相邻supervisor、标准verify与静态Gate通过后建立外部Draft评审；joint measure/queued-stop继续后续线性任务。
+
 > **当前执行：** `TASK-080 / clean-clone authority接线软件GREEN，等待外部评审`。PR #21 已以merge commit `d98eff24c0085ad8a340457f58dc3334709ca241` 合入 `v3-integration`。实现 `bb421f55ddc8c0c5b7d3b1986e4e53a74624c290` 允许clean clone完成固定setup与空间预检；没有issuer产生的一次性收据时返回`AUTHORITY_REQUIRED`，合法收据也只能消费其中固定的installed supervisor命令。直接benchmark生产入口已移除，聚焦测试、标准verify、control/boundaries/cycles均GREEN。当前未签发/消费窗口，formal capacity、设备Gate B和Owner验收仍为`NOT_RUN`。
 
 - [x] TASK-080 / authority fail-closed接线：RED提交=`85398f7…`，实现=`bb421f5…`；无收据真实Node 22 CLI退出4并输出`CAPACITY_GATE=AUTHORITY_REQUIRED`，0 benchmark。
