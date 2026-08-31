@@ -7,7 +7,7 @@
 - RED 提交：`afa6c4fbfc57a5ea192876e00ca6bc0dd231ade8`
 - 实现提交：`f78ae868e7951d085ea008f8554c80559e66e46f`
 - 控制状态提交：`a12d36b7e724e2a006eb7b14d2f332a2045e98b7`
-- 报告提交：`PENDING_THIS_REPORT_COMMIT`
+- 报告提交：`19db39ad97de25c5e3613da899f1eb3fff2dfe63`
 
 ## 结果
 
@@ -55,4 +55,3 @@ TASK-081 软件范围通过。新增 `scripts/ci/issue-v3-capacity-joint-generat
 - 正式 objects-limit queued-stop 仍需取得真实 PASS，TASK-081 本身不创造该前驱。
 - joint measure 与 joint queued-stop 专用 issuer 尚未实现；不得跳过或继承 generation authority。
 - Draft 外部评审、PR 合并、正式窗口签发/消费、设备、Gate B、发布和 Owner 验收继续作为独立门。
-

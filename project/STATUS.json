@@ -81,7 +81,7 @@
     "task": "TASK-081",
     "branch": "codex/task-081-joint-capacity-issuers",
     "baseCommit": "b90c831f62afa2dedcb07630cbb89add2ad3f393",
-    "state": "joint-generation-exclusive-issuer-green-not-issued-no-window-no-samples-external-pending",
+    "state": "joint-generation-exclusive-issuer-software-sealed-draft-review-pending-no-window-no-samples-external-pending",
     "evidenceInfrastructure": {
       "state": "PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES",
       "receiptFoundation": {
@@ -151,8 +151,8 @@
       "baseCommit": "b90c831f62afa2dedcb07630cbb89add2ad3f393",
       "redCommit": "afa6c4fbfc57a5ea192876e00ca6bc0dd231ade8",
       "implementationCommit": "f78ae868e7951d085ea008f8554c80559e66e46f",
-      "reportCommit": null,
-      "state": "GREEN_DEDICATED_ISSUER_IMPLEMENTED_NOT_ISSUED",
+      "reportCommit": "19db39ad97de25c5e3613da899f1eb3fff2dfe63",
+      "state": "SOFTWARE_SEALED_DEDICATED_ISSUER_IMPLEMENTED_NOT_ISSUED",
       "consumes": "objects-limit:queued-stop:PASS",
       "produces": "joint:generation:ISSUED_NOT_EXECUTED",
       "jointGenerationPlannedBytes": 2701131776,
@@ -221,9 +221,9 @@
       "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task081-joint-generation-dedicated-issuer-green-not-issued-no-window-no-samples-gateb-not-run",
+    "checkpoint": "task081-joint-generation-dedicated-issuer-software-sealed-draft-review-pending-no-window-no-samples-gateb-not-run",
     "nextTask": null,
-    "resultReport": null,
+    "resultReport": "reports/TASK-081_RESULT.md",
     "task078SoftwareCheckpoints": {
       "startupPolicy": "48-focused-pass-spec-quality-r1-pass-capacity-startup-pending",
       "pdfPreview": "36-focused-and-real-electron-pass-23-pages-content-unchanged-spec-quality-r1-pass",

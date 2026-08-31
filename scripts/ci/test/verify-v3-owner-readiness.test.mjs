@@ -17,7 +17,7 @@ const controlStatus = {
     task: 'TASK-081',
     branch: 'codex/task-081-joint-capacity-issuers',
     baseCommit: 'b90c831f62afa2dedcb07630cbb89add2ad3f393',
-    state: 'joint-generation-exclusive-issuer-green-not-issued-no-window-no-samples-external-pending',
+    state: 'joint-generation-exclusive-issuer-software-sealed-draft-review-pending-no-window-no-samples-external-pending',
     evidenceInfrastructure: {
       state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
       receiptFoundation: {
