@@ -978,6 +978,37 @@ function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>,
     candidate, candidateHead, recoveryTool, git };
 }
 
+function configureExact75V3Relocation(f: Awaited<ReturnType<typeof phaseFixture>>, rootCount: number) {
+  const configured = configureExact75V2Recovery(f, rootCount)
+  const historicalRuntime = path.join(f.runtime, 'historical-runtime-before-relocation')
+  const manifest = JSON.parse(readFileSync(configured.historicalManifest, 'utf8'))
+  manifest.roots = manifest.roots.map((root: Record<string, unknown>, index: number) => index < 63 ? {
+    ...root, path: path.join(historicalRuntime, path.relative(f.runtime, String(root.path))),
+    inode: Number(root.inode) + 100000 + index,
+  } : root)
+  manifest.futureRoots = [path.join(historicalRuntime, path.relative(f.runtime, configured.measureOutput))]
+  const manifestSha = f.put(configured.historicalManifest, manifest)
+  const receipt = JSON.parse(readFileSync(configured.recovery, 'utf8'))
+  receipt.model = 'exact75-v3-runtime-relocation-closure'
+  receipt.historicalManifest.sha256 = manifestSha
+  receipt.liveRootRemap = { mode: 'PREFIX_RELOCATION', historicalRuntime, currentRuntime: f.runtime, liveRootCount: 63,
+    mappings: manifest.roots.slice(0, 63).map((historicalRoot: unknown, index: number) => ({
+      historicalRoot, currentRoot: configured.liveRoots[index],
+    })) }
+  chmodSync(configured.recovery, 0o600)
+  const recoverySha = f.put(configured.recovery, receipt); chmodSync(configured.recovery, 0o400)
+  const measure = configured.outer.measureCarryover as Record<string, Record<string, unknown>>
+  measure.ownedManifest!.sha256 = manifestSha; measure.measureRootRecovery!.sha256 = recoverySha
+  const relocatedProcess = configured.makeProcessNode('process-relocated')
+  configured.setProcessHead(relocatedProcess)
+  const issuerFactPath = String((configured.outer.issuer as Record<string, any>).fact.path)
+  const issuerFact = JSON.parse(readFileSync(issuerFactPath, 'utf8')); issuerFact.measureCarryover = measure
+  const issuerFactSha = f.put(issuerFactPath, issuerFact)
+  ;(configured.outer.issuer as Record<string, any>).fact.sha256 = issuerFactSha
+  f.inventory.roots[f.inventory.roots.length - 1] = f.entry(path.dirname(issuerFactPath), 'owner.json')
+  return configured
+}
+
 test('phase设施：新入口参数严格，未知/重复/缺少窗口hash不接受', async () => {
   const { parseCapacityPhaseArguments } = await import('./helpers/recording-capacity-phases.js');
   for (const args of [[], ['--phase','cold'], ['--phase','cold','--phase','cold'], ['--invented','yes'], ['--phase']]) assert.throws(() => parseCapacityPhaseArguments(args), /CAPACITY_PHASE_INVALID_INPUT/u);
@@ -1259,6 +1290,19 @@ test('queued-stop successor：按三类failure carryover精确接受76 roots', a
       assert.equal(calls, 0); assert.equal(existsSync(f.output), false);
     }
   }
+});
+
+test('queued-stop successor：显式v3 runtime relocation在首样本前保持消费者等价', async t => {
+  const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
+  configureExact75V3Relocation(f, 76);
+  f.seal(); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, {
+    ...f.options,
+    queuedStop: async () => { ++calls; throw new Error('受控首样本停止'); },
+  });
+  assert.equal(calls, 1);
+  assert.equal(summary.state, 'incomplete');
+  assert.equal(summary.unrun, 104);
 });
 
 test('queued-stop successor：真实CLI无runtime override时从受控window绝对路径解析runtime root', async t => {
