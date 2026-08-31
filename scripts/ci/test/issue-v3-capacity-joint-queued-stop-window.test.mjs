@@ -80,7 +80,8 @@ payload = m['build_authority_payload'](predecessor={'fact': fact, 'carryover': c
  candidate={'root':str(repo),'branch':branch,'head':head}, node='/node', node_sha=h,
  tsx_loader='/tsx', tsx_sha=h, consumer='/python', consumer_sha=h,
  issuer='/repo/issuer.py', issuer_sha=h, issuer_fact_path='/runtime/window/issuer-identity/owner.json',
- issuer_fact_sha=h, snapshot_bytes=123456)
+ issuer_fact_sha=h, shared_helper='/repo/scripts/ci/issue-v3-capacity-joint-measure-window.py',
+ shared_helper_sha=h, snapshot_bytes=123456)
 s['_validate_joint_queued_stop_window'](payload['window'], now.timestamp() + 0.001)
 wrong = copy.deepcopy(payload['window']); wrong['issuerFailureCarryoverCount'] = 1
 supervisor_rejected = False

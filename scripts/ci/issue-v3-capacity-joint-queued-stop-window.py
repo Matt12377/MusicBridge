@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import re
 import runpy
+import stat
 import subprocess
 import sys
 import uuid
@@ -25,27 +26,84 @@ MODEL = 'serial-single-clone-plus-bounded-growth-v1'
 _FAILURE_CONTEXT = None
 
 _SHARED_PATH = Path(__file__).with_name('issue-v3-capacity-joint-measure-window.py')
-_SHARED = runpy.run_path(str(_SHARED_PATH), run_name='musicbridge_joint_queued_stop_shared')
-IssueError = _SHARED['IssueError']
-_strict_json = _SHARED['_strict_json']
-_stable_sha256 = _SHARED['_stable_sha256']
-_canonical_directory = _SHARED['_canonical_directory']
-_verified_file = _SHARED['_verified_file']
-_git = _SHARED['_git']
-_source_manifest = _SHARED['_source_manifest']
-_owned_root = _SHARED['_owned_root']
-_current_root = _SHARED['_current_root']
-_exclusive_json = _SHARED['_exclusive_json']
-_copy_verified = _SHARED['_copy_verified']
-_reject_replay = _SHARED['_reject_replay']
-_fsync_directory = _SHARED['_fsync_directory']
+
+
+class IssueError(Exception):
+    """只公开有界错误码。"""
 
 
 def fail(code):
     raise IssueError(code)
 
 
-def _candidate(root, branch, head, issuer, issuer_sha, supervisor, supervisor_sha):
+def _stable_sha256(path, code='FILE_IDENTITY', executable=False):
+    supplied = Path(path)
+    try:
+        canonical = supplied.resolve(strict=True); info = supplied.lstat()
+        if not supplied.is_absolute() or supplied != canonical or supplied.is_symlink() \
+                or not stat.S_ISREG(info.st_mode) or info.st_nlink < 1 \
+                or info.st_size < 1 or info.st_size > 32 * 1024 * 1024 \
+                or executable and not os.access(canonical, os.X_OK):
+            fail(code)
+        descriptor = os.open(canonical, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0))
+        try:
+            before = os.fstat(descriptor); digest = hashlib.sha256()
+            while chunk := os.read(descriptor, 1024 * 1024): digest.update(chunk)
+            after = os.fstat(descriptor)
+        finally:
+            os.close(descriptor)
+        named = canonical.lstat(); fields = ('st_dev', 'st_ino', 'st_size', 'st_mtime_ns', 'st_ctime_ns')
+        if any(getattr(before, key) != getattr(after, key)
+               or getattr(after, key) != getattr(named, key) for key in fields):
+            fail(code)
+        return canonical, digest.hexdigest()
+    except IssueError:
+        raise
+    except OSError as error:
+        raise IssueError(code) from error
+
+
+def _canonical_directory(path, code):
+    supplied = Path(path)
+    try: canonical = supplied.resolve(strict=True); info = supplied.lstat()
+    except OSError as error: raise IssueError(code) from error
+    if not supplied.is_absolute() or supplied != canonical or supplied.is_symlink() \
+            or not stat.S_ISDIR(info.st_mode):
+        fail(code)
+    return canonical
+
+
+def _verified_file(path, expected, code, executable=False, allow_hardlinks=False):
+    canonical, observed = _stable_sha256(path, code, executable=executable)
+    if SHA256.fullmatch(str(expected or '')) is None or observed != expected:
+        fail(code)
+    return canonical
+
+
+def _git(root, *arguments, binary=False):
+    environment = {**{key: value for key, value in os.environ.items() if not key.startswith('GIT_')},
+                   'GIT_OPTIONAL_LOCKS': '0', 'GIT_NO_LAZY_FETCH': '1'}
+    try:
+        value = subprocess.check_output(['/usr/bin/git', *arguments], cwd=root,
+            stderr=subprocess.DEVNULL, timeout=15, env=environment)
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+        raise IssueError('REPOSITORY_IDENTITY') from error
+    return value if binary else value.decode().strip()
+
+
+def _load_shared(expected_sha):
+    global IssueError, _strict_json, _source_manifest, _owned_root, _current_root
+    global _exclusive_json, _copy_verified, _reject_replay, _fsync_directory
+    _verified_file(_SHARED_PATH, expected_sha, 'SHARED_HELPER_IDENTITY')
+    shared = runpy.run_path(str(_SHARED_PATH), run_name='musicbridge_joint_queued_stop_shared')
+    IssueError = shared['IssueError']
+    for name in ('_strict_json', '_source_manifest', '_owned_root', '_current_root',
+                 '_exclusive_json', '_copy_verified', '_reject_replay', '_fsync_directory'):
+        globals()[name] = shared[name]
+
+
+def _candidate(root, branch, head, issuer, issuer_sha, supervisor, supervisor_sha,
+               shared_helper, shared_helper_sha):
     if GIT_SHA.fullmatch(str(head or '')) is None or not branch \
             or _git(root, 'rev-parse', '--show-toplevel') != str(root) \
             or _git(root, 'rev-parse', 'HEAD^{commit}') != head \
@@ -54,10 +112,12 @@ def _candidate(root, branch, head, issuer, issuer_sha, supervisor, supervisor_sh
         fail('REPOSITORY_IDENTITY')
     expected_issuer = root / 'scripts/ci/issue-v3-capacity-joint-queued-stop-window.py'
     expected_supervisor = root / 'scripts/ci/capacity-phase-supervisor-v2.py'
-    if issuer != expected_issuer or supervisor != expected_supervisor:
+    expected_shared = root / 'scripts/ci/issue-v3-capacity-joint-measure-window.py'
+    if issuer != expected_issuer or supervisor != expected_supervisor or shared_helper != expected_shared:
         fail('CANDIDATE_FILE_IDENTITY')
     for path, digest, code in ((issuer, issuer_sha, 'ISSUER_IDENTITY'),
-                               (supervisor, supervisor_sha, 'SUPERVISOR_IDENTITY')):
+                               (supervisor, supervisor_sha, 'SUPERVISOR_IDENTITY'),
+                               (shared_helper, shared_helper_sha, 'SHARED_HELPER_IDENTITY')):
         blob = _git(root, 'show', f'{head}:{path.relative_to(root)}', binary=True)
         if hashlib.sha256(blob).hexdigest() != digest:
             fail(code)
@@ -146,7 +206,7 @@ def build_authority_payload(*, predecessor, window_id, label, issued_at, deadlin
                             owned_sha, source_sha, supervisor, supervisor_sha, candidate,
                             node, node_sha, tsx_loader, tsx_sha, consumer, consumer_sha,
                             issuer, issuer_sha, issuer_fact_path, issuer_fact_sha,
-                            snapshot_bytes):
+                            shared_helper, shared_helper_sha, snapshot_bytes):
     issued = datetime.datetime.fromisoformat(issued_at); deadline = datetime.datetime.fromisoformat(deadline_at)
     if deadline - issued != datetime.timedelta(seconds=900) or snapshot_bytes <= 0:
         fail('AUTHORITY_PAYLOAD')
@@ -181,6 +241,9 @@ def build_authority_payload(*, predecessor, window_id, label, issued_at, deadlin
             'supervisorSource': {'path': str(Path(candidate['root']) / 'scripts/ci/capacity-phase-supervisor-v2.py'),
                                  'relativePath': 'scripts/ci/capacity-phase-supervisor-v2.py',
                                  'sha256': supervisor_sha},
+            'sharedHelper': {'path': shared_helper,
+                             'relativePath': 'scripts/ci/issue-v3-capacity-joint-measure-window.py',
+                             'sha256': shared_helper_sha},
             'toolchain': window['toolchain'], 'issuer': {'path': issuer, 'sha256': issuer_sha},
             'authorityInherited': False, 'receiptReuseAllowed': False,
             'oldWindowReplayAllowed': False, 'deviceOpened': False,
@@ -198,6 +261,7 @@ def _parse_args(argv):
                  'expected-joint-measure-source-sha256', 'window-dir-name', 'label',
                  'expected-branch', 'expected-head', 'supervisor',
                  'expected-supervisor-sha256', 'node', 'expected-node-sha256',
+                 'expected-shared-helper-sha256',
                  'tsx-loader', 'expected-tsx-loader-sha256', 'consumer-python',
                  'expected-consumer-sha256', 'expected-issuer-sha256'):
         parser.add_argument(f'--{name}', required=True)
@@ -233,7 +297,9 @@ def issue(options):
     consumer = _verified_file(options.consumer_python, options.expected_consumer_sha256,
                               'CONSUMER_IDENTITY', executable=True, allow_hardlinks=True)
     candidate = _candidate(root, options.expected_branch, options.expected_head, issuer,
-                           options.expected_issuer_sha256, supervisor, options.expected_supervisor_sha256)
+                           options.expected_issuer_sha256, supervisor, options.expected_supervisor_sha256,
+                           _SHARED_PATH, options.expected_shared_helper_sha256)
+    _load_shared(options.expected_shared_helper_sha256)
     result = load_joint_measure_pass(
         window_path=options.joint_measure_window,
         window_sha=options.expected_joint_measure_window_sha256,
@@ -282,7 +348,9 @@ def issue(options):
         tsx_loader=str(tsx_loader), tsx_sha=options.expected_tsx_loader_sha256,
         consumer=str(consumer), consumer_sha=options.expected_consumer_sha256,
         issuer=str(issuer), issuer_sha=options.expected_issuer_sha256,
-        issuer_fact_path=str(fact_path), issuer_fact_sha=placeholder, snapshot_bytes=snapshot_bytes)
+        issuer_fact_path=str(fact_path), issuer_fact_sha=placeholder,
+        shared_helper=str(_SHARED_PATH), shared_helper_sha=options.expected_shared_helper_sha256,
+        snapshot_bytes=snapshot_bytes)
     fact_sha = _exclusive_json(fact_path, first['issuerFact'])
     source_sha = _exclusive_json(parent / 'source-pins.json', source)
     roots = [_owned_root(row) for row in measure_owned['roots']]
@@ -303,7 +371,9 @@ def issue(options):
         tsx_loader=str(tsx_loader), tsx_sha=options.expected_tsx_loader_sha256,
         consumer=str(consumer), consumer_sha=options.expected_consumer_sha256,
         issuer=str(issuer), issuer_sha=options.expected_issuer_sha256,
-        issuer_fact_path=str(fact_path), issuer_fact_sha=fact_sha, snapshot_bytes=snapshot_bytes)
+        issuer_fact_path=str(fact_path), issuer_fact_sha=fact_sha,
+        shared_helper=str(_SHARED_PATH), shared_helper_sha=options.expected_shared_helper_sha256,
+        snapshot_bytes=snapshot_bytes)
     if final['issuerFact'] != first['issuerFact']:
         fail('AUTHORITY_PAYLOAD')
     contract = runpy.run_path(str(installed), run_name='musicbridge_joint_queued_stop_preflight')

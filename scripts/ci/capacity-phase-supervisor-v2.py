@@ -4025,11 +4025,12 @@ def _validate_joint_queued_stop_bound_identities(window, parent, candidate):
     try: fact, fact_identity = _strict_json(issuer['fact']['path'], 1024 * 1024)
     except ValueError as error: raise ValueError('QUEUED_STOP_IDENTITY') from error
     fact_keys = {'schemaVersion', 'scope', 'windowId', 'candidateRepository',
-                 'predecessor', 'supervisorSource', 'toolchain', 'issuer',
+                 'predecessor', 'supervisorSource', 'sharedHelper', 'toolchain', 'issuer',
                  'authorityInherited', 'receiptReuseAllowed', 'oldWindowReplayAllowed',
                  'deviceOpened', 'formalReady', 'gateB'}
     predecessor = fact.get('predecessor') if isinstance(fact, dict) else None
     supervisor_source = fact.get('supervisorSource') if isinstance(fact, dict) else None
+    shared_helper = fact.get('sharedHelper') if isinstance(fact, dict) else None
     fact_issuer = fact.get('issuer') if isinstance(fact, dict) else None
     if not _queued_exact(fact, fact_keys) or fact.get('schemaVersion') != 1 \
             or fact.get('scope') != 'musicbridge-capacity-joint-queued-stop-authority-issuer' \
@@ -4067,15 +4068,22 @@ def _validate_joint_queued_stop_bound_identities(window, parent, candidate):
             or supervisor_source.get('relativePath') != 'scripts/ci/capacity-phase-supervisor-v2.py' \
             or supervisor_source.get('path') != str(candidate / supervisor_source['relativePath']) \
             or supervisor_source.get('sha256') != window['supervisor']['sha256'] \
+            or not isinstance(shared_helper, dict) \
+            or set(shared_helper) != {'path', 'relativePath', 'sha256'} \
+            or shared_helper.get('relativePath') != 'scripts/ci/issue-v3-capacity-joint-measure-window.py' \
+            or shared_helper.get('path') != str(candidate / shared_helper['relativePath']) \
+            or _SHA256.fullmatch(str(shared_helper.get('sha256', ''))) is None \
             or fact_issuer != {'path': issuer['path'], 'sha256': issuer['sha256']}:
         raise ValueError('QUEUED_STOP_IDENTITY')
     try:
         issuer_blob = _git_blob(candidate, f"{window['candidateRepository']['head']}:scripts/ci/issue-v3-capacity-joint-queued-stop-window.py")
         supervisor_blob = _git_blob(candidate, f"{window['candidateRepository']['head']}:scripts/ci/capacity-phase-supervisor-v2.py")
+        shared_blob = _git_blob(candidate, f"{window['candidateRepository']['head']}:{shared_helper['relativePath']}")
     except ValueError as error:
         raise ValueError('QUEUED_STOP_IDENTITY') from error
     if hashlib.sha256(issuer_blob).hexdigest() != issuer['sha256'] \
             or hashlib.sha256(supervisor_blob).hexdigest() != window['supervisor']['sha256'] \
+            or hashlib.sha256(shared_blob).hexdigest() != shared_helper['sha256'] \
             or identities['issuerFact'] != fact_identity:
         raise ValueError('QUEUED_STOP_IDENTITY')
     return identities
