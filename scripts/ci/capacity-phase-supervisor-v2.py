@@ -4261,7 +4261,7 @@ def _validate_phase_source_manifest(manifest_path, root):
     excluded = {'scripts/ci/capacity-phase-supervisor-v2.py',
                 'scripts/ci/issue-v3-capacity-measure-window.py'}
     paths = [value for value in paths if value not in excluded]
-    if len(paths) != 241 or set(manifest['files']) != set(paths):
+    if set(manifest['files']) != set(paths):
         raise ValueError('QUEUED_STOP_SOURCE')
     identities = {}
     for relative in paths:
@@ -4273,7 +4273,7 @@ def _validate_phase_source_manifest(manifest_path, root):
         identities[relative] = observed
     if _strict_identity(manifest_path) != identity:
         raise ValueError('QUEUED_STOP_SOURCE')
-    return {'valid': True, 'fileCount': 241, 'manifestIdentity': identity,
+    return {'valid': True, 'fileCount': len(paths), 'manifestIdentity': identity,
             'fileIdentities': identities}
 
 

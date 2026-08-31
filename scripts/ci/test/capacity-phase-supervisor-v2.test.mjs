@@ -94,6 +94,9 @@ try:
     value=module._validate_queued_stop_prechild_failures(
       payload['carryover'], pathlib.Path(payload['runtime']),
       runtime_relocation=payload.get('runtimeRelocation'))
+  elif method == 'queued-source':
+    value=module._validate_phase_source_manifest(
+      pathlib.Path(payload['manifest']), pathlib.Path(payload['root']))
   elif method == 'queued-process-failures':
     value=module._validate_queued_stop_process_failures(
       payload['carryover'], pathlib.Path(payload['runtime']))
@@ -2677,6 +2680,25 @@ test('queued-stop admission复用已钉死candidate谱系模块而不依赖安�
       window, parent: f.authority, candidate: f.candidate,
     })
     assert.equal(observed.ok, true, observed.error)
+  } finally {
+    f.cleanup()
+  }
+})
+
+test('queued-stop source闭包动态跟随expected paths并拒绝缺失或额外文件', () => {
+  const f = copiedSupervisor()
+  try {
+    const excluded = new Set(['scripts/ci/capacity-phase-supervisor-v2.py',
+      'scripts/ci/issue-v3-capacity-measure-window.py'])
+    const files = Object.fromEntries(f.candidateFiles.filter(relative => !excluded.has(relative))
+      .map(relative => [relative, sha(join(f.candidate, relative))]))
+    const manifest = join(f.authority, 'queued-source-pins.json')
+    json(manifest, { schemaVersion: 1, scope: 'musicbridge-capacity-source-pins', files })
+    const observed = bridge(f.script, 'queued-source', { manifest, root: f.candidate })
+    assert.equal(observed.ok, true, observed.error)
+    assert.equal(observed.value.fileCount, Object.keys(files).length)
+    replaceJson(manifest, value => { value.files['scripts/ci/capacity-phase-supervisor-v2.py'] = sha(f.script) })
+    assert.equal(bridge(f.script, 'queued-source', { manifest, root: f.candidate }).ok, false)
   } finally {
     f.cleanup()
   }
