@@ -660,15 +660,15 @@ test('PROCESS_EXIT carryover拒绝重哈希后前缀正确但正文漂移的stde
 
 test('PROCESS_EXIT exact75稳定根及issuer/prechild仍逐项有序绑定',async t=>{for(const [name,mutate] of [['新增任意根',roots=>roots.push(structuredClone(roots[0]))],['marker替换',roots=>{roots[0].marker.sha256='f'.repeat(64)}],['issuer-prechild互换',roots=>{[roots[71],roots[72]]=[roots[72],roots[71]]}]])await t.test(name,()=>{const f=processRecoveryLineageFixture();try{const roots=structuredClone(f.currentRoots);mutate(roots);const r=validateProcessLineage(f,f.historicalMeasure,f.currentMappings,roots);assert.equal(r.status,1,r.stdout+r.stderr);assert.match(r.stdout,/PRIOR_PROCESS_FAILURE_LINEAGE/u)}finally{f.cleanup()}})})
 test('PROCESS_EXIT谱系通过显式live映射跨越第二设备代际',()=>{const f=processRecoveryLineageFixture();try{
-  const nextDevice=f.receipt.liveDeviceRemap.currentDevice+1000
-  const nextRoot=(row,index)=>({...row,device:nextDevice,inode:row.inode+100000+index})
-  const liveMappings=f.currentLiveMappings.map((mapping,index)=>({...mapping,currentRoot:nextRoot(mapping.currentRoot,index)}))
-  const replacementMappings=f.currentMappings.map((mapping,index)=>({...mapping,
-    replacementRoot:nextRoot(mapping.replacementRoot,1000+index)}))
-  const replacementRoots=replacementMappings.map(({replacementRoot})=>{const {role,...root}=replacementRoot;return root})
-  const suffix=f.currentRoots.slice(70).map((row,index)=>nextRoot(row,2000+index))
-  const roots=[...liveMappings.map(({currentRoot})=>currentRoot),...replacementRoots,...suffix]
-  const r=validateProcessLineage(f,f.historicalMeasure,replacementMappings,roots,f.oldInherited,liveMappings)
+  const currentDevice=lstatSync(f.runtime).dev,previousDevice=currentDevice+1000
+  rewriteDirectRecovery(f,receipt=>{receipt.liveDeviceRemap.currentDevice=previousDevice
+    for(const mapping of receipt.mappings){mapping.replacementRoot.device=previousDevice;mapping.replacementRoot.inode+=100000}})
+  const historical=structuredClone(f.historicalMeasure);historical.measureRootRecovery.sha256=sha(f.receiptPath)
+  const previousLive=f.oldInherited.slice(0,63).map(row=>({...row,device:previousDevice}))
+  const previousReplacements=JSON.parse(readFileSync(f.receiptPath)).mappings.map(({replacementRoot})=>{const {role,...root}=replacementRoot;return root})
+  const previousSuffix=f.oldInherited.slice(70).map((row,index)=>({...row,device:previousDevice,inode:row.inode+200000+index}))
+  const old=[...previousLive,...previousReplacements,...previousSuffix]
+  const r=validateProcessLineage(f,historical,f.currentMappings,f.currentRoots,old,f.currentLiveMappings)
   assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(JSON.parse(r.stdout).stableRootCount,66)
 }finally{f.cleanup()}})
 test('PROCESS_EXIT roots允许recovery-01到recovery-02有序谱系翻译并拒绝映射漂移',async t=>{await t.test('跨代正例',()=>{const f=processRecoveryLineageFixture();try{const r=validateProcessLineage(f);assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(JSON.parse(r.stdout).translated,true)}finally{f.cleanup()}});for(const [name,mutate] of [['historicalRoot漂移',(f,m)=>{m[0].historicalRoot.inode+=1}],['映射重排',(f,m)=>{[m[0],m[1]]=[m[1],m[0]]}],['旧receipt漂移',(f,m,h)=>{rewriteDirectRecovery(f,r=>{r.repository.clean=false});h.measureRootRecovery.sha256=sha(f.receiptPath)}]])await t.test(name,()=>{const f=processRecoveryLineageFixture();try{const mappings=structuredClone(f.currentMappings),historical=structuredClone(f.historicalMeasure);mutate(f,mappings,historical);const r=validateProcessLineage(f,historical,mappings);assert.equal(r.status,1,r.stdout+r.stderr);assert.match(r.stdout,/PRIOR_PROCESS_FAILURE_LINEAGE/u)}finally{f.cleanup()}})})

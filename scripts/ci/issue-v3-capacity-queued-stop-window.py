@@ -1397,7 +1397,7 @@ def validate_process_recovery_lineage(runtime, historical_measure, old_inherited
             or not isinstance(remap, dict) \
             or set(remap) != {'mode', 'historicalDevice', 'currentDevice', 'liveRootCount'} \
             or type(remap.get('historicalDevice')) is not int \
-            or remap.get('currentDevice') != runtime.stat().st_dev \
+            or current_live_mappings is None and remap.get('currentDevice') != runtime.stat().st_dev \
             or remap.get('liveRootCount') != 63 \
             or remap.get('mode') != (
                 'UNCHANGED' if remap['historicalDevice'] == remap['currentDevice'] else 'REMAPPED') \
@@ -1435,6 +1435,7 @@ def validate_process_recovery_lineage(runtime, historical_measure, old_inherited
     except (IssueError, OSError, TypeError, ValueError) as error:
         raise IssueError(code) from error
     old_replacements = []
+    observed_old_replacements = []
     historical_roots = []
     replacement_names = []
     marker_ids = set()
@@ -1450,9 +1451,10 @@ def validate_process_recovery_lineage(runtime, historical_measure, old_inherited
                     or set(replacement) != {'path', 'device', 'inode', 'marker', 'role'} \
                     or replacement.get('role') != 'historical-control-only':
                 fail(code)
-            normalized = validate_root({key: replacement[key]
-                                        for key in ('path', 'device', 'inode', 'marker')})
+            normalized = historical_root({key: replacement[key]
+                                          for key in ('path', 'device', 'inode', 'marker')})
             replacement_path = Path(normalized['path'])
+            observed_replacement = current_root(replacement_path, 'owner.json')
             owner, owner_sha = strict_json(
                 replacement_path / 'owner.json', normalized['marker']['sha256'], maximum=1024 * 1024)
         except (IssueError, KeyError, OSError, TypeError, ValueError) as error:
@@ -1468,9 +1470,12 @@ def validate_process_recovery_lineage(runtime, historical_measure, old_inherited
                 or owner.get('role') != 'historical-control-only' \
                 or owner.get('historicalRoot') != historical or owner.get('recovered') is not False \
                 or owner_sha != normalized['marker']['sha256'] \
+                or observed_replacement['path'] != normalized['path'] \
+                or observed_replacement['marker'] != normalized['marker'] \
                 or not path_is_absent(historical['path']):
             fail(code)
         historical_roots.append(historical); old_replacements.append(normalized)
+        observed_old_replacements.append(observed_replacement)
         replacement_names.append(replacement_path.name)
         marker_ids.add(owner['id'])
     if len({row['path'] for row in historical_roots}) != 7 \
@@ -1499,6 +1504,7 @@ def validate_process_recovery_lineage(runtime, historical_measure, old_inherited
         live_lineage_valid = old_inherited[:63] == current_roots[:63] \
             and old_inherited[70:] == current_roots[70:]
         current_device = remap['currentDevice']
+        old_replacement_device = remap['currentDevice']
     else:
         historical_live = []
         current_live = []
@@ -1513,22 +1519,32 @@ def validate_process_recovery_lineage(runtime, historical_measure, old_inherited
             raise IssueError(code) from error
         current_devices = {root['device'] for root in current_live}
         current_device = next(iter(current_devices)) if len(current_devices) == 1 else None
-        previous_historical_live = [
-            {**root, 'device': remap['historicalDevice']} for root in old_inherited[:63]]
-        tail_lineage = zip(old_inherited[70:], current_roots[70:])
-        live_lineage_valid = previous_historical_live == historical_live \
-            and current_roots[:63] == current_live \
-            and current_device is not None \
-            and all(old['device'] == remap['currentDevice']
-                    and current['device'] == current_device
-                    and old['path'] == current['path']
-                    and old['marker'] == current['marker']
-                    for old, current in tail_lineage)
+        if relocation is not None:
+            live_lineage_valid = old_inherited[:63] == current_live \
+                and current_roots[:63] == current_live \
+                and old_inherited[70:] == current_roots[70:] \
+                and current_device == runtime.stat().st_dev \
+                and all(root['device'] == remap['historicalDevice'] for root in historical_live)
+            old_replacement_device = current_device
+        else:
+            previous_historical_live = [
+                {**root, 'device': remap['historicalDevice']} for root in old_inherited[:63]]
+            tail_lineage = zip(old_inherited[70:], current_roots[70:])
+            live_lineage_valid = previous_historical_live == historical_live \
+                and current_roots[:63] == current_live \
+                and current_device == runtime.stat().st_dev \
+                and all(old['device'] == remap['currentDevice']
+                        and current['device'] == current_device
+                        and old['path'] == current['path']
+                        and old['marker'] == current['marker']
+                        for old, current in tail_lineage)
+            old_replacement_device = remap['currentDevice']
     if not live_lineage_valid \
             or old_inherited[63:70] != old_replacements \
             or current_roots[63:70] != current_replacements \
             or historical_roots != current_historical \
-            or any(root['device'] != remap['currentDevice'] for root in old_replacements) \
+            or any(root['device'] != old_replacement_device for root in old_replacements) \
+            or any(root['device'] != current_device for root in observed_old_replacements) \
             or any(root['device'] != current_device for root in current_replacements):
         fail(code)
     return {'translated': True, 'stableRootCount': 66, 'replacementCount': 7,
