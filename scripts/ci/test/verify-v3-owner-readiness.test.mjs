@@ -17,7 +17,7 @@ const controlStatus = {
     task: 'TASK-083',
     branch: 'codex/task-083-joint-queued-stop-issuer',
     baseCommit: 'bb41b96a981ed4554dedf0169af7df5f7931bf0b',
-    state: 'joint-queued-stop-exclusive-issuer-tdd-red-no-window-no-samples-external-pending',
+    state: 'joint-queued-stop-exclusive-issuer-software-sealed-no-window-no-samples-external-pending',
     evidenceInfrastructure: {
       state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
       receiptFoundation: {

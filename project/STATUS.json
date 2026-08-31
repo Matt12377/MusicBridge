@@ -81,7 +81,7 @@
     "task": "TASK-083",
     "branch": "codex/task-083-joint-queued-stop-issuer",
     "baseCommit": "bb41b96a981ed4554dedf0169af7df5f7931bf0b",
-    "state": "joint-queued-stop-exclusive-issuer-tdd-red-no-window-no-samples-external-pending",
+    "state": "joint-queued-stop-exclusive-issuer-software-sealed-no-window-no-samples-external-pending",
     "evidenceInfrastructure": {
       "state": "PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES",
       "receiptFoundation": {
@@ -176,10 +176,11 @@
     },
     "task083JointQueuedStopIssuer": {
       "baseCommit": "bb41b96a981ed4554dedf0169af7df5f7931bf0b",
-      "redCommit": null,
-      "implementationCommit": null,
+      "redCommit": "eae86c4ece41cf39284ec02b34a3dfeb6031fd38",
+      "implementationCommit": "ab7e0202ada21ce00d70b41515fab3fe6e86e3db",
+      "hardeningCommit": "f015fdea6031a6ed2f5380b4c8b4a935a2e47f9f",
       "reportCommit": null,
-      "state": "TDD_RED_DEDICATED_ISSUER_AND_JOINT_CONSUMER_MISSING",
+      "state": "SOFTWARE_GREEN_REPORT_PENDING_DEDICATED_ISSUER_IMPLEMENTED_NOT_ISSUED",
       "consumes": "joint:measure:PASS",
       "produces": "joint:queued-stop:ISSUED_NOT_EXECUTED",
       "authorityWindow": "NOT_ISSUED_NOT_CONSUMED",
@@ -247,7 +248,7 @@
       "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task083-joint-queued-stop-dedicated-issuer-and-consumer-tdd-red-no-window-no-samples-gateb-not-run",
+    "checkpoint": "task083-joint-queued-stop-dedicated-issuer-and-consumer-software-green-report-pending-no-window-no-samples-gateb-not-run",
     "nextTask": "TASK-083",
     "resultReport": null,
     "task078SoftwareCheckpoints": {
