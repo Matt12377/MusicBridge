@@ -561,6 +561,16 @@ test('queued-stop issuer生产入口存在且拒绝空参数',()=>{assert.equal(
 test('validate_measure_root_recovery直接接受统一设备代际映射的真实63 live加7 absent',()=>{const f=directRecoveryFixture();try{const r=validateDirectRecovery(f);assert.equal(r.status,0,r.stdout+r.stderr);assert.deepEqual(JSON.parse(r.stdout),{live:63,replacement:7,input:{model:'durable-seed-snapshot',path:f.snapshot,sha256:sha(f.snapshot)}});assert.deepEqual(JSON.parse(readFileSync(f.receiptPath)).liveDeviceRemap,{mode:'REMAPPED',historicalDevice:f.owned.roots[0].device,currentDevice:lstatSync(f.runtime).dev,liveRootCount:63})}finally{f.cleanup()}})
 test('validate_measure_root_recovery由相同历史与当前device派生UNCHANGED',()=>{const f=directRecoveryFixture(false);try{const r=validateDirectRecovery(f);assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(JSON.parse(readFileSync(f.receiptPath)).liveDeviceRemap.mode,'UNCHANGED')}finally{f.cleanup()}})
 test('validate_measure_root_recovery接受显式runtime relocation并冻结63个旧新root身份',()=>{const f=relocateDirectRecovery(directRecoveryFixture());try{const r=validateDirectRecovery(f);assert.equal(r.status,0,r.stdout+r.stderr);assert.deepEqual(JSON.parse(r.stdout),{live:63,replacement:7,input:{model:'durable-seed-snapshot',path:f.snapshot,sha256:sha(f.snapshot)}})}finally{f.cleanup()}})
+test('validate_measure在比较冻结窗口字段前从已钉死recovery收据取得runtime relocation',()=>{const f=relocateDirectRecovery(directRecoveryFixture());try{
+  const historical=f.receipt.liveRootRemap.historicalRuntime,current=f.runtime
+  const value={supervisor:{path:`${historical}/measure-window/supervisor.py`},futureRoots:[`${historical}/measure-output`]}
+  const r=pythonCall("o=types.SimpleNamespace(**json.loads(sys.argv[2]));rel=m.provisional_measure_relocation(o,m.Path(sys.argv[3]));print(json.dumps(m.relocate_runtime_value(json.loads(sys.argv[4]),rel)))",JSON.stringify(f.options),f.runtime,JSON.stringify(value))
+  assert.equal(r.status,0,r.stdout+r.stderr);assert.deepEqual(JSON.parse(r.stdout),{supervisor:{path:`${current}/measure-window/supervisor.py`},futureRoots:[`${current}/measure-output`]})
+  const source=readFileSync(sourceIssuer,'utf8'),start=source.indexOf('def validate_measure(options, runtime):'),body=source.slice(start,source.indexOf('\ndef replay_check(',start))
+  assert.ok(body.indexOf('provisional_measure_relocation(options, runtime)')<body.indexOf('window, _ = strict_json('))
+  assert.match(body,/strict_json\(\s*window_path, options\.expected_measure_window_sha256, relocation=relocation\)/u)
+  assert.match(body,/validate_measure_root_recovery\([\s\S]*historical_owned/u)
+}finally{f.cleanup()}})
 test('validate_measure_root_recovery拒绝非exact或不自洽liveDeviceRemap及设备集合',async t=>{
   const cases=[
     ['缺remap',f=>rewriteDirectRecovery(f,r=>{delete r.liveDeviceRemap})],
