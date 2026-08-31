@@ -31,8 +31,9 @@
 - `project/STATUS.json`
 - `scripts/ci/issue-v3-capacity-joint-measure-window.py`
 - `scripts/ci/test/issue-v3-capacity-joint-measure-window.test.mjs`
+- `scripts/ci/capacity-phase-supervisor-v2.py`（仅补generation terminal close收据）
 - `scripts/ci/verify-v3-owner-readiness.mjs`
 - `scripts/ci/test/verify-v3-owner-readiness.test.mjs`
 - `reports/TASK-082_RESULT.md`
 
-本任务不修改既有 objects-limit 三条 issuer、installed supervisor、benchmark、应用、数据库或设备代码；若新的最小 RED 证明共享纯验证函数必须抽取，先记录最小扩展理由并保持历史路径回归全绿。
+本任务不修改既有 objects-limit 三条 issuer、benchmark、应用、数据库或设备代码。最小RED后的合同检查确认installed supervisor尚未写出路线已声明的generation close receipt，因此允许对共享supervisor做有界扩展：只在既有generation supervision落盘后追加同事实的terminal/nonreplay close，不改变worker、计划或执行入口；历史路径回归必须全绿。
