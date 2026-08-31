@@ -20,10 +20,11 @@ export interface CapacityProcessOptions {
   requireManagedProcessGroup?: true;
 }
 interface Identity { device: number; inode: number }
+type CapacityChildClone = Omit<CapacityClone, 'aggregateGuard'>;
 export type CapacityChildTask =
-  | ({ kind: 'cold'; databaseSha256: string } & CapacityColdInput)
-  | ({ kind: 'queue'; databaseSha256: string } & CapacityQueuedStopInput)
-  | ({ kind: 'print-write'; databaseSha256: string } & CapacityPrintWriteInput)
+  | ({ kind: 'cold'; databaseSha256: string; clone: CapacityChildClone } & Omit<CapacityColdInput, 'clone'>)
+  | ({ kind: 'queue'; databaseSha256: string; clone: CapacityChildClone } & Omit<CapacityQueuedStopInput, 'clone'>)
+  | ({ kind: 'print-write'; databaseSha256: string; clone: CapacityChildClone } & Omit<CapacityPrintWriteInput, 'clone'>)
   | ({ kind: 'restore'; restoreId: string; rootIdentity: Identity; destinationIdentity: Identity } & CapacityRecoveryInput);
 interface Evidence { childMeasuredMs: number; clock: 'child-relative'; deviceOpened: false; formalReady: false; gateB: 'NOT_RUN' }
 export interface CapacityColdReceipt extends Evidence {
@@ -84,6 +85,11 @@ function directory(root: string): Identity {
 }
 function equalIdentity(actual: Identity, expected: Identity): void {
   if (actual.device !== expected.device || actual.inode !== expected.inode) throw new Error('容量目录身份变化');
+}
+/** aggregateGuard含父侧函数与可变预算状态，绝不能跨IPC进入固定child合同。 */
+function childClone(clone: CapacityClone): CapacityChildClone {
+  const { parent, label, directory: cloneDirectory, filePath, marker, device, inode, parentDevice, parentInode } = clone;
+  return { parent, label, directory: cloneDirectory, filePath, marker, device, inode, parentDevice, parentInode };
 }
 function ownerJson(file: string): unknown {
   const fd = openSync(file, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
@@ -375,7 +381,10 @@ async function run(taskFactory: () => CapacityChildTask, options: CapacityProces
     } catch { fail('SPAWN_FAILED'); if (!child) finish(false); }
   });
 }
-export const runCapacityCold = (input: CapacityColdInput, options: CapacityProcessOptions = {}) => run(() => ({ kind: 'cold', ...input, databaseSha256: hashCapacityFile(input.clone.filePath) }), options);
-export const runCapacityQueuedStop = (input: CapacityQueuedStopInput, options: CapacityProcessOptions = {}) => run(() => ({ kind: 'queue', ...input, databaseSha256: hashCapacityFile(input.clone.filePath) }), options);
-export const runCapacityPrintWrite = (input: CapacityPrintWriteInput, options: CapacityProcessOptions = {}) => run(() => ({ kind: 'print-write', ...input, databaseSha256: hashCapacityFile(input.clone.filePath) }), options);
+export const runCapacityCold = (input: CapacityColdInput, options: CapacityProcessOptions = {}) => run(() => ({ kind: 'cold',
+  clone: childClone(input.clone), planId: input.planId, planHash: input.planHash, databaseSha256: hashCapacityFile(input.clone.filePath) }), options);
+export const runCapacityQueuedStop = (input: CapacityQueuedStopInput, options: CapacityProcessOptions = {}) => run(() => ({ kind: 'queue',
+  clone: childClone(input.clone), planId: input.planId, planHash: input.planHash, databaseSha256: hashCapacityFile(input.clone.filePath) }), options);
+export const runCapacityPrintWrite = (input: CapacityPrintWriteInput, options: CapacityProcessOptions = {}) => run(() => ({ kind: 'print-write',
+  clone: childClone(input.clone), planId: input.planId, planHash: input.planHash, databaseSha256: hashCapacityFile(input.clone.filePath) }), options);
 export const runCapacityRecovery = (input: CapacityRecoveryInput, options: CapacityProcessOptions = {}) => run(() => ({ kind: 'restore', ...input, restoreId: randomUUID(), rootIdentity: directory(input.owner.root), destinationIdentity: directory(input.destinationPath) }), options);
