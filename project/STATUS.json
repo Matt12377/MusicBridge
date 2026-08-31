@@ -78,10 +78,10 @@
   },
   "v3Development": {
     "wave": "WAVE-5",
-    "task": "TASK-079",
-    "branch": "codex/task-079-v3-final-acceptance",
-    "baseCommit": "fac7363b4a6481591e207dda7cca77f0ae8d3cd4",
-    "state": "no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-window06-process-exit-terminal-window07-nonreplay-no-samples-canonical-lineage-architecture-green-new-window-not-authorized-joint-three-stage-route-defined-issuers-not-implemented-external-pending",
+    "task": "TASK-080",
+    "branch": "codex/task-080-capacity-authority-harness",
+    "baseCommit": "d98eff24c0085ad8a340457f58dc3334709ca241",
+    "state": "clean-clone-authority-harness-software-green-draft-review-pending-no-window-no-samples-external-pending",
     "evidenceInfrastructure": {
       "state": "PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES",
       "receiptFoundation": {
@@ -127,8 +127,26 @@
       "hardwareRun": "NOT_RUN",
       "gateB": "NOT_RUN"
     },
-    "implementationCommit": "1f102fba93e42d0f84b985c04d84af08b06b2231",
-    "reportCommit": "93feee20c2edbd027546b44cc908aee27ef785b1",
+    "implementationCommit": "bb421f55ddc8c0c5b7d3b1986e4e53a74624c290",
+    "reportCommit": "637bdc526504b6d888b7168363c522401137e024",
+    "task080AuthorityHarness": {
+      "baseCommit": "d98eff24c0085ad8a340457f58dc3334709ca241",
+      "redCommit": "85398f7cfb2eeb3b6cd71f368a62a84de13b4c5d",
+      "implementationCommit": "bb421f55ddc8c0c5b7d3b1986e4e53a74624c290",
+      "reportCommit": "637bdc526504b6d888b7168363c522401137e024",
+      "state": "SOFTWARE_GREEN_EXTERNAL_REVIEW_PENDING",
+      "focusedTests": "9-of-9-pass",
+      "adjacentBenchmarkTests": "5-of-5-pass",
+      "standardVerify": "PASS_NODE_22_23_2",
+      "controlPlane": "PASS",
+      "boundaries": "PASS",
+      "cycles": "PASS_259_FILES",
+      "cleanCloneNoReceipt": "EXIT_4_AUTHORITY_REQUIRED_ZERO_BENCHMARK",
+      "authorityWindow": "NOT_ISSUED_NOT_CONSUMED",
+      "formalCapacitySamples": 0,
+      "gateB": "NOT_RUN",
+      "ownerProductAcceptance": "NOT_RUN"
+    },
     "previousTask": {
       "task": "TASK-078",
       "implementationCommit": "2656b904a168e6afcbfddc5453d8793d347710d7",
@@ -137,7 +155,7 @@
       "hardwareAcceptance": "NOT_RUN",
       "report": "reports/TASK-078_RESULT.md"
     },
-    "authorization": "owner-continuous-software-development-through079-sol-high-task-branch-verified-checkpoint-push-authorized-main-release-not-authorized",
+    "authorization": "owner-continuous-software-development-default-recommended-path-checkpoint-push-authorized-device-credentials-release-separate-gates",
     "f01": "OWNER_APPROVED_f01-permanent-execution-v1",
     "deviceTestPlanning": {
       "confirmedOn": "2026-08-29",
@@ -189,9 +207,9 @@
       "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task079-objects-queued-stop-then-joint-generate-measure-queued-stop-route-defined-issuers-not-implemented-gateb-not-run",
+    "checkpoint": "task080-clean-clone-authority-gated-software-green-external-review-pending-no-window-no-samples-gateb-not-run",
     "nextTask": null,
-    "resultReport": "reports/TASK-079_READINESS.md",
+    "resultReport": "reports/TASK-080_RESULT.md",
     "task078SoftwareCheckpoints": {
       "startupPolicy": "48-focused-pass-spec-quality-r1-pass-capacity-startup-pending",
       "pdfPreview": "36-focused-and-real-electron-pass-23-pages-content-unchanged-spec-quality-r1-pass",

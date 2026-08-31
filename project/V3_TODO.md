@@ -6,6 +6,13 @@
 
 ## 实时进度面板
 
+> **当前执行：** `TASK-080 / clean-clone authority接线软件GREEN，等待外部评审`。PR #21 已以merge commit `d98eff24c0085ad8a340457f58dc3334709ca241` 合入 `v3-integration`。实现 `bb421f55ddc8c0c5b7d3b1986e4e53a74624c290` 允许clean clone完成固定setup与空间预检；没有issuer产生的一次性收据时返回`AUTHORITY_REQUIRED`，合法收据也只能消费其中固定的installed supervisor命令。直接benchmark生产入口已移除，聚焦测试、标准verify、control/boundaries/cycles均GREEN。当前未签发/消费窗口，formal capacity、设备Gate B和Owner验收仍为`NOT_RUN`。
+
+- [x] TASK-080 / authority fail-closed接线：RED提交=`85398f7…`，实现=`bb421f5…`；无收据真实Node 22 CLI退出4并输出`CAPACITY_GATE=AUTHORITY_REQUIRED`，0 benchmark。
+- [x] TASK-080 / 直接入口关闭：Bridge Core benchmark仅保留纯编排测试缝，生产CLI不再自行拼接worker/window/authority或映射正式容量PASS。
+- [x] TASK-080 / 软件验证：专项9/9、相邻benchmark 5/5、标准`pnpm verify`、`CONTROL_PLANE`、`BOUNDARIES`、`CYCLES files=259`与`git diff --check`全部exit 0。
+- [ ] TASK-080 / 外部评审与集成：建立Draft PR后等待检查；Ready/merge、任何新authority/window、105轮正式容量、设备Gate B和Owner验收均保持独立。
+
 > **当前执行：** `TASK-079 / 最终自动软件门已GREEN；正式容量准入分类为HARNESS_BUG`。Security、标准Verify与Electron E2E均在冻结HEAD `fab807b8f77974ca772f3adcb49d578bbf46d9fb`新鲜通过。全新远端clone的静态准入确认正式入口强制消费新issuer产生的authority/window，而冻结状态为`currentWindow=NOT_ISSUED`，旧window全部nonreplay；Owner同时要求不得创建新authority/window。因此没有可构造的权威消费命令，正式supervisor/child/benchmark保持`NOT_STARTED`、样本数为0，没有用占位参数失败或绕过总控冒充正式运行。该HARNESS_BUG移交独立任务；Gate E软件容量部分不标记PASS。正式四阶段、设备Gate B和Owner验收均未升级。
 
 > **window-04 后 successor recovery v3：** window-04 的历史 `plannedBytes=4,249,378,816`、失败终态和保留证据不改写。后继按历史联集68个根闭包为 `existing=70`、`future=1`、`authorized=71`；冻结snapshot=`1,990,471,680`字节，`serial-single-clone-plus-bounded-growth-v1 plannedBytes=2,258,907,136`。window-06已按output全树hard cap与`measure-aggregate-budget.jsonl`闭合并软件PASS；这不升级queued-stop、joint、设备Gate B或Owner验收。
