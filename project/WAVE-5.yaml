@@ -1,6 +1,6 @@
 schemaVersion: 1
 wave: WAVE-5
-status: active
+status: review
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
 activeTask: TASK-083

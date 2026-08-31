@@ -7,7 +7,7 @@
 - RED 提交：`eae86c4ece41cf39284ec02b34a3dfeb6031fd38`
 - 实现提交：`ab7e0202ada21ce00d70b41515fab3fe6e86e3db`
 - 共享依赖身份加固：`f015fdea6031a6ed2f5380b4c8b4a935a2e47f9f`
-- 报告提交：由最终封印提交写入本文件及 `project/STATUS.json`
+- 报告提交：`8ce4106033e31726122ab34cb8cf9182bc6b51f6`
 
 ## 结果
 

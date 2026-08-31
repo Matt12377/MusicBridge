@@ -179,8 +179,8 @@
       "redCommit": "eae86c4ece41cf39284ec02b34a3dfeb6031fd38",
       "implementationCommit": "ab7e0202ada21ce00d70b41515fab3fe6e86e3db",
       "hardeningCommit": "f015fdea6031a6ed2f5380b4c8b4a935a2e47f9f",
-      "reportCommit": null,
-      "state": "SOFTWARE_GREEN_REPORT_PENDING_DEDICATED_ISSUER_IMPLEMENTED_NOT_ISSUED",
+      "reportCommit": "8ce4106033e31726122ab34cb8cf9182bc6b51f6",
+      "state": "SOFTWARE_SEALED_DEDICATED_ISSUER_IMPLEMENTED_NOT_ISSUED",
       "consumes": "joint:measure:PASS",
       "produces": "joint:queued-stop:ISSUED_NOT_EXECUTED",
       "authorityWindow": "NOT_ISSUED_NOT_CONSUMED",
@@ -248,9 +248,9 @@
       "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task083-joint-queued-stop-dedicated-issuer-and-consumer-software-green-report-pending-no-window-no-samples-gateb-not-run",
-    "nextTask": "TASK-083",
-    "resultReport": null,
+    "checkpoint": "task083-joint-queued-stop-dedicated-issuer-and-consumer-software-sealed-no-window-no-samples-gateb-not-run",
+    "nextTask": "EXTERNAL_REVIEW",
+    "resultReport": "reports/TASK-083_RESULT.md",
     "task078SoftwareCheckpoints": {
       "startupPolicy": "48-focused-pass-spec-quality-r1-pass-capacity-startup-pending",
       "pdfPreview": "36-focused-and-real-electron-pass-23-pages-content-unchanged-spec-quality-r1-pass",
