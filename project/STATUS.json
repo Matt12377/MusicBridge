@@ -219,7 +219,7 @@
     "authorization": "owner-continuous-software-development-default-recommended-path-checkpoint-push-authorized-device-credentials-release-separate-gates",
     "softwareCloseout": {
       "schemaVersion": 1,
-      "state": "IN_PROGRESS",
+      "state": "AUTOMATED_CLOSEOUT_PASS_OWNER_ACCEPTANCE_PENDING",
       "productSoftwareStopAfter": "TASK-079",
       "harnessHardeningRetained": [
         "TASK-080",
@@ -229,11 +229,19 @@
         "TASK-084"
       ],
       "capacityExecution": "FROZEN_NO_NEW_AUTHORITY_RECOVERY_OR_WINDOW",
-      "automaticNext": "FINAL_VERIFY_BUILD_PACKAGE_AND_SMOKE",
+      "routeCommit": "c84887645ace7775f71128a8773f4d772700fa3d",
+      "candidateCommit": "53c1ae8f751e11e8540ee2ee569e0700f1326fa7",
+      "automaticNext": "NONE",
       "externalNext": "OWNER_MANUAL_ACCEPTANCE",
       "formalCapacity": "NOT_RUN_NONBLOCKING_ACCEPTANCE_CARRYOVER",
       "deviceGateB": "NOT_RUN",
-      "ownerProductAcceptance": "NOT_RUN"
+      "ownerProductAcceptance": "NOT_RUN",
+      "artifact": {
+        "path": "apps/desktop/release/MusicBridge-0.1.0-beta.2-arm64.dmg",
+        "bytes": 151322336,
+        "sha256": "3406012648ddf205faed4be70d273c150863e8188f97a86b8f1f614a88fd5968",
+        "signing": "ADHOC_LOCAL_CANDIDATE_NOT_NOTARIZED"
+      }
     },
     "f01": "OWNER_APPROVED_f01-permanent-execution-v1",
     "deviceTestPlanning": {
