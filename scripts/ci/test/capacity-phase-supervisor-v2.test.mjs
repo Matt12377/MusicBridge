@@ -2668,6 +2668,20 @@ test('queued-stop prechild历史收据在runtime迁移后只做内存路径投�
   }
 })
 
+test('queued-stop admission复用已钉死candidate谱系模块而不依赖安装目录副本', () => {
+  const f = copiedSupervisor()
+  try {
+    const window = sealQueuedIdentity(f, queuedWindowValue(f))
+    rmSync(join(f.authority, 'capacity_process_failure_lineage.py'))
+    const observed = bridge(f.script, 'queued-bound-identities', {
+      window, parent: f.authority, candidate: f.candidate,
+    })
+    assert.equal(observed.ok, true, observed.error)
+  } finally {
+    f.cleanup()
+  }
+})
+
 test('queued-stop owned闭包动态接受74个carryover加当前authority形成exact76根', () => {
   const f = copiedSupervisor()
   try {
