@@ -487,7 +487,7 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
     const source = value as Record<string, unknown>;
     const relocated = Object.fromEntries(Object.entries(source).map(([key, item]) => [key,
       relocateRuntimeValue(item, preserveHistoricalRoot || key === 'historicalRoot' || key === 'historicalRuntime')]));
-    if (!preserveHistoricalRoot && validRelocationRoot(source)) {
+    if (!preserveHistoricalRoot && (validRelocationRoot(source) || validRecoveryRoot(source, true))) {
       const currentPath = relocateRuntimeString(source.path);
       if (currentPath !== source.path) {
         let info: Stats;

@@ -978,9 +978,47 @@ function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>,
     candidate, candidateHead, recoveryTool, git };
 }
 
-function configureExact75V3Relocation(f: Awaited<ReturnType<typeof phaseFixture>>, rootCount: number) {
+function configureExact75V3Relocation(
+  f: Awaited<ReturnType<typeof phaseFixture>>,
+  rootCount: number,
+  processHeadModel: 'current-v3' | 'historical-v2' = 'current-v3',
+) {
   const configured = configureExact75V2Recovery(f, rootCount)
+  const currentMeasure = configured.outer.measureCarryover as Record<string, Record<string, unknown>>
   const historicalRuntime = path.join(f.runtime, 'historical-runtime-before-relocation')
+  if (processHeadModel === 'historical-v2') {
+    const historicalRecoveryRoot = path.join(f.runtime, 'historical-v2-recovery'); mkdirSync(historicalRecoveryRoot)
+    const historicalRecovery = path.join(historicalRecoveryRoot, 'recovery.json')
+    const historicalManifest = path.join(historicalRecoveryRoot, 'owned-roots.json')
+    writeFileSync(historicalManifest, readFileSync(configured.historicalManifest)); chmodSync(historicalManifest, 0o400)
+    const historicalReceipt = JSON.parse(readFileSync(configured.recovery, 'utf8'))
+    historicalReceipt.historicalManifest = { path: historicalManifest, sha256: f.hash(historicalManifest) }
+    historicalReceipt.mappings = historicalReceipt.mappings.map((mapping: Record<string, any>, index: number) => ({
+      ...mapping,
+      replacementRoot: {
+        ...mapping.replacementRoot,
+        path: path.join(historicalRuntime, path.relative(f.runtime, mapping.replacementRoot.path)),
+        device: Number(mapping.replacementRoot.device) + 100_000,
+        inode: Number(mapping.replacementRoot.inode) + 100_000 + index,
+      },
+    }))
+    f.put(historicalRecovery, historicalReceipt); chmodSync(historicalRecovery, 0o400)
+    const historicalMeasure = structuredClone(currentMeasure)
+    historicalMeasure.ownedManifest = historicalReceipt.historicalManifest
+    historicalMeasure.measureRootRecovery = { path: historicalRecovery, sha256: f.hash(historicalRecovery) }
+    configured.outer.measureCarryover = historicalMeasure
+    configured.leafProcess.mutate = documents => {
+      documents.ownedManifest.roots = documents.ownedManifest.roots.map((root: Record<string, unknown>, index: number) => index < 73 ? {
+        ...root,
+        path: path.join(historicalRuntime, path.relative(f.runtime, String(root.path))),
+        device: Number(root.device) + 100_000,
+        inode: Number(root.inode) + 200_000 + index,
+      } : root)
+    }
+    configured.setProcessHead(configured.leafProcess)
+    delete configured.leafProcess.mutate
+    configured.outer.measureCarryover = currentMeasure
+  }
   const manifest = JSON.parse(readFileSync(configured.historicalManifest, 'utf8'))
   manifest.roots = manifest.roots.map((root: Record<string, unknown>, index: number) => index < 63 ? {
     ...root, path: path.join(historicalRuntime, path.relative(f.runtime, String(root.path))),
@@ -997,13 +1035,14 @@ function configureExact75V3Relocation(f: Awaited<ReturnType<typeof phaseFixture>
     })) }
   chmodSync(configured.recovery, 0o600)
   const recoverySha = f.put(configured.recovery, receipt); chmodSync(configured.recovery, 0o400)
-  const measure = configured.outer.measureCarryover as Record<string, Record<string, unknown>>
-  measure.ownedManifest!.sha256 = manifestSha; measure.measureRootRecovery!.sha256 = recoverySha
-  rmSync(configured.leafProcess.root, { recursive: true })
-  const relocatedProcess = configured.makeProcessNode('process-relocated')
-  configured.setProcessHead(relocatedProcess)
+  currentMeasure.ownedManifest!.sha256 = manifestSha; currentMeasure.measureRootRecovery!.sha256 = recoverySha
+  if (processHeadModel === 'current-v3') {
+    rmSync(configured.leafProcess.root, { recursive: true })
+    const relocatedProcess = configured.makeProcessNode('process-relocated')
+    configured.setProcessHead(relocatedProcess)
+  }
   const issuerFactPath = String((configured.outer.issuer as Record<string, any>).fact.path)
-  const issuerFact = JSON.parse(readFileSync(issuerFactPath, 'utf8')); issuerFact.measureCarryover = measure
+  const issuerFact = JSON.parse(readFileSync(issuerFactPath, 'utf8')); issuerFact.measureCarryover = currentMeasure
   const issuerFactSha = f.put(issuerFactPath, issuerFact)
   ;(configured.outer.issuer as Record<string, any>).fact.sha256 = issuerFactSha
   f.inventory.roots[f.inventory.roots.length - 1] = f.entry(path.dirname(issuerFactPath), 'owner.json')
@@ -1296,6 +1335,19 @@ test('queued-stop successor：按三类failure carryover精确接受76 roots', a
 test('queued-stop successor：显式v3 runtime relocation在首样本前保持消费者等价', async t => {
   const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
   configureExact75V3Relocation(f, 76);
+  f.seal(); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, {
+    ...f.options,
+    queuedStop: async () => { ++calls; throw new Error('受控首样本停止'); },
+  });
+  assert.equal(calls, 1);
+  assert.equal(summary.state, 'incomplete');
+  assert.equal(summary.unrun, 104);
+});
+
+test('queued-stop successor：v3 runtime relocation接受由v2恢复收据冻结的PROCESS_EXIT head', async t => {
+  const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
+  configureExact75V3Relocation(f, 76, 'historical-v2');
   f.seal(); let calls = 0;
   const summary = await f.api.runCapacityPhase(f.args, {
     ...f.options,
