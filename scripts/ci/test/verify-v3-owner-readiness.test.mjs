@@ -17,7 +17,7 @@ const controlStatus = {
     task: 'TASK-082',
     branch: 'codex/task-082-joint-measure-issuer',
     baseCommit: 'f018cc9fbcda7017d786fd7f1a63e8e44ba2211b',
-    state: 'joint-measure-exclusive-issuer-software-green-no-window-no-samples-external-pending',
+    state: 'joint-measure-exclusive-issuer-software-sealed-draft-review-pending-no-window-no-samples-external-pending',
     evidenceInfrastructure: {
       state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
       receiptFoundation: {
