@@ -66,18 +66,16 @@ test('空间预检按实际运行根statfs计算planned、floor与required边界
   assert.equal(inspectFormalCapacitySpace('/fixed/tmp', dependencies(requiredAvailableBytes)).ready, true)
 })
 
-test('clean clone入口只启动一次无window参数的正式benchmark子进程并分类PASS', async () => {
+test('clean clone没有authority收据时只完成预检且绝不直接启动benchmark', async () => {
   const { runFormalCapacityHarness } = await loadEntry()
   const f = fixture()
   const result = runFormalCapacityHarness(f.input)
-  assert.equal(result, 'PASS')
+  assert.equal(result, 'AUTHORITY_REQUIRED')
   assert.deepEqual(f.events, [
     ['emit', `CAPACITY_PREFLIGHT=READY root=/fixed/tmp availableBytes=${requiredAvailableBytes + gibibyte} plannedBytes=${plannedBytes} floorBytes=${frozenObjectsLimit.floorBytes} requiredAvailableBytes=${requiredAvailableBytes}`],
-    ['benchmark', ['/fixed/node', '--import', '/fixed/tsx', '/fixed/worker.ts']],
-    ['emit', 'CAPACITY_CLASSIFICATION=PASS'],
+    ['emit', 'CAPACITY_GATE=AUTHORITY_REQUIRED'],
   ])
-  const command = f.events.find(value => Array.isArray(value) && value[0] === 'benchmark')[1]
-  assert.equal(command.some(value => /window|authority|receipt|checkpoint|placeholder|dry-run|prepare/iu.test(value)), false)
+  assert.equal(f.events.some(value => Array.isArray(value) && value[0] === 'benchmark'), false)
 })
 
 test('正式运行根空间不足时在benchmark子进程启动前确定性拒绝', async () => {
