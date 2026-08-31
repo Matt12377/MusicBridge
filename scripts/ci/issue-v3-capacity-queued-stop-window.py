@@ -640,6 +640,45 @@ def validate_measure_root_recovery(options, runtime, owned_path, owned, seed, sn
     }
 
 
+def provisional_measure_relocation(options, runtime):
+    receipt_path = Path(options.measure_root_recovery)
+    try:
+        recovery_root = canonical_directory(receipt_path.parent, runtime)
+        receipt, _ = strict_json(
+            receipt_path, options.expected_measure_root_recovery_sha256,
+            maximum=4 * 1024 * 1024)
+    except (IssueError, OSError, TypeError, ValueError):
+        return None
+    if receipt_path != recovery_root / 'recovery.json' or recovery_root.parent != runtime:
+        return None
+    if not isinstance(receipt, dict) or receipt.get('model') != RELOCATION_RECOVERY_MODEL:
+        return None
+    relocation = receipt.get('liveRootRemap')
+    if not isinstance(relocation, dict) \
+            or set(relocation) != {
+                'mode', 'historicalRuntime', 'currentRuntime', 'liveRootCount', 'mappings'} \
+            or relocation.get('mode') != 'PREFIX_RELOCATION' \
+            or relocation.get('currentRuntime') != str(runtime) \
+            or relocation.get('liveRootCount') != EXPECTED_LIVE_MEASURE_ROOTS \
+            or not isinstance(relocation.get('mappings'), list) \
+            or len(relocation['mappings']) != EXPECTED_LIVE_MEASURE_ROOTS:
+        fail('MEASURE_ROOT_RECOVERY_RELOCATION')
+    historical = Path(relocation.get('historicalRuntime', ''))
+    if not historical.is_absolute() \
+            or Path(os.path.normpath(str(historical))) != historical \
+            or historical == runtime:
+        fail('MEASURE_ROOT_RECOVERY_RELOCATION')
+    try:
+        resolved = historical.resolve(strict=True)
+    except FileNotFoundError:
+        resolved = None
+    except OSError as error:
+        raise IssueError('MEASURE_ROOT_RECOVERY_RELOCATION') from error
+    if resolved is not None and resolved != runtime:
+        fail('MEASURE_ROOT_RECOVERY_RELOCATION')
+    return relocation
+
+
 def directory_bytes(path, maximum=16 * 1024 ** 3, maximum_entries=250_000):
     total = 0
     count = 0
@@ -787,13 +826,22 @@ def validate_measure(options, runtime):
     installed_supervisor = Path(options.measure_supervisor)
     output = canonical_directory(options.measure_output, runtime)
     seed = canonical_directory(runtime / options.seed_label, runtime)
-    window, _ = strict_json(window_path, options.expected_measure_window_sha256)
-    close, _ = strict_json(close_path, options.expected_measure_close_sha256)
-    owned, _ = strict_json(owned_path, options.expected_measure_owned_sha256)
-    source, _ = strict_json(source_path, options.expected_measure_source_sha256)
-    supervision, _ = strict_json(supervision_path, options.expected_measure_supervision_sha256)
-    command, _ = strict_json(output / 'command.json', options.expected_measure_output_command_sha256)
-    seed_value, _ = strict_json(seed / 'seed.json', options.expected_seed_metadata_sha256)
+    relocation = provisional_measure_relocation(options, runtime)
+    window, _ = strict_json(
+        window_path, options.expected_measure_window_sha256, relocation=relocation)
+    close, _ = strict_json(
+        close_path, options.expected_measure_close_sha256, relocation=relocation)
+    historical_owned, _ = strict_json(owned_path, options.expected_measure_owned_sha256)
+    owned = relocate_runtime_value(historical_owned, relocation)
+    source, _ = strict_json(
+        source_path, options.expected_measure_source_sha256, relocation=relocation)
+    supervision, _ = strict_json(
+        supervision_path, options.expected_measure_supervision_sha256, relocation=relocation)
+    command, _ = strict_json(
+        output / 'command.json', options.expected_measure_output_command_sha256,
+        relocation=relocation)
+    seed_value, _ = strict_json(
+        seed / 'seed.json', options.expected_seed_metadata_sha256, relocation=relocation)
     if window_path.parent.parent != runtime or close_path.parent != window_path.parent \
             or owned_path.parent != window_path.parent or source_path.parent != window_path.parent \
             or supervision_path.parent != window_path.parent / 'supervision' \
@@ -867,7 +915,9 @@ def validate_measure(options, runtime):
             or sha256(snapshot) != options.expected_seed_snapshot_sha256:
         fail('SEED_IDENTITY')
     recovery = validate_measure_root_recovery(
-        options, runtime, owned_path, owned, seed, snapshot)
+        options, runtime, owned_path, historical_owned, seed, snapshot)
+    if recovery['rootRelocation'] != relocation:
+        fail('MEASURE_ROOT_RECOVERY_RELOCATION')
     roots = unique_roots([*recovery['liveRoots'], *recovery['replacementRoots']])
     required_roots = {str(window_path.parent), str(seed)}
     if not required_roots.issubset(roots):
