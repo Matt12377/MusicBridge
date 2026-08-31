@@ -1333,17 +1333,22 @@ def validate_prior_prechild_failures(options, runtime, relocation=None):
 
 
 def validate_process_recovery_lineage(runtime, historical_measure, old_inherited,
-                                      current_roots, current_mappings, relocation=None):
+                                      current_roots, current_mappings,
+                                      current_live_mappings=None, relocation=None):
     code = 'PRIOR_PROCESS_FAILURE_LINEAGE'
     historical_measure = relocate_runtime_value(historical_measure, relocation)
     old_inherited = relocate_runtime_value(old_inherited, relocation)
+    current_live_mappings = relocate_runtime_value(current_live_mappings, relocation)
     runtime = Path(runtime)
     if not isinstance(historical_measure, dict) \
             or set(historical_measure) != {
                 'measureRootRecovery', 'window', 'ownedManifest', 'candidateRepository'} \
             or not isinstance(old_inherited, list) or len(old_inherited) != 73 \
             or not isinstance(current_roots, list) or len(current_roots) != 73 \
-            or not isinstance(current_mappings, list) or len(current_mappings) != 7:
+            or not isinstance(current_mappings, list) or len(current_mappings) != 7 \
+            or current_live_mappings is not None and (
+                not isinstance(current_live_mappings, list)
+                or len(current_live_mappings) != 63):
         fail(code)
     binding = historical_measure['measureRootRecovery']
     measure_window = historical_measure['window']
@@ -1490,11 +1495,41 @@ def validate_process_recovery_lineage(runtime, historical_measure, old_inherited
                                          for key in ('path', 'device', 'inode', 'marker')})
         except (IssueError, KeyError, TypeError) as error:
             raise IssueError(code) from error
-    if old_inherited[:63] != current_roots[:63] \
+    if current_live_mappings is None:
+        live_lineage_valid = old_inherited[:63] == current_roots[:63] \
+            and old_inherited[70:] == current_roots[70:]
+        current_device = remap['currentDevice']
+    else:
+        historical_live = []
+        current_live = []
+        try:
+            for mapping in current_live_mappings:
+                if not isinstance(mapping, dict) \
+                        or set(mapping) != {'historicalRoot', 'currentRoot'}:
+                    fail(code)
+                historical_live.append(historical_root(mapping['historicalRoot']))
+                current_live.append(historical_root(mapping['currentRoot']))
+        except (IssueError, KeyError, TypeError) as error:
+            raise IssueError(code) from error
+        current_devices = {root['device'] for root in current_live}
+        current_device = next(iter(current_devices)) if len(current_devices) == 1 else None
+        previous_historical_live = [
+            {**root, 'device': remap['historicalDevice']} for root in old_inherited[:63]]
+        tail_lineage = zip(old_inherited[70:], current_roots[70:])
+        live_lineage_valid = previous_historical_live == historical_live \
+            and current_roots[:63] == current_live \
+            and current_device is not None \
+            and all(old['device'] == remap['currentDevice']
+                    and current['device'] == current_device
+                    and old['path'] == current['path']
+                    and old['marker'] == current['marker']
+                    for old, current in tail_lineage)
+    if not live_lineage_valid \
             or old_inherited[63:70] != old_replacements \
             or current_roots[63:70] != current_replacements \
             or historical_roots != current_historical \
-            or old_inherited[70:] != current_roots[70:]:
+            or any(root['device'] != remap['currentDevice'] for root in old_replacements) \
+            or any(root['device'] != current_device for root in current_replacements):
         fail(code)
     return {'translated': True, 'stableRootCount': 66, 'replacementCount': 7,
             'historicalRoots': historical_roots,
@@ -2282,7 +2317,8 @@ def issue(options):
         fail('EXACT76_V3_CARRYOVER')
     process_failures['lineage'] = [validate_process_recovery_lineage(
         runtime, snapshot['historicalMeasure'], snapshot['inheritedRoots'],
-        expected_process_inherited, measure['recoveryMappings'], relocation)
+        expected_process_inherited, measure['recoveryMappings'],
+        relocation['mappings'] if relocation is not None else None, relocation)
         for snapshot in process_failures['snapshots']]
     if len(prior_failures['roots']) != 1 or len(prechild_failures['roots']) != 1 \
             or len(process_failures['roots']) != 1:
@@ -2420,7 +2456,9 @@ def issue(options):
         fail('PRIOR_PROCESS_FAILURE_DRIFT')
     second_process_failures['lineage'] = [validate_process_recovery_lineage(
         runtime, snapshot['historicalMeasure'], snapshot['inheritedRoots'],
-        second_expected_process_inherited, second_measure['recoveryMappings'], second_relocation)
+        second_expected_process_inherited, second_measure['recoveryMappings'],
+        second_relocation['mappings'] if second_relocation is not None else None,
+        second_relocation)
         for snapshot in second_process_failures['snapshots']]
     if second_prior_failures['facts'] != prior_failures['facts'] \
             or second_prior_failures['roots'] != prior_failures['roots'] \
