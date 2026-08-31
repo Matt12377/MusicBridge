@@ -1,10 +1,19 @@
 # V3 剩余任务 TODO
 
-当前进度：TASK-078本地自动软件子范围已在最终HEAD `fac7363b4a6481591e207dda7cca77f0ae8d3cd4` 封版；TASK-079继续在独立分支。当前无设备，只开发fail-closed就绪控制面，不枚举、不打开、不配置设备。objects-limit generation window-03与measure window-06已软件PASS。queued-stop window-06以`PROCESS_EXIT`形成零样本终态；window-07已唯一签发并只消费一次，但installed supervisor在authority admission前以`CAPACITY_SUPERVISOR_INPUT`拒绝，未启动supervision/child/benchmark、未创建output或样本。三位置停止后，架构检查点`ed73b59fca177cc1804d4010fe863f8fb57001a0`以版本化JSON合同、共享Python纯函数、TypeScript等价解释器和同一golden corpus统一direct head、递归前驱深度、计费根、时序、PID与身份语义；issuer、installed supervisor、TypeScript consumer均已GREEN。因此原“三位置语义分叉”架构阻塞已解除，但没有签发、授权或运行新窗口；正式objects-limit queued-stop仍为`NOT_RUN`。后继正式链已唯一化为objects-limit queued-stop PASS后依次运行joint generation、joint measure与joint queued-stop；三阶段runtime schema已支持，但三条exclusive issuer仍只接受objects-limit，正式joint三阶段均为`NOT_RUN`且尚不可授权。可听Replica、TASK073真实HAL/Gate B、实体纸张与最终Owner仍为`NOT_RUN`或待验。`main`/PR合并、签名、公证和发布未授权；智能体统一GPT-5.6 Sol / High。
+当前进度：TASK-078本地自动软件子范围已在最终HEAD `fac7363b4a6481591e207dda7cca77f0ae8d3cd4` 封版；TASK-079继续在独立分支。当前无设备，只开发fail-closed就绪控制面，不枚举、不打开、不配置设备。objects-limit generation window-03与measure window-06已软件PASS。queued-stop window-06以`PROCESS_EXIT`形成零样本终态；window-07已唯一签发并只消费一次，但installed supervisor在authority admission前以`CAPACITY_SUPERVISOR_INPUT`拒绝，未启动supervision/child/benchmark、未创建output或样本。旧runtime在磁盘迁移后由`/Users/yihe/VSCode/...`规范化为`/Volumes/LifeWeave/VSCode/...`，TASK-084新增exact75-v3显式prefix relocation收据：63个live root逐项绑定旧/新身份并重新核验marker，7个LOST root与全部历史JSON保持只读；issuer、installed supervisor与TypeScript consumer只在内存中投影历史事实。旧window-07仍禁止重放，新窗口尚未签发或消费。后继正式链唯一化为新的objects-limit queued-stop PASS后依次运行joint generation、joint measure与joint queued-stop；三条joint exclusive issuer均已实现但尚未签发。可听Replica、TASK073真实HAL/Gate B、实体纸张与最终Owner仍为`NOT_RUN`或待验。`main`/PR合并、签名、公证和发布未授权；智能体统一GPT-5.6 Sol / High。
 
 本表是任务拆分与依赖计划，不是完成声明。后续任务沿上一任务最终 HEAD 创建独立分支；当前已展开 TASK-064～078，其余任务开始前补详细范围和允许路径。具体子任务可根据已验证结果细分，不删减 PRD 范围。
 
 ## 实时进度面板
+
+> **当前执行：** `TASK-084 / runtime relocation软件封板与新authority准入`。从TASK-083最终HEAD `b606784…`建立独立分支；历史证据不改写，63个live root通过显式旧/新身份映射恢复规范路径，7个LOST root继续保持LOST。当前尚未签发、消费或运行新窗口。
+
+- [x] TASK-084 / recovery RED→GREEN：提交`90b15e8…`与`1f0a41c…`，exact75-v3收据冻结`historicalRuntime → currentRuntime`及63项marker一致映射。
+- [x] TASK-084 / issuer与消费者 RED→GREEN：提交`de4f637…`、`c542ecc…`、`509a496…`、`e630aa7…`与`c54ca45…`；issuer/prechild/PROCESS_EXIT事实只做内存投影，Python/TypeScript消费者重新核验当前device/inode/marker。
+- [x] TASK-084 / 聚焦全量：recovery 27/27、issuer 73/73、supervisor 59/59、Bridge容量139/139及typecheck通过。
+- [ ] TASK-084 / 软件封板：readiness、标准verify、control-plane、boundaries、cycles、报告提交、远端Draft PR与CI待完成。
+- [ ] R023 / 新objects-limit queued-stop：仅在TASK-084 clean+pushed HEAD后签发一个新窗口并只消费一次；旧window-07永久不重放。
+- [ ] R023 / joint线性链：仅当前驱PASS时依次签发generation → measure → queued-stop；任一非PASS立即终止后续签发。
 
 > **当前执行：** `TASK-083 / 软件封板，等待Draft PR外部评审`。从TASK-082最终HEAD `bb41b96…`建立独立分支；专用joint queued-stop issuer与profile消费合同已完成并通过本地Gate。本任务未签发、未消费、未运行正式窗口。
 

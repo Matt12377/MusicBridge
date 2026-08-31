@@ -731,16 +731,16 @@ test('证据检查点必须是当前TASK084仓库中线性可达的真实Git提�
   const module = await import('../verify-v3-owner-readiness.mjs')
   assert.equal(typeof module.validateEvidenceCheckpointRepository, 'function')
   assert.equal(typeof module.validateArchitectureCheckpointRepository, 'function')
-  const temporaryRoot = mkdtempSync(path.join(tmpdir(), 'task083-checkpoints-'))
+  const temporaryRoot = mkdtempSync(path.join(tmpdir(), 'task084-checkpoints-'))
   t.after(() => rmSync(temporaryRoot, { recursive: true, force: true }))
   const git = (...arguments_) => {
     const result = spawnSync('git', arguments_, { cwd: temporaryRoot, encoding: 'utf8' })
     assert.equal(result.status, 0, result.stderr)
     return result.stdout.trim()
   }
-  git('init', '-b', 'codex/task-083-joint-queued-stop-issuer')
-  git('config', 'user.email', 'task083@example.invalid')
-  git('config', 'user.name', 'TASK083 Test')
+  git('init', '-b', 'codex/task-084-capacity-path-remap')
+  git('config', 'user.email', 'task084@example.invalid')
+  git('config', 'user.name', 'TASK084 Test')
   const commits = []
   for (let index = 0; index < 8; index += 1) {
     writeFileSync(path.join(temporaryRoot, 'checkpoint.txt'), `${index}\n`)

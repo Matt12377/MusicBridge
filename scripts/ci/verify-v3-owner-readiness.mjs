@@ -7,18 +7,18 @@ import { fileURLToPath } from 'node:url'
 // 本入口只校验 TASK-079 无设备就绪清单。成功表示控制文件可信，不表示真实 Gate 或 Owner 验收通过。
 const TASK = 'TASK-079'
 const BASE_COMMIT = 'fac7363b4a6481591e207dda7cca77f0ae8d3cd4'
-const CONTROL_TASK = 'TASK-083'
-const CONTROL_BRANCH = 'codex/task-083-joint-queued-stop-issuer'
-const CONTROL_BASE_COMMIT = 'bb41b96a981ed4554dedf0169af7df5f7931bf0b'
+const CONTROL_TASK = 'TASK-084'
+const CONTROL_BRANCH = 'codex/task-084-capacity-path-remap'
+const CONTROL_BASE_COMMIT = 'b606784a5969d813984975ca096c48725bc1c432'
 const MATRIX_BASE_COMMIT = 'c54cf8b71b493482d8ad061d38123c444d718ad0'
 const MATRIX_PATH = 'project/V3_ACCEPTANCE.json'
 const MATRIX_SHA256 = '12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7fe4ba944'
 const EXTERNAL_KINDS = ['real-input', 'real-logic', 'real-roon', 'hardware', 'owner']
 const UNMAPPED_PENDING = ['B-13', 'B-15']
 const READINESS_CONTROL = 'PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO'
-const DEVELOPMENT_STATE = 'joint-queued-stop-exclusive-issuer-software-sealed-no-window-no-samples-external-pending'
+const DEVELOPMENT_STATE = 'capacity-runtime-relocation-software-sealed-authority-not-issued-external-pending'
 const EXTERNAL_EVIDENCE_PROFILES = 'REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED'
-const CAPACITY_AUTHORITY = 'OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_WINDOW06_PROCESS_EXIT_TERMINAL_WINDOW07_NONREPLAY_NO_CHILD_NO_SAMPLES_CANONICAL_LINEAGE_ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED_JOINT_GENERATE_MEASURE_QUEUED_STOP_NOT_RUN_GENERATION_AND_MEASURE_ISSUERS_GREEN_NOT_ISSUED_QUEUED_STOP_ISSUER_NOT_IMPLEMENTED'
+const CAPACITY_AUTHORITY = 'OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_WINDOW06_PROCESS_EXIT_TERMINAL_WINDOW07_NONREPLAY_NO_CHILD_NO_SAMPLES_CANONICAL_LINEAGE_AND_RUNTIME_RELOCATION_V3_GREEN_FRESH_WINDOW_NOT_ISSUED_JOINT_GENERATE_MEASURE_QUEUED_STOP_NOT_RUN_ALL_JOINT_ISSUERS_GREEN_NOT_ISSUED'
 const EVIDENCE_INFRASTRUCTURE = {
   state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
   receiptFoundation: {
@@ -470,7 +470,7 @@ const CAPACITY_JOINT_GENERATION_CONTROL_PLANE = {
 }
 const CAPACITY_FORMAL_ROUTE_CONTROL = {
   schemaVersion: 1,
-  state: 'WAITING_OBJECTS_LIMIT_QUEUED_STOP_PASS_AND_JOINT_QUEUED_STOP_ISSUER_SUPPORT',
+  state: 'READY_FOR_FRESH_OBJECTS_LIMIT_QUEUED_STOP_AUTHORITY',
   prerequisite: {
     order: 0, profile: 'objects-limit', phase: 'queued-stop', state: 'NOT_RUN',
     requiredResult: 'PASS', currentWindow: 'NOT_ISSUED',
@@ -499,7 +499,7 @@ const CAPACITY_FORMAL_ROUTE_CONTROL = {
     {
       order: 3, profile: 'joint', phase: 'queued-stop', state: 'NOT_RUN',
       consumes: 'joint:measure:PASS', produces: 'joint-queued-stop-close',
-      runtimeSchemaSupport: 'PASS', exclusiveIssuerSupport: 'NOT_IMPLEMENTED_OBJECTS_LIMIT_ONLY',
+      runtimeSchemaSupport: 'PASS', exclusiveIssuerSupport: 'IMPLEMENTED_NOT_ISSUED',
       processScope: 'joint-queued-stop-process', clockScope: 'joint-queued-stop-stage-clock',
       receiptScope: 'joint-queued-stop-window-close', requiresFreshProcess: true,
       requiresFreshClock: true, receiptReuseAllowed: false,
@@ -508,8 +508,8 @@ const CAPACITY_FORMAL_ROUTE_CONTROL = {
     },
   ],
   linearNoSkip: true, authorityCannotBeInherited: true, stopOnNonPass: true,
-  oldWindowReplayAllowed: false, readyToAuthorize: false,
-  nextAction: 'TDD_IMPLEMENT_JOINT_QUEUED_STOP_ISSUER_BEFORE_ANY_JOINT_AUTHORIZATION',
+  oldWindowReplayAllowed: false, readyToAuthorize: true,
+  nextAction: 'ISSUE_ONE_FRESH_OBJECTS_LIMIT_QUEUED_STOP_AUTHORITY_THEN_RUN_LINEAR_JOINT_CHAIN_ON_PASS',
   deviceOpened: false, gateB: 'NOT_RUN', ownerAcceptance: 'NOT_RUN',
 }
 const hash = bytes => createHash('sha256').update(bytes).digest('hex')

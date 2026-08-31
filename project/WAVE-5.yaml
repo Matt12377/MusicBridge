@@ -3,9 +3,9 @@ wave: WAVE-5
 status: review
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-083
-activeBranch: codex/task-083-joint-queued-stop-issuer
-activeBaseCommit: bb41b96a981ed4554dedf0169af7df5f7931bf0b
+activeTask: TASK-084
+activeBranch: codex/task-084-capacity-path-remap
+activeBaseCommit: b606784a5969d813984975ca096c48725bc1c432
 order:
   - TASK-048
   - TASK-049
@@ -43,5 +43,6 @@ order:
   - TASK-081
   - TASK-082
   - TASK-083
-stopAfter: TASK-083
-reviewBoundary: local-software-gates-through083-formal-capacity-real-device-and-owner-acceptance-pending
+  - TASK-084
+stopAfter: TASK-084
+reviewBoundary: local-software-gates-through084-runtime-relocation-green-fresh-formal-capacity-real-device-and-owner-acceptance-pending
