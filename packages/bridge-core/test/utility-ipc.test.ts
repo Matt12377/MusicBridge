@@ -1,3 +1,7 @@
+import { RecordingPlanError } from '../src/recording/plan-integrity.js';
+import { OutputCheckError } from '../src/recording/output-error.js';
+import { createMediaPlanningCoordinator } from '../src/recording/media-coordinator.js';
+import { createSourceEvidenceService } from '../src/recording/source-evidence.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -13,6 +17,16 @@ import {
 } from '../src/utility-main.js';
 import { BridgeError } from '../src/shared/errors.js';
 import { emptyLyricsSnapshot } from '../src/netease/lyrics.js';
+import { createCollectionRepository } from '../src/collection/repository.js';
+import { randomUUID } from 'node:crypto';
+import { executionFixture } from './helpers/execution-fixture.js';
+import { createTestBridgeRuntime } from '../src/runtime.js';
+import type { IpcCommandPayloads, IpcCommandResults, IpcResponse } from '@music-bridge/contracts';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import { createRequire } from 'node:module';
+import { createDatasetCommandBoundary } from '../src/recording/dataset-identity.js';
 
 class FakePort implements UtilityPort {
   readonly messages: unknown[] = [];
@@ -33,6 +47,282 @@ class FakePort implements UtilityPort {
     this.listener?.({ data: message });
   }
 }
+
+test('Replica六IPC强制固定工作库，未知设备入口不可派发', async () => {
+  const datasetId = randomUUID(), id = randomUUID(), calls: Array<[string, unknown]> = [];
+  const cases: Array<[string, unknown]> = [['status', {}], ['inspect', { readId: id, recordingId: id }], ['cancelRead', { readId: id }],
+    ['start', { runId: id, recordingId: id, target: 'actual-execution', side: 'A', expectedFingerprint: 'a'.repeat(64), userConfirmed: true }], ['get', { runId: id }], ['stop', { runId: id }]];
+  let failure: Error | undefined;
+  const service = Object.fromEntries(cases.map(([method]) => [method, (payload: unknown) => { if (failure) throw failure; calls.push([method, payload]); return { dispatched: method }; }]));
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { recordingReplica: service, commandOutbox: createDatasetCommandBoundary({ datasetId, assertCurrent: () => {} }) }) as unknown as CoreRuntimeForIpc);
+  async function rpc(method: string, payload: unknown, scope?: string) {
+    const requestId = randomUUID(); port.send({ version: 1, id: requestId, command: `recordingReplica.${method}`, payload, ...(scope ? { expectedDatasetId: scope } : {}) });
+    await new Promise(resolve => setImmediate(resolve));
+    return port.messages.find(m => (m as { id?: string }).id === requestId) as { ok: boolean; result?: unknown; error?: { code: string; message: string } };
+  }
+  for (const [method, payload] of cases) {
+    assert.equal((await rpc(method, payload)).error?.code, 'OUTBOX_SCOPE_MISMATCH');
+    assert.equal((await rpc(method, payload, randomUUID())).error?.code, 'OUTBOX_SCOPE_MISMATCH');
+  }
+  assert.equal(calls.length, 0);
+  for (const [method, payload] of cases) assert.deepEqual((await rpc(method, payload, datasetId)).result, { dispatched: method });
+  assert.deepEqual(calls, cases.map(([method, payload]) => [method, method === 'status' ? undefined : payload]));
+  assert.equal((await rpc('openDevice', { deviceId: 1 }, datasetId)).ok, false);
+  assert.equal((await rpc('replaceSource', { path: '/private/synthetic.wav' }, datasetId)).ok, false);
+  const { RecordingReplicaError } = await import('../src/recording/replica-error.js');
+  for (const [code, publicCode] of [['INVALID_REQUEST', 'INVALID_IPC_REQUEST'], ['BACKEND_UNAVAILABLE', 'NOT_READY'], ['RUN_CONFLICT', 'INVENTORY_CONFLICT'], ['READ_CONFLICT', 'INVENTORY_CONFLICT'], ['TIMEOUT', 'TIMEOUT'], ['INPUT_CHANGED', 'INVENTORY_UNAVAILABLE'], ['RUN_LIMIT', 'INVENTORY_UNAVAILABLE'], ['AUTHORIZATION_REVOKED', 'INVENTORY_UNAVAILABLE'], ['CLOSED', 'INVENTORY_UNAVAILABLE']] as const) {
+    failure = new RecordingReplicaError(code); failure.message = '/private/synthetic-replica-error';
+    const result = await rpc('start', cases[3]![1], datasetId);
+    assert.equal(result.error?.code, publicCode); assert.equal(result.error!.message.includes('/private'), false);
+  }
+});
+
+test('实际Runtime提供Replica但无后端不创建会话，关闭后服务失效', async () => {
+  const runtime = createTestBridgeRuntime();
+  type Service = { status(): unknown; start(request: unknown): unknown; get(request: unknown): unknown };
+  try {
+    const replica = (runtime as unknown as { recordingReplica?: Service }).recordingReplica;
+    assert.ok(replica, '缺少实际Replica服务');
+    assert.deepEqual(await replica.status(), { playback: 'blocked', reason: 'BACKEND_UNAVAILABLE', deviceAccess: 'not-authorized', deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' });
+    const request = { runId: randomUUID(), recordingId: randomUUID(), target: 'actual-execution', side: 'A', expectedFingerprint: 'a'.repeat(64), userConfirmed: true };
+    await assert.rejects(Promise.resolve().then(() => replica.start(request)), /BACKEND_UNAVAILABLE|NOT_READY/u);
+    assert.deepEqual(await replica.get({ runId: request.runId }), { run: null });
+    await runtime.shutdown();
+    await assert.rejects(Promise.resolve().then(() => replica.status()), /CLOSED/u);
+  } finally { await runtime.shutdown(); }
+});
+
+test('档案六IPC在Core重验原工作库，拒绝缺失或跨库scope且不派发处置', async () => {
+  const datasetId = randomUUID(), id = randomUUID(), calls: Array<[string, unknown]> = [];
+  const preview = { physicalId: 'MB-C-00427', expectedPhysicalRevision: 1, expectedContentRevision: 0, expectedAttempt: null, intent: { action: 'mark-content-unknown' } };
+  const cases: Array<[string, unknown]> = [
+    ['list', { page: { offset: 0, limit: 25 } }], ['get', { id }], ['visual', { recordingId: id, attachmentId: id }],
+    ['history', { physicalId: preview.physicalId, page: { offset: 0, limit: 25 } }], ['previewDisposition', preview],
+    ['applyDisposition', { ...preview, commandId: id, proposalFingerprint: 'a'.repeat(64), userConfirmed: true }],
+  ];
+  let failure: Error | undefined;
+  const service = Object.fromEntries(cases.map(([method]) => [method, (payload: unknown) => { if (failure) throw failure; calls.push([method, payload]); return { dispatched: method }; }]));
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { recordingRecords: service, commandOutbox: createDatasetCommandBoundary({ datasetId, assertCurrent: () => {} }) }) as unknown as CoreRuntimeForIpc);
+  async function rpc(method: string, payload: unknown, scope?: string) {
+    const requestId = randomUUID(); port.send({ version: 1, id: requestId, command: `recordingRecords.${method}`, payload, ...(scope ? { expectedDatasetId: scope } : {}) });
+    await new Promise(resolve => setImmediate(resolve));
+    return port.messages.find(m => (m as { id?: string }).id === requestId) as { ok: boolean; result?: unknown; error?: { code: string; message: string } };
+  }
+  for (const [method, payload] of cases) {
+    assert.equal((await rpc(method, payload)).error?.code, 'OUTBOX_SCOPE_MISMATCH');
+    assert.equal((await rpc(method, payload, randomUUID())).error?.code, 'OUTBOX_SCOPE_MISMATCH');
+  }
+  assert.equal(calls.length, 0);
+  for (const [method, payload] of cases) assert.deepEqual((await rpc(method, payload, datasetId)).result, { dispatched: method });
+  assert.deepEqual(calls, cases);
+  assert.equal((await rpc('registerCompleted', { id }, datasetId)).ok, false);
+  const { RecordingRecordError } = await import('../src/recording/record-integrity.js');
+  for (const [code, publicCode] of [['INVALID_REQUEST', 'INVALID_IPC_REQUEST'], ['NOT_READY', 'NOT_READY'], ['CONFLICT', 'INVENTORY_CONFLICT'], ['COMMAND_CONFLICT', 'INVENTORY_CONFLICT'], ['BUDGET_EXCEEDED', 'INVENTORY_UNAVAILABLE'], ['NOT_FOUND', 'INVENTORY_UNAVAILABLE'], ['IO_ERROR', 'INVENTORY_UNAVAILABLE'], ['CLOSED', 'INVENTORY_UNAVAILABLE']] as const) {
+    failure = new RecordingRecordError(code); failure.message = '/private/synthetic-record-error';
+    const result = await rpc('applyDisposition', cases[5]![1], datasetId);
+    assert.equal(result.error?.code, publicCode); assert.equal(result.error!.message.includes('/private'), false);
+  }
+});
+
+test('实际Runtime提供空档案读取且关闭后旧服务失效，不创建演示记录', async () => {
+  const runtime = createTestBridgeRuntime();
+  try {
+    const service = (runtime as unknown as { recordingRecords?: { list(request: unknown): Promise<unknown>; get(request: unknown): Promise<unknown> } }).recordingRecords;
+    assert.ok(service, '缺少实际Runtime录音档案服务');
+    assert.deepEqual(await service.list({ page: { offset: 0, limit: 25 } }), { items: [], offset: 0, limit: 25, total: 0, hasMore: false });
+    assert.deepEqual(await service.get({ id: randomUUID() }), { record: null });
+    await runtime.shutdown();
+    await assert.rejects(Promise.resolve().then(() => service.list({ page: { offset: 0, limit: 25 } })), /CLOSED/u);
+  } finally { await runtime.shutdown(); }
+});
+
+test('Attempt专用IPC要求原工作库身份，六方法直接派发且错误不泄露内部内容', async () => {
+  const datasetId = randomUUID(), id = randomUUID(), calls: Array<[string, unknown]> = [];
+  const service: Record<string, unknown> = {};
+  const cases: Array<[string, unknown]> = [
+    ['list', { page: { offset: 0, limit: 25 } }], ['get', { attemptId: id }],
+    ['begin', { commandId: id, planVersionId: id, planContentHash: 'a'.repeat(64), userConfirmed: true }],
+    ['confirm', { commandId: id, attemptId: id, expectedRevision: 1, kind: 'physical-stop', side: 'A', userConfirmed: true }],
+    ['beginSide', { commandId: id, attemptId: id, expectedRevision: 1, side: 'B', userConfirmed: true }],
+    ['stop', { commandId: id, attemptId: id }],
+  ];
+  let failure: Error | undefined;
+  for (const [method] of cases) service[method] = (payload: unknown) => { if (failure) throw failure; calls.push([method, payload]); return { dispatched: method }; };
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { recordingAttempts: service, commandOutbox: createDatasetCommandBoundary({ datasetId, assertCurrent: () => {} }) }) as unknown as CoreRuntimeForIpc);
+  async function rpc(method: string, payload: unknown, scope?: string) {
+    const requestId = randomUUID(); port.send({ version: 1, id: requestId, command: `recordingAttempts.${method}`, payload, ...(scope ? { expectedDatasetId: scope } : {}) });
+    await new Promise(resolve => setImmediate(resolve));
+    return port.messages.find(m => (m as { id?: string }).id === requestId) as { ok: boolean; result?: unknown; error?: { code: string; message: string } };
+  }
+  for (const [method, payload] of cases) {
+    assert.equal((await rpc(method, payload)).error?.code, 'OUTBOX_SCOPE_MISMATCH');
+    assert.equal((await rpc(method, payload, randomUUID())).error?.code, 'OUTBOX_SCOPE_MISMATCH');
+  }
+  assert.equal(calls.length, 0);
+  for (const [method, payload] of cases) assert.deepEqual((await rpc(method, payload, datasetId)).result, { dispatched: method });
+  assert.deepEqual(calls, cases);
+  const { AttemptError } = await import('../src/recording/attempt-integrity.js');
+  for (const [code, publicCode] of [['BACKEND_NOT_CERTIFIED', 'NOT_READY'], ['INVALID_REQUEST', 'INVALID_IPC_REQUEST'], ['VERSION_MISMATCH', 'INVENTORY_CONFLICT'], ['IO_ERROR', 'INVENTORY_UNAVAILABLE']] as const) {
+    failure = new AttemptError(code); failure.message = '/private/synthetic-error';
+    const reply = await rpc('begin', cases[2]![1], datasetId);
+    assert.equal(reply.error?.code, publicCode); assert.equal(reply.error!.message.includes('/private'), false);
+  }
+});
+
+test('实际Runtime提供Attempt读取但未认证Begin零新增，关闭后旧服务不可用', async () => {
+  const runtime = createTestBridgeRuntime();
+  try {
+    const service = (runtime as unknown as { recordingAttempts?: { list(request: unknown): Promise<unknown>; begin(request: unknown): Promise<unknown> } }).recordingAttempts;
+    assert.ok(service, '缺少实际Runtime Attempt服务');
+    assert.deepEqual(await service.list({ page: { offset: 0, limit: 25 } }), { items: [], offset: 0, limit: 25, total: 0, hasMore: false });
+    await assert.rejects(service.begin({ commandId: randomUUID(), planVersionId: randomUUID(), planContentHash: 'a'.repeat(64), userConfirmed: true }), /BACKEND_NOT_CERTIFIED/u);
+    assert.deepEqual(await service.list({ page: { offset: 0, limit: 25 } }), { items: [], offset: 0, limit: 25, total: 0, hasMore: false });
+    await runtime.shutdown();
+    await assert.rejects(Promise.resolve().then(() => service.list({ page: { offset: 0, limit: 25 } })), /CLOSED/u);
+  } finally { await runtime.shutdown(); }
+});
+
+test('无设备输出IPC只暴露status/check/cancel，错误安全映射且拒绝设备Start', async () => {
+  const port = new FakePort(), id = randomUUID(), calls: unknown[] = [];
+  const status = { backend: { id: 'musicbridge-coreaudio-hal', version: '0.1.0', halAdapterCompiled: false }, syntheticCheck: { available: false, helperSha256: null, protocolVersion: 1 }, deviceAccess: 'not-authorized', gateB: 'NOT_RUN', formalReady: false };
+  const service = { status: () => status, check: (request: unknown) => { calls.push(request); throw new OutputCheckError('HELPER_UNAVAILABLE'); }, cancel: (request: unknown) => { calls.push(request); return { cancelled: true }; } };
+  await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { recordingOutput: service }) as unknown as CoreRuntimeForIpc);
+  const rpc = async (command: string, payload: unknown) => { const requestId = randomUUID(); port.send({ version: 1, id: requestId, command, payload }); await new Promise(resolve => setImmediate(resolve)); return port.messages.find(m => (m as { id?: string }).id === requestId) as { ok: boolean; result?: unknown; error?: { code: string; message: string } }; };
+  assert.deepEqual((await rpc('recordingOutput.status', {})).result, status);
+  const request = { runId: id, planVersionId: id, side: 'A' };
+  const failure = await rpc('recordingOutput.check', request); assert.equal(failure.error?.code, 'INVENTORY_CONFLICT'); assert.match(failure.error!.message, /HELPER_UNAVAILABLE/u);
+  assert.deepEqual((await rpc('recordingOutput.cancel', { runId: id })).result, { cancelled: true }); assert.deepEqual(calls, [request, { runId: id }]);
+  assert.equal((await rpc('recordingOutput.startDevice', { deviceId: 1 })).ok, false);
+});
+
+test('实际测试Runtime无固定输出包时明确禁用，关闭后不能复用服务', async () => {
+  const runtime = createTestBridgeRuntime();
+  try {
+    assert.ok(runtime.recordingOutput);
+    const status = await runtime.recordingOutput.status(); assert.equal(status.syntheticCheck.available, false); assert.equal(status.deviceAccess, 'not-authorized'); assert.equal(status.formalReady, false);
+    await assert.rejects(runtime.recordingOutput.check({ runId: randomUUID(), planVersionId: randomUUID(), side: 'A' }), /HELPER_UNAVAILABLE/u);
+  } finally { await runtime.shutdown(); }
+  await assert.rejects(runtime.recordingOutput!.status(), /CLOSED/u);
+});
+
+test('Excel正式IPC读取真实合成字节并只返回摘要，原commandId回执重试不再读文件，scope末端复核', async t => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-excel-ipc-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const XLSX = createRequire(import.meta.url)('xlsx') as typeof import('xlsx'), book = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([['品牌', '数量'], ['合成品牌', 10]]), '库存');
+  const bytes = XLSX.write(book, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+  const absolutePath = path.join(directory, '合成.xlsx'); await writeFile(absolutePath, bytes);
+  const id = randomUUID(), datasetId = randomUUID(), commandId = randomUUID(); let scopeChecks = 0, registrations = 0;
+  let receipt: import('@music-bridge/contracts').SpreadsheetWorkbookSource | null = null;
+  const source = { id, workbookHash: 'a'.repeat(64), displayName: '合成.xlsx', fileFormat: 'xlsx' as const, parserVersion: 'sheetjs-ce-0.20.3' as const, dateSystem: '1900' as const, byteLength: bytes.length, createdAt: '2026-08-28T00:00:00.000Z', sheets: [{ name: '库存', rowCount: 2, nonEmptyCellCount: 4 }] };
+  const imports = {
+    sourceReceipt: () => ({ source: receipt }),
+    registerSource: (input: { bytes: Uint8Array; displayName: string; workbook: import('@music-bridge/contracts').ParsedSpreadsheetWorkbook }) => {
+      registrations++; assert.deepEqual(Buffer.from(input.bytes), bytes); assert.equal(input.displayName, '合成.xlsx');
+      assert.equal(input.workbook.sheets[0]?.rows[1]?.cells[0]?.value, '合成品牌'); assert.ok(scopeChecks >= 2);
+      receipt = source; return source;
+    },
+    source: () => source,
+  };
+  const port = new FakePort(), runtime = Object.assign(makeRuntime(), { collection: { spreadsheetImports: imports } as unknown as import('../src/collection/repository.js').CollectionRepository,
+    commandOutbox: createDatasetCommandBoundary({ datasetId, assertCurrent: () => { scopeChecks++; } }) });
+  await attachCoreRuntimePort(port, runtime);
+  async function rpc(command: string, payload: unknown, scope = datasetId) {
+    const requestId = randomUUID(); port.send({ version: 1, id: requestId, command, payload, expectedDatasetId: scope });
+    const deadline = Date.now() + 5000;
+    while (!port.messages.some(message => (message as { id?: string }).id === requestId) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 5));
+    return port.messages.find(message => (message as { id?: string }).id === requestId) as { ok: boolean; result?: unknown; error?: { code: string } };
+  }
+  const first = await rpc('spreadsheetImports.registerWorkbook', { commandId, absolutePath });
+  assert.equal(first?.ok, true); assert.deepEqual(first.result, source); assert.equal(registrations, 1);
+  await rm(absolutePath);
+  assert.deepEqual((await rpc('spreadsheetImports.registerWorkbook', { commandId, absolutePath })).result, source); assert.equal(registrations, 1);
+  assert.deepEqual((await rpc('spreadsheetImports.workbookReceipt', { commandId })).result, { source });
+  assert.deepEqual((await rpc('spreadsheetImports.source', { id })).result, source);
+  assert.equal((await rpc('spreadsheetImports.registerWorkbook', { commandId: randomUUID(), absolutePath }, randomUUID())).error?.code, 'OUTBOX_SCOPE_MISMATCH');
+  assert.equal(JSON.stringify(port.messages).includes(directory), false);
+});
+
+test('工作库指针提交在runtime启动之后、ready发布之前；提交失败不发布ready', async () => {
+  const port = new FakePort(), runtime = makeRuntime();
+  let committed = false;
+  await attachCoreRuntimePort(port, runtime, { beforeReady: () => {
+    assert.equal(port.messages.length, 0);
+    committed = true;
+  } });
+  assert.equal(committed, true);
+  assert.equal((port.messages.at(-1) as { event: string }).event, 'core.ready');
+  const failedPort = new FakePort();
+  await assert.rejects(attachCoreRuntimePort(failedPort, makeRuntime(), { beforeReady: () => { throw new Error('合成提交失败'); } }));
+  assert.deepEqual(failedPort.messages, []);
+});
+
+test('归档正式 IPC 完成目录回执、初始化、预览与后台确认，不返回私有 capability', async t => {
+  const f = await executionFixture(t), executed = await f.execution.start(await f.request()); await f.execution.idle();
+  await f.execution.close(); await f.preparation.close(); await f.versions.close(); await f.sources.close();
+  const { mkdir, readdir } = await import('node:fs/promises'), path = await import('node:path');
+  const target = path.join(f.directory, 'IPC归档'); await mkdir(target);
+  const runtime = createTestBridgeRuntime({ collectionRepository: f.repository }); t.after(() => runtime.shutdown());
+  const port = new FakePort(); await attachCoreRuntimePort(port, runtime);
+  async function rpc<K extends keyof IpcCommandPayloads>(command: K, payload: IpcCommandPayloads[K]): Promise<IpcCommandResults[K]> {
+    const id = randomUUID(); port.send({ version: 1, id, command, payload });
+    const deadline = Date.now() + 5000;
+    while (Date.now() < deadline) {
+      const response = port.messages.find(m => typeof m === 'object' && m !== null && 'id' in m && m.id === id) as IpcResponse | undefined;
+      if (response) { assert.equal(response.ok, true, JSON.stringify(response)); if (!response.ok) throw new Error('IPC 失败'); return response.result as IpcCommandResults[K]; }
+      await new Promise(resolve => setTimeout(resolve, 5));
+    }
+    assert.fail('归档 IPC 没有在期限内响应');
+  }
+  assert.deepEqual(await rpc('recordingArchive.roots', {}), { roots: [] });
+  const commandId = randomUUID(), root = await rpc('recordingArchive.authorize', { commandId, absolutePath: target });
+  assert.equal(root.state, 'selected'); assert.deepEqual(await readdir(target), []);
+  assert.deepEqual(await rpc('recordingArchive.authorizationReceipt', { commandId }), { root });
+  await rpc('recordingArchive.initialize', { commandId: randomUUID(), id: root.id, userConfirmed: true });
+  const selection = { assetId: executed.id, rootId: root.id, sourcePolicy: 'reference-dependent' as const };
+  const p = await rpc('recordingArchive.preview', { ...selection, readId: randomUUID() });
+  const op = await rpc('recordingArchive.start', { ...selection, commandId: randomUUID(), proposalFingerprint: p.proposalFingerprint, userConfirmed: true });
+  await runtime.archive!.idle();
+  assert.equal((await rpc('recordingArchive.operation', { id: op.id })).operation!.phase, 'FINALIZED');
+  assert.equal((await rpc('recordingArchive.verify', { id: op.id, readId: randomUUID() })).state, 'verified');
+  assert.equal((await rpc('recordingArchive.list', { draftId: f.draft.draftId })).operations.length, 1);
+  assert.ok(!JSON.stringify(port.messages).includes(target));
+  assert.equal((await rpc('recordingArchive.revokeRoot', { commandId: randomUUID(), id: root.id })).state, 'revoked');
+});
+
+test('V3 照片读取通过正式 IPC 返回不存在，而不是未知命令', async t => {
+  const collection = createCollectionRepository({ filePath: ':memory:' });
+  t.after(() => collection.close());
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { collection }));
+  port.send({ version: 1, id: 'missing-photo', command: 'collection.photo', payload: { photoId: '11111111-1111-4111-8111-111111111111' } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'missing-photo', ok: false, error: { code: 'INVENTORY_CONFLICT', message: '照片不存在或已移除。' } });
+});
+
+test('V3 库存通过正式 IPC 返回空分页，不要求 Provider 或 Roon', async t => {
+  const port = new FakePort();
+  const page = { items: [], offset: 0, limit: 20, total: 0, hasMore: false };
+  const collection = createCollectionRepository({ filePath: ':memory:' });
+  t.after(() => collection.close());
+  const runtime = Object.assign(makeRuntime(), { collection });
+  await attachCoreRuntimePort(port, runtime);
+  port.send({ version: IPC_VERSION, id: 'collection-list', command: 'collection.list', payload: { page: { offset: 0, limit: 20 } } });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: IPC_VERSION, id: 'collection-list', ok: true, result: page });
+});
+
+test('V3 库存 IPC 返回有界冲突，不泄露路径或 SQLite 错误', async t => {
+  const port = new FakePort(); const collection = createCollectionRepository({ filePath: ':memory:' });
+  t.after(() => collection.close());
+  await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { collection }));
+  port.send({ version: 1, id: 'missing-model', command: 'collection.detail', payload: { modelId: '11111111-1111-4111-8111-111111111111', page: { offset: 0, limit: 20 } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'missing-model', ok: false, error: { code: 'INVENTORY_CONFLICT', message: '型号不存在，请刷新收藏。' } });
+});
 
 function makeRuntime(): CoreRuntimeForIpc & {
   shutdownCalls: number
@@ -1032,4 +1322,186 @@ test('utility QR commands keep the credential only in the Core-to-Main response'
       credential: 'synthetic-credential',
     },
   });
+});
+
+
+test('V3 实体音乐库 IPC 首次返回空列表，不依赖 Roon', async t => {
+  const collection = createCollectionRepository({ filePath: ':memory:' });
+  t.after(() => collection.close());
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { collection }));
+  port.send({ version: 1, id: 'music-list', command: 'physicalMusic.list', payload: { page: { offset: 0, limit: 20 } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'music-list', ok: true, result: { items: [], offset: 0, limit: 20, total: 0, hasMore: false } });
+});
+
+test('V3 数字关联 IPC 未连接 Roon 时仍返回持久化空目录', async t => {
+  const collection = createCollectionRepository({ filePath: ':memory:' });
+  t.after(() => collection.close());
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { collection }));
+  port.send({ version: 1, id: 'digital-list', command: 'physicalLinks.digitalList', payload: { page: { offset: 0, limit: 20 } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'digital-list', ok: true, result: { items: [], offset: 0, limit: 20, total: 0, hasMore: false } });
+});
+
+test('录音草稿 IPC 离线首次返回空库，不从普通播放队列生成母版', async t => {
+  const collection = createCollectionRepository({ filePath: ':memory:' });
+  t.after(() => collection.close());
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { collection }));
+  port.send({ version: 1, id: 'draft-list', command: 'recordingDrafts.list', payload: { page: { offset: 0, limit: 20 } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'draft-list', ok: true, result: { items: [], offset: 0, limit: 20, total: 0, hasMore: false } });
+});
+
+test('源目录 IPC 初次为空，没有默认授权用户音乐目录', async t => {
+  const collection = createCollectionRepository({ filePath: ':memory:' });
+  t.after(() => collection.close());
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { collection, sources: createSourceEvidenceService({ store: collection.sources, drafts: collection.drafts }) }));
+  port.send({ version: 1, id: 'source-roots', command: 'recordingSources.roots', payload: {} });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'source-roots', ok: true, result: { roots: [] } });
+});
+
+
+test('分面规划 IPC 初次返回草稿空规划，不自动预留库存', async t => {
+  const collection = createCollectionRepository({ filePath: ':memory:' });
+  t.after(() => collection.close());
+  const draft = collection.drafts.append({ commandId: '11111111-1111-4111-8111-111111111111', fingerprint: 'a'.repeat(64), title: '分面初始草稿', programType: 'compilation', metadata: [{ title: '合成曲目', durationMs: 180000 }] });
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { collection, mediaPlanning: createMediaPlanningCoordinator({ store: collection.media, drafts: collection.drafts }) }));
+  port.send({ version: 1, id: 'media-plans', command: 'recordingMedia.plans', payload: { draftId: draft.draftId } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'media-plans', ok: true, result: { draftId: draft.draftId, plans: [] } });
+  assert.equal(collection.list({ offset: 0, limit: 20 }).total, 0);
+});
+
+test('母版版本历史通过正式 IPC 读取，不隐式冻结草稿或打开源文件', async t => {
+  const collection = createCollectionRepository({ filePath: ':memory:' });
+  const sources = createSourceEvidenceService({ store: collection.sources, drafts: collection.drafts });
+  const mediaPlanning = createMediaPlanningCoordinator({ store: collection.media, drafts: collection.drafts, sources });
+  const { createMasterVersionsCoordinator } = await import('../src/recording/versions-coordinator.js');
+  const masterVersions = createMasterVersionsCoordinator({ store: collection.versions, mediaStore: collection.media, media: mediaPlanning, drafts: collection.drafts, sourceStore: collection.sources, sources });
+  t.after(async () => { await masterVersions.close(); await sources.close(); collection.close(); });
+  const draft = collection.drafts.append({ commandId: '11111111-1111-4111-8111-111111111111', fingerprint: 'b'.repeat(64), title: '合成', programType: 'compilation', metadata: [{ title: '合成曲目' }] });
+  const port = new FakePort(); await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { collection, sources, mediaPlanning, masterVersions }));
+  port.send({ version: 1, id: 'versions', command: 'recordingVersions.list', payload: { draftId: draft.draftId } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'versions', ok: true, result: { draftId: draft.draftId, masters: [], layouts: [], jobs: [] } });
+});
+
+test('Logic Preparation 历史通过正式 IPC 返回，读取不会授权目标目录或写入工作副本', async t => {
+  const collection = createCollectionRepository({ filePath: ':memory:' });
+  const sources = createSourceEvidenceService({ store: collection.sources, drafts: collection.drafts });
+  const { createPreparationCoordinator } = await import('../src/recording/preparation-coordinator.js');
+  const preparation = createPreparationCoordinator({ store: collection.preparations, sourceStore: collection.sources, sources });
+  t.after(async () => { await preparation.close(); await sources.close(); collection.close(); });
+  const draft = collection.drafts.append({ commandId: '11111111-1111-4111-8111-111111111111', fingerprint: 'c'.repeat(64), title: '工作区合成草稿', programType: 'compilation', metadata: [{ title: '合成曲目' }] });
+  const port = new FakePort(); await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { collection, sources, preparation }));
+  port.send({ version: 1, id: 'preparations', command: 'recordingPreparation.list', payload: { draftId: draft.draftId } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'preparations', ok: true, result: { draftId: draft.draftId, workspaces: [], jobs: [] } });
+  assert.deepEqual(preparation.destinations(), []);
+});
+
+test('录音 Profile 通过正式 IPC 持久化，模板列表不是当前播放状态', async t => {
+  const { randomUUID } = await import('node:crypto'), { recordingProfileContent } = await import('./helpers/recording-profile-fixture.js');
+  const collection = createCollectionRepository({ filePath: ':memory:' }); t.after(() => collection.close());
+  const port = new FakePort(); await attachCoreRuntimePort(port, Object.assign(makeRuntime(), { collection }));
+  const payload = { commandId: randomUUID(), content: recordingProfileContent(), userConfirmed: true };
+  port.send({ version: 1, id: 'profile-save', command: 'recordingProfiles.save', payload }); await new Promise(resolve => setImmediate(resolve));
+  const profile = collection.recordingProfiles.list().profiles[0]; assert.ok(profile);
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'profile-save', ok: true, result: profile });
+  port.send({ version: 1, id: 'profile-retry', command: 'recordingProfiles.save', payload }); await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'profile-retry', ok: true, result: profile });
+  port.send({ version: 1, id: 'profile-list', command: 'recordingProfiles.list', payload: {} }); await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(port.messages.at(-1), { version: 1, id: 'profile-list', ok: true, result: { profiles: [profile] } });
+});
+
+test('备份恢复概览初始为空，不默认授权或扫描用户目录', async t => {
+  const runtime = createTestBridgeRuntime(); t.after(() => runtime.shutdown());
+  const port = new FakePort(); await attachCoreRuntimePort(port, runtime);
+  const id = randomUUID(); port.send({ version: 1, id, command: 'recordingBackups.overview', payload: {} });
+  await new Promise(resolve => setImmediate(resolve));
+  const response = port.messages.find(value => typeof value === 'object' && value !== null && 'id' in value && value.id === id);
+  assert.deepEqual(response, { version: 1, id, ok: true, result: { roots: [], jobs: [], activations: [] } });
+});
+
+test('备份正式 IPC 经过目录授权、确认和后台真实文件任务，不向公开概览暴露路径', async t => {
+  const { mkdtemp, mkdir, rm, readdir } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os'), path = await import('node:path');
+  const directory = await mkdtemp(path.join(tmpdir(), 'musicbridge-backup-ipc-'));
+  const target = path.join(directory, '备份'); await mkdir(target);
+  const runtime = createTestBridgeRuntime(); const port = new FakePort(); await attachCoreRuntimePort(port, runtime);
+  try {
+    const rpc = async (command: string, payload: unknown): Promise<any> => {
+      const id = randomUUID(); port.send({ version: 1, id, command, payload });
+      for (let i = 0; i < 500; i++) {
+        const response = port.messages.find((v: any) => v.id === id) as any;
+        if (response) { assert.equal(response.ok, true, JSON.stringify(response.error)); return response.result; }
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      assert.fail('备份 IPC 超时');
+    };
+    const commandId = randomUUID();
+    const root = await rpc('recordingBackups.authorize', { commandId, kind: 'backup-destination', absolutePath: target });
+    assert.deepEqual(await readdir(target), []);
+    assert.equal((await rpc('recordingBackups.authorizationReceipt', { commandId, kind: 'backup-destination' })).root.id, root.id);
+    const request = { commandId: randomUUID(), kind: 'backup', rootId: root.id, mode: 'metadata', userConfirmed: true };
+    const job = await rpc('recordingBackups.start', request); await runtime.backups!.idle();
+    const result = await rpc('recordingBackups.overview', {});
+    assert.equal(result.jobs[0].state, 'succeeded'); assert.equal(result.jobs[0].id, job.id);
+    assert.equal(JSON.stringify(result).includes(directory), false);
+    assert.equal((await rpc('recordingBackups.start', request)).id, job.id);
+  } finally { await runtime.shutdown(); await rm(directory, { recursive: true, force: true }); }
+});
+
+
+test('计划只读IPC逐项派发，缺失服务有界失败且无任意正式Start入口', async () => {
+  const port = new FakePort(), id = randomUUID(), calls: unknown[] = [];
+  const plans = {
+    list: (request: unknown) => { calls.push(['list', request]); return { draftId: id, versions: [] }; },
+    version: (request: unknown) => { calls.push(['version', request]); return { plan: null }; },
+    preview: () => { throw new RecordingPlanError('archive', 'ARCHIVE_INVALID'); },
+    cancelRead: (readId: unknown) => { calls.push(['cancelRead', readId]); return { cancelled: true }; },
+  };
+  const runtime = Object.assign(makeRuntime(), { recordingPlans: plans }) as unknown as CoreRuntimeForIpc;
+  await attachCoreRuntimePort(port, runtime);
+  const rpc = async (command: string, payload: unknown) => {
+    const requestId = randomUUID(); port.send({ version: 1, id: requestId, command, payload });
+    await new Promise(resolve => setImmediate(resolve));
+    return port.messages.find(m => (m as { id?: string }).id === requestId) as { ok: boolean; result?: unknown; error?: { code: string } };
+  };
+  assert.deepEqual((await rpc('recordingPlans.list', { draftId: id })).result, { draftId: id, versions: [] });
+  assert.deepEqual((await rpc('recordingPlans.version', { id })).result, { plan: null });
+  assert.deepEqual((await rpc('recordingPlans.cancelRead', { id })).result, { cancelled: true });
+  assert.deepEqual(calls, [['list', { draftId: id }], ['version', { id }], ['cancelRead', { id }]]);
+  assert.equal((await rpc('recordingPlans.start', { id })).ok, false);
+  const error = await rpc('recordingPlans.preview', { readId: id, selection: { assetId: id, archiveOperationId: id } });
+  assert.equal(error.error?.code, 'INVENTORY_CONFLICT');
+  assert.match(JSON.stringify(error), /ARCHIVE_INVALID/u);
+});
+
+test('印刷worker真实Core运行时空库可领取、所有命令拒绝缺失或错误dataset且不扫描设备', async t => {
+  const runtime = createTestBridgeRuntime(); t.after(() => runtime.shutdown());
+  const port = new FakePort(); await attachCoreRuntimePort(port, runtime);
+  const datasetId = runtime.commandOutbox!.context().datasetId;
+  const rpc = async (command: string, payload: unknown, scope?: string) => {
+    const id = randomUUID(); port.send({ version: 1, id, command, payload, ...(scope ? { expectedDatasetId: scope } : {}) });
+    await new Promise(resolve => setImmediate(resolve));
+    return port.messages.find((value: any) => value.id === id) as any;
+  };
+  const workerId = randomUUID();
+  assert.deepEqual(await rpc('recordingPrintWorker.claim', { workerId }, datasetId), {version:1,id:(port.messages.at(-1) as any).id,ok:true,result:{lease:null}});
+  for(const scope of [undefined, randomUUID()]) {
+    const response=await rpc('recordingPrintWorker.claim',{workerId},scope);
+    assert.equal(response.ok,false);assert.equal(response.error.code,'OUTBOX_SCOPE_MISMATCH');
+    const artwork=await rpc('masterArtwork.get',{masterVersionId:randomUUID()},scope);
+    assert.equal(artwork.ok,false);assert.equal(artwork.error.code,'OUTBOX_SCOPE_MISMATCH');
+    const prints=await rpc('recordingPrints.list',{recordingId:randomUUID(),page:{offset:0,limit:25}},scope);
+    assert.equal(prints.ok,false);assert.equal(prints.error.code,'OUTBOX_SCOPE_MISMATCH');
+  }
+  assert.equal((await rpc('recordingPrintWorker.renderHtml',{html:'<script>bad</script>'},datasetId)).ok,false);
 });

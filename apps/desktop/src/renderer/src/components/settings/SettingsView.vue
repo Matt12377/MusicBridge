@@ -164,6 +164,7 @@ function paneId(category: SettingsCategory): string {
       <article class="settings-card settings-glass-panel">
         <div class="panel-heading"><div><p class="section-kicker">应用</p><h3>应用信息</h3></div></div>
         <dl class="detail-list"><div><dt>版本</dt><dd>{{ props.appInfo?.version ?? '读取中' }}</dd></div><div><dt>构建模式</dt><dd>{{ props.appInfo?.buildMode === 'development' ? '开发' : '生产' }}</dd></div><div><dt>平台</dt><dd>{{ props.appInfo?.platform ?? '读取中' }}</dd></div></dl>
+        <p class="muted-copy">音频转换组件：FFmpeg 8.1.2，按 LGPL 2.1 或更高版本许可。随应用原生组件提供对应源码、许可证和构建选项（Contents/Resources/ffmpeg/darwin-arm64/legal）。转换构建通过校验不代表设备或听感认证。</p>
         <button type="button" class="text-button settings-diagnostics-link" @click="emit('diagnostics')">打开诊断 →</button>
       </article>
     </div>

@@ -223,7 +223,13 @@ test('Renderer uses the clean-room player landmarks without importing the refere
     assert.match(source, new RegExp(landmark))
   }
   assert.match(source, /data-ui-reference=["']simple-music-player-2["']/)
-  assert.doesNotMatch(source, /flutter|dart|pocketbase|ffmpeg|download-manager/i)
+  assert.doesNotMatch(source, /flutter|dart|pocketbase|download-manager/i)
+  // V3 可以说明 Core 的转换器身份，但 Renderer 不得引入转换器运行时。
+  const converterImport = /(?:\bfrom\s*|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)['"][^'"]*ffmpeg[^'"]*['"]/i
+  for (const forbidden of ["import '@ffmpeg/ffmpeg'", "import('@ffmpeg/core')", "export { FFmpeg } from '@ffmpeg/ffmpeg'", "require('fluent-ffmpeg')"]) assert.match(forbidden, converterImport)
+  assert.doesNotMatch(source, converterImport)
+  const manifest = JSON.parse(await readFile(path.resolve('package.json'), 'utf8'))
+  assert.ok(!Object.keys({ ...manifest.dependencies, ...manifest.devDependencies }).some(name => /ffmpeg/i.test(name)))
 })
 
 test('Roon artwork is lazy, bounded, failure-safe, and reused by every playback surface', async () => {
@@ -539,4 +545,14 @@ test('V1 large track and queue lists use a bounded virtual window', async () => 
   assert.match(source, /VIRTUALIZATION_THRESHOLD/)
   assert.match(source, /QUEUE_VIRTUALIZATION_THRESHOLD/)
   assert.match(source, /is-virtualized/)
+})
+
+test('应用信息说明 FFmpeg 许可，参数文案区分显式转换与设备认证', async () => {
+  const settings = await readFile(path.resolve('src/renderer/src/components/settings/SettingsView.vue'), 'utf8')
+  const profile = await readFile(path.resolve('src/renderer/src/components/recording/RecordingProfileSettings.vue'), 'utf8')
+  assert.match(settings, /FFmpeg 8\.1\.2/)
+  assert.match(settings, /LGPL 2\.1 或更高版本/)
+  assert.match(settings, /对应源码/)
+  assert.match(profile, /明确选择转换执行/)
+  assert.doesNotMatch(profile, /待接入|当前只编译同格式整数 PCM/)
 })

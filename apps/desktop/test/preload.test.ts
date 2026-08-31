@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
+import { runInNewContext } from 'node:vm'
+import ts from 'typescript'
 
 import type {
   Page,
@@ -17,6 +19,83 @@ import type {
 } from '@music-bridge/contracts'
 import { createPreloadApi, PUBLIC_API_KEYS } from '../src/preload/api.js'
 import { summarizePreloadRoonImage } from '../src/preload/image-diagnostic.js'
+import { createRecordingAttemptClient } from '../src/preload/recording-attempt-client.js'
+import { createCommandOutboxClient } from '../src/preload/command-outbox-client.js'
+import { unwrapRoonImageIpc } from '../src/roon-image-ipc.js'
+
+test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，不经过outbox或打开设备', async () => {
+  const source = await readFile(path.resolve('src/preload/index.ts'), 'utf8')
+  const calls: Array<[string, unknown]> = [], runId = '73000000-0000-4000-8000-000000000001'
+  let exposed: ReturnType<typeof createPreloadApi> | undefined
+  const recordModule = await import('../src/preload/recording-record-client.js').catch(() => ({}))
+  const replicaModule = await import('../src/preload/recording-replica-client.js').catch(() => ({}))
+  const printModule = await import('../src/preload/recording-print-client.js')
+  const modules: Record<string, unknown> = {
+    './recording-print-client.js': printModule,
+    './recording-replica-client.js': replicaModule,
+    './recording-record-client.js': recordModule,
+    electron: { contextBridge: { exposeInMainWorld: (name: string, api: ReturnType<typeof createPreloadApi>) => { assert.equal(name, 'musicBridge'); exposed = api } }, ipcRenderer: { invoke: async (channel: string, payload: unknown) => { calls.push([channel, structuredClone(payload)]); return channel === 'commandOutbox:context' ? { datasetId: runId } : { reply: channel } } } },
+    './recording-attempt-client.js': { createRecordingAttemptClient }, './api.js': { createPreloadApi }, './command-outbox-client.js': { createCommandOutboxClient },
+    './image-diagnostic.js': { summarizePreloadRoonImage }, '../roon-image-ipc.js': { unwrapRoonImageIpc },
+  }
+  runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, {
+    exports: {}, process: { contextIsolated: true, env: {} },
+    require: (name: string) => { assert.ok(Object.hasOwn(modules, name), `非预期依赖 ${name}`); return modules[name] },
+  })
+  assert.ok(exposed)
+  for (const name of ['getMasterArtwork', 'pickMasterArtwork', 'saveMasterArtwork', 'listRecordingPrints', 'requestRecordingPrint', 'retryRecordingPrint', 'getRecordingPrint', 'exportRecordingPrint']) assert.equal(typeof (exposed as unknown as Record<string, unknown>)[name], 'function', name)
+  for (const name of ['getRecordingOutputStatus', 'checkRecordingOutput', 'cancelRecordingOutputCheck']) assert.equal(typeof (exposed as unknown as Record<string, unknown>)[name], 'function', name)
+  calls.length = 0
+  const request = { runId, planVersionId: '73000000-0000-4000-8000-000000000002', side: 'Program' as const }
+  assert.deepEqual(await exposed.getRecordingOutputStatus(), { reply: 'recordingOutput:status' })
+  assert.deepEqual(await exposed.checkRecordingOutput(request), { reply: 'recordingOutput:check' })
+  assert.deepEqual(await exposed.cancelRecordingOutputCheck(runId), { reply: 'recordingOutput:cancel' })
+  assert.deepEqual(calls, [['recordingOutput:status', {}], ['recordingOutput:check', request], ['recordingOutput:cancel', { runId }]])
+  const attemptApi = exposed as unknown as Record<string, (request: unknown) => Promise<unknown>>
+  const attemptCalls: Array<[string, string, unknown, unknown]> = [
+    ['listRecordingAttempts', 'list', { page: { offset: 0, limit: 25 } }, { page: { offset: 0, limit: 25 } }],
+    ['getRecordingAttempt', 'get', runId, { attemptId: runId }],
+    ['beginRecordingAttempt', 'begin', { commandId: runId, planVersionId: runId, planContentHash: 'a'.repeat(64), userConfirmed: true }, undefined],
+    ['confirmRecordingAttempt', 'confirm', { commandId: runId, attemptId: runId, expectedRevision: 1, kind: 'flip', userConfirmed: true }, undefined],
+    ['beginRecordingAttemptSide', 'beginSide', { commandId: runId, attemptId: runId, expectedRevision: 2, side: 'B', userConfirmed: true }, undefined],
+    ['stopRecordingAttempt', 'stop', { commandId: runId, attemptId: runId }, undefined],
+  ]
+  calls.length = 0
+  for (const [name, channel, payload] of attemptCalls) {
+    assert.equal(typeof attemptApi[name], 'function', `缺少Attempt Preload入口${name}`)
+    assert.deepEqual(await attemptApi[name]!(payload), { reply: `recordingAttempts:${channel}` })
+  }
+  assert.deepEqual(calls, attemptCalls.map(([, channel, payload, wire]) => [`recordingAttempts:${channel}`, { datasetId: runId, payload: wire ?? payload }]))
+  const preview = { physicalId: 'MB-C-00427', expectedPhysicalRevision: 1, expectedContentRevision: 0, expectedAttempt: null, intent: { action: 'mark-content-unknown' } }
+  const recordCalls: Array<[string, string, unknown, unknown?]> = [
+    ['listRecordingRecords', 'list', { page: { offset: 0, limit: 25 } }],
+    ['getRecordingRecord', 'get', runId, { id: runId }],
+    ['getRecordingRecordVisual', 'visual', { recordingId: runId, attachmentId: runId }],
+    ['getPhysicalRecordingHistory', 'history', { physicalId: preview.physicalId, page: { offset: 0, limit: 25 } }],
+    ['previewPhysicalRecordingDisposition', 'previewDisposition', preview],
+    ['applyPhysicalRecordingDisposition', 'applyDisposition', { ...preview, commandId: runId, proposalFingerprint: 'a'.repeat(64), userConfirmed: true }],
+  ]
+  calls.length = 0
+  for (const [name, channel, payload] of recordCalls) {
+    assert.equal(typeof attemptApi[name], 'function', `缺少档案Preload入口${name}`)
+    assert.deepEqual(await attemptApi[name]!(payload), { reply: `recordingRecords:${channel}` })
+  }
+  assert.deepEqual(calls, recordCalls.map(([, channel, payload, wire]) => [`recordingRecords:${channel}`, { datasetId: runId, payload: wire ?? payload }]))
+  const replicaCalls: Array<[string, string, unknown, unknown?]> = [
+    ['getRecordingReplicaStatus', 'status', undefined, {}],
+    ['inspectRecordingReplica', 'inspect', { readId: runId, recordingId: runId }],
+    ['cancelRecordingReplicaRead', 'cancelRead', runId, { readId: runId }],
+    ['startRecordingReplica', 'start', { runId, recordingId: runId, target: 'actual-execution', side: 'A', expectedFingerprint: 'a'.repeat(64), userConfirmed: true }],
+    ['getRecordingReplicaRun', 'get', runId, { runId }],
+    ['stopRecordingReplica', 'stop', runId, { runId }],
+  ]
+  calls.length = 0
+  for (const [name, channel, payload] of replicaCalls) {
+    assert.equal(typeof attemptApi[name], 'function', `缺少Replica Preload入口${name}`)
+    assert.deepEqual(await attemptApi[name]!(payload), { reply: `recordingReplica:${channel}` })
+  }
+  assert.deepEqual(calls, replicaCalls.map(([, channel, payload, wire]) => [`recordingReplica:${channel}`, { datasetId: runId, payload: wire ?? payload }]))
+})
 
 test('Preload 图片诊断保持 sandbox 本地实现，不引入 contracts 运行期依赖', async () => {
   const source = await readFile(path.resolve('src/preload/index.ts'), 'utf8')
@@ -125,7 +204,177 @@ test('Preload exposes only sanitized business methods', async () => {
     () => () => undefined,
   )
 
+  for (const name of ['listRecordingAttempts', 'getRecordingAttempt', 'beginRecordingAttempt', 'confirmRecordingAttempt', 'beginRecordingAttemptSide', 'stopRecordingAttempt', 'getRecordingOutputStatus', 'checkRecordingOutput', 'cancelRecordingOutputCheck', 'listRecordingPlans', 'getRecordingPlanVersion', 'previewRecordingPlan', 'freezeRecordingPlan', 'preflightRecordingPlan', 'cancelRecordingPlanRead']) {
+    assert.equal(typeof (api as unknown as Record<string, unknown>)[name], 'function', `缺少受限业务API ${name}`)
+  }
   assert.deepEqual(PUBLIC_API_KEYS, [
+    'getMasterArtwork',
+    'pickMasterArtwork',
+    'saveMasterArtwork',
+    'listRecordingPrints',
+    'requestRecordingPrint',
+    'retryRecordingPrint',
+    'getRecordingPrint',
+    'exportRecordingPrint',
+
+    'getRecordingReplicaStatus',
+    'inspectRecordingReplica',
+    'cancelRecordingReplicaRead',
+    'startRecordingReplica',
+    'getRecordingReplicaRun',
+    'stopRecordingReplica',
+    'listRecordingRecords',
+    'getRecordingRecord',
+    'getRecordingRecordVisual',
+    'getPhysicalRecordingHistory',
+    'previewPhysicalRecordingDisposition',
+    'applyPhysicalRecordingDisposition',
+    'listRecordingAttempts',
+    'getRecordingAttempt',
+    'beginRecordingAttempt',
+    'confirmRecordingAttempt',
+    'beginRecordingAttemptSide',
+    'stopRecordingAttempt',
+    'getRecordingOutputStatus',
+    'checkRecordingOutput',
+    'cancelRecordingOutputCheck',
+    'listRecordingPlans',
+    'getRecordingPlanVersion',
+    'previewRecordingPlan',
+    'freezeRecordingPlan',
+    'preflightRecordingPlan',
+    'cancelRecordingPlanRead',
+    'getCommandOutbox',
+    'retryCommandOutbox',
+    'dismissCommandOutbox',
+    'acknowledgeCommandOutbox',
+    'activateRestoredDataset',
+    'getBackupOverview',
+    'chooseBackupRoot',
+    'startBackupJob',
+    'cancelBackupJob',
+    'revokeBackupRoot',
+    'listArchiveRoots',
+    'chooseArchiveRoot',
+    'initializeArchiveRoot',
+    'revokeArchiveRoot',
+    'previewArchive',
+    'startArchive',
+    'listArchives',
+    'getArchiveOperation',
+    'cancelArchive',
+    'resumeArchive',
+    'verifyArchive',
+    'cancelArchiveRead',
+    'listRecordingProfiles',
+    'getRecordingProfileHistory',
+    'getRecordingProfileVersion',
+    'saveRecordingProfile',
+    'getRecordingSession',
+    'saveRecordingSession',
+    'listExecutionAssets',
+    'previewExecutionAsset',
+    'startExecutionAsset',
+    'getExecutionJob',
+    'cancelExecutionJob',
+    'cancelExecutionRead',
+    'verifyExecutionAsset',
+    'chooseSpreadsheetWorkbook',
+    'listSpreadsheetSources',
+    'getSpreadsheetSource',
+    'getSpreadsheetSourceRows',
+    'previewSpreadsheetImport',
+    'applySpreadsheetImport',
+    'getSpreadsheetImportRevision',
+    'listSpreadsheetImportHistory',
+    'previewSpreadsheetAdjustment',
+    'adjustSpreadsheetInventory',
+    'listSpreadsheetAdjustments',
+    'registerReferenceSource',
+    'listReferenceSources',
+    'getReferenceSource',
+    'previewCatalogRevision',
+    'publishCatalogRevision',
+    'getCatalogRevision',
+    'setCatalogMatch',
+    'getCatalogSnapshot',
+    'getCatalogHistory',
+    'listWantEntries', 'saveWantEntry', 'cancelWantEntry', 'getWantEntryHistory', 'getCollectionProgress',
+    'captureCollectionProgress', 'listCollectionProgressSnapshots', 'getCollectionProgressSnapshot', 'getCollectionModelLengths',
+    'listPrepared',
+    'listPreparedSelections',
+    'choosePreparedRender',
+    'revokePreparedSelection',
+    'revokePreparedSelections',
+    'previewPreparedImport',
+    'startPreparedImport',
+    'getPreparedImportJob',
+    'cancelPreparedImport',
+    'reviewPrepared',
+    'freezePrepared',
+    'listPreparationDestinations',
+    'choosePreparationDestination',
+    'revokePreparationDestination',
+    'listPreparations',
+    'previewPreparation',
+    'startPreparation',
+    'getPreparationJob',
+    'cancelPreparationJob',
+    'openPreparationWorkspace',
+    'listMasterVersions',
+    'previewMasterVersions',
+    'freezeMasterVersions',
+    'getMasterVersionJob',
+    'cancelMasterVersionJob',
+    'listMediaPlans',
+  'getMediaPlan',
+  'previewMediaPlan',
+  'balanceMediaPlan',
+  'saveMediaPlan',
+  'reserveMediaPlan',
+  'releaseMediaPlan',
+  'listRecordingSourceRoots',
+    'chooseRecordingSourceRoot',
+    'revokeRecordingSourceRoot',
+    'chooseRecordingSource',
+    'getDraftSources',
+    'getRecordingSourceJob',
+    'cancelRecordingSourceJob',
+    'recheckRecordingSource',
+    'confirmRecordingSource',
+    'listMasterDrafts',
+    'getMasterDraft',
+    'appendMasterDraft',
+    'updateMasterDraft',
+    'getMasterDraftTrackRuntime',
+    'searchPhysicalRoonAlbums',
+    'listDigitalAlbums',
+    'getDigitalAlbum',
+    'getPhysicalLinks',
+    'getDigitalRuntime',
+    'confirmPhysicalLink',
+    'relocateDigitalAlbum',
+    'registerDigitalAlbum',
+    'removePhysicalLink',
+    'confirmPhysicalAbsence',
+    'getCollectionMatrix',
+    'listPhysicalMusic',
+    'getPhysicalMusic',
+    'savePhysicalRelease',
+    'saveLegacyRecording',
+    'addPhysicalMusicPhoto',
+    'getPhysicalMusicPhoto',
+    'removePhysicalMusicPhoto',
+    'pickCollectionPhoto',
+    'addCollectionPhoto',
+    'getCollectionPhoto',
+    'changeCollectionPhoto',
+    'listCollection',
+    'getCollectionModel',
+    'receiveCollectionStock',
+    'materializeCollectionCopy',
+    'updateCollectionCopy',
+    'setCollectionPolicy',
     'getAppInfo',
     'getCoreHealth',
     'getCoreState',
@@ -194,6 +443,180 @@ test('Preload exposes only sanitized business methods', async () => {
     'onRemoteCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
+    'getMasterArtwork',
+    'pickMasterArtwork',
+    'saveMasterArtwork',
+    'listRecordingPrints',
+    'requestRecordingPrint',
+    'retryRecordingPrint',
+    'getRecordingPrint',
+    'exportRecordingPrint',
+
+    'getRecordingReplicaStatus',
+    'inspectRecordingReplica',
+    'cancelRecordingReplicaRead',
+    'startRecordingReplica',
+    'getRecordingReplicaRun',
+    'stopRecordingReplica',
+    'listRecordingRecords',
+    'getRecordingRecord',
+    'getRecordingRecordVisual',
+    'getPhysicalRecordingHistory',
+    'previewPhysicalRecordingDisposition',
+    'applyPhysicalRecordingDisposition',
+    'listRecordingAttempts',
+    'getRecordingAttempt',
+    'beginRecordingAttempt',
+    'confirmRecordingAttempt',
+    'beginRecordingAttemptSide',
+    'stopRecordingAttempt',
+    'getRecordingOutputStatus',
+    'checkRecordingOutput',
+    'cancelRecordingOutputCheck',
+    'listRecordingPlans',
+    'getRecordingPlanVersion',
+    'previewRecordingPlan',
+    'freezeRecordingPlan',
+    'preflightRecordingPlan',
+    'cancelRecordingPlanRead',
+    'getCommandOutbox',
+    'retryCommandOutbox',
+    'dismissCommandOutbox',
+    'acknowledgeCommandOutbox',
+    'activateRestoredDataset',
+    'getBackupOverview',
+    'chooseBackupRoot',
+    'startBackupJob',
+    'cancelBackupJob',
+    'revokeBackupRoot',
+    'listArchiveRoots',
+    'chooseArchiveRoot',
+    'initializeArchiveRoot',
+    'revokeArchiveRoot',
+    'previewArchive',
+    'startArchive',
+    'listArchives',
+    'getArchiveOperation',
+    'cancelArchive',
+    'resumeArchive',
+    'verifyArchive',
+    'cancelArchiveRead',
+    'listRecordingProfiles',
+    'getRecordingProfileHistory',
+    'getRecordingProfileVersion',
+    'saveRecordingProfile',
+    'getRecordingSession',
+    'saveRecordingSession',
+    'listExecutionAssets',
+    'previewExecutionAsset',
+    'startExecutionAsset',
+    'getExecutionJob',
+    'cancelExecutionJob',
+    'cancelExecutionRead',
+    'verifyExecutionAsset',
+    'chooseSpreadsheetWorkbook',
+    'listSpreadsheetSources',
+    'getSpreadsheetSource',
+    'getSpreadsheetSourceRows',
+    'previewSpreadsheetImport',
+    'applySpreadsheetImport',
+    'getSpreadsheetImportRevision',
+    'listSpreadsheetImportHistory',
+    'previewSpreadsheetAdjustment',
+    'adjustSpreadsheetInventory',
+    'listSpreadsheetAdjustments',
+    'registerReferenceSource',
+    'listReferenceSources',
+    'getReferenceSource',
+    'previewCatalogRevision',
+    'publishCatalogRevision',
+    'getCatalogRevision',
+    'setCatalogMatch',
+    'getCatalogSnapshot',
+    'getCatalogHistory',
+    'listWantEntries',
+    'saveWantEntry',
+    'cancelWantEntry',
+    'getWantEntryHistory',
+    'getCollectionProgress',
+    'captureCollectionProgress',
+    'listCollectionProgressSnapshots',
+    'getCollectionProgressSnapshot',
+    'getCollectionModelLengths',
+    'listPrepared',
+    'listPreparedSelections',
+    'choosePreparedRender',
+    'revokePreparedSelection',
+    'revokePreparedSelections',
+    'previewPreparedImport',
+    'startPreparedImport',
+    'getPreparedImportJob',
+    'cancelPreparedImport',
+    'reviewPrepared',
+    'freezePrepared',
+    'listPreparationDestinations',
+    'choosePreparationDestination',
+    'revokePreparationDestination',
+    'listPreparations',
+    'previewPreparation',
+    'startPreparation',
+    'getPreparationJob',
+    'cancelPreparationJob',
+    'openPreparationWorkspace',
+    'listMasterVersions',
+    'previewMasterVersions',
+    'freezeMasterVersions',
+    'getMasterVersionJob',
+    'cancelMasterVersionJob',
+    'listMediaPlans',
+  'getMediaPlan',
+  'previewMediaPlan',
+  'balanceMediaPlan',
+  'saveMediaPlan',
+  'reserveMediaPlan',
+  'releaseMediaPlan',
+  'listRecordingSourceRoots',
+    'chooseRecordingSourceRoot',
+    'revokeRecordingSourceRoot',
+    'chooseRecordingSource',
+    'getDraftSources',
+    'getRecordingSourceJob',
+    'cancelRecordingSourceJob',
+    'recheckRecordingSource',
+    'confirmRecordingSource',
+    'listMasterDrafts',
+    'getMasterDraft',
+    'appendMasterDraft',
+    'updateMasterDraft',
+    'getMasterDraftTrackRuntime',
+    'searchPhysicalRoonAlbums',
+    'listDigitalAlbums',
+    'getDigitalAlbum',
+    'getPhysicalLinks',
+    'getDigitalRuntime',
+    'confirmPhysicalLink',
+    'relocateDigitalAlbum',
+    'registerDigitalAlbum',
+    'removePhysicalLink',
+    'confirmPhysicalAbsence',
+    'getCollectionMatrix',
+    'listPhysicalMusic',
+    'getPhysicalMusic',
+    'savePhysicalRelease',
+    'saveLegacyRecording',
+    'addPhysicalMusicPhoto',
+    'getPhysicalMusicPhoto',
+    'removePhysicalMusicPhoto',
+    'pickCollectionPhoto',
+    'addCollectionPhoto',
+    'getCollectionPhoto',
+    'changeCollectionPhoto',
+    'listCollection',
+    'getCollectionModel',
+    'receiveCollectionStock',
+    'materializeCollectionCopy',
+    'updateCollectionCopy',
+    'setCollectionPolicy',
     'getAppInfo',
     'getCoreHealth',
     'getCoreState',
@@ -312,4 +735,121 @@ test('Preload exposes only sanitized business methods', async () => {
     await api.replaceQueue([{ trackId: '301', qualityPreference: 'lossless' }], 0),
     playbackState,
   )
+})
+
+test('outbox预加载在编辑前固定scope，等待期间的原DTO不被外部修改，成功后确认接收', async () => {
+  const module = await import('../src/preload/command-outbox-client.js').catch(() => ({}))
+  assert.ok('createCommandOutboxClient' in module, '缺少持久命令预加载接线')
+  const create = (module as typeof import('../src/preload/command-outbox-client.js')).createCommandOutboxClient
+  const scope = '11111111-1111-4111-8111-111111111111', id = '22222222-2222-4222-8222-222222222222'
+  let release!: (value: unknown) => void
+  const calls: Array<[string, unknown]> = []
+  const client = create(async (channel, value) => {
+    calls.push([channel, value])
+    if (channel === 'commandOutbox:context') return new Promise(resolve => { release = resolve })
+    if (channel === 'commandOutbox:submit') return { ok: true, outboxId: id, result: { modelId: id } }
+    return undefined
+  })
+  const request = { commandId: id, model: { brand: '合成', name: '编辑时原文', edition: '测试', year: 1990, format: 'cassette' as const, tapeType: 'II' as const, identification: 'verified' as const }, lengthMinutes: 60, quantities: { sealedBlank: 1, openedBlank: 0, legacyUsed: 0, unclassified: 0 } }
+  const pending = client.submit('collection.receive', request); request.model.name = '迟到的修改'
+  release({ datasetId: scope })
+  assert.deepEqual(await pending, { modelId: id })
+  assert.equal(calls.filter(([channel]) => channel === 'commandOutbox:context').length, 1)
+  assert.deepEqual(calls[1], ['commandOutbox:submit', { request: { datasetId: scope, command: 'collection.receive', payload: { ...request, model: { ...request.model, name: '编辑时原文' } } } }])
+  assert.deepEqual(calls[2], ['commandOutbox:acknowledge', { id }])
+})
+
+test('outbox预加载只在同会话明确再调用时带retryConfirmed，冷启不发送业务', async () => {
+  const module = await import('../src/preload/command-outbox-client.js').catch(() => ({}))
+  assert.ok('createCommandOutboxClient' in module)
+  const create = (module as typeof import('../src/preload/command-outbox-client.js')).createCommandOutboxClient
+  const id = '22222222-2222-4222-8222-222222222222', calls: Array<[string, unknown]> = []
+  let attempts = 0
+  const client = create(async (channel, value) => {
+    calls.push([channel, value])
+    if (channel === 'commandOutbox:context') return { datasetId: id }
+    if (channel === 'commandOutbox:submit') return ++attempts === 1 ? { ok: false, code: 'OUTBOX_RESULT_UNKNOWN' } : { ok: true, outboxId: id, result: { revoked: true } }
+    throw new Error('模拟确认回执丢失，不暴露内容')
+  })
+  await Promise.resolve(); assert.deepEqual(calls.map(([channel]) => channel), ['commandOutbox:context'])
+  const request = { commandId: id, id }
+  await assert.rejects(client.submit('recordingSources.revoke', request), /OUTBOX_RESULT_UNKNOWN/u)
+  assert.deepEqual(await client.submit('recordingSources.revoke', request), { revoked: true })
+  assert.equal((calls.filter(([channel]) => channel === 'commandOutbox:submit')[0]![1] as { retryConfirmed?: boolean }).retryConfirmed, undefined)
+  assert.equal((calls.filter(([channel]) => channel === 'commandOutbox:submit')[1]![1] as { retryConfirmed?: boolean }).retryConfirmed, true)
+})
+
+test('outbox预加载无有效scope不发送，结果信封非法不确认，错误不透传内部内容', async () => {
+  const module = await import('../src/preload/command-outbox-client.js').catch(() => ({}))
+  assert.ok('createCommandOutboxClient' in module)
+  const create = (module as typeof import('../src/preload/command-outbox-client.js')).createCommandOutboxClient
+  const id = '22222222-2222-4222-8222-222222222222', calls: string[] = []
+  const invalid = create(async channel => { calls.push(channel); return { datasetId: '/private/untrusted' } })
+  await assert.rejects(invalid.submit('recordingSources.revoke', { commandId: id, id }), /OUTBOX_UNAVAILABLE/u)
+  assert.deepEqual(calls, ['commandOutbox:context'])
+  const badResult = create(async channel => { if (channel === 'commandOutbox:context') return { datasetId: id }; if (channel === 'commandOutbox:submit') return { ok: true, outboxId: '/private/untrusted', result: {} }; throw new Error('不能到达ack') })
+  await assert.rejects(badResult.submit('recordingSources.revoke', { commandId: id, id }), /OUTBOX_RESULT_UNKNOWN/u)
+})
+
+test('PREP批次在等待scope前捕获整组原请求，单次发送，失败后只在人工重试恢复并逐项确认', async () => {
+  const { createCommandOutboxClient } = await import('../src/preload/command-outbox-client.js')
+  const ids = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222']
+  const requests = ids.map(id => ({ id, commandId: id })), original = structuredClone(requests)
+  const calls: Array<[string, unknown]> = []; let release!: (value: unknown) => void, attempts = 0
+  const results = ids.map(id => ({ id, preparationId: ids[0], side: 'A', label: '合成', authorized: false }))
+  const client = createCommandOutboxClient(async (channel, value) => {
+    calls.push([channel, value])
+    if (channel === 'commandOutbox:context') return new Promise(resolve => { release = resolve })
+    if (channel === 'commandOutbox:revokePreparedBatch') return ++attempts === 1 ? { ok: false, code: 'OUTBOX_RESULT_UNKNOWN' } : { ok: true, submissions: ids.map((id, index) => ({ outboxId: id, result: results[index] })) }
+    return undefined
+  })
+  assert.equal(typeof client.submitPreparedRevocations, 'function')
+  const pending = client.submitPreparedRevocations(requests); requests[1]!.id = ids[0]!
+  release({ datasetId: ids[0] })
+  await assert.rejects(pending, /OUTBOX_RESULT_UNKNOWN/u)
+  const first = calls.find(([channel]) => channel === 'commandOutbox:revokePreparedBatch')![1]
+  assert.deepEqual(first, { requests: original.map(payload => ({ datasetId: ids[0], command: 'recordingPrepared.revoke', payload })) })
+  assert.deepEqual(await client.submitPreparedRevocations(original), results)
+  assert.equal((calls.filter(([channel]) => channel === 'commandOutbox:revokePreparedBatch')[1]![1] as { retryConfirmed: boolean }).retryConfirmed, true)
+  assert.deepEqual(calls.filter(([channel]) => channel === 'commandOutbox:acknowledge').map(([, value]) => value), ids.map(id => ({ id })))
+  assert.equal(calls.some(([channel]) => channel === 'commandOutbox:submit'), false)
+})
+
+test('PREP批次不确认不完整的成功信封，不把残缺结果当整批成功', async () => {
+  const { createCommandOutboxClient } = await import('../src/preload/command-outbox-client.js')
+  const id = '11111111-1111-4111-8111-111111111111', other = '22222222-2222-4222-8222-222222222222'
+  let acknowledgements = 0
+  const client = createCommandOutboxClient(async channel => {
+    if (channel === 'commandOutbox:context') return { datasetId: id }
+    if (channel === 'commandOutbox:acknowledge') { acknowledgements++; return undefined }
+    return { ok: true, submissions: [{ outboxId: id, result: {} }] }
+  })
+  assert.equal(typeof client.submitPreparedRevocations, 'function')
+  await assert.rejects(client.submitPreparedRevocations([{ commandId: id, id }, { commandId: other, id: other }]), /OUTBOX_RESULT_UNKNOWN/u)
+  assert.equal(acknowledgements, 0)
+})
+
+
+test('Attempt客户端固定Renderer工作库、先复制确认意图且绝不自动重放', async () => {
+  const module = await import('../src/preload/recording-attempt-client.js').catch(() => ({}))
+  assert.ok('createRecordingAttemptClient' in module, '缺少绑定原工作库的Attempt客户端')
+  const calls: Array<[string, unknown]> = []
+  let resolveScope!: (value: unknown) => void
+  const scope = new Promise(resolve => { resolveScope = resolve })
+  const datasetId = '74000000-0000-4000-8000-000000000001'
+  const client = (module as typeof import('../src/preload/recording-attempt-client.js')).createRecordingAttemptClient(async (channel, value) => {
+    calls.push([channel, structuredClone(value)])
+    if (channel === 'commandOutbox:context') return scope
+    return { captured: true }
+  })
+  const request = { commandId: datasetId, planVersionId: datasetId, planContentHash: 'a'.repeat(64), userConfirmed: true as const }
+  const started = client.beginRecordingAttempt(request)
+  request.planContentHash = 'b'.repeat(64)
+  resolveScope({ datasetId })
+  await started
+  await client.stopRecordingAttempt({ commandId: datasetId, attemptId: datasetId })
+  assert.deepEqual(calls.map(([channel]) => channel), ['commandOutbox:context', 'recordingAttempts:begin', 'recordingAttempts:stop'])
+  assert.deepEqual(calls[1]![1], { datasetId, payload: { ...request, planContentHash: 'a'.repeat(64) } })
+  const invalid = (module as typeof import('../src/preload/recording-attempt-client.js')).createRecordingAttemptClient(async () => ({ datasetId: '/private/invalid-scope' }))
+  await assert.rejects(invalid.listRecordingAttempts({ page: { offset: 0, limit: 25 } }), error => error instanceof Error && error.message.includes('OUTBOX_SCOPE_MISMATCH') && !error.message.includes('/private'))
 })

@@ -75,8 +75,11 @@ const productFiles = [
 for (const file of productFiles) {
   const relative = path.relative(root, file)
   const content = fs.readFileSync(file, 'utf8')
-  if (/(?:from|require\()\s*['"][^'"]*(?:ffmpeg|fluent-ffmpeg|unblockmusic|transcod)/i.test(content)) {
-    fail(`audio-boundary:${relative}`)
+  for (const match of content.matchAll(/(?:\bfrom\s*|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)['"]([^'"]*(?:ffmpeg|fluent-ffmpeg|unblockmusic|transcod)[^'"]*)['"]/gi)) {
+    // TASK-061 仅允许 Core 加载自己的固定构建策略；外部转换库、Provider 流与 Renderer 边界不放开。
+    if (relative !== 'packages/bridge-core/src/recording/bundled-converter.ts' || match[1] !== './ffmpeg-build-policy.js') {
+      fail(`audio-boundary:${relative}`)
+    }
   }
   if (/(?:NETEASE_COOKIE|MUSIC_U|__csrf)\s*[:=]\s*['"][A-Za-z0-9%_+-]{16,}['"]/i.test(content)) {
     fail(`credential-value:${relative}`)

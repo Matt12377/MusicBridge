@@ -10,6 +10,67 @@ import {
   validateIpcRequest,
 } from '../src/index.js';
 
+test('V3 照片命令和筛选合同有界，不接受外部路径或任意 URL', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const image = { dataUrl: 'data:image/jpeg;base64,/9j/2Q==', width: 1, height: 1 };
+  const request = (command: string, payload: unknown) => validateIpcRequest({ version: 1, id: 'photo', command, payload }).ok;
+  assert.equal(request('collection.list', { page: { offset: 0, limit: 20 }, filter: { query: 'SA', brand: 'TDK', decade: 1990 } }), true);
+  assert.equal(request('collection.addPhoto', { commandId: id, modelId: id, image }), true);
+  assert.equal(request('collection.photo', { photoId: id }), true);
+  assert.equal(request('collection.changePhoto', { commandId: id, modelId: id, photoId: id, expectedRevision: 1, action: 'feature' }), true);
+  for (const bad of [{ ...image, dataUrl: 'file:///private/photo.jpg' }, { ...image, dataUrl: 'data:image/svg+xml;base64,PHN2Zz4=' }, { ...image, width: 20000 }, { ...image, path: '/private/photo.jpg' }]) {
+    assert.equal(request('collection.addPhoto', { commandId: id, modelId: id, image: bad }), false);
+  }
+  assert.equal(request('collection.list', { page: { offset: 0, limit: 20 }, filter: { decade: 1991 } }), false);
+  assert.equal(request('collection.list', { page: { offset: 0, limit: 20 }, filter: { query: 'x'.repeat(121) } }), false);
+});
+
+test('V3 库存合同接受有界的查询与收货请求', () => {
+  for (const [command, payload] of [
+    ['collection.list', { page: { offset: 0, limit: 20 } }],
+    ['collection.receive', {
+      commandId: '11111111-1111-4111-8111-111111111111',
+      model: { brand: 'TDK', name: 'SA', edition: '1990', year: 1990, format: 'cassette', tapeType: 'II', identification: 'verified' },
+      lengthMinutes: 90,
+      quantities: { sealedBlank: 5, openedBlank: 1, legacyUsed: 1, unclassified: 0 },
+    }],
+  ]) {
+    assert.equal(validateIpcRequest({ version: IPC_VERSION, id: 'inventory-1', command, payload }).ok, true, String(command));
+  }
+});
+
+test('V3 库存拒绝非法数量、未知字段、错配介质及无版次的确认', () => {
+  const payload = {
+    commandId: '11111111-1111-4111-8111-111111111111',
+    model: { brand: 'TDK', name: 'SA', edition: '1990', year: 1990, format: 'cassette', tapeType: 'II', identification: 'verified' },
+    lengthMinutes: 90,
+    quantities: { sealedBlank: 5, openedBlank: 0, legacyUsed: 0, unclassified: 0 },
+  };
+  for (const invalid of [
+    { ...payload, commandId: '../../config' }, { ...payload, privatePath: '/private/music' },
+    ...[-1, 0, 1.5, 10_001, NaN].map(n => ({ ...payload, quantities: { ...payload.quantities, sealedBlank: n } })),
+    { ...payload, model: { ...payload.model, edition: '' } },
+    { ...payload, model: { ...payload.model, format: 'dat' } },
+    { ...payload, model: { ...payload.model, brand: 'x'.repeat(121) } },
+    { ...payload, lengthMinutes: 0 },
+  ]) assert.equal(validateIpcRequest({ version: 1, id: 'bad-collection', command: 'collection.receive', payload: invalid }).ok, false);
+  assert.equal(validateIpcRequest({ version: 1, id: 'bad-page', command: 'collection.list', payload: { page: { offset: 0, limit: 101 } } }).ok, false);
+  assert.equal(validateIpcRequest({ version: 1, id: 'bad-copy', command: 'collection.materialize', payload: {
+    commandId: payload.commandId, lotId: payload.commandId, bucket: 'unclassified', action: 'open',
+  } }).ok, false);
+});
+
+test('V3 库存响应必须数量守恒且不暴露额外路径或无界数据', () => {
+  const item = { id: '11111111-1111-4111-8111-111111111111', brand: 'TDK', name: 'SA', edition: '', year: null,
+    format: 'cassette', tapeType: 'II', identification: 'unidentified', collectorPolicy: 'normal', minimumSealedReserve: 0, revision: 1,
+    lengths: [90], counts: { total: 2, sealedBlank: 1, openedBlank: 0, legacyUsed: 1, recorded: 0, reserved: 0, unavailable: 0, unknown: 0 } };
+  const response = (items: unknown[]) => ({ version: 1, id: 'result', ok: true, result: { items, offset: 0, limit: 20, total: items.length, hasMore: false } });
+  assert.equal(validateIpcResponseForCommand(response([item]), 'collection.list').ok, true);
+  assert.equal(validateIpcResponseForCommand(response([{ ...item, counts: { ...item.counts, total: 3 } }]), 'collection.list').ok, false);
+  assert.equal(validateIpcResponseForCommand(response([{ ...item, filePath: '/private/inventory.sqlite' }]), 'collection.list').ok, false);
+  assert.equal(validateIpcResponseForCommand(response(Array(101).fill(item)), 'collection.list').ok, false);
+});
+
 test('contracts accepts a versioned public core request', () => {
   const result = validateIpcRequest({
     version: IPC_VERSION,
@@ -1326,4 +1387,173 @@ test('contracts validates daily recommendation snapshots with bounded reasons an
     ).ok,
     false,
   );
+});
+
+test('实体音乐合同区分原版和历史副本，拒绝路径、混合分面及伪造身份', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const release = { format: 'cd', title: '合成专辑', artist: '合成艺术家', quantity: 1, completeness: 'basic', tracks: [] };
+  const valid = (command: string, payload: unknown) => validateIpcRequest({ version: 1, id: 'music-contract', command, payload }).ok;
+  assert.equal(valid('physicalMusic.saveRelease', { commandId: id, release }), true);
+  assert.equal(valid('physicalMusic.saveLegacy', { commandId: id, physicalId: 'MB-C-00001', expectedRevision: 1, content: { title: '旧录音', artist: '合成', tracks: [] } }), true);
+  for (const bad of [{ ...release, quantity: 0 }, { ...release, path: '/private/music' }, { ...release, completeness: 'verified' }, { ...release, tracks: [{ title: '曲目', artist: '', position: 1, side: 'A' }] }]) assert.equal(valid('physicalMusic.saveRelease', { commandId: id, release: bad }), false);
+  assert.equal(valid('physicalMusic.saveRelease', { commandId: id, id: 'MB-C-00001', expectedRevision: 1, release }), false);
+  assert.equal(valid('physicalMusic.list', { page: { offset: 0, limit: 101 } }), false);
+  assert.equal(valid('physicalMusic.photo', { photoId: '/private/photo.jpg' }), false);
+  const response = { version: 1, id: 'music-contract', ok: true, result: { entry: { id: 'MB-C-00001', kind: 'cd', title: '伪造', artist: '合成', quantity: 1, revision: 1, contentStatus: 'commercial' }, release, photos: [] } };
+  assert.equal(validateIpcResponseForCommand(response, 'physicalMusic.detail').ok, false);
+});
+
+test('关联合同要求明确确认，不接受路径、双重身份或不一致的 CD Rip 关系', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const request = { commandId: id, releaseId: id, expectedRevision: 1, reference: 'musicbridge-v2-entity-22222222-2222-5222-8222-222222222222', relation: 'exact', ripFromCdConfirmed: false, userConfirmed: true };
+  const valid = (payload: unknown) => validateIpcRequest({ version: 1, id: 'links-contract', command: 'physicalLinks.confirm', payload }).ok;
+  assert.equal(valid(request), true);
+  for (const bad of [{ ...request, userConfirmed: false }, { ...request, digitalId: id }, { ...request, reference: '/private/music.wav' }, { ...request, itemKey: 'private' }, { ...request, relation: 'probable', ripFromCdConfirmed: true }]) assert.equal(valid(bad), false);
+  assert.equal(validateIpcResponseForCommand({ version: 1, id: 'runtime', ok: true, result: { status: 'unavailable', reference: request.reference } }, 'physicalLinks.runtime').ok, false);
+});
+
+test('录音草稿只接收确认后的 Roon 引用，拒绝伪造元数据与冻结状态', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const reference = 'musicbridge-v2-entity-22222222-2222-5222-8222-222222222222';
+  const request = { commandId: id, title: '私人精选', programType: 'compilation', references: [reference], userConfirmed: true };
+  const valid = (payload: unknown) => validateIpcRequest({ version: 1, id: 'draft-contract', command: 'recordingDrafts.append', payload }).ok;
+  assert.equal(valid(request), true);
+  for (const bad of [{ ...request, userConfirmed: false }, { ...request, sourceLockEligible: true }, { ...request, tracks: [{ title: '伪造' }] }, { ...request, references: [reference, reference] }, { ...request, references: ['/private/song.flac'] }, { ...request, draftId: id }]) assert.equal(valid(bad), false);
+  const summary = { id, title: '私人精选', programType: 'compilation', revision: 1, status: 'draft', sourceLockEligible: false, trackCount: 1, estimatedDurationMs: 180000 };
+  assert.equal(validateIpcResponseForCommand({ version: 1, id: 'draft-contract', ok: true, result: { items: [summary], offset: 0, limit: 20, total: 1, hasMore: false } }, 'recordingDrafts.list').ok, true);
+  assert.equal(validateIpcResponseForCommand({ version: 1, id: 'draft-contract', ok: true, result: { ...summary, sourceLockEligible: true, tracks: [] } }, 'recordingDrafts.detail').ok, false);
+});
+
+test('源能力私有路径仅允许内部响应，公开结果拒绝路径和伪造源锁', async () => {
+  const { isSourceSelection, isSourceBinding, isDraftSourceSnapshot } = await import('../src/index.js');
+  const id = '11111111-1111-4111-8111-111111111111', response = { version: 1, id: 'source', ok: true, result: { absolutePath: '/synthetic/authorized' } };
+  assert.equal(validateIpcResponseForCommand(response, 'recordingSources.context').ok, false);
+  assert.equal(validateIpcInternalResponseForCommand(response, 'recordingSources.context').ok, true);
+  const selection = { commandId: id, draftId: id, trackId: id, rootId: id, acquisition: 'userFileBind' };
+  assert.equal(isSourceSelection(selection), true); assert.equal(isSourceSelection({ ...selection, absolutePath: '/untrusted/path' }), false); assert.equal(isSourceSelection({ ...selection, acquisition: 'anything' }), false);
+  const binding = { id, rootId: id, fileName: 'audio.flac', acquisition: 'userFileBind', verification: 'fileHashVerified', preservation: 'externalReferenceOnly', availability: 'ONLINE', sha256: 'a'.repeat(64), size: 100, modifiedAt: '2026-08-27T00:00:00.000Z', verifiedAt: '2026-08-27T00:00:00.000Z', technical: { container: 'FLAC', codec: 'FLAC', sampleRate: 44100, channels: 2, durationMs: 1000, lossless: true }, userConfirmed: false, sourceLockEligible: false };
+  assert.equal(isSourceBinding(binding), true);
+  for (const bad of [{ ...binding, sourceLockEligible: true }, { ...binding, fileName: '/private/audio.flac' }, { ...binding, absolutePath: '/private/audio.flac' }, { ...binding, availability: 'MISSING', userConfirmed: true, sourceLockEligible: true }]) assert.equal(isSourceBinding(bad), false);
+  assert.equal(isDraftSourceSnapshot({ draftId: id, sourceLockEligible: true, tracks: [] }), false);
+});
+
+test('分面预览合同支持逐面规划，拒绝伪造源时长与失控间隔', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const spec = { format: 'cassette', splitAfter: 1, leadInMs: 0, tailMs: 0, defaultGapMs: 5000, rules: [], compatibility: { confirmed: false, cassetteTypes: [], dat: false } };
+  const valid = (payload: unknown) => validateIpcRequest({ version: 1, id: 'media-preview', command: 'recordingMedia.preview', payload }).ok;
+  const payload = { draftId: id, spec, page: { offset: 0, limit: 20 } };
+  assert.equal(valid(payload), true);
+  assert.equal(valid({ ...payload, durations: [100] }), false);
+  assert.equal(valid({ ...payload, spec: { ...spec, defaultGapMs: -1 } }), false);
+  assert.equal(valid({ ...payload, spec: { ...spec, format: 'dat', splitAfter: 1 } }), false);
+});
+
+test('分面变更合同要求原命令和明确确认，公开结果拒绝路径及执行就绪伪造', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const request = { commandId: id, planId: id, expectedRevision: 1, skuId: id, packaging: 'opened', userConfirmed: true };
+  const valid = (payload: unknown) => validateIpcRequest({ version: 1, id: 'reserve', command: 'recordingMedia.reserve', payload }).ok;
+  assert.equal(valid(request), true);
+  for (const bad of [{ ...request, userConfirmed: false }, { ...request, expectedRevision: 0 }, { ...request, commandId: 'unstable' }, { ...request, path: '/private/source.wav' }]) assert.equal(valid(bad), false);
+  const spec = { format: 'cassette', splitAfter: 1, leadInMs: 0, tailMs: 0, defaultGapMs: 5000, rules: [], compatibility: { confirmed: false, cassetteTypes: [], dat: false } };
+  const result = { id, draftId: id, draftRevision: 1, revision: 1, spec, layout: { timebase: 'milliseconds', executionReady: false, sides: [{ name: 'A', tracks: [{ trackId: id, startMs: 0, endMs: 1000, gapAfterMs: 0 }], musicMs: 1000, durationMs: 1000, gapMs: 0, leadInMs: 0, tailMs: 0 }, { name: 'B', tracks: [], musicMs: 0, durationMs: 0, gapMs: 0, leadInMs: 0, tailMs: 0 }], constraints: [] }, sourceBasis: 'roon-estimate', inputFingerprint: 'a'.repeat(64), requiresReview: false, executionReady: false };
+  const accepted = (value: unknown) => validateIpcResponseForCommand({ version: 1, id: 'reserve', ok: true, result: value }, 'recordingMedia.save').ok;
+  assert.equal(accepted(result), true);
+  assert.equal(accepted({ ...result, executionReady: true }), false);
+  assert.equal(accepted({ ...result, path: '/private/source.wav' }), false);
+  assert.equal(accepted({ ...result, layout: { ...result.layout, timebase: 'frames' } }), false);
+});
+
+test('源容器帧证据保留旧快照兼容，新增帧数与采样率时长必须一致', async () => {
+  const { isSourceTechnical } = await import('../src/index.js');
+  const old = { container: 'WAVE', codec: 'PCM', sampleRate: 44100, channels: 2, durationMs: 1000, bitsPerSample: 16, lossless: true };
+  assert.equal(isSourceTechnical(old), true);
+  const precise = { ...old, sampleFrames: 44101, frameEvidence: 'container-declared' };
+  assert.equal(isSourceTechnical(precise), true);
+  for (const bad of [{ ...precise, sampleFrames: 0 }, { ...precise, sampleFrames: 44100.5 }, { ...precise, sampleFrames: 88200 }, { ...precise, frameEvidence: 'decoded-verified' }, { ...old, sampleFrames: 44101 }, { ...old, frameEvidence: 'container-declared' }]) assert.equal(isSourceTechnical(bad), false);
+});
+
+test('不可变版本 IPC 不接收 Renderer 伪造内容、源路径或未确认冻结；后台状态必须自洽', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const request = (command: string, payload: unknown) => validateIpcRequest({ version: 1, id: 'versions', command, payload }).ok;
+  assert.equal(request('recordingVersions.list', { draftId: id }), true);
+  assert.equal(request('recordingVersions.preview', { planId: id, sampleRate: 96000 }), true);
+  const freeze = { planId: id, sampleRate: 96000, commandId: id, proposalFingerprint: 'a'.repeat(64), userConfirmed: true };
+  assert.equal(request('recordingVersions.freeze', freeze), true);
+  for (const bad of [{ ...freeze, userConfirmed: false }, { ...freeze, content: {} }, { ...freeze, path: '/private/source' }, { ...freeze, sampleRate: 0 }, { ...freeze, proposalFingerprint: '' }]) assert.equal(request('recordingVersions.freeze', bad), false);
+  assert.equal(request('recordingVersions.cancel', { commandId: id, id }), true);
+  const response = (command: Parameters<typeof validateIpcResponseForCommand>[1], result: unknown) => validateIpcResponseForCommand({ version: 1, id: 'versions', ok: true, result }, command).ok;
+  assert.equal(response('recordingVersions.list', { draftId: id, masters: [], layouts: [], jobs: [] }), true);
+  const job = { id, draftId: id, planId: id, state: 'running' };
+  assert.equal(response('recordingVersions.freeze', job), true);
+  assert.equal(response('recordingVersions.freeze', { ...job, state: 'completed' }), false);
+  assert.equal(response('recordingVersions.freeze', { ...job, state: 'completed', masterVersionId: id, layoutVersionId: id }), true);
+  assert.equal(response('recordingVersions.freeze', { ...job, state: 'failed', failure: 'SOURCE_INVALID', stack: 'private' }), false);
+  assert.equal(response('recordingVersions.job', { job: null }), true);
+});
+
+test('Logic Preparation 请求只引用冻结布局与已授权目标，不能提交私有路径或伪造工作副本', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const request = (command: string, payload: unknown) => validateIpcRequest({ version: 1, id: 'preparation', command, payload }).ok;
+  assert.equal(request('recordingPreparation.list', { draftId: id }), true);
+  assert.equal(request('recordingPreparation.preview', { layoutVersionId: id, destinationId: id }), true);
+  const start = { commandId: id, layoutVersionId: id, destinationId: id, proposalFingerprint: 'a'.repeat(64), userConfirmed: true };
+  assert.equal(request('recordingPreparation.start', start), true);
+  for (const invalid of [{ ...start, path: '/private/library' }, { ...start, workingCopies: [] }, { ...start, userConfirmed: false }, { ...start, proposalFingerprint: '' }]) assert.equal(request('recordingPreparation.start', invalid), false);
+});
+
+test('Logic Preparation 公开回执区分工作副本和执行资产，拒绝目标路径及不完整成功状态', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const response = (command: string, result: unknown) => validateIpcResponseForCommand({ version: 1, id: 'prep', ok: true, result }, command as Parameters<typeof validateIpcResponseForCommand>[1]).ok;
+  assert.equal(response('recordingPreparation.list', { draftId: id, workspaces: [], jobs: [] }), true);
+  const job = { id, draftId: id, layoutVersionId: id, destinationId: id, state: 'running', completedTracks: 0, totalTracks: 1 };
+  assert.equal(response('recordingPreparation.start', job), true);
+  assert.equal(response('recordingPreparation.start', { ...job, state: 'completed' }), false);
+  assert.equal(response('recordingPreparation.start', { ...job, path: '/private/output' }), false);
+  assert.equal(response('recordingPreparation.start', { ...job, completedTracks: 2 }), false);
+  const proposal = { draftId: id, masterVersionId: id, layoutVersionId: id, destinationId: id, contentHash: 'a'.repeat(64), timelineHash: 'b'.repeat(64), trackCount: 1, bytes: 44, proposalFingerprint: 'c'.repeat(64), executionReady: false };
+  assert.equal(response('recordingPreparation.preview', proposal), true);
+  assert.equal(response('recordingPreparation.preview', { ...proposal, executionReady: true }), false);
+});
+
+test('Preparation 目标与任务 API 有界，原生授权路径及 Finder 上下文只能返回 Main', () => {
+  const id = '11111111-1111-4111-8111-111111111111', destination = { id, label: 'Logic 合成输出', authorized: true };
+  const request = (command: string, payload: unknown) => validateIpcRequest({ version: 1, id: 'prep-api', command, payload }).ok;
+  assert.equal(request('recordingPreparation.destinations', {}), true);
+  assert.equal(request('recordingPreparation.revoke', { commandId: id, id }), true);
+  assert.equal(request('recordingPreparation.job', { id }), true);
+  assert.equal(request('recordingPreparation.cancel', { commandId: id, id }), true);
+  assert.equal(request('recordingPreparation.context', { id }), true);
+  assert.equal(request('recordingPreparation.context', { id, path: '/private/other' }), false);
+  assert.equal(request('recordingPreparation.authorize', { commandId: id, absolutePath: '/private/synthetic-target' }), true);
+  const response = { version: 1, id: 'prep-api', ok: true, result: { absolutePath: '/private/synthetic-target/workspace' } };
+  assert.equal(validateIpcResponseForCommand(response, 'recordingPreparation.context' as Parameters<typeof validateIpcResponseForCommand>[1]).ok, false);
+  assert.equal(validateIpcInternalResponseForCommand(response, 'recordingPreparation.context' as Parameters<typeof validateIpcInternalResponseForCommand>[1]).ok, true);
+  assert.equal(validateIpcResponseForCommand({ ...response, result: { destinations: [destination] } }, 'recordingPreparation.destinations' as Parameters<typeof validateIpcResponseForCommand>[1]).ok, true);
+  assert.equal(validateIpcResponseForCommand({ ...response, result: { destinations: [{ ...destination, path: '/private/other' }] } }, 'recordingPreparation.destinations' as Parameters<typeof validateIpcResponseForCommand>[1]).ok, false);
+});
+
+test('Prepared 请求只读取有界版本上下文，不接受私有 Render 路径或伪造冻结记录', () => {
+  const draftId = '11111111-1111-4111-8111-111111111111';
+  const request = (payload: unknown) => validateIpcRequest({ version: 1, id: 'prepared', command: 'recordingPrepared.list', payload }).ok;
+  assert.equal(request({ draftId }), true);
+  assert.equal(request({ draftId, renderPath: '/private/render.wav' }), false);
+  assert.equal(request({ draftId, preps: [] }), false);
+});
+
+test('Prepared 原始文件选择只在 Main 授权，公开预览与冻结不接收文件路径', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const request = (command: string, payload: unknown) => validateIpcRequest({ version: 1, id: 'raw-api', command, payload }).ok;
+  assert.equal(request('recordingPrepared.selections', { preparationId: id }), true);
+  assert.equal(request('recordingPrepared.select', { commandId: id, preparationId: id, side: 'A', absolutePath: '/private/render.wav' }), true);
+  assert.equal(request('recordingPrepared.select', { commandId: id, preparationId: id, side: 'unknown', absolutePath: '/private/render.wav' }), false);
+  const selection = { id, preparationId: id, side: 'A', label: '合成 WAV', authorized: true };
+  const response = { version: 1, id: 'raw-api', ok: true, result: selection };
+  assert.equal(validateIpcResponseForCommand(response, 'recordingPrepared.select' as Parameters<typeof validateIpcResponseForCommand>[1]).ok, false);
+  assert.equal(validateIpcInternalResponseForCommand(response, 'recordingPrepared.select' as Parameters<typeof validateIpcInternalResponseForCommand>[1]).ok, true);
+  assert.equal(validateIpcInternalResponseForCommand({ ...response, result: { ...selection, absolutePath: '/private/render.wav' } }, 'recordingPrepared.select' as Parameters<typeof validateIpcInternalResponseForCommand>[1]).ok, false);
+  const preview = { preparationId: id, destinationId: id, selectionIds: [id] };
+  assert.equal(request('recordingPrepared.previewImport', preview), true);
+  assert.equal(request('recordingPrepared.previewImport', { ...preview, absolutePath: '/private/render.wav' }), false);
+  assert.equal(request('recordingPrepared.startImport', { ...preview, commandId: id, proposalFingerprint: 'a'.repeat(64), userConfirmed: true }), true);
+  assert.equal(request('recordingPrepared.startImport', { ...preview, commandId: id, proposalFingerprint: 'a'.repeat(64), userConfirmed: false }), false);
 });

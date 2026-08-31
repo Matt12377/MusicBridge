@@ -1,4 +1,29 @@
+import { isGetMasterArtworkRequest, isSaveMasterArtworkRequest, isMasterArtworkResult, isMasterArtworkVersion } from './recording-artwork.js';
+import { isListRecordingPrintsRequest, isRequestRecordingPrintRequest, isRetryRecordingPrintRequest, isGetRecordingPrintRequest, isExportRecordingPrintRequest, isRecordingPrintsPage, isRecordingPrintJob, isRecordingPrintResult, isClaimRecordingPrintRequest, isCompleteRecordingPrintRequest, isFailRecordingPrintRequest, isRecordingPrintLease, isRecordingPrintPdfResult } from './recording-prints.js';
+import { isRecordingReplicaStatus, isInspectRecordingReplicaRequest, isRecordingReplicaReadIdRequest, isStartRecordingReplicaRequest, isRecordingReplicaRunIdRequest, isRecordingReplicaInspection, isRecordingReplicaReadCancellation, isRecordingReplicaRun } from './recording-replica.js';
+import { isListRecordingRecordsRequest, isRecordingRecordIdRequest, isRecordingVisualRequest, isPhysicalRecordingHistoryRequest, isPreviewPhysicalRecordingDispositionRequest, isApplyPhysicalRecordingDispositionRequest, isRecordingRecordsPage, isRecordingRecordDetail, isRecordingVisualResult, isPhysicalRecordingHistory, isPhysicalRecordingDispositionProposal, isApplyPhysicalRecordingDispositionResult } from './recording-records.js';
+import { isRecordingOutputStatus, isRecordingOutputCheckRequest, isRecordingOutputCancelRequest, isRecordingOutputCheckResult } from './recording-output.js';
+import { isListRecordingAttemptsRequest, isRecordingAttemptIdRequest, isBeginRecordingAttemptRequest, isConfirmRecordingAttemptRequest, isBeginRecordingAttemptSideRequest, isStopRecordingAttemptRequest, isRecordingAttemptsPage, isRecordingAttempt } from './recording-attempts.js';
+import { isRecordingPlanHistoryRequest, isRecordingPlanIdRequest, isPreviewRecordingPlanRequest, isFreezeRecordingPlanRequest, isRecordingPreflightRequest, isRecordingPlanHistory, isRecordingPlanVersion, isRecordingPlanProposal, isRecordingPreflightResult } from './recording-plans.js';
+import { isSpreadsheetPageRequest, isSpreadsheetSourcePage, isSpreadsheetIdRequest, isSpreadsheetWorkbookSource, isSpreadsheetSourceRowsRequest, isSpreadsheetSourceRowsPage, isPreviewSpreadsheetImportRequest, isSpreadsheetImportPreview, isApplySpreadsheetImportRequest, isSpreadsheetImportResult, isSpreadsheetImportRevisionRequest, isSpreadsheetImportRevisionDetail, isSpreadsheetImportHistory, isSpreadsheetAdjustmentPreviewRequest, isSpreadsheetAdjustmentBalance, isAdjustSpreadsheetInventoryRequest, isSpreadsheetInventoryAdjustment, isSpreadsheetAdjustmentsRequest, isSpreadsheetAdjustmentsPage, isRegisterSpreadsheetWorkbookRequest, isChooseSpreadsheetWorkbookRequest, isSpreadsheetWorkbookReceipt } from './spreadsheet-import.js';
+import { isListWantEntriesRequest, isWantEntriesPage, isSaveWantEntryRequest, isWantEntry, isCancelWantEntryRequest, isGetWantEntryHistoryRequest, isWantEntryHistory, isGetCollectionProgressRequest, isCollectionProgress, isCaptureCollectionProgressRequest, isCollectionProgressSnapshotSummary, isListCollectionProgressSnapshotsRequest, isCollectionProgressSnapshotsPage, isGetCollectionProgressSnapshotRequest, isCollectionProgressSnapshotDetail, isGetCollectionModelLengthsRequest, isCollectionModelLengths } from './collection-progress.js';
+import { isCommandOutboxDatasetId, isCommandOutboxContext, isCommandOutboxExecute, isCommandOutboxResult } from './command-outbox.js';
+import { isRegisterReferenceSourceRequest, isReferenceSourceVersion, isReferenceSourceListRequest, isReferenceSourcePage, isCatalogIdRequest, isReferenceSourceDetail, isPreviewCatalogRevisionRequest, isCatalogRevisionPreview, isPublishCatalogRevisionRequest, isCatalogRevisionDetail, isSetCatalogMatchRequest, isCatalogSnapshot, isCatalogHistoryRequest, isCatalogHistory } from './reference-catalog.js';
+import { isActivateRestoredDataset, isRestoreActivationView } from './recording-activation.js';
+import { isBackupOverview, isBackupRootView, isAuthorizeBackupRoot, isStartBackupJob, isBackupJobView } from './recording-backups.js';
+import { isArchiveRootView, isInitializeArchiveRequest, isArchiveProposal, isStartArchiveRequest, isPreviewArchiveRequest, isArchiveOperationView, isArchiveHistory, isArchiveCheck, isVerifyArchiveRequest } from './recording-archive.js';
+import { isRecordingProfileVersion, isRecordingProfileHistory, isRecordingSessionSettings, isSaveRecordingProfileRequest, isSaveRecordingSessionRequest } from './recording-profile.js';
+import { isExecutionHistory, isExecutionProposal, isExecutionJob, isExecutionAssetCheck, isPreviewExecutionRequest, isStartExecutionRequest, isVerifyExecutionRequest } from './execution-assets.js';
+import { isPreparedHistory, isPreparedSelection, isSelectPreparedRequest, isPreviewPreparedImportRequest, isStartPreparedImportRequest, isPreparedImportProposal, isPreparedImportJob, isReviewPreparedRequest, isFreezePreparedRequest, isPreparedReview, isFrozenPrepared } from './prepared-render.js';
+import { isPreviewVersionsRequest, isFreezeVersionsRequest, isVersionProposal, isVersionHistory, isVersionJob } from './master-versions.js';
+import { isPreviewPreparationRequest, isStartPreparationRequest, isPreparationHistory, isPreparationProposal, isPreparationJob, isPreparationDestination } from './preparation.js';
+import { isMediaLayoutSpec, isPreviewMediaRequest, isSaveMediaPlanRequest, isReserveMediaRequest, isReleaseMediaRequest, isMediaPlan, isMediaCandidate, isMediaPreview } from './media-planning.js';
+import { isSourceRoot, isSourceJob, isSourceBinding, isSourceSelection, isSourceAction, isSourceConfirmation, isDraftSourceSnapshot } from './source-evidence.js';
+import { isMasterDraft, isMasterDraftSummary, isMasterDraftResult, isAppendMasterDraftRequest, isUpdateMasterDraftRequest } from './master-drafts.js';
+import { isAlbumQuery, isDigitalAlbum, isDigitalAlbumDetail, isPhysicalLinksSnapshot, isDigitalRuntime, isPhysicalLinkResult, isCollectionMatrixRow, isConfirmPhysicalLinkRequest, isRelocateDigitalRequest, isRegisterDigitalRequest, isRemovePhysicalLinkRequest, isConfirmAbsenceRequest } from './physical-links.js';
+import { isMusicId, isMusicFilter, isMusicEntry, isMusicDetail, isMusicMutationResult, isSaveReleaseRequest, isSaveLegacyRequest, isAddMusicPhotoRequest, isRemoveMusicPhotoRequest } from './physical-music.js';
 import type { PublicError } from './errors.js';
+import { isCollectionFilter, isCollectionPhotoImage, isCollectionAddPhotoRequest, isCollectionChangePhotoRequest, isCollectionId, isCollectionReceiveRequest, isCollectionMaterializeRequest, isCollectionUpdateCopyRequest, isCollectionPolicyRequest, isCollectionMutationResult, isCollectionModel, isCollectionPage, isCollectionDetail } from './collection.js';
 import type {
   DailyRecommendationTrack,
   DailyRecommendationsSnapshot,
@@ -913,6 +938,169 @@ function isPlaylistDetail(value: unknown): value is PlaylistDetail {
 }
 
 function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
+  if (command === 'collectionProgress.wants') return isListWantEntriesRequest(payload);
+  if (command === 'collectionProgress.saveWant') return isSaveWantEntryRequest(payload);
+  if (command === 'collectionProgress.cancelWant') return isCancelWantEntryRequest(payload);
+  if (command === 'collectionProgress.wantHistory') return isGetWantEntryHistoryRequest(payload);
+  if (command === 'collectionProgress.current') return isGetCollectionProgressRequest(payload);
+  if (command === 'collectionProgress.capture') return isCaptureCollectionProgressRequest(payload);
+  if (command === 'collectionProgress.snapshots') return isListCollectionProgressSnapshotsRequest(payload);
+  if (command === 'collectionProgress.snapshot') return isGetCollectionProgressSnapshotRequest(payload);
+  if (command === 'collectionProgress.modelLengths') return isGetCollectionModelLengthsRequest(payload);
+  if (command === 'spreadsheetImports.sources') return isSpreadsheetPageRequest(payload);
+  if (command === 'spreadsheetImports.source') return isSpreadsheetIdRequest(payload);
+  if (command === 'spreadsheetImports.sourceRows') return isSpreadsheetSourceRowsRequest(payload);
+  if (command === 'spreadsheetImports.preview') return isPreviewSpreadsheetImportRequest(payload);
+  if (command === 'spreadsheetImports.apply') return isApplySpreadsheetImportRequest(payload);
+  if (command === 'spreadsheetImports.revision') return isSpreadsheetImportRevisionRequest(payload);
+  if (command === 'spreadsheetImports.history') return isSpreadsheetPageRequest(payload);
+  if (command === 'spreadsheetImports.adjustmentPreview') return isSpreadsheetAdjustmentPreviewRequest(payload);
+  if (command === 'spreadsheetImports.adjust') return isAdjustSpreadsheetInventoryRequest(payload);
+  if (command === 'spreadsheetImports.adjustments') return isSpreadsheetAdjustmentsRequest(payload);
+  if (command === 'spreadsheetImports.registerWorkbook') return isRegisterSpreadsheetWorkbookRequest(payload);
+  if (command === 'spreadsheetImports.workbookReceipt') return isChooseSpreadsheetWorkbookRequest(payload);
+  if (command === 'recordingBackups.activationReceipt') return isActivateRestoredDataset(payload);
+  if (command === 'commandOutbox.context') return isEmptyPayload(payload);
+  if (command === 'commandOutbox.execute') return isCommandOutboxExecute(payload);
+  if (command === 'referenceCatalog.registerSource') return isRegisterReferenceSourceRequest(payload);
+  if (command === 'referenceCatalog.sources') return isReferenceSourceListRequest(payload);
+  if (command === 'referenceCatalog.source' || command === 'referenceCatalog.revision' || command === 'referenceCatalog.snapshot') return isCatalogIdRequest(payload);
+  if (command === 'referenceCatalog.previewRevision') return isPreviewCatalogRevisionRequest(payload);
+  if (command === 'referenceCatalog.publishRevision') return isPublishCatalogRevisionRequest(payload);
+  if (command === 'referenceCatalog.setMatch') return isSetCatalogMatchRequest(payload);
+  if (command === 'referenceCatalog.history') return isCatalogHistoryRequest(payload);
+  if (command === 'recordingSources.roots') return isRecord(payload) && hasOnlyKeys(payload, []);
+  if (command === 'recordingSources.rootReceipt') return isRecord(payload) && hasOnlyKeys(payload, ['commandId']) && isCollectionId(payload.commandId);
+  if (command === 'recordingSources.authorize') return isRecord(payload) && hasOnlyKeys(payload, ['commandId', 'absolutePath']) && isCollectionId(payload.commandId) && isSourcePrivatePath(payload.absolutePath);
+  if (command === 'recordingSources.start') return isRecord(payload) && hasOnlyKeys(payload, ['selection', 'absolutePath']) && isSourceSelection(payload.selection) && isSourcePrivatePath(payload.absolutePath);
+  if (command === 'recordingSources.context' || command === 'recordingSources.job') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
+  if (command === 'recordingSources.snapshot') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
+  if (command === 'recordingSources.revoke' || command === 'recordingSources.cancel') return isSourceAction(payload);
+  if (command === 'recordingSources.confirm' || command === 'recordingSources.recheck') return isSourceConfirmation(payload);
+  if (command === 'recordingVersions.list') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
+  if (command === 'recordingPlans.list') return isRecordingPlanHistoryRequest(payload);
+  if (command === 'recordingPlans.version' || command === 'recordingPlans.cancelRead') return isRecordingPlanIdRequest(payload);
+  if (command === 'recordingPlans.preview') return isPreviewRecordingPlanRequest(payload);
+  if (command === 'recordingPlans.freeze') return isFreezeRecordingPlanRequest(payload);
+  if (command === 'recordingPlans.preflight') return isRecordingPreflightRequest(payload);
+  if (command === 'masterArtwork.get') return isGetMasterArtworkRequest(payload);
+  if (command === 'masterArtwork.save') return isSaveMasterArtworkRequest(payload);
+  if (command === 'recordingPrints.list') return isListRecordingPrintsRequest(payload);
+  if (command === 'recordingPrints.request') return isRequestRecordingPrintRequest(payload);
+  if (command === 'recordingPrints.retry') return isRetryRecordingPrintRequest(payload);
+  if (command === 'recordingPrints.get') return isGetRecordingPrintRequest(payload);
+  if (command === 'recordingPrintWorker.claim') return isClaimRecordingPrintRequest(payload);
+  if (command === 'recordingPrintWorker.complete') return isCompleteRecordingPrintRequest(payload);
+  if (command === 'recordingPrintWorker.fail') return isFailRecordingPrintRequest(payload);
+  if (command === 'recordingPrintWorker.pdf') return isExportRecordingPrintRequest(payload);
+  if (command === 'recordingReplica.status') return isEmptyPayload(payload);
+  if (command === 'recordingReplica.inspect') return isInspectRecordingReplicaRequest(payload);
+  if (command === 'recordingReplica.cancelRead') return isRecordingReplicaReadIdRequest(payload);
+  if (command === 'recordingReplica.start') return isStartRecordingReplicaRequest(payload);
+  if (command === 'recordingReplica.get' || command === 'recordingReplica.stop') return isRecordingReplicaRunIdRequest(payload);
+  if (command === 'recordingOutput.status') return isEmptyPayload(payload);
+  if (command === 'recordingOutput.check') return isRecordingOutputCheckRequest(payload);
+  if (command === 'recordingOutput.cancel') return isRecordingOutputCancelRequest(payload);
+  if (command === 'recordingRecords.list') return isListRecordingRecordsRequest(payload);
+  if (command === 'recordingRecords.get') return isRecordingRecordIdRequest(payload);
+  if (command === 'recordingRecords.visual') return isRecordingVisualRequest(payload);
+  if (command === 'recordingRecords.history') return isPhysicalRecordingHistoryRequest(payload);
+  if (command === 'recordingRecords.previewDisposition') return isPreviewPhysicalRecordingDispositionRequest(payload);
+  if (command === 'recordingRecords.applyDisposition') return isApplyPhysicalRecordingDispositionRequest(payload);
+  if (command === 'recordingAttempts.list') return isListRecordingAttemptsRequest(payload);
+  if (command === 'recordingAttempts.get') return isRecordingAttemptIdRequest(payload);
+  if (command === 'recordingAttempts.begin') return isBeginRecordingAttemptRequest(payload);
+  if (command === 'recordingAttempts.confirm') return isConfirmRecordingAttemptRequest(payload);
+  if (command === 'recordingAttempts.beginSide') return isBeginRecordingAttemptSideRequest(payload);
+  if (command === 'recordingAttempts.stop') return isStopRecordingAttemptRequest(payload);
+  if (command === 'recordingProfiles.list') return isRecord(payload) && hasOnlyKeys(payload, []);
+  if (command === 'recordingProfiles.history') return isRecord(payload) && hasOnlyKeys(payload, ['profileId']) && isCollectionId(payload.profileId);
+  if (command === 'recordingProfiles.version') return isRecord(payload) && hasOnlyKeys(payload, ['versionId']) && isCollectionId(payload.versionId);
+  if (command === 'recordingProfiles.save') return isSaveRecordingProfileRequest(payload);
+  if (command === 'recordingProfiles.session') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
+  if (command === 'recordingProfiles.saveSession') return isSaveRecordingSessionRequest(payload);
+  if (command === 'recordingBackups.authorize') return isRecord(payload) && hasOnlyKeys(payload, ['commandId','kind','absolutePath']) && isAuthorizeBackupRoot({ commandId: payload.commandId, kind: payload.kind }) && isSourcePrivatePath(payload.absolutePath);
+  if (command === 'recordingBackups.authorizationReceipt') return isAuthorizeBackupRoot(payload);
+  if (command === 'recordingBackups.start') return isStartBackupJob(payload);
+  if (command === 'recordingBackups.activate') return isActivateRestoredDataset(payload);
+  if (command === 'recordingBackups.cancel' || command === 'recordingBackups.revoke') return isSourceAction(payload);
+  if (command === 'recordingBackups.overview') return isRecord(payload) && hasOnlyKeys(payload, []);
+  if (command === 'recordingArchive.roots') return isRecord(payload) && hasOnlyKeys(payload, []);
+  if (command === 'recordingArchive.initialize') return isInitializeArchiveRequest(payload);
+  if (command === 'recordingArchive.revokeRoot' || command === 'recordingArchive.cancel' || command === 'recordingArchive.resume') return isSourceAction(payload);
+  if (command === 'recordingArchive.preview') return isPreviewArchiveRequest(payload);
+  if (command === 'recordingArchive.start') return isStartArchiveRequest(payload);
+  if (command === 'recordingArchive.list') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
+  if (command === 'recordingArchive.operation' || command === 'recordingArchive.cancelRead') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
+  if (command === 'recordingArchive.verify') return isVerifyArchiveRequest(payload);
+  if (command === 'recordingArchive.authorize') return isRecord(payload) && hasOnlyKeys(payload, ['commandId','absolutePath']) && isCollectionId(payload.commandId) && isSourcePrivatePath(payload.absolutePath);
+  if (command === 'recordingArchive.authorizationReceipt') return isRecord(payload) && hasOnlyKeys(payload, ['commandId']) && isCollectionId(payload.commandId);
+  if (command === 'recordingExecution.list') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
+  if (command === 'recordingExecution.preview') return isPreviewExecutionRequest(payload);
+  if (command === 'recordingExecution.start') return isStartExecutionRequest(payload);
+  if (command === 'recordingExecution.job') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
+  if (command === 'recordingExecution.cancel') return isSourceAction(payload);
+  if (command === 'recordingExecution.cancelRead') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
+  if (command === 'recordingExecution.verify') return isVerifyExecutionRequest(payload);
+  if (command === 'recordingPrepared.selections') return isRecord(payload) && hasOnlyKeys(payload, ['preparationId']) && isCollectionId(payload.preparationId);
+  if (command === 'recordingPrepared.selectionReceipt') return isSelectPreparedRequest(payload);
+  if (command === 'recordingPrepared.select') return isRecord(payload) && hasOnlyKeys(payload, ['commandId','preparationId','side','absolutePath']) && isSelectPreparedRequest({ commandId: payload.commandId, preparationId: payload.preparationId, side: payload.side }) && isSourcePrivatePath(payload.absolutePath);
+  if (command === 'recordingPrepared.revoke' || command === 'recordingPrepared.cancel') return isSourceAction(payload);
+  if (command === 'recordingPrepared.job') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
+  if (command === 'recordingPrepared.previewImport') return isPreviewPreparedImportRequest(payload);
+  if (command === 'recordingPrepared.startImport') return isStartPreparedImportRequest(payload);
+  if (command === 'recordingPrepared.review') return isReviewPreparedRequest(payload);
+  if (command === 'recordingPrepared.freeze') return isFreezePreparedRequest(payload);
+  if (command === 'recordingPreparation.destinations') return isRecord(payload) && hasOnlyKeys(payload, []);
+  if (command === 'recordingPreparation.authorizationReceipt') return isRecord(payload) && hasOnlyKeys(payload, ['commandId']) && isCollectionId(payload.commandId);
+  if (command === 'recordingPreparation.authorize') return isRecord(payload) && hasOnlyKeys(payload, ['commandId','absolutePath']) && isCollectionId(payload.commandId) && isSourcePrivatePath(payload.absolutePath);
+  if (command === 'recordingPreparation.revoke' || command === 'recordingPreparation.cancel') return isSourceAction(payload);
+  if (command === 'recordingPreparation.job' || command === 'recordingPreparation.context') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
+  if (command === 'recordingPreparation.list' || command === 'recordingPrepared.list') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
+  if (command === 'recordingPreparation.preview') return isPreviewPreparationRequest(payload);
+  if (command === 'recordingPreparation.start') return isStartPreparationRequest(payload);
+  if (command === 'recordingVersions.preview') return isPreviewVersionsRequest(payload);
+  if (command === 'recordingVersions.freeze') return isFreezeVersionsRequest(payload);
+  if (command === 'recordingVersions.job') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
+  if (command === 'recordingVersions.cancel') return isSourceAction(payload);
+  if (command === 'recordingMedia.plans') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
+  if (command === 'recordingMedia.detail') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
+  if (command === 'recordingMedia.preview') return isPreviewMediaRequest(payload);
+  if (command === 'recordingMedia.balance') return isRecord(payload) && hasOnlyKeys(payload, ['draftId', 'spec']) && isCollectionId(payload.draftId) && isMediaLayoutSpec(payload.spec);
+  if (command === 'recordingMedia.save') return isSaveMediaPlanRequest(payload);
+  if (command === 'recordingMedia.reserve') return isReserveMediaRequest(payload);
+  if (command === 'recordingMedia.release') return isReleaseMediaRequest(payload);
+  if (command === 'recordingDrafts.list') return isRecord(payload) && hasOnlyKeys(payload, ['page']) && isPageRequest(payload.page);
+  if (command === 'recordingDrafts.detail') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
+  if (command === 'recordingDrafts.runtime') return isRecord(payload) && hasOnlyKeys(payload, ['draftId', 'trackId']) && isCollectionId(payload.draftId) && isCollectionId(payload.trackId);
+  if (command === 'recordingDrafts.append') return isAppendMasterDraftRequest(payload);
+  if (command === 'recordingDrafts.update') return isUpdateMasterDraftRequest(payload);
+  if (command === 'physicalLinks.digitalList') return isRecord(payload) && hasOnlyKeys(payload, ['page']) && isPageRequest(payload.page);
+  if (command === 'physicalLinks.search') return isRecord(payload) && hasOnlyKeys(payload, ['page', 'query']) && isPageRequest(payload.page) && isAlbumQuery(payload.query);
+  if (command === 'physicalLinks.matrix') return isRecord(payload) && hasOnlyKeys(payload, ['page', 'query']) && isPageRequest(payload.page) && (payload.query === undefined || isAlbumQuery(payload.query));
+  if (command === 'physicalLinks.digitalDetail' || command === 'physicalLinks.runtime') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
+  if (command === 'physicalLinks.physical') return isRecord(payload) && hasOnlyKeys(payload, ['releaseId']) && isCollectionId(payload.releaseId);
+  if (command === 'physicalLinks.confirm') return isConfirmPhysicalLinkRequest(payload);
+  if (command === 'physicalLinks.relocate') return isRelocateDigitalRequest(payload);
+  if (command === 'physicalLinks.register') return isRegisterDigitalRequest(payload);
+  if (command === 'physicalLinks.remove') return isRemovePhysicalLinkRequest(payload);
+  if (command === 'physicalLinks.absence') return isConfirmAbsenceRequest(payload);
+  if (command === 'physicalMusic.list') return isRecord(payload) && hasOnlyKeys(payload, ['page', 'filter']) && isPageRequest(payload.page) && (payload.filter === undefined || isMusicFilter(payload.filter));
+  if (command === 'physicalMusic.detail') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isMusicId(payload.id);
+  if (command === 'physicalMusic.photo') return isRecord(payload) && hasOnlyKeys(payload, ['photoId']) && isCollectionId(payload.photoId);
+  if (command === 'physicalMusic.saveRelease') return isSaveReleaseRequest(payload);
+  if (command === 'physicalMusic.saveLegacy') return isSaveLegacyRequest(payload);
+  if (command === 'physicalMusic.addPhoto') return isAddMusicPhotoRequest(payload);
+  if (command === 'physicalMusic.removePhoto') return isRemoveMusicPhotoRequest(payload);
+  if (command === 'collection.list') return isRecord(payload) && hasOnlyKeys(payload, ['page', 'filter']) && isPageRequest(payload.page) && (payload.filter === undefined || isCollectionFilter(payload.filter));
+  if (command === 'collection.addPhoto') return isCollectionAddPhotoRequest(payload);
+  if (command === 'collection.changePhoto') return isCollectionChangePhotoRequest(payload);
+  if (command === 'collection.photo') return isRecord(payload) && hasOnlyKeys(payload, ['photoId']) && isCollectionId(payload.photoId);
+  if (command === 'collection.detail') return isRecord(payload) && hasOnlyKeys(payload, ['modelId', 'page']) && isCollectionId(payload.modelId) && isPageRequest(payload.page);
+  if (command === 'collection.receive') return isCollectionReceiveRequest(payload);
+  if (command === 'collection.materialize') return isCollectionMaterializeRequest(payload);
+  if (command === 'collection.updateCopy') return isCollectionUpdateCopyRequest(payload);
+  if (command === 'collection.setPolicy') return isCollectionPolicyRequest(payload);
   if (command === 'roon.selectZone') return isSelectZonePayload(payload);
   if (command === 'auth.setCredential') return isSetCredentialPayload(payload);
   if (command === 'auth.verifyCredential') return isSetCredentialPayload(payload);
@@ -959,6 +1147,9 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
 }
 
 const PUBLIC_ERROR_CODES = new Set([
+  'OUTBOX_SCOPE_MISMATCH',
+  'INVENTORY_CONFLICT',
+  'INVENTORY_UNAVAILABLE',
   'INVALID_IPC_REQUEST',
   'UNSUPPORTED_IPC_VERSION',
   'UNKNOWN_IPC_COMMAND',
@@ -1325,6 +1516,189 @@ function isCommandResult(
   allowInternalResult = false,
 ): boolean {
   switch (command) {
+    case 'collectionProgress.wants': return isWantEntriesPage(value);
+    case 'collectionProgress.saveWant': return isWantEntry(value);
+    case 'collectionProgress.cancelWant': return isWantEntry(value);
+    case 'collectionProgress.wantHistory': return isWantEntryHistory(value);
+    case 'collectionProgress.current': return isCollectionProgress(value);
+    case 'collectionProgress.capture': return isCollectionProgressSnapshotSummary(value);
+    case 'collectionProgress.snapshots': return isCollectionProgressSnapshotsPage(value);
+    case 'collectionProgress.snapshot': return isCollectionProgressSnapshotDetail(value);
+    case 'collectionProgress.modelLengths': return isCollectionModelLengths(value);
+    case 'spreadsheetImports.sources': return isSpreadsheetSourcePage(value);
+    case 'spreadsheetImports.source': return isSpreadsheetWorkbookSource(value);
+    case 'spreadsheetImports.sourceRows': return isSpreadsheetSourceRowsPage(value);
+    case 'spreadsheetImports.preview': return isSpreadsheetImportPreview(value);
+    case 'spreadsheetImports.apply': return isSpreadsheetImportResult(value);
+    case 'spreadsheetImports.revision': return isSpreadsheetImportRevisionDetail(value);
+    case 'spreadsheetImports.history': return isSpreadsheetImportHistory(value);
+    case 'spreadsheetImports.adjustmentPreview': return isSpreadsheetAdjustmentBalance(value);
+    case 'spreadsheetImports.adjust': return isSpreadsheetInventoryAdjustment(value);
+    case 'spreadsheetImports.adjustments': return isSpreadsheetAdjustmentsPage(value);
+    case 'spreadsheetImports.registerWorkbook': return allowInternalResult && isSpreadsheetWorkbookSource(value);
+    case 'spreadsheetImports.workbookReceipt': return allowInternalResult && isSpreadsheetWorkbookReceipt(value);
+    case 'recordingBackups.activationReceipt': return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['activation']) && (value.activation === null || isRestoreActivationView(value.activation));
+    case 'commandOutbox.context': return isCommandOutboxContext(value);
+    case 'commandOutbox.execute': return isCommandOutboxResult(value);
+    case 'referenceCatalog.registerSource': return isReferenceSourceVersion(value);
+    case 'referenceCatalog.sources': return isReferenceSourcePage(value);
+    case 'referenceCatalog.source': return isReferenceSourceDetail(value);
+    case 'referenceCatalog.previewRevision': return isCatalogRevisionPreview(value);
+    case 'referenceCatalog.publishRevision':
+    case 'referenceCatalog.setMatch':
+    case 'referenceCatalog.revision': return isCatalogRevisionDetail(value);
+    case 'referenceCatalog.snapshot': return isCatalogSnapshot(value);
+    case 'referenceCatalog.history': return isCatalogHistory(value);
+    case 'recordingSources.roots': return isRecord(value) && hasOnlyKeys(value, ['roots']) && Array.isArray(value.roots) && value.roots.length <= 100 && value.roots.every(isSourceRoot);
+    case 'recordingSources.rootReceipt': return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['root']) && (value.root === null || isSourceRoot(value.root));
+    case 'recordingSources.authorize': return allowInternalResult && isSourceRoot(value);
+    case 'recordingSources.context': return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['absolutePath']) && isSourcePrivatePath(value.absolutePath);
+    case 'recordingSources.start': return allowInternalResult && isSourceJob(value);
+    case 'recordingSources.revoke': return isSourceRoot(value);
+    case 'recordingSources.snapshot': return isDraftSourceSnapshot(value);
+    case 'recordingSources.job': return isRecord(value) && hasOnlyKeys(value, ['job']) && (value.job === null || isSourceJob(value.job));
+    case 'recordingSources.cancel':
+    case 'recordingSources.recheck': return isSourceJob(value);
+    case 'recordingSources.confirm': return isSourceBinding(value);
+    case 'recordingVersions.list': return isVersionHistory(value);
+    case 'recordingPlans.list': return isRecordingPlanHistory(value);
+    case 'recordingPlans.version': return isRecord(value) && hasOnlyKeys(value, ['plan']) && (value.plan === null || isRecordingPlanVersion(value.plan));
+    case 'recordingPlans.preview': return isRecordingPlanProposal(value);
+    case 'recordingPlans.freeze': return isRecordingPlanVersion(value);
+    case 'recordingPlans.preflight': return isRecordingPreflightResult(value);
+    case 'recordingPlans.cancelRead': return isRecord(value) && hasOnlyKeys(value, ['cancelled']) && value.cancelled === true;
+    case 'masterArtwork.get': return isMasterArtworkResult(value);
+    case 'masterArtwork.save': return isMasterArtworkVersion(value);
+    case 'recordingPrints.list': return isRecordingPrintsPage(value);
+    case 'recordingPrints.request': return isRecordingPrintJob(value);
+    case 'recordingPrints.retry': return isRecordingPrintJob(value);
+    case 'recordingPrints.get': return isRecordingPrintResult(value);
+    case 'recordingPrintWorker.claim': return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['lease']) && (value.lease === null || isRecordingPrintLease(value.lease));
+    case 'recordingPrintWorker.complete': case 'recordingPrintWorker.fail': return allowInternalResult && isRecordingPrintJob(value);
+    case 'recordingPrintWorker.pdf': return allowInternalResult && isRecordingPrintPdfResult(value);
+    case 'recordingReplica.status': return isRecordingReplicaStatus(value);
+    case 'recordingReplica.inspect': return isRecordingReplicaInspection(value);
+    case 'recordingReplica.cancelRead': return isRecordingReplicaReadCancellation(value);
+    case 'recordingReplica.start': case 'recordingReplica.stop': return isRecordingReplicaRun(value);
+    case 'recordingReplica.get': return isRecord(value) && hasOnlyKeys(value, ['run']) && (value.run === null || isRecordingReplicaRun(value.run));
+    case 'recordingOutput.status': return isRecordingOutputStatus(value);
+    case 'recordingOutput.check': return isRecordingOutputCheckResult(value);
+    case 'recordingOutput.cancel': return isRecord(value) && hasOnlyKeys(value, ['cancelled']) && value.cancelled === true;
+    case 'recordingRecords.list': return isRecordingRecordsPage(value);
+    case 'recordingRecords.get': return isRecord(value) && hasOnlyKeys(value, ['record']) && (value.record === null || isRecordingRecordDetail(value.record));
+    case 'recordingRecords.visual': return isRecordingVisualResult(value);
+    case 'recordingRecords.history': return isPhysicalRecordingHistory(value);
+    case 'recordingRecords.previewDisposition': return isPhysicalRecordingDispositionProposal(value);
+    case 'recordingRecords.applyDisposition': return isApplyPhysicalRecordingDispositionResult(value);
+    case 'recordingAttempts.list': return isRecordingAttemptsPage(value);
+    case 'recordingAttempts.get': return isRecord(value) && hasOnlyKeys(value, ['attempt']) && (value.attempt === null || isRecordingAttempt(value.attempt));
+    case 'recordingAttempts.begin':
+    case 'recordingAttempts.confirm':
+    case 'recordingAttempts.beginSide':
+    case 'recordingAttempts.stop': return isRecordingAttempt(value);
+    case 'recordingProfiles.list': return isRecord(value) && hasOnlyKeys(value, ['profiles']) && Array.isArray(value.profiles) && value.profiles.length <= 100 && value.profiles.every(isRecordingProfileVersion);
+    case 'recordingProfiles.history': return isRecordingProfileHistory(value);
+    case 'recordingProfiles.version': return isRecordingProfileVersion(value);
+    case 'recordingProfiles.save': return isRecordingProfileVersion(value);
+    case 'recordingProfiles.session': return isRecord(value) && hasOnlyKeys(value, ['session']) && (value.session === null || isRecordingSessionSettings(value.session));
+    case 'recordingProfiles.saveSession': return isRecordingSessionSettings(value);
+    case 'recordingBackups.authorize': return allowInternalResult && isBackupRootView(value);
+    case 'recordingBackups.authorizationReceipt': return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['root']) && (value.root === null || isBackupRootView(value.root));
+    case 'recordingBackups.start':
+    case 'recordingBackups.cancel': return isBackupJobView(value);
+    case 'recordingBackups.revoke': return isBackupRootView(value);
+    case 'recordingBackups.overview': return isBackupOverview(value);
+    case 'recordingBackups.activate': return isRestoreActivationView(value);
+    case 'recordingArchive.roots': return isRecord(value) && hasOnlyKeys(value, ['roots']) && Array.isArray(value.roots) && value.roots.length <= 100 && value.roots.every(isArchiveRootView) && new Set(value.roots.map(root => root.id)).size === value.roots.length;
+    case 'recordingArchive.initialize':
+    case 'recordingArchive.revokeRoot': return isArchiveRootView(value);
+    case 'recordingArchive.preview': return isArchiveProposal(value);
+    case 'recordingArchive.start':
+    case 'recordingArchive.cancel':
+    case 'recordingArchive.resume': return isArchiveOperationView(value);
+    case 'recordingArchive.list': return isArchiveHistory(value);
+    case 'recordingArchive.operation': return isRecord(value) && hasOnlyKeys(value, ['operation']) && (value.operation === null || isArchiveOperationView(value.operation));
+    case 'recordingArchive.verify': return isArchiveCheck(value);
+    case 'recordingArchive.cancelRead': return isRecord(value) && hasOnlyKeys(value, ['cancelled']) && value.cancelled === true;
+    case 'recordingArchive.authorize': return allowInternalResult && isArchiveRootView(value);
+    case 'recordingArchive.authorizationReceipt': return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['root']) && (value.root === null || isArchiveRootView(value.root));
+    case 'recordingExecution.list': return isExecutionHistory(value);
+    case 'recordingExecution.preview': return isExecutionProposal(value);
+    case 'recordingExecution.start': return isExecutionJob(value);
+    case 'recordingExecution.job': return isRecord(value) && hasOnlyKeys(value, ['job']) && (value.job === null || isExecutionJob(value.job));
+    case 'recordingExecution.cancel': return isExecutionJob(value);
+    case 'recordingExecution.cancelRead': return isRecord(value) && hasOnlyKeys(value, ['cancelled']) && value.cancelled === true;
+    case 'recordingExecution.verify': return isExecutionAssetCheck(value);
+    case 'recordingPreparation.destinations': return isRecord(value) && hasOnlyKeys(value, ['destinations']) && Array.isArray(value.destinations) && value.destinations.length <= 100 && value.destinations.every(isPreparationDestination);
+    case 'recordingPreparation.authorizationReceipt': return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['destination']) && (value.destination === null || isPreparationDestination(value.destination));
+    case 'recordingPreparation.authorize': return allowInternalResult && isPreparationDestination(value);
+    case 'recordingPreparation.revoke': return isPreparationDestination(value);
+    case 'recordingPreparation.job': return isRecord(value) && hasOnlyKeys(value, ['job']) && (value.job === null || isPreparationJob(value.job));
+    case 'recordingPreparation.cancel': return isPreparationJob(value);
+    case 'recordingPreparation.context': return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['absolutePath']) && isSourcePrivatePath(value.absolutePath);
+    case 'recordingPrepared.selections': return isRecord(value) && hasOnlyKeys(value, ['selections']) && Array.isArray(value.selections) && value.selections.length <= 100 && value.selections.every(isPreparedSelection);
+    case 'recordingPrepared.selectionReceipt': return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['selection']) && (value.selection === null || isPreparedSelection(value.selection));
+    case 'recordingPrepared.select': return allowInternalResult && isPreparedSelection(value);
+    case 'recordingPrepared.revoke': return isPreparedSelection(value);
+    case 'recordingPrepared.previewImport': return isPreparedImportProposal(value);
+    case 'recordingPrepared.startImport': case 'recordingPrepared.cancel': return isPreparedImportJob(value);
+    case 'recordingPrepared.job': return isRecord(value) && hasOnlyKeys(value, ['job']) && (value.job === null || isPreparedImportJob(value.job));
+    case 'recordingPrepared.review': return isPreparedReview(value);
+    case 'recordingPrepared.freeze': return isFrozenPrepared(value);
+    case 'recordingPrepared.list': return isPreparedHistory(value);
+    case 'recordingPreparation.list': return isPreparationHistory(value);
+    case 'recordingPreparation.preview': return isPreparationProposal(value);
+    case 'recordingPreparation.start': return isPreparationJob(value);
+    case 'recordingVersions.preview': return isVersionProposal(value);
+    case 'recordingVersions.freeze':
+    case 'recordingVersions.cancel': return isVersionJob(value);
+    case 'recordingVersions.job': return isRecord(value) && hasOnlyKeys(value, ['job']) && (value.job === null || isVersionJob(value.job));
+    case 'recordingMedia.plans': return isRecord(value) && hasOnlyKeys(value, ['draftId', 'plans']) && isCollectionId(value.draftId) && Array.isArray(value.plans) && value.plans.length <= 100 && value.plans.every(isMediaPlan);
+    case 'recordingMedia.preview': return isMediaPreview(value, page => isCollectionPage(page, isMediaCandidate));
+    case 'recordingMedia.balance': return isRecord(value) && hasOnlyKeys(value, ['splitAfter']) && Number.isInteger(value.splitAfter) && Number(value.splitAfter) >= 1 && Number(value.splitAfter) <= 200;
+    case 'recordingMedia.detail':
+    case 'recordingMedia.save':
+    case 'recordingMedia.reserve':
+    case 'recordingMedia.release': return isMediaPlan(value);
+    case 'recordingDrafts.list': return isCollectionPage(value, isMasterDraftSummary);
+    case 'recordingDrafts.detail': return isMasterDraft(value);
+    case 'recordingDrafts.append':
+    case 'recordingDrafts.update': return isMasterDraftResult(value);
+    case 'recordingDrafts.runtime': return isDigitalRuntime(value);
+    case 'physicalLinks.search': return isRoonLibraryPage(value);
+    case 'physicalLinks.digitalList': return isCollectionPage(value, isDigitalAlbum);
+    case 'physicalLinks.digitalDetail': return isDigitalAlbumDetail(value, isMusicEntry);
+    case 'physicalLinks.physical': return isPhysicalLinksSnapshot(value);
+    case 'physicalLinks.runtime': return isDigitalRuntime(value);
+    case 'physicalLinks.matrix': return isCollectionPage(value, isCollectionMatrixRow);
+    case 'physicalLinks.confirm':
+    case 'physicalLinks.relocate':
+    case 'physicalLinks.register':
+    case 'physicalLinks.remove':
+    case 'physicalLinks.absence':
+      return isPhysicalLinkResult(value);
+    case 'physicalMusic.list': return isCollectionPage(value, isMusicEntry);
+    case 'physicalMusic.detail': return isMusicDetail(value);
+    case 'physicalMusic.photo': return isCollectionPhotoImage(value);
+    case 'physicalMusic.saveRelease':
+    case 'physicalMusic.saveLegacy':
+    case 'physicalMusic.addPhoto':
+    case 'physicalMusic.removePhoto':
+      return isMusicMutationResult(value);
+    case 'collection.addPhoto':
+    case 'collection.changePhoto':
+      return isCollectionMutationResult(value);
+    case 'collection.photo':
+      return isCollectionPhotoImage(value);
+    case 'collection.list':
+      return isCollectionPage(value, isCollectionModel);
+    case 'collection.detail':
+      return isCollectionDetail(value);
+    case 'collection.receive':
+    case 'collection.materialize':
+    case 'collection.updateCopy':
+    case 'collection.setPolicy':
+      return isCollectionMutationResult(value);
     case 'core.ping':
       return isRecord(value) && hasOnlyKeys(value, ['pong']) && value.pong === true;
     case 'core.getHealth':
@@ -1478,6 +1852,7 @@ export function validateIpcRequest(
   }
 
   if (
+    (input.expectedDatasetId !== undefined && !isCommandOutboxDatasetId(input.expectedDatasetId)) ||
     typeof input.id !== 'string' ||
     input.id.trim().length === 0 ||
     input.id.length > 128 ||
@@ -1509,6 +1884,7 @@ export function validateIpcRequest(
       id: input.id,
       command: input.command as (typeof IPC_COMMANDS)[number],
       payload: input.payload,
+      ...(input.expectedDatasetId !== undefined ? { expectedDatasetId: input.expectedDatasetId as string } : {}),
     },
   };
 }
@@ -1624,3 +2000,5 @@ export function parseIpcRuntimeMessage(
   }
   return invalidResponse();
 }
+
+function isSourcePrivatePath(value: unknown): value is string { return typeof value === 'string' && value.startsWith('/') && value.length <= 4096 && !/[\u0000-\u001f\u007f]/u.test(value); }

@@ -4,6 +4,7 @@ import type {
   RoonLibraryItem as PublicRoonLibraryItem,
   RoonLibraryPage as PublicRoonLibraryPage,
   TrackSummary,
+  DraftTrackMetadata,
 } from '@music-bridge/contracts';
 import {
   isValidRoonImageBinary,
@@ -37,7 +38,13 @@ export interface RoonPublicLibraryOptions {
   onImageShape?: (summary: RoonImageShapeSummary) => void;
 }
 
+export interface RoonAlbumMetadata { title: string; artist?: string; year?: number; version?: string }
+
 export interface RoonPublicLibrary {
+  invalidateReferences(): void;
+  /** Core 内部专辑元数据快照，不包含运行期引用或私有 Browse 身份。 */
+  getAlbumSnapshot(reference: string): RoonAlbumMetadata;
+  getTrackSnapshot(reference: string): DraftTrackMetadata;
   browseAlbums(request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
   browseArtists(request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
   browseGenres(request: RoonPageRequest): Promise<PublicRoonLibraryPage>;
@@ -341,6 +348,7 @@ export function createRoonPublicLibrary(
   const service = (): RoonLibraryService => {
     const value = getService();
     if (!value) {
+      if (activeService) { references.clear(); imageReferences.clear(); clearImageState(); referenceScope = randomUUID(); activeService = undefined; }
       throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Roon Library is not available', {
         httpStatus: 503,
       });
@@ -408,16 +416,30 @@ export function createRoonPublicLibrary(
     return stored.descriptor;
   };
 
+  function currentPage(page: RoonLibraryPage<RoonEntityDescriptor>, request: RoonPageRequest, current: RoonLibraryService, scope: string): PublicRoonLibraryPage {
+    if (service() !== current || referenceScope !== scope) {
+      throw new BridgeError('ROON_LIBRARY_INVALID_REFERENCE', 'Roon 浏览结果已过期，请重新选择当前专辑。', { httpStatus: 409 });
+    }
+    return mapPage(page, request, references, imageReferences, scope);
+  }
+
   return {
+    invalidateReferences() { references.clear(); imageReferences.clear(); clearImageState(); referenceScope = randomUUID(); activeService = undefined; },
+    getAlbumSnapshot(reference) {
+      service();
+      const descriptor = resolveAlbum(reference);
+      return { title: descriptor.title, ...(descriptor.artist !== undefined ? { artist: descriptor.artist } : {}),
+        ...(descriptor.year !== undefined ? { year: descriptor.year } : {}), ...(descriptor.version !== undefined ? { version: descriptor.version } : {}) };
+    },
     async browseAlbums(request) {
       try {
         const current = service();
-        return mapPage(
+        const scope = referenceScope;
+        return currentPage(
           await current.browseAlbums(request),
           request,
-          references,
-          imageReferences,
-          referenceScope,
+          current,
+          scope,
         );
       } catch (error) {
         return wrapLibraryError(error);
@@ -426,12 +448,12 @@ export function createRoonPublicLibrary(
     async browseArtists(request) {
       try {
         const current = service();
-        return mapPage(
+        const scope = referenceScope;
+        return currentPage(
           await current.browseArtists(request),
           request,
-          references,
-          imageReferences,
-          referenceScope,
+          current,
+          scope,
         );
       } catch (error) {
         return wrapLibraryError(error);
@@ -440,12 +462,12 @@ export function createRoonPublicLibrary(
     async browseGenres(request) {
       try {
         const current = service();
-        return mapPage(
+        const scope = referenceScope;
+        return currentPage(
           await current.browseGenres(request),
           request,
-          references,
-          imageReferences,
-          referenceScope,
+          current,
+          scope,
         );
       } catch (error) {
         return wrapLibraryError(error);
@@ -454,12 +476,12 @@ export function createRoonPublicLibrary(
     async browsePlaylists(request) {
       try {
         const current = service();
-        return mapPage(
+        const scope = referenceScope;
+        return currentPage(
           await current.browsePlaylists(request),
           request,
-          references,
-          imageReferences,
-          referenceScope,
+          current,
+          scope,
         );
       } catch (error) {
         return wrapLibraryError(error);
@@ -468,12 +490,12 @@ export function createRoonPublicLibrary(
     async browseAlbum(reference, request) {
       try {
         const current = service();
-        return mapPage(
+        const scope = referenceScope;
+        return currentPage(
           await current.browseAlbum(resolveAlbum(reference), request),
           request,
-          references,
-          imageReferences,
-          referenceScope,
+          current,
+          scope,
         );
       } catch (error) {
         return wrapLibraryError(error, 'album');
@@ -482,12 +504,12 @@ export function createRoonPublicLibrary(
     async browseArtist(reference, request) {
       try {
         const current = service();
-        return mapPage(
+        const scope = referenceScope;
+        return currentPage(
           await current.browseArtist(resolveArtist(reference), request),
           request,
-          references,
-          imageReferences,
-          referenceScope,
+          current,
+          scope,
         );
       } catch (error) {
         return wrapLibraryError(error);
@@ -496,12 +518,12 @@ export function createRoonPublicLibrary(
     async browseGenre(reference, request) {
       try {
         const current = service();
-        return mapPage(
+        const scope = referenceScope;
+        return currentPage(
           await current.browseGenre(resolveGenre(reference), request),
           request,
-          references,
-          imageReferences,
-          referenceScope,
+          current,
+          scope,
         );
       } catch (error) {
         return wrapLibraryError(error);
@@ -510,12 +532,12 @@ export function createRoonPublicLibrary(
     async browsePlaylist(reference, request) {
       try {
         const current = service();
-        return mapPage(
+        const scope = referenceScope;
+        return currentPage(
           await current.browsePlaylist(resolvePlaylist(reference), request),
           request,
-          references,
-          imageReferences,
-          referenceScope,
+          current,
+          scope,
         );
       } catch (error) {
         return wrapLibraryError(error);
@@ -524,12 +546,12 @@ export function createRoonPublicLibrary(
     async searchLibrary(query, request, kind) {
       try {
         const current = service();
-        return mapPage(
+        const scope = referenceScope;
+        return currentPage(
           await current.searchLibrary(query, request, kind),
           request,
-          references,
-          imageReferences,
-          referenceScope,
+          current,
+          scope,
         );
       } catch (error) {
         return wrapLibraryError(error);
@@ -630,6 +652,21 @@ export function createRoonPublicLibrary(
       } catch (error) {
         return wrapLibraryError(error, 'track-action');
       }
+    },
+    getTrackSnapshot(reference) {
+      service();
+      const { descriptor } = resolveTrackReference(reference);
+      const durationMs = toDurationMs(descriptor);
+      // 不把缺失字段的 UI 占位文字、运行期身份和封面引用写成档案元数据。
+      return {
+        title: descriptor.title,
+        ...(descriptor.artist ? { artist: descriptor.artist } : {}),
+        ...(descriptor.album ? { album: descriptor.album } : {}),
+        ...(descriptor.version ? { version: descriptor.version } : {}),
+        ...(durationMs !== undefined ? { durationMs } : {}),
+        ...(descriptor.discNumber !== undefined ? { discNumber: descriptor.discNumber } : {}),
+        ...(descriptor.trackNumber !== undefined ? { trackNumber: descriptor.trackNumber } : {}),
+      };
     },
     getTrackSummary(reference) {
       service();

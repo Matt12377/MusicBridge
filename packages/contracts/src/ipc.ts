@@ -1,4 +1,29 @@
+import type { GetMasterArtworkRequest, SaveMasterArtworkRequest, MasterArtworkResult, MasterArtworkVersion } from './recording-artwork.js';
+import type { ListRecordingPrintsRequest, RequestRecordingPrintRequest, RetryRecordingPrintRequest, GetRecordingPrintRequest, ExportRecordingPrintRequest, RecordingPrintsPage, RecordingPrintJob, RecordingPrintResult, ClaimRecordingPrintRequest, CompleteRecordingPrintRequest, FailRecordingPrintRequest, RecordingPrintLease, RecordingPrintPdfResult } from './recording-prints.js';
+import type { RecordingReplicaStatus, InspectRecordingReplicaRequest, RecordingReplicaReadIdRequest, StartRecordingReplicaRequest, RecordingReplicaRunIdRequest, RecordingReplicaInspection, RecordingReplicaReadCancellation, RecordingReplicaRun } from './recording-replica.js';
+import type { ListRecordingRecordsRequest, RecordingRecordIdRequest, RecordingVisualRequest, PhysicalRecordingHistoryRequest, PreviewPhysicalRecordingDispositionRequest, ApplyPhysicalRecordingDispositionRequest, RecordingRecordsPage, RecordingRecordDetail, RecordingVisualResult, PhysicalRecordingHistory, PhysicalRecordingDispositionProposal, ApplyPhysicalRecordingDispositionResult } from './recording-records.js';
+import type { RecordingOutputStatus, RecordingOutputCheckRequest, RecordingOutputCancelRequest, RecordingOutputCheckResult } from './recording-output.js';
+import type { ListRecordingAttemptsRequest, RecordingAttemptIdRequest, BeginRecordingAttemptRequest, ConfirmRecordingAttemptRequest, BeginRecordingAttemptSideRequest, StopRecordingAttemptRequest, RecordingAttemptsPage, RecordingAttempt } from './recording-attempts.js';
+import type { RecordingPlanHistoryRequest, RecordingPlanIdRequest, PreviewRecordingPlanRequest, FreezeRecordingPlanRequest, RecordingPreflightRequest, RecordingPlanHistory, RecordingPlanVersion, RecordingPlanProposal, RecordingPreflightResult } from './recording-plans.js';
+import type { SpreadsheetPageRequest, SpreadsheetSourcePage, SpreadsheetIdRequest, SpreadsheetWorkbookSource, SpreadsheetSourceRowsRequest, SpreadsheetSourceRowsPage, PreviewSpreadsheetImportRequest, SpreadsheetImportPreview, ApplySpreadsheetImportRequest, SpreadsheetImportResult, SpreadsheetImportRevisionRequest, SpreadsheetImportRevisionDetail, SpreadsheetImportHistory, SpreadsheetAdjustmentPreviewRequest, SpreadsheetAdjustmentBalance, AdjustSpreadsheetInventoryRequest, SpreadsheetInventoryAdjustment, SpreadsheetAdjustmentsRequest, SpreadsheetAdjustmentsPage, RegisterSpreadsheetWorkbookRequest, ChooseSpreadsheetWorkbookRequest, SpreadsheetWorkbookReceipt } from './spreadsheet-import.js';
+import type { ListWantEntriesRequest, WantEntriesPage, SaveWantEntryRequest, WantEntry, CancelWantEntryRequest, GetWantEntryHistoryRequest, WantEntryHistory, GetCollectionProgressRequest, CollectionProgress, CaptureCollectionProgressRequest, CollectionProgressSnapshotSummary, ListCollectionProgressSnapshotsRequest, CollectionProgressSnapshotsPage, GetCollectionProgressSnapshotRequest, CollectionProgressSnapshotDetail, GetCollectionModelLengthsRequest, CollectionModelLengths } from './collection-progress.js';
+import type { CommandOutboxContext, CommandOutboxExecute, CommandOutboxResult } from './command-outbox.js';
+import type { RegisterReferenceSourceRequest, ReferenceSourceVersion, ReferenceSourceListRequest, ReferenceSourcePage, CatalogIdRequest, ReferenceSourceDetail, PreviewCatalogRevisionRequest, CatalogRevisionPreview, PublishCatalogRevisionRequest, CatalogRevisionDetail, SetCatalogMatchRequest, CatalogSnapshot, CatalogHistoryRequest, CatalogHistory } from './reference-catalog.js';
+import type { ActivateRestoredDataset, RestoreActivationView } from './recording-activation.js';
+import type { BackupOverview, BackupRootView, AuthorizeBackupRoot, StartBackupJob, BackupJobView } from './recording-backups.js';
+import type { ArchiveRootView, InitializeArchiveRequest, ArchiveProposal, StartArchiveRequest, PreviewArchiveRequest, ArchiveOperationView, ArchiveHistory, ArchiveCheck, VerifyArchiveRequest } from './recording-archive.js';
+import type { RecordingProfileVersion, RecordingProfileHistory, RecordingSessionSettings, SaveRecordingProfileRequest, SaveRecordingSessionRequest } from './recording-profile.js';
+import type { ExecutionHistory, ExecutionProposal, ExecutionJob, ExecutionAssetCheck, PreviewExecutionRequest, StartExecutionRequest, VerifyExecutionRequest } from './execution-assets.js';
+import type { PreparedHistory, PreparedSelection, SelectPreparedRequest, PreviewPreparedImportRequest, StartPreparedImportRequest, PreparedImportJob, PreparedImportProposal, ReviewPreparedRequest, FreezePreparedRequest, PreparedReview, FrozenPrepared } from './prepared-render.js';
+import type { PreviewVersionsRequest, FreezeVersionsRequest, VersionProposal, VersionHistory, VersionJob } from './master-versions.js';
+import type { PreviewPreparationRequest, StartPreparationRequest, PreparationHistory, PreparationProposal, PreparationJob, PreparationDestination } from './preparation.js';
+import type { MediaPlan, MediaPreview, MediaLayoutSpec, PreviewMediaRequest, SaveMediaPlanRequest, ReserveMediaRequest, ReleaseMediaRequest } from './media-planning.js';
+import type { SourceRoot, SourceJob, SourceBinding, SourceSelection, SourceAction, SourceConfirmation, DraftSourceSnapshot } from './source-evidence.js';
+import type { MasterDraft, MasterDraftSummary, AppendMasterDraftRequest, UpdateMasterDraftRequest, MasterDraftResult } from './master-drafts.js';
+import type { DigitalAlbum, DigitalAlbumDetail, PhysicalLinksSnapshot, DigitalRuntime, ConfirmPhysicalLinkRequest, RelocateDigitalRequest, RegisterDigitalRequest, RemovePhysicalLinkRequest, ConfirmAbsenceRequest, PhysicalLinkResult, CollectionMatrixRow } from './physical-links.js';
+import type { MusicFilter, MusicEntry, MusicDetail, SaveReleaseRequest, SaveLegacyRequest, MusicMutationResult, AddMusicPhotoRequest, RemoveMusicPhotoRequest } from './physical-music.js';
 import type { PublicError } from './errors.js';
+import type { CollectionFilter, CollectionPhotoImage, CollectionAddPhotoRequest, CollectionChangePhotoRequest, CollectionModel, CollectionDetail, CollectionReceiveRequest, CollectionMaterializeRequest, CollectionUpdateCopyRequest, CollectionPolicyRequest, CollectionMutationResult } from './collection.js';
 import type {
   DailyRecommendationsSnapshot,
   ArtistDetail,
@@ -42,6 +67,38 @@ import type { PublicAggregatedSearchResult } from './aggregated-search.js';
 export const IPC_VERSION = 1 as const;
 
 export const IPC_COMMANDS = [
+  'spreadsheetImports.sources',
+  'spreadsheetImports.source',
+  'spreadsheetImports.sourceRows',
+  'spreadsheetImports.preview',
+  'spreadsheetImports.apply',
+  'spreadsheetImports.revision',
+  'spreadsheetImports.history',
+  'spreadsheetImports.adjustmentPreview',
+  'spreadsheetImports.adjust',
+  'spreadsheetImports.adjustments',
+  'spreadsheetImports.registerWorkbook',
+  'spreadsheetImports.workbookReceipt',
+  'collectionProgress.wants',
+  'collectionProgress.saveWant',
+  'collectionProgress.cancelWant',
+  'collectionProgress.wantHistory',
+  'collectionProgress.current',
+  'collectionProgress.capture',
+  'collectionProgress.snapshots',
+  'collectionProgress.snapshot',
+  'collectionProgress.modelLengths',
+  'referenceCatalog.registerSource',
+  'referenceCatalog.sources',
+  'referenceCatalog.source',
+  'referenceCatalog.previewRevision',
+  'referenceCatalog.publishRevision',
+  'referenceCatalog.revision',
+  'referenceCatalog.setMatch',
+  'referenceCatalog.snapshot',
+  'referenceCatalog.history',
+  'commandOutbox.context',
+  'commandOutbox.execute',
   'core.ping',
   'core.getHealth',
   'core.getState',
@@ -71,6 +128,153 @@ export const IPC_COMMANDS = [
   'library.playlist',
   'library.dailyRecommendations',
   'favorites.list',
+  'recordingBackups.overview',
+  'recordingBackups.activate',
+  'recordingBackups.activationReceipt',
+  'recordingBackups.authorize',
+  'recordingBackups.authorizationReceipt',
+  'recordingBackups.start',
+  'recordingBackups.cancel',
+  'recordingBackups.revoke',
+  'recordingArchive.roots',
+  'recordingArchive.initialize',
+  'recordingArchive.revokeRoot',
+  'recordingArchive.preview',
+  'recordingArchive.start',
+  'recordingArchive.list',
+  'recordingArchive.operation',
+  'recordingArchive.cancel',
+  'recordingArchive.resume',
+  'recordingArchive.verify',
+  'recordingArchive.cancelRead',
+  'recordingArchive.authorize',
+  'recordingArchive.authorizationReceipt',
+  'recordingPlans.list',
+  'recordingPlans.version',
+  'recordingPlans.preview',
+  'recordingPlans.freeze',
+  'recordingPlans.preflight',
+  'recordingPlans.cancelRead',
+  'masterArtwork.get',
+  'masterArtwork.save',
+  'recordingPrints.list',
+  'recordingPrints.request',
+  'recordingPrints.retry',
+  'recordingPrints.get',
+  'recordingPrintWorker.claim',
+  'recordingPrintWorker.complete',
+  'recordingPrintWorker.fail',
+  'recordingPrintWorker.pdf',
+  'recordingReplica.status',
+  'recordingReplica.inspect',
+  'recordingReplica.cancelRead',
+  'recordingReplica.start',
+  'recordingReplica.get',
+  'recordingReplica.stop',
+  'recordingOutput.status',
+  'recordingOutput.check',
+  'recordingOutput.cancel',
+  'recordingRecords.list',
+  'recordingRecords.get',
+  'recordingRecords.visual',
+  'recordingRecords.history',
+  'recordingRecords.previewDisposition',
+  'recordingRecords.applyDisposition',
+  'recordingAttempts.list',
+  'recordingAttempts.get',
+  'recordingAttempts.begin',
+  'recordingAttempts.confirm',
+  'recordingAttempts.beginSide',
+  'recordingAttempts.stop',
+  'recordingProfiles.list',
+  'recordingProfiles.history',
+  'recordingProfiles.version',
+  'recordingProfiles.save',
+  'recordingProfiles.session',
+  'recordingProfiles.saveSession',
+  'recordingExecution.list',
+  'recordingExecution.preview',
+  'recordingExecution.start',
+  'recordingExecution.job',
+  'recordingExecution.cancel',
+  'recordingExecution.cancelRead',
+  'recordingExecution.verify',
+  'recordingVersions.list',
+  'recordingPrepared.list',
+  'recordingPrepared.selections',
+  'recordingPrepared.selectionReceipt',
+  'recordingPrepared.select',
+  'recordingPrepared.revoke',
+  'recordingPrepared.previewImport',
+  'recordingPrepared.startImport',
+  'recordingPrepared.job',
+  'recordingPrepared.cancel',
+  'recordingPrepared.review',
+  'recordingPrepared.freeze',
+  'recordingPreparation.destinations',
+  'recordingPreparation.authorizationReceipt',
+  'recordingPreparation.authorize',
+  'recordingPreparation.revoke',
+  'recordingPreparation.job',
+  'recordingPreparation.cancel',
+  'recordingPreparation.context',
+  'recordingPreparation.list',
+  'recordingPreparation.preview',
+  'recordingPreparation.start',
+  'recordingVersions.preview',
+  'recordingVersions.freeze',
+  'recordingVersions.job',
+  'recordingVersions.cancel',
+  'recordingMedia.plans',
+  'recordingMedia.detail',
+  'recordingMedia.preview',
+  'recordingMedia.balance',
+  'recordingMedia.save',
+  'recordingMedia.reserve',
+  'recordingMedia.release',
+  'recordingSources.roots',
+  'recordingSources.rootReceipt',
+  'recordingSources.authorize',
+  'recordingSources.context',
+  'recordingSources.start',
+  'recordingSources.revoke',
+  'recordingSources.snapshot',
+  'recordingSources.job',
+  'recordingSources.cancel',
+  'recordingSources.confirm',
+  'recordingSources.recheck',
+  'recordingDrafts.list',
+  'recordingDrafts.detail',
+  'recordingDrafts.append',
+  'recordingDrafts.update',
+  'recordingDrafts.runtime',
+  'physicalLinks.search',
+  'physicalLinks.digitalList',
+  'physicalLinks.digitalDetail',
+  'physicalLinks.physical',
+  'physicalLinks.runtime',
+  'physicalLinks.confirm',
+  'physicalLinks.relocate',
+  'physicalLinks.register',
+  'physicalLinks.remove',
+  'physicalLinks.absence',
+  'physicalLinks.matrix',
+  'physicalMusic.list',
+  'physicalMusic.detail',
+  'physicalMusic.saveRelease',
+  'physicalMusic.saveLegacy',
+  'physicalMusic.addPhoto',
+  'physicalMusic.photo',
+  'physicalMusic.removePhoto',
+  'collection.addPhoto',
+  'collection.photo',
+  'collection.changePhoto',
+  'collection.list',
+  'collection.detail',
+  'collection.receive',
+  'collection.materialize',
+  'collection.updateCopy',
+  'collection.setPolicy',
   'favorites.check',
   'favorites.set',
   'lyrics.get',
@@ -124,6 +328,7 @@ export const IPC_EVENTS = [
 export type IpcEvent = (typeof IPC_EVENTS)[number];
 
 export interface IpcRequest<TPayload = unknown> {
+  expectedDatasetId?: string;
   version: typeof IPC_VERSION;
   id: string;
   command: IpcCommand;
@@ -151,6 +356,161 @@ export type IpcResponse<TResult = unknown> =
 export type IpcEnvelope<T = unknown> = IpcRequest<T> | IpcResponse<T>;
 
 export interface IpcCommandPayloads {
+  'commandOutbox.context': Record<string, never>;
+  'commandOutbox.execute': CommandOutboxExecute;
+  'spreadsheetImports.sources': SpreadsheetPageRequest;
+  'spreadsheetImports.source': SpreadsheetIdRequest;
+  'spreadsheetImports.sourceRows': SpreadsheetSourceRowsRequest;
+  'spreadsheetImports.preview': PreviewSpreadsheetImportRequest;
+  'spreadsheetImports.apply': ApplySpreadsheetImportRequest;
+  'spreadsheetImports.revision': SpreadsheetImportRevisionRequest;
+  'spreadsheetImports.history': SpreadsheetPageRequest;
+  'spreadsheetImports.adjustmentPreview': SpreadsheetAdjustmentPreviewRequest;
+  'spreadsheetImports.adjust': AdjustSpreadsheetInventoryRequest;
+  'spreadsheetImports.adjustments': SpreadsheetAdjustmentsRequest;
+  'spreadsheetImports.registerWorkbook': RegisterSpreadsheetWorkbookRequest;
+  'spreadsheetImports.workbookReceipt': ChooseSpreadsheetWorkbookRequest;
+  'collectionProgress.wants': ListWantEntriesRequest;
+  'collectionProgress.saveWant': SaveWantEntryRequest;
+  'collectionProgress.cancelWant': CancelWantEntryRequest;
+  'collectionProgress.wantHistory': GetWantEntryHistoryRequest;
+  'collectionProgress.current': GetCollectionProgressRequest;
+  'collectionProgress.capture': CaptureCollectionProgressRequest;
+  'collectionProgress.snapshots': ListCollectionProgressSnapshotsRequest;
+  'collectionProgress.snapshot': GetCollectionProgressSnapshotRequest;
+  'collectionProgress.modelLengths': GetCollectionModelLengthsRequest;
+  'referenceCatalog.registerSource': RegisterReferenceSourceRequest;
+  'referenceCatalog.sources': ReferenceSourceListRequest;
+  'referenceCatalog.source': CatalogIdRequest;
+  'referenceCatalog.previewRevision': PreviewCatalogRevisionRequest;
+  'referenceCatalog.publishRevision': PublishCatalogRevisionRequest;
+  'referenceCatalog.revision': CatalogIdRequest;
+  'referenceCatalog.setMatch': SetCatalogMatchRequest;
+  'referenceCatalog.snapshot': CatalogIdRequest;
+  'referenceCatalog.history': CatalogHistoryRequest;
+  'recordingBackups.overview': Record<string, never>;
+  'recordingBackups.activate': ActivateRestoredDataset;
+  'recordingBackups.activationReceipt': ActivateRestoredDataset;
+  'recordingBackups.authorize': AuthorizeBackupRoot & { absolutePath: string };
+  'recordingBackups.authorizationReceipt': AuthorizeBackupRoot;
+  'recordingBackups.start': StartBackupJob;
+  'recordingBackups.cancel': { commandId: string; id: string };
+  'recordingBackups.revoke': { commandId: string; id: string };
+  'recordingArchive.roots': Record<string, never>;
+  'recordingArchive.initialize': InitializeArchiveRequest;
+  'recordingArchive.revokeRoot': { commandId: string; id: string };
+  'recordingArchive.preview': PreviewArchiveRequest;
+  'recordingArchive.start': StartArchiveRequest;
+  'recordingArchive.list': { draftId: string };
+  'recordingArchive.operation': { id: string };
+  'recordingArchive.cancel': { commandId: string; id: string };
+  'recordingArchive.resume': { commandId: string; id: string };
+  'recordingArchive.verify': VerifyArchiveRequest;
+  'recordingArchive.cancelRead': { id: string };
+  'recordingArchive.authorize': { commandId: string; absolutePath: string };
+  'recordingArchive.authorizationReceipt': { commandId: string };
+
+  'recordingPlans.list': RecordingPlanHistoryRequest;
+  'recordingPlans.version': RecordingPlanIdRequest;
+  'recordingPlans.preview': PreviewRecordingPlanRequest;
+  'recordingPlans.freeze': FreezeRecordingPlanRequest;
+  'recordingPlans.preflight': RecordingPreflightRequest;
+  'recordingPlans.cancelRead': RecordingPlanIdRequest;
+  'masterArtwork.get': GetMasterArtworkRequest;
+  'masterArtwork.save': SaveMasterArtworkRequest;
+  'recordingPrints.list': ListRecordingPrintsRequest;
+  'recordingPrints.request': RequestRecordingPrintRequest;
+  'recordingPrints.retry': RetryRecordingPrintRequest;
+  'recordingPrints.get': GetRecordingPrintRequest;
+  'recordingPrintWorker.claim': ClaimRecordingPrintRequest;
+  'recordingPrintWorker.complete': CompleteRecordingPrintRequest;
+  'recordingPrintWorker.fail': FailRecordingPrintRequest;
+  'recordingPrintWorker.pdf': ExportRecordingPrintRequest;
+  'recordingReplica.status': Record<string, never>;
+  'recordingReplica.inspect': InspectRecordingReplicaRequest;
+  'recordingReplica.cancelRead': RecordingReplicaReadIdRequest;
+  'recordingReplica.start': StartRecordingReplicaRequest;
+  'recordingReplica.get': RecordingReplicaRunIdRequest;
+  'recordingReplica.stop': RecordingReplicaRunIdRequest;
+  'recordingOutput.status': Record<string, never>;
+  'recordingOutput.check': RecordingOutputCheckRequest;
+  'recordingOutput.cancel': RecordingOutputCancelRequest;
+  'recordingRecords.list': ListRecordingRecordsRequest;
+  'recordingRecords.get': RecordingRecordIdRequest;
+  'recordingRecords.visual': RecordingVisualRequest;
+  'recordingRecords.history': PhysicalRecordingHistoryRequest;
+  'recordingRecords.previewDisposition': PreviewPhysicalRecordingDispositionRequest;
+  'recordingRecords.applyDisposition': ApplyPhysicalRecordingDispositionRequest;
+  'recordingAttempts.list': ListRecordingAttemptsRequest;
+  'recordingAttempts.get': RecordingAttemptIdRequest;
+  'recordingAttempts.begin': BeginRecordingAttemptRequest;
+  'recordingAttempts.confirm': ConfirmRecordingAttemptRequest;
+  'recordingAttempts.beginSide': BeginRecordingAttemptSideRequest;
+  'recordingAttempts.stop': StopRecordingAttemptRequest;
+  'recordingProfiles.list': {};
+  'recordingProfiles.history': { profileId: string };
+  'recordingProfiles.version': { versionId: string };
+  'recordingProfiles.save': SaveRecordingProfileRequest;
+  'recordingProfiles.session': { draftId: string };
+  'recordingProfiles.saveSession': SaveRecordingSessionRequest;
+  'recordingExecution.list': { draftId: string };
+  'recordingExecution.preview': PreviewExecutionRequest;
+  'recordingExecution.start': StartExecutionRequest;
+  'recordingExecution.job': { id: string };
+  'recordingExecution.cancel': { commandId: string; id: string };
+  'recordingExecution.cancelRead': { id: string };
+  'recordingExecution.verify': VerifyExecutionRequest;
+
+  'recordingPreparation.destinations': {};
+  'recordingPreparation.authorizationReceipt': { commandId: string };
+  'recordingPreparation.authorize': { commandId: string; absolutePath: string };
+  'recordingPreparation.revoke': { commandId: string; id: string };
+  'recordingPreparation.job': { id: string };
+  'recordingPreparation.cancel': { commandId: string; id: string };
+  'recordingPreparation.context': { id: string };
+
+  'recordingVersions.list': { draftId: string };
+  'recordingPrepared.list': { draftId: string };
+  'recordingPrepared.selections': { preparationId: string };
+  'recordingPrepared.selectionReceipt': SelectPreparedRequest;
+  'recordingPrepared.select': SelectPreparedRequest & { absolutePath: string };
+  'recordingPrepared.revoke': { commandId: string; id: string };
+  'recordingPrepared.previewImport': PreviewPreparedImportRequest;
+  'recordingPrepared.startImport': StartPreparedImportRequest;
+  'recordingPrepared.job': { id: string };
+  'recordingPrepared.cancel': { commandId: string; id: string };
+  'recordingPrepared.review': ReviewPreparedRequest;
+  'recordingPrepared.freeze': FreezePreparedRequest;
+  'recordingPreparation.list': { draftId: string };
+  'recordingPreparation.preview': PreviewPreparationRequest;
+  'recordingPreparation.start': StartPreparationRequest;
+  'recordingVersions.preview': PreviewVersionsRequest;
+  'recordingVersions.freeze': FreezeVersionsRequest;
+  'recordingVersions.job': { id: string };
+  'recordingVersions.cancel': { commandId: string; id: string };
+  'recordingMedia.plans': { draftId: string };
+  'recordingMedia.detail': { id: string };
+  'recordingMedia.preview': PreviewMediaRequest;
+  'recordingMedia.balance': { draftId: string; spec: MediaLayoutSpec };
+  'recordingMedia.save': SaveMediaPlanRequest;
+  'recordingMedia.reserve': ReserveMediaRequest;
+  'recordingMedia.release': ReleaseMediaRequest;
+  'recordingSources.roots': Record<string, never>;
+  'recordingSources.rootReceipt': { commandId: string };
+  'recordingSources.authorize': { commandId: string; absolutePath: string };
+  'recordingSources.context': { id: string };
+  'recordingSources.start': { selection: SourceSelection; absolutePath: string };
+  'recordingSources.revoke': SourceAction;
+  'recordingSources.snapshot': { draftId: string };
+  'recordingSources.job': { id: string };
+  'recordingSources.cancel': SourceAction;
+  'recordingSources.confirm': SourceConfirmation;
+  'recordingSources.recheck': SourceConfirmation;
+  'recordingDrafts.list': { page: PageRequest };
+  'recordingDrafts.detail': { id: string };
+  'recordingDrafts.append': AppendMasterDraftRequest;
+  'recordingDrafts.update': UpdateMasterDraftRequest;
+  'recordingDrafts.runtime': { draftId: string; trackId: string };
   'core.ping': Record<string, never>;
   'core.getHealth': Record<string, never>;
   'core.getState': Record<string, never>;
@@ -180,6 +540,33 @@ export interface IpcCommandPayloads {
   'library.playlist': { playlistId: string; page: PageRequest };
   'library.dailyRecommendations': Record<string, never>;
   'favorites.list': { kind?: FavoriteKind; page: PageRequest };
+  'physicalLinks.search': { query: string; page: PageRequest };
+  'physicalLinks.digitalList': { page: PageRequest };
+  'physicalLinks.digitalDetail': { id: string };
+  'physicalLinks.physical': { releaseId: string };
+  'physicalLinks.runtime': { id: string };
+  'physicalLinks.confirm': ConfirmPhysicalLinkRequest;
+  'physicalLinks.relocate': RelocateDigitalRequest;
+  'physicalLinks.register': RegisterDigitalRequest;
+  'physicalLinks.remove': RemovePhysicalLinkRequest;
+  'physicalLinks.absence': ConfirmAbsenceRequest;
+  'physicalLinks.matrix': { page: PageRequest; query?: string };
+  'physicalMusic.list': { page: PageRequest; filter?: MusicFilter };
+  'physicalMusic.detail': { id: string };
+  'physicalMusic.saveRelease': SaveReleaseRequest;
+  'physicalMusic.saveLegacy': SaveLegacyRequest;
+  'physicalMusic.addPhoto': AddMusicPhotoRequest;
+  'physicalMusic.photo': { photoId: string };
+  'physicalMusic.removePhoto': RemoveMusicPhotoRequest;
+  'collection.list': { page: PageRequest; filter?: CollectionFilter };
+  'collection.addPhoto': CollectionAddPhotoRequest;
+  'collection.photo': { photoId: string };
+  'collection.changePhoto': CollectionChangePhotoRequest;
+  'collection.detail': { modelId: string; page: PageRequest };
+  'collection.receive': CollectionReceiveRequest;
+  'collection.materialize': CollectionMaterializeRequest;
+  'collection.updateCopy': CollectionUpdateCopyRequest;
+  'collection.setPolicy': CollectionPolicyRequest;
   'favorites.check': { descriptor: FavoriteEntityDescriptor };
   'favorites.set': { descriptor: FavoriteEntityDescriptor; favorite: boolean };
   'lyrics.get': { trackId: string };
@@ -220,6 +607,161 @@ export interface IpcCommandPayloads {
 }
 
 export interface IpcCommandResults {
+  'commandOutbox.context': CommandOutboxContext;
+  'commandOutbox.execute': CommandOutboxResult;
+  'spreadsheetImports.sources': SpreadsheetSourcePage;
+  'spreadsheetImports.source': SpreadsheetWorkbookSource;
+  'spreadsheetImports.sourceRows': SpreadsheetSourceRowsPage;
+  'spreadsheetImports.preview': SpreadsheetImportPreview;
+  'spreadsheetImports.apply': SpreadsheetImportResult;
+  'spreadsheetImports.revision': SpreadsheetImportRevisionDetail;
+  'spreadsheetImports.history': SpreadsheetImportHistory;
+  'spreadsheetImports.adjustmentPreview': SpreadsheetAdjustmentBalance;
+  'spreadsheetImports.adjust': SpreadsheetInventoryAdjustment;
+  'spreadsheetImports.adjustments': SpreadsheetAdjustmentsPage;
+  'spreadsheetImports.registerWorkbook': never;
+  'spreadsheetImports.workbookReceipt': never;
+  'collectionProgress.wants': WantEntriesPage;
+  'collectionProgress.saveWant': WantEntry;
+  'collectionProgress.cancelWant': WantEntry;
+  'collectionProgress.wantHistory': WantEntryHistory;
+  'collectionProgress.current': CollectionProgress;
+  'collectionProgress.capture': CollectionProgressSnapshotSummary;
+  'collectionProgress.snapshots': CollectionProgressSnapshotsPage;
+  'collectionProgress.snapshot': CollectionProgressSnapshotDetail;
+  'collectionProgress.modelLengths': CollectionModelLengths;
+  'referenceCatalog.registerSource': ReferenceSourceVersion;
+  'referenceCatalog.sources': ReferenceSourcePage;
+  'referenceCatalog.source': ReferenceSourceDetail;
+  'referenceCatalog.previewRevision': CatalogRevisionPreview;
+  'referenceCatalog.publishRevision': CatalogRevisionDetail;
+  'referenceCatalog.revision': CatalogRevisionDetail;
+  'referenceCatalog.setMatch': CatalogRevisionDetail;
+  'referenceCatalog.snapshot': CatalogSnapshot;
+  'referenceCatalog.history': CatalogHistory;
+  'recordingBackups.overview': BackupOverview;
+  'recordingBackups.activate': RestoreActivationView;
+  'recordingBackups.activationReceipt': { activation: RestoreActivationView | null };
+  'recordingBackups.authorize': BackupRootView;
+  'recordingBackups.authorizationReceipt': { root: BackupRootView | null };
+  'recordingBackups.start': BackupJobView;
+  'recordingBackups.cancel': BackupJobView;
+  'recordingBackups.revoke': BackupRootView;
+  'recordingArchive.roots': { roots: readonly ArchiveRootView[] };
+  'recordingArchive.initialize': ArchiveRootView;
+  'recordingArchive.revokeRoot': ArchiveRootView;
+  'recordingArchive.preview': ArchiveProposal;
+  'recordingArchive.start': ArchiveOperationView;
+  'recordingArchive.list': ArchiveHistory;
+  'recordingArchive.operation': { operation: ArchiveOperationView | null };
+  'recordingArchive.cancel': ArchiveOperationView;
+  'recordingArchive.resume': ArchiveOperationView;
+  'recordingArchive.verify': ArchiveCheck;
+  'recordingArchive.cancelRead': { cancelled: true };
+  'recordingArchive.authorize': ArchiveRootView;
+  'recordingArchive.authorizationReceipt': { root: ArchiveRootView | null };
+
+  'recordingPlans.list': RecordingPlanHistory;
+  'recordingPlans.version': { plan: RecordingPlanVersion | null };
+  'recordingPlans.preview': RecordingPlanProposal;
+  'recordingPlans.freeze': RecordingPlanVersion;
+  'recordingPlans.preflight': RecordingPreflightResult;
+  'recordingPlans.cancelRead': { cancelled: true };
+  'masterArtwork.get': MasterArtworkResult;
+  'masterArtwork.save': MasterArtworkVersion;
+  'recordingPrints.list': RecordingPrintsPage;
+  'recordingPrints.request': RecordingPrintJob;
+  'recordingPrints.retry': RecordingPrintJob;
+  'recordingPrints.get': RecordingPrintResult;
+  'recordingPrintWorker.claim': { lease: RecordingPrintLease | null };
+  'recordingPrintWorker.complete': RecordingPrintJob;
+  'recordingPrintWorker.fail': RecordingPrintJob;
+  'recordingPrintWorker.pdf': RecordingPrintPdfResult;
+  'recordingReplica.status': RecordingReplicaStatus;
+  'recordingReplica.inspect': RecordingReplicaInspection;
+  'recordingReplica.cancelRead': RecordingReplicaReadCancellation;
+  'recordingReplica.start': RecordingReplicaRun;
+  'recordingReplica.get': { run: RecordingReplicaRun | null };
+  'recordingReplica.stop': RecordingReplicaRun;
+  'recordingOutput.status': RecordingOutputStatus;
+  'recordingOutput.check': RecordingOutputCheckResult;
+  'recordingOutput.cancel': { cancelled: true };
+  'recordingRecords.list': RecordingRecordsPage;
+  'recordingRecords.get': { record: RecordingRecordDetail | null };
+  'recordingRecords.visual': RecordingVisualResult;
+  'recordingRecords.history': PhysicalRecordingHistory;
+  'recordingRecords.previewDisposition': PhysicalRecordingDispositionProposal;
+  'recordingRecords.applyDisposition': ApplyPhysicalRecordingDispositionResult;
+  'recordingAttempts.list': RecordingAttemptsPage;
+  'recordingAttempts.get': { attempt: RecordingAttempt | null };
+  'recordingAttempts.begin': RecordingAttempt;
+  'recordingAttempts.confirm': RecordingAttempt;
+  'recordingAttempts.beginSide': RecordingAttempt;
+  'recordingAttempts.stop': RecordingAttempt;
+  'recordingProfiles.list': { profiles: readonly RecordingProfileVersion[] };
+  'recordingProfiles.history': RecordingProfileHistory;
+  'recordingProfiles.version': RecordingProfileVersion;
+  'recordingProfiles.save': RecordingProfileVersion;
+  'recordingProfiles.session': { session: RecordingSessionSettings | null };
+  'recordingProfiles.saveSession': RecordingSessionSettings;
+  'recordingExecution.list': ExecutionHistory;
+  'recordingExecution.preview': ExecutionProposal;
+  'recordingExecution.start': ExecutionJob;
+  'recordingExecution.job': { job: ExecutionJob | null };
+  'recordingExecution.cancel': ExecutionJob;
+  'recordingExecution.cancelRead': { cancelled: true };
+  'recordingExecution.verify': ExecutionAssetCheck;
+
+  'recordingPreparation.destinations': { destinations: readonly PreparationDestination[] };
+  'recordingPreparation.authorizationReceipt': { destination: PreparationDestination | null };
+  'recordingPreparation.authorize': PreparationDestination;
+  'recordingPreparation.revoke': PreparationDestination;
+  'recordingPreparation.job': { job: PreparationJob | null };
+  'recordingPreparation.cancel': PreparationJob;
+  'recordingPreparation.context': { absolutePath: string };
+
+  'recordingPrepared.list': PreparedHistory;
+  'recordingPrepared.selections': { selections: readonly PreparedSelection[] };
+  'recordingPrepared.selectionReceipt': { selection: PreparedSelection | null };
+  'recordingPrepared.select': PreparedSelection;
+  'recordingPrepared.revoke': PreparedSelection;
+  'recordingPrepared.previewImport': PreparedImportProposal;
+  'recordingPrepared.startImport': PreparedImportJob;
+  'recordingPrepared.job': { job: PreparedImportJob | null };
+  'recordingPrepared.cancel': PreparedImportJob;
+  'recordingPrepared.review': PreparedReview;
+  'recordingPrepared.freeze': FrozenPrepared;
+  'recordingPreparation.list': PreparationHistory;
+  'recordingPreparation.preview': PreparationProposal;
+  'recordingPreparation.start': PreparationJob;
+  'recordingVersions.list': VersionHistory;
+  'recordingVersions.preview': VersionProposal;
+  'recordingVersions.freeze': VersionJob;
+  'recordingVersions.job': { job: VersionJob | null };
+  'recordingVersions.cancel': VersionJob;
+  'recordingMedia.plans': { draftId: string; plans: readonly MediaPlan[] };
+  'recordingMedia.detail': MediaPlan;
+  'recordingMedia.preview': MediaPreview;
+  'recordingMedia.balance': { splitAfter: number };
+  'recordingMedia.save': MediaPlan;
+  'recordingMedia.reserve': MediaPlan;
+  'recordingMedia.release': MediaPlan;
+  'recordingSources.roots': { roots: readonly SourceRoot[] };
+  'recordingSources.rootReceipt': { root: SourceRoot | null };
+  'recordingSources.authorize': SourceRoot;
+  'recordingSources.context': { absolutePath: string };
+  'recordingSources.start': SourceJob;
+  'recordingSources.revoke': SourceRoot;
+  'recordingSources.snapshot': DraftSourceSnapshot;
+  'recordingSources.job': { job: SourceJob | null };
+  'recordingSources.cancel': SourceJob;
+  'recordingSources.confirm': SourceBinding;
+  'recordingSources.recheck': SourceJob;
+  'recordingDrafts.list': Page<MasterDraftSummary>;
+  'recordingDrafts.detail': MasterDraft;
+  'recordingDrafts.append': MasterDraftResult;
+  'recordingDrafts.update': MasterDraftResult;
+  'recordingDrafts.runtime': DigitalRuntime;
   'core.ping': { pong: true };
   'core.getHealth': PublicBridgeState;
   'core.getState': PublicBridgeState;
@@ -249,6 +791,33 @@ export interface IpcCommandResults {
   'library.playlist': PlaylistDetail;
   'library.dailyRecommendations': DailyRecommendationsSnapshot;
   'favorites.list': FavoritePage;
+  'physicalLinks.search': RoonLibraryPage;
+  'physicalLinks.digitalList': Page<DigitalAlbum>;
+  'physicalLinks.digitalDetail': DigitalAlbumDetail;
+  'physicalLinks.physical': PhysicalLinksSnapshot;
+  'physicalLinks.runtime': DigitalRuntime;
+  'physicalLinks.confirm': PhysicalLinkResult;
+  'physicalLinks.relocate': PhysicalLinkResult;
+  'physicalLinks.register': PhysicalLinkResult;
+  'physicalLinks.remove': PhysicalLinkResult;
+  'physicalLinks.absence': PhysicalLinkResult;
+  'physicalLinks.matrix': Page<CollectionMatrixRow>;
+  'physicalMusic.list': Page<MusicEntry>;
+  'physicalMusic.detail': MusicDetail;
+  'physicalMusic.saveRelease': MusicMutationResult;
+  'physicalMusic.saveLegacy': MusicMutationResult;
+  'physicalMusic.addPhoto': MusicMutationResult;
+  'physicalMusic.photo': CollectionPhotoImage;
+  'physicalMusic.removePhoto': MusicMutationResult;
+  'collection.list': Page<CollectionModel>;
+  'collection.addPhoto': CollectionMutationResult;
+  'collection.photo': CollectionPhotoImage;
+  'collection.changePhoto': CollectionMutationResult;
+  'collection.detail': CollectionDetail;
+  'collection.receive': CollectionMutationResult;
+  'collection.materialize': CollectionMutationResult;
+  'collection.updateCopy': CollectionMutationResult;
+  'collection.setPolicy': CollectionMutationResult;
   'favorites.check': { favorite: boolean };
   'favorites.set': { favorite: boolean; item?: FavoriteRecord };
   'lyrics.get': LyricsSnapshot;
@@ -297,9 +866,32 @@ export interface IpcEventPayloads {
   'lyrics.match.changed': { state: LocalLyricsMatchSnapshot };
 }
 
-export type IpcInternalCommand = 'auth.pollQr' | 'auth.verifyCredential';
+export type IpcInternalCommand = 'recordingPrintWorker.claim' | 'recordingPrintWorker.complete' | 'recordingPrintWorker.fail' | 'recordingPrintWorker.pdf' | 'spreadsheetImports.registerWorkbook' | 'spreadsheetImports.workbookReceipt' | 'recordingBackups.activationReceipt' | 'recordingBackups.authorize' | 'recordingBackups.authorizationReceipt' | 'recordingArchive.authorize' | 'recordingArchive.authorizationReceipt' | 'recordingPrepared.select' | 'recordingPrepared.selectionReceipt' | 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
 
 export interface IpcInternalCommandResults {
+  'recordingPrintWorker.claim': { lease: RecordingPrintLease | null };
+  'recordingPrintWorker.complete': RecordingPrintJob;
+  'recordingPrintWorker.fail': RecordingPrintJob;
+  'recordingPrintWorker.pdf': RecordingPrintPdfResult;
+
+  'spreadsheetImports.registerWorkbook': SpreadsheetWorkbookSource;
+  'spreadsheetImports.workbookReceipt': SpreadsheetWorkbookReceipt;
+  'recordingBackups.activationReceipt': { activation: RestoreActivationView | null };
+  'recordingBackups.authorize': BackupRootView;
+  'recordingBackups.authorizationReceipt': { root: BackupRootView | null };
+  'recordingArchive.authorize': ArchiveRootView;
+  'recordingArchive.authorizationReceipt': { root: ArchiveRootView | null };
+  'recordingPrepared.select': PreparedSelection;
+  'recordingPrepared.selectionReceipt': { selection: PreparedSelection | null };
+  'recordingPreparation.authorizationReceipt': { destination: PreparationDestination | null };
+  'recordingPreparation.authorize': PreparationDestination;
+  'recordingPreparation.context': { absolutePath: string };
+
+  'recordingSources.rootReceipt': { root: SourceRoot | null };
+  'recordingSources.authorize': SourceRoot;
+  'recordingSources.context': { absolutePath: string };
+  'recordingSources.start': SourceJob;
+
   'auth.pollQr': { state: PublicAuthState; credential?: string };
   'auth.verifyCredential': { status: 'authorized' | 'expired' | 'unavailable' };
 }
