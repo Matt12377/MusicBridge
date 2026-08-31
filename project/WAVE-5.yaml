@@ -3,9 +3,9 @@ wave: WAVE-5
 status: active
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-082
-activeBranch: codex/task-082-joint-measure-issuer
-activeBaseCommit: f018cc9fbcda7017d786fd7f1a63e8e44ba2211b
+activeTask: TASK-083
+activeBranch: codex/task-083-joint-queued-stop-issuer
+activeBaseCommit: bb41b96a981ed4554dedf0169af7df5f7931bf0b
 order:
   - TASK-048
   - TASK-049
@@ -42,5 +42,6 @@ order:
   - TASK-080
   - TASK-081
   - TASK-082
-stopAfter: TASK-082
-reviewBoundary: local-software-gates-through082-formal-capacity-real-device-and-owner-acceptance-pending
+  - TASK-083
+stopAfter: TASK-083
+reviewBoundary: local-software-gates-through083-formal-capacity-real-device-and-owner-acceptance-pending

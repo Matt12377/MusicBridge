@@ -14,10 +14,10 @@ const matrix = JSON.parse(matrixBytes)
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
 const controlStatus = {
   v3Development: {
-    task: 'TASK-082',
-    branch: 'codex/task-082-joint-measure-issuer',
-    baseCommit: 'f018cc9fbcda7017d786fd7f1a63e8e44ba2211b',
-    state: 'joint-measure-exclusive-issuer-software-sealed-draft-review-pending-no-window-no-samples-external-pending',
+    task: 'TASK-083',
+    branch: 'codex/task-083-joint-queued-stop-issuer',
+    baseCommit: 'bb41b96a981ed4554dedf0169af7df5f7931bf0b',
+    state: 'joint-queued-stop-exclusive-issuer-tdd-red-no-window-no-samples-external-pending',
     evidenceInfrastructure: {
       state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
       receiptFoundation: {
@@ -540,7 +540,7 @@ const controlStatus = {
     },
   },
 }
-const controlWave = `activeTask: TASK-082\nactiveBranch: codex/task-082-joint-measure-issuer\nactiveBaseCommit: f018cc9fbcda7017d786fd7f1a63e8e44ba2211b\n`
+const controlWave = `activeTask: TASK-083\nactiveBranch: codex/task-083-joint-queued-stop-issuer\nactiveBaseCommit: bb41b96a981ed4554dedf0169af7df5f7931bf0b\n`
 
 function readiness() {
   return {
@@ -695,15 +695,15 @@ test('即使篡改矩阵仍自报相同计数并同步新hash，也必须拒绝�
   assert.throws(() => validateOwnerReadiness(value, { root: temporaryRoot, status: controlStatus, wave: controlWave }), /SOFTWARE_BASELINE/u)
 })
 
-test('STATUS v3Development与WAVE-5必须精确指向TASK082当前控制面', () => {
+test('STATUS v3Development与WAVE-5必须精确指向TASK083当前控制面', () => {
   assert.equal(validateOwnerReadiness(readiness(), { root, status: controlStatus, wave: controlWave }).ready, false)
   for (const [status, wave] of [
     [{ v3Development: { ...controlStatus.v3Development, task: 'TASK-078' } }, controlWave],
     [{ v3Development: { ...controlStatus.v3Development, branch: 'codex/task-078-v3-acceptance' } }, controlWave],
     [{ v3Development: { ...controlStatus.v3Development, baseCommit: '0'.repeat(40) } }, controlWave],
-    [controlStatus, controlWave.replace('activeTask: TASK-082', 'activeTask: TASK-078')],
-    [controlStatus, controlWave.replace('activeBranch: codex/task-082-joint-measure-issuer', 'activeBranch: codex/task-078-v3-acceptance')],
-    [controlStatus, controlWave.replace('activeBaseCommit: f018cc9fbcda7017d786fd7f1a63e8e44ba2211b', `activeBaseCommit: ${'0'.repeat(40)}`)],
+    [controlStatus, controlWave.replace('activeTask: TASK-083', 'activeTask: TASK-078')],
+    [controlStatus, controlWave.replace('activeBranch: codex/task-083-joint-queued-stop-issuer', 'activeBranch: codex/task-078-v3-acceptance')],
+    [controlStatus, controlWave.replace('activeBaseCommit: bb41b96a981ed4554dedf0169af7df5f7931bf0b', `activeBaseCommit: ${'0'.repeat(40)}`)],
   ]) {
     assert.throws(() => validateOwnerReadiness(readiness(), { root, status, wave }), /CONTROL_IDENTITY/u)
   }
@@ -727,20 +727,20 @@ test('STATUS必须锁定两段证据基础设施检查点而非停留在初始re
   }
 })
 
-test('证据检查点必须是当前TASK082仓库中线性可达的真实Git提交', async t => {
+test('证据检查点必须是当前TASK083仓库中线性可达的真实Git提交', async t => {
   const module = await import('../verify-v3-owner-readiness.mjs')
   assert.equal(typeof module.validateEvidenceCheckpointRepository, 'function')
   assert.equal(typeof module.validateArchitectureCheckpointRepository, 'function')
-  const temporaryRoot = mkdtempSync(path.join(tmpdir(), 'task082-checkpoints-'))
+  const temporaryRoot = mkdtempSync(path.join(tmpdir(), 'task083-checkpoints-'))
   t.after(() => rmSync(temporaryRoot, { recursive: true, force: true }))
   const git = (...arguments_) => {
     const result = spawnSync('git', arguments_, { cwd: temporaryRoot, encoding: 'utf8' })
     assert.equal(result.status, 0, result.stderr)
     return result.stdout.trim()
   }
-  git('init', '-b', 'codex/task-082-joint-measure-issuer')
-  git('config', 'user.email', 'task082@example.invalid')
-  git('config', 'user.name', 'TASK082 Test')
+  git('init', '-b', 'codex/task-083-joint-queued-stop-issuer')
+  git('config', 'user.email', 'task083@example.invalid')
+  git('config', 'user.name', 'TASK083 Test')
   const commits = []
   for (let index = 0; index < 8; index += 1) {
     writeFileSync(path.join(temporaryRoot, 'checkpoint.txt'), `${index}\n`)

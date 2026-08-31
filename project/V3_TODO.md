@@ -6,6 +6,12 @@
 
 ## 实时进度面板
 
+> **当前执行：** `TASK-083 / joint queued-stop专用issuer与消费合同TDD`。从TASK-082最终HEAD `bb41b96…`建立独立分支。既有queued-stop issuer及共享supervisor固定objects-limit历史恢复链；本任务新增专用joint入口，并按profile补齐最后一段消费合同。本任务不签发、不消费、不运行正式窗口。
+
+- [ ] TASK-083 / 最小RED：证明专用joint queued-stop issuer缺失，且共享supervisor/benchmark仍固定objects-limit。
+- [ ] TASK-083 / 合同GREEN：精确绑定joint measure PASS、候选/toolchain/source/owned/seed与105轮计划；非PASS、漂移、重放或空间不足均在发布前停止。
+- [ ] TASK-083 / 软件封板：joint专项、objects历史回归、supervisor、benchmark、readiness、标准verify与静态Gate全部新鲜通过；正式窗口仍不签发或消费。
+
 > **当前执行：** `TASK-082 / joint measure专用issuer TDD`。从TASK-081最终HEAD `f018cc9…`建立独立分支。既有measure issuer是objects-limit历史失败恢复路径，不能通过放宽profile枚举冒充joint第二阶段；本任务新增专用入口，只消费完整`joint:generate:PASS`并签发一次性joint measure authority。本任务不签发、不消费、不运行正式窗口。
 
 - [x] TASK-082 / 最小RED：提交`c487406…`证明专用joint measure issuer缺失，且既有objects-limit measure issuer仍拒绝joint。
