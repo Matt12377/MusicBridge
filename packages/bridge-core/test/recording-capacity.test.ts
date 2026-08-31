@@ -1206,6 +1206,38 @@ test('queued-stop phase：仅objects-small及三种大档、固定5预热+100正
   }
 });
 
+test('joint queued-stop successor：消费measure PASS形状且不要求objects-limit失败恢复链', async t => {
+  const f = await phaseFixture(t, 'queued-stop', 105, 'joint');
+  const outer = f.w as unknown as Record<string, any>;
+  outer.scope = 'musicbridge-capacity-queued-stop-window'; outer.seedLabel = 'seed';
+  outer.seed.fixtureOwnerSha256 = f.hash(path.join(f.fixture, 'capacity-owner.json'));
+  const snapshotBytes = lstatSync(path.join(f.seed, 'seed.sqlite')).size;
+  outer.queuedStopPlan = { warmupCount: 5, formalCount: 100, sampleCount: 105,
+    activeCloneMaximum: 1, snapshotBytes, evidenceAllowanceBytes: 256 * 1024 ** 2,
+    plannedBytes: snapshotBytes + 256 * 1024 ** 2,
+    model: 'serial-single-clone-plus-bounded-growth-v1', aggregateAudit: 'queued-stop-aggregate-budget.jsonl' };
+  const bound = (name: string) => ({ path: path.join(f.runtime, name), sha256: 'a'.repeat(64) });
+  outer.supervisor = bound('supervisor.py');
+  outer.candidateRepository = { root: f.runtime, branch: 'codex/test', head: 'b'.repeat(40) };
+  outer.toolchain = { node: bound('node'), tsxLoader: bound('tsx'), consumerPython: bound('python') };
+  outer.issuer = { ...bound('issuer.py'), fact: bound('window/issuer-identity/owner.json') };
+  outer.measureCarryover = { window: { ...bound('measure/window.json'), id: randomUUID() },
+    close: bound('measure/close.json'), ownedManifest: bound('measure/owned-roots.json'),
+    sourceManifest: bound('measure/source-pins.json'), supervision: bound('measure/supervision/supervisor.json'),
+    supervisor: bound('measure/supervisor.py'),
+    output: { path: path.join(f.runtime, 'joint-measure'), label: 'joint-measure', commandSha256: 'c'.repeat(64) } };
+  f.put(path.join(f.windowRoot, 'owner.json'), { scope: outer.scope, owner: 'root', id: outer.id });
+  f.inventory.roots.find(root => root.path === f.windowRoot)!.marker.sha256 = f.hash(path.join(f.windowRoot, 'owner.json'));
+  f.seal(); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, { ...f.options, queuedStop: async () => {
+    ++calls; throw new Error('受控首样本停止');
+  } });
+  assert.equal(calls, 1); assert.equal(summary.state, 'incomplete'); assert.equal(summary.unrun, 104);
+  assert.equal('issuerFailureCarryoverCount' in outer, false);
+  assert.equal('prechildFailureCarryoverCount' in outer, false);
+  assert.equal('processFailureCarryoverCount' in outer, false);
+});
+
 test('queued-stop successor：按三类failure carryover精确接受76 roots', async t => {
   for (const [rootCount, prechildCount, processCount, accepted] of [
     [76, undefined, 1, false], [76, 0, 1, false], [76, 1, undefined, false], [76, 1, 0, false],

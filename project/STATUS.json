@@ -78,10 +78,10 @@
   },
   "v3Development": {
     "wave": "WAVE-5",
-    "task": "TASK-082",
-    "branch": "codex/task-082-joint-measure-issuer",
-    "baseCommit": "f018cc9fbcda7017d786fd7f1a63e8e44ba2211b",
-    "state": "joint-measure-exclusive-issuer-software-sealed-draft-review-pending-no-window-no-samples-external-pending",
+    "task": "TASK-083",
+    "branch": "codex/task-083-joint-queued-stop-issuer",
+    "baseCommit": "bb41b96a981ed4554dedf0169af7df5f7931bf0b",
+    "state": "joint-queued-stop-exclusive-issuer-software-sealed-no-window-no-samples-external-pending",
     "evidenceInfrastructure": {
       "state": "PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES",
       "receiptFoundation": {
@@ -174,6 +174,20 @@
       "gateB": "NOT_RUN",
       "ownerProductAcceptance": "NOT_RUN"
     },
+    "task083JointQueuedStopIssuer": {
+      "baseCommit": "bb41b96a981ed4554dedf0169af7df5f7931bf0b",
+      "redCommit": "eae86c4ece41cf39284ec02b34a3dfeb6031fd38",
+      "implementationCommit": "ab7e0202ada21ce00d70b41515fab3fe6e86e3db",
+      "hardeningCommit": "f015fdea6031a6ed2f5380b4c8b4a935a2e47f9f",
+      "reportCommit": "8ce4106033e31726122ab34cb8cf9182bc6b51f6",
+      "state": "SOFTWARE_SEALED_DEDICATED_ISSUER_IMPLEMENTED_NOT_ISSUED",
+      "consumes": "joint:measure:PASS",
+      "produces": "joint:queued-stop:ISSUED_NOT_EXECUTED",
+      "authorityWindow": "NOT_ISSUED_NOT_CONSUMED",
+      "formalCapacitySamples": 0,
+      "gateB": "NOT_RUN",
+      "ownerProductAcceptance": "NOT_RUN"
+    },
     "previousTask": {
       "task": "TASK-078",
       "implementationCommit": "2656b904a168e6afcbfddc5453d8793d347710d7",
@@ -234,9 +248,9 @@
       "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task082-joint-measure-dedicated-issuer-software-sealed-draft-review-pending-no-window-no-samples-gateb-not-run",
-    "nextTask": "TASK-083",
-    "resultReport": "reports/TASK-082_RESULT.md",
+    "checkpoint": "task083-joint-queued-stop-dedicated-issuer-and-consumer-software-sealed-no-window-no-samples-gateb-not-run",
+    "nextTask": "EXTERNAL_REVIEW",
+    "resultReport": "reports/TASK-083_RESULT.md",
     "task078SoftwareCheckpoints": {
       "startupPolicy": "48-focused-pass-spec-quality-r1-pass-capacity-startup-pending",
       "pdfPreview": "36-focused-and-real-electron-pass-23-pages-content-unchanged-spec-quality-r1-pass",
