@@ -11,7 +11,7 @@
 - [x] TASK-084 / recovery RED→GREEN：提交`90b15e8…`与`1f0a41c…`，exact75-v3收据冻结`historicalRuntime → currentRuntime`及63项marker一致映射。
 - [x] TASK-084 / issuer与消费者 RED→GREEN：提交`de4f637…`、`c542ecc…`、`509a496…`、`e630aa7…`与`c54ca45…`；issuer/prechild/PROCESS_EXIT事实只做内存投影，Python/TypeScript消费者重新核验当前device/inode/marker。
 - [x] TASK-084 / 聚焦全量：recovery 27/27、issuer 73/73、supervisor 59/59、Bridge容量139/139及typecheck通过。
-- [ ] TASK-084 / 软件封板：readiness、标准verify、control-plane、boundaries、cycles、报告提交、远端Draft PR与CI待完成。
+- [x] TASK-084 / 本地软件封板：readiness 17/17、Node 22标准verify、control-plane、boundaries、cycles与报告`ab90f98…`全部新鲜通过；远端Draft PR与CI在最终封板提交后执行。
 - [ ] R023 / 新objects-limit queued-stop：仅在TASK-084 clean+pushed HEAD后签发一个新窗口并只消费一次；旧window-07永久不重放。
 - [ ] R023 / joint线性链：仅当前驱PASS时依次签发generation → measure → queued-stop；任一非PASS立即终止后续签发。
 

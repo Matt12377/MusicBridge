@@ -128,7 +128,7 @@
       "gateB": "NOT_RUN"
     },
     "implementationCommit": "c54ca45f8820e7c8dde6076454cf402cdb1b5585",
-    "reportCommit": "637bdc526504b6d888b7168363c522401137e024",
+    "reportCommit": "ab90f9820db4668d553aa878d46f016980d1810a",
     "task080AuthorityHarness": {
       "baseCommit": "d98eff24c0085ad8a340457f58dc3334709ca241",
       "redCommit": "85398f7cfb2eeb3b6cd71f368a62a84de13b4c5d",
@@ -198,7 +198,7 @@
       "consumerRedCommit": "e630aa7c8737a163b8d02e67937b65d17af5b7ca",
       "consumerImplementationCommit": "c54ca45f8820e7c8dde6076454cf402cdb1b5585",
       "readinessRedCommit": "f42937f9d33f82d210c30dab5552de01f1842378",
-      "reportCommit": null,
+      "reportCommit": "ab90f9820db4668d553aa878d46f016980d1810a",
       "state": "SOFTWARE_SEALED_EXPLICIT_RUNTIME_RELOCATION_V3_NOT_ISSUED",
       "historicalRuntimeMutation": false,
       "liveRootMappings": 63,
