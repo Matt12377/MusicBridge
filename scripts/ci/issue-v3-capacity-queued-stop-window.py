@@ -227,6 +227,18 @@ def canonical_directory(path, parent=None):
     return resolved
 
 
+def canonical_directory_through_ancestor_alias(path):
+    supplied = Path(path)
+    try:
+        resolved = supplied.resolve(strict=True)
+        info = supplied.lstat()
+    except OSError as error:
+        raise IssueError('DIRECTORY_IDENTITY') from error
+    if supplied.is_symlink() or not stat.S_ISDIR(info.st_mode):
+        fail('DIRECTORY_IDENTITY')
+    return resolved
+
+
 def git_value(root, *arguments):
     environment = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
     environment.update({'GIT_OPTIONAL_LOCKS': '0', 'GIT_NO_LAZY_FETCH': '1'})
@@ -1279,11 +1291,14 @@ def validate_prior_prechild_failures(options, runtime, relocation=None):
                 or nested.get('id') != trigger['windowId'] or nested.get('label') != trigger['label']:
             fail('PRIOR_PRECHILD_FAILURE')
         try:
-            recovery_root = canonical_directory(recovery['repositoryRoot'])
+            recovery_root = canonical_directory_through_ancestor_alias(recovery['repositoryRoot'])
             script_path = Path(recovery['scriptPath'])
+            resolved_script_path = script_path.resolve(strict=True)
+            script_info = script_path.lstat()
         except (IssueError, OSError, TypeError, ValueError) as error:
             raise IssueError('PRIOR_PRECHILD_FAILURE') from error
-        if script_path != recovery_root / recovery['scriptRelativePath']:
+        if script_path.is_symlink() or not stat.S_ISREG(script_info.st_mode) \
+                or resolved_script_path != recovery_root / recovery['scriptRelativePath']:
             fail('PRIOR_PRECHILD_FAILURE')
         try:
             script_blob = git_blob(recovery_root, recovery['head'], recovery['scriptRelativePath'])
