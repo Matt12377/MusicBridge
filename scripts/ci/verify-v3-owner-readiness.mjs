@@ -7,15 +7,18 @@ import { fileURLToPath } from 'node:url'
 // 本入口只校验 TASK-079 无设备就绪清单。成功表示控制文件可信，不表示真实 Gate 或 Owner 验收通过。
 const TASK = 'TASK-079'
 const BASE_COMMIT = 'fac7363b4a6481591e207dda7cca77f0ae8d3cd4'
+const CONTROL_TASK = 'TASK-081'
+const CONTROL_BRANCH = 'codex/task-081-joint-capacity-issuers'
+const CONTROL_BASE_COMMIT = 'b90c831f62afa2dedcb07630cbb89add2ad3f393'
 const MATRIX_BASE_COMMIT = 'c54cf8b71b493482d8ad061d38123c444d718ad0'
 const MATRIX_PATH = 'project/V3_ACCEPTANCE.json'
 const MATRIX_SHA256 = '12f15170b25f578ba06d4def53060b58096fd57bf378d0e28f8ca2a7fe4ba944'
 const EXTERNAL_KINDS = ['real-input', 'real-logic', 'real-roon', 'hardware', 'owner']
 const UNMAPPED_PENDING = ['B-13', 'B-15']
 const READINESS_CONTROL = 'PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO'
-const DEVELOPMENT_STATE = 'no-device-control-main-green-hardware-independent-r2-final-red-objects-measure-window06-software-pass-queued-stop-window06-process-exit-terminal-window07-nonreplay-no-samples-canonical-lineage-architecture-green-new-window-not-authorized-joint-three-stage-route-defined-issuers-not-implemented-external-pending'
+const DEVELOPMENT_STATE = 'joint-generation-exclusive-issuer-green-not-issued-no-window-no-samples-external-pending'
 const EXTERNAL_EVIDENCE_PROFILES = 'REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED'
-const CAPACITY_AUTHORITY = 'OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_WINDOW06_PROCESS_EXIT_TERMINAL_WINDOW07_NONREPLAY_NO_CHILD_NO_SAMPLES_CANONICAL_LINEAGE_ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED_JOINT_GENERATE_MEASURE_QUEUED_STOP_NOT_RUN_ISSUERS_NOT_IMPLEMENTED'
+const CAPACITY_AUTHORITY = 'OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_WINDOW06_PROCESS_EXIT_TERMINAL_WINDOW07_NONREPLAY_NO_CHILD_NO_SAMPLES_CANONICAL_LINEAGE_ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED_JOINT_GENERATE_MEASURE_QUEUED_STOP_NOT_RUN_GENERATION_ISSUER_GREEN_NOT_ISSUED_REMAINING_ISSUERS_NOT_IMPLEMENTED'
 const EVIDENCE_INFRASTRUCTURE = {
   state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
   receiptFoundation: {
@@ -467,7 +470,7 @@ const CAPACITY_JOINT_GENERATION_CONTROL_PLANE = {
 }
 const CAPACITY_FORMAL_ROUTE_CONTROL = {
   schemaVersion: 1,
-  state: 'WAITING_OBJECTS_LIMIT_QUEUED_STOP_PASS_AND_JOINT_ISSUER_SUPPORT',
+  state: 'WAITING_OBJECTS_LIMIT_QUEUED_STOP_PASS_AND_REMAINING_JOINT_ISSUER_SUPPORT',
   prerequisite: {
     order: 0, profile: 'objects-limit', phase: 'queued-stop', state: 'NOT_RUN',
     requiredResult: 'PASS', currentWindow: 'NOT_ISSUED',
@@ -476,7 +479,7 @@ const CAPACITY_FORMAL_ROUTE_CONTROL = {
     {
       order: 1, profile: 'joint', phase: 'generate', state: 'NOT_RUN',
       consumes: 'objects-limit:queued-stop:PASS', produces: 'joint-generation-seed',
-      runtimeSchemaSupport: 'PASS', exclusiveIssuerSupport: 'NOT_IMPLEMENTED_OBJECTS_LIMIT_ONLY',
+      runtimeSchemaSupport: 'PASS', exclusiveIssuerSupport: 'IMPLEMENTED_NOT_ISSUED',
       processScope: 'joint-generation-process', clockScope: 'joint-generation-stage-clock',
       receiptScope: 'joint-generation-window-close', requiresFreshProcess: true,
       requiresFreshClock: true, receiptReuseAllowed: false,
@@ -506,7 +509,7 @@ const CAPACITY_FORMAL_ROUTE_CONTROL = {
   ],
   linearNoSkip: true, authorityCannotBeInherited: true, stopOnNonPass: true,
   oldWindowReplayAllowed: false, readyToAuthorize: false,
-  nextAction: 'TDD_EXTEND_THREE_EXCLUSIVE_ISSUERS_BEFORE_ANY_JOINT_AUTHORIZATION',
+  nextAction: 'TDD_IMPLEMENT_JOINT_MEASURE_AND_QUEUED_STOP_ISSUERS_BEFORE_ANY_JOINT_AUTHORIZATION',
   deviceOpened: false, gateB: 'NOT_RUN', ownerAcceptance: 'NOT_RUN',
 }
 const hash = bytes => createHash('sha256').update(bytes).digest('hex')
@@ -565,7 +568,8 @@ export function validateEvidenceCheckpointRepository(root, infrastructure = EVID
   const top = gitResult(root, ['rev-parse', '--show-toplevel'])
   check(top.error === undefined && top.signal === null && top.status === 0 && realpathSync(top.stdout.trim()) === realpathSync(root), 'CONTROL_REPOSITORY')
   const branch = gitResult(root, ['branch', '--show-current'])
-  check(branch.error === undefined && branch.signal === null && branch.status === 0 && branch.stdout.trim() === 'codex/task-079-v3-final-acceptance', 'CONTROL_REPOSITORY')
+  check(branch.error === undefined && branch.signal === null && branch.status === 0
+    && branch.stdout.trim() === CONTROL_BRANCH, 'CONTROL_REPOSITORY')
   for (const commit of commits) {
     const object = gitResult(root, ['cat-file', '-e', `${commit}^{commit}`])
     check(object.error === undefined && object.signal === null && object.status === 0, 'CONTROL_REPOSITORY')
@@ -604,7 +608,8 @@ export function validateArchitectureCheckpointRepository(
 
 function validateControlIdentity(status, wave) {
   const current = status?.v3Development
-  check(current && current.task === TASK && current.branch === 'codex/task-079-v3-final-acceptance' && current.baseCommit === BASE_COMMIT, 'CONTROL_IDENTITY')
+  check(current && current.task === CONTROL_TASK && current.branch === CONTROL_BRANCH
+    && current.baseCommit === CONTROL_BASE_COMMIT, 'CONTROL_IDENTITY')
   check(current.state === DEVELOPMENT_STATE, 'CONTROL_STATE')
   check(JSON.stringify(current.evidenceInfrastructure) === JSON.stringify(EVIDENCE_INFRASTRUCTURE), 'CONTROL_STATE')
   check(JSON.stringify(current.hardwareEvidenceControl) === JSON.stringify(HARDWARE_EVIDENCE_CONTROL), 'CONTROL_STATE')
@@ -630,7 +635,8 @@ function validateControlIdentity(status, wave) {
     values.set(match[1], match[2])
   }
   check(values.size === 3, 'CONTROL_IDENTITY')
-  check(values.get('activeTask') === TASK && values.get('activeBranch') === 'codex/task-079-v3-final-acceptance' && values.get('activeBaseCommit') === BASE_COMMIT, 'CONTROL_IDENTITY')
+  check(values.get('activeTask') === CONTROL_TASK && values.get('activeBranch') === CONTROL_BRANCH
+    && values.get('activeBaseCommit') === CONTROL_BASE_COMMIT, 'CONTROL_IDENTITY')
 }
 
 function validateSoftwareBaseline(baseline, matrix, matrixBytes) {
