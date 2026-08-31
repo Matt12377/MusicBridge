@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -262,6 +262,43 @@ test('70个历史root统一旧device时允许REMAPPED且replacement全部落在c
       assert.equal(mapping.state, 'LOST')
       assert.equal(mapping.replacementRoot.device, currentDevice)
       assert.equal(statSync(mapping.replacementRoot.path).dev, currentDevice)
+    }
+  } finally { f.cleanup() }
+})
+
+test('runtime整体迁移时只允许显式前缀重映射，并逐根冻结旧新身份', () => {
+  const f = fixture()
+  try {
+    const historicalRuntime = f.runtime
+    const currentRuntime = join(f.root, 'runtime-relocated')
+    renameSync(historicalRuntime, currentRuntime)
+    const currentManifest = join(currentRuntime, 'historical-measure-window', 'owned-roots.json')
+    const currentSeed = join(currentRuntime, 'durable-seed', 'seed.sqlite')
+    let args = replaceOption(f.args, '--runtime-root', currentRuntime)
+    args = replaceOption(args, '--measure-owned-manifest', currentManifest)
+    args = replaceOption(args, '--durable-seed-snapshot', currentSeed)
+    args.push('--historical-runtime-root', historicalRuntime)
+
+    const result = run(f, args)
+    assert.equal(result.status, 0, result.stderr)
+    const recovery = join(currentRuntime, f.recoveryName)
+    const receipt = JSON.parse(readFileSync(join(recovery, 'recovery.json')))
+    assert.equal(receipt.model, 'exact75-v3-runtime-relocation-closure')
+    assert.deepEqual(Object.keys(receipt.liveRootRemap).sort(), [
+      'currentRuntime', 'historicalRuntime', 'liveRootCount', 'mappings', 'mode',
+    ])
+    assert.equal(receipt.liveRootRemap.mode, 'PREFIX_RELOCATION')
+    assert.equal(receipt.liveRootRemap.historicalRuntime, historicalRuntime)
+    assert.equal(receipt.liveRootRemap.currentRuntime, currentRuntime)
+    assert.equal(receipt.liveRootRemap.liveRootCount, 63)
+    assert.equal(receipt.liveRootRemap.mappings.length, 63)
+    for (const [index, mapping] of receipt.liveRootRemap.mappings.entries()) {
+      assert.deepEqual(mapping.historicalRoot, f.present[index])
+      assert.equal(mapping.currentRoot.path,
+        join(currentRuntime, mapping.historicalRoot.path.slice(historicalRuntime.length + 1)))
+      assert.equal(mapping.currentRoot.device, statSync(mapping.currentRoot.path).dev)
+      assert.equal(mapping.currentRoot.inode, statSync(mapping.currentRoot.path).ino)
+      assert.deepEqual(mapping.currentRoot.marker, mapping.historicalRoot.marker)
     }
   } finally { f.cleanup() }
 })
