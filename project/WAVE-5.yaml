@@ -3,9 +3,9 @@ wave: WAVE-5
 status: active
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-080
-activeBranch: codex/task-080-capacity-authority-harness
-activeBaseCommit: d98eff24c0085ad8a340457f58dc3334709ca241
+activeTask: TASK-081
+activeBranch: codex/task-081-joint-capacity-issuers
+activeBaseCommit: b90c831f62afa2dedcb07630cbb89add2ad3f393
 order:
   - TASK-048
   - TASK-049
@@ -40,5 +40,6 @@ order:
   - TASK-078
   - TASK-079
   - TASK-080
-stopAfter: TASK-080
-reviewBoundary: local-software-gates-through080-formal-capacity-real-device-and-owner-acceptance-pending
+  - TASK-081
+stopAfter: TASK-081
+reviewBoundary: local-software-gates-through081-formal-capacity-real-device-and-owner-acceptance-pending

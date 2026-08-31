@@ -103,3 +103,5 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 - [TASK-079](TASK-079-v3-final-acceptance.md)：真实环境就绪控制、Gate A～E/Owner证据分层与最终验收；无设备阶段保持fail-closed，不把准备工作升级为真实PASS。
 
 - [TASK-080](TASK-080-capacity-authority-harness.md)：统一clean-clone入口与一次性capacity authority消费链；无issuer收据不得启动benchmark或输出正式PASS。
+
+- [TASK-081](TASK-081-joint-generation-issuer.md)：专用joint generation一次性issuer；只消费objects-limit queued-stop正式PASS，不复用objects-limit失败恢复签发语义。
