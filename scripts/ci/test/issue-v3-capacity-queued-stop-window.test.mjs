@@ -632,6 +632,18 @@ test('下一authority必须把已终态PROCESS_EXIT完整目录作为独立carry
 
 test('PROCESS_EXIT carryover接受消费者输出的有界WINDOW_INVALID失败码',()=>{const f=fixture();try{const prior=priorProcessFailure(f);writeFileSync(prior.stderr,'CAPACITY_PHASE_WINDOW_INVALID\n(node:313) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n');refreshProcessFailure(prior);const o=options(f);o.prior_process_failure=[prior.argv];const r=pythonCall("o=types.SimpleNamespace(**json.loads(sys.argv[2]));value=m.validate_prior_process_failures(o,m.Path(sys.argv[3]),json.loads(sys.argv[4]));print(json.dumps(value))",JSON.stringify(o),f.runtime,JSON.stringify(prior.historicalRoots));assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(JSON.parse(r.stdout).facts[0].windowId,prior.windowId)}finally{cleanup(f)}})
 
+test('PROCESS_EXIT carryover接受已固化的首样本preflight失败输出而不把它冒充样本',()=>{const f=fixture();try{
+  const prior=priorProcessFailure(f),output=join(prior.parent,prior.label);mkdirSync(output)
+  writeFileSync(prior.stdout,'CAPACITY_PHASE_INCOMPLETE\n')
+  const partial={outputDirectory:output,verifiedComplete:false,verifiedPassed:false,fileCount:12,
+    sampleCount:0,uniqueChildPids:0,aggregateBudgetValid:false,unexpectedEntries:['sample-001']}
+  put(prior.supervision,{...JSON.parse(readFileSync(prior.supervision)),queuedStop:partial})
+  put(prior.close,{...JSON.parse(readFileSync(prior.close)),queuedStop:partial})
+  refreshProcessFailure(prior);const o=options(f);o.prior_process_failure=[prior.argv]
+  const r=pythonCall("m._validate_retained_process_failure_output=lambda *args: True\no=types.SimpleNamespace(**json.loads(sys.argv[2]));value=m.validate_prior_process_failures(o,m.Path(sys.argv[3]),json.loads(sys.argv[4]));print(json.dumps(value))",JSON.stringify(o),f.runtime,JSON.stringify(prior.historicalRoots))
+  assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(JSON.parse(r.stdout).facts[0].windowId,prior.windowId)
+}finally{cleanup(f)}})
+
 test('runtime relocation对issuer、prechild与PROCESS_EXIT历史事实只做内存路径翻译',()=>{const f=fixture();try{
   const issuer=priorIssuerFailure(f),prechild=priorPrechildFailure(f),process=priorProcessFailure(f),o=options(f)
   const historicalRuntime=f.runtime,currentRuntime=`${f.runtime}-relocated`;renameSync(historicalRuntime,currentRuntime)

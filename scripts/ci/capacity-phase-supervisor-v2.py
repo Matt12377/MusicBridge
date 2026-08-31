@@ -33,6 +33,12 @@ def evaluate_process_failure_lineage(case, contract):
     return _lineage_module().evaluate_process_failure_lineage(case, contract)
 
 
+def _validate_retained_process_failure_output(output, window, window_sha256,
+                                               owned_sha256, source_sha256):
+    return _lineage_module().validate_retained_preflight_failure(
+        output, window, window_sha256, owned_sha256, source_sha256)
+
+
 def _write(file, value):
     fd = os.open(file, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
     try:
@@ -3587,6 +3593,7 @@ def _validate_queued_stop_process_failures(
         issuer_directory = root / 'issuer-identity'; supervision_directory = root / 'supervision'
         expected_entries = {'owner.json', 'supervisor.py', 'issuer-identity', 'source-pins.json',
                             'owned-roots.json', 'window.json', 'supervision', 'close.json'}
+        if (root / label).exists(): expected_entries.add(label)
         supervision_entries = {'supervisor.json', 'supervisor-start.json', 'stdout.log', 'stderr.log'}
         try:
             root_info = root.lstat(); issuer_info = issuer_directory.lstat()
@@ -3824,14 +3831,22 @@ def _validate_queued_stop_process_failures(
                        'size': identities['stdout']['size'], 'sha256': identities['stdout']['sha256']},
             'stderr': {'path': str(expected_paths['stderr']), 'exists': True,
                        'size': identities['stderr']['size'], 'sha256': identities['stderr']['sha256']}}
-        if stdout_bytes != b'' \
-                or not _valid_queued_stop_process_failure_stderr(stderr_bytes, supervision.get('pid')) \
-                or not _queued_exact(queued, queued_keys) \
-                or queued != {'outputDirectory': str(root / label), 'verifiedComplete': False,
-                              'verifiedPassed': False, 'fileCount': 0, 'sampleCount': 0,
-                              'uniqueChildPids': 0, 'aggregateBudgetValid': False,
-                              'unexpectedEntries': []} \
-                or (root / label).exists() or (root / label).is_symlink():
+        empty_queued = {'outputDirectory': str(root / label), 'verifiedComplete': False,
+                        'verifiedPassed': False, 'fileCount': 0, 'sampleCount': 0,
+                        'uniqueChildPids': 0, 'aggregateBudgetValid': False,
+                        'unexpectedEntries': []}
+        retained_queued = {'outputDirectory': str(root / label), 'verifiedComplete': False,
+                           'verifiedPassed': False, 'fileCount': 12, 'sampleCount': 0,
+                           'uniqueChildPids': 0, 'aggregateBudgetValid': False,
+                           'unexpectedEntries': ['sample-001']}
+        empty_failure = stdout_bytes == b'' and queued == empty_queued \
+            and not (root / label).exists() and not (root / label).is_symlink()
+        retained_failure = stdout_bytes == b'CAPACITY_PHASE_INCOMPLETE\n' \
+            and queued == retained_queued and _validate_retained_process_failure_output(
+                root / label, window, window_identity['sha256'], owned_identity['sha256'],
+                source_identity['sha256'])
+        if not _valid_queued_stop_process_failure_stderr(stderr_bytes, supervision.get('pid')) \
+                or not _queued_exact(queued, queued_keys) or not (empty_failure or retained_failure):
             raise ValueError(error_code)
         pid = supervision.get('pid') if isinstance(supervision, dict) else None
         if not _queued_exact(supervision, supervision_keys) \

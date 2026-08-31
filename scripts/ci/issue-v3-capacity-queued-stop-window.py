@@ -67,6 +67,12 @@ def valid_process_failure_stderr(value, pid):
     return value in {
         f'CAPACITY_PHASE_{code}'.encode() + suffix for code in CAPACITY_PHASE_FAILURE_CODES
     }
+
+
+def _validate_retained_process_failure_output(output, window, window_sha256,
+                                               owned_sha256, source_sha256):
+    return _lineage_module().validate_retained_preflight_failure(
+        output, window, window_sha256, owned_sha256, source_sha256)
 _FAILURE = None
 
 
@@ -1704,7 +1710,8 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
                 or str(parent) in seen_roots or window_id in seen_windows \
                 or window_dir_name in seen_dirs or label in seen_labels:
             fail('PRIOR_PROCESS_FAILURE')
-        if directory_snapshot(parent, parent_entries)['entries'] != sorted(parent_entries) \
+        observed_parent_entries = parent_entries | ({label} if (parent / label).exists() else set())
+        if directory_snapshot(parent, observed_parent_entries)['entries'] != sorted(observed_parent_entries) \
                 or directory_snapshot(issuer_identity, {'owner.json'})['entries'] != ['owner.json'] \
                 or directory_snapshot(supervision_directory, supervision_entries)['entries'] != \
                 sorted(supervision_entries):
@@ -1731,10 +1738,10 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
         stderr_path = supervision_directory / 'stderr.log'
         stdout_snapshot = file_snapshot(stdout_path, stdout_sha)
         stderr_snapshot = file_snapshot(stderr_path, stderr_sha)
-        if stdout_snapshot['size'] != 0 or stdout_sha != hashlib.sha256(b'').hexdigest() \
-                or stderr_snapshot['size'] <= 0:
+        if stdout_snapshot['size'] > 64 * 1024 or stderr_snapshot['size'] <= 0:
             fail('PRIOR_PROCESS_FAILURE')
         try:
+            stdout_bytes = stdout_path.read_bytes()
             stderr_bytes = stderr_path.read_bytes()
         except OSError as error:
             raise IssueError('PRIOR_PROCESS_FAILURE') from error
@@ -1943,12 +1950,23 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
                 or successor_issued_at is not None and closed_at > successor_issued_at:
             fail('PRIOR_PROCESS_FAILURE')
 
+        empty_queued = {'outputDirectory': str(parent / label), 'verifiedComplete': False,
+                        'verifiedPassed': False, 'fileCount': 0, 'sampleCount': 0,
+                        'uniqueChildPids': 0, 'aggregateBudgetValid': False,
+                        'unexpectedEntries': []}
+        retained_queued = {'outputDirectory': str(parent / label), 'verifiedComplete': False,
+                           'verifiedPassed': False, 'fileCount': 12, 'sampleCount': 0,
+                           'uniqueChildPids': 0, 'aggregateBudgetValid': False,
+                           'unexpectedEntries': ['sample-001']}
+        empty_failure = stdout_bytes == b'' and stdout_sha == hashlib.sha256(b'').hexdigest() \
+            and queued == empty_queued and not (parent / label).exists() \
+            and not (parent / label).is_symlink()
+        retained_failure = stdout_bytes == b'CAPACITY_PHASE_INCOMPLETE\n' \
+            and queued == retained_queued \
+            and _validate_retained_process_failure_output(
+                parent / label, window, window_sha, owned_sha, source_sha)
         if not isinstance(queued, dict) or set(queued) != queued_keys \
-                or queued != {'outputDirectory': str(parent / label), 'verifiedComplete': False,
-                              'verifiedPassed': False, 'fileCount': 0, 'sampleCount': 0,
-                              'uniqueChildPids': 0, 'aggregateBudgetValid': False,
-                              'unexpectedEntries': []} \
-                or (parent / label).exists() or (parent / label).is_symlink():
+                or not (empty_failure or retained_failure):
             fail('PRIOR_PROCESS_FAILURE')
         observed_process_counts = []
         for authority, remaining in ((admission, window['queuedStopPlan']['plannedBytes']),
@@ -2083,7 +2101,7 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
         billing_roots.append(parent_root)
         snapshots.append({
             'windowId': window_id, 'issuedAt': window['issuedAt'], 'closedAt': close['closedAt'],
-            'root': directory_snapshot(parent, parent_entries),
+            'root': directory_snapshot(parent, observed_parent_entries),
             'issuerIdentity': directory_snapshot(issuer_identity, {'owner.json'}),
             'supervision': directory_snapshot(supervision_directory, supervision_entries),
             'inheritedRoots': inherited_roots,

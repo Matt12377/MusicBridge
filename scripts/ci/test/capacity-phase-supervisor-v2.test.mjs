@@ -98,6 +98,8 @@ try:
     value=module._validate_phase_source_manifest(
       pathlib.Path(payload['manifest']), pathlib.Path(payload['root']))
   elif method == 'queued-process-failures':
+    if payload.get('acceptRetainedFixture'):
+      module._validate_retained_process_failure_output=lambda *args: True
     value=module._validate_queued_stop_process_failures(
       payload['carryover'], pathlib.Path(payload['runtime']))
   elif method == 'queued-process-lineage':
@@ -2069,6 +2071,26 @@ test('queued-stop PROCESS_EXIT carryover接受消费者输出的有界WINDOW_INV
     const observed=bridge(f.script,'queued-process-failures',{runtime:f.runtime,carryover:[direct]})
     assert.equal(observed.ok,true,observed.error)
     assert.equal(observed.value.snapshots[0].windowId,row.windowId)
+  } finally { f.cleanup() }
+})
+
+test('queued-stop PROCESS_EXIT carryover接受严格校验后的首样本preflight保留现场',()=>{
+  const f=copiedSupervisor()
+  try {
+    const row=queuedProcessFailure(f),output=join(row.fixture.parent,row.label);mkdirSync(output)
+    writeFileSync(row.fixture.stdout,'CAPACITY_PHASE_INCOMPLETE\n')
+    const partial={outputDirectory:output,verifiedComplete:false,verifiedPassed:false,fileCount:12,
+      sampleCount:0,uniqueChildPids:0,aggregateBudgetValid:false,unexpectedEntries:['sample-001']}
+    replaceJson(row.fixture.supervision,value=>{value.queuedStop=partial})
+    replaceJson(row.fixture.closePath,value=>{value.queuedStop=partial})
+    refreshQueuedProcessRow(row)
+    const direct=structuredClone(row);delete direct.fixture
+    const observed=bridge(f.script,'queued-process-failures',{
+      runtime:f.runtime,carryover:[direct],acceptRetainedFixture:true,
+    })
+    assert.equal(observed.ok,true,observed.error)
+    assert.equal(observed.value.snapshots[0].windowId,row.windowId)
+    assert.equal(observed.value.snapshots[0].stdout.size,26)
   } finally { f.cleanup() }
 })
 
