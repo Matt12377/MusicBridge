@@ -1386,11 +1386,16 @@ def validate_process_recovery_lineage(runtime, historical_measure, old_inherited
         'historicalManifest', 'liveDeviceRemap', 'repository', 'recoveryTool', 'mappings',
         'activeBenchmarkInput', 'contentRecovered', 'historicalManifestRewritten',
         'deviceOpened', 'formalReady', 'gateB'}
+    relocation_receipt = isinstance(receipt, dict) \
+        and receipt.get('model') == RELOCATION_RECOVERY_MODEL
+    if relocation_receipt:
+        receipt_keys.add('liveRootRemap')
     expected_repository = {**candidate, 'clean': True, 'pushedHead': True}
     repository = receipt.get('repository') if isinstance(receipt, dict) else None
     tool = receipt.get('recoveryTool') if isinstance(receipt, dict) else None
     mappings = receipt.get('mappings') if isinstance(receipt, dict) else None
     remap = receipt.get('liveDeviceRemap') if isinstance(receipt, dict) else None
+    root_remap = receipt.get('liveRootRemap') if isinstance(receipt, dict) else None
     benchmark = receipt.get('activeBenchmarkInput') if isinstance(receipt, dict) else None
     if receipt_path != recovery_root / 'recovery.json' or recovery_root.parent != runtime \
             or stat.S_IMODE(recovery_root.stat().st_mode) != 0o700 \
@@ -1399,7 +1404,7 @@ def validate_process_recovery_lineage(runtime, historical_measure, old_inherited
             or receipt.get('schemaVersion') != 1 \
             or receipt.get('scope') != 'musicbridge-capacity-measure-root-recovery' \
             or receipt.get('access') != 'read-only' or receipt.get('state') != 'PUBLISHED' \
-            or receipt.get('model') != RECOVERY_MODEL \
+            or receipt.get('model') not in {RECOVERY_MODEL, RELOCATION_RECOVERY_MODEL} \
             or receipt.get('windowId') != measure_window['id'] \
             or receipt.get('historicalManifest') != owned_binding \
             or repository != expected_repository \
@@ -1425,6 +1430,23 @@ def validate_process_recovery_lineage(runtime, historical_measure, old_inherited
             or SHA256.fullmatch(str(tool.get('workingSha256', ''))) is None \
             or not isinstance(mappings, list) or len(mappings) != 7:
         fail(code)
+    if relocation_receipt:
+        historical_runtime = Path(root_remap.get('historicalRuntime', '')) \
+            if isinstance(root_remap, dict) else Path('')
+        if not isinstance(root_remap, dict) \
+                or set(root_remap) != {
+                    'mode', 'historicalRuntime', 'currentRuntime', 'liveRootCount', 'mappings'} \
+                or root_remap.get('mode') != 'PREFIX_RELOCATION' \
+                or root_remap.get('currentRuntime') != str(runtime) \
+                or root_remap.get('liveRootCount') != 63 \
+                or not isinstance(root_remap.get('mappings'), list) \
+                or len(root_remap['mappings']) != 63 \
+                or not historical_runtime.is_absolute() \
+                or Path(os.path.normpath(str(historical_runtime))) != historical_runtime \
+                or historical_runtime == runtime \
+                or current_live_mappings is not None \
+                and root_remap['mappings'] != current_live_mappings:
+            fail(code)
     candidate_root = Path(candidate['root'])
     try:
         if tool['path'] != str(candidate_root / RECOVERY_TOOL_RELATIVE) \

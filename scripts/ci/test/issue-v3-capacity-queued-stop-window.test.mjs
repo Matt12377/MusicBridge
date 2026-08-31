@@ -408,7 +408,7 @@ function processRecoveryLineageFixture() {
   return {...f,historicalMeasure,currentMappings,currentLiveMappings,oldInherited:[...stable,...f.replacements.map(({role,...row})=>row),...suffix],currentRoots:[...stable,...currentReplacements.map(({role,...row})=>row),...suffix]}
 }
 
-function validateProcessLineage(f,historicalMeasure=f.historicalMeasure,currentMappings=f.currentMappings,currentRoots=f.currentRoots,oldInherited=f.oldInherited,currentLiveMappings=f.currentLiveMappings){return pythonCall("try:\n value=m.validate_process_recovery_lineage(m.Path(sys.argv[2]),json.loads(sys.argv[3]),json.loads(sys.argv[4]),json.loads(sys.argv[5]),json.loads(sys.argv[6]),json.loads(sys.argv[7]));print(json.dumps(value))\nexcept m.IssueError as error:\n print(error);raise SystemExit(1)",f.runtime,JSON.stringify(historicalMeasure),JSON.stringify(oldInherited),JSON.stringify(currentRoots),JSON.stringify(currentMappings),JSON.stringify(currentLiveMappings))}
+function validateProcessLineage(f,historicalMeasure=f.historicalMeasure,currentMappings=f.currentMappings,currentRoots=f.currentRoots,oldInherited=f.oldInherited,currentLiveMappings=f.currentLiveMappings,relocation=null){return pythonCall("try:\n value=m.validate_process_recovery_lineage(m.Path(sys.argv[2]),json.loads(sys.argv[3]),json.loads(sys.argv[4]),json.loads(sys.argv[5]),json.loads(sys.argv[6]),json.loads(sys.argv[7]),json.loads(sys.argv[8]));print(json.dumps(value))\nexcept m.IssueError as error:\n print(error);raise SystemExit(1)",f.runtime,JSON.stringify(historicalMeasure),JSON.stringify(oldInherited),JSON.stringify(currentRoots),JSON.stringify(currentMappings),JSON.stringify(currentLiveMappings),JSON.stringify(relocation))}
 
 test('pre-child terminalizer只封存零样本控制面崩溃且禁止重复写入',()=>{
   const f=prechildTerminalFixture()
@@ -672,6 +672,19 @@ test('PROCESS_EXIT谱系通过显式live映射跨越第二设备代际',()=>{con
   const old=[...previousLive,...previousReplacements,...previousSuffix]
   const r=validateProcessLineage(f,historical,f.currentMappings,f.currentRoots,old,f.currentLiveMappings)
   assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(JSON.parse(r.stdout).stableRootCount,66)
+}finally{f.cleanup()}})
+test('PROCESS_EXIT谱系接受已迁移runtime的V3历史恢复收据',()=>{const f=processRecoveryLineageFixture();try{
+  const historicalRuntime=join(f.temp,'historical-runtime')
+  const relocation={mode:'PREFIX_RELOCATION',historicalRuntime,currentRuntime:f.runtime,liveRootCount:63,
+    mappings:f.currentLiveMappings}
+  rewriteDirectRecovery(f,receipt=>{receipt.model='exact75-v3-runtime-relocation-closure'
+    receipt.liveRootRemap=relocation})
+  const historical=structuredClone(f.historicalMeasure)
+  historical.measureRootRecovery.sha256=sha(f.receiptPath)
+  const r=validateProcessLineage(f,historical,f.currentMappings,f.currentRoots,f.oldInherited,
+    f.currentLiveMappings,relocation)
+  assert.equal(r.status,0,r.stdout+r.stderr)
+  assert.equal(JSON.parse(r.stdout).translated,true)
 }finally{f.cleanup()}})
 test('PROCESS_EXIT roots允许recovery-01到recovery-02有序谱系翻译并拒绝映射漂移',async t=>{await t.test('跨代正例',()=>{const f=processRecoveryLineageFixture();try{const r=validateProcessLineage(f);assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(JSON.parse(r.stdout).translated,true)}finally{f.cleanup()}});for(const [name,mutate] of [['historicalRoot漂移',(f,m)=>{m[0].historicalRoot.inode+=1}],['映射重排',(f,m)=>{[m[0],m[1]]=[m[1],m[0]]}],['旧receipt漂移',(f,m,h)=>{rewriteDirectRecovery(f,r=>{r.repository.clean=false});h.measureRootRecovery.sha256=sha(f.receiptPath)}]])await t.test(name,()=>{const f=processRecoveryLineageFixture();try{const mappings=structuredClone(f.currentMappings),historical=structuredClone(f.historicalMeasure);mutate(f,mappings,historical);const r=validateProcessLineage(f,historical,mappings);assert.equal(r.status,1,r.stdout+r.stderr);assert.match(r.stdout,/PRIOR_PROCESS_FAILURE_LINEAGE/u)}finally{f.cleanup()}})})
 test('PROCESS_EXIT carryover自动审计runtime声明全集',()=>{const f=fixture();try{priorProcessFailure(f,'-a');const declared=priorProcessFailure(f,'-b'),o=options(f);o.prior_process_failure=[declared.argv];const r=pythonCall("o=types.SimpleNamespace(**json.loads(sys.argv[2]));\ntry:m.validate_prior_process_failures(o,m.Path(sys.argv[3]),json.loads(sys.argv[4]))\nexcept m.IssueError as e:print(e);raise SystemExit(1)",JSON.stringify(o),f.runtime,JSON.stringify(declared.historicalRoots));assert.equal(r.status,1);assert.match(r.stdout,/PRIOR_PROCESS_FAILURE_AUDIT/u)}finally{cleanup(f)}})
