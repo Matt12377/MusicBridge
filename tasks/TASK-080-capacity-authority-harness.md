@@ -27,6 +27,7 @@
 - `project/STATUS.json`
 - `scripts/ci/run-v3-capacity-clean-clone.mjs`
 - `scripts/ci/test/run-v3-capacity-clean-clone.test.mjs`
+- `packages/bridge-core/test/benchmarks/recording-capacity-clean-clone.ts`
 - `reports/TASK-080_RESULT.md`
 
-除非新的最小 RED 证明现有 issuer/supervisor 合同缺少必要字段，本任务不修改 TASK-079 issuer、supervisor、lineage 合同、Bridge Core benchmark、应用、数据库或设备代码。
+除非新的最小 RED 证明现有 issuer/supervisor 合同缺少必要字段，本任务不修改 TASK-079 issuer、supervisor、lineage 合同、benchmark 算法、应用、数据库或设备代码；允许删除 benchmark 模块中可绕过 authority 的生产入口并保留纯编排测试缝。

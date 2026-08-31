@@ -1,23 +1,4 @@
-import type test from 'node:test';
-import { backup } from 'node:sqlite';
-import { existsSync, lstatSync, mkdirSync, realpathSync } from 'node:fs';
-import { mkdtemp, rm } from 'node:fs/promises';
-import os from 'node:os';
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { execFileSync } from 'node:child_process';
 import {
-  capacityMeasureWorkingBytes,
-  createCapacityClone,
-  createCapacityQueuedStopAggregateGuard,
-  createCapacitySeed,
-  finishCapacityClone,
-  hashCapacityFile,
-} from '../helpers/recording-capacity-fixture.js';
-import { runCapacityQueuedStop } from '../helpers/recording-capacity-process.js';
-import {
-  capacityQueuedStopMeasurement,
-  capacityQueuedStopSummary,
   type CapacityQueuedStopMeasurement,
   type CapacityQueuedStopSummary,
 } from '../helpers/recording-capacity-phases.js';
@@ -47,7 +28,7 @@ export interface CleanCloneBenchmarkDependencies<Prepared = unknown> {
   log(line: string): void;
 }
 
-/** 固定正式口径的纯执行编排；没有window、authority、重试、预跑或参数入口。 */
+/** 固定口径的纯编排测试缝；生产CLI不得从本模块直接执行benchmark。 */
 export async function runCleanCloneObjectsLimitBenchmark<Prepared>(
   dependencies: CleanCloneBenchmarkDependencies<Prepared>,
 ): Promise<CleanCloneCapacityClassification> {
@@ -88,102 +69,3 @@ export async function runCleanCloneObjectsLimitBenchmark<Prepared>(
   }
   return classification;
 }
-
-interface ProductionPrepared {
-  runRoot: string;
-  outputRoot: string;
-  seedPath: string;
-  seedSha256: string;
-  fixtureDirectory: string;
-  planId: string;
-  planHash: string;
-  plannedBytes: number;
-  aggregate: ReturnType<typeof createCapacityQueuedStopAggregateGuard>;
-  cleanups: Array<() => void | Promise<void>>;
-  childPids: Set<number>;
-}
-
-async function productionDependencies(): Promise<CleanCloneBenchmarkDependencies<ProductionPrepared>> {
-  let pending: ProductionPrepared | undefined;
-  return {
-    async prepare(config) {
-      const runRoot = realpathSync(await mkdtemp(path.join(os.tmpdir(), 'musicbridge-capacity-direct-')));
-      const seedRoot = path.join(runRoot, 'seed'), outputRoot = path.join(runRoot, 'output');
-      mkdirSync(seedRoot); mkdirSync(outputRoot);
-      const cleanups: Array<() => void | Promise<void>> = [];
-      const context = { after(callback: () => void | Promise<void>) { cleanups.push(callback); } } as test.TestContext;
-      const fixture = await createCapacitySeed(context, { profile: config.profile, retainDirectory: true });
-      const seedPath = path.join(seedRoot, 'seed.sqlite');
-      await backup(fixture.db, seedPath);
-      const seedSha256 = hashCapacityFile(seedPath), snapshotBytes = lstatSync(seedPath).size;
-      if (!snapshotBytes || ['-wal', '-shm', '-journal'].some(suffix => existsSync(seedPath + suffix))) {
-        throw new Error('clean clone seed无效');
-      }
-      pending = {
-        runRoot, outputRoot, seedPath, seedSha256, fixtureDirectory: fixture.directory,
-        planId: fixture.nextPlan.id, planHash: fixture.nextPlan.contentHash,
-        plannedBytes: capacityMeasureWorkingBytes(snapshotBytes),
-        aggregate: createCapacityQueuedStopAggregateGuard(outputRoot, snapshotBytes),
-        cleanups, childPids: new Set<number>(),
-      };
-      return pending;
-    },
-    async sample(prepared, index, config) {
-      if (hashCapacityFile(prepared.seedPath) !== prepared.seedSha256) throw new Error('clean clone seed漂移');
-      const label = `sample-${String(index).padStart(3, '0')}`;
-      const clone = createCapacityClone(prepared.outputRoot, label, prepared.seedPath, prepared.plannedBytes, prepared.aggregate);
-      const result = await runCapacityQueuedStop({ clone, planId: prepared.planId, planHash: prepared.planHash }, {
-        executionTimeoutMs: config.executionMs,
-        killGraceMs: config.killGraceMs,
-        closeTimeoutMs: config.closeMs,
-      });
-      process.stdout.write(`CAPACITY_PROCESS_RAW index=${index} raw=${JSON.stringify(result)}\n`);
-      const measurement = capacityQueuedStopMeasurement(result, prepared.planId, prepared.planHash);
-      const childPid = result.childPid;
-      const uniqueChild = childPid !== null && !prepared.childPids.has(childPid);
-      if (childPid !== null) prepared.childPids.add(childPid);
-      const valid = measurement && uniqueChild && result.forkToCloseMs <= config.executionMs
-        && hashCapacityFile(prepared.seedPath) === prepared.seedSha256;
-      if (result.closed) finishCapacityClone(clone, {
-        outcome: valid ? 'ok' : result.outcome === 'timeout' ? 'timeout' : 'failed',
-        resourcesClosed: true,
-        samples: [result],
-      });
-      return valid ? { index, ...measurement } : undefined;
-    },
-    summarize: capacityQueuedStopSummary,
-    async cleanup(prepared) {
-      const value = prepared ?? pending;
-      if (!value) return;
-      let failure: unknown;
-      for (const callback of [...value.cleanups].reverse()) {
-        try { await callback(); } catch (error) { failure ??= error; }
-      }
-      for (const directory of [value.outputRoot, path.dirname(value.seedPath), value.fixtureDirectory, value.runRoot]) {
-        try { if (existsSync(directory)) await rm(directory, { recursive: true, force: false }); }
-        catch (error) { failure ??= error; }
-      }
-      if (failure) throw failure;
-    },
-    now: Date.now,
-    log: line => process.stdout.write(`${line}\n`),
-  };
-}
-
-async function main() {
-  const root = realpathSync(path.join(import.meta.dirname, '../../../..'));
-  let clean = false;
-  try {
-    clean = process.argv.length === 2 && realpathSync(process.cwd()) === root
-      && realpathSync(execFileSync('/usr/bin/git', ['rev-parse', '--show-toplevel'], { cwd: root, encoding: 'utf8' }).trim()) === root
-      && execFileSync('/usr/bin/git', ['status', '--porcelain=v1', '--untracked-files=all'], { cwd: root, encoding: 'utf8' }).trim() === '';
-  } catch { clean = false; }
-  if (!clean) {
-    process.exitCode = 3;
-    return;
-  }
-  const classification = await runCleanCloneObjectsLimitBenchmark(await productionDependencies());
-  process.exitCode = classification === 'PASS' ? 0 : classification === 'PRODUCT_BUG' ? 2 : 3;
-}
-
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) void main();
