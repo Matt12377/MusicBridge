@@ -356,9 +356,7 @@ test('连续 Core 生命周期事件只触发一次 Zone 刷新', async () => {
     window?.webContents.send('core:event', { version: 1, event: 'roon.changed', payload: { state } })
     window?.webContents.send('core:event', { version: 1, event: 'roon.changed', payload: { state } })
   })
-  await page.waitForTimeout(200)
-
-  expect(await readZoneListCalls()).toBe(1)
+  await expect.poll(readZoneListCalls).toBe(1)
   const zonePopover = await openPlayerZonePopover()
   await expect(zonePopover.getByRole('button', {
     name: 'Coalesced Zone',
