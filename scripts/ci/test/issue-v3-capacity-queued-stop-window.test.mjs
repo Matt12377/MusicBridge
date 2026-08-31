@@ -358,6 +358,39 @@ function rewriteDirectRecovery(f, mutate) {
   const receipt=JSON.parse(readFileSync(f.receiptPath));mutate(receipt);chmodSync(f.receiptPath,0o600);rmSync(f.receiptPath);put(f.receiptPath,receipt);chmodSync(f.receiptPath,0o400);f.options.expected_measure_root_recovery_sha256=sha(f.receiptPath)
 }
 
+function relocateDirectRecovery(f) {
+  const historicalRuntime=f.runtime,currentRuntime=join(f.temp,'runtime-relocated')
+  renameSync(historicalRuntime,currentRuntime)
+  const currentPath=path=>join(currentRuntime,path.slice(historicalRuntime.length+1))
+  f.owned.roots=f.owned.roots.map((row,index)=>index<63?{...row,inode:row.inode+100000}:row)
+  f.ownedPath=currentPath(f.ownedPath);put(f.ownedPath,f.owned)
+  f.seed=currentPath(f.seed);f.snapshot=currentPath(f.snapshot)
+  f.recoveryRoot=currentPath(f.recoveryRoot);f.receiptPath=currentPath(f.receiptPath)
+  f.replacements=f.replacements.map((row,index)=>({
+    ...rootIdentity(join(f.recoveryRoot,`replacement-${String(index+1).padStart(3,'0')}`),'owner.json'),
+    role:'historical-control-only',
+  }))
+  const historicalLive=f.owned.roots.slice(0,63)
+  const currentLive=historicalLive.map(row=>rootIdentity(currentPath(row.path),row.marker.relative))
+  f.receipt={...f.receipt,
+    model:'exact75-v3-runtime-relocation-closure',
+    historicalManifest:{path:f.ownedPath,sha256:sha(f.ownedPath)},
+    liveDeviceRemap:{mode:'REMAPPED',historicalDevice:historicalLive[0].device,
+      currentDevice:lstatSync(currentRuntime).dev,liveRootCount:63},
+    liveRootRemap:{mode:'PREFIX_RELOCATION',historicalRuntime,currentRuntime,liveRootCount:63,
+      mappings:historicalLive.map((historicalRoot,index)=>({historicalRoot,currentRoot:currentLive[index]}))},
+    mappings:f.absent.map((historicalRoot,index)=>({historicalRoot,state:'LOST',recovered:false,
+      replacementRoot:f.replacements[index]})),
+    activeBenchmarkInput:{model:'durable-seed-snapshot',path:f.snapshot,sha256:sha(f.snapshot)},
+  }
+  chmodSync(f.receiptPath,0o600);rmSync(f.receiptPath);put(f.receiptPath,f.receipt);chmodSync(f.receiptPath,0o400)
+  f.runtime=currentRuntime
+  f.options={...f.options,measure_root_recovery:f.receiptPath,
+    expected_measure_root_recovery_sha256:sha(f.receiptPath),
+    expected_measure_owned_sha256:sha(f.ownedPath),expected_seed_snapshot_sha256:sha(f.snapshot)}
+  return f
+}
+
 function validateDirectRecovery(f) {
   return pythonCall("o=types.SimpleNamespace(**json.loads(sys.argv[2]));owned=json.loads(m.Path(sys.argv[4]).read_text());\ntry:\n value=m.validate_measure_root_recovery(o,m.Path(sys.argv[3]),m.Path(sys.argv[4]),owned,m.Path(sys.argv[5]),m.Path(sys.argv[6]));print(json.dumps({'live':len(value['liveRoots']),'replacement':len(value['replacementRoots']),'input':value['activeBenchmarkInput']}))\nexcept m.IssueError as error:\n print(error);raise SystemExit(1)",JSON.stringify(f.options),f.runtime,f.ownedPath,f.seed,f.snapshot)
 }
@@ -527,6 +560,7 @@ test('pre-child terminalizer对畸形authority、candidate与witness返回域错
 test('queued-stop issuer生产入口存在且拒绝空参数',()=>{assert.equal(existsSync(sourceIssuer),true);const r=spawnSync(python,[sourceIssuer],{encoding:'utf8'});assert.equal(r.status,2);assert.match(r.stderr,/required/u)})
 test('validate_measure_root_recovery直接接受统一设备代际映射的真实63 live加7 absent',()=>{const f=directRecoveryFixture();try{const r=validateDirectRecovery(f);assert.equal(r.status,0,r.stdout+r.stderr);assert.deepEqual(JSON.parse(r.stdout),{live:63,replacement:7,input:{model:'durable-seed-snapshot',path:f.snapshot,sha256:sha(f.snapshot)}});assert.deepEqual(JSON.parse(readFileSync(f.receiptPath)).liveDeviceRemap,{mode:'REMAPPED',historicalDevice:f.owned.roots[0].device,currentDevice:lstatSync(f.runtime).dev,liveRootCount:63})}finally{f.cleanup()}})
 test('validate_measure_root_recovery由相同历史与当前device派生UNCHANGED',()=>{const f=directRecoveryFixture(false);try{const r=validateDirectRecovery(f);assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(JSON.parse(readFileSync(f.receiptPath)).liveDeviceRemap.mode,'UNCHANGED')}finally{f.cleanup()}})
+test('validate_measure_root_recovery接受显式runtime relocation并冻结63个旧新root身份',()=>{const f=relocateDirectRecovery(directRecoveryFixture());try{const r=validateDirectRecovery(f);assert.equal(r.status,0,r.stdout+r.stderr);assert.deepEqual(JSON.parse(r.stdout),{live:63,replacement:7,input:{model:'durable-seed-snapshot',path:f.snapshot,sha256:sha(f.snapshot)}})}finally{f.cleanup()}})
 test('validate_measure_root_recovery拒绝非exact或不自洽liveDeviceRemap及设备集合',async t=>{
   const cases=[
     ['缺remap',f=>rewriteDirectRecovery(f,r=>{delete r.liveDeviceRemap})],
