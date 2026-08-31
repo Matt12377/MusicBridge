@@ -1223,6 +1223,37 @@ function rewriteRootRecovery(f, mutate) {
   return { path: f.recovery, sha256: sha(f.recovery) }
 }
 
+function relocatedFrozenOwnedFixture() {
+  const f = disappearedFrozenOwnedFixture()
+  const historicalRuntime = f.runtime, currentRuntime = `${f.runtime}-relocated`
+  renameSync(historicalRuntime, currentRuntime)
+  const mapped = value => join(currentRuntime, value.slice(historicalRuntime.length + 1))
+  f.runtime = currentRuntime; f.script = mapped(f.script); f.authority = mapped(f.authority)
+  f.historical = mapped(f.historical); f.future = mapped(f.future); f.seed = mapped(f.seed)
+  f.manifest = mapped(f.manifest); f.window = mapped(f.window); f.close = mapped(f.close)
+  f.recovery = mapped(f.recovery)
+  f.present = f.present.map((row, index) => ({ ...row, inode: row.inode + 100000 + index }))
+  const historicalRows = [...f.present, ...f.disappeared]
+  rmSync(f.manifest); json(f.manifest, { schemaVersion: 1, scope: 'musicbridge-capacity-owned-roots', access: 'count-only',
+    windowId: f.windowId, roots: historicalRows, futureRoots: [join(historicalRuntime, 'historical-measure-output')] })
+  f.frozenHashes.manifest = sha(f.manifest)
+  f.replacements = f.replacements.map((row, index) => ({ ...rootRow(mapped(row.path)), role: 'historical-control-only' }))
+  const currentLive = f.present.map(row => rootRow(mapped(row.path), row.marker.relative))
+  replaceJson(f.recovery, receipt => {
+    receipt.model = 'exact75-v3-runtime-relocation-closure'
+    receipt.historicalManifest = { path: f.manifest, sha256: f.frozenHashes.manifest }
+    receipt.liveRootRemap = { mode: 'PREFIX_RELOCATION', historicalRuntime, currentRuntime, liveRootCount: 63,
+      mappings: f.present.map((historicalRoot, index) => ({ historicalRoot, currentRoot: currentLive[index] })) }
+    receipt.liveDeviceRemap.currentDevice = statSync(currentRuntime).dev
+    receipt.mappings = f.disappeared.map((historicalRoot, index) => ({ historicalRoot, state: 'LOST', recovered: false,
+      replacementRoot: f.replacements[index] }))
+    receipt.activeBenchmarkInput.path = join(f.seed, 'seed.sqlite')
+  })
+  chmodSync(f.recovery, 0o400)
+  f.measureRootRecovery = { path: f.recovery, sha256: sha(f.recovery) }
+  return f
+}
+
 function queuedProcessLineageFixture() {
   const f=disappearedFrozenOwnedFixture(),currentRoot=join(f.runtime,'measure-root-recovery-v2')
   mkdirSync(currentRoot);chmodSync(currentRoot,0o700)
@@ -2215,6 +2246,18 @@ test('冻结measure以exact75-v2只读收据把7个LOST根替换为durable contr
     assert.equal(receipt.historicalManifestRewritten, false)
     assert.deepEqual(receipt.activeBenchmarkInput,
       { model: 'durable-seed-snapshot', path: join(f.seed, 'seed.sqlite'), sha256: sha(join(f.seed, 'seed.sqlite')) })
+  } finally { f.cleanup() }
+})
+
+test('冻结measure接受显式runtime relocation并返回63个当前root身份', () => {
+  const f = relocatedFrozenOwnedFixture()
+  try {
+    const observed = bridge(f.script, 'frozen-owned', {
+      manifest: f.manifest, runtime: f.runtime, manifestSha256: f.frozenHashes.manifest,
+      windowId: f.windowId, future: f.future, measureRootRecovery: f.measureRootRecovery })
+    assert.equal(observed.ok, true, observed.error)
+    assert.equal(observed.value.roots.length, 70)
+    assert.equal(observed.value.roots.slice(0, 63).every(root => root.path.startsWith(`${f.runtime}/`)), true)
   } finally { f.cleanup() }
 })
 
