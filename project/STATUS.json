@@ -128,12 +128,12 @@
       "gateB": "NOT_RUN"
     },
     "implementationCommit": "bb421f55ddc8c0c5b7d3b1986e4e53a74624c290",
-    "reportCommit": null,
+    "reportCommit": "637bdc526504b6d888b7168363c522401137e024",
     "task080AuthorityHarness": {
       "baseCommit": "d98eff24c0085ad8a340457f58dc3334709ca241",
       "redCommit": "85398f7cfb2eeb3b6cd71f368a62a84de13b4c5d",
       "implementationCommit": "bb421f55ddc8c0c5b7d3b1986e4e53a74624c290",
-      "reportCommit": null,
+      "reportCommit": "637bdc526504b6d888b7168363c522401137e024",
       "state": "SOFTWARE_GREEN_EXTERNAL_REVIEW_PENDING",
       "focusedTests": "9-of-9-pass",
       "adjacentBenchmarkTests": "5-of-5-pass",
