@@ -1374,9 +1374,11 @@ def _validate_measure_root_recovery(binding, runtime, manifest_path, manifest_sh
     recovery_tool = candidate / tool['relativePath']
     try:
         canonical_candidate = candidate.resolve(strict=True)
+        canonical_recovery_tool = recovery_tool.resolve(strict=True)
         candidate_info = candidate.lstat()
         working_identity = _strict_identity(recovery_tool, 2 * 1024 * 1024)
-        blob = _git_blob(candidate, f"{repository['head']}:{tool['relativePath']}")
+        git_candidate = canonical_candidate if historical_repository else candidate
+        blob = _git_blob(git_candidate, f"{repository['head']}:{tool['relativePath']}")
         top = _git_value(candidate, 'rev-parse', '--show-toplevel')
         branch = _git_value(candidate, 'branch', '--show-current')
         head = _git_value(candidate, 'rev-parse', 'HEAD^{commit}')
@@ -1384,8 +1386,10 @@ def _validate_measure_root_recovery(binding, runtime, manifest_path, manifest_sh
         dirty = _git_value(candidate, 'status', '--porcelain=v1', '--untracked-files=all')
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         raise ValueError(error_code) from error
-    if not candidate.is_absolute() or candidate != canonical_candidate or candidate.is_symlink() \
+    if not candidate.is_absolute() or candidate.is_symlink() \
             or not stat.S_ISDIR(candidate_info.st_mode) or Path(tool.get('path', '')) != recovery_tool \
+            or canonical_recovery_tool != canonical_candidate / tool['relativePath'] \
+            or not historical_repository and candidate != canonical_candidate \
             or hashlib.sha256(blob).hexdigest() != tool['gitBlobSha256']:
         raise ValueError(error_code)
     if not historical_repository and (working_identity['sha256'] != tool['workingSha256'] \
