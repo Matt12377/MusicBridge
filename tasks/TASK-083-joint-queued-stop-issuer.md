@@ -33,8 +33,7 @@
 - `scripts/ci/test/issue-v3-capacity-joint-queued-stop-window.test.mjs`
 - `scripts/ci/capacity-phase-supervisor-v2.py`
 - `scripts/ci/test/capacity-phase-supervisor-v2.test.mjs`
-- `packages/bridge-core/test/benchmarks/recording-capacity-process.ts`
-- `packages/bridge-core/test/recording-capacity-process.test.ts`
+- `packages/bridge-core/test/helpers/recording-capacity-phases.ts`
 - `scripts/ci/verify-v3-owner-readiness.mjs`
 - `scripts/ci/test/verify-v3-owner-readiness.test.mjs`
 - `reports/TASK-083_RESULT.md`
