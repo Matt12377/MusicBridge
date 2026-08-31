@@ -3497,7 +3497,8 @@ def _queued_stop_process_authority(value, window, window_identity, owner_identit
 
 
 def _validate_queued_stop_process_failures(
-        carryover, runtime, lineage_contract=None, runtime_relocation=None):
+        carryover, runtime, lineage_contract=None, runtime_relocation=None,
+        lineage_module=None):
     """冻结已消费且PROCESS_EXIT的queued-stop authority；历史owned schema不得升级或重写。"""
     error_code = 'QUEUED_STOP_PROCESS_FAILURE'
     audit_code = 'QUEUED_STOP_PROCESS_FAILURE_AUDIT'
@@ -3969,7 +3970,7 @@ def _validate_queued_stop_process_failures(
             raise ValueError(error_code)
         if linked:
             pending.append((process_carryover[0], issued_at, False))
-    lineage = _lineage_module()
+    lineage = lineage_module if lineage_module is not None else _lineage_module()
     if lineage_contract is None:
         lineage_contract = lineage.load_contract(Path(__file__).resolve().parents[2])
     lineage_result = lineage.evaluate_process_failure_lineage(
@@ -4058,7 +4059,7 @@ def _validate_queued_stop_bound_identities(window, parent, candidate, runtime_re
     lineage_contract = lineage.load_contract(candidate)
     process_failures = _validate_queued_stop_process_failures(
         fact['processFailureCarryover'], Path(parent).parent, lineage_contract,
-        runtime_relocation=runtime_relocation)
+        runtime_relocation=runtime_relocation, lineage_module=lineage)
     if len(process_failures['roots']) != window['processFailureCarryoverCount']:
         raise ValueError('QUEUED_STOP_PROCESS_FAILURE')
     identities['processFailureRoots'] = process_failures['roots']
