@@ -90,6 +90,10 @@ try:
   elif method == 'queued-bound-identities':
     value=module._validate_queued_stop_bound_identities(
       payload['window'], pathlib.Path(payload['parent']), pathlib.Path(payload['candidate']))
+  elif method == 'queued-prechild-failures':
+    value=module._validate_queued_stop_prechild_failures(
+      payload['carryover'], pathlib.Path(payload['runtime']),
+      runtime_relocation=payload.get('runtimeRelocation'))
   elif method == 'queued-process-failures':
     value=module._validate_queued_stop_process_failures(
       payload['carryover'], pathlib.Path(payload['runtime']))
@@ -2619,6 +2623,49 @@ test('queued-stop admission实际复核toolchain、issuer fact与candidate HEAD 
       scope: 'musicbridge-capacity-queued-stop-authority-issuer-failure', windowId: randomUUID() })
     assert.equal(bridge(f.script, 'queued-bound-identities', { window, parent: f.authority, candidate: f.candidate }).ok, false)
   } finally { f.cleanup() }
+})
+
+test('queued-stop prechild历史收据在runtime迁移后只做内存路径投影', () => {
+  const f = copiedSupervisor()
+  try {
+    const window = sealQueuedIdentity(f, queuedWindowValue(f))
+    const fact = JSON.parse(readFileSync(window.issuer.fact.path, 'utf8'))
+    const aliasParent = join(f.temp, 'historical-repository-alias')
+    symlinkSync(f.temp, aliasParent)
+    const aliasedCandidate = join(aliasParent, 'task-079-v3-final-acceptance')
+    const failureBinding = fact.prechildFailureCarryover[0].files.failure
+    replaceJson(failureBinding.path, receipt => {
+      receipt.recovery.repositoryRoot = aliasedCandidate
+      receipt.recovery.scriptPath = join(
+        aliasedCandidate, 'scripts/ci/terminalize-v3-capacity-queued-stop-prechild.py')
+    })
+    failureBinding.sha256 = sha(failureBinding.path)
+    const historicalRuntime = f.runtime
+    const currentRuntime = `${historicalRuntime}-relocated`
+    renameSync(historicalRuntime, currentRuntime)
+    const relocate = value => {
+      if (typeof value === 'string') {
+        return value === historicalRuntime || value.startsWith(`${historicalRuntime}/`)
+          ? `${currentRuntime}${value.slice(historicalRuntime.length)}` : value
+      }
+      if (Array.isArray(value)) return value.map(relocate)
+      if (value && typeof value === 'object') return Object.fromEntries(
+        Object.entries(value).map(([key, item]) => [key, relocate(item)]))
+      return value
+    }
+    f.runtime = currentRuntime
+    f.script = relocate(f.script)
+    const runtimeRelocation = {
+      mode: 'PREFIX_RELOCATION', historicalRuntime, currentRuntime, liveRootCount: 63, mappings: [],
+    }
+    const observed = bridge(f.script, 'queued-prechild-failures', {
+      carryover: relocate(fact.prechildFailureCarryover), runtime: currentRuntime, runtimeRelocation,
+    })
+    assert.equal(observed.ok, true, observed.error)
+    assert.equal(observed.value.roots[0].path.startsWith(`${currentRuntime}/`), true)
+  } finally {
+    f.cleanup()
+  }
 })
 
 test('queued-stop owned闭包动态接受74个carryover加当前authority形成exact76根', () => {
