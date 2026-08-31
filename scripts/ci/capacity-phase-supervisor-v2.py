@@ -4477,8 +4477,15 @@ def _validate_queued_stop_process_recovery_lineage(
         receipt = _relocate_runtime_value(receipt, runtime_relocation, runtime, code)
     mappings = receipt.get('mappings') if isinstance(receipt, dict) else None
     remap = receipt.get('liveDeviceRemap') if isinstance(receipt, dict) else None
+    recovery_model = receipt.get('model') if isinstance(receipt, dict) else None
+    historical_root_remap = receipt.get('liveRootRemap') \
+        if recovery_model == 'exact75-v3-runtime-relocation-closure' else None
     if receipt_identity['sha256'] != binding['sha256'] \
             or not isinstance(mappings, list) or len(mappings) != 7 \
+            or recovery_model not in {
+                'exact75-v2-replacement-closure', 'exact75-v3-runtime-relocation-closure'} \
+            or recovery_model == 'exact75-v3-runtime-relocation-closure' \
+            and (runtime_relocation is None or historical_root_remap != runtime_relocation) \
             or not _queued_exact(remap, {
                 'mode', 'historicalDevice', 'currentDevice', 'liveRootCount'}) \
             or type(remap.get('historicalDevice')) is not int \
@@ -4493,6 +4500,7 @@ def _validate_queued_stop_process_recovery_lineage(
         old_recovery = _validate_measure_root_recovery(
             binding, runtime, Path(owned['path']), owned['sha256'], window['id'], missing,
             remap, None, None, None, code, historical_repository=True,
+            expected_live_root_remap=historical_root_remap,
             runtime_relocation=runtime_relocation)
     except ValueError as error:
         raise ValueError(code) from error
