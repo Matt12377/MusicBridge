@@ -2181,7 +2181,7 @@ test('V3 Logic 工作区：原生授权、确认复制、回执重试、Finder �
   }
   await electronApp.evaluate(({ shell }) => { shell.openPath = async p => { (globalThis as typeof globalThis & { preparationOpened?: string }).preparationOpened = p; return '' } })
   await panel.getByRole('button', { name: '在 Finder 中打开', exact: true }).click()
-  expect(await electronApp.evaluate(() => (globalThis as typeof globalThis & { preparationOpened?: string }).preparationOpened)).toBe(workspace)
+  await expect.poll(() => electronApp.evaluate(() => (globalThis as typeof globalThis & { preparationOpened?: string }).preparationOpened)).toBe(workspace)
   await panel.getByRole('button', { name: '关闭', exact: true }).click(); await expect(trigger).toBeFocused()
   await electronApp.close()
   const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
