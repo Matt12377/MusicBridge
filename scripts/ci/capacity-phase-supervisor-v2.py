@@ -4819,6 +4819,44 @@ def _reject_measure_replay(runtime, parent, window):
     return True
 
 
+def _write_generation_close(parent, window, result, authority_initial, authority_probe):
+    """把generation终态封成独立不可重放收据，供下一阶段验证原始PASS链。"""
+    parent = Path(parent)
+    generation = result.get('generation')
+    if not isinstance(generation, dict) or generation.get('verifiedPassed') is not True:
+        if result.get('failure') is None: result['failure'] = 'GENERATION_EVIDENCE_FAILED'
+        result['passed'] = False
+    try:
+        terminal_value = authority_probe()
+        authority_terminal = {key: value for key, value in terminal_value.items() if key != '_snapshot'}
+    except ValueError as error:
+        authority_terminal = {'authorityStable': False, 'error': str(error)}
+        result['failure'] = 'AUTHORITY_DRIFT'; result['passed'] = False
+    clean_authority = {key: value for key, value in authority_initial.items() if key != '_snapshot'}
+    value = {
+        'schemaVersion': 1, 'scope': 'musicbridge-capacity-generation-window-close',
+        'windowId': window['id'], 'profile': window['profile'], 'label': window['label'],
+        'closedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        'state': 'passed' if result.get('passed') is True else 'failed',
+        'failure': result.get('failure'), 'pid': result.get('pid'), 'pgid': result.get('pgid'),
+        'managedProcessGroup': result.get('managedProcessGroup'), 'code': result.get('code'),
+        'exitSignal': result.get('exitSignal'), 'signals': result.get('signals'),
+        'groupEmpty': result.get('groupEmpty'), 'zombies': result.get('zombies'),
+        'elapsedMs': result.get('elapsedMs'),
+        'windowSha256': clean_authority.get('windowSha256Observed'),
+        'sourceManifestSha256': window['sourceManifest']['sha256'],
+        'ownedManifestSha256': window['ownedManifest']['sha256'],
+        'authorityAdmission': clean_authority, 'authorityTerminal': authority_terminal,
+        'generation': generation,
+        'supervisorSha256': _sha(parent / 'supervision' / 'supervisor.json')
+            if _ordinary_file(parent / 'supervision' / 'supervisor.json') else None,
+        'stdout': result.get('stdout'), 'stderr': result.get('stderr'),
+        'deviceOpened': False, 'formalReady': False, 'gateB': 'NOT_RUN',
+        'replayPolicy': 'terminal-window-id-and-label-never-reuse'}
+    _write(parent / 'close.json', value)
+    return value
+
+
 def _main_generation(argv):
     runtime, parent, window, _ = _load_window(argv)
     _, deadline = _validate_generation_window(window, time.time())
@@ -4842,11 +4880,14 @@ def _main_generation(argv):
                 'sourceManifestSha256': window['sourceManifest']['sha256'],
                 'authorityProbe': lambda: _validate_generation_authority(
                     parent, runtime, root, _sha(parent / 'window.json'), window['profile'], authority_initial)}
+    terminal_authority = lambda: _validate_generation_authority(
+        parent, runtime, root, _sha(parent / 'window.json'), window['profile'], authority_initial)
     result = supervise(command, time.monotonic() + (deadline - time.time()), parent / 'supervision',
                        grace=window['limits']['killGraceMs'] / 1000,
                        close_budget=window['limits']['closeMs'] / 1000,
                        artifact_probe=lambda: _generation_artifacts(runtime, window['label'], expected),
                        cwd=root, environment=environment, capture_output=True, stdin=subprocess.DEVNULL)
+    _write_generation_close(parent, window, result, authority_initial, terminal_authority)
     return 0 if result['passed'] else 1
 
 

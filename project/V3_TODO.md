@@ -6,6 +6,12 @@
 
 ## 实时进度面板
 
+> **当前执行：** `TASK-082 / joint measure专用issuer TDD`。从TASK-081最终HEAD `f018cc9…`建立独立分支。既有measure issuer是objects-limit历史失败恢复路径，不能通过放宽profile枚举冒充joint第二阶段；本任务新增专用入口，只消费完整`joint:generate:PASS`并签发一次性joint measure authority。本任务不签发、不消费、不运行正式窗口。
+
+- [x] TASK-082 / 最小RED：提交`c487406…`证明专用joint measure issuer缺失，且既有objects-limit measure issuer仍拒绝joint。
+- [x] TASK-082 / 合同GREEN：精确绑定joint generation close/supervision/seed、候选身份、source/owned/toolchain与measure plan；补齐generation terminal close，任一非PASS、漂移、重放或空间不足均在发布前停止。
+- [x] TASK-082 / 软件封板：报告记录专项6/6、objects measure issuer 25/25、TASK-081回归6/6、supervisor58/58、readiness17/17、标准verify与三项静态Gate全部PASS；正式窗口仍未签发或消费。
+
 > **当前执行：** `TASK-081 / joint generation专用issuer TDD`。TASK-080 Draft PR #22 的GitHub Verify、Security、dependency audit与Electron/Playwright Gate全部GREEN，仍未Ready或merge。现有generation issuer是objects-limit失败恢复专用路径，不能只扩展profile枚举后冒充joint首阶段；TASK-081新增专用入口，必须精确消费`objects-limit:queued-stop:PASS`并输出一次性joint generation authority。本任务不签发、不消费、不运行任何正式窗口。
 
 - [x] TASK-081 / 最小RED：提交`afa6c4f…`证明专用joint generation issuer缺失，且不能从objects-limit恢复issuer或readiness路线文字推导签发能力。

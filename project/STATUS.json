@@ -78,10 +78,10 @@
   },
   "v3Development": {
     "wave": "WAVE-5",
-    "task": "TASK-081",
-    "branch": "codex/task-081-joint-capacity-issuers",
-    "baseCommit": "b90c831f62afa2dedcb07630cbb89add2ad3f393",
-    "state": "joint-generation-exclusive-issuer-software-sealed-draft-review-pending-no-window-no-samples-external-pending",
+    "task": "TASK-082",
+    "branch": "codex/task-082-joint-measure-issuer",
+    "baseCommit": "f018cc9fbcda7017d786fd7f1a63e8e44ba2211b",
+    "state": "joint-measure-exclusive-issuer-software-sealed-draft-review-pending-no-window-no-samples-external-pending",
     "evidenceInfrastructure": {
       "state": "PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES",
       "receiptFoundation": {
@@ -161,6 +161,19 @@
       "gateB": "NOT_RUN",
       "ownerProductAcceptance": "NOT_RUN"
     },
+    "task082JointMeasureIssuer": {
+      "baseCommit": "f018cc9fbcda7017d786fd7f1a63e8e44ba2211b",
+      "redCommit": "c48740601e019d0fa59d053276eb0708358234ae",
+      "implementationCommit": "8af0cb69213b103532e7e698487045f956c18d7d",
+      "reportCommit": "16f8b2ef1f0aae403edf9994b8671ca0fd9e69b7",
+      "state": "SOFTWARE_SEALED_DEDICATED_ISSUER_IMPLEMENTED_NOT_ISSUED",
+      "consumes": "joint:generate:PASS",
+      "produces": "joint:measure:ISSUED_NOT_EXECUTED",
+      "authorityWindow": "NOT_ISSUED_NOT_CONSUMED",
+      "formalCapacitySamples": 0,
+      "gateB": "NOT_RUN",
+      "ownerProductAcceptance": "NOT_RUN"
+    },
     "previousTask": {
       "task": "TASK-078",
       "implementationCommit": "2656b904a168e6afcbfddc5453d8793d347710d7",
@@ -192,7 +205,7 @@
     "gates": {
       "readinessControl": "PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO",
       "externalEvidenceProfiles": "REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED",
-      "capacityAuthority": "OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_WINDOW06_PROCESS_EXIT_TERMINAL_WINDOW07_NONREPLAY_NO_CHILD_NO_SAMPLES_CANONICAL_LINEAGE_ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED_JOINT_GENERATE_MEASURE_QUEUED_STOP_NOT_RUN_GENERATION_ISSUER_GREEN_NOT_ISSUED_REMAINING_ISSUERS_NOT_IMPLEMENTED",
+      "capacityAuthority": "OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_WINDOW06_PROCESS_EXIT_TERMINAL_WINDOW07_NONREPLAY_NO_CHILD_NO_SAMPLES_CANONICAL_LINEAGE_ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED_JOINT_GENERATE_MEASURE_QUEUED_STOP_NOT_RUN_GENERATION_AND_MEASURE_ISSUERS_GREEN_NOT_ISSUED_QUEUED_STOP_ISSUER_NOT_IMPLEMENTED",
       "softwareBaseline": "TASK078_PASS_101_MAPPED_2_UNMAPPED_PENDING_EXTERNAL_NOT_RUN_FORMAL_READY_FALSE",
       "externalGate": "NOT_RUN",
       "realInput": "NOT_RUN",
@@ -221,9 +234,9 @@
       "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task081-joint-generation-dedicated-issuer-software-sealed-draft-review-pending-no-window-no-samples-gateb-not-run",
-    "nextTask": null,
-    "resultReport": "reports/TASK-081_RESULT.md",
+    "checkpoint": "task082-joint-measure-dedicated-issuer-software-sealed-draft-review-pending-no-window-no-samples-gateb-not-run",
+    "nextTask": "TASK-083",
+    "resultReport": "reports/TASK-082_RESULT.md",
     "task078SoftwareCheckpoints": {
       "startupPolicy": "48-focused-pass-spec-quality-r1-pass-capacity-startup-pending",
       "pdfPreview": "36-focused-and-real-electron-pass-23-pages-content-unchanged-spec-quality-r1-pass",
@@ -1572,7 +1585,7 @@
       },
       "capacityFormalRouteControl": {
         "schemaVersion": 1,
-        "state": "WAITING_OBJECTS_LIMIT_QUEUED_STOP_PASS_AND_REMAINING_JOINT_ISSUER_SUPPORT",
+        "state": "WAITING_OBJECTS_LIMIT_QUEUED_STOP_PASS_AND_JOINT_QUEUED_STOP_ISSUER_SUPPORT",
         "prerequisite": {
           "order": 0,
           "profile": "objects-limit",
@@ -1610,7 +1623,7 @@
             "consumes": "joint:generate:PASS",
             "produces": "joint-measure-close",
             "runtimeSchemaSupport": "PASS",
-            "exclusiveIssuerSupport": "NOT_IMPLEMENTED_OBJECTS_LIMIT_ONLY",
+            "exclusiveIssuerSupport": "IMPLEMENTED_NOT_ISSUED",
             "processScope": "joint-measure-process",
             "clockScope": "joint-measure-stage-clock",
             "receiptScope": "joint-measure-window-close",
@@ -1648,7 +1661,7 @@
         "stopOnNonPass": true,
         "oldWindowReplayAllowed": false,
         "readyToAuthorize": false,
-        "nextAction": "TDD_IMPLEMENT_JOINT_MEASURE_AND_QUEUED_STOP_ISSUERS_BEFORE_ANY_JOINT_AUTHORIZATION",
+        "nextAction": "TDD_IMPLEMENT_JOINT_QUEUED_STOP_ISSUER_BEFORE_ANY_JOINT_AUTHORIZATION",
         "deviceOpened": false,
         "gateB": "NOT_RUN",
         "ownerAcceptance": "NOT_RUN"
