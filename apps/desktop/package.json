@@ -77,6 +77,7 @@
     ],
     "asar": true,
     "mac": {
+      "identity": null,
       "target": [
         "dir",
         "dmg"
@@ -104,6 +105,7 @@
       ]
     },
     "electronFuses": {
+      "resetAdHocDarwinSignature": true,
       "runAsNode": false,
       "enableCookieEncryption": true,
       "enableNodeOptionsEnvironmentVariable": false,
