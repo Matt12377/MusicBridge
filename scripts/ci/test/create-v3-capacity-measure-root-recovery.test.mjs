@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -299,6 +299,36 @@ test('runtime整体迁移时只允许显式前缀重映射，并逐根冻结旧�
       assert.equal(mapping.currentRoot.device, statSync(mapping.currentRoot.path).dev)
       assert.equal(mapping.currentRoot.inode, statSync(mapping.currentRoot.path).ino)
       assert.deepEqual(mapping.currentRoot.marker, mapping.historicalRoot.marker)
+    }
+  } finally { f.cleanup() }
+})
+
+test('历史runtime前缀仍是指向current runtime的符号链接时也允许显式重映射', () => {
+  const f = fixture()
+  try {
+    const historicalRuntime = join(f.root, 'historical-runtime-alias')
+    symlinkSync(f.runtime, historicalRuntime, 'dir')
+    const value = JSON.parse(readFileSync(f.manifest))
+    value.roots = value.roots.map(row => row.path.startsWith(`${f.runtime}/`)
+      ? { ...row, path: historicalRuntime + row.path.slice(f.runtime.length) }
+      : row)
+    value.futureRoots = value.futureRoots.map(path =>
+      historicalRuntime + path.slice(f.runtime.length))
+    rmSync(f.manifest)
+    json(f.manifest, value)
+    let args = replaceOption(f.args, '--expected-measure-owned-sha256', sha(f.manifest))
+    args.push('--historical-runtime-root', historicalRuntime)
+
+    const result = run(f, args)
+    assert.equal(result.status, 0, result.stderr)
+    const receipt = JSON.parse(readFileSync(join(f.recovery, 'recovery.json')))
+    assert.equal(receipt.model, 'exact75-v3-runtime-relocation-closure')
+    assert.equal(receipt.liveRootRemap.historicalRuntime, historicalRuntime)
+    assert.equal(receipt.liveRootRemap.currentRuntime, f.runtime)
+    assert.equal(receipt.liveRootRemap.mappings.length, 63)
+    for (const mapping of receipt.liveRootRemap.mappings) {
+      assert.equal(mapping.historicalRoot.path.startsWith(`${historicalRuntime}/`), true)
+      assert.equal(mapping.currentRoot.path.startsWith(`${f.runtime}/`), true)
     }
   } finally { f.cleanup() }
 })
