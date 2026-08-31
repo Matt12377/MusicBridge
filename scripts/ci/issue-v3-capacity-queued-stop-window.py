@@ -52,12 +52,21 @@ FROZEN_MEASURE = {
     'measureLabel': 'r023-objects-limit-measure-06',
     'seedLabel': 'r023-objects-limit-seed-03',
 }
-def process_failure_stderr(pid):
-    return (
-        b'CAPACITY_PHASE_OPERATION_FAILED\n'
-        + f'(node:{pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n'.encode()
-        + b'(Use `node --trace-warnings ...` to show where the warning was created)\n'
-    )
+CAPACITY_PHASE_FAILURE_CODES = (
+    'INVALID_INPUT', 'WINDOW_INVALID', 'INVENTORY_INVALID', 'SOURCE_CHANGED',
+    'SEED_INVALID', 'BACKUP_INVALID', 'SPACE', 'DEADLINE', 'OPERATION_FAILED',
+    'PERSISTENCE_FAILED', 'THRESHOLD_FAILED',
+)
+
+
+def valid_process_failure_stderr(value, pid):
+    suffix = (
+        f'\n(node:{pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n'
+        '(Use `node --trace-warnings ...` to show where the warning was created)\n'
+    ).encode()
+    return value in {
+        f'CAPACITY_PHASE_{code}'.encode() + suffix for code in CAPACITY_PHASE_FAILURE_CODES
+    }
 _FAILURE = None
 
 
@@ -1707,7 +1716,7 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
             stderr_bytes = stderr_path.read_bytes()
         except OSError as error:
             raise IssueError('PRIOR_PROCESS_FAILURE') from error
-        if stderr_bytes != process_failure_stderr(supervision.get('pid')) \
+        if not valid_process_failure_stderr(stderr_bytes, supervision.get('pid')) \
                 or file_snapshot(stderr_path, stderr_sha) != stderr_snapshot:
             fail('PRIOR_PROCESS_FAILURE')
         if not all(isinstance(value, dict) for value in

@@ -109,6 +109,8 @@ export interface CapacityPrintWriteSummary {
 function invalid(code: string): never { throw new Error(`CAPACITY_PHASE_${code}`); }
 const failCodes = ['INVALID_INPUT','WINDOW_INVALID','INVENTORY_INVALID','SOURCE_CHANGED','SEED_INVALID','BACKUP_INVALID','SPACE','DEADLINE','OPERATION_FAILED','PERSISTENCE_FAILED','THRESHOLD_FAILED'];
 export const capacityPhaseFailureCode = (error: unknown): string => error instanceof Error && failCodes.some(code => error.message === `CAPACITY_PHASE_${code}`) ? error.message : 'CAPACITY_PHASE_OPERATION_FAILED';
+const validProcessFailureStderr = (value: string, pid: number): boolean => failCodes.some(code =>
+  value === `CAPACITY_PHASE_${code}\n(node:${pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use \`node --trace-warnings ...\` to show where the warning was created)\n`);
 const sha = (v: unknown): v is string => typeof v === 'string' && /^[a-f0-9]{64}$/u.test(v);
 const label = (v: unknown): v is string => typeof v === 'string' && /^[a-z0-9-]{1,64}$/u.test(v);
 const integer = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
@@ -750,7 +752,7 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
     if (!exact(queued, queuedKeys) || !same(queued, { outputDirectory, verifiedComplete: false, verifiedPassed: false,
       fileCount: 0, sampleCount: 0, uniqueChildPids: 0, aggregateBudgetValid: false, unexpectedEntries: [] })
       || existsSync(outputDirectory) || stdoutBytes !== '' || !integer(pid) || pid <= 0
-      || stderrBytes !== `CAPACITY_PHASE_OPERATION_FAILED\n(node:${pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use \`node --trace-warnings ...\` to show where the warning was created)\n`
+      || !validProcessFailureStderr(stderrBytes, Number(pid))
       || !exact(supervision, supervisionKeys) || supervision.passed !== false || supervision.failure !== 'PROCESS_EXIT'
       || supervision.pgid !== pid || supervision.code !== 1 || supervision.exitSignal !== null
       || !same(supervision.signals, []) || supervision.groupEmpty !== true || !same(supervision.zombies, [])

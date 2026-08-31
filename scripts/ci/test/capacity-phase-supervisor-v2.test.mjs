@@ -2059,6 +2059,19 @@ test('queued-stop PROCESS_EXIT carryover严格冻结exact75 authority、日志�
   }
 })
 
+test('queued-stop PROCESS_EXIT carryover接受消费者输出的有界WINDOW_INVALID失败码',()=>{
+  const f=copiedSupervisor()
+  try {
+    const row=queuedProcessFailure(f)
+    writeFileSync(row.fixture.stderr,'CAPACITY_PHASE_WINDOW_INVALID\n(node:313) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n')
+    refreshQueuedProcessRow(row)
+    const direct=structuredClone(row);delete direct.fixture
+    const observed=bridge(f.script,'queued-process-failures',{runtime:f.runtime,carryover:[direct]})
+    assert.equal(observed.ok,true,observed.error)
+    assert.equal(observed.value.snapshots[0].windowId,row.windowId)
+  } finally { f.cleanup() }
+})
+
 test('queued-stop PROCESS_EXIT head压缩递归验证window05到window03并返回全链billing roots',()=>{
   const f=copiedSupervisor()
   try {

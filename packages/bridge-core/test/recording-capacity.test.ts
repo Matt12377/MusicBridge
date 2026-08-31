@@ -851,7 +851,8 @@ function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>,
   assert.equal(baseRoots.length, 73);
   type ProcessNodeFixture = {
     root: string; id: string; label: string; pid: number; issuedMs: number; predecessor?: ProcessNodeFixture;
-    stderrPid?: number; supervisorBytes?: number; mutate?: (documents: Record<string, any>) => void; row?: Record<string, any>;
+    stderrPid?: number; stderrCode?: string; supervisorBytes?: number;
+    mutate?: (documents: Record<string, any>) => void; row?: Record<string, any>;
   };
   const processTimestamp = (milliseconds: number, microseconds = false) => {
     const value = new Date(milliseconds).toISOString().replace(/Z$/u, '+00:00');
@@ -897,7 +898,7 @@ function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>,
     const windowPath = path.join(node.root, 'window.json');
     const stdoutPath = path.join(supervisionRoot, 'stdout.log'), stderrPath = path.join(supervisionRoot, 'stderr.log');
     writeFileSync(stdoutPath, '');
-    writeFileSync(stderrPath, `CAPACITY_PHASE_OPERATION_FAILED\n(node:${node.stderrPid ?? node.pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use \`node --trace-warnings ...\` to show where the warning was created)\n`);
+    writeFileSync(stderrPath, `${node.stderrCode ?? 'CAPACITY_PHASE_OPERATION_FAILED'}\n(node:${node.stderrPid ?? node.pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use \`node --trace-warnings ...\` to show where the warning was created)\n`);
     const outputDirectory = path.join(node.root, node.label), elapsedMs = 650.25;
     const logFact = (file: string) => ({ path: file, exists: true, size: lstatSync(file).size, sha256: f.hash(file) });
     const queuedStop = { outputDirectory, verifiedComplete: false, verifiedPassed: false, fileCount: 0, sampleCount: 0,
@@ -1007,6 +1008,7 @@ function configureExact75V3Relocation(
     historicalMeasure.ownedManifest = historicalReceipt.historicalManifest
     historicalMeasure.measureRootRecovery = { path: historicalRecovery, sha256: f.hash(historicalRecovery) }
     configured.outer.measureCarryover = historicalMeasure
+    configured.leafProcess.stderrCode = 'CAPACITY_PHASE_WINDOW_INVALID'
     configured.leafProcess.mutate = documents => {
       documents.ownedManifest.roots = documents.ownedManifest.roots.map((root: Record<string, unknown>, index: number) => index < 73 ? {
         ...root,

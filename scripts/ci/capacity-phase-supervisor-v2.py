@@ -273,12 +273,21 @@ _QUEUED_STOP_SNAPSHOT_BYTES = 1_990_471_680
 _QUEUED_STOP_AUDIT = 'queued-stop-aggregate-budget.jsonl'
 _QUEUED_STOP_MODEL = 'serial-single-clone-plus-bounded-growth-v1'
 _QUEUED_STOP_BASE_ROOTS = 73
-def _queued_stop_process_failure_stderr(pid):
-    return (
-        b'CAPACITY_PHASE_OPERATION_FAILED\n'
-        + f'(node:{pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n'.encode()
-        + b'(Use `node --trace-warnings ...` to show where the warning was created)\n'
-    )
+_CAPACITY_PHASE_FAILURE_CODES = (
+    'INVALID_INPUT', 'WINDOW_INVALID', 'INVENTORY_INVALID', 'SOURCE_CHANGED',
+    'SEED_INVALID', 'BACKUP_INVALID', 'SPACE', 'DEADLINE', 'OPERATION_FAILED',
+    'PERSISTENCE_FAILED', 'THRESHOLD_FAILED',
+)
+
+
+def _valid_queued_stop_process_failure_stderr(value, pid):
+    suffix = (
+        f'\n(node:{pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n'
+        '(Use `node --trace-warnings ...` to show where the warning was created)\n'
+    ).encode()
+    return value in {
+        f'CAPACITY_PHASE_{code}'.encode() + suffix for code in _CAPACITY_PHASE_FAILURE_CODES
+    }
 _QUEUED_STOP_MEASURE_WINDOW_ID = 'afc81a99-d15d-4179-8326-5774a5c40b62'
 _QUEUED_STOP_SEED = {'metadataSha256': '632d8e4b0c01ffec07adc72344e7bcc877e5f1d764e7745af856c6ba44492309',
                      'snapshotSha256': '7ec9b3bed1642503cc9fcee70c6156b54eb43834b0a457050ec51607f2e1ab3a',
@@ -3816,7 +3825,7 @@ def _validate_queued_stop_process_failures(
             'stderr': {'path': str(expected_paths['stderr']), 'exists': True,
                        'size': identities['stderr']['size'], 'sha256': identities['stderr']['sha256']}}
         if stdout_bytes != b'' \
-                or stderr_bytes != _queued_stop_process_failure_stderr(supervision.get('pid')) \
+                or not _valid_queued_stop_process_failure_stderr(stderr_bytes, supervision.get('pid')) \
                 or not _queued_exact(queued, queued_keys) \
                 or queued != {'outputDirectory': str(root / label), 'verifiedComplete': False,
                               'verifiedPassed': False, 'fileCount': 0, 'sampleCount': 0,
