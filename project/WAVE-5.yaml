@@ -1,6 +1,6 @@
 schemaVersion: 1
 wave: WAVE-5
-status: review
+status: closeout
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
 activeTask: TASK-084
@@ -45,4 +45,12 @@ order:
   - TASK-083
   - TASK-084
 stopAfter: TASK-084
-reviewBoundary: local-software-gates-through084-runtime-relocation-green-fresh-formal-capacity-real-device-and-owner-acceptance-pending
+productSoftwareStopAfter: TASK-079
+harnessHardening:
+  - TASK-080
+  - TASK-081
+  - TASK-082
+  - TASK-083
+  - TASK-084
+capacityExecution: frozen-no-new-authority-or-window-during-v3-software-closeout
+reviewBoundary: v3-software-closeout-candidate-task080-through084-retained-as-nonblocking-harness-formal-capacity-real-device-and-owner-acceptance-pending

@@ -217,6 +217,24 @@
       "report": "reports/TASK-078_RESULT.md"
     },
     "authorization": "owner-continuous-software-development-default-recommended-path-checkpoint-push-authorized-device-credentials-release-separate-gates",
+    "softwareCloseout": {
+      "schemaVersion": 1,
+      "state": "IN_PROGRESS",
+      "productSoftwareStopAfter": "TASK-079",
+      "harnessHardeningRetained": [
+        "TASK-080",
+        "TASK-081",
+        "TASK-082",
+        "TASK-083",
+        "TASK-084"
+      ],
+      "capacityExecution": "FROZEN_NO_NEW_AUTHORITY_RECOVERY_OR_WINDOW",
+      "automaticNext": "FINAL_VERIFY_BUILD_PACKAGE_AND_SMOKE",
+      "externalNext": "OWNER_MANUAL_ACCEPTANCE",
+      "formalCapacity": "NOT_RUN_NONBLOCKING_ACCEPTANCE_CARRYOVER",
+      "deviceGateB": "NOT_RUN",
+      "ownerProductAcceptance": "NOT_RUN"
+    },
     "f01": "OWNER_APPROVED_f01-permanent-execution-v1",
     "deviceTestPlanning": {
       "confirmedOn": "2026-08-29",
@@ -268,9 +286,9 @@
       "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task084-capacity-runtime-relocation-v3-software-sealed-authority-not-issued-no-samples-gateb-not-run",
-    "nextTask": "FRESH_OBJECTS_LIMIT_QUEUED_STOP_AUTHORITY",
-    "resultReport": "reports/TASK-084_RESULT.md",
+    "checkpoint": "v3-software-closeout-product-scope-through-task079-task080-084-retained-harness-no-new-capacity-window",
+    "nextTask": "FINAL_BUILD_PACKAGE_SMOKE_THEN_OWNER_MANUAL_ACCEPTANCE",
+    "resultReport": "reports/V3_SOFTWARE_CLOSEOUT_RESULT.md",
     "task078SoftwareCheckpoints": {
       "startupPolicy": "48-focused-pass-spec-quality-r1-pass-capacity-startup-pending",
       "pdfPreview": "36-focused-and-real-electron-pass-23-pages-content-unchanged-spec-quality-r1-pass",
