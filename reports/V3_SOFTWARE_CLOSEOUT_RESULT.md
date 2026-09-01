@@ -7,8 +7,9 @@
 - 分支：`codex/task-084-capacity-path-remap`
 - 收尾起点：`67df2986d35aa98aa067b49c7efa1d92dc262c5d`
 - 收尾路由提交：`c84887645ace7775f71128a8773f4d772700fa3d`
-- 最终候选：`53c1ae8f751e11e8540ee2ee569e0700f1326fa7`
+- 最终候选：`2623511aee684b59f00fb91dedcb4e060da53694`
 - 打包护栏修复：`53c1ae8f751e11e8540ee2ee569e0700f1326fa7`
+- Remote Core 验收返工：`2623511aee684b59f00fb91dedcb4e060da53694`
 - 结果报告提交：本文件提交后记录
 
 ## 最终自动验证
@@ -26,19 +27,21 @@
 - `53c1ae8…` macOS arm64 本地打包：exit 0。
 - `53c1ae8…` 候选包启动/退出 smoke（mock keychain）：READY=true、markerSeen=true、closed=true、code=0、signal=null。
 - DMG：`hdiutil verify` 为 `VALID`；App：`codesign --verify --deep --strict` 通过，签名身份为 ad-hoc。
-- Draft PR #26 已指向 `53c1ae8…`；记录时 security 与 dependency audit 为 SUCCESS，verify 与 Electron jobs 仍在远端运行，不提前写成全绿。
+- Draft PR #26 在首次收尾时指向 `53c1ae8…`；验收返工 `2623511…` 已继续推送到同一分支，新的远端检查独立观察，不提前写成全绿。
+- `2623511…` 验收返工：RED 证明生产构建隐藏“高级”且 Main 拒绝 Remote Core；GREEN 后 Desktop typecheck、设置/Renderer/Preload/Remote Core 聚焦 54/54、Desktop security 29/29、Boundaries、production build 与 production startup Gate 均 exit 0。
+- `2623511…` 重打包：macOS arm64 打包 exit 0；包内启动/退出 smoke 为 READY=true、markerSeen=true、closed=true、code=0、signal=null；DMG 与 App 再次通过镜像及代码签名校验。
 
 ## 产物
 
 - App：`apps/desktop/release/mac-arm64/Music Bridge for Roon.app`
-- DMG：`apps/desktop/release/MusicBridge-0.1.0-beta.2-arm64.dmg`（151,322,336 bytes）
-- DMG SHA-256：`3406012648ddf205faed4be70d273c150863e8188f97a86b8f1f614a88fd5968`
-- Blockmap SHA-256：`38adeba9f34503de206e0459d9ad33d27a9b7f820dd1c8bbf4f865afdf69bfd6`
+- DMG：`apps/desktop/release/MusicBridge-0.1.0-beta.2-arm64.dmg`（151,326,201 bytes）
+- DMG SHA-256：`3b58041b6d3da75197f03676e3f46ef846387f525d790ab2e30e7c98d2890a74`
+- Blockmap SHA-256：`b90f3f8c105a322c8c73564e455d6493ba3ab46397ddd668baff4b00c233f55e`
 - 签名/公证：仅本地 ad-hoc；Developer ID 签名与公证均 `NOT_RUN`（独立发布 Gate）。
 
 ## 人工验收交接
 
-候选 `.app` 已通过本机界面控制启动，进程与受控 Core utility process 均在运行。自动读取 Electron 窗口辅助功能树连续三次超时，按调试阈值停止；因此没有把首屏可见性或视觉质量写成通过。Owner 按 `project/V3_OWNER_ACCEPTANCE_CHECKLIST.md` 实际操作后记录接受、拒绝或延期。
+候选 `.app` 已通过本机启动和包内启动/退出 smoke。自动读取 Electron 窗口辅助功能树此前连续三次超时，按调试阈值停止；因此没有把首屏、“高级”可见性、Mac mini 实连或视觉质量写成通过。Owner 按 `project/V3_OWNER_ACCEPTANCE_CHECKLIST.md` 实际执行 A-01～A-15 后记录接受、拒绝或延期。
 
 ## 外部门
 
