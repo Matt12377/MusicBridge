@@ -381,7 +381,7 @@ def validate_repository(options):
     }
 
 
-def validate_root_row(row):
+def validate_root_row(row, historical_runtime=None):
     if not isinstance(row, dict) or set(row) != {'path', 'device', 'inode', 'marker'} \
             or not isinstance(row.get('path'), str) or not Path(row['path']).is_absolute() \
             or type(row.get('device')) is not int or type(row.get('inode')) is not int:
@@ -393,7 +393,11 @@ def validate_root_row(row):
             or SHA256.fullmatch(str(marker.get('sha256', ''))) is None:
         fail('MEASURE_OWNED_MANIFEST')
     path = Path(row['path'])
-    if Path(os.path.normpath(str(path))) != path or path.resolve(strict=False) != path:
+    relocated = historical_runtime is not None \
+        and os.path.commonpath((str(historical_runtime), str(path))) == str(historical_runtime) \
+        and path != historical_runtime
+    if Path(os.path.normpath(str(path))) != path \
+            or path.resolve(strict=False) != path and not relocated:
         fail('MEASURE_OWNED_MANIFEST')
     return {
         'path': str(path), 'device': row['device'], 'inode': row['inode'],
@@ -438,6 +442,49 @@ def validate_present_root(row):
             os.close(descriptor)
 
 
+def validate_historical_runtime(value, runtime):
+    if value is None:
+        return None
+    historical = Path(value)
+    if not historical.is_absolute() or Path(os.path.normpath(str(historical))) != historical \
+            or historical == runtime:
+        fail('HISTORICAL_RUNTIME_ROOT')
+    try:
+        resolved = historical.resolve(strict=True)
+    except FileNotFoundError:
+        resolved = None
+    except OSError as error:
+        raise RecoveryError('HISTORICAL_RUNTIME_ROOT') from error
+    if resolved is not None and resolved != runtime:
+        fail('HISTORICAL_RUNTIME_ROOT')
+    return historical
+
+
+def relocated_present_root(row, historical_runtime, runtime):
+    historical_path = Path(row['path'])
+    try:
+        relative = historical_path.relative_to(historical_runtime)
+    except ValueError as error:
+        raise RecoveryError('MEASURE_OWNED_MANIFEST') from error
+    if relative == Path('.'):
+        fail('MEASURE_OWNED_MANIFEST')
+    current_path = runtime / relative
+    marker = row['marker']
+    try:
+        resolved = current_path.resolve(strict=True)
+        info = current_path.lstat()
+    except OSError as error:
+        raise RecoveryError('MEASURE_OWNED_MANIFEST') from error
+    if resolved != current_path or current_path.is_symlink() or not stat.S_ISDIR(info.st_mode):
+        fail('MEASURE_OWNED_MANIFEST')
+    current = {
+        'path': str(current_path), 'device': info.st_dev, 'inode': info.st_ino,
+        'marker': dict(marker),
+    }
+    validate_present_root(current)
+    return current
+
+
 def validate_live_device_remap(value, error_code='MEASURE_OWNED_MANIFEST'):
     keys = {'mode', 'historicalDevice', 'currentDevice', 'liveRootCount'}
     if not isinstance(value, dict) or set(value) != keys \
@@ -476,12 +523,15 @@ def validate_manifest(options, runtime, declared_missing=None):
     if not isinstance(value['futureRoots'], list) or len(value['futureRoots']) != 1 \
             or not isinstance(value['futureRoots'][0], str):
         fail('MEASURE_OWNED_MANIFEST')
+    historical_runtime = validate_historical_runtime(options.historical_runtime_root, runtime)
     future = Path(value['futureRoots'][0])
     if not future.is_absolute() or Path(os.path.normpath(str(future))) != future \
-            or future.resolve(strict=False) != future \
-            or os.path.commonpath((str(runtime), str(future))) != str(runtime):
+            or historical_runtime is None and future.resolve(strict=False) != future \
+            or historical_runtime is None and os.path.commonpath((str(runtime), str(future))) != str(runtime) \
+            or historical_runtime is not None and os.path.commonpath(
+                (str(historical_runtime), str(future))) != str(historical_runtime):
         fail('MEASURE_OWNED_MANIFEST')
-    rows = [validate_root_row(row) for row in value['roots']]
+    rows = [validate_root_row(row, historical_runtime) for row in value['roots']]
     if len({row['path'] for row in rows}) != len(rows):
         fail('MEASURE_OWNED_MANIFEST')
     historical_devices = {row['device'] for row in rows}
@@ -489,7 +539,15 @@ def validate_manifest(options, runtime, declared_missing=None):
         fail('MEASURE_OWNED_MANIFEST')
     missing = []
     live_devices = []
+    live_mappings = []
     for row in rows:
+        relocated = historical_runtime is not None \
+            and os.path.commonpath((str(historical_runtime), row['path'])) == str(historical_runtime)
+        if relocated:
+            current = relocated_present_root(row, historical_runtime, runtime)
+            live_devices.append(current['device'])
+            live_mappings.append({'historicalRoot': row, 'currentRoot': current})
+            continue
         try:
             Path(row['path']).lstat()
         except FileNotFoundError:
@@ -518,7 +576,18 @@ def validate_manifest(options, runtime, declared_missing=None):
         'currentDevice': runtime_device,
         'liveRootCount': len(live_devices),
     })
-    return path, identity, missing, remap
+    live_root_remap = None
+    if historical_runtime is not None:
+        if len(live_mappings) != LIVE_ROOT_COUNT:
+            fail('MEASURE_OWNED_MANIFEST')
+        live_root_remap = {
+            'mode': 'PREFIX_RELOCATION',
+            'historicalRuntime': str(historical_runtime),
+            'currentRuntime': str(runtime),
+            'liveRootCount': LIVE_ROOT_COUNT,
+            'mappings': live_mappings,
+        }
+    return path, identity, missing, remap, live_root_remap
 
 
 def validate_evidence(paths, missing):
@@ -594,8 +663,8 @@ def pending_owner_marker(historical_root):
 
 
 def pending_value(name, manifest_fact, repository, recovery_tool, benchmark, missing,
-                  live_device_remap):
-    return {
+                  live_device_remap, live_root_remap=None):
+    value = {
         'schemaVersion': 1,
         'scope': 'musicbridge-capacity-measure-root-recovery-pending',
         'state': 'PENDING',
@@ -614,12 +683,17 @@ def pending_value(name, manifest_fact, repository, recovery_tool, benchmark, mis
             for index, row in enumerate(missing, 1)
         ],
     }
+    if live_root_remap is not None:
+        value['liveRootRemap'] = live_root_remap
+    return value
 
 
 def validate_pending_value(value, name, manifest_fact, repository, recovery_tool, benchmark, missing,
-                           live_device_remap):
+                           live_device_remap, live_root_remap=None):
     keys = {'schemaVersion', 'scope', 'state', 'recoveryDirectoryName', 'historicalManifest',
             'repository', 'recoveryTool', 'activeBenchmarkInput', 'liveDeviceRemap', 'plans'}
+    if live_root_remap is not None:
+        keys.add('liveRootRemap')
     if not isinstance(value, dict) or set(value) != keys or value.get('schemaVersion') != 1 \
             or value.get('scope') != 'musicbridge-capacity-measure-root-recovery-pending' \
             or value.get('state') != 'PENDING' or value.get('recoveryDirectoryName') != name \
@@ -627,6 +701,7 @@ def validate_pending_value(value, name, manifest_fact, repository, recovery_tool
             or value.get('repository') != repository or value.get('recoveryTool') != recovery_tool \
             or value.get('activeBenchmarkInput') != benchmark \
             or value.get('liveDeviceRemap') != live_device_remap \
+            or value.get('liveRootRemap') != live_root_remap \
             or not isinstance(value.get('plans'), list) or len(value['plans']) != MISSING_ROOT_COUNT:
         fail('PENDING_INVALID')
     validate_live_device_remap(value['liveDeviceRemap'], error_code='PENDING_INVALID')
@@ -677,7 +752,7 @@ def replacement_row(path, marker_sha, expected_device):
 
 
 def build_receipt(name, window_id, manifest_fact, repository, recovery_tool, benchmark, plans, pending,
-                  live_device_remap):
+                  live_device_remap, live_root_remap=None):
     validate_live_device_remap(live_device_remap, error_code='PENDING_INVALID')
     mappings = []
     for plan in plans:
@@ -690,12 +765,13 @@ def build_receipt(name, window_id, manifest_fact, repository, recovery_tool, ben
             'replacementRoot': replacement_row(
                 replacement, marker_sha, live_device_remap['currentDevice']),
         })
-    return {
+    value = {
         'schemaVersion': 1,
         'scope': 'musicbridge-capacity-measure-root-recovery',
         'access': 'read-only',
         'state': 'PUBLISHED',
-        'model': 'exact75-v2-replacement-closure',
+        'model': ('exact75-v3-runtime-relocation-closure'
+                  if live_root_remap is not None else 'exact75-v2-replacement-closure'),
         'windowId': window_id,
         'historicalManifest': manifest_fact,
         'repository': repository,
@@ -709,6 +785,9 @@ def build_receipt(name, window_id, manifest_fact, repository, recovery_tool, ben
         'formalReady': False,
         'gateB': 'NOT_RUN',
     }
+    if live_root_remap is not None:
+        value['liveRootRemap'] = live_root_remap
+    return value
 
 
 def receipt_for_final_path(receipt, pending, final):
@@ -753,6 +832,7 @@ def parse_args(argv):
     parser.add_argument('--expected-head', required=True)
     parser.add_argument('--expected-script-sha256', required=True)
     parser.add_argument('--runtime-root', required=True)
+    parser.add_argument('--historical-runtime-root')
     parser.add_argument('--measure-owned-manifest', required=True)
     parser.add_argument('--expected-measure-owned-sha256', required=True)
     parser.add_argument('--expected-window-id', required=True)
@@ -776,7 +856,7 @@ def issue(options):
         fail('RECOVERY_DIRECTORY_EXISTS')
 
     declared_missing = evidence_directories(options.evidence_json)
-    manifest_path, manifest_identity, missing, live_device_remap = validate_manifest(
+    manifest_path, manifest_identity, missing, live_device_remap, live_root_remap = validate_manifest(
         options, runtime, declared_missing=declared_missing)
     validate_evidence(options.evidence_json, missing)
     require_originals_absent(missing)
@@ -810,7 +890,7 @@ def issue(options):
                 fail('PENDING_INVALID')
             plan = validate_pending_value(
                 value, options.recovery_dir_name, manifest_fact, repository,
-                recovery_tool, benchmark, missing, live_device_remap)
+                recovery_tool, benchmark, missing, live_device_remap, live_root_remap)
         elif (pending / 'recovery.json').exists():
             plan = None
         else:
@@ -819,7 +899,7 @@ def issue(options):
         mkdir_exclusive(pending)
         plan = pending_value(
             options.recovery_dir_name, manifest_fact, repository,
-            recovery_tool, benchmark, missing, live_device_remap)
+            recovery_tool, benchmark, missing, live_device_remap, live_root_remap)
         exclusive_bytes(pending_path, receipt_bytes(plan))
 
     if plan is not None:
@@ -860,7 +940,7 @@ def issue(options):
 
         pending_receipt = build_receipt(
             options.recovery_dir_name, options.expected_window_id, manifest_fact, repository, recovery_tool,
-            benchmark, plan['plans'], pending, live_device_remap)
+            benchmark, plan['plans'], pending, live_device_remap, live_root_remap)
         final_receipt = receipt_for_final_path(pending_receipt, pending, final)
         completed_receipt = final_receipt
         recovery_path = pending / 'recovery.json'
@@ -896,21 +976,23 @@ def issue(options):
             'recoveryTool': recovery_tool,
             'activeBenchmarkInput': benchmark,
             'liveDeviceRemap': live_device_remap,
+            **({'liveRootRemap': live_root_remap} if live_root_remap is not None else {}),
             'plans': plans,
         }, options.recovery_dir_name, manifest_fact, repository, recovery_tool, benchmark, missing,
-            live_device_remap)
+            live_device_remap, live_root_remap)
         expected = receipt_for_final_path(build_receipt(
             options.recovery_dir_name, options.expected_window_id, manifest_fact, repository, recovery_tool,
-            benchmark, plans, pending, live_device_remap), pending, final)
+            benchmark, plans, pending, live_device_remap, live_root_remap), pending, final)
         validate_completed_pending(pending, final, expected)
         completed_receipt = expected
 
     def validate_bound_inventory():
         require_originals_absent(missing)
-        _, _, refreshed_missing, refreshed_remap = validate_manifest(
+        _, _, refreshed_missing, refreshed_remap, refreshed_root_remap = validate_manifest(
             options, runtime, declared_missing=declared_missing)
         require_originals_absent(missing)
-        if refreshed_missing != missing or refreshed_remap != live_device_remap:
+        if refreshed_missing != missing or refreshed_remap != live_device_remap \
+                or refreshed_root_remap != live_root_remap:
             fail('PENDING_INVALID')
 
     # 发布前及发布锁内重读全部外部身份；历史路径重现或候选漂移一律停止。

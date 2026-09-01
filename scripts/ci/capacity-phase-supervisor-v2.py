@@ -33,6 +33,12 @@ def evaluate_process_failure_lineage(case, contract):
     return _lineage_module().evaluate_process_failure_lineage(case, contract)
 
 
+def _validate_retained_process_failure_output(output, window, window_sha256,
+                                               owned_sha256, source_sha256):
+    return _lineage_module().validate_retained_preflight_failure(
+        output, window, window_sha256, owned_sha256, source_sha256)
+
+
 def _write(file, value):
     fd = os.open(file, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
     try:
@@ -273,12 +279,28 @@ _QUEUED_STOP_SNAPSHOT_BYTES = 1_990_471_680
 _QUEUED_STOP_AUDIT = 'queued-stop-aggregate-budget.jsonl'
 _QUEUED_STOP_MODEL = 'serial-single-clone-plus-bounded-growth-v1'
 _QUEUED_STOP_BASE_ROOTS = 73
-def _queued_stop_process_failure_stderr(pid):
-    return (
-        b'CAPACITY_PHASE_OPERATION_FAILED\n'
-        + f'(node:{pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n'.encode()
-        + b'(Use `node --trace-warnings ...` to show where the warning was created)\n'
-    )
+_CAPACITY_PHASE_FAILURE_CODES = (
+    'INVALID_INPUT', 'WINDOW_INVALID', 'INVENTORY_INVALID', 'SOURCE_CHANGED',
+    'SEED_INVALID', 'BACKUP_INVALID', 'SPACE', 'DEADLINE', 'OPERATION_FAILED',
+    'PERSISTENCE_FAILED', 'THRESHOLD_FAILED',
+)
+
+
+def _valid_queued_stop_process_failure_stderr(value, pid):
+    suffix = (
+        f'\n(node:{pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n'
+        '(Use `node --trace-warnings ...` to show where the warning was created)\n'
+    ).encode()
+    return value in {
+        f'CAPACITY_PHASE_{code}'.encode() + suffix for code in _CAPACITY_PHASE_FAILURE_CODES
+    }
+
+
+def _valid_retained_process_failure_stderr(value, pid):
+    return value == (
+        f'(node:{pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n'
+        '(Use `node --trace-warnings ...` to show where the warning was created)\n'
+    ).encode()
 _QUEUED_STOP_MEASURE_WINDOW_ID = 'afc81a99-d15d-4179-8326-5774a5c40b62'
 _QUEUED_STOP_SEED = {'metadataSha256': '632d8e4b0c01ffec07adc72344e7bcc877e5f1d764e7745af856c6ba44492309',
                      'snapshotSha256': '7ec9b3bed1642503cc9fcee70c6156b54eb43834b0a457050ec51607f2e1ab3a',
@@ -1199,15 +1221,119 @@ def _frozen_identity_matches(expected, observed):
         and all(expected[key] == observed.get(key) for key in expected)
 
 
+def _preview_runtime_root_relocation(binding, runtime, error_code):
+    if not _queued_stop_exact_binding(binding, {'path', 'sha256'}):
+        return None
+    try:
+        receipt_path = Path(binding['path']).resolve(strict=True)
+        receipt, identity = _strict_json(receipt_path, 4 * 1024 * 1024)
+    except (OSError, ValueError) as error:
+        raise ValueError(error_code) from error
+    if identity['sha256'] != binding['sha256'] \
+            or not isinstance(receipt, dict) \
+            or receipt.get('model') != 'exact75-v3-runtime-relocation-closure':
+        return None
+    relocation = receipt.get('liveRootRemap')
+    if not isinstance(relocation, dict) \
+            or set(relocation) != {
+                'mode', 'historicalRuntime', 'currentRuntime', 'liveRootCount', 'mappings'} \
+            or relocation.get('mode') != 'PREFIX_RELOCATION' \
+            or relocation.get('currentRuntime') != str(runtime) \
+            or relocation.get('liveRootCount') != 63 \
+            or not isinstance(relocation.get('mappings'), list) \
+            or len(relocation['mappings']) != 63:
+        raise ValueError(error_code)
+    historical = Path(str(relocation.get('historicalRuntime', '')))
+    if not historical.is_absolute() or Path(os.path.normpath(str(historical))) != historical \
+            or historical == runtime:
+        raise ValueError(error_code)
+    observed = []
+    seen_historical = set(); seen_current = set()
+    for mapping in relocation['mappings']:
+        historical_root = mapping.get('historicalRoot') if isinstance(mapping, dict) else None
+        current_root = mapping.get('currentRoot') if isinstance(mapping, dict) else None
+        if not isinstance(mapping, dict) or set(mapping) != {'historicalRoot', 'currentRoot'} \
+                or not isinstance(historical_root, dict) or not isinstance(current_root, dict) \
+                or set(historical_root) != {'path', 'device', 'inode', 'marker'} \
+                or set(current_root) != {'path', 'device', 'inode', 'marker'}:
+            raise ValueError(error_code)
+        try:
+            relative = Path(historical_root['path']).relative_to(historical)
+            expected = runtime / relative
+            path = Path(current_root['path']); info = path.lstat(); canonical = path.resolve(strict=True)
+        except (KeyError, OSError, TypeError, ValueError) as error:
+            raise ValueError(error_code) from error
+        if relative == Path('.') or path != expected or canonical != path or path.is_symlink() \
+                or current_root.get('marker') != historical_root.get('marker') \
+                or current_root.get('device') != info.st_dev or current_root.get('inode') != info.st_ino \
+                or historical_root['path'] in seen_historical or current_root['path'] in seen_current:
+            raise ValueError(error_code)
+        marker = current_root['marker']
+        _strict_root_marker(path, marker, info.st_dev, info.st_ino, error_code)
+        seen_historical.add(historical_root['path']); seen_current.add(current_root['path'])
+        observed.append({'historicalRoot': historical_root, 'currentRoot': current_root})
+    return {**relocation, 'mappings': observed}
+
+
+def _relocate_runtime_value(value, relocation, runtime, error_code, preserve_historical=False):
+    """仅在内存中投影历史runtime；根身份必须以当前marker重新核验。"""
+    if relocation is None:
+        return value
+    historical = Path(relocation['historicalRuntime'])
+    runtime = Path(runtime)
+    if isinstance(value, str):
+        if preserve_historical:
+            return value
+        try: relative = Path(value).relative_to(historical)
+        except ValueError: return value
+        return str(runtime / relative) if relative != Path('.') else value
+    if isinstance(value, list):
+        return [_relocate_runtime_value(item, relocation, runtime, error_code,
+                                        preserve_historical) for item in value]
+    if not isinstance(value, dict):
+        return value
+    relocated = {key: _relocate_runtime_value(
+        item, relocation, runtime, error_code,
+        preserve_historical or key in {'historicalRoot', 'historicalRuntime'})
+        for key, item in value.items()}
+    if not preserve_historical and set(value) in (
+            {'path', 'device', 'inode', 'marker'},
+            {'path', 'device', 'inode', 'marker', 'role'}) \
+            and isinstance(value.get('path'), str):
+        current_path = _relocate_runtime_value(value['path'], relocation, runtime, error_code)
+        if current_path != value['path']:
+            marker = value.get('marker')
+            try: info = Path(current_path).lstat()
+            except OSError as error: raise ValueError(error_code) from error
+            if not isinstance(marker, dict) or set(marker) != {'relative', 'sha256'} \
+                    or not isinstance(marker.get('relative'), str) \
+                    or _SHA256.fullmatch(str(marker.get('sha256', ''))) is None:
+                raise ValueError(error_code)
+            _strict_root_marker(Path(current_path), marker, info.st_dev, info.st_ino, error_code)
+            return {**value, 'path': current_path, 'device': info.st_dev, 'inode': info.st_ino}
+    if set(value) == {'mode', 'historicalDevice', 'currentDevice', 'liveRootCount'} \
+            and value.get('mode') in {'UNCHANGED', 'REMAPPED'} \
+            and type(value.get('historicalDevice')) is int \
+            and type(value.get('currentDevice')) is int:
+        current_device = runtime.lstat().st_dev
+        return {**value, 'mode': 'UNCHANGED' if value['historicalDevice'] == current_device else 'REMAPPED',
+                'currentDevice': current_device}
+    return relocated
+
+
 def _validate_measure_root_recovery(binding, runtime, manifest_path, manifest_sha256, window_id,
                                     missing_roots, expected_live_device_remap, candidate_repository, expected_seed_sha256,
                                     expected_fixture_owner_sha256, error_code,
-                                    historical_repository=False):
-    """验证exact75-v2替代闭包；历史根保持LOST，替代根仅提供计数控制身份。"""
+                                    historical_repository=False, expected_live_root_remap=None,
+                                    runtime_relocation=None):
+    """验证exact75-v2/v3替代闭包；历史根保持LOST，替代根仅提供计数控制身份。"""
     receipt_keys = {'schemaVersion', 'scope', 'access', 'state', 'model', 'windowId',
                     'historicalManifest', 'liveDeviceRemap', 'repository', 'recoveryTool', 'mappings',
                     'activeBenchmarkInput', 'contentRecovered', 'historicalManifestRewritten',
                     'deviceOpened', 'formalReady', 'gateB'}
+    relocation_receipt = expected_live_root_remap is not None
+    if relocation_receipt:
+        receipt_keys.add('liveRootRemap')
     repository_keys = {'root', 'branch', 'head', 'clean', 'pushedHead'}
     tool_keys = {'path', 'relativePath', 'workingSha256', 'gitBlobSha256'}
     mapping_keys = {'historicalRoot', 'state', 'recovered', 'replacementRoot'}
@@ -1221,6 +1347,8 @@ def _validate_measure_root_recovery(binding, runtime, manifest_path, manifest_sh
         recovery_root = receipt_path.parent
         recovery_root_info = recovery_root.lstat()
         receipt, receipt_identity = _strict_json(receipt_path, 4 * 1024 * 1024)
+        receipt = _relocate_runtime_value(
+            receipt, runtime_relocation, runtime, error_code) if runtime_relocation else receipt
     except (OSError, ValueError) as error:
         raise ValueError(error_code) from error
     if supplied != receipt_path or supplied.is_symlink() or receipt_path.name != 'recovery.json' \
@@ -1233,11 +1361,14 @@ def _validate_measure_root_recovery(binding, runtime, manifest_path, manifest_sh
             or receipt.get('schemaVersion') != 1 \
             or receipt.get('scope') != 'musicbridge-capacity-measure-root-recovery' \
             or receipt.get('access') != 'read-only' or receipt.get('state') != 'PUBLISHED' \
-            or receipt.get('model') != 'exact75-v2-replacement-closure' \
+            or receipt.get('model') != (
+                'exact75-v3-runtime-relocation-closure' if relocation_receipt
+                else 'exact75-v2-replacement-closure') \
             or receipt.get('windowId') != window_id \
             or receipt.get('historicalManifest') != {
                 'path': str(manifest_path), 'sha256': manifest_sha256} \
             or receipt.get('liveDeviceRemap') != expected_live_device_remap \
+            or receipt.get('liveRootRemap') != expected_live_root_remap \
             or receipt.get('contentRecovered') is not False \
             or receipt.get('historicalManifestRewritten') is not False \
             or receipt.get('deviceOpened') is not False \
@@ -1265,9 +1396,11 @@ def _validate_measure_root_recovery(binding, runtime, manifest_path, manifest_sh
     recovery_tool = candidate / tool['relativePath']
     try:
         canonical_candidate = candidate.resolve(strict=True)
+        canonical_recovery_tool = recovery_tool.resolve(strict=True)
         candidate_info = candidate.lstat()
         working_identity = _strict_identity(recovery_tool, 2 * 1024 * 1024)
-        blob = _git_blob(candidate, f"{repository['head']}:{tool['relativePath']}")
+        git_candidate = canonical_candidate if historical_repository else candidate
+        blob = _git_blob(git_candidate, f"{repository['head']}:{tool['relativePath']}")
         top = _git_value(candidate, 'rev-parse', '--show-toplevel')
         branch = _git_value(candidate, 'branch', '--show-current')
         head = _git_value(candidate, 'rev-parse', 'HEAD^{commit}')
@@ -1275,8 +1408,10 @@ def _validate_measure_root_recovery(binding, runtime, manifest_path, manifest_sh
         dirty = _git_value(candidate, 'status', '--porcelain=v1', '--untracked-files=all')
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         raise ValueError(error_code) from error
-    if not candidate.is_absolute() or candidate != canonical_candidate or candidate.is_symlink() \
+    if not candidate.is_absolute() or candidate.is_symlink() \
             or not stat.S_ISDIR(candidate_info.st_mode) or Path(tool.get('path', '')) != recovery_tool \
+            or canonical_recovery_tool != canonical_candidate / tool['relativePath'] \
+            or not historical_repository and candidate != canonical_candidate \
             or hashlib.sha256(blob).hexdigest() != tool['gitBlobSha256']:
         raise ValueError(error_code)
     if not historical_repository and (working_identity['sha256'] != tool['workingSha256'] \
@@ -1391,6 +1526,7 @@ def _validate_measure_root_recovery(binding, runtime, manifest_path, manifest_sh
     return {'roots': roots, 'mappings': mappings, 'receiptIdentity': receipt_identity,
             'replacementSnapshots': snapshots, 'benchmarkIdentity': seed_identity,
             'liveDeviceRemap': expected_live_device_remap,
+            'liveRootRemap': expected_live_root_remap,
             'recoveryDirectory': {
                 'device': recovery_root_info.st_dev, 'inode': recovery_root_info.st_ino,
                 'mtimeNs': recovery_root_info.st_mtime_ns, 'ctimeNs': recovery_root_info.st_ctime_ns,
@@ -1421,10 +1557,27 @@ def _validate_frozen_owned_roots(manifest_path, runtime, expected_sha256, window
             or manifest.get('access') != 'count-only' or manifest.get('windowId') != window_id \
             or not isinstance(manifest.get('roots'), list) or not 1 <= len(manifest['roots']) <= 70:
         raise ValueError(error_code)
+    root_relocation = _preview_runtime_root_relocation(
+        root_recovery, runtime, error_code) if root_recovery is not None else None
+    relocation_by_historical = {
+        row['historicalRoot']['path']: row for row in root_relocation['mappings']
+    } if root_relocation is not None else {}
     future = Path(future_path)
+    declared_future = manifest.get('futureRoots')
+    expected_declared_future = str(future)
+    if root_relocation is not None and isinstance(declared_future, list) \
+            and len(declared_future) == 1 and isinstance(declared_future[0], str):
+        historical_runtime = Path(root_relocation['historicalRuntime'])
+        try:
+            relative_future = Path(declared_future[0]).relative_to(historical_runtime)
+        except ValueError:
+            relative_future = None
+        if relative_future is not None and relative_future != Path('.') \
+                and runtime / relative_future == future:
+            expected_declared_future = declared_future[0]
     if future_state not in {'absent', 'present'} or not future.is_absolute() \
             or future.parent != runtime or _SAFE.fullmatch(future.name) is None \
-            or manifest.get('futureRoots') != [str(future)]:
+            or manifest.get('futureRoots') != [expected_declared_future]:
         raise ValueError(error_code)
     if future_state == 'absent':
         if future.exists() or future.is_symlink(): raise ValueError(error_code)
@@ -1443,13 +1596,18 @@ def _validate_frozen_owned_roots(manifest_path, runtime, expected_sha256, window
                 or not isinstance(declared.get('path'), str):
             raise ValueError(error_code)
         path = Path(declared['path']); marker = declared.get('marker')
+        relocated = relocation_by_historical.get(str(path))
         try: normalized = path.resolve(strict=False)
         except (OSError, RuntimeError) as error: raise ValueError(error_code) from error
-        if not path.is_absolute() or normalized != path or str(path) in seen \
+        if not path.is_absolute() or (relocated is None and normalized != path) or str(path) in seen \
                 or not isinstance(marker, dict) or set(marker) != {'relative', 'sha256'} \
                 or marker.get('relative') not in _MARKERS \
                 or _SHA256.fullmatch(str(marker.get('sha256', ''))) is None:
             raise ValueError(error_code)
+        if relocated is not None:
+            if relocated['historicalRoot'] != declared:
+                raise ValueError(error_code)
+            rows.append(relocated['currentRoot']); seen.add(str(path)); continue
         in_runtime = _inside(runtime, path) and path != runtime
         fixture = path.parent in temp_roots and re.fullmatch(r'musicbridge-version-[A-Za-z0-9]+', path.name)
         app_clone = path.parent == Path(tempfile.gettempdir()).resolve(strict=True) \
@@ -1485,7 +1643,8 @@ def _validate_frozen_owned_roots(manifest_path, runtime, expected_sha256, window
         recovery = _validate_measure_root_recovery(
             root_recovery, runtime, canonical_manifest, expected_sha256, window_id, missing,
             live_device_remap, candidate_repository, expected_seed_sha256,
-            expected_fixture_owner_sha256, error_code)
+            expected_fixture_owner_sha256, error_code,
+            expected_live_root_remap=root_relocation)
         live_paths = [Path(row['path']) for row in rows]
         replacement_paths = [Path(row['path']) for row in recovery['roots']]
         if any(_inside(live, replacement) or _inside(replacement, live)
@@ -3072,7 +3231,7 @@ def _validate_queued_stop_issuer_failures(carryover, runtime):
     return {'roots': [root for root, _ in ordered], 'snapshots': [snapshot for _, snapshot in ordered]}
 
 
-def _validate_queued_stop_prechild_failures(carryover, runtime):
+def _validate_queued_stop_prechild_failures(carryover, runtime, runtime_relocation=None):
     runtime = Path(runtime).resolve(strict=True)
     if not isinstance(carryover, list) or not carryover or len(carryover) > 64:
         raise ValueError('QUEUED_STOP_PRECHILD_FAILURE')
@@ -3155,6 +3314,13 @@ def _validate_queued_stop_prechild_failures(carryover, runtime):
             if not all(isinstance(value, dict) for value in
                        (owner, issuer_fact, source, owned, window, failure)):
                 raise ValueError('schema')
+            if runtime_relocation is not None:
+                issuer_fact = _relocate_runtime_value(
+                    issuer_fact, runtime_relocation, runtime, 'QUEUED_STOP_PRECHILD_FAILURE')
+                window = _relocate_runtime_value(
+                    window, runtime_relocation, runtime, 'QUEUED_STOP_PRECHILD_FAILURE')
+                failure = _relocate_runtime_value(
+                    failure, runtime_relocation, runtime, 'QUEUED_STOP_PRECHILD_FAILURE')
             recorded = datetime.datetime.fromisoformat(str(failure.get('recordedAt')))
         except (AttributeError, OSError, ValueError, TypeError) as error:
             raise ValueError('QUEUED_STOP_PRECHILD_FAILURE') from error
@@ -3252,15 +3418,20 @@ def _validate_queued_stop_prechild_failures(carryover, runtime):
             recovery_root = Path(recovery['repositoryRoot'])
             recovery_script = Path(recovery['scriptPath'])
             recovery_canonical = recovery_root.resolve(strict=True)
+            recovery_root_info = recovery_root.lstat()
+            recovery_script_canonical = recovery_script.resolve(strict=True)
+            recovery_script_info = recovery_script.lstat()
         except (OSError, TypeError, ValueError) as error:
             raise ValueError('QUEUED_STOP_PRECHILD_FAILURE') from error
-        if not recovery_root.is_absolute() or recovery_canonical != recovery_root \
-                or recovery_root.is_symlink() \
-                or recovery_script != recovery_root / recovery['scriptRelativePath']:
+        if not recovery_root.is_absolute() or recovery_root.is_symlink() \
+                or not stat.S_ISDIR(recovery_root_info.st_mode) \
+                or recovery_script != recovery_root / recovery['scriptRelativePath'] \
+                or recovery_script.is_symlink() or not stat.S_ISREG(recovery_script_info.st_mode) \
+                or recovery_script_canonical != recovery_canonical / recovery['scriptRelativePath']:
             raise ValueError('QUEUED_STOP_PRECHILD_FAILURE')
         try:
             script_blob = _git_blob(
-                recovery_root, f"{recovery['head']}:{recovery['scriptRelativePath']}")
+                recovery_canonical, f"{recovery['head']}:{recovery['scriptRelativePath']}")
         except ValueError as error:
             raise ValueError('QUEUED_STOP_PRECHILD_FAILURE') from error
         if hashlib.sha256(script_blob).hexdigest() != recovery['scriptSha256']:
@@ -3351,7 +3522,9 @@ def _queued_stop_process_authority(value, window, window_identity, owner_identit
         and value['availableBytes'] - remaining >= _QUEUED_STOP_LIMITS['minimumFreeBytes']
 
 
-def _validate_queued_stop_process_failures(carryover, runtime, lineage_contract=None):
+def _validate_queued_stop_process_failures(
+        carryover, runtime, lineage_contract=None, runtime_relocation=None,
+        lineage_module=None):
     """冻结已消费且PROCESS_EXIT的queued-stop authority；历史owned schema不得升级或重写。"""
     error_code = 'QUEUED_STOP_PROCESS_FAILURE'
     audit_code = 'QUEUED_STOP_PROCESS_FAILURE_AUDIT'
@@ -3409,6 +3582,8 @@ def _validate_queued_stop_process_failures(carryover, runtime, lineage_contract=
     pending = [(carryover[0], None, True)]
     while pending:
         row, successor_issued_at, is_head = pending.pop(0)
+        row = _relocate_runtime_value(
+            row, runtime_relocation, runtime, error_code) if runtime_relocation else row
         if not _queued_exact(row, row_keys) or row.get('failure') != 'PROCESS_EXIT' \
                 or row.get('code') != 1 or row.get('sampleCount') != 0 \
                 or row.get('deviceOpened') is not False or row.get('formalReady') is not False \
@@ -3425,6 +3600,7 @@ def _validate_queued_stop_process_failures(carryover, runtime, lineage_contract=
         issuer_directory = root / 'issuer-identity'; supervision_directory = root / 'supervision'
         expected_entries = {'owner.json', 'supervisor.py', 'issuer-identity', 'source-pins.json',
                             'owned-roots.json', 'window.json', 'supervision', 'close.json'}
+        if (root / label).exists(): expected_entries.add(label)
         supervision_entries = {'supervisor.json', 'supervisor-start.json', 'stdout.log', 'stderr.log'}
         try:
             root_info = root.lstat(); issuer_info = issuer_directory.lstat()
@@ -3469,6 +3645,10 @@ def _validate_queued_stop_process_failures(carryover, runtime, lineage_contract=
             close, close_identity = _strict_json(expected_paths['close'])
             supervision, supervision_identity = _strict_json(expected_paths['supervision'])
             start, start_identity = _strict_json(expected_paths['supervisorStart'])
+            if runtime_relocation:
+                owner, fact, source, owned, window, close, supervision, start = (
+                    _relocate_runtime_value(document, runtime_relocation, runtime, error_code)
+                    for document in (owner, fact, source, owned, window, close, supervision, start))
             stdout_bytes = expected_paths['stdout'].read_bytes()
             stderr_bytes = expected_paths['stderr'].read_bytes()
             closed_at = datetime.datetime.fromisoformat(str(close.get('closedAt')))
@@ -3648,7 +3828,8 @@ def _validate_queued_stop_process_failures(carryover, runtime, lineage_contract=
         direct_carry_roots = [*carry_roots, predecessor_root] if linked else carry_roots
         frozen_owned = _validate_queued_stop_owned_manifest(
             expected_paths['ownedManifest'], runtime, window_id, root, direct_carry_roots, 0,
-            expected_device=root_info.st_dev, terminal=True)
+            expected_device=root_info.st_dev, terminal=True,
+            runtime_relocation=runtime_relocation)
         if frozen_owned['rootCount'] != expected_owned_count:
             raise ValueError(error_code)
         queued = supervision.get('queuedStop') if isinstance(supervision, dict) else None
@@ -3657,14 +3838,24 @@ def _validate_queued_stop_process_failures(carryover, runtime, lineage_contract=
                        'size': identities['stdout']['size'], 'sha256': identities['stdout']['sha256']},
             'stderr': {'path': str(expected_paths['stderr']), 'exists': True,
                        'size': identities['stderr']['size'], 'sha256': identities['stderr']['sha256']}}
-        if stdout_bytes != b'' \
-                or stderr_bytes != _queued_stop_process_failure_stderr(supervision.get('pid')) \
-                or not _queued_exact(queued, queued_keys) \
-                or queued != {'outputDirectory': str(root / label), 'verifiedComplete': False,
-                              'verifiedPassed': False, 'fileCount': 0, 'sampleCount': 0,
-                              'uniqueChildPids': 0, 'aggregateBudgetValid': False,
-                              'unexpectedEntries': []} \
-                or (root / label).exists() or (root / label).is_symlink():
+        empty_queued = {'outputDirectory': str(root / label), 'verifiedComplete': False,
+                        'verifiedPassed': False, 'fileCount': 0, 'sampleCount': 0,
+                        'uniqueChildPids': 0, 'aggregateBudgetValid': False,
+                        'unexpectedEntries': []}
+        retained_queued = {'outputDirectory': str(root / label), 'verifiedComplete': False,
+                           'verifiedPassed': False, 'fileCount': 12, 'sampleCount': 0,
+                           'uniqueChildPids': 0, 'aggregateBudgetValid': False,
+                           'unexpectedEntries': ['sample-001']}
+        empty_failure = stdout_bytes == b'' \
+            and _valid_queued_stop_process_failure_stderr(stderr_bytes, supervision.get('pid')) \
+            and queued == empty_queued \
+            and not (root / label).exists() and not (root / label).is_symlink()
+        retained_failure = stdout_bytes == b'CAPACITY_PHASE_INCOMPLETE\n' \
+            and _valid_retained_process_failure_stderr(stderr_bytes, supervision.get('pid')) \
+            and queued == retained_queued and _validate_retained_process_failure_output(
+                root / label, window, window_identity['sha256'], owned_identity['sha256'],
+                source_identity['sha256'])
+        if not _queued_exact(queued, queued_keys) or not (empty_failure or retained_failure):
             raise ValueError(error_code)
         pid = supervision.get('pid') if isinstance(supervision, dict) else None
         if not _queued_exact(supervision, supervision_keys) \
@@ -3816,7 +4007,7 @@ def _validate_queued_stop_process_failures(carryover, runtime, lineage_contract=
             raise ValueError(error_code)
         if linked:
             pending.append((process_carryover[0], issued_at, False))
-    lineage = _lineage_module()
+    lineage = lineage_module if lineage_module is not None else _lineage_module()
     if lineage_contract is None:
         lineage_contract = lineage.load_contract(Path(__file__).resolve().parents[2])
     lineage_result = lineage.evaluate_process_failure_lineage(
@@ -3829,7 +4020,7 @@ def _validate_queued_stop_process_failures(carryover, runtime, lineage_contract=
             'contractLineage': lineage_result}
 
 
-def _validate_queued_stop_bound_identities(window, parent, candidate):
+def _validate_queued_stop_bound_identities(window, parent, candidate, runtime_relocation=None):
     if window.get('profile') == 'joint':
         return _validate_joint_queued_stop_bound_identities(window, parent, candidate)
     toolchain = window['toolchain']; issuer = window['issuer']
@@ -3883,7 +4074,8 @@ def _validate_queued_stop_bound_identities(window, parent, candidate):
     identities['issuerFailureRoots'] = prior_failures['roots']
     identities['issuerFailures'] = prior_failures['snapshots']
     prechild_failures = _validate_queued_stop_prechild_failures(
-        fact['prechildFailureCarryover'], Path(parent).parent)
+        fact['prechildFailureCarryover'], Path(parent).parent,
+        runtime_relocation=runtime_relocation)
     if len(prechild_failures['roots']) != window['prechildFailureCarryoverCount']:
         raise ValueError('QUEUED_STOP_PRECHILD_FAILURE')
     identities['prechildFailureRoots'] = prechild_failures['roots']
@@ -3903,7 +4095,8 @@ def _validate_queued_stop_bound_identities(window, parent, candidate):
     lineage = _lineage_module(candidate)
     lineage_contract = lineage.load_contract(candidate)
     process_failures = _validate_queued_stop_process_failures(
-        fact['processFailureCarryover'], Path(parent).parent, lineage_contract)
+        fact['processFailureCarryover'], Path(parent).parent, lineage_contract,
+        runtime_relocation=runtime_relocation, lineage_module=lineage)
     if len(process_failures['roots']) != window['processFailureCarryoverCount']:
         raise ValueError('QUEUED_STOP_PROCESS_FAILURE')
     identities['processFailureRoots'] = process_failures['roots']
@@ -4101,7 +4294,7 @@ def _validate_phase_source_manifest(manifest_path, root):
     excluded = {'scripts/ci/capacity-phase-supervisor-v2.py',
                 'scripts/ci/issue-v3-capacity-measure-window.py'}
     paths = [value for value in paths if value not in excluded]
-    if len(paths) != 241 or set(manifest['files']) != set(paths):
+    if set(manifest['files']) != set(paths):
         raise ValueError('QUEUED_STOP_SOURCE')
     identities = {}
     for relative in paths:
@@ -4113,7 +4306,7 @@ def _validate_phase_source_manifest(manifest_path, root):
         identities[relative] = observed
     if _strict_identity(manifest_path) != identity:
         raise ValueError('QUEUED_STOP_SOURCE')
-    return {'valid': True, 'fileCount': 241, 'manifestIdentity': identity,
+    return {'valid': True, 'fileCount': len(paths), 'manifestIdentity': identity,
             'fileIdentities': identities}
 
 
@@ -4200,13 +4393,17 @@ def _validate_queued_stop_measure_carryover(carry, runtime, candidate_repository
 
 
 def _validate_queued_stop_owned_manifest(manifest_path, runtime, window_id, parent, carry_roots,
-                                         planned_bytes, expected_device=None, terminal=False):
+                                         planned_bytes, expected_device=None, terminal=False,
+                                         runtime_relocation=None):
     runtime = Path(runtime).resolve(strict=True); parent = Path(parent).resolve(strict=True)
     if expected_device is None:
         expected_device = runtime.lstat().st_dev
     expected_root_count = len(carry_roots) + 2
     try: manifest, manifest_identity = _strict_json(manifest_path)
     except ValueError as error: raise ValueError('QUEUED_STOP_OWNED') from error
+    if runtime_relocation:
+        manifest = _relocate_runtime_value(
+            manifest, runtime_relocation, runtime, 'QUEUED_STOP_OWNED')
     if not isinstance(manifest, dict) or set(manifest) != {'schemaVersion', 'scope', 'access', 'windowId', 'roots'} \
             or manifest.get('schemaVersion') != 1 or manifest.get('scope') != 'musicbridge-capacity-owned-roots' \
             or manifest.get('access') != 'count-only' or manifest.get('windowId') != window_id \
@@ -4275,7 +4472,8 @@ def _apply_queued_stop_transitive_billing(value, direct_roots, process_roots, pa
 
 
 def _validate_queued_stop_process_recovery_lineage(
-        runtime, historical_measure, old_inherited, current_roots, current_mappings):
+        runtime, historical_measure, old_inherited, current_roots, current_mappings,
+        runtime_relocation=None):
     code = 'QUEUED_STOP_PROCESS_FAILURE_LINEAGE'
     runtime = Path(runtime).resolve(strict=True)
     if not isinstance(historical_measure, dict) \
@@ -4299,10 +4497,19 @@ def _validate_queued_stop_process_recovery_lineage(
         receipt, receipt_identity = _strict_json(Path(binding['path']), 4 * 1024 * 1024)
     except ValueError as error:
         raise ValueError(code) from error
+    if runtime_relocation:
+        receipt = _relocate_runtime_value(receipt, runtime_relocation, runtime, code)
     mappings = receipt.get('mappings') if isinstance(receipt, dict) else None
     remap = receipt.get('liveDeviceRemap') if isinstance(receipt, dict) else None
+    recovery_model = receipt.get('model') if isinstance(receipt, dict) else None
+    historical_root_remap = receipt.get('liveRootRemap') \
+        if recovery_model == 'exact75-v3-runtime-relocation-closure' else None
     if receipt_identity['sha256'] != binding['sha256'] \
             or not isinstance(mappings, list) or len(mappings) != 7 \
+            or recovery_model not in {
+                'exact75-v2-replacement-closure', 'exact75-v3-runtime-relocation-closure'} \
+            or recovery_model == 'exact75-v3-runtime-relocation-closure' \
+            and (runtime_relocation is None or historical_root_remap != runtime_relocation) \
             or not _queued_exact(remap, {
                 'mode', 'historicalDevice', 'currentDevice', 'liveRootCount'}) \
             or type(remap.get('historicalDevice')) is not int \
@@ -4316,7 +4523,9 @@ def _validate_queued_stop_process_recovery_lineage(
     try:
         old_recovery = _validate_measure_root_recovery(
             binding, runtime, Path(owned['path']), owned['sha256'], window['id'], missing,
-            remap, None, None, None, code, historical_repository=True)
+            remap, None, None, None, code, historical_repository=True,
+            expected_live_root_remap=historical_root_remap,
+            runtime_relocation=runtime_relocation)
     except ValueError as error:
         raise ValueError(code) from error
     if old_recovery['repository'] != {**candidate, 'clean': True, 'pushedHead': True}:
@@ -4503,11 +4712,13 @@ def _validate_queued_stop_authority(parent, runtime, repo_root, window_sha256,
     candidate = _validate_candidate_repository(window, runtime)
     if candidate != Path(repo_root).resolve(strict=True):
         raise ValueError('QUEUED_STOP_AUTHORITY')
-    bound_identities = _validate_queued_stop_bound_identities(window, parent, candidate)
     carry = _validate_queued_stop_measure_carryover(
         window['measureCarryover'], runtime, candidate_repository=window['candidateRepository'],
         expected_seed_sha256=window.get('seed', {}).get('snapshotSha256'),
         expected_fixture_owner_sha256=window.get('seed', {}).get('fixtureOwnerSha256'))
+    bound_identities = _validate_queued_stop_bound_identities(
+        window, parent, candidate,
+        runtime_relocation=carry['rootRecovery'].get('liveRootRemap'))
     expected_process_inherited = [*carry['roots'], *bound_identities['issuerFailureRoots'],
                                   *bound_identities['prechildFailureRoots']]
     if len(expected_process_inherited) != _QUEUED_STOP_BASE_ROOTS \
@@ -4515,7 +4726,8 @@ def _validate_queued_stop_authority(parent, runtime, repo_root, window_sha256,
         raise ValueError('QUEUED_STOP_PROCESS_FAILURE_ROOTS')
     process_lineage = [_validate_queued_stop_process_recovery_lineage(
         runtime, snapshot.get('historicalMeasure'), snapshot.get('inheritedRoots'),
-        expected_process_inherited, carry['rootRecovery'].get('mappings'))
+        expected_process_inherited, carry['rootRecovery'].get('mappings'),
+        runtime_relocation=carry['rootRecovery'].get('liveRootRemap'))
         for snapshot in bound_identities['processFailures']]
     source = _validate_phase_source_manifest(parent / 'source-pins.json', candidate)
     if source['manifestIdentity']['sha256'] != window['sourceManifest']['sha256']:

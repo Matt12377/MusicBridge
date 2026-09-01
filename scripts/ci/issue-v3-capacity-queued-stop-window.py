@@ -32,6 +32,7 @@ EXPECTED_RECOVERED_CONTROL_ROOTS = 7
 EXPECTED_PREFLIGHT_ROOTS = 74
 EXPECTED_AUTHORITY_ROOTS = 76
 RECOVERY_MODEL = 'exact75-v2-replacement-closure'
+RELOCATION_RECOVERY_MODEL = 'exact75-v3-runtime-relocation-closure'
 RECOVERY_TOOL_RELATIVE = 'scripts/ci/create-v3-capacity-measure-root-recovery.py'
 LINEAGE_HELPER_RELATIVE = 'scripts/ci/capacity_process_failure_lineage.py'
 LINEAGE_CONTRACT_RELATIVE = 'packages/contracts/capacity-process-failure-lineage-v1.json'
@@ -51,12 +52,34 @@ FROZEN_MEASURE = {
     'measureLabel': 'r023-objects-limit-measure-06',
     'seedLabel': 'r023-objects-limit-seed-03',
 }
-def process_failure_stderr(pid):
-    return (
-        b'CAPACITY_PHASE_OPERATION_FAILED\n'
-        + f'(node:{pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n'.encode()
-        + b'(Use `node --trace-warnings ...` to show where the warning was created)\n'
-    )
+CAPACITY_PHASE_FAILURE_CODES = (
+    'INVALID_INPUT', 'WINDOW_INVALID', 'INVENTORY_INVALID', 'SOURCE_CHANGED',
+    'SEED_INVALID', 'BACKUP_INVALID', 'SPACE', 'DEADLINE', 'OPERATION_FAILED',
+    'PERSISTENCE_FAILED', 'THRESHOLD_FAILED',
+)
+
+
+def valid_process_failure_stderr(value, pid):
+    suffix = (
+        f'\n(node:{pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n'
+        '(Use `node --trace-warnings ...` to show where the warning was created)\n'
+    ).encode()
+    return value in {
+        f'CAPACITY_PHASE_{code}'.encode() + suffix for code in CAPACITY_PHASE_FAILURE_CODES
+    }
+
+
+def valid_retained_process_failure_stderr(value, pid):
+    return value == (
+        f'(node:{pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n'
+        '(Use `node --trace-warnings ...` to show where the warning was created)\n'
+    ).encode()
+
+
+def _validate_retained_process_failure_output(output, window, window_sha256,
+                                               owned_sha256, source_sha256):
+    return _lineage_module().validate_retained_preflight_failure(
+        output, window, window_sha256, owned_sha256, source_sha256)
 _FAILURE = None
 
 
@@ -160,7 +183,7 @@ def directory_snapshot(path, expected_entries):
             'mtimeNs': before.st_mtime_ns, 'ctimeNs': before.st_ctime_ns, 'entries': entries}
 
 
-def strict_json(path, expected_sha=None, maximum=16 * 1024 * 1024):
+def strict_json(path, expected_sha=None, maximum=16 * 1024 * 1024, relocation=None):
     path = Path(path)
     if not ordinary(path):
         fail('JSON_IDENTITY')
@@ -176,7 +199,8 @@ def strict_json(path, expected_sha=None, maximum=16 * 1024 * 1024):
     if expected_sha is not None and digest != expected_sha:
         fail('HASH_MISMATCH')
     try:
-        return json.loads(data.decode('utf-8')), digest
+        value = json.loads(data.decode('utf-8'))
+        return relocate_runtime_value(value, relocation), digest
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise IssueError('JSON_INVALID') from error
 
@@ -222,6 +246,18 @@ def canonical_directory(path, parent=None):
         fail('DIRECTORY_IDENTITY')
     if parent is not None and os.path.commonpath((str(parent), str(resolved))) != str(parent):
         fail('DIRECTORY_BOUNDARY')
+    return resolved
+
+
+def canonical_directory_through_ancestor_alias(path):
+    supplied = Path(path)
+    try:
+        resolved = supplied.resolve(strict=True)
+        info = supplied.lstat()
+    except OSError as error:
+        raise IssueError('DIRECTORY_IDENTITY') from error
+    if supplied.is_symlink() or not stat.S_ISDIR(info.st_mode):
+        fail('DIRECTORY_IDENTITY')
     return resolved
 
 
@@ -313,6 +349,49 @@ def validate_root(row):
             'marker': dict(marker)}
 
 
+def relocate_runtime_value(value, relocation, preserve_historical=False):
+    if relocation is None or preserve_historical:
+        return value
+    if not isinstance(relocation, dict) \
+            or set(relocation) != {
+                'mode', 'historicalRuntime', 'currentRuntime', 'liveRootCount', 'mappings'} \
+            or relocation.get('mode') != 'PREFIX_RELOCATION':
+        fail('RUNTIME_RELOCATION')
+    historical = Path(relocation['historicalRuntime'])
+    current = Path(relocation['currentRuntime'])
+
+    def relocated_path(raw):
+        if not isinstance(raw, str):
+            return raw
+        try:
+            relative = Path(raw).relative_to(historical)
+        except ValueError:
+            return raw
+        return str(current if relative == Path('.') else current / relative)
+
+    if isinstance(value, list):
+        return [relocate_runtime_value(item, relocation) for item in value]
+    if not isinstance(value, dict):
+        return relocated_path(value)
+    if {'path', 'device', 'inode', 'marker'}.issubset(value) \
+            and isinstance(value.get('path'), str):
+        mapped = relocated_path(value['path'])
+        if mapped != value['path']:
+            marker = value.get('marker')
+            try:
+                observed = current_root(mapped, marker.get('relative'))
+            except (AttributeError, IssueError, OSError, TypeError, ValueError) as error:
+                raise IssueError('RUNTIME_RELOCATION') from error
+            if observed['marker'] != marker:
+                fail('RUNTIME_RELOCATION')
+            return {**value, **observed}
+    return {
+        key: relocate_runtime_value(
+            item, relocation, preserve_historical=key in {'historicalRoot', 'historicalRuntime'})
+        for key, item in value.items()
+    }
+
+
 def unique_roots(rows):
     result = {}
     for value in rows:
@@ -374,6 +453,10 @@ def validate_measure_root_recovery(options, runtime, owned_path, owned, seed, sn
         'historicalManifest', 'liveDeviceRemap', 'repository', 'recoveryTool', 'mappings',
         'activeBenchmarkInput', 'contentRecovered', 'historicalManifestRewritten',
         'deviceOpened', 'formalReady', 'gateB'}
+    relocation_receipt = isinstance(receipt, dict) \
+        and receipt.get('model') == RELOCATION_RECOVERY_MODEL
+    if relocation_receipt:
+        receipt_keys.add('liveRootRemap')
     historical_manifest = receipt.get('historicalManifest') if isinstance(receipt, dict) else None
     repository = receipt.get('repository') if isinstance(receipt, dict) else None
     recovery_tool = receipt.get('recoveryTool') if isinstance(receipt, dict) else None
@@ -382,7 +465,7 @@ def validate_measure_root_recovery(options, runtime, owned_path, owned, seed, sn
             or receipt.get('schemaVersion') != 1 \
             or receipt.get('scope') != 'musicbridge-capacity-measure-root-recovery' \
             or receipt.get('access') != 'read-only' or receipt.get('state') != 'PUBLISHED' \
-            or receipt.get('model') != RECOVERY_MODEL \
+            or receipt.get('model') not in {RECOVERY_MODEL, RELOCATION_RECOVERY_MODEL} \
             or receipt.get('windowId') != options.expected_measure_window_id \
             or historical_manifest != {
                 'path': str(owned_path), 'sha256': options.expected_measure_owned_sha256} \
@@ -451,16 +534,66 @@ def validate_measure_root_recovery(options, runtime, owned_path, owned, seed, sn
         fail('MEASURE_ROOT_RECOVERY')
     live = []
     absent = []
-    for row in historical_rows:
-        if path_is_absent(row['path']):
-            absent.append(row)
-        else:
+    root_relocation = None
+    if relocation_receipt:
+        root_relocation = receipt.get('liveRootRemap')
+        if not isinstance(root_relocation, dict) \
+                or set(root_relocation) != {
+                    'mode', 'historicalRuntime', 'currentRuntime', 'liveRootCount', 'mappings'} \
+                or root_relocation.get('mode') != 'PREFIX_RELOCATION' \
+                or root_relocation.get('currentRuntime') != str(runtime) \
+                or root_relocation.get('liveRootCount') != EXPECTED_LIVE_MEASURE_ROOTS \
+                or not isinstance(root_relocation.get('mappings'), list) \
+                or len(root_relocation['mappings']) != EXPECTED_LIVE_MEASURE_ROOTS:
+            fail('MEASURE_ROOT_RECOVERY_RELOCATION')
+        historical_runtime = Path(root_relocation.get('historicalRuntime', ''))
+        if not historical_runtime.is_absolute() \
+                or Path(os.path.normpath(str(historical_runtime))) != historical_runtime \
+                or historical_runtime == runtime:
+            fail('MEASURE_ROOT_RECOVERY_RELOCATION')
+        historical_live = []
+        for row in historical_rows:
             try:
-                # 设备代际允许整体 remap；路径、inode 与 marker 仍必须和冻结历史完全一致。
-                observed = validate_root({**row, 'device': current_device})
-            except IssueError as error:
-                raise IssueError('MEASURE_ROOT_RECOVERY') from error
+                row_path = Path(row['path'])
+                relative = row_path.relative_to(historical_runtime)
+            except ValueError:
+                if not path_is_absent(row['path']):
+                    fail('MEASURE_ROOT_RECOVERY_ABSENT_SET')
+                absent.append(row)
+                continue
+            if relative == Path('.'):
+                fail('MEASURE_ROOT_RECOVERY_RELOCATION')
+            historical_live.append(row)
+        if len(historical_live) != EXPECTED_LIVE_MEASURE_ROOTS:
+            fail('MEASURE_ROOT_RECOVERY_RELOCATION')
+        for index, (mapping, historical) in enumerate(
+                zip(root_relocation['mappings'], historical_live)):
+            if not isinstance(mapping, dict) \
+                    or set(mapping) != {'historicalRoot', 'currentRoot'} \
+                    or mapping.get('historicalRoot') != historical:
+                fail('MEASURE_ROOT_RECOVERY_RELOCATION')
+            current = mapping.get('currentRoot')
+            try:
+                relative = Path(historical['path']).relative_to(historical_runtime)
+                expected_path = runtime / relative
+                observed = validate_root(current)
+            except (IssueError, TypeError, ValueError) as error:
+                raise IssueError('MEASURE_ROOT_RECOVERY_RELOCATION') from error
+            if current.get('path') != str(expected_path) or observed != current \
+                    or current.get('marker') != historical.get('marker'):
+                fail('MEASURE_ROOT_RECOVERY_RELOCATION')
             live.append(observed)
+    else:
+        for row in historical_rows:
+            if path_is_absent(row['path']):
+                absent.append(row)
+            else:
+                try:
+                    # 设备代际允许整体 remap；路径、inode 与 marker 仍必须和冻结历史完全一致。
+                    observed = validate_root({**row, 'device': current_device})
+                except IssueError as error:
+                    raise IssueError('MEASURE_ROOT_RECOVERY') from error
+                live.append(observed)
     if len(live) != EXPECTED_LIVE_MEASURE_ROOTS \
             or len(absent) != EXPECTED_RECOVERED_CONTROL_ROOTS:
         fail('MEASURE_ROOT_RECOVERY_ABSENT_SET')
@@ -537,7 +670,47 @@ def validate_measure_root_recovery(options, runtime, owned_path, owned, seed, sn
         'absentRoots': absent,
         'activeBenchmarkInput': expected_active_input,
         'liveDeviceRemap': live_device_remap,
+        'rootRelocation': root_relocation,
     }
+
+
+def provisional_measure_relocation(options, runtime):
+    receipt_path = Path(options.measure_root_recovery)
+    try:
+        recovery_root = canonical_directory(receipt_path.parent, runtime)
+        receipt, _ = strict_json(
+            receipt_path, options.expected_measure_root_recovery_sha256,
+            maximum=4 * 1024 * 1024)
+    except (IssueError, OSError, TypeError, ValueError):
+        return None
+    if receipt_path != recovery_root / 'recovery.json' or recovery_root.parent != runtime:
+        return None
+    if not isinstance(receipt, dict) or receipt.get('model') != RELOCATION_RECOVERY_MODEL:
+        return None
+    relocation = receipt.get('liveRootRemap')
+    if not isinstance(relocation, dict) \
+            or set(relocation) != {
+                'mode', 'historicalRuntime', 'currentRuntime', 'liveRootCount', 'mappings'} \
+            or relocation.get('mode') != 'PREFIX_RELOCATION' \
+            or relocation.get('currentRuntime') != str(runtime) \
+            or relocation.get('liveRootCount') != EXPECTED_LIVE_MEASURE_ROOTS \
+            or not isinstance(relocation.get('mappings'), list) \
+            or len(relocation['mappings']) != EXPECTED_LIVE_MEASURE_ROOTS:
+        fail('MEASURE_ROOT_RECOVERY_RELOCATION')
+    historical = Path(relocation.get('historicalRuntime', ''))
+    if not historical.is_absolute() \
+            or Path(os.path.normpath(str(historical))) != historical \
+            or historical == runtime:
+        fail('MEASURE_ROOT_RECOVERY_RELOCATION')
+    try:
+        resolved = historical.resolve(strict=True)
+    except FileNotFoundError:
+        resolved = None
+    except OSError as error:
+        raise IssueError('MEASURE_ROOT_RECOVERY_RELOCATION') from error
+    if resolved is not None and resolved != runtime:
+        fail('MEASURE_ROOT_RECOVERY_RELOCATION')
+    return relocation
 
 
 def directory_bytes(path, maximum=16 * 1024 ** 3, maximum_entries=250_000):
@@ -687,13 +860,22 @@ def validate_measure(options, runtime):
     installed_supervisor = Path(options.measure_supervisor)
     output = canonical_directory(options.measure_output, runtime)
     seed = canonical_directory(runtime / options.seed_label, runtime)
-    window, _ = strict_json(window_path, options.expected_measure_window_sha256)
-    close, _ = strict_json(close_path, options.expected_measure_close_sha256)
-    owned, _ = strict_json(owned_path, options.expected_measure_owned_sha256)
-    source, _ = strict_json(source_path, options.expected_measure_source_sha256)
-    supervision, _ = strict_json(supervision_path, options.expected_measure_supervision_sha256)
-    command, _ = strict_json(output / 'command.json', options.expected_measure_output_command_sha256)
-    seed_value, _ = strict_json(seed / 'seed.json', options.expected_seed_metadata_sha256)
+    relocation = provisional_measure_relocation(options, runtime)
+    window, _ = strict_json(
+        window_path, options.expected_measure_window_sha256, relocation=relocation)
+    close, _ = strict_json(
+        close_path, options.expected_measure_close_sha256, relocation=relocation)
+    historical_owned, _ = strict_json(owned_path, options.expected_measure_owned_sha256)
+    owned = relocate_runtime_value(historical_owned, relocation)
+    source, _ = strict_json(
+        source_path, options.expected_measure_source_sha256, relocation=relocation)
+    supervision, _ = strict_json(
+        supervision_path, options.expected_measure_supervision_sha256, relocation=relocation)
+    command, _ = strict_json(
+        output / 'command.json', options.expected_measure_output_command_sha256,
+        relocation=relocation)
+    seed_value, _ = strict_json(
+        seed / 'seed.json', options.expected_seed_metadata_sha256, relocation=relocation)
     if window_path.parent.parent != runtime or close_path.parent != window_path.parent \
             or owned_path.parent != window_path.parent or source_path.parent != window_path.parent \
             or supervision_path.parent != window_path.parent / 'supervision' \
@@ -767,7 +949,9 @@ def validate_measure(options, runtime):
             or sha256(snapshot) != options.expected_seed_snapshot_sha256:
         fail('SEED_IDENTITY')
     recovery = validate_measure_root_recovery(
-        options, runtime, owned_path, owned, seed, snapshot)
+        options, runtime, owned_path, historical_owned, seed, snapshot)
+    if recovery['rootRelocation'] != relocation:
+        fail('MEASURE_ROOT_RECOVERY_RELOCATION')
     roots = unique_roots([*recovery['liveRoots'], *recovery['replacementRoots']])
     required_roots = {str(window_path.parent), str(seed)}
     if not required_roots.issubset(roots):
@@ -801,6 +985,7 @@ def validate_measure(options, runtime):
         'absentRoots': recovery['absentRoots'],
         'activeBenchmarkInput': recovery['activeBenchmarkInput'],
         'liveDeviceRemap': recovery['liveDeviceRemap'],
+        'rootRelocation': recovery['rootRelocation'],
         'recoveryMappings': recovery['mappings'],
     }
 
@@ -819,7 +1004,7 @@ def replay_check(runtime, window_dir_name, label):
                 fail('REPLAY')
 
 
-def validate_prior_issuer_failures(options, runtime):
+def validate_prior_issuer_failures(options, runtime, relocation=None):
     rows = options.prior_issuer_failure
     if not isinstance(rows, list) or not rows or len(rows) > 64:
         fail('PRIOR_ISSUER_FAILURE')
@@ -875,10 +1060,12 @@ def validate_prior_issuer_failures(options, runtime):
                 or str(parent) in seen_roots or window_id in seen_windows \
                 or window_dir_name in seen_dirs or label in seen_labels:
             fail('PRIOR_ISSUER_FAILURE')
-        owner, observed_owner_sha = strict_json(parent / 'owner.json', owner_sha)
-        failure, observed_failure_sha = strict_json(failure_path, failure_sha)
+        owner, observed_owner_sha = strict_json(
+            parent / 'owner.json', owner_sha, relocation=relocation)
+        failure, observed_failure_sha = strict_json(
+            failure_path, failure_sha, relocation=relocation)
         issuer_fact, observed_issuer_fact_sha = strict_json(
-            issuer_identity / 'owner.json', issuer_fact_sha)
+            issuer_identity / 'owner.json', issuer_fact_sha, relocation=relocation)
         supervisor = verified_file(parent / 'supervisor.py', supervisor_sha, 'PRIOR_ISSUER_FAILURE')
         expected_failure_keys = {
             'schemaVersion', 'scope', 'state', 'windowId', 'windowDirName', 'label', 'errorCode',
@@ -923,7 +1110,7 @@ def validate_prior_issuer_failures(options, runtime):
         optional_facts = {}; optional_snapshots = {}
         for name, role in optional_roles.items():
             if name not in created: continue
-            value, digest = strict_json(parent / name)
+            value, digest = strict_json(parent / name, relocation=relocation)
             if not isinstance(value, dict) or value.get('schemaVersion') != 1 \
                     or name == 'source-pins.json' and (
                         value.get('scope') != 'musicbridge-capacity-source-pins'
@@ -972,7 +1159,7 @@ def validate_prior_issuer_failures(options, runtime):
             'snapshots': [snapshot for _, _, snapshot in ordered]}
 
 
-def validate_prior_prechild_failures(options, runtime):
+def validate_prior_prechild_failures(options, runtime, relocation=None):
     rows = options.prior_prechild_failure
     if not isinstance(rows, list) or not rows or len(rows) > 64:
         fail('PRIOR_PRECHILD_FAILURE')
@@ -1035,13 +1222,19 @@ def validate_prior_prechild_failures(options, runtime):
         except OSError as error: raise IssueError('PRIOR_PRECHILD_FAILURE') from error
         if parent_entries != expected_entries or issuer_entries != {'owner.json'}:
             fail('PRIOR_PRECHILD_FAILURE')
-        owner, observed_owner_sha = strict_json(parent / 'owner.json', owner_sha, maximum=1024 * 1024)
+        owner, observed_owner_sha = strict_json(
+            parent / 'owner.json', owner_sha, maximum=1024 * 1024, relocation=relocation)
         issuer_fact, observed_issuer_fact_sha = strict_json(
-            issuer_identity / 'owner.json', issuer_fact_sha, maximum=1024 * 1024)
-        source, observed_source_sha = strict_json(parent / 'source-pins.json', source_sha)
-        owned, observed_owned_sha = strict_json(parent / 'owned-roots.json', owned_sha)
-        window, observed_window_sha = strict_json(parent / 'window.json', window_sha)
-        failure, observed_failure_sha = strict_json(failure_path, failure_sha, maximum=1024 * 1024)
+            issuer_identity / 'owner.json', issuer_fact_sha, maximum=1024 * 1024,
+            relocation=relocation)
+        source, observed_source_sha = strict_json(
+            parent / 'source-pins.json', source_sha, relocation=relocation)
+        owned, observed_owned_sha = strict_json(
+            parent / 'owned-roots.json', owned_sha, relocation=relocation)
+        window, observed_window_sha = strict_json(
+            parent / 'window.json', window_sha, relocation=relocation)
+        failure, observed_failure_sha = strict_json(
+            failure_path, failure_sha, maximum=1024 * 1024, relocation=relocation)
         supervisor = verified_file(parent / 'supervisor.py', supervisor_sha, 'PRIOR_PRECHILD_FAILURE')
         if not all(isinstance(value, dict) for value in
                    (owner, issuer_fact, source, owned, window, failure)):
@@ -1112,18 +1305,22 @@ def validate_prior_prechild_failures(options, runtime):
         trigger_path = Path(trigger['path'])
         if not trigger_path.is_absolute() or trigger_path.parent != runtime:
             fail('PRIOR_PRECHILD_FAILURE')
-        trigger_value, trigger_sha = strict_json(trigger_path, trigger['sha256'])
+        trigger_value, trigger_sha = strict_json(
+            trigger_path, trigger['sha256'], relocation=relocation)
         nested = trigger_value.get('window') if isinstance(trigger_value, dict) else None
         if not isinstance(trigger_value, dict) or trigger_value.get('scope') != trigger['scope'] \
                 or not isinstance(nested, dict) \
                 or nested.get('id') != trigger['windowId'] or nested.get('label') != trigger['label']:
             fail('PRIOR_PRECHILD_FAILURE')
         try:
-            recovery_root = canonical_directory(recovery['repositoryRoot'])
+            recovery_root = canonical_directory_through_ancestor_alias(recovery['repositoryRoot'])
             script_path = Path(recovery['scriptPath'])
+            resolved_script_path = script_path.resolve(strict=True)
+            script_info = script_path.lstat()
         except (IssueError, OSError, TypeError, ValueError) as error:
             raise IssueError('PRIOR_PRECHILD_FAILURE') from error
-        if script_path != recovery_root / recovery['scriptRelativePath']:
+        if script_path.is_symlink() or not stat.S_ISREG(script_info.st_mode) \
+                or resolved_script_path != recovery_root / recovery['scriptRelativePath']:
             fail('PRIOR_PRECHILD_FAILURE')
         try:
             script_blob = git_blob(recovery_root, recovery['head'], recovery['scriptRelativePath'])
@@ -1158,15 +1355,22 @@ def validate_prior_prechild_failures(options, runtime):
 
 
 def validate_process_recovery_lineage(runtime, historical_measure, old_inherited,
-                                      current_roots, current_mappings):
+                                      current_roots, current_mappings,
+                                      current_live_mappings=None, relocation=None):
     code = 'PRIOR_PROCESS_FAILURE_LINEAGE'
+    historical_measure = relocate_runtime_value(historical_measure, relocation)
+    old_inherited = relocate_runtime_value(old_inherited, relocation)
+    current_live_mappings = relocate_runtime_value(current_live_mappings, relocation)
     runtime = Path(runtime)
     if not isinstance(historical_measure, dict) \
             or set(historical_measure) != {
                 'measureRootRecovery', 'window', 'ownedManifest', 'candidateRepository'} \
             or not isinstance(old_inherited, list) or len(old_inherited) != 73 \
             or not isinstance(current_roots, list) or len(current_roots) != 73 \
-            or not isinstance(current_mappings, list) or len(current_mappings) != 7:
+            or not isinstance(current_mappings, list) or len(current_mappings) != 7 \
+            or current_live_mappings is not None and (
+                not isinstance(current_live_mappings, list)
+                or len(current_live_mappings) != 63):
         fail(code)
     binding = historical_measure['measureRootRecovery']
     measure_window = historical_measure['window']
@@ -1182,9 +1386,12 @@ def validate_process_recovery_lineage(runtime, historical_measure, old_inherited
     receipt_path = Path(str(binding.get('path', '')))
     try:
         recovery_root = canonical_directory(receipt_path.parent, runtime)
-        receipt, receipt_sha = strict_json(receipt_path, binding['sha256'], maximum=4 * 1024 * 1024)
+        receipt, receipt_sha = strict_json(
+            receipt_path, binding['sha256'], maximum=4 * 1024 * 1024,
+            relocation=relocation)
         owned_path = Path(owned_binding['path'])
-        strict_json(owned_path, owned_binding['sha256'], maximum=16 * 1024 * 1024)
+        strict_json(owned_path, owned_binding['sha256'], maximum=16 * 1024 * 1024,
+                    relocation=relocation)
     except (IssueError, OSError, TypeError, ValueError) as error:
         raise IssueError(code) from error
     receipt_keys = {
@@ -1192,11 +1399,16 @@ def validate_process_recovery_lineage(runtime, historical_measure, old_inherited
         'historicalManifest', 'liveDeviceRemap', 'repository', 'recoveryTool', 'mappings',
         'activeBenchmarkInput', 'contentRecovered', 'historicalManifestRewritten',
         'deviceOpened', 'formalReady', 'gateB'}
+    relocation_receipt = isinstance(receipt, dict) \
+        and receipt.get('model') == RELOCATION_RECOVERY_MODEL
+    if relocation_receipt:
+        receipt_keys.add('liveRootRemap')
     expected_repository = {**candidate, 'clean': True, 'pushedHead': True}
     repository = receipt.get('repository') if isinstance(receipt, dict) else None
     tool = receipt.get('recoveryTool') if isinstance(receipt, dict) else None
     mappings = receipt.get('mappings') if isinstance(receipt, dict) else None
     remap = receipt.get('liveDeviceRemap') if isinstance(receipt, dict) else None
+    root_remap = receipt.get('liveRootRemap') if isinstance(receipt, dict) else None
     benchmark = receipt.get('activeBenchmarkInput') if isinstance(receipt, dict) else None
     if receipt_path != recovery_root / 'recovery.json' or recovery_root.parent != runtime \
             or stat.S_IMODE(recovery_root.stat().st_mode) != 0o700 \
@@ -1205,14 +1417,14 @@ def validate_process_recovery_lineage(runtime, historical_measure, old_inherited
             or receipt.get('schemaVersion') != 1 \
             or receipt.get('scope') != 'musicbridge-capacity-measure-root-recovery' \
             or receipt.get('access') != 'read-only' or receipt.get('state') != 'PUBLISHED' \
-            or receipt.get('model') != RECOVERY_MODEL \
+            or receipt.get('model') not in {RECOVERY_MODEL, RELOCATION_RECOVERY_MODEL} \
             or receipt.get('windowId') != measure_window['id'] \
             or receipt.get('historicalManifest') != owned_binding \
             or repository != expected_repository \
             or not isinstance(remap, dict) \
             or set(remap) != {'mode', 'historicalDevice', 'currentDevice', 'liveRootCount'} \
             or type(remap.get('historicalDevice')) is not int \
-            or remap.get('currentDevice') != runtime.stat().st_dev \
+            or current_live_mappings is None and remap.get('currentDevice') != runtime.stat().st_dev \
             or remap.get('liveRootCount') != 63 \
             or remap.get('mode') != (
                 'UNCHANGED' if remap['historicalDevice'] == remap['currentDevice'] else 'REMAPPED') \
@@ -1231,6 +1443,23 @@ def validate_process_recovery_lineage(runtime, historical_measure, old_inherited
             or SHA256.fullmatch(str(tool.get('workingSha256', ''))) is None \
             or not isinstance(mappings, list) or len(mappings) != 7:
         fail(code)
+    if relocation_receipt:
+        historical_runtime = Path(root_remap.get('historicalRuntime', '')) \
+            if isinstance(root_remap, dict) else Path('')
+        if not isinstance(root_remap, dict) \
+                or set(root_remap) != {
+                    'mode', 'historicalRuntime', 'currentRuntime', 'liveRootCount', 'mappings'} \
+                or root_remap.get('mode') != 'PREFIX_RELOCATION' \
+                or root_remap.get('currentRuntime') != str(runtime) \
+                or root_remap.get('liveRootCount') != 63 \
+                or not isinstance(root_remap.get('mappings'), list) \
+                or len(root_remap['mappings']) != 63 \
+                or not historical_runtime.is_absolute() \
+                or Path(os.path.normpath(str(historical_runtime))) != historical_runtime \
+                or historical_runtime == runtime \
+                or current_live_mappings is not None \
+                and root_remap['mappings'] != current_live_mappings:
+            fail(code)
     candidate_root = Path(candidate['root'])
     try:
         if tool['path'] != str(candidate_root / RECOVERY_TOOL_RELATIVE) \
@@ -1250,6 +1479,7 @@ def validate_process_recovery_lineage(runtime, historical_measure, old_inherited
     except (IssueError, OSError, TypeError, ValueError) as error:
         raise IssueError(code) from error
     old_replacements = []
+    observed_old_replacements = []
     historical_roots = []
     replacement_names = []
     marker_ids = set()
@@ -1265,9 +1495,10 @@ def validate_process_recovery_lineage(runtime, historical_measure, old_inherited
                     or set(replacement) != {'path', 'device', 'inode', 'marker', 'role'} \
                     or replacement.get('role') != 'historical-control-only':
                 fail(code)
-            normalized = validate_root({key: replacement[key]
-                                        for key in ('path', 'device', 'inode', 'marker')})
+            normalized = historical_root({key: replacement[key]
+                                          for key in ('path', 'device', 'inode', 'marker')})
             replacement_path = Path(normalized['path'])
+            observed_replacement = current_root(replacement_path, 'owner.json')
             owner, owner_sha = strict_json(
                 replacement_path / 'owner.json', normalized['marker']['sha256'], maximum=1024 * 1024)
         except (IssueError, KeyError, OSError, TypeError, ValueError) as error:
@@ -1283,9 +1514,12 @@ def validate_process_recovery_lineage(runtime, historical_measure, old_inherited
                 or owner.get('role') != 'historical-control-only' \
                 or owner.get('historicalRoot') != historical or owner.get('recovered') is not False \
                 or owner_sha != normalized['marker']['sha256'] \
+                or observed_replacement['path'] != normalized['path'] \
+                or observed_replacement['marker'] != normalized['marker'] \
                 or not path_is_absent(historical['path']):
             fail(code)
         historical_roots.append(historical); old_replacements.append(normalized)
+        observed_old_replacements.append(observed_replacement)
         replacement_names.append(replacement_path.name)
         marker_ids.add(owner['id'])
     if len({row['path'] for row in historical_roots}) != 7 \
@@ -1310,11 +1544,52 @@ def validate_process_recovery_lineage(runtime, historical_measure, old_inherited
                                          for key in ('path', 'device', 'inode', 'marker')})
         except (IssueError, KeyError, TypeError) as error:
             raise IssueError(code) from error
-    if old_inherited[:63] != current_roots[:63] \
+    if current_live_mappings is None:
+        live_lineage_valid = old_inherited[:63] == current_roots[:63] \
+            and old_inherited[70:] == current_roots[70:]
+        current_device = remap['currentDevice']
+        old_replacement_device = remap['currentDevice']
+    else:
+        historical_live = []
+        current_live = []
+        try:
+            for mapping in current_live_mappings:
+                if not isinstance(mapping, dict) \
+                        or set(mapping) != {'historicalRoot', 'currentRoot'}:
+                    fail(code)
+                historical_live.append(historical_root(mapping['historicalRoot']))
+                current_live.append(historical_root(mapping['currentRoot']))
+        except (IssueError, KeyError, TypeError) as error:
+            raise IssueError(code) from error
+        current_devices = {root['device'] for root in current_live}
+        current_device = next(iter(current_devices)) if len(current_devices) == 1 else None
+        if relocation is not None:
+            live_lineage_valid = old_inherited[:63] == current_live \
+                and current_roots[:63] == current_live \
+                and old_inherited[70:] == current_roots[70:] \
+                and current_device == runtime.stat().st_dev \
+                and all(root['device'] == remap['historicalDevice'] for root in historical_live)
+            old_replacement_device = current_device
+        else:
+            previous_historical_live = [
+                {**root, 'device': remap['historicalDevice']} for root in old_inherited[:63]]
+            tail_lineage = zip(old_inherited[70:], current_roots[70:])
+            live_lineage_valid = previous_historical_live == historical_live \
+                and current_roots[:63] == current_live \
+                and current_device == runtime.stat().st_dev \
+                and all(old['device'] == remap['currentDevice']
+                        and current['device'] == current_device
+                        and old['path'] == current['path']
+                        and old['marker'] == current['marker']
+                        for old, current in tail_lineage)
+            old_replacement_device = remap['currentDevice']
+    if not live_lineage_valid \
             or old_inherited[63:70] != old_replacements \
             or current_roots[63:70] != current_replacements \
             or historical_roots != current_historical \
-            or old_inherited[70:] != current_roots[70:]:
+            or any(root['device'] != old_replacement_device for root in old_replacements) \
+            or any(root['device'] != current_device for root in observed_old_replacements) \
+            or any(root['device'] != current_device for root in current_replacements):
         fail(code)
     return {'translated': True, 'stableRootCount': 66, 'replacementCount': 7,
             'historicalRoots': historical_roots,
@@ -1324,7 +1599,7 @@ def validate_process_recovery_lineage(runtime, historical_measure, old_inherited
                 recovery_root, {'recovery.json', *replacement_names})}
 
 
-def validate_prior_process_failures(options, runtime, expected_inherited_roots=None):
+def validate_prior_process_failures(options, runtime, expected_inherited_roots=None, relocation=None):
     rows = options.prior_process_failure
     if not isinstance(rows, list) or not rows or len(rows) > 64 \
             :
@@ -1442,38 +1717,42 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
                 or str(parent) in seen_roots or window_id in seen_windows \
                 or window_dir_name in seen_dirs or label in seen_labels:
             fail('PRIOR_PROCESS_FAILURE')
-        if directory_snapshot(parent, parent_entries)['entries'] != sorted(parent_entries) \
+        observed_parent_entries = parent_entries | ({label} if (parent / label).exists() else set())
+        if directory_snapshot(parent, observed_parent_entries)['entries'] != sorted(observed_parent_entries) \
                 or directory_snapshot(issuer_identity, {'owner.json'})['entries'] != ['owner.json'] \
                 or directory_snapshot(supervision_directory, supervision_entries)['entries'] != \
                 sorted(supervision_entries):
             fail('PRIOR_PROCESS_FAILURE')
 
-        owner, observed_owner_sha = strict_json(parent / 'owner.json', owner_sha, maximum=1024 * 1024)
+        owner, observed_owner_sha = strict_json(
+            parent / 'owner.json', owner_sha, maximum=1024 * 1024, relocation=relocation)
         issuer_fact, observed_issuer_fact_sha = strict_json(
-            issuer_identity / 'owner.json', issuer_fact_sha)
-        source, observed_source_sha = strict_json(parent / 'source-pins.json', source_sha)
-        owned, observed_owned_sha = strict_json(parent / 'owned-roots.json', owned_sha)
-        window, observed_window_sha = strict_json(parent / 'window.json', window_sha)
-        close, observed_close_sha = strict_json(close_path, close_sha)
+            issuer_identity / 'owner.json', issuer_fact_sha, relocation=relocation)
+        source, observed_source_sha = strict_json(
+            parent / 'source-pins.json', source_sha, relocation=relocation)
+        owned, observed_owned_sha = strict_json(
+            parent / 'owned-roots.json', owned_sha, relocation=relocation)
+        window, observed_window_sha = strict_json(
+            parent / 'window.json', window_sha, relocation=relocation)
+        close, observed_close_sha = strict_json(close_path, close_sha, relocation=relocation)
         supervision, observed_supervision_sha = strict_json(
-            supervision_directory / 'supervisor.json', supervision_sha)
+            supervision_directory / 'supervisor.json', supervision_sha, relocation=relocation)
         start, observed_start_sha = strict_json(
-            supervision_directory / 'supervisor-start.json', start_sha)
+            supervision_directory / 'supervisor-start.json', start_sha, relocation=relocation)
         installed_supervisor = verified_file(
             parent / 'supervisor.py', supervisor_sha, 'PRIOR_PROCESS_FAILURE')
         stdout_path = supervision_directory / 'stdout.log'
         stderr_path = supervision_directory / 'stderr.log'
         stdout_snapshot = file_snapshot(stdout_path, stdout_sha)
         stderr_snapshot = file_snapshot(stderr_path, stderr_sha)
-        if stdout_snapshot['size'] != 0 or stdout_sha != hashlib.sha256(b'').hexdigest() \
-                or stderr_snapshot['size'] <= 0:
+        if stdout_snapshot['size'] > 64 * 1024 or stderr_snapshot['size'] <= 0:
             fail('PRIOR_PROCESS_FAILURE')
         try:
+            stdout_bytes = stdout_path.read_bytes()
             stderr_bytes = stderr_path.read_bytes()
         except OSError as error:
             raise IssueError('PRIOR_PROCESS_FAILURE') from error
-        if stderr_bytes != process_failure_stderr(supervision.get('pid')) \
-                or file_snapshot(stderr_path, stderr_sha) != stderr_snapshot:
+        if file_snapshot(stderr_path, stderr_sha) != stderr_snapshot:
             fail('PRIOR_PROCESS_FAILURE')
         if not all(isinstance(value, dict) for value in
                    (owner, issuer_fact, source, owned, window, close, supervision, start)):
@@ -1677,12 +1956,25 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
                 or successor_issued_at is not None and closed_at > successor_issued_at:
             fail('PRIOR_PROCESS_FAILURE')
 
+        empty_queued = {'outputDirectory': str(parent / label), 'verifiedComplete': False,
+                        'verifiedPassed': False, 'fileCount': 0, 'sampleCount': 0,
+                        'uniqueChildPids': 0, 'aggregateBudgetValid': False,
+                        'unexpectedEntries': []}
+        retained_queued = {'outputDirectory': str(parent / label), 'verifiedComplete': False,
+                           'verifiedPassed': False, 'fileCount': 12, 'sampleCount': 0,
+                           'uniqueChildPids': 0, 'aggregateBudgetValid': False,
+                           'unexpectedEntries': ['sample-001']}
+        empty_failure = stdout_bytes == b'' and stdout_sha == hashlib.sha256(b'').hexdigest() \
+            and valid_process_failure_stderr(stderr_bytes, supervision.get('pid')) \
+            and queued == empty_queued and not (parent / label).exists() \
+            and not (parent / label).is_symlink()
+        retained_failure = stdout_bytes == b'CAPACITY_PHASE_INCOMPLETE\n' \
+            and valid_retained_process_failure_stderr(stderr_bytes, supervision.get('pid')) \
+            and queued == retained_queued \
+            and _validate_retained_process_failure_output(
+                parent / label, window, window_sha, owned_sha, source_sha)
         if not isinstance(queued, dict) or set(queued) != queued_keys \
-                or queued != {'outputDirectory': str(parent / label), 'verifiedComplete': False,
-                              'verifiedPassed': False, 'fileCount': 0, 'sampleCount': 0,
-                              'uniqueChildPids': 0, 'aggregateBudgetValid': False,
-                              'unexpectedEntries': []} \
-                or (parent / label).exists() or (parent / label).is_symlink():
+                or not (empty_failure or retained_failure):
             fail('PRIOR_PROCESS_FAILURE')
         observed_process_counts = []
         for authority, remaining in ((admission, window['queuedStopPlan']['plannedBytes']),
@@ -1817,7 +2109,7 @@ def validate_prior_process_failures(options, runtime, expected_inherited_roots=N
         billing_roots.append(parent_root)
         snapshots.append({
             'windowId': window_id, 'issuedAt': window['issuedAt'], 'closedAt': close['closedAt'],
-            'root': directory_snapshot(parent, parent_entries),
+            'root': directory_snapshot(parent, observed_parent_entries),
             'issuerIdentity': directory_snapshot(issuer_identity, {'owner.json'}),
             'supervision': directory_snapshot(supervision_directory, supervision_entries),
             'inheritedRoots': inherited_roots,
@@ -2085,18 +2377,21 @@ def issue(options):
         build_helper, root, options.expected_head, paths, options, build_node,
         build_node_library, typescript_compiler)
     source = source_manifest(root, options.expected_head, derived['files'])
-    prior_failures = validate_prior_issuer_failures(options, runtime)
-    prechild_failures = validate_prior_prechild_failures(options, runtime)
     # recovery、历史根现状、durable seed 与 repo/tool 身份全部在分配新身份前完成。
     measure = validate_measure(options, runtime)
+    relocation = measure['rootRelocation']
+    prior_failures = validate_prior_issuer_failures(options, runtime, relocation)
+    prechild_failures = validate_prior_prechild_failures(options, runtime, relocation)
     expected_process_inherited = [*measure['roots'], *prior_failures['roots'],
                                   *prechild_failures['roots']]
-    process_failures = validate_prior_process_failures(options, runtime)
+    process_failures = validate_prior_process_failures(
+        options, runtime, relocation=relocation)
     if not 1 <= len(process_failures['snapshots']) <= 64:
         fail('EXACT76_V3_CARRYOVER')
     process_failures['lineage'] = [validate_process_recovery_lineage(
         runtime, snapshot['historicalMeasure'], snapshot['inheritedRoots'],
-        expected_process_inherited, measure['recoveryMappings'])
+        expected_process_inherited, measure['recoveryMappings'],
+        relocation['mappings'] if relocation is not None else None, relocation)
         for snapshot in process_failures['snapshots']]
     if len(prior_failures['roots']) != 1 or len(prechild_failures['roots']) != 1 \
             or len(process_failures['roots']) != 1:
@@ -2202,7 +2497,8 @@ def issue(options):
             or second_measure['replacementSnapshots'] != measure['replacementSnapshots'] \
             or second_measure['absentRoots'] != measure['absentRoots'] \
             or second_measure['activeBenchmarkInput'] != measure['activeBenchmarkInput'] \
-            or second_measure['liveDeviceRemap'] != measure['liveDeviceRemap']:
+            or second_measure['liveDeviceRemap'] != measure['liveDeviceRemap'] \
+            or second_measure['rootRelocation'] != measure['rootRelocation']:
         fail('MEASURE_DRIFT')
     validate_repository(root, options.expected_branch, options.expected_head)
     validate_repository(issuer_repo, options.expected_issuer_branch, options.expected_issuer_head)
@@ -2220,16 +2516,22 @@ def issue(options):
             typescript_compiler.parent, options.expected_typescript_library_manifest_sha256)
     except Exception as error:
         raise IssueError('BUILD_TOOLCHAIN_IDENTITY') from error
-    second_prior_failures = validate_prior_issuer_failures(options, runtime)
-    second_prechild_failures = validate_prior_prechild_failures(options, runtime)
+    second_relocation = second_measure['rootRelocation']
+    second_prior_failures = validate_prior_issuer_failures(
+        options, runtime, second_relocation)
+    second_prechild_failures = validate_prior_prechild_failures(
+        options, runtime, second_relocation)
     second_expected_process_inherited = [*second_measure['roots'], *second_prior_failures['roots'],
                                          *second_prechild_failures['roots']]
-    second_process_failures = validate_prior_process_failures(options, runtime)
+    second_process_failures = validate_prior_process_failures(
+        options, runtime, relocation=second_relocation)
     if not 1 <= len(second_process_failures['snapshots']) <= 64:
         fail('PRIOR_PROCESS_FAILURE_DRIFT')
     second_process_failures['lineage'] = [validate_process_recovery_lineage(
         runtime, snapshot['historicalMeasure'], snapshot['inheritedRoots'],
-        second_expected_process_inherited, second_measure['recoveryMappings'])
+        second_expected_process_inherited, second_measure['recoveryMappings'],
+        second_relocation['mappings'] if second_relocation is not None else None,
+        second_relocation)
         for snapshot in second_process_failures['snapshots']]
     if second_prior_failures['facts'] != prior_failures['facts'] \
             or second_prior_failures['roots'] != prior_failures['roots'] \

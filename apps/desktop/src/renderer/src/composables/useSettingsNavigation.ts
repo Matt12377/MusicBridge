@@ -17,8 +17,8 @@ function browserStorage(): SettingsStorage | undefined {
   }
 }
 
-function visibleCategories(buildMode: SettingsBuildMode): readonly SettingsCategory[] {
-  return buildMode === 'development' ? SETTINGS_CATEGORIES : SETTINGS_CATEGORIES.filter((category) => category !== 'advanced')
+function visibleCategories(_buildMode: SettingsBuildMode): readonly SettingsCategory[] {
+  return SETTINGS_CATEGORIES
 }
 
 function isVisibleCategory(category: string, buildMode: SettingsBuildMode): category is SettingsCategory {

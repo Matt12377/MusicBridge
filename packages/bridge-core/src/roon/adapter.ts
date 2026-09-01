@@ -944,9 +944,9 @@ export class RoonAudioInputAdapter implements RoonPort {
               media_url: request.mediaUrl,
               ...(this.playbackMode === 'track' ? { seek_position_ms: 0 } : {}),
               info: {
-                // V1 Provider Audio Input remains read-only. V2 native Roon
-                // playback uses the Zone transport path for seek instead.
-                is_seek_allowed: false,
+                // track 模式有稳定时长且 Gateway 支持 Range，允许 Core 通过
+                // 当前 Zone Transport 发起真实 seek；连续 channel 仍保持不可拖动。
+                is_seek_allowed: this.playbackMode === 'track',
                 is_pause_allowed: true,
                 ...(this.playbackMode === 'track' && request.metadata.durationMs !== undefined
                   ? { length: request.metadata.durationMs / 1000 }

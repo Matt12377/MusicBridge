@@ -358,6 +358,39 @@ function rewriteDirectRecovery(f, mutate) {
   const receipt=JSON.parse(readFileSync(f.receiptPath));mutate(receipt);chmodSync(f.receiptPath,0o600);rmSync(f.receiptPath);put(f.receiptPath,receipt);chmodSync(f.receiptPath,0o400);f.options.expected_measure_root_recovery_sha256=sha(f.receiptPath)
 }
 
+function relocateDirectRecovery(f) {
+  const historicalRuntime=f.runtime,currentRuntime=join(f.temp,'runtime-relocated')
+  renameSync(historicalRuntime,currentRuntime)
+  const currentPath=path=>join(currentRuntime,path.slice(historicalRuntime.length+1))
+  f.owned.roots=f.owned.roots.map((row,index)=>index<63?{...row,inode:row.inode+100000}:row)
+  f.ownedPath=currentPath(f.ownedPath);put(f.ownedPath,f.owned)
+  f.seed=currentPath(f.seed);f.snapshot=currentPath(f.snapshot)
+  f.recoveryRoot=currentPath(f.recoveryRoot);f.receiptPath=currentPath(f.receiptPath)
+  f.replacements=f.replacements.map((row,index)=>({
+    ...rootIdentity(join(f.recoveryRoot,`replacement-${String(index+1).padStart(3,'0')}`),'owner.json'),
+    role:'historical-control-only',
+  }))
+  const historicalLive=f.owned.roots.slice(0,63)
+  const currentLive=historicalLive.map(row=>rootIdentity(currentPath(row.path),row.marker.relative))
+  f.receipt={...f.receipt,
+    model:'exact75-v3-runtime-relocation-closure',
+    historicalManifest:{path:f.ownedPath,sha256:sha(f.ownedPath)},
+    liveDeviceRemap:{mode:'REMAPPED',historicalDevice:historicalLive[0].device,
+      currentDevice:lstatSync(currentRuntime).dev,liveRootCount:63},
+    liveRootRemap:{mode:'PREFIX_RELOCATION',historicalRuntime,currentRuntime,liveRootCount:63,
+      mappings:historicalLive.map((historicalRoot,index)=>({historicalRoot,currentRoot:currentLive[index]}))},
+    mappings:f.absent.map((historicalRoot,index)=>({historicalRoot,state:'LOST',recovered:false,
+      replacementRoot:f.replacements[index]})),
+    activeBenchmarkInput:{model:'durable-seed-snapshot',path:f.snapshot,sha256:sha(f.snapshot)},
+  }
+  chmodSync(f.receiptPath,0o600);rmSync(f.receiptPath);put(f.receiptPath,f.receipt);chmodSync(f.receiptPath,0o400)
+  f.runtime=currentRuntime
+  f.options={...f.options,measure_root_recovery:f.receiptPath,
+    expected_measure_root_recovery_sha256:sha(f.receiptPath),
+    expected_measure_owned_sha256:sha(f.ownedPath),expected_seed_snapshot_sha256:sha(f.snapshot)}
+  return f
+}
+
 function validateDirectRecovery(f) {
   return pythonCall("o=types.SimpleNamespace(**json.loads(sys.argv[2]));owned=json.loads(m.Path(sys.argv[4]).read_text());\ntry:\n value=m.validate_measure_root_recovery(o,m.Path(sys.argv[3]),m.Path(sys.argv[4]),owned,m.Path(sys.argv[5]),m.Path(sys.argv[6]));print(json.dumps({'live':len(value['liveRoots']),'replacement':len(value['replacementRoots']),'input':value['activeBenchmarkInput']}))\nexcept m.IssueError as error:\n print(error);raise SystemExit(1)",JSON.stringify(f.options),f.runtime,f.ownedPath,f.seed,f.snapshot)
 }
@@ -371,10 +404,11 @@ function processRecoveryLineageFixture() {
   for(const name of ['measure-output','issuer-failure','prechild-failure']){const path=join(f.runtime,`lineage-${name}`);mkdirSync(path);put(join(path,'owner.json'),{scope:name});suffix.push(rootIdentity(path,'owner.json'))}
   const currentMappings=f.absent.map((historicalRoot,index)=>({historicalRoot,state:'LOST',recovered:false,replacementRoot:currentReplacements[index]}))
   const historicalMeasure={measureRootRecovery:{path:f.receiptPath,sha256:sha(f.receiptPath)},window:{id:f.receipt.windowId},ownedManifest:f.receipt.historicalManifest,candidateRepository:{root:f.repo,branch:'main',head:f.options.expected_head}}
-  return {...f,historicalMeasure,currentMappings,oldInherited:[...stable,...f.replacements.map(({role,...row})=>row),...suffix],currentRoots:[...stable,...currentReplacements.map(({role,...row})=>row),...suffix]}
+  const currentLiveMappings=stable.map((currentRoot,index)=>({historicalRoot:f.owned.roots[index],currentRoot}))
+  return {...f,historicalMeasure,currentMappings,currentLiveMappings,oldInherited:[...stable,...f.replacements.map(({role,...row})=>row),...suffix],currentRoots:[...stable,...currentReplacements.map(({role,...row})=>row),...suffix]}
 }
 
-function validateProcessLineage(f,historicalMeasure=f.historicalMeasure,currentMappings=f.currentMappings,currentRoots=f.currentRoots,oldInherited=f.oldInherited){return pythonCall("try:\n value=m.validate_process_recovery_lineage(m.Path(sys.argv[2]),json.loads(sys.argv[3]),json.loads(sys.argv[4]),json.loads(sys.argv[5]),json.loads(sys.argv[6]));print(json.dumps(value))\nexcept m.IssueError as error:\n print(error);raise SystemExit(1)",f.runtime,JSON.stringify(historicalMeasure),JSON.stringify(oldInherited),JSON.stringify(currentRoots),JSON.stringify(currentMappings))}
+function validateProcessLineage(f,historicalMeasure=f.historicalMeasure,currentMappings=f.currentMappings,currentRoots=f.currentRoots,oldInherited=f.oldInherited,currentLiveMappings=f.currentLiveMappings,relocation=null){return pythonCall("try:\n value=m.validate_process_recovery_lineage(m.Path(sys.argv[2]),json.loads(sys.argv[3]),json.loads(sys.argv[4]),json.loads(sys.argv[5]),json.loads(sys.argv[6]),json.loads(sys.argv[7]),json.loads(sys.argv[8]));print(json.dumps(value))\nexcept m.IssueError as error:\n print(error);raise SystemExit(1)",f.runtime,JSON.stringify(historicalMeasure),JSON.stringify(oldInherited),JSON.stringify(currentRoots),JSON.stringify(currentMappings),JSON.stringify(currentLiveMappings),JSON.stringify(relocation))}
 
 test('pre-child terminalizer只封存零样本控制面崩溃且禁止重复写入',()=>{
   const f=prechildTerminalFixture()
@@ -527,6 +561,17 @@ test('pre-child terminalizer对畸形authority、candidate与witness返回域错
 test('queued-stop issuer生产入口存在且拒绝空参数',()=>{assert.equal(existsSync(sourceIssuer),true);const r=spawnSync(python,[sourceIssuer],{encoding:'utf8'});assert.equal(r.status,2);assert.match(r.stderr,/required/u)})
 test('validate_measure_root_recovery直接接受统一设备代际映射的真实63 live加7 absent',()=>{const f=directRecoveryFixture();try{const r=validateDirectRecovery(f);assert.equal(r.status,0,r.stdout+r.stderr);assert.deepEqual(JSON.parse(r.stdout),{live:63,replacement:7,input:{model:'durable-seed-snapshot',path:f.snapshot,sha256:sha(f.snapshot)}});assert.deepEqual(JSON.parse(readFileSync(f.receiptPath)).liveDeviceRemap,{mode:'REMAPPED',historicalDevice:f.owned.roots[0].device,currentDevice:lstatSync(f.runtime).dev,liveRootCount:63})}finally{f.cleanup()}})
 test('validate_measure_root_recovery由相同历史与当前device派生UNCHANGED',()=>{const f=directRecoveryFixture(false);try{const r=validateDirectRecovery(f);assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(JSON.parse(readFileSync(f.receiptPath)).liveDeviceRemap.mode,'UNCHANGED')}finally{f.cleanup()}})
+test('validate_measure_root_recovery接受显式runtime relocation并冻结63个旧新root身份',()=>{const f=relocateDirectRecovery(directRecoveryFixture());try{const r=validateDirectRecovery(f);assert.equal(r.status,0,r.stdout+r.stderr);assert.deepEqual(JSON.parse(r.stdout),{live:63,replacement:7,input:{model:'durable-seed-snapshot',path:f.snapshot,sha256:sha(f.snapshot)}})}finally{f.cleanup()}})
+test('validate_measure在比较冻结窗口字段前从已钉死recovery收据取得runtime relocation',()=>{const f=relocateDirectRecovery(directRecoveryFixture());try{
+  const historical=f.receipt.liveRootRemap.historicalRuntime,current=f.runtime
+  const value={supervisor:{path:`${historical}/measure-window/supervisor.py`},futureRoots:[`${historical}/measure-output`]}
+  const r=pythonCall("o=types.SimpleNamespace(**json.loads(sys.argv[2]));rel=m.provisional_measure_relocation(o,m.Path(sys.argv[3]));print(json.dumps(m.relocate_runtime_value(json.loads(sys.argv[4]),rel)))",JSON.stringify(f.options),f.runtime,JSON.stringify(value))
+  assert.equal(r.status,0,r.stdout+r.stderr);assert.deepEqual(JSON.parse(r.stdout),{supervisor:{path:`${current}/measure-window/supervisor.py`},futureRoots:[`${current}/measure-output`]})
+  const source=readFileSync(sourceIssuer,'utf8'),start=source.indexOf('def validate_measure(options, runtime):'),body=source.slice(start,source.indexOf('\ndef replay_check(',start))
+  assert.ok(body.indexOf('provisional_measure_relocation(options, runtime)')<body.indexOf('window, _ = strict_json('))
+  assert.match(body,/strict_json\(\s*window_path, options\.expected_measure_window_sha256, relocation=relocation\)/u)
+  assert.match(body,/validate_measure_root_recovery\([\s\S]*historical_owned/u)
+}finally{f.cleanup()}})
 test('validate_measure_root_recovery拒绝非exact或不自洽liveDeviceRemap及设备集合',async t=>{
   const cases=[
     ['缺remap',f=>rewriteDirectRecovery(f,r=>{delete r.liveDeviceRemap})],
@@ -571,7 +616,47 @@ test('纯source validator拒绝候选漂移',()=>{const f=fixture();try{writeFil
 test('纯source validator只接受重建证明绑定的未跟踪contracts dist',()=>{const f=fixture();try{const relative='packages/contracts/dist/generated.js',digest=sha(join(f.root,relative));const r=pythonCall("value=m.source_manifest(m.Path(sys.argv[2]),sys.argv[3],json.loads(sys.argv[4]));print(json.dumps(value))",f.root,f.head,JSON.stringify({[relative]:digest}));assert.equal(r.status,0,r.stderr);const value=JSON.parse(r.stdout);assert.equal(Object.keys(value.files).length,243);assert.equal(value.files[relative],digest)}finally{cleanup(f)}})
 test('下一authority必须精确继承prior queued issuer failure根及完整身份快照',()=>{const f=fixture();try{const prior=priorIssuerFailure(f),o=options(f);o.prior_issuer_failure=[prior.argv];const r=pythonCall("o=types.SimpleNamespace(**json.loads(sys.argv[2]));value=m.validate_prior_issuer_failures(o,m.Path(sys.argv[3]));print(json.dumps(value))",JSON.stringify(o),f.runtime);assert.equal(r.status,0,r.stderr);const value=JSON.parse(r.stdout);assert.equal(value.roots.length,1);assert.equal(value.facts[0].windowId,prior.windowId);assert.equal(value.roots[0].path,prior.parent);assert.equal(value.snapshots.length,1);assert.deepEqual(Object.keys(value.snapshots[0].files).sort(),['failure','issuerFact','owner','supervisor']);assert.equal(value.snapshots[0].issuerIdentity.path,join(prior.parent,'issuer-identity'))}finally{cleanup(f)}})
 test('下一authority必须把已发布但pre-child失败的完整authority作为独立carryover根',()=>{const f=fixture();try{const prior=priorPrechildFailure(f),o=options(f);o.prior_prechild_failure=[prior.argv];const r=pythonCall("o=types.SimpleNamespace(**json.loads(sys.argv[2]));value=m.validate_prior_prechild_failures(o,m.Path(sys.argv[3]));print(json.dumps(value))",JSON.stringify(o),f.runtime);assert.equal(r.status,0,r.stderr);const value=JSON.parse(r.stdout);assert.equal(value.roots.length,1);assert.equal(value.facts[0].windowId,prior.windowId);assert.equal(value.roots[0].path,prior.parent);assert.deepEqual(Object.keys(value.facts[0].files).sort(),['failure','issuerFact','ownedManifest','owner','sourceManifest','supervisor','window'])}finally{cleanup(f)}})
+test('pre-child carryover接受祖先目录symlink下的同一冻结Git恢复仓库',()=>{const f=fixture();try{
+  const prior=priorPrechildFailure(f),legacyParent=join(f.root,'legacy-parent')
+  symlinkSync(dirname(f.root),legacyParent)
+  const legacyRoot=join(legacyParent,f.root.slice(f.root.lastIndexOf('/')+1))
+  const failure=JSON.parse(readFileSync(prior.failure))
+  failure.recovery.repositoryRoot=legacyRoot
+  failure.recovery.scriptPath=join(legacyRoot,failure.recovery.scriptRelativePath)
+  put(prior.failure,failure);prior.argv[1]=sha(prior.failure)
+  const o=options(f);o.prior_prechild_failure=[prior.argv]
+  const r=pythonCall("o=types.SimpleNamespace(**json.loads(sys.argv[2]));value=m.validate_prior_prechild_failures(o,m.Path(sys.argv[3]));print(json.dumps(value))",JSON.stringify(o),f.runtime)
+  assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(JSON.parse(r.stdout).facts[0].windowId,prior.windowId)
+}finally{cleanup(f)}})
 test('下一authority必须把已终态PROCESS_EXIT完整目录作为独立carryover根',()=>{const f=fixture();try{const prior=priorProcessFailure(f),o=options(f);o.prior_process_failure=[prior.argv];const r=pythonCall("o=types.SimpleNamespace(**json.loads(sys.argv[2]));value=m.validate_prior_process_failures(o,m.Path(sys.argv[3]),json.loads(sys.argv[4]));print(json.dumps(value))",JSON.stringify(o),f.runtime,JSON.stringify(prior.historicalRoots));assert.equal(r.status,0,r.stderr);const value=JSON.parse(r.stdout);assert.equal(value.roots.length,1);assert.equal(value.facts[0].windowId,prior.windowId);assert.equal(value.roots[0].path,prior.parent);assert.deepEqual(Object.keys(value.facts[0].files).sort(),['close','issuerFact','ownedManifest','owner','sourceManifest','stderr','stdout','supervision','supervisor','supervisorStart','window']);assert.equal(value.facts[0].files.stderr.sha256,'0dfbd76c742fe7754a435fcb368a34dabe21adbdd23338ee9145ad5afb157298');assert.deepEqual(value.snapshots[0].supervision.entries,['stderr.log','stdout.log','supervisor-start.json','supervisor.json'])}finally{cleanup(f)}})
+
+test('PROCESS_EXIT carryover接受消费者输出的有界WINDOW_INVALID失败码',()=>{const f=fixture();try{const prior=priorProcessFailure(f);writeFileSync(prior.stderr,'CAPACITY_PHASE_WINDOW_INVALID\n(node:313) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n');refreshProcessFailure(prior);const o=options(f);o.prior_process_failure=[prior.argv];const r=pythonCall("o=types.SimpleNamespace(**json.loads(sys.argv[2]));value=m.validate_prior_process_failures(o,m.Path(sys.argv[3]),json.loads(sys.argv[4]));print(json.dumps(value))",JSON.stringify(o),f.runtime,JSON.stringify(prior.historicalRoots));assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(JSON.parse(r.stdout).facts[0].windowId,prior.windowId)}finally{cleanup(f)}})
+
+test('PROCESS_EXIT carryover接受已固化的首样本preflight失败输出而不把它冒充样本',()=>{const f=fixture();try{
+  const prior=priorProcessFailure(f),output=join(prior.parent,prior.label);mkdirSync(output)
+  writeFileSync(prior.stdout,'CAPACITY_PHASE_INCOMPLETE\n')
+  writeFileSync(prior.stderr,'(node:313) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n')
+  const partial={outputDirectory:output,verifiedComplete:false,verifiedPassed:false,fileCount:12,
+    sampleCount:0,uniqueChildPids:0,aggregateBudgetValid:false,unexpectedEntries:['sample-001']}
+  put(prior.supervision,{...JSON.parse(readFileSync(prior.supervision)),queuedStop:partial})
+  put(prior.close,{...JSON.parse(readFileSync(prior.close)),queuedStop:partial})
+  refreshProcessFailure(prior);const o=options(f);o.prior_process_failure=[prior.argv]
+  const r=pythonCall("m._validate_retained_process_failure_output=lambda *args: True\no=types.SimpleNamespace(**json.loads(sys.argv[2]));value=m.validate_prior_process_failures(o,m.Path(sys.argv[3]),json.loads(sys.argv[4]));print(json.dumps(value))",JSON.stringify(o),f.runtime,JSON.stringify(prior.historicalRoots))
+  assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(JSON.parse(r.stdout).facts[0].windowId,prior.windowId)
+}finally{cleanup(f)}})
+
+test('runtime relocation对issuer、prechild与PROCESS_EXIT历史事实只做内存路径翻译',()=>{const f=fixture();try{
+  const issuer=priorIssuerFailure(f),prechild=priorPrechildFailure(f),process=priorProcessFailure(f),o=options(f)
+  const historicalRuntime=f.runtime,currentRuntime=`${f.runtime}-relocated`;renameSync(historicalRuntime,currentRuntime)
+  const mapPath=value=>typeof value==='string'&&value.startsWith(`${historicalRuntime}/`)?`${currentRuntime}${value.slice(historicalRuntime.length)}`:value
+  const mapArgv=values=>values.map((value,index)=>index===0?mapPath(value):value)
+  const expected=process.historicalRoots.map(row=>rootIdentity(mapPath(row.path),row.marker.relative))
+  const relocation={mode:'PREFIX_RELOCATION',historicalRuntime,currentRuntime,liveRootCount:63,
+    mappings:expected.slice(0,63).map((currentRoot,index)=>({historicalRoot:process.historicalRoots[index],currentRoot}))}
+  o.prior_issuer_failure=[mapArgv(issuer.argv)];o.prior_prechild_failure=[mapArgv(prechild.argv)];o.prior_process_failure=[mapArgv(process.argv)]
+  const r=pythonCall("o=types.SimpleNamespace(**json.loads(sys.argv[2]));rel=json.loads(sys.argv[4]);a=m.validate_prior_issuer_failures(o,m.Path(sys.argv[3]),rel);b=m.validate_prior_prechild_failures(o,m.Path(sys.argv[3]),rel);c=m.validate_prior_process_failures(o,m.Path(sys.argv[3]),json.loads(sys.argv[5]),rel);print(json.dumps({'issuer':a['roots'][0]['path'],'prechild':b['roots'][0]['path'],'process':c['roots'][0]['path']}))",JSON.stringify(o),currentRuntime,JSON.stringify(relocation),JSON.stringify(expected))
+  assert.equal(r.status,0,r.stdout+r.stderr);assert.deepEqual(JSON.parse(r.stdout),{issuer:mapPath(issuer.parent),prechild:mapPath(prechild.parent),process:mapPath(process.parent)})
+}finally{cleanup(f)}})
 
 test('PROCESS_EXIT head压缩递归接受window05到window03并计费完整可达链',()=>{const f=fixture();try{const {leaf,head}=linkedProcessFailure(f);writeFileSync(head.stderr,'CAPACITY_PHASE_OPERATION_FAILED\n(node:97229) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n');const start=JSON.parse(readFileSync(head.supervisorStart));start.pid=97229;start.pgid=97229;put(head.supervisorStart,start);const supervision=JSON.parse(readFileSync(head.supervision));supervision.pid=97229;supervision.pgid=97229;put(head.supervision,supervision);const close=JSON.parse(readFileSync(head.close));close.pid=97229;close.pgid=97229;put(head.close,close);refreshProcessFailure(head);const o=options(f);o.prior_process_failure=[head.argv];const r=pythonCall("o=types.SimpleNamespace(**json.loads(sys.argv[2]));v=m.validate_prior_process_failures(o,m.Path(sys.argv[3]),json.loads(sys.argv[4]));print(json.dumps({'roots':[x['path'] for x in v['roots']],'billing':[x['path'] for x in v['billingRoots']],'snapshots':[x['windowId'] for x in v['snapshots']]}))",JSON.stringify(o),f.runtime,JSON.stringify(head.historicalRoots));assert.equal(r.status,0,r.stdout+r.stderr);const v=JSON.parse(r.stdout);assert.deepEqual(v.roots,[head.parent]);assert.deepEqual(v.billing.sort(),[leaf.parent,head.parent].sort());assert.deepEqual(v.snapshots,[head.windowId,leaf.windowId])}finally{cleanup(f)}})
 
@@ -589,6 +674,31 @@ test('PROCESS_EXIT head压缩拒绝nested row与owned[73]错配、reorder、fork
 test('PROCESS_EXIT carryover拒绝重哈希后前缀正确但正文漂移的stderr',()=>{const f=fixture();try{const prior=priorProcessFailure(f);writeFileSync(prior.stderr,'CAPACITY_PHASE_OPERATION_FAILED\n(node:314) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n');const stderrFact={path:prior.stderr,exists:true,size:statSync(prior.stderr).size,sha256:sha(prior.stderr)};const supervision=JSON.parse(readFileSync(prior.supervision));supervision.stderr=stderrFact;put(prior.supervision,supervision);const close=JSON.parse(readFileSync(prior.close));close.stderr=stderrFact;close.supervisorSha256=sha(prior.supervision);put(prior.close,close);prior.argv[1]=sha(prior.close);prior.argv[8]=sha(prior.supervision);prior.argv[11]=sha(prior.stderr);const o=options(f);o.prior_process_failure=[prior.argv];const r=pythonCall("o=types.SimpleNamespace(**json.loads(sys.argv[2]));\ntry:m.validate_prior_process_failures(o,m.Path(sys.argv[3]),json.loads(sys.argv[4]))\nexcept m.IssueError as e:print(e);raise SystemExit(1)",JSON.stringify(o),f.runtime,JSON.stringify(prior.historicalRoots));assert.equal(r.status,1,r.stderr);assert.match(r.stdout,/PRIOR_PROCESS_FAILURE/u)}finally{cleanup(f)}})
 
 test('PROCESS_EXIT exact75稳定根及issuer/prechild仍逐项有序绑定',async t=>{for(const [name,mutate] of [['新增任意根',roots=>roots.push(structuredClone(roots[0]))],['marker替换',roots=>{roots[0].marker.sha256='f'.repeat(64)}],['issuer-prechild互换',roots=>{[roots[71],roots[72]]=[roots[72],roots[71]]}]])await t.test(name,()=>{const f=processRecoveryLineageFixture();try{const roots=structuredClone(f.currentRoots);mutate(roots);const r=validateProcessLineage(f,f.historicalMeasure,f.currentMappings,roots);assert.equal(r.status,1,r.stdout+r.stderr);assert.match(r.stdout,/PRIOR_PROCESS_FAILURE_LINEAGE/u)}finally{f.cleanup()}})})
+test('PROCESS_EXIT谱系通过显式live映射跨越第二设备代际',()=>{const f=processRecoveryLineageFixture();try{
+  const currentDevice=lstatSync(f.runtime).dev,previousDevice=currentDevice+1000
+  rewriteDirectRecovery(f,receipt=>{receipt.liveDeviceRemap.currentDevice=previousDevice
+    for(const mapping of receipt.mappings){mapping.replacementRoot.device=previousDevice;mapping.replacementRoot.inode+=100000}})
+  const historical=structuredClone(f.historicalMeasure);historical.measureRootRecovery.sha256=sha(f.receiptPath)
+  const previousLive=f.oldInherited.slice(0,63).map(row=>({...row,device:previousDevice}))
+  const previousReplacements=JSON.parse(readFileSync(f.receiptPath)).mappings.map(({replacementRoot})=>{const {role,...root}=replacementRoot;return root})
+  const previousSuffix=f.oldInherited.slice(70).map((row,index)=>({...row,device:previousDevice,inode:row.inode+200000+index}))
+  const old=[...previousLive,...previousReplacements,...previousSuffix]
+  const r=validateProcessLineage(f,historical,f.currentMappings,f.currentRoots,old,f.currentLiveMappings)
+  assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(JSON.parse(r.stdout).stableRootCount,66)
+}finally{f.cleanup()}})
+test('PROCESS_EXIT谱系接受已迁移runtime的V3历史恢复收据',()=>{const f=processRecoveryLineageFixture();try{
+  const historicalRuntime=join(f.temp,'historical-runtime')
+  const relocation={mode:'PREFIX_RELOCATION',historicalRuntime,currentRuntime:f.runtime,liveRootCount:63,
+    mappings:f.currentLiveMappings}
+  rewriteDirectRecovery(f,receipt=>{receipt.model='exact75-v3-runtime-relocation-closure'
+    receipt.liveRootRemap=relocation})
+  const historical=structuredClone(f.historicalMeasure)
+  historical.measureRootRecovery.sha256=sha(f.receiptPath)
+  const r=validateProcessLineage(f,historical,f.currentMappings,f.currentRoots,f.oldInherited,
+    f.currentLiveMappings,relocation)
+  assert.equal(r.status,0,r.stdout+r.stderr)
+  assert.equal(JSON.parse(r.stdout).translated,true)
+}finally{f.cleanup()}})
 test('PROCESS_EXIT roots允许recovery-01到recovery-02有序谱系翻译并拒绝映射漂移',async t=>{await t.test('跨代正例',()=>{const f=processRecoveryLineageFixture();try{const r=validateProcessLineage(f);assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(JSON.parse(r.stdout).translated,true)}finally{f.cleanup()}});for(const [name,mutate] of [['historicalRoot漂移',(f,m)=>{m[0].historicalRoot.inode+=1}],['映射重排',(f,m)=>{[m[0],m[1]]=[m[1],m[0]]}],['旧receipt漂移',(f,m,h)=>{rewriteDirectRecovery(f,r=>{r.repository.clean=false});h.measureRootRecovery.sha256=sha(f.receiptPath)}]])await t.test(name,()=>{const f=processRecoveryLineageFixture();try{const mappings=structuredClone(f.currentMappings),historical=structuredClone(f.historicalMeasure);mutate(f,mappings,historical);const r=validateProcessLineage(f,historical,mappings);assert.equal(r.status,1,r.stdout+r.stderr);assert.match(r.stdout,/PRIOR_PROCESS_FAILURE_LINEAGE/u)}finally{f.cleanup()}})})
 test('PROCESS_EXIT carryover自动审计runtime声明全集',()=>{const f=fixture();try{priorProcessFailure(f,'-a');const declared=priorProcessFailure(f,'-b'),o=options(f);o.prior_process_failure=[declared.argv];const r=pythonCall("o=types.SimpleNamespace(**json.loads(sys.argv[2]));\ntry:m.validate_prior_process_failures(o,m.Path(sys.argv[3]),json.loads(sys.argv[4]))\nexcept m.IssueError as e:print(e);raise SystemExit(1)",JSON.stringify(o),f.runtime,JSON.stringify(declared.historicalRoots));assert.equal(r.status,1);assert.match(r.stdout,/PRIOR_PROCESS_FAILURE_AUDIT/u)}finally{cleanup(f)}})
 test('PROCESS_EXIT carryover拒绝重哈希后的终态schema漂移',()=>{const f=fixture();try{const prior=priorProcessFailure(f),close=JSON.parse(readFileSync(prior.close));close.queuedStop.sampleCount=1;put(prior.close,close);prior.argv[1]=sha(prior.close);const o=options(f);o.prior_process_failure=[prior.argv];const r=pythonCall("o=types.SimpleNamespace(**json.loads(sys.argv[2]));\ntry:m.validate_prior_process_failures(o,m.Path(sys.argv[3]),json.loads(sys.argv[4]))\nexcept m.IssueError as e:print(e);raise SystemExit(1)",JSON.stringify(o),f.runtime,JSON.stringify(prior.historicalRoots));assert.equal(r.status,1);assert.match(r.stdout,/PRIOR_PROCESS_FAILURE/u)}finally{cleanup(f)}})

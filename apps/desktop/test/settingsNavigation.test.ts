@@ -17,9 +17,9 @@ const memoryStorage = () => {
 
 test('Settings categories keep the requested order and wrap keyboard movement', () => {
   assert.deepEqual(SETTINGS_CATEGORIES, ['account', 'playback', 'roon', 'application', 'advanced'])
-  assert.equal(nextSettingsCategory('account', 'ArrowLeft', 'production'), 'application')
-  assert.equal(nextSettingsCategory('application', 'ArrowRight', 'production'), 'account')
-  assert.equal(nextSettingsCategory('application', 'End', 'production'), 'application')
+  assert.equal(nextSettingsCategory('account', 'ArrowLeft', 'production'), 'advanced')
+  assert.equal(nextSettingsCategory('application', 'ArrowRight', 'production'), 'advanced')
+  assert.equal(nextSettingsCategory('application', 'End', 'production'), 'advanced')
   assert.equal(nextSettingsCategory('account', 'Home', 'production'), 'account')
   assert.equal(nextSettingsCategory('application', 'ArrowRight', 'development'), 'advanced')
 })
@@ -30,19 +30,19 @@ test('Settings navigation remembers only an allowed non-sensitive category', () 
   const production = createSettingsNavigation('production', storage)
   assert.equal(production.activeCategory.value, 'roon')
   production.selectCategory('advanced')
-  assert.equal(production.activeCategory.value, 'roon')
+  assert.equal(production.activeCategory.value, 'advanced')
   production.selectCategory('application')
   assert.equal(production.activeCategory.value, 'application')
   assert.equal(storage.getItem('musicbridge.settings.category'), 'application')
 
   storage.setItem('musicbridge.settings.category', 'advanced')
   const productionAfterDevelopment = createSettingsNavigation('production', storage)
-  assert.equal(productionAfterDevelopment.activeCategory.value, 'account')
+  assert.equal(productionAfterDevelopment.activeCategory.value, 'advanced')
   const development = createSettingsNavigation('development', storage)
   assert.equal(development.activeCategory.value, 'advanced')
 })
 
-test('Settings keyboard navigation ignores unrelated keys and never exposes Advanced in production', () => {
+test('Settings keyboard navigation ignores unrelated keys and exposes bounded Advanced in production', () => {
   const storage = memoryStorage()
   const navigation = createSettingsNavigation('production', storage)
   const before = navigation.activeCategory.value as SettingsCategory
@@ -51,5 +51,5 @@ test('Settings keyboard navigation ignores unrelated keys and never exposes Adva
   navigation.onKeydown({ key: 'ArrowRight', preventDefault() {} } as KeyboardEvent)
   assert.equal(navigation.activeCategory.value, 'playback')
   navigation.onKeydown({ key: 'End', preventDefault() {} } as KeyboardEvent)
-  assert.equal(navigation.activeCategory.value, 'application')
+  assert.equal(navigation.activeCategory.value, 'advanced')
 })

@@ -1,10 +1,32 @@
 # V3 剩余任务 TODO
 
-当前进度：TASK-078本地自动软件子范围已在最终HEAD `fac7363b4a6481591e207dda7cca77f0ae8d3cd4` 封版；TASK-079继续在独立分支。当前无设备，只开发fail-closed就绪控制面，不枚举、不打开、不配置设备。objects-limit generation window-03与measure window-06已软件PASS。queued-stop window-06以`PROCESS_EXIT`形成零样本终态；window-07已唯一签发并只消费一次，但installed supervisor在authority admission前以`CAPACITY_SUPERVISOR_INPUT`拒绝，未启动supervision/child/benchmark、未创建output或样本。三位置停止后，架构检查点`ed73b59fca177cc1804d4010fe863f8fb57001a0`以版本化JSON合同、共享Python纯函数、TypeScript等价解释器和同一golden corpus统一direct head、递归前驱深度、计费根、时序、PID与身份语义；issuer、installed supervisor、TypeScript consumer均已GREEN。因此原“三位置语义分叉”架构阻塞已解除，但没有签发、授权或运行新窗口；正式objects-limit queued-stop仍为`NOT_RUN`。后继正式链已唯一化为objects-limit queued-stop PASS后依次运行joint generation、joint measure与joint queued-stop；三阶段runtime schema已支持，但三条exclusive issuer仍只接受objects-limit，正式joint三阶段均为`NOT_RUN`且尚不可授权。可听Replica、TASK073真实HAL/Gate B、实体纸张与最终Owner仍为`NOT_RUN`或待验。`main`/PR合并、签名、公证和发布未授权；智能体统一GPT-5.6 Sol / High。
+当前进度：进入 **V3 软件收尾**。产品软件范围止于 TASK-079；TASK-080～084 作为后续 Harness 加固保留，已验证代码继续进入候选，但不再扩大产品范围，也不再签发新的 capacity authority/window。正式 objects-limit queued-stop、joint 三阶段、真实设备/Gate B、真实 Roon/Logic/输入、实体纸张和 Owner 产品验收均作为独立外部门保留，不能由自动测试升级。当前收尾仅执行候选固化、一次完整验证、生产构建/打包与启动烟测，然后交付人工验收。`main`/PR合并、签名、公证和发布仍是独立动作。
 
 本表是任务拆分与依赖计划，不是完成声明。后续任务沿上一任务最终 HEAD 创建独立分支；当前已展开 TASK-064～078，其余任务开始前补详细范围和允许路径。具体子任务可根据已验证结果细分，不删减 PRD 范围。
 
 ## 实时进度面板
+
+> **当前执行：V3 软件收尾候选。** 收尾说明见 [V3_CLOSEOUT](V3_CLOSEOUT.md)，人工清单见 [V3_OWNER_ACCEPTANCE_CHECKLIST](V3_OWNER_ACCEPTANCE_CHECKLIST.md)。容量链已经冻结，不再创建 recovery/window，也不再用重复容量试跑阻塞构建与人工验收。
+
+- [x] 冻结范围：产品软件止于 TASK-079；TASK-080～084 归档为非阻塞 Harness 加固。
+- [x] 冻结容量执行：旧窗口保持不可重放；objects-limit queued-stop 与 joint 正式链保持 `NOT_RUN`。
+- [x] 固化并推送收尾路由 `c848876…`；打包护栏配置修复后最终候选为 `53c1ae8…`，远端分支已对齐。
+- [x] 最终 `verify`、静态 Gate、生产构建/打包、DMG/签名校验与包内启动退出 smoke 全部 exit 0；分层证据见收尾结果报告。
+- [x] 候选应用已打开，人工验收清单已准备；早期辅助功能树读取超时保留为历史事实，本轮真实辅助树与截图已覆盖 Remote Core 冷启动、seek、队列和专辑分页，Owner 接受仍待实际操作。
+- [x] 验收返工 / 打包版 Remote Core：Owner 发现生产包隐藏高级入口且 Main 硬阻断；`2623511…` 已按 RED→GREEN 恢复受控入口与显式 SSH 目标，聚焦/安全/边界/构建/打包/镜像/签名/smoke 均通过并推送。
+- [x] Remote Core 资料库/合集队列回归：确认空库来自 Roon SMB 存储掉线后重扫，恢复后候选返回 8,489 张专辑；`9ee0866…` 修复首批完整入队与后台元数据补齐，打包版真实歌单形成 1,200 首队列并可前进。
+- [x] Remote Core 验收收口：`1f1d8aa…` 修复网易云 seek、队列 Inspector 布局、队列/Next 提前就绪、远程隧道重启期 `NOT_READY` 竞态与专辑底部自动分页；真实开发版观察到进度 0:36→1:57、队列立即显示 219 首、Next 约 1 秒内可用及专辑 24→48 自动增长。Desktop 657/657、Bridge 聚焦 117/117、类型、构建和静态 Gate 全绿。
+- [ ] Roon 下一首低延迟：当前 `track` 模式仍等待约 5–6 秒整轨下载；已回退失败的 `channel`/chunked 实验，后续以持久 Audio Input 会话和 `next` 槽预加载单独实现并验收。
+- [ ] Owner A-15：Remote Core/Zone 已实连并完成资料库、seek、队列/Next 与专辑分页功能观察；仍需 Owner 对声音连续性、切歌体感和整体产品体验作最终接受，自动证据不替代。
+
+> **历史 Harness 检查点：** `TASK-084 / runtime relocation软件封板`。从TASK-083最终HEAD `b606784…`建立独立分支；历史证据不改写，63个live root通过显式旧/新身份映射恢复规范路径，7个LOST root继续保持LOST。该路线现已冻结，不再签发、消费或运行新窗口。
+
+- [x] TASK-084 / recovery RED→GREEN：提交`90b15e8…`与`1f0a41c…`，exact75-v3收据冻结`historicalRuntime → currentRuntime`及63项marker一致映射。
+- [x] TASK-084 / issuer与消费者 RED→GREEN：提交`de4f637…`、`c542ecc…`、`509a496…`、`e630aa7…`与`c54ca45…`；issuer/prechild/PROCESS_EXIT事实只做内存投影，Python/TypeScript消费者重新核验当前device/inode/marker。
+- [x] TASK-084 / 聚焦全量：recovery 27/27、issuer 73/73、supervisor 59/59、Bridge容量139/139及typecheck通过。
+- [x] TASK-084 / 本地软件封板：readiness 17/17、Node 22标准verify、control-plane、boundaries、cycles与报告`ab90f98…`全部新鲜通过；远端Draft PR与CI在最终封板提交后执行。
+- [ ] R023 / 新objects-limit queued-stop：验收 carryover；本次软件收尾不签发。旧window-07永久不重放。
+- [ ] R023 / joint线性链：验收 carryover；本次软件收尾不签发，后续若单独重启仍必须保持generation → measure → queued-stop线性顺序。
 
 > **当前执行：** `TASK-083 / 软件封板，等待Draft PR外部评审`。从TASK-082最终HEAD `bb41b96…`建立独立分支；专用joint queued-stop issuer与profile消费合同已完成并通过本地Gate。本任务未签发、未消费、未运行正式窗口。
 

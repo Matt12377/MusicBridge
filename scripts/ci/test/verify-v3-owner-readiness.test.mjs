@@ -14,10 +14,10 @@ const matrix = JSON.parse(matrixBytes)
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
 const controlStatus = {
   v3Development: {
-    task: 'TASK-083',
-    branch: 'codex/task-083-joint-queued-stop-issuer',
-    baseCommit: 'bb41b96a981ed4554dedf0169af7df5f7931bf0b',
-    state: 'joint-queued-stop-exclusive-issuer-software-sealed-no-window-no-samples-external-pending',
+    task: 'TASK-084',
+    branch: 'codex/task-084-capacity-path-remap',
+    baseCommit: 'b606784a5969d813984975ca096c48725bc1c432',
+    state: 'capacity-runtime-relocation-software-sealed-authority-not-issued-external-pending',
     evidenceInfrastructure: {
       state: 'PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES',
       receiptFoundation: {
@@ -71,7 +71,7 @@ const controlStatus = {
     gates: {
       readinessControl: 'PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO',
       externalEvidenceProfiles: 'REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED',
-      capacityAuthority: 'OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_WINDOW06_PROCESS_EXIT_TERMINAL_WINDOW07_NONREPLAY_NO_CHILD_NO_SAMPLES_CANONICAL_LINEAGE_ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED_JOINT_GENERATE_MEASURE_QUEUED_STOP_NOT_RUN_GENERATION_AND_MEASURE_ISSUERS_GREEN_NOT_ISSUED_QUEUED_STOP_ISSUER_NOT_IMPLEMENTED',
+      capacityAuthority: 'OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_WINDOW06_PROCESS_EXIT_TERMINAL_WINDOW07_NONREPLAY_NO_CHILD_NO_SAMPLES_CANONICAL_LINEAGE_AND_RUNTIME_RELOCATION_V3_GREEN_FRESH_WINDOW_NOT_ISSUED_JOINT_GENERATE_MEASURE_QUEUED_STOP_NOT_RUN_ALL_JOINT_ISSUERS_GREEN_NOT_ISSUED',
       externalGate: 'NOT_RUN',
       realInput: 'NOT_RUN',
       realLogic: 'NOT_RUN',
@@ -495,7 +495,7 @@ const controlStatus = {
       },
       capacityFormalRouteControl: {
         schemaVersion: 1,
-        state: 'WAITING_OBJECTS_LIMIT_QUEUED_STOP_PASS_AND_JOINT_QUEUED_STOP_ISSUER_SUPPORT',
+        state: 'READY_FOR_FRESH_OBJECTS_LIMIT_QUEUED_STOP_AUTHORITY',
         prerequisite: {
           order: 0, profile: 'objects-limit', phase: 'queued-stop', state: 'NOT_RUN',
           requiredResult: 'PASS', currentWindow: 'NOT_ISSUED',
@@ -524,7 +524,7 @@ const controlStatus = {
           {
             order: 3, profile: 'joint', phase: 'queued-stop', state: 'NOT_RUN',
             consumes: 'joint:measure:PASS', produces: 'joint-queued-stop-close',
-            runtimeSchemaSupport: 'PASS', exclusiveIssuerSupport: 'NOT_IMPLEMENTED_OBJECTS_LIMIT_ONLY',
+            runtimeSchemaSupport: 'PASS', exclusiveIssuerSupport: 'IMPLEMENTED_NOT_ISSUED',
             processScope: 'joint-queued-stop-process', clockScope: 'joint-queued-stop-stage-clock',
             receiptScope: 'joint-queued-stop-window-close', requiresFreshProcess: true,
             requiresFreshClock: true, receiptReuseAllowed: false,
@@ -533,14 +533,14 @@ const controlStatus = {
           },
         ],
         linearNoSkip: true, authorityCannotBeInherited: true, stopOnNonPass: true,
-        oldWindowReplayAllowed: false, readyToAuthorize: false,
-        nextAction: 'TDD_IMPLEMENT_JOINT_QUEUED_STOP_ISSUER_BEFORE_ANY_JOINT_AUTHORIZATION',
+        oldWindowReplayAllowed: false, readyToAuthorize: true,
+        nextAction: 'ISSUE_ONE_FRESH_OBJECTS_LIMIT_QUEUED_STOP_AUTHORITY_THEN_RUN_LINEAR_JOINT_CHAIN_ON_PASS',
         deviceOpened: false, gateB: 'NOT_RUN', ownerAcceptance: 'NOT_RUN',
       },
     },
   },
 }
-const controlWave = `activeTask: TASK-083\nactiveBranch: codex/task-083-joint-queued-stop-issuer\nactiveBaseCommit: bb41b96a981ed4554dedf0169af7df5f7931bf0b\n`
+const controlWave = `activeTask: TASK-084\nactiveBranch: codex/task-084-capacity-path-remap\nactiveBaseCommit: b606784a5969d813984975ca096c48725bc1c432\n`
 
 function readiness() {
   return {
@@ -695,15 +695,15 @@ test('即使篡改矩阵仍自报相同计数并同步新hash，也必须拒绝�
   assert.throws(() => validateOwnerReadiness(value, { root: temporaryRoot, status: controlStatus, wave: controlWave }), /SOFTWARE_BASELINE/u)
 })
 
-test('STATUS v3Development与WAVE-5必须精确指向TASK083当前控制面', () => {
+test('STATUS v3Development与WAVE-5必须精确指向TASK084当前控制面', () => {
   assert.equal(validateOwnerReadiness(readiness(), { root, status: controlStatus, wave: controlWave }).ready, false)
   for (const [status, wave] of [
     [{ v3Development: { ...controlStatus.v3Development, task: 'TASK-078' } }, controlWave],
     [{ v3Development: { ...controlStatus.v3Development, branch: 'codex/task-078-v3-acceptance' } }, controlWave],
     [{ v3Development: { ...controlStatus.v3Development, baseCommit: '0'.repeat(40) } }, controlWave],
-    [controlStatus, controlWave.replace('activeTask: TASK-083', 'activeTask: TASK-078')],
-    [controlStatus, controlWave.replace('activeBranch: codex/task-083-joint-queued-stop-issuer', 'activeBranch: codex/task-078-v3-acceptance')],
-    [controlStatus, controlWave.replace('activeBaseCommit: bb41b96a981ed4554dedf0169af7df5f7931bf0b', `activeBaseCommit: ${'0'.repeat(40)}`)],
+    [controlStatus, controlWave.replace('activeTask: TASK-084', 'activeTask: TASK-078')],
+    [controlStatus, controlWave.replace('activeBranch: codex/task-084-capacity-path-remap', 'activeBranch: codex/task-078-v3-acceptance')],
+    [controlStatus, controlWave.replace('activeBaseCommit: b606784a5969d813984975ca096c48725bc1c432', `activeBaseCommit: ${'0'.repeat(40)}`)],
   ]) {
     assert.throws(() => validateOwnerReadiness(readiness(), { root, status, wave }), /CONTROL_IDENTITY/u)
   }
@@ -727,20 +727,20 @@ test('STATUS必须锁定两段证据基础设施检查点而非停留在初始re
   }
 })
 
-test('证据检查点必须是当前TASK083仓库中线性可达的真实Git提交', async t => {
+test('证据检查点必须是当前TASK084仓库中线性可达的真实Git提交', async t => {
   const module = await import('../verify-v3-owner-readiness.mjs')
   assert.equal(typeof module.validateEvidenceCheckpointRepository, 'function')
   assert.equal(typeof module.validateArchitectureCheckpointRepository, 'function')
-  const temporaryRoot = mkdtempSync(path.join(tmpdir(), 'task083-checkpoints-'))
+  const temporaryRoot = mkdtempSync(path.join(tmpdir(), 'task084-checkpoints-'))
   t.after(() => rmSync(temporaryRoot, { recursive: true, force: true }))
   const git = (...arguments_) => {
     const result = spawnSync('git', arguments_, { cwd: temporaryRoot, encoding: 'utf8' })
     assert.equal(result.status, 0, result.stderr)
     return result.stdout.trim()
   }
-  git('init', '-b', 'codex/task-083-joint-queued-stop-issuer')
-  git('config', 'user.email', 'task083@example.invalid')
-  git('config', 'user.name', 'TASK083 Test')
+  git('init', '-b', 'codex/task-084-capacity-path-remap')
+  git('config', 'user.email', 'task084@example.invalid')
+  git('config', 'user.name', 'TASK084 Test')
   const commits = []
   for (let index = 0; index < 8; index += 1) {
     writeFileSync(path.join(temporaryRoot, 'checkpoint.txt'), `${index}\n`)
@@ -802,7 +802,7 @@ test('STATUS必须锁定objects-limit后继joint三阶段线性路线与逐阶�
     value => { value.v3Development.task078SoftwareCheckpoints.capacityFormalRouteControl.stages[2].receiptReuseAllowed = true },
     value => { value.v3Development.task078SoftwareCheckpoints.capacityFormalRouteControl.authorityCannotBeInherited = false },
     value => { value.v3Development.task078SoftwareCheckpoints.capacityFormalRouteControl.oldWindowReplayAllowed = true },
-    value => { value.v3Development.task078SoftwareCheckpoints.capacityFormalRouteControl.readyToAuthorize = true },
+    value => { value.v3Development.task078SoftwareCheckpoints.capacityFormalRouteControl.readyToAuthorize = false },
     value => { value.v3Development.task078SoftwareCheckpoints.capacityFormalRouteControl.gateB = 'PASS' },
     value => { value.v3Development.task078SoftwareCheckpoints.capacityJointGenerationControlPlane.formalQueuedStop = 'PASS' },
   ]) {

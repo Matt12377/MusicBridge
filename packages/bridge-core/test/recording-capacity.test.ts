@@ -851,7 +851,8 @@ function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>,
   assert.equal(baseRoots.length, 73);
   type ProcessNodeFixture = {
     root: string; id: string; label: string; pid: number; issuedMs: number; predecessor?: ProcessNodeFixture;
-    stderrPid?: number; supervisorBytes?: number; mutate?: (documents: Record<string, any>) => void; row?: Record<string, any>;
+    stderrPid?: number; stderrCode?: string; supervisorBytes?: number;
+    mutate?: (documents: Record<string, any>) => void; row?: Record<string, any>;
   };
   const processTimestamp = (milliseconds: number, microseconds = false) => {
     const value = new Date(milliseconds).toISOString().replace(/Z$/u, '+00:00');
@@ -897,7 +898,7 @@ function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>,
     const windowPath = path.join(node.root, 'window.json');
     const stdoutPath = path.join(supervisionRoot, 'stdout.log'), stderrPath = path.join(supervisionRoot, 'stderr.log');
     writeFileSync(stdoutPath, '');
-    writeFileSync(stderrPath, `CAPACITY_PHASE_OPERATION_FAILED\n(node:${node.stderrPid ?? node.pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use \`node --trace-warnings ...\` to show where the warning was created)\n`);
+    writeFileSync(stderrPath, `${node.stderrCode ?? 'CAPACITY_PHASE_OPERATION_FAILED'}\n(node:${node.stderrPid ?? node.pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use \`node --trace-warnings ...\` to show where the warning was created)\n`);
     const outputDirectory = path.join(node.root, node.label), elapsedMs = 650.25;
     const logFact = (file: string) => ({ path: file, exists: true, size: lstatSync(file).size, sha256: f.hash(file) });
     const queuedStop = { outputDirectory, verifiedComplete: false, verifiedPassed: false, fileCount: 0, sampleCount: 0,
@@ -976,6 +977,91 @@ function configureExact75V2Recovery(f: Awaited<ReturnType<typeof phaseFixture>>,
     historicalDevice, currentDevice,
     measureOutput, issuerCarryover, prechildCarryover, processCarryover, leafProcess, makeProcessNode, sealProcessNode, setProcessHead,
     candidate, candidateHead, recoveryTool, git };
+}
+
+function configureExact75V3Relocation(
+  f: Awaited<ReturnType<typeof phaseFixture>>,
+  rootCount: number,
+  processHeadModel: 'current-v3' | 'historical-v2' | 'historical-v3' | 'historical-v3-drift' = 'current-v3',
+) {
+  const configured = configureExact75V2Recovery(f, rootCount)
+  const currentMeasure = configured.outer.measureCarryover as Record<string, Record<string, unknown>>
+  const historicalRuntime = path.join(path.dirname(f.runtime), `${path.basename(f.runtime)}-historical-runtime-before-relocation`)
+  if (processHeadModel === 'historical-v2') {
+    const historicalRecoveryRoot = path.join(f.runtime, 'historical-v2-recovery'); mkdirSync(historicalRecoveryRoot)
+    const historicalRecovery = path.join(historicalRecoveryRoot, 'recovery.json')
+    const historicalManifest = path.join(historicalRecoveryRoot, 'owned-roots.json')
+    writeFileSync(historicalManifest, readFileSync(configured.historicalManifest)); chmodSync(historicalManifest, 0o400)
+    const historicalReceipt = JSON.parse(readFileSync(configured.recovery, 'utf8'))
+    historicalReceipt.historicalManifest = { path: historicalManifest, sha256: f.hash(historicalManifest) }
+    historicalReceipt.mappings = historicalReceipt.mappings.map((mapping: Record<string, any>, index: number) => ({
+      ...mapping,
+      replacementRoot: {
+        ...mapping.replacementRoot,
+        path: path.join(historicalRuntime, path.relative(f.runtime, mapping.replacementRoot.path)),
+        device: Number(mapping.replacementRoot.device) + 100_000,
+        inode: Number(mapping.replacementRoot.inode) + 100_000 + index,
+      },
+    }))
+    f.put(historicalRecovery, historicalReceipt); chmodSync(historicalRecovery, 0o400)
+    const historicalMeasure = structuredClone(currentMeasure)
+    historicalMeasure.ownedManifest = historicalReceipt.historicalManifest
+    historicalMeasure.measureRootRecovery = { path: historicalRecovery, sha256: f.hash(historicalRecovery) }
+    configured.outer.measureCarryover = historicalMeasure
+    configured.leafProcess.stderrCode = 'CAPACITY_PHASE_WINDOW_INVALID'
+    configured.leafProcess.mutate = documents => {
+      documents.ownedManifest.roots = documents.ownedManifest.roots.map((root: Record<string, unknown>, index: number) => index < 73 ? {
+        ...root,
+        path: path.join(historicalRuntime, path.relative(f.runtime, String(root.path))),
+        device: Number(root.device) + 100_000,
+        inode: Number(root.inode) + 200_000 + index,
+      } : root)
+    }
+    configured.setProcessHead(configured.leafProcess)
+    delete configured.leafProcess.mutate
+    configured.outer.measureCarryover = currentMeasure
+  }
+  const manifest = JSON.parse(readFileSync(configured.historicalManifest, 'utf8'))
+  manifest.roots = manifest.roots.map((root: Record<string, unknown>, index: number) => index < 63 ? {
+    ...root, path: path.join(historicalRuntime, path.relative(f.runtime, String(root.path))),
+    inode: Number(root.inode) + 100000 + index,
+  } : root)
+  manifest.futureRoots = [path.join(historicalRuntime, path.relative(f.runtime, configured.measureOutput))]
+  const manifestSha = f.put(configured.historicalManifest, manifest)
+  const receipt = JSON.parse(readFileSync(configured.recovery, 'utf8'))
+  receipt.model = 'exact75-v3-runtime-relocation-closure'
+  receipt.historicalManifest.sha256 = manifestSha
+  receipt.liveRootRemap = { mode: 'PREFIX_RELOCATION', historicalRuntime, currentRuntime: f.runtime, liveRootCount: 63,
+    mappings: manifest.roots.slice(0, 63).map((historicalRoot: unknown, index: number) => ({
+      historicalRoot, currentRoot: configured.liveRoots[index],
+    })) }
+  chmodSync(configured.recovery, 0o600)
+  const recoverySha = f.put(configured.recovery, receipt); chmodSync(configured.recovery, 0o400)
+  currentMeasure.ownedManifest!.sha256 = manifestSha; currentMeasure.measureRootRecovery!.sha256 = recoverySha
+  if (processHeadModel === 'historical-v3' || processHeadModel === 'historical-v3-drift') {
+    const historicalRecoveryRoot = path.join(f.runtime, 'historical-v3-recovery'); mkdirSync(historicalRecoveryRoot)
+    const historicalRecovery = path.join(historicalRecoveryRoot, 'recovery.json')
+    const historicalReceipt = structuredClone(receipt)
+    if (processHeadModel === 'historical-v3-drift') historicalReceipt.liveRootRemap.mappings[0].currentRoot.marker.sha256 = 'f'.repeat(64)
+    f.put(historicalRecovery, historicalReceipt); chmodSync(historicalRecoveryRoot, 0o700); chmodSync(historicalRecovery, 0o400)
+    const historicalMeasure = structuredClone(currentMeasure)
+    historicalMeasure.measureRootRecovery = { path: historicalRecovery, sha256: f.hash(historicalRecovery) }
+    configured.outer.measureCarryover = historicalMeasure
+    rmSync(configured.leafProcess.root, { recursive: true })
+    const historicalProcess = configured.makeProcessNode('process-historical-v3')
+    configured.setProcessHead(historicalProcess)
+    configured.outer.measureCarryover = currentMeasure
+  } else if (processHeadModel === 'current-v3') {
+    rmSync(configured.leafProcess.root, { recursive: true })
+    const relocatedProcess = configured.makeProcessNode('process-relocated')
+    configured.setProcessHead(relocatedProcess)
+  }
+  const issuerFactPath = String((configured.outer.issuer as Record<string, any>).fact.path)
+  const issuerFact = JSON.parse(readFileSync(issuerFactPath, 'utf8')); issuerFact.measureCarryover = currentMeasure
+  const issuerFactSha = f.put(issuerFactPath, issuerFact)
+  ;(configured.outer.issuer as Record<string, any>).fact.sha256 = issuerFactSha
+  f.inventory.roots[f.inventory.roots.length - 1] = f.entry(path.dirname(issuerFactPath), 'owner.json')
+  return configured
 }
 
 test('phase设施：新入口参数严格，未知/重复/缺少窗口hash不接受', async () => {
@@ -1259,6 +1345,57 @@ test('queued-stop successor：按三类failure carryover精确接受76 roots', a
       assert.equal(calls, 0); assert.equal(existsSync(f.output), false);
     }
   }
+});
+
+test('queued-stop successor：显式v3 runtime relocation在首样本前保持消费者等价', async t => {
+  const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
+  configureExact75V3Relocation(f, 76);
+  f.seal(); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, {
+    ...f.options,
+    queuedStop: async () => { ++calls; throw new Error('受控首样本停止'); },
+  });
+  assert.equal(calls, 1);
+  assert.equal(summary.state, 'incomplete');
+  assert.equal(summary.unrun, 104);
+});
+
+test('queued-stop successor：v3 runtime relocation接受由v2恢复收据冻结的PROCESS_EXIT head', async t => {
+  const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
+  configureExact75V3Relocation(f, 76, 'historical-v2');
+  f.seal(); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, {
+    ...f.options,
+    queuedStop: async () => { ++calls; throw new Error('受控首样本停止'); },
+  });
+  assert.equal(calls, 1);
+  assert.equal(summary.state, 'incomplete');
+  assert.equal(summary.unrun, 104);
+});
+
+test('queued-stop successor：v3 runtime relocation接受由不同v3恢复收据冻结的PROCESS_EXIT head', async t => {
+  const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
+  configureExact75V3Relocation(f, 76, 'historical-v3');
+  f.seal(); let calls = 0;
+  const summary = await f.api.runCapacityPhase(f.args, {
+    ...f.options,
+    queuedStop: async () => { ++calls; throw new Error('受控首样本停止'); },
+  });
+  assert.equal(calls, 1);
+  assert.equal(summary.state, 'incomplete');
+  assert.equal(summary.unrun, 104);
+});
+
+test('queued-stop successor：历史v3恢复收据的runtime relocation漂移时首样本前拒绝', async t => {
+  const f = await phaseFixture(t, 'queued-stop', 105, 'objects-limit');
+  configureExact75V3Relocation(f, 76, 'historical-v3-drift');
+  f.seal(); let calls = 0;
+  await assert.rejects(f.api.runCapacityPhase(f.args, {
+    ...f.options,
+    queuedStop: async () => { ++calls; throw new Error('不应进入样本'); },
+  }), /CAPACITY_PHASE_WINDOW_INVALID/u);
+  assert.equal(calls, 0);
+  assert.equal(existsSync(f.output), false);
 });
 
 test('queued-stop successor：真实CLI无runtime override时从受控window绝对路径解析runtime root', async t => {

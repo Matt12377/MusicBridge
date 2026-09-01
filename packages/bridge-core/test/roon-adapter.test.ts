@@ -967,7 +967,7 @@ test('channel play payload has one stable non-sensitive track identity', async (
   assert.equal(api.core.audioInput.playOptions[0]?.track_id, payload.track_id);
 });
 
-test('V1 Provider track payload keeps seek disabled while retaining start position and duration', async () => {
+test('V1 Provider track payload enables Core seek while retaining start position and duration', async () => {
   const { adapter, api } = await makeReadyHarness({ playbackMode: 'track' });
   const playback = adapter.play({
     ...playRequest,
@@ -982,7 +982,7 @@ test('V1 Provider track payload keeps seek disabled while retaining start positi
   assert.equal(payload.type, 'track');
   assert.equal(payload.seek_position_ms, 0);
   assert.equal(payload.info.length, 120);
-  assert.equal(payload.info.is_seek_allowed, false);
+  assert.equal(payload.info.is_seek_allowed, true);
   assert.equal(payload.info.is_pause_allowed, true);
   assert.equal(payload.track_id.startsWith('musicbridge-'), true);
 });

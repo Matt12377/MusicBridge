@@ -522,8 +522,6 @@ export class BridgeController {
         this.playbackState === 'playing' &&
         normalizedItems[startIndex]?.trackId === activePlayback.track.id &&
         normalizedItems[startIndex]?.qualityPreference === activePlayback.qualityPreference;
-      const shouldHydrateInline = !preserveActivePlayback && normalizedItems.length <= QUEUE_HYDRATION_BATCH_SIZE;
-      if (shouldHydrateInline) await this.hydrateQueueItems(normalizedItems);
 
       if (preserveActivePlayback && activePlayback) {
         const activeItem = normalizedItems[startIndex];
@@ -544,10 +542,13 @@ export class BridgeController {
       this.queue = normalizedItems;
       this.queueIndex = startIndex;
       this.clearPlaybackIssue();
+      // 当前歌曲等待 Roon SessionBegan/Playing 时，先并行填充后续队列；
+      // 这样 Next 与队列内容不再被 Core 启动延迟串行阻塞。
+      this.scheduleQueueHydration(
+        normalizedItems.filter((_item, index) => index !== startIndex),
+        hydrationGeneration,
+      );
       await this.startQueueIndex(startIndex, true);
-      if (!shouldHydrateInline) {
-        this.scheduleQueueHydration(normalizedItems, hydrationGeneration);
-      }
       return this.getState();
     });
   }
@@ -784,15 +785,19 @@ export class BridgeController {
     }
     return this.enqueue(async () => {
       const roonLibrary = this.dependencies.roonLibrary;
-      if (!this.activeRoonPlayback || !roonLibrary?.seek) {
-        throw new BridgeError(
-          'ROON_TRANSPORT_UNAVAILABLE',
-          'Seek is available only for active native Roon playback',
-          { httpStatus: 409 },
-        );
+      if (this.activeRoonPlayback && roonLibrary?.seek) {
+        await roonLibrary.seek(positionMs);
+        return this.getState();
       }
-      await roonLibrary.seek(positionMs);
-      return this.getState();
+      if (this.activePlayback && this.dependencies.roon.seek) {
+        await this.dependencies.roon.seek(positionMs);
+        return this.getState();
+      }
+      throw new BridgeError(
+        'ROON_TRANSPORT_UNAVAILABLE',
+        'Seek is unavailable for the active playback source',
+        { httpStatus: 409 },
+      );
     });
   }
 

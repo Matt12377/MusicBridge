@@ -27,6 +27,8 @@ class FakeNetease implements NeteasePort {
   actualQuality = 'lossless';
   authExpired = false;
   readonly unavailableTrackIds = new Set<string>();
+  readonly previewOnlyTrackIds = new Set<string>();
+  readonly blockedMetadataTrackIds = new Set<string>();
   metadataStarted = false;
   metadataGate: Promise<void> | undefined;
 
@@ -85,7 +87,10 @@ class FakeNetease implements NeteasePort {
 
   async getTrack(trackId: string) {
     this.metadataStarted = true;
-    await this.metadataGate;
+    if (
+      this.blockedMetadataTrackIds.size === 0 ||
+      this.blockedMetadataTrackIds.has(trackId)
+    ) await this.metadataGate;
     if (this.authExpired) {
       throw new BridgeError('AUTH_EXPIRED', 'Synthetic expired session', { httpStatus: 401 });
     }
@@ -108,6 +113,11 @@ class FakeNetease implements NeteasePort {
     quality: QualityLevel,
   ): Promise<ResolvedAudioStream> {
     this.resolveCalls += 1;
+    if (this.previewOnlyTrackIds.has(trackId)) {
+      throw new BridgeError('TRACK_PREVIEW_ONLY', 'Synthetic track is preview only', {
+        httpStatus: 409,
+      });
+    }
     if (this.unavailableTrackIds.has(trackId)) {
       throw new BridgeError('TRACK_UNAVAILABLE', 'Synthetic track is unavailable', {
         httpStatus: 409,
@@ -131,6 +141,7 @@ class FakeRoon implements RoonPort {
   stopCalls = 0;
   pauseCalls = 0;
   resumeCalls = 0;
+  readonly seekCalls: number[] = [];
   activePlayCalls = 0;
   maxConcurrentPlayCalls = 0;
   playDelayMs = 0;
@@ -236,6 +247,10 @@ class FakeRoon implements RoonPort {
       canPause: true,
       canResume: false,
     };
+  }
+
+  async seek(positionMs: number): Promise<void> {
+    this.seekCalls.push(positionMs);
   }
 
   confirmPause(): void {
@@ -836,14 +851,12 @@ test('controller pauses and resumes an active native Roon queue item through the
   assert.equal(controller.getPlaybackState().state, 'playing');
 });
 
-test('controller seeks only an active V2 native Roon item and leaves V1 Provider playback read-only', async () => {
+test('controller seeks active Provider Audio Input and native Roon playback through their matching ports', async () => {
   const { controller, roon, nativeRoon } = makeHarness();
 
   await controller.play({ trackId: '8804', quality: 'lossless' });
-  await assert.rejects(
-    controller.seek(12_345),
-    (error: unknown) => error instanceof BridgeError && error.code === 'ROON_TRANSPORT_UNAVAILABLE',
-  );
+  await controller.seek(12_345);
+  assert.deepEqual(roon.seekCalls, [12_345]);
   assert.deepEqual(nativeRoon.seekCalls, []);
 
   roon.state = {
@@ -1166,6 +1179,49 @@ test('controller publishes verified summaries for queued tracks', async () => {
       durationMs: 120000,
     },
   ]);
+});
+
+test('controller starts the selected track before background metadata hydration finishes', async () => {
+  const { controller, netease, roon } = makeHarness();
+  let releaseMetadata: (() => void) | undefined;
+  netease.metadataGate = new Promise<void>((resolve) => {
+    releaseMetadata = resolve;
+  });
+  const items = Array.from({ length: 20 }, (_, index) => ({
+    trackId: String(7_400 + index),
+    quality: 'standard' as const,
+  }));
+  for (const item of items.slice(1)) netease.blockedMetadataTrackIds.add(item.trackId);
+
+  const replacing = controller.replaceQueue(items);
+  await new Promise((resolve) => setImmediate(resolve));
+  try {
+    assert.equal(roon.playRequests.length, 1);
+    assert.equal(roon.playRequests[0]?.metadata.id, items[0]?.trackId);
+    assert.equal(controller.getPlaybackState().queue.items.length, items.length);
+  } finally {
+    releaseMetadata?.();
+    await replacing;
+  }
+});
+
+test('controller hydrates upcoming queue metadata while the selected track is still starting in Roon', async () => {
+  const { controller, netease, roon } = makeHarness();
+  roon.playDelayMs = 80;
+  const items = Array.from({ length: 4 }, (_, index) => ({
+    trackId: String(7_500 + index),
+    quality: 'standard' as const,
+  }));
+
+  const replacing = controller.replaceQueue(items);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  assert.equal(roon.activePlayCalls, 1);
+  assert.deepEqual(
+    controller.getPlaybackState().queue.items.slice(1).map((item) => item.track?.id),
+    items.slice(1).map((item) => item.trackId),
+  );
+  await replacing;
 });
 
 test('controller auto quality requests the highest supported level without a downgrade warning', async () => {
@@ -1501,6 +1557,21 @@ test('unavailable queue items are skipped and all-unavailable queues stop cleanl
   assert.equal(registry.size, 0);
   assert.equal(controller.getState().activePlayback, undefined);
   assert.equal(controller.getPlaybackState().lastError, 'TRACK_UNAVAILABLE');
+});
+
+test('preview-only first track is skipped when the collection first page is already queued', async () => {
+  const { controller, netease, roon } = makeHarness();
+  netease.previewOnlyTrackIds.add('451');
+
+  await controller.replaceQueue([
+    { trackId: '451', quality: 'standard' },
+    { trackId: '452', quality: 'standard' },
+    { trackId: '453', quality: 'standard' },
+  ]);
+
+  assert.deepEqual(roon.playRequests.map((request) => request.metadata.id), ['452']);
+  assert.equal(controller.getPlaybackState().queue.index, 1);
+  assert.equal(controller.getPlaybackState().lastError, 'TRACK_PREVIEW_ONLY');
 });
 
 test('ten naturally ended tracks leave no stream token or active playback', async () => {

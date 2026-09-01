@@ -356,9 +356,7 @@ test('连续 Core 生命周期事件只触发一次 Zone 刷新', async () => {
     window?.webContents.send('core:event', { version: 1, event: 'roon.changed', payload: { state } })
     window?.webContents.send('core:event', { version: 1, event: 'roon.changed', payload: { state } })
   })
-  await page.waitForTimeout(200)
-
-  expect(await readZoneListCalls()).toBe(1)
+  await expect.poll(readZoneListCalls).toBe(1)
   const zonePopover = await openPlayerZonePopover()
   await expect(zonePopover.getByRole('button', {
     name: 'Coalesced Zone',
@@ -2181,7 +2179,7 @@ test('V3 Logic 工作区：原生授权、确认复制、回执重试、Finder �
   }
   await electronApp.evaluate(({ shell }) => { shell.openPath = async p => { (globalThis as typeof globalThis & { preparationOpened?: string }).preparationOpened = p; return '' } })
   await panel.getByRole('button', { name: '在 Finder 中打开', exact: true }).click()
-  expect(await electronApp.evaluate(() => (globalThis as typeof globalThis & { preparationOpened?: string }).preparationOpened)).toBe(workspace)
+  await expect.poll(() => electronApp.evaluate(() => (globalThis as typeof globalThis & { preparationOpened?: string }).preparationOpened)).toBe(workspace)
   await panel.getByRole('button', { name: '关闭', exact: true }).click(); await expect(trigger).toBeFocused()
   await electronApp.close()
   const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }

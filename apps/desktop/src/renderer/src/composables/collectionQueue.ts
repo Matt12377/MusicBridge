@@ -18,6 +18,28 @@ export interface ProgressiveCollectionLoader {
   cancel: () => void
 }
 
+export interface InitialCollectionPlayback {
+  tracks: readonly TrackSummary[]
+  index: number
+}
+
+/**
+ * 首次播放必须把第一页完整交给 Core。这样首曲无版权或仅试听时，Core 能立即继续尝试
+ * 同页后续歌曲；不能先只塞一首、等播放失败后再异步补队列。
+ */
+export function selectInitialCollectionPlayback(
+  tracks: readonly TrackSummary[],
+  selectedTrackId?: string,
+): InitialCollectionPlayback {
+  const requestedIndex = selectedTrackId === undefined
+    ? 0
+    : tracks.findIndex((track) => track.id === selectedTrackId)
+  return {
+    tracks,
+    index: requestedIndex >= 0 ? requestedIndex : 0,
+  }
+}
+
 /**
  * 按 Provider 顺序逐页读取集合。第一次 next() 只请求/返回第一页，调用方可以先开始播放，
  * 后续页面由调用方在后台继续消费；代次失效或显式 cancel 后不会再产出结果。

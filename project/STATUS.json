@@ -78,10 +78,10 @@
   },
   "v3Development": {
     "wave": "WAVE-5",
-    "task": "TASK-083",
-    "branch": "codex/task-083-joint-queued-stop-issuer",
-    "baseCommit": "bb41b96a981ed4554dedf0169af7df5f7931bf0b",
-    "state": "joint-queued-stop-exclusive-issuer-software-sealed-no-window-no-samples-external-pending",
+    "task": "TASK-084",
+    "branch": "codex/task-084-capacity-path-remap",
+    "baseCommit": "b606784a5969d813984975ca096c48725bc1c432",
+    "state": "capacity-runtime-relocation-software-sealed-authority-not-issued-external-pending",
     "evidenceInfrastructure": {
       "state": "PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES",
       "receiptFoundation": {
@@ -127,8 +127,8 @@
       "hardwareRun": "NOT_RUN",
       "gateB": "NOT_RUN"
     },
-    "implementationCommit": "bb421f55ddc8c0c5b7d3b1986e4e53a74624c290",
-    "reportCommit": "637bdc526504b6d888b7168363c522401137e024",
+    "implementationCommit": "c54ca45f8820e7c8dde6076454cf402cdb1b5585",
+    "reportCommit": "ab90f9820db4668d553aa878d46f016980d1810a",
     "task080AuthorityHarness": {
       "baseCommit": "d98eff24c0085ad8a340457f58dc3334709ca241",
       "redCommit": "85398f7cfb2eeb3b6cd71f368a62a84de13b4c5d",
@@ -188,6 +188,26 @@
       "gateB": "NOT_RUN",
       "ownerProductAcceptance": "NOT_RUN"
     },
+    "task084CapacityRuntimeRelocation": {
+      "baseCommit": "b606784a5969d813984975ca096c48725bc1c432",
+      "recoveryRedCommit": "90b15e8b03628204f989f96011d65ce36218bee3",
+      "recoveryImplementationCommit": "1f0a41c8b03ccb9c38c37bdf7e681b30c84d93c4",
+      "issuerRedCommit": "de4f637ba6a9a27854a1f050bd8dd06f0c42b848",
+      "issuerImplementationCommit": "c542eccb0281b3142a0d8f1010c27ea52c80973f",
+      "supervisorRedCommit": "509a496bcd2716918b78b433327e5e0015a4e574",
+      "consumerRedCommit": "e630aa7c8737a163b8d02e67937b65d17af5b7ca",
+      "consumerImplementationCommit": "c54ca45f8820e7c8dde6076454cf402cdb1b5585",
+      "readinessRedCommit": "f42937f9d33f82d210c30dab5552de01f1842378",
+      "reportCommit": "ab90f9820db4668d553aa878d46f016980d1810a",
+      "state": "SOFTWARE_SEALED_EXPLICIT_RUNTIME_RELOCATION_V3_NOT_ISSUED",
+      "historicalRuntimeMutation": false,
+      "liveRootMappings": 63,
+      "historicalMissingRoots": 7,
+      "authorityWindow": "NOT_ISSUED_NOT_CONSUMED",
+      "formalCapacitySamples": 0,
+      "gateB": "NOT_RUN",
+      "ownerProductAcceptance": "NOT_RUN"
+    },
     "previousTask": {
       "task": "TASK-078",
       "implementationCommit": "2656b904a168e6afcbfddc5453d8793d347710d7",
@@ -197,6 +217,32 @@
       "report": "reports/TASK-078_RESULT.md"
     },
     "authorization": "owner-continuous-software-development-default-recommended-path-checkpoint-push-authorized-device-credentials-release-separate-gates",
+    "softwareCloseout": {
+      "schemaVersion": 1,
+      "state": "AUTOMATED_CLOSEOUT_PASS_OWNER_ACCEPTANCE_PENDING",
+      "productSoftwareStopAfter": "TASK-079",
+      "harnessHardeningRetained": [
+        "TASK-080",
+        "TASK-081",
+        "TASK-082",
+        "TASK-083",
+        "TASK-084"
+      ],
+      "capacityExecution": "FROZEN_NO_NEW_AUTHORITY_RECOVERY_OR_WINDOW",
+      "routeCommit": "c84887645ace7775f71128a8773f4d772700fa3d",
+      "candidateCommit": "1f1d8aaf397a4033068dfcc0c7d059f34f09986c",
+      "automaticNext": "NONE",
+      "externalNext": "OWNER_MANUAL_ACCEPTANCE",
+      "formalCapacity": "NOT_RUN_NONBLOCKING_ACCEPTANCE_CARRYOVER",
+      "deviceGateB": "NOT_RUN",
+      "ownerProductAcceptance": "NOT_RUN",
+      "artifact": {
+        "path": "apps/desktop/release/MusicBridge-0.1.0-beta.2-arm64.dmg",
+        "bytes": 151330785,
+        "sha256": "c5e0a48ace448725fb80466fb0d7a6439840e5ccd5458160ede13c45743b7d2a",
+        "signing": "ADHOC_LOCAL_CANDIDATE_NOT_NOTARIZED"
+      }
+    },
     "f01": "OWNER_APPROVED_f01-permanent-execution-v1",
     "deviceTestPlanning": {
       "confirmedOn": "2026-08-29",
@@ -219,7 +265,7 @@
     "gates": {
       "readinessControl": "PASS_15_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES_REVIEW_P0_P1_ZERO",
       "externalEvidenceProfiles": "REAL_INPUT_REAL_LOGIC_REAL_ROON_PREPARED__HARDWARE_MAIN_GREEN_INDEPENDENT_R2_FINAL_RED",
-      "capacityAuthority": "OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_WINDOW06_PROCESS_EXIT_TERMINAL_WINDOW07_NONREPLAY_NO_CHILD_NO_SAMPLES_CANONICAL_LINEAGE_ARCHITECTURE_GREEN_NEW_WINDOW_NOT_AUTHORIZED_JOINT_GENERATE_MEASURE_QUEUED_STOP_NOT_RUN_GENERATION_AND_MEASURE_ISSUERS_GREEN_NOT_ISSUED_QUEUED_STOP_ISSUER_NOT_IMPLEMENTED",
+      "capacityAuthority": "OBJECTS_MEASURE_WINDOW06_SOFTWARE_PASS_QUEUED_STOP_WINDOW06_PROCESS_EXIT_TERMINAL_WINDOW07_NONREPLAY_NO_CHILD_NO_SAMPLES_CANONICAL_LINEAGE_AND_RUNTIME_RELOCATION_V3_GREEN_FRESH_WINDOW_NOT_ISSUED_JOINT_GENERATE_MEASURE_QUEUED_STOP_NOT_RUN_ALL_JOINT_ISSUERS_GREEN_NOT_ISSUED",
       "softwareBaseline": "TASK078_PASS_101_MAPPED_2_UNMAPPED_PENDING_EXTERNAL_NOT_RUN_FORMAL_READY_FALSE",
       "externalGate": "NOT_RUN",
       "realInput": "NOT_RUN",
@@ -245,12 +291,14 @@
       "R-023：history-limit正式生成/measure/queued-stop已PASS；objects-limit旧generation与measure失败证据永久保留，measure window-06软件PASS。queued-stop window-06在候选168cbcbd上以PROCESS_EXIT形成零样本终态，close SHA256=0f48aa490d52fdfe8f15c57c0caef68375d6c7082c70621064592d6be3c75299，永久禁止重放。window-07 UUID=5f5df917-cb23-453b-906c-4e4395cec1ad、SHA256=0bac4fcc26057f94dc17eab902b2affbf34438ae0d3fae7fa43bd779e6182331已签发并只消费一次，但installed supervisor在authority admission前以CAPACITY_SUPERVISOR_INPUT拒绝；未创建supervision、close、child、benchmark output或样本。三位置停止后，架构实现ed73b598统一版本化JSON合同、共享Python evaluator、TS等价解释器及单一golden corpus，固定direct head=1、linked authority前驱可达深度、head-to-leaf计费、时序/PID/身份语义；issuer71/71、supervisor58/58、Bridge corpus及全量Gate GREEN。原架构语义阻塞已解除，但未签发或授权新窗口。window-07不重放；formal objects-limit queued-stop与joint正式generation/measure/queued-stop均NOT_RUN。joint三阶段runtime schema已支持，但三条exclusive issuer仍只接受objects-limit，任何joint授权前必须先TDD扩展。设备、Gate B与Owner验收均NOT_RUN。",
       "TASK-079 hardware evidence contract v2：主任务33/33专项GREEN；configuration observation、observer execution、typed scope evidence、B-15 identity有效期和U-10同事件依赖已加固。第二轮独立复审最终RED保留，未做第三轮且independentPass=false。真实hardware与Gate B均NOT_RUN。",
       "TASK-076历史核验与私有synthetic会话已通过本地软件Gate；实际可听Replica及正式provider接线须随073设备准入和079另验，当前始终blocked",
-      "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验"
+      "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验",
+      "2026-09-01 Remote Core真实观察：SMB恢复重扫后候选返回8489张专辑；打包版网易云歌单形成1200首队列并可前进。该观察不升级正式realRoon或Owner听感Gate。Roon track模式仍有约5至6秒整轨预载延迟，后续需持久Audio Input会话与next槽预加载。",
+      "2026-09-01 验收收口：开发版Remote Core冷启动不再发出NOT_READY；网易云track seek实测位置约0:36到1:57，队列面板立即显示219首且Next约1秒内可用，Roon专辑滚动由24/8489自动增长到48/8489。仅证明UI和transport状态，不替代声音连续性或Owner产品接受。"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "task083-joint-queued-stop-dedicated-issuer-and-consumer-software-sealed-no-window-no-samples-gateb-not-run",
-    "nextTask": "EXTERNAL_REVIEW",
-    "resultReport": "reports/TASK-083_RESULT.md",
+    "checkpoint": "v3-software-closeout-remote-core-seek-queue-startup-pagination-fixed-next-slot-audio-latency-carryover",
+    "nextTask": "OWNER_MANUAL_ACCEPTANCE_AND_PERSISTENT_AUDIO_INPUT_NEXT_SLOT_FOLLOWUP",
+    "resultReport": "reports/V3_SOFTWARE_CLOSEOUT_RESULT.md",
     "task078SoftwareCheckpoints": {
       "startupPolicy": "48-focused-pass-spec-quality-r1-pass-capacity-startup-pending",
       "pdfPreview": "36-focused-and-real-electron-pass-23-pages-content-unchanged-spec-quality-r1-pass",
@@ -1599,7 +1647,7 @@
       },
       "capacityFormalRouteControl": {
         "schemaVersion": 1,
-        "state": "WAITING_OBJECTS_LIMIT_QUEUED_STOP_PASS_AND_JOINT_QUEUED_STOP_ISSUER_SUPPORT",
+        "state": "READY_FOR_FRESH_OBJECTS_LIMIT_QUEUED_STOP_AUTHORITY",
         "prerequisite": {
           "order": 0,
           "profile": "objects-limit",
@@ -1657,7 +1705,7 @@
             "consumes": "joint:measure:PASS",
             "produces": "joint-queued-stop-close",
             "runtimeSchemaSupport": "PASS",
-            "exclusiveIssuerSupport": "NOT_IMPLEMENTED_OBJECTS_LIMIT_ONLY",
+            "exclusiveIssuerSupport": "IMPLEMENTED_NOT_ISSUED",
             "processScope": "joint-queued-stop-process",
             "clockScope": "joint-queued-stop-stage-clock",
             "receiptScope": "joint-queued-stop-window-close",
@@ -1674,8 +1722,8 @@
         "authorityCannotBeInherited": true,
         "stopOnNonPass": true,
         "oldWindowReplayAllowed": false,
-        "readyToAuthorize": false,
-        "nextAction": "TDD_IMPLEMENT_JOINT_QUEUED_STOP_ISSUER_BEFORE_ANY_JOINT_AUTHORIZATION",
+        "readyToAuthorize": true,
+        "nextAction": "ISSUE_ONE_FRESH_OBJECTS_LIMIT_QUEUED_STOP_AUTHORITY_THEN_RUN_LINEAR_JOINT_CHAIN_ON_PASS",
         "deviceOpened": false,
         "gateB": "NOT_RUN",
         "ownerAcceptance": "NOT_RUN"

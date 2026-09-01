@@ -70,6 +70,23 @@ test('排队Stop：真实新Node在完整审计及Begin后按同一IPC顺序处�
   } finally { database.close(); }
 });
 
+test('排队Stop协议：父侧aggregate guard不进入固定child clone合同', async t => {
+  const { runCapacityQueuedStop } = await import('./helpers/recording-capacity-process.js');
+  const { fixture, clone } = await queuedFixture(t, 'queued-stop-aggregate-boundary');
+  clone.aggregateGuard = {
+    parent: clone.parent, snapshotBytes: 1, limitBytes: 2, stopped: false,
+    groupForLabel: () => 'queued-stop',
+    check: () => ({ sequence: 1, outputBytesBefore: 0, outputBytesAfter: 0, plannedBytes: 0, limitBytes: 2 }),
+  };
+  let launched = false;
+  const result = await runCapacityQueuedStop({ clone, planId: fixture.frozenPlan.id, planHash: fixture.frozenPlan.contentHash }, {
+    launch: () => { launched = true; throw new Error('受控launch停止'); },
+  });
+  assert.equal(launched, true, '父侧预算guard不得使child task在preflight被拒绝');
+  assert.equal(result.phase, 'spawned');
+  assert.equal(result.failure, 'SPAWN_FAILED');
+});
+
 test('排队Stop监督：原回执及cleanup到达后仍等待自然close，父子时钟分栏', { timeout: 10_000 }, async t => {
   const { runCapacityQueuedStop } = await import('./helpers/recording-capacity-process.js');
   const { fixture, clone } = await queuedFixture(t, 'queued-stop-transport');

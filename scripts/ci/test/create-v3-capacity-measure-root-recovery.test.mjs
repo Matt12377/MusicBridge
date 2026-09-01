@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -266,6 +266,73 @@ test('70个历史root统一旧device时允许REMAPPED且replacement全部落在c
   } finally { f.cleanup() }
 })
 
+test('runtime整体迁移时只允许显式前缀重映射，并逐根冻结旧新身份', () => {
+  const f = fixture()
+  try {
+    const historicalRuntime = f.runtime
+    const currentRuntime = join(f.root, 'runtime-relocated')
+    renameSync(historicalRuntime, currentRuntime)
+    const currentManifest = join(currentRuntime, 'historical-measure-window', 'owned-roots.json')
+    const currentSeed = join(currentRuntime, 'durable-seed', 'seed.sqlite')
+    let args = replaceOption(f.args, '--runtime-root', currentRuntime)
+    args = replaceOption(args, '--measure-owned-manifest', currentManifest)
+    args = replaceOption(args, '--durable-seed-snapshot', currentSeed)
+    args.push('--historical-runtime-root', historicalRuntime)
+
+    const result = run(f, args)
+    assert.equal(result.status, 0, result.stderr)
+    const recovery = join(currentRuntime, f.recoveryName)
+    const receipt = JSON.parse(readFileSync(join(recovery, 'recovery.json')))
+    assert.equal(receipt.model, 'exact75-v3-runtime-relocation-closure')
+    assert.deepEqual(Object.keys(receipt.liveRootRemap).sort(), [
+      'currentRuntime', 'historicalRuntime', 'liveRootCount', 'mappings', 'mode',
+    ])
+    assert.equal(receipt.liveRootRemap.mode, 'PREFIX_RELOCATION')
+    assert.equal(receipt.liveRootRemap.historicalRuntime, historicalRuntime)
+    assert.equal(receipt.liveRootRemap.currentRuntime, currentRuntime)
+    assert.equal(receipt.liveRootRemap.liveRootCount, 63)
+    assert.equal(receipt.liveRootRemap.mappings.length, 63)
+    for (const [index, mapping] of receipt.liveRootRemap.mappings.entries()) {
+      assert.deepEqual(mapping.historicalRoot, f.present[index])
+      assert.equal(mapping.currentRoot.path,
+        join(currentRuntime, mapping.historicalRoot.path.slice(historicalRuntime.length + 1)))
+      assert.equal(mapping.currentRoot.device, statSync(mapping.currentRoot.path).dev)
+      assert.equal(mapping.currentRoot.inode, statSync(mapping.currentRoot.path).ino)
+      assert.deepEqual(mapping.currentRoot.marker, mapping.historicalRoot.marker)
+    }
+  } finally { f.cleanup() }
+})
+
+test('历史runtime前缀仍是指向current runtime的符号链接时也允许显式重映射', () => {
+  const f = fixture()
+  try {
+    const historicalRuntime = join(f.root, 'historical-runtime-alias')
+    symlinkSync(f.runtime, historicalRuntime, 'dir')
+    const value = JSON.parse(readFileSync(f.manifest))
+    value.roots = value.roots.map(row => row.path.startsWith(`${f.runtime}/`)
+      ? { ...row, path: historicalRuntime + row.path.slice(f.runtime.length) }
+      : row)
+    value.futureRoots = value.futureRoots.map(path =>
+      historicalRuntime + path.slice(f.runtime.length))
+    rmSync(f.manifest)
+    json(f.manifest, value)
+    let args = replaceOption(f.args, '--expected-measure-owned-sha256', sha(f.manifest))
+    args.push('--historical-runtime-root', historicalRuntime)
+
+    const result = run(f, args)
+    assert.equal(result.status, 0, result.stderr)
+    const receipt = JSON.parse(readFileSync(join(f.recovery, 'recovery.json')))
+    assert.equal(receipt.model, 'exact75-v3-runtime-relocation-closure')
+    assert.equal(receipt.liveRootRemap.historicalRuntime, historicalRuntime)
+    assert.equal(receipt.liveRootRemap.currentRuntime, f.runtime)
+    assert.equal(receipt.liveRootRemap.mappings.length, 63)
+    for (const mapping of receipt.liveRootRemap.mappings) {
+      assert.equal(mapping.historicalRoot.path.startsWith(`${historicalRuntime}/`), true)
+      assert.equal(mapping.currentRoot.path.startsWith(`${f.runtime}/`), true)
+    }
+  } finally { f.cleanup() }
+})
+
 test('70个历史root混合device时在创建pending前拒绝', () => {
   const f = fixture()
   try {
@@ -425,11 +492,11 @@ test('pending后观测到currentDevice漂移时恢复必须fail closed', () => {
     const resumed = runMonkeypatched(f, `
 original=module.validate_manifest
 def drift(*args, **kwargs):
-  path, identity, missing, remap = original(*args, **kwargs)
+  path, identity, missing, remap, root_remap = original(*args, **kwargs)
   changed = dict(remap)
   changed['currentDevice'] += 1
   changed['mode'] = ('UNCHANGED' if changed['historicalDevice'] == changed['currentDevice'] else 'REMAPPED')
-  return path, identity, missing, changed
+  return path, identity, missing, changed, root_remap
 module.validate_manifest=drift`)
     assert.equal(resumed.status, 1)
     assert.match(resumed.stderr, /PENDING_INVALID/u)

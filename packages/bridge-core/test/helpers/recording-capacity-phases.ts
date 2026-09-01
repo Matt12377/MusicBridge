@@ -109,6 +109,8 @@ export interface CapacityPrintWriteSummary {
 function invalid(code: string): never { throw new Error(`CAPACITY_PHASE_${code}`); }
 const failCodes = ['INVALID_INPUT','WINDOW_INVALID','INVENTORY_INVALID','SOURCE_CHANGED','SEED_INVALID','BACKUP_INVALID','SPACE','DEADLINE','OPERATION_FAILED','PERSISTENCE_FAILED','THRESHOLD_FAILED'];
 export const capacityPhaseFailureCode = (error: unknown): string => error instanceof Error && failCodes.some(code => error.message === `CAPACITY_PHASE_${code}`) ? error.message : 'CAPACITY_PHASE_OPERATION_FAILED';
+const validProcessFailureStderr = (value: string, pid: number): boolean => failCodes.some(code =>
+  value === `CAPACITY_PHASE_${code}\n(node:${pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use \`node --trace-warnings ...\` to show where the warning was created)\n`);
 const sha = (v: unknown): v is string => typeof v === 'string' && /^[a-f0-9]{64}$/u.test(v);
 const label = (v: unknown): v is string => typeof v === 'string' && /^[a-z0-9-]{1,64}$/u.test(v);
 const integer = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
@@ -318,6 +320,8 @@ interface RecoveryMapping { historicalRoot: RecoveryRootRow; state: 'LOST'; reco
 interface RootRecoveryReceipt {
   mappings: RecoveryMapping[]; activeBenchmarkInput: { model: 'durable-seed-snapshot'; path: string; sha256: string };
   liveDeviceRemap: { mode: 'UNCHANGED' | 'REMAPPED'; historicalDevice: number; currentDevice: number; liveRootCount: number };
+  liveRootRemap?: { mode: 'PREFIX_RELOCATION'; historicalRuntime: string; currentRuntime: string; liveRootCount: number;
+    mappings: Array<{ historicalRoot: RecoveryRootRow; currentRoot: RecoveryRootRow }> };
 }
 const recoveryToolRelative = 'scripts/ci/create-v3-capacity-measure-root-recovery.py';
 const recoveryHistoricalRootCount = 70, recoveryLostRootCount = 7, recoveryLiveRootCount = 63;
@@ -333,6 +337,15 @@ function validRecoveryRoot(value: unknown, replacement: boolean): value is Recov
   return replacement
     ? value.role === 'historical-control-only' && value.marker.relative === 'owner.json'
     : value.marker.relative === 'capacity-owner.json';
+}
+
+function validRelocationRoot(value: unknown): value is RecoveryRootRow {
+  return exact(value, 'path,device,inode,marker') && typeof value.path === 'string'
+    && path.isAbsolute(value.path) && path.normalize(value.path) === value.path
+    && integer(value.device) && integer(value.inode) && exact(value.marker, 'relative,sha256')
+    && typeof value.marker.relative === 'string'
+    && ['owner.json','capacity-owner.json','seed.json','command.json','r020-owner.json'].includes(value.marker.relative)
+    && sha(value.marker.sha256);
 }
 
 function directRegularFile(file: string): boolean {
@@ -408,9 +421,12 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
     || !directRegularFile(receiptPath) || (lstatSync(recoveryRoot).mode & 0o777) !== 0o700
     || (lstatSync(receiptPath).mode & 0o777) !== 0o400) invalid('WINDOW_INVALID');
   const receiptValue = json(receiptPath, String(binding.sha256));
-  const keys = 'schemaVersion,scope,access,state,model,windowId,historicalManifest,repository,recoveryTool,mappings,activeBenchmarkInput,liveDeviceRemap,contentRecovered,historicalManifestRewritten,deviceOpened,formalReady,gateB';
+  const relocationReceipt = typeof receiptValue === 'object' && receiptValue !== null
+    && (receiptValue as Record<string, unknown>).model === 'exact75-v3-runtime-relocation-closure';
+  const keys = `schemaVersion,scope,access,state,model,windowId,historicalManifest,repository,recoveryTool,mappings,activeBenchmarkInput,liveDeviceRemap${relocationReceipt ? ',liveRootRemap' : ''},contentRecovered,historicalManifestRewritten,deviceOpened,formalReady,gateB`;
   if (!exact(receiptValue, keys) || receiptValue.schemaVersion !== 1 || receiptValue.scope !== 'musicbridge-capacity-measure-root-recovery'
-    || receiptValue.access !== 'read-only' || receiptValue.state !== 'PUBLISHED' || receiptValue.model !== 'exact75-v2-replacement-closure'
+    || receiptValue.access !== 'read-only' || receiptValue.state !== 'PUBLISHED'
+    || !['exact75-v2-replacement-closure','exact75-v3-runtime-relocation-closure'].includes(String(receiptValue.model))
     || receiptValue.windowId !== carryover.window!.id
     || !exact(receiptValue.historicalManifest, 'path,sha256')
     || receiptValue.historicalManifest.path !== carryover.ownedManifest!.path
@@ -438,15 +454,67 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
     || !Array.isArray(receiptValue.mappings) || receiptValue.mappings.length !== 7) invalid('WINDOW_INVALID');
   const receipt = receiptValue as unknown as RootRecoveryReceipt;
   const remap = receipt.liveDeviceRemap;
+  const rootRelocation = receipt.liveRootRemap;
+  const relocationByHistorical = new Map<string, { historicalRoot: RecoveryRootRow; currentRoot: RecoveryRootRow }>();
+  if (relocationReceipt) {
+    if (!exact(rootRelocation, 'mode,historicalRuntime,currentRuntime,liveRootCount,mappings')
+      || rootRelocation.mode !== 'PREFIX_RELOCATION' || rootRelocation.currentRuntime !== runtime
+      || rootRelocation.historicalRuntime === runtime || !path.isAbsolute(rootRelocation.historicalRuntime)
+      || path.normalize(rootRelocation.historicalRuntime) !== rootRelocation.historicalRuntime
+      || rootRelocation.liveRootCount !== recoveryLiveRootCount || !Array.isArray(rootRelocation.mappings)
+      || rootRelocation.mappings.length !== recoveryLiveRootCount) invalid('WINDOW_INVALID');
+    for (const value of rootRelocation.mappings) {
+      if (!exact(value, 'historicalRoot,currentRoot') || !validRelocationRoot(value.historicalRoot)
+        || !validRelocationRoot(value.currentRoot)) invalid('WINDOW_INVALID');
+      const relative = path.relative(rootRelocation.historicalRuntime, value.historicalRoot.path);
+      if (!relative || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)
+        || path.join(runtime, relative) !== value.currentRoot.path
+        || value.historicalRoot.marker.sha256 !== value.currentRoot.marker.sha256
+        || relocationByHistorical.has(value.historicalRoot.path)) invalid('WINDOW_INVALID');
+      stableRecoveryRoot(value.currentRoot, remap.currentDevice);
+      relocationByHistorical.set(value.historicalRoot.path, value);
+    }
+  } else if (rootRelocation !== undefined) invalid('WINDOW_INVALID');
+  const relocateRuntimeString = (value: string): string => {
+    if (!rootRelocation) return value;
+    const relative = path.relative(rootRelocation.historicalRuntime, value);
+    return relative && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative)
+      ? path.join(runtime, relative) : value;
+  };
+  const relocateRuntimeValue = (value: unknown, preserveHistoricalRoot = false): unknown => {
+    if (!rootRelocation) return value;
+    if (typeof value === 'string') return preserveHistoricalRoot ? value : relocateRuntimeString(value);
+    if (Array.isArray(value)) return value.map(item => relocateRuntimeValue(item, preserveHistoricalRoot));
+    if (!value || typeof value !== 'object') return value;
+    const source = value as Record<string, unknown>;
+    const relocated = Object.fromEntries(Object.entries(source).map(([key, item]) => [key,
+      relocateRuntimeValue(item, preserveHistoricalRoot || key === 'historicalRoot' || key === 'historicalRuntime')]));
+    if (!preserveHistoricalRoot && (validRelocationRoot(source) || validRecoveryRoot(source, true))) {
+      const currentPath = relocateRuntimeString(source.path);
+      if (currentPath !== source.path) {
+        let info: Stats;
+        try { info = lstatSync(currentPath); }
+        catch { invalid('WINDOW_INVALID'); }
+        const currentRoot = { ...source, path: currentPath, device: info.dev, inode: info.ino } as RecoveryRootRow;
+        stableRecoveryRoot(currentRoot, remap.currentDevice);
+        return currentRoot;
+      }
+    }
+    return relocated;
+  };
   const historicalValue = json(String(receiptValue.historicalManifest.path), String(receiptValue.historicalManifest.sha256));
   if (!exact(historicalValue, 'schemaVersion,scope,access,windowId,roots,futureRoots') || historicalValue.schemaVersion !== 1
     || historicalValue.scope !== 'musicbridge-capacity-owned-roots' || historicalValue.access !== 'count-only'
     || historicalValue.windowId !== receiptValue.windowId || !Array.isArray(historicalValue.roots)
     || historicalValue.roots.length !== recoveryHistoricalRootCount || !Array.isArray(historicalValue.futureRoots)
     || historicalValue.futureRoots.length !== 1 || typeof historicalValue.futureRoots[0] !== 'string'
-    || !path.isAbsolute(historicalValue.futureRoots[0]) || path.normalize(historicalValue.futureRoots[0]) !== historicalValue.futureRoots[0]
-    || !inside(runtime, historicalValue.futureRoots[0]) || historicalValue.futureRoots[0] === runtime) invalid('WINDOW_INVALID');
-  const historicalFutureRoot = historicalValue.futureRoots[0];
+    || !path.isAbsolute(historicalValue.futureRoots[0]) || path.normalize(historicalValue.futureRoots[0]) !== historicalValue.futureRoots[0]) invalid('WINDOW_INVALID');
+  let historicalFutureRoot = historicalValue.futureRoots[0];
+  if (rootRelocation) {
+    const relative = path.relative(rootRelocation.historicalRuntime, historicalFutureRoot);
+    if (!relative || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) invalid('WINDOW_INVALID');
+    historicalFutureRoot = path.join(runtime, relative);
+  } else if (!inside(runtime, historicalFutureRoot) || historicalFutureRoot === runtime) invalid('WINDOW_INVALID');
   const historicalRows = historicalValue.roots as RecoveryRootRow[], historicalPaths = new Set<string>();
   const liveRoots: RecoveryRootRow[] = [], absentRoots: RecoveryRootRow[] = [];
   for (const root of historicalRows) {
@@ -455,7 +523,11 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
     if (!path.isAbsolute(root.path) || path.normalize(root.path) !== root.path || historicalPaths.has(root.path)) invalid('WINDOW_INVALID');
     if (root.device !== remap.historicalDevice) invalid('WINDOW_INVALID');
     historicalPaths.add(root.path);
-    if (missingPath(root.path)) {
+    const relocated = relocationByHistorical.get(root.path);
+    if (relocated) {
+      if (!sameRecoveryRow(relocated.historicalRoot, root)) invalid('WINDOW_INVALID');
+      liveRoots.push(relocated.currentRoot);
+    } else if (missingPath(root.path)) {
       if (root.marker.relative !== 'capacity-owner.json') invalid('WINDOW_INVALID');
       absentRoots.push(root);
     } else {
@@ -464,7 +536,8 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
       liveRoots.push(root);
     }
   }
-  if (liveRoots.length !== recoveryLiveRootCount || absentRoots.length !== recoveryLostRootCount) invalid('WINDOW_INVALID');
+  if (liveRoots.length !== recoveryLiveRootCount || absentRoots.length !== recoveryLostRootCount
+    || relocationByHistorical.size !== (rootRelocation ? recoveryLiveRootCount : 0)) invalid('WINDOW_INVALID');
   const historical = new Set<string>(), replacements = new Set<string>();
   for (const [index, value] of receipt.mappings.entries()) {
     if (!exact(value, 'historicalRoot,state,recovered,replacementRoot') || value.state !== 'LOST' || value.recovered !== false
@@ -552,13 +625,34 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
       if (!same(inherited, baseOwnedRoots)) invalid('WINDOW_INVALID');
       return;
     }
-    const oldReceiptValue = json(measure.measureRootRecovery.path, measure.measureRootRecovery.sha256, 4 * 1024 ** 2);
-    const oldHistoricalManifest = exact(oldReceiptValue, keys) && exact(oldReceiptValue.historicalManifest, 'path,sha256')
+    const oldReceiptValue = relocateRuntimeValue(
+      json(measure.measureRootRecovery.path, measure.measureRootRecovery.sha256, 4 * 1024 ** 2));
+    const oldRelocationReceipt = typeof oldReceiptValue === 'object' && oldReceiptValue !== null
+      && (oldReceiptValue as Record<string, unknown>).model === 'exact75-v3-runtime-relocation-closure';
+    const oldReceiptKeys = `schemaVersion,scope,access,state,model,windowId,historicalManifest,repository,recoveryTool,mappings,activeBenchmarkInput,liveDeviceRemap${oldRelocationReceipt ? ',liveRootRemap' : ''},contentRecovered,historicalManifestRewritten,deviceOpened,formalReady,gateB`;
+    const oldHistoricalManifest = exact(oldReceiptValue, oldReceiptKeys) && exact(oldReceiptValue.historicalManifest, 'path,sha256')
       ? oldReceiptValue.historicalManifest : undefined;
-    if (!exact(oldReceiptValue, keys) || !Array.isArray(oldReceiptValue.mappings) || oldReceiptValue.mappings.length !== 7
+    if (!exact(oldReceiptValue, oldReceiptKeys)
+      || !['exact75-v2-replacement-closure','exact75-v3-runtime-relocation-closure'].includes(String(oldReceiptValue.model))
+      || !Array.isArray(oldReceiptValue.mappings) || oldReceiptValue.mappings.length !== 7
       || !oldHistoricalManifest || !exact(measure.ownedManifest, 'path,sha256')
       || oldHistoricalManifest.path !== measure.ownedManifest.path
       || oldHistoricalManifest.sha256 !== measure.ownedManifest.sha256) invalid('WINDOW_INVALID');
+    if (oldRelocationReceipt) {
+      const oldRootRelocation = oldReceiptValue.liveRootRemap as RootRecoveryReceipt['liveRootRemap'];
+      const sameRelocationRoot = (left: RecoveryRootRow, right: RecoveryRootRow) => validRelocationRoot(left)
+        && validRelocationRoot(right) && left.path === right.path && left.device === right.device && left.inode === right.inode
+        && left.marker.relative === right.marker.relative && left.marker.sha256 === right.marker.sha256;
+      if (!rootRelocation || !exact(oldRootRelocation, 'mode,historicalRuntime,currentRuntime,liveRootCount,mappings')
+        || oldRootRelocation.mode !== rootRelocation.mode
+        || oldRootRelocation.historicalRuntime !== rootRelocation.historicalRuntime
+        || oldRootRelocation.currentRuntime !== rootRelocation.currentRuntime
+        || oldRootRelocation.liveRootCount !== rootRelocation.liveRootCount
+        || !Array.isArray(oldRootRelocation.mappings) || oldRootRelocation.mappings.length !== rootRelocation.mappings.length
+        || oldRootRelocation.mappings.some((value, index) => !exact(value, 'historicalRoot,currentRoot')
+          || !sameRelocationRoot(value.historicalRoot, rootRelocation.mappings[index]!.historicalRoot)
+          || !sameRelocationRoot(value.currentRoot, rootRelocation.mappings[index]!.currentRoot))) invalid('WINDOW_INVALID');
+    }
     const oldMappings = oldReceiptValue.mappings as RecoveryMapping[];
     if (oldMappings.some(value => !exact(value, 'historicalRoot,state,recovered,replacementRoot')
       || !validRecoveryRoot(value.historicalRoot, false) || !validRecoveryRoot(value.replacementRoot, true))) invalid('WINDOW_INVALID');
@@ -604,14 +698,14 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
     }
     type ProcessBinding = { path: string; sha256: string };
     const binding = (role: keyof typeof processFileRelatives): ProcessBinding => files[role] as ProcessBinding;
-    const owner = json(binding('owner').path, binding('owner').sha256);
-    const fact = json(binding('issuerFact').path, binding('issuerFact').sha256) as Record<string, unknown>;
-    const source = json(binding('sourceManifest').path, binding('sourceManifest').sha256) as Record<string, unknown>;
-    const owned = json(binding('ownedManifest').path, binding('ownedManifest').sha256) as Record<string, unknown>;
-    const nodeWindow = json(binding('window').path, binding('window').sha256) as Record<string, unknown>;
-    const close = json(binding('close').path, binding('close').sha256) as Record<string, unknown>;
-    const supervision = json(binding('supervision').path, binding('supervision').sha256) as Record<string, unknown>;
-    const start = json(binding('supervisorStart').path, binding('supervisorStart').sha256) as Record<string, unknown>;
+    const owner = relocateRuntimeValue(json(binding('owner').path, binding('owner').sha256));
+    const fact = relocateRuntimeValue(json(binding('issuerFact').path, binding('issuerFact').sha256)) as Record<string, unknown>;
+    const source = relocateRuntimeValue(json(binding('sourceManifest').path, binding('sourceManifest').sha256)) as Record<string, unknown>;
+    const owned = relocateRuntimeValue(json(binding('ownedManifest').path, binding('ownedManifest').sha256)) as Record<string, unknown>;
+    const nodeWindow = relocateRuntimeValue(json(binding('window').path, binding('window').sha256)) as Record<string, unknown>;
+    const close = relocateRuntimeValue(json(binding('close').path, binding('close').sha256)) as Record<string, unknown>;
+    const supervision = relocateRuntimeValue(json(binding('supervision').path, binding('supervision').sha256)) as Record<string, unknown>;
+    const start = relocateRuntimeValue(json(binding('supervisorStart').path, binding('supervisorStart').sha256)) as Record<string, unknown>;
     const processCarryover = fact.processFailureCarryover;
     const leaf = !('processFailureCarryover' in fact) && !('processFailureCarryoverCount' in nodeWindow);
     const linked = exact(fact, `${leafFactKeys},processFailureCarryover`) && exact(nodeWindow, `${leafWindowKeys},processFailureCarryoverCount`)
@@ -676,7 +770,7 @@ function successorRecoveryValidator(window: CapacityPhaseWindow, runtime: string
     if (!exact(queued, queuedKeys) || !same(queued, { outputDirectory, verifiedComplete: false, verifiedPassed: false,
       fileCount: 0, sampleCount: 0, uniqueChildPids: 0, aggregateBudgetValid: false, unexpectedEntries: [] })
       || existsSync(outputDirectory) || stdoutBytes !== '' || !integer(pid) || pid <= 0
-      || stderrBytes !== `CAPACITY_PHASE_OPERATION_FAILED\n(node:${pid}) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use \`node --trace-warnings ...\` to show where the warning was created)\n`
+      || !validProcessFailureStderr(stderrBytes, Number(pid))
       || !exact(supervision, supervisionKeys) || supervision.passed !== false || supervision.failure !== 'PROCESS_EXIT'
       || supervision.pgid !== pid || supervision.code !== 1 || supervision.exitSignal !== null
       || !same(supervision.signals, []) || supervision.groupEmpty !== true || !same(supervision.zombies, [])

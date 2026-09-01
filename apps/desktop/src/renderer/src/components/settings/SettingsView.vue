@@ -18,6 +18,7 @@ const props = defineProps<{
   accountError?: string | null
   remoteCoreState: RemoteCoreTunnelState
   remoteAutoStart: boolean
+  remoteSshTarget: string
 }>()
 
 const emit = defineEmits<{
@@ -33,6 +34,7 @@ const emit = defineEmits<{
   'stop-remote-core': []
   'reconnect-remote-core': []
   'update:remote-auto-start': [value: boolean]
+  'update:remote-ssh-target': [value: string]
 }>()
 
 const settingsBuildMode = computed(() => props.appInfo?.buildMode ?? 'production')
@@ -169,14 +171,17 @@ function paneId(category: SettingsCategory): string {
       </article>
     </div>
 
-    <div v-else-if="activeCategory === 'advanced' && props.appInfo?.buildMode === 'development'" id="settings-pane-advanced" class="settings-pane settings-pane-advanced" role="tabpanel" aria-labelledby="settings-tab-advanced">
+    <div v-else-if="activeCategory === 'advanced'" id="settings-pane-advanced" class="settings-pane settings-pane-advanced" role="tabpanel" aria-labelledby="settings-tab-advanced">
       <article class="settings-card settings-glass-panel remote-core-settings" data-remote-core-settings>
         <div class="panel-heading"><div><p class="section-kicker">高级</p><h3>Remote Core 开发</h3></div><span class="settings-status-pill" :class="'is-' + props.remoteCoreState.status">{{ remoteStatusLabel(props.remoteCoreState.status) }}</span></div>
-        <p class="muted-copy">仅开发构建可用。应用仍运行在本机，SSH 只建立回环反向隧道；不会修改正式 Extension、Provider 或播放语义。</p>
-        <dl class="detail-list remote-core-details"><div><dt>目标</dt><dd>{{ props.remoteCoreState.sshTarget ?? '由 CORE_SSH_TARGET 提供' }}</dd></div><div><dt>远程端口</dt><dd>{{ props.remoteCoreState.remoteStreamPort ?? '—' }}</dd></div><div><dt>本地 Gateway</dt><dd>127.0.0.1:{{ props.remoteCoreState.localStreamPort }}</dd></div><div><dt>健康检查</dt><dd>{{ props.remoteCoreState.remoteHealth === 'available' ? '可用' : '未确认' }}</dd></div></dl>
+        <p class="muted-copy">本地开发构建和验收包均可用，默认关闭。SSH 只建立受控回环隧道；不会修改正式 Extension、Provider 或播放语义。</p>
+        <label class="field-label" for="remote-ssh-target">SSH 目标</label>
+        <input id="remote-ssh-target" :value="props.remoteSshTarget" type="text" maxlength="255" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="macmini 或 user@host" :disabled="props.remoteCoreState.status === 'checking' || props.remoteCoreState.status === 'starting' || props.remoteCoreState.status === 'ready' || props.remoteCoreState.status === 'reconnecting' || props.remoteCoreState.status === 'stopping'" @input="emit('update:remote-ssh-target', ($event.target as HTMLInputElement).value)" />
+        <p class="muted-copy">仅允许已配置的SSH别名或user@host；密码不会在应用中读取、保存或传递，SSH 必须使用已有 key 与 known_hosts。</p>
+        <dl class="detail-list remote-core-details"><div><dt>当前目标</dt><dd>{{ props.remoteCoreState.sshTarget ?? '尚未连接' }}</dd></div><div><dt>远程端口</dt><dd>{{ props.remoteCoreState.remoteStreamPort ?? '—' }}</dd></div><div><dt>本地 Gateway</dt><dd>127.0.0.1:{{ props.remoteCoreState.localStreamPort }}</dd></div><div><dt>健康检查</dt><dd>{{ props.remoteCoreState.remoteHealth === 'available' ? '可用' : '未确认' }}</dd></div></dl>
         <label class="settings-toggle"><input type="checkbox" :checked="props.remoteAutoStart" @change="emit('update:remote-auto-start', ($event.target as HTMLInputElement).checked)" /><span>开发启动时自动连接（默认关闭）</span></label>
         <p v-if="props.remoteCoreState.failure" class="persistent-error remote-core-failure"><span>{{ props.remoteCoreState.failure.message }}</span><span>阶段：{{ props.remoteCoreState.failure.phase }} · 错误码：{{ props.remoteCoreState.failure.code }}</span></p>
-        <div class="button-row remote-core-actions"><button v-if="props.remoteCoreState.status === 'idle' || props.remoteCoreState.status === 'failed' || props.remoteCoreState.status === 'disconnected'" type="button" class="primary-button" @click="emit('start-remote-core')">启动远程 Core</button><button v-else type="button" class="secondary-button" :disabled="props.remoteCoreState.status === 'stopping'" @click="emit('stop-remote-core')">停止远程 Core</button><button type="button" class="secondary-button" :disabled="props.remoteCoreState.status === 'checking' || props.remoteCoreState.status === 'starting' || props.remoteCoreState.status === 'reconnecting' || props.remoteCoreState.status === 'stopping'" @click="emit('reconnect-remote-core')">重连</button></div>
+        <div class="button-row remote-core-actions"><button v-if="props.remoteCoreState.status === 'idle' || props.remoteCoreState.status === 'failed' || props.remoteCoreState.status === 'disconnected'" type="button" class="primary-button" :disabled="!props.remoteSshTarget" @click="emit('start-remote-core')">启动远程 Core</button><button v-else type="button" class="secondary-button" :disabled="props.remoteCoreState.status === 'stopping'" @click="emit('stop-remote-core')">停止远程 Core</button><button type="button" class="secondary-button" :disabled="props.remoteCoreState.status === 'checking' || props.remoteCoreState.status === 'starting' || props.remoteCoreState.status === 'reconnecting' || props.remoteCoreState.status === 'stopping'" @click="emit('reconnect-remote-core')">重连</button></div>
       </article>
     </div>
   </section>

@@ -53,12 +53,14 @@ import { appendPage } from './composables/libraryPagination.js'
 import {
   createProgressiveCollectionLoader,
   loadCollectionTracks,
+  selectInitialCollectionPlayback,
   type CollectionPageLoader,
   type ProgressiveCollectionLoader,
 } from './composables/collectionQueue.js'
 import { appendRoonPage, emptyRoonPage } from './composables/roonLibraryPagination.js'
 import { useRoonCollection } from './composables/useRoonCollection.js'
 import { shouldRefreshVisibleRoonCollection } from './roon-collection-lifecycle.js'
+import { canLoadAuthorizedLibrary, isCoreRuntimeStable } from './core-readiness.js'
 import {
   selectRandomPlaylistPages,
   settleHomePlaylistPages,
@@ -211,6 +213,7 @@ const remoteCoreState = ref<RemoteCoreTunnelState>({
   autoReconnect: false,
 })
 const remoteAutoStart = ref(false)
+const remoteSshTarget = ref('')
 const inspectorOpen = ref(false)
 const commandOutboxOpen = ref(false)
 const commandOutboxTrigger = ref<HTMLButtonElement>()
@@ -377,6 +380,8 @@ let removeRemoteCoreListener: (() => void) | undefined
 let pollTimer: ReturnType<typeof setInterval> | undefined
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 let authOperation = 0
+let authorizedLibraryLoadStarted = false
+let authEventReceived = false
 let pollInFlight = false
 let lyricsOperation = 0
 let trackLikeOperation = 0
@@ -1310,6 +1315,14 @@ async function loadLiked(page: PageRequest = { offset: 0, limit: LIBRARY_PAGE_SI
     likedLoadingMore.value = false
     return
   }
+  if (!canLoadAuthorizedLibrary(
+    authState.value.status,
+    coreState.value?.runtime,
+    remoteCoreState.value.status,
+  )) {
+    if (page.offset === 0) likedInitialLoading.value = true
+    return
+  }
   const initial = page.offset === 0
   if (initial) {
     likedRequestGeneration += 1
@@ -1349,6 +1362,11 @@ async function loadDailyRecommendations(): Promise<void> {
     return
   }
   dailyState.value = 'loading'
+  if (!canLoadAuthorizedLibrary(
+    authState.value.status,
+    coreState.value?.runtime,
+    remoteCoreState.value.status,
+  )) return
   try {
     const snapshot = await window.musicBridge.getDailyRecommendations()
     if (operation !== dailyOperation) return
@@ -1386,6 +1404,12 @@ function selectAggregatedRoonItem(item: RoonLibraryItem): void {
 
 async function loadAccountState(): Promise<void> {
   accountError.value = null
+  if (!isCoreRuntimeStable(coreState.value?.runtime, remoteCoreState.value.status)) {
+    accountState.value = authState.value.status === 'authorized'
+      ? { status: 'loading' }
+      : { status: 'missing' }
+    return
+  }
   try {
     const state = await window.musicBridge.getAccountState()
     accountState.value = state
@@ -1411,6 +1435,14 @@ async function loadPlaylists(): Promise<void> {
     resetPlaylistSources()
     homePlaylistTracks.value = []
     homeRecommendationState.value = 'ready'
+    return
+  }
+  if (!canLoadAuthorizedLibrary(
+    authState.value.status,
+    coreState.value?.runtime,
+    remoteCoreState.value.status,
+  )) {
+    homeRecommendationState.value = 'loading'
     return
   }
   await loadPlaylistSources()
@@ -1628,17 +1660,35 @@ function acceptsPolling(state: PublicAuthState): boolean {
   return state.status === 'waiting' || state.status === 'scanned'
 }
 
+function loadAuthorizedLibraryWhenReady(): void {
+  if (
+    authorizedLibraryLoadStarted
+    || !canLoadAuthorizedLibrary(
+      authState.value.status,
+      coreState.value?.runtime,
+      remoteCoreState.value.status,
+    )
+  ) return
+  authorizedLibraryLoadStarted = true
+  void loadAccountState()
+  void loadLiked()
+  void loadPlaylists()
+  void loadDailyRecommendations()
+}
+
 function applyAuthState(state: PublicAuthState, operation = authOperation): void {
   if (operation !== authOperation) return
   authState.value = state
   if (!acceptsPolling(state)) stopPolling()
   if (state.status === 'authorized') {
     resetPrivateLibraryState()
-    void loadAccountState()
-    void loadLiked()
-    void loadPlaylists()
-    void loadDailyRecommendations()
+    authorizedLibraryLoadStarted = false
+    dailyState.value = 'loading'
+    homeRecommendationState.value = 'loading'
+    accountState.value = { status: 'loading' }
+    loadAuthorizedLibraryWhenReady()
   } else if (state.status === 'idle' || state.status === 'cancelled' || state.status === 'expired') {
+    authorizedLibraryLoadStarted = false
     resetPrivateLibraryState()
     accountState.value = { status: 'missing' }
     dailyRecommendations.value = { dayKey: localDayKey(), tracks: [] }
@@ -2113,6 +2163,7 @@ async function replaceAndPlayCollection(
   loadPage: CollectionPageLoader,
   selectedTrackId?: string,
   initialPage?: Page<TrackSummary>,
+  openNowPlaying = true,
 ): Promise<void> {
   if (collectionPlaybackStartInFlight || activeCollectionLoader) return
   collectionPlaybackStartInFlight = true
@@ -2126,20 +2177,17 @@ async function replaceAndPlayCollection(
       if (operation === collectionOperation) collectionPlaybackStartInFlight = false
       return
     }
-    const tracks = firstBatch.tracks
-    const requestedIndex = selectedTrackId === undefined
-      ? 0
-      : tracks.findIndex((track) => track.id === selectedTrackId)
-    const index = requestedIndex >= 0 ? requestedIndex : 0
-    const startsWithSingleTrack = selectedTrackId === undefined && index === 0
-    const initialTracks = startsWithSingleTrack ? tracks.slice(0, 1) : tracks
-    const snapshot = await window.musicBridge.replaceQueue(queueItemsForTracks(initialTracks), startsWithSingleTrack ? 0 : index)
+    const initial = selectInitialCollectionPlayback(firstBatch.tracks, selectedTrackId)
+    const snapshot = await window.musicBridge.replaceQueue(
+      queueItemsForTracks(initial.tracks),
+      initial.index,
+    )
     if (operation !== collectionOperation) return
     applyPlaybackState(snapshot)
-    enterNowPlaying()
+    if (openNowPlaying) enterNowPlaying()
     collectionPlaybackStartInFlight = false
-    if (firstBatch.hasMore || tracks.length > initialTracks.length) {
-      void continueCollectionQueue(loader, operation, tracks.slice(initialTracks.length))
+    if (firstBatch.hasMore) {
+      void continueCollectionQueue(loader, operation)
     } else {
       activeCollectionLoader = undefined
     }
@@ -2188,35 +2236,12 @@ function appendAllLiked(): void {
 function playPlaylistTrack(track: TrackSummary): void {
   const playlistId = selectedPlaylistId.value
   if (!playlistId) return
-  const operation = ++collectionOperation
-  actionError.value = null
-  void (async () => {
-    try {
-      applyNeteasePlayback(await window.musicBridge.play(track.id, selectedQuality.value))
-    } catch (error) {
-      if (operation === collectionOperation) recordActionError(error)
-      return
-    }
-
-    try {
-      const tracks = await loadCollectionTracks(
-        (page) => window.musicBridge.getPlaylist(playlistId, page).then((detail) => detail.tracks),
-      )
-      const currentPlayback = playbackState.value
-      if (
-        operation !== collectionOperation ||
-        tracks.length === 0 ||
-        !currentPlayback ||
-        currentPlayback.currentTrack?.id !== track.id ||
-        currentPlayback.queue.items.length !== 1
-      ) return
-      const requestedIndex = tracks.findIndex((item) => item.id === track.id)
-      if (requestedIndex < 0) return
-      applyNeteasePlayback(await window.musicBridge.replaceQueue(queueItemsForTracks(tracks), requestedIndex))
-    } catch (error) {
-      if (operation === collectionOperation) recordActionError(error)
-    }
-  })()
+  void replaceAndPlayCollection(
+    (page) => window.musicBridge.getPlaylist(playlistId, page).then((detail) => detail.tracks),
+    track.id,
+    selectedPlaylist.value?.tracks.items.length ? selectedPlaylist.value.tracks : undefined,
+    false,
+  )
 }
 
 function playAllPlaylist(): void {
@@ -2320,7 +2345,6 @@ async function seekPlayback(positionMs: number): Promise<void> {
     !snapshot ||
     !currentTrack ||
     currentTrack.durationMs === undefined ||
-    playbackSource.value !== 'roon' ||
     selectedZone.value?.seekAllowed !== true
   ) return
   try {
@@ -2355,10 +2379,16 @@ function updateRemoteAutoStart(value: boolean): void {
   window.localStorage.setItem('musicbridge.remoteCore.autoStart', value ? '1' : '0')
 }
 
+function updateRemoteSshTarget(value: string): void {
+  if (value.length > 255) return
+  remoteSshTarget.value = value
+  window.localStorage.setItem('musicbridge.remoteCore.sshTarget', value)
+}
+
 async function startRemoteCore(): Promise<void> {
   actionError.value = null
   try {
-    remoteCoreState.value = await window.musicBridge.startRemoteCore()
+    remoteCoreState.value = await window.musicBridge.startRemoteCore(remoteSshTarget.value)
   } catch (error) {
     recordActionError(error)
   }
@@ -2484,11 +2514,17 @@ onMounted(async () => {
   removeRemoteCoreListener = window.musicBridge.onRemoteCoreEvent((state) => {
     const previousStatus = remoteCoreState.value.status
     remoteCoreState.value = state
+    if (state.sshTarget) remoteSshTarget.value = state.sshTarget
     if (previousStatus === 'ready' && state.status !== 'ready') resetRoonRuntimeReferences()
     if (state.status !== 'ready' && coreState.value) {
       coreState.value = { ...coreState.value, roon: 'disconnected' }
     }
     zoneRefreshCoordinator.handleRemoteCoreState(state.status)
+    if (['checking', 'starting', 'reconnecting', 'stopping'].includes(state.status)) {
+      authorizedLibraryLoadStarted = false
+    } else {
+      loadAuthorizedLibraryWhenReady()
+    }
   })
   removeCoreListener = window.musicBridge.onCoreEvent((event) => {
     const previousRoonStatus = coreState.value?.roon
@@ -2502,12 +2538,21 @@ onMounted(async () => {
     }
     if (event.event === 'core.ready' || event.event === 'core.health' || event.event === 'roon.changed') {
       coreState.value = event.payload.state
+      if (event.payload.state.runtime !== 'ready') authorizedLibraryLoadStarted = false
     }
-    if (event.event === 'core.ready' || event.event === 'roon.changed') {
+    if (event.event === 'core.ready') {
+      authorizedLibraryLoadStarted = false
+      loadAuthorizedLibraryWhenReady()
+    }
+    if (
+      (event.event === 'core.ready' || event.event === 'roon.changed')
+      && isCoreRuntimeStable(event.payload.state.runtime, remoteCoreState.value.status)
+    ) {
       zoneRefreshCoordinator.handleCoreEvent(event.event, event.payload.state.roon)
     }
     if (
       (event.event === 'core.ready' || event.event === 'roon.changed')
+      && isCoreRuntimeStable(event.payload.state.runtime, remoteCoreState.value.status)
       && shouldRefreshVisibleRoonCollection(
         event.event,
         previousRoonStatus,
@@ -2516,13 +2561,29 @@ onMounted(async () => {
     ) {
       refreshVisibleRoonCollection()
     }
-    if (event.event === 'auth.changed') applyAuthState(event.payload.state)
+    if (event.event === 'auth.changed') {
+      authEventReceived = true
+      applyAuthState(event.payload.state)
+    }
     if (event.event === 'account.changed') {
       accountState.value = event.payload.state
-      if (event.payload.state.status === 'ready' && authState.value.status === 'authorized') {
+      if (
+        event.payload.state.status === 'ready'
+        && canLoadAuthorizedLibrary(
+          authState.value.status,
+          coreState.value?.runtime,
+          remoteCoreState.value.status,
+        )
+      ) {
         void loadDailyRecommendations()
       }
-      if (event.payload.state.status === 'missing') {
+      if (
+        event.payload.state.status === 'missing'
+        && (
+          authState.value.status !== 'authorized'
+          || coreState.value?.runtime === 'ready'
+        )
+      ) {
         resetPrivateLibraryState()
         dailyRecommendations.value = { dayKey: localDayKey(), tracks: [] }
         dailyState.value = 'empty'
@@ -2566,19 +2627,25 @@ onMounted(async () => {
     if (['auto', 'standard', 'exhigh', 'lossless', 'hires'].includes(storedQuality ?? '')) {
       selectedQuality.value = storedQuality as PlaybackQualityPreference
     }
-    if (appInfo.value.buildMode === 'development') {
-      remoteCoreState.value = await window.musicBridge.getRemoteCoreState()
-      remoteAutoStart.value = window.localStorage.getItem('musicbridge.remoteCore.autoStart') === '1'
-      if (remoteAutoStart.value && remoteCoreState.value.status === 'idle') {
-        void startRemoteCore()
-      }
+    remoteCoreState.value = await window.musicBridge.getRemoteCoreState()
+    remoteSshTarget.value = remoteCoreState.value.sshTarget
+      ?? window.localStorage.getItem('musicbridge.remoteCore.sshTarget')
+      ?? ''
+    remoteAutoStart.value = window.localStorage.getItem('musicbridge.remoteCore.autoStart') === '1'
+    if (remoteAutoStart.value && remoteSshTarget.value && remoteCoreState.value.status === 'idle') {
+      // 先在 Renderer 内标记切换中，避免隧道事件抵达前抢跑旧 Core 请求。
+      remoteCoreState.value = { ...remoteCoreState.value, status: 'checking' }
+      void startRemoteCore()
     }
     coreState.value = await window.musicBridge.getCoreHealth()
     const initialAuthState = await window.musicBridge.getAuthState()
-    applyAuthState(initialAuthState)
+    if (!authEventReceived) applyAuthState(initialAuthState)
+    else loadAuthorizedLibraryWhenReady()
     if (initialAuthState.status !== 'authorized') await loadAccountState()
-    applyPlaybackState(await window.musicBridge.getPlaybackState())
-    await loadZones()
+    if (isCoreRuntimeStable(coreState.value.runtime, remoteCoreState.value.status)) {
+      applyPlaybackState(await window.musicBridge.getPlaybackState())
+      await loadZones()
+    }
   } catch (error) {
     coreError.value = true
     recordActionError(error)
@@ -2710,7 +2777,7 @@ onUnmounted(() => {
             :page="roonArtistsPage"
             entity-label="艺术家"
             empty-title="还没有可显示的艺术家"
-            empty-copy="请确认 Roon Core 已配对，并且 Library 中存在艺术家。"
+            empty-copy="Roon Core 当前返回 0 位艺术家。请在 Roon 中检查存储位置与资料库内容后重新读取。"
             :initial-loading="roonArtistsInitialLoading"
             :loading-more="roonArtistsLoadingMore"
             :load-more-error="roonArtistsLoadMoreError"
@@ -2727,7 +2794,7 @@ onUnmounted(() => {
             :page="roonGenresPage"
             entity-label="流派"
             empty-title="还没有可显示的流派"
-            empty-copy="请确认 Roon Core 已配对，并且 Library 中存在流派。"
+            empty-copy="Roon Core 当前返回 0 个流派。请在 Roon 中检查存储位置与资料库内容后重新读取。"
             :initial-loading="roonGenresInitialLoading"
             :loading-more="roonGenresLoadingMore"
             :load-more-error="roonGenresLoadMoreError"
@@ -2744,7 +2811,7 @@ onUnmounted(() => {
             :page="roonPlaylistsPage"
             entity-label="歌单"
             empty-title="还没有可显示的 Roon 歌单"
-            empty-copy="请确认 Roon Core 已配对，并且 Library 中存在歌单。"
+            empty-copy="Roon Core 当前返回 0 个歌单。请在 Roon 中检查存储位置与资料库内容后重新读取。"
             :initial-loading="roonPlaylistsInitialLoading"
             :loading-more="roonPlaylistsLoadingMore"
             :load-more-error="roonPlaylistsLoadMoreError"
@@ -2977,7 +3044,7 @@ onUnmounted(() => {
           :track-like-state="trackLikeState"
           :track-like-available="playbackSource === 'netease' || nativeRoonHasNeteaseMatch || localTrackFavoriteDescriptor !== null"
           :playback-source="playbackSource"
-          :seek-allowed="playbackSource === 'roon' && selectedZone?.seekAllowed === true"
+          :seek-allowed="selectedZone?.seekAllowed === true"
           @back="exitNowPlaying"
           @previous="previousTrack"
           @toggle-playback="togglePlayback"
@@ -3002,6 +3069,7 @@ onUnmounted(() => {
           :account-error="accountError"
           :remote-core-state="remoteCoreState"
           :remote-auto-start="remoteAutoStart"
+          :remote-ssh-target="remoteSshTarget"
           @begin-login="beginQrLogin"
           @cancel-login="cancelQrLogin"
           @logout="logout"
@@ -3014,6 +3082,7 @@ onUnmounted(() => {
           @stop-remote-core="stopRemoteCore"
           @reconnect-remote-core="reconnectRemoteCore"
           @update:remote-auto-start="updateRemoteAutoStart"
+          @update:remote-ssh-target="updateRemoteSshTarget"
         />
 
         <section v-else class="view view-diagnostics" aria-labelledby="diagnostics-heading">

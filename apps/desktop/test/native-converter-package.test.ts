@@ -1,10 +1,16 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { mkdtemp, mkdir, writeFile, rm, symlink, realpath } from 'node:fs/promises'
+import { mkdtemp, mkdir, writeFile, readFile, rm, symlink, realpath } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import os from 'node:os'
 import path from 'node:path'
 import beforePack, { captureNativeConverter, verifyNativeConverterPackage } from '../scripts/native-converter-package.mjs'
+
+test('正式本地打包配置显式关闭发布签名并保留 Fuses ad-hoc 重签', async () => {
+  const packageConfig = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
+  assert.equal(packageConfig.build?.mac?.identity, null)
+  assert.equal(packageConfig.build?.electronFuses?.resetAdHocDarwinSignature, true)
+})
 
 // 只验证打包身份链，不运行合成程序，也不充当真实转换证据。
 test('打包准入绑定应用编译时清单，拒绝缺包、内容漂移、符号链接与缺失许可材料', async () => {
