@@ -78,7 +78,7 @@ contextBridge.exposeInMainWorld(
       return () => ipcRenderer.removeListener('app:command', handler)
     },
     () => ipcRenderer.invoke('remote-core:get-state'),
-    () => ipcRenderer.invoke('remote-core:start'),
+    (sshTarget: string) => ipcRenderer.invoke('remote-core:start', sshTarget),
     () => ipcRenderer.invoke('remote-core:stop'),
     () => ipcRenderer.invoke('remote-core:reconnect'),
     (listener: (state: RemoteCoreTunnelState) => void): (() => void) => {

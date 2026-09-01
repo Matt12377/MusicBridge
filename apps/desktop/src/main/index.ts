@@ -122,6 +122,7 @@ import {
 } from './core-environment.js'
 import {
   DEFAULT_REMOTE_STREAM_PORT,
+  isSafeSshTarget,
   RemoteCoreTunnelManager,
 } from './remote-core-tunnel.js'
 import {
@@ -1593,12 +1594,9 @@ function registerIpcHandlers(
     ),
   )
   ipcMain.handle('remote-core:get-state', (event) => {
-    return invokeRemoteCore(event, () => {
-      requireRemoteCoreDevelopment()
-      return remoteCoreTunnelManager.getState()
-    })
+    return invokeRemoteCore(event, getRemoteCoreState)
   })
-  ipcMain.handle('remote-core:start', (event) => invokeRemoteCore(event, startRemoteCoreDevelopment))
+  ipcMain.handle('remote-core:start', (event, sshTarget: unknown) => invokeRemoteCore(event, () => startRemoteCoreDevelopment(sshTarget)))
   ipcMain.handle('remote-core:stop', (event) => invokeRemoteCore(event, stopRemoteCoreDevelopment))
   ipcMain.handle('remote-core:reconnect', (event) => invokeRemoteCore(event, reconnectRemoteCoreDevelopment))
 }
@@ -1695,10 +1693,12 @@ function buildCoreEnvironment(): NodeJS.ProcessEnv {
   })
 }
 
-function requireRemoteCoreDevelopment(): void {
-  if (app.isPackaged) {
-    publicIpcFailure('NOT_READY', 'Remote Core development mode is disabled in packaged builds')
-  }
+function getRemoteCoreState(): RemoteCoreTunnelState {
+  const state = remoteCoreTunnelManager.getState()
+  const configuredTarget = process.env.CORE_SSH_TARGET
+  return !state.sshTarget && isSafeSshTarget(configuredTarget)
+    ? { ...state, sshTarget: configuredTarget }
+    : state
 }
 
 async function invokeRemoteCore<T>(
@@ -1712,22 +1712,18 @@ async function invokeRemoteCore<T>(
     if (error instanceof CoreIpcError) {
       return publicIpcFailure(error.code, error.message)
     }
-    if (
-      error &&
-      typeof error === 'object' &&
-      (error as { code?: unknown }).code === 'NOT_READY'
-    ) {
-      return publicIpcFailure('NOT_READY', 'Remote Core development mode is disabled in packaged builds')
-    }
     return publicIpcFailure('INTERNAL_ERROR', 'Remote Core request failed')
   }
 }
 
-async function startRemoteCoreDevelopment(): Promise<RemoteCoreTunnelState> {
-  requireRemoteCoreDevelopment()
+async function startRemoteCoreDevelopment(requestedTarget: unknown): Promise<RemoteCoreTunnelState> {
+  const environmentTarget = process.env.CORE_SSH_TARGET
+  const sshTarget = typeof requestedTarget === 'string' && requestedTarget.length > 0
+    ? requestedTarget
+    : isSafeSshTarget(environmentTarget) ? environmentTarget : ''
   const localPorts = resolveRemoteCoreLocalPorts(process.env)
   return remoteCoreTunnelManager.start({
-    sshTarget: process.env.CORE_SSH_TARGET ?? '',
+    sshTarget,
     remoteStreamPort: DEFAULT_REMOTE_STREAM_PORT,
     localStreamPort: localPorts.streamPort,
     autoReconnect: true,
@@ -1735,7 +1731,6 @@ async function startRemoteCoreDevelopment(): Promise<RemoteCoreTunnelState> {
 }
 
 async function stopRemoteCoreDevelopment(): Promise<RemoteCoreTunnelState> {
-  requireRemoteCoreDevelopment()
   await coreSupervisor?.request('playback.stop', {}).catch(() => undefined)
   const state = await remoteCoreTunnelManager.stop()
   if (coreMode === 'remote-core-development') {
@@ -1747,7 +1742,6 @@ async function stopRemoteCoreDevelopment(): Promise<RemoteCoreTunnelState> {
 }
 
 async function reconnectRemoteCoreDevelopment(): Promise<RemoteCoreTunnelState> {
-  requireRemoteCoreDevelopment()
   return remoteCoreTunnelManager.reconnect()
 }
 

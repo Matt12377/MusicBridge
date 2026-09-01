@@ -134,7 +134,7 @@ export interface MusicBridgePublicApi extends RecordingPrintsPublicApi, Recordin
   onCoreEvent: (listener: (event: TypedIpcEvent) => void) => () => void
   onAppCommand: (listener: (command: AppCommand) => void) => () => void
   getRemoteCoreState: () => Promise<RemoteCoreTunnelState>
-  startRemoteCore: () => Promise<RemoteCoreTunnelState>
+  startRemoteCore: (sshTarget: string) => Promise<RemoteCoreTunnelState>
   stopRemoteCore: () => Promise<RemoteCoreTunnelState>
   reconnectRemoteCore: () => Promise<RemoteCoreTunnelState>
   onRemoteCoreEvent: (listener: (state: RemoteCoreTunnelState) => void) => () => void
@@ -423,7 +423,7 @@ export function createPreloadApi(
   onCoreEvent: (listener: (event: TypedIpcEvent) => void) => () => void,
   onAppCommand: (listener: (command: AppCommand) => void) => () => void,
   getRemoteCoreState: () => Promise<RemoteCoreTunnelState> = async () => DEFAULT_REMOTE_CORE_STATE,
-  startRemoteCore: () => Promise<RemoteCoreTunnelState> = async () => DEFAULT_REMOTE_CORE_STATE,
+  startRemoteCore: (_sshTarget: string) => Promise<RemoteCoreTunnelState> = async () => DEFAULT_REMOTE_CORE_STATE,
   stopRemoteCore: () => Promise<RemoteCoreTunnelState> = async () => DEFAULT_REMOTE_CORE_STATE,
   reconnectRemoteCore: () => Promise<RemoteCoreTunnelState> = async () => DEFAULT_REMOTE_CORE_STATE,
   onRemoteCoreEvent: (

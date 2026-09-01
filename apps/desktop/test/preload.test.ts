@@ -95,6 +95,9 @@ test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，
     assert.deepEqual(await attemptApi[name]!(payload), { reply: `recordingReplica:${channel}` })
   }
   assert.deepEqual(calls, replicaCalls.map(([, channel, payload, wire]) => [`recordingReplica:${channel}`, { datasetId: runId, payload: wire ?? payload }]))
+  calls.length = 0
+  assert.deepEqual(await exposed.startRemoteCore('roonstation@macmini'), { reply: 'remote-core:start' })
+  assert.deepEqual(calls, [['remote-core:start', 'roonstation@macmini']])
 })
 
 test('Preload 图片诊断保持 sandbox 本地实现，不引入 contracts 运行期依赖', async () => {

@@ -570,8 +570,8 @@ img[hidden] { display: none; }
 .qr-frame { display: grid; width: 154px; height: 154px; margin: 18px 0; padding: 9px; place-items: center; border-radius: 12px; background: #fff; }
 .qr-frame img { width: 136px; height: 136px; }
 .field-label { display: block; margin: 16px 0 8px; color: var(--mb-text-secondary); font-size: 10px; }
-.settings-card select, .search-controls input { width: 100%; padding: 10px 11px; border: 1px solid var(--mb-glass-border); border-radius: 10px; color: var(--mb-text-primary); background: var(--mb-glass-clear); }
-.settings-card select:focus, .search-controls input:focus { border-color: var(--mb-accent); outline: 0; }
+.settings-card select, .settings-card input[type="text"], .search-controls input { width: 100%; padding: 10px 11px; border: 1px solid var(--mb-glass-border); border-radius: 10px; color: var(--mb-text-primary); background: var(--mb-glass-clear); }
+.settings-card select:focus, .settings-card input[type="text"]:focus, .search-controls input:focus { border-color: var(--mb-accent); outline: 0; }
 .settings-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr); gap: 18px; align-items: start; }
 .settings-glass-panel { border: 1px solid var(--mb-glass-border); border-radius: 16px; background: rgba(25, 30, 37, .64); box-shadow: var(--mb-glass-shadow); -webkit-backdrop-filter: blur(28px) saturate(1.16); backdrop-filter: blur(28px) saturate(1.16); }
 .account-settings-hero { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; align-items: center; grid-row: span 2; padding: 22px; }

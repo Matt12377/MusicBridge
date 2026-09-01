@@ -338,8 +338,10 @@ test('V1 Home and content pages use page-level width tiers and avoid a duplicate
   assert.match(css, /\.view-diagnostics\s*\{[^}]*max-width:\s*1100px/)
 })
 
-test('V1 Settings exposes focused Chinese category panes and hides development details in production', async () => {
+test('V1 Settings在生产候选保留受控Remote Core入口和显式SSH目标', async () => {
   const settings = await readFile(path.resolve('src/renderer/src/components/settings/SettingsView.vue'), 'utf8')
+  const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const main = await readFile(path.resolve('src/main/index.ts'), 'utf8')
 
   for (const label of ['账户', '播放', 'Roon', '应用', '高级']) {
     assert.match(settings, new RegExp(label))
@@ -354,7 +356,12 @@ test('V1 Settings exposes focused Chinese category panes and hides development d
   assert.match(settings, /settings-pane-application/)
   assert.match(settings, /settings-pane-advanced/)
   assert.doesNotMatch(settings, /Apple Liquid Glass/)
-  assert.match(settings, /buildMode === 'development'/)
+  assert.match(settings, /remote-ssh-target/)
+  assert.match(settings, /仅允许已配置的SSH别名或user@host/)
+  assert.doesNotMatch(settings, /activeCategory === 'advanced'[^\n]*buildMode === 'development'/)
+  assert.doesNotMatch(app, /appInfo\.value\.buildMode === 'development'/)
+  assert.doesNotMatch(main, /Remote Core development mode is disabled in packaged builds/)
+  assert.match(main, /isSafeSshTarget/)
 })
 
 test('V1 Search is an artist, track and album flow without playlist results', async () => {

@@ -35,6 +35,17 @@ export SSH_CONTROL_PATH="$HOME/.ssh/musicbridge-control/core-live.sock"
 
 脚本使用 `BatchMode=yes`，不会把密码放进参数、环境变量、脚本或报告。如果没有可复用的 SSH 公钥或 ControlMaster，脚本在认证阶段停止。
 
+### 本地验收包连接 Remote Core
+
+本地验收包保留受控的 Remote Core 开发入口，默认关闭：
+
+1. 打开“设置 → 高级”。
+2. 在“SSH 目标”填写已经写入 `~/.ssh/config` 的别名，或填写 `user@host`。
+3. 点击“启动远程 Core”，等待隧道、远端健康检查和本地 Core 重启依次完成。
+4. 返回“设置 → Roon”确认 Core 与 Zone 状态。
+
+SSH 目标只在开发 Mac 的应用偏好中保存，不进入 Git、报告或远端 bundle。应用不读取、保存或传递 SSH 密码；Host key、SSH key 和首次认证仍由 Owner 在本地终端预先完成。Main 只调用固定 `/usr/bin/ssh`，保持 `BatchMode=yes`、`StrictHostKeyChecking=yes`、固定端口集合和 loopback-only 转发。
+
 ## Core Mac 用户级运行时
 
 优先使用 Core Mac 用户目录下的 nvm，并将 Node.js 固定到 `22.x`：

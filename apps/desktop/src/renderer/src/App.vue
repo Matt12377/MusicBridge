@@ -211,6 +211,7 @@ const remoteCoreState = ref<RemoteCoreTunnelState>({
   autoReconnect: false,
 })
 const remoteAutoStart = ref(false)
+const remoteSshTarget = ref('')
 const inspectorOpen = ref(false)
 const commandOutboxOpen = ref(false)
 const commandOutboxTrigger = ref<HTMLButtonElement>()
@@ -2355,10 +2356,16 @@ function updateRemoteAutoStart(value: boolean): void {
   window.localStorage.setItem('musicbridge.remoteCore.autoStart', value ? '1' : '0')
 }
 
+function updateRemoteSshTarget(value: string): void {
+  if (value.length > 255) return
+  remoteSshTarget.value = value
+  window.localStorage.setItem('musicbridge.remoteCore.sshTarget', value)
+}
+
 async function startRemoteCore(): Promise<void> {
   actionError.value = null
   try {
-    remoteCoreState.value = await window.musicBridge.startRemoteCore()
+    remoteCoreState.value = await window.musicBridge.startRemoteCore(remoteSshTarget.value)
   } catch (error) {
     recordActionError(error)
   }
@@ -2484,6 +2491,7 @@ onMounted(async () => {
   removeRemoteCoreListener = window.musicBridge.onRemoteCoreEvent((state) => {
     const previousStatus = remoteCoreState.value.status
     remoteCoreState.value = state
+    if (state.sshTarget) remoteSshTarget.value = state.sshTarget
     if (previousStatus === 'ready' && state.status !== 'ready') resetRoonRuntimeReferences()
     if (state.status !== 'ready' && coreState.value) {
       coreState.value = { ...coreState.value, roon: 'disconnected' }
@@ -2566,12 +2574,13 @@ onMounted(async () => {
     if (['auto', 'standard', 'exhigh', 'lossless', 'hires'].includes(storedQuality ?? '')) {
       selectedQuality.value = storedQuality as PlaybackQualityPreference
     }
-    if (appInfo.value.buildMode === 'development') {
-      remoteCoreState.value = await window.musicBridge.getRemoteCoreState()
-      remoteAutoStart.value = window.localStorage.getItem('musicbridge.remoteCore.autoStart') === '1'
-      if (remoteAutoStart.value && remoteCoreState.value.status === 'idle') {
-        void startRemoteCore()
-      }
+    remoteCoreState.value = await window.musicBridge.getRemoteCoreState()
+    remoteSshTarget.value = remoteCoreState.value.sshTarget
+      ?? window.localStorage.getItem('musicbridge.remoteCore.sshTarget')
+      ?? ''
+    remoteAutoStart.value = window.localStorage.getItem('musicbridge.remoteCore.autoStart') === '1'
+    if (remoteAutoStart.value && remoteSshTarget.value && remoteCoreState.value.status === 'idle') {
+      void startRemoteCore()
     }
     coreState.value = await window.musicBridge.getCoreHealth()
     const initialAuthState = await window.musicBridge.getAuthState()
@@ -3002,6 +3011,7 @@ onUnmounted(() => {
           :account-error="accountError"
           :remote-core-state="remoteCoreState"
           :remote-auto-start="remoteAutoStart"
+          :remote-ssh-target="remoteSshTarget"
           @begin-login="beginQrLogin"
           @cancel-login="cancelQrLogin"
           @logout="logout"
@@ -3014,6 +3024,7 @@ onUnmounted(() => {
           @stop-remote-core="stopRemoteCore"
           @reconnect-remote-core="reconnectRemoteCore"
           @update:remote-auto-start="updateRemoteAutoStart"
+          @update:remote-ssh-target="updateRemoteSshTarget"
         />
 
         <section v-else class="view view-diagnostics" aria-labelledby="diagnostics-heading">
