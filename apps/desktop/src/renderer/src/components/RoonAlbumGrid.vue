@@ -36,7 +36,7 @@ const emit = defineEmits<{
   <div v-else-if="!props.page.items.length" class="empty-state roon-library-state">
     <span class="empty-glyph" aria-hidden="true">♫</span>
     <h3>还没有可显示的专辑</h3>
-    <p>请确认 Roon Core 已配对，并且 Library 中存在专辑。</p>
+    <p>Roon Core 当前返回 0 张专辑。请在 Roon 中检查存储位置与资料库内容后重新读取。</p>
     <button type="button" class="secondary-button" @click="emit('retry')">重新读取</button>
   </div>
   <template v-else>

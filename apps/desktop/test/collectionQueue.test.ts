@@ -4,6 +4,7 @@ import type { Page, PageRequest, TrackSummary } from '@music-bridge/contracts'
 import {
   createProgressiveCollectionLoader,
   loadCollectionTracks,
+  selectInitialCollectionPlayback,
 } from '../src/renderer/src/composables/collectionQueue.js'
 
 function makePage(tracks: readonly TrackSummary[], page: PageRequest): Page<TrackSummary> {
@@ -101,4 +102,22 @@ test('progressive collection invalidates pending pages after cancellation', asyn
   loader.cancel()
   resolvePage?.()
   assert.equal(await loader.next(), undefined)
+})
+
+test('collection playback exposes the complete first page before starting so restricted tracks can be skipped', () => {
+  const firstPage = tracks(20)
+
+  const selection = selectInitialCollectionPlayback(firstPage)
+
+  assert.equal(selection.index, 0)
+  assert.deepEqual(selection.tracks.map((track) => track.id), firstPage.map((track) => track.id))
+})
+
+test('collection playback preserves a selected track index within the complete first page', () => {
+  const firstPage = tracks(20)
+
+  const selection = selectInitialCollectionPlayback(firstPage, firstPage[7]!.id)
+
+  assert.equal(selection.index, 7)
+  assert.deepEqual(selection.tracks.map((track) => track.id), firstPage.map((track) => track.id))
 })

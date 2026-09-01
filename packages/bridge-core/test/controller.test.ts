@@ -27,6 +27,8 @@ class FakeNetease implements NeteasePort {
   actualQuality = 'lossless';
   authExpired = false;
   readonly unavailableTrackIds = new Set<string>();
+  readonly previewOnlyTrackIds = new Set<string>();
+  readonly blockedMetadataTrackIds = new Set<string>();
   metadataStarted = false;
   metadataGate: Promise<void> | undefined;
 
@@ -85,7 +87,10 @@ class FakeNetease implements NeteasePort {
 
   async getTrack(trackId: string) {
     this.metadataStarted = true;
-    await this.metadataGate;
+    if (
+      this.blockedMetadataTrackIds.size === 0 ||
+      this.blockedMetadataTrackIds.has(trackId)
+    ) await this.metadataGate;
     if (this.authExpired) {
       throw new BridgeError('AUTH_EXPIRED', 'Synthetic expired session', { httpStatus: 401 });
     }
@@ -108,6 +113,11 @@ class FakeNetease implements NeteasePort {
     quality: QualityLevel,
   ): Promise<ResolvedAudioStream> {
     this.resolveCalls += 1;
+    if (this.previewOnlyTrackIds.has(trackId)) {
+      throw new BridgeError('TRACK_PREVIEW_ONLY', 'Synthetic track is preview only', {
+        httpStatus: 409,
+      });
+    }
     if (this.unavailableTrackIds.has(trackId)) {
       throw new BridgeError('TRACK_UNAVAILABLE', 'Synthetic track is unavailable', {
         httpStatus: 409,
@@ -1168,6 +1178,30 @@ test('controller publishes verified summaries for queued tracks', async () => {
   ]);
 });
 
+test('controller starts the selected track before background metadata hydration finishes', async () => {
+  const { controller, netease, roon } = makeHarness();
+  let releaseMetadata: (() => void) | undefined;
+  netease.metadataGate = new Promise<void>((resolve) => {
+    releaseMetadata = resolve;
+  });
+  const items = Array.from({ length: 20 }, (_, index) => ({
+    trackId: String(7_400 + index),
+    quality: 'standard' as const,
+  }));
+  for (const item of items.slice(1)) netease.blockedMetadataTrackIds.add(item.trackId);
+
+  const replacing = controller.replaceQueue(items);
+  await new Promise((resolve) => setImmediate(resolve));
+  try {
+    assert.equal(roon.playRequests.length, 1);
+    assert.equal(roon.playRequests[0]?.metadata.id, items[0]?.trackId);
+    assert.equal(controller.getPlaybackState().queue.items.length, items.length);
+  } finally {
+    releaseMetadata?.();
+    await replacing;
+  }
+});
+
 test('controller auto quality requests the highest supported level without a downgrade warning', async () => {
   const { controller, netease } = makeHarness();
   netease.actualQuality = 'exhigh';
@@ -1501,6 +1535,21 @@ test('unavailable queue items are skipped and all-unavailable queues stop cleanl
   assert.equal(registry.size, 0);
   assert.equal(controller.getState().activePlayback, undefined);
   assert.equal(controller.getPlaybackState().lastError, 'TRACK_UNAVAILABLE');
+});
+
+test('preview-only first track is skipped when the collection first page is already queued', async () => {
+  const { controller, netease, roon } = makeHarness();
+  netease.previewOnlyTrackIds.add('451');
+
+  await controller.replaceQueue([
+    { trackId: '451', quality: 'standard' },
+    { trackId: '452', quality: 'standard' },
+    { trackId: '453', quality: 'standard' },
+  ]);
+
+  assert.deepEqual(roon.playRequests.map((request) => request.metadata.id), ['452']);
+  assert.equal(controller.getPlaybackState().queue.index, 1);
+  assert.equal(controller.getPlaybackState().lastError, 'TRACK_PREVIEW_ONLY');
 });
 
 test('ten naturally ended tracks leave no stream token or active playback', async () => {

@@ -53,6 +53,7 @@ import { appendPage } from './composables/libraryPagination.js'
 import {
   createProgressiveCollectionLoader,
   loadCollectionTracks,
+  selectInitialCollectionPlayback,
   type CollectionPageLoader,
   type ProgressiveCollectionLoader,
 } from './composables/collectionQueue.js'
@@ -2127,20 +2128,17 @@ async function replaceAndPlayCollection(
       if (operation === collectionOperation) collectionPlaybackStartInFlight = false
       return
     }
-    const tracks = firstBatch.tracks
-    const requestedIndex = selectedTrackId === undefined
-      ? 0
-      : tracks.findIndex((track) => track.id === selectedTrackId)
-    const index = requestedIndex >= 0 ? requestedIndex : 0
-    const startsWithSingleTrack = selectedTrackId === undefined && index === 0
-    const initialTracks = startsWithSingleTrack ? tracks.slice(0, 1) : tracks
-    const snapshot = await window.musicBridge.replaceQueue(queueItemsForTracks(initialTracks), startsWithSingleTrack ? 0 : index)
+    const initial = selectInitialCollectionPlayback(firstBatch.tracks, selectedTrackId)
+    const snapshot = await window.musicBridge.replaceQueue(
+      queueItemsForTracks(initial.tracks),
+      initial.index,
+    )
     if (operation !== collectionOperation) return
     applyPlaybackState(snapshot)
     enterNowPlaying()
     collectionPlaybackStartInFlight = false
-    if (firstBatch.hasMore || tracks.length > initialTracks.length) {
-      void continueCollectionQueue(loader, operation, tracks.slice(initialTracks.length))
+    if (firstBatch.hasMore) {
+      void continueCollectionQueue(loader, operation)
     } else {
       activeCollectionLoader = undefined
     }
@@ -2719,7 +2717,7 @@ onUnmounted(() => {
             :page="roonArtistsPage"
             entity-label="艺术家"
             empty-title="还没有可显示的艺术家"
-            empty-copy="请确认 Roon Core 已配对，并且 Library 中存在艺术家。"
+            empty-copy="Roon Core 当前返回 0 位艺术家。请在 Roon 中检查存储位置与资料库内容后重新读取。"
             :initial-loading="roonArtistsInitialLoading"
             :loading-more="roonArtistsLoadingMore"
             :load-more-error="roonArtistsLoadMoreError"
@@ -2736,7 +2734,7 @@ onUnmounted(() => {
             :page="roonGenresPage"
             entity-label="流派"
             empty-title="还没有可显示的流派"
-            empty-copy="请确认 Roon Core 已配对，并且 Library 中存在流派。"
+            empty-copy="Roon Core 当前返回 0 个流派。请在 Roon 中检查存储位置与资料库内容后重新读取。"
             :initial-loading="roonGenresInitialLoading"
             :loading-more="roonGenresLoadingMore"
             :load-more-error="roonGenresLoadMoreError"
@@ -2753,7 +2751,7 @@ onUnmounted(() => {
             :page="roonPlaylistsPage"
             entity-label="歌单"
             empty-title="还没有可显示的 Roon 歌单"
-            empty-copy="请确认 Roon Core 已配对，并且 Library 中存在歌单。"
+            empty-copy="Roon Core 当前返回 0 个歌单。请在 Roon 中检查存储位置与资料库内容后重新读取。"
             :initial-loading="roonPlaylistsInitialLoading"
             :loading-more="roonPlaylistsLoadingMore"
             :load-more-error="roonPlaylistsLoadMoreError"

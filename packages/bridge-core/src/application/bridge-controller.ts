@@ -522,8 +522,6 @@ export class BridgeController {
         this.playbackState === 'playing' &&
         normalizedItems[startIndex]?.trackId === activePlayback.track.id &&
         normalizedItems[startIndex]?.qualityPreference === activePlayback.qualityPreference;
-      const shouldHydrateInline = !preserveActivePlayback && normalizedItems.length <= QUEUE_HYDRATION_BATCH_SIZE;
-      if (shouldHydrateInline) await this.hydrateQueueItems(normalizedItems);
 
       if (preserveActivePlayback && activePlayback) {
         const activeItem = normalizedItems[startIndex];
@@ -545,9 +543,8 @@ export class BridgeController {
       this.queueIndex = startIndex;
       this.clearPlaybackIssue();
       await this.startQueueIndex(startIndex, true);
-      if (!shouldHydrateInline) {
-        this.scheduleQueueHydration(normalizedItems, hydrationGeneration);
-      }
+      // 当前项在 startQueueIndex 中按需解析；其余元数据不得阻塞首播或首曲受限后的跳过。
+      this.scheduleQueueHydration(normalizedItems, hydrationGeneration);
       return this.getState();
     });
   }

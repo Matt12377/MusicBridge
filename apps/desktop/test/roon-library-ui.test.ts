@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { readFile } from 'node:fs/promises'
 
 import { appendRoonPage, emptyRoonPage } from '../src/renderer/src/composables/roonLibraryPagination.js'
 
@@ -42,4 +43,18 @@ test('Roon library pagination de-duplicates runtime references without reorderin
     total: 3,
     hasMore: false,
   })
+})
+
+test('empty Roon views report the Core library result instead of claiming pairing is missing', async () => {
+  const albumGrid = await readFile(
+    new URL('../src/renderer/src/components/RoonAlbumGrid.vue', import.meta.url),
+    'utf8',
+  )
+  const app = await readFile(new URL('../src/renderer/src/App.vue', import.meta.url), 'utf8')
+
+  assert.match(albumGrid, /Roon Core 当前返回 0 张专辑/)
+  assert.doesNotMatch(albumGrid, /请确认 Roon Core 已配对/)
+  assert.match(app, /Roon Core 当前返回 0 位艺术家/)
+  assert.match(app, /Roon Core 当前返回 0 个流派/)
+  assert.match(app, /Roon Core 当前返回 0 个歌单/)
 })
