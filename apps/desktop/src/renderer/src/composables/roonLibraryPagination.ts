@@ -1,5 +1,21 @@
 import type { RoonLibraryItem, RoonLibraryPage } from '@music-bridge/contracts'
 
+export interface RoonAutoLoadState {
+  isIntersecting: boolean
+  hasMore: boolean
+  initialLoading: boolean
+  loadingMore: boolean
+  loadMoreError: string | null
+}
+
+export function shouldAutoLoadRoonPage(state: RoonAutoLoadState): boolean {
+  return state.isIntersecting
+    && state.hasMore
+    && !state.initialLoading
+    && !state.loadingMore
+    && state.loadMoreError === null
+}
+
 export function emptyRoonPage(limit = 24): RoonLibraryPage {
   return { items: [], offset: 0, limit, total: 0, hasMore: false }
 }

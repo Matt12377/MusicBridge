@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { RoonLibraryItem, RoonLibraryPage } from '@music-bridge/contracts'
 import RoonArtwork from './RoonArtwork.vue'
+import { shouldAutoLoadRoonPage } from '../composables/roonLibraryPagination.js'
 
 const props = withDefaults(defineProps<{
   page: RoonLibraryPage
@@ -20,6 +22,39 @@ const emit = defineEmits<{
   retry: []
   'load-more': []
 }>()
+
+const loadMoreSentinel = ref<HTMLElement | null>(null)
+let intersectionObserver: IntersectionObserver | undefined
+
+function observeLoadMoreSentinel(): void {
+  intersectionObserver?.disconnect()
+  if (!loadMoreSentinel.value || !props.page.hasMore) return
+  intersectionObserver?.observe(loadMoreSentinel.value)
+}
+
+onMounted(() => {
+  if (typeof IntersectionObserver === 'undefined') return
+  intersectionObserver = new IntersectionObserver((entries) => {
+    const entry = entries[0]
+    if (!entry || !shouldAutoLoadRoonPage({
+      isIntersecting: entry.isIntersecting,
+      hasMore: props.page.hasMore === true,
+      initialLoading: props.initialLoading,
+      loadingMore: props.loadingMore,
+      loadMoreError: props.loadMoreError,
+    })) return
+    intersectionObserver?.unobserve(entry.target)
+    emit('load-more')
+  }, { rootMargin: '320px 0px', threshold: 0 })
+  observeLoadMoreSentinel()
+})
+
+watch(
+  () => [props.page.offset, props.page.hasMore, props.loadingMore, props.loadMoreError] as const,
+  () => { void nextTick(observeLoadMoreSentinel) },
+)
+
+onUnmounted(() => intersectionObserver?.disconnect())
 </script>
 
 <template>
@@ -46,7 +81,7 @@ const emit = defineEmits<{
         <span class="roon-album-copy"><strong>{{ album.title }}</strong><small>{{ album.artist || album.subtitle || 'Roon Library' }}</small><small v-if="album.year">{{ album.year }}</small></span>
       </button>
     </div>
-    <div v-if="props.page.hasMore" class="roon-library-more">
+    <div v-if="props.page.hasMore" ref="loadMoreSentinel" class="roon-library-more" aria-live="polite">
       <span v-if="props.loadingMore" role="status">正在加载更多专辑…</span>
       <template v-else-if="props.loadMoreError">
         <span>{{ props.loadMoreError }}</span>

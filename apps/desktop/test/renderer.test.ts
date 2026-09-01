@@ -412,11 +412,11 @@ test('V1 Now Playing centers a real-quality disclosure without a quality switche
   assert.match(css, /\.now-playing-quality-row\s*\{[^}]*justify-content:\s*center/)
 })
 
-test('V1 Provider progress remains read-only and V2 seek requires an explicitly seekable Roon Zone', async () => {
+test('Provider and native Roon progress seek only through an explicitly seekable Roon Zone', async () => {
   const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
   const nowPlaying = await readFile(path.resolve('src/renderer/src/components/NowPlayingView.vue'), 'utf8')
 
-  assert.match(app, /:seek-allowed="playbackSource === 'roon' && selectedZone\?\.seekAllowed === true"/)
+  assert.match(app, /:seek-allowed="selectedZone\?\.seekAllowed === true"/)
   assert.match(nowPlaying, /seekAllowed: boolean/)
   assert.match(nowPlaying, /:disabled="!props\.seekAllowed \|\| !props\.currentTrack \|\| durationMs <= 0"/)
   assert.doesNotMatch(app, /playbackState\.value\s*=\s*\{\s*\.\.\.snapshot,\s*positionMs:\s*result\.positionMs\s*\}/)

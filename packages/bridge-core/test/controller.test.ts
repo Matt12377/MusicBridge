@@ -141,6 +141,7 @@ class FakeRoon implements RoonPort {
   stopCalls = 0;
   pauseCalls = 0;
   resumeCalls = 0;
+  readonly seekCalls: number[] = [];
   activePlayCalls = 0;
   maxConcurrentPlayCalls = 0;
   playDelayMs = 0;
@@ -246,6 +247,10 @@ class FakeRoon implements RoonPort {
       canPause: true,
       canResume: false,
     };
+  }
+
+  async seek(positionMs: number): Promise<void> {
+    this.seekCalls.push(positionMs);
   }
 
   confirmPause(): void {
@@ -846,14 +851,12 @@ test('controller pauses and resumes an active native Roon queue item through the
   assert.equal(controller.getPlaybackState().state, 'playing');
 });
 
-test('controller seeks only an active V2 native Roon item and leaves V1 Provider playback read-only', async () => {
+test('controller seeks active Provider Audio Input and native Roon playback through their matching ports', async () => {
   const { controller, roon, nativeRoon } = makeHarness();
 
   await controller.play({ trackId: '8804', quality: 'lossless' });
-  await assert.rejects(
-    controller.seek(12_345),
-    (error: unknown) => error instanceof BridgeError && error.code === 'ROON_TRANSPORT_UNAVAILABLE',
-  );
+  await controller.seek(12_345);
+  assert.deepEqual(roon.seekCalls, [12_345]);
   assert.deepEqual(nativeRoon.seekCalls, []);
 
   roon.state = {
@@ -1200,6 +1203,25 @@ test('controller starts the selected track before background metadata hydration 
     releaseMetadata?.();
     await replacing;
   }
+});
+
+test('controller hydrates upcoming queue metadata while the selected track is still starting in Roon', async () => {
+  const { controller, netease, roon } = makeHarness();
+  roon.playDelayMs = 80;
+  const items = Array.from({ length: 4 }, (_, index) => ({
+    trackId: String(7_500 + index),
+    quality: 'standard' as const,
+  }));
+
+  const replacing = controller.replaceQueue(items);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  assert.equal(roon.activePlayCalls, 1);
+  assert.deepEqual(
+    controller.getPlaybackState().queue.items.slice(1).map((item) => item.track?.id),
+    items.slice(1).map((item) => item.trackId),
+  );
+  await replacing;
 });
 
 test('controller auto quality requests the highest supported level without a downgrade warning', async () => {
