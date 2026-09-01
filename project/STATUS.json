@@ -230,7 +230,7 @@
       ],
       "capacityExecution": "FROZEN_NO_NEW_AUTHORITY_RECOVERY_OR_WINDOW",
       "routeCommit": "c84887645ace7775f71128a8773f4d772700fa3d",
-      "candidateCommit": "9ee0866cfceff762b86e944c7f66ba1416aaba8f",
+      "candidateCommit": "1f1d8aaf397a4033068dfcc0c7d059f34f09986c",
       "automaticNext": "NONE",
       "externalNext": "OWNER_MANUAL_ACCEPTANCE",
       "formalCapacity": "NOT_RUN_NONBLOCKING_ACCEPTANCE_CARRYOVER",
@@ -238,8 +238,8 @@
       "ownerProductAcceptance": "NOT_RUN",
       "artifact": {
         "path": "apps/desktop/release/MusicBridge-0.1.0-beta.2-arm64.dmg",
-        "bytes": 151328608,
-        "sha256": "f1cbdefc137c9cbdc0439c643dda155bcba3179c8ed946c135bd60cc30762937",
+        "bytes": 151330785,
+        "sha256": "c5e0a48ace448725fb80466fb0d7a6439840e5ccd5458160ede13c45743b7d2a",
         "signing": "ADHOC_LOCAL_CANDIDATE_NOT_NOTARIZED"
       }
     },
@@ -292,10 +292,11 @@
       "TASK-079 hardware evidence contract v2：主任务33/33专项GREEN；configuration observation、observer execution、typed scope evidence、B-15 identity有效期和U-10同事件依赖已加固。第二轮独立复审最终RED保留，未做第三轮且independentPass=false。真实hardware与Gate B均NOT_RUN。",
       "TASK-076历史核验与私有synthetic会话已通过本地软件Gate；实际可听Replica及正式provider接线须随073设备准入和079另验，当前始终blocked",
       "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验",
-      "2026-09-01 Remote Core真实观察：SMB恢复重扫后候选返回8489张专辑；打包版网易云歌单形成1200首队列并可前进。该观察不升级正式realRoon或Owner听感Gate。Roon track模式仍有约5至6秒整轨预载延迟，后续需持久Audio Input会话与next槽预加载。"
+      "2026-09-01 Remote Core真实观察：SMB恢复重扫后候选返回8489张专辑；打包版网易云歌单形成1200首队列并可前进。该观察不升级正式realRoon或Owner听感Gate。Roon track模式仍有约5至6秒整轨预载延迟，后续需持久Audio Input会话与next槽预加载。",
+      "2026-09-01 验收收口：开发版Remote Core冷启动不再发出NOT_READY；网易云track seek实测位置约0:36到1:57，队列面板立即显示219首且Next约1秒内可用，Roon专辑滚动由24/8489自动增长到48/8489。仅证明UI和transport状态，不替代声音连续性或Owner产品接受。"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "v3-software-closeout-remote-core-library-and-collection-queue-regression-fixed-next-slot-latency-carryover",
+    "checkpoint": "v3-software-closeout-remote-core-seek-queue-startup-pagination-fixed-next-slot-audio-latency-carryover",
     "nextTask": "OWNER_MANUAL_ACCEPTANCE_AND_PERSISTENT_AUDIO_INPUT_NEXT_SLOT_FOLLOWUP",
     "resultReport": "reports/V3_SOFTWARE_CLOSEOUT_RESULT.md",
     "task078SoftwareCheckpoints": {
