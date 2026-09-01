@@ -230,7 +230,7 @@
       ],
       "capacityExecution": "FROZEN_NO_NEW_AUTHORITY_RECOVERY_OR_WINDOW",
       "routeCommit": "c84887645ace7775f71128a8773f4d772700fa3d",
-      "candidateCommit": "2623511aee684b59f00fb91dedcb4e060da53694",
+      "candidateCommit": "9ee0866cfceff762b86e944c7f66ba1416aaba8f",
       "automaticNext": "NONE",
       "externalNext": "OWNER_MANUAL_ACCEPTANCE",
       "formalCapacity": "NOT_RUN_NONBLOCKING_ACCEPTANCE_CARRYOVER",
@@ -238,8 +238,8 @@
       "ownerProductAcceptance": "NOT_RUN",
       "artifact": {
         "path": "apps/desktop/release/MusicBridge-0.1.0-beta.2-arm64.dmg",
-        "bytes": 151326201,
-        "sha256": "3b58041b6d3da75197f03676e3f46ef846387f525d790ab2e30e7c98d2890a74",
+        "bytes": 151328608,
+        "sha256": "f1cbdefc137c9cbdc0439c643dda155bcba3179c8ed946c135bd60cc30762937",
         "signing": "ADHOC_LOCAL_CANDIDATE_NOT_NOTARIZED"
       }
     },
@@ -291,11 +291,12 @@
       "R-023：history-limit正式生成/measure/queued-stop已PASS；objects-limit旧generation与measure失败证据永久保留，measure window-06软件PASS。queued-stop window-06在候选168cbcbd上以PROCESS_EXIT形成零样本终态，close SHA256=0f48aa490d52fdfe8f15c57c0caef68375d6c7082c70621064592d6be3c75299，永久禁止重放。window-07 UUID=5f5df917-cb23-453b-906c-4e4395cec1ad、SHA256=0bac4fcc26057f94dc17eab902b2affbf34438ae0d3fae7fa43bd779e6182331已签发并只消费一次，但installed supervisor在authority admission前以CAPACITY_SUPERVISOR_INPUT拒绝；未创建supervision、close、child、benchmark output或样本。三位置停止后，架构实现ed73b598统一版本化JSON合同、共享Python evaluator、TS等价解释器及单一golden corpus，固定direct head=1、linked authority前驱可达深度、head-to-leaf计费、时序/PID/身份语义；issuer71/71、supervisor58/58、Bridge corpus及全量Gate GREEN。原架构语义阻塞已解除，但未签发或授权新窗口。window-07不重放；formal objects-limit queued-stop与joint正式generation/measure/queued-stop均NOT_RUN。joint三阶段runtime schema已支持，但三条exclusive issuer仍只接受objects-limit，任何joint授权前必须先TDD扩展。设备、Gate B与Owner验收均NOT_RUN。",
       "TASK-079 hardware evidence contract v2：主任务33/33专项GREEN；configuration observation、observer execution、typed scope evidence、B-15 identity有效期和U-10同事件依赖已加固。第二轮独立复审最终RED保留，未做第三轮且independentPass=false。真实hardware与Gate B均NOT_RUN。",
       "TASK-076历史核验与私有synthetic会话已通过本地软件Gate；实际可听Replica及正式provider接线须随073设备准入和079另验，当前始终blocked",
-      "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验"
+      "TASK077未来PDF预览滚动条已在TASK078修复并专项验证；旧Artifact/PDF不重写，最终全量Gate与实体纸张另验",
+      "2026-09-01 Remote Core真实观察：SMB恢复重扫后候选返回8489张专辑；打包版网易云歌单形成1200首队列并可前进。该观察不升级正式realRoon或Owner听感Gate。Roon track模式仍有约5至6秒整轨预载延迟，后续需持久Audio Input会话与next槽预加载。"
     ],
     "todo": "project/V3_TODO.md",
-    "checkpoint": "v3-software-closeout-product-scope-through-task079-task080-084-retained-harness-no-new-capacity-window",
-    "nextTask": "FINAL_BUILD_PACKAGE_SMOKE_THEN_OWNER_MANUAL_ACCEPTANCE",
+    "checkpoint": "v3-software-closeout-remote-core-library-and-collection-queue-regression-fixed-next-slot-latency-carryover",
+    "nextTask": "OWNER_MANUAL_ACCEPTANCE_AND_PERSISTENT_AUDIO_INPUT_NEXT_SLOT_FOLLOWUP",
     "resultReport": "reports/V3_SOFTWARE_CLOSEOUT_RESULT.md",
     "task078SoftwareCheckpoints": {
       "startupPolicy": "48-focused-pass-spec-quality-r1-pass-capacity-startup-pending",

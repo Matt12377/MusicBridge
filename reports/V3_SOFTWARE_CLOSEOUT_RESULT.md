@@ -10,6 +10,7 @@
 - 最终候选：`2623511aee684b59f00fb91dedcb4e060da53694`
 - 打包护栏修复：`53c1ae8f751e11e8540ee2ee569e0700f1326fa7`
 - Remote Core 验收返工：`2623511aee684b59f00fb91dedcb4e060da53694`
+- Remote Core 资料库/队列回归修复：`9ee0866cfceff762b86e944c7f66ba1416aaba8f`
 - 结果报告提交：本文件提交后记录
 
 ## 最终自动验证
@@ -30,13 +31,22 @@
 - Draft PR #26 在首次收尾时指向 `53c1ae8…`；验收返工 `2623511…` 已继续推送到同一分支，新的远端检查独立观察，不提前写成全绿。
 - `2623511…` 验收返工：RED 证明生产构建隐藏“高级”且 Main 拒绝 Remote Core；GREEN 后 Desktop typecheck、设置/Renderer/Preload/Remote Core 聚焦 54/54、Desktop security 29/29、Boundaries、production build 与 production startup Gate 均 exit 0。
 - `2623511…` 重打包：macOS arm64 打包 exit 0；包内启动/退出 smoke 为 READY=true、markerSeen=true、closed=true、code=0、signal=null；DMG 与 App 再次通过镜像及代码签名校验。
+- `9ee0866…` 聚焦回归：Desktop Renderer/播放匹配/collection queue/Roon library UI 51/51，Bridge Controller 52/52，Bridge Core 与 Desktop typecheck、Control Plane、Boundaries、`git diff --check` 均 exit 0。
+
+## 2026-09-01 Remote Core 与网易云歌单回归验收
+
+- 对照基线：只读检查 `/Volumes/LifeWeave/VSCode/MusicBridge/worktree/bugfixv2`；该工作树包含 Owner 未提交改动，本轮未修改、未暂存、未提交。
+- 资料库空白根因：Mac mini 上 Roon Core 的 SMB 音乐存储曾断开，Roon 日志同期为 0 tracks / 0 albums；SMB 恢复并完成重扫后，同一候选 API 返回 8,489 张专辑。因此不是 V3 专辑过滤回归。空状态文案已改为提示检查 Roon 存储位置与资料库内容，避免把已配对 Core 误报为“未配对”。
+- 歌单根因：合集播放此前只把首曲送入 `replaceQueue`，尾部异步追加；首曲仅预览或不可播时，Roon 会在尾部到达前结束。修复后首个分页完整入队、保留选中索引，随后后台加载剩余页；Bridge Controller 先启动当前曲，再后台补齐非当前曲元数据。
+- 打包版真实观察：网易云歌单“从今天起看看喜欢的音乐”在候选包中形成 1,200 首队列，队列索引可从 5 前进到 6，`canNext=true`。这证明队列与下一首控制链可用，不替代 Owner 听感验收。
+- 已知剩余项：Roon Audio Input 的 `track` 播放在 Gateway 返回响应头后仍会等待整轨下载，真实观察约 5–6 秒；Gateway 响应头为 29–163ms。有限 `channel` 与无 `Content-Length` 两项实验分别产生 502 和 Roon 超时，均已完整回退，未进入候选。后续应采用持久 Audio Input 会话和 `next` 槽预加载/切换，不再用低收益 HTTP 头部试错。
 
 ## 产物
 
 - App：`apps/desktop/release/mac-arm64/Music Bridge for Roon.app`
-- DMG：`apps/desktop/release/MusicBridge-0.1.0-beta.2-arm64.dmg`（151,326,201 bytes）
-- DMG SHA-256：`3b58041b6d3da75197f03676e3f46ef846387f525d790ab2e30e7c98d2890a74`
-- Blockmap SHA-256：`b90f3f8c105a322c8c73564e455d6493ba3ab46397ddd668baff4b00c233f55e`
+- DMG：`apps/desktop/release/MusicBridge-0.1.0-beta.2-arm64.dmg`（151,328,608 bytes）
+- DMG SHA-256：`f1cbdefc137c9cbdc0439c643dda155bcba3179c8ed946c135bd60cc30762937`
+- Blockmap SHA-256：`c19a4219514af60bfcb7f207468dca2553fc28d64bebfff96c1f1b0be01dbc8b`
 - 签名/公证：仅本地 ad-hoc；Developer ID 签名与公证均 `NOT_RUN`（独立发布 Gate）。
 
 ## 人工验收交接

@@ -14,7 +14,9 @@
 - [x] 最终 `verify`、静态 Gate、生产构建/打包、DMG/签名校验与包内启动退出 smoke 全部 exit 0；分层证据见收尾结果报告。
 - [x] 候选应用已打开，人工验收清单已准备；辅助功能树读取超时不冒充目视通过，Owner 接受仍待实际操作。
 - [x] 验收返工 / 打包版 Remote Core：Owner 发现生产包隐藏高级入口且 Main 硬阻断；`2623511…` 已按 RED→GREEN 恢复受控入口与显式 SSH 目标，聚焦/安全/边界/构建/打包/镜像/签名/smoke 均通过并推送。
-- [ ] Owner A-15：在新候选包“设置 → 高级”填写已配置的 SSH 别名或 `user@host`，实连 Mac mini 并确认 Roon Core/Zone；这是人工真实环境 Gate，自动 smoke 不替代。
+- [x] Remote Core 资料库/合集队列回归：确认空库来自 Roon SMB 存储掉线后重扫，恢复后候选返回 8,489 张专辑；`9ee0866…` 修复首批完整入队与后台元数据补齐，打包版真实歌单形成 1,200 首队列并可前进。
+- [ ] Roon 下一首低延迟：当前 `track` 模式仍等待约 5–6 秒整轨下载；已回退失败的 `channel`/chunked 实验，后续以持久 Audio Input 会话和 `next` 槽预加载单独实现并验收。
+- [ ] Owner A-15：Remote Core/Zone 已实连并完成资料库、队列功能观察；仍需 Owner 对声音连续性、切歌体感和整体产品体验作最终接受，自动证据不替代。
 
 > **历史 Harness 检查点：** `TASK-084 / runtime relocation软件封板`。从TASK-083最终HEAD `b606784…`建立独立分支；历史证据不改写，63个live root通过显式旧/新身份映射恢复规范路径，7个LOST root继续保持LOST。该路线现已冻结，不再签发、消费或运行新窗口。
 
