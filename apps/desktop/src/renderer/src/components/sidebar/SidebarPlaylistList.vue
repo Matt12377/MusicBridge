@@ -60,13 +60,13 @@ onUnmounted(() => {
 
 <template>
   <section class="sidebar-playlist-section" aria-label="歌单" :data-sidebar-playlist-state="state">
-    <h2 v-if="expanded" class="sidebar-playlist-heading">
+    <h3 v-if="expanded" class="sidebar-playlist-heading">
       <button type="button" class="sidebar-playlist-toggle" aria-label="网易云歌单" :aria-expanded="listExpanded" aria-controls="sidebar-netease-playlists" :title="listExpanded ? '收起网易云歌单' : '展开网易云歌单'" @click="listExpanded = !listExpanded">
         <span>网易云歌单</span>
         <SidebarIcon :name="listExpanded ? 'chevron-down' : 'chevron-right'" :size="14" />
       </button>
-    </h2>
-    <h2 v-else class="sidebar-section-title">网易云歌单</h2>
+    </h3>
+    <h3 v-else class="sidebar-section-title">网易云歌单</h3>
     <div id="sidebar-netease-playlists">
       <template v-if="!expanded || listExpanded">
         <div v-if="state === 'loading'" class="sidebar-playlist-list" aria-label="歌单加载中" aria-busy="true">

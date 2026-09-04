@@ -130,7 +130,7 @@ test('Renderer exposes the v2 Music Source Sidebar information architecture', as
     'ZonePopover.vue',
     'useLibrarySources',
     'useZoneSelection',
-    '发现',
+    '资料库',
     '主页',
     '资料库',
     '我喜欢的音乐',

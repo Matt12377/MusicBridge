@@ -51,6 +51,17 @@ async function mount(t: test.TestContext, name: string, initial: Record<string, 
 
 const playlists = [{ id: '301', name: '合成歌单', trackCount: 2 }]
 
+test('侧栏只有资料库和收藏两个主分类，既有入口完整且网易云歌单嵌入收藏', async () => {
+  const source = await readFile(new URL('../src/renderer/src/components/sidebar/MusicSidebar.vue', import.meta.url), 'utf8')
+  const groups = [...source.matchAll(/<SidebarSection title="([^"]+)"[^>]*>([\s\S]*?)<\/SidebarSection>/g)]
+  assert.deepEqual(groups.map(group => group[1]), ['资料库', '收藏'])
+  const sources = (group: string) => [...group.matchAll(/<SidebarNavRow source="([^"]+)"/g)].map(match => match[1])
+  assert.deepEqual(sources(groups[0]![2]!), ['home', 'playlists', 'roon-albums', 'roon-artists', 'roon-genres', 'roon-playlists'])
+  assert.deepEqual(sources(groups[1]![2]!), ['liked', 'roon-favorites', 'collection', 'recording'])
+  assert.match(groups[1]![2]!, /<SidebarPlaylistList/)
+  assert.match(source, /source="collection" label="实物收藏"/)
+})
+
 test('歌单默认展开，折叠后移除列表，再展开仍可导航且不触发重试', async t => {
   const selections: string[] = []; let retries = 0
   const f = await mount(t, 'SidebarPlaylistList', { expanded: true, playlists, state: 'ready', onSelect: (id: string) => selections.push(id), onRetry: () => retries++ })

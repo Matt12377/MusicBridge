@@ -81,29 +81,22 @@ onMounted(restoreSourceScroll)
     <SidebarSearch :model-value="searchQuery" :expanded="expanded" @update:model-value="emit('update:searchQuery', $event)" @clear-search="emit('clear-search')" @expand="requestExpand" />
 
     <nav ref="sourceScroll" class="sidebar-source-scroll" aria-label="音乐来源" @scroll="emit('scroll-source', ($event.target as HTMLElement).scrollTop)">
-      <SidebarSection title="发现" :expanded="expanded">
-        <SidebarNavRow source="home" label="主页" icon="home" :expanded="expanded" :selected="isSourceSelected('home')" @select="selectSource({ type: 'home' })" />
-      </SidebarSection>
-
       <SidebarSection title="资料库" :expanded="expanded">
-        <SidebarNavRow source="liked" label="我喜欢的音乐" icon="heart" :expanded="expanded" :selected="isSourceSelected('liked')" @select="selectSource({ type: 'liked' })" />
+        <SidebarNavRow source="home" label="主页" icon="home" :expanded="expanded" :selected="isSourceSelected('home')" @select="selectSource({ type: 'home' })" />
         <SidebarNavRow source="playlists" label="所有歌单" icon="grid" :expanded="expanded" :selected="isSourceSelected('playlists')" @select="selectSource({ type: 'playlists' })" />
-      </SidebarSection>
-
-      <SidebarSection title="本地音乐库" :expanded="expanded">
         <SidebarNavRow source="roon-albums" label="专辑" icon="music-note" :expanded="expanded" :selected="isSourceSelected('roon-albums')" @select="selectSource({ type: 'roon-albums' })" />
         <SidebarNavRow source="roon-artists" label="艺术家" icon="grid" :expanded="expanded" :selected="isSourceSelected('roon-artists')" @select="selectSource({ type: 'roon-artists' })" />
         <SidebarNavRow source="roon-genres" label="流派" icon="grid" :expanded="expanded" :selected="isSourceSelected('roon-genres')" @select="selectSource({ type: 'roon-genres' })" />
         <SidebarNavRow source="roon-playlists" label="Roon 歌单" icon="grid" :expanded="expanded" :selected="isSourceSelected('roon-playlists')" @select="selectSource({ type: 'roon-playlists' })" />
+      </SidebarSection>
+
+      <SidebarSection title="收藏" :expanded="expanded">
+        <SidebarNavRow source="liked" label="我喜欢的音乐" icon="heart" :expanded="expanded" :selected="isSourceSelected('liked')" @select="selectSource({ type: 'liked' })" />
         <SidebarNavRow source="roon-favorites" label="Roon 收藏" icon="heart" :expanded="expanded" :selected="isSourceSelected('roon-favorites')" @select="selectSource({ type: 'roon-favorites' })" />
-      </SidebarSection>
-
-      <SidebarSection title="我的实物与录音" :expanded="expanded">
-        <SidebarNavRow source="collection" label="收藏" icon="cassette" :expanded="expanded" :selected="isSourceSelected('collection')" @select="selectSource({ type: 'collection' })" />
+        <SidebarNavRow source="collection" label="实物收藏" icon="cassette" :expanded="expanded" :selected="isSourceSelected('collection')" @select="selectSource({ type: 'collection' })" />
         <SidebarNavRow source="recording" label="录音" icon="record" :expanded="expanded" :selected="isSourceSelected('recording')" @select="selectSource({ type: 'recording' })" />
+        <SidebarPlaylistList :playlists="playlists" :expanded="expanded" :active-playlist-id="activeSource.type === 'playlist' ? activeSource.playlistId : undefined" :state="playlistState" @select="selectSource({ type: 'playlist', playlistId: $event })" @retry="emit('retry-playlists')" />
       </SidebarSection>
-
-      <SidebarPlaylistList :playlists="playlists" :expanded="expanded" :active-playlist-id="activeSource.type === 'playlist' ? activeSource.playlistId : undefined" :state="playlistState" @select="selectSource({ type: 'playlist', playlistId: $event })" @retry="emit('retry-playlists')" />
     </nav>
     <SidebarSettingsFooter :expanded="expanded" :active="settingsActive" @open="emit('settings')" />
   </aside>
