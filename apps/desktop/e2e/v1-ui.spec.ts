@@ -485,7 +485,7 @@ test('v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation', 
   await expect(page.locator('.topbar')).toHaveCount(0)
   await expect(page.locator('[data-ui-reference="simple-music-player-2"]')).toBeVisible()
   await expect(page.getByRole('region', { name: '每日推荐' })).toBeVisible()
-  await expect(page.locator('.daily-recommendation-tile')).toHaveCount(8)
+  await expect(page.locator('.daily-recommendation-tile')).toHaveCount(5)
   await expect.poll(() => page.locator('.daily-recommendation-art img').first().evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
   await expect(page.locator('.sidebar-settings-footer')).toBeVisible()
   await expect(page.getByRole('button', { name: '打开设置' })).toContainText('设置')
@@ -591,14 +591,10 @@ test('v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation', 
   await page.getByRole('button', { name: '暂停', exact: true }).last().click()
   await sourceButton('home').click()
 
-  for (const [width, expectedColumns] of [[720, 4], [1024, 5], [1280, 6], [1600, 7], [1920, 8]] as const) {
+  for (const [width, expectedColumns] of [[720, 3], [1024, 5], [1280, 5], [1600, 5], [1920, 5]] as const) {
     await page.setViewportSize({ width, height: 900 })
     await expect.poll(() => page.locator('.daily-recommendation-grid').evaluate((grid) => {
-      const bounds = grid.getBoundingClientRect()
-      return Array.from(grid.children).filter((child) => {
-        const childBounds = child.getBoundingClientRect()
-        return childBounds.width > 0 && childBounds.left >= bounds.left - 1 && childBounds.right <= bounds.right + 1
-      }).length
+      return getComputedStyle(grid).gridTemplateColumns.split(' ').length
     })).toBe(expectedColumns)
   }
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -695,7 +691,7 @@ test('v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation', 
 test('合成 Profile 资料不可用但登录仍有效', async () => {
   await expect(page.getByRole('button', { name: '打开设置' })).toBeVisible()
   await expect(page.getByRole('region', { name: '每日推荐' })).toContainText('每日推荐')
-  await expect(page.locator('.daily-recommendation-tile')).toHaveCount(8)
+  await expect(page.locator('.daily-recommendation-tile')).toHaveCount(5)
 
   await openAccountSettings()
   await expect(page.getByText('资料暂不可用')).toBeVisible()

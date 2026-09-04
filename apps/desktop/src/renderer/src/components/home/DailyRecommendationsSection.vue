@@ -38,10 +38,10 @@ function formatDayKey(dayKey: string): string {
     </div>
 
     <div v-if="props.state === 'loading'" class="daily-recommendation-grid daily-recommendation-grid-loading" aria-label="正在读取每日推荐">
-      <span v-for="index in 8" :key="index" class="daily-recommendation-skeleton"></span>
+      <span v-for="index in 5" :key="index" class="daily-recommendation-skeleton"></span>
     </div>
     <div v-else-if="props.tracks.length" class="daily-recommendation-grid" aria-label="每日推荐歌曲">
-      <button v-for="track in props.tracks.slice(0, 8)" :key="track.id" type="button" class="daily-recommendation-tile" :aria-label="'播放 ' + track.title" @click="emit('play', track)">
+      <button v-for="track in props.tracks.slice(0, 5)" :key="track.id" type="button" class="daily-recommendation-tile" :aria-label="'播放 ' + track.title" @click="emit('play', track)">
         <SafeArtwork class="daily-recommendation-art" :src="track.artworkUrl" :alt="track.title + ' 封面'" />
         <span class="daily-recommendation-copy"><strong>{{ track.title }}</strong><small>{{ track.artists.join('、') }}</small><em v-if="track.recommendationReason">{{ track.recommendationReason }}</em></span>
       </button>

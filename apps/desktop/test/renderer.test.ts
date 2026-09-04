@@ -273,9 +273,19 @@ test('Homepage is cover-first and keeps playback controls out of the content lay
 
   assert.match(homeSource, /home-browse-header/)
   assert.match(homeSource, /home-cover-wall/)
+  assert.doesNotMatch(homeSource, /home-continue|继续聆听|currentTrack/)
   assert.doesNotMatch(homeSource, /hero-zone|overview-grid|selectedZone|Now Playing/)
   assert.match(appSource, /<BottomPlayer\b/)
   assert.doesNotMatch(appSource, /<SidebarZoneButton\b|<footer class="app-footer"|playback-zone-dock/)
+})
+
+test('主页去掉大容器气泡，桌面封面固定五列且每日推荐预览五张', async () => {
+  const theme = await readFile(path.resolve('src/renderer/src/sakura-theme.css'), 'utf8')
+  const daily = await readFile(path.resolve('src/renderer/src/components/home/DailyRecommendationsSection.vue'), 'utf8')
+  assert.match(theme, /\.home-view \.home-media-section, \.home-view \.home-recent-section\s*\{[^}]*background:\s*transparent[^}]*box-shadow:\s*none/)
+  assert.match(theme, /\.home-view \.home-cover-wall, \.home-view \.daily-recommendation-grid\s*\{[^}]*grid-template-columns:\s*repeat\(5, minmax\(0, 1fr\)\)/)
+  assert.match(daily, /props\.tracks\.slice\(0, 5\)/)
+  assert.match(daily, /v-for="index in 5"/)
 })
 
 test('Liquid Glass v3 keeps content lists continuous and the global player owns Zone', async () => {

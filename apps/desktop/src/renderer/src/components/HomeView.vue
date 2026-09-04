@@ -7,7 +7,6 @@ import DailyRecommendationsSection from './home/DailyRecommendationsSection.vue'
 import SafeArtwork from './SafeArtwork.vue'
 
 const props = defineProps<{
-  currentTrack?: TrackSummary
   likedTracks: readonly TrackSummary[]
   recentTracks: readonly TrackSummary[]
   likedState: 'unauthorized' | 'loading' | 'ready' | 'empty' | 'error'
@@ -43,7 +42,7 @@ const playlistCoverTracks = computed(() => props.playlistTracks)
       <div>
         <p class="section-kicker">Music Bridge</p>
         <h2 id="home-heading">{{ props.greeting }}</h2>
-        <p class="lede">从你的收藏和歌单继续聆听。</p>
+        <p class="lede">发现今日推荐，浏览你的收藏与歌单。</p>
       </div>
     </header>
 
@@ -60,22 +59,12 @@ const playlistCoverTracks = computed(() => props.playlistTracks)
       @retry="emit('retry-daily')"
     />
 
-    <section v-if="props.currentTrack" class="home-continue-hero" aria-labelledby="continue-heading">
-      <SafeArtwork class="home-continue-art" :src="props.currentTrack.artworkUrl" :alt="`${props.currentTrack.title} 封面`" loading="eager" />
-      <div class="home-continue-copy">
-        <p class="section-kicker">继续聆听</p>
-        <h3 id="continue-heading">{{ props.currentTrack.title }}</h3>
-        <p>{{ props.currentTrack.artists.join('、') }} · {{ props.currentTrack.album }}</p>
-        <button type="button" class="secondary-button" @click="emit('play', props.currentTrack)">重新播放</button>
-      </div>
-    </section>
-
     <section class="home-media-section" aria-labelledby="liked-home-heading">
       <div class="home-section-heading">
         <div><p class="section-kicker">资料库</p><h3 id="liked-home-heading">我喜欢的音乐</h3></div>
         <button type="button" class="text-button" @click="emit('navigate', 'liked')">查看全部 →</button>
       </div>
-      <div v-if="props.likedState === 'loading'" class="home-cover-wall home-cover-wall-loading" aria-label="正在读取收藏" aria-busy="true"><span v-for="index in 6" :key="index" class="home-cover-skeleton"></span></div>
+      <div v-if="props.likedState === 'loading'" class="home-cover-wall home-cover-wall-loading" aria-label="正在读取收藏" aria-busy="true"><span v-for="index in 5" :key="index" class="home-cover-skeleton"></span></div>
       <div v-else-if="props.likedState === 'ready' && props.likedTracks.length" class="home-cover-wall" aria-label="我喜欢的音乐封面">
         <button v-for="track in props.likedTracks.slice(0, 12)" :key="track.id" type="button" class="home-cover-card" :aria-label="`播放 ${track.title}`" @click="emit('play', track)">
           <SafeArtwork class="home-cover-art" :src="track.artworkUrl" :alt="`${track.title} 封面`" />

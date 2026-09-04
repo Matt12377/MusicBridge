@@ -2690,7 +2690,6 @@ onUnmounted(() => {
       <div ref="contentScroll" class="content-scroll" :class="{ 'is-immersive': isImmersiveNowPlaying }">
         <HomeView
           v-if="currentView === 'home'"
-          :current-track="currentTrack"
           :liked-tracks="likedPage.items"
           :recent-tracks="homeTracks"
           :liked-state="likedHomeState"
