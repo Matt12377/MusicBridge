@@ -76,6 +76,21 @@
     "loopbackOnly": true,
     "providerVersion": "4.40.1"
   },
+  "cassetteReferenceCoverageCompletion": {
+    "branch": "codex/cassette-coverage-completion",
+    "baseCommit": "f7f7bd165f091ab8c1d47274efa42ce69cd1ff85",
+    "implementationCommit": "594784ab1deba45a233eece27960f80a15e742cf",
+    "state": "software-pass-authorized-supplement-import-complete-unverified-variants-preserved",
+    "focusedTests": { "passed": 82, "failed": 0, "skipped": 0 },
+    "typecheck": "contracts-desktop-bridge-core-PASS",
+    "productionBuild": "PASS",
+    "boundaries": "PASS",
+    "localDataVerification": "ui-receipt-original-source-history-and-inventory-preservation-PASS",
+    "privateEvidence": "kept-outside-repository",
+    "report": "reports/V3_CASSETTE_COVERAGE_COMPLETION.md",
+    "ownerProductAcceptance": "pending",
+    "release": "not-performed"
+  },
   "cassetteReferenceImages": {
     "branch": "codex/cassette-reference-images",
     "baseCommit": "812e6a07bb424da19a857812ce02d1e585597dc4",

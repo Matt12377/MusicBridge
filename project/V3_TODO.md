@@ -6,6 +6,8 @@
 
 ## 实时进度面板
 
+> **最新检查点：磁带参考图漏项补齐及明确别名已导入。** 分支 `codex/cassette-coverage-completion`；拼版与年表的已核实漏图已补齐，别名有核对说明，不修改库存身份。82 项聚焦检查、三包类型检查、生产构建及边界检查通过；实际发布成功，原来源、历史版本及库存逐行不变，收藏墙已目视核对。无依据的变体与类型冲突仍保留占位，并有本地逐项清单。见 [覆盖补齐报告](../reports/V3_CASSETTE_COVERAGE_COMPLETION.md)。
+
 > **最新检查点：磁带书籍参考图已导入。** 分支 `codex/cassette-reference-images`；收藏墙及详情支持同型号多版参考图，明确区分实物照片与未核版次。80 项聚焦检查、类型检查、生产构建和边界检查通过。授权本地导入已取得界面成功回执，库存逐行校验保持不变。见 [参考图收尾报告](../reports/V3_CASSETTE_REFERENCE_IMAGES.md)。无可靠对应图的条目继续保留占位，不以近似图冒充准确版次。
 
 > **最新检查点：磁带资料及库存导入收尾。** 分支 `codex/cassette-catalog-import-closeout`；完整目录限制与 Excel 常见格式兼容已修复，Owner 授权的本地资料已通过正式应用接口导入并冷开核验。个人源文件、回执和备份不进入仓库。见 [导入收尾报告](../reports/V3_CASSETTE_IMPORT_CLOSEOUT.md)。
