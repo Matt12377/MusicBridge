@@ -314,6 +314,12 @@ export class BridgeController {
   private lastNativeRoonPlaybackState: RoonNativePlaybackState | undefined;
   private operationTail: Promise<void> = Promise.resolve();
   private queueHydrationGeneration = 0;
+  private nextPreparation: {
+    item: QueueItem;
+    quality: QualityLevel;
+    result: Promise<{ metadata: TrackMetadata; stream: ResolvedAudioStream; resolvedAtMs: number; expiresAtMs: number } | undefined>;
+  } | undefined;
+  private preparationInFlight = false;
   private nextInsertionQueueIndex: number | undefined;
   private nextInsertionCursor: number | undefined;
   private readonly playbackListeners = new Set<PlaybackChangedListener>();
@@ -342,6 +348,7 @@ export class BridgeController {
 
         this.clearActiveResources();
         if (reason !== 'ended' || !playbackWasPlaying) {
+          this.nextPreparation = undefined;
           this.playbackState = reason === 'stopped' ? 'idle' : 'error';
           this.lastPlaybackError = reason === 'media_error'
             ? 'ROON_MEDIA_ERROR'
@@ -689,6 +696,7 @@ export class BridgeController {
 
   async stop(): Promise<BridgeState> {
     return this.enqueue(async () => {
+      this.nextPreparation = undefined;
       await this.stopActive();
       return this.getState();
     });
@@ -731,6 +739,7 @@ export class BridgeController {
 
   async stopRoonTransport(): Promise<BridgeState> {
     return this.enqueue(async () => {
+      this.nextPreparation = undefined;
       if (this.activeToken !== undefined || this.activePlayback !== undefined || this.activeRoonPlayback !== undefined) {
         await this.stopActive();
       } else {
@@ -823,6 +832,7 @@ export class BridgeController {
 
   async clearQueue(): Promise<BridgeState> {
     return this.enqueue(async () => {
+      this.nextPreparation = undefined;
       this.queueHydrationGeneration += 1;
       await this.stopActive();
       this.queue = [];
@@ -836,6 +846,7 @@ export class BridgeController {
 
   async shutdown(): Promise<void> {
     await this.enqueue(async () => {
+      this.nextPreparation = undefined;
       this.queueHydrationGeneration += 1;
       await this.stopActive();
       this.queue = [];
@@ -1031,9 +1042,19 @@ export class BridgeController {
     this.notifyPlaybackChanged();
 
     const requestedQuality = resolveQualityPreference(item.qualityPreference);
+    const preparation = this.nextPreparation;
+    const candidate = preparation?.item === item && preparation.quality === requestedQuality
+      ? await preparation.result : undefined;
+    if (this.nextPreparation === preparation) this.nextPreparation = undefined;
+    const prepared = candidate && candidate.expiresAtMs > this.now() ? candidate : undefined;
     let metadata: TrackMetadata;
     let initialStream: ResolvedAudioStream | undefined;
-    if (item.preferredSource === 'smart') {
+    if (prepared) {
+      metadata = prepared.metadata;
+      initialStream = prepared.stream;
+      this.reportStartupStage(startupTrace, 'metadata-ready');
+      this.reportStartupStage(startupTrace, 'stream-url-ready');
+    } else if (item.preferredSource === 'smart') {
       metadata = item.track
         ? { ...item.track, artists: [...item.track.artists] }
         : await this.dependencies.netease.getTrack(item.trackId);
@@ -1083,13 +1104,14 @@ export class BridgeController {
       );
       this.reportStartupStage(startupTrace, 'stream-url-ready');
     }
-    await this.dependencies.gateway.preflight(initialStream);
+    if (!prepared) await this.dependencies.gateway.preflight(initialStream);
     this.reportStartupStage(startupTrace, 'gateway-preflight-ready');
 
     const resolver = this.createRefreshingResolver(
       item.trackId,
       requestedQuality,
       initialStream,
+      prepared?.resolvedAtMs,
     );
     const registration = this.dependencies.registry.register({
       metadata,
@@ -1335,6 +1357,7 @@ export class BridgeController {
   }
 
   private notifyPlaybackChanged(): void {
+    this.scheduleNextPreparation();
     const snapshot = this.getPlaybackState();
     for (const listener of this.playbackListeners) {
       try {
@@ -1354,13 +1377,47 @@ export class BridgeController {
     return next;
   }
 
+  /** 仅提前解析紧邻下一首的短期URL和响应头，不下载音频、不注册流或占用Roon会话。 */
+  private scheduleNextPreparation(): void {
+    if (!this.activePlayback || this.playbackState !== 'playing' || !this.dependencies.netease.configured) return;
+    const item = this.queue[this.queueIndex + 1];
+    if (!item || item.roonReference || item.preferredSource === 'roon' || item.preferredSource === 'smart') {
+      this.nextPreparation = undefined;
+      return;
+    }
+    const quality = resolveQualityPreference(item.qualityPreference);
+    if (this.preparationInFlight || this.nextPreparation?.item === item && this.nextPreparation.quality === quality) return;
+    this.preparationInFlight = true;
+    const result = (async () => {
+      try {
+        const resolvedAtMs = this.now();
+        const [metadata, stream] = await Promise.all([
+          item.track ? Promise.resolve({ ...item.track, artists: [...item.track.artists] }) : this.dependencies.netease.getTrack(item.trackId),
+          this.dependencies.netease.resolveStream(item.trackId, quality),
+        ]);
+        await this.dependencies.gateway.preflight(stream);
+        const expiresAtMs = resolvedAtMs + Math.max(0, (stream.expiresInSeconds ?? 120) * 1000 - 30_000);
+        return { metadata, stream, resolvedAtMs, expiresAtMs };
+      } catch {
+        // 预解析失败不改变当前歌曲、登录状态或队列；真正播放时走正常错误路径。
+        return undefined;
+      } finally {
+        this.preparationInFlight = false;
+        // 队列可能在请求期间被替换，只为当前紧邻下一首调度后继请求。
+        if (this.queue[this.queueIndex + 1] !== item) queueMicrotask(() => this.scheduleNextPreparation());
+      }
+    })();
+    this.nextPreparation = { item, quality, result };
+  }
+
   private createRefreshingResolver(
     trackId: string,
     quality: QualityLevel,
     initial: ResolvedAudioStream,
+    initialResolvedAtMs = this.now(),
   ): (request?: StreamResolveRequest) => Promise<ResolvedAudioStream> {
     let cached = initial;
-    let resolvedAtMs = this.now();
+    let resolvedAtMs = initialResolvedAtMs;
     let refreshUsed = false;
 
     return async (request?: StreamResolveRequest): Promise<ResolvedAudioStream> => {

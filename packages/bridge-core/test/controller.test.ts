@@ -350,6 +350,7 @@ function makeHarness(
     reference: string;
     zoneId: string;
   } | undefined>,
+  now: () => number = () => 1_700_000_000_000,
 ) {
   const registry = new StreamRegistry();
   const events: string[] = [];
@@ -374,7 +375,7 @@ function makeHarness(
     registry,
     gateway,
     logger: createLogger('error'),
-    now: () => 1_700_000_000_000,
+    now,
     diagnosticId: () => 'diag-controller-test',
     onProviderAuthExpired: () => {
       authExpiredCalls += 1;
@@ -650,6 +651,75 @@ test('controller maps MediaError to a retryable diagnostic issue', async () => {
     diagnosticId: 'diag-controller-test',
     action: 'retry',
   });
+});
+
+test('下一首提前完成URL和预检，切歌不重复解析且不提前建立音频会话', async () => {
+  const { controller, netease, roon, events, registry } = makeHarness();
+  await controller.replaceQueue([{ trackId: '123' }, { trackId: '456' }]);
+  await waitFor(() => netease.resolveCalls === 2);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(roon.playRequests.length, 1);
+  assert.equal(registry.size, 1);
+  assert.equal(events.filter(event => event === 'gateway.preflight').length, 2);
+  await controller.next();
+  assert.equal(netease.resolveCalls, 2);
+  assert.equal(events.filter(event => event === 'gateway.preflight').length, 2);
+  assert.equal(roon.playRequests[1]?.metadata.id, '456');
+});
+
+test('下一首预解析失败不打断当前歌曲，停止后不保留下一首结果', async () => {
+  const { controller, netease, roon } = makeHarness();
+  netease.unavailableTrackIds.add('456');
+  await controller.replaceQueue([{ trackId: '123' }, { trackId: '456' }]);
+  await waitFor(() => netease.resolveCalls === 2);
+  assert.equal(controller.getPlaybackState().state, 'playing');
+  assert.equal(roon.playRequests.length, 1);
+  await controller.stop();
+  netease.unavailableTrackIds.clear();
+  await controller.playQueueIndex(1);
+  assert.equal(roon.playRequests[1]?.metadata.id, '456');
+  assert.equal(netease.resolveCalls, 3);
+});
+
+test('下一首预解析过期后重新解析，不延长上游URL有效期', async () => {
+  let now = 1_700_000_000_000;
+  const { controller, netease } = makeHarness(206, undefined, () => now);
+  await controller.replaceQueue([{ trackId: '123' }, { trackId: '456' }]);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(netease.resolveCalls, 2);
+  now += 571_000;
+  await controller.next();
+  assert.equal(netease.resolveCalls, 3);
+});
+
+test('预解析期间改队列只准备最新下一首，旧结果不能串歌', async () => {
+  const { controller, netease, roon } = makeHarness();
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const resolveStream = netease.resolveStream.bind(netease);
+  netease.resolveStream = async (trackId, quality) => {
+    const result = await resolveStream(trackId, quality);
+    if (trackId === '456') await gate;
+    return result;
+  };
+  await controller.replaceQueue([{ trackId: '123' }, { trackId: '456' }]);
+  await controller.replaceQueue([{ trackId: '123' }, { trackId: '789' }]);
+  assert.equal(netease.resolveCalls, 2);
+  release();
+  await waitFor(() => netease.resolveCalls === 3);
+  await new Promise(resolve => setImmediate(resolve));
+  await controller.next();
+  assert.equal(netease.resolveCalls, 3);
+  assert.equal(roon.playRequests[1]?.metadata.id, '789');
+});
+
+test('Roon停止入口也释放下一首预解析结果', async () => {
+  const { controller, netease } = makeHarness();
+  await controller.replaceQueue([{ trackId: '123' }, { trackId: '456' }]);
+  await new Promise(resolve => setImmediate(resolve));
+  await controller.stopRoonTransport();
+  await controller.playQueueIndex(1);
+  assert.equal(netease.resolveCalls, 3);
 });
 
 test('controller refreshes an expiring stream only once', async () => {
