@@ -7,8 +7,9 @@ const normalize = (value: string): string => value.normalize('NFKC').toUpperCase
 export function referenceImagesForModel(model: CollectionDescriptor, references: readonly CanonicalReference[]): IllustratedReference[] {
   if (!model.brand.trim() || !model.name.trim()) return []
   return references.filter((entry): entry is IllustratedReference =>
-    entry.image.kind === 'reference' && normalize(entry.brand) === normalize(model.brand)
-    && normalize(entry.model) === normalize(model.name)
+    entry.image.kind === 'reference'
+    && [{ brand: entry.brand, model: entry.model }, ...(entry.imageAliases ?? [])].some(name =>
+      normalize(name.brand) === normalize(model.brand) && normalize(name.model) === normalize(model.name))
     && (model.tapeType === 'unknown' || entry.iec === model.tapeType)
     && (model.format === 'dat' ? entry.iec === 'dat' : entry.iec !== 'dat')
     && (!model.edition || normalize(entry.edition) === normalize(model.edition))

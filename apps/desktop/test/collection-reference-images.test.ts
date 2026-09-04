@@ -31,6 +31,19 @@ test('书中图名允许空格大小写差异，不接受缺品牌的泛匹配',
   assert.deepEqual(referenceImagesForModel({ ...model, brand: '' }, [reference('1988')]), [])
 })
 
+test('只使用资料中明确登记的参考图别名，长度和颜色后缀不自动删除', () => {
+  const original = reference('1988')
+  const aliased = { ...original, imageAliases: [{ brand: 'TDK', model: 'SA-X60', reason: '核对型号与长度后登记' }] }
+  const inventory = { ...model, name: 'SA-X60' }
+  assert.equal(referenceImagesForModel(inventory, [aliased]).length, 1)
+  assert.equal(referenceImagesForModel(inventory, [original]).length, 0)
+  assert.equal(referenceImagesForModel({ ...inventory, brand: '其他品牌' }, [aliased]).length, 0)
+  assert.equal(referenceImagesForModel({ ...model, name: 'SA-X(red)' }, [aliased]).length, 0)
+  assert.equal(referenceImagesForModel({ ...inventory, tapeType: 'IV' }, [aliased]).length, 0)
+  assert.equal(referenceImagesForModel({ ...inventory, year: 1990 }, [aliased]).length, 0)
+  assert.equal(inventory.name, 'SA-X60')
+})
+
 test('收藏墙在实物照片缺席时显示带来源的参考候选，详情保留全部版次', async () => {
   const wall = await readFile(new URL('../src/renderer/src/components/collection/CollectionView.vue', import.meta.url), 'utf8')
   const detail = await readFile(new URL('../src/renderer/src/components/collection/CollectionModelDetail.vue', import.meta.url), 'utf8')

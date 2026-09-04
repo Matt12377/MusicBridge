@@ -12,6 +12,17 @@ const source = { id, bookId: pack.bookId, title: pack.title, sourceVersion: pack
 const previewRequest = { sourceId: id, expectedCurrentRevisionId: null, items: [item], mappings: [] };
 const register = { commandId, rawPack, packHash, userConfirmed: true };
 
+test('参考图别名带核对说明且有界，不改变目录身份或默默吞掉冲突', () => {
+  const alias = { brand: '合成品牌', model: 'A60', reason: '同型号附带长度，保留库存原名' };
+  const aliased = { ...item, imageAliases: [alias] };
+  assert.equal(c.isCanonicalReference(aliased), true);
+  assert.equal(c.isPreviewCatalogRevisionRequest({ ...previewRequest, items: [aliased] }), true);
+  assert.equal(c.normalizeReferenceItems([item, aliased]), null);
+  for (const imageAliases of [null, ['A60'], [{ ...alias, reason: '' }], [{ ...alias, extra: true }], [alias, alias], Array.from({ length: 17 }, (_, n) => ({ ...alias, model: `A${n}` }))]) {
+    assert.equal(c.isCanonicalReference({ ...item, imageAliases }), false);
+  }
+});
+
 test('带图修订接受有界多图内容，原资料入口仍为1MiB且超大修订拒绝', () => {
   const rows = Array.from({ length: 4 }, (_, i) => ({ ...item, referenceId: `image-${i}`, model: `image-${i}`,
     image: { kind: 'reference', image: { dataUrl: 'data:image/jpeg;base64,' + '/9j/' + 'AAAA'.repeat(150000) + '/9k=', width: 320, height: 240 }, caption: '合成书籍参考图' } }))

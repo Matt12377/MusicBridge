@@ -87,9 +87,10 @@ test('多 MiB 配图修订发布后可冷开，原来源与库存逐行不变', 
   const entries = Array.from({ length: 6 }, (_, index) => item(`image-${index}`));
   const saved = source(repository, entries);
   const first = publish(repository, { sourceId: saved.value.id, items: entries });
-  const illustrated = entries.map(entry => ({ ...entry, image: { kind: 'reference' as const, image: { dataUrl: `data:image/jpeg;base64,/9j/${'A'.repeat(560000)}2Q==`, width: 400, height: 400 }, caption: '合成参考图片' } }));
+  const illustrated = entries.map(entry => ({ ...entry, imageAliases: [{ brand: '合成品牌', model: `${entry.model} 60`, reason: '已核对的合成长时名称，仅作参考图候选' }], image: { kind: 'reference' as const, image: { dataUrl: `data:image/jpeg;base64,/9j/${'A'.repeat(560000)}2Q==`, width: 400, height: 400 }, caption: '合成参考图片' } }));
   const next = publish(repository, { sourceId: saved.value.id, expectedCurrentRevisionId: first.value.revision.id, items: illustrated });
   assert.equal(next.value.revision.items.filter(entry => entry.image.kind === 'reference').length, 6);
+  assert.deepEqual(next.value.revision.items[0]?.imageAliases, illustrated[0]?.imageAliases);
   assert.deepEqual(inventoryBytes(check), before);
   assert.deepEqual(repository.catalog.publishRevision(next.command), next.value);
   check.close(); repository.close();

@@ -10,6 +10,8 @@ export interface CanonicalReference {
   lengths: readonly number[]; iec: 'I' | 'II' | 'III' | 'IV' | 'dat' | 'unknown'; era: string | null;
   image: { kind: 'none' } | { kind: 'reference'; image: CollectionPhotoImage; caption: string };
   pages: readonly string[]; notes: string; confidence: 'high' | 'medium' | 'low' | 'unknown';
+  /** 仅供参考图候选匹配；必须有核对说明，不确认库存身份或实物版次。 */
+  imageAliases?: readonly { brand: string; model: string; reason: string }[];
 }
 export interface SourcePack { schemaVersion: 1; bookId: string; title: string; sourceVersion: string; items: readonly CanonicalReference[] }
 export interface ReferenceSourceVersion { id: string; bookId: string; title: string; sourceVersion: string; packHash: string; itemCount: number; createdAt: string }
@@ -78,10 +80,15 @@ const referenceKeys = (v: unknown): v is string[] => array(v, isReferenceCatalog
 function boundedJson(v: unknown, limit = MAX_REFERENCE_SOURCE_PACK_BYTES): boolean {
   try { return new TextEncoder().encode(JSON.stringify(v)).byteLength <= limit; } catch { return false; }
 }
-const itemKeys = ['referenceId', 'bookId', 'brand', 'series', 'edition', 'model', 'lengths', 'iec', 'era', 'image', 'pages', 'notes', 'confidence'];
+const itemKeys = ['referenceId', 'bookId', 'brand', 'series', 'edition', 'model', 'lengths', 'iec', 'era', 'image', 'pages', 'notes', 'confidence', 'imageAliases'];
+function imageAliases(v: unknown): boolean {
+  return v === undefined || array(v, (a): a is { brand: string; model: string; reason: string } => record(a)
+    && keys(a, ['brand', 'model', 'reason']) && text(a.brand) && text(a.model) && text(a.reason, 240), 16)
+    && unique(v.map(a => JSON.stringify([a.brand, a.model].map(s => s.normalize('NFKC').trim().toLowerCase()))));
+}
 export function isCanonicalReference(v: unknown): v is CanonicalReference {
   if (!record(v) || !keys(v, itemKeys) || !isReferenceCatalogKey(v.referenceId) || !isReferenceCatalogKey(v.bookId)
-    || !text(v.brand) || !text(v.series, 120, true) || !text(v.edition, 120, true) || !text(v.model)
+    || !text(v.brand) || !text(v.series, 120, true) || !text(v.edition, 120, true) || !text(v.model) || !imageAliases(v.imageAliases)
     || !array(v.lengths, (n): n is number => integer(n, 1, 360), 32)
     || typeof v.iec !== 'string' || !['I', 'II', 'III', 'IV', 'dat', 'unknown'].includes(v.iec) || !(v.era === null || text(v.era))
     || !array(v.pages, (p): p is string => text(p, 40), 100) || !text(v.notes, 2_000, true)
@@ -96,7 +103,7 @@ function identity(item: CanonicalReference): string {
 }
 function metadata(item: CanonicalReference): string {
   const image = item.image.kind === 'none' ? ['none'] : ['reference', item.image.image.dataUrl, item.image.image.width, item.image.image.height, item.image.caption];
-  return JSON.stringify([identity(item), image, item.notes, item.confidence]);
+  return JSON.stringify([identity(item), image, item.notes, item.confidence, item.imageAliases ?? []]);
 }
 /** 只归并同身份重复页；冲突不得通过挑选第一条悄悄丢失事实。 */
 export function normalizeReferenceItems(value: unknown): CanonicalReference[] | null {
@@ -106,7 +113,7 @@ export function normalizeReferenceItems(value: unknown): CanonicalReference[] | 
     const key = identity(item), priorIdentityId = byIdentity.get(key), prior = byId.get(item.referenceId);
     if (priorIdentityId !== undefined && priorIdentityId !== item.referenceId || prior && metadata(prior) !== metadata(item)) return null;
     byIdentity.set(key, item.referenceId);
-    byId.set(item.referenceId, { ...item, image: structuredClone(item.image), lengths: [...new Set([...(prior?.lengths ?? []), ...item.lengths])].sort((a, b) => a - b), pages: [...new Set([...(prior?.pages ?? []), ...item.pages])].sort() });
+    byId.set(item.referenceId, { ...structuredClone(item), lengths: [...new Set([...(prior?.lengths ?? []), ...item.lengths])].sort((a, b) => a - b), pages: [...new Set([...(prior?.pages ?? []), ...item.pages])].sort() });
   }
   const result = [...byId.values()];
   return result.every(isCanonicalReference) ? result : null;
