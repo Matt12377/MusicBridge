@@ -318,7 +318,7 @@ test('V1 Bottom Player stays compact, semantic, and free of transient lyric or s
   assert.match(player, /visually-hidden/)
   assert.match(icon, /name === 'previous'/)
   assert.match(icon, /name === 'next'/)
-  assert.match(css, /\.global-player\s*\{[^}]*height:\s*104px/)
+  assert.match(css, /\.global-player\s*\{[^}]*height:\s*88px/)
   assert.match(css, /\.player-art\s*\{[^}]*width:\s*46px[^}]*height:\s*46px/)
 })
 
@@ -327,7 +327,7 @@ test('V1 Home and content pages use page-level width tiers and avoid a duplicate
   const settings = await readFile(path.resolve('src/renderer/src/components/settings/SettingsView.vue'), 'utf8')
   const css = await readFile(path.resolve('src/renderer/src/style.css'), 'utf8')
 
-  assert.match(app, /<h1 v-if="currentView !== 'home'">\{\{ viewTitle \}\}<\/h1>/)
+  assert.doesNotMatch(app, /class="topbar"|<ToolbarStatusPopover/)
   assert.match(app, /class="view view-search"/)
   assert.match(app, /class="view view-library"/)
   assert.match(app, /class="view view-diagnostics"/)
@@ -336,6 +336,18 @@ test('V1 Home and content pages use page-level width tiers and avoid a duplicate
   assert.match(css, /\.view-search\s*,\s*\.view-library\s*,\s*\.view-playlist\s*\{[^}]*max-width:\s*1520px/)
   assert.match(css, /\.view-settings\s*\{[^}]*max-width:\s*1280px/)
   assert.match(css, /\.view-diagnostics\s*\{[^}]*max-width:\s*1100px/)
+})
+
+test('居中悬浮播放器保留完整内容，顶部横栏移除后未确认操作仍可从设置访问', async () => {
+  const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const css = await readFile(path.resolve('src/renderer/src/style.css'), 'utf8')
+  const settings = await readFile(path.resolve('src/renderer/src/components/settings/SettingsView.vue'), 'utf8')
+  assert.match(css, /\.global-player\s*\{[^}]*width:\s*min\(1120px, calc\(100% - 48px\)\)/)
+  assert.match(css, /\.global-player\s*\{[^}]*margin:\s*16px auto/)
+  assert.match(css, /\.global-player\s*\{[^}]*border-radius:\s*24px/)
+  assert.doesNotMatch(app, /class="topbar"|<ToolbarStatusPopover/)
+  assert.match(app, /<template #application-tools>[\s\S]*?commandOutboxTrigger[\s\S]*?未确认操作/)
+  assert.match(settings, /<slot name="application-tools"\s*\/>/)
 })
 
 test('V1 Settings在生产候选保留受控Remote Core入口和显式SSH目标', async () => {

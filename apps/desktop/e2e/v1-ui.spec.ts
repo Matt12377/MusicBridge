@@ -53,17 +53,6 @@ function sidebarSearch() {
   return page.getByRole('searchbox', { name: '搜索歌曲或歌手' })
 }
 
-function connectionButton() {
-  return page.getByRole('button', { name: '查看连接状态' })
-}
-
-async function openConnectionPopover() {
-  const statusPopover = page.getByRole('dialog', { name: '连接状态' })
-  if (!(await statusPopover.isVisible())) await connectionButton().click()
-  await expect(statusPopover).toBeVisible()
-  return statusPopover
-}
-
 async function openAccountSettings() {
   await page.getByRole('button', { name: '打开设置' }).click()
   await expect(page.getByRole('heading', { name: '设置', exact: true }).first()).toBeVisible()
@@ -72,8 +61,9 @@ async function openAccountSettings() {
 }
 
 async function openDiagnostics() {
-  const statusPopover = await openConnectionPopover()
-  await statusPopover.getByRole('button', { name: '打开诊断' }).click()
+  await page.getByRole('button', { name: '打开设置' }).click()
+  await page.getByRole('tab', { name: '应用', exact: true }).click()
+  await page.getByRole('button', { name: '打开诊断 →', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Diagnostics', exact: true }).first()).toBeVisible()
 }
 
@@ -287,7 +277,7 @@ test.afterEach(async () => {
 
 test('Core 后连接时自动刷新 Zone 列表', async () => {
   await reloadWithZones([])
-  await expect(connectionButton()).toContainText('已连接')
+  await expect(page.getByRole('button', { name: '查看连接状态' })).toHaveCount(0)
   await emitCoreEvent('roon.changed', 'disconnected')
   await expect(playerZoneButton()).toContainText('Core 已断开')
   const zonePopover = await openPlayerZonePopover()
@@ -491,7 +481,8 @@ test('Settings 可手动刷新已连接 Core 的 Zone 列表', async () => {
 test('v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation', async () => {
   expect(await electronApp.evaluate(({ app }) => app.getName())).toBe('Music Bridge for Roon')
   await expect(page.getByRole('navigation', { name: '音乐来源' })).toBeVisible()
-  await expect(page.getByRole('button', { name: '查看连接状态' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '查看连接状态' })).toHaveCount(0)
+  await expect(page.locator('.topbar')).toHaveCount(0)
   await expect(page.locator('[data-ui-reference="simple-music-player-2"]')).toBeVisible()
   await expect(page.getByRole('region', { name: '每日推荐' })).toBeVisible()
   await expect(page.locator('.daily-recommendation-tile')).toHaveCount(8)
@@ -651,11 +642,9 @@ test('v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation', 
   await sourceButton('home').click()
   await expect(page.getByRole('region', { name: '每日推荐' })).toContainText('需要网易云登录')
 
-  const statusPopover = await openConnectionPopover()
-  await expect(statusPopover).toBeVisible()
-  await expect(statusPopover.getByText('Roon', { exact: true })).toBeVisible()
-  await expect(statusPopover.getByText('已连接', { exact: true })).toBeVisible()
-  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: '打开设置' }).click()
+  await page.getByRole('tab', { name: 'Roon', exact: true }).click()
+  await expect(page.locator('.settings-pane-roon .settings-status-pill')).toContainText('已连接')
 
   await sidebarSearch().focus()
   await page.keyboard.press('Meta+L')

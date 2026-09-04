@@ -38,7 +38,7 @@ async function armReceiptFailure(mode: 'throw' | 'kill'): Promise<void> {
     }
   }, mode)
 }
-async function openOutbox() { await page.getByRole('button', { name: '未确认操作', exact: true }).click(); const panel = page.getByRole('dialog', { name: '未确认操作', exact: true }); await expect(panel).toBeVisible(); return panel }
+async function openOutbox() { await page.getByRole('button', { name: '打开设置' }).click(); await page.getByRole('tab', { name: '应用', exact: true }).click(); await page.getByRole('button', { name: '未确认操作', exact: true }).click(); const panel = page.getByRole('dialog', { name: '未确认操作', exact: true }); await expect(panel).toBeVisible(); return panel }
 
 for (const mode of ['throw', 'kill'] as const) {
   test(`V3 outbox：${mode === 'kill' ? '真实Main SIGKILL' : '回执落盘失败与Renderer刷新'}后无自动投递，人工原命令恢复不重复库存`, async () => {

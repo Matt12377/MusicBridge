@@ -46,7 +46,6 @@ import FavoriteEntityGrid from './components/FavoriteEntityGrid.vue'
 import RoonAlbumDetail from './components/RoonAlbumDetail.vue'
 import RoonBrowseDetail from './components/RoonBrowseDetail.vue'
 import MusicSidebar from './components/sidebar/MusicSidebar.vue'
-import ToolbarStatusPopover from './components/ToolbarStatusPopover.vue'
 import CommandOutboxPanel from './components/CommandOutboxPanel.vue'
 import { useLibrarySources } from './composables/useLibrarySources.js'
 import { appendPage } from './composables/libraryPagination.js'
@@ -101,30 +100,6 @@ import RecordingView from './components/recording/RecordingView.vue'
 
 const LIBRARY_PAGE_SIZE = 20
 const SEARCH_DEBOUNCE_MS = 250
-
-const VIEW_LABELS: Record<ViewId, string> = {
-  home: '主页',
-  collection: '收藏',
-  recording: '录音',
-  search: '搜索结果',
-  liked: '我喜欢的音乐',
-  'daily-recommendations': '每日推荐',
-  playlists: '所有歌单',
-  'playlist-detail': '歌单详情',
-  'roon-albums': '专辑',
-  'roon-artists': '艺术家',
-  'roon-genres': '流派',
-  'roon-playlists': 'Roon 歌单',
-  'roon-favorites': '本地收藏',
-  'roon-artist-detail': '艺术家详情',
-  'roon-album-detail': '专辑详情',
-  'roon-genre-detail': '流派详情',
-  'roon-playlist-detail': 'Roon 歌单详情',
-  'now-playing': '正在播放',
-  queue: '队列',
-  settings: '设置',
-  diagnostics: '诊断',
-}
 
 function emptyPage<T>(limit = LIBRARY_PAGE_SIZE): Page<T> {
   return { items: [], offset: 0, limit, total: 0, hasMore: false }
@@ -424,7 +399,6 @@ const zoneLifecycleStatus = computed(() => resolveZoneLifecycleStatus({
   zoneCount: zones.value.length,
   selected: selectedZone.value !== undefined,
 }))
-const viewTitle = computed(() => VIEW_LABELS[currentView.value])
 const isImmersiveNowPlaying = computed(() => currentView.value === 'now-playing')
 const hasPlaybackIssue = computed(() => Boolean(playbackState.value?.lastIssue || actionError.value))
 const greeting = computed(() => {
@@ -2712,19 +2686,6 @@ onUnmounted(() => {
       />
 
       <section class="workspace" :class="{ 'is-immersive': isImmersiveNowPlaying }">
-      <header v-if="!isImmersiveNowPlaying" class="topbar">
-        <div class="topbar-leading">
-          <div>
-            <p class="section-kicker">Music Bridge</p>
-            <h1 v-if="currentView !== 'home'">{{ viewTitle }}</h1>
-          </div>
-        </div>
-        <div class="command-outbox-tools">
-          <button ref="commandOutboxTrigger" type="button" class="command-outbox-entry" aria-haspopup="dialog" @click="commandOutboxOpen = true">未确认操作</button>
-          <ToolbarStatusPopover :core-state="coreState" :selected-zone="selectedZone" @diagnostics="navigate('diagnostics')" />
-        </div>
-      </header>
-
       <div class="workspace-body" :class="{ 'is-immersive': isImmersiveNowPlaying }">
       <div ref="contentScroll" class="content-scroll" :class="{ 'is-immersive': isImmersiveNowPlaying }">
         <HomeView
@@ -3105,7 +3066,11 @@ onUnmounted(() => {
           @reconnect-remote-core="reconnectRemoteCore"
           @update:remote-auto-start="updateRemoteAutoStart"
           @update:remote-ssh-target="updateRemoteSshTarget"
-        />
+        >
+          <template #application-tools>
+            <button ref="commandOutboxTrigger" type="button" class="command-outbox-entry" aria-haspopup="dialog" @click="commandOutboxOpen = true">未确认操作</button>
+          </template>
+        </SettingsView>
 
         <section v-else class="view view-diagnostics" aria-labelledby="diagnostics-heading">
           <div class="view-heading"><div><p class="section-kicker">Read-only signal</p><h2 id="diagnostics-heading">Diagnostics</h2><p class="lede">这里只展示公开状态、可操作建议和诊断标识，不导出 Provider 原始内容。</p></div><div class="button-row"><button type="button" class="secondary-button" @click="refreshPlayback">刷新状态</button><button type="button" class="secondary-button" :disabled="diagnosticExportState === 'working'" @click="exportDiagnostics">{{ diagnosticExportState === 'working' ? '导出中…' : '导出诊断文件' }}</button></div></div>
@@ -3155,7 +3120,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.command-outbox-tools { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .command-outbox-entry { min-height: 44px; padding: 8px 12px; border: 1px solid var(--mb-glass-border); border-radius: 8px; background: var(--mb-glass-clear); color: var(--mb-text-primary); font: inherit; font-size: 13px; cursor: pointer; }
 .command-outbox-entry:focus-visible { outline: 2px solid var(--mb-accent); outline-offset: 3px; }
 @media (hover: hover) and (pointer: fine) { .command-outbox-entry:hover { border-color: var(--mb-accent); } }

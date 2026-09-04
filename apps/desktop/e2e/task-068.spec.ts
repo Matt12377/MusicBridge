@@ -141,6 +141,8 @@ test('V3参考目录：原资料登记回执落盘失败后冷启不重发，人
   await close(); await launch()
   expect(await page.evaluate(() => window.musicBridge.getCommandOutbox())).toEqual(before)
   expect((await page.evaluate(() => window.musicBridge.listReferenceSources({ offset: 0, limit: 25 }))).total).toBe(1)
+  await page.getByRole('button', { name: '打开设置' }).click()
+  await page.getByRole('tab', { name: '应用', exact: true }).click()
   await page.getByRole('button', { name: '未确认操作', exact: true }).click()
   const panel = page.getByRole('dialog', { name: '未确认操作', exact: true }), row = panel.locator(`[data-outbox-id="${before.entries[0]!.id}"]`)
   await expect(row.getByText('登记参考资料版本', { exact: true })).toBeVisible()
