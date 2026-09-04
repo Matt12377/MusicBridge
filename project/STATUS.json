@@ -1,5 +1,15 @@
 {
   "schemaVersion": 1,
+  "uiBaseline": {
+    "branch": "codex/v3-ui-baseline",
+    "sourceCommit": "84f0cf6c90bfb3e413b46c2a07b47f886a397f1e",
+    "state": "source-baseline-frozen-ui-not-started",
+    "nextBranch": "codex/v3-ui-redesign",
+    "nextWorktree": "worktree/v3-ui",
+    "report": "reports/V3_UI_BASELINE.md",
+    "realPlayback": "remote-audio-restoration-and-owner-verification-pending",
+    "mergeRelease": "not-authorized"
+  },
   "neteasePlaybackTimeoutDiagnosis": {
     "branch": "codex/netease-playback-timeout-diagnosis",
     "baseCommit": "1c82a439af91ef519092d6b5c328465174079ddc",
