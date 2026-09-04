@@ -46,7 +46,7 @@ test('Renderer contains the public QR login surface without credential access', 
     '重新读取',
     '退出登录',
     '每日推荐',
-    '打开网易云账户设置',
+    '打开设置',
     '登录仍然有效',
     '登录已过期',
     '重新扫码',
@@ -150,8 +150,8 @@ test('Renderer exposes the v2 Music Source Sidebar information architecture', as
     'getRoonArtistAlbums',
     '搜索歌曲或歌手',
     '播放设备',
-    'SidebarAccountFooter.vue',
-    'sidebar-account-footer',
+    'SidebarSettingsFooter.vue',
+    'sidebar-settings-footer',
     'getAccountState',
     'account.changed',
     'toolbar-status-popover',
@@ -169,7 +169,7 @@ test('Renderer exposes the v2 Music Source Sidebar information architecture', as
   assert.doesNotMatch(combinedSource, /const\s+NAV_ITEMS/)
   assert.doesNotMatch(combinedSource, /class=["']nav-item["']/)
   assert.doesNotMatch(combinedSource, /<AppSidebar\b/)
-  assert.match(combinedSource, /SidebarAccountFooter|sidebar-account-footer/)
+  assert.match(combinedSource, /SidebarSettingsFooter|sidebar-settings-footer/)
   assert.doesNotMatch(combinedSource, />\s*Pause\s*</)
   assert.doesNotMatch(combinedSource, />\s*Seek\s*</)
 })
@@ -179,7 +179,7 @@ test('Renderer keeps internal destinations available only through their v2 entry
   const combinedSource = (await Promise.all(files.map((file) => readFile(file, 'utf8')))).join('\n')
 
   assert.match(combinedSource, /currentView === ['"]search['"]|currentView === ['"]liked['"]|currentView === ['"]playlists['"]/)
-  assert.match(combinedSource, /handleSidebarAccount/)
+  assert.match(combinedSource, /@settings="navigate\('settings'\)"/)
   assert.match(combinedSource, /account-settings-hero/)
   assert.match(combinedSource, /refreshAccountProfile/)
   assert.match(combinedSource, /beginQrLogin/)

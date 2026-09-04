@@ -65,7 +65,7 @@ async function openConnectionPopover() {
 }
 
 async function openAccountSettings() {
-  await page.getByRole('button', { name: '打开网易云账户设置' }).click()
+  await page.getByRole('button', { name: '打开设置' }).click()
   await expect(page.getByRole('heading', { name: '设置', exact: true }).first()).toBeVisible()
   const accountTab = page.getByRole('tab', { name: '账户', exact: true })
   if (await accountTab.isVisible()) await accountTab.click()
@@ -488,7 +488,7 @@ test('Settings 可手动刷新已连接 Core 的 Zone 列表', async () => {
   await expect(roonPane.getByRole('definition').filter({ hasText: /^尚未选择播放设备$/ })).toBeVisible()
 })
 
-test('v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation', async () => {
+test('v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation', async () => {
   expect(await electronApp.evaluate(({ app }) => app.getName())).toBe('Music Bridge for Roon')
   await expect(page.getByRole('navigation', { name: '音乐来源' })).toBeVisible()
   await expect(page.getByRole('button', { name: '查看连接状态' })).toBeVisible()
@@ -496,8 +496,9 @@ test('v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation', 
   await expect(page.getByRole('region', { name: '每日推荐' })).toBeVisible()
   await expect(page.locator('.daily-recommendation-tile')).toHaveCount(8)
   await expect.poll(() => page.locator('.daily-recommendation-art img').first().evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
-  await expect(page.locator('.sidebar-account-footer')).toBeVisible()
-  await expect(page.getByRole('button', { name: '打开网易云账户设置' })).toContainText('Synthetic Listener')
+  await expect(page.locator('.sidebar-settings-footer')).toBeVisible()
+  await expect(page.getByRole('button', { name: '打开设置' })).toContainText('设置')
+  await expect(page.locator('.sidebar-settings-footer img')).toHaveCount(0)
   await expect(page.locator('.global-player')).toBeVisible()
   const themeTokens = await page.evaluate(() => {
     const styles = getComputedStyle(document.documentElement)
@@ -506,7 +507,7 @@ test('v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation', 
       accent: styles.getPropertyValue('--mb-accent').trim(),
     }
   })
-  expect(themeTokens).toEqual({ background: '#0e1217', accent: '#64d2ff' })
+  expect(themeTokens).toEqual({ background: '#f8eaf1', accent: '#b34f79' })
   await expect(sourceButton('home')).toHaveAttribute('aria-current', 'page')
   await expect(sourceButton('liked')).toBeVisible()
   await expect(sourceButton('playlists')).toBeVisible()
@@ -703,7 +704,7 @@ test('v5 Home、账户 Footer、Settings、每日推荐和 Renderer isolation', 
 })
 
 test('合成 Profile 资料不可用但登录仍有效', async () => {
-  await expect(page.getByRole('button', { name: '打开网易云账户设置' })).toContainText('账户信息不可用')
+  await expect(page.getByRole('button', { name: '打开设置' })).toBeVisible()
   await expect(page.getByRole('region', { name: '每日推荐' })).toContainText('每日推荐')
   await expect(page.locator('.daily-recommendation-tile')).toHaveCount(8)
 
@@ -716,7 +717,7 @@ test('合成 Profile 资料不可用但登录仍有效', async () => {
 })
 
 test('合成登录过期后清空账户与每日推荐', async () => {
-  await expect(page.getByRole('button', { name: '打开网易云账户设置' })).toContainText('登录已过期')
+  await expect(page.getByRole('button', { name: '打开设置' })).toBeVisible()
   await expect(page.getByRole('region', { name: '每日推荐' })).toContainText('需要网易云登录')
 
   await openAccountSettings()

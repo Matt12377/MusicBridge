@@ -1,5 +1,5 @@
 <script setup lang="ts">
-type IconName = 'chevron-down' | 'chevron-left' | 'chevron-right' | 'grid' | 'heart' | 'home' | 'list' | 'more' | 'music-note' | 'next' | 'pause' | 'play' | 'previous' | 'search' | 'speaker' | 'user' | 'cassette' | 'record'
+type IconName = 'chevron-down' | 'chevron-left' | 'chevron-right' | 'grid' | 'heart' | 'home' | 'list' | 'more' | 'music-note' | 'next' | 'pause' | 'play' | 'previous' | 'search' | 'speaker' | 'user' | 'cassette' | 'record' | 'settings'
 
 withDefaults(defineProps<{
   name: IconName
@@ -11,6 +11,10 @@ withDefaults(defineProps<{
 
 <template>
   <svg class="sidebar-icon" :width="size" :height="size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <g v-if="name === 'settings'">
+      <path d="M4 7h3m6 0h7M4 17h7m6 0h3" />
+      <circle cx="10" cy="7" r="3" /><circle cx="14" cy="17" r="3" />
+    </g>
     <g v-if="name === 'cassette'">
       <rect x="2" y="5" width="20" height="14" rx="3" />
       <circle cx="7.5" cy="10.5" r="2" /><circle cx="16.5" cy="10.5" r="2" />

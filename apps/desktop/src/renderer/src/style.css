@@ -114,22 +114,17 @@ img[hidden] { display: none; }
 .sidebar-collapsed-playlist-control { position: relative; display: flex; justify-content: center; }
 .sidebar-collapsed-source-button { display: grid; width: 42px; height: 32px; place-items: center; border-radius: 9px; color: var(--mb-text-secondary); background: transparent; }
 .sidebar-collapsed-source-button:hover { color: var(--mb-text-primary); background: var(--mb-glass-clear); }
-.sidebar-playlist-popover { top: 0; left: calc(100% + 8px); width: 232px; max-height: min(420px, calc(100vh - 140px)); overflow: auto; padding: 10px; }
+.sidebar-popover.sidebar-playlist-popover { position: fixed; width: 232px; overflow: auto; padding: 10px; }
 .sidebar-playlist-popover > strong { display: block; margin: 1px 5px 8px; color: var(--mb-text-primary); font-size: 12px; }
-.sidebar-account-footer { flex: 0 0 auto; padding: 10px; border-top: 1px solid var(--mb-divider); }
-.sidebar-account-button { display: flex; width: 100%; min-width: 0; gap: 10px; align-items: center; padding: 8px; border: 1px solid transparent; border-radius: 11px; color: var(--mb-text-primary); background: transparent; text-align: left; transition: background 150ms ease, border-color 150ms ease; }
-.sidebar-account-button:hover, .sidebar-account-button:focus-visible { border-color: var(--mb-glass-border); background: var(--mb-glass-clear); outline: 0; }
-.sidebar-account-avatar { position: relative; display: grid; width: 32px; height: 32px; flex: 0 0 auto; place-items: center; overflow: hidden; border-radius: 50%; color: var(--mb-text-secondary); background: linear-gradient(145deg, rgba(179, 79, 121, .34), rgba(255, 255, 255, .10)); font-size: 13px; font-weight: 650; }
-.sidebar-account-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.sidebar-account-avatar.is-loading { opacity: .65; }
-.sidebar-account-avatar.is-unavailable { background: rgba(255, 105, 97, .18); }
-.sidebar-account-copy { display: grid; min-width: 0; flex: 1; gap: 3px; }
-.sidebar-account-copy strong, .sidebar-account-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sidebar-account-copy strong { font-size: 12px; font-weight: 620; }
-.sidebar-account-copy small { color: var(--mb-text-tertiary); font-size: 10px; }
-.sidebar-account-chevron { color: var(--mb-text-tertiary); font-size: 18px; line-height: 1; }
-.sidebar-account-footer.is-collapsed { padding: 10px 9px; }
-.sidebar-account-footer.is-collapsed .sidebar-account-button { justify-content: center; padding: 7px 0; }
+.sidebar-settings-footer { flex: 0 0 auto; padding: 10px; border-top: 1px solid var(--mb-divider); }
+.sidebar-settings-button { display: flex; width: 100%; min-width: 0; min-height: 40px; gap: 10px; align-items: center; padding: 0 12px; border-radius: 11px; color: var(--mb-text-primary); text-align: left; }
+.sidebar-settings-label { flex: 1; font-size: 13px; }
+.sidebar-settings-button:hover, .sidebar-settings-button[aria-current="page"] { color: var(--mb-accent); }
+.sidebar-settings-footer.is-collapsed { padding: 10px 9px; }
+.sidebar-settings-footer.is-collapsed .sidebar-settings-button { justify-content: center; padding: 0; }
+.sidebar-playlist-heading { margin: 14px 0 4px; font-size: 11px; }
+.sidebar-playlist-toggle { display: flex; width: 100%; min-height: 32px; align-items: center; justify-content: space-between; gap: 8px; padding: 0 10px; border-radius: 9px; color: var(--mb-text-secondary); background: transparent; text-align: left; }
+.sidebar-playlist-toggle:hover { background: var(--mb-glass-clear); }
 @keyframes sidebar-skeleton { 0%, 100% { background-position: 100% 0; opacity: .65; } 50% { background-position: 0 0; opacity: 1; } }
 
 .sidebar-popover, .toolbar-status-popover { position: absolute; z-index: 50; border: 1px solid rgba(255, 255, 255, .14); border-radius: 14px; color: var(--mb-text-primary); background: var(--mb-glass-strong); box-shadow: 0 24px 70px rgba(0, 0, 0, .42), inset 0 1px 0 var(--mb-glass-highlight); -webkit-backdrop-filter: blur(36px) saturate(1.22); backdrop-filter: blur(36px) saturate(1.22); }

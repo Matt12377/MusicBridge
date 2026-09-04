@@ -2396,10 +2396,6 @@ async function selectZone(zoneId: string): Promise<void> {
   }
 }
 
-function handleSidebarAccount(): void {
-  navigate('settings')
-}
-
 function updateRemoteAutoStart(value: boolean): void {
   remoteAutoStart.value = value
   window.localStorage.setItem('musicbridge.remoteCore.autoStart', value ? '1' : '0')
@@ -2705,15 +2701,14 @@ onUnmounted(() => {
         :playlists="playlists"
         :playlist-state="playlistState"
         :source-scroll-top="sidebar.sourceScrollTop.value"
-        :account-state="accountState"
-        :auth-state="authState"
+        :settings-active="currentView === 'settings'"
         @toggle="sidebar.toggleExpanded"
         @navigate="navigateSource"
         @update:search-query="updateSearchQuery"
         @clear-search="clearSearch"
         @retry-playlists="loadPlaylists"
         @scroll-source="sidebar.setSourceScrollTop"
-        @account="handleSidebarAccount"
+        @settings="navigate('settings')"
       />
 
       <section class="workspace" :class="{ 'is-immersive': isImmersiveNowPlaying }">

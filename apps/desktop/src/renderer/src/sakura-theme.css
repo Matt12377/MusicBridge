@@ -46,8 +46,7 @@
   color: #813454; background: var(--mb-accent-soft);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .6);
 }
-.sidebar-account-avatar, .account-settings-avatar { background: var(--mb-accent-soft); }
-.sidebar-account-footer { border-top-color: var(--mb-divider); }
+.account-settings-avatar { background: var(--mb-accent-soft); }
 .topbar { background: var(--mb-frosted-plane); border-bottom-color: var(--mb-glass-highlight); }
 .global-player { background: var(--mb-frosted-plane); border-top-color: var(--mb-glass-highlight); }
 .player-play-button, .transport-button-primary { box-shadow: 0 5px 18px rgba(179, 79, 121, .20); }
@@ -55,7 +54,7 @@
 .player-controls { gap: 14px; }
 .primary-button { border-radius: 999px; padding-inline: 20px; }
 .secondary-button { border-radius: 999px; background: var(--mb-frosted-control); }
-.sidebar-search-field, .secondary-button, .player-quality-button, .player-zone-button,
+.sidebar-settings-button, .sidebar-search-field, .secondary-button, .player-quality-button, .player-zone-button,
 .player-inspector-button, .toolbar-status-button, .sidebar-collapse-button,
 .now-playing-back, .now-playing-quality-button, .inspector-close,
 .collection-add, .reference-entry, .recording-secondary button {
@@ -149,6 +148,8 @@
   .player-meta { grid-column: 1 / -1; grid-row: 2; justify-content: flex-end; }
 }
 @media (max-width: 760px) {
+  .sidebar-settings-label, .sidebar-settings-label + .sidebar-icon, .sidebar-playlist-toggle > span { display: none; }
+  .sidebar-settings-button, .sidebar-playlist-toggle { justify-content: center; padding-inline: 0; }
   .sidebar-header { padding-inline: 12px; }
   .sidebar-source-scroll { padding-inline: 9px; }
   .liked-hero, .playlist-detail-hero, .roon-album-detail-hero { grid-template-columns: 1fr; }
@@ -168,7 +169,7 @@
   .music-sidebar, .topbar, .global-player, .playback-inspector,
   .sidebar-popover, .toolbar-status-popover, .track-context-menu, .settings-glass-panel,
   .track-table-wrap, .roon-track-table, :root dialog,
-  .sidebar-search-field, .secondary-button, .player-quality-button, .player-zone-button,
+  .sidebar-settings-button, .sidebar-search-field, .secondary-button, .player-quality-button, .player-zone-button,
   .player-inspector-button, .toolbar-status-button, .sidebar-collapse-button,
   .now-playing-back, .now-playing-quality-button, .inspector-close,
   .collection-add, .reference-entry, .recording-secondary button { background: #fff7fb; -webkit-backdrop-filter: none; backdrop-filter: none; }
