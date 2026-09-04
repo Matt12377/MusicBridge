@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   IPC_VERSION,
+  parseIpcRuntimeMessage,
   type DiagnosticComponentSnapshot,
   type IpcEventMessage,
   type PlaybackSnapshot,
@@ -957,6 +958,25 @@ test('utility IPC dispatches local favorite relationships without media fields',
     result: { favorite: true },
   });
   assert.doesNotMatch(JSON.stringify(port.messages[3]), /item_key|media|path|file|https?:\/\//i);
+});
+
+test('播放超时经 IPC 保留 Roon 错误类别且不泄漏内部详情', async () => {
+  for (const [command, method, payload] of [
+    ['playback.play', 'playbackPlay', { trackId: '123', qualityPreference: 'auto' }],
+    ['playback.replaceQueue', 'replacePlaybackQueue', { items: [{ trackId: '123', qualityPreference: 'auto' }], index: 0 }],
+  ] as const) {
+    const port = new FakePort();
+    const runtime = makeRuntime();
+    runtime[method] = async () => { throw new BridgeError('ROON_TIMEOUT', 'synthetic-private-session-detail'); };
+    await attachCoreRuntimePort(port, runtime);
+    port.send({ version: IPC_VERSION, id: 'roon-timeout', command, payload });
+    await new Promise(resolve => setImmediate(resolve));
+    const expected = { version: IPC_VERSION, id: 'roon-timeout', ok: false,
+      error: { code: 'ROON_TIMEOUT', message: 'Roon 未确认播放状态，请检查播放设备与远程音频连接。' } };
+    assert.deepEqual(port.messages[1], expected);
+    assert.equal(parseIpcRuntimeMessage(expected).ok, true, '公开错误必须通过接收端合同校验');
+    assert.doesNotMatch(JSON.stringify(port.messages[1]), /synthetic-private-session-detail/);
+  }
 });
 
 test('utility IPC maps an expired Provider session to a public error', async () => {

@@ -126,6 +126,9 @@ function failureForError(id: string, error: unknown): IpcFailure {
   if (bridgeError.code === 'ROON_NOT_PAIRED') {
     return responseFailure(id, 'ROON_CORE_NOT_CONNECTED', 'Roon Core is not connected');
   }
+  if (bridgeError.code === 'ROON_TIMEOUT') {
+    return responseFailure(id, 'ROON_TIMEOUT', 'Roon 未确认播放状态，请检查播放设备与远程音频连接。');
+  }
   if (bridgeError.code === 'ROON_ZONE_NOT_SELECTED') {
     return responseFailure(id, 'ROON_ZONE_NOT_SELECTED', 'Roon Zone is not selected');
   }
