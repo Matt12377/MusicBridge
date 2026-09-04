@@ -1,5 +1,16 @@
 {
   "schemaVersion": 1,
+  "neteasePlaybackTimeoutDiagnosis": {
+    "branch": "codex/netease-playback-timeout-diagnosis",
+    "baseCommit": "1c82a439af91ef519092d6b5c328465174079ddc",
+    "implementationCommit": "b1d4342e9ee7ff53762f4fb3b63eb1f4151941cd",
+    "state": "error-classification-fixed-real-playback-blocked",
+    "tests": 86,
+    "build": "pass",
+    "realPlayback": "not-restored",
+    "carryover": "restore-existing-remote-audio-tunnel-and-confirm-real-playback",
+    "report": "reports/V3_NETEASE_PLAYBACK_TIMEOUT.md"
+  },
   "project": "Music Bridge for Roon",
   "wave": "WAVE-3",
   "task": "TASK-036",
