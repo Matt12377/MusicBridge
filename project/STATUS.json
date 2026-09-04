@@ -76,6 +76,20 @@
     "loopbackOnly": true,
     "providerVersion": "4.40.1"
   },
+  "cassetteImportCloseout": {
+    "branch": "codex/cassette-catalog-import-closeout",
+    "baseCommit": "7ea038918b97bb0e138596bf9adc8c2b5cab3a9d",
+    "implementationCommit": "a77238db5033fb1bbf2f8e86d08b65cb2b4c1213",
+    "state": "software-verified-owner-authorized-local-import-complete",
+    "report": "reports/V3_CASSETTE_IMPORT_CLOSEOUT.md",
+    "focusedTests": { "passed": 86, "failed": 0, "skipped": 0 },
+    "productionBuild": "PASS",
+    "typecheck": "contracts-desktop-bridge-core-PASS",
+    "localDataVerification": "cold-public-api-read-integrity-and-preservation-PASS",
+    "privateEvidence": "kept-outside-repository",
+    "ownerProductAcceptance": "pending",
+    "release": "not-performed"
+  },
   "v3Development": {
     "wave": "WAVE-5",
     "task": "TASK-084",

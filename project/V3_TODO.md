@@ -6,6 +6,13 @@
 
 ## 实时进度面板
 
+> **最新检查点：磁带资料及库存导入收尾。** 分支 `codex/cassette-catalog-import-closeout`；完整目录限制与 Excel 常见格式兼容已修复，Owner 授权的本地资料已通过正式应用接口导入并冷开核验。个人源文件、回执和备份不进入仓库。见 [导入收尾报告](../reports/V3_CASSETTE_IMPORT_CLOSEOUT.md)。
+
+- [x] 目录支持 2,000 条，保留 1 MiB 字节预算；654 条合成目录登记、发布、冷开及库存守恒测试通过。
+- [x] Excel 年月日日期、TYPE 标签兼容；混合时长保留未知批次，不猜测各时长数量；旧修订保持不可变。
+- [x] 应用正式接口完成授权的本地资料导入；保留原始文件和已有库存，冷开读取与只读数据库校验通过。
+- [x] 聚焦回归 86/86、三包类型检查、生产构建、control-plane/boundaries 通过；无容量窗口或硬件运行。
+
 > **当前执行：V3 软件收尾候选。** 收尾说明见 [V3_CLOSEOUT](V3_CLOSEOUT.md)，人工清单见 [V3_OWNER_ACCEPTANCE_CHECKLIST](V3_OWNER_ACCEPTANCE_CHECKLIST.md)。容量链已经冻结，不再创建 recovery/window，也不再用重复容量试跑阻塞构建与人工验收。
 
 - [x] 冻结范围：产品软件止于 TASK-079；TASK-080～084 归档为非阻塞 Harness 加固。
