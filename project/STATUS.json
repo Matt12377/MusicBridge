@@ -76,6 +76,21 @@
     "loopbackOnly": true,
     "providerVersion": "4.40.1"
   },
+  "cassetteReferenceImages": {
+    "branch": "codex/cassette-reference-images",
+    "baseCommit": "812e6a07bb424da19a857812ce02d1e585597dc4",
+    "implementationCommit": "3d0aac9007eb3ec89d9dd2762bb66ab27f841f14",
+    "state": "software-pass-authorized-local-image-import-complete-partial-coverage",
+    "focusedTests": { "passed": 80, "failed": 0, "skipped": 0 },
+    "typecheck": "contracts-desktop-bridge-core-PASS",
+    "productionBuild": "PASS",
+    "boundaries": "PASS",
+    "localDataVerification": "ui-receipt-source-and-inventory-preservation-PASS",
+    "privateEvidence": "kept-outside-repository",
+    "report": "reports/V3_CASSETTE_REFERENCE_IMAGES.md",
+    "ownerProductAcceptance": "pending",
+    "release": "not-performed"
+  },
   "roonContextQueue": {
     "branch": "codex/roon-context-queue",
     "baseCommit": "fdd487e73b00887f58f499406860ee86a7eda5ee",
