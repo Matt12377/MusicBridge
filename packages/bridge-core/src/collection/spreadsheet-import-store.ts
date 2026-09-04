@@ -281,7 +281,10 @@ export function verifySpreadsheetImportDatabase(db: DatabaseSync): void {
       if (entry.previousRowId) { if (!priorRows.has(entry.previousRowId) || referenced.has(entry.previousRowId)) return corrupt(); referenced.add(entry.previousRowId); }
       const raw = db.prepare('SELECT data FROM spreadsheet_source_rows WHERE source_id=? AND sheet_name=? AND row_index=?').get(source.id, revision.sheetName, entry.rowIndex);
       if (!raw || entry.rowIndex <= revision.headerRow) return corrupt();
-      const original = json(raw.data, dto.isSpreadsheetSourceRow), normalized = normalizeSpreadsheetRow(original, plan, source.dateSystem, true);
+      const original = json(raw.data, dto.isSpreadsheetSourceRow);
+      let normalized = normalizeSpreadsheetRow(original, plan, source.dateSystem, true);
+      // 旧修订可能把 TYPE II 等标签保存为 unknown；只验证原快照，不追溯改写库存。
+      if (normalized.normalizedSignature !== entry.normalizedSignature) normalized = normalizeSpreadsheetRow(original, plan, source.dateSystem, true, true);
       if (original.rawRowHash !== entry.rawRowHash || !same(normalized.normalized, entry.normalized) || normalized.normalizedSignature !== entry.normalizedSignature) return corrupt();
       const effect = db.prepare('SELECT e.* FROM spreadsheet_rows r LEFT JOIN spreadsheet_effects e ON e.id=r.effect_id WHERE r.id=?').get(entry.id)!;
       if ((effect.lot_id ?? null) !== entry.lotId || (effect.model_id ?? null) !== entry.modelId) return corrupt();

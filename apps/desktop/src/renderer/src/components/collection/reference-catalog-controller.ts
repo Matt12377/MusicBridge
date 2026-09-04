@@ -1,5 +1,5 @@
 import {
-  MAX_REFERENCE_SOURCE_PACK_BYTES as MAX_SOURCE_BYTES, parseReferenceSourcePack, normalizeReferenceItems,
+  MAX_REFERENCE_SOURCE_PACK_BYTES as MAX_SOURCE_BYTES, MAX_CATALOG_REFERENCES, parseReferenceSourcePack, normalizeReferenceItems,
   isPreviewCatalogRevisionRequest, isSetCatalogMatchRequest,
   type CanonicalReference, type CatalogMapping, type CatalogMatch, type CatalogRevisionDetail,
   type CatalogRevisionPreview, type CatalogSnapshot, type CatalogHistory, type ReferenceSourcePage,
@@ -88,6 +88,15 @@ export function createReferenceCatalogController(options: {
     reportInputError(message: string) { if (!blocked()) fail(message) },
     async previewSource() {
       if (blocked()) return
+      if (new TextEncoder().encode(state.rawPack).byteLength > MAX_SOURCE_BYTES) {
+        state.sourcePreview = undefined; fail('资料包不能超过 1 MiB。'); return
+      }
+      try {
+        const input: unknown = JSON.parse(state.rawPack.replace(/^\uFEFF/u, ''))
+        if (input && typeof input === 'object' && 'items' in input && Array.isArray(input.items) && input.items.length > MAX_CATALOG_REFERENCES) {
+          state.sourcePreview = undefined; fail(`资料包包含 ${input.items.length} 行，单个目录最多支持 ${MAX_CATALOG_REFERENCES} 行。未截断或写入资料。`); return
+        }
+      } catch { /* 格式错误交由严格资料解析器统一处理。 */ }
       const pack = parseReferenceSourcePack(state.rawPack)
       const items = pack && normalizeReferenceItems(pack.items)
       if (!pack || !items) { state.sourcePreview = undefined; fail('资料包不符合 schemaVersion 1，或重复条目的身份/元数据存在冲突。请整理 JSON 后重新预览。'); return }

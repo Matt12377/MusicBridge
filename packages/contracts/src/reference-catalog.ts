@@ -1,7 +1,7 @@
 import { isCollectionId, isCollectionPhotoImage, type CollectionPhotoImage } from './collection.js';
 
 export const MAX_REFERENCE_SOURCE_PACK_BYTES = 1_048_576;
-export const MAX_CATALOG_REFERENCES = 500;
+export const MAX_CATALOG_REFERENCES = 2_000;
 export const MAX_CATALOG_MATCHES = 5_000;
 export interface CanonicalReference {
   referenceId: string; bookId: string; brand: string; series: string; edition: string; model: string;

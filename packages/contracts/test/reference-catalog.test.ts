@@ -50,7 +50,21 @@ test('资料原文可保留BOM/空白，严格解析且不隐式生成来源', (
   assert.equal(c.isRegisterReferenceSourceRequest({ ...register, userConfirmed: false }), false);
   assert.equal(c.isRegisterReferenceSourceRequest({ ...register, packHash: 'sha256:wrong' }), false);
   assert.equal(c.parseReferenceSourcePack(' '.repeat(c.MAX_REFERENCE_SOURCE_PACK_BYTES) + rawPack), null);
-  assert.equal(c.parseReferenceSourcePack(JSON.stringify({ ...pack, items: Array.from({ length: 501 }, () => item) })), null);
+  assert.equal(c.parseReferenceSourcePack(JSON.stringify({ ...pack, items: Array.from({ length: c.MAX_CATALOG_REFERENCES + 1 }, () => item) })), null);
+});
+
+test('完整目录支持654至2000条，数量与字节预算仍独立生效', () => {
+  for (const count of [654, 2000]) {
+    const items = Array.from({ length: count }, (_, i) => ({ ...item, referenceId: `ref-${i}`, model: `型号-${i}` }));
+    const rawPack = JSON.stringify({ ...pack, items });
+    const payload = { ...register, rawPack, packHash: createHash('sha256').update(rawPack).digest('hex') };
+    assert.ok(c.parseReferenceSourcePack(rawPack));
+    assert.equal(c.normalizeReferenceItems(items)?.length, count);
+    assert.equal(isCommandOutboxExecute({ datasetId, command: 'referenceCatalog.registerSource', payload }), true);
+    assert.equal(c.isPreviewCatalogRevisionRequest({ ...previewRequest, items }), true);
+  }
+  assert.equal(c.MAX_CATALOG_REFERENCES, 2000);
+  assert.equal(c.parseReferenceSourcePack(JSON.stringify({ ...pack, items: Array.from({ length: 2001 }, (_, i) => ({ ...item, referenceId: `ref-${i}`, model: `型号-${i}` })) })), null);
 });
 
 test('同参考项重复页及时长归并，冲突版次或重复canonical身份拒绝', () => {

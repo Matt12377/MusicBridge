@@ -80,6 +80,26 @@ function set(repository: ReturnType<typeof createCollectionRepository>, revision
 }
 const matched = (referenceId: string, modelId: string, status: 'confirmed' | 'candidate' | 'needs-review' = 'confirmed'): CatalogMatch => ({ referenceId, modelId, status, availability: 'unknown' });
 
+test('654条完整目录登记发布与冷开保持一个分母，重复命令不增库存', async t => {
+  const { repository, filePath } = await fixture(t);
+  const check = new DatabaseSync(filePath, { readOnly: true });
+  const before = inventoryBytes(check);
+  const entries = Array.from({ length: 654 }, (_, i) => item(`ref-${i}`));
+  const saved = source(repository, entries);
+  const result = publish(repository, { sourceId: saved.value.id, items: entries });
+  assert.deepEqual(result.value.currentCounts, { total: 654, owned: 0, missing: 0, unknown: 654, candidate: 0, needsReview: 0 });
+  assert.equal(result.value.snapshot.entries.length, 654);
+  assert.deepEqual(repository.catalog.publishRevision(result.command), result.value);
+  assert.deepEqual(repository.catalog.registerSource({ ...saved.request, commandId: randomUUID() }), saved.value);
+  assert.deepEqual(inventoryBytes(check), before);
+  check.close(); repository.close();
+  const cold = createCollectionRepository({ filePath });
+  try {
+    assert.equal(cold.catalog.history({ bookId: 'synthetic-book', offset: 0, limit: 25 }).total, 1);
+    assert.deepEqual(cold.catalog.revision({ id: result.value.revision.id }).currentCounts, result.value.currentCounts);
+  } finally { cold.close(); }
+});
+
 test('登记资料原UTF8与hash不可变，BOM与空行保存；重复命令/相同原包幂等且不写库存', async t => {
   const { repository, filePath } = await fixture(t), check = new DatabaseSync(filePath, { readOnly: true });
   const before = inventoryBytes(check);

@@ -7,6 +7,7 @@ import os from 'node:os';
 import test from 'node:test';
 import { createCollectionRepository } from '../src/collection/repository.js';
 import { verifySpreadsheetImportDatabase } from '../src/collection/spreadsheet-import-store.js';
+import { normalizeSpreadsheetRow } from '../src/collection/spreadsheet-import-rows.js';
 import type { ParsedSpreadsheetWorkbook, SpreadsheetImportPlan, SpreadsheetCell } from '@music-bridge/contracts';
 
 const page = { offset: 0, limit: 25 };
@@ -60,6 +61,53 @@ function apply(repository: ReturnType<typeof createCollectionRepository>, input:
   const command = { ...input, commandId: randomUUID(), baselineFingerprint: preview.baselineFingerprint, userConfirmed: true as const };
   return { preview, command, value: repository.spreadsheetImports.apply(command) };
 }
+test('中文库存常用年月日日期与TYPE标签可导入，多时长保留未知而不拆数量，冷开可验证', async t => {
+  const { repository, filePath } = await fixture(t);
+  const entries = ['TYPE II', 'TYPE-IV', 'III'].map((iec, i) => [...cells(`日期测试${i}`), cell(8, ['2024.2.29', '2025/1/2', '2025-01-02'][i]!), cell(9, iec)]);
+  entries[0] = entries[0]!.map(c => c.columnIndex === 4 ? cell(4, '60/70/80/90') : c);
+  const input = register(repository, entries);
+  const draft = plan(input.source.id, { columns: { ...columns, purchaseDate: 8, iec: 9 }, decisions: entries.map((_, i) => ({ rowIndex: i + 1, action: 'new' })) });
+  const result = apply(repository, draft);
+  assert.equal(result.value.revision.summary.newQuantity, 30);
+  assert.deepEqual(result.preview.rows.items.map(r => r.normalized.descriptor.tapeType), ['II', 'IV', 'III']);
+  assert.equal(result.preview.rows.items[0]?.normalized.lengthMinutes, null);
+  assert.equal(result.preview.rows.items[0]?.normalized.purchaseDate?.value, '2024.2.29');
+  repository.close();
+  const cold = createCollectionRepository({ filePath });
+  try { assert.equal(cold.spreadsheetImports.revision({ revisionId: result.value.revision.id, page }).rows.total, 3); } finally { cold.close(); }
+});
+
+test('日期格式兼容仍拒绝不存在日期与混合分隔符，多时长不能掩盖非法数字', async t => {
+  const { repository } = await fixture(t);
+  const entries = ['2025.2.29', '2024/13/1', '2024.2/1'].map((date, i) => [...cells(`无效日期${i}`), cell(8, date)]);
+  entries.push(cells('无效时长').map(c => c.columnIndex === 4 ? cell(4, '60/999') : c));
+  const input = register(repository, entries);
+  const preview = repository.spreadsheetImports.preview({ ...plan(input.source.id, { columns: { ...columns, purchaseDate: 8 } }), page });
+  assert.equal(preview.summary.invalidRows, 4);
+});
+
+test('旧TYPE标签unknown历史仍可只读校验，不追溯改写旧修订', async t => {
+  const { repository, filePath } = await fixture(t);
+  const input = register(repository, [[...cells(), cell(8, 'TYPE II')]]);
+  const draft = plan(input.source.id, { columns: { ...columns, iec: 8 }, decisions: [{ rowIndex: 1, action: 'skip' }] });
+  const result = apply(repository, draft).value;
+  const original = repository.spreadsheetImports.sourceRows({ sourceId: input.source.id, sheetName: '库存', page }).items[0]!;
+  const row = repository.spreadsheetImports.revision({ revisionId: result.revision.id, page }).rows.items[0]!;
+  const legacy = normalizeSpreadsheetRow(original, draft, '1900', true, true);
+  const historical = { ...row, normalized: legacy.normalized, normalizedSignature: legacy.normalizedSignature };
+  repository.close();
+  // 仅在合成数据库还原旧版本的不可变快照，不触及用户工作库。
+  const db = new DatabaseSync(filePath);
+  const trigger = db.prepare("SELECT sql FROM sqlite_master WHERE type='trigger' AND name='spreadsheet_rows_no_update'").get()!;
+  db.exec('DROP TRIGGER spreadsheet_rows_no_update');
+  db.prepare('UPDATE spreadsheet_rows SET data=? WHERE id=?').run(JSON.stringify(historical), row.id);
+  db.exec(String(trigger.sql));
+  assert.doesNotThrow(() => verifySpreadsheetImportDatabase(db));
+  db.close();
+  const cold = createCollectionRepository({ filePath });
+  try { assert.deepEqual(cold.spreadsheetImports.revision({ revisionId: result.revision.id, page }).rows.items[0], historical); } finally { cold.close(); }
+});
+
 test('实际原字节Hash/typed rows持久，预览不写库存；10/Used3只建Legacy3+Unknown7且不分配实体', async t => {
   const { repository, filePath } = await fixture(t), before = repository.list(page).items.reduce((n, m) => n + m.counts.total, 0);
   const input = register(repository, [cells()]);

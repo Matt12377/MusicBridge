@@ -21,7 +21,7 @@ export interface StoredSpreadsheetImportRow extends SpreadsheetPreviewRow {
   id: string; action: 'created' | 'linked' | 'suggested' | 'skipped' | 'invalid'; lotId: string | null; modelId: string | null;
 }
 
-export function normalizeSpreadsheetRow(row: SpreadsheetSourceRow, plan: SpreadsheetImportPlan, dateSystem: '1900' | '1904', formulaConfirmed: boolean) {
+export function normalizeSpreadsheetRow(row: SpreadsheetSourceRow, plan: SpreadsheetImportPlan, dateSystem: '1900' | '1904', formulaConfirmed: boolean, legacyTypeLabels = false) {
   const byColumn = new Map(row.cells.map(cell => [cell.columnIndex, cell]));
   const get = (field: Field): SpreadsheetCell | null => { const column = plan.columns[field]; return column === null ? null : byColumn.get(column) ?? null; };
   const issues: Issue[] = [];
@@ -45,7 +45,11 @@ export function normalizeSpreadsheetRow(row: SpreadsheetSourceRow, plan: Spreads
   const brand = metadata('brand'), name = metadata('model'), versionCandidate = metadata('edition'), notes = metadata('notes');
   if (!brand) issue('UNKNOWN_METADATA', 'brand'); if (!name) issue('UNKNOWN_METADATA', 'model'); if (!versionCandidate) issue('UNKNOWN_METADATA', 'edition');
   let year = number(get('year')); if (year !== null && (!Number.isInteger(year) || year < 1900 || year > 2200) || text(get('year')) && year === null) { year = null; issue('INVALID_YEAR', 'year'); }
-  let lengthMinutes = number(get('length')); if (lengthMinutes !== null && (!Number.isInteger(lengthMinutes) || lengthMinutes < 1 || lengthMinutes > 360) || text(get('length')) && lengthMinutes === null) { lengthMinutes = null; issue('INVALID_LENGTH', 'length'); }
+  const lengthText = text(get('length'));
+  // 多时长只保留原单元格与未知时长批次，不能据此猜测各时长数量。
+  const multipleLengths = /^\d+(?:\s*\/\s*\d+)+$/u.test(lengthText) && lengthText.split('/').every(value => Number(value) >= 1 && Number(value) <= 360);
+  let lengthMinutes = number(get('length')); if (lengthMinutes !== null && (!Number.isInteger(lengthMinutes) || lengthMinutes < 1 || lengthMinutes > 360) || lengthText && lengthMinutes === null && !multipleLengths) { lengthMinutes = null; issue('INVALID_LENGTH', 'length'); }
+  if (multipleLengths) issue('UNKNOWN_METADATA', 'length');
   let quantity = number(get('quantity')), used = number(get('used'));
   if (quantity === null || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > 10_000) { quantity = null; issue('INVALID_QUANTITY', 'quantity'); }
   if (used !== null && (!Number.isSafeInteger(used) || used < 0 || quantity === null || used > quantity) || text(get('used')) && used === null) { used = null; issue('INVALID_USED', 'used'); }
@@ -54,11 +58,15 @@ export function normalizeSpreadsheetRow(row: SpreadsheetSourceRow, plan: Spreads
     if (date.type === 'number') {
       if (typeof date.value !== 'number' || date.value < 0 || date.value > (dateSystem === '1900' ? 2_958_465 : 2_957_003) || dateSystem === '1900' && Math.floor(date.value) === 60) issue('INVALID_DATE', 'purchaseDate');
     } else if (date.type === 'string') {
-      const value = text(date), parsed = /^\d{4}-\d{2}-\d{2}$/u.test(value) ? new Date(`${value}T00:00:00.000Z`) : null;
-      if (!parsed || !Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) issue('INVALID_DATE', 'purchaseDate');
+      const parts = /^(\d{4})([-./])(\d{1,2})\2(\d{1,2})$/u.exec(text(date));
+      const iso = parts ? `${parts[1]}-${parts[3]!.padStart(2, '0')}-${parts[4]!.padStart(2, '0')}` : '';
+      const parsed = iso ? new Date(`${iso}T00:00:00.000Z`) : null;
+      if (!parsed || !Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== iso) issue('INVALID_DATE', 'purchaseDate');
     } else issue('INVALID_DATE', 'purchaseDate');
   }
-  const iec = text(get('iec')).toUpperCase(), tapeType = plan.format === 'dat' ? 'dat' : ['I', 'II', 'III', 'IV'].includes(iec) ? iec as 'I' | 'II' | 'III' | 'IV' : 'unknown';
+  const rawIec = text(get('iec')).toUpperCase();
+  const iec = legacyTypeLabels ? rawIec : rawIec.replace(/^TYPE(?:\s+|\s*-\s*)/u, '');
+  const tapeType = plan.format === 'dat' ? 'dat' : ['I', 'II', 'III', 'IV'].includes(iec) ? iec as 'I' | 'II' | 'III' | 'IV' : 'unknown';
   const normalized: SpreadsheetNormalizedRow = {
     descriptor: { brand, name, edition: '', year, format: plan.format, tapeType, identification: brand || name ? 'partial' : 'unidentified' },
     versionCandidate, lengthMinutes, quantity, used, price: structuredClone(get('price')), purchaseDate: structuredClone(date), notes,

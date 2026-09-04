@@ -68,6 +68,19 @@ function controllerFixture() {
   return { controller, api, calls, failRegister: (value: boolean) => { failRegister = value } }
 }
 
+test('完整目录预览支持654条，超限明确说明数量限制且不写入', async () => {
+  const f = controllerFixture();
+  const items = Array.from({ length: 654 }, (_, i) => ({ ...canonical, referenceId: `ref-${i}`, model: `型号-${i}` }));
+  f.controller.setRawPack(JSON.stringify({ ...pack, items }));
+  await f.controller.previewSource();
+  assert.equal(f.controller.state.sourcePreview?.items.length, 654);
+  f.controller.setRawPack(JSON.stringify({ ...pack, items: Array.from({ length: 2001 }, () => canonical) }));
+  await f.controller.previewSource();
+  assert.match(f.controller.state.error, /2000/u);
+  assert.equal(f.controller.state.sourcePreview, undefined);
+  assert.equal(f.calls.length, 0);
+});
+
 test('打开只读取，来源严格预览保留原包；确认前不登记且默认没有书籍或库存写入', async () => {
   const f = controllerFixture()
   assert.equal(f.calls.length, 0)
