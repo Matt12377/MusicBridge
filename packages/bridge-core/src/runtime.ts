@@ -200,7 +200,7 @@ export interface CoreRuntime {
   browseRoonPlaylist(reference: string, page: PageRequest): Promise<RoonLibraryPage>;
   searchRoonLibrary(query: string, page: PageRequest): Promise<RoonLibraryPage>;
   getRoonImage(reference: string, options?: RoonImageOptions): Promise<RoonImageResult>;
-  playRoonTrack(reference: string, zoneId: string): Promise<{ started: true }>;
+  playRoonTrack(reference: string, zoneId: string, queueReferences?: readonly string[]): Promise<{ started: true }>;
   queueRoonTrack(reference: string, zoneId: string): Promise<{ queued: true }>;
   stopRoonTransport(): Promise<{ stopped: true }>;
   listZones(): readonly PublicRoonZone[];
@@ -1161,12 +1161,11 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     browseRoonPlaylist: (reference, page) => roonLibrary.browsePlaylist(reference, page),
     searchRoonLibrary: (query, page) => roonLibrary.searchLibrary(query, page),
     getRoonImage: (reference, options) => roonLibrary.getImage(reference, options),
-    async playRoonTrack(reference, zoneId) {
-      await controller.playRoon({
-        reference,
-        zoneId,
-        track: roonLibrary.getTrackSummary(reference),
-      });
+    async playRoonTrack(reference, zoneId, queueReferences) {
+      const references = queueReferences ?? [reference];
+      await controller.replaceRoonQueue(references.map((entry) => ({
+        reference: entry, zoneId, track: roonLibrary.getTrackSummary(entry),
+      })), references.indexOf(reference));
       return { started: true as const };
     },
     async queueRoonTrack(reference, zoneId) {

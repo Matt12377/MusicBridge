@@ -273,13 +273,21 @@ function isRoonImagePayload(value: unknown): value is { reference: string; optio
   );
 }
 
-function isRoonTrackActionPayload(value: unknown): value is { reference: string; zoneId: string } {
+function isRoonTrackActionPayload(value: unknown, allowQueue = false): value is { reference: string; zoneId: string } {
   return (
     isRecord(value) &&
-    hasOnlyKeys(value, ['reference', 'zoneId']) &&
+    hasOnlyKeys(value, allowQueue ? ['reference', 'zoneId', 'queueReferences'] : ['reference', 'zoneId']) &&
     safeString(value.reference, 128) &&
     /^musicbridge-v2-entity-[0-9a-f-]{36}$/u.test(value.reference) &&
-    safeString(value.zoneId, 128)
+    safeString(value.zoneId, 128) &&
+    (value.queueReferences === undefined || (
+      Array.isArray(value.queueReferences) && value.queueReferences.length > 0 &&
+      value.queueReferences.length <= MAX_PLAYBACK_QUEUE_ITEMS &&
+      new Set(value.queueReferences).size === value.queueReferences.length &&
+      value.queueReferences.includes(value.reference) &&
+      value.queueReferences.every((reference) => typeof reference === 'string' &&
+        /^musicbridge-v2-entity-[0-9a-f-]{36}$/u.test(reference))
+    ))
   );
 }
 
@@ -1134,7 +1142,7 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'playback.playQueueIndex') return isPlaybackQueueIndexPayload(payload);
   if (command === 'roon.library.image') return isRoonImagePayload(payload);
   if (command === 'roon.library.play' || command === 'roon.library.queue') {
-    return isRoonTrackActionPayload(payload);
+    return isRoonTrackActionPayload(payload, command === 'roon.library.play');
   }
   if (command === 'lyrics.get') return isLyricsPayload(payload);
   if (command === 'lyrics.match.select') return isLyricsMatchSelectionPayload(payload);

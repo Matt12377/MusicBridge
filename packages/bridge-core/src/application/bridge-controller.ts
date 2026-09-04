@@ -489,13 +489,23 @@ export class BridgeController {
   }
 
   async playRoon(input: NativeRoonQueueInput): Promise<BridgeState> {
-    const item = normalizeNativeRoonQueueItem(input);
+    return this.replaceRoonQueue([input], 0);
+  }
+
+  async replaceRoonQueue(inputs: readonly NativeRoonQueueInput[], startIndex: number): Promise<BridgeState> {
+    if (inputs.length === 0 || inputs.length > MAX_QUEUE_ITEMS
+      || !Number.isSafeInteger(startIndex) || startIndex < 0 || startIndex >= inputs.length) {
+      throw new BridgeError('BAD_REQUEST', '本地播放队列或起始位置无效', { httpStatus: 400 });
+    }
+    // 在停止现有播放前验证整个上下文，避免无效请求破坏当前队列。
+    const items = inputs.map(normalizeNativeRoonQueueItem);
     return this.enqueue(async () => {
+      ++this.queueHydrationGeneration;
       await this.stopActive();
-      this.queue = [item];
-      this.queueIndex = 0;
+      this.queue = items;
+      this.queueIndex = startIndex;
       this.clearPlaybackIssue();
-      await this.startQueueIndex(0, false);
+      await this.startQueueIndex(startIndex, false);
       return this.getState();
     });
   }

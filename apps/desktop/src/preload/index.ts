@@ -129,7 +129,7 @@ contextBridge.exposeInMainWorld(
       }
       return result
     },
-    (reference: string, zoneId: string) => ipcRenderer.invoke('roon:library:play', reference, zoneId),
+    (reference: string, zoneId: string, queueReferences?: readonly string[]) => ipcRenderer.invoke('roon:library:play', reference, zoneId, queueReferences),
     (reference: string, zoneId: string) => ipcRenderer.invoke('roon:library:queue', reference, zoneId),
     (kind: 'track' | 'album' | 'artist' | undefined, page: { offset: number; limit: number }) =>
       ipcRenderer.invoke('favorites:list', kind, page),

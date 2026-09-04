@@ -10,6 +10,19 @@ import {
   validateIpcRequest,
 } from '../src/index.js';
 
+test('本地播放上下文仅接受有界实体引用，拒绝缺少当前曲目及越界输入', () => {
+  const reference = 'musicbridge-v2-entity-11111111-1111-4111-8111-111111111111';
+  const valid = (references: unknown, command = 'roon.library.play') => validateIpcRequest({
+    version: IPC_VERSION, id: 'context', command,
+    payload: { reference, zoneId: 'zone-1', queueReferences: references },
+  }).ok;
+  assert.equal(valid([reference]), true);
+  for (const value of [[], [reference, reference], ['file:///tmp/music'], Array(5001).fill(reference)]) {
+    assert.equal(valid(value), false);
+  }
+  assert.equal(valid([reference], 'roon.library.queue'), false);
+});
+
 test('V3 照片命令和筛选合同有界，不接受外部路径或任意 URL', () => {
   const id = '11111111-1111-4111-8111-111111111111';
   const image = { dataUrl: 'data:image/jpeg;base64,/9j/2Q==', width: 1, height: 1 };

@@ -95,6 +95,7 @@ import {
 import type { SidebarSource, ViewId } from './components/navigation.js'
 import { createZoneRefreshCoordinator, resolveZoneLifecycleStatus } from './zone-lifecycle.js'
 import { createOptimisticRoonPlayback } from './roon-playback-optimism.js'
+import { collectRoonPlaybackContext } from './roon-context-queue.js'
 import CollectionView from './components/collection/CollectionView.vue'
 import RecordingView from './components/recording/RecordingView.vue'
 
@@ -391,6 +392,11 @@ let dailyOperation = 0
 let collectionOperation = 0
 let roonPlaybackOperation = 0
 let optimisticRoonTrackId: string | undefined
+
+function cancelRoonPlaybackPreparation(): void {
+  ++roonPlaybackOperation
+  optimisticRoonTrackId = undefined
+}
 let activeCollectionLoader: ProgressiveCollectionLoader | undefined
 let collectionPlaybackStartInFlight = false
 let toastTimer: ReturnType<typeof setTimeout> | undefined
@@ -2023,6 +2029,7 @@ function cloneTrackSummary(track: TrackSummary): TrackSummary {
 
 async function playTrack(track: TrackSummary): Promise<void> {
   if (playbackStartPending.value) return
+  cancelRoonPlaybackPreparation()
   const rendererClickAtMs = Date.now()
   playbackStartPending.value = true
   actionError.value = null
@@ -2073,13 +2080,26 @@ async function playRoonLibraryTrack(track: RoonLibraryItem): Promise<void> {
   }
   actionError.value = null
   const operation = ++roonPlaybackOperation
+  // 在进入正在播放页面前捕获原浏览上下文，搜索/单曲入口不借用旧专辑。
+  const context = currentView.value === 'roon-album-detail' && selectedRoonAlbum.value
+    ? { page: selectedRoonAlbumPage.value, reference: selectedRoonAlbum.value.reference, load: window.musicBridge.getRoonAlbumTracks }
+    : currentView.value === 'roon-playlist-detail' && selectedRoonPlaylist.value
+      ? { page: selectedRoonPlaylistPage.value, reference: selectedRoonPlaylist.value.reference, load: window.musicBridge.getRoonPlaylistTracks }
+      : currentView.value === 'roon-genre-detail' && selectedRoonGenre.value
+        ? { page: selectedRoonGenrePage.value, reference: selectedRoonGenre.value.reference, load: window.musicBridge.getRoonGenreItems }
+        : undefined
   const roonTrackId = roonTrackIdFromReference(track.reference)
   optimisticRoonTrackId = roonTrackId
   rememberRoonQueueDescriptor(roonTrackId, track)
   applyPlaybackState(createOptimisticRoonPlayback(track, zoneId, selectedQuality.value))
   enterNowPlaying()
   try {
-    await window.musicBridge.playRoonTrack(track.reference, zoneId)
+    const tracks = await collectRoonPlaybackContext(track, context?.page,
+      context ? (page) => context.load(context.reference, page) : undefined,
+      () => operation === roonPlaybackOperation)
+    if (operation !== roonPlaybackOperation) return
+    for (const item of tracks) rememberRoonQueueDescriptor(roonTrackIdFromReference(item.reference), item)
+    await window.musicBridge.playRoonTrack(track.reference, zoneId, tracks.map((item) => item.reference))
     if (operation !== roonPlaybackOperation) return
     optimisticRoonTrackId = undefined
     applyPlaybackState(await window.musicBridge.getPlaybackState())
@@ -2166,6 +2186,7 @@ async function replaceAndPlayCollection(
   openNowPlaying = true,
 ): Promise<void> {
   if (collectionPlaybackStartInFlight || activeCollectionLoader) return
+  cancelRoonPlaybackPreparation()
   collectionPlaybackStartInFlight = true
   const operation = ++collectionOperation
   actionError.value = null
@@ -2264,6 +2285,7 @@ function appendAllPlaylist(): void {
 
 async function playAllDailyRecommendations(): Promise<void> {
   if (!dailyRecommendations.value.tracks.length) return
+  cancelRoonPlaybackPreparation()
   actionError.value = null
   const items = queueItemsForTracks(dailyRecommendations.value.tracks)
   try {
@@ -2277,6 +2299,7 @@ async function playAllDailyRecommendations(): Promise<void> {
 async function playQueueItem(_item: PlaybackQueueItem, index: number): Promise<void> {
   const items = playbackState.value?.queue.items
   if (!items?.[index]) return
+  cancelRoonPlaybackPreparation()
   try {
     applyPlaybackState(await window.musicBridge.playQueueIndex(index))
     enterNowPlaying()
@@ -2310,6 +2333,7 @@ async function togglePlayback(): Promise<void> {
 }
 
 async function stopPlayback(): Promise<void> {
+  cancelRoonPlaybackPreparation()
   try {
     if (playbackSource.value === 'roon') {
       await window.musicBridge.stopRoonTransport()
@@ -2323,6 +2347,7 @@ async function stopPlayback(): Promise<void> {
 }
 
 async function nextTrack(): Promise<void> {
+  cancelRoonPlaybackPreparation()
   try {
     applyNeteasePlayback(await window.musicBridge.next())
   } catch (error) {
@@ -2331,6 +2356,7 @@ async function nextTrack(): Promise<void> {
 }
 
 async function previousTrack(): Promise<void> {
+  cancelRoonPlaybackPreparation()
   try {
     applyNeteasePlayback(await window.musicBridge.previous())
   } catch (error) {
@@ -2361,6 +2387,7 @@ async function loadZones(): Promise<void> {
 }
 
 async function selectZone(zoneId: string): Promise<void> {
+  cancelRoonPlaybackPreparation()
   try {
     coreState.value = await window.musicBridge.selectZone(zoneId)
     await loadZones()
@@ -2395,6 +2422,7 @@ async function startRemoteCore(): Promise<void> {
 }
 
 async function stopRemoteCore(): Promise<void> {
+  cancelRoonPlaybackPreparation()
   actionError.value = null
   try {
     remoteCoreState.value = await window.musicBridge.stopRemoteCore()

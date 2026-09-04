@@ -731,6 +731,13 @@ function requireRoonEntityReference(value: unknown): string {
   return reference
 }
 
+function requireRoonQueueReferences(value: unknown): readonly string[] {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_PLAYBACK_QUEUE_ITEMS) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', '本地播放队列长度无效')
+  }
+  return value.map(requireRoonEntityReference)
+}
+
 function requireRoonImageOptions(value: unknown): RoonImageOptions | undefined {
   if (value === undefined) return undefined
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -1482,11 +1489,12 @@ function registerIpcHandlers(
       ? { code: error.code, message: error.message }
       : { code: 'INTERNAL_ERROR', message: 'Roon image request failed' })
   })
-  ipcMain.handle('roon:library:play', (event, reference: unknown, zoneId: unknown) =>
+  ipcMain.handle('roon:library:play', (event, reference: unknown, zoneId: unknown, queueReferences: unknown) =>
     invokeCore(event, () =>
       supervisor.request('roon.library.play', {
         reference: requireRoonEntityReference(reference),
         zoneId: requireZoneId(zoneId),
+        ...(queueReferences !== undefined ? { queueReferences: requireRoonQueueReferences(queueReferences) } : {}),
       }),
     ),
   )

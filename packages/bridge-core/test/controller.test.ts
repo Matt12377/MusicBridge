@@ -829,6 +829,30 @@ test('controller keeps Roon and NetEase items in one logical queue and switches 
   assert.equal(nativeRoon.active, false);
 });
 
+test('本地专辑队列从中间曲目开始，支持前后切换且不请求网易云', async () => {
+  const { controller, nativeRoon, netease, registry } = makeHarness();
+  const items = ['1', '2', '3'].map((id) => ({
+    reference: `roon-ref-${id}`, zoneId: 'zone-1',
+    track: { id, title: `本地曲目 ${id}`, artists: ['测试艺术家'], album: '测试专辑' },
+  }));
+  await controller.replaceRoonQueue(items, 1);
+  assert.equal(controller.getPlaybackState().canNext, true);
+  assert.equal(controller.getPlaybackState().canPrevious, true);
+  await controller.next();
+  assert.equal(controller.getPlaybackState().currentTrack?.id, '3');
+  assert.equal(controller.getPlaybackState().canNext, false);
+  await controller.previous();
+  await controller.previous();
+  assert.equal(controller.getPlaybackState().currentTrack?.id, '1');
+  assert.equal(controller.getPlaybackState().canPrevious, false);
+  assert.deepEqual(nativeRoon.playCalls.map((call) => call.reference), ['roon-ref-2', 'roon-ref-3', 'roon-ref-2', 'roon-ref-1']);
+  assert.equal(netease.resolveCalls, 0);
+  assert.equal(registry.size, 0);
+  await assert.rejects(controller.replaceRoonQueue(items, 3));
+  assert.equal(controller.getPlaybackState().currentTrack?.id, '1');
+  await controller.shutdown();
+});
+
 test('controller projects available native Roon technical metadata and an explicit unknown quality', async () => {
   const { controller } = makeHarness();
   const roonTrack = {

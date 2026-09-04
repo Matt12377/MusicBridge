@@ -585,7 +585,7 @@ export interface IpcCommandPayloads {
   'roon.library.playlist': { reference: string; page: PageRequest };
   'roon.library.search': { query: string; page: PageRequest };
   'roon.library.image': { reference: string; options?: RoonImageOptions };
-  'roon.library.play': { reference: string; zoneId: string };
+  'roon.library.play': { reference: string; zoneId: string; queueReferences?: readonly string[] };
   'roon.library.queue': { reference: string; zoneId: string };
   'roon.transport.stop': Record<string, never>;
   'playback.getState': Record<string, never>;
