@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import test from 'node:test'
-import { createReferenceCatalogController, hashReferenceSourceText, readReferenceSourceFile } from '../src/renderer/src/components/collection/reference-catalog-controller.js'
+import { createReferenceCatalogController, hashReferenceSourceText, readReferenceSourceFile, readReferenceRevisionFile } from '../src/renderer/src/components/collection/reference-catalog-controller.js'
 import type { CanonicalReference, CatalogRevisionDetail, CatalogRevisionPreview, SourcePack } from '@music-bridge/contracts'
 
 test('显式JSON文件读取保留原UTF8、CRLF和空白，Hash不是重新序列化对象的Hash', async () => {
@@ -38,6 +38,16 @@ test('UTF8 BOM保留给严格包预览处理，不从原文或Hash中静默删�
 
 const sourceId = '11111111-1111-4111-8111-111111111111'
 const revisionId = '22222222-2222-4222-8222-222222222222'
+
+test('配图修订文件独立允许 4 MiB，仍拒绝超限和非法 UTF8', async () => {
+  const bytes = new TextEncoder().encode(' '.repeat(2 * 1024 * 1024))
+  const file = { name: 'revision.json', size: bytes.length, arrayBuffer: async () => bytes.buffer }
+  assert.equal((await readReferenceRevisionFile(file)).length, bytes.length)
+  await assert.rejects(readReferenceSourceFile(file), /1 MiB/u)
+  await assert.rejects(readReferenceRevisionFile({ ...file, size: 4 * 1024 * 1024 + 1 }), /4 MiB/u)
+  await assert.rejects(readReferenceRevisionFile({ ...file, arrayBuffer: async () => new ArrayBuffer(4 * 1024 * 1024 + 1) }), /4 MiB/u)
+  await assert.rejects(readReferenceRevisionFile({ ...file, arrayBuffer: async () => new Uint8Array([0xff]).buffer }), /UTF-8/u)
+})
 const snapshotId = '33333333-3333-4333-8333-333333333333'
 const modelId = '44444444-4444-4444-8444-444444444444'
 const canonical: CanonicalReference = { referenceId: 'synthetic-a', bookId: 'synthetic-book', brand: '合成', series: '测试系列', edition: '测试版', model: 'A', lengths: [60], iec: 'II', era: '1990年代', image: { kind: 'none' }, pages: ['1'], notes: '仅合成', confidence: 'high' }
@@ -80,6 +90,16 @@ test('完整目录预览支持654条，超限明确说明数量限制且不写�
   assert.equal(f.controller.state.sourcePreview, undefined);
   assert.equal(f.calls.length, 0);
 });
+
+test('重新选择已发布来源时保留当前修订图片，不退回原始无图资料', async () => {
+  const f = controllerFixture()
+  const illustrated = { ...canonical, image: { kind: 'reference' as const, image: { dataUrl: 'data:image/jpeg;base64,/9j/2Q==', width: 1, height: 1 }, caption: '书籍参考' } }
+  f.api.getCatalogHistory = async () => ({ bookId: pack.bookId, currentRevisionId: revisionId, revisions: [], snapshots: [], total: 1, offset: 0, limit: 25 })
+  f.api.getCatalogRevision = async () => ({ ...detail, revision: { ...detail.revision, items: [illustrated] } })
+  await f.controller.selectSource(sourceId)
+  assert.deepEqual(f.controller.state.items, [illustrated])
+  assert.equal(f.calls.some(call => call.method === 'publish'), false)
+})
 
 test('打开只读取，来源严格预览保留原包；确认前不登记且默认没有书籍或库存写入', async () => {
   const f = controllerFixture()

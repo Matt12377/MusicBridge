@@ -134,6 +134,8 @@ export interface CommandOutboxContext { datasetId: string }
 export const MAX_COMMAND_OUTBOX_PAYLOAD_BYTES = 2 * 1024 * 1024;
 /** 两万行人工对应及公式确认只携带定位信息，不包含工作簿或原始单元格。 */
 export const MAX_COMMAND_OUTBOX_SPREADSHEET_APPLY_BYTES = 3 * 1024 * 1024;
+/** 仅带图参考目录可使用较大信封；留出命令、基线及工作库字段开销。 */
+export const MAX_COMMAND_OUTBOX_REFERENCE_REVISION_BYTES = 4 * 1024 * 1024 + 4096;
 export const MAX_COMMAND_OUTBOX_TOTAL_BYTES = 64 * 1024 * 1024;
 export const MAX_COMMAND_OUTBOX_ENTRIES = 1000;
 export const COMMAND_OUTBOX_STATES = ['pending', 'sending', 'uncertain', 'succeeded', 'rejected', 'dismissed'] as const;
@@ -165,7 +167,8 @@ export const isCommandOutboxTrackedCommand = (v: unknown): v is CommandOutboxTra
 export function isCommandOutboxContext(v: unknown): v is CommandOutboxContext { return record(v) && keys(v, ['datasetId']) && isCommandOutboxDatasetId(v.datasetId); }
 function envelope(v: unknown): v is Record<string, unknown> {
   if (!record(v) || !keys(v, ['datasetId', 'command', 'payload']) || !isCommandOutboxDatasetId(v.datasetId) || !record(v.payload) || !isCollectionId(v.payload.commandId)) return false;
-  const limit = v.command === 'spreadsheetImports.apply' ? MAX_COMMAND_OUTBOX_SPREADSHEET_APPLY_BYTES : MAX_COMMAND_OUTBOX_PAYLOAD_BYTES;
+  const limit = v.command === 'spreadsheetImports.apply' ? MAX_COMMAND_OUTBOX_SPREADSHEET_APPLY_BYTES
+    : v.command === 'referenceCatalog.publishRevision' ? MAX_COMMAND_OUTBOX_REFERENCE_REVISION_BYTES : MAX_COMMAND_OUTBOX_PAYLOAD_BYTES;
   try { return new TextEncoder().encode(JSON.stringify(v)).byteLength <= limit; } catch { return false; }
 }
 export function isCommandOutboxExecute(v: unknown): v is CommandOutboxExecute {

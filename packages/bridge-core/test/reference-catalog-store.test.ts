@@ -80,6 +80,27 @@ function set(repository: ReturnType<typeof createCollectionRepository>, revision
 }
 const matched = (referenceId: string, modelId: string, status: 'confirmed' | 'candidate' | 'needs-review' = 'confirmed'): CatalogMatch => ({ referenceId, modelId, status, availability: 'unknown' });
 
+test('多 MiB 配图修订发布后可冷开，原来源与库存逐行不变', async t => {
+  const { repository, filePath } = await fixture(t);
+  const check = new DatabaseSync(filePath, { readOnly: true });
+  const before = inventoryBytes(check);
+  const entries = Array.from({ length: 6 }, (_, index) => item(`image-${index}`));
+  const saved = source(repository, entries);
+  const first = publish(repository, { sourceId: saved.value.id, items: entries });
+  const illustrated = entries.map(entry => ({ ...entry, image: { kind: 'reference' as const, image: { dataUrl: `data:image/jpeg;base64,/9j/${'A'.repeat(560000)}2Q==`, width: 400, height: 400 }, caption: '合成参考图片' } }));
+  const next = publish(repository, { sourceId: saved.value.id, expectedCurrentRevisionId: first.value.revision.id, items: illustrated });
+  assert.equal(next.value.revision.items.filter(entry => entry.image.kind === 'reference').length, 6);
+  assert.deepEqual(inventoryBytes(check), before);
+  assert.deepEqual(repository.catalog.publishRevision(next.command), next.value);
+  check.close(); repository.close();
+  const reopened = createCollectionRepository({ filePath });
+  try {
+    assert.deepEqual(reopened.catalog.revision({ id: next.value.revision.id }).revision.items, illustrated);
+    assert.equal(reopened.catalog.revision({ id: first.value.revision.id }).revision.items[0]?.image.kind, 'none');
+    assert.equal(reopened.catalog.source({ id: saved.value.id }).rawPack, saved.request.rawPack);
+  } finally { reopened.close(); }
+});
+
 test('654条完整目录登记发布与冷开保持一个分母，重复命令不增库存', async t => {
   const { repository, filePath } = await fixture(t);
   const check = new DatabaseSync(filePath, { readOnly: true });

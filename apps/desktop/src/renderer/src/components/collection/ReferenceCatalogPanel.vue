@@ -2,13 +2,13 @@
 import { collectionModelLabel } from './collection-display'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, triggerRef, watch } from 'vue'
 import { MAX_CATALOG_REFERENCES, isCanonicalReference, isCatalogMapping, isPreviewCatalogRevisionRequest, type CanonicalReference, type CatalogMatch, type SourcePack } from '@music-bridge/contracts'
-import { createReferenceCatalogController, readReferenceSourceFile, type CatalogStep } from './reference-catalog-controller'
+import { createReferenceCatalogController, readReferenceSourceFile, readReferenceRevisionFile, type CatalogStep } from './reference-catalog-controller'
 
 const emit = defineEmits<{ close: [] }>()
 const dialog = ref<HTMLDialogElement>()
 const controller = createReferenceCatalogController({ api: window.musicBridge, onChange: () => triggerRef(state) })
 const state = shallowRef(controller.state)
-const blocked = computed(() => state.value.busy || !!state.value.pendingLabel)
+const blocked = computed(() => state.value.busy || !!state.value.pendingLabel || fileLoading.value)
 const steps: { id: CatalogStep; title: string }[] = [{ id: 'source', title: '资料来源' }, { id: 'revision', title: '整理发布' }, { id: 'review', title: '关联审核' }, { id: 'history', title: '历史快照' }]
 const sourceConfirmed = ref(false), publishConfirmed = ref(false), matchConfirmed = ref(false), retryConfirmed = ref(false)
 const fileLoading = ref(false), inputError = ref(''), closeRequested = ref(false)
@@ -64,6 +64,14 @@ function addMapping(): void {
   controller.setDraft(state.value.items, [...state.value.mappings, mapping]); fromIds.value = []; toIds.value = []; draftError.value = ''
 }
 function exportDraft(): void { advanced.value = JSON.stringify({ items: state.value.items, mappings: state.value.mappings }, null, 2) }
+async function chooseRevisionFile(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement, file = input.files?.[0]
+  if (!file || blocked.value || fileLoading.value || !state.value.source) return
+  fileLoading.value = true; draftError.value = ''
+  try { const text = await readReferenceRevisionFile(file); if (alive) { advanced.value = text; applyAdvanced() } }
+  catch { if (alive) draftError.value = '请选择不超过 4 MiB 的有效 UTF-8 修订 JSON；原目录与库存未改变。' }
+  finally { if (alive) { fileLoading.value = false; input.value = '' } }
+}
 function applyAdvanced(): void {
   try {
     const value: unknown = JSON.parse(advanced.value)
@@ -112,7 +120,9 @@ const statusLabel = (status: CatalogMatch['status']) => ({ confirmed: '已确认
         <div class="table-wrap" tabindex="0" aria-label="整理后的参考条目"><table><thead><tr><th>参考 ID / 型号</th><th>版次 / 来源页</th><th>参考图</th><th>整理</th></tr></thead><tbody><tr v-for="item in state.items" :key="item.referenceId"><td><strong>{{ item.brand }} {{ item.model }}</strong><small>{{ item.referenceId }} · {{ item.series || '系列未知' }} · {{ item.lengths.join(' / ') || '?' }} min · {{ item.iec }}</small></td><td>{{ item.edition || '版次未知' }}<small>{{ item.pages.join('、') || '页码未知' }}</small></td><td><figure v-if="item.image.kind === 'reference'"><img :src="item.image.image.dataUrl" :alt="`${item.brand} ${item.model} 资料参考图`" loading="lazy"><figcaption>{{ item.image.caption }} · 资料参考，非拥有证据</figcaption></figure><span v-else class="placeholder">无参考图</span></td><td><button :disabled="blocked" @click="editItem(item)">编辑</button><button :disabled="blocked" @click="removeItem(item.referenceId)">从草案移除</button></td></tr></tbody></table></div>
         <form v-if="editor" class="editor" aria-label="编辑参考条目" @submit.prevent="saveItem"><fieldset :disabled="blocked"><legend>{{ editingId ? '编辑整理条目' : '新增整理条目' }}</legend><div class="field-grid"><label>参考 ID<input v-model="editor.referenceId" required maxlength="96"></label><label>品牌<input v-model="editor.brand" required maxlength="120"></label><label>系列<input v-model="editor.series" maxlength="120"></label><label>版次<input v-model="editor.edition" maxlength="120"></label><label>型号<input v-model="editor.model" required maxlength="120"></label><label>时长（逗号分隔，分钟）<input v-model="lengthsText" placeholder="60, 90"></label><label>IEC<select v-model="editor.iec"><option v-for="iec in ['unknown', 'I', 'II', 'III', 'IV', 'dat']" :key="iec" :value="iec">{{ iec === 'unknown' ? '未知' : iec }}</option></select></label><label>年代<input :value="editor.era ?? ''" maxlength="120" @input="editor.era = ($event.target as HTMLInputElement).value || null"></label><label>来源页（逗号分隔）<input v-model="pagesText"></label><label>可信度<select v-model="editor.confidence"><option value="unknown">未知</option><option value="high">高</option><option value="medium">中</option><option value="low">低</option></select></label></div><label>备注<input v-model="editor.notes" maxlength="2000"></label><label v-if="editor.image.kind === 'reference'">参考图来源说明<input v-model="editor.image.caption" maxlength="240"></label><div class="actions"><button type="submit">保存到草案</button><button type="button" @click="editor = undefined">取消编辑</button></div></fieldset></form>
         <h4>旧版 → 新版映射</h4><p>多合一保留原确认关联，只计一个目录条目；一拆多须重新复核，不自动成为多条已拥有。未显式映射时不会猜测旧关联。</p><fieldset :disabled="blocked || !state.current"><legend>添加映射</legend><div class="field-grid"><label>旧版条目（可多选）<select v-model="fromIds" multiple size="4"><option v-for="item in state.current?.revision.items" :key="item.referenceId" :value="item.referenceId">{{ item.referenceId }} · {{ item.model }}</option></select></label><label>新版草案条目（可多选）<select v-model="toIds" multiple size="4"><option v-for="item in state.items" :key="item.referenceId" :value="item.referenceId">{{ item.referenceId }} · {{ item.model }}</option></select></label></div><button @click="addMapping">加入映射</button></fieldset><p v-if="!state.current" class="hint">首个版次无需旧版映射。</p><ul><li v-for="(mapping, index) in state.mappings" :key="index">{{ mapping.fromReferenceIds.join(' + ') }} → {{ mapping.toReferenceIds.join(' + ') }} <button :disabled="blocked" @click="controller.setDraft(state.items, state.mappings.filter((_, i) => i !== index))">移除此映射</button></li></ul>
-        <details><summary>高级修订草案 JSON</summary><p>仅整理草案，不修改 Source Pack 或原 Hash。适合批量编辑与精确映射。</p><button :disabled="blocked" @click="exportDraft">载入当前草案</button><label>items 与 mappings<textarea v-model="advanced" rows="8" :disabled="blocked" spellcheck="false"></textarea></label><button :disabled="blocked" @click="applyAdvanced">校验并应用到草案</button></details>
+        <label>载入配图修订 JSON（最多 4 MiB）<input type="file" accept=".json,application/json" :disabled="blocked || fileLoading" @change="chooseRevisionFile"></label>
+        <p class="hint">仅载入 items 与 mappings 草案，仍需预览和确认发布；不改写原始资料，不增加库存。</p>
+        <details><summary>高级修订草案 JSON</summary><p>仅整理草案，不修改 Source Pack 或原 Hash。适合批量编辑与精确映射。</p><button :disabled="blocked || fileLoading" @click="exportDraft">载入当前草案</button><label>items 与 mappings<textarea v-model="advanced" rows="8" :disabled="blocked || fileLoading" spellcheck="false"></textarea></label><button :disabled="blocked || fileLoading" @click="applyAdvanced">校验并应用到草案</button></details>
         <p v-if="draftError" class="error" role="alert">{{ draftError }}</p><button class="primary" :disabled="blocked || !!editor" @click="controller.previewRevision">预览发布影响</button>
         <div v-if="state.revisionPreview" class="summary"><h4>本次发布预览</h4><p>新增 {{ state.revisionPreview.delta.addedReferenceIds.length }} · 移除 {{ state.revisionPreview.delta.removedReferenceIds.length }} · 合并 {{ state.revisionPreview.delta.merged }} · 拆分 {{ state.revisionPreview.delta.split }}</p><dl class="counts"><div v-for="field in countFields" :key="field.id"><dt>{{ field.label }}</dt><dd>{{ state.revisionPreview.counts[field.id] }}</dd></div></dl><details><summary>查看影响的参考 ID</summary><p>新增：{{ state.revisionPreview.delta.addedReferenceIds.join('、') || '无' }}</p><p>移除：{{ state.revisionPreview.delta.removedReferenceIds.join('、') || '无' }}</p></details><label class="check"><input v-model="publishConfirmed" type="checkbox" :disabled="blocked">我已核对映射和影响，确认发布不可变目录修订；库存不增加</label><button class="primary" :disabled="blocked || !publishConfirmed" @click="publish">确认发布目录</button></div>
       </template>

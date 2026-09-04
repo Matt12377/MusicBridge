@@ -1,6 +1,8 @@
 import { isCollectionId, isCollectionPhotoImage, type CollectionPhotoImage } from './collection.js';
 
 export const MAX_REFERENCE_SOURCE_PACK_BYTES = 1_048_576;
+/** 带图目录修订与原始文字资料分别限额，避免放大原文入口。 */
+export const MAX_REFERENCE_REVISION_BYTES = 4 * 1024 * 1024;
 export const MAX_CATALOG_REFERENCES = 2_000;
 export const MAX_CATALOG_MATCHES = 5_000;
 export interface CanonicalReference {
@@ -73,8 +75,8 @@ function array<T>(v: unknown, guard: (v: unknown) => v is T, max: number, min = 
 }
 const unique = (v: readonly unknown[]): boolean => new Set(v).size === v.length;
 const referenceKeys = (v: unknown): v is string[] => array(v, isReferenceCatalogKey, MAX_CATALOG_REFERENCES) && unique(v);
-function boundedJson(v: unknown): boolean {
-  try { return new TextEncoder().encode(JSON.stringify(v)).byteLength <= MAX_REFERENCE_SOURCE_PACK_BYTES; } catch { return false; }
+function boundedJson(v: unknown, limit = MAX_REFERENCE_SOURCE_PACK_BYTES): boolean {
+  try { return new TextEncoder().encode(JSON.stringify(v)).byteLength <= limit; } catch { return false; }
 }
 const itemKeys = ['referenceId', 'bookId', 'brand', 'series', 'edition', 'model', 'lengths', 'iec', 'era', 'image', 'pages', 'notes', 'confidence'];
 export function isCanonicalReference(v: unknown): v is CanonicalReference {
@@ -151,12 +153,12 @@ function mappings(v: unknown): v is CatalogMapping[] {
 }
 function canonicalItems(v: unknown): v is CanonicalReference[] {
   return array(v, isCanonicalReference, MAX_CATALOG_REFERENCES, 1) && unique(v.map(i => i.referenceId)) && unique(v.map(identity))
-    && v.every(i => i.bookId === v[0]?.bookId && unique(i.lengths) && unique(i.pages)) && boundedJson(v);
+    && v.every(i => i.bookId === v[0]?.bookId && unique(i.lengths) && unique(i.pages)) && boundedJson(v, MAX_REFERENCE_REVISION_BYTES);
 }
 const previewKeys = ['sourceId', 'expectedCurrentRevisionId', 'items', 'mappings'];
 function previewFields(v: Record<string, unknown>): boolean {
   return isCollectionId(v.sourceId) && nullableId(v.expectedCurrentRevisionId) && canonicalItems(v.items) && mappings(v.mappings)
-    && v.mappings.every(m => m.toReferenceIds.every(id => (v.items as CanonicalReference[]).some(i => i.referenceId === id))) && boundedJson(v);
+    && v.mappings.every(m => m.toReferenceIds.every(id => (v.items as CanonicalReference[]).some(i => i.referenceId === id))) && boundedJson(v, MAX_REFERENCE_REVISION_BYTES);
 }
 export function isPreviewCatalogRevisionRequest(v: unknown): v is PreviewCatalogRevisionRequest { return record(v) && keys(v, previewKeys) && previewFields(v); }
 export function isPublishCatalogRevisionRequest(v: unknown): v is PublishCatalogRevisionRequest {

@@ -1,5 +1,5 @@
 import {
-  MAX_REFERENCE_SOURCE_PACK_BYTES as MAX_SOURCE_BYTES, MAX_CATALOG_REFERENCES, parseReferenceSourcePack, normalizeReferenceItems,
+  MAX_REFERENCE_SOURCE_PACK_BYTES as MAX_SOURCE_BYTES, MAX_REFERENCE_REVISION_BYTES, MAX_CATALOG_REFERENCES, parseReferenceSourcePack, normalizeReferenceItems,
   isPreviewCatalogRevisionRequest, isSetCatalogMatchRequest,
   type CanonicalReference, type CatalogMapping, type CatalogMatch, type CatalogRevisionDetail,
   type CatalogRevisionPreview, type CatalogSnapshot, type CatalogHistory, type ReferenceSourcePage,
@@ -70,7 +70,7 @@ export function createReferenceCatalogController(options: {
       if (!items) throw new Error('INVALID_SOURCE')
       const history = await api.getCatalogHistory({ bookId: detail.source.bookId, offset: 0, limit: 25 })
       const current = history.currentRevisionId ? await api.getCatalogRevision({ id: history.currentRevisionId }) : undefined
-      return { source: detail.source, items, history, current }
+      return { source: detail.source, items: current?.revision.items ?? items, history, current }
     }, result => {
       Object.assign(state, result, { mappings: [], revisionPreview: undefined, historical: undefined, comparison: undefined, step: 'revision', notice: '' })
       baselineLoaded = true
@@ -174,10 +174,18 @@ function sourceBytes(rawPack: string): Uint8Array<ArrayBuffer> {
 }
 
 export async function readReferenceSourceFile(file: Pick<File, 'name' | 'size' | 'arrayBuffer'>): Promise<string> {
+  return readJsonFile(file, MAX_SOURCE_BYTES, '1 MiB')
+}
+
+export async function readReferenceRevisionFile(file: Pick<File, 'name' | 'size' | 'arrayBuffer'>): Promise<string> {
+  return readJsonFile(file, MAX_REFERENCE_REVISION_BYTES, '4 MiB')
+}
+
+async function readJsonFile(file: Pick<File, 'name' | 'size' | 'arrayBuffer'>, limit: number, label: string): Promise<string> {
   if (!file.name.toLowerCase().endsWith('.json')) throw new Error('请选择结构化 JSON 文件。')
-  if (file.size > MAX_SOURCE_BYTES) throw new Error('资料包不能超过 1 MiB。')
+  if (file.size > limit) throw new Error(`资料包不能超过 ${label}。`)
   const buffer = await file.arrayBuffer()
-  if (buffer.byteLength > MAX_SOURCE_BYTES) throw new Error('资料包不能超过 1 MiB。')
+  if (buffer.byteLength > limit) throw new Error(`资料包不能超过 ${label}。`)
   try { return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(buffer) }
   catch { throw new Error('文件不是有效 UTF-8；未替换或改写原始字节。') }
 }

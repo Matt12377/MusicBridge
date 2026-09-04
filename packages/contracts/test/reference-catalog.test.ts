@@ -12,6 +12,16 @@ const source = { id, bookId: pack.bookId, title: pack.title, sourceVersion: pack
 const previewRequest = { sourceId: id, expectedCurrentRevisionId: null, items: [item], mappings: [] };
 const register = { commandId, rawPack, packHash, userConfirmed: true };
 
+test('带图修订接受有界多图内容，原资料入口仍为1MiB且超大修订拒绝', () => {
+  const rows = Array.from({ length: 4 }, (_, i) => ({ ...item, referenceId: `image-${i}`, model: `image-${i}`,
+    image: { kind: 'reference', image: { dataUrl: 'data:image/jpeg;base64,' + '/9j/' + 'AAAA'.repeat(150000) + '/9k=', width: 320, height: 240 }, caption: '合成书籍参考图' } }))
+  const request = { ...previewRequest, items: rows }
+  assert.equal(c.isPreviewCatalogRevisionRequest(request), true)
+  assert.equal(isCommandOutboxExecute({ datasetId, command: 'referenceCatalog.publishRevision', payload: { ...request, commandId, baselineFingerprint: packHash, userConfirmed: true } }), true)
+  assert.equal(c.parseReferenceSourcePack(JSON.stringify({ ...pack, items: rows })), null)
+  assert.equal(c.isPreviewCatalogRevisionRequest({ ...request, items: Array.from({ length: 8 }, (_, i) => ({ ...rows[0], referenceId: `large-${i}`, model: `large-${i}` })) }), false)
+});
+
 for (const [field, valid] of [['iec', 'II'], ['confidence', 'high']] as const) {
   test(`参考资料${field}只接受字符串枚举，原JSON与IPC/outbox拒绝数组强制转换`, () => {
     for (const value of [[valid], null, false, 1, {}]) {

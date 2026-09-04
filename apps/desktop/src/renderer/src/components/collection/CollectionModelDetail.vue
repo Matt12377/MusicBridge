@@ -3,8 +3,10 @@ import { canManuallyReceiveModel, collectionModelLabel } from './collection-disp
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { CollectionChangePhotoRequest, CollectionCopy, CollectionDetail, CollectionMaterializeRequest, CollectionModelLengths, CollectionPolicyRequest, CollectionUpdateCopyRequest, CollectorPolicy } from '@music-bridge/contracts'
 import CollectionPhotos from './CollectionPhotos.vue'
+import CollectionReferenceImage from './CollectionReferenceImage.vue'
+import type { IllustratedReference } from './reference-images'
 
-const props = defineProps<{ detail: CollectionDetail; busy: boolean }>()
+const props = withDefaults(defineProps<{ detail: CollectionDetail; busy: boolean; referenceCandidates?: readonly IllustratedReference[] }>(), { referenceCandidates: () => [] })
 const emit = defineEmits<{ showRecords: [physicalId: string]; showRecording: [physicalId: string]; close: []; receive: []; page: [offset: number]; materialize: [request: CollectionMaterializeRequest]; updateCopy: [request: CollectionUpdateCopyRequest]; policy: [request: CollectionPolicyRequest]; addPhoto: [physicalId?: string]; changePhoto: [request: CollectionChangePhotoRequest] }>()
 const policy = ref<CollectorPolicy>('normal')
 const reserve = ref(0)
@@ -50,6 +52,10 @@ function state(copy: CollectionCopy): string {
     <p class="muted">{{ detail.model.edition || '版次待确认' }} · {{ detail.model.format === 'dat' ? 'DAT' : '卡式磁带' }}</p>
     <section class="current-lengths" aria-labelledby="current-lengths-title"><h3 id="current-lengths-title">当前真实持有长度</h3><p class="muted">按目前持有数量统计；旧批次曾出现的长度不代表现在仍然拥有。</p><p v-if="lengthsLoading" role="status">正在读取当前持有长度…</p><p v-else-if="lengthsError" role="alert">{{ lengthsError }}</p><template v-else-if="currentLengths"><p>当前持有总量 {{ currentLengths.total }} 盘 · 未知长度 {{ currentLengths.unknownLengthQty }} 盘</p><ul><li v-for="length in currentLengths.lengths" :key="length.lengthMinutes">{{ length.lengthMinutes }} 分钟 · {{ length.quantity }} 盘</li></ul><p v-if="!currentLengths.lengths.length" class="muted">没有已确认长度的当前持有记录，不代表已集齐任何长度。</p></template><p v-else class="muted">当前持有长度尚未读取。</p><button :disabled="lengthsLoading" @click="loadLengths">刷新持有长度</button></section>
     <CollectionPhotos :detail="detail" :busy="busy" @add="emit('addPhoto', $event)" @change="emit('changePhoto', $event)" />
+    <section v-if="referenceCandidates.length" aria-label="书籍参考图">
+      <h3>书籍参考图</h3><p class="muted">以下是同型号的书籍参考候选，不是实物照片，不代表实物版次已确认；库存数量与关联审核不会因此改变。</p>
+      <div class="reference-gallery"><figure v-for="reference in referenceCandidates" :key="reference.referenceId"><CollectionReferenceImage :reference="reference" /><figcaption>{{ reference.image.caption }} · {{ reference.edition || '书中版次未知' }} · {{ reference.pages.join('、') }}</figcaption></figure></div>
+    </section>
     <dl class="counts"><div v-for="[key, label, testId] in countItems" :key="key"><dt>{{ label }}</dt><dd :data-testid="`inventory-${testId}`">{{ detail.model.counts[key] }}</dd></div></dl>
 
     <details class="policy"><summary>收藏保护设置</summary><form @submit.prevent="savePolicy">
@@ -89,6 +95,10 @@ function state(copy: CollectionCopy): string {
 </template>
 
 <style scoped>
+.reference-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+.reference-gallery figure { margin: 0; min-width: 0; }
+.reference-gallery :deep(.reference-image) { height: 240px; }
+.reference-gallery figcaption { padding: 8px 0; color: var(--mb-text-secondary); font-size: 12px; line-height: 1.6; }
 .model-detail { margin-top: 26px; } .detail-toolbar, .lot header, .lot-row, .copy { display: flex; justify-content: space-between; align-items: center; gap: 14px; } .detail-toolbar { margin-bottom: 24px; }
 h2 { font-size: 28px; margin: 0; overflow-wrap: anywhere; } h3 { font-size: 17px; margin: 28px 0 12px; }
 .muted { color: var(--mb-text-secondary); font-size: 13px; line-height: 1.7; }

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { collectionModelLabel } from './collection-display'
-import { nextTick, ref } from 'vue'
-import type { CollectionModel, CollectionReceiveRequest } from '@music-bridge/contracts'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
+import type { CanonicalReference, CollectionModel, CollectionReceiveRequest } from '@music-bridge/contracts'
+import { loadPublishedReferenceImages, referenceImagesForModel } from './reference-images'
+import CollectionReferenceImage from './CollectionReferenceImage.vue'
 import { useCollection } from '../../composables/useCollection'
 import CollectionReceiveDialog from './CollectionReceiveDialog.vue'
 import CollectionModelDetail from './CollectionModelDetail.vue'
@@ -26,11 +28,25 @@ function closeSpreadsheet(): void { spreadsheetOpen.value = false; void nextTick
 
 const referenceOpen = ref(false)
 const referenceTrigger = ref<HTMLButtonElement>()
-function closeReference(): void { referenceOpen.value = false; void nextTick(() => referenceTrigger.value?.focus({ preventScroll: true })) }
+function closeReference(): void { referenceOpen.value = false; void loadReferenceImages(); void nextTick(() => referenceTrigger.value?.focus({ preventScroll: true })) }
 
 const inventory = useCollection()
 const collectionApi = window.musicBridge
 const { catalog, detail, filter, loading, saving, error, notice, pending, blocked } = inventory
+const referenceImages = shallowRef<readonly CanonicalReference[]>([])
+const referenceLoading = ref(false), referenceError = ref('')
+let referenceRead = 0
+async function loadReferenceImages(): Promise<void> {
+  const read = ++referenceRead
+  referenceLoading.value = true; referenceError.value = ''; referenceImages.value = []
+  try { const items = await loadPublishedReferenceImages(collectionApi); if (read === referenceRead) referenceImages.value = items }
+  catch { if (read === referenceRead) referenceError.value = '书籍参考图暂时无法读取，库存和实物照片不受影响。' }
+  finally { if (read === referenceRead) referenceLoading.value = false }
+}
+const candidatesByModel = computed(() => new Map(catalog.value?.items.map(model => [model.id, referenceImagesForModel(model, referenceImages.value)])))
+const referenceCandidates = (model: CollectionModel) => candidatesByModel.value.get(model.id) ?? referenceImagesForModel(model, referenceImages.value)
+onMounted(() => { void loadReferenceImages() })
+onBeforeUnmount(() => { referenceRead++ })
 const filterDraft = ref({ query: '', brand: '', decade: '' })
 function applyFilter(): void {
   filter.value = { query: filterDraft.value.query, brand: filterDraft.value.brand,
@@ -93,6 +109,7 @@ function onTabKeydown(event: KeyboardEvent): void {
         <p v-else-if="notice" role="status">{{ notice }}</p>
       </div>
       <CollectionModelDetail v-if="view.id === 'tapes' && detail" :detail="detail" :busy="blocked"
+        :reference-candidates="referenceCandidates(detail.model)"
         @show-records="showRecords" @show-recording="showRecording" @close="inventory.closeModel" @receive="beginReceive(detail.model)" @page="inventory.openModel(detail.model.id, $event)"
         @materialize="request => inventory.mutate(() => collectionApi.materializeCollectionCopy(request))"
         @update-copy="request => inventory.mutate(() => collectionApi.updateCollectionCopy(request))"
@@ -119,11 +136,15 @@ function onTabKeydown(event: KeyboardEvent): void {
           <button type="submit" :disabled="loading">筛选</button><button type="button" :disabled="loading" @click="clearFilter">清除</button>
         </form>
         <p v-if="loading" role="status" class="collection-status">正在读取库存…</p>
+        <p v-if="referenceLoading" role="status">正在读取书籍参考图…</p>
+        <p v-else-if="referenceError" role="alert">{{ referenceError }} <button type="button" @click="loadReferenceImages">重试参考图</button></p>
         <div v-if="catalog?.items.length" class="inventory-grid">
           <button v-for="model in catalog.items" :key="model.id" class="inventory-card" type="button" @click="inventory.openModel(model.id)">
             <div v-if="model.featuredPhoto" class="inventory-card-photo"><CollectionPhoto :photo="model.featuredPhoto" :alt="`${collectionModelLabel(model)} 实物代表图`" /></div>
+            <div v-else-if="referenceCandidates(model).length" class="inventory-card-photo"><CollectionReferenceImage :reference="referenceCandidates(model)[0]!" /></div>
             <div v-else class="inventory-placeholder" aria-hidden="true"><svg viewBox="0 0 220 130" fill="none"><rect x="20" y="20" width="180" height="95" rx="12" stroke="currentColor"/><rect x="36" y="35" width="148" height="48" rx="8" stroke="currentColor"/><circle cx="64" cy="59" r="14" stroke="currentColor"/><circle cx="156" cy="59" r="14" stroke="currentColor"/><path d="M78 59h64M55 115l10-20h90l10 20" stroke="currentColor"/></svg><span>实物照片待添加</span></div>
             <span v-if="model.featuredPhoto" class="inventory-photo-source">实物照片{{ model.featuredPhoto.physicalId ? ` · ${model.featuredPhoto.physicalId}` : '' }}</span>
+            <span v-else-if="referenceCandidates(model).length" class="inventory-photo-source">书籍参考 · 版次未核{{ referenceCandidates(model).length > 1 ? ` · ${referenceCandidates(model).length} 种参考版次` : '' }}</span>
             <span class="inventory-card-title">{{ collectionModelLabel(model) }}</span>
             <span class="inventory-card-edition">{{ model.edition || '版次待确认' }} · {{ model.lengths.map(n => n ? `${n} min` : '时长待确认').join(' / ') }}</span>
             <span class="inventory-card-counts"><span>未开封 <b>{{ model.counts.sealedBlank }}</b></span><span>已拆空白 <b>{{ model.counts.openedBlank }}</b></span><span>全部 <b>{{ model.counts.total }}</b></span></span>
