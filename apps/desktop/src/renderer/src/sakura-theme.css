@@ -1,0 +1,167 @@
+/* Owner 已确认的樱花玻璃材质层。仅改变呈现，不改动组件、事件或真实数据。 */
+:root {
+  --mb-frosted-plane: linear-gradient(135deg, rgba(255, 255, 255, .26), rgba(255, 255, 255, .06) 45%, rgba(255, 245, 252, .14));
+  --mb-frosted-control: linear-gradient(135deg, rgba(255, 255, 255, .40), rgba(255, 255, 255, .10) 52%, rgba(255, 255, 255, .24));
+}
+.album-ambient {
+  background:
+    radial-gradient(ellipse 26% 24% at 0% 12%, #f1a9cf 0, transparent 100%),
+    radial-gradient(ellipse 20% 28% at 9% 48%, #d4b3e8 0, transparent 100%),
+    radial-gradient(ellipse 24% 23% at 0% 80%, #b9e5ed 0, transparent 100%),
+    radial-gradient(ellipse 28% 24% at 38% 94%, #ecb4d4 0, transparent 100%),
+    radial-gradient(ellipse 22% 22% at 72% 100%, #bfdfed 0, transparent 100%),
+    radial-gradient(ellipse at 80% 0%, #fff2d8 0, transparent 38%),
+    radial-gradient(ellipse at 98% 84%, #c2eaf0 0, transparent 40%),
+    radial-gradient(ellipse at 43% 100%, #debfe9 0, transparent 43%),
+    linear-gradient(135deg, #fdf1f6, #fae5eb 55%, #e6f2fb);
+}
+.album-ambient-cover, .app-shell.is-now-playing .album-ambient-cover { opacity: .10; will-change: auto; }
+.album-ambient-cover img { filter: blur(48px) saturate(.7) brightness(1.2); }
+.album-ambient-wash, .app-shell.is-now-playing .album-ambient-wash { background: rgba(255, 247, 252, .04); }
+.album-ambient-vignette { box-shadow: none; }
+.content-scroll, .sidebar-source-scroll, .queue-upcoming-viewport { scrollbar-color: #bc8fa77a transparent; }
+
+/* 模糊只用于有限的结构面板；长列表的每行不创建独立模糊合成层。 */
+.music-sidebar, .topbar, .global-player, .playback-inspector,
+.sidebar-popover, .toolbar-status-popover, .track-context-menu, .settings-glass-panel {
+  -webkit-backdrop-filter: blur(28px) saturate(1.35);
+  backdrop-filter: blur(28px) saturate(1.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8), inset 1px 0 0 rgba(255, 255, 255, .45), 0 8px 30px rgba(115, 77, 107, .08);
+}
+.music-sidebar { background: var(--mb-frosted-plane); border-right-color: var(--mb-glass-highlight); }
+.sidebar-header { height: 70px; flex-basis: 70px; padding-inline: 20px; }
+.sidebar-brand { font-size: 17px; font-weight: 720; }
+.sidebar-search-field { background: var(--mb-frosted-control); border-color: rgba(255, 255, 255, .75); }
+.sidebar-search-field:focus-within { background: var(--mb-frosted-control); border-color: var(--mb-accent); }
+.sidebar-source-scroll { padding-inline: 12px; }
+.sidebar-nav-row, .sidebar-playlist-row { border-radius: 11px; }
+.sidebar-nav-row.selected, .sidebar-playlist-row.selected {
+  color: #813454; background: var(--mb-accent-soft);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .6);
+}
+.sidebar-account-avatar, .account-settings-avatar { background: var(--mb-accent-soft); }
+.sidebar-account-footer { border-top-color: var(--mb-divider); }
+.topbar { background: var(--mb-frosted-plane); border-bottom-color: var(--mb-glass-highlight); }
+.global-player { background: var(--mb-frosted-plane); border-top-color: var(--mb-glass-highlight); }
+.player-play-button, .transport-button-primary { box-shadow: 0 5px 18px rgba(179, 79, 121, .20); }
+.player-quality-button, .player-zone-button, .player-inspector-button { border-radius: 13px; background: var(--mb-frosted-control); }
+.player-controls { gap: 14px; }
+.primary-button { border-radius: 999px; padding-inline: 20px; }
+.secondary-button { border-radius: 999px; background: var(--mb-frosted-control); }
+.sidebar-search-field, .secondary-button, .player-quality-button, .player-zone-button,
+.player-inspector-button, .toolbar-status-button, .sidebar-collapse-button,
+.now-playing-back, .now-playing-quality-button, .inspector-close,
+.collection-add, .reference-entry, .recording-secondary button {
+  background: var(--mb-frosted-control);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, .68);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8), inset 0 -1px 0 rgba(143, 104, 130, .07), 0 3px 12px rgba(115, 77, 107, .06);
+}
+.primary-button:active:not(:disabled), .player-play-button:active:not(:disabled) { transform: scale(.97); }
+.sidebar-popover, .toolbar-status-popover, .track-context-menu { background: var(--mb-glass-strong); border-color: var(--mb-glass-highlight); }
+.settings-glass-panel { background: var(--mb-frosted-plane); }
+.toast { background: var(--mb-glass-strong); color: var(--mb-text-primary); box-shadow: var(--mb-glass-shadow); }
+
+/* 乳白底托住高密度文字，封面、照片与二维码维持原始色彩。 */
+.track-table-wrap, .roon-track-table, .empty-state,
+.home-media-section, .home-recent-section, .search-result-section,
+.diagnostic-card, .diagnostic-checks {
+  border: 1px solid var(--mb-glass-highlight);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, .58);
+  box-shadow: var(--mb-glass-shadow);
+}
+.track-table-wrap, .roon-track-table { padding: 8px 14px; }
+.home-media-section, .home-recent-section, .search-result-section { padding: 20px; }
+.diagnostic-card, .diagnostic-checks { padding: 18px; }
+.search-track-results { border: 0; background: transparent; }
+.track-table-header, .track-row { grid-template-columns: 28px 40px minmax(0, 1.2fr) minmax(70px, 1fr) 48px 64px; gap: 10px; }
+.track-table-no-artwork .track-table-header, .track-table-no-artwork .track-row { grid-template-columns: 28px minmax(0, 1.35fr) minmax(70px, 1fr) 48px 64px; }
+.track-row, .roon-track-row { border-radius: 10px; }
+.track-row:hover, .track-row:focus-within, .roon-track-row:hover, .roon-track-row:focus-within { background: var(--mb-accent-soft); }
+.track-row:focus-within .row-actions, .roon-track-row:focus-within .row-actions { opacity: 1; }
+.track-row:focus-visible, .roon-track-row:focus-visible { outline: 2px solid var(--mb-accent); outline-offset: -2px; }
+.row-action:hover { color: var(--mb-accent); background: rgba(255, 255, 255, .78); }
+.roon-track-table-header, .roon-track-row { grid-template-columns: 34px minmax(0, 1fr) 70px 64px; }
+.liked-hero, .playlist-detail-hero, .roon-album-detail-hero { grid-template-columns: 160px minmax(0, 1fr); gap: 24px; padding-bottom: 0; border-bottom: 0; }
+.liked-hero .view-heading { flex-direction: column; align-items: flex-start; gap: 16px; }
+.liked-collage, .playlist-detail-art, .roon-album-detail-art { width: 160px; border: 4px solid rgba(255, 255, 255, .64); border-radius: 20px; box-shadow: var(--mb-glass-shadow); }
+.liked-hero .view-heading h2, .playlist-detail-copy h2, .roon-album-detail-copy h2 { font-size: clamp(28px, 3vw, 38px); line-height: 1.2; }
+.playlist-card, .roon-album-card, .search-artist-card, .search-album-card {
+  padding: 12px; border: 1px solid var(--mb-glass-highlight); border-radius: 20px;
+  background: rgba(255, 255, 255, .45);
+}
+.playlist-art, .roon-album-art, .home-cover-art, .daily-recommendation-art { box-shadow: 0 6px 18px rgba(121, 87, 111, .12); }
+.roon-artwork-error { background: var(--mb-glass-strong); color: var(--mb-danger); }
+
+.playback-inspector {
+  width: 310px; flex-basis: 310px; min-width: 280px;
+  border-left-color: var(--mb-glass-highlight); background: var(--mb-frosted-plane);
+}
+.inspector-header h2 { font-size: 23px; }
+.queue-current strong { overflow-wrap: anywhere; }
+.queue-row { grid-template-columns: 24px 34px minmax(0, 1fr) auto; gap: 8px; }
+.queue-row > small { max-width: 74px; }
+.queue-upcoming-viewport { padding-right: 5px; }
+.now-playing-fullscreen { background: rgba(255, 255, 255, .22); }
+.now-playing-art { box-shadow: 0 20px 48px rgba(135, 87, 117, .2); }
+.now-playing-back, .now-playing-quality-button { background: var(--mb-frosted-control); border-color: var(--mb-glass-highlight); }
+.now-playing-progress-visual { background: linear-gradient(90deg, var(--mb-player-accent) 0 var(--progress-ratio), #957e9740 var(--progress-ratio) 100%); }
+.now-playing-progress-track:focus-within { outline: 2px solid var(--mb-accent); outline-offset: 3px; border-radius: 999px; }
+.now-playing-lyrics .lyrics-line { color: var(--mb-text-secondary); opacity: .58; filter: none; }
+.now-playing-lyrics .lyrics-line-distance-1 { opacity: .85; filter: none; }
+.now-playing-lyrics .lyrics-line.active { color: var(--mb-accent); opacity: 1; }
+.now-playing-lyrics .lyrics-line small { color: var(--mb-text-secondary); opacity: 1; }
+.now-playing-lyrics .lyrics-line.active small { color: var(--mb-text-primary); }
+.persistent-error, .notice-card, .destructive-button, .inline-action { color: var(--mb-danger); }
+
+/* 原生弹窗及 scoped V3 面板复用颜色 token；不改其焦点、提交或关闭行为。 */
+:root dialog { box-shadow: var(--mb-glass-shadow); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
+:root dialog::backdrop { background: var(--mb-scrim); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+:root .inventory-card, :root .collection-empty, :root .recording-start {
+  background: rgba(255, 255, 255, .62); border-color: var(--mb-glass-highlight);
+  border-radius: 20px; box-shadow: var(--mb-glass-shadow);
+}
+:root .collection-tabs { background: var(--mb-glass-regular); }
+:root .collection-tabs button[aria-selected="true"] { color: var(--mb-accent); background: var(--mb-accent-soft); box-shadow: none; }
+:root .recording-primary { color: var(--mb-on-accent); border-radius: 999px; }
+
+@media (max-width: 1250px) {
+  .workspace-body { position: relative; }
+  .playback-inspector { position: absolute; inset: 0 0 0 auto; width: min(340px, 100%); min-width: 0; background: var(--mb-glass-strong); }
+  .global-player { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); padding-inline: 16px; gap: 12px; }
+  .player-meta { gap: 6px; }
+  .player-quality-control { min-width: 78px; }
+  .player-zone-button { min-width: 112px; max-width: 160px; }
+}
+@media (max-width: 900px) {
+  .global-player { grid-template-columns: minmax(0, 1fr) auto; height: 116px; min-height: 116px; row-gap: 4px; }
+  .player-track { grid-column: 1; grid-row: 1; }
+  .player-controls { grid-column: 2; grid-row: 1; }
+  .player-meta { grid-column: 1 / -1; grid-row: 2; justify-content: flex-end; }
+}
+@media (max-width: 760px) {
+  .sidebar-header { padding-inline: 12px; }
+  .sidebar-source-scroll { padding-inline: 9px; }
+  .liked-hero, .playlist-detail-hero, .roon-album-detail-hero { grid-template-columns: 1fr; }
+  .track-table-wrap, .roon-track-table { padding-inline: 6px; }
+  .track-table .track-row { grid-template-columns: 22px 40px minmax(0, 1fr) 32px; }
+  .track-table.track-table-no-artwork .track-row { grid-template-columns: 22px minmax(0, 1fr) 32px; }
+  .roon-track-table .roon-track-row { grid-template-columns: 28px minmax(0, 1fr) 62px; }
+  .home-media-section, .home-recent-section, .search-result-section { padding: 14px; }
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .music-sidebar, .topbar, .global-player, .playback-inspector,
+  .sidebar-popover, .toolbar-status-popover, .track-context-menu, .settings-glass-panel { background: #fff7fb; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .music-sidebar, .topbar, .global-player, .playback-inspector,
+  .sidebar-popover, .toolbar-status-popover, .track-context-menu, .settings-glass-panel,
+  .track-table-wrap, .roon-track-table, :root dialog { background: #fff7fb; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .album-ambient-cover { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .primary-button:active:not(:disabled), .player-play-button:active:not(:disabled) { transform: none; }
+  .music-sidebar { transition: none; }
+}

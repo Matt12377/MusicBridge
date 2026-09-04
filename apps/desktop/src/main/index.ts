@@ -34,6 +34,7 @@ import {
   Menu,
   MessageChannelMain,
   nativeImage,
+  nativeTheme,
   protocol,
   safeStorage,
   session,
@@ -1610,6 +1611,7 @@ function registerIpcHandlers(
 }
 
 function createWindow(supervisor: CoreSupervisor): BrowserWindow {
+  nativeTheme.themeSource = 'light'
   const window = new BrowserWindow({
     width: 960,
     height: 640,
@@ -1617,7 +1619,7 @@ function createWindow(supervisor: CoreSupervisor): BrowserWindow {
     minHeight: 480,
     // E2E 默认不弹出原生窗口；后台仍渲染，保留截图和 DOM 键盘测试。
     show: !isStartupTest && !isUiE2e,
-    backgroundColor: '#10131a',
+    backgroundColor: '#f8eaf1',
     webPreferences: {
       ...buildBrowserWindowWebPreferences(),
       ...(isUiE2e ? { backgroundThrottling: false } : {}),

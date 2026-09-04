@@ -66,7 +66,7 @@ fieldset { min-width: 0; padding: 0; border: 0; margin: 20px 0 0; }
 label { display: grid; gap: 7px; font-size: 13px; }
 input, select { box-sizing: border-box; min-width: 0; width: 100%; min-height: 42px; padding: 8px 10px; border: 1px solid var(--mb-glass-border); border-radius: 8px; background: var(--mb-bg-surface, #20232b); color: var(--mb-text-primary); font: inherit; }
 button { min-height: 40px; padding: 8px 14px; border: 1px solid var(--mb-glass-border); border-radius: 8px; background: var(--mb-glass-clear); color: var(--mb-text-primary); }
-.primary { background: var(--mb-accent); color: #071018; }
+.primary { background: var(--mb-accent); color: var(--mb-on-accent); }
 .inventory-error { color: var(--mb-text-primary); font-size: 13px; line-height: 1.7; padding: 12px; border: 1px solid var(--mb-glass-border); border-radius: 8px; }
 :disabled { opacity: .55; cursor: not-allowed; }
 @media (max-width: 480px) { .fields { grid-template-columns: 1fr; } .inventory-dialog { padding: 20px; } }

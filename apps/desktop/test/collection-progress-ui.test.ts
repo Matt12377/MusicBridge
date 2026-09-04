@@ -247,7 +247,8 @@ async function mounted(t: test.TestContext, name: string, api: unknown, props: R
   const text = (value: unknown): string => typeof value === 'string' ? value : Array.isArray(value) ? value.map(text).join(' ') : value && typeof value === 'object' && 'children' in value ? text(value.children) : ''
   function renderText(): string {
     let content = ''
-    const rendering = renderer.createApp({ render() { content = text(rendered.exports.render(instance, [], props, setup, {}, {})); return null } })
+    // 使用 Vue 已解析的 props，使 withDefaults 与实际组件渲染一致。
+    const rendering = renderer.createApp({ render() { content = text(rendered.exports.render(instance, [], instance.$props, setup, {}, {})); return null } })
     rendering.mount(node()); rendering.unmount(); return content
   }
   async function clickButton(label: string): Promise<void> {
@@ -259,7 +260,7 @@ async function mounted(t: test.TestContext, name: string, api: unknown, props: R
       if (vnode.type === 'button' && text(vnode.children) === label) action = vnode.props?.onClick
       else find(vnode.children)
     }
-    const rendering = renderer.createApp({ render() { find(rendered.exports.render(instance, [], props, setup, {}, {})); return null } })
+    const rendering = renderer.createApp({ render() { find(rendered.exports.render(instance, [], instance.$props, setup, {}, {})); return null } })
     rendering.mount(node()); rendering.unmount(); assert.ok(action, `缺少可执行按钮：${label}`); await action(); await vue.nextTick()
   }
   return { setup, tick: vue.nextTick, renderText, clickButton }

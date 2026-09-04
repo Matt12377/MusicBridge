@@ -292,13 +292,13 @@ test('Liquid Glass v3 keeps content lists continuous and the global player owns 
   assert.doesNotMatch(appSource, /<SidebarZoneButton\b|playback-zone-dock/)
 })
 
-test('Liquid Glass v4 uses one neutral graphite theme and never rotates the album ambient', async () => {
+test('樱花玻璃使用统一浅色主题，并保留不旋转的封面氛围层', async () => {
   const css = await readFile(path.resolve('src/renderer/src/style.css'), 'utf8')
 
   assert.equal((css.match(/:root\s*\{/g) ?? []).length, 1)
-  assert.match(css, /--mb-bg-deep:\s*#0e1217/)
-  assert.match(css, /--mb-accent:\s*#64d2ff/)
-  assert.doesNotMatch(css, /radial-gradient\(/)
+  assert.match(css, /color-scheme:\s*light/)
+  assert.match(css, /--mb-bg-deep:\s*#f8eaf1/)
+  assert.match(css, /--mb-accent:\s*#b34f79/)
   assert.doesNotMatch(css, /album-ambient-rotate|rotate\(/)
   assert.doesNotMatch(css, /#a9bcff|#c5d2ff|#6e8fff|#8aa8ff/)
 })
@@ -318,7 +318,7 @@ test('V1 Bottom Player stays compact, semantic, and free of transient lyric or s
   assert.match(player, /visually-hidden/)
   assert.match(icon, /name === 'previous'/)
   assert.match(icon, /name === 'next'/)
-  assert.match(css, /\.global-player\s*\{[^}]*height:\s*74px/)
+  assert.match(css, /\.global-player\s*\{[^}]*height:\s*104px/)
   assert.match(css, /\.player-art\s*\{[^}]*width:\s*46px[^}]*height:\s*46px/)
 })
 
