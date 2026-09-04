@@ -85,3 +85,21 @@ test('磨砂使用本地静态颗粒材质并保留减少透明效果的回退',
   assert.doesNotMatch(grain, /<script|<animate|(?:href|src)=["']https?:\/\//)
   assert.match(theme, /prefers-reduced-transparency[^}]*--mb-frosted-grain:\s*none/s)
 })
+
+test('柔暗玻璃减少白色遮盖，深色封面下仍保持文字对比度', async () => {
+  const theme = await readFile(path.join(root, 'sakura-theme.css'), 'utf8')
+  for (const name of ['plane', 'control']) {
+    const material = theme.match(new RegExp(`--mb-frosted-${name}:([^;]+)`))![1]!
+    const alphas = [...material.matchAll(/rgba\(\d+,\s*\d+,\s*\d+,\s*([\d.]+)\)/g)].map(match => Number(match[1]))
+    assert.ok(Math.max(...alphas) <= .5 && Math.min(...alphas) <= .2, `${name} 白色遮盖仍过强`)
+  }
+  assert.match(theme, /--mb-content-glass:\s*rgba\(247, 243, 248, \.42\)/)
+  assert.match(theme, /--mb-ambient-wash:\s*rgba\(236, 230, 238, \.58\)/)
+  assert.match(theme, /background:\s*var\(--mb-ambient-wash\)/)
+  const css = await readFile(path.join(root, 'style.css'), 'utf8')
+  // 覆盖全黑封面叠加柔暗 wash 后的保守底色。
+  for (const name of ['--mb-text-primary', '--mb-text-secondary', '--mb-text-tertiary']) {
+    const color = css.match(new RegExp(`${name}:\\s*(#[a-f\\d]{6})`, 'i'))![1]!
+    assert.ok((luminance('96919a') + .05) / (luminance(color) + .05) >= 4.5, `${name} 柔暗背景对比度不足`)
+  }
+})

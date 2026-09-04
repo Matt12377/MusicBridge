@@ -2,8 +2,10 @@
 :root {
   --mb-ambient-cover-opacity: .82;
   --mb-frosted-grain: url('./assets/frosted-grain.svg');
-  --mb-frosted-plane: var(--mb-frosted-grain), linear-gradient(135deg, rgba(255, 255, 255, .60), rgba(255, 255, 255, .30) 45%, rgba(255, 245, 252, .46));
-  --mb-frosted-control: var(--mb-frosted-grain), linear-gradient(135deg, rgba(255, 255, 255, .64), rgba(255, 255, 255, .24) 52%, rgba(255, 255, 255, .42));
+  --mb-ambient-wash: rgba(236, 230, 238, .58);
+  --mb-content-glass: rgba(247, 243, 248, .42);
+  --mb-frosted-plane: var(--mb-frosted-grain), linear-gradient(135deg, rgba(247, 243, 248, .44), rgba(247, 243, 248, .20) 45%, rgba(244, 233, 243, .32));
+  --mb-frosted-control: var(--mb-frosted-grain), linear-gradient(135deg, rgba(247, 243, 248, .48), rgba(247, 243, 248, .16) 52%, rgba(247, 243, 248, .30));
 }
 .album-ambient {
   background:
@@ -20,7 +22,7 @@
 .album-ambient-cover, .app-shell.is-now-playing .album-ambient-cover { opacity: var(--mb-ambient-cover-opacity); transform: scale(1.08); will-change: auto; }
 /* 封面保留大轮廓；由其上方的玻璃进一步打散细节，避免两层都只剩均匀色块。 */
 .album-ambient-cover img { filter: blur(12px) saturate(1.12); }
-.album-ambient-wash, .app-shell.is-now-playing .album-ambient-wash { background: rgba(255, 247, 252, .60); }
+.album-ambient-wash, .app-shell.is-now-playing .album-ambient-wash { background: var(--mb-ambient-wash); }
 .album-ambient-cover.ambient-cover-enter-from, .album-ambient-cover.ambient-cover-leave-to { opacity: 0; }
 .ambient-cover-enter-active, .ambient-cover-leave-active { transition: opacity 220ms ease; }
 .album-ambient-vignette { box-shadow: none; }
@@ -74,7 +76,7 @@
 .diagnostic-card, .diagnostic-checks {
   border: 1px solid var(--mb-glass-highlight);
   border-radius: 22px;
-  background: rgba(255, 255, 255, .58);
+  background: var(--mb-content-glass);
   box-shadow: var(--mb-glass-shadow);
 }
 .track-table-wrap, .roon-track-table { padding: 8px 14px; }
@@ -95,7 +97,7 @@
 .liked-hero .view-heading h2, .playlist-detail-copy h2, .roon-album-detail-copy h2 { font-size: clamp(28px, 3vw, 38px); line-height: 1.2; }
 .playlist-card, .roon-album-card, .search-artist-card, .search-album-card {
   padding: 12px; border: 1px solid var(--mb-glass-highlight); border-radius: 20px;
-  background: rgba(255, 255, 255, .45);
+  background: var(--mb-content-glass);
 }
 .playlist-art, .roon-album-art, .home-cover-art, .daily-recommendation-art { box-shadow: 0 6px 18px rgba(121, 87, 111, .12); }
 .roon-artwork-error { background: var(--mb-glass-strong); color: var(--mb-danger); }
@@ -125,7 +127,7 @@
 :root dialog { box-shadow: var(--mb-glass-shadow); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
 :root dialog::backdrop { background: var(--mb-scrim); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
 :root .inventory-card, :root .collection-empty, :root .recording-start {
-  background: rgba(255, 255, 255, .62); border-color: var(--mb-glass-highlight);
+  background: var(--mb-content-glass); border-color: var(--mb-glass-highlight);
   border-radius: 20px; box-shadow: var(--mb-glass-shadow);
 }
 :root .collection-tabs { background: var(--mb-glass-regular); }
