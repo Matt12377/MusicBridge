@@ -76,6 +76,18 @@
     "loopbackOnly": true,
     "providerVersion": "4.40.1"
   },
+  "roonContextQueue": {
+    "branch": "codex/roon-context-queue",
+    "baseCommit": "fdd487e73b00887f58f499406860ee86a7eda5ee",
+    "implementationCommit": "59d2436b60fd6c8d0999556ae18076f71c7c1e96",
+    "state": "software-pass-owner-playback-acceptance-pending",
+    "focusedTests": { "passed": 189, "failed": 0, "skipped": 0 },
+    "typecheck": "PASS",
+    "productionBuild": "PASS",
+    "report": "reports/V3_ROON_CONTEXT_QUEUE.md",
+    "cassetteImageSource": "supplied-reference-pack-has-no-images",
+    "realPlayback": "not-run"
+  },
   "playbackNextPreparation": {
     "branch": "codex/playback-next-preparation",
     "baseCommit": "316180d05175a76714a6d2fc781b6f397b38ecf6",
