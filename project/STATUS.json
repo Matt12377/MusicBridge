@@ -76,6 +76,18 @@
     "loopbackOnly": true,
     "providerVersion": "4.40.1"
   },
+  "playbackNextPreparation": {
+    "branch": "codex/playback-next-preparation",
+    "baseCommit": "316180d05175a76714a6d2fc781b6f397b38ecf6",
+    "implementationCommit": "15e7726a6682c3f72bb7b18d464c5222295b9054",
+    "state": "software-pass-real-audio-latency-pending",
+    "focusedTests": { "passed": 122, "failed": 0, "skipped": 0 },
+    "typecheck": "PASS",
+    "productionBuild": "PASS",
+    "report": "reports/V3_NEXT_PREPARATION.md",
+    "realAudioLatency": "not-measured",
+    "roonSessionReuse": "not-implemented"
+  },
   "cassetteImportCloseout": {
     "branch": "codex/cassette-catalog-import-closeout",
     "baseCommit": "7ea038918b97bb0e138596bf9adc8c2b5cab3a9d",
