@@ -513,7 +513,7 @@ img[hidden] { display: none; }
 .toast { position: fixed; z-index: 100; right: 24px; bottom: 112px; max-width: min(360px, calc(100vw - 48px)); padding: 10px 14px; border: 1px solid rgba(179, 79, 121, .35); border-radius: 12px; color: var(--mb-text-primary); background: var(--mb-glass-strong); box-shadow: 0 18px 45px rgba(0, 0, 0, .35); font-size: 11px; }
 
 /* Global Player 采用唱片应用的三段式构图：左歌曲信息、中间播放控制、右音质与工具。 */
-.global-player { position: relative; z-index: 25; display: grid; flex: 0 0 auto; width: min(1120px, calc(100% - 48px)); margin: 16px auto; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 20px; align-items: center; height: 88px; min-height: 88px; padding: 8px 24px; border: 1px solid var(--mb-glass-border); border-radius: 24px; box-shadow: 0 -18px 50px rgba(0, 0, 0, .22), inset 0 1px 0 var(--mb-glass-highlight); }
+.global-player { position: absolute; inset-inline: 0; bottom: 16px; z-index: 25; display: grid; width: min(1120px, calc(100% - 48px)); margin: 0 auto; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 20px; align-items: center; height: 88px; min-height: 88px; padding: 8px 24px; border: 1px solid var(--mb-glass-border); border-radius: 24px; box-shadow: 0 -18px 50px rgba(0, 0, 0, .22), inset 0 1px 0 var(--mb-glass-highlight); }
 .player-track { display: flex; gap: 11px; align-items: center; min-width: 0; }
 .player-track-button { width: 100%; padding: 0; color: inherit; background: transparent; text-align: left; }
 .player-track-button:hover strong { color: var(--mb-accent-hover); }

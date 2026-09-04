@@ -1,5 +1,6 @@
 /* Owner 已确认的樱花玻璃材质层。仅改变呈现，不改动组件、事件或真实数据。 */
 :root {
+  --mb-player-clearance: 120px;
   --mb-ambient-cover-opacity: .82;
   --mb-frosted-grain: url('./assets/frosted-grain.svg');
   --mb-ambient-wash: rgba(236, 230, 238, .58);
@@ -27,6 +28,15 @@
 .ambient-cover-enter-active, .ambient-cover-leave-active { transition: opacity 220ms ease; }
 .album-ambient-vignette { box-shadow: none; }
 .content-scroll, .sidebar-source-scroll, .queue-upcoming-viewport { scrollbar-color: #bc8fa77a transparent; }
+/* 面板铺满窗口；仅在滚动内容末尾留出悬浮播放栏的避让空间。 */
+.app-shell:not(.is-now-playing) .content-scroll { padding-bottom: var(--mb-player-clearance); scroll-padding-bottom: var(--mb-player-clearance); }
+.app-shell:not(.is-now-playing) .playback-inspector { padding-bottom: var(--mb-player-clearance); }
+@media (max-width: 1640px) {
+  .music-sidebar:not(.is-collapsed) { padding-bottom: var(--mb-player-clearance); }
+}
+@media (max-width: 1248px) {
+  .music-sidebar.is-collapsed { padding-bottom: var(--mb-player-clearance); }
+}
 
 /* 模糊只用于有限的结构面板；长列表的每行不创建独立模糊合成层。 */
 .music-sidebar, .topbar, .global-player, .playback-inspector,
@@ -142,7 +152,8 @@
   .player-zone-button { min-width: 112px; max-width: 160px; }
 }
 @media (max-width: 900px) {
-  .global-player { width: calc(100% - 32px); margin: 12px auto; grid-template-columns: minmax(0, 1fr) auto; height: 116px; min-height: 116px; row-gap: 4px; }
+  :root { --mb-player-clearance: 140px; }
+  .global-player { width: calc(100% - 32px); bottom: 12px; grid-template-columns: minmax(0, 1fr) auto; height: 116px; min-height: 116px; row-gap: 4px; }
   .player-track { grid-column: 1; grid-row: 1; }
   .player-controls { grid-column: 2; grid-row: 1; }
   .player-meta { grid-column: 1 / -1; grid-row: 2; justify-content: flex-end; }

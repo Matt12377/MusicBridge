@@ -343,11 +343,20 @@ test('居中悬浮播放器保留完整内容，顶部横栏移除后未确认�
   const css = await readFile(path.resolve('src/renderer/src/style.css'), 'utf8')
   const settings = await readFile(path.resolve('src/renderer/src/components/settings/SettingsView.vue'), 'utf8')
   assert.match(css, /\.global-player\s*\{[^}]*width:\s*min\(1120px, calc\(100% - 48px\)\)/)
-  assert.match(css, /\.global-player\s*\{[^}]*margin:\s*16px auto/)
+  assert.match(css, /\.global-player\s*\{[^}]*position:\s*absolute/)
+  assert.match(css, /\.global-player\s*\{[^}]*inset-inline:\s*0/)
+  assert.match(css, /\.global-player\s*\{[^}]*margin:\s*0 auto/)
   assert.match(css, /\.global-player\s*\{[^}]*border-radius:\s*24px/)
   assert.doesNotMatch(app, /class="topbar"|<ToolbarStatusPopover/)
   assert.match(app, /<template #application-tools>[\s\S]*?commandOutboxTrigger[\s\S]*?未确认操作/)
   assert.match(settings, /<slot name="application-tools"\s*\/>/)
+})
+
+test('悬浮播放器不再占用底部整行，内容与侧栏具备可滚动避让', async () => {
+  const theme = await readFile(path.resolve('src/renderer/src/sakura-theme.css'), 'utf8')
+  assert.match(theme, /\.app-shell:not\(\.is-now-playing\) \.content-scroll\s*\{[^}]*padding-bottom:\s*var\(--mb-player-clearance\)/)
+  assert.match(theme, /\.music-sidebar:not\(\.is-collapsed\)\s*\{[^}]*padding-bottom:\s*var\(--mb-player-clearance\)/)
+  assert.match(theme, /--mb-player-clearance:\s*140px/)
 })
 
 test('V1 Settings在生产候选保留受控Remote Core入口和显式SSH目标', async () => {
