@@ -1,13 +1,28 @@
 {
   "schemaVersion": 1,
+  "sakuraProductionUi": {
+    "branch": "codex/v3-ui-redesign",
+    "baseCommit": "f5246a17f78180c4c355e1979154b259db87432a",
+    "implementationCommit": "e3942a3",
+    "state": "glass-revision-implemented-owner-visual-feedback-pending",
+    "desktopUnitTests": { "passed": 675, "failed": 0 },
+    "typecheck": "pass",
+    "productionBuild": "pass",
+    "controlPlane": "pass",
+    "boundaries": "pass",
+    "visualInspection": "synthetic-native-window-focused-material-check",
+    "realServicesConnectedByThisChange": false,
+    "ownerAcceptance": "pending",
+    "report": "design-qa.md"
+  },
   "sakuraHtmlPreview": {
     "branch": "codex/v3-ui-redesign",
     "baseCommit": "87756a7306b67a66af836a5aa52895de06d83ed3",
-    "state": "standalone-preview-owner-feedback-pending",
+    "state": "standalone-preview-direction-approved-production-migration-authorized",
     "entry": "prototypes/sakura-glass/index.html",
     "productionCodeChanged": false,
     "realServicesConnected": false,
-    "ownerAcceptance": "pending",
+    "ownerAcceptance": "visual-direction-approved-not-production-acceptance",
     "report": "prototypes/sakura-glass/design-qa.md"
   },
   "uiBaseline": {
