@@ -413,7 +413,6 @@ let roonPlaylistRequestGeneration = 0
 let entityFavoriteOperation = 0
 
 const currentTrack = computed(() => playbackState.value?.currentTrack)
-const ambientTrack = computed(() => playbackState.value?.state === 'playing' ? currentTrack.value : undefined)
 const homeTracks = computed(() => recentTracks.value)
 const selectedZone = computed(() => {
   const selectedId = playbackState.value?.selectedZoneId
@@ -2696,7 +2695,7 @@ onUnmounted(() => {
 
 <template>
   <main class="app-shell" :class="{ 'is-now-playing': isImmersiveNowPlaying }" data-ui-reference="simple-music-player-2">
-    <AlbumAmbientBackground :current-track="ambientTrack" />
+    <AlbumAmbientBackground :current-track="currentTrack" />
     <div class="app-main">
       <MusicSidebar
         v-if="!isImmersiveNowPlaying"

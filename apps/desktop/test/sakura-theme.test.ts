@@ -57,3 +57,31 @@ test('边栏和控件使用透色毛玻璃，而不是统一乳白实色填充',
   assert.match(theme, /backdrop-filter:\s*blur\(14px\) saturate\(1\.4\)/)
   assert.match(theme, /inset 0 1px 0 rgba\(255, 255, 255, \.8\)/)
 })
+
+test('当前封面在暂停时仍传给氛围层，且不被主题压成不可见', async () => {
+  const app = await readFile(path.join(root, 'App.vue'), 'utf8')
+  assert.match(app, /<AlbumAmbientBackground :current-track="currentTrack"/)
+  const theme = await readFile(path.join(root, 'sakura-theme.css'), 'utf8')
+  const coverOpacity = Number(theme.match(/--mb-ambient-cover-opacity:\s*([\d.]+)/)?.[1])
+  assert.ok(coverOpacity >= .7 && coverOpacity <= 1, '封面必须保持可见权重')
+  assert.match(theme, /opacity:\s*var\(--mb-ambient-cover-opacity\)/)
+  assert.match(theme, /\.album-ambient-cover img\s*\{[^}]*blur\(12px\)/)
+  const css = await readFile(path.join(root, 'style.css'), 'utf8')
+  // 全黑封面经氛围层叠加后的保守底色，不仅检查浅粉默认底。
+  for (const name of ['--mb-text-primary', '--mb-text-secondary', '--mb-text-tertiary']) {
+    const color = css.match(new RegExp(`${name}:\\s*(#[a-f\\d]{6})`, 'i'))![1]!
+    assert.ok((luminance('a6a0a6') + .05) / (luminance(color) + .05) >= 4.5, `${name} 在深色封面下不清晰`)
+  }
+})
+
+test('磨砂使用本地静态颗粒材质并保留减少透明效果的回退', async () => {
+  const theme = await readFile(path.join(root, 'sakura-theme.css'), 'utf8')
+  assert.match(theme, /--mb-frosted-grain:\s*url\('\.\/assets\/frosted-grain\.svg'\)/)
+  for (const name of ['plane', 'control']) {
+    assert.match(theme, new RegExp(`--mb-frosted-${name}:\\s*var\\(--mb-frosted-grain\\)`))
+  }
+  const grain = await readFile(path.join(root, 'assets/frosted-grain.svg'), 'utf8')
+  assert.match(grain, /feTurbulence/)
+  assert.doesNotMatch(grain, /<script|<animate|(?:href|src)=["']https?:\/\//)
+  assert.match(theme, /prefers-reduced-transparency[^}]*--mb-frosted-grain:\s*none/s)
+})
