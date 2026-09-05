@@ -2067,6 +2067,14 @@
     "nativeGateExitCode": 0,
     "report": "reports/V3_SIDEBAR_NAVIGATION.md",
     "realDeviceValidation": "not-performed",
-    "push": "not-performed"
+    "push": "not-performed",
+    "neteaseOnlyAdjustment": {
+      "baseCommit": "cec2743a327865864a6beb60cd657e5514b5a817",
+      "implementationCommit": "57531562637d8303df072191a52bc9e0976751ed",
+      "focusedTestsPassed": 5,
+      "build": "pass",
+      "nativeGate": "pass",
+      "visualCheck": "已查看深色 Electron 截图，标题下直接显示网易云歌单，无来源导航行"
+    }
   }
 }

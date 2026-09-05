@@ -13,3 +13,9 @@
 - 历史 ambient Gate 的喜欢歌曲导航选择器同步为首页入口，仅做语法检查；本轮实际执行的是 open-library Gate。
 - 使用隔离合成数据；未验证真实 Roon/网易云账号，未重启用户实例，未 push/merge/release。用户视觉验收待反馈。
 - 报告提交可由本文件最后一次提交解析；下一轮从报告 HEAD 开始。
+
+## 后续调整：仅网易云歌单
+
+按用户最新要求，将分区命名为“网易云歌单”，移除 Roon 与重复网易云来源行，只显示网易云歌单列表，保留折叠。删除不再使用的来源组件。Base `cec2743a327865864a6beb60cd657e5514b5a817`，实现 `57531562637d8303df072191a52bc9e0976751ed`。
+
+5 项定向测试、生产构建、diff 检查通过。首次原生验证在旧主页定位选择器处中止；修正为按区域名称定位后重跑，得到完整 `OPEN_LIBRARY_NATIVE_PASS`。已查看最终 Electron 截图，目录 `/Volumes/LifeWeave/Developer/CommandLine/tmp/musicbridge-netease-sidebar-ui/`。本轮未重复类型检查；未操作真实账号、未重启用户实例、未 push。报告 HEAD 为下一基线。
