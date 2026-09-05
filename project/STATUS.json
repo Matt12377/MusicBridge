@@ -1,5 +1,31 @@
 {
   "schemaVersion": 1,
+  "playerMotionRepair": {
+    "branch": "codex/v3-ui-redesign",
+    "baseCommit": "c10ff4bb3d2761934ee7cc44eb8a03162125a911",
+    "implementationCommit": "4419fcc0db5050c04d7cf5bfa1fce05f7aaa072c",
+    "state": "focused-and-native-pass-real-device-feedback-pending",
+    "focusedTests": {
+      "passed": 47,
+      "failed": 0,
+      "exitCode": 0
+    },
+    "typecheck": "pass",
+    "productionBuild": "pass",
+    "controlPlane": "pass",
+    "boundaries": "pass",
+    "nativeMotion": {
+      "sampleCount": 111,
+      "backwards": false,
+      "advanceMs": 1815
+    },
+    "nativeVolume": "input-before-release-writes-and-release-readback-stays-stable",
+    "timeline": "centered-max-480px-light-dark-1980-1440-720-pass",
+    "neteaseListQuality": "removed",
+    "realDeviceAudio": "not-tested",
+    "push": "not-performed",
+    "report": "reports/V3_PLAYER_MOTION_REPAIR.md"
+  },
   "openLibraryPlayer": {
     "branch": "codex/v3-ui-redesign",
     "baseCommit": "001aa26dd0991d09f485e31c30320ae9073bfbf4",
