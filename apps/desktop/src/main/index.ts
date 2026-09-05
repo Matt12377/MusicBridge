@@ -1008,6 +1008,12 @@ function registerIpcHandlers(
       return { recorded: true }
     })
   }
+  ipcMain.handle('app:set-appearance-theme', (event, theme: unknown) => {
+    const target = requireTrustedRenderer(event)
+    if (theme !== 'light' && theme !== 'dark') return publicIpcFailure('INVALID_IPC_REQUEST', '主题必须为浅色或深色')
+    nativeTheme.themeSource = theme
+    target.setBackgroundColor(theme === 'dark' ? '#3c4253' : '#f2edf1')
+  })
   ipcMain.handle('app:get-info', (event) => {
     requireTrustedRenderer(event)
     return appInfo()

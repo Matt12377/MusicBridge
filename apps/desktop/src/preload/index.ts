@@ -335,5 +335,6 @@ contextBridge.exposeInMainWorld(
     createRecordingRecordClient((channel, value) => ipcRenderer.invoke(channel, value)),
     createRecordingReplicaClient((channel, value) => ipcRenderer.invoke(channel, value)),
     createRecordingPrintClient((channel, value) => ipcRenderer.invoke(channel, value)),
+    theme => ipcRenderer.invoke('app:set-appearance-theme', theme),
   ),
 )

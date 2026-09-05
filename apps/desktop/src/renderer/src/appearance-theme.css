@@ -1,0 +1,116 @@
+:root.appearance-changing .album-ambient-wash { transition: none; }
+/* 浅色继续使用已认可的 ambient-study；深色仅覆盖颜色和材质。 */
+.appearance-settings { margin-bottom: 18px; }
+.appearance-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; max-width: 660px; margin: 18px 0; padding: 0; border: 0; }
+.appearance-option { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--mb-glass-border); border-radius: 14px; cursor: pointer; }
+.appearance-option.selected { border-color: var(--mb-accent); box-shadow: 0 0 0 1px var(--mb-accent); }
+.appearance-option:focus-within { outline: 2px solid var(--mb-accent); outline-offset: 4px; }
+.appearance-option input { width: 16px; height: 16px; margin: 0; accent-color: var(--mb-accent); }
+.appearance-option-copy { grid-column: 2; display: grid; gap: 5px; }
+.appearance-option-copy strong { font-size: 14px; }
+.appearance-option-copy small { color: var(--mb-text-secondary); font-size: 12px; }
+.appearance-swatch { display: block; height: 76px; position: relative; overflow: hidden; border-radius: 8px; background: linear-gradient(130deg, #e9cddc, #efe5df 55%, #cddce9); }
+.appearance-swatch::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 24%; border-right: 1px solid #ffffff60; background: #ffffff40; }
+.appearance-swatch span { position: absolute; left: 34%; top: 16px; width: 50%; height: 20px; border-radius: 4px; background: #ffffff7a; }
+.appearance-swatch i { position: absolute; left: 18%; right: 12%; bottom: 9px; height: 14px; border-radius: 5px; background: #ffffffb3; }
+.appearance-swatch.is-dark { background: linear-gradient(130deg, #4b5d7a, #6a6670 55%, #465571); }
+.appearance-swatch.is-dark::before { background: #242b424d; border-color: #ffffff12; }
+.appearance-swatch.is-dark span { background: #e4e3ea40; }
+.appearance-swatch.is-dark i { background: #332c3dcc; }
+@media (max-width: 800px) { .appearance-options { gap: 10px; } .appearance-option { padding: 10px; gap: 8px; } }
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --mb-bg-deep: #3c4253;
+  --mb-bg-base: #3c4253;
+  --mb-bg-elevated: #383847;
+  --mb-bg-surface: #373946;
+  --mb-text-primary: #f2eef3;
+  --mb-text-secondary: #d0cbd4;
+  --mb-text-tertiary: #d0cbd4;
+  --mb-accent: #a8577b;
+  --mb-accent-hover: #bd668f;
+  --mb-player-accent: #b96890;
+  --mb-player-accent-hover: #ce80a5;
+  --mb-accent-soft: #be789b28;
+  --mb-on-accent: #ffffff;
+  --mb-success: #93d7b0;
+  --mb-warning: #ecd19d;
+  --mb-danger: #f29eae;
+  --mb-divider: #ffffff16;
+  --mb-glass-border: #ffffff20;
+  --mb-glass-highlight: #ffffff15;
+  --mb-glass-clear: #ffffff0b;
+  --mb-glass-regular: #34374875;
+  --mb-glass-medium: #343748b3;
+  --mb-glass-strong: #353544f5;
+  --mb-frosted-plane: rgba(48, 52, 68, .36);
+  --mb-frosted-control: #25232e30;
+  --mb-content-glass: rgba(46, 49, 63, .62);
+  --mb-glass-shadow: 0 12px 38px #11142120;
+  --mb-scrim: #14172480;
+  --mb-ambient-wash: rgba(36, 45, 65, .68);
+}
+:root[data-theme='dark'] .album-ambient { background: #3c4253; }
+:root[data-theme='dark'] .album-ambient.has-cover .album-ambient-wash { background: rgba(91, 94, 108, .80); }
+:root[data-theme='dark'] .content-scroll { background: #343b4a0d; }
+:root[data-theme='dark'] .music-sidebar { border-color: #ffffff13; }
+:root[data-theme='dark'] .sidebar-search-field,
+:root[data-theme='dark'] .sidebar-search-field:focus-within,
+:root[data-theme='dark'] .sidebar-settings-button,
+:root[data-theme='dark'] .secondary-button,
+:root[data-theme='dark'] .now-playing-back,
+:root[data-theme='dark'] .now-playing-quality-button,
+:root[data-theme='dark'] .collection-tabs { background: #222b3838; border-color: #ffffff15; }
+:root[data-theme='dark'] .sidebar-settings-button.selected,
+:root[data-theme='dark'] .sidebar-nav-row.selected,
+:root[data-theme='dark'] .sidebar-playlist-row.selected { color: #f0b3ce; }
+:root[data-theme='dark'] .sidebar-nav-row:hover,
+:root[data-theme='dark'] .sidebar-playlist-row:hover,
+:root[data-theme='dark'] .sidebar-settings-button:hover,
+:root[data-theme='dark'] .player-track-button:hover,
+:root[data-theme='dark'] .player-quality-button:hover,
+:root[data-theme='dark'] .player-zone-button:hover,
+:root[data-theme='dark'] .player-inspector-button:hover,
+:root[data-theme='dark'] .player-control-button:hover:not(:disabled),
+:root[data-theme='dark'] .track-row:hover,
+:root[data-theme='dark'] .track-row:focus-within,
+:root[data-theme='dark'] .roon-track-row:hover,
+:root[data-theme='dark'] .roon-track-row:focus-within { background: #ffffff0e; }
+:root[data-theme='dark'] .global-player { background: rgba(48, 40, 55, .82); border-color: #ffffff12; box-shadow: 0 14px 42px #18203225, inset 0 1px #ffffff0d; }
+:root[data-theme='dark'] .player-art { background: #ffffff09; color: #d8a8c1; }
+:root[data-theme='dark'] .player-quality-button,
+:root[data-theme='dark'] .player-zone-button,
+:root[data-theme='dark'] .player-inspector-button { border-color: #ffffff0d; }
+:root[data-theme='dark'] .home-cover-play { background: #333649d9; color: #f2eef3; }
+:root[data-theme='dark'] .track-table-wrap,
+:root[data-theme='dark'] .roon-track-table,
+:root[data-theme='dark'] .empty-state,
+:root[data-theme='dark'] .search-result-section,
+:root[data-theme='dark'] .diagnostic-card,
+:root[data-theme='dark'] .diagnostic-checks,
+:root[data-theme='dark'] .playlist-card,
+:root[data-theme='dark'] .roon-album-card,
+:root[data-theme='dark'] .search-artist-card,
+:root[data-theme='dark'] .search-album-card,
+:root[data-theme='dark'] .inventory-card,
+:root[data-theme='dark'] .collection-empty,
+:root[data-theme='dark'] .recording-start,
+:root[data-theme='dark'] .sidebar-popover,
+:root[data-theme='dark'] .toolbar-status-popover,
+:root[data-theme='dark'] .track-context-menu,
+:root[data-theme='dark'] .settings-glass-panel,
+:root[data-theme='dark'] .playback-inspector { border-color: #ffffff18; }
+:root[data-theme='dark'] .toast,
+:root[data-theme='dark'] dialog { color: var(--mb-text-primary); background: #343440f5; border-color: #ffffff20; box-shadow: 0 20px 70px #10132044; }
+:root[data-theme='dark'] dialog::backdrop { background: #171b2c70; }
+:root[data-theme='dark'] .now-playing-lyrics .lyrics-line.active { color: #f0b3ce; }
+:root[data-theme='dark'] .content-scroll,
+:root[data-theme='dark'] .sidebar-source-scroll { scrollbar-color: #aaa6b14d transparent; }
+@supports not (backdrop-filter: blur(1px)) {
+  :root[data-theme='dark'] .music-sidebar, :root[data-theme='dark'] .global-player, :root[data-theme='dark'] .playback-inspector, :root[data-theme='dark'] .sidebar-popover, :root[data-theme='dark'] .settings-glass-panel { background: #3a3e50; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-theme='dark'] .music-sidebar, :root[data-theme='dark'] .global-player, :root[data-theme='dark'] .playback-inspector, :root[data-theme='dark'] .sidebar-popover, :root[data-theme='dark'] .settings-glass-panel, :root[data-theme='dark'] .track-table-wrap, :root[data-theme='dark'] .roon-track-table { background: #3a3e50; backdrop-filter: none; }
+  :root[data-theme='dark'] .album-ambient-wash, :root[data-theme='dark'] .album-ambient.has-cover .album-ambient-wash { background: #3c4253; }
+}

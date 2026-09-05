@@ -1,0 +1,26 @@
+:root.appearance-changing .wash { transition:none; }
+:root { color-scheme: light; }
+.theme-setting { display: flex; align-items: center; gap: 12px; margin-top: 20px; }
+.theme-setting select { padding: 7px 12px; }
+:root[data-theme='dark'] { color-scheme: dark; color: #f2eef3; background: #3c4253; --accent: #a8577b; --secondary: #d0cbd4; --line: #ffffff16; }
+:root[data-theme='dark'] .app { background: #3c4253; }
+:root[data-theme='dark'] .wash { background: rgba(36,45,65,.68); }
+:root[data-theme='dark'] .app.has-track .wash { background: rgba(91,94,108,.80); }
+:root[data-theme='dark'] .main { background: #343b4a0d; }
+:root[data-theme='dark'] .sidebar { background: rgba(48,52,68,.36); border-color: #ffffff13; }
+:root[data-theme='dark'] .search, :root[data-theme='dark'] .settings { background: #222b3838; border-color: #ffffff15; }
+:root[data-theme='dark'] .nav-item.active { color: #f0b3ce; background: #be789b28; }
+:root[data-theme='dark'] button:hover { background: #ffffff0e; }
+:root[data-theme='dark'] .primary:hover { background: #bd668f; }
+:root[data-theme='dark'] .player { background: rgba(48,40,55,.82); border-color: #ffffff12; box-shadow: 0 14px 42px #18203225,inset 0 1px #ffffff0d; }
+:root[data-theme='dark'] .player-art { background: #ffffff09; color: #d8a8c1; }
+:root[data-theme='dark'] .control { background: #25232e30; border-color: #ffffff0d; }
+:root[data-theme='dark'] .track-list { background: rgba(46,49,63,.62); border-color: #ffffff18; }
+:root[data-theme='dark'] .cover-play { background: #333649d9; }
+:root[data-theme='dark'] .cover-card.current .cover-play { background: var(--accent); }
+:root[data-theme='dark'] dialog, :root[data-theme='dark'] .queue, :root[data-theme='dark'] .toast { color: #f2eef3; background: #343440f5; border-color: #ffffff20; }
+:root[data-theme='dark'] .study-bar { background: #302b37; }
+:root[data-theme='dark'] .study-title strong { color: #f2eef3; }
+:root[data-theme='dark'] .switch { background: #ffffff09; }
+:root[data-theme='dark'] .switch button[aria-pressed=true] { background: #ffffff16; }
+@media(prefers-reduced-transparency:reduce) { :root[data-theme='dark'] .sidebar,:root[data-theme='dark'] .player,:root[data-theme='dark'] .queue,:root[data-theme='dark'] .track-list { background: #3a3e50; } :root[data-theme='dark'] .wash,:root[data-theme='dark'] .app.has-track .wash { background:#3c4253; } }

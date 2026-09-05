@@ -96,6 +96,8 @@ test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，
   }
   assert.deepEqual(calls, replicaCalls.map(([, channel, payload, wire]) => [`recordingReplica:${channel}`, { datasetId: runId, payload: wire ?? payload }]))
   calls.length = 0
+  await exposed.setAppearanceTheme('dark')
+  assert.deepEqual(calls.pop(), ['app:set-appearance-theme', 'dark'])
   assert.deepEqual(await exposed.startRemoteCore('roonstation@macmini'), { reply: 'remote-core:start' })
   assert.deepEqual(calls, [['remote-core:start', 'roonstation@macmini']])
 })
@@ -211,6 +213,7 @@ test('Preload exposes only sanitized business methods', async () => {
     assert.equal(typeof (api as unknown as Record<string, unknown>)[name], 'function', `缺少受限业务API ${name}`)
   }
   assert.deepEqual(PUBLIC_API_KEYS, [
+    'setAppearanceTheme',
     'getMasterArtwork',
     'pickMasterArtwork',
     'saveMasterArtwork',
@@ -446,6 +449,7 @@ test('Preload exposes only sanitized business methods', async () => {
     'onRemoteCoreEvent',
   ])
   assert.deepEqual(Object.keys(api), [
+    'setAppearanceTheme',
     'getMasterArtwork',
     'pickMasterArtwork',
     'saveMasterArtwork',

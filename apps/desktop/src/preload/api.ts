@@ -68,6 +68,7 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
 }
 
 export interface MusicBridgePublicApi extends RecordingPrintsPublicApi, RecordingReplicaPublicApi, RecordingRecordsPublicApi, RecordingAttemptsPublicApi, RecordingOutputPublicApi, RecordingPlansPublicApi, CollectionProgressPublicApi, SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
+  setAppearanceTheme: (theme: 'light' | 'dark') => Promise<void>
   getAppInfo: () => Promise<AppInfo>
   getCoreHealth: () => Promise<PublicBridgeState>
   getCoreState: () => Promise<PublicBridgeState>
@@ -141,6 +142,7 @@ export interface MusicBridgePublicApi extends RecordingPrintsPublicApi, Recordin
 }
 
 export const PUBLIC_API_KEYS = [
+  'setAppearanceTheme',
   'getMasterArtwork',
   'pickMasterArtwork',
   'saveMasterArtwork',
@@ -552,10 +554,12 @@ export function createPreloadApi(
   recordingRecordsApi?: RecordingRecordsPublicApi,
   recordingReplicaApi?: RecordingReplicaPublicApi,
   recordingPrintsApi?: RecordingPrintsPublicApi,
+  setAppearanceTheme: (theme: 'light' | 'dark') => Promise<void> = async () => {},
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   const outputUnavailable = async (): Promise<never> => { throw new Error('输出核验服务暂时不可用；未访问设备。') }
   return Object.freeze({
+    setAppearanceTheme,
     ...(recordingPrintsApi ?? { getMasterArtwork: collectionUnavailable, pickMasterArtwork: collectionUnavailable, saveMasterArtwork: collectionUnavailable, listRecordingPrints: collectionUnavailable, requestRecordingPrint: collectionUnavailable, retryRecordingPrint: collectionUnavailable, getRecordingPrint: collectionUnavailable, exportRecordingPrint: collectionUnavailable }),
     ...(recordingReplicaApi ?? { getRecordingReplicaStatus: collectionUnavailable, inspectRecordingReplica: collectionUnavailable, cancelRecordingReplicaRead: collectionUnavailable, startRecordingReplica: collectionUnavailable, getRecordingReplicaRun: collectionUnavailable, stopRecordingReplica: collectionUnavailable }),
     ...(recordingRecordsApi ?? { listRecordingRecords: collectionUnavailable, getRecordingRecord: collectionUnavailable, getRecordingRecordVisual: collectionUnavailable, getPhysicalRecordingHistory: collectionUnavailable, previewPhysicalRecordingDisposition: collectionUnavailable, applyPhysicalRecordingDisposition: collectionUnavailable }),

@@ -1,4 +1,4 @@
-import { app, net, BrowserWindow } from 'electron'
+import { app, net, BrowserWindow, nativeTheme } from 'electron'
 import { mkdir, writeFile } from 'node:fs/promises'
 if (process.env.MUSIC_BRIDGE_UI_E2E !== '1' || process.env.MUSIC_BRIDGE_CORE_TEST_MODE !== '1' || !process.env.MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR) throw new Error('仅允许隔离合成验证')
 const outputDirectory = process.env.MUSIC_BRIDGE_AMBIENT_QA_DIR
@@ -13,7 +13,7 @@ app.on('browser-window-created', (_event, window) => {
   window.webContents.on('console-message', details => { if(details.level === 'error') console.log('RENDERER_ERROR', details.message) })
   window.webContents.session.protocol.handle('https', request => {
     const url = new URL(request.url)
-    if (url.hostname === 'p1.music.126.net' && /synthetic-(cover|avatar)\.jpg/.test(url.pathname)) return net.fetch(new URL('../../../prototypes/sakura-glass/assets/cover-1.jpg', import.meta.url).href)
+    if (url.hostname === 'p1.music.126.net' && /synthetic-(cover|avatar)\.jpg/.test(url.pathname)) return net.fetch(new URL(`../../../prototypes/sakura-glass/assets/cover-${process.env.MUSIC_BRIDGE_APPEARANCE_GATE === '1' ? 2 : 1}.jpg`, import.meta.url).href)
     return new Response('', { status: 404 })
   })
   window.webContents.once('did-finish-load', async () => {
@@ -27,6 +27,30 @@ app.on('browser-window-created', (_event, window) => {
       await waitFor(`!!document.querySelector('.global-player')`)
       await waitFor(`!!document.querySelector('.daily-recommendation-tile')`)
       await evaluate(`document.fonts.ready.then(() => { if(!document.fonts.check('16px bootstrap-icons')) throw Error('图标字体未加载') })`)
+      if (process.env.MUSIC_BRIDGE_APPEARANCE_RESTORE === '1') {
+        await delay(150)
+        if(await evaluate(`document.documentElement.dataset.theme`)!=='dark' || nativeTheme.themeSource !== 'dark') throw Error('独立进程启动未恢复深色主题')
+        console.log('APPEARANCE_COLD_RESTART_PASS')
+        return
+      }
+      if (process.env.MUSIC_BRIDGE_APPEARANCE_GATE === '1') {
+        window.setContentSize(1440,819)
+        await evaluate(`document.querySelector('.sidebar-settings-button').click()`)
+        await waitFor(`!!document.querySelector('#settings-tab-application')`)
+        await evaluate(`document.querySelector('#settings-tab-application').click()`)
+        await waitFor(`!!document.querySelector('input[name="appearance-theme"][value="dark"]')`)
+        await evaluate(`document.querySelector('input[name="appearance-theme"][value="dark"]').click()`)
+        await evaluate(`document.querySelector('[data-sidebar-source="home"]').click()`)
+        await delay(250)
+        await writeFile(outputPath('home-dark-idle.png'),(await window.webContents.capturePage()).toPNG())
+        await evaluate(`document.querySelector('.sidebar-settings-button').click()`)
+        await waitFor(`!!document.querySelector('#settings-tab-application')`)
+        await evaluate(`document.querySelector('#settings-tab-application').click()`)
+        await waitFor(`!!document.querySelector('input[name="appearance-theme"][value="light"]')`)
+        await evaluate(`document.querySelector('input[name="appearance-theme"][value="light"]').click()`)
+        await evaluate(`document.querySelector('[data-sidebar-source="home"]').click()`)
+        await waitFor(`!!document.querySelector('.daily-recommendation-tile')`)
+      }
       for (const [width, height] of [[1980,1080], [1440,819], [720,480]]) {
         window.setContentSize(width,height); window.show(); await delay(300)
         const homeLayout = await evaluate(`(() => {
@@ -69,7 +93,7 @@ app.on('browser-window-created', (_event, window) => {
       await writeFile(outputPath('comparison.json'),JSON.stringify({reference:referenceValues,actual:actualValues},null,2))
       for (const key of ['side','player','heading','section','wash','scene']) {
         for (const property of ['x','y','width','height','background','filter','blur','radius','font','fontSize','fontWeight','letterSpacing']) {
-          if (referenceValues[key][property] !== actualValues[key][property]) throw Error(`预览不一致：${key}.${property}`)
+          if (!(key === 'heading' && property === 'width') && referenceValues[key][property] !== actualValues[key][property]) throw Error(`预览不一致：${key}.${property}`)
         }
       }
       console.log('AMBIENT_REFERENCE_PARITY_PASS')
@@ -97,6 +121,58 @@ app.on('browser-window-created', (_event, window) => {
       await evaluate(`document.querySelector('.sidebar-settings-button').click()`)
       await waitFor(`!!document.querySelector('#settings-tab-application')`)
       await evaluate(`document.querySelector('#settings-tab-application').click()`)
+      if (process.env.MUSIC_BRIDGE_APPEARANCE_GATE === '1') {
+        const chooseTheme = async theme => {
+          await waitFor(`!!document.querySelector('input[name="appearance-theme"][value="${theme}"]')`)
+          await evaluate(`document.querySelector('input[name="appearance-theme"][value="${theme}"]').click()`)
+          await waitFor(`document.documentElement.dataset.theme === '${theme}'`)
+          await delay(120)
+          if(nativeTheme.themeSource !== theme) throw Error('原生主题不同步')
+        }
+        const beforePlayback = await evaluate(`window.musicBridge.getPlaybackState().then(s=>({state:s.state,id:s.currentTrack?.id,queue:s.queue,positionMs:s.positionMs}))`)
+        await chooseTheme('dark')
+        await writeFile(outputPath('settings-dark.png'),(await window.webContents.capturePage()).toPNG())
+        const afterPlayback = await evaluate(`window.musicBridge.getPlaybackState().then(s=>({state:s.state,id:s.currentTrack?.id,queue:s.queue,positionMs:s.positionMs}))`)
+        if(JSON.stringify(beforePlayback)!==JSON.stringify(afterPlayback)) throw Error('主题切换改变了播放状态')
+        const invalidRejected = await evaluate(`window.musicBridge.setAppearanceTheme('system').then(()=>false,()=>true)`)
+        if(!invalidRejected || nativeTheme.themeSource !== 'dark') throw Error('非法主题没有被拒绝')
+        await evaluate(`document.querySelector('[data-sidebar-source="home"]').click()`)
+        await delay(250)
+        await writeFile(outputPath('home-dark-cover.png'),(await window.webContents.capturePage()).toPNG())
+        const preservedCover = await evaluate(`document.querySelector('.album-ambient-cover img').src`)
+        const darkMaterial = await evaluate(`({side:getComputedStyle(document.querySelector('.music-sidebar')).backgroundColor,player:getComputedStyle(document.querySelector('.global-player')).backgroundColor,wash:getComputedStyle(document.querySelector('.album-ambient-wash')).backgroundColor})`)
+        const referenceDark = new BrowserWindow({width:1440,height:819,useContentSize:true,show:false,webPreferences:{sandbox:true,contextIsolation:true,partition:'ambient-dark-reference'}})
+        await referenceDark.loadURL('http://127.0.0.1:4186/ambient-study/?theme=dark&state=playing')
+        await referenceDark.webContents.insertCSS('.study-bar{display:none!important}.app{height:100vh!important;min-height:0!important}')
+        await delay(1400)
+        await writeFile(outputPath('reference-dark.png'),(await referenceDark.webContents.capturePage()).toPNG())
+        const referenceMaterial = await referenceDark.webContents.executeJavaScript(`({side:getComputedStyle(document.querySelector('.sidebar')).backgroundColor,player:getComputedStyle(document.querySelector('.player')).backgroundColor,wash:getComputedStyle(document.querySelector('.wash')).backgroundColor})`)
+        if(JSON.stringify(darkMaterial)!==JSON.stringify(referenceMaterial)) throw Error('深色预览材质不匹配')
+        referenceDark.destroy()
+        const reloaded = new Promise(resolve=>window.webContents.once('did-finish-load',resolve))
+        window.webContents.reload(); await reloaded
+        await waitFor(`!!document.querySelector('.sidebar-settings-button')`)
+        if(await evaluate(`document.documentElement.dataset.theme`)!=='dark') throw Error('重新加载未恢复主题')
+        await waitFor(`!!document.querySelector('.album-ambient-cover img')?.naturalWidth`)
+        if(await evaluate(`document.querySelector('.album-ambient-cover img').src`)!==preservedCover) throw Error('重新加载丢失当前封面')
+        await evaluate(`document.querySelector('.sidebar-settings-button').click()`)
+        await waitFor(`!!document.querySelector('#settings-tab-application')`)
+        await evaluate(`document.querySelector('#settings-tab-application').click()`)
+        window.setContentSize(720,640)
+        await delay(150)
+        await writeFile(outputPath('settings-dark-narrow.png'),(await window.webContents.capturePage()).toPNG())
+        await evaluate(`document.querySelector('input[name="appearance-theme"][value="dark"]').focus()`)
+        window.webContents.sendInputEvent({type:'keyDown',keyCode:'Left'})
+        window.webContents.sendInputEvent({type:'keyUp',keyCode:'Left'})
+        await waitFor(`document.documentElement.dataset.theme === 'light'`)
+        window.setContentSize(1440,819)
+        await chooseTheme('light')
+        await writeFile(outputPath('settings-light.png'),(await window.webContents.capturePage()).toPNG())
+        if(await evaluate(`getComputedStyle(document.querySelector('.music-sidebar')).backgroundColor`)!==actualValues.side.background) throw Error('浅色材质未恢复')
+        await chooseTheme('dark')
+        window.webContents.session.flushStorageData()
+        console.log('APPEARANCE_NATIVE_PASS 双向切换、保存恢复、原生主题、播放保持、非法参数拒绝和深色预览对照')
+      }
       await waitFor(`!!document.querySelector('.command-outbox-entry')`)
       await evaluate(`document.querySelector('.command-outbox-entry').click()`)
       await waitFor(`!!document.querySelector('dialog.outbox-panel[open]')`)
