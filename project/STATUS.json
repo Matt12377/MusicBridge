@@ -1,5 +1,31 @@
 {
   "schemaVersion": 1,
+  "openLibraryPlayer": {
+    "branch": "codex/v3-ui-redesign",
+    "baseCommit": "001aa26dd0991d09f485e31c30320ae9073bfbf4",
+    "implementationCommit": "70c4babc339f90645b1986a843a54f99a97605aa",
+    "state": "open-library-player-focused-native-pass-owner-acceptance-pending",
+    "focusedTests": {
+      "desktopPassed": 53,
+      "corePassed": 115,
+      "failed": 0,
+      "exitCode": 0
+    },
+    "desktopTypecheck": "pass",
+    "coreTypecheck": "pass",
+    "productionBuild": "pass",
+    "controlPlane": "pass",
+    "boundaries": "pass",
+    "nativeVisual": "light-dark-1980-1440-720-controls-fit-settings-reachable-cover-container-removed-pass",
+    "nativeInteraction": "synthetic-seek-65000ms-volume-39-pause-quality-list-end-pass",
+    "realDeviceVolume": "not-validated",
+    "metadataPolicy": "source-reported-format-bitrate-only-unknown-when-absent",
+    "fullSuite": "not-run-focused-scope",
+    "ownerAcceptance": "real-library-visual-and-device-feedback-pending",
+    "push": "not-performed",
+    "remoteObservedCommit": "fffc12783dc05ea2f2521288685f6cce3c6caf2a",
+    "report": "reports/V3_OPEN_LIBRARY_PLAYER.md"
+  },
   "appearanceTheme": {
     "branch": "codex/v3-ui-redesign",
     "baseCommit": "501a37ee28245d41f86301232166d41382559741",
