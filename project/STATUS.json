@@ -2075,6 +2075,15 @@
       "build": "pass",
       "nativeGate": "pass",
       "visualCheck": "已查看深色 Electron 截图，标题下直接显示网易云歌单，无来源导航行"
+    },
+    "buttonAndBottomAdjustment": {
+      "baseCommit": "0ad508df15883da9ab92579a1752516ea9c93809",
+      "implementationCommit": "1bfc664280ccd775ea5181d60fe675b2affeb0aa",
+      "focusedTestsPassed": 5,
+      "build": "pass",
+      "nativeGate": "pass",
+      "settingsBottomGapPx": 16,
+      "visualCheck": "已查看 Electron 深色最终截图，歌单使用导航行，设置贴底且未被播放器遮挡"
     }
   }
 }

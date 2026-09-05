@@ -19,3 +19,9 @@
 按用户最新要求，将分区命名为“网易云歌单”，移除 Roon 与重复网易云来源行，只显示网易云歌单列表，保留折叠。删除不再使用的来源组件。Base `cec2743a327865864a6beb60cd657e5514b5a817`，实现 `57531562637d8303df072191a52bc9e0976751ed`。
 
 5 项定向测试、生产构建、diff 检查通过。首次原生验证在旧主页定位选择器处中止；修正为按区域名称定位后重跑，得到完整 `OPEN_LIBRARY_NATIVE_PASS`。已查看最终 Electron 截图，目录 `/Volumes/LifeWeave/Developer/CommandLine/tmp/musicbridge-netease-sidebar-ui/`。本轮未重复类型检查；未操作真实账号、未重启用户实例、未 push。报告 HEAD 为下一基线。
+
+## 歌单导航行与设置贴底
+
+根据最新反馈，分区标题改为“歌单”，使用与主导航相同的行高、图标、文字与间距，保留右侧折叠箭头；内容仍仅为网易云歌单。设置原来受播放器预留底边距影响，现改为距窗口底边 16px。播放栏保持居中，窄窗口按侧栏宽度收窄以避免遮挡设置。
+
+Base `0ad508df15883da9ab92579a1752516ea9c93809`，实现 `1bfc664280ccd775ea5181d60fe675b2affeb0aa`。5 项定向测试、生产构建、原生 Gate、diff 检查通过。浅深色 1980/1440/720 宽度均测得设置底边距 16px、可点击、播放器控件无重叠。已查看最终截图，证据 `/Volumes/LifeWeave/Developer/CommandLine/tmp/musicbridge-sidebar-bottom-ui/`。隔离合成数据；未重启用户实例、未做真实设备验收、未 push。报告 HEAD 为下一基线。
