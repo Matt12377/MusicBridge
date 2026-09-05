@@ -21,7 +21,7 @@
 :root .track-album { display: none; }
 :root .track-source-badge { display: inline; margin-left: 8px; padding: 0; border: 0; background: transparent; font-size: inherit; }
 :root .roon-track-row { grid-template-columns: 24px 64px minmax(0,1fr) 60px 72px; height: 84px; gap: 14px; padding: 10px 4px; border: 0; border-radius: 6px; }
-:root .global-player { width: calc(100% - 48px); max-width: 1580px; height: 126px; min-height: 126px; padding: 14px 20px 10px; gap: 8px 20px; grid-template-columns: minmax(0,1fr) 190px minmax(340px,1fr); grid-template-rows: 72px 20px; }
+:root .global-player { width: calc(100% - 48px); max-width: 1120px; height: 126px; min-height: 126px; padding: 14px 20px 10px; gap: 8px 20px; grid-template-columns: minmax(0,1fr) 190px minmax(340px,1fr); grid-template-rows: 72px 20px; }
 :root .player-art { flex: 0 0 68px; width: 68px; height: 68px; border-radius: 9px; }
 :root .player-track { gap: 14px; }
 :root .player-track strong { font-size: 18px; line-height: 24px; }
