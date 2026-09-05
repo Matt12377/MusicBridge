@@ -89,7 +89,7 @@ function entryAlbum(item: PlaybackQueueItem): string {
           <div v-if="isQueueVirtualized" aria-hidden="true" :style="{ height: `${queueWindow.topSpacer}px` }"></div>
           <button v-for="entry in visibleUpcomingEntries" :key="`${entry.item.trackId}-${entry.index}`" type="button" class="queue-row" @click="emit('play-queue-item', entry.item, entry.index)">
             <span>{{ String(entry.index + 1).padStart(2, '0') }}</span><TrackArtwork class="queue-row-art" :track="entry.item.track" :alt="`${entryTitle(entry.item)} 封面`" />
-            <span class="queue-row-copy"><strong>{{ entryTitle(entry.item) }}</strong><small>{{ entryArtists(entry.item) }} · {{ entryAlbum(entry.item) }}</small><small>{{ qualityDetails(entry.item.track ?? {}) }}</small></span>
+            <span class="queue-row-copy"><strong>{{ entryTitle(entry.item) }}</strong><small>{{ entryArtists(entry.item) }} · {{ entryAlbum(entry.item) }}</small><small v-if="entry.item.track?.artworkReference">{{ qualityDetails(entry.item.track ?? {}) }}</small></span>
           </button>
           <div v-if="isQueueVirtualized" aria-hidden="true" :style="{ height: `${queueWindow.bottomSpacer}px` }"></div>
         </div>

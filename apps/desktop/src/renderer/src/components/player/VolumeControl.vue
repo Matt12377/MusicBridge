@@ -2,41 +2,61 @@
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import type { VolumeOutput, VolumeSnapshot } from '@music-bridge/contracts'
 import SidebarIcon from '../sidebar/SidebarIcon.vue'
+import { createLiveVolume } from './liveVolume.js'
 const props = defineProps<{zoneId?: string}>()
-const open = ref(false), pending = ref(false), editing = ref(false)
+const open = ref(false), pending = ref(false)
 const root = ref<HTMLElement | null>(null), trigger = ref<HTMLButtonElement | null>(null)
 const state = ref<VolumeSnapshot>({zoneId:'',outputs:[]})
+const values=ref<Record<string,number>>({})
+const controllers=new Map<string,ReturnType<typeof createLiveVolume>>()
 const error = ref('')
-let generation = 0
+let generation = 0, readRevision=0
 let timer: ReturnType<typeof setInterval> | undefined
+function reset(){generation++;readRevision++;controllers.forEach(c=>c.dispose());controllers.clear();values.value={};state.value={zoneId:'',outputs:[]};pending.value=false}
 async function refresh() {
- const current = generation
- if (!props.zoneId || pending.value || editing.value) return
+ const current = generation, read=++readRevision
+ if (!props.zoneId) return
  try {
   const result = await window.musicBridge.getVolume()
-  if (current === generation && !pending.value && !editing.value && result.zoneId === props.zoneId) state.value = result
+  if(current!==generation || read!==readRevision || result.zoneId!==props.zoneId)return
+  state.value=result
+  for(const output of result.outputs){
+   if(output.value===undefined || output.type==='incremental')continue
+   let controller=controllers.get(output.outputId)
+   if(!controller){
+    const zoneId=result.zoneId, outputId=output.outputId
+    values.value[outputId]=output.value
+    controller=createLiveVolume({initial:output.value,step:output.step ?? 1,now:()=>performance.now(),schedule:(fn,ms)=>window.setTimeout(fn,ms),cancel:id=>clearTimeout(id),
+     send:value=>window.musicBridge.setVolume({zoneId,outputId,how:'absolute',value}),
+     show:value=>{values.value[outputId]=value},error:()=>{error.value='设备未确认音量，已恢复设备读数'}
+    })
+    controllers.set(outputId,controller)
+   }
+   controller.observe(output.value)
+  }
+  for(const [id,c] of controllers)if(!result.outputs.some(o=>o.outputId===id)){c.dispose();controllers.delete(id);delete values.value[id]}
  } catch { if (current === generation) error.value = '暂时无法读取设备音量' }
 }
-watch(() => [open.value, props.zoneId], () => {
- generation++; state.value = {zoneId:'',outputs:[]}; error.value = ''; pending.value = false; editing.value = false
- if (timer) clearInterval(timer)
- if (open.value) { void refresh(); timer = setInterval(() => void refresh(), 1500) }
+watch(() => props.zoneId,()=>{reset();error.value='';if(!props.zoneId)open.value=false;else if(open.value)void refresh()})
+watch(open,()=>{
+ if(timer)clearInterval(timer)
+ if(open.value){error.value='';void refresh();timer=setInterval(()=>void refresh(),500)}
+ else controllers.forEach(c=>c.commit())
 })
-async function change(output: VolumeOutput, value: number) {
- editing.value = false
- if (!props.zoneId || state.value.zoneId !== props.zoneId || pending.value) return
- const current = ++generation
- pending.value = true; error.value = ''
- try {
-  const result = await window.musicBridge.setVolume({zoneId:props.zoneId,outputId:output.outputId,how:output.type === 'incremental' ? 'relative' : 'absolute',value})
-  if (current === generation && result.zoneId === props.zoneId) state.value = result
- } catch { if (current === generation) error.value = '音量未调节成功，请检查设备连接' }
- finally { if (current === generation) { pending.value = false; void refresh() } }
+function preview(output:VolumeOutput,event:Event){error.value='';controllers.get(output.outputId)?.input(Number((event.target as HTMLInputElement).value))}
+function commit(output:VolumeOutput){controllers.get(output.outputId)?.commit()}
+async function change(output:VolumeOutput,value:number){
+ if(!props.zoneId || state.value.zoneId!==props.zoneId || pending.value)return
+ const current=generation
+ pending.value=true;error.value=''
+ try {await window.musicBridge.setVolume({zoneId:props.zoneId,outputId:output.outputId,how:'relative',value})}
+ catch {if(current===generation)error.value='音量未调节成功，请检查设备连接'}
+ finally {if(current===generation){pending.value=false;void refresh()}}
 }
 function close() { open.value = false; trigger.value?.focus() }
 function outside(e: MouseEvent) { if (e.target instanceof Node && !root.value?.contains(e.target)) open.value = false }
 onMounted(() => document.addEventListener('click',outside))
-onUnmounted(() => { generation++; if (timer) clearInterval(timer); document.removeEventListener('click',outside) })
+onUnmounted(() => { reset(); if (timer) clearInterval(timer); document.removeEventListener('click',outside) })
 </script>
 <template>
  <div ref="root" class="player-volume" @keydown.esc.stop="close">
@@ -49,7 +69,7 @@ onUnmounted(() => { generation++; if (timer) clearInterval(timer); document.remo
    <div v-for="output in state.outputs" :key="output.outputId" class="volume-output">
     <span>{{ output.name }}</span>
     <div v-if="output.type === 'incremental'" class="volume-step-controls"><button :disabled="pending" :aria-label="`降低 ${output.name} 音量`" @click="change(output,-1)">−</button><button :disabled="pending" :aria-label="`提高 ${output.name} 音量`" @click="change(output,1)">＋</button></div>
-    <template v-else><input type="range" :aria-label="`${output.name} 音量`" :min="output.min" :max="output.max" :step="output.step" :value="output.value" :disabled="pending" @input="editing = true" @pointercancel="editing = false" @blur="editing = false" @change="change(output,Number(($event.target as HTMLInputElement).value))" /><small>{{ output.muted ? '已静音 · ' : '' }}{{ output.value }}{{ output.type === 'db' ? ' dB' : '' }}</small></template>
+    <template v-else><input type="range" :aria-label="`${output.name} 音量`" :min="output.min" :max="output.max" :step="output.step" :value="values[output.outputId] ?? output.value" @input="preview(output,$event)" @pointercancel="commit(output)" @blur="commit(output)" @change="commit(output)" /><small>{{ output.muted ? '已静音 · ' : '' }}{{ values[output.outputId] ?? output.value }}{{ output.type === 'db' ? ' dB' : '' }}</small></template>
    </div>
    <button type="button" class="text-button" @click="close">关闭</button>
   </div>

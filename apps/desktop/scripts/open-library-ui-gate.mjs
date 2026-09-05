@@ -42,9 +42,9 @@ app.on('browser-window-created', (_event, window) => {
             const player = document.querySelector('.global-player'), r = player.getBoundingClientRect();
             const settings=document.querySelector('.sidebar-settings-button'), sr=settings.getBoundingClientRect();
             const controls = [...player.querySelectorAll('button,input')].map(e=>e.getBoundingClientRect());
-            return {width:${width}, settingsReachable:settings.contains(document.elementFromPoint(sr.left+sr.width/2,sr.top+sr.height/2)), fits:controls.every(b=>b.left >= r.left && b.right <= r.right+1 && b.top>=r.top && b.bottom<=r.bottom+1), overlaps: controls.some((a,i)=>controls.some((b,j)=>j>i&&Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1)), qualityHeight:document.querySelector('.player-quality-button').offsetHeight,zoneHeight:document.querySelector('.player-zone-button').offsetHeight};
+            return {width:${width}, settingsReachable:settings.contains(document.elementFromPoint(sr.left+sr.width/2,sr.top+sr.height/2)), fits:controls.every(b=>b.left >= r.left && b.right <= r.right+1 && b.top>=r.top && b.bottom<=r.bottom+1), overlaps: controls.some((a,i)=>controls.some((b,j)=>j>i&&Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1)), timelineWidth:document.querySelector('.player-timeline').offsetWidth,timelineCentered:Math.abs(document.querySelector('.player-timeline').getBoundingClientRect().left+document.querySelector('.player-timeline').offsetWidth/2-innerWidth/2)<1,qualityHeight:document.querySelector('.player-quality-button').offsetHeight,zoneHeight:document.querySelector('.player-zone-button').offsetHeight};
           })()`)
-          if (!layout.settingsReachable || !layout.fits || layout.overlaps || layout.qualityHeight !== layout.zoneHeight) throw Error(JSON.stringify(layout))
+          if (layout.timelineWidth>480 || !layout.timelineCentered || !layout.settingsReachable || !layout.fits || layout.overlaps || layout.qualityHeight !== layout.zoneHeight) throw Error(JSON.stringify(layout))
           console.log('OPEN_LAYOUT_PASS',value,JSON.stringify(layout)); await capture('home-'+value+'-'+width)
         }
       }
@@ -60,7 +60,7 @@ app.on('browser-window-created', (_event, window) => {
 
       await waitFor(`!!document.querySelector('.track-row')`)
       const list = await evaluate(`(() => { const row=document.querySelector('.track-row'), art=row.querySelector('.track-art'); return {row:row.offsetHeight,art:art.offsetWidth,background:getComputedStyle(document.querySelector('.track-table-wrap')).backgroundColor,meta:!!row.querySelector('.track-quality-details')}; })()`)
-      if(list.row!==84 || list.art!==64 || list.background!=='rgba(0, 0, 0, 0)' || !list.meta) throw Error(JSON.stringify(list))
+      if(list.row!==84 || list.art!==64 || list.background!=='rgba(0, 0, 0, 0)' || list.meta) throw Error(JSON.stringify(list))
       await capture('list-dark')
       // 合成库有 120 首；等待每次触底的分页结束，最后再定位到真正末尾。
       for (let page=0;page<8;page++) {
@@ -80,7 +80,11 @@ app.on('browser-window-created', (_event, window) => {
       await waitFor(`!!document.querySelector('.now-playing-back')`)
       await evaluate(`document.querySelector('.now-playing-back').click()`)
       await waitFor(`!document.querySelector('.player-volume button').disabled`)
+      const motion=await evaluate(`new Promise(resolve=>{const values=[];const started=performance.now();function tick(){values.push(Number(document.querySelector('.player-timeline input').value));if(performance.now()-started<1800)requestAnimationFrame(tick);else resolve({count:values.length,backwards:values.some((v,i)=>i>0&&v<values[i-1]),advance:values.at(-1)-values[0]})}tick()})`)
+      if(motion.backwards || motion.advance<1500)throw Error('进度不连续：'+JSON.stringify(motion))
+      console.log('PLAYER_MOTION_PASS',JSON.stringify(motion))
       await evaluate(`document.querySelector('.player-play-button').click()`)
+
       await waitFor(`document.querySelector('.player-play-button').getAttribute('aria-label')==='恢复播放'`)
       await waitFor(`!document.querySelector('.player-timeline input').disabled`)
       await evaluate(`(() => { const e=document.querySelector('.player-timeline input');e.value=65000;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true})); })()`)
@@ -89,8 +93,14 @@ app.on('browser-window-created', (_event, window) => {
       if(position!==65000) throw Error('进度没有写入播放接口')
       await evaluate(`document.querySelector('.player-volume button').click()`)
       await waitFor(`!!document.querySelector('.volume-output input')`)
-      await evaluate(`(() => {const e=document.querySelector('.volume-output input');e.value=39;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));})()`)
+      await evaluate(`(() => {const e=document.querySelector('.volume-output input');e.value=39;e.dispatchEvent(new Event('input',{bubbles:true}));})()`)
+      await waitFor(`window.musicBridge.getVolume().then(s=>s.outputs[0]?.value===39)`)
+      if(await evaluate(`document.querySelector('.volume-output input').disabled`))throw Error('拖动时音量滑块被禁用')
+      await evaluate(`document.querySelector('.volume-output input').dispatchEvent(new Event('change',{bubbles:true}))`)
       await waitFor(`document.querySelector('.volume-output small').textContent==='39'`)
+      await delay(650)
+      if(await evaluate(`document.querySelector('.volume-output input').value`)!=='39')throw Error('松手后音量回闪')
+
       const volume=await evaluate(`window.musicBridge.getVolume()`)
       if(volume.outputs[0]?.value!==39) throw Error('音量没有写入设备接口')
       await capture('player-volume-dark')

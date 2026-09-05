@@ -20,7 +20,7 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  seek: [positionMs: number]
+  seek: [positionMs: number, settle: (positionMs?: number) => void]
   previous: []
   'toggle-playback': []
   next: []
@@ -65,6 +65,6 @@ function transportLabel(state: PlaybackSnapshot['state'] | undefined): string {
       <VolumeControl :zone-id="selectedZone?.zoneId" />
       <button type="button" class="player-inspector-button" aria-label="打开播放队列" @click="emit('open-queue')"><SidebarIcon name="list" :size="16" /><span class="visually-hidden">队列</span></button>
     </div>
-    <PlayerProgress :snapshot="playbackState" :allowed="selectedZone?.seekAllowed === true" @seek="emit('seek', $event)" />
+    <PlayerProgress :snapshot="playbackState" :allowed="selectedZone?.seekAllowed === true" @seek="(position, settle) => emit('seek', position, settle)" />
   </footer>
 </template>

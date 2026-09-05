@@ -2337,7 +2337,7 @@ async function previousTrack(): Promise<void> {
   }
 }
 
-async function seekPlayback(positionMs: number): Promise<void> {
+async function seekPlayback(positionMs: number, settle?: (positionMs?: number) => void): Promise<void> {
   const snapshot = playbackState.value
   const currentTrack = snapshot?.currentTrack
   if (
@@ -2345,11 +2345,13 @@ async function seekPlayback(positionMs: number): Promise<void> {
     !currentTrack ||
     currentTrack.durationMs === undefined ||
     selectedZone.value?.seekAllowed !== true
-  ) return
+  ) { settle?.(); return }
   try {
-    await window.musicBridge.seek(positionMs)
+    const confirmed = await window.musicBridge.seek(Math.round(positionMs))
+    settle?.(confirmed.positionMs)
     await refreshPlayback()
   } catch (error) {
+    settle?.()
     recordActionError(error)
     await refreshPlayback()
   }
