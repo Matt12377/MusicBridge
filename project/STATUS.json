@@ -1,5 +1,30 @@
 {
   "schemaVersion": 1,
+  "appearanceTheme": {
+    "branch": "codex/v3-ui-redesign",
+    "baseCommit": "501a37ee28245d41f86301232166d41382559741",
+    "implementationCommit": "3aa635cd316d5b86ba5e20f4a9a2332f15d321b9",
+    "state": "manual-light-dark-focused-native-and-cold-restart-pass",
+    "settingsPath": "设置 → 应用 → 外观 → 主题",
+    "default": "light",
+    "focusedTests": {
+      "passed": 61,
+      "failed": 0,
+      "exitCode": 0
+    },
+    "typecheck": "pass",
+    "productionBuild": "pass",
+    "controlPlane": "pass",
+    "boundaries": "pass",
+    "nativeVisual": "light-parity-and-dark-preview-pass",
+    "nativeInteraction": "radio-keyboard-toggle-reload-cold-restart-and-playback-retention-pass",
+    "fullSuite": "not-run-per-owner-speed-priority",
+    "realServicesConnectedByThisChange": false,
+    "ownerAcceptance": "real-account-visual-feedback-pending",
+    "push": "not-performed",
+    "remoteObservedCommit": "fffc12783dc05ea2f2521288685f6cce3c6caf2a",
+    "report": "reports/V3_MANUAL_APPEARANCE_THEME.md"
+  },
   "ambientProductionUi": {
     "branch": "codex/v3-ui-redesign",
     "baseCommit": "c17f00f49dd61369d19a0b9634db3ab9de719c4e",

@@ -1,3 +1,5 @@
+> 2026-09-05 最新：新增手动浅深色主题，含原生切换与独立进程恢复验证。见 [主题报告](reports/V3_MANUAL_APPEARANCE_THEME.md)。
+
 > 2026-09-05 最新：已将 Owner 认可的 ambient-study 迁入正式应用。见 [全窗口背景迁移报告](reports/V3_AMBIENT_BACKGROUND_MIGRATION.md)。以下保留上一版视觉迭代证据。
 
 # 樱花毛玻璃正式应用修订验证
