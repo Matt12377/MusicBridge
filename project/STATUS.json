@@ -168,13 +168,16 @@
   },
   "uiBaseline": {
     "branch": "codex/v3-ui-baseline",
-    "sourceCommit": "84f0cf6c90bfb3e413b46c2a07b47f886a397f1e",
-    "state": "source-baseline-frozen-ui-not-started",
+    "sourceCommit": "86d614496dc114bf750229eed1397da3a8e53f7f",
+    "state": "owner-accepted-ui-milestone-baseline",
     "nextBranch": "codex/v3-ui-redesign",
     "nextWorktree": "worktree/v3-ui",
-    "report": "reports/V3_UI_BASELINE.md",
+    "report": "reports/V3_UI_MILESTONE_2026-09-05.md",
     "realPlayback": "remote-audio-restoration-and-owner-verification-pending",
-    "mergeRelease": "not-authorized"
+    "mergeRelease": "ui-baseline-fast-forward-authorized-main-and-release-not-in-scope",
+    "previousBaselineCommit": "87756a7306b67a66af836a5aa52895de06d83ed3",
+    "milestoneTag": "ui-milestone-2026-09-05",
+    "nextPhase": "实物收藏 UI 重制"
   },
   "neteasePlaybackTimeoutDiagnosis": {
     "branch": "codex/netease-playback-timeout-diagnosis",
@@ -2085,5 +2088,23 @@
       "settingsBottomGapPx": 16,
       "visualCheck": "已查看 Electron 深色最终截图，歌单使用导航行，设置贴底且未被播放器遮挡"
     }
+  },
+  "uiMilestone": {
+    "date": "2026-09-05",
+    "state": "owner-accepted-ui-milestone",
+    "acceptedSourceCommit": "86d614496dc114bf750229eed1397da3a8e53f7f",
+    "previousBaselineCommit": "87756a7306b67a66af836a5aa52895de06d83ed3",
+    "baselineBranch": "codex/v3-ui-baseline",
+    "developmentBranch": "codex/v3-ui-redesign",
+    "tag": "ui-milestone-2026-09-05",
+    "report": "reports/V3_UI_MILESTONE_2026-09-05.md",
+    "acceptanceScope": "current-ui-only",
+    "nextPhase": {
+      "name": "实物收藏 UI 重制",
+      "state": "planned-not-started",
+      "workflow": "独立 HTML 预览、用户反馈、正式 UI 迁移",
+      "preserveExistingData": true
+    },
+    "carryover": "真实设备/音频/录音/发布验收与历史边界独立保留"
   }
 }
