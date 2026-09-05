@@ -1879,3 +1879,21 @@ test('shutdown stops discovery, disconnects all and clears adapter state', async
   assert.equal(api.disconnectAllCalls, 1);
   assert.deepEqual(adapter.getState(), { status: 'discovering' });
 });
+
+test('音量使用当前 Zone 输出的官方调用，错误和旧 Zone 不会伪报成功', async () => {
+  const { adapter, api } = await makeReadyHarness();
+  const calls: unknown[] = [];
+  let result: string | false = false;
+  Object.assign(api.core.transport, { change_volume(output: string, how: string, value: number, callback: (error: string | false) => void) { calls.push({output, how, value}); callback(result); } });
+  api.core.transport.emit('Changed', {zones_changed: [{zone_id:'zone-1',outputs:[{output_id:'output-1',volume:{type:'number',min:0,max:100,value:40,step:1}}]}]});
+  assert.equal(adapter.getVolume().outputs[0]?.value,40);
+  await adapter.setVolume({zoneId:'zone-1',outputId:'output-1',how:'absolute',value:39});
+  assert.deepEqual(calls,[{output:'output-1',how:'absolute',value:39}]);
+  // 回执并非新的设备读数，不把请求值覆盖成观测值。
+  assert.equal(adapter.getVolume().outputs[0]?.value,40);
+  await assert.rejects(adapter.setVolume({zoneId:'old',outputId:'output-1',how:'absolute',value:90}));
+  assert.equal(calls.length,1);
+  result = 'NotAllowed';
+  await assert.rejects(adapter.setVolume({zoneId:'zone-1',outputId:'output-1',how:'absolute',value:38}));
+  await adapter.stop();
+});

@@ -3102,6 +3102,7 @@ onUnmounted(() => {
       :roon-status="coreState?.roon ?? 'disconnected'"
       :zone-status="zoneLifecycleStatus"
       :selected-quality="selectedQuality"
+      @seek="seekPlayback"
       @previous="previousTrack"
       @toggle-playback="togglePlayback"
       @next="nextTrack"

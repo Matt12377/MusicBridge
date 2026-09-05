@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { RoonLibraryItem, RoonLibraryPage } from '@music-bridge/contracts'
 import RoonAlbumGrid from './RoonAlbumGrid.vue'
+import { qualityDetails } from './player/details.js'
 import RoonArtwork from './RoonArtwork.vue'
 
 const props = withDefaults(defineProps<{
@@ -72,7 +73,7 @@ function formatDuration(durationMs: number | undefined): string {
           <div class="roon-track-table-header" role="row"><span>#</span><span>歌曲</span><span>时长</span><span class="visually-hidden">操作</span></div>
           <div v-for="(track, index) in tracks" :key="track.reference" class="roon-track-row" role="row" tabindex="0" @dblclick="emit('play', track)" @keydown.enter="emit('play', track)">
             <span class="roon-track-index">{{ track.trackNumber ?? index + 1 }}</span>
-            <span class="roon-track-copy"><strong>{{ track.title }}</strong><small>{{ track.artist || track.subtitle || track.album || '—' }}</small></span>
+            <RoonArtwork class="roon-track-art" :reference="track.artworkReference" :alt="`${track.title} 封面`" :width="128" :height="128" /><span class="roon-track-copy"><strong>{{ track.title }}</strong><small>{{ track.artist || track.subtitle || track.album || '—' }}</small><span class="track-quality-details">{{ qualityDetails(track) }} · Roon<span v-if="track.album"> · {{ track.album }}</span></span></span>
             <span class="roon-track-duration">{{ formatDuration(track.durationMs) }}</span>
             <span class="row-actions"><button type="button" class="row-action" :aria-label="`播放 ${track.title}`" @click.stop="emit('play', track)">▶</button><button type="button" class="row-action" :aria-label="`将 ${track.title} 加入队列`" @click.stop="emit('queue', track)">＋</button></span>
           </div>

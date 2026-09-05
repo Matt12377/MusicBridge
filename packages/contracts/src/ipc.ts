@@ -1,3 +1,4 @@
+import type { VolumeRequest, VolumeSnapshot } from './volume.js';
 import type { GetMasterArtworkRequest, SaveMasterArtworkRequest, MasterArtworkResult, MasterArtworkVersion } from './recording-artwork.js';
 import type { ListRecordingPrintsRequest, RequestRecordingPrintRequest, RetryRecordingPrintRequest, GetRecordingPrintRequest, ExportRecordingPrintRequest, RecordingPrintsPage, RecordingPrintJob, RecordingPrintResult, ClaimRecordingPrintRequest, CompleteRecordingPrintRequest, FailRecordingPrintRequest, RecordingPrintLease, RecordingPrintPdfResult } from './recording-prints.js';
 import type { RecordingReplicaStatus, InspectRecordingReplicaRequest, RecordingReplicaReadIdRequest, StartRecordingReplicaRequest, RecordingReplicaRunIdRequest, RecordingReplicaInspection, RecordingReplicaReadCancellation, RecordingReplicaRun } from './recording-replica.js';
@@ -301,6 +302,8 @@ export const IPC_COMMANDS = [
   'playback.pause',
   'playback.resume',
   'playback.seek',
+  'roon.volume.get',
+  'roon.volume.set',
   'playback.stop',
   'playback.next',
   'playback.previous',
@@ -597,6 +600,8 @@ export interface IpcCommandPayloads {
   'playback.pause': Record<string, never>;
   'playback.resume': Record<string, never>;
   'playback.seek': { positionMs: number };
+  'roon.volume.get': Record<string, never>;
+  'roon.volume.set': VolumeRequest;
   'playback.stop': Record<string, never>;
   'playback.next': Record<string, never>;
   'playback.previous': Record<string, never>;
@@ -844,6 +849,8 @@ export interface IpcCommandResults {
   'playback.pause': PlaybackSnapshot;
   'playback.resume': PlaybackSnapshot;
   'playback.seek': { positionMs: number };
+  'roon.volume.get': VolumeSnapshot;
+  'roon.volume.set': VolumeSnapshot;
   'playback.stop': PlaybackSnapshot;
   'playback.next': PlaybackSnapshot;
   'playback.previous': PlaybackSnapshot;

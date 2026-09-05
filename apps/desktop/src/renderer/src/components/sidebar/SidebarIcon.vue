@@ -4,7 +4,7 @@ const icons = {
   'chevron-down': 'chevron-down', 'chevron-left': 'chevron-left', 'chevron-right': 'chevron-right',
   grid: 'grid', heart: 'heart', home: 'house-door', list: 'list-ul', more: 'three-dots',
   'music-note': 'music-note-beamed', next: 'skip-end-fill', pause: 'pause-fill', play: 'play-fill',
-  previous: 'skip-start-fill', search: 'search', speaker: 'speaker', user: 'person',
+  previous: 'skip-start-fill', search: 'search', volume: 'volume-up', speaker: 'speaker', user: 'person',
   cassette: 'cassette', record: 'record-circle', settings: 'sliders', refresh: 'arrow-clockwise',
   vinyl: 'vinyl', people: 'people', collection: 'collection', bookmark: 'bookmark-heart',
   'music-list': 'music-note-list',

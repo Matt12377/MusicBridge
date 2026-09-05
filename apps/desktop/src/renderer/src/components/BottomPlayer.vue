@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { type PlaybackQualityPreference, type PlaybackSnapshot, type PublicRoonZone, type TrackSummary } from '@music-bridge/contracts'
+import PlayerProgress from './player/PlayerProgress.vue'
+import VolumeControl from './player/VolumeControl.vue'
+import { qualityDetails } from './player/details.js'
 import SidebarIcon from './sidebar/SidebarIcon.vue'
 import QualityControl from './player/QualityControl.vue'
 import ZoneControl from './player/ZoneControl.vue'
@@ -17,6 +20,7 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
+  seek: [positionMs: number]
   previous: []
   'toggle-playback': []
   next: []
@@ -40,7 +44,7 @@ function transportLabel(state: PlaybackSnapshot['state'] | undefined): string {
   <footer class="global-player" aria-label="全局播放器">
     <button type="button" class="player-track player-track-button" aria-label="打开正在播放" @click="emit('open-now-playing')">
       <TrackArtwork class="player-art" :track="currentTrack" alt="" eager />
-      <div><strong>{{ currentTrack?.title ?? '选择内容开始播放' }}</strong><small>{{ currentTrack ? currentTrack.artists.join('、') : 'Music Bridge for Roon' }}</small></div>
+      <div class="player-track-copy"><strong>{{ currentTrack?.title ?? '选择内容开始播放' }}</strong><small>{{ currentTrack ? currentTrack.artists.join('、') : 'Music Bridge for Roon' }}</small><span v-if="currentTrack" class="player-quality-detail" aria-label="当前实际音质">{{ qualityDetails(playbackState ?? {}) }}</span></div>
     </button>
 
     <div class="player-controls" aria-label="播放控制">
@@ -56,9 +60,11 @@ function transportLabel(state: PlaybackSnapshot['state'] | undefined): string {
     </div>
 
     <div class="player-meta">
-      <QualityControl :selected-quality="selectedQuality" @update:selected-quality="emit('update:selected-quality', $event)" />
+      <QualityControl :actual-quality="currentTrack ? (playbackState?.actualQuality ?? 'unknown') : undefined" :selected-quality="selectedQuality" @update:selected-quality="emit('update:selected-quality', $event)" />
       <ZoneControl :zones="zones" :selected-zone="selectedZone" :roon-status="roonStatus" :zone-status="zoneStatus" @select="emit('select-zone', $event)" />
+      <VolumeControl :zone-id="selectedZone?.zoneId" />
       <button type="button" class="player-inspector-button" aria-label="打开播放队列" @click="emit('open-queue')"><SidebarIcon name="list" :size="16" /><span class="visually-hidden">队列</span></button>
     </div>
+    <PlayerProgress :snapshot="playbackState" :allowed="selectedZone?.seekAllowed === true" @seek="emit('seek', $event)" />
   </footer>
 </template>

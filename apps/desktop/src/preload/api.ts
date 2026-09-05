@@ -1,3 +1,4 @@
+import type { VolumeRequest, VolumeSnapshot } from '@music-bridge/contracts'
 import type { RecordingPrintsPublicApi } from '@music-bridge/contracts'
 import type { RecordingReplicaPublicApi } from '@music-bridge/contracts'
 import type { RecordingRecordsPublicApi } from '@music-bridge/contracts'
@@ -68,6 +69,8 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
 }
 
 export interface MusicBridgePublicApi extends RecordingPrintsPublicApi, RecordingReplicaPublicApi, RecordingRecordsPublicApi, RecordingAttemptsPublicApi, RecordingOutputPublicApi, RecordingPlansPublicApi, CollectionProgressPublicApi, SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
+  getVolume: () => Promise<VolumeSnapshot>
+  setVolume: (request: VolumeRequest) => Promise<VolumeSnapshot>
   setAppearanceTheme: (theme: 'light' | 'dark') => Promise<void>
   getAppInfo: () => Promise<AppInfo>
   getCoreHealth: () => Promise<PublicBridgeState>
@@ -143,6 +146,8 @@ export interface MusicBridgePublicApi extends RecordingPrintsPublicApi, Recordin
 
 export const PUBLIC_API_KEYS = [
   'setAppearanceTheme',
+  'getVolume',
+  'setVolume',
   'getMasterArtwork',
   'pickMasterArtwork',
   'saveMasterArtwork',
@@ -555,11 +560,13 @@ export function createPreloadApi(
   recordingReplicaApi?: RecordingReplicaPublicApi,
   recordingPrintsApi?: RecordingPrintsPublicApi,
   setAppearanceTheme: (theme: 'light' | 'dark') => Promise<void> = async () => {},
+  volumeApi?: {getVolume: () => Promise<VolumeSnapshot>; setVolume: (request: VolumeRequest) => Promise<VolumeSnapshot>},
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   const outputUnavailable = async (): Promise<never> => { throw new Error('输出核验服务暂时不可用；未访问设备。') }
   return Object.freeze({
     setAppearanceTheme,
+    ...(volumeApi ?? {getVolume: async () => ({zoneId: '', outputs: []}), setVolume: collectionUnavailable}),
     ...(recordingPrintsApi ?? { getMasterArtwork: collectionUnavailable, pickMasterArtwork: collectionUnavailable, saveMasterArtwork: collectionUnavailable, listRecordingPrints: collectionUnavailable, requestRecordingPrint: collectionUnavailable, retryRecordingPrint: collectionUnavailable, getRecordingPrint: collectionUnavailable, exportRecordingPrint: collectionUnavailable }),
     ...(recordingReplicaApi ?? { getRecordingReplicaStatus: collectionUnavailable, inspectRecordingReplica: collectionUnavailable, cancelRecordingReplicaRead: collectionUnavailable, startRecordingReplica: collectionUnavailable, getRecordingReplicaRun: collectionUnavailable, stopRecordingReplica: collectionUnavailable }),
     ...(recordingRecordsApi ?? { listRecordingRecords: collectionUnavailable, getRecordingRecord: collectionUnavailable, getRecordingRecordVisual: collectionUnavailable, getPhysicalRecordingHistory: collectionUnavailable, previewPhysicalRecordingDisposition: collectionUnavailable, applyPhysicalRecordingDisposition: collectionUnavailable }),

@@ -1,3 +1,4 @@
+import type { VolumeRequest, VolumeSnapshot } from '@music-bridge/contracts';
 import { createRecordingPrintCoordinator, type RecordingPrintCoordinator } from './recording/print-coordinator.js';
 import { createRecordingReplicaInput } from './recording/replica-input.js';
 import { createRecordingReplicaCoordinator, type RecordingReplicaCoordinator } from './recording/replica-coordinator.js';
@@ -179,6 +180,8 @@ export interface CoreRuntime {
   ): Promise<PlaybackSnapshot>;
   playbackPause(): Promise<PlaybackSnapshot>;
   playbackResume(): Promise<PlaybackSnapshot>;
+  getVolume(): VolumeSnapshot;
+  setVolume(request: VolumeRequest): Promise<VolumeSnapshot>;
   seekPlayback(positionMs: number): Promise<{ positionMs: number }>;
   playbackStop(): Promise<PlaybackSnapshot>;
   playbackNext(): Promise<PlaybackSnapshot>;
@@ -1110,6 +1113,8 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
         throw error;
       }
     },
+    getVolume: () => roon.getVolume(),
+    setVolume: request => roon.setVolume(request),
     async seekPlayback(positionMs: number): Promise<{ positionMs: number }> {
       await controller.seek(positionMs);
       return { positionMs: controller.getPlaybackState().positionMs };
@@ -1330,6 +1335,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
         }
     : { status: 'missing' };
   let playbackState = emptyPlaybackState();
+  let syntheticVolume = 40;
   let selectedZoneId: string | undefined;
   const diagnostics = new DiagnosticRingBuffer();
   const trackFor = (trackId: string): TrackSummary | undefined =>
@@ -1600,6 +1606,12 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       throw new BridgeError('BAD_REQUEST', 'Synthetic local lyrics matching is unavailable', { httpStatus: 409 });
     },
     getPlaybackState: () => playbackState,
+    getVolume: () => ({zoneId: selectedZoneId ?? '', outputs: selectedZoneId ? [{outputId:'synthetic-output',name:'模拟音箱',type:'number',min:0,max:100,step:1,value:syntheticVolume}] : []}),
+    async setVolume(request) {
+      if (request.zoneId !== selectedZoneId || request.outputId !== 'synthetic-output' || request.how !== 'absolute' || !Number.isFinite(request.value) || request.value < 0 || request.value > 100) throw new BridgeError('BAD_REQUEST', '模拟音量请求无效', {httpStatus:400});
+      syntheticVolume = Math.round(request.value);
+      return {zoneId:selectedZoneId!,outputs:[{outputId:'synthetic-output',name:'模拟音箱',type:'number',min:0,max:100,step:1,value:syntheticVolume}]};
+    },
     async seekPlayback(positionMs) {
       playbackState = { ...playbackState, positionMs };
       return { positionMs };
@@ -1816,7 +1828,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       return { favorite, ...(item !== undefined ? { item } : {}) };
     },
     listZones: () => ({
-      zones: [{ zoneId: fixtureZoneId, displayName: 'Synthetic Zone', selected: selectedZoneId === fixtureZoneId }],
+      zones: [{ zoneId: fixtureZoneId, displayName: 'Synthetic Zone', seekAllowed:true, selected: selectedZoneId === fixtureZoneId }],
     }).zones,
     async selectZone(zoneId) {
       if (playbackState.state !== 'idle') {

@@ -1,3 +1,4 @@
+import { isVolumeRequest, isVolumeSnapshot } from './volume.js';
 import { isGetMasterArtworkRequest, isSaveMasterArtworkRequest, isMasterArtworkResult, isMasterArtworkVersion } from './recording-artwork.js';
 import { isListRecordingPrintsRequest, isRequestRecordingPrintRequest, isRetryRecordingPrintRequest, isGetRecordingPrintRequest, isExportRecordingPrintRequest, isRecordingPrintsPage, isRecordingPrintJob, isRecordingPrintResult, isClaimRecordingPrintRequest, isCompleteRecordingPrintRequest, isFailRecordingPrintRequest, isRecordingPrintLease, isRecordingPrintPdfResult } from './recording-prints.js';
 import { isRecordingReplicaStatus, isInspectRecordingReplicaRequest, isRecordingReplicaReadIdRequest, isStartRecordingReplicaRequest, isRecordingReplicaRunIdRequest, isRecordingReplicaInspection, isRecordingReplicaReadCancellation, isRecordingReplicaRun } from './recording-replica.js';
@@ -1138,6 +1139,8 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'roon.library.genre') return isRoonAlbumPayload(payload);
   if (command === 'roon.library.playlist') return isRoonAlbumPayload(payload);
   if (command === 'roon.library.search') return isLibrarySearchPayload(payload);
+  if (command === 'roon.volume.get') return isRecord(payload) && Object.keys(payload).length === 0;
+  if (command === 'roon.volume.set') return isVolumeRequest(payload);
   if (command === 'playback.seek') return isPlaybackSeekPayload(payload);
   if (command === 'playback.playQueueIndex') return isPlaybackQueueIndexPayload(payload);
   if (command === 'roon.library.image') return isRoonImagePayload(payload);
@@ -1805,6 +1808,9 @@ function isCommandResult(
     case 'playback.appendQueue':
     case 'playback.insertNext':
       return isPlaybackSnapshot(value);
+    case 'roon.volume.get':
+    case 'roon.volume.set':
+      return isVolumeSnapshot(value);
     case 'playback.seek':
       return isRecord(value) &&
         hasOnlyKeys(value, ['positionMs']) &&

@@ -1,0 +1,91 @@
+/* 统一开放式音乐浏览：由封面和文字建立层级，背景连续贯穿。 */
+:root .view:not(.view-settings):not(.view-diagnostics) { width: calc(100% - 48px); max-width: none; margin-inline: auto; }
+:root .view { padding-bottom: 186px; }
+:root .playlist-grid, :root .roon-album-grid, :root .search-card-grid-albums { grid-template-columns: repeat(auto-fill,minmax(210px,1fr)); gap: 28px 24px; }
+:root .playlist-card, :root .roon-album-card, :root .search-artist-card, :root .search-album-card, :root .favorite-entity-card { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
+:root .playlist-card:hover, :root .roon-album-card:hover, :root .search-artist-card:hover, :root .search-album-card:hover { background: transparent; }
+:root .playlist-art, :root .roon-album-art, :root .search-album-art { box-shadow: none; border-radius: 10px; }
+:root .playlist-card strong, :root .roon-album-copy strong, :root .search-album-card strong { font-size: 15px; }
+:root .playlist-card small, :root .roon-album-copy small, :root .search-album-card small { font-size: 12px; }
+:root .search-artist-card { grid-template-columns: 68px minmax(0,1fr); }
+:root .search-artist-art { width: 68px; height: 68px; }
+:root .track-table-wrap, :root .roon-track-table, :root .search-track-results, :root .search-result-section { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
+:root .track-table-header, :root .roon-track-table-header { display: none; }
+:root .track-table .track-row { grid-template-columns: 24px 64px minmax(0,1fr) 60px 72px; gap: 14px; height: 84px; min-height: 84px; padding: 10px 4px; border: 0; border-radius: 6px; }
+:root .track-table.track-table-no-artwork .track-row { grid-template-columns: 24px minmax(0,1fr) 60px 72px; }
+:root .track-art, :root .roon-track-art { width: 64px; height: 64px; border-radius: 6px; }
+:root .track-copy, :root .roon-track-copy { display: grid; gap: 4px; overflow: hidden; }
+:root .track-copy strong, :root .roon-track-copy strong { font-size: 16px; line-height: 20px; }
+:root .track-copy small, :root .roon-track-copy small { font-size: 12px; line-height: 16px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+:root .track-quality-details { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; line-height: 14px; color: var(--mb-text-secondary); letter-spacing: .02em; }
+:root .track-album { display: none; }
+:root .track-source-badge { display: inline; margin-left: 8px; padding: 0; border: 0; background: transparent; font-size: inherit; }
+:root .roon-track-row { grid-template-columns: 24px 64px minmax(0,1fr) 60px 72px; height: 84px; gap: 14px; padding: 10px 4px; border: 0; border-radius: 6px; }
+:root .global-player { width: calc(100% - 48px); max-width: 1580px; height: 126px; min-height: 126px; padding: 14px 20px 10px; gap: 8px 20px; grid-template-columns: minmax(0,1fr) 190px minmax(340px,1fr); grid-template-rows: 72px 20px; }
+:root .player-art { flex: 0 0 68px; width: 68px; height: 68px; border-radius: 9px; }
+:root .player-track { gap: 14px; }
+:root .player-track strong { font-size: 18px; line-height: 24px; }
+:root .player-track small { font-size: 14px; line-height: 19px; }
+:root .player-quality-detail { color: var(--mb-text-secondary); font-size: 11px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+:root .player-play-button { width: 48px; height: 48px; }
+:root .player-meta { gap: 8px; }
+:root .player-quality-button, :root .player-zone-button, :root .player-inspector-button { height: 38px; min-height: 38px; padding-block: 8px; }
+:root .player-quality-button { min-width: 80px; }
+:root .player-quality-button strong { font-size: 12px; }
+:root .player-quality-button > span { display: flex; align-items: center; }
+:root .player-zone-button { max-width: 174px; }
+:root .player-timeline { grid-column: 1 / -1; grid-row: 2; display: flex; align-items: center; gap: 12px; min-width: 0; }
+.player-timeline time { min-width: 32px; font-size: 11px; color: var(--mb-text-secondary); font-variant-numeric: tabular-nums; }
+.player-timeline time:last-child { text-align: right; }
+.player-timeline input { appearance: none; flex: 1; min-width: 0; height: 4px; border-radius: 4px; background: linear-gradient(to right,var(--mb-accent) var(--progress),color-mix(in srgb,var(--mb-text-secondary) 25%,transparent) var(--progress)); cursor: pointer; }
+.player-timeline input::-webkit-slider-thumb { appearance: none; height: 10px; width: 10px; border-radius: 50%; background: var(--mb-accent); }
+.player-timeline input:disabled { opacity: .45; cursor: default; }
+.player-timeline input:focus-visible { outline: 2px solid var(--mb-accent); outline-offset: 5px; }
+.player-volume { position: relative; }
+.player-volume-panel { position: absolute; bottom: calc(100% + 20px); right: 0; width: 280px; padding: 18px; border: 1px solid var(--mb-glass-border); border-radius: 16px; color: var(--mb-text-primary); background: #faf6fa; box-shadow: 0 10px 40px #0003; }
+:root[data-theme='dark'] .player-volume-panel { background: #383441; }
+.player-volume-panel p { font-size: 12px; line-height: 1.6; }
+.volume-output { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin: 16px 0; font-size: 12px; }
+.volume-output > span { grid-column: 1 / -1; }
+.volume-output input { min-width: 0; width: 100%; accent-color: var(--mb-accent); }
+.volume-step-controls { display: flex; gap: 12px; }
+.volume-step-controls button { width: 38px; height: 34px; color: var(--mb-text-primary); background: var(--mb-glass-clear); border-radius: 8px; }
+@media (max-width: 1100px) {
+ :root .global-player { height: 170px; min-height: 170px; grid-template-columns: minmax(0,1fr) 170px; grid-template-rows: 68px 38px 20px; gap: 8px 12px; padding: 10px 16px; }
+ :root .player-track { grid-column: 1; grid-row: 1; }
+ :root .player-controls { grid-column: 2; grid-row: 1; }
+ :root .player-meta { grid-column: 1 / -1; grid-row: 2; justify-content: flex-end; }
+ :root .player-timeline { grid-row: 3; }
+ :root .view { padding-bottom: 224px; }
+}
+@media (max-width: 800px) {
+ :root .view:not(.view-settings):not(.view-diagnostics) { width: calc(100% - 28px); }
+ :root .playlist-grid, :root .roon-album-grid, :root .search-card-grid-albums { grid-template-columns: repeat(auto-fill,minmax(160px,1fr)); gap: 22px 16px; }
+ :root .global-player { width: calc(100% - 24px); }
+ :root .track-table .track-row, :root .roon-track-row { grid-template-columns: 64px minmax(0,1fr) 40px 32px; gap: 10px; }
+ :root .track-table.track-table-no-artwork .track-row { grid-template-columns: minmax(0,1fr) 40px 32px; }
+ :root .track-index, :root .roon-track-index { display: none; }
+ :root .track-table .track-duration { display: block; }
+ :root .track-table .row-actions, :root .track-table.track-table-no-artwork .row-actions { grid-column: auto; }
+ :root .row-actions { width: 32px; }
+ :root .row-actions button:first-child { display: none; }
+ :root .player-track strong { font-size: 16px; }
+ :root .player-track small { font-size: 12px; }
+}
+
+:root { --mb-player-clearance: 166px; }
+:root .app-shell:not(.is-now-playing) .music-sidebar { padding-bottom: var(--mb-player-clearance); }
+:root .player-meta { overflow: visible; }
+:root .favorite-entity-art { width: 68px; height: 68px; }
+:root .favorite-entity-card { grid-template-columns: 68px minmax(0,1fr); }
+:root .music-card, :root .inventory-card { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+:root .music-card .cover, :root .inventory-card-photo { padding: 0; background: transparent; }
+:root .music-card .card-kind, :root .music-card > strong, :root .music-card .card-artist, :root .inventory-card-title, :root .inventory-card-edition { padding-inline: 0; }
+:root .inventory-card-counts { margin-inline: 0; }
+:root .queue-row { grid-template-columns: 20px 56px minmax(0,1fr); height: 80px; min-height: 80px; padding: 10px 0; border: 0; }
+:root .queue-row-art { width: 56px; height: 56px; }
+:root .queue-row strong { font-size: 13px; }
+:root .queue-row small { font-size: 11px; }
+:root .queue-current { grid-template-columns: 64px minmax(0,1fr); }
+:root .queue-current-art { width: 64px; height: 64px; }
+@media (max-width: 1100px) { :root { --mb-player-clearance: 208px; } }

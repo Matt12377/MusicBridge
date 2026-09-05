@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { MatchState, TrackSummary } from '@music-bridge/contracts'
-import SafeArtwork from '../SafeArtwork.vue'
+import TrackArtwork from '../TrackArtwork.vue'
+import { qualityDetails } from '../player/details.js'
 import { calculateVirtualWindow } from '../../composables/virtualWindow.js'
 
 const props = withDefaults(defineProps<{
@@ -48,7 +49,7 @@ const virtualViewport = ref<HTMLElement | null>(null)
 const virtualScrollTop = ref(0)
 const virtualViewportHeight = ref(620)
 const VIRTUALIZATION_THRESHOLD = 200
-const TRACK_ROW_HEIGHT = 58
+const TRACK_ROW_HEIGHT = 84
 const isVirtualized = computed(() => props.tracks.length > VIRTUALIZATION_THRESHOLD)
 const virtualWindow = computed(() => calculateVirtualWindow(
   props.tracks.length,
@@ -181,8 +182,8 @@ onUnmounted(() => {
         @contextmenu="showContextMenu($event, track)"
       >
         <span class="track-index" aria-hidden="true"><span class="track-number">{{ trackIndex(index) + 1 }}</span><span class="track-play-mark">▶</span></span>
-        <SafeArtwork v-if="props.showArtwork" class="track-art" :src="track.artworkUrl" :alt="`${track.title} 封面`" />
-        <span class="track-copy"><strong>{{ track.title }}</strong><small>{{ track.artists.join('、') }}</small><span v-if="props.matchStates?.[track.id] === 'CONFIRMED'" class="track-source-badge">Roon 已匹配</span><span v-else-if="props.matchStates?.[track.id] === 'POSSIBLE'" class="track-source-badge is-muted" title="存在多个候选，保持 Provider 播放">Smart 匹配不唯一</span></span>
+        <TrackArtwork v-if="props.showArtwork" class="track-art" :track="track" :alt="`${track.title} 封面`" />
+        <span class="track-copy"><strong>{{ track.title }}</strong><small>{{ track.artists.join('、') }}<span v-if="track.album" class="track-inline-album"> · {{ track.album }}</span></small><span class="track-quality-details">{{ qualityDetails(track) }}<span v-if="track.version"> · {{ track.version }}</span><span v-if="props.matchStates?.[track.id] === 'CONFIRMED'" class="track-source-badge">Roon 已匹配</span><span v-else-if="props.matchStates?.[track.id] === 'POSSIBLE'" class="track-source-badge is-muted" title="存在多个候选，保持 Provider 播放">Smart 匹配不唯一</span></span></span>
         <span class="track-album">{{ track.album }}</span>
         <span class="track-duration">{{ formatDuration(track.durationMs) }}</span>
         <span class="row-actions">

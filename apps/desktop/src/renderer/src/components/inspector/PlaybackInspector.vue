@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { PlaybackQueueItem, PlaybackSnapshot, TrackSummary } from '@music-bridge/contracts'
+import { qualityDetails } from '../player/details.js'
 import TrackArtwork from '../TrackArtwork.vue'
 import { calculateVirtualWindow } from '../../composables/virtualWindow.js'
 
@@ -19,7 +20,7 @@ const queueViewport = ref<HTMLElement | null>(null)
 const queueScrollTop = ref(0)
 const queueViewportHeight = ref(420)
 const QUEUE_VIRTUALIZATION_THRESHOLD = 200
-const QUEUE_ROW_HEIGHT = 48
+const QUEUE_ROW_HEIGHT = 80
 
 const currentEntry = computed(() => {
   const state = props.playbackState
@@ -88,8 +89,7 @@ function entryAlbum(item: PlaybackQueueItem): string {
           <div v-if="isQueueVirtualized" aria-hidden="true" :style="{ height: `${queueWindow.topSpacer}px` }"></div>
           <button v-for="entry in visibleUpcomingEntries" :key="`${entry.item.trackId}-${entry.index}`" type="button" class="queue-row" @click="emit('play-queue-item', entry.item, entry.index)">
             <span>{{ String(entry.index + 1).padStart(2, '0') }}</span><TrackArtwork class="queue-row-art" :track="entry.item.track" :alt="`${entryTitle(entry.item)} 封面`" />
-            <span class="queue-row-copy"><strong>{{ entryTitle(entry.item) }}</strong><small>{{ entryArtists(entry.item) }} · {{ entryAlbum(entry.item) }}</small></span>
-            <small>{{ props.qualityLabel(entry.item.qualityPreference) }}</small>
+            <span class="queue-row-copy"><strong>{{ entryTitle(entry.item) }}</strong><small>{{ entryArtists(entry.item) }} · {{ entryAlbum(entry.item) }}</small><small>{{ qualityDetails(entry.item.track ?? {}) }}</small></span>
           </button>
           <div v-if="isQueueVirtualized" aria-hidden="true" :style="{ height: `${queueWindow.bottomSpacer}px` }"></div>
         </div>

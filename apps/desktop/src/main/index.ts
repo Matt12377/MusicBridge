@@ -1,3 +1,4 @@
+import { isVolumeRequest } from '@music-bridge/contracts'
 import { installRecordingPrintHandlers } from './recording-print-ipc.js'
 import { createRecordingPrintWorker } from './recording-print-worker.js'
 import { createRecordingPrintRenderer } from './recording-print-renderer.js'
@@ -1581,6 +1582,11 @@ function registerIpcHandlers(
       })
     }),
   )
+  ipcMain.handle('roon:volume:get', event => invokeCore(event, () => supervisor.request('roon.volume.get', {})))
+  ipcMain.handle('roon:volume:set', (event, request: unknown) => invokeCore(event, () => {
+    if (!isVolumeRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '无效的音量请求')
+    return supervisor.request('roon.volume.set', request)
+  }))
   ipcMain.handle('playback:seek', (event, positionMs: unknown) =>
     invokeCore(event, () => {
       if (

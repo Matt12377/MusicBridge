@@ -2,6 +2,7 @@ import { createRequire } from 'node:module';
 import type { RoonBrowseApi, RoonImageApi } from './library.js';
 
 export interface RoonZoneOutput {
+  volume?: { type?: string; min?: number; max?: number; value?: number; step?: number; is_muted?: boolean; limits?: {min?: number; max?: number} };
   output_id?: string;
   display_name?: string;
 }
@@ -43,6 +44,7 @@ export type RoonTransportControl = 'play' | 'pause' | 'playpause' | 'stop' | 'pr
 export type RoonTransportTarget = string | RoonZone | RoonZoneOutput | { zone_id: string };
 
 export interface RoonTransportService {
+  change_volume?(outputId: string, how: 'absolute' | 'relative', value: number, callback: (error: string | false) => void): void;
   subscribe_zones(callback: RoonZoneChangeCallback): void;
   seek(
     zoneOrOutputId: string,

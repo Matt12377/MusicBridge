@@ -546,6 +546,8 @@ function makeRuntime(): CoreRuntimeForIpc & {
       return { status: 'hidden', candidates: [], canRevoke: false }
     },
     getPlaybackState: () => playbackState,
+    getVolume: () => ({zoneId:'',outputs:[]}),
+    async setVolume() { return {zoneId:'',outputs:[]}; },
     async seekPlayback(positionMs) {
       return { positionMs };
     },

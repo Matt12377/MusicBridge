@@ -6,6 +6,7 @@ import './style.css'
 import './assets/bootstrap-icons/icons.css'
 import './sakura-theme.css'
 import './appearance-theme.css'
+import './open-library.css'
 import { APPEARANCE_STORAGE_KEY, appearanceKey, createAppearancePreference } from './appearance.js'
 
 const appearance = createAppearancePreference({

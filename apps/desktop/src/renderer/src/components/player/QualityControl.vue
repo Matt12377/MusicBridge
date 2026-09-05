@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref } from 'vue'
 import type { PlaybackQualityPreference } from '@music-bridge/contracts'
+import { qualityName } from './details.js'
 import SidebarIcon from '../sidebar/SidebarIcon.vue'
 import QualityPopover from './QualityPopover.vue'
 
-defineProps<{ selectedQuality: PlaybackQualityPreference }>()
+defineProps<{ actualQuality?: string; selectedQuality: PlaybackQualityPreference }>()
 const emit = defineEmits<{ 'update:selected-quality': [quality: PlaybackQualityPreference] }>()
 const root = ref<HTMLElement | null>(null)
 const trigger = ref<HTMLButtonElement | null>(null)
@@ -50,7 +51,7 @@ onUnmounted(() => document.removeEventListener('mousedown', closeOnOutside))
       @keydown.down.prevent="open = true"
       @keydown.up.prevent="open = true"
     >
-      <span><small>下次音质</small><strong>{{ qualityLabel(selectedQuality) }}</strong></span>
+      <span><strong>{{ actualQuality ? qualityName(actualQuality) : qualityLabel(selectedQuality) }}</strong></span>
       <SidebarIcon name="chevron-down" :size="13" />
     </button>
     <QualityPopover v-if="open" :selected-quality="selectedQuality" @select="select" @close="close(true)" />

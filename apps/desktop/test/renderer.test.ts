@@ -313,23 +313,25 @@ test('樱花玻璃使用统一浅色主题，并保留不旋转的封面氛围�
   assert.doesNotMatch(css, /#a9bcff|#c5d2ff|#6e8fff|#8aa8ff/)
 })
 
-test('V1 Bottom Player stays compact, semantic, and free of transient lyric or state copy', async () => {
+test('播放栏保留语义控制并展示实际音质、音量和进度', async () => {
   const player = await readFile(path.resolve('src/renderer/src/components/BottomPlayer.vue'), 'utf8')
   const qualityControl = await readFile(path.resolve('src/renderer/src/components/player/QualityControl.vue'), 'utf8')
   const icon = await readFile(path.resolve('src/renderer/src/components/sidebar/SidebarIcon.vue'), 'utf8')
-  const css = await readFile(path.resolve('src/renderer/src/style.css'), 'utf8') + '\n' + await readFile(path.resolve('src/renderer/src/sakura-theme.css'), 'utf8')
+  const css = await readFile(path.resolve('src/renderer/src/open-library.css'), 'utf8')
 
   assert.doesNotMatch(player, /player-label|currentLyricLine|音质切换/)
   assert.match(player, /QualityControl/)
-  assert.match(qualityControl, /下次音质/)
+  assert.doesNotMatch(qualityControl, /<small>下次音质<\/small>/)
+  assert.match(player, /PlayerProgress/)
+  assert.match(player, /VolumeControl/)
   assert.match(player, /name="previous"/)
   assert.match(player, /name="next"/)
   assert.match(player, /name="list"/)
   assert.match(player, /visually-hidden/)
   assert.match(icon, /previous: 'skip-start-fill'/)
   assert.match(icon, /next: 'skip-end-fill'/)
-  assert.match(css, /\.global-player\s*\{[^}]*height:\s*88px/)
-  assert.match(css, /\.player-art\s*\{[^}]*width:\s*53px[^}]*height:\s*53px/)
+  assert.match(css, /\.global-player\s*\{[^}]*height:\s*126px/)
+  assert.match(css, /\.player-art\s*\{[^}]*width:\s*68px[^}]*height:\s*68px/)
 })
 
 test('V1 Home and content pages use page-level width tiers and avoid a duplicate Home title', async () => {

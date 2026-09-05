@@ -1,3 +1,4 @@
+import type { VolumeRequest } from '@music-bridge/contracts';
 import { RecordingPrintError } from './recording/print-integrity.js';
 import { RecordingReplicaError } from './recording/replica-error.js';
 import { AttemptError } from './recording/attempt-integrity.js';
@@ -672,6 +673,8 @@ async function dispatch(
       return runtime.playbackPause();
     case 'playback.resume':
       return runtime.playbackResume();
+    case 'roon.volume.get': return runtime.getVolume();
+    case 'roon.volume.set': return runtime.setVolume(request.payload as VolumeRequest);
     case 'playback.seek':
       return runtime.seekPlayback(
         (request.payload as { positionMs: number }).positionMs,

@@ -43,3 +43,5 @@ export * from './recording-replica.js';
 
 export * from './recording-artwork.js';
 export * from './recording-prints.js';
+
+export * from './volume.js';

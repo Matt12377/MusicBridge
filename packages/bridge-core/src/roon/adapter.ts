@@ -1,3 +1,5 @@
+import type { VolumeRequest, VolumeSnapshot } from '@music-bridge/contracts';
+import { readVolume, planVolume } from './volume.js';
 import { randomUUID } from 'node:crypto';
 import type { RemoteCoreMode, RoonImageShapeSummary } from '@music-bridge/contracts';
 import { BridgeError } from '../shared/errors.js';
@@ -1046,6 +1048,18 @@ export class RoonAudioInputAdapter implements RoonPort {
     });
   }
 
+  getVolume(): VolumeSnapshot { return readVolume(this.selectedZone); }
+
+  async setVolume(request: VolumeRequest): Promise<VolumeSnapshot> {
+    const transport = this.core?.services.RoonApiTransport;
+    if (!transport?.change_volume) throw new BridgeError('ROON_TRANSPORT_UNAVAILABLE', '设备不支持音量调节', {httpStatus:409});
+    let plan: VolumeRequest;
+    try { plan = planVolume(this.selectedZone, request); }
+    catch { throw new BridgeError('BAD_REQUEST', '音量请求无效或设备已变化', {httpStatus:400}); }
+    await this.runTransportRequest('volume', callback => transport.change_volume!(plan.outputId, plan.how, plan.value, callback), () => new BridgeError('ROON_TIMEOUT', '设备未确认音量请求', {httpStatus:502}));
+    return this.getVolume();
+  }
+
   async seek(positionMs: number): Promise<void> {
     if (
       !Number.isSafeInteger(positionMs) ||
@@ -1526,7 +1540,7 @@ export class RoonAudioInputAdapter implements RoonPort {
   }
 
   private runTransportRequest(
-    operation: RoonTransportControl | 'seek',
+    operation: RoonTransportControl | 'seek' | 'volume',
     request: (callback: (error: string | false) => void) => void,
     requestError: (cause?: unknown) => BridgeError,
   ): Promise<void> {
