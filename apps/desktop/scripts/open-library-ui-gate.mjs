@@ -37,14 +37,13 @@ app.on('browser-window-created', (_event, window) => {
       const sidebarOrder=await evaluate(`[...document.querySelectorAll('.sidebar-primary-navigation .sidebar-nav-row')].map(e=>e.textContent.trim())`)
       if(JSON.stringify(sidebarOrder)!==JSON.stringify(['主页','专辑','艺术家','流派','收藏','实物收藏','录音'])) throw Error('侧栏顺序不符：'+JSON.stringify(sidebarOrder))
       await evaluate(`document.querySelector('.sidebar-playlist-toggle').click()`)
-      if(await evaluate(`!!document.querySelector('[data-sidebar-source="roon-playlists"]')`)) throw Error('收起后仍显示歌单来源')
+      if(await evaluate(`!!document.querySelector('.sidebar-playlist-row')`)) throw Error('收起后仍显示歌单来源')
       window.setContentSize(1440,819)
       await capture('sidebar-folded')
       await evaluate(`document.querySelector('.sidebar-playlist-toggle').click()`)
-      await waitFor(`!!document.querySelector('[data-sidebar-source="roon-playlists"]')`)
-      await evaluate(`document.querySelector('[data-sidebar-source="roon-playlists"]').click()`)
-      await waitFor(`!!document.querySelector('#roon-playlists-heading')`)
-      await capture('sidebar-roon-playlists')
+      await waitFor(`!!document.querySelector('.sidebar-playlist-row')`)
+      if(await evaluate(`!!document.querySelector('.music-sidebar [data-sidebar-source="roon-playlists"], .music-sidebar [data-sidebar-source="playlists"]')`)) throw Error('侧栏仍有多余的歌单来源入口')
+      if(await evaluate(`document.querySelector('.sidebar-playlist-toggle').textContent.trim()`) !== '网易云歌单') throw Error('歌单标题不符')
       console.log('SIDEBAR_NAV_PASS',JSON.stringify(sidebarOrder))
       for (const value of ['light','dark']) {
         await theme(value)
@@ -61,7 +60,7 @@ app.on('browser-window-created', (_event, window) => {
         }
       }
       window.setContentSize(1980,1080)
-      await evaluate(`document.querySelector('[data-sidebar-source="playlists"]').click()`)
+      await evaluate(`document.querySelector('[aria-labelledby="playlist-home-heading"] .home-section-actions .text-button:last-child').click()`)
       await waitFor(`!!document.querySelector('.playlist-card')`)
       const card=await evaluate(`(() => {const c=document.querySelector('.playlist-card'), s=getComputedStyle(c), a=c.querySelector('.playlist-art');return {width:a.offsetWidth,padding:s.padding,border:s.borderTopWidth,background:s.backgroundColor};})()`)
       if(card.width<210 || card.padding!=='0px' || card.border!=='0px' || card.background!=='rgba(0, 0, 0, 0)') throw Error(JSON.stringify(card))

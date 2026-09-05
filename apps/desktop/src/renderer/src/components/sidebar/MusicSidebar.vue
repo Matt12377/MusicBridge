@@ -46,9 +46,6 @@ function isSourceSelected(type: SidebarSource['type']): boolean {
   if (type === 'roon-genres') {
     return props.activeSource.type === 'roon-genres' || props.activeSource.type === 'roon-genre'
   }
-  if (type === 'roon-playlists') {
-    return props.activeSource.type === 'roon-playlists' || props.activeSource.type === 'roon-playlist'
-  }
   return props.activeSource.type === type
 }
 
@@ -89,7 +86,7 @@ onMounted(restoreSourceScroll)
         <SidebarNavRow source="collection" label="实物收藏" icon="cassette" :expanded="expanded" :selected="isSourceSelected('collection')" @select="selectSource({ type: 'collection' })" />
         <SidebarNavRow source="recording" label="录音" icon="record" :expanded="expanded" :selected="isSourceSelected('recording')" @select="selectSource({ type: 'recording' })" />
       </div>
-      <SidebarPlaylistList :playlists="playlists" :expanded="expanded" :active-source="activeSource" @navigate="selectSource" :active-playlist-id="activeSource.type === 'playlist' ? activeSource.playlistId : undefined" :state="playlistState" @select="selectSource({ type: 'playlist', playlistId: $event })" @retry="emit('retry-playlists')" />
+      <SidebarPlaylistList :playlists="playlists" :expanded="expanded" :active-playlist-id="activeSource.type === 'playlist' ? activeSource.playlistId : undefined" :state="playlistState" @select="selectSource({ type: 'playlist', playlistId: $event })" @retry="emit('retry-playlists')" />
     </nav>
     <SidebarSettingsFooter :expanded="expanded" :active="settingsActive" @open="emit('settings')" />
   </aside>

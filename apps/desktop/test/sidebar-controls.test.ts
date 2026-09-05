@@ -19,10 +19,6 @@ async function mount(t: test.TestContext, name: string, initial: Record<string, 
   const renderModule = { exports: {} as { render: (...args: any[]) => any } }
   const load = (id: string) => {
     if (id === 'vue') return vue
-    if (id.endsWith('SidebarNavRow.vue')) return { default: vue.defineComponent({
-      props: ['source', 'label', 'selected'], emits: ['select'],
-      setup: (props, { emit }) => () => vue.h('button', { class: 'test-source', selected: props.selected, onClick: () => emit('select') }, props.label),
-    }) }
     if (id.endsWith('SidebarPlaylistRow.vue')) return { default: vue.defineComponent({
       props: ['playlist', 'expanded', 'selected'], emits: ['select'],
       setup: (props, { emit }) => () => vue.h('button', { class: 'test-playlist', onClick: () => emit('select', props.playlist.id) }, props.playlist.name),
@@ -67,6 +63,7 @@ test('歌单默认展开，折叠后移除列表，再展开仍可导航且不�
   const selections: string[] = []; let retries = 0
   const f = await mount(t, 'SidebarPlaylistList', { expanded: true, playlists, state: 'ready', onSelect: (id: string) => selections.push(id), onRetry: () => retries++ })
   const toggle = () => f.byClass('sidebar-playlist-toggle')[0]
+  assert.equal(toggle()?.props['aria-label'], '网易云歌单')
   assert.equal(toggle()?.props['aria-expanded'], true)
   assert.ok(toggle()?.props['aria-controls'])
   await f.click(toggle()); assert.equal(toggle()?.props['aria-expanded'], false); assert.equal(f.byClass('test-playlist').length, 0)
@@ -100,20 +97,4 @@ test('设置横条不含头像，展开与收窄都能打开设置并保留当�
   assert.equal(button()?.props['aria-label'], '打开设置'); assert.equal(button()?.props['aria-current'], 'page')
   assert.equal(f.all().filter(el => el.type === 'img').length, 0)
   await f.click(button()); f.props.expanded = false; await f.tick(); await f.click(button()); assert.equal(opens, 2)
-})
-
-test('统一歌单来源分别导航，高亮识别 Roon 歌单详情', async t => {
-  const selections: unknown[] = []
-  const f = await mount(t, 'SidebarPlaylistSources', { activeSource: { type: 'roon-playlist', reference: 'test' }, onNavigate: (source: unknown) => selections.push(source) })
-  assert.equal(f.byClass('test-source')[0]?.props.selected, true)
-  await f.click(f.byClass('test-source')[0]); await f.click(f.byClass('test-source')[1])
-  assert.deepEqual(selections, [{type:'roon-playlists'}, {type:'playlists'}])
-})
-
-test('网易云空列表或加载失败时，窄侧栏仍能打开统一歌单弹层', async t => {
-  for (const state of ['ready', 'loading', 'error']) {
-    const f = await mount(t, 'SidebarPlaylistList', { expanded: false, playlists: [], state })
-    await f.click(f.byClass('sidebar-collapsed-source-button')[0])
-    assert.equal(f.byClass('sidebar-playlist-popover').length, 1)
-  }
 })
