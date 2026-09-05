@@ -21,3 +21,7 @@
 - Electron Gate exit 0：浅深色、1980/1440/720 宽度的居中 480px 进度条；列表不再显示音质行；111 帧进度样本无倒退，前进 1815ms；seek 确认 65000ms；仅 input 尚未 change 时模拟设备已更新到 39，释放后继续回读无闪回。设置入口可点击且控件无重叠。
 - 看过最终 Electron 音量弹层/短进度条截图。证据 `/Volumes/LifeWeave/Developer/CommandLine/tmp/musicbridge-motion-ui/`，日志同一外置临时根 `musicbridge-motion-*.log`。
 - 验证使用隔离合成数据；未操作真实设备音量、未做真实听感确认。未全量测试、未 push/merge/release。用户正在运行的实例没有被重启，重启 UI 开发版加载本次构建。
+
+## 快速尺寸调整
+
+Owner 后续要求从 480px 缩到 360px，保持居中。实现 `350295f`，同步 Gate 尺寸上限；生产构建与 diff 检查通过。仅改尺寸，未重复原生 Gate；报告提交作为下一基线。

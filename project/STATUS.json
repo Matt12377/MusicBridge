@@ -24,7 +24,13 @@
     "neteaseListQuality": "removed",
     "realDeviceAudio": "not-tested",
     "push": "not-performed",
-    "report": "reports/V3_PLAYER_MOTION_REPAIR.md"
+    "report": "reports/V3_PLAYER_MOTION_REPAIR.md",
+    "timelineWidthAdjustment": {
+      "widthPx": 360,
+      "implementationCommit": "350295f",
+      "productionBuild": "pass",
+      "visualGate": "not-rerun-width-only-quick-change"
+    }
   },
   "openLibraryPlayer": {
     "branch": "codex/v3-ui-redesign",
