@@ -1,5 +1,18 @@
 {
   "schemaVersion": 1,
+  "ambientBackgroundPreview": {
+    "branch": "codex/v3-ui-redesign",
+    "baseCommit": "fffc12783dc05ea2f2521288685f6cce3c6caf2a",
+    "implementationCommit": "a8a2bf0",
+    "state": "standalone-two-state-preview-owner-feedback-pending",
+    "entry": "prototypes/ambient-study/index.html",
+    "report": "prototypes/ambient-study/design-qa.md",
+    "productionCodeChanged": false,
+    "realServicesConnected": false,
+    "focusedBrowserCheck": "pass-not-production-acceptance",
+    "fullTests": "not-run-preview-only",
+    "push": "not-performed"
+  },
   "sakuraProductionUi": {
     "branch": "codex/v3-ui-redesign",
     "baseCommit": "77de6ca954a6a7a7800facbdcb8900511a8a079b",
