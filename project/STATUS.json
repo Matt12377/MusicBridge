@@ -1,24 +1,55 @@
 {
   "schemaVersion": 1,
+  "ambientProductionUi": {
+    "branch": "codex/v3-ui-redesign",
+    "baseCommit": "c17f00f49dd61369d19a0b9634db3ab9de719c4e",
+    "implementationCommit": "f7b9267cd4f863dfb690ad08d9b931a0aaa19bfb",
+    "state": "production-migration-focused-and-native-pass-owner-acceptance-pending",
+    "visualBaseline": "prototypes/ambient-study/index.html",
+    "report": "reports/V3_AMBIENT_BACKGROUND_MIGRATION.md",
+    "focusedTests": {
+      "passed": 55,
+      "failed": 0,
+      "exitCode": 0
+    },
+    "typecheck": "pass",
+    "productionBuild": "pass",
+    "nativeVisual": "same-size-reference-material-and-geometry-pass",
+    "nativeInteraction": "synthetic-play-return-pause-and-settings-pass",
+    "controlPlane": "pass",
+    "boundaries": "pass",
+    "fullSuite": "not-run-per-owner-speed-priority",
+    "realPlayback": "prior-remote-audio-and-owner-acceptance-carryover",
+    "ownerAcceptance": "html-approved-production-real-account-pending",
+    "realServicesConnectedByThisChange": false,
+    "runningUserInstanceRestarted": false,
+    "push": "not-performed",
+    "remoteObservedCommit": "fffc12783dc05ea2f2521288685f6cce3c6caf2a"
+  },
   "ambientBackgroundPreview": {
     "branch": "codex/v3-ui-redesign",
     "baseCommit": "fffc12783dc05ea2f2521288685f6cce3c6caf2a",
     "implementationCommit": "a8a2bf0",
-    "state": "standalone-two-state-preview-owner-feedback-pending",
+    "state": "owner-approved-production-migration-authorized",
     "entry": "prototypes/ambient-study/index.html",
     "report": "prototypes/ambient-study/design-qa.md",
     "productionCodeChanged": false,
     "realServicesConnected": false,
     "focusedBrowserCheck": "pass-not-production-acceptance",
     "fullTests": "not-run-preview-only",
-    "push": "not-performed"
+    "push": "not-performed",
+    "ownerApproval": "2026-09-05-preserve-html-visuals-and-migrate-to-mb"
   },
   "sakuraProductionUi": {
     "branch": "codex/v3-ui-redesign",
     "baseCommit": "77de6ca954a6a7a7800facbdcb8900511a8a079b",
     "implementationCommit": "480e37a",
     "state": "home-open-five-column-covers-owner-feedback-pending",
-    "desktopUnitTests": { "scope": "renderer-only", "passed": 35, "failed": 0 },
+    "desktopUnitTests": {
+      "scope": "renderer-only",
+      "passed": 35,
+      "failed": 0
+    },
     "fullDesktopUnitTests": "not-run-per-owner-speed-priority",
     "typecheck": "prior-pass-not-rerun-template-and-style-revision",
     "productionBuild": "pass",
@@ -143,7 +174,11 @@
     "baseCommit": "f7f7bd165f091ab8c1d47274efa42ce69cd1ff85",
     "implementationCommit": "594784ab1deba45a233eece27960f80a15e742cf",
     "state": "software-pass-authorized-supplement-import-complete-unverified-variants-preserved",
-    "focusedTests": { "passed": 82, "failed": 0, "skipped": 0 },
+    "focusedTests": {
+      "passed": 82,
+      "failed": 0,
+      "skipped": 0
+    },
     "typecheck": "contracts-desktop-bridge-core-PASS",
     "productionBuild": "PASS",
     "boundaries": "PASS",
@@ -158,7 +193,11 @@
     "baseCommit": "812e6a07bb424da19a857812ce02d1e585597dc4",
     "implementationCommit": "3d0aac9007eb3ec89d9dd2762bb66ab27f841f14",
     "state": "software-pass-authorized-local-image-import-complete-partial-coverage",
-    "focusedTests": { "passed": 80, "failed": 0, "skipped": 0 },
+    "focusedTests": {
+      "passed": 80,
+      "failed": 0,
+      "skipped": 0
+    },
     "typecheck": "contracts-desktop-bridge-core-PASS",
     "productionBuild": "PASS",
     "boundaries": "PASS",
@@ -173,7 +212,11 @@
     "baseCommit": "fdd487e73b00887f58f499406860ee86a7eda5ee",
     "implementationCommit": "59d2436b60fd6c8d0999556ae18076f71c7c1e96",
     "state": "software-pass-owner-playback-acceptance-pending",
-    "focusedTests": { "passed": 189, "failed": 0, "skipped": 0 },
+    "focusedTests": {
+      "passed": 189,
+      "failed": 0,
+      "skipped": 0
+    },
     "typecheck": "PASS",
     "productionBuild": "PASS",
     "report": "reports/V3_ROON_CONTEXT_QUEUE.md",
@@ -185,7 +228,11 @@
     "baseCommit": "316180d05175a76714a6d2fc781b6f397b38ecf6",
     "implementationCommit": "15e7726a6682c3f72bb7b18d464c5222295b9054",
     "state": "software-pass-real-audio-latency-pending",
-    "focusedTests": { "passed": 122, "failed": 0, "skipped": 0 },
+    "focusedTests": {
+      "passed": 122,
+      "failed": 0,
+      "skipped": 0
+    },
     "typecheck": "PASS",
     "productionBuild": "PASS",
     "report": "reports/V3_NEXT_PREPARATION.md",
@@ -198,7 +245,11 @@
     "implementationCommit": "a77238db5033fb1bbf2f8e86d08b65cb2b4c1213",
     "state": "software-verified-owner-authorized-local-import-complete",
     "report": "reports/V3_CASSETTE_IMPORT_CLOSEOUT.md",
-    "focusedTests": { "passed": 86, "failed": 0, "skipped": 0 },
+    "focusedTests": {
+      "passed": 86,
+      "failed": 0,
+      "skipped": 0
+    },
     "productionBuild": "PASS",
     "typecheck": "contracts-desktop-bridge-core-PASS",
     "localDataVerification": "cold-public-api-read-integrity-and-preservation-PASS",
@@ -1222,9 +1273,21 @@
             "sampleCount": 1575
           },
           "focusedVerification": {
-            "capacity": { "tests": 88, "passed": 88, "failed": 0 },
-            "supervisor": { "tests": 16, "passed": 16, "failed": 0 },
-            "issuer": { "tests": 23, "passed": 23, "failed": 0 }
+            "capacity": {
+              "tests": 88,
+              "passed": 88,
+              "failed": 0
+            },
+            "supervisor": {
+              "tests": 16,
+              "passed": 16,
+              "failed": 0
+            },
+            "issuer": {
+              "tests": 23,
+              "passed": 23,
+              "failed": 0
+            }
           },
           "fullVerify": "PASS",
           "staticGates": {
@@ -1245,7 +1308,11 @@
             "contentSha256Verified": false,
             "replay": "PROHIBITED"
           },
-          "rootClosure": { "existing": 65, "future": 1, "authorized": 66 },
+          "rootClosure": {
+            "existing": 65,
+            "future": 1,
+            "authorized": 66
+          },
           "failedAttempts": {
             "derivedProof": {
               "windowDirName": "r023-objects-limit-measure-window-02",
@@ -1338,9 +1405,21 @@
             },
             "publishPreflight": "TERMINAL_AND_OWNED_REVALIDATED_AFTER_PENDING_WRITE",
             "focusedVerification": {
-              "capacity": { "tests": 89, "passed": 89, "failed": 0 },
-              "supervisor": { "tests": 21, "passed": 21, "failed": 0 },
-              "issuer": { "tests": 25, "passed": 25, "failed": 0 }
+              "capacity": {
+                "tests": 89,
+                "passed": 89,
+                "failed": 0
+              },
+              "supervisor": {
+                "tests": 21,
+                "passed": 21,
+                "failed": 0
+              },
+              "issuer": {
+                "tests": 25,
+                "passed": 25,
+                "failed": 0
+              }
             },
             "fullVerify": "PASS",
             "freshAudit": {
