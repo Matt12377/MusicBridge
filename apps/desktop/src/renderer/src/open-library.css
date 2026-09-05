@@ -34,7 +34,7 @@
 :root .player-quality-button strong { font-size: 12px; }
 :root .player-quality-button > span { display: flex; align-items: center; }
 :root .player-zone-button { max-width: 174px; }
-:root .player-timeline { width: min(480px, 100%); justify-self: center; grid-column: 1 / -1; grid-row: 2; display: flex; align-items: center; gap: 12px; min-width: 0; }
+:root .player-timeline { width: min(360px, 100%); justify-self: center; grid-column: 1 / -1; grid-row: 2; display: flex; align-items: center; gap: 12px; min-width: 0; }
 .player-timeline time { min-width: 32px; font-size: 11px; color: var(--mb-text-secondary); font-variant-numeric: tabular-nums; }
 .player-timeline time:last-child { text-align: right; }
 .player-timeline input { appearance: none; flex: 1; min-width: 0; height: 4px; border-radius: 4px; background: linear-gradient(to right,var(--mb-accent) var(--progress),color-mix(in srgb,var(--mb-text-secondary) 25%,transparent) var(--progress)); cursor: pointer; }
