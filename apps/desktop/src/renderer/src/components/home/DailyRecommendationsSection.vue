@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DailyRecommendationTrack } from '@music-bridge/contracts'
 import SafeArtwork from '../SafeArtwork.vue'
+import SidebarIcon from '../sidebar/SidebarIcon.vue'
 
 const props = defineProps<{
   dayKey: string
@@ -28,12 +29,13 @@ function formatDayKey(dayKey: string): string {
   <section class="home-media-section daily-recommendations-section" aria-labelledby="daily-recommendations-heading">
     <div class="home-section-heading">
       <div class="daily-heading-copy">
-        <span class="daily-date-badge" aria-hidden="true"><strong>{{ formatDayKey(props.dayKey) }}</strong><small>今日</small></span>
-        <div><p class="section-kicker">网易云音乐</p><h3 id="daily-recommendations-heading">每日推荐</h3><p class="daily-heading-note">根据你的听歌偏好，为今天挑选的歌曲</p></div>
+        <span class="visually-hidden">{{ formatDayKey(props.dayKey) }} 今日推荐</span>
+        <div><h3 id="daily-recommendations-heading">每日推荐</h3><p class="daily-heading-note">为今天挑选的一些温柔声音</p></div>
       </div>
       <div class="home-section-actions">
         <button type="button" class="text-button" :disabled="props.state === 'loading'" @click="emit('view-all')">查看全部 →</button>
-        <button type="button" class="text-button" :disabled="props.state === 'loading'" @click="emit('retry')">刷新</button>
+        <button type="button" class="text-button daily-refresh" :disabled="props.state === 'loading'" aria-label="刷新每日推荐" title="刷新每日推荐" @click="emit('retry')"><SidebarIcon name="refresh" :size="14" /></button>
+        <button v-if="props.tracks.length" type="button" class="primary-button" @click="emit('play-all')"><SidebarIcon name="play" :size="14" /> 播放全部</button>
       </div>
     </div>
 
@@ -42,8 +44,8 @@ function formatDayKey(dayKey: string): string {
     </div>
     <div v-else-if="props.tracks.length" class="daily-recommendation-grid" aria-label="每日推荐歌曲">
       <button v-for="track in props.tracks.slice(0, 5)" :key="track.id" type="button" class="daily-recommendation-tile" :aria-label="'播放 ' + track.title" @click="emit('play', track)">
-        <SafeArtwork class="daily-recommendation-art" :src="track.artworkUrl" :alt="track.title + ' 封面'" />
-        <span class="daily-recommendation-copy"><strong>{{ track.title }}</strong><small>{{ track.artists.join('、') }}</small><em v-if="track.recommendationReason">{{ track.recommendationReason }}</em></span>
+        <span class="home-cover-frame"><SafeArtwork class="daily-recommendation-art" :src="track.artworkUrl" :alt="track.title + ' 封面'" /><span class="home-cover-play" aria-hidden="true"><SidebarIcon name="play" :size="16" /></span></span>
+        <span class="daily-recommendation-copy"><strong>{{ track.title }}</strong><small>{{ track.artists.join('、') }}</small><em v-if="track.recommendationReason" class="visually-hidden">{{ track.recommendationReason }}</em></span>
       </button>
     </div>
     <div v-else-if="props.state === 'error'" class="daily-recommendation-message">
@@ -61,7 +63,6 @@ function formatDayKey(dayKey: string): string {
 
     <div v-if="props.tracks.length" class="daily-recommendation-footer">
       <span>{{ props.tracks.length }} 首今日推荐</span>
-      <button type="button" class="primary-button" @click="emit('play-all')">播放全部</button>
     </div>
   </section>
 </template>

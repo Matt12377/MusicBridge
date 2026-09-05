@@ -1,197 +1,210 @@
-/* Owner 已确认的樱花玻璃材质层。仅改变呈现，不改动组件、事件或真实数据。 */
+/* Owner 认可的 ambient-study HTML 视觉基准。素材、颜色、材质与尺寸直接迁移。 */
 :root {
-  --mb-player-clearance: 120px;
-  --mb-ambient-cover-opacity: .82;
-  --mb-frosted-grain: url('./assets/frosted-grain.svg');
-  --mb-ambient-wash: rgba(236, 230, 238, .58);
-  --mb-content-glass: rgba(247, 243, 248, .42);
-  --mb-frosted-plane: var(--mb-frosted-grain), linear-gradient(135deg, rgba(247, 243, 248, .44), rgba(247, 243, 248, .20) 45%, rgba(244, 233, 243, .32));
-  --mb-frosted-control: var(--mb-frosted-grain), linear-gradient(135deg, rgba(247, 243, 248, .48), rgba(247, 243, 248, .16) 52%, rgba(247, 243, 248, .30));
+  --mb-player-clearance: 140px;
+  --mb-ambient-cover-opacity: 1;
+  --mb-ambient-wash: rgba(246, 241, 245, .30);
+  --mb-content-glass: #ffffff99;
+  --mb-frosted-plane: rgba(248, 245, 249, .30);
+  --mb-frosted-control: #ffffff38;
+  --mb-glass-highlight: #ffffff75;
+  --mb-glass-border: #67546b20;
+  --mb-glass-shadow: 0 7px 19px #35253c16;
+  --mb-accent-soft: #c782a228;
+  --mb-glass-strong: #f8f4f9eb;
+  --mb-bg-base: #f2edf1;
 }
-.album-ambient {
-  background:
-    radial-gradient(ellipse 26% 24% at 0% 12%, #f1a9cf 0, transparent 100%),
-    radial-gradient(ellipse 20% 28% at 9% 48%, #d4b3e8 0, transparent 100%),
-    radial-gradient(ellipse 24% 23% at 0% 80%, #b9e5ed 0, transparent 100%),
-    radial-gradient(ellipse 28% 24% at 38% 94%, #ecb4d4 0, transparent 100%),
-    radial-gradient(ellipse 22% 22% at 72% 100%, #bfdfed 0, transparent 100%),
-    radial-gradient(ellipse at 80% 0%, #fff2d8 0, transparent 38%),
-    radial-gradient(ellipse at 98% 84%, #c2eaf0 0, transparent 40%),
-    radial-gradient(ellipse at 43% 100%, #debfe9 0, transparent 43%),
-    linear-gradient(135deg, #fdf1f6, #fae5eb 55%, #e6f2fb);
-}
-.album-ambient-cover, .app-shell.is-now-playing .album-ambient-cover { opacity: var(--mb-ambient-cover-opacity); transform: scale(1.08); will-change: auto; }
-/* 封面保留大轮廓；由其上方的玻璃进一步打散细节，避免两层都只剩均匀色块。 */
-.album-ambient-cover img { filter: blur(12px) saturate(1.12); }
-.album-ambient-wash, .app-shell.is-now-playing .album-ambient-wash { background: var(--mb-ambient-wash); }
-.album-ambient-cover.ambient-cover-enter-from, .album-ambient-cover.ambient-cover-leave-to { opacity: 0; }
-.ambient-cover-enter-active, .ambient-cover-leave-active { transition: opacity 220ms ease; }
+.album-ambient { background: #ebe5ed; }
+.ambient-image-frame { position: absolute; inset: 0; opacity: 1; }
+.ambient-image-frame img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.05); filter: blur(3px) saturate(.84); }
+.album-ambient-cover, .app-shell.is-now-playing .album-ambient-cover { inset: 0; opacity: var(--mb-ambient-cover-opacity); transform: none; will-change: auto; }
+.album-ambient-cover img { filter: blur(24px) saturate(.8); transform: scale(1.14); }
+.album-ambient-wash, .app-shell.is-now-playing .album-ambient-wash { background: var(--mb-ambient-wash); transition: background 700ms; }
+.album-ambient.has-cover .album-ambient-wash { background: rgba(246, 241, 245, .60); }
+.ambient-cover-enter-active, .ambient-cover-leave-active { transition: opacity 900ms ease; }
+.ambient-image-frame.ambient-cover-enter-from, .ambient-image-frame.ambient-cover-leave-to { opacity: 0; }
 .album-ambient-vignette { box-shadow: none; }
-.content-scroll, .sidebar-source-scroll, .queue-upcoming-viewport { scrollbar-color: #bc8fa77a transparent; }
-/* 面板铺满窗口；仅在滚动内容末尾留出悬浮播放栏的避让空间。 */
+.app-shell { font-size: 14px; }
+.content-scroll { background: #f8f5f815; }
+.content-scroll, .sidebar-source-scroll, .queue-upcoming-viewport { scrollbar-width: thin; scrollbar-color: #94778866 transparent; }
 .app-shell:not(.is-now-playing) .content-scroll { padding-bottom: var(--mb-player-clearance); scroll-padding-bottom: var(--mb-player-clearance); }
 .app-shell:not(.is-now-playing) .playback-inspector { padding-bottom: var(--mb-player-clearance); }
-@media (max-width: 1640px) {
-  .music-sidebar:not(.is-collapsed) { padding-bottom: var(--mb-player-clearance); }
-}
-@media (max-width: 1248px) {
-  .music-sidebar.is-collapsed { padding-bottom: var(--mb-player-clearance); }
-}
 
-/* 模糊只用于有限的结构面板；长列表的每行不创建独立模糊合成层。 */
-.music-sidebar, .topbar, .global-player, .playback-inspector,
-.sidebar-popover, .toolbar-status-popover, .track-context-menu, .settings-glass-panel {
-  -webkit-backdrop-filter: blur(28px) saturate(1.35);
-  backdrop-filter: blur(28px) saturate(1.35);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8), inset 1px 0 0 rgba(255, 255, 255, .65), inset -1px -1px 0 rgba(103, 76, 99, .12), 0 8px 30px rgba(115, 77, 107, .12);
-}
-.music-sidebar { background: var(--mb-frosted-plane); border-right-color: var(--mb-glass-highlight); }
-.sidebar-header { height: 70px; flex-basis: 70px; padding-inline: 20px; }
-.sidebar-brand { font-size: 17px; font-weight: 720; }
-.sidebar-search-field { background: var(--mb-frosted-control); border-color: rgba(255, 255, 255, .75); }
-.sidebar-search-field:focus-within { background: var(--mb-frosted-control); border-color: var(--mb-accent); }
-.sidebar-source-scroll { padding-inline: 12px; }
-.sidebar-nav-row, .sidebar-playlist-row { border-radius: 11px; }
-.sidebar-nav-row.selected, .sidebar-playlist-row.selected {
-  color: #813454; background: var(--mb-accent-soft);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .6);
-}
-.account-settings-avatar { background: var(--mb-accent-soft); }
-.topbar { background: var(--mb-frosted-plane); border-bottom-color: var(--mb-glass-highlight); }
-.global-player { background: var(--mb-frosted-plane); border-top-color: var(--mb-glass-highlight); }
-.player-play-button, .transport-button-primary { box-shadow: 0 5px 18px rgba(179, 79, 121, .20); }
-.player-quality-button, .player-zone-button, .player-inspector-button { border-radius: 13px; background: var(--mb-frosted-control); }
+/* 侧栏与主内容共用连续背景；保留实际导航、折叠与设置入口。 */
+.music-sidebar { flex: 0 0 224px; min-width: 0; padding: 25px 14px 18px; background: var(--mb-frosted-plane); -webkit-backdrop-filter: blur(25px) saturate(1.08); backdrop-filter: blur(25px) saturate(1.08); border-right: 1px solid #ffffff65; box-shadow: none; }
+.sidebar-header { height: 45px; flex-basis: 45px; padding: 0 12px 24px; }
+.sidebar-brand { font-size: 18px; font-weight: 750; letter-spacing: -.7px; }
+.sidebar-brand strong { font-weight: inherit; }
+.sidebar-collapse-button { position: relative; width: 22px; height: 22px; border: 0; box-shadow: none; background: none; font-size: 10px; letter-spacing: 1px; color: var(--mb-accent); }
+.sidebar-collapse-button .sidebar-brand-mark { display: block; }
+.sidebar-collapse-button svg { display: none; }
+.sidebar-collapse-button:hover .sidebar-brand-mark, .sidebar-collapse-button:focus-visible .sidebar-brand-mark { display: none; }
+.sidebar-collapse-button:hover svg, .sidebar-collapse-button:focus-visible svg { display: block; }
+.sidebar-search { padding: 0; flex-basis: 36px; }
+.sidebar-search-field { gap: 8px; height: 36px; padding: 9px 11px; border-radius: 10px; background: #ffffff68; border: 1px solid #ffffff70; box-shadow: none; }
+.sidebar-search-field:focus-within { border-color: var(--mb-accent); background: #ffffff68; }
+.sidebar-search-field input { font-size: 12px; }
+.sidebar-search-field kbd { display: none; }
+.sidebar-source-scroll { margin: 0; padding: 0 0 18px; }
+.sidebar-section-title { font-size: 11px; margin: 25px 12px 9px; color: var(--mb-text-secondary); font-weight: 600; }
+.sidebar-nav-row, .sidebar-playlist-row { min-height: 38px; margin: 2px 0; padding: 8px 12px; gap: 12px; border-radius: 10px; font-size: 13px; }
+.sidebar-nav-row.selected, .sidebar-playlist-row.selected { color: #843759; background: var(--mb-accent-soft); box-shadow: none; font-weight: 600; }
+.sidebar-nav-row:hover, .sidebar-playlist-row:hover { background: #ffffff70; }
+.sidebar-nav-row.selected:hover, .sidebar-playlist-row.selected:hover { background: var(--mb-accent-soft); }
+.sidebar-playlist-toggle { padding: 9px 12px; margin-top: 22px; }
+.sidebar-playlist-title { font-size: 11px; }
+.sidebar-playlist-art { width: 26px; height: 26px; border-radius: 6px; }
+.sidebar-settings-footer { padding: 0; border: 0; margin-top: auto; }
+.sidebar-settings-button { padding: 12px; min-height: 43px; gap: 12px; background: #ffffff50; border: 1px solid #ffffff75; border-radius: 10px; box-shadow: none; }
+.sidebar-settings-label { font-size: 14px; }
+.sidebar-settings-button:hover { background: #ffffff70; }
+.music-sidebar.is-collapsed { flex-basis: 66px; padding-inline: 8px; }
+.is-collapsed .sidebar-header { padding-inline: 8px; }
+.is-collapsed .sidebar-brand { color: var(--mb-accent); font-size: 14px; letter-spacing: 1px; }
+.is-collapsed .sidebar-collapse-button { top: 0; right: 0; }
+.is-collapsed .sidebar-collapse-button svg { display: block; }
+.is-collapsed .sidebar-search { padding: 0; }
+.is-collapsed .sidebar-nav-row { padding-inline: 0; }
+.is-collapsed .sidebar-settings-button { padding-inline: 0; justify-content: center; }
+
+/* 主页沿用预览的五列、文字层级与无容器分组。 */
+.view { padding-top: 35px; }
+.home-view { width: min(1380px, calc(100% - 88px)); max-width: 1380px; padding-bottom: 0; }
+.home-browse-header { margin-bottom: 32px; }
+.home-browse-header .section-kicker { font-size: 10px; letter-spacing: 1.8px; line-height: normal; font-weight: 400; text-transform: uppercase; margin-bottom: 9px; color: var(--mb-text-secondary); }
+.home-browse-header h2 { font-size: 33px; font-weight: 650; letter-spacing: -1.1px; margin: 0; }
+.home-browse-header .lede { font-size: 13px; margin: 10px 0 0; line-height: normal; }
+.home-view .home-media-section, .home-view .home-recent-section { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; margin-top: 0; margin-bottom: 38px; }
+.home-view .home-section-heading { align-items: center; gap: 12px; margin-bottom: 19px; }
+.home-view .home-section-heading h3 { font-size: 22px; font-weight: 650; letter-spacing: -.5px; }
+.home-section-description, .daily-heading-note { margin: 6px 0 0; font-size: 12px; color: var(--mb-text-secondary); }
+.home-view .home-cover-wall, .home-view .daily-recommendation-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-auto-flow: row; grid-auto-columns: auto; gap: 23px; overflow: visible; }
+.home-cover-card, .daily-recommendation-tile { gap: 0; border: 0; border-radius: 0; }
+.home-cover-art, .daily-recommendation-art { border-radius: 12px; box-shadow: 0 7px 19px #35253c16; transform: none !important; filter: none !important; }
+.home-cover-art img, .daily-recommendation-art img { transition: transform .3s; }
+.home-cover-card:hover img, .daily-recommendation-tile:hover img { transform: scale(1.025); }
+.home-cover-copy, .daily-recommendation-copy { display: block; margin-top: 12px; }
+.home-view .home-cover-copy strong, .home-view .daily-recommendation-copy strong { display: block; font-size: 15px; font-weight: 600; }
+.home-view .home-cover-copy small, .home-view .daily-recommendation-copy small { display: block; margin-top: 5px; font-size: 12px; }
+.home-cover-frame { display: block; position: relative; }
+.home-cover-frame > .safe-artwork { width: 100%; }
+.home-cover-play { position: absolute; right: 12px; bottom: 12px; z-index: 1; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #ffffffca; backdrop-filter: blur(10px); opacity: 0; transition: opacity .15s; }
+.home-cover-card:hover .home-cover-play, .home-cover-card:focus-visible .home-cover-play, .daily-recommendation-tile:hover .home-cover-play, .daily-recommendation-tile:focus-visible .home-cover-play { opacity: 1; }
+.daily-recommendation-footer { margin-top: 18px; font-size: 11px; }
+.home-section-actions { gap: 10px; }
+.text-button { font-size: 12px; padding: 7px 8px; }
+.primary-button { font-size: 12px; padding: 9px 15px; border-radius: 20px; box-shadow: none; }
+.primary-button:hover:not(:disabled) { background: var(--mb-accent-hover); }
+.secondary-button { border-radius: 10px; background: #ffffff68; border: 1px solid #ffffff70; }
+
+/* 收藏页沿用预览的简洁标题；保留真实歌曲数量和队列操作。 */
+.view-liked { width: min(1380px, calc(100% - 88px)); max-width: 1380px; }
+.view-liked .liked-hero { display: block; margin-bottom: 32px; padding: 0; border: 0; }
+.view-liked .view-heading { align-items: center; }
+.view-liked .view-heading h2 { font-size: 33px; font-weight: 650; letter-spacing: -1.1px; line-height: normal; margin: 0; }
+.view-liked .section-kicker { font-size: 10px; letter-spacing: 1.8px; line-height: normal; font-weight: 400; margin-bottom: 9px; }
+.view-liked .view-heading .lede { font-size: 13px; line-height: normal; margin: 10px 0 0; }
+@media (max-width: 1150px) { .view-liked { width: calc(100% - 56px); } }
+@media (max-width: 800px) { .view-liked { width: calc(100% - 40px); } .view-liked .view-heading h2 { font-size: 28px; } }
+
+/* 播放器材质独立承托控件，避免后方封面形成强烈杂色。 */
+.global-player { bottom: 18px; width: min(1060px, calc(100% - 64px)); height: 88px; min-height: 88px; grid-template-columns: minmax(0, 1fr) 205px minmax(0, 1fr); gap: 18px; padding: 14px 20px; border: 1px solid #ffffffaa; border-radius: 23px; background: rgba(247, 242, 247, .70); -webkit-backdrop-filter: blur(32px) saturate(.90); backdrop-filter: blur(32px) saturate(.90); box-shadow: 0 14px 42px #33243922, inset 0 1px #ffffff80; }
+.player-track { gap: 12px; }
+.player-track-button { border-radius: 10px; }
+.player-track-button:hover { background: #ffffff70; }
+.player-art { width: 53px; height: 53px; border-radius: 10px; background: #ffffff45; font-size: 22px; color: #9c758d; }
+.player-track > div:last-child { display: block; }
+.player-track strong { display: block; font-size: 13px; font-weight: 600; }
+.player-track small { display: block; margin-top: 5px; font-size: 11px; }
 .player-controls { gap: 14px; }
-.primary-button { border-radius: 999px; padding-inline: 20px; }
-.secondary-button { border-radius: 999px; background: var(--mb-frosted-control); }
-.sidebar-settings-button, .sidebar-search-field, .secondary-button, .player-quality-button, .player-zone-button,
-.player-inspector-button, .toolbar-status-button, .sidebar-collapse-button,
-.now-playing-back, .now-playing-quality-button, .inspector-close,
-.collection-add, .reference-entry, .recording-secondary button {
-  background: var(--mb-frosted-control);
-  -webkit-backdrop-filter: blur(14px) saturate(1.4);
-  backdrop-filter: blur(14px) saturate(1.4);
-  border: 1px solid rgba(255, 255, 255, .68);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8), inset 0 -1px 0 rgba(143, 104, 130, .07), 0 3px 12px rgba(115, 77, 107, .06);
-}
-.primary-button:active:not(:disabled), .player-play-button:active:not(:disabled) { transform: scale(.97); }
-.sidebar-popover, .toolbar-status-popover, .track-context-menu { background: var(--mb-glass-strong); border-color: var(--mb-glass-highlight); }
-.settings-glass-panel { background: var(--mb-frosted-plane); }
-.toast { background: var(--mb-glass-strong); color: var(--mb-text-primary); box-shadow: var(--mb-glass-shadow); }
+.player-control-button { width: 30px; height: 30px; border-radius: 10px; }
+.player-play-button { width: 45px; height: 45px; box-shadow: none; }
+.player-play-button .sidebar-icon { font-size: 22px !important; }
+.player-meta { gap: 8px; }
+.player-quality-control { min-width: 78px; }
+.player-quality-button, .player-zone-button, .player-inspector-button { background: var(--mb-frosted-control); border: 1px solid #ffffff55; box-shadow: none; backdrop-filter: none; border-radius: 10px; padding: 8px 10px; }
+.player-quality-button { min-height: 38px; }
+.player-quality-button strong { font-size: 11px; font-weight: 400; }
+.player-zone-button { min-width: 0; max-width: 150px; min-height: 34px; gap: 7px; }
+.player-zone-button strong { font-size: 11px; font-weight: 400; }
+.player-zone-button small { display: none; }
+.player-inspector-button { width: 36px; min-height: 34px; }
+.player-quality-button:hover, .player-zone-button:hover, .player-inspector-button:hover, .player-control-button:hover:not(:disabled) { background: #ffffff70; }
 
-/* 乳白底托住高密度文字，封面、照片与二维码维持原始色彩。 */
-.track-table-wrap, .roon-track-table, .empty-state,
-.search-result-section,
-.diagnostic-card, .diagnostic-checks {
-  border: 1px solid var(--mb-glass-highlight);
-  border-radius: 22px;
-  background: var(--mb-content-glass);
-  box-shadow: var(--mb-glass-shadow);
-}
-.track-table-wrap, .roon-track-table { padding: 8px 14px; }
-.search-result-section { padding: 20px; }
-.home-view .home-media-section, .home-view .home-recent-section { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; margin-top: 40px; }
-.home-view .home-cover-wall, .home-view .daily-recommendation-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-auto-flow: row; grid-auto-columns: auto; gap: 28px 24px; overflow: visible; }
-.home-view .home-cover-copy strong, .home-view .daily-recommendation-copy strong { font-size: 14px; }
-.home-view .home-cover-copy small, .home-view .daily-recommendation-copy small { font-size: 12px; }
-.diagnostic-card, .diagnostic-checks { padding: 18px; }
+/* 其余业务表面沿用同一材质，不改变虚拟列表行高和交互合同。 */
+.track-table-wrap, .roon-track-table, .empty-state, .search-result-section, .diagnostic-card, .diagnostic-checks { border: 1px solid #ffffff90; border-radius: 18px; background: var(--mb-content-glass); box-shadow: none; }
+.track-table-wrap, .roon-track-table { padding: 12px 18px; }
+.search-result-section, .diagnostic-card, .diagnostic-checks { padding: 18px; }
 .search-track-results { border: 0; background: transparent; }
-.track-table-header, .track-row { grid-template-columns: 28px 40px minmax(0, 1.2fr) minmax(70px, 1fr) 48px 64px; gap: 10px; }
-.track-table-no-artwork .track-table-header, .track-table-no-artwork .track-row { grid-template-columns: 28px minmax(0, 1.35fr) minmax(70px, 1fr) 48px 64px; }
-.track-row, .roon-track-row { border-radius: 10px; }
-.track-row:hover, .track-row:focus-within, .roon-track-row:hover, .roon-track-row:focus-within { background: var(--mb-accent-soft); }
+.track-row, .roon-track-row { border-radius: 0; }
+.track-row:hover, .track-row:focus-within, .roon-track-row:hover, .roon-track-row:focus-within { background: #ffffff70; }
 .track-row:focus-within .row-actions, .roon-track-row:focus-within .row-actions { opacity: 1; }
 .track-row:focus-visible, .roon-track-row:focus-visible { outline: 2px solid var(--mb-accent); outline-offset: -2px; }
-.row-action:hover { color: var(--mb-accent); background: rgba(255, 255, 255, .78); }
-.roon-track-table-header, .roon-track-row { grid-template-columns: 34px minmax(0, 1fr) 70px 64px; }
-.liked-hero, .playlist-detail-hero, .roon-album-detail-hero { grid-template-columns: 160px minmax(0, 1fr); gap: 24px; padding-bottom: 0; border-bottom: 0; }
-.liked-hero .view-heading { flex-direction: column; align-items: flex-start; gap: 16px; }
-.liked-collage, .playlist-detail-art, .roon-album-detail-art { width: 160px; border: 4px solid rgba(255, 255, 255, .64); border-radius: 20px; box-shadow: var(--mb-glass-shadow); }
-.liked-hero .view-heading h2, .playlist-detail-copy h2, .roon-album-detail-copy h2 { font-size: clamp(28px, 3vw, 38px); line-height: 1.2; }
-.playlist-card, .roon-album-card, .search-artist-card, .search-album-card {
-  padding: 12px; border: 1px solid var(--mb-glass-highlight); border-radius: 20px;
-  background: var(--mb-content-glass);
-}
-.playlist-art, .roon-album-art, .home-cover-art, .daily-recommendation-art { box-shadow: 0 6px 18px rgba(121, 87, 111, .12); }
-.roon-artwork-error { background: var(--mb-glass-strong); color: var(--mb-danger); }
-
-.playback-inspector {
-  width: 310px; flex-basis: 310px; min-width: 280px;
-  border-left-color: var(--mb-glass-highlight); background: var(--mb-frosted-plane);
-}
-.inspector-header h2 { font-size: 23px; }
-.queue-current strong { overflow-wrap: anywhere; }
+.playlist-card, .roon-album-card, .search-artist-card, .search-album-card { padding: 12px; border: 1px solid #ffffff90; border-radius: 18px; background: var(--mb-content-glass); }
+.sidebar-popover, .toolbar-status-popover, .track-context-menu, .settings-glass-panel, .playback-inspector { background: var(--mb-glass-strong); backdrop-filter: blur(25px); border-color: #ffffff99; box-shadow: 0 10px 40px #35253b20; }
+.playback-inspector { width: 310px; flex-basis: 310px; min-width: 280px; }
 .queue-row { grid-template-columns: 24px 34px minmax(0, 1fr) auto; gap: 8px; }
 .queue-row > small { max-width: 74px; }
-.queue-upcoming-viewport { padding-right: 5px; }
-.now-playing-fullscreen { background: rgba(255, 255, 255, .22); }
-.now-playing-art { box-shadow: 0 20px 48px rgba(135, 87, 117, .2); }
-.now-playing-back, .now-playing-quality-button { background: var(--mb-frosted-control); border-color: var(--mb-glass-highlight); }
-.now-playing-progress-visual { background: linear-gradient(90deg, var(--mb-player-accent) 0 var(--progress-ratio), #957e9740 var(--progress-ratio) 100%); }
-.now-playing-progress-track:focus-within { outline: 2px solid var(--mb-accent); outline-offset: 3px; border-radius: 999px; }
-.now-playing-lyrics .lyrics-line { color: var(--mb-text-secondary); opacity: .58; filter: none; }
-.now-playing-lyrics .lyrics-line-distance-1 { opacity: .85; filter: none; }
+.queue-current strong { overflow-wrap: anywhere; }
+.toast { background: #fcf9fdef; color: var(--mb-text-primary); box-shadow: 0 6px 22px #47344915; }
+.now-playing-fullscreen { background: transparent; }
+.now-playing-art { box-shadow: 0 20px 48px #35253c25; }
+.now-playing-back, .now-playing-quality-button { background: #ffffff68; border-color: #ffffff70; }
+.now-playing-progress-visual { background: linear-gradient(90deg, var(--mb-player-accent) 0 var(--progress-ratio), #67546b20 var(--progress-ratio) 100%); }
+.now-playing-lyrics .lyrics-line { color: var(--mb-text-secondary); opacity: .7; filter: none; }
 .now-playing-lyrics .lyrics-line.active { color: var(--mb-accent); opacity: 1; }
 .now-playing-lyrics .lyrics-line small { color: var(--mb-text-secondary); opacity: 1; }
-.now-playing-lyrics .lyrics-line.active small { color: var(--mb-text-primary); }
-.persistent-error, .notice-card, .destructive-button, .inline-action { color: var(--mb-danger); }
-
-/* 原生弹窗及 scoped V3 面板复用颜色 token；不改其焦点、提交或关闭行为。 */
-:root dialog { box-shadow: var(--mb-glass-shadow); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
-:root dialog::backdrop { background: var(--mb-scrim); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
-:root .inventory-card, :root .collection-empty, :root .recording-start {
-  background: var(--mb-content-glass); border-color: var(--mb-glass-highlight);
-  border-radius: 20px; box-shadow: var(--mb-glass-shadow);
-}
-:root .collection-tabs { background: var(--mb-glass-regular); }
+:root dialog { background: #f8f5f9f5; box-shadow: 0 20px 80px #463b4933; border: 1px solid #fff; border-radius: 22px; }
+:root dialog::backdrop { background: #40354b30; backdrop-filter: blur(8px); }
+:root .inventory-card, :root .collection-empty, :root .recording-start { background: var(--mb-content-glass); border-color: #ffffff90; border-radius: 18px; box-shadow: none; }
+:root .collection-tabs { background: #ffffff68; }
 :root .collection-tabs button[aria-selected="true"] { color: var(--mb-accent); background: var(--mb-accent-soft); box-shadow: none; }
-:root .recording-primary { color: var(--mb-on-accent); border-radius: 999px; }
-
+:root .recording-primary { color: var(--mb-on-accent); border-radius: 20px; }
+@media (max-width: 1640px) { .music-sidebar:not(.is-collapsed) { padding-bottom: var(--mb-player-clearance); } }
+@media (max-width: 1248px) { .music-sidebar.is-collapsed { padding-bottom: var(--mb-player-clearance); } }
 @media (max-width: 1250px) {
   .workspace-body { position: relative; }
-  .playback-inspector { position: absolute; inset: 0 0 0 auto; width: min(340px, 100%); min-width: 0; background: var(--mb-glass-strong); }
-  .global-player { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); padding-inline: 16px; gap: 12px; }
-  .player-meta { gap: 6px; }
-  .player-quality-control { min-width: 78px; }
-  .player-zone-button { min-width: 112px; max-width: 160px; }
+  .playback-inspector { position: absolute; inset: 0 0 0 auto; width: min(340px, 100%); min-width: 0; }
 }
-@media (max-width: 900px) {
-  .home-view .home-cover-wall, .home-view .daily-recommendation-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px 14px; }
-  :root { --mb-player-clearance: 140px; }
-  .global-player { width: calc(100% - 32px); bottom: 12px; grid-template-columns: minmax(0, 1fr) auto; height: 116px; min-height: 116px; row-gap: 4px; }
+@media (max-width: 1150px) {
+  .music-sidebar:not(.is-collapsed) { flex-basis: 198px; }
+  .home-view { width: calc(100% - 56px); }
+  .home-view .home-cover-wall, .home-view .daily-recommendation-grid { gap: 16px; }
+  .global-player { grid-template-columns: minmax(0, 1fr) 140px minmax(0, 1fr); gap: 8px; padding-inline: 16px; }
+  .player-zone-button > span { display: none; }
+}
+@media (max-width: 800px) {
+  .music-sidebar:not(.is-collapsed) { flex-basis: 66px; padding-inline: 8px; }
+  .sidebar-search, .sidebar-section-title, .sidebar-playlist-section, .sidebar-row-label, .sidebar-settings-label { display: none; }
+  .sidebar-header { padding-inline: 0; justify-content: center; }
+  .sidebar-brand { display: none; }
+  .music-sidebar .sidebar-collapse-button { margin: auto; opacity: 1; font-size: 14px; }
+  .sidebar-source-scroll { padding-top: 10px; }
+  .sidebar-nav-row, .sidebar-settings-button { padding-inline: 0; justify-content: center; }
+  .sidebar-settings-button > .sidebar-icon:last-child { display: none; }
+  .home-view { width: calc(100% - 40px); padding-top: 25px; }
+  .home-browse-header { margin-bottom: 24px; }
+  .home-browse-header h2 { font-size: 28px; }
+  .home-view .home-section-heading { align-items: flex-start; flex-direction: row; }
+  .home-section-actions .text-button { display: none; }
+  .home-view .home-section-heading h3 { font-size: 19px; }
+  .home-view .home-cover-wall, .home-view .daily-recommendation-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .home-view .home-cover-copy strong, .home-view .daily-recommendation-copy strong { font-size: 13px; }
+  .home-section-actions { gap: 2px; flex-wrap: wrap; }
+  .global-player { width: calc(100% - 24px); bottom: 12px; height: 110px; min-height: 110px; grid-template-columns: minmax(0, 1fr) 130px; row-gap: 9px; padding: 14px 16px; }
   .player-track { grid-column: 1; grid-row: 1; }
   .player-controls { grid-column: 2; grid-row: 1; }
-  .player-meta { grid-column: 1 / -1; grid-row: 2; justify-content: flex-end; }
-}
-@media (max-width: 760px) {
-  .sidebar-settings-label, .sidebar-settings-label + .sidebar-icon, .sidebar-playlist-toggle > span { display: none; }
-  .sidebar-settings-button, .sidebar-playlist-toggle { justify-content: center; padding-inline: 0; }
-  .sidebar-header { padding-inline: 12px; }
-  .sidebar-source-scroll { padding-inline: 9px; }
-  .liked-hero, .playlist-detail-hero, .roon-album-detail-hero { grid-template-columns: 1fr; }
-  .track-table-wrap, .roon-track-table { padding-inline: 6px; }
-  .track-table .track-row { grid-template-columns: 22px 40px minmax(0, 1fr) 32px; }
-  .track-table.track-table-no-artwork .track-row { grid-template-columns: 22px minmax(0, 1fr) 32px; }
-  .roon-track-table .roon-track-row { grid-template-columns: 28px minmax(0, 1fr) 62px; }
-  .home-media-section, .home-recent-section, .search-result-section { padding: 14px; }
+  .player-meta { grid-column: 1 / -1; grid-row: 2; justify-content: flex-end; overflow: visible; }
+  .player-quality-button, .player-zone-button, .player-inspector-button { padding: 5px 9px; min-height: 28px; }
+  .player-quality-button > span { display: flex; align-items: center; gap: 9px; }
+  .player-quality-control { min-width: 110px; }
 }
 @supports not (backdrop-filter: blur(1px)) {
-  :root { --mb-frosted-grain: none; }
-  .music-sidebar, .topbar, .global-player, .playback-inspector,
-  .sidebar-popover, .toolbar-status-popover, .track-context-menu, .settings-glass-panel { background: #fff7fb; }
+  .music-sidebar, .global-player, .playback-inspector, .sidebar-popover, .settings-glass-panel { background: #f5f0f7; }
 }
 @media (prefers-reduced-transparency: reduce) {
-  :root { --mb-frosted-grain: none; }
-  .music-sidebar, .topbar, .global-player, .playback-inspector,
-  .sidebar-popover, .toolbar-status-popover, .track-context-menu, .settings-glass-panel,
-  .track-table-wrap, .roon-track-table, :root dialog,
-  .sidebar-settings-button, .sidebar-search-field, .secondary-button, .player-quality-button, .player-zone-button,
-  .player-inspector-button, .toolbar-status-button, .sidebar-collapse-button,
-  .now-playing-back, .now-playing-quality-button, .inspector-close,
-  .collection-add, .reference-entry, .recording-secondary button { background: #fff7fb; -webkit-backdrop-filter: none; backdrop-filter: none; }
-  .album-ambient-cover { display: none; }
+  .music-sidebar, .global-player, .playback-inspector, .sidebar-popover, .settings-glass-panel, .track-table-wrap, .roon-track-table { background: #f5f0f7; backdrop-filter: none; }
+  .album-ambient-wash, .album-ambient.has-cover .album-ambient-wash { background: #f5f0f7d9; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .primary-button:active:not(:disabled), .player-play-button:active:not(:disabled) { transform: none; }
-  .music-sidebar, .ambient-cover-enter-active, .ambient-cover-leave-active { transition: none; }
+  .music-sidebar, .ambient-image-frame, .album-ambient-wash, .ambient-cover-enter-active, .ambient-cover-leave-active, .home-cover-art img, .daily-recommendation-art img { transition: none; }
 }

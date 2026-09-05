@@ -5,6 +5,7 @@ import type { HomeRecommendationState } from '../composables/homeRecommendations
 import type { ViewId } from './navigation.js'
 import DailyRecommendationsSection from './home/DailyRecommendationsSection.vue'
 import SafeArtwork from './SafeArtwork.vue'
+import SidebarIcon from './sidebar/SidebarIcon.vue'
 
 const props = defineProps<{
   likedTracks: readonly TrackSummary[]
@@ -42,7 +43,7 @@ const playlistCoverTracks = computed(() => props.playlistTracks)
       <div>
         <p class="section-kicker">Music Bridge</p>
         <h2 id="home-heading">{{ props.greeting }}</h2>
-        <p class="lede">发现今日推荐，浏览你的收藏与歌单。</p>
+        <p class="lede">让音乐，为此刻添一点颜色。</p>
       </div>
     </header>
 
@@ -61,13 +62,13 @@ const playlistCoverTracks = computed(() => props.playlistTracks)
 
     <section class="home-media-section" aria-labelledby="liked-home-heading">
       <div class="home-section-heading">
-        <div><p class="section-kicker">资料库</p><h3 id="liked-home-heading">我喜欢的音乐</h3></div>
+        <div><h3 id="liked-home-heading">我喜欢的音乐</h3><p class="home-section-description">那些值得反复聆听的时刻</p></div>
         <button type="button" class="text-button" @click="emit('navigate', 'liked')">查看全部 →</button>
       </div>
       <div v-if="props.likedState === 'loading'" class="home-cover-wall home-cover-wall-loading" aria-label="正在读取收藏" aria-busy="true"><span v-for="index in 5" :key="index" class="home-cover-skeleton"></span></div>
       <div v-else-if="props.likedState === 'ready' && props.likedTracks.length" class="home-cover-wall" aria-label="我喜欢的音乐封面">
         <button v-for="track in props.likedTracks.slice(0, 12)" :key="track.id" type="button" class="home-cover-card" :aria-label="`播放 ${track.title}`" @click="emit('play', track)">
-          <SafeArtwork class="home-cover-art" :src="track.artworkUrl" :alt="`${track.title} 封面`" />
+          <span class="home-cover-frame"><SafeArtwork class="home-cover-art" :src="track.artworkUrl" :alt="`${track.title} 封面`" /><span class="home-cover-play" aria-hidden="true"><SidebarIcon name="play" :size="16" /></span></span>
           <span class="home-cover-copy"><strong>{{ track.title }}</strong><small>{{ track.artists.join('、') }}</small></span>
         </button>
       </div>
@@ -84,7 +85,7 @@ const playlistCoverTracks = computed(() => props.playlistTracks)
       <div v-if="props.playlistRecommendationsState === 'loading'" class="home-cover-wall home-cover-wall-loading" aria-label="正在读取歌单歌曲"><span v-for="index in 12" :key="index" class="home-cover-skeleton"></span></div>
       <div v-else-if="playlistCoverTracks.length" class="home-cover-wall" aria-label="我的歌单随机歌曲">
         <button v-for="track in playlistCoverTracks.slice(0, 12)" :key="track.id" type="button" class="home-cover-card" :aria-label="`播放 ${track.title}`" @click="emit('play', track)">
-          <SafeArtwork class="home-cover-art" :src="track.artworkUrl" :alt="`${track.title} 封面`" />
+          <span class="home-cover-frame"><SafeArtwork class="home-cover-art" :src="track.artworkUrl" :alt="`${track.title} 封面`" /><span class="home-cover-play" aria-hidden="true"><SidebarIcon name="play" :size="16" /></span></span>
           <span class="home-cover-copy"><strong>{{ track.title }}</strong><small>{{ track.artists.join('、') }}</small></span>
         </button>
       </div>

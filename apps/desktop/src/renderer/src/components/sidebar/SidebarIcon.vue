@@ -1,45 +1,21 @@
 <script setup lang="ts">
-type IconName = 'chevron-down' | 'chevron-left' | 'chevron-right' | 'grid' | 'heart' | 'home' | 'list' | 'more' | 'music-note' | 'next' | 'pause' | 'play' | 'previous' | 'search' | 'speaker' | 'user' | 'cassette' | 'record' | 'settings'
-
-withDefaults(defineProps<{
-  name: IconName
-  size?: number
-}>(), {
-  size: 16,
-})
+// 复用已认可 HTML 的 Bootstrap Icons；保持既有组件的名称与尺寸接口。
+const icons = {
+  'chevron-down': 'chevron-down', 'chevron-left': 'chevron-left', 'chevron-right': 'chevron-right',
+  grid: 'grid', heart: 'heart', home: 'house-door', list: 'list-ul', more: 'three-dots',
+  'music-note': 'music-note-beamed', next: 'skip-end-fill', pause: 'pause-fill', play: 'play-fill',
+  previous: 'skip-start-fill', search: 'search', speaker: 'speaker', user: 'person',
+  cassette: 'cassette', record: 'record-circle', settings: 'sliders', refresh: 'arrow-clockwise',
+  vinyl: 'vinyl', people: 'people', collection: 'collection', bookmark: 'bookmark-heart',
+  'music-list': 'music-note-list',
+} as const
+withDefaults(defineProps<{ name: keyof typeof icons; size?: number }>(), { size: 16 })
 </script>
 
 <template>
-  <svg class="sidebar-icon" :width="size" :height="size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <g v-if="name === 'settings'">
-      <path d="M4 7h3m6 0h7M4 17h7m6 0h3" />
-      <circle cx="10" cy="7" r="3" /><circle cx="14" cy="17" r="3" />
-    </g>
-    <g v-if="name === 'cassette'">
-      <rect x="2" y="5" width="20" height="14" rx="3" />
-      <circle cx="7.5" cy="10.5" r="2" /><circle cx="16.5" cy="10.5" r="2" />
-      <path d="M9.5 10.5h5M6 19l2-4h8l2 4" />
-    </g>
-    <g v-if="name === 'record'">
-      <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" />
-    </g>
-    <path v-if="name === 'home'" d="m3.5 10.8 8.5-7 8.5 7v8.7a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5v-8.7Z" />
-    <path v-if="name === 'home'" d="M9 21v-6.5h6V21" />
-    <path v-if="name === 'heart'" d="M20.8 8.8c0 5.2-8.8 10.2-8.8 10.2S3.2 14 3.2 8.8A4.6 4.6 0 0 1 12 6.3a4.6 4.6 0 0 1 8.8 2.5Z" />
-    <path v-if="name === 'list'" d="M8 6h12M8 12h12M8 18h12" />
-    <path v-if="name === 'list'" d="M3.5 6h.1M3.5 12h.1M3.5 18h.1" />
-    <path v-if="name === 'grid'" d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" />
-    <path v-if="name === 'search'" d="m20 20-4.3-4.3M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z" />
-    <path v-if="name === 'speaker'" d="M4 9.5v5h3.5l4.5 3.5V6L7.5 9.5H4ZM16 9a4.5 4.5 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11" />
-    <path v-if="name === 'user'" d="M20 20a8 8 0 0 0-16 0M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" />
-    <path v-if="name === 'music-note'" d="M9 18.5a3 3 0 1 1-3-3c1.1 0 2.1.6 2.6 1.5V5l9-2v11.5a3 3 0 1 1-3-3c1.1 0 2.1.6 2.6 1.5V7.4L9 9V18.5Z" />
-    <path v-if="name === 'play'" d="m8 5 11 7-11 7V5Z" fill="currentColor" stroke="none" />
-    <path v-if="name === 'pause'" d="M7 5h3v14H7zM14 5h3v14h-3z" fill="currentColor" stroke="none" />
-    <path v-if="name === 'previous'" d="M6 5v14M18 6l-8 6 8 6V6Z" fill="currentColor" stroke="none" />
-    <path v-if="name === 'next'" d="M18 5v14M6 6l8 6-8 6V6Z" fill="currentColor" stroke="none" />
-    <path v-if="name === 'chevron-down'" d="m6 9 6 6 6-6" />
-    <path v-if="name === 'chevron-left'" d="m15 18-6-6 6-6" />
-    <path v-if="name === 'chevron-right'" d="m9 18 6-6-6-6" />
-    <path v-if="name === 'more'" d="M5 12h.1M12 12h.1M19 12h.1" stroke-width="2.5" />
-  </svg>
+  <i class="sidebar-icon bi" :class="`bi-${icons[name]}`" :style="{ fontSize: `${size}px`, width: `${size}px`, height: `${size}px` }" aria-hidden="true"></i>
 </template>
+
+<style scoped>
+.sidebar-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; line-height: 1; }
+</style>

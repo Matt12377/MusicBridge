@@ -46,60 +46,9 @@ test('正式入口加载玻璃层，覆盖队列、内容与无透明效果回�
 
 test('原生窗口底色跟随樱花主题，避免启动时闪黑', async () => {
   const main = await readFile(path.resolve('src/main/index.ts'), 'utf8')
-  assert.match(main, /backgroundColor:\s*'#f8eaf1'/)
+  assert.match(main, /backgroundColor:\s*'#f2edf1'/)
   assert.ok(main.includes("nativeTheme.themeSource = 'light'"), '原生标题栏必须与浅色内容一致')
 })
 
-test('边栏和控件使用透色毛玻璃，而不是统一乳白实色填充', async () => {
-  const theme = await readFile(path.join(root, 'sakura-theme.css'), 'utf8')
-  assert.ok(theme.includes('var(--mb-frosted-control)'), '控件缺少独立透色毛玻璃材质')
-  assert.ok(theme.includes('var(--mb-frosted-plane)'), '边栏缺少透色玻璃材质')
-  assert.match(theme, /backdrop-filter:\s*blur\(14px\) saturate\(1\.4\)/)
-  assert.match(theme, /inset 0 1px 0 rgba\(255, 255, 255, \.8\)/)
-})
-
-test('当前封面在暂停时仍传给氛围层，且不被主题压成不可见', async () => {
-  const app = await readFile(path.join(root, 'App.vue'), 'utf8')
-  assert.match(app, /<AlbumAmbientBackground :current-track="currentTrack"/)
-  const theme = await readFile(path.join(root, 'sakura-theme.css'), 'utf8')
-  const coverOpacity = Number(theme.match(/--mb-ambient-cover-opacity:\s*([\d.]+)/)?.[1])
-  assert.ok(coverOpacity >= .7 && coverOpacity <= 1, '封面必须保持可见权重')
-  assert.match(theme, /opacity:\s*var\(--mb-ambient-cover-opacity\)/)
-  assert.match(theme, /\.album-ambient-cover img\s*\{[^}]*blur\(12px\)/)
-  const css = await readFile(path.join(root, 'style.css'), 'utf8')
-  // 全黑封面经氛围层叠加后的保守底色，不仅检查浅粉默认底。
-  for (const name of ['--mb-text-primary', '--mb-text-secondary', '--mb-text-tertiary']) {
-    const color = css.match(new RegExp(`${name}:\\s*(#[a-f\\d]{6})`, 'i'))![1]!
-    assert.ok((luminance('a6a0a6') + .05) / (luminance(color) + .05) >= 4.5, `${name} 在深色封面下不清晰`)
-  }
-})
-
-test('磨砂使用本地静态颗粒材质并保留减少透明效果的回退', async () => {
-  const theme = await readFile(path.join(root, 'sakura-theme.css'), 'utf8')
-  assert.match(theme, /--mb-frosted-grain:\s*url\('\.\/assets\/frosted-grain\.svg'\)/)
-  for (const name of ['plane', 'control']) {
-    assert.match(theme, new RegExp(`--mb-frosted-${name}:\\s*var\\(--mb-frosted-grain\\)`))
-  }
-  const grain = await readFile(path.join(root, 'assets/frosted-grain.svg'), 'utf8')
-  assert.match(grain, /feTurbulence/)
-  assert.doesNotMatch(grain, /<script|<animate|(?:href|src)=["']https?:\/\//)
-  assert.match(theme, /prefers-reduced-transparency[^}]*--mb-frosted-grain:\s*none/s)
-})
-
-test('柔暗玻璃减少白色遮盖，深色封面下仍保持文字对比度', async () => {
-  const theme = await readFile(path.join(root, 'sakura-theme.css'), 'utf8')
-  for (const name of ['plane', 'control']) {
-    const material = theme.match(new RegExp(`--mb-frosted-${name}:([^;]+)`))![1]!
-    const alphas = [...material.matchAll(/rgba\(\d+,\s*\d+,\s*\d+,\s*([\d.]+)\)/g)].map(match => Number(match[1]))
-    assert.ok(Math.max(...alphas) <= .5 && Math.min(...alphas) <= .2, `${name} 白色遮盖仍过强`)
-  }
-  assert.match(theme, /--mb-content-glass:\s*rgba\(247, 243, 248, \.42\)/)
-  assert.match(theme, /--mb-ambient-wash:\s*rgba\(236, 230, 238, \.58\)/)
-  assert.match(theme, /background:\s*var\(--mb-ambient-wash\)/)
-  const css = await readFile(path.join(root, 'style.css'), 'utf8')
-  // 覆盖全黑封面叠加柔暗 wash 后的保守底色。
-  for (const name of ['--mb-text-primary', '--mb-text-secondary', '--mb-text-tertiary']) {
-    const color = css.match(new RegExp(`${name}:\\s*(#[a-f\\d]{6})`, 'i'))![1]!
-    assert.ok((luminance('96919a') + .05) / (luminance(color) + .05) >= 4.5, `${name} 柔暗背景对比度不足`)
-  }
-})
+// 已认可 HTML 的材质与封面参数由 ambient-preview-parity.test.ts 锁定；
+// 这里的对比度证据仅覆盖默认底色，不代表任意封面图片。

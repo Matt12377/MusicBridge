@@ -5,7 +5,7 @@ import SidebarIcon from './SidebarIcon.vue'
 defineProps<{
   source: Exclude<SidebarSource['type'], 'playlist'>
   label: string
-  icon: 'grid' | 'heart' | 'home' | 'music-note' | 'cassette' | 'record'
+  icon: 'grid' | 'heart' | 'home' | 'music-note' | 'cassette' | 'record' | 'vinyl' | 'people' | 'collection' | 'bookmark' | 'music-list'
   expanded: boolean
   selected: boolean
 }>()

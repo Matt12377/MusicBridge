@@ -2980,10 +2980,9 @@ onUnmounted(() => {
           </template>
         </section>
 
-        <section v-else-if="currentView === 'liked'" class="view view-library" aria-labelledby="liked-heading">
+        <section v-else-if="currentView === 'liked'" class="view view-library view-liked" aria-labelledby="liked-heading">
           <div class="liked-hero">
-            <div class="liked-collage" aria-hidden="true"><SafeArtwork v-for="track in likedPage.items.slice(0, 4)" :key="track.id" class="liked-collage-tile" :src="track.artworkUrl" alt="" /><span v-if="!likedPage.items.length" class="liked-collage-empty">♫</span></div>
-            <div class="view-heading"><div><p class="section-kicker">资料库</p><h2 id="liked-heading">我喜欢的音乐</h2><p class="lede">{{ likedPage.total }} 首歌曲</p></div><div class="button-row"><button type="button" class="primary-button" :disabled="!likedPage.items.length" @click="playAllLiked">播放全部</button><button type="button" class="secondary-button" :disabled="!likedPage.items.length" @click="appendAllLiked">加入队列</button></div></div>
+            <div class="view-heading"><div><p class="section-kicker">MUSIC BRIDGE</p><h2 id="liked-heading">我喜欢的音乐</h2><p class="lede">{{ likedPage.total }} 首歌曲</p></div><div class="button-row"><button type="button" class="primary-button" :disabled="!likedPage.items.length" @click="playAllLiked">播放全部</button><button type="button" class="secondary-button" :disabled="!likedPage.items.length" @click="appendAllLiked">加入队列</button></div></div>
           </div>
           <p v-if="likedError" class="persistent-error">{{ likedError === 'auth-required' ? '请先登录音乐服务，再打开我喜欢的音乐。' : likedError === 'auth-expired' ? '登录已过期，请从侧栏账户菜单重新登录。' : '我喜欢的音乐暂时不可用，请稍后重试。' }}<button type="button" class="inline-action" @click="loadLiked()">重试</button></p>
           <TrackTable :tracks="likedPage.items" :initial-loading="likedInitialLoading" :loading-more="likedLoadingMore" :load-more-error="likedLoadMoreError" :total="likedPage.total" :has-more="likedPage.hasMore" empty-title="还没有喜欢的内容" empty-copy="登录网易云后，这里会显示你的收藏。" @play="playTrack" @queue="appendTrack" @play-next="insertTrackNext" @load-more="likedPageAt(likedPage.offset + likedPage.limit)" />

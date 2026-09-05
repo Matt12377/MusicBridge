@@ -1619,7 +1619,7 @@ function createWindow(supervisor: CoreSupervisor): BrowserWindow {
     minHeight: 480,
     // E2E 默认不弹出原生窗口；后台仍渲染，保留截图和 DOM 键盘测试。
     show: !isStartupTest && !isUiE2e,
-    backgroundColor: '#f8eaf1',
+    backgroundColor: '#f2edf1',
     webPreferences: {
       ...buildBrowserWindowWebPreferences(),
       ...(isUiE2e ? { backgroundThrottling: false } : {}),
