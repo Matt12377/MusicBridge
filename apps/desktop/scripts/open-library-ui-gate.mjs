@@ -43,7 +43,7 @@ app.on('browser-window-created', (_event, window) => {
       await evaluate(`document.querySelector('.sidebar-playlist-toggle').click()`)
       await waitFor(`!!document.querySelector('.sidebar-playlist-row')`)
       if(await evaluate(`!!document.querySelector('.music-sidebar [data-sidebar-source="roon-playlists"], .music-sidebar [data-sidebar-source="playlists"]')`)) throw Error('侧栏仍有多余的歌单来源入口')
-      if(await evaluate(`document.querySelector('.sidebar-playlist-toggle').textContent.trim()`) !== '网易云歌单') throw Error('歌单标题不符')
+      if(await evaluate(`document.querySelector('.sidebar-playlist-toggle').textContent.trim()`) !== '歌单') throw Error('歌单标题不符')
       console.log('SIDEBAR_NAV_PASS',JSON.stringify(sidebarOrder))
       for (const value of ['light','dark']) {
         await theme(value)
@@ -53,9 +53,9 @@ app.on('browser-window-created', (_event, window) => {
             const player = document.querySelector('.global-player'), r = player.getBoundingClientRect();
             const settings=document.querySelector('.sidebar-settings-button'), sr=settings.getBoundingClientRect();
             const controls = [...player.querySelectorAll('button,input')].map(e=>e.getBoundingClientRect());
-            return {width:${width},playerWidth:r.width,playerCentered:Math.abs(r.left+r.width/2-innerWidth/2)<1, settingsReachable:settings.contains(document.elementFromPoint(sr.left+sr.width/2,sr.top+sr.height/2)), fits:controls.every(b=>b.left >= r.left && b.right <= r.right+1 && b.top>=r.top && b.bottom<=r.bottom+1), overlaps: controls.some((a,i)=>controls.some((b,j)=>j>i&&Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1)), timelineWidth:document.querySelector('.player-timeline').offsetWidth,timelineCentered:Math.abs(document.querySelector('.player-timeline').getBoundingClientRect().left+document.querySelector('.player-timeline').offsetWidth/2-innerWidth/2)<1,qualityHeight:document.querySelector('.player-quality-button').offsetHeight,zoneHeight:document.querySelector('.player-zone-button').offsetHeight};
+            return {width:${width},playerWidth:r.width,playerCentered:Math.abs(r.left+r.width/2-innerWidth/2)<1, settingsBottomGap:innerHeight-sr.bottom,settingsReachable:settings.contains(document.elementFromPoint(sr.left+sr.width/2,sr.top+sr.height/2)), fits:controls.every(b=>b.left >= r.left && b.right <= r.right+1 && b.top>=r.top && b.bottom<=r.bottom+1), overlaps: controls.some((a,i)=>controls.some((b,j)=>j>i&&Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1)), timelineWidth:document.querySelector('.player-timeline').offsetWidth,timelineCentered:Math.abs(document.querySelector('.player-timeline').getBoundingClientRect().left+document.querySelector('.player-timeline').offsetWidth/2-innerWidth/2)<1,qualityHeight:document.querySelector('.player-quality-button').offsetHeight,zoneHeight:document.querySelector('.player-zone-button').offsetHeight};
           })()`)
-          if (layout.playerWidth>1120 || !layout.playerCentered || layout.timelineWidth>360 || !layout.timelineCentered || !layout.settingsReachable || !layout.fits || layout.overlaps || layout.qualityHeight !== layout.zoneHeight) throw Error(JSON.stringify(layout))
+          if (layout.settingsBottomGap>20 || layout.playerWidth>1120 || !layout.playerCentered || layout.timelineWidth>360 || !layout.timelineCentered || !layout.settingsReachable || !layout.fits || layout.overlaps || layout.qualityHeight !== layout.zoneHeight) throw Error(JSON.stringify(layout))
           console.log('OPEN_LAYOUT_PASS',value,JSON.stringify(layout)); await capture('home-'+value+'-'+width)
         }
       }

@@ -59,14 +59,15 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="sidebar-playlist-section" aria-label="网易云歌单" :data-sidebar-playlist-state="state">
+  <section class="sidebar-playlist-section" aria-label="歌单" :data-sidebar-playlist-state="state">
     <h3 v-if="expanded" class="sidebar-playlist-heading">
-      <button type="button" class="sidebar-playlist-toggle" aria-label="网易云歌单" :aria-expanded="listExpanded" aria-controls="sidebar-netease-playlists" :title="listExpanded ? '收起网易云歌单' : '展开网易云歌单'" @click="listExpanded = !listExpanded">
-        <span>网易云歌单</span>
+      <button type="button" class="sidebar-nav-row sidebar-playlist-toggle" aria-label="歌单" :aria-expanded="listExpanded" aria-controls="sidebar-netease-playlists" :title="listExpanded ? '收起歌单' : '展开歌单'" @click="listExpanded = !listExpanded">
+        <SidebarIcon name="music-list" />
+        <span class="sidebar-row-label">歌单</span>
         <SidebarIcon :name="listExpanded ? 'chevron-down' : 'chevron-right'" :size="14" />
       </button>
     </h3>
-    <h3 v-else class="sidebar-section-title">网易云歌单</h3>
+    <h3 v-else class="sidebar-section-title">歌单</h3>
     <div id="sidebar-netease-playlists">
       <template v-if="!expanded || listExpanded">
         <div v-if="state === 'loading'" class="sidebar-playlist-list" aria-label="歌单加载中" aria-busy="true">
@@ -80,12 +81,12 @@ onUnmounted(() => {
           <SidebarPlaylistRow v-for="playlist in playlists" :key="playlist.id" :playlist="playlist" :expanded="expanded" :selected="activePlaylistId === playlist.id" @select="emit('select', playlist.id)" />
         </div>
         <div v-else-if="playlists.length" ref="root" class="sidebar-collapsed-playlist-control">
-          <button ref="trigger" type="button" class="sidebar-collapsed-source-button" :aria-expanded="open" aria-haspopup="dialog" aria-label="网易云歌单" title="网易云歌单" @click="toggle">
+          <button ref="trigger" type="button" class="sidebar-collapsed-source-button" :aria-expanded="open" aria-haspopup="dialog" aria-label="歌单" title="歌单" @click="toggle">
             <SidebarIcon name="music-note" />
           </button>
           <Teleport to="body">
-            <div v-if="open" ref="popup" class="sidebar-popover sidebar-playlist-popover" :style="popupStyle" tabindex="-1" role="dialog" aria-label="网易云歌单" @keydown.esc="closeWithFocus">
-              <strong>网易云歌单</strong>
+            <div v-if="open" ref="popup" class="sidebar-popover sidebar-playlist-popover" :style="popupStyle" tabindex="-1" role="dialog" aria-label="歌单" @keydown.esc="closeWithFocus">
+              <strong>歌单</strong>
               <div class="sidebar-playlist-list">
                 <SidebarPlaylistRow v-for="playlist in playlists" :key="playlist.id" :playlist="playlist" :expanded="true" :selected="activePlaylistId === playlist.id" @select="selectPlaylist(playlist.id)" />
               </div>

@@ -63,7 +63,7 @@ test('歌单默认展开，折叠后移除列表，再展开仍可导航且不�
   const selections: string[] = []; let retries = 0
   const f = await mount(t, 'SidebarPlaylistList', { expanded: true, playlists, state: 'ready', onSelect: (id: string) => selections.push(id), onRetry: () => retries++ })
   const toggle = () => f.byClass('sidebar-playlist-toggle')[0]
-  assert.equal(toggle()?.props['aria-label'], '网易云歌单')
+  assert.equal(toggle()?.props['aria-label'], '歌单')
   assert.equal(toggle()?.props['aria-expanded'], true)
   assert.ok(toggle()?.props['aria-controls'])
   await f.click(toggle()); assert.equal(toggle()?.props['aria-expanded'], false); assert.equal(f.byClass('test-playlist').length, 0)

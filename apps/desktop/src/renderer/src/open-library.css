@@ -74,7 +74,7 @@
 }
 
 :root { --mb-player-clearance: 166px; }
-:root .app-shell:not(.is-now-playing) .music-sidebar { padding-bottom: var(--mb-player-clearance); }
+:root .app-shell:not(.is-now-playing) .music-sidebar { padding-bottom: 16px; }
 :root .player-meta { overflow: visible; }
 :root .favorite-entity-art { width: 68px; height: 68px; }
 :root .favorite-entity-card { grid-template-columns: 68px minmax(0,1fr); }
@@ -94,3 +94,13 @@
 :root .sidebar-primary-navigation { padding-top: 20px; }
 :root .sidebar-source-scroll { overflow-x: hidden; }
 :root .sidebar-playlist-name { flex: 1 1 0; }
+
+/* 歌单沿用导航行，设置贴底；居中播放栏按侧栏宽度留出空间。 */
+:root .sidebar-playlist-heading { margin: 0; font-size: 13px; font-weight: 400; }
+:root .sidebar-playlist-toggle { height: 38px; margin: 2px 0; padding: 8px 12px; gap: 12px; justify-content: flex-start; }
+:root .sidebar-playlist-toggle .sidebar-row-label { flex: 1; }
+:root .app-shell { --mb-sidebar-width: 224px; }
+:root .app-shell:has(.music-sidebar.is-collapsed) { --mb-sidebar-width: 66px; }
+:root .app-shell:not(.is-now-playing) .global-player { width: min(1120px, calc(100% - var(--mb-sidebar-width) * 2 - 32px)); }
+@media (max-width: 1150px) { :root .app-shell { --mb-sidebar-width: 198px; } }
+@media (max-width: 800px) { :root .app-shell { --mb-sidebar-width: 66px; } }
