@@ -25,3 +25,12 @@
 ## 快速尺寸调整
 
 Owner 后续要求从 480px 缩到 360px，保持居中。实现 `350295f`，同步 Gate 尺寸上限；生产构建与 diff 检查通过。仅改尺寸，未重复原生 Gate；报告提交作为下一基线。
+
+## 整体播放栏收窄与视觉验证
+
+- Base `d50ea73d4c328f29a51e80986821a45f4e2780a9`，实现 `3ff506d`。
+- 根据后续截图，将外层播放栏最大宽度从 1580px 改为 1120px；内部进度区域保持 360px 居中。
+- 生产构建、Electron Gate、diff 检查均 exit 0。浅深色的 1980/1440 窗口实测播放栏 1120px，720 窗口自适应 696px；均居中、控件无重叠。
+- 已查看 `home-dark-1980.png` 和 `player-volume-dark.png`，截图目录 `/Volumes/LifeWeave/Developer/CommandLine/tmp/musicbridge-compact-player-ui/`。
+- 原生回归：110 帧进度无倒退，seek 65000ms，拖动音量即时发送到合成设备并稳定回读 39。
+- 使用隔离合成数据，未重启用户当前实例、未做真实设备/听感验收、未 push。报告提交用本文件最后提交解析；下一基线为该报告 HEAD。

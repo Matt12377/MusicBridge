@@ -30,6 +30,17 @@
       "implementationCommit": "350295f",
       "productionBuild": "pass",
       "visualGate": "not-rerun-width-only-quick-change"
+    },
+    "playerWidthAdjustment": {
+      "base": "d50ea73d4c328f29a51e80986821a45f4e2780a9",
+      "implementation": "3ff506d",
+      "maxWidthPx": 1120,
+      "timelineWidthPx": 360,
+      "buildExitCode": 0,
+      "nativeGateExitCode": 0,
+      "visualCheck": "Electron 浅深色，1980/1440/720 宽度；居中、无重叠；已查看截图",
+      "evidence": "/Volumes/LifeWeave/Developer/CommandLine/tmp/musicbridge-compact-player-ui/",
+      "carryover": "隔离合成数据；未重启用户实例，未验证真实设备；未 push"
     }
   },
   "openLibraryPlayer": {
