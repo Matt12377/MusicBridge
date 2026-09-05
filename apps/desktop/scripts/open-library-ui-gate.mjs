@@ -34,6 +34,18 @@ app.on('browser-window-created', (_event, window) => {
         await evaluate(`document.querySelector('input[name="appearance-theme"][value="${value}"]').click()`)
         await evaluate(`document.querySelector('[data-sidebar-source="home"]').click()`)
       }
+      const sidebarOrder=await evaluate(`[...document.querySelectorAll('.sidebar-primary-navigation .sidebar-nav-row')].map(e=>e.textContent.trim())`)
+      if(JSON.stringify(sidebarOrder)!==JSON.stringify(['主页','专辑','艺术家','流派','收藏','实物收藏','录音'])) throw Error('侧栏顺序不符：'+JSON.stringify(sidebarOrder))
+      await evaluate(`document.querySelector('.sidebar-playlist-toggle').click()`)
+      if(await evaluate(`!!document.querySelector('[data-sidebar-source="roon-playlists"]')`)) throw Error('收起后仍显示歌单来源')
+      window.setContentSize(1440,819)
+      await capture('sidebar-folded')
+      await evaluate(`document.querySelector('.sidebar-playlist-toggle').click()`)
+      await waitFor(`!!document.querySelector('[data-sidebar-source="roon-playlists"]')`)
+      await evaluate(`document.querySelector('[data-sidebar-source="roon-playlists"]').click()`)
+      await waitFor(`!!document.querySelector('#roon-playlists-heading')`)
+      await capture('sidebar-roon-playlists')
+      console.log('SIDEBAR_NAV_PASS',JSON.stringify(sidebarOrder))
       for (const value of ['light','dark']) {
         await theme(value)
         for (const [width,height] of [[1980,1080],[1440,819],[720,640]]) {
@@ -56,7 +68,9 @@ app.on('browser-window-created', (_event, window) => {
       await capture('playlists-dark')
       console.log('OPEN_COVER_PASS',JSON.stringify(card))
       window.setContentSize(1440,819)
-      await evaluate(`document.querySelector('[data-sidebar-source="liked"]').click()`)
+      await evaluate(`document.querySelector('[data-sidebar-source="home"]').click()` )
+      await waitFor(`!!document.querySelector('[aria-labelledby="liked-home-heading"] .text-button')`)
+      await evaluate(`document.querySelector('[aria-labelledby="liked-home-heading"] .text-button').click()`)
 
       await waitFor(`!!document.querySelector('.track-row')`)
       const list = await evaluate(`(() => { const row=document.querySelector('.track-row'), art=row.querySelector('.track-art'); return {row:row.offsetHeight,art:art.offsetWidth,background:getComputedStyle(document.querySelector('.track-table-wrap')).backgroundColor,meta:!!row.querySelector('.track-quality-details')}; })()`)
@@ -109,7 +123,9 @@ app.on('browser-window-created', (_event, window) => {
       if(!quality.includes('FLAC') || !quality.includes('1,411')) throw Error('实际音质缺失：'+quality)
       await capture('player-details-dark')
       await theme('light')
-      await evaluate(`document.querySelector('[data-sidebar-source="liked"]').click()`)
+      await evaluate(`document.querySelector('[data-sidebar-source="home"]').click()` )
+      await waitFor(`!!document.querySelector('[aria-labelledby="liked-home-heading"] .text-button')`)
+      await evaluate(`document.querySelector('[aria-labelledby="liked-home-heading"] .text-button').click()`)
       await capture('list-light')
       console.log('OPEN_LIBRARY_NATIVE_PASS',JSON.stringify({list,position,volume,quality}))
     } catch (error) { console.error(error); process.exitCode=1 }

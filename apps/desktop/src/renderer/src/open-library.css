@@ -89,3 +89,9 @@
 :root .queue-current { grid-template-columns: 64px minmax(0,1fr); }
 :root .queue-current-art { width: 64px; height: 64px; }
 @media (max-width: 1100px) { :root { --mb-player-clearance: 208px; } }
+
+/* 主导航平铺，歌单统一折叠；文字截断避免侧栏出现横向滚动。 */
+:root .sidebar-primary-navigation { padding-top: 20px; }
+:root .sidebar-source-scroll { overflow-x: hidden; }
+:root .sidebar-playlist-name { flex: 1 1 0; }
+:root .sidebar-playlist-sources { margin-bottom: 8px; }

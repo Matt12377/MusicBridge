@@ -98,7 +98,7 @@ app.on('browser-window-created', (_event, window) => {
       }
       console.log('AMBIENT_REFERENCE_PARITY_PASS')
       reference.destroy()
-      await evaluate(`document.querySelector('[data-sidebar-source="liked"]').click()`)
+      await evaluate(`document.querySelector('[aria-labelledby="liked-home-heading"] .text-button').click()`)
       await waitFor(`!!document.querySelector('.liked-hero')`)
       await delay(250)
       await writeFile(outputPath('list-idle.png'),(await window.webContents.capturePage()).toPNG())

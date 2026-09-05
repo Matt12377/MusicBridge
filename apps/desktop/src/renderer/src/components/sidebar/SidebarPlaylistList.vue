@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { PlaylistSummary } from '@music-bridge/contracts'
+import type { SidebarSource } from '../navigation.js'
+import SidebarPlaylistSources from './SidebarPlaylistSources.vue'
 import SidebarIcon from './SidebarIcon.vue'
 import SidebarPlaylistRow from './SidebarPlaylistRow.vue'
 
 const props = defineProps<{
   playlists: readonly PlaylistSummary[]
   expanded: boolean
+  activeSource?: SidebarSource
   activePlaylistId?: string
   state: 'loading' | 'ready' | 'error'
 }>()
@@ -14,6 +17,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   select: [playlistId: string]
   retry: []
+  navigate: [source: SidebarSource]
 }>()
 
 const root = ref<HTMLElement | null>(null)
@@ -61,38 +65,40 @@ onUnmounted(() => {
 <template>
   <section class="sidebar-playlist-section" aria-label="歌单" :data-sidebar-playlist-state="state">
     <h3 v-if="expanded" class="sidebar-playlist-heading">
-      <button type="button" class="sidebar-playlist-toggle" aria-label="网易云歌单" :aria-expanded="listExpanded" aria-controls="sidebar-netease-playlists" :title="listExpanded ? '收起网易云歌单' : '展开网易云歌单'" @click="listExpanded = !listExpanded">
-        <span>网易云歌单</span>
+      <button type="button" class="sidebar-playlist-toggle" aria-label="歌单" :aria-expanded="listExpanded" aria-controls="sidebar-all-playlists" :title="listExpanded ? '收起歌单' : '展开歌单'" @click="listExpanded = !listExpanded">
+        <span>歌单</span>
         <SidebarIcon :name="listExpanded ? 'chevron-down' : 'chevron-right'" :size="14" />
       </button>
     </h3>
-    <h3 v-else class="sidebar-section-title">网易云歌单</h3>
-    <div id="sidebar-netease-playlists">
+    <h3 v-else class="sidebar-section-title">歌单</h3>
+    <div id="sidebar-all-playlists">
       <template v-if="!expanded || listExpanded">
-        <div v-if="state === 'loading'" class="sidebar-playlist-list" aria-label="歌单加载中" aria-busy="true">
+        <SidebarPlaylistSources v-if="expanded" :active-source="activeSource" @navigate="emit('navigate', $event)" />
+        <div v-if="expanded && state === 'loading'" class="sidebar-playlist-list" aria-label="歌单加载中" aria-busy="true">
           <span v-for="index in 4" :key="index" class="sidebar-playlist-skeleton"><i></i><b></b></span>
         </div>
-        <div v-else-if="state === 'error'" class="sidebar-playlist-error" role="status">
-          <span v-if="expanded">歌单暂时无法加载</span>
+        <div v-else-if="expanded && state === 'error'" class="sidebar-playlist-error" role="status">
+          <span v-if="expanded">网易云歌单暂时无法加载</span>
           <button type="button" class="sidebar-retry-button" @click="emit('retry')">重试</button>
         </div>
         <div v-else-if="playlists.length && expanded" class="sidebar-playlist-list">
           <SidebarPlaylistRow v-for="playlist in playlists" :key="playlist.id" :playlist="playlist" :expanded="expanded" :selected="activePlaylistId === playlist.id" @select="emit('select', playlist.id)" />
         </div>
-        <div v-else-if="playlists.length" ref="root" class="sidebar-collapsed-playlist-control">
+        <div v-else-if="!expanded" ref="root" class="sidebar-collapsed-playlist-control">
           <button ref="trigger" type="button" class="sidebar-collapsed-source-button" :aria-expanded="open" aria-haspopup="dialog" aria-label="歌单" title="歌单" @click="toggle">
             <SidebarIcon name="music-note" />
           </button>
           <Teleport to="body">
             <div v-if="open" ref="popup" class="sidebar-popover sidebar-playlist-popover" :style="popupStyle" tabindex="-1" role="dialog" aria-label="歌单" @keydown.esc="closeWithFocus">
               <strong>歌单</strong>
+              <SidebarPlaylistSources :active-source="activeSource" @navigate="closeWithFocus(); emit('navigate', $event)" />
               <div class="sidebar-playlist-list">
                 <SidebarPlaylistRow v-for="playlist in playlists" :key="playlist.id" :playlist="playlist" :expanded="true" :selected="activePlaylistId === playlist.id" @select="selectPlaylist(playlist.id)" />
               </div>
             </div>
           </Teleport>
         </div>
-        <p v-else-if="expanded" class="sidebar-empty-playlists">暂无歌单</p>
+        <p v-else-if="expanded" class="sidebar-empty-playlists">暂无网易云歌单</p>
       </template>
     </div>
   </section>

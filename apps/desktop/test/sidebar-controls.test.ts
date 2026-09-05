@@ -19,6 +19,10 @@ async function mount(t: test.TestContext, name: string, initial: Record<string, 
   const renderModule = { exports: {} as { render: (...args: any[]) => any } }
   const load = (id: string) => {
     if (id === 'vue') return vue
+    if (id.endsWith('SidebarNavRow.vue')) return { default: vue.defineComponent({
+      props: ['source', 'label', 'selected'], emits: ['select'],
+      setup: (props, { emit }) => () => vue.h('button', { class: 'test-source', selected: props.selected, onClick: () => emit('select') }, props.label),
+    }) }
     if (id.endsWith('SidebarPlaylistRow.vue')) return { default: vue.defineComponent({
       props: ['playlist', 'expanded', 'selected'], emits: ['select'],
       setup: (props, { emit }) => () => vue.h('button', { class: 'test-playlist', onClick: () => emit('select', props.playlist.id) }, props.playlist.name),
@@ -51,15 +55,12 @@ async function mount(t: test.TestContext, name: string, initial: Record<string, 
 
 const playlists = [{ id: '301', name: '合成歌单', trackCount: 2 }]
 
-test('侧栏只有资料库和收藏两个主分类，既有入口完整且网易云歌单嵌入收藏', async () => {
+test('主导航按指定顺序排列，收藏只指向 Roon，歌单独立折叠', async () => {
   const source = await readFile(new URL('../src/renderer/src/components/sidebar/MusicSidebar.vue', import.meta.url), 'utf8')
-  const groups = [...source.matchAll(/<SidebarSection title="([^"]+)"[^>]*>([\s\S]*?)<\/SidebarSection>/g)]
-  assert.deepEqual(groups.map(group => group[1]), ['资料库', '收藏'])
-  const sources = (group: string) => [...group.matchAll(/<SidebarNavRow source="([^"]+)"/g)].map(match => match[1])
-  assert.deepEqual(sources(groups[0]![2]!), ['home', 'playlists', 'roon-albums', 'roon-artists', 'roon-genres', 'roon-playlists'])
-  assert.deepEqual(sources(groups[1]![2]!), ['liked', 'roon-favorites', 'collection', 'recording'])
-  assert.match(groups[1]![2]!, /<SidebarPlaylistList/)
-  assert.match(source, /source="collection" label="实物收藏"/)
+  const sources = [...source.matchAll(/<SidebarNavRow source="([^"]+)" label="([^"]+)"/g)].map(match => [match[1], match[2]])
+  assert.deepEqual(sources, [['home','主页'],['roon-albums','专辑'],['roon-artists','艺术家'],['roon-genres','流派'],['roon-favorites','收藏'],['collection','实物收藏'],['recording','录音']])
+  assert.ok(source.indexOf('<SidebarPlaylistList') > source.indexOf('source="recording"'))
+  assert.ok(source.indexOf('<SidebarSettingsFooter') > source.indexOf('</nav>'))
 })
 
 test('歌单默认展开，折叠后移除列表，再展开仍可导航且不触发重试', async t => {
@@ -99,4 +100,20 @@ test('设置横条不含头像，展开与收窄都能打开设置并保留当�
   assert.equal(button()?.props['aria-label'], '打开设置'); assert.equal(button()?.props['aria-current'], 'page')
   assert.equal(f.all().filter(el => el.type === 'img').length, 0)
   await f.click(button()); f.props.expanded = false; await f.tick(); await f.click(button()); assert.equal(opens, 2)
+})
+
+test('统一歌单来源分别导航，高亮识别 Roon 歌单详情', async t => {
+  const selections: unknown[] = []
+  const f = await mount(t, 'SidebarPlaylistSources', { activeSource: { type: 'roon-playlist', reference: 'test' }, onNavigate: (source: unknown) => selections.push(source) })
+  assert.equal(f.byClass('test-source')[0]?.props.selected, true)
+  await f.click(f.byClass('test-source')[0]); await f.click(f.byClass('test-source')[1])
+  assert.deepEqual(selections, [{type:'roon-playlists'}, {type:'playlists'}])
+})
+
+test('网易云空列表或加载失败时，窄侧栏仍能打开统一歌单弹层', async t => {
+  for (const state of ['ready', 'loading', 'error']) {
+    const f = await mount(t, 'SidebarPlaylistList', { expanded: false, playlists: [], state })
+    await f.click(f.byClass('sidebar-collapsed-source-button')[0])
+    assert.equal(f.byClass('sidebar-playlist-popover').length, 1)
+  }
 })
