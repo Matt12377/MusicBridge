@@ -727,3 +727,24 @@ test('复用自动重启的start在恢复失败时拒绝，不把failed当成功
   const repeated = h.supervisor.start().then(() => 'unexpected-success', error => error.code)
   ready(h.channels[1]!); assert.equal(await repeated, 'INTERNAL_ERROR'); assert.equal(h.supervisor.status, 'failed')
 })
+
+for (const command of ['roon.library.play', 'roon.library.queue', 'roon.library.albums'] as const) {
+  test(`${command} 区分播放操作和读库预算，且保持有界超时`, async t => {
+    const harness = makeHarness(), starting = harness.supervisor.start()
+    await new Promise(resolve => setImmediate(resolve)); ready(harness.channels[0]!); await starting
+    t.mock.timers.enable({ apis: ['setTimeout'] })
+    let settled = false
+    const payload = command === 'roon.library.albums' ? { page: { offset: 0, limit: 20 } }
+      : { reference: `musicbridge-v2-entity-${randomUUID()}`, zoneId: 'zone-1' }
+    const pending = harness.supervisor.request(command, payload as never).catch(error => { settled = true; return error })
+    t.mock.timers.tick(10_001)
+    await new Promise(resolve => setImmediate(resolve))
+    const timedOutAtReadDeadline = settled
+    t.mock.timers.tick(60_000)
+    const result = await pending
+    t.mock.timers.reset()
+    await harness.supervisor.shutdown()
+    assert.equal(timedOutAtReadDeadline, command === 'roon.library.albums')
+    assert.equal(result.code, 'TIMEOUT')
+  })
+}

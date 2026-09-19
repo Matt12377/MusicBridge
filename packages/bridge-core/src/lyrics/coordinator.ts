@@ -56,10 +56,11 @@ export function createLyricsRequestContext(
   if (snapshot.state === 'idle' || snapshot.state === 'stopping' || snapshot.state === 'error') return undefined;
   const track = snapshot.currentTrack;
   const item = snapshot.queue.items[snapshot.queue.index];
-  if (!track || !item) return undefined;
-  const directRoon = item.preferredSource === 'roon';
-  const smartRoon = item.preferredSource === 'smart' && snapshot.source === 'roon';
+  if (!track || (!item && snapshot.source !== 'roon')) return undefined;
+  const directRoon = item?.preferredSource === 'roon' || (!item && snapshot.source === 'roon');
+  const smartRoon = item?.preferredSource === 'smart' && snapshot.source === 'roon';
   if (!directRoon && !smartRoon) {
+    if (!item) return undefined;
     return {
       kind: 'netease',
       playbackGeneration,
@@ -81,7 +82,7 @@ export function createLyricsRequestContext(
       cacheKey: `local:${signature.key}`,
       signature,
       manualEligible: directRoon,
-      ...(smartRoon ? { trustedNeteaseTrackId: item.trackId } : {}),
+      ...(smartRoon && item ? { trustedNeteaseTrackId: item.trackId } : {}),
     };
   } catch {
     return {

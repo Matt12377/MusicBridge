@@ -52,7 +52,7 @@ function isRoonTimeGatePath(value: string | undefined): value is string {
 }
 
 function isRoonBrowseGatePath(value: string | undefined): value is string {
-  return value !== undefined && /^\/tmp\/musicbridge-roon-browse-gate-[A-Za-z0-9._-]+\.jsonl$/.test(value)
+  return value !== undefined && /^(?:\/tmp|\/Volumes\/LifeWeave\/Developer\/CommandLine\/tmp)\/musicbridge-roon-browse-gate-[A-Za-z0-9._-]+\.jsonl$/.test(value)
 }
 
 function isRoonImageGatePath(value: string | undefined): value is string {

@@ -83,7 +83,7 @@ import { RoonAudioInputAdapter, type RoonTimeShapeSummary } from './roon/adapter
 import { createRoonPublicLibrary } from './roon/public-library.js';
 import type { RoonBrowseShapeSummary } from './roon/library.js';
 import { switchRoonZoneAfterStop } from './roon/zone-switch.js';
-import { confirmRoonTrackActionAfterExactMatchFailure } from './roon/track-action-confirmation.js';
+import { runConfirmedTrackAction } from './roon/confirmed-track-action.js';
 import type { RoonSdk } from './roon/sdk.js';
 import { asBridgeError, BridgeError } from './shared/errors.js';
 import { createLogger, type Logger } from './shared/logger.js';
@@ -201,7 +201,7 @@ export interface CoreRuntime {
   browseRoonArtist(reference: string, page: PageRequest): Promise<RoonLibraryPage>;
   browseRoonGenre(reference: string, page: PageRequest): Promise<RoonLibraryPage>;
   browseRoonPlaylist(reference: string, page: PageRequest): Promise<RoonLibraryPage>;
-  searchRoonLibrary(query: string, page: PageRequest): Promise<RoonLibraryPage>;
+  searchRoonLibrary(query: string, page: PageRequest, kind?: 'track' | 'album' | 'artist'): Promise<RoonLibraryPage>;
   getRoonImage(reference: string, options?: RoonImageOptions): Promise<RoonImageResult>;
   playRoonTrack(reference: string, zoneId: string, queueReferences?: readonly string[]): Promise<{ started: true }>;
   queueRoonTrack(reference: string, zoneId: string): Promise<{ queued: true }>;
@@ -359,33 +359,38 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     logger,
     roonLibrary: {
       play: async (reference, zoneId, track) => {
-        const before = roon.getSelectedZonePlaybackObservation();
-        if (!before || before.zoneId !== zoneId) {
+        const selected = roon.getSelectedZonePlaybackObservation();
+        if (!selected || selected.zoneId !== zoneId) {
           throw new BridgeError(
             'ROON_ZONE_NOT_SELECTED',
             'The requested Roon Zone is not the selected playback Zone',
             { httpStatus: 409 },
           );
         }
-        const actionOutcome = await roonLibrary.playTrack(reference, zoneId);
-        try {
-          return await roon.waitForSelectedZonePlayback({
-            zoneId,
-            state: 'playing',
-            afterRevision: before.revision,
-            track,
-          });
-        } catch (error) {
-          const latest = roon.getSelectedZonePlaybackObservation();
-          return confirmRoonTrackActionAfterExactMatchFailure({
-            zoneId,
-            afterRevision: before.revision,
-            expectedTrack: track,
-            ...(latest !== undefined ? { latest } : {}),
-            actionOutcome,
-            exactMatchError: error,
-          });
-        }
+        let dispatchRevision = selected.revision;
+        const startupId = randomUUID();
+        return runConfirmedTrackAction({
+          dispatch: onDispatch => roonLibrary.playTrack(reference, zoneId, onDispatch),
+          confirm: () => {
+            const before = roon.getSelectedZonePlaybackObservation();
+            if (!before || before.zoneId !== zoneId) throw new BridgeError('ROON_ZONE_NOT_SELECTED', '播放设备在准备期间已切换', { httpStatus: 409 });
+            dispatchRevision = before.revision;
+            return roon.waitForSelectedZonePlayback({
+              zoneId, state: 'playing', afterRevision: dispatchRevision, track,
+              allowMetadataAliases: true,
+            });
+          },
+          onStage: (stage, elapsedMs) => {
+            const observed = roon.getSelectedZonePlaybackObservation();
+            logger.info('roon_native_startup_stage', {
+              startupId, stage, elapsedMs,
+              sameZone: observed?.zoneId === zoneId,
+              observationAdvanced: (observed?.revision ?? -1) > dispatchRevision,
+              observedState: observed?.state ?? 'unknown',
+              hasObservedTitle: observed?.nowPlaying?.title !== undefined,
+            });
+          },
+        });
       },
       pause: async () => {
         const before = roon.getSelectedZonePlaybackObservation();
@@ -1164,7 +1169,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     browseRoonArtist: (reference, page) => roonLibrary.browseArtist(reference, page),
     browseRoonGenre: (reference, page) => roonLibrary.browseGenre(reference, page),
     browseRoonPlaylist: (reference, page) => roonLibrary.browsePlaylist(reference, page),
-    searchRoonLibrary: (query, page) => roonLibrary.searchLibrary(query, page),
+    searchRoonLibrary: (query, page, kind) => roonLibrary.searchLibrary(query, page, kind),
     getRoonImage: (reference, options) => roonLibrary.getImage(reference, options),
     async playRoonTrack(reference, zoneId, queueReferences) {
       const references = queueReferences ?? [reference];

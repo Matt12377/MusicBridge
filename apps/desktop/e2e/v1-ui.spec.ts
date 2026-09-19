@@ -53,6 +53,101 @@ function sidebarSearch() {
   return page.getByRole('searchbox', { name: '搜索歌曲或歌手' })
 }
 
+test('六项修复：收藏封面与打开播放、专辑播放全部、零专辑过滤和玻璃布局', async () => {
+  test.setTimeout(60_000)
+  await reloadWithZones([{ zoneId: 'synthetic-zone', displayName: '合成播放设备', selected: true }])
+  const cover = Array.from(await readFile(path.join(desktopRoot, '../../prototypes/sakura-glass/assets/cover-1.jpg')))
+  const playback = await page.evaluate(() => window.musicBridge.getPlaybackState())
+  await electronApp.evaluate(({ ipcMain }, input) => {
+    const ref = (id: number) => `musicbridge-v2-entity-22222222-2222-4222-8222-${String(id).padStart(12, '0')}`
+    const artworkReference = 'musicbridge-v2-image-22222222-2222-4222-8222-000000000001'
+    const album = { reference: ref(1), kind: 'album', title: '收藏验收专辑', subtitle: '收藏验收艺人', artworkReference }
+    const artist = { reference: ref(2), kind: 'artist', title: '收藏验收艺人', subtitle: '1 album', artworkReference }
+    const tracks = Array.from({ length: 26 }, (_, i) => ({ reference: ref(i + 10), kind: 'track', title: `收藏歌曲 ${i + 1}`, artist: artist.title, album: album.title, trackNumber: i + 1, durationMs: 180000, artworkReference }))
+    const records = [
+      { kind: 'track', title: tracks[0]!.title, artist: artist.title, album: album.title, trackNumber: 1 },
+      { kind: 'album', title: album.title, subtitle: artist.title },
+      { kind: 'artist', title: artist.title },
+    ].map((item, index) => ({ ...item, favoriteId: `33333333-3333-4333-8333-${String(index).padStart(12, '0')}`, createdAt: 1, updatedAt: 1 }))
+    const calls: Array<{ reference: string; queue?: string[] }> = []
+    ;(globalThis as typeof globalThis & { sixFixPlayCalls: typeof calls }).sixFixPlayCalls = calls
+    for (const name of ['favorites:list', 'favorites:set', 'favorites:check', 'roon:library:albums', 'roon:library:artists', 'roon:library:search', 'roon:library:album', 'roon:library:artist', 'roon:library:image', 'roon:library:play']) ipcMain.removeHandler(name)
+    const result = (items: unknown[], page: { offset: number; limit: number }) => ({ ...page, items: items.slice(page.offset, page.offset + page.limit), total: items.length, hasMore: page.offset + page.limit < items.length })
+    ipcMain.handle('favorites:list', (_e, kind, page) => result(records.filter(x => x.kind === kind), page))
+    ipcMain.handle('favorites:check', (_e, descriptor) => ({ favorite: records.some(x => x.kind === descriptor.kind && x.title === descriptor.title && x.subtitle === descriptor.subtitle) }))
+    ipcMain.handle('favorites:set', (_e, descriptor) => { const index = records.findIndex(x => x.kind === descriptor.kind && x.title === descriptor.title); if (index >= 0) records.splice(index, 1); return { favorite: false } })
+    ipcMain.handle('roon:library:albums', (_e, page) => result([album], page))
+    ipcMain.handle('roon:library:artists', (_e, page) => result([artist, { ...artist, reference: ref(3), title: '零专辑艺人', subtitle: '0 albums', albumCount: 0 }, { ...artist, reference: ref(4), title: '未知专辑数艺人', subtitle: undefined }], page))
+    ipcMain.handle('roon:library:search', (_e, _query, page, kind) => result(kind === 'album' ? [album] : kind === 'artist' ? [artist] : tracks, page))
+    ipcMain.handle('roon:library:album', (_e, _ref, page) => result(tracks, page))
+    ipcMain.handle('roon:library:artist', (_e, _ref, page) => result([album], page))
+    ipcMain.handle('roon:library:image', () => ({ ok: true, value: { contentType: 'image/jpeg', body: Uint8Array.from(input.cover) } }))
+    ipcMain.handle('roon:library:play', (_e, reference, _zone, queue) => { calls.push({ reference, queue }); return input.playback })
+  }, { cover, playback })
+  await page.locator('[data-sidebar-source="roon-favorites"]').click()
+  await expect(page.getByRole('button', { name: '播放 收藏歌曲 1', exact: true })).toBeEnabled()
+  await expect(page.locator('.favorite-entity-art img')).toBeVisible()
+  await page.getByRole('button', { name: '播放 收藏歌曲 1', exact: true }).click()
+  await expect.poll(() => electronApp.evaluate(() => (globalThis as typeof globalThis & { sixFixPlayCalls: unknown[] }).sixFixPlayCalls.length)).toBe(1)
+  await page.getByRole('button', { name: '退出全屏播放' }).click()
+  await page.locator('[data-sidebar-source="roon-favorites"]').click()
+  await page.getByRole('tab', { name: '喜欢的专辑', exact: true }).click()
+  await page.getByRole('button', { name: '打开 收藏验收专辑', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '收藏验收专辑', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '♥ 已收藏', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: '播放全部', exact: true }).click()
+  await expect.poll(() => electronApp.evaluate(() => (globalThis as typeof globalThis & { sixFixPlayCalls: Array<{ queue?: string[] }> }).sixFixPlayCalls.at(-1)?.queue?.length)).toBe(26)
+  await page.getByRole('button', { name: '退出全屏播放' }).click()
+  await page.locator('[data-sidebar-source="roon-favorites"]').click()
+  await page.getByRole('tab', { name: '喜欢的艺术家', exact: true }).click()
+  await page.getByRole('button', { name: '打开 收藏验收艺人', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '收藏验收艺人', exact: true })).toBeVisible()
+  await page.locator('[aria-labelledby="roon-artist-heading"] .back-link').click()
+  await expect(page.getByRole('heading', { name: '收藏', exact: true })).toBeVisible()
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate(value => { document.documentElement.dataset.theme = value }, theme)
+    for (const width of [1980, 1440, 720]) {
+      await page.setViewportSize({ width, height: 820 })
+      // 截图须等待主题和侧栏宽度的有限 CSS 过渡结束，不能把中间帧当最终外观。
+      await page.evaluate(async () => {
+        await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+        await Promise.all(document.getAnimations().filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity).map(animation => animation.finished.catch(() => undefined)))
+      })
+      const layout = await page.evaluate(() => {
+        const player = document.querySelector('.global-player')!, rect = player.getBoundingClientRect(), style = getComputedStyle(player)
+        const children = [...player.querySelectorAll('button,input')].map(e => e.getBoundingClientRect())
+        const center = (selector: string) => { const r = document.querySelector(selector)!.getBoundingClientRect(); return r.top + r.height / 2 }
+        return { background: style.backgroundColor, blur: style.backdropFilter, padding: getComputedStyle(document.querySelector('[aria-labelledby="roon-favorites-heading"]')!).paddingBottom,
+          art: document.querySelector('.favorite-entity-art')!.getBoundingClientRect().width,
+          overflow: document.documentElement.scrollWidth > innerWidth,
+          fits: children.every(r => r.left >= rect.left && r.right <= rect.right + 1 && r.top >= rect.top && r.bottom <= rect.bottom + 1),
+          center: rect.top + rect.height / 2, trackCenter: center('.player-track'), metaCenter: center('.player-meta') }
+      })
+      expect(layout.background).toMatch(/rgba\(.+, 0\.[0-6]/)
+      expect(layout.blur).toContain('blur(24px)')
+      expect(layout.padding).toBe('24px'); expect(layout.art).toBeGreaterThanOrEqual(180)
+      expect(layout.overflow).toBe(false); expect(layout.fits).toBe(true)
+      if (width > 1350) { expect(Math.abs(layout.center - layout.trackCenter)).toBeLessThan(3); expect(Math.abs(layout.center - layout.metaCenter)).toBeLessThan(3) }
+      await page.screenshot({ path: test.info().outputPath(`favorites-${theme}-${width}.png`) })
+    }
+  }
+  await page.getByRole('button', { name: '取消收藏 收藏验收艺人', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '还没有喜欢的艺术家', exact: true })).toBeVisible()
+  await page.locator('[data-sidebar-source="roon-artists"]').click()
+  await expect(page.locator('.roon-album-card')).toHaveCount(2)
+  await expect(page.getByText('零专辑艺人', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('未知专辑数艺人', { exact: true })).toBeVisible()
+  await page.locator('[data-sidebar-source="roon-albums"]').click()
+  await page.locator('.roon-album-card').first().click()
+  await expect(page.locator('.roon-track-row')).toHaveCount(24)
+  await page.locator('.content-scroll').evaluate(e => { e.scrollTop = e.scrollHeight })
+  await page.getByRole('button', { name: '加载更多曲目', exact: true }).click()
+  await expect(page.locator('.roon-track-row')).toHaveCount(26)
+  await page.locator('.content-scroll').evaluate(e => { e.scrollTop = e.scrollHeight })
+  const gap = await page.evaluate(() => document.querySelector('.global-player')!.getBoundingClientRect().top - document.querySelector('.roon-track-row:last-child')!.getBoundingClientRect().bottom)
+  expect(gap).toBeGreaterThanOrEqual(0); expect(gap).toBeLessThan(80)
+})
+
 async function openAccountSettings() {
   await page.getByRole('button', { name: '打开设置' }).click()
   await expect(page.getByRole('heading', { name: '设置', exact: true }).first()).toBeVisible()
@@ -546,7 +641,7 @@ test('v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation', 
   expect((await stat(syntheticDailyScreenshotPath)).size).toBeGreaterThan(20_000)
 
   await sourceButton('home').click()
-  await page.getByRole('button', { name: '播放 Synthetic Track 1', exact: true }).first().click()
+  await page.getByRole('button', { name: /^播放 Synthetic Track 1(?: · .+)?$/ }).first().click()
   await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
   await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
   await expect(page.locator('.now-playing-lyrics')).toBeVisible()
@@ -721,7 +816,7 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   await expect(searchView.getByRole('heading', { name: '单曲', exact: true })).toBeVisible()
   await expect(searchView.getByRole('heading', { name: '专辑', exact: true })).toBeVisible()
   await expect(searchView.getByText('歌单', { exact: true })).toHaveCount(0)
-  await searchView.locator('.search-artist-card').first().click()
+  await searchView.locator('.search-artist-card .artist-primary').first().click()
   await expect(searchView.getByText('艺人详情', { exact: true })).toBeVisible()
   await expect(searchView.getByRole('table', { name: '歌曲列表' })).toBeVisible()
   await searchView.getByRole('button', { name: '返回搜索结果' }).click()
@@ -739,18 +834,22 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   await expect(searchView.getByText('没有匹配的专辑', { exact: true })).toBeVisible()
   await search.fill('synthetic')
   await expect(page.getByText('Synthetic Track 1', { exact: true })).toBeVisible()
-  await expect(page.locator('.search-track-results .track-art').first()).toBeVisible()
+  await expect(page.locator('.search-song-preview .search-song-art').first()).toBeVisible()
   await expect.poll(async () => searchView.locator('.search-result-section h3').allTextContents()).toEqual(['艺人', '专辑', '单曲'])
   await page.screenshot({ path: syntheticSearchScreenshotPath })
   expect((await stat(syntheticSearchScreenshotPath)).size).toBeGreaterThan(20_000)
+  await expect(searchView.locator('.search-song')).toHaveCount(6)
+  await searchView.getByRole('navigation', { name: '搜索分类' }).getByRole('button', { name: '单曲', exact: true }).click()
   const searchTrack21 = page.getByText('Synthetic Track 21', { exact: true })
   // 滚动会触发分页观察器；等待结果，不与正在被加载状态替换的按钮抢点击。
   await page.locator('.content-scroll').evaluate((element) => { element.scrollTop = element.scrollHeight })
   await expect(searchTrack21).toBeVisible()
+  await search.fill('另一首歌')
+  await expect.poll(() => page.locator('.content-scroll').evaluate((element) => element.scrollTop)).toBe(0)
 
-  await sourceButton('liked').click()
+  await page.keyboard.press('Meta+2')
   await expect(page.getByText('Synthetic Track 1', { exact: true })).toBeVisible()
-  await sourceButton('playlists').click()
+  await page.keyboard.press('Meta+3')
   const playlistRow = page.getByRole('navigation', { name: '音乐来源' }).getByRole('button', { name: /Synthetic Playlist/ })
   await expect(playlistRow).toBeVisible()
   await playlistRow.click()
@@ -761,7 +860,7 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
     element.scrollTop = 240
     return element.scrollTop
   })
-  await playlistView.getByRole('button', { name: '播放 Synthetic Track 1', exact: true }).click()
+  await playlistView.getByRole('button', { name: /^播放 Synthetic Track 1(?: · .+)?$/ }).click()
   await expect(page.locator('.now-playing-fullscreen')).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Synthetic Playlist', exact: true }).first()).toBeVisible()
   await page.getByRole('button', { name: '打开正在播放' }).click()
@@ -770,12 +869,13 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   await expect.poll(() => page.locator('.content-scroll').evaluate((element) => element.scrollTop)).toBe(playlistScrollTop)
 
   await search.fill('synthetic')
+  await searchView.getByRole('navigation', { name: '搜索分类' }).getByRole('button', { name: '单曲', exact: true }).click()
   await expect(page.getByText('Synthetic Track 1', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: '播放 Synthetic Track 1', exact: true }).click()
+  await page.getByRole('button', { name: /^播放 Synthetic Track 1(?: · .+)?$/ }).click()
   await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
   await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
-  await expect(page.locator('.album-ambient-cover')).toBeVisible()
-  await expect(page.locator('.album-ambient-cover')).toHaveCSS('animation-name', 'none')
+  await expect(page.locator('.app-shell.is-now-playing .album-ambient-cover')).toBeVisible()
+  await expect(page.locator('.app-shell.is-now-playing .album-ambient-cover')).toHaveCSS('animation-name', 'none')
   await expect.poll(() => page.locator('.now-playing-art img').evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
   await expect(page.locator('.now-playing-lyrics')).toContainText('暂无歌词')
   await expect(page.locator('.global-player')).toHaveCount(0)
@@ -788,7 +888,8 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
   await page.getByRole('button', { name: '退出全屏播放' }).click()
   await search.fill('synthetic')
-  await page.getByRole('button', { name: '播放 Synthetic Track 2', exact: true }).click()
+  await searchView.getByRole('navigation', { name: '搜索分类' }).getByRole('button', { name: '单曲', exact: true }).click()
+  await page.getByRole('button', { name: /^播放 Synthetic Track 2(?: · .+)?$/ }).click()
   await expect(page.getByText('Midnight finds us wide awake', { exact: true }).first()).toBeVisible()
   await page.getByRole('button', { name: '退出全屏播放' }).click()
 
@@ -796,7 +897,8 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   await page.getByRole('tab', { name: '播放', exact: true }).click()
   await page.locator('#quality-select').selectOption('hires')
   await search.fill('synthetic')
-  await page.getByRole('button', { name: '播放 Synthetic Track 1', exact: true }).click()
+  await searchView.getByRole('navigation', { name: '搜索分类' }).getByRole('button', { name: '单曲', exact: true }).click()
+  await page.getByRole('button', { name: /^播放 Synthetic Track 1(?: · .+)?$/ }).click()
   await expect(page.locator('.now-playing-quality-next')).toHaveCount(0)
   const actualQualityButton = page.getByRole('button', { name: /当前实际音质/ })
   await expect(actualQualityButton).toContainText('Lossless')
@@ -809,12 +911,13 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   await page.getByRole('button', { name: '退出全屏播放' }).click()
 
   await search.fill('synthetic')
+  await searchView.getByRole('navigation', { name: '搜索分类' }).getByRole('button', { name: '单曲', exact: true }).click()
   await expect(page.getByText('Synthetic Track 2', { exact: true }).last()).toBeVisible()
   await page.getByRole('button', { name: '打开 Synthetic Track 2 的更多操作', exact: true }).click()
   await page.getByRole('menuitem', { name: '加入队列' }).click()
   await expect(page.getByRole('status')).toContainText('已加入播放队列')
   await expect(page.locator('.now-playing-fullscreen')).toHaveCount(0)
-  await expect(page.getByRole('heading', { name: '搜索结果', exact: true }).last()).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'synthetic', exact: true }).last()).toBeVisible()
   await expect(page.getByRole('button', { name: '下一首', exact: true }).last()).toBeEnabled()
   await page.getByRole('button', { name: '下一首', exact: true }).last().click()
   await expect(page.getByText('Synthetic Track 2', { exact: true }).first()).toBeVisible()
@@ -822,14 +925,14 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
   await expect(page.getByText('Synthetic Track 1', { exact: true }).first()).toBeVisible()
   await page.getByRole('button', { name: '暂停', exact: true }).last().click()
   await expect(page.getByRole('button', { name: '恢复播放', exact: true }).last()).toBeVisible()
-  await expect(page.locator('.album-ambient-cover')).toHaveCount(0)
+  await expect(page.locator('.app-shell.is-now-playing .album-ambient-cover')).toHaveCount(0)
 })
 
 test('TASK-037 Now Playing geometry, real queue names and full collection loading', async () => {
   const search = sidebarSearch()
   await search.fill('synthetic')
   await expect(page.getByText('Synthetic Track 1', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: '播放 Synthetic Track 1', exact: true }).click()
+  await page.getByRole('button', { name: /^播放 Synthetic Track 1(?: · .+)?$/ }).click()
   await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
 
   for (const viewport of [
@@ -903,7 +1006,7 @@ test('Now Playing 歌词保留多行上下文并标记当前焦点', async () =>
   const search = sidebarSearch()
   await search.fill('synthetic')
   await expect(page.getByText('Synthetic Track 2', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: '播放 Synthetic Track 2', exact: true }).click()
+  await page.getByRole('button', { name: /^播放 Synthetic Track 2(?: · .+)?$/ }).click()
   await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
 
   const lines = page.locator('.now-playing-lyrics-lines .lyrics-line')
@@ -957,7 +1060,7 @@ test('本地歌词候选抽屉支持来源提示、键盘焦点、窄窗口和�
   await page.reload()
   await page.waitForLoadState('domcontentloaded')
   await page.setViewportSize({ width: 720, height: 820 })
-  await page.getByRole('button', { name: '播放 Synthetic Track 2', exact: true }).first().click()
+  await page.getByRole('button', { name: /^播放 Synthetic Track 2(?: · .+)?$/ }).first().click()
   await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
   await expect(page.getByText('歌词来源：网易云', { exact: true })).toBeVisible()
 
@@ -1029,7 +1132,7 @@ test('手动匹配请求的旧响应不覆盖更新的 Core 匹配事件', async
     })
   })
   await page.reload()
-  await page.getByRole('button', { name: '播放 Synthetic Track 2', exact: true }).first().click()
+  await page.getByRole('button', { name: /^播放 Synthetic Track 2(?: · .+)?$/ }).first().click()
   await page.getByRole('button', { name: '选择匹配歌词' }).click()
   const drawer = page.getByRole('dialog', { name: '候选歌曲' })
   await drawer.getByRole('button', { name: /选择 Synthetic Track 2，Synthetic Artist/ }).first().click()
@@ -1050,7 +1153,7 @@ test('初始化匹配查询的延迟失败不清空已推送的新状态', async
     })
   })
   await page.reload()
-  await page.getByRole('button', { name: '播放 Synthetic Track 2', exact: true }).first().click()
+  await page.getByRole('button', { name: /^播放 Synthetic Track 2(?: · .+)?$/ }).first().click()
   const trigger = page.getByRole('button', { name: '歌词匹配', exact: true })
   await expect(trigger).toBeVisible()
   await trigger.click()
@@ -1178,7 +1281,7 @@ test('V3 收藏与录音分开，收藏视图支持键盘、搜索返回和收�
 
 test('V3 导航不触发播放变更 IPC，保留正在播放的曲目、队列和 Zone', async () => {
   await sidebarSearch().fill('synthetic')
-  await page.getByRole('button', { name: '播放 Synthetic Track 1', exact: true }).click()
+  await page.getByRole('button', { name: /^播放 Synthetic Track 1(?: · .+)?$/ }).click()
   await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
   await expect.poll(async () => (await page.evaluate(() => window.musicBridge.getPlaybackState())).state).toBe('playing')
   await page.getByRole('button', { name: '退出全屏播放' }).click()
@@ -2620,4 +2723,209 @@ test('V3 备份恢复工作流保留明确确认、真实文件、回执重试�
     electronApp = session.electronApp
     page = session.page
   }
+})
+
+
+test('搜索原生曲目连续点击只派发一次播放，失败后可以重试', async () => {
+  await reloadWithZones([{ zoneId: 'synthetic-zone', displayName: '合成播放设备', selected: true }])
+  await expect(playerZoneButton()).toContainText('合成播放设备')
+  await electronApp.evaluate(({ ipcMain }) => {
+    const reference = 'musicbridge-v2-entity-11111111-1111-4111-8111-111111111111'
+    const trackReference = 'musicbridge-v2-entity-22222222-2222-4222-8222-222222222222'
+    const state = globalThis as typeof globalThis & { nativePlayCalls?: number }
+    state.nativePlayCalls = 0
+    for (const channel of ['roon:library:search', 'roon:library:album', 'roon:library:play']) ipcMain.removeHandler(channel)
+    ipcMain.handle('roon:library:search', (_event, _query, page, kind) => ({ ...page, hasMore: false, items: kind === 'album' ? [{ reference, kind: 'album', title: '合成原生专辑' }] : [] }))
+    ipcMain.handle('roon:library:album', (_event, _reference, page) => ({ ...page, hasMore: false, items: [{ reference: trackReference, kind: 'track', title: '合成原生歌曲', artist: '合成艺人' }] }))
+    ipcMain.handle('roon:library:play', async () => {
+      state.nativePlayCalls! += 1
+      await new Promise(resolve => setTimeout(resolve, 300))
+      throw new Error('合成可恢复播放失败')
+    })
+  })
+  await sidebarSearch().fill('synthetic')
+  await page.locator('.search-album-card').filter({ hasText: '合成原生专辑' }).click()
+  const play = page.getByRole('button', { name: '播放 合成原生歌曲', exact: true })
+  await expect(play).toBeVisible()
+  await play.evaluate(button => {
+    button.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    ;(button as HTMLButtonElement).click()
+    ;(button as HTMLButtonElement).click()
+    button.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+  })
+  await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
+  await expect.poll(() => electronApp.evaluate(() => (globalThis as typeof globalThis & { nativePlayCalls: number }).nativePlayCalls)).toBe(1)
+  await page.waitForTimeout(400)
+  await page.getByRole('button', { name: '退出全屏播放' }).click()
+  await expect(play).toBeVisible()
+  await play.click()
+  await expect.poll(() => electronApp.evaluate(() => (globalThis as typeof globalThis & { nativePlayCalls: number }).nativePlayCalls)).toBe(2)
+})
+
+test('Roon 自动续播事件更新底栏及正在播放页，不残留第一首元数据', async () => {
+  const tracks = [
+    { id: '9101', title: '本地第一首', artists: ['甲艺人'], album: '甲专辑', durationMs: 180_000 },
+    { id: '9102', title: '本地第二首', artists: ['乙艺人'], album: '乙专辑', durationMs: 240_000 },
+    { id: '9103', title: 'Roon 队列外歌曲', artists: ['丙艺人'], album: '丙专辑', durationMs: 210_000 },
+  ]
+  const publish = async (index: number) => electronApp.evaluate(({ BrowserWindow, ipcMain }, input) => {
+    const snapshot = {
+      state: 'playing', source: 'roon', currentTrack: input.tracks[input.index],
+      queue: { items: input.tracks.slice(0, 2).map(track => ({ trackId: track.id, track, qualityPreference: 'auto', preferredSource: 'roon', resolvedSource: 'roon' })),
+        index: input.index < 2 ? input.index : -1, hasNext: input.index === 0, hasPrevious: input.index === 1 },
+      positionMs: 2000, actualQuality: 'unknown', selectedZoneId: 'synthetic-zone',
+      canNext: input.index === 0, canPrevious: input.index === 1, canStop: true, canPause: true, canResume: false,
+    }
+    ipcMain.removeHandler('playback:get-state')
+    ipcMain.handle('playback:get-state', () => snapshot)
+    BrowserWindow.getAllWindows()[0]?.webContents.send('core:event', { version: 1, event: 'playback.changed', payload: { state: snapshot } })
+  }, { tracks, index })
+  await publish(0)
+  await expect(page.locator('.global-player')).toContainText('本地第一首')
+  await page.getByRole('button', { name: '打开正在播放', exact: true }).click()
+  await publish(1)
+  await expect(page.locator('.now-playing-fullscreen')).toContainText('本地第二首')
+  await expect(page.locator('.now-playing-fullscreen')).toContainText('乙艺人')
+  await expect(page.locator('.now-playing-fullscreen')).not.toContainText('本地第一首')
+  await publish(2)
+  await expect(page.locator('.now-playing-fullscreen')).toContainText('Roon 队列外歌曲')
+  await expect(page.locator('.now-playing-fullscreen')).toContainText('丙专辑')
+  await page.getByRole('button', { name: '退出全屏播放' }).click()
+  await expect(page.locator('.global-player')).toContainText('Roon 队列外歌曲')
+  await expect(page.locator('.global-player')).not.toContainText('本地第一首')
+  await expect(page.locator('.global-player')).toContainText('3:30')
+  await expect(page.locator('.home-view').getByRole('button', { name: '播放 Roon 队列外歌曲', exact: true })).toHaveCount(0)
+})
+
+test('本地搜索范围隔离，切页恢复原页面，新搜索清除旧路径，主页仍聚合', async () => {
+  await electronApp.evaluate(({ ipcMain }) => {
+    const calls: Array<{ query: string; kind: string; offset: number }> = []
+    ;(globalThis as typeof globalThis & { localSearchCalls: typeof calls }).localSearchCalls = calls
+    const ref = (id: number) => `musicbridge-v2-entity-11111111-1111-4111-8111-${String(id).padStart(12, '0')}`
+    for (const name of ['roon:library:albums', 'roon:library:artists', 'roon:library:search', 'roon:library:album', 'roon:library:artist', 'library:search', 'library:search-artists', 'library:search-albums']) ipcMain.removeHandler(name)
+    const empty = (page: { offset: number; limit: number }) => ({ ...page, items: [], hasMore: false })
+    ipcMain.handle('roon:library:albums', (_event, page) => ({ ...empty(page), items: [{ reference: ref(1), kind: 'album', title: '全部本地专辑' }] }))
+    ipcMain.handle('roon:library:artists', (_event, page) => ({ ...empty(page), items: [{ reference: ref(2), kind: 'artist', title: '全部本地艺术家' }] }))
+    ipcMain.handle('roon:library:search', async (_event, query, page, kind) => {
+      calls.push({ query, kind, offset: page.offset })
+      if (query === '无匹配') return empty(page)
+      const all = Array.from({ length: 26 }, (_, i) => ({ reference: ref(i + 10), kind, title: `${query} 本地${kind === 'album' ? '专辑' : '艺人'} ${i + 1}` }))
+      return { ...page, total: all.length, hasMore: page.offset + page.limit < all.length, items: all.slice(page.offset, page.offset + page.limit) }
+    })
+    ipcMain.handle('roon:library:album', async (_event, _ref, page) => { await new Promise(resolve => setTimeout(resolve, 250)); return empty(page) })
+    ipcMain.handle('roon:library:artist', (_event, _ref, page) => ({ ...empty(page), items: [{ reference: ref(99), kind: 'album', title: '艺术家的专辑' }] }))
+    for (const name of ['library:search', 'library:search-artists', 'library:search-albums']) ipcMain.handle(name, (_event, query, page) => {
+      calls.push({ query, kind: name, offset: page.offset }); return empty(page)
+    })
+  })
+  await page.locator('[data-sidebar-source="roon-albums"]').click()
+  const albumsSearch = page.getByRole('searchbox', { name: '搜索本地专辑', exact: true })
+  await albumsSearch.fill('逆光')
+  await expect(page.locator('.roon-album-card').first()).toContainText('逆光 本地专辑 1')
+  await expect(page.locator('.view-search')).toHaveCount(0)
+  await page.locator('.content-scroll').evaluate(e => { e.scrollTop = e.scrollHeight })
+  await expect(page.locator('.roon-album-card')).toHaveCount(26)
+  await page.screenshot({ path: path.join(os.tmpdir(), 'musicbridge-local-search-albums.png') })
+  await page.locator('.roon-album-card').first().click()
+  await expect(page.getByRole('heading', { name: '逆光 本地专辑 1', exact: true })).toBeVisible()
+  // 详情请求尚未完成就切页，迟到响应不能把页面切回去。
+  await page.locator('[data-sidebar-source="roon-artists"]').click()
+  await page.waitForTimeout(300)
+  await expect(page.getByRole('heading', { name: '艺术家', exact: true })).toBeVisible()
+  await page.locator('[data-sidebar-source="roon-albums"]').click()
+  await expect(page.getByRole('heading', { name: '逆光 本地专辑 1', exact: true })).toBeVisible()
+  await expect(albumsSearch).toHaveValue('逆光')
+  await page.locator('.roon-album-detail-view .back-link').click()
+  await expect(albumsSearch).toHaveValue('逆光')
+  await page.waitForTimeout(300)
+  await expect(page.locator('.roon-album-card')).toHaveCount(26)
+  await page.locator('.content-scroll').evaluate(e => { e.scrollTop = 200 })
+  const retainedScrollTop = await page.locator('.content-scroll').evaluate(e => e.scrollTop)
+  expect(retainedScrollTop).toBeGreaterThan(0)
+  await page.locator('[data-sidebar-source="roon-artists"]').click()
+  await page.locator('[data-sidebar-source="roon-albums"]').click()
+  await expect(albumsSearch).toHaveValue('逆光')
+  await expect(page.locator('.roon-album-card')).toHaveCount(26)
+  await expect.poll(() => page.locator('.content-scroll').evaluate(e => e.scrollTop)).toBe(retainedScrollTop)
+  await page.locator('[data-sidebar-source="roon-artists"]').click()
+  const artistsSearch = page.getByRole('searchbox', { name: '搜索本地艺术家', exact: true })
+  await expect(artistsSearch).toHaveValue('')
+  await artistsSearch.fill('孙燕姿')
+  await page.getByRole('button', { name: /孙燕姿 本地艺人 1 封面/ }).first().click()
+  await page.getByRole('button', { name: /艺术家的专辑 封面/ }).click()
+  await expect(page.locator('.roon-album-detail-view .back-link')).toContainText('孙燕姿 本地艺人 1')
+  await page.locator('.roon-album-detail-view .back-link').click()
+  await expect(page.getByRole('heading', { name: '孙燕姿 本地艺人 1', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /艺术家的专辑 封面/ })).toBeVisible()
+  await page.waitForTimeout(300)
+  await expect(page.getByRole('heading', { name: '孙燕姿 本地艺人 1', exact: true })).toBeVisible()
+  // 保存已打开的艺术家详情，而不只恢复搜索结果列表。
+  await page.getByRole('button', { name: '打开设置', exact: true }).first().click()
+  await page.locator('[data-sidebar-source="roon-artists"]').click()
+  await expect(page.getByRole('heading', { name: '孙燕姿 本地艺人 1', exact: true })).toBeVisible()
+  await page.locator('[data-sidebar-source="roon-albums"]').click()
+  await page.getByRole('button', { name: /全部本地专辑 封面/ }).click()
+  await expect(page.getByRole('heading', { name: '全部本地专辑', exact: true })).toBeVisible()
+  await page.locator('[data-sidebar-source="roon-artists"]').click()
+  await expect(page.getByRole('heading', { name: '孙燕姿 本地艺人 1', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /艺术家的专辑 封面/ })).toBeVisible()
+  await page.locator('[aria-labelledby="roon-artist-heading"] .back-link').click()
+  await expect(artistsSearch).toHaveValue('孙燕姿')
+  await expect(page.getByRole('heading', { name: '艺术家', exact: true })).toBeVisible()
+  const localCalls = await electronApp.evaluate(() => (globalThis as typeof globalThis & { localSearchCalls: Array<{query: string;kind: string;offset: number}> }).localSearchCalls)
+  expect(localCalls.every(x => x.query === '逆光' ? x.kind === 'album' : x.kind === 'artist')).toBe(true)
+  expect(localCalls.some(x => x.query === '逆光' && x.offset === 24)).toBe(true)
+  await page.locator('[data-sidebar-source="roon-albums"]').click()
+  await expect(albumsSearch).toHaveValue('')
+  await expect(page.getByText('全部本地专辑', { exact: true })).toBeVisible()
+  await page.locator('[data-sidebar-source="roon-artists"]').click()
+  await expect(artistsSearch).toHaveValue('孙燕姿')
+  await expect(page.getByRole('button', { name: /孙燕姿 本地艺人 1 封面/ }).first()).toBeVisible()
+  await artistsSearch.fill('无匹配')
+  await expect(page.getByText('没有匹配的本地艺术家', { exact: true })).toBeVisible()
+  await artistsSearch.press('Escape')
+  await expect(page.getByText('全部本地艺术家', { exact: true })).toBeVisible()
+  await page.locator('[data-sidebar-source="roon-albums"]').click()
+  await expect(albumsSearch).toHaveValue('')
+  await albumsSearch.fill('无匹配')
+  await expect(page.getByText('没有匹配的本地专辑', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '清除搜索', exact: true }).click()
+  await expect(page.getByText('全部本地专辑', { exact: true })).toBeVisible()
+  await sourceButton('home').click()
+  await sidebarSearch().fill('聚合验证')
+  await expect(page.locator('.view-search')).toBeVisible()
+  await expect.poll(() => electronApp.evaluate(() => (globalThis as typeof globalThis & { localSearchCalls: Array<{kind: string}> }).localSearchCalls.filter(x => x.kind.startsWith('library:')).length)).toBe(3)
+  await page.getByRole('button', { name: '艺人', exact: true }).click()
+  await page.locator('[data-sidebar-source="roon-albums"]').click()
+  await expect(albumsSearch).toHaveValue('')
+  await sourceButton('home').click()
+  await expect(sidebarSearch()).toHaveValue('聚合验证')
+  await expect(page.getByRole('button', { name: '艺人', exact: true })).toHaveAttribute('aria-current', 'page')
+  await page.getByRole('button', { name: '打开 聚合验证 本地艺人 1', exact: true }).click()
+  await page.getByRole('button', { name: /艺术家的专辑 封面/ }).click()
+  await expect(page.locator('.roon-album-detail-view .back-link')).toContainText('聚合验证 本地艺人 1')
+  await page.locator('[data-sidebar-source="roon-artists"]').click()
+  await sourceButton('home').click()
+  await expect(page.getByRole('heading', { name: '艺术家的专辑', exact: true })).toBeVisible()
+  await page.locator('.roon-album-detail-view .back-link').click()
+  await expect(page.getByRole('heading', { name: '聚合验证 本地艺人 1', exact: true })).toBeVisible()
+  await page.locator('[aria-labelledby="roon-artist-heading"] .back-link').click()
+  await expect(page.locator('.view-search')).toBeVisible()
+  await expect(sidebarSearch()).toHaveValue('聚合验证')
+  await page.locator('[data-sidebar-source="roon-albums"]').click()
+  await expect(albumsSearch).toHaveValue('')
+  await albumsSearch.fill('新查询')
+  await expect(page.locator('.roon-album-card').first()).toContainText('新查询 本地专辑 1')
+  await sourceButton('home').click()
+  await expect(sidebarSearch()).toHaveValue('')
+  await expect(page.locator('.view-search')).toHaveCount(0)
+  await page.locator('[data-sidebar-source="roon-albums"]').click()
+  await expect(albumsSearch).toHaveValue('新查询')
+  await expect(page.locator('.roon-album-card').first()).toContainText('新查询 本地专辑 1')
+  await sourceButton('home').click()
+  await sidebarSearch().fill('替换本地搜索')
+  await expect(page.locator('.view-search')).toBeVisible()
+  await page.locator('[data-sidebar-source="roon-albums"]').click()
+  await expect(albumsSearch).toHaveValue('')
+  await expect(page.getByText('全部本地专辑', { exact: true })).toBeVisible()
 })

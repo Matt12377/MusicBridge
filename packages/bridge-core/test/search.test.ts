@@ -5,6 +5,43 @@ import { parseAlbumDetail, parseAlbumSearchPage, parseArtistDetail, parseArtistS
 
 const page = { offset: 0, limit: 10 }
 
+test('艺人详情使用返回歌曲的 artists 接口并支持分页', async () => {
+  const client = new NeteaseClient('synthetic-cookie', {
+    async artist_detail() { throw new Error('不应使用仅返回资料的接口') },
+    async artists() {
+      return { body: { code: 200, artist: { id: 7, name: '艺人' }, hotSongs: [
+        { id: 1, name: '第一首' }, { id: 2, name: '第二首' },
+      ] } }
+    },
+  } as never)
+  const result = await client.getArtist('7', { offset: 1, limit: 1 })
+  assert.equal(result.name, '艺人')
+  assert.equal(result.tracks.items[0]?.id, '2')
+  assert.equal(result.tracks.total, 2)
+})
+
+test('搜索按歌曲 ID 批量补图，保留排序和已有封面，补图失败不阻断结果', async () => {
+  const requests: string[] = []
+  let fail = false
+  const client = new NeteaseClient('synthetic-cookie', {
+    async search() { return { body: { code: 200, result: { songCount: 2, songs: [
+      { id: 1, name: '第一首' }, { id: 2, name: '第二首', al: { picUrl: 'https://p1.music.126.net/original.jpg' } },
+    ] } } } },
+    async song_detail(params: { ids: string }) {
+      requests.push(params.ids)
+      if (fail) throw new Error('合成网络错误')
+      return { body: { code: 200, songs: [{ id: 1, name: '第一首', al: { picUrl: 'http://p1.music.126.net/cover.jpg' } }] } }
+    },
+  } as never)
+  const result = await client.searchTracks('测试', page)
+  assert.deepEqual(requests, ['1'])
+  assert.deepEqual(result.items.map((item) => item.id), ['1', '2'])
+  assert.equal(result.items[0]?.artworkUrl, 'https://p1.music.126.net/cover.jpg')
+  assert.equal(result.items[1]?.artworkUrl, 'https://p1.music.126.net/original.jpg')
+  fail = true
+  assert.equal((await client.searchTracks('其他', page)).items.length, 2)
+})
+
 test('search parsers expose bounded ArtistSummary and AlbumSummary contracts', () => {
   assert.deepEqual(
     parseArtistSearchPage({

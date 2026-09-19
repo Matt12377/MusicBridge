@@ -676,6 +676,12 @@ test('contracts validates the opaque Roon Library browse and image seams', () =>
   const albumItem = albumPage.items[0];
   assert.ok(albumItem);
   assert.ok(albumItem.artworkReference);
+  for (const [albumCount, valid] of [[0, true], [12, true], [-1, false], [1.5, false], [1_000_001, false]] as const) {
+    assert.equal(validateIpcResponseForCommand({
+      version: IPC_VERSION, id: 'artist-count', ok: true,
+      result: { ...albumPage, items: [{ ...albumItem, kind: 'artist', albumCount }] },
+    }, 'roon.library.artists').ok, valid);
+  }
   assert.equal(
     validateIpcRequest({
       version: IPC_VERSION,
@@ -1569,4 +1575,13 @@ test('Prepared 原始文件选择只在 Main 授权，公开预览与冻结不�
   assert.equal(request('recordingPrepared.previewImport', { ...preview, absolutePath: '/private/render.wav' }), false);
   assert.equal(request('recordingPrepared.startImport', { ...preview, commandId: id, proposalFingerprint: 'a'.repeat(64), userConfirmed: true }), true);
   assert.equal(request('recordingPrepared.startImport', { ...preview, commandId: id, proposalFingerprint: 'a'.repeat(64), userConfirmed: false }), false);
+});
+
+test('Roon 搜索允许歌曲、专辑、艺人，拒绝未知类型', () => {
+  const valid = (kind: unknown) => validateIpcRequest({
+    version: IPC_VERSION, id: 'search-kind', command: 'roon.library.search',
+    payload: { query: '测试', page: { offset: 0, limit: 6 }, ...(kind === undefined ? {} : { kind }) },
+  }).ok;
+  for (const kind of [undefined, 'track', 'album', 'artist']) assert.equal(valid(kind), true);
+  for (const kind of ['playlist', '', 1, null, {}]) assert.equal(valid(kind), false);
 });

@@ -62,7 +62,7 @@ export interface RoonPublicLibrary {
     contentType: string;
     body: Uint8Array;
   }>;
-  playTrack(reference: string, zoneOrOutputId: string): Promise<RoonTrackActionOutcome | void>;
+  playTrack(reference: string, zoneOrOutputId: string, onDispatch?: () => void): Promise<RoonTrackActionOutcome | void>;
   queueTrack(reference: string, zoneOrOutputId: string): Promise<RoonTrackActionOutcome | void>;
   /** Core 内部使用的安全元数据投影；不暴露 Roon item_key 或运行期引用。 */
   getTrackSummary(reference: string): TrackSummary;
@@ -159,6 +159,7 @@ function mapDescriptor(
     ...(descriptor.subtitle !== undefined ? { subtitle: descriptor.subtitle } : {}),
     ...(descriptor.artist !== undefined ? { artist: descriptor.artist } : {}),
     ...(descriptor.album !== undefined ? { album: descriptor.album } : {}),
+    ...(descriptor.albumCount !== undefined ? { albumCount: descriptor.albumCount } : {}),
     ...(durationMs !== undefined ? { durationMs } : {}),
     ...(descriptor.bitrate !== undefined ? { bitrate: descriptor.bitrate } : {}),
     ...(descriptor.format !== undefined ? { format: descriptor.format } : {}),
@@ -637,10 +638,10 @@ export function createRoonPublicLibrary(
         return wrapLibraryError(error, 'image');
       }
     },
-    async playTrack(reference, zoneOrOutputId) {
+    async playTrack(reference, zoneOrOutputId, onDispatch) {
       try {
         const current = service();
-        return await current.playTrack(resolveTrack(reference), zoneOrOutputId);
+        return await current.playTrack(resolveTrack(reference), zoneOrOutputId, onDispatch);
       } catch (error) {
         return wrapLibraryError(error, 'track-action');
       }

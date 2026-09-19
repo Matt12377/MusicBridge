@@ -70,6 +70,8 @@ export interface RoonPlaybackConfirmationRequest {
     album: string;
     durationMs?: number;
   };
+  /** 仅供已定位并派发的原生曲目动作使用，允许 Browse 与 Transport 元数据别名。 */
+  allowMetadataAliases?: boolean;
   requirePosition?: boolean;
   positionMs?: number;
 }

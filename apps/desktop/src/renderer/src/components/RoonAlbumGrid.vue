@@ -6,6 +6,7 @@ import { shouldAutoLoadRoonPage } from '../composables/roonLibraryPagination.js'
 
 const props = withDefaults(defineProps<{
   page: RoonLibraryPage
+  searching?: boolean
   initialLoading?: boolean
   loadingMore?: boolean
   loadMoreError?: string | null
@@ -70,8 +71,8 @@ onUnmounted(() => intersectionObserver?.disconnect())
   </div>
   <div v-else-if="!props.page.items.length" class="empty-state roon-library-state">
     <span class="empty-glyph" aria-hidden="true">♫</span>
-    <h3>还没有可显示的专辑</h3>
-    <p>Roon Core 当前返回 0 张专辑。请在 Roon 中检查存储位置与资料库内容后重新读取。</p>
+    <h3>{{ searching ? '没有匹配的本地专辑' : '还没有可显示的专辑' }}</h3>
+    <p>{{ searching ? '换一个关键词，或清除搜索查看全部专辑。' : 'Roon Core 当前返回 0 张专辑。请在 Roon 中检查存储位置与资料库内容后重新读取。' }}</p>
     <button type="button" class="secondary-button" @click="emit('retry')">重新读取</button>
   </div>
   <template v-else>

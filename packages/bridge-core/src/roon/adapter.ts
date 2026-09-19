@@ -462,6 +462,7 @@ function relatedIdentity(left: string, right: string): boolean {
 function observationMatchesTrack(
   observation: RoonPlaybackObservation,
   track: NonNullable<RoonPlaybackConfirmationRequest['track']>,
+  allowMetadataAliases = false,
 ): boolean {
   const nowPlaying = observation.nowPlaying;
   if (
@@ -470,6 +471,7 @@ function observationMatchesTrack(
   ) {
     return false;
   }
+  if (allowMetadataAliases) return true;
   const corroborations: boolean[] = [];
   if (nowPlaying.artist) {
     corroborations.push(track.artists.some((artist) => relatedIdentity(nowPlaying.artist!, artist)));
@@ -497,7 +499,7 @@ function observationMatchesRequest(
     && (request.positionMs === undefined
       || (observation.positionMs !== undefined
         && Math.abs(observation.positionMs - request.positionMs) <= 1_500))
-    && (!request.track || observationMatchesTrack(observation, request.track)),
+    && (!request.track || observationMatchesTrack(observation, request.track, request.allowMetadataAliases)),
   );
 }
 

@@ -224,7 +224,7 @@ function artistSummaryFromRecord(value: unknown): ArtistSummary | undefined {
   const id = safeId(value.id)
   const name = stringValue(value.name)
   if (!id || !name) return undefined
-  const artworkUrl = safeArtworkUrl(value.picUrl ?? value.avatarUrl)
+  const artworkUrl = safeArtworkUrl(value.picUrl ?? value.avatarUrl ?? value.cover)
   const albumCount = numeric(value.albumSize ?? value.albumCount)
   const trackCount = numeric(value.musicSize ?? value.trackCount)
   return {

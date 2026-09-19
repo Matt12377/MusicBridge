@@ -981,6 +981,22 @@ test('播放超时经 IPC 保留 Roon 错误类别且不泄漏内部详情', asy
   }
 });
 
+test('原生新曲确认超时只公开安全分段耗时，不将已发出的播放误称为音频连接失败', async () => {
+  const port = new FakePort();
+  const runtime = makeRuntime();
+  runtime.playbackPlay = async () => { throw new BridgeError('ROON_TIMEOUT', 'private-session-content', {
+    details: { stage: 'post-action-confirmation', preparationMs: 43, confirmationMs: 10000, session: 'private-session-content' },
+  }); };
+  await attachCoreRuntimePort(port, runtime);
+  port.send({ version: IPC_VERSION, id: 'timing', command: 'playback.play', payload: { trackId: '123', qualityPreference: 'auto' } });
+  await new Promise(resolve => setImmediate(resolve));
+  const text = JSON.stringify(port.messages[1]);
+  assert.match(text, /命令准备 43ms，状态确认 10000ms/);
+  assert.match(text, /实际声音可能已切换/);
+  assert.doesNotMatch(text, /private-session-content|远程音频连接/);
+  assert.equal(parseIpcRuntimeMessage(port.messages[1]).ok, true);
+});
+
 test('utility IPC maps an expired Provider session to a public error', async () => {
   const port = new FakePort();
   const runtime = makeRuntime();

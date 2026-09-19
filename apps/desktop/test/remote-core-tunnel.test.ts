@@ -331,3 +331,10 @@ test('stop kills the SSH child and returns to local-core idle state', async () =
     autoReconnect: false,
   })
 })
+
+test('尚未配置目标时重连报告输入问题，而非远端健康故障', async () => {
+  const manager = new RemoteCoreTunnelManager()
+  const state = await manager.reconnect()
+  assert.equal(state.errorCode, 'INVALID_SSH_TARGET')
+  assert.equal(state.failure?.phase, 'configuration')
+})

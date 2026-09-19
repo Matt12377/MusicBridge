@@ -116,6 +116,7 @@ interface NeteaseApiModule {
   login_status(params: Record<string, unknown>): ApiResponse;
   logout(params: Record<string, unknown>): ApiResponse;
   search?(params: Record<string, unknown>): ApiResponse;
+  artists?(params: Record<string, unknown>): ApiResponse;
   artist_detail?(params: Record<string, unknown>): ApiResponse;
   album?(params: Record<string, unknown>): ApiResponse;
   likelist?(params: Record<string, unknown>): ApiResponse;
@@ -231,6 +232,20 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
         }),
         page,
       );
+      // 搜索接口经常省略封面，只为当前页缺图歌曲批量补齐元数据。
+      const missing = result.items.filter((track) => !track.artworkUrl);
+      if (missing.length > 0) {
+        try {
+          const details = parseTrackSummaries(await this.api.song_detail({ ids: missing.map((track) => track.id).join(',') }));
+          const artwork = new Map(details.map((track) => [track.id, track.artworkUrl]));
+          result.items = result.items.map((track) => {
+            const artworkUrl = track.artworkUrl ?? artwork.get(track.id);
+            return artworkUrl ? { ...track, artworkUrl } : track;
+          });
+        } catch {
+          // 封面补齐失败仍保留可用搜索结果。
+        }
+      }
       this.rememberTracks(result.items);
       return result;
     } catch (error) {
@@ -273,9 +288,9 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
   async getArtist(artistIdInput: string, pageInput: PageRequest) {
     const artistId = normalizeTrackId(artistIdInput)
     const page = normalizePageRequest(pageInput)
-    if (!this.api.artist_detail) throw new BridgeError('NETEASE_REQUEST_FAILED', 'Artist detail is unavailable', { httpStatus: 501 })
+    if (!this.api.artists) throw new BridgeError('NETEASE_REQUEST_FAILED', 'Artist detail is unavailable', { httpStatus: 501 })
     try {
-      const result = parseArtistDetail(await this.api.artist_detail({ id: artistId, cookie: this.cookie }), page)
+      const result = parseArtistDetail(await this.api.artists({ id: artistId, cookie: this.cookie }), page)
       this.rememberTracks(result.tracks.items)
       return result
     } catch (error) {

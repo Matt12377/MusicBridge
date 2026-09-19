@@ -128,6 +128,13 @@ function failureForError(id: string, error: unknown): IpcFailure {
     return responseFailure(id, 'ROON_CORE_NOT_CONNECTED', 'Roon Core is not connected');
   }
   if (bridgeError.code === 'ROON_TIMEOUT') {
+    if (bridgeError.details?.stage === 'post-action-confirmation') {
+      const preparationMs = bridgeError.details.preparationMs;
+      const confirmationMs = bridgeError.details.confirmationMs;
+      const hasTiming = [preparationMs, confirmationMs].every(value => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= 86_400_000);
+      const timing = hasTiming ? `（命令准备 ${preparationMs}ms，状态确认 ${confirmationMs}ms）` : '';
+      return responseFailure(id, 'ROON_TIMEOUT', `未在时限内确认 Roon 新曲状态${timing}。实际声音可能已切换，请勿连续重复点击播放。`);
+    }
     return responseFailure(id, 'ROON_TIMEOUT', 'Roon 未确认播放状态，请检查播放设备与远程音频连接。');
   }
   if (bridgeError.code === 'ROON_ZONE_NOT_SELECTED') {
@@ -642,6 +649,7 @@ async function dispatch(
       return runtime.searchRoonLibrary(
         (request.payload as { query: string }).query,
         (request.payload as { page: { offset: number; limit: number } }).page,
+        (request.payload as { kind?: 'track' | 'album' | 'artist' }).kind,
       );
     case 'roon.library.image':
       return runtime.getRoonImage(

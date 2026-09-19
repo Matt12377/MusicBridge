@@ -586,7 +586,7 @@ export interface IpcCommandPayloads {
   'roon.library.artist': { reference: string; page: PageRequest };
   'roon.library.genre': { reference: string; page: PageRequest };
   'roon.library.playlist': { reference: string; page: PageRequest };
-  'roon.library.search': { query: string; page: PageRequest };
+  'roon.library.search': { query: string; page: PageRequest; kind?: 'track' | 'album' | 'artist' };
   'roon.library.image': { reference: string; options?: RoonImageOptions };
   'roon.library.play': { reference: string; zoneId: string; queueReferences?: readonly string[] };
   'roon.library.queue': { reference: string; zoneId: string };

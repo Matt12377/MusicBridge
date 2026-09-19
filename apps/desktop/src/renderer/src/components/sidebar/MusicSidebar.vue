@@ -12,6 +12,7 @@ const props = defineProps<{
   expanded: boolean
   activeSource: SidebarSource
   searchQuery: string
+  searchLabel?: string
   playlists: readonly PlaylistSummary[]
   playlistState: 'loading' | 'ready' | 'error'
   sourceScrollTop: number
@@ -74,7 +75,7 @@ onMounted(restoreSourceScroll)
 <template>
   <aside class="music-sidebar" :class="{ 'is-collapsed': !expanded }" data-component="MusicSidebar">
     <SidebarHeader :expanded="expanded" @toggle="emit('toggle')" />
-    <SidebarSearch :model-value="searchQuery" :expanded="expanded" @update:model-value="emit('update:searchQuery', $event)" @clear-search="emit('clear-search')" @expand="requestExpand" />
+    <SidebarSearch :model-value="searchQuery" :label="searchLabel" :expanded="expanded" @update:model-value="emit('update:searchQuery', $event)" @clear-search="emit('clear-search')" @expand="requestExpand" />
 
     <nav ref="sourceScroll" class="sidebar-source-scroll" aria-label="音乐来源" @scroll="emit('scroll-source', ($event.target as HTMLElement).scrollTop)">
       <div class="sidebar-primary-navigation">

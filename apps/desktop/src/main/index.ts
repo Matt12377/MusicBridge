@@ -1470,11 +1470,12 @@ function registerIpcHandlers(
       }),
     ),
   )
-  ipcMain.handle('roon:library:search', (event, query: unknown, page: unknown) =>
+  ipcMain.handle('roon:library:search', (event, query: unknown, page: unknown, kind: unknown) =>
     invokeCore(event, () =>
       supervisor.request('roon.library.search', {
         query: requireSearchQuery(query),
         page: requireLibraryPage(page),
+        ...(kind === undefined ? {} : { kind: requireRoonSearchKind(kind) }),
       }),
     ),
   )
@@ -2051,3 +2052,8 @@ app.on('window-all-closed', () => {
     app.quit()
   }
 })
+
+function requireRoonSearchKind(value: unknown): 'track' | 'album' | 'artist' {
+  if (value === 'track' || value === 'album' || value === 'artist') return value
+  throw new Error('搜索类型无效')
+}

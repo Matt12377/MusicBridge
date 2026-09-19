@@ -1138,7 +1138,10 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'roon.library.artist') return isRoonAlbumPayload(payload);
   if (command === 'roon.library.genre') return isRoonAlbumPayload(payload);
   if (command === 'roon.library.playlist') return isRoonAlbumPayload(payload);
-  if (command === 'roon.library.search') return isLibrarySearchPayload(payload);
+  if (command === 'roon.library.search') return isRecord(payload)
+    && hasOnlyKeys(payload, ['query', 'page', 'kind'])
+    && isLibrarySearchPayload({ query: payload.query, page: payload.page })
+    && (payload.kind === undefined || payload.kind === 'track' || payload.kind === 'album' || payload.kind === 'artist');
   if (command === 'roon.volume.get') return isRecord(payload) && Object.keys(payload).length === 0;
   if (command === 'roon.volume.set') return isVolumeRequest(payload);
   if (command === 'playback.seek') return isPlaybackSeekPayload(payload);
@@ -1400,10 +1403,12 @@ function isRoonLibraryItem(value: unknown): boolean {
       'year',
       'version',
       'artworkReference',
+      'albumCount',
     ])
   ) return false;
   return (
     isRoonLibraryReference(value.reference) &&
+    (value.albumCount === undefined || (typeof value.albumCount === 'number' && Number.isSafeInteger(value.albumCount) && value.albumCount >= 0 && value.albumCount <= MAX_PAGE_OFFSET)) &&
     ['album', 'artist', 'genre', 'playlist', 'composer', 'track'].includes(String(value.kind)) &&
     safeString(value.title, 512) &&
     (value.subtitle === undefined || safeString(value.subtitle, 512)) &&

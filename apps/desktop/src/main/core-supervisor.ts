@@ -191,13 +191,13 @@ export class CoreSupervisor {
     const timeoutMs =
       ['recordingReplica.inspect', 'recordingOutput.check', 'recordingPlans.preview', 'recordingPlans.freeze', 'recordingPlans.preflight', 'recordingArchive.preview', 'recordingArchive.start', 'recordingArchive.verify', 'recordingArchive.initialize', 'recordingExecution.preview', 'recordingExecution.start', 'recordingExecution.verify', 'recordingPrepared.previewImport', 'recordingPrepared.startImport', 'recordingPrepared.review', 'recordingPrepared.freeze'].includes(timedCommand)
       ? PREPARED_FILE_REQUEST_TIMEOUT_MS
+      : command.startsWith('playback.') || command === 'roon.library.play' || command === 'roon.library.queue'
+        ? PLAYBACK_REQUEST_TIMEOUT_MS
       : command.startsWith('library.') ||
       command.startsWith('roon.library.') ||
       command.startsWith('roon.transport.')
       ? LIBRARY_REQUEST_TIMEOUT_MS
-      : command.startsWith('playback.')
-        ? PLAYBACK_REQUEST_TIMEOUT_MS
-        : this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
+      : this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
     const response = await new Promise<unknown>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id)

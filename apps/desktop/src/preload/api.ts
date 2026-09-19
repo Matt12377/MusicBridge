@@ -111,7 +111,7 @@ export interface MusicBridgePublicApi extends RecordingPrintsPublicApi, Recordin
   getRoonArtistAlbums: (reference: string, page: PageRequest) => Promise<RoonLibraryPage>
   getRoonGenreItems: (reference: string, page: PageRequest) => Promise<RoonLibraryPage>
   getRoonPlaylistTracks: (reference: string, page: PageRequest) => Promise<RoonLibraryPage>
-  searchRoonLibrary: (query: string, page: PageRequest) => Promise<RoonLibraryPage>
+  searchRoonLibrary: (query: string, page: PageRequest, kind?: 'track' | 'album' | 'artist') => Promise<RoonLibraryPage>
   getRoonImage: (reference: string, options?: RoonImageOptions) => Promise<RoonImageResult>
   playRoonTrack: (reference: string, zoneId: string, queueReferences?: readonly string[]) => Promise<{ started: true }>
   queueRoonTrack: (reference: string, zoneId: string) => Promise<{ queued: true }>
@@ -485,7 +485,7 @@ export function createPreloadApi(
   getRoonPlaylistTracks: (_reference: string, _page: PageRequest) => Promise<RoonLibraryPage> = async () => {
     throw new Error('Roon Library API is unavailable')
   },
-  searchRoonLibrary: (_query: string, _page: PageRequest) => Promise<RoonLibraryPage> = async () => {
+  searchRoonLibrary: (_query: string, _page: PageRequest, _kind?: 'track' | 'album' | 'artist') => Promise<RoonLibraryPage> = async () => {
     throw new Error('Roon Library API is unavailable')
   },
   getRoonImage: (_reference: string, _options?: RoonImageOptions) => Promise<RoonImageResult> = async () => {

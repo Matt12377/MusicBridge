@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { runConfirmedTrackAction } from '../src/roon/confirmed-track-action.js';
 import {
   RoonAudioInputAdapter,
   summarizeRoonTimePayload,
@@ -1897,3 +1898,61 @@ test('音量使用当前 Zone 输出的官方调用，错误和旧 Zone 不会�
   await assert.rejects(adapter.setVolume({zoneId:'zone-1',outputId:'output-1',how:'absolute',value:38}));
   await adapter.stop();
 });
+
+test('Transport 新曲事件早于 Browse 回执时立即确认，事件被后续更新覆盖也不丢失', async () => {
+  const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 100 });
+  let release!: () => void;
+  let resolved = false;
+  const pending = runConfirmedTrackAction({
+    dispatch: async onDispatch => {
+      onDispatch();
+      const emit = (title: string) => api.core.transport.emit('Changed', { zones_changed: [{
+        zone_id: 'zone-1', state: 'playing', now_playing: { three_line: { line1: title }, seek_position: 0.2 }, outputs: [{ output_id: 'output-1' }],
+      }] });
+      emit('新专辑首曲');
+      emit('后续曲目');
+      await new Promise<void>(resolve => { release = resolve; });
+      return 'accepted';
+    },
+    confirm: () => adapter.waitForSelectedZonePlayback({
+      zoneId: 'zone-1', state: 'playing', afterRevision: adapter.getSelectedZonePlaybackObservation()!.revision,
+      track: { title: '新专辑首曲', artists: [], album: '' }, allowMetadataAliases: true,
+    }),
+  }).then(value => { resolved = true; return value; });
+  await nextTurn();
+  try {
+    assert.equal(resolved, true, '回执仍挂起时应已完成');
+    assert.equal((await pending).nowPlaying?.title, '新专辑首曲');
+  } finally { release(); await adapter.stop(); }
+});
+
+for (const allowMetadataAliases of [true, false]) {
+  test(`原生动作别名确认 ${allowMetadataAliases}：只接受目标设备的新播放事件和同名歌曲`, async () => {
+    const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 100 })
+    const before = adapter.getSelectedZonePlaybackObservation()!
+    let settled = false
+    const pending = adapter.waitForSelectedZonePlayback({
+      zoneId: 'zone-1', state: 'playing', afterRevision: before.revision,
+      track: { title: '逆光', artists: ['Stefanie Sun'], album: 'Against the Light' },
+      allowMetadataAliases,
+    }).then(value => { settled = true; return value }, error => error)
+    const emit = (zone: string, state: string, title: string) => api.core.transport.emit('Changed', {
+      zones_changed: [{ zone_id: zone, state, now_playing: {
+        three_line: { line1: title, line2: '孙燕姿', line3: '逆光' }, seek_position: 0.2,
+      }, outputs: [{ output_id: 'output-1' }] }],
+    })
+    await nextTurn()
+    assert.equal(settled, false, '旧状态不能确认新动作')
+    emit('zone-2', 'playing', '逆光'); await nextTurn()
+    assert.equal(settled, false, '其他设备不能确认')
+    emit('zone-1', 'paused', '逆光'); await nextTurn()
+    assert.equal(settled, false, '暂停不能确认')
+    emit('zone-1', 'playing', '我怀念的'); await nextTurn()
+    assert.equal(settled, false, '其他歌曲不能确认')
+    emit('zone-1', 'playing', '逆光'); await nextTurn()
+    assert.equal(settled, allowMetadataAliases, '仅经原生动作定位后的确认允许中英文别名')
+    const result = await pending
+    assert.equal(allowMetadataAliases ? result.state : result.code, allowMetadataAliases ? 'playing' : 'ROON_TIMEOUT')
+    await adapter.stop()
+  })
+}

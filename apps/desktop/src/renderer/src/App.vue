@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { restoreRemoteTarget, reconnectRemoteTarget } from './remote-core-preferences.js'
 import { roonTrackIdFromReference } from '@music-bridge/contracts'
 
 import type {
@@ -14,6 +15,7 @@ import type {
   FavoriteEntityDescriptor,
   FavoriteKind,
   FavoritePage,
+  FavoriteRecord,
   PlaybackQualityPreference,
   PlaybackQueueRequestItem,
   PlaybackQueueItem,
@@ -21,7 +23,6 @@ import type {
   PlaylistDetail,
   PublicAuthState,
   PublicAccountState,
-  PublicAggregatedSearchResult,
   PublicBridgeState,
   PublicRoonZone,
   PublicTrackMatchResult,
@@ -40,6 +41,8 @@ import DailyRecommendationsView from './components/views/DailyRecommendationsVie
 import SettingsView from './components/settings/SettingsView.vue'
 import PlaybackInspector from './components/inspector/PlaybackInspector.vue'
 import TrackTable from './components/media/TrackTable.vue'
+import SearchEntities from './components/SearchEntities.vue'
+import SearchTrackPreview from './components/SearchTrackPreview.vue'
 import RoonAlbumGrid from './components/RoonAlbumGrid.vue'
 import RoonEntityGrid from './components/RoonEntityGrid.vue'
 import FavoriteEntityGrid from './components/FavoriteEntityGrid.vue'
@@ -58,6 +61,7 @@ import {
 } from './composables/collectionQueue.js'
 import { appendRoonPage, emptyRoonPage } from './composables/roonLibraryPagination.js'
 import { useRoonCollection } from './composables/useRoonCollection.js'
+import { useRoonSearchCollection } from './composables/useRoonSearchCollection.js'
 import { shouldRefreshVisibleRoonCollection } from './roon-collection-lifecycle.js'
 import { canLoadAuthorizedLibrary, isCoreRuntimeStable } from './core-readiness.js'
 import {
@@ -206,6 +210,21 @@ const diagnosticExportState = ref<'idle' | 'working' | 'done' | 'cancelled' | 'e
 const toastMessage = ref<string | null>(null)
 
 const searchQuery = ref('')
+const searchCategory = ref<'all' | 'tracks' | 'albums' | 'artists'>('all')
+const searchSongsOpen = computed({
+  get: () => searchCategory.value === 'tracks',
+  set: (value: boolean) => { searchCategory.value = value ? 'tracks' : 'all' },
+})
+function selectSearchCategory(category: 'all' | 'tracks' | 'albums' | 'artists'): void {
+  searchCategory.value = category
+  void nextTick(() => contentScroll.value?.scrollTo({ top: 0 }))
+}
+const roonSearchOrigin = ref(false)
+const searchSongScrollTop = ref(0)
+const roonSearchAlbums = ref<RoonLibraryPage>(emptyRoonPage(8))
+const roonSearchArtists = ref<RoonLibraryPage>(emptyRoonPage(6))
+const roonSearchLoading = ref(false)
+const roonSearchError = ref<string | null>(null)
 const searchPage = ref<Page<TrackSummary>>(emptyPage())
 const searchArtistsPage = ref<Page<ArtistSummary>>(emptyPage(6))
 const searchAlbumsPage = ref<Page<AlbumSummary>>(emptyPage(8))
@@ -215,6 +234,7 @@ const searchArtistsError = ref<string | null>(null)
 const searchAlbumsError = ref<string | null>(null)
 const searchDetail = ref<{
   kind: 'artist' | 'album'
+  id: string
   title: string
   subtitle: string
   tracks: Page<TrackSummary>
@@ -223,7 +243,6 @@ const searchDetail = ref<{
 } | null>(null)
 const searchScrollTop = ref(0)
 const contentScroll = ref<HTMLElement | null>(null)
-const aggregatedSearch = ref<PublicAggregatedSearchResult | null>(null)
 const matchStates = ref<Record<string, MatchState>>({})
 const matchResults = ref<Record<string, PublicTrackMatchResult>>({})
 const pendingMatchRequests = new Map<string, Promise<PublicTrackMatchResult>>()
@@ -244,6 +263,8 @@ const selectedPlaylistId = ref<string | null>(null)
 const playlistContentScrollTop = ref(0)
 const playlistTableScrollTop = ref(0)
 const {
+  query: localAlbumQuery,
+  setQuery: setLocalAlbumQuery,
   page: roonAlbumsPage,
   initialLoading: roonAlbumsInitialLoading,
   loadingMore: roonAlbumsLoadingMore,
@@ -253,11 +274,15 @@ const {
   loadMore: loadMoreRoonAlbums,
   retry: retryRoonAlbums,
   reset: resetRoonAlbums,
-} = useRoonCollection(
+} = useRoonSearchCollection(
+  'album',
   (page) => window.musicBridge.listRoonAlbums(page),
+  (query, page, kind) => window.musicBridge.searchRoonLibrary(query, page, kind),
   (error) => roonLibraryMessage(error),
 )
 const {
+  query: localArtistQuery,
+  setQuery: setLocalArtistQuery,
   page: roonArtistsPage,
   initialLoading: roonArtistsInitialLoading,
   loadingMore: roonArtistsLoadingMore,
@@ -267,8 +292,10 @@ const {
   loadMore: loadMoreRoonArtists,
   retry: retryRoonArtists,
   reset: resetRoonArtists,
-} = useRoonCollection(
+} = useRoonSearchCollection(
+  'artist',
   (page) => window.musicBridge.listRoonArtists(page),
+  (query, page, kind) => window.musicBridge.searchRoonLibrary(query, page, kind),
   (error) => roonLibraryMessage(error),
 )
 const {
@@ -300,6 +327,12 @@ const {
   (error) => roonLibraryMessage(error),
 )
 const favoriteKind = ref<FavoriteKind>('track')
+const favoriteResolutionEpoch = ref(0)
+const resolvedFavoriteDescriptors = new Map<string, FavoriteEntityDescriptor>()
+
+function localFavoriteDescriptor(item: RoonLibraryItem): FavoriteEntityDescriptor {
+  return resolvedFavoriteDescriptors.get(item.reference) ?? favoriteDescriptorForRoonItem(item)
+}
 const favoritesPage = ref<FavoritePage>(emptyFavoritePage())
 const favoritesInitialLoading = ref(false)
 const favoritesLoadingMore = ref(false)
@@ -438,10 +471,15 @@ function exitNowPlaying(): void {
   }
 }
 
-function navigate(view: ViewId): void {
+function navigate(view: ViewId, rememberSearch = true): void {
   if (view === 'now-playing') {
     enterNowPlaying()
     return
+  }
+  if (rememberSearch && view !== currentView.value && !view.endsWith('-detail') && view !== 'queue') {
+    rememberSearchPage()
+    leaveSearchPage()
+    if (view === 'home' && restoreSearchPage({ type: 'home' })) return
   }
   currentView.value = view
   if (view !== 'queue') inspectorOpen.value = false
@@ -517,18 +555,18 @@ function openTapeCollection(): void {
 }
 
 function navigateSource(source: SidebarSource): void {
-  stopSearchTimer()
-  resetSearchSections()
-  searchQuery.value = ''
-  searchPage.value = emptyPage()
-  aggregatedSearch.value = null
-  matchStates.value = {}
-  matchResults.value = {}
-  cancelPendingMatches()
-  matchGeneration += 1
-  searchReturnSource.value = source
+  if (source.type === 'roon-album' || source.type === 'roon-artist') rememberRoonDetailParent()
+  else {
+    rememberSearchPage()
+    leaveSearchPage()
+    if (restoreSearchPage(source)) return
+  }
+  localSearchOrigin.value = source.type === 'roon-album' || source.type === 'roon-artist'
+    ? localSearchScope.value : null
+  roonAlbumRequestGeneration += 1
+  roonArtistRequestGeneration += 1
   sidebar.setActiveSource(source)
-  navigate(viewForSource(source))
+  navigate(viewForSource(source), false)
   if (source.type === 'playlist') void loadPlaylist(source.playlistId)
   if (source.type === 'roon-albums') {
     if (!roonAlbumsInitialLoading.value && (!roonAlbumsPage.value.items.length || roonAlbumsError.value)) void loadRoonAlbums()
@@ -550,13 +588,14 @@ function navigateSource(source: SidebarSource): void {
 }
 
 function clearSearch(): void {
+  rememberedSearchPage = undefined
+  if (localSearchScope.value) { updateSearchQuery(''); return }
   if (currentView.value !== 'search' && searchQuery.value.length === 0 && searchPage.value.items.length === 0) return
   stopSearchTimer()
   resetSearchSections()
   searchRequestGeneration += 1
   searchQuery.value = ''
   searchPage.value = emptyPage()
-  aggregatedSearch.value = null
   matchStates.value = {}
   matchResults.value = {}
   cancelPendingMatches()
@@ -572,8 +611,171 @@ function clearSearch(): void {
   if (source.type === 'playlists' && playlistState.value !== 'ready') void loadPlaylists()
 }
 
+const localSearchOrigin = ref<'album' | 'artist' | null>(null)
+const localSearchScope = computed(() => {
+  if (currentView.value === 'roon-albums') return 'album'
+  if (currentView.value === 'roon-artists') return 'artist'
+  if (currentView.value === 'roon-album-detail' || currentView.value === 'roon-artist-detail') return localSearchOrigin.value
+  return null
+})
+const sidebarSearchQuery = computed(() => localSearchScope.value === 'album' ? localAlbumQuery.value
+  : localSearchScope.value === 'artist' ? localArtistQuery.value
+  : currentView.value === 'search' || roonSearchOrigin.value ? searchQuery.value : '')
+const sidebarSearchLabel = computed(() => localSearchScope.value === 'album' ? '搜索本地专辑'
+  : localSearchScope.value === 'artist' ? '搜索本地艺术家' : '搜索歌曲或歌手')
+
+const roonDetailParents = ref<Array<{
+  view: ViewId
+  source: SidebarSource
+  scrollTop: number
+  searchOrigin: boolean
+  localOrigin: 'album' | 'artist' | null
+}>>([])
+const roonDetailBackLabel = computed(() => {
+  const parent = roonDetailParents.value.at(-1)
+  if (parent?.view === 'roon-artist-detail') return selectedRoonArtist.value?.title ?? '艺术家'
+  if (parent?.view === 'roon-artists') return '艺术家'
+  if (parent?.view === 'roon-albums') return '专辑'
+  if (parent?.view === 'roon-favorites') return '收藏'
+  if (parent?.view === 'roon-genre-detail') return '流派'
+  if (parent?.view === 'search') return '搜索结果'
+  return '本地音乐库'
+})
+
+function rememberRoonDetailParent(): void {
+  roonDetailParents.value.push({
+    view: currentView.value, source: sidebar.activeSource.value,
+    scrollTop: contentScroll.value?.scrollTop ?? 0,
+    searchOrigin: roonSearchOrigin.value, localOrigin: localSearchScope.value,
+  })
+}
+
+// 只暂存当前搜索路径；在其他页面发起新搜索后，这份路径才失效。
+let rememberedSearchPage: { source: SidebarSource; restore: () => void } | undefined
+
+function rememberSearchPage(): void {
+  const scope = localSearchScope.value
+  const query = scope === 'album' ? localAlbumQuery.value
+    : scope === 'artist' ? localArtistQuery.value
+    : currentView.value === 'search' || roonSearchOrigin.value ? searchQuery.value : ''
+  if (!query.trim()) return
+  const source: SidebarSource = scope ? { type: scope === 'album' ? 'roon-albums' : 'roon-artists' }
+    : searchReturnSource.value
+  const view = currentView.value
+  const activeSource = sidebar.activeSource.value
+  const scrollTop = contentScroll.value?.scrollTop ?? 0
+  const parents = [...roonDetailParents.value]
+  const searchOrigin = roonSearchOrigin.value
+  const localOrigin = localSearchOrigin.value
+  const albumPending = roonAlbumInitialLoading.value
+  const artistPending = roonArtistInitialLoading.value
+  // 其他页面也会打开 Roon 详情，因此不能只保留路径而共用最后一次详情内容。
+  const preserve = <T,>(state: { value: T }) => {
+    const value = state.value
+    return () => { state.value = value }
+  }
+  const restoreDetails = [
+    preserve(selectedRoonAlbum), preserve(selectedRoonAlbumPage), preserve(roonAlbumError),
+    preserve(roonAlbumFavoriteState), preserve(roonAlbumLoadMoreError),
+    preserve(selectedRoonArtist), preserve(selectedRoonArtistPage), preserve(roonArtistError),
+    preserve(roonArtistFavoriteState), preserve(roonArtistLoadMoreError),
+  ]
+  rememberedSearchPage = { source, restore: () => {
+    restoreDetails.forEach(restore => restore())
+    roonDetailParents.value = [...parents]
+    roonSearchOrigin.value = searchOrigin
+    localSearchOrigin.value = localOrigin
+    currentView.value = view
+    sidebar.setActiveSource(activeSource)
+    if (view === 'roon-album-detail' && albumPending && selectedRoonAlbum.value) void loadRoonAlbum(selectedRoonAlbum.value.reference)
+    if (view === 'roon-artist-detail' && artistPending && selectedRoonArtist.value) void loadRoonArtist(selectedRoonArtist.value.reference)
+    resumeRoonDetailFavorite()
+    void nextTick(() => contentScroll.value?.scrollTo({ top: scrollTop }))
+  } }
+}
+
+function leaveSearchPage(): void {
+  roonAlbumRequestGeneration += 1
+  roonArtistRequestGeneration += 1
+  entityFavoriteOperation += 1
+  roonAlbumInitialLoading.value = false
+  roonAlbumLoadingMore.value = false
+  roonArtistInitialLoading.value = false
+  roonArtistLoadingMore.value = false
+  roonDetailParents.value = []
+  roonSearchOrigin.value = false
+  localSearchOrigin.value = null
+}
+
+function restoreSearchPage(source: SidebarSource): boolean {
+  if (!rememberedSearchPage || JSON.stringify(rememberedSearchPage.source) !== JSON.stringify(source)) return false
+  rememberedSearchPage.restore()
+  return true
+}
+
+function resumeRoonDetailFavorite(): void {
+  if (currentView.value === 'roon-album-detail' && selectedRoonAlbum.value) {
+    void loadRoonEntityFavorite(selectedRoonAlbum.value, 'album')
+  } else if (currentView.value === 'roon-artist-detail' && selectedRoonArtist.value) {
+    void loadRoonEntityFavorite(selectedRoonArtist.value, 'artist')
+  }
+}
+
+function discardPageSearch(): void {
+  rememberedSearchPage = undefined
+  roonDetailParents.value = []
+  localSearchOrigin.value = null
+  if (localAlbumQuery.value) { localAlbumQuery.value = ''; resetRoonAlbums() }
+  if (localArtistQuery.value) { localArtistQuery.value = ''; resetRoonArtists() }
+  stopSearchTimer()
+  resetSearchSections()
+  searchQuery.value = ''
+  searchPage.value = emptyPage()
+  matchGeneration += 1
+  cancelPendingMatches()
+  matchStates.value = {}
+  matchResults.value = {}
+  searchInitialLoading.value = false
+  searchLoadingMore.value = false
+  searchError.value = null
+  searchLoadMoreError.value = null
+}
+
+function returnFromRoonDetail(fallback: 'album' | 'artist'): void {
+  const parent = roonDetailParents.value.pop()
+  if (!parent) {
+    navigateSource({ type: fallback === 'album' ? 'roon-albums' : 'roon-artists' })
+    return
+  }
+  // 返回父层不走侧栏切页流程；既不跳过艺术家，也不被迟到的详情响应带回去。
+  roonAlbumRequestGeneration += 1
+  roonArtistRequestGeneration += 1
+  currentView.value = parent.view
+  if (parent.view === 'roon-favorites') void loadFavorites()
+  sidebar.setActiveSource(parent.source)
+  roonSearchOrigin.value = parent.searchOrigin
+  localSearchOrigin.value = parent.localOrigin
+  resumeRoonDetailFavorite()
+  void nextTick(() => contentScroll.value?.scrollTo({ top: parent.scrollTop }))
+}
+
 function updateSearchQuery(query: string): void {
-  if (currentView.value !== 'search') searchReturnSource.value = sidebar.activeSource.value
+  const scope = localSearchScope.value
+  const origin = currentView.value === 'search' || roonSearchOrigin.value
+    ? searchReturnSource.value : sidebar.activeSource.value
+  discardPageSearch()
+  if (scope) {
+    roonAlbumRequestGeneration += 1
+    roonArtistRequestGeneration += 1
+    if (scope === 'album') setLocalAlbumQuery(query)
+    else setLocalArtistQuery(query)
+    currentView.value = scope === 'album' ? 'roon-albums' : 'roon-artists'
+    sidebar.setActiveSource({ type: scope === 'album' ? 'roon-albums' : 'roon-artists' })
+    localSearchOrigin.value = null
+    void nextTick(() => contentScroll.value?.scrollTo({ top: 0 }))
+    return
+  }
+  searchReturnSource.value = origin
   searchQuery.value = query
   if (!query.trim()) {
     clearSearch()
@@ -581,6 +783,8 @@ function updateSearchQuery(query: string): void {
   }
   currentView.value = 'search'
   scheduleSearch()
+  searchScrollTop.value = 0
+  void nextTick(() => contentScroll.value?.scrollTo({ top: 0 }))
 }
 
 function stopPolling(): void {
@@ -598,6 +802,15 @@ function stopSearchTimer(): void {
 }
 
 function resetSearchSections(): void {
+  searchRequestGeneration += 1
+  roonAlbumRequestGeneration += 1
+  roonArtistRequestGeneration += 1
+  searchSongsOpen.value = false
+  roonSearchOrigin.value = false
+  roonSearchAlbums.value = emptyRoonPage(8)
+  roonSearchArtists.value = emptyRoonPage(6)
+  roonSearchLoading.value = false
+  roonSearchError.value = null
   searchSnapshotLoader.cancel()
   searchDetailGeneration += 1
   searchArtistsPage.value = emptyPage(6)
@@ -610,6 +823,11 @@ function resetSearchSections(): void {
 }
 
 function resetRoonRuntimeReferences(): void {
+  resolvedFavoriteDescriptors.clear()
+  favoriteResolutionEpoch.value += 1
+  rememberedSearchPage = undefined
+  roonDetailParents.value = []
+  localSearchOrigin.value = null
   resetRoonAlbums()
   resetRoonArtists()
   resetRoonGenres()
@@ -651,13 +869,7 @@ function resetRoonRuntimeReferences(): void {
   matchStates.value = {}
   matchResults.value = {}
   cancelPendingMatches()
-  if (aggregatedSearch.value) {
-    aggregatedSearch.value = {
-      ...aggregatedSearch.value,
-      roon: emptyRoonPage(aggregatedSearch.value.roon.limit),
-      roonAvailable: false,
-    }
-  }
+
   roonArtworkCache.clear()
 
   const activeSource = sidebar.activeSource.value
@@ -705,6 +917,7 @@ function resetRoonRuntimeReferences(): void {
 }
 
 function refreshVisibleRoonCollection(): void {
+  if (currentView.value === 'roon-favorites') favoriteResolutionEpoch.value += 1
   if (currentView.value === 'roon-albums' && !roonAlbumsInitialLoading.value) void loadRoonAlbums()
   if (currentView.value === 'roon-artists' && !roonArtistsInitialLoading.value) void loadRoonArtists()
   if (currentView.value === 'roon-genres' && !roonGenresInitialLoading.value) void loadRoonGenres()
@@ -844,6 +1057,7 @@ async function loadRoonAlbum(
   }
   const initial = page.offset === 0
   if (initial) {
+    currentView.value = 'roon-album-detail'
     roonAlbumRequestGeneration += 1
     roonAlbumInitialLoading.value = true
     roonAlbumLoadMoreError.value = null
@@ -887,6 +1101,7 @@ async function loadRoonArtist(
   }
   const initial = page.offset === 0
   if (initial) {
+    currentView.value = 'roon-artist-detail'
     roonArtistRequestGeneration += 1
     roonArtistInitialLoading.value = true
     roonArtistLoadMoreError.value = null
@@ -1027,7 +1242,7 @@ async function loadRoonEntityFavorite(
   const state = kind === 'album' ? roonAlbumFavoriteState : roonArtistFavoriteState
   state.value = 'loading'
   try {
-    const result = await window.musicBridge.checkFavorite(favoriteDescriptorForRoonItem(item))
+    const result = await window.musicBridge.checkFavorite(localFavoriteDescriptor(item))
     if (operation !== entityFavoriteOperation) return
     state.value = result.favorite ? 'liked' : 'not-liked'
   } catch (error) {
@@ -1045,7 +1260,7 @@ async function toggleRoonEntityFavorite(kind: 'album' | 'artist'): Promise<void>
   state.value = 'loading'
   try {
     const result = await window.musicBridge.setFavorite(
-      favoriteDescriptorForRoonItem(item),
+      localFavoriteDescriptor(item),
       nextFavorite,
     )
     if (operation !== entityFavoriteOperation) return
@@ -1086,8 +1301,6 @@ async function loadFavorites(
     favoritesInitialLoading.value = false
     favoritesLoadingMore.value = false
     favoritesError.value = null
-    currentView.value = 'roon-favorites'
-    sidebar.setActiveSource({ type: 'roon-favorites' })
   } catch (error) {
     if (generation !== favoritesRequestGeneration || kind !== favoriteKind.value) return
     if (initial) {
@@ -1103,6 +1316,31 @@ async function loadFavorites(
 function setFavoriteKind(kind: FavoriteKind): void {
   if (favoriteKind.value === kind && favoritesPage.value.items.length) return
   void loadFavorites(kind)
+}
+
+function openFavorite(item: RoonLibraryItem, record: FavoriteRecord): void {
+  const { favoriteId: _id, createdAt: _created, updatedAt: _updated, ...descriptor } = record
+  // 继续使用原收藏描述操作关系，避免搜索与详情的元数据差异产生重复收藏。
+  resolvedFavoriteDescriptors.set(item.reference, descriptor)
+  if (resolvedFavoriteDescriptors.size > 1000) resolvedFavoriteDescriptors.delete(resolvedFavoriteDescriptors.keys().next().value!)
+  if (item.kind === 'track') { void playRoonLibraryTrack(item); return }
+  if (item.kind === 'album') selectedRoonAlbum.value = item
+  if (item.kind === 'artist') selectedRoonArtist.value = item
+  if (item.kind === 'album' || item.kind === 'artist') void loadRoonEntityFavorite(item, item.kind)
+  navigateSource({ type: item.kind === 'album' ? 'roon-album' : 'roon-artist', reference: item.reference })
+}
+
+const removingFavorites = new Set<string>()
+async function removeFavorite(record: FavoriteRecord): Promise<void> {
+  if (removingFavorites.has(record.favoriteId)) return
+  removingFavorites.add(record.favoriteId)
+  try {
+    const { favoriteId: _id, createdAt: _created, updatedAt: _updated, ...descriptor } = record
+    await window.musicBridge.setFavorite(descriptor, false)
+    if (currentView.value === 'roon-favorites' && favoriteKind.value === record.kind) await loadFavorites(record.kind)
+    showToast('已取消收藏')
+  } catch (error) { recordActionError(error) }
+  finally { removingFavorites.delete(record.favoriteId) }
 }
 
 function favoritesPageAt(offset: number): void {
@@ -1127,6 +1365,7 @@ async function loadSearch(query: string, page: PageRequest, generation: number):
     searchAlbumsState.value = 'loading'
     searchArtistsError.value = null
     searchAlbumsError.value = null
+    void loadRoonSearch(query, generation)
   } else {
     if (searchLoadingMore.value) return
     searchLoadingMore.value = true
@@ -1158,17 +1397,11 @@ async function loadSearch(query: string, page: PageRequest, generation: number):
         searchError.value = searchSectionErrorKind(snapshot.tracks.message)
       }
       searchInitialLoading.value = false
-      const tracksForMatching = searchPage.value.items
-      void loadRoonSearch(query, generation, searchPage.value).then(() => {
-        if (generation === searchRequestGeneration) void matchTracks(tracksForMatching)
-      })
+      void matchTracks(searchPage.value.items)
     } else {
       const result = await window.musicBridge.searchTracks(query, page)
       if (generation !== searchRequestGeneration) return
       searchPage.value = appendPage(searchPage.value, result)
-      if (aggregatedSearch.value) {
-        aggregatedSearch.value = { ...aggregatedSearch.value, netease: searchPage.value }
-      }
       void matchTracks(result.items)
       searchError.value = null
       searchLoadingMore.value = false
@@ -1189,27 +1422,80 @@ async function loadSearch(query: string, page: PageRequest, generation: number):
   }
 }
 
-async function loadRoonSearch(
-  query: string,
-  generation: number,
-  netease: Page<TrackSummary>,
-): Promise<void> {
+async function loadRoonSearch(query: string, generation: number): Promise<void> {
+  roonSearchLoading.value = true
+  const results = await Promise.allSettled([
+    window.musicBridge.searchRoonLibrary(query, { offset: 0, limit: 8 }, 'album'),
+    window.musicBridge.searchRoonLibrary(query, { offset: 0, limit: 6 }, 'artist'),
+  ])
+  if (generation !== searchRequestGeneration) return
+  const [albums, artists] = results
+  if (albums.status === 'fulfilled') roonSearchAlbums.value = albums.value
+  if (artists.status === 'fulfilled') roonSearchArtists.value = artists.value
+
+  roonSearchError.value = results.some((result) => result.status === 'rejected') ? '部分 Roon 搜索结果暂时不可用，请检查 Roon 连接后重新搜索。' : null
+  roonSearchLoading.value = false
+}
+
+async function loadMoreSearchEntities(source: 'roon' | 'netease', kind: 'album' | 'artist'): Promise<void> {
+  const generation = searchRequestGeneration
+  const query = searchQuery.value.trim()
+  const isAlbum = kind === 'album'
+  if (source === 'roon') {
+    if (roonSearchLoading.value) return
+    const target = isAlbum ? roonSearchAlbums : roonSearchArtists
+    if (!target.value.hasMore) return
+    roonSearchLoading.value = true
+    try {
+      const page = await window.musicBridge.searchRoonLibrary(query, { offset: target.value.offset + target.value.limit, limit: target.value.limit }, kind)
+      if (generation !== searchRequestGeneration) return
+      target.value = appendRoonPage(target.value, page)
+      roonSearchError.value = null
+    } catch {
+      if (generation === searchRequestGeneration) roonSearchError.value = '加载更多 Roon 结果失败，请重试。'
+    } finally {
+      if (generation === searchRequestGeneration) roonSearchLoading.value = false
+    }
+    return
+  }
+  const state = isAlbum ? searchAlbumsState : searchArtistsState
+  if (state.value === 'loading' || !(isAlbum ? searchAlbumsPage.value : searchArtistsPage.value).hasMore) return
+  state.value = 'loading'
   try {
-    const roon = await window.musicBridge.searchRoonLibrary(query, {
-      offset: 0,
-      limit: LIBRARY_PAGE_SIZE,
-    })
-    if (generation !== searchRequestGeneration) return
-    aggregatedSearch.value = { query, netease, roon, roonAvailable: true }
+    if (isAlbum) {
+      const page = await window.musicBridge.searchAlbums(query, { offset: searchAlbumsPage.value.offset + searchAlbumsPage.value.limit, limit: 8 })
+      if (generation !== searchRequestGeneration) return
+      searchAlbumsPage.value = appendPage(searchAlbumsPage.value, page)
+      searchAlbumsError.value = null
+    } else {
+      const page = await window.musicBridge.searchArtists(query, { offset: searchArtistsPage.value.offset + searchArtistsPage.value.limit, limit: 6 })
+      if (generation !== searchRequestGeneration) return
+      searchArtistsPage.value = appendPage(searchArtistsPage.value, page)
+      searchArtistsError.value = null
+    }
+    state.value = 'ready'
   } catch {
     if (generation !== searchRequestGeneration) return
-    aggregatedSearch.value = {
-      query,
-      netease,
-      roon: emptyRoonPage(LIBRARY_PAGE_SIZE),
-      roonAvailable: false,
-    }
+    state.value = 'error'
+    if (isAlbum) searchAlbumsError.value = '加载更多专辑失败，请重试。'
+    else searchArtistsError.value = '加载更多艺人失败，请重试。'
   }
+}
+
+function openSearchSongs(): void {
+  searchScrollTop.value = contentScroll.value?.scrollTop ?? 0
+  searchSongsOpen.value = true
+  void nextTick(() => contentScroll.value?.scrollTo({ top: 0 }))
+}
+
+function returnToSearch(): void {
+  roonAlbumRequestGeneration += 1
+  roonArtistRequestGeneration += 1
+  if (!roonSearchOrigin.value) searchSongsOpen.value = false
+  roonSearchOrigin.value = false
+  currentView.value = 'search'
+  sidebar.setActiveSource(searchReturnSource.value)
+  void nextTick(() => contentScroll.value?.scrollTo({ top: searchScrollTop.value }))
 }
 
 function cancelPendingMatches(): void {
@@ -1257,6 +1543,7 @@ async function matchTracks(
 
 function scheduleSearch(): void {
   stopSearchTimer()
+  resetSearchSections()
   searchSnapshotLoader.cancel()
   const generation = ++searchRequestGeneration
   searchError.value = null
@@ -1269,7 +1556,6 @@ function scheduleSearch(): void {
   searchArtistsError.value = null
   searchAlbumsError.value = null
   searchDetail.value = null
-  aggregatedSearch.value = null
   matchStates.value = {}
   matchResults.value = {}
   cancelPendingMatches()
@@ -1364,6 +1650,14 @@ async function loadDailyRecommendations(): Promise<void> {
 }
 
 function selectAggregatedRoonItem(item: RoonLibraryItem): void {
+  if (currentView.value !== 'search' && !roonSearchOrigin.value) {
+    if (item.kind === 'album') navigateSource({ type: 'roon-album', reference: item.reference })
+    else if (item.kind === 'artist') navigateSource({ type: 'roon-artist', reference: item.reference })
+    else if (item.kind === 'track') void playRoonLibraryTrack(item)
+    return
+  }
+  if (!roonSearchOrigin.value) searchScrollTop.value = contentScroll.value?.scrollTop ?? 0
+  if (item.kind !== 'track') { rememberRoonDetailParent(); roonSearchOrigin.value = true }
   if (item.kind === 'track') {
     void playRoonLibraryTrack(item)
     return
@@ -1371,13 +1665,13 @@ function selectAggregatedRoonItem(item: RoonLibraryItem): void {
   if (item.kind === 'album') {
     selectedRoonAlbum.value = item
     void loadRoonEntityFavorite(item, 'album')
-    navigateSource({ type: 'roon-album', reference: item.reference })
+    void loadRoonAlbum(item.reference)
     return
   }
   if (item.kind === 'artist') {
     selectedRoonArtist.value = item
     void loadRoonEntityFavorite(item, 'artist')
-    navigateSource({ type: 'roon-artist', reference: item.reference })
+    void loadRoonArtist(item.reference)
   }
 }
 
@@ -1539,8 +1833,11 @@ function searchPageAt(offset: number): void {
 async function openSearchDetail(kind: 'artist' | 'album', id: string, title: string, subtitle: string): Promise<void> {
   searchScrollTop.value = contentScroll.value?.scrollTop ?? 0
   const operation = ++searchDetailGeneration
+  searchDetailLoadingMore.value = false
+  searchDetailMoreError.value = null
   searchDetail.value = {
     kind,
+    id,
     title,
     subtitle,
     tracks: emptyPage(),
@@ -1553,6 +1850,7 @@ async function openSearchDetail(kind: 'artist' | 'album', id: string, title: str
       if (operation !== searchDetailGeneration) return
       searchDetail.value = {
         kind,
+        id,
         title: detail.name,
         subtitle: `${detail.albumCount ?? 0} 张专辑 · ${detail.trackCount ?? detail.tracks.total} 首歌曲`,
         tracks: detail.tracks,
@@ -1565,6 +1863,7 @@ async function openSearchDetail(kind: 'artist' | 'album', id: string, title: str
     if (operation !== searchDetailGeneration) return
     searchDetail.value = {
       kind,
+      id,
       title: detail.name,
       subtitle: `${detail.artistName} · ${detail.trackCount ?? detail.tracks.total} 首歌曲`,
       tracks: detail.tracks,
@@ -1573,7 +1872,28 @@ async function openSearchDetail(kind: 'artist' | 'album', id: string, title: str
     }
   } catch {
     if (operation !== searchDetailGeneration) return
-    searchDetail.value = { kind, title, subtitle, tracks: emptyPage(), loading: false, error: '详情歌曲暂时不可用，请稍后重试。' }
+    searchDetail.value = { kind, id, title, subtitle, tracks: emptyPage(), loading: false, error: '详情歌曲暂时不可用，请稍后重试。' }
+  }
+}
+
+const searchDetailLoadingMore = ref(false)
+const searchDetailMoreError = ref<string | null>(null)
+async function loadMoreSearchDetail(): Promise<void> {
+  const detail = searchDetail.value
+  if (!detail || searchDetailLoadingMore.value) return
+  const generation = searchDetailGeneration
+  searchDetailLoadingMore.value = true
+  searchDetailMoreError.value = null
+  try {
+    const request = { offset: detail.tracks.offset + detail.tracks.limit, limit: detail.tracks.limit }
+    const result = detail.kind === 'artist'
+      ? await window.musicBridge.getArtist(detail.id, request)
+      : await window.musicBridge.getAlbum(detail.id, request)
+    if (generation === searchDetailGeneration && searchDetail.value) searchDetail.value = { ...searchDetail.value, tracks: appendPage(searchDetail.value.tracks, result.tracks) }
+  } catch {
+    if (generation === searchDetailGeneration) searchDetailMoreError.value = '加载更多歌曲失败，请重试。'
+  } finally {
+    if (generation === searchDetailGeneration) searchDetailLoadingMore.value = false
   }
 }
 
@@ -1595,6 +1915,7 @@ function playlistPageAt(offset: number): void {
 }
 
 function resetPrivateLibraryState(): void {
+  rememberedSearchPage = undefined
   stopSearchTimer()
   resetSearchSections()
   searchRequestGeneration += 1
@@ -1603,7 +1924,6 @@ function resetPrivateLibraryState(): void {
   invalidateCollectionOperation()
   searchQuery.value = ''
   searchPage.value = emptyPage()
-  aggregatedSearch.value = null
   matchStates.value = {}
   matchResults.value = {}
   cancelPendingMatches()
@@ -1901,7 +2221,7 @@ function applyPlaybackState(snapshot: PlaybackSnapshot): void {
         rememberedNeteaseMatch,
       )
       if (localItem) {
-        localTrackFavoriteDescriptor.value = favoriteDescriptorForRoonItem(localItem)
+        localTrackFavoriteDescriptor.value = localFavoriteDescriptor(localItem)
       } else {
         resetLocalTrackFavorite()
       }
@@ -1920,7 +2240,10 @@ function applyPlaybackState(snapshot: PlaybackSnapshot): void {
     resetLocalTrackFavorite()
     neteaseTrackLiked.value = null
   }
-  if (snapshot.state === 'playing' && snapshot.currentTrack && (!wasPlaying || previousTrackId !== snapshot.currentTrack.id)) {
+  // 队列外 Roon 曲目只有观测身份，不能把它放进会按网易云 ID 再次播放的最近列表。
+  const replayableTrack = snapshot.source !== 'roon' || nativeRoonHasNeteaseMatch.value
+    || (snapshot.currentTrack !== undefined && roonQueueDescriptors.has(snapshot.currentTrack.id))
+  if (snapshot.state === 'playing' && snapshot.currentTrack && replayableTrack && (!wasPlaying || previousTrackId !== snapshot.currentTrack.id)) {
     recentTracks.value = [
       snapshot.currentTrack,
       ...recentTracks.value.filter((track) => track.id !== snapshot.currentTrack?.id),
@@ -2042,6 +2365,7 @@ async function playTrack(track: TrackSummary): Promise<void> {
 }
 
 async function playRoonLibraryTrack(track: RoonLibraryItem): Promise<void> {
+  if (playbackStartPending.value) return
   const zoneId = selectedZone.value?.zoneId ?? playbackState.value?.selectedZoneId
   if (!zoneId) {
     if (zoneLifecycleStatus.value === 'loading') {
@@ -2052,6 +2376,7 @@ async function playRoonLibraryTrack(track: RoonLibraryItem): Promise<void> {
     return
   }
   actionError.value = null
+  playbackStartPending.value = true
   const operation = ++roonPlaybackOperation
   // 在进入正在播放页面前捕获原浏览上下文，搜索/单曲入口不借用旧专辑。
   const context = currentView.value === 'roon-album-detail' && selectedRoonAlbum.value
@@ -2082,6 +2407,8 @@ async function playRoonLibraryTrack(track: RoonLibraryItem): Promise<void> {
     await refreshPlayback()
     if (operation !== roonPlaybackOperation) return
     recordActionError(error)
+  } finally {
+    playbackStartPending.value = false
   }
 }
 
@@ -2405,7 +2732,7 @@ async function stopRemoteCore(): Promise<void> {
 async function reconnectRemoteCore(): Promise<void> {
   actionError.value = null
   try {
-    remoteCoreState.value = await window.musicBridge.reconnectRemoteCore()
+    remoteCoreState.value = await reconnectRemoteTarget(window.musicBridge, remoteCoreState.value, remoteSshTarget.value)
   } catch (error) {
     recordActionError(error)
   }
@@ -2455,7 +2782,7 @@ function onGlobalShortcut(event: KeyboardEvent): void {
     closeInspector()
     return
   }
-  if (event.key === 'Escape' && searchQuery.value) {
+  if (event.key === 'Escape' && sidebarSearchQuery.value) {
     event.preventDefault()
     clearSearch()
     return
@@ -2513,7 +2840,7 @@ onMounted(async () => {
   removeRemoteCoreListener = window.musicBridge.onRemoteCoreEvent((state) => {
     const previousStatus = remoteCoreState.value.status
     remoteCoreState.value = state
-    if (state.sshTarget) remoteSshTarget.value = state.sshTarget
+    if (state.sshTarget) updateRemoteSshTarget(state.sshTarget)
     if (previousStatus === 'ready' && state.status !== 'ready') resetRoonRuntimeReferences()
     if (state.status !== 'ready' && coreState.value) {
       coreState.value = { ...coreState.value, roon: 'disconnected' }
@@ -2627,9 +2954,7 @@ onMounted(async () => {
       selectedQuality.value = storedQuality as PlaybackQualityPreference
     }
     remoteCoreState.value = await window.musicBridge.getRemoteCoreState()
-    remoteSshTarget.value = remoteCoreState.value.sshTarget
-      ?? window.localStorage.getItem('musicbridge.remoteCore.sshTarget')
-      ?? ''
+    remoteSshTarget.value = restoreRemoteTarget(remoteCoreState.value.sshTarget, window.localStorage)
     remoteAutoStart.value = window.localStorage.getItem('musicbridge.remoteCore.autoStart') === '1'
     if (remoteAutoStart.value && remoteSshTarget.value && remoteCoreState.value.status === 'idle') {
       // 先在 Renderer 内标记切换中，避免隧道事件抵达前抢跑旧 Core 请求。
@@ -2652,6 +2977,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  resetRoonAlbums()
+  resetRoonArtists()
   window.removeEventListener('keydown', onGlobalShortcut)
   removeCoreListener?.()
   removeAppCommandListener?.()
@@ -2673,7 +3000,8 @@ onUnmounted(() => {
         v-if="!isImmersiveNowPlaying"
         :expanded="sidebar.expanded.value"
         :active-source="sidebar.activeSource.value"
-        :search-query="searchQuery"
+        :search-query="sidebarSearchQuery"
+        :search-label="sidebarSearchLabel"
         :playlists="playlists"
         :playlist-state="playlistState"
         :source-scroll-top="sidebar.sourceScrollTop.value"
@@ -2741,9 +3069,11 @@ onUnmounted(() => {
 
         <section v-else-if="currentView === 'roon-albums'" class="view" aria-labelledby="roon-albums-heading">
           <div class="view-heading">
-            <div><p class="section-kicker">本地音乐库</p><h2 id="roon-albums-heading">专辑</h2><p class="lede">只显示 Roon Library 中的真实专辑，不扫描本地文件系统。</p></div>
+            <div><p class="section-kicker">本地音乐库</p><h2 id="roon-albums-heading">专辑</h2><p class="lede">在本地专辑中搜索，不包含网易云结果。</p></div>
           </div>
+          <p v-if="localAlbumQuery.trim()" class="local-search-summary">“{{ localAlbumQuery.trim() }}”的本地专辑 <button type="button" class="text-button" @click="setLocalAlbumQuery('')">清除搜索</button></p>
           <RoonAlbumGrid
+            :searching="!!localAlbumQuery.trim()"
             :page="roonAlbumsPage"
             :initial-loading="roonAlbumsInitialLoading"
             :loading-more="roonAlbumsLoadingMore"
@@ -2756,12 +3086,13 @@ onUnmounted(() => {
         </section>
 
         <section v-else-if="currentView === 'roon-artists'" class="view" aria-labelledby="roon-artists-heading">
-          <div class="view-heading"><div><p class="section-kicker">本地音乐库</p><h2 id="roon-artists-heading">艺术家</h2><p class="lede">选择艺术家后读取其真实 Roon 专辑层级。</p></div></div>
+          <div class="view-heading"><div><p class="section-kicker">本地音乐库</p><h2 id="roon-artists-heading">艺术家</h2><p class="lede">在本地艺术家中搜索，不包含网易云结果。</p></div></div>
+          <p v-if="localArtistQuery.trim()" class="local-search-summary">“{{ localArtistQuery.trim() }}”的本地艺术家 <button type="button" class="text-button" @click="setLocalArtistQuery('')">清除搜索</button></p>
           <RoonEntityGrid
             :page="roonArtistsPage"
             entity-label="艺术家"
-            empty-title="还没有可显示的艺术家"
-            empty-copy="Roon Core 当前返回 0 位艺术家。请在 Roon 中检查存储位置与资料库内容后重新读取。"
+            :empty-title="localArtistQuery.trim() ? '没有匹配的本地艺术家' : '还没有可显示的艺术家'"
+            :empty-copy="localArtistQuery.trim() ? '换一个关键词，或清除搜索查看全部艺术家。' : 'Roon Core 当前返回 0 位艺术家。'"
             :initial-loading="roonArtistsInitialLoading"
             :loading-more="roonArtistsLoadingMore"
             :load-more-error="roonArtistsLoadMoreError"
@@ -2814,19 +3145,22 @@ onUnmounted(() => {
             <button type="button" class="secondary-button" :class="{ 'is-selected': favoriteKind === 'artist' }" role="tab" :aria-selected="favoriteKind === 'artist'" @click="setFavoriteKind('artist')">喜欢的艺术家</button>
           </div>
           <FavoriteEntityGrid
+            :key="favoriteResolutionEpoch"
             :page="favoritesPage"
             :kind="favoriteKind"
             :initial-loading="favoritesInitialLoading"
             :loading-more="favoritesLoadingMore"
             :load-more-error="favoritesLoadMoreError"
             :error="favoritesError"
+            @select="openFavorite"
+            @remove="removeFavorite"
             @retry="retryFavorites"
             @load-more="favoritesPageAt(favoritesPage.offset + favoritesPage.limit)"
           />
         </section>
 
         <section v-else-if="currentView === 'roon-artist-detail' && selectedRoonArtist" class="view" aria-labelledby="roon-artist-heading">
-          <button type="button" class="back-link" @click="navigateSource({ type: 'roon-artists' })">← 艺术家</button>
+          <button type="button" class="back-link" @click="returnFromRoonDetail('artist')">← {{ roonDetailBackLabel }}</button>
           <div class="view-heading"><div><p class="section-kicker">Roon 艺术家</p><h2 id="roon-artist-heading">{{ selectedRoonArtist.title }}</h2><p class="lede">只显示该艺术家在 Roon Library 中的真实专辑。</p><button type="button" class="secondary-button detail-favorite-button" :disabled="roonArtistFavoriteState === 'loading'" :aria-pressed="roonArtistFavoriteState === 'liked'" @click="toggleRoonEntityFavorite('artist')">{{ roonArtistFavoriteState === 'liked' ? '♥ 已收藏' : '♡ 收藏艺术家' }}</button></div></div>
           <RoonAlbumGrid
             :page="selectedRoonArtistPage"
@@ -2834,7 +3168,7 @@ onUnmounted(() => {
             :loading-more="roonArtistLoadingMore"
             :load-more-error="roonArtistLoadMoreError"
             :error="roonArtistError"
-            @select="navigateSource({ type: 'roon-album', reference: $event.reference })"
+            @select="roonSearchOrigin ? selectAggregatedRoonItem($event) : navigateSource({ type: 'roon-album', reference: $event.reference })"
             @retry="loadRoonArtist(selectedRoonArtist.reference)"
             @load-more="roonArtistPageAt(selectedRoonArtistPage.offset + selectedRoonArtistPage.limit)"
           />
@@ -2843,13 +3177,16 @@ onUnmounted(() => {
         <RoonAlbumDetail
           v-else-if="currentView === 'roon-album-detail' && selectedRoonAlbum"
           :album="selectedRoonAlbum"
+          :back-label="roonDetailBackLabel"
           :page="selectedRoonAlbumPage"
           :initial-loading="roonAlbumInitialLoading"
           :loading-more="roonAlbumLoadingMore"
           :load-more-error="roonAlbumLoadMoreError"
           :error="roonAlbumError"
           :favorite-state="roonAlbumFavoriteState"
-          @back="navigateSource({ type: 'roon-albums' })"
+          :playback-pending="playbackStartPending"
+          @play-all="selectedRoonAlbumPage.items[0] && playRoonLibraryTrack(selectedRoonAlbumPage.items[0])"
+          @back="returnFromRoonDetail('album')"
           @play="playRoonLibraryTrack"
           @queue="queueRoonLibraryTrack"
           @toggle-favorite="toggleRoonEntityFavorite('album')"
@@ -2890,8 +3227,11 @@ onUnmounted(() => {
           @load-more="roonPlaylistPageAt(selectedRoonPlaylistPage.offset + selectedRoonPlaylistPage.limit)"
         />
 
-        <section v-else-if="currentView === 'search'" class="view view-search" aria-labelledby="search-heading">
-          <div class="view-heading"><div><p class="section-kicker">搜索</p><h2 id="search-heading">搜索结果</h2><p class="lede">“{{ searchQuery }}”</p></div></div>
+        <section v-else-if="currentView === 'search'" class="view view-search" :class="{ 'search-category-artists': searchCategory === 'artists' && !searchDetail }" aria-labelledby="search-heading">
+          <div class="view-heading search-view-heading"><h2 id="search-heading">{{ searchQuery }}</h2></div>
+          <nav v-if="!searchDetail" class="search-category-tabs" aria-label="搜索分类">
+            <button v-for="category in ([{ id: 'all', label: '综合' }, { id: 'tracks', label: '单曲' }, { id: 'albums', label: '专辑' }, { id: 'artists', label: '艺人' }] as const)" :key="category.id" type="button" :aria-current="searchCategory === category.id ? 'page' : undefined" :class="{ active: searchCategory === category.id }" @click="selectSearchCategory(category.id)">{{ category.label }}</button>
+          </nav>
           <template v-if="searchDetail">
             <button type="button" class="back-link" @click="closeSearchDetail">← 返回搜索结果</button>
             <div class="search-detail-hero">
@@ -2906,6 +3246,8 @@ onUnmounted(() => {
               :match-states="matchStates"
               :total="searchDetail.tracks.total"
               :has-more="searchDetail.tracks.hasMore"
+              :loading-more="searchDetailLoadingMore" :load-more-error="searchDetailMoreError"
+              @load-more="loadMoreSearchDetail"
               empty-title="没有可显示的歌曲"
               empty-copy="Provider 暂时没有返回此项的歌曲。"
               @play="playTrack"
@@ -2914,39 +3256,31 @@ onUnmounted(() => {
             />
           </template>
           <template v-else>
-            <section class="search-result-section" aria-labelledby="search-artists-heading">
-              <div class="search-section-heading"><h3 id="search-artists-heading">艺人</h3><span v-if="searchArtistsState === 'ready'">{{ searchArtistsPage.total }} 位</span></div>
-              <div v-if="searchArtistsState === 'loading'" class="search-card-grid search-card-grid-artists"><div v-for="index in 3" :key="index" class="search-card-skeleton" aria-hidden="true"></div></div>
-              <p v-else-if="searchArtistsState === 'error'" class="persistent-error">{{ searchArtistsError }}</p>
-              <div v-else-if="searchArtistsPage.items.length" class="search-card-grid search-card-grid-artists" role="list">
-                <button v-for="artist in searchArtistsPage.items" :key="artist.id" type="button" class="search-artist-card" role="listitem" @click="openSearchDetail('artist', artist.id, artist.name, `${artist.albumCount ?? 0} 张专辑 · ${artist.trackCount ?? 0} 首歌曲`)">
-                  <SafeArtwork class="search-artist-art" :src="artist.artworkUrl" :alt="`${artist.name} 头像`" loading="lazy" fallback="♩" />
-                  <span><strong>{{ artist.name }}</strong><small>{{ artist.albumCount ?? 0 }} 张专辑 · {{ artist.trackCount ?? 0 }} 首歌曲</small></span>
-                </button>
-              </div>
-              <p v-else class="search-section-empty">没有匹配的艺人</p>
-            </section>
-
-            <section class="search-result-section" aria-labelledby="search-albums-heading">
-              <div class="search-section-heading"><h3 id="search-albums-heading">专辑</h3><span v-if="searchAlbumsState === 'ready'">{{ searchAlbumsPage.total }} 张</span></div>
-              <div v-if="searchAlbumsState === 'loading'" class="search-card-grid search-card-grid-albums"><div v-for="index in 4" :key="index" class="search-card-skeleton" aria-hidden="true"></div></div>
-              <p v-else-if="searchAlbumsState === 'error'" class="persistent-error">{{ searchAlbumsError }}</p>
-              <div v-else-if="searchAlbumsPage.items.length" class="search-card-grid search-card-grid-albums" role="list">
-                <button v-for="album in searchAlbumsPage.items" :key="album.id" type="button" class="search-album-card" role="listitem" @click="openSearchDetail('album', album.id, album.name, `${album.artistName} · ${album.trackCount ?? 0} 首歌曲`)">
-                  <SafeArtwork class="search-album-art" :src="album.artworkUrl" :alt="`${album.name} 封面`" loading="lazy" fallback="♫" />
-                  <span><strong>{{ album.name }}</strong><small>{{ album.artistName }} · {{ album.trackCount ?? 0 }} 首歌曲</small></span>
-                </button>
-              </div>
-              <p v-else class="search-section-empty">没有匹配的专辑</p>
-            </section>
-
-            <section class="search-result-section" aria-labelledby="search-tracks-heading">
-              <div class="search-section-heading"><h3 id="search-tracks-heading">单曲</h3><span v-if="searchPage.total">{{ searchPage.total }} 首</span></div>
+            <SearchEntities
+              v-if="!searchSongsOpen"
+              :mode="searchCategory === 'tracks' ? 'all' : searchCategory"
+              @category="selectSearchCategory"
+              :artists="searchArtistsPage.items" :albums="searchAlbumsPage.items"
+              :roon-artists="roonSearchArtists.items" :roon-albums="roonSearchAlbums.items"
+              :artists-loading="searchArtistsState === 'loading'" :albums-loading="searchAlbumsState === 'loading'"
+              :roon-loading="roonSearchLoading" :artists-error="searchArtistsError" :albums-error="searchAlbumsError" :roon-error="roonSearchError"
+              :more-roon-albums="!!roonSearchAlbums.hasMore" :more-roon-artists="!!roonSearchArtists.hasMore"
+              :more-albums="searchAlbumsPage.hasMore" :more-artists="searchArtistsPage.hasMore"
+              @artist="openSearchDetail('artist', $event.id, $event.name, '网易云')"
+              @album="openSearchDetail('album', $event.id, $event.name, $event.artistName)"
+              @roon="selectAggregatedRoonItem" @more="loadMoreSearchEntities"
+            />
+            <button v-if="searchSongsOpen" type="button" class="back-link" @click="returnToSearch">← 返回搜索结果</button>
+            <section v-if="searchCategory === 'all' || searchSongsOpen" class="search-result-section" aria-labelledby="search-tracks-heading">
+              <div class="search-section-heading"><h3 id="search-tracks-heading">单曲</h3><button v-if="!searchSongsOpen && searchPage.items.length" type="button" class="text-button" @click="openSearchSongs">查看全部 →</button><span v-if="searchPage.total">{{ searchPage.total }} 首</span></div>
               <p v-if="searchError === 'auth-required'" class="persistent-error">请先登录音乐服务，再搜索内容。</p>
               <p v-else-if="searchError === 'auth-expired'" class="persistent-error">登录已过期，请从侧栏账户菜单重新登录。</p>
               <p v-else-if="searchError === 'generic'" class="persistent-error">搜索单曲暂时不可用，请检查连接状态。</p>
-              <div class="search-track-results">
-                <TrackTable
+              <SearchTrackPreview v-if="!searchSongsOpen" :tracks="searchPage.items" :busy="playbackStartPending" @play="playTrack" @queue="appendTrack" @play-next="insertTrackNext" />
+              <p v-if="!searchSongsOpen && searchInitialLoading" role="status">正在搜索单曲…</p>
+              <p v-else-if="!searchSongsOpen && !searchError && !searchPage.items.length" class="search-section-empty">没有匹配的单曲</p>
+              <div v-if="searchSongsOpen" class="search-track-results">
+                <TrackTable v-model:scroll-top="searchSongScrollTop"
                   :tracks="searchPage.items"
                   :busy="playbackStartPending"
                   :match-states="matchStates"
@@ -2967,18 +3301,7 @@ onUnmounted(() => {
               </div>
             </section>
 
-            <section v-if="aggregatedSearch" class="aggregated-search-section" aria-labelledby="roon-search-heading">
-              <div class="subsection-heading"><div><p class="section-kicker">本地音乐库</p><h3 id="roon-search-heading">Roon 本地结果</h3></div><span class="source-badge">Roon</span></div>
-              <p v-if="!aggregatedSearch.roonAvailable" class="notice-card">Roon Library 当前不可用；已保留 V1 的 Provider 搜索结果。</p>
-              <RoonEntityGrid
-                v-else
-                :page="{ ...aggregatedSearch.roon, hasMore: false }"
-                entity-label="本地结果"
-                empty-title="Roon 没有匹配条目"
-                empty-copy="可以继续使用 Provider 结果，或调整搜索词。"
-                @select="selectAggregatedRoonItem"
-              />
-            </section>
+
           </template>
         </section>
 

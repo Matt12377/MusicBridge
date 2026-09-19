@@ -61,12 +61,13 @@ test('Renderer contains the public QR login surface without credential access', 
     'setTrackLiked',
     'searchRoonLibrary',
     'matchLibraryTrack',
-    'Roon 本地结果',
+    '搜索分类',
     'Roon 已匹配',
     '歌词只在内存中处理',
   ]) {
     assert.match(source, new RegExp(text))
   }
+  assert.doesNotMatch(source, /id="roon-search-heading"/)
   assert.match(source, /SEARCH_DEBOUNCE_MS/)
   assert.match(source, /searchRequestGeneration/)
   assert.match(source, /likedRequestGeneration/)
@@ -420,7 +421,9 @@ test('V1 search shows album results before artwork-backed single rows', async ()
 
   assert.match(app, /class="search-track-results"/)
   assert.match(app, /:show-artwork="true"/)
-  const albumIndex = app.indexOf('aria-labelledby="search-albums-heading"')
+  const entities = await readFile(path.resolve('src/renderer/src/components/SearchEntities.vue'), 'utf8')
+  assert.match(entities, /aria-labelledby="search-albums-heading"/)
+  const albumIndex = app.indexOf('<SearchEntities')
   const trackIndex = app.indexOf('aria-labelledby="search-tracks-heading"')
   assert.ok(albumIndex >= 0 && albumIndex < trackIndex)
   assert.match(trackTable, /showArtwork/)

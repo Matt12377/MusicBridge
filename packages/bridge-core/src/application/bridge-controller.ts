@@ -33,6 +33,7 @@ import type {
 import type {
   RoonGatewayStage,
   RoonNativePlaybackState,
+  RoonNowPlayingIdentity,
   RoonPlaybackObservation,
   RoonPort,
   RoonState,
@@ -178,7 +179,7 @@ function normalizedPlaybackIdentity(value: string): string {
     .replace(/^\d{1,3}\s*(?:[.．、:：)]|[-–—])\s+/u, '');
 }
 
-function timeEventMatchesTrack(event: RoonTimeEvent, track: TrackSummary): boolean {
+function timeEventMatchesTrack(event: Pick<RoonTimeEvent, 'nowPlaying'>, track: TrackSummary): boolean {
   const nowPlaying = event.nowPlaying;
   if (!nowPlaying?.title) return false;
   if (normalizedPlaybackIdentity(nowPlaying.title) !== normalizedPlaybackIdentity(track.title)) {
@@ -289,8 +290,9 @@ export class BridgeController {
   private activePlayback: ActivePlayback | undefined;
   private activeRoonPlayback: {
     track: TrackSummary;
-    reference: string;
+    reference?: string;
     zoneId: string;
+    observedIdentity?: RoonNowPlayingIdentity;
   } | undefined;
   private queue: QueueItem[] = [];
   private queueIndex = -1;
@@ -403,8 +405,8 @@ export class BridgeController {
         ? cloneTrackSummary(this.activeRoonPlayback.track)
         : undefined;
     const activeItem = this.queue[this.queueIndex];
-    const source: PlaybackResolvedSource | undefined =
-      (this.activePlayback || this.activeRoonPlayback) ? activeItem?.resolvedSource : undefined;
+    const source: PlaybackResolvedSource | undefined = this.activeRoonPlayback
+      ? 'roon' : this.activePlayback ? activeItem?.resolvedSource : undefined;
 
     return {
       state: effectiveState,
@@ -822,6 +824,7 @@ export class BridgeController {
 
   syncRoonTransportState(): void {
     if (!this.activePlayback && !this.activeRoonPlayback) return;
+    this.syncNativeRoonTrack();
     const transportState = this.dependencies.roon.getState().transportState;
     if (
       transportState === 'paused'
@@ -838,6 +841,62 @@ export class BridgeController {
       this.playbackState = 'playing';
       this.notifyPlaybackChanged();
     }
+  }
+
+  private syncNativeRoonTrack(): void {
+    const active = this.activeRoonPlayback;
+    const context = this.positionContext;
+    const observation = this.dependencies.roon.getSelectedZonePlaybackObservation?.();
+    const identity = observation?.nowPlaying;
+    if (!active || !context || !observation || !identity?.title
+      || (this.playbackState !== 'playing' && this.playbackState !== 'paused')
+      || (observation.state !== 'playing' && observation.state !== 'paused')
+      || this.nativeRoonStopRequested
+      || context.generation !== this.playbackGeneration
+      || observation.zoneId !== active.zoneId
+      || observation.zoneId !== this.dependencies.roon.getState().selectedZoneId
+      || observation.revision <= (context.minimumRevision ?? -1)) return;
+
+    const previousIdentity = active.observedIdentity;
+    const metadataChanged = previousIdentity !== undefined && (['artist', 'album'] as const).some(key =>
+      previousIdentity[key] && identity[key]
+      && normalizedPlaybackIdentity(previousIdentity[key]) !== normalizedPlaybackIdentity(identity[key]));
+    if (timeEventMatchesTrack(observation, active.track) && !metadataChanged) {
+      active.observedIdentity = { ...previousIdentity, ...identity };
+      context.minimumRevision = observation.revision;
+      return;
+    }
+
+    // Roon 原生队列可以直接从 playing 切到另一首 playing，不会先发 stopped。
+    // 唯一匹配已有队列项时复用其引用和封面；否则只跟随观测，不伪造可播放引用。
+    const matches = this.queue.flatMap((item, index) => item.roonReference && item.roonZoneId === observation.zoneId
+      && item.track && timeEventMatchesTrack(observation, item.track)
+      && (!identity.artist || item.track.artists.some(artist => normalizedPlaybackIdentity(artist) === normalizedPlaybackIdentity(identity.artist!)))
+      && (!identity.album || normalizedPlaybackIdentity(item.track.album) === normalizedPlaybackIdentity(identity.album))
+      ? [index] : []);
+    const index = matches.length === 1 ? matches[0]! : -1;
+    const item = this.queue[index];
+    const track: TrackSummary = item?.track ? cloneTrackSummary(item.track) : {
+      id: BigInt(`0x${randomUUID().replaceAll('-', '')}`).toString(),
+      title: identity.title,
+      artists: identity.artist ? [identity.artist.slice(0, 256)] : [],
+      album: identity.album || '未知专辑',
+      ...(identity.durationMs !== undefined ? { durationMs: identity.durationMs } : {}),
+    };
+    this.queueIndex = index;
+    if (item) item.resolvedSource = 'roon';
+    this.activeRoonPlayback = { track, zoneId: observation.zoneId, observedIdentity: { ...identity },
+      ...(item?.roonReference ? { reference: item.roonReference } : {}) };
+    this.playbackGeneration += 1;
+    this.positionContext = { generation: this.playbackGeneration, trackId: track.id,
+      zoneId: observation.zoneId, source: 'roon', minimumRevision: observation.revision };
+    this.positionMs = observation.positionMs !== undefined && Number.isSafeInteger(observation.positionMs)
+      && observation.positionMs >= 0 && observation.positionMs <= 24 * 60 * 60 * 1000 ? observation.positionMs : 0;
+    this.playbackState = observation.state;
+    this.nextPreparation = undefined;
+    this.clearPlaybackIssue();
+    this.lastPositionPublishedAt = this.now();
+    this.notifyPlaybackChanged();
   }
 
   async clearQueue(): Promise<BridgeState> {
@@ -934,10 +993,12 @@ export class BridgeController {
       return;
     }
 
+    const generation = this.playbackGeneration;
     void this.enqueue(async () => {
-      if (this.nativeRoonStopRequested || this.activeRoonPlayback === undefined) return;
+      if (this.nativeRoonStopRequested || this.activeRoonPlayback === undefined
+        || generation !== this.playbackGeneration) return;
       this.dependencies.logger.info('roon_native_terminal', { reason: 'ended' });
-      const nextIndex = this.queueIndex + 1;
+      const nextIndex = this.queueIndex >= 0 ? this.queueIndex + 1 : this.queue.length;
       this.clearActiveResources();
       if (nextIndex >= this.queue.length) {
         this.playbackState = 'idle';
@@ -1258,7 +1319,8 @@ export class BridgeController {
         && observation.nowPlaying?.durationMs !== undefined
         ? { ...track, durationMs: observation.nowPlaying.durationMs }
         : track;
-      this.activeRoonPlayback = { track: confirmedTrack, reference, zoneId };
+      this.activeRoonPlayback = { track: confirmedTrack, reference, zoneId,
+        ...(observation.nowPlaying ? { observedIdentity: { ...observation.nowPlaying } } : {}) };
       item.track = cloneTrackSummary(confirmedTrack);
       if (
         observation.positionMs !== undefined

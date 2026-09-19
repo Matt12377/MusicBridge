@@ -16,6 +16,7 @@ export interface RoonLibraryItem {
   subtitle?: string
   artist?: string
   album?: string
+  albumCount?: number
   durationMs?: number
   bitrate?: number
   format?: string

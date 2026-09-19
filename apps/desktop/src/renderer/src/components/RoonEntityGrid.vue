@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RoonLibraryItem, RoonLibraryPage } from '@music-bridge/contracts'
 import RoonArtwork from './RoonArtwork.vue'
+import { hasNoAlbums } from '../composables/artistVisibility.js'
 
 const props = withDefaults(defineProps<{
   page: RoonLibraryPage
@@ -44,11 +45,12 @@ const emit = defineEmits<{
   </div>
   <template v-else>
     <div class="roon-album-grid" :aria-label="`Roon ${props.entityLabel}`">
-      <button v-for="item in props.page.items" :key="item.reference" type="button" class="roon-album-card" @click="emit('select', item)">
+      <button v-for="item in props.page.items.filter(item => !hasNoAlbums(item))" :key="item.reference" type="button" class="roon-album-card" @click="emit('select', item)">
         <RoonArtwork class="roon-album-art" :reference="item.artworkReference ?? (item.kind === 'artist' ? item.reference : undefined)" :alt="`${item.title} 封面`" :width="256" :height="256" />
         <span class="roon-album-copy"><strong>{{ item.title }}</strong><small>{{ item.artist || item.subtitle || 'Roon Library' }}</small><small v-if="item.year">{{ item.year }}</small></span>
       </button>
     </div>
+    <p v-if="props.page.items.every(hasNoAlbums)" class="lede">已隐藏没有专辑的艺术家。{{ props.page.hasMore ? '可继续加载后续艺术家。' : '' }}</p>
     <div v-if="props.page.hasMore" class="roon-library-more">
       <span v-if="props.loadingMore" role="status">正在加载更多{{ props.entityLabel }}…</span>
       <template v-else-if="props.loadMoreError">

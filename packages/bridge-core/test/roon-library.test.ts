@@ -7,9 +7,43 @@ import {
   type RoonImageApi,
 } from '../src/roon/library.js';
 import { RoonActionBlockedError } from '../src/roon/action-policy.js';
+import { runConfirmedTrackAction } from '../src/roon/confirmed-track-action.js';
 
 const JPEG_BYTES = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]);
 const PNG_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+test('专辑搜索按需读取首屏、复用缓存，分页失败不跳过条目', async () => {
+  const loads: Array<{ offset: number; count: number }> = [];
+  let failNext = false;
+  const service = createRoonLibraryService({
+    browse: {
+      browse(options, callback) {
+        callback(false, { action: 'list', list: { level: options.pop_all ? 0 : 1, count: options.pop_all ? 1 : 999 } });
+      },
+      load(options, callback) {
+        if (options.level === 0) { callback(false, { offset: 0, items: [{ title: 'Albums', item_key: 'albums', hint: 'list' }] }); return; }
+        const offset = Number(options.offset), count = Number(options.count);
+        loads.push({ offset, count });
+        if (failNext) { failNext = false; callback('合成分页失败', undefined); return; }
+        callback(false, { offset, items: Array.from({ length: Math.min(count, 999 - offset) }, (_, i) => ({ title: `专辑 ${offset + i}`, item_key: `album:${offset + i}`, hint: 'list' })) });
+      },
+    }, image: { get_image: () => undefined },
+  });
+  const first = await service.searchLibrary('专辑', { offset: 0, limit: 24 }, 'album');
+  assert.equal(first.items.length, 24);
+  assert.equal(first.hasMore, true);
+  assert.deepEqual(loads, [{ offset: 0, count: 25 }]);
+  await service.searchLibrary('专辑', { offset: 0, limit: 24 }, 'album');
+  assert.equal(loads.length, 1);
+  failNext = true;
+  await assert.rejects(service.searchLibrary('专辑', { offset: 24, limit: 24 }, 'album'));
+  const second = await service.searchLibrary('专辑', { offset: 24, limit: 24 }, 'album');
+  assert.equal(second.items[0]?.title, '专辑 24');
+  assert.equal(second.items[23]?.title, '专辑 47');
+  assert.deepEqual(loads.slice(1), [{ offset: 25, count: 24 }, { offset: 25, count: 24 }]);
+  const last = await service.searchLibrary('专辑', { offset: 984, limit: 24 }, 'album');
+  assert.equal(last.items.length, 15); assert.equal(last.hasMore, false); assert.equal(last.total, 999);
+});
 
 test('RoonLibraryService 通过 Browse + load 读取 Albums 分页，并保留真实存在的字段', async () => {
   const browseCalls: Array<Record<string, unknown>> = [];
@@ -582,7 +616,7 @@ test('RoonLibraryService 只下钻 Search 的 Tracks 分组并复用查询 Sessi
                 { title: 'Results', hint: 'header' },
                 { title: 'Tracks', item_key: 'group:tracks', hint: 'list' },
                 { title: 'Album Result', item_key: 'album:result', hint: 'list' },
-              ],
+              ].slice(Number(options.offset), Number(options.offset) + Number(options.count)),
             }
           : {
               offset: options.offset,
@@ -661,6 +695,62 @@ test('RoonLibraryService 可按 Albums 分组返回真实专辑候选，不把 T
     title: '0 (2024版)',
   }]);
   assert.deepEqual(visited, ['albums']);
+});
+
+test('RoonLibraryService 可按 Artists 分组返回真实艺人候选，不把 Tracks 结果冒充 Artist', async () => {
+  const visited: string[] = [];
+  let location: 'root' | 'artists' = 'root';
+  const service = createRoonLibraryService({
+    browse: {
+      browse(options, callback) {
+        if (options.pop_all === true) {
+          location = 'root';
+          callback(false, { action: 'list', list: { level: 0, count: 2 } });
+          return;
+        }
+        if (options.item_key === 'group:artists') {
+          visited.push('artists');
+          location = 'artists';
+          callback(false, { action: 'list', list: { level: 1, count: 1 } });
+          return;
+        }
+        if (options.item_key === 'group:tracks') visited.push('tracks');
+        callback('unexpected search drill-down', undefined);
+      },
+      load(options, callback) {
+        callback(false, location === 'root'
+          ? {
+              offset: options.offset,
+              items: [
+                { title: 'Artists', item_key: 'group:artists', hint: 'list' },
+                { title: 'Tracks', item_key: 'group:tracks', hint: 'list' },
+              ],
+            }
+          : {
+              offset: options.offset,
+              items: [{
+                title: 'Sandy Lam',
+                subtitle: 'Sandy Lam',
+                item_key: 'artist:zero',
+                hint: 'list',
+              }],
+            });
+      },
+    },
+    image: { get_image: () => undefined },
+  });
+
+  const page = await service.searchLibrary(
+    '林忆莲 Sandy Lam',
+    { offset: 0, limit: 10 },
+    'artist',
+  );
+
+  assert.deepEqual(page.items.map((item) => ({ kind: item.kind, title: item.title })), [{
+    kind: 'artist',
+    title: 'Sandy Lam',
+  }]);
+  assert.deepEqual(visited, ['artists']);
 });
 
 test('RoonLibraryService 保留同标题同 subtitle 但 item_key 不同的重复版本候选', async () => {
@@ -1276,6 +1366,8 @@ test('RoonLibraryService 只通过 typed Play/Queue action 播放或排队 Track
   const calls: Array<{ operation: 'browse' | 'load'; options: Record<string, unknown> }> = [];
   let location: 'root' | 'album' | 'track-actions' = 'root';
   let albumLoads = 0;
+  let playDispatched = false;
+  let releasePlayResponse: (() => void) | undefined;
   const browse: RoonBrowseApi = {
     browse(options, callback) {
       calls.push({ operation: 'browse', options });
@@ -1295,6 +1387,11 @@ test('RoonLibraryService 只通过 typed Play/Queue action 播放或排队 Track
         return;
       }
       if (options.item_key === 'action:play' || options.item_key === 'action:queue') {
+        if (options.item_key === 'action:play') {
+          assert.equal(playDispatched, true, '必须在最终动作前注册确认');
+          releasePlayResponse = () => callback(false, { action: 'none' });
+          return;
+        }
         callback(false, { action: 'none' });
         return;
       }
@@ -1346,7 +1443,17 @@ test('RoonLibraryService 只通过 typed Play/Queue action 播放或排队 Track
   const sourceSessionKey = track.browseContext?.multiSessionKey;
   assert.ok(sourceSessionKey);
 
-  await service.playTrack(track, 'zone:1');
+  const confirmed = await runConfirmedTrackAction({
+    dispatch: onDispatch => service.playTrack(track, 'zone:1', onDispatch),
+    confirm: async () => {
+      playDispatched = true;
+      assert.equal(calls.at(-1)?.operation, 'load', '身份与动作列表校验已经完成');
+      return { revision: 2, zoneId: 'zone:1', state: 'playing', nowPlaying: { title: track.title } };
+    },
+  });
+  assert.equal(confirmed.state, 'playing');
+  assert.ok(releasePlayResponse, '播放确认不需要等待动作回执');
+  releasePlayResponse();
   await service.queueTrack(track, 'zone:1');
 
   const sessionKeys = calls
@@ -1528,4 +1635,46 @@ test('RoonLibraryService 将 final play action 的 message 响应标记为需要
   assert.ok(track);
 
   assert.equal(await service.playTrack(track, 'zone:1'), 'confirmation-required');
+});
+
+test('搜索切换分组使 item_key 失效后，专辑和艺人详情重新定位当前条目', async () => {
+  const states = new Map<string, { path: string[]; epoch: number }>();
+  const nodes = (path: string[]) => {
+    if (!path.length) return [{ name: 'Albums', node: 'albums', hint: 'list' }, { name: 'Artists', node: 'artists', hint: 'list' }, { name: 'Tracks', node: 'tracks', hint: 'list' }];
+    const last = path.at(-1);
+    if (last === 'albums' || last === 'artist') return [{ name: '测试专辑', node: 'album', hint: 'list' }];
+    if (last === 'artists') return [{ name: '测试艺人', node: 'artist', hint: 'list' }];
+    return [{ name: '测试歌曲', node: 'track', hint: 'action_list' }];
+  };
+  const service = createRoonLibraryService({
+    browse: {
+      browse(options, callback) {
+        const key = String(options.multi_session_key);
+        let state = states.get(key);
+        if (options.pop_all) { state = { path: [], epoch: (state?.epoch ?? 0) + 1 }; states.set(key, state); }
+        else if (state && options.pop_levels) { state.path.splice(-Number(options.pop_levels)); state.epoch++; }
+        else if (state && options.item_key) {
+          const expected = nodes(state.path).find(item => `${item.node}:${state!.epoch}` === options.item_key);
+          if (!expected) { callback('InvalidItemKey', undefined); return; }
+          state.path.push(expected.node); state.epoch++;
+        }
+        if (!state) { callback('InvalidSession', undefined); return; }
+        callback(false, { action: 'list', list: { level: state.path.length, count: nodes(state.path).length } });
+      },
+      load(options, callback) {
+        const state = states.get(String(options.multi_session_key))!;
+        const rows = nodes(state.path).map(item => ({ title: item.name, subtitle: '测试艺人', item_key: `${item.node}:${state.epoch}`, hint: item.hint }));
+        callback(false, { offset: options.offset, items: rows.slice(Number(options.offset), Number(options.offset) + Number(options.count)) });
+      },
+    },
+    image: { get_image: () => undefined },
+  });
+  const page = { offset: 0, limit: 10 };
+  const albums = await service.searchLibrary('测试', page, 'album');
+  const artists = await service.searchLibrary('测试', page, 'artist');
+  await service.searchLibrary('测试', page, 'track');
+  assert.equal((await service.browseAlbum(albums.items[0]!, page)).items[0]?.title, '测试歌曲');
+  const artistAlbums = await service.browseArtist(artists.items[0]!, page);
+  assert.equal(artistAlbums.items[0]?.title, '测试专辑');
+  assert.equal((await service.browseAlbum(artistAlbums.items[0]!, page)).items[0]?.title, '测试歌曲');
 });

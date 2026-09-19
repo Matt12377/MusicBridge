@@ -48,7 +48,7 @@ export type RoonLibraryKind =
   | 'track';
 
 export type RoonBrowseHierarchy = 'albums' | 'artists' | 'genres' | 'playlists' | 'search';
-export type RoonSearchResultKind = 'track' | 'album';
+export type RoonSearchResultKind = 'track' | 'album' | 'artist';
 
 export interface RoonBrowseContext {
   hierarchy: RoonBrowseHierarchy;
@@ -72,6 +72,7 @@ export interface RoonEntityDescriptor {
   hint?: string;
   artist?: string;
   album?: string;
+  albumCount?: number;
   durationMs?: number;
   durationSeconds?: number;
   bitrate?: number;
@@ -124,7 +125,7 @@ export interface RoonLibraryService {
   ): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
   getImage(imageKey: string, options?: RoonImageOptions): Promise<RoonImageResult>;
   getArtistImageKey?(artist: RoonEntityDescriptor): Promise<string | undefined>;
-  playTrack(track: RoonEntityDescriptor, zoneOrOutputId: string): Promise<RoonTrackActionOutcome | void>;
+  playTrack(track: RoonEntityDescriptor, zoneOrOutputId: string, onDispatch?: () => void): Promise<RoonTrackActionOutcome | void>;
   queueTrack(track: RoonEntityDescriptor, zoneOrOutputId: string): Promise<RoonTrackActionOutcome | void>;
 }
 
@@ -207,6 +208,9 @@ export interface RoonBrowseShapeSummary {
   operation: 'browse' | 'load';
   hierarchy: RoonBrowseHierarchy | 'unknown';
   bodyType: string;
+  errorCategory?: 'invalid-item-key' | 'invalid-request' | 'network' | 'other';
+  requestItemKeyPresent?: boolean;
+  requestPopLevels?: number;
   bodyKeys?: string[];
   action?: 'list' | 'message' | 'none' | 'replace_item' | 'remove_item' | 'unknown';
   level?: number;
@@ -521,6 +525,7 @@ function readPathSegment(
   const subtitle = readString(source, 'subtitle');
   const artist = readString(source, 'artist');
   const album = readString(source, 'album');
+  const albumCount = readSafeInteger(source['album_count']);
   const trackNumber = readNumber(source, 'track_number');
   const discNumber = readNumber(source, 'disc_number') ?? inheritedDiscNumber;
   const durationSeconds = readNumber(source, 'duration');
@@ -543,6 +548,7 @@ function readPathSegment(
     ...(subtitle !== undefined ? { subtitle } : {}),
     ...(artist !== undefined ? { artist } : {}),
     ...(album !== undefined ? { album } : {}),
+    ...(kind === 'artist' && albumCount !== undefined && albumCount <= 1_000_000 ? { albumCount } : {}),
     ...(trackNumber !== undefined ? { trackNumber } : {}),
     ...(discNumber !== undefined ? { discNumber } : {}),
     ...(durationSeconds !== undefined ? { durationSeconds } : {}),
@@ -705,6 +711,16 @@ export function createRoonLibraryService(dependencies: {
   const playlistTracksBySignature = new Map<string, readonly RoonEntityDescriptor[]>();
   const searchTracksByQuery = new Map<string, readonly RoonEntityDescriptor[]>();
   const searchAlbumsByQuery = new Map<string, readonly RoonEntityDescriptor[]>();
+  const searchArtistsByQuery = new Map<string, readonly RoonEntityDescriptor[]>();
+  const entitySearchProgress = new Map<string, {
+    groups: readonly BrowsePathSegment[];
+    groupIndex: number;
+    sourceOffset: number;
+    scanned: number;
+    items: readonly RoonEntityDescriptor[];
+    done: boolean;
+    level: number;
+  }>();
   const artistImageKeysBySignature = new Map<string, string | undefined>();
   const pendingArtistImageKeys = new Map<string, Promise<string | undefined>>();
   const artistImageLookupTails = Array.from({ length: 4 }, () => Promise.resolve());
@@ -732,11 +748,12 @@ export function createRoonLibraryService(dependencies: {
     rootSessions.set(hierarchy, created);
     return created;
   };
-  const searchSession = (query: string): BrowseSessionState => {
-    const existing = searchSessions.get(query);
+  const searchSession = (query: string, kind = 'track'): BrowseSessionState => {
+    const key = JSON.stringify([kind, query]);
+    const existing = searchSessions.get(key);
     if (existing) return existing;
     const created = createSession('search', { input: query });
-    searchSessions.set(query, created);
+    searchSessions.set(key, created);
     return created;
   };
   const registerPath = (
@@ -802,7 +819,16 @@ export function createRoonLibraryService(dependencies: {
     try {
       dependencies.browse[operation](requestOptions, (error, body) => {
         try {
-          dependencies.onBrowseShape?.(summarizeRoonBrowsePayload(operation, requestOptions, body));
+          dependencies.onBrowseShape?.({
+            ...summarizeRoonBrowsePayload(operation, requestOptions, body),
+            ...(error ? {
+              errorCategory: /item.?key/i.test(String(error)) ? 'invalid-item-key' as const
+                : /network/i.test(String(error)) ? 'network' as const
+                : /invalid/i.test(String(error)) ? 'invalid-request' as const : 'other' as const,
+              requestItemKeyPresent: typeof options.item_key === 'string',
+              ...(typeof options.pop_levels === 'number' ? { requestPopLevels: options.pop_levels } : {}),
+            } : {}),
+          });
         } catch {
           // 诊断回调不得改变 Browse 行为。
         }
@@ -933,11 +959,15 @@ export function createRoonLibraryService(dependencies: {
     for (let index = commonLength; index < targetPath.length; index += 1) {
       const segment = targetPath[index];
       if (!segment) continue;
-      const nextPath = targetPath.slice(0, index + 1);
+      // 搜索分组重新进入后其子项 key 会更换；每层验证身份并读取当前 key。
+      const currentSegment = session.hierarchy === 'search'
+        ? (await resolveCurrentItemKey(session, segment, session.currentPath)).segment
+        : segment;
+      const nextPath = [...session.currentPath, currentSegment];
       const response = readBrowseResponse(await requestBrowse('browse', {
         hierarchy: session.hierarchy,
         multi_session_key: session.multiSessionKey,
-        item_key: segment.itemKey,
+        item_key: currentSegment.itemKey,
       }));
       applyBrowseState(session, response, nextPath);
     }
@@ -1161,6 +1191,75 @@ export function createRoonLibraryService(dependencies: {
       total: items.length,
       hasMore: pageRequest.offset + pageItems.length < items.length,
     };
+  };
+
+  // 专辑/艺人首屏只扫描当前页加一个前瞻条目；不等待整组资料库全部读完。
+  const searchEntityPage = async (
+    query: string, kind: 'album' | 'artist', request: RoonPageRequest,
+  ): Promise<RoonLibraryPage<RoonEntityDescriptor>> => {
+    const key = JSON.stringify([kind, query]);
+    const session = searchSession(query, kind);
+    return withSession(session, async () => {
+      const previous = entitySearchProgress.get(key);
+      let state = previous ? { ...previous, items: [...previous.items] } : undefined;
+      if (!state) {
+        const response = readBrowseResponse(await requestBrowse('browse', {
+          hierarchy: 'search', multi_session_key: session.multiSessionKey, pop_all: true, input: query,
+        }));
+        applyBrowseState(session, response, []);
+        session.rootLevel = response.list.level;
+        const root = await loadAllAtLevel('search', session.multiSessionKey, response.list.level, response.list.count, MAX_SEARCH_SCAN_ITEMS);
+        const titles = new Set(kind === 'album' ? ['album', 'albums', '专辑', '唱片'] : ['artist', 'artists', '艺人', '艺术家', '歌手']);
+        const groups = root.flatMap((value, index) => {
+          const record = asRecord(value) ?? {};
+          if (readString(record, 'hint') !== 'list' || !titles.has((readString(record, 'title') ?? '').normalize('NFKC').trim().toLocaleLowerCase('en-US'))) return [];
+          const segment = readPathSegment(value, 'search', 'container', rootReference('search', query), index);
+          return segment ? [segment] : [];
+        });
+        state = { groups, groupIndex: 0, sourceOffset: 0, scanned: root.length, items: [], done: groups.length === 0, level: response.list.level };
+      }
+      const target = request.offset + request.limit + 1;
+      while (!state.done && state.items.length < target) {
+        const group = state.groups[state.groupIndex]!;
+        const path = [group];
+        registerPath(group.pathSignature, path);
+        const list = await navigateToPath(session, path);
+        state.level = list.level;
+        if (list.count !== undefined && state.sourceOffset >= list.count) {
+          state.groupIndex++; state.sourceOffset = 0;
+          state.done = state.groupIndex >= state.groups.length;
+          continue;
+        }
+        const remaining = MAX_SEARCH_SCAN_ITEMS - state.scanned;
+        if (remaining < 1) throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', '搜索结果超出有界扫描上限');
+        const count = Math.min(MAX_PAGE_LIMIT, target - state.items.length, remaining, list.count === undefined ? MAX_PAGE_LIMIT : list.count - state.sourceOffset);
+        const loaded = readLoadResponse(await requestBrowse('load', {
+          hierarchy: 'search', multi_session_key: session.multiSessionKey, level: list.level, offset: state.sourceOffset, count,
+        }));
+        for (let index = 0; index < loaded.items.length; index++) {
+          const value = loaded.items[index];
+          if (readString(asRecord(value) ?? {}, 'hint') !== 'list') continue;
+          const item = readItem(value, kind, 'search', {
+            multiSessionKey: session.multiSessionKey, level: list.level, parentReference: group.pathSignature,
+            parentPath: path, sourceIndex: state.sourceOffset + index, registerPath,
+          });
+          if (item?.itemKey && !state.items.some(existing => existing.itemKey === item.itemKey && existing.title === item.title && existing.subtitle === item.subtitle)) state.items.push(item);
+        }
+        state.sourceOffset += loaded.items.length;
+        state.scanned += loaded.items.length;
+        if (loaded.items.length < count || (list.count !== undefined && state.sourceOffset >= list.count)) {
+          state.groupIndex++; state.sourceOffset = 0;
+          state.done = state.groupIndex >= state.groups.length;
+        }
+      }
+      // 整次请求成功才推进检查点，失败重试不会跳过条目。
+      entitySearchProgress.set(key, state);
+      return {
+        items: state.items.slice(request.offset, request.offset + request.limit), offset: request.offset, level: state.level,
+        ...(state.done ? { total: state.items.length } : {}),
+        hasMore: !state.done || request.offset + request.limit < state.items.length,
+      };
+    });
   };
 
   const albumGroupTitles = new Set([
@@ -1414,6 +1513,7 @@ export function createRoonLibraryService(dependencies: {
     track: RoonEntityDescriptor,
     zoneOrOutputId: string,
     kind: 'play' | 'queue',
+    onDispatch?: () => void,
   ): Promise<RoonTrackActionOutcome> => {
     if (!track.itemKey) {
       throw new RoonLibraryError(
@@ -1479,6 +1579,8 @@ export function createRoonLibraryService(dependencies: {
         );
       }
       const authorization = authorizeRoonAction(actionItem, { kind, allowMutation: true });
+      // 导航和身份校验完成后、真正发命令前开始监听，不漏掉早于 Browse 回执的 Transport 事件。
+      onDispatch?.();
       let result: BrowseItemRecord | undefined;
       try {
         result = asRecord(await requestBrowse('browse', {
@@ -1722,7 +1824,9 @@ export function createRoonLibraryService(dependencies: {
         throw new RoonLibraryError('ROON_LIBRARY_INVALID_PAGE', 'Roon search query is invalid');
       }
       const pageRequest = normalizePage(request);
-      const cache = kind === 'track' ? searchTracksByQuery : searchAlbumsByQuery;
+      const entityPage = kind === 'album' || kind === 'artist' ? searchEntityPage(normalizedQuery, kind, pageRequest) : undefined;
+      if (entityPage) return entityPage;
+      const cache = kind === 'track' ? searchTracksByQuery : kind === 'album' ? searchAlbumsByQuery : searchArtistsByQuery;
       const cached = cache.get(normalizedQuery);
       if (cached) {
         const level = cached[0]?.browseContext?.level ?? 0;
@@ -1774,7 +1878,9 @@ export function createRoonLibraryService(dependencies: {
         let scannedItems = loadedItems.length;
         const groupTitles = kind === 'track'
           ? new Set(['track', 'tracks', 'song', 'songs', '单曲', '曲目', '歌曲'])
-          : new Set(['album', 'albums', '专辑', '唱片']);
+          : kind === 'album'
+            ? new Set(['album', 'albums', '专辑', '唱片'])
+            : new Set(['artist', 'artists', '艺人', '艺术家', '歌手']);
         const groups = loadedItems.flatMap((value, index) => {
           const record = asRecord(value);
           const title = readString(record ?? {}, 'title');
@@ -1901,7 +2007,7 @@ export function createRoonLibraryService(dependencies: {
         }
       });
     },
-    playTrack: (track, zoneOrOutputId) => runTrackAction(track, zoneOrOutputId, 'play'),
+    playTrack: (track, zoneOrOutputId, onDispatch) => runTrackAction(track, zoneOrOutputId, 'play', onDispatch),
     queueTrack: (track, zoneOrOutputId) => runTrackAction(track, zoneOrOutputId, 'queue'),
   };
 }

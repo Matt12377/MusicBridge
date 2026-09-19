@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { validateIpcEvent } from '@music-bridge/contracts';
 import { BridgeController } from '../src/application/bridge-controller.js';
 import { BridgeError } from '../src/shared/errors.js';
 import type {
@@ -154,6 +155,7 @@ class FakeRoon implements RoonPort {
   failResume = false;
   activePlaybackEpoch = 17;
   zoneRevision = 1;
+  nativeObservation: RoonPlaybackObservation | undefined;
   private confirmPauseRequest: (() => void) | undefined;
   private confirmResumeRequest: (() => void) | undefined;
   terminalHandler: (reason: 'ended' | 'stopped' | 'media_error' | 'zone_lost') => void = () => undefined;
@@ -274,6 +276,7 @@ class FakeRoon implements RoonPort {
   }
 
   getSelectedZonePlaybackObservation(): RoonPlaybackObservation | undefined {
+    if (this.nativeObservation) return this.nativeObservation;
     if (!this.state.selectedZoneId) return undefined;
     return {
       revision: this.zoneRevision,
@@ -1533,6 +1536,111 @@ test('controller binds real Time events to playback source, epoch, Zone and Trac
   // Roon Browse 常在标题前带曲目序号，而 Zone now_playing 只返回真实标题。
   assert.equal(controller.updateRoonTime(nativeEvent('Native Time Song')), true);
   assert.equal(controller.getPlaybackState().positionMs, 3_000);
+});
+
+test('Roon 连续播放不经过 stopped 时，同步下一首、队列位置、封面及进度，不重复派发播放', async () => {
+  const { controller, roon, nativeRoon } = makeHarness();
+  const tracks = ['第一首', '第二首'].map((title, index) => ({
+    reference: `native-continuous-${index}`, zoneId: 'zone-1',
+    track: { id: String(9001 + index), title, artists: ['本地艺人'], album: '本地专辑', durationMs: 180_000,
+      artworkReference: `cover-${index}` },
+  }));
+  await controller.replaceRoonQueue(tracks, 0);
+  const generation = controller.getPlaybackGeneration();
+  roon.state = { ...roon.state, transportState: 'playing' };
+  roon.nativeObservation = { revision: 2, zoneId: 'zone-1', state: 'playing', positionMs: 750,
+    nowPlaying: { title: '第二首', artist: '本地艺人', album: '本地专辑', durationMs: 180_000 } };
+  const updates: string[] = [];
+  const unsubscribe = controller.subscribe(snapshot => { if (snapshot.currentTrack) updates.push(snapshot.currentTrack.title) });
+  controller.syncRoonTransportState();
+  const snapshot = controller.getPlaybackState();
+  assert.equal(snapshot.currentTrack?.id, '9002');
+  assert.equal(snapshot.currentTrack?.artworkReference, 'cover-1');
+  assert.equal(snapshot.queue.index, 1);
+  assert.equal(snapshot.positionMs, 750);
+  assert.equal(snapshot.source, 'roon');
+  assert.ok(controller.getPlaybackGeneration() > generation);
+  assert.equal(updates.at(-1), '第二首');
+  assert.equal(nativeRoon.playCalls.length, 1);
+  assert.equal(nativeRoon.stopCalls, 0);
+  assert.equal(controller.updateRoonTime({ source: 'zone', zoneId: 'zone-1', revision: 2,
+    positionMs: 1750, nowPlaying: roon.nativeObservation.nowPlaying! }), true);
+  // 旧曲事件、旧 revision、其他 Zone 和未确认 loading 状态不能反向覆盖。
+  for (const observation of [
+    { ...roon.nativeObservation, revision: 1, nowPlaying: { title: '第一首' } },
+    { ...roon.nativeObservation, revision: 3, zoneId: 'zone-2', nowPlaying: { title: '其他设备' } },
+    { ...roon.nativeObservation, revision: 3, state: 'loading' as const, nowPlaying: { title: '加载中的曲目' } },
+  ]) { roon.nativeObservation = observation; controller.syncRoonTransportState() }
+  assert.equal(controller.getPlaybackState().currentTrack?.id, '9002');
+  unsubscribe();
+});
+
+test('Roon 续播应用队列外歌曲时显示真实元数据，不沿用旧封面、音质或队列高亮', async () => {
+  const { controller, roon, nativeRoon } = makeHarness();
+  await controller.playRoon({ reference: 'native-first', zoneId: 'zone-1', track: {
+    id: '9011', title: '原歌曲', artists: ['原艺人'], album: '原专辑', durationMs: 120_000,
+    artworkReference: 'musicbridge-v2-image-11111111-1111-4111-8111-111111111111', format: 'flac', bitrate: 900_000,
+  } });
+  roon.state = { ...roon.state, transportState: 'playing' };
+  roon.nativeObservation = { revision: 2, zoneId: 'zone-1', state: 'playing', positionMs: 1000,
+    nowPlaying: { title: 'Roon 队列歌曲', artist: '新艺人', album: '新专辑', durationMs: 210_000 } };
+  controller.syncRoonTransportState();
+  const snapshot = controller.getPlaybackState();
+  assert.equal(snapshot.currentTrack?.title, 'Roon 队列歌曲');
+  assert.deepEqual(snapshot.currentTrack?.artists, ['新艺人']);
+  assert.equal(snapshot.currentTrack?.album, '新专辑');
+  assert.equal(snapshot.currentTrack?.durationMs, 210_000);
+  assert.equal(snapshot.currentTrack?.artworkReference, undefined);
+  assert.equal(snapshot.format, undefined);
+  assert.equal(snapshot.source, 'roon');
+  assert.equal(snapshot.queue.index, -1);
+  assert.equal(snapshot.queue.items.length, 1);
+  assert.equal(snapshot.canNext, false);
+  assert.equal(validateIpcEvent({ version: 1, event: 'playback.changed', payload: { state: snapshot } }).ok, true);
+  assert.equal(createLyricsRequestContext(snapshot, controller.getPlaybackGeneration())?.kind, 'local');
+  const id = snapshot.currentTrack?.id;
+  roon.nativeObservation = { ...roon.nativeObservation, revision: 3, positionMs: 2000 };
+  controller.syncRoonTransportState();
+  assert.equal(controller.getPlaybackState().currentTrack?.id, id);
+  controller.handleRoonPlaybackState('playing');
+  controller.handleRoonPlaybackState('stopped');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(nativeRoon.playCalls.length, 1);
+});
+
+test('Roon 新歌曲已开始后，排队中的旧 stopped 回调不能再推进一次', async () => {
+  const { controller, roon, nativeRoon } = makeHarness();
+  await controller.replaceRoonQueue(['甲', '乙', '丙'].map((title, index) => ({
+    reference: `race-${index}`, zoneId: 'zone-1', track: { id: String(9021 + index), title, artists: ['艺人'], album: '专辑' },
+  })), 0);
+  controller.handleRoonPlaybackState('playing');
+  controller.handleRoonPlaybackState('stopped');
+  roon.state = { ...roon.state, transportState: 'playing' };
+  roon.nativeObservation = { revision: 2, zoneId: 'zone-1', state: 'playing', nowPlaying: { title: '乙', artist: '艺人', album: '专辑' } };
+  controller.syncRoonTransportState();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(controller.getPlaybackState().currentTrack?.title, '乙');
+  assert.equal(nativeRoon.playCalls.length, 1);
+});
+
+test('同名不同艺人的 Roon 续播更新身份，暂停后的新曲也可同步；网易云播放不被接管', async () => {
+  const { controller, roon, nativeRoon } = makeHarness();
+  nativeRoon.playObservation = { revision: 10, zoneId: 'zone-1', state: 'playing',
+    nowPlaying: { title: '同名歌曲', artist: '甲艺人', album: '甲专辑', durationMs: 180_000 } };
+  await controller.playRoon({ reference: 'same-title', zoneId: 'zone-1',
+    track: { id: '9031', title: '同名歌曲', artists: ['甲艺人'], album: '甲专辑', durationMs: 180_000 } });
+  roon.state = { ...roon.state, transportState: 'paused' };
+  roon.nativeObservation = { revision: 11, zoneId: 'zone-1', state: 'paused', positionMs: 400,
+    nowPlaying: { title: '同名歌曲', artist: '乙艺人', album: '乙专辑', durationMs: 180_000 } };
+  controller.syncRoonTransportState();
+  assert.deepEqual(controller.getPlaybackState().currentTrack?.artists, ['乙艺人']);
+  assert.equal(controller.getPlaybackState().state, 'paused');
+  assert.notEqual(controller.getPlaybackState().currentTrack?.id, '9031');
+  await controller.play({ trackId: '9032' });
+  roon.nativeObservation = { ...roon.nativeObservation, revision: 12, state: 'playing' };
+  controller.syncRoonTransportState();
+  assert.equal(controller.getPlaybackState().currentTrack?.id, '9032');
+  assert.equal(controller.getPlaybackState().source, 'netease');
 });
 
 test('controller hydrates native Roon duration and position from the confirmed Zone observation', async () => {

@@ -357,7 +357,7 @@ export class RemoteCoreTunnelManager {
             localStreamPort: LOCAL_STREAM_PORT,
             autoReconnect: false,
           },
-          'REMOTE_HEALTH_UNAVAILABLE',
+          'INVALID_SSH_TARGET',
         )
       }
       this.autoReconnectUsed = false

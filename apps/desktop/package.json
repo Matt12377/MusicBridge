@@ -82,7 +82,7 @@
         "dir",
         "dmg"
       ],
-      "icon": "build/icon.icns",
+      "icon": "build/musicbridge-icon.icns",
       "hardenedRuntime": true,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist"
