@@ -1,5 +1,77 @@
 {
   "schemaVersion": 1,
+  "localAppUpdate20260919": {
+    "branch": "codex/unified-search",
+    "baseCommit": "c9f8cec4e0a9774035862406f822fd7401016cec",
+    "implementationCommit": "2de344ac854ef90b6848c50349fe67466a79739c",
+    "state": "implementation-committed-packaging-pending",
+    "report": "reports/LOCAL_APP_UPDATE_2026-09-19.md",
+    "installTarget": "/Applications/Music Bridge for Roon.app",
+    "push": "pending",
+    "realPlayback": "not-tested",
+    "ownerAcceptance": "pending"
+  },
+  "roonPlayConfirmation20260919": {
+    "branch": "codex/unified-search",
+    "baseCommit": "c9f8cec4e0a9774035862406f822fd7401016cec",
+    "state": "implemented-built-synthetic-verified-restart-required",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "report": "reports/ROON_PLAY_CONFIRMATION_2026-09-19.md",
+    "focusedTestsPassed": 234,
+    "affectedE2EPassed": 2,
+    "testConcurrency": 1,
+    "typecheck": "pass",
+    "coreBuild": "pass",
+    "desktopBuild": "pass",
+    "controlPlane": "pass",
+    "boundaries": "pass",
+    "diffCheck": "pass",
+    "timeoutIncreased": false,
+    "stopStrategyChanged": false,
+    "realRoonValidation": "not-run",
+    "ownerAcceptance": "pending",
+    "currentRunningApp": "not-restarted",
+    "upstream": "not-configured",
+    "push": "not-performed"
+  },
+  "libraryUsability20260919": {
+    "branch": "codex/unified-search",
+    "baseCommit": "c9f8cec4e0a9774035862406f822fd7401016cec",
+    "state": "implemented-built-synthetic-verified-restart-required",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "report": "reports/LIBRARY_USABILITY_2026-09-19.md",
+    "focusedTestsPassed": 99,
+    "affectedE2EPassed": 3,
+    "testConcurrency": 1,
+    "typecheck": "pass",
+    "productionBuild": "pass",
+    "visualThemes": ["light", "dark"],
+    "visualWidths": [1980, 1440, 720],
+    "searchFirstPage": { "syntheticAlbums": 999, "groupItemsRead": 25, "pageSize": 24 },
+    "realRoonValidation": "not-run",
+    "ownerAcceptance": "pending",
+    "currentRunningApp": "not-restarted",
+    "push": "not-performed"
+  },
+  "nativeRoonQueueFollow20260919": {
+    "branch": "codex/unified-search",
+    "baseCommit": "c9f8cec4e0a9774035862406f822fd7401016cec",
+    "state": "implemented-built-synthetic-verified-restart-required",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "focusedTestsPassed": 175,
+    "affectedE2EPassed": 2,
+    "testConcurrency": 1,
+    "typecheck": "pass",
+    "coreBuild": "pass",
+    "desktopBuild": "pass",
+    "realPlayback": "not-tested",
+    "ownerAcceptance": "pending",
+    "push": "not-performed",
+    "report": "reports/ROON_NATIVE_QUEUE_FOLLOW_2026-09-19.md"
+  },
   "playerMotionRepair": {
     "branch": "codex/v3-ui-redesign",
     "baseCommit": "c10ff4bb3d2761934ee7cc44eb8a03162125a911",
@@ -2106,5 +2178,91 @@
       "preserveExistingData": true
     },
     "carryover": "真实设备/音频/录音/发布验收与历史边界独立保留"
+  },
+  "unifiedSearch20260919": {
+    "branch": "codex/unified-search",
+    "baseCommit": "c9f8cec4e0a9774035862406f822fd7401016cec",
+    "state": "implemented-autoload-playback-fix-real-retest-pending",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "typecheck": {
+      "result": "pass",
+      "exitCode": 0
+    },
+    "developmentBuild": {
+      "result": "pass",
+      "exitCode": 0
+    },
+    "controlPlane": "pass",
+    "boundaries": "pass",
+    "nativeUi": "isolated-synthetic-categories-pagination-navigation-layout-pass",
+    "heavyRegression": "full-unit-and-affected-e2e-executed",
+    "realProviderAndRoonPlayback": "previous-revision-pass-current-playback-fix-retest-pending",
+    "push": "not-performed",
+    "report": "reports/UNIFIED_SEARCH_2026-09-19.md",
+    "fullUnitRegression": {
+      "contractsPassed": 191,
+      "corePassed": 1331,
+      "desktopPassed": 710,
+      "skipped": 1,
+      "failedAfterRerun": 0
+    },
+    "productionBuild": {
+      "result": "pass",
+      "exitCode": 0
+    },
+    "affectedE2E": {
+      "passedAcrossRuns": 15,
+      "result": "pass"
+    },
+    "fullE2E": "not-all-green-two-unrelated-legacy-assertions-and-unrun-remainder",
+    "startupGates": "development-and-production-mock-keychain-pass",
+    "ownerAcceptance": "pending",
+    "installedApp": "not-replaced",
+    "upstream": "not-configured",
+    "currentDeveloperLaunch": "current-development-build-running-real-mixed-search-visible",
+    "autoloadPlaybackRevision": {
+      "focusedTests": 196,
+      "testConcurrency": 1,
+      "node": "22.23.2",
+      "typecheck": "pass",
+      "productionBuild": "pass",
+      "developmentBuild": "pass",
+      "syntheticSearchUi": "pass-dual-source-autoload-partial-failure-retry-end-of-list-six-artists",
+      "affectedE2E": {
+        "passedAcrossRuns": 3,
+        "fixtureFailureCorrected": true
+      },
+      "realPlayback": "pending-desktop-automation-unavailable",
+      "fullNode22Regression": "interrupted-by-machine-restart-not-a-pass"
+    },
+    "pageScopedSearch": {
+      "state": "implemented-built-synthetic-e2e-verified",
+      "scopes": [
+        "aggregate",
+        "roon-albums",
+        "roon-artists"
+      ],
+      "focusedTestsPassed": 38,
+      "affectedE2EPassed": 2,
+      "typecheck": "pass",
+      "productionBuild": "pass",
+      "testConcurrency": 1,
+      "currentRunningApp": "reload-not-confirmed-restart-required",
+      "realPlayback": "prior-pending-item-not-covered-by-this-ui-change",
+      "navigationCorrection": {
+        "back": "parent-detail-then-originating-results-with-scroll",
+        "topLevelNavigation": "preserve-search-page-detail-path-and-scroll-until-new-search",
+        "newSearch": "discard-previous-query-results-and-return-path",
+        "focusedTestsPassed": 41,
+        "affectedE2EPassed": 2,
+        "typecheck": "pass",
+        "productionBuild": "pass",
+        "diffCheck": "pass",
+        "testConcurrency": 1,
+        "evidence": "synthetic-electron-only",
+        "currentRunningApp": "restart-required"
+      }
+    }
   }
 }
