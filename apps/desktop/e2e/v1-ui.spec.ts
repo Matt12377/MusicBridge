@@ -314,6 +314,55 @@ async function waitForProcessMarker(
   })
 }
 
+test('Roon Display 歌词设置校验、来源显示与断连清词', async () => {
+  await reloadWithZones([{ zoneId: 'synthetic-zone', displayName: '合成播放设备', selected: true }]);
+  await electronApp.evaluate(({ ipcMain }) => {
+    let state = { url: '', status: 'disabled' };
+    ipcMain.removeHandler('lyrics:display:get');
+    ipcMain.removeHandler('lyrics:display:configure');
+    ipcMain.handle('lyrics:display:get', () => state);
+    ipcMain.handle('lyrics:display:configure', (_event, url: string) => { state = { url, status: url ? 'connected' : 'disabled' }; return state; });
+  });
+  await page.getByRole('button', { name: '打开设置', exact: true }).click();
+  await page.getByRole('tab', { name: 'Roon', exact: true }).click();
+  const input = page.getByLabel('Web Display 地址', { exact: true });
+  await input.fill('https://example.com/display/');
+  await page.getByRole('button', { name: '保存并连接', exact: true }).click();
+  await expect(page.locator('.roon-display-settings [role="alert"]')).toContainText('局域网');
+  await input.fill('http://127.0.0.1:9330/display/');
+  await page.getByRole('button', { name: '保存并连接', exact: true }).click();
+  await expect(page.locator('.roon-display-settings [role="status"]')).toHaveText('已连接');
+  for (const theme of ['light', 'dark'] as const) {
+    await page.getByRole('tab', { name: '应用', exact: true }).click();
+    await page.locator(`input[name="appearance-theme"][value="${theme}"]`).check();
+    await page.getByRole('tab', { name: 'Roon', exact: true }).click();
+    await page.locator('.roon-display-settings').screenshot({ path: test.info().outputPath(`roon-display-settings-${theme}.png`), animations: 'disabled' });
+  }
+  await page.getByRole('button', { name: '停用，恢复网易云匹配', exact: true }).click();
+  await expect(page.locator('.roon-display-settings [role="status"]')).toHaveText('未启用');
+  await sourceButton('home').click();
+  await page.locator('.daily-recommendation-tile').and(page.getByRole('button', { name: '播放 Synthetic Track 1', exact: true })).click();
+  await expect(page.locator('.now-playing-fullscreen')).toBeVisible();
+  await expect(page.locator('#listening-heading')).not.toContainText('还没有正在播放');
+  await electronApp.evaluate(({ BrowserWindow }) => {
+    const window = BrowserWindow.getAllWindows().find(w => w.webContents.getURL().startsWith('musicbridge://'))!;
+    window.webContents.send('core:event', { version: 1, event: 'lyrics.changed', payload: { state: {
+      status: 'ready', source: 'roon-display', timingSource: 'roon-time', activeLineIndex: 1,
+      lines: [{ startMs: 0, endMs: 5000, text: '合成 LRC 第一行' }, { startMs: 5000, text: '合成 LRC 当前行' }],
+    } } });
+  });
+  await expect(page.getByText('歌词来源：Roon Web Display', { exact: true })).toBeVisible();
+  await expect(page.locator('.lyrics-line.active')).toContainText('合成 LRC 当前行');
+  await page.screenshot({ path: test.info().outputPath('roon-display-lyrics.png') });
+  await electronApp.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows().find(w => w.webContents.getURL().startsWith('musicbridge://'))!.webContents.send('core:event', {
+      version: 1, event: 'lyrics.changed', payload: { state: { status: 'unavailable', source: 'roon-display', lines: [], activeLineIndex: -1, timingSource: 'static' } },
+    });
+  });
+  await expect(page.getByText('合成 LRC 当前行', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.now-playing-lyrics')).toContainText('暂无歌词');
+});
+
 test.beforeEach(async () => {
   if (test.info().title.includes('固定原生构建')) test.skip(process.env.MUSIC_BRIDGE_NATIVE_GATE !== '1', '需要显式构建并核定的原生候选')
   diagnosticDirectory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-ui-diagnostics-'))

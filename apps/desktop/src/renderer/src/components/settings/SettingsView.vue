@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import AppearanceSettings from './AppearanceSettings.vue'
+import RoonDisplaySettings from './RoonDisplaySettings.vue'
 import type { AppInfo } from '../../../../preload/api.js'
 import type { PlaybackQualityPreference, PublicAccountState, PublicAuthState, PublicRoonZone, RemoteCoreTunnelState } from '@music-bridge/contracts'
 import { createSettingsNavigation, type SettingsCategory } from '../../composables/useSettingsNavigation.js'
@@ -150,6 +151,7 @@ function paneId(category: SettingsCategory): string {
     </div>
 
     <div v-else-if="activeCategory === 'roon'" id="settings-pane-roon" class="settings-pane settings-pane-roon" role="tabpanel" aria-labelledby="settings-tab-roon">
+      <RoonDisplaySettings />
       <article class="settings-card settings-glass-panel">
         <div class="panel-heading"><div><p class="section-kicker">Roon</p><h3>Roon Core 与播放设备</h3></div><span class="settings-status-pill" :class="'is-' + props.roonStatus">{{ roonStatusLabel(props.roonStatus) }}</span></div>
         <dl class="detail-list"><div><dt>Core 状态</dt><dd>{{ roonStatusLabel(props.roonStatus) }}</dd></div><div><dt>当前设备</dt><dd>{{ props.selectedZone?.displayName ?? zoneLifecycleLabel(props.zoneStatus) }}</dd></div></dl>

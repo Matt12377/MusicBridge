@@ -14,6 +14,7 @@ const ACTIVE_WORD_PUSH_INTERVAL_MS = 100;
 
 export interface LyricsCoordinatorOptions {
   load: (trackId: string) => Promise<LyricsSnapshot>;
+  localDisplay?: { enabled: boolean; read(context: Extract<LyricsRequestContext, { kind: 'local' }>): LyricsSnapshot | undefined };
   localResolver?: {
     resolveActive(request: ActiveLyricsResolutionRequest): Promise<LyricsResolution>;
     cancelActive(): void;
@@ -40,6 +41,7 @@ export type LyricsRequestContext =
       cacheKey: string;
       signature: LocalTrackSignature;
       manualEligible: boolean;
+      zoneId?: string;
       trustedNeteaseTrackId?: string;
     }
   | {
@@ -82,6 +84,7 @@ export function createLyricsRequestContext(
       cacheKey: `local:${signature.key}`,
       signature,
       manualEligible: directRoon,
+      ...(snapshot.selectedZoneId ? { zoneId: snapshot.selectedZoneId } : {}),
       ...(smartRoon && item ? { trustedNeteaseTrackId: item.trackId } : {}),
     };
   } catch {
@@ -115,6 +118,7 @@ function cloneSnapshot(snapshot: LyricsSnapshot): LyricsSnapshot {
       ? { activeWordIndex: snapshot.activeWordIndex }
       : {}),
     timingSource: snapshot.timingSource,
+    ...(snapshot.source === 'roon-display' ? { source: 'roon-display' as const } : {}),
     ...(snapshot.source === 'netease'
       && (snapshot.status === 'ready' || snapshot.status === 'instrumental')
       ? { source: 'netease' as const }
@@ -225,6 +229,12 @@ export class LyricsCoordinator {
     this.activeSnapshot = loadingSnapshot();
     this.emit(true);
     await this.loadActive(trackId, context, generation);
+    if (generation === this.generation && this.activePlaybackState === 'playing') this.markPlaying(trackId);
+  }
+
+  clearLocalCache(): void {
+    for (const key of this.cache.keys()) if (key.startsWith('local:')) this.cache.delete(key);
+    this.options.localResolver?.cancelActive();
   }
 
   onPlaybackChanged(
@@ -248,6 +258,7 @@ export class LyricsCoordinator {
       this.activeTrackId !== trackId
       || this.activeCacheKey !== context.cacheKey
       || this.activePlaybackGeneration !== context.playbackGeneration
+      || (context.kind === 'local' && this.options.localDisplay?.enabled && this.activeZoneId !== snapshot.selectedZoneId)
     ) {
       this.stopEstimatedUpdates();
       this.options.localResolver?.cancelActive();
@@ -260,7 +271,7 @@ export class LyricsCoordinator {
       this.activeZoneId = snapshot.selectedZoneId;
       this.positionAnchorMs = undefined;
       this.positionAnchorClockMs = undefined;
-      const cached = this.readCache(context.cacheKey);
+      const cached = context.kind === 'local' && this.options.localDisplay?.enabled ? undefined : this.readCache(context.cacheKey);
       this.activeSnapshot = cached ? cloneSnapshot(cached.snapshot) : loadingSnapshot();
       if (cached?.localResolution && context.kind === 'local') {
         this.options.onLocalResolution?.(context, cached.localResolution);
@@ -412,6 +423,8 @@ export class LyricsCoordinator {
   }
 
   private async loadLocalSnapshot(context: Extract<LyricsRequestContext, { kind: 'local' }>): Promise<LyricsSnapshot> {
+    const display = this.options.localDisplay?.read(context);
+    if (display !== undefined) return display;
     const resolver = this.options.localResolver;
     if (!resolver) return emptyLyricsSnapshot('unavailable');
     const resolved = await resolver.resolveActive({
@@ -421,6 +434,8 @@ export class LyricsCoordinator {
         ? { trustedNeteaseTrackId: context.trustedNeteaseTrackId }
         : {}),
     });
+    // 切换来源期间已在途的网易云结果不能重建匹配状态或污染本地缓存。
+    if (this.options.localDisplay?.enabled) return this.options.localDisplay.read(context) ?? emptyLyricsSnapshot('unavailable');
     this.options.onLocalResolution?.(context, resolved);
     if (!resolved.applied || resolved.status === 'stale') return emptyLyricsSnapshot('unavailable');
     const loaded = resolved.lyrics ?? emptyLyricsSnapshot(

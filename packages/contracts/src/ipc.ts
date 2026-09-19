@@ -1,4 +1,5 @@
 import type { VolumeRequest, VolumeSnapshot } from './volume.js';
+import type { RoonDisplayLyricsEvent } from './roon-display-lyrics.js';
 import type { GetMasterArtworkRequest, SaveMasterArtworkRequest, MasterArtworkResult, MasterArtworkVersion } from './recording-artwork.js';
 import type { ListRecordingPrintsRequest, RequestRecordingPrintRequest, RetryRecordingPrintRequest, GetRecordingPrintRequest, ExportRecordingPrintRequest, RecordingPrintsPage, RecordingPrintJob, RecordingPrintResult, ClaimRecordingPrintRequest, CompleteRecordingPrintRequest, FailRecordingPrintRequest, RecordingPrintLease, RecordingPrintPdfResult } from './recording-prints.js';
 import type { RecordingReplicaStatus, InspectRecordingReplicaRequest, RecordingReplicaReadIdRequest, StartRecordingReplicaRequest, RecordingReplicaRunIdRequest, RecordingReplicaInspection, RecordingReplicaReadCancellation, RecordingReplicaRun } from './recording-replica.js';
@@ -279,6 +280,7 @@ export const IPC_COMMANDS = [
   'favorites.check',
   'favorites.set',
   'lyrics.get',
+  'lyrics.display.update',
   'lyrics.match.get',
   'lyrics.match.select',
   'lyrics.match.revoke',
@@ -573,6 +575,7 @@ export interface IpcCommandPayloads {
   'favorites.check': { descriptor: FavoriteEntityDescriptor };
   'favorites.set': { descriptor: FavoriteEntityDescriptor; favorite: boolean };
   'lyrics.get': { trackId: string };
+  'lyrics.display.update': RoonDisplayLyricsEvent;
   'lyrics.match.get': Record<string, never>;
   'lyrics.match.select': { matchSessionId: string; candidateId: string };
   'lyrics.match.revoke': Record<string, never>;
@@ -826,6 +829,7 @@ export interface IpcCommandResults {
   'favorites.check': { favorite: boolean };
   'favorites.set': { favorite: boolean; item?: FavoriteRecord };
   'lyrics.get': LyricsSnapshot;
+  'lyrics.display.update': { applied: boolean };
   'lyrics.match.get': LocalLyricsMatchSnapshot;
   'lyrics.match.select': LocalLyricsMatchSnapshot;
   'lyrics.match.revoke': LocalLyricsMatchSnapshot;
@@ -873,9 +877,10 @@ export interface IpcEventPayloads {
   'lyrics.match.changed': { state: LocalLyricsMatchSnapshot };
 }
 
-export type IpcInternalCommand = 'recordingPrintWorker.claim' | 'recordingPrintWorker.complete' | 'recordingPrintWorker.fail' | 'recordingPrintWorker.pdf' | 'spreadsheetImports.registerWorkbook' | 'spreadsheetImports.workbookReceipt' | 'recordingBackups.activationReceipt' | 'recordingBackups.authorize' | 'recordingBackups.authorizationReceipt' | 'recordingArchive.authorize' | 'recordingArchive.authorizationReceipt' | 'recordingPrepared.select' | 'recordingPrepared.selectionReceipt' | 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
+export type IpcInternalCommand = 'lyrics.display.update' | 'recordingPrintWorker.claim' | 'recordingPrintWorker.complete' | 'recordingPrintWorker.fail' | 'recordingPrintWorker.pdf' | 'spreadsheetImports.registerWorkbook' | 'spreadsheetImports.workbookReceipt' | 'recordingBackups.activationReceipt' | 'recordingBackups.authorize' | 'recordingBackups.authorizationReceipt' | 'recordingArchive.authorize' | 'recordingArchive.authorizationReceipt' | 'recordingPrepared.select' | 'recordingPrepared.selectionReceipt' | 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
 
 export interface IpcInternalCommandResults {
+  'lyrics.display.update': { applied: boolean };
   'recordingPrintWorker.claim': { lease: RecordingPrintLease | null };
   'recordingPrintWorker.complete': RecordingPrintJob;
   'recordingPrintWorker.fail': RecordingPrintJob;

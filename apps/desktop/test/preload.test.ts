@@ -219,6 +219,8 @@ test('Preload exposes only sanitized business methods', async () => {
   }
   assert.deepEqual(PUBLIC_API_KEYS, [
     'setAppearanceTheme',
+    'getRoonDisplaySettings',
+    'configureRoonDisplay',
     'getVolume',
     'setVolume',
     'getMasterArtwork',
@@ -457,6 +459,8 @@ test('Preload exposes only sanitized business methods', async () => {
   ])
   assert.deepEqual(Object.keys(api), [
     'setAppearanceTheme',
+    'getRoonDisplaySettings',
+    'configureRoonDisplay',
     'getVolume',
     'setVolume',
     'getMasterArtwork',

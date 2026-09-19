@@ -337,5 +337,6 @@ contextBridge.exposeInMainWorld(
     createRecordingPrintClient((channel, value) => ipcRenderer.invoke(channel, value)),
     theme => ipcRenderer.invoke('app:set-appearance-theme', theme),
     {getVolume: () => ipcRenderer.invoke('roon:volume:get'), setVolume: request => ipcRenderer.invoke('roon:volume:set', request)},
+    { getRoonDisplaySettings: () => ipcRenderer.invoke('lyrics:display:get'), configureRoonDisplay: url => ipcRenderer.invoke('lyrics:display:configure', url) },
   ),
 )

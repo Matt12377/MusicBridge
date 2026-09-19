@@ -26,7 +26,8 @@ const lyricsMatchOpen = ref(false)
       <span>{{ { idle: '待播放', loading: '正在读取', ready: '已同步', instrumental: '纯音乐', unavailable: '暂无歌词', error: '歌词不可用' }[snapshot.status] }}</span>
     </div>
     <p class="empty-copy">歌词只在内存中处理。</p>
-    <div v-if="snapshot.source === 'netease' || localLyricsMatchState.status !== 'hidden'" class="lyrics-panel-source-row">
+    <div v-if="snapshot.source || localLyricsMatchState.status !== 'hidden'" class="lyrics-panel-source-row">
+      <span v-if="snapshot.source === 'roon-display'">歌词来源：Roon Web Display</span>
       <span v-if="snapshot.source === 'netease'">歌词来源：网易云</span>
       <button v-if="localLyricsMatchState.status !== 'hidden'" type="button" class="text-button" aria-haspopup="dialog" :aria-expanded="lyricsMatchOpen" @click="lyricsMatchOpen = true">{{ localLyricsMatchState.status === 'needs-choice' ? '选择匹配歌词' : '歌词匹配' }}</button>
     </div>

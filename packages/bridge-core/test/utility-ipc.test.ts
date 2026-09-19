@@ -535,6 +535,7 @@ function makeRuntime(): CoreRuntimeForIpc & {
         tracks: { items: [], offset: 0, limit: 20, total: 1, hasMore: false },
       }
     },
+    async updateRoonDisplayLyrics() { return { applied: true }; },
     async getLyrics() {
       return emptyLyricsSnapshot('unavailable')
     },

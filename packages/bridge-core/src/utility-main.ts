@@ -596,6 +596,8 @@ async function dispatch(
       );
     case 'lyrics.get':
       return runtime.getLyrics((request.payload as { trackId: string }).trackId);
+    case 'lyrics.display.update':
+      return runtime.updateRoonDisplayLyrics(request.payload as IpcCommandPayloads['lyrics.display.update']);
     case 'lyrics.match.get':
       return runtime.getLocalLyricsMatch();
     case 'lyrics.match.select':

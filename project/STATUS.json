@@ -1,4 +1,26 @@
 {
+  "roonDisplayLyrics20260919": {
+    "branch": "codex/roon-display-lyrics",
+    "baseCommit": "2e1a344afcde1d64c446e04e62312f7564139c2b",
+    "state": "implemented-verified-packaging-pending",
+    "scope": "local-track-lyrics-from-roon-web-display",
+    "providerFallbackWhenEnabled": false,
+    "validation": {
+      "contractsTests": 191,
+      "coreRelatedTests": 132,
+      "desktopRelatedTests": 72,
+      "testConcurrency": 1,
+      "typecheck": "pass",
+      "productionBuild": "pass",
+      "connectionIsolationRecoveryGate": "pass-synthetic-loopback",
+      "settingsLyricsUiE2E": "pass-synthetic",
+      "realDisplayLrcReceipt": "pass-read-only-two-zones",
+      "realPlaybackLyricsEndToEnd": "not-run",
+      "ownerAcceptance": "pending"
+    },
+    "carryover": ["Web Display protocol is not a stable public lyrics API", "Roon file-preference settings unchanged", "Full regression and remote CI not run"],
+    "report": "reports/ROON_DISPLAY_LYRICS_2026-09-19.md"
+  },
   "schemaVersion": 1,
   "localAppUpdate20260919": {
     "branch": "codex/unified-search",

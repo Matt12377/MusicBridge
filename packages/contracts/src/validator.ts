@@ -1,4 +1,5 @@
 import { isVolumeRequest, isVolumeSnapshot } from './volume.js';
+import { isRoonDisplayLyricsEvent } from './roon-display-lyrics.js';
 import { isGetMasterArtworkRequest, isSaveMasterArtworkRequest, isMasterArtworkResult, isMasterArtworkVersion } from './recording-artwork.js';
 import { isListRecordingPrintsRequest, isRequestRecordingPrintRequest, isRetryRecordingPrintRequest, isGetRecordingPrintRequest, isExportRecordingPrintRequest, isRecordingPrintsPage, isRecordingPrintJob, isRecordingPrintResult, isClaimRecordingPrintRequest, isCompleteRecordingPrintRequest, isFailRecordingPrintRequest, isRecordingPrintLease, isRecordingPrintPdfResult } from './recording-prints.js';
 import { isRecordingReplicaStatus, isInspectRecordingReplicaRequest, isRecordingReplicaReadIdRequest, isStartRecordingReplicaRequest, isRecordingReplicaRunIdRequest, isRecordingReplicaInspection, isRecordingReplicaReadCancellation, isRecordingReplicaRun } from './recording-replica.js';
@@ -622,7 +623,7 @@ function isLyricsSnapshot(value: unknown): value is LyricsSnapshot {
     !LYRICS_TIMING_SOURCES.includes(
       value.timingSource as (typeof LYRICS_TIMING_SOURCES)[number],
     ) ||
-    (value.source !== undefined && (
+    (value.source !== undefined && value.source !== 'roon-display' && (
       value.source !== 'netease'
       || (value.status !== 'ready' && value.status !== 'instrumental')
     ))
@@ -1151,6 +1152,7 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
     return isRoonTrackActionPayload(payload, command === 'roon.library.play');
   }
   if (command === 'lyrics.get') return isLyricsPayload(payload);
+  if (command === 'lyrics.display.update') return isRoonDisplayLyricsEvent(payload);
   if (command === 'lyrics.match.select') return isLyricsMatchSelectionPayload(payload);
   if (command === 'playback.play') return isPlaybackPlayPayload(payload);
   if (command === 'playback.replaceQueue') return isPlaybackReplaceQueuePayload(payload);
@@ -1532,6 +1534,7 @@ function isCommandResult(
   value: unknown,
   allowInternalResult = false,
 ): boolean {
+  if (command === 'lyrics.display.update') return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['applied']) && typeof value.applied === 'boolean';
   switch (command) {
     case 'collectionProgress.wants': return isWantEntriesPage(value);
     case 'collectionProgress.saveWant': return isWantEntry(value);

@@ -29,6 +29,7 @@ import type {
   PlaylistDetail,
   PlaylistSummary,
   LyricsSnapshot,
+  RoonDisplaySettings,
   LocalLyricsMatchSnapshot,
   PlaybackQueueRequestItem,
   PlaybackQualityPreference,
@@ -117,6 +118,8 @@ export interface MusicBridgePublicApi extends RecordingPrintsPublicApi, Recordin
   queueRoonTrack: (reference: string, zoneId: string) => Promise<{ queued: true }>
   stopRoonTransport: () => Promise<{ stopped: true }>
   getLyrics: (trackId: string) => Promise<LyricsSnapshot>
+  getRoonDisplaySettings: () => Promise<RoonDisplaySettings>
+  configureRoonDisplay: (url: string) => Promise<RoonDisplaySettings>
   getLocalLyricsMatch: () => Promise<LocalLyricsMatchSnapshot>
   selectLocalLyricsMatch: (matchSessionId: string, candidateId: string) => Promise<LocalLyricsMatchSnapshot>
   revokeLocalLyricsMatch: () => Promise<LocalLyricsMatchSnapshot>
@@ -146,6 +149,8 @@ export interface MusicBridgePublicApi extends RecordingPrintsPublicApi, Recordin
 
 export const PUBLIC_API_KEYS = [
   'setAppearanceTheme',
+  'getRoonDisplaySettings',
+  'configureRoonDisplay',
   'getVolume',
   'setVolume',
   'getMasterArtwork',
@@ -561,11 +566,13 @@ export function createPreloadApi(
   recordingPrintsApi?: RecordingPrintsPublicApi,
   setAppearanceTheme: (theme: 'light' | 'dark') => Promise<void> = async () => {},
   volumeApi?: {getVolume: () => Promise<VolumeSnapshot>; setVolume: (request: VolumeRequest) => Promise<VolumeSnapshot>},
+  displayApi?: { getRoonDisplaySettings: () => Promise<RoonDisplaySettings>; configureRoonDisplay: (url: string) => Promise<RoonDisplaySettings> },
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   const outputUnavailable = async (): Promise<never> => { throw new Error('输出核验服务暂时不可用；未访问设备。') }
   return Object.freeze({
     setAppearanceTheme,
+    ...(displayApi ?? { getRoonDisplaySettings: async () => ({ url: '', status: 'disabled' as const }), configureRoonDisplay: collectionUnavailable }),
     ...(volumeApi ?? {getVolume: async () => ({zoneId: '', outputs: []}), setVolume: collectionUnavailable}),
     ...(recordingPrintsApi ?? { getMasterArtwork: collectionUnavailable, pickMasterArtwork: collectionUnavailable, saveMasterArtwork: collectionUnavailable, listRecordingPrints: collectionUnavailable, requestRecordingPrint: collectionUnavailable, retryRecordingPrint: collectionUnavailable, getRecordingPrint: collectionUnavailable, exportRecordingPrint: collectionUnavailable }),
     ...(recordingReplicaApi ?? { getRecordingReplicaStatus: collectionUnavailable, inspectRecordingReplica: collectionUnavailable, cancelRecordingReplicaRead: collectionUnavailable, startRecordingReplica: collectionUnavailable, getRecordingReplicaRun: collectionUnavailable, stopRecordingReplica: collectionUnavailable }),

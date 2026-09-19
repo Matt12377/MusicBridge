@@ -35,7 +35,7 @@ export interface LyricsSnapshot {
   activeWordIndex?: number
   timingSource: LyricsTimingSource
   /** 歌词正文来源；只公开产品来源，不公开匹配证据或置信度。 */
-  source?: 'netease'
+  source?: 'netease' | 'roon-display'
 }
 
 export const LOCAL_LYRICS_MATCH_STATUSES = [

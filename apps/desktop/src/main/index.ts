@@ -1,4 +1,6 @@
 import { isVolumeRequest } from '@music-bridge/contracts'
+import { normalizeRoonDisplayUrl } from '@music-bridge/contracts'
+import { RoonDisplayConnection } from './roon-display-connection.js'
 import { installRecordingPrintHandlers } from './recording-print-ipc.js'
 import { createRecordingPrintWorker } from './recording-print-worker.js'
 import { createRecordingPrintRenderer } from './recording-print-renderer.js'
@@ -173,6 +175,7 @@ const roonImageGatePath = process.env.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH
 
 let mainWindow: BrowserWindow | undefined
 let coreSupervisor: CoreSupervisor | undefined
+let roonDisplayConnection: RoonDisplayConnection | undefined
 let recordingPrintWorker: ReturnType<typeof createRecordingPrintWorker> | undefined
 let recordingPrintEpoch = 0
 function stopRecordingPrintWorker(): void {
@@ -1413,6 +1416,13 @@ function registerIpcHandlers(
   ipcMain.handle('roon:list-zones', (event) =>
     invokeCore(event, () => supervisor.request('roon.listZones', {})),
   )
+  ipcMain.handle('lyrics:display:get', event => invokeCore(event, async () => roonDisplayConnection?.getSettings() ?? { url: '', status: 'disabled' }))
+  ipcMain.handle('lyrics:display:configure', (event, url: unknown) => invokeCore(event, async () => {
+    let normalized: string
+    try { normalized = normalizeRoonDisplayUrl(url) } catch { return publicIpcFailure('INVALID_IPC_REQUEST', '请输入不含凭据的局域网 Roon /display/ 地址。') }
+    if (!roonDisplayConnection) return publicIpcFailure('NOT_READY', '歌词连接尚未就绪。')
+    return roonDisplayConnection.configure(normalized)
+  }))
   ipcMain.handle('roon:select-zone', (event, zoneId: unknown) =>
     invokeCore(event, () =>
       supervisor.request('roon.selectZone', { zoneId: requireZoneId(zoneId) }),
@@ -1932,6 +1942,8 @@ async function bootstrap(): Promise<void> {
       else if (event.event === 'ready') lifecycleProbe.mark('supervisor-ready')
       else if (event.event === 'exit') lifecycleProbe.mark('core-exit', event.code)
       if (event.event !== 'ready') stopRecordingPrintWorker()
+      if (event.event === 'ready') roonDisplayConnection?.restart()
+      else if (event.event === 'exit' || event.event === 'failed') roonDisplayConnection?.stop()
       const level = event.event === 'exit' || event.event === 'failed' ? 'warn' : 'info'
       mainDiagnostics.recordLifecycle(`core_${event.event}`, level)
     },
@@ -1941,6 +1953,12 @@ async function bootstrap(): Promise<void> {
     await prepared.credentialVault.save('v'.repeat(32))
   }
   await supervisor.start()
+  roonDisplayConnection = new RoonDisplayConnection({
+    settingsPath: path.join(syntheticUserDataDirectory ?? app.getPath('userData'), 'roon-display.json'),
+    forward: event => supervisor.requestInternal('lyrics.display.update', event),
+  })
+  // 隔离测试绝不自动读取本机的真实服务地址。
+  if (!isStartupTest && !isUiE2e) await roonDisplayConnection.restore()
   const credentialCore = {
     verifyCredential: async (credential: string) =>
       (await supervisor.requestInternal('auth.verifyCredential', { credential })).status,
@@ -2014,6 +2032,7 @@ void bootstrap().catch(() => {
 })
 
 app.on('before-quit', (event) => {
+  roonDisplayConnection?.stop()
   lifecycleProbe.mark('before-quit')
   if (quitAfterCoreShutdown) {
     destroyTray()

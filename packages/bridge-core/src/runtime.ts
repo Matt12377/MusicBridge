@@ -8,6 +8,8 @@ import { createRecordingOutputService, type RecordingOutputService } from './rec
 import type { PinnedOutputHelper } from './recording/bundled-output-helper.js';
 import { createRecordingPlanCoordinator, type RecordingPlanCoordinator } from './recording/plan-coordinator.js';
 import { randomUUID } from 'node:crypto';
+import type { RoonDisplayLyricsEvent } from '@music-bridge/contracts';
+import { RoonDisplayLyricsStore } from './lyrics/roon-display-store.js';
 import { createDatasetCommandBoundary, type DatasetIdentity } from './recording/dataset-identity.js';
 import type { ArchiveContentBinding } from './recording/backup-package.js';
 import type { RootCapability } from './recording/source-files.js';
@@ -169,6 +171,7 @@ export interface CoreRuntime {
   checkFavorite(descriptor: FavoriteEntityDescriptor): Promise<{ favorite: boolean }>;
   setFavorite(descriptor: FavoriteEntityDescriptor, favorite: boolean): Promise<{ favorite: boolean; item?: FavoriteRecord }>;
   getLyrics(trackId: string): Promise<LyricsSnapshot>;
+  updateRoonDisplayLyrics(event: RoonDisplayLyricsEvent): Promise<{ applied: boolean }>;
   getLocalLyricsMatch(): LocalLyricsMatchSnapshot;
   selectLocalLyricsMatch(matchSessionId: string, candidateId: string): Promise<LocalLyricsMatchSnapshot>;
   revokeLocalLyricsMatch(): Promise<LocalLyricsMatchSnapshot>;
@@ -757,6 +760,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     repository: lyricsMatchRepository,
   });
   let lyrics!: LyricsCoordinator;
+  const displayLyrics = new RoonDisplayLyricsStore();
   const manualLyrics = new LocalLyricsManualMatchController({
     repository: lyricsMatchRepository,
     reload: async (context) => {
@@ -772,6 +776,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     },
   });
   lyrics = new LyricsCoordinator({
+    localDisplay: displayLyrics,
     load: (trackId) => withProviderRecovery(() => netease.getLyrics(trackId)),
     localResolver: lyricsResolver,
     onLocalResolution: (context, resolution) => {
@@ -792,7 +797,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
 
   const removeControllerListener = controller.subscribe((snapshot) => {
     const lyricsContext = createLyricsRequestContext(snapshot, controller.getPlaybackGeneration());
-    manualLyrics.observeContext(lyricsContext?.kind === 'local' ? lyricsContext : undefined);
+    manualLyrics.observeContext(!displayLyrics.enabled && lyricsContext?.kind === 'local' ? lyricsContext : undefined);
     lyrics.onPlaybackChanged(snapshot, lyricsContext);
     emit({
       version: 1,
@@ -1078,9 +1083,24 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     refreshAccountProfile: refreshAccountProfileState,
     getDailyRecommendations: getDailyRecommendationSnapshot,
     getLyrics: (trackId) => lyrics.getLyrics(trackId),
-    getLocalLyricsMatch: () => manualLyrics.getSnapshot(),
-    selectLocalLyricsMatch: (matchSessionId, candidateId) =>
-      manualLyrics.select(matchSessionId, candidateId),
+    async updateRoonDisplayLyrics(event) {
+      displayLyrics.update(event);
+      const snapshot = controller.getPlaybackState();
+      const context = createLyricsRequestContext(snapshot, controller.getPlaybackGeneration());
+      if (event.type === 'reset') {
+        lyrics.clearLocalCache();
+        manualLyrics.observeContext(!displayLyrics.enabled && context?.kind === 'local' ? context : undefined);
+      }
+      if (context?.kind === 'local' && (event.type === 'reset' || event.zoneId === snapshot.selectedZoneId)) {
+        await lyrics.reloadActiveLocalLyrics(context);
+      }
+      return { applied: true };
+    },
+    getLocalLyricsMatch: () => displayLyrics.enabled ? { status: 'hidden', candidates: [], canRevoke: false } : manualLyrics.getSnapshot(),
+    selectLocalLyricsMatch: (matchSessionId, candidateId) => {
+      if (displayLyrics.enabled) return Promise.reject(new BridgeError('BAD_REQUEST', '当前本地歌词使用 Roon Web Display', { httpStatus: 409 }));
+      return manualLyrics.select(matchSessionId, candidateId);
+    },
     revokeLocalLyricsMatch: () => manualLyrics.revoke(),
     getPlaybackState: () => controller.getPlaybackState(),
     async playbackPlay(trackId, qualityPreference, rendererClickAtMs) {
@@ -1584,6 +1604,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
         tracks: pageOf(fixtureTracks, page),
       };
     },
+    async updateRoonDisplayLyrics() { return { applied: false }; },
     async getLyrics(trackId) {
       if (Number(trackId) % 2 === 0) return emptyLyricsSnapshot('unavailable');
       return {

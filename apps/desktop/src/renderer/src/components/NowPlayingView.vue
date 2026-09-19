@@ -193,7 +193,8 @@ const actualQualityDetail = computed(() => {
       </div>
 
       <div class="now-playing-lyrics" aria-label="歌词滚动区域">
-        <div v-if="props.lyricsSnapshot.source === 'netease' || props.localLyricsMatchState.status !== 'hidden'" class="now-playing-lyrics-toolbar">
+        <div v-if="props.lyricsSnapshot.source || props.localLyricsMatchState.status !== 'hidden'" class="now-playing-lyrics-toolbar">
+          <span v-if="props.lyricsSnapshot.source === 'roon-display'" class="lyrics-source-label">歌词来源：Roon Web Display</span>
           <span v-if="props.lyricsSnapshot.source === 'netease'" class="lyrics-source-label">歌词来源：网易云</span>
           <button
             v-if="props.localLyricsMatchState.status !== 'hidden'"
