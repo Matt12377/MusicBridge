@@ -760,7 +760,14 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     repository: lyricsMatchRepository,
   });
   let lyrics!: LyricsCoordinator;
-  const displayLyrics = new RoonDisplayLyricsStore();
+  const displayLyrics = new RoonDisplayLyricsStore(() => {
+    const observation = roon.getSelectedZonePlaybackObservation();
+    const identity = observation?.nowPlaying;
+    if (!observation || !identity?.title || (observation.state !== 'playing' && observation.state !== 'paused')) return undefined;
+    return { zoneId: observation.zoneId, track: {
+      title: identity.title, artist: identity.artist ?? '', album: identity.album ?? '', durationMs: identity.durationMs ?? 0,
+    } };
+  });
   const manualLyrics = new LocalLyricsManualMatchController({
     repository: lyricsMatchRepository,
     reload: async (context) => {

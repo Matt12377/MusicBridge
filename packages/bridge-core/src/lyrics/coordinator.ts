@@ -289,6 +289,15 @@ export class LyricsCoordinator {
       this.positionAnchorClockMs = undefined;
     }
 
+    // Display 和 Transport 是两条连接，歌词可能比用于身份佐证的播放观测先到。
+    // 只重试尚未匹配的 Display 快照，已匹配歌词不随每个进度事件重复解析。
+    if (context.kind === 'local' && this.options.localDisplay?.enabled && this.activeSnapshot.status === 'unavailable') {
+      const display = this.options.localDisplay.read(context);
+      if (display?.status === 'ready' || display?.status === 'instrumental') {
+        this.activeSnapshot = cloneSnapshot(display);
+        this.emit(true);
+      }
+    }
     this.activePlaybackState = snapshot.state;
 
     if (

@@ -43,6 +43,48 @@ test('切歌、无歌词、断连立即清空，重连不重放旧歌词', () =>
   store.update({ type: 'reset', enabled: false }); assert.equal(store.read(local), undefined);
 });
 
+test('Browse 多位制作人员与 Display 主艺人不一致时，必须有同设备 Transport 完整佐证', () => {
+  const creditsPlayback = { ...playback, currentTrack: { ...playback.currentTrack!, artists: [track.artist, '制作人员', '另一位作者'] } };
+  const credits = createLyricsRequestContext(creditsPlayback, 1)!;
+  assert.equal(credits.kind, 'local');
+  if (credits.kind !== 'local') return;
+  let transport: { zoneId: string; track: typeof track } | undefined;
+  const store = new RoonDisplayLyricsStore(() => transport);
+  store.update({ type: 'reset', enabled: true }); store.update(event);
+  assert.equal(store.read(credits)?.status, 'unavailable');
+  transport = { zoneId: 'zone1', track };
+  assert.equal(store.read(credits)?.status, 'ready');
+  for (const invalid of [
+    { zoneId: 'zone2', track },
+    { zoneId: 'zone1', track: { ...track, title: '另一首' } },
+    { zoneId: 'zone1', track: { ...track, artist: '不同艺人' } },
+    { zoneId: 'zone1', track: { ...track, album: '另一个版本' } },
+    { zoneId: 'zone1', track: { ...track, durationMs: 199000 } },
+  ]) {
+    transport = invalid;
+    assert.equal(store.read(credits)?.status, 'unavailable');
+  }
+  transport = { zoneId: 'zone1', track: { ...track, artist: '无关艺人' } };
+  store.update({ ...event, track: transport.track });
+  assert.equal(store.read(credits)?.status, 'unavailable');
+});
+
+test('Display 先到而 Transport 元数据迟到时，在后续播放观测中恢复歌词', async () => {
+  let observed = false;
+  const store = new RoonDisplayLyricsStore(() => observed ? { zoneId: 'zone1', track } : undefined);
+  store.update({ type: 'reset', enabled: true }); store.update(event);
+  const creditsPlayback = { ...playback, currentTrack: { ...playback.currentTrack!, artists: [track.artist, '制作人员'] } };
+  const credits = createLyricsRequestContext(creditsPlayback, 1)!;
+  const coordinator = new LyricsCoordinator({ localDisplay: store, load: async () => assert.fail('不应请求网易云') });
+  coordinator.onPlaybackChanged(creditsPlayback, credits); await turn();
+  assert.equal(coordinator.getSnapshot().status, 'unavailable');
+  observed = true;
+  coordinator.onPlaybackChanged({ ...creditsPlayback, positionMs: 14000 }, credits); await turn();
+  assert.equal(coordinator.getSnapshot().status, 'ready');
+  assert.equal(coordinator.getSnapshot().activeLineIndex, 1);
+  coordinator.shutdown();
+});
+
 test('歌词启用后绝不请求网易云；播放推进、暂停、设备切换与断连保持同步', async () => {
   let now = 1000;
   const store = new RoonDisplayLyricsStore(); store.update({ type: 'reset', enabled: true }); store.update(event);
