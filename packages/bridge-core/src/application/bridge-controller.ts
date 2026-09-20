@@ -96,6 +96,7 @@ export interface PlaybackStartupTrace {
   onStage(stage: PlaybackStartupStage, elapsedMs: number): void;
 }
 interface NativeRoonPlaybackPort {
+  resolveArtwork?(imageKey: string): string | undefined;
   play(reference: string, zoneId: string, track: TrackSummary): Promise<RoonPlaybackObservation>;
   stop(): Promise<void>;
   pause(): Promise<void>;
@@ -456,8 +457,8 @@ export class BridgeController {
       ...(this.lastPlaybackError ? { lastError: this.lastPlaybackError } : {}),
       ...(this.lastPlaybackIssue ? { lastIssue: this.lastPlaybackIssue } : {}),
       ...(this.qualityNotice ? { qualityNotice: this.qualityNotice } : {}),
-      canNext: hasNext,
-      canPrevious: hasPrevious,
+      canNext: hasNext || this.canNavigateNativeRoon('next'),
+      canPrevious: hasPrevious || this.canNavigateNativeRoon('previous'),
       canStop:
         this.activeToken !== undefined ||
         this.activePlayback !== undefined ||
@@ -659,6 +660,10 @@ export class BridgeController {
 
   async next(): Promise<BridgeState> {
     return this.enqueue(async () => {
+      this.syncNativeRoonTrack();
+      if (this.activeRoonPlayback && (this.queueIndex < 0 || this.queueIndex >= this.queue.length - 1)) {
+        return this.navigateNativeRoon('next');
+      }
       if (this.queueIndex < 0) return this.getState();
       const nextIndex = this.queueIndex + 1;
       await this.stopActive();
@@ -674,12 +679,47 @@ export class BridgeController {
 
   async previous(): Promise<BridgeState> {
     return this.enqueue(async () => {
+      this.syncNativeRoonTrack();
+      if (this.activeRoonPlayback && this.queueIndex <= 0) return this.navigateNativeRoon('previous');
       if (this.queueIndex <= 0) return this.getState();
       const previousIndex = this.queueIndex - 1;
       await this.stopActive();
       await this.startQueueIndex(previousIndex, true);
       return this.getState();
     });
+  }
+
+  private canNavigateNativeRoon(direction: 'next' | 'previous'): boolean {
+    const active = this.activeRoonPlayback;
+    const observation = this.dependencies.roon.getSelectedZonePlaybackObservation?.();
+    return Boolean(active && this.dependencies.roon.control && !this.nativeRoonStopRequested
+      && (this.playbackState === 'playing' || this.playbackState === 'paused')
+      && observation?.zoneId === active.zoneId
+      && this.dependencies.roon.getState().selectedZoneId === active.zoneId
+      && (observation?.state === 'playing' || observation?.state === 'paused')
+      && (direction === 'next' ? observation.canNext : observation.canPrevious) === true);
+  }
+
+  private async navigateNativeRoon(direction: 'next' | 'previous'): Promise<BridgeState> {
+    if (!this.canNavigateNativeRoon(direction)) return this.getState();
+    // 不先 stop，也不伪造队列索引；实际曲目与封面由后续 Transport 观测确认。
+    await this.dependencies.roon.control!(direction);
+    this.syncRoonTransportState();
+    return this.getState();
+  }
+
+  private applyNativeArtwork(track: TrackSummary, observation: RoonPlaybackObservation): boolean {
+    if (!observation.imageKey || !this.dependencies.roonLibrary?.resolveArtwork) return false;
+    try {
+      const reference = this.dependencies.roonLibrary.resolveArtwork(observation.imageKey);
+      if (!reference || track.artworkReference === reference) return false;
+      track.artworkReference = reference;
+      delete track.artworkUrl;
+      return true;
+    } catch {
+      // 封面不可用不阻断播放，原始图片键与内部错误不进入日志或公开状态。
+      return false;
+    }
   }
 
   async playQueueIndex(index: number): Promise<BridgeState> {
@@ -840,6 +880,9 @@ export class BridgeController {
     ) {
       this.playbackState = 'playing';
       this.notifyPlaybackChanged();
+    } else if (this.activeRoonPlayback) {
+      // 曲目未变化也可能更新原生上一首/下一首能力。
+      this.notifyPlaybackChanged();
     }
   }
 
@@ -864,11 +907,12 @@ export class BridgeController {
     if (timeEventMatchesTrack(observation, active.track) && !metadataChanged) {
       active.observedIdentity = { ...previousIdentity, ...identity };
       context.minimumRevision = observation.revision;
+      this.applyNativeArtwork(active.track, observation);
       return;
     }
 
     // Roon 原生队列可以直接从 playing 切到另一首 playing，不会先发 stopped。
-    // 唯一匹配已有队列项时复用其引用和封面；否则只跟随观测，不伪造可播放引用。
+    // 唯一匹配已有队列项时复用其引用；队列外仅跟随观测，不伪造可播放引用。
     const matches = this.queue.flatMap((item, index) => item.roonReference && item.roonZoneId === observation.zoneId
       && item.track && timeEventMatchesTrack(observation, item.track)
       && (!identity.artist || item.track.artists.some(artist => normalizedPlaybackIdentity(artist) === normalizedPlaybackIdentity(identity.artist!)))
@@ -883,6 +927,7 @@ export class BridgeController {
       album: identity.album || '未知专辑',
       ...(identity.durationMs !== undefined ? { durationMs: identity.durationMs } : {}),
     };
+    this.applyNativeArtwork(track, observation);
     this.queueIndex = index;
     if (item) item.resolvedSource = 'roon';
     this.activeRoonPlayback = { track, zoneId: observation.zoneId, observedIdentity: { ...identity },
@@ -1319,6 +1364,7 @@ export class BridgeController {
         && observation.nowPlaying?.durationMs !== undefined
         ? { ...track, durationMs: observation.nowPlaying.durationMs }
         : track;
+      this.applyNativeArtwork(confirmedTrack, observation);
       this.activeRoonPlayback = { track: confirmedTrack, reference, zoneId,
         ...(observation.nowPlaying ? { observedIdentity: { ...observation.nowPlaying } } : {}) };
       item.track = cloneTrackSummary(confirmedTrack);

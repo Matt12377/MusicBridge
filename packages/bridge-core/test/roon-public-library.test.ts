@@ -6,6 +6,37 @@ import { createRoonPublicLibrary } from '../src/roon/public-library.js';
 
 const JPEG_BYTES = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]);
 
+test('Transport 当前封面复用受控图片读取，引用去重且重连后失效，不产生可播放实体', async () => {
+  const imageKeys: string[] = [];
+  const makeService = () => createRoonLibraryService({
+    browse: { browse: () => assert.fail('读取当前封面不应搜索音乐库'), load: () => assert.fail('不应浏览音乐库') },
+    image: { get_image: (key, _options, callback) => {
+      imageKeys.push(key);
+      callback(false, 'image/jpeg', JPEG_BYTES);
+    } },
+  });
+  let service: RoonLibraryService | undefined = makeService();
+  const library = createRoonPublicLibrary(() => service);
+  const reference = library.registerNowPlayingArtwork('private-current-cover');
+  assert.match(reference, /^musicbridge-v2-image-/);
+  assert.doesNotMatch(reference, /private-current-cover/);
+  assert.equal(library.registerNowPlayingArtwork('private-current-cover'), reference);
+  assert.deepEqual((await library.getImage(reference)).body, new Uint8Array(JPEG_BYTES));
+  assert.deepEqual(imageKeys, ['private-current-cover']);
+  assert.throws(() => library.getTrackSummary(reference), { code: 'ROON_LIBRARY_INVALID_REFERENCE' });
+  for (const invalid of ['', ' ', 'x'.repeat(513)]) {
+    assert.throws(() => library.registerNowPlayingArtwork(invalid), { code: 'BAD_REQUEST' });
+  }
+  service = makeService();
+  const newReference = library.registerNowPlayingArtwork('private-current-cover');
+  assert.notEqual(newReference, reference);
+  await assert.rejects(library.getImage(reference), { code: 'ROON_LIBRARY_INVALID_REFERENCE' });
+  library.invalidateReferences();
+  await assert.rejects(library.getImage(newReference), { code: 'ROON_LIBRARY_INVALID_REFERENCE' });
+  service = undefined;
+  assert.throws(() => library.registerNowPlayingArtwork('private-current-cover'), { code: 'ROON_LIBRARY_UNAVAILABLE' });
+});
+
 test('Roon public library converts runtime item keys into scoped references', async () => {
   const service = createRoonLibraryService({
     browse: {

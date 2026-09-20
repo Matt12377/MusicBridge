@@ -361,6 +361,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     gateway,
     logger,
     roonLibrary: {
+      resolveArtwork: imageKey => roonLibrary.registerNowPlayingArtwork(imageKey),
       play: async (reference, zoneId, track) => {
         const selected = roon.getSelectedZonePlaybackObservation();
         if (!selected || selected.zoneId !== zoneId) {

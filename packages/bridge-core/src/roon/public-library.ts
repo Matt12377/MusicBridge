@@ -42,6 +42,8 @@ export interface RoonAlbumMetadata { title: string; artist?: string; year?: numb
 
 export interface RoonPublicLibrary {
   invalidateReferences(): void;
+  /** 仅 Core 调用；将 Transport 封面键接入已有受控图片读取链路。 */
+  registerNowPlayingArtwork(imageKey: string): string;
   /** Core 内部专辑元数据快照，不包含运行期引用或私有 Browse 身份。 */
   getAlbumSnapshot(reference: string): RoonAlbumMetadata;
   getTrackSnapshot(reference: string): DraftTrackMetadata;
@@ -426,6 +428,15 @@ export function createRoonPublicLibrary(
 
   return {
     invalidateReferences() { references.clear(); imageReferences.clear(); clearImageState(); referenceScope = randomUUID(); activeService = undefined; },
+    registerNowPlayingArtwork(imageKey) {
+      service();
+      if (typeof imageKey !== 'string' || imageKey.trim().length === 0 || imageKey.length > 512) {
+        throw new BridgeError('BAD_REQUEST', 'Roon 当前封面引用无效', { httpStatus: 400 });
+      }
+      const reference = createToken('image', referenceScope, imageKey);
+      addReference(imageReferences, reference, imageKey);
+      return reference;
+    },
     getAlbumSnapshot(reference) {
       service();
       const descriptor = resolveAlbum(reference);

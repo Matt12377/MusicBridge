@@ -1,4 +1,19 @@
 {
+  "roonContinuation20260920": {
+    "branch": "codex/roon-continuation-controls",
+    "baseCommit": "492b19026f51ffabd56d3bed28f6a453da34a4d5",
+    "state": "implemented-verified-install-pending",
+    "scope": "native-roon-continuation-artwork-and-transport-navigation",
+    "focusedTestsPassed": 222,
+    "testConcurrency": 1,
+    "syntheticUiE2E": "pass-cover-decoding-and-next-previous-clicks-with-queue-index-minus-one",
+    "coreAndDesktopTypecheck": "pass",
+    "productionBuild": "pass",
+    "realPlaybackValidation": "not-performed",
+    "installedApp": "pending-owner-authorized-replacement",
+    "githubPush": "not-performed",
+    "report": "reports/ROON_CONTINUATION_2026-09-20.md"
+  },
   "roonDisplayLyrics20260919": {
     "branch": "codex/roon-display-lyrics",
     "baseCommit": "2e1a344afcde1d64c446e04e62312f7564139c2b",

@@ -137,6 +137,12 @@ class FakeNetease implements NeteasePort {
 }
 
 class FakeRoon implements RoonPort {
+  readonly controlCalls: string[] = [];
+  controlError: Error | undefined;
+  async control(command: 'play' | 'pause' | 'playpause' | 'stop' | 'previous' | 'next'): Promise<void> {
+    if (this.controlError) throw this.controlError;
+    this.controlCalls.push(command);
+  }
   playRequest: RoonPlayRequest | undefined;
   readonly playRequests: RoonPlayRequest[] = [];
   stopCalls = 0;
@@ -287,6 +293,8 @@ class FakeRoon implements RoonPort {
 }
 
 class FakeNativeRoonLibrary {
+  artworkReference = 'musicbridge-v2-image-22222222-2222-4222-8222-222222222222';
+  resolveArtwork(_imageKey: string): string { return this.artworkReference; }
   readonly playCalls: Array<{ reference: string; zoneId: string }> = [];
   readonly seekCalls: number[] = [];
   stopCalls = 0;
@@ -1606,6 +1614,81 @@ test('Roon 续播应用队列外歌曲时显示真实元数据，不沿用旧封
   controller.handleRoonPlaybackState('stopped');
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(nativeRoon.playCalls.length, 1);
+});
+
+test('Roon 队列外续播读取当前封面和原生导航，发送控制而不停止或重播旧队列', async () => {
+  const { controller, roon, nativeRoon } = makeHarness();
+  await controller.playRoon({ reference: 'first', zoneId: 'zone-1', track: {
+    id: '9051', title: '应用单曲', artists: ['艺人'], album: '专辑',
+  } });
+  roon.nativeObservation = { revision: 2, zoneId: 'zone-1', state: 'playing',
+    canNext: true, canPrevious: true, imageKey: 'private-current-image',
+    nowPlaying: { title: 'Roon 续播曲目', artist: '艺人', album: '另一专辑' } };
+  controller.syncRoonTransportState();
+  const snapshot = controller.getPlaybackState();
+  assert.equal(snapshot.currentTrack?.artworkReference, nativeRoon.artworkReference);
+  assert.equal(snapshot.canNext, true);
+  assert.equal(snapshot.canPrevious, true);
+  assert.equal(snapshot.queue.index, -1);
+  assert.equal(snapshot.queue.hasNext, false);
+  assert.equal(snapshot.queue.hasPrevious, false);
+  assert.doesNotMatch(JSON.stringify(snapshot), /private-current-image/);
+  assert.equal(validateIpcEvent({ version: 1, event: 'playback.changed', payload: { state: snapshot } }).ok, true);
+  await controller.next();
+  await controller.previous();
+  assert.deepEqual(roon.controlCalls, ['next', 'previous']);
+  assert.equal(nativeRoon.stopCalls, 0);
+  assert.equal(nativeRoon.playCalls.length, 1);
+  assert.equal(controller.getPlaybackState().currentTrack?.id, snapshot.currentTrack?.id);
+
+  // 同一首的封面与权限迟到或变化，也必须通知界面，不重新生成曲目身份。
+  const updates: Array<{ canNext: boolean; artwork: string | undefined }> = [];
+  const unsubscribe = controller.subscribe(s => updates.push({ canNext: s.canNext, artwork: s.currentTrack?.artworkReference }));
+  nativeRoon.artworkReference = 'musicbridge-v2-image-33333333-3333-4333-8333-333333333333';
+  roon.nativeObservation = { ...roon.nativeObservation, revision: 3, imageKey: 'new-image', canNext: false };
+  controller.syncRoonTransportState();
+  assert.equal(updates.at(-1)?.canNext, false);
+  assert.equal(updates.at(-1)?.artwork, nativeRoon.artworkReference);
+  assert.equal(controller.getPlaybackState().currentTrack?.id, snapshot.currentTrack?.id);
+  await controller.next();
+  assert.deepEqual(roon.controlCalls, ['next', 'previous']);
+  assert.equal(nativeRoon.stopCalls, 0);
+  // 切换设备不可控制另一个设备，也不可将其封面接入旧歌曲。
+  roon.state = { ...roon.state, selectedZoneId: 'zone-2' };
+  roon.nativeObservation = { ...roon.nativeObservation, revision: 4, zoneId: 'zone-2', canNext: true };
+  controller.syncRoonTransportState();
+  assert.equal(controller.getPlaybackState().canNext, false);
+  await controller.previous();
+  assert.deepEqual(roon.controlCalls, ['next', 'previous']);
+  unsubscribe();
+});
+
+test('本地单曲在应用队列边界可用 Roon 导航，多曲队列优先按应用顺序切换', async () => {
+  const { controller, roon, nativeRoon } = makeHarness();
+  const tracks = ['甲', '乙'].map((title, index) => ({ reference: `nav-${index}`, zoneId: 'zone-1',
+    track: { id: String(9061 + index), title, artists: ['艺人'], album: '专辑' } }));
+  await controller.replaceRoonQueue(tracks, 0);
+  roon.nativeObservation = { revision: 2, zoneId: 'zone-1', state: 'playing', canNext: true, canPrevious: true };
+  assert.equal(controller.getPlaybackState().canPrevious, true);
+  await controller.next();
+  assert.equal(nativeRoon.playCalls.at(-1)?.reference, 'nav-1');
+  assert.deepEqual(roon.controlCalls, []);
+  await controller.next();
+  assert.deepEqual(roon.controlCalls, ['next']);
+  await controller.previous();
+  assert.equal(nativeRoon.playCalls.at(-1)?.reference, 'nav-0');
+});
+
+test('Roon 原生导航失败保留当前歌曲和封面，不伪造切换成功', async () => {
+  const { controller, roon } = makeHarness();
+  await controller.playRoon({ reference: 'native', zoneId: 'zone-1', track: {
+    id: '9071', title: '原歌曲', artists: [], album: '专辑',
+  } });
+  roon.nativeObservation = { revision: 2, zoneId: 'zone-1', state: 'playing', canNext: true };
+  roon.controlError = new BridgeError('ROON_TIMEOUT', '合成控制超时', { httpStatus: 502 });
+  await assert.rejects(controller.next(), { code: 'ROON_TIMEOUT' });
+  assert.equal(controller.getPlaybackState().currentTrack?.id, '9071');
+  assert.equal(controller.getPlaybackState().state, 'playing');
 });
 
 test('Roon 新歌曲已开始后，排队中的旧 stopped 回调不能再推进一次', async () => {

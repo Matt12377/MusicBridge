@@ -19,6 +19,7 @@ export interface RoonZone {
   is_next_allowed?: boolean;
   is_seek_allowed?: boolean;
   now_playing?: {
+    image_key?: string;
     seek_position?: number;
     length?: number;
     one_line?: { line1?: string };

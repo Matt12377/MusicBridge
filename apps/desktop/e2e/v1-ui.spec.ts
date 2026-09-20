@@ -2812,10 +2812,18 @@ test('搜索原生曲目连续点击只派发一次播放，失败后可以重�
 })
 
 test('Roon 自动续播事件更新底栏及正在播放页，不残留第一首元数据', async () => {
+  const cover = Array.from(await readFile(path.join(desktopRoot, '../../prototypes/sakura-glass/assets/cover-1.jpg')))
+  await electronApp.evaluate(({ ipcMain }, coverBytes) => {
+    ipcMain.removeHandler('roon:library:image')
+    ipcMain.handle('roon:library:image', () => ({ ok: true, value: { contentType: 'image/jpeg', body: Uint8Array.from(coverBytes) } }))
+    const calls: string[] = []
+    ;(globalThis as typeof globalThis & { continuationControls: string[] }).continuationControls = calls
+  }, cover)
   const tracks = [
     { id: '9101', title: '本地第一首', artists: ['甲艺人'], album: '甲专辑', durationMs: 180_000 },
     { id: '9102', title: '本地第二首', artists: ['乙艺人'], album: '乙专辑', durationMs: 240_000 },
-    { id: '9103', title: 'Roon 队列外歌曲', artists: ['丙艺人'], album: '丙专辑', durationMs: 210_000 },
+    { id: '9103', title: 'Roon 队列外歌曲', artists: ['丙艺人'], album: '丙专辑', durationMs: 210_000,
+      artworkReference: 'musicbridge-v2-image-44444444-4444-4444-8444-444444444444' },
   ]
   const publish = async (index: number) => electronApp.evaluate(({ BrowserWindow, ipcMain }, input) => {
     const snapshot = {
@@ -2823,10 +2831,17 @@ test('Roon 自动续播事件更新底栏及正在播放页，不残留第一首
       queue: { items: input.tracks.slice(0, 2).map(track => ({ trackId: track.id, track, qualityPreference: 'auto', preferredSource: 'roon', resolvedSource: 'roon' })),
         index: input.index < 2 ? input.index : -1, hasNext: input.index === 0, hasPrevious: input.index === 1 },
       positionMs: 2000, actualQuality: 'unknown', selectedZoneId: 'synthetic-zone',
-      canNext: input.index === 0, canPrevious: input.index === 1, canStop: true, canPause: true, canResume: false,
+      canNext: input.index !== 1, canPrevious: input.index !== 0, canStop: true, canPause: true, canResume: false,
     }
     ipcMain.removeHandler('playback:get-state')
     ipcMain.handle('playback:get-state', () => snapshot)
+    for (const command of ['next', 'previous']) {
+      ipcMain.removeHandler(`playback:${command}`)
+      ipcMain.handle(`playback:${command}`, () => {
+        ;(globalThis as typeof globalThis & { continuationControls: string[] }).continuationControls.push(command)
+        return snapshot
+      })
+    }
     BrowserWindow.getAllWindows()[0]?.webContents.send('core:event', { version: 1, event: 'playback.changed', payload: { state: snapshot } })
   }, { tracks, index })
   await publish(0)
@@ -2839,10 +2854,18 @@ test('Roon 自动续播事件更新底栏及正在播放页，不残留第一首
   await publish(2)
   await expect(page.locator('.now-playing-fullscreen')).toContainText('Roon 队列外歌曲')
   await expect(page.locator('.now-playing-fullscreen')).toContainText('丙专辑')
+  await expect.poll(() => page.locator('.now-playing-art img').evaluate(image => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
+  await expect(page.locator('.now-playing-fullscreen').getByRole('button', { name: '上一首', exact: true })).toBeEnabled()
+  await expect(page.locator('.now-playing-fullscreen').getByRole('button', { name: '下一首', exact: true })).toBeEnabled()
+  await page.locator('.now-playing-fullscreen').getByRole('button', { name: '下一首', exact: true }).click()
+  await page.locator('.now-playing-fullscreen').getByRole('button', { name: '上一首', exact: true }).click()
+  await expect.poll(() => electronApp.evaluate(() => (globalThis as typeof globalThis & { continuationControls: string[] }).continuationControls)).toEqual(['next', 'previous'])
   await page.getByRole('button', { name: '退出全屏播放' }).click()
   await expect(page.locator('.global-player')).toContainText('Roon 队列外歌曲')
   await expect(page.locator('.global-player')).not.toContainText('本地第一首')
   await expect(page.locator('.global-player')).toContainText('3:30')
+  await expect(page.locator('.global-player').getByRole('button', { name: '上一首', exact: true })).toBeEnabled()
+  await expect(page.locator('.global-player').getByRole('button', { name: '下一首', exact: true })).toBeEnabled()
   await expect(page.locator('.home-view').getByRole('button', { name: '播放 Roon 队列外歌曲', exact: true })).toHaveCount(0)
 })
 

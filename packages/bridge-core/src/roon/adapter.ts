@@ -1246,12 +1246,17 @@ export class RoonAudioInputAdapter implements RoonPort {
     if (!zone) return undefined;
     const positionMs = readZonePositionMs(zone);
     const nowPlaying = readZoneNowPlaying(zone);
+    const imageKey = zone.now_playing?.image_key;
     return {
       revision: this.zoneRevision,
       zoneId: zone.zone_id,
       ...(zone.state ? { state: zone.state } : {}),
       ...(positionMs !== undefined ? { positionMs } : {}),
       ...(nowPlaying ? { nowPlaying } : {}),
+      ...(typeof imageKey === 'string' && imageKey.trim().length > 0 && imageKey.length <= 512
+        ? { imageKey } : {}),
+      canNext: zone.is_next_allowed === true,
+      canPrevious: zone.is_previous_allowed === true,
     };
   }
 

@@ -58,6 +58,10 @@ export interface RoonPlaybackObservation {
   state?: RoonNativePlaybackState;
   positionMs?: number;
   nowPlaying?: RoonNowPlayingIdentity;
+  /** 仅 Core 内部使用，映射为不透明封面引用后才能进入公开快照。 */
+  imageKey?: string;
+  canNext?: boolean;
+  canPrevious?: boolean;
 }
 
 export interface RoonPlaybackConfirmationRequest {

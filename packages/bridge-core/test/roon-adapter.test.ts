@@ -497,6 +497,28 @@ async function nextTurn(): Promise<void> {
   await new Promise<void>((resolve) => setImmediate(resolve));
 }
 
+test('当前 Zone 观测包含有界封面键及真实导航能力，缺失字段不沿用旧值', async () => {
+  const { adapter, api } = await makeReadyHarness();
+  const zone = { zone_id: 'zone-1', state: 'playing', outputs: [{ output_id: 'output-1' }],
+    is_next_allowed: true, is_previous_allowed: false,
+    now_playing: { three_line: { line1: '合成续播歌曲' }, image_key: 'private-transport-image' } };
+  api.core.transport.emit('Changed', { zones_changed: [zone] });
+  const observed = adapter.getSelectedZonePlaybackObservation();
+  assert.equal(observed?.imageKey, 'private-transport-image');
+  assert.equal(observed?.canNext, true);
+  assert.equal(observed?.canPrevious, false);
+  assert.doesNotMatch(JSON.stringify(adapter.getState()), /private-transport-image/);
+  await adapter.control('next');
+  await assert.rejects(adapter.control('previous'), { code: 'ROON_TRANSPORT_UNAVAILABLE' });
+  for (const imageKey of ['', ' ', 'x'.repeat(513), undefined]) {
+    api.core.transport.emit('Changed', { zones_changed: [{ ...zone, is_next_allowed: undefined,
+      now_playing: { ...zone.now_playing, image_key: imageKey } }] });
+    assert.equal(adapter.getSelectedZonePlaybackObservation()?.imageKey, undefined);
+    assert.equal(adapter.getSelectedZonePlaybackObservation()?.canNext, false);
+  }
+  await adapter.shutdown();
+});
+
 async function startSecondPlayback(
   adapter: RoonAudioInputAdapter,
   api: FakeApi,
