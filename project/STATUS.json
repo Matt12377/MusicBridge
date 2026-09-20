@@ -2,7 +2,8 @@
   "roonContinuation20260920": {
     "branch": "codex/roon-continuation-controls",
     "baseCommit": "492b19026f51ffabd56d3bed28f6a453da34a4d5",
-    "state": "implemented-verified-install-pending",
+    "state": "implemented-installed-ordinary-startup-verified-real-continuation-pending",
+    "implementationCommit": "578c1be448f3389656fa341a053dc88e1a969f29",
     "scope": "native-roon-continuation-artwork-and-transport-navigation",
     "focusedTestsPassed": 222,
     "testConcurrency": 1,
@@ -10,7 +11,11 @@
     "coreAndDesktopTypecheck": "pass",
     "productionBuild": "pass",
     "realPlaybackValidation": "not-performed",
-    "installedApp": "pending-owner-authorized-replacement",
+    "installedApp": "/Applications/Music Bridge for Roon.app",
+    "installedAsarSha256": "fb0e1bca67efaec3beb5a818183e94524b2f745936de91e7e272a89402c45a8d",
+    "packagedAndInstalledStartup": "pass-isolated-synthetic-mock-keychain",
+    "ordinaryStartup": "pass-real-library-and-selected-output-visible",
+    "signature": "ad-hoc-integrity-verified-not-notarized",
     "githubPush": "not-performed",
     "report": "reports/ROON_CONTINUATION_2026-09-20.md"
   },
