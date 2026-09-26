@@ -59,6 +59,14 @@
 
 远端 Electron E2E 已按约定只读观察约八分钟，未触发重跑；其后续结论须按该 run 的实际完成状态另行核对，不倒填为本报告快照的成功。
 
+### 完成后只读复核（不改写 10:37 UTC 历史快照）
+
+本报告首次提交 `894ab8168969234588d8b0146a4fa20d00f4f118` 已推送；上表保留首次成文时的状态。随后只读核对确认 [electron-e2e run #36235829560](https://github.com/Matt12377/MusicBridge/actions/runs/36235829560) 的 `headSha` 仍为实现提交 `1daefda790c32948663dc76ddbf75fbe1fdc319e`，于 2026-09-26 10:37:55 UTC 完成，结论 **failure**。Node 22、冻结依赖安装、Electron 启动/崩溃恢复/safeStorage 门禁和 E2E 步骤内的生产构建成功；Playwright 单 worker 共 99 项，94 pass、1 fail、4 skip，E2E 步骤 exit 1。因此远端完整 Electron E2E Gate 未通过；另两条 security 与 verify workflow 的 success 仍各自成立。
+
+唯一失败是 `apps/desktop/e2e/task-067.spec.ts:44` 的 outbox 回执落盘故障注入用例。在库存总数为 1、outbox 唯一条目状态为 `uncertain` 的前置断言之后，`task-067.spec.ts:53` 的 `page.reload()` 等待默认 `load` 超过 30 秒；日志显示已导航至 `musicbridge://app/index.html`。它未执行刷新后“不自动投递”、人工恢复及库存幂等的后续断言，故不能据此宣称该完整用例通过，也不能把超时直接解释为这些业务断言失败。base 的 [run #36232275521](https://github.com/Matt12377/MusicBridge/actions/runs/36232275521) 中同一用例通过（13.9 秒）；`task-067.spec.ts` 与 `main-window.ts` 在 base 到实现提交间无差异。一次通过与一次超时不足以判定根因，更不能定性为 CI 偶发、基础设施无害或本轮生产回归；保留为独立 carryover。当前 run 的 `v1-ui.spec.ts` 项均通过，包括迁移的六处旧夹具。未重跑 CI、下载 artifact、修改实现代码或操作本机 App。
+
+本次补充报告提交仍以**包含本文件最终版本的提交**解析；不能把首次报告提交 `894ab816`、实现提交或本机安装来源混作补充报告 HEAD。下一分支基线仍须在补充报告提交并核对远端后取最终 HEAD。
+
 ## 本机 App 更新
 
 Owner 已在本轮本地验证后另行授权更新本机 App；部署执行方独立交付以下证据，来源为实现提交 `1daefda790c32948663dc76ddbf75fbe1fdc319e`，不把部署归给尚未产生的报告提交。

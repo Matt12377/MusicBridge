@@ -7,6 +7,7 @@
     "implementationCommit": "1daefda790c32948663dc76ddbf75fbe1fdc319e",
     "reportCommit": null,
     "reportCommitResolution": "commit-containing-reports/ROON_DISPLAY_FAVORITES_FIXES_2026-09-26.md",
+    "previousPushedReportCommit": "894ab8168969234588d8b0146a4fa20d00f4f118",
     "report": "reports/ROON_DISPLAY_FAVORITES_FIXES_2026-09-26.md",
     "validation": {
       "desktopFocused": "36-pass-exit-0",
@@ -24,7 +25,16 @@
       "installedSyntheticStartup": "packaged-and-installed-pass-exit-0-mock-keychain",
       "ordinaryStartup": "open-exit-0-processes-and-launchservices-checkin-observed-window-ui-not-confirmed",
       "realPlaybackAndOwnerAcceptance": "not-run",
-      "remoteCIForImplementationCommit": "security-and-verify-success-electron-e2e-in-progress"
+      "remoteCIForImplementationCommit": "security-and-verify-success-electron-e2e-failure-94-pass-1-fail-4-skip"
+    },
+    "remoteElectronE2EForImplementationCommit": {
+      "runId": 36235829560,
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/36235829560",
+      "headCommit": "1daefda790c32948663dc76ddbf75fbe1fdc319e",
+      "result": "failure-94-pass-1-fail-4-skip-exit-1-single-worker",
+      "failure": "task-067.spec.ts:53-page.reload-waiting-for-load-timeout-30000ms-after-navigation-cause-undetermined",
+      "postReloadBusinessAssertions": "not-reached",
+      "retest": "not-run"
     },
     "baseRemoteElectronE2E": {
       "runId": 36232275521,
@@ -41,7 +51,7 @@
       "signature": "adhoc-deep-strict-verified-not-notarized"
     },
     "nextBranchBaseline": "commit-containing-reports/ROON_DISPLAY_FAVORITES_FIXES_2026-09-26.md",
-    "push": "implementation-pushed-report-pending-at-report-snapshot"
+    "push": "implementation-and-initial-report-894ab816-pushed-supplement-pending"
   },
   "rendererDecoupling20260926": {
     "branch": "codex/renderer-decoupling",
