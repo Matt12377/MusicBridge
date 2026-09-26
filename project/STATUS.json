@@ -1,4 +1,30 @@
 {
+  "rendererDecoupling20260926": {
+    "branch": "codex/renderer-decoupling",
+    "baseCommit": "77d05886888d0b9e9a9a8b90605097e8d0259de4",
+    "state": "implemented-synthetic-gates-passed-runtime-acceptance-pending",
+    "scope": "renderer-session-boundaries-and-core-event-projection",
+    "implementationCommit": "96e05737368149c21b0a2432b59aa7818fa8615b",
+    "reportCommit": null,
+    "reportCommitResolution": "commit-containing-reports/RENDERER_DECOUPLING_2026-09-26.md",
+    "report": "reports/RENDERER_DECOUPLING_2026-09-26.md",
+    "validation": {
+      "contractsAll": "191-pass-exit-0",
+      "coreAllBeforePublisherRetryFix": "1367-pass-1-skip-exit-0",
+      "coreFocusedAfterPublisherRetryFix": "112-pass-exit-0",
+      "desktopFocusedAfterFavoriteIpcFix": "67-pass-exit-0",
+      "desktopAllAfterFavoriteIpcFix": "740-pass-exit-0",
+      "contractsCoreDesktopTypecheck": "pass-exit-0-each-e2e-tsc-rechecked-after-assertion-migration",
+      "contractsCoreDesktopBuild": "pass-exit-0-each-serial",
+      "affectedSyntheticE2E": "20-pass-exit-0-single-worker",
+      "staticGates": "control-plane-pass-boundaries-pass-cycles-pass-288-files",
+      "diffCheck": "pass-exit-0",
+      "realProviderAndRoonPlayback": "not-run",
+      "installedAppAndOwnerAcceptance": "not-run",
+      "remoteCI": "not-run-at-report-snapshot"
+    },
+    "push": "not-performed-at-report-snapshot"
+  },
   "roonContinuation20260920": {
     "branch": "codex/roon-continuation-controls",
     "baseCommit": "492b19026f51ffabd56d3bed28f6a453da34a4d5",
