@@ -1,4 +1,48 @@
 {
+  "roonDisplayFavoritesFixes20260926": {
+    "branch": "codex/roon-display-favorites-fixes",
+    "baseCommit": "5c61cd5afe18b37a7f51cf587cc833cab052ffdf",
+    "state": "implemented-installed-synthetic-startup-passed-real-acceptance-pending",
+    "scope": "roon-display-connection-protocol-and-playback-favorite-source-switching",
+    "implementationCommit": "1daefda790c32948663dc76ddbf75fbe1fdc319e",
+    "reportCommit": null,
+    "reportCommitResolution": "commit-containing-reports/ROON_DISPLAY_FAVORITES_FIXES_2026-09-26.md",
+    "report": "reports/ROON_DISPLAY_FAVORITES_FIXES_2026-09-26.md",
+    "validation": {
+      "desktopFocused": "36-pass-exit-0",
+      "desktopAll": "763-pass-exit-0-single-process",
+      "coreDisplayFocused": "11-pass-exit-0-core-source-unchanged",
+      "contractsCoreDesktopTypecheck": "pass-exit-0-each-including-desktop-vue-and-e2e-ts",
+      "e2eTypecheckAfterFixtureMigration": "pass-exit-0",
+      "contractsCoreDesktopBuild": "pass-exit-0-each-serial",
+      "displayElectronLoopbackGate": "pass-exit-0-sandbox-no-preload-same-server-reconnect-persistence",
+      "affectedSyntheticE2E": "15-pass-exit-0-single-worker-not-full-e2e",
+      "staticGates": "control-plane-pass-boundaries-pass-cycles-pass-288-files",
+      "diffCheck": "pass-exit-0",
+      "jsonValidation": "pass-exit-0",
+      "realProviderAndRoonPlayback": "not-run",
+      "installedSyntheticStartup": "packaged-and-installed-pass-exit-0-mock-keychain",
+      "ordinaryStartup": "open-exit-0-processes-and-launchservices-checkin-observed-window-ui-not-confirmed",
+      "realPlaybackAndOwnerAcceptance": "not-run",
+      "remoteCIForImplementationCommit": "security-and-verify-success-electron-e2e-in-progress"
+    },
+    "baseRemoteElectronE2E": {
+      "runId": 36232275521,
+      "headCommit": "5c61cd5afe18b37a7f51cf587cc833cab052ffdf",
+      "result": "failure-87-pass-6-fail-4-skip-stale-fixtures"
+    },
+    "acceptedBoundary": "preserve-current-lyrics-display-late-unidentified-LyricsChanged-not-fixed",
+    "deployment": {
+      "sourceCommit": "1daefda790c32948663dc76ddbf75fbe1fdc319e",
+      "installTarget": "/Applications/Music Bridge for Roon.app",
+      "installedAsarSha256": "a13c7e7c08caaea15a3c9e8623e1359aed9405ed6d1046406ee894bab9c235ec",
+      "backupPath": "/Volumes/LifeWeave/Developer/CommandLine/Backups/MusicBridge/2026-09-26-9leUJG/Music Bridge for Roon.app",
+      "oldAsarSha256": "fb0e1bca67efaec3beb5a818183e94524b2f745936de91e7e272a89402c45a8d",
+      "signature": "adhoc-deep-strict-verified-not-notarized"
+    },
+    "nextBranchBaseline": "commit-containing-reports/ROON_DISPLAY_FAVORITES_FIXES_2026-09-26.md",
+    "push": "implementation-pushed-report-pending-at-report-snapshot"
+  },
   "rendererDecoupling20260926": {
     "branch": "codex/renderer-decoupling",
     "baseCommit": "77d05886888d0b9e9a9a8b90605097e8d0259de4",
