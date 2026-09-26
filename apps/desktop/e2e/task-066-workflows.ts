@@ -55,7 +55,7 @@ export async function verifyInactiveWindowRestore(session: Task066E2eSession): P
   const search = page.getByRole('searchbox', { name: '搜索歌曲或歌手' })
   await search.fill('synthetic')
   await expect(page.getByText('Synthetic Track 1', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: '播放 Synthetic Track 1', exact: true }).click()
+  await page.getByRole('button', { name: '播放 Synthetic Track 1 · Synthetic Artist', exact: true }).click()
   await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
   await expect.poll(async () => (await page.evaluate(() => window.musicBridge.getPlaybackState())).state).toBe('playing')
 

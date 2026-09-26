@@ -46,7 +46,7 @@ const syntheticCoverSvg = `
   </svg>
 `
 
-function sourceButton(source: 'home' | 'liked' | 'playlists') {
+function sourceButton(source: 'home' | 'roon-favorites') {
   return page.locator(`[data-sidebar-source="${source}"]`)
 }
 
@@ -105,32 +105,62 @@ test('六项修复：收藏封面与打开播放、专辑播放全部、零专�
   await expect(page.getByRole('heading', { name: '收藏验收艺人', exact: true })).toBeVisible()
   await page.locator('[aria-labelledby="roon-artist-heading"] .back-link').click()
   await expect(page.getByRole('heading', { name: '收藏', exact: true })).toBeVisible()
-  for (const theme of ['light', 'dark']) {
-    await page.evaluate(value => { document.documentElement.dataset.theme = value }, theme)
-    for (const width of [1980, 1440, 720]) {
-      await page.setViewportSize({ width, height: 820 })
-      // 截图须等待主题和侧栏宽度的有限 CSS 过渡结束，不能把中间帧当最终外观。
-      await page.evaluate(async () => {
-        await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
-        await Promise.all(document.getAnimations().filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity).map(animation => animation.finished.catch(() => undefined)))
-      })
-      const layout = await page.evaluate(() => {
-        const player = document.querySelector('.global-player')!, rect = player.getBoundingClientRect(), style = getComputedStyle(player)
-        const children = [...player.querySelectorAll('button,input')].map(e => e.getBoundingClientRect())
-        const center = (selector: string) => { const r = document.querySelector(selector)!.getBoundingClientRect(); return r.top + r.height / 2 }
-        return { background: style.backgroundColor, blur: style.backdropFilter, padding: getComputedStyle(document.querySelector('[aria-labelledby="roon-favorites-heading"]')!).paddingBottom,
-          art: document.querySelector('.favorite-entity-art')!.getBoundingClientRect().width,
-          overflow: document.documentElement.scrollWidth > innerWidth,
-          fits: children.every(r => r.left >= rect.left && r.right <= rect.right + 1 && r.top >= rect.top && r.bottom <= rect.bottom + 1),
-          center: rect.top + rect.height / 2, trackCenter: center('.player-track'), metaCenter: center('.player-meta') }
-      })
-      expect(layout.background).toMatch(/rgba\(.+, 0\.[0-6]/)
-      expect(layout.blur).toContain('blur(24px)')
-      expect(layout.padding).toBe('24px'); expect(layout.art).toBeGreaterThanOrEqual(180)
-      expect(layout.overflow).toBe(false); expect(layout.fits).toBe(true)
-      if (width > 1350) { expect(Math.abs(layout.center - layout.trackCenter)).toBeLessThan(3); expect(Math.abs(layout.center - layout.metaCenter)).toBeLessThan(3) }
-      await page.screenshot({ path: test.info().outputPath(`favorites-${theme}-${width}.png`) })
+  const transparencyMedia = await page.context().newCDPSession(page)
+  const originalTheme = await page.evaluate(() => document.documentElement.dataset.theme)
+  const originalReducedTransparency = await page.evaluate(() => matchMedia('(prefers-reduced-transparency: reduce)').matches)
+  try {
+    await transparencyMedia.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-transparency', value: 'no-preference' }] })
+    await expect.poll(() => page.evaluate(() => ({
+      reduce: matchMedia('(prefers-reduced-transparency: reduce)').matches,
+      normal: matchMedia('(prefers-reduced-transparency: no-preference)').matches,
+    }))).toEqual({ reduce: false, normal: true })
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(value => { document.documentElement.dataset.theme = value }, theme)
+      for (const width of [1980, 1440, 720]) {
+        await page.setViewportSize({ width, height: 820 })
+        // 截图须等待主题和侧栏宽度的有限 CSS 过渡结束，不能把中间帧当最终外观。
+        await page.evaluate(async () => {
+          await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+          await Promise.all(document.getAnimations().filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity).map(animation => animation.finished.catch(() => undefined)))
+        })
+        const layout = await page.evaluate(() => {
+          const player = document.querySelector('.global-player')!, rect = player.getBoundingClientRect(), style = getComputedStyle(player)
+          const children = [...player.querySelectorAll('button,input')].map(e => e.getBoundingClientRect())
+          const center = (selector: string) => { const r = document.querySelector(selector)!.getBoundingClientRect(); return r.top + r.height / 2 }
+          return { background: style.backgroundColor, blur: style.backdropFilter, padding: getComputedStyle(document.querySelector('[aria-labelledby="roon-favorites-heading"]')!).paddingBottom,
+            art: document.querySelector('.favorite-entity-art')!.getBoundingClientRect().width,
+            overflow: document.documentElement.scrollWidth > innerWidth,
+            fits: children.every(r => r.left >= rect.left && r.right <= rect.right + 1 && r.top >= rect.top && r.bottom <= rect.bottom + 1),
+            center: rect.top + rect.height / 2, trackCenter: center('.player-track'), metaCenter: center('.player-meta') }
+        })
+        expect(layout.background).toMatch(/rgba\(.+, 0\.[0-6]/)
+        expect(layout.blur).toContain('blur(24px)')
+        expect(layout.padding).toBe('24px'); expect(layout.art).toBeGreaterThanOrEqual(180)
+        expect(layout.overflow).toBe(false); expect(layout.fits).toBe(true)
+        if (width > 1350) { expect(Math.abs(layout.center - layout.trackCenter)).toBeLessThan(3); expect(Math.abs(layout.center - layout.metaCenter)).toBeLessThan(3) }
+        await page.screenshot({ path: test.info().outputPath(`favorites-${theme}-${width}.png`) })
+      }
     }
+    await transparencyMedia.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-transparency', value: 'reduce' }] })
+    await expect.poll(() => page.evaluate(() => ({
+      reduce: matchMedia('(prefers-reduced-transparency: reduce)').matches,
+      normal: matchMedia('(prefers-reduced-transparency: no-preference)').matches,
+    }))).toEqual({ reduce: true, normal: false })
+    for (const [theme, background] of [['light', 'rgb(245, 242, 247)'], ['dark', 'rgb(48, 52, 64)']] as const) {
+      await page.evaluate(value => { document.documentElement.dataset.theme = value }, theme)
+      await expect(page.locator('.global-player')).toHaveCSS('background-color', background)
+      await expect(page.locator('.global-player')).toHaveCSS('backdrop-filter', 'none')
+    }
+  } finally {
+    if (!page.isClosed()) {
+      await transparencyMedia.send('Emulation.setEmulatedMedia', { features: [] })
+      await page.evaluate(value => {
+        if (value === undefined) delete document.documentElement.dataset.theme
+        else document.documentElement.dataset.theme = value
+      }, originalTheme)
+      await expect.poll(() => page.evaluate(() => matchMedia('(prefers-reduced-transparency: reduce)').matches)).toBe(originalReducedTransparency)
+    }
+    await transparencyMedia.detach().catch(() => undefined)
   }
   await page.getByRole('button', { name: '取消收藏 收藏验收艺人', exact: true }).click()
   await expect(page.getByRole('heading', { name: '还没有喜欢的艺术家', exact: true })).toBeVisible()
@@ -157,7 +187,7 @@ async function openAccountSettings() {
 }
 
 async function openDiagnostics() {
-  await page.getByRole('button', { name: '打开设置' }).click()
+  await page.locator('.music-sidebar').getByRole('button', { name: '打开设置', exact: true }).click()
   await page.getByRole('tab', { name: '应用', exact: true }).click()
   await page.getByRole('button', { name: '打开诊断 →', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Diagnostics', exact: true }).first()).toBeVisible()
@@ -634,7 +664,7 @@ test('v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation', 
   await expect(page.locator('.daily-recommendation-tile')).toHaveCount(5)
   await expect.poll(() => page.locator('.daily-recommendation-art img').first().evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
   await expect(page.locator('.sidebar-settings-footer')).toBeVisible()
-  await expect(page.getByRole('button', { name: '打开设置' })).toContainText('设置')
+  await expect(page.locator('.sidebar-settings-footer').getByRole('button', { name: '打开设置', exact: true })).toContainText('设置')
   await expect(page.locator('.sidebar-settings-footer img')).toHaveCount(0)
   await expect(page.locator('.global-player')).toBeVisible()
   const themeTokens = await page.evaluate(() => {
@@ -644,10 +674,10 @@ test('v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation', 
       accent: styles.getPropertyValue('--mb-accent').trim(),
     }
   })
-  expect(themeTokens).toEqual({ background: '#f8eaf1', accent: '#b34f79' })
+  expect(themeTokens).toEqual({ background: '#f2edf1', accent: '#a84c72' })
   await expect(sourceButton('home')).toHaveAttribute('aria-current', 'page')
-  await expect(sourceButton('liked')).toBeVisible()
-  await expect(sourceButton('playlists')).toBeVisible()
+  await expect(sourceButton('roon-favorites')).toHaveAccessibleName('收藏')
+  await expect(page.getByRole('region', { name: '歌单', exact: true })).toBeVisible()
   await expect(page.getByRole('navigation', { name: '音乐来源' }).getByRole('button', { name: /Synthetic Playlist/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /Synthetic Zone|选择播放设备/ })).toBeVisible()
   await expect(playerQualityButton()).toContainText('自动')
@@ -784,7 +814,7 @@ test('v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation', 
   await sourceButton('home').click()
   await expect(page.getByRole('region', { name: '每日推荐' })).toContainText('需要网易云登录')
 
-  await page.getByRole('button', { name: '打开设置' }).click()
+  await page.locator('.music-sidebar').getByRole('button', { name: '打开设置', exact: true }).click()
   await page.getByRole('tab', { name: 'Roon', exact: true }).click()
   await expect(page.locator('.settings-pane-roon .settings-status-pill')).toContainText('已连接')
 
@@ -1025,7 +1055,10 @@ test('TASK-037 Now Playing geometry, real queue names and full collection loadin
 
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.getByRole('button', { name: '退出全屏播放' }).click()
-  await page.getByRole('button', { name: '打开 Synthetic Track 2 的更多操作', exact: true }).click()
+  const songResults = page.locator('[aria-labelledby="search-tracks-heading"]')
+  await songResults.getByRole('button', { name: '查看全部 →', exact: true }).click()
+  await expect(songResults.getByRole('table', { name: '歌曲列表' })).toBeVisible()
+  await songResults.getByRole('button', { name: '打开 Synthetic Track 2 的更多操作', exact: true }).click()
   await page.getByRole('menuitem', { name: '加入队列' }).click()
   await expect(page.getByRole('status')).toContainText('已加入播放队列')
   await page.getByRole('button', { name: '打开播放队列' }).click()
@@ -1034,7 +1067,7 @@ test('TASK-037 Now Playing geometry, real queue names and full collection loadin
   await expect(page.getByText('Synthetic Artist · Synthetic Album', { exact: true }).last()).toBeVisible()
   await page.getByRole('button', { name: '关闭播放检查器' }).click()
 
-  await sourceButton('playlists').click()
+  await page.keyboard.press('Meta+3')
   const playlistRow = page.getByRole('navigation', { name: '音乐来源' }).getByRole('button', { name: /Synthetic Playlist/ })
   await playlistRow.click()
   await expect(page.getByRole('heading', { name: 'Synthetic Playlist', exact: true }).first()).toBeVisible()
@@ -1046,7 +1079,7 @@ test('TASK-037 Now Playing geometry, real queue names and full collection loadin
   await expect(page.getByText('Synthetic Track 120', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '关闭播放检查器' }).click()
 
-  await sourceButton('liked').click()
+  await page.keyboard.press('Meta+2')
   await expect(page.getByRole('table', { name: '歌曲列表' }).getByText('Synthetic Track 1', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '加载更多歌曲' }).click()
   await expect(page.getByText('Synthetic Track 21', { exact: true })).toBeVisible()
@@ -1220,15 +1253,15 @@ test('Music Source Sidebar supports source recovery, Zone Popover and collapsed 
   await page.keyboard.press('Meta+1')
   await expect(page.locator('#home-heading')).toBeVisible()
 
-  await sourceButton('liked').click()
-  await expect(page.getByRole('heading', { name: '我喜欢的音乐', exact: true }).first()).toBeVisible()
+  await sourceButton('roon-favorites').click()
+  await expect(page.getByRole('heading', { name: '收藏', exact: true }).first()).toBeVisible()
 
   const search = sidebarSearch()
   await search.fill('synthetic')
-  await expect(page.getByRole('heading', { name: '搜索结果', exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'synthetic', exact: true }).first()).toBeVisible()
   await search.press('Escape')
-  await expect(page.getByRole('heading', { name: '我喜欢的音乐', exact: true }).first()).toBeVisible()
-  await expect(sourceButton('liked')).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('heading', { name: '收藏', exact: true }).first()).toBeVisible()
+  await expect(sourceButton('roon-favorites')).toHaveAttribute('aria-current', 'page')
 
   const zoneButton = page.getByRole('button', { name: /Synthetic Zone|选择播放设备/ }).first()
   await zoneButton.click()
@@ -1240,7 +1273,7 @@ test('Music Source Sidebar supports source recovery, Zone Popover and collapsed 
 
   await page.getByRole('button', { name: '收起侧栏' }).click()
   await expect(page.locator('.music-sidebar')).toHaveClass(/is-collapsed/)
-  await expect(page.getByRole('button', { name: '搜索音乐 (⌘L)' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '搜索歌曲或歌手 (⌘L)', exact: true })).toBeVisible()
   await page.getByRole('button', { name: '歌单', exact: true }).click()
   await expect(page.getByRole('dialog', { name: '歌单' }).getByText('Synthetic Playlist', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '歌单', exact: true }).click()
@@ -1259,7 +1292,7 @@ test('Music Source Sidebar supports source recovery, Zone Popover and collapsed 
   await expect(page.locator('.playback-inspector')).toHaveCount(0)
   await expect(queueTrigger).toBeFocused()
   await page.setViewportSize({ width: 720, height: 900 })
-  await expect(page.locator('.music-sidebar')).toHaveCSS('flex-basis', '64px')
+  await expect(page.locator('.music-sidebar')).toHaveCSS('flex-basis', '66px')
   await page.screenshot({ path: path.join(os.tmpdir(), 'musicbridge-task-033-sidebar-720.png') })
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.getByRole('button', { name: '展开侧栏' }).click()
@@ -1290,7 +1323,7 @@ test('V3 收藏与录音分开，收藏视图支持键盘、搜索返回和收�
   const recording = page.locator('[data-sidebar-source="recording"]')
   await expect(collection).toBeVisible()
   await expect(recording).toBeVisible()
-  await expect(page.locator('[data-sidebar-source="roon-favorites"]')).toHaveAccessibleName('Roon 收藏')
+  await expect(page.locator('[data-sidebar-source="roon-favorites"]')).toHaveAccessibleName('收藏')
   await collection.click()
   await expect(collection).toHaveAttribute('aria-current', 'page')
   const tapes = page.getByRole('tab', { name: '空白磁带收藏', exact: true })
@@ -2978,6 +3011,90 @@ test('同曲连续进度不重复读取歌词和收藏，先到歌词与导航�
   await page.getByRole('button', { name: '退出全屏播放' }).click()
   await sourceButton('home').click()
   await expect(page.locator('.global-player')).toContainText(roonItem.title)
+})
+
+test('仅网易云来源的正在播放按钮连续收藏与取消，只写网易云 API', async () => {
+  const track = { id: '1001', title: '合成单来源网易云曲目', artists: ['合成艺人'], album: '合成专辑', durationMs: 180_000 }
+  const snapshot: PlaybackSnapshot = {
+    state: 'playing', source: 'netease', currentTrack: track, positionMs: 2_000,
+    queue: { items: [{ trackId: track.id, track, qualityPreference: 'auto', preferredSource: 'netease', resolvedSource: 'netease' }], index: 0, hasNext: false, hasPrevious: false },
+    canNext: false, canPrevious: false, canStop: true, canPause: true, canResume: false,
+  }
+  await electronApp.evaluate(({ ipcMain, BrowserWindow }, input) => {
+    const calls = { neteaseWrites: [] as boolean[], localWrites: [] as boolean[] }
+    ;(globalThis as typeof globalThis & { singleNeteaseFavoriteCalls: typeof calls }).singleNeteaseFavoriteCalls = calls
+    for (const channel of ['playback:get-state', 'library:like-status', 'library:like', 'favorites:set']) ipcMain.removeHandler(channel)
+    ipcMain.handle('playback:get-state', () => input)
+    ipcMain.handle('library:like-status', () => ({ liked: false }))
+    ipcMain.handle('library:like', (_event, _trackId, liked: boolean) => { calls.neteaseWrites.push(liked); return { liked } })
+    ipcMain.handle('favorites:set', (_event, _descriptor, favorite: boolean) => { calls.localWrites.push(favorite); return { favorite } })
+    BrowserWindow.getAllWindows()[0]?.webContents.send('core:event', { version: 1, event: 'playback.changed', payload: { state: input } })
+  }, snapshot)
+  await expect(page.locator('.global-player')).toContainText(track.title)
+  await page.getByRole('button', { name: '打开正在播放', exact: true }).click()
+  const like = page.getByRole('button', { name: '喜欢这首歌', exact: true })
+  await expect(like).toBeEnabled()
+  await expect(like).toHaveAttribute('aria-pressed', 'false')
+  await like.click()
+  await expect(like).toHaveAttribute('aria-pressed', 'true')
+  await like.click()
+  await expect(like).toHaveAttribute('aria-pressed', 'false')
+  expect(await electronApp.evaluate(() => (globalThis as typeof globalThis & {
+    singleNeteaseFavoriteCalls: { neteaseWrites: boolean[]; localWrites: boolean[] }
+  }).singleNeteaseFavoriteCalls)).toEqual({ neteaseWrites: [true, false], localWrites: [] })
+})
+
+test('仅本地 Roon 来源的正在播放按钮连续收藏与取消，不写网易云 API', async () => {
+  await reloadWithZones([{ zoneId: 'synthetic-zone', displayName: '合成播放设备', selected: true }])
+  const album = { reference: 'musicbridge-v2-entity-11111111-1111-4111-8111-111111111112', kind: 'album', title: '合成单来源专辑' }
+  const item = { reference: 'musicbridge-v2-entity-22222222-2222-4222-8222-222222222223', kind: 'track', title: '合成单来源 Roon 曲目', artist: '本地艺人', album: album.title, durationMs: 180_000 }
+  const track = { id: roonTrackIdFromReference(item.reference), title: item.title, artists: [item.artist], album: item.album, durationMs: item.durationMs }
+  const snapshot: PlaybackSnapshot = {
+    state: 'playing', source: 'roon', currentTrack: track, positionMs: 2_000,
+    queue: { items: [{ trackId: track.id, track, qualityPreference: 'auto', preferredSource: 'roon', resolvedSource: 'roon' }], index: 0, hasNext: false, hasPrevious: false },
+    selectedZoneId: 'synthetic-zone', canNext: false, canPrevious: false, canStop: true, canPause: true, canResume: false,
+  }
+  await electronApp.evaluate(({ ipcMain }, input) => {
+    const calls = { neteaseWrites: [] as boolean[], localWrites: [] as Array<{ kind: string; title: string; favorite: boolean }> }
+    ;(globalThis as typeof globalThis & { singleRoonFavoriteCalls: typeof calls }).singleRoonFavoriteCalls = calls
+    const pageOf = (page: { offset: number; limit: number }, items: unknown[]) => ({ ...page, items, total: items.length, hasMore: false })
+    for (const channel of ['playback:get-state', 'roon:library:albums', 'roon:library:album', 'roon:library:queue', 'library:like', 'favorites:check', 'favorites:set']) ipcMain.removeHandler(channel)
+    ipcMain.handle('playback:get-state', () => input.snapshot)
+    ipcMain.handle('roon:library:albums', (_event, page) => pageOf(page, [input.album]))
+    ipcMain.handle('roon:library:album', (_event, _reference, page) => pageOf(page, [input.item]))
+    ipcMain.handle('roon:library:queue', () => ({ queued: true }))
+    ipcMain.handle('library:like', (_event, _trackId, liked: boolean) => { calls.neteaseWrites.push(liked); return { liked } })
+    ipcMain.handle('favorites:check', () => ({ favorite: false }))
+    ipcMain.handle('favorites:set', (_event, descriptor: { kind: string; title: string }, favorite: boolean) => {
+      calls.localWrites.push({ kind: descriptor.kind, title: descriptor.title, favorite })
+      return { favorite }
+    })
+  }, { album, item, snapshot })
+  await page.locator('[data-sidebar-source="roon-albums"]').click()
+  await page.locator('.roon-album-card').first().click()
+  await page.getByRole('button', { name: `将 ${item.title} 加入队列`, exact: true }).click()
+  await expect(page.getByRole('status')).toContainText('已将 Roon 曲目加入队列')
+  await electronApp.evaluate(({ BrowserWindow }, input) => {
+    BrowserWindow.getAllWindows()[0]?.webContents.send('core:event', { version: 1, event: 'playback.changed', payload: { state: input } })
+  }, snapshot)
+  await expect(page.locator('.global-player')).toContainText(item.title)
+  await page.getByRole('button', { name: '打开正在播放', exact: true }).click()
+  const like = page.getByRole('button', { name: '喜欢这首歌', exact: true })
+  await expect(like).toBeEnabled()
+  await expect(like).toHaveAttribute('aria-pressed', 'false')
+  await like.click()
+  await expect(like).toHaveAttribute('aria-pressed', 'true')
+  await like.click()
+  await expect(like).toHaveAttribute('aria-pressed', 'false')
+  expect(await electronApp.evaluate(() => (globalThis as typeof globalThis & {
+    singleRoonFavoriteCalls: { neteaseWrites: boolean[]; localWrites: Array<{ kind: string; title: string; favorite: boolean }> }
+  }).singleRoonFavoriteCalls)).toEqual({
+    neteaseWrites: [],
+    localWrites: [
+      { kind: 'track', title: item.title, favorite: true },
+      { kind: 'track', title: item.title, favorite: false },
+    ],
+  })
 })
 
 test('本地搜索范围隔离，切页恢复原页面，新搜索清除旧路径，主页仍聚合', async () => {

@@ -43,9 +43,18 @@ export function favoriteDescriptorForRoonItem(item: RoonLibraryItem): FavoriteEn
   return descriptor
 }
 
+export type FavoriteToggleSource =
+  | { available: false }
+  | { available: true; liked: boolean | null }
+
 export function resolveFavoriteToggle(state: {
-  netease: boolean
-  local: boolean
-}): boolean {
-  return !(state.netease && state.local)
+  netease: FavoriteToggleSource
+  local: FavoriteToggleSource
+}): boolean | null {
+  if (!state.netease.available && !state.local.available) return null
+  if (state.netease.available && state.netease.liked === null) return null
+  if (state.local.available && state.local.liked === null) return null
+  const allAvailableLiked = (!state.netease.available || state.netease.liked === true)
+    && (!state.local.available || state.local.liked === true)
+  return !allAvailableLiked
 }

@@ -15,8 +15,9 @@ export class RoonDisplayConnection {
   private state: RoonDisplaySettings = { url: '', status: 'disabled' }
   private pending = new Map<string, RoonDisplayLyricsEvent>()
   private delivering = false
-  private configurationRevision = 0
+  private desiredConfigurationRevision = 0
   private saving: Promise<unknown> = Promise.resolve()
+  private paused = false
 
   constructor(private readonly options: {
     settingsPath: string
@@ -26,45 +27,71 @@ export class RoonDisplayConnection {
   getSettings(): RoonDisplaySettings { return { ...this.state } }
 
   async restore(): Promise<void> {
-    const revision = ++this.configurationRevision
-    let url = ''
-    try {
-      if ((await stat(this.options.settingsPath)).size > 2048) throw new Error('配置超限')
-      const value = JSON.parse(await readFile(this.options.settingsPath, 'utf8'))
-      url = normalizeRoonDisplayUrl(value.url)
-    } catch { /* 缺少或无效配置不连接任意地址。 */ }
-    if (revision === this.configurationRevision) this.start(url)
+    this.desiredConfigurationRevision++
+    const operation = this.saving.catch(() => {}).then(async () => {
+      let url = ''
+      try {
+        if ((await stat(this.options.settingsPath)).size > 2048) throw new Error('配置超限')
+        const value = JSON.parse(await readFile(this.options.settingsPath, 'utf8'))
+        url = normalizeRoonDisplayUrl(value.url)
+      } catch { /* 缺少或无效配置不连接任意地址。 */ }
+      this.applyConfiguration(url)
+    })
+    this.saving = operation
+    await operation
   }
 
   async configure(value: unknown): Promise<RoonDisplaySettings> {
     const url = normalizeRoonDisplayUrl(value)
-    const revision = ++this.configurationRevision
+    const revision = ++this.desiredConfigurationRevision
     const operation = this.saving.catch(() => {}).then(async () => {
       const temp = this.options.settingsPath + '.' + randomUUID() + '.tmp'
       try {
         await writeFile(temp, JSON.stringify({ url }) + '\n', { mode: 0o600, flag: 'wx' })
         await rename(temp, this.options.settingsPath)
+      } catch (error) {
+        // 写盘未成功时继续使用上一个持久化目标；若旧重试被新意图抑制，则恢复连接。
+        if (revision === this.desiredConfigurationRevision && !this.paused && this.state.url && this.state.status === 'disconnected') {
+          this.start(this.state.url)
+        }
+        throw error
       } finally { await unlink(temp).catch(() => {}) }
-      if (revision === this.configurationRevision) this.start(url)
+      this.applyConfiguration(url)
       return this.getSettings()
     })
     this.saving = operation
     return operation
   }
 
-  restart(): void { this.start(this.state.url) }
+  restart(): void {
+    this.paused = false
+    this.start(this.state.url)
+  }
 
   stop(): void {
-    this.configurationRevision++
+    this.paused = true
+    this.teardown()
+    this.state.status = this.state.url ? 'disconnected' : 'disabled'
+  }
+
+  private teardown(): void {
     this.generation++
     clearTimeout(this.timer)
     clearTimeout(this.connectDeadline)
     this.timer = undefined
-    this.state.status = this.state.url ? 'disconnected' : 'disabled'
+    this.connectDeadline = undefined
     const window = this.window
     this.window = undefined
     if (window && !window.isDestroyed()) window.destroy()
     this.pending.clear()
+  }
+
+  private applyConfiguration(url: string): void {
+    if (this.paused) {
+      this.state = { url, status: url ? 'disconnected' : 'disabled' }
+      return
+    }
+    this.start(url)
   }
 
   private publish(event: RoonDisplayLyricsEvent): void {
@@ -87,7 +114,7 @@ export class RoonDisplayConnection {
   }
 
   private start(url: string): void {
-    this.stop()
+    this.teardown()
     this.state = { url, status: url ? 'connecting' : 'disabled' }
     this.publish({ type: 'reset', enabled: !!url })
     if (!url) return
@@ -121,7 +148,13 @@ export class RoonDisplayConnection {
       sockets.clear()
       this.publish({ type: 'reset', enabled: true })
       // 有界频率重连；不会阻塞 Core 或任何播放命令。
-      this.timer = setTimeout(() => this.start(url), 10000)
+      const revision = this.desiredConfigurationRevision
+      this.timer = setTimeout(() => {
+        this.timer = undefined
+        if (generation === this.generation && revision === this.desiredConfigurationRevision && !this.paused) {
+          this.start(this.state.url)
+        }
+      }, 10000)
     }
     window.webContents.on('render-process-gone', fail)
     window.webContents.on('did-fail-load', fail)

@@ -50,8 +50,20 @@ test('网易云 Track 可以映射为本地 Track 收藏描述符', () => {
 })
 
 test('双身份 Heart 明确操作时保持两边一致：任一边未收藏就补齐，两边都收藏才取消', () => {
-  assert.equal(resolveFavoriteToggle({ netease: false, local: false }), true)
-  assert.equal(resolveFavoriteToggle({ netease: true, local: false }), true)
-  assert.equal(resolveFavoriteToggle({ netease: false, local: true }), true)
-  assert.equal(resolveFavoriteToggle({ netease: true, local: true }), false)
+  assert.equal(resolveFavoriteToggle({ netease: { available: true, liked: false }, local: { available: true, liked: false } }), true)
+  assert.equal(resolveFavoriteToggle({ netease: { available: true, liked: true }, local: { available: true, liked: false } }), true)
+  assert.equal(resolveFavoriteToggle({ netease: { available: true, liked: false }, local: { available: true, liked: true } }), true)
+  assert.equal(resolveFavoriteToggle({ netease: { available: true, liked: true }, local: { available: true, liked: true } }), false)
+})
+
+test('单来源按自身状态切换；无来源或可用来源状态未知时不猜测写入方向', () => {
+  const unavailable = { available: false } as const
+  assert.equal(resolveFavoriteToggle({ netease: { available: true, liked: false }, local: unavailable }), true)
+  assert.equal(resolveFavoriteToggle({ netease: { available: true, liked: true }, local: unavailable }), false)
+  assert.equal(resolveFavoriteToggle({ netease: unavailable, local: { available: true, liked: false } }), true)
+  assert.equal(resolveFavoriteToggle({ netease: unavailable, local: { available: true, liked: true } }), false)
+  assert.equal(resolveFavoriteToggle({ netease: unavailable, local: unavailable }), null)
+  assert.equal(resolveFavoriteToggle({ netease: { available: true, liked: null }, local: unavailable }), null)
+  assert.equal(resolveFavoriteToggle({ netease: unavailable, local: { available: true, liked: null } }), null)
+  assert.equal(resolveFavoriteToggle({ netease: { available: true, liked: true }, local: { available: true, liked: null } }), null)
 })

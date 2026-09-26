@@ -41,10 +41,18 @@ export class RoonDisplayProtocol {
       if (!Array.isArray(list)) continue
       for (const item of list.slice(0, 32)) {
         if (!record(item) || typeof item.zone_id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/u.test(item.zone_id)) continue
-        const np = record(item.now_playing) ? item.now_playing : undefined
-        const lines = np && record(np.three_line) ? np.three_line : undefined
-        const candidate = { title: lines?.line1, artist: lines?.line2 ?? '', album: lines?.line3 ?? '', durationMs: typeof np?.length === 'number' ? Math.round(np.length * 1000) : 0 }
-        const track = isRoonDisplayTrack(candidate) ? candidate : null
+        const hasNowPlaying = Object.hasOwn(item, 'now_playing')
+        // 已知区域的增量消息可只包含其他状态；新增区域和完整快照没有曲目则为空。
+        if (!hasNowPlaying && field === 'zones_changed' && this.zones.has(item.zone_id)) continue
+        let track: RoonDisplayTrack | null = null
+        if (hasNowPlaying && item.now_playing !== null) {
+          if (!record(item.now_playing)) continue
+          const np = item.now_playing
+          const lines = record(np.three_line) ? np.three_line : undefined
+          const candidate = { title: lines?.line1, artist: lines?.line2 ?? '', album: lines?.line3 ?? '', durationMs: typeof np.length === 'number' ? Math.round(np.length * 1000) : 0 }
+          if (!isRoonDisplayTrack(candidate)) continue
+          track = candidate
+        }
         if (!this.zones.has(item.zone_id) || JSON.stringify(this.zones.get(item.zone_id)) !== JSON.stringify(track)) {
           if (this.zones.size >= 32 && !this.zones.has(item.zone_id)) continue
           this.zones.set(item.zone_id, track)

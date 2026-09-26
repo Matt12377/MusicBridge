@@ -190,10 +190,27 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     }
   }
 
+  function isCurrentFavoriteContext(
+    trackId: string,
+    source: 'roon' | 'netease',
+    nativeMatch: boolean,
+    descriptor: FavoriteEntityDescriptor | null,
+    operation: number,
+  ): boolean {
+    return !disposed
+      && trackLikeOperation === operation
+      && currentTrack.value?.id === trackId
+      && playbackSource.value === source
+      && nativeRoonHasNeteaseMatch.value === nativeMatch
+      && localTrackFavoriteDescriptor.value === descriptor
+  }
+
   async function loadTrackLikeStatus(trackId: string): Promise<void> {
     const operation = ++trackLikeOperation
-    const isRoonPlayback = playbackSource.value === 'roon'
-    const hasNeteaseIdentity = !isRoonPlayback || nativeRoonHasNeteaseMatch.value
+    const source = playbackSource.value
+    const nativeMatch = nativeRoonHasNeteaseMatch.value
+    const isRoonPlayback = source === 'roon'
+    const hasNeteaseIdentity = !isRoonPlayback || nativeMatch
     const descriptor = isRoonPlayback ? localTrackFavoriteDescriptor.value : null
     trackLikeState.value = 'loading'
     neteaseTrackLiked.value = null
@@ -212,7 +229,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
           ? api.checkFavorite(plainFavoriteDescriptor(descriptor))
           : Promise.resolve(undefined),
       ])
-      if (operation !== trackLikeOperation || playbackState.value?.currentTrack?.id !== trackId) return
+      if (!isCurrentFavoriteContext(trackId, source, nativeMatch, descriptor, operation)) return
       const neteaseLiked = neteaseResult?.liked ?? false
       const localLiked = localResult?.favorite ?? false
       neteaseTrackLiked.value = hasNeteaseIdentity ? neteaseLiked : null
@@ -221,7 +238,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
         ? 'liked'
         : 'not-liked'
     } catch {
-      if (operation === trackLikeOperation) {
+      if (isCurrentFavoriteContext(trackId, source, nativeMatch, descriptor, operation)) {
         trackLikeState.value = 'error'
         if (descriptor) localTrackFavoriteState.value = 'error'
       }
@@ -231,17 +248,39 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   async function toggleTrackLike(): Promise<void> {
     const trackId = currentTrack.value?.id
     const descriptor = localTrackFavoriteDescriptor.value
-    const isRoonPlayback = playbackSource.value === 'roon'
-    const hasNeteaseIdentity = !isRoonPlayback || nativeRoonHasNeteaseMatch.value
+    const source = playbackSource.value
+    const nativeMatch = nativeRoonHasNeteaseMatch.value
+    const isRoonPlayback = source === 'roon'
+    const hasNeteaseIdentity = !isRoonPlayback || nativeMatch
     if (
       !trackId ||
       trackLikeState.value === 'loading' ||
       (!hasNeteaseIdentity && !descriptor)
     ) return
-    const nextLiked = resolveFavoriteToggle({
-      netease: neteaseTrackLiked.value === true,
-      local: localTrackFavoriteState.value === 'liked',
+    const desiredLike = (): boolean | null => resolveFavoriteToggle({
+      netease: hasNeteaseIdentity
+        ? { available: true, liked: neteaseTrackLiked.value }
+        : { available: false },
+      local: descriptor
+        ? {
+          available: true,
+          liked: localTrackFavoriteState.value === 'liked'
+            ? true
+            : localTrackFavoriteState.value === 'not-liked' ? false : null,
+        }
+        : { available: false },
     })
+    let nextLiked = desiredLike()
+    if (trackLikeState.value === 'error' || nextLiked === null) {
+      // 每次点击至多重读一次；写入回执失败后也不能沿用可能过期的旧状态。
+      const refresh = loadTrackLikeStatus(trackId)
+      const refreshOperation = trackLikeOperation
+      await refresh
+      if (!isCurrentFavoriteContext(trackId, source, nativeMatch, descriptor, refreshOperation)) return
+      nextLiked = desiredLike()
+      if (trackLikeState.value === 'error') return
+    }
+    if (nextLiked === null) return
     const operation = ++trackLikeOperation
     trackLikeState.value = 'loading'
     localTrackFavoriteState.value = descriptor ? 'loading' : 'idle'
@@ -254,7 +293,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
           ? api.setFavorite(plainFavoriteDescriptor(descriptor), nextLiked)
           : Promise.resolve(undefined),
       ])
-      if (operation !== trackLikeOperation || playbackState.value?.currentTrack?.id !== trackId) return
+      if (!isCurrentFavoriteContext(trackId, source, nativeMatch, descriptor, operation)) return
       neteaseTrackLiked.value = neteaseResult?.liked ?? null
       if (descriptor) localTrackFavoriteState.value = nextLiked ? 'liked' : 'not-liked'
       trackLikeState.value = nextLiked ? 'liked' : 'not-liked'
@@ -268,10 +307,9 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
         onToast(nextLiked ? '已加入网易云喜欢的音乐' : '已取消网易云喜欢')
       }
     } catch (error) {
-      if (operation === trackLikeOperation) {
-        trackLikeState.value = 'error'
-        if (descriptor) localTrackFavoriteState.value = 'error'
-      }
+      if (!isCurrentFavoriteContext(trackId, source, nativeMatch, descriptor, operation)) return
+      trackLikeState.value = 'error'
+      if (descriptor) localTrackFavoriteState.value = 'error'
       onError(error)
     }
   }

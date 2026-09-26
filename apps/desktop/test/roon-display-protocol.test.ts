@@ -24,6 +24,38 @@ test('换歌先清旧词，seek 更新不清词，区域删除/重连清空身�
   protocol.clear()
   assert.equal(protocol.receive(packet('LyricsChanged', { zone_id: 'zone1', lrc: '旧词' }), 1).length, 0)
 });
+test('已知区域的增量更新缺 now_playing 时保留曲目，显式 null 才清空', () => {
+  const protocol = new RoonDisplayProtocol()
+  protocol.receive(packet('Subscribed', { zones: [zone('当前歌曲')] }), 1)
+  assert.deepEqual(protocol.receive(packet('Changed', { zones_changed: [{ zone_id: 'zone1', state: 'playing' }] }), 1), [])
+  const lyrics = protocol.receive(packet('LyricsChanged', { zone_id: 'zone1', lrc: '[00:00.00]当前歌词' }), 1)
+  assert.equal(lyrics.length, 1)
+  assert.equal(lyrics[0]?.type === 'zone' ? lyrics[0].track?.title : undefined, '当前歌曲')
+  assert.deepEqual(protocol.receive(packet('Changed', { zones_changed: [{ zone_id: 'zone1', now_playing: null }] }), 1), [
+    { type: 'zone', zoneId: 'zone1', track: null, lrc: null },
+  ])
+});
+test('非法 now_playing 不清除已知区域，也不建立未知区域', () => {
+  const protocol = new RoonDisplayProtocol()
+  protocol.receive(packet('Subscribed', { zones: [zone('当前歌曲')] }), 1)
+  assert.deepEqual(protocol.receive(packet('Changed', { zones_changed: [{ zone_id: 'zone1', now_playing: '损坏' }] }), 1), [])
+  assert.deepEqual(protocol.receive(packet('Changed', { zones_changed: [{ zone_id: 'zone2', now_playing: { three_line: {} } }] }), 1), [])
+  assert.equal(protocol.receive(packet('LyricsChanged', { zone_id: 'zone2', lrc: '不应接收' }), 1).length, 0)
+  const lyrics = protocol.receive(packet('LyricsChanged', { zone_id: 'zone1', lrc: '仍属当前歌曲' }), 1)
+  assert.equal(lyrics[0]?.type === 'zone' ? lyrics[0].track?.title : undefined, '当前歌曲')
+});
+test('新增区域和全快照缺 now_playing 表示无曲目，不继承旧区域状态', () => {
+  const protocol = new RoonDisplayProtocol()
+  protocol.receive(packet('Subscribed', { zones: [zone('旧歌曲')] }), 1)
+  assert.deepEqual(protocol.receive(packet('Changed', { zones_added: [{ zone_id: 'zone2' }] }), 1), [
+    { type: 'zone', zoneId: 'zone2', track: null, lrc: null },
+  ])
+  assert.deepEqual(protocol.receive(packet('Subscribed', { zones: [{ zone_id: 'zone1' }] }), 1), [
+    { type: 'reset', enabled: true },
+    { type: 'zone', zoneId: 'zone1', track: null, lrc: null },
+  ])
+  assert.equal(protocol.receive(packet('LyricsChanged', { zone_id: 'zone2', lrc: '旧区域' }), 1).length, 0)
+});
 test('二进制帧与 CRLF 可解析，损坏/超限/未知数据不进入业务', () => {
   const protocol = new RoonDisplayProtocol()
   assert.equal(protocol.receive(Buffer.from(packet('Subscribed', { zones: [zone()] }).replaceAll('\n', '\r\n')).toString('base64'), 2).length, 2)
