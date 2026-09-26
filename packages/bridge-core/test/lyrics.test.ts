@@ -1087,3 +1087,55 @@ test('MANUAL 选择和撤销贯穿 resolver 与 coordinator，仅刷新歌词不
   assert.equal(await repository.get(context.signature.key, 'lyrics-match-v1'), undefined)
   assert.equal(JSON.stringify(snapshot), before)
 })
+
+test('稳定歌词的 100 次时钟更新不深拷贝正文，切行、seek、暂停和 reset 仍通知', () => {
+  let now = 0
+  const changes: LyricsSnapshot[] = []
+  const coordinator = new LyricsCoordinator({
+    now: () => now,
+    load: async () => readySnapshot('unused'),
+    onChange: (snapshot) => changes.push(snapshot),
+  })
+  coordinator.setActiveLyrics('101', {
+    status: 'ready',
+    lines: [{ startMs: 0, endMs: 1_000, text: 'one' }, { startMs: 1_000, text: 'two' }],
+    activeLineIndex: -1,
+    timingSource: 'static',
+  })
+  now = 250
+  coordinator.updateRoonTime(200)
+  const active = coordinator as unknown as { activeSnapshot: LyricsSnapshot }
+  const firstLine = active.activeSnapshot.lines[0]!
+  let bodyCopies = 0
+  Object.defineProperty(firstLine, 'text', {
+    configurable: true,
+    enumerable: true,
+    get: () => { bodyCopies += 1; return 'one' },
+  })
+  const before = changes.length
+  for (let index = 0; index < 100; index += 1) {
+    now += 100
+    coordinator.updateRoonTime(200)
+  }
+  assert.equal(changes.length, before)
+  assert.equal(bodyCopies, 0)
+
+  coordinator.updateRoonTime(1_000)
+  assert.equal(changes.at(-1)?.activeLineIndex, 1)
+  assert.equal(changes.length, before + 1)
+  assert.equal(bodyCopies, 1)
+  coordinator.updateRoonTime(200)
+  assert.equal(changes.at(-1)?.activeLineIndex, 0)
+  assert.equal(bodyCopies, 2)
+
+  coordinator.onPlaybackChanged({ ...playing('101'), state: 'paused', positionMs: 200,
+    canPause: false, canResume: true })
+  assert.equal(changes.at(-1)?.activeLineIndex, 0)
+  assert.equal(bodyCopies, 3)
+  const emitted = changes.at(-1)!
+  emitted.lines[0]!.text = 'caller changed event'
+  assert.equal(coordinator.getSnapshot().lines[0]?.text, 'one')
+
+  coordinator.shutdown()
+  assert.equal(changes.at(-1)?.status, 'idle')
+})

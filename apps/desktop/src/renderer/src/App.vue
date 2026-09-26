@@ -1,33 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { restoreRemoteTarget, reconnectRemoteTarget } from './remote-core-preferences.js'
-import { roonTrackIdFromReference } from '@music-bridge/contracts'
 
 import type {
-  AlbumSummary,
-  ArtistSummary,
-  LyricsSnapshot,
-  LocalLyricsMatchSnapshot,
-  MatchState,
-  Page,
-  PageRequest,
-  DailyRecommendationsSnapshot,
-  FavoriteEntityDescriptor,
-  FavoriteKind,
-  FavoritePage,
-  FavoriteRecord,
   PlaybackQualityPreference,
-  PlaybackQueueRequestItem,
-  PlaybackQueueItem,
-  PlaybackSnapshot,
-  PlaylistDetail,
-  PublicAuthState,
-  PublicAccountState,
   PublicBridgeState,
   PublicRoonZone,
-  PublicTrackMatchResult,
-  RoonLibraryItem,
-  RoonLibraryPage,
   RemoteCoreTunnelState,
   TrackSummary,
 } from '@music-bridge/contracts'
@@ -50,132 +28,54 @@ import RoonAlbumDetail from './components/RoonAlbumDetail.vue'
 import RoonBrowseDetail from './components/RoonBrowseDetail.vue'
 import MusicSidebar from './components/sidebar/MusicSidebar.vue'
 import CommandOutboxPanel from './components/CommandOutboxPanel.vue'
-import { useLibrarySources } from './composables/useLibrarySources.js'
-import { appendPage } from './composables/libraryPagination.js'
-import {
-  createProgressiveCollectionLoader,
-  loadCollectionTracks,
-  selectInitialCollectionPlayback,
-  type CollectionPageLoader,
-  type ProgressiveCollectionLoader,
-} from './composables/collectionQueue.js'
-import { appendRoonPage, emptyRoonPage } from './composables/roonLibraryPagination.js'
-import { useRoonCollection } from './composables/useRoonCollection.js'
-import { useRoonSearchCollection } from './composables/useRoonSearchCollection.js'
 import { shouldRefreshVisibleRoonCollection } from './roon-collection-lifecycle.js'
-import { canLoadAuthorizedLibrary, isCoreRuntimeStable } from './core-readiness.js'
-import {
-  selectRandomPlaylistPages,
-  settleHomePlaylistPages,
-  shuffleTracks,
-  type HomeRecommendationState,
-} from './composables/homeRecommendations.js'
-import { useSidebarState } from './composables/useSidebarState.js'
-import { createSearchSnapshotLoader } from './composables/search.js'
+import { isCoreRuntimeStable } from './core-readiness.js'
 import {
   readPublicIpcErrorCode,
   roonLibraryMessage as formatRoonLibraryMessage,
 } from './roonLibraryMessages.js'
 import { roonArtworkCache } from './roon-artwork-cache.js'
-import {
-  favoriteDescriptorForRoonItem,
-  favoriteDescriptorForTrack,
-  resolveFavoriteToggle,
-} from './composables/playbackFavorites.js'
-import {
-  SMART_MATCH_REQUEST_CONCURRENCY,
-  confirmedRoonCandidate,
-  createMatchRequestScheduler,
-  immediatePlaybackSelection,
-  nativeRoonQueueItemHasNeteaseIdentity,
-  queuePreferenceForMatch,
-  settledMapWithConcurrency,
-  shouldPreloadSmartMatches,
-  trackSummaryForMatching,
-  tracksForInitialMatching,
-  waitForMatchWithinPlaybackBudget,
-} from './composables/playbackMatching.js'
-import type { SidebarSource, ViewId } from './components/navigation.js'
+import type { SidebarSource } from './components/navigation.js'
 import { createZoneRefreshCoordinator, resolveZoneLifecycleStatus } from './zone-lifecycle.js'
-import { createOptimisticRoonPlayback } from './roon-playback-optimism.js'
-import { collectRoonPlaybackContext } from './roon-context-queue.js'
+import { usePlaybackSession, type RoonPlaybackContext } from './composables/application/usePlaybackSession.js'
+import { useAggregatedSearch } from './composables/application/useAggregatedSearch.js'
+import { useRoonBrowse } from './composables/application/useRoonBrowse.js'
+import { usePageJourney } from './composables/application/usePageJourney.js'
+import { useNeteaseLibrary } from './composables/application/useNeteaseLibrary.js'
+import { useRendererLifecycle } from './composables/application/useRendererLifecycle.js'
 import CollectionView from './components/collection/CollectionView.vue'
 import RecordingView from './components/recording/RecordingView.vue'
 
-const LIBRARY_PAGE_SIZE = 20
-const SEARCH_DEBOUNCE_MS = 250
-
-function emptyPage<T>(limit = LIBRARY_PAGE_SIZE): Page<T> {
-  return { items: [], offset: 0, limit, total: 0, hasMore: false }
-}
-
-function emptyFavoritePage(limit = LIBRARY_PAGE_SIZE): FavoritePage {
-  return { items: [], offset: 0, limit, total: 0, hasMore: false }
-}
-
-function emptyLyricsSnapshot(status: LyricsSnapshot['status'] = 'idle'): LyricsSnapshot {
-  return { status, lines: [], activeLineIndex: -1, timingSource: 'static' }
-}
-
-function emptyLocalLyricsMatchSnapshot(): LocalLyricsMatchSnapshot {
-  return { status: 'hidden', candidates: [], canRevoke: false }
-}
-
-function localDayKey(now = Date.now()): string {
-  const date = new Date(now)
-  return String(date.getFullYear()) + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0')
-}
-
 const appInfo = ref<AppInfo | null>(null)
-const currentView = ref<ViewId>('home')
 const recordingReloadRequired = ref(false)
-const nowPlayingReturnView = ref<ViewId>('home')
-const sidebar = useSidebarState()
-const searchReturnSource = ref<SidebarSource>({ type: 'home' })
 const coreState = ref<PublicBridgeState | null>(null)
-const authState = ref<PublicAuthState>({ status: 'idle' })
-const accountState = ref<PublicAccountState>({ status: 'missing' })
-const dailyRecommendations = ref<DailyRecommendationsSnapshot>({
-  dayKey: localDayKey(),
-  tracks: [],
-})
-const dailyState = ref<'idle' | 'loading' | 'ready' | 'empty' | 'error'>('idle')
-const dailyError = ref<string | null>(null)
-const accountError = ref<string | null>(null)
 const coreError = ref(false)
-const authError = ref(false)
-const playbackState = ref<PlaybackSnapshot | null>(null)
-const playbackStartPending = ref(false)
-const playbackSource = ref<'roon' | 'netease'>('netease')
-const nativeRoonHasNeteaseMatch = ref(false)
-const lyricsSnapshot = ref<LyricsSnapshot>(emptyLyricsSnapshot())
-const localLyricsMatchState = ref<LocalLyricsMatchSnapshot>(emptyLocalLyricsMatchSnapshot())
-const localLyricsMatchBusy = ref(false)
-const localLyricsMatchError = ref(false)
-let localLyricsMatchRevision = 0
-const trackLikeState = ref<'idle' | 'loading' | 'liked' | 'not-liked' | 'error'>('idle')
-const neteaseTrackLiked = ref<boolean | null>(null)
-const localTrackFavoriteState = ref<'idle' | 'loading' | 'liked' | 'not-liked' | 'error'>('idle')
-const localTrackFavoriteDescriptor = ref<FavoriteEntityDescriptor | null>(null)
-const roonQueueDescriptors = new Map<string, RoonLibraryItem>()
-const roonQueueNeteaseMatches = new Set<string>()
-const MAX_ROON_QUEUE_DESCRIPTORS = 256
-
-function rememberRoonQueueDescriptor(
-  trackId: string,
-  item: RoonLibraryItem,
-  linkedToNetease = false,
-): void {
-  roonQueueDescriptors.set(trackId, item)
-  if (linkedToNetease) roonQueueNeteaseMatches.add(trackId)
-  else roonQueueNeteaseMatches.delete(trackId)
-  while (roonQueueDescriptors.size > MAX_ROON_QUEUE_DESCRIPTORS) {
-    const oldest = roonQueueDescriptors.keys().next().value
-    if (oldest === undefined) break
-    roonQueueDescriptors.delete(oldest)
-    roonQueueNeteaseMatches.delete(oldest)
-  }
-}
+const playback = usePlaybackSession({
+  api: window.musicBridge,
+  getSelectedZone: () => selectedZone.value,
+  getZoneLifecycleStatus: () => zoneLifecycleStatus.value,
+  getSelectedQuality: () => selectedQuality.value,
+  getMatchResult: trackId => matchResults.value[trackId],
+  getPendingMatch: trackId => pendingMatchRequests.get(trackId),
+  onMatchTracks: tracks => { void matchTracks(tracks) },
+  getRoonPlaybackContext,
+  resolveFavoriteDescriptor: item => browse.resolveFavoriteDescriptor(item),
+  onEnterNowPlaying: () => journey.enterNowPlaying(),
+  clearActionError: () => { actionError.value = null },
+  onActionMessage: message => { actionError.value = message },
+  onError: recordActionError,
+  onToast: showToast,
+})
+const {
+  playbackState, playbackStartPending, playbackSource, nativeRoonHasNeteaseMatch,
+  lyricsSnapshot, localLyricsMatchState, localLyricsMatchBusy, localLyricsMatchError,
+  trackLikeState, localTrackFavoriteDescriptor, currentTrack, recentTracks,
+  applyPlaybackState, refreshPlayback, selectLocalLyricsMatch, revokeLocalLyricsMatch,
+  toggleTrackLike, playTrack, playRoonLibraryTrack, queueRoonLibraryTrack,
+  appendTrack, insertTrackNext, replaceAndPlayCollection, appendCollection,
+  invalidateCollectionOperation, playQueueItem, togglePlayback, stopPlayback,
+  nextTrack, previousTrack, seekPlayback, cancelRoonPlaybackPreparation,
+} = playback
 const zones = ref<readonly PublicRoonZone[]>([])
 const zonesLoading = ref(false)
 const zoneRefreshCoordinator = createZoneRefreshCoordinator({
@@ -209,218 +109,132 @@ const diagnosticNotice = ref<{ code: string; message?: string } | null>(null)
 const diagnosticExportState = ref<'idle' | 'working' | 'done' | 'cancelled' | 'error'>('idle')
 const toastMessage = ref<string | null>(null)
 
-const searchQuery = ref('')
-const searchCategory = ref<'all' | 'tracks' | 'albums' | 'artists'>('all')
-const searchSongsOpen = computed({
-  get: () => searchCategory.value === 'tracks',
-  set: (value: boolean) => { searchCategory.value = value ? 'tracks' : 'all' },
+const search = useAggregatedSearch({
+  api: window.musicBridge,
+  getZoneId: () => selectedZone.value?.zoneId,
+  getScrollTop: () => journey.contentScroll.value?.scrollTop ?? 0,
+  scrollTo: top => { void nextTick(() => journey.contentScroll.value?.scrollTo({ top })) },
+  classifyError: searchErrorKind,
+  onResetSearchOrigin: () => { journey.roonSearchOrigin.value = false },
+  onInvalidateRoonDetails: () => browse.invalidateAlbumArtistRequests(),
 })
-function selectSearchCategory(category: 'all' | 'tracks' | 'albums' | 'artists'): void {
-  searchCategory.value = category
-  void nextTick(() => contentScroll.value?.scrollTo({ top: 0 }))
-}
-const roonSearchOrigin = ref(false)
-const searchSongScrollTop = ref(0)
-const roonSearchAlbums = ref<RoonLibraryPage>(emptyRoonPage(8))
-const roonSearchArtists = ref<RoonLibraryPage>(emptyRoonPage(6))
-const roonSearchLoading = ref(false)
-const roonSearchError = ref<string | null>(null)
-const searchPage = ref<Page<TrackSummary>>(emptyPage())
-const searchArtistsPage = ref<Page<ArtistSummary>>(emptyPage(6))
-const searchAlbumsPage = ref<Page<AlbumSummary>>(emptyPage(8))
-const searchArtistsState = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
-const searchAlbumsState = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
-const searchArtistsError = ref<string | null>(null)
-const searchAlbumsError = ref<string | null>(null)
-const searchDetail = ref<{
-  kind: 'artist' | 'album'
-  id: string
-  title: string
-  subtitle: string
-  tracks: Page<TrackSummary>
-  loading: boolean
-  error: string | null
-} | null>(null)
-const searchScrollTop = ref(0)
-const contentScroll = ref<HTMLElement | null>(null)
-const matchStates = ref<Record<string, MatchState>>({})
-const matchResults = ref<Record<string, PublicTrackMatchResult>>({})
-const pendingMatchRequests = new Map<string, Promise<PublicTrackMatchResult>>()
-const matchRequestScheduler = createMatchRequestScheduler(
-  (track: TrackSummary) => window.musicBridge.matchLibraryTrack(track),
-  SMART_MATCH_REQUEST_CONCURRENCY,
-)
-const likedPage = ref<Page<TrackSummary>>(emptyPage())
 const {
-  playlists,
-  playlistState,
-  playlistError,
-  loadPlaylists: loadPlaylistSources,
-  reset: resetPlaylistSources,
-} = useLibrarySources()
-const selectedPlaylist = ref<PlaylistDetail | null>(null)
-const selectedPlaylistId = ref<string | null>(null)
-const playlistContentScrollTop = ref(0)
-const playlistTableScrollTop = ref(0)
+  searchQuery, searchCategory, searchSongsOpen, searchSongScrollTop,
+  roonSearchAlbums, roonSearchArtists, roonSearchLoading, roonSearchError,
+  searchPage, searchArtistsPage, searchAlbumsPage, searchArtistsState,
+  searchAlbumsState, searchArtistsError, searchAlbumsError, searchDetail,
+  searchDetailLoadingMore, searchDetailMoreError, searchScrollTop,
+  searchInitialLoading, searchLoadingMore, searchLoadMoreError, searchError,
+  matchStates, matchResults, pendingMatchRequests, selectSearchCategory,
+  matchTracks,
+  scheduleSearch, searchPageAt, loadMoreSearchEntities, openSearchSongs,
+  openSearchDetail, loadMoreSearchDetail, closeSearchDetail,
+} = search
+const browse = useRoonBrowse({
+  api: window.musicBridge,
+  formatError: roonLibraryMessage,
+  onError: recordActionError,
+  onToast: showToast,
+  getView: () => journey.currentView.value,
+  onDetailOpening: view => { journey.setDetailView(view) },
+  onDetailReady: (view, source) => { journey.setDetailView(view, source) },
+  onNavigateSource: source => journey.navigateSource(source),
+  onPlayTrack: item => { void playRoonLibraryTrack(item) },
+})
 const {
-  query: localAlbumQuery,
-  setQuery: setLocalAlbumQuery,
-  page: roonAlbumsPage,
-  initialLoading: roonAlbumsInitialLoading,
-  loadingMore: roonAlbumsLoadingMore,
-  loadMoreError: roonAlbumsLoadMoreError,
-  error: roonAlbumsError,
-  load: loadRoonAlbums,
-  loadMore: loadMoreRoonAlbums,
-  retry: retryRoonAlbums,
-  reset: resetRoonAlbums,
-} = useRoonSearchCollection(
-  'album',
-  (page) => window.musicBridge.listRoonAlbums(page),
-  (query, page, kind) => window.musicBridge.searchRoonLibrary(query, page, kind),
-  (error) => roonLibraryMessage(error),
-)
-const {
-  query: localArtistQuery,
-  setQuery: setLocalArtistQuery,
-  page: roonArtistsPage,
-  initialLoading: roonArtistsInitialLoading,
-  loadingMore: roonArtistsLoadingMore,
-  loadMoreError: roonArtistsLoadMoreError,
-  error: roonArtistsError,
-  load: loadRoonArtists,
-  loadMore: loadMoreRoonArtists,
-  retry: retryRoonArtists,
-  reset: resetRoonArtists,
-} = useRoonSearchCollection(
-  'artist',
-  (page) => window.musicBridge.listRoonArtists(page),
-  (query, page, kind) => window.musicBridge.searchRoonLibrary(query, page, kind),
-  (error) => roonLibraryMessage(error),
-)
-const {
-  page: roonGenresPage,
-  initialLoading: roonGenresInitialLoading,
-  loadingMore: roonGenresLoadingMore,
-  loadMoreError: roonGenresLoadMoreError,
-  error: roonGenresError,
-  load: loadRoonGenres,
-  loadMore: loadMoreRoonGenres,
-  retry: retryRoonGenres,
-  reset: resetRoonGenres,
-} = useRoonCollection(
-  (page) => window.musicBridge.listRoonGenres(page),
-  (error) => roonLibraryMessage(error),
-)
-const {
-  page: roonPlaylistsPage,
-  initialLoading: roonPlaylistsInitialLoading,
-  loadingMore: roonPlaylistsLoadingMore,
-  loadMoreError: roonPlaylistsLoadMoreError,
-  error: roonPlaylistsError,
-  load: loadRoonPlaylists,
-  loadMore: loadMoreRoonPlaylists,
-  retry: retryRoonPlaylists,
-  reset: resetRoonPlaylists,
-} = useRoonCollection(
-  (page) => window.musicBridge.listRoonPlaylists(page),
-  (error) => roonLibraryMessage(error),
-)
-const favoriteKind = ref<FavoriteKind>('track')
-const favoriteResolutionEpoch = ref(0)
-const resolvedFavoriteDescriptors = new Map<string, FavoriteEntityDescriptor>()
-
-function localFavoriteDescriptor(item: RoonLibraryItem): FavoriteEntityDescriptor {
-  return resolvedFavoriteDescriptors.get(item.reference) ?? favoriteDescriptorForRoonItem(item)
-}
-const favoritesPage = ref<FavoritePage>(emptyFavoritePage())
-const favoritesInitialLoading = ref(false)
-const favoritesLoadingMore = ref(false)
-const favoritesLoadMoreError = ref<string | null>(null)
-const favoritesError = ref<string | null>(null)
-const selectedRoonAlbum = ref<RoonLibraryItem | null>(null)
-const roonAlbumFavoriteState = ref<'idle' | 'loading' | 'liked' | 'not-liked' | 'error'>('idle')
-const selectedRoonAlbumPage = ref<RoonLibraryPage>(emptyRoonPage())
-const roonAlbumInitialLoading = ref(false)
-const roonAlbumLoadingMore = ref(false)
-const roonAlbumLoadMoreError = ref<string | null>(null)
-const roonAlbumError = ref<string | null>(null)
-const selectedRoonArtist = ref<RoonLibraryItem | null>(null)
-const roonArtistFavoriteState = ref<'idle' | 'loading' | 'liked' | 'not-liked' | 'error'>('idle')
-const selectedRoonArtistPage = ref<RoonLibraryPage>(emptyRoonPage())
-const roonArtistInitialLoading = ref(false)
-const roonArtistLoadingMore = ref(false)
-const roonArtistLoadMoreError = ref<string | null>(null)
-const roonArtistError = ref<string | null>(null)
-const selectedRoonGenre = ref<RoonLibraryItem | null>(null)
-const selectedRoonGenrePage = ref<RoonLibraryPage>(emptyRoonPage())
-const roonGenreInitialLoading = ref(false)
-const roonGenreLoadingMore = ref(false)
-const roonGenreLoadMoreError = ref<string | null>(null)
-const roonGenreError = ref<string | null>(null)
-const selectedRoonPlaylist = ref<RoonLibraryItem | null>(null)
-const selectedRoonPlaylistPage = ref<RoonLibraryPage>(emptyRoonPage())
-const roonPlaylistInitialLoading = ref(false)
-const roonPlaylistLoadingMore = ref(false)
-const roonPlaylistLoadMoreError = ref<string | null>(null)
-const roonPlaylistError = ref<string | null>(null)
-const homePlaylistTracks = ref<readonly TrackSummary[]>([])
-const recentTracks = ref<readonly TrackSummary[]>([])
-const homeRecommendationState = ref<HomeRecommendationState>('loading')
-const searchInitialLoading = ref(false)
-const searchLoadingMore = ref(false)
-const searchLoadMoreError = ref<string | null>(null)
+  localAlbumQuery, setLocalAlbumQuery, roonAlbumsPage, roonAlbumsInitialLoading,
+  roonAlbumsLoadingMore, roonAlbumsLoadMoreError, roonAlbumsError, loadRoonAlbums,
+  loadMoreRoonAlbums, retryRoonAlbums, resetRoonAlbums,
+  localArtistQuery, setLocalArtistQuery, roonArtistsPage, roonArtistsInitialLoading,
+  roonArtistsLoadingMore, roonArtistsLoadMoreError, roonArtistsError, loadRoonArtists,
+  loadMoreRoonArtists, retryRoonArtists, resetRoonArtists,
+  roonGenresPage, roonGenresInitialLoading, roonGenresLoadingMore,
+  roonGenresLoadMoreError, roonGenresError, loadRoonGenres, loadMoreRoonGenres,
+  retryRoonGenres, resetRoonGenres,
+  roonPlaylistsPage, roonPlaylistsInitialLoading, roonPlaylistsLoadingMore,
+  roonPlaylistsLoadMoreError, roonPlaylistsError, loadRoonPlaylists,
+  loadMoreRoonPlaylists, retryRoonPlaylists, resetRoonPlaylists,
+  favoriteKind, favoriteResolutionEpoch, favoritesPage, favoritesInitialLoading,
+  favoritesLoadingMore, favoritesLoadMoreError, favoritesError,
+  selectedRoonAlbum, roonAlbumFavoriteState, selectedRoonAlbumPage,
+  roonAlbumInitialLoading, roonAlbumLoadingMore, roonAlbumLoadMoreError, roonAlbumError,
+  selectedRoonArtist, roonArtistFavoriteState, selectedRoonArtistPage,
+  roonArtistInitialLoading, roonArtistLoadingMore, roonArtistLoadMoreError, roonArtistError,
+  selectedRoonGenre, selectedRoonGenrePage, roonGenreInitialLoading,
+  roonGenreLoadingMore, roonGenreLoadMoreError, roonGenreError,
+  selectedRoonPlaylist, selectedRoonPlaylistPage, roonPlaylistInitialLoading,
+  roonPlaylistLoadingMore, roonPlaylistLoadMoreError, roonPlaylistError,
+  loadRoonAlbum, loadRoonArtist, loadRoonGenre, loadRoonPlaylist,
+  roonAlbumPageAt, roonArtistPageAt, roonGenrePageAt, roonPlaylistPageAt,
+  loadRoonEntityFavorite, toggleRoonEntityFavorite, loadFavorites,
+  setFavoriteKind, openFavorite, removeFavorite, favoritesPageAt,
+  retryFavorites, retryRoonAlbum, refreshVisibleRoonCollection,
+} = browse
 type SearchErrorKind = 'auth-required' | 'auth-expired' | 'generic'
 type LibraryErrorKind = SearchErrorKind
 
-const searchError = ref<SearchErrorKind | null>(null)
-const likedInitialLoading = ref(false)
-const likedLoadingMore = ref(false)
-const likedLoadMoreError = ref<string | null>(null)
-const likedError = ref<LibraryErrorKind | null>(null)
-const playlistInitialLoading = ref(false)
-const playlistLoadingMore = ref(false)
-const playlistLoadMoreError = ref<string | null>(null)
-const playlistDetailError = ref<LibraryErrorKind | null>(null)
+const netease = useNeteaseLibrary({
+  api: window.musicBridge,
+  getCoreRuntime: () => coreState.value?.runtime,
+  getRemoteStatus: () => remoteCoreState.value.status,
+  getView: () => journey.currentView.value,
+  onMatchTracks: (tracks, visible) => { void matchTracks(tracks, visible) },
+  onPlaylistSwitch: () => playback.invalidateCollectionOperation(),
+  onPlaylistReady: playlistId => journey.setDetailView('playlist-detail', { type: 'playlist', playlistId }),
+  onResetPrivate: () => {
+    journey.resetPrivatePath()
+    search.resetSearch()
+    playback.invalidateCollectionOperation()
+    recentTracks.value = []
+  },
+  onError: recordActionError,
+  accountMessage,
+  dailyMessage,
+  libraryErrorKind,
+})
+const {
+  authState, authError, accountState, accountError,
+  dailyRecommendations, dailyState, dailyError,
+  likedPage, likedInitialLoading, likedLoadingMore, likedLoadMoreError, likedError, likedHomeState,
+  playlists, playlistState, playlistError, selectedPlaylist, selectedPlaylistId,
+  playlistContentScrollTop, playlistTableScrollTop, playlistInitialLoading, playlistLoadingMore,
+  playlistLoadMoreError, playlistDetailError, homePlaylistTracks, homeRecommendationState,
+  loadLiked, likedPageAt, loadAccountState, refreshAccountProfile,
+  loadPlaylists, refreshHomeRecommendations, loadPlaylist, retryPlaylist, playlistPageAt,
+  applyAuthState, applyAccountState, beginQrLogin, cancelQrLogin, logout,
+  loadAuthorizedLibraryWhenReady, resetAuthorizedLoadStarted, applyInitialAuthState,
+} = netease
 
-let removeCoreListener: (() => void) | undefined
-let removeAppCommandListener: (() => void) | undefined
-let removeRemoteCoreListener: (() => void) | undefined
-let pollTimer: ReturnType<typeof setInterval> | undefined
-let searchTimer: ReturnType<typeof setTimeout> | undefined
-let authOperation = 0
-let authorizedLibraryLoadStarted = false
-let authEventReceived = false
-let pollInFlight = false
-let lyricsOperation = 0
-let trackLikeOperation = 0
-let localFavoriteOperation = 0
-let homeRecommendationOperation = 0
-let dailyOperation = 0
-let collectionOperation = 0
-let roonPlaybackOperation = 0
-let optimisticRoonTrackId: string | undefined
-
-function cancelRoonPlaybackPreparation(): void {
-  ++roonPlaybackOperation
-  optimisticRoonTrackId = undefined
-}
-let activeCollectionLoader: ProgressiveCollectionLoader | undefined
-let collectionPlaybackStartInFlight = false
 let toastTimer: ReturnType<typeof setTimeout> | undefined
-let searchRequestGeneration = 0
-let searchDetailGeneration = 0
-let matchGeneration = 0
-let likedRequestGeneration = 0
-let playlistRequestGeneration = 0
-let favoritesRequestGeneration = 0
-let roonAlbumRequestGeneration = 0
-let roonArtistRequestGeneration = 0
-let roonGenreRequestGeneration = 0
-let roonPlaylistRequestGeneration = 0
-let entityFavoriteOperation = 0
 
-const currentTrack = computed(() => playbackState.value?.currentTrack)
+const journey = usePageJourney({
+  search,
+  browse,
+  library: {
+    hasLikedItems: () => likedPage.value.items.length > 0,
+    isPlaylistReady: () => playlistState.value === 'ready',
+    getPlaylistScrollTop: () => playlistContentScrollTop.value,
+    setPlaylistScrollTop: top => { playlistContentScrollTop.value = top },
+    loadLiked,
+    loadPlaylists,
+    loadPlaylist: playlistId => loadPlaylist(playlistId),
+  },
+  onPlayRoonTrack: item => { void playRoonLibraryTrack(item) },
+  onCloseInspector: () => { inspectorOpen.value = false },
+  onClearActionError: () => {
+    actionError.value = null
+    actionDiagnosticId.value = null
+  },
+})
+const {
+  currentView, sidebar, roonSearchOrigin,
+  contentScroll, collectionView, localSearchScope,
+  sidebarSearchQuery, sidebarSearchLabel, roonDetailBackLabel,
+  isImmersiveNowPlaying, enterNowPlaying, exitNowPlaying, navigate, navigateSource,
+  openTapeCollection, clearSearch, updateSearchQuery, returnFromRoonDetail,
+  returnToSearch, selectAggregatedRoonItem,
+} = journey
+
 const homeTracks = computed(() => recentTracks.value)
 const selectedZone = computed(() => {
   const selectedId = playbackState.value?.selectedZoneId
@@ -432,496 +246,17 @@ const zoneLifecycleStatus = computed(() => resolveZoneLifecycleStatus({
   zoneCount: zones.value.length,
   selected: selectedZone.value !== undefined,
 }))
-const isImmersiveNowPlaying = computed(() => currentView.value === 'now-playing')
 const hasPlaybackIssue = computed(() => Boolean(playbackState.value?.lastIssue || actionError.value))
 const greeting = computed(() => {
   const hour = new Date().getHours()
   return hour >= 5 && hour < 12 ? '早上好' : hour >= 12 && hour < 18 ? '下午好' : '晚上好'
 })
-const likedHomeState = computed<'unauthorized' | 'loading' | 'ready' | 'empty' | 'error'>(() => {
-  if (authState.value.status !== 'authorized') return 'unauthorized'
-  if (likedInitialLoading.value && likedPage.value.items.length === 0) return 'loading'
-  if (likedError.value) return 'error'
-  return likedPage.value.items.length ? 'ready' : 'empty'
-})
-
-const searchSnapshotLoader = createSearchSnapshotLoader({
-  artists: (query, page) => window.musicBridge.searchArtists(query, page),
-  tracks: (query, page) => window.musicBridge.searchTracks(query, page),
-  albums: (query, page) => window.musicBridge.searchAlbums(query, page),
-})
-
-function enterNowPlaying(): void {
-  if (currentView.value !== 'now-playing') {
-    nowPlayingReturnView.value = currentView.value
-    if (currentView.value === 'playlist-detail') {
-      playlistContentScrollTop.value = contentScroll.value?.scrollTop ?? 0
-    }
-  }
-  currentView.value = 'now-playing'
-  inspectorOpen.value = false
-}
-
-function exitNowPlaying(): void {
-  const destination = nowPlayingReturnView.value
-  currentView.value = destination === 'now-playing' ? 'home' : destination
-  inspectorOpen.value = false
-  if (currentView.value === 'playlist-detail') {
-    void nextTick(() => contentScroll.value?.scrollTo({ top: playlistContentScrollTop.value }))
-  }
-}
-
-function navigate(view: ViewId, rememberSearch = true): void {
-  if (view === 'now-playing') {
-    enterNowPlaying()
-    return
-  }
-  if (rememberSearch && view !== currentView.value && !view.endsWith('-detail') && view !== 'queue') {
-    rememberSearchPage()
-    leaveSearchPage()
-    if (view === 'home' && restoreSearchPage({ type: 'home' })) return
-  }
-  currentView.value = view
-  if (view !== 'queue') inspectorOpen.value = false
-  actionError.value = null
-  actionDiagnosticId.value = null
-  if (view === 'search' && searchQuery.value.trim()) scheduleSearch()
-  if (view === 'liked') {
-    sidebar.setActiveSource({ type: 'liked' })
-  }
-  if (view === 'playlists') {
-    sidebar.setActiveSource({ type: 'playlists' })
-  }
-  if (view === 'roon-albums') {
-    sidebar.setActiveSource({ type: 'roon-albums' })
-    if (!roonAlbumsPage.value.items.length && !roonAlbumsInitialLoading.value) void loadRoonAlbums()
-  }
-  if (view === 'roon-favorites') {
-    sidebar.setActiveSource({ type: 'roon-favorites' })
-    if (!favoritesInitialLoading.value && !favoritesPage.value.items.length) void loadFavorites()
-  }
-  if (view === 'home') {
-    sidebar.setActiveSource({ type: 'home' })
-  }
-  if (view === 'liked' && likedPage.value.items.length === 0) {
-    void loadLiked()
-  }
-  if (view === 'playlists' && playlistState.value !== 'ready') {
-    void loadPlaylists()
-  }
-}
-
-function viewForSource(source: SidebarSource): ViewId {
-  switch (source.type) {
-    case 'home':
-      return 'home'
-    case 'collection':
-      return 'collection'
-    case 'recording':
-      return 'recording'
-    case 'liked':
-      return 'liked'
-    case 'playlists':
-      return 'playlists'
-    case 'playlist':
-      return 'playlist-detail'
-    case 'roon-albums':
-      return 'roon-albums'
-    case 'roon-artists':
-      return 'roon-artists'
-    case 'roon-genres':
-      return 'roon-genres'
-    case 'roon-playlists':
-      return 'roon-playlists'
-    case 'roon-favorites':
-      return 'roon-favorites'
-    case 'roon-album':
-      return 'roon-album-detail'
-    case 'roon-artist':
-      return 'roon-artist-detail'
-    case 'roon-genre':
-      return 'roon-genre-detail'
-    case 'roon-playlist':
-      return 'roon-playlist-detail'
-  }
-}
-
-// 只保留本次会话的视图选择，不承载库存、曲目或持久化数据。
-const collectionView = ref<'tapes' | 'music'>('tapes')
-
-function openTapeCollection(): void {
-  collectionView.value = 'tapes'
-  navigateSource({ type: 'collection' })
-}
-
-function navigateSource(source: SidebarSource): void {
-  if (source.type === 'roon-album' || source.type === 'roon-artist') rememberRoonDetailParent()
-  else {
-    rememberSearchPage()
-    leaveSearchPage()
-    if (restoreSearchPage(source)) return
-  }
-  localSearchOrigin.value = source.type === 'roon-album' || source.type === 'roon-artist'
-    ? localSearchScope.value : null
-  roonAlbumRequestGeneration += 1
-  roonArtistRequestGeneration += 1
-  sidebar.setActiveSource(source)
-  navigate(viewForSource(source), false)
-  if (source.type === 'playlist') void loadPlaylist(source.playlistId)
-  if (source.type === 'roon-albums') {
-    if (!roonAlbumsInitialLoading.value && (!roonAlbumsPage.value.items.length || roonAlbumsError.value)) void loadRoonAlbums()
-  }
-  if (source.type === 'roon-artists') {
-    if (!roonArtistsInitialLoading.value && (!roonArtistsPage.value.items.length || roonArtistsError.value)) void loadRoonArtists()
-  }
-  if (source.type === 'roon-genres') {
-    if (!roonGenresInitialLoading.value && (!roonGenresPage.value.items.length || roonGenresError.value)) void loadRoonGenres()
-  }
-  if (source.type === 'roon-playlists') {
-    if (!roonPlaylistsInitialLoading.value && (!roonPlaylistsPage.value.items.length || roonPlaylistsError.value)) void loadRoonPlaylists()
-  }
-  if (source.type === 'roon-favorites') void loadFavorites()
-  if (source.type === 'roon-album') void loadRoonAlbum(source.reference)
-  if (source.type === 'roon-artist') void loadRoonArtist(source.reference)
-  if (source.type === 'roon-genre') void loadRoonGenre(source.reference)
-  if (source.type === 'roon-playlist') void loadRoonPlaylist(source.reference)
-}
-
-function clearSearch(): void {
-  rememberedSearchPage = undefined
-  if (localSearchScope.value) { updateSearchQuery(''); return }
-  if (currentView.value !== 'search' && searchQuery.value.length === 0 && searchPage.value.items.length === 0) return
-  stopSearchTimer()
-  resetSearchSections()
-  searchRequestGeneration += 1
-  searchQuery.value = ''
-  searchPage.value = emptyPage()
-  matchStates.value = {}
-  matchResults.value = {}
-  cancelPendingMatches()
-  matchGeneration += 1
-  searchInitialLoading.value = false
-  searchLoadingMore.value = false
-  searchLoadMoreError.value = null
-  searchError.value = null
-  const source = searchReturnSource.value
-  sidebar.setActiveSource(source)
-  currentView.value = viewForSource(source)
-  if (source.type === 'liked' && likedPage.value.items.length === 0) void loadLiked()
-  if (source.type === 'playlists' && playlistState.value !== 'ready') void loadPlaylists()
-}
-
-const localSearchOrigin = ref<'album' | 'artist' | null>(null)
-const localSearchScope = computed(() => {
-  if (currentView.value === 'roon-albums') return 'album'
-  if (currentView.value === 'roon-artists') return 'artist'
-  if (currentView.value === 'roon-album-detail' || currentView.value === 'roon-artist-detail') return localSearchOrigin.value
-  return null
-})
-const sidebarSearchQuery = computed(() => localSearchScope.value === 'album' ? localAlbumQuery.value
-  : localSearchScope.value === 'artist' ? localArtistQuery.value
-  : currentView.value === 'search' || roonSearchOrigin.value ? searchQuery.value : '')
-const sidebarSearchLabel = computed(() => localSearchScope.value === 'album' ? '搜索本地专辑'
-  : localSearchScope.value === 'artist' ? '搜索本地艺术家' : '搜索歌曲或歌手')
-
-const roonDetailParents = ref<Array<{
-  view: ViewId
-  source: SidebarSource
-  scrollTop: number
-  searchOrigin: boolean
-  localOrigin: 'album' | 'artist' | null
-}>>([])
-const roonDetailBackLabel = computed(() => {
-  const parent = roonDetailParents.value.at(-1)
-  if (parent?.view === 'roon-artist-detail') return selectedRoonArtist.value?.title ?? '艺术家'
-  if (parent?.view === 'roon-artists') return '艺术家'
-  if (parent?.view === 'roon-albums') return '专辑'
-  if (parent?.view === 'roon-favorites') return '收藏'
-  if (parent?.view === 'roon-genre-detail') return '流派'
-  if (parent?.view === 'search') return '搜索结果'
-  return '本地音乐库'
-})
-
-function rememberRoonDetailParent(): void {
-  roonDetailParents.value.push({
-    view: currentView.value, source: sidebar.activeSource.value,
-    scrollTop: contentScroll.value?.scrollTop ?? 0,
-    searchOrigin: roonSearchOrigin.value, localOrigin: localSearchScope.value,
-  })
-}
-
-// 只暂存当前搜索路径；在其他页面发起新搜索后，这份路径才失效。
-let rememberedSearchPage: { source: SidebarSource; restore: () => void } | undefined
-
-function rememberSearchPage(): void {
-  const scope = localSearchScope.value
-  const query = scope === 'album' ? localAlbumQuery.value
-    : scope === 'artist' ? localArtistQuery.value
-    : currentView.value === 'search' || roonSearchOrigin.value ? searchQuery.value : ''
-  if (!query.trim()) return
-  const source: SidebarSource = scope ? { type: scope === 'album' ? 'roon-albums' : 'roon-artists' }
-    : searchReturnSource.value
-  const view = currentView.value
-  const activeSource = sidebar.activeSource.value
-  const scrollTop = contentScroll.value?.scrollTop ?? 0
-  const parents = [...roonDetailParents.value]
-  const searchOrigin = roonSearchOrigin.value
-  const localOrigin = localSearchOrigin.value
-  const albumPending = roonAlbumInitialLoading.value
-  const artistPending = roonArtistInitialLoading.value
-  // 其他页面也会打开 Roon 详情，因此不能只保留路径而共用最后一次详情内容。
-  const preserve = <T,>(state: { value: T }) => {
-    const value = state.value
-    return () => { state.value = value }
-  }
-  const restoreDetails = [
-    preserve(selectedRoonAlbum), preserve(selectedRoonAlbumPage), preserve(roonAlbumError),
-    preserve(roonAlbumFavoriteState), preserve(roonAlbumLoadMoreError),
-    preserve(selectedRoonArtist), preserve(selectedRoonArtistPage), preserve(roonArtistError),
-    preserve(roonArtistFavoriteState), preserve(roonArtistLoadMoreError),
-  ]
-  rememberedSearchPage = { source, restore: () => {
-    restoreDetails.forEach(restore => restore())
-    roonDetailParents.value = [...parents]
-    roonSearchOrigin.value = searchOrigin
-    localSearchOrigin.value = localOrigin
-    currentView.value = view
-    sidebar.setActiveSource(activeSource)
-    if (view === 'roon-album-detail' && albumPending && selectedRoonAlbum.value) void loadRoonAlbum(selectedRoonAlbum.value.reference)
-    if (view === 'roon-artist-detail' && artistPending && selectedRoonArtist.value) void loadRoonArtist(selectedRoonArtist.value.reference)
-    resumeRoonDetailFavorite()
-    void nextTick(() => contentScroll.value?.scrollTo({ top: scrollTop }))
-  } }
-}
-
-function leaveSearchPage(): void {
-  roonAlbumRequestGeneration += 1
-  roonArtistRequestGeneration += 1
-  entityFavoriteOperation += 1
-  roonAlbumInitialLoading.value = false
-  roonAlbumLoadingMore.value = false
-  roonArtistInitialLoading.value = false
-  roonArtistLoadingMore.value = false
-  roonDetailParents.value = []
-  roonSearchOrigin.value = false
-  localSearchOrigin.value = null
-}
-
-function restoreSearchPage(source: SidebarSource): boolean {
-  if (!rememberedSearchPage || JSON.stringify(rememberedSearchPage.source) !== JSON.stringify(source)) return false
-  rememberedSearchPage.restore()
-  return true
-}
-
-function resumeRoonDetailFavorite(): void {
-  if (currentView.value === 'roon-album-detail' && selectedRoonAlbum.value) {
-    void loadRoonEntityFavorite(selectedRoonAlbum.value, 'album')
-  } else if (currentView.value === 'roon-artist-detail' && selectedRoonArtist.value) {
-    void loadRoonEntityFavorite(selectedRoonArtist.value, 'artist')
-  }
-}
-
-function discardPageSearch(): void {
-  rememberedSearchPage = undefined
-  roonDetailParents.value = []
-  localSearchOrigin.value = null
-  if (localAlbumQuery.value) { localAlbumQuery.value = ''; resetRoonAlbums() }
-  if (localArtistQuery.value) { localArtistQuery.value = ''; resetRoonArtists() }
-  stopSearchTimer()
-  resetSearchSections()
-  searchQuery.value = ''
-  searchPage.value = emptyPage()
-  matchGeneration += 1
-  cancelPendingMatches()
-  matchStates.value = {}
-  matchResults.value = {}
-  searchInitialLoading.value = false
-  searchLoadingMore.value = false
-  searchError.value = null
-  searchLoadMoreError.value = null
-}
-
-function returnFromRoonDetail(fallback: 'album' | 'artist'): void {
-  const parent = roonDetailParents.value.pop()
-  if (!parent) {
-    navigateSource({ type: fallback === 'album' ? 'roon-albums' : 'roon-artists' })
-    return
-  }
-  // 返回父层不走侧栏切页流程；既不跳过艺术家，也不被迟到的详情响应带回去。
-  roonAlbumRequestGeneration += 1
-  roonArtistRequestGeneration += 1
-  currentView.value = parent.view
-  if (parent.view === 'roon-favorites') void loadFavorites()
-  sidebar.setActiveSource(parent.source)
-  roonSearchOrigin.value = parent.searchOrigin
-  localSearchOrigin.value = parent.localOrigin
-  resumeRoonDetailFavorite()
-  void nextTick(() => contentScroll.value?.scrollTo({ top: parent.scrollTop }))
-}
-
-function updateSearchQuery(query: string): void {
-  const scope = localSearchScope.value
-  const origin = currentView.value === 'search' || roonSearchOrigin.value
-    ? searchReturnSource.value : sidebar.activeSource.value
-  discardPageSearch()
-  if (scope) {
-    roonAlbumRequestGeneration += 1
-    roonArtistRequestGeneration += 1
-    if (scope === 'album') setLocalAlbumQuery(query)
-    else setLocalArtistQuery(query)
-    currentView.value = scope === 'album' ? 'roon-albums' : 'roon-artists'
-    sidebar.setActiveSource({ type: scope === 'album' ? 'roon-albums' : 'roon-artists' })
-    localSearchOrigin.value = null
-    void nextTick(() => contentScroll.value?.scrollTo({ top: 0 }))
-    return
-  }
-  searchReturnSource.value = origin
-  searchQuery.value = query
-  if (!query.trim()) {
-    clearSearch()
-    return
-  }
-  currentView.value = 'search'
-  scheduleSearch()
-  searchScrollTop.value = 0
-  void nextTick(() => contentScroll.value?.scrollTo({ top: 0 }))
-}
-
-function stopPolling(): void {
-  if (pollTimer !== undefined) {
-    clearInterval(pollTimer)
-    pollTimer = undefined
-  }
-}
-
-function stopSearchTimer(): void {
-  if (searchTimer !== undefined) {
-    clearTimeout(searchTimer)
-    searchTimer = undefined
-  }
-}
-
-function resetSearchSections(): void {
-  searchRequestGeneration += 1
-  roonAlbumRequestGeneration += 1
-  roonArtistRequestGeneration += 1
-  searchSongsOpen.value = false
-  roonSearchOrigin.value = false
-  roonSearchAlbums.value = emptyRoonPage(8)
-  roonSearchArtists.value = emptyRoonPage(6)
-  roonSearchLoading.value = false
-  roonSearchError.value = null
-  searchSnapshotLoader.cancel()
-  searchDetailGeneration += 1
-  searchArtistsPage.value = emptyPage(6)
-  searchAlbumsPage.value = emptyPage(8)
-  searchArtistsState.value = 'idle'
-  searchAlbumsState.value = 'idle'
-  searchArtistsError.value = null
-  searchAlbumsError.value = null
-  searchDetail.value = null
-}
-
 function resetRoonRuntimeReferences(): void {
-  resolvedFavoriteDescriptors.clear()
-  favoriteResolutionEpoch.value += 1
-  rememberedSearchPage = undefined
-  roonDetailParents.value = []
-  localSearchOrigin.value = null
-  resetRoonAlbums()
-  resetRoonArtists()
-  resetRoonGenres()
-  resetRoonPlaylists()
-  roonAlbumRequestGeneration += 1
-  roonArtistRequestGeneration += 1
-  roonGenreRequestGeneration += 1
-  roonPlaylistRequestGeneration += 1
-  selectedRoonAlbum.value = null
-  selectedRoonAlbumPage.value = emptyRoonPage()
-  roonAlbumInitialLoading.value = false
-  roonAlbumLoadingMore.value = false
-  roonAlbumLoadMoreError.value = null
-  roonAlbumError.value = null
-  roonAlbumFavoriteState.value = 'idle'
-  selectedRoonArtist.value = null
-  selectedRoonArtistPage.value = emptyRoonPage()
-  roonArtistInitialLoading.value = false
-  roonArtistLoadingMore.value = false
-  roonArtistLoadMoreError.value = null
-  roonArtistError.value = null
-  roonArtistFavoriteState.value = 'idle'
-  selectedRoonGenre.value = null
-  selectedRoonGenrePage.value = emptyRoonPage()
-  roonGenreInitialLoading.value = false
-  roonGenreLoadingMore.value = false
-  roonGenreLoadMoreError.value = null
-  roonGenreError.value = null
-  selectedRoonPlaylist.value = null
-  selectedRoonPlaylistPage.value = emptyRoonPage()
-  roonPlaylistInitialLoading.value = false
-  roonPlaylistLoadingMore.value = false
-  roonPlaylistLoadMoreError.value = null
-  roonPlaylistError.value = null
-  entityFavoriteOperation += 1
-  roonQueueDescriptors.clear()
-  roonQueueNeteaseMatches.clear()
-  matchGeneration += 1
-  matchStates.value = {}
-  matchResults.value = {}
-  cancelPendingMatches()
-
+  browse.resetSession()
+  journey.resetRoonPath()
+  playback.resetRoonSession()
+  search.resetMatches()
   roonArtworkCache.clear()
-
-  const activeSource = sidebar.activeSource.value
-  const staleAlbumContext = activeSource.type === 'roon-album'
-    || currentView.value === 'roon-album-detail'
-    || nowPlayingReturnView.value === 'roon-album-detail'
-  const staleArtistContext = activeSource.type === 'roon-artist'
-    || currentView.value === 'roon-artist-detail'
-    || nowPlayingReturnView.value === 'roon-artist-detail'
-  const staleGenreContext = activeSource.type === 'roon-genre'
-    || currentView.value === 'roon-genre-detail'
-    || nowPlayingReturnView.value === 'roon-genre-detail'
-  const stalePlaylistContext = activeSource.type === 'roon-playlist'
-    || currentView.value === 'roon-playlist-detail'
-    || nowPlayingReturnView.value === 'roon-playlist-detail'
-  let fallbackView: ViewId | undefined
-  if (staleAlbumContext) {
-    sidebar.setActiveSource({ type: 'roon-albums' })
-    fallbackView = 'roon-albums'
-  } else if (staleArtistContext) {
-    sidebar.setActiveSource({ type: 'roon-artists' })
-    fallbackView = 'roon-artists'
-  } else if (staleGenreContext) {
-    sidebar.setActiveSource({ type: 'roon-genres' })
-    fallbackView = 'roon-genres'
-  } else if (stalePlaylistContext) {
-    sidebar.setActiveSource({ type: 'roon-playlists' })
-    fallbackView = 'roon-playlists'
-  }
-  if (fallbackView && currentView.value.endsWith('-detail')) {
-    currentView.value = fallbackView
-  }
-  if (fallbackView && nowPlayingReturnView.value.endsWith('-detail')) {
-    nowPlayingReturnView.value = fallbackView
-  }
-  if (searchReturnSource.value.type === 'roon-album') {
-    searchReturnSource.value = { type: 'roon-albums' }
-  } else if (searchReturnSource.value.type === 'roon-artist') {
-    searchReturnSource.value = { type: 'roon-artists' }
-  } else if (searchReturnSource.value.type === 'roon-genre') {
-    searchReturnSource.value = { type: 'roon-genres' }
-  } else if (searchReturnSource.value.type === 'roon-playlist') {
-    searchReturnSource.value = { type: 'roon-playlists' }
-  }
-}
-
-function refreshVisibleRoonCollection(): void {
-  if (currentView.value === 'roon-favorites') favoriteResolutionEpoch.value += 1
-  if (currentView.value === 'roon-albums' && !roonAlbumsInitialLoading.value) void loadRoonAlbums()
-  if (currentView.value === 'roon-artists' && !roonArtistsInitialLoading.value) void loadRoonArtists()
-  if (currentView.value === 'roon-genres' && !roonGenresInitialLoading.value) void loadRoonGenres()
-  if (currentView.value === 'roon-playlists' && !roonPlaylistsInitialLoading.value) void loadRoonPlaylists()
 }
 
 function publicErrorCode(error: unknown): string | undefined {
@@ -1029,1251 +364,11 @@ function searchErrorKind(error: unknown): SearchErrorKind {
   }
 }
 
-function searchSectionErrorKind(message: string): SearchErrorKind {
-  if (message.includes('请先登录')) return 'auth-required'
-  if (message.includes('登录已过期')) return 'auth-expired'
-  return 'generic'
-}
-
 function roonLibraryMessage(error: unknown): string {
   return formatRoonLibraryMessage(error, {
     roonStatus: coreState.value?.roon,
     remoteCoreDevelopment: remoteCoreState.value.mode === 'remote-core-development',
   })
-}
-
-async function loadRoonAlbum(
-  reference: string,
-  page: PageRequest = { offset: 0, limit: 24 },
-): Promise<void> {
-  const album = [
-    ...roonAlbumsPage.value.items,
-    ...selectedRoonArtistPage.value.items,
-    ...selectedRoonGenrePage.value.items,
-  ].find((item) => item.reference === reference)
-  if (album && album.kind === 'album') {
-    selectedRoonAlbum.value = album
-    void loadRoonEntityFavorite(album, 'album')
-  }
-  const initial = page.offset === 0
-  if (initial) {
-    currentView.value = 'roon-album-detail'
-    roonAlbumRequestGeneration += 1
-    roonAlbumInitialLoading.value = true
-    roonAlbumLoadMoreError.value = null
-    roonAlbumError.value = null
-    selectedRoonAlbumPage.value = emptyRoonPage(page.limit)
-  } else {
-    if (roonAlbumLoadingMore.value) return
-    roonAlbumLoadingMore.value = true
-    roonAlbumLoadMoreError.value = null
-  }
-  const generation = roonAlbumRequestGeneration
-  try {
-    const result = await window.musicBridge.getRoonAlbumTracks(reference, page)
-    if (generation !== roonAlbumRequestGeneration) return
-    selectedRoonAlbumPage.value = initial ? result : appendRoonPage(selectedRoonAlbumPage.value, result)
-    roonAlbumInitialLoading.value = false
-    roonAlbumLoadingMore.value = false
-    roonAlbumError.value = null
-    currentView.value = 'roon-album-detail'
-    sidebar.setActiveSource({ type: 'roon-album', reference })
-  } catch (error) {
-    if (generation !== roonAlbumRequestGeneration) return
-    if (initial) {
-      roonAlbumInitialLoading.value = false
-      roonAlbumError.value = roonLibraryMessage(error)
-    } else {
-      roonAlbumLoadingMore.value = false
-      roonAlbumLoadMoreError.value = '加载失败，点击重试'
-    }
-  }
-}
-
-async function loadRoonArtist(
-  reference: string,
-  page: PageRequest = { offset: 0, limit: 24 },
-): Promise<void> {
-  const artist = roonArtistsPage.value.items.find((item) => item.reference === reference)
-  if (artist && artist.kind === 'artist') {
-    selectedRoonArtist.value = artist
-    void loadRoonEntityFavorite(artist, 'artist')
-  }
-  const initial = page.offset === 0
-  if (initial) {
-    currentView.value = 'roon-artist-detail'
-    roonArtistRequestGeneration += 1
-    roonArtistInitialLoading.value = true
-    roonArtistLoadMoreError.value = null
-    roonArtistError.value = null
-    selectedRoonArtistPage.value = emptyRoonPage(page.limit)
-  } else {
-    if (roonArtistLoadingMore.value) return
-    roonArtistLoadingMore.value = true
-    roonArtistLoadMoreError.value = null
-  }
-  const generation = roonArtistRequestGeneration
-  try {
-    const result = await window.musicBridge.getRoonArtistAlbums(reference, page)
-    if (generation !== roonArtistRequestGeneration) return
-    selectedRoonArtistPage.value = initial ? result : appendRoonPage(selectedRoonArtistPage.value, result)
-    roonArtistInitialLoading.value = false
-    roonArtistLoadingMore.value = false
-    roonArtistError.value = null
-    currentView.value = 'roon-artist-detail'
-    sidebar.setActiveSource({ type: 'roon-artist', reference })
-  } catch (error) {
-    if (generation !== roonArtistRequestGeneration) return
-    if (initial) {
-      roonArtistInitialLoading.value = false
-      roonArtistError.value = roonLibraryMessage(error)
-    } else {
-      roonArtistLoadingMore.value = false
-      roonArtistLoadMoreError.value = '加载失败，点击重试'
-    }
-  }
-}
-
-async function loadRoonGenre(
-  reference: string,
-  page: PageRequest = { offset: 0, limit: 24 },
-): Promise<void> {
-  const genre = roonGenresPage.value.items.find((item) => item.reference === reference)
-  if (genre?.kind === 'genre') selectedRoonGenre.value = genre
-  const initial = page.offset === 0
-  if (initial) {
-    roonGenreRequestGeneration += 1
-    roonGenreInitialLoading.value = true
-    roonGenreLoadMoreError.value = null
-    roonGenreError.value = null
-    selectedRoonGenrePage.value = emptyRoonPage(page.limit)
-  } else {
-    if (roonGenreLoadingMore.value) return
-    roonGenreLoadingMore.value = true
-    roonGenreLoadMoreError.value = null
-  }
-  const generation = roonGenreRequestGeneration
-  try {
-    const result = await window.musicBridge.getRoonGenreItems(reference, page)
-    if (generation !== roonGenreRequestGeneration) return
-    selectedRoonGenrePage.value = initial ? result : appendRoonPage(selectedRoonGenrePage.value, result)
-    roonGenreInitialLoading.value = false
-    roonGenreLoadingMore.value = false
-    roonGenreError.value = null
-    currentView.value = 'roon-genre-detail'
-    sidebar.setActiveSource({ type: 'roon-genre', reference })
-  } catch (error) {
-    if (generation !== roonGenreRequestGeneration) return
-    if (initial) {
-      roonGenreInitialLoading.value = false
-      roonGenreError.value = roonLibraryMessage(error)
-    } else {
-      roonGenreLoadingMore.value = false
-      roonGenreLoadMoreError.value = '加载失败，点击重试'
-    }
-  }
-}
-
-async function loadRoonPlaylist(
-  reference: string,
-  page: PageRequest = { offset: 0, limit: 24 },
-): Promise<void> {
-  const playlist = roonPlaylistsPage.value.items.find((item) => item.reference === reference)
-  if (playlist?.kind === 'playlist') selectedRoonPlaylist.value = playlist
-  const initial = page.offset === 0
-  if (initial) {
-    roonPlaylistRequestGeneration += 1
-    roonPlaylistInitialLoading.value = true
-    roonPlaylistLoadMoreError.value = null
-    roonPlaylistError.value = null
-    selectedRoonPlaylistPage.value = emptyRoonPage(page.limit)
-  } else {
-    if (roonPlaylistLoadingMore.value) return
-    roonPlaylistLoadingMore.value = true
-    roonPlaylistLoadMoreError.value = null
-  }
-  const generation = roonPlaylistRequestGeneration
-  try {
-    const result = await window.musicBridge.getRoonPlaylistTracks(reference, page)
-    if (generation !== roonPlaylistRequestGeneration) return
-    selectedRoonPlaylistPage.value = initial ? result : appendRoonPage(selectedRoonPlaylistPage.value, result)
-    roonPlaylistInitialLoading.value = false
-    roonPlaylistLoadingMore.value = false
-    roonPlaylistError.value = null
-    currentView.value = 'roon-playlist-detail'
-    sidebar.setActiveSource({ type: 'roon-playlist', reference })
-  } catch (error) {
-    if (generation !== roonPlaylistRequestGeneration) return
-    if (initial) {
-      roonPlaylistInitialLoading.value = false
-      roonPlaylistError.value = roonLibraryMessage(error)
-    } else {
-      roonPlaylistLoadingMore.value = false
-      roonPlaylistLoadMoreError.value = '加载失败，点击重试'
-    }
-  }
-}
-
-function roonAlbumPageAt(offset: number): void {
-  const album = selectedRoonAlbum.value
-  if (album) void loadRoonAlbum(album.reference, { offset, limit: selectedRoonAlbumPage.value.limit })
-}
-
-function roonArtistPageAt(offset: number): void {
-  const artist = selectedRoonArtist.value
-  if (artist) void loadRoonArtist(artist.reference, { offset, limit: selectedRoonArtistPage.value.limit })
-}
-
-function roonGenrePageAt(offset: number): void {
-  const genre = selectedRoonGenre.value
-  if (genre) void loadRoonGenre(genre.reference, { offset, limit: selectedRoonGenrePage.value.limit })
-}
-
-function roonPlaylistPageAt(offset: number): void {
-  const playlist = selectedRoonPlaylist.value
-  if (playlist) void loadRoonPlaylist(playlist.reference, { offset, limit: selectedRoonPlaylistPage.value.limit })
-}
-
-async function loadRoonEntityFavorite(
-  item: RoonLibraryItem,
-  kind: 'album' | 'artist',
-): Promise<void> {
-  const operation = ++entityFavoriteOperation
-  const state = kind === 'album' ? roonAlbumFavoriteState : roonArtistFavoriteState
-  state.value = 'loading'
-  try {
-    const result = await window.musicBridge.checkFavorite(localFavoriteDescriptor(item))
-    if (operation !== entityFavoriteOperation) return
-    state.value = result.favorite ? 'liked' : 'not-liked'
-  } catch (error) {
-    if (operation === entityFavoriteOperation) state.value = 'error'
-    recordActionError(error)
-  }
-}
-
-async function toggleRoonEntityFavorite(kind: 'album' | 'artist'): Promise<void> {
-  const item = kind === 'album' ? selectedRoonAlbum.value : selectedRoonArtist.value
-  const state = kind === 'album' ? roonAlbumFavoriteState : roonArtistFavoriteState
-  if (!item || item.kind !== kind || state.value === 'loading') return
-  const operation = ++entityFavoriteOperation
-  const nextFavorite = state.value !== 'liked'
-  state.value = 'loading'
-  try {
-    const result = await window.musicBridge.setFavorite(
-      localFavoriteDescriptor(item),
-      nextFavorite,
-    )
-    if (operation !== entityFavoriteOperation) return
-    state.value = result.favorite ? 'liked' : 'not-liked'
-    const label = kind === 'album' ? '专辑' : '艺术家'
-    showToast(nextFavorite ? `已加入本地${label}收藏` : `已取消本地${label}收藏`)
-  } catch (error) {
-    if (operation === entityFavoriteOperation) state.value = 'error'
-    recordActionError(error)
-  }
-}
-
-async function loadFavorites(
-  kind: FavoriteKind = favoriteKind.value,
-  page: PageRequest = { offset: 0, limit: LIBRARY_PAGE_SIZE },
-): Promise<void> {
-  const initial = page.offset === 0
-  if (initial) {
-    favoriteKind.value = kind
-    favoritesRequestGeneration += 1
-    favoritesInitialLoading.value = true
-    favoritesLoadMoreError.value = null
-    favoritesError.value = null
-    favoritesPage.value = emptyFavoritePage(page.limit)
-  } else {
-    if (favoritesLoadingMore.value || kind !== favoriteKind.value) return
-    favoritesLoadingMore.value = true
-    favoritesLoadMoreError.value = null
-  }
-  const generation = favoritesRequestGeneration
-  try {
-    const result = await window.musicBridge.listFavorites(kind, page)
-    if (generation !== favoritesRequestGeneration || kind !== favoriteKind.value) return
-    favoritesPage.value = initial ? result : {
-      ...result,
-      items: [...favoritesPage.value.items, ...result.items.filter((item) => !favoritesPage.value.items.some((existing) => existing.favoriteId === item.favoriteId))],
-    }
-    favoritesInitialLoading.value = false
-    favoritesLoadingMore.value = false
-    favoritesError.value = null
-  } catch (error) {
-    if (generation !== favoritesRequestGeneration || kind !== favoriteKind.value) return
-    if (initial) {
-      favoritesInitialLoading.value = false
-      favoritesError.value = roonLibraryMessage(error)
-    } else {
-      favoritesLoadingMore.value = false
-      favoritesLoadMoreError.value = '加载失败，点击重试'
-    }
-  }
-}
-
-function setFavoriteKind(kind: FavoriteKind): void {
-  if (favoriteKind.value === kind && favoritesPage.value.items.length) return
-  void loadFavorites(kind)
-}
-
-function openFavorite(item: RoonLibraryItem, record: FavoriteRecord): void {
-  const { favoriteId: _id, createdAt: _created, updatedAt: _updated, ...descriptor } = record
-  // 继续使用原收藏描述操作关系，避免搜索与详情的元数据差异产生重复收藏。
-  resolvedFavoriteDescriptors.set(item.reference, descriptor)
-  if (resolvedFavoriteDescriptors.size > 1000) resolvedFavoriteDescriptors.delete(resolvedFavoriteDescriptors.keys().next().value!)
-  if (item.kind === 'track') { void playRoonLibraryTrack(item); return }
-  if (item.kind === 'album') selectedRoonAlbum.value = item
-  if (item.kind === 'artist') selectedRoonArtist.value = item
-  if (item.kind === 'album' || item.kind === 'artist') void loadRoonEntityFavorite(item, item.kind)
-  navigateSource({ type: item.kind === 'album' ? 'roon-album' : 'roon-artist', reference: item.reference })
-}
-
-const removingFavorites = new Set<string>()
-async function removeFavorite(record: FavoriteRecord): Promise<void> {
-  if (removingFavorites.has(record.favoriteId)) return
-  removingFavorites.add(record.favoriteId)
-  try {
-    const { favoriteId: _id, createdAt: _created, updatedAt: _updated, ...descriptor } = record
-    await window.musicBridge.setFavorite(descriptor, false)
-    if (currentView.value === 'roon-favorites' && favoriteKind.value === record.kind) await loadFavorites(record.kind)
-    showToast('已取消收藏')
-  } catch (error) { recordActionError(error) }
-  finally { removingFavorites.delete(record.favoriteId) }
-}
-
-function favoritesPageAt(offset: number): void {
-  void loadFavorites(favoriteKind.value, { offset, limit: favoritesPage.value.limit })
-}
-
-function retryFavorites(): void {
-  void loadFavorites(favoriteKind.value)
-}
-
-function retryRoonAlbum(): void {
-  const album = selectedRoonAlbum.value
-  if (album) void loadRoonAlbum(album.reference)
-}
-
-async function loadSearch(query: string, page: PageRequest, generation: number): Promise<void> {
-  const initial = page.offset === 0
-  if (initial) {
-    searchInitialLoading.value = true
-    searchLoadMoreError.value = null
-    searchArtistsState.value = 'loading'
-    searchAlbumsState.value = 'loading'
-    searchArtistsError.value = null
-    searchAlbumsError.value = null
-    void loadRoonSearch(query, generation)
-  } else {
-    if (searchLoadingMore.value) return
-    searchLoadingMore.value = true
-    searchLoadMoreError.value = null
-  }
-  try {
-    if (initial) {
-      const snapshot = await searchSnapshotLoader.load(query)
-      if (generation !== searchRequestGeneration || snapshot.stale) return
-      if (snapshot.artists.state === 'ready') {
-        searchArtistsPage.value = snapshot.artists.page
-        searchArtistsState.value = 'ready'
-      } else {
-        searchArtistsState.value = 'error'
-        searchArtistsError.value = snapshot.artists.message
-      }
-      if (snapshot.albums.state === 'ready') {
-        searchAlbumsPage.value = snapshot.albums.page
-        searchAlbumsState.value = 'ready'
-      } else {
-        searchAlbumsState.value = 'error'
-        searchAlbumsError.value = snapshot.albums.message
-      }
-      if (snapshot.tracks.state === 'ready') {
-        searchPage.value = snapshot.tracks.page
-        searchError.value = null
-      } else {
-        searchPage.value = emptyPage()
-        searchError.value = searchSectionErrorKind(snapshot.tracks.message)
-      }
-      searchInitialLoading.value = false
-      void matchTracks(searchPage.value.items)
-    } else {
-      const result = await window.musicBridge.searchTracks(query, page)
-      if (generation !== searchRequestGeneration) return
-      searchPage.value = appendPage(searchPage.value, result)
-      void matchTracks(result.items)
-      searchError.value = null
-      searchLoadingMore.value = false
-    }
-  } catch (error) {
-    if (generation !== searchRequestGeneration) return
-    if (initial) {
-      searchInitialLoading.value = false
-      searchError.value = searchErrorKind(error)
-      searchArtistsState.value = 'error'
-      searchAlbumsState.value = 'error'
-      searchArtistsError.value = '搜索艺人暂时不可用。'
-      searchAlbumsError.value = '搜索专辑暂时不可用。'
-    } else {
-      searchLoadingMore.value = false
-      searchLoadMoreError.value = '加载失败，点击重试'
-    }
-  }
-}
-
-async function loadRoonSearch(query: string, generation: number): Promise<void> {
-  roonSearchLoading.value = true
-  const results = await Promise.allSettled([
-    window.musicBridge.searchRoonLibrary(query, { offset: 0, limit: 8 }, 'album'),
-    window.musicBridge.searchRoonLibrary(query, { offset: 0, limit: 6 }, 'artist'),
-  ])
-  if (generation !== searchRequestGeneration) return
-  const [albums, artists] = results
-  if (albums.status === 'fulfilled') roonSearchAlbums.value = albums.value
-  if (artists.status === 'fulfilled') roonSearchArtists.value = artists.value
-
-  roonSearchError.value = results.some((result) => result.status === 'rejected') ? '部分 Roon 搜索结果暂时不可用，请检查 Roon 连接后重新搜索。' : null
-  roonSearchLoading.value = false
-}
-
-async function loadMoreSearchEntities(source: 'roon' | 'netease', kind: 'album' | 'artist'): Promise<void> {
-  const generation = searchRequestGeneration
-  const query = searchQuery.value.trim()
-  const isAlbum = kind === 'album'
-  if (source === 'roon') {
-    if (roonSearchLoading.value) return
-    const target = isAlbum ? roonSearchAlbums : roonSearchArtists
-    if (!target.value.hasMore) return
-    roonSearchLoading.value = true
-    try {
-      const page = await window.musicBridge.searchRoonLibrary(query, { offset: target.value.offset + target.value.limit, limit: target.value.limit }, kind)
-      if (generation !== searchRequestGeneration) return
-      target.value = appendRoonPage(target.value, page)
-      roonSearchError.value = null
-    } catch {
-      if (generation === searchRequestGeneration) roonSearchError.value = '加载更多 Roon 结果失败，请重试。'
-    } finally {
-      if (generation === searchRequestGeneration) roonSearchLoading.value = false
-    }
-    return
-  }
-  const state = isAlbum ? searchAlbumsState : searchArtistsState
-  if (state.value === 'loading' || !(isAlbum ? searchAlbumsPage.value : searchArtistsPage.value).hasMore) return
-  state.value = 'loading'
-  try {
-    if (isAlbum) {
-      const page = await window.musicBridge.searchAlbums(query, { offset: searchAlbumsPage.value.offset + searchAlbumsPage.value.limit, limit: 8 })
-      if (generation !== searchRequestGeneration) return
-      searchAlbumsPage.value = appendPage(searchAlbumsPage.value, page)
-      searchAlbumsError.value = null
-    } else {
-      const page = await window.musicBridge.searchArtists(query, { offset: searchArtistsPage.value.offset + searchArtistsPage.value.limit, limit: 6 })
-      if (generation !== searchRequestGeneration) return
-      searchArtistsPage.value = appendPage(searchArtistsPage.value, page)
-      searchArtistsError.value = null
-    }
-    state.value = 'ready'
-  } catch {
-    if (generation !== searchRequestGeneration) return
-    state.value = 'error'
-    if (isAlbum) searchAlbumsError.value = '加载更多专辑失败，请重试。'
-    else searchArtistsError.value = '加载更多艺人失败，请重试。'
-  }
-}
-
-function openSearchSongs(): void {
-  searchScrollTop.value = contentScroll.value?.scrollTop ?? 0
-  searchSongsOpen.value = true
-  void nextTick(() => contentScroll.value?.scrollTo({ top: 0 }))
-}
-
-function returnToSearch(): void {
-  roonAlbumRequestGeneration += 1
-  roonArtistRequestGeneration += 1
-  if (!roonSearchOrigin.value) searchSongsOpen.value = false
-  roonSearchOrigin.value = false
-  currentView.value = 'search'
-  sidebar.setActiveSource(searchReturnSource.value)
-  void nextTick(() => contentScroll.value?.scrollTo({ top: searchScrollTop.value }))
-}
-
-function cancelPendingMatches(): void {
-  matchRequestScheduler.cancelPending()
-  pendingMatchRequests.clear()
-}
-
-function requestLibraryMatch(track: TrackSummary): Promise<PublicTrackMatchResult> {
-  const existing = pendingMatchRequests.get(track.id)
-  if (existing) return existing
-  const request = matchRequestScheduler.schedule(trackSummaryForMatching(track))
-  pendingMatchRequests.set(track.id, request)
-  return request
-}
-
-async function matchTracks(
-  tracks: readonly TrackSummary[],
-  visible = true,
-): Promise<void> {
-  if (!shouldPreloadSmartMatches(selectedZone.value?.zoneId, visible)) return
-  const generation = matchGeneration
-  const boundedTracks = tracksForInitialMatching(tracks)
-  const results = await settledMapWithConcurrency(
-    boundedTracks,
-    3,
-    (track) => generation === matchGeneration
-      ? requestLibraryMatch(track)
-      : Promise.reject(new Error('Smart matching batch was superseded')),
-  )
-  if (generation !== matchGeneration) return
-  const next = { ...matchStates.value }
-  const nextResults = { ...matchResults.value }
-  results.forEach((result, index) => {
-    const track = boundedTracks[index]
-    if (track) pendingMatchRequests.delete(track.id)
-    if (result.status !== 'fulfilled') return
-    if (track) {
-      next[track.id] = result.value.state
-      nextResults[track.id] = result.value
-    }
-  })
-  matchStates.value = next
-  matchResults.value = nextResults
-}
-
-function scheduleSearch(): void {
-  stopSearchTimer()
-  resetSearchSections()
-  searchSnapshotLoader.cancel()
-  const generation = ++searchRequestGeneration
-  searchError.value = null
-  searchLoadMoreError.value = null
-  searchPage.value = emptyPage()
-  searchArtistsPage.value = emptyPage(6)
-  searchAlbumsPage.value = emptyPage(8)
-  searchArtistsState.value = 'idle'
-  searchAlbumsState.value = 'idle'
-  searchArtistsError.value = null
-  searchAlbumsError.value = null
-  searchDetail.value = null
-  matchStates.value = {}
-  matchResults.value = {}
-  cancelPendingMatches()
-  matchGeneration += 1
-  searchInitialLoading.value = false
-  searchLoadingMore.value = false
-  const query = searchQuery.value.trim()
-  if (query.length === 0) {
-    searchPage.value = emptyPage()
-    return
-  }
-  searchTimer = setTimeout(() => {
-    searchTimer = undefined
-    void loadSearch(query, { offset: 0, limit: LIBRARY_PAGE_SIZE }, generation)
-  }, SEARCH_DEBOUNCE_MS)
-}
-
-async function loadLiked(page: PageRequest = { offset: 0, limit: LIBRARY_PAGE_SIZE }): Promise<void> {
-  if (authState.value.status !== 'authorized') {
-    likedPage.value = emptyPage()
-    likedInitialLoading.value = false
-    likedLoadingMore.value = false
-    return
-  }
-  if (!canLoadAuthorizedLibrary(
-    authState.value.status,
-    coreState.value?.runtime,
-    remoteCoreState.value.status,
-  )) {
-    if (page.offset === 0) likedInitialLoading.value = true
-    return
-  }
-  const initial = page.offset === 0
-  if (initial) {
-    likedRequestGeneration += 1
-    likedInitialLoading.value = true
-    likedLoadMoreError.value = null
-  } else {
-    if (likedLoadingMore.value) return
-    likedLoadingMore.value = true
-    likedLoadMoreError.value = null
-  }
-  const generation = likedRequestGeneration
-  try {
-    const result = await window.musicBridge.getLikedTracks(page)
-    if (generation !== likedRequestGeneration) return
-    likedPage.value = initial ? result : appendPage(likedPage.value, result)
-    likedError.value = null
-    if (initial) likedInitialLoading.value = false
-    else likedLoadingMore.value = false
-  } catch (error) {
-    if (generation !== likedRequestGeneration) return
-    if (initial) {
-      likedInitialLoading.value = false
-      likedError.value = libraryErrorKind(error)
-    } else {
-      likedLoadingMore.value = false
-      likedLoadMoreError.value = '加载失败，点击重试'
-    }
-  }
-}
-
-async function loadDailyRecommendations(): Promise<void> {
-  const operation = ++dailyOperation
-  dailyError.value = null
-  if (authState.value.status !== 'authorized') {
-    dailyRecommendations.value = { dayKey: localDayKey(), tracks: [] }
-    dailyState.value = 'empty'
-    return
-  }
-  dailyState.value = 'loading'
-  if (!canLoadAuthorizedLibrary(
-    authState.value.status,
-    coreState.value?.runtime,
-    remoteCoreState.value.status,
-  )) return
-  try {
-    const snapshot = await window.musicBridge.getDailyRecommendations()
-    if (operation !== dailyOperation) return
-    dailyRecommendations.value = snapshot
-    void matchTracks(
-      snapshot.tracks,
-      currentView.value === 'home' || currentView.value === 'daily-recommendations',
-    )
-    dailyState.value = snapshot.tracks.length ? 'ready' : 'empty'
-  } catch (error) {
-    if (operation !== dailyOperation) return
-    dailyRecommendations.value = { dayKey: localDayKey(), tracks: [] }
-    dailyState.value = 'error'
-    dailyError.value = dailyMessage(error)
-  }
-}
-
-function selectAggregatedRoonItem(item: RoonLibraryItem): void {
-  if (currentView.value !== 'search' && !roonSearchOrigin.value) {
-    if (item.kind === 'album') navigateSource({ type: 'roon-album', reference: item.reference })
-    else if (item.kind === 'artist') navigateSource({ type: 'roon-artist', reference: item.reference })
-    else if (item.kind === 'track') void playRoonLibraryTrack(item)
-    return
-  }
-  if (!roonSearchOrigin.value) searchScrollTop.value = contentScroll.value?.scrollTop ?? 0
-  if (item.kind !== 'track') { rememberRoonDetailParent(); roonSearchOrigin.value = true }
-  if (item.kind === 'track') {
-    void playRoonLibraryTrack(item)
-    return
-  }
-  if (item.kind === 'album') {
-    selectedRoonAlbum.value = item
-    void loadRoonEntityFavorite(item, 'album')
-    void loadRoonAlbum(item.reference)
-    return
-  }
-  if (item.kind === 'artist') {
-    selectedRoonArtist.value = item
-    void loadRoonEntityFavorite(item, 'artist')
-    void loadRoonArtist(item.reference)
-  }
-}
-
-async function loadAccountState(): Promise<void> {
-  accountError.value = null
-  if (!isCoreRuntimeStable(coreState.value?.runtime, remoteCoreState.value.status)) {
-    accountState.value = authState.value.status === 'authorized'
-      ? { status: 'loading' }
-      : { status: 'missing' }
-    return
-  }
-  try {
-    const state = await window.musicBridge.getAccountState()
-    accountState.value = state
-  } catch (error) {
-    accountState.value = { status: 'unavailable' }
-    accountError.value = accountMessage(error)
-  }
-}
-
-async function refreshAccountProfile(): Promise<void> {
-  accountError.value = null
-  try {
-    accountState.value = await window.musicBridge.refreshAccountProfile()
-    if (authState.value.status === 'authorized') void loadDailyRecommendations()
-  } catch (error) {
-    accountState.value = { status: 'unavailable' }
-    accountError.value = accountMessage(error)
-  }
-}
-
-async function loadPlaylists(): Promise<void> {
-  if (authState.value.status !== 'authorized') {
-    resetPlaylistSources()
-    homePlaylistTracks.value = []
-    homeRecommendationState.value = 'ready'
-    return
-  }
-  if (!canLoadAuthorizedLibrary(
-    authState.value.status,
-    coreState.value?.runtime,
-    remoteCoreState.value.status,
-  )) {
-    homeRecommendationState.value = 'loading'
-    return
-  }
-  await loadPlaylistSources()
-  const error = playlistError.value
-  if (error) {
-    homePlaylistTracks.value = []
-    homeRecommendationState.value = 'error'
-    return
-  }
-  await loadHomeRecommendations()
-}
-
-async function loadHomeRecommendations(): Promise<void> {
-  const operation = ++homeRecommendationOperation
-  homeRecommendationState.value = 'loading'
-  const selections = selectRandomPlaylistPages(playlists.value)
-
-  if (!selections.length) {
-    homePlaylistTracks.value = []
-    homeRecommendationState.value = 'ready'
-    return
-  }
-
-  try {
-    const settled = await settleHomePlaylistPages(
-      selections.map((selection) => window.musicBridge.getPlaylist(selection.playlistId, selection.page)),
-    )
-    if (operation !== homeRecommendationOperation) return
-    homePlaylistTracks.value = shuffleTracks(settled.tracks)
-    homeRecommendationState.value = settled.successCount > 0 ? 'ready' : 'error'
-  } catch {
-    if (operation !== homeRecommendationOperation) return
-    homePlaylistTracks.value = []
-    homeRecommendationState.value = 'error'
-  }
-}
-
-function refreshHomeRecommendations(): void {
-  if (playlistState.value === 'ready') {
-    void loadHomeRecommendations()
-    return
-  }
-  void loadPlaylists()
-}
-
-function invalidateCollectionOperation(): void {
-  collectionOperation += 1
-  activeCollectionLoader?.cancel()
-  activeCollectionLoader = undefined
-  collectionPlaybackStartInFlight = false
-}
-
-async function loadPlaylist(
-  playlistId: string,
-  page: PageRequest = { offset: 0, limit: LIBRARY_PAGE_SIZE },
-): Promise<void> {
-  if (authState.value.status !== 'authorized') return
-  const switchingPlaylist = selectedPlaylistId.value !== playlistId
-  selectedPlaylistId.value = playlistId
-  const previousPlaylist = selectedPlaylist.value
-  const initial = page.offset === 0
-  if (switchingPlaylist) {
-    invalidateCollectionOperation()
-    playlistRequestGeneration += 1
-    selectedPlaylist.value = null
-    playlistContentScrollTop.value = 0
-    playlistTableScrollTop.value = 0
-  }
-  if (initial && !switchingPlaylist) playlistRequestGeneration += 1
-  if (initial) {
-    playlistInitialLoading.value = true
-    playlistLoadMoreError.value = null
-  } else {
-    if (playlistLoadingMore.value) return
-    playlistLoadingMore.value = true
-    playlistLoadMoreError.value = null
-  }
-  const generation = playlistRequestGeneration
-  try {
-    const result = await window.musicBridge.getPlaylist(playlistId, page)
-    if (generation !== playlistRequestGeneration || selectedPlaylistId.value !== playlistId) return
-    selectedPlaylist.value = {
-      ...result,
-      tracks: initial ? result.tracks : appendPage(previousPlaylist?.tracks ?? null, result.tracks),
-    }
-    currentView.value = 'playlist-detail'
-    sidebar.setActiveSource({ type: 'playlist', playlistId })
-    playlistDetailError.value = null
-    if (initial) playlistInitialLoading.value = false
-    else playlistLoadingMore.value = false
-  } catch (error) {
-    if (generation !== playlistRequestGeneration || selectedPlaylistId.value !== playlistId) return
-    if (initial) {
-      playlistInitialLoading.value = false
-      playlistDetailError.value = libraryErrorKind(error)
-    } else {
-      playlistLoadingMore.value = false
-      playlistLoadMoreError.value = '加载失败，点击重试'
-    }
-  }
-}
-
-function retryPlaylist(): void {
-  const playlistId = selectedPlaylistId.value
-  if (playlistId) void loadPlaylist(playlistId)
-}
-
-function searchPageAt(offset: number): void {
-  const query = searchQuery.value.trim()
-  if (!query) return
-  stopSearchTimer()
-  void loadSearch(query, { offset, limit: LIBRARY_PAGE_SIZE }, searchRequestGeneration)
-}
-
-async function openSearchDetail(kind: 'artist' | 'album', id: string, title: string, subtitle: string): Promise<void> {
-  searchScrollTop.value = contentScroll.value?.scrollTop ?? 0
-  const operation = ++searchDetailGeneration
-  searchDetailLoadingMore.value = false
-  searchDetailMoreError.value = null
-  searchDetail.value = {
-    kind,
-    id,
-    title,
-    subtitle,
-    tracks: emptyPage(),
-    loading: true,
-    error: null,
-  }
-  try {
-    if (kind === 'artist') {
-      const detail = await window.musicBridge.getArtist(id, { offset: 0, limit: LIBRARY_PAGE_SIZE })
-      if (operation !== searchDetailGeneration) return
-      searchDetail.value = {
-        kind,
-        id,
-        title: detail.name,
-        subtitle: `${detail.albumCount ?? 0} 张专辑 · ${detail.trackCount ?? detail.tracks.total} 首歌曲`,
-        tracks: detail.tracks,
-        loading: false,
-        error: null,
-      }
-      return
-    }
-    const detail = await window.musicBridge.getAlbum(id, { offset: 0, limit: LIBRARY_PAGE_SIZE })
-    if (operation !== searchDetailGeneration) return
-    searchDetail.value = {
-      kind,
-      id,
-      title: detail.name,
-      subtitle: `${detail.artistName} · ${detail.trackCount ?? detail.tracks.total} 首歌曲`,
-      tracks: detail.tracks,
-      loading: false,
-      error: null,
-    }
-  } catch {
-    if (operation !== searchDetailGeneration) return
-    searchDetail.value = { kind, id, title, subtitle, tracks: emptyPage(), loading: false, error: '详情歌曲暂时不可用，请稍后重试。' }
-  }
-}
-
-const searchDetailLoadingMore = ref(false)
-const searchDetailMoreError = ref<string | null>(null)
-async function loadMoreSearchDetail(): Promise<void> {
-  const detail = searchDetail.value
-  if (!detail || searchDetailLoadingMore.value) return
-  const generation = searchDetailGeneration
-  searchDetailLoadingMore.value = true
-  searchDetailMoreError.value = null
-  try {
-    const request = { offset: detail.tracks.offset + detail.tracks.limit, limit: detail.tracks.limit }
-    const result = detail.kind === 'artist'
-      ? await window.musicBridge.getArtist(detail.id, request)
-      : await window.musicBridge.getAlbum(detail.id, request)
-    if (generation === searchDetailGeneration && searchDetail.value) searchDetail.value = { ...searchDetail.value, tracks: appendPage(searchDetail.value.tracks, result.tracks) }
-  } catch {
-    if (generation === searchDetailGeneration) searchDetailMoreError.value = '加载更多歌曲失败，请重试。'
-  } finally {
-    if (generation === searchDetailGeneration) searchDetailLoadingMore.value = false
-  }
-}
-
-function closeSearchDetail(): void {
-  searchDetailGeneration += 1
-  searchDetail.value = null
-  void nextTick(() => {
-    contentScroll.value?.scrollTo({ top: searchScrollTop.value })
-  })
-}
-
-function likedPageAt(offset: number): void {
-  void loadLiked({ offset, limit: LIBRARY_PAGE_SIZE })
-}
-
-function playlistPageAt(offset: number): void {
-  const playlistId = selectedPlaylist.value?.id
-  if (playlistId) void loadPlaylist(playlistId, { offset, limit: LIBRARY_PAGE_SIZE })
-}
-
-function resetPrivateLibraryState(): void {
-  rememberedSearchPage = undefined
-  stopSearchTimer()
-  resetSearchSections()
-  searchRequestGeneration += 1
-  likedRequestGeneration += 1
-  playlistRequestGeneration += 1
-  invalidateCollectionOperation()
-  searchQuery.value = ''
-  searchPage.value = emptyPage()
-  matchStates.value = {}
-  matchResults.value = {}
-  cancelPendingMatches()
-  matchGeneration += 1
-  searchInitialLoading.value = false
-  searchLoadingMore.value = false
-  searchLoadMoreError.value = null
-  searchError.value = null
-  likedPage.value = emptyPage()
-  likedInitialLoading.value = false
-  likedLoadingMore.value = false
-  likedLoadMoreError.value = null
-  likedError.value = null
-  selectedPlaylist.value = null
-  selectedPlaylistId.value = null
-  playlistInitialLoading.value = false
-  playlistLoadingMore.value = false
-  playlistLoadMoreError.value = null
-  playlistDetailError.value = null
-  homePlaylistTracks.value = []
-  homeRecommendationOperation += 1
-  homeRecommendationState.value = 'ready'
-  accountError.value = null
-  dailyOperation += 1
-  dailyRecommendations.value = { dayKey: localDayKey(), tracks: [] }
-  dailyState.value = 'empty'
-  dailyError.value = null
-  recentTracks.value = []
-  resetPlaylistSources()
-}
-
-function acceptsPolling(state: PublicAuthState): boolean {
-  return state.status === 'waiting' || state.status === 'scanned'
-}
-
-function loadAuthorizedLibraryWhenReady(): void {
-  if (
-    authorizedLibraryLoadStarted
-    || !canLoadAuthorizedLibrary(
-      authState.value.status,
-      coreState.value?.runtime,
-      remoteCoreState.value.status,
-    )
-  ) return
-  authorizedLibraryLoadStarted = true
-  void loadAccountState()
-  void loadLiked()
-  void loadPlaylists()
-  void loadDailyRecommendations()
-}
-
-function applyAuthState(state: PublicAuthState, operation = authOperation): void {
-  if (operation !== authOperation) return
-  authState.value = state
-  if (!acceptsPolling(state)) stopPolling()
-  if (state.status === 'authorized') {
-    resetPrivateLibraryState()
-    authorizedLibraryLoadStarted = false
-    dailyState.value = 'loading'
-    homeRecommendationState.value = 'loading'
-    accountState.value = { status: 'loading' }
-    loadAuthorizedLibraryWhenReady()
-  } else if (state.status === 'idle' || state.status === 'cancelled' || state.status === 'expired') {
-    authorizedLibraryLoadStarted = false
-    resetPrivateLibraryState()
-    accountState.value = { status: 'missing' }
-    dailyRecommendations.value = { dayKey: localDayKey(), tracks: [] }
-    dailyState.value = 'empty'
-  }
-}
-
-async function pollQr(operation: number): Promise<void> {
-  const challengeId = authState.value.challengeId
-  if (!challengeId || pollInFlight || operation !== authOperation) return
-  pollInFlight = true
-  try {
-    applyAuthState(await window.musicBridge.pollQrLogin(challengeId), operation)
-  } catch (error) {
-    if (operation === authOperation) {
-      authError.value = true
-      recordActionError(error)
-    }
-    stopPolling()
-  } finally {
-    pollInFlight = false
-  }
-}
-
-function startPolling(): void {
-  stopPolling()
-  const operation = authOperation
-  pollTimer = setInterval(() => void pollQr(operation), 2_000)
-  void pollQr(operation)
-}
-
-async function beginQrLogin(): Promise<void> {
-  authOperation += 1
-  authError.value = false
-  actionError.value = null
-  stopPolling()
-  try {
-    const state = await window.musicBridge.beginQrLogin()
-    applyAuthState(state)
-    if (acceptsPolling(state)) startPolling()
-  } catch (error) {
-    authError.value = true
-    recordActionError(error)
-  }
-}
-
-async function cancelQrLogin(): Promise<void> {
-  const challengeId = authState.value.challengeId
-  if (!challengeId) return
-  authOperation += 1
-  stopPolling()
-  try {
-    applyAuthState(await window.musicBridge.cancelQrLogin(challengeId))
-  } catch (error) {
-    authError.value = true
-    recordActionError(error)
-  }
-}
-
-async function logout(): Promise<void> {
-  if (!window.confirm('退出登录会停止播放、清空队列并移除本地账户状态。确定继续吗？')) return
-  authOperation += 1
-  authError.value = false
-  stopPolling()
-  try {
-    applyAuthState(await window.musicBridge.logout())
-    accountState.value = { status: 'missing' }
-  } catch (error) {
-    authError.value = true
-    recordActionError(error)
-  }
-}
-
-async function loadLyrics(trackId: string): Promise<void> {
-  const operation = ++lyricsOperation
-  lyricsSnapshot.value = emptyLyricsSnapshot('loading')
-  try {
-    const snapshot = await window.musicBridge.getLyrics(trackId)
-    if (operation !== lyricsOperation || playbackState.value?.currentTrack?.id !== trackId) return
-    lyricsSnapshot.value = snapshot
-  } catch {
-    if (operation === lyricsOperation) lyricsSnapshot.value = emptyLyricsSnapshot('error')
-  }
-}
-
-async function selectLocalLyricsMatch(matchSessionId: string, candidateId: string): Promise<void> {
-  if (localLyricsMatchBusy.value) return
-  const revision = localLyricsMatchRevision
-  localLyricsMatchBusy.value = true
-  localLyricsMatchError.value = false
-  try {
-    const state = await window.musicBridge.selectLocalLyricsMatch(matchSessionId, candidateId)
-    if (localLyricsMatchRevision === revision) localLyricsMatchState.value = state
-  } catch (error) {
-    if (localLyricsMatchRevision === revision) {
-      localLyricsMatchError.value = true
-      recordActionError(error)
-    }
-  } finally {
-    localLyricsMatchBusy.value = false
-  }
-}
-
-async function revokeLocalLyricsMatch(): Promise<void> {
-  if (localLyricsMatchBusy.value) return
-  const revision = localLyricsMatchRevision
-  localLyricsMatchBusy.value = true
-  localLyricsMatchError.value = false
-  try {
-    const state = await window.musicBridge.revokeLocalLyricsMatch()
-    if (localLyricsMatchRevision === revision) localLyricsMatchState.value = state
-  } catch (error) {
-    if (localLyricsMatchRevision === revision) {
-      localLyricsMatchError.value = true
-      recordActionError(error)
-    }
-  } finally {
-    localLyricsMatchBusy.value = false
-  }
-}
-
-function resetLocalTrackFavorite(): void {
-  localFavoriteOperation += 1
-  localTrackFavoriteDescriptor.value = null
-  localTrackFavoriteState.value = 'idle'
-}
-
-async function loadTrackLikeStatus(trackId: string): Promise<void> {
-  const operation = ++trackLikeOperation
-  const isRoonPlayback = playbackSource.value === 'roon'
-  const hasNeteaseIdentity = !isRoonPlayback || nativeRoonHasNeteaseMatch.value
-  const descriptor = isRoonPlayback ? localTrackFavoriteDescriptor.value : null
-  trackLikeState.value = 'loading'
-  neteaseTrackLiked.value = null
-  if (descriptor) {
-    localFavoriteOperation += 1
-    localTrackFavoriteState.value = 'loading'
-  } else {
-    localTrackFavoriteState.value = 'idle'
-  }
-  try {
-    const [neteaseResult, localResult] = await Promise.all([
-      hasNeteaseIdentity
-        ? window.musicBridge.getTrackLikeStatus(trackId)
-        : Promise.resolve(undefined),
-      descriptor
-        ? window.musicBridge.checkFavorite(descriptor)
-        : Promise.resolve(undefined),
-    ])
-    if (operation !== trackLikeOperation || playbackState.value?.currentTrack?.id !== trackId) return
-    const neteaseLiked = neteaseResult?.liked ?? false
-    const localLiked = localResult?.favorite ?? false
-    neteaseTrackLiked.value = hasNeteaseIdentity ? neteaseLiked : null
-    if (descriptor) localTrackFavoriteState.value = localLiked ? 'liked' : 'not-liked'
-    trackLikeState.value = (isRoonPlayback ? localLiked || neteaseLiked : neteaseLiked)
-      ? 'liked'
-      : 'not-liked'
-  } catch {
-    if (operation === trackLikeOperation) {
-      trackLikeState.value = 'error'
-      if (descriptor) localTrackFavoriteState.value = 'error'
-    }
-  }
-}
-
-async function toggleTrackLike(): Promise<void> {
-  const trackId = currentTrack.value?.id
-  const descriptor = localTrackFavoriteDescriptor.value
-  const isRoonPlayback = playbackSource.value === 'roon'
-  const hasNeteaseIdentity = !isRoonPlayback || nativeRoonHasNeteaseMatch.value
-  if (
-    !trackId ||
-    trackLikeState.value === 'loading' ||
-    (!hasNeteaseIdentity && !descriptor)
-  ) return
-  const nextLiked = resolveFavoriteToggle({
-    netease: neteaseTrackLiked.value === true,
-    local: localTrackFavoriteState.value === 'liked',
-  })
-  const operation = ++trackLikeOperation
-  trackLikeState.value = 'loading'
-  localTrackFavoriteState.value = descriptor ? 'loading' : 'idle'
-  try {
-    const [neteaseResult, localResult] = await Promise.all([
-      hasNeteaseIdentity
-        ? window.musicBridge.setTrackLiked(trackId, nextLiked)
-        : Promise.resolve(undefined),
-      descriptor
-        ? window.musicBridge.setFavorite(descriptor, nextLiked)
-        : Promise.resolve(undefined),
-    ])
-    if (operation !== trackLikeOperation || playbackState.value?.currentTrack?.id !== trackId) return
-    neteaseTrackLiked.value = neteaseResult?.liked ?? null
-    if (descriptor) localTrackFavoriteState.value = nextLiked ? 'liked' : 'not-liked'
-    trackLikeState.value = nextLiked ? 'liked' : 'not-liked'
-    if (isRoonPlayback && hasNeteaseIdentity && descriptor) {
-      showToast(nextLiked ? '已同步网易云与本地收藏' : '已取消网易云与本地收藏')
-    } else if (isRoonPlayback && hasNeteaseIdentity) {
-      showToast(nextLiked ? '已加入网易云喜欢的音乐' : '已取消网易云喜欢')
-    } else if (isRoonPlayback) {
-      showToast(nextLiked ? '已加入本地收藏' : '已取消本地收藏')
-    } else {
-      showToast(nextLiked ? '已加入网易云喜欢的音乐' : '已取消网易云喜欢')
-    }
-  } catch (error) {
-    if (operation === trackLikeOperation) {
-      trackLikeState.value = 'error'
-      if (descriptor) localTrackFavoriteState.value = 'error'
-    }
-    recordActionError(error)
-  }
-}
-
-function applyPlaybackState(snapshot: PlaybackSnapshot): void {
-  const previousTrackId = playbackState.value?.currentTrack?.id
-  const wasPlaying = playbackState.value?.state === 'playing'
-  playbackState.value = snapshot
-  const queueItem = snapshot.queue.items[snapshot.queue.index]
-  const nextSource = snapshot.source ?? queueItem?.resolvedSource
-  if (nextSource !== undefined) {
-    const sourceChanged = playbackSource.value !== nextSource
-    playbackSource.value = nextSource
-    if (nextSource === 'roon') {
-      const trackId = snapshot.currentTrack?.id ?? ''
-      const localItem = snapshot.currentTrack
-        ? roonQueueDescriptors.get(snapshot.currentTrack.id)
-        : undefined
-      const rememberedNeteaseMatch = roonQueueNeteaseMatches.has(trackId)
-      nativeRoonHasNeteaseMatch.value = nativeRoonQueueItemHasNeteaseIdentity(
-        queueItem,
-        rememberedNeteaseMatch,
-      )
-      if (localItem) {
-        localTrackFavoriteDescriptor.value = localFavoriteDescriptor(localItem)
-      } else {
-        resetLocalTrackFavorite()
-      }
-      if (sourceChanged) {
-        neteaseTrackLiked.value = null
-        trackLikeState.value = 'idle'
-      }
-    } else if (sourceChanged || !snapshot.currentTrack) {
-      nativeRoonHasNeteaseMatch.value = false
-      resetLocalTrackFavorite()
-      neteaseTrackLiked.value = null
-    }
-  } else if (!snapshot.currentTrack) {
-    playbackSource.value = 'netease'
-    nativeRoonHasNeteaseMatch.value = false
-    resetLocalTrackFavorite()
-    neteaseTrackLiked.value = null
-  }
-  // 队列外 Roon 曲目只有观测身份，不能把它放进会按网易云 ID 再次播放的最近列表。
-  const replayableTrack = snapshot.source !== 'roon' || nativeRoonHasNeteaseMatch.value
-    || (snapshot.currentTrack !== undefined && roonQueueDescriptors.has(snapshot.currentTrack.id))
-  if (snapshot.state === 'playing' && snapshot.currentTrack && replayableTrack && (!wasPlaying || previousTrackId !== snapshot.currentTrack.id)) {
-    recentTracks.value = [
-      snapshot.currentTrack,
-      ...recentTracks.value.filter((track) => track.id !== snapshot.currentTrack?.id),
-    ].slice(0, 6)
-  }
-  const trackId = snapshot.currentTrack?.id
-  if (trackId && trackId !== previousTrackId) {
-    if (playbackSource.value !== 'roon' || nativeRoonHasNeteaseMatch.value) void loadLyrics(trackId)
-    void loadTrackLikeStatus(trackId)
-  }
-  else if (!trackId && previousTrackId) {
-    lyricsOperation += 1
-    lyricsSnapshot.value = emptyLyricsSnapshot()
-    trackLikeOperation += 1
-    trackLikeState.value = 'idle'
-    neteaseTrackLiked.value = null
-    resetLocalTrackFavorite()
-  }
-}
-
-function applyNeteasePlayback(snapshot: PlaybackSnapshot): void {
-  applyPlaybackState(snapshot)
-}
-
-async function refreshPlayback(): Promise<void> {
-  try {
-    applyPlaybackState(await window.musicBridge.getPlaybackState())
-  } catch (error) {
-    recordActionError(error)
-  }
 }
 
 async function exportDiagnostics(): Promise<void> {
@@ -2296,250 +391,17 @@ function showToast(message: string): void {
   }, 2_400)
 }
 
-function queueItemsForTracks(tracks: readonly TrackSummary[]): PlaybackQueueRequestItem[] {
-  return tracks.map((track) => {
-    const match = matchResults.value[track.id]
-    const candidate = confirmedRoonCandidate(match)
-    if (candidate) rememberRoonQueueDescriptor(track.id, candidate, true)
-    return {
-      trackId: track.id,
-      qualityPreference: selectedQuality.value,
-      preferredSource: queuePreferenceForMatch(match),
-    }
-  })
-}
-
-function cloneTrackSummary(track: TrackSummary): TrackSummary {
-  return {
-    id: track.id,
-    title: track.title,
-    artists: [...track.artists],
-    album: track.album,
-    ...(track.durationMs !== undefined ? { durationMs: track.durationMs } : {}),
-    ...(track.artworkUrl !== undefined ? { artworkUrl: track.artworkUrl } : {}),
-    ...(track.artworkReference !== undefined
-      ? { artworkReference: track.artworkReference }
-      : {}),
+function getRoonPlaybackContext(): RoonPlaybackContext | undefined {
+  if (currentView.value === 'roon-album-detail' && selectedRoonAlbum.value) {
+    return { page: selectedRoonAlbumPage.value, reference: selectedRoonAlbum.value.reference, load: window.musicBridge.getRoonAlbumTracks }
   }
-}
-
-async function playTrack(track: TrackSummary): Promise<void> {
-  if (playbackStartPending.value) return
-  cancelRoonPlaybackPreparation()
-  const rendererClickAtMs = Date.now()
-  playbackStartPending.value = true
-  actionError.value = null
-  showToast('正在准备')
-  try {
-    const zoneId = selectedZone.value?.zoneId
-    const cachedMatch = matchResults.value[track.id]
-    const pendingMatch = zoneId && !cachedMatch
-      ? pendingMatchRequests.get(track.id)
-      : undefined
-    const match = cachedMatch
-      ?? (pendingMatch ? await waitForMatchWithinPlaybackBudget(pendingMatch) : undefined)
-    const selection = immediatePlaybackSelection(
-      match,
-      zoneId,
-    )
-    if (selection.source === 'roon') {
-      rememberRoonQueueDescriptor(track.id, selection.candidate, true)
-      const snapshot = await window.musicBridge.replaceQueue([{
-        trackId: track.id,
-        qualityPreference: selectedQuality.value,
-        preferredSource: 'smart',
-      }], 0)
-      applyPlaybackState(snapshot)
-      showToast(snapshot.source === 'roon' ? '已使用 Roon 本地版本播放' : '本地版本不可用，已使用网易云播放')
-      enterNowPlaying()
-      return
-    }
-    applyNeteasePlayback(await window.musicBridge.play(track.id, selectedQuality.value, rendererClickAtMs))
-    if (!matchResults.value[track.id]) void matchTracks([cloneTrackSummary(track)])
-    enterNowPlaying()
-  } catch (error) {
-    recordActionError(error)
-  } finally {
-    playbackStartPending.value = false
+  if (currentView.value === 'roon-playlist-detail' && selectedRoonPlaylist.value) {
+    return { page: selectedRoonPlaylistPage.value, reference: selectedRoonPlaylist.value.reference, load: window.musicBridge.getRoonPlaylistTracks }
   }
-}
-
-async function playRoonLibraryTrack(track: RoonLibraryItem): Promise<void> {
-  if (playbackStartPending.value) return
-  const zoneId = selectedZone.value?.zoneId ?? playbackState.value?.selectedZoneId
-  if (!zoneId) {
-    if (zoneLifecycleStatus.value === 'loading') {
-      actionError.value = '正在读取播放设备，请稍候。'
-      return
-    }
-    recordActionError({ code: 'ROON_ZONE_NOT_SELECTED' })
-    return
+  if (currentView.value === 'roon-genre-detail' && selectedRoonGenre.value) {
+    return { page: selectedRoonGenrePage.value, reference: selectedRoonGenre.value.reference, load: window.musicBridge.getRoonGenreItems }
   }
-  actionError.value = null
-  playbackStartPending.value = true
-  const operation = ++roonPlaybackOperation
-  // 在进入正在播放页面前捕获原浏览上下文，搜索/单曲入口不借用旧专辑。
-  const context = currentView.value === 'roon-album-detail' && selectedRoonAlbum.value
-    ? { page: selectedRoonAlbumPage.value, reference: selectedRoonAlbum.value.reference, load: window.musicBridge.getRoonAlbumTracks }
-    : currentView.value === 'roon-playlist-detail' && selectedRoonPlaylist.value
-      ? { page: selectedRoonPlaylistPage.value, reference: selectedRoonPlaylist.value.reference, load: window.musicBridge.getRoonPlaylistTracks }
-      : currentView.value === 'roon-genre-detail' && selectedRoonGenre.value
-        ? { page: selectedRoonGenrePage.value, reference: selectedRoonGenre.value.reference, load: window.musicBridge.getRoonGenreItems }
-        : undefined
-  const roonTrackId = roonTrackIdFromReference(track.reference)
-  optimisticRoonTrackId = roonTrackId
-  rememberRoonQueueDescriptor(roonTrackId, track)
-  applyPlaybackState(createOptimisticRoonPlayback(track, zoneId, selectedQuality.value))
-  enterNowPlaying()
-  try {
-    const tracks = await collectRoonPlaybackContext(track, context?.page,
-      context ? (page) => context.load(context.reference, page) : undefined,
-      () => operation === roonPlaybackOperation)
-    if (operation !== roonPlaybackOperation) return
-    for (const item of tracks) rememberRoonQueueDescriptor(roonTrackIdFromReference(item.reference), item)
-    await window.musicBridge.playRoonTrack(track.reference, zoneId, tracks.map((item) => item.reference))
-    if (operation !== roonPlaybackOperation) return
-    optimisticRoonTrackId = undefined
-    applyPlaybackState(await window.musicBridge.getPlaybackState())
-  } catch (error) {
-    if (operation !== roonPlaybackOperation) return
-    optimisticRoonTrackId = undefined
-    await refreshPlayback()
-    if (operation !== roonPlaybackOperation) return
-    recordActionError(error)
-  } finally {
-    playbackStartPending.value = false
-  }
-}
-
-async function queueRoonLibraryTrack(track: RoonLibraryItem): Promise<void> {
-  const zoneId = selectedZone.value?.zoneId ?? playbackState.value?.selectedZoneId
-  if (!zoneId) {
-    if (zoneLifecycleStatus.value === 'loading') {
-      actionError.value = '正在读取播放设备，请稍候。'
-      return
-    }
-    recordActionError({ code: 'ROON_ZONE_NOT_SELECTED' })
-    return
-  }
-  actionError.value = null
-  try {
-    const roonTrackId = roonTrackIdFromReference(track.reference)
-    rememberRoonQueueDescriptor(roonTrackId, track)
-    await window.musicBridge.queueRoonTrack(track.reference, zoneId)
-    applyPlaybackState(await window.musicBridge.getPlaybackState())
-    showToast('已将 Roon 曲目加入队列')
-  } catch (error) {
-    recordActionError(error)
-  }
-}
-
-async function appendTrack(track: TrackSummary): Promise<void> {
-  actionError.value = null
-  try {
-    applyNeteasePlayback(await window.musicBridge.appendQueue(queueItemsForTracks([track])))
-    showToast('已加入播放队列')
-  } catch (error) {
-    recordActionError(error)
-  }
-}
-
-async function insertTrackNext(track: TrackSummary): Promise<void> {
-  actionError.value = null
-  try {
-    applyNeteasePlayback(await window.musicBridge.insertNext(queueItemsForTracks([track])))
-    showToast('将在下一首播放')
-  } catch (error) {
-    recordActionError(error)
-  }
-}
-
-async function continueCollectionQueue(
-  loader: ProgressiveCollectionLoader,
-  operation: number,
-  pendingTracks: readonly TrackSummary[] = [],
-): Promise<void> {
-  try {
-    if (pendingTracks.length > 0 && operation === collectionOperation) {
-      applyPlaybackState(await window.musicBridge.appendQueue(queueItemsForTracks(pendingTracks)))
-    }
-    while (operation === collectionOperation) {
-      const batch = await loader.next()
-      if (!batch || operation !== collectionOperation) return
-      if (batch.tracks.length > 0) {
-        applyPlaybackState(await window.musicBridge.appendQueue(queueItemsForTracks(batch.tracks)))
-      }
-      if (!batch.hasMore) return
-    }
-  } catch (error) {
-    // 后续分页失败不能终止已经开始的歌曲；只报告可重试的局部错误。
-    if (operation === collectionOperation) recordActionError(error)
-  } finally {
-    if (activeCollectionLoader === loader) activeCollectionLoader = undefined
-  }
-}
-
-async function replaceAndPlayCollection(
-  loadPage: CollectionPageLoader,
-  selectedTrackId?: string,
-  initialPage?: Page<TrackSummary>,
-  openNowPlaying = true,
-): Promise<void> {
-  if (collectionPlaybackStartInFlight || activeCollectionLoader) return
-  cancelRoonPlaybackPreparation()
-  collectionPlaybackStartInFlight = true
-  const operation = ++collectionOperation
-  actionError.value = null
-  const loader = createProgressiveCollectionLoader(loadPage, LIBRARY_PAGE_SIZE, initialPage)
-  activeCollectionLoader = loader
-  try {
-    const firstBatch = await loader.next()
-    if (operation !== collectionOperation || !firstBatch || firstBatch.tracks.length === 0) {
-      if (operation === collectionOperation) collectionPlaybackStartInFlight = false
-      return
-    }
-    const initial = selectInitialCollectionPlayback(firstBatch.tracks, selectedTrackId)
-    const snapshot = await window.musicBridge.replaceQueue(
-      queueItemsForTracks(initial.tracks),
-      initial.index,
-    )
-    if (operation !== collectionOperation) return
-    applyPlaybackState(snapshot)
-    if (openNowPlaying) enterNowPlaying()
-    collectionPlaybackStartInFlight = false
-    if (firstBatch.hasMore) {
-      void continueCollectionQueue(loader, operation)
-    } else {
-      activeCollectionLoader = undefined
-    }
-  } catch (error) {
-    if (operation === collectionOperation) recordActionError(error)
-    if (operation === collectionOperation) {
-      collectionPlaybackStartInFlight = false
-      activeCollectionLoader = undefined
-    }
-  } finally {
-    if (operation === collectionOperation && collectionPlaybackStartInFlight && activeCollectionLoader !== loader) {
-      collectionPlaybackStartInFlight = false
-    }
-  }
-}
-
-async function appendCollection(loadPage: CollectionPageLoader): Promise<void> {
-  const operation = ++collectionOperation
-  activeCollectionLoader?.cancel()
-  actionError.value = null
-  const loader = createProgressiveCollectionLoader(loadPage, LIBRARY_PAGE_SIZE)
-  activeCollectionLoader = loader
-  try {
-    const firstBatch = await loader.next()
-    if (operation !== collectionOperation || !firstBatch || firstBatch.tracks.length === 0) return
-    applyPlaybackState(await window.musicBridge.appendQueue(queueItemsForTracks(firstBatch.tracks)))
-    showToast('已加入播放队列')
-    if (firstBatch.hasMore) void continueCollectionQueue(loader, operation)
-  } catch (error) {
-    if (operation === collectionOperation) recordActionError(error)
-  }
+  return undefined
 }
 
 function playAllLiked(): void {
@@ -2584,104 +446,7 @@ function appendAllPlaylist(): void {
 }
 
 async function playAllDailyRecommendations(): Promise<void> {
-  if (!dailyRecommendations.value.tracks.length) return
-  cancelRoonPlaybackPreparation()
-  actionError.value = null
-  const items = queueItemsForTracks(dailyRecommendations.value.tracks)
-  try {
-    applyNeteasePlayback(await window.musicBridge.replaceQueue(items, 0))
-    enterNowPlaying()
-  } catch (error) {
-    recordActionError(error)
-  }
-}
-
-async function playQueueItem(_item: PlaybackQueueItem, index: number): Promise<void> {
-  const items = playbackState.value?.queue.items
-  if (!items?.[index]) return
-  cancelRoonPlaybackPreparation()
-  try {
-    applyPlaybackState(await window.musicBridge.playQueueIndex(index))
-    enterNowPlaying()
-  } catch (error) {
-    recordActionError(error)
-  }
-}
-
-async function togglePlayback(): Promise<void> {
-  const snapshot = playbackState.value
-  if (!snapshot) return
-  if (snapshot.state === 'playing' && snapshot.canPause) {
-    try {
-      applyPlaybackState(await window.musicBridge.pause())
-    } catch (error) {
-      recordActionError(error)
-    }
-    return
-  }
-  if (snapshot.state === 'paused' && snapshot.canResume) {
-    try {
-      applyPlaybackState(await window.musicBridge.resume())
-    } catch (error) {
-      recordActionError(error)
-    }
-    return
-  }
-  if (snapshot.state === 'idle' && currentTrack.value) {
-    await playTrack(currentTrack.value)
-  }
-}
-
-async function stopPlayback(): Promise<void> {
-  cancelRoonPlaybackPreparation()
-  try {
-    if (playbackSource.value === 'roon') {
-      await window.musicBridge.stopRoonTransport()
-      await refreshPlayback()
-      return
-    }
-    applyNeteasePlayback(await window.musicBridge.stop())
-  } catch (error) {
-    recordActionError(error)
-  }
-}
-
-async function nextTrack(): Promise<void> {
-  cancelRoonPlaybackPreparation()
-  try {
-    applyNeteasePlayback(await window.musicBridge.next())
-  } catch (error) {
-    recordActionError(error)
-  }
-}
-
-async function previousTrack(): Promise<void> {
-  cancelRoonPlaybackPreparation()
-  try {
-    applyNeteasePlayback(await window.musicBridge.previous())
-  } catch (error) {
-    recordActionError(error)
-  }
-}
-
-async function seekPlayback(positionMs: number, settle?: (positionMs?: number) => void): Promise<void> {
-  const snapshot = playbackState.value
-  const currentTrack = snapshot?.currentTrack
-  if (
-    !snapshot ||
-    !currentTrack ||
-    currentTrack.durationMs === undefined ||
-    selectedZone.value?.seekAllowed !== true
-  ) { settle?.(); return }
-  try {
-    const confirmed = await window.musicBridge.seek(Math.round(positionMs))
-    settle?.(confirmed.positionMs)
-    await refreshPlayback()
-  } catch (error) {
-    settle?.()
-    recordActionError(error)
-    await refreshPlayback()
-  }
+  await playback.playTracks(dailyRecommendations.value.tracks)
 }
 
 async function loadZones(): Promise<void> {
@@ -2713,9 +478,10 @@ function updateRemoteSshTarget(value: string): void {
 async function startRemoteCore(): Promise<void> {
   actionError.value = null
   try {
-    remoteCoreState.value = await window.musicBridge.startRemoteCore(remoteSshTarget.value)
+    const state = await window.musicBridge.startRemoteCore(remoteSshTarget.value)
+    if (lifecycle.isActive()) remoteCoreState.value = state
   } catch (error) {
-    recordActionError(error)
+    if (lifecycle.isActive()) recordActionError(error)
   }
 }
 
@@ -2723,18 +489,20 @@ async function stopRemoteCore(): Promise<void> {
   cancelRoonPlaybackPreparation()
   actionError.value = null
   try {
-    remoteCoreState.value = await window.musicBridge.stopRemoteCore()
+    const state = await window.musicBridge.stopRemoteCore()
+    if (lifecycle.isActive()) remoteCoreState.value = state
   } catch (error) {
-    recordActionError(error)
+    if (lifecycle.isActive()) recordActionError(error)
   }
 }
 
 async function reconnectRemoteCore(): Promise<void> {
   actionError.value = null
   try {
-    remoteCoreState.value = await reconnectRemoteTarget(window.musicBridge, remoteCoreState.value, remoteSshTarget.value)
+    const state = await reconnectRemoteTarget(window.musicBridge, remoteCoreState.value, remoteSshTarget.value)
+    if (lifecycle.isActive()) remoteCoreState.value = state
   } catch (error) {
-    recordActionError(error)
+    if (lifecycle.isActive()) recordActionError(error)
   }
 }
 
@@ -2832,12 +600,14 @@ function setSelectedQuality(preference: PlaybackQualityPreference): void {
   window.localStorage.setItem('musicbridge.qualityPreference', preference)
 }
 
-onMounted(async () => {
-  window.addEventListener('keydown', onGlobalShortcut)
-  removeAppCommandListener = window.musicBridge.onAppCommand((command) => {
+const lifecycle = useRendererLifecycle({
+  api: window.musicBridge,
+  keyTarget: window,
+  onKeydown: onGlobalShortcut,
+  onAppCommand: command => {
     if (command === 'show-queue') openQueue()
-  })
-  removeRemoteCoreListener = window.musicBridge.onRemoteCoreEvent((state) => {
+  },
+  onRemoteCoreEvent: state => {
     const previousStatus = remoteCoreState.value.status
     remoteCoreState.value = state
     if (state.sshTarget) updateRemoteSshTarget(state.sshTarget)
@@ -2847,12 +617,12 @@ onMounted(async () => {
     }
     zoneRefreshCoordinator.handleRemoteCoreState(state.status)
     if (['checking', 'starting', 'reconnecting', 'stopping'].includes(state.status)) {
-      authorizedLibraryLoadStarted = false
+      resetAuthorizedLoadStarted()
     } else {
       loadAuthorizedLibraryWhenReady()
     }
-  })
-  removeCoreListener = window.musicBridge.onCoreEvent((event) => {
+  },
+  onCoreEvent: event => {
     const previousRoonStatus = coreState.value?.roon
     if (
       event.event === 'core.ready'
@@ -2864,10 +634,10 @@ onMounted(async () => {
     }
     if (event.event === 'core.ready' || event.event === 'core.health' || event.event === 'roon.changed') {
       coreState.value = event.payload.state
-      if (event.payload.state.runtime !== 'ready') authorizedLibraryLoadStarted = false
+      if (event.payload.state.runtime !== 'ready') resetAuthorizedLoadStarted()
     }
     if (event.event === 'core.ready') {
-      authorizedLibraryLoadStarted = false
+      resetAuthorizedLoadStarted()
       loadAuthorizedLibraryWhenReady()
     }
     if (
@@ -2888,72 +658,30 @@ onMounted(async () => {
       refreshVisibleRoonCollection()
     }
     if (event.event === 'auth.changed') {
-      authEventReceived = true
       applyAuthState(event.payload.state)
     }
     if (event.event === 'account.changed') {
-      accountState.value = event.payload.state
-      if (
-        event.payload.state.status === 'ready'
-        && canLoadAuthorizedLibrary(
-          authState.value.status,
-          coreState.value?.runtime,
-          remoteCoreState.value.status,
-        )
-      ) {
-        void loadDailyRecommendations()
-      }
-      if (
-        event.payload.state.status === 'missing'
-        && (
-          authState.value.status !== 'authorized'
-          || coreState.value?.runtime === 'ready'
-        )
-      ) {
-        resetPrivateLibraryState()
-        dailyRecommendations.value = { dayKey: localDayKey(), tracks: [] }
-        dailyState.value = 'empty'
-      }
+      applyAccountState(event.payload.state)
     }
     if (event.event === 'playback.changed') {
-      const snapshot = event.payload.state
-      if (
-        optimisticRoonTrackId === undefined
-        || (
-          snapshot.state === 'playing'
-          && snapshot.source === 'roon'
-          && snapshot.currentTrack?.id === optimisticRoonTrackId
-        )
-      ) {
-        optimisticRoonTrackId = undefined
-        applyPlaybackState(snapshot)
-      }
+      playback.acceptPlaybackEvent(event.payload.state)
     }
-    if (event.event === 'lyrics.changed') lyricsSnapshot.value = event.payload.state
-    if (event.event === 'lyrics.match.changed') {
-      localLyricsMatchRevision += 1
-      localLyricsMatchState.value = event.payload.state
-      localLyricsMatchError.value = false
-    }
+    if (event.event === 'lyrics.changed') playback.onLyricsChanged(event.payload.state)
+    if (event.event === 'lyrics.match.changed') playback.onLocalMatchChanged(event.payload.state)
     if (event.event === 'diagnostic.notice') diagnosticNotice.value = event.payload
-  })
-  const initialLocalLyricsMatchRevision = localLyricsMatchRevision
-  void window.musicBridge.getLocalLyricsMatch()
-    .then((state) => {
-      if (localLyricsMatchRevision === initialLocalLyricsMatchRevision) localLyricsMatchState.value = state
-    })
-    .catch(() => {
-      if (localLyricsMatchRevision === initialLocalLyricsMatchRevision) {
-        localLyricsMatchState.value = emptyLocalLyricsMatchSnapshot()
-      }
-    })
-  try {
-    appInfo.value = await window.musicBridge.getAppInfo()
+  },
+  initialize: async read => {
+    void playback.initializeLocalLyricsMatch()
+    const appInfoResult = await read(() => window.musicBridge.getAppInfo())
+    if (!appInfoResult.active) return
+    appInfo.value = appInfoResult.value
     const storedQuality = window.localStorage.getItem('musicbridge.qualityPreference')
     if (['auto', 'standard', 'exhigh', 'lossless', 'hires'].includes(storedQuality ?? '')) {
       selectedQuality.value = storedQuality as PlaybackQualityPreference
     }
-    remoteCoreState.value = await window.musicBridge.getRemoteCoreState()
+    const remoteResult = await read(() => window.musicBridge.getRemoteCoreState())
+    if (!remoteResult.active) return
+    remoteCoreState.value = remoteResult.value
     remoteSshTarget.value = restoreRemoteTarget(remoteCoreState.value.sshTarget, window.localStorage)
     remoteAutoStart.value = window.localStorage.getItem('musicbridge.remoteCore.autoStart') === '1'
     if (remoteAutoStart.value && remoteSshTarget.value && remoteCoreState.value.status === 'idle') {
@@ -2961,32 +689,40 @@ onMounted(async () => {
       remoteCoreState.value = { ...remoteCoreState.value, status: 'checking' }
       void startRemoteCore()
     }
-    coreState.value = await window.musicBridge.getCoreHealth()
-    const initialAuthState = await window.musicBridge.getAuthState()
-    if (!authEventReceived) applyAuthState(initialAuthState)
-    else loadAuthorizedLibraryWhenReady()
-    if (initialAuthState.status !== 'authorized') await loadAccountState()
-    if (isCoreRuntimeStable(coreState.value.runtime, remoteCoreState.value.status)) {
-      applyPlaybackState(await window.musicBridge.getPlaybackState())
-      await loadZones()
+    const coreResult = await read(() => window.musicBridge.getCoreHealth())
+    if (!coreResult.active) return
+    coreState.value = coreResult.value
+    const authResult = await read(() => window.musicBridge.getAuthState())
+    if (!authResult.active) return
+    applyInitialAuthState(authResult.value)
+    if (authResult.value.status !== 'authorized') {
+      const accountResult = await read(loadAccountState)
+      if (!accountResult.active) return
     }
-  } catch (error) {
+    if (isCoreRuntimeStable(coreState.value.runtime, remoteCoreState.value.status)) {
+      const playbackResult = await read(() => window.musicBridge.getPlaybackState())
+      if (!playbackResult.active) return
+      applyPlaybackState(playbackResult.value)
+      await read(loadZones)
+    }
+  },
+  onInitializationError: error => {
     coreError.value = true
     recordActionError(error)
-  }
+  },
 })
 
+onMounted(() => lifecycle.start())
+
 onUnmounted(() => {
-  resetRoonAlbums()
-  resetRoonArtists()
-  window.removeEventListener('keydown', onGlobalShortcut)
-  removeCoreListener?.()
-  removeAppCommandListener?.()
-  removeRemoteCoreListener?.()
+  lifecycle.dispose()
   zoneRefreshCoordinator.dispose()
+  journey.dispose()
+  netease.dispose()
+  search.dispose()
+  browse.dispose()
+  playback.dispose()
   roonArtworkCache.clear()
-  stopPolling()
-  stopSearchTimer()
   inspectorReturnFocus.value = null
   if (toastTimer !== undefined) window.clearTimeout(toastTimer)
 })

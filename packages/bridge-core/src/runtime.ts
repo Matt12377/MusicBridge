@@ -75,6 +75,7 @@ import {
   type PlaybackStartupStage,
   type SmartRoonResolution,
 } from './application/bridge-controller.js';
+import { createPlaybackEventPublisher } from './application/playback-event-publisher.js';
 import { loadConfig } from './config/config.js';
 import { ControlServer } from './control/server.js';
 import { NeteaseClient } from './netease/client.js';
@@ -803,20 +804,12 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     },
   });
 
+  const publishPlaybackEvents = createPlaybackEventPublisher(emit);
   const removeControllerListener = controller.subscribe((snapshot) => {
     const lyricsContext = createLyricsRequestContext(snapshot, controller.getPlaybackGeneration());
     manualLyrics.observeContext(!displayLyrics.enabled && lyricsContext?.kind === 'local' ? lyricsContext : undefined);
     lyrics.onPlaybackChanged(snapshot, lyricsContext);
-    emit({
-      version: 1,
-      event: 'playback.changed',
-      payload: { state: snapshot },
-    });
-    emit({
-      version: 1,
-      event: 'queue.changed',
-      payload: { queue: snapshot.queue },
-    });
+    publishPlaybackEvents(snapshot);
   });
 
   roon.setStateHandler(() => {

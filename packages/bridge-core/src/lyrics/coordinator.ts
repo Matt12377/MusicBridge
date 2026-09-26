@@ -534,7 +534,7 @@ export class LyricsCoordinator {
   }
 
   private emit(force: boolean): void {
-    const snapshot = cloneSnapshot(this.activeSnapshot);
+    const snapshot = this.activeSnapshot;
     const key = `${snapshot.status}:${snapshot.activeLineIndex}:${snapshot.activeWordIndex ?? -1}:${snapshot.timingSource}:${snapshot.lines.length}`;
     if (!force && key === this.lastEmittedKey) return;
     const now = this.now();
@@ -552,6 +552,7 @@ export class LyricsCoordinator {
     ) return;
     this.lastEmittedAt = now;
     this.lastEmittedKey = key;
-    this.onChange(snapshot);
+    // 发布时才复制正文；未切行的 100ms 时钟不能反复克隆整首歌词。
+    this.onChange(cloneSnapshot(snapshot));
   }
 }

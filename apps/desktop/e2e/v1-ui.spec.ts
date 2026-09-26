@@ -5,6 +5,7 @@ import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { roonTrackIdFromReference, type PlaybackSnapshot } from '@music-bridge/contracts'
 import { loseNextOutboxReceipt, verifyBackupRestoreWorkflow, verifyInactiveWindowRestore } from './task-066-workflows.js'
 
 const desktopRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
@@ -149,7 +150,7 @@ test('六项修复：收藏封面与打开播放、专辑播放全部、零专�
 })
 
 async function openAccountSettings() {
-  await page.getByRole('button', { name: '打开设置' }).click()
+  await page.locator('.music-sidebar').getByRole('button', { name: '打开设置', exact: true }).click()
   await expect(page.getByRole('heading', { name: '设置', exact: true }).first()).toBeVisible()
   const accountTab = page.getByRole('tab', { name: '账户', exact: true })
   if (await accountTab.isVisible()) await accountTab.click()
@@ -166,6 +167,7 @@ interface ZoneFixture {
   zoneId: string
   displayName: string
   selected: boolean
+  seekAllowed?: boolean
 }
 
 async function replaceZoneList(zones: readonly ZoneFixture[], delayMs = 0) {
@@ -846,8 +848,9 @@ test('合成 Profile 资料不可用但登录仍有效', async () => {
 })
 
 test('合成登录过期后清空账户与每日推荐', async () => {
-  await expect(page.getByRole('button', { name: '打开设置' })).toBeVisible()
-  await expect(page.getByRole('region', { name: '每日推荐' })).toContainText('需要网易云登录')
+  const dailyRecommendations = page.getByRole('region', { name: '每日推荐' })
+  await expect(dailyRecommendations.getByRole('button', { name: '打开设置', exact: true })).toBeVisible()
+  await expect(dailyRecommendations).toContainText('需要网易云登录')
 
   await openAccountSettings()
   await expect(page.locator('.settings-view').getByText('登录已过期')).toBeVisible()
@@ -1356,7 +1359,10 @@ test('V3 导航不触发播放变更 IPC，保留正在播放的曲目、队列�
   await expect(page.locator('.global-player')).toBeVisible()
   await page.getByRole('button', { name: '查看空白磁带收藏', exact: true }).click()
   await sourceButton('home').click()
-  await expect(page.locator('#home-heading')).toBeVisible()
+  await expect(sidebarSearch()).toHaveValue('synthetic')
+  const restoredSearch = page.getByRole('region', { name: 'synthetic', exact: true })
+  await expect(restoredSearch.getByRole('heading', { name: 'synthetic', exact: true })).toBeVisible()
+  await expect(restoredSearch.getByRole('button', { name: /^播放 Synthetic Track 1(?: · .+)?$/ })).toBeVisible()
   const after = await page.evaluate(() => window.musicBridge.getPlaybackState())
   expect(after.state).toBe('playing')
   expect(after.currentTrack?.id).toBe(before.currentTrack?.id)
@@ -2867,6 +2873,111 @@ test('Roon 自动续播事件更新底栏及正在播放页，不残留第一首
   await expect(page.locator('.global-player').getByRole('button', { name: '上一首', exact: true })).toBeEnabled()
   await expect(page.locator('.global-player').getByRole('button', { name: '下一首', exact: true })).toBeEnabled()
   await expect(page.locator('.home-view').getByRole('button', { name: '播放 Roon 队列外歌曲', exact: true })).toHaveCount(0)
+})
+
+test('同曲连续进度不重复读取歌词和收藏，先到歌词与导航仍可见', async () => {
+  test.setTimeout(60_000)
+  await reloadWithZones([{ zoneId: 'synthetic-zone', displayName: '合成播放设备', selected: true, seekAllowed: true }])
+  const nextCoverUrl = 'https://p1.music.126.net/synthetic-cover-next.jpg'
+  await page.route(nextCoverUrl, route => route.fulfill({ status: 200, contentType: 'image/svg+xml', body: syntheticCoverSvg }))
+  const track = { id: '1001', title: '合成进度歌曲', artists: ['合成艺人'], album: '合成专辑', durationMs: 180_000, artworkUrl: syntheticCoverUrl }
+  const neteaseSnapshot: PlaybackSnapshot = {
+    state: 'playing', source: 'netease', currentTrack: track, positionMs: 4_000,
+    queue: { items: [{ trackId: track.id, track, qualityPreference: 'auto', preferredSource: 'netease', resolvedSource: 'netease' }], index: 0, hasNext: false, hasPrevious: false },
+    selectedZoneId: 'synthetic-zone', canNext: false, canPrevious: false, canStop: true, canPause: true, canResume: false,
+  }
+  await electronApp.evaluate(({ ipcMain, BrowserWindow }, snapshot) => {
+    const calls = { lyrics: 0, like: 0, favorite: 0, setFavorite: 0, queued: 0, favoriteDescriptors: [] as string[] }
+    ;(globalThis as typeof globalThis & { decouplingCalls: typeof calls }).decouplingCalls = calls
+    for (const channel of ['lyrics:get', 'library:like-status', 'favorites:check', 'favorites:set', 'playback:get-state']) ipcMain.removeHandler(channel)
+    ipcMain.handle('lyrics:get', () => {
+      calls.lyrics += 1
+      return { status: 'ready', source: 'netease', lines: [{ startMs: 0, text: '合成旧曲歌词' }], activeLineIndex: 0, timingSource: 'static' }
+    })
+    ipcMain.handle('library:like-status', () => { calls.like += 1; return { liked: false } })
+    ipcMain.handle('favorites:check', (_event, descriptor) => { calls.favorite += 1; calls.favoriteDescriptors.push(`${descriptor.kind}:${descriptor.title}`); return { favorite: false } })
+    ipcMain.handle('favorites:set', (_event, _descriptor, favorite) => { calls.setFavorite += 1; return { favorite } })
+    ipcMain.handle('playback:get-state', () => snapshot)
+    BrowserWindow.getAllWindows()[0]?.webContents.send('core:event', { version: 1, event: 'playback.changed', payload: { state: snapshot } })
+  }, neteaseSnapshot)
+  await expect(page.locator('.global-player')).toContainText(track.title)
+  await expect.poll(() => electronApp.evaluate(() => {
+    const calls = (globalThis as typeof globalThis & { decouplingCalls: { lyrics: number; like: number } }).decouplingCalls
+    return [calls.lyrics, calls.like]
+  })).toEqual([1, 1])
+  const beforeNeteaseProgress = await electronApp.evaluate(() => (globalThis as typeof globalThis & {
+    decouplingCalls: { lyrics: number; like: number; favorite: number; setFavorite: number }
+  }).decouplingCalls)
+  await electronApp.evaluate(({ BrowserWindow }, input) => {
+    const window = BrowserWindow.getAllWindows()[0]
+    for (let index = 1; index <= 100; index += 1) {
+      const isFinal = index === 100
+      window?.webContents.send('core:event', { version: 1, event: 'playback.changed', payload: { state: {
+        ...input.snapshot, positionMs: 4_000 + index * 1_000,
+        canNext: isFinal,
+        currentTrack: isFinal ? { ...input.snapshot.currentTrack, artworkUrl: input.nextCoverUrl } : input.snapshot.currentTrack,
+      } } })
+    }
+  }, { snapshot: neteaseSnapshot, nextCoverUrl })
+  await expect.poll(() => page.locator('.global-player input[aria-label="播放栏进度"]').evaluate(input => Number((input as HTMLInputElement).value))).toBeGreaterThanOrEqual(104_000)
+  await expect(page.locator('.global-player').getByRole('button', { name: '下一首', exact: true })).toBeEnabled()
+  await expect(page.locator('.global-player .player-art img')).toHaveAttribute('src', nextCoverUrl)
+  expect(await electronApp.evaluate(() => (globalThis as typeof globalThis & { decouplingCalls: typeof beforeNeteaseProgress }).decouplingCalls)).toEqual(beforeNeteaseProgress)
+
+  const album = { reference: 'musicbridge-v2-entity-11111111-1111-4111-8111-111111111111', kind: 'album', title: '合成进度专辑' }
+  const roonItem = { reference: 'musicbridge-v2-entity-22222222-2222-4222-8222-222222222222', kind: 'track', title: '合成进度 Roon 曲目', artist: '合成艺人', album: album.title, durationMs: 180_000 }
+  const roonTrack = { id: roonTrackIdFromReference(roonItem.reference), title: roonItem.title, artists: [roonItem.artist], album: roonItem.album, durationMs: roonItem.durationMs }
+  const roonSnapshot: PlaybackSnapshot = {
+    state: 'playing', source: 'roon', currentTrack: roonTrack, positionMs: 2_000,
+    queue: { items: [{ trackId: roonTrack.id, track: roonTrack, qualityPreference: 'auto', preferredSource: 'roon', resolvedSource: 'roon' }], index: 0, hasNext: false, hasPrevious: false },
+    selectedZoneId: 'synthetic-zone', canNext: false, canPrevious: false, canStop: true, canPause: true, canResume: false,
+  }
+  await electronApp.evaluate(({ ipcMain }, input) => {
+    for (const channel of ['roon:library:albums', 'roon:library:album', 'roon:library:queue']) ipcMain.removeHandler(channel)
+    const pageOf = (page: { offset: number; limit: number }, items: unknown[]) => ({ ...page, items, total: items.length, hasMore: false })
+    ipcMain.handle('roon:library:albums', (_event, page) => pageOf(page, [input.album]))
+    ipcMain.handle('roon:library:album', (_event, _reference, page) => pageOf(page, [input.roonItem]))
+    ipcMain.handle('roon:library:queue', () => { (globalThis as typeof globalThis & { decouplingCalls: { queued: number } }).decouplingCalls.queued += 1; return { queued: true } })
+  }, { album, roonItem })
+  await page.locator('[data-sidebar-source="roon-albums"]').click()
+  await page.locator('.roon-album-card').first().click()
+  await page.getByRole('button', { name: `将 ${roonItem.title} 加入队列`, exact: true }).click()
+  await expect(page.getByRole('status')).toContainText('已将 Roon 曲目加入队列')
+  await expect.poll(() => electronApp.evaluate(() => (globalThis as typeof globalThis & { decouplingCalls: { queued: number } }).decouplingCalls.queued)).toBe(1)
+  const favoriteReadsBeforeRoonSwitch = await electronApp.evaluate(() => (globalThis as typeof globalThis & {
+    decouplingCalls: { favorite: number }
+  }).decouplingCalls.favorite)
+  await electronApp.evaluate(({ ipcMain, BrowserWindow }, snapshot) => {
+    ipcMain.removeHandler('playback:get-state')
+    ipcMain.handle('playback:get-state', () => snapshot)
+    const window = BrowserWindow.getAllWindows()[0]
+    window?.webContents.send('core:event', { version: 1, event: 'lyrics.changed', payload: { state: {
+      status: 'ready', source: 'roon-display', lines: [{ startMs: 0, text: '合成新曲歌词' }], activeLineIndex: 0, timingSource: 'roon-time',
+    } } })
+    window?.webContents.send('core:event', { version: 1, event: 'playback.changed', payload: { state: snapshot } })
+  }, roonSnapshot)
+  await expect(page.locator('.global-player')).toContainText(roonItem.title)
+  await page.getByRole('button', { name: '打开正在播放', exact: true }).click()
+  await expect(page.locator('.now-playing-lyrics')).toContainText('合成新曲歌词')
+  await expect.poll(() => electronApp.evaluate(() => (globalThis as typeof globalThis & { decouplingCalls: { favorite: number } }).decouplingCalls.favorite)).toBeGreaterThan(favoriteReadsBeforeRoonSwitch)
+  await expect.poll(() => electronApp.evaluate(() => (globalThis as typeof globalThis & { decouplingCalls: { favoriteDescriptors: string[] } }).decouplingCalls.favoriteDescriptors)).toContain(`track:${roonItem.title}`)
+  const beforeRoonProgress = await electronApp.evaluate(() => (globalThis as typeof globalThis & {
+    decouplingCalls: { lyrics: number; like: number; favorite: number; setFavorite: number }
+  }).decouplingCalls)
+  await electronApp.evaluate(({ BrowserWindow }, snapshot) => {
+    const window = BrowserWindow.getAllWindows()[0]
+    for (let index = 1; index <= 100; index += 1) {
+      window?.webContents.send('core:event', { version: 1, event: 'playback.changed', payload: { state: { ...snapshot, positionMs: 2_000 + index * 1_000 } } })
+    }
+  }, roonSnapshot)
+  await expect.poll(() => page.locator('.now-playing-progress input').evaluate(input => Number((input as HTMLInputElement).value))).toBeGreaterThanOrEqual(102_000)
+  expect(await electronApp.evaluate(() => (globalThis as typeof globalThis & { decouplingCalls: typeof beforeRoonProgress }).decouplingCalls)).toEqual(beforeRoonProgress)
+  await page.getByRole('button', { name: '喜欢这首歌', exact: true }).click()
+  await expect.poll(() => electronApp.evaluate(() => (globalThis as typeof globalThis & { decouplingCalls: { setFavorite: number } }).decouplingCalls.setFavorite)).toBe(1)
+  await expect(page.getByRole('button', { name: '喜欢这首歌', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: '退出全屏播放' }).click()
+  await sourceButton('home').click()
+  await expect(page.locator('.global-player')).toContainText(roonItem.title)
 })
 
 test('本地搜索范围隔离，切页恢复原页面，新搜索清除旧路径，主页仍聚合', async () => {

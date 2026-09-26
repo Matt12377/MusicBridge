@@ -3,6 +3,7 @@ import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import type { MasterDraft, DraftSourceSnapshot } from '@music-bridge/contracts'
+import { usePageJourney, type PageJourneyOptions } from '../src/renderer/src/composables/application/usePageJourney.js'
 
 const firstId = '11111111-1111-4111-8111-111111111111', secondId = '22222222-2222-4222-8222-222222222222'
 const trackId = '33333333-3333-4333-8333-333333333333'
@@ -66,27 +67,43 @@ async function mounted(t: test.TestContext, api: unknown, document = focusDocume
   const recordingComponent = { ...module.exports.default, render: options.actualTemplate ? renderTemplate(descriptor, script, 'RecordingView.vue') : () => null }
   let hostComponent = recordingComponent
   if (options.appNavigation) {
-    // 只隔离无关页面；保留真实 App 的状态声明和 RecordingView 属性/事件接线。
+    // 只隔离无关页面；保留真实 App 的 Journey 所有者及 RecordingView 属性/事件接线。
     const { descriptor: appDescriptor } = parse(await readFile(new URL('../src/renderer/src/App.vue', import.meta.url), 'utf8'))
     type TemplateNode = { tag?: string; loc: { source: string }; children?: readonly TemplateNode[] }
     const findRecording = (nodes: readonly TemplateNode[]): string[] => nodes.flatMap(node => node.tag === 'RecordingView' ? [node.loc.source] : findRecording(node.children ?? []))
     const branches = findRecording(appDescriptor.template!.ast!.children as readonly TemplateNode[])
     assert.equal(branches.length, 1)
+    const appScript = appDescriptor.scriptSetup!.content
+    const journeyStart = appScript.indexOf('const journey = usePageJourney(')
+    const bindingStart = appScript.indexOf('const {', journeyStart)
+    const bindingEnd = appScript.indexOf('} = journey', bindingStart)
+    assert.ok(journeyStart >= 0 && bindingStart > journeyStart && bindingEnd > bindingStart, 'App 必须从 PageJourney 接入页面状态')
+    const journeyBindings = appScript.slice(bindingStart, bindingEnd)
+    assert.match(journeyBindings, /\bcurrentView\b/u)
+    assert.match(journeyBindings, /\bopenTapeCollection\b/u)
     const sourceFile = ts.createSourceFile('App.ts', appDescriptor.scriptSetup!.content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
     const declarations = sourceFile.statements.filter(ts.isVariableStatement).flatMap(statement => statement.declarationList.declarations)
-      .filter(declaration => ts.isIdentifier(declaration.name) && ['currentView', 'recordingReloadRequired'].includes(declaration.name.text))
+      .filter(declaration => ts.isIdentifier(declaration.name) && declaration.name.text === 'recordingReloadRequired')
       .map(declaration => 'const ' + declaration.getText(sourceFile))
-    const source = '<script setup lang="ts">import { ref } from "vue"; import RecordingView from "./RecordingView.vue"; type ViewId = string;\n' + declarations.join(';\n') + ';\nfunction openTapeCollection() { currentView.value = "collection" }' + '</script><template>' + branches[0]!.replace('v-else-if=', 'v-if=') + '</template>'
+    assert.equal(declarations.length, 1, 'App 必须保留录音工作库重载标记')
+    const journeyPorts = {
+      search: { searchQuery: vue.ref(''), searchPage: vue.ref({ items: [] }), searchSongsOpen: vue.ref(false), searchScrollTop: vue.ref(0), scheduleSearch() {}, resetSearch() {} },
+      browse: { localAlbumQuery: vue.ref(''), localArtistQuery: vue.ref(''), invalidateAlbumArtistRequests() {}, leaveDetail() {} },
+      library: { hasLikedItems: () => false, isPlaylistReady: () => false, getPlaylistScrollTop: () => 0, setPlaylistScrollTop() {}, async loadLiked() {}, async loadPlaylists() {}, async loadPlaylist() {} },
+      onPlayRoonTrack() {}, onCloseInspector() {}, onClearActionError() {},
+    } as unknown as PageJourneyOptions
+    const source = '<script setup lang="ts">import { ref } from "vue"; import RecordingView from "./RecordingView.vue";\n' + declarations.join(';\n') + ';\nconst journey = usePageJourney(journeyPorts); const { currentView, openTapeCollection } = journey' + '</script><template>' + branches[0]!.replace('v-else-if=', 'v-if=') + '</template>'
     const { descriptor: hostDescriptor, errors } = parse(source); assert.deepEqual(errors, [])
     const hostScript = compileScript(hostDescriptor, { id: 'recording-app-navigation' }), hostModule = { exports: {} as { default: import('vue').Component } }
     componentStubs['./RecordingView.vue'] = { default: recordingComponent }
-    new Function('require', 'module', 'exports', compile(hostScript.content))(load, hostModule, hostModule.exports)
+    new Function('require', 'module', 'exports', 'usePageJourney', 'journeyPorts', compile(hostScript.content))(load, hostModule, hostModule.exports, usePageJourney, journeyPorts)
     hostComponent = { ...hostModule.exports.default, render: renderTemplate(hostDescriptor, hostScript, 'App-navigation.vue') }
   }
   const app = renderer.createApp(hostComponent), instance = app.mount(root)
   const hostSetup = (instance.$ as unknown as { setupState: Record<string, unknown> }).setupState
   t.after(() => app.unmount())
-  if (options.appNavigation) hostSetup.currentView = 'recording'
+  const hostJourney = options.appNavigation ? hostSetup.journey as ReturnType<typeof usePageJourney> : undefined
+  if (hostJourney) hostJourney.navigateSource({ type: 'recording' })
   await new Promise<void>(resolve => setImmediate(resolve)); await vue.nextTick()
   const getSetup = () => options.appNavigation
     ? (instance.$.subTree.component as unknown as { setupState: Record<string, unknown> }).setupState : hostSetup
@@ -94,7 +111,7 @@ async function mounted(t: test.TestContext, api: unknown, document = focusDocume
   const tick = async () => { await new Promise<void>(done => setImmediate(done)); await vue.nextTick() }
   const button = (label: string) => { const value = all().find(item => item.tag === 'button' && text(item).trim() === label); assert.ok(value, label); return value }
   const click = async (label: string) => { const target = button(label); assert.notEqual(target.props.disabled, true, label); target.focus(); await (target.props.onClick as () => unknown)(); await tick() }
-  return { get setup() { return getSetup() }, invoke, text, all, button, click, tick, focused: () => document.activeElement, async navigate(view: string) { assert.equal(options.appNavigation, true); hostSetup.currentView = view; await tick() } }
+  return { get setup() { return getSetup() }, invoke, text, all, button, click, tick, focused: () => document.activeElement, async navigate(view: 'collection' | 'recording') { assert.ok(hostJourney); hostJourney.navigateSource({ type: view }); await tick() } }
 }
 
 test('录音页打开草稿一次读取六类当前事实，源标签与下一步共享同一代际', async t => {

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { validateIpcEvent } from '@music-bridge/contracts';
+import type { PlaybackSnapshot } from '@music-bridge/contracts';
 import { BridgeController } from '../src/application/bridge-controller.js';
 import { BridgeError } from '../src/shared/errors.js';
 import type {
@@ -1876,4 +1877,165 @@ test('ten naturally ended tracks leave no stream token or active playback', asyn
   assert.equal(controller.getState().activePlayback, undefined);
   assert.equal(controller.getState().activeStreamCount, 0);
   assert.equal(roon.playRequests.length, 10);
+});
+
+test('100 个相同位置回报保留播放事件且不重建队列投影', async () => {
+  let clock = 1_700_000_000_000;
+  const { controller } = makeHarness(206, undefined, () => clock);
+  await controller.play({ trackId: '90101', quality: 'standard' });
+  await controller.appendQueue([{ trackId: '90102', quality: 'standard' }]);
+
+  const snapshots: PlaybackSnapshot[] = [];
+  let queueEvents = 0;
+  let lastQueue: PlaybackSnapshot['queue'] | undefined;
+  const unsubscribe = controller.subscribe((snapshot) => {
+    snapshots.push(snapshot);
+    if (snapshot.queue !== lastQueue) {
+      queueEvents += 1;
+      lastQueue = snapshot.queue;
+    }
+  });
+  const probe = controller as unknown as { projectQueueSnapshot: () => PlaybackSnapshot['queue'] };
+  const projectQueue = probe.projectQueueSnapshot.bind(controller);
+  let queueProjectionCalls = 0;
+  probe.projectQueueSnapshot = () => {
+    queueProjectionCalls += 1;
+    return projectQueue();
+  };
+  const initialCount = snapshots.length;
+
+  for (let index = 0; index < 100; index += 1) {
+    clock += 250;
+    assert.equal(controller.updateRoonTime(5_000), true);
+  }
+
+  assert.equal(snapshots.length - initialCount, 100);
+  assert.equal(queueEvents, 1); // 首次订阅一次；这 100 次没有 queue.changed。
+  assert.equal(queueProjectionCalls, 0);
+  assert.equal(snapshots.at(-1)?.positionMs, 5_000);
+  assert.ok(snapshots.slice(initialCount).every((snapshot) => snapshot.queue === lastQueue));
+  unsubscribe();
+});
+
+test('队列元数据、顺序、index、来源和质量变化更新发布投影', async () => {
+  const { controller, netease } = makeHarness();
+  netease.actualQuality = 'exhigh';
+  const snapshots: PlaybackSnapshot[] = [];
+  const unsubscribe = controller.subscribe((snapshot) => snapshots.push(snapshot));
+  await controller.play({ trackId: '90201', quality: 'lossless' });
+  const playing = snapshots.at(-1)!;
+  assert.equal(playing.queue.items[0]?.track?.title, 'Test Song');
+  assert.equal(playing.queue.items[0]?.resolvedSource, 'netease');
+  assert.equal(playing.queue.items[0]?.requestedQuality, 'lossless');
+  assert.equal(playing.queue.items[0]?.actualQuality, 'exhigh');
+
+  await controller.appendQueue([{ trackId: '90202', quality: 'standard' }]);
+  const appended = snapshots.at(-1)!;
+  assert.notEqual(appended.queue, playing.queue);
+  assert.deepEqual(appended.queue.items.map((item) => item.trackId), ['90201', '90202']);
+  assert.equal(appended.queue.hasNext, true);
+
+  await controller.next();
+  const advanced = snapshots.at(-1)!;
+  assert.notEqual(advanced.queue, appended.queue);
+  assert.equal(advanced.queue.index, 1);
+  assert.equal(advanced.queue.hasPrevious, true);
+  assert.equal(advanced.queue.hasNext, false);
+  assert.equal(advanced.queue.items[1]?.resolvedSource, 'netease');
+  unsubscribe();
+});
+
+test('分批队列元数据在 await 间隙写入后，下一进度事件使用新投影', async () => {
+  let clock = 1_700_000_000_000;
+  const { controller, netease } = makeHarness(206, undefined, () => clock);
+  let releaseLast!: () => void;
+  netease.metadataGate = new Promise<void>((resolve) => { releaseLast = resolve; });
+  const queued = Array.from({ length: 21 }, (_, index) => ({
+    trackId: String(90501 + index), quality: 'standard' as const,
+  }));
+  netease.blockedMetadataTrackIds.add(queued.at(-1)!.trackId);
+  await controller.play({ trackId: '90500', quality: 'standard' });
+  const snapshots: PlaybackSnapshot[] = [];
+  const unsubscribe = controller.subscribe((snapshot) => snapshots.push(snapshot));
+  await controller.appendQueue(queued);
+  const appended = snapshots.at(-1)!;
+  assert.equal(appended.queue.items[1]?.track, undefined);
+
+  try {
+    await waitFor(() => controller.getPlaybackState().queue.items[1]?.track !== undefined);
+    assert.equal(snapshots.at(-1), appended); // 后台批次尚未全部结束。
+    clock += 250;
+    assert.equal(controller.updateRoonTime(1_000), true);
+    const duringHydration = snapshots.at(-1)!;
+    assert.notEqual(duringHydration.queue, appended.queue);
+    assert.equal(duringHydration.queue.items[1]?.track?.id, queued[0]?.trackId);
+    assert.equal(duringHydration.queue.items.at(-1)?.track, undefined);
+
+    releaseLast();
+    await waitFor(() => snapshots.at(-1)?.queue.items.at(-1)?.track !== undefined);
+    assert.equal(snapshots.at(-1)?.queue.items.at(-1)?.track?.id, queued.at(-1)?.trackId);
+  } finally {
+    releaseLast();
+    unsubscribe();
+  }
+});
+
+test('发布投影隔离可变查询副本与内部 issue、队列和曲目信息', async () => {
+  const { controller, netease } = makeHarness();
+  netease.actualQuality = 'exhigh';
+  const snapshots: PlaybackSnapshot[] = [];
+  const unsubscribe = controller.subscribe((snapshot) => snapshots.push(snapshot));
+  await controller.play({ trackId: '90301', quality: 'lossless' });
+  const published = snapshots.at(-1)!;
+  assert.equal(Object.isFrozen(published), true);
+  assert.equal(Object.isFrozen(published.queue), true);
+  assert.equal(Object.isFrozen(published.queue.items), true);
+  assert.equal(Object.isFrozen(published.queue.items[0]?.track?.artists), true);
+  assert.equal(Object.isFrozen(published.qualityNotice), true);
+
+  const query = controller.getPlaybackState();
+  query.currentTrack!.title = 'caller changed title';
+  query.queue.items[0]!.track!.title = 'caller changed queue';
+  (query.queue.items[0]!.track!.artists as string[])[0] = 'caller changed artist';
+  query.qualityNotice!.message = 'caller changed notice';
+  assert.equal(controller.getPlaybackState().currentTrack?.title, 'Test Song');
+  assert.equal(controller.getPlaybackState().queue.items[0]?.track?.title, 'Test Song');
+  assert.equal(controller.getPlaybackState().queue.items[0]?.track?.artists[0], 'Artist');
+  assert.equal(controller.getPlaybackState().qualityNotice?.message, '请求 lossless，实际 exhigh');
+  assert.equal(published.qualityNotice?.message, '请求 lossless，实际 exhigh');
+  unsubscribe();
+
+  const failing = makeHarness();
+  failing.netease.unavailableTrackIds.add('90302');
+  await assert.rejects(failing.controller.play({ trackId: '90302', quality: 'standard' }));
+  const issue = failing.controller.getPlaybackState();
+  assert.ok(issue.lastIssue);
+  issue.lastIssue.message = 'caller changed issue';
+  assert.notEqual(failing.controller.getPlaybackState().lastIssue?.message, 'caller changed issue');
+});
+
+test('后来订阅者不会提前确认旧订阅者尚未收到的同曲能力变化', async () => {
+  const { controller, roon } = makeHarness();
+  await controller.playRoon({ reference: 'same-track', zoneId: 'zone-1', track: {
+    id: '90401', title: 'Same Song', artists: ['Artist'], album: 'Album',
+  } });
+  roon.state = { ...roon.state, transportState: 'playing' };
+  roon.nativeObservation = { revision: 2, zoneId: 'zone-1', state: 'playing',
+    canNext: false, nowPlaying: { title: 'Same Song', artist: 'Artist', album: 'Album' } };
+  const original: PlaybackSnapshot[] = [];
+  const stopOriginal = controller.subscribe((snapshot) => original.push(snapshot));
+  controller.syncRoonTransportState();
+  const before = original.length;
+  roon.nativeObservation = { ...roon.nativeObservation, revision: 3, canNext: true };
+  const later: PlaybackSnapshot[] = [];
+  const stopLater = controller.subscribe((snapshot) => later.push(snapshot));
+  assert.equal(later.at(-1)?.canNext, true);
+  controller.syncRoonTransportState();
+  assert.equal(original.length, before + 1);
+  assert.equal(original.at(-1)?.canNext, true);
+  const after = original.length;
+  controller.syncRoonTransportState();
+  assert.equal(original.length, after);
+  stopLater();
+  stopOriginal();
 });

@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import type {
   DiagnosticResourceCounters,
   PlaybackQueueEntry,
+  PlaybackQueueSnapshot,
   PlaybackIssue,
   PlaybackIssueCode,
   PlaybackQualityPreference,
@@ -171,6 +173,28 @@ function cloneTrackSummary(track: TrackSummary): TrackSummary {
   };
 }
 
+function freezeQueuePublication(queue: PlaybackQueueSnapshot): PlaybackQueueSnapshot {
+  for (const item of queue.items) {
+    if (item.track) {
+      Object.freeze(item.track.artists);
+      Object.freeze(item.track);
+    }
+    Object.freeze(item);
+  }
+  Object.freeze(queue.items);
+  return Object.freeze(queue);
+}
+
+function freezePlaybackPublication(snapshot: PlaybackSnapshot): PlaybackSnapshot {
+  if (snapshot.currentTrack) {
+    Object.freeze(snapshot.currentTrack.artists);
+    Object.freeze(snapshot.currentTrack);
+  }
+  if (snapshot.lastIssue) Object.freeze(snapshot.lastIssue);
+  if (snapshot.qualityNotice) Object.freeze(snapshot.qualityNotice);
+  return Object.freeze(snapshot);
+}
+
 function normalizedPlaybackIdentity(value: string): string {
   return value
     .normalize('NFKC')
@@ -326,6 +350,9 @@ export class BridgeController {
   private nextInsertionQueueIndex: number | undefined;
   private nextInsertionCursor: number | undefined;
   private readonly playbackListeners = new Set<PlaybackChangedListener>();
+  private publishedQueue: PlaybackQueueSnapshot | undefined;
+  private lastPublishedPlayback: PlaybackSnapshot | undefined;
+  private queueProjectionDirty = false;
 
   constructor(
     private readonly dependencies: {
@@ -388,15 +415,44 @@ export class BridgeController {
   }
 
   subscribe(listener: PlaybackChangedListener): () => void {
+    const wasUnobserved = this.playbackListeners.size === 0;
     this.playbackListeners.add(listener);
-    listener(this.getPlaybackState());
+    const snapshot = this.playbackPublication('full');
+    // 后来的订阅者读取现态，不替已有订阅者确认尚未广播的变化。
+    if (wasUnobserved) this.lastPublishedPlayback = snapshot;
+    listener(snapshot);
     return () => this.playbackListeners.delete(listener);
   }
 
   getPlaybackState(): PlaybackSnapshot {
+    return this.playbackSnapshot(this.projectQueueSnapshot());
+  }
+
+  private projectQueueSnapshot(): PlaybackQueueSnapshot {
     const hasQueue = this.queue.length > 0;
     const hasNext = hasQueue && this.queueIndex >= 0 && this.queueIndex < this.queue.length - 1;
     const hasPrevious = hasQueue && this.queueIndex > 0;
+    return {
+      items: this.queue.map((item, index) => ({
+        trackId: item.trackId,
+        qualityPreference: item.qualityPreference,
+        ...(item.track ? { track: cloneTrackSummary(item.track) } : {}),
+        ...(item.preferredSource ? { preferredSource: item.preferredSource } : {}),
+        ...(item.resolvedSource ? { resolvedSource: item.resolvedSource } : {}),
+        ...(index === this.queueIndex && this.activePlayback
+          ? {
+              requestedQuality: this.activePlayback.requestedQuality,
+              actualQuality: this.activePlayback.actualQuality,
+            }
+          : {}),
+      })),
+      index: this.queueIndex,
+      hasNext,
+      hasPrevious,
+    };
+  }
+
+  private playbackSnapshot(queue: PlaybackQueueSnapshot): PlaybackSnapshot {
     const roonState = this.dependencies.roon.getState();
     const selectedZoneId = roonState.selectedZoneId;
     const effectiveState = this.playbackState;
@@ -405,30 +461,15 @@ export class BridgeController {
       : this.activeRoonPlayback
         ? cloneTrackSummary(this.activeRoonPlayback.track)
         : undefined;
+    const hasNext = queue.hasNext;
+    const hasPrevious = queue.hasPrevious;
     const activeItem = this.queue[this.queueIndex];
     const source: PlaybackResolvedSource | undefined = this.activeRoonPlayback
       ? 'roon' : this.activePlayback ? activeItem?.resolvedSource : undefined;
 
     return {
       state: effectiveState,
-      queue: {
-        items: this.queue.map((item, index) => ({
-          trackId: item.trackId,
-          qualityPreference: item.qualityPreference,
-          ...(item.track ? { track: cloneTrackSummary(item.track) } : {}),
-          ...(item.preferredSource ? { preferredSource: item.preferredSource } : {}),
-          ...(item.resolvedSource ? { resolvedSource: item.resolvedSource } : {}),
-          ...(index === this.queueIndex && this.activePlayback
-            ? {
-                requestedQuality: this.activePlayback.requestedQuality,
-                actualQuality: this.activePlayback.actualQuality,
-              }
-            : {}),
-        })),
-        index: this.queueIndex,
-        hasNext,
-        hasPrevious,
-      },
+      queue,
       ...(currentTrack ? { currentTrack } : {}),
       ...(source ? { source } : {}),
       ...(this.activePlayback
@@ -455,8 +496,8 @@ export class BridgeController {
       positionMs: this.positionMs,
       ...(selectedZoneId ? { selectedZoneId } : {}),
       ...(this.lastPlaybackError ? { lastError: this.lastPlaybackError } : {}),
-      ...(this.lastPlaybackIssue ? { lastIssue: this.lastPlaybackIssue } : {}),
-      ...(this.qualityNotice ? { qualityNotice: this.qualityNotice } : {}),
+      ...(this.lastPlaybackIssue ? { lastIssue: { ...this.lastPlaybackIssue } } : {}),
+      ...(this.qualityNotice ? { qualityNotice: { ...this.qualityNotice } } : {}),
       canNext: hasNext || this.canNavigateNativeRoon('next'),
       canPrevious: hasPrevious || this.canNavigateNativeRoon('previous'),
       canStop:
@@ -474,6 +515,19 @@ export class BridgeController {
     };
   }
 
+  private playbackPublication(kind: 'full' | 'position'): PlaybackSnapshot {
+    let queue = this.publishedQueue;
+    if (kind === 'full' || !queue || this.queueProjectionDirty) {
+      const projected = this.projectQueueSnapshot();
+      if (!queue || !isDeepStrictEqual(queue, projected)) {
+        queue = freezeQueuePublication(projected);
+        this.publishedQueue = queue;
+      }
+      this.queueProjectionDirty = false;
+    }
+    return freezePlaybackPublication(this.playbackSnapshot(queue!));
+  }
+
   async play(input: {
     trackId: unknown;
     qualityPreference?: unknown;
@@ -485,6 +539,7 @@ export class BridgeController {
       await this.stopActive();
       this.queue = [item];
       this.queueIndex = 0;
+      this.queueProjectionDirty = true;
       this.clearPlaybackIssue();
       await this.startQueueIndex(0, false, input.startupTrace);
       return this.getState();
@@ -507,6 +562,7 @@ export class BridgeController {
       await this.stopActive();
       this.queue = items;
       this.queueIndex = startIndex;
+      this.queueProjectionDirty = true;
       this.clearPlaybackIssue();
       await this.startQueueIndex(startIndex, false);
       return this.getState();
@@ -552,6 +608,7 @@ export class BridgeController {
         }
         this.queue = normalizedItems;
         this.queueIndex = startIndex;
+        this.queueProjectionDirty = true;
         this.clearPlaybackIssue();
         this.notifyPlaybackChanged();
         this.scheduleQueueHydration(normalizedItems, hydrationGeneration);
@@ -561,6 +618,7 @@ export class BridgeController {
       await this.stopActive();
       this.queue = normalizedItems;
       this.queueIndex = startIndex;
+      this.queueProjectionDirty = true;
       this.clearPlaybackIssue();
       // 当前歌曲等待 Roon SessionBegan/Playing 时，先并行填充后续队列；
       // 这样 Next 与队列内容不再被 Core 启动延迟串行阻塞。
@@ -594,6 +652,7 @@ export class BridgeController {
       const shouldHydrateInline = acceptedItems.length <= QUEUE_HYDRATION_BATCH_SIZE;
       if (shouldHydrateInline) await this.hydrateQueueItems(acceptedItems);
       this.queue.push(...acceptedItems);
+      this.queueProjectionDirty = true;
       this.notifyPlaybackChanged();
       if (!shouldHydrateInline) {
         this.scheduleQueueHydration(acceptedItems, hydrationGeneration);
@@ -608,6 +667,7 @@ export class BridgeController {
       const availableSlots = Math.max(0, MAX_QUEUE_ITEMS - this.queue.length);
       if (availableSlots === 0) return this.getState();
       this.queue.push(item);
+      this.queueProjectionDirty = true;
       this.notifyPlaybackChanged();
       return this.getState();
     });
@@ -637,6 +697,7 @@ export class BridgeController {
         ? this.nextInsertionCursor
         : this.queueIndex >= 0 ? this.queueIndex + 1 : 0;
       this.queue.splice(insertionIndex, 0, ...acceptedItems);
+      this.queueProjectionDirty = true;
       this.nextInsertionQueueIndex = this.queueIndex;
       this.nextInsertionCursor = insertionIndex + acceptedItems.length;
       this.notifyPlaybackChanged();
@@ -653,6 +714,7 @@ export class BridgeController {
       if (this.queue.length >= MAX_QUEUE_ITEMS) return this.getState();
       const insertionIndex = this.queueIndex >= 0 ? this.queueIndex + 1 : 0;
       this.queue.splice(insertionIndex, 0, item);
+      this.queueProjectionDirty = true;
       this.notifyPlaybackChanged();
       return this.getState();
     });
@@ -882,7 +944,8 @@ export class BridgeController {
       this.notifyPlaybackChanged();
     } else if (this.activeRoonPlayback) {
       // 曲目未变化也可能更新原生上一首/下一首能力。
-      this.notifyPlaybackChanged();
+      // 仅发布公开投影中真实可见的变化，包含迟到的封面和导航能力。
+      this.notifyPlaybackChangedIfDifferent();
     }
   }
 
@@ -930,6 +993,7 @@ export class BridgeController {
     this.applyNativeArtwork(track, observation);
     this.queueIndex = index;
     if (item) item.resolvedSource = 'roon';
+    this.queueProjectionDirty = true;
     this.activeRoonPlayback = { track, zoneId: observation.zoneId, observedIdentity: { ...identity },
       ...(item?.roonReference ? { reference: item.roonReference } : {}) };
     this.playbackGeneration += 1;
@@ -951,6 +1015,7 @@ export class BridgeController {
       await this.stopActive();
       this.queue = [];
       this.queueIndex = -1;
+      this.queueProjectionDirty = true;
       this.playbackState = 'idle';
       this.clearPlaybackIssue();
       this.notifyPlaybackChanged();
@@ -965,6 +1030,7 @@ export class BridgeController {
       await this.stopActive();
       this.queue = [];
       this.queueIndex = -1;
+      this.queueProjectionDirty = true;
       this.playbackState = 'idle';
       this.clearPlaybackIssue();
       this.notifyPlaybackChanged();
@@ -1022,7 +1088,7 @@ export class BridgeController {
     const now = this.now();
     if (now - this.lastPositionPublishedAt < 250) return true;
     this.lastPositionPublishedAt = now;
-    this.notifyPlaybackChanged();
+    this.notifyPlaybackChanged('position');
     return true;
   }
 
@@ -1098,6 +1164,7 @@ export class BridgeController {
 
     while (candidate < this.queue.length) {
       this.queueIndex = candidate;
+      this.queueProjectionDirty = true;
       this.playbackGeneration += 1;
       this.positionMs = 0;
       this.lastPositionPublishedAt = this.now();
@@ -1128,6 +1195,7 @@ export class BridgeController {
     }
 
     this.queueIndex = this.queue.length > 0 ? this.queue.length - 1 : -1;
+    this.queueProjectionDirty = true;
     this.clearActiveResources();
     this.playbackState = 'idle';
     this.lastPlaybackError = skippedError?.code;
@@ -1191,6 +1259,7 @@ export class BridgeController {
       ]);
     }
     item.track = toTrackSummary(metadata);
+    this.queueProjectionDirty = true;
     if (item.preferredSource === 'smart' && this.dependencies.resolveSmartSource) {
       const resolution = await this.dependencies.resolveSmartSource(item.track);
       if (resolution) {
@@ -1209,10 +1278,12 @@ export class BridgeController {
           delete item.roonReference;
           delete item.roonZoneId;
           delete item.resolvedSource;
+          this.queueProjectionDirty = true;
         }
       }
     }
     item.resolvedSource = 'netease';
+    this.queueProjectionDirty = true;
     if (!initialStream) {
       initialStream = await this.dependencies.netease.resolveStream(
         item.trackId,
@@ -1313,6 +1384,7 @@ export class BridgeController {
       };
       item.requestedQuality = requestedQuality;
       item.actualQuality = activePlayback.actualQuality;
+      this.queueProjectionDirty = true;
       this.playbackState = 'playing';
       this.lastPlaybackError = undefined;
       this.lastPlaybackIssue = undefined;
@@ -1368,6 +1440,7 @@ export class BridgeController {
       this.activeRoonPlayback = { track: confirmedTrack, reference, zoneId,
         ...(observation.nowPlaying ? { observedIdentity: { ...observation.nowPlaying } } : {}) };
       item.track = cloneTrackSummary(confirmedTrack);
+      this.queueProjectionDirty = true;
       if (
         observation.positionMs !== undefined
         && Number.isSafeInteger(observation.positionMs)
@@ -1384,6 +1457,7 @@ export class BridgeController {
         minimumRevision: observation.revision,
       };
       item.resolvedSource = 'roon';
+      this.queueProjectionDirty = true;
       this.playbackState = 'playing';
       this.lastPlaybackError = undefined;
       this.lastPlaybackIssue = undefined;
@@ -1396,6 +1470,7 @@ export class BridgeController {
     } catch (error) {
       this.activeRoonPlayback = undefined;
       delete item.resolvedSource;
+      this.queueProjectionDirty = true;
       throw error;
     }
   }
@@ -1444,6 +1519,8 @@ export class BridgeController {
         if (item.track) return;
         try {
           item.track = toTrackSummary(await this.dependencies.netease.getTrack(item.trackId));
+          // 分批 hydration 的 await 间隙可能穿插进度回报。
+          this.queueProjectionDirty = true;
         } catch {
           // 元数据不可用时，构建队列仍保持非破坏性；歌曲成为当前项时再重新确认。
         }
@@ -1468,15 +1545,28 @@ export class BridgeController {
     this.activeToken = undefined;
     this.activePlayback = undefined;
     this.activeRoonPlayback = undefined;
+    this.queueProjectionDirty = true;
     this.positionContext = undefined;
     this.positionMs = 0;
     this.playbackGeneration += 1;
     this.lastPositionPublishedAt = this.now();
   }
 
-  private notifyPlaybackChanged(): void {
+  private notifyPlaybackChanged(kind: 'full' | 'position' = 'full'): void {
     this.scheduleNextPreparation();
-    const snapshot = this.getPlaybackState();
+    const snapshot = this.playbackPublication(kind);
+    this.publishPlayback(snapshot);
+  }
+
+  private notifyPlaybackChangedIfDifferent(): void {
+    const snapshot = this.playbackPublication('full');
+    if (this.lastPublishedPlayback && isDeepStrictEqual(this.lastPublishedPlayback, snapshot)) return;
+    this.scheduleNextPreparation();
+    this.publishPlayback(snapshot);
+  }
+
+  private publishPlayback(snapshot: PlaybackSnapshot): void {
+    this.lastPublishedPlayback = snapshot;
     for (const listener of this.playbackListeners) {
       try {
         listener(snapshot);

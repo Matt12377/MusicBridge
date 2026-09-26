@@ -4,6 +4,11 @@ import path from 'node:path'
 import test from 'node:test'
 
 const rendererRoot = path.resolve('src/renderer')
+const applicationRoot = path.resolve('src/renderer/src/composables/application')
+
+function applicationSource(name: string): Promise<string> {
+  return readFile(path.join(applicationRoot, name), 'utf8')
+}
 
 async function sourceFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true })
@@ -256,16 +261,18 @@ test('Roon artwork is lazy, bounded, failure-safe, and reused by every playback 
 test('Homepage renders random playlist covers with a refresh action', async () => {
   const homeSource = await readFile(path.resolve('src/renderer/src/components/HomeView.vue'), 'utf8')
   const appSource = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const librarySource = await applicationSource('useNeteaseLibrary.ts')
 
   assert.match(homeSource, /playlistTracks/)
   assert.match(homeSource, /home-cover-wall/)
   assert.match(homeSource, /refreshPlaylists/)
-  assert.match(appSource, /selectRandomPlaylistPages/)
-  assert.match(appSource, /getPlaylist\(selection\.playlistId, selection\.page\)/)
+  assert.match(librarySource, /selectRandomPlaylistPages/)
+  assert.match(librarySource, /api\.getPlaylist\(selection\.playlistId, selection\.page\)/)
   assert.match(appSource, /@refresh-playlists="refreshHomeRecommendations"/)
+  assert.match(appSource, /refreshHomeRecommendations,[\s\S]*?= netease/)
   assert.match(homeSource, /DailyRecommendationsSection/)
   assert.match(homeSource, /dailyTracks/)
-  assert.match(appSource, /getDailyRecommendations/)
+  assert.match(librarySource, /api\.getDailyRecommendations\(\)/)
 })
 
 test('Homepage is cover-first and keeps playback controls out of the content layer', async () => {
@@ -401,11 +408,14 @@ test('V1 Settings在生产候选保留受控Remote Core入口和显式SSH目标'
 test('V1 Search is an artist, track and album flow without playlist results', async () => {
   const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
   const search = await readFile(path.resolve('src/renderer/src/composables/search.ts'), 'utf8')
+  const aggregatedSearch = await applicationSource('useAggregatedSearch.ts')
   const contracts = await readFile(path.resolve('../../packages/contracts/src/library.ts'), 'utf8')
 
-  for (const label of ['艺人', '单曲', '专辑', 'openSearchDetail', 'searchSnapshotLoader']) {
+  for (const label of ['艺人', '单曲', '专辑', 'openSearchDetail']) {
     assert.match(app, new RegExp(label))
   }
+  assert.match(aggregatedSearch, /createSearchSnapshotLoader/)
+  assert.match(aggregatedSearch, /searchSnapshotLoader\.load\(query\)/)
   assert.match(app, /searchArtists|search-albums/)
   assert.match(search, /Promise\.allSettled/)
   assert.match(search, /stale/)
@@ -450,24 +460,29 @@ test('V1 Now Playing centers a real-quality disclosure without a quality switche
 
 test('Provider and native Roon progress seek only through an explicitly seekable Roon Zone', async () => {
   const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const playback = await applicationSource('usePlaybackSession.ts')
   const nowPlaying = await readFile(path.resolve('src/renderer/src/components/NowPlayingView.vue'), 'utf8')
 
   assert.match(app, /:seek-allowed="selectedZone\?\.seekAllowed === true"/)
   assert.match(nowPlaying, /seekAllowed: boolean/)
   assert.match(nowPlaying, /:disabled="!props\.seekAllowed \|\| !props\.currentTrack \|\| durationMs <= 0"/)
-  assert.doesNotMatch(app, /playbackState\.value\s*=\s*\{\s*\.\.\.snapshot,\s*positionMs:\s*result\.positionMs\s*\}/)
-  const seekStart = app.indexOf('async function seekPlayback')
-  const seekEnd = app.indexOf('\n}', seekStart)
-  assert.match(app.slice(seekStart, seekEnd), /await refreshPlayback\(\)/)
+  assert.doesNotMatch(playback, /playbackState\.value\s*=\s*\{\s*\.\.\.snapshot,\s*positionMs:\s*result\.positionMs\s*\}/)
+  const seekStart = playback.indexOf('async function seekPlayback')
+  const seekEnd = playback.indexOf('function acceptPlaybackEvent', seekStart)
+  assert.ok(seekStart >= 0 && seekEnd > seekStart)
+  assert.match(playback.slice(seekStart, seekEnd), /getSelectedZone\(\)\?\.seekAllowed !== true/)
+  assert.match(playback.slice(seekStart, seekEnd), /await refreshPlayback\(\)/)
 })
 
 test('P0-D transport UI keeps transitional controls disabled and reuses the Core-selected Zone while the list refreshes', async () => {
   const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const playback = await applicationSource('usePlaybackSession.ts')
   const bottomPlayer = await readFile(path.resolve('src/renderer/src/components/BottomPlayer.vue'), 'utf8')
   const nowPlaying = await readFile(path.resolve('src/renderer/src/components/NowPlayingView.vue'), 'utf8')
 
-  assert.match(app, /selectedZone\.value\?\.zoneId\s*\?\?\s*playbackState\.value\?\.selectedZoneId/)
-  assert.match(app, /zoneLifecycleStatus\.value === 'loading'[\s\S]*正在读取播放设备/)
+  assert.match(app, /getZoneLifecycleStatus: \(\) => zoneLifecycleStatus\.value/)
+  assert.match(playback, /getSelectedZone\(\)\?\.zoneId\s*\?\?\s*playbackState\.value\?\.selectedZoneId/)
+  assert.match(playback, /getZoneLifecycleStatus\(\) === 'loading'[\s\S]*正在读取播放设备/)
   assert.match(bottomPlayer, /'pausing',\s*'resuming'/)
   assert.match(nowPlaying, /'pausing',\s*'resuming'/)
   assert.match(bottomPlayer, /state === 'pausing'[\s\S]*正在暂停/)
@@ -478,6 +493,7 @@ test('P0-D transport UI keeps transitional controls disabled and reuses the Core
 
 test('Roon reconnect invalidates session-scoped collection references before they can be reused', async () => {
   const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const browse = await applicationSource('useRoonBrowse.ts')
 
   for (const reset of [
     'resetRoonAlbums',
@@ -485,9 +501,10 @@ test('Roon reconnect invalidates session-scoped collection references before the
     'resetRoonGenres',
     'resetRoonPlaylists',
   ]) {
-    assert.match(app, new RegExp(`reset: ${reset}`))
+    assert.match(browse, new RegExp(`reset: ${reset}`))
   }
-  assert.match(app, /function resetRoonRuntimeReferences\(\): void[\s\S]*resetRoonAlbums\(\)[\s\S]*resetRoonPlaylists\(\)/)
+  assert.match(browse, /function resetSession\(\): void[\s\S]*resetRoonAlbums\(\)[\s\S]*resetRoonPlaylists\(\)/)
+  assert.match(app, /function resetRoonRuntimeReferences\(\): void[\s\S]*browse\.resetSession\(\)[\s\S]*journey\.resetRoonPath\(\)[\s\S]*playback\.resetRoonSession\(\)/)
   assert.match(app, /previousStatus === 'ready' && state\.status !== 'ready'[\s\S]*resetRoonRuntimeReferences\(\)/)
   assert.match(app, /event\.event === 'core\.ready'[\s\S]*resetRoonRuntimeReferences\(\)/)
   assert.match(app, /shouldRefreshVisibleRoonCollection\([\s\S]*previousRoonStatus,[\s\S]*event\.payload\.state\.roon,[\s\S]*\)[\s\S]*refreshVisibleRoonCollection\(\)/)
@@ -495,54 +512,64 @@ test('Roon reconnect invalidates session-scoped collection references before the
 
 test('V2 native Roon playback clears only stale local favorite identity when the current descriptor is unavailable', async () => {
   const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const playback = await applicationSource('usePlaybackSession.ts')
 
-  assert.doesNotMatch(app, /else if \(sourceChanged\) \{\s*nativeRoonHasNeteaseMatch\.value = false/)
-  assert.match(app, /const rememberedNeteaseMatch = roonQueueNeteaseMatches\.has\(trackId\)/)
-  assert.match(app, /nativeRoonHasNeteaseMatch\.value = nativeRoonQueueItemHasNeteaseIdentity\([\s\S]*?rememberedNeteaseMatch,[\s\S]*?\)/)
-  assert.match(app, /if \(localItem\) \{[\s\S]*?localTrackFavoriteDescriptor\.value = favoriteDescriptorForRoonItem\(localItem\)[\s\S]*?\} else \{\s*resetLocalTrackFavorite\(\)/)
+  assert.doesNotMatch(playback, /else if \(sourceChanged\) \{\s*nativeRoonHasNeteaseMatch\.value = false/)
+  assert.match(playback, /const rememberedNeteaseMatch = roonQueueNeteaseMatches\.has\(trackId\)/)
+  assert.match(playback, /const hasNeteaseIdentity = nativeRoonQueueItemHasNeteaseIdentity\(queueItem, rememberedNeteaseMatch\)/)
+  assert.match(playback, /if \(nativeRoonHasNeteaseMatch\.value !== hasNeteaseIdentity\) nativeRoonHasNeteaseMatch\.value = hasNeteaseIdentity/)
+  assert.match(playback, /if \(localItem\) \{[\s\S]*?resolveFavoriteDescriptor\(localItem\)[\s\S]*?localTrackFavoriteDescriptor\.value = descriptor[\s\S]*?\} else if \(localTrackFavoriteDescriptor\.value \|\| localTrackFavoriteState\.value !== 'idle'\) \{\s*resetLocalTrackFavorite\(\)/)
   assert.match(app, /:track-like-available="playbackSource === 'netease' \|\| nativeRoonHasNeteaseMatch \|\| localTrackFavoriteDescriptor !== null"/)
 })
 
 test('confirmed matching keeps the V1 track identity inside the unified Smart queue', async () => {
   const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
-  const playTrackStart = app.indexOf('async function playTrack(track: TrackSummary)')
-  const roonPlayStart = app.indexOf('async function playRoonLibraryTrack', playTrackStart)
-  const playTrack = app.slice(playTrackStart, roonPlayStart)
+  const playback = await applicationSource('usePlaybackSession.ts')
+  const playTrackStart = playback.indexOf('async function playTrack(track: TrackSummary)')
+  const roonPlayStart = playback.indexOf('async function playRoonLibraryTrack', playTrackStart)
+  assert.ok(playTrackStart >= 0 && roonPlayStart > playTrackStart)
+  const playTrack = playback.slice(playTrackStart, roonPlayStart)
 
   assert.match(playTrack, /rememberRoonQueueDescriptor\(track\.id, selection\.candidate, true\)/)
   assert.match(playTrack, /replaceQueue\(\[\{[\s\S]*trackId: track\.id[\s\S]*preferredSource: 'smart'/)
   assert.doesNotMatch(playTrack, /playRoonTrack\(/)
-  assert.match(app, /rememberRoonQueueDescriptor\(track\.id, candidate, true\)/)
-  assert.match(app, /nativeRoonQueueItemHasNeteaseIdentity\(\s*queueItem,\s*rememberedNeteaseMatch,?\s*\)/)
+  assert.match(playback, /rememberRoonQueueDescriptor\(track\.id, candidate, true\)/)
+  assert.match(playback, /nativeRoonQueueItemHasNeteaseIdentity\(\s*queueItem,\s*rememberedNeteaseMatch,?\s*\)/)
   assert.match(app, /:track-like-available="playbackSource === 'netease' \|\| nativeRoonHasNeteaseMatch \|\| localTrackFavoriteDescriptor !== null"/)
 })
 
 test('search playback gives immediate preparation feedback and rejects duplicate clicks', async () => {
   const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
-  const playTrackStart = app.indexOf('async function playTrack(track: TrackSummary)')
-  const roonPlayStart = app.indexOf('async function playRoonLibraryTrack', playTrackStart)
-  const playTrack = app.slice(playTrackStart, roonPlayStart)
+  const playback = await applicationSource('usePlaybackSession.ts')
+  const playTrackStart = playback.indexOf('async function playTrack(track: TrackSummary)')
+  const roonPlayStart = playback.indexOf('async function playRoonLibraryTrack', playTrackStart)
+  assert.ok(playTrackStart >= 0 && roonPlayStart > playTrackStart)
+  const playTrack = playback.slice(playTrackStart, roonPlayStart)
 
   assert.match(playTrack, /if \(playbackStartPending\.value\) return/)
-  assert.match(playTrack, /playbackStartPending\.value = true[\s\S]*showToast\('正在准备'\)/)
-  assert.match(playTrack, /window\.musicBridge\.play\(track\.id, selectedQuality\.value, rendererClickAtMs\)/)
+  assert.match(playTrack, /playbackStartPending\.value = true[\s\S]*onToast\('正在准备'\)/)
+  assert.match(playTrack, /api\.play\(track\.id, getSelectedQuality\(\), rendererClickAtMs\)/)
   assert.match(playTrack, /finally \{\s*playbackStartPending\.value = false\s*\}/)
+  assert.match(app, /onToast: showToast/)
   assert.match(app, /:busy="playbackStartPending"/)
 })
 
 test('本地 Roon 点播先投影请求曲目再等待 Core 精确确认，并防止旧请求覆盖新请求', async () => {
   const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
-  const start = app.indexOf('async function playRoonLibraryTrack')
-  const end = app.indexOf('async function queueRoonLibraryTrack', start)
-  const playRoonTrack = app.slice(start, end)
+  const playback = await applicationSource('usePlaybackSession.ts')
+  const start = playback.indexOf('async function playRoonLibraryTrack')
+  const end = playback.indexOf('async function queueRoonLibraryTrack', start)
+  assert.ok(start >= 0 && end > start)
+  const playRoonTrack = playback.slice(start, end)
 
   const optimisticIndex = playRoonTrack.indexOf('createOptimisticRoonPlayback')
-  const enterIndex = playRoonTrack.indexOf('enterNowPlaying()')
-  const awaitIndex = playRoonTrack.indexOf('await window.musicBridge.playRoonTrack')
+  const enterIndex = playRoonTrack.indexOf('onEnterNowPlaying()')
+  const awaitIndex = playRoonTrack.indexOf('await api.playRoonTrack')
   assert.ok(optimisticIndex >= 0 && optimisticIndex < awaitIndex)
   assert.ok(enterIndex >= 0 && enterIndex < awaitIndex)
   assert.match(playRoonTrack, /const operation = \+\+roonPlaybackOperation/)
   assert.match(playRoonTrack, /if \(operation !== roonPlaybackOperation\) return/)
+  assert.match(app, /onEnterNowPlaying: \(\) => journey\.enterNowPlaying\(\)/)
 })
 
 test('Roon 未提供真实码率时向用户说明 API 边界，不展示伪造数值', async () => {
@@ -556,6 +583,7 @@ test('Roon 未提供真实码率时向用户说明 API 边界，不展示伪造�
 
 test('P1-D keeps local-library navigation in the sidebar and wires real genre and Roon playlist drill-down', async () => {
   const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
+  const browse = await applicationSource('useRoonBrowse.ts')
   const navigation = await readFile(path.resolve('src/renderer/src/components/navigation.ts'), 'utf8')
   const artwork = await readFile(path.resolve('src/renderer/src/components/RoonArtwork.vue'), 'utf8')
   const trackTable = await readFile(path.resolve('src/renderer/src/components/media/TrackTable.vue'), 'utf8')
@@ -563,8 +591,8 @@ test('P1-D keeps local-library navigation in the sidebar and wires real genre an
   assert.doesNotMatch(app, /roon-library-tabs|activeRoonCollection/)
   assert.match(navigation, /type: 'roon-genre'; reference: string/)
   assert.match(navigation, /type: 'roon-playlist'; reference: string/)
-  assert.match(app, /getRoonGenreItems/)
-  assert.match(app, /getRoonPlaylistTracks/)
+  assert.match(browse, /api\.getRoonGenreItems/)
+  assert.match(browse, /api\.getRoonPlaylistTracks/)
   assert.match(app, /@select="navigateSource\(\{ type: 'roon-genre'/)
   assert.match(app, /@select="navigateSource\(\{ type: 'roon-playlist'/)
   assert.match(artwork, /封面解码失败/)
@@ -572,12 +600,13 @@ test('P1-D keeps local-library navigation in the sidebar and wires real genre an
 })
 
 test('queue item selection preserves the existing V1/V2 mixed queue', async () => {
-  const app = await readFile(path.resolve('src/renderer/src/App.vue'), 'utf8')
-  const selectStart = app.indexOf('async function playQueueItem')
-  const toggleStart = app.indexOf('async function togglePlayback', selectStart)
-  const selection = app.slice(selectStart, toggleStart)
+  const playback = await applicationSource('usePlaybackSession.ts')
+  const selectStart = playback.indexOf('async function playQueueItem')
+  const toggleStart = playback.indexOf('async function togglePlayback', selectStart)
+  assert.ok(selectStart >= 0 && toggleStart > selectStart)
+  const selection = playback.slice(selectStart, toggleStart)
 
-  assert.match(selection, /window\.musicBridge\.playQueueIndex\(index\)/)
+  assert.match(selection, /api\.playQueueIndex\(index\)/)
   assert.doesNotMatch(selection, /playRoonTrack\(|replaceQueue\(/)
 })
 
