@@ -2,7 +2,7 @@
 
 ## 身份与授权
 
-- 基线：`05256eb867e37574e16f23eab877026a229a1703`；分支：`codex/task-085-v3-full-product`；阶段实现提交：`bbc2f7baa40fd671f603aa37817ba6f9018d6ebf`（308 个实现路径逐文件核对后提交）。六份任务/报告元数据尚待报告提交，最终 HEAD 和远端身份尚未生成或核验；不把实现提交当作发布接受。
+- 基线：`05256eb867e37574e16f23eab877026a229a1703`；分支：`codex/task-085-v3-full-product`；首推实现提交：`bbc2f7baa40fd671f603aa37817ba6f9018d6ebf`（308 个实现路径逐文件核对后提交）；首份报告提交并已推送：`5edd878010594c7daabc3e5f9eeb1c9d2b87a237`。七文件增量代码提交：`2ab45fa919513f512edc9cf3c5800c23779ad0f9`（本地、尚未推送）；增量报告提交仍为 `null`，提交后按结果报告所述 Git 规则解析。下一任务基线是最终增量报告提交 HEAD，不能把当前代码提交或 `main` 预填为下一基线；不把提交当作发布接受。
 - Owner 要求在现有 MusicBridge 分支落实全功能交互预览；这不是再建一份独立 HTML，也不代表真实账号、真实 Roon、声卡、实体打印、发布或 Owner 验收已获授权。
 - 输入包：外置卷 `Developer/CommandLine/tmp/musicbridge-v3-fullpreview-PQiNBB/MusicBridge_V3_FullPreview_v1.0`。其中 `docs/全功能映射.json` 固定 63 个原编号，SHA-256 `1ef13a409299d132ba3e7a505c2cb3517234415631a2cc487ea6347d4091dce8`；`docs/PRD_MVP30对照.json` 固定 30 项，SHA-256 `c6c60dd839964c462c328ec7c8a71abe275ae7b78316bd37e1e495a471d50d76`。开发包自身基线 `d98eff24…` 是输入身份，不覆盖当前仓库后续有效决定。
 - 全量追踪与反向索引见 [TASK-085 覆盖台账](../reports/TASK-085_COVERAGE.md)；结果与未完成验证见 [结果报告](../reports/TASK-085_RESULT.md)。
@@ -38,10 +38,16 @@ J05 正式 Electron 合成切片已由页面完成发行/逐件、归属照片�
 
 多盘定向新行为/旧导出兼容 7/7，较宽聚焦 65/67：旧库迁移回归两处失败待定根，须保留历史 schema 边界及失败回滚证据。新设备选择与 Plan 公共合同定向 12/12、Contracts typecheck/build 退出 0；Core 仍在接线，Gate B 生产受信记录为空，正式输出持续阻断。详见阶段结果与覆盖台账，最终提交/远端 HEAD/全量 Gate 均未完成。
 
-## 2026-09-28 阶段外审检查点
+## 2026-09-28 首推阶段外审检查点（历史状态）
 
 正式 Core 已条件接入设备选择、Gate B 准入与 Attempt 输出 provider；默认未认证仍拒绝正式 Begin。冷启精确撤销后的 `engine-cutoff` 与 `cleanup-quiescent` 分别持久化并重读确认，不补造 Stop ACK、EOF、drain 或完成态。可信未受理 typed 错误只在首面 Begin 映射公开 `ATTEMPT_NOT_ACCEPTED`；预检到 Begin 间库存漂移仍可能落入保守未知回执，Renderer 保留原 `pendingBegin`，是待收口活性边界。
 
 阶段定向：Core runner/lease/recovery/barrier/Attempt 101 项中 100 pass、1 原生 helper 跳过，另 Attempt IPC 1/1；Desktop Record/Workflow/Collection Return/Page Journey/Attempt Panel 84/84；Desktop typecheck、control-plane、boundaries、cycles（336 files）、Preload 沙盒依赖检查均退出 0。074 Electron 三例只有默认拒绝/零新增/冷启不续播 1 例通过，其余 2 例因测试 helper 的页面控件定位超时，未进入产品断言；072、073 在本阶段快照未运行。历史 master-versions schema7 与 preparation schema8 两例定向退出 1：前者旧库 DDL 夹具复制引用未复制的 `recording_records`，未进入迁移；后者已进入失败注入且 `user_version===8` 回滚断言通过，但 `sqlite_master` 中以 `preparation_%` 开头的 schema 对象仍有 9 项，旧对象清单断言失败。不能据此推断生产迁移完整通过或回滚版本损坏。
 
-以上仅支持“进行中外审检查点”，不支持完整 `verify`、正式 Electron 全链、真实 Gate B/设备/听感、Owner 接受或发布声明。原生租约撤销测试需显式受控无设备 helper，本轮跳过；冷启恢复仍为合成验证。外置证据在 `/Volumes/LifeWeave/Developer/CommandLine/tmp/task085-evidence-AcHUQA/MANIFEST.md`，含日志 SHA、实际 argv、退出码和实现路径清单。未跟踪 `apps/desktop/test-results/` 与 `worktree/` 保留，不清理也不进入实现提交。阶段实现提交为 `bbc2f7baa40fd671f603aa37817ba6f9018d6ebf`；报告提交不能在自身文件中预填自身 SHA，故元数据 `reportCommit` 保持 null，提交后以 `git log -1 --format=%H -- reports/TASK-085_RESULT.md reports/TASK-085_COVERAGE.md` 解析，不以基线 SHA 代替。
+以上是首推报告 `5edd878…` 当时的红/绿历史，不支持完整 `verify`、正式 Electron 全链、真实 Gate B/设备/听感、Owner 接受或发布声明。该轮原生租约撤销测试跳过；冷启恢复仍为合成验证。外置证据在 `/Volumes/LifeWeave/Developer/CommandLine/tmp/task085-evidence-AcHUQA/MANIFEST.md`，含日志 SHA、实际 argv、退出码和实现路径清单。未跟踪 `apps/desktop/test-results/` 与 `worktree/` 保留，不清理也不进入实现提交。
+
+## 2026-09-28 七文件增量检查点
+
+增量代码 `2ab45fa919513f512edc9cf3c5800c23779ad0f9` 收口 J11 首次 capture 的可信零受理/资源静止边界，保留未知回执的原命令身份；旧 schema 7/8 通过独立历史 DDL fixture 重验；072/074 E2E 只调整控件定位和实际显示合同断言，不改生产面板。J11 四新例 4/4、Attempt 整文件 78/78、迁移定向 2/2 与两文件整套 36/36、显式 `--lease-revoke` 无设备租约 1/1。统一构建与 Preload 门禁、Desktop 类型检查退出 0；同一构建产物 074 Electron 3/3，072/073 为 4 pass＋3 原生 Gate 条件 skip。旧 074 1/3、旧迁移 2 fail 与首推远端 `verify` 44 fail 仍作为原快照保留；增量尚未远端验证，不将聚焦通过自动扣减远端失败数。精确 argv、起止 Hash 的取样范围、日志 SHA 与截图路径见 [结果报告](../reports/TASK-085_RESULT.md)。
+
+074 首例证明正式 IPC 默认拒绝、零新增与冷启不续播；另外两例是受控 Main 注入的历史/错误 UI 证据，不是正式 Core 录音成功。720px 截图下半部受浮动播放器覆盖，未证明末尾所有动作可点击；完整 V2 回归与 J03/J04/J09～J14 其他缺口仍待证。真实 Gate B、HAL/设备输出、真实音源/Roon、听感、实体试印、安装/发布和 Owner 验收均 `NOT_RUN`。首推 `5edd878…` 已推送，增量报告提交保持 `null`，当前无 `main` 合并或安装发布；下阶段只能从增量最终报告提交继续。

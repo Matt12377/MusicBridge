@@ -657,8 +657,10 @@
       "gateB": "NOT_RUN"
     },
     "implementationCommit": "bbc2f7baa40fd671f603aa37817ba6f9018d6ebf",
+    "firstReportCommit": "5edd878010594c7daabc3e5f9eeb1c9d2b87a237",
+    "incrementalCodeCommit": "2ab45fa919513f512edc9cf3c5800c23779ad0f9",
     "reportCommit": null,
-    "currentCommitResolution": "TASK-085 implementation is bbc2f7baa40fd671f603aa37817ba6f9018d6ebf; reportCommit remains null because a report cannot embed its own commit SHA, resolve after submission via git log -1 --format=%H -- reports/TASK-085_RESULT.md reports/TASK-085_COVERAGE.md; former parent values c54ca45f8820e7c8dde6076454cf402cdb1b5585 and ab90f9820db4668d553aa878d46f016980d1810a belong to preserved task084CapacityRuntimeRelocation history",
+    "currentCommitResolution": "TASK-085 first implementation bbc2f7baa40fd671f603aa37817ba6f9018d6ebf and first report 5edd878010594c7daabc3e5f9eeb1c9d2b87a237 were pushed; incremental code 2ab45fa919513f512edc9cf3c5800c23779ad0f9 was local and not pushed at report drafting; incremental reportCommit remains null to avoid self-reference and resolves after submission via git log -1 --format=%H -- reports/TASK-085_RESULT.md reports/TASK-085_COVERAGE.md; next branch base is that final report HEAD; former parent values c54ca45f8820e7c8dde6076454cf402cdb1b5585 and ab90f9820db4668d553aa878d46f016980d1810a belong to preserved task084CapacityRuntimeRelocation history",
     "task080AuthorityHarness": {
       "baseCommit": "d98eff24c0085ad8a340457f58dc3334709ca241",
       "redCommit": "85398f7cfb2eeb3b6cd71f368a62a84de13b4c5d",
@@ -743,13 +745,15 @@
       "branch": "codex/task-085-v3-full-product",
       "state": "IN_PROGRESS_STAGE_REVIEW_CHECKPOINT",
       "implementationCommit": "bbc2f7baa40fd671f603aa37817ba6f9018d6ebf",
+      "firstReportCommit": "5edd878010594c7daabc3e5f9eeb1c9d2b87a237",
+      "incrementalCodeCommit": "2ab45fa919513f512edc9cf3c5800c23779ad0f9",
       "reportCommit": null,
       "reportCommitResolution": "git log -1 --format=%H -- reports/TASK-085_RESULT.md reports/TASK-085_COVERAGE.md; null avoids a self-referential report identity",
       "mappingCount": 63,
       "mvpCount": 30,
       "report": "reports/TASK-085_RESULT.md",
       "coverageLedger": "reports/TASK-085_COVERAGE.md",
-      "stageChecks": {
+      "firstPushStageChecks": {
         "desktopTypecheck": "PASS_EXIT_0",
         "controlPlane": "PASS_EXIT_0",
         "boundaries": "PASS_EXIT_0",
@@ -763,7 +767,31 @@
         "task072And073E2E": "NOT_RUN_ON_STAGE_SNAPSHOT",
         "fullVerify": "NOT_RUN_ON_STAGE_SNAPSHOT"
       },
-      "formalAppEvidence": "PARTIAL_SYNTHETIC_STAGE_NOT_ACCEPTED",
+      "firstPushRemoteCI": {
+        "commit": "5edd878010594c7daabc3e5f9eeb1c9d2b87a237",
+        "verifyRun": "36333174562_COMPLETED_FAILURE_CONTRACTS_208_PASS_CORE_1497_PASS_44_FAIL_2_SKIP_DESKTOP_NOT_RUN",
+        "failureGrouping": "17_OLD_SCHEMA_ASSERTION_13_INVENTORY_UNAVAILABLE_3_FORMAL_REJECTION_3_MIGRATION_FIXTURE_2_OLD_FACT_DIFF_1_ATTEMPT_BACKUP_IO_3_CAPACITY_2_REPLICA_TRANSITION_SYMPTOMS_ONLY",
+        "securityRun": "36333174547_COMPLETED_SUCCESS",
+        "electronPriorObservation": "36333174505_IN_PROGRESS_AT_2026-09-28_00:48_ASIA_SHANGHAI",
+        "electronRun": "36333174505_JOB_108658904499_COMPLETED_FAILURE_STARTUP_GATE_SUCCESS_PLAYWRIGHT_51_PASS_48_FAIL_4_SKIP",
+        "electronFailureLog": "/Volumes/LifeWeave/Developer/CommandLine/tmp/task085-ui-v88PoC/remote-electron-failed.log",
+        "electronFailureLogSha256": "c10312eee010564b8268f3c7cb6850470890a85664e681170563f03d6ac75f16"
+      },
+      "incrementalChecks": {
+        "snapshotCommit": "2ab45fa919513f512edc9cf3c5800c23779ad0f9",
+        "j11NewCases": "4_PASS_EXIT_0",
+        "attemptFullFile": "78_PASS_EXIT_0",
+        "legacyMigrationFocused": "2_PASS_EXIT_0",
+        "legacyMigrationTwoFiles": "36_PASS_EXIT_0",
+        "nativeLeaseRevoke": "1_PASS_EXIT_0_NO_HAL",
+        "unifiedBuildAndPreload": "PASS_EXIT_0",
+        "desktopTypecheck": "PASS_EXIT_0",
+        "finalE2ETypecheck": "PASS_EXIT_0",
+        "task074E2E": "3_PASS_EXIT_0_SYNTHETIC_DEFAULT_REJECT_AND_MAIN_INJECTED_UI",
+        "task072And073E2E": "4_PASS_3_NATIVE_GATE_CONDITIONAL_SKIP_EXIT_0",
+        "remoteVerify": "NOT_RUN_FOR_INCREMENTAL_CODE"
+      },
+      "formalAppEvidence": "PARTIAL_SYNTHETIC_072_TO_074_NOT_PRODUCT_ACCEPTED",
       "formalCapacitySamples": 0,
       "gateB": "NOT_RUN",
       "ownerProductAcceptance": "NOT_RUN"

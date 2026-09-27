@@ -1,6 +1,6 @@
 # TASK-085 进行中外审检查点：用户任务与反向覆盖台账
 
-本台账按正式 MusicBridge 用户任务组织，不把原型、代码接线、合成单测、旧 Electron 快照、真实设备和 Owner 接受混为一项。输入为开发包 `docs/全功能映射.json`（原 63 项，SHA-256 `1ef13a409299d132ba3e7a505c2cb3517234415631a2cc487ea6347d4091dce8`）和 `docs/PRD_MVP30对照.json`（MVP 30 项，SHA-256 `c6c60dd839964c462c328ec7c8a71abe275ae7b78316bd37e1e495a471d50d76`）。输入包基线 `d98eff24…`，TASK-085 基线 `05256eb…`、实现提交 `bbc2f7baa40fd671f603aa37817ba6f9018d6ebf`，数据库目标 schema 30。以下“待正式证据”不等于“未实现”；旧快照的通过只覆盖其当时源码，不能覆盖该实现提交的完整流程。
+本台账按正式 MusicBridge 用户任务组织，不把原型、代码接线、合成单测、旧 Electron 快照、真实设备和 Owner 接受混为一项。输入为开发包 `docs/全功能映射.json`（原 63 项，SHA-256 `1ef13a409299d132ba3e7a505c2cb3517234415631a2cc487ea6347d4091dce8`）和 `docs/PRD_MVP30对照.json`（MVP 30 项，SHA-256 `c6c60dd839964c462c328ec7c8a71abe275ae7b78316bd37e1e495a471d50d76`）。输入包基线 `d98eff24…`，TASK-085 基线 `05256eb…`、首推实现 `bbc2f7baa40fd671f603aa37817ba6f9018d6ebf`、首份报告 `5edd878010594c7daabc3e5f9eeb1c9d2b87a237`、七文件增量代码 `2ab45fa919513f512edc9cf3c5800c23779ad0f9`；增量报告提交仍为 `null`，数据库目标 schema 30。以下“待正式证据”不等于“未实现”；旧快照的通过只覆盖其当时源码，本地增量也不等于全套远端或真实设备验收。精确命令、日志与 Hash 见 [结果报告](TASK-085_RESULT.md) 的独立增量检查点。
 
 ## 完整用户任务：入口 → 操作 → 结果 → 失败/返回 → 持久证据
 
@@ -14,16 +14,16 @@
 | J06 我的制作与工作台 | 录音 → 新建/继续/复用 → 选音乐/曲序 → 保存工作上下文与下一步 | 当前草稿、版本、磁带、设备和下一步清晰；底层对象不复制 | 未保存/回执未定不离开；冷启恢复原引用，失效不选 latest | TASK-085 首条正式 App 合成切片已证明：API 建两份草稿后，UI 明确选定目标、跨页返回确切草稿/规划，工作库保存目标引用；新建/选曲/复用等 UI 全程及冷启尚待证据 |
 | J07 精确源 | 工作台曲目 → 授权目录 → 候选/验证 → 确认版本 | 文件取得方式、完整 Hash、格式/在线状态及来源关系分别保存 | 离线不删绑定，同名不替换，内容变化使锁定失效；返回原曲目 | source roots/bindings/jobs/ledger 与文件 Hash；本轮已有 scanCandidates/版本比较服务、IPC/Preload 及定向测试文件，最终新鲜验证和正式 App 闭环待核；真实源未获授权 |
 | J08 分面与明确选带 | 工作台 A/B 或 DAT → 过渡/曲组 → 容量建议 → 指定现有单盘 → 明确预留/释放 | 逐面适配，来源与库存实时重校验；收藏回看同一个 Physical ID | 一面超长/未知不放行；切带先释放原计划；旧库存取消不能释放规划预留 | TASK-085 首条正式 App 合成切片已证明：指定已有单盘、保存 A/B 估算、明确预留与释放、库存守恒；负面容量、DAT、Cue/多盘 Split 与真实源/设备另待证据或软件补齐 |
-| J09 母版、Logic 与 PREP | 固定内容/布局 → Direct 或 Logic ZIP → 导回 WAV/标记 → 差异裁决 → PREP | 不可变母版/布局；原 Render 保留；需要时新派生，不重复烘焙间隔 | 只看总时长不算一致；新布局/新母版/拒绝可回到确切版本 | 保留 `-06/-07` 失败；新 `mb-task085-j09-NfCIMY/electron-01` 正式 Electron 合成 1/1：原生 ZIP 另存、预览批准、拒写、源/ZIP Hash 与冷启，720 滚到底真实开合、返回按钮焦点通过。前置草稿/源/库存/布局由 API seed；未知回执跨冷启与明确拒绝恢复未闭合，Logic WAV 导回/PREP 完整 UI 闭环及真实 Logic 尚未证明 |
-| J10 Profile、资产与计划 | 设备 Profile → 本次 Overrides → 编译资产 → 冻结确认单 → 实时 Preflight | 帧数、谱系、设备/格式/预留/空间一致；冻结不等于开录 | Gate B 未认证保持阻断；任务失败/版本漂移保留原结果，回原步骤 | profile/asset/plan immutable records 与预检诊断；既有实现待正式 App 回归，Gate B 未运行 |
-| J11 正式执行 | 明确 Ready → A → 排空 → 翻面 → B／DAT 连续 → 实体确认 → 最终核验 | 软件、输出和实体事实分开；完成记录只创建一次 | Failed/Aborted/Interrupted 不退空白、不自动续；重启核实后新 Attempt | 正式 runtime 已条件接入设备选择、受信 Gate B 准入与原生输出 Attempt provider；默认未认证仍拒绝。2026-09-28 采样 Core runner/租期/冷启/屏障/Attempt 定向 101 项中 100 pass、1 skip，typed 未受理 IPC 1/1，Desktop guard/Attempt panel 五文件 84/84；074 Electron 默认拒绝单例通过，完整三例仅 1/3、另两例卡在测试上下文 `select` 定位，未到产品断言。原生撤销 helper 测试跳过；真实 Gate B、设备录制与 Owner 确认均 NOT_RUN；preflight→Begin 库存漂移仍有保守 pendingBegin 活性 carryover |
+| J09 母版、Logic 与 PREP | 固定内容/布局 → Direct 或 Logic ZIP → 导回 WAV/标记 → 差异裁决 → PREP | 不可变母版/布局；原 Render 保留；需要时新派生，不重复烘焙间隔 | 只看总时长不算一致；新布局/新母版/拒绝可回到确切版本 | 保留 `-06/-07` 失败；旧 `mb-task085-j09-NfCIMY/electron-01` 正式 Electron 合成 1/1。增量修复旧 schema 7/8 fixture 后定向 2/2、master-versions 与 preparation 两文件整套 36/36；它们是迁移/回滚合成回归，不扩展为 Logic WAV 导回/PREP 完整 UI、未知回执恢复或真实 Logic 验收 |
+| J10 Profile、资产与计划 | 设备 Profile → 本次 Overrides → 编译资产 → 冻结确认单 → 实时 Preflight | 帧数、谱系、设备/格式/预留/空间一致；冻结不等于开录 | Gate B 未认证保持阻断；任务失败/版本漂移保留原结果，回原步骤 | profile/asset/plan immutable records 与预检诊断；增量同产物 072 Electron 2/2，073 无设备/禁用态 2 pass、3 原生 Gate 条件 skip，正式输出仍未认证。完整 Profile/资产 UI 和真实 Gate B 未完成 |
+| J11 正式执行 | 明确 Ready → A → 排空 → 翻面 → B／DAT 连续 → 实体确认 → 最终核验 | 软件、输出和实体事实分开；完成记录只创建一次 | Failed/Aborted/Interrupted 不退空白、不自动续；重启核实后新 Attempt | 正式 runtime 条件接入设备选择、受信 Gate B 与原生 Attempt provider，默认未认证拒绝。首推 Core 定向 100 pass/1 native skip、Desktop 84/84 和 074 初跑 1/3 的历史保留；增量 J11 四新例 4/4、Attempt 整文件 78/78、显式 `--lease-revoke` 无设备租约 1/1、同产物 074 Electron 3/3。074 首例是真实 IPC 默认拒绝；历史/故障展示由受控 Main 注入，不是 Core 成功录音。preflight→Begin 已收口可信零受理且资源静止的一支，未知回执保留原命令；真实 Gate B、HAL/设备录制与 Owner 确认均 NOT_RUN |
 | J12 档案与数字副本 | 录音档案检索 → 同盘反查/重录历史 → 指定冻结版本数字副本 | 不变的 Record、当前内容认知与历史分开，Replica 不重新搜同名歌曲 | 归档同命令重试不重复；文件缺失明确报错；返回原 Physical ID | schema29/30 已有 SQL 搜索投影与分页读取；Replica 正式 runtime 条件接入只读核验及本机设备输出、精确 Stop/租期收口；合成安全测试不等于真实可听体验或完整 UI 验收 |
 | J13 J-Card | 完成档案或同盘 → 外/内侧/续页预览 → 生成 PDF/重试/新版本 | 事实取自指定 Record；旧 Printed Artifact 不覆盖，尺寸和页序可核验 | 打印失败不重录；内容过长不截曲；返回原档案 | 旧快照在默认旧版合成库与原失败 DB 复制库分别完成正式 Electron PDF 用例；110×110 与 240×150 mm 各 3 页、共 12 页目检。固定失败的原请求重试由测试 API 调用，不是页面“重试”按钮证据；schema30 当前整合快照、真实素材与实体试印仍待证 |
 | J14 备份恢复与性能 | 备份范围 → 内容清点/ZIP → 隔离恢复 → 明确激活；后台任务与窄窗 | 元数据/完整备份边界明示，原库保留；切库不重放旧 Outbox | Hash/缺失/空间故障阻断激活；恢复后不续录；大库性能单独测 | schema30 冷启目标撤销及软件静止事实已有定向合成验证；完整备份→隔离恢复→激活 Electron 与真实大库性能仍未闭环，冻结容量窗口不重放 |
 
 ## 原 63 编号反向索引
 
-“正式待证据”表示本轮尚未绑定相应 repository、IPC/Preload、正式 App 与持久结果的实现提交证据；Attempt 的执行边界不经 Outbox，不可机械要求每段都走它。J02/J06/J08、J05、J09、J13 的旧 Electron 合成切片只覆盖对应旧快照与指定动作，不等于 `bbc2f7b…` 的完整用户流程、真实设备或 Owner 验收。
+“正式待证据”表示本轮尚未绑定相应 repository、IPC/Preload、正式 App 与持久结果的完整用户任务证据；Attempt 的执行边界不经 Outbox，不可机械要求每段都走它。J02/J06/J08、J05、J09、J13 的旧 Electron 合成切片只覆盖对应旧快照与指定动作；增量 072～074 只覆盖所述合成切片，均不等于完整用户流程、真实设备或 Owner 验收。
 
 | ID | 用户任务 | 流程 | 当前状态 |
 | --- | --- | --- | --- |
@@ -78,11 +78,11 @@
 | R-19 | 知道准备是否完成和是否失效 | J10 | 正式待证据 |
 | R-20 | 明确本次到底按什么执行 | J10 | 正式待证据 |
 | R-21 | 理解哪些问题由谁解决 | J10 | 正式待证据 |
-| R-22 | 尽早知道当前是否允许输出 | J10 | runtime 已条件注入受信 Gate B 准入，未认证时保守阻断；真实 Gate B NOT_RUN |
-| R-23 | 安全执行每一面 | J11 | 原生设备输出 Attempt provider 已条件接线且默认拒绝；采样 Core 定向 100 pass/1 skip，074 Electron 全例 1/3，真实设备与 Gate B NOT_RUN |
+| R-22 | 尽早知道当前是否允许输出 | J10 | runtime 已条件注入受信 Gate B 准入，未认证时保守阻断；增量 072/073 合成 4 pass、3 原生 Gate 条件 skip，真实 Gate B NOT_RUN |
+| R-23 | 安全执行每一面 | J11 | 原生设备输出 Attempt provider 已条件接线且默认拒绝；增量 Attempt 整文件 78/78、074 合成 Electron 3/3 中首例验证正式 IPC 默认拒绝，另两例为受控 Main 注入。真实设备、Gate B 与实际每面输出 NOT_RUN |
 | R-24 | 录制无翻面的介质 | J08、J11 | DAT/无翻面路径已有合成逻辑；Cue/多盘 Split 完整 UI 和设备实测待证 |
-| R-25 | 处理可能已经写入的磁带 | J11 | typed 未受理 IPC 1/1、未知 Begin/Stop 守卫和冷启恢复有合成用例；Core→Native 精确撤销测试因缺受控 helper 跳过，preflight→Begin 库存漂移的保守 pendingBegin 活性仍是 carryover，真实设备未测 |
-| R-26 | 确认真正完成一盘录音 | J11 | 软件/输出/实体三层确认已接线；正式设备录制、Gate B 和 Owner 最终确认 NOT_RUN |
+| R-25 | 处理可能已经写入的磁带 | J11 | typed 未受理 IPC 1/1、未知 Begin/Stop 守卫和冷启恢复有合成用例；增量四新例收口可信零受理且资源静止的库存漂移分支，未知回执继续保留原命令。显式受控 helper 的 Core→Native `--lease-revoke` 1/1 仅证 DB/Sidecar 身份和墓碑，不是 HAL、物理磁带或设备实测 |
+| R-26 | 确认真正完成一盘录音 | J11 | 软件/输出/实体三层确认已接线；074 合成 UI 通过三层事实显示与人工实体停止确认的 Main 注入用例，不能冒充 Core 完成录音。正式设备录制、Gate B 和 Owner 最终确认 NOT_RUN |
 | R-27 | 查到当时录了什么与现在实物内容 | J12 | Record/实体历史及 SQL 页投影已接线；当前正式 App 全流程待证 |
 | R-28 | 重播当年的执行版本 | J12 | 正式 runtime 已条件接入只读核验与设备 Replica provider、精确 Stop；真实可听和 Owner 验收 NOT_RUN |
 | R-29 | 为完成录音生成盒封 | J13 | 旧快照合成 Electron 曾生成 110×110/240×150 mm 三页 PDF、SHA 匹配并目检；schema30 当前整合快照、真实素材与实体试印未测 |
@@ -112,7 +112,7 @@
 | 13 | 永久 Physical ID | C-20 | J02 | 待正式持久取证 |
 | 14 | 现有库存推荐与重校验 | R-11 R-12 | J08 | 本轮接线，待正式 App |
 | 15 | 设备 Profile 复用 | R-18 | J10 | 待正式 App |
-| 16 | Formal A/B 流程 | R-23 R-25 R-26 | J11 | admission、原生设备输出与 Attempt 已条件接线；采样 Core guard 100 pass/1 skip、typed 未受理 IPC 1/1、Desktop 五文件 84/84；074 Electron 三例 1/3（两例测试上下文定位超时），真实 Gate B/设备/Owner 均 NOT_RUN，保守 pendingBegin 活性待收口 |
+| 16 | Formal A/B 流程 | R-23 R-25 R-26 | J11 | admission、原生设备输出与 Attempt 已条件接线；首推 Core guard 100 pass/1 skip、typed IPC 1/1、Desktop 五文件 84/84、074 初跑 1/3 的历史保留。增量四新例 4/4、Attempt 78/78、无设备原生撤销 1/1、074 合成 Electron 3/3；只收口可信零受理且资源静止的 Begin 分支。真实 Gate B/HAL/设备/Owner 均 NOT_RUN |
 | 17 | 档案及同实物多视图 | R-27 C-22 C-23 | J02、J05、J12 | 待正式 App |
 | 18 | Digital Replica | R-28 | J12 | 正式 runtime 已条件接入设备输出 provider；只读核验、精确 Stop 与跨页守卫有合成测试，真实可听验收 NOT_RUN |
 | 19 | 基础 J-Card | R-29 R-30 | J13 | 旧快照合成库正式 App 曾导出 110×110 与 240×150 mm 三页 PDF；固定失败原请求重试是测试 API 调用，非页面按钮。当前整合快照、真实素材/实体试印未运行 |

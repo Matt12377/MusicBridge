@@ -54,18 +54,29 @@ harnessHardening:
   - TASK-083
   - TASK-084
 capacityExecution: frozen-no-new-authority-or-window-during-v3-software-closeout
-reviewBoundary: task085-stage-external-review-in-progress-full-electron-and-legacy-fixture-regressions-open-task080-through084-frozen-harness-capacity-real-device-and-owner-acceptance-pending
+reviewBoundary: task085-incremental-local-synthetic-gates-partial-first-push-remote-verify-failed-increment-not-remotely-verified-task080-through084-frozen-capacity-real-device-and-owner-acceptance-pending
 task085Stage:
   checkpoint: 2026-09-28
   status: in-progress-partial-software-evidence-not-product-acceptance
   implementationCommit: bbc2f7baa40fd671f603aa37817ba6f9018d6ebf
+  firstReportCommit: 5edd878010594c7daabc3e5f9eeb1c9d2b87a237
+  incrementalCodeCommit: 2ab45fa919513f512edc9cf3c5800c23779ad0f9
   reportCommit: null
   reportCommitResolution: "git log -1 --format=%H -- reports/TASK-085_RESULT.md reports/TASK-085_COVERAGE.md"
-  focusedCore: 100-pass-1-native-helper-skip
-  focusedDesktop: 84-pass
-  staticGates: control-plane-boundaries-cycles336-preload-pass
-  electron074: 1-pass-2-selector-timeouts-exit1
-  legacyMigrationFixtures: 1-schema7-fixture-construction-fail-1-schema8-stale-object-assertion-fail-exit1
-  fullVerify: not-run-on-stage-snapshot
+  firstPushFocusedCore: 100-pass-1-native-helper-skip
+  firstPushFocusedDesktop: 84-pass
+  firstPushStaticGates: control-plane-boundaries-cycles336-preload-pass
+  firstPushElectron074: 1-pass-2-selector-timeouts-exit1
+  firstPushLegacyMigrationFixtures: 1-schema7-fixture-construction-fail-1-schema8-stale-object-assertion-fail-exit1
+  firstPushRemoteVerify: run36333174562-contracts208pass-core1497pass44fail2skip-desktop-not-run
+  firstPushRemoteElectronPriorObservation: run36333174505-in-progress-at-2026-09-28-0048-shanghai
+  firstPushRemoteElectron: run36333174505-job108658904499-completed-failure-startup-gate-success-playwright51pass48fail4skip
+  incrementalJ11: 4-new-pass-attempt78-pass
+  incrementalLegacyMigration: 2-focused-pass-36-full-pass
+  incrementalNativeLease: 1-pass-lease-revoke-only-no-hal
+  incrementalBuildAndTypes: contracts-core-desktop-build-preload-desktop-typecheck-e2e-tsc-exit0
+  incrementalElectron074: 3-pass-synthetic-default-reject-and-main-injected-ui
+  incrementalElectron072073: 4-pass-3-native-gate-conditional-skip
+  fullVerify: first-push-failed44-incremental-code-not-remotely-verified
   gateB: NOT_RUN
   ownerProductAcceptance: NOT_RUN
