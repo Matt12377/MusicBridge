@@ -1,11 +1,11 @@
 schemaVersion: 1
 wave: WAVE-5
-status: closeout
+status: development
 source: docs/prd/MUSICBRIDGE_V3_PRD_v0.3.md
 developmentPack: project/V3_DEVELOPMENT_PACK.md
-activeTask: TASK-084
-activeBranch: codex/task-084-capacity-path-remap
-activeBaseCommit: b606784a5969d813984975ca096c48725bc1c432
+activeTask: TASK-085
+activeBranch: codex/task-085-v3-full-product
+activeBaseCommit: 05256eb867e37574e16f23eab877026a229a1703
 order:
   - TASK-048
   - TASK-049
@@ -44,7 +44,8 @@ order:
   - TASK-082
   - TASK-083
   - TASK-084
-stopAfter: TASK-084
+  - TASK-085
+stopAfter: TASK-085
 productSoftwareStopAfter: TASK-079
 harnessHardening:
   - TASK-080
@@ -53,4 +54,18 @@ harnessHardening:
   - TASK-083
   - TASK-084
 capacityExecution: frozen-no-new-authority-or-window-during-v3-software-closeout
-reviewBoundary: v3-software-closeout-candidate-task080-through084-retained-as-nonblocking-harness-formal-capacity-real-device-and-owner-acceptance-pending
+reviewBoundary: task085-stage-external-review-in-progress-full-electron-and-legacy-fixture-regressions-open-task080-through084-frozen-harness-capacity-real-device-and-owner-acceptance-pending
+task085Stage:
+  checkpoint: 2026-09-28
+  status: in-progress-partial-software-evidence-not-product-acceptance
+  implementationCommit: bbc2f7baa40fd671f603aa37817ba6f9018d6ebf
+  reportCommit: null
+  reportCommitResolution: "git log -1 --format=%H -- reports/TASK-085_RESULT.md reports/TASK-085_COVERAGE.md"
+  focusedCore: 100-pass-1-native-helper-skip
+  focusedDesktop: 84-pass
+  staticGates: control-plane-boundaries-cycles336-preload-pass
+  electron074: 1-pass-2-selector-timeouts-exit1
+  legacyMigrationFixtures: 1-schema7-fixture-construction-fail-1-schema8-stale-object-assertion-fail-exit1
+  fullVerify: not-run-on-stage-snapshot
+  gateB: NOT_RUN
+  ownerProductAcceptance: NOT_RUN

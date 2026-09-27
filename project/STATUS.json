@@ -607,10 +607,10 @@
   },
   "v3Development": {
     "wave": "WAVE-5",
-    "task": "TASK-084",
-    "branch": "codex/task-084-capacity-path-remap",
-    "baseCommit": "b606784a5969d813984975ca096c48725bc1c432",
-    "state": "capacity-runtime-relocation-software-sealed-authority-not-issued-external-pending",
+    "task": "TASK-085",
+    "branch": "codex/task-085-v3-full-product",
+    "baseCommit": "05256eb867e37574e16f23eab877026a229a1703",
+    "state": "formal-v3-full-product-integration-in-progress-external-evidence-pending",
     "evidenceInfrastructure": {
       "state": "PASS_26_FOCUSED_FULL_VERIFY_CONTROL_BOUNDARIES_CYCLES",
       "receiptFoundation": {
@@ -656,8 +656,9 @@
       "hardwareRun": "NOT_RUN",
       "gateB": "NOT_RUN"
     },
-    "implementationCommit": "c54ca45f8820e7c8dde6076454cf402cdb1b5585",
-    "reportCommit": "ab90f9820db4668d553aa878d46f016980d1810a",
+    "implementationCommit": "bbc2f7baa40fd671f603aa37817ba6f9018d6ebf",
+    "reportCommit": null,
+    "currentCommitResolution": "TASK-085 implementation is bbc2f7baa40fd671f603aa37817ba6f9018d6ebf; reportCommit remains null because a report cannot embed its own commit SHA, resolve after submission via git log -1 --format=%H -- reports/TASK-085_RESULT.md reports/TASK-085_COVERAGE.md; former parent values c54ca45f8820e7c8dde6076454cf402cdb1b5585 and ab90f9820db4668d553aa878d46f016980d1810a belong to preserved task084CapacityRuntimeRelocation history",
     "task080AuthorityHarness": {
       "baseCommit": "d98eff24c0085ad8a340457f58dc3334709ca241",
       "redCommit": "85398f7cfb2eeb3b6cd71f368a62a84de13b4c5d",
@@ -733,6 +734,36 @@
       "liveRootMappings": 63,
       "historicalMissingRoots": 7,
       "authorityWindow": "NOT_ISSUED_NOT_CONSUMED",
+      "formalCapacitySamples": 0,
+      "gateB": "NOT_RUN",
+      "ownerProductAcceptance": "NOT_RUN"
+    },
+    "task085FullProduct": {
+      "baseCommit": "05256eb867e37574e16f23eab877026a229a1703",
+      "branch": "codex/task-085-v3-full-product",
+      "state": "IN_PROGRESS_STAGE_REVIEW_CHECKPOINT",
+      "implementationCommit": "bbc2f7baa40fd671f603aa37817ba6f9018d6ebf",
+      "reportCommit": null,
+      "reportCommitResolution": "git log -1 --format=%H -- reports/TASK-085_RESULT.md reports/TASK-085_COVERAGE.md; null avoids a self-referential report identity",
+      "mappingCount": 63,
+      "mvpCount": 30,
+      "report": "reports/TASK-085_RESULT.md",
+      "coverageLedger": "reports/TASK-085_COVERAGE.md",
+      "stageChecks": {
+        "desktopTypecheck": "PASS_EXIT_0",
+        "controlPlane": "PASS_EXIT_0",
+        "boundaries": "PASS_EXIT_0",
+        "cycles": "PASS_336_FILES_EXIT_0",
+        "preloadSandboxDependencies": "PASS_EXIT_0",
+        "coreGuardAttempt": "100_PASS_1_NATIVE_HELPER_SKIP_EXIT_0",
+        "desktopGuardAttempt": "84_PASS_EXIT_0",
+        "attemptIpc": "1_PASS_EXIT_0",
+        "task074E2E": "1_PASS_2_SELECTOR_TIMEOUT_EXIT_1",
+        "legacyMigrationFixtures": "1_SCHEMA7_FIXTURE_CONSTRUCTION_FAIL_1_SCHEMA8_STALE_OBJECT_ASSERTION_FAIL_EXIT_1",
+        "task072And073E2E": "NOT_RUN_ON_STAGE_SNAPSHOT",
+        "fullVerify": "NOT_RUN_ON_STAGE_SNAPSHOT"
+      },
+      "formalAppEvidence": "PARTIAL_SYNTHETIC_STAGE_NOT_ACCEPTED",
       "formalCapacitySamples": 0,
       "gateB": "NOT_RUN",
       "ownerProductAcceptance": "NOT_RUN"

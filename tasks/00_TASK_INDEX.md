@@ -111,3 +111,5 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 - [TASK-083](TASK-083-joint-queued-stop-issuer.md)：专用joint queued-stop一次性issuer与按profile消费合同；只消费joint measure正式PASS，不继承objects-limit历史失败恢复链。
 
 - [TASK-084](TASK-084-capacity-runtime-relocation.md)：为磁盘迁移后的冻结容量证据建立显式runtime relocation闭包；历史字节不改写，63个live root逐项重验，7个LOST root保持LOST。
+
+- [TASK-085](TASK-085-v3-full-product.md)：从当前 main 集成基线将全功能交互预览落实到正式 V3 产品；63 原编号、PRD MVP 30 项按完整用户任务逐项取证。2026-09-28 阶段实现 `bbc2f7baa40fd671f603aa37817ba6f9018d6ebf` 待外审；Core 定向 100 pass/1 原生 helper skip、Desktop guard/Attempt 84 pass、静态 Gate 通过；074 E2E 为 1 pass/2 测试定位超时，旧迁移夹具定向 2 fail，完整正式 App 与 Owner 验收未关闭。真实输出/Gate B 仍独立为 NOT_RUN，不据此开始下一任务或发布。
