@@ -11,13 +11,14 @@ export interface RecordingWorkflowFacts {
   prepared: PreparedHistory
   execution: ExecutionHistory
 }
-/** 仅为本次 Renderer 工作上下文；不创建正式 RecordingPlan。 */
+/** 制作上下文由工作库持久化；此投影不创建正式 RecordingPlan。 */
 export interface RecordingWorkflowSelection {
   planId?: string
   layoutId?: string
   path?: 'direct' | 'logic' | 'prep'
   preparationId?: string
   preparedId?: string
+  selectedPhysicalId?: string
 }
 export interface RecordingWorkflowState {
   draftId: string | null
@@ -109,6 +110,7 @@ export function getRecordingNextStep(input: {
   }
   const facts = workflow.facts, selected = workflow.selection
   if (!draft.tracks.length) return next(1, '草稿还没有曲目', '先选择音乐，再检查实际源文件。', '为当前草稿添加音乐', { type: 'pick-source' })
+  if (!facts.plans.plans.length) return next(2, '先估算 A/B 与选带', '可以先用 Roon 曲长估算分面和库存；未知时长须核实，估算与选带不会锁定精确源或准许输出。', '估算分面与选带', { type: 'media' })
   const running = facts.sources.tracks.find(track => track.jobs.some(job => job.state === 'running'))
   if (running) return next(1, '源文件验证进行中', '源验证任务尚未结束，请在源文件面板查看结果；已有绑定不能覆盖运行中的任务。', '查看源验证任务', { type: 'source', trackId: running.trackId })
   for (const track of draft.tracks) {
@@ -154,6 +156,6 @@ export function getRecordingNextStep(input: {
   const runningExecution = facts.execution.jobs.some(job => job.layoutVersionId === layout.id && modeMatches(job.mode) && job.state === 'running')
   const published = facts.execution.assets.some(asset => asset.layoutVersionId === layout.id && asset.masterVersionId === layout.masterVersionId && modeMatches(asset.mode) && asset.preparedVersionId === preparedId)
   if (runningExecution) return next(3, '执行资产准备进行中', '请查看所选布局与路径的任务；不会开始正式录音。', '查看本次执行资产任务', { type: 'execution' })
-  if (published) return next(3, '选择执行资产与归档，冻结计划', '已有对应执行资产，当前文件可用性仍需显式核验。F-01 保留政策已确认。请选择具体资产及 FINALIZED 归档再确认计划；Gate B 尚未认证，正式录音被阻断。', '确认本次计划与预检', { type: 'recording-plan' })
-  return next(3, '检查本次执行参数与资产', '请在执行面板确认参数、目录与资产检查，再明确选择归档和计划。F-01 保留政策已确认；正式预检仍受 Gate B 未认证阻断，不会开始正式录音。', '检查本次执行资产', { type: 'execution' })
+  if (published) return next(3, '选择执行资产与归档，冻结计划', '已有对应执行资产，当前文件可用性仍需显式核验。F-01 保留政策已确认。请选择具体资产及 FINALIZED 归档再确认计划；正式输出资格须在实时预检核验。', '确认本次计划与预检', { type: 'recording-plan' })
+  return next(3, '检查本次执行参数与资产', '请在执行面板确认参数、目录与资产检查，再明确选择归档和计划。F-01 保留政策已确认；正式输出资格须在实时预检核验。', '检查本次执行资产', { type: 'execution' })
 }

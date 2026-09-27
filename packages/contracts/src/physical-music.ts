@@ -13,16 +13,27 @@ export type MusicKind = 'cd' | 'cassette' | 'personal-cassette' | 'personal-dat'
 export interface MusicEntry { id: string; kind: MusicKind; title: string; artist: string; quantity: number; revision: number; contentStatus: 'commercial' | 'legacy' | 'missing' | 'formal' | 'formal-current-unknown'; modelId?: string; photo?: MusicPhoto; recordingState?: PhysicalRecordingSummary }
 export interface MusicPhoto { id: string; releaseId: string; width: number; height: number; source: 'user-photo' }
 export interface MusicDetail { entry: MusicEntry; release?: CommercialRelease; recording?: MusicContent; photos: readonly MusicPhoto[]; formal?: PhysicalRecordingSummary }
+/** 商业发行原有 quantity 不变；只有明确逐件操作才赋予永久身份。 */
+export interface CommercialCopyDetails { location?: string; condition?: string; purchaseInfo?: string }
+export interface CommercialCopy { id: string; releaseId: string; assignedAt: string; revision: number; details: CommercialCopyDetails; photoIds: readonly string[] }
+export interface CommercialCopiesSnapshot { releaseId: string; quantity: number; assignedCount: number; poolCount: number; photoAssignments: readonly { photoId: string; copyId: string }[]; copies: Page<CommercialCopy> }
+export interface MaterializeCommercialCopyRequest { commandId: string; releaseId: string; expectedRevision: number; userConfirmed: true }
+export interface SaveCommercialCopyDetailsRequest { commandId: string; copyId: string; expectedRevision: number; details: CommercialCopyDetails; userConfirmed: true }
+export interface AssignCommercialCopyPhotoRequest { commandId: string; copyId: string; photoId: string; expectedRevision: number; action: 'attach' | 'detach'; userConfirmed: true }
 export interface MusicFilter { query?: string; kind?: MusicKind }
 export interface SaveReleaseRequest { commandId: string; id?: string; expectedRevision?: number; release: CommercialRelease }
 export interface SaveLegacyRequest { commandId: string; physicalId: string; expectedRevision: number; content: MusicContent }
-export interface MusicMutationResult { id: string; photoId?: string }
+export interface MusicMutationResult { id: string; photoId?: string; copyId?: string }
 export interface AddMusicPhotoRequest { commandId: string; id: string; image: CollectionPhotoImage }
 export interface RemoveMusicPhotoRequest { commandId: string; id: string; photoId: string; expectedRevision: number }
 export interface PhysicalMusicPublicApi {
   listPhysicalMusic(page: PageRequest, filter?: MusicFilter): Promise<Page<MusicEntry>>;
   getPhysicalMusic(id: string): Promise<MusicDetail>;
+  getCommercialCopies(releaseId: string, page: PageRequest): Promise<CommercialCopiesSnapshot>;
   savePhysicalRelease(request: SaveReleaseRequest): Promise<MusicMutationResult>;
+  materializeCommercialCopy(request: MaterializeCommercialCopyRequest): Promise<MusicMutationResult>;
+  saveCommercialCopyDetails(request: SaveCommercialCopyDetailsRequest): Promise<MusicMutationResult>;
+  assignCommercialCopyPhoto(request: AssignCommercialCopyPhotoRequest): Promise<MusicMutationResult>;
   saveLegacyRecording(request: SaveLegacyRequest): Promise<MusicMutationResult>;
   addPhysicalMusicPhoto(request: AddMusicPhotoRequest): Promise<MusicMutationResult>;
   getPhysicalMusicPhoto(photoId: string): Promise<CollectionPhotoImage>;
@@ -56,8 +67,23 @@ export function isCommercialRelease(v: unknown): v is CommercialRelease {
 }
 export function isMusicFilter(v: unknown): v is MusicFilter { return record(v) && keys(v, ['query', 'kind']) && (v.query === undefined || text(v.query, true)) && (v.kind === undefined || kinds.includes(String(v.kind))); }
 export function isSaveReleaseRequest(v: unknown): v is SaveReleaseRequest { return record(v) && keys(v, ['commandId', 'id', 'expectedRevision', 'release']) && isCollectionId(v.commandId) && isCommercialRelease(v.release) && (v.id === undefined ? v.expectedRevision === undefined : isCollectionId(v.id) && integer(v.expectedRevision)); }
+export function isMaterializeCommercialCopyRequest(v: unknown): v is MaterializeCommercialCopyRequest { return record(v) && keys(v, ['commandId', 'releaseId', 'expectedRevision', 'userConfirmed']) && isCollectionId(v.commandId) && isCollectionId(v.releaseId) && integer(v.expectedRevision) && v.userConfirmed === true; }
+export function isCommercialCopyDetails(v: unknown): v is CommercialCopyDetails { return record(v) && keys(v, ['location', 'condition', 'purchaseInfo']) && ['location', 'condition', 'purchaseInfo'].every(key => v[key] === undefined || text(v[key], true, key === 'purchaseInfo' ? 1000 : 240)); }
+export function isSaveCommercialCopyDetailsRequest(v: unknown): v is SaveCommercialCopyDetailsRequest { return record(v) && keys(v, ['commandId', 'copyId', 'expectedRevision', 'details', 'userConfirmed']) && isCollectionId(v.commandId) && isCollectionId(v.copyId) && integer(v.expectedRevision) && isCommercialCopyDetails(v.details) && v.userConfirmed === true; }
+export function isAssignCommercialCopyPhotoRequest(v: unknown): v is AssignCommercialCopyPhotoRequest { return record(v) && keys(v, ['commandId', 'copyId', 'photoId', 'expectedRevision', 'action', 'userConfirmed']) && isCollectionId(v.commandId) && isCollectionId(v.copyId) && isCollectionId(v.photoId) && integer(v.expectedRevision) && ['attach', 'detach'].includes(String(v.action)) && v.userConfirmed === true; }
 export function isSaveLegacyRequest(v: unknown): v is SaveLegacyRequest { return record(v) && keys(v, ['commandId', 'physicalId', 'expectedRevision', 'content']) && isCollectionId(v.commandId) && isPhysicalId(v.physicalId) && integer(v.expectedRevision) && isMusicContent(v.content); }
-export function isMusicMutationResult(v: unknown): v is MusicMutationResult { return record(v) && keys(v, ['id', 'photoId']) && isMusicId(v.id) && (v.photoId === undefined || isCollectionId(v.photoId)); }
+export function isMusicMutationResult(v: unknown): v is MusicMutationResult { return record(v) && keys(v, ['id', 'photoId', 'copyId']) && isMusicId(v.id) && (v.photoId === undefined || isCollectionId(v.photoId)) && (v.copyId === undefined || isCollectionId(v.copyId)); }
+export function isCommercialCopy(v: unknown): v is CommercialCopy { return record(v) && keys(v, ['id', 'releaseId', 'assignedAt', 'revision', 'details', 'photoIds']) && isCollectionId(v.id) && isCollectionId(v.releaseId) && typeof v.assignedAt === 'string' && !Number.isNaN(Date.parse(v.assignedAt))
+  && integer(v.revision) && isCommercialCopyDetails(v.details) && Array.isArray(v.photoIds) && v.photoIds.length <= 24 && v.photoIds.every(isCollectionId) && new Set(v.photoIds).size === v.photoIds.length; }
+export function isCommercialCopiesSnapshot(v: unknown): v is CommercialCopiesSnapshot {
+  if (!record(v) || !keys(v, ['releaseId', 'quantity', 'assignedCount', 'poolCount', 'photoAssignments', 'copies']) || !isCollectionId(v.releaseId) || !integer(v.quantity, 1, 10000)
+    || !integer(v.assignedCount, 0, 10000) || !integer(v.poolCount, 0, 10000) || v.quantity !== v.assignedCount + v.poolCount || !record(v.copies)) return false;
+  const copies = v.copies;
+  return Array.isArray(v.photoAssignments) && v.photoAssignments.length <= 24 && v.photoAssignments.every(item => record(item) && keys(item, ['photoId', 'copyId']) && isCollectionId(item.photoId) && isCollectionId(item.copyId))
+    && new Set(v.photoAssignments.map(item => item.photoId)).size === v.photoAssignments.length
+    && integer(copies.offset, 0) && integer(copies.limit, 1, 100) && integer(copies.total, 0, 10000) && copies.total === v.assignedCount
+    && typeof copies.hasMore === 'boolean' && Array.isArray(copies.items) && copies.items.length <= copies.limit && copies.items.every(copy => isCommercialCopy(copy) && copy.releaseId === v.releaseId);
+}
 export function isAddMusicPhotoRequest(v: unknown): v is AddMusicPhotoRequest { return record(v) && keys(v, ['commandId', 'id', 'image']) && isCollectionId(v.commandId) && isCollectionId(v.id) && isCollectionPhotoImage(v.image); }
 export function isRemoveMusicPhotoRequest(v: unknown): v is RemoveMusicPhotoRequest { return record(v) && keys(v, ['commandId', 'id', 'photoId', 'expectedRevision']) && isCollectionId(v.commandId) && isCollectionId(v.id) && isCollectionId(v.photoId) && integer(v.expectedRevision); }
 export function isMusicPhoto(v: unknown): v is MusicPhoto { return record(v) && keys(v, ['id', 'releaseId', 'width', 'height', 'source']) && isCollectionId(v.id) && isCollectionId(v.releaseId) && integer(v.width, 1, 1200) && integer(v.height, 1, 1200) && v.source === 'user-photo'; }

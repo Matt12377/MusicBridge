@@ -1,8 +1,8 @@
 import path from 'node:path';
 import { isCollectionId, isSourceSelection, isSourceAction, isSourceConfirmation, type SourceRoot, type SourceBinding, type SourceSelection, type SourceAction, type SourceConfirmation, type DraftSourceSnapshot, type SourceFailure } from '@music-bridge/contracts';
 import { BridgeError } from '../shared/errors.js';
-import { authorizeSourceDirectory, sourceRootAvailability, sourceFileAvailability, sourceRelativePath, probeReadonlySource, SourceFileError, type RootCapability } from './source-files.js';
-import type { SourceStore, StoredBinding } from './source-store.js';
+import { authorizeSourceDirectory, readonlySourceCandidateMetadata, sourceRootAvailability, sourceFileAvailability, sourceRelativePath, probeReadonlySource, SourceFileError, type RootCapability } from './source-files.js';
+import type { CandidateFileConstraint, SourceStore, StoredBinding } from './source-store.js';
 import type { MasterDraftsRepository } from './drafts.js';
 
 const invalid = (message = '源文件操作无效，请刷新并重新确认。'): never => { throw new BridgeError('BAD_REQUEST', message, { httpStatus: 400 }); };
@@ -22,14 +22,14 @@ export function createSourceEvidenceService({ store, drafts, probe = probeReadon
       verification: 'fileHashVerified', preservation: 'externalReferenceOnly', availability, sha256: binding.evidence.sha256, size: binding.evidence.size, modifiedAt: binding.evidence.modifiedAt, verifiedAt: binding.evidence.verifiedAt,
       technical: binding.evidence.technical, userConfirmed: binding.userConfirmed, sourceLockEligible: binding.userConfirmed && availability === 'ONLINE' };
   }
-  function start(selection: SourceSelection, absolutePath: string, recheck = false) {
+  function begin(selection: SourceSelection, relative: string, recheck: boolean, candidateConstraint?: CandidateFileConstraint) {
     if (!isSourceSelection(selection) || closed) return invalid();
     flushFailures();
     const prior = store.job(selection.commandId);
-    if (prior) return store.start(selection, prior.relative, recheck).public;
+    if (prior) return store.start(selection, prior.relative, recheck, candidateConstraint).public;
     if (active.size >= 2) return invalid('已有两项源校验在进行，请等待或取消其中一项。');
-    const root = store.root(selection.rootId), relative = sourceRelativePath(root, absolutePath);
-    const job = store.start(selection, relative, recheck);
+    const root = store.root(selection.rootId);
+    const job = store.start(selection, relative, recheck, candidateConstraint);
     const controller = new AbortController();
     const promise = (async () => {
       try {
@@ -39,6 +39,11 @@ export function createSourceEvidenceService({ store, drafts, probe = probeReadon
         if (!current.authorized) throw new SourceFileError('REVOKED');
         const availability = await sourceFileAvailability(current, relative, evidence.signature);
         if (availability !== 'ONLINE') throw new SourceFileError(availability);
+        if (candidateConstraint) {
+          const metadata = await readonlySourceCandidateMetadata(current, relative);
+          if (metadata.signature !== candidateConstraint.fileSignature || JSON.stringify(metadata.directoryIds) !== JSON.stringify(candidateConstraint.directoryIds)
+            || current.dev !== candidateConstraint.rootDev || current.ino !== candidateConstraint.rootIno) throw new SourceFileError('CANDIDATE_CHANGED');
+        }
         if (!closed) store.finish(job.public.id, evidence);
       } catch (error) {
         if (!closed) {
@@ -49,6 +54,17 @@ export function createSourceEvidenceService({ store, drafts, probe = probeReadon
     })();
     active.set(job.public.id, { rootId: root.id, controller, promise });
     return job.public;
+  }
+  function start(selection: SourceSelection, absolutePath: string, recheck = false) {
+    if (!isSourceSelection(selection) || selection.candidate) return invalid('候选文件必须经候选扫描入口选择。');
+    const prior = store.job(selection.commandId);
+    if (prior) return begin(selection, prior.relative, recheck);
+    const root = store.root(selection.rootId);
+    return begin(selection, sourceRelativePath(root, absolutePath), recheck);
+  }
+  function startCandidate(selection: SourceSelection, candidate?: { relative: string; constraint: CandidateFileConstraint }) {
+    if (!isSourceSelection(selection) || !selection.candidate || !candidate && !store.job(selection.commandId)) return invalid('候选扫描证据不存在，请重新扫描。');
+    return begin(selection, candidate?.relative ?? store.job(selection.commandId)!.relative, false, candidate?.constraint);
   }
   return {
     onRootRevoked(listener: (rootId: string) => void) { revocationListeners.add(listener); return () => { revocationListeners.delete(listener); }; },
@@ -68,6 +84,7 @@ export function createSourceEvidenceService({ store, drafts, probe = probeReadon
       return publicRoot(root);
     },
     start,
+    startCandidate,
     job(id: string) { if (!isCollectionId(id)) return invalid(); flushFailures(); return { job: store.job(id)?.public ?? null }; },
     cancel(request: SourceAction) { if (!isSourceAction(request)) return invalid(); const result = store.cancel(request); active.get(request.id)?.controller.abort(); return result; },
     recheck(request: SourceConfirmation) {

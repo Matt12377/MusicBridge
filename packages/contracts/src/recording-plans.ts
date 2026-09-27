@@ -3,6 +3,7 @@ import { isMasterVersion, isLayoutVersion, isVersionHistory, type MasterVersion,
 import { isFrozenPrepared, type FrozenPrepared } from './prepared-render.js';
 import { isResolvedRecordingSettings, type ResolvedRecordingSettings } from './recording-profile.js';
 import { isExecutionAssetRecipe, isExecutionAssetAudio, executionRecipeMode, executionFrameLimit, type ExecutionMode, type ExecutionAssetRecipe, type ExecutionAssetAudio } from './execution-assets.js';
+import { isRecordingOutputSelection, type RecordingOutputSelection } from './recording-device-selection.js';
 import type { ArchiveSourcePolicy } from './recording-archive.js';
 
 export const MAX_RECORDING_PLAN_VERSIONS = 100;
@@ -10,9 +11,16 @@ export const MAX_RECORDING_PLAN_VERSIONS = 100;
 export const RECORDING_RETENTION_POLICY = 'f01-permanent-execution-v1' as const;
 export const RECORDING_PREFLIGHT_CATEGORIES = ['versions', 'sources', 'execution', 'archive', 'physical-copy', 'capacity', 'profile', 'backend'] as const;
 export type RecordingPreflightCategory = typeof RECORDING_PREFLIGHT_CATEGORIES[number];
-export type RecordingPreflightIssue = 'VERSION_MISMATCH' | 'SOURCE_INVALID' | 'EXECUTION_INVALID' | 'ARCHIVE_INVALID' | 'COPY_UNAVAILABLE' | 'CAPACITY_EXCEEDED' | 'PROFILE_MISMATCH' | 'COMPATIBILITY_UNCONFIRMED' | 'BACKEND_NOT_CERTIFIED' | 'NOT_CHECKED' | 'READ_FAILED';
+export type RecordingPreflightIssue = 'VERSION_MISMATCH' | 'SOURCE_INVALID' | 'EXECUTION_INVALID' | 'ARCHIVE_INVALID' | 'COPY_UNAVAILABLE' | 'CAPACITY_EXCEEDED' | 'PROFILE_MISMATCH' | 'COMPATIBILITY_UNCONFIRMED' | 'BACKEND_NOT_CERTIFIED' | 'OUTPUT_BINDING_MISSING' | 'OUTPUT_SELECTION_CHANGED' | 'OUTPUT_DEVICE_UNAVAILABLE' | 'OUTPUT_IDENTITY_CHANGED' | 'NOT_CHECKED' | 'READ_FAILED';
 
-export interface RecordingPlanSelection { assetId: string; archiveOperationId: string }
+/** 旧冻结账本没有 outputSelection；只供严格原样读取，新的预览与执行必须显式提供。 */
+export interface RecordingPlanSelection { assetId: string; archiveOperationId: string; outputSelection?: RecordingOutputSelection }
+export type CurrentRecordingPlanSelection = RecordingPlanSelection & { outputSelection: RecordingOutputSelection };
+/** 只保存与设备及配置有关的可复核身份，不冻结运行期 selectionGeneration。 */
+export interface RecordingPlanOutputBinding {
+  endpointId: string; deviceUid: string; backendId: 'musicbridge-coreaudio-hal'; backendVersion: '0.2.0';
+  bufferFrames: number; configurationFingerprintSha256: string; drainAlgorithmId: 'hal-sample-zero-cover-v1';
+}
 /** 当前明确Session的完整参数副本，永久嵌入所属计划；不是对历史执行资产设置的更新。 */
 export interface RecordingProfileSnapshot { sessionRevision: number; settings: ResolvedRecordingSettings }
 export interface RecordingPlanExecution {
@@ -26,20 +34,28 @@ export interface RecordingPlanArchive {
 export interface RecordingPlanMaterial {
   master: MasterVersion; layout: LayoutVersion; prepared?: FrozenPrepared; execution: RecordingPlanExecution;
   physicalCopy: CollectionCopy; mediaPlanRevision: number; profileSnapshot: RecordingProfileSnapshot; archive: RecordingPlanArchive;
+  /** 可选只为旧历史读取；新 Freeze 必须写入，不能从当前设备反填旧计划。 */
+  outputBinding?: RecordingPlanOutputBinding;
   retentionPolicy: typeof RECORDING_RETENTION_POLICY; onlineFallback: false; formalReady: false;
 }
-export interface RecordingPlanProposal extends RecordingPlanMaterial { draftId: string; selection: RecordingPlanSelection; checkedAt: string; proposalFingerprint: string }
+export interface RecordingPlanProposal extends RecordingPlanMaterial { outputBinding: RecordingPlanOutputBinding; draftId: string; selection: CurrentRecordingPlanSelection; checkedAt: string; proposalFingerprint: string }
 /** 身份冻结不授予执行许可；当前没有Start，后续须重做Preflight及后端认证。 */
 export interface RecordingPlanVersion extends RecordingPlanMaterial { id: string; draftId: string; sequence: number; parentId?: string; createdAt: string; contentHash: string; status: 'frozen' }
 export interface RecordingPlanHistory { draftId: string; versions: readonly RecordingPlanVersion[] }
 export interface RecordingPlanHistoryRequest { draftId: string }
 export interface RecordingPlanIdRequest { id: string }
-export interface PreviewRecordingPlanRequest { readId: string; selection: RecordingPlanSelection }
+export interface PreviewRecordingPlanRequest { readId: string; selection: CurrentRecordingPlanSelection }
 export interface FreezeRecordingPlanRequest { commandId: string; selection: RecordingPlanSelection; proposalFingerprint: string; userConfirmed: true }
+export interface CurrentFreezeRecordingPlanRequest extends FreezeRecordingPlanRequest { selection: CurrentRecordingPlanSelection }
 export interface RecordingPreflightRequest { readId: string; planVersionId: string }
 export interface RecordingPreflightCheck { category: RecordingPreflightCategory; state: 'passed' | 'blocked' | 'not-run'; code?: RecordingPreflightIssue }
-/** 最新只读检查不充当永久许可；Gate B尚未运行，不能由Renderer提交认证。 */
-export interface RecordingPreflightResult { planVersionId: string; checkedAt: string; state: 'blocked'; gateB: 'NOT_RUN'; checks: readonly RecordingPreflightCheck[]; formalReady: false }
+/** 最新只读检查不充当永久许可；开始执行时仍须重检。VERIFIED 仅指受信完整记录本次核验，不由 Renderer 提交。 */
+export type RecordingPreflightResult = {
+  planVersionId: string; checkedAt: string; checks: readonly RecordingPreflightCheck[];
+} & (
+  { state: 'ready'; gateB: 'VERIFIED'; formalReady: true }
+  | { state: 'blocked'; gateB: 'NOT_RUN' | 'VERIFIED'; formalReady: false }
+)
 export interface RecordingPlansPublicApi {
   listRecordingPlans(draftId: string): Promise<RecordingPlanHistory>;
   getRecordingPlanVersion(id: string): Promise<{ plan: RecordingPlanVersion | null }>;
@@ -59,11 +75,13 @@ function same(a: unknown, b: unknown): boolean {
   if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((v, i) => same(v, b[i]));
   return record(a) && record(b) && Object.keys(a).length === Object.keys(b).length && Object.entries(a).every(([k, v]) => Object.hasOwn(b, k) && same(v, b[k]));
 }
-export function isRecordingPlanSelection(v: unknown): v is RecordingPlanSelection { return record(v) && keys(v, ['assetId', 'archiveOperationId']) && isCollectionId(v.assetId) && isCollectionId(v.archiveOperationId); }
+export function isRecordingPlanSelection(v: unknown): v is RecordingPlanSelection { return record(v) && keys(v, ['assetId', 'archiveOperationId', 'outputSelection']) && isCollectionId(v.assetId) && isCollectionId(v.archiveOperationId) && (v.outputSelection === undefined || isRecordingOutputSelection(v.outputSelection)); }
+export function isCurrentRecordingPlanSelection(v: unknown): v is CurrentRecordingPlanSelection { return isRecordingPlanSelection(v) && isRecordingOutputSelection(v.outputSelection); }
 export function isRecordingPlanHistoryRequest(v: unknown): v is RecordingPlanHistoryRequest { return record(v) && keys(v, ['draftId']) && isCollectionId(v.draftId); }
 export function isRecordingPlanIdRequest(v: unknown): v is RecordingPlanIdRequest { return record(v) && keys(v, ['id']) && isCollectionId(v.id); }
-export function isPreviewRecordingPlanRequest(v: unknown): v is PreviewRecordingPlanRequest { return record(v) && keys(v, ['readId', 'selection']) && isCollectionId(v.readId) && isRecordingPlanSelection(v.selection); }
+export function isPreviewRecordingPlanRequest(v: unknown): v is PreviewRecordingPlanRequest { return record(v) && keys(v, ['readId', 'selection']) && isCollectionId(v.readId) && isCurrentRecordingPlanSelection(v.selection); }
 export function isFreezeRecordingPlanRequest(v: unknown): v is FreezeRecordingPlanRequest { return record(v) && keys(v, ['commandId', 'selection', 'proposalFingerprint', 'userConfirmed']) && isCollectionId(v.commandId) && isRecordingPlanSelection(v.selection) && hash(v.proposalFingerprint) && v.userConfirmed === true; }
+export function isCurrentFreezeRecordingPlanRequest(v: unknown): v is CurrentFreezeRecordingPlanRequest { return isFreezeRecordingPlanRequest(v) && isCurrentRecordingPlanSelection(v.selection); }
 export function isRecordingPreflightRequest(v: unknown): v is RecordingPreflightRequest { return record(v) && keys(v, ['readId', 'planVersionId']) && isCollectionId(v.readId) && isCollectionId(v.planVersionId); }
 export function isRecordingProfileSnapshot(v: unknown): v is RecordingProfileSnapshot { return record(v) && keys(v, ['sessionRevision', 'settings']) && integer(v.sessionRevision, 1) && isResolvedRecordingSettings(v.settings); }
 export function isRecordingPlanArchive(v: unknown): v is RecordingPlanArchive {
@@ -77,6 +95,14 @@ export function isRecordingPlanExecution(v: unknown): v is RecordingPlanExecutio
   return recipes.every(r => executionRecipeMode(r) === v.mode && same(r.format, settings.format) && r.masterVersionId === first.masterVersionId && r.layoutVersionId === first.layoutVersionId && r.contentHash === first.contentHash && r.plannedTimelineHash === first.plannedTimelineHash && same(r.prepared, first.prepared))
     && audio.length === nonempty.length && audio.length >= 1 && audio.every((a, i) => same(a.recipe, nonempty[i]));
 }
+export function isRecordingPlanOutputBinding(v: unknown): v is RecordingPlanOutputBinding {
+  return record(v) && keys(v, ['endpointId', 'deviceUid', 'backendId', 'backendVersion', 'bufferFrames', 'configurationFingerprintSha256', 'drainAlgorithmId'])
+    && typeof v.endpointId === 'string' && /^[A-Za-z0-9_-]{1,64}$/u.test(v.endpointId)
+    && typeof v.deviceUid === 'string' && new TextEncoder().encode(v.deviceUid).length >= 1 && new TextEncoder().encode(v.deviceUid).length <= 128 && !v.deviceUid.includes('\0')
+    && v.backendId === 'musicbridge-coreaudio-hal' && v.backendVersion === '0.2.0'
+    && integer(v.bufferFrames, 16, 4096) && (v.bufferFrames & (v.bufferFrames - 1)) === 0
+    && hash(v.configurationFingerprintSha256) && v.drainAlgorithmId === 'hal-sample-zero-cover-v1';
+}
 
 function copy(v: unknown): v is CollectionCopy {
   return record(v) && keys(v, ['physicalId', 'lotId', 'skuId', 'lengthMinutes', 'packaging', 'usage', 'available', 'origin', 'revision'])
@@ -84,10 +110,13 @@ function copy(v: unknown): v is CollectionCopy {
     && (v.packaging === 'opened' || v.packaging === 'sealed') && v.usage === 'reserved' && typeof v.available === 'boolean'
     && (v.origin === 'blank-pool' || v.origin === 'legacy-registration' || v.origin === 'unclassified') && integer(v.revision, 1);
 }
-const materialKeys = ['master', 'layout', 'prepared', 'execution', 'physicalCopy', 'mediaPlanRevision', 'profileSnapshot', 'archive', 'retentionPolicy', 'onlineFallback', 'formalReady'];
+const materialKeys = ['master', 'layout', 'prepared', 'execution', 'physicalCopy', 'mediaPlanRevision', 'profileSnapshot', 'archive', 'outputBinding', 'retentionPolicy', 'onlineFallback', 'formalReady'];
 function material(v: Record<string, unknown>): v is Record<string, unknown> & RecordingPlanMaterial {
   if (!isMasterVersion(v.master) || !isLayoutVersion(v.layout) || !isRecordingPlanExecution(v.execution) || !isRecordingProfileSnapshot(v.profileSnapshot) || !isRecordingPlanArchive(v.archive) || !copy(v.physicalCopy) || !integer(v.mediaPlanRevision, 1) || v.retentionPolicy !== RECORDING_RETENTION_POLICY || v.onlineFallback !== false || v.formalReady !== false) return false;
   const master = v.master, layout = v.layout, execution = v.execution, snapshot = v.profileSnapshot, physical = v.physicalCopy;
+  if (v.outputBinding !== undefined && (!isRecordingPlanOutputBinding(v.outputBinding)
+    || v.outputBinding.backendId !== snapshot.settings.format.outputBackend.id
+    || v.outputBinding.backendVersion !== snapshot.settings.format.outputBackend.version)) return false;
   if (!isVersionHistory({ draftId: master.draftId, masters: [master], layouts: [layout], jobs: [] })) return false;
   if (physical.physicalId !== layout.reservation.physicalId || physical.skuId !== layout.reservation.skuId || physical.packaging !== layout.reservation.packaging || physical.lengthMinutes !== layout.lengthMinutes) return false;
   if (!same(snapshot.settings.format, execution.compiledSettings.format) || !same(snapshot.settings.profile, execution.compiledSettings.profile)) return false;
@@ -126,7 +155,8 @@ function material(v: Record<string, unknown>): v is Record<string, unknown> & Re
 export function isRecordingPlanMaterial(v: unknown): v is RecordingPlanMaterial { return record(v) && keys(v, materialKeys) && material(v); }
 export function isRecordingPlanProposal(v: unknown): v is RecordingPlanProposal {
   return record(v) && keys(v, [...materialKeys, 'draftId', 'selection', 'checkedAt', 'proposalFingerprint']) && material(v)
-    && v.draftId === v.master.draftId && isRecordingPlanSelection(v.selection) && v.selection.assetId === v.execution.assetId
+    && v.draftId === v.master.draftId && isCurrentRecordingPlanSelection(v.selection) && isRecordingPlanOutputBinding(v.outputBinding)
+    && v.selection.outputSelection.endpointId === v.outputBinding.endpointId && v.selection.assetId === v.execution.assetId
     && v.selection.archiveOperationId === v.archive.operationId && date(v.checkedAt) && hash(v.proposalFingerprint);
 }
 export function isRecordingPlanVersion(v: unknown): v is RecordingPlanVersion {
@@ -143,19 +173,28 @@ export function isRecordingPlanHistory(v: unknown): v is RecordingPlanHistory {
 const issuesByCategory: Record<RecordingPreflightCategory, readonly RecordingPreflightIssue[]> = {
   versions: ['VERSION_MISMATCH'], sources: ['SOURCE_INVALID'], execution: ['EXECUTION_INVALID'], archive: ['ARCHIVE_INVALID'],
   'physical-copy': ['COPY_UNAVAILABLE'], capacity: ['CAPACITY_EXCEEDED', 'COMPATIBILITY_UNCONFIRMED'],
-  profile: ['PROFILE_MISMATCH', 'COMPATIBILITY_UNCONFIRMED'], backend: ['BACKEND_NOT_CERTIFIED'],
+  profile: ['PROFILE_MISMATCH', 'COMPATIBILITY_UNCONFIRMED'], backend: ['BACKEND_NOT_CERTIFIED', 'OUTPUT_BINDING_MISSING', 'OUTPUT_SELECTION_CHANGED', 'OUTPUT_DEVICE_UNAVAILABLE', 'OUTPUT_IDENTITY_CHANGED'],
 };
 export function isRecordingPreflightCheck(v: unknown): v is RecordingPreflightCheck {
   if (!record(v) || !keys(v, ['category', 'state', 'code']) || !(RECORDING_PREFLIGHT_CATEGORIES as readonly unknown[]).includes(v.category)) return false;
   const category = v.category as RecordingPreflightCategory;
-  if (category === 'backend') return v.state === 'not-run' && v.code === 'BACKEND_NOT_CERTIFIED';
+  if (category === 'backend') return v.state === 'passed' && v.code === undefined
+    || v.state === 'not-run' && v.code === 'BACKEND_NOT_CERTIFIED'
+    || v.state === 'blocked' && (v.code === 'READ_FAILED' || issuesByCategory.backend.includes(v.code as RecordingPreflightIssue));
   if (v.state === 'passed') return v.code === undefined;
   if (v.state === 'not-run') return v.code === 'NOT_CHECKED';
   return v.state === 'blocked' && (v.code === 'READ_FAILED' || issuesByCategory[category].includes(v.code as RecordingPreflightIssue));
 }
 export function isRecordingPreflightResult(v: unknown): v is RecordingPreflightResult {
-  return record(v) && keys(v, ['planVersionId', 'checkedAt', 'state', 'gateB', 'checks', 'formalReady'])
-    && isCollectionId(v.planVersionId) && date(v.checkedAt) && v.state === 'blocked' && v.gateB === 'NOT_RUN' && v.formalReady === false
-    && Array.isArray(v.checks) && v.checks.length === RECORDING_PREFLIGHT_CATEGORIES.length && v.checks.every(isRecordingPreflightCheck)
-    && new Set(v.checks.map(c => c.category)).size === RECORDING_PREFLIGHT_CATEGORIES.length;
+  if (!record(v) || !keys(v, ['planVersionId', 'checkedAt', 'state', 'gateB', 'checks', 'formalReady'])
+    || !isCollectionId(v.planVersionId) || !date(v.checkedAt)
+    || !Array.isArray(v.checks) || v.checks.length !== RECORDING_PREFLIGHT_CATEGORIES.length
+    || !v.checks.every(isRecordingPreflightCheck)
+    || new Set(v.checks.map(c => c.category)).size !== RECORDING_PREFLIGHT_CATEGORIES.length) return false;
+  const backend = v.checks.find(check => check.category === 'backend') as RecordingPreflightCheck | undefined;
+  const verified = backend?.state === 'passed';
+  if (v.gateB !== (verified ? 'VERIFIED' : 'NOT_RUN')) return false;
+  const allPassed = v.checks.every(check => check.state === 'passed');
+  return allPassed ? v.state === 'ready' && v.formalReady === true
+    : v.state === 'blocked' && v.formalReady === false;
 }

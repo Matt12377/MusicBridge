@@ -1,6 +1,7 @@
 import { isExecutionFormat, isExecutionPcmInput, isExecutionRecipe, isFrozenPrepared, isVersionHistory, type ExecutionFormat, type ExecutionRecipe, type ExecutionPcmInput, type ExecutionSegment, type MasterVersion, type LayoutVersion, type FrozenPrepared } from '@music-bridge/contracts';
 import { mediaFingerprint } from './media-store.js';
 import { assessRender } from './render-conformance.js';
+import { verifyFrozenDistribution } from './version-distribution.js';
 import { isAudioConversionSource, isAudioConversionPlan, isConvertedExecutionRecipe, conversionFrameBounds, type AudioConversionPlan, type AudioConversionSource, type ConvertedExecutionRecipe, type ConvertedExecutionSegment } from '@music-bridge/contracts';
 
 export type ExecutionFailure = 'INVALID_INPUT' | 'VERSION_MISMATCH' | 'CONVERSION_REQUIRED' | 'UNSUPPORTED_WAVE' | 'FRAME_MISMATCH' | 'HASH_MISMATCH' | 'INPUT_CHANGED' | 'SOURCE_UNAVAILABLE' | 'IO_ERROR' | 'DISK_FULL' | 'CANCELLED' | 'LIMIT_EXCEEDED';
@@ -17,7 +18,8 @@ function scale(value: number, numerator: number, denominator: number): number {
   return result;
 }
 function checkVersions(master: MasterVersion, layout: LayoutVersion): void {
-  if (!isVersionHistory({ draftId: master.draftId, masters: [master], layouts: [layout], jobs: [] }) || mediaFingerprint(master.content) !== master.contentHash || mediaFingerprint(layout.timeline) !== layout.timelineHash) return executionFail('VERSION_MISMATCH');
+  if (!isVersionHistory({ draftId: master.draftId, masters: [master], layouts: [layout], jobs: [] }) || !verifyFrozenDistribution(master, layout)
+    || mediaFingerprint(master.content) !== master.contentHash || mediaFingerprint(layout.timeline) !== layout.timelineHash) return executionFail('VERSION_MISMATCH');
   for (const side of layout.timeline.sides) {
     if (side.tracks.length && (side.leadInFrames !== scale(layout.spec.leadInMs, layout.timeline.sampleRate, 1000) || side.tailFrames !== scale(layout.spec.tailMs, layout.timeline.sampleRate, 1000))) return executionFail('VERSION_MISMATCH');
     for (const [i, t] of side.tracks.entries()) {

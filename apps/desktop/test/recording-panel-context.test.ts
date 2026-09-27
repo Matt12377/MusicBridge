@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
-import type { MasterDraft, MediaLayoutSpec, ExecutionMode } from '@music-bridge/contracts'
+import type { CollectionCopy, MasterDraft, MediaLayoutSpec, ExecutionMode, ReserveMediaRequest, SaveMediaPlanRequest } from '@music-bridge/contracts'
 
 const id = (n: number) => `20000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const draft: MasterDraft = { id: id(1), title: '合成上下文草稿', revision: 1, status: 'draft', sourceLockEligible: false, programType: 'compilation', trackCount: 1, tracks: [{ id: id(2), source: 'roon', metadata: { title: '合成曲目', durationMs: 1000 } }] }
@@ -51,7 +51,7 @@ async function mounted(t: test.TestContext, name: 'MediaPlanningPanel' | 'Master
     const { descriptor, errors } = parse(await readFile(new URL(`../src/renderer/src/components/${directory}/${componentName}.vue`, import.meta.url), 'utf8')); assert.deepEqual(errors, [])
     const script = compileScript(descriptor, { id: 'panel-context-' + componentName })
     const photo = componentName === 'MediaPlanningPanel' && render ? await component('CollectionPhoto', 'collection', true) : undefined
-    const load = (dependency: string) => dependency === 'vue' ? vue : dependency === '@music-bridge/contracts' ? contracts : dependency.includes('collection-display') ? display : dependency.endsWith('CollectionPhoto.vue') && photo ? { default: photo } : dependency.endsWith('.vue') ? { default: { render: () => null } } : require(dependency)
+    const load = (dependency: string) => dependency === 'vue' ? vue : dependency === '@music-bridge/contracts' ? contracts : dependency.includes('collection-display') ? display : dependency.includes('media-distribution-editor') ? require('../src/renderer/src/components/recording/media-distribution-editor.ts') : dependency.endsWith('CollectionPhoto.vue') && photo ? { default: photo } : dependency.endsWith('.vue') ? { default: { render: () => null } } : require(dependency)
     const module = { exports: {} as { default: import('vue').Component } }
     new Function('require', 'module', 'exports', 'window', compile(script.content))(load, module, module.exports, window)
     if (!render) return { ...module.exports.default, render: () => null }
@@ -84,7 +84,7 @@ for (const name of ['MediaPlanningPanel', 'MasterVersionsPanel'] as const) {
     if (name === 'MediaPlanningPanel') { assert.equal((panel.setup.plan as { id: string }).id, id(4)); assert.equal((panel.setup.spec as MediaLayoutSpec).tailMs, 4000); assert.equal(f.calls.find(call => call.name === 'plan')?.value, id(4)) }
     assert.ok(f.calls.every(call => ['plans', 'plan', 'media-preview', 'versions'].includes(call.name)))
   })
-  test(`${name}显式空或失效initialPlanId保持空，不fallback；旧入口仍保留默认`, async t => {
+  test(`${name}显式空或失效initialPlanId保持空，不fallback；媒体旧入口也不自动选首盘`, async t => {
     for (const initialPlanId of ['', id(99)]) {
       const f = fixture(), panel = await mounted(t, name, f.api, { initialPlanId })
       assert.equal(panel.setup.planId, '')
@@ -92,13 +92,47 @@ for (const name of ['MediaPlanningPanel', 'MasterVersionsPanel'] as const) {
       if (name === 'MediaPlanningPanel') { assert.equal(panel.setup.plan, undefined); assert.equal(f.calls.some(call => call.name === 'plan'), false) }
       await panel.invoke(name === 'MediaPlanningPanel' ? 'load' : 'refresh'); assert.equal(panel.setup.planId, '')
     }
-    const f = fixture(), legacy = await mounted(t, name, f.api); assert.equal(legacy.setup.planId, id(3))
+    const f = fixture(), legacy = await mounted(t, name, f.api)
+    assert.equal(legacy.setup.planId, name === 'MediaPlanningPanel' ? '' : id(3))
+    if (name === 'MediaPlanningPanel') assert.equal(f.calls.some(call => call.name === 'plan'), false)
   })
   test(`${name}拒绝属于另一草稿的初始规划`, async t => {
     const f = fixture(); f.plans[1]!.draftId = id(99)
     const panel = await mounted(t, name, f.api, { initialPlanId: id(4) }); assert.equal(panel.setup.planId, ''); assert.ok(panel.setup.error)
   })
 }
+
+test('分盘面板只在明确选择或清空时通知当前盘，初始回读不自动选择', async t => {
+  const f = fixture(), selected: (string | null)[] = []
+  const panel = await mounted(t, 'MediaPlanningPanel', f.api, { initialPlanId: id(4), onSelected: (planId: string | null) => selected.push(planId) })
+  assert.deepEqual(selected, [])
+  await panel.invoke('requestSelectPlan', id(3))
+  assert.equal(panel.setup.planId, id(3))
+  assert.deepEqual(selected, [id(3)])
+  await panel.invoke('requestSelectPlan', '')
+  assert.equal(panel.setup.planId, '')
+  assert.deepEqual(selected, [id(3), null])
+})
+
+test('分盘边界只按完整草稿连续切分；已存组锁定边界和过渡', async t => {
+  const f = fixture(), tracks = Array.from({ length: 4 }, (_, index) => ({ ...draft.tracks[0]!, id: id(index + 40), metadata: { title: `曲目${index + 1}`, durationMs: 1000 } }))
+  const selected: (string | null)[] = []
+  const panel = await mounted(t, 'MediaPlanningPanel', f.api, { draft: { ...draft, tracks, trackCount: tracks.length }, initialPlanId: '', onSelected: (planId: string | null) => selected.push(planId) }, true)
+  await panel.invoke('beginDistribution')
+  const initial = (panel.setup.spec as MediaLayoutSpec).distribution!
+  assert.deepEqual(initial.segmentSpecs.map(segment => segment.trackIds.length), [2, 2])
+  assert.equal((panel.setup.spec as MediaLayoutSpec).splitAfter, 1)
+  assert.deepEqual(selected, [null])
+  await panel.invoke('toggleBoundary', 1)
+  assert.deepEqual((panel.setup.spec as MediaLayoutSpec).distribution!.segmentSpecs.map(segment => segment.trackIds.length), [1, 1, 2])
+  const frozen = JSON.parse(JSON.stringify(panel.setup.spec)) as MediaLayoutSpec
+  panel.setup.plans = [{ ...f.plans[0], spec: frozen }]
+  await panel.tick()
+  assert.equal(panel.setup.groupLocked, true)
+  await panel.invoke('toggleBoundary', 3)
+  await panel.invoke('setRule', tracks[0]!.id, 'gapAfterMs', 1000)
+  assert.deepEqual(panel.setup.spec, frozen)
+})
 
 test('ExecutionPanel保留非首条布局与PREP路径，watch下一tick及刷新不清初始PREP', async t => {
   const f = fixture(), initialContext = { layoutId: id(8), mode: 'prepared-reference' as ExecutionMode, preparedId: id(10) }
@@ -142,4 +176,62 @@ test('实际媒体候选CollectionPhoto失败可安全单图重试，不重算�
   assert.equal(f.calls.filter(call => call.name !== 'photo').length, readsBefore)
   assert.equal(JSON.stringify({ plan: panel.setup.plan, selected: panel.setup.selected, spec: panel.setup.spec, preview: panel.setup.preview }), before)
   assert.equal(panel.all().filter(node => node.tag === 'img').length, 2)
+})
+
+test('收藏指定盘经过首次保存规划，仍以实时副本修订明确预留同一盘', async t => {
+  const f = fixture(), physicalId = 'MB-C-00022'
+  const selectedPlans: (string | null)[] = []
+  const copy: CollectionCopy = { physicalId, lotId: id(40), skuId: f.candidates[0]!.skuId, lengthMinutes: 90, packaging: 'opened', usage: 'blank', available: true, origin: 'blank-pool', revision: 7 }
+  let savedPlan: Record<string, unknown> | undefined
+  const reserves: ReserveMediaRequest[] = []
+  const api = { ...f.api,
+    async getCollectionCopy(requested: string) { assert.equal(requested, physicalId); return { modelId: f.candidates[0]!.model.id, copy } },
+    async getCollectionModel(modelId: string) { assert.equal(modelId, f.candidates[0]!.model.id); return { model: f.candidates[0]!.model, lots: { items: [], offset: 0, limit: 20, total: 0, hasMore: false }, copies: { items: [copy], offset: 0, limit: 20, total: 1, hasMore: false } } },
+    async saveMediaPlan(request: SaveMediaPlanRequest) {
+      savedPlan = { ...f.plans[0], spec: request.spec, reservation: undefined }
+      return savedPlan
+    },
+    async getMediaPlan(requested: string) { if (savedPlan?.id === requested) return savedPlan; return f.api.getMediaPlan(requested) },
+    async reserveMediaPlan(request: ReserveMediaRequest) {
+      reserves.push(request)
+      savedPlan = { ...savedPlan, revision: 2, reservation: { physicalId, modelId: f.candidates[0]!.model.id, skuId: copy.skuId, packaging: 'opened' } }
+      return savedPlan
+    },
+  }
+  const panel = await mounted(t, 'MediaPlanningPanel', api, { initialPlanId: '', initialPhysicalId: physicalId, onSelected: (planId: string | null) => selectedPlans.push(planId) }, true)
+  assert.equal((panel.setup.selectedCopy as CollectionCopy).physicalId, physicalId)
+  assert.equal((panel.setup.selectedCopy as CollectionCopy).revision, 7)
+  assert.equal(panel.setup.plan, undefined)
+  await panel.invoke('save'); await panel.tick()
+  assert.equal((panel.setup.plan as unknown as { id: string }).id, id(3))
+  assert.deepEqual(selectedPlans, [], '保存不是用户明确选择当前盘')
+  assert.equal((panel.setup.selectedCopy as CollectionCopy).physicalId, physicalId, '保存规划后必须恢复同盘意图')
+  await panel.invoke('requestSelectPlan', id(3))
+  assert.deepEqual(selectedPlans, [id(3)], '保存后可再次明确选择这份规划')
+  panel.setup.confirmed = true
+  await panel.invoke('reserve'); await panel.tick()
+  assert.equal(reserves.length, 1)
+  assert.equal(reserves[0]!.physicalId, physicalId)
+  assert.equal(reserves[0]!.expectedPhysicalRevision, 7)
+  assert.equal((panel.setup.plan as unknown as { reservation: { physicalId: string } }).reservation.physicalId, physicalId)
+})
+
+test('指定盘 revision 冲突只报错，不取新修订自动重试或改走库存池', async t => {
+  const f = fixture(), physicalId = 'MB-C-00022'
+  const copy: CollectionCopy = { physicalId, lotId: id(40), skuId: f.candidates[0]!.skuId, lengthMinutes: 90, packaging: 'opened', usage: 'blank', available: true, origin: 'blank-pool', revision: 7 }
+  let attempts = 0, reads = 0
+  const plan = { ...f.plans[0], spec, reservation: undefined }
+  const api = { ...f.api,
+    async listMediaPlans() { return { draftId: draft.id, plans: [plan] } },
+    async getMediaPlan() { return plan },
+    async getCollectionCopy() { reads++; return { modelId: f.candidates[0]!.model.id, copy } },
+    async getCollectionModel() { return { model: f.candidates[0]!.model, lots: { items: [], offset: 0, limit: 20, total: 0, hasMore: false }, copies: { items: [copy], offset: 0, limit: 20, total: 1, hasMore: false } } },
+    async reserveMediaPlan(request: ReserveMediaRequest) { attempts++; assert.equal(request.expectedPhysicalRevision, 7); throw new Error('[INVENTORY_CONFLICT] 修订已变化') },
+  }
+  const panel = await mounted(t, 'MediaPlanningPanel', api, { initialPlanId: plan.id, initialPhysicalId: physicalId }, true)
+  panel.setup.confirmed = true
+  await panel.invoke('reserve'); await panel.tick()
+  assert.equal(attempts, 1); assert.equal(reads, 1)
+  assert.equal(panel.setup.pending, undefined)
+  assert.match(String(panel.setup.error), /不会自动换带/u)
 })

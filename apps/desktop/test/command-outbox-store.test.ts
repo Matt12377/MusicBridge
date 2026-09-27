@@ -104,6 +104,33 @@ test('合法照片可选undefined字段与省略等价，同命令不重复且�
   } finally { cold.close() }
 })
 
+test('旧关系命令持久原文跨版本可读：成功回执与未确认项均不补写新理由', async t => {
+  const f = await fixture(t), datasetId = randomUUID(), releaseId = randomUUID(), digitalId = randomUUID(), linkId = randomUUID()
+  const confirm = { datasetId, command: 'physicalLinks.confirm' as const, payload: { commandId: randomUUID(), releaseId, expectedRevision: 1, digitalId, relation: 'exact' as const, ripFromCdConfirmed: false, userConfirmed: true as const } }
+  const remove = { datasetId, command: 'physicalLinks.remove' as const, payload: { commandId: randomUUID(), linkId, expectedRevision: 1 } }
+  const confirmed = f.store.confirm(confirm).entry, uncertain = f.store.confirm(remove).entry
+  f.store.markSending(confirmed.id); f.store.succeed(confirmed.id, { id: releaseId, digitalId, linkId })
+  f.store.markSending(uncertain.id); f.store.markUncertain(uncertain.id)
+  f.store.close()
+  const inspect = new DatabaseSync(f.filePath, { readOnly: true })
+  const original = inspect.prepare('SELECT id,request_json FROM outbox_entries ORDER BY rowid').all().map(row => ({ id: row.id, bytes: Buffer.from(String(row.request_json)) }))
+  inspect.close()
+  const cold = f.createCommandOutboxStore({ filePath: f.filePath })
+  try {
+    assert.equal(cold.list().length, 2)
+    assert.equal(cold.get(confirmed.id).state, 'succeeded')
+    assert.deepEqual(cold.get(confirmed.id).result, { id: releaseId, digitalId, linkId })
+    assert.equal(cold.get(uncertain.id).state, 'uncertain')
+    assert.deepEqual(cold.get(uncertain.id).payload, remove.payload)
+    assert.equal(cold.confirm(confirm).entry.id, confirmed.id)
+    assert.equal(cold.confirm(remove).entry.id, uncertain.id)
+    assert.throws(() => cold.confirm({ ...confirm, command: 'physicalLinks.confirmWithEvidence', payload: { ...confirm.payload, reason: '新补的理由' } }), { code: 'OUTBOX_CONFLICT' })
+  } finally { cold.close() }
+  const after = new DatabaseSync(f.filePath, { readOnly: true })
+  try { assert.deepEqual(after.prepare('SELECT id,request_json FROM outbox_entries ORDER BY rowid').all().map(row => ({ id: row.id, bytes: Buffer.from(String(row.request_json)) })), original) }
+  finally { after.close() }
+})
+
 test('总照片容量有界，拒绝新项不丢失未确认项且不修改已有DTO', { timeout: 30_000 }, async t => {
   const f = await fixture(t), image = Buffer.alloc(MAX_COLLECTION_PHOTO_BYTES, 1); image[0] = 255; image[1] = 216; image[2] = 255
   const photo = { datasetId: randomUUID(), command: 'collection.addPhoto' as const, payload: { commandId: randomUUID(), modelId: randomUUID(), image: { dataUrl: `data:image/jpeg;base64,${image.toString('base64')}`, width: 1, height: 1 } } }

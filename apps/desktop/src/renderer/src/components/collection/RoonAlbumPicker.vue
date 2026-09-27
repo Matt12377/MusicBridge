@@ -2,9 +2,9 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import type { DigitalAlbum, Page, PhysicalRelation, RoonLibraryPage } from '@music-bridge/contracts'
 const props = defineProps<{ mode: 'link' | 'register' | 'relocate'; cd?: boolean; busy: boolean; pending: boolean; error: string }>()
-const emit = defineEmits<{ close: []; retry: []; confirm: [selection: { reference?: string; digitalId?: string; relation: PhysicalRelation; ripFromCdConfirmed: boolean; physicalAbsenceConfirmed: boolean }] }>()
+const emit = defineEmits<{ close: []; retry: []; confirm: [selection: { reference?: string; digitalId?: string; relation: PhysicalRelation; ripFromCdConfirmed: boolean; physicalAbsenceConfirmed: boolean; reason: string }] }>()
 const dialog = ref<HTMLDialogElement>(), source = ref<'roon' | 'saved'>('roon'), query = ref(''), selected = ref(''), confirmed = ref(false)
-const relation = ref<PhysicalRelation>('probable'), rip = ref(false), absent = ref(false), loading = ref(false), readError = ref('')
+const relation = ref<PhysicalRelation>('probable'), rip = ref(false), absent = ref(false), reason = ref(''), loading = ref(false), readError = ref('')
 const roon = shallowRef<RoonLibraryPage>(), saved = shallowRef<Page<DigitalAlbum>>()
 const blocked = computed(() => props.busy || props.pending)
 const currentPage = computed(() => source.value === 'roon' ? roon.value : saved.value)
@@ -21,12 +21,12 @@ async function load(offset = 0): Promise<void> {
 }
 function close(): void { if (!blocked.value) { dialog.value?.close(); emit('close') } }
 function submit(): void {
-  if (blocked.value || loading.value || !confirmed.value || !choices.value.some(a => a.id === selected.value)) return
-  emit('confirm', { ...(source.value === 'roon' ? { reference: selected.value } : { digitalId: selected.value }), relation: relation.value, ripFromCdConfirmed: !!props.cd && relation.value === 'exact' && rip.value, physicalAbsenceConfirmed: absent.value })
+  if (blocked.value || loading.value || !confirmed.value || (props.mode === 'link' && !reason.value.trim()) || !choices.value.some(a => a.id === selected.value)) return
+  emit('confirm', { ...(source.value === 'roon' ? { reference: selected.value } : { digitalId: selected.value }), relation: relation.value, ripFromCdConfirmed: !!props.cd && relation.value === 'exact' && rip.value, physicalAbsenceConfirmed: absent.value, reason: reason.value.trim() })
 }
 watch(() => props.error, value => { if (value) confirmed.value = false })
 watch(source, () => { void load() })
-watch([selected, relation, rip, absent], () => { confirmed.value = false })
+watch([selected, relation, rip, absent, reason], () => { confirmed.value = false })
 watch(relation, value => { if (value !== 'exact') rip.value = false })
 onMounted(async () => { await nextTick(); dialog.value?.showModal(); void load() })
 onBeforeUnmount(() => dialog.value?.close())
@@ -46,13 +46,15 @@ onUnmounted(() => { alive = false; ++generation })
       <p v-if="currentPage && !choices.length && !loading">没有可选专辑。不会自动创建同名关联。</p>
       <nav v-if="currentPage" aria-label="候选专辑分页"><button :disabled="loading || !currentPage.offset" @click="load(Math.max(0, currentPage.offset - 20))">上一页</button><span>第 {{ Math.floor(currentPage.offset / 20) + 1 }} 页</span><button :disabled="loading || !currentPage.hasMore" @click="load(currentPage.offset + 20)">下一页</button></nav>
       <label v-if="mode === 'link'">关系类型<select v-model="relation"><option value="probable">Probable · 可能同版</option><option value="exact">Exact · 用户确认同版</option><option value="related">Related · 相关版本</option></select></label>
+      <label v-if="mode === 'link'">确认或更正理由<textarea v-model.trim="reason" maxlength="240" rows="2" placeholder="写下核对依据；更正同一数字对象时保留前后关系"></textarea></label>
       <label v-if="mode === 'link' && cd && relation === 'exact'" class="check"><input v-model="rip" type="checkbox">确认此数字版本由这张原版 CD 抓轨</label>
       <label v-if="mode === 'register'" class="check"><input v-model="absent" type="checkbox">我确认尚未收藏此专辑的原版实物</label>
       <label class="check"><input v-model="confirmed" type="checkbox">我已核对候选信息并确认本次选择</label>
-      <footer><button :disabled="!selected || !confirmed || loading" @click="submit">{{ mode === 'link' ? '确认关联' : mode === 'register' ? '保存数字对象' : '确认重新定位' }}</button></footer>
+      <footer><button :disabled="!selected || !confirmed || loading || (mode === 'link' && !reason.trim())" @click="submit">{{ mode === 'link' ? '确认关联' : mode === 'register' ? '保存数字对象' : '确认重新定位' }}</button></footer>
     </fieldset>
   </dialog>
 </template>
 <style scoped>
+textarea{box-sizing:border-box;width:100%;min-height:70px;padding:8px 12px;border:1px solid var(--mb-glass-border);border-radius:8px;background:var(--mb-bg-base);color:var(--mb-text-primary);font:inherit;resize:vertical}
 .relation-picker{width:min(680px,calc(100vw - 32px));max-height:calc(100dvh - 32px);box-sizing:border-box;padding:24px;border:1px solid var(--mb-glass-border);border-radius:16px;color:var(--mb-text-primary);background:var(--mb-bg-base)}dialog::backdrop{background:#000b}header,form,nav{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}h2{font-size:23px;margin:4px 0 12px}p,small{font-size:12px;line-height:1.8;color:var(--mb-text-secondary)}fieldset{border:0;padding:0;min-width:0}label{display:grid;gap:8px;margin:14px 0;font-size:13px}form label{flex:1;min-width:160px}button,input,select{font:inherit;color:var(--mb-text-primary)}button,input:not([type]),select{box-sizing:border-box;min-height:40px;border:1px solid var(--mb-glass-border);border-radius:8px;background:var(--mb-bg-base);padding:8px 12px;max-width:100%}input:not([type]),select{width:100%}button:disabled,fieldset:disabled{opacity:.55}input[type=checkbox],input[type=radio]{accent-color:var(--mb-accent);width:18px;height:18px;flex:none}.candidate,.check{display:flex;align-items:center;gap:12px;cursor:pointer}.candidate{border:1px solid var(--mb-glass-border);border-radius:10px;padding:14px}.candidate:has(input:checked){border-color:var(--mb-accent);background:var(--mb-glass-clear)}.candidate span{min-width:0;overflow-wrap:anywhere}.candidate small{display:block;margin-top:4px}nav{font-size:12px;margin:18px 0}footer{margin-top:20px;display:flex;justify-content:flex-end}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 </style>

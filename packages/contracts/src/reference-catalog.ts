@@ -1,6 +1,9 @@
 import { isCollectionId, isCollectionPhotoImage, type CollectionPhotoImage } from './collection.js';
 
 export const MAX_REFERENCE_SOURCE_PACK_BYTES = 1_048_576;
+/** C11 只接受一个根目录 JSON 的有界容器；原 ZIP 仅在预览/确认时短暂校验，不长期归档。 */
+export const MAX_REFERENCE_SOURCE_ZIP_BYTES = 4 * 1024 * 1024;
+export const MAX_REFERENCE_SOURCE_ZIP_BASE64_CHARS = Math.ceil(MAX_REFERENCE_SOURCE_ZIP_BYTES / 3) * 4;
 /** 带图目录修订与原始文字资料分别限额，避免放大原文入口。 */
 export const MAX_REFERENCE_REVISION_BYTES = 4 * 1024 * 1024;
 export const MAX_CATALOG_REFERENCES = 2_000;
@@ -17,6 +20,23 @@ export interface SourcePack { schemaVersion: 1; bookId: string; title: string; s
 export interface ReferenceSourceVersion { id: string; bookId: string; title: string; sourceVersion: string; packHash: string; itemCount: number; createdAt: string }
 export interface ReferenceSourceDetail { source: ReferenceSourceVersion; rawPack: string }
 export interface RegisterReferenceSourceRequest { commandId: string; rawPack: string; packHash: string; userConfirmed: true }
+export type ReferenceSourceZipEntryName = 'catalog.json' | 'source.json';
+export interface PreviewReferenceSourceZipRequest { zipBase64: string }
+export interface ReferenceSourceZipPreview {
+  entryName: ReferenceSourceZipEntryName; zipSha256: string; zipBytes: number; rawPackHash: string;
+  bookId: string; title: string; sourceVersion: string; itemCount: number;
+}
+export interface RegisterReferenceSourceZipRequest extends PreviewReferenceSourceZipRequest {
+  commandId: string; expectedZipSha256: string; expectedRawPackHash: string; userConfirmed: true;
+}
+/** 同一 JSON 的不同 ZIP 可各留不可变容器回执，但不新增目录分母。 */
+export interface ReferenceSourceZipReceipt {
+  id: string; sourceId: string; zipSha256: string; zipBytes: number;
+  entryName: ReferenceSourceZipEntryName; rawPackHash: string; createdAt: string;
+}
+export interface RegisterReferenceSourceZipResult { source: ReferenceSourceVersion; receipt: ReferenceSourceZipReceipt }
+export interface ReferenceSourceZipReceiptListRequest { sourceId: string; offset: number; limit: number }
+export interface ReferenceSourceZipReceiptPage { items: readonly ReferenceSourceZipReceipt[]; total: number; offset: number; limit: number }
 export interface ReferenceSourceListRequest { bookId?: string; offset: number; limit: number }
 export interface ReferenceSourcePage { items: readonly ReferenceSourceVersion[]; total: number; offset: number; limit: number }
 export interface CatalogIdRequest { id: string }
@@ -54,6 +74,9 @@ export interface CatalogHistory {
 }
 export interface ReferenceCatalogPublicApi {
   registerReferenceSource(request: RegisterReferenceSourceRequest): Promise<ReferenceSourceVersion>;
+  previewReferenceSourceZip(request: PreviewReferenceSourceZipRequest): Promise<ReferenceSourceZipPreview>;
+  registerReferenceSourceZip(request: RegisterReferenceSourceZipRequest): Promise<RegisterReferenceSourceZipResult>;
+  listReferenceSourceZipReceipts(request: ReferenceSourceZipReceiptListRequest): Promise<ReferenceSourceZipReceiptPage>;
   listReferenceSources(request: ReferenceSourceListRequest): Promise<ReferenceSourcePage>;
   getReferenceSource(request: CatalogIdRequest): Promise<ReferenceSourceDetail>;
   previewCatalogRevision(request: PreviewCatalogRevisionRequest): Promise<CatalogRevisionPreview>;
@@ -132,6 +155,43 @@ export function parseReferenceSourcePack(rawPack: unknown): SourcePack | null {
 }
 export function isRegisterReferenceSourceRequest(v: unknown): v is RegisterReferenceSourceRequest {
   return record(v) && keys(v, ['commandId', 'rawPack', 'packHash', 'userConfirmed']) && isCollectionId(v.commandId) && hash(v.packHash) && v.userConfirmed === true && parseReferenceSourcePack(v.rawPack) !== null;
+}
+const zipBase64 = (v: unknown): v is string => typeof v === 'string' && v.length >= 4
+  && v.length <= MAX_REFERENCE_SOURCE_ZIP_BASE64_CHARS && v.length % 4 === 0
+  && /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(v);
+export const isReferenceSourceZipEntryName = (v: unknown): v is ReferenceSourceZipEntryName => v === 'catalog.json' || v === 'source.json';
+export function isPreviewReferenceSourceZipRequest(v: unknown): v is PreviewReferenceSourceZipRequest {
+  return record(v) && keys(v, ['zipBase64']) && zipBase64(v.zipBase64);
+}
+export function isReferenceSourceZipPreview(v: unknown): v is ReferenceSourceZipPreview {
+  return record(v) && keys(v, ['entryName','zipSha256','zipBytes','rawPackHash','bookId','title','sourceVersion','itemCount'])
+    && isReferenceSourceZipEntryName(v.entryName) && hash(v.zipSha256) && integer(v.zipBytes, 1, MAX_REFERENCE_SOURCE_ZIP_BYTES)
+    && hash(v.rawPackHash) && isReferenceCatalogKey(v.bookId) && text(v.title, 240)
+    && text(v.sourceVersion) && integer(v.itemCount, 1, MAX_CATALOG_REFERENCES);
+}
+export function isRegisterReferenceSourceZipRequest(v: unknown): v is RegisterReferenceSourceZipRequest {
+  return record(v) && keys(v, ['commandId','zipBase64','expectedZipSha256','expectedRawPackHash','userConfirmed'])
+    && isPreviewReferenceSourceZipRequest({ zipBase64: v.zipBase64 }) && isCollectionId(v.commandId)
+    && hash(v.expectedZipSha256) && hash(v.expectedRawPackHash) && v.userConfirmed === true;
+}
+export function isReferenceSourceZipReceipt(v: unknown): v is ReferenceSourceZipReceipt {
+  return record(v) && keys(v, ['id','sourceId','zipSha256','zipBytes','entryName','rawPackHash','createdAt'])
+    && isCollectionId(v.id) && isCollectionId(v.sourceId) && hash(v.zipSha256)
+    && integer(v.zipBytes, 1, MAX_REFERENCE_SOURCE_ZIP_BYTES) && isReferenceSourceZipEntryName(v.entryName)
+    && hash(v.rawPackHash) && timestamp(v.createdAt);
+}
+export function isRegisterReferenceSourceZipResult(v: unknown): v is RegisterReferenceSourceZipResult {
+  return record(v) && keys(v, ['source','receipt']) && isReferenceSourceVersion(v.source)
+    && isReferenceSourceZipReceipt(v.receipt) && v.receipt.sourceId === v.source.id
+    && v.receipt.rawPackHash === v.source.packHash;
+}
+export function isReferenceSourceZipReceiptListRequest(v: unknown): v is ReferenceSourceZipReceiptListRequest {
+  return record(v) && keys(v, ['sourceId','offset','limit']) && isCollectionId(v.sourceId) && paging(v);
+}
+export function isReferenceSourceZipReceiptPage(v: unknown): v is ReferenceSourceZipReceiptPage {
+  return record(v) && keys(v, ['items','total','offset','limit']) && paging(v) && integer(v.total)
+    && array(v.items, isReferenceSourceZipReceipt, 25) && v.items.length <= (v.limit as number) && v.items.length <= (v.total as number)
+    && unique(v.items.map(item => item.id));
 }
 const sourceKeys = ['id', 'bookId', 'title', 'sourceVersion', 'packHash', 'itemCount', 'createdAt'];
 export function isReferenceSourceVersion(v: unknown): v is ReferenceSourceVersion {

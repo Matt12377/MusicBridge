@@ -5,6 +5,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
 import { mediaFingerprint } from './media-store.js';
 import { captureRecordingVisuals, readRecordingVisual } from './record-visuals.js';
+import { insertRecordingRecordPageSearch } from './record-page-index.js';
 import { RecordingRecordError, recordFail, recordSchema, recordingAttempt20Protection, readContentHead, readPhysicalRecordingState, readRecordingRecord, withPhysicalRecordingMutation, availableRecordingPermit, checkRecordingRecordBudgets, verifyRecordingRecordDatabase, recordingPermitMatchesPlan, type RecordingContentHead, type RecordingContentEvent } from './record-integrity.js';
 
 export interface RecordingRecordBudgets { metadataBudgetBytes?:number; visualBudgetBytes?:number }
@@ -46,6 +47,9 @@ export function registerCompletedRecording(db:DatabaseSync,completion:dto.Record
   if(!dto.isRecordingRecord(candidate))return recordFail();const record=candidate;
   const before=readContentHead(db,completion.physicalId);
   db.prepare('INSERT INTO recording_records VALUES(?,?,?,?,?,?)').run(id,completion.id,completion.revision,completion.physicalId,completion.planVersionId,JSON.stringify(record));
+  // schema20 的旧库迁移先补 Record，schema29 再统一回填；正式登记则与 Attempt 同事务追加一行搜索投影。
+  const searchable=Number(db.prepare('PRAGMA user_version').get()?.user_version)>=29;
+  if(searchable)insertRecordingRecordPageSearch(db,record,plan);
   if(printRequestId)registerRecordingPrint(db,record,plan,printRequestId,'completion',record.createdAt);
   let physicalMutations=0;
   if(!legacy) withPhysicalRecordingMutation(db,completion.physicalId,'completed',()=>{
@@ -59,8 +63,8 @@ export function registerCompletedRecording(db:DatabaseSync,completion:dto.Record
   });
   appendContent(db,before,{state:'confirmed-recording',recordingId:id,confirmedAt:completion.endedAt!,evidence:{kind:'completed-attempt',attemptId:completion.id,revision:completion.revision}},{kind:legacy?'legacy-completed':'completed',attemptId:completion.id,revision:completion.revision,recordingId:id,recordingContentHash:record.contentHash});
   checkRecordingRecordBudgets(db,budgets.metadataBudgetBytes,budgets.visualBudgetBytes);
-  // record + 可选Print三行 + 可选visual + guard两行 + 实体／预留写 + content两行。
-  return 1+(printRequestId?3:0)+insertedVisuals+(legacy?0:2+physicalMutations)+2;
+  // record + 搜索行 + 可选Print三行 + 可选visual + guard两行 + 实体／预留写 + content两行。
+  return 1+(searchable?1:0)+(printRequestId?3:0)+insertedVisuals+(legacy?0:2+physicalMutations)+2;
 }
 /** 准入已经完成；与新Attempt的持久化边界同事务使旧当前内容失效并一次消费许可。 */
 export function beginPhysicalRecording(db:DatabaseSync,attempt:dto.RecordingAttempt,plan:dto.RecordingPlanVersion,budgets:RecordingRecordBudgets={}):2|3 {

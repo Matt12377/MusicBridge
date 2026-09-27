@@ -55,3 +55,25 @@ test('空面无静音，DAT 连续段无跨面边界，显式无间隔规则进�
   assert.deepEqual(continuous.timeline.sides[0]!.tracks.map(t => t.gapAfterFrames), [0, 0, 0]);
   assert.ok(continuous.content.tracks.every(t => t.transitionAfterMs === 0));
 });
+
+test('分盘仍冻结完整母版，每盘只产生本段时间线；跨盘相邻、重漏及乱序拒绝', async () => {
+  const { planVersions } = await planner(), f = fixture(), groupId = randomUUID(), ids = f.draft.tracks.map(track => track.id);
+  const distribution = { schemaVersion: 1 as const, groupId,
+    segmentSpecs: [{ trackIds: ids.slice(0, 2) }, { trackIds: ids.slice(2) }] };
+  const first = planVersions(f.draft, f.sources, spec({ splitAfter: 1,
+    distribution: { ...distribution, segmentIndex: 0 } }), 96000, 60);
+  const second = planVersions(f.draft, f.sources, spec({ splitAfter: 1,
+    distribution: { ...distribution, segmentIndex: 1 } }), 96000, 60);
+  assert.equal(first.content.tracks.length, 3);
+  assert.equal(first.contentHash, second.contentHash);
+  assert.deepEqual(first.timeline.sides.flatMap(side => side.tracks.map(track => track.trackId)), ids.slice(0, 2));
+  assert.deepEqual(second.timeline.sides.flatMap(side => side.tracks.map(track => track.trackId)), ids.slice(2));
+  for (const segmentSpecs of [
+    [{ trackIds: ids.slice(0, 1) }, { trackIds: ids.slice(2) }],
+    [{ trackIds: ids.slice(0, 2) }, { trackIds: ids.slice(1) }],
+    [{ trackIds: [ids[1]!, ids[0]!] }, { trackIds: ids.slice(2) }],
+  ]) assert.throws(() => planVersions(f.draft, f.sources, spec({ splitAfter: 1,
+    distribution: { schemaVersion: 1, groupId, segmentIndex: 0, segmentSpecs } }), 96000, 60));
+  assert.throws(() => planVersions(f.draft, f.sources, spec({ splitAfter: 1,
+    rules: [{ trackId: ids[1]!, keepWithNext: true }], distribution: { ...distribution, segmentIndex: 0 } }), 96000, 60), /跨盘/u);
+});

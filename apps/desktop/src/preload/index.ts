@@ -1,6 +1,10 @@
 import { createRecordingPrintClient } from './recording-print-client.js'
 import { createRecordingReplicaClient } from './recording-replica-client.js'
+import { createRecordingDeviceClient } from './recording-device-client.js'
 import { createRecordingRecordClient } from './recording-record-client.js'
+import { createRecordingWorkspaceClient } from './recording-workspace-client.js'
+import { createRecordingCandidateClient } from './recording-candidate-client.js'
+import { createPreparationZipClient } from './preparation-zip-client.js'
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   RemoteCoreTunnelState,
@@ -11,7 +15,7 @@ import type {
 
 import { createPreloadApi } from './api.js'
 import { createRecordingAttemptClient } from './recording-attempt-client.js'
-import { createCommandOutboxClient } from './command-outbox-client.js'
+import { createCommandOutboxClient, createCommandOutboxDatasetScope } from './command-outbox-client.js'
 import { summarizePreloadRoonImage } from './image-diagnostic.js'
 import { unwrapRoonImageIpc, type RoonImageIpcEnvelope } from '../roon-image-ipc.js'
 
@@ -25,7 +29,12 @@ const recordRoonImageShape =
     process.env.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH ?? '',
   )
 
-const outbox = createCommandOutboxClient((channel, value) => ipcRenderer.invoke(channel, value))
+const invokeScoped = (channel: string, value?: unknown): Promise<unknown> => ipcRenderer.invoke(channel, value)
+const getDatasetId = createCommandOutboxDatasetScope(invokeScoped)
+const outbox = createCommandOutboxClient(invokeScoped, getDatasetId)
+const workspaceClient = createRecordingWorkspaceClient(invokeScoped, request => outbox.submit('recordingWorkspace.put', request), getDatasetId)
+const candidateClient = createRecordingCandidateClient(invokeScoped, request => outbox.submit('recordingCandidates.select', request), getDatasetId)
+const preparationZipClient = createPreparationZipClient(invokeScoped, getDatasetId)
 
 contextBridge.exposeInMainWorld(
   'musicBridge',
@@ -153,6 +162,7 @@ contextBridge.exposeInMainWorld(
       changeCollectionPhoto: request => outbox.submit('collection.changePhoto', request),
       listCollection: (page, filter) => ipcRenderer.invoke('collection:list', page, filter),
       getCollectionModel: (modelId, page) => ipcRenderer.invoke('collection:detail', modelId, page),
+      getCollectionCopy: workspaceClient.getCollectionCopy,
       receiveCollectionStock: request => outbox.submit('collection.receive', request),
       materializeCollectionCopy: request => outbox.submit('collection.materialize', request),
       updateCollectionCopy: request => outbox.submit('collection.updateCopy', request),
@@ -161,7 +171,11 @@ contextBridge.exposeInMainWorld(
     {
       listPhysicalMusic: (page, filter) => ipcRenderer.invoke('physicalMusic:list', page, filter),
       getPhysicalMusic: id => ipcRenderer.invoke('physicalMusic:detail', id),
+      getCommercialCopies: (releaseId, page) => ipcRenderer.invoke('physicalMusic:copies', releaseId, page),
       savePhysicalRelease: request => outbox.submit('physicalMusic.saveRelease', request),
+      materializeCommercialCopy: request => outbox.submit('physicalMusic.materializeCopy', request),
+      saveCommercialCopyDetails: request => outbox.submit('physicalMusic.saveCopyDetails', request),
+      assignCommercialCopyPhoto: request => outbox.submit('physicalMusic.assignCopyPhoto', request),
       saveLegacyRecording: request => outbox.submit('physicalMusic.saveLegacy', request),
       addPhysicalMusicPhoto: request => outbox.submit('physicalMusic.addPhoto', request),
       getPhysicalMusicPhoto: photoId => ipcRenderer.invoke('physicalMusic:photo', photoId),
@@ -172,11 +186,12 @@ contextBridge.exposeInMainWorld(
       listDigitalAlbums: page => ipcRenderer.invoke('physicalLinks:digitalList', page),
       getDigitalAlbum: id => ipcRenderer.invoke('physicalLinks:digitalDetail', id),
       getPhysicalLinks: releaseId => ipcRenderer.invoke('physicalLinks:physical', releaseId),
+      getPhysicalLinkHistory: (releaseId, page) => ipcRenderer.invoke('physicalLinks:history', releaseId, page),
       getDigitalRuntime: id => ipcRenderer.invoke('physicalLinks:runtime', id),
-      confirmPhysicalLink: request => outbox.submit('physicalLinks.confirm', request),
+      confirmPhysicalLink: request => outbox.submit('physicalLinks.confirmWithEvidence', request),
       relocateDigitalAlbum: request => outbox.submit('physicalLinks.relocate', request),
       registerDigitalAlbum: request => outbox.submit('physicalLinks.register', request),
-      removePhysicalLink: request => outbox.submit('physicalLinks.remove', request),
+      removePhysicalLink: request => outbox.submit('physicalLinks.removeWithEvidence', request),
       confirmPhysicalAbsence: request => outbox.submit('physicalLinks.absence', request),
       getCollectionMatrix: (page, query) => ipcRenderer.invoke('physicalLinks:matrix', page, query),
     },
@@ -285,6 +300,9 @@ contextBridge.exposeInMainWorld(
     },
     {
       registerReferenceSource: request => outbox.submit('referenceCatalog.registerSource', request),
+      previewReferenceSourceZip: request => ipcRenderer.invoke('referenceCatalog:previewSourceZip', request),
+      registerReferenceSourceZip: request => outbox.submit('referenceCatalog.registerSourceZip', request),
+      listReferenceSourceZipReceipts: request => ipcRenderer.invoke('referenceCatalog:sourceZipReceipts', request),
       listReferenceSources: request => ipcRenderer.invoke('referenceCatalog:sources', request),
       getReferenceSource: request => ipcRenderer.invoke('referenceCatalog:source', request),
       previewCatalogRevision: request => ipcRenderer.invoke('referenceCatalog:previewRevision', request),
@@ -338,5 +356,9 @@ contextBridge.exposeInMainWorld(
     theme => ipcRenderer.invoke('app:set-appearance-theme', theme),
     {getVolume: () => ipcRenderer.invoke('roon:volume:get'), setVolume: request => ipcRenderer.invoke('roon:volume:set', request)},
     { getRoonDisplaySettings: () => ipcRenderer.invoke('lyrics:display:get'), configureRoonDisplay: url => ipcRenderer.invoke('lyrics:display:configure', url) },
+    workspaceClient,
+    candidateClient,
+    preparationZipClient,
+    createRecordingDeviceClient((channel, value) => ipcRenderer.invoke(channel, value)),
   ),
 )

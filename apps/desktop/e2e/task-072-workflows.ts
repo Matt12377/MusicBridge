@@ -4,7 +4,22 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 /** 全部为合成音频和库存，经实际preload/Main/Core/outbox创建，不注入数据库或后端认证。 */
-export async function seedRecordingPlan(page: Page, app: ElectronApplication, directory: string) {
+export const privatePlanOutputBackend = { id: 'musicbridge-coreaudio-hal', version: '0.2.0' } as const
+export async function selectDirectRecordingContext(page: Page, planId: string, layoutId: string): Promise<void> {
+  const next = page.getByTestId('recording-next-step')
+  await next.getByText('版本与关联详情', { exact: false }).click()
+  const plan = next.getByLabel('本次媒体规划', { exact: true })
+  const layout = next.getByLabel('本次冻结布局', { exact: true })
+  const processingPath = next.getByLabel('本次处理路径', { exact: true })
+  await plan.selectOption(planId)
+  await expect(plan).toHaveValue(planId)
+  await layout.selectOption(layoutId)
+  await expect(layout).toHaveValue(layoutId)
+  await processingPath.selectOption('direct')
+  await expect(processingPath).toHaveValue('direct')
+}
+export async function seedRecordingPlan(page: Page, app: ElectronApplication, directory: string,
+  outputBackend: { id: string; version: string } = { id: 'isolated-test-no-output', version: '1' }) {
   const saved = await page.evaluate(async () => {
     const api = window.musicBridge, albums = await api.searchPhysicalRoonAlbums('', { offset: 0, limit: 20 })
     const tracks = await api.getRoonAlbumTracks(albums.items[0]!.reference, { offset: 0, limit: 20 })
@@ -34,7 +49,7 @@ export async function seedRecordingPlan(page: Page, app: ElectronApplication, di
   const freeze = await page.evaluate(request => window.musicBridge.freezeMasterVersions(request), { commandId: randomUUID(), planId: media.id, sampleRate: 44100, proposalFingerprint: proposal.proposalFingerprint, userConfirmed: true as const })
   await expect.poll(async () => (await page.evaluate(id => window.musicBridge.getMasterVersionJob(id), freeze.id)).job?.state).toBe('completed')
   const layout = (await page.evaluate(id => window.musicBridge.listMasterVersions(id), saved.draftId)).layouts[0]!
-  const profile = await page.evaluate(async () => window.musicBridge.saveRecordingProfile({ commandId: crypto.randomUUID(), content: { name: '合成录音配置', signalChain: [{ id: crypto.randomUUID(), kind: 'audio-interface', label: '未认证合成声卡' }, { id: crypto.randomUUID(), kind: 'cassette-deck', label: '合成磁带机' }], defaults: { noiseReduction: 'Off', calibration: '人工合成校准', recordLevel: null, preRollMs: 1000 }, compatibility: { confirmed: true, cassetteTypes: ['II'], dat: true }, executionFormat: { sampleRate: 44100, channelCount: 2, channelLayout: 'stereo', internalProcessingPrecision: 'integer-bit-copy', outputSampleFormat: 'pcm-s16le', resamplerImplementation: 'none', resamplerVersion: 'not-applied', ditherPolicy: 'none', channelMapping: 'identity', outputBackend: { id: 'isolated-test-no-output', version: '1' } } }, userConfirmed: true }))
+  const profile = await page.evaluate(async backend => window.musicBridge.saveRecordingProfile({ commandId: crypto.randomUUID(), content: { name: '合成录音配置', signalChain: [{ id: crypto.randomUUID(), kind: 'audio-interface', label: '未认证合成声卡' }, { id: crypto.randomUUID(), kind: 'cassette-deck', label: '合成磁带机' }], defaults: { noiseReduction: 'Off', calibration: '人工合成校准', recordLevel: null, preRollMs: 1000 }, compatibility: { confirmed: true, cassetteTypes: ['II'], dat: true }, executionFormat: { sampleRate: 44100, channelCount: 2, channelLayout: 'stereo', internalProcessingPrecision: 'integer-bit-copy', outputSampleFormat: 'pcm-s16le', resamplerImplementation: 'none', resamplerVersion: 'not-applied', ditherPolicy: 'none', channelMapping: 'identity', outputBackend: backend } }, userConfirmed: true }), outputBackend)
   const session = await page.evaluate(request => window.musicBridge.saveRecordingSession(request), { commandId: randomUUID(), draftId: saved.draftId, expectedRevision: 0, profileVersionId: profile.id, overrides: { recordLevel: '合成初始电平' }, userConfirmed: true as const })
   const target = path.join(directory, '执行输出'); await mkdir(target); await choose(target)
   const destination = await page.evaluate(() => window.musicBridge.choosePreparationDestination(crypto.randomUUID()))

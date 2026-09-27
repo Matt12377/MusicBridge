@@ -18,6 +18,7 @@ export function createRecordingPrintClient(invoke: (channel: string, value?: unk
   return {
     getMasterArtwork: request => send('masterArtwork:get', request),
     pickMasterArtwork: request => send('masterArtwork:pick', request),
+    pickRecordingPrintImage: request => send('recordingPrints:pickImage', request),
     saveMasterArtwork: request => send('masterArtwork:save', request),
     listRecordingPrints: request => send('recordingPrints:list', request),
     requestRecordingPrint: request => send('recordingPrints:request', request),

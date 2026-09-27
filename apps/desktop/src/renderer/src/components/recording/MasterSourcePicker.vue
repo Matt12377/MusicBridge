@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, onUnmounted, ref, shall
 import type { AppendMasterDraftRequest, DraftProgramType, MasterDraft, RoonLibraryItem } from '@music-bridge/contracts'
 import SourcePickerRelations from './SourcePickerRelations.vue'
 import { SourcePickerController, sourceRoonAvailability, sourceTabForKey, type SourceTab, type SourcePickerState } from './source-picker-controller'
-const props = defineProps<{ draft?: MasterDraft; busy: boolean; pending: boolean; error: string }>()
+const props = defineProps<{ draft?: MasterDraft; busy: boolean; pending: boolean; error: string; inline?: boolean }>()
 const emit = defineEmits<{ close: []; retry: []; confirm: [request: AppendMasterDraftRequest] }>()
 const api = window.musicBridge
 const dialog = ref<HTMLDialogElement>(), title = ref('我的录音精选'), programType = ref<DraftProgramType>('compilation'), query = ref(''), relationQuery = ref(''), confirmed = ref(false)
@@ -69,7 +69,7 @@ function toggle(item: RoonLibraryItem, checked: boolean): void {
   if (blocked.value) return
   controller.toggle(item, checked)
 }
-function close(): void { if (!blocked.value) { dialog.value?.close(); emit('close') } }
+function close(): void { if (!blocked.value) { if (!props.inline) dialog.value?.close(); emit('close') } }
 async function submit(): Promise<void> {
   if (blocked.value || state.value.loading || !confirmed.value || !selected.value.length || hasStaleSelection.value || (!props.draft && !title.value.trim())) return
   submitting.value = true
@@ -83,7 +83,7 @@ watch([() => selected.value.map(entry => `${entry.item.reference}:${entry.stale}
 watch(() => props.error, value => { if (value) { confirmed.value = false; submitting.value = false } })
 onMounted(async () => {
   trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null
-  await nextTick(); dialog.value?.showModal()
+  await nextTick(); if (!props.inline) dialog.value?.showModal()
   unsubscribe = api.onCoreEvent(event => {
     if (!alive) return
     const available = sourceRoonAvailability(event)
@@ -91,11 +91,11 @@ onMounted(async () => {
   })
   void loadAlbums()
 })
-onBeforeUnmount(() => { alive = false; controller.dispose(); unsubscribe?.(); dialog.value?.close(); if (trigger?.isConnected) trigger.focus() })
+onBeforeUnmount(() => { alive = false; controller.dispose(); unsubscribe?.(); if (!props.inline) dialog.value?.close(); if (trigger?.isConnected) trigger.focus() })
 onUnmounted(() => { unsubscribe = undefined })
 </script>
 <template>
-  <dialog ref="dialog" aria-label="从 Roon 选择曲目" @cancel.prevent="close">
+  <component :is="inline ? 'section' : 'dialog'" ref="dialog" class="source-picker" :class="{ 'is-inline': inline }" aria-label="从 Roon 选择曲目" @cancel.prevent="close">
     <header><div><p>私人录音草稿</p><h2>从 Roon 选择曲目</h2></div><button :disabled="blocked" @click="close">取消</button></header>
     <p>可跨专辑选择，按点击顺序加入。这里只保存草稿，尚未验证实际音频源，不开始录音。</p>
     <p v-if="error" role="alert">{{ error }} <button v-if="pending" :disabled="busy" @click="emit('retry')">重试原操作</button></p>
@@ -125,10 +125,11 @@ onUnmounted(() => { unsubscribe = undefined })
       <label class="check"><input v-model="confirmed" type="checkbox">我确认将所选曲目按选择顺序加入草稿</label>
       <footer><button :disabled="state.loading || state.offline || hasStaleSelection || !selected.length || !confirmed || (!draft && !title.trim())" @click="submit">加入录音草稿</button></footer>
     </fieldset>
-  </dialog>
+  </component>
 </template>
 <style scoped>
 .source-tabs{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}.source-tabs [aria-selected=true]{border-color:var(--mb-accent);color:var(--mb-accent)}
 h3,.track>span,.selection li>span{min-width:0;overflow-wrap:anywhere}
 dialog{box-sizing:border-box;width:min(780px,calc(100vw - 32px));max-height:calc(100dvh - 32px);padding:24px;border:1px solid var(--mb-glass-border);border-radius:16px;color:var(--mb-text-primary);background:var(--mb-bg-base)}dialog::backdrop{background:#000b}header,form,nav,footer,li{display:flex;align-items:center;gap:14px;flex-wrap:wrap}header,li{justify-content:space-between}h2{font-size:23px;margin:4px 0 12px}h3{font-size:15px;margin:14px 0}p,small{font-size:12px;line-height:1.8;color:var(--mb-text-secondary)}fieldset{border:0;padding:0;min-width:0}.draft-fields{display:grid;grid-template-columns:1fr 1fr;gap:16px}label{display:grid;gap:8px;margin:14px 0;font-size:13px}form label{flex:1;min-width:160px}input,select,button{font:inherit;color:var(--mb-text-primary)}button,input:not([type]),select{box-sizing:border-box;min-height:40px;max-width:100%;padding:8px 12px;border:1px solid var(--mb-glass-border);border-radius:8px;background:var(--mb-bg-base)}input:not([type]),select{width:100%}button:disabled,fieldset:disabled{opacity:.5}input[type=checkbox]{accent-color:var(--mb-accent);width:18px;height:18px;flex:none}.albums{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:12px}.album{display:flex;flex-direction:column;gap:8px;text-align:left;padding:18px}.album:hover{border-color:var(--mb-accent)}strong,small{overflow-wrap:anywhere}.track,.check{display:flex;align-items:center;gap:12px}.track{padding:14px;border:1px solid var(--mb-glass-border);border-radius:10px}.track small{display:block;margin-top:4px}.selection{margin-top:22px;border-top:1px solid var(--mb-divider)}ol{padding-left:0;list-style:none}li{font-size:13px;padding:5px 0}nav,footer{justify-content:flex-end;margin:18px 0}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}@media(max-width:600px){.draft-fields{grid-template-columns:1fr;gap:0}}
+.source-picker.is-inline{position:static;display:block;box-sizing:border-box;width:100%;max-width:none;max-height:none;margin:0;padding:0;border:0;border-radius:0;background:transparent;overflow:visible}
 </style>

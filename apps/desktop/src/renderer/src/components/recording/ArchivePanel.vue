@@ -100,7 +100,7 @@ onBeforeUnmount(() => { alive = false; ++generation; if (timer) clearTimeout(tim
 <template>
   <section class="archive-panel" aria-labelledby="archive-title">
     <div class="heading"><div><p class="kicker">执行资产 · {{ short(asset.id) }}</p><h3 id="archive-title" tabindex="-1" autofocus>归档执行资产</h3></div><button :disabled="blocked" @click="emit('close')">返回执行资产</button></div>
-    <p class="boundary">保存实际执行音频、原始清单和冻结事实。PREP 同时保存原始 Render，派生文件不覆盖原件。这里不开始录音，不改变实体库存；F-01 保留期限仍待决定，不自动删除文件。</p>
+    <p class="boundary">F-01 已确认成功执行音频与谱系、PREP 原始 Render 永久保留；原始曲目源按本次明确选择的政策处理。这里保存实际执行音频、原始清单与冻结事实，派生文件不覆盖原件。归档是否完成及此刻是否可用，分别以本页操作记录和重新核验为准；这里不开始录音、不改变实体库存，也不自动删除文件。</p>
     <fieldset :disabled="blocked">
       <legend>1 · 归档目录</legend>
       <label>所选归档目录<select v-model="rootId"><option value="">请选择归档目录</option><option v-for="r in roots" :key="r.id" :value="r.id">{{ r.label }} · {{ rootLabels[r.state] }} · {{ short(r.id) }}</option></select></label>

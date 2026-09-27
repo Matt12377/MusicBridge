@@ -11,7 +11,7 @@ export function createRecordingReplicaClient(invoke: (channel: string, value?: u
     return record.datasetId
   }).catch(() => { throw failure() })
   void scope.catch(() => undefined)
-  async function send<T>(name: 'status' | 'inspect' | 'cancelRead' | 'start' | 'get' | 'stop', payload: unknown): Promise<T> {
+  async function send<T>(name: 'status' | 'inspect' | 'cancelRead' | 'start' | 'get' | 'stop' | 'control', payload: unknown): Promise<T> {
     const captured = structuredClone(payload)
     return await invoke(`recordingReplica:${name}`, { datasetId: await scope, payload: captured }) as T
   }
@@ -22,5 +22,6 @@ export function createRecordingReplicaClient(invoke: (channel: string, value?: u
     startRecordingReplica: request => send('start', request),
     getRecordingReplicaRun: runId => send('get', { runId }),
     stopRecordingReplica: runId => send('stop', { runId }),
+    controlRecordingReplica: request => send('control', request),
   }
 }

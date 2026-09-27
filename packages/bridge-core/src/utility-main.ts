@@ -1,10 +1,14 @@
 import type { VolumeRequest } from '@music-bridge/contracts';
 import { RecordingPrintError } from './recording/print-integrity.js';
 import { RecordingReplicaError } from './recording/replica-error.js';
-import { AttemptError } from './recording/attempt-integrity.js';
+import { AttemptError, AttemptNotAcceptedError } from './recording/attempt-integrity.js';
 import { RecordingRecordError } from './recording/record-integrity.js';
 import { OutputCheckError } from './recording/output-error.js';
 import type { PinnedOutputHelper } from './recording/bundled-output-helper.js';
+import type { PinnedDeviceOutputHelper } from './recording/bundled-device-output-helper.js';
+import type { GateBCandidateIdentity } from './recording/gate-b-admission.js';
+import { reconcileOutputRunRecovery, type OutputRunRecoveryState } from './recording/output-run-recovery.js';
+import { DeviceSelectionError } from './recording/device-selection-broker.js';
 import { RecordingPlanError } from './recording/plan-integrity.js';
 import { BackupWorkflowError } from './recording/backup-workflow-store.js';
 import { readSpreadsheetFile, SpreadsheetReadError } from './collection/spreadsheet-files.js';
@@ -83,7 +87,14 @@ function requestId(value: unknown): string | undefined {
   return value.id;
 }
 
-function failureForError(id: string, error: unknown): IpcFailure {
+function failureForError(id: string, error: unknown, command: IpcRequest['command']): IpcFailure {
+  if (command === 'recordingAttempts.begin' && error instanceof AttemptNotAcceptedError) {
+    return responseFailure(id, 'ATTEMPT_NOT_ACCEPTED',
+      `正式输出开始已证实未受理，请重新预检并确认。[ATTEMPT_NOT_ACCEPTED] 原因：${error.causeCode}`);
+  }
+  if (error instanceof DeviceSelectionError) return responseFailure(id,
+    error.code === 'INVALID_REQUEST' ? 'INVALID_IPC_REQUEST' : error.code === 'CLOSED' || error.code === 'NO_DEVICE_CATALOG' || error.code === 'HELPER_UNAVAILABLE' ? 'NOT_READY' : 'INVENTORY_CONFLICT',
+    '输出设备选择未获确认，请重新读取当前候选和代际；不会自动使用默认设备。');
   if (error instanceof RecordingPrintError) {
     const code = error.code === 'INVALID_REQUEST' ? 'INVALID_IPC_REQUEST' : error.code === 'CLOSED' ? 'NOT_READY'
       : error.code === 'CONFLICT' || error.code === 'COMMAND_CONFLICT' ? 'INVENTORY_CONFLICT' : 'INVENTORY_UNAVAILABLE';
@@ -194,6 +205,11 @@ function sourcesFor(runtime: CoreRuntimeForIpc) {
   return runtime.sources;
 }
 
+function candidatesFor(runtime: CoreRuntimeForIpc) {
+  if (!runtime.sourceCandidates) throw new BridgeError('BAD_REQUEST', '候选扫描服务尚未就绪。', { httpStatus: 503 });
+  return runtime.sourceCandidates;
+}
+
 function masterVersionsFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.masterVersions) throw new CollectionError('INVENTORY_UNAVAILABLE', '母版版本服务尚未就绪，请重试。');
   return runtime.masterVersions;
@@ -205,6 +221,10 @@ function executionFor(runtime: CoreRuntimeForIpc) {
 function recordingReplicaFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.recordingReplica) throw new RecordingReplicaError('BACKEND_UNAVAILABLE');
   return runtime.recordingReplica;
+}
+function recordingDeviceFor(runtime: CoreRuntimeForIpc) {
+  if (!runtime.recordingDeviceSelection) throw new DeviceSelectionError('NO_DEVICE_CATALOG');
+  return runtime.recordingDeviceSelection;
 }
 function recordingPrintsFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.recordingPrints) throw new CollectionError('INVENTORY_UNAVAILABLE', '印刷资料服务尚未就绪。');
@@ -238,6 +258,10 @@ function preparationFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.preparation) throw new CollectionError('INVENTORY_UNAVAILABLE', 'Logic 工作区服务尚未就绪，请重试。');
   return runtime.preparation;
 }
+function preparationZipFor(runtime: CoreRuntimeForIpc) {
+  if (!runtime.preparationZips) throw new CollectionError('INVENTORY_UNAVAILABLE', 'Logic ZIP 导出服务尚未就绪，请重试。');
+  return runtime.preparationZips;
+}
 
 function mediaPlanningFor(runtime: CoreRuntimeForIpc) {
   if (!runtime.mediaPlanning) throw new CollectionError('INVENTORY_UNAVAILABLE', '录音规划服务尚未就绪，请重试。');
@@ -258,7 +282,7 @@ async function dispatch(
   runtime: CoreRuntimeForIpc,
   request: IpcRequest,
 ): Promise<unknown> {
-  if ((request.command.startsWith('recordingAttempts.') || request.command.startsWith('recordingRecords.') || request.command.startsWith('recordingReplica.') || request.command.startsWith('masterArtwork.') || request.command.startsWith('recordingPrints.') || request.command.startsWith('recordingPrintWorker.')) && (!request.expectedDatasetId || !runtime.commandOutbox)) throw new DatasetScopeError();
+  if ((request.command.startsWith('recordingAttempts.') || request.command.startsWith('recordingRecords.') || request.command.startsWith('recordingReplica.') || request.command.startsWith('recordingDevice.') || request.command.startsWith('recordingWorkspace.') || request.command.startsWith('recordingCandidates.') || request.command.startsWith('recordingPreparationZip.') || request.command === 'collection.copy' || request.command.startsWith('masterArtwork.') || request.command.startsWith('recordingPrints.') || request.command.startsWith('recordingPrintWorker.')) && (!request.expectedDatasetId || !runtime.commandOutbox)) throw new DatasetScopeError();
   if (request.expectedDatasetId !== undefined) {
     if (!runtime.commandOutbox) throw new CollectionError('INVENTORY_UNAVAILABLE', '工作库身份尚未就绪。');
     runtime.commandOutbox.assertScope(request.expectedDatasetId);
@@ -274,7 +298,7 @@ async function dispatch(
       if (!runtime.commandOutbox) throw new CollectionError('INVENTORY_UNAVAILABLE', '工作库身份尚未就绪。');
       const value = request.payload;
       runtime.commandOutbox.assertScope(value.datasetId);
-      return { command: value.command, result: await dispatch(runtime, { version: IPC_VERSION, id: request.id, command: value.command, payload: value.payload }) };
+      return { command: value.command, result: await dispatch(runtime, { version: IPC_VERSION, id: request.id, command: value.command, payload: value.payload, expectedDatasetId: value.datasetId }) };
     }
     case 'recordingSources.roots': return sourcesFor(runtime).roots();
     case 'recordingSources.rootReceipt': { const p = request.payload as IpcCommandPayloads['recordingSources.rootReceipt']; return sourcesFor(runtime).rootReceipt(p.commandId); }
@@ -287,6 +311,10 @@ async function dispatch(
     case 'recordingSources.cancel': { const p = request.payload as IpcCommandPayloads['recordingSources.cancel']; return sourcesFor(runtime).cancel(p); }
     case 'recordingSources.confirm': { const p = request.payload as IpcCommandPayloads['recordingSources.confirm']; return sourcesFor(runtime).confirm(p); }
     case 'recordingSources.recheck': { const p = request.payload as IpcCommandPayloads['recordingSources.recheck']; return sourcesFor(runtime).recheck(p); }
+    case 'recordingCandidates.start': return candidatesFor(runtime).start(request.payload as IpcCommandPayloads['recordingCandidates.start']);
+    case 'recordingCandidates.get': return candidatesFor(runtime).get((request.payload as IpcCommandPayloads['recordingCandidates.get']).id);
+    case 'recordingCandidates.cancel': return candidatesFor(runtime).cancel(request.payload as IpcCommandPayloads['recordingCandidates.cancel']);
+    case 'recordingCandidates.select': return candidatesFor(runtime).select(request.payload as IpcCommandPayloads['recordingCandidates.select']);
     case 'recordingVersions.list': return masterVersionsFor(runtime).list((request.payload as IpcCommandPayloads['recordingVersions.list']).draftId);
     case 'recordingProfiles.list': return collectionFor(runtime).recordingProfiles.list();
     case 'recordingProfiles.history': return collectionFor(runtime).recordingProfiles.history((request.payload as IpcCommandPayloads['recordingProfiles.history']).profileId);
@@ -317,6 +345,9 @@ async function dispatch(
     case 'recordingReplica.start': return recordingReplicaFor(runtime).start(request.payload as IpcCommandPayloads['recordingReplica.start']);
     case 'recordingReplica.get': return recordingReplicaFor(runtime).get(request.payload as IpcCommandPayloads['recordingReplica.get']);
     case 'recordingReplica.stop': return recordingReplicaFor(runtime).stop(request.payload as IpcCommandPayloads['recordingReplica.stop']);
+    case 'recordingReplica.control': return recordingReplicaFor(runtime).control(request.payload as IpcCommandPayloads['recordingReplica.control']);
+    case 'recordingDevice.candidates': return recordingDeviceFor(runtime).list();
+    case 'recordingDevice.select': return recordingDeviceFor(runtime).select(request.payload as IpcCommandPayloads['recordingDevice.select']);
     case 'recordingRecords.list': return recordingRecordsFor(runtime).list(request.payload as IpcCommandPayloads['recordingRecords.list']);
     case 'recordingRecords.get': return recordingRecordsFor(runtime).get(request.payload as IpcCommandPayloads['recordingRecords.get']);
     case 'recordingRecords.visual': return recordingRecordsFor(runtime).visual(request.payload as IpcCommandPayloads['recordingRecords.visual']);
@@ -338,6 +369,8 @@ async function dispatch(
     case 'recordingPlans.freeze': return recordingPlansFor(runtime).freeze(request.payload as IpcCommandPayloads['recordingPlans.freeze']);
     case 'recordingPlans.preflight': return recordingPlansFor(runtime).preflight(request.payload as IpcCommandPayloads['recordingPlans.preflight']);
     case 'recordingPlans.cancelRead': return recordingPlansFor(runtime).cancelRead(request.payload as IpcCommandPayloads['recordingPlans.cancelRead']);
+    case 'recordingWorkspace.get': return { context: collectionFor(runtime).workspace.get((request.payload as IpcCommandPayloads['recordingWorkspace.get']).draftId) };
+    case 'recordingWorkspace.put': return collectionFor(runtime).workspace.put(request.payload as IpcCommandPayloads['recordingWorkspace.put']);
     case 'recordingArchive.roots': return archiveFor(runtime).roots();
     case 'recordingArchive.authorize': { const p = request.payload as IpcCommandPayloads['recordingArchive.authorize']; return archiveFor(runtime).authorize(p.commandId, p.absolutePath); }
     case 'recordingArchive.authorizationReceipt': return archiveFor(runtime).authorizationReceipt((request.payload as IpcCommandPayloads['recordingArchive.authorizationReceipt']).commandId);
@@ -390,6 +423,9 @@ async function dispatch(
     case 'spreadsheetImports.adjust': return collectionFor(runtime).spreadsheetImports.adjust(request.payload as IpcCommandPayloads['spreadsheetImports.adjust']);
     case 'spreadsheetImports.adjustments': return collectionFor(runtime).spreadsheetImports.adjustments(request.payload as IpcCommandPayloads['spreadsheetImports.adjustments']);
     case 'referenceCatalog.registerSource': return collectionFor(runtime).catalog.registerSource(request.payload as IpcCommandPayloads['referenceCatalog.registerSource']);
+    case 'referenceCatalog.previewSourceZip': return collectionFor(runtime).catalog.previewSourceZip(request.payload as IpcCommandPayloads['referenceCatalog.previewSourceZip']);
+    case 'referenceCatalog.registerSourceZip': return collectionFor(runtime).catalog.registerSourceZip(request.payload as IpcCommandPayloads['referenceCatalog.registerSourceZip']);
+    case 'referenceCatalog.sourceZipReceipts': return collectionFor(runtime).catalog.sourceZipReceipts(request.payload as IpcCommandPayloads['referenceCatalog.sourceZipReceipts']);
     case 'referenceCatalog.sources': return collectionFor(runtime).catalog.sources(request.payload as IpcCommandPayloads['referenceCatalog.sources']);
     case 'referenceCatalog.source': return collectionFor(runtime).catalog.source(request.payload as IpcCommandPayloads['referenceCatalog.source']);
     case 'referenceCatalog.previewRevision': return collectionFor(runtime).catalog.previewRevision(request.payload as IpcCommandPayloads['referenceCatalog.previewRevision']);
@@ -419,6 +455,14 @@ async function dispatch(
     case 'recordingPreparation.list': return preparationFor(runtime).list((request.payload as IpcCommandPayloads['recordingPreparation.list']).draftId);
     case 'recordingPreparation.preview': return preparationFor(runtime).preview(request.payload as IpcCommandPayloads['recordingPreparation.preview']);
     case 'recordingPreparation.start': return preparationFor(runtime).start(request.payload as IpcCommandPayloads['recordingPreparation.start']);
+    case 'recordingPreparationZip.authorizeTarget': return preparationZipFor(runtime).authorizeTarget(request.payload as IpcCommandPayloads['recordingPreparationZip.authorizeTarget']);
+    case 'recordingPreparationZip.invalidateScope': preparationZipFor(runtime).invalidateScope((request.payload as IpcCommandPayloads['recordingPreparationZip.invalidateScope']).scopeId); return { invalidated: true as const };
+    case 'recordingPreparationZip.preview': return preparationZipFor(runtime).preview(request.payload as IpcCommandPayloads['recordingPreparationZip.preview']);
+    case 'recordingPreparationZip.start': return preparationZipFor(runtime).start(request.payload as IpcCommandPayloads['recordingPreparationZip.start']);
+    case 'recordingPreparationZip.list': return preparationZipFor(runtime).list((request.payload as IpcCommandPayloads['recordingPreparationZip.list']).draftId);
+    case 'recordingPreparationZip.job': return preparationZipFor(runtime).job((request.payload as IpcCommandPayloads['recordingPreparationZip.job']).id);
+    case 'recordingPreparationZip.receipt': return preparationZipFor(runtime).receipt(request.payload as IpcCommandPayloads['recordingPreparationZip.receipt']);
+    case 'recordingPreparationZip.cancel': return preparationZipFor(runtime).cancel(request.payload as IpcCommandPayloads['recordingPreparationZip.cancel']);
     case 'recordingVersions.preview': return masterVersionsFor(runtime).preview(request.payload as IpcCommandPayloads['recordingVersions.preview']);
     case 'recordingVersions.freeze': return masterVersionsFor(runtime).freeze(request.payload as IpcCommandPayloads['recordingVersions.freeze']);
     case 'recordingVersions.job': return masterVersionsFor(runtime).job((request.payload as IpcCommandPayloads['recordingVersions.job']).id);
@@ -449,17 +493,24 @@ async function dispatch(
     case 'physicalLinks.digitalList': return collectionFor(runtime).links.digitalList((request.payload as IpcCommandPayloads['physicalLinks.digitalList']).page);
     case 'physicalLinks.digitalDetail': return collectionFor(runtime).links.digitalDetail((request.payload as IpcCommandPayloads['physicalLinks.digitalDetail']).id);
     case 'physicalLinks.physical': return collectionFor(runtime).links.physical((request.payload as IpcCommandPayloads['physicalLinks.physical']).releaseId);
+    case 'physicalLinks.history': { const p = request.payload as IpcCommandPayloads['physicalLinks.history']; return collectionFor(runtime).links.history(p.releaseId, p.page); }
     case 'physicalLinks.runtime': return physicalLinksFor(runtime).runtime((request.payload as IpcCommandPayloads['physicalLinks.runtime']).id);
     case 'physicalLinks.matrix': { const p = request.payload as IpcCommandPayloads['physicalLinks.matrix']; return collectionFor(runtime).links.matrix(p.page, p.query); }
     case 'physicalLinks.confirm': return physicalLinksFor(runtime).confirm(request.payload as IpcCommandPayloads['physicalLinks.confirm']);
+    case 'physicalLinks.confirmWithEvidence': return physicalLinksFor(runtime).confirm(request.payload as IpcCommandPayloads['physicalLinks.confirmWithEvidence']);
     case 'physicalLinks.relocate': return physicalLinksFor(runtime).relocate(request.payload as IpcCommandPayloads['physicalLinks.relocate']);
     case 'physicalLinks.register': return physicalLinksFor(runtime).register(request.payload as IpcCommandPayloads['physicalLinks.register']);
     case 'physicalLinks.remove': return physicalLinksFor(runtime).remove(request.payload as IpcCommandPayloads['physicalLinks.remove']);
+    case 'physicalLinks.removeWithEvidence': return physicalLinksFor(runtime).remove(request.payload as IpcCommandPayloads['physicalLinks.removeWithEvidence']);
     case 'physicalLinks.absence': return physicalLinksFor(runtime).absence(request.payload as IpcCommandPayloads['physicalLinks.absence']);
     case 'physicalMusic.list': { const p = request.payload as IpcCommandPayloads['physicalMusic.list']; return collectionFor(runtime).music.list(p.page, p.filter); }
     case 'physicalMusic.detail': return collectionFor(runtime).music.detail((request.payload as IpcCommandPayloads['physicalMusic.detail']).id);
+    case 'physicalMusic.copies': { const p = request.payload as IpcCommandPayloads['physicalMusic.copies']; return collectionFor(runtime).music.copies(p.releaseId, p.page); }
     case 'physicalMusic.photo': return collectionFor(runtime).music.photo((request.payload as IpcCommandPayloads['physicalMusic.photo']).photoId);
     case 'physicalMusic.saveRelease': return collectionFor(runtime).music.saveRelease(request.payload as IpcCommandPayloads['physicalMusic.saveRelease']);
+    case 'physicalMusic.materializeCopy': return collectionFor(runtime).music.materializeCopy(request.payload as IpcCommandPayloads['physicalMusic.materializeCopy']);
+    case 'physicalMusic.saveCopyDetails': return collectionFor(runtime).music.saveCopyDetails(request.payload as IpcCommandPayloads['physicalMusic.saveCopyDetails']);
+    case 'physicalMusic.assignCopyPhoto': return collectionFor(runtime).music.assignCopyPhoto(request.payload as IpcCommandPayloads['physicalMusic.assignCopyPhoto']);
     case 'physicalMusic.saveLegacy': return collectionFor(runtime).music.saveLegacy(request.payload as IpcCommandPayloads['physicalMusic.saveLegacy']);
     case 'physicalMusic.addPhoto': return collectionFor(runtime).music.addPhoto(request.payload as IpcCommandPayloads['physicalMusic.addPhoto']);
     case 'physicalMusic.removePhoto': return collectionFor(runtime).music.removePhoto(request.payload as IpcCommandPayloads['physicalMusic.removePhoto']);
@@ -477,6 +528,7 @@ async function dispatch(
       const payload = request.payload as IpcCommandPayloads['collection.detail'];
       return collectionFor(runtime).detail(payload.modelId, payload.page);
     }
+    case 'collection.copy': return collectionFor(runtime).copy((request.payload as IpcCommandPayloads['collection.copy']).physicalId);
     case 'collection.receive':
       return collectionFor(runtime).receive(request.payload as IpcCommandPayloads['collection.receive']);
     case 'collection.materialize':
@@ -741,7 +793,7 @@ export async function attachCoreRuntimePort(
           setImmediate(() => process.exit(0));
         }
       } catch (error) {
-        port.postMessage(failureForError(parsed.value.id, error));
+        port.postMessage(failureForError(parsed.value.id, error, parsed.value.command));
       }
     })();
   });
@@ -804,6 +856,8 @@ export async function runCoreUtilityProcess(
   env: NodeJS.ProcessEnv = process.env,
   createRecordingConverter?: () => Promise<FfmpegConverter | undefined>,
   createRecordingOutputHelper?: () => Promise<PinnedOutputHelper | undefined>,
+  createRecordingDeviceOutputHelper?: () => Promise<PinnedDeviceOutputHelper | undefined>,
+  recordingGateBCandidate?: GateBCandidateIdentity | null,
 ): Promise<void> {
   const parentPort = (process as unknown as ProcessWithParentPort).parentPort;
   if (!parentPort) {
@@ -822,9 +876,23 @@ export async function runCoreUtilityProcess(
       try {
         const recordingConverter = await createRecordingConverter?.();
         const recordingOutputHelper = await createRecordingOutputHelper?.();
+        const recordingDeviceOutputHelper = await createRecordingDeviceOutputHelper?.();
         const dataDirectory = env.MUSIC_BRIDGE_DATA_DIRECTORY;
         if (dataDirectory !== undefined && (!dataDirectory || dataDirectory.length > 1024 || !path.isAbsolute(dataDirectory) || dataDirectory.includes('\0'))) throw new Error('Core 数据目录不可用');
         if (dataDirectory) dataset = await openCollectionDataset(dataDirectory);
+        let outputRunRecovery: OutputRunRecoveryState | undefined;
+        if (dataset && env.MUSIC_BRIDGE_CORE_TEST_MODE !== '1') {
+          try {
+            outputRunRecovery = await reconcileOutputRunRecovery({ databaseFile: dataset.databaseFile,
+              datasetId: dataset.datasetId, rows: dataset.repository.recordingAttempts.outputRunRecoveryRows(),
+              ...(recordingDeviceOutputHelper ? { pin: recordingDeviceOutputHelper } : {}),
+              assertCurrent: () => dataset!.assertIdentity(),
+              persistQuiet: row => dataset!.repository.recordingAttempts.persistRevokedOutputRunQuiet(row) });
+          } catch {
+            // 冷启历史或SQLite读取不明时只封设备，不把V2和历史浏览一并关停。
+            outputRunRecovery = { safe: false, pendingRuns: 0, reason: 'OUTPUT_RUN_UNVERIFIED' };
+          }
+        }
         const datasetOptions = dataset ? {
           collectionDatasetIdentity: { datasetId: dataset.datasetId, assertCurrent: () => dataset!.assertIdentity() },
           collectionRepository: dataset.repository,
@@ -837,6 +905,7 @@ export async function runCoreUtilityProcess(
             ? createTestBridgeRuntime({
                 ...(recordingConverter ? { recordingConverter } : {}),
                 ...(recordingOutputHelper ? { recordingOutputHelper } : {}),
+                ...(recordingDeviceOutputHelper ? { recordingDeviceOutputHelper } : {}),
                 ...(env.MUSIC_BRIDGE_UI_E2E === '1' && env.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY === '1' ? { roonLibrary: createSyntheticRoonLibrary() } : {}),
                 ...datasetOptions,
                 authorized: env.MUSIC_BRIDGE_UI_E2E === '1',
@@ -860,6 +929,10 @@ export async function runCoreUtilityProcess(
                 return createBridgeRuntime({
                   ...(recordingConverter ? { recordingConverter } : {}),
                 ...(recordingOutputHelper ? { recordingOutputHelper } : {}),
+                ...(recordingDeviceOutputHelper ? { recordingDeviceOutputHelper } : {}),
+                recordingGateBCandidate: recordingGateBCandidate ?? null,
+                ...(dataset ? { recordingLeaseDatabaseFile: dataset.databaseFile } : {}),
+                ...(outputRunRecovery ? { recordingOutputRunRecovery: outputRunRecovery } : {}),
                   ...datasetOptions,
                   lyricsMatchRepository: createLyricsMatchRepository({
                     filePath: path.join(dataDirectory, 'lyrics-matches.v1.json'),

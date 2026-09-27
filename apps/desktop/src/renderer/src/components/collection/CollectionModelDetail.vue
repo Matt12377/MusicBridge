@@ -5,9 +5,10 @@ import type { CollectionChangePhotoRequest, CollectionCopy, CollectionDetail, Co
 import CollectionPhotos from './CollectionPhotos.vue'
 import CollectionReferenceImage from './CollectionReferenceImage.vue'
 import type { IllustratedReference } from './reference-images'
+import type { RecordingPhysicalSelection, RecordingReservationSelection } from './collection-recording-navigation'
 
-const props = withDefaults(defineProps<{ detail: CollectionDetail; busy: boolean; referenceCandidates?: readonly IllustratedReference[] }>(), { referenceCandidates: () => [] })
-const emit = defineEmits<{ showRecords: [physicalId: string]; showRecording: [physicalId: string]; close: []; receive: []; page: [offset: number]; materialize: [request: CollectionMaterializeRequest]; updateCopy: [request: CollectionUpdateCopyRequest]; policy: [request: CollectionPolicyRequest]; addPhoto: [physicalId?: string]; changePhoto: [request: CollectionChangePhotoRequest] }>()
+const props = withDefaults(defineProps<{ detail: CollectionDetail; busy: boolean; referenceCandidates?: readonly IllustratedReference[]; focusPhysicalId?: string }>(), { referenceCandidates: () => [], focusPhysicalId: '' })
+const emit = defineEmits<{ showRecords: [physicalId: string]; showRecording: [physicalId: string]; startRecording: [selection: RecordingPhysicalSelection]; openReservation: [selection: RecordingReservationSelection]; close: []; receive: []; page: [offset: number]; materialize: [request: CollectionMaterializeRequest]; updateCopy: [request: CollectionUpdateCopyRequest]; policy: [request: CollectionPolicyRequest]; addPhoto: [physicalId?: string]; changePhoto: [request: CollectionChangePhotoRequest] }>()
 const policy = ref<CollectorPolicy>('normal')
 const reserve = ref(0)
 watch(() => props.detail.model, model => { policy.value = model.collectorPolicy; reserve.value = model.minimumSealedReserve }, { immediate: true })
@@ -34,6 +35,16 @@ function materialize(lotId: string, bucket: CollectionMaterializeRequest['bucket
 }
 function update(copy: CollectionCopy, action: CollectionUpdateCopyRequest['action']): void {
   emit('updateCopy', { commandId: crypto.randomUUID(), physicalId: copy.physicalId, expectedRevision: copy.revision, action })
+}
+function startRecording(copy: CollectionCopy): void {
+  if (!copy.available || !['blank', 'erased'].includes(copy.usage) || copy.packaging === 'unknown' || props.detail.model.collectorPolicy === 'collector' || copy.packaging === 'sealed' && protectedSealed.value) return
+  emit('startRecording', { physicalId: copy.physicalId, physicalRevision: copy.revision, modelId: props.detail.model.id, skuId: copy.skuId, packaging: copy.packaging })
+}
+function openReservation(copy: CollectionCopy): void {
+  const owner = copy.reservationOwner
+  if (copy.usage !== 'reserved' || owner?.kind !== 'recording-plan' || copy.packaging === 'unknown') return
+  emit('openReservation', { physicalId: copy.physicalId, physicalRevision: copy.revision, modelId: props.detail.model.id,
+    skuId: copy.skuId, packaging: copy.packaging, draftId: owner.draftId, planId: owner.planId })
 }
 function savePolicy(): void {
   emit('policy', { commandId: crypto.randomUUID(), modelId: props.detail.model.id, expectedRevision: props.detail.model.revision, collectorPolicy: policy.value, minimumSealedReserve: Number(reserve.value) })
@@ -79,13 +90,16 @@ function state(copy: CollectionCopy): string {
     <h3>单盘档案</h3>
     <p v-if="!detail.copies.total" class="muted">尚未建立单盘档案。批次数量已计入库存，无需逐盘编号。</p>
     <p v-else-if="!detail.copies.items.length" class="muted">本页没有单盘档案。</p>
-    <article v-for="copy in detail.copies.items" :key="copy.physicalId" class="copy">
+    <article v-for="copy in detail.copies.items" :key="copy.physicalId" class="copy" :data-returned-copy="focusPhysicalId === copy.physicalId ? 'true' : undefined" :tabindex="focusPhysicalId === copy.physicalId ? -1 : undefined">
       <div><strong>{{ copy.physicalId }}</strong><p class="muted">{{ copy.lengthMinutes ? `${copy.lengthMinutes} 分钟 · ` : '' }}{{ state(copy) }}</p></div>
       <div class="copy-actions">
         <button :disabled="busy" @click="emit('showRecords', copy.physicalId)">档案与当前内容</button>
         <button v-if="copy.usage === 'recorded'" :disabled="busy" @click="emit('showRecording', copy.physicalId)">查看录音内容</button>
+        <button v-if="copy.usage === 'blank' || copy.usage === 'erased'" type="button" :disabled="busy || !copy.available || copy.packaging === 'unknown' || detail.model.collectorPolicy === 'collector' || (copy.packaging === 'sealed' && protectedSealed)" @click="startRecording(copy)">用于本次录音</button>
         <button :aria-label="`添加单盘照片 ${copy.physicalId}`" :disabled="busy || (detail.model.photoCount ?? 0) >= 24" @click="emit('addPhoto', copy.physicalId)">添加照片</button>
-        <button v-if="copy.usage === 'reserved'" :disabled="busy" @click="update(copy, 'cancel-reservation')">取消预留</button>
+        <button v-if="copy.usage === 'reserved' && copy.reservationOwner?.kind === 'inventory'" :disabled="busy" @click="update(copy, 'cancel-reservation')">取消库存预留</button>
+        <button v-else-if="copy.usage === 'reserved' && copy.reservationOwner?.kind === 'recording-plan'" :disabled="busy" @click="openReservation(copy)">这盘的制作</button>
+        <button v-else-if="copy.usage === 'reserved'" type="button" disabled title="预留归属尚未确认；不能在库存页取消预留">预留归属待核对</button>
         <button v-else-if="copy.usage === 'blank' || copy.usage === 'erased'" :disabled="busy || !copy.available || detail.model.collectorPolicy === 'collector' || (copy.packaging === 'sealed' && protectedSealed)" @click="update(copy, 'reserve')">预留</button>
         <button :disabled="busy" @click="update(copy, copy.available ? 'mark-unavailable' : 'mark-available')">{{ copy.available ? '标为不可用' : '恢复可用' }}</button>
       </div>
@@ -100,6 +114,7 @@ function state(copy: CollectionCopy): string {
 .reference-gallery :deep(.reference-image) { height: 240px; }
 .reference-gallery figcaption { padding: 8px 0; color: var(--mb-text-secondary); font-size: 12px; line-height: 1.6; }
 .model-detail { margin-top: 26px; } .detail-toolbar, .lot header, .lot-row, .copy { display: flex; justify-content: space-between; align-items: center; gap: 14px; } .detail-toolbar { margin-bottom: 24px; }
+.copy[data-returned-copy='true'] { outline: 2px solid var(--mb-accent); outline-offset: 3px; }
 h2 { font-size: 28px; margin: 0; overflow-wrap: anywhere; } h3 { font-size: 17px; margin: 28px 0 12px; }
 .muted { color: var(--mb-text-secondary); font-size: 13px; line-height: 1.7; }
 .counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 24px 0; } .counts div { border: 1px solid var(--mb-glass-border); border-radius: 10px; padding: 16px; background: var(--mb-bg-base); } dt { font-size: 12px; color: var(--mb-text-secondary); } dd { margin: 8px 0 0; font-size: 26px; font-variant-numeric: tabular-nums; }

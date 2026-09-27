@@ -2,8 +2,10 @@
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import type { RecordingAttempt, RecordingAttemptEndReason, RecordingAttemptSide, RecordingPlanVersion } from '@music-bridge/contracts'
 import { createRecordingAttemptController } from './recording-attempt-controller'
+import DatCueReminders from './DatCueReminders.vue'
 
 const props = defineProps<{ plan?: RecordingPlanVersion }>()
+const emit = defineEmits<{ 'leave-state': [state: { canLeave: boolean; reason: string | null }] }>()
 const controller = createRecordingAttemptController({ api: window.musicBridge, onChange: () => { state.value = { ...controller.state } } })
 const state = shallowRef({ ...controller.state })
 const heading = ref<HTMLElement>(), detailHeading = ref<HTMLElement>()
@@ -16,14 +18,17 @@ const reasonLabels: Record<RecordingAttemptEndReason, string> = { 'user-stop': '
 const actions = computed(() => {
   void state.value
   return {
-    stop: controller.canStop(), retry: controller.canRetry(),
+    begin: controller.canBegin(), beginSide: controller.canBeginSide(), stop: controller.canStop(), retry: controller.canRetry(),
     physical: state.value.attempt?.sides.filter(side => controller.canConfirm('physical-stop', side.side)) ?? [],
     flip: controller.canConfirm('flip'), physicalRecording: controller.canConfirm('physical-recording'), final: controller.canConfirm('final-verification'),
   }
 })
 const hasConfirmation = computed(() => actions.value.physical.length || actions.value.flip || actions.value.physicalRecording || actions.value.final)
+const selectionLockReason = computed(() => { void state.value; return controller.selectionLockReason() })
 const fact = (value: boolean | string | undefined) => value ? '已确认' : '未确认'
 const frames = (value: number) => value.toLocaleString('zh-CN')
+defineExpose({ canLeave: () => controller.canLeave(), leaveBlockReason: () => controller.leaveBlockReason() })
+watch(() => { void state.value; return controller.leaveBlockReason() }, reason => emit('leave-state', { canLeave: reason === null, reason }), { immediate: true, flush: 'sync' })
 watch(() => props.plan, value => { controller.setPlan(value); void controller.refresh() }, { immediate: true, flush: 'sync' })
 async function act(event: Event, operation: () => Promise<void>): Promise<void> {
   const origin = event.currentTarget as HTMLElement | null
@@ -38,12 +43,21 @@ onBeforeUnmount(() => { disposed = true; controller.dispose() })
 <template>
   <section class="attempt-panel" data-testid="recording-attempt-panel" aria-labelledby="recording-attempt-title">
     <h4 id="recording-attempt-title" ref="heading" tabindex="-1">5 · 正式录音尝试</h4>
-    <div class="boundary" role="note"><strong>Gate B 仍为 NOT_RUN，不能开始正式录音。</strong><p>无设备检查不授予输出许可。这里不播放音频、不自动开始或继续 B 面；查看历史也不改变实体库存。</p></div>
-    <button type="button" disabled aria-describedby="recording-attempt-blocked">开始正式录音</button>
-    <p id="recording-attempt-blocked" class="muted">当前 formalReady=false。开始 A 面／连续节目与开始 B 面均被阻断。</p>
+    <div class="boundary" role="note"><strong>正式输出只认本次实时预检和 Core 开始时的再次核验。</strong><p>冻结计划或无设备检查不授予永久许可；这里不会自动开始 A 面、连续节目或 B 面，查看历史也不改变实体库存。</p></div>
     <p v-if="!state.plan">请先明确查看一份已冻结计划；不会自动选择历史或开始录音。</p>
     <template v-else>
       <p>当前计划第 {{ state.plan.sequence }} 版 · <code>{{ state.plan.id }}</code></p>
+      <div class="admission" aria-live="polite">
+        <button type="button" :disabled="state.preflightPhase === 'loading' || state.beginSending" @click="act($event, async () => { await controller.preflight() })">本次正式输出预检</button>
+        <p v-if="state.preflightPhase === 'unread'">尚未运行本次预检；不会沿用旧计划或旧设备的资格。</p>
+        <p v-else-if="state.preflightPhase === 'loading'">正在核验计划、归档、实体副本与输出设备…</p>
+        <p v-else-if="state.preflightPhase === 'error'" role="alert">{{ state.preflightError }}</p>
+        <p v-else-if="state.preflightPhase === 'blocked'" role="alert">本次预检被阻断 · Gate B {{ state.preflight?.gateB }}。请核对逐项预检，不开始输出。</p>
+        <p v-else>本次预检通过 · Gate B VERIFIED；点击开始时仍会实时重检，Core 在 Begin 时再次准入。</p>
+        <label class="check" for="recording-attempt-start-confirm"><input id="recording-attempt-start-confirm" type="checkbox" :checked="state.startConfirmed" :disabled="state.preflightPhase !== 'ready' || state.beginSending" @change="controller.setStartConfirmed(($event.target as HTMLInputElement).checked)">我确认以此冻结计划开始本次 A 面／连续节目正式输出；不会自动继续 B 面</label>
+        <button type="button" :disabled="!actions.begin" @click="act($event, controller.begin)">开始正式录音</button>
+        <button v-if="state.pendingBegin" type="button" :disabled="state.beginSending" @click="act($event, controller.retryBegin)">按原命令重试开始</button>
+      </div>
       <div class="actions"><button type="button" :disabled="state.listPhase === 'loading'" @click="act($event, () => controller.refresh())">刷新录音尝试</button></div>
       <div aria-live="polite">
         <p v-if="state.listPhase === 'loading'">正在读取这份计划的录音尝试…</p>
@@ -52,7 +66,8 @@ onBeforeUnmount(() => { disposed = true; controller.dispose() })
           <p v-if="!state.page.total">这份计划尚无正式录音尝试；未生成演示记录。</p>
           <template v-else>
             <p class="muted">共 {{ state.page.total }} 次 · 每页最多 25 条；请明确选择要查看的记录。</p>
-            <ol class="history"><li v-for="item in state.page.items" :key="item.id"><p>{{ statusLabels[item.status] }} · {{ item.createdAt }}</p><button type="button" :aria-label="`查看录音尝试 ${item.id}`" :disabled="state.reading" @click="act($event, () => controller.select(item.id))">查看录音尝试 {{ item.id }}</button></li></ol>
+            <p v-if="selectionLockReason" class="muted">{{ selectionLockReason }}</p>
+            <ol class="history"><li v-for="item in state.page.items" :key="item.id"><p>{{ statusLabels[item.status] }} · {{ item.createdAt }}</p><button type="button" :aria-label="`查看录音尝试 ${item.id}`" :disabled="state.reading || !controller.canSelect(item.id)" @click="act($event, () => controller.select(item.id))">查看录音尝试 {{ item.id }}</button></li></ol>
             <nav class="actions" aria-label="录音尝试分页"><button type="button" :disabled="state.page.offset === 0" @click="act($event, () => controller.refresh(state.page!.offset - 25))">上一页录音尝试</button><button type="button" :disabled="!state.page.hasMore" @click="act($event, () => controller.refresh(state.page!.offset + 25))">下一页录音尝试</button></nav>
           </template>
         </template>
@@ -79,11 +94,12 @@ onBeforeUnmount(() => { disposed = true; controller.dispose() })
             <label class="check" for="recording-attempt-confirm"><input id="recording-attempt-confirm" type="checkbox" :checked="state.confirmed" @change="controller.setConfirmed(($event.target as HTMLInputElement).checked)">我已现场核实下方将确认的事实；本勾选本身不表示录音完成</label>
             <div class="actions"><button v-for="side in actions.physical" :key="side.side" type="button" :disabled="!state.confirmed" @click="act($event, () => controller.confirm('physical-stop', side.side))">确认 {{ sideLabels[side.side] }}实体已停止</button><button v-if="actions.flip" type="button" :disabled="!state.confirmed" @click="act($event, () => controller.confirm('flip'))">确认已翻面</button><button v-if="actions.physicalRecording" type="button" :disabled="!state.confirmed" @click="act($event, () => controller.confirm('physical-recording'))">确认实体录制完成</button><button v-if="actions.final" type="button" :disabled="!state.confirmed" @click="act($event, () => controller.confirm('final-verification'))">确认最终核验完成</button></div>
           </div>
-          <div v-if="state.attempt.phase === 'awaiting-side-b'"><p>已确认翻面，仍需新的明确开始操作。当前 Gate B 未认证，不能继续 B 面。</p><button type="button" disabled>明确开始 B 面</button></div>
+          <div v-if="state.attempt.phase === 'awaiting-side-b'"><p>已确认翻面；B 面还需本次预检、明确确认与 Core 再次准入，不会自动续录。</p><label class="check" for="recording-attempt-side-b-confirm"><input id="recording-attempt-side-b-confirm" type="checkbox" :checked="state.sideConfirmed" :disabled="state.preflightPhase !== 'ready' || state.reading || !!state.detailError" @change="controller.setSideConfirmed(($event.target as HTMLInputElement).checked)">我已确认实体已翻面，明确开始此 Attempt 的 B 面</label><button type="button" :disabled="!actions.beginSide" @click="act($event, controller.beginSide)">明确开始 B 面</button></div>
           <p v-if="state.attempt.status !== 'in-progress'" class="muted">本次可能已写入介质；不会自动恢复为空白或已擦除，也不会自动登记实体音乐库。</p>
           <details><summary>查看本次固定谱系与完整性摘要</summary><p>计划 <code>{{ state.attempt.planVersionId }}</code></p><p>计划 Hash <code>{{ state.attempt.planContentHash }}</code></p><p>执行资产 <code>{{ state.attempt.executionAssetId }}</code></p><template v-for="side in state.attempt.sides" :key="side.side"><p>{{ sideLabels[side.side] }} Recipe <code>{{ side.recipeHash }}</code></p><p>音频 Hash <code>{{ side.audioSha256 }}</code></p><p>PCM Hash <code>{{ side.pcmSha256 }}</code></p></template></details>
         </template>
       </div>
+      <DatCueReminders v-if="state.plan.layout?.spec.format === 'dat'" :plan="state.plan" :attempt="state.attempt" />
     </template>
     <div aria-live="polite"><p v-if="state.sending">正在等待操作回执；尚不能确认输出已停止。</p><p v-if="state.notice">{{ state.notice }}</p></div>
     <div v-if="state.operationError" role="alert"><p>{{ state.operationError }}</p><p v-if="state.pending">原操作属于记录 <code>{{ state.pending.snapshot.id }}</code>；请在原计划和记录内手动重试。</p><button v-if="state.pending" type="button" :disabled="!actions.retry" @click="act($event, controller.retry)">重试原操作</button></div>

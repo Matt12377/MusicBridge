@@ -9,12 +9,15 @@ function fixture() {
   // 这里只构造控制器读取的字段；完整计划的跨字段守恒由合同和真实Core测试覆盖。
   const assets = [1, 2].map(n => ({ id: id(n), draftId: id(10), layoutVersionId: id(11), masterVersionId: id(12), mode: 'direct', createdAt: stamp, manifestHash: hash } as ExecutionAsset))
   const operations = [1, 2].map(n => ({ id: id(n + 20), assetId: id(n), draftId: id(10), layoutVersionId: id(11), masterVersionId: id(12), phase: 'FINALIZED', active: false, createdAt: stamp } as ArchiveOperationView))
-  const selection = { assetId: id(2), archiveOperationId: id(22) }
+  const outputSelection = { endpointId: 'synthetic_output', selectionGeneration: id(70) }
+  const selection = { assetId: id(2), archiveOperationId: id(22), outputSelection }
   const proposal = { draftId: id(10), selection, proposalFingerprint: hash, checkedAt: stamp, execution: { assetId: id(2) }, archive: { operationId: id(22) }, formalReady: false } as RecordingPlanProposal
   const version = { id: id(30), draftId: id(10), sequence: 1, createdAt: stamp, execution: { assetId: id(2) }, archive: { operationId: id(22) }, formalReady: false } as RecordingPlanVersion
   const preflight = { planVersionId: version.id, checkedAt: stamp, state: 'blocked', gateB: 'NOT_RUN', checks: [{ category: 'backend', state: 'not-run', code: 'BACKEND_NOT_CERTIFIED' }], formalReady: false } as RecordingPreflightResult
   const calls: { name: string; value?: unknown }[] = []
   const api: RecordingPlanApi = {
+    async listRecordingDeviceCandidates() { calls.push({ name: 'device-list' }); return { candidates: [{ endpointId: outputSelection.endpointId, label: '合成端点', available: true }], selected: null, blockedReason: null, deviceOpened: false, gateB: 'NOT_RUN', formalReady: false } },
+    async selectRecordingDevice(request) { calls.push({ name: 'device-select', value: request }); return outputSelection },
     async listExecutionAssets() { calls.push({ name: 'assets' }); return { draftId: id(10), assets, jobs: [] } },
     async listArchives() { calls.push({ name: 'archives' }); return { draftId: id(10), operations } },
     async listMasterVersions() { calls.push({ name: 'layouts' }); return { draftId: id(10), masters: [], layouts: [{ id: id(11), draftId: id(10), masterVersionId: id(12) } as LayoutVersion], jobs: [] } },
@@ -35,13 +38,13 @@ async function controller(f = fixture(), initialContext?: { layoutId: string; mo
   return { ...f, c }
 }
 async function select(f: Awaited<ReturnType<typeof controller>>) {
-  await f.c.refresh(); f.c.selectAsset(id(2)); f.c.selectArchive(id(22))
+  await f.c.refresh(); await f.c.refreshDevice(); f.c.selectAsset(id(2)); f.c.selectArchive(id(22)); await f.c.selectDevice('synthetic_output')
 }
 
 test('计划读取不默认选择资产/归档/历史版本，不自动预检、冻结或播放', async () => {
   const f = await controller(); assert.equal(f.c.state.status, 'unread'); await f.c.refresh()
   assert.equal(f.c.state.status, 'ready'); assert.equal(f.c.state.assetId, ''); assert.equal(f.c.state.archiveOperationId, ''); assert.equal(f.c.state.version, undefined)
-  assert.deepEqual(f.calls.map(x => x.name).sort(), ['archives', 'assets', 'layouts', 'plans']); f.c.dispose()
+  assert.deepEqual(f.calls.map(x => x.name).filter(name => name !== 'device-list').sort(), ['archives', 'assets', 'layouts', 'plans']); f.c.dispose()
 })
 test('明确选择非首资产和同谱系FINALIZED归档，换资产清空下游而不猜最近记录', async () => {
   const f = await controller(); await select(f)

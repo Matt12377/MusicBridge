@@ -21,9 +21,11 @@ export function createRecordingPrintWorker(options: {
     if (stopped || !claimed.lease) return
     const lease = claimed.lease
     const identity = { leaseId: lease.leaseId, workerId, jobId: lease.jobId, inputHash: lease.inputHash }
+    let phase = 'render'
     try {
       const output = await options.renderer.render(lease)
       if (stopped) return
+      phase = 'complete'
       const payload: IpcCommandPayloads['recordingPrintWorker.complete'] = { ...identity, ...output }
       // 原提交可能已落盘；仅重试同一有界结果，不重渲染、不替换旧PDF。
       try { await options.requestInternal('recordingPrintWorker.complete', payload, options.datasetId) }
@@ -35,6 +37,7 @@ export function createRecordingPrintWorker(options: {
       if (stopped) return
       const code = error instanceof Error && 'code' in error ? error.code : undefined
       const errorCode = allowedErrors.find(value => value === code) ?? 'RENDER_FAILED'
+      if (process.env.MUSIC_BRIDGE_UI_E2E === '1') console.error(`[印刷任务诊断] 阶段=${phase} 结果=${errorCode}`)
       // Core只接受仍有效lease；已完成或换库不会被这份迟到故障改写。
       await options.requestInternal('recordingPrintWorker.fail', { ...identity, errorCode }, options.datasetId)
     }

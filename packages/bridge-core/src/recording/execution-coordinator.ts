@@ -14,6 +14,7 @@ import type { MediaPlanningStore } from './media-store.js';
 import type { SourceStore } from './source-store.js';
 import type { SourceEvidenceService } from './source-evidence.js';
 import { mediaFingerprint } from './media-store.js';
+import { verifyFrozenDistribution } from './version-distribution.js';
 import { planDirectExecution, planPreparedExecution, planConvertedDirectExecution, planPreparedDerivative, requireCopyFormat, ExecutionCompileError } from './execution-plan.js';
 import { verifyPreparedPcm } from './execution-compiler.js';
 import { readPcmWave, assertPcmInput } from './execution-wave.js';
@@ -56,10 +57,14 @@ export function createExecutionCoordinator({ store, profiles, preparationStore, 
     if (!session || session.revision !== selection.sessionRevision) return invalid('请先确认本次录音参数，参数修订改变后需要重新预览。');
     const settings = profiles.resolve(session), compatibility = settings.profile.content.compatibility, currentPlan = mediaStore.detail(layout.planId), stock = mediaStore.reservationStock(layout.reservation);
     if (!destination.authorized || !stock || !currentPlan.reservation || mediaFingerprint(currentPlan.reservation) !== mediaFingerprint(layout.reservation) || stock.lengthMinutes !== layout.lengthMinutes || !compatibility.confirmed || (layout.spec.format === 'dat' ? !compatibility.dat : !compatibility.cassetteTypes.some(t => t === stock.model.tapeType))) return invalid('介质预留或 Profile 兼容性需要重新确认。');
+    const verified = verifyFrozenDistribution(master, layout);
+    if (!verified) return invalid('冻结分盘或时间线已失效，请重新核对版本。');
     let retained: ExecutionInput['retained']; const locations: ExecutionInput['sources'][number][] = [];
     if (selection.mode === 'direct' || selection.mode === 'direct-converted') {
-      for (const source of master.sourceEvidence) {
-        const binding = sourceStore.binding(source.binding.id), content = master.content.tracks.find(t => t.trackId === source.trackId)!;
+      for (const trackId of verified.trackIds) {
+        const source = master.sourceEvidence.find(item => item.trackId === trackId), content = master.content.tracks.find(t => t.trackId === trackId);
+        if (!source || !content) return invalid('冻结本盘曲目已失联，请重新核对版本。');
+        const binding = sourceStore.binding(source.binding.id);
         if (!binding.userConfirmed || binding.invalidated || binding.evidence.sha256 !== content.source.sha256 || binding.evidence.size !== content.source.size || mediaFingerprint(binding.evidence.technical) !== mediaFingerprint(content.source.technical)) throw new SourceFileError('CONTENT_CHANGED');
         locations.push({ trackId: source.trackId, root: sourceStore.root(binding.rootId), relative: binding.relative });
       }

@@ -45,8 +45,15 @@ export async function preparationFixture(t: test.TestContext, options: Recording
   const plan = await media.reserve({ commandId: randomUUID(), planId: saved.id, expectedRevision: saved.revision, skuId: preview.candidates.items[0]!.skuId, packaging: 'opened', userConfirmed: true });
   const { createMasterVersionsCoordinator } = await import('../../src/recording/versions-coordinator.js');
   const versions = createMasterVersionsCoordinator({ store: repository.versions, mediaStore: repository.media, media, drafts: repository.drafts, sourceStore: repository.sources, sources, ...(options.probe ? { probe: options.probe } : {}) });
-  t.after(async () => { await versions.close(); await sources.close(); repository.close(); if (!options.retainDirectory) await rm(directory, { recursive: true, force: true }); });
+  const dependentCleanups: Array<() => Promise<void>> = [];
+  // node:test按注册顺序执行after；依赖库的异步收口必须由此处逆序等待后才能关库。
+  const registerDependentCleanup = (cleanup: () => Promise<void>) => { dependentCleanups.push(cleanup); };
+  t.after(async () => {
+    for (const cleanup of [...dependentCleanups].reverse()) await cleanup();
+    await versions.close(); await sources.close(); repository.close();
+    if (!options.retainDirectory) await rm(directory, { recursive: true, force: true });
+  });
   const proposal = () => versions.preview({ planId: plan.id, sampleRate: 96000 });
   const freeze = async () => { const p = await proposal(); return versions.freeze({ commandId: randomUUID(), planId: plan.id, sampleRate: 96000, proposalFingerprint: p.proposalFingerprint, userConfirmed: true }); };
-  return { repository, sources, media, versions, draft, plan, proposal, freeze, directory, sourcePath, file, filePath, root };
+  return { repository, sources, media, versions, draft, plan, proposal, freeze, directory, sourcePath, file, filePath, root, registerDependentCleanup };
 }

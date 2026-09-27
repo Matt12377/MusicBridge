@@ -1,6 +1,8 @@
 import type { VolumeRequest, VolumeSnapshot } from '@music-bridge/contracts'
 import type { RecordingPrintsPublicApi } from '@music-bridge/contracts'
+import type { RecordingWorkspacePublicApi } from '@music-bridge/contracts'
 import type { RecordingReplicaPublicApi } from '@music-bridge/contracts'
+import type { RecordingDeviceSelectionPublicApi } from '@music-bridge/contracts'
 import type { RecordingRecordsPublicApi } from '@music-bridge/contracts'
 import type { RecordingAttemptsPublicApi } from '@music-bridge/contracts'
 import type { RecordingPlansPublicApi } from '@music-bridge/contracts'
@@ -12,9 +14,11 @@ import type { CommandOutboxPublicApi } from '@music-bridge/contracts'
 import type { RecordingProfilesPublicApi, RecordingExecutionPublicApi, RecordingArchivePublicApi, RecordingBackupsPublicApi } from '@music-bridge/contracts'
 import type { PreparedPublicApi } from '@music-bridge/contracts'
 import type { PreparationPublicApi } from '@music-bridge/contracts'
+import type { PreparationZipPublicApi } from '@music-bridge/contracts'
 import type { MasterVersionsPublicApi } from '@music-bridge/contracts'
 import type { MediaPlanningPublicApi } from '@music-bridge/contracts'
 import type { RecordingSourcesPublicApi } from '@music-bridge/contracts'
+import type { SourceCandidatesPublicApi } from '@music-bridge/contracts'
 import type { MasterDraftsPublicApi } from '@music-bridge/contracts'
 import type { PhysicalLinksPublicApi } from '@music-bridge/contracts'
 import type { PhysicalMusicPublicApi } from '@music-bridge/contracts'
@@ -69,7 +73,7 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
   autoReconnect: false,
 }
 
-export interface MusicBridgePublicApi extends RecordingPrintsPublicApi, RecordingReplicaPublicApi, RecordingRecordsPublicApi, RecordingAttemptsPublicApi, RecordingOutputPublicApi, RecordingPlansPublicApi, CollectionProgressPublicApi, SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
+export interface MusicBridgePublicApi extends RecordingWorkspacePublicApi, RecordingPrintsPublicApi, RecordingReplicaPublicApi, RecordingDeviceSelectionPublicApi, RecordingRecordsPublicApi, RecordingAttemptsPublicApi, RecordingOutputPublicApi, RecordingPlansPublicApi, CollectionProgressPublicApi, SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, PreparationZipPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, SourceCandidatesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
   getVolume: () => Promise<VolumeSnapshot>
   setVolume: (request: VolumeRequest) => Promise<VolumeSnapshot>
   setAppearanceTheme: (theme: 'light' | 'dark') => Promise<void>
@@ -155,6 +159,7 @@ export const PUBLIC_API_KEYS = [
   'setVolume',
   'getMasterArtwork',
   'pickMasterArtwork',
+  'pickRecordingPrintImage',
   'saveMasterArtwork',
   'listRecordingPrints',
   'requestRecordingPrint',
@@ -168,6 +173,9 @@ export const PUBLIC_API_KEYS = [
   'startRecordingReplica',
   'getRecordingReplicaRun',
   'stopRecordingReplica',
+  'controlRecordingReplica',
+  'listRecordingDeviceCandidates',
+  'selectRecordingDevice',
   'listRecordingRecords',
   'getRecordingRecord',
   'getRecordingRecordVisual',
@@ -189,6 +197,8 @@ export const PUBLIC_API_KEYS = [
   'freezeRecordingPlan',
   'preflightRecordingPlan',
   'cancelRecordingPlanRead',
+  'getRecordingWorkspaceContext',
+  'putRecordingWorkspaceContext',
   'getCommandOutbox',
   'retryCommandOutbox',
   'dismissCommandOutbox',
@@ -236,6 +246,9 @@ export const PUBLIC_API_KEYS = [
   'adjustSpreadsheetInventory',
   'listSpreadsheetAdjustments',
   'registerReferenceSource',
+  'previewReferenceSourceZip',
+  'registerReferenceSourceZip',
+  'listReferenceSourceZipReceipts',
   'listReferenceSources',
   'getReferenceSource',
   'previewCatalogRevision',
@@ -273,6 +286,13 @@ export const PUBLIC_API_KEYS = [
   'getPreparationJob',
   'cancelPreparationJob',
   'openPreparationWorkspace',
+  'choosePreparationZipTarget',
+  'previewPreparationZip',
+  'startPreparationZip',
+  'listPreparationZips',
+  'getPreparationZipJob',
+  'getPreparationZipReceipt',
+  'cancelPreparationZipJob',
 
   'listMasterVersions',
   'previewMasterVersions',
@@ -295,6 +315,10 @@ export const PUBLIC_API_KEYS = [
   'cancelRecordingSourceJob',
   'recheckRecordingSource',
   'confirmRecordingSource',
+  'startRecordingSourceCandidateScan',
+  'getRecordingSourceCandidateScan',
+  'cancelRecordingSourceCandidateScan',
+  'selectRecordingSourceCandidate',
   'listMasterDrafts',
   'getMasterDraft',
   'appendMasterDraft',
@@ -305,6 +329,7 @@ export const PUBLIC_API_KEYS = [
   'listDigitalAlbums',
   'getDigitalAlbum',
   'getPhysicalLinks',
+  'getPhysicalLinkHistory',
   'getDigitalRuntime',
   'confirmPhysicalLink',
   'relocateDigitalAlbum',
@@ -314,7 +339,11 @@ export const PUBLIC_API_KEYS = [
   'getCollectionMatrix',
   'listPhysicalMusic',
   'getPhysicalMusic',
+  'getCommercialCopies',
   'savePhysicalRelease',
+  'materializeCommercialCopy',
+  'saveCommercialCopyDetails',
+  'assignCommercialCopyPhoto',
   'saveLegacyRecording',
   'addPhysicalMusicPhoto',
   'getPhysicalMusicPhoto',
@@ -325,6 +354,7 @@ export const PUBLIC_API_KEYS = [
   'changeCollectionPhoto',
   'listCollection',
   'getCollectionModel',
+  'getCollectionCopy',
   'receiveCollectionStock',
   'materializeCollectionCopy',
   'updateCollectionCopy',
@@ -567,6 +597,10 @@ export function createPreloadApi(
   setAppearanceTheme: (theme: 'light' | 'dark') => Promise<void> = async () => {},
   volumeApi?: {getVolume: () => Promise<VolumeSnapshot>; setVolume: (request: VolumeRequest) => Promise<VolumeSnapshot>},
   displayApi?: { getRoonDisplaySettings: () => Promise<RoonDisplaySettings>; configureRoonDisplay: (url: string) => Promise<RoonDisplaySettings> },
+  recordingWorkspaceApi?: RecordingWorkspacePublicApi,
+  sourceCandidatesApi?: SourceCandidatesPublicApi,
+  preparationZipApi?: PreparationZipPublicApi,
+  recordingDeviceApi?: RecordingDeviceSelectionPublicApi,
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   const outputUnavailable = async (): Promise<never> => { throw new Error('输出核验服务暂时不可用；未访问设备。') }
@@ -574,22 +608,25 @@ export function createPreloadApi(
     setAppearanceTheme,
     ...(displayApi ?? { getRoonDisplaySettings: async () => ({ url: '', status: 'disabled' as const }), configureRoonDisplay: collectionUnavailable }),
     ...(volumeApi ?? {getVolume: async () => ({zoneId: '', outputs: []}), setVolume: collectionUnavailable}),
-    ...(recordingPrintsApi ?? { getMasterArtwork: collectionUnavailable, pickMasterArtwork: collectionUnavailable, saveMasterArtwork: collectionUnavailable, listRecordingPrints: collectionUnavailable, requestRecordingPrint: collectionUnavailable, retryRecordingPrint: collectionUnavailable, getRecordingPrint: collectionUnavailable, exportRecordingPrint: collectionUnavailable }),
-    ...(recordingReplicaApi ?? { getRecordingReplicaStatus: collectionUnavailable, inspectRecordingReplica: collectionUnavailable, cancelRecordingReplicaRead: collectionUnavailable, startRecordingReplica: collectionUnavailable, getRecordingReplicaRun: collectionUnavailable, stopRecordingReplica: collectionUnavailable }),
+    ...(recordingPrintsApi ?? { getMasterArtwork: collectionUnavailable, pickMasterArtwork: collectionUnavailable, pickRecordingPrintImage: collectionUnavailable, saveMasterArtwork: collectionUnavailable, listRecordingPrints: collectionUnavailable, requestRecordingPrint: collectionUnavailable, retryRecordingPrint: collectionUnavailable, getRecordingPrint: collectionUnavailable, exportRecordingPrint: collectionUnavailable }),
+    ...(recordingReplicaApi ?? { getRecordingReplicaStatus: collectionUnavailable, inspectRecordingReplica: collectionUnavailable, cancelRecordingReplicaRead: collectionUnavailable, startRecordingReplica: collectionUnavailable, getRecordingReplicaRun: collectionUnavailable, stopRecordingReplica: collectionUnavailable, controlRecordingReplica: collectionUnavailable }),
+    ...(recordingDeviceApi ?? { listRecordingDeviceCandidates: collectionUnavailable, selectRecordingDevice: collectionUnavailable }),
     ...(recordingRecordsApi ?? { listRecordingRecords: collectionUnavailable, getRecordingRecord: collectionUnavailable, getRecordingRecordVisual: collectionUnavailable, getPhysicalRecordingHistory: collectionUnavailable, previewPhysicalRecordingDisposition: collectionUnavailable, applyPhysicalRecordingDisposition: collectionUnavailable }),
     ...(recordingAttemptsApi ?? { listRecordingAttempts: collectionUnavailable, getRecordingAttempt: collectionUnavailable, beginRecordingAttempt: collectionUnavailable, confirmRecordingAttempt: collectionUnavailable, beginRecordingAttemptSide: collectionUnavailable, stopRecordingAttempt: collectionUnavailable }),
     ...(recordingOutputApi ?? { getRecordingOutputStatus: outputUnavailable, checkRecordingOutput: outputUnavailable, cancelRecordingOutputCheck: outputUnavailable }),
     ...(recordingPlansApi ?? { listRecordingPlans: collectionUnavailable, getRecordingPlanVersion: collectionUnavailable, previewRecordingPlan: collectionUnavailable, freezeRecordingPlan: collectionUnavailable, preflightRecordingPlan: collectionUnavailable, cancelRecordingPlanRead: collectionUnavailable }),
+    ...(recordingWorkspaceApi ?? { getRecordingWorkspaceContext: collectionUnavailable, putRecordingWorkspaceContext: collectionUnavailable }),
     ...(commandOutboxApi ?? { getCommandOutbox: collectionUnavailable, retryCommandOutbox: collectionUnavailable, dismissCommandOutbox: collectionUnavailable, acknowledgeCommandOutbox: collectionUnavailable }),
     ...(recordingBackupsApi ?? { activateRestoredDataset: collectionUnavailable, getBackupOverview: collectionUnavailable, chooseBackupRoot: collectionUnavailable, startBackupJob: collectionUnavailable, cancelBackupJob: collectionUnavailable, revokeBackupRoot: collectionUnavailable }),
     ...(recordingArchiveApi ?? { listArchiveRoots: collectionUnavailable, chooseArchiveRoot: collectionUnavailable, initializeArchiveRoot: collectionUnavailable, revokeArchiveRoot: collectionUnavailable, previewArchive: collectionUnavailable, startArchive: collectionUnavailable, listArchives: collectionUnavailable, getArchiveOperation: collectionUnavailable, cancelArchive: collectionUnavailable, resumeArchive: collectionUnavailable, verifyArchive: collectionUnavailable, cancelArchiveRead: collectionUnavailable }),
     ...(recordingProfilesApi ?? { listRecordingProfiles: collectionUnavailable, getRecordingProfileHistory: collectionUnavailable, getRecordingProfileVersion: collectionUnavailable, saveRecordingProfile: collectionUnavailable, getRecordingSession: collectionUnavailable, saveRecordingSession: collectionUnavailable }),
     ...(recordingExecutionApi ?? { listExecutionAssets: collectionUnavailable, previewExecutionAsset: collectionUnavailable, startExecutionAsset: collectionUnavailable, getExecutionJob: collectionUnavailable, cancelExecutionJob: collectionUnavailable, cancelExecutionRead: collectionUnavailable, verifyExecutionAsset: collectionUnavailable }),
     ...(spreadsheetImportApi ?? { chooseSpreadsheetWorkbook: collectionUnavailable, listSpreadsheetSources: collectionUnavailable, getSpreadsheetSource: collectionUnavailable, getSpreadsheetSourceRows: collectionUnavailable, previewSpreadsheetImport: collectionUnavailable, applySpreadsheetImport: collectionUnavailable, getSpreadsheetImportRevision: collectionUnavailable, listSpreadsheetImportHistory: collectionUnavailable, previewSpreadsheetAdjustment: collectionUnavailable, adjustSpreadsheetInventory: collectionUnavailable, listSpreadsheetAdjustments: collectionUnavailable }),
-    ...(referenceCatalogApi ?? { registerReferenceSource: collectionUnavailable, listReferenceSources: collectionUnavailable, getReferenceSource: collectionUnavailable, previewCatalogRevision: collectionUnavailable, publishCatalogRevision: collectionUnavailable, getCatalogRevision: collectionUnavailable, setCatalogMatch: collectionUnavailable, getCatalogSnapshot: collectionUnavailable, getCatalogHistory: collectionUnavailable }),
+    ...(referenceCatalogApi ?? { registerReferenceSource: collectionUnavailable, previewReferenceSourceZip: collectionUnavailable, registerReferenceSourceZip: collectionUnavailable, listReferenceSourceZipReceipts: collectionUnavailable, listReferenceSources: collectionUnavailable, getReferenceSource: collectionUnavailable, previewCatalogRevision: collectionUnavailable, publishCatalogRevision: collectionUnavailable, getCatalogRevision: collectionUnavailable, setCatalogMatch: collectionUnavailable, getCatalogSnapshot: collectionUnavailable, getCatalogHistory: collectionUnavailable }),
     ...(collectionProgressApi ?? { listWantEntries: collectionUnavailable, saveWantEntry: collectionUnavailable, cancelWantEntry: collectionUnavailable, getWantEntryHistory: collectionUnavailable, getCollectionProgress: collectionUnavailable, captureCollectionProgress: collectionUnavailable, listCollectionProgressSnapshots: collectionUnavailable, getCollectionProgressSnapshot: collectionUnavailable, getCollectionModelLengths: collectionUnavailable }),
     ...(preparedApi ?? { listPrepared: collectionUnavailable, listPreparedSelections: collectionUnavailable, choosePreparedRender: collectionUnavailable, revokePreparedSelection: collectionUnavailable, revokePreparedSelections: collectionUnavailable, previewPreparedImport: collectionUnavailable, startPreparedImport: collectionUnavailable, getPreparedImportJob: collectionUnavailable, cancelPreparedImport: collectionUnavailable, reviewPrepared: collectionUnavailable, freezePrepared: collectionUnavailable }),
     ...(preparationApi ?? { listPreparationDestinations: collectionUnavailable, choosePreparationDestination: collectionUnavailable, revokePreparationDestination: collectionUnavailable, listPreparations: collectionUnavailable, previewPreparation: collectionUnavailable, startPreparation: collectionUnavailable, getPreparationJob: collectionUnavailable, cancelPreparationJob: collectionUnavailable, openPreparationWorkspace: collectionUnavailable }),
+    ...(preparationZipApi ?? { choosePreparationZipTarget: collectionUnavailable, previewPreparationZip: collectionUnavailable, startPreparationZip: collectionUnavailable, listPreparationZips: collectionUnavailable, getPreparationZipJob: collectionUnavailable, getPreparationZipReceipt: collectionUnavailable, cancelPreparationZipJob: collectionUnavailable }),
     ...(masterVersionsApi ?? { listMasterVersions: collectionUnavailable, previewMasterVersions: collectionUnavailable, freezeMasterVersions: collectionUnavailable, getMasterVersionJob: collectionUnavailable, cancelMasterVersionJob: collectionUnavailable }),
     ...(mediaPlanningApi ?? { listMediaPlans: collectionUnavailable, getMediaPlan: collectionUnavailable, previewMediaPlan: collectionUnavailable, balanceMediaPlan: collectionUnavailable, saveMediaPlan: collectionUnavailable, reserveMediaPlan: collectionUnavailable, releaseMediaPlan: collectionUnavailable }),
     ...(recordingSourcesApi ?? {
@@ -603,6 +640,7 @@ export function createPreloadApi(
       recheckRecordingSource: collectionUnavailable,
       confirmRecordingSource: collectionUnavailable,
     }),
+    ...(sourceCandidatesApi ?? { startRecordingSourceCandidateScan: collectionUnavailable, getRecordingSourceCandidateScan: collectionUnavailable, cancelRecordingSourceCandidateScan: collectionUnavailable, selectRecordingSourceCandidate: collectionUnavailable }),
     ...(masterDraftsApi ?? {
       listMasterDrafts: collectionUnavailable,
       getMasterDraft: collectionUnavailable,
@@ -615,6 +653,7 @@ export function createPreloadApi(
       listDigitalAlbums: collectionUnavailable,
       getDigitalAlbum: collectionUnavailable,
       getPhysicalLinks: collectionUnavailable,
+      getPhysicalLinkHistory: collectionUnavailable,
       getDigitalRuntime: collectionUnavailable,
       confirmPhysicalLink: collectionUnavailable,
       relocateDigitalAlbum: collectionUnavailable,
@@ -626,7 +665,11 @@ export function createPreloadApi(
     ...(physicalMusicApi ?? {
       listPhysicalMusic: collectionUnavailable,
       getPhysicalMusic: collectionUnavailable,
+      getCommercialCopies: collectionUnavailable,
       savePhysicalRelease: collectionUnavailable,
+      materializeCommercialCopy: collectionUnavailable,
+      saveCommercialCopyDetails: collectionUnavailable,
+      assignCommercialCopyPhoto: collectionUnavailable,
       saveLegacyRecording: collectionUnavailable,
       addPhysicalMusicPhoto: collectionUnavailable,
       getPhysicalMusicPhoto: collectionUnavailable,
@@ -635,7 +678,7 @@ export function createPreloadApi(
     ...(collectionApi ?? {
       pickCollectionPhoto: collectionUnavailable, addCollectionPhoto: collectionUnavailable,
       getCollectionPhoto: collectionUnavailable, changeCollectionPhoto: collectionUnavailable,
-      listCollection: collectionUnavailable, getCollectionModel: collectionUnavailable,
+      listCollection: collectionUnavailable, getCollectionModel: collectionUnavailable, getCollectionCopy: collectionUnavailable,
       receiveCollectionStock: collectionUnavailable, materializeCollectionCopy: collectionUnavailable,
       updateCollectionCopy: collectionUnavailable, setCollectionPolicy: collectionUnavailable,
     }),

@@ -12,9 +12,14 @@ import { verifyPreparedDataset, type PreparedRestoredDataset } from './restore-a
 import type { StoredRestoreActivation } from './restore-activation-store.js';
 import { createRestoredContentBinding } from './restore-content-binding.js';
 import { authorizeSourceDirectory, type RootCapability } from './source-files.js';
+import { verifyOutputRunBarrierDatabase } from './output-run-barrier.js';
+import { verifyPreparationZipDatabase, verifyPreparationZipSessionDatabase } from './preparation-export-store.js';
+import { verifyRecordingRecordPageIndex, verifyRecordingRecordPageSearch } from './record-page-index.js';
+import { verifyReferenceCatalogZipDatabase } from '../collection/reference-catalog-store.js';
+import { verifyVersionDistributionDatabase } from './versions-store.js';
 
 export interface OpenCollectionDataset {
-  readonly datasetId: string; assertIdentity(): void;
+  readonly datasetId: string; readonly databaseFile: string; assertIdentity(): void;
   repository: CollectionRepository; store: BackupWorkflowStore; privateRoot: RootCapability;
   contentBinding?: ArchiveContentBinding; pendingActivationId?: string;
   commit(): void; fail(): void; close(): void;
@@ -67,7 +72,14 @@ function openRepository(file: string, required: boolean, check: () => void): Col
     try {
       inspection.exec('PRAGMA trusted_schema=OFF; PRAGMA query_only=ON;');
       const version = Number(inspection.prepare('PRAGMA user_version').get()?.user_version);
-      if (!Number.isInteger(version) || version < 1 || version > 21 || inspection.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || inspection.prepare('PRAGMA foreign_key_check').all().length) unavailable();
+      if (!Number.isInteger(version) || version < 1 || version > 30 || inspection.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || inspection.prepare('PRAGMA foreign_key_check').all().length) unavailable();
+      if (version >= 8) verifyVersionDistributionDatabase(inspection);
+      if (version >= 25) verifyOutputRunBarrierDatabase(inspection);
+      if (version >= 26) verifyPreparationZipDatabase(inspection);
+      if (version >= 27) verifyRecordingRecordPageIndex(inspection);
+      if (version >= 28) verifyReferenceCatalogZipDatabase(inspection);
+      if (version >= 29) verifyRecordingRecordPageSearch(inspection);
+      if (version >= 30) verifyPreparationZipSessionDatabase(inspection);
       inspection.prepare('SELECT id FROM collection_models LIMIT 1').all();
     } finally { inspection.close(); }
   }
@@ -127,9 +139,10 @@ export async function openCollectionDataset(dataDirectory: string): Promise<Open
     }
     let settled = false, closed = false;
     const selected = repository;
-    const datasetIdentity = store.datasetIdentities.bind(selectedDataset ? `activation:${selectedDataset.id}` : 'default', selectedDataset ? path.join(selectedDataset.database.path, 'collection.sqlite') : path.join(privateRoot.path, 'collection.v1.sqlite'), !selectedDataset);
+    const databaseFile = selectedDataset ? path.join(selectedDataset.database.path, 'collection.sqlite') : path.join(privateRoot.path, 'collection.v1.sqlite');
+    const datasetIdentity = store.datasetIdentities.bind(selectedDataset ? `activation:${selectedDataset.id}` : 'default', databaseFile, !selectedDataset);
     return {
-      datasetId: datasetIdentity.datasetId,
+      datasetId: datasetIdentity.datasetId, databaseFile,
       assertIdentity() { if (closed) unavailable(); checkRoot(privateRoot); if (selectedDataset) checkDatasetTree(privateRoot, selectedDataset); datasetIdentity.assertCurrent(); },
       repository: selected, store, privateRoot,
       ...(selectedDataset ? { contentBinding: createRestoredContentBinding(selectedDataset, { isAuthorized: () => {

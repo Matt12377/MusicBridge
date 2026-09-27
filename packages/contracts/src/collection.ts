@@ -48,6 +48,8 @@ export interface CollectionLot {
 }
 /** 当前内容认知不是旧档案存在的推论；原实体身份和来源不变。 */
 export type PhysicalRecordingSummary = { revision: number } & ({ state: 'confirmed-recording'; recordingId: string } | { state: 'unknown' | 'erased' });
+/** 只读实时归属；旧响应没有此字段时，界面不得猜测可以取消预留。 */
+export type CollectionReservationOwner = { kind: 'inventory' | 'unknown' } | { kind: 'recording-plan'; draftId: string; planId: string };
 export interface CollectionCopy {
   recordingState?: PhysicalRecordingSummary;
   recordingTitle?: string;
@@ -60,6 +62,7 @@ export interface CollectionCopy {
   available: boolean;
   origin: 'blank-pool' | 'legacy-registration' | 'unclassified';
   revision: number;
+  reservationOwner?: CollectionReservationOwner;
 }
 export interface CollectionDetail {
   photos?: readonly CollectionPhoto[];
@@ -67,6 +70,8 @@ export interface CollectionDetail {
   lots: Page<CollectionLot>;
   copies: Page<CollectionCopy>;
 }
+/** 按永久实体编号读取实时投影；copyIndex 是同型号副本按当前列表顺序的零基位置。 */
+export interface CollectionCopyDetail { modelId: string; copy: CollectionCopy; copyIndex?: number }
 export interface CollectionReceiveRequest {
   commandId: string;
   model: CollectionDescriptor;
@@ -105,6 +110,7 @@ export interface CollectionPublicApi {
   getCollectionPhoto(photoId: string): Promise<CollectionPhotoImage>;
   changeCollectionPhoto(request: CollectionChangePhotoRequest): Promise<CollectionMutationResult>;
   getCollectionModel(modelId: string, page: PageRequest): Promise<CollectionDetail>;
+  getCollectionCopy(physicalId: string): Promise<CollectionCopyDetail>;
   receiveCollectionStock(request: CollectionReceiveRequest): Promise<CollectionMutationResult>;
   materializeCollectionCopy(request: CollectionMaterializeRequest): Promise<CollectionMutationResult>;
   updateCollectionCopy(request: CollectionUpdateCopyRequest): Promise<CollectionMutationResult>;
@@ -214,13 +220,21 @@ export function isPhysicalRecordingSummary(v: unknown): v is PhysicalRecordingSu
     && (v.state === 'confirmed-recording' ? v.revision >= 1 && typeof v.recordingId === 'string' && v.recordingId.length === 36 && isCollectionId(v.recordingId)
       : (v.state === 'unknown' || v.state === 'erased' && v.revision >= 1) && v.recordingId === undefined);
 }
-function isCollectionCopy(v: unknown): v is CollectionCopy {
-  return record(v) && keys(v, ['physicalId', 'lotId', 'skuId', 'lengthMinutes', 'packaging', 'usage', 'available', 'origin', 'revision', 'recordingTitle', 'recordingState'])
+export function isCollectionCopy(v: unknown): v is CollectionCopy {
+  return record(v) && keys(v, ['physicalId', 'lotId', 'skuId', 'lengthMinutes', 'packaging', 'usage', 'available', 'origin', 'revision', 'recordingTitle', 'recordingState', 'reservationOwner'])
+    && (v.reservationOwner === undefined || v.usage === 'reserved' && record(v.reservationOwner)
+      && (v.reservationOwner.kind === 'recording-plan'
+        ? keys(v.reservationOwner, ['kind', 'draftId', 'planId']) && isCollectionId(v.reservationOwner.draftId) && isCollectionId(v.reservationOwner.planId)
+        : keys(v.reservationOwner, ['kind']) && (v.reservationOwner.kind === 'inventory' || v.reservationOwner.kind === 'unknown')))
     && (v.recordingState === undefined || isPhysicalRecordingSummary(v.recordingState) && (v.recordingState.state === 'confirmed-recording' || v.recordingTitle === undefined))
     && (v.recordingTitle === undefined || ((v.usage === 'recorded' || record(v.recordingState) && v.recordingState.state === 'confirmed-recording' && (v.usage === 'reserved' || v.usage === 'unknown')) && typeof v.recordingTitle === 'string' && v.recordingTitle.length > 0 && v.recordingTitle.length <= 240 && !/[\u0000-\u001f\u007f]/u.test(v.recordingTitle)))
     && isPhysicalId(v.physicalId) && isCollectionId(v.lotId) && isCollectionId(v.skuId) && length(v.lengthMinutes)
     && ['sealed', 'opened', 'unknown'].includes(String(v.packaging)) && ['blank', 'reserved', 'recorded', 'unknown', 'erased'].includes(String(v.usage))
     && typeof v.available === 'boolean' && ['blank-pool', 'legacy-registration', 'unclassified'].includes(String(v.origin)) && integer(v.revision, 1);
+}
+export function isCollectionCopyDetail(v: unknown): v is CollectionCopyDetail {
+  return record(v) && keys(v, ['modelId', 'copy', 'copyIndex']) && isCollectionId(v.modelId) && isCollectionCopy(v.copy)
+    && (v.copyIndex === undefined || integer(v.copyIndex, 0));
 }
 export function isCollectionDetail(v: unknown): v is CollectionDetail {
   return record(v) && keys(v, ['model', 'lots', 'copies', 'photos']) && isCollectionModel(v.model)

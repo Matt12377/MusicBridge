@@ -8,16 +8,25 @@ export interface DigitalAlbumMetadata { title: string; artist?: string; year?: n
 export interface DigitalAlbum { id: string; metadata: DigitalAlbumMetadata; revision: number; physicalAbsenceConfirmed: boolean }
 export type PhysicalRelation = 'exact' | 'probable' | 'related';
 export interface PhysicalDigitalLink { id: string; releaseId: string; digitalId: string; relation: PhysicalRelation; ripFromCdConfirmed: boolean; revision: number }
+/** 旧账本没有请求原文，只能表示历史未知；新事件保留确认前后与当时的目录证据。 */
+export interface PhysicalLinkHistoryEvent {
+  id: string; releaseId: string; kind: 'historical-unknown' | 'confirmed' | 'corrected' | 'revoked'; occurredAt: string | null;
+  digitalId?: string; linkId?: string; before?: PhysicalDigitalLink; after?: PhysicalDigitalLink;
+  evidence?: { source: 'roon-candidate' | 'existing-digital' | 'explicit-removal'; metadata: DigitalAlbumMetadata; reason: string | null; userConfirmed: true | null; legacyRequest: boolean };
+}
 export interface PhysicalLinksSnapshot { releaseId: string; revision: number; digitalAbsenceConfirmed: boolean; links: readonly { link: PhysicalDigitalLink; album: DigitalAlbum }[] }
 export interface DigitalAlbumDetail { album: DigitalAlbum; links: readonly { link: PhysicalDigitalLink; release: MusicEntry }[] }
 export interface DigitalRuntime { status: 'available' | 'needs-resolution' | 'unavailable'; reference?: string }
 export interface ConfirmPhysicalLinkRequest {
   commandId: string; releaseId: string; expectedRevision: number; relation: PhysicalRelation; ripFromCdConfirmed: boolean; userConfirmed: true;
-  reference?: string; digitalId?: string;
+  reason: string; reference?: string; digitalId?: string;
 }
+/** v1 持久 Outbox 原文合同：不可改写、补理由或换命令身份。仅用于原命令重放。 */
+export interface LegacyConfirmPhysicalLinkRequest { commandId: string; releaseId: string; expectedRevision: number; relation: PhysicalRelation; ripFromCdConfirmed: boolean; userConfirmed: true; reference?: string; digitalId?: string }
 export interface RelocateDigitalRequest { commandId: string; digitalId: string; expectedRevision: number; reference: string; userConfirmed: true }
 export interface RegisterDigitalRequest { commandId: string; reference: string; physicalAbsenceConfirmed: boolean; userConfirmed: true }
-export interface RemovePhysicalLinkRequest { commandId: string; linkId: string; expectedRevision: number }
+export interface RemovePhysicalLinkRequest { commandId: string; linkId: string; expectedRevision: number; reason: string; userConfirmed: true }
+export interface LegacyRemovePhysicalLinkRequest { commandId: string; linkId: string; expectedRevision: number }
 export interface ConfirmAbsenceRequest { commandId: string; id: string; target: 'digital' | 'physical'; expectedRevision: number; confirmedAbsent: boolean; userConfirmed: true }
 export interface PhysicalLinkResult { id: string; digitalId?: string; linkId?: string }
 export interface CollectionMatrixRow {
@@ -30,6 +39,7 @@ export interface PhysicalLinksPublicApi {
   listDigitalAlbums(page: PageRequest): Promise<Page<DigitalAlbum>>;
   getDigitalAlbum(id: string): Promise<DigitalAlbumDetail>;
   getPhysicalLinks(releaseId: string): Promise<PhysicalLinksSnapshot>;
+  getPhysicalLinkHistory(releaseId: string, page: PageRequest): Promise<Page<PhysicalLinkHistoryEvent>>;
   getDigitalRuntime(id: string): Promise<DigitalRuntime>;
   confirmPhysicalLink(request: ConfirmPhysicalLinkRequest): Promise<PhysicalLinkResult>;
   relocateDigitalAlbum(request: RelocateDigitalRequest): Promise<PhysicalLinkResult>;
@@ -47,14 +57,32 @@ export const isAlbumQuery = (v: unknown): v is string => text(v, true);
 export function isDigitalAlbumMetadata(v: unknown): v is DigitalAlbumMetadata { return record(v) && keys(v, ['title', 'artist', 'year', 'version']) && text(v.title) && (v.artist === undefined || text(v.artist, true)) && (v.version === undefined || text(v.version, true)) && (v.year === undefined || integer(v.year, 1900, 2200)); }
 export function isDigitalAlbum(v: unknown): v is DigitalAlbum { return record(v) && keys(v, ['id', 'metadata', 'revision', 'physicalAbsenceConfirmed']) && isCollectionId(v.id) && isDigitalAlbumMetadata(v.metadata) && integer(v.revision) && typeof v.physicalAbsenceConfirmed === 'boolean'; }
 export function isPhysicalDigitalLink(v: unknown): v is PhysicalDigitalLink { return record(v) && keys(v, ['id', 'releaseId', 'digitalId', 'relation', 'ripFromCdConfirmed', 'revision']) && isCollectionId(v.id) && isCollectionId(v.releaseId) && isCollectionId(v.digitalId) && ['exact', 'probable', 'related'].includes(String(v.relation)) && typeof v.ripFromCdConfirmed === 'boolean' && (!v.ripFromCdConfirmed || v.relation === 'exact') && integer(v.revision); }
+export function isPhysicalLinkHistoryEvent(v: unknown): v is PhysicalLinkHistoryEvent {
+  if (!record(v) || !keys(v, ['id', 'releaseId', 'kind', 'occurredAt', 'digitalId', 'linkId', 'before', 'after', 'evidence']) || !isCollectionId(v.id) || !isCollectionId(v.releaseId)) return false;
+  if (v.kind === 'historical-unknown') return v.occurredAt === null && v.digitalId === undefined && v.linkId === undefined && v.before === undefined && v.after === undefined && v.evidence === undefined;
+  if (!['confirmed', 'corrected', 'revoked'].includes(String(v.kind)) || typeof v.occurredAt !== 'string' || Number.isNaN(Date.parse(v.occurredAt)) || !isCollectionId(v.digitalId) || !isCollectionId(v.linkId)
+    || !record(v.evidence) || !keys(v.evidence, ['source', 'metadata', 'reason', 'userConfirmed', 'legacyRequest']) || !['roon-candidate', 'existing-digital', 'explicit-removal'].includes(String(v.evidence.source))
+    || !isDigitalAlbumMetadata(v.evidence.metadata) || typeof v.evidence.legacyRequest !== 'boolean'
+    || (v.evidence.legacyRequest ? v.evidence.reason !== null || v.evidence.userConfirmed !== (v.evidence.source === 'explicit-removal' ? null : true) : !text(v.evidence.reason) || v.evidence.userConfirmed !== true)) return false;
+  const before = v.before === undefined || isPhysicalDigitalLink(v.before) && v.before.releaseId === v.releaseId && v.before.digitalId === v.digitalId && v.before.id === v.linkId;
+  const after = v.after === undefined || isPhysicalDigitalLink(v.after) && v.after.releaseId === v.releaseId && v.after.digitalId === v.digitalId && v.after.id === v.linkId;
+  return before && after && (v.kind === 'confirmed' ? v.before === undefined && v.after !== undefined : v.kind === 'corrected' ? v.before !== undefined && v.after !== undefined : v.before !== undefined && v.after === undefined);
+}
 export function isConfirmPhysicalLinkRequest(v: unknown): v is ConfirmPhysicalLinkRequest {
+  return record(v) && keys(v, ['commandId', 'releaseId', 'expectedRevision', 'relation', 'ripFromCdConfirmed', 'userConfirmed', 'reason', 'reference', 'digitalId']) && isCollectionId(v.commandId) && isCollectionId(v.releaseId) && integer(v.expectedRevision)
+    && ['exact', 'probable', 'related'].includes(String(v.relation)) && typeof v.ripFromCdConfirmed === 'boolean' && (!v.ripFromCdConfirmed || v.relation === 'exact') && v.userConfirmed === true
+    && text(v.reason)
+    && (v.reference === undefined ? isCollectionId(v.digitalId) : isRoonAlbumReference(v.reference) && v.digitalId === undefined);
+}
+export function isLegacyConfirmPhysicalLinkRequest(v: unknown): v is LegacyConfirmPhysicalLinkRequest {
   return record(v) && keys(v, ['commandId', 'releaseId', 'expectedRevision', 'relation', 'ripFromCdConfirmed', 'userConfirmed', 'reference', 'digitalId']) && isCollectionId(v.commandId) && isCollectionId(v.releaseId) && integer(v.expectedRevision)
     && ['exact', 'probable', 'related'].includes(String(v.relation)) && typeof v.ripFromCdConfirmed === 'boolean' && (!v.ripFromCdConfirmed || v.relation === 'exact') && v.userConfirmed === true
     && (v.reference === undefined ? isCollectionId(v.digitalId) : isRoonAlbumReference(v.reference) && v.digitalId === undefined);
 }
 export function isRelocateDigitalRequest(v: unknown): v is RelocateDigitalRequest { return record(v) && keys(v, ['commandId', 'digitalId', 'expectedRevision', 'reference', 'userConfirmed']) && isCollectionId(v.commandId) && isCollectionId(v.digitalId) && integer(v.expectedRevision) && isRoonAlbumReference(v.reference) && v.userConfirmed === true; }
 export function isRegisterDigitalRequest(v: unknown): v is RegisterDigitalRequest { return record(v) && keys(v, ['commandId', 'reference', 'physicalAbsenceConfirmed', 'userConfirmed']) && isCollectionId(v.commandId) && isRoonAlbumReference(v.reference) && typeof v.physicalAbsenceConfirmed === 'boolean' && v.userConfirmed === true; }
-export function isRemovePhysicalLinkRequest(v: unknown): v is RemovePhysicalLinkRequest { return record(v) && keys(v, ['commandId', 'linkId', 'expectedRevision']) && isCollectionId(v.commandId) && isCollectionId(v.linkId) && integer(v.expectedRevision); }
+export function isRemovePhysicalLinkRequest(v: unknown): v is RemovePhysicalLinkRequest { return record(v) && keys(v, ['commandId', 'linkId', 'expectedRevision', 'reason', 'userConfirmed']) && isCollectionId(v.commandId) && isCollectionId(v.linkId) && integer(v.expectedRevision) && text(v.reason) && v.userConfirmed === true; }
+export function isLegacyRemovePhysicalLinkRequest(v: unknown): v is LegacyRemovePhysicalLinkRequest { return record(v) && keys(v, ['commandId', 'linkId', 'expectedRevision']) && isCollectionId(v.commandId) && isCollectionId(v.linkId) && integer(v.expectedRevision); }
 export function isConfirmAbsenceRequest(v: unknown): v is ConfirmAbsenceRequest { return record(v) && keys(v, ['commandId', 'id', 'target', 'expectedRevision', 'confirmedAbsent', 'userConfirmed']) && isCollectionId(v.commandId) && isCollectionId(v.id) && ['digital', 'physical'].includes(String(v.target)) && integer(v.expectedRevision) && typeof v.confirmedAbsent === 'boolean' && v.userConfirmed === true; }
 export function isPhysicalLinkResult(v: unknown): v is PhysicalLinkResult { return record(v) && keys(v, ['id', 'digitalId', 'linkId']) && isCollectionId(v.id) && (v.digitalId === undefined || isCollectionId(v.digitalId)) && (v.linkId === undefined || isCollectionId(v.linkId)); }
 export function isDigitalRuntime(v: unknown): v is DigitalRuntime { return record(v) && keys(v, ['status', 'reference']) && (v.status === 'available' ? isRoonAlbumReference(v.reference) : ['needs-resolution', 'unavailable'].includes(String(v.status)) && v.reference === undefined); }

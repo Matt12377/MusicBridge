@@ -71,16 +71,16 @@ onBeforeUnmount(() => { controller.dispose(); dialog.value?.close() })
 <template>
   <dialog ref="dialog" class="spreadsheet-dialog" aria-labelledby="spreadsheet-title" aria-describedby="spreadsheet-boundary" @cancel.prevent="requestClose">
     <header class="heading">
-      <div><p class="kicker">收藏 · 工作簿资料</p><h2 id="spreadsheet-title" tabindex="-1">Excel 非破坏导入</h2></div>
+      <div><p class="kicker">收藏 · 库存表资料</p><h2 id="spreadsheet-title" tabindex="-1">库存表非破坏导入</h2></div>
       <button type="button" :disabled="state.busy" @click="requestClose">关闭</button>
     </header>
     <p id="spreadsheet-boundary">原文件和原行完整保留。预览不写库存；导入不会推断空白磁带、分配实体编号或改写人工资料。</p>
-    <nav class="steps" aria-label="Excel 导入步骤"><button v-for="(step, index) in steps" :key="step.id" :aria-current="state.step === step.id ? 'step' : undefined" :disabled="blocked" @click="controller.setStep(step.id)"><span>{{ index + 1 }}</span>{{ step.title }}</button></nav>
+    <nav class="steps" aria-label="库存表导入步骤"><button v-for="(step, index) in steps" :key="step.id" :aria-current="state.step === step.id ? 'step' : undefined" :disabled="blocked" @click="controller.setStep(step.id)"><span>{{ index + 1 }}</span>{{ step.title }}</button></nav>
     <section v-if="closeRequested" class="feedback" role="alert"><p>关闭会丢弃未保存的列映射与逐行决定。已登记来源和历史保留；未确认命令可从全局入口恢复，不会自动重试。</p><div class="actions"><button @click="closeRequested = false">继续核对</button><button @click="emit('close')">确认关闭</button></div></section>
     <p v-if="state.busy" role="status">正在处理，请稍候…</p>
     <p v-if="state.error" class="error" role="alert">{{ state.error }}</p>
     <p v-if="state.notice" class="notice" role="status">{{ state.notice }}</p>
-    <section v-if="state.pendingLabel" class="feedback" aria-label="恢复 Excel 原操作">
+    <section v-if="state.pendingLabel" class="feedback" aria-label="恢复库存表原操作">
       <h3>{{ state.pendingLabel }}：等待明确回执</h3>
       <p>{{ state.pendingNative ? '先恢复原选择回执；如果从未完成，本次明确确认后可能重新打开文件选择器。' : '恢复原命令、原计划与原指纹，不换参数绕过冲突。' }}</p>
       <label class="check"><input v-model="retryConfirmed" type="checkbox" :disabled="state.busy">{{ state.pendingNative ? '我确认恢复原选择回执；若未完成，重新选择工作簿' : '我已核对结果，确认重试原操作或退出本地重试' }}</label>
@@ -89,10 +89,10 @@ onBeforeUnmount(() => { controller.dispose(); dialog.value?.close() })
     </section>
 
     <section v-if="state.step === 'source'" aria-labelledby="spreadsheet-source-title">
-      <h3 id="spreadsheet-source-title">1. 显式选择工作簿</h3>
-      <p>支持 .xlsx 与 .xls，最多 8 MiB。只读取你选择的单个文件，不扫描目录、不跟随链接、不执行公式或宏。</p>
-      <button class="primary" :disabled="blocked" @click="controller.chooseWorkbook">选择 Excel 工作簿</button>
-      <h4>已登记工作簿</h4><p v-if="!state.sources?.items.length">尚无工作簿。没有默认示例或自动读取的真实资料。</p>
+      <h3 id="spreadsheet-source-title">1. 显式选择库存表</h3>
+      <p>支持 .xlsx、.xls 与 UTF-8 .csv，最多 8 MiB。CSV 字段保留原文，不推断数字、日期或公式。只读取你选择的单个文件，不扫描目录、不跟随链接、不执行公式或宏。</p>
+      <button class="primary" :disabled="blocked" @click="controller.chooseWorkbook">选择库存表</button>
+      <h4>已登记库存表</h4><p v-if="!state.sources?.items.length">尚无库存表。没有默认示例或自动读取的真实资料。</p>
       <ul class="records"><li v-for="source in state.sources?.items" :key="source.id"><div><strong>{{ source.displayName }}</strong><p>{{ source.fileFormat.toUpperCase() }} · {{ source.sheets.length }} 个 Sheet · {{ source.createdAt }}</p><code>{{ source.workbookHash }}</code></div><button :disabled="blocked" @click="controller.selectSource(source.id)">使用此来源</button></li></ul>
       <div class="actions"><button :disabled="blocked" @click="controller.loadSources()">刷新来源</button><template v-if="state.sources && state.sources.total > state.sources.limit"><button :disabled="blocked || state.sources.offset === 0" @click="controller.loadSources(Math.max(0, state.sources.offset - pageSize))">上一页来源</button><button :disabled="blocked || !state.sources.hasMore" @click="controller.loadSources(state.sources.offset + pageSize)">下一页来源</button></template></div>
     </section>

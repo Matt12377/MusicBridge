@@ -45,6 +45,34 @@ test('Plan同命令精确重放，异body拒绝；第二命令不能复用旧pro
   assert.equal(f.plans.list({ draftId: f.draft.draftId }).versions.length, 1);
 });
 
+test('新Plan只冻结稳定输出绑定：选择代际失效不能冻结，旧成功命令仍精确重放', async t => {
+  const f = await fixture(t), request = await f.planRequest();
+  const originalGeneration = request.selection.outputSelection.selectionGeneration;
+  const next = f.fakeDevice.reselect();
+  await assert.rejects(f.plans.freeze(request));
+  assert.equal(f.plans.list({ draftId: f.draft.draftId }).versions.length, 0);
+  const selection = { ...f.planSelection, outputSelection: next };
+  const proposal = await f.plans.preview({ readId: randomUUID(), selection });
+  assert.equal(proposal.outputBinding.endpointId, next.endpointId);
+  const confirmed = { ...request, selection, proposalFingerprint: proposal.proposalFingerprint };
+  const plan = await f.plans.freeze(confirmed);
+  assert.deepEqual(plan.outputBinding, proposal.outputBinding);
+  assert.equal(JSON.stringify(plan).includes(originalGeneration), false);
+  assert.equal(JSON.stringify(plan).includes(next.selectionGeneration), false);
+  f.fakeDevice.revoke();
+  assert.deepEqual(await f.plans.freeze(confirmed), plan, '旧成功命令回放仍只读账本，不重新签设备资格');
+  const preflight = await f.plans.preflight({ planVersionId: plan.id, readId: randomUUID() });
+  assert.equal(preflight.checks.find(check => check.category === 'backend')?.code, 'OUTPUT_SELECTION_CHANGED');
+});
+
+test('Preflight 对当前设备配置漂移明确阻断，不能靠冻结身份反填实时观测', async t => {
+  const f = await fixture(t), plan = await f.plans.freeze(await f.planRequest());
+  f.fakeDevice.drift();
+  const result = await f.plans.preflight({ planVersionId: plan.id, readId: randomUUID() });
+  assert.equal(result.checks.find(check => check.category === 'backend')?.code, 'OUTPUT_IDENTITY_CHANGED');
+  assert.equal(result.formalReady, false);
+});
+
 test('preview后会话、实体可用性或预留变化均拒绝冻结，不能凭旧确认写Plan', async t => {
   const f = await fixture(t), request = await f.planRequest();
   f.repository.recordingProfiles.saveSession({ commandId: randomUUID(), draftId: f.draft.draftId, expectedRevision: 1, profileVersionId: f.profile.id, overrides: { recordLevel: '新电平' }, userConfirmed: true });
@@ -93,7 +121,8 @@ test('同内容规划仅增加revision时预检归类版本失配，旧Plan与�
   assert.equal(updated.revision, original.mediaPlanRevision + 1);
   assert.deepEqual(updated.reservation, f.plan.reservation);
   const current = f.repository.recordingPlans.capture(f.planSelection, original.profileSnapshot);
-  assert.deepEqual(current.material, { ...recordingPlanContent(original), mediaPlanRevision: updated.revision }, '重存后仅规划revision变化，实体、参数和容量没有变化');
+  const { outputBinding: _outputBinding, ...unbound } = recordingPlanContent(original);
+  assert.deepEqual(current.material, { ...unbound, mediaPlanRevision: updated.revision }, '重存后仅规划revision变化，实体、参数和容量没有变化');
   const before = facts(f.filePath);
   const result = await f.plans.preflight({ readId: randomUUID(), planVersionId: original.id });
   assert.deepEqual(result.checks.filter(check => check.state === 'blocked'), [{ category: 'versions', state: 'blocked', code: 'VERSION_MISMATCH' }]);
@@ -150,7 +179,7 @@ test('freeze提交故障使版本与ledger一并回滚；冷开历史与只读�
   const f = await fixture(t), request = await f.planRequest();
   let fail = true;
   const repository = createCollectionRepository({ filePath: f.filePath, beforeCommit: action => { if (fail && action === 'freeze-recording-plan') throw new Error('合成提交中断'); } });
-  const plans = createRecordingPlanCoordinator({ store: repository.recordingPlans });
+  const plans = createRecordingPlanCoordinator({ store: repository.recordingPlans, deviceSelection: f.fakeDevice.deviceSelection });
   t.after(async () => { await plans.close(); repository.close(); });
   await assert.rejects(plans.freeze(request));
   assert.equal(plans.list({ draftId: f.draft.draftId }).versions.length, 0);
@@ -170,7 +199,7 @@ test('历史响应预算在冻结前按实际UTF8字节拒绝，已保存历史�
   const history = f.plans.list({ draftId: first.draftId }), bytes = Buffer.byteLength(JSON.stringify(history));
   const db = new DatabaseSync(f.filePath); t.after(() => db.close());
   const store = createRecordingPlanStore({ read: fn => fn(db), conflict: message => { throw new Error(message); }, historyBudgetBytes: bytes + 1 });
-  const plans = createRecordingPlanCoordinator({ store }); t.after(() => plans.close());
+  const plans = createRecordingPlanCoordinator({ store, deviceSelection: f.fakeDevice.deviceSelection }); t.after(() => plans.close());
   const request = await f.planRequest();
   await assert.rejects(plans.freeze(request), /历史.*预算/);
   assert.deepEqual(plans.list({ draftId: first.draftId }), history);

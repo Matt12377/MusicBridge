@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import test from 'node:test'
-import { createReferenceCatalogController, hashReferenceSourceText, readReferenceSourceFile, readReferenceRevisionFile } from '../src/renderer/src/components/collection/reference-catalog-controller.js'
+import { createReferenceCatalogController, hashReferenceSourceText, readReferenceSourceFile, readReferenceSourceZipFile, readReferenceRevisionFile } from '../src/renderer/src/components/collection/reference-catalog-controller.js'
 import type { CanonicalReference, CatalogRevisionDetail, CatalogRevisionPreview, SourcePack } from '@music-bridge/contracts'
 
 test('显式JSON文件读取保留原UTF8、CRLF和空白，Hash不是重新序列化对象的Hash', async () => {
@@ -55,6 +55,7 @@ const pack: SourcePack = { schemaVersion: 1, bookId: 'synthetic-book', title: '�
 const counts = { total: 1, owned: 0, missing: 0, unknown: 1, candidate: 0, needsReview: 0 }
 const timestamp = '2026-08-28T00:00:00.000Z'
 const source = { id: sourceId, bookId: pack.bookId, title: pack.title, sourceVersion: pack.sourceVersion, packHash: 'a'.repeat(64), itemCount: 1, createdAt: timestamp }
+const zipReceiptId = '55555555-5555-4555-8555-555555555555'
 const snapshot = { id: snapshotId, bookId: pack.bookId, revisionId, matchVersion: 0, createdAt: timestamp, counts, entries: [{ referenceId: canonical.referenceId, state: 'unknown' as const, stockCount: 0, matches: [] }] }
 const detail: CatalogRevisionDetail = { revision: { id: revisionId, bookId: pack.bookId, sourceId, packHash: source.packHash, sequence: 1, previousRevisionId: null, items: [canonical], mappings: [], createdAt: timestamp }, matches: [], matchVersion: 0, snapshot, currentCounts: counts, currentEntries: snapshot.entries }
 const preview: CatalogRevisionPreview = { baselineFingerprint: 'b'.repeat(64), expectedCurrentRevisionId: null, counts, entries: snapshot.entries, delta: { addedReferenceIds: [canonical.referenceId], removedReferenceIds: [], retainedReferenceIds: [], merged: 0, split: 0, before: null, after: counts } }
@@ -66,6 +67,15 @@ function controllerFixture() {
     async listReferenceSources(request) { calls.push({ method: 'sources', request }); return { items: [source], total: 1, offset: 0, limit: 25 } },
     async getReferenceSource(request) { calls.push({ method: 'source', request }); return { source, rawPack: JSON.stringify(pack) } },
     async registerReferenceSource(request) { calls.push({ method: 'register', request: structuredClone(request) }); if (failRegister) throw new Error('[OUTBOX_RESULT_UNKNOWN] /private/secret'); return { ...source, packHash: request.packHash } },
+    async previewReferenceSourceZip(request) { calls.push({ method: 'preview-zip', request: { zipBytes: request.zipBase64.length } }); return {
+      entryName: 'catalog.json', zipSha256: 'c'.repeat(64), zipBytes: 64, rawPackHash: 'd'.repeat(64),
+      bookId: pack.bookId, title: pack.title, sourceVersion: pack.sourceVersion, itemCount: 1,
+    } },
+    async registerReferenceSourceZip(request) { calls.push({ method: 'register-zip', request: structuredClone(request) });
+      const saved = { ...source, packHash: request.expectedRawPackHash }
+      return { source: saved, receipt: { id: zipReceiptId, sourceId: saved.id, zipSha256: request.expectedZipSha256,
+        zipBytes: 64, entryName: 'catalog.json' as const, rawPackHash: request.expectedRawPackHash, createdAt: timestamp } } },
+    async listReferenceSourceZipReceipts(request) { calls.push({ method: 'zip-receipts', request }); return { items: [], total: 0, offset: request.offset, limit: request.limit } },
     async previewCatalogRevision(request) { calls.push({ method: 'preview', request: structuredClone(request) }); return preview },
     async publishCatalogRevision(request) { calls.push({ method: 'publish', request: structuredClone(request) }); return detail },
     async getCatalogRevision(request) { calls.push({ method: 'revision', request }); return detail },
@@ -198,7 +208,7 @@ test('同一发布单飞，关闭后迟到回执不更新状态；重新打开�
   reopened.controller.dispose()
 })
 
-test('实际面板默认空来源；显式合成示例与独立确认才能登记，不由切步骤触发写入', async t => {
+test('实际面板默认空来源且无生产合成示例；独立确认才能登记，不由切步骤触发写入', async t => {
   const { readFile } = await import('node:fs/promises')
   const { createRequire } = await import('node:module')
   const { parse, compileScript, compileTemplate } = await import('@vue/compiler-sfc')
@@ -224,16 +234,39 @@ test('实际面板默认空来源；显式合成示例与独立确认才能登�
   const app = renderer.createApp({ ...module.exports.default, render: () => null })
   const instance = app.mount(node()); t.after(() => app.unmount())
   await new Promise<void>(resolve => setImmediate(resolve))
-  const setup = (instance.$ as unknown as { setupState: { state: ReturnType<typeof createReferenceCatalogController>['state']; controller: ReturnType<typeof createReferenceCatalogController>; fillSynthetic(): void; register(): Promise<void>; sourceConfirmed: boolean } }).setupState
+  const setup = (instance.$ as unknown as { setupState: { state: ReturnType<typeof createReferenceCatalogController>['state']; controller: ReturnType<typeof createReferenceCatalogController>; register(): Promise<void>; sourceConfirmed: boolean } }).setupState
   assert.equal(setup.state.rawPack, '')
-  setup.fillSynthetic()
-  assert.match(setup.state.rawPack, /合成/u)
+  assert.doesNotMatch(sourceText, /fillSynthetic|填入合成示例/u)
+  setup.controller.setRawPack(JSON.stringify(pack))
   await setup.controller.previewSource(); await setup.register()
   assert.equal(f.calls.some(c => c.method === 'register'), false)
   setup.sourceConfirmed = true; await setup.register()
   assert.equal(f.calls.filter(c => c.method === 'register').length, 1)
   setup.controller.setStep('history')
   assert.equal(f.calls.filter(c => c.method === 'register').length, 1)
+})
+
+test('ZIP 文件有界编码与单独预览/确认，默认不登记且成功后不保留容器字节', async () => {
+  const bytes = new Uint8Array([0x50, 0x4b, 3, 4])
+  const file = { name: 'pack.zip', size: bytes.length, arrayBuffer: async () => bytes.buffer }
+  const encoded = await readReferenceSourceZipFile(file)
+  assert.equal(encoded, 'UEsDBA==')
+  await assert.rejects(readReferenceSourceZipFile({ ...file, name: 'pack.json' }), /ZIP/u)
+  await assert.rejects(readReferenceSourceZipFile({ ...file, size: 4 * 1024 * 1024 + 1 }), /4 MiB/u)
+  const f = controllerFixture()
+  f.controller.setZipBase64(encoded)
+  await f.controller.registerZip(true)
+  assert.equal(f.calls.some(call => call.method === 'register-zip'), false)
+  await f.controller.previewZip()
+  assert.equal(f.controller.state.zipPreview?.entryName, 'catalog.json')
+  await f.controller.registerZip(false)
+  assert.equal(f.calls.some(call => call.method === 'register-zip'), false)
+  await f.controller.registerZip(true)
+  assert.equal(f.calls.filter(call => call.method === 'register-zip').length, 1)
+  assert.equal(f.controller.state.zipBase64, '')
+  assert.equal(f.controller.state.zipPreview, undefined)
+  assert.match(f.controller.state.notice, /不长期归档/u)
+  f.controller.dispose()
 })
 
 test('来源登记成功消耗原确认预览，返回来源页不能沿用勾选再次登记', async () => {

@@ -37,5 +37,6 @@ export function planVersions(draft: MasterDraft, sources: DraftSourceSnapshot['t
     if (!Number.isSafeInteger(totalFrames) || totalFrames > capacityFrames) return invalid('精确帧数超过此面或连续段容量，请调整分面或选择其他介质。');
     return { name: side.name, capacityFrames, leadInFrames, tailFrames, totalFrames, tracks };
   }) };
-  return { content, contentHash: mediaFingerprint(content), timeline, timelineHash: mediaFingerprint(timeline), executionReady: false };
+  return { content, contentHash: mediaFingerprint(content), timeline, timelineHash: mediaFingerprint(timeline), executionReady: false,
+    ...(spec.distribution ? { distributionPlan: structuredClone(spec.distribution) } : {}) };
 }

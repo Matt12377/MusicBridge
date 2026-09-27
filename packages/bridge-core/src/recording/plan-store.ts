@@ -15,8 +15,10 @@ export function createRecordingPlanStore({ read, conflict, beforeCommit, history
   function head(db: DatabaseSync, draftId: string): dto.RecordingPlanVersion | null {
     const row = db.prepare('SELECT data FROM recording_plan_versions WHERE draft_id=? ORDER BY sequence DESC LIMIT 1').get(draftId); return row ? parseRecordingPlan(row.data) : null;
   }
-  function fingerprint(db: DatabaseSync, input: RecordingPlanInput): string {
-    const current = head(db, input.draftId); return mediaFingerprint({ identity: input.identity, head: current ? { id: current.id, sequence: current.sequence, contentHash: current.contentHash } : null });
+  function fingerprint(db: DatabaseSync, input: RecordingPlanInput, binding?: dto.RecordingPlanOutputBinding): string {
+    const current = head(db, input.draftId);
+    const base = { identity: input.identity, head: current ? { id: current.id, sequence: current.sequence, contentHash: current.contentHash } : null };
+    return binding ? mediaFingerprint({ ...base, outputBinding: binding, outputSelection: input.selection.outputSelection }) : mediaFingerprint(base);
   }
   function cached(db: DatabaseSync, request: dto.FreezeRecordingPlanRequest): dto.RecordingPlanVersion | undefined {
     const row = db.prepare('SELECT fingerprint,plan_id FROM recording_plan_ledger WHERE command_id=?').get(request.commandId);
@@ -26,7 +28,7 @@ export function createRecordingPlanStore({ read, conflict, beforeCommit, history
   }
   return {
     capture: (selection: dto.RecordingPlanSelection, frozen?: dto.RecordingProfileSnapshot) => read(db => captureRecordingPlan(db, selection, frozen)),
-    fingerprint: (input: RecordingPlanInput) => read(db => fingerprint(db, input)),
+    fingerprint: (input: RecordingPlanInput, binding?: dto.RecordingPlanOutputBinding) => read(db => fingerprint(db, input, binding)),
     cached: (request: dto.FreezeRecordingPlanRequest) => read(db => cached(db, request)),
     version(request: dto.RecordingPlanIdRequest): { plan: dto.RecordingPlanVersion | null } {
       if (!dto.isRecordingPlanIdRequest(request)) return planFail(); return read(db => ({ plan: version(db, request.id) }));
@@ -39,17 +41,21 @@ export function createRecordingPlanStore({ read, conflict, beforeCommit, history
         if (!dto.isRecordingPlanHistory(result) || Buffer.byteLength(JSON.stringify(result)) > historyBudgetBytes) return planFail(); return result;
       });
     },
-    freeze(request: dto.FreezeRecordingPlanRequest, verified: RecordingPlanInput): dto.RecordingPlanVersion {
+    freeze(request: dto.FreezeRecordingPlanRequest, verified: RecordingPlanInput, binding?: dto.RecordingPlanOutputBinding): dto.RecordingPlanVersion {
       if (!dto.isFreezeRecordingPlanRequest(request)) return planFail();
       return read(db => {
         db.exec('BEGIN IMMEDIATE');
         try {
           const prior = cached(db, request); if (prior) { db.exec('COMMIT'); return prior; }
+          if (!dto.isCurrentFreezeRecordingPlanRequest(request) || !binding || !dto.isRecordingPlanOutputBinding(binding)
+            || binding.endpointId !== request.selection.outputSelection.endpointId
+            || mediaFingerprint(verified.selection) !== mediaFingerprint(request.selection)) return planFail('backend', 'OUTPUT_BINDING_MISSING');
           const current = captureRecordingPlan(db, request.selection);
-          if (current.identity !== verified.identity || fingerprint(db, current) !== request.proposalFingerprint) return conflict('计划依赖或历史版本已经变化，请重新预览并确认。');
+          if (current.identity !== verified.identity || fingerprint(db, current, binding) !== request.proposalFingerprint) return conflict('计划依赖或历史版本已经变化，请重新预览并确认。');
           const previous = head(db, current.draftId);
           if ((previous?.sequence ?? 0) >= dto.MAX_RECORDING_PLAN_VERSIONS) return conflict('此草稿的录音计划历史已达到上限。');
-          const plan: dto.RecordingPlanVersion = { ...current.material, id: randomUUID(), draftId: current.draftId, sequence: (previous?.sequence ?? 0) + 1, ...(previous ? { parentId: previous.id } : {}), createdAt: new Date().toISOString(), contentHash: mediaFingerprint(current.material), status: 'frozen' };
+          const material = { ...current.material, outputBinding: binding };
+          const plan: dto.RecordingPlanVersion = { ...material, id: randomUUID(), draftId: current.draftId, sequence: (previous?.sequence ?? 0) + 1, ...(previous ? { parentId: previous.id } : {}), createdAt: new Date().toISOString(), contentHash: mediaFingerprint(material), status: 'frozen' };
           const data = JSON.stringify(plan), body = JSON.stringify(request);
           const history = db.prepare('SELECT count(*) n,COALESCE(sum(length(CAST(data AS BLOB))),0) bytes FROM recording_plan_versions WHERE draft_id=?').get(plan.draftId)!;
           if (recordingPlanHistoryBytes(plan.draftId, Number(history.n) + 1, Number(history.bytes) + Buffer.byteLength(data)) > historyBudgetBytes) return conflict('录音计划历史已达到响应预算，已有历史不会截断或删除。');

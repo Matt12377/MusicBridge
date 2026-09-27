@@ -2,11 +2,12 @@ import { isFreezeRecordingPlanRequest, isRecordingPlanVersion } from './recordin
 import { isChooseSpreadsheetWorkbookRequest, isSpreadsheetWorkbookSource, isApplySpreadsheetImportRequest, isSpreadsheetImportResult, isAdjustSpreadsheetInventoryRequest, isSpreadsheetInventoryAdjustment, type ChooseSpreadsheetWorkbookRequest, type SpreadsheetWorkbookSource } from './spreadsheet-import.js';
 import { isSaveWantEntryRequest, isCancelWantEntryRequest, isCaptureCollectionProgressRequest, isWantEntry, isCollectionProgressSnapshotSummary } from './collection-progress.js';
 import { isCollectionId, isCollectionReceiveRequest, isCollectionMaterializeRequest, isCollectionUpdateCopyRequest, isCollectionPolicyRequest, isCollectionAddPhotoRequest, isCollectionChangePhotoRequest, isCollectionMutationResult } from './collection.js';
-import { isRegisterReferenceSourceRequest, isPublishCatalogRevisionRequest, isSetCatalogMatchRequest, isReferenceSourceVersion, isCatalogRevisionDetail } from './reference-catalog.js';
-import { isSaveReleaseRequest, isSaveLegacyRequest, isAddMusicPhotoRequest, isRemoveMusicPhotoRequest, isMusicMutationResult } from './physical-music.js';
-import { isConfirmPhysicalLinkRequest, isRelocateDigitalRequest, isRegisterDigitalRequest, isRemovePhysicalLinkRequest, isConfirmAbsenceRequest, isPhysicalLinkResult } from './physical-links.js';
+import { isRegisterReferenceSourceRequest, isRegisterReferenceSourceZipRequest, isRegisterReferenceSourceZipResult, isPublishCatalogRevisionRequest, isSetCatalogMatchRequest, isReferenceSourceVersion, isCatalogRevisionDetail, MAX_REFERENCE_SOURCE_ZIP_BASE64_CHARS } from './reference-catalog.js';
+import { isSaveReleaseRequest, isMaterializeCommercialCopyRequest, isSaveCommercialCopyDetailsRequest, isAssignCommercialCopyPhotoRequest, isSaveLegacyRequest, isAddMusicPhotoRequest, isRemoveMusicPhotoRequest, isMusicMutationResult } from './physical-music.js';
+import { isConfirmPhysicalLinkRequest, isLegacyConfirmPhysicalLinkRequest, isRelocateDigitalRequest, isRegisterDigitalRequest, isRemovePhysicalLinkRequest, isLegacyRemovePhysicalLinkRequest, isConfirmAbsenceRequest, isPhysicalLinkResult } from './physical-links.js';
 import { isAppendMasterDraftRequest, isUpdateMasterDraftRequest, isMasterDraftResult } from './master-drafts.js';
 import { isSaveMediaPlanRequest, isReserveMediaRequest, isReleaseMediaRequest, isMediaPlan } from './media-planning.js';
+import { isPutRecordingWorkspaceContextRequest, isRecordingWorkspaceContext } from './recording-workspace.js';
 import { isFreezeVersionsRequest, isVersionJob } from './master-versions.js';
 import { isStartPreparationRequest, isPreparationJob } from './preparation.js';
 import { isStartPreparedImportRequest, isFreezePreparedRequest, isPreparedImportJob, isFrozenPrepared } from './prepared-render.js';
@@ -15,6 +16,7 @@ import { isStartExecutionRequest, isExecutionJob } from './execution-assets.js';
 import { isInitializeArchiveRequest, isStartArchiveRequest, isArchiveOperationView } from './recording-archive.js';
 import { isStartBackupJob, isBackupJobView } from './recording-backups.js';
 import { isSourceAction, isSourceConfirmation, isSourceBinding, isSourceRoot, isSourceJob, isSourceSelection, type SourceSelection, type SourceRoot, type SourceJob } from './source-evidence.js';
+import { isSelectSourceCandidate } from './source-candidates.js';
 import { isPreparedSelection, isSelectPreparedRequest, type SelectPreparedRequest, type PreparedSelection } from './prepared-render.js';
 import { isPreparationDestination, type PreparationDestination } from './preparation.js';
 import { isArchiveRootView, type ArchiveRootView } from './recording-archive.js';
@@ -25,13 +27,15 @@ import { isActivateRestoredDataset, isRestoreActivationView, type ActivateRestor
 export const COMMAND_OUTBOX_COMMANDS = [
   'collectionProgress.saveWant', 'collectionProgress.cancelWant', 'collectionProgress.capture',
   'spreadsheetImports.apply', 'spreadsheetImports.adjust',
-  'referenceCatalog.registerSource', 'referenceCatalog.publishRevision', 'referenceCatalog.setMatch',
+  'referenceCatalog.registerSource', 'referenceCatalog.registerSourceZip', 'referenceCatalog.publishRevision', 'referenceCatalog.setMatch',
   'collection.receive', 'collection.materialize', 'collection.updateCopy', 'collection.setPolicy', 'collection.addPhoto', 'collection.changePhoto',
-  'physicalMusic.saveRelease', 'physicalMusic.saveLegacy', 'physicalMusic.addPhoto', 'physicalMusic.removePhoto',
-  'physicalLinks.confirm', 'physicalLinks.relocate', 'physicalLinks.register', 'physicalLinks.remove', 'physicalLinks.absence',
+  'physicalMusic.saveRelease', 'physicalMusic.materializeCopy', 'physicalMusic.saveCopyDetails', 'physicalMusic.assignCopyPhoto', 'physicalMusic.saveLegacy', 'physicalMusic.addPhoto', 'physicalMusic.removePhoto',
+  'physicalLinks.confirm', 'physicalLinks.confirmWithEvidence', 'physicalLinks.relocate', 'physicalLinks.register', 'physicalLinks.remove', 'physicalLinks.removeWithEvidence', 'physicalLinks.absence',
   'recordingDrafts.append', 'recordingDrafts.update',
   'recordingSources.revoke', 'recordingSources.cancel', 'recordingSources.confirm', 'recordingSources.recheck',
+  'recordingCandidates.select',
   'recordingMedia.save', 'recordingMedia.reserve', 'recordingMedia.release',
+  'recordingWorkspace.put',
   'recordingVersions.freeze', 'recordingVersions.cancel',
   'recordingPreparation.revoke', 'recordingPreparation.start', 'recordingPreparation.cancel',
   'recordingPrepared.revoke', 'recordingPrepared.startImport', 'recordingPrepared.cancel', 'recordingPrepared.freeze',
@@ -56,6 +60,7 @@ const ordinaryValidators = {
   'spreadsheetImports.apply': [isApplySpreadsheetImportRequest, isSpreadsheetImportResult],
   'spreadsheetImports.adjust': [isAdjustSpreadsheetInventoryRequest, isSpreadsheetInventoryAdjustment],
   'referenceCatalog.registerSource': [isRegisterReferenceSourceRequest, isReferenceSourceVersion],
+  'referenceCatalog.registerSourceZip': [isRegisterReferenceSourceZipRequest, isRegisterReferenceSourceZipResult],
   'referenceCatalog.publishRevision': [isPublishCatalogRevisionRequest, isCatalogRevisionDetail],
   'referenceCatalog.setMatch': [isSetCatalogMatchRequest, isCatalogRevisionDetail],
   'collection.receive': [isCollectionReceiveRequest, isCollectionMutationResult],
@@ -65,13 +70,18 @@ const ordinaryValidators = {
   'collection.addPhoto': [isCollectionAddPhotoRequest, isCollectionMutationResult],
   'collection.changePhoto': [isCollectionChangePhotoRequest, isCollectionMutationResult],
   'physicalMusic.saveRelease': [isSaveReleaseRequest, isMusicMutationResult],
+  'physicalMusic.materializeCopy': [isMaterializeCommercialCopyRequest, isMusicMutationResult],
+  'physicalMusic.saveCopyDetails': [isSaveCommercialCopyDetailsRequest, isMusicMutationResult],
+  'physicalMusic.assignCopyPhoto': [isAssignCommercialCopyPhotoRequest, isMusicMutationResult],
   'physicalMusic.saveLegacy': [isSaveLegacyRequest, isMusicMutationResult],
   'physicalMusic.addPhoto': [isAddMusicPhotoRequest, isMusicMutationResult],
   'physicalMusic.removePhoto': [isRemoveMusicPhotoRequest, isMusicMutationResult],
-  'physicalLinks.confirm': [isConfirmPhysicalLinkRequest, isPhysicalLinkResult],
+  'physicalLinks.confirm': [isLegacyConfirmPhysicalLinkRequest, isPhysicalLinkResult],
+  'physicalLinks.confirmWithEvidence': [isConfirmPhysicalLinkRequest, isPhysicalLinkResult],
   'physicalLinks.relocate': [isRelocateDigitalRequest, isPhysicalLinkResult],
   'physicalLinks.register': [isRegisterDigitalRequest, isPhysicalLinkResult],
-  'physicalLinks.remove': [isRemovePhysicalLinkRequest, isPhysicalLinkResult],
+  'physicalLinks.remove': [isLegacyRemovePhysicalLinkRequest, isPhysicalLinkResult],
+  'physicalLinks.removeWithEvidence': [isRemovePhysicalLinkRequest, isPhysicalLinkResult],
   'physicalLinks.absence': [isConfirmAbsenceRequest, isPhysicalLinkResult],
   'recordingDrafts.append': [isAppendMasterDraftRequest, isMasterDraftResult],
   'recordingDrafts.update': [isUpdateMasterDraftRequest, isMasterDraftResult],
@@ -79,9 +89,11 @@ const ordinaryValidators = {
   'recordingSources.cancel': [isSourceAction, isSourceJob],
   'recordingSources.confirm': [isSourceConfirmation, isSourceBinding],
   'recordingSources.recheck': [isSourceConfirmation, isSourceJob],
+  'recordingCandidates.select': [isSelectSourceCandidate, isSourceJob],
   'recordingMedia.save': [isSaveMediaPlanRequest, isMediaPlan],
   'recordingMedia.reserve': [isReserveMediaRequest, isMediaPlan],
   'recordingMedia.release': [isReleaseMediaRequest, isMediaPlan],
+  'recordingWorkspace.put': [isPutRecordingWorkspaceContextRequest, isRecordingWorkspaceContext],
   'recordingVersions.freeze': [isFreezeVersionsRequest, isVersionJob],
   'recordingVersions.cancel': [isSourceAction, isVersionJob],
   'recordingPreparation.revoke': [isSourceAction, isPreparationDestination],
@@ -136,6 +148,8 @@ export const MAX_COMMAND_OUTBOX_PAYLOAD_BYTES = 2 * 1024 * 1024;
 export const MAX_COMMAND_OUTBOX_SPREADSHEET_APPLY_BYTES = 3 * 1024 * 1024;
 /** 仅带图参考目录可使用较大信封；留出命令、基线及工作库字段开销。 */
 export const MAX_COMMAND_OUTBOX_REFERENCE_REVISION_BYTES = 4 * 1024 * 1024 + 4096;
+/** 单份有界 ZIP 的 base64 信封；成功回执只存摘要，不在目录库归档原容器。 */
+export const MAX_COMMAND_OUTBOX_REFERENCE_ZIP_BYTES = MAX_REFERENCE_SOURCE_ZIP_BASE64_CHARS + 4096;
 export const MAX_COMMAND_OUTBOX_TOTAL_BYTES = 64 * 1024 * 1024;
 export const MAX_COMMAND_OUTBOX_ENTRIES = 1000;
 export const COMMAND_OUTBOX_STATES = ['pending', 'sending', 'uncertain', 'succeeded', 'rejected', 'dismissed'] as const;
@@ -168,7 +182,8 @@ export function isCommandOutboxContext(v: unknown): v is CommandOutboxContext { 
 function envelope(v: unknown): v is Record<string, unknown> {
   if (!record(v) || !keys(v, ['datasetId', 'command', 'payload']) || !isCommandOutboxDatasetId(v.datasetId) || !record(v.payload) || !isCollectionId(v.payload.commandId)) return false;
   const limit = v.command === 'spreadsheetImports.apply' ? MAX_COMMAND_OUTBOX_SPREADSHEET_APPLY_BYTES
-    : v.command === 'referenceCatalog.publishRevision' ? MAX_COMMAND_OUTBOX_REFERENCE_REVISION_BYTES : MAX_COMMAND_OUTBOX_PAYLOAD_BYTES;
+    : v.command === 'referenceCatalog.publishRevision' ? MAX_COMMAND_OUTBOX_REFERENCE_REVISION_BYTES
+    : v.command === 'referenceCatalog.registerSourceZip' ? MAX_COMMAND_OUTBOX_REFERENCE_ZIP_BYTES : MAX_COMMAND_OUTBOX_PAYLOAD_BYTES;
   try { return new TextEncoder().encode(JSON.stringify(v)).byteLength <= limit; } catch { return false; }
 }
 export function isCommandOutboxExecute(v: unknown): v is CommandOutboxExecute {

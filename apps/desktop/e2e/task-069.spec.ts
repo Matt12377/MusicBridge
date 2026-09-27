@@ -158,8 +158,8 @@ test('V3 Excel：五步界面明确批准，720窄窗原行与独立更正截图
   await app!.evaluate(({ dialog }, absolutePath) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [absolutePath] }) }, selected.absolutePath)
   await page.setViewportSize({ width: 720, height: 800 })
   await page.locator('[data-sidebar-source="collection"]').click()
-  await page.getByRole('button', { name: 'Excel 导入', exact: true }).click()
-  const panel = page.getByRole('dialog', { name: 'Excel 非破坏导入', exact: true })
+  await page.getByRole('button', { name: '库存表导入', exact: true }).click()
+  const panel = page.getByRole('dialog', { name: '库存表非破坏导入', exact: true })
   await expect(panel).toBeVisible()
   const capture = async (step: string) => {
     await panel.evaluate(element => { element.scrollTop = 0 })
@@ -169,9 +169,9 @@ test('V3 Excel：五步界面明确批准，720窄窗原行与独立更正截图
     expect(await panel.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
     await page.screenshot({ path: test.info().outputPath(`excel-${step}-720.png`) })
   }
-  await expect(panel.getByRole('heading', { name: '1. 显式选择工作簿', exact: true })).toBeVisible()
+  await expect(panel.getByRole('heading', { name: '1. 显式选择库存表', exact: true })).toBeVisible()
   expect(await inventoryTotal()).toBe(0); await capture('1-source')
-  await panel.getByRole('button', { name: '选择 Excel 工作簿', exact: true }).click()
+  await panel.getByRole('button', { name: '选择库存表', exact: true }).click()
   await expect(panel.getByRole('heading', { name: '2. 选择 Sheet、介质与列映射', exact: true })).toBeVisible()
   await expect(panel.getByText(selected.hash, { exact: true })).toBeVisible()
   await expect(panel.getByRole('button', { name: '预览源行与修订差异', exact: true })).toBeDisabled()

@@ -94,6 +94,7 @@ export class CoreSupervisor {
   private startupGeneration = 0
   private startupAttempt: StartupAttempt | undefined
   private child: CoreChildProcess | undefined
+  private childExit: { child: CoreChildProcess; promise: Promise<void> } | undefined
   private port: CoreMessagePort | undefined
   private startPromise: Promise<void> | undefined
   private restartPromise: Promise<void> | undefined
@@ -144,6 +145,7 @@ export class CoreSupervisor {
       throw new CoreIpcError('NOT_READY', 'Core supervisor is shutting down')
     }
     if (this._status === 'ready') return
+    if (this.childExit) throw new CoreIpcError('NOT_READY', '旧 Core 未确认退出，禁止启动新进程')
     this.startPromise = this.startWithOneRetry()
     try {
       await this.startPromise
@@ -189,7 +191,7 @@ export class CoreSupervisor {
     }
     const timedCommand = command === 'commandOutbox.execute' && 'command' in payload ? String(payload.command) : command
     const timeoutMs =
-      ['recordingReplica.inspect', 'recordingOutput.check', 'recordingPlans.preview', 'recordingPlans.freeze', 'recordingPlans.preflight', 'recordingArchive.preview', 'recordingArchive.start', 'recordingArchive.verify', 'recordingArchive.initialize', 'recordingExecution.preview', 'recordingExecution.start', 'recordingExecution.verify', 'recordingPrepared.previewImport', 'recordingPrepared.startImport', 'recordingPrepared.review', 'recordingPrepared.freeze'].includes(timedCommand)
+      ['recordingReplica.inspect', 'recordingOutput.check', 'recordingPlans.preview', 'recordingPlans.freeze', 'recordingPlans.preflight', 'recordingArchive.preview', 'recordingArchive.start', 'recordingArchive.verify', 'recordingArchive.initialize', 'recordingExecution.preview', 'recordingExecution.start', 'recordingExecution.verify', 'recordingPrepared.previewImport', 'recordingPrepared.startImport', 'recordingPrepared.review', 'recordingPrepared.freeze', 'recordingPreparationZip.preview', 'recordingPreparationZip.start'].includes(timedCommand)
       ? PREPARED_FILE_REQUEST_TIMEOUT_MS
       : command.startsWith('playback.') || command === 'roon.library.play' || command === 'roon.library.queue'
         ? PLAYBACK_REQUEST_TIMEOUT_MS
@@ -217,8 +219,10 @@ export class CoreSupervisor {
 
   async shutdown(): Promise<void> {
     if (this.shutdownPromise) return this.shutdownPromise
-    this.shutdownPromise = this.shutdownInternal()
-    return this.shutdownPromise
+    const work = this.shutdownInternal()
+    this.shutdownPromise = work
+    try { await work }
+    catch (error) { if (this.shutdownPromise === work) this.shutdownPromise = undefined; throw error }
   }
 
   async restart(env?: NodeJS.ProcessEnv, options?: { readyTimeoutMs?: number }): Promise<void> {
@@ -298,6 +302,13 @@ export class CoreSupervisor {
         return
       } catch (error) {
         if (this.shuttingDown) throw error
+        // 启动超时或恢复 hook 失败后，旧 Core 必须确实退出才能试第二次。
+        // 仅 kill() 返回不代表旧进程停止写库。
+        if (this.childExit && !await this.exitWithin(this.childExit.promise, 250)) {
+          this._status = 'failed'
+          this.options.onLifecycle?.({ event: 'failed' })
+          throw new CoreIpcError('NOT_READY', '旧 Core 未确认退出，禁止启动新进程')
+        }
         if (this.restartCount >= 1) {
           this._status = 'failed'
           this.options.onLifecycle?.({ event: 'failed' })
@@ -325,6 +336,9 @@ export class CoreSupervisor {
     this.port = channel.port2
     this._status = 'starting'
     this.options.onLifecycle?.({ event: 'spawn' })
+    let confirmExit: () => void = () => undefined
+    const exited = new Promise<void>(resolve => { confirmExit = resolve })
+    this.childExit = { child, promise: exited }
 
     let settled = false
     let readyReceived = false
@@ -349,7 +363,6 @@ export class CoreSupervisor {
       attempt.cancelStart(error)
       channel.port2.close()
       if (this.child === child) {
-        this.child = undefined
         this.port = undefined
         this.rejectPending(error)
       }
@@ -364,6 +377,8 @@ export class CoreSupervisor {
     }
 
     const handleExit = (code: number): void => {
+      confirmExit()
+      if (this.childExit?.child === child) this.childExit = undefined
       clearTimeout(readyTimer)
       attempt.valid = false
       if (this.child !== child) return
@@ -491,9 +506,7 @@ export class CoreSupervisor {
       return
     }
 
-    const exited = new Promise<void>((resolve) => {
-      child.once('exit', () => resolve())
-    })
+    const exited = this.childExit?.child === child ? this.childExit.promise : Promise.resolve()
     try {
       await this.request('core.shutdown', {})
     } catch {
@@ -502,7 +515,13 @@ export class CoreSupervisor {
     await Promise.race([exited, this.delay(this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS)])
     if (this.child === child) {
       child.kill()
-      await Promise.race([exited, this.delay(250)])
+      if (!await this.exitWithin(exited, 250)) {
+        port?.close()
+        if (this.port === port) this.port = undefined
+        this._status = 'failed'
+        this.rejectPending(new CoreIpcError('NOT_READY', '旧 Core 未确认退出'))
+        throw new CoreIpcError('NOT_READY', '旧 Core 未确认退出，禁止重启或切换工作库')
+      }
     }
     port?.close()
     this._status = 'stopped'
@@ -512,5 +531,12 @@ export class CoreSupervisor {
 
   private delay(milliseconds: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, milliseconds))
+  }
+
+  private async exitWithin(exited: Promise<void>, milliseconds: number): Promise<boolean> {
+    return new Promise(resolve => {
+      const timer = setTimeout(() => resolve(false), milliseconds)
+      void exited.then(() => { clearTimeout(timer); resolve(true) })
+    })
   }
 }

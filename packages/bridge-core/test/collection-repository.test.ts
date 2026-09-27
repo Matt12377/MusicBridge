@@ -7,14 +7,14 @@ import { spawn, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import type { CollectionReceiveRequest } from '@music-bridge/contracts';
+import { isReserveMediaRequest, type CollectionReceiveRequest } from '@music-bridge/contracts';
 import { createCollectionRepository } from '../src/collection/repository.js';
 import { authorizeSourceDirectory } from '../src/recording/source-files.js';
 
 const page = { offset: 0, limit: 100 };
 // 这些测试从当前库构造历史版本，必须移除后加目录表；真正schema14输入另由固定SQL夹具覆盖。
 function dropReferenceCatalog(db: DatabaseSync): void {
-  db.exec('DROP TABLE recording_print_receipts; DROP TABLE recording_print_events; DROP TABLE recording_print_artifacts; DROP TABLE recording_print_jobs; DROP TABLE recording_print_requests; DROP TABLE master_artwork_current; DROP TABLE master_artwork_versions; DROP TABLE recording_print_objects; DROP TRIGGER recording_record_permit_copy_guard; DROP TRIGGER recording_record_content_copy_guard; DROP TRIGGER recording_record_permit_media_guard; DROP TABLE recording_record_receipts; DROP TABLE recording_record_permits; DROP TABLE recording_record_events; DROP TABLE recording_record_current; DROP TABLE recording_record_visuals; DROP TABLE recording_records; DROP TABLE recording_record_write_guard; DROP TRIGGER recording_attempt_copy_no_blank; DROP TRIGGER recording_attempt_reservation_no_delete; DROP TRIGGER recording_attempt_reservation_no_rebind; DROP TRIGGER recording_attempt_active_media_no_update; DROP TABLE recording_attempt_receipts; DROP TABLE recording_attempt_events; DROP TABLE recording_attempts; DROP TABLE recording_plan_ledger; DROP TABLE recording_plan_versions; DROP TABLE collection_want_events; DROP TABLE collection_progress_snapshots; DROP TABLE collection_progress_ledger; DROP TABLE collection_wants; DROP TABLE spreadsheet_adjustments; DROP TABLE spreadsheet_rows; DROP TABLE spreadsheet_effects; DROP TABLE spreadsheet_heads; DROP TABLE spreadsheet_revisions; DROP TABLE spreadsheet_source_rows; DROP TABLE spreadsheet_sources; DROP TABLE spreadsheet_ledger; DROP TABLE reference_catalog_ledger; DROP TABLE reference_catalog_snapshots; DROP TABLE reference_catalog_matches; DROP TABLE reference_catalog_heads; DROP TABLE reference_catalog_revisions; DROP TABLE reference_sources');
+  db.exec('DROP TABLE physical_link_history; DROP TABLE commercial_copy_photos; DROP TABLE commercial_copy_details; DROP TABLE commercial_release_copies; DROP TABLE recording_workspace_ledger; DROP TABLE recording_workspace_contexts; DROP TABLE recording_print_receipts; DROP TABLE recording_print_events; DROP TABLE recording_print_artifacts; DROP TABLE recording_print_jobs; DROP TABLE recording_print_requests; DROP TABLE master_artwork_current; DROP TABLE master_artwork_versions; DROP TABLE recording_print_objects; DROP TRIGGER recording_record_permit_copy_guard; DROP TRIGGER recording_record_content_copy_guard; DROP TRIGGER recording_record_permit_media_guard; DROP TABLE recording_record_receipts; DROP TABLE recording_record_permits; DROP TABLE recording_record_events; DROP TABLE recording_record_current; DROP TABLE recording_record_visuals; DROP TABLE recording_records; DROP TABLE recording_record_write_guard; DROP TRIGGER recording_attempt_copy_no_blank; DROP TRIGGER recording_attempt_reservation_no_delete; DROP TRIGGER recording_attempt_reservation_no_rebind; DROP TRIGGER recording_attempt_active_media_no_update; DROP TABLE recording_attempt_receipts; DROP TABLE recording_attempt_events; DROP TABLE recording_attempts; DROP TABLE recording_plan_ledger; DROP TABLE recording_plan_versions; DROP TABLE collection_want_events; DROP TABLE collection_progress_snapshots; DROP TABLE collection_progress_ledger; DROP TABLE collection_wants; DROP TABLE spreadsheet_adjustments; DROP TABLE spreadsheet_rows; DROP TABLE spreadsheet_effects; DROP TABLE spreadsheet_heads; DROP TABLE spreadsheet_revisions; DROP TABLE spreadsheet_source_rows; DROP TABLE spreadsheet_sources; DROP TABLE spreadsheet_ledger; DROP TABLE reference_catalog_ledger; DROP TABLE reference_catalog_snapshots; DROP TABLE reference_catalog_matches; DROP TABLE reference_catalog_heads; DROP TABLE reference_catalog_revisions; DROP TABLE reference_sources');
 }
 const photoImage = { dataUrl: 'data:image/jpeg;base64,/9j/2Q==', width: 1, height: 1 };
 const receipt = (overrides: Partial<CollectionReceiveRequest> = {}): CollectionReceiveRequest => ({
@@ -71,6 +71,39 @@ test('拆封在一个事务内把 Pool 8 转为 Pool 7 + Copy 1', async t => {
   assert.equal(detail.copies.items[0]?.packaging, 'opened');
   assert.equal(detail.model.counts.total, 8);
   assert.equal(detail.model.counts.openedBlank, 1);
+});
+
+test('永久实体编号精确读取所属型号与实时修订，重开后仍指向同一副本', async t => {
+  const { repository, filePath } = await fixture(t);
+  const stock = repository.receive(receipt());
+  const created = repository.materialize({ commandId: randomUUID(), lotId: stock.lotId!, bucket: 'sealedBlank', action: 'open' });
+  const physicalId = created.physicalId!;
+  const initial = repository.copy(physicalId);
+  assert.equal(initial.modelId, stock.modelId);
+  assert.equal(initial.copy.physicalId, physicalId);
+  assert.equal(initial.copy.revision, 1);
+  assert.equal(initial.copyIndex, 0);
+  repository.updateCopy({ commandId: randomUUID(), physicalId, expectedRevision: initial.copy.revision, action: 'reserve' });
+  assert.equal(repository.copy(physicalId).copy.revision, 2);
+  assert.deepEqual(repository.copy(physicalId).copy.reservationOwner, { kind: 'inventory' });
+  repository.updateCopy({ commandId: randomUUID(), physicalId, expectedRevision: 2, action: 'cancel-reservation' });
+  repository.close();
+  const reopened = createCollectionRepository({ filePath });
+  try {
+    assert.deepEqual(reopened.copy(physicalId), { modelId: stock.modelId, copy: { ...initial.copy, revision: 3 }, copyIndex: 0 });
+    assert.throws(() => reopened.copy('MB-C-99999'), /实体副本不存在/u);
+    assert.throws(() => reopened.copy('bad-id'), /实体副本编号无效/u);
+  } finally { reopened.close(); }
+});
+
+test('永久实体读取返回同型号当前倒序位置，不用编号大小推断分页', async t => {
+  const { repository } = await fixture(t);
+  const stock = repository.receive(receipt({ quantities: { sealedBlank: 0, openedBlank: 3, legacyUsed: 0, unclassified: 0 } }));
+  const first = repository.materialize({ commandId: randomUUID(), lotId: stock.lotId!, bucket: 'openedBlank', action: 'identify' }).physicalId!;
+  const second = repository.materialize({ commandId: randomUUID(), lotId: stock.lotId!, bucket: 'openedBlank', action: 'identify' }).physicalId!;
+  assert.equal(repository.copy(first).copyIndex, 1);
+  assert.equal(repository.copy(second).copyIndex, 0);
+  assert.deepEqual(repository.detail(stock.modelId, page).copies.items.map(copy => copy.physicalId), [second, first]);
 });
 
 test('旧录音登记从 Legacy Used 转出，标为历史来源且总数不增加', async t => {
@@ -326,7 +359,7 @@ test('v1 库存迁移保留全部账本和实体；迁移失败仍保留 v1 可�
   const migrated = createCollectionRepository({ filePath });
   try { assert.deepEqual(migrated.detail(stock.modelId, page), before); } finally { migrated.close(); }
   const check = new DatabaseSync(filePath, { readOnly: true });
-  try { assert.equal(check.prepare('PRAGMA user_version').get()?.user_version, 21); assert.deepEqual(check.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(), ledger); }
+  try { assert.equal(check.prepare('PRAGMA user_version').get()?.user_version, 24); assert.deepEqual(check.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(), ledger); }
   finally { check.close(); }
 });
 
@@ -614,13 +647,80 @@ test('录音预留单一事务守恒，回执重复不增加实体，取消不�
   const { plan, input } = mediaFixture(repository), skuId = repository.detail(stock.modelId, page).lots.items[0]!.skuId;
   const request = { commandId: randomUUID(), planId: plan.id, expectedRevision: plan.revision, skuId, packaging: 'opened' as const, userConfirmed: true as const };
   const reserved = repository.media.reserve(request, input); assert.equal(reserved.reservation?.physicalId, 'MB-C-00001'); assert.equal(reserved.revision, 2);
+  assert.deepEqual(repository.copy('MB-C-00001').copy.reservationOwner, { kind: 'recording-plan', draftId: input.draftId, planId: plan.id });
   assert.equal(repository.media.reserve(request, input).reservation?.physicalId, 'MB-C-00001');
   let detail = repository.detail(stock.modelId, page); assert.equal(detail.model.counts.total, 8); assert.equal(detail.model.counts.openedBlank, 2); assert.equal(detail.model.counts.reserved, 1); assert.equal(detail.copies.total, 1);
   assert.throws(() => repository.updateCopy({ commandId: randomUUID(), physicalId: 'MB-C-00001', expectedRevision: detail.copies.items[0]!.revision, action: 'cancel-reservation' }), /录音规划/u);
   const release = { commandId: randomUUID(), planId: plan.id, expectedRevision: reserved.revision, userConfirmed: true as const };
   const released = repository.media.release(release); assert.equal(released.reservation, undefined); assert.equal(repository.media.release(release).revision, released.revision);
+  assert.equal(repository.copy('MB-C-00001').copy.reservationOwner, undefined);
   detail = repository.detail(stock.modelId, page); assert.equal(detail.model.counts.total, 8); assert.equal(detail.model.counts.openedBlank, 3); assert.equal(detail.lots.items[0]!.quantities.openedBlank, 2); assert.equal(detail.copies.total, 1);
   assert.equal(repository.media.reserve({ ...request, commandId: randomUUID(), expectedRevision: released.revision }, input).reservation?.physicalId, 'MB-C-00001');
+});
+
+test('指定实体预留只占所选副本，修订或可用性变化不改选 Pool 和其他副本', async t => {
+  const { repository, filePath } = await fixture(t);
+  const stock = repository.receive(receipt({ quantities: { sealedBlank: 0, openedBlank: 3, legacyUsed: 0, unclassified: 0 } }));
+  const first = repository.materialize({ commandId: randomUUID(), lotId: stock.lotId!, bucket: 'openedBlank', action: 'identify' });
+  const second = repository.materialize({ commandId: randomUUID(), lotId: stock.lotId!, bucket: 'openedBlank', action: 'identify' });
+  const { plan, input } = mediaFixture(repository);
+  const skuId = repository.detail(stock.modelId, page).lots.items[0]!.skuId;
+  const request = { commandId: randomUUID(), planId: plan.id, expectedRevision: plan.revision, skuId, packaging: 'opened' as const, physicalId: second.physicalId!, expectedPhysicalRevision: 1, userConfirmed: true as const };
+  assert.equal(isReserveMediaRequest(request), true);
+  assert.equal(isReserveMediaRequest({ ...request, expectedPhysicalRevision: undefined }), false);
+  assert.equal(isReserveMediaRequest({ ...request, physicalId: undefined }), false);
+  const reserved = repository.media.reserve(request, input);
+  assert.equal(reserved.reservation?.physicalId, second.physicalId);
+  assert.deepEqual(repository.media.reserve(request, input), reserved);
+  let detail = repository.detail(stock.modelId, page);
+  assert.equal(detail.model.counts.total, 3);
+  assert.equal(detail.model.counts.reserved, 1);
+  assert.equal(detail.copies.items.find(copy => copy.physicalId === first.physicalId)?.usage, 'blank');
+  const occupied = mediaFixture(repository);
+  const occupiedRequest = { ...request, commandId: randomUUID(), planId: occupied.plan.id, expectedRevision: occupied.plan.revision, expectedPhysicalRevision: 2 };
+  assert.throws(() => repository.media.reserve(occupiedRequest, occupied.input), /指定磁带已改变/u);
+  assert.equal(repository.media.detail(occupied.plan.id).reservation, undefined);
+  const released = repository.media.release({ commandId: randomUUID(), planId: plan.id, expectedRevision: reserved.revision, userConfirmed: true });
+  detail = repository.detail(stock.modelId, page);
+  assert.equal(released.reservation, undefined);
+  assert.equal(detail.model.counts.total, 3);
+  assert.equal(detail.model.counts.openedBlank, 3);
+  const next = mediaFixture(repository);
+  const before = repository.detail(stock.modelId, page);
+  const staleRequest = { ...request, commandId: randomUUID(), planId: next.plan.id, expectedRevision: next.plan.revision };
+  assert.throws(() => repository.media.reserve(staleRequest, next.input), /指定磁带已改变/u);
+  repository.updateCopy({ commandId: randomUUID(), physicalId: first.physicalId!, expectedRevision: 1, action: 'mark-unavailable' });
+  const unavailableRequest = { ...staleRequest, commandId: randomUUID(), physicalId: first.physicalId!, expectedPhysicalRevision: 2 };
+  assert.throws(() => repository.media.reserve(unavailableRequest, next.input), /指定磁带已改变/u);
+  assert.equal(repository.detail(stock.modelId, page).model.counts.total, before.model.counts.total);
+  assert.equal(repository.media.detail(next.plan.id).reservation, undefined);
+  const db = new DatabaseSync(filePath, { readOnly: true });
+  try { assert.equal(db.prepare('SELECT COUNT(*) n FROM media_ledger WHERE command_id IN (?,?,?)').get(staleRequest.commandId, unavailableRequest.commandId, occupiedRequest.commandId)?.n, 0); }
+  finally { db.close(); }
+});
+
+test('定向预留拒绝 SKU、包装与收藏保护不匹配，失败不占用另一盘', async t => {
+  const { repository } = await fixture(t);
+  const stock = repository.receive(receipt({ quantities: { sealedBlank: 2, openedBlank: 2, legacyUsed: 0, unclassified: 0 } }));
+  const opened = repository.materialize({ commandId: randomUUID(), lotId: stock.lotId!, bucket: 'openedBlank', action: 'identify' });
+  const sealed = repository.materialize({ commandId: randomUUID(), lotId: stock.lotId!, bucket: 'sealedBlank', action: 'identify' });
+  const other = repository.receive(receipt({ lengthMinutes: 60, quantities: { sealedBlank: 0, openedBlank: 1, legacyUsed: 0, unclassified: 0 } }));
+  const { plan, input } = mediaFixture(repository);
+  const skus = repository.detail(stock.modelId, page).lots.items;
+  const sku90 = skus.find(lot => lot.id === stock.lotId)!.skuId;
+  const sku60 = skus.find(lot => lot.id === other.lotId)!.skuId;
+  const base = { commandId: randomUUID(), planId: plan.id, expectedRevision: plan.revision, physicalId: opened.physicalId!, expectedPhysicalRevision: 1, userConfirmed: true as const };
+  assert.throws(() => repository.media.reserve({ ...base, skuId: sku60, packaging: 'opened' }, input), /指定磁带已改变/u);
+  assert.throws(() => repository.media.reserve({ ...base, commandId: randomUUID(), skuId: sku90, packaging: 'sealed' }, input), /指定磁带已改变/u);
+  repository.setPolicy({ commandId: randomUUID(), modelId: stock.modelId, expectedRevision: 1, collectorPolicy: 'normal', minimumSealedReserve: 2 });
+  assert.throws(() => repository.media.reserve({ ...base, commandId: randomUUID(), skuId: sku90, packaging: 'sealed', physicalId: sealed.physicalId! }, input), /保护|条件/u);
+  repository.setPolicy({ commandId: randomUUID(), modelId: stock.modelId, expectedRevision: 2, collectorPolicy: 'collector', minimumSealedReserve: 0 });
+  assert.throws(() => repository.media.reserve({ ...base, commandId: randomUUID(), skuId: sku90, packaging: 'opened' }, input), /保护|条件/u);
+  const detail = repository.detail(stock.modelId, page);
+  assert.equal(detail.model.counts.reserved, 0);
+  assert.equal(detail.copies.items.find(copy => copy.physicalId === opened.physicalId)?.usage, 'blank');
+  assert.equal(detail.copies.items.find(copy => copy.physicalId === sealed.physicalId)?.usage, 'blank');
+  assert.equal(repository.media.detail(plan.id).reservation, undefined);
 });
 
 test('预留最后一盘互斥；源/草稿变更和保护策略不能借旧预览绕过', async t => {

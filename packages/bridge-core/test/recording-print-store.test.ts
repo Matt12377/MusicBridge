@@ -125,6 +125,76 @@ test('失败不回滚Completed；明确重试、私有lease、完成幂等与旧
  assert.equal(f.api.get({recordingId:record.id,artifactId:ready.artifactId!}).facts.recordingContentHash,record.contentHash);
 });
 
+test('同录音可新建两个冻结设计版本，不覆盖完成时请求/旧PDF；失败只重试原job',async t=>{
+ const f=await service(t),pending=await f.readyForFinal();await f.attempts.confirm(pending.request);
+ const record=JSON.parse(String(f.db.prepare('SELECT data FROM recording_records').get()!.data));
+ const {RECORDING_PRINT_GEOMETRY}=await import('@music-bridge/contracts');
+ const design={schemaVersion:1 as const,geometry:structuredClone(RECORDING_PRINT_GEOMETRY),coverTitle:'版本一封面',spineText:'版本一脊',artworkSource:'recording-snapshot' as const,qr:'none' as const};
+ const base={recordingId:record.id,expectedRecordHash:record.contentHash,templateId:'jp0-basic-v1' as const,userConfirmed:true as const,mode:'new-version' as const};
+ const firstRequest={...base,commandId:randomUUID(),design},first=f.api.request(firstRequest);
+ assert.deepEqual(f.api.request(firstRequest),first);assert.equal(first.request.origin,'manual-version');assert.equal(first.request.design?.coverTitle,'版本一封面');
+ const second=f.api.request({...base,commandId:randomUUID(),design:{...design,coverTitle:'版本二封面'}});
+ assert.notEqual(first.id,second.id);assert.notEqual(first.request.id,second.request.id);assert.notEqual(first.request.inputHash,second.request.inputHash);
+ const list=f.api.list({recordingId:record.id,page:{offset:0,limit:25}});assert.equal(list.total,3);assert.equal(list.items.filter(job=>job.request.origin==='completion').length,1);
+ const auto=f.api.claim({workerId:randomUUID()}).lease!;assert.equal(auto.design,undefined);
+ f.api.fail({leaseId:auto.leaseId,workerId:auto.workerId,jobId:auto.jobId,inputHash:auto.inputHash,errorCode:'RENDER_FAILED'});
+ const manual=f.api.claim({workerId:randomUUID()}).lease!;assert.deepEqual(manual.design,design);
+ const failed=f.api.fail({leaseId:manual.leaseId,workerId:manual.workerId,jobId:manual.jobId,inputHash:manual.inputHash,errorCode:'LAYOUT_OVERFLOW'});
+ const retry=f.api.retry({commandId:randomUUID(),jobId:failed.id,expectedRevision:failed.revision,userConfirmed:true});
+ assert.equal(retry.id,first.id);assert.equal(retry.request.id,first.request.id);assert.equal(f.db.prepare('SELECT count(*) n FROM recording_print_requests').get()!.n,3);
+});
+
+test('新模板选图只在确认请求事务入对象，领用冻结图片，手工回执设计与闭包不可冒充',async t=>{
+ const f=await service(t),pending=await f.readyForFinal();await f.attempts.confirm(pending.request);
+ const record=JSON.parse(String(f.db.prepare('SELECT data FROM recording_records').get()!.data));
+ const {RECORDING_PRINT_GEOMETRY,RECORDING_PRINT_DESIGN_TEMPLATE_ID}=await import('@music-bridge/contracts');
+ const imageBytes=Buffer.from(image.dataUrl.slice(23),'base64'),sha256=createHash('sha256').update(imageBytes).digest('hex');
+ const geometry={...structuredClone(RECORDING_PRINT_GEOMETRY),coverMm:70,widthMm:108.1,widthPt:Number((108.1*72/25.4).toFixed(2)),insideFoldMm:[70,82.7] as const};
+ const design={schemaVersion:2 as const,geometry,coverTitle:'选图版本',spineText:'只改排版',image:{source:'selected-image' as const,object:{sha256,size:imageBytes.length,width:1,height:1}},qr:'recording-summary' as const};
+ const base={commandId:randomUUID(),recordingId:record.id,expectedRecordHash:record.contentHash,templateId:RECORDING_PRINT_DESIGN_TEMPLATE_ID,userConfirmed:true as const,mode:'new-version' as const,design,designImage:image};
+ const originalObjects=Number(f.db.prepare('SELECT count(*) n FROM recording_print_objects').get()!.n);
+ assert.throws(()=>f.api.request({...base,design:{...design,image:{source:'selected-image' as const,object:{...design.image.object,sha256:'a'.repeat(64)}}}}),{code:'INVALID_REQUEST'});
+ assert.equal(f.db.prepare('SELECT count(*) n FROM recording_print_objects').get()!.n,originalObjects);
+ const job=f.api.request(base);assert.deepEqual(f.api.request(base),job);
+ assert.equal(job.request.templateId,RECORDING_PRINT_DESIGN_TEMPLATE_ID);
+ assert.equal(f.db.prepare('SELECT count(*) n FROM recording_print_objects').get()!.n,originalObjects+1);
+ const receipt=f.db.prepare("SELECT * FROM recording_print_receipts WHERE kind='request' AND json_extract(result,'$.id')=?").get(job.id)!;
+ assert.equal(String(receipt.request).includes('data:image'),false,'回执不重复写选图 base64');
+ const auto=f.api.claim({workerId:randomUUID()}).lease!;f.api.fail({leaseId:auto.leaseId,workerId:auto.workerId,jobId:auto.jobId,inputHash:auto.inputHash,errorCode:'RENDER_FAILED'});
+ const selected=f.api.claim({workerId:randomUUID()}).lease!;assert.deepEqual(selected.designImage,image);assert.deepEqual(selected.design,design);
+ const pdf=Buffer.from('%PDF-1.7\n合成多页对象\n%%EOF\n'),pdfSha256=createHash('sha256').update(pdf).digest('hex');
+ const ready=f.api.complete({leaseId:selected.leaseId,workerId:selected.workerId,jobId:selected.jobId,inputHash:selected.inputHash,pdfBase64:pdf.toString('base64'),pdfSha256,preview:image,pagePreviews:[image,image],pageCount:2,rendererVersion:'jc-design-test'});
+ const printed=f.api.get({recordingId:record.id,artifactId:ready.artifactId!});assert.deepEqual(printed.artifact.geometry,geometry);assert.deepEqual(printed.design,design);assert.equal(printed.previewPages?.length,2);
+ assert.equal(f.db.prepare('SELECT data FROM recording_records WHERE id=?').get(record.id)!.data,JSON.stringify(record));
+ const {verifyRecordingPrintDatabase}=await import('../src/recording/print-integrity.js');verifyRecordingPrintDatabase(f.db);
+ const {mediaFingerprint}=await import('../src/recording/media-store.js');
+ const changed=JSON.parse(String(receipt.request));changed.design.coverTitle='伪造的回执设计';
+ const updateTrigger=String(f.db.prepare("SELECT sql FROM sqlite_schema WHERE name='recording_print_receipts_no_update'").get()!.sql);
+ f.db.exec('DROP TRIGGER recording_print_receipts_no_update');
+ f.db.prepare('UPDATE recording_print_receipts SET request=?,fingerprint=? WHERE id=?').run(JSON.stringify(changed),mediaFingerprint({...changed,designImage:image}),receipt.id!);
+ f.db.exec(updateTrigger);assert.throws(()=>verifyRecordingPrintDatabase(f.db),'回执设计不同于冻结请求应拒绝');
+ f.db.exec('DROP TRIGGER recording_print_receipts_no_update');f.db.prepare('UPDATE recording_print_receipts SET request=?,fingerprint=? WHERE id=?').run(receipt.request!,receipt.fingerprint!,receipt.id!);f.db.exec(updateTrigger);
+ verifyRecordingPrintDatabase(f.db);
+ const trigger=String(f.db.prepare("SELECT sql FROM sqlite_schema WHERE name='recording_print_receipts_no_delete'").get()!.sql);
+ f.db.exec('DROP TRIGGER recording_print_receipts_no_delete');f.db.prepare("DELETE FROM recording_print_receipts WHERE kind='request' AND json_extract(result,'$.id')=?").run(job.id);f.db.exec(trigger);
+ assert.throws(()=>verifyRecordingPrintDatabase(f.db),'手工新版本缺明确回执应失败');
+});
+
+test('24页预览仅把Hash/尺寸摘要写回执，真实对象与指纹同请求验证且预算有界',async t=>{
+ const f=await service(t),pending=await f.readyForFinal();await f.attempts.confirm(pending.request);
+ const {capacityPdf,capacityJpeg}=await import('./helpers/recording-capacity-fixture.js');
+ const lease=f.api.claim({workerId:randomUUID()}).lease!,pdf=capacityPdf({bytes:4096,id:'many-pages'});
+ const pagePreviews=Array.from({length:24},(_,index)=>({dataUrl:`data:image/jpeg;base64,${capacityJpeg({bytes:24_000,id:`page-${index}`}).toString('base64')}`,width:1,height:1}));
+ const complete={leaseId:lease.leaseId,workerId:lease.workerId,jobId:lease.jobId,inputHash:lease.inputHash,pdfBase64:pdf.toString('base64'),pdfSha256:createHash('sha256').update(pdf).digest('hex'),preview:pagePreviews[0]!,pagePreviews,pageCount:24,rendererVersion:'paged-budget-test'};
+ const ready=f.api.complete(complete);assert.deepEqual(f.api.complete(complete),ready);
+ const receipt=f.db.prepare("SELECT request FROM recording_print_receipts WHERE kind='complete'").get()!;
+ assert.ok(Buffer.byteLength(String(receipt.request))<10_000,'回执只留24页Hash/尺寸摘要');assert.equal(String(receipt.request).includes('data:image'),false);
+ const summary=JSON.parse(String(receipt.request)).pagePreviews;assert.equal(summary.length,24);assert.match(summary[23].sha256,/^[a-f0-9]{64}$/);
+ const result=f.api.get({recordingId:lease.facts.recordingId,artifactId:ready.artifactId!});assert.equal(result.previewPages?.length,24);assert.equal(result.artifact.previewPages?.length,24);
+ const {verifyRecordingPrintDatabase}=await import('../src/recording/print-integrity.js');verifyRecordingPrintDatabase(f.db);
+ assert.throws(()=>f.api.complete({...complete,pagePreviews:[...pagePreviews.slice(0,23),pagePreviews[0]!]}),{code:'COMMAND_CONFLICT'});
+});
+
 test('完成提交故障同时回滚Record与打印意图；重新确认只建一份',async t=>{
  const f=await fixture(t),pending=await f.readyForFinal();
  const {createRecordingAttemptStore}=await import('../src/recording/attempt-store.js');let fail=true;

@@ -93,8 +93,8 @@ test('V3交互：已登记关系选曲保留Exact与Probable区别，浏览不�
     const first = albums.items.find(item => item.title === '关联验收专辑')!
     const cd = await window.musicBridge.savePhysicalRelease({ commandId: crypto.randomUUID(), release: { format: 'cd', title: '合成已确认CD', artist: '合成艺术家', quantity: 2, completeness: 'basic', tracks: [] } })
     const related = await window.musicBridge.savePhysicalRelease({ commandId: crypto.randomUUID(), release: { format: 'cassette', title: '合成待核实磁带', artist: '合成艺术家', quantity: 1, completeness: 'basic', tracks: [] } })
-    const exact = await window.musicBridge.confirmPhysicalLink({ commandId: crypto.randomUUID(), releaseId: cd.id, expectedRevision: 1, reference: first.reference, relation: 'exact', ripFromCdConfirmed: true, userConfirmed: true })
-    await window.musicBridge.confirmPhysicalLink({ commandId: crypto.randomUUID(), releaseId: related.id, expectedRevision: 1, digitalId: exact.digitalId!, relation: 'probable', ripFromCdConfirmed: false, userConfirmed: true })
+    const exact = await window.musicBridge.confirmPhysicalLink({ commandId: crypto.randomUUID(), releaseId: cd.id, expectedRevision: 1, reference: first.reference, relation: 'exact', ripFromCdConfirmed: true, reason: '合成验收：已核对 CD 为原版来源', userConfirmed: true })
+    await window.musicBridge.confirmPhysicalLink({ commandId: crypto.randomUUID(), releaseId: related.id, expectedRevision: 1, digitalId: exact.digitalId!, relation: 'probable', ripFromCdConfirmed: false, reason: '合成验收：仅保留待核实关联', userConfirmed: true })
     return { digitalId: exact.digitalId!, before: await window.musicBridge.getCollectionMatrix({ offset: 0, limit: 25 }) }
   })
   await page.locator('[data-sidebar-source="recording"]').click()
@@ -263,4 +263,147 @@ test('V3交互：真实多规划历史需明确选择，同谱系Direct路径与
   expect(await readFile(sourceFile)).toEqual(bytes)
   await close(); await launch(); await openDraft('多历史上下文')
   await expect(page.getByTestId('recording-next-step').getByRole('combobox', { name: '本次媒体规划', exact: true })).toHaveValue('')
+})
+
+test('TASK-085 J05：正式 UI 登记发行与逐件、归属照片、关联更正撤销并冷启保留', async () => {
+  test.setTimeout(120_000)
+  const blocked: string[] = []
+  const pageErrors: string[] = [], consoleErrors: string[] = []
+  const requestFailures: Array<{ url: string; error: string | null }> = []
+  const observePage = () => {
+    page.on('pageerror', error => pageErrors.push(error.message))
+    page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()) })
+    page.on('requestfailed', request => requestFailures.push({ url: request.url(), error: request.failure()?.errorText ?? null }))
+  }
+  const blockExternal = async () => page.route(/^https?:\/\//u, route => {
+    blocked.push(route.request().url())
+    return route.abort('blockedbyclient')
+  })
+  observePage()
+  await blockExternal()
+  await page.locator('[data-sidebar-source="collection"]').click()
+  await page.getByRole('tab', { name: '实体音乐库', exact: true }).click()
+  await page.getByRole('button', { name: '添加实体音乐', exact: true }).click()
+  const editor = page.getByRole('dialog', { name: '添加实体音乐', exact: true })
+  await editor.getByLabel('艺术家', { exact: true }).fill('合成艺术家')
+  await editor.getByLabel('专辑 / 录音标题', { exact: true }).fill('关联验收专辑')
+  await editor.getByLabel('版次', { exact: true }).fill('合成首版')
+  await editor.getByLabel('实物数量', { exact: true }).fill('2')
+  await editor.getByRole('button', { name: '保存音乐资料', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '关联验收专辑', exact: true })).toBeVisible()
+  const releaseId = await page.evaluate(async () => {
+    const list = await window.musicBridge.listPhysicalMusic({ offset: 0, limit: 20 })
+    return list.items.find(item => item.title === '关联验收专辑')!.id
+  })
+  const copies = page.getByRole('region', { name: '商业发行逐件身份', exact: true })
+  await expect(copies).toContainText('发行数量 2 · 已有逐件编号 0 · 未逐件识别 Pool 2')
+  for (const assigned of [1, 2]) {
+    await copies.getByLabel('我正在核对手上的一件实物，为它分配永久编号；不会增加发行总数', { exact: true }).check()
+    await copies.getByRole('button', { name: '给这一件分配永久编号', exact: true }).click()
+    await expect(copies).toContainText('已有逐件编号 ' + assigned + ' · 未逐件识别 Pool ' + (2 - assigned))
+  }
+  const identified = await page.evaluate(id => window.musicBridge.getCommercialCopies(id, { offset: 0, limit: 20 }), releaseId)
+  expect(identified.quantity).toBe(2)
+  expect(identified.copies.items).toHaveLength(2)
+  const [firstId, secondId] = identified.copies.items.map(copy => copy.id)
+  const first = copies.locator('.copy-card').filter({ hasText: firstId })
+  await first.getByRole('button', { name: '编辑这一件', exact: true }).click()
+  await first.getByLabel('这件的存放位置', { exact: true }).fill('书柜 A1')
+  await first.getByLabel('这件的品相', { exact: true }).fill('封套完整')
+  await first.getByLabel('这件的购买信息', { exact: true }).fill('合成验收购入')
+  await first.getByRole('button', { name: '保存这件资料', exact: true }).click()
+  await expect(first).toContainText('书柜 A1')
+  const afterDetails = await page.evaluate(id => window.musicBridge.getCommercialCopies(id, { offset: 0, limit: 20 }), releaseId)
+  expect(afterDetails.copies.items.find(copy => copy.id === firstId)?.details.location).toBe('书柜 A1')
+  expect(afterDetails.copies.items.find(copy => copy.id === secondId)?.details.location).toBeUndefined()
+
+  const image = await app!.evaluate(({ nativeImage }) => Array.from(nativeImage.createFromBitmap(Buffer.from([80, 100, 120, 255]), { width: 1, height: 1 }).toPNG()))
+  const filePath = test.info().outputPath('j05-synthetic-release-photo.png')
+  await writeFile(filePath, Buffer.from(image))
+  await app!.evaluate(({ dialog }, target) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [target] }) }, filePath)
+  await page.getByRole('button', { name: '添加发行版照片', exact: true }).click()
+  await expect.poll(async () => (await page.evaluate(id => window.musicBridge.getPhysicalMusic(id), releaseId)).photos.length).toBe(1)
+  const photoId = (await page.evaluate(id => window.musicBridge.getPhysicalMusic(id), releaseId)).photos[0]!.id
+  const beforeAssignment = await page.evaluate(id => window.musicBridge.getCommercialCopies(id, { offset: 0, limit: 20 }), releaseId)
+  expect(beforeAssignment.photoAssignments).toHaveLength(0)
+  await first.getByRole('combobox', { name: '选择发行版照片', exact: true }).selectOption(photoId)
+  await first.getByRole('button', { name: '确认归属这件', exact: true }).click()
+  await expect(first).toContainText('明确归属这件的照片')
+  const assigned = await page.evaluate(id => window.musicBridge.getCommercialCopies(id, { offset: 0, limit: 20 }), releaseId)
+  expect(assigned.copies.items.find(copy => copy.id === firstId)?.photoIds).toEqual([photoId])
+  expect(assigned.copies.items.find(copy => copy.id === secondId)?.photoIds).toEqual([])
+  expect(assigned.quantity).toBe(2)
+  expect((await page.evaluate(() => window.musicBridge.listCollection({ offset: 0, limit: 20 }))).total).toBe(0)
+
+  const relations = page.getByRole('region', { name: 'Roon 数字关联', exact: true })
+  async function chooseRelation(relation: 'exact' | 'probable', reason: string) {
+    await relations.getByRole('button', { name: '关联 Roon 专辑', exact: true }).click()
+    const picker = page.getByRole('dialog', { name: '选择 Roon 专辑', exact: true })
+    await picker.getByRole('radio', { name: /关联验收专辑/u }).check()
+    await picker.getByRole('combobox', { name: '关系类型', exact: true }).selectOption(relation)
+    await picker.getByLabel('确认或更正理由', { exact: true }).fill(reason)
+    await picker.getByLabel('我已核对候选信息并确认本次选择', { exact: true }).check()
+    await picker.getByRole('button', { name: '确认关联', exact: true }).click()
+    await expect(picker).toHaveCount(0)
+  }
+  await chooseRelation('exact', '合成验收：核对同版')
+  await expect(relations).toContainText('Exact · 用户确认同版')
+  await chooseRelation('probable', '合成验收：版次尚未确认，降为可能同版')
+  await expect(relations).toContainText('Probable · 可能同版')
+  const history = relations.getByRole('region', { name: '数字关系历史', exact: true })
+  await expect(history).toContainText('确认关联')
+  await expect(history).toContainText('更正关联')
+  await relations.getByRole('button', { name: '解除关联', exact: true }).click()
+  const removal = page.getByRole('group', { name: '确认解除关联', exact: true })
+  await removal.getByLabel('解除理由', { exact: true }).fill('合成验收：撤销已核对关系')
+  const native = await app!.evaluate(({ BrowserWindow }) => {
+    const window = BrowserWindow.getAllWindows().find(item => item.webContents.getURL().startsWith('musicbridge://app/'))
+    if (!window) throw new Error('正式主窗口未找到')
+    window.setContentSize(720, 480)
+    return { bounds: window.getBounds(), contentBounds: window.getContentBounds(), zoomFactor: window.webContents.getZoomFactor() }
+  })
+  await expect.poll(async () => page.evaluate(() => ({ width: innerWidth, height: innerHeight }))).toEqual({ width: native.contentBounds.width, height: native.contentBounds.height })
+  const renderer = await page.evaluate(() => ({ innerWidth, innerHeight, devicePixelRatio, visualViewport: window.visualViewport
+    ? { width: window.visualViewport.width, height: window.visualViewport.height, scale: window.visualViewport.scale } : null }))
+  await writeFile(test.info().outputPath('j05-native-720-geometry.json'), JSON.stringify({ requestedContent: { width: 720, height: 480 }, native, renderer }, null, 2))
+  await page.locator('.content-scroll').evaluate(element => { element.scrollTop = element.scrollHeight })
+  const revoke = removal.getByRole('button', { name: '确认解除关联', exact: true })
+  const actionBounds = await revoke.boundingBox(), playerBounds = await page.locator('.global-player').boundingBox()
+  expect(actionBounds).not.toBeNull()
+  expect(playerBounds).not.toBeNull()
+  expect(actionBounds!.y + actionBounds!.height).toBeLessThanOrEqual(playerBounds!.y - 4)
+  await revoke.click()
+  await expect(history).toContainText('撤销关联')
+  await expect(relations.getByText('尚未关联，数字版本是否存在仍待核实', { exact: true })).toBeVisible()
+  expect((await page.evaluate(id => window.musicBridge.getPhysicalLinks(id), releaseId)).links).toHaveLength(0)
+  await page.screenshot({ path: test.info().outputPath('j05-revoked-720.png'), scale: 'css' })
+
+  await page.getByRole('button', { name: '← 返回音乐库', exact: true }).click()
+  await expect(page.locator('.music-card').filter({ hasText: '关联验收专辑' })).toBeVisible()
+  await close()
+  await launch()
+  observePage()
+  await blockExternal()
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.locator('[data-sidebar-source="collection"]').click()
+  await page.getByRole('tab', { name: '实体音乐库', exact: true }).click()
+  await page.locator('.music-card').filter({ hasText: '关联验收专辑' }).click()
+  const restored = await page.evaluate(async id => ({
+    detail: await window.musicBridge.getPhysicalMusic(id),
+    copies: await window.musicBridge.getCommercialCopies(id, { offset: 0, limit: 20 }),
+    links: await window.musicBridge.getPhysicalLinks(id),
+  }), releaseId)
+  expect(restored.detail.release?.quantity).toBe(2)
+  expect(restored.detail.photos.map(photo => photo.id)).toEqual([photoId])
+  expect(restored.copies.copies.items.find(copy => copy.id === firstId)?.photoIds).toEqual([photoId])
+  expect(restored.copies.copies.items.find(copy => copy.id === firstId)?.details.location).toBe('书柜 A1')
+  expect(restored.copies.copies.items.find(copy => copy.id === secondId)?.photoIds).toEqual([])
+  expect(restored.links.links).toHaveLength(0)
+  await expect(page.getByRole('region', { name: '数字关系历史', exact: true })).toContainText('撤销关联')
+  await page.screenshot({ path: test.info().outputPath('j05-cold-reopen-1440.png'), scale: 'css' })
+  await writeFile(test.info().outputPath('j05-network-and-errors.json'), JSON.stringify({
+    blocked, requestFailures, pageErrors, consoleErrors,
+    knownSyntheticCoverBlocked: blocked.filter(url => url === 'https://p1.music.126.net/synthetic-cover.jpg').length,
+    boundary: '拦截器在每次 launch 后安装；启动阶段请求不在拦截断言范围内。',
+  }, null, 2))
 })

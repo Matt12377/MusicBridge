@@ -9,7 +9,7 @@ import { executionFrameLimit } from '@music-bridge/contracts'
 import RecordingProfileSettings from './RecordingProfileSettings.vue'
 import ArchivePanel from './ArchivePanel.vue'
 
-const props = defineProps<{ draft: MasterDraft; initialContext?: { layoutId: string; mode: ExecutionMode; preparedId?: string } }>()
+const props = defineProps<{ draft: MasterDraft; initialContext?: { layoutId: string; mode: ExecutionMode; preparedId?: string }; inline?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 const api = window.musicBridge, dialog = ref<HTMLDialogElement>()
 const versions = shallowRef<VersionHistory>(), prepared = shallowRef<PreparedHistory>()
@@ -51,7 +51,7 @@ function conversionPlans(recipe: ExecutionAssetRecipe) {
   return recipe.schemaVersion === 2 ? recipe.segments.flatMap(s => s.kind === 'silence' ? [] : [s.conversion]) : []
 }
 function statusText(job: ExecutionJob): string {
-  if (job.state === 'completed') return '执行资产已发布；尚未获得正式录音许可。'
+  if (job.state === 'completed') return '执行资产已发布；正式输出资格由本次计划预检判断。'
   if (job.state === 'running') return `正在准备并校验 ${job.completedSides} / ${job.totalSides} 面`
   if (job.state === 'interrupted') return '任务中断；重启只验证完整产物，不重编译。请检查保留目录后再决定是否新建任务。'
   return job.failure ? failures[job.failure] : '任务未完成'
@@ -169,7 +169,7 @@ async function stopRead(): Promise<void> {
 function close(force = false): void {
   if (closeBlocked.value) return
   if (profileState.value.dirty && !force) { discarding.value = true; return }
-  dialog.value?.close(); emit('close')
+  if (!props.inline) dialog.value?.close(); emit('close')
 }
 async function openArchive(asset: ExecutionAsset, event: MouseEvent): Promise<void> {
   if (blocked.value || profileState.value.dirty) return
@@ -181,22 +181,22 @@ async function closeArchive(): Promise<void> {
   await nextTick();
   archiveTrigger?.focus(); archiveTrigger = undefined
 }
-onMounted(async () => { await nextTick(); dialog.value?.showModal(); void refresh(true) })
+onMounted(async () => { await nextTick(); if (!props.inline) dialog.value?.showModal(); void refresh(true) })
 onBeforeUnmount(() => {
   alive = false; ++generation; if (timer) clearTimeout(timer)
   if (readId.value) void api.cancelExecutionRead(readId.value).catch(() => undefined)
-  dialog.value?.close()
+  if (!props.inline) dialog.value?.close()
 })
 </script>
 <template>
-  <dialog ref="dialog" class="execution-panel" aria-labelledby="execution-title" @cancel.prevent="close()">
+  <component :is="inline ? 'section' : 'dialog'" ref="dialog" class="execution-panel" :class="{ 'is-inline': inline }" aria-labelledby="execution-title" @cancel.prevent="close()">
     <header>
       <div><p class="kicker">录音准备 · 06</p><h2 id="execution-title">录音参数与执行资产</h2><p class="muted">{{ draft.title }}</p></div>
       <button :disabled="closeBlocked" @click="close()">关闭</button>
     </header>
     <ArchivePanel v-if="archivingAsset" :draft-id="draft.id" :asset="archivingAsset" @close="closeArchive" @state="archiveBusy = $event" />
     <div v-show="!archivingAsset">
-    <div class="boundary"><strong>准备音频，尚不开始录音。</strong><p>F-01 保留政策、归档规则、输出认证与正式预检仍待完成。本阶段不操作设备，不自动删除执行文件，也不承诺永久归档。</p></div>
+    <div class="boundary"><strong>准备音频，尚不开始录音。</strong><p>F-01 已确认成功执行音频与谱系、PREP 原始 Render 永久保留；原始曲目源按明确的归档政策处理。本页任务记录展示实际准备结果，每项资产的归档进度与完整性以“归档此执行资产”内的记录和核验为准。这里不操作录音设备，也不自动删除文件；正式输出资格由本次录音计划预检判断。</p></div>
     <RecordingProfileSettings :draft-id="draft.id" :disabled="externalBusy" @session="session = $event" @state="profileState = $event" />
 
     <section aria-labelledby="execution-source-title">
@@ -224,7 +224,7 @@ onBeforeUnmount(() => {
         <div><dt>Profile 版本</dt><dd>{{ proposal.settings.profile.content.name }} · v{{ proposal.settings.profile.sequence }}<small>{{ proposal.settings.profile.id }}</small></dd></div>
         <div><dt>本次参数修订</dt><dd>{{ proposal.sessionRevision }} · 降噪 {{ proposal.settings.effective.noiseReduction ?? '未设定' }} · 电平 {{ proposal.settings.effective.recordLevel ?? '未设定' }}</dd></div>
         <div><dt>音频格式</dt><dd>{{ proposal.settings.format.sampleRate.toLocaleString() }} Hz · {{ proposal.settings.format.channelLayout }} · {{ proposal.settings.format.outputSampleFormat }}</dd></div>
-        <div><dt>计划后端（未认证）</dt><dd>{{ proposal.settings.format.outputBackend.id }} · {{ proposal.settings.format.outputBackend.version }}</dd></div>
+        <div><dt>计划输出后端身份</dt><dd>{{ proposal.settings.format.outputBackend.id }} · {{ proposal.settings.format.outputBackend.version }}<small>这是本次参数快照；实际设备身份与输出资格由计划预检核对。</small></dd></div>
         <div><dt>精度 / 重采样 / Dither</dt><dd>{{ proposal.settings.format.internalProcessingPrecision }} · {{ proposal.settings.format.resamplerImplementation }} / {{ proposal.settings.format.resamplerVersion }} · {{ proposal.settings.format.ditherPolicy }}</dd></div>
         <div><dt>目标与空间</dt><dd>{{ proposal.destinationLabel }} · 新写音频预算 {{ size(proposal.audioBytesToWrite) }} · 引用原件 {{ size(proposal.referencedAudioBytes) }}<small>转换预算含中间文件；另需少量清单空间，发布前再次检查。</small></dd></div>
       </dl>
@@ -254,18 +254,18 @@ onBeforeUnmount(() => {
 
     <section aria-labelledby="execution-history-title">
       <p class="kicker">04 · 已保存的执行事实</p><h3 id="execution-history-title">执行资产历史</h3>
-      <p class="muted">历史保留发布时使用的版本与参数。文件此刻是否仍可用，需要重新验证；验证通过也不解锁正式录音。</p>
+      <p class="muted">历史保留发布时使用的版本与参数。文件此刻是否仍可用，需要重新验证；归档是否完成请打开对应资产查看记录和核验。两种核验都不替代本次录音计划预检。</p>
       <p v-if="history && !history.assets.length" class="muted">尚无已发布执行资产。</p>
       <article v-for="(asset,i) in history?.assets" :key="asset.id" class="asset">
         <div class="asset-heading"><h4>执行资产 {{ (history?.assets.length ?? 0) - i }}</h4><span>{{ modeLabels[asset.mode] }}</span></div>
         <p>{{ asset.settings.profile.content.name }} · v{{ asset.settings.profile.sequence }} · {{ asset.settings.format.sampleRate.toLocaleString() }} Hz · {{ asset.settings.format.outputSampleFormat }}</p>
         <p class="muted">{{ new Date(asset.createdAt).toLocaleString() }} · M {{ short(asset.masterVersionId) }} / L {{ short(asset.layoutVersionId) }} · {{ asset.audio.length }} 份非空音频</p>
         <p class="muted">降噪 {{ asset.settings.effective.noiseReduction ?? '未设定' }} · 校准 {{ asset.settings.effective.calibration ?? '未设定' }} · 电平 {{ asset.settings.effective.recordLevel ?? '未设定' }} · 手动预卷 {{ asset.settings.effective.preRollMs / 1000 }} 秒</p>
-        <details><summary>逐面音频与谱系</summary><p class="muted">链路：{{ asset.settings.effective.signalChain.map(s => s.label).join(' → ') }}</p><p class="muted">计划后端：{{ asset.settings.format.outputBackend.id }} / {{ asset.settings.format.outputBackend.version }}（未认证）</p><div v-for="audio in asset.audio" :key="audio.recipe.side" class="audio-detail"><strong>{{ audio.recipe.side }} · {{ audio.audio.frameCount.toLocaleString() }} 帧 · {{ size(audio.audio.size) }}</strong><p>SHA-256</p><code>{{ audio.audio.sha256 }}</code><p>PCM SHA-256</p><code>{{ audio.audio.pcmSha256 }}</code></div><p>Manifest SHA-256</p><code>{{ asset.manifestHash }}</code></details>
+        <details><summary>逐面音频与谱系</summary><p class="muted">链路：{{ asset.settings.effective.signalChain.map(s => s.label).join(' → ') }}</p><p class="muted">计划输出后端身份：{{ asset.settings.format.outputBackend.id }} / {{ asset.settings.format.outputBackend.version }}（本资产参数快照，非输出资格）</p><div v-for="audio in asset.audio" :key="audio.recipe.side" class="audio-detail"><strong>{{ audio.recipe.side }} · {{ audio.audio.frameCount.toLocaleString() }} 帧 · {{ size(audio.audio.size) }}</strong><p>SHA-256</p><code>{{ audio.audio.sha256 }}</code><p>PCM SHA-256</p><code>{{ audio.audio.pcmSha256 }}</code></div><p>Manifest SHA-256</p><code>{{ asset.manifestHash }}</code></details>
         <button :disabled="blocked" @click="verify(asset.id)">重新验证此资产</button>
         <button :data-archive-asset="asset.id" :disabled="blocked || profileState.dirty" @click="openArchive(asset, $event)">归档此执行资产</button>
         <p v-if="checks[asset.id]" role="status" class="check-result">{{ checks[asset.id]!.state === 'verified' ? '本次文件验证通过' : '文件不可用或完整性验证未通过' }}</p>
-        <p v-if="checks[asset.id]" class="muted">核验时间：{{ new Date(checks[asset.id]!.checkedAt).toLocaleString() }}。仍未正式就绪。</p>
+        <p v-if="checks[asset.id]" class="muted">核验时间：{{ new Date(checks[asset.id]!.checkedAt).toLocaleString() }}。此结果不代表正式输出许可。</p>
       </article>
       <details v-if="history?.jobs.length" :open="running.length > 0" class="job-history"><summary>任务记录（{{ history.jobs.length }}）</summary>
         <article v-for="job in history.jobs" :key="job.id" class="job"><strong>{{ short(job.id) }} · {{ statusText(job) }}</strong><progress v-if="job.state === 'running'" :value="job.completedSides" :max="job.totalSides" aria-label="执行资产逐面进度"/><p v-if="job.state === 'running'" class="muted">关闭面板后继续；重启不会重放编译。失败或取消的文件保留，不自动清理。</p><button v-if="job.state === 'running' || job.state === 'interrupted'" :disabled="busy || !!pending || profileState.busy" @click="cancel(job)">取消此执行任务</button></article>
@@ -273,8 +273,9 @@ onBeforeUnmount(() => {
     </section>
     <div v-if="discarding" class="warning" role="alert"><p>关闭会放弃尚未保存的参数编辑，已保存版本与执行任务保持不变。</p><div class="actions"><button @click="close(true)">放弃未保存编辑并关闭</button><button @click="discarding = false">继续编辑</button></div></div>
     </div>
-  </dialog>
+  </component>
 </template>
 <style scoped>
 .execution-panel{box-sizing:border-box;width:min(940px,calc(100vw - 40px));max-height:calc(100dvh - 36px);padding:28px;border:1px solid var(--mb-glass-border);border-radius:18px;background:var(--mb-bg-base);color:var(--mb-text-primary);overflow:auto;overscroll-behavior:contain}.execution-panel::backdrop{background:rgb(0 0 0 / .66)}header,.actions,.asset-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}header{align-items:flex-start;margin-bottom:20px}.actions{justify-content:flex-start;margin:16px 0}h2{font-size:24px;line-height:1.35;letter-spacing:-.02em;margin:0}h3{font-size:19px;line-height:1.5;margin:0 0 12px}h4{font-size:16px;margin:0}.kicker{font-size:12px;color:var(--mb-accent);margin:0 0 8px}p{font-size:14px;line-height:1.75;overflow-wrap:anywhere}.muted{font-size:13px;color:var(--mb-text-secondary)}.boundary{padding:16px 18px;border-left:3px solid var(--mb-accent);background:var(--mb-glass-clear);margin:0 0 28px}.boundary p{margin:6px 0 0;font-size:13px}section{padding-top:26px;margin-top:26px;border-top:1px solid var(--mb-glass-border)}.fields,.summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.summary-grid{margin:20px 0}.summary-grid div{min-width:0}dt{font-size:12px;color:var(--mb-text-secondary);margin-bottom:7px}dd{margin:0;font-size:13px;line-height:1.75;overflow-wrap:anywhere}small{display:block;color:var(--mb-text-secondary);font-size:12px}label{display:grid;gap:8px;margin:12px 0;font-size:13px;min-width:0}.check{display:flex;gap:10px;align-items:flex-start;min-height:44px;line-height:1.7;cursor:pointer}.check input{width:18px;height:18px;min-height:0;margin:2px 0;flex-shrink:0;accent-color:var(--mb-accent)}select,button{box-sizing:border-box;min-height:44px;padding:9px 12px;border:1px solid var(--mb-glass-border);border-radius:8px;background:var(--mb-bg-base);color:var(--mb-text-primary);font:inherit;font-size:13px;min-width:0}select{width:100%}button{cursor:pointer;overflow-wrap:anywhere}button:disabled{opacity:.5;cursor:not-allowed}.primary{background:var(--mb-accent);color:var(--mb-bg-deep);border-color:var(--mb-accent);font-weight:600}fieldset{min-width:0;border:0;padding:0}.proposal{padding:22px;border:1px solid var(--mb-accent);border-radius:12px}.side-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.side-list article{padding:14px;border:1px solid var(--mb-glass-border);border-radius:8px;font-size:14px}.side-list p{font-size:13px;margin:7px 0 0;font-variant-numeric:tabular-nums}.asset{margin:18px 0;padding:18px;border:1px solid var(--mb-glass-border);border-radius:12px}.asset-heading span{font-size:12px;color:var(--mb-text-secondary)}.asset p{font-size:13px}.audio-detail{padding:14px 0;border-block:1px solid var(--mb-glass-border)}code{display:block;font-size:12px;line-height:1.75;overflow-wrap:anywhere;white-space:normal}summary{cursor:pointer;min-height:44px;line-height:1.7;padding:12px 0;box-sizing:border-box;font-size:13px}.job{padding:14px 0;border-top:1px solid var(--mb-glass-border);font-size:13px;line-height:1.75;overflow-wrap:anywhere}progress{display:block;width:100%;margin:12px 0;accent-color:var(--mb-accent)}.warning,.read-progress{padding:16px;border:1px solid var(--mb-glass-border);border-radius:10px;margin:18px 0}.warning p,.read-progress p{margin:0 0 10px}.notice,.check-result{color:var(--mb-accent)}:focus-visible{outline:2px solid var(--mb-accent);outline-offset:3px}@media(max-width:600px){.execution-panel{padding:20px;width:calc(100vw - 24px);max-height:calc(100dvh - 24px)}.fields,.summary-grid,.side-list{grid-template-columns:1fr;gap:10px}.proposal{padding:16px}h2{font-size:22px}.asset{padding:14px}}@media(hover:hover) and (pointer:fine){button:not(:disabled):hover{border-color:var(--mb-accent)}}button:not(:disabled):active{transform:scale(.98)}@media(prefers-reduced-motion:reduce){button:not(:disabled):active{transform:none}}
+.execution-panel.is-inline{position:static;display:block;box-sizing:border-box;width:100%;max-width:none;max-height:none;margin:0;padding:0;border:0;border-radius:0;background:transparent;overflow:visible}
 </style>

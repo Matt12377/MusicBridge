@@ -6,6 +6,8 @@ export type PublicErrorCode =
   | 'INVALID_IPC_RESPONSE'
   | 'TIMEOUT'
   | 'NOT_READY'
+  /** Core已证实本次Begin未提交且没有可能迟到的启动；仅此码允许清除原Begin待确认命令。 */
+  | 'ATTEMPT_NOT_ACCEPTED'
   | 'INVENTORY_CONFLICT'
   | 'INVENTORY_UNAVAILABLE'
   | 'AUTH_REQUIRED'

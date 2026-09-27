@@ -12,15 +12,16 @@ test('六个Core命令及原生选择/导出严格固定工作库，不暴露wor
   const { installRecordingPrintHandlers } = await moduleUnderTest()
   const handlers = new Map<string, (event: boolean, value?: unknown) => unknown>(), calls: any[] = []
   const datasetId = randomUUID(), masterVersionId = randomUUID(), recordingId = randomUUID(), artifactId = randomUUID()
-  let epoch = 1, selected = 0, exported = 0, latePick = false
+  let epoch = 1, selected = 0, selectedPrint = 0, exported = 0, latePick = false
   installRecordingPrintHandlers({ handle: (channel, handler) => handlers.set(channel, handler), requireTrusted: event => { if (!event) throw new Error('不可信') },
     supervisor: { request: (async (name: string, payload: unknown, scope: string) => { calls.push([name,payload,scope]); return name === 'commandOutbox.context' ? {datasetId} : { ok:true } }) as never,
       requestInternal: (async (name: string,payload: unknown,scope:string) => { calls.push([name,payload,scope]); return { artifactId,pdfSha256:hash,size:20,pdfBase64:Buffer.from('%PDF-1\n%%EOF\n').toString('base64') } }) as never },
     getEpoch: () => epoch,
     pickArtwork: async () => { selected++; if (latePick) epoch++; return { width: 1, height: 1, dataUrl: 'data:image/jpeg;base64,/9j/2Q==' } },
+    pickPrintImage: async () => { selectedPrint++; if (latePick) epoch++; return { width: 1, height: 1, dataUrl: 'data:image/jpeg;base64,/9j/2Q==' } },
     exportPdf: async options => { exported++; await options.assertCurrent(); assert.equal(options.isCurrent(),true); return {state:'cancelled'} },
   })
-  assert.deepEqual([...handlers.keys()].sort(), ['masterArtwork:get','masterArtwork:pick','masterArtwork:save','recordingPrints:export','recordingPrints:get','recordingPrints:list','recordingPrints:request','recordingPrints:retry'].sort())
+  assert.deepEqual([...handlers.keys()].sort(), ['masterArtwork:get','masterArtwork:pick','masterArtwork:save','recordingPrints:pickImage','recordingPrints:export','recordingPrints:get','recordingPrints:list','recordingPrints:request','recordingPrints:retry'].sort())
   assert.equal([...handlers.keys()].some(key => key.includes('Worker') || key.includes('html') || key.includes('path')), false)
   const envelope=(payload:unknown)=>({datasetId,payload})
   const requests:Record<string,unknown>={
@@ -33,6 +34,8 @@ test('六个Core命令及原生选择/导出严格固定工作库，不暴露wor
   assert.ok(calls.slice(0,6).every(call=>call[2]===datasetId))
   assert.deepEqual(await handlers.get('masterArtwork:pick')!(true,envelope({masterVersionId})), {state:'selected',masterVersionId,image:{width:1,height:1,dataUrl:'data:image/jpeg;base64,/9j/2Q=='}})
   assert.equal(selected,1); assert.equal(calls.at(-1)[0],'masterArtwork.get')
+  assert.deepEqual(await handlers.get('recordingPrints:pickImage')!(true,envelope({recordingId})),{state:'selected',recordingId,image:{width:1,height:1,dataUrl:'data:image/jpeg;base64,/9j/2Q=='}})
+  assert.equal(selectedPrint,1);assert.equal(calls.filter(call=>call[0]==='recordingPrints.list').length,3);assert.equal(calls.at(-1)[0],'commandOutbox.context')
   assert.deepEqual(await handlers.get('recordingPrints:export')!(true,envelope({recordingId,artifactId,expectedPdfSha256:hash})),{state:'cancelled'})
   assert.equal(exported,1)
   await assert.rejects(Promise.resolve().then(()=>handlers.get('recordingPrints:list')!(false,envelope(requests['recordingPrints:list']))),/不可信/u)
@@ -40,6 +43,8 @@ test('六个Core命令及原生选择/导出严格固定工作库，不暴露wor
     await assert.rejects(Promise.resolve().then(()=>handlers.get('recordingPrints:list')!(true,bad)),/INVALID_IPC_REQUEST/u)
   latePick = true
   await assert.rejects(Promise.resolve().then(()=>handlers.get('masterArtwork:pick')!(true,envelope({masterVersionId}))),/SCOPE/u)
+  await assert.rejects(Promise.resolve().then(()=>handlers.get('recordingPrints:pickImage')!(true,envelope({recordingId}))),/SCOPE/u)
+  await assert.rejects(Promise.resolve().then(()=>handlers.get('recordingPrints:pickImage')!(true,envelope({recordingId,path:'/private'}))),/INVALID_IPC_REQUEST/u)
 })
 test('preload客户端一次捕获DTO和scope；原生动作失败不重放或换库', async () => {
   const module = await import('../src/preload/recording-print-client.js').catch(() => ({}))

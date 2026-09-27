@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
-import { mkdtemp, open, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, open, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import * as dto from '@music-bridge/contracts';
@@ -11,6 +11,10 @@ import type { ReplicaInput, ReplicaVerifiedInput } from '../src/recording/replic
 import { RecordingReplicaError } from '../src/recording/replica-error.js';
 import { createRecordingAttemptCoordinator } from '../src/recording/attempt-coordinator.js';
 import { recordingAttemptFixture } from './helpers/recording-attempt-fixture.js';
+import { createReadonlyAudioConsumer } from '../src/recording/readonly-audio-consumer.js';
+import { createReplicaDeviceOutputProvider } from '../src/recording/replica-device-output-provider.js';
+import { createReplicaDeviceSessionCoordinator } from '../src/recording/replica-device-session.js';
+import { DeviceOutputRunError, type DeviceOutputRunCallbacks } from '../src/recording/device-output-runner.js';
 
 function deferred<T>() { let resolve!: (value: T) => void, reject!: (reason: unknown) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; }
 const tick = () => new Promise<void>(resolve => setImmediate(resolve));
@@ -26,7 +30,7 @@ type Session = Extract<dto.RecordingReplicaRun, { kind: 'session' }>;
 function session(service: ReturnType<typeof createRecordingReplicaCoordinator>, runId: string): Session {
   const value = service.get({ runId }).run; assert.ok(value && value.kind === 'session'); assert.equal(dto.isRecordingReplicaRun(value), true); return value;
 }
-async function fixture(t: test.TestContext, options: { beforeInput?: () => Promise<void>; afterInput?: () => Promise<void>; beforeClose?: () => Promise<void> } = {}) {
+async function fixture(t: test.TestContext, options: { beforeInput?: () => Promise<void>; afterInput?: () => Promise<void>; beforeClose?: () => Promise<void>; releaseUnverified?: boolean } = {}) {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-replica-session-'));
   const pcm = Buffer.alloc(64, 3), bytes = Buffer.alloc(108); bytes.write('RIFF'); bytes.writeUInt32LE(100, 4); bytes.write('WAVEfmt ', 8); bytes.writeUInt32LE(16, 16); bytes.writeUInt16LE(1, 20); bytes.writeUInt16LE(2, 22); bytes.writeUInt32LE(48000, 24); bytes.writeUInt32LE(192000, 28); bytes.writeUInt16LE(4, 32); bytes.writeUInt16LE(16, 34); bytes.write('data', 36); bytes.writeUInt32LE(64, 40); pcm.copy(bytes, 44);
   const file = path.join(directory, 'synthetic.wav'); await writeFile(file, bytes);
@@ -39,14 +43,19 @@ async function fixture(t: test.TestContext, options: { beforeInput?: () => Promi
   // 仅替代已核验输入边界；使用真实只读FD检验会话所有权，字节解析/恢复由input套件独立覆盖。
   const input: ReplicaInput = {
     async inspect(request, signal, check) { ++inspectCount; await options.beforeInput?.(); check(); signal.throwIfAborted(); return { ...inspection, ...request }; },
-    async withInput(request, signal, check, consume) {
+    async withInput(request, signal, check, consume, onLeaseEvent) {
       await options.beforeInput?.(); check(); signal.throwIfAborted();
       if (request.expectedFingerprint !== inspection.fingerprint) throw new RecordingReplicaError('IDENTITY_MISMATCH');
-      const handle = await open(file, 'r'); ++opened;
+      const handle = await open(file, 'r'); ++opened; onLeaseEvent?.('acquired');
       const linked = AbortSignal.any([signal, internalAbort.signal]);
       const current = () => { check(); linked.throwIfAborted(); };
-      try { const result = await consume({ handle, audio, dataOffset: 44, inspection, signal: linked, checkOperation: current }); await options.afterInput?.(); current(); return result; }
-      finally { await options.beforeClose?.(); await handle.close(); ++closed; }
+      const consumer = createReadonlyAudioConsumer(handle, { dataOffset: 44, frameCount: audio.frameCount, channelCount: audio.format.channelCount, sampleFormat: audio.format.sampleFormat }, linked, current);
+      try { const result = await consume({ handle, audio, dataOffset: 44, consumer, inspection, signal: linked, checkOperation: current }); await options.afterInput?.(); current(); return result; }
+      finally {
+        consumer.revoke(); await options.beforeClose?.(); await handle.close(); ++closed;
+        onLeaseEvent?.(options.releaseUnverified ? 'release-unverified' : 'released');
+        if (options.releaseUnverified) throw new Error('合成关闭结果未证实');
+      }
     },
   };
   const calls: RecordingReplicaDriverRequest[] = [], completion = deferred<dto.ReplicaProgress & { pcmSha256: string }>(), quiescent = deferred<void>();
@@ -245,4 +254,232 @@ test('provider交还句柄前的合法进度暂存，starting快照不冒充已�
   assert.deepEqual(session(service, request.runId).progress, progress);
   f.completion.resolve(f.success); f.quiescent.resolve(); await until(() => session(service, request.runId).state === 'finished'); await service.close();
   assert.equal(caught, undefined); assert.equal(initial?.state, 'starting'); assert.equal(initial?.started, false); assert.equal(initial?.progress?.submittedFrames, 0);
+});
+
+test('设备Replica保持一个逻辑run：pause收口、seek修订、resume新segment，完整末验才finished', async t => {
+  const f = await fixture(t);
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-replica-device-session-'));
+  const helper = path.join(directory, 'helper'), manifest = path.join(directory, 'manifest.json');
+  const helperBytes = Buffer.from('受控Fake不执行HAL'), manifestBytes = Buffer.from('{}');
+  await writeFile(helper, helperBytes); await chmod(helper, 0o755); await writeFile(manifest, manifestBytes);
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const pin = { path: helper, sha256: createHash('sha256').update(helperBytes).digest('hex'),
+    manifestPath: manifest, manifestSha256: createHash('sha256').update(manifestBytes).digest('hex'),
+    sourceSha256: 'a'.repeat(64), drainAlgorithmId: 'hal-sample-zero-cover-v1' as const };
+  const outputSelection = { endpointId: 'dev_1234567890', selectionGeneration: randomUUID() };
+  const observed = { ...outputSelection, uid: 'fake-device', sampleRate: 48000, channelCount: 2 as const,
+    format: 'pcm-s16le' as const, physicalFormat: 'pcm-s16le' as const, bufferFrames: 16,
+    backendId: 'musicbridge-coreaudio-hal', backendVersion: '0.2.0', configurationFingerprintSha256: '1'.repeat(64),
+    alive: true, hasOutput: true };
+  const calls: Array<{ runId: string; callbacks: DeviceOutputRunCallbacks; stop(): Promise<void> }> = [];
+  const provider = createReplicaDeviceOutputProvider({ pin,
+    deviceSelection: { current: () => outputSelection, async verify() { return observed; } },
+    async run(_pin, request) {
+      let stopped = false;
+      const call = { runId: request.header.runId, callbacks: request.callbacks,
+        async stop() {
+          if (stopped) return; stopped = true;
+          request.callbacks.onCleanup({ engineCutoff: true, stopAcknowledged: true, cleanupQuiescent: true,
+            terminal: { kind: 'cancelled', suppliedFrames: 8, consumedFrames: 7 } });
+          request.callbacks.onFailure(new DeviceOutputRunError('CANCELLED'));
+        } };
+      calls.push(call);
+      return { stop: call.stop, async close() {} };
+    },
+  });
+  const deviceSession = createReplicaDeviceSessionCoordinator({ input: f.input, provider,
+    currentSelection: () => outputSelection });
+  const service = createRecordingReplicaCoordinator({ input: f.input, deviceSession });
+  t.after(() => service.close());
+  const request = { ...f.request(), mode: 'device-output' as const, outputSelection };
+  assert.equal(service.status().gateB, 'NOT_RUN');
+  const first = service.start(request);
+  assert.equal(first.kind, 'device-session'); assert.equal(first.state, 'starting');
+  await until(() => calls.length === 1 && service.get({ runId: request.runId }).run?.state === 'outputting');
+  const firstSegment = calls[0]!;
+  firstSegment.callbacks.onProgress({ suppliedFrames: 8, consumedFrames: 6, zeroFilledFrames: 0 });
+  const pauseId = randomUUID();
+  const pausing = service.control({ runId: request.runId, commandId: pauseId,
+    expectedControlRevision: 0, operation: 'pause' });
+  assert.equal(pausing.kind, 'device-session'); assert.equal(pausing.state, 'pausing');
+  assert.deepEqual(service.control({ runId: request.runId, commandId: pauseId,
+    expectedControlRevision: 0, operation: 'pause' }), pausing, '同命令重试不得重复派发');
+  await until(() => service.get({ runId: request.runId }).run?.state === 'paused');
+  const paused = service.get({ runId: request.runId }).run;
+  assert.ok(paused?.kind === 'device-session'); assert.equal(paused.cursorFrame, 7,
+    '暂停游标只取验证终态，不能用漏掉末次消费的周期进度6');
+  assert.equal(paused.segmentId, null); assert.equal(paused.segmentQuiescent, true);
+  assert.equal(f.counts().closed, 1, '对外发布paused前必须完成第一段末验并释放FD');
+  assert.throws(() => service.control({ runId: request.runId, commandId: randomUUID(),
+    expectedControlRevision: 0, operation: 'seek', frame: 4 }), { code: 'CONTROL_CONFLICT' });
+  const seeked = service.control({ runId: request.runId, commandId: randomUUID(),
+    expectedControlRevision: 1, operation: 'seek', frame: 4 });
+  assert.equal(seeked.kind, 'device-session'); assert.equal(seeked.cursorFrame, 4);
+  const resumed = service.control({ runId: request.runId, commandId: randomUUID(),
+    expectedControlRevision: 2, operation: 'resume' });
+  assert.equal(resumed.kind, 'device-session'); assert.notEqual(resumed.segmentId, firstSegment.runId);
+  await until(() => calls.length === 2 && service.get({ runId: request.runId }).run?.state === 'outputting');
+  const second = calls[1]!;
+  second.callbacks.onProgress({ suppliedFrames: 12, consumedFrames: 12, zeroFilledFrames: 16 });
+  second.callbacks.onSourceEof(); second.callbacks.onDrainObserved();
+  second.callbacks.onCleanup({ engineCutoff: true, stopAcknowledged: true, cleanupQuiescent: true,
+    terminal: { kind: 'completed', suppliedFrames: 12, consumedFrames: 12 } });
+  second.callbacks.onComplete();
+  await until(() => service.get({ runId: request.runId }).run?.state === 'finished');
+  const finished = service.get({ runId: request.runId }).run;
+  assert.ok(finished?.kind === 'device-session'); assert.equal(dto.isRecordingReplicaRun(finished), true);
+  assert.equal(finished.controlRevision, 3); assert.equal(finished.cursorFrame, 16);
+  assert.equal(finished.receipt?.fromFrame, 4); assert.equal(finished.receipt?.frameCount, 12);
+  assert.equal(finished.receipt?.gateB, 'NOT_RUN'); assert.equal(finished.formalReady, false);
+  assert.equal(f.counts().closed, 2, 'resume必须重新取得精确输入，两个segment分别末验并释放FD');
+});
+
+async function deviceFixture(t: test.TestContext, inputOptions: Parameters<typeof fixture>[1] = {}) {
+  const f = await fixture(t, inputOptions), directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-replica-device-fake-'));
+  const helper = path.join(directory, 'helper'), manifest = path.join(directory, 'manifest.json');
+  const helperBytes = Buffer.from('受控Fake不执行HAL'), manifestBytes = Buffer.from('{}');
+  await writeFile(helper, helperBytes); await chmod(helper, 0o755); await writeFile(manifest, manifestBytes);
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const pin = { path: helper, sha256: createHash('sha256').update(helperBytes).digest('hex'),
+    manifestPath: manifest, manifestSha256: createHash('sha256').update(manifestBytes).digest('hex'),
+    sourceSha256: 'a'.repeat(64), drainAlgorithmId: 'hal-sample-zero-cover-v1' as const };
+  const outputSelection = { endpointId: 'dev_1234567890', selectionGeneration: randomUUID() };
+  const observed = { ...outputSelection, uid: 'fake-device', sampleRate: 48000, channelCount: 2 as const,
+    format: 'pcm-s16le' as const, physicalFormat: 'pcm-s16le' as const, bufferFrames: 16,
+    backendId: 'musicbridge-coreaudio-hal', backendVersion: '0.2.0', configurationFingerprintSha256: '1'.repeat(64),
+    alive: true, hasOutput: true };
+  const calls: Array<{ callbacks: DeviceOutputRunCallbacks; closeCount: number; stopCount: number }> = [];
+  const provider = createReplicaDeviceOutputProvider({ pin,
+    deviceSelection: { current: () => outputSelection, async verify() { return observed; } },
+    async run(_pin, request) {
+      const call = { callbacks: request.callbacks, closeCount: 0, stopCount: 0 }; calls.push(call);
+      return { async stop() {
+        if (++call.stopCount !== 1) return;
+        call.callbacks.onCleanup({ engineCutoff: true, stopAcknowledged: true, cleanupQuiescent: true,
+          terminal: { kind: 'cancelled', suppliedFrames: 8, consumedFrames: 7 } });
+        call.callbacks.onFailure(new DeviceOutputRunError('CANCELLED'));
+      }, async close() { ++call.closeCount; } };
+    },
+  });
+  const deviceSession = createReplicaDeviceSessionCoordinator({ input: f.input, provider,
+    currentSelection: () => outputSelection, closeTimeoutMs: 10 });
+  const service = createRecordingReplicaCoordinator({ input: f.input, deviceSession });
+  const request = { ...f.request(), mode: 'device-output' as const, outputSelection };
+  return { ...f, calls, deviceSession, service, request };
+}
+
+test('设备Replica暂停须等输入末验和FD释放；末验失败仅在释放后释放执行槽', async t => {
+  const release = deferred<void>(), f = await deviceFixture(t, { afterInput: () => release.promise });
+  f.service.start(f.request);
+  await until(() => f.calls.length === 1 && f.service.get({ runId: f.request.runId }).run?.state === 'outputting');
+  f.calls[0]!.callbacks.onProgress({ suppliedFrames: 8, consumedFrames: 6, zeroFilledFrames: 0 });
+  f.service.control({ runId: f.request.runId, commandId: randomUUID(), expectedControlRevision: 0, operation: 'pause' });
+  await until(() => f.calls[0]!.closeCount === 1);
+  assert.equal(f.service.get({ runId: f.request.runId }).run?.state, 'pausing');
+  assert.equal(f.counts().closed, 0);
+  assert.throws(() => f.service.start({ ...f.request, runId: randomUUID() }), { code: 'RUN_CONFLICT' });
+  release.resolve();
+  await until(() => f.service.get({ runId: f.request.runId }).run?.state === 'paused');
+  assert.equal(f.counts().closed, 1);
+  const stopped = f.service.control({ runId: f.request.runId, commandId: randomUUID(), expectedControlRevision: 1, operation: 'stop' });
+  assert.equal(stopped.state, 'stopping');
+  await until(() => f.service.get({ runId: f.request.runId }).run?.state === 'cancelled');
+  await f.service.close();
+  const changed = await deviceFixture(t, { afterInput: async () => { throw new RecordingReplicaError('INPUT_CHANGED'); } });
+  changed.service.start(changed.request);
+  await until(() => changed.calls.length === 1 && changed.service.get({ runId: changed.request.runId }).run?.state === 'outputting');
+  const done = changed.calls[0]!.callbacks;
+  done.onProgress({ suppliedFrames: 16, consumedFrames: 16, zeroFilledFrames: 16 }); done.onSourceEof(); done.onDrainObserved();
+  done.onCleanup({ engineCutoff: true, stopAcknowledged: true, cleanupQuiescent: true,
+    terminal: { kind: 'completed', suppliedFrames: 16, consumedFrames: 16 } }); done.onComplete();
+  await until(() => changed.service.get({ runId: changed.request.runId }).run?.state === 'failed');
+  const failed = changed.service.get({ runId: changed.request.runId }).run;
+  assert.ok(failed?.kind === 'device-session'); assert.equal(failed.reason, 'INPUT_CHANGED');
+  assert.equal(changed.counts().closed, 1);
+  assert.doesNotThrow(() => changed.service.start({ ...changed.request, runId: randomUUID() }));
+  await changed.service.close();
+});
+
+test('输入FD释放未知时保留最后run和执行槽，不把拒绝冒充cleanup', async t => {
+  const f = await deviceFixture(t, { releaseUnverified: true });
+  f.service.start(f.request);
+  await until(() => f.calls.length === 1 && f.service.get({ runId: f.request.runId }).run?.state === 'outputting');
+  const done = f.calls[0]!.callbacks;
+  done.onProgress({ suppliedFrames: 16, consumedFrames: 16, zeroFilledFrames: 16 }); done.onSourceEof(); done.onDrainObserved();
+  done.onCleanup({ engineCutoff: true, stopAcknowledged: true, cleanupQuiescent: true,
+    terminal: { kind: 'completed', suppliedFrames: 16, consumedFrames: 16 } }); done.onComplete();
+  await until(() => f.service.get({ runId: f.request.runId }).run?.state === 'stopping');
+  const run = f.service.get({ runId: f.request.runId }).run;
+  assert.equal(run?.cleanupQuiescent, false); assert.equal(run?.kind, 'device-session');
+  assert.equal(f.counts().closed, 1, '测试Fake实际释放FD，但报告未知必须按未知处理');
+  assert.throws(() => f.service.start({ ...f.request, runId: randomUUID() }), { code: 'RUN_CONFLICT' });
+  await assert.rejects(f.service.close(), { code: 'TIMEOUT' });
+});
+
+test('缺少native cleanup事实即使close返回也不放开执行槽；路由失败有cleanup才安全失败', async t => {
+  const unknown = await deviceFixture(t);
+  unknown.service.start(unknown.request);
+  await until(() => unknown.calls.length === 1 && unknown.service.get({ runId: unknown.request.runId }).run?.state === 'outputting');
+  unknown.calls[0]!.callbacks.onFailure(new DeviceOutputRunError('PROTOCOL'));
+  await until(() => unknown.service.get({ runId: unknown.request.runId }).run?.state === 'stopping');
+  assert.equal(unknown.counts().closed, 1);
+  assert.throws(() => unknown.service.start({ ...unknown.request, runId: randomUUID() }), { code: 'RUN_CONFLICT' });
+  await assert.rejects(unknown.service.close(), { code: 'TIMEOUT' });
+
+  const route = await deviceFixture(t);
+  route.service.start(route.request);
+  await until(() => route.calls.length === 1 && route.service.get({ runId: route.request.runId }).run?.state === 'outputting');
+  const callback = route.calls[0]!.callbacks;
+  callback.onCleanup({ engineCutoff: true, stopAcknowledged: false, cleanupQuiescent: true,
+    terminal: { kind: 'failed', suppliedFrames: 4, consumedFrames: 3 } });
+  callback.onFailure(new DeviceOutputRunError('ROUTE_CHANGED'));
+  await until(() => route.service.get({ runId: route.request.runId }).run?.state === 'failed');
+  const failed = route.service.get({ runId: route.request.runId }).run;
+  assert.ok(failed?.kind === 'device-session'); assert.equal(failed.reason, 'ROUTE_CHANGED');
+  assert.equal(route.counts().closed, 1); await route.service.close();
+});
+
+test('设备Stop携带修订与命令ID幂等，静止前不能关闭或新开run', async t => {
+  const release = deferred<void>(), f = await deviceFixture(t, { beforeClose: () => release.promise });
+  f.service.start(f.request);
+  await until(() => f.calls.length === 1 && f.service.get({ runId: f.request.runId }).run?.state === 'outputting');
+  const command = { runId: f.request.runId, commandId: randomUUID(), expectedControlRevision: 0, operation: 'stop' as const };
+  const stopping = f.service.control(command);
+  assert.deepEqual(f.service.control(command), stopping);
+  assert.equal(f.calls[0]!.stopCount, 1);
+  await until(() => f.calls[0]!.closeCount === 1);
+  assert.equal(f.service.get({ runId: f.request.runId }).run?.state, 'stopping');
+  assert.throws(() => f.service.start({ ...f.request, runId: randomUUID() }), { code: 'RUN_CONFLICT' });
+  release.resolve();
+  await until(() => f.service.get({ runId: f.request.runId }).run?.state === 'cancelled');
+  const result = f.service.get({ runId: f.request.runId }).run;
+  assert.ok(result?.kind === 'device-session'); assert.equal(result.cleanupQuiescent, true);
+  await f.service.close();
+});
+
+test('优先Stop绕过失回执pause修订，仍等真实输入释放才终结', async t => {
+  const release = deferred<void>(), f = await deviceFixture(t, { beforeClose: () => release.promise });
+  f.service.start(f.request);
+  await until(() => f.calls.length === 1 && f.service.get({ runId: f.request.runId }).run?.state === 'outputting');
+  const pause = f.service.control({ runId: f.request.runId, commandId: randomUUID(), expectedControlRevision: 0, operation: 'pause' });
+  assert.equal(pause.state, 'pausing');
+  const stopped = f.service.stop({ runId: f.request.runId });
+  assert.equal(stopped.kind, 'device-session'); assert.equal(stopped.state, 'stopping');
+  assert.deepEqual(f.service.stop({ runId: f.request.runId }), stopped, '按runId重试Stop不依赖旧pause修订');
+  assert.equal(f.counts().closed, 0); assert.throws(() => f.service.start({ ...f.request, runId: randomUUID() }), { code: 'RUN_CONFLICT' });
+  release.resolve();
+  await until(() => f.service.get({ runId: f.request.runId }).run?.state === 'cancelled');
+  const final = f.service.get({ runId: f.request.runId }).run;
+  assert.ok(final?.kind === 'device-session'); assert.equal(final.cleanupQuiescent, true);
+  await f.service.close();
+});
+
+test('启动回执未知时原runId优先Stop建立tombstone，晚到同ID start不可复活', async t => {
+  const f = await deviceFixture(t), stopped = f.service.stop({ runId: f.request.runId });
+  assert.equal(stopped.kind, 'cancelled-before-start'); assert.equal(stopped.cleanupQuiescent, true);
+  assert.deepEqual(f.service.stop({ runId: f.request.runId }), stopped);
+  assert.deepEqual(f.service.start(f.request), stopped);
+  assert.deepEqual(f.service.get({ runId: f.request.runId }).run, stopped);
+  assert.equal(f.calls.length, 0); assert.equal(f.counts().opened, 0);
+  await f.service.close();
 });

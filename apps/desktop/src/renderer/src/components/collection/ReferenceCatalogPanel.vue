@@ -1,21 +1,22 @@
 <script setup lang="ts">
 import { collectionModelLabel } from './collection-display'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, triggerRef, watch } from 'vue'
-import { MAX_CATALOG_REFERENCES, isCanonicalReference, isCatalogMapping, isPreviewCatalogRevisionRequest, type CanonicalReference, type CatalogMatch, type SourcePack } from '@music-bridge/contracts'
-import { createReferenceCatalogController, readReferenceSourceFile, readReferenceRevisionFile, type CatalogStep } from './reference-catalog-controller'
+import { MAX_CATALOG_REFERENCES, isCanonicalReference, isCatalogMapping, isCollectionPhotoImage, isPreviewCatalogRevisionRequest, type CanonicalReference, type CatalogMatch } from '@music-bridge/contracts'
+import { createReferenceCatalogController, readReferenceSourceFile, readReferenceSourceZipFile, readReferenceRevisionFile, type CatalogStep } from './reference-catalog-controller'
 
 const emit = defineEmits<{ close: [] }>()
 const dialog = ref<HTMLDialogElement>()
 const controller = createReferenceCatalogController({ api: window.musicBridge, onChange: () => triggerRef(state) })
 const state = shallowRef(controller.state)
-const blocked = computed(() => state.value.busy || !!state.value.pendingLabel || fileLoading.value)
+const blocked = computed(() => state.value.busy || !!state.value.pendingLabel || fileLoading.value || imagePicking.value)
 const steps: { id: CatalogStep; title: string }[] = [{ id: 'source', title: '资料来源' }, { id: 'revision', title: '整理发布' }, { id: 'review', title: '关联审核' }, { id: 'history', title: '历史快照' }]
-const sourceConfirmed = ref(false), publishConfirmed = ref(false), matchConfirmed = ref(false), retryConfirmed = ref(false)
-const fileLoading = ref(false), inputError = ref(''), closeRequested = ref(false)
+const sourceConfirmed = ref(false), zipConfirmed = ref(false), publishConfirmed = ref(false), matchConfirmed = ref(false), retryConfirmed = ref(false)
+const fileLoading = ref(false), imagePicking = ref(false), inputError = ref(''), closeRequested = ref(false)
 let alive = true
 onMounted(() => { dialog.value?.showModal(); void controller.start() })
 onBeforeUnmount(() => { alive = false; controller.dispose() })
 watch(() => state.value.sourcePreview, () => { sourceConfirmed.value = false })
+watch(() => state.value.zipPreview, () => { zipConfirmed.value = false })
 watch(() => state.value.revisionPreview, () => { publishConfirmed.value = false })
 watch(() => state.value.current, () => { matchConfirmed.value = false })
 
@@ -28,15 +29,20 @@ async function chooseFile(event: Event): Promise<void> {
   catch { if (alive) inputError.value = '请选择不超过 1 MiB 的有效 UTF-8 JSON 文件。未改写原输入。' }
   finally { if (alive) { fileLoading.value = false; input.value = '' } }
 }
-function fillSynthetic(): void {
-  const pack: SourcePack = { schemaVersion: 1, bookId: 'synthetic-example', title: '合成示例（非书籍资料）', sourceVersion: '示例 1', items: [{ referenceId: 'synthetic-a', bookId: 'synthetic-example', brand: '合成品牌', series: '示例系列', edition: '示例版', model: '示例型号 A', lengths: [60], iec: 'unknown', era: null, image: { kind: 'none' }, pages: ['示例页 1'], notes: '仅用于演示，不是正式书籍数据。', confidence: 'unknown' }] }
-  controller.setRawPack(JSON.stringify(pack, null, 2))
+async function chooseZipFile(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement, file = input.files?.[0]
+  if (!file || blocked.value || fileLoading.value) return
+  fileLoading.value = true; inputError.value = ''
+  try { const zipBase64 = await readReferenceSourceZipFile(file); if (alive) controller.setZipBase64(zipBase64) }
+  catch { if (alive) inputError.value = '请选择不超过 4 MiB 的 ZIP；包内只能有根目录 catalog.json 或 source.json。原输入未改写。' }
+  finally { if (alive) { fileLoading.value = false; input.value = '' } }
 }
 async function register(): Promise<void> { await controller.registerSource(sourceConfirmed.value) }
+async function registerZip(): Promise<void> { await controller.registerZip(zipConfirmed.value) }
 async function publish(): Promise<void> { await controller.publishRevision(publishConfirmed.value) }
 function requestClose(): void {
-  if (state.value.busy || fileLoading.value) return
-  if (state.value.rawPack || state.value.items.length || state.value.pendingLabel) closeRequested.value = true
+  if (state.value.busy || fileLoading.value || imagePicking.value) return
+  if (state.value.rawPack || state.value.zipBase64 || state.value.items.length || state.value.pendingLabel) closeRequested.value = true
   else emit('close')
 }
 
@@ -48,10 +54,22 @@ function editItem(item?: CanonicalReference): void {
   editor.value = item ? JSON.parse(JSON.stringify(item)) as CanonicalReference : { referenceId: '', bookId: state.value.source.bookId, brand: '', series: '', edition: '', model: '', lengths: [], iec: 'unknown', era: null, image: { kind: 'none' }, pages: [], notes: '', confidence: 'unknown' }
   lengthsText.value = item?.lengths.join(', ') ?? ''; pagesText.value = item?.pages.join(', ') ?? ''; draftError.value = ''
 }
+async function chooseReferenceImage(): Promise<void> {
+  const current = editor.value
+  if (!current || blocked.value) return
+  imagePicking.value = true; draftError.value = ''
+  try {
+    const image = await window.musicBridge.pickCollectionPhoto()
+    if (image && !isCollectionPhotoImage(image)) throw new Error('INVALID_REFERENCE_IMAGE')
+    if (alive && editor.value === current && image) editor.value.image = { kind: 'reference', image, caption: '' }
+  } catch { if (alive && editor.value === current) draftError.value = '参考图未导入；请选择有效 PNG / JPEG 普通文件，原草案未改变。' }
+  finally { if (alive) imagePicking.value = false }
+}
+function removeReferenceImage(): void { if (editor.value && !blocked.value) editor.value.image = { kind: 'none' } }
 function saveItem(): void {
   if (!editor.value || blocked.value) return
   const value: unknown = { ...JSON.parse(JSON.stringify(editor.value)), lengths: lengthsText.value.split(/[,，]/u).map(n => n.trim()).filter(Boolean).map(Number), pages: pagesText.value.split(/[,，]/u).map(n => n.trim()).filter(Boolean) }
-  if (!isCanonicalReference(value)) { draftError.value = '请补全参考 ID、品牌、型号等字段；时长为 1–360 分钟，页码以逗号分隔。'; return }
+  if (!isCanonicalReference(value)) { draftError.value = '请补全参考 ID、品牌、型号及参考图来源说明；时长为 1–360 分钟，页码以逗号分隔。'; return }
   if (state.value.items.some(item => item.referenceId === value.referenceId && item.referenceId !== editingId.value)) { draftError.value = '参考 ID 已存在，请使用唯一 ID。'; return }
   controller.setDraft([...state.value.items.filter(item => item.referenceId !== editingId.value), value], state.value.mappings)
   editor.value = undefined; draftError.value = ''
@@ -99,7 +117,7 @@ const statusLabel = (status: CatalogMatch['status']) => ({ confirmed: '已确认
 
 <template>
   <dialog ref="dialog" class="reference-dialog" aria-labelledby="reference-title" @cancel.prevent="requestClose">
-    <header class="reference-heading"><div><p class="eyebrow">收藏 · 参考资料</p><h2 id="reference-title">参考目录与版次</h2><p>登记来源、整理版次、审核关联。资料与图片都不等于拥有证据。</p></div><button type="button" :disabled="state.busy || fileLoading" @click="requestClose">关闭</button></header>
+    <header class="reference-heading"><div><p class="eyebrow">收藏 · 参考资料</p><h2 id="reference-title">参考目录与版次</h2><p>登记来源、整理版次、审核关联。资料与图片都不等于拥有证据。</p></div><button type="button" :disabled="state.busy || fileLoading || imagePicking" @click="requestClose">关闭</button></header>
     <nav class="steps" aria-label="参考目录步骤"><button v-for="(step, index) in steps" :key="step.id" :aria-current="state.step === step.id ? 'step' : undefined" :disabled="blocked || fileLoading" @click="controller.setStep(step.id)"><span>{{ index + 1 }}</span>{{ step.title }}</button></nav>
     <div v-if="closeRequested" class="feedback" role="alert"><p>关闭会丢弃未保存的本地草案。已登记资料和已发布目录保留；未确认命令仍可从全局入口恢复，不会自动重试。</p><div class="actions"><button @click="closeRequested = false">继续编辑</button><button @click="emit('close')">确认关闭</button></div></div>
     <p v-if="state.busy || fileLoading" role="status">正在处理，请稍候…</p>
@@ -108,10 +126,13 @@ const statusLabel = (status: CatalogMatch['status']) => ({ confirmed: '已确认
     <section v-if="state.pendingLabel" class="feedback" aria-label="恢复原操作"><strong>{{ state.pendingLabel }}：等待明确回执</strong><p>不会自动重发。重试使用原命令、原输入和原工作库；关闭后可在全局未确认操作中核对。</p><label class="check"><input v-model="retryConfirmed" type="checkbox" :disabled="state.busy">我已核对，继续恢复原操作，或退出本地重试后重新读取</label><div class="actions"><button :disabled="state.busy || !retryConfirmed" @click="controller.retry(); retryConfirmed = false">重试原操作</button><button :disabled="state.busy || !retryConfirmed" @click="controller.releasePending(true); retryConfirmed = false">退出本地重试</button></div></section>
 
     <section v-if="state.step === 'source'" aria-labelledby="reference-source-title">
-      <h3 id="reference-source-title">1. 登记原资料版本</h3><p>请选择明确提供的结构化 JSON，或粘贴原文。默认不读取书籍、目录或照片。上限 1 MiB / {{ MAX_CATALOG_REFERENCES }} 行。</p>
-      <fieldset :disabled="blocked || fileLoading"><legend>结构化资料</legend><label class="file-label">选择 JSON 文件<input type="file" accept=".json,application/json" @change="chooseFile"></label><label>原资料 JSON<textarea :value="state.rawPack" rows="8" spellcheck="false" placeholder="在此粘贴 Source Pack；默认没有书籍数据" @input="rawChanged"></textarea></label><div class="actions"><button @click="controller.previewSource">严格预览原资料</button><button @click="fillSynthetic">填入合成示例（非书籍数据）</button></div></fieldset>
+      <h3 id="reference-source-title">1. 登记原资料版本</h3><p>请选择明确提供的结构化 JSON 或单文件 ZIP，也可粘贴 JSON 原文。默认不读取书籍、目录或照片；JSON 上限 1 MiB / {{ MAX_CATALOG_REFERENCES }} 行。</p>
+      <fieldset :disabled="blocked || fileLoading"><legend>结构化 JSON</legend><label class="file-label">选择 JSON 文件<input type="file" accept=".json,application/json" @change="chooseFile"></label><label>原资料 JSON<textarea :value="state.rawPack" rows="8" spellcheck="false" placeholder="在此粘贴 Source Pack；默认没有书籍数据" @input="rawChanged"></textarea></label><div class="actions"><button @click="controller.previewSource">严格预览原资料</button></div></fieldset>
       <div v-if="state.sourcePreview" class="summary"><h4>{{ state.sourcePreview.pack.title }} · {{ state.sourcePreview.pack.sourceVersion }}</h4><p>来源 {{ state.sourcePreview.pack.bookId }} · 原行 {{ state.sourcePreview.pack.items.length }} · 去重条目 {{ state.sourcePreview.items.length }}</p><p>原 UTF-8 SHA-256</p><code>{{ state.sourcePreview.packHash }}</code><ul><li v-for="item in state.sourcePreview.items.slice(0, 10)" :key="item.referenceId">{{ item.brand }} {{ item.model }} · {{ item.edition || '版次未知' }} · 页 {{ item.pages.join('、') || '未知' }}</li></ul><p v-if="state.sourcePreview.items.length > 10">其余条目登记后在整理步骤查看。</p><label class="check"><input v-model="sourceConfirmed" type="checkbox" :disabled="blocked">我确认登记此原资料与 Hash；这不会发布目录或创建库存</label><button class="primary" :disabled="blocked || !sourceConfirmed" @click="register">登记资料版本</button></div>
+      <fieldset :disabled="blocked || fileLoading"><legend>单文件 ZIP Source Pack</legend><p>ZIP 最多 4 MiB，根目录只能有一个 catalog.json 或 source.json；不接受额外条目及外部图片文件依赖。</p><label>选择 ZIP 文件<input type="file" accept=".zip,application/zip" @change="chooseZipFile"></label><button :disabled="!state.zipBase64" @click="controller.previewZip">严格预览 ZIP</button><p class="hint">确认时重验同一 ZIP 字节。只保留原 JSON 与不可变的容器 Hash、大小、入口名回执；原 ZIP 不长期归档。</p></fieldset>
+      <div v-if="state.zipPreview" class="summary"><h4>{{ state.zipPreview.title }} · {{ state.zipPreview.sourceVersion }}</h4><p>来源 {{ state.zipPreview.bookId }} · 去重条目 {{ state.zipPreview.itemCount }} · 入口 {{ state.zipPreview.entryName }}</p><p>ZIP SHA-256（{{ state.zipPreview.zipBytes }} 字节）</p><code>{{ state.zipPreview.zipSha256 }}</code><p>原 JSON SHA-256</p><code>{{ state.zipPreview.rawPackHash }}</code><label class="check"><input v-model="zipConfirmed" type="checkbox" :disabled="blocked">我已核对 ZIP 与原 JSON 身份，确认登记；不发布目录、不创建库存，原 ZIP 不长期归档</label><button class="primary" :disabled="blocked || !zipConfirmed" @click="registerZip">登记 ZIP 资料版本</button></div>
       <h4>已登记来源</h4><p v-if="!state.sources?.items.length">还没有已登记的资料版本。登记后可从这里继续整理。</p><ul class="source-list"><li v-for="source in state.sources?.items" :key="source.id"><div><strong>{{ source.title }}</strong><p>{{ source.sourceVersion }} · {{ source.itemCount }} 条 · {{ source.createdAt }}</p></div><button :disabled="blocked" @click="controller.selectSource(source.id)">整理此来源</button></li></ul><div class="actions"><button :disabled="blocked" @click="controller.loadSources()">刷新来源</button><template v-if="state.sources && state.sources.total > state.sources.limit"><button :disabled="blocked || state.sources.offset === 0" @click="controller.loadSources(Math.max(0, state.sources.offset - 25))">上一页来源</button><button :disabled="blocked || state.sources.offset + 25 >= state.sources.total" @click="controller.loadSources(state.sources.offset + 25)">下一页来源</button></template></div>
+      <div v-if="state.source && state.zipReceipts" class="summary"><h4>当前来源的 ZIP 容器回执</h4><p v-if="!state.zipReceipts.items.length">此来源由原 JSON 登记，暂无 ZIP 容器回执。</p><ul v-else><li v-for="receipt in state.zipReceipts.items" :key="receipt.id">{{ receipt.entryName }} · {{ receipt.zipBytes }} 字节 · {{ receipt.createdAt }}<br><code>{{ receipt.zipSha256 }}</code></li></ul><div v-if="state.zipReceipts.total > state.zipReceipts.limit" class="actions"><button :disabled="blocked || state.zipReceipts.offset === 0" @click="controller.loadZipReceipts(Math.max(0, state.zipReceipts.offset - 25))">上一页回执</button><button :disabled="blocked || state.zipReceipts.offset + 25 >= state.zipReceipts.total" @click="controller.loadZipReceipts(state.zipReceipts.offset + 25)">下一页回执</button></div></div>
     </section>
 
     <section v-if="state.step === 'revision'" aria-labelledby="reference-revision-title">
@@ -119,6 +140,7 @@ const statusLabel = (status: CatalogMatch['status']) => ({ confirmed: '已确认
       <template v-else><p><strong>{{ state.source.title }} · {{ state.source.sourceVersion }}</strong> — 原资料始终保留，以下仅修改修订草案。</p><code>{{ state.source.packHash }}</code><div class="actions"><button :disabled="blocked" @click="controller.selectSource(state.source.id); editor = undefined">重新读取来源与当前基线</button><button :disabled="blocked" @click="editItem()">添加整理条目</button></div><p class="hint">重新读取会放弃本地草案。当前基线：{{ state.history?.currentRevisionId ? '已有发布版次' : '无已发布版次或尚未读取' }}。</p>
         <div class="table-wrap" tabindex="0" aria-label="整理后的参考条目"><table><thead><tr><th>参考 ID / 型号</th><th>版次 / 来源页</th><th>参考图</th><th>整理</th></tr></thead><tbody><tr v-for="item in state.items" :key="item.referenceId"><td><strong>{{ item.brand }} {{ item.model }}</strong><small>{{ item.referenceId }} · {{ item.series || '系列未知' }} · {{ item.lengths.join(' / ') || '?' }} min · {{ item.iec }}</small></td><td>{{ item.edition || '版次未知' }}<small>{{ item.pages.join('、') || '页码未知' }}</small></td><td><figure v-if="item.image.kind === 'reference'"><img :src="item.image.image.dataUrl" :alt="`${item.brand} ${item.model} 资料参考图`" loading="lazy"><figcaption>{{ item.image.caption }} · 资料参考，非拥有证据</figcaption></figure><span v-else class="placeholder">无参考图</span></td><td><button :disabled="blocked" @click="editItem(item)">编辑</button><button :disabled="blocked" @click="removeItem(item.referenceId)">从草案移除</button></td></tr></tbody></table></div>
         <form v-if="editor" class="editor" aria-label="编辑参考条目" @submit.prevent="saveItem"><fieldset :disabled="blocked"><legend>{{ editingId ? '编辑整理条目' : '新增整理条目' }}</legend><div class="field-grid"><label>参考 ID<input v-model="editor.referenceId" required maxlength="96"></label><label>品牌<input v-model="editor.brand" required maxlength="120"></label><label>系列<input v-model="editor.series" maxlength="120"></label><label>版次<input v-model="editor.edition" maxlength="120"></label><label>型号<input v-model="editor.model" required maxlength="120"></label><label>时长（逗号分隔，分钟）<input v-model="lengthsText" placeholder="60, 90"></label><label>IEC<select v-model="editor.iec"><option v-for="iec in ['unknown', 'I', 'II', 'III', 'IV', 'dat']" :key="iec" :value="iec">{{ iec === 'unknown' ? '未知' : iec }}</option></select></label><label>年代<input :value="editor.era ?? ''" maxlength="120" @input="editor.era = ($event.target as HTMLInputElement).value || null"></label><label>来源页（逗号分隔）<input v-model="pagesText"></label><label>可信度<select v-model="editor.confidence"><option value="unknown">未知</option><option value="high">高</option><option value="medium">中</option><option value="low">低</option></select></label></div><label>备注<input v-model="editor.notes" maxlength="2000"></label><label v-if="editor.image.kind === 'reference'">参考图来源说明<input v-model="editor.image.caption" maxlength="240"></label><div class="actions"><button type="submit">保存到草案</button><button type="button" @click="editor = undefined">取消编辑</button></div></fieldset></form>
+        <div v-if="editor" class="summary" role="group" aria-label="资料参考图"><p>可选资料参考图，仅为书籍或目录的型号比对资料，绝非库存拥有或实物照片证据。请选择有权使用的本地图片，并在上方填写来源说明。</p><figure v-if="editor.image.kind === 'reference'"><img :src="editor.image.image.dataUrl" :alt="`${editor.brand} ${editor.model} 待发布资料参考图`"><figcaption>{{ editor.image.caption || '来源说明待填写' }} · 资料参考，非拥有证据</figcaption></figure><p v-else>本条尚无参考图。</p><div class="actions"><button type="button" :disabled="blocked" @click="chooseReferenceImage">选择资料参考图（PNG / JPEG）</button><button v-if="editor.image.kind === 'reference'" type="button" :disabled="blocked" @click="removeReferenceImage">从草案移除参考图</button></div></div>
         <h4>旧版 → 新版映射</h4><p>多合一保留原确认关联，只计一个目录条目；一拆多须重新复核，不自动成为多条已拥有。未显式映射时不会猜测旧关联。</p><fieldset :disabled="blocked || !state.current"><legend>添加映射</legend><div class="field-grid"><label>旧版条目（可多选）<select v-model="fromIds" multiple size="4"><option v-for="item in state.current?.revision.items" :key="item.referenceId" :value="item.referenceId">{{ item.referenceId }} · {{ item.model }}</option></select></label><label>新版草案条目（可多选）<select v-model="toIds" multiple size="4"><option v-for="item in state.items" :key="item.referenceId" :value="item.referenceId">{{ item.referenceId }} · {{ item.model }}</option></select></label></div><button @click="addMapping">加入映射</button></fieldset><p v-if="!state.current" class="hint">首个版次无需旧版映射。</p><ul><li v-for="(mapping, index) in state.mappings" :key="index">{{ mapping.fromReferenceIds.join(' + ') }} → {{ mapping.toReferenceIds.join(' + ') }} <button :disabled="blocked" @click="controller.setDraft(state.items, state.mappings.filter((_, i) => i !== index))">移除此映射</button></li></ul>
         <label>载入配图修订 JSON（最多 4 MiB）<input type="file" accept=".json,application/json" :disabled="blocked || fileLoading" @change="chooseRevisionFile"></label>
         <p class="hint">仅载入 items 与 mappings 草案，仍需预览和确认发布；不改写原始资料，不增加库存。</p>

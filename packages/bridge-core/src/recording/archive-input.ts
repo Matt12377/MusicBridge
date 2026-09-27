@@ -9,6 +9,7 @@ import { assertPreparationOutsideSources, verifyPublishedPreparation } from './p
 import { withVerifiedReadonlySource, type RootCapability } from './source-files.js';
 import { mediaFingerprint } from './media-store.js';
 import { retainedRenderManifest } from './prepared-store.js';
+import { verifyFrozenDistribution } from './version-distribution.js';
 import type { ArchiveStore } from './archive-store.js';
 
 export function assertSourceOutsideArchives(absolutePath: string, store: ArchiveStore): void {
@@ -26,6 +27,8 @@ export interface ArchiveInputContext { job: StoredExecutionJob; archive: OwnedAr
 export function captureArchiveInput(selection: ArchiveSelection, archive: OwnedArchive, execution: ExecutionStore, sources: SourceStore): ArchiveInputContext {
   const asset = execution.asset(selection.assetId), job = execution.job(selection.assetId);
   if (!asset || !job || job.public.state !== 'completed' || !executionPublicationComplete(job)) return invalid();
+  const verified = verifyFrozenDistribution(job.input.master, job.input.layout);
+  if (!verified) return invalid();
   const files: ArchiveInput[] = job.files.map(file => ({ ...file, source: job.owned!.root, role: file.relative.endsWith('.converted.wav') ? 'conversion-intermediate' : 'execution-audio', name: path.basename(file.relative), media: 'audio' }));
   const manifest = executionManifest(job);
   files.push({ role: 'manifest', name: 'ExecutionManifest.json', source: job.owned!.root, relative: 'Manifest.json', sha256: job.manifestHash!, size: manifest.length, media: 'json' });
@@ -47,8 +50,11 @@ export function captureArchiveInput(selection: ArchiveSelection, archive: OwnedA
   files.push({ role: 'metadata', name: 'FrozenFacts.json', content, sha256: archiveDigest(content), size: Buffer.byteLength(content), media: 'json' });
   const sourceIds: string[] = [];
   if (selection.sourcePolicy === 'preserve-exact-sources') {
-    for (const source of job.input.master.sourceEvidence) {
-      const binding = sources.binding(source.binding.id), frozen = job.input.master.content.tracks.find(t => t.trackId === source.trackId)!.source;
+    for (const trackId of verified.trackIds) {
+      const source = job.input.master.sourceEvidence.find(item => item.trackId === trackId);
+      const frozen = job.input.master.content.tracks.find(t => t.trackId === trackId)?.source;
+      if (!source || !frozen) return invalid();
+      const binding = sources.binding(source.binding.id);
       if (!binding.userConfirmed || binding.invalidated || binding.evidence.sha256 !== frozen.sha256 || binding.evidence.size !== frozen.size || mediaFingerprint(binding.evidence.technical) !== mediaFingerprint(frozen.technical)) return invalid();
       const root = sources.root(binding.rootId); if (!root.authorized) return invalid();
       sourceIds.push(root.id);

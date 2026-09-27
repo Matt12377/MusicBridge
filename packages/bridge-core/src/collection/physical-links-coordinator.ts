@@ -1,16 +1,16 @@
 import { createHash } from 'node:crypto';
-import { isAlbumQuery, isCollectionId, isConfirmPhysicalLinkRequest, isRelocateDigitalRequest, isRegisterDigitalRequest, isRemovePhysicalLinkRequest, isConfirmAbsenceRequest, isDigitalAlbumMetadata,
-  type ConfirmPhysicalLinkRequest, type RelocateDigitalRequest, type RegisterDigitalRequest, type RemovePhysicalLinkRequest, type ConfirmAbsenceRequest, type PhysicalLinkResult, type DigitalRuntime, type PageRequest, type RoonLibraryPage } from '@music-bridge/contracts';
+import { isAlbumQuery, isCollectionId, isConfirmPhysicalLinkRequest, isLegacyConfirmPhysicalLinkRequest, isRelocateDigitalRequest, isRegisterDigitalRequest, isRemovePhysicalLinkRequest, isLegacyRemovePhysicalLinkRequest, isConfirmAbsenceRequest, isDigitalAlbumMetadata,
+  type ConfirmPhysicalLinkRequest, type LegacyConfirmPhysicalLinkRequest, type RelocateDigitalRequest, type RegisterDigitalRequest, type RemovePhysicalLinkRequest, type LegacyRemovePhysicalLinkRequest, type ConfirmAbsenceRequest, type PhysicalLinkResult, type DigitalRuntime, type PageRequest, type RoonLibraryPage } from '@music-bridge/contracts';
 import { BridgeError } from '../shared/errors.js';
 import type { RoonPublicLibrary } from '../roon/public-library.js';
 import type { PhysicalLinksRepository } from './physical-links.js';
 
 export interface PhysicalLinksCoordinator {
   search(query: string, page: PageRequest): Promise<RoonLibraryPage>;
-  confirm(request: ConfirmPhysicalLinkRequest): PhysicalLinkResult;
+  confirm(request: ConfirmPhysicalLinkRequest | LegacyConfirmPhysicalLinkRequest): PhysicalLinkResult;
   register(request: RegisterDigitalRequest): PhysicalLinkResult;
   relocate(request: RelocateDigitalRequest): PhysicalLinkResult;
-  remove(request: RemovePhysicalLinkRequest): PhysicalLinkResult;
+  remove(request: RemovePhysicalLinkRequest | LegacyRemovePhysicalLinkRequest): PhysicalLinkResult;
   absence(request: ConfirmAbsenceRequest): PhysicalLinkResult;
   runtime(id: string): DigitalRuntime;
 }
@@ -34,13 +34,14 @@ export function createPhysicalLinksCoordinator({ repository, library }: { reposi
       catch { return { status: 'unavailable' }; }
     },
     confirm(request) {
-      if (!isConfirmPhysicalLinkRequest(request)) return invalid();
+      if (!isConfirmPhysicalLinkRequest(request) && !isLegacyConfirmPhysicalLinkRequest(request)) return invalid();
       const hash = fingerprint('confirm', request), prior = repository.cached(request.commandId, hash);
       if (prior) return prior;
       const snapshot = request.reference ? metadata(request.reference) : undefined;
       const knownId = request.digitalId ?? [...references].find(([, ref]) => ref === request.reference)?.[0];
       if (knownId && snapshot && canonical(repository.digitalDetail(knownId).album.metadata) !== canonical(snapshot)) return invalid();
-      const result = repository.link({ commandId: request.commandId, fingerprint: hash, releaseId: request.releaseId, expectedRevision: request.expectedRevision, relation: request.relation, ripFromCdConfirmed: request.ripFromCdConfirmed,
+      const legacyRequest = !('reason' in request);
+      const result = repository.link({ commandId: request.commandId, fingerprint: hash, releaseId: request.releaseId, expectedRevision: request.expectedRevision, relation: request.relation, ripFromCdConfirmed: request.ripFromCdConfirmed, reason: legacyRequest ? null : request.reason, legacyRequest, origin: request.reference ? 'roon-candidate' : 'existing-digital',
         ...(knownId ? { digitalId: knownId } : snapshot ? { metadata: snapshot } : {}) });
       if (request.reference && result.digitalId) remember(result.digitalId, request.reference);
       return result;
@@ -57,7 +58,7 @@ export function createPhysicalLinksCoordinator({ repository, library }: { reposi
       const result = repository.relocate(request.commandId, hash, request.digitalId, request.expectedRevision, metadata(request.reference));
       remember(request.digitalId, request.reference); return result;
     },
-    remove(request) { if (!isRemovePhysicalLinkRequest(request)) return invalid(); return repository.remove(request, fingerprint('remove', request)); },
+    remove(request) { if (!isRemovePhysicalLinkRequest(request) && !isLegacyRemovePhysicalLinkRequest(request)) return invalid(); return repository.remove(request, fingerprint('remove', request)); },
     absence(request) { if (!isConfirmAbsenceRequest(request)) return invalid(); return repository.absence(request, fingerprint('absence', request)); },
   };
 }

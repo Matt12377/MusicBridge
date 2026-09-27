@@ -39,6 +39,15 @@ test('工作簿原始单元格保留公式缓存和日期数字类型，拒绝�
   assert.equal(c.isParsedSpreadsheetWorkbook({ ...book, sheets: [book.sheets[0], book.sheets[0]] }), false);
 });
 
+test('CSV 合同只允许 UTF-8 文本解析身份，公式样式不得变成可执行公式', () => {
+  const csv = { fileFormat: 'csv', parserVersion: 'csv-rfc4180-v1', dateSystem: '1900', sheets: [{ name: 'CSV', rows: [{ rowIndex: 1, cells: [{ columnIndex: 1, type: 'string', value: '=1+2' }] }] }] };
+  assert.equal(c.isParsedSpreadsheetWorkbook(csv), true);
+  assert.equal(c.isSpreadsheetWorkbookSource({ ...source, displayName: '合成.csv', fileFormat: 'csv', parserVersion: 'csv-rfc4180-v1', sheets: [{ name: 'CSV', rowCount: 1, nonEmptyCellCount: 1 }] }), true);
+  for (const changed of [{ parserVersion: 'sheetjs-ce-0.20.3' }, { dateSystem: '1904' }, { sheets: [{ name: '工作表', rows: csv.sheets[0]!.rows }] }, { sheets: [{ name: 'CSV', rows: [{ rowIndex: 1, cells: [{ columnIndex: 1, type: 'number', value: 3 }] }] }] }, { sheets: [{ name: 'CSV', rows: [{ rowIndex: 1, cells: [{ columnIndex: 1, type: 'string', value: '=1+2', formula: '1+2' }] }] }] }]) {
+    assert.equal(c.isParsedSpreadsheetWorkbook({ ...csv, ...changed }), false);
+  }
+});
+
 test('公开来源只展示受限文件名与SHA，不携带私有路径或工作簿内容', () => {
   assert.equal(c.isSpreadsheetWorkbookSource(source), true);
   for (const displayName of ['/private/合成.xlsx', '..', 'a\\b.xls', 'a\0b.xls']) assert.equal(c.isSpreadsheetWorkbookSource({ ...source, displayName }), false);

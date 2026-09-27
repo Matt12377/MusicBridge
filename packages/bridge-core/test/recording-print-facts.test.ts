@@ -1,14 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as c from '@music-bridge/contracts';
+import { mediaFingerprint } from '../src/recording/media-store.js';
 const id = (n: number): string => `20000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const date = '2026-08-28T00:00:00.000Z', end = '2026-08-29T00:00:00.000Z', hash = (s: string): string => s.repeat(64);
 function planFixture() {
   const technical = { container: 'WAV', codec: 'PCM', sampleRate: 48000, channels: 2, bitsPerSample: 16, durationMs: 1000, lossless: true, sampleFrames: 48000, frameEvidence: 'container-declared' as const };
   const binding: c.SourceBinding = { id: id(4), rootId: id(5), fileName: '合成.wav', acquisition: 'userFileBind', verification: 'fileHashVerified', preservation: 'externalReferenceOnly', availability: 'ONLINE', sha256: hash('a'), size: 192044, modifiedAt: date, verifiedAt: date, technical, userConfirmed: true, sourceLockEligible: true };
   const master: c.MasterVersion = { id: id(2), draftId: id(1), sequence: 1, title: '合成母版', createdAt: date, content: { programType: 'compilation', tracks: [{ trackId: id(3), metadata: { title: '合成曲目', durationMs: 1000 }, source: { sha256: binding.sha256, size: binding.size, technical }, transitionAfterMs: 0, keepWithNext: false }] }, contentHash: hash('b'), sourceEvidence: [{ trackId: id(3), binding }], status: 'frozen' };
+  master.contentHash = mediaFingerprint(master.content);
   const capacityFrames = 1440000;
   const layout: c.LayoutVersion = { id: id(6), draftId: master.draftId, masterVersionId: master.id, sequence: 1, planId: id(7), createdAt: date, spec: { format: 'cassette', splitAfter: 1, leadInMs: 0, tailMs: 0, defaultGapMs: 5000, rules: [], compatibility: { confirmed: true, cassetteTypes: ['II'], dat: false } }, lengthMinutes: 1, reservation: { physicalId: 'MB-C-00001', modelId: id(8), skuId: id(9), packaging: 'opened' }, timeline: { timebase: 'sample-frames', sampleRate: 48000, rounding: 'nearest-half-up-v1', sides: [{ name: 'A', capacityFrames, leadInFrames: 0, tailFrames: 0, totalFrames: 48000, tracks: [{ trackId: id(3), sourceBindingId: binding.id, sourceSampleRate: 48000, sourceFrames: 48000, startFrame: 0, endFrame: 48000, gapAfterFrames: 0 }] }, { name: 'B', capacityFrames, leadInFrames: 0, tailFrames: 0, totalFrames: 0, tracks: [] }] }, timelineHash: hash('c'), status: 'frozen', executionReady: false };
+  layout.timelineHash = mediaFingerprint(layout.timeline);
   const profile: c.RecordingProfileVersion = { id: id(10), profileId: id(11), sequence: 1, createdAt: date, contentHash: hash('d'), content: { name: '合成录音配置', signalChain: [{ id: id(12), kind: 'audio-interface', label: '未认证合成设备' }], defaults: { noiseReduction: 'Off', calibration: null, recordLevel: null, preRollMs: 1000 }, compatibility: layout.spec.compatibility, executionFormat: { sampleRate: 48000, channelCount: 2, channelLayout: 'stereo', internalProcessingPrecision: 'integer-bit-copy', outputSampleFormat: 'pcm-s16le', resamplerImplementation: 'none', resamplerVersion: 'not-applied', ditherPolicy: 'none', channelMapping: 'identity', outputBackend: { id: 'synthetic-unverified', version: '1' } } } };
   const settings: c.ResolvedRecordingSettings = { profile, overrides: {}, effective: c.effectiveRecordingSettings(profile, {}), format: { ...profile.content.executionFormat, outputProfileVersion: profile.id }, fingerprint: hash('e') };
   const recipe: c.ExecutionRecipe = { schemaVersion: 1, mode: 'direct', compiler: 'musicbridge-pcm-copy-v1', masterVersionId: master.id, layoutVersionId: layout.id, contentHash: master.contentHash, plannedTimelineHash: layout.timelineHash, format: settings.format, side: 'A', capacityFrames, totalFrames: 48000, segments: [{ kind: 'source', trackId: id(3), input: { sha256: binding.sha256, size: binding.size, sampleRate: 48000, channelCount: 2, bitsPerSample: 16, totalFrames: 48000 }, startFrame: 0, endFrame: 48000 }], formalReady: false };
@@ -43,10 +46,16 @@ test('旧v1不补当前Artwork或型号，未知保持未知；修改副本不�
 test('拒绝跨Record/Plan/Artwork谱系，实际音频摘要和实体不一致不可打印',async()=>{
  const m=await module();for(const mutation of [(r:c.RecordingRecordV2)=>{r.completion.planContentHash=hash('c')},(r:c.RecordingRecordV2)=>{r.completion.sides[0]!.pcmSha256=hash('d')},(r:c.RecordingRecordV2)=>{r.media.skuId=id(99)},(r:c.RecordingRecordV2)=>{r.visuals.artwork={state:'captured',version:{id:id(81),masterVersionId:id(99),sequence:1,createdAt:date,sha256:hash('a'),size:4,width:1,height:1,mimeType:'image/jpeg'}}}]){const r=v2();mutation(r);assert.throws(()=>m.buildRecordingPrintFacts(r,planFixture().plan),{code:'INVALID_HISTORY'})}
 })
+test('打印拒绝 DTO 形状仍合法但冻结 Master 摘要已漂移的计划',async()=>{
+ const m=await module(),record=v2(),forged=structuredClone(planFixture().plan)
+ forged.master.content.tracks[0]!.metadata.title='篡改后的曲名'
+ assert.equal(c.isRecordingPlanVersion(forged),true)
+ assert.throws(()=>m.buildRecordingPrintFacts(record,forged),{code:'INVALID_HISTORY'})
+})
 test('请求原点与预分配ID严格、哈希确定且不受调用顺序影响',async()=>{
  const m=await module(),record=v2(),plan=planFixture().plan;const value=m.createRecordingPrintRequest({id:id(82),record,plan,origin:'completion',createdAt:end});assert.equal(c.isRecordingPrintRequest(value.request),true);assert.equal(value.request.factsHash,m.hashRecordingPrintFacts(value.facts));assert.equal(value.request.templateHash,m.RECORDING_PRINT_TEMPLATE_HASH);assert.equal(value.request.inputHash,m.hashRecordingPrintInput({factsHash:value.request.factsHash,templateHash:value.request.templateHash}));assert.deepEqual(m.createRecordingPrintRequest({id:id(82),record,plan,origin:'completion',createdAt:end}),value);
  assert.throws(()=>m.createRecordingPrintRequest({id:id(99),record,plan,origin:'completion',createdAt:end}));assert.throws(()=>m.createRecordingPrintRequest({id:id(82),record,plan,origin:'historical-backfill',createdAt:end}));assert.equal(m.createRecordingPrintRequest({id:id(82),record:recordFixture(),plan,origin:'historical-backfill',createdAt:end}).request.origin,'historical-backfill')
 })
 test('JP0毫米/英寸/point互相一致，面板分区和内折线精确',async()=>{
- const m=await module(),g=c.RECORDING_PRINT_GEOMETRY;assert.equal(g.widthPt,292.5);assert.equal(g.heightPt,288);assert.ok(Math.abs(g.widthMm/25.4*72-g.widthPt)<1e-10);assert.equal(g.flapMm+g.spineMm+g.coverMm,g.widthMm);assert.equal(g.insideFoldMm[0],g.coverMm);assert.ok(Math.abs(g.insideFoldMm[1]-g.coverMm-g.spineMm)<1e-10);assert.match(m.RECORDING_PRINT_TEMPLATE_HASH,/^[a-f0-9]{64}$/);assert.equal(m.RECORDING_PRINT_TEMPLATE_SPEC.minBodyFontPt,7.5)
+ const m=await module(),g=c.RECORDING_PRINT_GEOMETRY;assert.equal(g.widthPt,292.5);assert.equal(g.heightPt,288);assert.ok(Math.abs(g.widthMm/25.4*72-g.widthPt)<1e-10);assert.equal(g.flapMm+g.spineMm+g.coverMm,g.widthMm);assert.equal(g.insideFoldMm[0],g.coverMm);assert.ok(Math.abs(g.insideFoldMm[1]-g.coverMm-g.spineMm)<1e-10);assert.equal(m.RECORDING_PRINT_TEMPLATE_HASH,'e6fbbff7af88722ba3074207dbdde508fbf88d2e7a4b4e14f4e00b88257e28ad');assert.equal(m.RECORDING_PRINT_TEMPLATE_SPEC.minBodyFontPt,7.5)
 })

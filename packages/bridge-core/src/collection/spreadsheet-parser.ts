@@ -1,6 +1,6 @@
 import { Worker } from 'node:worker_threads';
 import { existsSync } from 'node:fs';
-import { isParsedSpreadsheetWorkbook, type ParsedSpreadsheetWorkbook } from '@music-bridge/contracts';
+import { isParsedSpreadsheetWorkbook, type ParsedSpreadsheetWorkbook, type SpreadsheetFileFormat } from '@music-bridge/contracts';
 import { MAX_WORKBOOK_BYTES } from './spreadsheet-files.js';
 let activeWorker: Worker | undefined;
 
@@ -10,8 +10,8 @@ export class SpreadsheetParseError extends Error {
 }
 
 /** 一个可终止Worker处理一份内存输入；不是OS沙箱，原路径不进入解析线程。 */
-export async function parseSpreadsheetWorkbook(bytes: Uint8Array, fileFormat: 'xlsx' | 'xls', options: { timeoutMs?: number } = {}): Promise<ParsedSpreadsheetWorkbook> {
-  if (!(bytes instanceof Uint8Array) || bytes.byteLength < 8 || bytes.byteLength > MAX_WORKBOOK_BYTES || !['xlsx', 'xls'].includes(fileFormat)) throw new SpreadsheetParseError();
+export async function parseSpreadsheetWorkbook(bytes: Uint8Array, fileFormat: SpreadsheetFileFormat, options: { timeoutMs?: number } = {}): Promise<ParsedSpreadsheetWorkbook> {
+  if (!(bytes instanceof Uint8Array) || bytes.byteLength < (fileFormat === 'csv' ? 1 : 8) || bytes.byteLength > MAX_WORKBOOK_BYTES || !['xlsx', 'xls', 'csv'].includes(fileFormat)) throw new SpreadsheetParseError();
   const timeoutMs = options.timeoutMs ?? 10000;
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 10000) throw new SpreadsheetParseError();
   if (activeWorker) throw new SpreadsheetParseError();

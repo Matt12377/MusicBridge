@@ -1,8 +1,8 @@
 import { formalRecordingMusicSelect, getRecordingCopyProjection } from '../recording/record-projections.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
-import { isMusicId, isMusicFilter, isSaveReleaseRequest, isSaveLegacyRequest, isMusicMutationResult, isMusicDetail, isAddMusicPhotoRequest, isRemoveMusicPhotoRequest, isCollectionPhotoImage, isCollectionId,
-  type MusicEntry, type MusicDetail, type MusicFilter, type CommercialRelease, type MusicContent, type MusicPhoto, type SaveReleaseRequest, type SaveLegacyRequest, type MusicMutationResult, type AddMusicPhotoRequest, type RemoveMusicPhotoRequest, type CollectionPhotoImage, type Page, type PageRequest } from '@music-bridge/contracts';
+import { isMusicId, isMusicFilter, isSaveReleaseRequest, isMaterializeCommercialCopyRequest, isSaveCommercialCopyDetailsRequest, isAssignCommercialCopyPhotoRequest, isSaveLegacyRequest, isMusicMutationResult, isMusicDetail, isCommercialCopy, isCommercialCopiesSnapshot, isAddMusicPhotoRequest, isRemoveMusicPhotoRequest, isCollectionPhotoImage, isCollectionId,
+  type MusicEntry, type MusicDetail, type MusicFilter, type CommercialRelease, type CommercialCopy, type CommercialCopyDetails, type CommercialCopiesSnapshot, type MaterializeCommercialCopyRequest, type SaveCommercialCopyDetailsRequest, type AssignCommercialCopyPhotoRequest, type MusicContent, type MusicPhoto, type SaveReleaseRequest, type SaveLegacyRequest, type MusicMutationResult, type AddMusicPhotoRequest, type RemoveMusicPhotoRequest, type CollectionPhotoImage, type Page, type PageRequest } from '@music-bridge/contracts';
 
 export const physicalMusicMigration = `
 CREATE TABLE music_releases (id TEXT PRIMARY KEY, data TEXT NOT NULL, revision INTEGER NOT NULL CHECK(revision>0)) STRICT;
@@ -16,7 +16,11 @@ PRAGMA user_version=3;
 export interface PhysicalMusicRepository {
   list(page: PageRequest, filter?: MusicFilter): Page<MusicEntry>;
   detail(id: string): MusicDetail;
+  copies(releaseId: string, page: PageRequest): CommercialCopiesSnapshot;
   saveRelease(request: SaveReleaseRequest): MusicMutationResult;
+  materializeCopy(request: MaterializeCommercialCopyRequest): MusicMutationResult;
+  saveCopyDetails(request: SaveCommercialCopyDetailsRequest): MusicMutationResult;
+  assignCopyPhoto(request: AssignCommercialCopyPhotoRequest): MusicMutationResult;
   saveLegacy(request: SaveLegacyRequest): MusicMutationResult;
   addPhoto(request: AddMusicPhotoRequest): MusicMutationResult;
   photo(id: string): CollectionPhotoImage;
@@ -53,6 +57,15 @@ export function createPhysicalMusicRepository(access: Access): PhysicalMusicRepo
     if (!isMusicDetail(result)) return unavailable();
     return result;
   }
+  function copy(db: DatabaseSync, copyId: string): CommercialCopy {
+    const row = db.prepare('SELECT c.id,c.release_id,c.assigned_at,d.data,d.revision FROM commercial_release_copies c JOIN commercial_copy_details d ON d.copy_id=c.id WHERE c.id=?').get(copyId);
+    if (!row) return conflict('商业实物身份不存在，请刷新发行版。');
+    const result: CommercialCopy = { id: String(row.id), releaseId: String(row.release_id), assignedAt: String(row.assigned_at), revision: Number(row.revision),
+      details: JSON.parse(String(row.data)) as CommercialCopyDetails,
+      photoIds: db.prepare('SELECT photo_id FROM commercial_copy_photos WHERE copy_id=? ORDER BY rowid').all(copyId).map(photo => String(photo.photo_id)) };
+    if (!isCommercialCopy(result)) return unavailable();
+    return result;
+  }
   function transaction(action: string, request: { commandId: string }, valid: boolean, fn: (db: DatabaseSync) => MusicMutationResult): MusicMutationResult {
     if (!valid) return conflict('音乐资料请求无效，请检查字段、曲目和编号。');
     return read(db => {
@@ -87,6 +100,22 @@ export function createPhysicalMusicRepository(access: Access): PhysicalMusicRepo
       });
     },
     detail(id) { if (!isMusicId(id)) return conflict('音乐实物编号无效。'); return read(db => detail(db, id)); },
+    copies(releaseId, page) {
+      if (!isCollectionId(releaseId) || !Number.isSafeInteger(page?.offset) || page.offset < 0 || page.offset > 1_000_000 || !Number.isSafeInteger(page?.limit) || page.limit < 1 || page.limit > 100) return conflict('商业逐件分页或发行编号无效。');
+      return read(db => {
+        const current = detail(db, releaseId);
+        if (!current.release) return conflict('自录磁带不属于商业发行逐件库存。');
+        const total = Number(db.prepare('SELECT COUNT(*) n FROM commercial_release_copies WHERE release_id=?').get(releaseId)?.n);
+        const items: CommercialCopy[] = db.prepare('SELECT id FROM commercial_release_copies WHERE release_id=? ORDER BY rowid DESC LIMIT ? OFFSET ?').all(releaseId, page.limit, page.offset)
+          .map(row => copy(db, String(row.id)));
+        const photoAssignments = db.prepare('SELECT p.photo_id,p.copy_id FROM commercial_copy_photos p JOIN commercial_release_copies c ON c.id=p.copy_id WHERE c.release_id=? ORDER BY p.rowid').all(releaseId)
+          .map(row => ({ photoId: String(row.photo_id), copyId: String(row.copy_id) }));
+        const result: CommercialCopiesSnapshot = { releaseId, quantity: current.release.quantity, assignedCount: total, poolCount: current.release.quantity - total, photoAssignments,
+          copies: { items, offset: page.offset, limit: page.limit, total, hasMore: page.offset + items.length < total } };
+        if (!isCommercialCopiesSnapshot(result)) return unavailable();
+        return result;
+      });
+    },
     saveRelease(request) {
       return transaction('save-release', request, isSaveReleaseRequest(request), db => {
         const id = request.id ?? randomUUID();
@@ -94,9 +123,52 @@ export function createPhysicalMusicRepository(access: Access): PhysicalMusicRepo
           const current = detail(db, id);
           if (!current.release || current.entry.revision !== request.expectedRevision) return conflict('音乐资料已改变，请刷新后重试。');
           if (current.release.format !== request.release.format) return conflict('已有实物不能改成另一种介质，请分别登记。');
+          const assigned = Number(db.prepare('SELECT COUNT(*) n FROM commercial_release_copies WHERE release_id=?').get(id)?.n);
+          if (request.release.quantity < assigned) return conflict('发行数量不能低于已赋予永久身份的实物数量。');
           db.prepare('UPDATE music_releases SET data=?,revision=revision+1 WHERE id=?').run(JSON.stringify(request.release), id);
         } else db.prepare('INSERT INTO music_releases VALUES (?,?,1)').run(id, JSON.stringify(request.release));
         detail(db, id); return { id };
+      });
+    },
+    materializeCopy(request) {
+      return transaction('materialize-commercial-copy', request, isMaterializeCommercialCopyRequest(request), db => {
+        const current = detail(db, request.releaseId);
+        if (!current.release) return conflict('自录磁带不能赋予商业发行逐件身份。');
+        if (current.entry.revision !== request.expectedRevision) return conflict('商业发行资料已改变，请刷新后重试。');
+        const assigned = Number(db.prepare('SELECT COUNT(*) n FROM commercial_release_copies WHERE release_id=?').get(request.releaseId)?.n);
+        if (assigned >= current.release.quantity) return conflict('该发行版待识别 Pool 已用尽，不能重复赋予实物身份。');
+        const copyId = randomUUID();
+        db.prepare('INSERT INTO commercial_release_copies(id,release_id,assigned_at) VALUES (?,?,?)').run(copyId, request.releaseId, new Date().toISOString());
+        db.prepare('INSERT INTO commercial_copy_details(copy_id,data,revision) VALUES (?,?,1)').run(copyId, '{}');
+        db.prepare('UPDATE music_releases SET revision=revision+1 WHERE id=?').run(request.releaseId);
+        return { id: request.releaseId, copyId };
+      });
+    },
+    saveCopyDetails(request) {
+      return transaction('save-commercial-copy-details', request, isSaveCommercialCopyDetailsRequest(request), db => {
+        const current = copy(db, request.copyId);
+        if (current.revision !== request.expectedRevision) return conflict('逐件资料已改变，请刷新后重试。');
+        db.prepare('UPDATE commercial_copy_details SET data=?,revision=revision+1 WHERE copy_id=?').run(JSON.stringify(request.details), request.copyId);
+        return { id: current.releaseId, copyId: current.id };
+      });
+    },
+    assignCopyPhoto(request) {
+      return transaction('assign-commercial-copy-photo', request, isAssignCommercialCopyPhotoRequest(request), db => {
+        const current = copy(db, request.copyId);
+        if (current.revision !== request.expectedRevision) return conflict('逐件照片归属已改变，请刷新后重试。');
+        const photoRow = db.prepare('SELECT release_id FROM music_photos WHERE id=?').get(request.photoId);
+        if (!photoRow || photoRow.release_id !== current.releaseId) return conflict('照片不属于这份商业发行版。');
+        const prior = db.prepare('SELECT copy_id FROM commercial_copy_photos WHERE photo_id=?').get(request.photoId);
+        if (request.action === 'attach') {
+          if (prior) return conflict('照片已有逐件归属；请先从原实物解绑。');
+          if (current.photoIds.length >= 24) return conflict('每件实物最多关联 24 张照片。');
+          db.prepare('INSERT INTO commercial_copy_photos(photo_id,copy_id) VALUES (?,?)').run(request.photoId, request.copyId);
+        } else {
+          if (!prior || prior.copy_id !== request.copyId) return conflict('这张照片并未归属所选实物。');
+          db.prepare('DELETE FROM commercial_copy_photos WHERE photo_id=? AND copy_id=?').run(request.photoId, request.copyId);
+        }
+        db.prepare('UPDATE commercial_copy_details SET revision=revision+1 WHERE copy_id=?').run(request.copyId);
+        return { id: current.releaseId, copyId: current.id, photoId: request.photoId };
       });
     },
     saveLegacy(request) {

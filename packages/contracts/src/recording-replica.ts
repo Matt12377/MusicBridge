@@ -1,4 +1,5 @@
 import type { RenderSide } from './prepared-render.js';
+import { isRecordingOutputSelection, type RecordingOutputSelection } from './recording-device-selection.js';
 
 export const MAX_RECORDING_REPLICA_TARGETS = 4;
 export const MAX_RECORDING_REPLICA_IDS = 1000;
@@ -18,7 +19,9 @@ export type ReplicaTargetView = { target: ReplicaTarget; side: RenderSide } & (
   | { state: 'unavailable'; reason: ReplicaIssue }
   | { state: 'empty'; frameCount: 0 }
 );
-export interface RecordingReplicaStatus { playback: 'blocked'; reason: 'BACKEND_UNAVAILABLE'; deviceAccess: 'not-authorized'; deviceOpened: false; formalReady: false; gateB: 'NOT_RUN' }
+export type RecordingReplicaStatus =
+  | { playback: 'blocked'; reason: 'BACKEND_UNAVAILABLE' | 'NO_DEVICE_SELECTION' | 'DEVICE_CHANGED' | 'HELPER_UNAVAILABLE' | 'OUTPUT_RUN_UNVERIFIED'; deviceAccess: 'not-authorized'; deviceOpened: false; formalReady: false; gateB: 'NOT_RUN' }
+  | { playback: 'ready'; outputSelection: RecordingOutputSelection; deviceAccess: 'authorized'; deviceOpened: false; formalReady: false; gateB: 'NOT_RUN' };
 export interface InspectRecordingReplicaRequest { readId: string; recordingId: string }
 export interface RecordingReplicaReadIdRequest { readId: string }
 export interface RecordingReplicaRunIdRequest { runId: string }
@@ -27,17 +30,38 @@ export interface RecordingReplicaInspection extends ReplicaHistoricalIdentity {
   readId: string; checkedAt: string; fingerprint: string; targets: readonly ReplicaTargetView[];
   playback: 'blocked'; deviceOpened: false; formalReady: false; gateB: 'NOT_RUN';
 }
-export interface StartRecordingReplicaRequest extends ReplicaSelection { runId: string; expectedFingerprint: string; userConfirmed: true }
+export interface ReplicaSyntheticStartRequest extends ReplicaSelection { runId: string; expectedFingerprint: string; userConfirmed: true; mode?: 'synthetic-check' }
+export interface ReplicaDeviceStartRequest extends ReplicaSelection { runId: string; expectedFingerprint: string; userConfirmed: true; mode: 'device-output'; outputSelection: RecordingOutputSelection }
+export type StartRecordingReplicaRequest = ReplicaSyntheticStartRequest | ReplicaDeviceStartRequest;
 export interface ReplicaRunIdentity extends ReplicaHistoricalIdentity { target: ReplicaTarget; side: RenderSide; fingerprint: string; audio: ReplicaAudioIdentity }
 export interface ReplicaProgress { sourceFramesRead: number; submittedFrames: number; consumedFrames: number; sourceEof: boolean; backendDrained: boolean }
-export type ReplicaRunReason = 'CANCELLED' | 'CLOSED' | 'SCOPE_CHANGED' | 'INPUT_INVALID' | 'PROVIDER_FAILED' | 'IDENTITY_MISMATCH' | 'INPUT_UNAVAILABLE' | 'INPUT_CHANGED' | 'AUTHORIZATION_REVOKED' | 'UNSUPPORTED_FORMAT' | 'BACKEND_UNAVAILABLE' | 'FRAME_MISMATCH' | 'TIMEOUT' | 'DURATION_LIMIT';
+/** 完整设备输出回执只由 Core 在 child.close、pin 复核及输入最终核验后签发；不代表实体录制。 */
+export interface ReplicaDeviceReceipt {
+  runId: string; segmentId: string; playbackIdentitySha256: string; manifestSha256: string; helperSha256: string;
+  backendId: 'musicbridge-coreaudio-hal'; backendVersion: '0.2.0'; drainAlgorithmId: 'hal-sample-zero-cover-v1';
+  endpointId: string; deviceUid: string; configurationFingerprintSha256: string; selectionGeneration: string;
+  sourceFrameCount: number; fromFrame: number; frameCount: number; suppliedFrames: number; consumedFrames: number;
+  sourceEof: true; drainObserved: true; childClosed: true; inputFinalVerified: true;
+  segmentPlaybackComplete: true; formalReady: false; gateB: 'NOT_RUN';
+}
+export type ReplicaRunReason = 'CANCELLED' | 'CLOSED' | 'SCOPE_CHANGED' | 'INPUT_INVALID' | 'PROVIDER_FAILED' | 'IDENTITY_MISMATCH' | 'INPUT_UNAVAILABLE' | 'INPUT_CHANGED' | 'AUTHORIZATION_REVOKED' | 'UNSUPPORTED_FORMAT' | 'BACKEND_UNAVAILABLE' | 'FRAME_MISMATCH' | 'TIMEOUT' | 'DURATION_LIMIT' | 'DEVICE_CHANGED' | 'ROUTE_CHANGED' | 'HELPER_CHANGED' | 'PROTOCOL_ERROR' | 'GATE_B_REVOKED';
 export type RecordingReplicaRun =
   | { kind: 'cancelled-before-start'; runId: string; state: 'cancelled'; started: false; stopRequested: true; cleanupQuiescent: true; evidence: 'none'; deviceOpened: false; formalReady: false; gateB: 'NOT_RUN' }
   | { kind: 'session'; runId: string; request: StartRecordingReplicaRequest; revision: number; createdAt: string; updatedAt: string;
       state: 'starting' | 'consuming' | 'draining' | 'stopping' | 'finished' | 'cancelled' | 'failed';
       identity: ReplicaRunIdentity | null; progress: ReplicaProgress | null; started: boolean; startedAt?: string; endedAt?: string; reason?: ReplicaRunReason;
       stopRequested: boolean; cleanupQuiescent: boolean; evidence: 'none' | 'synthetic-only'; deviceOpened: false; formalReady: false; gateB: 'NOT_RUN';
+    }
+  | { kind: 'device-session'; runId: string; request: ReplicaDeviceStartRequest; revision: number; createdAt: string; updatedAt: string;
+      state: 'starting' | 'resuming' | 'outputting' | 'draining' | 'pausing' | 'paused' | 'stopping' | 'finished' | 'cancelled' | 'failed';
+      identity: ReplicaRunIdentity | null; progress: ReplicaProgress | null; receipt: ReplicaDeviceReceipt | null;
+      controlRevision: number; cursorFrame: number; segmentId: string | null; segmentIndex: number; segmentFromFrame: number; segmentQuiescent: boolean;
+      started: boolean; startedAt?: string; endedAt?: string; reason?: ReplicaRunReason;
+      stopRequested: boolean; cleanupQuiescent: boolean; evidence: 'none' | 'device-output'; deviceOpened: boolean; formalReady: false; gateB: 'NOT_RUN';
     };
+export type ReplicaDeviceControlRequest = { runId: string; commandId: string; expectedControlRevision: number } & (
+  { operation: 'pause' | 'resume' | 'stop' } | { operation: 'seek'; frame: number }
+);
 export interface RecordingReplicaReadCancellation { readId: string; cancelRequested: true }
 export type RecordingReplicaStopResult = RecordingReplicaRun;
 export interface RecordingReplicaPublicApi {
@@ -47,6 +71,7 @@ export interface RecordingReplicaPublicApi {
   startRecordingReplica(request: StartRecordingReplicaRequest): Promise<RecordingReplicaRun>;
   getRecordingReplicaRun(runId: string): Promise<{ run: RecordingReplicaRun | null }>;
   stopRecordingReplica(runId: string): Promise<RecordingReplicaStopResult>;
+  controlRecordingReplica(request: ReplicaDeviceControlRequest): Promise<RecordingReplicaRun>;
 }
 
 
@@ -61,7 +86,7 @@ const side = (v: unknown): v is RenderSide => v === 'A' || v === 'B' || v === 'P
 const safetyKeys = ['deviceOpened', 'formalReady', 'gateB'];
 const safe = (v: Record<string, unknown>): boolean => v.deviceOpened === false && v.formalReady === false && v.gateB === 'NOT_RUN';
 const issues: readonly ReplicaIssue[] = ['ARCHIVE_UNAVAILABLE', 'ARCHIVE_CHANGED', 'RESTORE_UNAVAILABLE', 'AUTHORIZATION_REVOKED', 'AUDIO_UNAVAILABLE', 'AUDIO_CHANGED', 'UNSUPPORTED_FORMAT', 'IDENTITY_MISMATCH', 'DEPENDENCY_UNAVAILABLE', 'DURATION_LIMIT'];
-const reasons: readonly ReplicaRunReason[] = ['CANCELLED', 'CLOSED', 'SCOPE_CHANGED', 'INPUT_INVALID', 'PROVIDER_FAILED', 'IDENTITY_MISMATCH', 'INPUT_UNAVAILABLE', 'INPUT_CHANGED', 'AUTHORIZATION_REVOKED', 'UNSUPPORTED_FORMAT', 'BACKEND_UNAVAILABLE', 'FRAME_MISMATCH', 'TIMEOUT', 'DURATION_LIMIT'];
+const reasons: readonly ReplicaRunReason[] = ['CANCELLED', 'CLOSED', 'SCOPE_CHANGED', 'INPUT_INVALID', 'PROVIDER_FAILED', 'IDENTITY_MISMATCH', 'INPUT_UNAVAILABLE', 'INPUT_CHANGED', 'AUTHORIZATION_REVOKED', 'UNSUPPORTED_FORMAT', 'BACKEND_UNAVAILABLE', 'FRAME_MISMATCH', 'TIMEOUT', 'DURATION_LIMIT', 'DEVICE_CHANGED', 'ROUTE_CHANGED', 'HELPER_CHANGED', 'PROTOCOL_ERROR', 'GATE_B_REVOKED'];
 const historyKeys = ['recordingId', 'recordingContentHash', 'planVersionId', 'planContentHash', 'archiveOperationId', 'archiveManifestHash'];
 function historical(v: Record<string, unknown>): boolean {
   return ['recordingId', 'planVersionId', 'archiveOperationId'].every(key => uuid(v[key])) && ['recordingContentHash', 'planContentHash', 'archiveManifestHash'].every(key => hash(v[key]));
@@ -88,13 +113,29 @@ export function isReplicaTargetView(v: unknown): v is ReplicaTargetView {
   return v.state === 'unavailable' && keys(v, ['target', 'side', 'state', 'reason']) && issues.includes(v.reason as ReplicaIssue);
 }
 export function isRecordingReplicaStatus(v: unknown): v is RecordingReplicaStatus {
-  return record(v) && keys(v, ['playback', 'reason', 'deviceAccess', ...safetyKeys]) && v.playback === 'blocked' && v.reason === 'BACKEND_UNAVAILABLE' && v.deviceAccess === 'not-authorized' && safe(v);
+  if (!record(v)) return false;
+  if (v.playback === 'blocked') return keys(v, ['playback', 'reason', 'deviceAccess', ...safetyKeys])
+    && ['BACKEND_UNAVAILABLE', 'NO_DEVICE_SELECTION', 'DEVICE_CHANGED', 'HELPER_UNAVAILABLE', 'OUTPUT_RUN_UNVERIFIED'].includes(String(v.reason))
+    && v.deviceAccess === 'not-authorized' && safe(v);
+  return v.playback === 'ready' && keys(v, ['playback', 'outputSelection', 'deviceAccess', ...safetyKeys])
+    && isRecordingOutputSelection(v.outputSelection) && v.deviceAccess === 'authorized' && v.deviceOpened === false
+    && v.formalReady === false && v.gateB === 'NOT_RUN';
 }
 export function isInspectRecordingReplicaRequest(v: unknown): v is InspectRecordingReplicaRequest { return record(v) && keys(v, ['readId', 'recordingId']) && uuid(v.readId) && uuid(v.recordingId); }
 export function isRecordingReplicaReadIdRequest(v: unknown): v is RecordingReplicaReadIdRequest { return record(v) && keys(v, ['readId']) && uuid(v.readId); }
 export function isRecordingReplicaRunIdRequest(v: unknown): v is RecordingReplicaRunIdRequest { return record(v) && keys(v, ['runId']) && uuid(v.runId); }
+export function isReplicaDeviceControlRequest(v: unknown): v is ReplicaDeviceControlRequest {
+  if (!record(v) || !keys(v, ['runId', 'commandId', 'expectedControlRevision', 'operation', 'frame'])
+    || !uuid(v.runId) || !uuid(v.commandId) || !integer(v.expectedControlRevision, 0, 0xffffffff)) return false;
+  return v.operation === 'seek' ? Object.keys(v).includes('frame') && integer(v.frame, 0)
+    : (v.operation === 'pause' || v.operation === 'resume' || v.operation === 'stop') && !Object.keys(v).includes('frame');
+}
 export function isStartRecordingReplicaRequest(v: unknown): v is StartRecordingReplicaRequest {
-  return record(v) && keys(v, ['runId', 'recordingId', 'target', 'side', 'expectedFingerprint', 'userConfirmed']) && uuid(v.runId) && selected(v) && hash(v.expectedFingerprint) && v.userConfirmed === true;
+  if (!record(v) || !uuid(v.runId) || !selected(v) || !hash(v.expectedFingerprint) || v.userConfirmed !== true) return false;
+  const common = ['runId', 'recordingId', 'target', 'side', 'expectedFingerprint', 'userConfirmed', 'mode'];
+  return v.mode === 'device-output'
+    ? keys(v, [...common, 'outputSelection']) && isRecordingOutputSelection(v.outputSelection)
+    : (v.mode === undefined || v.mode === 'synthetic-check') && keys(v, common);
 }
 export function isRecordingReplicaInspection(v: unknown): v is RecordingReplicaInspection {
   if (!record(v) || !keys(v, [...historyKeys, 'readId', 'checkedAt', 'fingerprint', 'targets', 'playback', ...safetyKeys]) || !historical(v) || !uuid(v.readId)
@@ -112,12 +153,71 @@ function progress(v: unknown, frameCount: number): v is ReplicaProgress {
     && integer(v.submittedFrames, 0, v.sourceFramesRead) && integer(v.consumedFrames, 0, v.submittedFrames) && typeof v.sourceEof === 'boolean' && typeof v.backendDrained === 'boolean'
     && (!v.sourceEof || v.sourceFramesRead === frameCount) && (!v.backendDrained || v.sourceEof && v.submittedFrames === frameCount && v.consumedFrames === frameCount);
 }
-/** 合成完成不是用户播放；当前公开合同无设备输出或认证成功分支。 */
+export function isReplicaDeviceReceipt(v: unknown): v is ReplicaDeviceReceipt {
+  if (!record(v) || !keys(v, ['runId', 'segmentId', 'playbackIdentitySha256', 'manifestSha256', 'helperSha256', 'backendId', 'backendVersion', 'drainAlgorithmId', 'endpointId', 'deviceUid', 'configurationFingerprintSha256', 'selectionGeneration', 'sourceFrameCount', 'fromFrame', 'frameCount', 'suppliedFrames', 'consumedFrames', 'sourceEof', 'drainObserved', 'childClosed', 'inputFinalVerified', 'segmentPlaybackComplete', 'formalReady', 'gateB'])
+    || !uuid(v.runId) || !uuid(v.segmentId) || !hash(v.playbackIdentitySha256) || !hash(v.manifestSha256) || !hash(v.helperSha256) || !hash(v.configurationFingerprintSha256)
+    || v.backendId !== 'musicbridge-coreaudio-hal' || v.backendVersion !== '0.2.0' || v.drainAlgorithmId !== 'hal-sample-zero-cover-v1'
+    || !isRecordingOutputSelection({ endpointId: v.endpointId, selectionGeneration: v.selectionGeneration })
+    || typeof v.deviceUid !== 'string' || new TextEncoder().encode(v.deviceUid).length < 1 || new TextEncoder().encode(v.deviceUid).length > 128 || v.deviceUid.includes('\0')
+    || !integer(v.sourceFrameCount, 1) || !integer(v.fromFrame, 0, v.sourceFrameCount - 1)
+    || !integer(v.frameCount, 1, v.sourceFrameCount - v.fromFrame)
+    || v.fromFrame + v.frameCount !== v.sourceFrameCount
+    || v.suppliedFrames !== v.frameCount || v.consumedFrames !== v.frameCount) return false;
+  return v.sourceEof === true && v.drainObserved === true && v.childClosed === true && v.inputFinalVerified === true
+    && v.segmentPlaybackComplete === true && v.formalReady === false && v.gateB === 'NOT_RUN';
+}
+function deviceSession(v: Record<string, unknown>): boolean {
+  if (!keys(v, ['kind', 'runId', 'request', 'revision', 'createdAt', 'updatedAt', 'state', 'identity', 'progress', 'receipt', 'started', 'startedAt', 'endedAt', 'reason', 'stopRequested', 'cleanupQuiescent', 'evidence', 'controlRevision', 'cursorFrame', 'segmentId', 'segmentIndex', 'segmentFromFrame', 'segmentQuiescent', ...safetyKeys])
+    || !isStartRecordingReplicaRequest(v.request) || v.request.mode !== 'device-output' || v.request.runId !== v.runId
+    || !integer(v.revision, 1) || !date(v.createdAt) || !date(v.updatedAt) || v.updatedAt < v.createdAt
+    || typeof v.started !== 'boolean' || typeof v.stopRequested !== 'boolean' || typeof v.cleanupQuiescent !== 'boolean'
+    || typeof v.deviceOpened !== 'boolean' || v.formalReady !== false || v.gateB !== 'NOT_RUN'
+    || !integer(v.controlRevision, 0) || !integer(v.cursorFrame, 0) || !integer(v.segmentIndex, 0) || !integer(v.segmentFromFrame, 0)
+    || (v.segmentId !== null && !uuid(v.segmentId)) || typeof v.segmentQuiescent !== 'boolean'
+    || !['none', 'device-output'].includes(String(v.evidence))) return false;
+  const request = v.request, identity = v.identity;
+  if (identity !== null && (!isReplicaRunIdentity(identity) || identity.recordingId !== request.recordingId
+    || identity.target !== request.target || identity.side !== request.side || identity.fingerprint !== request.expectedFingerprint)) return false;
+  if (v.progress !== null && (!isReplicaRunIdentity(identity) || !progress(v.progress, identity.audio.frameCount - v.segmentFromFrame))) return false;
+  if (identity !== null && (v.cursorFrame > identity.audio.frameCount || v.segmentFromFrame >= identity.audio.frameCount)) return false;
+  const facts = v.progress as ReplicaProgress | null;
+  if (v.started) {
+    if (!v.deviceOpened || !isReplicaRunIdentity(identity) || !facts || !date(v.startedAt) || v.startedAt < v.createdAt || v.startedAt > v.updatedAt) return false;
+  } else if (v.deviceOpened || v.startedAt !== undefined || facts && (facts.sourceFramesRead !== 0 || facts.submittedFrames !== 0 || facts.consumedFrames !== 0 || facts.sourceEof || facts.backendDrained)) return false;
+  const terminal = v.state === 'finished' || v.state === 'cancelled' || v.state === 'failed';
+  if (terminal) {
+    if (!v.cleanupQuiescent || !date(v.endedAt) || v.endedAt < v.createdAt || v.endedAt > v.updatedAt || v.startedAt !== undefined && v.endedAt < String(v.startedAt)) return false;
+  } else if (v.endedAt !== undefined || v.cleanupQuiescent) return false;
+  if (v.state === 'paused') return v.started && v.segmentQuiescent && !v.stopRequested && v.reason === undefined && v.segmentId === null && v.receipt === null && v.evidence === 'none';
+  if (v.state === 'pausing') return v.started && !v.segmentQuiescent && !v.stopRequested && v.reason === undefined && v.segmentId !== null && v.receipt === null && v.evidence === 'none';
+  if (v.state === 'resuming') return v.started && !v.segmentQuiescent && !v.stopRequested && v.reason === undefined && v.segmentId !== null && v.receipt === null && v.evidence === 'none';
+  if (v.state === 'finished') {
+    if (!v.started || v.stopRequested || v.reason !== undefined || v.evidence !== 'device-output' || !facts || !facts.sourceEof || !facts.backendDrained || !isReplicaDeviceReceipt(v.receipt)) return false;
+    return v.receipt.runId === v.runId && v.receipt.segmentId === v.segmentId && v.receipt.endpointId === request.outputSelection.endpointId
+      && v.receipt.selectionGeneration === request.outputSelection.selectionGeneration
+      && v.receipt.sourceFrameCount === identity!.audio.frameCount && v.receipt.fromFrame + v.receipt.frameCount === identity!.audio.frameCount
+      && v.segmentFromFrame === v.receipt.fromFrame && v.cursorFrame === identity!.audio.frameCount
+      && v.receipt.consumedFrames === facts.consumedFrames
+      && v.receipt.suppliedFrames === facts.submittedFrames;
+  }
+  if (v.receipt !== null || v.evidence !== 'none') return false;
+  if (v.state === 'cancelled') return v.stopRequested && v.reason === 'CANCELLED';
+  if (v.state === 'failed') return reasons.includes(v.reason as ReplicaRunReason) && v.reason !== 'CANCELLED';
+  if (v.state === 'stopping') return v.stopRequested && reasons.includes(v.reason as ReplicaRunReason);
+  if (v.reason !== undefined || v.stopRequested) return false;
+  if (v.state === 'starting') return !v.started;
+  if (v.state === 'outputting') return v.started && !facts?.sourceEof;
+  return v.state === 'draining' && v.started && !!facts && facts.sourceEof
+    && facts.submittedFrames === identity!.audio.frameCount - v.segmentFromFrame;
+}
+/** 旧合成完成不是用户播放；设备分支须有独立的完整回执与真实准入。 */
 export function isRecordingReplicaRun(v: unknown): v is RecordingReplicaRun {
-  if (!record(v) || !uuid(v.runId) || !safe(v)) return false;
+  if (!record(v) || !uuid(v.runId)) return false;
+  if (v.kind === 'device-session') return deviceSession(v);
+  if (!safe(v)) return false;
   if (v.kind === 'cancelled-before-start') return keys(v, ['kind', 'runId', 'state', 'started', 'stopRequested', 'cleanupQuiescent', 'evidence', ...safetyKeys]) && v.state === 'cancelled' && v.started === false && v.stopRequested === true && v.cleanupQuiescent === true && v.evidence === 'none';
   if (v.kind !== 'session' || !keys(v, ['kind', 'runId', 'request', 'revision', 'createdAt', 'updatedAt', 'state', 'identity', 'progress', 'started', 'startedAt', 'endedAt', 'reason', 'stopRequested', 'cleanupQuiescent', 'evidence', ...safetyKeys])
-    || !isStartRecordingReplicaRequest(v.request) || v.request.runId !== v.runId || !integer(v.revision, 1) || !date(v.createdAt) || !date(v.updatedAt) || v.updatedAt < v.createdAt
+    || !isStartRecordingReplicaRequest(v.request) || v.request.mode === 'device-output' || v.request.runId !== v.runId || !integer(v.revision, 1) || !date(v.createdAt) || !date(v.updatedAt) || v.updatedAt < v.createdAt
     || typeof v.started !== 'boolean' || typeof v.stopRequested !== 'boolean' || typeof v.cleanupQuiescent !== 'boolean' || !['none', 'synthetic-only'].includes(String(v.evidence))) return false;
   if (v.identity !== null && (!isReplicaRunIdentity(v.identity) || v.identity.recordingId !== v.request.recordingId || v.identity.target !== v.request.target || v.identity.side !== v.request.side || v.identity.fingerprint !== v.request.expectedFingerprint)) return false;
   const identity = v.identity as ReplicaRunIdentity | null;

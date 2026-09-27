@@ -2,6 +2,7 @@ import { lstat, readFile, realpath } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { verifyNativeOutputPackage } from './native-output-package.mjs'
+import { verifyNativeOutputDevicePackage } from './native-output-device-package.mjs'
 
 const digest = bytes => createHash('sha256').update(bytes).digest('hex')
 const bundleRoot = appDirectory => path.join(appDirectory, 'native/ffmpeg/darwin-arm64')
@@ -50,4 +51,7 @@ export default async function beforePack(context) {
   }
   await verifyNativeConverterPackage(await realpath(context.packager.info.appDir))
   await verifyNativeOutputPackage(await realpath(context.packager.info.appDir))
+  if (!await verifyNativeOutputDevicePackage(await realpath(context.packager.info.appDir))) {
+    throw new Error('正式打包必须包含与应用构建pin一致的v0.2设备helper；缺包构建只供安全禁用开发。')
+  }
 }

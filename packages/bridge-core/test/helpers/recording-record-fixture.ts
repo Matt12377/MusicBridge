@@ -2,10 +2,22 @@ import type test from 'node:test';
 import { randomUUID } from 'node:crypto';
 import { recordingAttemptFixture } from './recording-attempt-fixture.js';
 import type { RecordingFixtureOptions } from './preparation-fixture.js';
+import { AttemptError } from '../../src/recording/attempt-integrity.js';
 
 /** 复用真实冻结Plan/音频/归档，仅输出驱动由私有合成provider提供。 */
 export async function recordingRecordFixture(t: test.TestContext, format: 'cassette' | 'dat' = 'cassette', options: RecordingFixtureOptions = {}) {
   const f = await recordingAttemptFixture(t, format, options);
+  async function waitForOutputIdle(): Promise<void> {
+    const deadline = performance.now() + 10_000;
+    for (;;) {
+      try { f.attempts.assertExecutionIdle(); return; }
+      catch (error) {
+        if (!(error instanceof AttemptError) || error.code !== 'ATTEMPT_CONFLICT') throw error;
+        if (performance.now() >= deadline) throw new Error('合成输出结束后只读输入末核验未在期限内完成。');
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+    }
+  }
   async function readyForFinal() {
     let attempt = await f.attempts.begin(f.beginRequest());
     for (let i = 0; i < attempt.sides.length; ++i) {
@@ -16,14 +28,14 @@ export async function recordingRecordFixture(t: test.TestContext, format: 'casse
       const driver = f.starts[i]!, side = attempt.sides[i]!, identity = { side: side.side, runId: driver.runId, at: new Date().toISOString() };
       driver.onEvent({ ...identity, type: 'progress', sourceFramesRead: side.frameCount, submittedFrames: side.frameCount, consumedFrames: side.frameCount });
       driver.onEvent({ ...identity, type: 'source-eof' }); driver.onEvent({ ...identity, type: 'engine-cutoff' }); driver.onEvent({ ...identity, type: 'cleanup-quiescent' }); driver.onEvent({ ...identity, type: 'backend-drained' });
-      await new Promise<void>(resolve => setImmediate(resolve));
+      await waitForOutputIdle();
       attempt = f.attempts.get({ attemptId: attempt.id }).attempt!;
       attempt = await f.attempts.confirm({ commandId: randomUUID(), attemptId: attempt.id, expectedRevision: attempt.revision, kind: 'physical-stop', side: side.side, userConfirmed: true });
     }
     attempt = await f.attempts.confirm({ commandId: randomUUID(), attemptId: attempt.id, expectedRevision: attempt.revision, kind: 'physical-recording', userConfirmed: true });
     return { attempt, request: { commandId: randomUUID(), attemptId: attempt.id, expectedRevision: attempt.revision, kind: 'final-verification' as const, userConfirmed: true as const } };
   }
-  return { ...f, readyForFinal };
+  return { ...f, readyForFinal, waitForOutputIdle };
 }
 
 /** 明确新规划重新走M/L、执行音频、归档和Plan冻结，不伪造SQLite计划。 */
@@ -38,7 +50,7 @@ export async function freezeRerecordPlan(f:Awaited<ReturnType<typeof recordingRe
   const archivePreview=await f.archive.preview({...archiveSelection,readId:randomUUID()});
   const archiveRequest={...archiveSelection,commandId:randomUUID(),proposalFingerprint:archivePreview.proposalFingerprint,userConfirmed:true as const};
   await f.archive.start(archiveRequest);await f.archive.idle();
-  const planSelection={assetId:execution.id,archiveOperationId:archiveRequest.commandId};
+  const planSelection={assetId:execution.id,archiveOperationId:archiveRequest.commandId,outputSelection:f.fakeDevice.outputSelection!};
   const preview=await f.plans.preview({selection:planSelection,readId:randomUUID()});
   return f.plans.freeze({commandId:randomUUID(),selection:planSelection,proposalFingerprint:preview.proposalFingerprint,userConfirmed:true});
 }

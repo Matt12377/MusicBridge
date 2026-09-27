@@ -6,7 +6,15 @@ import { parseRecordingPlan } from './plan-integrity.js';
 import { beginRecordingAttempt, reduceRecordingAttempt, isRecordingAttemptEvent, type RecordingAttemptEvent } from './attempt-state.js';
 
 export class AttemptError extends Error {
-  constructor(readonly code: dto.RecordingAttemptErrorCode) { super(`录音操作未完成，请核实当前状态。[${code}]`); }
+  constructor(readonly code: dto.RecordingAttemptErrorCode | 'NOT_ACCEPTED') { super(`录音操作未完成，请核实当前状态。[${code}]`); }
+}
+/** 只由协调器在持久事实与资源收口均证实后产生；保留原业务诊断，不把失败原因抹成状态。 */
+export class AttemptNotAcceptedError extends AttemptError {
+  readonly causeCode: dto.RecordingAttemptErrorCode;
+  constructor(cause: unknown) {
+    super('NOT_ACCEPTED');
+    this.causeCode = cause instanceof AttemptError && cause.code !== 'NOT_ACCEPTED' ? cause.code : 'BACKEND_FAILURE';
+  }
 }
 export function attemptFail(code: dto.RecordingAttemptErrorCode = 'IO_ERROR'): never { throw new AttemptError(code); }
 export const MAX_ATTEMPT_BYTES = 16 * 1024;

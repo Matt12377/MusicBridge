@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch 
 import type { MasterVersion, MasterDraft, MediaPlan, VersionHistory, VersionJob, VersionProposal, FreezeVersionsRequest } from '@music-bridge/contracts'
 import VersionTimeline from './VersionTimeline.vue'
 import MasterArtworkPanel from './MasterArtworkPanel.vue'
-const props = defineProps<{ draft: MasterDraft; initialPlanId?: string }>()
+const props = defineProps<{ draft: MasterDraft; initialPlanId?: string; inline?: boolean }>()
 const emit = defineEmits<{ close: []; prepare: [layoutId: string] }>()
 const artworkMaster = shallowRef<MasterVersion>(), artworkTrigger = ref<HTMLElement>()
 function openArtwork(masterId: string, event: MouseEvent): void { const master = history.value?.masters.find(item => item.id === masterId); if (master) { artworkTrigger.value = event.currentTarget as HTMLElement; artworkMaster.value = master } }
@@ -74,12 +74,12 @@ function cancel(): void {
   const request = { commandId: crypto.randomUUID(), id: running.value.id }
   pending.value = () => api.cancelMasterVersionJob(request); void retry()
 }
-function close(): void { if (!busy.value && !pending.value) { dialog.value?.close(); emit('close') } }
-onMounted(async () => { await nextTick(); dialog.value?.showModal(); void refresh(true) })
-onBeforeUnmount(() => { alive = false; ++generation; if (timer) clearTimeout(timer); dialog.value?.close() })
+function close(): void { if (!busy.value && !pending.value) { if (!props.inline) dialog.value?.close(); emit('close') } }
+onMounted(async () => { await nextTick(); if (!props.inline) dialog.value?.showModal(); void refresh(true) })
+onBeforeUnmount(() => { alive = false; ++generation; if (timer) clearTimeout(timer); if (!props.inline) dialog.value?.close() })
 </script>
 <template>
-  <dialog ref="dialog" class="versions-panel" aria-labelledby="versions-title" @cancel.prevent="close">
+  <component :is="inline ? 'section' : 'dialog'" ref="dialog" class="versions-panel" :class="{ 'is-inline': inline }" aria-labelledby="versions-title" @cancel.prevent="close">
     <header><div><p class="kicker">录音准备 · 03</p><h2 id="versions-title">母版与布局版本</h2><p class="muted">{{ draft.title }}</p></div><button :disabled="busy || !!pending" @click="close">关闭</button></header>
     <p class="intro">母版锁定曲目、曲序、实际源和曲间规则；布局锁定磁带分面与帧级时间线。只改分面会复用母版，历史不会被覆盖。</p>
     <section aria-labelledby="version-proposal-title"><h3 id="version-proposal-title">冻结提案</h3>
@@ -102,15 +102,16 @@ onBeforeUnmount(() => { alive = false; ++generation; if (timer) clearTimeout(tim
       <article v-for="layout in history?.layouts" :key="layout.id" class="history-item">
         <h4>L{{ layout.sequence }} · M{{ history!.masters.find(m => m.id === layout.masterVersionId)?.sequence }} · {{ layout.reservation.physicalId }}</h4><p class="muted">{{ new Date(layout.createdAt).toLocaleString() }} · {{ layout.spec.format === 'cassette' ? 'Cassette A/B' : 'DAT Program' }}</p>
         <button type="button" :disabled="busy || !!pending" @click="openArtwork(layout.masterVersionId, $event)">管理母版 M{{ history!.masters.find(m => m.id === layout.masterVersionId)?.sequence }} Artwork</button>
-        <button :disabled="busy || !!pending" @click="dialog?.close(); emit('prepare', layout.id)">为布局 L{{ layout.sequence }} 准备 Logic</button>
+        <button :disabled="busy || !!pending" @click="!inline && dialog?.close(); emit('prepare', layout.id)">为布局 L{{ layout.sequence }} 准备 Logic</button>
         <details><summary>查看布局 L{{ layout.sequence }}</summary><template v-for="master in history!.masters.filter(m => m.id === layout.masterVersionId)" :key="master.id"><p>{{ master.title }} · 母版 M{{ master.sequence }}{{ master.parentId ? ' · 从历史母版派生' : '' }}</p><VersionTimeline :timeline="layout.timeline" :content="master.content" /><details><summary>查看母版源身份</summary><ol class="sources"><li v-for="track in master.content.tracks" :key="track.trackId"><strong>{{ track.metadata.title }}</strong><code>SHA-256 {{ track.source.sha256 }}</code></li></ol></details></template><code>Planned Timeline SHA-256 {{ layout.timelineHash }}</code></details>
       </article>
       <details v-if="history?.jobs.length"><summary>复核任务记录（{{ history.jobs.length }}）</summary><ul class="jobs"><li v-for="job in history.jobs" :key="job.id"><span>{{ job.id.slice(0, 8) }}</span> · {{ jobLabel(job) }}</li></ul></details>
     </section>
     <MasterArtworkPanel v-if="artworkMaster" :key="artworkMaster.id" :master="artworkMaster" @close="closeArtwork" />
     <footer>这里只冻结内容与布局。Logic/PREP、执行资产、录音 Plan Freeze、输出认证和正式录音尚未完成。未复制或改写源音频。</footer>
-  </dialog>
+  </component>
 </template>
 <style scoped>
 .versions-panel{box-sizing:border-box;width:min(960px,calc(100vw - 32px));max-height:calc(100vh - 32px);padding:28px;border:1px solid var(--mb-glass-border);border-radius:18px;background:var(--mb-bg-base);color:var(--mb-text-primary);font:inherit;overflow:auto;overscroll-behavior:contain}.versions-panel::backdrop{background:rgb(0 0 0 / .6)}header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}.kicker{font-size:11px;letter-spacing:2px;color:var(--mb-text-secondary);margin:0 0 10px}h2{font-size:24px;margin:0}h3{font-size:17px;margin:0 0 16px}h4{font-size:15px;margin:0}p{font-size:13px;line-height:1.75;overflow-wrap:anywhere}.intro,.muted,footer{color:var(--mb-text-secondary)}section{border-top:1px solid var(--mb-divider);margin-top:24px;padding-top:24px}.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}label{display:flex;flex-direction:column;gap:8px;font-size:13px;line-height:1.6}select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;padding:8px 10px;border:1px solid var(--mb-glass-border);border-radius:8px;background:var(--mb-bg-base);color:var(--mb-text-primary);font:inherit}button{min-height:44px;padding:9px 15px;border:1px solid var(--mb-glass-border);border-radius:9px;background:var(--mb-bg-base);color:var(--mb-text-primary);font:inherit;font-size:13px;cursor:pointer}button:disabled{opacity:.5;cursor:default}button:active:not(:disabled){background:var(--mb-bg-elevated)}button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--mb-accent);outline-offset:3px}.primary{border-color:var(--mb-accent);color:var(--mb-accent)}.proposal,.history-item{padding:20px;margin-top:20px;border:1px solid var(--mb-glass-border);border-radius:12px;min-width:0}.check{flex-direction:row;align-items:center;min-height:44px;margin:16px 0}input{accent-color:var(--mb-accent);width:16px;height:16px;flex-shrink:0}.warning{padding:12px;border-left:3px solid var(--mb-accent)}.notice{padding:12px 0;font-weight:600}summary{min-height:44px;padding:12px 0;box-sizing:border-box;cursor:pointer;font-size:13px}code{display:block;font-size:12px;line-height:1.7;overflow-wrap:anywhere;color:var(--mb-text-secondary);margin-top:12px}.sources,.jobs{padding-left:20px;font-size:13px;line-height:1.7}.sources li{margin:16px 0;overflow-wrap:anywhere}.sources span{display:block;color:var(--mb-text-secondary)}footer{font-size:12px;line-height:1.8;margin-top:24px}@media(hover:hover) and (pointer:fine){button:hover:not(:disabled){border-color:var(--mb-accent)}}@media(max-width:760px){.versions-panel{padding:20px}.fields{grid-template-columns:1fr}h2{font-size:20px}.proposal,.history-item{padding:16px}}
+.versions-panel.is-inline{position:static;display:block;box-sizing:border-box;width:100%;max-width:none;max-height:none;margin:0;padding:0;border:0;border-radius:0;background:transparent;overflow:visible}
 </style>

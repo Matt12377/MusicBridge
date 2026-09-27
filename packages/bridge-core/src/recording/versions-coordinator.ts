@@ -8,6 +8,7 @@ import type { SourceStore } from './source-store.js';
 import type { MasterVersionsStore, VersionInput, StoredVersionJob } from './versions-store.js';
 import { probeReadonlySource, sourceFileAvailability, SourceFileError } from './source-files.js';
 import { planVersions } from './version-planner.js';
+import { frozenGroupMatchesHistory } from './version-distribution.js';
 const invalid = (message = '版本提案无效或已过期，请重新预览并明确确认。'): never => { throw new BridgeError('BAD_REQUEST', message, { httpStatus: 400 }); };
 export function createMasterVersionsCoordinator({ store, mediaStore, media, drafts, sourceStore, sources, probe = probeReadonlySource }: { store: MasterVersionsStore; mediaStore: MediaPlanningStore; media: MediaPlanningCoordinator; drafts: MasterDraftsRepository; sourceStore: SourceStore; sources: SourceEvidenceService; probe?: typeof probeReadonlySource }) {
   let closed = false;
@@ -24,6 +25,8 @@ export function createMasterVersionsCoordinator({ store, mediaStore, media, draf
     const snapshot = await sources.snapshot(draft.id), material = planVersions(draft, snapshot.tracks, plan.spec, request.sampleRate, stock.lengthMinutes);
     if (identity !== mediaStore.inputIdentity(draft.id) || mediaFingerprint(initial) !== mediaFingerprint(mediaStore.detail(plan.id))) return invalid();
     const history = store.list(draft.id), existing = history.masters.find(m => m.contentHash === material.contentHash);
+    if (plan.spec.distribution && !frozenGroupMatchesHistory(history, plan.spec.distribution, material.contentHash))
+      return invalid('同一分盘组的完整母版或分段已改变，请建立新分盘组。');
     const proposal: VersionProposal = { ...material, draftId: draft.id, planId: plan.id, masterAction: existing ? 'reuse' : 'create', ...(existing ? { existingMasterId: existing.id } : {}), ...(history.masters[0] ? { previousMasterId: history.masters[0].id } : {}), lengthMinutes: stock.lengthMinutes, reservation: plan.reservation, proposalFingerprint: '' };
     proposal.proposalFingerprint = mediaFingerprint({ identity, plan, stock, proposal });
     return { identity, plan: mediaStore.detail(plan.id), stockFingerprint: mediaFingerprint(stock), title: draft.title, proposal, sourceEvidence: snapshot.tracks.map(t => ({ trackId: t.trackId, binding: t.binding! })) };

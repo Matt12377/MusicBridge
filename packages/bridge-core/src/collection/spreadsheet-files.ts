@@ -1,21 +1,22 @@
 import { constants } from 'node:fs';
 import { lstat, open } from 'node:fs/promises';
 import path from 'node:path';
+import type { SpreadsheetFileFormat } from '@music-bridge/contracts';
 
 export const MAX_WORKBOOK_BYTES = 8 * 1024 * 1024;
 export class SpreadsheetReadError extends Error {
   readonly code = 'INVALID_IPC_REQUEST';
-  constructor() { super('无法读取工作簿。请选择不超过8MiB的普通XLSX或XLS文件，原文件未修改。'); }
+  constructor() { super('无法读取导入文件。请选择不超过8MiB的普通XLSX、XLS或UTF-8 CSV文件，原文件未修改。'); }
 }
 
 /** 原生选择授权仅限这个普通文件；不扫描、写入或保留其所在目录权限。 */
-export async function readSpreadsheetFile(absolutePath: string): Promise<{ bytes: Buffer; displayName: string; fileFormat: 'xlsx' | 'xls' }> {
+export async function readSpreadsheetFile(absolutePath: string): Promise<{ bytes: Buffer; displayName: string; fileFormat: SpreadsheetFileFormat }> {
   try {
     if (!path.isAbsolute(absolutePath)) throw new SpreadsheetReadError();
     const displayName = path.basename(absolutePath), extension = path.extname(displayName).toLowerCase();
-    if (!['.xlsx', '.xls'].includes(extension) || displayName.length > 255 || /[\\\x00-\x1f\x7f]/u.test(displayName)) throw new SpreadsheetReadError();
+    if (!['.xlsx', '.xls', '.csv'].includes(extension) || displayName.length > 255 || /[\\\x00-\x1f\x7f]/u.test(displayName)) throw new SpreadsheetReadError();
     const original = await lstat(absolutePath);
-    if (!original.isFile() || original.isSymbolicLink() || original.size < 8 || original.size > MAX_WORKBOOK_BYTES) throw new SpreadsheetReadError();
+    if (!original.isFile() || original.isSymbolicLink() || original.size < (extension === '.csv' ? 1 : 8) || original.size > MAX_WORKBOOK_BYTES) throw new SpreadsheetReadError();
     const handle = await open(absolutePath, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
     let bytes: Buffer;
     try {
@@ -29,7 +30,8 @@ export async function readSpreadsheetFile(absolutePath: string): Promise<{ bytes
         || current.ino !== before.ino || current.dev !== before.dev || current.isSymbolicLink()) throw new SpreadsheetReadError();
       bytes = output.subarray(0, size);
     } finally { await handle.close(); }
-    if (extension === '.xlsx' ? bytes.readUInt32LE(0) !== 0x04034b50 : !bytes.subarray(0, 8).equals(Buffer.from('d0cf11e0a1b11ae1', 'hex'))) throw new SpreadsheetReadError();
-    return { bytes, displayName, fileFormat: extension === '.xlsx' ? 'xlsx' : 'xls' };
+    if (extension === '.xlsx' && bytes.readUInt32LE(0) !== 0x04034b50
+      || extension === '.xls' && !bytes.subarray(0, 8).equals(Buffer.from('d0cf11e0a1b11ae1', 'hex'))) throw new SpreadsheetReadError();
+    return { bytes, displayName, fileFormat: extension === '.xlsx' ? 'xlsx' : extension === '.xls' ? 'xls' : 'csv' };
   } catch { throw new SpreadsheetReadError(); }
 }

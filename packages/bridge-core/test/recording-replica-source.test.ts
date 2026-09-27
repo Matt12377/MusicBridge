@@ -64,3 +64,16 @@ test('旧只读源入口仍保持15分钟默认，Replica结束后改写也拒�
   await assert.rejects(sources.withVerifiedReadonlySource(f.root,'a.wav',f.expected,new AbortController().signal,async(_h,check)=>{clock+=16*60_000;check();}),error=>error instanceof sources.SourceFileError&&error.code==='LIMIT_EXCEEDED');
   await assert.rejects(sources.withVerifiedReadonlyReplicaSource(f.root,'a.wav',f.expected,new AbortController().signal,async()=>{const bytes=Buffer.from(f.bytes);bytes[44]=99;await writeFile(path.join(f.directory,'a.wav'),bytes);},()=>undefined,{durationMs:1000}));
 });
+
+test('Replica输入租期显式报告FD取得与释放；末Hash失败仍报告已释放',async t=>{
+  const f=await fixture(t),events:string[]=[];
+  await sources.withVerifiedReadonlyReplicaSource(f.root,'a.wav',f.expected,new AbortController().signal,
+    async()=>{assert.deepEqual(events,['acquired']);},()=>undefined,
+    {durationMs:1000,onLeaseEvent:event=>events.push(event)});
+  assert.deepEqual(events,['acquired','released']);
+  events.length=0;
+  await assert.rejects(sources.withVerifiedReadonlyReplicaSource(f.root,'a.wav',f.expected,new AbortController().signal,
+    async()=>{const bytes=Buffer.from(f.bytes);bytes[44]=99;await writeFile(path.join(f.directory,'a.wav'),bytes);},()=>undefined,
+    {durationMs:1000,onLeaseEvent:event=>events.push(event)}));
+  assert.deepEqual(events,['acquired','released']);
+});

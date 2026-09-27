@@ -4,6 +4,7 @@ import { isCollectionId, isMasterVersion, isLayoutVersion, type MasterVersion, t
 import type { RootCapability } from './source-files.js';
 import type { OwnedPreparation, PreparationOutput } from './preparation-files.js';
 import { mediaFingerprint } from './media-store.js';
+import { verifyFrozenDistribution } from './version-distribution.js';
 
 export const preparationMigration = `
 CREATE TABLE preparation_destinations (id TEXT PRIMARY KEY,data TEXT NOT NULL) STRICT;
@@ -49,7 +50,7 @@ export function createPreparationStore({ read, conflict, beforeCommit }: Access)
       return transaction('revoke-preparation', db => { const fp = mediaFingerprint(['revoke', request.id]), prior = receipt(db, request.commandId, fp); if (prior) return destination(db, prior); const result = { ...destination(db, request.id), authorized: false }; db.prepare('UPDATE preparation_destinations SET data=? WHERE id=?').run(JSON.stringify(result), request.id); record(db, request.commandId, fp, request.id); return result; });
     },
     frozen(layoutId: string): { master: MasterVersion; layout: LayoutVersion } {
-      return read(db => { const layout = get<LayoutVersion>(db, 'layout_versions', layoutId); if (!isLayoutVersion(layout)) return conflict('冻结布局不存在。'); const master = get<MasterVersion>(db, 'master_versions', layout.masterVersionId); if (!isMasterVersion(master) || master.draftId !== layout.draftId) return conflict('冻结母版不存在。'); return { master, layout }; });
+      return read(db => { const layout = get<LayoutVersion>(db, 'layout_versions', layoutId); if (!isLayoutVersion(layout)) return conflict('冻结布局不存在。'); const master = get<MasterVersion>(db, 'master_versions', layout.masterVersionId); if (!isMasterVersion(master) || master.draftId !== layout.draftId) return conflict('冻结母版不存在。'); if (!verifyFrozenDistribution(master, layout)) return conflict('冻结分盘或时间线校验失败。'); return { master, layout }; });
     },
     cached(request: StartPreparationRequest) { return read(db => { const prior = receipt(db, request.commandId, fingerprint(request)); return prior ? job(db, prior).public : undefined; }); },
     job: (id: string) => read(db => get<StoredPreparationJob>(db, 'preparation_jobs', id)),
@@ -60,7 +61,7 @@ export function createPreparationStore({ read, conflict, beforeCommit }: Access)
         if (!destination(db, request.destinationId).authorized || mediaFingerprint(destination(db, request.destinationId)) !== mediaFingerprint(input.destination)) return conflict('目标目录授权已改变。');
         if (Number(db.prepare('SELECT count(*) AS n FROM preparation_jobs WHERE draft_id=?').get(input.master.draftId)!.n) >= 1000 || Number(db.prepare('SELECT count(*) AS n FROM preparation_workspaces WHERE draft_id=?').get(input.master.draftId)!.n) >= 100) return conflict('工作区历史已达到上限。');
         if (Number(db.prepare("SELECT count(*) AS n FROM preparation_jobs WHERE json_extract(data,'$.public.state')='running'").get()!.n) >= 2) return conflict('已有两项工作区任务，请等待或取消。');
-        const result: StoredPreparationJob = { public: { id: request.commandId, draftId: input.master.draftId, layoutVersionId: input.layout.id, destinationId: input.destination.id, state: 'running', completedTracks: 0, totalTracks: input.master.content.tracks.length }, request, input, createdAt: new Date().toISOString(), files: [] };
+        const result: StoredPreparationJob = { public: { id: request.commandId, draftId: input.master.draftId, layoutVersionId: input.layout.id, destinationId: input.destination.id, state: 'running', completedTracks: 0, totalTracks: input.proposal.trackCount }, request, input, createdAt: new Date().toISOString(), files: [] };
         save(db, result); record(db, request.commandId, fp, request.commandId); return result;
       });
     },

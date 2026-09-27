@@ -2,15 +2,16 @@ import { isVolumeRequest, isVolumeSnapshot } from './volume.js';
 import { isRoonDisplayLyricsEvent } from './roon-display-lyrics.js';
 import { isGetMasterArtworkRequest, isSaveMasterArtworkRequest, isMasterArtworkResult, isMasterArtworkVersion } from './recording-artwork.js';
 import { isListRecordingPrintsRequest, isRequestRecordingPrintRequest, isRetryRecordingPrintRequest, isGetRecordingPrintRequest, isExportRecordingPrintRequest, isRecordingPrintsPage, isRecordingPrintJob, isRecordingPrintResult, isClaimRecordingPrintRequest, isCompleteRecordingPrintRequest, isFailRecordingPrintRequest, isRecordingPrintLease, isRecordingPrintPdfResult } from './recording-prints.js';
-import { isRecordingReplicaStatus, isInspectRecordingReplicaRequest, isRecordingReplicaReadIdRequest, isStartRecordingReplicaRequest, isRecordingReplicaRunIdRequest, isRecordingReplicaInspection, isRecordingReplicaReadCancellation, isRecordingReplicaRun } from './recording-replica.js';
+import { isRecordingReplicaStatus, isInspectRecordingReplicaRequest, isRecordingReplicaReadIdRequest, isStartRecordingReplicaRequest, isRecordingReplicaRunIdRequest, isReplicaDeviceControlRequest, isRecordingReplicaInspection, isRecordingReplicaReadCancellation, isRecordingReplicaRun } from './recording-replica.js';
 import { isListRecordingRecordsRequest, isRecordingRecordIdRequest, isRecordingVisualRequest, isPhysicalRecordingHistoryRequest, isPreviewPhysicalRecordingDispositionRequest, isApplyPhysicalRecordingDispositionRequest, isRecordingRecordsPage, isRecordingRecordDetail, isRecordingVisualResult, isPhysicalRecordingHistory, isPhysicalRecordingDispositionProposal, isApplyPhysicalRecordingDispositionResult } from './recording-records.js';
 import { isRecordingOutputStatus, isRecordingOutputCheckRequest, isRecordingOutputCancelRequest, isRecordingOutputCheckResult } from './recording-output.js';
+import { isRecordingDeviceCandidates, isRecordingOutputSelection, isSelectRecordingDeviceRequest } from './recording-device-selection.js';
 import { isListRecordingAttemptsRequest, isRecordingAttemptIdRequest, isBeginRecordingAttemptRequest, isConfirmRecordingAttemptRequest, isBeginRecordingAttemptSideRequest, isStopRecordingAttemptRequest, isRecordingAttemptsPage, isRecordingAttempt } from './recording-attempts.js';
 import { isRecordingPlanHistoryRequest, isRecordingPlanIdRequest, isPreviewRecordingPlanRequest, isFreezeRecordingPlanRequest, isRecordingPreflightRequest, isRecordingPlanHistory, isRecordingPlanVersion, isRecordingPlanProposal, isRecordingPreflightResult } from './recording-plans.js';
 import { isSpreadsheetPageRequest, isSpreadsheetSourcePage, isSpreadsheetIdRequest, isSpreadsheetWorkbookSource, isSpreadsheetSourceRowsRequest, isSpreadsheetSourceRowsPage, isPreviewSpreadsheetImportRequest, isSpreadsheetImportPreview, isApplySpreadsheetImportRequest, isSpreadsheetImportResult, isSpreadsheetImportRevisionRequest, isSpreadsheetImportRevisionDetail, isSpreadsheetImportHistory, isSpreadsheetAdjustmentPreviewRequest, isSpreadsheetAdjustmentBalance, isAdjustSpreadsheetInventoryRequest, isSpreadsheetInventoryAdjustment, isSpreadsheetAdjustmentsRequest, isSpreadsheetAdjustmentsPage, isRegisterSpreadsheetWorkbookRequest, isChooseSpreadsheetWorkbookRequest, isSpreadsheetWorkbookReceipt } from './spreadsheet-import.js';
 import { isListWantEntriesRequest, isWantEntriesPage, isSaveWantEntryRequest, isWantEntry, isCancelWantEntryRequest, isGetWantEntryHistoryRequest, isWantEntryHistory, isGetCollectionProgressRequest, isCollectionProgress, isCaptureCollectionProgressRequest, isCollectionProgressSnapshotSummary, isListCollectionProgressSnapshotsRequest, isCollectionProgressSnapshotsPage, isGetCollectionProgressSnapshotRequest, isCollectionProgressSnapshotDetail, isGetCollectionModelLengthsRequest, isCollectionModelLengths } from './collection-progress.js';
 import { isCommandOutboxDatasetId, isCommandOutboxContext, isCommandOutboxExecute, isCommandOutboxResult } from './command-outbox.js';
-import { isRegisterReferenceSourceRequest, isReferenceSourceVersion, isReferenceSourceListRequest, isReferenceSourcePage, isCatalogIdRequest, isReferenceSourceDetail, isPreviewCatalogRevisionRequest, isCatalogRevisionPreview, isPublishCatalogRevisionRequest, isCatalogRevisionDetail, isSetCatalogMatchRequest, isCatalogSnapshot, isCatalogHistoryRequest, isCatalogHistory } from './reference-catalog.js';
+import { isRegisterReferenceSourceRequest, isReferenceSourceVersion, isReferenceSourceListRequest, isReferenceSourcePage, isCatalogIdRequest, isReferenceSourceDetail, isPreviewReferenceSourceZipRequest, isReferenceSourceZipPreview, isRegisterReferenceSourceZipRequest, isRegisterReferenceSourceZipResult, isReferenceSourceZipReceiptListRequest, isReferenceSourceZipReceiptPage, isPreviewCatalogRevisionRequest, isCatalogRevisionPreview, isPublishCatalogRevisionRequest, isCatalogRevisionDetail, isSetCatalogMatchRequest, isCatalogSnapshot, isCatalogHistoryRequest, isCatalogHistory } from './reference-catalog.js';
 import { isActivateRestoredDataset, isRestoreActivationView } from './recording-activation.js';
 import { isBackupOverview, isBackupRootView, isAuthorizeBackupRoot, isStartBackupJob, isBackupJobView } from './recording-backups.js';
 import { isArchiveRootView, isInitializeArchiveRequest, isArchiveProposal, isStartArchiveRequest, isPreviewArchiveRequest, isArchiveOperationView, isArchiveHistory, isArchiveCheck, isVerifyArchiveRequest } from './recording-archive.js';
@@ -19,13 +20,16 @@ import { isExecutionHistory, isExecutionProposal, isExecutionJob, isExecutionAss
 import { isPreparedHistory, isPreparedSelection, isSelectPreparedRequest, isPreviewPreparedImportRequest, isStartPreparedImportRequest, isPreparedImportProposal, isPreparedImportJob, isReviewPreparedRequest, isFreezePreparedRequest, isPreparedReview, isFrozenPrepared } from './prepared-render.js';
 import { isPreviewVersionsRequest, isFreezeVersionsRequest, isVersionProposal, isVersionHistory, isVersionJob } from './master-versions.js';
 import { isPreviewPreparationRequest, isStartPreparationRequest, isPreparationHistory, isPreparationProposal, isPreparationJob, isPreparationDestination } from './preparation.js';
+import { isPreparationZipTarget, isPreviewPreparationZipRequest, isStartPreparationZipRequest, isPreparationZipReceiptRequest, isPreparationZipReceipt, isPreparationZipProposal, isPreparationZipJob, isPreparationZipHistory } from './preparation-export.js';
 import { isMediaLayoutSpec, isPreviewMediaRequest, isSaveMediaPlanRequest, isReserveMediaRequest, isReleaseMediaRequest, isMediaPlan, isMediaCandidate, isMediaPreview } from './media-planning.js';
+import { isPutRecordingWorkspaceContextRequest, isRecordingWorkspaceContext } from './recording-workspace.js';
 import { isSourceRoot, isSourceJob, isSourceBinding, isSourceSelection, isSourceAction, isSourceConfirmation, isDraftSourceSnapshot } from './source-evidence.js';
+import { isStartSourceCandidateScan, isSelectSourceCandidate, isSourceCandidateScan } from './source-candidates.js';
 import { isMasterDraft, isMasterDraftSummary, isMasterDraftResult, isAppendMasterDraftRequest, isUpdateMasterDraftRequest } from './master-drafts.js';
-import { isAlbumQuery, isDigitalAlbum, isDigitalAlbumDetail, isPhysicalLinksSnapshot, isDigitalRuntime, isPhysicalLinkResult, isCollectionMatrixRow, isConfirmPhysicalLinkRequest, isRelocateDigitalRequest, isRegisterDigitalRequest, isRemovePhysicalLinkRequest, isConfirmAbsenceRequest } from './physical-links.js';
-import { isMusicId, isMusicFilter, isMusicEntry, isMusicDetail, isMusicMutationResult, isSaveReleaseRequest, isSaveLegacyRequest, isAddMusicPhotoRequest, isRemoveMusicPhotoRequest } from './physical-music.js';
+import { isAlbumQuery, isDigitalAlbum, isDigitalAlbumDetail, isPhysicalLinksSnapshot, isPhysicalLinkHistoryEvent, isDigitalRuntime, isPhysicalLinkResult, isCollectionMatrixRow, isConfirmPhysicalLinkRequest, isLegacyConfirmPhysicalLinkRequest, isRelocateDigitalRequest, isRegisterDigitalRequest, isRemovePhysicalLinkRequest, isLegacyRemovePhysicalLinkRequest, isConfirmAbsenceRequest } from './physical-links.js';
+import { isMusicId, isMusicFilter, isMusicEntry, isMusicDetail, isCommercialCopiesSnapshot, isMusicMutationResult, isSaveReleaseRequest, isMaterializeCommercialCopyRequest, isSaveCommercialCopyDetailsRequest, isAssignCommercialCopyPhotoRequest, isSaveLegacyRequest, isAddMusicPhotoRequest, isRemoveMusicPhotoRequest } from './physical-music.js';
 import type { PublicError } from './errors.js';
-import { isCollectionFilter, isCollectionPhotoImage, isCollectionAddPhotoRequest, isCollectionChangePhotoRequest, isCollectionId, isCollectionReceiveRequest, isCollectionMaterializeRequest, isCollectionUpdateCopyRequest, isCollectionPolicyRequest, isCollectionMutationResult, isCollectionModel, isCollectionPage, isCollectionDetail } from './collection.js';
+import { isCollectionFilter, isCollectionPhotoImage, isCollectionAddPhotoRequest, isCollectionChangePhotoRequest, isCollectionId, isPhysicalId, isCollectionReceiveRequest, isCollectionMaterializeRequest, isCollectionUpdateCopyRequest, isCollectionPolicyRequest, isCollectionMutationResult, isCollectionModel, isCollectionPage, isCollectionDetail, isCollectionCopyDetail } from './collection.js';
 import type {
   DailyRecommendationTrack,
   DailyRecommendationsSnapshot,
@@ -973,6 +977,9 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'commandOutbox.context') return isEmptyPayload(payload);
   if (command === 'commandOutbox.execute') return isCommandOutboxExecute(payload);
   if (command === 'referenceCatalog.registerSource') return isRegisterReferenceSourceRequest(payload);
+  if (command === 'referenceCatalog.previewSourceZip') return isPreviewReferenceSourceZipRequest(payload);
+  if (command === 'referenceCatalog.registerSourceZip') return isRegisterReferenceSourceZipRequest(payload);
+  if (command === 'referenceCatalog.sourceZipReceipts') return isReferenceSourceZipReceiptListRequest(payload);
   if (command === 'referenceCatalog.sources') return isReferenceSourceListRequest(payload);
   if (command === 'referenceCatalog.source' || command === 'referenceCatalog.revision' || command === 'referenceCatalog.snapshot') return isCatalogIdRequest(payload);
   if (command === 'referenceCatalog.previewRevision') return isPreviewCatalogRevisionRequest(payload);
@@ -987,12 +994,20 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'recordingSources.snapshot') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
   if (command === 'recordingSources.revoke' || command === 'recordingSources.cancel') return isSourceAction(payload);
   if (command === 'recordingSources.confirm' || command === 'recordingSources.recheck') return isSourceConfirmation(payload);
+  if (command === 'recordingCandidates.start') return isStartSourceCandidateScan(payload);
+  if (command === 'recordingCandidates.get') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
+  if (command === 'recordingCandidates.cancel') return isSourceAction(payload);
+  if (command === 'recordingCandidates.select') return isSelectSourceCandidate(payload);
   if (command === 'recordingVersions.list') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
   if (command === 'recordingPlans.list') return isRecordingPlanHistoryRequest(payload);
   if (command === 'recordingPlans.version' || command === 'recordingPlans.cancelRead') return isRecordingPlanIdRequest(payload);
   if (command === 'recordingPlans.preview') return isPreviewRecordingPlanRequest(payload);
   if (command === 'recordingPlans.freeze') return isFreezeRecordingPlanRequest(payload);
   if (command === 'recordingPlans.preflight') return isRecordingPreflightRequest(payload);
+  if (command === 'recordingDevice.candidates') return isEmptyPayload(payload);
+  if (command === 'recordingDevice.select') return isSelectRecordingDeviceRequest(payload);
+  if (command === 'recordingWorkspace.get') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
+  if (command === 'recordingWorkspace.put') return isPutRecordingWorkspaceContextRequest(payload);
   if (command === 'masterArtwork.get') return isGetMasterArtworkRequest(payload);
   if (command === 'masterArtwork.save') return isSaveMasterArtworkRequest(payload);
   if (command === 'recordingPrints.list') return isListRecordingPrintsRequest(payload);
@@ -1008,6 +1023,7 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'recordingReplica.cancelRead') return isRecordingReplicaReadIdRequest(payload);
   if (command === 'recordingReplica.start') return isStartRecordingReplicaRequest(payload);
   if (command === 'recordingReplica.get' || command === 'recordingReplica.stop') return isRecordingReplicaRunIdRequest(payload);
+  if (command === 'recordingReplica.control') return isReplicaDeviceControlRequest(payload);
   if (command === 'recordingOutput.status') return isEmptyPayload(payload);
   if (command === 'recordingOutput.check') return isRecordingOutputCheckRequest(payload);
   if (command === 'recordingOutput.cancel') return isRecordingOutputCancelRequest(payload);
@@ -1029,7 +1045,7 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'recordingProfiles.save') return isSaveRecordingProfileRequest(payload);
   if (command === 'recordingProfiles.session') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
   if (command === 'recordingProfiles.saveSession') return isSaveRecordingSessionRequest(payload);
-  if (command === 'recordingBackups.authorize') return isRecord(payload) && hasOnlyKeys(payload, ['commandId','kind','absolutePath']) && isAuthorizeBackupRoot({ commandId: payload.commandId, kind: payload.kind }) && isSourcePrivatePath(payload.absolutePath);
+  if (command === 'recordingBackups.authorize') return isRecord(payload) && hasOnlyKeys(payload, ['commandId','kind','format','absolutePath']) && isAuthorizeBackupRoot({ commandId: payload.commandId, kind: payload.kind, ...(payload.format !== undefined ? { format: payload.format } : {}) }) && isSourcePrivatePath(payload.absolutePath);
   if (command === 'recordingBackups.authorizationReceipt') return isAuthorizeBackupRoot(payload);
   if (command === 'recordingBackups.start') return isStartBackupJob(payload);
   if (command === 'recordingBackups.activate') return isActivateRestoredDataset(payload);
@@ -1069,6 +1085,18 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'recordingPreparation.list' || command === 'recordingPrepared.list') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
   if (command === 'recordingPreparation.preview') return isPreviewPreparationRequest(payload);
   if (command === 'recordingPreparation.start') return isStartPreparationRequest(payload);
+  if (command === 'recordingPreparationZip.authorizeTarget') return isRecord(payload) && hasOnlyKeys(payload, ['targetId','absolute','parentPath','parentDev','parentIno','datasetId','scopeId','generation','expiresAt'])
+    && [payload.targetId,payload.datasetId,payload.scopeId].every(isCollectionId) && isSourcePrivatePath(payload.absolute) && isSourcePrivatePath(payload.parentPath)
+    && typeof payload.parentDev === 'string' && /^\d+$/u.test(payload.parentDev) && typeof payload.parentIno === 'string' && /^\d+$/u.test(payload.parentIno)
+    && Number.isSafeInteger(payload.generation) && Number(payload.generation) >= 0 && Number(payload.generation) <= 1_000_000
+    && typeof payload.expiresAt === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u.test(payload.expiresAt) && Number.isFinite(Date.parse(payload.expiresAt));
+  if (command === 'recordingPreparationZip.invalidateScope') return isRecord(payload) && hasOnlyKeys(payload, ['scopeId']) && isCollectionId(payload.scopeId);
+  if (command === 'recordingPreparationZip.preview') return isPreviewPreparationZipRequest(payload);
+  if (command === 'recordingPreparationZip.start') return isStartPreparationZipRequest(payload);
+  if (command === 'recordingPreparationZip.list') return isRecord(payload) && hasOnlyKeys(payload, ['draftId']) && isCollectionId(payload.draftId);
+  if (command === 'recordingPreparationZip.job') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
+  if (command === 'recordingPreparationZip.receipt') return isPreparationZipReceiptRequest(payload);
+  if (command === 'recordingPreparationZip.cancel') return isSourceAction(payload);
   if (command === 'recordingVersions.preview') return isPreviewVersionsRequest(payload);
   if (command === 'recordingVersions.freeze') return isFreezeVersionsRequest(payload);
   if (command === 'recordingVersions.job') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
@@ -1090,15 +1118,22 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'physicalLinks.matrix') return isRecord(payload) && hasOnlyKeys(payload, ['page', 'query']) && isPageRequest(payload.page) && (payload.query === undefined || isAlbumQuery(payload.query));
   if (command === 'physicalLinks.digitalDetail' || command === 'physicalLinks.runtime') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isCollectionId(payload.id);
   if (command === 'physicalLinks.physical') return isRecord(payload) && hasOnlyKeys(payload, ['releaseId']) && isCollectionId(payload.releaseId);
-  if (command === 'physicalLinks.confirm') return isConfirmPhysicalLinkRequest(payload);
+  if (command === 'physicalLinks.history') return isRecord(payload) && hasOnlyKeys(payload, ['releaseId', 'page']) && isCollectionId(payload.releaseId) && isPageRequest(payload.page);
+  if (command === 'physicalLinks.confirm') return isLegacyConfirmPhysicalLinkRequest(payload);
+  if (command === 'physicalLinks.confirmWithEvidence') return isConfirmPhysicalLinkRequest(payload);
   if (command === 'physicalLinks.relocate') return isRelocateDigitalRequest(payload);
   if (command === 'physicalLinks.register') return isRegisterDigitalRequest(payload);
-  if (command === 'physicalLinks.remove') return isRemovePhysicalLinkRequest(payload);
+  if (command === 'physicalLinks.remove') return isLegacyRemovePhysicalLinkRequest(payload);
+  if (command === 'physicalLinks.removeWithEvidence') return isRemovePhysicalLinkRequest(payload);
   if (command === 'physicalLinks.absence') return isConfirmAbsenceRequest(payload);
   if (command === 'physicalMusic.list') return isRecord(payload) && hasOnlyKeys(payload, ['page', 'filter']) && isPageRequest(payload.page) && (payload.filter === undefined || isMusicFilter(payload.filter));
   if (command === 'physicalMusic.detail') return isRecord(payload) && hasOnlyKeys(payload, ['id']) && isMusicId(payload.id);
+  if (command === 'physicalMusic.copies') return isRecord(payload) && hasOnlyKeys(payload, ['releaseId', 'page']) && isCollectionId(payload.releaseId) && isPageRequest(payload.page);
   if (command === 'physicalMusic.photo') return isRecord(payload) && hasOnlyKeys(payload, ['photoId']) && isCollectionId(payload.photoId);
   if (command === 'physicalMusic.saveRelease') return isSaveReleaseRequest(payload);
+  if (command === 'physicalMusic.materializeCopy') return isMaterializeCommercialCopyRequest(payload);
+  if (command === 'physicalMusic.saveCopyDetails') return isSaveCommercialCopyDetailsRequest(payload);
+  if (command === 'physicalMusic.assignCopyPhoto') return isAssignCommercialCopyPhotoRequest(payload);
   if (command === 'physicalMusic.saveLegacy') return isSaveLegacyRequest(payload);
   if (command === 'physicalMusic.addPhoto') return isAddMusicPhotoRequest(payload);
   if (command === 'physicalMusic.removePhoto') return isRemoveMusicPhotoRequest(payload);
@@ -1107,6 +1142,7 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'collection.changePhoto') return isCollectionChangePhotoRequest(payload);
   if (command === 'collection.photo') return isRecord(payload) && hasOnlyKeys(payload, ['photoId']) && isCollectionId(payload.photoId);
   if (command === 'collection.detail') return isRecord(payload) && hasOnlyKeys(payload, ['modelId', 'page']) && isCollectionId(payload.modelId) && isPageRequest(payload.page);
+  if (command === 'collection.copy') return isRecord(payload) && hasOnlyKeys(payload, ['physicalId']) && isPhysicalId(payload.physicalId);
   if (command === 'collection.receive') return isCollectionReceiveRequest(payload);
   if (command === 'collection.materialize') return isCollectionMaterializeRequest(payload);
   if (command === 'collection.updateCopy') return isCollectionUpdateCopyRequest(payload);
@@ -1172,6 +1208,7 @@ const PUBLIC_ERROR_CODES = new Set([
   'INVALID_IPC_RESPONSE',
   'TIMEOUT',
   'NOT_READY',
+  'ATTEMPT_NOT_ACCEPTED',
   'AUTH_REQUIRED',
   'AUTH_EXPIRED',
   'ACCOUNT_PROFILE_UNAVAILABLE',
@@ -1561,6 +1598,9 @@ function isCommandResult(
     case 'commandOutbox.context': return isCommandOutboxContext(value);
     case 'commandOutbox.execute': return isCommandOutboxResult(value);
     case 'referenceCatalog.registerSource': return isReferenceSourceVersion(value);
+    case 'referenceCatalog.previewSourceZip': return isReferenceSourceZipPreview(value);
+    case 'referenceCatalog.registerSourceZip': return isRegisterReferenceSourceZipResult(value);
+    case 'referenceCatalog.sourceZipReceipts': return isReferenceSourceZipReceiptPage(value);
     case 'referenceCatalog.sources': return isReferenceSourcePage(value);
     case 'referenceCatalog.source': return isReferenceSourceDetail(value);
     case 'referenceCatalog.previewRevision': return isCatalogRevisionPreview(value);
@@ -1580,6 +1620,9 @@ function isCommandResult(
     case 'recordingSources.cancel':
     case 'recordingSources.recheck': return isSourceJob(value);
     case 'recordingSources.confirm': return isSourceBinding(value);
+    case 'recordingCandidates.start': case 'recordingCandidates.cancel': return isSourceCandidateScan(value);
+    case 'recordingCandidates.get': return isRecord(value) && hasOnlyKeys(value, ['scan']) && (value.scan === null || isSourceCandidateScan(value.scan));
+    case 'recordingCandidates.select': return isSourceJob(value);
     case 'recordingVersions.list': return isVersionHistory(value);
     case 'recordingPlans.list': return isRecordingPlanHistory(value);
     case 'recordingPlans.version': return isRecord(value) && hasOnlyKeys(value, ['plan']) && (value.plan === null || isRecordingPlanVersion(value.plan));
@@ -1587,6 +1630,10 @@ function isCommandResult(
     case 'recordingPlans.freeze': return isRecordingPlanVersion(value);
     case 'recordingPlans.preflight': return isRecordingPreflightResult(value);
     case 'recordingPlans.cancelRead': return isRecord(value) && hasOnlyKeys(value, ['cancelled']) && value.cancelled === true;
+    case 'recordingDevice.candidates': return isRecordingDeviceCandidates(value);
+    case 'recordingDevice.select': return isRecordingOutputSelection(value);
+    case 'recordingWorkspace.get': return isRecord(value) && hasOnlyKeys(value, ['context']) && (value.context === null || isRecordingWorkspaceContext(value.context));
+    case 'recordingWorkspace.put': return isRecordingWorkspaceContext(value);
     case 'masterArtwork.get': return isMasterArtworkResult(value);
     case 'masterArtwork.save': return isMasterArtworkVersion(value);
     case 'recordingPrints.list': return isRecordingPrintsPage(value);
@@ -1599,7 +1646,7 @@ function isCommandResult(
     case 'recordingReplica.status': return isRecordingReplicaStatus(value);
     case 'recordingReplica.inspect': return isRecordingReplicaInspection(value);
     case 'recordingReplica.cancelRead': return isRecordingReplicaReadCancellation(value);
-    case 'recordingReplica.start': case 'recordingReplica.stop': return isRecordingReplicaRun(value);
+    case 'recordingReplica.start': case 'recordingReplica.stop': case 'recordingReplica.control': return isRecordingReplicaRun(value);
     case 'recordingReplica.get': return isRecord(value) && hasOnlyKeys(value, ['run']) && (value.run === null || isRecordingReplicaRun(value.run));
     case 'recordingOutput.status': return isRecordingOutputStatus(value);
     case 'recordingOutput.check': return isRecordingOutputCheckResult(value);
@@ -1669,6 +1716,13 @@ function isCommandResult(
     case 'recordingPreparation.list': return isPreparationHistory(value);
     case 'recordingPreparation.preview': return isPreparationProposal(value);
     case 'recordingPreparation.start': return isPreparationJob(value);
+    case 'recordingPreparationZip.authorizeTarget': return allowInternalResult && isPreparationZipTarget(value);
+    case 'recordingPreparationZip.invalidateScope': return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['invalidated']) && value.invalidated === true;
+    case 'recordingPreparationZip.preview': return isPreparationZipProposal(value);
+    case 'recordingPreparationZip.start': case 'recordingPreparationZip.cancel': return isPreparationZipJob(value);
+    case 'recordingPreparationZip.list': return isPreparationZipHistory(value);
+    case 'recordingPreparationZip.job': return isRecord(value) && hasOnlyKeys(value, ['job']) && (value.job === null || isPreparationZipJob(value.job));
+    case 'recordingPreparationZip.receipt': return isPreparationZipReceipt(value);
     case 'recordingVersions.preview': return isVersionProposal(value);
     case 'recordingVersions.freeze':
     case 'recordingVersions.cancel': return isVersionJob(value);
@@ -1689,18 +1743,25 @@ function isCommandResult(
     case 'physicalLinks.digitalList': return isCollectionPage(value, isDigitalAlbum);
     case 'physicalLinks.digitalDetail': return isDigitalAlbumDetail(value, isMusicEntry);
     case 'physicalLinks.physical': return isPhysicalLinksSnapshot(value);
+    case 'physicalLinks.history': return isCollectionPage(value, isPhysicalLinkHistoryEvent);
     case 'physicalLinks.runtime': return isDigitalRuntime(value);
     case 'physicalLinks.matrix': return isCollectionPage(value, isCollectionMatrixRow);
     case 'physicalLinks.confirm':
+    case 'physicalLinks.confirmWithEvidence':
     case 'physicalLinks.relocate':
     case 'physicalLinks.register':
     case 'physicalLinks.remove':
+    case 'physicalLinks.removeWithEvidence':
     case 'physicalLinks.absence':
       return isPhysicalLinkResult(value);
     case 'physicalMusic.list': return isCollectionPage(value, isMusicEntry);
     case 'physicalMusic.detail': return isMusicDetail(value);
+    case 'physicalMusic.copies': return isCommercialCopiesSnapshot(value);
     case 'physicalMusic.photo': return isCollectionPhotoImage(value);
     case 'physicalMusic.saveRelease':
+    case 'physicalMusic.materializeCopy':
+    case 'physicalMusic.saveCopyDetails':
+    case 'physicalMusic.assignCopyPhoto':
     case 'physicalMusic.saveLegacy':
     case 'physicalMusic.addPhoto':
     case 'physicalMusic.removePhoto':
@@ -1714,6 +1775,8 @@ function isCommandResult(
       return isCollectionPage(value, isCollectionModel);
     case 'collection.detail':
       return isCollectionDetail(value);
+    case 'collection.copy':
+      return isCollectionCopyDetail(value);
     case 'collection.receive':
     case 'collection.materialize':
     case 'collection.updateCopy':

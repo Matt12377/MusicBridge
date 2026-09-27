@@ -19,6 +19,7 @@ test('默认状态只表示后端blocked，拒绝认证/设备/私有provider字
   assert.equal(typeof c.isRecordingReplicaStatus, 'function', 'Replica合同尚未实现');
   const value = { playback: 'blocked', reason: 'BACKEND_UNAVAILABLE', deviceAccess: 'not-authorized', deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' };
   assert.equal(c.isRecordingReplicaStatus(value), true);
+  assert.equal(c.isRecordingReplicaStatus({ ...value, reason: 'OUTPUT_RUN_UNVERIFIED' }), true);
   for (const patch of [{ playback: 'available' }, { deviceOpened: true }, { formalReady: true }, { gateB: 'PASS' }, { provider: 'synthetic' }, { path: '/private/output' }]) assert.equal(c.isRecordingReplicaStatus({ ...value, ...patch }), false);
 });
 test('六API输入严格且start只给明确历史selection与预览指纹，不给路径/参数/认证', () => {
@@ -84,6 +85,66 @@ test('六命令注册请求和响应，stop返回真实Run状态；无outbox或�
   for (const [command, [payload, result]] of Object.entries(cases)) { assert.equal(c.validateIpcRequest({ version: 1, id: 'replica', command, payload }).ok, true, command); assert.equal(c.validateIpcResponseForCommand({ version: 1, id: 'replica', ok: true, result }, command as c.IpcCommand).ok, true, command); assert.equal(c.validateIpcRequest({ version: 1, id: 'replica', command, payload: { ...payload, path: '/private' } }).ok, false, command); assert.equal(c.isCommandOutboxCommand(command), false); }
   for (const command of ['recordingReplica.authorize', 'recordingReplica.provider', 'recordingReplica.seek', 'recordingReplica.rebuild']) assert.equal(c.validateIpcRequest({ version: 1, id: 'replica', command, payload: {} }).ok, false);
   assert.equal(c.validateIpcResponseForCommand({ version: 1, id: 'replica', ok: true, result: { run: null } }, 'recordingReplica.get').ok, true);
+});
+
+test('设备输出请求须有 Core 选择代际；普通Replica回执不借Formal Gate B', () => {
+  const outputSelection = { endpointId: 'coreaudio-1', selectionGeneration: id(20) };
+  const deviceRequest = { ...request(), mode: 'device-output', outputSelection };
+  assert.equal(c.isStartRecordingReplicaRequest(deviceRequest), true);
+  assert.equal(c.isStartRecordingReplicaRequest({ ...request(), outputSelection }), false, '旧合成请求不能偷偷携带设备选择');
+  assert.equal(c.isRecordingReplicaRun({ ...session(), request: deviceRequest }), false, '设备请求不能沿用旧 synthetic 会话');
+  for (const patch of [{ outputSelection: undefined }, { outputSelection: { ...outputSelection, selectionGeneration: 'bad' } }, { deviceUid: 'renderer-value' }])
+    assert.equal(c.isStartRecordingReplicaRequest({ ...deviceRequest, ...patch }), false);
+
+  const receipt = { runId: deviceRequest.runId, segmentId: id(22), playbackIdentitySha256: hash('1'), manifestSha256: hash('2'), helperSha256: hash('3'),
+    backendId: 'musicbridge-coreaudio-hal', backendVersion: '0.2.0', drainAlgorithmId: 'hal-sample-zero-cover-v1',
+    endpointId: outputSelection.endpointId, deviceUid: 'synthetic-coreaudio-uid', configurationFingerprintSha256: hash('4'),
+    selectionGeneration: outputSelection.selectionGeneration, sourceFrameCount: 48000, fromFrame: 0,
+    frameCount: 48000, suppliedFrames: 48000, consumedFrames: 48000,
+    sourceEof: true, drainObserved: true, childClosed: true, inputFinalVerified: true,
+    segmentPlaybackComplete: true, formalReady: false, gateB: 'NOT_RUN' };
+  const run = { kind: 'device-session', runId: deviceRequest.runId, request: deviceRequest, revision: 2,
+    createdAt: at, updatedAt: later, state: 'finished', identity: running().identity,
+    progress: { sourceFramesRead: 48000, submittedFrames: 48000, consumedFrames: 48000, sourceEof: true, backendDrained: true },
+    receipt, controlRevision: 0, cursorFrame: 48000, segmentId: receipt.segmentId, segmentIndex: 1,
+    segmentFromFrame: 0, segmentQuiescent: true, started: true, startedAt: at, endedAt: later,
+    stopRequested: false, cleanupQuiescent: true, evidence: 'device-output', deviceOpened: true,
+    formalReady: false, gateB: 'NOT_RUN' };
+  assert.equal(c.isReplicaDeviceReceipt(receipt), true);
+  assert.equal(c.isRecordingReplicaRun(run), true);
+  for (const patch of [{ sourceEof: false }, { drainObserved: false }, { childClosed: false }, { inputFinalVerified: false },
+    { consumedFrames: 47999 }, { helperSha256: 'bad' }, { gateB: 'CERTIFIED' }]) {
+    assert.equal(c.isReplicaDeviceReceipt({ ...receipt, ...patch }), false, JSON.stringify(patch));
+    assert.equal(c.isRecordingReplicaRun({ ...run, receipt: { ...receipt, ...patch } }), false, JSON.stringify(patch));
+  }
+  assert.equal(c.isReplicaDeviceReceipt({ ...receipt, selectionGeneration: id(21) }), true, '回执形状本身不证明当前选择');
+  assert.equal(c.isRecordingReplicaRun({ ...run, receipt: { ...receipt, selectionGeneration: id(21) } }), false, '会话必须核对选中代际');
+  assert.equal(c.isRecordingReplicaRun({ ...run, progress: { ...run.progress, backendDrained: false } }), false);
+  assert.equal(c.isRecordingReplicaRun({ ...run, cleanupQuiescent: false }), false);
+  assert.equal(c.isRecordingReplicaRun({ ...run, evidence: 'synthetic-only' }), false);
+  assert.equal(c.isRecordingReplicaRun({ ...run, identity: { ...run.identity, recordingId: id(99) } }), false);
+});
+
+test('普通Replica设备可用状态不等于Formal Gate B，也不能称实体录制', () => {
+  const ready = { playback: 'ready', outputSelection: { endpointId: 'coreaudio-1', selectionGeneration: id(20) },
+    deviceAccess: 'authorized', deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' };
+  assert.equal(c.isRecordingReplicaStatus(ready), true);
+  assert.equal(c.isRecordingReplicaStatus({ ...ready, gateB: 'CERTIFIED' }), false);
+  assert.equal(c.isRecordingReplicaStatus({ ...ready, formalReady: true }), false);
+  assert.equal(c.isRecordingReplicaStatus({ playback: 'blocked', reason: 'GATE_B_NOT_CERTIFIED', deviceAccess: 'not-authorized',
+    deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' }), false);
+});
+
+test('Replica控制命令必须有独立commandId与预期控制修订，seek只接受有界帧', () => {
+  const base = { runId: id(8), commandId: id(23), expectedControlRevision: 0 };
+  for (const operation of ['pause', 'resume', 'stop'])
+    assert.equal(c.isReplicaDeviceControlRequest({ ...base, operation }), true);
+  assert.equal(c.isReplicaDeviceControlRequest({ ...base, operation: 'seek', frame: 0 }), true);
+  for (const invalid of [{ ...base, operation: 'seek' }, { ...base, operation: 'pause', frame: 1 },
+    { ...base, operation: 'seek', frame: -1 }, { ...base, operation: 'seek', frame: 1.5 },
+    { ...base, operation: 'stop', expectedControlRevision: -1 }, { ...base, operation: 'resume', commandId: 'bad' },
+    { ...base, operation: 'seek', frame: 1, path: '/private/source.wav' }])
+    assert.equal(c.isReplicaDeviceControlRequest(invalid), false);
 });
 
  test('PCM sampleFormat 必须为有限字符串，不接受字符串化的数组或对象', () => {

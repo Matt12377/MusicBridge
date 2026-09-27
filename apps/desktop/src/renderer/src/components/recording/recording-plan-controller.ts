@@ -1,9 +1,11 @@
 import type {
   ArchiveOperationView, ExecutionAsset, ExecutionMode, LayoutVersion, RecordingPlansPublicApi, RecordingExecutionPublicApi, RecordingArchivePublicApi, MasterVersionsPublicApi,
-  RecordingPlanProposal, RecordingPlanVersion, RecordingPreflightResult,
+  RecordingPlanProposal, RecordingPlanVersion, RecordingPreflightResult, RecordingDeviceCandidates, RecordingDeviceSelectionPublicApi,
+  RecordingOutputSelection, CurrentRecordingPlanSelection,
 } from '@music-bridge/contracts'
 
 export type RecordingPlanApi = RecordingPlansPublicApi
+  & RecordingDeviceSelectionPublicApi
   & Pick<RecordingExecutionPublicApi, 'listExecutionAssets'>
   & Pick<RecordingArchivePublicApi, 'listArchives'>
   & Pick<MasterVersionsPublicApi, 'listMasterVersions'>
@@ -17,6 +19,11 @@ export interface RecordingPlanState {
   versions: readonly RecordingPlanVersion[]
   assetId: string
   archiveOperationId: string
+  deviceStatus: 'unread' | 'loading' | 'ready' | 'error'
+  deviceCandidates?: RecordingDeviceCandidates
+  outputSelection: RecordingOutputSelection | null
+  deviceError: string
+  selectingDevice: boolean
   proposal?: RecordingPlanProposal
   version?: RecordingPlanVersion
   preflight?: RecordingPreflightResult
@@ -34,10 +41,10 @@ export function createRecordingPlanController(options: {
   api: RecordingPlanApi; draftId: string; initialContext?: RecordingPlanContext; onChange?: () => void
 }) {
   const { api, draftId, initialContext } = options
-  const state: RecordingPlanState = { status: 'unread', assets: [], operations: [], layouts: [], versions: [], assetId: '', archiveOperationId: '', confirmed: false, sending: false, readId: '', reading: false, cancelling: false, error: '', notice: '' }
-  let alive = true, generation = 0
+  const state: RecordingPlanState = { status: 'unread', assets: [], operations: [], layouts: [], versions: [], assetId: '', archiveOperationId: '', deviceStatus: 'unread', outputSelection: null, deviceError: '', selectingDevice: false, confirmed: false, sending: false, readId: '', reading: false, cancelling: false, error: '', notice: '' }
+  let alive = true, generation = 0, deviceGeneration = 0
   const emit = () => { if (alive) options.onChange?.() }
-  const locked = () => !alive || state.status === 'loading' || state.reading || state.sending || !!state.pending
+  const locked = () => !alive || state.status === 'loading' || state.reading || state.sending || state.selectingDevice || !!state.pending
   const invalidate = () => { state.proposal = undefined; state.confirmed = false; state.preflight = undefined }
   function assets(): readonly ExecutionAsset[] {
     if (state.status !== 'ready') return []
@@ -50,9 +57,37 @@ export function createRecordingPlanController(options: {
     const asset = assets().find(item => item.id === state.assetId)
     return asset ? state.operations.filter(op => op.assetId === asset.id && op.draftId === draftId && op.masterVersionId === asset.masterVersionId && op.layoutVersionId === asset.layoutVersionId && op.phase === 'FINALIZED' && !op.active) : []
   }
-  function selection() {
-    return assets().some(item => item.id === state.assetId) && archives().some(item => item.id === state.archiveOperationId)
-      ? { assetId: state.assetId, archiveOperationId: state.archiveOperationId } : undefined
+  function selection(): CurrentRecordingPlanSelection | undefined {
+    const selected = state.outputSelection
+    return selected && state.deviceCandidates?.candidates.some(item => item.endpointId === selected.endpointId && item.available)
+      && assets().some(item => item.id === state.assetId) && archives().some(item => item.id === state.archiveOperationId)
+      ? { assetId: state.assetId, archiveOperationId: state.archiveOperationId, outputSelection: { ...selected } } : undefined
+  }
+  async function refreshDevice(): Promise<void> {
+    if (!alive || state.selectingDevice) return
+    const token = ++deviceGeneration
+    state.deviceStatus = 'loading'; state.deviceCandidates = undefined; state.outputSelection = null; state.deviceError = ''; invalidate(); emit()
+    try {
+      const result = await api.listRecordingDeviceCandidates()
+      if (!alive || token !== deviceGeneration) return
+      state.deviceCandidates = result; state.outputSelection = result.selected; state.deviceStatus = 'ready'
+    } catch {
+      if (alive && token === deviceGeneration) { state.deviceStatus = 'error'; state.deviceError = '设备候选读取失败；不能沿用之前的选择。请重新读取。' }
+    } finally { if (alive && token === deviceGeneration) emit() }
+  }
+  async function selectDevice(endpointId: string): Promise<void> {
+    if (locked() || state.deviceStatus !== 'ready' || !state.deviceCandidates?.candidates.some(item => item.endpointId === endpointId && item.available)) return
+    const token = ++deviceGeneration
+    state.selectingDevice = true; state.outputSelection = null; state.deviceError = ''; invalidate(); emit()
+    try {
+      const selected = await api.selectRecordingDevice({ endpointId })
+      if (!alive || token !== deviceGeneration) return
+      if (selected.endpointId !== endpointId) throw new Error('设备选择回执不匹配')
+      state.outputSelection = selected
+      state.deviceCandidates = { ...state.deviceCandidates!, selected }
+    } catch {
+      if (alive && token === deviceGeneration) state.deviceError = '设备选择未获确认；请重新读取候选并显式选择，不会自动改用默认设备。'
+    } finally { if (alive && token === deviceGeneration) { state.selectingDevice = false; emit() } }
   }
   async function refresh(): Promise<void> {
     if (locked()) return
@@ -66,7 +101,7 @@ export function createRecordingPlanController(options: {
       if (!archives().some(item => item.id === state.archiveOperationId)) state.archiveOperationId = ''
       if (initialContext && !state.layouts.some(item => item.id === initialContext.layoutId)) state.error = '原先明确选择的布局已不可用；没有自动选择其他版本。'
     } catch { if (alive && token === generation) { state.status = 'error'; state.error = '计划资料读取失败，请重试；已有资产、归档和计划不会被当作空列表。' } }
-    finally { if (alive && token === generation) emit() }
+    finally { if (alive && token === generation) { emit(); void refreshDevice() } }
   }
   function selectAsset(id: string): void {
     if (locked()) return
@@ -92,7 +127,9 @@ export function createRecordingPlanController(options: {
     await read(async id => {
       const result = await api.previewRecordingPlan({ readId: id, selection: chosen })
       if (!current(id)) return
-      if (result.draftId !== draftId || result.selection.assetId !== chosen.assetId || result.selection.archiveOperationId !== chosen.archiveOperationId) throw new Error('提案上下文不一致')
+      if (result.draftId !== draftId || result.selection.assetId !== chosen.assetId || result.selection.archiveOperationId !== chosen.archiveOperationId
+        || result.selection.outputSelection.endpointId !== chosen.outputSelection.endpointId
+        || result.selection.outputSelection.selectionGeneration !== chosen.outputSelection.selectionGeneration) throw new Error('提案上下文不一致')
       state.proposal = result
     }, '计划预览未通过。请核对当前参数、实体预留、执行资产和归档文件后重新预览；未冻结计划。')
   }
@@ -106,7 +143,7 @@ export function createRecordingPlanController(options: {
       if (result.draftId !== draftId || result.execution.assetId !== request.selection.assetId || result.archive.operationId !== request.selection.archiveOperationId) throw new Error('冻结回执上下文不一致')
       state.pending = undefined; invalidate(); state.version = result
       state.versions = [result, ...state.versions.filter(item => item.id !== result.id)]
-      state.notice = '计划身份与参数快照已冻结；没有开始录音。请显式运行只读预检，Gate B 尚未认证。'
+      state.notice = '计划身份与参数快照已冻结；没有开始录音。正式输出资格须在实时预检及开始时再次核验。'
     } catch (cause) {
       if (!alive || token !== generation) return
       if (/\[(INVENTORY_CONFLICT|INVALID_IPC_REQUEST|OUTBOX_SCOPE_MISMATCH)\]/u.test(cause instanceof Error ? cause.message : '')) {
@@ -136,7 +173,8 @@ export function createRecordingPlanController(options: {
     await read(async id => {
       const result = await api.preflightRecordingPlan({ readId: id, planVersionId })
       if (!current(id)) return
-      if (result.planVersionId !== planVersionId || result.formalReady !== false || result.gateB !== 'NOT_RUN') throw new Error('预检结果与当前边界不一致')
+      if (result.planVersionId !== planVersionId || (result.state === 'ready') !== (result.formalReady === true)
+        || (result.formalReady && result.gateB !== 'VERIFIED')) throw new Error('预检结果与当前边界不一致')
       state.preflight = result
     }, '本次预检读取失败，不能视为通过。已冻结的计划和参数快照保持不变。')
   }
@@ -150,8 +188,8 @@ export function createRecordingPlanController(options: {
     finally { if (alive) { state.cancelling = false; emit() } }
   }
   function dispose(): void {
-    alive = false; ++generation
+    alive = false; ++generation; ++deviceGeneration
     if (state.readId) void api.cancelRecordingPlanRead(state.readId).catch(() => undefined)
   }
-  return { state, assets, archives, selection, locked, refresh, selectAsset, selectArchive, preview, confirm, freeze, retry, readVersion, preflight, cancelRead, dispose }
+  return { state, assets, archives, selection, locked, refresh, refreshDevice, selectDevice, selectAsset, selectArchive, preview, confirm, freeze, retry, readVersion, preflight, cancelRead, dispose }
 }

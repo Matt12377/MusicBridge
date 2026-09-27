@@ -3,13 +3,15 @@ import * as XLSX from 'xlsx';
 import * as cpexcel from 'xlsx/dist/cpexcel.full.mjs';
 import type { ParsedSpreadsheetWorkbook, SpreadsheetCell } from '@music-bridge/contracts';
 import { validateSpreadsheetZip } from './spreadsheet-zip.js';
+import { parseSpreadsheetCsv } from './spreadsheet-csv.js';
 
 const fail = (): never => { throw new Error('工作簿格式无效或超过解析预算。'); };
 const text = (value: unknown): string => { if (typeof value !== 'string' || Buffer.byteLength(value) > 32768) return fail(); return value; };
 
 function parse(input: unknown): ParsedSpreadsheetWorkbook {
-  const { bytes: raw, fileFormat } = input as { bytes: Uint8Array; fileFormat: 'xlsx' | 'xls' };
-  if (!(raw instanceof Uint8Array) || raw.byteLength < 8 || raw.byteLength > 8 * 1024 * 1024 || !['xlsx', 'xls'].includes(fileFormat)) return fail();
+  const { bytes: raw, fileFormat } = input as { bytes: Uint8Array; fileFormat: 'xlsx' | 'xls' | 'csv' };
+  if (!(raw instanceof Uint8Array) || raw.byteLength < (fileFormat === 'csv' ? 1 : 8) || raw.byteLength > 8 * 1024 * 1024 || !['xlsx', 'xls', 'csv'].includes(fileFormat)) return fail();
+  if (fileFormat === 'csv') return parseSpreadsheetCsv(raw);
   const bytes = Buffer.from(raw);
   if (fileFormat === 'xlsx') { validateSpreadsheetZip(bytes); }
   else if (!bytes.subarray(0, 8).equals(Buffer.from('d0cf11e0a1b11ae1', 'hex'))) return fail();

@@ -5,13 +5,19 @@ import {
   isCatalogIdRequest, isCatalogHistoryRequest, isReferenceSourceListRequest,
   isPreviewCatalogRevisionRequest, isPublishCatalogRevisionRequest, isSetCatalogMatchRequest,
   isCatalogRevision, isCatalogMatch, isCatalogSnapshot, isCatalogRevisionDetail,
+  isPreviewReferenceSourceZipRequest, isRegisterReferenceSourceZipRequest,
+  isReferenceSourceZipReceiptListRequest, isReferenceSourceZipReceipt, isRegisterReferenceSourceZipResult,
   normalizeReferenceItems, MAX_REFERENCE_SOURCE_PACK_BYTES, MAX_CATALOG_MATCHES,
   type CanonicalReference, type ReferenceSourceVersion, type ReferenceSourceDetail,
   type RegisterReferenceSourceRequest, type PreviewCatalogRevisionRequest, type PublishCatalogRevisionRequest,
   type SetCatalogMatchRequest, type CatalogRevision, type CatalogMatch, type CatalogSnapshot,
   type CatalogSnapshotEntry, type CatalogCompletion, type CatalogRevisionDetail,
   type CatalogRevisionPreview, type CatalogHistory, type CollectionModel,
+  type PreviewReferenceSourceZipRequest, type ReferenceSourceZipPreview,
+  type RegisterReferenceSourceZipRequest, type RegisterReferenceSourceZipResult,
+  type ReferenceSourceZipReceipt, type ReferenceSourceZipReceiptListRequest, type ReferenceSourceZipReceiptPage,
 } from '@music-bridge/contracts';
+import { parseReferenceSourceZip, ReferenceSourceZipError } from './reference-source-zip.js';
 
 const tables = {
   reference_sources: 'CREATE TABLE reference_sources(id TEXT PRIMARY KEY,book_id TEXT NOT NULL,pack_hash TEXT NOT NULL,raw_pack TEXT NOT NULL,data TEXT NOT NULL,UNIQUE(book_id,pack_hash)) STRICT',
@@ -24,6 +30,10 @@ const tables = {
 const immutableTables = ['reference_sources', 'reference_catalog_revisions', 'reference_catalog_snapshots', 'reference_catalog_ledger'] as const;
 const triggers = immutableTables.flatMap(table => ['UPDATE', 'DELETE'].map(action => `CREATE TRIGGER ${table}_no_${action.toLowerCase()} BEFORE ${action} ON ${table} BEGIN SELECT RAISE(ABORT,'immutable reference catalog'); END`));
 export const referenceCatalogMigration = [...Object.values(tables), ...triggers, 'PRAGMA user_version=15'].join(';\n') + ';';
+const zipReceiptTable = 'CREATE TABLE reference_source_zip_receipts(id TEXT PRIMARY KEY,source_id TEXT NOT NULL REFERENCES reference_sources(id),zip_hash TEXT NOT NULL,zip_bytes INTEGER NOT NULL,entry_name TEXT NOT NULL,raw_pack_hash TEXT NOT NULL,created_at TEXT NOT NULL,UNIQUE(source_id,zip_hash)) STRICT';
+const zipReceiptTriggers = ['UPDATE', 'DELETE'].map(action =>
+  `CREATE TRIGGER reference_source_zip_receipts_no_${action.toLowerCase()} BEFORE ${action} ON reference_source_zip_receipts BEGIN SELECT RAISE(ABORT,'immutable reference catalog zip'); END`);
+export const referenceCatalogZipMigration = [zipReceiptTable, ...zipReceiptTriggers, 'PRAGMA user_version=28'].join(';\n') + ';';
 export const REFERENCE_CATALOG_LIMITS = { rowBytes: 8 * 1024 * 1024, totalBytes: 128 * 1024 * 1024, rows: 20_000 } as const;
 const budgetColumns = {
   reference_sources: ['id', 'book_id', 'pack_hash', 'raw_pack', 'data'],
@@ -32,12 +42,15 @@ const budgetColumns = {
   reference_catalog_matches: ['revision_id', 'data'],
   reference_catalog_snapshots: ['id', 'revision_id', 'data'],
   reference_catalog_ledger: ['command_id', 'fingerprint', 'kind', 'result', 'created_at'],
+  reference_source_zip_receipts: ['id', 'source_id', 'zip_hash', 'zip_bytes', 'entry_name', 'raw_pack_hash', 'created_at'],
 } as const;
 class CatalogCapacityError extends Error { constructor() { super('参考目录容量达到上限；现有资料和历史不会被删除。'); } }
 function assertBudget(db: DatabaseSync): void {
   let rows = 0, bytes = 0;
   // 先让 SQLite 计算长度，不把不受信任的超大 TEXT/JSON 分配进 JavaScript。
   for (const [table, columns] of Object.entries(budgetColumns)) {
+    // schema 15 的独立历史测试尚没有 C11 表；新库迁移后必须把容器回执计入总预算。
+    if (table === 'reference_source_zip_receipts' && !db.prepare('SELECT name FROM sqlite_master WHERE type=? AND name=?').get('table', table)) continue;
     const expression = columns.map(column => `COALESCE(length(CAST(${column} AS BLOB)),0)`).join('+');
     const amount = db.prepare(`SELECT count(*) rows,COALESCE(sum(${expression}),0) bytes,COALESCE(max(${expression}),0) largest FROM ${table}`).get()!;
     rows += Number(amount.rows); bytes += Number(amount.bytes);
@@ -66,6 +79,16 @@ function sourceData(db: DatabaseSync, id: string): ReferenceSourceDetail {
   const pack = parse(rawPack.replace(/^\uFEFF/u, ''));
   if (!isSourcePack(pack) || normalizeReferenceItems(pack.items)?.length !== value.itemCount || pack.bookId !== value.bookId || pack.title !== value.title || pack.sourceVersion !== value.sourceVersion) return corrupt();
   return { source: value, rawPack };
+}
+function sourceZipReceiptData(db: DatabaseSync, id: string): ReferenceSourceZipReceipt {
+  const row = db.prepare('SELECT * FROM reference_source_zip_receipts WHERE id=?').get(id); if (!row) return corrupt();
+  const value: ReferenceSourceZipReceipt = {
+    id: String(row.id), sourceId: String(row.source_id), zipSha256: String(row.zip_hash), zipBytes: Number(row.zip_bytes),
+    entryName: String(row.entry_name) as ReferenceSourceZipReceipt['entryName'],
+    rawPackHash: String(row.raw_pack_hash), createdAt: String(row.created_at),
+  };
+  if (!isReferenceSourceZipReceipt(value) || sourceData(db, value.sourceId).source.packHash !== value.rawPackHash) return corrupt();
+  return value;
 }
 function revisionData(db: DatabaseSync, id: string): CatalogRevision {
   const row = db.prepare('SELECT * FROM reference_catalog_revisions WHERE id=?').get(id); if (!row) return corrupt();
@@ -126,6 +149,10 @@ export function verifyReferenceCatalogDatabase(db: DatabaseSync): void {
     if (!uuid(row.command_id) || typeof row.fingerprint !== 'string' || !/^[0-9a-f]{64}$/u.test(row.fingerprint) || typeof row.created_at !== 'string' || !Number.isFinite(Date.parse(row.created_at))) return corrupt();
     const result = parse(row.result);
     if (row.kind === 'source') { if (!isReferenceSourceVersion(result) || !same(result, sourceData(db, result.id).source)) return corrupt(); }
+    else if (row.kind === 'source-zip') {
+      if (!isRegisterReferenceSourceZipResult(result) || !same(result.source, sourceData(db, result.source.id).source)
+        || !same(result.receipt, sourceZipReceiptData(db, result.receipt.id))) return corrupt();
+    }
     else if (row.kind === 'publish' || row.kind === 'match') {
       if (!isCatalogRevisionDetail(result) || !same(result.revision, revisionData(db, result.revision.id)) || !same(result.snapshot, snapshotData(db, result.snapshot.id))) return corrupt();
     } else return corrupt();
@@ -133,13 +160,25 @@ export function verifyReferenceCatalogDatabase(db: DatabaseSync): void {
   if (db.prepare('PRAGMA foreign_key_check').all().length) return corrupt();
 }
 
+/** C11 容器回执只读校验；原 ZIP 不归档，也不能由缺失原 ZIP 推断来源无效。 */
+export function verifyReferenceCatalogZipDatabase(db: DatabaseSync): void {
+  if (db.prepare('SELECT sql FROM sqlite_master WHERE type=? AND name=?').get('table', 'reference_source_zip_receipts')?.sql !== zipReceiptTable) return corrupt();
+  for (const sql of zipReceiptTriggers) {
+    const name = sql.split(' ')[2]!;
+    if (db.prepare('SELECT sql FROM sqlite_master WHERE type=? AND name=?').get('trigger', name)?.sql !== sql) return corrupt();
+  }
+  verifyReferenceCatalogDatabase(db);
+  for (const row of db.prepare('SELECT id FROM reference_source_zip_receipts').iterate()) sourceZipReceiptData(db, String(row.id));
+}
+
 interface Access {
   read<T>(operation: (db: DatabaseSync) => T): T;
   model(db: DatabaseSync, id: string): CollectionModel;
   conflict(message: string): never;
   beforeCommit?: (action: string) => void;
+  stagingRoot?: string;
 }
-export function createReferenceCatalogStore({ read: accessRead, model, conflict, beforeCommit }: Access) {
+export function createReferenceCatalogStore({ read: accessRead, model, conflict, beforeCommit, stagingRoot }: Access) {
   const invalid = (): never => conflict('参考资料或目录请求无效，请重新预览。');
   function read<T>(operation: (db: DatabaseSync) => T): T {
     return accessRead(db => { try { assertBudget(db); return operation(db); } catch (error) { if (error instanceof CatalogCapacityError) return conflict(error.message); throw error; } });
@@ -154,11 +193,24 @@ export function createReferenceCatalogStore({ read: accessRead, model, conflict,
     if (!row) return undefined;
     if (row.fingerprint !== fp || row.kind !== kind) return conflict('同一操作编号不能用于不同的参考目录内容。');
     const result = parse(row.result);
-    if (kind === 'source' ? !isReferenceSourceVersion(result) : !isCatalogRevisionDetail(result)) return corrupt();
+    if (kind === 'source' ? !isReferenceSourceVersion(result)
+      : kind === 'source-zip' ? !isRegisterReferenceSourceZipResult(result) : !isCatalogRevisionDetail(result)) return corrupt();
     return result as T;
   }
   function record(db: DatabaseSync, commandId: string, fp: string, kind: string, result: unknown): void {
     db.prepare('INSERT INTO reference_catalog_ledger VALUES(?,?,?,?,?)').run(commandId, fp, kind, JSON.stringify(result), new Date().toISOString());
+  }
+  async function zipInput(zipBase64: string) {
+    if (!stagingRoot) return conflict('资料包暂存目录未配置，原 ZIP 未被登记。');
+    try { return await parseReferenceSourceZip(zipBase64, stagingRoot); }
+    catch (error) {
+      if (error instanceof ReferenceSourceZipError) {
+        if (error.code === 'INVALID_BASE64') return conflict('ZIP 编码或大小无效；最多接受 4 MiB 原容器。');
+        if (error.code === 'INVALID_SOURCE') return conflict('ZIP 内的 schemaVersion 1 JSON 无效；外部图片路径或未定义字段不能登记。');
+        if (error.code === 'STAGING_UNAVAILABLE' || error.code === 'STAGING_CLEANUP_FAILED') return conflict('资料包暂存不可用或未能安全清理；原 ZIP 未被登记。');
+      }
+      return conflict('ZIP 必须仅含根目录 catalog.json 或 source.json，且通过完整 CRC、SHA 与路径校验。');
+    }
   }
   function current(db: DatabaseSync, bookId: string): CatalogRevision | null {
     const row = db.prepare('SELECT current_revision_id FROM reference_catalog_heads WHERE book_id=?').get(bookId);
@@ -249,6 +301,53 @@ export function createReferenceCatalogStore({ read: accessRead, model, conflict,
         if (!isReferenceSourceVersion(value)) return corrupt();
         if (!existing) db.prepare('INSERT INTO reference_sources VALUES(?,?,?,?,?)').run(value.id, value.bookId, value.packHash, request.rawPack, JSON.stringify(value));
         record(db, request.commandId, fp, 'source', value); return value;
+      });
+    },
+    async previewSourceZip(request: PreviewReferenceSourceZipRequest): Promise<ReferenceSourceZipPreview> {
+      if (!isPreviewReferenceSourceZipRequest(request)) return invalid();
+      return (await zipInput(request.zipBase64)).preview;
+    },
+    async registerSourceZip(request: RegisterReferenceSourceZipRequest): Promise<RegisterReferenceSourceZipResult> {
+      if (!isRegisterReferenceSourceZipRequest(request)) return invalid();
+      const parsed = await zipInput(request.zipBase64);
+      if (parsed.preview.zipSha256 !== request.expectedZipSha256
+        || parsed.preview.rawPackHash !== request.expectedRawPackHash) return conflict('ZIP 或 JSON 字节与确认时预览不一致；请重新预览原文件。');
+      return transaction('register-reference-source-zip', db => {
+        const fp = fingerprint(['source-zip', request.commandId, parsed.preview.zipSha256, parsed.preview.rawPackHash]);
+        const prior = receipt<RegisterReferenceSourceZipResult>(db, request.commandId, fp, 'source-zip');
+        if (prior) return prior;
+        const existing = db.prepare('SELECT id FROM reference_sources WHERE book_id=? AND pack_hash=?').get(parsed.pack.bookId, parsed.preview.rawPackHash);
+        const source: ReferenceSourceVersion = existing ? sourceData(db, String(existing.id)).source : {
+          id: randomUUID(), bookId: parsed.pack.bookId, title: parsed.pack.title,
+          sourceVersion: parsed.pack.sourceVersion, packHash: parsed.preview.rawPackHash,
+          itemCount: parsed.preview.itemCount, createdAt: new Date().toISOString(),
+        };
+        if (!isReferenceSourceVersion(source)) return corrupt();
+        if (!existing) db.prepare('INSERT INTO reference_sources VALUES(?,?,?,?,?)').run(source.id, source.bookId, source.packHash, parsed.rawPack, JSON.stringify(source));
+        const priorReceipt = db.prepare('SELECT id FROM reference_source_zip_receipts WHERE source_id=? AND zip_hash=?').get(source.id, parsed.preview.zipSha256);
+        const zipReceipt: ReferenceSourceZipReceipt = priorReceipt ? sourceZipReceiptData(db, String(priorReceipt.id)) : {
+          id: randomUUID(), sourceId: source.id, zipSha256: parsed.preview.zipSha256,
+          zipBytes: parsed.preview.zipBytes, entryName: parsed.preview.entryName,
+          rawPackHash: parsed.preview.rawPackHash, createdAt: new Date().toISOString(),
+        };
+        if (!isReferenceSourceZipReceipt(zipReceipt) || zipReceipt.zipBytes !== parsed.preview.zipBytes
+          || zipReceipt.entryName !== parsed.preview.entryName || zipReceipt.rawPackHash !== parsed.preview.rawPackHash) return corrupt();
+        if (!priorReceipt) db.prepare('INSERT INTO reference_source_zip_receipts VALUES(?,?,?,?,?,?,?)').run(
+          zipReceipt.id, zipReceipt.sourceId, zipReceipt.zipSha256, zipReceipt.zipBytes,
+          zipReceipt.entryName, zipReceipt.rawPackHash, zipReceipt.createdAt);
+        const result = { source, receipt: zipReceipt };
+        record(db, request.commandId, fp, 'source-zip', result);
+        return result;
+      });
+    },
+    sourceZipReceipts(request: ReferenceSourceZipReceiptListRequest): ReferenceSourceZipReceiptPage {
+      if (!isReferenceSourceZipReceiptListRequest(request)) return invalid(); page(request);
+      return read(db => {
+        sourceData(db, request.sourceId);
+        const total = Number(db.prepare('SELECT count(*) n FROM reference_source_zip_receipts WHERE source_id=?').get(request.sourceId)?.n);
+        const items = db.prepare('SELECT id FROM reference_source_zip_receipts WHERE source_id=? ORDER BY rowid DESC LIMIT ? OFFSET ?')
+          .all(request.sourceId, request.limit, request.offset).map(row => sourceZipReceiptData(db, String(row.id)));
+        return { items, total, offset: request.offset, limit: request.limit };
       });
     },
     sources(request: { bookId?: string; offset: number; limit: number }) {

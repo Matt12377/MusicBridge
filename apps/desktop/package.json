@@ -8,6 +8,7 @@
   "scripts": {
     "prebuild": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
     "build": "electron-vite build --mode production",
+    "postbuild": "node scripts/verify-preload-dependencies.mjs",
     "pretypecheck": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.e2e.json",
     "pretest": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
@@ -18,12 +19,12 @@
     "test:electron": "node --import tsx --test electron-gate/*.test.ts",
     "pretest:security": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
     "test:security": "node --import tsx --test test/security.test.ts test/ipc-security.test.ts test/csp.test.ts test/protocol.test.ts test/preload.test.ts test/credential-provisioning.test.ts test/credential-vault.test.ts",
-    "dev": "electron-vite build --mode development && electron dist/main/index.js",
-    "start": "electron dist/main/index.js",
+    "dev": "electron-vite build --mode development && node scripts/verify-preload-dependencies.mjs && electron dist/main/index.js",
+    "start": "node scripts/verify-preload-dependencies.mjs && electron dist/main/index.js",
     "pack": "electron-builder --dir",
     "pack:beta": "electron-builder --mac --arm64",
     "test:startup": "node scripts/startup-gate.mjs development && node scripts/startup-gate.mjs production",
-    "test:e2e": "electron-vite build --mode production && playwright test"
+    "test:e2e": "electron-vite build --mode production && node scripts/verify-preload-dependencies.mjs && electron-vite build --config e2e/private-core.vite.config.ts --mode development && playwright test"
   },
   "dependencies": {
     "@music-bridge/contracts": "workspace:*",
@@ -36,6 +37,7 @@
     "node-roon-api-status": "github:RoonLabs/node-roon-api-status#504c918d6da267e03fbb4337befa71ca3d3c7526",
     "node-roon-api-transport": "github:RoonLabs/node-roon-api-transport#2ee60008a4cdb90c34ff3de58bb4b949067f1d20",
     "pinia": "3.0.3",
+    "qrcode": "1.5.4",
     "vue": "3.5.18",
     "vue-router": "4.5.1"
   },
@@ -120,6 +122,11 @@
         "from": "native/output/darwin-arm64",
         "to": "output/darwin-arm64",
         "filter": ["manifest.json", "bin/output-helper", "build/core-audio-adapter.o"]
+      },
+      {
+        "from": "native/output-device/darwin-arm64",
+        "to": "output-device/darwin-arm64",
+        "filter": ["manifest.json", "bin/output-device-helper"]
       },
       {
         "from": "native/ffmpeg/darwin-arm64",

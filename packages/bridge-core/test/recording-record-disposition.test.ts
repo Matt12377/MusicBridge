@@ -4,9 +4,21 @@ import { randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import type { PhysicalRecordingDispositionIntent, PreviewPhysicalRecordingDispositionRequest } from '@music-bridge/contracts';
 import { recordingAttemptFixture } from './helpers/recording-attempt-fixture.js';
+import { AttemptError } from '../src/recording/attempt-integrity.js';
 
 const page = { offset: 0, limit: 25 };
 const turn = () => new Promise<void>(resolve => setImmediate(resolve));
+async function waitForOutputIdle(assertIdle: () => void): Promise<void> {
+  const deadline = performance.now() + 10_000;
+  for (;;) {
+    try { assertIdle(); return; }
+    catch (error) {
+      if (!(error instanceof AttemptError) || error.code !== 'ATTEMPT_CONFLICT') throw error;
+      if (performance.now() >= deadline) throw new Error('合成驱动关闭、输入末核验与屏障结算未在期限内完成。');
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+  }
+}
 async function completed(t: test.TestContext, cleanup = true) {
   const f = await recordingAttemptFixture(t), initial = await f.attempts.begin(f.beginRequest());
   const current = () => f.attempts.get({ attemptId: initial.id }).attempt!;
@@ -19,7 +31,7 @@ async function completed(t: test.TestContext, cleanup = true) {
     if (cleanup) driver.onEvent({ ...identity, type: 'cleanup-quiescent' });
     else driver.onEvent({ ...identity, type: 'stop-ack' });
     driver.onEvent({ ...identity, type: 'backend-drained' });
-    await turn();
+    await waitForOutputIdle(() => f.attempts.assertExecutionIdle());
     await f.attempts.confirm({ commandId: randomUUID(), attemptId: initial.id, expectedRevision: current().revision, kind: 'physical-stop', side: side.side, userConfirmed: true });
     if (index + 1 < initial.sides.length) {
       await f.attempts.confirm({ commandId: randomUUID(), attemptId: initial.id, expectedRevision: current().revision, kind: 'flip', userConfirmed: true });
@@ -71,7 +83,8 @@ test('只读执行槽检查在真正关闭前拒绝，检查本身不停止或�
   assert.equal(typeof f.attempts.assertExecutionIdle, 'function');
   f.attempts.assertExecutionIdle(); const attempt = await f.attempts.begin(f.beginRequest());
   assert.throws(() => f.attempts.assertExecutionIdle());
-  await f.attempts.stop({ commandId: randomUUID(), attemptId: attempt.id }); await turn();
+  await f.attempts.stop({ commandId: randomUUID(), attemptId: attempt.id });
+  await waitForOutputIdle(() => f.attempts.assertExecutionIdle());
   f.attempts.assertExecutionIdle(); assert.equal(f.starts.length, 1);
 });
 
@@ -82,12 +95,15 @@ test('unknown处置只新增认知历史，原档案可检索但两库不泄露�
   assert.equal(changed.state.knowledge.state, 'unknown');
   const music = f.repository.music.detail(f.attempt.physicalId);
   assert.equal(music.entry.contentStatus, 'formal-current-unknown'); assert.notEqual(music.entry.title, before.title); assert.equal(music.entry.artist, '');
+  assert.equal(f.repository.music.list(page, { query: before.title }).total, 0, '未知当前内容不得通过实体音乐列表泄露旧标题');
+  assert.equal(f.repository.music.list(page, { query: '当前内容待核实' }).items[0]?.id, before.physicalId);
   assert.equal(f.repository.detail(before.modelId, page).copies.items.find(value => value.physicalId === before.physicalId)?.recordingTitle, undefined);
   assert.deepEqual(f.records.get({ id: before.id }).record!.record, old.record);
   assert.deepEqual(f.repository.list(page).items[0]!.counts, inventory);
   assert.equal(f.records.list({ page, filter: { master: before.title } }).total, 1);
   f.apply({ action: 'confirm-current-recording', recordingId: before.id });
   assert.equal(f.repository.music.detail(before.physicalId).entry.title, before.title);
+  assert.equal(f.repository.music.list(page, { query: before.title }).items[0]?.id, before.physicalId);
 });
 
 test('处置需精确CAS和原预览且同命令永久回原回执，跨scope拒绝', async t => {
@@ -157,7 +173,7 @@ test('真实迟到close句柄没有释放时idle检查仍拒绝，检查不重�
   const current = await attempts.begin(f.beginRequest());
   await attempts.stop({ commandId: randomUUID(), attemptId: current.id }); await turn();
   assert.throws(() => attempts.assertExecutionIdle()); assert.equal(stops, 1);
-  release(); await turn(); attempts.assertExecutionIdle(); assert.equal(stops, 1);
+  release(); await waitForOutputIdle(() => attempts.assertExecutionIdle()); assert.equal(stops, 1);
 });
 
 test('无Attempt旧录音可明确处置但不造Record，空白实体不获得同样入口', async t => {

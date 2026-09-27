@@ -3,7 +3,8 @@ import {
   isRecordingReplicaInspection, isRecordingReplicaReadCancellation, isRecordingReplicaRun,
   isRecordingReplicaRunIdRequest, isRecordingReplicaStatus,
   type RecordingRecordDetail, type RecordingReplicaInspection, type RecordingReplicaPublicApi,
-  type RecordingReplicaRun, type RecordingReplicaStatus, type ReplicaIssue, type ReplicaTargetView,
+  type RecordingReplicaRun, type RecordingReplicaStatus, type ReplicaDeviceControlRequest, type ReplicaDeviceStartRequest,
+  type ReplicaIssue, type ReplicaTargetView,
   type ReplicaTarget, type RenderSide,
 } from '@music-bridge/contracts'
 
@@ -16,9 +17,12 @@ export interface RecordingReplicaState {
   statusPhase: 'unread' | 'loading' | 'ready' | 'error'; status?: RecordingReplicaStatus; statusError: string;
   phase: 'unread' | 'checking' | 'ready' | 'error' | 'cancelling' | 'cancel-failed' | 'cancelled';
   inspection?: RecordingReplicaInspection; target: ReplicaTarget | ''; side: RenderSide | ''; error: string;
-  cancelSending: boolean; closeRequested: boolean; run?: RecordingReplicaRun; runError: string;
+  cancelSending: boolean; closeRequested: boolean; runId: string | null; run?: RecordingReplicaRun;
+  runSending: boolean; runReading: boolean; controlSending: boolean; runError: string;
 }
 interface Read { readId: string; settled: boolean; cancelled: boolean; accepted: boolean; sending: boolean; failed: boolean }
+const runTerminal = (run: RecordingReplicaRun): boolean =>
+  (run.state === 'finished' || run.state === 'cancelled' || run.state === 'failed') && run.cleanupQuiescent;
 
 /** 只接受当前明确历史谱系；不读取当前Session，也不从名称或时间挑选音频。 */
 function matches(inspection: RecordingReplicaInspection, detail: RecordingRecordDetail): boolean {
@@ -47,10 +51,14 @@ function matches(inspection: RecordingReplicaInspection, detail: RecordingRecord
 
 export function createRecordingReplicaController(options: { api: RecordingReplicaPublicApi; detail: RecordingRecordDetail; onChange?: () => void }) {
   const { api } = options, detail = structuredClone(options.detail)
-  const state: RecordingReplicaState = { statusPhase: 'unread', statusError: '', phase: 'unread', target: '', side: '', error: '', cancelSending: false, closeRequested: false, runError: '' }
-  let disposed = false, active: Read | undefined, statusGeneration = 0, runGeneration = 0
+  const state: RecordingReplicaState = { statusPhase: 'unread', statusError: '', phase: 'unread', target: '', side: '', error: '',
+    cancelSending: false, closeRequested: false, runId: null, runSending: false, runReading: false, controlSending: false, runError: '' }
+  let disposed = false, active: Read | undefined, statusGeneration = 0
+  let pendingControl: ReplicaDeviceControlRequest | undefined
+  let startedRequest: ReplicaDeviceStartRequest | undefined
   const changed = () => { if (!disposed) options.onChange?.() }
-  const canClose = () => !active
+  const hasLiveRun = () => !!state.runId && (!state.run || !runTerminal(state.run))
+  const canClose = () => !active && !hasLiveRun()
   function finish(read: Read): void {
     if (disposed || active !== read || !read.settled || read.cancelled && !read.accepted) return
     if (read.cancelled) state.phase = read.failed ? 'error' : 'cancelled'
@@ -87,7 +95,7 @@ export function createRecordingReplicaController(options: { api: RecordingReplic
     }
   }
   async function inspect(): Promise<void> {
-    if (disposed || active || state.closeRequested) return
+    if (disposed || active || state.closeRequested || hasLiveRun()) return
     const read: Read = { readId: crypto.randomUUID(), settled: false, cancelled: false, accepted: false, sending: false, failed: false }
     active = read; state.inspection = undefined; state.target = ''; state.side = ''; state.phase = 'checking'; state.error = ''; changed()
     try {
@@ -105,42 +113,125 @@ export function createRecordingReplicaController(options: { api: RecordingReplic
     }
   }
   function selectTarget(value: string): void {
-    if (disposed || active) return
+    if (disposed || active || hasLiveRun()) return
     state.target = state.inspection?.targets.some(t => t.target === value) ? value as ReplicaTarget : ''; state.side = ''; changed()
   }
   function selectSide(value: string): void {
-    if (disposed || active) return
+    if (disposed || active || hasLiveRun()) return
     state.side = state.inspection?.targets.some(t => t.target === state.target && t.side === value && t.state !== 'empty') ? value as RenderSide : ''; changed()
   }
   const selected = (): ReplicaTargetView | undefined => state.inspection?.targets.find(t => t.target === state.target && t.side === state.side)
-  async function requestClose(): Promise<boolean> { state.closeRequested = true; changed(); if (active) await cancel(); return canClose() }
-  // 当前合同没有可播放后端分支；保留显式会话操作面，不把合成检查升级成播放授权。
-  async function start(): Promise<void> { if (!disposed) { state.runError = '播放后端不可用；未发起播放。'; changed() } }
-  function acceptRun(value: unknown, runId: string): value is RecordingReplicaRun {
-    if (!isRecordingReplicaRun(value) || value.runId !== runId) return false
-    if (value.kind === 'session') {
-      if (value.request.recordingId !== detail.record.id) return false
-      if (value.identity && (!state.inspection || value.identity.fingerprint !== state.inspection.fingerprint || !matches({ ...state.inspection, ...value.identity }, detail))) return false
+  function acceptRun(value: unknown, runId: string): void {
+    const request = startedRequest
+    if (!isRecordingReplicaRun(value) || value.runId !== runId || !request) throw new Error('INVALID_RUN')
+    if (value.kind === 'cancelled-before-start') {
+      if (state.run?.kind === 'device-session' && state.run.started) throw new Error('INVALID_RUN')
+      state.run = value; return
     }
-    return state.run?.runId !== runId || state.run.kind !== 'session' || value.kind === 'session' && value.revision >= state.run.revision
+    if (value.kind !== 'device-session' || JSON.stringify(value.request) !== JSON.stringify(request)) throw new Error('INVALID_RUN')
+    if (value.identity) {
+      const selectedAudio = state.inspection?.targets.find(item => item.target === request.target && item.side === request.side)
+      if (selectedAudio?.state !== 'verified' || value.identity.fingerprint !== request.expectedFingerprint
+        || JSON.stringify(value.identity.audio) !== JSON.stringify(selectedAudio.audio)) throw new Error('INVALID_RUN')
+    }
+    const previous = state.run
+    if (previous && runTerminal(previous)) return
+    if (previous?.kind === 'device-session' && (value.revision < previous.revision
+      || value.controlRevision < previous.controlRevision || runTerminal(previous) && !runTerminal(value))) return
+    state.run = value
   }
-  async function sessionRead(runId: string, stop: boolean): Promise<void> {
-    if (disposed || !isRecordingReplicaRunIdRequest({ runId })) return
-    const generation = ++runGeneration; state.runError = ''
+  async function getRun(runId = state.runId ?? ''): Promise<void> {
+    if (disposed || runId !== state.runId || !isRecordingReplicaRunIdRequest({ runId }) || state.runReading) return
+    state.runReading = true; changed()
     try {
-      const value = stop ? await api.stopRecordingReplica(runId) : (await api.getRecordingReplicaRun(runId)).run
-      if (disposed || generation !== runGeneration) return
-      if (value === null && !stop) state.run = undefined
-      else if (acceptRun(value, runId)) state.run = value
-      else throw new Error('INVALID_RUN')
-    } catch { if (!disposed && generation === runGeneration) state.runError = '会话状态未确认；不会推断播放或停止已完成。' }
-    changed()
+      const value = (await api.getRecordingReplicaRun(runId)).run
+      if (disposed || runId !== state.runId) return
+      // null并不是启动或停止未受理证明；最后可信run和ID均须保留。
+      if (value === null) throw new Error('RUN_UNKNOWN')
+      acceptRun(value, runId); state.runError = ''
+    } catch {
+      if (!disposed && runId === state.runId) state.runError = '会话状态未确认；保留本次运行编号，请重试读取。'
+    } finally { state.runReading = false; changed() }
   }
-  function dispose(): void {
-    if (disposed) return
-    const read = active; disposed = true; statusGeneration++; runGeneration++
-    if (read && !read.accepted && !read.sending) { read.cancelled = true; void api.cancelRecordingReplicaRead(read.readId).catch(() => undefined) }
+  async function sendStart(request: ReplicaDeviceStartRequest): Promise<void> {
+    state.runSending = true; state.runError = ''; changed()
+    try {
+      const result = await api.startRecordingReplica(request)
+      if (disposed || state.runId !== request.runId) return
+      acceptRun(result, request.runId)
+    } catch {
+      if (!disposed && state.runId === request.runId) state.runError = '启动回执未确认；已保留精确运行编号，请读取状态并停止后再离开。'
+    } finally {
+      state.runSending = false; changed()
+      if (!disposed && state.closeRequested && state.runId === request.runId) void stopRun(request.runId)
+    }
   }
-  return { state, refreshStatus, inspect, cancel, selectTarget, selectSide, selected, requestClose, canClose, start,
-    getRun: (runId: string) => sessionRead(runId, false), stopRun: (runId: string) => sessionRead(runId, true), dispose }
+  async function start(): Promise<void> {
+    if (disposed || active || state.closeRequested || state.runSending || hasLiveRun()) return
+    const status = state.status, inspection = state.inspection, view = selected()
+    if (status?.playback !== 'ready' || !inspection || !matches(inspection, detail) || view?.state !== 'verified'
+      || view.target !== state.target || view.side !== state.side) {
+      state.runError = '播放条件尚未满足：请核验历史音频、明确选择非空面及本机输出设备。'; changed(); return
+    }
+    const request: ReplicaDeviceStartRequest = { mode: 'device-output', runId: crypto.randomUUID(), recordingId: detail.record.id,
+      target: view.target, side: view.side, expectedFingerprint: inspection.fingerprint,
+      userConfirmed: true, outputSelection: status.outputSelection }
+    startedRequest = request; pendingControl = undefined; state.runId = request.runId; state.run = undefined
+    await sendStart(request)
+  }
+  async function retryStart(): Promise<void> {
+    if (disposed || state.closeRequested || !startedRequest || state.runId !== startedRequest.runId
+      || state.run || state.runSending) return
+    await sendStart(startedRequest)
+  }
+  async function control(operation: 'pause' | 'resume' | 'stop' | 'seek', frame?: number): Promise<void> {
+    if (disposed || state.closeRequested || !state.runId || !state.run || state.run.kind !== 'device-session'
+      || state.controlSending || runTerminal(state.run)) return
+    if (pendingControl && (pendingControl.operation !== operation || pendingControl.operation === 'seek' && pendingControl.frame !== frame)) {
+      state.runError = '上一控制命令回执尚未确认；请先重试该命令。'; changed(); return
+    }
+    if (!pendingControl) {
+      const base = { runId: state.runId, commandId: crypto.randomUUID(), expectedControlRevision: state.run.controlRevision }
+      pendingControl = operation === 'seek' ? { ...base, operation, frame: frame! } : { ...base, operation }
+    }
+    const request = pendingControl
+    state.controlSending = true; state.runError = ''; changed()
+    try {
+      const result = await api.controlRecordingReplica(request)
+      if (disposed || state.runId !== request.runId) return
+      acceptRun(result, request.runId); pendingControl = undefined
+    } catch {
+      if (!disposed && state.runId === request.runId) state.runError = '控制回执未确认；命令编号已保留，重试不会重复派发。'
+    } finally { state.controlSending = false; changed() }
+  }
+  async function stopRun(runId = state.runId ?? ''): Promise<void> {
+    if (disposed || runId !== state.runId || !isRecordingReplicaRunIdRequest({ runId })
+      || state.run && runTerminal(state.run)) return
+    state.controlSending = true; state.runError = ''; changed()
+    try {
+      const result = await api.stopRecordingReplica(runId)
+      if (disposed || runId !== state.runId) return
+      acceptRun(result, runId); pendingControl = undefined
+    } catch {
+      if (!disposed && runId === state.runId) state.runError = '精确 Stop 回执未确认；运行编号已保留，可按同一编号重试。'
+    } finally { state.controlSending = false; changed() }
+  }
+  async function requestClose(): Promise<boolean> {
+    if (disposed) return false
+    state.closeRequested = true; changed()
+    await Promise.allSettled([...(active ? [cancel()] : []), ...(state.runId && hasLiveRun() ? [stopRun(state.runId)] : [])])
+    return canClose()
+  }
+  async function retryControl(): Promise<void> {
+    if (pendingControl) await control(pendingControl.operation, pendingControl.operation === 'seek' ? pendingControl.frame : undefined)
+  }
+  function dispose(): boolean {
+    if (disposed) return true
+    if (!canClose()) { void requestClose(); return false }
+    disposed = true; statusGeneration++
+    return true
+  }
+  return { state, refreshStatus, inspect, cancel, selectTarget, selectSide, selected, requestClose, canClose, start, retryStart,
+    getRun, stopRun, pause: () => control('pause'), resume: () => control('resume'), seek: (frame: number) => control('seek', frame),
+    retryControl, dispose }
 }

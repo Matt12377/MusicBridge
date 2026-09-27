@@ -13,11 +13,26 @@ import RecordingRecordsPanel from '../recording/RecordingRecordsPanel.vue'
 import ReferenceCatalogPanel from './ReferenceCatalogPanel.vue'
 import SpreadsheetImportPanel from './SpreadsheetImportPanel.vue'
 import CollectionProgressPanel from './CollectionProgressPanel.vue'
+import type { CollectionReservationEntry, CollectionReturnLocation, CollectionStartEntry, RecordingPhysicalSelection, RecordingReservationSelection } from './collection-recording-navigation'
+
+const props = defineProps<{ returnLocation?: CollectionReturnLocation }>()
+const emit = defineEmits<{ startRecording: [selection: CollectionStartEntry]; openReservation: [selection: CollectionReservationEntry] }>()
 
 const recordPhysicalId = ref('')
+type LeaveGuard = { canLeave(): boolean; leaveBlockReason(): string | null }
+const recordsPanel = ref<LeaveGuard | null>(null), musicView = ref<LeaveGuard | null>(null), leaveError = ref('')
+function leaveBlockReason(): string | null {
+  if (recordPhysicalId.value && recordsPanel.value?.canLeave() !== true) return recordsPanel.value?.leaveBlockReason() ?? '录音档案中的设备运行尚未安全收口。'
+  if (musicView.value?.canLeave() === false) return musicView.value.leaveBlockReason() ?? '实体音乐库中的设备运行尚未安全收口。'
+  if (selectedView.value === 'music' && !musicView.value) return '实体音乐库正在加载，请稍后再切换页面。'
+  return null
+}
+const canLeave = (): boolean => leaveBlockReason() === null
+function guardLeave(): boolean { if (canLeave()) { leaveError.value = ''; return true }; leaveError.value = leaveBlockReason()!; return false }
+defineExpose({ canLeave, leaveBlockReason })
 let recordOrigin: HTMLElement | undefined
-function showRecords(id: string): void { recordOrigin = document.activeElement as HTMLElement; recordPhysicalId.value = id }
-function closeRecords(): void { recordPhysicalId.value = ''; void nextTick(() => recordOrigin?.isConnected && recordOrigin.focus({ preventScroll: true })) }
+function showRecords(id: string): void { if (!guardLeave()) return; recordOrigin = document.activeElement as HTMLElement; recordPhysicalId.value = id }
+function closeRecords(): void { if (!guardLeave()) return; recordPhysicalId.value = ''; void nextTick(() => recordOrigin?.isConnected && recordOrigin.focus({ preventScroll: true })) }
 const progressOpen = ref(false)
 const progressTrigger = ref<HTMLButtonElement>()
 function closeProgress(): void { progressOpen.value = false; void nextTick(() => progressTrigger.value?.focus({ preventScroll: true })) }
@@ -33,6 +48,7 @@ function closeReference(): void { referenceOpen.value = false; void loadReferenc
 const inventory = useCollection()
 const collectionApi = window.musicBridge
 const { catalog, detail, filter, loading, saving, error, notice, pending, blocked } = inventory
+const returnLocationStale = ref(false), relocating = ref(false)
 const referenceImages = shallowRef<readonly CanonicalReference[]>([])
 const referenceLoading = ref(false), referenceError = ref('')
 let referenceRead = 0
@@ -45,8 +61,18 @@ async function loadReferenceImages(): Promise<void> {
 }
 const candidatesByModel = computed(() => new Map(catalog.value?.items.map(model => [model.id, referenceImagesForModel(model, referenceImages.value)])))
 const referenceCandidates = (model: CollectionModel) => candidatesByModel.value.get(model.id) ?? referenceImagesForModel(model, referenceImages.value)
-onMounted(() => { void loadReferenceImages() })
-onBeforeUnmount(() => { referenceRead++ })
+let restoreEpoch = 0, userFocusEpoch = 0, alive = true
+function noteUserFocusAction(): void { userFocusEpoch++ }
+onMounted(() => {
+  document.addEventListener('pointerdown', noteUserFocusAction, true)
+  document.addEventListener('keydown', noteUserFocusAction, true)
+  void loadReferenceImages(); void restorePhysicalLocation()
+})
+onBeforeUnmount(() => {
+  referenceRead++; restoreEpoch++; alive = false
+  document.removeEventListener('pointerdown', noteUserFocusAction, true)
+  document.removeEventListener('keydown', noteUserFocusAction, true)
+})
 const filterDraft = ref({ query: '', brand: '', decade: '' })
 function applyFilter(): void {
   filter.value = { query: filterDraft.value.query, brand: filterDraft.value.brand,
@@ -56,8 +82,51 @@ function applyFilter(): void {
 function clearFilter(): void { filterDraft.value = { query: '', brand: '', decade: '' }; applyFilter() }
 const musicId = ref<string>()
 const musicNavigation = ref(0)
-function showRecording(id: string): void { musicId.value = id; musicNavigation.value++; selectedView.value = 'music' }
-function showModel(id: string): void { selectedView.value = 'tapes'; void inventory.openModel(id) }
+function startRecording(selection: RecordingPhysicalSelection): void {
+  if (!guardLeave()) return
+  emit('startRecording', { ...selection, returnOffset: detail.value?.copies.offset ?? 0 })
+}
+function openReservation(selection: RecordingReservationSelection): void {
+  if (!guardLeave()) return
+  emit('openReservation', { ...selection, returnOffset: detail.value?.copies.offset ?? 0 })
+}
+async function restorePhysicalLocation(location = props.returnLocation): Promise<void> {
+  if (!location) return
+  const epoch = ++restoreEpoch, focusEpoch = userFocusEpoch
+  const stillCurrent = () => alive && epoch === restoreEpoch && focusEpoch === userFocusEpoch
+    && props.returnLocation?.physicalId === location.physicalId && selectedView.value === 'tapes'
+  await inventory.openModel(location.modelId, location.returnOffset)
+  if (!stillCurrent() || detail.value?.model.id !== location.modelId || detail.value.copies.offset !== location.returnOffset) return
+  if (detail.value.copies.items.some(copy => copy.physicalId === location.physicalId)) {
+    await nextTick()
+    if (stillCurrent() && detail.value?.model.id === location.modelId && detail.value.copies.offset === location.returnOffset) {
+      returnLocationStale.value = false
+      document.querySelector<HTMLElement>('[data-returned-copy="true"]')?.focus({ preventScroll: true })
+    }
+  } else if (!error.value) {
+    returnLocationStale.value = true
+    notice.value = `已返回 ${location.physicalId} 所在型号；实体分页已变化，尚未定位到这盘。`
+  }
+}
+async function relocatePhysical(): Promise<void> {
+  const physicalId = props.returnLocation?.physicalId
+  if (!physicalId || relocating.value) return
+  const focusEpoch = userFocusEpoch, epoch = restoreEpoch, modelId = detail.value?.model.id, offset = detail.value?.copies.offset
+  relocating.value = true
+  try {
+    const result = await collectionApi.getCollectionCopy(physicalId)
+    if (!alive || props.returnLocation?.physicalId !== physicalId || focusEpoch !== userFocusEpoch || epoch !== restoreEpoch
+      || detail.value?.model.id !== modelId || detail.value?.copies.offset !== offset || selectedView.value !== 'tapes') return
+    if (result.copy.physicalId !== physicalId || result.copyIndex === undefined) {
+      notice.value = '单盘当前位置尚未得到确认，请稍后再试。'
+      return
+    }
+    await restorePhysicalLocation({ physicalId, modelId: result.modelId, returnOffset: Math.floor(result.copyIndex / 20) * 20 })
+  } catch { if (alive && props.returnLocation?.physicalId === physicalId) notice.value = '重新定位失败；已保留当前型号与单盘编号，请稍后重试。' }
+  finally { relocating.value = false }
+}
+function showRecording(id: string): void { if (!guardLeave()) return; musicId.value = id; musicNavigation.value++; selectedView.value = 'music' }
+function showModel(id: string): void { if (!guardLeave()) return; selectedView.value = 'tapes'; void inventory.openModel(id) }
 const receiving = ref(false)
 const receiveModel = ref<CollectionModel>()
 function beginReceive(model?: CollectionModel): void { receiveModel.value = model; receiving.value = true }
@@ -76,6 +145,7 @@ const views = [
 function onTabKeydown(event: KeyboardEvent): void {
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
   event.preventDefault()
+  if (!guardLeave()) return
   selectedView.value = event.key === 'Home' ? 'tapes'
     : event.key === 'End' ? 'music'
       : selectedView.value === 'tapes' ? 'music' : 'tapes'
@@ -84,18 +154,19 @@ function onTabKeydown(event: KeyboardEvent): void {
 </script>
 
 <template>
-  <RecordingRecordsPanel v-if="recordPhysicalId" :physical-id="recordPhysicalId" @close="closeRecords" @changed="detail && inventory.openModel(detail.model.id)" />
+  <RecordingRecordsPanel v-if="recordPhysicalId" ref="recordsPanel" :physical-id="recordPhysicalId" @close="closeRecords" @changed="detail && inventory.openModel(detail.model.id)" />
   <section class="collection-view" data-component="CollectionView" aria-label="实体收藏">
+    <p v-if="leaveError" role="alert">{{ leaveError }}</p>
     <div class="collection-context">
     <div ref="tabs" class="collection-tabs" role="tablist" aria-label="收藏视图">
       <button
         v-for="view in views" :id="`collection-tab-${view.id}`" :key="view.id"
         type="button" role="tab" :aria-selected="selectedView === view.id"
         :aria-controls="`collection-panel-${view.id}`" :tabindex="selectedView === view.id ? 0 : -1"
-        @click="selectedView = view.id" @keydown="onTabKeydown"
+        @click="guardLeave() && (selectedView = view.id)" @keydown="onTabKeydown"
       >{{ view.label }}</button>
     </div>
-    <div class="collection-tools"><button ref="spreadsheetTrigger" class="reference-entry" type="button" @click="spreadsheetOpen = true">Excel 导入</button>
+    <div class="collection-tools"><button ref="spreadsheetTrigger" class="reference-entry" type="button" @click="spreadsheetOpen = true">库存表导入</button>
     <button ref="referenceTrigger" class="reference-entry" type="button" @click="referenceOpen = true">参考目录与版次</button>
     <button ref="progressTrigger" class="reference-entry" type="button" @click="progressOpen = true">完成度与求购</button></div>
     </div>
@@ -106,17 +177,18 @@ function onTabKeydown(event: KeyboardEvent): void {
     >
       <div v-if="view.id === 'tapes'" class="inventory-feedback" aria-live="polite">
         <p v-if="error" role="alert">{{ error }} <button v-if="pending && !receiving" :disabled="saving" @click="retry">重试原操作</button><button v-else-if="!pending" :disabled="loading" @click="inventory.load(); detail && inventory.openModel(detail.model.id)">刷新库存</button></p>
-        <p v-else-if="notice" role="status">{{ notice }}</p>
+        <p v-else-if="notice" role="status">{{ notice }} <button v-if="returnLocationStale" type="button" :disabled="relocating || blocked" @click="relocatePhysical">重新定位这盘</button></p>
       </div>
       <CollectionModelDetail v-if="view.id === 'tapes' && detail" :detail="detail" :busy="blocked"
+        :focus-physical-id="returnLocation?.physicalId"
         :reference-candidates="referenceCandidates(detail.model)"
-        @show-records="showRecords" @show-recording="showRecording" @close="inventory.closeModel" @receive="beginReceive(detail.model)" @page="inventory.openModel(detail.model.id, $event)"
+        @show-records="showRecords" @show-recording="showRecording" @start-recording="startRecording" @open-reservation="openReservation" @close="inventory.closeModel" @receive="beginReceive(detail.model)" @page="inventory.openModel(detail.model.id, $event)"
         @materialize="request => inventory.mutate(() => collectionApi.materializeCollectionCopy(request))"
         @update-copy="request => inventory.mutate(() => collectionApi.updateCollectionCopy(request))"
         @add-photo="inventory.addPhoto"
         @change-photo="request => inventory.mutate(() => collectionApi.changeCollectionPhoto(request))"
         @policy="request => inventory.mutate(() => collectionApi.setCollectionPolicy(request))" />
-      <PhysicalMusicView :key="musicNavigation" v-if="view.id === 'music'" :requested-id="musicId" :active="selectedView === 'music'" @model="showModel" />
+      <PhysicalMusicView :key="musicNavigation" v-if="view.id === 'music'" ref="musicView" :requested-id="musicId" :active="selectedView === 'music'" @model="showModel" />
       <header v-if="view.id === 'tapes' && !detail" class="collection-heading">
         <div>
           <p class="collection-kicker">磁带收藏</p>
@@ -174,7 +246,8 @@ function onTabKeydown(event: KeyboardEvent): void {
 </template>
 
 <style scoped>
-.collection-view { max-width: 1240px; margin: 0 auto; padding: 24px 36px 40px; }
+.collection-view { max-width: 1240px; margin: 0 auto; padding: 24px 36px 40px; --mb-accent: #277449; --mb-accent-hover: #1b603b; --mb-accent-soft: rgba(39, 116, 73, .14); --mb-on-accent: #fff; }
+:global(:root[data-theme='dark'] .collection-view) { --mb-accent: #93d7b0; --mb-accent-hover: #b6e5ca; --mb-accent-soft: rgba(147, 215, 176, .17); --mb-on-accent: #183325; }
 .collection-tools { display: flex; gap: 10px; flex-wrap: wrap; }
 .collection-context { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
 .reference-entry { min-height: 44px; padding: 8px 14px; border: 1px solid var(--mb-glass-border); border-radius: 9px; color: var(--mb-text-primary); background: var(--mb-glass-clear); font-size: 13px; }
@@ -189,7 +262,10 @@ function onTabKeydown(event: KeyboardEvent): void {
 .collection-kicker { margin: 0 0 10px; color: var(--mb-accent); font-size: 12px; letter-spacing: .08em; }
 h2 { margin: 0; font-size: clamp(22px, 2.4vw, 30px); letter-spacing: -.035em; line-height: 1.3; }
 .collection-heading p:not(.collection-kicker) { margin: 12px 0 0; color: var(--mb-text-secondary); font-size: 13px; line-height: 1.7; }
-.collection-add { flex: 0 0 auto; min-height: 38px; padding: 0 15px; border: 1px solid var(--mb-glass-border); border-radius: 9px; color: var(--mb-text-primary); background: var(--mb-glass-clear); font-size: 13px; }
+.collection-add { flex: 0 0 auto; min-height: 44px; padding: 0 15px; border: 1px solid var(--mb-accent); border-radius: 9px; color: var(--mb-on-accent); background: var(--mb-accent); font-size: 13px; font-weight: 650; }
+.collection-add:hover:not(:disabled) { background: var(--mb-accent-hover); border-color: var(--mb-accent-hover); }
+.collection-add:focus-visible { outline: 2px solid var(--mb-accent); outline-offset: 3px; }
+.collection-add:disabled { opacity: .5; }
 .collection-empty { display: flex; min-height: 350px; align-items: center; flex-direction: column; justify-content: center; padding: 36px 24px; border: 1px solid var(--mb-glass-border); border-radius: 18px; background: var(--mb-bg-base); text-align: center; }
 .collection-art { width: 200px; max-width: 70%; height: 138px; margin-bottom: 22px; color: #92aab6; }
 h3 { margin: 0; font-size: 19px; font-weight: 550; letter-spacing: -.02em; }

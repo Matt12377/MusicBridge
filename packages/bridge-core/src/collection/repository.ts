@@ -1,4 +1,4 @@
-import { createRecordingPrintStore, migrateRecordingPrints, recoverRecordingPrints, type RecordingPrintStore } from '../recording/print-store.js';
+import { createRecordingPrintStore, migrateRecordingPrints, migrateRecordingPrintVersions, recoverRecordingPrints, type RecordingPrintStore } from '../recording/print-store.js';
 import { RecordingPrintError } from '../recording/print-integrity.js';
 import { createRecordingRecordStore, migrateRecordingRecords, type RecordingRecordStore } from '../recording/record-store.js';
 import { RecordingRecordError, verifyRecordingRecordDatabase } from '../recording/record-integrity.js';
@@ -11,22 +11,27 @@ import { createObjectAuditCertificateManager } from '../recording/object-audit-c
 import { createCollectionProgressStore, collectionProgressMigration, type CollectionProgressStore } from './collection-progress-store.js';
 import { createSpreadsheetImportStore, spreadsheetImportMigration, type SpreadsheetImportStore } from './spreadsheet-import-store.js';
 import { createCollectionSnapshot, type CollectionSnapshot } from '../recording/backup-snapshot.js';
-import { createReferenceCatalogStore, referenceCatalogMigration, type ReferenceCatalogStore } from './reference-catalog-store.js';
+import { createReferenceCatalogStore, referenceCatalogMigration, referenceCatalogZipMigration, verifyReferenceCatalogZipDatabase, type ReferenceCatalogStore } from './reference-catalog-store.js';
+import { recordingRecordPageMigration, migrateRecordingRecordPageSearch, verifyRecordingRecordPageIndex, verifyRecordingRecordPageSearch } from '../recording/record-page-index.js';
 import type { RootCapability } from '../recording/source-files.js';
 import { archiveWorkflowMigration } from '../recording/archive-workflow-store.js';
 import { archiveMigration, createArchiveStore, type ArchiveStore } from '../recording/archive-store.js';
 import { executionMigration, createExecutionStore, type ExecutionStore } from '../recording/execution-store.js';
 import { recordingProfilesMigration, createRecordingProfilesStore, type RecordingProfilesStore } from '../recording/profile-store.js';
 import { preparedMigration, createPreparedStore, type PreparedStore } from '../recording/prepared-store.js';
-import { masterVersionsMigration, createMasterVersionsStore, type MasterVersionsStore } from '../recording/versions-store.js';
+import { masterVersionsMigration, createMasterVersionsStore, verifyVersionDistributionDatabase, type MasterVersionsStore } from '../recording/versions-store.js';
 import { preparationMigration, createPreparationStore, type PreparationStore } from '../recording/preparation-store.js';
 import { mediaPlanningMigration, createMediaPlanningStore, type MediaPlanningStore } from '../recording/media-store.js';
 import type { MediaStockCandidate } from '../recording/media-planner.js';
 import type { MediaReservation, ReserveMediaRequest, ReleaseMediaRequest } from '@music-bridge/contracts';
 import { sourceEvidenceMigration, createSourceStore, type SourceStore } from '../recording/source-store.js';
 import { masterDraftsMigration, createMasterDraftsRepository, type MasterDraftsRepository } from '../recording/drafts.js';
+import { recordingWorkspaceMigration, createRecordingWorkspaceStore, verifyRecordingWorkspaceDatabase, type RecordingWorkspaceStore } from '../recording/workspace-context-store.js';
 import { physicalLinksMigration, createPhysicalLinksRepository, type PhysicalLinksRepository } from './physical-links.js';
 import { physicalMusicMigration, createPhysicalMusicRepository, type PhysicalMusicRepository } from './physical-music.js';
+import { migrateCommercialProvenance, verifyCommercialProvenanceDatabase } from './commercial-provenance.js';
+import { migrateOutputRunBarriers, verifyOutputRunBarrierDatabase } from '../recording/output-run-barrier.js';
+import { createPreparationZipStore, preparationZipMigration, preparationZipSessionMigration, verifyPreparationZipDatabase, verifyPreparationZipSessionDatabase, type PreparationZipStore } from '../recording/preparation-export-store.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { closeSync, constants, fchmodSync, lstatSync, mkdirSync, openSync } from 'node:fs';
 import path from 'node:path';
@@ -35,10 +40,11 @@ import {
   isCollectionId, isCollectionReceiveRequest, isCollectionMaterializeRequest,
   isCollectionUpdateCopyRequest, isCollectionPolicyRequest, isCollectionModel,
   isCollectionDetail, isCollectionMutationResult,
+  isCollectionCopyDetail, isPhysicalId,
   isCollectionFilter, isCollectionAddPhotoRequest, isCollectionChangePhotoRequest, isCollectionPhotoImage,
   MAX_COLLECTION_PHOTO_BYTES, MAX_COLLECTION_PHOTOS_PER_MODEL,
   type CollectionFilter, type CollectionPhoto, type CollectionPhotoImage, type CollectionAddPhotoRequest, type CollectionChangePhotoRequest,
-  type CollectionModel, type CollectionDetail, type CollectionLot, type CollectionCopy,
+  type CollectionModel, type CollectionDetail, type CollectionCopyDetail, type CollectionLot, type CollectionCopy, type CollectionReservationOwner,
   type CollectionReceiveRequest, type CollectionMaterializeRequest,
   type CollectionUpdateCopyRequest, type CollectionPolicyRequest, type CollectionMutationResult,
   type CollectionDescriptor, type CollectionCounts, type CollectorPolicy, type Page, type PageRequest,
@@ -63,10 +69,12 @@ export interface CollectionRepository {
   archive: ArchiveStore;
   music: PhysicalMusicRepository;
   drafts: MasterDraftsRepository;
+  workspace: RecordingWorkspaceStore;
   sources: SourceStore;
   media: MediaPlanningStore;
   versions: MasterVersionsStore;
   preparations: PreparationStore;
+  preparationZips: PreparationZipStore;
   prepared: PreparedStore;
   links: PhysicalLinksRepository;
   list(page: PageRequest, filter?: CollectionFilter): Page<CollectionModel>;
@@ -74,6 +82,7 @@ export interface CollectionRepository {
   photo(photoId: string): CollectionPhotoImage;
   changePhoto(request: CollectionChangePhotoRequest): CollectionMutationResult;
   detail(modelId: string, page: PageRequest): CollectionDetail;
+  copy(physicalId: string): CollectionCopyDetail;
   receive(request: CollectionReceiveRequest): CollectionMutationResult;
   materialize(request: CollectionMaterializeRequest): CollectionMutationResult;
   updateCopy(request: CollectionUpdateCopyRequest): CollectionMutationResult;
@@ -160,7 +169,7 @@ function paged<T>(items: T[], page: PageRequest, total: number): Page<T> {
   return { items, ...page, total, hasMore: page.offset + items.length < total };
 }
 
-export function createCollectionRepository(options: { filePath: string; beforeCommit?: (action: string) => void }): CollectionRepository {
+export function createCollectionRepository(options: { filePath: string; stagingRoot?: string; beforeCommit?: (action: string) => void }): CollectionRepository {
   let database: DatabaseSync | undefined;
   let closed = false;
   let activeSnapshots = 0;
@@ -189,17 +198,17 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
       // WAL 恢复期间，首次版本读取也可能遇到短暂锁；先设置等待，再访问数据库内容。
       db.exec('PRAGMA busy_timeout=1000');
       const version = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-      if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].includes(version)) return unavailable();
+      if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30].includes(version)) return unavailable();
       if (version === 0 && Number(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").get()?.n) !== 0) return unavailable();
       db.exec('PRAGMA trusted_schema=OFF; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
-      if (version < 21) {
+      if (version < 30) {
         // 重建被其他表引用的批次表：事务外暂关检查，提交前核验，退出时始终恢复。
         db.exec('PRAGMA foreign_keys=OFF');
         db.exec('BEGIN IMMEDIATE');
         try {
           // 等待写锁后重读版本，避免两个首次连接同时执行迁移。
           const currentVersion = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-          if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].includes(currentVersion)) return unavailable();
+          if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30].includes(currentVersion)) return unavailable();
           if (currentVersion === 0) db.exec(schema);
           if (currentVersion < 2) { db.exec(photoMigration); options.beforeCommit?.('migrate-photos'); }
           if (currentVersion < 3) { db.exec(physicalMusicMigration); options.beforeCommit?.('migrate-music'); }
@@ -221,6 +230,15 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
           if (currentVersion < 19) { db.exec(recordingAttemptsMigration); options.beforeCommit?.('migrate-recording-attempts'); }
           if (currentVersion < 20) { migrateRecordingRecords(db); options.beforeCommit?.('migrate-recording-records'); }
           if (currentVersion < 21) { verifyRecordingRecordDatabase(db); migrateRecordingPrints(db); options.beforeCommit?.('migrate-recording-prints'); }
+          if (currentVersion < 22) { db.exec(recordingWorkspaceMigration); options.beforeCommit?.('migrate-recording-workspace'); }
+          if (currentVersion < 23) { migrateRecordingPrintVersions(db); options.beforeCommit?.('migrate-recording-print-versions'); }
+          if (currentVersion < 24) { migrateCommercialProvenance(db); options.beforeCommit?.('migrate-commercial-provenance'); }
+          if (currentVersion < 25) { migrateOutputRunBarriers(db); db.exec('PRAGMA user_version=25'); options.beforeCommit?.('migrate-output-run-barriers'); }
+          if (currentVersion < 26) { db.exec(preparationZipMigration); db.exec('PRAGMA user_version=26'); options.beforeCommit?.('migrate-preparation-zips'); }
+          if (currentVersion < 27) { db.exec(recordingRecordPageMigration); options.beforeCommit?.('migrate-recording-record-page'); }
+          if (currentVersion < 28) { db.exec(referenceCatalogZipMigration); options.beforeCommit?.('migrate-reference-source-zips'); }
+          if (currentVersion < 29) { migrateRecordingRecordPageSearch(db); options.beforeCommit?.('migrate-recording-record-page-search'); }
+          if (currentVersion < 30) { db.exec(preparationZipSessionMigration); options.beforeCommit?.('migrate-preparation-zip-session'); }
           if (db.prepare('PRAGMA foreign_key_check').get()) return unavailable();
           db.exec('COMMIT');
         } catch (error) { db.exec('ROLLBACK'); throw error; }
@@ -228,7 +246,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
       }
       db.exec('BEGIN IMMEDIATE');
       try {
-        verifyRecordingRecordDatabase(db); recoverRecordingPrints(db);
+        verifyVersionDistributionDatabase(db); verifyRecordingRecordDatabase(db); verifyRecordingWorkspaceDatabase(db); verifyCommercialProvenanceDatabase(db); verifyOutputRunBarrierDatabase(db); verifyPreparationZipDatabase(db); verifyRecordingRecordPageIndex(db); verifyReferenceCatalogZipDatabase(db); verifyRecordingRecordPageSearch(db); verifyPreparationZipSessionDatabase(db); recoverRecordingPrints(db);
         const attemptCandidate = recoverRecordingAttempts(db, new Date().toISOString(), options.beforeCommit ? undefined : attemptAudit);
         options.beforeCommit?.('recover-recording-attempts'); db.exec('COMMIT');
         if (!options.beforeCommit) attemptAudit.publish(db, attemptCandidate);
@@ -286,9 +304,26 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
     if (m.collectorPolicy === 'collector') conflict('该型号设为收藏保护，请先明确修改保护策略。');
     if (sealed && (m.collectorPolicy === 'preserve-sealed' || m.counts.sealedBlank <= m.minimumSealedReserve)) conflict('该操作触及封存保护或最低保留数量。');
   }
+  function reservationOwner(db: DatabaseSync, row: CopyRow): CollectionReservationOwner {
+    const owner = one<{ reservation_plan_id: string; reservation_data: string; plan_id: string | null; draft_id: string | null; plan_data: string | null }>(db,
+      'SELECT r.plan_id AS reservation_plan_id,r.data AS reservation_data,p.id AS plan_id,p.draft_id,p.data AS plan_data FROM media_reservations r LEFT JOIN media_plans p ON p.id=r.plan_id WHERE r.physical_id=?', row.physical_id);
+    if (!owner) return { kind: 'inventory' };
+    try {
+      const reservation = JSON.parse(owner.reservation_data) as Record<string, unknown>;
+      const plan = JSON.parse(owner.plan_data ?? 'null') as Record<string, unknown> | null;
+      if (isCollectionId(owner.reservation_plan_id) && owner.plan_id === owner.reservation_plan_id && isCollectionId(owner.draft_id)
+        && reservation.physicalId === row.physical_id && reservation.modelId === row.model_id && reservation.skuId === row.sku_id && reservation.packaging === row.packaging
+        && plan?.id === owner.plan_id && plan.draftId === owner.draft_id) {
+        return { kind: 'recording-plan', draftId: owner.draft_id, planId: owner.plan_id };
+      }
+    } catch { /* 归属证据异常时不提供任何可取消的猜测。 */ }
+    return { kind: 'unknown' };
+  }
   function publicCopy(db: DatabaseSync, row: CopyRow): CollectionCopy {
     return { physicalId: row.physical_id, lotId: row.lot_id, skuId: row.sku_id, lengthMinutes: row.minutes || null,
-      packaging: row.packaging, usage: row.usage, available: row.available === 1, origin: row.origin, revision: row.revision, ...(getRecordingCopyProjection(db, row.physical_id) ?? (row.usage === 'recorded' && row.recording_title ? { recordingTitle: row.recording_title } : {})) };
+      packaging: row.packaging, usage: row.usage, available: row.available === 1, origin: row.origin, revision: row.revision,
+      ...(row.usage === 'reserved' ? { reservationOwner: reservationOwner(db, row) } : {}),
+      ...(getRecordingCopyProjection(db, row.physical_id) ?? (row.usage === 'recorded' && row.recording_title ? { recordingTitle: row.recording_title } : {})) };
   }
   function transaction<T extends { commandId: string }>(action: string, request: T, valid: boolean,
     operation: (db: DatabaseSync) => { result: CollectionMutationResult; evidence: unknown }): CollectionMutationResult {
@@ -355,10 +390,13 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
   function reserveMediaStock(db: DatabaseSync, request: ReserveMediaRequest): MediaReservation {
     const sku = one<{ id: string; model_id: string }>(db, 'SELECT id,model_id FROM collection_skus WHERE id=?', request.skuId);
     if (!sku) return conflict('库存时长规格不存在。');
+    let copy = request.physicalId
+      ? one<CopyRow>(db, `${copySelect} WHERE c.physical_id=?`, request.physicalId)
+      : one<CopyRow>(db, `${copySelect} WHERE l.sku_id=? AND c.available=1 AND c.usage IN ('blank','erased') AND NOT EXISTS(SELECT 1 FROM recording_record_current rc WHERE rc.physical_id=c.physical_id) AND c.packaging=? ORDER BY c.physical_id LIMIT 1`, request.skuId, request.packaging);
+    if (request.physicalId && (!copy || copy.revision !== request.expectedPhysicalRevision || copy.sku_id !== request.skuId || copy.packaging !== request.packaging || copy.available !== 1 || !['blank','erased'].includes(copy.usage) || db.prepare('SELECT 1 FROM recording_record_current WHERE physical_id=?').get(request.physicalId))) return conflict('指定磁带已改变或不可预留，请刷新后重新选择。');
     ensureConsumable(db, sku.model_id, request.packaging === 'sealed');
-    let copy = one<CopyRow>(db, `${copySelect} WHERE l.sku_id=? AND c.available=1 AND c.usage IN ('blank','erased') AND NOT EXISTS(SELECT 1 FROM recording_record_current rc WHERE rc.physical_id=c.physical_id) AND c.packaging=? ORDER BY c.physical_id LIMIT 1`, request.skuId, request.packaging);
     let poolEvidence: unknown;
-    if (!copy) {
+    if (!copy && !request.physicalId) {
       const column = request.packaging === 'opened' ? 'opened' : 'sealed';
       const lot = one<{ id: string }>(db, `SELECT id FROM inventory_lots WHERE sku_id=? AND ${column}>0 ORDER BY rowid LIMIT 1`, request.skuId);
       if (!lot) return conflict('这类空白磁带已无可用数量。');
@@ -368,7 +406,8 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
     }
     if (!copy || !['blank','erased'].includes(copy.usage)) return conflict('副本已被其他操作占用。');
     const before = publicCopy(db, copy);
-    db.prepare("UPDATE physical_copies SET usage='reserved',reserved_from=usage,revision=revision+1 WHERE physical_id=?").run(copy.physical_id);
+    const changed = db.prepare("UPDATE physical_copies SET usage='reserved',reserved_from=usage,revision=revision+1 WHERE physical_id=? AND revision=? AND available=1 AND usage IN ('blank','erased')").run(copy.physical_id, copy.revision);
+    if (changed.changes !== 1) return conflict('副本已被其他操作占用。');
     const reservation: MediaReservation = { physicalId: copy.physical_id, modelId: sku.model_id, skuId: sku.id, packaging: request.packaging };
     mediaStockLedger(db, 'recording-reserve', request, { modelId: sku.model_id, lotId: copy.lot_id, physicalId: copy.physical_id }, { planId: request.planId, before, reservation, ...(poolEvidence ? { poolEvidence } : {}) });
     return reservation;
@@ -428,17 +467,21 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
     recordingPlans: createRecordingPlanStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     collectionProgress: createCollectionProgressStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     spreadsheetImports: createSpreadsheetImportStore({ read: guarded, conflict, receive: receiveInTransaction, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
-    catalog: createReferenceCatalogStore({ read: guarded, model, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
+    catalog: createReferenceCatalogStore({ read: guarded, model, conflict,
+      ...(options.filePath !== ':memory:' || options.stagingRoot ? { stagingRoot: options.stagingRoot ?? path.join(path.dirname(options.filePath), 'reference-source-zip-staging') } : {}),
+      ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     music, links,
     archive: createArchiveStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     execution: createExecutionStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     recordingProfiles: createRecordingProfilesStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     prepared: createPreparedStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     preparations: createPreparationStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
+    preparationZips: createPreparationZipStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     versions: createMasterVersionsStore({ read: guarded, conflict, media, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     media,
     sources: createSourceStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     drafts: createMasterDraftsRepository({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
+    workspace: createRecordingWorkspaceStore({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     list(page, filter = {}) {
       if (!validPage(page) || !isCollectionFilter(filter)) return conflict('库存请求无效，请检查分页和筛选。');
       const conditions: string[] = [], values: SQLInputValue[] = [];
@@ -468,6 +511,21 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
         return detail;
       });
     },
+    copy(physicalId) {
+      if (!isPhysicalId(physicalId)) return conflict('实体副本编号无效。');
+      return guarded(db => {
+        db.exec('BEGIN');
+        try {
+          const row = one<CopyRow>(db, `${copySelect} WHERE c.physical_id=?`, physicalId);
+          if (!row) return conflict('实体副本不存在，请刷新收藏。');
+          const copyIndex = count(db, 'SELECT COUNT(*) AS n FROM physical_copies c JOIN inventory_lots l ON l.id=c.lot_id JOIN collection_skus s ON s.id=l.sku_id WHERE s.model_id=? AND c.rowid>(SELECT rowid FROM physical_copies WHERE physical_id=?)', row.model_id, physicalId);
+          const result: CollectionCopyDetail = { modelId: row.model_id, copy: publicCopy(db, row), copyIndex };
+          if (!isCollectionCopyDetail(result) || result.copy.physicalId !== physicalId) return unavailable();
+          db.exec('COMMIT');
+          return result;
+        } catch (error) { db.exec('ROLLBACK'); throw error; }
+      });
+    },
     receive(request) { return transaction('receive', request, isCollectionReceiveRequest(request), db => receiveInTransaction(db, request)); },
     materialize(request) { return transaction('materialize', request, isCollectionMaterializeRequest(request), db => materializeInTransaction(db, request)); },
     updateCopy(request) {
@@ -481,7 +539,7 @@ export function createCollectionRepository(options: { filePath: string; beforeCo
           reservedFrom = usage; usage = 'reserved';
         } else if (request.action === 'cancel-reservation') {
           assertRecordingAttemptCopyReleasable(db, request.physicalId, conflict);
-          if (db.prepare('SELECT 1 FROM media_reservations WHERE physical_id=?').get(request.physicalId)) return conflict('这盘磁带属于录音规划，请从该规划取消预留。');
+          if (reservationOwner(db, copy).kind !== 'inventory') return conflict('这盘磁带属于录音规划或归属未确认，请从该规划核对并取消预留。');
           if (usage !== 'reserved' || !['blank', 'erased'].includes(reservedFrom ?? '')) return conflict('该副本没有可取消的预留。');
           usage = reservedFrom as 'blank' | 'erased'; reservedFrom = null;
         } else available = request.action === 'mark-available' ? 1 : 0;

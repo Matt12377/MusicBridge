@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
-import { isCollectionId, isDigitalAlbum, isDigitalAlbumMetadata, isPhysicalLinksSnapshot, isDigitalAlbumDetail, isMusicEntry, isPhysicalLinkResult, isCollectionMatrixRow,
-  type DigitalAlbum, type DigitalAlbumMetadata, type DigitalAlbumDetail, type PhysicalLinksSnapshot, type PhysicalDigitalLink, type PhysicalLinkResult, type PhysicalRelation, type ConfirmAbsenceRequest, type RemovePhysicalLinkRequest, type CollectionMatrixRow, type Page, type PageRequest } from '@music-bridge/contracts';
+import { isCollectionId, isDigitalAlbum, isDigitalAlbumMetadata, isPhysicalLinksSnapshot, isDigitalAlbumDetail, isMusicEntry, isPhysicalLinkResult, isPhysicalLinkHistoryEvent, isCollectionMatrixRow,
+  type DigitalAlbum, type DigitalAlbumMetadata, type DigitalAlbumDetail, type PhysicalLinksSnapshot, type PhysicalDigitalLink, type PhysicalLinkHistoryEvent, type PhysicalLinkResult, type PhysicalRelation, type ConfirmAbsenceRequest, type RemovePhysicalLinkRequest, type LegacyRemovePhysicalLinkRequest, type CollectionMatrixRow, type Page, type PageRequest } from '@music-bridge/contracts';
 import type { PhysicalMusicRepository } from './physical-music.js';
 
 export const physicalLinksMigration = `
@@ -13,16 +13,17 @@ CREATE TRIGGER links_ledger_no_update BEFORE UPDATE ON physical_links_ledger BEG
 CREATE TRIGGER links_ledger_no_delete BEFORE DELETE ON physical_links_ledger BEGIN SELECT RAISE(ABORT,'immutable ledger'); END;
 PRAGMA user_version=4;
 `;
-export interface LinkCommit { commandId: string; fingerprint: string; releaseId: string; expectedRevision: number; relation: PhysicalRelation; ripFromCdConfirmed: boolean; digitalId?: string; metadata?: DigitalAlbumMetadata }
+export interface LinkCommit { commandId: string; fingerprint: string; releaseId: string; expectedRevision: number; relation: PhysicalRelation; ripFromCdConfirmed: boolean; reason?: string | null; legacyRequest?: boolean; origin?: 'roon-candidate' | 'existing-digital'; digitalId?: string; metadata?: DigitalAlbumMetadata }
 export interface PhysicalLinksRepository {
   digitalList(page: PageRequest): Page<DigitalAlbum>;
   digitalDetail(id: string): DigitalAlbumDetail;
   physical(releaseId: string): PhysicalLinksSnapshot;
+  history(releaseId: string, page: PageRequest): Page<PhysicalLinkHistoryEvent>;
   cached(commandId: string, fingerprint: string): PhysicalLinkResult | undefined;
   link(request: LinkCommit): PhysicalLinkResult;
   register(commandId: string, fingerprint: string, metadata: DigitalAlbumMetadata, absent: boolean): PhysicalLinkResult;
   relocate(commandId: string, fingerprint: string, id: string, expectedRevision: number, metadata: DigitalAlbumMetadata): PhysicalLinkResult;
-  remove(request: RemovePhysicalLinkRequest, fingerprint: string): PhysicalLinkResult;
+  remove(request: RemovePhysicalLinkRequest | LegacyRemovePhysicalLinkRequest, fingerprint: string): PhysicalLinkResult;
   absence(request: ConfirmAbsenceRequest, fingerprint: string): PhysicalLinkResult;
   matrix(page: PageRequest, query?: string): Page<CollectionMatrixRow>;
 }
@@ -62,11 +63,28 @@ export function createPhysicalLinksRepository(access: Access): PhysicalLinksRepo
       links: db.prepare('SELECT * FROM physical_digital_links WHERE release_id=? ORDER BY rowid').all(releaseId).map(row => ({ link: toLink(row), album: album(db, String(row.digital_id)) })) };
     if (!isPhysicalLinksSnapshot(result)) return unavailable(); return result;
   }
+  function appendHistory(db: DatabaseSync, event: PhysicalLinkHistoryEvent): void {
+    if (!isPhysicalLinkHistoryEvent(event)) return unavailable();
+    db.prepare('INSERT INTO physical_link_history(id,release_id,event_json) VALUES (?,?,?)').run(event.id, event.releaseId, JSON.stringify(event));
+  }
   return {
     cached(commandId, fingerprint) { return read(db => receipt(db, commandId, fingerprint)); },
     digitalList(page) { if (!pageValid(page)) return conflict('分页无效。'); return read(db => { const total = Number(db.prepare('SELECT COUNT(*) n FROM digital_albums').get()?.n); const items = db.prepare('SELECT id FROM digital_albums ORDER BY rowid DESC LIMIT ? OFFSET ?').all(page.limit, page.offset).map(r => album(db, String(r.id))); return { items, ...page, total, hasMore: page.offset + items.length < total }; }); },
     digitalDetail(id) { if (!isCollectionId(id)) return conflict('数字对象编号无效。'); return read(db => { const result = { album: album(db, id), links: db.prepare('SELECT * FROM physical_digital_links WHERE digital_id=? ORDER BY rowid').all(id).map(row => ({ link: toLink(row), release: music.detail(String(row.release_id)).entry })) }; if (!isDigitalAlbumDetail(result, isMusicEntry)) return unavailable(); return result; }); },
     physical(id) { if (!isCollectionId(id)) return conflict('发行版编号无效。'); return read(db => physical(db, id)); },
+    history(releaseId, page) {
+      if (!isCollectionId(releaseId) || !pageValid(page)) return conflict('关系历史分页或发行编号无效。');
+      return read(db => {
+        physical(db, releaseId);
+        const total = Number(db.prepare('SELECT COUNT(*) n FROM physical_link_history WHERE release_id=?').get(releaseId)?.n);
+        const items = db.prepare('SELECT event_json FROM physical_link_history WHERE release_id=? ORDER BY rowid DESC LIMIT ? OFFSET ?').all(releaseId, page.limit, page.offset).map(row => {
+          const event: unknown = JSON.parse(String(row.event_json));
+          if (!isPhysicalLinkHistoryEvent(event) || event.releaseId !== releaseId) return unavailable();
+          return event;
+        });
+        return { items, ...page, total, hasMore: page.offset + items.length < total };
+      });
+    },
     link(request) {
       return transaction(request.commandId, request.fingerprint, 'confirm-physical-link', db => {
         const current = physical(db, request.releaseId);
@@ -77,8 +95,14 @@ export function createPhysicalLinksRepository(access: Access): PhysicalLinksRepo
         const prior = db.prepare('SELECT * FROM physical_digital_links WHERE release_id=? AND digital_id=?').get(request.releaseId, digitalId);
         if (!prior && (current.links.length >= 20 || Number(db.prepare('SELECT COUNT(*) n FROM physical_digital_links WHERE digital_id=?').get(digitalId)?.n) >= 100)) return conflict('关联数量已达上限，请先整理现有关系。');
         const linkId = prior ? String(prior.id) : randomUUID();
+        const before = prior ? toLink(prior) : undefined;
         if (prior) db.prepare('UPDATE physical_digital_links SET relation=?,rip_confirmed=?,revision=revision+1 WHERE id=?').run(request.relation, request.ripFromCdConfirmed ? 1 : 0, linkId);
         else db.prepare('INSERT INTO physical_digital_links VALUES (?,?,?,?,?,1)').run(linkId, request.releaseId, digitalId, request.relation, request.ripFromCdConfirmed ? 1 : 0);
+        const after = toLink(db.prepare('SELECT * FROM physical_digital_links WHERE id=?').get(linkId)!);
+        const legacyRequest = request.legacyRequest ?? request.reason === undefined;
+        appendHistory(db, { id: randomUUID(), releaseId: request.releaseId, kind: before ? 'corrected' : 'confirmed', occurredAt: new Date().toISOString(), digitalId, linkId,
+          ...(before ? { before } : {}), after,
+          evidence: { source: request.origin ?? (request.digitalId ? 'existing-digital' : 'roon-candidate'), metadata: album(db, digitalId).metadata, reason: legacyRequest ? null : request.reason!, userConfirmed: true, legacyRequest } });
         db.prepare('INSERT INTO physical_digital_absence VALUES (?,0) ON CONFLICT(release_id) DO UPDATE SET confirmed=0').run(request.releaseId);
         db.prepare('UPDATE music_releases SET revision=revision+1 WHERE id=?').run(request.releaseId);
         db.prepare('UPDATE digital_albums SET physical_absent=0,revision=revision+1 WHERE id=?').run(digitalId);
@@ -97,7 +121,11 @@ export function createPhysicalLinksRepository(access: Access): PhysicalLinksRepo
       return transaction(request.commandId, fingerprint, 'remove-physical-link', db => {
         const row = db.prepare('SELECT * FROM physical_digital_links WHERE id=?').get(request.linkId);
         if (!row || row.revision !== request.expectedRevision) return conflict('关联已改变，请刷新。');
+        const before = toLink(row);
+        const metadata = album(db, before.digitalId).metadata;
         db.prepare('DELETE FROM physical_digital_links WHERE id=?').run(request.linkId);
+        appendHistory(db, { id: randomUUID(), releaseId: before.releaseId, kind: 'revoked', occurredAt: new Date().toISOString(), digitalId: before.digitalId, linkId: before.id, before,
+          evidence: { source: 'explicit-removal', metadata, reason: 'reason' in request ? request.reason : null, userConfirmed: 'reason' in request ? true : null, legacyRequest: !('reason' in request) } });
         db.prepare('UPDATE music_releases SET revision=revision+1 WHERE id=?').run(String(row.release_id));
         db.prepare('UPDATE digital_albums SET revision=revision+1 WHERE id=?').run(String(row.digital_id));
         return { id: String(row.release_id), digitalId: String(row.digital_id), linkId: request.linkId };

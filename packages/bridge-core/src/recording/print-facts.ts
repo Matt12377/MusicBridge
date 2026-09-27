@@ -1,14 +1,20 @@
 import { createHash } from 'node:crypto';
 import {
-  RECORDING_PRINT_GEOMETRY, RECORDING_PRINT_TEMPLATE_ID, MAX_RECORDING_PRINT_PAGES,
-  isRecordingRecord, isRecordingPlanVersion, isRecordingPrintFacts, isRecordingPrintRequest,
-  type RecordingRecord, type RecordingPlanVersion, type RecordingPrintFacts, type RecordingPrintRequest,
+  RECORDING_PRINT_GEOMETRY, RECORDING_PRINT_TEMPLATE_ID, RECORDING_PRINT_DESIGN_TEMPLATE_ID, MAX_RECORDING_PRINT_PAGES,
+  isRecordingRecord, isRecordingPlanVersion, isRecordingPrintFacts, isRecordingPrintRequest, isRecordingPrintDesign,
+  type RecordingRecord, type RecordingPlanVersion, type RecordingPrintFacts, type RecordingPrintRequest, type RecordingPrintDesign,
 } from '@music-bridge/contracts';
+import { verifyFrozenDistribution } from './version-distribution.js';
 
 /** 仅固定模板语义；真实PDF渲染由受限Main producer完成。 */
 export const RECORDING_PRINT_TEMPLATE_SPEC = Object.freeze({
   id: RECORDING_PRINT_TEMPLATE_ID, version: 1, geometry: RECORDING_PRINT_GEOMETRY,
   layout: 'outside-then-inside-continuations', minBodyFontPt: 7.5, maxPages: MAX_RECORDING_PRINT_PAGES,
+});
+export const RECORDING_PRINT_DESIGN_TEMPLATE_SPEC = Object.freeze({
+  id: RECORDING_PRINT_DESIGN_TEMPLATE_ID, version: 1,
+  geometry: 'bounded-user-input-v1', layout: 'outside-then-inside-continuations',
+  foldAndTrimGuides: true, qrPayload: 'frozen-recording-summary-v1', minBodyFontPt: 7.5, maxPages: MAX_RECORDING_PRINT_PAGES,
 });
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
@@ -17,6 +23,7 @@ function canonical(value: unknown): string {
 }
 function digest(value: unknown): string { return createHash('sha256').update(canonical(value)).digest('hex'); }
 export const RECORDING_PRINT_TEMPLATE_HASH = digest(RECORDING_PRINT_TEMPLATE_SPEC);
+export const RECORDING_PRINT_DESIGN_TEMPLATE_HASH = digest(RECORDING_PRINT_DESIGN_TEMPLATE_SPEC);
 export class RecordingPrintFactsError extends Error {
   constructor(readonly code: 'INVALID_HISTORY' | 'NOT_APPLICABLE' | 'INVALID_REQUEST') { super(code); this.name = 'RecordingPrintFactsError'; }
 }
@@ -24,7 +31,7 @@ const reject = (code: RecordingPrintFactsError['code']): never => { throw new Re
 
 /** 从冻结Record/Plan提取；不访问数据库、当前型号、当前Artwork或执行准入。 */
 export function buildRecordingPrintFacts(record: RecordingRecord, plan: RecordingPlanVersion): RecordingPrintFacts {
-  if (!isRecordingRecord(record) || !isRecordingPlanVersion(plan)) return reject('INVALID_HISTORY');
+  if (!isRecordingRecord(record) || !isRecordingPlanVersion(plan) || !verifyFrozenDistribution(plan.master, plan.layout)) return reject('INVALID_HISTORY');
   const c = record.completion, media = record.media;
   if (c.planVersionId !== plan.id || c.planContentHash !== plan.contentHash || c.draftId !== plan.draftId || c.executionAssetId !== plan.execution.assetId
     || c.physicalId !== plan.physicalCopy.physicalId || media.modelId !== plan.layout.reservation.modelId || media.skuId !== plan.physicalCopy.skuId
@@ -63,8 +70,27 @@ export function hashRecordingPrintInput(input: { factsHash: string; templateHash
   if (Object.keys(input).length !== 2 || ![input.factsHash, input.templateHash].every(value => typeof value === 'string' && value.length === 64 && /^[a-f0-9]{64}$/u.test(value))) return reject('INVALID_REQUEST');
   return digest(input);
 }
+export function hashRecordingPrintDesign(design: RecordingPrintDesign): string {
+  if (!isRecordingPrintDesign(design)) return reject('INVALID_REQUEST');
+  return digest(design);
+}
+export function createRecordingPrintVersionRequest(input: {
+  id: string; record: RecordingRecord; plan: RecordingPlanVersion; design: RecordingPrintDesign; createdAt: string;
+}): { request: RecordingPrintRequest; facts: RecordingPrintFacts } {
+  const { id, record, plan, design, createdAt } = input;
+  const facts = buildRecordingPrintFacts(record, plan);
+  if (!isRecordingPrintDesign(design) || createdAt < record.createdAt) return reject('INVALID_REQUEST');
+  const factsHash = hashRecordingPrintFacts(facts), templateHash = design.schemaVersion === 1 ? RECORDING_PRINT_TEMPLATE_HASH : RECORDING_PRINT_DESIGN_TEMPLATE_HASH, designHash = hashRecordingPrintDesign(design);
+  const request: RecordingPrintRequest = {
+    id, recordingId: record.id, recordingContentHash: record.contentHash, planVersionId: plan.id, planContentHash: plan.contentHash,
+    origin: 'manual-version', templateId: design.schemaVersion === 1 ? RECORDING_PRINT_TEMPLATE_ID : RECORDING_PRINT_DESIGN_TEMPLATE_ID, templateHash, factsHash,
+    inputHash: digest({ factsHash, templateHash, designHash }), createdAt, design: structuredClone(design), designHash,
+  };
+  if (!isRecordingPrintRequest(request)) return reject('INVALID_REQUEST');
+  return { request, facts };
+}
 export function createRecordingPrintRequest(input: {
-  id: string; record: RecordingRecord; plan: RecordingPlanVersion; origin: RecordingPrintRequest['origin']; createdAt: string;
+  id: string; record: RecordingRecord; plan: RecordingPlanVersion; origin: 'completion' | 'historical-backfill'; createdAt: string;
 }): { request: RecordingPrintRequest; facts: RecordingPrintFacts } {
   const { id, record, plan, origin, createdAt } = input;
   const facts = buildRecordingPrintFacts(record, plan);

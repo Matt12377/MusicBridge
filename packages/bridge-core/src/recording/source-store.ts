@@ -14,7 +14,9 @@ CREATE TRIGGER source_ledger_no_delete BEFORE DELETE ON source_ledger BEGIN SELE
 PRAGMA user_version=6;
 `;
 export interface StoredBinding { id: string; rootId: string; relative: string; acquisition: SourceSelection['acquisition']; evidence: FileEvidence; userConfirmed: boolean; invalidated: boolean }
-export interface StoredJob { public: SourceJob; selection: SourceSelection; relative: string; previousBindingId: string | null; recheck: boolean }
+/** 只由 Core 扫描器提供，不接受 Renderer 自报的文件/根身份。 */
+export interface CandidateFileConstraint { fileSignature: string; directoryIds: readonly string[]; rootDev: string; rootIno: string }
+export interface StoredJob { public: SourceJob; selection: SourceSelection; relative: string; previousBindingId: string | null; recheck: boolean; candidateConstraint?: CandidateFileConstraint }
 interface Access { read<T>(fn: (db: DatabaseSync) => T): T; conflict(message: string): never; beforeCommit?: (action: string) => void }
 export const sourceFingerprint = (v: unknown): string => createHash('sha256').update(JSON.stringify(v)).digest('hex');
 export function createSourceStore({ read, conflict, beforeCommit }: Access) {
@@ -59,16 +61,20 @@ export function createSourceStore({ read, conflict, beforeCommit }: Access) {
     linked: (draftId: string, trackId: string): StoredBinding | undefined => read(db => { const id = linked(db, draftId, trackId); return id ? binding(db, id) : undefined; }),
     job: (id: string): StoredJob | undefined => read(db => get(db, 'source_jobs', id)),
     jobs: (draftId: string, trackId: string): SourceJob[] => read(db => db.prepare("SELECT data FROM source_jobs WHERE json_extract(data,'$.public.draftId')=? AND json_extract(data,'$.public.trackId')=? ORDER BY rowid DESC LIMIT 20").all(draftId, trackId).map(r => (JSON.parse(String(r.data)) as StoredJob).public)),
-    start(selection: SourceSelection, relative: string, recheck: boolean): StoredJob {
+    start(selection: SourceSelection, relative: string, recheck: boolean, candidateConstraint?: CandidateFileConstraint): StoredJob {
       return transaction('start-source-probe', db => {
         const prior = get<StoredJob>(db, 'source_jobs', selection.commandId);
         if (prior) { if (sourceFingerprint(prior.selection) !== sourceFingerprint(selection) || prior.recheck !== recheck) return conflict('校验操作编号已被另一请求使用。'); return prior; }
         const fingerprint = sourceFingerprint(['probe', selection, recheck]); cached(db, selection.commandId, fingerprint);
         assertTrack(db, selection.draftId, selection.trackId);
+        if (selection.candidate) {
+          const row = db.prepare('SELECT revision FROM master_drafts WHERE id=?').get(selection.draftId);
+          if (!row || Number(row.revision) !== selection.candidate.expectedDraftRevision || !candidateConstraint) return conflict('候选对应的草稿或扫描证据已失效，请重新扫描。');
+        } else if (candidateConstraint) return conflict('普通源选择不能携带候选扫描约束。');
         if (!root(db, selection.rootId).authorized) return conflict('源目录授权已撤销。');
         const previousBindingId = linked(db, selection.draftId, selection.trackId);
         if (selection.relocateBindingId && selection.relocateBindingId !== previousBindingId) return conflict('只能重新定位当前曲目的源绑定。');
-        const result: StoredJob = { selection, relative, previousBindingId, recheck, public: { id: selection.commandId, draftId: selection.draftId, trackId: selection.trackId, rootId: selection.rootId, state: 'running' } };
+        const result: StoredJob = { selection, relative, previousBindingId, recheck, ...(candidateConstraint ? { candidateConstraint } : {}), public: { id: selection.commandId, draftId: selection.draftId, trackId: selection.trackId, rootId: selection.rootId, state: 'running' } };
         put(db, 'source_jobs', selection.commandId, result); receipt(db, selection.commandId, fingerprint, selection.commandId); return result;
       });
     },
@@ -78,8 +84,12 @@ export function createSourceStore({ read, conflict, beforeCommit }: Access) {
         if (job.public.state !== 'running') return job.public;
         let failure: SourceFailure | undefined;
         const draft = get<{ tracks: { id: string }[] }>(db, 'master_drafts', job.selection.draftId);
+        const draftRevision = job.selection.candidate ? Number(db.prepare('SELECT revision FROM master_drafts WHERE id=?').get(job.selection.draftId)?.revision) : undefined;
         if (!root(db, job.selection.rootId).authorized) failure = 'REVOKED';
         else if (!draft?.tracks.some(t => t.id === job.selection.trackId) || linked(db, job.selection.draftId, job.selection.trackId) !== job.previousBindingId) failure = 'DRAFT_CHANGED';
+        else if (job.selection.candidate && draftRevision !== job.selection.candidate.expectedDraftRevision) failure = 'DRAFT_CHANGED';
+        else if (job.selection.candidate && (!job.candidateConstraint || evidence.signature !== job.candidateConstraint.fileSignature
+          || root(db, job.selection.rootId).dev !== job.candidateConstraint.rootDev || root(db, job.selection.rootId).ino !== job.candidateConstraint.rootIno)) failure = 'CANDIDATE_CHANGED';
         const prior = job.previousBindingId ? binding(db, job.previousBindingId) : undefined;
         if (!failure && job.selection.relocateBindingId && prior?.evidence.sha256 !== evidence.sha256) failure = job.recheck ? 'CONTENT_CHANGED' : 'HASH_MISMATCH';
         if (failure) {

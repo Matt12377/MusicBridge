@@ -18,7 +18,7 @@ export async function recordingAttemptFixture(t: test.TestContext, format: 'cass
     },
   };
   const attempts = createRecordingAttemptCoordinator({ store: f.repository.recordingAttempts, admissionProvider: provider });
-  t.after(() => attempts.close());
+  f.registerDependentCleanup(() => attempts.close());
   const beginRequest = () => ({ commandId: randomUUID(), planVersionId: frozenPlan.id, planContentHash: frozenPlan.contentHash, userConfirmed: true as const });
   return { ...f, frozenPlan, starts, provider, attempts, beginRequest, driverCounts: () => ({ stops, closes }) };
 }

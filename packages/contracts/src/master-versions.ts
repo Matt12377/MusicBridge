@@ -1,6 +1,6 @@
 import type { DraftProgramType, DraftTrackMetadata } from './master-drafts.js';
 import type { SourceBinding, SourceTechnical } from './source-evidence.js';
-import type { MediaLayoutSpec, MediaReservation } from './media-planning.js';
+import { isMediaDistributionSpec, type MediaDistributionSpec, type MediaLayoutSpec, type MediaReservation } from './media-planning.js';
 
 /** 内容身份不包含文件路径、定位编号或校验时间；重新定位相同内容不会生成另一母版。 */
 export interface MasterContentTrack {
@@ -13,9 +13,11 @@ export interface VersionTimelineTrack { trackId: string; sourceBindingId: string
 export interface VersionTimelineSide { name: 'A' | 'B' | 'Program'; capacityFrames: number; leadInFrames: number; tailFrames: number; totalFrames: number; tracks: readonly VersionTimelineTrack[] }
 /** 规划帧数不证明任何解码器、SRC 或输出设备已通过认证。 */
 export interface VersionTimeline { timebase: 'sample-frames'; sampleRate: number; rounding: 'nearest-half-up-v1'; sides: readonly VersionTimelineSide[] }
-export interface VersionMaterial { content: MasterContent; contentHash: string; timeline: VersionTimeline; timelineHash: string; executionReady: false }
+export interface VersionMaterial { content: MasterContent; contentHash: string; timeline: VersionTimeline; timelineHash: string; executionReady: false; distributionPlan?: MediaDistributionSpec }
 export interface MasterVersion { id: string; draftId: string; sequence: number; parentId?: string; title: string; createdAt: string; content: MasterContent; contentHash: string; sourceEvidence: readonly { trackId: string; binding: SourceBinding }[]; status: 'frozen' }
-export interface LayoutVersion { id: string; draftId: string; masterVersionId: string; sequence: number; parentId?: string; planId: string; createdAt: string; spec: MediaLayoutSpec; lengthMinutes: number; reservation: MediaReservation; timeline: VersionTimeline; timelineHash: string; status: 'frozen'; executionReady: false }
+/** 每盘携带同一完整分盘快照；摘要绑定实际 Master，不依赖后来创建的 Layout ID。 */
+export interface FrozenDistribution extends MediaDistributionSpec { masterVersionId: string; contentHash: string; distributionHash: string }
+export interface LayoutVersion { id: string; draftId: string; masterVersionId: string; sequence: number; parentId?: string; planId: string; createdAt: string; spec: MediaLayoutSpec; lengthMinutes: number; reservation: MediaReservation; timeline: VersionTimeline; timelineHash: string; distribution?: FrozenDistribution; status: 'frozen'; executionReady: false }
 export interface PreviewVersionsRequest { planId: string; sampleRate: number }
 export interface FreezeVersionsRequest extends PreviewVersionsRequest { commandId: string; proposalFingerprint: string; userConfirmed: true }
 export type VersionFailure = 'SOURCE_INVALID' | 'INPUT_CHANGED' | 'IO_ERROR' | 'CANCELLED';
@@ -74,11 +76,24 @@ export function isVersionTimeline(v: unknown): v is VersionTimeline {
 function material(v: Record<string, unknown>): boolean {
   if (!isMasterContent(v.content) || !isVersionTimeline(v.timeline) || !hash(v.contentHash) || !hash(v.timelineHash) || v.executionReady !== false) return false;
   const tracks = v.timeline.sides.flatMap(s => s.tracks);
-  return tracks.length === v.content.tracks.length && v.content.tracks.every((track, i) => tracks[i]?.trackId === track.trackId && tracks[i]?.sourceFrames === track.source.technical.sampleFrames && tracks[i]?.sourceSampleRate === track.source.technical.sampleRate);
+  const distribution = v.distributionPlan;
+  if (distribution !== undefined && !isMediaDistributionSpec(distribution)) return false;
+  const content = v.content.tracks;
+  const expected = distribution ? distribution.segmentSpecs[distribution.segmentIndex]!.trackIds.map(id => content.find(track => track.trackId === id)) : content;
+  if (distribution) {
+    const ordered = distribution.segmentSpecs.flatMap(segment => segment.trackIds);
+    if (ordered.length !== content.length || ordered.some((id, index) => id !== content[index]?.trackId)) return false;
+    let cursor = 0;
+    for (const segment of distribution.segmentSpecs.slice(0, -1)) {
+      cursor += segment.trackIds.length;
+      if (content[cursor - 1]?.keepWithNext) return false;
+    }
+  }
+  return tracks.length === expected.length && expected.every((track, i) => !!track && tracks[i]?.trackId === track.trackId && tracks[i]?.sourceFrames === track.source.technical.sampleFrames && tracks[i]?.sourceSampleRate === track.source.technical.sampleRate);
 }
 function reservation(v: unknown): v is MediaReservation { return record(v) && keys(v, ['physicalId','modelId','skuId','packaging']) && isPhysicalId(v.physicalId) && isCollectionId(v.modelId) && isCollectionId(v.skuId) && ['opened','sealed'].includes(String(v.packaging)); }
 export function isVersionProposal(v: unknown): v is VersionProposal {
-  return record(v) && keys(v, ['content','contentHash','timeline','timelineHash','executionReady','draftId','planId','proposalFingerprint','masterAction','existingMasterId','previousMasterId','lengthMinutes','reservation']) && material(v) && isCollectionId(v.draftId) && isCollectionId(v.planId) && hash(v.proposalFingerprint) && (v.masterAction === 'reuse' ? isCollectionId(v.existingMasterId) : v.masterAction === 'create' && v.existingMasterId === undefined) && (v.previousMasterId === undefined || isCollectionId(v.previousMasterId)) && integer(v.lengthMinutes, 1, 360) && reservation(v.reservation);
+  return record(v) && keys(v, ['content','contentHash','timeline','timelineHash','executionReady','distributionPlan','draftId','planId','proposalFingerprint','masterAction','existingMasterId','previousMasterId','lengthMinutes','reservation']) && material(v) && isCollectionId(v.draftId) && isCollectionId(v.planId) && hash(v.proposalFingerprint) && (v.masterAction === 'reuse' ? isCollectionId(v.existingMasterId) : v.masterAction === 'create' && v.existingMasterId === undefined) && (v.previousMasterId === undefined || isCollectionId(v.previousMasterId)) && integer(v.lengthMinutes, 1, 360) && reservation(v.reservation);
 }
 export function isMasterVersion(v: unknown): v is MasterVersion {
   if (!record(v) || !keys(v, ['id','draftId','sequence','parentId','title','createdAt','content','contentHash','sourceEvidence','status']) || !isCollectionId(v.id) || !isCollectionId(v.draftId) || !integer(v.sequence, 1, 100) || (v.parentId !== undefined && (!isCollectionId(v.parentId) || v.parentId === v.id)) || !isDraftText(v.title) || !date(v.createdAt) || !hash(v.contentHash) || !isMasterContent(v.content) || v.status !== 'frozen' || !Array.isArray(v.sourceEvidence) || v.sourceEvidence.length !== v.content.tracks.length) return false;
@@ -86,12 +101,22 @@ export function isMasterVersion(v: unknown): v is MasterVersion {
   return v.sourceEvidence.every((e, i) => record(e) && keys(e, ['trackId','binding']) && e.trackId === content.tracks[i]!.trackId && isSourceBinding(e.binding) && e.binding.sourceLockEligible && e.binding.sha256 === content.tracks[i]!.source.sha256 && e.binding.technical.sampleFrames === content.tracks[i]!.source.technical.sampleFrames);
 }
 export function isLayoutVersion(v: unknown): v is LayoutVersion {
-  if (!record(v) || !keys(v, ['id','draftId','masterVersionId','sequence','parentId','planId','createdAt','spec','lengthMinutes','reservation','timeline','timelineHash','status','executionReady']) || !['id','draftId','masterVersionId','planId'].every(k => isCollectionId(v[k])) || !integer(v.sequence, 1, 100) || (v.parentId !== undefined && (!isCollectionId(v.parentId) || v.parentId === v.id)) || !date(v.createdAt) || !isMediaLayoutSpec(v.spec) || !integer(v.lengthMinutes, 1, 360) || !reservation(v.reservation) || !isVersionTimeline(v.timeline) || !hash(v.timelineHash) || v.status !== 'frozen' || v.executionReady !== false) return false;
+  if (!record(v) || !keys(v, ['id','draftId','masterVersionId','sequence','parentId','planId','createdAt','spec','lengthMinutes','reservation','timeline','timelineHash','distribution','status','executionReady']) || !['id','draftId','masterVersionId','planId'].every(k => isCollectionId(v[k])) || !integer(v.sequence, 1, 100) || (v.parentId !== undefined && (!isCollectionId(v.parentId) || v.parentId === v.id)) || !date(v.createdAt) || !isMediaLayoutSpec(v.spec) || !integer(v.lengthMinutes, 1, 360) || !reservation(v.reservation) || !isVersionTimeline(v.timeline) || !hash(v.timelineHash) || v.status !== 'frozen' || v.executionReady !== false) return false;
+  if ((v.spec.distribution === undefined) !== (v.distribution === undefined)) return false;
+  if (v.distribution !== undefined && (!isFrozenDistribution(v.distribution) || v.distribution.masterVersionId !== v.masterVersionId
+    || v.distribution.groupId !== v.spec.distribution?.groupId || v.distribution.segmentIndex !== v.spec.distribution.segmentIndex
+    || JSON.stringify(v.distribution.segmentSpecs) !== JSON.stringify(v.spec.distribution.segmentSpecs))) return false;
   const capacity = v.lengthMinutes * 60 * v.timeline.sampleRate / (v.spec.format === 'cassette' ? 2 : 1);
   return (v.spec.format === 'cassette' ? v.timeline.sides.length === 2 && v.timeline.sides[0]!.tracks.length === v.spec.splitAfter : v.timeline.sides.length === 1) && v.timeline.sides.every(s => s.capacityFrames === capacity);
+}
+export function isFrozenDistribution(v: unknown): v is FrozenDistribution {
+  return record(v) && keys(v, ['schemaVersion','groupId','segmentIndex','segmentSpecs','masterVersionId','contentHash','distributionHash'])
+    && isMediaDistributionSpec({ schemaVersion: v.schemaVersion, groupId: v.groupId, segmentIndex: v.segmentIndex, segmentSpecs: v.segmentSpecs })
+    && isCollectionId(v.masterVersionId) && hash(v.contentHash) && hash(v.distributionHash);
 }
 export function isVersionHistory(v: unknown): v is VersionHistory {
   if (!record(v) || !keys(v, ['draftId','masters','layouts','jobs']) || !isCollectionId(v.draftId) || !Array.isArray(v.masters) || v.masters.length > 100 || !v.masters.every(isMasterVersion) || !Array.isArray(v.layouts) || v.layouts.length > 100 || !v.layouts.every(isLayoutVersion) || !Array.isArray(v.jobs) || v.jobs.length > 1000 || !v.jobs.every(isVersionJob)) return false;
   const masters = v.masters, layouts = v.layouts;
-  return [...masters, ...layouts, ...v.jobs].every(item => item.draftId === v.draftId) && new Set(masters.map(m => m.id)).size === masters.length && new Set(layouts.map(l => l.id)).size === layouts.length && layouts.every(l => masters.some(m => m.id === l.masterVersionId && material({ content: m.content, contentHash: m.contentHash, timeline: l.timeline, timelineHash: l.timelineHash, executionReady: false }))) && v.jobs.every(j => j.state !== 'completed' || masters.some(m => m.id === j.masterVersionId) && layouts.some(l => l.id === j.layoutVersionId && l.masterVersionId === j.masterVersionId));
+  return [...masters, ...layouts, ...v.jobs].every(item => item.draftId === v.draftId) && new Set(masters.map(m => m.id)).size === masters.length && new Set(layouts.map(l => l.id)).size === layouts.length && layouts.every(l => masters.some(m => m.id === l.masterVersionId && (l.distribution === undefined || l.distribution.contentHash === m.contentHash)
+    && material({ content: m.content, contentHash: m.contentHash, timeline: l.timeline, timelineHash: l.timelineHash, distributionPlan: l.spec.distribution, executionReady: false }))) && v.jobs.every(j => j.state !== 'completed' || masters.some(m => m.id === j.masterVersionId) && layouts.some(l => l.id === j.layoutVersionId && l.masterVersionId === j.masterVersionId));
 }

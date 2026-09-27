@@ -10,6 +10,7 @@ import { createArchiveCoordinator } from '../../src/recording/archive-coordinato
 import { preparedExecutionFixture } from './prepared-execution-fixture.js';
 import { conversionFixture } from './conversion-fixture.js';
 import { recordingProfileContent } from './recording-profile-fixture.js';
+import { fakePlanDeviceSelection } from './fake-plan-device-selection.js';
 
 /** 真实Plan/归档和正常Attempt事务；仅输出提供者为构造器注入的合成驱动。 */
 export async function completeReplicaPlan(t:test.TestContext,repository:CollectionRepository,plan:RecordingPlanVersion) {
@@ -41,8 +42,9 @@ export async function preparedReplicaFixture(t:test.TestContext,mode:'prepared-r
   const parent=path.join(f.directory,'Replica归档');await mkdir(parent);const candidate=await archive.authorize(randomUUID(),parent);await archive.initialize({commandId:randomUUID(),id:candidate.id,userConfirmed:true});
   const archiveSelection={assetId:job.id,rootId:candidate.id,sourcePolicy:'reference-dependent' as const},p=await archive.preview({...archiveSelection,readId:randomUUID()});
   const archived=await archive.start({...archiveSelection,commandId:randomUUID(),proposalFingerprint:p.proposalFingerprint,userConfirmed:true});await archive.idle();
-  const plans=createRecordingPlanCoordinator({store:f.repository.recordingPlans});t.after(()=>plans.close());
-  const planSelection={assetId:job.id,archiveOperationId:archived.id},proposal=await plans.preview({selection:planSelection,readId:randomUUID()});
+  const fakeDevice=fakePlanDeviceSelection();
+  const plans=createRecordingPlanCoordinator({store:f.repository.recordingPlans,deviceSelection:fakeDevice.deviceSelection});t.after(()=>plans.close());
+  const planSelection={assetId:job.id,archiveOperationId:archived.id,outputSelection:fakeDevice.outputSelection!},proposal=await plans.preview({selection:planSelection,readId:randomUUID()});
   const plan=await plans.freeze({commandId:randomUUID(),selection:planSelection,proposalFingerprint:proposal.proposalFingerprint,userConfirmed:true});
   const recordingId=await completeReplicaPlan(t,f.repository,plan);
   return{...f,archive,plan,recordingId,root:f.repository.archive.root(candidate.id)};

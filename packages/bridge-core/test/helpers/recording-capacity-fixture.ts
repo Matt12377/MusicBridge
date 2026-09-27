@@ -15,8 +15,9 @@ import { createPreparationCoordinator } from '../../src/recording/preparation-co
 import { createExecutionCoordinator } from '../../src/recording/execution-coordinator.js';
 import { createArchiveCoordinator } from '../../src/recording/archive-coordinator.js';
 import { createRecordingPlanCoordinator } from '../../src/recording/plan-coordinator.js';
+import { fakePlanDeviceSelection } from './fake-plan-device-selection.js';
 import type { RecordingPlanVersion } from '@music-bridge/contracts';
-import { verifyRecordingAttemptDatabase } from '../../src/recording/attempt-integrity.js';
+import { AttemptError, verifyRecordingAttemptDatabase } from '../../src/recording/attempt-integrity.js';
 import { verifyRecordingRecordDatabase } from '../../src/recording/record-integrity.js';
 import { verifyRecordingPlanDatabase } from '../../src/recording/plan-integrity.js';
 
@@ -475,7 +476,8 @@ export async function prepareCapacityStopPlans(repository: CollectionRepository,
     sourceStore: repository.sources, sources, preparation });
   const archive = createArchiveCoordinator({ store: repository.archive, executionStore: repository.execution,
     preparationStore: repository.preparations, sourceStore: repository.sources, sources, preparation });
-  const plans = createRecordingPlanCoordinator({ store: repository.recordingPlans });
+  const fakeDevice = fakePlanDeviceSelection();
+  const plans = createRecordingPlanCoordinator({ store: repository.recordingPlans, deviceSelection: fakeDevice.deviceSelection });
   const result: RecordingPlanVersion[] = [];
   try {
     const sourceRoot = await sources.authorize(randomUUID(), path.join(workspace.path, 'source'));
@@ -517,7 +519,7 @@ export async function prepareCapacityStopPlans(repository: CollectionRepository,
       const archiveRequest = { ...archiveSelection, commandId: randomUUID(), proposalFingerprint: archivePreview.proposalFingerprint, userConfirmed: true as const };
       await archive.start(archiveRequest); await archive.idle();
       if (repository.archive.operation(archiveRequest.commandId)?.phase !== 'FINALIZED') throw new Error('Stop plan归档未完成');
-      const selection = { assetId: executionJob.id, archiveOperationId: archiveRequest.commandId };
+      const selection = { assetId: executionJob.id, archiveOperationId: archiveRequest.commandId, outputSelection: fakeDevice.outputSelection! };
       const planPreview = await plans.preview({ selection, readId: randomUUID() });
       result.push(await plans.freeze({ commandId: randomUUID(), selection, proposalFingerprint: planPreview.proposalFingerprint, userConfirmed: true }));
     }
@@ -653,6 +655,17 @@ export function finishCapacityClone(clone: CapacityClone, result: { outcome: Cap
 export async function createCapacityPilot(t: test.TestContext, options: { retainDirectory?: boolean } = {}) {
   return createCapacitySeed(t, { ...options, profile: 'pilot' });
 }
+async function waitForOutputIdle(assertIdle: () => void): Promise<void> {
+  const deadline = performance.now() + 10_000;
+  for (;;) {
+    try { assertIdle(); return; }
+    catch (error) {
+      if (!(error instanceof AttemptError) || error.code !== 'ATTEMPT_CONFLICT') throw error;
+      if (performance.now() >= deadline) throw new Error('合成输出结束后只读输入末核验未在期限内完成。');
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+  }
+}
 export async function createCapacitySeed(t: test.TestContext, options: { profile: CapacityProfileName; retainDirectory?: boolean; checkpoint?: (value: unknown) => void }) {
   if (options.profile !== 'pilot' && options.profile !== 'history-small') return createCapacityObjects(t, capacityProfile(options.profile), options);
   const started = performance.now();
@@ -674,7 +687,7 @@ export async function createCapacitySeed(t: test.TestContext, options: { profile
     const side = completed.sides[index]!, driver = f.starts.at(-1)!, at = new Date().toISOString();
     driver.onEvent({ type: 'progress', side: side.side, runId: driver.runId, at, sourceFramesRead: side.frameCount, submittedFrames: side.frameCount, consumedFrames: side.frameCount });
     for (const type of ['source-eof', 'engine-cutoff', 'cleanup-quiescent', 'backend-drained'] as const) driver.onEvent({ type, side: side.side, runId: driver.runId, at });
-    await new Promise<void>(resolve => setImmediate(resolve));
+    await waitForOutputIdle(() => f.attempts.assertExecutionIdle());
     completed = f.attempts.get({ attemptId: completed.id }).attempt!;
     completed = await f.attempts.confirm({ commandId: randomUUID(), attemptId: completed.id, expectedRevision: completed.revision, kind: 'physical-stop', side: side.side, userConfirmed: true });
     if (index + 1 < completed.sides.length) {
@@ -739,7 +752,7 @@ async function finishCapacityAttempt(f: CapacityFixture, plan: CapacityPlan, pro
     const side = completed.sides[index]!, active = f.starts.at(-1)!, at = new Date().toISOString();
     active.onEvent({ type: 'progress', side: side.side, runId: active.runId, at, sourceFramesRead: side.frameCount, submittedFrames: side.frameCount, consumedFrames: side.frameCount });
     for (const type of ['source-eof', 'engine-cutoff', 'cleanup-quiescent', 'backend-drained'] as const) active.onEvent({ type, side: side.side, runId: active.runId, at });
-    await new Promise<void>(resolve => setImmediate(resolve));
+    await waitForOutputIdle(() => f.attempts.assertExecutionIdle());
     completed = f.attempts.get({ attemptId: completed.id }).attempt!;
     completed = await f.attempts.confirm({ commandId: randomUUID(), attemptId: completed.id, expectedRevision: completed.revision, kind: 'physical-stop', side: side.side, userConfirmed: true });
     if (index + 1 < completed.sides.length) {

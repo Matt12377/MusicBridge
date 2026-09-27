@@ -46,8 +46,21 @@ function fixture() {
  async cancelRecordingReplicaRead(readId){calls.push({name:'cancel',request:readId});return {readId,cancelRequested:true}},
  async startRecordingReplica(request){calls.push({name:'start',request});throw new Error('blocked')},
  async getRecordingReplicaRun(runId){calls.push({name:'get',request:runId});return {run:null}},
- async stopRecordingReplica(runId){calls.push({name:'stop',request:runId});return {kind:'cancelled-before-start',runId,state:'cancelled',started:false,stopRequested:true,cleanupQuiescent:true,evidence:'none',deviceOpened:false,formalReady:false,gateB:'NOT_RUN'}}
+ async stopRecordingReplica(runId){calls.push({name:'stop',request:runId});return {kind:'cancelled-before-start',runId,state:'cancelled',started:false,stopRequested:true,cleanupQuiescent:true,evidence:'none',deviceOpened:false,formalReady:false,gateB:'NOT_RUN'}},
+ async controlRecordingReplica(request){calls.push({name:'control',request});throw new Error('blocked')}
  }; return {api,calls};
+}
+const outputSelection: c.RecordingOutputSelection = { endpointId: 'dev_1234567890', selectionGeneration: id(97) }
+function deviceRun(request: c.ReplicaDeviceStartRequest, patch: Partial<Extract<c.RecordingReplicaRun,{kind:'device-session'}>> = {}): Extract<c.RecordingReplicaRun,{kind:'device-session'}> {
+ const run: Extract<c.RecordingReplicaRun,{kind:'device-session'}> = { kind:'device-session', runId:request.runId, request, revision:1,
+  createdAt:date, updatedAt:patch.endedAt ?? date, state:'starting', identity:null, progress:null, receipt:null, controlRevision:0,
+  cursorFrame:0, segmentId:null, segmentIndex:0, segmentFromFrame:0, segmentQuiescent:true,
+  started:false, stopRequested:false, cleanupQuiescent:false, evidence:'none', deviceOpened:false, formalReady:false, gateB:'NOT_RUN', ...patch }
+ assert.equal(c.isRecordingReplicaRun(run),true);return run
+}
+function readyApi(f: ReturnType<typeof fixture>) {
+ f.api.getRecordingReplicaStatus=async()=>({playback:'ready',outputSelection,deviceAccess:'authorized',deviceOpened:false,formalReady:false,gateB:'NOT_RUN'})
+ return f
 }
 async function controller(f=fixture()) {
  const m=await import('../src/renderer/src/components/recording/recording-replica-controller.js').catch(()=>({})); assert.ok('createRecordingReplicaController' in m,'缺少Replica控制器');
@@ -77,8 +90,45 @@ test('取消响应ID不匹配不能假确认；网络错误不渲染路径，显
 test('关闭等待取消和原读取，卸载不接受迟到数据也不自动重播',async()=>{
  const f=await controller(),wait=deferred<c.RecordingReplicaInspection>();let req!:c.InspectRecordingReplicaRequest;f.api.inspectRecordingReplica=r=>{req=r;return wait.promise};const work=f.ctl.inspect();await f.ctl.requestClose();assert.equal(f.ctl.canClose(),false);f.ctl.dispose();wait.resolve(inspection(req.readId));await work;assert.equal(f.ctl.state.inspection,undefined);assert.equal(f.calls.some(x=>x.name==='start'),false)
 })
-test('状态读取迟到/失败不会伪造可播放，run读取/停止有限且绝不自动start',async()=>{
- const f=await controller();await f.ctl.getRun('invalid');await f.ctl.stopRun('invalid');assert.equal(f.calls.length,0);await f.ctl.getRun(id(88));await f.ctl.stopRun(id(88));assert.equal(f.ctl.state.run?.kind,'cancelled-before-start');assert.deepEqual(f.calls.map(x=>x.name),['get','stop']);await f.ctl.start();assert.equal(f.calls.some(x=>x.name==='start'),false)
+test('状态读取迟到/失败不会伪造可播放，非本面板run不得读取或停止',async()=>{
+ const f=await controller();await f.ctl.getRun('invalid');await f.ctl.stopRun('invalid');await f.ctl.getRun(id(88));await f.ctl.stopRun(id(88));
+ assert.equal(f.ctl.state.run,undefined);assert.equal(f.calls.length,0);await f.ctl.start();assert.equal(f.calls.some(x=>x.name==='start'),false)
+})
+test('设备试听明确选择后启动；关闭按精确runId优先Stop并等Core cleanup',async()=>{
+ const f=readyApi(fixture()),ctl=(await controller(f)).ctl;let request!:c.ReplicaDeviceStartRequest
+ f.api.startRecordingReplica=async value=>{request=value as c.ReplicaDeviceStartRequest;return deviceRun(request)}
+ f.api.stopRecordingReplica=async runId=>{assert.equal(runId,request.runId);return deviceRun(request,{revision:2,state:'stopping',stopRequested:true,reason:'CANCELLED'})}
+ f.api.getRecordingReplicaRun=async runId=>({run:deviceRun(request,{revision:3,state:'cancelled',stopRequested:true,reason:'CANCELLED',cleanupQuiescent:true,endedAt:end})})
+ await ctl.refreshStatus();await ctl.inspect();ctl.selectTarget('actual-execution');ctl.selectSide('A');await ctl.start()
+ assert.equal(request.mode,'device-output');assert.equal(request.runId,ctl.state.runId);assert.equal(request.outputSelection.endpointId,outputSelection.endpointId)
+ assert.equal(await ctl.requestClose(),false);assert.equal(ctl.canClose(),false)
+ await ctl.getRun();assert.equal(ctl.canClose(),true);assert.equal(ctl.state.run?.state,'cancelled')
+ assert.deepEqual(f.calls.filter(x=>x.name==='stop').map(x=>x.request),[],'覆盖mock由断言验证精确Stop')
+})
+test('启动回执未知保留原请求/编号；null不放行，显式同ID重试或Stop tombstone',async()=>{
+ const f=readyApi(fixture()),ctl=(await controller(f)).ctl,starts:c.ReplicaDeviceStartRequest[]=[]
+ f.api.startRecordingReplica=async value=>{starts.push(value as c.ReplicaDeviceStartRequest);throw new Error('合成响应丢失')}
+ f.api.getRecordingReplicaRun=async()=>({run:null})
+ f.api.stopRecordingReplica=async runId=>({kind:'cancelled-before-start',runId,state:'cancelled',started:false,stopRequested:true,cleanupQuiescent:true,evidence:'none',deviceOpened:false,formalReady:false,gateB:'NOT_RUN'})
+ await ctl.refreshStatus();await ctl.inspect();ctl.selectTarget('actual-execution');ctl.selectSide('A');await ctl.start()
+ const runId=ctl.state.runId;assert.ok(runId);assert.equal(ctl.canClose(),false)
+ await ctl.getRun();assert.equal(ctl.state.runId,runId);assert.equal(ctl.canClose(),false)
+ await ctl.retryStart();assert.equal(starts.length,2);assert.deepEqual(starts[0],starts[1],'重试不生成新runId或换音频')
+ assert.equal(await ctl.requestClose(),true);assert.equal(ctl.state.run?.kind,'cancelled-before-start');assert.equal(ctl.state.runId,runId)
+})
+test('pause回执悬置时关闭仍独立派发优先Stop，迟到pause不能回退终态',async()=>{
+ const f=readyApi(fixture()),ctl=(await controller(f)).ctl,pause=deferred<c.RecordingReplicaRun>();let request!:c.ReplicaDeviceStartRequest,stops=0
+ f.api.startRecordingReplica=async value=>{request=value as c.ReplicaDeviceStartRequest;const i=inspection(id(80));return deviceRun(request,{revision:2,state:'outputting',identity:{recordingId:i.recordingId,recordingContentHash:i.recordingContentHash,planVersionId:i.planVersionId,planContentHash:i.planContentHash,archiveOperationId:i.archiveOperationId,archiveManifestHash:i.archiveManifestHash,fingerprint:i.fingerprint,target:'actual-execution',side:'A',audio:(i.targets[0] as Extract<c.ReplicaTargetView,{state:'verified'}>).audio},progress:{sourceFramesRead:0,submittedFrames:0,consumedFrames:0,sourceEof:false,backendDrained:false},started:true,startedAt:date,deviceOpened:true,segmentId:id(96),segmentIndex:1,segmentQuiescent:false})}
+ f.api.controlRecordingReplica=()=>pause.promise
+ f.api.stopRecordingReplica=async runId=>{assert.equal(runId,request.runId);++stops;return deviceRun(request,{revision:4,state:'stopping',stopRequested:true,reason:'CANCELLED',identity:(ctl.state.run as Extract<c.RecordingReplicaRun,{kind:'device-session'}>).identity,progress:(ctl.state.run as Extract<c.RecordingReplicaRun,{kind:'device-session'}>).progress,started:true,startedAt:date,deviceOpened:true,segmentId:id(96),segmentIndex:1,segmentQuiescent:false,controlRevision:1})}
+ f.api.getRecordingReplicaRun=async()=>({run:deviceRun(request,{revision:5,state:'cancelled',stopRequested:true,reason:'CANCELLED',cleanupQuiescent:true,endedAt:end,identity:(ctl.state.run as Extract<c.RecordingReplicaRun,{kind:'device-session'}>).identity,progress:(ctl.state.run as Extract<c.RecordingReplicaRun,{kind:'device-session'}>).progress,started:true,startedAt:date,deviceOpened:true,segmentId:id(96),segmentIndex:1,segmentQuiescent:true,controlRevision:1})})
+ await ctl.refreshStatus();await ctl.inspect();ctl.selectTarget('actual-execution');ctl.selectSide('A');await ctl.start()
+ const beforePause=ctl.state.run as Extract<c.RecordingReplicaRun,{kind:'device-session'}>
+ const pending=ctl.pause();assert.equal(ctl.state.controlSending,true)
+ assert.equal(await ctl.requestClose(),false);assert.equal(stops,1,'优先Stop不等待pause回执')
+ await ctl.getRun();assert.equal(ctl.canClose(),true)
+ pause.resolve(deviceRun(request,{...beforePause,revision:3,state:'pausing',controlRevision:1}));await pending
+ assert.equal(ctl.state.run?.state,'cancelled');assert.equal(ctl.canClose(),true)
 })
 async function mounted(t: test.TestContext, api: c.RecordingReplicaPublicApi, detail = detailFixture(), entry = false) {
   const vue = await import('vue'), require = createRequire(import.meta.url), fs = require('node:fs') as typeof import('node:fs'), path = require('node:path') as typeof import('node:path')

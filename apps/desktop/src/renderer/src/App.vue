@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { restoreRemoteTarget, reconnectRemoteTarget } from './remote-core-preferences.js'
 
 import type {
@@ -44,10 +44,16 @@ import { usePageJourney } from './composables/application/usePageJourney.js'
 import { useNeteaseLibrary } from './composables/application/useNeteaseLibrary.js'
 import { useRendererLifecycle } from './composables/application/useRendererLifecycle.js'
 import CollectionView from './components/collection/CollectionView.vue'
+import type { CollectionReservationEntry, CollectionReturnLocation, CollectionStartEntry, RecordingPhysicalSelection, RecordingReservationNavigation } from './components/collection/collection-recording-navigation'
 import RecordingView from './components/recording/RecordingView.vue'
 
 const appInfo = ref<AppInfo | null>(null)
 const recordingReloadRequired = ref(false)
+const recordingInitialPhysical = ref<RecordingPhysicalSelection>()
+const recordingReservationNavigation = ref<RecordingReservationNavigation>()
+const collectionReturnLocation = ref<CollectionReturnLocation>()
+const recordingViewRef = ref<{ canLeave: () => boolean; navigationContextKey: () => string } | null>(null)
+const collectionViewRef = ref<{ canLeave: () => boolean; leaveBlockReason: () => string | null } | null>(null)
 const coreState = ref<PublicBridgeState | null>(null)
 const coreError = ref(false)
 const playback = usePlaybackSession({
@@ -225,6 +231,8 @@ const journey = usePageJourney({
     actionError.value = null
     actionDiagnosticId.value = null
   },
+  canLeaveRecording: () => recordingViewRef.value?.canLeave() ?? false,
+  canLeaveCollection: () => collectionViewRef.value?.canLeave() ?? false,
 })
 const {
   currentView, sidebar, roonSearchOrigin,
@@ -234,6 +242,49 @@ const {
   openTapeCollection, clearSearch, updateSearchQuery, returnFromRoonDetail,
   returnToSearch, selectAggregatedRoonItem,
 } = journey
+
+watch(currentView, (view, previous) => {
+  if (previous === 'recording' && view !== 'recording') {
+    recordingInitialPhysical.value = undefined
+    recordingReservationNavigation.value = undefined
+  }
+}, { flush: 'sync' })
+
+function startRecordingFromCollection(entry: CollectionStartEntry): void {
+  const { returnOffset, ...selection } = entry
+  collectionReturnLocation.value = { physicalId: entry.physicalId, modelId: entry.modelId, returnOffset }
+  recordingReservationNavigation.value = undefined
+  recordingInitialPhysical.value = selection
+  navigateSource({ type: 'recording' })
+}
+function openReservationFromCollection(entry: CollectionReservationEntry): void {
+  collectionReturnLocation.value = { physicalId: entry.physicalId, modelId: entry.modelId, returnOffset: entry.returnOffset }
+  recordingInitialPhysical.value = undefined
+  recordingReservationNavigation.value = { physicalId: entry.physicalId, draftId: entry.draftId, planId: entry.planId }
+  navigateSource({ type: 'recording' })
+}
+let collectionReturnRead = 0
+async function openCollectionFromRecording(physicalId?: string): Promise<void> {
+  if (currentView.value === 'recording' && !(recordingViewRef.value?.canLeave() ?? false)) return
+  const read = ++collectionReturnRead
+  const contextKey = recordingViewRef.value?.navigationContextKey()
+  if (physicalId) {
+    try {
+      const result = await window.musicBridge.getCollectionCopy(physicalId)
+      if (read !== collectionReturnRead || currentView.value !== 'recording' || recordingViewRef.value?.navigationContextKey() !== contextKey) return
+      if (result.copy.physicalId !== physicalId || result.copyIndex === undefined) {
+        showToast('无法确认这盘磁带在收藏中的当前位置，请刷新后重试返回。')
+        return
+      }
+      collectionReturnLocation.value = { physicalId, modelId: result.modelId, returnOffset: Math.floor(result.copyIndex / 20) * 20 }
+    } catch {
+      if (read === collectionReturnRead && currentView.value === 'recording' && recordingViewRef.value?.navigationContextKey() === contextKey) showToast('暂时无法读取这盘磁带的收藏位置；仍留在录音页，请稍后重试。')
+      return
+    }
+  }
+  if (currentView.value === 'recording' && !(recordingViewRef.value?.canLeave() ?? false)) return
+  openTapeCollection()
+}
 
 const homeTracks = computed(() => recentTracks.value)
 const selectedZone = computed(() => {
@@ -780,14 +831,23 @@ onUnmounted(() => {
 
         <CollectionView
           v-else-if="currentView === 'collection'"
+          ref="collectionViewRef"
           v-model="collectionView"
+          :return-location="collectionReturnLocation"
+          @start-recording="startRecordingFromCollection"
+          @open-reservation="openReservationFromCollection"
         />
 
         <RecordingView
           v-else-if="currentView === 'recording'"
+          ref="recordingViewRef"
           :reload-required="recordingReloadRequired"
+          :initial-physical="recordingInitialPhysical"
+          :reservation-navigation="recordingReservationNavigation"
+          @initial-physical-consumed="recordingInitialPhysical = undefined"
+          @reservation-navigation-consumed="recordingReservationNavigation = undefined"
           @reload-required="recordingReloadRequired = true"
-          @open-collection="openTapeCollection"
+          @open-collection="openCollectionFromRecording"
         />
 
         <DailyRecommendationsView

@@ -2,8 +2,9 @@ import { createHash, randomUUID } from 'node:crypto';
 import { constants, closeSync, lstatSync, mkdirSync, openSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { BACKUP_INDEX_MISSING_FACTS, isAuthorizeBackupRoot, isBackupRootView, isStartBackupJob, isBackupJobView, isCollectionId, type StartBackupJob, type BackupJobView, type BackupJobIssue, type AuthorizeBackupRoot, type BackupOverview, type BackupRootView } from '@music-bridge/contracts';
+import { BACKUP_INDEX_MISSING_FACTS, isAuthorizeBackupRoot, isBackupRootView, isStartBackupJob, isBackupJobView, isCollectionId, type StartBackupJob, type BackupJobView, type BackupJobIssue, type AuthorizeBackupRoot, type BackupOverview, type BackupRootView, type BackupSummary } from '@music-bridge/contracts';
 import type { RootCapability } from './source-files.js';
+import type { ArchiveBackupZipFile } from './backup-zip.js';
 import { createRestoreActivationStore, restoreActivationSchema, restoreActivationSchemaObjects, RestoreActivationError, type RestoreActivationStore } from './restore-activation-store.js';
 import { createDatasetIdentityStore, datasetIdentitySchemaObjects } from './dataset-identity.js';
 
@@ -16,7 +17,7 @@ const conflict = (): never => { throw new BackupWorkflowError('BACKUP_CONFLICT')
 const unavailable = (): never => { throw new BackupWorkflowError('BACKUP_UNAVAILABLE'); };
 const fingerprint = (value: unknown): string => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 interface StoredJob { request: StartBackupJob; view: BackupJobView; output?: RootCapability }
-interface StoredRoot { view: BackupRootView; capability: RootCapability }
+interface StoredRoot { view: BackupRootView; capability: RootCapability; zipFile?: ArchiveBackupZipFile }
 const schemaObjects = [
   'CREATE TABLE backup_roots(id TEXT PRIMARY KEY, data TEXT NOT NULL) STRICT',
   'CREATE TABLE backup_commands(command_id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, result_id TEXT NOT NULL, action TEXT NOT NULL) STRICT',
@@ -130,7 +131,8 @@ export function createBackupWorkflowStore(options: { filePath: string }) {
   function root(db: DatabaseSync, id: string): StoredRoot {
     const row = db.prepare('SELECT data FROM backup_roots WHERE id=?').get(id); if (!row) return conflict();
     const value = JSON.parse(String(row.data)) as StoredRoot;
-    if (!isBackupRootView(value.view) || value.view.id !== id) return unavailable(); return value;
+    if (!isBackupRootView(value.view) || value.view.id !== id || value.view.format === 'zip' && (!value.zipFile || value.view.kind !== 'backup-source' || value.zipFile.name !== value.view.label || value.zipFile.parent.path !== value.capability.path || value.zipFile.parent.dev !== value.capability.dev || value.zipFile.parent.ino !== value.capability.ino) || value.view.format !== 'zip' && value.zipFile !== undefined) return unavailable();
+    return value;
   }
   function job(db: DatabaseSync, id: string): StoredJob {
     const row = db.prepare('SELECT data FROM backup_jobs WHERE id=?').get(id); if (!row) return conflict();
@@ -149,20 +151,37 @@ export function createBackupWorkflowStore(options: { filePath: string }) {
     db.prepare('INSERT INTO backup_commands VALUES (?,?,?,?)').run(commandId, digest, id, action);
   }
   const active = (view: BackupJobView): boolean => view.state === 'queued' || view.state === 'running' || view.state === 'cancelling';
+  function complete(db: DatabaseSync, id: string, result: Pick<BackupJobView, 'summary' | 'index'>, output: RootCapability | undefined, zipFile: ArchiveBackupZipFile | undefined, reconcile: boolean): BackupJobView {
+    const value = job(db, id);
+    if (value.view.state === 'succeeded') return value.view;
+    if (!active(value.view) && !(reconcile && value.view.kind === 'backup' && value.view.format === 'zip' && ['failed','cancelled','interrupted'].includes(value.view.state))) return value.view;
+    if (value.view.kind === 'backup' && (!output || (value.view.format === 'zip') !== !!zipFile)) return conflict();
+    const { issue: _oldIssue, ...previous } = value.view;
+    value.view = { ...previous, state: 'succeeded', ...result };
+    if (output) value.output = output;
+    if (value.view.kind === 'backup') {
+      if (!output || Number(db.prepare('SELECT count(*) n FROM backup_roots').get()?.n) >= 100) return conflict();
+      const view: BackupRootView = { id: value.view.id, kind: 'backup-source', label: zipFile?.name ?? output.label, authorized: true, ...(zipFile ? { format: 'zip' as const } : {}) };
+      if (!isBackupRootView(view)) return conflict();
+      db.prepare('INSERT INTO backup_roots VALUES (?,?)').run(view.id, JSON.stringify({ view, capability: { ...output, id: view.id }, ...(zipFile ? { zipFile } : {}) }));
+      value.view.resultRootId = view.id;
+    }
+    saveJob(db, value); return value.view;
+  }
   const activations: RestoreActivationStore = createRestoreActivationStore({ read, transaction });
   return {
     datasetIdentities: createDatasetIdentityStore({ read, transaction }),
     activations,
     overview(): BackupOverview { return read(db => ({ roots: db.prepare('SELECT id FROM backup_roots ORDER BY rowid DESC').all().map(row => root(db, String(row.id)).view), jobs: db.prepare('SELECT id FROM backup_jobs ORDER BY rowid DESC LIMIT 100').all().map(row => job(db, String(row.id)).view), activations: activations.overview().activations })); },
-    authorize(command: AuthorizeBackupRoot, capability: RootCapability): BackupRootView {
-      const view: BackupRootView = { id: capability.id, kind: command.kind, label: capability.label, authorized: true };
-      if (!isAuthorizeBackupRoot(command) || !isBackupRootView(view) || !capability.authorized || !path.isAbsolute(capability.path) || !/^\d+$/u.test(capability.dev) || !/^\d+$/u.test(capability.ino)) return conflict();
+    authorize(command: AuthorizeBackupRoot, capability: RootCapability, zipFile?: ArchiveBackupZipFile): BackupRootView {
+      const view: BackupRootView = { id: capability.id, kind: command.kind, label: zipFile?.name ?? capability.label, authorized: true, ...(zipFile ? { format: 'zip' as const } : {}) };
+      if (!isAuthorizeBackupRoot(command) || !isBackupRootView(view) || !capability.authorized || !path.isAbsolute(capability.path) || !/^\d+$/u.test(capability.dev) || !/^\d+$/u.test(capability.ino) || (command.format === 'zip') !== !!zipFile || !!zipFile && (command.kind !== 'backup-source' || zipFile.parent.path !== capability.path || zipFile.parent.dev !== capability.dev || zipFile.parent.ino !== capability.ino)) return conflict();
       return transaction(db => {
-        const digest = fingerprint([command.kind, capability.path, capability.dev, capability.ino, capability.label]);
+        const digest = fingerprint(zipFile ? [command.kind, capability.path, capability.dev, capability.ino, zipFile.name, 'zip', zipFile.dev, zipFile.ino, zipFile.size, zipFile.mtimeNs, zipFile.ctimeNs] : [command.kind, capability.path, capability.dev, capability.ino, capability.label]);
         const previous = receipt(db, command.commandId, digest, 'authorize');
         if (previous) return root(db, previous).view;
-        if (Number(db.prepare('SELECT count(*) n FROM backup_roots').get()?.n) >= 100) return conflict();
-        db.prepare('INSERT INTO backup_roots VALUES (?,?)').run(view.id, JSON.stringify({ view, capability }));
+        if (Number(db.prepare('SELECT count(*) n FROM backup_roots').get()?.n) + Number(db.prepare("SELECT count(*) n FROM backup_jobs WHERE json_extract(data,'$.view.kind')='backup' AND json_extract(data,'$.view.state') IN ('queued','running','cancelling')").get()?.n) >= 100) return conflict();
+        db.prepare('INSERT INTO backup_roots VALUES (?,?)').run(view.id, JSON.stringify({ view, capability, ...(zipFile ? { zipFile } : {}) }));
         recordCommand(db, command.commandId, digest, view.id, 'authorize');
         return view;
       });
@@ -175,35 +194,31 @@ export function createBackupWorkflowStore(options: { filePath: string }) {
     startJob(request: StartBackupJob): BackupJobView {
       if (!isStartBackupJob(request)) return conflict();
       return transaction(db => {
-        const digest = fingerprint([request.kind, request.rootId, request.kind === 'backup' ? request.mode : null, request.kind === 'restore' ? [request.destinationId,request.verificationId] : null]);
+        const legacyFingerprint = [request.kind, request.rootId, request.kind === 'backup' ? request.mode : null, request.kind === 'restore' ? [request.destinationId,request.verificationId] : null];
+        const digest = fingerprint(request.kind === 'backup' && request.format === 'zip' ? [...legacyFingerprint, 'zip'] : legacyFingerprint);
         const previous = receipt(db, request.commandId, digest, 'start'); if (previous) return job(db, previous).view;
         const source = root(db, request.rootId);
         if (!source.view.authorized || source.view.kind !== (request.kind === 'backup' ? 'backup-destination' : 'backup-source')) return conflict();
+        if (request.kind === 'index' && source.view.format === 'zip') return conflict();
         if (request.kind === 'restore') {
           const target = root(db, request.destinationId), verified = job(db, request.verificationId);
-          if (!target.view.authorized || target.view.kind !== 'restore-destination' || verified.view.kind !== 'verify' || verified.view.state !== 'succeeded' || verified.view.rootId !== request.rootId) return conflict();
+          if (!target.view.authorized || target.view.kind !== 'restore-destination' || verified.view.kind !== 'verify' || verified.view.state !== 'succeeded' || verified.view.rootId !== request.rootId || verified.view.format !== source.view.format) return conflict();
         }
         if (Number(db.prepare('SELECT count(*) n FROM backup_jobs').get()?.n) >= 1000) return conflict();
-        const view: BackupJobView = { id: randomUUID(), kind: request.kind, rootId: request.rootId, state: 'queued', createdAt: new Date().toISOString(), ...(request.kind === 'backup' ? { mode: request.mode } : {}), ...(request.kind === 'restore' ? { destinationId: request.destinationId } : {}) };
+        if (request.kind === 'backup' && Number(db.prepare('SELECT count(*) n FROM backup_roots').get()?.n) + Number(db.prepare("SELECT count(*) n FROM backup_jobs WHERE json_extract(data,'$.view.kind')='backup' AND json_extract(data,'$.view.state') IN ('queued','running','cancelling')").get()?.n) >= 100) return conflict();
+        const format = request.kind === 'backup' ? request.format : source.view.format;
+        const view: BackupJobView = { id: randomUUID(), kind: request.kind, rootId: request.rootId, state: 'queued', createdAt: new Date().toISOString(), ...(format === 'zip' ? { format: 'zip' as const } : {}), ...(request.kind === 'backup' ? { mode: request.mode } : {}), ...(request.kind === 'restore' ? { destinationId: request.destinationId } : {}) };
         saveJob(db, { request, view }); recordCommand(db, request.commandId, digest, view.id, 'start'); return view;
       });
     },
     markRunning(id: string): BackupJobView {
       return transaction(db => { const value = job(db, id); if (value.view.state === 'queued') { value.view.state = 'running'; saveJob(db, value); } return value.view; });
     },
-    finish(id: string, result: Pick<BackupJobView, 'summary' | 'index'>, output?: RootCapability): BackupJobView {
-      return transaction(db => {
-        const value = job(db, id); if (!active(value.view)) return value.view;
-        value.view = { ...value.view, state: 'succeeded', ...result };
-        if (output) value.output = output;
-        if (value.view.kind === 'backup') {
-          if (!output || Number(db.prepare('SELECT count(*) n FROM backup_roots').get()?.n) >= 100) return conflict();
-          const view: BackupRootView = { id: value.view.id, kind: 'backup-source', label: output.label, authorized: true };
-          db.prepare('INSERT INTO backup_roots VALUES (?,?)').run(view.id, JSON.stringify({ view, capability: { ...output, id: view.id } }));
-          value.view.resultRootId = view.id;
-        }
-        saveJob(db, value); return value.view;
-      });
+    finish(id: string, result: Pick<BackupJobView, 'summary' | 'index'>, output?: RootCapability, zipFile?: ArchiveBackupZipFile): BackupJobView {
+      return transaction(db => complete(db, id, result, output, zipFile, false));
+    },
+    reconcilePublishedZip(id: string, summary: BackupSummary, file: ArchiveBackupZipFile): BackupJobView {
+      return transaction(db => complete(db, id, { summary }, file.parent, file, true));
     },
     failJob(id: string, issue: BackupJobIssue): BackupJobView {
       return transaction(db => { const value = job(db, id); if (active(value.view)) { value.view.state = issue === 'CANCELLED' ? 'cancelled' : issue === 'INTERRUPTED' ? 'interrupted' : 'failed'; value.view.issue = issue; saveJob(db, value); } return value.view; });

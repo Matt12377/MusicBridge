@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { validateIpcRequest, type CollectionPhotoImage, type IpcCommand, type IpcCommandPayloads } from '@music-bridge/contracts'
+import { isPickRecordingPrintImageRequest, validateIpcRequest, type CollectionPhotoImage, type IpcCommand, type IpcCommandPayloads } from '@music-bridge/contracts'
 import { CoreIpcError, type CoreSupervisor } from './core-supervisor.js'
 import type { exportRecordingPrintPdf } from './recording-print-export.js'
 
@@ -15,6 +15,7 @@ export function installRecordingPrintHandlers<E>(options: {
   supervisor: Pick<CoreSupervisor, 'request' | 'requestInternal'>
   getEpoch(): number
   pickArtwork(event: E): Promise<CollectionPhotoImage | null>
+  pickPrintImage(event: E): Promise<CollectionPhotoImage | null>
   exportPdf(value: ExportOptions, event: E): ReturnType<typeof exportRecordingPrintPdf>
 }): void {
   let nativeBusy = false
@@ -64,6 +65,32 @@ export function installRecordingPrintHandlers<E>(options: {
     } catch (error) {
       if (error instanceof Error && error.message.includes('OUTBOX_SCOPE_MISMATCH')) throw scopeFailure()
       throw new Error('[ARTWORK_PICK_UNCONFIRMED] Artwork 选择未获确认，尚未保存新的版本。')
+    } finally { nativeBusy = false }
+  })
+  options.handle('recordingPrints:pickImage', async (event, value) => {
+    options.requireTrusted(event)
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) throw invalid()
+    const envelope = value as Record<string, unknown>
+    if (Object.keys(envelope).sort().join(',') !== 'datasetId,payload' || typeof envelope.datasetId !== 'string'
+      || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(envelope.datasetId)
+      || !isPickRecordingPrintImageRequest(envelope.payload)) throw invalid()
+    if (nativeBusy) throw new Error('[NOT_READY] 已有印刷资料选择或导出对话框。')
+    nativeBusy = true
+    try {
+      const datasetId = envelope.datasetId, request = envelope.payload
+      const scope = scoped(event, datasetId)
+      await scope.assertCurrent()
+      await options.supervisor.request('recordingPrints.list', { recordingId: request.recordingId, page: { offset: 0, limit: 1 } }, datasetId)
+      await scope.assertCurrent()
+      const image = await options.pickPrintImage(event)
+      if (!image) return { state: 'cancelled' }
+      await scope.assertCurrent()
+      await options.supervisor.request('recordingPrints.list', { recordingId: request.recordingId, page: { offset: 0, limit: 1 } }, datasetId)
+      await scope.assertCurrent()
+      return { state: 'selected', recordingId: request.recordingId, image }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('OUTBOX_SCOPE_MISMATCH')) throw scopeFailure()
+      throw new Error('[PRINT_IMAGE_PICK_UNCONFIRMED] J-Card 图片选择未获确认；尚未创建印刷版本。')
     } finally { nativeBusy = false }
   })
   options.handle('recordingPrints:export', async (event, value) => {

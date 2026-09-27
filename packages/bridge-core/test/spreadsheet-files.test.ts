@@ -22,6 +22,10 @@ test('显式工作簿选择只读原字节并返回basename，拒绝链接、目
   const large = path.join(dir, '过大.xlsx'); await writeFile(large, Buffer.alloc(8 * 1024 * 1024 + 1)); await assert.rejects(read(large));
   const old = path.join(dir, '合成.XLS'), ole = Buffer.from('d0cf11e0a1b11ae1', 'hex'); await writeFile(old, ole);
   assert.equal((await read(old)).fileFormat, 'xls');
+  const csv = path.join(dir, '中文.CSV'), csvBytes = Buffer.from('\uFEFF甲,乙\r\n"三,四",=1+2\r\n');
+  await writeFile(csv, csvBytes);
+  assert.deepEqual(await read(csv), { bytes: csvBytes, displayName: '中文.CSV', fileFormat: 'csv' });
+  assert.deepEqual(await readFile(csv), csvBytes);
 });
 test('读取失败使用固定错误，不泄露路径或底层异常', async () => {
   const read = await api(); await assert.rejects(read('/synthetic/不得泄露/缺失.xlsx'), error => error instanceof Error && !error.message.includes('不得泄露') && !error.message.includes('ENOENT'));

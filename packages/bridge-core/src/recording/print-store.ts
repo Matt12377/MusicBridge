@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
 import { mediaFingerprint } from './media-store.js';
-import { createRecordingPrintRequest } from './print-facts.js';
-import { RecordingPrintError,printFail,printHash,printSchema,printImage,printObject,printParse,printJob,printRecordPlan,checkPrintBudgets,verifyRecordingPrintDatabase,type RecordingPrintBudgets,type PrintLeaseIdentity,type PrintEvent } from './print-integrity.js';
+import { createRecordingPrintRequest, createRecordingPrintVersionRequest } from './print-facts.js';
+import { RecordingPrintError,printFail,printHash,legacyPrintSchema,printImage,printObject,printParse,printJob,printRecordPlan,checkPrintBudgets,verifyRecordingPrintDatabase,type RecordingPrintBudgets,type PrintLeaseIdentity,type PrintEvent } from './print-integrity.js';
 import { verifyRecordingRecordSnapshot, type RecordingRecordSnapshotBudget } from './record-integrity.js';
 import { createObjectAuditCertificateManager, type ObjectAuditCertificateAction, type ObjectAuditCertificateManager, type ObjectAuditCertificateSession } from './object-audit-certificate.js';
 interface Access extends RecordingPrintBudgets {read<T>(fn:(db:DatabaseSync)=>T):T;beforeCommit?:(action:string)=>void;objectAudit?:RecordingRecordSnapshotBudget;objectCertificates?:ObjectAuditCertificateManager}
@@ -35,12 +35,25 @@ export function captureMasterArtwork(db:DatabaseSync,masterVersionId:string):dto
  const version=printParse(row.data,dto.isMasterArtworkVersion);printImage(db,version.sha256);return {state:'captured',version};
 }
 /** 首次Completed事务内调用；打印意图与档案一起提交，渲染在另一个明确生命周期内。 */
-export function registerRecordingPrint(db:DatabaseSync,record:dto.RecordingRecord,plan:dto.RecordingPlanVersion,id:string,origin:dto.RecordingPrintRequest['origin'],createdAt:string):dto.RecordingPrintJob{
+export function registerRecordingPrint(db:DatabaseSync,record:dto.RecordingRecord,plan:dto.RecordingPlanVersion,id:string,origin:'completion'|'historical-backfill',createdAt:string):dto.RecordingPrintJob{
  const {request,facts}=createRecordingPrintRequest({id,record,plan,origin,createdAt});
  db.prepare('INSERT INTO recording_print_requests VALUES(?,?,?,?)').run(id,record.id,JSON.stringify(request),JSON.stringify(facts));
  const job:dto.RecordingPrintJob={id:randomUUID(),request,state:'pending',revision:1,createdAt,updatedAt:createdAt,artifactId:null,errorCode:null};append(db,job,'create');checkPrintBudgets(db);return job;
 }
-export function migrateRecordingPrints(db:DatabaseSync):void {for(const sql of printSchema)db.exec(sql);db.exec('PRAGMA user_version=21');verifyRecordingPrintDatabase(db);}
+export function migrateRecordingPrints(db:DatabaseSync):void {for(const sql of legacyPrintSchema)db.exec(sql);db.exec('PRAGMA user_version=21');verifyRecordingPrintDatabase(db);}
+/** schema23：只重建打印请求表，允许同一录音的多个不可变请求；调用方负责事务与暂关外键。 */
+export function migrateRecordingPrintVersions(db:DatabaseSync):void {
+ if(!db.isTransaction||Number(db.prepare('PRAGMA foreign_keys').get()?.foreign_keys)!==0||Number(db.prepare('PRAGMA user_version').get()?.user_version)!==22)printFail();
+ verifyRecordingPrintDatabase(db);
+ db.exec('CREATE TABLE recording_print_requests_v23(id TEXT PRIMARY KEY,recording_id TEXT NOT NULL REFERENCES recording_records(id),data TEXT NOT NULL,facts TEXT NOT NULL) STRICT');
+ db.exec('INSERT INTO recording_print_requests_v23 SELECT id,recording_id,data,facts FROM recording_print_requests');
+ db.exec('DROP TABLE recording_print_requests');
+ db.exec('ALTER TABLE recording_print_requests_v23 RENAME TO recording_print_requests');
+ db.exec("CREATE TRIGGER recording_print_requests_no_update BEFORE UPDATE ON recording_print_requests BEGIN SELECT RAISE(ABORT,'印刷历史不可改写'); END");
+ db.exec("CREATE TRIGGER recording_print_requests_no_delete BEFORE DELETE ON recording_print_requests BEGIN SELECT RAISE(ABORT,'印刷历史不可删除'); END");
+ db.exec('PRAGMA user_version=23');
+ verifyRecordingPrintDatabase(db);
+}
 /** 仅新Core启动/隔离恢复调用。先校验历史，再恢复打印，不触碰任何录音或输出。 */
 export function recoverRecordingPrints(db:DatabaseSync):void{
  verifyRecordingPrintDatabase(db);
@@ -108,7 +121,22 @@ export function createRecordingPrintStore(access:Access){
    if(!dto.isRequestRecordingPrintRequest(request))printFail('INVALID_REQUEST');return transaction('request-recording-print','other',db=>{
     const prior=cached<dto.RecordingPrintJob>(db,`command:${request.commandId}`,'request',request);if(prior)return prior;
     const {record,plan}=printRecordPlan(db,request.recordingId);if(record.contentHash!==request.expectedRecordHash)printFail('CONFLICT');if(plan.layout.spec.format!=='cassette')printFail('NOT_APPLICABLE');
-    const existing=db.prepare('SELECT j.id FROM recording_print_jobs j JOIN recording_print_requests r ON r.id=j.request_id WHERE r.recording_id=?').get(record.id);
+    if('mode' in request){
+     if(Number(db.prepare('PRAGMA user_version').get()?.user_version)<23)printFail('INVALID_REQUEST');
+     if(request.templateId===dto.RECORDING_PRINT_DESIGN_TEMPLATE_ID&&request.design.image.source==='selected-image'){
+      if(!request.designImage)printFail('INVALID_REQUEST');
+      const bytes=Buffer.from(request.designImage.dataUrl.slice(23),'base64'),object=request.design.image.object;
+      if(printHash(bytes)!==object.sha256||bytes.length!==object.size||request.designImage.width!==object.width||request.designImage.height!==object.height)printFail('INVALID_REQUEST');
+      putObject(db,bytes,'image/jpeg',object.width,object.height);
+     }
+     const createdAt=now(),id=randomUUID(),{request:version,facts}=createRecordingPrintVersionRequest({id,record,plan,design:request.design,createdAt});
+     db.prepare('INSERT INTO recording_print_requests VALUES(?,?,?,?)').run(id,record.id,JSON.stringify(version),JSON.stringify(facts));
+     const job:dto.RecordingPrintJob={id:randomUUID(),request:version,state:'pending',revision:1,createdAt,updatedAt:createdAt,artifactId:null,errorCode:null};
+     append(db,job,'create');
+     const identity=Object.fromEntries(Object.entries(request).filter(([key])=>key!=='designImage'));
+     return receipt(db,`command:${request.commandId}`,'request',request,job,identity);
+    }
+    const existing=db.prepare("SELECT j.id FROM recording_print_jobs j JOIN recording_print_requests r ON r.id=j.request_id WHERE r.recording_id=? AND json_extract(r.data,'$.origin')!='manual-version'").get(record.id);
     const job=existing?printJob(db,String(existing.id)):registerRecordingPrint(db,record,plan,randomUUID(),'historical-backfill',now());
     return receipt(db,`command:${request.commandId}`,'request',request,job);
    });
@@ -131,19 +159,24 @@ export function createRecordingPrintStore(access:Access){
     const facts=printParse(db.prepare('SELECT facts FROM recording_print_requests WHERE id=?').get(job.request.id)!.facts,dto.isRecordingPrintFacts);
     const identity:PrintLeaseIdentity={leaseId:randomUUID(),workerId:request.workerId,jobId:job.id,requestId:job.request.id,inputHash:job.request.inputHash};
     append(db,{...job,state:'rendering',revision:job.revision+1,updatedAt:now()},'claim',identity);
-    const lease:dto.RecordingPrintLease={...identity,facts,artworkImage:facts.artwork.state==='captured'?printImage(db,facts.artwork.version.sha256):null,templateId:job.request.templateId};if(!dto.isRecordingPrintLease(lease))printFail();certificate?.expectPrintMutations(2);return {lease};
+    const designImage=job.request.design?.schemaVersion===2&&job.request.design.image.source==='selected-image'?printImage(db,job.request.design.image.object.sha256):undefined;
+    const lease:dto.RecordingPrintLease={...identity,facts,artworkImage:facts.artwork.state==='captured'?printImage(db,facts.artwork.version.sha256):null,templateId:job.request.templateId,...(job.request.design?{design:job.request.design}:{}),...(designImage?{designImage}:{})};if(!dto.isRecordingPrintLease(lease))printFail();certificate?.expectPrintMutations(2);return {lease};
    });
   },
   complete(request:dto.CompleteRecordingPrintRequest):dto.RecordingPrintJob{
-   if(!dto.isCompleteRecordingPrintRequest(request))printFail('INVALID_REQUEST');return transaction('complete-recording-print','print-complete',(db,certificate)=>{
+   if(!dto.isCompleteRecordingPrintRequest(request))printFail('INVALID_REQUEST');return transaction('complete-recording-print',request.pagePreviews?'other':'print-complete',(db,certificate)=>{
     const prior=cached<dto.RecordingPrintJob>(db,`lease:${request.leaseId}`,'complete',request);if(prior){certificate?.expectPrintMutations(0);return prior;}
     const job=matchLease(db,request),pdf=Buffer.from(request.pdfBase64,'base64'),preview=Buffer.from(request.preview.dataUrl.slice(23),'base64');if(printHash(pdf)!==request.pdfSha256)printFail('INVALID_REQUEST');
+    if(job.request.origin==='manual-version'&&!request.pagePreviews)printFail('INVALID_REQUEST');
     const pdfObject=putObject(db,pdf,'application/pdf'),previewObject=putObject(db,preview,'image/jpeg',request.preview.width,request.preview.height),pdfSha256=pdfObject.sha256,previewSha256=previewObject.sha256;
+    const pagePreviews=request.pagePreviews?.map(image=>{const bytes=Buffer.from(image.dataUrl.slice(23),'base64'),object=putObject(db,bytes,'image/jpeg',image.width,image.height);return {sha256:object.sha256,size:bytes.length,width:image.width,height:image.height};});
     const facts=printParse(db.prepare('SELECT facts FROM recording_print_requests WHERE id=?').get(job.request.id)!.facts,dto.isRecordingPrintFacts);
-    const artifact:dto.PrintedArtifact={id:randomUUID(),requestId:job.request.id,recordingId:job.request.recordingId,createdAt:now(),inputHash:job.request.inputHash,templateId:job.request.templateId,templateHash:job.request.templateHash,rendererVersion:request.rendererVersion,pdfSha256,size:pdf.length,pageCount:request.pageCount,geometry:structuredClone(dto.RECORDING_PRINT_GEOMETRY),previewSha256,previewSize:preview.length,artwork:facts.artwork};
+    const artifact:dto.PrintedArtifact={id:randomUUID(),requestId:job.request.id,recordingId:job.request.recordingId,createdAt:now(),inputHash:job.request.inputHash,templateId:job.request.templateId,templateHash:job.request.templateHash,rendererVersion:request.rendererVersion,pdfSha256,size:pdf.length,pageCount:request.pageCount,geometry:structuredClone(job.request.design?.geometry??dto.RECORDING_PRINT_GEOMETRY),previewSha256,previewSize:preview.length,artwork:facts.artwork,...(job.request.designHash?{designHash:job.request.designHash}:{}),...(pagePreviews?{previewPages:pagePreviews}:{})};
     db.prepare('INSERT INTO recording_print_artifacts VALUES(?,?,?,?,?)').run(artifact.id,artifact.requestId,pdfSha256,previewSha256,JSON.stringify(artifact));
     const next:dto.RecordingPrintJob={...job,state:'ready',revision:job.revision+1,updatedAt:artifact.createdAt,artifactId:artifact.id};append(db,next,'complete');
-    const {pdfBase64:_,preview:__,...identity}=request;const result=receipt(db,`lease:${request.leaseId}`,'complete',request,next,identity);
+    const {pdfBase64:_,preview:__,pagePreviews:___,...identity}=request;
+    const storedIdentity=pagePreviews?{...identity,pagePreviews}:identity;
+    const result=receipt(db,`lease:${request.leaseId}`,'complete',request,next,storedIdentity);
     certificate?.expectPrintMutations((4+Number(pdfObject.inserted)+Number(previewObject.inserted)) as 4|5|6);return result;
    });
   },
@@ -156,8 +189,8 @@ export function createRecordingPrintStore(access:Access){
   get(request:dto.GetRecordingPrintRequest):dto.RecordingPrintResult{
    if(!dto.isGetRecordingPrintRequest(request))printFail('INVALID_REQUEST');return access.read(db=>{
     const artifact=printParse(db.prepare("SELECT data FROM recording_print_artifacts WHERE id=? AND json_extract(data,'$.recordingId')=?").get(request.artifactId,request.recordingId)?.data,dto.isPrintedArtifact);
-    const facts=printParse(db.prepare('SELECT facts FROM recording_print_requests WHERE id=?').get(artifact.requestId)?.facts,dto.isRecordingPrintFacts);
-    printObject(db,artifact.pdfSha256);return {artifact,facts,preview:printImage(db,artifact.previewSha256)};
+    const row=db.prepare('SELECT data,facts FROM recording_print_requests WHERE id=?').get(artifact.requestId),facts=printParse(row?.facts,dto.isRecordingPrintFacts),version=printParse(row?.data,dto.isRecordingPrintRequest);
+    printObject(db,artifact.pdfSha256);return {artifact,facts,preview:printImage(db,artifact.previewSha256),...(version.design?{design:version.design}:{}),...(artifact.previewPages?{previewPages:artifact.previewPages.map(page=>printImage(db,page.sha256))}:{})};
    });
   },
   pdf(request:dto.ExportRecordingPrintRequest):dto.RecordingPrintPdfResult{

@@ -2,10 +2,17 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
-import { isRecordingAttempt, type RecordingAttempt, type RecordingAttemptSide, type RecordingAttemptsPublicApi, type RecordingPlanVersion } from '@music-bridge/contracts'
+import { isRecordingAttempt, RECORDING_PREFLIGHT_CATEGORIES, type RecordingAttempt, type RecordingAttemptSide, type RecordingAttemptsPublicApi, type RecordingPlanVersion, type RecordingPreflightResult, type RecordingPlansPublicApi } from '@music-bridge/contracts'
+import { CoreIpcError } from '../src/main/core-supervisor.js'
+import { installRecordingAttemptHandlers } from '../src/main/recording-attempt-ipc.js'
+import { createRecordingAttemptClient } from '../src/preload/recording-attempt-client.js'
 
 const id = (n: number) => `74000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const hash = 'a'.repeat(64), at = '2026-08-29T10:00:00.000Z', later = '2026-08-29T10:00:01.000Z'
+const blockedPreflight = (): RecordingPreflightResult => ({ planVersionId: id(3), checkedAt: at, state: 'blocked', gateB: 'NOT_RUN', formalReady: false,
+  checks: RECORDING_PREFLIGHT_CATEGORIES.map(category => category === 'backend' ? { category, state: 'not-run', code: 'BACKEND_NOT_CERTIFIED' } : { category, state: 'passed' }) })
+const readyPreflight = (): RecordingPreflightResult => ({ planVersionId: id(3), checkedAt: at, state: 'ready', gateB: 'VERIFIED', formalReady: true,
+  checks: RECORDING_PREFLIGHT_CATEGORIES.map(category => ({ category, state: 'passed' })) })
 function side(name: 'A' | 'B' | 'Program' = 'A'): RecordingAttemptSide {
   return { side: name, phase: 'outputting', frameCount: 48000, recipeHash: hash, audioSha256: hash, pcmSha256: hash, runId: id(name === 'B' ? 8 : 7), sourceFramesRead: 0, submittedFrames: 0, consumedFrames: 0, sourceEof: false, backendDrained: false, engineStoppedSubmitting: false, stopAcknowledged: false, cleanupQuiescent: false, startedAt: at }
 }
@@ -35,13 +42,14 @@ function deferred<T>() { let resolve!: (value: T) => void, reject!: (error: Erro
 function fixture(value = attempt()) {
   assert.equal(isRecordingAttempt(value), true, '合成Attempt必须符合正式合同')
   const calls: { name: string; request: unknown }[] = []
-  const api: RecordingAttemptsPublicApi = {
+  const api: RecordingAttemptsPublicApi & Pick<RecordingPlansPublicApi, 'preflightRecordingPlan'> = {
     async listRecordingAttempts(request) { calls.push({ name: 'list', request }); return { items: [structuredClone(value)], offset: request.page.offset, limit: 25, total: 1, hasMore: false } },
     async getRecordingAttempt(request) { calls.push({ name: 'get', request }); return { attempt: structuredClone(value) } },
     async beginRecordingAttempt(request) { calls.push({ name: 'begin', request }); throw new Error('NOT_READY') },
     async confirmRecordingAttempt(request) { calls.push({ name: 'confirm', request }); return { ...value, revision: value.revision + 1 } },
     async beginRecordingAttemptSide(request) { calls.push({ name: 'beginSide', request }); throw new Error('NOT_READY') },
     async stopRecordingAttempt(request) { calls.push({ name: 'stop', request }); return aborted() },
+    async preflightRecordingPlan(request) { calls.push({ name: 'preflight', request }); return blockedPreflight() },
   }
   return { api, calls, value }
 }
@@ -55,6 +63,162 @@ async function controller(f = fixture()) {
 test('明确Plan分页25，无自动首条、Begin或BeginB；无Plan不读取', async () => {
   const f = await controller(); assert.deepEqual(f.calls, [{ name: 'list', request: { planVersionId: id(3), draftId: id(2), page: { offset: 0, limit: 25 } } }]); assert.equal(f.c.state.attempt, undefined)
   f.c.setPlan(); await f.c.refresh(); assert.equal(f.calls.length, 1); f.c.dispose()
+})
+test('正式开始必须本次实时预检通过并明确确认；Begin仅发冻结计划身份，Core回执不伪造完成', async () => {
+  const f = await controller()
+  await f.c.preflight(); f.c.setStartConfirmed(true); assert.equal(f.c.canBegin(), false)
+  f.api.preflightRecordingPlan = async request => { f.calls.push({ name: 'preflight', request }); return readyPreflight() }
+  await f.c.preflight(); assert.equal(f.c.canBegin(), true)
+  f.api.beginRecordingAttempt = async request => { f.calls.push({ name: 'begin', request }); return attempt() }
+  await f.c.begin()
+  assert.equal(f.calls.filter(call => call.name === 'preflight').length, 3, '点击开始仍须重新实时预检')
+  const request = f.calls.find(call => call.name === 'begin')!.request as Record<string, unknown>
+  assert.deepEqual(Object.keys(request).sort(), ['commandId', 'planContentHash', 'planVersionId', 'userConfirmed'])
+  assert.equal(request.planVersionId, id(3)); assert.equal(request.planContentHash, hash)
+  assert.equal(f.c.state.attempt?.status, 'in-progress'); assert.equal(f.c.state.attempt?.softwarePlaybackComplete, false)
+  assert.equal(f.c.state.preflightPhase, 'unread', '开始回执后旧预检不能继续充当资格')
+  f.c.dispose()
+})
+test('预检迟到不得替换已切换计划，未知开始回执保留同一命令供手动重试', async () => {
+  const f = await controller(), admission = deferred<RecordingPreflightResult>()
+  f.api.preflightRecordingPlan = () => admission.promise
+  const old = f.c.preflight(); f.c.setPlan(); admission.resolve(readyPreflight()); await old
+  assert.equal(f.c.state.preflightPhase, 'unread'); assert.equal(f.c.canBegin(), false)
+  f.c.setPlan(plan()); await f.c.refresh()
+  f.api.preflightRecordingPlan = async () => readyPreflight()
+  await f.c.preflight(); f.c.setStartConfirmed(true)
+  f.api.beginRecordingAttempt = async request => { f.calls.push({ name: 'begin', request }); throw new Error('/private/unknown') }
+  await f.c.begin(); assert.ok(f.c.state.pendingBegin); assert.doesNotMatch(f.c.state.operationError, /private/u)
+  await f.c.retryBegin()
+  const requests = f.calls.filter(call => call.name === 'begin').map(call => call.request)
+  assert.deepEqual(requests[0], requests[1]); f.c.dispose()
+})
+test('Main与Preload实际错误形状：仅确未受理码清除Begin，泛化失败保留原命令', async () => {
+  for (const code of ['NOT_READY', 'INVENTORY_CONFLICT', 'ATTEMPT_NOT_ACCEPTED'] as const) {
+    const f = await controller(), handlers = new Map<string, (event: boolean, envelope?: unknown) => unknown>()
+    installRecordingAttemptHandlers({
+      handle: (channel, handler) => handlers.set(channel, handler),
+      requireTrusted: trusted => { assert.equal(trusted, true) },
+      supervisor: { request: (async () => { throw new CoreIpcError(code, '/private/not-for-renderer') }) as never },
+    })
+    const client = createRecordingAttemptClient(async (channel, envelope) => {
+      if (channel === 'commandOutbox:context') return { datasetId: id(90) }
+      const handler = handlers.get(channel); assert.ok(handler, channel)
+      return await handler(true, envelope)
+    })
+    f.api.beginRecordingAttempt = client.beginRecordingAttempt
+    f.api.preflightRecordingPlan = async () => readyPreflight()
+    await f.c.preflight(); f.c.setStartConfirmed(true); await f.c.begin()
+    assert.equal(!!f.c.state.pendingBegin, code !== 'ATTEMPT_NOT_ACCEPTED', code)
+    assert.equal(f.c.canLeave(), code === 'ATTEMPT_NOT_ACCEPTED', code)
+    assert.doesNotMatch(f.c.state.operationError, /private|not-for-renderer/u)
+    f.c.dispose()
+  }
+})
+test('延迟 Begin 与未知回执阻断离开和切计划；原命令可手动核对，真实终态才可离开', async () => {
+  const f = await controller(), begin = deferred<RecordingAttempt>()
+  f.api.preflightRecordingPlan = async () => readyPreflight()
+  f.api.beginRecordingAttempt = () => begin.promise
+  await f.c.preflight(); f.c.setStartConfirmed(true)
+  const pending = f.c.begin(); await new Promise<void>(done => setImmediate(done))
+  assert.equal(f.c.canLeave(), false); assert.match(f.c.leaveBlockReason()!, /开始命令回执尚未确认/u)
+  f.c.setPlan(); assert.equal(f.c.state.plan?.id, id(3), '未确认 Begin 不能丢失原计划身份')
+  begin.resolve(attempt()); await pending
+  assert.equal(f.c.canLeave(), false); assert.match(f.c.leaveBlockReason()!, /正式输出或停止收口/u)
+  await f.c.stop(); assert.equal(f.c.state.attempt?.status, 'aborted'); assert.equal(f.c.canLeave(), true)
+  f.c.setPlan(); assert.equal(f.c.state.plan, undefined); f.c.dispose()
+
+  const unknown = await controller(); unknown.api.preflightRecordingPlan = async () => readyPreflight()
+  unknown.api.beginRecordingAttempt = async () => { throw new Error('/private/unknown') }
+  await unknown.c.preflight(); unknown.c.setStartConfirmed(true); await unknown.c.begin()
+  assert.ok(unknown.c.state.pendingBegin); assert.equal(unknown.c.canLeave(), false)
+  unknown.c.setPlan(); assert.equal(unknown.c.state.plan?.id, id(3)); assert.ok(unknown.c.state.pendingBegin)
+  unknown.c.dispose()
+})
+test('Begin失回执后可显式选同Plan新发现记录核对并停止，但不推断命令已受理', async () => {
+  const f = await controller(); f.api.preflightRecordingPlan = async () => readyPreflight()
+  f.api.beginRecordingAttempt = async () => { throw new Error('[NOT_READY] 回执未知') }
+  await f.c.preflight(); f.c.setStartConfirmed(true); await f.c.begin()
+  const pending = structuredClone(f.c.state.pendingBegin); assert.ok(pending)
+  await f.c.refresh(); await f.c.select(id(1))
+  assert.equal(f.c.state.attempt?.id, id(1)); assert.equal(f.c.canStop(), true)
+  assert.deepEqual(f.c.state.pendingBegin, pending, '同Plan记录不能冒充原命令回执')
+  assert.equal(f.c.canBegin(), false); assert.equal(f.c.canLeave(), false)
+  await f.c.stop(); assert.equal(f.c.state.attempt?.status, 'aborted')
+  assert.deepEqual(f.c.state.pendingBegin, pending); assert.equal(f.c.canLeave(), false)
+  f.c.dispose()
+})
+test('Begin在途发现记录后Stop优先，晚Begin不覆盖较新的终止事实或卡住发送态', async () => {
+  const f = await controller(), begin = deferred<RecordingAttempt>()
+  f.api.preflightRecordingPlan = async () => readyPreflight()
+  f.api.beginRecordingAttempt = () => begin.promise
+  await f.c.preflight(); f.c.setStartConfirmed(true)
+  const waitingBegin = f.c.begin(); await new Promise<void>(done => setImmediate(done))
+  assert.equal(f.c.state.beginSending, true)
+  await f.c.refresh(); await f.c.select(id(1))
+  await f.c.stop(); assert.equal(f.c.state.attempt?.status, 'aborted')
+  assert.equal(f.c.state.sending, false); assert.equal(f.c.state.beginSending, true)
+  begin.resolve(attempt()); await waitingBegin
+  assert.equal(f.c.state.beginSending, false); assert.equal(f.c.state.pendingBegin, undefined)
+  assert.equal(f.c.state.attempt?.status, 'aborted'); assert.equal(f.c.state.attempt?.revision, 2)
+  assert.match(f.c.state.notice, /较新的停止或终态/u)
+  assert.equal(f.c.canLeave(), true); f.c.dispose()
+})
+test('Stop回执在途与未知结果期间不能交叉重试Begin，Stop完成后发送态正常释放', async () => {
+  const f = await controller(), stopping = deferred<RecordingAttempt>()
+  f.api.preflightRecordingPlan = async () => readyPreflight()
+  let begins = 0
+  f.api.beginRecordingAttempt = async () => { begins++; throw new Error('[NOT_READY] 开始回执未知') }
+  await f.c.preflight(); f.c.setStartConfirmed(true); await f.c.begin()
+  assert.equal(begins, 1); assert.ok(f.c.state.pendingBegin)
+  await f.c.refresh(); await f.c.select(id(1))
+  f.api.stopRecordingAttempt = () => stopping.promise
+  const waitingStop = f.c.stop(); await new Promise<void>(done => setImmediate(done))
+  await f.c.retryBegin(); assert.equal(begins, 1); assert.equal(f.c.state.sending, true)
+  stopping.reject(new Error('[TIMEOUT] 停止回执未知')); await waitingStop
+  assert.equal(f.c.state.sending, false); assert.ok(f.c.state.pending)
+  await f.c.retryBegin(); assert.equal(begins, 1, '未知Stop未核对时不交叉重试Begin')
+  f.c.dispose()
+})
+test('人工命令未知与已知输出中不可开新Attempt或切历史；详情读取失败仍保留Stop身份', async () => {
+  const f = await controller(fixture(aborted())); await f.c.select(id(1))
+  f.api.confirmRecordingAttempt = async () => { throw new Error('[NOT_READY] 回执未知') }
+  f.c.setConfirmed(true); await f.c.confirm('physical-stop', 'A')
+  f.api.preflightRecordingPlan = async () => readyPreflight()
+  await f.c.preflight(); f.c.setStartConfirmed(true)
+  assert.equal(f.c.canBegin(), false, '旧人工操作未知时不签发新的Begin命令')
+  f.c.dispose()
+
+  const active = await controller()
+  active.api.listRecordingAttempts = async request => ({ items: [attempt(), { ...attempt(), id: id(9) }], offset: request.page.offset, limit: 25, total: 2, hasMore: false })
+  await active.c.refresh(); await active.c.select(id(1))
+  assert.equal(active.c.canSelect(id(9)), false); assert.match(active.c.selectionLockReason()!, /不能切换/u)
+  active.api.getRecordingAttempt = async () => { throw new Error('读取失败') }; await active.c.readSelected()
+  assert.equal(active.c.state.attempt, undefined); assert.equal(active.c.canSelect(id(9)), false, '详情暂不可读不应丢失已知活动Stop身份')
+  await active.c.select(id(9)); assert.equal(active.c.state.selectedId, id(1)); assert.equal(active.c.canStop(), true)
+  await active.c.stop(); assert.equal(active.c.canSelect(id(9)), true); active.c.dispose()
+})
+test('只读poll只在确认依据变化时撤勾；重复事实、进度与revision不抹除确认或回执', async () => {
+  const f = await controller(fixture(drained())); await f.c.select(id(1)); await f.c.preflight()
+  f.api.preflightRecordingPlan = async () => readyPreflight(); await f.c.preflight()
+  f.c.setConfirmed(true); f.c.setSideConfirmed(true); f.c.state.notice = '已收到原操作回执'
+  const unchanged = { ...drained(), revision: 2 }
+  f.api.getRecordingAttempt = async () => ({ attempt: unchanged }); await f.c.pollSelected()
+  assert.equal(f.c.state.confirmed, true); assert.equal(f.c.state.sideConfirmed, true); assert.equal(f.c.state.notice, '已收到原操作回执'); assert.equal(f.c.state.preflightPhase, 'ready')
+  const final = { ...drained(), revision: 3, phase: 'final-verification' as const,
+    sides: [{ ...drained().sides[0]!, phase: 'complete' as const, endedAt: later, physicalStopConfirmedAt: later }] }
+  delete final.activeSide
+  assert.equal(isRecordingAttempt(final), true)
+  f.api.getRecordingAttempt = async () => ({ attempt: final }); await f.c.pollSelected()
+  assert.equal(f.c.state.confirmed, false); assert.equal(f.c.state.sideConfirmed, false); assert.equal(f.c.state.preflightPhase, 'unread')
+  assert.equal(f.c.state.notice, '已收到原操作回执'); f.c.dispose()
+
+  const progress = await controller(); await progress.c.select(id(1)); progress.c.setConfirmed(true)
+  const withProgress = { ...attempt(), revision: 2, updatedAt: later,
+    sides: [{ ...side(), sourceFramesRead: 100, submittedFrames: 100, consumedFrames: 80 }] }
+  assert.equal(isRecordingAttempt(withProgress), true)
+  progress.api.getRecordingAttempt = async () => ({ attempt: withProgress }); await progress.c.pollSelected()
+  assert.equal(progress.c.state.confirmed, true); progress.c.dispose()
 })
 test('详情guard和完整Plan谱系匹配，错误/缺失不变为空历史', async () => {
   for (const patch of [{ id: id(90) }, { planVersionId: id(91) }, { draftId: id(92) }, { physicalId: 'MB-C-00002' }, { executionAssetId: id(93) }, { planContentHash: 'b'.repeat(64) }, { sides: [{ ...side(), audioSha256: 'b'.repeat(64) }] }, { formalReady: true }]) {
@@ -80,10 +244,12 @@ test('停止不用revision/二次确认，可越过未确认的人工命令，�
   assert.deepEqual(Object.keys(f.calls.find(c => c.name === 'stop')!.request as object).sort(), ['attemptId', 'commandId'])
   wait.resolve({ ...drained(), revision: 3 }); await old; assert.equal(f.c.state.attempt?.status, 'aborted'); assert.equal(f.c.state.attempt?.sides[0]?.cleanupQuiescent, false); f.c.dispose()
 })
-test('BeginB仅显式方法和翻面阶段，不跟随读取/确认自动触发，也不发送认证', async () => {
+test('BeginB仅显式方法和翻面阶段，本次预检与独立确认缺一不可', async () => {
   const f = await controller(fixture(waitingB())); await f.c.select(id(1)); assert.equal(f.calls.some(c => c.name === 'beginSide'), false)
   await f.c.beginSide(); assert.equal(f.calls.some(c => c.name === 'beginSide'), false)
-  f.c.setConfirmed(true); await f.c.beginSide(); const request = f.calls.find(c => c.name === 'beginSide')!.request as object
+  f.c.setSideConfirmed(true); await f.c.beginSide(); assert.equal(f.calls.some(c => c.name === 'beginSide'), false)
+  f.api.preflightRecordingPlan = async request => { f.calls.push({ name: 'preflight', request }); return readyPreflight() }
+  await f.c.preflight(); f.c.setSideConfirmed(true); await f.c.beginSide(); const request = f.calls.find(c => c.name === 'beginSide')!.request as object
   assert.deepEqual(Object.keys(request).sort(), ['attemptId', 'commandId', 'expectedRevision', 'side', 'userConfirmed']); assert.equal(f.c.state.attempt?.phase, 'awaiting-side-b'); f.c.dispose()
 })
 test('终止后只允许已开始面的实体停止确认，DAT和A-only没有翻面动作', async () => {
@@ -98,14 +264,14 @@ test('分页只保留当前25项、拒绝跨Plan/错误分页，刷新详情不�
   f.api.getRecordingAttempt = async () => ({ attempt: attempt() }); await f.c.readSelected(); assert.ok(f.c.state.detailError); assert.equal(f.c.state.attempt, undefined); f.c.dispose()
 })
 
-async function mounted(t: test.TestContext, api: RecordingAttemptsPublicApi, initial = plan()) {
+async function mounted(t: test.TestContext, api: RecordingAttemptsPublicApi & Pick<RecordingPlansPublicApi, 'preflightRecordingPlan'>, initial = plan()) {
   const { parse, compileScript, compileTemplate } = await import('@vue/compiler-sfc'), ts = (await import('typescript')).default
   const require = createRequire(import.meta.url), vue = require('vue') as typeof import('vue')
   const source = await readFile(new URL('../src/renderer/src/components/recording/RecordingAttemptPanel.vue', import.meta.url), 'utf8').catch(() => '')
   assert.ok(source, '缺少实际录音尝试面板SFC'); const { descriptor, errors } = parse(source); assert.deepEqual(errors, [])
   const script = compileScript(descriptor, { id: 'recording-attempt-panel' })
   const controller = await import('../src/renderer/src/components/recording/recording-attempt-controller.js')
-  const load = (name: string) => name === 'vue' ? vue : name === './recording-attempt-controller' ? controller : require(name)
+  const load = (name: string) => name === 'vue' ? vue : name === './recording-attempt-controller' ? controller : name === './DatCueReminders.vue' ? { default: { render: () => null } } : require(name)
   const compile = (content: string) => ts.transpileModule(content, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
   const module = { exports: {} as { default: import('vue').Component } }
   const focusDocument = { activeElement: undefined as unknown, body: {} }
@@ -116,18 +282,29 @@ async function mounted(t: test.TestContext, api: RecordingAttemptsPublicApi, ini
   const node = (tag = ''): Host => vue.markRaw({ tag, text: '', children: [], parent: null, props: {}, focus() { focusDocument.activeElement = this } })
   const renderer = vue.createRenderer<Host, Host>({ createElement: node, createText: text => ({ ...node('#text'), text }), createComment: () => node('#comment'), setText(node, text) { node.text = text }, setElementText(node, text) { node.text = text; node.children = [] }, patchProp(node, key, _old, value) { node.props[key] = key === 'disabled' && value === '' ? true : value; if (key === 'disabled' && (value === true || value === '') && focusDocument.activeElement === node) focusDocument.activeElement = focusDocument.body }, insert(child, parent, anchor) { if (child.parent) child.parent.children.splice(child.parent.children.indexOf(child), 1); child.parent = parent; const index = anchor ? parent.children.indexOf(anchor) : -1; if (index < 0) parent.children.push(child); else parent.children.splice(index, 0, child) }, remove(child) { if (focusDocument.activeElement === child) focusDocument.activeElement = focusDocument.body; child.parent?.children.splice(child.parent.children.indexOf(child), 1); child.parent = null }, parentNode: node => node.parent, nextSibling: node => node.parent?.children[(node.parent?.children.indexOf(node) ?? -1) + 1] ?? null })
   const selected = vue.shallowRef<RecordingPlanVersion | undefined>(initial), component = { ...module.exports.default, render: rendered.exports.render }
-  const root = node(), app = renderer.createApp({ setup: () => () => vue.h(component, { plan: selected.value }) }); app.mount(root); t.after(() => app.unmount())
+  const leaveStates: Array<{ canLeave: boolean; reason: string | null }> = []
+  const root = node(), app = renderer.createApp({ setup: () => () => vue.h(component, { plan: selected.value, onLeaveState: (value: { canLeave: boolean; reason: string | null }) => leaveStates.push(value) }) }); app.mount(root); t.after(() => app.unmount())
   const tick = async () => { await new Promise<void>(done => setImmediate(done)); await vue.nextTick() }; await tick()
   const all = (current = root): Host[] => [current, ...current.children.flatMap(child => all(child))], text = (current = root): string => current.text + current.children.map(child => text(child)).join(' ')
   const button = (label: string) => { const target = all().find(n => n.tag === 'button' && text(n).trim() === label); assert.ok(target, label); return target }
   const confirm = async () => { const target = all().find(n => n.props.id === 'recording-attempt-confirm'); assert.ok(target); (target.props.onChange as (e: unknown) => void)({ target: { checked: true } }); await tick() }
+  const startConfirm = async () => { const target = all().find(n => n.props.id === 'recording-attempt-start-confirm'); assert.ok(target); (target.props.onChange as (e: unknown) => void)({ target: { checked: true } }); await tick() }
+  const sideConfirm = async () => { const target = all().find(n => n.props.id === 'recording-attempt-side-b-confirm'); assert.ok(target); (target.props.onChange as (e: unknown) => void)({ target: { checked: true } }); await tick() }
   const click = async (label: string) => { const target = button(label); assert.notEqual(target.props.disabled, true); await (target.props.onClick as (e: unknown) => unknown)({ currentTarget: target }); await tick() }
-  return { all, text, button, confirm, click, tick, selected, focused: () => focusDocument.activeElement, bodyFocused: () => focusDocument.activeElement === focusDocument.body, unmount: () => app.unmount() }
+  return { all, text, button, confirm, startConfirm, sideConfirm, click, tick, selected, leaveStates, focused: () => focusDocument.activeElement, bodyFocused: () => focusDocument.activeElement === focusDocument.body, unmount: () => app.unmount() }
 }
 
-test('真实SFC明确GateB阻断、空态和历史不默认选，执行按钮禁用', async t => {
+test('真实SFC将离开状态同步通知父面板，输出期间拦截、终态释放', async t => {
+  const f = fixture(), panel = await mounted(t, f.api)
+  assert.equal(panel.leaveStates.at(-1)?.canLeave, true)
+  await panel.click('查看录音尝试 '+id(1)); assert.equal(panel.leaveStates.at(-1)?.canLeave, false)
+  await panel.click('停止本次录音'); assert.equal(panel.leaveStates.at(-1)?.canLeave, true)
+})
+
+test('真实SFC预检明确GateB阻断、空态和历史不默认选，执行按钮禁用', async t => {
   const f = fixture(); f.api.listRecordingAttempts = async () => ({ items: [], offset: 0, limit: 25, total: 0, hasMore: false }); const panel = await mounted(t, f.api)
-  assert.match(panel.text(), /这份计划尚无正式录音尝试；未生成演示记录。/u); assert.match(panel.text(), /Gate B.*NOT_RUN/u)
+  assert.match(panel.text(), /这份计划尚无正式录音尝试；未生成演示记录。/u)
+  await panel.click('本次正式输出预检'); assert.match(panel.text(), /Gate B.*NOT_RUN/u)
   assert.equal(panel.button('开始正式录音').props.disabled, true); assert.ok(panel.all().some(n => n.props['aria-live'] === 'polite'))
   assert.equal(f.calls.some(c => c.name === 'begin' || c.name === 'beginSide'), false)
 })
@@ -212,14 +389,16 @@ test('A/B物理停止后才出现翻面确认，确认翻面不会调用BeginB',
   const panel = await mounted(t, f.api, plan(value)); await panel.click('查看录音尝试 '+id(1)); await panel.confirm(); await panel.click('确认已翻面')
   assert.equal(panel.button('明确开始 B 面').props.disabled, true); assert.equal(f.calls.some(c => c.name === 'beginSide'), false)
 })
-test('列表重读/切Plan使旧列表失效，写回执切Plan与卸载后不得恢复旧详情', async () => {
+test('列表重读/切Plan使旧列表失效，待回执时拒切Plan；强制卸载后迟到回执不恢复旧详情', async () => {
   const f = await controller(), list = deferred<Awaited<ReturnType<RecordingAttemptsPublicApi['listRecordingAttempts']>>>()
   f.api.listRecordingAttempts = () => list.promise; const stale = f.c.refresh(); f.c.setPlan()
   list.resolve({ items: [attempt()], offset: 0, limit: 25, total: 1, hasMore: false }); await stale; assert.equal(f.c.state.page, undefined)
   for (const dispose of [false, true]) {
     const g = await controller(); await g.c.select(id(1)); const wait = deferred<RecordingAttempt>(); g.api.stopRecordingAttempt = () => wait.promise
-    const write = g.c.stop(); if (dispose) g.c.dispose(); else g.c.setPlan()
-    wait.resolve(aborted()); await write; assert.equal(g.c.state.attempt, undefined); assert.equal(g.c.state.stopId, ''); g.c.dispose()
+    const write = g.c.stop(); if (dispose) g.c.dispose(); else { g.c.setPlan(); assert.equal(g.c.state.plan?.id, id(3)); assert.equal(g.c.canLeave(), false) }
+    wait.resolve(aborted()); await write
+    if (!dispose) { assert.equal(g.c.state.attempt?.status, 'aborted'); g.c.setPlan() }
+    assert.equal(g.c.state.attempt, undefined); assert.equal(g.c.state.stopId, ''); g.c.dispose()
   }
   f.c.dispose()
 })

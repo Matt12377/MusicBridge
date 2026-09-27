@@ -6,8 +6,9 @@ import { preparationFixture } from './helpers/preparation-fixture.js';
 import * as preparationCoordinator from '../src/recording/preparation-coordinator.js';
 import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { isPreparationHistory } from '@music-bridge/contracts';
+import { isPreparationHistory, type MediaLayoutSpec } from '@music-bridge/contracts';
 import { copyPreparationFile } from '../src/recording/preparation-files.js';
+import { planPreparationZip } from '../src/recording/preparation-export-files.js';
 import { createSourceEvidenceService } from '../src/recording/source-evidence.js';
 import { DatabaseSync } from 'node:sqlite';
 
@@ -50,6 +51,7 @@ test('Preparation 正式协调器从冻结版本生成实际工作副本与谱�
   assert.ok(!manifestText.includes(f.sourcePath));
   assert.deepEqual(await readFile(path.join(directory, 'Sources', '001.wav')), await readFile(f.file));
   assert.ok((await readFile(path.join(directory, 'SourceLineage.json'), 'utf8')).includes(f.layout.timeline.sides[0]!.tracks[0]!.sourceBindingId));
+  assert.equal((await readFile(path.join(directory, 'README.txt'), 'utf8')).startsWith('Logic 工作副本\n请手动导入 Sources'), true);
   await assert.rejects(f.coordinator.start({ ...request, destinationId: randomUUID() }));
   const db = new DatabaseSync(f.filePath);
   try {
@@ -58,6 +60,68 @@ test('Preparation 正式协调器从冻结版本生成实际工作副本与谱�
       assert.throws(() => db.exec(`DELETE FROM ${table}`), /immutable/u);
     }
   } finally { db.close(); }
+});
+
+test('两盘 Preparation 只复制本盘源与曲单，进度/字节/ZIP 一致且保留完整母版身份', async t => {
+  const f = await preparationFixture(t), groupId = randomUUID(), segmentSpecs = [
+    { trackIds: f.draft.trackIds.slice(0, 2) }, { trackIds: f.draft.trackIds.slice(2) },
+  ];
+  const plans = [];
+  for (const segmentIndex of [0, 1]) {
+    const spec: MediaLayoutSpec = { format: 'cassette', splitAfter: 1, leadInMs: 1000, tailMs: 1000,
+      defaultGapMs: 5000, rules: [], compatibility: { confirmed: true, cassetteTypes: ['II'], dat: true },
+      distribution: { schemaVersion: 1, groupId, segmentIndex, segmentSpecs } };
+    const preview = await f.media.preview({ draftId: f.draft.draftId, spec, page: { offset: 0, limit: 20 } });
+    const saved = await f.media.save({ commandId: randomUUID(), draftId: f.draft.draftId,
+      expectedDraftRevision: preview.draftRevision, inputFingerprint: preview.inputFingerprint, spec });
+    plans.push(await f.media.reserve({ commandId: randomUUID(), planId: saved.id, expectedRevision: saved.revision,
+      skuId: preview.candidates.items[0]!.skuId, packaging: 'opened', userConfirmed: true }));
+  }
+  for (const plan of plans) {
+    const proposal = await f.versions.preview({ planId: plan.id, sampleRate: 96000 });
+    await f.versions.freeze({ commandId: randomUUID(), planId: plan.id, sampleRate: 96000,
+      proposalFingerprint: proposal.proposalFingerprint, userConfirmed: true });
+    await f.versions.idle();
+  }
+  const versions = f.versions.list(f.draft.draftId), layouts = [...versions.layouts].reverse();
+  assert.equal(versions.masters.length, 1);
+  const target = path.join(f.directory, 'multi-disk-workspaces'); await mkdir(target);
+  let copies = 0;
+  const coordinator = factory()({ store: f.repository.preparations, sourceStore: f.repository.sources,
+    sources: f.sources, copy: async (...args) => { copies++; return copyPreparationFile(...args); } });
+  f.registerDependentCleanup(() => coordinator.close());
+  const destination = await coordinator.authorize(randomUUID(), target);
+  const sourceBytes = versions.masters[0]!.content.tracks[0]!.source.size;
+  for (const [index, layout] of layouts.entries()) {
+    const proposal = await coordinator.preview({ layoutVersionId: layout.id, destinationId: destination.id });
+    const assigned = segmentSpecs[index]!.trackIds;
+    assert.equal(proposal.trackCount, assigned.length);
+    assert.equal(proposal.bytes, assigned.length * sourceBytes);
+    assert.equal(proposal.contentHash, versions.masters[0]!.contentHash);
+    const job = await coordinator.start({ commandId: randomUUID(), layoutVersionId: layout.id,
+      destinationId: destination.id, proposalFingerprint: proposal.proposalFingerprint, userConfirmed: true });
+    await coordinator.idle();
+    const completed = coordinator.job(job.id).job!;
+    assert.equal(completed.state, 'completed');
+    assert.equal(completed.totalTracks, assigned.length);
+    assert.equal(completed.completedTracks, assigned.length);
+    const privateJob = f.repository.preparations.job(job.id)!, directory = privateJob.owned!.root.path;
+    assert.equal((await readdir(path.join(directory, 'Sources'))).length, assigned.length);
+    const lineage = JSON.parse(await readFile(path.join(directory, 'SourceLineage.json'), 'utf8')) as { trackId: string }[];
+    assert.deepEqual(lineage.map(item => item.trackId), assigned);
+    const tracklist = await readFile(path.join(directory, 'Tracklist.tsv'), 'utf8');
+    assert.equal(tracklist.trimEnd().split('\n').length, assigned.length + 1);
+    for (const title of versions.masters[0]!.content.tracks.filter(track => assigned.includes(track.trackId)).map(track => track.metadata.title))
+      assert.ok(tracklist.includes(title));
+    const manifest = JSON.parse(await readFile(path.join(directory, 'Manifest.json'), 'utf8'));
+    assert.equal(manifest.masterVersionId, versions.masters[0]!.id);
+    assert.equal(manifest.contentHash, versions.masters[0]!.contentHash);
+    assert.deepEqual(manifest.plannedTimeline, layout.timeline);
+    assert.equal((await readFile(path.join(directory, 'README.txt'), 'utf8')).startsWith('Logic 本盘工作副本\n'), true);
+    const zip = await planPreparationZip(privateJob, new AbortController().signal);
+    assert.equal(zip.entries.filter(entry => entry.name.startsWith('Sources/') && entry.kind === 'file').length, assigned.length);
+  }
+  assert.equal(copies, f.draft.trackIds.length, '仅复制两盘合计曲目，不重复复制完整母版');
 });
 test('Preparation 源撤权、取消和磁盘已满不产生已发布工作区', async t => {
   for (const reason of ['revoke', 'cancel', 'disk'] as const) await t.test(reason, async t => {

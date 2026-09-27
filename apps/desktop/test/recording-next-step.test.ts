@@ -106,7 +106,9 @@ test('母版内容/源hash/规划spec/预留及跨草稿谱系变化均不能把
 
 test('Direct不受无关Logic历史绑架，Logic和PREP均要求所选工作区与PREP完整谱系', async () => {
   const next = await reducer(), f = sample()
-  let value = next(input(f)); assert.equal(value.action.type, 'execution'); assert.equal(value.formalReady, false); assert.match(value.description, /正式预检/u)
+  let value = next(input(f)); assert.equal(value.action.type, 'execution'); assert.equal(value.formalReady, false)
+  assert.match(value.description, /正式输出资格须在实时预检核验/u)
+  assert.doesNotMatch(value.description, /Gate B.*未认证/u)
   f.state.selection.path = undefined; assert.equal(next(input(f)).action.type, 'choose-context')
   for (const path of ['logic', 'prep'] as const) {
     f.state.selection = { planId: f.plan.id, layoutId: f.layout.id, path }
@@ -139,6 +141,8 @@ test('合法发布历史只证明发布时事实，执行任务按所选布局�
   const asset: ExecutionAsset = { id: id(33), draftId: f.draft.id, masterVersionId: f.master.id, layoutVersionId: f.layout.id, destinationId: id(11), mode: 'direct', settings, recipes: [recipe], audio: [{ recipe, recipeHash: hash, origin: 'compiled', audio: { sha256: hash, size: 192044, pcmSha256: hash, dataOffset: 44, frameCount: 48000 }, formalReady: false }], manifestHash: hash, createdAt: stamp, state: 'verified-at-publication', retentionPolicy: 'unresolved-no-automatic-deletion', formalReady: false }
   assert.ok(dto.isExecutionAsset(asset)); f.facts.execution.assets = [asset]
   const before = JSON.stringify(f.facts), published = next(input(f)); assert.match(published.description, /已有对应执行资产.*仍需显式核验/u); assert.equal(published.formalReady, false); assert.equal(published.action.type, 'recording-plan'); assert.equal(JSON.stringify(f.facts), before)
+  assert.match(published.description, /正式输出资格须在实时预检核验/u)
+  assert.doesNotMatch(published.description, /Gate B.*未认证/u)
   f.facts.execution.jobs = [{ id: id(34), draftId: f.draft.id, layoutVersionId: f.layout.id, destinationId: id(11), profileVersionId: id(31), mode: 'prepared-reference', state: 'running', completedSides: 0, totalSides: 1 }]
   assert.doesNotMatch(next(input(f)).title, /进行中/u)
   f.facts.execution.jobs = f.facts.execution.jobs.map(job => ({ ...job, mode: 'direct' }))

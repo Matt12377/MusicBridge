@@ -1,9 +1,17 @@
 import type { VolumeRequest, VolumeSnapshot } from '@music-bridge/contracts';
 import { createRecordingPrintCoordinator, type RecordingPrintCoordinator } from './recording/print-coordinator.js';
 import { createRecordingReplicaInput } from './recording/replica-input.js';
+import { createReplicaDeviceSessionCoordinator } from './recording/replica-device-session.js';
+import { createReplicaDeviceOutputProvider } from './recording/replica-device-output-provider.js';
+import { createRecordingDeviceSelectionBroker, type RecordingDeviceSelectionBroker } from './recording/device-selection-broker.js';
+import { createNativeReadonlyDeviceCatalog } from './recording/native-device-catalog.js';
+import { createProductionGateBAdmission, type GateBCandidateIdentity, type GateBAdmissionSource } from './recording/gate-b-admission.js';
+import { createFormalDeviceAttemptProvider } from './recording/formal-device-attempt-provider.js';
+import type { PinnedDeviceOutputHelper } from './recording/bundled-device-output-helper.js';
+import type { OutputRunRecoveryState } from './recording/output-run-recovery.js';
 import { createRecordingReplicaCoordinator, type RecordingReplicaCoordinator } from './recording/replica-coordinator.js';
 import { createRecordingRecordCoordinator, type RecordingRecordCoordinator } from './recording/record-coordinator.js';
-import { createRecordingAttemptCoordinator, type RecordingAttemptCoordinator } from './recording/attempt-coordinator.js';
+import { createRecordingAttemptCoordinator, type RecordingAttemptCoordinator, type RecordingAttemptAdmissionProvider } from './recording/attempt-coordinator.js';
 import { createRecordingOutputService, type RecordingOutputService } from './recording/output-service.js';
 import type { PinnedOutputHelper } from './recording/bundled-output-helper.js';
 import { createRecordingPlanCoordinator, type RecordingPlanCoordinator } from './recording/plan-coordinator.js';
@@ -22,8 +30,10 @@ import type { FfmpegConverter } from './recording/audio-converter.js';
 import { createPreparedCoordinator, type PreparedCoordinator } from './recording/prepared-coordinator.js';
 import { createMasterVersionsCoordinator, type MasterVersionsCoordinator } from './recording/versions-coordinator.js';
 import { createPreparationCoordinator, type PreparationCoordinator } from './recording/preparation-coordinator.js';
+import { createPreparationZipCoordinator, type PreparationZipCoordinator } from './recording/preparation-export-coordinator.js';
 import { createMediaPlanningCoordinator, type MediaPlanningCoordinator } from './recording/media-coordinator.js';
 import { createSourceEvidenceService, type SourceEvidenceService } from './recording/source-evidence.js';
+import { createSourceCandidateService, type SourceCandidateService } from './recording/source-candidates.js';
 import { createMasterDraftsCoordinator, type MasterDraftsCoordinator } from './recording/drafts-coordinator.js';
 import { createPhysicalLinksCoordinator, type PhysicalLinksCoordinator } from './collection/physical-links-coordinator.js';
 import type { RoonPublicLibrary } from './roon/public-library.js';
@@ -122,9 +132,11 @@ export interface CoreRuntime {
   physicalLinks?: PhysicalLinksCoordinator;
   masterDrafts?: MasterDraftsCoordinator;
   sources?: SourceEvidenceService;
+  sourceCandidates?: SourceCandidateService;
   mediaPlanning?: MediaPlanningCoordinator;
   masterVersions?: MasterVersionsCoordinator;
   preparation?: PreparationCoordinator;
+  preparationZips?: PreparationZipCoordinator;
   prepared?: PreparedCoordinator;
   execution?: ExecutionCoordinator;
   archive?: ArchiveCoordinator;
@@ -134,6 +146,7 @@ export interface CoreRuntime {
   recordingRecords?: RecordingRecordCoordinator;
   recordingPrints?: RecordingPrintCoordinator;
   recordingReplica?: RecordingReplicaCoordinator;
+  recordingDeviceSelection?: RecordingDeviceSelectionBroker;
   backups?: BackupCoordinator;
   readonly collection?: CollectionRepository;
   start(): Promise<void>;
@@ -219,6 +232,13 @@ export interface BridgeRuntimeOptions {
   /** 仅由受信任的 Core 组合层注入；不从 Renderer 或系统 PATH 自动配置。 */
   recordingConverter?: FfmpegConverter;
   recordingOutputHelper?: PinnedOutputHelper;
+  recordingDeviceOutputHelper?: PinnedDeviceOutputHelper;
+  /** 编译期可信候选；缺失为 null，绝不从 env/IPC/普通配置补造。 */
+  recordingGateBCandidate?: GateBCandidateIdentity | null;
+  /** 由已打开的数据集选择层给出，不能使用默认路径猜测恢复库。 */
+  recordingLeaseDatabaseFile?: string;
+  /** 仅Core冷启按实际dataset与持久pending运行核验；缺省不得在持久库开放设备。 */
+  recordingOutputRunRecovery?: OutputRunRecoveryState;
   collectionRepository?: CollectionRepository;
   backupWorkflowStore?: BackupWorkflowStore;
   backupPrivateRoot?: RootCapability;
@@ -830,21 +850,61 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   });
 
   const sources = options.collectionRepository ? createSourceEvidenceService({ store: options.collectionRepository.sources, drafts: options.collectionRepository.drafts, validateAuthorization: root => assertSourceOutsideArchives(root.path, options.collectionRepository!.archive) }) : undefined;
+  const sourceCandidates = options.collectionRepository && sources ? createSourceCandidateService({ store: options.collectionRepository.sources, drafts: options.collectionRepository.drafts, sources }) : undefined;
   const mediaPlanning = options.collectionRepository ? createMediaPlanningCoordinator({ store: options.collectionRepository.media, drafts: options.collectionRepository.drafts, ...(sources ? { sources } : {}) }) : undefined;
   const masterVersions = options.collectionRepository && sources && mediaPlanning ? createMasterVersionsCoordinator({ store: options.collectionRepository.versions, mediaStore: options.collectionRepository.media, media: mediaPlanning, drafts: options.collectionRepository.drafts, sourceStore: options.collectionRepository.sources, sources }) : undefined;
   const preparation = options.collectionRepository && sources ? createPreparationCoordinator({ store: options.collectionRepository.preparations, sourceStore: options.collectionRepository.sources, sources }) : undefined;
+  const preparationZips = options.collectionRepository && options.collectionDatasetIdentity ? createPreparationZipCoordinator({
+    store: options.collectionRepository.preparationZips,
+    preparations: options.collectionRepository.preparations,
+    datasetId: options.collectionDatasetIdentity.datasetId,
+    assertDataset: options.collectionDatasetIdentity.assertCurrent,
+    protectedRoots: () => [
+      ...options.collectionRepository!.sources.roots(),
+      ...options.collectionRepository!.preparations.destinations(),
+      ...options.collectionRepository!.archive.candidates().map(candidate => candidate.parent),
+      ...options.collectionRepository!.archive.operations().flatMap(operation => operation.owned ? [operation.owned.archive.root] : []),
+      ...(options.backupContentBinding?.protectedRoots ?? []),
+      ...(options.backupPrivateRoot ? [options.backupPrivateRoot] : []),
+    ],
+  }) : undefined;
   const prepared = options.collectionRepository && preparation ? createPreparedCoordinator({ store: options.collectionRepository.prepared, preparationStore: options.collectionRepository.preparations, preparation, sourceStore: options.collectionRepository.sources }) : undefined;
   const execution = options.collectionRepository && sources && preparation ? createExecutionCoordinator({ store: options.collectionRepository.execution, profiles: options.collectionRepository.recordingProfiles, preparationStore: options.collectionRepository.preparations, preparedStore: options.collectionRepository.prepared, mediaStore: options.collectionRepository.media, sourceStore: options.collectionRepository.sources, sources, preparation, ...(options.recordingConverter ? { converter: options.recordingConverter } : {}) }) : undefined;
   const backups = options.backupWorkflowStore && options.collectionRepository ? createBackupCoordinator({ store: options.backupWorkflowStore, repository: options.collectionRepository, ...(options.backupPrivateRoot ? { privateRoot: options.backupPrivateRoot } : {}), ...(options.backupContentBinding ? { contentBinding: options.backupContentBinding } : {}) }) : undefined;
   const archive = options.collectionRepository && sources && preparation ? createArchiveCoordinator({ store: options.collectionRepository.archive, executionStore: options.collectionRepository.execution, preparationStore: options.collectionRepository.preparations, sourceStore: options.collectionRepository.sources, sources, preparation }) : undefined;
-  const recordingPlans = options.collectionRepository ? createRecordingPlanCoordinator({ store: options.collectionRepository.recordingPlans }) : undefined;
-  const recordingOutput = createRecordingOutputService({ ...(options.collectionRepository ? { store: options.collectionRepository.recordingPlans } : {}), ...(options.recordingOutputHelper ? { helper: options.recordingOutputHelper } : {}) });
-  let recordingReplica: RecordingReplicaCoordinator | undefined;
   const assertReplicaCurrent = () => {
     if (options.collectionDatasetIdentity) options.collectionDatasetIdentity.assertCurrent();
     else options.collectionRepository!.list({ offset: 0, limit: 1 });
   };
-  const recordingAttempts = options.collectionRepository ? createRecordingAttemptCoordinator({ store: options.collectionRepository.recordingAttempts, assertReplicaIdle: () => recordingReplica?.assertExecutionIdle(), assertCurrent: () => {
+  let recordingReplica: RecordingReplicaCoordinator | undefined;
+  let recordingAttempts: RecordingAttemptCoordinator | undefined;
+  const devicePin = options.recordingDeviceOutputHelper;
+  const outputRecoveryReady = () => !options.collectionDatasetIdentity || options.recordingOutputRunRecovery?.safe === true;
+  const recordingDeviceSelection = options.collectionRepository ? createRecordingDeviceSelectionBroker({
+    ...(devicePin ? { catalog: createNativeReadonlyDeviceCatalog(devicePin), pin: devicePin } : {}),
+    assertCurrent: assertReplicaCurrent,
+    assertIdle: () => { recordingAttempts?.assertExecutionIdle(); recordingReplica?.assertExecutionIdle(); },
+    outputRecoveryReady,
+  }) : undefined;
+  const gateB = devicePin && recordingDeviceSelection ? createProductionGateBAdmission({
+    recordPath: path.join(path.dirname(path.dirname(devicePin.path)), 'GateBComplete.json'),
+    candidate: options.recordingGateBCandidate ?? null,
+    observeExact: recordingDeviceSelection.observeExactForAdmission,
+  }) : undefined;
+  const recordingPlans = options.collectionRepository ? createRecordingPlanCoordinator({
+    store: options.collectionRepository.recordingPlans,
+    ...(recordingDeviceSelection ? { deviceSelection: recordingDeviceSelection } : {}),
+    ...(gateB ? { gateB } : {}),
+  }) : undefined;
+  const recordingOutput = createRecordingOutputService({ ...(options.collectionRepository ? { store: options.collectionRepository.recordingPlans } : {}), ...(options.recordingOutputHelper ? { helper: options.recordingOutputHelper } : {}) });
+  const admissionProvider = devicePin && recordingDeviceSelection && gateB ? createFormalDeviceAttemptProvider({
+    pin: devicePin, deviceSelection: recordingDeviceSelection, gateB, outputRecoveryReady,
+    ...(options.collectionDatasetIdentity && options.recordingLeaseDatabaseFile ? { leaseScope: {
+      databaseFile: options.recordingLeaseDatabaseFile, datasetId: options.collectionDatasetIdentity.datasetId,
+    } } : {}),
+  }) : undefined;
+  recordingAttempts = options.collectionRepository ? createRecordingAttemptCoordinator({ store: options.collectionRepository.recordingAttempts,
+    ...(admissionProvider ? { admissionProvider } : {}), assertReplicaIdle: () => recordingReplica?.assertExecutionIdle(), assertCurrent: () => {
     if (options.collectionDatasetIdentity) options.collectionDatasetIdentity.assertCurrent();
     else options.collectionRepository!.list({ offset: 0, limit: 1 });
   } }) : undefined;
@@ -857,8 +917,14 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     assertExecutionIdle: () => recordingAttempts.assertExecutionIdle(),
   }) : undefined;
   const recordingPrints = options.collectionRepository ? createRecordingPrintCoordinator({ store: options.collectionRepository.recordingPrints, assertCurrent: assertReplicaCurrent }) : undefined;
-  recordingReplica = options.collectionRepository && recordingAttempts ? createRecordingReplicaCoordinator({
-    input: createRecordingReplicaInput({ repository: options.collectionRepository, assertCurrent: assertReplicaCurrent, ...(options.backupContentBinding ? { contentBinding: options.backupContentBinding } : {}) }),
+  const replicaInput = options.collectionRepository && recordingAttempts ? createRecordingReplicaInput({ repository: options.collectionRepository, assertCurrent: assertReplicaCurrent, ...(options.backupContentBinding ? { contentBinding: options.backupContentBinding } : {}) }) : undefined;
+  const replicaDeviceSession = replicaInput && devicePin && recordingDeviceSelection && recordingAttempts
+    ? createReplicaDeviceSessionCoordinator({ input: replicaInput,
+      provider: createReplicaDeviceOutputProvider({ pin: devicePin, deviceSelection: recordingDeviceSelection }),
+      currentSelection: recordingDeviceSelection.current, assertCurrent: assertReplicaCurrent,
+      assertAttemptIdle: () => recordingAttempts.assertExecutionIdle(), outputRecoveryReady }) : undefined;
+  recordingReplica = replicaInput && recordingAttempts ? createRecordingReplicaCoordinator({
+    input: replicaInput, ...(replicaDeviceSession ? { deviceSession: replicaDeviceSession } : {}),
     assertCurrent: assertReplicaCurrent, assertAttemptIdle: () => recordingAttempts.assertExecutionIdle(),
   }) : undefined;
   const cleanup = async (): Promise<void> => {
@@ -866,14 +932,17 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     await recordingPrints?.close();
     await recordingRecords?.close();
     await recordingAttempts?.close();
+    recordingDeviceSelection?.close();
     await recordingOutput.close();
     await recordingPlans?.close();
     await backups?.close();
     await archive?.close();
     await execution?.close();
     await prepared?.close();
+    await preparationZips?.close();
     await preparation?.close();
     await masterVersions?.close();
+    sourceCandidates?.close();
     await sources?.close();
     options.collectionRepository?.close();
     await control.stop();
@@ -1213,9 +1282,11 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     },
 
     ...(sources ? { sources } : {}),
+    ...(sourceCandidates ? { sourceCandidates } : {}),
     ...(mediaPlanning ? { mediaPlanning } : {}),
     ...(masterVersions ? { masterVersions } : {}),
     ...(preparation ? { preparation } : {}),
+    ...(preparationZips ? { preparationZips } : {}),
     ...(prepared ? { prepared } : {}),
     ...(execution ? { execution } : {}),
     ...(archive ? { archive } : {}),
@@ -1224,6 +1295,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     ...(recordingRecords ? { recordingRecords } : {}),
     ...(recordingPrints ? { recordingPrints } : {}),
     ...(recordingReplica ? { recordingReplica } : {}),
+    ...(recordingDeviceSelection ? { recordingDeviceSelection } : {}),
     recordingOutput,
     ...(backups ? { backups } : {}),
     ...(options.collectionRepository ? { collection: options.collectionRepository, physicalLinks: createPhysicalLinksCoordinator({ repository: options.collectionRepository.links, library: roonLibrary }), masterDrafts: createMasterDraftsCoordinator({ repository: options.collectionRepository.drafts, library: roonLibrary }) } : {}),
@@ -1266,6 +1338,12 @@ export interface TestBridgeRuntimeOptions {
   collectionDatasetIdentity?: DatasetIdentity;
   recordingConverter?: FfmpegConverter;
   recordingOutputHelper?: PinnedOutputHelper;
+  recordingDeviceOutputHelper?: PinnedDeviceOutputHelper;
+  /** 仅离线合成测试直接注入；正式Runtime、环境变量与Renderer均不能提供此资格。 */
+  recordingAttemptAdmissionProvider?: RecordingAttemptAdmissionProvider;
+  /** 仅私有测试入口使用；正式Runtime始终枚举真实只读目录并独立核验Gate B。 */
+  recordingPlanDeviceSelection?: RecordingDeviceSelectionBroker;
+  recordingPlanGateB?: GateBAdmissionSource;
   roonLibrary?: RoonPublicLibrary;
   collectionRepository?: CollectionRepository;
   backupWorkflowStore?: BackupWorkflowStore;
@@ -1280,14 +1358,33 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
   const commandOutbox = createDatasetCommandBoundary(options.collectionDatasetIdentity ?? { datasetId: randomUUID(), assertCurrent: () => { collection.list({ offset: 0, limit: 1 }); } });
   const backups = createBackupCoordinator({ store: options.backupWorkflowStore ?? createBackupWorkflowStore({ filePath: ':memory:' }), repository: collection, ...(options.backupPrivateRoot ? { privateRoot: options.backupPrivateRoot } : {}), ...(options.backupContentBinding ? { contentBinding: options.backupContentBinding } : {}) });
   const sources = createSourceEvidenceService({ store: collection.sources, drafts: collection.drafts, validateAuthorization: root => assertSourceOutsideArchives(root.path, collection.archive) });
+  const sourceCandidates = createSourceCandidateService({ store: collection.sources, drafts: collection.drafts, sources });
   const mediaPlanning = createMediaPlanningCoordinator({ store: collection.media, drafts: collection.drafts, sources });
   const masterVersions = createMasterVersionsCoordinator({ store: collection.versions, mediaStore: collection.media, media: mediaPlanning, drafts: collection.drafts, sourceStore: collection.sources, sources });
   const preparation = createPreparationCoordinator({ store: collection.preparations, sourceStore: collection.sources, sources });
+  const preparationZips = createPreparationZipCoordinator({
+    store: collection.preparationZips,
+    preparations: collection.preparations,
+    datasetId: commandOutbox.context().datasetId,
+    assertDataset: () => { commandOutbox.context(); },
+    protectedRoots: () => [
+      ...collection.sources.roots(),
+      ...collection.preparations.destinations(),
+      ...collection.archive.candidates().map(candidate => candidate.parent),
+      ...collection.archive.operations().flatMap(operation => operation.owned ? [operation.owned.archive.root] : []),
+      ...(options.backupContentBinding?.protectedRoots ?? []),
+      ...(options.backupPrivateRoot ? [options.backupPrivateRoot] : []),
+    ],
+  });
   const prepared = createPreparedCoordinator({ store: collection.prepared, preparationStore: collection.preparations, preparation, sourceStore: collection.sources });
   const execution = createExecutionCoordinator({ store: collection.execution, profiles: collection.recordingProfiles, preparationStore: collection.preparations, preparedStore: collection.prepared, mediaStore: collection.media, sourceStore: collection.sources, sources, preparation, ...(options.recordingConverter ? { converter: options.recordingConverter } : {}) });
-  const recordingPlans = createRecordingPlanCoordinator({ store: collection.recordingPlans });
+  const recordingPlans = createRecordingPlanCoordinator({ store: collection.recordingPlans,
+    ...(options.recordingPlanDeviceSelection ? { deviceSelection: options.recordingPlanDeviceSelection } : {}),
+    ...(options.recordingPlanGateB ? { gateB: options.recordingPlanGateB } : {}) });
   let assertReplicaIdle = () => {};
-  const recordingAttempts = createRecordingAttemptCoordinator({ store: collection.recordingAttempts, assertReplicaIdle: () => assertReplicaIdle(), assertCurrent: () => { commandOutbox.context(); } });
+  const recordingAttempts = createRecordingAttemptCoordinator({ store: collection.recordingAttempts,
+    ...(options.recordingAttemptAdmissionProvider ? { admissionProvider: options.recordingAttemptAdmissionProvider } : {}),
+    assertReplicaIdle: () => assertReplicaIdle(), assertCurrent: () => { commandOutbox.context(); } });
   const recordingReplica = createRecordingReplicaCoordinator({
     input: createRecordingReplicaInput({ repository: collection, assertCurrent: () => { commandOutbox.context(); }, ...(options.backupContentBinding ? { contentBinding: options.backupContentBinding } : {}) }),
     assertCurrent: () => { commandOutbox.context(); }, assertAttemptIdle: () => recordingAttempts.assertExecutionIdle(),
@@ -1457,14 +1554,17 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       await recordingPrints.close();
       await recordingRecords.close();
       await recordingAttempts.close();
+      options.recordingPlanDeviceSelection?.close();
       await recordingOutput.close();
       await recordingPlans.close();
       await backups.close();
       await archive.close();
       await execution.close();
       await prepared.close();
+      await preparationZips.close();
       await preparation.close();
       await masterVersions.close();
+      sourceCandidates.close();
       await sources.close();
       collection.close();
       playbackState = emptyPlaybackState();
@@ -1843,7 +1943,9 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     collection,
     commandOutbox,
     sources,
-    mediaPlanning, masterVersions, preparation, prepared, execution, archive, backups, recordingPlans, recordingOutput, recordingAttempts, recordingRecords, recordingPrints, recordingReplica,
+    sourceCandidates,
+    mediaPlanning, masterVersions, preparation, preparationZips, prepared, execution, archive, backups, recordingPlans, recordingOutput, recordingAttempts, recordingRecords, recordingPrints, recordingReplica,
+    ...(options.recordingPlanDeviceSelection ? { recordingDeviceSelection: options.recordingPlanDeviceSelection } : {}),
     physicalLinks: createPhysicalLinksCoordinator({ repository: collection.links, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
     masterDrafts: createMasterDraftsCoordinator({ repository: collection.drafts, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
     listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),

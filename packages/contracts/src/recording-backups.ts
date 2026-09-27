@@ -3,15 +3,15 @@ import { isDraftText } from './master-drafts.js';
 import { isRestoreActivationView, type ActivateRestoredDataset, type RestoreActivationView } from './recording-activation.js';
 
 export type BackupRootKind = 'backup-destination' | 'backup-source' | 'restore-destination';
-export interface BackupRootView { id: string; kind: BackupRootKind; label: string; authorized: boolean }
-export interface AuthorizeBackupRoot { commandId: string; kind: BackupRootKind }
+export interface BackupRootView { id: string; kind: BackupRootKind; label: string; authorized: boolean; format?: 'zip' }
+export interface AuthorizeBackupRoot { commandId: string; kind: BackupRootKind; format?: 'zip' }
 export type BackupJobKind = 'backup' | 'verify' | 'restore' | 'index';
 export type BackupMode = 'metadata' | 'archive-content';
 export type BackupJobState = 'queued' | 'running' | 'cancelling' | 'succeeded' | 'failed' | 'cancelled' | 'interrupted';
-export type BackupJobIssue = 'BACKUP_DESTINATION_INVALID' | 'BACKUP_INCOMPLETE' | 'BACKUP_INVALID' | 'BACKUP_IO_ERROR' | 'AUTHORIZATION_REVOKED' | 'CANCELLED' | 'INTERRUPTED';
+export type BackupJobIssue = 'BACKUP_DESTINATION_INVALID' | 'BACKUP_INCOMPLETE' | 'BACKUP_INVALID' | 'BACKUP_IO_ERROR' | 'BACKUP_UNAVAILABLE' | 'AUTHORIZATION_REVOKED' | 'CANCELLED' | 'INTERRUPTED';
 interface JobRequestBase { commandId: string; rootId: string; userConfirmed: true }
 export type StartBackupJob = JobRequestBase & (
-  { kind: 'backup'; mode: BackupMode } | { kind: 'verify' | 'index' } |
+  { kind: 'backup'; mode: BackupMode; format?: 'zip' } | { kind: 'verify' | 'index' } |
   { kind: 'restore'; destinationId: string; verificationId: string }
 );
 export interface BackupSummary { backupId: string; manifestHash: string; mode: BackupMode; objectCount: number; copyBytes: number; operationCount: number; incompleteCount: number }
@@ -26,7 +26,7 @@ export interface BackupIndexSummary {
 }
 export interface BackupJobView {
   id: string; kind: BackupJobKind; rootId: string; destinationId?: string; state: BackupJobState; createdAt: string;
-  mode?: BackupMode; issue?: BackupJobIssue; summary?: BackupSummary; index?: BackupIndexSummary; resultRootId?: string;
+  mode?: BackupMode; format?: 'zip'; issue?: BackupJobIssue; summary?: BackupSummary; index?: BackupIndexSummary; resultRootId?: string;
 }
 export interface BackupOverview { roots: readonly BackupRootView[]; jobs: readonly BackupJobView[]; activations: readonly RestoreActivationView[] }
 
@@ -34,12 +34,13 @@ const record = (v: unknown): v is Record<string, unknown> => typeof v === 'objec
 const keys = (v: Record<string, unknown>, allowed: readonly string[]): boolean => Object.keys(v).every(k => allowed.includes(k));
 export const isBackupRootKind = (v: unknown): v is BackupRootKind => v === 'backup-destination' || v === 'backup-source' || v === 'restore-destination';
 export function isAuthorizeBackupRoot(v: unknown): v is AuthorizeBackupRoot {
-  return record(v) && keys(v, ['commandId', 'kind']) && isCollectionId(v.commandId) && isBackupRootKind(v.kind);
+  return record(v) && keys(v, ['commandId', 'kind', 'format']) && isCollectionId(v.commandId) && isBackupRootKind(v.kind)
+    && (v.format === undefined || v.format === 'zip' && v.kind === 'backup-source');
 }
 export function isBackupRootView(v: unknown): v is BackupRootView {
-  return record(v) && keys(v, ['id', 'kind', 'label', 'authorized']) && isCollectionId(v.id) && isBackupRootKind(v.kind)
+  return record(v) && keys(v, ['id', 'kind', 'label', 'authorized', 'format']) && isCollectionId(v.id) && isBackupRootKind(v.kind)
     && isDraftText(v.label) && v.label.length <= 240 && !/[\/\\\u0000-\u001f\u007f]/u.test(v.label)
-    && typeof v.authorized === 'boolean';
+    && typeof v.authorized === 'boolean' && (v.format === undefined || v.format === 'zip' && v.kind === 'backup-source');
 }
 export function isBackupOverview(v: unknown): v is BackupOverview {
   return record(v) && keys(v, ['roots', 'jobs', 'activations']) && Array.isArray(v.roots) && v.roots.length <= 100
@@ -54,7 +55,7 @@ const mode = (v: unknown): v is BackupMode => v === 'metadata' || v === 'archive
 export function isStartBackupJob(v: unknown): v is StartBackupJob {
   if (!record(v) || !isCollectionId(v.commandId) || !isCollectionId(v.rootId) || v.userConfirmed !== true) return false;
   const base = ['commandId','kind','rootId','userConfirmed'];
-  if (v.kind === 'backup') return keys(v, [...base, 'mode']) && mode(v.mode);
+  if (v.kind === 'backup') return keys(v, [...base, 'mode', 'format']) && mode(v.mode) && (v.format === undefined || v.format === 'zip');
   if (v.kind === 'verify' || v.kind === 'index') return keys(v, base);
   return v.kind === 'restore' && keys(v, [...base, 'destinationId','verificationId']) && isCollectionId(v.destinationId) && isCollectionId(v.verificationId) && v.destinationId !== v.rootId;
 }
@@ -79,13 +80,14 @@ export function isBackupIndexSummary(v: unknown): v is BackupIndexSummary {
     && BACKUP_INDEX_MISSING_FACTS.every(fact => (v.missingFacts as unknown[]).includes(fact));
 }
 export function isBackupJobView(v: unknown): v is BackupJobView {
-  if (!record(v) || !keys(v, ['id','kind','rootId','destinationId','state','createdAt','mode','issue','summary','index','resultRootId'])
+  if (!record(v) || !keys(v, ['id','kind','rootId','destinationId','state','createdAt','mode','format','issue','summary','index','resultRootId'])
     || !isCollectionId(v.id) || !isCollectionId(v.rootId) || !['backup','verify','restore','index'].includes(String(v.kind))
     || !['queued','running','cancelling','succeeded','failed','cancelled','interrupted'].includes(String(v.state))
     || typeof v.createdAt !== 'string' || !Number.isFinite(Date.parse(v.createdAt)) || new Date(v.createdAt).toISOString() !== v.createdAt
     || (v.kind === 'restore' ? !isCollectionId(v.destinationId) : v.destinationId !== undefined)
-    || (v.kind === 'backup' ? !mode(v.mode) : v.mode !== undefined)) return false;
-  if (v.issue !== undefined && !['BACKUP_DESTINATION_INVALID','BACKUP_INCOMPLETE','BACKUP_INVALID','BACKUP_IO_ERROR','AUTHORIZATION_REVOKED','CANCELLED','INTERRUPTED'].includes(String(v.issue))) return false;
+    || (v.kind === 'backup' ? !mode(v.mode) : v.mode !== undefined)
+    || (v.format !== undefined && (v.format !== 'zip' || v.kind === 'index'))) return false;
+  if (v.issue !== undefined && !['BACKUP_DESTINATION_INVALID','BACKUP_INCOMPLETE','BACKUP_INVALID','BACKUP_IO_ERROR','BACKUP_UNAVAILABLE','AUTHORIZATION_REVOKED','CANCELLED','INTERRUPTED'].includes(String(v.issue))) return false;
   if (v.summary !== undefined && (!isBackupSummary(v.summary) || v.kind === 'index' || v.state !== 'succeeded')) return false;
   if (v.resultRootId !== undefined && (!isCollectionId(v.resultRootId) || v.kind !== 'backup' || v.state !== 'succeeded')) return false;
   if (v.index !== undefined && (!isBackupIndexSummary(v.index) || v.kind !== 'index' || v.state !== 'succeeded')) return false;

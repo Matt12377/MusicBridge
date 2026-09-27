@@ -71,6 +71,27 @@ test('Artifact与预览严格预算/固定几何/归属，未打印不造printed
  assert.equal(c.isPrintedArtifact(artifact()),true);for(const patch of [{pageCount:25},{size:4194305},{previewSize:1048577},{printedAt:end},{geometry:{...c.RECORDING_PRINT_GEOMETRY,widthMm:100}}])assert.equal(c.isPrintedArtifact({...artifact(),...patch}),false);
  assert.equal(c.isRecordingPrintResult({artifact:artifact(),facts:facts(),preview:image}),true);assert.equal(c.isRecordingPrintResult({artifact:{...artifact(),recordingId:id(99)},facts:facts(),preview:image}),false);
 })
+test('自定义 J-Card 模板独立于旧 JP0，尺寸、折线、图片归属和 QR 有界',()=>{
+ const geometry=structuredClone(c.RECORDING_PRINT_GEOMETRY)
+ const design={schemaVersion:2 as const,geometry,coverTitle:'新封面',spineText:'新脊文字',image:{source:'recording-snapshot' as const},qr:'recording-summary' as const}
+ assert.equal(c.isRecordingPrintCustomGeometry(geometry),true)
+ assert.equal(c.isRecordingPrintDesign(design),true)
+ const request={commandId:id(90),recordingId:id(50),expectedRecordHash:hash('a'),templateId:'jc-design-v1',userConfirmed:true,mode:'new-version',design}
+ assert.equal(c.isRequestRecordingPrintRequest(request),true)
+ assert.equal(c.isRequestRecordingPrintRequest({...request,templateId:'jp0-basic-v1'}),false)
+ for(const patch of [{widthMm:100},{insideFoldMm:[65.0875,77]},{heightMm:89},{flapMm:17},{spineMm:26},{coverMm:161},{widthPt:292},{heightPt:287}]){
+  assert.equal(c.isRecordingPrintCustomGeometry({...geometry,...patch}),false)
+ }
+ const selected={...design,image:{source:'selected-image' as const,object:{sha256:hash('a'),size:c.recordingArtworkImageBytes(image),width:image.width,height:image.height}}}
+ assert.equal(c.isRecordingPrintDesign(selected),true)
+ assert.equal(c.isRequestRecordingPrintRequest({...request,design:selected,designImage:image}),true)
+ assert.equal(c.isRequestRecordingPrintRequest({...request,design:selected}),false)
+ assert.equal(c.isRequestRecordingPrintRequest({...request,design:selected,designImage:{...image,width:image.width+1}}),false)
+ assert.equal(c.isRecordingPrintDesign({...design,qr:'https://example.com'}),false)
+ assert.equal(c.isPickRecordingPrintImageRequest({recordingId:id(50)}),true)
+ assert.equal(c.isPickRecordingPrintImageResult({state:'selected',recordingId:id(50),image}),true)
+ assert.equal(c.isPickRecordingPrintImageResult({state:'cancelled',image}),false)
+})
 test('八公开API与私有请求严格未知键且不进outbox',()=>{
  const cases:Record<string,unknown>={'masterArtwork.get':{masterVersionId:id(2)},'masterArtwork.save':{commandId:id(90),masterVersionId:id(2),expectedVersionId:null,image,userConfirmed:true},'recordingPrints.list':{recordingId:id(50),page:{offset:0,limit:25}},'recordingPrints.request':{commandId:id(90),recordingId:id(50),expectedRecordHash:hash('a'),templateId:'jp0-basic-v1',userConfirmed:true},'recordingPrints.retry':{commandId:id(90),jobId:id(83),expectedRevision:1,userConfirmed:true},'recordingPrints.get':{recordingId:id(50),artifactId:id(86)},'recordingPrintWorker.claim':{workerId:id(85)},'recordingPrintWorker.complete':{leaseId:id(84),workerId:id(85),jobId:id(83),inputHash:hash('e'),pdfBase64:pdf,pdfSha256:hash('f'),preview:image,pageCount:2,rendererVersion:'musicbridge-jp0-electron-v1'},'recordingPrintWorker.fail':{leaseId:id(84),workerId:id(85),jobId:id(83),inputHash:hash('e'),errorCode:'RENDER_FAILED'},'recordingPrintWorker.pdf':{recordingId:id(50),artifactId:id(86),expectedPdfSha256:hash('f')}};
  for(const [command,payload] of Object.entries(cases)){assert.equal(c.validateIpcRequest({version:1,id:'print',command,payload}).ok,true,command);assert.equal(c.validateIpcRequest({version:1,id:'print',command,payload:{...payload as object,path:'/private'}}).ok,false,command);assert.equal(c.isCommandOutboxCommand(command),false)}

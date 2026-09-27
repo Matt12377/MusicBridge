@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
-import { lstat, open, realpath } from 'node:fs/promises';
-import type { BigIntStats } from 'node:fs';
+import { lstat, open, opendir, realpath } from 'node:fs/promises';
+import type { BigIntStats, Dirent } from 'node:fs';
 import type { FileHandle } from 'node:fs/promises';
 import path from 'node:path';
 import { parseBuffer } from 'music-metadata';
@@ -12,6 +12,7 @@ export interface RootCapability { id: string; path: string; dev: string; ino: st
 export interface FileEvidence { sha256: string; size: number; signature: string; modifiedAt: string; verifiedAt: string; technical: SourceTechnical }
 const fail = (code: SourceFailure): never => { throw new SourceFileError(code); };
 const signature = (s: BigIntStats): string => [s.dev, s.ino, s.size, s.mtimeNs, s.ctimeNs].join(':');
+const directoryIdentity = (s: BigIntStats): string => [s.dev, s.ino].join(':');
 /** 只把有界的技术块交给探测器；封面、标签及任意文本块不进入解析器。 */
 function technicalHeader(prefix: Buffer, size: number): { bytes: Buffer; mimeType: string; virtualSize: number; sampleFrames: number; durationMs?: number } {
   const magic = prefix.subarray(0, 4).toString('ascii');
@@ -80,22 +81,72 @@ export function sourceRelativePath(root: RootCapability, absolutePath: string): 
   if (!relative || relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) return fail('OUTSIDE_ROOT');
   return relative;
 }
-async function checkedFile(root: RootCapability, relative: string): Promise<{ absolute: string; info: BigIntStats }> {
+async function checkedFile(root: RootCapability, relative: string): Promise<{ absolute: string; info: BigIntStats; directoryIds: string[] }> {
   const available = await sourceRootAvailability(root); if (available !== 'ONLINE') return fail(available);
   if (path.isAbsolute(relative) || relative.split(path.sep).some(p => p === '..' || p === '.' || !p)) return fail('OUTSIDE_ROOT');
-  const parts = relative.split(path.sep); let current = root.path;
+  const parts = relative.split(path.sep); let current = root.path; const directoryIds: string[] = [];
   try {
     for (let index = 0; index < parts.length; index++) {
       current = path.join(current, parts[index]!);
       const info = await lstat(current, { bigint: true });
       if (info.isSymbolicLink() || (index < parts.length - 1 ? !info.isDirectory() : !info.isFile())) return fail('OUTSIDE_ROOT');
+      if (index < parts.length - 1) directoryIds.push(directoryIdentity(info));
       if (index === parts.length - 1) {
         if (await realpath(current) !== current) return fail('OUTSIDE_ROOT');
-        return { absolute: current, info };
+        return { absolute: current, info, directoryIds };
       }
     }
   } catch (error) { if (error instanceof SourceFileError) throw error; return fail((error as NodeJS.ErrnoException).code === 'ENOENT' ? 'MISSING' : 'IO_ERROR'); }
   return fail('OUTSIDE_ROOT');
+}
+/** 候选扫描只枚举目录项；进入和离开目录时都核验根内目录身份，不跟随符号链接。 */
+export async function readonlySourceDirectoryEntries(root: RootCapability, relative: string, remaining: number, signal: AbortSignal, deadlineMs: number): Promise<{ entries: Dirent[]; truncated: boolean }> {
+  const check = (): void => { if (signal.aborted) fail('CANCELLED'); if (Date.now() > deadlineMs) fail('LIMIT_EXCEEDED'); };
+  check();
+  const available = await sourceRootAvailability(root); if (available !== 'ONLINE') return fail(available);
+  if (!Number.isSafeInteger(remaining) || remaining < 1 || remaining > 3000) return fail('LIMIT_EXCEEDED');
+  const parts = relative ? relative.split(path.sep) : [];
+  if (path.isAbsolute(relative) || parts.some(part => !part || part === '.' || part === '..')) return fail('OUTSIDE_ROOT');
+  let current = root.path;
+  try {
+    for (const part of parts) {
+      check();
+      current = path.join(current, part);
+      const info = await lstat(current, { bigint: true });
+      if (!info.isDirectory() || info.isSymbolicLink()) return fail('OUTSIDE_ROOT');
+    }
+    const before = await lstat(current, { bigint: true });
+    if (!before.isDirectory() || before.isSymbolicLink() || await realpath(current) !== current) return fail('OUTSIDE_ROOT');
+    const entries: Dirent[] = [];
+    const handle = await opendir(current);
+    try {
+      while (entries.length < remaining) {
+        check();
+        const entry = await handle.read();
+        check();
+        if (!entry) break;
+        entries.push(entry);
+      }
+    } finally { await handle.close(); }
+    check();
+    // 恰好触及限额时保守标记截断，避免为判断“是否还有下一项”突破全局读取预算。
+    const truncated = entries.length === remaining;
+    const after = await lstat(current, { bigint: true });
+    check();
+    if (signature(before) !== signature(after) || !after.isDirectory() || await realpath(current) !== current || await sourceRootAvailability(root) !== 'ONLINE') return fail('CONTENT_CHANGED');
+    return { entries, truncated };
+  } catch (error) {
+    if (error instanceof SourceFileError) throw error;
+    return fail((error as NodeJS.ErrnoException).code === 'ENOENT' ? 'MISSING' : 'IO_ERROR');
+  }
+}
+/** 扫描阶段只读取 stat，不读取文件内容、Hash 或技术头部。 */
+export async function readonlySourceCandidateMetadata(root: RootCapability, relative: string): Promise<{ signature: string; directoryIds: readonly string[]; size: number; modifiedAt: string }> {
+  const { info, directoryIds } = await checkedFile(root, relative);
+  // 一个硬链接可把授权根外的同一 inode 伪装为根内候选；候选自动发现保守跳过。
+  if (info.nlink !== 1n) return fail('OUTSIDE_ROOT');
+  if (info.size < 1n || info.size > 68_719_476_736n) return fail('LIMIT_EXCEEDED');
+  return { signature: signature(info), directoryIds, size: Number(info.size), modifiedAt: new Date(Number(info.mtimeNs / 1_000_000n)).toISOString() };
 }
 export async function sourceFileAvailability(root: RootCapability, relative: string, expected: string): Promise<SourceAvailability> {
   try { return signature((await checkedFile(root, relative)).info) === expected ? 'ONLINE' : 'CONTENT_CHANGED'; }
@@ -134,6 +185,8 @@ export interface ReplicaSourceLeaseOptions {
   /** 同FD格式/PCM核验属于准备阶段，不能挤占消费余量。 */
   verify?: (handle: FileHandle, check: () => void, signal: AbortSignal) => Promise<void>;
   finalize?: (handle: FileHandle, check: () => void, signal: AbortSignal) => Promise<void>;
+  /** 仅Core内部使用；拒绝/超时并不能代替FD实际关闭的事实。 */
+  onLeaseEvent?: (event: 'acquired' | 'released' | 'release-unverified') => void;
 }
 /** Replica独立有限租期；旧源/编译调用的15分钟默认完全不变。 */
 export async function withVerifiedReadonlyReplicaSource<T>(root: RootCapability, relative: string, expected: { sha256: string; size: number }, signal: AbortSignal,
@@ -156,6 +209,7 @@ export async function withVerifiedReadonlyReplicaSource<T>(root: RootCapability,
     check(); const first = await checkedFile(root, relative);
     if (!/^[a-f0-9]{64}$/u.test(expected.sha256) || !Number.isSafeInteger(expected.size) || expected.size < 1 || expected.size > 68_719_476_736 || first.info.size !== BigInt(expected.size) || first.info.nlink !== 1n) return fail('CONTENT_CHANGED');
     handle = await open(first.absolute, constants.O_RDONLY | constants.O_NOFOLLOW).catch(() => fail('IO_ERROR'));
+    options.onLeaseEvent?.('acquired');
     const opened = handle, before = await opened.stat({ bigint: true });
     const verifyIdentity = async () => { check(); const current = await opened.stat({ bigint: true }), named = (await checkedFile(root, relative)).info; check(); if (current.nlink !== 1n || named.nlink !== 1n || signature(current) !== signature(before) || signature(named) !== signature(before)) fail('CONTENT_CHANGED'); };
     if (signature(before) !== signature(first.info)) return fail('CONTENT_CHANGED');
@@ -176,7 +230,10 @@ export async function withVerifiedReadonlyReplicaSource<T>(root: RootCapability,
   } finally {
     clearInterval(control); clearInterval(watcher); signal.removeEventListener('abort', forwarded);
     if (watching) await watching;
-    if (handle) await handle.close();
+    if (handle) {
+      try { await handle.close(); options.onLeaseEvent?.('released'); }
+      catch (error) { options.onLeaseEvent?.('release-unverified'); throw error; }
+    }
   }
 }
 /** 目标句柄由工作区层排他创建；这里不接收目标路径，也不修改原件属性。 */

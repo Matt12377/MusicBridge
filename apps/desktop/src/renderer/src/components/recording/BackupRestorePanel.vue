@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import type { BackupOverview, BackupRootKind, BackupMode, BackupJobView, BackupJobIssue, BackupIndexIssueCode, BackupIndexMissingFact, StartBackupJob, RestoreActivationView } from '@music-bridge/contracts'
+const props = defineProps<{ inline?: boolean }>()
 const emit = defineEmits<{ close: []; activated: [] }>()
 const api = window.musicBridge, dialog = ref<HTMLDialogElement>()
 const overview = shallowRef<BackupOverview>({ roots: [], jobs: [], activations: [] })
@@ -26,7 +27,7 @@ const rootLabel = (id: string) => overview.value.roots.find(root => root.id === 
 const active = (job: BackupJobView) => ['queued', 'running', 'cancelling'].includes(job.state)
 const kinds = { backup: '备份', verify: '校验备份', restore: '隔离恢复', index: '重建基本索引' }
 const issues: Record<BackupJobIssue, string> = {
-  BACKUP_DESTINATION_INVALID: '目标目录不可用或与受保护目录重叠', BACKUP_INCOMPLETE: '归档或备份内容未完成', BACKUP_INVALID: '内容、清单或数据库校验不一致', BACKUP_IO_ERROR: '文件操作未完成，请检查目录和剩余空间', AUTHORIZATION_REVOKED: '目录授权已撤销', CANCELLED: '已取消；部分文件保留，不会自动覆盖重试', INTERRUPTED: '应用关闭或任务中断；不会自动续写',
+  BACKUP_DESTINATION_INVALID: '目标目录不可用或与受保护目录重叠', BACKUP_INCOMPLETE: '归档或备份内容未完成', BACKUP_INVALID: '内容、清单或数据库校验不一致', BACKUP_IO_ERROR: '文件操作未完成，请检查目录和剩余空间', BACKUP_UNAVAILABLE: '当前运行环境不支持 ZIP 校验或恢复；既有回执仍可查看', AUTHORIZATION_REVOKED: '目录授权已撤销', CANCELLED: '已取消；部分文件保留，不会自动覆盖重试', INTERRUPTED: '应用关闭或任务中断；不会自动续写',
 }
 const indexIssues: Record<BackupIndexIssueCode, string> = {
   MANIFEST_INVALID: '清单无效，无法纳入候选索引', OBJECT_MISSING: '引用对象缺失，归档候选需隔离检查', OBJECT_INVALID: '引用对象内容校验失败，归档候选需隔离检查',
@@ -112,13 +113,13 @@ function activate(): void {
 }
 function cancel(id: string): void { const request = { commandId: crypto.randomUUID(), id }; mutate(() => api.cancelBackupJob(request)) }
 function revoke(id: string): void { const request = { commandId: crypto.randomUUID(), id }; mutate(() => api.revokeBackupRoot(request)) }
-function close(): void { if (blocked.value) return; dialog.value?.close(); emit('close') }
-onMounted(async () => { await nextTick(); dialog.value?.showModal(); dialog.value?.querySelector<HTMLElement>('#backup-title')?.focus(); void refresh() })
-onUnmounted(() => { alive = false; ++generation; if (timer) clearTimeout(timer); dialog.value?.close() })
+function close(): void { if (blocked.value) return; if (!props.inline) dialog.value?.close(); emit('close') }
+onMounted(async () => { await nextTick(); if (!props.inline) dialog.value?.showModal(); dialog.value?.querySelector<HTMLElement>('#backup-title')?.focus(); void refresh() })
+onUnmounted(() => { alive = false; ++generation; if (timer) clearTimeout(timer); if (!props.inline) dialog.value?.close() })
 </script>
 
 <template>
-  <dialog ref="dialog" class="backup-panel" aria-labelledby="backup-title" @cancel.prevent="close">
+  <component :is="inline ? 'section' : 'dialog'" ref="dialog" class="backup-panel" :class="{ 'is-inline': inline }" aria-labelledby="backup-title" @cancel.prevent="close">
     <header><div><p class="kicker">录音资料维护</p><h2 id="backup-title" tabindex="-1">备份与恢复</h2></div><button :disabled="blocked" @click="close">返回录音</button></header>
     <div class="boundary"><strong>文件由你确认后写入，已有文件不覆盖。</strong><p>仅备份所选范围；未归档的外部源文件、工作副本、账号凭据和 Roon 会话不包含在内。隔离恢复不会切换当前工作库，也不会恢复旧目录权限。</p></div>
     <div class="actions"><button :disabled="busy" @click="refresh">刷新备份恢复状态</button><span v-if="loading" role="status">正在读取维护记录…</span></div>
@@ -129,6 +130,7 @@ onUnmounted(() => { alive = false; ++generation; if (timer) clearTimeout(timer);
         <div class="fields"><label>备份目标<select v-model="backupRootId"><option value="">请选择目标</option><option v-for="root in available('backup-destination')" :key="root.id" :value="root.id">{{ root.label }} · {{ root.id.slice(0,8) }}</option></select></label>
           <label>备份范围<select v-model="mode"><option value="">请选择范围</option><option value="metadata">仅元数据与清单（不含音频）</option><option value="archive-content">元数据、清单与已归档音频</option></select></label></div>
         <p class="muted">完整内容范围只包含已成功归档的内容对象；不是整台电脑或所有原始音乐目录的备份。</p>
+        <p class="muted">如果另存为 ZIP，目录备份包与最终 ZIP 会同时保留，峰值空间约需双份；系统不会自动删除任何一份。</p>
         <label class="check"><input v-model="backupConfirmed" type="checkbox">我确认备份所选范围到新建子目录，不覆盖已有文件</label>
         <button class="primary" :disabled="!backupRootId || !mode || !backupConfirmed" @click="start('backup')">确认并开始备份</button>
       </fieldset>
@@ -182,10 +184,11 @@ onUnmounted(() => { alive = false; ++generation; if (timer) clearTimeout(timer);
       </article>
     </section>
     <details><summary>已授权目录与撤权</summary><p class="muted">撤权会停止使用该目录的未完成任务；已写入文件保留，不自动清理。</p><div v-for="root in overview.roots" :key="root.id" class="root"><span>{{ root.label }} · {{ root.id.slice(0,8) }} · {{ root.authorized ? '已授权' : '已撤权' }}</span><button v-if="root.authorized" :disabled="blocked" @click="revoke(root.id)">撤销此目录授权</button></div></details>
-  </dialog>
+  </component>
 </template>
 
 <style scoped>
 .index-details{border-top:1px solid var(--mb-glass-border);margin-top:12px;padding-top:8px}.index-details ul,.index-issues{padding-left:24px;font-size:13px;line-height:1.75}.index-issues li{padding:8px 0;overflow-wrap:anywhere}.index-issues code{font-size:12px;overflow-wrap:anywhere;white-space:normal}
 .backup-panel{box-sizing:border-box;width:min(900px,calc(100vw - 40px));max-height:calc(100dvh - 36px);padding:28px;border:1px solid var(--mb-glass-border);border-radius:18px;background:var(--mb-bg-base);color:var(--mb-text-primary);overflow:auto;overscroll-behavior:contain}.backup-panel::backdrop{background:rgb(0 0 0 / .66)}header,.actions,.root{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}header{align-items:flex-start;margin-bottom:20px}.actions{justify-content:flex-start;margin:16px 0}.kicker{font-size:12px;color:var(--mb-accent);margin:0 0 8px}h2{font-size:24px;line-height:1.35;margin:0}h3{font-size:19px;margin:0 0 16px}h4{font-size:15px;margin:0;overflow-wrap:anywhere}p{font-size:14px;line-height:1.75;overflow-wrap:anywhere}.muted{font-size:13px;color:var(--mb-text-secondary)}.boundary{padding:16px 18px;border-left:3px solid var(--mb-accent);background:var(--mb-glass-clear)}.boundary p{margin:8px 0 0}.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}section{border-top:1px solid var(--mb-glass-border);padding-top:24px;margin-top:24px}fieldset{border:0;min-width:0;padding:0}label{display:grid;gap:8px;font-size:13px;min-width:0;margin:12px 0}.check{display:flex;align-items:flex-start;gap:10px;line-height:1.75;min-height:44px;cursor:pointer}.check input{width:18px;height:18px;flex-shrink:0;margin-top:3px;accent-color:var(--mb-accent)}button,select{box-sizing:border-box;min-height:44px;padding:9px 12px;border:1px solid var(--mb-glass-border);border-radius:8px;background:var(--mb-bg-base);color:var(--mb-text-primary);font:inherit;font-size:13px;min-width:0}select{width:100%}button{cursor:pointer;overflow-wrap:anywhere}button:disabled{opacity:.5;cursor:not-allowed}.primary{background:var(--mb-accent);color:var(--mb-bg-deep);border-color:var(--mb-accent);font-weight:600}.feedback{padding:16px;border:1px solid var(--mb-glass-border);border-radius:10px}.job{padding:16px;margin:16px 0;border:1px solid var(--mb-glass-border);border-radius:10px}.job p{margin:8px 0}.root{margin:12px 0;font-size:13px;overflow-wrap:anywhere}summary{cursor:pointer;min-height:44px;line-height:44px;font-size:14px}:focus-visible{outline:2px solid var(--mb-accent);outline-offset:3px}@media(max-width:600px){.backup-panel{width:calc(100vw - 24px);padding:20px}.fields{grid-template-columns:1fr;gap:8px}}@media(hover:hover) and (pointer:fine){button:not(:disabled):hover{border-color:var(--mb-accent)}}
+.backup-panel.is-inline{position:static;display:block;box-sizing:border-box;width:100%;max-width:none;max-height:none;margin:0;padding:0;border:0;border-radius:0;background:transparent;overflow:visible}
 </style>

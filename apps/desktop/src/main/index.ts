@@ -5,11 +5,16 @@ import { installRecordingPrintHandlers } from './recording-print-ipc.js'
 import { createRecordingPrintWorker } from './recording-print-worker.js'
 import { createRecordingPrintRenderer } from './recording-print-renderer.js'
 import { createLifecycleProbe } from './lifecycle-probe.js'
+import { installUiE2eNetworkGuard, type UiE2eNetworkEvidence } from './ui-e2e-network-guard.js'
 import { exportRecordingPrintPdf } from './recording-print-export.js'
 import { installRecordingRecordHandlers } from './recording-record-ipc.js'
 import { installRecordingReplicaHandlers } from './recording-replica-ipc.js'
+import { installRecordingDeviceHandlers } from './recording-device-ipc.js'
 import { installRecordingAttemptHandlers } from './recording-attempt-ipc.js'
 import { installRecordingPlanReads } from './recording-plan-ipc.js'
+import { installRecordingWorkspaceRead } from './recording-workspace-ipc.js'
+import { installRecordingCandidateHandlers } from './recording-candidate-ipc.js'
+import { installPreparationZipHandlers } from './recording-preparation-zip-ipc.js'
 import { installRecordingOutputReads } from './recording-output-ipc.js'
 import { installCollectionProgressReads } from './collection-progress-ipc.js'
 import { installReferenceCatalogReads } from './reference-catalog-ipc.js'
@@ -159,6 +164,7 @@ const currentDirectory = path.dirname(currentFile)
 const startupTestConfiguration = readStartupTestConfiguration()
 const isStartupTest = startupTestConfiguration.isStartupTest
 const isUiE2e = process.env.MUSIC_BRIDGE_UI_E2E === '1'
+const isOfflineUiE2e = isUiE2e && process.env.MUSIC_BRIDGE_UI_E2E_OFFLINE === '1'
 const syntheticUserDataDirectory = initializeStartupTestPaths(startupTestConfiguration, isUiE2e, app)
 const lifecycleProbe = createLifecycleProbe({ enabled: isUiE2e, sink: line => console.log(line.trimEnd()) })
 const isCoreCrashGate = startupTestConfiguration.coreCrashGate
@@ -1259,6 +1265,29 @@ function registerIpcHandlers(
   installReferenceCatalogReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   installSpreadsheetImportReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   installRecordingPlanReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installRecordingWorkspaceRead({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installRecordingCandidateHandlers({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installPreparationZipHandlers<Electron.IpcMainInvokeEvent>({
+    handle: (channel, handler) => ipcMain.handle(channel, handler), supervisor,
+    windowFor: event => {
+      const window = requireTrustedRenderer(event)
+      return {
+        id: window.id,
+        onInvalidated: listener => {
+          window.webContents.on('did-start-navigation', listener)
+          window.on('closed', listener)
+          return () => { window.webContents.removeListener('did-start-navigation', listener); window.removeListener('closed', listener) }
+        },
+      }
+    },
+    choose: async (event, suggestedName) => {
+      const selected = await dialog.showSaveDialog(requireTrustedRenderer(event), {
+        title: '将 Logic 工作区另存为 ZIP（不覆盖已有文件）', defaultPath: suggestedName,
+        filters: [{ name: 'ZIP 文件', extensions: ['zip'] }],
+      })
+      return selected.canceled ? null : selected.filePath ?? null
+    },
+  })
   installRecordingOutputReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   installRecordingRecordHandlers({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   installRecordingPrintHandlers({
@@ -1268,11 +1297,16 @@ function registerIpcHandlers(
       () => dialog.showOpenDialog(requireTrustedRenderer(event), { title: '选择母版 Artwork（选择后需保存）', properties: ['openFile'], filters: [{ name: 'Artwork 图片', extensions: ['png', 'jpg', 'jpeg'] }] }),
       bytes => nativeImage.createFromBuffer(bytes),
     ),
+    pickPrintImage: event => pickCollectionPhoto(
+      () => dialog.showOpenDialog(requireTrustedRenderer(event), { title: '选择 J-Card 设计图片（仅用于新印刷版本）', properties: ['openFile'], filters: [{ name: 'J-Card 图片', extensions: ['png', 'jpg', 'jpeg'] }] }),
+      bytes => nativeImage.createFromBuffer(bytes),
+    ),
     exportPdf: (options, event) => exportRecordingPrintPdf({ ...options, select: () => dialog.showSaveDialog(requireTrustedRenderer(event), {
       title: '导出历史 J-Card PDF（不覆盖已有文件）', defaultPath: `MusicBridge-${options.request.artifactId}.pdf`, filters: [{ name: 'PDF 文档', extensions: ['pdf'] }],
     }) }),
   })
   installRecordingReplicaHandlers({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installRecordingDeviceHandlers({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   installRecordingAttemptHandlers({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   installCollectionProgressReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   ipcMain.handle('recordingPrepared:selections', (event, preparationId: unknown) => invokeCore(event, () => {
@@ -1337,6 +1371,10 @@ function registerIpcHandlers(
     if (!isCollectionId(releaseId)) return publicIpcFailure('INVALID_IPC_REQUEST', '关联对象编号无效')
     return supervisor.request('physicalLinks.physical', { releaseId })
   }))
+  ipcMain.handle('physicalLinks:history', (event, releaseId: unknown, page: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(releaseId)) return publicIpcFailure('INVALID_IPC_REQUEST', '发行版编号无效')
+    return supervisor.request('physicalLinks.history', { releaseId, page: requireLibraryPage(page) })
+  }))
   ipcMain.handle('physicalLinks:runtime', (event, id: unknown) => invokeCore(event, () => {
     if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '关联对象编号无效')
     return supervisor.request('physicalLinks.runtime', { id })
@@ -1358,6 +1396,10 @@ function registerIpcHandlers(
     if (!isMusicId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '音乐编号无效')
     return supervisor.request('physicalMusic.detail', { id })
   }))
+  ipcMain.handle('physicalMusic:copies', (event, releaseId: unknown, page: unknown) => invokeCore(event, () => {
+    if (!isCollectionId(releaseId)) return publicIpcFailure('INVALID_IPC_REQUEST', '商业发行编号无效')
+    return supervisor.request('physicalMusic.copies', { releaseId, page: requireLibraryPage(page) })
+  }))
   ipcMain.handle('physicalMusic:photo', (event, photoId: unknown) => invokeCore(event, () => {
     if (!isCollectionId(photoId)) return publicIpcFailure('INVALID_IPC_REQUEST', '照片编号无效')
     return supervisor.request('physicalMusic.photo', { photoId })
@@ -1369,7 +1411,7 @@ function registerIpcHandlers(
     photoPickerBusy = true
     try {
       return await pickCollectionPhoto(
-        () => dialog.showOpenDialog(window, { title: '添加实物照片', properties: ['openFile'], filters: [{ name: '实物照片', extensions: ['png', 'jpg', 'jpeg'] }] }),
+        () => dialog.showOpenDialog(window, { title: '选择照片', properties: ['openFile'], filters: [{ name: '图片文件', extensions: ['png', 'jpg', 'jpeg'] }] }),
         bytes => nativeImage.createFromBuffer(bytes),
       )
     } catch (error) {
@@ -1897,6 +1939,10 @@ async function bootstrap(): Promise<void> {
   installApplicationMenu()
   await installRendererProtocol()
   installSessionSecurity(session.defaultSession)
+  if (isOfflineUiE2e) {
+    const evidence = installUiE2eNetworkGuard(session.defaultSession)
+    ;(globalThis as typeof globalThis & { __musicBridgeUiE2eNetworkEvidence?: UiE2eNetworkEvidence }).__musicBridgeUiE2eNetworkEvidence = evidence
+  }
 
   const prepared = await prepareCoreDataDirectory()
   lifecycleProbe.mark('data-prepared')

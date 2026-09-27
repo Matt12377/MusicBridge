@@ -4,21 +4,33 @@ import { randomUUID, createHash, type Hash, type BinaryLike } from 'node:crypto'
 import { DatabaseSync, backup } from 'node:sqlite';
 import path from 'node:path';
 import { createCollectionRepository } from '../src/collection/repository.js';
-import { createRecordingAttemptCoordinator } from '../src/recording/attempt-coordinator.js';
-import { verifyRecordingAttemptDatabase } from '../src/recording/attempt-integrity.js';
+import { createRecordingAttemptCoordinator, type RecordingAttemptCoordinator, type RecordingAttemptDriverRequest } from '../src/recording/attempt-coordinator.js';
+import { AttemptError, AttemptNotAcceptedError, verifyRecordingAttemptDatabase } from '../src/recording/attempt-integrity.js';
 import { recordingAttemptFixture as fixture } from './helpers/recording-attempt-fixture.js';
 import type { RecordingAttemptDriver } from '../src/recording/attempt-coordinator.js';
 import { createRecordingAttemptStore } from '../src/recording/attempt-store.js';
+import { acquireRecordingOutputInputLease } from '../src/recording/output-input.js';
 
 const page = { offset: 0, limit: 25 };
-function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done; }); return { promise, resolve }; }
+function deferred<T>() { let resolve!: (value: T) => void, reject!: (error: unknown) => void; const promise = new Promise<T>((done, fail) => { resolve = done; reject = fail; }); return { promise, resolve, reject }; }
+async function waitForOutputIdle(coordinator: RecordingAttemptCoordinator): Promise<void> {
+  const deadline = performance.now() + 10_000;
+  for (;;) {
+    try { coordinator.assertExecutionIdle(); return; }
+    catch (error) {
+      if (!(error instanceof AttemptError) || error.code !== 'ATTEMPT_CONFLICT') throw error;
+      if (performance.now() >= deadline) throw new Error('合成输出结束后只读输入末核验未在期限内完成。');
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+  }
+}
 function rows(filePath: string) {
   const db = new DatabaseSync(filePath, { readOnly: true });
   try { return ['recording_attempts', 'recording_attempt_events', 'recording_attempt_receipts', 'physical_copies', 'inventory_lots', 'inventory_ledger'].map(table => [table, db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all()]); }
   finally { db.close(); }
 }
 
-async function printObjectAuditFixture(t: test.TestContext) {
+async function printObjectAuditFixture(t: test.TestContext, controlled = false) {
   const { createCapacityPilot, capacityPdf } = await import('./helpers/recording-capacity-fixture.js');
   const f = await createCapacityPilot(t);
   const pdf = capacityPdf(), counts = { hash: 0, base64: 0 };
@@ -34,26 +46,37 @@ async function printObjectAuditFixture(t: test.TestContext) {
   });
   const {createObjectAuditCertificateManager}=await import('../src/recording/object-audit-certificate.js'),objectCertificates=createObjectAuditCertificateManager();
   const store=createRecordingAttemptStore({read:fn=>fn(f.db),objectCertificates}),runId=randomUUID(),request={commandId:randomUUID(),planVersionId:f.nextPlan.id,planContentHash:f.nextPlan.contentHash,userConfirmed:true} as const;
-  const verified=store.capture(request.planVersionId,request.planContentHash),attempt=store.begin(request,verified,runId),anchor={...counts};
-  const driver={side:verified.receipt.recipe.side,runId,onEvent:(value:Parameters<typeof store.event>[1])=>store.event(attempt.id,value)};
+  const verified=store.capture(request.planVersionId,request.planContentHash),controlledDrivers:RecordingAttemptDriverRequest[]=[];
+  const coordinator=controlled ? createRecordingAttemptCoordinator({store,admissionProvider:{async authorize(){},async start(value){controlledDrivers.push(value);return{async stop(){},async close(){}};}}}) : undefined;
+  if(coordinator) f.registerDependentCleanup(()=>coordinator.close());
+  const attempt=coordinator ? await coordinator.begin(request) : store.begin(request,verified,runId),anchor={...counts};
+  const driver=coordinator ? controlledDrivers[0]! : {side:verified.receipt.recipe.side,runId,onEvent:(value:Parameters<typeof store.event>[1])=>store.event(attempt.id,value)};
+  assert.ok(driver,'受控软件输出必须返回本次driver请求');
   const event = (frame: number) => ({ type: 'progress' as const, side: driver.side, runId: driver.runId, at: new Date().toISOString(), sourceFramesRead: frame, submittedFrames: frame, consumedFrames: frame });
-  return { f, attempt, driver, store, objectCertificates, counts, pdf, event, anchor };
+  return { f, attempt, driver, store, objectCertificates, counts, pdf, event, anchor, coordinator, controlledDrivers };
 }
-function advanceObjectAuditAttemptToFinal(x:Awaited<ReturnType<typeof printObjectAuditFixture>>){
-  let current=x.attempt,runId=x.driver.runId;
+async function advanceObjectAuditAttemptToFinal(x:Awaited<ReturnType<typeof printObjectAuditFixture>>){
+  const coordinator=x.coordinator;
+  assert.ok(coordinator,'此准备路径只接受受控软件输出与Core输入末核验');
+  let current=x.attempt;
   for(let index=0;index<current.sides.length;++index){
-    const side=current.sides[index]!,at=new Date().toISOString();
+    if(index){
+      current=await coordinator.confirm({commandId:randomUUID(),attemptId:current.id,expectedRevision:current.revision,kind:'flip',userConfirmed:true});
+      current=await coordinator.beginSide({commandId:randomUUID(),attemptId:current.id,expectedRevision:current.revision,side:'B',userConfirmed:true});
+    }
+    const side=current.sides[index]!,driver=x.controlledDrivers[index]!;
+    assert.ok(driver,'每面必须有本次受控driver');
+    assert.equal(driver.side,side.side);assert.equal(driver.runId,side.runId);
+    const at=new Date().toISOString(),runId=driver.runId;
     for(const event of [
       {type:'progress' as const,side:side.side,runId,at,sourceFramesRead:side.frameCount,submittedFrames:side.frameCount,consumedFrames:side.frameCount},
       ...(['source-eof','engine-cutoff','cleanup-quiescent','backend-drained'] as const).map(type=>({type,side:side.side,runId,at})),
-    ])current=x.store.event(current.id,event);
-    current=x.store.command('confirm',{commandId:randomUUID(),attemptId:current.id,expectedRevision:current.revision,kind:'physical-stop',side:side.side,userConfirmed:true},{type:'confirm',kind:'physical-stop',side:side.side,at:new Date().toISOString()});
-    if(index+1<current.sides.length){
-      current=x.store.command('confirm',{commandId:randomUUID(),attemptId:current.id,expectedRevision:current.revision,kind:'flip',userConfirmed:true},{type:'confirm',kind:'flip',at:new Date().toISOString()});
-      runId=randomUUID();current=x.store.command('beginSide',{commandId:randomUUID(),attemptId:current.id,expectedRevision:current.revision,side:'B',userConfirmed:true},{type:'begin-side',side:'B',runId,at:new Date().toISOString()});
-    }
+    ])driver.onEvent(event);
+    await waitForOutputIdle(coordinator);
+    current=coordinator.get({attemptId:current.id}).attempt!;
+    current=await coordinator.confirm({commandId:randomUUID(),attemptId:current.id,expectedRevision:current.revision,kind:'physical-stop',side:side.side,userConfirmed:true});
   }
-  return x.store.command('confirm',{commandId:randomUUID(),attemptId:current.id,expectedRevision:current.revision,kind:'physical-recording',userConfirmed:true},{type:'confirm',kind:'physical-recording',at:new Date().toISOString()});
+  return coordinator.confirm({commandId:randomUUID(),attemptId:current.id,expectedRevision:current.revision,kind:'physical-recording',userConfirmed:true});
 }
 
 test('R023对象凭证：Begin全raw锚定后真实progress不再重算未变大对象，公开全审仍保留原SHA', async t => {
@@ -233,7 +256,7 @@ test('R023对象凭证：普通event/command复用对象证明，完成confirm�
 });
 
 test('R023对象凭证：成功final-verification精确核验新增Record/Print并向同连接claim发布完整快照', async t => {
-  const x=await printObjectAuditFixture(t);let current=advanceObjectAuditAttemptToFinal(x);
+  const x=await printObjectAuditFixture(t,true);let current=await advanceObjectAuditAttemptToFinal(x);
   x.counts.hash=0;
   current=x.store.command('confirm',{commandId:randomUUID(),attemptId:current.id,expectedRevision:current.revision,kind:'final-verification',userConfirmed:true},{type:'confirm',kind:'final-verification',at:new Date().toISOString()});
   assert.equal(current.status,'completed');assert.equal(x.counts.hash,0,'final-verification不得重读已由前序同连接事务核验的历史PDF/Artwork BLOB');
@@ -243,7 +266,7 @@ test('R023对象凭证：成功final-verification精确核验新增Record/Print�
 });
 
 test('R023对象凭证：final-verification同事务未知写使完成候选失效并在本次及claim回退全审',async t=>{
-  const x=await printObjectAuditFixture(t),original=x.f.db.prepare.bind(x.f.db),beforeFinal=advanceObjectAuditAttemptToFinal(x);let injected=false;
+  const x=await printObjectAuditFixture(t,true),original=x.f.db.prepare.bind(x.f.db),beforeFinal=await advanceObjectAuditAttemptToFinal(x);let injected=false;
   t.mock.method(x.f.db,'prepare',function(sql:string){
     const statement=original(sql);if(sql!=='INSERT INTO recording_records VALUES(?,?,?,?,?,?)')return statement;
     return new Proxy(statement,{get(item,method){if(method==='run')return (...values:Parameters<typeof statement.run>)=>{
@@ -1046,7 +1069,7 @@ test('R023：合法Stop进入同步持久审计前已发出abort并调用自建d
       return { async stop() { ++stopCalls; }, async close() {} };
     } },
   });
-  t.after(() => coordinator.close());
+  f.registerDependentCleanup(() => coordinator.close());
   const attempt = await coordinator.begin(f.beginRequest());
   await coordinator.stop({ commandId: randomUUID(), attemptId: attempt.id });
   assert.deepEqual(atPersistence, { aborted: true, stopCalls: 1 });
@@ -1074,7 +1097,7 @@ test('R023 Stop批写：同步终止事实、abort与命令回执只提交一个
       return { async stop() {}, async close() {} };
     } },
   });
-  t.after(() => coordinator.close());
+  f.registerDependentCleanup(() => coordinator.close());
   const attempt = await coordinator.begin(f.beginRequest());
   eventTransactions = 0; commandTransactions = 0;
   const stopped = await coordinator.stop({ commandId: randomUUID(), attemptId: attempt.id });
@@ -1095,7 +1118,7 @@ test('R023：提前派发停止仍须拒绝旧scope、错误目标与复用冲�
       signal = request.signal; return { async stop() { ++stops; }, async close() {} };
     } },
   });
-  t.after(() => coordinator.close());
+  f.registerDependentCleanup(() => coordinator.close());
   const begin = f.beginRequest(), attempt = await coordinator.begin(begin);
   await assert.rejects(coordinator.stop({ commandId: begin.commandId, attemptId: attempt.id }), { code: 'COMMAND_CONFLICT' });
   await assert.rejects(coordinator.stop({ commandId: randomUUID(), attemptId: randomUUID() }), { code: 'ATTEMPT_NOT_FOUND' });
@@ -1119,10 +1142,10 @@ test('R023：driver.stop同步重入事件不抢占用户停止终态，清理�
       }, async close() {} };
     } },
   });
-  t.after(() => coordinator.close());
+  f.registerDependentCleanup(() => coordinator.close());
   const attempt = await coordinator.begin(f.beginRequest());
   await coordinator.stop({ commandId: randomUUID(), attemptId: attempt.id });
-  await new Promise<void>(resolve => setImmediate(resolve));
+  await waitForOutputIdle(coordinator);
   const result = coordinator.get({ attemptId: attempt.id }).attempt!;
   assert.equal(result.status, 'aborted'); assert.equal(result.reason, 'user-stop');
   assert.equal(result.sides[0]!.engineStoppedSubmitting, true); assert.equal(stops, 1);
@@ -1138,7 +1161,7 @@ test('R023 Stop批写：不等待或伪造异步ACK，迟到ACK与真实close清
         async close() { request.onEvent({ type: 'cleanup-quiescent', side: request.side, runId: request.runId, at: new Date().toISOString() }); } };
     } },
   });
-  t.after(() => coordinator.close());
+  f.registerDependentCleanup(() => coordinator.close());
   const attempt = await coordinator.begin(f.beginRequest()), stopPromise = coordinator.stop({ commandId: randomUUID(), attemptId: attempt.id });
   await stopEntered.promise;
   const stopped = await stopPromise;
@@ -1151,9 +1174,44 @@ test('R023 Stop批写：不等待或伪造异步ACK，迟到ACK与真实close清
 
 test('生产未认证Begin固定拒绝，正式历史/账本/库存均不写且不调用驱动', async t => {
   const f = await fixture(t), coordinator = createRecordingAttemptCoordinator({ store: f.repository.recordingAttempts });
-  t.after(() => coordinator.close()); const before = rows(f.filePath);
+  f.registerDependentCleanup(() => coordinator.close()); const before = rows(f.filePath);
   await assert.rejects(coordinator.begin(f.beginRequest()), { code: 'BACKEND_NOT_CERTIFIED' });
   assert.deepEqual(rows(f.filePath), before); assert.equal(f.starts.length, 0);
+});
+
+test('首面Begin准入明确拒绝且无持久回执、无未来start时才报告NOT_ACCEPTED', async t => {
+  const f = await fixture(t), request = f.beginRequest(), before = rows(f.filePath);
+  const coordinator = createRecordingAttemptCoordinator({ store: f.repository.recordingAttempts,
+    admissionProvider: { async authorize() { throw new Error('合成准入拒绝'); }, async start() { assert.fail('未受理不得start'); } } });
+  f.registerDependentCleanup(() => coordinator.close());
+  await assert.rejects(coordinator.begin(request), error => error instanceof AttemptNotAcceptedError
+    && error.code === 'NOT_ACCEPTED' && error.causeCode === 'BACKEND_FAILURE');
+  assert.equal(f.repository.recordingAttempts.cached('begin', request), undefined);
+  assert.deepEqual(rows(f.filePath), before);
+  assert.doesNotThrow(() => coordinator.assertExecutionIdle());
+});
+
+test('Gate B最后一步拒绝虽有具体原因，已证实零受理仍发分类并保留原因', async t => {
+  const f = await fixture(t), request = f.beginRequest(), before = rows(f.filePath);
+  const coordinator = createRecordingAttemptCoordinator({ store: f.repository.recordingAttempts,
+    admissionProvider: { async authorize() { throw new AttemptError('BACKEND_NOT_CERTIFIED'); }, async start() { assert.fail('Gate B拒绝不得start'); } } });
+  f.registerDependentCleanup(() => coordinator.close());
+  await assert.rejects(coordinator.begin(request), error => error instanceof AttemptNotAcceptedError
+    && error.code === 'NOT_ACCEPTED' && error.causeCode === 'BACKEND_NOT_CERTIFIED');
+  assert.deepEqual(rows(f.filePath), before);
+});
+
+test('Begin事后receipt读取失败不能推断未受理，保留原不确定错误', async t => {
+  const f = await fixture(t), base = f.repository.recordingAttempts; let reads = 0;
+  const store = { ...base, cached: ((action, request) => {
+    if (++reads > 1) throw new Error('合成新鲜读取失败');
+    return base.cached(action, request);
+  }) as typeof base.cached };
+  const coordinator = createRecordingAttemptCoordinator({ store,
+    admissionProvider: { async authorize() { throw new Error('合成准入拒绝'); }, async start() { assert.fail('未受理不得start'); } } });
+  f.registerDependentCleanup(() => coordinator.close());
+  await assert.rejects(coordinator.begin(f.beginRequest()), { code: 'BACKEND_FAILURE' });
+  assert.equal(reads, 2);
 });
 
 test('同命令同body返回原回执且不重启输出，异body拒绝；并发Begin只准一个', async t => {
@@ -1212,10 +1270,16 @@ test('开始后的实体不能从规划或手工释放为空白，库存数量�
 test('只读完整性核验拒绝篡改head，冷启不得把坏历史修成合法Interrupted', async t => {
   const f = await fixture(t), a = await f.attempts.begin(f.beginRequest());
   const db = new DatabaseSync(f.filePath); t.after(() => db.close()); verifyRecordingAttemptDatabase(db);
-  db.prepare("UPDATE recording_attempts SET data=json_set(data,'$.revision',99) WHERE id=?").run(a.id);
-  assert.throws(() => verifyRecordingAttemptDatabase(db)); const before = rows(f.filePath);
-  const invalid = createCollectionRepository({ filePath: f.filePath }); t.after(() => invalid.close());
-  assert.throws(() => invalid.recordingAttempts.list({ page })); assert.deepEqual(rows(f.filePath), before);
+  const originalHead = String(db.prepare('SELECT data FROM recording_attempts WHERE id=?').get(a.id)!.data);
+  try {
+    db.prepare("UPDATE recording_attempts SET data=json_set(data,'$.revision',99) WHERE id=?").run(a.id);
+    assert.throws(() => verifyRecordingAttemptDatabase(db)); const before = rows(f.filePath);
+    const invalid = createCollectionRepository({ filePath: f.filePath }); t.after(() => invalid.close());
+    assert.throws(() => invalid.recordingAttempts.list({ page })); assert.deepEqual(rows(f.filePath), before);
+  } finally {
+    // 坏头只用于本例读审；恢复原始合成字节后，真实输入租期仍须在关库前收口。
+    db.prepare('UPDATE recording_attempts SET data=? WHERE id=?').run(originalHead, a.id);
+  }
 });
 
 test('DAT独立Program身份固定；分页与越界保留正确total', async t => {
@@ -1229,8 +1293,13 @@ test('DAT独立Program身份固定；分页与越界保留正确total', async t 
 test('已打开库中合法形状的head篡改也必须拒读，不能仅靠DTO结构校验', async t => {
   const f = await fixture(t), a = await f.attempts.begin(f.beginRequest());
   const db = new DatabaseSync(f.filePath); t.after(() => db.close());
-  db.prepare("UPDATE recording_attempts SET data=json_set(data,'$.updatedAt','2099-01-01T00:00:00.000Z') WHERE id=?").run(a.id);
-  assert.throws(() => f.attempts.get({ attemptId: a.id }));
+  const originalHead = String(db.prepare('SELECT data FROM recording_attempts WHERE id=?').get(a.id)!.data);
+  try {
+    db.prepare("UPDATE recording_attempts SET data=json_set(data,'$.updatedAt','2099-01-01T00:00:00.000Z') WHERE id=?").run(a.id);
+    assert.throws(() => f.attempts.get({ attemptId: a.id }));
+  } finally {
+    db.prepare('UPDATE recording_attempts SET data=? WHERE id=?').run(originalHead, a.id);
+  }
 });
 
 test('close先到后start迟到成功必须拒绝原Promise，并关闭该迟到handle', async t => {
@@ -1319,7 +1388,7 @@ test('stop先到不遗失晚返回handle，terminal但close未完成仍阻断新
   const f = await fixture(t), entered = deferred<void>(), handle = deferred<RecordingAttemptDriver>(), closedHandle = deferred<void>();
   let stops = 0, closes = 0;
   const coordinator = createRecordingAttemptCoordinator({ store: f.repository.recordingAttempts, admissionProvider: { async authorize() {}, start() { entered.resolve(); return handle.promise; } } });
-  t.after(() => coordinator.close());
+  f.registerDependentCleanup(() => coordinator.close());
   const pending = coordinator.begin(f.beginRequest()); await entered.promise;
   const a = coordinator.list({ page }).items[0]!;
   await coordinator.stop({ commandId: randomUUID(), attemptId: a.id });
@@ -1345,10 +1414,26 @@ test('准入期间切库或close使迟到成功失效，不留Attempt且零drive
 
 test('start未产生进度即失败保存Failed，不能与已输出中断混淆', async t => {
   const f = await fixture(t), coordinator = createRecordingAttemptCoordinator({ store: f.repository.recordingAttempts, admissionProvider: { async authorize() {}, async start() { throw new Error('合成启动失败'); } } });
-  await assert.rejects(coordinator.begin(f.beginRequest()), { code: 'BACKEND_FAILURE' });
+  const returned = await coordinator.begin(f.beginRequest());
   const a = f.repository.recordingAttempts.list({ page }).items[0]!;
+  assert.deepEqual(returned, a, 'Begin回执失败后优先返回当前已持久失败记录');
   assert.equal(a.status, 'failed'); assert.equal(a.reason, 'backend-start-failed');
   await coordinator.close().catch(() => undefined);
+});
+
+test('start失败清slot后仍锁存收口失败：旧Begin回执可重放，新命令不能重启输出', async t => {
+  const f = await fixture(t), request = f.beginRequest(); let starts = 0;
+  const coordinator = createRecordingAttemptCoordinator({ store: f.repository.recordingAttempts,
+    admissionProvider: { async authorize() {}, async start() { ++starts; throw new Error('合成启动失败'); } } });
+  const returned = await coordinator.begin(request);
+  assert.throws(() => coordinator.assertExecutionIdle(), { code: 'BACKEND_FAILURE' });
+  const failed = f.repository.recordingAttempts.list({ page }).items[0]!;
+  assert.equal(failed.status, 'failed'); assert.deepEqual(returned, failed);
+  const replay = await coordinator.begin(request);
+  assert.equal(replay.id, failed.id); assert.equal(replay.revision, 1);
+  await assert.rejects(coordinator.begin({ ...request, commandId: randomUUID() }), { code: 'BACKEND_FAILURE' });
+  assert.equal(starts, 1); assert.equal(f.repository.recordingAttempts.list({ page }).total, 1);
+  await coordinator.close();
 });
 
 test('时钟回拨不能挡住明确Stop，安全事件时间不得早于既有事实', async t => {
@@ -1366,7 +1451,7 @@ test('R023 Stop批写：abort时间不早于批内driver清理事实', async t =
       return { async stop() {}, async close() {} };
     } },
   });
-  t.after(() => coordinator.close());
+  f.registerDependentCleanup(() => coordinator.close());
   const attempt = await coordinator.begin(f.beginRequest()), stopped = await coordinator.stop({ commandId: randomUUID(), attemptId: attempt.id });
   assert.equal(stopped.updatedAt, future); assert.equal(stopped.endedAt, future);
   const db = new DatabaseSync(f.filePath, { readOnly: true }); t.after(() => db.close());
@@ -1383,9 +1468,9 @@ test('停止写入故障也必须停止自建driver，不能因事务失败继�
     ++stops; const identity = { side: request.side, runId: request.runId, at: new Date().toISOString() };
     request.onEvent({ ...identity, type: 'engine-cutoff' }); request.onEvent({ ...identity, type: 'stop-ack' });
   }, async close() { ++closes; } }; } } });
-  t.after(() => coordinator.close()); const a = await coordinator.begin(f.beginRequest()); failStop = true;
+  f.registerDependentCleanup(() => coordinator.close()); const a = await coordinator.begin(f.beginRequest()); failStop = true;
   await assert.rejects(coordinator.stop({ commandId: randomUUID(), attemptId: a.id }));
-  await new Promise<void>(resolve => setImmediate(resolve)); assert.equal(stops, 1); assert.equal(closes, 1);
+  await waitForOutputIdle(coordinator); assert.equal(stops, 1); assert.equal(closes, 1);
   assert.equal(coordinator.get({ attemptId: a.id }).attempt!.status, 'interrupted');
   const db = new DatabaseSync(f.filePath, { readOnly: true }); t.after(() => db.close());
   const kinds = db.prepare('SELECT kind FROM recording_attempt_events WHERE attempt_id=? ORDER BY revision').all(a.id).map(row => row.kind);
@@ -1396,14 +1481,16 @@ test('停止写入故障也必须停止自建driver，不能因事务失败继�
 test('旧Attempt终态仍保护同一实体，新Begin不能无核实重录', async t => {
   const f = await fixture(t), a = await f.attempts.begin(f.beginRequest());
   await f.attempts.stop({ commandId: randomUUID(), attemptId: a.id });
-  await new Promise<void>(resolve => setImmediate(resolve));
-  await assert.rejects(f.attempts.begin(f.beginRequest()), { code: 'COPY_UNAVAILABLE' }); assert.equal(f.starts.length, 1);
+  await waitForOutputIdle(f.attempts);
+  await assert.rejects(f.attempts.begin(f.beginRequest()), error => error instanceof AttemptNotAcceptedError
+    && error.code === 'NOT_ACCEPTED' && error.causeCode === 'COPY_UNAVAILABLE');
+  assert.equal(f.starts.length, 1);
 });
 
 test('只向下收紧存储预算，进度耗尽时仍保留一次安全Interrupted空间', async t => {
   const f = await fixture(t), db = new DatabaseSync(f.filePath); t.after(() => db.close());
   const store = createRecordingAttemptStore({ read: fn => fn(db), databaseBudgetBytes: 80 * 1024 });
-  const coordinator = createRecordingAttemptCoordinator({ store, admissionProvider: f.provider }); t.after(() => coordinator.close());
+  const coordinator = createRecordingAttemptCoordinator({ store, admissionProvider: f.provider }); f.registerDependentCleanup(() => coordinator.close());
   const a = await coordinator.begin(f.beginRequest()), driver = f.starts[0]!;
   for (let frame = 1; frame < 100 && store.get({ attemptId: a.id }).attempt!.status === 'in-progress'; ++frame) driver.onEvent({ type: 'progress', side: 'A', runId: driver.runId, at: new Date().toISOString(), sourceFramesRead: frame, submittedFrames: frame, consumedFrames: frame });
   const final = store.get({ attemptId: a.id }).attempt!;
@@ -1412,9 +1499,38 @@ test('只向下收紧存储预算，进度耗尽时仍保留一次安全Interrup
 });
 
 test('driver close永不完成时close有界失败，历史不伪造静止或排空', async t => {
-  const f = await fixture(t), never = new Promise<void>(() => {});
-  const coordinator = createRecordingAttemptCoordinator({ store: f.repository.recordingAttempts, closeTimeoutMs: 25, admissionProvider: { async authorize() {}, async start() { return { async stop() {}, close: () => never }; } } });
-  const a = await coordinator.begin(f.beginRequest()); await assert.rejects(coordinator.close(), { code: 'BACKEND_FAILURE' });
+  const f = await fixture(t), closeGate = deferred<void>(), released = deferred<'verified' | 'cancelled'>();
+  let attemptId: string | undefined, timedOut = false;
+  const coordinator = createRecordingAttemptCoordinator({ store: f.repository.recordingAttempts, closeTimeoutMs: 25,
+    acquireInputLease: async (input, signal, check) => {
+      const lease = await acquireRecordingOutputInputLease(input, signal, check);
+      return { signal: lease.signal, provider: lease.provider, async release() {
+        try { const result = await lease.release(); released.resolve(result); return result; }
+        catch (error) { released.reject(error); throw error; }
+      } };
+    },
+    admissionProvider: { async authorize() {}, async start() { return { async stop() {}, close: () => closeGate.promise }; } } });
+  f.registerDependentCleanup(async () => {
+    // 全部安全断言完成后才模拟迟到的真实close；不能先释放Core私有FD。
+    closeGate.resolve();
+    if (timedOut) await assert.rejects(coordinator.close(), { code: 'BACKEND_FAILURE' });
+    else await coordinator.close();
+    if (attemptId) {
+      assert.equal(await released.promise, 'cancelled');
+      const deadline = performance.now() + 5_000;
+      for (;;) {
+        const db = new DatabaseSync(f.filePath, { readOnly: true });
+        let terminal: string | undefined;
+        try { terminal = db.prepare("SELECT phase FROM output_run_barrier_events WHERE attempt_id=? AND phase!='pending'").get(attemptId)?.phase as string | undefined; }
+        finally { db.close(); }
+        if (terminal) { assert.equal(terminal, 'failed'); break; }
+        if (performance.now() >= deadline) throw new Error('迟到close后输出barrier未在期限内结算');
+        await new Promise(resolve => setTimeout(resolve, 5));
+      }
+    }
+  });
+  const a = await coordinator.begin(f.beginRequest()); attemptId = a.id;
+  await assert.rejects(coordinator.close(), { code: 'BACKEND_FAILURE' }); timedOut = true;
   const after = f.repository.recordingAttempts.get({ attemptId: a.id }).attempt!;
   assert.equal(after.status, 'interrupted'); assert.equal(after.sides[0]!.cleanupQuiescent, false); assert.equal(after.sides[0]!.backendDrained, false);
   await assert.rejects(coordinator.begin(f.beginRequest()), { code: 'CLOSED' });
@@ -1430,7 +1546,7 @@ test('真实A/B冻结资产到三层完成的持久链：翻面确认不输出�
     driver.onEvent({ ...identity, type: 'source-eof' });
     assert.equal(f.attempts.get({ attemptId: initial.id }).attempt!.status, 'in-progress');
     driver.onEvent({ ...identity, type: 'engine-cutoff' }); driver.onEvent({ ...identity, type: 'backend-drained' });
-    await new Promise<void>(resolve => setImmediate(resolve));
+    await waitForOutputIdle(f.attempts);
     const current = f.attempts.get({ attemptId: initial.id }).attempt!;
     return f.attempts.confirm({ commandId: randomUUID(), attemptId: current.id, expectedRevision: current.revision, kind: 'physical-stop', side: driver.side, userConfirmed: true });
   }
@@ -1456,8 +1572,8 @@ test('持久化开始边界失败零driver；start同步事件到达时头和原
     request.onEvent({ type: 'progress', side: request.side, runId: request.runId, at: new Date().toISOString(), sourceFramesRead: 1, submittedFrames: 1, consumedFrames: 0 });
     return { async stop() {}, async close() {} };
   } } });
-  t.after(() => coordinator.close()); const request = f.beginRequest();
-  await assert.rejects(coordinator.begin(request)); assert.equal(starts, 0); assert.equal(repository.recordingAttempts.list({ page }).total, 0);
+  f.registerDependentCleanup(() => coordinator.close()); const request = f.beginRequest();
+  await assert.rejects(coordinator.begin(request), { code: 'NOT_ACCEPTED' }); assert.equal(starts, 0); assert.equal(repository.recordingAttempts.list({ page }).total, 0);
   failBegin = false; const result = await coordinator.begin(request);
   assert.equal(starts, 1); assert.equal(result.revision, 1); assert.equal(repository.recordingAttempts.get({ attemptId: result.id }).attempt!.revision, 2);
   assert.deepEqual(await coordinator.begin(request), result);

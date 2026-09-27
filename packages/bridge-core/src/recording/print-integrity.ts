@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
 import { mediaFingerprint } from './media-store.js';
-import { createRecordingPrintRequest } from './print-facts.js';
+import { createRecordingPrintRequest, createRecordingPrintVersionRequest } from './print-facts.js';
 import { receiptCertificateValue, type CertifiedObjectMetadata, type ObjectAuditCertificateSession } from './object-audit-certificate.js';
 
 export type RecordingPrintErrorCode = 'INVALID_REQUEST'|'NOT_FOUND'|'NOT_APPLICABLE'|'CONFLICT'|'COMMAND_CONFLICT'|'BUDGET_EXCEEDED'|'IO_ERROR'|'CLOSED';
@@ -11,7 +11,7 @@ export class RecordingPrintError extends Error { constructor(readonly code:Recor
 export function printFail(code:RecordingPrintErrorCode='IO_ERROR'):never { throw new RecordingPrintError(code); }
 export const printHash=(bytes:Uint8Array):string=>createHash('sha256').update(bytes).digest('hex');
 export const printTables=['master_artwork_versions','master_artwork_current','recording_print_objects','recording_print_requests','recording_print_jobs','recording_print_events','recording_print_artifacts','recording_print_receipts'] as const;
-export const printSchema=[
+export const legacyPrintSchema=[
  'CREATE TABLE recording_print_objects(sha256 TEXT PRIMARY KEY,mime TEXT NOT NULL,content BLOB NOT NULL,width INTEGER,height INTEGER) STRICT',
  'CREATE TABLE master_artwork_versions(id TEXT PRIMARY KEY,master_id TEXT NOT NULL REFERENCES master_versions(id),sequence INTEGER NOT NULL,sha256 TEXT NOT NULL REFERENCES recording_print_objects(sha256),data TEXT NOT NULL,UNIQUE(master_id,sequence)) STRICT',
  'CREATE TABLE master_artwork_current(master_id TEXT PRIMARY KEY REFERENCES master_versions(id),version_id TEXT NOT NULL UNIQUE REFERENCES master_artwork_versions(id)) STRICT',
@@ -26,6 +26,9 @@ export const printSchema=[
  ]),
  ...['master_artwork_current','recording_print_jobs'].map(table=>`CREATE TRIGGER ${table}_no_delete BEFORE DELETE ON ${table} BEGIN SELECT RAISE(ABORT,'印刷当前投影不可删除'); END`),
 ];
+const legacyRequestSql = 'CREATE TABLE recording_print_requests(id TEXT PRIMARY KEY,recording_id TEXT NOT NULL UNIQUE REFERENCES recording_records(id),data TEXT NOT NULL,facts TEXT NOT NULL) STRICT';
+const versionedRequestSql = 'CREATE TABLE "recording_print_requests"(id TEXT PRIMARY KEY,recording_id TEXT NOT NULL REFERENCES recording_records(id),data TEXT NOT NULL,facts TEXT NOT NULL) STRICT';
+export const printSchema = legacyPrintSchema.map(sql => sql === legacyRequestSql ? versionedRequestSql : sql);
 export interface RecordingPrintBudgets { metadataBudgetBytes?:number;objectBudgetBytes?:number;jobLimit?:number;receiptLimit?:number }
 export function checkPrintBudgets(db:DatabaseSync,b:RecordingPrintBudgets={}):void {
  const values=[[b.metadataBudgetBytes,dto.MAX_RECORDING_PRINT_METADATA_BYTES],[b.objectBudgetBytes,dto.MAX_RECORDING_PRINT_OBJECT_BYTES],[b.jobLimit,dto.MAX_RECORDING_PRINT_JOBS],[b.receiptLimit,dto.MAX_RECORDING_PRINT_RECEIPTS]] as const;
@@ -113,7 +116,9 @@ export function verifyRecordingPrintSnapshot(db:DatabaseSync,budget:RecordingPri
 function verifyPrintDatabase(db:DatabaseSync,objectAccess:PrintObjectAccessor):void {
  try{
   const schema=db.prepare("SELECT sql FROM sqlite_schema WHERE name GLOB 'recording_print*' OR name GLOB 'master_artwork*'").all();
-  if(schema.length!==printSchema.length||schema.some(row=>!printSchema.includes(String(row.sql)))||db.prepare('PRAGMA foreign_key_check').get())printFail();checkPrintBudgets(db);
+  const versionedSchema = schema.length === printSchema.length && schema.every(row => printSchema.includes(String(row.sql)));
+  const validSchema = versionedSchema || schema.length === legacyPrintSchema.length && schema.every(row => legacyPrintSchema.includes(String(row.sql)));
+  if(!validSchema||db.prepare('PRAGMA foreign_key_check').get())printFail();checkPrintBudgets(db);
   const objects=new Set<string>();
   for(const row of db.prepare('SELECT * FROM master_artwork_versions ORDER BY master_id,sequence').iterate()){
    const version=printParse(row.data,dto.isMasterArtworkVersion);if(version.id!==row.id||version.masterVersionId!==row.master_id||version.sequence!==row.sequence||version.sha256!==row.sha256)printFail();
@@ -129,8 +134,15 @@ function verifyPrintDatabase(db:DatabaseSync,objectAccess:PrintObjectAccessor):v
   }
   for(const row of db.prepare('SELECT * FROM recording_print_requests').iterate()){
    const request=printParse(row.data,dto.isRecordingPrintRequest),facts=printParse(row.facts,dto.isRecordingPrintFacts);if(request.id!==row.id||request.recordingId!==row.recording_id)printFail();
-   const {record,plan}=printRecordPlan(db,request.recordingId),expected=createRecordingPrintRequest({id:request.id,record,plan,origin:request.origin,createdAt:request.createdAt});
-   if(!same(expected,{request,facts})||request.origin==='completion'&&(record.schemaVersion!==2||record.printRequestId!==request.id||request.createdAt!==record.createdAt)||request.origin==='historical-backfill'&&record.schemaVersion!==1)printFail();
+   const {record,plan}=printRecordPlan(db,request.recordingId),expected=request.origin==='manual-version'
+    ? createRecordingPrintVersionRequest({id:request.id,record,plan,design:request.design!,createdAt:request.createdAt})
+    : createRecordingPrintRequest({id:request.id,record,plan,origin:request.origin,createdAt:request.createdAt});
+   if(!same(expected,{request,facts})||request.origin==='completion'&&(record.schemaVersion!==2||record.printRequestId!==request.id||request.createdAt!==record.createdAt)||request.origin==='historical-backfill'&&record.schemaVersion!==1||request.origin==='manual-version'&&!versionedSchema)printFail();
+   if(request.design?.schemaVersion===2&&request.design.image.source==='selected-image'){
+    const selected=request.design.image.object,image=objectAccess.get(selected.sha256);
+    if(image.mime!=='image/jpeg'||image.size!==selected.size||image.width!==selected.width||image.height!==selected.height)printFail();
+    objects.add(selected.sha256);
+   }
    if(!db.prepare('SELECT 1 FROM recording_print_jobs WHERE request_id=?').get(request.id))printFail();
   }
   let active=0;
@@ -155,14 +167,16 @@ function verifyPrintDatabase(db:DatabaseSync,objectAccess:PrintObjectAccessor):v
   for(const row of db.prepare('SELECT * FROM recording_print_artifacts').iterate()){
    const artifact=printParse(row.data,dto.isPrintedArtifact);if(artifact.id!==row.id||artifact.requestId!==row.request_id||artifact.pdfSha256!==row.pdf_sha||artifact.previewSha256!==row.preview_sha)printFail();
    const reqRow=db.prepare('SELECT data,facts FROM recording_print_requests WHERE id=?').get(artifact.requestId);if(!reqRow)printFail();const request=printParse(reqRow.data,dto.isRecordingPrintRequest),facts=printParse(reqRow.facts,dto.isRecordingPrintFacts);
-   if(artifact.recordingId!==request.recordingId||artifact.inputHash!==request.inputHash||artifact.templateHash!==request.templateHash||artifact.createdAt<request.createdAt||!same(artifact.artwork,facts.artwork))printFail();
+   if(artifact.recordingId!==request.recordingId||artifact.inputHash!==request.inputHash||artifact.templateHash!==request.templateHash||artifact.createdAt<request.createdAt||!same(artifact.artwork,facts.artwork)
+    ||artifact.designHash!==request.designHash||request.origin==='manual-version'&&(!artifact.previewPages||!same(artifact.geometry,request.design?.geometry)))printFail();
    const ready=db.prepare('SELECT data FROM recording_print_jobs WHERE request_id=?').get(artifact.requestId);
    if(!ready||printParse(ready.data,dto.isRecordingPrintJob).updatedAt!==artifact.createdAt)printFail();
    const pdf=objectAccess.get(artifact.pdfSha256),preview=objectAccess.get(artifact.previewSha256);if(pdf.mime!=='application/pdf'||pdf.size!==artifact.size||preview.mime!=='image/jpeg'||preview.size!==artifact.previewSize)printFail();objects.add(artifact.pdfSha256);objects.add(artifact.previewSha256);
+   for(const page of artifact.previewPages??[]){const image=objectAccess.get(page.sha256);if(image.mime!=='image/jpeg'||image.size!==page.size||image.width!==page.width||image.height!==page.height)printFail();objects.add(page.sha256);}
   }
   for(const row of db.prepare('SELECT sha256 FROM recording_print_objects').iterate()){if(!objects.has(String(row.sha256)))printFail();objectAccess.get(String(row.sha256));}
   verifyReceipts(db,objectAccess);
-  for(const row of db.prepare("SELECT id FROM recording_print_requests WHERE json_extract(data,'$.origin')='historical-backfill'").iterate())if(!db.prepare("SELECT 1 FROM recording_print_receipts WHERE kind='request' AND json_extract(result,'$.request.id')=? AND json_extract(result,'$.revision')=1").get(String(row.id)))printFail();
+  for(const row of db.prepare("SELECT id FROM recording_print_requests WHERE json_extract(data,'$.origin') IN ('historical-backfill','manual-version')").iterate())if(!db.prepare("SELECT 1 FROM recording_print_receipts WHERE kind='request' AND json_extract(result,'$.request.id')=? AND json_extract(result,'$.revision')=1").get(String(row.id)))printFail();
  }catch(error){if(error instanceof RecordingPrintError)throw error;printFail();}
 }
 function verifyReceipts(db:DatabaseSync,objects:PrintObjectAccessor):void {
@@ -180,14 +194,25 @@ function verifyReceipts(db:DatabaseSync,objects:PrintObjectAccessor):void {
    if(!dto.isRecordingPrintJob(result))printFail();const event=db.prepare('SELECT data FROM recording_print_events WHERE job_id=? AND revision=?').get(result.id,result.revision);if(!event||!same((JSON.parse(String(event.data)) as PrintEvent).job,result))printFail();
    if(row.kind==='complete'){
     const artifact=printParse(db.prepare('SELECT data FROM recording_print_artifacts WHERE id=?').get(result.artifactId!)?.data,dto.isPrintedArtifact);
+	    if((request.pagePreviews===undefined)!==(artifact.previewPages===undefined)||artifact.previewPages!==undefined&&!same(request.pagePreviews,artifact.previewPages))printFail();
 	    // 新回执必须用真实raw重建原请求fingerprint；对象证书只可替代已认证旧回执的raw读取。
 	    const pdf=objects.get(artifact.pdfSha256,!certified),preview=objects.get(artifact.previewSha256,!certified);
 	    if(pdf.mime!=='application/pdf'||pdf.size!==artifact.size||preview.mime!=='image/jpeg'||preview.size!==artifact.previewSize)printFail();
-	    if(!certified){if(pdf.base64===null)printFail();original={...request,pdfBase64:pdf.base64,preview:objectImage(preview)};if(!dto.isCompleteRecordingPrintRequestFields(original))printFail();}
+    if(!certified){if(pdf.base64===null)printFail();original={...request,pdfBase64:pdf.base64,preview:objectImage(preview),...(artifact.previewPages?{pagePreviews:artifact.previewPages.map(page=>objectImage(objects.get(page.sha256,true)))}:{})};if(!dto.isCompleteRecordingPrintRequestFields(original))printFail();}
 	    if(result.state!=='ready'||request.pdfSha256!==artifact.pdfSha256||request.pageCount!==artifact.pageCount||request.rendererVersion!==artifact.rendererVersion)printFail();
    }else if(row.kind==='fail'){if(!dto.isFailRecordingPrintRequest(original)||result.state!=='failed'||original.errorCode!==result.errorCode)printFail();}
    else if(row.kind==='retry'){if(!dto.isRetryRecordingPrintRequest(original)||result.state!=='pending'||original.jobId!==result.id||original.expectedRevision!==result.revision-1)printFail();}
-   else if(row.kind==='request'){if(!dto.isRequestRecordingPrintRequest(original)||original.recordingId!==result.request.recordingId||original.expectedRecordHash!==result.request.recordingContentHash)printFail();}
+   else if(row.kind==='request'){
+    const stored=request as dto.RequestRecordingPrintRequest;
+    if('mode' in stored&&stored.design.schemaVersion===2&&stored.design.image.source==='selected-image'){
+     const selected=stored.design.image.object,image=objects.get(selected.sha256,true);
+     if(image.mime!=='image/jpeg'||image.size!==selected.size||image.width!==selected.width||image.height!==selected.height)printFail();
+     original={...stored,designImage:objectImage(image)};
+    }
+    if(!dto.isRequestRecordingPrintRequest(original)||original.recordingId!==result.request.recordingId||original.expectedRecordHash!==result.request.recordingContentHash||original.templateId!==result.request.templateId)printFail();
+    if('mode' in original ? result.request.origin!=='manual-version'||!same(original.design,result.request.design)
+      : result.request.origin==='manual-version')printFail();
+   }
    else printFail();
    if(row.kind==='complete'||row.kind==='fail'){
     const req=original as dto.FailRecordingPrintRequest,prior=db.prepare('SELECT data FROM recording_print_events WHERE job_id=? AND revision=?').get(result.id,result.revision-1),lease=prior?(JSON.parse(String(prior.data)) as PrintEvent).lease:null;

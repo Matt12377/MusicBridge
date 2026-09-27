@@ -55,3 +55,27 @@ test('单Core同一时刻仅启动一个解析Worker，并发请求明确拒绝�
   try { await assert.rejects(parse(input, 'xlsx')); } finally { await first; }
   assert.equal((await parse(input, 'xlsx')).sheets.length, 1);
 });
+
+test('CSV 短文件、BOM、中文、引号逗号与换行逐字保留，公式样式仅为文本', async () => {
+  const parse = await api();
+  const short = await parse(Buffer.from('甲'), 'csv');
+  assert.equal(short.sheets[0]?.rows[0]?.cells[0]?.value, '甲');
+  const source = Buffer.from('\uFEFF品牌,备注,数量\r\n"合成,磁带","第一行\r\n第二行 ""核对""",=1+2\r\n');
+  const parsed = await parse(source, 'csv');
+  assert.equal(parsed.fileFormat, 'csv'); assert.equal(parsed.parserVersion, 'csv-rfc4180-v1');
+  assert.equal(parsed.dateSystem, '1900'); assert.equal(parsed.sheets[0]?.name, 'CSV');
+  assert.equal(parsed.sheets[0]?.rows[1]?.rowIndex, 2);
+  assert.deepEqual(parsed.sheets[0]?.rows[1]?.cells.map(cell => cell.value), ['合成,磁带', '第一行\r\n第二行 "核对"', '=1+2']);
+  assert.ok(parsed.sheets[0]?.rows[1]?.cells.every(cell => cell.type === 'string' && cell.formula === undefined));
+});
+
+test('CSV 无效UTF-8、引号语法及行列/单元格预算整份拒绝', async () => {
+  const parse = await api();
+  for (const input of [Buffer.from([0xff]), Buffer.from('"未闭合'), Buffer.from('甲"乙'), Buffer.from('"甲"乙'), Buffer.from('甲\r乙'), Buffer.from('\uFEFF')]) {
+    await assert.rejects(parse(input, 'csv'));
+  }
+  await assert.rejects(parse(Buffer.from(Array(65).fill('甲').join(',')), 'csv'));
+  await assert.rejects(parse(Buffer.from('甲\n'.repeat(20_001)), 'csv'));
+  await assert.rejects(parse(Buffer.from('甲'.repeat(32_769)), 'csv'));
+  await assert.rejects(parse(Buffer.alloc(8 * 1024 * 1024 + 1, 65), 'csv'));
+});

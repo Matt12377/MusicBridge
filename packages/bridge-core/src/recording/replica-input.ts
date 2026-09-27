@@ -14,11 +14,13 @@ import { inspectReadonlyPcmWave } from './execution-wave.js';
 import { ExecutionCompileError } from './execution-plan.js';
 import { withVerifiedReadonlySource, withVerifiedReadonlyReplicaSource, SourceFileError, type RootCapability } from './source-files.js';
 import { RecordingReplicaError, replicaFail } from './replica-error.js';
+import { createReadonlyAudioConsumer, type ReadonlyAudioConsumer } from './readonly-audio-consumer.js';
 
 export interface ReplicaVerifiedInput {
   handle: FileHandle;
   audio: dto.ReplicaAudioIdentity;
   dataOffset: number;
+  consumer: ReadonlyAudioConsumer;
   inspection: dto.RecordingReplicaInspection;
   /** 合并调用方取消与输入租期/文件身份失效；provider必须监听此signal。 */
   signal: AbortSignal;
@@ -26,7 +28,8 @@ export interface ReplicaVerifiedInput {
 }
 export interface ReplicaInput {
   inspect(request: dto.InspectRecordingReplicaRequest, signal: AbortSignal, check: () => void): Promise<dto.RecordingReplicaInspection>;
-  withInput<T>(request: dto.ReplicaSelection & { expectedFingerprint: string }, signal: AbortSignal, check: () => void, consume: (input: ReplicaVerifiedInput) => Promise<T>): Promise<T>;
+  withInput<T>(request: dto.ReplicaSelection & { expectedFingerprint: string }, signal: AbortSignal, check: () => void,
+    consume: (input: ReplicaVerifiedInput) => Promise<T>, onLeaseEvent?: (event: 'acquired' | 'released' | 'release-unverified') => void): Promise<T>;
 }
 export interface ReplicaInputOptions {
   repository: CollectionRepository;
@@ -136,7 +139,8 @@ export function createRecordingReplicaInput(options: ReplicaInputOptions): Repli
     if (!prepared || audio?.length !== 1) return replicaFail('INPUT_UNAVAILABLE'); const raw = audio[0]!;
     return { raw, prepared, expected: { sha256: raw.sha256, size: raw.size, frameCount: raw.totalFrames }, rate: raw.sampleRate, channels: raw.channelLayout === 'mono' ? 1 : 2, name: `${side}.wav`, role: 'raw-render' as const };
   }
-  async function readSelected<T>(c: Capture, location: Location, target: dto.ReplicaTarget, side: dto.RenderSide, signal: AbortSignal, consume: (handle: FileHandle, audio: dto.ReplicaAudioIdentity, dataOffset: number, check: () => void, signal: AbortSignal) => Promise<T>): Promise<T> {
+  async function readSelected<T>(c: Capture, location: Location, target: dto.ReplicaTarget, side: dto.RenderSide, signal: AbortSignal, consume: (handle: FileHandle, audio: dto.ReplicaAudioIdentity, dataOffset: number, check: () => void, signal: AbortSignal) => Promise<T>,
+    onLeaseEvent?: (event: 'acquired' | 'released' | 'release-unverified') => void): Promise<T> {
     const item = selected(c, target, side), duration = Number((BigInt(item.expected.frameCount) * 1000n + BigInt(item.rate) - 1n) / BigInt(item.rate));
     if (!Number.isSafeInteger(duration) || duration < 1 || duration > dto.MAX_RECORDING_REPLICA_DURATION_MS) return replicaFail('DURATION_LIMIT');
     const matches = location.operation.files.filter(f => f.role === item.role && f.name === item.name && f.media === 'audio' && f.sha256 === item.expected.sha256 && f.size === item.expected.size);
@@ -157,6 +161,7 @@ export function createRecordingReplicaInput(options: ReplicaInputOptions): Repli
     return withVerifiedReadonlyReplicaSource(location.root, item.expected.sha256, item.expected, signal,
       (handle, check, leaseSignal) => consume(handle, verifiedAudio!, dataOffset, check, leaseSignal), location.check,
       { durationMs: duration, preparationTimeoutMs: preparationMs, finalizationTimeoutMs: finalizationMs, watchIntervalMs: watchMs, now, verify,
+        ...(onLeaseEvent ? { onLeaseEvent } : {}),
         finalize: async (_handle, check, leaseSignal) => { await location.finalize?.(leaseSignal, check); } });
   }
   async function inspectInternal(request: dto.InspectRecordingReplicaRequest, signal: AbortSignal, check: () => void) {
@@ -200,7 +205,7 @@ export function createRecordingReplicaInput(options: ReplicaInputOptions): Repli
       if (!dto.isInspectRecordingReplicaRequest(request)) return replicaFail('INVALID_REQUEST');
       return phase(signal, check, preparationMs, async (signal, check) => (await inspectInternal(structuredClone(request), signal, check)).inspection);
     },
-    async withInput(request, signal, check, consume) {
+    async withInput(request, signal, check, consume, onLeaseEvent) {
       if (!dto.isCollectionId(request.recordingId) || !['actual-execution','original-render'].includes(request.target) || !dto.isRenderSide(request.side) || !/^[a-f0-9]{64}$/u.test(request.expectedFingerprint)) return replicaFail('INVALID_REQUEST');
       const capturedRequest = structuredClone(request), preparationDeadline = now() + preparationMs;
       let consuming = false;
@@ -224,8 +229,10 @@ export function createRecordingReplicaInput(options: ReplicaInputOptions): Repli
         const result = await readSelected(inspected.capture, longLocation, capturedRequest.target, capturedRequest.side, signal, async (handle, audio, dataOffset, checked, leaseSignal) => {
           if (!same(audio, target.audio)) return replicaFail('AUDIO_CHANGED');
           consuming = true;
-          return consume({ handle, audio, dataOffset, inspection: inspected.inspection, signal: leaseSignal, checkOperation: checked });
-        });
+          const consumer = createReadonlyAudioConsumer(handle, { dataOffset, frameCount: audio.frameCount, channelCount: audio.format.channelCount, sampleFormat: audio.format.sampleFormat }, leaseSignal, checked);
+          try { return await consume({ handle, audio, dataOffset, consumer, inspection: inspected.inspection, signal: leaseSignal, checkOperation: checked }); }
+          finally { consumer.revoke(); }
+        }, onLeaseEvent);
         live(); return result;
       } catch (error) { throw safe(error); }
     },

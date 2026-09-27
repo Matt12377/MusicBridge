@@ -48,7 +48,7 @@ export function createCommandOutboxExecutor(options: {
       case 'spreadsheetImports.chooseWorkbook': {
         const prior = await supervisor.requestInternal('spreadsheetImports.workbookReceipt', request.payload, scope)
         if (prior.source) return prior.source
-        const absolutePath = await pick({ title: '选择 Excel 工作簿', message: '只读取这个工作簿。选择后先核对Sheet、字段与修订，明确批准才增加库存。', properties: ['openFile'], filters: [{ name: 'Excel 工作簿', extensions: ['xlsx', 'xls'] }] })
+        const absolutePath = await pick({ title: '选择库存表', message: '只读取这个XLSX、XLS或UTF-8 CSV文件。选择后先核对工作表、字段与修订，明确批准才增加库存。', properties: ['openFile'], filters: [{ name: '库存表', extensions: ['xlsx', 'xls', 'csv'] }] })
         return absolutePath === null ? null : supervisor.requestInternal('spreadsheetImports.registerWorkbook', { ...request.payload, absolutePath }, scope)
       }
       case 'recordingSources.chooseRoot': {

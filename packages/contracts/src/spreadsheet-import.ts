@@ -9,6 +9,9 @@ export const MAX_SPREADSHEET_ROWS = 20_000;
 export const MAX_SPREADSHEET_COLUMNS = 64;
 export const MAX_SPREADSHEET_CELLS = 250_000;
 export const SPREADSHEET_PARSER_VERSION = 'sheetjs-ce-0.20.3' as const;
+export const SPREADSHEET_CSV_PARSER_VERSION = 'csv-rfc4180-v1' as const;
+export type SpreadsheetFileFormat = 'xlsx' | 'xls' | 'csv';
+export type SpreadsheetParserVersion = typeof SPREADSHEET_PARSER_VERSION | typeof SPREADSHEET_CSV_PARSER_VERSION;
 export interface SpreadsheetCell {
   columnIndex: number;
   type: 'blank' | 'string' | 'number' | 'boolean' | 'error';
@@ -19,14 +22,14 @@ export interface SpreadsheetCell {
 }
 /** 仅 Core 内部解析结果；日期仍保留原数字或文本，不执行公式。 */
 export interface ParsedSpreadsheetWorkbook {
-  fileFormat: 'xlsx' | 'xls';
-  parserVersion: typeof SPREADSHEET_PARSER_VERSION;
+  fileFormat: SpreadsheetFileFormat;
+  parserVersion: SpreadsheetParserVersion;
   dateSystem: '1900' | '1904';
   sheets: Array<{ name: string; rows: Array<{ rowIndex: number; cells: SpreadsheetCell[] }> }>;
 }
 export interface SpreadsheetWorkbookSource {
   id: string; displayName: string; workbookHash: string;
-  fileFormat: 'xlsx' | 'xls'; parserVersion: typeof SPREADSHEET_PARSER_VERSION;
+  fileFormat: SpreadsheetFileFormat; parserVersion: SpreadsheetParserVersion;
   dateSystem: '1900' | '1904'; byteLength: number; createdAt: string;
   sheets: Array<{ name: string; rowCount: number; nonEmptyCellCount: number }>;
 }
@@ -139,13 +142,17 @@ export function isSpreadsheetCell(v: unknown): v is SpreadsheetCell {
     || (v.type === 'number' && typeof v.value === 'number' && Number.isFinite(v.value)) || (v.type === 'boolean' && typeof v.value === 'boolean');
 }
 export function isParsedSpreadsheetWorkbook(v: unknown): v is ParsedSpreadsheetWorkbook {
-  if (!record(v) || !keys(v, ['fileFormat', 'parserVersion', 'dateSystem', 'sheets']) || !oneOf(v.fileFormat, ['xlsx', 'xls']) || v.parserVersion !== SPREADSHEET_PARSER_VERSION || !oneOf(v.dateSystem, ['1900', '1904']) || !Array.isArray(v.sheets) || v.sheets.length < 1 || v.sheets.length > MAX_SPREADSHEET_SHEETS) return false;
+  if (!record(v) || !keys(v, ['fileFormat', 'parserVersion', 'dateSystem', 'sheets']) || !oneOf(v.fileFormat, ['xlsx', 'xls', 'csv'])
+    || v.parserVersion !== (v.fileFormat === 'csv' ? SPREADSHEET_CSV_PARSER_VERSION : SPREADSHEET_PARSER_VERSION)
+    || !oneOf(v.dateSystem, ['1900', '1904']) || !Array.isArray(v.sheets) || v.sheets.length < 1 || v.sheets.length > MAX_SPREADSHEET_SHEETS
+    || v.fileFormat === 'csv' && (v.dateSystem !== '1900' || v.sheets.length !== 1 || v.sheets[0]?.name !== 'CSV')) return false;
   let count = 0;
   for (const sheet of v.sheets) {
     if (!record(sheet) || !keys(sheet, ['name', 'rows']) || !label(sheet.name) || !Array.isArray(sheet.rows) || sheet.rows.length > MAX_SPREADSHEET_ROWS) return false;
     const seen = new Set<number>();
     for (const row of sheet.rows) {
-      if (!record(row) || !keys(row, ['rowIndex', 'cells']) || !rowIndex(row.rowIndex) || seen.has(row.rowIndex) || !cells(row.cells)) return false;
+      if (!record(row) || !keys(row, ['rowIndex', 'cells']) || !rowIndex(row.rowIndex) || seen.has(row.rowIndex) || !cells(row.cells)
+        || v.fileFormat === 'csv' && row.cells.some(c => c.type !== 'string' || c.formula !== undefined || c.numberFormat !== undefined || c.displayText !== undefined)) return false;
       seen.add(row.rowIndex);
       count += row.cells.filter(c => c.type !== 'blank' || c.formula !== undefined).length;
       if (count > MAX_SPREADSHEET_CELLS) return false;
@@ -156,8 +163,11 @@ export function isParsedSpreadsheetWorkbook(v: unknown): v is ParsedSpreadsheetW
 export function isSpreadsheetWorkbookSource(v: unknown): v is SpreadsheetWorkbookSource {
   return record(v) && keys(v, ['id', 'displayName', 'workbookHash', 'fileFormat', 'parserVersion', 'dateSystem', 'byteLength', 'createdAt', 'sheets'])
     && isCollectionId(v.id) && label(v.displayName, 255) && !/[\\/]/u.test(v.displayName) && !['.', '..'].includes(v.displayName)
-    && hash(v.workbookHash) && oneOf(v.fileFormat, ['xlsx', 'xls']) && v.parserVersion === SPREADSHEET_PARSER_VERSION && oneOf(v.dateSystem, ['1900', '1904'])
+    && hash(v.workbookHash) && oneOf(v.fileFormat, ['xlsx', 'xls', 'csv'])
+    && v.parserVersion === (v.fileFormat === 'csv' ? SPREADSHEET_CSV_PARSER_VERSION : SPREADSHEET_PARSER_VERSION)
+    && oneOf(v.dateSystem, ['1900', '1904'])
     && integer(v.byteLength, 1, MAX_SPREADSHEET_BYTES) && timestamp(v.createdAt) && Array.isArray(v.sheets) && v.sheets.length > 0 && v.sheets.length <= MAX_SPREADSHEET_SHEETS
+    && (v.fileFormat !== 'csv' || v.dateSystem === '1900' && v.sheets.length === 1 && v.sheets[0]?.name === 'CSV')
     && v.sheets.every(s => record(s) && keys(s, ['name', 'rowCount', 'nonEmptyCellCount']) && label(s.name) && integer(s.rowCount, 0, MAX_SPREADSHEET_ROWS) && integer(s.nonEmptyCellCount, 0, MAX_SPREADSHEET_CELLS) && s.nonEmptyCellCount <= s.rowCount * MAX_SPREADSHEET_COLUMNS)
     && unique(v.sheets.map(s => s.name)) && v.sheets.reduce((n, s) => n + s.nonEmptyCellCount, 0) <= MAX_SPREADSHEET_CELLS;
 }

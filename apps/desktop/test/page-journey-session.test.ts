@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { ref } from 'vue'
 import type { MusicBridgePublicApi } from '../src/preload/api.js'
 import type { RoonLibraryPage } from '@music-bridge/contracts'
 import { useAggregatedSearch } from '../src/renderer/src/composables/application/useAggregatedSearch.js'
 import { useRoonBrowse } from '../src/renderer/src/composables/application/useRoonBrowse.js'
-import { usePageJourney } from '../src/renderer/src/composables/application/usePageJourney.js'
+import { usePageJourney, type BrowseJourneyPort, type SearchJourneyPort } from '../src/renderer/src/composables/application/usePageJourney.js'
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -95,4 +96,30 @@ test('本地搜索路径可返回，其他上下文的新搜索清旧路径，�
   assert.equal(browse.localAlbumQuery.value, '')
   journey.navigateSource({ type: 'roon-albums' })
   assert.equal(browse.localAlbumQuery.value, '')
+})
+
+test('收藏页子面板未收口时侧栏、直接导航与沉浸页均不能卸载，安全后可离开', () => {
+  const search = { searchQuery: ref(''), searchPage: ref({ items: [] }), searchSongsOpen: ref(false), searchScrollTop: ref(0), resetSearch() {}, scheduleSearch() {} } as unknown as SearchJourneyPort
+  const browse = { localAlbumQuery: ref(''), localArtistQuery: ref(''), leaveDetail() {}, invalidateAlbumArtistRequests() {} } as unknown as BrowseJourneyPort
+  let safe = true
+  const journey = usePageJourney({
+    search, browse,
+    library: { hasLikedItems: () => false, isPlaylistReady: () => false, getPlaylistScrollTop: () => 0, setPlaylistScrollTop() {}, async loadLiked() {}, async loadPlaylists() {}, async loadPlaylist() {} },
+    onPlayRoonTrack() {}, onCloseInspector() {}, onClearActionError() {}, canLeaveCollection: () => safe,
+  })
+  journey.navigateSource({ type: 'collection' })
+  assert.equal(journey.currentView.value, 'collection')
+  safe = false
+  journey.navigateSource({ type: 'home' })
+  journey.navigate('home')
+  journey.enterNowPlaying()
+  assert.equal(journey.currentView.value, 'collection')
+  assert.equal(journey.sidebar.activeSource.value.type, 'collection')
+  journey.collectionView.value = 'music'
+  journey.openTapeCollection()
+  assert.equal(journey.collectionView.value, 'music', '返回收藏默认页也不能切掉未收口的实体音乐视图')
+  safe = true
+  journey.navigateSource({ type: 'home' })
+  assert.equal(journey.currentView.value, 'home')
+  journey.dispose()
 })

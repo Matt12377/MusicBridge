@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { isCollectionId, isMediaPlan, isSaveMediaPlanRequest, isReserveMediaRequest, isReleaseMediaRequest,
-  type MediaPlan, type MediaReservation, type MediaTimingTrack, type MediaSourceBasis, type SaveMediaPlanRequest, type ReserveMediaRequest, type ReleaseMediaRequest, type Page, type PageRequest } from '@music-bridge/contracts';
+  type MediaLayoutSpec, type MediaPlan, type MediaReservation, type MediaTimingTrack, type MediaSourceBasis, type SaveMediaPlanRequest, type ReserveMediaRequest, type ReleaseMediaRequest, type Page, type PageRequest } from '@music-bridge/contracts';
 import { resolveMediaLayout, assessMediaCandidate, type MediaStockCandidate } from './media-planner.js';
 import type { StoredBinding } from './source-store.js';
 import type { RootCapability } from './source-files.js';
@@ -28,6 +28,12 @@ interface Access {
 }
 function canonical(value: unknown): string { return Array.isArray(value) ? `[${value.map(canonical).join(',')}]` : value !== null && typeof value === 'object' ? `{${Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`).join(',')}}` : JSON.stringify(value); }
 export const mediaFingerprint = (value: unknown): string => createHash('sha256').update(canonical(value)).digest('hex');
+function transitionRules(spec: MediaLayoutSpec): unknown {
+  return { defaultGapMs: spec.defaultGapMs, rules: spec.rules.map(rule => ({ trackId: rule.trackId,
+    keepWithNext: rule.keepWithNext ?? false, gapAfterMs: rule.gapAfterMs ?? spec.defaultGapMs }))
+    .filter(rule => rule.keepWithNext || rule.gapAfterMs !== spec.defaultGapMs)
+    .sort((a, b) => a.trackId.localeCompare(b.trackId)) };
+}
 
 export function createMediaPlanningStore(access: Access) {
   const { read, conflict, unavailable, beforeCommit } = access;
@@ -94,8 +100,20 @@ export function createMediaPlanningStore(access: Access) {
         if (request.draftId !== input.draftId || request.expectedDraftRevision !== input.revision || request.inputFingerprint !== input.fingerprint) return conflict('分面预览已过期，请重新计算并确认。');
         const layout = resolveMediaLayout(input.tracks, request.spec);
         const id = request.planId ?? randomUUID();
-        if (request.planId) { const current = detail(db, id); if (current.draftId !== request.draftId || current.revision !== request.expectedRevision) return conflict('规划已改变，请刷新后重新确认。'); }
-        else if (Number(db.prepare('SELECT COUNT(*) n FROM media_plans WHERE draft_id=?').get(request.draftId)?.n) >= 100) return conflict('每份草稿最多保存 100 个规划。');
+        const distribution = request.spec.distribution;
+        const current = request.planId ? detail(db, id) : undefined;
+        if (current && (current.draftId !== request.draftId || current.revision !== request.expectedRevision)) return conflict('规划已改变，请刷新后重新确认。');
+        if (distribution && current?.spec.distribution?.groupId === distribution.groupId
+          && (current.inputFingerprint !== input.fingerprint || canonical(current.spec.distribution.segmentSpecs) !== canonical(distribution.segmentSpecs)
+            || canonical(transitionRules(current.spec)) !== canonical(transitionRules(request.spec))))
+          return conflict('同一分盘组的曲目分配、源或全局过渡规则已不同，请建立新分盘组。');
+        if (distribution) for (const row of db.prepare('SELECT id FROM media_plans WHERE draft_id=? AND id<>?').all(request.draftId, id)) {
+          const peer = detail(db, String(row.id));
+          if (peer.spec.distribution?.groupId !== distribution.groupId) continue;
+          if (peer.inputFingerprint !== input.fingerprint || canonical(peer.spec.distribution.segmentSpecs) !== canonical(distribution.segmentSpecs)
+            || canonical(transitionRules(peer.spec)) !== canonical(transitionRules(request.spec))) return conflict('同一分盘组的曲目分配、源或全局过渡规则已不同，请建立新分盘组。');
+        }
+        if (!request.planId && Number(db.prepare('SELECT COUNT(*) n FROM media_plans WHERE draft_id=?').get(request.draftId)?.n) >= 100) return conflict('每份草稿最多保存 100 个规划。');
         const data = { id, draftId: request.draftId, draftRevision: input.revision, spec: request.spec, layout, sourceBasis: input.basis, inputFingerprint: input.fingerprint, executionReady: false as const };
         db.prepare('INSERT INTO media_plans VALUES (?,?,?,1) ON CONFLICT(id) DO UPDATE SET data=excluded.data,revision=media_plans.revision+1').run(id, request.draftId, JSON.stringify(data));
         return id;

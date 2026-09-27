@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, statfs } from 'node:fs/promises';
 import path from 'node:path';
 import { BACKUP_INDEX_ISSUE_DETAIL_LIMIT, BACKUP_INDEX_MISSING_FACTS, isActivateRestoredDataset, type ActivateRestoredDataset, type RestoreActivationView, type AuthorizeBackupRoot, type StartBackupJob, type BackupJobView, type BackupSummary, type BackupJobIssue } from '@music-bridge/contracts';
 import type { CollectionRepository } from '../collection/repository.js';
@@ -9,6 +9,7 @@ import { BackupError, checkBackupRoot, readBackupText } from './backup-files.js'
 import { createArchiveBackup, verifyArchiveBackup, type ArchiveBackupManifest, type ArchiveContentBinding } from './backup-package.js';
 import { prepareRestoredDataset } from './restore-activation-files.js';
 import { restoreArchiveBackup } from './restore-package.js';
+import { authorizeArchiveBackupZipFile, createArchiveBackupZip, inspectArchiveBackupZip, recoverPublishedArchiveBackupZip, restoreArchiveBackupZip, verifyArchiveBackupZip, type ArchiveBackupZipFile } from './backup-zip.js';
 import { rebuildArchiveIndex } from './restore-index.js';
 import { BackupWorkflowError, type BackupWorkflowStore } from './backup-workflow-store.js';
 
@@ -20,12 +21,46 @@ export function createBackupCoordinator(options: { store: BackupWorkflowStore; r
   const conflict = (): never => { throw new BackupWorkflowError('BACKUP_CONFLICT'); };
   const protectedRoots = (): RootCapability[] => [...options.privateRoot ? [options.privateRoot] : [], ...options.contentBinding?.protectedRoots ?? [], ...options.protectedRoots ?? [], ...repository.sources.roots(), ...repository.preparations.destinations(), ...repository.archive.candidates().map(c => c.parent)];
   function root(id: string): RootCapability { const value = store.root(id); if (!value.view.authorized || !value.capability.authorized) return conflict(); return value.capability; }
+  function zipFile(id: string): ArchiveBackupZipFile { const value = store.root(id); if (!value.view.authorized || value.view.kind !== 'backup-source' || value.view.format !== 'zip' || !value.zipFile) return conflict(); return value.zipFile; }
+  function summaryFromManifest(manifest: ArchiveBackupManifest, manifestHash: string): BackupSummary {
+    return { backupId: manifest.id, manifestHash, mode: manifest.mode, objectCount: manifest.objects.length, copyBytes: manifest.contentIncluded ? manifest.objects.reduce((n, f) => n + f.size, 0) : 0, operationCount: manifest.operations.length, incompleteCount: manifest.incompleteOperationIds.length };
+  }
   async function summary(manifest: ArchiveBackupManifest, directory: RootCapability, signal: AbortSignal): Promise<BackupSummary> {
     const text = await readBackupText(directory, 'Backup.json', 32 * 1024 * 1024, signal);
     if (JSON.stringify(JSON.parse(text)) !== JSON.stringify(manifest)) throw new BackupError('BACKUP_INVALID');
     const complete = JSON.parse(await readBackupText(directory, 'Complete.json', 1024, signal));
     if (JSON.stringify(complete) !== JSON.stringify({ schemaVersion: 1, id: manifest.id, manifestHash: archiveDigest(text) })) throw new BackupError('BACKUP_INVALID');
-    return { backupId: manifest.id, manifestHash: archiveDigest(text), mode: manifest.mode, objectCount: manifest.objects.length, copyBytes: manifest.contentIncluded ? manifest.objects.reduce((n, f) => n + f.size, 0) : 0, operationCount: manifest.operations.length, incompleteCount: manifest.incompleteOperationIds.length };
+    return summaryFromManifest(manifest, archiveDigest(text));
+  }
+  async function preflightZipPeak(destination: RootCapability, mode: 'metadata' | 'archive-content'): Promise<void> {
+    // ZIP 备份保留目录包；事前至少为两份去重内容预留空间，快照后再按实际 entries 精确复核。
+    const objects = new Map<string, number>();
+    if (mode === 'archive-content') for (const operation of repository.archive.operations()) {
+      if (operation.phase !== 'FINALIZED' || !operation.owned) continue;
+      for (const file of operation.owned.files) {
+        const previous = objects.get(file.sha256);
+        if (previous !== undefined && previous !== file.size) throw new BackupError('BACKUP_INVALID');
+        objects.set(file.sha256, file.size);
+      }
+    }
+    const contentBytes = [...objects.values()].reduce((sum, size) => sum + size, 0);
+    if (!Number.isSafeInteger(contentBytes)) throw new BackupError('BACKUP_IO_ERROR');
+    const minimum = BigInt(contentBytes) * 2n + 128n * 1024n * 1024n;
+    const space = await statfs(destination.path, { bigint: true });
+    if (space.bavail * space.bsize < minimum) throw new BackupError('BACKUP_IO_ERROR');
+  }
+  async function recoverPublished(id: string): Promise<void> {
+    const saved = store.job(id);
+    if (saved.request.kind !== 'backup' || saved.request.format !== 'zip' || saved.view.state === 'succeeded') return;
+    try {
+      const destination = root(saved.request.rootId), absolute = path.join(destination.path, id);
+      const packageDirectory = { ...await authorizeSourceDirectory(absolute), id: randomUUID() };
+      if (packageDirectory.path !== absolute) return;
+      const recovered = await recoverPublishedArchiveBackupZip({ packageDirectory, destination, id });
+      if (!recovered) return;
+      const resultSummary = await summary(recovered.manifest, packageDirectory, new AbortController().signal);
+      store.reconcilePublishedZip(id, resultSummary, recovered.file);
+    } catch { /* 无法证明 final 时保持原失败/中断回执，不重跑备份或覆写证据。 */ }
   }
   async function execute(id: string): Promise<void> {
     if (closed || store.job(id).view.state !== 'queued') return;
@@ -37,18 +72,37 @@ export function createBackupCoordinator(options: { store: BackupWorkflowStore; r
       await checkBackupRoot(source);
       if (request.kind === 'backup') {
         await previewArchiveRoot(source.path, protectedRoots());
+        if (request.format === 'zip') await preflightZipPeak(source, request.mode);
         const result = await (options.createBackup ?? createArchiveBackup)({ repository, destination: source, id, mode: request.mode, userConfirmed: true, signal, ...(options.contentBinding ? { contentBinding: options.contentBinding } : {}) });
-        // 文件层完成标记已发布；取消若晚于发布边界，保留成功回执。
-        const resultSummary = await summary(result.manifest, result.directory, new AbortController().signal);
-        store.finish(id, { summary: resultSummary }, result.directory);
+        if (request.format === 'zip') {
+          const zip = await createArchiveBackupZip({ packageDirectory: result.directory, destination: source, id, userConfirmed: true, signal });
+          // ZIP final 链接发布后使用中性信号核验和落账；迟到取消不改写成功事实。
+          const resultSummary = await summary(zip.manifest, result.directory, new AbortController().signal);
+          store.finish(id, { summary: resultSummary }, zip.file.parent, zip.file);
+        } else {
+          // 文件层完成标记已发布；取消若晚于发布边界，保留成功回执。
+          const resultSummary = await summary(result.manifest, result.directory, new AbortController().signal);
+          store.finish(id, { summary: resultSummary }, result.directory);
+        }
       } else if (request.kind === 'verify') {
-        const verified = await verifyArchiveBackup(source, signal);
-        store.finish(id, { summary: await summary(verified, source, signal) });
+        if (store.root(request.rootId).view.format === 'zip') {
+          if (!options.privateRoot) throw new BackupWorkflowError('BACKUP_UNAVAILABLE');
+          const verified = await verifyArchiveBackupZip(zipFile(request.rootId), options.privateRoot, signal);
+          store.finish(id, { summary: summaryFromManifest(verified.manifest, verified.manifestHash) });
+        } else {
+          const verified = await verifyArchiveBackup(source, signal);
+          store.finish(id, { summary: await summary(verified, source, signal) });
+        }
       } else if (request.kind === 'restore') {
-        const verified = await verifyArchiveBackup(source, signal), current = await summary(verified, source, signal);
+        const zipped = store.root(request.rootId).view.format === 'zip';
+        const current = zipped
+          ? await inspectArchiveBackupZip(zipFile(request.rootId), signal).then(value => summaryFromManifest(value.manifest, value.manifestHash))
+          : await verifyArchiveBackup(source, signal).then(value => summary(value, source, signal));
         const previous = store.job(request.verificationId).view.summary;
         if (!previous || JSON.stringify(previous) !== JSON.stringify(current)) throw new BackupError('BACKUP_INVALID');
-        const result = await restoreArchiveBackup({ backup: source, destination: root(request.destinationId), protectedRoots: protectedRoots(), id, userConfirmed: true, signal, expectedBackupIdentity: { id: current.backupId, manifestHash: current.manifestHash } });
+        const result = zipped
+          ? await restoreArchiveBackupZip({ file: zipFile(request.rootId), destination: root(request.destinationId), protectedRoots: protectedRoots(), id, userConfirmed: true, signal, expectedBackupIdentity: { id: current.backupId, manifestHash: current.manifestHash } })
+          : await restoreArchiveBackup({ backup: source, destination: root(request.destinationId), protectedRoots: protectedRoots(), id, userConfirmed: true, signal, expectedBackupIdentity: { id: current.backupId, manifestHash: current.manifestHash } });
         store.finish(id, { summary: current }, result.directory);
       } else {
         const index = await rebuildArchiveIndex({ directory: source, signal });
@@ -64,7 +118,7 @@ export function createBackupCoordinator(options: { store: BackupWorkflowStore; r
     } catch (error) {
       const issue: BackupJobIssue = controller.signal.aborted
         ? controller.signal.reason === 'AUTHORIZATION_REVOKED' ? 'AUTHORIZATION_REVOKED' : controller.signal.reason === 'INTERRUPTED' ? 'INTERRUPTED' : controller.signal.reason === 'BACKUP_IO_ERROR' ? 'BACKUP_IO_ERROR' : 'CANCELLED'
-        : error instanceof BackupError ? error.code : 'BACKUP_IO_ERROR';
+        : error instanceof BackupError ? error.code : error instanceof BackupWorkflowError && error.code === 'BACKUP_UNAVAILABLE' ? 'BACKUP_UNAVAILABLE' : 'BACKUP_IO_ERROR';
       store.failJob(id, issue);
     } finally { clearTimeout(timer); controllers.delete(id); }
   }
@@ -98,10 +152,16 @@ export function createBackupCoordinator(options: { store: BackupWorkflowStore; r
       return activation.view;
     },
     authorizationReceipt(command: AuthorizeBackupRoot) {
-      const value = store.authorizationReceipt(command.commandId); if (value && value.kind !== command.kind) return conflict(); return { root: value ?? null };
+      const value = store.authorizationReceipt(command.commandId); if (value && (value.kind !== command.kind || value.format !== command.format)) return conflict(); return { root: value ?? null };
     },
     async authorize(request: AuthorizeBackupRoot & { absolutePath: string }) {
       if (closed) return conflict();
+      if (request.format === 'zip') {
+        if (request.kind !== 'backup-source') return conflict();
+        const zip = await authorizeArchiveBackupZipFile(request.absolutePath);
+        await previewArchiveRoot(zip.parent.path, protectedRoots());
+        return store.authorize({ commandId: request.commandId, kind: request.kind, format: 'zip' }, zip.parent, zip);
+      }
       const capability = { ...await authorizeSourceDirectory(request.absolutePath), id: randomUUID() };
       await previewArchiveRoot(capability.path, protectedRoots());
       return store.authorize({ commandId: request.commandId, kind: request.kind }, capability);
@@ -114,6 +174,10 @@ export function createBackupCoordinator(options: { store: BackupWorkflowStore; r
         scheduledJobs.add(job.id);
         tail = tail.then(() => execute(job.id)).finally(() => scheduledJobs.delete(job.id));
         // 查询和后续任务不被后台故障卡住；失败仍写入对应任务，仓库损坏时拒绝后续读取。
+        tail = tail.catch(() => undefined);
+      } else if (job.kind === 'backup' && job.format === 'zip' && ['failed','cancelled','interrupted'].includes(job.state) && !scheduledJobs.has(job.id)) {
+        scheduledJobs.add(job.id);
+        tail = tail.then(() => recoverPublished(job.id)).finally(() => scheduledJobs.delete(job.id));
         tail = tail.catch(() => undefined);
       }
       return job;

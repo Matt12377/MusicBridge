@@ -128,7 +128,7 @@ test('真实新Plan重录准入失败不消费，Begin原子unknown+许可消费
   const a=f.starts[2]!,side=started.sides[0]!,identity={side:'A' as const,runId:a.runId,at:new Date().toISOString()};
   a.onEvent({...identity,type:'progress',sourceFramesRead:side.frameCount,submittedFrames:side.frameCount,consumedFrames:side.frameCount});
   for(const type of ['source-eof','engine-cutoff','cleanup-quiescent','backend-drained'] as const)a.onEvent({...identity,type});
-  await new Promise<void>(resolve=>setImmediate(resolve));
+  await f.waitForOutputIdle();
   let current=f.attempts.get({attemptId:started.id}).attempt!;
   current=await f.attempts.confirm({commandId:randomUUID(),attemptId:current.id,expectedRevision:current.revision,kind:'physical-stop',side:'A',userConfirmed:true});
   current=await f.attempts.confirm({commandId:randomUUID(),attemptId:current.id,expectedRevision:current.revision,kind:'flip',userConfirmed:true});

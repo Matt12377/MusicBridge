@@ -5,14 +5,14 @@ import { randomUUID } from 'node:crypto'
 import { mkdtemp, mkdir, readFile, writeFile, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
-import { seedRecordingPlan } from './task-072-workflows.js'
+import { privatePlanOutputBackend, seedRecordingPlan, selectDirectRecordingContext } from './task-072-workflows.js'
 
 const root = path.resolve(import.meta.dirname, '..')
 const axe = await readFile(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8')
 let app: ElectronApplication | undefined, page: Page, directory: string
 async function launch(enabled: boolean) {
   const env = Object.fromEntries(Object.entries(process.env).filter(([k, v]) => v !== undefined && !/^(MUSIC_BRIDGE_|NETEASE_|ROON_)/u.test(k))) as Record<string, string>
-  app = await electron.launch({ args: testElectronArguments([path.join(root, 'dist/main/index.js')]), cwd: root, env: { ...env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: directory, ...(enabled ? { MUSIC_BRIDGE_BUNDLED_OUTPUT_GATE: '1' } : {}) } })
+  app = await electron.launch({ args: testElectronArguments([path.join(root, 'e2e/private-core-main-wrapper.mjs')]), cwd: root, env: { ...env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: directory, ...(enabled ? { MUSIC_BRIDGE_BUNDLED_OUTPUT_GATE: '1' } : {}) } })
   page = await app.firstWindow(); await page.waitForLoadState('domcontentloaded'); await expect(page.locator('#home-heading')).toBeVisible()
   await expect.poll(async () => (await page.evaluate(() => window.musicBridge.getCoreHealth())).runtime).toBe('ready')
 }
@@ -21,14 +21,21 @@ test.beforeEach(async () => { test.setTimeout(180000); directory = await realpat
 test.afterEach(close)
 
 async function frozenFixture() {
-  const f = await seedRecordingPlan(page, app!, directory)
-  const proposal = await page.evaluate(selection => window.musicBridge.previewRecordingPlan({ readId: crypto.randomUUID(), selection }), f.selection)
-  const plan = await page.evaluate(request => window.musicBridge.freezeRecordingPlan(request), { commandId: randomUUID(), selection: f.selection, proposalFingerprint: proposal.proposalFingerprint, userConfirmed: true as const })
-  return { ...f, plan }
+  const f = await seedRecordingPlan(page, app!, directory, privatePlanOutputBackend)
+  const outputSelection = await page.evaluate(async () => {
+    const candidates = await window.musicBridge.listRecordingDeviceCandidates()
+    return window.musicBridge.selectRecordingDevice({ endpointId: candidates.candidates[0]!.endpointId })
+  })
+  const selection = { ...f.selection, outputSelection }
+  const proposal = await page.evaluate(selection => window.musicBridge.previewRecordingPlan({ readId: crypto.randomUUID(), selection }), selection)
+  const plan = await page.evaluate(request => window.musicBridge.freezeRecordingPlan(request), { commandId: randomUUID(), selection, proposalFingerprint: proposal.proposalFingerprint, userConfirmed: true as const })
+  return { ...f, selection, plan }
 }
-async function openOutput() {
+async function openOutput(context: { media: { id: string }; layout: { id: string } }) {
   await page.locator('[data-sidebar-source="recording"]').click()
-  await page.getByRole('button', { name: /^继续草稿 计划与预检合成草稿 /u }).click()
+  await page.getByRole('button', { name: /^计划与预检合成草稿 /u }).click()
+  await selectDirectRecordingContext(page, context.media.id, context.layout.id)
+  await page.getByText('版本、Logic 与计划', { exact: true }).click()
   const trigger = page.getByRole('button', { name: '计划与预检', exact: true }); await trigger.click()
   const parent = page.getByTestId('recording-plan-panel'), output = page.getByTestId('recording-output-panel')
   await expect(output).toContainText('请先明确查看或冻结一份计划；不会自动选择历史版本。')
@@ -61,9 +68,14 @@ test('V3固定原生输出检查：真实Plan到只读FD与PCM守恒，取消先
   const status = await page.evaluate(() => window.musicBridge.getRecordingOutputStatus())
   expect(status.syntheticCheck.available).toBe(true); expect(status.syntheticCheck.helperSha256).toMatch(/^[a-f0-9]{64}$/u)
   expect(status).toMatchObject({ deviceAccess: 'not-authorized', gateB: 'NOT_RUN', formalReady: false })
-  const f = await seedRecordingPlan(page, app!, directory)
-  const proposal = await page.evaluate(selection => window.musicBridge.previewRecordingPlan({ readId: crypto.randomUUID(), selection }), f.selection)
-  const plan = await page.evaluate(request => window.musicBridge.freezeRecordingPlan(request), { commandId: randomUUID(), selection: f.selection, proposalFingerprint: proposal.proposalFingerprint, userConfirmed: true as const })
+  const f = await seedRecordingPlan(page, app!, directory, privatePlanOutputBackend)
+  const outputSelection = await page.evaluate(async () => {
+    const candidates = await window.musicBridge.listRecordingDeviceCandidates()
+    return window.musicBridge.selectRecordingDevice({ endpointId: candidates.candidates[0]!.endpointId })
+  })
+  const selection = { ...f.selection, outputSelection }
+  const proposal = await page.evaluate(selection => window.musicBridge.previewRecordingPlan({ readId: crypto.randomUUID(), selection }), selection)
+  const plan = await page.evaluate(request => window.musicBridge.freezeRecordingPlan(request), { commandId: randomUUID(), selection, proposalFingerprint: proposal.proposalFingerprint, userConfirmed: true as const })
   const inventory = await page.evaluate(id => window.musicBridge.getCollectionModel(id, { offset: 0, limit: 25 }), f.media.reservation!.modelId)
   const outbox = await page.evaluate(() => window.musicBridge.getCommandOutbox())
   const request = { runId: randomUUID(), planVersionId: plan.id, side: 'A' as const }
@@ -91,8 +103,8 @@ test('V3固定原生输出检查：真实Plan到只读FD与PCM守恒，取消先
 })
 
 test('V3无设备检查面板：未启用包时禁用，状态读取错误不泄漏内部路径', async () => {
-  await launch(false); await frozenFixture()
-  const { parent, output } = await openOutput()
+  await launch(false); const f = await frozenFixture()
+  const { parent, output } = await openOutput(f)
   await expect(output).toContainText('不播放音频，不认证 Gate B。')
   await output.getByLabel('检查面／节目', { exact: true }).selectOption('A')
   await expect(output.getByRole('button', { name: '无设备检查', exact: true })).toBeDisabled()
@@ -117,7 +129,7 @@ test('V3无设备检查面板：明确计划与侧面后真实helper通过，键
   })
   const before = await page.evaluate(id => window.musicBridge.getCollectionModel(id, { offset: 0, limit: 25 }), f.media.reservation!.modelId)
   const outbox = await page.evaluate(() => window.musicBridge.getCommandOutbox())
-  const { parent, output, trigger } = await openOutput()
+  const { parent, output, trigger } = await openOutput(f)
   await expect(output).toContainText('本次尚未检查。')
   const side = output.getByLabel('检查面／节目', { exact: true })
   await expect(side).toHaveValue(''); await expect(side.locator('option[value="B"]')).toHaveCount(0)
@@ -143,7 +155,7 @@ test('V3无设备检查面板：明确计划与侧面后真实helper通过，键
 
 test('V3无设备检查面板：取消失败可重试，迟到真实成功不能改为通过', async () => {
   test.skip(process.env.MUSIC_BRIDGE_OUTPUT_NATIVE_GATE !== '1', '需要固定无设备原生候选')
-  await launch(true); await frozenFixture()
+  await launch(true); const f = await frozenFixture()
   await app!.evaluate(({ ipcMain }) => {
     const handlers = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => Promise<unknown>> })._invokeHandlers
     const original = handlers.get('recordingOutput:check')!, cancel = handlers.get('recordingOutput:cancel')!
@@ -155,7 +167,7 @@ test('V3无设备检查面板：取消失败可重试，迟到真实成功不能
     })
     ipcMain.removeHandler('recordingOutput:cancel'); ipcMain.handle('recordingOutput:cancel', (...args) => { if (!failed) { failed = true; throw new Error('/private/synthetic-output-cancel-internal') } return cancel(...args) })
   })
-  const { output } = await openOutput()
+  const { output } = await openOutput(f)
   await output.getByLabel('检查面／节目', { exact: true }).selectOption('A')
   await output.getByRole('button', { name: '无设备检查', exact: true }).click()
   await expect.poll(() => app!.evaluate(() => !!(globalThis as typeof globalThis & { releaseOutputUI?: () => void }).releaseOutputUI)).toBe(true)

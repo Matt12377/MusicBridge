@@ -18,8 +18,21 @@ import { randomUUID } from 'node:crypto';
 import type { VersionHistory, VersionProposal, FreezeVersionsRequest, VersionJob, VersionFailure, MasterVersion, LayoutVersion, MediaPlan, SourceBinding } from '@music-bridge/contracts';
 import { mediaFingerprint, type MediaPlanningStore } from './media-store.js';
 import { assessMediaCandidate } from './media-planner.js';
+import { freezeMediaDistribution, frozenGroupMatchesHistory, verifyVersionHistoryDistribution } from './version-distribution.js';
 export interface VersionInput { identity: string; plan: MediaPlan; stockFingerprint: string; title: string; proposal: VersionProposal; sourceEvidence: readonly { trackId: string; binding: SourceBinding }[] }
 export interface StoredVersionJob { public: VersionJob; request: FreezeVersionsRequest; input: VersionInput }
+/** 备份/恢复冷读不经过某个草稿的 list；仍必须逐盘及跨盘复算冻结分布。 */
+export function verifyVersionDistributionDatabase(db: DatabaseSync): void {
+  for (const draft of db.prepare('SELECT id FROM master_drafts').all()) {
+    const draftId = draft.id;
+    if (!isCollectionId(draftId)) throw new Error('冻结版本草稿身份无效。');
+    const rows = <T>(table: string): T[] => db.prepare(`SELECT data FROM ${table} WHERE draft_id=? ORDER BY rowid DESC`).all(draftId).map(row => JSON.parse(String(row.data)) as T);
+    const jobs = rows<StoredVersionJob>('version_jobs').map(job => job.public);
+    if (!verifyVersionHistoryDistribution({ draftId, masters: rows<MasterVersion>('master_versions'), layouts: rows<LayoutVersion>('layout_versions'), jobs })) {
+      throw new Error('冻结版本分盘历史缺失或不一致。');
+    }
+  }
+}
 interface Access { read<T>(fn: (db: DatabaseSync) => T): T; conflict(message: string): never; media: MediaPlanningStore; beforeCommit?: (action: string) => void }
 export function createMasterVersionsStore({ read, conflict, media, beforeCommit }: Access) {
   const job = (db: DatabaseSync, id: string): StoredVersionJob | undefined => { const row = db.prepare('SELECT data FROM version_jobs WHERE id=?').get(id); return row ? JSON.parse(String(row.data)) as StoredVersionJob : undefined; };
@@ -27,7 +40,9 @@ export function createMasterVersionsStore({ read, conflict, media, beforeCommit 
   function list(db: DatabaseSync, draftId: string): VersionHistory {
     if (!isCollectionId(draftId) || !db.prepare('SELECT id FROM master_drafts WHERE id=?').get(draftId)) return conflict('草稿不存在，请刷新。');
     const rows = <T>(table: string): T[] => db.prepare(`SELECT data FROM ${table} WHERE draft_id=? ORDER BY rowid DESC`).all(draftId).map(r => JSON.parse(String(r.data)) as T);
-    return { draftId, masters: rows<MasterVersion>('master_versions'), layouts: rows<LayoutVersion>('layout_versions'), jobs: rows<StoredVersionJob>('version_jobs').map(j => j.public) };
+    const history = { draftId, masters: rows<MasterVersion>('master_versions'), layouts: rows<LayoutVersion>('layout_versions'), jobs: rows<StoredVersionJob>('version_jobs').map(j => j.public) };
+    if (!verifyVersionHistoryDistribution(history)) return conflict('冻结版本历史校验失败，请停止使用并检查数据。');
+    return history;
   }
   function transaction<T>(action: string, fn: (db: DatabaseSync) => T): T {
     return read(db => { db.exec('BEGIN IMMEDIATE'); try { const result = fn(db); beforeCommit?.(action); db.exec('COMMIT'); return result; } catch (error) { db.exec('ROLLBACK'); throw error; } });
@@ -42,6 +57,9 @@ export function createMasterVersionsStore({ read, conflict, media, beforeCommit 
     const current = media.detail(input.plan.id), stock = current.reservation ? media.reservationStock(current.reservation) : undefined;
     const history = list(db, current.draftId), previous = history.masters[0]?.id;
     if (media.inputIdentity(current.draftId) !== input.identity || mediaFingerprint(current) !== mediaFingerprint(input.plan) || !stock || mediaFingerprint(stock) !== input.stockFingerprint || current.requiresReview || assessMediaCandidate(stock, current.layout, current.spec, current.sourceBasis).status !== 'recommended' || previous !== input.proposal.previousMasterId) return conflict('草稿、源、分面、版本历史或预留已改变，请重新预览。');
+    if (mediaFingerprint(input.proposal.distributionPlan ?? null) !== mediaFingerprint(current.spec.distribution ?? null)
+      || current.spec.distribution && !frozenGroupMatchesHistory(history, current.spec.distribution, input.proposal.contentHash))
+      return conflict('同一分盘组的完整母版或分段已改变，请建立新分盘组。');
   }
   return {
     list(draftId: string): VersionHistory { return read(db => list(db, draftId)); },
@@ -69,7 +87,9 @@ export function createMasterVersionsStore({ read, conflict, media, beforeCommit 
           master = { id: randomUUID(), draftId: input.plan.draftId, sequence: history.masters.length + 1, ...(history.masters[0] ? { parentId: history.masters[0].id } : {}), title: input.title, createdAt, content: input.proposal.content, contentHash: input.proposal.contentHash, sourceEvidence, status: 'frozen' };
           db.prepare('INSERT INTO master_versions VALUES (?,?,?)').run(master.id, master.draftId, JSON.stringify(master));
         }
-        const layout: LayoutVersion = { id: randomUUID(), draftId: input.plan.draftId, masterVersionId: master.id, sequence: history.layouts.length + 1, ...(history.layouts[0] ? { parentId: history.layouts[0].id } : {}), planId: input.plan.id, createdAt, spec: input.plan.spec, lengthMinutes: input.proposal.lengthMinutes, reservation: input.proposal.reservation, timeline: input.proposal.timeline, timelineHash: input.proposal.timelineHash, status: 'frozen', executionReady: false };
+        const distribution = input.plan.spec.distribution ? freezeMediaDistribution(master, input.plan.spec.distribution) : undefined;
+        if (input.plan.spec.distribution && !distribution) return conflict('完整母版与分盘快照不一致，不能冻结。');
+        const layout: LayoutVersion = { id: randomUUID(), draftId: input.plan.draftId, masterVersionId: master.id, sequence: history.layouts.length + 1, ...(history.layouts[0] ? { parentId: history.layouts[0].id } : {}), planId: input.plan.id, createdAt, spec: input.plan.spec, lengthMinutes: input.proposal.lengthMinutes, reservation: input.proposal.reservation, timeline: input.proposal.timeline, timelineHash: input.proposal.timelineHash, ...(distribution ? { distribution } : {}), status: 'frozen', executionReady: false };
         db.prepare('INSERT INTO layout_versions VALUES (?,?,?,?)').run(layout.id, layout.draftId, master.id, JSON.stringify(layout));
         current.public = { ...current.public, state: 'completed', masterVersionId: master.id, layoutVersionId: layout.id }; saveJob(db, current);
         record(db, randomUUID(), mediaFingerprint(['frozen', id]), JSON.stringify({ masterVersionId: master.id, layoutVersionId: layout.id, sourceEvidence }));

@@ -9,6 +9,9 @@ import { copyFile, link, mkdir, mkdtemp, readFile, readdir, rename, rm, symlink,
 import path from 'node:path';
 import os from 'node:os';
 import { openCollectionDataset } from '../src/recording/restore-dataset-runtime.js';
+import { verifyRecordingRecordPageIndex, verifyRecordingRecordPageSearch } from '../src/recording/record-page-index.js';
+import { verifyReferenceCatalogZipDatabase } from '../src/collection/reference-catalog-store.js';
+import { verifyPreparationZipSessionDatabase } from '../src/recording/preparation-export-store.js';
 import { archiveBackupFixture } from './helpers/archive-backup-fixture.js';
 import { createCollectionRepository, type CollectionRepository } from '../src/collection/repository.js';
 import { createBackupWorkflowStore } from '../src/recording/backup-workflow-store.js';
@@ -60,14 +63,41 @@ async function fixture(t: test.TestContext, beforeBackup?: (f: Awaited<ReturnTyp
   return { ...f, privatePath, defaultFile, storePath, restored, destinationId: destination.id, pending, prepare, open };
 }
 
-test('正式schema21默认工作库关闭后可冷开，保留dataset身份及库存', async t => {
+test('正式schema30默认工作库关闭后可冷开，核验分页、ZIP栅栏并保留dataset身份及库存', async t => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-catalog-cold-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const first = await openCollectionDataset(directory), datasetId = first.datasetId;
   addBusinessData(first.repository); first.close();
+  const inspection = new DatabaseSync(path.join(directory, 'collection.v1.sqlite'), { readOnly: true, allowExtension: false });
+  try {
+    assert.equal(inspection.prepare('PRAGMA user_version').get()?.user_version, 30);
+    verifyRecordingRecordPageIndex(inspection); verifyReferenceCatalogZipDatabase(inspection); verifyRecordingRecordPageSearch(inspection); verifyPreparationZipSessionDatabase(inspection);
+  } finally { inspection.close(); }
   const cold = await openCollectionDataset(directory);
   try { assert.equal(cold.datasetId, datasetId); assert.equal(cold.repository.list(page).total, 1); }
   finally { cold.close(); }
+});
+
+test('schema30冷开拒绝缺失的分页索引，不把损坏数据库静默迁移', async t => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-catalog-index-audit-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const first = await openCollectionDataset(directory); first.close();
+  const file = path.join(directory, 'collection.v1.sqlite'), db = new DatabaseSync(file, { allowExtension: false });
+  try { db.exec('DROP INDEX idx_recordpage_completed'); assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 30); }
+  finally { db.close(); }
+  await assert.rejects(openCollectionDataset(directory), /BACKUP_UNAVAILABLE|备份|工作库/u);
+});
+
+for (const [name, sql] of [
+  ['搜索投影', 'DROP TABLE recordpage_search'],
+  ['ZIP 不可逆撤销触发器', 'DROP TRIGGER preparation_zip_targets_no_rebind'],
+] as const) test(`schema30 冷开拒绝缺失的${name}，不做无声重建`, async t => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-catalog-schema30-audit-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const first = await openCollectionDataset(directory); first.close();
+  const db = new DatabaseSync(path.join(directory, 'collection.v1.sqlite'), { allowExtension: false });
+  try { db.exec(sql); } finally { db.close(); }
+  await assert.rejects(openCollectionDataset(directory), /BACKUP_UNAVAILABLE|备份|工作库|库存|搜索投影|ZIP/u);
 });
 
 test('真实合成工作簿原字节、类型化源行、修订与更正随Lot照片目录快照完整备份，隔离激活冷启逐列保留', async t => {
@@ -76,7 +106,7 @@ test('真实合成工作簿原字节、类型化源行、修订与更正随Lot�
   const inspectFacts = (filePath: string) => {
     const db = new DatabaseSync(filePath, { readOnly: true });
     try {
-      assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 21);
+      assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 30);
       assert.equal(db.prepare('PRAGMA integrity_check').get()?.integrity_check, 'ok');
       assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
       return db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND (name GLOB 'spreadsheet_*' OR name GLOB 'reference_*' OR name GLOB 'inventory_*' OR name GLOB 'collection_*' OR name='physical_copies') ORDER BY name").all().map(({ name }) => [name, db.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all()]);

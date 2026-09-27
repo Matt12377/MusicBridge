@@ -6,13 +6,22 @@ const uuid = (value: unknown): value is string => typeof value === 'string' && /
 const record = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 const safeCodes = new Set(['OUTBOX_UNAVAILABLE', 'OUTBOX_CONFLICT', 'OUTBOX_SCOPE_MISMATCH', 'OUTBOX_LIMIT_EXCEEDED', 'OUTBOX_RESULT_UNKNOWN', 'INVALID_IPC_REQUEST', 'INVENTORY_CONFLICT'])
 const failure = (code: string): Error => new Error(`[${code}] 操作回执尚未确认，请查看未确认操作；工作库变化后须重新加载。`)
+export type DatasetScope = () => Promise<string>
 
-/** sandbox预加载只用本地信封检查；Main负责领域DTO校验。身份固定在本次Renderer加载，不在发送时换库。 */
-export function createCommandOutboxClient(invoke: (channel: string, value?: unknown) => Promise<unknown>) {
+/** 同一预加载窗口只采集一次工作库身份；读写客户端共用此闭包，不暴露给 Renderer。 */
+export function createCommandOutboxDatasetScope(invoke: (channel: string, value?: unknown) => Promise<unknown>): DatasetScope {
   const scope = invoke('commandOutbox:context').then(value => {
     if (!record(value) || !uuid(value.datasetId) || Object.keys(value).some(key => key !== 'datasetId')) throw failure('OUTBOX_UNAVAILABLE')
     return value.datasetId
   }).catch(() => { throw failure('OUTBOX_UNAVAILABLE') })
+  void scope.catch(() => undefined)
+  return () => scope
+}
+
+/** sandbox预加载只用本地信封检查；Main负责领域DTO校验。身份固定在本次Renderer加载，不在发送时换库。 */
+export function createCommandOutboxClient(invoke: (channel: string, value?: unknown) => Promise<unknown>, getDatasetId: DatasetScope = createCommandOutboxDatasetScope(invoke)) {
+  const scope = getDatasetId()
+  void scope.catch(() => undefined)
   void scope.catch(() => undefined)
   const failed = new Set<string>()
   return {

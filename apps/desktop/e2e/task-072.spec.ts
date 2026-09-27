@@ -7,14 +7,14 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { loseNextOutboxReceipt } from './task-066-workflows.js'
-import { seedRecordingPlan } from './task-072-workflows.js'
+import { privatePlanOutputBackend, seedRecordingPlan, selectDirectRecordingContext } from './task-072-workflows.js'
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const axe = await readFile(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8')
 let app: ElectronApplication | undefined, page: Page, directory: string
 async function launch(): Promise<void> {
   const env = Object.fromEntries(Object.entries(process.env).filter(([key, value]) => value !== undefined && !/^(MUSIC_BRIDGE_|NETEASE_|ROON_)/u.test(key))) as Record<string, string>
-  app = await electron.launch({ args: testElectronArguments([path.join(root, 'dist/main/index.js')]), cwd: root, env: { ...env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: directory } })
+  app = await electron.launch({ args: testElectronArguments([path.join(root, 'e2e/private-core-main-wrapper.mjs')]), cwd: root, env: { ...env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: directory } })
   page = await app.firstWindow(); await page.waitForLoadState('domcontentloaded')
   await expect(page.locator('#home-heading')).toBeVisible()
   await expect.poll(async () => (await page.evaluate(() => window.musicBridge.getCoreHealth())).runtime).toBe('ready')
@@ -36,7 +36,18 @@ async function draft(title = '下一步合成草稿') {
 }
 async function openDraft(title: string) {
   await page.locator('[data-sidebar-source="recording"]').click()
-  await page.getByRole('button', { name: `继续草稿 ${title}` }).click()
+  await page.getByRole('button', { name: new RegExp(`^${title} `, 'u') }).click()
+}
+async function openPlanContext(f: { media: { id: string }; layout: { id: string } }) {
+  await selectDirectRecordingContext(page, f.media.id, f.layout.id)
+  await page.getByText('版本、Logic 与计划', { exact: true }).click()
+}
+async function selectPlanOutputDevice(panel: Locator) {
+  const device = panel.getByLabel('本次输出端点', { exact: true })
+  const endpointId = await device.locator('option:not([value=""]):not([disabled])').first().getAttribute('value')
+  expect(endpointId).toBeTruthy()
+  await device.selectOption(endpointId!)
+  await expect(device).toHaveValue(endpointId!)
 }
 async function audit(target: Locator, name: string, screenshotTarget?: Locator) {
   expect(await target.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
@@ -48,18 +59,21 @@ async function audit(target: Locator, name: string, screenshotTarget?: Locator) 
 }
 
 test('V3正式计划：实际链路冻结当前参数、原命令重试、冷启历史和GateB阻断', async () => {
-  const f = await seedRecordingPlan(page, app!, directory)
+  const f = await seedRecordingPlan(page, app!, directory, privatePlanOutputBackend)
   const inventory = await page.evaluate(id => window.musicBridge.getCollectionModel(id, { offset: 0, limit: 25 }), f.media.reservation!.modelId)
   await page.evaluate(request => window.musicBridge.saveRecordingSession(request), { commandId: randomUUID(), draftId: f.draft.draftId, expectedRevision: f.session.revision, profileVersionId: f.profile.id, overrides: { noiseReduction: null, recordLevel: '冻结前本次新电平', calibration: '本次人工校准' }, userConfirmed: true as const })
   await openDraft('计划与预检合成草稿')
+  await openPlanContext(f)
   const trigger = page.getByRole('button', { name: '计划与预检', exact: true }); await trigger.click()
   let panel = page.getByTestId('recording-plan-panel')
+  await expect(panel.getByLabel('本次输出端点', { exact: true })).toHaveValue('')
   await expect(panel.getByLabel('本次执行资产', { exact: true })).toHaveValue('')
   await expect(panel.getByLabel('本次 FINALIZED 归档', { exact: true })).toHaveValue('')
-  await expect(panel.getByRole('button', { name: '核对所选资产与归档', exact: true })).toBeDisabled()
+  await expect(panel.getByRole('button', { name: '核对设备、资产与归档', exact: true })).toBeDisabled()
+  await selectPlanOutputDevice(panel)
   await panel.getByLabel('本次执行资产', { exact: true }).selectOption(f.asset.id)
   await panel.getByLabel('本次 FINALIZED 归档', { exact: true }).selectOption(f.archive.id)
-  await panel.getByRole('button', { name: '核对所选资产与归档', exact: true }).click()
+  await panel.getByRole('button', { name: '核对设备、资产与归档', exact: true }).click()
   await expect(panel).toContainText('冻结前本次新电平')
   await expect(panel.getByRole('button', { name: '确认并冻结计划', exact: true })).toBeDisabled()
   await panel.locator('.snapshot').evaluate(el => el.scrollIntoView({ block: 'start' }))
@@ -93,7 +107,7 @@ test('V3正式计划：实际链路冻结当前参数、原命令重试、冷启
   await panel.getByRole('button', { name: '关闭计划与预检', exact: true }).click(); await expect(trigger).toBeFocused()
   await page.evaluate(request => window.musicBridge.saveRecordingSession(request), { commandId: randomUUID(), draftId: f.draft.draftId, expectedRevision: 2, profileVersionId: f.profile.id, overrides: { recordLevel: '冻结后的新会话' }, userConfirmed: true as const })
   expect((await page.evaluate(id => window.musicBridge.getRecordingPlanVersion(id), frozen.id)).plan).toEqual(frozen)
-  await close(); await launch(); await openDraft('计划与预检合成草稿'); await page.getByRole('button', { name: '计划与预检', exact: true }).click()
+  await close(); await launch(); await openDraft('计划与预检合成草稿'); await openPlanContext(f); await page.getByRole('button', { name: '计划与预检', exact: true }).click()
   panel = page.getByTestId('recording-plan-panel')
   await expect(panel.getByLabel('本次执行资产', { exact: true })).toHaveValue('')
   await expect(panel.getByRole('button', { name: '重新执行只读预检', exact: true })).toHaveCount(0)
@@ -110,9 +124,10 @@ test('V3正式计划：实际链路冻结当前参数、原命令重试、冷启
 })
 
 test('V3计划读取：取消核验丢弃迟到结果，读取失败不装空历史或泄漏内部路径', async () => {
-  const f = await seedRecordingPlan(page, app!, directory)
-  await openDraft('计划与预检合成草稿'); await page.getByRole('button', { name: '计划与预检', exact: true }).click()
+  const f = await seedRecordingPlan(page, app!, directory, privatePlanOutputBackend)
+  await openDraft('计划与预检合成草稿'); await openPlanContext(f); await page.getByRole('button', { name: '计划与预检', exact: true }).click()
   const panel = page.getByTestId('recording-plan-panel')
+  await selectPlanOutputDevice(panel)
   await panel.getByLabel('本次执行资产', { exact: true }).selectOption(f.asset.id)
   await panel.getByLabel('本次 FINALIZED 归档', { exact: true }).selectOption(f.archive.id)
   await app!.evaluate(({ ipcMain }) => {
@@ -123,13 +138,13 @@ test('V3计划读取：取消核验丢弃迟到结果，读取失败不装空历
       return original(...args)
     })
   })
-  await panel.getByRole('button', { name: '核对所选资产与归档', exact: true }).click()
+  await panel.getByRole('button', { name: '核对设备、资产与归档', exact: true }).click()
   await panel.getByRole('button', { name: '取消本次只读核验', exact: true }).click()
   await app!.evaluate(() => { (globalThis as typeof globalThis & { releasePlanRead?: () => void }).releasePlanRead?.() })
-  await expect(panel.getByRole('button', { name: '核对所选资产与归档', exact: true })).toBeEnabled()
+  await expect(panel.getByRole('button', { name: '核对设备、资产与归档', exact: true })).toBeEnabled()
   await expect(panel.getByRole('button', { name: '确认并冻结计划', exact: true })).toHaveCount(0)
   expect((await page.evaluate(id => window.musicBridge.listRecordingPlans(id), f.draft.draftId)).versions).toHaveLength(0)
-  await panel.getByRole('button', { name: '核对所选资产与归档', exact: true }).click()
+  await panel.getByRole('button', { name: '核对设备、资产与归档', exact: true }).click()
   await expect(panel.getByRole('button', { name: '确认并冻结计划', exact: true })).toBeVisible()
   await panel.getByRole('button', { name: '关闭计划与预检', exact: true }).click()
   await app!.evaluate(({ ipcMain }) => { ipcMain.removeHandler('recordingPlans:list'); ipcMain.handle('recordingPlans:list', () => { throw new Error('/private/synthetic-plan-internal') }) })

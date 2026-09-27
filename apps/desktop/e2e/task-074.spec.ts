@@ -5,14 +5,14 @@ import { randomUUID } from 'node:crypto'
 import { mkdtemp, mkdir, readFile, writeFile, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
-import { seedRecordingPlan } from './task-072-workflows.js'
+import { privatePlanOutputBackend, seedRecordingPlan, selectDirectRecordingContext } from './task-072-workflows.js'
 
 const root = path.resolve(import.meta.dirname, '..')
 const axe = await readFile(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8')
 let app: ElectronApplication | undefined, page: Page, directory: string
 async function launch() {
   const env = Object.fromEntries(Object.entries(process.env).filter(([key, value]) => value !== undefined && !/^(MUSIC_BRIDGE_|NETEASE_|ROON_)/u.test(key))) as Record<string, string>
-  app = await electron.launch({ args: testElectronArguments([path.join(root, 'dist/main/index.js')]), cwd: root, env: { ...env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: directory } })
+  app = await electron.launch({ args: testElectronArguments([path.join(root, 'e2e/private-core-main-wrapper.mjs')]), cwd: root, env: { ...env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: directory } })
   page = await app.firstWindow(); await page.waitForLoadState('domcontentloaded'); await expect(page.locator('#home-heading')).toBeVisible()
   await expect.poll(async () => (await page.evaluate(() => window.musicBridge.getCoreHealth())).runtime).toBe('ready')
 }
@@ -20,10 +20,15 @@ async function close() { const running = app; app = undefined; await running?.cl
 test.beforeEach(async () => { test.setTimeout(180000); directory = await realpath(await mkdtemp(path.join(os.tmpdir(), 'musicbridge-ui-e2e-attempt-'))); await mkdir(test.info().outputDir, { recursive: true }); await writeFile(test.info().outputPath('synthetic-user-data-path.txt'), directory) })
 test.afterEach(close)
 async function fixture() {
-  const seeded = await seedRecordingPlan(page, app!, directory)
-  const proposal = await page.evaluate(selection => window.musicBridge.previewRecordingPlan({ readId: crypto.randomUUID(), selection }), seeded.selection)
-  const plan = await page.evaluate(request => window.musicBridge.freezeRecordingPlan(request), { commandId: randomUUID(), selection: seeded.selection, proposalFingerprint: proposal.proposalFingerprint, userConfirmed: true as const })
-  return { ...seeded, plan }
+  const seeded = await seedRecordingPlan(page, app!, directory, privatePlanOutputBackend)
+  const outputSelection = await page.evaluate(async () => {
+    const candidates = await window.musicBridge.listRecordingDeviceCandidates()
+    return window.musicBridge.selectRecordingDevice({ endpointId: candidates.candidates[0]!.endpointId })
+  })
+  const selection = { ...seeded.selection, outputSelection }
+  const proposal = await page.evaluate(selection => window.musicBridge.previewRecordingPlan({ readId: crypto.randomUUID(), selection }), selection)
+  const plan = await page.evaluate(request => window.musicBridge.freezeRecordingPlan(request), { commandId: randomUUID(), selection, proposalFingerprint: proposal.proposalFingerprint, userConfirmed: true as const })
+  return { ...seeded, selection, plan }
 }
 
 test('V3正式Attempt实际全链路默认拒绝，零新增、outbox不变且冷启不续播', async () => {
@@ -44,9 +49,11 @@ test('V3正式Attempt实际全链路默认拒绝，零新增、outbox不变且�
 })
 
 test('V3正式Attempt面板明确Plan后才读历史，窄窗与错误不伪造空历史或正式准入', async () => {
-  await launch(); await fixture()
+  await launch(); const f = await fixture()
   await page.locator('[data-sidebar-source="recording"]').click()
-  await page.getByRole('button', { name: /^继续草稿 计划与预检合成草稿 /u }).click()
+  await page.getByRole('button', { name: /^计划与预检合成草稿 /u }).click()
+  await selectDirectRecordingContext(page, f.media.id, f.layout.id)
+  await page.getByText('版本、Logic 与计划', { exact: true }).click()
   const trigger = page.getByRole('button', { name: '计划与预检', exact: true }); await trigger.click()
   const parent = page.getByTestId('recording-plan-panel'), panel = page.getByTestId('recording-attempt-panel')
   await expect(panel).toContainText('请先明确查看一份已冻结计划；不会自动选择历史或开始录音。')
@@ -91,7 +98,9 @@ test('V3受控历史显示保留中断与三层事实，人工实体停止不伪
     })
   }, history)
   await page.locator('[data-sidebar-source="recording"]').click()
-  await page.getByRole('button', { name: /^继续草稿 计划与预检合成草稿 /u }).click()
+  await page.getByRole('button', { name: /^计划与预检合成草稿 /u }).click()
+  await selectDirectRecordingContext(page, f.media.id, f.layout.id)
+  await page.getByText('版本、Logic 与计划', { exact: true }).click()
   await page.getByRole('button', { name: '计划与预检', exact: true }).click()
   const parent = page.getByTestId('recording-plan-panel'), panel = page.getByTestId('recording-attempt-panel')
   await parent.getByRole('button', { name: '查看计划第 1 版', exact: true }).click()

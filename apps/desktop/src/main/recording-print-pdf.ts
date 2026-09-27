@@ -3,6 +3,7 @@
  * Chromium先把纸宽向上量化；这里只去掉JP0右侧量化余白，不缩放正文或改写流。
  * 不接受任意外部PDF：未知xref/页树/几何形状全部拒绝，不能用近似metadata冒充尺寸。
  */
+import { RECORDING_PRINT_GEOMETRY, isRecordingPrintCustomGeometry, isRecordingPrintGeometry, type RecordingPrintCustomGeometry } from '@music-bridge/contracts'
 type PdfNumber = { kind: 'number'; value: number; start: number; end: number }
 type PdfName = { kind: 'name'; value: string }
 type PdfRef = { kind: 'ref'; id: number }
@@ -62,7 +63,7 @@ const reference = (value?: Value): number => value?.kind === 'ref' ? value.id : 
 const named = (value: Value | undefined, name: string): boolean => value?.kind === 'name' && value.value === name
 
 interface Page { id: number; width: PdfNumber; height: PdfNumber }
-function inspect(pdf: Buffer, expectedPages: number): Page[] {
+function inspect(pdf: Buffer, expectedPages: number, geometry: RecordingPrintCustomGeometry, custom: boolean): Page[] {
   if (!Buffer.isBuffer(pdf) || pdf.length < 12 || pdf.length > 4_194_304 || !Number.isInteger(expectedPages) || expectedPages < 1 || expectedPages > 24) return invalid()
   const source = pdf.toString('latin1')
   if (!source.startsWith('%PDF-1.')) return invalid()
@@ -126,7 +127,10 @@ function inspect(pdf: Buffer, expectedPages: number): Page[] {
     const box = dict.values.get('MediaBox')
     if (box?.kind !== 'array' || box.values.length !== 4 || !box.values.every(value => value.kind === 'number')) return invalid()
     const [x, y, width, height] = box.values as PdfNumber[]
-    if (x!.value !== 0 || y!.value !== 0 || height!.value !== 288 || !(width!.value === 292.5 || Math.abs(width!.value - 293.04001) <= 0.00001)) return invalid()
+    if (x!.value !== 0 || y!.value !== 0) return invalid()
+    if (!custom) {
+      if (height!.value !== RECORDING_PRINT_GEOMETRY.heightPt || !(width!.value === RECORDING_PRINT_GEOMETRY.widthPt || Math.abs(width!.value - 293.04001) <= 0.00001)) return invalid()
+    } else if (Math.abs(width!.value - geometry.widthPt) > 1.2 || Math.abs(height!.value - geometry.heightPt) > 1.2) return invalid()
     pages.push({ id, width: width!, height: height! }); if (pages.length > 24) return invalid()
     return 1
   }
@@ -134,14 +138,50 @@ function inspect(pdf: Buffer, expectedPages: number): Page[] {
   return pages
 }
 
-export function normalizeRecordingPrintPdf(pdf: Buffer, expectedPages: number): Buffer {
-  const pages = inspect(pdf, expectedPages), result = Buffer.from(pdf)
+export function normalizeRecordingPrintPdf(pdf: Buffer, expectedPages: number, geometry: RecordingPrintCustomGeometry = RECORDING_PRINT_GEOMETRY, custom = false): Buffer {
+  if (custom ? !isRecordingPrintCustomGeometry(geometry) : !isRecordingPrintGeometry(geometry)) return invalid()
+  const pages = inspect(pdf, expectedPages, geometry, custom)
+  if (custom) return normalizeCustomPdf(pdf, expectedPages, geometry, pages)
+  const result = Buffer.from(pdf)
   for (const page of pages) {
-    const token = '292.5', length = page.width.end - page.width.start
+    const token = String(RECORDING_PRINT_GEOMETRY.widthPt), length = page.width.end - page.width.start
     if (length < token.length) return invalid()
     result.write(token.padEnd(length, ' '), page.width.start, length, 'ascii')
   }
-  const verified = inspect(result, expectedPages)
-  if (result.length !== pdf.length || verified.some((page, index) => page.width.value !== 292.5 || page.id !== pages[index]?.id || page.width.start !== pages[index]?.width.start)) return invalid()
+  const verified = inspect(result, expectedPages, geometry, false)
+  if (result.length !== pdf.length || verified.some((page, index) => page.width.value !== RECORDING_PRINT_GEOMETRY.widthPt || page.id !== pages[index]?.id || page.width.start !== pages[index]?.width.start)) return invalid()
+  return result
+}
+
+/** 自定义页盒允许数值长度变化，因此同步重算经典 xref；正文流字节原样保留。 */
+function normalizeCustomPdf(pdf: Buffer, expectedPages: number, geometry: RecordingPrintCustomGeometry, pages: Page[]): Buffer {
+  const source = pdf.toString('latin1'), footer = /startxref\n([0-9]{1,10})\n%%EOF\n?$/u.exec(source)
+  if (!footer) return invalid()
+  const xrefOffset = Number(footer[1]), header = /^xref\n0 ([1-9]\d*)\n/u.exec(source.slice(xrefOffset))
+  if (!header) return invalid()
+  const count = Number(header[1]), entriesStart = xrefOffset + header[0].length
+  const oldOffsets: number[] = []
+  for (let id = 1; id < count; id++) oldOffsets.push(Number(source.slice(entriesStart + id * 20, entriesStart + id * 20 + 10)))
+  const replacements = pages.flatMap(page => [
+    { start: page.width.start, end: page.width.end, text: String(geometry.widthPt) },
+    { start: page.height.start, end: page.height.end, text: String(geometry.heightPt) },
+  ]).sort((a, b) => a.start - b.start)
+  if (replacements.some((item, index) => item.end > xrefOffset || index > 0 && item.start < replacements[index - 1]!.end)) return invalid()
+  let cursor = 0, body = ''
+  for (const item of replacements) { body += source.slice(cursor, item.start) + item.text; cursor = item.end }
+  body += source.slice(cursor, xrefOffset)
+  const shiftAt = (offset: number) => replacements.filter(item => item.start < offset).reduce((sum, item) => sum + item.text.length - (item.end - item.start), 0)
+  const newXrefOffset = body.length
+  const entriesEnd = entriesStart + count * 20
+  let xref = `${header[0]}0000000000 65535 f \n`
+  for (const offset of oldOffsets) {
+    const next = offset + shiftAt(offset)
+    if (!Number.isSafeInteger(next) || next < 0 || next > 9_999_999_999) return invalid()
+    xref += `${String(next).padStart(10, '0')} 00000 n \n`
+  }
+  const trailer = source.slice(entriesEnd, footer.index)
+  const result = Buffer.from(`${body}${xref}${trailer}startxref\n${newXrefOffset}\n%%EOF\n`, 'latin1')
+  const verified = inspect(result, expectedPages, geometry, true)
+  if (verified.length !== pages.length || verified.some(page => page.width.value !== geometry.widthPt || page.height.value !== geometry.heightPt)) return invalid()
   return result
 }

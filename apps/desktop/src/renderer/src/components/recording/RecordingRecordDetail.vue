@@ -5,11 +5,19 @@ import type { RecordingRecordState } from './recording-record-controller'
 import RecordingReplicaPanel from './RecordingReplicaPanel.vue'
 import RecordingPrintPanel from './RecordingPrintPanel.vue'
 defineProps<{ detail: RecordingRecordDetail; state: RecordingRecordState }>()
-const emit = defineEmits<{ visual: [id: string]; imageError: [] }>()
+const emit = defineEmits<{ visual: [id: string]; imageError: []; 'leave-state': [canLeave: boolean] }>()
 const printOpen = ref(false), printTrigger = ref<HTMLButtonElement>()
 async function closePrint(): Promise<void> { printOpen.value = false; await nextTick(); printTrigger.value?.focus({ preventScroll: true }) }
-const replicaOpen = ref(false), replicaTrigger = ref<HTMLButtonElement>()
-async function closeReplica(): Promise<void> { replicaOpen.value = false; await nextTick(); replicaTrigger.value?.focus({ preventScroll: true }) }
+const replicaOpen = ref(false), replicaTrigger = ref<HTMLButtonElement>(), replicaPanel = ref<InstanceType<typeof RecordingReplicaPanel>>()
+const canLeave = () => !replicaOpen.value || replicaPanel.value?.canLeave() === true
+const leaveBlockReason = () => canLeave() ? null : replicaPanel.value?.leaveBlockReason() ?? 'Digital Replica 正在收口本次运行。'
+async function closeReplica(): Promise<void> { replicaOpen.value = false; emit('leave-state', true); await nextTick(); replicaTrigger.value?.focus({ preventScroll: true }) }
+async function requestClose(): Promise<boolean> {
+  if (!replicaOpen.value) return true
+  if (!await replicaPanel.value?.requestClose()) return false
+  await closeReplica(); return true
+}
+defineExpose({ canLeave, leaveBlockReason, requestClose })
 const absence = (value: RecordingVisualAbsence) => ({ 'not-provided': '未提供', 'not-implemented': '尚未实现', 'not-applicable': '不适用' })[value.reason]
 const frame = (value: number) => value.toLocaleString('zh-CN')
 </script>
@@ -19,7 +27,7 @@ const frame = (value: number) => value.toLocaleString('zh-CN')
     <h4>{{ detail.plan.master.title }}</h4>
     <p>这是首次完成时保存的历史快照；后续重录、修改资料或删除原照片均不改写它。</p>
     <button ref="replicaTrigger" type="button" @click="replicaOpen = true">Digital Replica</button>
-    <RecordingReplicaPanel v-if="replicaOpen" :key="detail.record.id" :detail="detail" @close="closeReplica" />
+    <RecordingReplicaPanel v-if="replicaOpen" ref="replicaPanel" :key="detail.record.id" :detail="detail" @close="closeReplica" @leave-state="emit('leave-state', $event)" />
     <button ref="printTrigger" type="button" @click="printOpen = true">J-Card 与印刷文件</button>
     <RecordingPrintPanel v-if="printOpen" :key="detail.record.id" :detail="detail" @close="closePrint" />
     <dl><dt>档案编号</dt><dd>{{ detail.record.id }}</dd><dt>实体编号</dt><dd>{{ detail.record.completion.physicalId }}</dd><dt>首次完成时间</dt><dd>{{ detail.record.completion.endedAt }}</dd><dt>快照来源</dt><dd>{{ detail.record.media.snapshotSource === 'completion' ? '完成时快照' : '旧记录，仅保留冻结计划证据' }}</dd><dt>介质</dt><dd>{{ detail.record.media.descriptor ? `${detail.record.media.descriptor.brand} · ${detail.record.media.descriptor.name}` : '历史品牌与系列未知，未用当前资料补填' }}</dd><dt>长度</dt><dd>{{ detail.record.media.lengthMinutes === null ? '未知' : `${detail.record.media.lengthMinutes} 分钟` }}</dd><dt>原始来源</dt><dd>{{ ({ 'blank-pool': '空白库存', 'legacy-registration': '旧录音登记', unclassified: '未分类' })[detail.record.media.origin] }}</dd></dl>

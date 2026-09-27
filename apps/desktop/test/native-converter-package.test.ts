@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 import os from 'node:os'
 import path from 'node:path'
 import beforePack, { captureNativeConverter, verifyNativeConverterPackage } from '../scripts/native-converter-package.mjs'
+import { captureNativeOutputDevice } from '../scripts/native-output-device-package.mjs'
 
 test('正式本地打包配置显式关闭发布签名并保留 Fuses ad-hoc 重签', async () => {
   const packageConfig = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
@@ -40,6 +41,16 @@ test('打包准入绑定应用编译时清单，拒绝缺包、内容漂移、�
     process.env.CSC_IDENTITY_AUTO_DISCOVERY = 'false'
     try {
       const context = { electronPlatformName: 'darwin', arch: 3, packager: { platformSpecificBuildOptions: { identity: null }, info: { appDir: root }, config: { electronFuses: { resetAdHocDarwinSignature: true } } } }
+      await assert.rejects(beforePack(context), '只有旧合成输出包或转换器不足以交付v0.2设备链')
+      const deviceRoot = path.join(root, 'native/output-device/darwin-arm64')
+      await mkdir(path.join(deviceRoot, 'bin'), { recursive: true })
+      const deviceHelper = '只用于包身份测试，不执行HAL'
+      await writeFile(path.join(deviceRoot, 'bin/output-device-helper'), deviceHelper, { mode: 0o755 })
+      await writeFile(path.join(deviceRoot, 'manifest.json'), JSON.stringify({ schemaVersion: 1, platform: 'darwin', arch: 'arm64',
+        protocolVersion: 1, backendId: 'musicbridge-coreaudio-hal', backendVersion: '0.2.0', mode: 'device',
+        drainAlgorithmId: 'hal-sample-zero-cover-v1', sourceSha256: hash('合成源码'),
+        files: { helper: { path: 'bin/output-device-helper', sha256: hash(deviceHelper) } } }))
+      await writeFile(path.join(dist, 'output-device-build.json'), JSON.stringify(await captureNativeOutputDevice(root)))
       await beforePack(context)
       await assert.rejects(beforePack({ ...context, packager: { ...context.packager, config: { electronFuses: { resetAdHocDarwinSignature: false } } } }))
     } finally {

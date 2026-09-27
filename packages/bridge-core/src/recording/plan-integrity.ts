@@ -3,6 +3,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
 import { mediaFingerprint } from './media-store.js';
 import { resolveMediaLayout } from './media-planner.js';
+import { verifyFrozenDistribution } from './version-distribution.js';
 import { executionPublicationComplete, executionAssetFromJob, type StoredExecutionJob } from './execution-store.js';
 import { archiveDigest, archiveManifest, type OwnedArchiveOperation } from './archive-files.js';
 import type { StoredArchiveOperation } from './archive-store.js';
@@ -83,7 +84,8 @@ export function captureRecordingPlan(db: DatabaseSync, selection: dto.RecordingP
   const asset = json<dto.ExecutionAsset>(db, 'execution_assets', selection.assetId), job = json<StoredExecutionJob>(db, 'execution_jobs', selection.assetId);
   if (!dto.isExecutionAsset(asset) || !dto.isExecutionJob(job.public) || job.public.state !== 'completed' || job.public.assetId !== asset.id || !executionPublicationComplete(job) || !planSame(asset, executionAssetFromJob(job))) return planFail('execution', 'EXECUTION_INVALID');
   const master = json<dto.MasterVersion>(db, 'master_versions', asset.masterVersionId), layout = json<dto.LayoutVersion>(db, 'layout_versions', asset.layoutVersionId);
-  if (!planSame(master, job.input.master) || !planSame(layout, job.input.layout) || mediaFingerprint(master.content) !== master.contentHash || mediaFingerprint(layout.timeline) !== layout.timelineHash) return planFail();
+  const distribution = verifyFrozenDistribution(master, layout);
+  if (!planSame(master, job.input.master) || !planSame(layout, job.input.layout) || !distribution) return planFail();
   const prepared = asset.preparedVersionId ? json<dto.FrozenPrepared>(db, 'prepared_versions', asset.preparedVersionId) : undefined;
   if (prepared && !planSame(prepared, job.input.retained?.prepared)) return planFail();
   const planRow = db.prepare('SELECT * FROM media_plans WHERE id=?').get(layout.planId), reservation = db.prepare('SELECT * FROM media_reservations WHERE plan_id=?').get(layout.planId);
@@ -115,13 +117,15 @@ export function captureRecordingPlan(db: DatabaseSync, selection: dto.RecordingP
     const current = json<RootCapability>(db, 'preparation_destinations', destination.id);
     if (!current.authorized || !planSame(current, destination)) return planFail('execution', 'EXECUTION_INVALID'); return current;
   });
-  const sources = asset.mode.startsWith('direct') ? master.sourceEvidence.map(source => {
+  const assignedTrackIds = new Set(distribution.trackIds);
+  const sources = asset.mode.startsWith('direct') ? master.sourceEvidence.filter(source => assignedTrackIds.has(source.trackId)).map(source => {
     const binding = json<StoredBinding>(db, 'source_bindings', source.binding.id), root = json<RootCapability>(db, 'source_roots', binding.rootId);
     const track = master.content.tracks.find(t => t.trackId === source.trackId);
     const linked = db.prepare('SELECT binding_id FROM draft_source_links WHERE draft_id=? AND track_id=?').get(master.draftId, source.trackId);
     if (!track || linked?.binding_id !== binding.id || !root.authorized || !binding.userConfirmed || binding.invalidated || binding.evidence.sha256 !== track.source.sha256 || binding.evidence.size !== track.source.size || !planSame(binding.evidence.technical, track.source.technical)) return planFail('sources', 'SOURCE_INVALID');
     return { root, binding };
   }) : [];
+  if (asset.mode.startsWith('direct') && sources.length !== assignedTrackIds.size) return planFail('sources', 'SOURCE_INVALID');
   const material: dto.RecordingPlanMaterial = { master, layout, ...(prepared ? { prepared } : {}), execution: { assetId: asset.id, manifestHash: asset.manifestHash, mode: asset.mode, compiledSettings: asset.settings, recipes: asset.recipes, audio: asset.audio }, physicalCopy, mediaPlanRevision: Number(planRow.revision), profileSnapshot: resolved.snapshot, archive: archive.summary, retentionPolicy: dto.RECORDING_RETENTION_POLICY, onlineFallback: false, formalReady: false };
   if (!dto.isRecordingPlanMaterial(material)) return planFail();
   return { draftId: asset.draftId, selection: structuredClone(selection), material, job, archive: archive.op.owned!, sources,
@@ -139,7 +143,7 @@ export function parseRecordingPlan(data: unknown): dto.RecordingPlanVersion {
     const { fingerprint, ...material } = resolved;
     if (mediaFingerprint(material) !== fingerprint || mediaFingerprint(resolved.profile.content) !== resolved.profile.contentHash) return planFail('profile', 'PROFILE_MISMATCH');
   }
-  if (mediaFingerprint(value.master.content) !== value.master.contentHash || mediaFingerprint(value.layout.timeline) !== value.layout.timelineHash) return planFail();
+  if (!verifyFrozenDistribution(value.master, value.layout)) return planFail();
   return value;
 }
 

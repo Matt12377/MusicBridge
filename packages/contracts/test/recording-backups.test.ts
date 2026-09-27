@@ -24,6 +24,32 @@ test('备份确认按操作限制字段，恢复必须引用已核验任务', as
   assert.equal(api.isStartBackupJob({ commandId, kind: 'verify', rootId: id, mode: 'archive-content', userConfirmed: true }), false);
 });
 
+test('ZIP 格式只作为备份新分支的可选字段，旧目录请求与回执保持原样', async () => {
+  const api = await import('../src/recording-backups.js');
+  const commandId = randomUUID(), rootId = randomUUID();
+  const oldAuthorization = { commandId, kind: 'backup-source' };
+  assert.equal(api.isAuthorizeBackupRoot(oldAuthorization), true);
+  assert.equal(api.isAuthorizeBackupRoot({ ...oldAuthorization, format: 'zip' }), true);
+  assert.equal(api.isAuthorizeBackupRoot({ commandId, kind: 'restore-destination', format: 'zip' }), false);
+  assert.equal(api.isAuthorizeBackupRoot({ ...oldAuthorization, format: 'directory' }), false);
+  const oldRoot = { id: rootId, kind: 'backup-source', label: '目录备份', authorized: true };
+  assert.equal(api.isBackupRootView(oldRoot), true);
+  assert.equal(api.isBackupRootView({ ...oldRoot, label: '完整备份.zip', format: 'zip' }), true);
+  assert.equal(api.isBackupRootView({ ...oldRoot, kind: 'backup-destination', format: 'zip' }), false);
+  const oldBackup = { commandId, rootId, kind: 'backup', mode: 'metadata', userConfirmed: true };
+  assert.equal(api.isStartBackupJob(oldBackup), true);
+  assert.equal(api.isStartBackupJob({ ...oldBackup, format: 'zip' }), true);
+  assert.equal(api.isStartBackupJob({ commandId, rootId, kind: 'verify', userConfirmed: true, format: 'zip' }), false);
+  const receipt = { id: commandId, rootId, kind: 'backup', mode: 'metadata', state: 'succeeded', createdAt: new Date().toISOString(),
+    summary: { backupId: commandId, manifestHash: 'a'.repeat(64), mode: 'metadata', objectCount: 0, copyBytes: 0, operationCount: 0, incompleteCount: 0 }, resultRootId: randomUUID() };
+  assert.equal(api.isBackupJobView(receipt), true);
+  assert.equal(api.isBackupJobView({ ...receipt, format: 'zip' }), true);
+  assert.equal(api.isBackupJobView({ ...receipt, kind: 'index', format: 'zip' }), false);
+  const unavailable = { id: randomUUID(), rootId, kind: 'verify', format: 'zip', state: 'failed', createdAt: new Date().toISOString(), issue: 'BACKUP_UNAVAILABLE' };
+  assert.equal(api.isBackupJobView(unavailable), true, '运行环境不可用须有准确的公开失败码');
+  assert.equal(api.isBackupOverview({ roots: [], jobs: [unavailable], activations: [] }), true, '旧回执与新失败码可同时读取');
+});
+
 test('原生授权响应只允许内部通道，普通响应验证拒绝', async () => {
   const { validateIpcInternalResponseForCommand, validateIpcResponseForCommand } = await import('../src/validator.js');
   const root = { id: randomUUID(), kind: 'backup-destination', label: '测试目录', authorized: true };

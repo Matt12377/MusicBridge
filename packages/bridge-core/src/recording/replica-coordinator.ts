@@ -2,6 +2,7 @@ import * as dto from '@music-bridge/contracts';
 import { mediaFingerprint } from './media-store.js';
 import { RecordingReplicaError, replicaFail } from './replica-error.js';
 import type { ReplicaInput, ReplicaVerifiedInput } from './replica-input.js';
+import type { ReplicaDeviceSessionCoordinator } from './replica-device-session.js';
 
 export interface RecordingReplicaDriver {
   completion: Promise<dto.ReplicaProgress & { pcmSha256: string }>;
@@ -19,7 +20,7 @@ export interface RecordingReplicaProvider {
   start(request: RecordingReplicaDriverRequest): Promise<RecordingReplicaDriver>;
 }
 interface Options {
-  input: ReplicaInput; provider?: RecordingReplicaProvider;
+  input: ReplicaInput; provider?: RecordingReplicaProvider; deviceSession?: ReplicaDeviceSessionCoordinator;
   assertCurrent?: () => void; assertAttemptIdle?: () => void;
   maxRunIds?: number; maxReadIds?: number; operationTimeoutMs?: number; closeTimeoutMs?: number;
 }
@@ -52,7 +53,7 @@ function reason(error: unknown): dto.ReplicaRunReason {
 }
 function limit(value: number, maximum: number): boolean { return Number.isSafeInteger(value) && value >= 1 && value <= maximum; }
 
-export function createRecordingReplicaCoordinator({ input, provider, assertCurrent = () => {}, assertAttemptIdle = () => {}, maxRunIds = 1000, maxReadIds = 1000, operationTimeoutMs = 15 * 60_000, closeTimeoutMs = 5_000 }: Options) {
+export function createRecordingReplicaCoordinator({ input, provider, deviceSession, assertCurrent = () => {}, assertAttemptIdle = () => {}, maxRunIds = 1000, maxReadIds = 1000, operationTimeoutMs = 15 * 60_000, closeTimeoutMs = 5_000 }: Options) {
   if (!limit(maxRunIds, 1000) || !limit(maxReadIds, 1000) || !limit(operationTimeoutMs, 15 * 60_000) || !limit(closeTimeoutMs, 5_000) || provider && provider.evidence !== 'synthetic-only') return replicaFail('INVALID_REQUEST');
   let closed = false, active: Run | undefined, closing: Promise<void> | undefined;
   const runs = new Map<string, Run>(), reads = new Map<string, Read>();
@@ -142,8 +143,9 @@ export function createRecordingReplicaCoordinator({ input, provider, assertCurre
     } finally { if (active === run) active = undefined; }
   }
   return {
-    status(): dto.RecordingReplicaStatus { open(); return { playback: 'blocked', reason: 'BACKEND_UNAVAILABLE', deviceAccess: 'not-authorized', ...safety }; },
-    assertExecutionIdle(): void { open(); if (active) return replicaFail('RUN_CONFLICT'); },
+    status(): dto.RecordingReplicaStatus { open(); return deviceSession?.status()
+      ?? { playback: 'blocked', reason: 'BACKEND_UNAVAILABLE', deviceAccess: 'not-authorized', ...safety }; },
+    assertExecutionIdle(): void { open(); if (active) return replicaFail('RUN_CONFLICT'); deviceSession?.assertExecutionIdle(); },
     inspect(value: dto.InspectRecordingReplicaRequest): Promise<dto.RecordingReplicaInspection> {
       try { open(); if (!dto.isInspectRecordingReplicaRequest(value)) return Promise.reject(new RecordingReplicaError('INVALID_REQUEST')); }
       catch (error) { return Promise.reject(error); }
@@ -171,11 +173,20 @@ export function createRecordingReplicaCoordinator({ input, provider, assertCurre
     },
     start(value: dto.StartRecordingReplicaRequest): dto.RecordingReplicaRun {
       open(); if (!dto.isStartRecordingReplicaRequest(value)) return replicaFail('INVALID_REQUEST');
+      if ('mode' in value && value.mode === 'device-output') {
+        if (!deviceSession) return replicaFail('BACKEND_UNAVAILABLE');
+        const prior = runs.get(value.runId);
+        if (prior) return prior.snapshot.kind === 'cancelled-before-start' ? snapshot(prior) : replicaFail('RUN_CONFLICT');
+        if (active) return replicaFail('RUN_CONFLICT');
+        return deviceSession.start(value);
+      }
       const request = structuredClone(value), fingerprint = mediaFingerprint(request), prior = runs.get(request.runId);
       if (prior) { if (prior.fingerprint && prior.fingerprint !== fingerprint) return replicaFail('RUN_CONFLICT'); return snapshot(prior); }
+      if (deviceSession?.get({ runId: request.runId }).run) return replicaFail('RUN_CONFLICT');
       if (!provider) return replicaFail('BACKEND_UNAVAILABLE');
       if (runs.size >= maxRunIds) return replicaFail('RUN_LIMIT');
       if (active) return replicaFail('RUN_CONFLICT');
+      deviceSession?.assertExecutionIdle();
       try { assertAttemptIdle(); } catch { return replicaFail('RUN_CONFLICT'); }
       const at = new Date().toISOString(); let release!: () => void;
       const run: Run = { fingerprint, controller: new AbortController(), quiescent: new Promise<void>(resolve => { release = resolve; }), release: () => release(), snapshot: { kind: 'session', runId: request.runId, request, revision: 1, createdAt: at, updatedAt: at, state: 'starting', identity: null, progress: null, started: false, stopRequested: false, cleanupQuiescent: false, evidence: 'none', ...safety } };
@@ -183,12 +194,23 @@ export function createRecordingReplicaCoordinator({ input, provider, assertCurre
       return snapshot(run);
     },
     get(request: dto.RecordingReplicaRunIdRequest): { run: dto.RecordingReplicaRun | null } {
-      open(); if (!dto.isRecordingReplicaRunIdRequest(request)) return replicaFail('INVALID_REQUEST'); const run = runs.get(request.runId); return { run: run ? snapshot(run) : null };
+      open(); if (!dto.isRecordingReplicaRunIdRequest(request)) return replicaFail('INVALID_REQUEST');
+      const device = deviceSession?.get(request).run;
+      if (device) return { run: device };
+      const run = runs.get(request.runId); return { run: run ? snapshot(run) : null };
+    },
+    control(request: dto.ReplicaDeviceControlRequest): dto.RecordingReplicaRun {
+      open(); if (!deviceSession) return replicaFail('BACKEND_UNAVAILABLE');
+      return deviceSession.control(request);
     },
     stop(request: dto.RecordingReplicaRunIdRequest): dto.RecordingReplicaRun {
-      open(); if (!dto.isRecordingReplicaRunIdRequest(request)) return replicaFail('INVALID_REQUEST'); let run = runs.get(request.runId);
+      open(); if (!dto.isRecordingReplicaRunIdRequest(request)) return replicaFail('INVALID_REQUEST');
+      const device = deviceSession?.get(request).run;
+      if (device) return deviceSession!.stop(request);
+      let run = runs.get(request.runId);
       if (!run) {
         if (runs.size >= maxRunIds) return replicaFail('RUN_LIMIT');
+        deviceSession?.stop(request); // 未知ID同时立设备tombstone，晚到device start不可复活。
         run = { controller: new AbortController(), quiescent: Promise.resolve(), release() {}, snapshot: { kind: 'cancelled-before-start', runId: request.runId, state: 'cancelled', started: false, stopRequested: true, cleanupQuiescent: true, evidence: 'none', ...safety } }; runs.set(request.runId, run);
       } else { latch(run, new RecordingReplicaError('CANCELLED')); if (!terminal(run.snapshot)) cleanup(run, true); }
       return snapshot(run);
@@ -197,7 +219,9 @@ export function createRecordingReplicaCoordinator({ input, provider, assertCurre
       if (closing) return closing; closed = true;
       for (const read of reads.values()) if (!read.controller.signal.aborted) read.controller.abort(new RecordingReplicaError('CLOSED'));
       if (active) { latch(active, new RecordingReplicaError('CLOSED')); cleanup(active, true); }
-      closing = bounded(Promise.allSettled([...reads.values()].flatMap(read => read.promise ? [read.promise] : []),).then(async () => { await active?.promise; }));
+      closing = bounded(Promise.allSettled([...reads.values()].flatMap(read => read.promise ? [read.promise] : []),).then(async () => {
+        await Promise.all([active?.promise, deviceSession?.close()]);
+      }));
       return closing;
     },
   };

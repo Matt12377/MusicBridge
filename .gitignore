@@ -21,4 +21,5 @@ apps/desktop/out/
 apps/desktop/release/
 apps/desktop/native/ffmpeg/
 apps/desktop/native/output/
+apps/desktop/native/output-device/
 native/output-helper/.build/

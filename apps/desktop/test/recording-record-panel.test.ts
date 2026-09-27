@@ -38,6 +38,20 @@ function applied(): c.ApplyPhysicalRecordingDispositionResult { return { disposi
 function permit(): c.RerecordPermit { return { id: id(61), physicalId: 'MB-C-00001', dispositionId: id(60), createdAt: end, mediaPlanId: id(7), mediaPlanRevision: 3, contentRevision: 2, physicalRevision: 4, precedingAttempt: { id: id(51), revision: 7 }, state: 'available' }; }
 function attachment(): c.RecordingVisualAttachment { return { id: id(70), recordingId: id(50), sourcePhotoId: id(71), physicalId: 'MB-C-00001', role: 'photo', source: 'physical-photo', sha256: hash('a'), size: 4, mimeType: 'image/jpeg', width: 1, height: 1 }; }
 
+function replicaInspection(readId: string, detail: c.RecordingRecordDetail): c.RecordingReplicaInspection {
+  const receipt = detail.plan.execution.audio[0]!, format = receipt.recipe.format
+  return { readId, recordingId: detail.record.id, recordingContentHash: detail.record.contentHash,
+    planVersionId: detail.plan.id, planContentHash: detail.plan.contentHash, archiveOperationId: detail.plan.archive.operationId,
+    archiveManifestHash: detail.plan.archive.manifestHash, checkedAt: end, fingerprint: hash('f'), playback: 'blocked',
+    deviceOpened: false, formalReady: false, gateB: 'NOT_RUN', targets: [
+      { target: 'actual-execution', side: 'A', state: 'verified', audio: { target: 'actual-execution', executionAssetId: detail.plan.execution.assetId,
+        recipeHash: receipt.recipeHash, fileSha256: receipt.audio.sha256, pcmSha256: receipt.audio.pcmSha256, size: receipt.audio.size,
+        frameCount: receipt.audio.frameCount, format: { container: 'wav', sampleRate: format.sampleRate, channelCount: format.channelCount,
+          sampleFormat: format.outputSampleFormat }, pcmHashEvidence: 'frozen-execution' } },
+      { target: 'actual-execution', side: 'B', state: 'empty', frameCount: 0 },
+    ] }
+}
+
 
 function deferred<T>() { let resolve!: (value:T)=>void, reject!: (error:Error)=>void; const promise=new Promise<T>((yes,no)=>{resolve=yes;reject=no}); return {promise,resolve,reject} }
 function fixture() {
@@ -111,14 +125,15 @@ async function mounted(t: test.TestContext, api: c.RecordingRecordsPublicApi, pr
   const node = (tag = ''): Host => vue.markRaw({ tag, text: '', children: [], parent: null, props: {}, value: '', get options() { return this.children.filter((n: Host) => n.tag === 'option') }, addEventListener() {}, focus() { document.activeElement = this }, showModal() {} })
   const renderer = vue.createRenderer<Host, Host>({ createElement: node, createText: text => ({ ...node('#text'), text }), createComment: () => node('#comment'), setText(n, text) { n.text = text }, setElementText(n, text) { n.text = text; n.children = [] }, patchProp(n, key, _old, value) { if (key === 'value') n.value = value; n.props[key] = key === 'disabled' && value === '' ? true : value; if (key === 'disabled' && (value === true || value === '') && document.activeElement === n) document.activeElement = document.body }, insert(child, parent, anchor) { if (child.parent) child.parent.children.splice(child.parent.children.indexOf(child), 1); child.parent = parent; const i = anchor ? parent.children.indexOf(anchor) : -1; if (i < 0) parent.children.push(child); else parent.children.splice(i, 0, child) }, remove(child) { if (document.activeElement === child) document.activeElement = document.body; child.parent?.children.splice(child.parent.children.indexOf(child), 1); child.parent = null }, parentNode: n => n.parent, nextSibling: n => n.parent?.children[(n.parent?.children.indexOf(n) ?? -1) + 1] ?? null })
   const component = loadSfc(new URL('../src/renderer/src/components/recording/RecordingRecordsPanel.vue', import.meta.url).pathname), root = node(); let closed = 0
-  const app = renderer.createApp({ setup: () => () => vue.h(component, { ...props, onClose: () => { closed++ } }) }); app.mount(root); t.after(() => app.unmount())
+  const panel = vue.ref<{ canLeave(): boolean; leaveBlockReason(): string | null } | null>(null)
+  const app = renderer.createApp({ setup: () => () => vue.h(component, { ...props, ref: panel, onClose: () => { closed++ } }) }); app.mount(root); t.after(() => app.unmount())
   const tick = async () => { await new Promise<void>(done => setImmediate(done)); await vue.nextTick() }; await tick()
   const all = (current = root): Host[] => [current, ...current.children.flatMap(child => all(child))], text = (current = root): string => current.text + current.children.map(child => text(child)).join(' ')
   const button = (label: string) => { const value = all().find(n => n.tag === 'button' && text(n).trim() === label); assert.ok(value, label); return value }
   const click = async (label: string) => { const target = button(label); assert.notEqual(target.props.disabled, true, label); target.focus(); await (target.props.onClick as (e: unknown) => unknown)({ currentTarget: target }); await tick() }
-  const field = async (label: string, value: string) => { const parent = all().find(n => n.tag === 'label' && text(n).trim().startsWith(label)); assert.ok(parent, label); const target = all(parent).find(n => n.tag === 'input' || n.tag === 'select'); assert.ok(target); (target.props['onUpdate:modelValue'] as (v: string) => void)(value); const handler = target.props[target.tag === 'select' ? 'onChange' : 'onInput'] as ((event: unknown) => void) | undefined; if (handler) handler({ target: { value } }); await tick() }
+  const field = async (label: string, value: string) => { const parent = all().find(n => n.tag === 'label' && text(n).trim().startsWith(label)); assert.ok(parent, label); const target = all(parent).find(n => n.tag === 'input' || n.tag === 'select'); assert.ok(target); const update = target.props['onUpdate:modelValue'] as ((v: string) => void) | undefined; update?.(value); const handler = target.props[target.tag === 'select' ? 'onChange' : 'onInput'] as ((event: unknown) => void) | undefined; if (handler) handler({ target: { value } }); await tick() }
   const confirm = async () => { const target = all().find(n => n.tag === 'input' && n.props.type === 'checkbox'); assert.ok(target); (target.props.onChange as (event: unknown) => void)({ target: { checked: true } }); await tick() }
-  return { all, text, button, click, field, confirm, tick, focused: () => document.activeElement, body: document.body, closed: () => closed, unmount: () => app.unmount() }
+  return { all, text, button, click, field, confirm, tick, canLeave: () => panel.value?.canLeave() ?? false, focused: () => document.activeElement, body: document.body, closed: () => closed, unmount: () => app.unmount() }
 }
 
 test('真实SFC空态/明确编号介质/无默认选择且无播放和认证入口', async t => {
@@ -146,6 +161,75 @@ test('真实SFC预览禁用失焦后恢复；用户移焦不抢回，关闭读�
     wait.resolve(proposal()); await work; await p.tick(); if (move) assert.ok(p.focused() === other); else assert.ok(p.focused() === p.all().find(n => n.tag === 'h2'))
     await p.click('关闭录音档案'); assert.equal(p.closed(), 1); assert.equal(f.calls.some(x => x.name === 'apply'), false)
   }
+})
+
+test('档案详情安全时允许离开；Replica 核验未收口时搜索、切档与关闭均保留原组件', async t => {
+  const f = fixture(), read = deferred<c.RecordingReplicaInspection>()
+  let readId = '', cancelled = 0
+  const api = Object.assign(f.api, {
+    async getRecordingReplicaStatus() { return { playback: 'blocked', reason: 'BACKEND_UNAVAILABLE', deviceAccess: 'not-authorized', deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' } as const },
+    inspectRecordingReplica(request: c.InspectRecordingReplicaRequest) { readId = request.readId; return read.promise },
+    async cancelRecordingReplicaRead(value: string) { assert.equal(value, readId); cancelled++; return { readId: value, cancelRequested: true as const } },
+  })
+  const p = await mounted(t, api)
+  await p.click('查看录音档案 ' + id(50))
+  assert.equal(p.canLeave(), true, '已挂载且没有运行的详情应允许离开')
+  await p.click('Digital Replica')
+  assert.equal(p.canLeave(), true)
+  const checking = (p.button('核验历史音频').props.onClick as () => Promise<void>)()
+  await p.tick()
+  assert.equal(p.canLeave(), false)
+  const before = f.calls.length
+  const search = p.all().find(n => n.tag === 'form' && p.text(n).includes('搜索录音档案'))
+  assert.ok(search)
+  await (search.props.onSubmit as (event: unknown) => unknown)({ preventDefault() {} }); await p.tick()
+  assert.equal(p.button('查看录音档案 ' + id(50)).props.disabled, true)
+  await p.field('实体编号', 'MB-C-00002')
+  const history = p.all().find(n => n.tag === 'form' && p.text(n).includes('查看实体历史'))
+  assert.ok(history)
+  await (history.props.onSubmit as (event: unknown) => unknown)({ preventDefault() {} }); await p.tick()
+  assert.equal(f.calls.length, before, '阻断期间不发起新列表、详情或实体历史读取')
+  assert.ok(p.all().some(n => n.props['data-testid'] === 'recording-replica-panel'))
+  await p.click('关闭录音档案')
+  assert.equal(cancelled, 1)
+  assert.equal(p.closed(), 0)
+  assert.equal(p.canLeave(), false)
+  read.resolve({} as c.RecordingReplicaInspection)
+  await checking; await p.tick()
+  assert.equal(p.canLeave(), true, '取消已受理且核验读取完成后才可离开')
+  await p.click('关闭录音档案')
+  assert.equal(p.closed(), 1)
+})
+
+test('Replica 启动回执未知时上层保留页面，精确 Stop 证明未启动后才能关闭', async t => {
+  const f = fixture(), starting = deferred<c.RecordingReplicaRun>(), stopping = deferred<c.RecordingReplicaStopResult>()
+  let runId = '', stopped = ''
+  const api = Object.assign(f.api, {
+    async getRecordingReplicaStatus() { return { playback: 'ready', outputSelection: { endpointId: 'dev_1234567890', selectionGeneration: id(97) }, deviceAccess: 'authorized', deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' } as const },
+    async inspectRecordingReplica(request: c.InspectRecordingReplicaRequest) { return replicaInspection(request.readId, f.detail) },
+    startRecordingReplica(request: c.ReplicaDeviceStartRequest) { runId = request.runId; return starting.promise },
+    stopRecordingReplica(value: string) { stopped = value; return stopping.promise },
+    async getRecordingReplicaRun() { return { run: null } },
+  })
+  const p = await mounted(t, api)
+  await p.click('查看录音档案 ' + id(50)); await p.click('Digital Replica'); await p.click('核验历史音频')
+  await p.field('音频版本', 'actual-execution'); await p.field('播放面／节目', 'A')
+  const begin = (p.button('播放所选历史音频').props.onClick as () => Promise<void>)()
+  await p.tick()
+  assert.match(runId, /^[0-9a-f-]{36}$/u)
+  assert.equal(p.canLeave(), false)
+  const close = (p.button('关闭录音档案').props.onClick as () => Promise<void>)()
+  await p.tick()
+  assert.equal(stopped, runId, '关闭只按原运行编号发精确 Stop')
+  assert.equal(p.closed(), 0)
+  assert.equal(p.canLeave(), false)
+  const tombstone: c.RecordingReplicaStopResult = { kind: 'cancelled-before-start', runId, state: 'cancelled', started: false,
+    stopRequested: true, cleanupQuiescent: true, evidence: 'none', deviceOpened: false, formalReady: false, gateB: 'NOT_RUN' }
+  stopping.resolve(tombstone)
+  await close; await p.tick()
+  assert.equal(p.closed(), 1)
+  starting.resolve(tombstone)
+  await begin; await p.tick()
 })
 
 test('真实SFC未分类来源不改称历史登记，未实现JCard明确区分未提供', async t => {

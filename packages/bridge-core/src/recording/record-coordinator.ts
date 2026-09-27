@@ -1,4 +1,4 @@
-import type { DatabaseSync } from 'node:sqlite';
+import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
 import { parseRecordingPlan } from './plan-integrity.js';
 import { recordFail } from './record-integrity.js';
@@ -11,27 +11,38 @@ function plan(db: DatabaseSync, id: string): dto.RecordingPlanVersion {
   const row = db.prepare('SELECT data FROM recording_plan_versions WHERE id=?').get(id);
   if (!row) return recordFail('IO_ERROR'); return parseRecordingPlan(row.data);
 }
-const includes = (value: string, query?: string) => query === undefined || value.toLowerCase().includes(query.toLowerCase());
 function physicalAliases(query: string): string[] | undefined {
   const match = /^(?:(MB-)?([CD])-)?(\d{1,9})$/u.exec(query);
   if (!match || Number(match[3]) < 1) return undefined;
   const suffix = String(Number(match[3])).padStart(5, '0');
   return (match[2] ? [match[2]] : ['C', 'D']).map(format => `MB-${format}-${suffix}`);
 }
-function matches(record: dto.RecordingRecord, frozen: dto.RecordingPlanVersion, summary: dto.RecordingRecordSummary, filter: dto.RecordingRecordFilter): boolean {
-  const tracks = frozen.master.content.tracks.map(track => track.metadata.title).join(' ');
-  const artists = frozen.master.content.tracks.map(track => track.metadata.artist ?? '').join(' ');
-  const equipment = frozen.profileSnapshot.settings.effective.signalChain.map(step => step.label).join(' ');
-  if (filter.physicalId && summary.physicalId !== filter.physicalId || filter.masterVersionId && frozen.master.id !== filter.masterVersionId
-    || !includes(tracks, filter.track) || !includes(artists, filter.artist) || !includes(summary.title, filter.master) || !includes(summary.mediaBrand, filter.mediaBrand)
-    || !includes(summary.mediaSeries, filter.mediaSeries) || !includes(equipment, filter.equipment)
-    || filter.completedFrom && summary.completedAt < filter.completedFrom || filter.completedTo && summary.completedAt > filter.completedTo) return false;
+function pageSource(filter: dto.RecordingRecordFilter): { from: string; values: SQLInputValue[] } {
+  const conditions: string[] = [], values: SQLInputValue[] = [];
+  const exact = (column: string, value?: string) => {
+    if (value !== undefined) { conditions.push(`${column}=?`); values.push(value); }
+  };
+  const contains = (column: string, value?: string) => {
+    if (value !== undefined) { conditions.push(`instr(${column},?)>0`); values.push(value.toLowerCase()); }
+  };
+  exact('s.physical_id', filter.physicalId);
+  exact('s.master_version_id', filter.masterVersionId);
+  contains('s.track_text', filter.track);
+  contains('s.artist_text', filter.artist);
+  contains('s.master_text', filter.master);
+  contains('s.media_brand_text', filter.mediaBrand);
+  contains('s.media_series_text', filter.mediaSeries);
+  contains('s.equipment_text', filter.equipment);
+  if (filter.completedFrom !== undefined) { conditions.push('s.completed_at>=?'); values.push(filter.completedFrom); }
+  if (filter.completedTo !== undefined) { conditions.push('s.completed_at<=?'); values.push(filter.completedTo); }
   if (filter.query) {
     const aliases = physicalAliases(filter.query);
-    if (aliases) return aliases.includes(record.completion.physicalId);
-    return includes([summary.physicalId, summary.title, tracks, artists, summary.mediaBrand, summary.mediaSeries, equipment, summary.completedAt].join(' '), filter.query);
+    if (aliases) {
+      conditions.push(`s.physical_id IN (${aliases.map(() => '?').join(',')})`);
+      values.push(...aliases);
+    } else contains('s.query_text', filter.query);
   }
-  return true;
+  return { from: `FROM recording_records r JOIN recordpage_search s ON s.record_id=r.id${conditions.length ? ` WHERE ${conditions.join(' AND ')}` : ''}`, values };
 }
 
 /** 只提供档案读取和显式人工处置；不持有音频driver，不自动登记或播放。 */
@@ -43,13 +54,14 @@ export function createRecordingRecordCoordinator({ store, assertCurrent, assertE
     list(request: dto.ListRecordingRecordsRequest): dto.RecordingRecordsPage {
       open(); if (!dto.isListRecordingRecordsRequest(request)) return recordFail('INVALID_REQUEST');
       return store.read(db => {
-        // 上限由record store完整性/预算守护；只保存本页摘要，不将整批Plan装入返回值。
-        const items: dto.RecordingRecordSummary[] = []; let total = 0;
-        for (const row of db.prepare("SELECT id,plan_id FROM recording_records ORDER BY json_extract(data,'$.completion.endedAt') DESC,id DESC").iterate()) {
+        const { from, values } = pageSource(request.filter ?? {});
+        const total = Number(db.prepare(`SELECT COUNT(*) n ${from}`).get(...values)?.n);
+        // SQL 固定顺序分页；大库只解析本页的 Record 与冻结 Plan。
+        const items: dto.RecordingRecordSummary[] = db.prepare(`SELECT r.id,r.plan_id ${from} ORDER BY s.completed_at DESC,s.record_id DESC LIMIT ? OFFSET ?`)
+          .all(...values, request.page.limit, request.page.offset).map(row => {
           const record = store.record(db, String(row.id)) ?? recordFail('IO_ERROR'), frozen = plan(db, String(row.plan_id)), summary = recordingRecordSummary(record, frozen);
-          if (!matches(record, frozen, summary, request.filter ?? {})) continue;
-          if (total >= request.page.offset && items.length < request.page.limit) items.push(summary); ++total;
-        }
+          return summary;
+        });
         const result = { items, ...request.page, total, hasMore: request.page.offset + items.length < total };
         if (!dto.isRecordingRecordsPage(result)) return recordFail('IO_ERROR'); return result;
       });

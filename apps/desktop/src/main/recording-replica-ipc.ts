@@ -2,9 +2,9 @@ import { randomUUID } from 'node:crypto'
 import { validateIpcRequest, type IpcCommandPayloads } from '@music-bridge/contracts'
 import { CoreIpcError, type CoreSupervisor } from './core-supervisor.js'
 
-const commands = ['recordingReplica.status', 'recordingReplica.inspect', 'recordingReplica.cancelRead', 'recordingReplica.start', 'recordingReplica.get', 'recordingReplica.stop'] as const
+const commands = ['recordingReplica.status', 'recordingReplica.inspect', 'recordingReplica.cancelRead', 'recordingReplica.start', 'recordingReplica.get', 'recordingReplica.stop', 'recordingReplica.control'] as const
 
-/** 历史音频六入口固定原工作库；会话不入自动outbox，不接收设备或路径。 */
+/** 历史音频七入口固定原工作库；会话不入自动outbox，不接收设备UID或路径。 */
 export function installRecordingReplicaHandlers<E>(options: {
   handle(channel: string, handler: (event: E, value?: unknown) => unknown): void
   requireTrusted(event: E): void

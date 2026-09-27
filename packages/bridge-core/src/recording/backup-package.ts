@@ -16,6 +16,13 @@ const exclusions = ['unarchived-source-and-working-files', 'provider-credentials
 // 旧备份保留原未决政策事实；只读兼容，不改写历史包。
 const legacyExclusions = [...exclusions, 'formal-recording-retention-policy-not-decided'];
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
+/** 目录和 ZIP 共用的顶层清单格式门禁；引用闭包仍须与只读数据库索引核对。 */
+export function validateArchiveBackupManifest(value: unknown): ArchiveBackupManifest {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) backupFail();
+  const manifest = value as ArchiveBackupManifest;
+  if (!same(Object.keys(manifest).sort(), ['schemaVersion','kind','id','mode','createdAt','database','contentIncluded','exclusions','operations','objects','incompleteOperationIds'].sort()) || manifest.schemaVersion !== 1 || manifest.kind !== 'musicbridge-archive-backup' || !isCollectionId(manifest.id) || !['metadata','archive-content'].includes(manifest.mode) || manifest.contentIncluded !== (manifest.mode === 'archive-content') || (!same(manifest.exclusions, exclusions) && !same(manifest.exclusions, legacyExclusions)) || typeof manifest.createdAt !== 'string' || !Number.isFinite(Date.parse(manifest.createdAt))) backupFail();
+  return manifest;
+}
 async function child(parent: RootCapability, name: string): Promise<RootCapability> {
   await checkBackupRoot(parent); const root = { ...await authorizeSourceDirectory(path.join(parent.path, name)), id: parent.id };
   if (root.path !== path.join(parent.path, name)) backupFail(); return root;
@@ -23,8 +30,7 @@ async function child(parent: RootCapability, name: string): Promise<RootCapabili
 /** 只验证备份内部字节和引用闭包，不接触快照内保存的原绝对路径，也不恢复目录权限。 */
 async function verifyPackage(directory: RootCapability, signal: AbortSignal, completed: boolean): Promise<ArchiveBackupManifest> {
   signal.throwIfAborted(); await checkBackupRoot(directory);
-  const bytes = await readBackupText(directory, 'Backup.json', 32 * 1024 * 1024, signal), manifest = JSON.parse(bytes) as ArchiveBackupManifest;
-  if (!same(Object.keys(manifest).sort(), ['schemaVersion','kind','id','mode','createdAt','database','contentIncluded','exclusions','operations','objects','incompleteOperationIds'].sort()) || manifest.schemaVersion !== 1 || manifest.kind !== 'musicbridge-archive-backup' || !isCollectionId(manifest.id) || !['metadata','archive-content'].includes(manifest.mode) || manifest.contentIncluded !== (manifest.mode === 'archive-content') || (!same(manifest.exclusions, exclusions) && !same(manifest.exclusions, legacyExclusions)) || !Number.isFinite(Date.parse(manifest.createdAt))) backupFail();
+  const bytes = await readBackupText(directory, 'Backup.json', 32 * 1024 * 1024, signal), manifest = validateArchiveBackupManifest(JSON.parse(bytes));
   if (completed) {
     const marker = JSON.parse(await readBackupText(directory, 'Complete.json', 1024, signal)) as unknown;
     if (!same(marker, { schemaVersion: 1, id: manifest.id, manifestHash: archiveDigest(bytes) })) backupFail('BACKUP_INCOMPLETE');

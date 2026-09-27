@@ -12,6 +12,7 @@ import { AttemptError, attemptFail, attemptPlan, parseAttempt, replayAttemptEven
   type AttemptCommand, type AttemptRequest, type AttemptStoredEvent, type AttemptEventData, type AttemptReceiptData, type RecordingAttemptBudgetToken,
   type RecordingAttemptAppendCandidate, type RecordingAttemptCertificateAction } from './attempt-integrity.js';
 import { createObjectAuditCertificateManager, type ObjectAuditCertificateAction, type ObjectAuditCertificateManager, type ObjectAuditCertificateSession } from './object-audit-certificate.js';
+import { OUTPUT_RUN_BARRIER_SCHEMA_VERSION, assertOutputRunFinalReady, assertOutputRunSideReady, readOutputRunRecoveryRows, registerOutputRunPending, settleOutputRunBarrier, type OutputRunBarrierFailure, type OutputRunRecoveryRow } from './output-run-barrier.js';
 
 interface Access extends RecordingRecordBudgets { read<T>(fn: (db: DatabaseSync) => T): T; beforeCommit?: (action: string) => void; databaseBudgetBytes?: number; audit?: RecordingAttemptAuditOptions; attemptAudit?: ReturnType<typeof createRecordingAttemptAudit>; objectAudit?: RecordingRecordSnapshotBudget; objectCertificates?: ObjectAuditCertificateManager }
 function get(db: DatabaseSync, id: string): dto.RecordingAttempt | null {
@@ -52,6 +53,17 @@ function eventAdded(before: dto.RecordingAttempt, after: dto.RecordingAttempt, e
   return Buffer.byteLength(JSON.stringify({ event, after })) + Buffer.byteLength(JSON.stringify(after)) - Buffer.byteLength(JSON.stringify(before));
 }
 function append(db: DatabaseSync, before: dto.RecordingAttempt | undefined, after: dto.RecordingAttempt, event: AttemptStoredEvent): void {
+  // 所有持久入口共用门禁：包括内部event，不仅是公开confirm/beginSide命令。
+  if (Number(db.prepare('PRAGMA user_version').get()!.user_version) >= OUTPUT_RUN_BARRIER_SCHEMA_VERSION) {
+    if (after.status === 'completed' && before?.status !== 'completed') {
+      if (!before) return attemptFail('INVALID_TRANSITION');
+      assertOutputRunFinalReady(db, before);
+    }
+    if (event.type === 'begin-side') {
+      if (!before) return attemptFail('INVALID_TRANSITION');
+      assertOutputRunSideReady(db, before, 'A');
+    }
+  }
   const data: AttemptEventData = { event, after }, encoded = JSON.stringify(data);
   if (Buffer.byteLength(encoded) > MAX_ATTEMPT_BYTES * 2 || Buffer.byteLength(JSON.stringify(after)) > MAX_ATTEMPT_BYTES) return attemptFail('BUDGET_EXCEEDED');
   const previousHash = before ? String(db.prepare('SELECT event_hash FROM recording_attempt_events WHERE attempt_id=? AND revision=?').get(before.id, before.revision)?.event_hash ?? '') : '';
@@ -141,6 +153,38 @@ export function createRecordingAttemptStore({ read, beforeCommit, databaseBudget
   }
   return {
     plans,
+    /** 冷启闸只读同一WAL快照；不把原始barrier或私有路径暴露到IPC。 */
+    outputRunRecoveryRows() {
+      return read(db => {
+        if (db.isTransaction) return attemptFail('IO_ERROR');
+        db.exec('BEGIN');
+        try { const rows = readOutputRunRecoveryRows(db); db.exec('COMMIT'); return rows; }
+        catch (error) { db.exec('ROLLBACK'); throw error; }
+      });
+    },
+    /** 仅由冷启原生撤销后调用；各事实独立提交，部分成功可在下次冷启幂等续写。 */
+    persistRevokedOutputRunQuiet(row: OutputRunRecoveryRow): void {
+      const exact = (value: OutputRunRecoveryRow) => value.attemptId === row.attemptId && value.side === row.side
+        && value.runId === row.runId && value.planContentSha256 === row.planContentSha256
+        && value.audioSha256 === row.audioSha256 && value.pcmSha256 === row.pcmSha256;
+      if (this.outputRunRecoveryRows().filter(exact).length !== 1) return attemptFail('IO_ERROR');
+      for (const type of ['engine-cutoff', 'cleanup-quiescent'] as const) {
+        const attempt = this.get({ attemptId: row.attemptId }).attempt;
+        const side = attempt?.sides.find(value => value.side === row.side && value.runId === row.runId);
+        if (!attempt || !side || attempt.planContentHash !== row.planContentSha256
+          || side.audioSha256 !== row.audioSha256 || side.pcmSha256 !== row.pcmSha256) return attemptFail('IO_ERROR');
+        const now = new Date().toISOString(), at = now < attempt.updatedAt ? attempt.updatedAt : now;
+        this.event(row.attemptId, { type, side: row.side, runId: row.runId, at });
+      }
+      if (!this.outputRunRecoveryRows().some(value => exact(value) && value.quietPersisted)) return attemptFail('IO_ERROR');
+    },
+    /** Core私有状态；不经Renderer、IPC或公开命令提交设备/输入资格。 */
+    registerOutputRun(attempt: dto.RecordingAttempt, side: dto.RenderSide, runId: string): void {
+      transaction('attempt-output-run-pending', 'other', db => registerOutputRunPending(db, attempt, side, runId));
+    },
+    settleOutputRun(attemptId: string, side: dto.RenderSide, runId: string, phase: 'verified' | 'failed', reason?: OutputRunBarrierFailure): void {
+      transaction('attempt-output-run-settle', 'other', db => settleOutputRunBarrier(db, attemptId, side, runId, phase, reason));
+    },
     capture(planVersionId: string, planContentHash: string, side?: dto.RenderSide): RecordingOutputInput {
       try {
         const plan = plans.version({ id: planVersionId }).plan ?? attemptFail('PLAN_UNAVAILABLE');

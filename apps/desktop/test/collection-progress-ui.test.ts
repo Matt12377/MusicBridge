@@ -357,3 +357,25 @@ test('实际型号详情读取真实持有长度，加载与错误不把旧SKU90
   assert.match(renderText(), /当前持有长度读取失败/u)
   assert.doesNotMatch(renderText(), /private|当前持有总量 0/u)
 })
+
+test('单盘预留入口按实时归属区分库存取消与指定制作，缺失归属不猜测', async t => {
+  const model = { id: sourceId, brand: '合成品牌', name: '合成型号', edition: '', year: null, format: 'cassette', tapeType: 'II', identification: 'verified', collectorPolicy: 'normal', minimumSealedReserve: 0, revision: 1,
+    lengths: [90], counts: { total: 1, sealedBlank: 0, openedBlank: 0, legacyUsed: 0, recorded: 0, reserved: 1, unknown: 0, unavailable: 0 } }
+  const copy = { physicalId: 'MB-C-00012', lotId: revisionId, skuId: wantId, lengthMinutes: 90, packaging: 'opened', usage: 'reserved', available: true, origin: 'blank-pool', revision: 2 }
+  const api = { getCollectionModelLengths: async () => ({ modelId: sourceId, modelRevision: 1, total: 1, lengths: [{ lengthMinutes: 90, quantity: 1 }], unknownLengthQty: 0 }) }
+  const detailFor = (reservationOwner?: unknown) => ({ model, lots: page([]), copies: page([{ ...copy, ...(reservationOwner ? { reservationOwner } : {}) }]) })
+  const opened: unknown[] = [], updated: unknown[] = []
+  const plan = await mounted(t, 'CollectionModelDetail', api, { detail: detailFor({ kind: 'recording-plan', draftId: oldRevisionId, planId: snapshotId }), busy: false,
+    onOpenReservation: (value: unknown) => { opened.push(value) }, onUpdateCopy: (value: unknown) => { updated.push(value) } })
+  assert.match(plan.renderText(), /这盘的制作/u)
+  assert.doesNotMatch(plan.renderText(), /取消库存预留/u)
+  await plan.clickButton('这盘的制作')
+  assert.deepEqual(opened, [{ physicalId: copy.physicalId, physicalRevision: 2, modelId: sourceId, skuId: wantId, packaging: 'opened', draftId: oldRevisionId, planId: snapshotId }])
+  assert.deepEqual(updated, [])
+  const inventory = await mounted(t, 'CollectionModelDetail', api, { detail: detailFor({ kind: 'inventory' }), busy: false })
+  assert.match(inventory.renderText(), /取消库存预留/u)
+  assert.doesNotMatch(inventory.renderText(), /这盘的制作/u)
+  const unknown = await mounted(t, 'CollectionModelDetail', api, { detail: detailFor(), busy: false })
+  assert.match(unknown.renderText(), /预留归属待核对/u)
+  assert.doesNotMatch(unknown.renderText(), /取消库存预留|这盘的制作/u)
+})

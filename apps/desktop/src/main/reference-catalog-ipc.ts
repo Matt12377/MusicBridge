@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { validateIpcRequest, type IpcCommandPayloads } from '@music-bridge/contracts'
 import { CoreIpcError, type CoreSupervisor } from './core-supervisor.js'
 
-const reads = ['referenceCatalog.sources', 'referenceCatalog.source', 'referenceCatalog.history',
+const reads = ['referenceCatalog.sources', 'referenceCatalog.source', 'referenceCatalog.previewSourceZip', 'referenceCatalog.sourceZipReceipts', 'referenceCatalog.history',
   'referenceCatalog.revision', 'referenceCatalog.previewRevision', 'referenceCatalog.snapshot'] as const
 
 /** 目录只读与纯预览入口；三个写操作仅经持久outbox进入Core。 */

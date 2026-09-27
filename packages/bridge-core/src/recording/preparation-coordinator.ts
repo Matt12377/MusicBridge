@@ -6,6 +6,7 @@ import type { SourceStore } from './source-store.js';
 import type { SourceEvidenceService } from './source-evidence.js';
 import type { PreparationStore, PreparationInput, StoredPreparationJob } from './preparation-store.js';
 import { mediaFingerprint } from './media-store.js';
+import { verifyFrozenDistribution } from './version-distribution.js';
 import { sourceFileAvailability, SourceFileError } from './source-files.js';
 import { authorizePreparationDestination, assertPreparationOutsideSources, createPreparationDirectory, checkPreparationOwnership, copyPreparationFile, writePreparationFile, publishPreparation, verifyPublishedPreparation, PreparationFileError, type PreparationOutput } from './preparation-files.js';
 const invalid = (message = '工作区提案已失效，请重新预览并确认。'): never => { throw new BridgeError('BAD_REQUEST', message, { httpStatus: 400 }); };
@@ -31,10 +32,14 @@ export function createPreparationCoordinator({ store, sourceStore, sources, copy
     }
   })().catch(error => { recoveryError = error; });
   async function ready(): Promise<void> { await recovered; if (recoveryError) throw recoveryError; }
+  function selectedTracks(input: Pick<PreparationInput, 'master' | 'layout'>) {
+    const verified = verifyFrozenDistribution(input.master, input.layout);
+    if (!verified) return invalid('冻结母版或本盘分布校验失败，不能创建工作区。');
+    return verified.trackIds.map(id => input.master.content.tracks.find(track => track.trackId === id)!);
+  }
   function bindings(input: PreparationInput) {
     const planned = input.layout.timeline.sides.flatMap(s => s.tracks);
-    return input.master.content.tracks.map((track, index) => {
-      if (planned[index]?.trackId !== track.trackId) return invalid();
+    return selectedTracks(input).map((track, index) => {
       const binding = sourceStore.binding(planned[index]!.sourceBindingId);
       if (!binding.userConfirmed || binding.invalidated || binding.evidence.sha256 !== track.source.sha256 || binding.evidence.size !== track.source.size || mediaFingerprint(binding.evidence.technical) !== mediaFingerprint(track.source.technical)) throw new SourceFileError('CONTENT_CHANGED');
       return { track, binding };
@@ -49,7 +54,8 @@ export function createPreparationCoordinator({ store, sourceStore, sources, copy
     if (!destination.authorized) throw new PreparationFileError();
     const current = await authorizePreparationDestination(destination.path, sourceStore.roots());
     if (current.dev !== destination.dev || current.ino !== destination.ino) throw new PreparationFileError();
-    const proposal = { draftId: master.draftId, masterVersionId: master.id, layoutVersionId: layout.id, destinationId: destination.id, contentHash: master.contentHash, timelineHash: layout.timelineHash, trackCount: master.content.tracks.length, bytes: master.content.tracks.reduce((sum, t) => sum + t.source.size, 0), proposalFingerprint: '', executionReady: false as const };
+    const tracks = selectedTracks({ master, layout });
+    const proposal = { draftId: master.draftId, masterVersionId: master.id, layoutVersionId: layout.id, destinationId: destination.id, contentHash: master.contentHash, timelineHash: layout.timelineHash, trackCount: tracks.length, bytes: tracks.reduce((sum, t) => sum + t.source.size, 0), proposalFingerprint: '', executionReady: false as const };
     proposal.proposalFingerprint = mediaFingerprint({ proposal, destination });
     const result = { master, layout, destination, proposal }; await checkSources(result); return result;
   }
@@ -66,7 +72,8 @@ export function createPreparationCoordinator({ store, sourceStore, sources, copy
         store.update(job.public.id, { owned });
         const checkDestination = (): void => { if (!store.destination(job.public.destinationId).authorized) throw new PreparationFileError(); assertPreparationOutsideSources([owned.root.path, ...owned.directories.map(d => d.path)], sourceStore.roots()); };
         const files: PreparationOutput[] = [], lineage: { trackId: string; sourceBindingId: string; workingCopy: string; sha256: string; size: number; technical: SourceTechnical }[] = [];
-        for (const [index, { track, binding }] of bindings(job.input).entries()) {
+        const selectedBindings = bindings(job.input);
+        for (const [index, { track, binding }] of selectedBindings.entries()) {
           controller.signal.throwIfAborted(); checkDestination();
           const container = track.source.technical.container.toLowerCase(), extension = /wav|wave/u.test(container) ? 'wav' : /aiff/u.test(container) ? 'aiff' : /flac/u.test(container) ? 'flac' : invalid('源容器不支持工作副本。');
           const relative = `Sources/${String(index + 1).padStart(3, '0')}.${extension}`;
@@ -78,12 +85,14 @@ export function createPreparationCoordinator({ store, sourceStore, sources, copy
         const json = (v: unknown): Buffer => Buffer.from(JSON.stringify(v, null, 2) + '\n');
         checkDestination();
         files.push(await writePreparationFile(owned, 'SourceLineage.json', json(lineage)));
-        // TSV 单元格消除分隔符及公式前缀；曲序固定为冻结母版，不读取当前草稿。
+        // TSV 单元格消除分隔符及公式前缀；曲序固定为冻结的本盘时间线，不读取当前草稿。
         const cell = (v: string): string => v.replace(/[\t\r\n]/gu, ' ').replace(/^[=+@-]/u, "'$&");
         checkDestination();
-        files.push(await writePreparationFile(owned, 'Tracklist.tsv', Buffer.from(['序号\t曲目\t源绑定', ...job.input.master.content.tracks.map((track, i) => `${i + 1}\t${cell(track.metadata.title)}\t${lineage[i]!.sourceBindingId}`)].join('\n') + '\n')));
+        files.push(await writePreparationFile(owned, 'Tracklist.tsv', Buffer.from(['序号\t曲目\t源绑定', ...selectedBindings.map(({ track }, i) => `${i + 1}\t${cell(track.metadata.title)}\t${lineage[i]!.sourceBindingId}`)].join('\n') + '\n')));
         checkDestination();
-        files.push(await writePreparationFile(owned, 'README.txt', Buffer.from('Logic 工作副本\n请手动导入 Sources，并按 Planned Timeline 安排曲序及留白。Bounce Targets 仅是输出位置，不表示已经生成或验证渲染音频。工作副本可以编辑；再导入 MusicBridge 时必须重新校验。原件保持只读。本目录不是归档或执行资产。\n')));
+        files.push(await writePreparationFile(owned, 'README.txt', Buffer.from(job.input.layout.distribution
+          ? 'Logic 本盘工作副本\nSources 与曲单只包含本盘曲目；完整母版身份保留在 Manifest 中。请手动导入 Sources，并按 Planned Timeline 安排本盘曲序及留白。Bounce Targets 仅是输出位置，不表示已经生成或验证渲染音频。工作副本可以编辑；再导入 MusicBridge 时必须重新校验。原件保持只读。本目录不是归档或执行资产。\n'
+          : 'Logic 工作副本\n请手动导入 Sources，并按 Planned Timeline 安排曲序及留白。Bounce Targets 仅是输出位置，不表示已经生成或验证渲染音频。工作副本可以编辑；再导入 MusicBridge 时必须重新校验。原件保持只读。本目录不是归档或执行资产。\n')));
         const manifest = json({ schemaVersion: 1, kind: 'logic-working-copy', operationId: job.public.id, masterVersionId: job.input.master.id, layoutVersionId: job.input.layout.id, contentHash: job.input.master.contentHash, timelineHash: job.input.layout.timelineHash, plannedTimeline: job.input.layout.timeline, files, executionReady: false });
         // 先持久化发布意图，再写最终清单；冷启动可验证确切归属及 Hash 后补回执。
         store.update(job.public.id, { files, manifestHash: createHash('sha256').update(manifest).digest('hex') });

@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
 import { createCollectionRepository } from '../src/collection/repository.js';
+import { readBackupIndex } from '../src/recording/backup-index.js';
+import { verifyVersionDistributionDatabase } from '../src/recording/versions-store.js';
 
 test('冻结版本初始为空；读取历史不会把草稿或预留自动升级为母版', t => {
   const repository = createCollectionRepository({ filePath: ':memory:' });
@@ -142,4 +144,71 @@ test('公开提案与历史拒绝执行就绪伪造、私有路径、帧位置�
   await f.freeze(); await f.versions.idle(); const history = f.versions.list(f.draft.draftId);
   assert.equal(isVersionHistory({ ...history, masters: [] }), false);
   const tampered = structuredClone(history); tampered.layouts[0]!.reservation.physicalId = 'private/path'; assert.equal(isVersionHistory(tampered), false);
+});
+
+test('同组两盘冻结复用完整母版，各盘独立预留与时间线；读取拒绝合法 DTO 内的分盘摘要篡改', async t => {
+  const f = await fixture(t), groupId = randomUUID();
+  const segmentSpecs = [{ trackIds: f.draft.trackIds.slice(0, 2) }, { trackIds: f.draft.trackIds.slice(2) }];
+  const plans = [];
+  for (const segmentIndex of [0, 1]) {
+    const nextSpec: MediaLayoutSpec = { ...spec, splitAfter: segmentIndex === 0 ? 1 : 1,
+      distribution: { schemaVersion: 1, groupId, segmentIndex, segmentSpecs } };
+    const preview = await f.media.preview({ draftId: f.draft.draftId, spec: nextSpec, page });
+    const saved = await f.media.save({ commandId: randomUUID(), draftId: f.draft.draftId, expectedDraftRevision: preview.draftRevision,
+      inputFingerprint: preview.inputFingerprint, spec: nextSpec });
+    plans.push(await f.media.reserve({ commandId: randomUUID(), planId: saved.id, expectedRevision: saved.revision,
+      skuId: preview.candidates.items[0]!.skuId, packaging: 'opened', userConfirmed: true }));
+  }
+  for (const plan of plans) {
+    const proposal = await f.versions.preview({ planId: plan.id, sampleRate: 96000 });
+    assert.equal(proposal.content.tracks.length, 3);
+    await f.versions.freeze({ commandId: randomUUID(), planId: plan.id, sampleRate: 96000,
+      proposalFingerprint: proposal.proposalFingerprint, userConfirmed: true });
+    await f.versions.idle();
+  }
+  const history = f.versions.list(f.draft.draftId), layouts = [...history.layouts].reverse();
+  assert.equal(history.masters.length, 1);
+  assert.equal(layouts.length, 2);
+  assert.notEqual(layouts[0]!.reservation.physicalId, layouts[1]!.reservation.physicalId);
+  assert.equal(layouts[0]!.masterVersionId, layouts[1]!.masterVersionId);
+  assert.equal(layouts[0]!.distribution!.distributionHash, layouts[1]!.distribution!.distributionHash);
+  assert.deepEqual(layouts.map(layout => layout.timeline.sides.flatMap(side => side.tracks.map(track => track.trackId))), segmentSpecs.map(segment => segment.trackIds));
+  assert.equal(readBackupIndex(f.filePath).index.operations.length, 0);
+  const db = new DatabaseSync(f.filePath);
+  try {
+    assert.equal(db.prepare('SELECT count(*) AS n FROM recording_plan_versions').get()?.n, 0, '负例必须尚无 RecordingPlan');
+    const changed = structuredClone(layouts[0]!);
+    changed.distribution!.distributionHash = '0'.repeat(64);
+    assert.equal(isVersionHistory({ ...history, layouts: [changed, layouts[1]!] }), true, 'DTO 结构本身不能证明摘要可信');
+    db.exec('DROP TRIGGER layout_versions_no_update');
+    db.prepare('UPDATE layout_versions SET data=? WHERE id=?').run(JSON.stringify(changed), changed.id);
+    assert.throws(() => f.versions.list(f.draft.draftId), /校验失败/u);
+    assert.throws(() => f.repository.preparations.frozen(changed.id), /校验失败/u);
+    assert.throws(() => verifyVersionDistributionDatabase(db), /分盘历史/u);
+    assert.throws(() => readBackupIndex(f.filePath), /分盘历史/u);
+    const cold = createCollectionRepository({ filePath: f.filePath });
+    try { assert.throws(() => cold.list({ offset: 0, limit: 1 }), /库存暂时不可用/u); }
+    finally { cold.close(); }
+  } finally { db.close(); }
+});
+
+test('单规划沿用旧分盘组不可改分段、全局过渡或源指纹，局部容量参数可调整', async t => {
+  const f = await fixture(t), groupId = randomUUID();
+  const distribution = { schemaVersion: 1 as const, groupId, segmentIndex: 0,
+    segmentSpecs: [{ trackIds: f.draft.trackIds.slice(0, 2) }, { trackIds: f.draft.trackIds.slice(2) }] };
+  const firstSpec: MediaLayoutSpec = { ...spec, splitAfter: 1, distribution };
+  async function save(nextSpec: MediaLayoutSpec, planId?: string, expectedRevision?: number) {
+    const preview = await f.media.preview({ draftId: f.draft.draftId, spec: nextSpec, page });
+    return f.media.save({ commandId: randomUUID(), draftId: f.draft.draftId, expectedDraftRevision: preview.draftRevision,
+      inputFingerprint: preview.inputFingerprint, spec: nextSpec, ...(planId && expectedRevision !== undefined ? { planId, expectedRevision } : {}) });
+  }
+  const first = await save(firstSpec);
+  const local = await save({ ...firstSpec, leadInMs: 2000, tailMs: 3000, splitAfter: 2 }, first.id, first.revision);
+  assert.equal(local.revision, first.revision + 1);
+  await assert.rejects(save({ ...firstSpec, distribution: { ...distribution,
+    segmentSpecs: [{ trackIds: f.draft.trackIds.slice(0, 1) }, { trackIds: f.draft.trackIds.slice(1) }] } }, local.id, local.revision), /新分盘组/u);
+  await assert.rejects(save({ ...firstSpec, defaultGapMs: 3000 }, local.id, local.revision), /新分盘组/u);
+  f.repository.drafts.update({ commandId: randomUUID(), draftId: f.draft.draftId, expectedRevision: 1,
+    title: '源指纹变化', programType: 'compilation', trackIds: [...f.draft.trackIds] }, 'c'.repeat(64));
+  await assert.rejects(save(firstSpec, local.id, local.revision), /新分盘组/u);
 });

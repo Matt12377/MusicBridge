@@ -1,5 +1,7 @@
 import { testElectronArguments } from '../scripts/test-keychain.mjs'
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
+import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { mkdtemp, readFile, rm, stat, writeFile, realpath, mkdir, readdir } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import os from 'node:os'
@@ -410,6 +412,7 @@ test.beforeEach(async () => {
     MUSIC_BRIDGE_CORE_TEST_MODE: '1',
     MUSIC_BRIDGE_DIAGNOSTIC_EXPORT_PATH: diagnosticPath,
   }
+  if (test.info().title.includes('V3 Logic 工作区')) environment.MUSIC_BRIDGE_UI_E2E_OFFLINE = '1'
   if (test.info().title.includes('资料不可用')) {
     environment.MUSIC_BRIDGE_SYNTHETIC_ACCOUNT_MODE = 'profile-unavailable'
   } else if (test.info().title.includes('登录过期')) {
@@ -425,14 +428,29 @@ test.beforeEach(async () => {
     env: environment,
   })
   page = await electronApp.firstWindow()
-  await page.route(syntheticCoverUrl, async (route) => {
-    await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: syntheticCoverSvg })
-  })
-  await page.route(syntheticAvatarUrl, async (route) => {
-    await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: syntheticCoverSvg })
-  })
+  if (test.info().title.includes('V3 Logic 工作区')) {
+    await mkdir(test.info().outputDir, { recursive: true })
+    page.on('pageerror', error => process.stdout.write(`J09_STARTUP_PAGEERROR=${error.message}\n`))
+    page.on('console', message => { if (message.type() === 'error') process.stdout.write(`J09_STARTUP_CONSOLE=${message.text()}\n`) })
+    page.on('response', response => { if (response.status() >= 400) process.stdout.write(`J09_STARTUP_HTTP=${response.status()} ${response.url()}\n`) })
+  }
+  if (!test.info().title.includes('V3 Logic 工作区')) {
+    await page.route(syntheticCoverUrl, async (route) => {
+      await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: syntheticCoverSvg })
+    })
+    await page.route(syntheticAvatarUrl, async (route) => {
+      await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: syntheticCoverSvg })
+    })
+  }
   await page.waitForLoadState('domcontentloaded')
   await expect(page).toHaveURL('musicbridge://app/index.html')
+  if (test.info().title.includes('V3 Logic 工作区')) {
+    await writeFile(test.info().outputPath('j09-before-reload.html'), await page.content())
+    await writeFile(test.info().outputPath('j09-before-reload.json'), JSON.stringify({
+      url: page.url(), body: await page.locator('body').innerText(),
+      windows: await electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map(window => ({ id: window.id, url: window.webContents.getURL(), visible: window.isVisible() }))),
+    }, null, 2))
+  }
   await page.evaluate(() => {
     localStorage.removeItem('music-bridge.sidebar-expanded')
     localStorage.removeItem('musicbridge.qualityPreference')
@@ -441,6 +459,13 @@ test.beforeEach(async () => {
   await page.reload()
   await page.waitForLoadState('domcontentloaded')
   await expect(page).toHaveURL('musicbridge://app/index.html')
+  if (test.info().title.includes('V3 Logic 工作区')) {
+    await writeFile(test.info().outputPath('j09-after-reload.html'), await page.content())
+    await writeFile(test.info().outputPath('j09-after-reload.json'), JSON.stringify({
+      url: page.url(), body: await page.locator('body').innerText(),
+      windows: await electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map(window => ({ id: window.id, url: window.webContents.getURL(), visible: window.isVisible() }))),
+    }, null, 2))
+  }
   await expect(page.locator('#home-heading')).toBeVisible()
 })
 
@@ -448,6 +473,10 @@ test.afterEach(async () => {
   if (test.info().status === 'skipped') return
   if (electronApp) await electronApp.close()
   if (test.info().title.includes('固定原生构建')) return // 显式 Gate 的隔离合成目录随测试产物保留，供打包应用核验。
+  if (test.info().title.includes('V3 Logic 工作区')) {
+    await writeFile(test.info().outputPath('synthetic-user-data-path.txt'), await realpath(diagnosticDirectory))
+    return // J09 合成库、ZIP 原字节及失败恢复事实随外置证据保留，供冷启后审计。
+  }
   await rm(diagnosticDirectory, { recursive: true, force: true })
 })
 
@@ -1390,7 +1419,7 @@ test('V3 导航不触发播放变更 IPC，保留正在播放的曲目、队列�
   await page.locator('[data-sidebar-source="recording"]').click()
   await expect(page.locator('[data-component="RecordingView"]')).toBeVisible()
   await expect(page.locator('.global-player')).toBeVisible()
-  await page.getByRole('button', { name: '查看空白磁带收藏', exact: true }).click()
+  await page.getByRole('button', { name: '查看实物收藏 →', exact: true }).click()
   await sourceButton('home').click()
   await expect(sidebarSearch()).toHaveValue('synthetic')
   const restoredSearch = page.getByRole('region', { name: 'synthetic', exact: true })
@@ -2281,8 +2310,43 @@ test('V3 母版冻结：正式 IPC 复核源、回执重试、帧级历史与冷
 })
 
 test('V3 Logic 工作区：原生授权、确认复制、回执重试、Finder 与冷启动历史', async () => {
-  test.setTimeout(90_000)
-  const directory = await realpath(diagnosticDirectory), sourceRoot = path.join(directory, 'preparation-source'), target = path.join(directory, 'logic-target'); await mkdir(sourceRoot); await mkdir(target)
+  test.setTimeout(210_000)
+  const directory = await realpath(diagnosticDirectory), sourceRoot = path.join(directory, 'preparation-source'), target = path.join(directory, 'logic-target'), zipTarget = path.join(directory, 'Logic-Workspace.zip'); await mkdir(sourceRoot); await mkdir(target)
+  const browserEvidence = { consoleErrors: [] as string[], pageErrors: [] as string[], failedRequests: [] as string[], httpErrors: [] as string[] }
+  const observePage = (window: Page): void => {
+    window.on('console', message => { if (message.type() === 'error') browserEvidence.consoleErrors.push(message.text()) })
+    window.on('pageerror', error => browserEvidence.pageErrors.push(error.message))
+    window.on('requestfailed', request => browserEvidence.failedRequests.push(`${request.url()} ${request.failure()?.errorText ?? ''}`))
+    window.on('response', response => { if (response.status() >= 400) browserEvidence.httpErrors.push(`${response.status()} ${response.url()}`) })
+  }
+  const captureGeometry = async (label: string): Promise<void> => {
+    const native = await electronApp.evaluate(({ BrowserWindow }) => {
+      const window = BrowserWindow.getAllWindows().find(item => item.webContents.getURL().startsWith('musicbridge://app/'))
+      if (!window) throw new Error('正式主窗口未找到')
+      return { bounds: window.getBounds(), contentBounds: window.getContentBounds(), zoomFactor: window.webContents.getZoomFactor() }
+    })
+    const renderer = await page.evaluate(() => ({ innerWidth, innerHeight, devicePixelRatio, visualViewport: window.visualViewport
+      ? { width: window.visualViewport.width, height: window.visualViewport.height, scale: window.visualViewport.scale } : null }))
+    await writeFile(test.info().outputPath(`${label}-geometry.json`), JSON.stringify({ native, renderer }, null, 2))
+  }
+  observePage(page)
+  const preloadStatus = await page.evaluate(() => ({
+    available: typeof window.musicBridge === 'object',
+    canChoosePreparationZipTarget: typeof window.musicBridge?.choosePreparationZipTarget === 'function',
+    canListPreparations: typeof window.musicBridge?.listPreparations === 'function',
+  }))
+  expect(preloadStatus).toEqual({ available: true, canChoosePreparationZipTarget: true, canListPreparations: true })
+  const offlineCover = await page.evaluate(url => new Promise<{ loaded: boolean; width: number; height: number }>(resolve => {
+    const image = new Image()
+    image.onload = () => resolve({ loaded: true, width: image.naturalWidth, height: image.naturalHeight })
+    image.onerror = () => resolve({ loaded: false, width: image.naturalWidth, height: image.naturalHeight })
+    image.src = url
+  }), syntheticCoverUrl)
+  expect(offlineCover).toMatchObject({ loaded: true, width: 160, height: 160 })
+  await writeFile(test.info().outputPath('logic-startup-preload.json'), JSON.stringify({
+    observationBoundary: '首次取得 Playwright 主窗口后、合成业务设置前；不是导航前网络或 preload 执行时刻。',
+    preloadStatus,
+  }, null, 2))
   const sourceFile = path.join(sourceRoot, 'preparation-source.wav')
   const bytes = Buffer.alloc(44 + 44101 * 4)
   bytes.write('RIFF'); bytes.writeUInt32LE(bytes.length - 8, 4); bytes.write('WAVEfmt ', 8); bytes.writeUInt32LE(16, 16); bytes.writeUInt16LE(1, 20); bytes.writeUInt16LE(2, 22); bytes.writeUInt32LE(44100, 24); bytes.writeUInt32LE(176400, 28); bytes.writeUInt16LE(4, 32); bytes.writeUInt16LE(16, 34); bytes.write('data', 36); bytes.writeUInt32LE(bytes.length - 44, 40)
@@ -2311,9 +2375,21 @@ test('V3 Logic 工作区：原生授权、确认复制、回执重试、Finder �
 
   const frozen = await page.evaluate(async planId => { const api = window.musicBridge, p = await api.previewMasterVersions({ planId, sampleRate: 96000 }); return api.freezeMasterVersions({ commandId: crypto.randomUUID(), planId, sampleRate: 96000, proposalFingerprint: p.proposalFingerprint, userConfirmed: true }) }, plan.id)
   await expect.poll(async () => (await page.evaluate(id => window.musicBridge.getMasterVersionJob(id), frozen.id)).job?.state).toBe('completed')
-  await page.locator('[data-sidebar-source="recording"]').click(); await page.getByRole('button', { name: '继续草稿 Logic 工作区合成' }).click()
-  const trigger = page.getByRole('button', { name: 'Logic 工作区', exact: true }); await expect(trigger).toBeVisible(); await trigger.click()
-  const panel = page.getByRole('dialog', { name: 'Logic 工作区', exact: true })
+  const versions = await page.evaluate(id => window.musicBridge.listMasterVersions(id), draft.draftId)
+  expect(versions.layouts).toHaveLength(1)
+  await page.locator('[data-sidebar-source="recording"]').click(); await page.locator('.draft-card').filter({ hasText: 'Logic 工作区合成' }).click()
+  const context = page.getByTestId('recording-next-step')
+  await context.locator('.next-details > summary').click()
+  await context.getByRole('combobox', { name: '本次媒体规划', exact: true }).selectOption(plan.id)
+  await expect(context.getByRole('combobox', { name: '本次冻结布局', exact: true })).toBeEnabled()
+  await context.getByRole('combobox', { name: '本次冻结布局', exact: true }).selectOption(versions.layouts[0]!.id)
+  await context.getByRole('combobox', { name: '本次处理路径', exact: true }).selectOption('logic')
+  await expect(context.getByRole('combobox', { name: '本次处理路径', exact: true })).toHaveValue('logic')
+  await page.screenshot({ path: test.info().outputPath('logic-explicit-context.png') })
+  await page.locator('.extra-steps > summary').click()
+  const trigger = page.locator('.extra-steps').getByRole('button', { name: 'Logic 工作区', exact: true }); await expect(trigger).toBeVisible(); await trigger.click()
+  const panel = page.locator('.recording-subpage .preparation-panel')
+  await expect(panel).toBeVisible()
   await expect(panel.getByText('尚无工作区。先选择冻结布局和目标目录。', { exact: true })).toBeVisible()
   await expect(panel.getByRole('button', { name: '预览工作区', exact: true })).toBeDisabled()
   await electronApp.evaluate(({ dialog }) => { dialog.showOpenDialog = async () => ({ canceled: true, filePaths: [] }) })
@@ -2346,25 +2422,175 @@ test('V3 Logic 工作区：原生授权、确认复制、回执重试、Finder �
   expect(manifest.layoutVersionId).toBe(history.workspaces[0]!.layoutVersionId)
   expect(await readFile(path.join(workspace, 'Sources', '001.wav'))).toEqual(bytes); expect(await readFile(sourceFile)).toEqual(bytes)
   expect((await stat(path.join(workspace, 'Bounce Targets', 'A'))).isDirectory()).toBe(true)
+  // 草稿、源绑定、选带与冻结布局由上面的合成 API 夹具建立；以下 ZIP 闭环使用正式页面与原生另存对话框。
+  const zip = panel.locator('.preparation-zip-panel')
+  await expect(zip.getByRole('heading', { name: '导出 Logic ZIP', exact: true })).toBeVisible()
+  await expect(zip).toContainText('ZIP 不会启动 Logic，也不是 PREP 或正式录音资产。')
+  await zip.getByRole('combobox', { name: '选择 ZIP 工作区', exact: true }).selectOption(history.workspaces[0]!.id)
+  await expect(zip.getByRole('button', { name: '预览 ZIP 内容', exact: true })).toBeDisabled()
+  await electronApp.evaluate(({ dialog }, filePath) => { dialog.showSaveDialog = (async () => ({ canceled: false, filePath })) as typeof dialog.showSaveDialog }, zipTarget)
+  await zip.getByRole('button', { name: '选择 ZIP 另存位置', exact: true }).click()
+  await expect(zip).toContainText('Logic-Workspace.zip')
+  expect(await readdir(directory)).not.toContain('Logic-Workspace.zip')
+  await zip.getByRole('button', { name: '预览 ZIP 内容', exact: true }).click()
+  await expect(zip.getByText(/工作区 Manifest SHA-256：/u)).toBeVisible()
+  await expect(zip.getByRole('button', { name: '确认并生成 ZIP', exact: true })).toBeDisabled()
+  expect(await readdir(directory)).not.toContain('Logic-Workspace.zip')
+  await zip.scrollIntoViewIfNeeded()
+  await page.screenshot({ path: test.info().outputPath('logic-zip-preview-before-approval.png') })
+  await zip.getByRole('checkbox', { name: '我确认将此工作区打包另存为 ZIP；不覆盖已有文件、不自动处理音频', exact: true }).check()
+  await zip.getByRole('button', { name: '确认并生成 ZIP', exact: true }).click()
+  await expect.poll(async () => (await page.evaluate(id => window.musicBridge.listPreparationZips(id), draft.draftId)).jobs[0]?.state).toBe('completed')
+  const zipHistory = await page.evaluate(id => window.musicBridge.listPreparationZips(id), draft.draftId)
+  expect(zipHistory.jobs).toHaveLength(1)
+  const zipBytes = await readFile(zipTarget)
+  const zipHash = createHash('sha256').update(zipBytes).digest('hex')
+  expect(zipHistory.jobs[0]).toMatchObject({ workspaceId: history.workspaces[0]!.id, targetLabel: 'Logic-Workspace.zip', zipSha256: zipHash, zipBytes: zipBytes.length })
+  const archiveEntries = execFileSync('unzip', ['-Z1', zipTarget], { encoding: 'utf8' }).trim().split('\n')
+  expect(archiveEntries).toEqual(expect.arrayContaining(['Manifest.json', 'Sources/001.wav', 'Bounce Targets/A/']))
+  expect(execFileSync('unzip', ['-p', zipTarget, 'Sources/001.wav'])).toEqual(bytes)
+  expect(await readFile(path.join(workspace, 'Sources', '001.wav'))).toEqual(bytes)
+  expect(await readFile(sourceFile)).toEqual(bytes)
+  const zipHistoryDetails = zip.locator('details').filter({ hasText: 'ZIP 导出记录' })
+  await expect(zipHistoryDetails.locator('summary')).toBeVisible()
+  await zipHistoryDetails.locator('summary').click()
+  await expect(zipHistoryDetails).toContainText(zipHash)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await captureGeometry('logic-zip-light-1440')
+  await zip.scrollIntoViewIfNeeded()
+  await page.screenshot({ path: test.info().outputPath('logic-zip-completed-light-1440.png') })
+  await zip.getByRole('button', { name: '选择 ZIP 另存位置', exact: true }).click()
+  await expect(zip.getByRole('alert')).toContainText('另存目标未获授权')
+  expect(createHash('sha256').update(await readFile(zipTarget)).digest('hex')).toBe(zipHash)
+  expect((await page.evaluate(id => window.musicBridge.listPreparationZips(id), draft.draftId)).jobs).toEqual(zipHistory.jobs)
   for (const size of [{ width: 1440, height: 900 }, { width: 720, height: 480 }]) {
     await page.setViewportSize(size); expect(await panel.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
     await page.evaluate(source => window.eval(source), axeSource)
-    const result = await page.evaluate(async () => (window as typeof window & { axe: { run(root: Element): Promise<{ violations: { impact: string | null }[] }> } }).axe.run(document.querySelector('dialog[open]')!))
+    const result = await page.evaluate(async () => (window as typeof window & { axe: { run(root: Element): Promise<{ violations: { impact: string | null }[] }> } }).axe.run(document.querySelector('.recording-subpage .preparation-panel')!))
     expect(result.violations.filter(v => v.impact === 'critical' || v.impact === 'serious')).toEqual([])
     await panel.evaluate(el => { el.scrollTop = 0 }); await page.screenshot({ path: test.info().outputPath(`logic-preparation-${size.width}.png`) })
     await panel.locator('.workspace-item').first().scrollIntoViewIfNeeded(); await page.screenshot({ path: test.info().outputPath(`logic-preparation-history-${size.width}.png`) })
+    if (size.width === 720) {
+      const narrowGeometry = async (): Promise<unknown> => page.evaluate(() => {
+        const scroller = document.querySelector('.content-scroll'), summary = document.querySelector('.preparation-zip-panel details summary'), player = document.querySelector('.global-player')
+        if (!scroller || !summary || !player) throw new Error('窄窗可达性几何节点缺失')
+        const target = summary.getBoundingClientRect(), cover = player.getBoundingClientRect()
+        const x = Math.max(target.left, Math.min(target.right - 1, target.left + target.width / 2)), y = Math.max(target.top, Math.min(target.bottom - 1, target.top + target.height / 2))
+        return { scrollTop: scroller.scrollTop, clientHeight: scroller.clientHeight, scrollHeight: scroller.scrollHeight,
+          target: { top: target.top, bottom: target.bottom, left: target.left, right: target.right },
+          player: { top: cover.top, bottom: cover.bottom, left: cover.left, right: cover.right },
+          hit: document.elementFromPoint(x, y)?.className ?? null }
+      })
+      await writeFile(test.info().outputPath('logic-zip-narrow-before-wheel.json'), JSON.stringify(await narrowGeometry(), null, 2))
+      await page.mouse.move(500, 180)
+      await page.mouse.wheel(0, 10_000)
+      await expect.poll(async () => (await page.locator('.content-scroll').evaluate(el => el.scrollTop + el.clientHeight >= el.scrollHeight - 1))).toBe(true)
+      await writeFile(test.info().outputPath('logic-zip-narrow-after-wheel.json'), JSON.stringify(await narrowGeometry(), null, 2))
+      await page.screenshot({ path: test.info().outputPath('logic-zip-narrow-after-wheel.png') })
+      await zipHistoryDetails.locator('summary').click({ timeout: 5_000 })
+      await zipHistoryDetails.locator('summary').click({ timeout: 5_000 })
+    }
   }
   await electronApp.evaluate(({ shell }) => { shell.openPath = async p => { (globalThis as typeof globalThis & { preparationOpened?: string }).preparationOpened = p; return '' } })
   await panel.getByRole('button', { name: '在 Finder 中打开', exact: true }).click()
   await expect.poll(() => electronApp.evaluate(() => (globalThis as typeof globalThis & { preparationOpened?: string }).preparationOpened)).toBe(workspace)
-  await panel.getByRole('button', { name: '关闭', exact: true }).click(); await expect(trigger).toBeFocused()
+  await panel.getByRole('button', { name: '关闭', exact: true }).click()
+  const closeFocus = await page.evaluate(() => ({
+    tag: document.activeElement?.tagName ?? null,
+    label: document.activeElement?.textContent?.trim() ?? null,
+    detailsOpen: document.querySelector<HTMLDetailsElement>('.extra-steps')?.open ?? null,
+  }))
+  // 合成第二份独立 ZIP 仅用于制造“Core 已接受、Renderer 待核对”的冷启原号；不替代上方的正式 UI 操作证据。
+  const receiptTarget = path.join(directory, 'Logic-Receipt.zip')
+  await electronApp.evaluate(({ dialog }, filePath) => { dialog.showSaveDialog = (async () => ({ canceled: false, filePath })) as typeof dialog.showSaveDialog }, receiptTarget)
+  const acceptedRecovery = await page.evaluate(async workspaceId => {
+    const api = window.musicBridge, target = await api.choosePreparationZipTarget(workspaceId)
+    if (!target) throw new Error('合成回执目标未选择')
+    const proposal = await api.previewPreparationZip({ workspaceId, targetId: target.id })
+    const request = { commandId: crypto.randomUUID(), workspaceId, targetId: target.id, proposalFingerprint: proposal.proposalFingerprint, userConfirmed: true as const }
+    const job = await api.startPreparationZip(request)
+    const { datasetId } = await api.getCommandOutbox()
+    const windowEpoch = sessionStorage.getItem('musicbridge.preparationZip.windowEpoch.v1')
+    if (!windowEpoch) throw new Error('ZIP 窗口恢复身份不存在')
+    localStorage.setItem(`musicbridge.preparationZip.pending.v1.${datasetId}.${proposal.draftId}`,
+      JSON.stringify({ kind: 'start', request, draftId: proposal.draftId, workspaceId, windowEpoch }))
+    return { request, jobId: job.id, datasetId }
+  }, history.workspaces[0]!.id)
+  await expect.poll(async () => (await page.evaluate(id => window.musicBridge.getPreparationZipJob(id), acceptedRecovery.jobId)).job?.state).toBe('completed')
+  const recoveryHistory = await page.evaluate(id => window.musicBridge.listPreparationZips(id), draft.draftId)
+  expect(recoveryHistory.jobs.map(job => job.id)).toContain(acceptedRecovery.jobId)
+  const firstLaunchNetworkEvidence = await electronApp.evaluate(() => (globalThis as typeof globalThis & {
+    __musicBridgeUiE2eNetworkEvidence?: { installedBeforeWindow: boolean; localCoverResponses: number; localAvatarResponses: number; blockedExternalAttempts: number; blockedHosts: string[] }
+  }).__musicBridgeUiE2eNetworkEvidence)
+  expect(firstLaunchNetworkEvidence).toMatchObject({ installedBeforeWindow: true, blockedExternalAttempts: 0, blockedHosts: [] })
   await electronApp.close()
-  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
+  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_UI_E2E_OFFLINE: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
   delete environment.NETEASE_COOKIE; delete environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY
   electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: environment }); page = await electronApp.firstWindow()
-  await page.locator('[data-sidebar-source="recording"]').click(); await page.getByRole('button', { name: '继续草稿 Logic 工作区合成' }).click(); await page.getByRole('button', { name: 'Logic 工作区', exact: true }).click()
+  observePage(page)
+  await page.locator('[data-sidebar-source="recording"]').click(); await page.locator('.draft-card').filter({ hasText: 'Logic 工作区合成' }).click()
+  await page.locator('.extra-steps > summary').click(); await page.locator('.extra-steps').getByRole('button', { name: 'Logic 工作区', exact: true }).click()
   await expect(page.getByRole('button', { name: '在 Finder 中打开', exact: true })).toBeVisible()
   expect(await page.evaluate(id => window.musicBridge.listPreparations(id), draft.draftId)).toEqual(history)
+  expect(await page.evaluate(id => window.musicBridge.listPreparationZips(id), draft.draftId)).toEqual(recoveryHistory)
+  expect(createHash('sha256').update(await readFile(zipTarget)).digest('hex')).toBe(zipHash)
+  const coldZip = page.locator('.recording-subpage .preparation-panel .preparation-zip-panel')
+  await expect(coldZip.getByRole('combobox', { name: '选择 ZIP 工作区', exact: true })).toHaveValue(history.workspaces[0]!.id)
+  await expect.poll(() => page.evaluate(({ datasetId, draftId }) => localStorage.getItem(`musicbridge.preparationZip.pending.v1.${datasetId}.${draftId}`),
+    { datasetId: acceptedRecovery.datasetId, draftId: draft.draftId })).toBeNull()
+  expect((await page.evaluate(id => window.musicBridge.listPreparationZips(id), draft.draftId)).jobs).toHaveLength(2)
+  const coldZipHistory = coldZip.locator('details').filter({ hasText: 'ZIP 导出记录' })
+  await expect(coldZipHistory.locator('summary')).toBeVisible()
+  await coldZipHistory.locator('summary').click()
+  await expect(coldZipHistory).toContainText(zipHash)
+  await coldZipHistory.scrollIntoViewIfNeeded()
+  await page.screenshot({ path: test.info().outputPath('logic-zip-cold-boot-history.png') })
+  await captureGeometry('logic-zip-cold-boot')
+  const rejectedTarget = path.join(directory, 'Logic-Rejected.zip')
+  await electronApp.evaluate(({ dialog }, filePath) => { dialog.showSaveDialog = (async () => ({ canceled: false, filePath })) as typeof dialog.showSaveDialog }, rejectedTarget)
+  const rejectedRecovery = await page.evaluate(async workspaceId => {
+    const api = window.musicBridge, target = await api.choosePreparationZipTarget(workspaceId)
+    if (!target) throw new Error('拒绝恢复目标未选择')
+    const proposal = await api.previewPreparationZip({ workspaceId, targetId: target.id })
+    const request = { commandId: crypto.randomUUID(), workspaceId, targetId: target.id, proposalFingerprint: '0'.repeat(64), userConfirmed: true as const }
+    let rejection = ''
+    try { await api.startPreparationZip(request) } catch (error) { rejection = String(error) }
+    if (!rejection.includes('INVALID_IPC_REQUEST')) throw new Error(`预期明确拒绝，实际：${rejection}`)
+    const receipt = await api.getPreparationZipReceipt({ kind: 'start', request })
+    if (receipt.job !== null) throw new Error('明确拒绝的原号不应有已接受回执')
+    const { datasetId } = await api.getCommandOutbox()
+    const windowEpoch = sessionStorage.getItem('musicbridge.preparationZip.windowEpoch.v1')
+    if (!windowEpoch) throw new Error('ZIP 窗口恢复身份不存在')
+    localStorage.setItem(`musicbridge.preparationZip.pending.v1.${datasetId}.${proposal.draftId}`,
+      JSON.stringify({ kind: 'start', request, draftId: proposal.draftId, workspaceId, windowEpoch }))
+    return { request, datasetId, rejection, preRestartStatus: receipt.status }
+  }, history.workspaces[0]!.id)
+  await electronApp.close()
+  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: environment }); page = await electronApp.firstWindow()
+  observePage(page)
+  await page.locator('[data-sidebar-source="recording"]').click(); await page.locator('.draft-card').filter({ hasText: 'Logic 工作区合成' }).click()
+  await page.locator('.extra-steps > summary').click(); await page.locator('.extra-steps').getByRole('button', { name: 'Logic 工作区', exact: true }).click()
+  const rejectedPanel = page.locator('.recording-subpage .preparation-panel .preparation-zip-panel')
+  await expect(rejectedPanel.getByRole('alert')).toContainText('未被 Core 接受，旧目标已失效且不会再提交')
+  await expect.poll(() => page.evaluate(({ datasetId, draftId }) => localStorage.getItem(`musicbridge.preparationZip.pending.v1.${datasetId}.${draftId}`),
+    { datasetId: rejectedRecovery.datasetId, draftId: draft.draftId })).toBeNull()
+  await expect(stat(rejectedTarget)).rejects.toMatchObject({ code: 'ENOENT' })
+  expect((await page.evaluate(id => window.musicBridge.listPreparationZips(id), draft.draftId)).jobs).toEqual(recoveryHistory.jobs)
+  await page.screenshot({ path: test.info().outputPath('logic-zip-cold-boot-rejected-recovery.png') })
+  const mainNetworkEvidence = await electronApp.evaluate(() => (globalThis as typeof globalThis & {
+    __musicBridgeUiE2eNetworkEvidence?: { installedBeforeWindow: boolean; localCoverResponses: number; localAvatarResponses: number; blockedExternalAttempts: number; blockedHosts: string[] }
+  }).__musicBridgeUiE2eNetworkEvidence)
+  expect(mainNetworkEvidence).toMatchObject({ installedBeforeWindow: true, blockedExternalAttempts: 0, blockedHosts: [] })
+  await writeFile(test.info().outputPath('logic-zip-evidence.json'), JSON.stringify({
+    sourceHash: createHash('sha256').update(bytes).digest('hex'), zipHash, zipBytes: zipBytes.length, archiveEntries,
+    workspaceId: history.workspaces[0]!.id, zipJobId: zipHistory.jobs[0]!.id,
+    acceptedRecovery, rejectedRecovery, recoveryHistoryJobIds: recoveryHistory.jobs.map(job => job.id),
+    setupBoundary: '合成草稿、源绑定、库存、分面与冻结布局经正式 Preload API 建立；工作区和 ZIP 的原生选择、预览、批准、拒写及冷启经正式 App 界面。',
+    observationBoundary: 'Renderer console/pageError 监听在首次窗口创建后安装；HTTP(S) 主进程拦截在建窗前安装。本台账分别记录两者，不把 CSP meta 提示算为 pageError。',
+    mainNetworkEvidence: { firstLaunch: firstLaunchNetworkEvidence, coldLaunch: mainNetworkEvidence },
+    closeFocus, browserEvidence, offlineCover,
+  }, null, 2))
+  expect(closeFocus).toMatchObject({ tag: 'BUTTON', label: 'Logic 工作区', detailsOpen: true })
 })
 
 for (const emptyB of [false, true]) test(`V3 PREP：原始 Render 保存、人工 Marker、差异接受与冷启动历史 · ${emptyB ? '空 B 面' : 'A/B'}`, async () => {

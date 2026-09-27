@@ -590,7 +590,7 @@ for (const command of ['recordingPlans.preview', 'recordingPlans.freeze', 'recor
   test(`${command} 及outbox冻结使用有界文件核对期限`, async t => {
     t.mock.timers.enable({ apis: ['setTimeout'] });
     const harness = makeHarness(), starting = harness.supervisor.start(); ready(harness.channels[0]!); await starting;
-    const id = randomUUID(), selection = { assetId: id, archiveOperationId: id };
+    const id = randomUUID(), selection = { assetId: id, archiveOperationId: id, outputSelection: { endpointId: 'synthetic-device', selectionGeneration: randomUUID() } };
     const payload = command === 'recordingPlans.preview' ? { readId: id, selection } : command === 'recordingPlans.freeze' ? { commandId: id, selection, proposalFingerprint: 'a'.repeat(64), userConfirmed: true } : { readId: id, planVersionId: id };
     let settled = false;
     const pending = (command === 'recordingPlans.freeze'
@@ -621,6 +621,36 @@ test('普通启动独立60秒预算，普通IPC仍两秒且启动参数只能收
   const request = h.supervisor.request('core.ping', {}).catch(error => error)
   t.mock.timers.tick(2_001); assert.equal((await request).code, 'TIMEOUT')
   for (const startupTimeoutMs of [0, 60_001, Infinity, 1.5]) assert.throws(() => startupHarness({ startupTimeoutMs }))
+})
+
+test('已ready的Core重复start保持幂等，不误判其仍在运行的child为旧进程', async () => {
+  const h = startupHarness(), first = h.supervisor.start(); ready(h.channels[0]!); await first
+  await h.supervisor.start()
+  assert.equal(h.children.length, 1)
+  assert.equal(h.supervisor.status, 'ready')
+  await h.supervisor.shutdown()
+})
+
+test('启动失败后旧Core拒绝退出时不得fork第二个writer，迟到exit也不自动重试', async () => {
+  const h = startupHarness({ startupTimeoutMs: 20 }), pending = h.supervisor.start().catch(error => error)
+  h.children[0]!.kill = () => { h.children[0]!.killed = true; return true }
+  const failure = await pending
+  assert.equal(failure.code, 'NOT_READY')
+  assert.equal(h.children.length, 1)
+  assert.equal(h.supervisor.status, 'failed')
+  await assert.rejects(h.supervisor.start(), { code: 'NOT_READY' })
+  h.children[0]!.exit(0); await flushStartup()
+  assert.equal(h.children.length, 1)
+})
+
+test('shutdown/restart在kill无exit时保持旧writer屏障，不能启动新Core', async () => {
+  const h = startupHarness(), started = h.supervisor.start(); ready(h.channels[0]!); await started
+  h.children[0]!.kill = () => { h.children[0]!.killed = true; return true }
+  await assert.rejects(h.supervisor.restart(), { code: 'NOT_READY' })
+  assert.equal(h.children.length, 1)
+  assert.equal(h.supervisor.status, 'failed')
+  h.children[0]!.exit(0); await flushStartup()
+  assert.equal(h.children.length, 1)
 })
 
 test('onReady未完成时重复start共等、普通IPC及ready健康事件不能提前放行', async () => {
