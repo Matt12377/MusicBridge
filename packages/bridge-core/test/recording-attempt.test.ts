@@ -1201,6 +1201,77 @@ test('Gate B最后一步拒绝虽有具体原因，已证实零受理仍发分�
   assert.deepEqual(rows(f.filePath), before);
 });
 
+test('J11：预检后库存漂移使首次capture拒绝时，零受理且已收口才可明确释放Begin身份', async t => {
+  const f = await fixture(t), request = f.beginRequest(), original = f.repository.recordingAttempts;
+  assert.doesNotThrow(() => original.capture(request.planVersionId, request.planContentHash));
+  f.repository.updateCopy({ commandId: randomUUID(), physicalId: f.frozenPlan.physicalCopy.physicalId,
+    expectedRevision: f.frozenPlan.physicalCopy.revision, action: 'mark-unavailable' });
+  assert.throws(() => original.capture(request.planVersionId, request.planContentHash), { code: 'PLAN_CHANGED' });
+  const afterDrift = rows(f.filePath); let captures = 0, starts = 0;
+  const coordinator = createRecordingAttemptCoordinator({ store: { ...original,
+    capture(planVersionId, planContentHash, side) { ++captures; return original.capture(planVersionId, planContentHash, side); },
+  }, admissionProvider: { async authorize() { assert.fail('库存漂移不得进入设备准入'); }, async start() { ++starts; assert.fail('库存漂移不得启动输出'); } } });
+  f.registerDependentCleanup(() => coordinator.close());
+  await assert.rejects(coordinator.begin(request), error => error instanceof AttemptNotAcceptedError
+    && error.code === 'NOT_ACCEPTED' && error.causeCode === 'PLAN_CHANGED');
+  assert.equal(captures, 1); assert.equal(starts, 0);
+  assert.equal(original.cached('begin', request), undefined);
+  assert.deepEqual(rows(f.filePath), afterDrift);
+  assert.doesNotThrow(() => coordinator.assertExecutionIdle());
+});
+
+test('J11：首次capture失败但fresh receipt读取不明时保留原命令未知态', async t => {
+  const f = await fixture(t), original = f.repository.recordingAttempts; let reads = 0;
+  const coordinator = createRecordingAttemptCoordinator({ store: { ...original,
+    cached(action, request) {
+      if (++reads === 2) throw new Error('合成回执读取失败');
+      return original.cached(action, request);
+    },
+    capture() { throw new AttemptError('PLAN_CHANGED'); },
+  }, admissionProvider: { async authorize() { assert.fail('首轮capture失败不得准入'); }, async start() { assert.fail('首轮capture失败不得启动'); } } });
+  f.registerDependentCleanup(() => coordinator.close());
+  await assert.rejects(coordinator.begin(f.beginRequest()), error => error instanceof AttemptError
+    && !(error instanceof AttemptNotAcceptedError) && error.code === 'PLAN_CHANGED');
+  assert.equal(reads, 2); assert.equal(original.list({ page }).total, 0);
+});
+
+test('J11：首次capture拒绝但迟到的持久Begin回执可读时返回最新事实', async t => {
+  const f = await fixture(t), request = f.beginRequest(), initial = await f.attempts.begin(request);
+  const stopped = await f.attempts.stop({ commandId: randomUUID(), attemptId: initial.id });
+  await waitForOutputIdle(f.attempts);
+  const original = f.repository.recordingAttempts; let reads = 0;
+  const coordinator = createRecordingAttemptCoordinator({ store: { ...original,
+    cached(action, value) { return ++reads === 1 ? undefined : original.cached(action, value); },
+    capture() { throw new AttemptError('PLAN_CHANGED'); },
+  }, admissionProvider: { async authorize() { assert.fail('已存Begin不得再次准入'); }, async start() { assert.fail('已存Begin不得再次启动'); } } });
+  f.registerDependentCleanup(() => coordinator.close());
+  assert.deepEqual(await coordinator.begin(request), stopped);
+  assert.equal(reads, 2); assert.equal(f.starts.length, 1);
+});
+
+test('J11：B面首次capture失败不得冒充首面Begin明确未受理', async t => {
+  const f = await fixture(t), initial = await f.attempts.begin(f.beginRequest()), driver = f.starts[0]!;
+  const side = initial.sides[0]!, identity = { side: 'A' as const, runId: driver.runId, at: new Date().toISOString() };
+  driver.onEvent({ ...identity, type: 'progress', sourceFramesRead: side.frameCount, submittedFrames: side.frameCount, consumedFrames: side.frameCount });
+  for (const type of ['source-eof', 'engine-cutoff', 'backend-drained'] as const) driver.onEvent({ ...identity, type });
+  await waitForOutputIdle(f.attempts);
+  const afterOutput = f.attempts.get({ attemptId: initial.id }).attempt!;
+  const physical = await f.attempts.confirm({ commandId: randomUUID(), attemptId: initial.id,
+    expectedRevision: afterOutput.revision, kind: 'physical-stop', side: 'A', userConfirmed: true });
+  const flip = await f.attempts.confirm({ commandId: randomUUID(), attemptId: initial.id,
+    expectedRevision: physical.revision, kind: 'flip', userConfirmed: true });
+  const original = f.repository.recordingAttempts; let captures = 0;
+  const coordinator = createRecordingAttemptCoordinator({ store: { ...original,
+    capture() { ++captures; throw new AttemptError('PLAN_CHANGED'); },
+  }, admissionProvider: { async authorize() { assert.fail('B面首轮capture失败不得准入'); }, async start() { assert.fail('B面首轮capture失败不得启动'); } } });
+  f.registerDependentCleanup(() => coordinator.close());
+  await assert.rejects(coordinator.beginSide({ commandId: randomUUID(), attemptId: initial.id,
+    expectedRevision: flip.revision, side: 'B', userConfirmed: true }), error => error instanceof AttemptError
+      && !(error instanceof AttemptNotAcceptedError) && error.code === 'PLAN_CHANGED');
+  assert.equal(captures, 1); assert.equal(f.starts.length, 1);
+  assert.deepEqual(original.get({ attemptId: initial.id }).attempt, flip);
+});
+
 test('Begin事后receipt读取失败不能推断未受理，保留原不确定错误', async t => {
   const f = await fixture(t), base = f.repository.recordingAttempts; let reads = 0;
   const store = { ...base, cached: ((action, request) => {

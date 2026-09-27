@@ -11,6 +11,7 @@ import { copyPreparationFile } from '../src/recording/preparation-files.js';
 import { planPreparationZip } from '../src/recording/preparation-export-files.js';
 import { createSourceEvidenceService } from '../src/recording/source-evidence.js';
 import { DatabaseSync } from 'node:sqlite';
+import { createLegacyDatabase, snapshotLegacyDatabase } from './helpers/legacy-schema.js';
 
 test('Preparation 历史初始为空，不把草稿当已导出工作区或自动授权目标目录', t => {
   const repository = createCollectionRepository({ filePath: ':memory:' }); t.after(() => repository.close());
@@ -200,13 +201,27 @@ test('Preparation 目标在导出中被授权为 Source Root 后停止后续写�
 });
 test('Preparation schema 8 迁移失败完整回滚，重开后母版历史不变', async t => {
   const f = await preparationFixture(t); await f.freeze(); await f.versions.idle(); const history = f.repository.versions.list(f.draft.draftId);
+  const page = { offset: 0, limit: 20 }, stock = f.repository.list(page), draft = f.repository.drafts.detail(f.draft.draftId);
   await f.versions.close(); await f.sources.close(); f.repository.close();
-  const db = new DatabaseSync(f.filePath);
-  try { db.exec('DROP TABLE recording_print_receipts; DROP TABLE recording_print_events; DROP TABLE recording_print_artifacts; DROP TABLE recording_print_jobs; DROP TABLE recording_print_requests; DROP TABLE master_artwork_current; DROP TABLE master_artwork_versions; DROP TABLE recording_print_objects; DROP TRIGGER recording_record_permit_copy_guard; DROP TRIGGER recording_record_content_copy_guard; DROP TRIGGER recording_record_permit_media_guard; DROP TABLE recording_record_receipts; DROP TABLE recording_record_permits; DROP TABLE recording_record_events; DROP TABLE recording_record_current; DROP TABLE recording_record_visuals; DROP TABLE recording_records; DROP TABLE recording_record_write_guard; DROP TRIGGER recording_attempt_copy_no_blank; DROP TRIGGER recording_attempt_reservation_no_delete; DROP TRIGGER recording_attempt_reservation_no_rebind; DROP TRIGGER recording_attempt_active_media_no_update; DROP TABLE recording_attempt_receipts; DROP TABLE recording_attempt_events; DROP TABLE recording_attempts; DROP TABLE recording_plan_ledger; DROP TABLE recording_plan_versions; DROP TABLE collection_want_events; DROP TABLE collection_progress_snapshots; DROP TABLE collection_progress_ledger; DROP TABLE collection_wants; DROP TABLE spreadsheet_adjustments; DROP TABLE spreadsheet_rows; DROP TABLE spreadsheet_effects; DROP TABLE spreadsheet_heads; DROP TABLE spreadsheet_revisions; DROP TABLE spreadsheet_source_rows; DROP TABLE spreadsheet_sources; DROP TABLE spreadsheet_ledger; DROP TABLE reference_catalog_ledger; DROP TABLE reference_catalog_snapshots; DROP TABLE reference_catalog_matches; DROP TABLE reference_catalog_heads; DROP TABLE reference_catalog_revisions; DROP TABLE reference_sources; DROP TABLE archive_workflow_ledger; DROP TABLE archive_candidates; DROP TABLE archive_references; DROP TABLE archive_objects; DROP TABLE archive_operations; DROP TABLE archive_roots; DROP TABLE execution_assets; DROP TABLE execution_jobs; DROP TABLE execution_ledger; DROP TABLE recording_sessions; DROP TABLE recording_profile_versions; DROP TABLE recording_profiles; DROP TABLE recording_profile_ledger; DROP TABLE prepared_versions; DROP TABLE prepared_jobs; DROP TABLE prepared_selections; DROP TABLE prepared_ledger; DROP TABLE preparation_workspaces; DROP TABLE preparation_jobs; DROP TABLE preparation_destinations; DROP TABLE preparation_ledger; PRAGMA user_version=8'); } finally { db.close(); }
-  const failing = createCollectionRepository({ filePath: f.filePath, beforeCommit: action => { if (action === 'migrate-preparation') throw new Error('合成迁移失败'); } });
+  const legacyPath = path.join(f.directory, 'legacy-v8.sqlite');
+  createLegacyDatabase(legacyPath, 8, f.filePath);
+  const before = snapshotLegacyDatabase(legacyPath, 8);
+  assert.equal(before.version, 8);
+  assert.equal(before.schema.some(row => row.name === 'preparation_workspaces'), false);
+  for (const table of ['master_versions', 'layout_versions', 'inventory_lots', 'physical_copies'])
+    assert.ok(before.rows.find(([name]) => name === table)![1].length > 0, `${table} 必须含合成旧数据`);
+  let reached = 0;
+  const failing = createCollectionRepository({ filePath: legacyPath, beforeCommit: action => { if (action === 'migrate-preparation') { reached++; throw new Error('合成迁移失败'); } } });
   assert.throws(() => failing.preparations.list(f.draft.draftId)); failing.close();
-  const inspect = new DatabaseSync(f.filePath); try { assert.equal(inspect.prepare('PRAGMA user_version').get()!.user_version, 8); assert.equal(inspect.prepare("SELECT count(*) AS n FROM sqlite_master WHERE name LIKE 'preparation_%'").get()!.n, 0); } finally { inspect.close(); }
-  const reopened = createCollectionRepository({ filePath: f.filePath }); try { assert.deepEqual(reopened.versions.list(f.draft.draftId), history); assert.deepEqual(reopened.preparations.list(f.draft.draftId).workspaces, []); } finally { reopened.close(); }
+  assert.equal(reached, 1, '必须抵达目标迁移 hook');
+  assert.deepEqual(snapshotLegacyDatabase(legacyPath, 8), before, '失败后旧 schema、逐表数据和版本必须完整回滚');
+  const reopened = createCollectionRepository({ filePath: legacyPath });
+  try {
+    assert.deepEqual(reopened.versions.list(f.draft.draftId), history);
+    assert.deepEqual(reopened.preparations.list(f.draft.draftId).workspaces, []);
+    assert.deepEqual(reopened.list(page), stock);
+    assert.deepEqual(reopened.drafts.detail(f.draft.draftId), draft);
+  } finally { reopened.close(); }
 });
 test('Preparation 后台失败写回也遇到短暂数据库失败时保留回执，不产生未处理拒绝', async t => {
   let fail = true;

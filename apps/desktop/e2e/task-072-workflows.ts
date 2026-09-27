@@ -8,9 +8,9 @@ export const privatePlanOutputBackend = { id: 'musicbridge-coreaudio-hal', versi
 export async function selectDirectRecordingContext(page: Page, planId: string, layoutId: string): Promise<void> {
   const next = page.getByTestId('recording-next-step')
   await next.getByText('版本与关联详情', { exact: false }).click()
-  const plan = next.getByLabel('本次媒体规划', { exact: true })
-  const layout = next.getByLabel('本次冻结布局', { exact: true })
-  const processingPath = next.getByLabel('本次处理路径', { exact: true })
+  const plan = next.getByRole('combobox', { name: '本次媒体规划', exact: true })
+  const layout = next.getByRole('combobox', { name: '本次冻结布局', exact: true })
+  const processingPath = next.getByRole('combobox', { name: '本次处理路径', exact: true })
   await plan.selectOption(planId)
   await expect(plan).toHaveValue(planId)
   await layout.selectOption(layoutId)

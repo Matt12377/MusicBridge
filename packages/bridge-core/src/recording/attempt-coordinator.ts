@@ -13,7 +13,7 @@ export interface RecordingAttemptDriverRequest {
   input: RecordingOutputProviderInput;
   onEvent(event: RecordingAttemptEvent): void;
 }
-/** 当前只供合成测试构造器注入；正式Runtime不提供该能力，不存在环境/IPC认证开关。 */
+/** 正式Runtime仅在受控Gate B与设备绑定具备时注入生产provider；合成测试可注入假驱动，环境/IPC不能认证。 */
 export interface RecordingAttemptAdmissionProvider {
   authorize(request: { plan: dto.RecordingPlanVersion; side: dto.RenderSide; signal: AbortSignal }): Promise<void>;
   start(request: RecordingAttemptDriverRequest): Promise<RecordingAttemptDriver>;
@@ -148,10 +148,10 @@ export function createRecordingAttemptCoordinator({ store, admissionProvider, as
     const previous = 'attemptId' in request ? store.get({ attemptId: request.attemptId }).attempt ?? attemptFail('ATTEMPT_NOT_FOUND') : undefined;
     if (previous && ('expectedRevision' in request && previous.revision !== request.expectedRevision)) return attemptFail('VERSION_MISMATCH');
     if (previous && (previous.phase !== 'awaiting-side-b' || previous.status !== 'in-progress')) return attemptFail('INVALID_TRANSITION');
-    const input = store.capture(previous?.planVersionId ?? (request as dto.BeginRecordingAttemptRequest).planVersionId, previous?.planContentHash ?? (request as dto.BeginRecordingAttemptRequest).planContentHash, side);
     const current: Slot = { controller: new AbortController(), wantsClose: false }; slot = current;
     const timer = setTimeout(() => { current.controller.abort(); interrupt(current, 'backend-timeout'); }, operationTimeoutMs);
     try {
+      const input = store.capture(previous?.planVersionId ?? (request as dto.BeginRecordingAttemptRequest).planVersionId, previous?.planContentHash ?? (request as dto.BeginRecordingAttemptRequest).planContentHash, side);
       await bounded((async () => {
         await verifyRecordingOutputDependencies(input, current.controller.signal, () => checked(current));
         checked(current); await admissionProvider.authorize({ plan: input.plan, side: input.receipt.recipe.side, signal: current.controller.signal });

@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { createCollectionRepository } from '../src/collection/repository.js';
 import { readBackupIndex } from '../src/recording/backup-index.js';
 import { verifyVersionDistributionDatabase } from '../src/recording/versions-store.js';
+import { createLegacyDatabase, snapshotLegacyDatabase } from './helpers/legacy-schema.js';
 
 test('冻结版本初始为空；读取历史不会把草稿或预留自动升级为母版', t => {
   const repository = createCollectionRepository({ filePath: ':memory:' });
@@ -125,15 +126,25 @@ test('版本迁移失败回滚既有 schema 与数据，重试成功；新连接
   const f = await fixture(t); await f.freeze(); await f.versions.idle(); const history = f.versions.list(f.draft.draftId);
   const reopened = createCollectionRepository({ filePath: f.filePath });
   try { assert.deepEqual(reopened.versions.list(f.draft.draftId), history); } finally { reopened.close(); }
-  const legacyPath = path.join(f.directory, 'legacy.sqlite'), db = new DatabaseSync(legacyPath);
-  try {
-    const current = new DatabaseSync(f.filePath); try { const schema = current.prepare("SELECT sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE '%version%' AND name NOT LIKE 'preparation_%' AND name NOT LIKE 'prepared_%' AND name NOT LIKE 'recording_%' AND name NOT LIKE 'master_artwork_%' AND name NOT LIKE 'execution_%' AND name NOT LIKE 'archive_%' AND name NOT GLOB 'reference_*' AND name NOT GLOB 'spreadsheet_*' AND name NOT GLOB 'collection_progress_*' AND name NOT GLOB 'collection_want*' AND name NOT LIKE 'sqlite_%' ORDER BY rowid").all(); for (const row of schema) db.exec(String(row.sql)); } finally { current.close(); }
-    db.exec('PRAGMA user_version=7');
-  } finally { db.close(); }
-  const failed = createCollectionRepository({ filePath: legacyPath, beforeCommit: action => { if (action === 'migrate-master-versions') throw new Error('合成迁移失败'); } });
+  const stock = f.repository.list(page), draft = f.repository.drafts.detail(f.draft.draftId), plan = f.repository.media.detail(f.plan.id);
+  const legacyPath = path.join(f.directory, 'legacy-v7.sqlite');
+  createLegacyDatabase(legacyPath, 7, f.filePath);
+  const before = snapshotLegacyDatabase(legacyPath, 7);
+  assert.equal(before.version, 7);
+  assert.equal(before.schema.some(row => row.name === 'master_versions'), false);
+  for (const table of ['master_drafts', 'media_plans', 'inventory_lots', 'physical_copies'])
+    assert.ok(before.rows.find(([name]) => name === table)![1].length > 0, `${table} 必须含合成旧数据`);
+  let reached = 0;
+  const failed = createCollectionRepository({ filePath: legacyPath, beforeCommit: action => { if (action === 'migrate-master-versions') { reached++; throw new Error('合成迁移失败'); } } });
   assert.throws(() => failed.list(page)); failed.close();
-  const inspected = new DatabaseSync(legacyPath); try { assert.equal(inspected.prepare('PRAGMA user_version').get()!.user_version, 7); assert.equal(inspected.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE name='master_versions'").get()!.n, 0); } finally { inspected.close(); }
-  const retried = createCollectionRepository({ filePath: legacyPath }); try { assert.equal(retried.list(page).total, 0); } finally { retried.close(); }
+  assert.equal(reached, 1, '必须抵达目标迁移 hook');
+  assert.deepEqual(snapshotLegacyDatabase(legacyPath, 7), before, '失败后旧 schema、逐表数据和版本必须完整回滚');
+  const retried = createCollectionRepository({ filePath: legacyPath });
+  try {
+    assert.deepEqual(retried.list(page), stock);
+    assert.deepEqual(retried.drafts.detail(f.draft.draftId), draft);
+    assert.deepEqual(retried.media.detail(f.plan.id), plan);
+  } finally { retried.close(); }
 });
 test('公开提案与历史拒绝执行就绪伪造、私有路径、帧位置漂移及失联母版', async t => {
   const f = await fixture(t), proposal = await f.proposal(); assert.equal(isVersionProposal(proposal), true);
