@@ -34,6 +34,8 @@ export function patchWorkspaceSelection(selection: RecordingWorkspaceSelection, 
 export function createRecordingWorkspaceController(options: { api: RecordingWorkspacePublicApi; onChange?: () => void }) {
   const state: RecordingWorkspaceState = { draftId: null, draftRevision: null, status: 'unread', context: null, selection: {}, pagePosition: 'my-work', writing: false, error: '' }
   let alive = true, generation = 0, inFlight: Promise<void> | undefined, queued = false
+  // 重读只是快照，不是原写回执；按草稿保留未决命令，直到同一命令得到有效ACK。
+  const unresolved = new Map<string, PutRecordingWorkspaceContextRequest>()
   const changed = () => { if (alive) options.onChange?.() }
   const hasChanges = () => !state.context || !same(state.selection, state.context.selection) || state.pagePosition !== state.context.pagePosition
   function reset(): void {
@@ -43,13 +45,18 @@ export function createRecordingWorkspaceController(options: { api: RecordingWork
   }
   async function open(draft: MasterDraft): Promise<void> {
     const token = ++generation
-    Object.assign(state, { draftId: draft.id, draftRevision: draft.revision, status: 'loading', context: null, selection: {}, pagePosition: 'workbench', pending: undefined, writing: false, error: '' })
+    const pending = unresolved.get(draft.id)
+    Object.assign(state, { draftId: draft.id, draftRevision: draft.revision, status: 'loading', context: null, selection: { ...pending?.selection }, pagePosition: pending?.pagePosition ?? 'workbench', pending, writing: false, error: '' })
     changed()
     try {
       const context = await options.api.getRecordingWorkspaceContext(draft.id)
       if (!alive || token !== generation) return
       if (context && context.draftId !== draft.id) throw new Error('工作上下文与草稿身份不一致')
-      state.context = context; state.selection = { ...(context?.selection ?? {}) }; state.pagePosition = context?.pagePosition ?? 'workbench'; state.status = 'ready'
+      state.context = context
+      const unknown = unresolved.get(draft.id)
+      state.pending = unknown; state.selection = { ...(unknown?.selection ?? context?.selection ?? {}) }; state.pagePosition = unknown?.pagePosition ?? context?.pagePosition ?? 'workbench'
+      state.status = unknown ? 'error' : 'ready'
+      if (unknown) state.error = '当前工作库快照已读取，但原保存命令回执仍未确认；保留原选择与命令，请明确重试原保存操作。'
     } catch {
       if (!alive || token !== generation) return
       state.status = 'error'; state.error = '工作上下文读取失败，本次选择和页面位置尚未确认保存。请重新读取。'
@@ -62,13 +69,17 @@ export function createRecordingWorkspaceController(options: { api: RecordingWork
   }
   async function perform(request: PutRecordingWorkspaceContextRequest): Promise<void> {
     const token = generation
-    state.pending = request; state.writing = true; state.error = ''; changed()
+    const captured = structuredClone(request)
+    unresolved.set(captured.draftId, captured)
+    state.pending = captured; state.writing = true; state.error = ''; changed()
     try {
-      const context = await options.api.putRecordingWorkspaceContext(request)
-      if (!alive || token !== generation || state.draftId !== request.draftId) return
-      if (context.draftId !== request.draftId || context.draftRevision !== request.expectedDraftRevision
-        || context.contextRevision !== request.expectedContextRevision + 1 || !same(context.selection, request.selection)
-        || context.pagePosition !== request.pagePosition) throw new Error('工作上下文回执身份不一致')
+      const context = await options.api.putRecordingWorkspaceContext(structuredClone(captured))
+      if (!alive) return
+      if (context.draftId !== captured.draftId || context.draftRevision !== captured.expectedDraftRevision
+        || context.contextRevision !== captured.expectedContextRevision + 1 || !same(context.selection, captured.selection)
+        || context.pagePosition !== captured.pagePosition) throw new Error('工作上下文回执身份不一致')
+      if (unresolved.get(captured.draftId)?.commandId === captured.commandId) unresolved.delete(captured.draftId)
+      if (token !== generation || state.draftId !== captured.draftId) return
       state.context = context; state.pending = undefined; state.status = 'ready'
     } catch {
       if (!alive || token !== generation) return

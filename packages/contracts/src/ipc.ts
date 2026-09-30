@@ -6,7 +6,7 @@ import type { RecordingReplicaStatus, InspectRecordingReplicaRequest, RecordingR
 import type { ListRecordingRecordsRequest, RecordingRecordIdRequest, RecordingVisualRequest, PhysicalRecordingHistoryRequest, PreviewPhysicalRecordingDispositionRequest, ApplyPhysicalRecordingDispositionRequest, RecordingRecordsPage, RecordingRecordDetail, RecordingVisualResult, PhysicalRecordingHistory, PhysicalRecordingDispositionProposal, ApplyPhysicalRecordingDispositionResult } from './recording-records.js';
 import type { RecordingOutputStatus, RecordingOutputCheckRequest, RecordingOutputCancelRequest, RecordingOutputCheckResult } from './recording-output.js';
 import type { RecordingDeviceCandidates, RecordingOutputSelection, SelectRecordingDeviceRequest } from './recording-device-selection.js';
-import type { ListRecordingAttemptsRequest, RecordingAttemptIdRequest, BeginRecordingAttemptRequest, ConfirmRecordingAttemptRequest, BeginRecordingAttemptSideRequest, StopRecordingAttemptRequest, RecordingAttemptsPage, RecordingAttempt } from './recording-attempts.js';
+import type { ListRecordingAttemptsRequest, RecordingAttemptIdRequest, BeginRecordingAttemptRequest, ConfirmRecordingAttemptRequest, BeginRecordingAttemptSideRequest, StopRecordingAttemptRequest, RecordingAttemptsPage, RecordingAttempt, RecordingAttemptReceiptRequest, RecordingAttemptReceipt } from './recording-attempts.js';
 import type { RecordingPlanHistoryRequest, RecordingPlanIdRequest, PreviewRecordingPlanRequest, FreezeRecordingPlanRequest, RecordingPreflightRequest, RecordingPlanHistory, RecordingPlanVersion, RecordingPlanProposal, RecordingPreflightResult } from './recording-plans.js';
 import type { SpreadsheetPageRequest, SpreadsheetSourcePage, SpreadsheetIdRequest, SpreadsheetWorkbookSource, SpreadsheetSourceRowsRequest, SpreadsheetSourceRowsPage, PreviewSpreadsheetImportRequest, SpreadsheetImportPreview, ApplySpreadsheetImportRequest, SpreadsheetImportResult, SpreadsheetImportRevisionRequest, SpreadsheetImportRevisionDetail, SpreadsheetImportHistory, SpreadsheetAdjustmentPreviewRequest, SpreadsheetAdjustmentBalance, AdjustSpreadsheetInventoryRequest, SpreadsheetInventoryAdjustment, SpreadsheetAdjustmentsRequest, SpreadsheetAdjustmentsPage, RegisterSpreadsheetWorkbookRequest, ChooseSpreadsheetWorkbookRequest, SpreadsheetWorkbookReceipt } from './spreadsheet-import.js';
 import type { ListWantEntriesRequest, WantEntriesPage, SaveWantEntryRequest, WantEntry, CancelWantEntryRequest, GetWantEntryHistoryRequest, WantEntryHistory, GetCollectionProgressRequest, CollectionProgress, CaptureCollectionProgressRequest, CollectionProgressSnapshotSummary, ListCollectionProgressSnapshotsRequest, CollectionProgressSnapshotsPage, GetCollectionProgressSnapshotRequest, CollectionProgressSnapshotDetail, GetCollectionModelLengthsRequest, CollectionModelLengths } from './collection-progress.js';
@@ -203,6 +203,7 @@ export interface IpcCommandPayloads {
   'recordingRecords.applyDisposition': ApplyPhysicalRecordingDispositionRequest;
   'recordingAttempts.list': ListRecordingAttemptsRequest;
   'recordingAttempts.get': RecordingAttemptIdRequest;
+  'recordingAttempts.receipt': RecordingAttemptReceiptRequest;
   'recordingAttempts.begin': BeginRecordingAttemptRequest;
   'recordingAttempts.confirm': ConfirmRecordingAttemptRequest;
   'recordingAttempts.beginSide': BeginRecordingAttemptSideRequest;
@@ -488,6 +489,7 @@ export interface IpcCommandResults {
   'recordingRecords.applyDisposition': ApplyPhysicalRecordingDispositionResult;
   'recordingAttempts.list': RecordingAttemptsPage;
   'recordingAttempts.get': { attempt: RecordingAttempt | null };
+  'recordingAttempts.receipt': RecordingAttemptReceipt;
   'recordingAttempts.begin': RecordingAttempt;
   'recordingAttempts.confirm': RecordingAttempt;
   'recordingAttempts.beginSide': RecordingAttempt;

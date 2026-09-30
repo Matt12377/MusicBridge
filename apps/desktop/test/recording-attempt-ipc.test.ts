@@ -3,7 +3,7 @@ import test from 'node:test'
 import { randomUUID } from 'node:crypto'
 import { CoreIpcError } from '../src/main/core-supervisor.js'
 
-test('Attempt六入口先核可信来源和有限DTO；执行边界不经outbox，不允许客户端认证', async () => {
+test('Attempt入口与只读回执先核可信来源和有限DTO；执行边界不经outbox，不允许客户端认证', async () => {
   const module = await import('../src/main/recording-attempt-ipc.js').catch(() => ({}))
   assert.ok('installRecordingAttemptHandlers' in module, '缺少独立且受限的录音尝试入口')
   const handlers = new Map<string, (event: boolean, payload?: unknown) => unknown>()
@@ -19,7 +19,7 @@ test('Attempt六入口先核可信来源和有限DTO；执行边界不经outbox�
   })
   const datasetId = randomUUID()
   const invoke = (name: string, payload: unknown, trusted = true) => Promise.resolve().then(() => handlers.get(`recordingAttempts:${name}`)!(trusted, { datasetId, payload }))
-  assert.deepEqual([...handlers.keys()].sort(), ['list','get','begin','confirm','beginSide','stop'].map(name => `recordingAttempts:${name}`).sort())
+  assert.deepEqual([...handlers.keys()].sort(), ['list','get','receipt','begin','confirm','beginSide','stop'].map(name => `recordingAttempts:${name}`).sort())
   const id = randomUUID(), commandId = randomUUID(), hash = 'a'.repeat(64)
   const cases: Array<[string, unknown]> = [
     ['list', { draftId: id, page: { offset: 0, limit: 25 } }],
@@ -28,6 +28,7 @@ test('Attempt六入口先核可信来源和有限DTO；执行边界不经outbox�
     ['confirm', { commandId, attemptId: id, expectedRevision: 1, kind: 'physical-stop', side: 'A', userConfirmed: true }],
     ['beginSide', { commandId, attemptId: id, expectedRevision: 1, side: 'B', userConfirmed: true }],
     ['stop', { commandId, attemptId: id }],
+    ['receipt', { action: 'begin', request: { commandId, planVersionId: id, planContentHash: hash, userConfirmed: true } }],
   ]
   for (const [name, payload] of cases) await assert.rejects(invoke(name, payload, false), /不可信录音调用/u)
   for (const [name, payload] of cases) await assert.rejects(invoke(name, { ...(payload as object), certified: true }), /INVALID_IPC_REQUEST/u)

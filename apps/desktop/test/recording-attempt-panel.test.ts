@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
-import { isRecordingAttempt, RECORDING_PREFLIGHT_CATEGORIES, type RecordingAttempt, type RecordingAttemptSide, type RecordingAttemptsPublicApi, type RecordingPlanVersion, type RecordingPreflightResult, type RecordingPlansPublicApi } from '@music-bridge/contracts'
+import { isRecordingAttempt, RECORDING_PREFLIGHT_CATEGORIES, type RecordingAttempt, type RecordingAttemptReceipt, type RecordingAttemptReceiptRequest, type RecordingAttemptSide, type RecordingAttemptsPublicApi, type RecordingPlanVersion, type RecordingPreflightResult, type RecordingPlansPublicApi } from '@music-bridge/contracts'
 import { CoreIpcError } from '../src/main/core-supervisor.js'
 import { installRecordingAttemptHandlers } from '../src/main/recording-attempt-ipc.js'
 import { createRecordingAttemptClient } from '../src/preload/recording-attempt-client.js'
@@ -31,7 +31,7 @@ function aborted(): RecordingAttempt {
 function waitingB(): RecordingAttempt {
   const value = drained(); delete value.activeSide; value.softwarePlaybackComplete = false; value.phase = 'awaiting-side-b'; value.flipConfirmedAt = later
   const b = side('B'); b.phase = 'pending'; delete b.runId; delete b.startedAt
-  value.sides = [{ ...value.sides[0]!, phase: 'complete', endedAt: later, physicalStopConfirmedAt: later }, b]
+  value.sides = [{ ...value.sides[0]!, phase: 'complete', endedAt: later, physicalStopConfirmedAt: later, cleanupQuiescent: true }, b]
   return value
 }
 function plan(value = attempt()): RecordingPlanVersion {
@@ -60,6 +60,206 @@ async function controller(f = fixture()) {
   c.setPlan(plan(f.value)); await c.refresh()
   return { ...f, c }
 }
+
+function quietAborted(): RecordingAttempt {
+  return { ...aborted(), sides: aborted().sides.map(item => ({ ...item, engineStoppedSubmitting: true, cleanupQuiescent: true })) }
+}
+
+test('MBR-002：Stop已受理但软件未静止时再次停止深等原DTO，不新建命令', async t => {
+  const f = await controller(); t.after(f.c.dispose); await f.c.select(id(1))
+  await f.c.stop()
+  const original = structuredClone(f.calls.find(call => call.name === 'stop')!.request)
+  assert.equal(f.c.state.pending, undefined, '受理回执已知，不冒充未知操作')
+  await f.c.stop()
+  assert.deepEqual(f.calls.filter(call => call.name === 'stop').map(call => call.request), [original, original])
+  assert.deepEqual(f.c.state.stopRecovery?.request, original)
+  assert.equal(f.c.canLeave(), false); assert.equal(f.c.canStop(), true)
+})
+
+test('MBR-002：原Stop只读accepted未静止仍保留描述符，再次停止复用原DTO', async t => {
+  const f = await controller(); t.after(f.c.dispose); await f.c.select(id(1))
+  f.api.stopRecordingAttempt = async request => { f.calls.push({ name: 'stop', request }); throw new Error('[TIMEOUT] 原Stop回执未知') }
+  await f.c.stop(); const original = structuredClone(f.c.state.pending)!
+  f.api.getRecordingAttemptReceipt = async input => {
+    f.calls.push({ name: 'receipt', request: input })
+    return { commandId: input.request.commandId, action: input.action, status: 'accepted', receipt: aborted(), attempt: aborted() }
+  }
+  await f.c.reconcileReceipt(); assert.equal(f.c.state.pending, undefined)
+  assert.deepEqual(f.c.state.stopRecovery, original); assert.equal(f.c.canReconcileReceipt(), true)
+  await f.c.reconcileReceipt()
+  assert.deepEqual(f.calls.filter(call => call.name === 'receipt').map(call => call.request), Array.from({ length: 2 }, () => ({ action: 'stop', request: original.request })))
+  assert.equal(f.calls.filter(call => call.name === 'stop').length, 1, '只读核对不自动恢复close')
+  f.api.stopRecordingAttempt = async request => { f.calls.push({ name: 'stop', request }); return aborted() }
+  await f.c.stop()
+  assert.deepEqual(f.calls.filter(call => call.name === 'stop').map(call => call.request), [original.request, original.request])
+  assert.deepEqual(f.c.state.stopRecovery, original); assert.equal(f.c.canLeave(), false)
+})
+
+for (const read of ['detail', 'receipt'] as const) {
+  test(`MBR-002：${read}软件静止证明才清原Stop，实体停止及旧终态不清描述符`, async t => {
+    const f = await controller(); t.after(f.c.dispose); await f.c.select(id(1)); await f.c.stop()
+    const original = structuredClone(f.c.state.stopRecovery); assert.ok(original)
+    f.api.getRecordingAttempt = async () => ({ attempt: { ...aborted(), revision: 3, sides: [{ ...aborted().sides[0]!, physicalStopConfirmedAt: later }] } })
+    await f.c.readSelected(); assert.deepEqual(f.c.state.stopRecovery, original); assert.equal(f.c.canLeave(), false)
+    if (read === 'detail') {
+      f.api.getRecordingAttempt = async () => ({ attempt: { ...quietAborted(), revision: 4, sides: [{ ...quietAborted().sides[0]!, physicalStopConfirmedAt: later }] } })
+      await f.c.readSelected()
+    } else {
+      f.api.getRecordingAttemptReceipt = async input => ({ commandId: input.request.commandId, action: input.action, status: 'accepted', receipt: aborted(),
+        attempt: { ...quietAborted(), revision: 4, sides: [{ ...quietAborted().sides[0]!, physicalStopConfirmedAt: later }] } })
+      await f.c.reconcileReceipt()
+    }
+    assert.equal(f.c.state.stopRecovery, undefined); assert.equal(f.c.canLeave(), true); assert.equal(f.c.canStop(), false)
+    assert.equal(f.calls.filter(call => call.name === 'stop').length, 1, '读取软件静止不重发Stop')
+  })
+}
+
+test('MBR-002：Stop终态静止未知保留精确停止与离页锁，轮询新鲜软件静止后才收口', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const f = await controller(); t.after(f.c.dispose)
+  await f.c.select(id(1)); await f.c.stop()
+  assert.equal(f.c.state.attempt?.status, 'aborted')
+  assert.equal(f.c.state.stopId, id(1)); assert.equal(f.c.canStop(), true)
+  assert.equal(f.c.canLeave(), false)
+  f.api.preflightRecordingPlan = async () => readyPreflight(); await f.c.preflight(); f.c.setStartConfirmed(true)
+  assert.equal(f.c.canBegin(), false, '绿色预检不能替代旧run的软件静止证明')
+  let reads = 0
+  f.api.getRecordingAttempt = async () => { reads++; return { attempt: { ...quietAborted(), revision: 3 } } }
+  t.mock.timers.tick(1000); await new Promise<void>(resolve => setImmediate(resolve))
+  assert.equal(reads, 1); assert.equal(f.c.state.attempt?.revision, 3)
+  assert.equal(f.c.state.attempt?.sides[0]?.stopAcknowledged, false, 'Stop ACK与资源静止分别核对')
+  assert.equal(f.c.canStop(), false); assert.equal(f.c.canLeave(), true)
+  t.mock.timers.tick(3000); await new Promise<void>(resolve => setImmediate(resolve))
+  assert.equal(reads, 1, '新鲜静止事实后结束观察，不持续刷新已收口终态')
+})
+
+test('MBR-002：实体人工停止确认不能解除软件close未知锁，读取失败仍保留精确Stop与轮询', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const terminal = { ...aborted(), sides: aborted().sides.map(item => ({ ...item, physicalStopConfirmedAt: later })) }
+  const f = await controller(fixture(terminal)); t.after(f.c.dispose)
+  await f.c.select(id(1)); assert.equal(f.c.canLeave(), false); assert.equal(f.c.canStop(), true)
+  let reads = 0
+  f.api.getRecordingAttempt = async () => { reads++; throw new Error('/private/故障细节') }
+  await f.c.readSelected(); assert.equal(f.c.state.attempt, undefined)
+  assert.equal(f.c.canLeave(), false); assert.equal(f.c.canStop(), true)
+  t.mock.timers.tick(1000); await new Promise<void>(resolve => setImmediate(resolve))
+  assert.equal(reads, 2); assert.doesNotMatch(f.c.state.detailError, /private/u)
+})
+
+test('MBR-002：Begin在途和未知时锁不同历史ID，未选历史也不能切走原命令', async t => {
+  const f = await controller(fixture(quietAborted())), wait = deferred<RecordingAttempt>()
+  t.after(() => { wait.resolve(attempt()); f.c.dispose() })
+  f.api.preflightRecordingPlan = async () => readyPreflight()
+  f.api.beginRecordingAttempt = () => wait.promise
+  await f.c.preflight(); f.c.setStartConfirmed(true)
+  const begin = f.c.begin(); await new Promise<void>(resolve => setImmediate(resolve))
+  assert.equal(f.c.state.beginSending, true); assert.equal(f.c.canSelect(id(1)), false)
+  await f.c.select(id(1)); assert.equal(f.c.state.selectedId, '')
+  wait.reject(new Error('[TIMEOUT] 合成回执未知')); await begin
+  assert.ok(f.c.state.pendingBegin); assert.equal(f.c.canSelect(id(1)), false)
+  await f.c.select(id(1)); assert.equal(f.c.state.selectedId, '')
+})
+
+test('MBR-002：迟到权威Begin不同ID仍绑定真实活动身份与停止入口，不让旧终态放行', async t => {
+  const f = await controller(fixture({ ...quietAborted(), id: id(9) })); t.after(f.c.dispose)
+  await f.c.select(id(9))
+  f.api.preflightRecordingPlan = async () => readyPreflight(); await f.c.preflight(); f.c.setStartConfirmed(true)
+  f.api.beginRecordingAttempt = async () => attempt()
+  await f.c.begin()
+  assert.equal(f.c.state.pendingBegin, undefined)
+  assert.equal(f.c.state.selectedId, id(1)); assert.equal(f.c.state.stopId, id(1))
+  assert.equal(f.c.canStop(), true); assert.equal(f.c.canLeave(), false)
+})
+
+test('MBR-002：手动读取同revision冲突拒绝覆盖可信run与Stop身份', async t => {
+  const f = await controller(); t.after(f.c.dispose); await f.c.select(id(1))
+  f.api.getRecordingAttempt = async () => ({ attempt: { ...attempt(), sides: [{ ...side(), runId: id(80) }] } })
+  await f.c.readSelected()
+  assert.equal(f.c.state.attempt, undefined); assert.ok(f.c.state.detailError)
+  assert.equal(f.c.state.stopId, id(1)); assert.equal(f.c.canStop(), true); assert.equal(f.c.canLeave(), false)
+})
+
+for (const code of ['TIMEOUT', 'INTERNAL_ERROR', 'INVENTORY_UNAVAILABLE']) {
+  test(`MBR-002：${code}未知Begin按原命令仅读核对，pending/unknown不解锁，accepted绑定当前事实`, async t => {
+    const f = await controller(); t.after(f.c.dispose)
+    f.api.preflightRecordingPlan = async () => readyPreflight()
+    f.api.beginRecordingAttempt = async request => { f.calls.push({ name: 'begin', request }); throw new Error(`[${code}] /private/录音故障`) }
+    await f.c.preflight(); f.c.setStartConfirmed(true); await f.c.begin()
+    const original = structuredClone(f.c.state.pendingBegin)!
+    const reads: RecordingAttemptReceiptRequest[] = []
+    let status: 'pending' | 'unknown' | 'accepted' = 'unknown'
+    f.api.getRecordingAttemptReceipt = async input => {
+      reads.push(structuredClone(input))
+      return status === 'accepted' ? { commandId: input.request.commandId, action: input.action, status, receipt: attempt(), attempt: { ...quietAborted(), revision: 3 } }
+        : { commandId: input.request.commandId, action: input.action, status }
+    }
+    for (const next of ['unknown', 'pending'] as const) {
+      status = next; await f.c.reconcileReceipt()
+      assert.deepEqual(f.c.state.pendingBegin, original); assert.equal(f.c.canLeave(), false)
+      assert.equal(f.calls.filter(call => call.name === 'begin').length, 1)
+    }
+    status = 'accepted'; await f.c.reconcileReceipt()
+    assert.equal(f.c.state.pendingBegin, undefined); assert.equal(f.c.state.selectedId, id(1))
+    assert.equal(f.c.state.attempt?.revision, 3); assert.equal(f.c.state.attempt?.status, 'aborted')
+    assert.equal(f.c.canLeave(), true); assert.equal(f.c.canStop(), false)
+    assert.deepEqual(reads, Array.from({ length: 3 }, () => ({ action: 'begin', request: original.request })))
+    assert.equal(f.calls.filter(call => call.name === 'begin' || call.name === 'beginSide' || call.name === 'stop').length, 1)
+    assert.doesNotMatch(f.c.state.operationError + f.c.state.receiptError + f.c.state.receiptNotice, /private/u)
+  })
+}
+
+for (const kind of ['confirm', 'beginSide', 'stop'] as const) {
+  test(`MBR-002：未知${kind}只读核对原action/request，不重新派发执行且应用最新软件事实`, async t => {
+    const waiting = waitingB(); waiting.sides[0]!.cleanupQuiescent = true
+    const f = await controller(fixture(kind === 'beginSide' ? waiting : kind === 'confirm' ? drained() : attempt())); t.after(f.c.dispose)
+    await f.c.select(id(1))
+    const fail = async (request: unknown): Promise<RecordingAttempt> => { f.calls.push({ name: kind, request }); throw new Error('[TIMEOUT] 合成回执未知') }
+    if (kind === 'stop') { f.api.stopRecordingAttempt = fail; await f.c.stop() }
+    else if (kind === 'confirm') { f.api.confirmRecordingAttempt = fail; f.c.setConfirmed(true); await f.c.confirm('physical-stop', 'A') }
+    else { f.api.beginRecordingAttemptSide = fail; f.api.preflightRecordingPlan = async () => readyPreflight(); await f.c.preflight(); f.c.setSideConfirmed(true); await f.c.beginSide() }
+    const original = structuredClone(f.c.state.pending); assert.ok(original)
+    const receipt: RecordingAttempt = kind === 'beginSide' ? { ...waiting, revision: 2, updatedAt: later, phase: 'outputting' as const, activeSide: 'B' as const, sides: [waiting.sides[0]!, { ...side('B'), startedAt: later }] }
+      : kind === 'stop' ? aborted() : { ...drained(), revision: 2, updatedAt: later, phase: 'final-verification' as const, sides: [{ ...drained().sides[0]!, phase: 'complete' as const, endedAt: later, physicalStopConfirmedAt: later }] }
+    if (kind === 'confirm') delete receipt.activeSide
+    const latest: RecordingAttempt = kind === 'beginSide' ? { ...receipt, status: 'aborted', phase: 'finished', activeSide: undefined, endedAt: later, reason: 'user-stop', revision: 3,
+      sides: [receipt.sides[0]!, { ...receipt.sides[1]!, phase: 'aborted', endedAt: later, reason: 'user-stop', engineStoppedSubmitting: true, cleanupQuiescent: true }] }
+      : { ...receipt, revision: 3, sides: receipt.sides.map(item => ({ ...item, engineStoppedSubmitting: true, cleanupQuiescent: true })) }
+    assert.equal(isRecordingAttempt(receipt), true); assert.equal(isRecordingAttempt(latest), true)
+    const reads: RecordingAttemptReceiptRequest[] = []
+    f.api.getRecordingAttemptReceipt = async input => { reads.push(structuredClone(input)); return { commandId: input.request.commandId, action: input.action, status: 'accepted', receipt, attempt: latest } }
+    await f.c.reconcileReceipt()
+    assert.equal(f.c.state.pending, undefined); assert.equal(f.c.state.attempt?.revision, 3)
+    assert.deepEqual(reads, [{ action: kind, request: original.request }]); assert.equal(f.calls.filter(call => call.name === kind).length, 1)
+    assert.equal(f.c.state.receiptReading, false); assert.equal(f.c.state.receiptError, '')
+  })
+}
+
+test('MBR-002：回执缺能力、读取失败及身份/谱系/revision冲突均保留未知Begin，不生成新ID', async t => {
+  const f = await controller(); t.after(f.c.dispose)
+  f.api.preflightRecordingPlan = async () => readyPreflight()
+  f.api.beginRecordingAttempt = async request => { f.calls.push({ name: 'begin', request }); throw new Error('[TIMEOUT] 回执未知') }
+  await f.c.preflight(); f.c.setStartConfirmed(true); await f.c.begin()
+  const original = structuredClone(f.c.state.pendingBegin)!
+  assert.equal(f.c.canReconcileReceipt(), false); await f.c.reconcileReceipt(); assert.deepEqual(f.c.state.pendingBegin, original)
+  const valid: RecordingAttemptReceipt = { commandId: original.request.commandId, action: 'begin', status: 'accepted', receipt: attempt(), attempt: { ...quietAborted(), revision: 3 } }
+  const invalid: unknown[] = [
+    { ...valid, commandId: id(99) }, { ...valid, action: 'stop' },
+    { ...valid, receipt: { ...attempt(), planContentHash: 'b'.repeat(64) }, attempt: { ...quietAborted(), revision: 3, planContentHash: 'b'.repeat(64) } },
+    { ...valid, attempt: { ...quietAborted(), id: id(99), revision: 3 } },
+    { ...valid, receipt: { ...attempt(), revision: 4 } },
+    { ...valid, receipt: quietAborted(), attempt: aborted() },
+    { ...valid, privatePath: '/private/故障细节' },
+  ]
+  f.api.getRecordingAttemptReceipt = async () => { throw new Error('/private/核对故障') }
+  await f.c.reconcileReceipt(); assert.deepEqual(f.c.state.pendingBegin, original)
+  for (const value of invalid) {
+    f.api.getRecordingAttemptReceipt = async () => value as RecordingAttemptReceipt
+    await f.c.reconcileReceipt(); assert.deepEqual(f.c.state.pendingBegin, original); assert.equal(f.c.canLeave(), false)
+    assert.ok(f.c.state.receiptError); assert.doesNotMatch(f.c.state.receiptError, /private/u)
+  }
+  assert.equal(f.calls.filter(call => call.name === 'begin' || call.name === 'beginSide').length, 1)
+})
+
 test('明确Plan分页25，无自动首条、Begin或BeginB；无Plan不读取', async () => {
   const f = await controller(); assert.deepEqual(f.calls, [{ name: 'list', request: { planVersionId: id(3), draftId: id(2), page: { offset: 0, limit: 25 } } }]); assert.equal(f.c.state.attempt, undefined)
   f.c.setPlan(); await f.c.refresh(); assert.equal(f.calls.length, 1); f.c.dispose()
@@ -115,7 +315,7 @@ test('Main与Preload实际错误形状：仅确未受理码清除Begin，泛化�
     f.c.dispose()
   }
 })
-test('延迟 Begin 与未知回执阻断离开和切计划；原命令可手动核对，真实终态才可离开', async () => {
+test('延迟 Begin 与未知回执阻断离开和切计划；原命令可手动核对，新鲜静止终态才可离开', async () => {
   const f = await controller(), begin = deferred<RecordingAttempt>()
   f.api.preflightRecordingPlan = async () => readyPreflight()
   f.api.beginRecordingAttempt = () => begin.promise
@@ -125,7 +325,8 @@ test('延迟 Begin 与未知回执阻断离开和切计划；原命令可手动�
   f.c.setPlan(); assert.equal(f.c.state.plan?.id, id(3), '未确认 Begin 不能丢失原计划身份')
   begin.resolve(attempt()); await pending
   assert.equal(f.c.canLeave(), false); assert.match(f.c.leaveBlockReason()!, /正式输出或停止收口/u)
-  await f.c.stop(); assert.equal(f.c.state.attempt?.status, 'aborted'); assert.equal(f.c.canLeave(), true)
+  await f.c.stop(); assert.equal(f.c.state.attempt?.status, 'aborted'); assert.equal(f.c.canLeave(), false)
+  f.api.getRecordingAttempt = async () => ({ attempt: { ...quietAborted(), revision: 3 } }); await f.c.readSelected(); assert.equal(f.c.canLeave(), true)
   f.c.setPlan(); assert.equal(f.c.state.plan, undefined); f.c.dispose()
 
   const unknown = await controller(); unknown.api.preflightRecordingPlan = async () => readyPreflight()
@@ -135,33 +336,37 @@ test('延迟 Begin 与未知回执阻断离开和切计划；原命令可手动�
   unknown.c.setPlan(); assert.equal(unknown.c.state.plan?.id, id(3)); assert.ok(unknown.c.state.pendingBegin)
   unknown.c.dispose()
 })
-test('Begin失回执后可显式选同Plan新发现记录核对并停止，但不推断命令已受理', async () => {
+test('Begin失回执后同Plan记录不能冒充原命令；权威仅读核对才能绑定精确停止身份', async () => {
   const f = await controller(); f.api.preflightRecordingPlan = async () => readyPreflight()
   f.api.beginRecordingAttempt = async () => { throw new Error('[NOT_READY] 回执未知') }
   await f.c.preflight(); f.c.setStartConfirmed(true); await f.c.begin()
   const pending = structuredClone(f.c.state.pendingBegin); assert.ok(pending)
   await f.c.refresh(); await f.c.select(id(1))
-  assert.equal(f.c.state.attempt?.id, id(1)); assert.equal(f.c.canStop(), true)
+  assert.equal(f.c.state.attempt, undefined); assert.equal(f.c.canStop(), false)
   assert.deepEqual(f.c.state.pendingBegin, pending, '同Plan记录不能冒充原命令回执')
   assert.equal(f.c.canBegin(), false); assert.equal(f.c.canLeave(), false)
-  await f.c.stop(); assert.equal(f.c.state.attempt?.status, 'aborted')
-  assert.deepEqual(f.c.state.pendingBegin, pending); assert.equal(f.c.canLeave(), false)
+  f.api.getRecordingAttemptReceipt = async input => ({ commandId: input.request.commandId, action: input.action, status: 'accepted', receipt: attempt(), attempt: attempt() })
+  await f.c.reconcileReceipt(); assert.equal(f.c.state.pendingBegin, undefined); assert.equal(structuredClone(f.c.state).attempt?.id, id(1)); assert.equal(f.c.canStop(), true)
+  await f.c.stop(); assert.equal(structuredClone(f.c.state).attempt?.status, 'aborted'); assert.equal(f.c.canLeave(), false)
   f.c.dispose()
 })
-test('Begin在途发现记录后Stop优先，晚Begin不覆盖较新的终止事实或卡住发送态', async () => {
-  const f = await controller(), begin = deferred<RecordingAttempt>()
+test('原Begin核对后Stop优先，晚人工回执不覆盖较新的终止事实或卡住发送态', async () => {
+  const f = await controller(), confirmation = deferred<RecordingAttempt>()
   f.api.preflightRecordingPlan = async () => readyPreflight()
-  f.api.beginRecordingAttempt = () => begin.promise
-  await f.c.preflight(); f.c.setStartConfirmed(true)
-  const waitingBegin = f.c.begin(); await new Promise<void>(done => setImmediate(done))
-  assert.equal(f.c.state.beginSending, true)
-  await f.c.refresh(); await f.c.select(id(1))
+  f.api.beginRecordingAttempt = async () => { throw new Error('[TIMEOUT] 原Begin未知') }
+  await f.c.preflight(); f.c.setStartConfirmed(true); await f.c.begin()
+  f.api.getRecordingAttemptReceipt = async input => ({ commandId: input.request.commandId, action: input.action, status: 'accepted', receipt: attempt(), attempt: { ...drained(), revision: 2 } })
+  await f.c.reconcileReceipt(); assert.equal(f.c.canStop(), true)
+  f.api.confirmRecordingAttempt = () => confirmation.promise; f.c.setConfirmed(true)
+  const waitingConfirmation = f.c.confirm('physical-stop', 'A')
+  f.api.stopRecordingAttempt = async () => ({ ...aborted(), revision: 3 })
   await f.c.stop(); assert.equal(f.c.state.attempt?.status, 'aborted')
-  assert.equal(f.c.state.sending, false); assert.equal(f.c.state.beginSending, true)
-  begin.resolve(attempt()); await waitingBegin
+  assert.equal(f.c.state.sending, false)
+  confirmation.resolve({ ...drained(), revision: 4 }); await waitingConfirmation
   assert.equal(f.c.state.beginSending, false); assert.equal(f.c.state.pendingBegin, undefined)
-  assert.equal(f.c.state.attempt?.status, 'aborted'); assert.equal(f.c.state.attempt?.revision, 2)
-  assert.match(f.c.state.notice, /较新的停止或终态/u)
+  assert.equal(f.c.state.attempt?.status, 'aborted'); assert.equal(f.c.state.attempt?.revision, 3)
+  assert.equal(f.c.canLeave(), false)
+  f.api.getRecordingAttempt = async () => ({ attempt: { ...quietAborted(), revision: 4 } }); await f.c.readSelected()
   assert.equal(f.c.canLeave(), true); f.c.dispose()
 })
 test('Stop回执在途与未知结果期间不能交叉重试Begin，Stop完成后发送态正常释放', async () => {
@@ -171,7 +376,8 @@ test('Stop回执在途与未知结果期间不能交叉重试Begin，Stop完成�
   f.api.beginRecordingAttempt = async () => { begins++; throw new Error('[NOT_READY] 开始回执未知') }
   await f.c.preflight(); f.c.setStartConfirmed(true); await f.c.begin()
   assert.equal(begins, 1); assert.ok(f.c.state.pendingBegin)
-  await f.c.refresh(); await f.c.select(id(1))
+  f.api.getRecordingAttemptReceipt = async input => ({ commandId: input.request.commandId, action: input.action, status: 'accepted', receipt: attempt(), attempt: attempt() })
+  await f.c.reconcileReceipt(); assert.equal(f.c.canStop(), true)
   f.api.stopRecordingAttempt = () => stopping.promise
   const waitingStop = f.c.stop(); await new Promise<void>(done => setImmediate(done))
   await f.c.retryBegin(); assert.equal(begins, 1); assert.equal(f.c.state.sending, true)
@@ -196,7 +402,9 @@ test('人工命令未知与已知输出中不可开新Attempt或切历史；详�
   active.api.getRecordingAttempt = async () => { throw new Error('读取失败') }; await active.c.readSelected()
   assert.equal(active.c.state.attempt, undefined); assert.equal(active.c.canSelect(id(9)), false, '详情暂不可读不应丢失已知活动Stop身份')
   await active.c.select(id(9)); assert.equal(active.c.state.selectedId, id(1)); assert.equal(active.c.canStop(), true)
-  await active.c.stop(); assert.equal(active.c.canSelect(id(9)), true); active.c.dispose()
+  await active.c.stop(); assert.equal(active.c.canSelect(id(9)), false)
+  active.api.getRecordingAttempt = async () => ({ attempt: { ...quietAborted(), revision: 3 } }); await active.c.readSelected()
+  assert.equal(active.c.canSelect(id(9)), true); active.c.dispose()
 })
 test('只读poll只在确认依据变化时撤勾；重复事实、进度与revision不抹除确认或回执', async () => {
   const f = await controller(fixture(drained())); await f.c.select(id(1)); await f.c.preflight()
@@ -294,11 +502,61 @@ async function mounted(t: test.TestContext, api: RecordingAttemptsPublicApi & Pi
   return { all, text, button, confirm, startConfirm, sideConfirm, click, tick, selected, leaveStates, focused: () => focusDocument.activeElement, bodyFocused: () => focusDocument.activeElement === focusDocument.body, unmount: () => app.unmount() }
 }
 
-test('真实SFC将离开状态同步通知父面板，输出期间拦截、终态释放', async t => {
+test('MBR-002：真实SFC提供原命令仅读核对，未知不重放，受理后保留软件停止入口', async t => {
+  const f = fixture(); f.api.preflightRecordingPlan = async () => readyPreflight()
+  let accepted = false
+  f.api.getRecordingAttemptReceipt = async input => {
+    f.calls.push({ name: 'receipt', request: input })
+    return accepted ? { commandId: input.request.commandId, action: input.action, status: 'accepted', receipt: attempt(), attempt: attempt() }
+      : { commandId: input.request.commandId, action: input.action, status: 'unknown' }
+  }
+  const panel = await mounted(t, f.api)
+  await panel.click('本次正式输出预检'); await panel.startConfirm(); await panel.click('开始正式录音')
+  const begin = f.calls.find(call => call.name === 'begin')!.request
+  await panel.click('核对原命令回执（仅读）')
+  assert.match(panel.text(), /缺席不等于未受理/u); assert.equal(panel.leaveStates.at(-1)?.canLeave, false)
+  assert.equal(f.calls.filter(call => call.name === 'begin').length, 1)
+  accepted = true; await panel.click('核对原命令回执（仅读）')
+  assert.deepEqual(f.calls.filter(call => call.name === 'receipt').map(call => call.request), [{ action: 'begin', request: begin }, { action: 'begin', request: begin }])
+  assert.equal(panel.button('停止本次录音').props.disabled, false)
+  assert.equal(panel.leaveStates.at(-1)?.canLeave, false); assert.equal(f.calls.filter(call => call.name === 'stop').length, 0)
+  await panel.click('停止本次录音')
+  assert.match(panel.text(), /资源静止：未确认/u); assert.equal(panel.leaveStates.at(-1)?.canLeave, false)
+  assert.equal(panel.button('停止本次录音').props.disabled, false)
+})
+
+test('MBR-002：真实SFC工作库无只读核对能力时不伪造回执，也不自动执行重试', async t => {
+  const f = fixture(); f.api.preflightRecordingPlan = async () => readyPreflight()
+  const panel = await mounted(t, f.api)
+  await panel.click('本次正式输出预检'); await panel.startConfirm(); await panel.click('开始正式录音')
+  assert.equal(panel.button('核对原命令回执（仅读）').props.disabled, true)
+  assert.match(panel.text(), /当前窗口不支持只读核对/u)
+  assert.equal(f.calls.filter(call => call.name === 'begin').length, 1)
+  assert.equal(panel.leaveStates.at(-1)?.canLeave, false)
+})
+
+test('MBR-002：真实SFC停止已受理仍保留核对入口，重复按钮沿用原Stop直到软件静止', async t => {
+  const f = fixture(), panel = await mounted(t, f.api)
+  await panel.click('查看录音尝试 '+id(1)); await panel.click('停止本次录音')
+  const original = structuredClone(f.calls.find(call => call.name === 'stop')!.request)
+  assert.match(panel.text(), /停止已受理，软件静止仍待确认/u)
+  assert.equal(panel.button('核对原命令回执（仅读）').props.disabled, true, '缺读取能力不能伪造核对')
+  await panel.click('停止本次录音')
+  assert.deepEqual(f.calls.filter(call => call.name === 'stop').map(call => call.request), [original, original])
+  f.api.getRecordingAttempt = async () => ({ attempt: { ...quietAborted(), revision: 3 } })
+  await panel.click('重新读取本次状态')
+  assert.equal(panel.leaveStates.at(-1)?.canLeave, true)
+  assert.doesNotMatch(panel.text(), /停止已受理，软件静止仍待确认/u)
+  assert.equal(panel.all().some(node => node.tag === 'button' && panel.text(node) === '核对原命令回执（仅读）'), false)
+})
+
+test('真实SFC将离开状态同步通知父面板，输出和静止未知终态拦截、可信收口后释放', async t => {
   const f = fixture(), panel = await mounted(t, f.api)
   assert.equal(panel.leaveStates.at(-1)?.canLeave, true)
   await panel.click('查看录音尝试 '+id(1)); assert.equal(panel.leaveStates.at(-1)?.canLeave, false)
-  await panel.click('停止本次录音'); assert.equal(panel.leaveStates.at(-1)?.canLeave, true)
+  await panel.click('停止本次录音'); assert.equal(panel.leaveStates.at(-1)?.canLeave, false)
+  f.api.getRecordingAttempt = async () => ({ attempt: { ...quietAborted(), revision: 3 } })
+  await panel.click('重新读取本次状态'); assert.equal(panel.leaveStates.at(-1)?.canLeave, true)
 })
 
 test('真实SFC预检明确GateB阻断、空态和历史不默认选，执行按钮禁用', async t => {
@@ -326,6 +584,9 @@ test('真实SFC停止等待不称停止成功，失败同命令重试；切Plan�
   wait.reject(new Error('/private/stop')); await pending; await panel.tick(); assert.ok(panel.all().some(n => n.props.role === 'alert')); assert.doesNotMatch(panel.text(), /private/u)
   f.api.stopRecordingAttempt = async request => { f.calls.push({ name: 'stop', request }); return aborted() }; await panel.click('重试原操作'); assert.deepEqual(f.calls.filter(c => c.name === 'stop')[0]?.request, f.calls.filter(c => c.name === 'stop')[1]?.request)
   assert.match(panel.text(), /用户中止/u); assert.match(panel.text(), /资源静止：未确认/u)
+  panel.selected.value = undefined; await panel.tick(); assert.match(panel.text(), /用户中止/u); assert.equal(panel.leaveStates.at(-1)?.canLeave, false)
+  panel.selected.value = plan(); await panel.tick()
+  f.api.getRecordingAttempt = async () => ({ attempt: { ...quietAborted(), revision: 3 } }); await panel.click('重新读取本次状态')
   panel.selected.value = undefined; await panel.tick(); assert.doesNotMatch(panel.text(), /用户中止/u)
 })
 test('真实SFC操作完成后恢复焦点，用户已移焦或卸载不抢回', async t => {
@@ -358,6 +619,9 @@ test('真实SFC读事实失败仍保留原停止身份，但人工确认不可�
   f.api.getRecordingAttempt = async () => { throw new Error('读取失败') }; await panel.click('重新读取本次状态')
   assert.equal(panel.button('停止本次录音').props.disabled, false); assert.equal(panel.all().some(n => n.props.id === 'recording-attempt-confirm'), false)
   await panel.click('停止本次录音'); assert.equal(f.calls.filter(c => c.name === 'stop').length, 1)
+  panel.selected.value = undefined; await panel.tick(); assert.equal(panel.button('停止本次录音').props.disabled, false)
+  panel.selected.value = plan(); await panel.tick()
+  f.api.getRecordingAttempt = async () => ({ attempt: { ...quietAborted(), revision: 3 } }); await panel.click('重新读取本次状态')
   panel.selected.value = undefined; await panel.tick(); assert.equal(panel.all().some(n => n.tag === 'button' && panel.text(n) === '停止本次录音'), false)
 })
 test('A-only与DAT完成逐项人工确认，三层齐备前不显示Completed，不造空B', async t => {
@@ -397,7 +661,10 @@ test('列表重读/切Plan使旧列表失效，待回执时拒切Plan；强制�
     const g = await controller(); await g.c.select(id(1)); const wait = deferred<RecordingAttempt>(); g.api.stopRecordingAttempt = () => wait.promise
     const write = g.c.stop(); if (dispose) g.c.dispose(); else { g.c.setPlan(); assert.equal(g.c.state.plan?.id, id(3)); assert.equal(g.c.canLeave(), false) }
     wait.resolve(aborted()); await write
-    if (!dispose) { assert.equal(g.c.state.attempt?.status, 'aborted'); g.c.setPlan() }
+    if (!dispose) {
+      assert.equal(g.c.state.attempt?.status, 'aborted'); g.c.setPlan(); assert.equal(g.c.canLeave(), false)
+      g.api.getRecordingAttempt = async () => ({ attempt: { ...quietAborted(), revision: 3 } }); await g.c.readSelected(); g.c.setPlan()
+    }
     assert.equal(g.c.state.attempt, undefined); assert.equal(g.c.state.stopId, ''); g.c.dispose()
   }
   f.c.dispose()

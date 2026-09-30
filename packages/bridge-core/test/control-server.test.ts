@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { request as httpRequest, type Server } from 'node:http';
+import { connect, type Socket } from 'node:net';
 
 import type { PlaybackSnapshot, RoonImageResult, RoonLibraryPage } from '@music-bridge/contracts';
 import { ControlServer } from '../src/control/server.js';
@@ -91,6 +93,89 @@ function makeController() {
     },
   };
 }
+
+test('MBR002：Control拒绝跨来源/伪造Host/非JSON写入，保留无Origin的本机工具', async t => {
+  const { controller, calls } = makeController();
+  const server = new ControlServer({ host: '127.0.0.1', port: 0, defaultQuality: 'auto', controller, logger });
+  await server.start(); t.after(() => server.stop());
+  const port = server.getListeningPort()!;
+  const post = (headers: Record<string, string>, body = '') => new Promise<number>((resolve, reject) => {
+    const request = httpRequest({ hostname: '127.0.0.1', port, path: '/v1/pause', method: 'POST', headers }, response => {
+      response.resume(); response.once('end', () => resolve(response.statusCode!));
+    }); request.once('error', reject); request.end(body);
+  });
+  assert.equal(await post({ Origin: 'https://external.example', 'Content-Type': 'application/json' }, '{}'), 403);
+  assert.equal(await post({ Host: `external.example:${port}` }), 403);
+  assert.equal(await post({ 'Content-Type': 'text/plain' }, '{}'), 415);
+  assert.equal(await post({ Origin: 'null' }), 403);
+  assert.equal(await post({ 'Sec-Fetch-Site': 'cross-site' }), 403);
+  assert.equal(await post({ Host: `127.0.0.1:${port + 1}` }), 403);
+  assert.equal(await post({ 'Content-Type': 'application/json' }, '[]'), 400);
+  assert.equal(await post({ 'Content-Type': 'application/json' }, ' '.repeat(64 * 1024) + '{}'), 413);
+  assert.deepEqual(calls, []);
+  assert.equal(await post({}), 200);
+  assert.equal(await post({ Origin: `http://127.0.0.1:${port}`, 'Content-Type': 'application/json; charset=utf-8' }, '{}'), 200);
+  assert.deepEqual(calls, ['pause', 'pause']);
+});
+
+test('MBR002：Control本身拒绝非loopback绑定', async () => {
+  assert.throws(() => new ControlServer({ host: '0.0.0.0', port: 0, defaultQuality: 'auto', controller: makeController().controller, logger }));
+});
+
+test('MBR002：慢请求体有截止期限，关闭不会等待迟到请求派发播放', async t => {
+  const { controller, calls } = makeController();
+  const server = new ControlServer({ host: '127.0.0.1', port: 0, defaultQuality: 'auto', controller, logger, bodyTimeoutMs: 30, stopTimeoutMs: 100 });
+  const sockets: Socket[] = [];
+  await server.start(); t.after(() => { for (const value of sockets) value.destroy(); return server.stop(); });
+  const port = server.getListeningPort()!, socket = connect(port, '127.0.0.1');
+  sockets.push(socket); socket.resume();
+  t.after(() => socket.destroy());
+  await new Promise<void>(resolve => socket.once('connect', resolve));
+  const ended = new Promise<void>(resolve => socket.once('close', () => resolve()));
+  socket.on('error', () => {});
+  socket.write(`POST /v1/play HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n{`);
+  const outcome = await Promise.race([ended.then(() => 'closed'), new Promise(resolve => setTimeout(() => resolve('late'), 500))]);
+  assert.equal(outcome, 'closed'); assert.deepEqual(calls, []);
+  const second = connect(port, '127.0.0.1'); t.after(() => second.destroy()); second.on('error', () => {});
+  sockets.push(second); second.resume();
+  await new Promise<void>(resolve => second.once('connect', resolve));
+  const ownedServer = (server as unknown as { server: Server }).server;
+  const bodyEntered = new Promise<void>(resolve => ownedServer.once('request', () => resolve()));
+  second.write(`POST /v1/pause HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n{`);
+  await bodyEntered;
+  const stopping = server.stop(); second.write('}'); await stopping;
+  assert.deepEqual(calls, []);
+});
+
+test('MBR002：listen尚未完成时并发stop不会遗留晚到监听器', async t => {
+  const server = new ControlServer({ host: '127.0.0.1', port: 0, defaultQuality: 'auto', controller: makeController().controller, logger });
+  const starting = server.start();
+  // 即使断言失败，也收尾已创建的原始服务器，避免失败夹具遗留端口。
+  const ownedServer = (server as unknown as { server: Server }).server;
+  t.after(async () => {
+    await starting.catch(() => {});
+    if (ownedServer.listening) await new Promise<void>((resolve, reject) => ownedServer.close(error => error ? reject(error) : resolve()));
+    await server.stop().catch(() => {});
+  });
+  const outcomes = await Promise.allSettled([starting, server.stop()]);
+  assert.equal(outcomes[1]!.status, 'fulfilled');
+  assert.equal(ownedServer.listening, false);
+  assert.equal(server.getListeningPort(), undefined);
+});
+
+test('MBR002：未完成请求头也有截止期限，不占用连接直到常规30秒检查', async t => {
+  const { controller, calls } = makeController();
+  const server = new ControlServer({ host: '127.0.0.1', port: 0, defaultQuality: 'auto', controller, logger, headersTimeoutMs: 30, stopTimeoutMs: 100 });
+  await server.start();
+  const socket = connect(server.getListeningPort()!, '127.0.0.1');
+  t.after(() => { socket.destroy(); return server.stop(); });
+  socket.on('error', () => {}); socket.resume();
+  await new Promise<void>(resolve => socket.once('connect', resolve));
+  const ended = new Promise<void>(resolve => socket.once('close', () => resolve()));
+  socket.write('POST /v1/play HTTP/1.1\r\nHost: 127.0.0.1:');
+  const outcome = await Promise.race([ended.then(() => 'closed'), new Promise(resolve => setTimeout(() => resolve('late'), 500))]);
+  assert.equal(outcome, 'closed'); assert.deepEqual(calls, []);
+});
 
 function makeRoonController() {
   const seekPositions: number[] = [];

@@ -8,6 +8,7 @@ const props = defineProps<{ plan?: RecordingPlanVersion }>()
 const emit = defineEmits<{ 'leave-state': [state: { canLeave: boolean; reason: string | null }] }>()
 const controller = createRecordingAttemptController({ api: window.musicBridge, onChange: () => { state.value = { ...controller.state } } })
 const state = shallowRef({ ...controller.state })
+const receiptSupported = typeof window.musicBridge.getRecordingAttemptReceipt === 'function'
 const heading = ref<HTMLElement>(), detailHeading = ref<HTMLElement>()
 let disposed = false
 const statusLabels: Record<RecordingAttempt['status'], string> = { 'in-progress': '进行中', completed: '已完成', aborted: '用户中止', failed: '启动失败', interrupted: '已中断' }
@@ -18,7 +19,7 @@ const reasonLabels: Record<RecordingAttemptEndReason, string> = { 'user-stop': '
 const actions = computed(() => {
   void state.value
   return {
-    begin: controller.canBegin(), beginSide: controller.canBeginSide(), stop: controller.canStop(), retry: controller.canRetry(),
+    begin: controller.canBegin(), beginSide: controller.canBeginSide(), stop: controller.canStop(), retry: controller.canRetry(), receipt: controller.canReconcileReceipt(),
     physical: state.value.attempt?.sides.filter(side => controller.canConfirm('physical-stop', side.side)) ?? [],
     flip: controller.canConfirm('flip'), physicalRecording: controller.canConfirm('physical-recording'), final: controller.canConfirm('final-verification'),
   }
@@ -56,8 +57,16 @@ onBeforeUnmount(() => { disposed = true; controller.dispose() })
         <p v-else>本次预检通过 · Gate B VERIFIED；点击开始时仍会实时重检，Core 在 Begin 时再次准入。</p>
         <label class="check" for="recording-attempt-start-confirm"><input id="recording-attempt-start-confirm" type="checkbox" :checked="state.startConfirmed" :disabled="state.preflightPhase !== 'ready' || state.beginSending" @change="controller.setStartConfirmed(($event.target as HTMLInputElement).checked)">我确认以此冻结计划开始本次 A 面／连续节目正式输出；不会自动继续 B 面</label>
         <button type="button" :disabled="!actions.begin" @click="act($event, controller.begin)">开始正式录音</button>
-        <button v-if="state.pendingBegin" type="button" :disabled="state.beginSending" @click="act($event, controller.retryBegin)">按原命令重试开始</button>
+        <button v-if="state.pendingBegin" type="button" :disabled="state.beginSending || state.sending || !!state.pending || state.receiptReading" @click="act($event, controller.retryBegin)">按原命令重试开始</button>
       </div>
+      <div v-if="state.pendingBegin || state.pending || state.stopRecovery" class="receipt-read" aria-live="polite">
+        <p>原命令 <code>{{ state.pending?.request.commandId ?? state.pendingBegin?.request.commandId ?? state.stopRecovery?.request.commandId }}</code> {{ state.pending || state.pendingBegin ? '回执尚未确认' : '停止已受理，软件静止仍待确认' }}；核对只读取原命令，不发送开始、继续或停止请求。</p>
+        <button type="button" :disabled="!actions.receipt" @click="act($event, controller.reconcileReceipt)">核对原命令回执（仅读）</button>
+        <p v-if="!receiptSupported">当前窗口不支持只读核对；不会自动重试。手动重试按钮仍只发送原命令身份。</p>
+        <p v-if="state.receiptReading" role="status">正在读取原命令的受理回执与当前录音事实…</p>
+      </div>
+      <p v-if="state.receiptNotice" aria-live="polite">{{ state.receiptNotice }}</p>
+      <p v-if="state.receiptError" role="alert">{{ state.receiptError }}</p>
       <div class="actions"><button type="button" :disabled="state.listPhase === 'loading'" @click="act($event, () => controller.refresh())">刷新录音尝试</button></div>
       <div aria-live="polite">
         <p v-if="state.listPhase === 'loading'">正在读取这份计划的录音尝试…</p>
@@ -75,10 +84,11 @@ onBeforeUnmount(() => { disposed = true; controller.dispose() })
       <div v-if="state.selectedId" class="detail" data-testid="recording-attempt-detail">
         <h5 id="recording-attempt-detail-title" ref="detailHeading" tabindex="-1">本次录音事实</h5>
         <button type="button" :disabled="state.reading || state.sending" @click="act($event, controller.readSelected)">重新读取本次状态</button>
-        <p class="muted">状态不会自动刷新。关闭页面不发送停止命令；如需停止，请明确点击“停止本次录音”。</p>
+        <p class="muted">当前明确记录在未收口时自动只读更新；已证明软件静止的终态停止轮询。关闭页面不发送停止命令；如需停止，请明确点击“停止本次录音”。</p>
         <p v-if="state.reading" role="status">正在重新读取本次事实…</p>
         <p v-if="state.detailError" role="alert">{{ state.detailError }}</p>
         <div v-if="state.stopId" class="actions"><button type="button" :disabled="!actions.stop" @click="act($event, controller.stop)">停止本次录音</button></div>
+        <p v-if="state.stopId && state.attempt?.status !== 'in-progress'" class="muted">终态尚未证明软件关闭；停止入口继续绑定本次记录，实体人工停止确认不能替代引擎停止提交及资源静止。</p>
         <template v-if="state.attempt">
           <p class="state" aria-live="polite">{{ statusLabels[state.attempt.status] }} · {{ phaseLabels[state.attempt.phase] }}</p>
           <p v-if="state.attempt.reason">终止原因：{{ reasonLabels[state.attempt.reason] }}。终止事实不会被迟到的成功回执抹掉。</p>

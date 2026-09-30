@@ -7,6 +7,7 @@ import { installRecordingPrintHandlers } from './recording-print-ipc.js'
 import { createRecordingPrintWorker } from './recording-print-worker.js'
 import { createRecordingPrintRenderer } from './recording-print-renderer.js'
 import { createLifecycleProbe } from './lifecycle-probe.js'
+import { waitForCoreCrashFailure } from './core-crash-gate.js'
 import { installUiE2eNetworkGuard, type UiE2eNetworkEvidence } from './ui-e2e-network-guard.js'
 import { exportRecordingPrintPdf } from './recording-print-export.js'
 import { installRecordingRecordHandlers } from './recording-record-ipc.js'
@@ -2087,11 +2088,11 @@ async function bootstrap(): Promise<void> {
   createWindow(supervisor)
   createTray(supervisor)
   if (isCoreCrashGate) {
-    setTimeout(() => {
-      const passed = supervisor.status === 'failed' && supervisor.restarts === 1
-      process.stdout.write(`${passed ? 'CORE_CRASH_GATE_PASS' : 'CORE_CRASH_GATE_FAIL'}\n`)
-      app.quit()
-    }, 1_000)
+    const passed = await waitForCoreCrashFailure(() => ({ status: supervisor.status, restarts: supervisor.restarts }))
+    process.stdout.write(`${passed ? 'CORE_CRASH_GATE_PASS' : 'CORE_CRASH_GATE_FAIL'}\n`)
+    if (passed) app.quit()
+    else app.exit(1)
+    return
   }
 
   app.on('activate', () => {

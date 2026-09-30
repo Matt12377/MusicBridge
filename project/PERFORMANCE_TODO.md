@@ -2,7 +2,7 @@
 
 **实现完成：3/11 · 本地软件验收：3/11 · 真实 Mac/Roon：未执行**
 
-当前任务：**MBP-002 — 本地软件验收通过，报告与推送收口**。最终实现 `28bac4a`，分支 `codex/mbp-002-read-lifecycle`；接续 MBR-002。
+当前任务：**MBR-002 — 录音未知回执与资源收尾恢复**。基线 `f672c9f`，分支 `codex/mbr-002-recovery-lifecycle`。
 
 本计划已获 Owner 授权连续实施。技术栈保留 Electron、Vue、Node/TS；真实播放、设备录音、main 合并、正式 App 替换和发布分别记录，不由软件测试代替。
 
@@ -29,7 +29,7 @@ MBP-001 远端已结束：security 通过，verify/Electron E2E 失败。本地�
 | 1 | MBP-001 | 已完成 | 通过 | 基线、Trace、负载夹具 |
 | 2 | MBR-001 | 已完成 | 本地通过 | 播放终止、停止失败、Zone 确认、旧队列与键盘正确性 |
 | 3 | MBP-002 | 已完成 | 本地通过 | 只读取消、截止期限、共享读取、导航和加载状态 |
-| 4 | MBR-002 | 待开始 | 未执行 | 录音未知回执恢复、SSH 探测关闭、Control API 防护 |
+| 4 | MBR-002 | 实施中 | 未执行 | 录音未知回执恢复、SSH 探测关闭、Control API 防护 |
 | 5 | MBP-003A | 待开始 | 未执行 | 短状态处理与优先控制；属于 MBP-003 的第一步 |
 | 6 | MBP-004 | 待开始 | 未执行 | Roon 详情真分页与原始游标 |
 | 7 | MBP-003B | 待开始 | 未执行 | Core 持有上下文，先播并按需补队列 |
@@ -59,10 +59,24 @@ MBP-003 只有 A/B 都完成并验收才计为一个完成任务。每个完成�
 - [x] Provider 迟到回调、账户作用域与 Roon 状态不明会话隔离；生命周期 13/13，退出 0。
 - [x] Renderer 导航、加载状态、防抖与返回路径的 RED/GREEN；最终九文件 118/118。
 - [x] 固定实现 28bac4a：verify 223 / 1626+原2跳过 / 941；mock Electron 4/4；完整 E2E 104+原4条件跳过，退出均0；源码826文件指纹一致。
-- [ ] 独立报告提交、开发分支 push 和远端 HEAD 核对。
+- [x] 独立报告 f672c9f 提交、开发分支 push，远端 HEAD 精确相同。
 
 MBP-002 首个固定 bc04b71 的 verify 为 931 Desktop通过/1主题夹具失败，未达到构建；两次实际Electron定向分别证明旧IPC夹具失配与目标详情收藏读取误取消。失败记录和原断言保护见 reports/MBP-002_READ_LIFECYCLE.md，最终冻结实现全量重跑通过。
 
 首次Electron命令漏设mock，实际system模式合成值4项通过，已如实保留；随后明确mock重跑4项及完整E2E均通过。真实账号、Provider、Roon与录音未执行；真实凭据Owner验收未执行。
 
 MBR-001 远端固定 37fe2d2：verify 作业通过，Electron E2E 工作流通过，security 通过；verify 工作流因独立 dependency-audit 失败（11 moderate / 7 high），不标为全 CI 通过。依赖审计纳入后续门禁收口，原始日志已保存在外置证据目录。
+
+### MBR-002 当前子步骤
+
+- [x] 从 MBP-002 报告 HEAD 创建独立分支，保留原无关未跟踪目录。
+- [x] 只读预检确认：终态未静止却放行、Begin 在途历史切换、SSH 探测失去关闭所有权、Control 来源/请求预算缺口。
+- [x] 原 commandId + 完整请求 + Dataset 的只读回执合同与 IPC 已接入；合同 14/14、Main/Preload/SSH 首轮 24/24；等待固定实现全量验收。
+- [ ] 软件关闭证明、失败后精确停止恢复与 Renderer 离页/历史锁。
+- [x] SSH 探测和子进程取消、确认退出与有界资源保留；独立代码复审通过，合成测试与 Control 合计 27/27。
+- [x] Control API Host/Origin、JSON 与请求/停止预算；仅隔离 loopback 验证，未连接真实服务。
+- [ ] 固定实现原全量 Gate、独立报告和开发分支 push。
+
+当前三名 `gpt-6.1-sol high` 子智能体分别修正 Renderer、Core Attempt 的独立审计发现，并只读准备下一阶段。独立审计已复现两处问题：成功 Stop 后丢失原请求身份，导致再次停止不能重试失败关闭；driver 的局部清理回报早于 Core 输入租期释放，导致页面提前解锁。两项均在修复与新增行为验证中。不会用定向结果升级本轮总计。
+
+MBP-002 固定报告 `f672c9f` 的远端后续结果：verify 作业通过、security 工作流通过；verify 工作流仍因 dependency-audit 失败（11 moderate / 7 high）。Electron E2E 为 103 通过、4 原条件跳过、1 失败（v5 的 Core crash marker）；原始日志与测试产物已保存，但未保留进程实际输出，无法确认本次失败的唯一原因。独立内存复现确认固定 1 秒采样和迟装 stdout 监听存在竞态；本轮已修正并保留双崩溃、只重启一次、真实关闭与退出码断言，相关 unit 27/27，仍待完整 Electron 验证。

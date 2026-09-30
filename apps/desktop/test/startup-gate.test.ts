@@ -18,6 +18,28 @@ const marker = 'DESKTOP_STARTUP_READY'
 const options: StartupProcessOptions = { cwd, readyMarker: marker, expectedMarker: marker, startupTimeoutMs: 500, exitTimeoutMs: 160, killGraceMs: 60, closeTimeoutMs: 160, outputLimitBytes: 8192 }
 const runFixture = (source: string, overrides: Partial<StartupProcessOptions> = {}) => runStartupProcess(process.execPath, ['-e', source], { ...options, ...overrides })
 
+test('MBR002：崩溃Gate等真实failed终态，慢重启不被固定墙钟采样误判', async () => {
+  const module = await import('../src/main/core-crash-gate.js').catch(() => ({}))
+  assert.ok('waitForCoreCrashFailure' in module)
+  const wait = (module as typeof import('../src/main/core-crash-gate.js')).waitForCoreCrashFailure
+  let observation: { status: 'starting' | 'failed'; restarts: number } = { status: 'starting', restarts: 1 }
+  const pending = wait(() => observation, { timeoutMs: 100, pollMs: 2 })
+  await new Promise(resolve => setTimeout(resolve, 20))
+  observation = { status: 'failed', restarts: 1 }
+  assert.equal(await pending, true)
+  assert.equal(await wait(() => ({ status: 'failed', restarts: 0 }), { timeoutMs: 20, pollMs: 2 }), false)
+  assert.equal(await wait(() => ({ status: 'failed', restarts: 2 }), { timeoutMs: 20, pollMs: 2 }), false)
+  assert.equal(await wait(() => ({ status: 'ready', restarts: 1 }), { timeoutMs: 10, pollMs: 2 }), false)
+})
+
+test('MBR002：crash标记从spawn即收集，早到标记也需真实close与成功退出码', async () => {
+  const crash = 'CORE_CRASH_GATE_PASS'
+  const pass = await runFixture(`process.stdout.write('${crash}\\n'); process.exit(0)`, { readyMarker: undefined, expectedMarker: crash })
+  assert.equal(pass.failure, null); assert.equal(pass.markerSeen, true); assert.equal(pass.closed, true); assert.equal(pass.code, 0)
+  const failed = await runFixture(`process.stdout.write('${crash}\\n'); process.exit(1)`, { readyMarker: undefined, expectedMarker: crash })
+  assert.equal(failed.failure, 'process-exit'); assert.equal(failed.markerSeen, true); assert.equal(failed.code, 1)
+})
+
 test('READY后挂起仍有退出期限，不能把READY当作完成', async () => {
   const result = await runFixture(`process.stdout.write('${marker}\\n'); setInterval(() => {}, 1000)`)
   assert.equal(result.failure, 'exit-timeout')

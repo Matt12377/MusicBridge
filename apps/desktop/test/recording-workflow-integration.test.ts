@@ -385,6 +385,22 @@ test('保存已确认但重读失败不伪装成未知回执，也不允许重�
   assert.equal((view.setup.draft as MasterDraft).revision, 2)
 })
 
+test('MBR-002：真实工作台未知保存重读保留原命令，离页锁与原保存重试不消失', async t => {
+  const f = apiFixture(), puts: unknown[] = []
+  const api = { ...f.api, async putRecordingWorkspaceContext(request: unknown) { puts.push(structuredClone(request)); throw new Error('[TIMEOUT] /private/保存故障') } }
+  const view = await mounted(t, api, focusDocument(), { actualTemplate: true,
+    initialPhysical: { physicalId: 'MB-C-00022', physicalRevision: 7, modelId: firstId, skuId: secondId, packaging: 'opened' } })
+  await view.invoke('open', firstId); await view.tick()
+  assert.equal(view.setup.workspaceUnsaved, true); assert.equal((view.exposed.canLeave as () => boolean)(), false)
+  const original = puts[0]
+  await view.click('重新读取工作库（保留未决回执）')
+  assert.equal(view.setup.workspaceUnsaved, true); assert.equal((view.exposed.canLeave as () => boolean)(), false)
+  assert.equal(view.button('我的制作').props.disabled, true)
+  assert.equal(puts.length, 1, '重读不能自动重放原保存或产生新写命令')
+  await view.click('重试原保存操作'); assert.deepEqual(puts, [original, original])
+  assert.doesNotMatch(view.text(), /private/u)
+})
+
 test('工作上下文写入悬挂时顶部我的制作同样不能绕过回执', async t => {
   const f = apiFixture(), physicalId = 'MB-C-00022'
   let settle!: (context: { draftId: string; draftRevision: number; contextRevision: number; selection: { selectedPhysicalId: string }; pagePosition: string; staleReasons: never[] }) => void

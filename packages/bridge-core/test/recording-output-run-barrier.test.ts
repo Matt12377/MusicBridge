@@ -60,6 +60,37 @@ function syntheticLease(input: RecordingOutputInput, signal: AbortSignal,
   }, release };
 }
 
+test('MBR002：正常EOF驱动cleanup不提前收尾，drained后等待输入释放才发布静止', async t => {
+  const f = await recordingAttemptFixture(t, 'dat'); upgrade(f.filePath);
+  let request!: RecordingAttemptDriverRequest, closes = 0, releases = 0;
+  const entered = deferred<void>(), gate = deferred<'verified' | 'cancelled'>();
+  const coordinator = createRecordingAttemptCoordinator({ store: f.repository.recordingAttempts,
+    acquireInputLease: async (input, signal) => syntheticLease(input, signal, () => { ++releases; entered.resolve(); return gate.promise; }),
+    admissionProvider: { async authorize() {}, async start(value) {
+      request = value; return { async stop() {}, async close() { ++closes; } };
+    } },
+  });
+  f.registerDependentCleanup(async () => { gate.resolve('cancelled'); await coordinator.close(); });
+  const attempt = await coordinator.begin(f.beginRequest()), frames = attempt.sides[0]!.frameCount;
+  const identity = { side: request.side, runId: request.runId, at: new Date().toISOString() };
+  request.onEvent({ ...identity, type: 'progress', sourceFramesRead: frames, submittedFrames: frames, consumedFrames: frames });
+  request.onEvent({ ...identity, type: 'source-eof' });
+  request.onEvent({ ...identity, type: 'engine-cutoff' });
+  request.onEvent({ ...identity, type: 'stop-ack' });
+  request.onEvent({ ...identity, type: 'cleanup-quiescent' });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(closes, 0); assert.equal(releases, 0, '正式provider仍需完成最终drained核验');
+  assert.equal(coordinator.get({ attemptId: attempt.id }).attempt!.sides[0]!.cleanupQuiescent, false);
+  request.onEvent({ ...identity, type: 'backend-drained', at: new Date().toISOString() });
+  await entered.promise;
+  assert.equal(closes, 1); assert.equal(releases, 1);
+  assert.equal(coordinator.get({ attemptId: attempt.id }).attempt!.sides[0]!.cleanupQuiescent, false);
+  gate.resolve('verified');
+  await until(() => coordinator.get({ attemptId: attempt.id }).attempt!.sides[0]!.cleanupQuiescent);
+  coordinator.assertExecutionIdle();
+  assert.deepEqual(inspect(f.filePath, attempt.id).map(row => row.phase), ['pending', 'verified']);
+});
+
 test('schema25私有barrier迁移可审计；真实provider视图运行时不含FD/release', async t => {
   const f = await recordingAttemptFixture(t, 'dat'); upgrade(f.filePath);
   const attempt = await f.attempts.begin(f.beginRequest()), input = f.starts[0]!.input;
@@ -101,7 +132,11 @@ test('DAT最终确认在迟到driver.close与末Hash期间拒绝，精确verifie
   await assert.rejects(coordinator.confirm({ ...final, commandId: randomUUID() }), { code: 'INVALID_TRANSITION' });
   releaseGate.resolve('verified');
   await until(() => { try { coordinator.assertExecutionIdle(); return true; } catch { return false; } });
-  assert.equal((await coordinator.confirm(final)).status, 'completed');
+  await assert.rejects(coordinator.confirm(final), { code: 'VERSION_MISMATCH' });
+  const latest = coordinator.get({ attemptId: attempt.id }).attempt!;
+  assert.ok(latest.revision > final.expectedRevision, 'close与输入释放新增软件静止事实，关闭前的CAS不能复用');
+  assert.equal(latest.sides[0]!.cleanupQuiescent, true);
+  assert.equal((await coordinator.confirm({ ...final, commandId: randomUUID(), expectedRevision: latest.revision })).status, 'completed');
   assert.deepEqual(inspect(f.filePath, attempt.id).map(row => row.phase), ['pending', 'verified']);
 });
 
@@ -140,7 +175,7 @@ test('末Hash失败持久failed后拒绝完成，原请求重试也不能把失�
     }, release: () => release.promise }),
     admissionProvider: { async authorize() {}, async start(value) { request = value; return { async stop() {}, async close() {} }; } },
   });
-  f.registerDependentCleanup(async () => { release.resolve('cancelled'); await coordinator.close(); });
+  f.registerDependentCleanup(async () => { release.resolve('cancelled'); await assert.rejects(coordinator.close(), { code: 'INPUT_CHANGED' }); });
   const attempt = await coordinator.begin(f.beginRequest()); emitted(request, attempt.sides[0]!.frameCount);
   let state = coordinator.get({ attemptId: attempt.id }).attempt!;
   state = await coordinator.confirm({ commandId: randomUUID(), attemptId: attempt.id, expectedRevision: state.revision, kind: 'physical-stop', side: 'Program', userConfirmed: true });
@@ -151,7 +186,11 @@ test('末Hash失败持久failed后拒绝完成，原请求重试也不能把失�
   await until(() => inspect(f.filePath, attempt.id).length === 2);
   assert.deepEqual(inspect(f.filePath, attempt.id), [{ phase: 'failed', reason: 'INPUT_CHANGED' }, { phase: 'pending', reason: null }]);
   await assert.rejects(coordinator.confirm(final));
-  assert.equal(coordinator.get({ attemptId: attempt.id }).attempt?.status, 'interrupted');
+  const failed = coordinator.get({ attemptId: attempt.id }).attempt!;
+  assert.equal(failed.status, 'interrupted'); assert.equal(failed.sides[0]!.cleanupQuiescent, false);
+  assert.throws(() => coordinator.assertExecutionIdle(), { code: 'BACKEND_FAILURE' });
+  await assert.rejects(coordinator.begin(f.beginRequest()), { code: 'BACKEND_FAILURE' });
+  assert.deepEqual(inspect(f.filePath, attempt.id), [{ phase: 'failed', reason: 'INPUT_CHANGED' }, { phase: 'pending', reason: null }]);
 });
 
 test('A面末核验未完成时直接command/event均不得开始B面，verified后可由协调器开始', async t => {
@@ -174,7 +213,11 @@ test('A面末核验未完成时直接command/event均不得开始B面，verified
   assert.throws(() => f.repository.recordingAttempts.event(attempt.id, directEvent), { code: 'INVALID_TRANSITION' });
   releaseGate.resolve('verified');
   await until(() => { try { coordinator.assertExecutionIdle(); return true; } catch { return false; } });
-  const startedB = await coordinator.beginSide(beginB);
+  await assert.rejects(coordinator.beginSide(beginB), { code: 'VERSION_MISMATCH' });
+  const latest = coordinator.get({ attemptId: attempt.id }).attempt!;
+  assert.ok(latest.revision > beginB.expectedRevision, 'A面软件静止新增revision，开始B面需读取最新权威状态');
+  assert.equal(latest.sides[0]!.cleanupQuiescent, true);
+  const startedB = await coordinator.beginSide({ ...beginB, commandId: randomUUID(), expectedRevision: latest.revision });
   assert.equal(startedB.activeSide, 'B');
   assert.deepEqual(inspect(f.filePath, attempt.id).map(row => row.phase), ['pending', 'pending', 'verified']);
   await coordinator.stop({ commandId: randomUUID(), attemptId: attempt.id });

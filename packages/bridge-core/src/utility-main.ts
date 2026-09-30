@@ -362,6 +362,7 @@ async function dispatch(
     case 'recordingAttempts.list': return recordingAttemptsFor(runtime).list(request.payload as IpcCommandPayloads['recordingAttempts.list']);
     case 'recordingAttempts.get': return recordingAttemptsFor(runtime).get(request.payload as IpcCommandPayloads['recordingAttempts.get']);
     case 'recordingAttempts.begin': return recordingAttemptsFor(runtime).begin(request.payload as IpcCommandPayloads['recordingAttempts.begin']);
+    case 'recordingAttempts.receipt': return recordingAttemptsFor(runtime).receipt(request.payload as IpcCommandPayloads['recordingAttempts.receipt']);
     case 'recordingAttempts.confirm': return recordingAttemptsFor(runtime).confirm(request.payload as IpcCommandPayloads['recordingAttempts.confirm']);
     case 'recordingAttempts.beginSide': return recordingAttemptsFor(runtime).beginSide(request.payload as IpcCommandPayloads['recordingAttempts.beginSide']);
     case 'recordingAttempts.stop': return recordingAttemptsFor(runtime).stop(request.payload as IpcCommandPayloads['recordingAttempts.stop']);

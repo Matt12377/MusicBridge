@@ -28,6 +28,27 @@ const confirm = { commandId: id(11), attemptId: id(1), expectedRevision: 1, user
 const beginSide = { commandId: id(12), attemptId: id(1), expectedRevision: 2, userConfirmed: true, side: 'B' };
 const stop = { commandId: id(13), attemptId: id(1) };
 
+test('回执只读核对绑定原动作与完整请求，缺席不冒充未受理，拒绝变换执行身份', () => {
+  const request = { version: 1, id: id(20), command: 'recordingAttempts.receipt', payload: { action: 'begin', request: begin } };
+  assert.equal(c.validateIpcRequest(request).ok, true);
+  for (const [action, value] of [['beginSide', beginSide], ['confirm', confirm], ['stop', stop]] as const)
+    assert.equal(c.validateIpcRequest({ ...request, payload: { action, request: value } }).ok, true);
+  for (const payload of [{ action: 'stop', request: begin }, { action: 'begin', request: { ...begin, driver: true } }, { action: 'play', request: begin }, { action: 'begin', request: begin, datasetId: id(21) }])
+    assert.equal(c.validateIpcRequest({ ...request, payload }).ok, false);
+  const pending = { commandId: begin.commandId, action: 'begin', status: 'unknown' };
+  assert.equal(c.isRecordingAttemptReceipt(pending), true);
+  assert.equal(c.isRecordingAttemptReceipt({ ...pending, status: 'not-accepted' }), false);
+  const accepted = { ...pending, status: 'accepted', receipt: attempt(), attempt: { ...attempt(), revision: 2 } };
+  assert.equal(c.isRecordingAttemptReceipt(accepted), true);
+  for (const patch of [{ attempt: { ...accepted.attempt, id: id(21) } }, { attempt: { ...accepted.attempt, planContentHash: 'b'.repeat(64) } }, { attempt: { ...accepted.attempt, revision: 0 } }, { extra: true }])
+    assert.equal(c.isRecordingAttemptReceipt({ ...accepted, ...patch }), false);
+  assert.equal(c.isRecordingAttemptReceipt({ ...accepted, attempt: { ...accepted.attempt, revision: 1, updatedAt: later } }), false, '同revision不能有不同事实');
+  const progressed = { ...attempt(), sides: [{ ...side(), sourceFramesRead: 2, submittedFrames: 2, consumedFrames: 1, engineStoppedSubmitting: true }] };
+  assert.equal(c.isRecordingAttemptReceipt({ ...accepted, receipt: progressed, attempt: { ...progressed, revision: 2 } }), true);
+  for (const patch of [{ engineStoppedSubmitting: false }, { submittedFrames: 1 }, { consumedFrames: 0 }])
+    assert.equal(c.isRecordingAttemptReceipt({ ...accepted, receipt: progressed, attempt: { ...progressed, revision: 2, sides: [{ ...progressed.sides[0]!, ...patch }] } }), false, '更高revision不能回退已有单调证据');
+});
+
 test('Attempt请求只接受明确计划/命令身份，不接受认证、路径和后端事件', () => {
   assert.equal(typeof c.isBeginRecordingAttemptRequest, 'function', 'Attempt合同尚未实现');
   assert.equal(c.isBeginRecordingAttemptRequest(begin), true);

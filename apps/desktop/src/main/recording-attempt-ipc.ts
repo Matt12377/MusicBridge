@@ -2,9 +2,9 @@ import { randomUUID } from 'node:crypto'
 import { validateIpcRequest, type IpcCommandPayloads } from '@music-bridge/contracts'
 import { CoreIpcError, type CoreSupervisor } from './core-supervisor.js'
 
-const commands = ['recordingAttempts.list', 'recordingAttempts.get', 'recordingAttempts.begin', 'recordingAttempts.confirm', 'recordingAttempts.beginSide', 'recordingAttempts.stop'] as const
+const commands = ['recordingAttempts.list', 'recordingAttempts.get', 'recordingAttempts.receipt', 'recordingAttempts.begin', 'recordingAttempts.confirm', 'recordingAttempts.beginSide', 'recordingAttempts.stop'] as const
 
-/** 六个明确入口直达Core专用回执；执行边界不进入outbox自动恢复，也不接收设备认证。 */
+/** 明确的执行/只读入口直达Core专用回执；不进入outbox自动恢复，不接收设备认证。 */
 export function installRecordingAttemptHandlers<E>(options: {
   handle(channel: string, handler: (event: E, value?: unknown) => unknown): void
   requireTrusted(event: E): void

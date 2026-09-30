@@ -2657,14 +2657,14 @@
     "state": "active",
     "ownerAuthorization": "连续实施十一项性能与正确性任务，使用 gpt-6.1-sol xhigh 子代理并展示待办进度",
     "baselineCommit": "e97f9e578beb7c5329d0c59e232b0da568e2f6fa",
-    "branch": "codex/mbp-002-read-lifecycle",
-    "currentTask": "MBP-002",
+    "branch": "codex/mbr-002-recovery-lifecycle",
+    "currentTask": "MBR-002",
     "plan": "project/PERFORMANCE_PLAN.json",
     "todo": "project/PERFORMANCE_TODO.md",
     "implementationComplete": 3,
     "automaticAcceptanceComplete": 3,
     "taskCount": 11,
-    "implementationCommit": "28bac4a257a39f1c8b4f28c3c3d964c7d8b59c44",
+    "implementationCommit": null,
     "checks": {
       "implementationSha": "28bac4a257a39f1c8b4f28c3c3d964c7d8b59c44",
       "sourceFingerprint": "e7e86032e653dc4af47ea9cb04dfb1dca76cf9857de95d9267c4771fdfd35a72",
@@ -2683,32 +2683,26 @@
     "mainMerge": "NOT_RUN",
     "installedAppReplacement": "NOT_RUN",
     "report": "reports/MBP-002_READ_LIFECYCLE.md",
-    "currentTaskBase": "37fe2d22168d20b5defa336d679c8c8d7dc5d06a",
+    "currentTaskBase": "f672c9f1ef4c8faf0af86a8758476cb4def50a9f",
     "previousTask": {
-      "id": "MBR-001",
-      "implementationCommit": "4c36e9554900591b367add7edfc16985690f7a03",
-      "reportCommit": "37fe2d22168d20b5defa336d679c8c8d7dc5d06a",
+      "id": "MBP-002",
+      "implementationCommit": "28bac4a257a39f1c8b4f28c3c3d964c7d8b59c44",
+      "reportCommit": "f672c9f1ef4c8faf0af86a8758476cb4def50a9f",
       "localSoftwareGate": "PASS",
-      "remoteCI": {
-        "verify": {
-          "id": 36779250625,
-          "status": "WORKFLOW_FAIL",
-          "softwareJob": "PASS",
-          "dependencyAudit": "FAIL",
-          "moderate": 11,
-          "high": 7
-        },
-        "electron-e2e": {
-          "id": 36779250676,
-          "status": "PASS"
-        },
-        "security": {
-          "id": 36779250610,
-          "status": "PASS"
-        }
+      "remoteHead": "f672c9f1ef4c8faf0af86a8758476cb4def50a9f",
+      "remoteCI": "verify-job-PASS-security-PASS-dependency-audit-FAIL-electron-e2e-FAIL",
+      "remoteResults": {
+        "verifyRun": 36788739611,
+        "electronRun": 36788739591,
+        "securityRun": 36788739504,
+        "electronPassed": 103,
+        "electronOriginalSkips": 4,
+        "electronFailed": 1,
+        "failure": "v5 Core crash marker not observed; actual process output absent from retained artifact; no unique root cause claim",
+        "evidenceRoot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbr-002-root/run-hJ67HZ"
       }
     },
-    "pendingGate": "development-branch push and remote HEAD; MBR-002 continues from report HEAD",
+    "pendingGate": "MBR-002 implementation and full software gates",
     "firstImplementationChecks": {
       "implementationCommit": "bc04b713522ab8547a416131ee18e13336ba1740",
       "exitCode": 1,
@@ -2721,7 +2715,16 @@
       "failure": "主题 IPC VM 源码抽取夹具包含新增读取处理器；调整 Main 排列保留原来源/主题断言，定向 1/1 通过后固定提交全量重跑"
     },
     "automaticAcceptanceScope": "local-standard-software-gates",
-    "baseCommit": "37fe2d22168d20b5defa336d679c8c8d7dc5d06a",
-    "reportCommitResolution": "commit-containing-reports/MBP-002_READ_LIFECYCLE.md"
+    "baseCommit": "f672c9f1ef4c8faf0af86a8758476cb4def50a9f",
+    "reportCommitResolution": "commit-containing-reports/MBP-002_READ_LIFECYCLE.md",
+    "agentPolicy": {
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high",
+      "maximumImplementationAgents": 3,
+      "additionalAuditAgent": "Owner-permitted-if-needed",
+      "forbiddenModels": [
+        "gpt-6-sol"
+      ]
+    }
   }
 }

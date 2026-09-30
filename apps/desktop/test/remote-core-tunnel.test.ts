@@ -195,6 +195,55 @@ test('default health probe accepts only the bounded remote health body through a
   await manager.stop()
 })
 
+test('MBR002：探测超时终止并确认Fake SSH退出，未知退出保留所有权且禁止另起隧道', async () => {
+  class HeldProcess extends FakeSshProcess {
+    signals: Array<NodeJS.Signals | undefined> = []
+    override kill(signal?: NodeJS.Signals): boolean { this.signals.push(signal); return true }
+  }
+  const tunnel = new FakeSshProcess(), probe = new HeldProcess(); let spawns = 0
+  const manager = new RemoteCoreTunnelManager({ boundGraceMs: 0, healthTimeoutMs: 20, stopGraceMs: 10,
+    spawn: (_command, args) => { ++spawns; return args.includes('/usr/bin/curl') ? probe : tunnel },
+  })
+  const config = { sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: false }
+  const failed = await manager.start(config)
+  assert.equal(failed.status, 'failed')
+  assert.deepEqual(probe.signals, ['SIGTERM', 'SIGKILL'])
+  assert.equal((await manager.start(config)).status, 'failed')
+  assert.equal(spawns, 2, '未确认旧探测退出不得开始新的SSH')
+  probe.exit(0)
+  assert.equal((await manager.stop()).status, 'idle')
+  assert.equal(probe.listenerCount('exit'), 0)
+  assert.equal(probe.stdout.listenerCount('data'), 0)
+})
+
+test('MBR002：停止直接取消正在等待的探测，迟到健康结果不能恢复ready', async () => {
+  let enter!: () => void, finish!: (value: boolean) => void, signal: AbortSignal | undefined
+  const entered = new Promise<void>(resolve => { enter = resolve })
+  const held = new Promise<boolean>(resolve => { finish = resolve })
+  const process = new FakeSshProcess()
+  const manager = new RemoteCoreTunnelManager({ spawn: () => process, boundGraceMs: 0, healthTimeoutMs: 5_000,
+    healthProbe: async input => { signal = input.signal; enter(); return held },
+  })
+  const starting = manager.start({ sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: false })
+  await entered
+  const stopping = manager.stop()
+  assert.equal(signal?.aborted, true)
+  await starting; assert.equal((await stopping).status, 'idle')
+  finish(true); await new Promise(resolve => setImmediate(resolve))
+  assert.equal(manager.getState().status, 'idle'); assert.equal(process.killed, true)
+})
+
+test('MBR002：探测输出超预算拒绝而不是截断成可接受JSON', async () => {
+  const tunnel = new FakeSshProcess(), probe = new FakeSshProcess()
+  const manager = new RemoteCoreTunnelManager({ boundGraceMs: 0, spawn: (_command, args) => {
+    if (!args.includes('/usr/bin/curl')) return tunnel
+    queueMicrotask(() => { probe.stdout.emitText('{"ok":true,"mode":"remote-core-development"}' + ' '.repeat(4_096)); probe.exit(0) })
+    return probe
+  } })
+  assert.equal((await manager.start({ sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: false })).status, 'failed')
+  await manager.stop()
+})
+
 test('tunnel uses the next bounded remote port after a forward bind failure', async () => {
   const first = new FakeSshProcess({ code: 255, stderr: 'remote forward failure for: listen port 38512' })
   const second = new FakeSshProcess()
@@ -337,4 +386,105 @@ test('尚未配置目标时重连报告输入问题，而非远端健康故障',
   const state = await manager.reconnect()
   assert.equal(state.errorCode, 'INVALID_SSH_TARGET')
   assert.equal(state.failure?.phase, 'configuration')
+})
+
+test('MBR002：spawn失败的close确认释放所有权，不要求不存在的exit事件', async () => {
+  class UnspawnedProcess extends FakeSshProcess { override kill(): boolean { return false } }
+  const failed = new UnspawnedProcess(), healthy = new FakeSshProcess()
+  let spawns = 0
+  const manager = new RemoteCoreTunnelManager({ boundGraceMs: 0, stopGraceMs: 5,
+    healthProbe: async () => true,
+    spawn: () => {
+      if (++spawns === 1) {
+        queueMicrotask(() => { failed.emit('error', new Error('合成spawn失败')); failed.emit('close', -2, null) })
+        return failed
+      }
+      return healthy
+    },
+  })
+  const config = { sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: false }
+  try {
+    assert.equal((await manager.start(config)).errorCode, 'SSH_BINARY_UNAVAILABLE')
+    assert.equal((await manager.start(config)).status, 'ready')
+    assert.equal(spawns, 2)
+    assert.equal(failed.listenerCount('error'), 0)
+    assert.equal(failed.listenerCount('exit'), 0)
+    assert.equal(failed.listenerCount('close'), 0)
+  } finally { await manager.stop() }
+})
+
+test('MBR002：旧断连清理晚到不能重启显式新start创建的隧道', async () => {
+  let enter!: () => void, finish!: () => void
+  const entered = new Promise<void>(resolve => { enter = resolve })
+  const held = new Promise<void>(resolve => { finish = resolve })
+  const first = new FakeSshProcess(), second = new FakeSshProcess(), third = new FakeSshProcess()
+  const harness = managerHarness({ processes: [first, second, third], onDisconnected: async () => { enter(); await held } })
+  const config = { sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: true }
+  try {
+    await harness.manager.start(config)
+    first.exit(255); await entered
+    assert.equal((await harness.manager.start(config)).status, 'ready')
+    finish(); await new Promise(resolve => setImmediate(resolve)); await new Promise(resolve => setImmediate(resolve))
+    assert.equal(harness.spawnCalls.length, 2, '旧清理不得自动重启新隧道')
+    assert.equal(second.killed, false)
+  } finally { finish(); await harness.manager.stop() }
+})
+
+test('MBR002：探测回调同步触发stop也能立即取消，不遗漏已触发abort', async () => {
+  let enter!: () => void, finish!: (value: boolean) => void
+  const entered = new Promise<void>(resolve => { enter = resolve })
+  const held = new Promise<boolean>(resolve => { finish = resolve })
+  let stopping: Promise<RemoteCoreTunnelState> | undefined
+  const manager = new RemoteCoreTunnelManager({ boundGraceMs: 0, spawn: () => new FakeSshProcess(),
+    healthProbe: input => { stopping = manager.stop(); assert.equal(input.signal?.aborted, true); enter(); return held },
+  })
+  const starting = manager.start({ sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: false })
+  try {
+    await entered; await new Promise(resolve => setImmediate(resolve)); await new Promise(resolve => setImmediate(resolve))
+    assert.equal(manager.getState().status, 'idle')
+  } finally { finish(true); await starting; await stopping; await manager.stop() }
+})
+
+test('MBR002：kill同步报错不能重入发第二次TERM，未退出仍阻断新spawn', async () => {
+  class FailedKillProcess extends FakeSshProcess {
+    signals: Array<NodeJS.Signals | undefined> = []
+    override kill(signal?: NodeJS.Signals): boolean {
+      this.signals.push(signal)
+      if (this.signals.length === 1) this.emit('error', new Error('合成kill失败'))
+      throw new Error('合成发送信号失败')
+    }
+  }
+  const tunnel = new FakeSshProcess(), probe = new FailedKillProcess(); let spawns = 0
+  const manager = new RemoteCoreTunnelManager({ boundGraceMs: 0, healthTimeoutMs: 10, stopGraceMs: 5,
+    spawn: (_command, args) => { ++spawns; return args.includes('/usr/bin/curl') ? probe : tunnel },
+  })
+  const config = { sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: false }
+  try {
+    assert.equal((await manager.start(config)).status, 'failed')
+    assert.deepEqual(probe.signals.slice(0, 2), ['SIGTERM', 'SIGKILL'])
+    assert.equal((await manager.start(config)).status, 'failed')
+    assert.equal(spawns, 2)
+  } finally { probe.emit('close', null, null); await manager.stop() }
+  assert.equal(probe.listenerCount('error'), 0)
+  assert.equal(probe.listenerCount('exit'), 0)
+  assert.equal(probe.listenerCount('close'), 0)
+  assert.equal(probe.stdout.listenerCount('data'), 0)
+})
+
+test('MBR002：断连状态观察者同步新start，旧清理仍绑定发布前的intent', async () => {
+  const processes = [new FakeSshProcess(), new FakeSshProcess(), new FakeSshProcess()]
+  let spawns = 0, finish!: () => void, replacement: Promise<RemoteCoreTunnelState> | undefined
+  const held = new Promise<void>(resolve => { finish = resolve })
+  const config = { sshTarget: 'core-mac', remoteStreamPort: 38512, localStreamPort: 38502, autoReconnect: true }
+  const manager = new RemoteCoreTunnelManager({ boundGraceMs: 0, spawn: () => processes[spawns++]!, healthProbe: async () => true,
+    onStateChanged: state => { if (state.status === 'disconnected') replacement = manager.start(config) },
+    onDisconnected: () => held,
+  })
+  try {
+    await manager.start(config); processes[0]!.exit(255)
+    assert.equal((await replacement!).status, 'ready')
+    finish(); await new Promise(resolve => setImmediate(resolve)); await new Promise(resolve => setImmediate(resolve))
+    assert.equal(spawns, 2)
+    assert.equal(processes[1]!.killed, false)
+  } finally { finish(); await manager.stop() }
 })

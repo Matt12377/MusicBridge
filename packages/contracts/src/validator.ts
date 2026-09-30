@@ -8,7 +8,7 @@ import { isRecordingReplicaStatus, isInspectRecordingReplicaRequest, isRecording
 import { isListRecordingRecordsRequest, isRecordingRecordIdRequest, isRecordingVisualRequest, isPhysicalRecordingHistoryRequest, isPreviewPhysicalRecordingDispositionRequest, isApplyPhysicalRecordingDispositionRequest, isRecordingRecordsPage, isRecordingRecordDetail, isRecordingVisualResult, isPhysicalRecordingHistory, isPhysicalRecordingDispositionProposal, isApplyPhysicalRecordingDispositionResult } from './recording-records.js';
 import { isRecordingOutputStatus, isRecordingOutputCheckRequest, isRecordingOutputCancelRequest, isRecordingOutputCheckResult } from './recording-output.js';
 import { isRecordingDeviceCandidates, isRecordingOutputSelection, isSelectRecordingDeviceRequest } from './recording-device-selection.js';
-import { isListRecordingAttemptsRequest, isRecordingAttemptIdRequest, isBeginRecordingAttemptRequest, isConfirmRecordingAttemptRequest, isBeginRecordingAttemptSideRequest, isStopRecordingAttemptRequest, isRecordingAttemptsPage, isRecordingAttempt } from './recording-attempts.js';
+import { isListRecordingAttemptsRequest, isRecordingAttemptIdRequest, isBeginRecordingAttemptRequest, isConfirmRecordingAttemptRequest, isBeginRecordingAttemptSideRequest, isStopRecordingAttemptRequest, isRecordingAttemptsPage, isRecordingAttempt, isRecordingAttemptReceiptRequest, isRecordingAttemptReceipt } from './recording-attempts.js';
 import { isRecordingPlanHistoryRequest, isRecordingPlanIdRequest, isPreviewRecordingPlanRequest, isFreezeRecordingPlanRequest, isRecordingPreflightRequest, isRecordingPlanHistory, isRecordingPlanVersion, isRecordingPlanProposal, isRecordingPreflightResult } from './recording-plans.js';
 import { isSpreadsheetPageRequest, isSpreadsheetSourcePage, isSpreadsheetIdRequest, isSpreadsheetWorkbookSource, isSpreadsheetSourceRowsRequest, isSpreadsheetSourceRowsPage, isPreviewSpreadsheetImportRequest, isSpreadsheetImportPreview, isApplySpreadsheetImportRequest, isSpreadsheetImportResult, isSpreadsheetImportRevisionRequest, isSpreadsheetImportRevisionDetail, isSpreadsheetImportHistory, isSpreadsheetAdjustmentPreviewRequest, isSpreadsheetAdjustmentBalance, isAdjustSpreadsheetInventoryRequest, isSpreadsheetInventoryAdjustment, isSpreadsheetAdjustmentsRequest, isSpreadsheetAdjustmentsPage, isRegisterSpreadsheetWorkbookRequest, isChooseSpreadsheetWorkbookRequest, isSpreadsheetWorkbookReceipt } from './spreadsheet-import.js';
 import { isListWantEntriesRequest, isWantEntriesPage, isSaveWantEntryRequest, isWantEntry, isCancelWantEntryRequest, isGetWantEntryHistoryRequest, isWantEntryHistory, isGetCollectionProgressRequest, isCollectionProgress, isCaptureCollectionProgressRequest, isCollectionProgressSnapshotSummary, isListCollectionProgressSnapshotsRequest, isCollectionProgressSnapshotsPage, isGetCollectionProgressSnapshotRequest, isCollectionProgressSnapshotDetail, isGetCollectionModelLengthsRequest, isCollectionModelLengths } from './collection-progress.js';
@@ -1037,6 +1037,7 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'recordingRecords.applyDisposition') return isApplyPhysicalRecordingDispositionRequest(payload);
   if (command === 'recordingAttempts.list') return isListRecordingAttemptsRequest(payload);
   if (command === 'recordingAttempts.get') return isRecordingAttemptIdRequest(payload);
+  if (command === 'recordingAttempts.receipt') return isRecordingAttemptReceiptRequest(payload);
   if (command === 'recordingAttempts.begin') return isBeginRecordingAttemptRequest(payload);
   if (command === 'recordingAttempts.confirm') return isConfirmRecordingAttemptRequest(payload);
   if (command === 'recordingAttempts.beginSide') return isBeginRecordingAttemptSideRequest(payload);
@@ -1663,6 +1664,7 @@ function isCommandResult(
     case 'recordingRecords.applyDisposition': return isApplyPhysicalRecordingDispositionResult(value);
     case 'recordingAttempts.list': return isRecordingAttemptsPage(value);
     case 'recordingAttempts.get': return isRecord(value) && hasOnlyKeys(value, ['attempt']) && (value.attempt === null || isRecordingAttempt(value.attempt));
+    case 'recordingAttempts.receipt': return isRecordingAttemptReceipt(value);
     case 'recordingAttempts.begin':
     case 'recordingAttempts.confirm':
     case 'recordingAttempts.beginSide':

@@ -26,6 +26,7 @@ type SshErrorListener = (error: Error) => void
 
 export interface RemoteSshOutput {
   on(event: 'data', listener: (chunk: Buffer | string) => void): unknown
+  removeListener?(event: 'data', listener: (chunk: Buffer | string) => void): unknown
 }
 
 export interface RemoteSshProcess {
@@ -34,8 +35,10 @@ export interface RemoteSshProcess {
   on(event: 'exit', listener: SshExitListener): this
   on(event: 'error', listener: SshErrorListener): this
   once(event: 'exit', listener: SshExitListener): this
+  once(event: 'close', listener: SshExitListener): this
   once(event: 'error', listener: SshErrorListener): this
   removeListener(event: 'exit', listener: SshExitListener): this
+  removeListener(event: 'close', listener: SshExitListener): this
   removeListener(event: 'error', listener: SshErrorListener): this
   kill(signal?: NodeJS.Signals): boolean
 }
@@ -61,6 +64,7 @@ export interface RemoteCoreTunnelConfig {
 export interface RemoteCoreTunnelHealthProbeInput {
   sshTarget: string
   remoteStreamPort: number
+  signal?: AbortSignal
 }
 
 export interface RemoteCoreTunnelManagerOptions {
@@ -71,6 +75,7 @@ export interface RemoteCoreTunnelManagerOptions {
   onStateChanged?: (state: RemoteCoreTunnelState) => void
   boundGraceMs?: number
   healthTimeoutMs?: number
+  stopGraceMs?: number
 }
 
 const DEFAULT_BOUND_GRACE_MS = 150
@@ -284,6 +289,14 @@ interface BoundResult {
   errorCode?: RemoteCoreTunnelErrorCode
 }
 
+interface OwnedSshProcess {
+  child: RemoteSshProcess
+  exited: boolean
+  intentional: boolean
+  exit: Promise<void>
+  stopping?: Promise<boolean>
+}
+
 export class RemoteCoreTunnelManager {
   private readonly spawn: RemoteCoreTunnelSpawn
   private readonly healthProbe: (
@@ -291,6 +304,7 @@ export class RemoteCoreTunnelManager {
   ) => Promise<boolean>
   private readonly boundGraceMs: number
   private readonly healthTimeoutMs: number
+  private readonly stopGraceMs: number
   private readonly options: RemoteCoreTunnelManagerOptions
   private state: RemoteCoreTunnelState = {
     mode: 'local-core',
@@ -304,12 +318,19 @@ export class RemoteCoreTunnelManager {
   private autoReconnectUsed = false
   private stopping = false
   private operationTail: Promise<void> = Promise.resolve()
+  private readonly owned = new Map<RemoteSshProcess, OwnedSshProcess>()
+  private probeController: AbortController | undefined
+  private intentGeneration = 0
 
   constructor(options: RemoteCoreTunnelManagerOptions = {}) {
     this.options = options
     this.spawn = options.spawn ?? defaultSpawn
     this.boundGraceMs = options.boundGraceMs ?? DEFAULT_BOUND_GRACE_MS
     this.healthTimeoutMs = options.healthTimeoutMs ?? DEFAULT_HEALTH_TIMEOUT_MS
+    this.stopGraceMs = options.stopGraceMs ?? 500
+    if (!Number.isSafeInteger(this.stopGraceMs) || this.stopGraceMs < 1 || this.stopGraceMs > 1_000
+      || !Number.isSafeInteger(this.healthTimeoutMs) || this.healthTimeoutMs < 1 || this.healthTimeoutMs > 5_000)
+      throw new Error('SSH生命周期截止期限无效')
     this.healthProbe = options.healthProbe ?? ((input) => this.probeHealth(input))
   }
 
@@ -318,20 +339,30 @@ export class RemoteCoreTunnelManager {
   }
 
   start(config: RemoteCoreTunnelConfig): Promise<RemoteCoreTunnelState> {
+    const generation = ++this.intentGeneration
+    this.probeController?.abort()
     return this.enqueue(async () => {
+      if (generation !== this.intentGeneration) return this.getState()
+      this.stopping = false
       this.autoReconnectUsed = false
-      return this.startInternal(config, false)
+      return this.startInternal(config, false, generation)
     })
   }
 
   stop(): Promise<RemoteCoreTunnelState> {
+    ++this.intentGeneration
+    this.stopping = true
+    this.probeController?.abort()
     return this.enqueue(async () => {
       this.stopping = true
       this.setState({
         ...this.state,
         status: this.child ? 'stopping' : 'idle',
       })
-      await this.stopChild()
+      if (!await this.stopAllOwned()) {
+        this.setState({ ...this.state, status: 'failed', remoteHealth: 'unavailable', errorCode: 'TUNNEL_DISCONNECTED', failure: buildFailure('TUNNEL_DISCONNECTED') })
+        return this.getState()
+      }
       this.lastConfig = undefined
       this.autoReconnectUsed = false
       this.setState({
@@ -347,7 +378,11 @@ export class RemoteCoreTunnelManager {
   }
 
   reconnect(): Promise<RemoteCoreTunnelState> {
+    const generation = ++this.intentGeneration
+    this.probeController?.abort()
     return this.enqueue(async () => {
+      if (generation !== this.intentGeneration) return this.getState()
+      this.stopping = false
       const config = this.lastConfig
       if (!config) {
         return this.failState(
@@ -361,18 +396,20 @@ export class RemoteCoreTunnelManager {
         )
       }
       this.autoReconnectUsed = false
-      await this.stopChild()
-      return this.startInternal(config, true)
+      return this.startInternal(config, true, generation)
     })
   }
 
   private async startInternal(
     config: RemoteCoreTunnelConfig,
     reconnecting: boolean,
+    generation = this.intentGeneration,
   ): Promise<RemoteCoreTunnelState> {
     this.lastConfig = { ...config }
     const validationError = this.validateConfig(config)
     if (validationError) return this.failState(config, validationError)
+    if (!await this.stopAllOwned()) return this.failState(config, 'TUNNEL_DISCONNECTED')
+    if (generation !== this.intentGeneration || this.stopping) return this.getState()
 
     this.setState(baseRemoteState(config, reconnecting ? 'reconnecting' : 'checking'))
     const candidates = this.remotePortCandidates(config.remoteStreamPort)
@@ -385,13 +422,16 @@ export class RemoteCoreTunnelManager {
           buildTunnelSshArgs(config.sshTarget, remoteStreamPort, config.localStreamPort),
           { shell: false, stdio: ['ignore', 'pipe', 'pipe'] },
         )
+        this.own(child)
+        this.child = child
       } catch {
         return this.failState(config, 'SSH_BINARY_UNAVAILABLE')
       }
 
       const bound = await this.waitForBound(child)
+      if (generation !== this.intentGeneration || this.stopping) { await this.stopOwned(child); return this.getState() }
       if (!bound.bound) {
-        child.kill('SIGTERM')
+        if (!await this.stopOwned(child)) return this.failState(config, 'TUNNEL_DISCONNECTED', remoteStreamPort)
         if (
           bound.errorCode === 'SSH_AUTH_REQUIRED' ||
           bound.errorCode === 'SSH_CONNECTION_FAILED' ||
@@ -411,18 +451,18 @@ export class RemoteCoreTunnelManager {
         try {
           await this.options.onTunnelBound?.(this.getState())
         } catch {
-          this.child = undefined
-          child.kill('SIGTERM')
+          if (!await this.stopOwned(child)) return this.failState(config, 'TUNNEL_DISCONNECTED', remoteStreamPort)
           return this.failState(config, 'CORE_RESTART_FAILED', remoteStreamPort)
         }
+
+        if (generation !== this.intentGeneration || this.stopping) { await this.stopOwned(child); return this.getState() }
 
         const healthy = await this.healthProbeWithTimeout({
           sshTarget: config.sshTarget,
           remoteStreamPort,
         })
-        if (!healthy || this.child !== child) {
-          this.child = undefined
-          child.kill('SIGTERM')
+        if (!healthy || this.child !== child || generation !== this.intentGeneration || this.stopping) {
+          if (!await this.stopAllOwned()) return this.failState(config, 'TUNNEL_DISCONNECTED', remoteStreamPort)
           return this.failState(config, 'REMOTE_HEALTH_UNAVAILABLE', remoteStreamPort)
         }
         this.setState({
@@ -432,8 +472,7 @@ export class RemoteCoreTunnelManager {
         })
         return this.getState()
       } catch {
-        this.child = undefined
-        child.kill('SIGTERM')
+        if (!await this.stopAllOwned()) return this.failState(config, 'TUNNEL_DISCONNECTED', remoteStreamPort)
         return this.failState(config, 'REMOTE_HEALTH_UNAVAILABLE', remoteStreamPort)
       }
     }
@@ -471,9 +510,10 @@ export class RemoteCoreTunnelManager {
 
   private async waitForBound(child: RemoteSshProcess): Promise<BoundResult> {
     let stderr = ''
-    child.stderr?.on('data', (chunk) => {
+    const onData = (chunk: Buffer | string) => {
       if (stderr.length < 4_096) stderr += chunk.toString().slice(0, 4_096 - stderr.length)
-    })
+    }
+    child.stderr?.on('data', onData)
 
     return new Promise<BoundResult>((resolve) => {
       let settled = false
@@ -484,6 +524,7 @@ export class RemoteCoreTunnelManager {
         if (timer) clearTimeout(timer)
         child.removeListener('exit', onExit)
         child.removeListener('error', onError)
+        child.stderr?.removeListener?.('data', onData)
         resolve(result)
       }
       const onExit: SshExitListener = (code) => {
@@ -504,8 +545,10 @@ export class RemoteCoreTunnelManager {
   }
 
   private attachUnexpectedExit(child: RemoteSshProcess): void {
-    child.on('exit', (code) => {
-      if (this.child !== child || this.stopping) return
+    const owner = this.owned.get(child)
+    child.once('exit', (code) => {
+      if (this.child !== child || this.stopping || owner?.intentional) return
+      const generation = this.intentGeneration
       this.child = undefined
       const state = baseRemoteState(
         this.lastConfig ?? {
@@ -519,41 +562,55 @@ export class RemoteCoreTunnelManager {
         this.state.remoteStreamPort,
       )
       this.setState(state)
-      void this.handleDisconnect(state, code)
+      void this.handleDisconnect(state, code, generation)
     })
   }
 
-  private async handleDisconnect(state: RemoteCoreTunnelState, _code: number | null): Promise<void> {
+  private async handleDisconnect(state: RemoteCoreTunnelState, _code: number | null, generation: number): Promise<void> {
     try {
-      await this.options.onDisconnected?.(this.getState())
+      await this.options.onDisconnected?.(copyState(state))
     } catch {
-      // Tunnel cleanup must continue even if the playback cleanup callback fails.
+      // 播放清理回调失败不能阻断隧道收尾。
     }
     const config = this.lastConfig
-    if (!config || !config.autoReconnect || this.autoReconnectUsed || this.stopping) return
+    if (generation !== this.intentGeneration || !config || !config.autoReconnect || this.autoReconnectUsed || this.stopping) return
     this.autoReconnectUsed = true
-    await this.enqueue(async () => this.startInternal(config, true))
+    await this.enqueue(async () => generation === this.intentGeneration && !this.stopping
+      ? this.startInternal(config, true, generation)
+      : this.getState())
   }
 
   private async healthProbeWithTimeout(
     input: RemoteCoreTunnelHealthProbeInput,
   ): Promise<boolean> {
     let timer: ReturnType<typeof setTimeout> | undefined
+    const controller = new AbortController()
+    this.probeController = controller
+    const onAbort = () => resolveAbort(false)
+    let resolveAbort!: (value: boolean) => void
     try {
+      // 先订阅取消，再进入注入的探测回调；回调可能同步触发stop。
+      const cancelled = new Promise<boolean>((resolve) => {
+        resolveAbort = resolve
+        controller.signal.addEventListener('abort', onAbort, { once: true })
+        timer = setTimeout(() => controller.abort(), this.healthTimeoutMs)
+      })
       return await Promise.race([
-        this.healthProbe(input),
-        new Promise<boolean>((resolve) => {
-          timer = setTimeout(() => resolve(false), this.healthTimeoutMs)
-        }),
+        cancelled,
+        this.healthProbe({ ...input, signal: controller.signal }),
       ])
     } catch {
       return false
     } finally {
       if (timer) clearTimeout(timer)
+      controller.signal.removeEventListener('abort', onAbort)
+      controller.abort()
+      if (this.probeController === controller) this.probeController = undefined
     }
   }
 
   private async probeHealth(input: RemoteCoreTunnelHealthProbeInput): Promise<boolean> {
+    if (input.signal?.aborted) return false
     let child: RemoteSshProcess
     try {
       child = this.spawn(
@@ -561,6 +618,7 @@ export class RemoteCoreTunnelManager {
         buildHealthCheckSshArgs(input.sshTarget, input.remoteStreamPort),
         { shell: false, stdio: ['ignore', 'pipe', 'pipe'] },
       )
+      this.own(child)
     } catch {
       return false
     }
@@ -568,16 +626,18 @@ export class RemoteCoreTunnelManager {
     return new Promise<boolean>((resolve) => {
       let output = ''
       let settled = false
+      let overflow = false
       const finish = (value: boolean): void => {
         if (settled) return
         settled = true
         child.removeListener('exit', onExit)
         child.removeListener('error', onError)
-        child.kill('SIGTERM')
+        child.stdout?.removeListener?.('data', onData)
+        input.signal?.removeEventListener('abort', onAbort)
         resolve(value)
       }
       const onExit: SshExitListener = (code) => {
-        if (code !== 0) return finish(false)
+        if (code !== 0 || overflow || input.signal?.aborted) return finish(false)
         try {
           const body = JSON.parse(output.trim()) as { ok?: unknown; mode?: unknown }
           finish(body.ok === true && body.mode === 'remote-core-development')
@@ -585,33 +645,71 @@ export class RemoteCoreTunnelManager {
           finish(false)
         }
       }
-      const onError: SshErrorListener = () => finish(false)
-      child.stdout?.on('data', (chunk) => {
-        if (output.length < 4_096) output += chunk.toString().slice(0, 4_096 - output.length)
-      })
+      const onError: SshErrorListener = () => { void this.stopOwned(child).then(() => finish(false)) }
+      const onAbort = () => { void this.stopOwned(child).then(() => finish(false)) }
+      const onData = (chunk: Buffer | string) => {
+        const value = chunk.toString()
+        if (Buffer.byteLength(output) + Buffer.byteLength(value) > 4_096) { overflow = true; onAbort(); return }
+        output += value
+      }
+      child.stdout?.on('data', onData)
       child.once('exit', onExit)
       child.once('error', onError)
+      input.signal?.addEventListener('abort', onAbort, { once: true })
+      if (input.signal?.aborted) onAbort()
     })
   }
 
-  private async stopChild(): Promise<void> {
-    const child = this.child
-    this.child = undefined
-    if (!child) return
-    await new Promise<void>((resolve) => {
-      let settled = false
-      const finish = (): void => {
-        if (settled) return
-        settled = true
-        clearTimeout(timer)
-        child.removeListener('exit', onExit)
-        resolve()
+  private own(child: RemoteSshProcess): OwnedSshProcess {
+    const prior = this.owned.get(child)
+    if (prior) return prior
+    let resolveExit!: () => void
+    const owner: OwnedSshProcess = { child, exited: false, intentional: false, exit: new Promise(resolve => { resolveExit = resolve }) }
+    const onError: SshErrorListener = () => { /* error不等于进程已退出，仍由退出事件或受控停止核对。 */ }
+    const finish = () => {
+      if (owner.exited) return
+      owner.exited = true
+      this.owned.delete(child)
+      child.removeListener('error', onError)
+      child.removeListener('exit', finish)
+      child.removeListener('close', finish)
+      resolveExit()
+    }
+    child.on('error', onError)
+    child.once('exit', finish)
+    // Node的spawn失败可能只发error、close；close也确认该子进程生命周期结束。
+    child.once('close', finish)
+    this.owned.set(child, owner)
+    return owner
+  }
+
+  private async stopOwned(child: RemoteSshProcess): Promise<boolean> {
+    const owner = this.owned.get(child)
+    if (!owner) { if (this.child === child) this.child = undefined; return true }
+    if (owner.stopping) return owner.stopping
+    owner.intentional = true
+    const waitExit = async () => {
+      let timer!: ReturnType<typeof setTimeout>
+      try { await Promise.race([owner.exit, new Promise<void>(resolve => { timer = setTimeout(resolve, this.stopGraceMs) })]) }
+      finally { clearTimeout(timer) }
+    }
+    // 先公开共享停止Promise，再发送信号，防同步error/exit回调重入重复kill。
+    owner.stopping = Promise.resolve().then(async () => {
+      for (const signal of ['SIGTERM', 'SIGKILL'] as const) {
+        if (owner.exited) break
+        try { child.kill(signal) } catch { /* 发送失败仍不代表退出；保留所有权。 */ }
+        if (!owner.exited) await waitExit()
       }
-      const onExit: SshExitListener = () => finish()
-      const timer = setTimeout(finish, 1_000)
-      child.once('exit', onExit)
-      child.kill('SIGTERM')
-    })
+      if (owner.exited && this.child === child) this.child = undefined
+      return owner.exited
+    }).finally(() => { owner.stopping = undefined })
+    return owner.stopping
+  }
+
+  private async stopAllOwned(): Promise<boolean> {
+    const results = await Promise.all([...this.owned.keys()].map(child => this.stopOwned(child)))
+    if (this.child && !this.owned.has(this.child)) this.child = undefined
+    return results.every(Boolean) && this.owned.size === 0
   }
 
   private setState(state: RemoteCoreTunnelState): void {
@@ -619,7 +717,7 @@ export class RemoteCoreTunnelManager {
     try {
       this.options.onStateChanged?.(this.getState())
     } catch {
-      // UI state observers must not break tunnel lifecycle or cleanup.
+      // UI状态观察者不能阻断隧道生命周期与收尾。
     }
   }
 

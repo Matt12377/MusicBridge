@@ -1116,9 +1116,11 @@ test('R023：合法Stop进入同步持久审计前已发出abort并调用自建d
   });
   f.registerDependentCleanup(() => coordinator.close());
   const attempt = await coordinator.begin(f.beginRequest());
-  await coordinator.stop({ commandId: randomUUID(), attemptId: attempt.id });
+  const receipt = await coordinator.stop({ commandId: randomUUID(), attemptId: attempt.id });
   assert.deepEqual(atPersistence, { aborted: true, stopCalls: 1 });
-  assert.deepEqual(cleanupPersistence, ['engine-cutoff', 'stop-ack', 'cleanup-quiescent'].map(type => ({ type, aborted: true, stopCalls: 1 })));
+  assert.deepEqual(cleanupPersistence, ['engine-cutoff', 'stop-ack'].map(type => ({ type, aborted: true, stopCalls: 1 })));
+  assert.equal(receipt.sides[0]!.cleanupQuiescent, false, '同步驱动cleanup不能证明Core租期已释放');
+  await waitForOutputIdle(coordinator);
   const final = coordinator.get({ attemptId: attempt.id }).attempt!;
   assert.equal(final.reason, 'user-stop');
   assert.equal(final.sides[0]!.engineStoppedSubmitting, true);
@@ -1148,11 +1150,16 @@ test('R023 Stop批写：同步终止事实、abort与命令回执只提交一个
   const stopped = await coordinator.stop({ commandId: randomUUID(), attemptId: attempt.id });
   assert.equal(stopped.status, 'aborted');
   assert.deepEqual(stopped.sides.map(side => ({ cutoff: side.engineStoppedSubmitting, ack: side.stopAcknowledged, cleanup: side.cleanupQuiescent })),
-    [{ cutoff: true, ack: true, cleanup: true }, { cutoff: false, ack: false, cleanup: false }]);
+    [{ cutoff: true, ack: true, cleanup: false }, { cutoff: false, ack: false, cleanup: false }]);
   assert.deepEqual({ eventTransactions, commandTransactions }, { eventTransactions: 0, commandTransactions: 0 }, 'Stop须经独立窄批API一次提交，不能逐event再command');
   const db = new DatabaseSync(f.filePath, { readOnly: true }); t.after(() => db.close());
   assert.deepEqual(db.prepare('SELECT kind FROM recording_attempt_events WHERE attempt_id=? ORDER BY revision').all(attempt.id).map(row => row.kind),
-    ['begin', 'stop-ack', 'engine-cutoff', 'cleanup-quiescent', 'abort'], '批内按首次到达顺序追加，abort固定在真实清理事实之后');
+    ['begin', 'stop-ack', 'engine-cutoff', 'abort'], '批内按首次到达顺序追加真实cutoff/ACK，Core清理不得混入原回执');
+  await waitForOutputIdle(coordinator);
+  assert.deepEqual(db.prepare('SELECT kind FROM recording_attempt_events WHERE attempt_id=? ORDER BY revision').all(attempt.id).map(row => row.kind),
+    ['begin', 'stop-ack', 'engine-cutoff', 'abort', 'cleanup-quiescent'], '输入租期释放后才追加独立静止事务');
+  assert.equal(coordinator.get({ attemptId: attempt.id }).attempt!.sides[0]!.cleanupQuiescent, true);
+  assert.equal(stopped.sides[0]!.cleanupQuiescent, false, '原Stop回执保持不可变');
 });
 
 test('R023：提前派发停止仍须拒绝旧scope、错误目标与复用冲突命令，重放不重复停止', async t => {
@@ -1284,13 +1291,15 @@ test('J11：首次capture拒绝但迟到的持久Begin回执可读时返回最�
   const f = await fixture(t), request = f.beginRequest(), initial = await f.attempts.begin(request);
   const stopped = await f.attempts.stop({ commandId: randomUUID(), attemptId: initial.id });
   await waitForOutputIdle(f.attempts);
+  const latest = f.attempts.get({ attemptId: initial.id }).attempt!;
   const original = f.repository.recordingAttempts; let reads = 0;
   const coordinator = createRecordingAttemptCoordinator({ store: { ...original,
     cached(action, value) { return ++reads === 1 ? undefined : original.cached(action, value); },
     capture() { throw new AttemptError('PLAN_CHANGED'); },
   }, admissionProvider: { async authorize() { assert.fail('已存Begin不得再次准入'); }, async start() { assert.fail('已存Begin不得再次启动'); } } });
   f.registerDependentCleanup(() => coordinator.close());
-  assert.deepEqual(await coordinator.begin(request), stopped);
+  assert.deepEqual(await coordinator.begin(request), latest);
+  assert.ok(latest.revision >= stopped.revision, '迟到Begin核对返回最新持久事实，原Stop回执仍是受理时的记录');
   assert.equal(reads, 2); assert.equal(f.starts.length, 1);
 });
 
@@ -1328,6 +1337,227 @@ test('Begin事后receipt读取失败不能推断未受理，保留原不确定�
   f.registerDependentCleanup(() => coordinator.close());
   await assert.rejects(coordinator.begin(f.beginRequest()), { code: 'BACKEND_FAILURE' });
   assert.equal(reads, 2);
+});
+
+test('MBR002：原命令只读核对区分未知、在途和持久回执，不准入、不重放、不改变ledger', async t => {
+  const f = await fixture(t), entered = deferred<void>(), admitted = deferred<void>(); let starts = 0;
+  const coordinator = createRecordingAttemptCoordinator({ store: f.repository.recordingAttempts, admissionProvider: {
+    async authorize() { entered.resolve(); await admitted.promise; },
+    async start() { ++starts; return { async stop() {}, async close() {} }; },
+  } });
+  f.registerDependentCleanup(() => coordinator.close());
+  const request = f.beginRequest(), lookup = { action: 'begin' as const, request };
+  const before = rows(f.filePath);
+  assert.deepEqual(coordinator.receipt(lookup), { commandId: request.commandId, action: 'begin', status: 'unknown' });
+  assert.deepEqual(rows(f.filePath), before); assert.equal(starts, 0);
+  const pending = coordinator.begin(request); await entered.promise;
+  assert.deepEqual(coordinator.receipt(lookup), { commandId: request.commandId, action: 'begin', status: 'pending' });
+  assert.throws(() => coordinator.receipt({ ...lookup, request: { ...request, planContentHash: 'a'.repeat(64) } }), { code: 'COMMAND_CONFLICT' });
+  admitted.resolve(); const initial = await pending;
+  const stop = { commandId: randomUUID(), attemptId: initial.id };
+  const stopped = await coordinator.stop(stop); await waitForOutputIdle(coordinator);
+  const after = rows(f.filePath), result = coordinator.receipt(lookup);
+  assert.equal(result.status, 'accepted');
+  if (result.status !== 'accepted') assert.fail('已有持久回执应可核对');
+  assert.deepEqual(result.receipt, initial); assert.deepEqual(result.attempt, coordinator.get({ attemptId: initial.id }).attempt);
+  assert.ok(result.attempt.revision >= stopped.revision); assert.equal(result.attempt.status, 'aborted');
+  assert.deepEqual(rows(f.filePath), after); assert.equal(starts, 1);
+  assert.throws(() => coordinator.receipt({ action: 'stop', request: { ...stop, attemptId: randomUUID() } }), { code: 'COMMAND_CONFLICT' });
+});
+
+test('MBR002：close明确失败后原Stop可手动重试同run，只读核对不重试且原回执不改写', async t => {
+  const f = await fixture(t); let stops = 0, closes = 0;
+  const coordinator = createRecordingAttemptCoordinator({ store: f.repository.recordingAttempts, admissionProvider: {
+    async authorize() {}, async start() { return {
+      async stop() { ++stops; }, async close() { if (++closes === 1) throw new Error('合成首次关闭失败'); },
+    }; },
+  } });
+  f.registerDependentCleanup(() => coordinator.close());
+  const initial = await coordinator.begin(f.beginRequest()), request = { commandId: randomUUID(), attemptId: initial.id };
+  const original = await coordinator.stop(request);
+  for (let i = 0; i < 20 && closes === 0; ++i) await new Promise(resolve => setImmediate(resolve));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.throws(() => coordinator.assertExecutionIdle(), { code: 'BACKEND_FAILURE' });
+  const lookup = { action: 'stop' as const, request }, first = coordinator.receipt(lookup);
+  assert.equal(first.status, 'accepted');
+  if (first.status !== 'accepted') assert.fail('Stop持久回执应可核对');
+  assert.equal(first.attempt.sides[0]!.cleanupQuiescent, false); assert.equal(closes, 1);
+  assert.throws(() => coordinator.receipt({ ...lookup, request: { ...request, attemptId: randomUUID() } }), { code: 'COMMAND_CONFLICT' });
+  assert.equal(closes, 1, '任何只读核对都不请求关闭');
+  assert.deepEqual(await coordinator.stop(request), original);
+  for (let i = 0; i < 100 && !coordinator.get({ attemptId: initial.id }).attempt!.sides[0]!.cleanupQuiescent; ++i)
+    await new Promise(resolve => setTimeout(resolve, 10));
+  await waitForOutputIdle(coordinator);
+  const recovered = coordinator.receipt(lookup);
+  assert.equal(recovered.status, 'accepted');
+  if (recovered.status !== 'accepted') assert.fail('原Stop回执应保留');
+  assert.deepEqual(recovered.receipt, original);
+  assert.equal(recovered.attempt.sides[0]!.engineStoppedSubmitting, true);
+  assert.equal(recovered.attempt.sides[0]!.cleanupQuiescent, true);
+  assert.equal(recovered.attempt.sides[0]!.stopAcknowledged, false);
+  assert.equal(recovered.attempt.sides[0]!.backendDrained, false);
+  assert.ok(recovered.attempt.revision > original.revision);
+  assert.deepEqual({ stops, closes }, { stops: 2, closes: 2 });
+});
+
+test('MBR002：原Stop并发重试共用在途close，冲突请求和只读核对不增加关闭调用', async t => {
+  const f = await fixture(t), entered = deferred<void>(), closeGate = deferred<void>(); let closes = 0, stops = 0;
+  const coordinator = createRecordingAttemptCoordinator({ store: f.repository.recordingAttempts, admissionProvider: {
+    async authorize() {}, async start() { return { async stop() { ++stops; }, async close() {
+      if (++closes === 1) throw new Error('合成首次关闭失败');
+      entered.resolve(); await closeGate.promise;
+    } }; },
+  } });
+  f.registerDependentCleanup(async () => { closeGate.resolve(); await coordinator.close(); });
+  const attempt = await coordinator.begin(f.beginRequest()), request = { commandId: randomUUID(), attemptId: attempt.id };
+  const receipt = await coordinator.stop(request);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.throws(() => coordinator.assertExecutionIdle(), { code: 'BACKEND_FAILURE' });
+  const beforeRetry = rows(f.filePath);
+  const outputBarriers = () => {
+    const db = new DatabaseSync(f.filePath, { readOnly: true });
+    try { return db.prepare('SELECT * FROM output_run_barrier_events WHERE attempt_id=? ORDER BY rowid').all(attempt.id); }
+    finally { db.close(); }
+  };
+  const failedBarrier = outputBarriers();
+  const retried = await Promise.all([coordinator.stop(request), coordinator.stop(request)]);
+  await entered.promise;
+  assert.deepEqual(retried, [receipt, receipt]); assert.deepEqual({ stops, closes }, { stops: 2, closes: 2 });
+  await assert.rejects(coordinator.stop({ ...request, attemptId: randomUUID() }), { code: 'COMMAND_CONFLICT' });
+  assert.equal(coordinator.receipt({ action: 'stop', request }).status, 'accepted');
+  assert.deepEqual(rows(f.filePath), beforeRetry, '关闭仍在途时，重试与核对不得改写持久回执或ledger');
+  assert.equal(coordinator.get({ attemptId: attempt.id }).attempt!.sides[0]!.cleanupQuiescent, false);
+  closeGate.resolve();
+  for (let i = 0; i < 100 && !coordinator.get({ attemptId: attempt.id }).attempt!.sides[0]!.cleanupQuiescent; ++i)
+    await new Promise(resolve => setTimeout(resolve, 10));
+  await waitForOutputIdle(coordinator);
+  const recovered = coordinator.receipt({ action: 'stop', request });
+  assert.equal(recovered.status, 'accepted');
+  if (recovered.status !== 'accepted') assert.fail('原Stop回执应保留');
+  assert.deepEqual(recovered.receipt, receipt);
+  assert.equal(closes, 2);
+  assert.deepEqual(outputBarriers(), failedBarrier, '手动收口只能补软件静止，既有failed barrier不得改写为verified');
+  const afterRetry = rows(f.filePath);
+  assert.deepEqual(afterRetry[2], beforeRetry[2], '原命令回执保持不可变');
+  assert.deepEqual(afterRetry.slice(3), beforeRetry.slice(3), '收口重试不改变实物、库存及ledger');
+});
+
+test('MBR002：driver已close但输入租期release未返回时不写静止且阻断新run', async t => {
+  const f = await fixture(t), entered = deferred<void>(), releaseGate = deferred<void>(); let closes = 0;
+  const coordinator = createRecordingAttemptCoordinator({ store: f.repository.recordingAttempts,
+    acquireInputLease: async (...args) => {
+      const lease = await acquireRecordingOutputInputLease(...args);
+      return { signal: lease.signal, provider: lease.provider, async release() { entered.resolve(); await releaseGate.promise; return lease.release(); } };
+    },
+    admissionProvider: { async authorize() {}, async start() { return { async stop() {}, async close() { ++closes; } }; } },
+  });
+  f.registerDependentCleanup(async () => { releaseGate.resolve(); await coordinator.close(); });
+  const attempt = await coordinator.begin(f.beginRequest()), request = { commandId: randomUUID(), attemptId: attempt.id };
+  const receipt = await coordinator.stop(request); await entered.promise;
+  const before = coordinator.get({ attemptId: attempt.id }).attempt!;
+  assert.equal(closes, 1); assert.equal(before.sides[0]!.engineStoppedSubmitting, false); assert.equal(before.sides[0]!.cleanupQuiescent, false);
+  assert.throws(() => coordinator.assertExecutionIdle(), { code: 'ATTEMPT_CONFLICT' });
+  await assert.rejects(coordinator.begin(f.beginRequest()), { code: 'ATTEMPT_CONFLICT' });
+  assert.deepEqual(await coordinator.stop(request), receipt); assert.equal(closes, 1, 'pending release也不能重新close');
+  releaseGate.resolve(); await waitForOutputIdle(coordinator);
+  const latest = coordinator.get({ attemptId: attempt.id }).attempt!;
+  assert.equal(latest.sides[0]!.engineStoppedSubmitting, true); assert.equal(latest.sides[0]!.cleanupQuiescent, true);
+  assert.equal(latest.sides[0]!.stopAcknowledged, false); assert.equal(latest.sides[0]!.backendDrained, false);
+});
+
+test('MBR002：Stop反复拒写无持久回执时，原DTO手动重试仍可恢复真实close', async t => {
+  const f = await fixture(t), original = f.repository.recordingAttempts;
+  let closes = 0, writes = 0;
+  let inputLease: Awaited<ReturnType<typeof acquireRecordingOutputInputLease>> | undefined;
+  const coordinator = createRecordingAttemptCoordinator({ acquireInputLease: async (...args) => inputLease = await acquireRecordingOutputInputLease(...args), store: { ...original, stop() {
+    ++writes; throw new AttemptError('IO_ERROR');
+  } }, admissionProvider: { async authorize() {}, async start() {
+    return { async stop() {}, async close() { if (++closes === 1) throw new AttemptError('BACKEND_FAILURE'); } };
+  } } });
+  f.registerDependentCleanup(async () => { await coordinator.close().catch(() => undefined); await inputLease?.release().catch(() => undefined); });
+  const attempt = await coordinator.begin(f.beginRequest()), request = { commandId: randomUUID(), attemptId: attempt.id };
+  await assert.rejects(coordinator.stop(request), { code: 'IO_ERROR' });
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(closes, 1); assert.throws(() => coordinator.assertExecutionIdle(), { code: 'BACKEND_FAILURE' });
+  assert.equal(coordinator.receipt({ action: 'stop', request }).status, 'unknown');
+  assert.equal(closes, 1, '只读核对不能触发重试');
+  assert.equal(original.get({ attemptId: attempt.id }).attempt!.sides[0]!.cleanupQuiescent, false);
+  await assert.rejects(coordinator.stop(request), { code: 'IO_ERROR' });
+  const deadline = performance.now() + 5_000;
+  while (!original.get({ attemptId: attempt.id }).attempt!.sides[0]!.cleanupQuiescent) {
+    assert.ok(performance.now() < deadline, '显式Stop应恢复失败close并完成输入释放');
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
+  await waitForOutputIdle(coordinator);
+  assert.equal(closes, 2); assert.equal(writes, 2);
+  const latest = original.get({ attemptId: attempt.id }).attempt!;
+  assert.equal(latest.sides[0]!.cleanupQuiescent, true, '关闭与输入释放独立于Stop写入结果');
+  assert.equal(latest.sides[0]!.stopAcknowledged, false); assert.equal(latest.sides[0]!.backendDrained, false);
+  assert.equal(coordinator.receipt({ action: 'stop', request }).status, 'unknown', '不得补造Stop受理');
+  assert.equal(original.cached('stop', request), undefined);
+});
+
+test('MBR002：驱动同步cleanup不能越过Core输入释放，原Stop回执不提前静止', async t => {
+  for (const outcome of ['success', 'reject'] as const) await t.test(outcome, async t => {
+    const f = await fixture(t), entered = deferred<void>(), releaseGate = deferred<void>();
+    let closes = 0;
+    const coordinator = createRecordingAttemptCoordinator({ store: f.repository.recordingAttempts,
+      acquireInputLease: async (...args) => {
+        const lease = await acquireRecordingOutputInputLease(...args);
+        return { signal: lease.signal, provider: lease.provider, async release() {
+          entered.resolve(); await releaseGate.promise;
+          const result = await lease.release();
+          if (outcome === 'reject') throw new AttemptError('BACKEND_FAILURE');
+          return result;
+        } };
+      },
+      admissionProvider: { async authorize() {}, async start(request) {
+        request.signal.addEventListener('abort', () => {
+          for (const type of ['engine-cutoff', 'stop-ack', 'cleanup-quiescent'] as const)
+            request.onEvent({ type, side: request.side, runId: request.runId, at: new Date().toISOString() });
+        }, { once: true });
+        return { async stop() {}, async close() { ++closes; } };
+      } },
+    });
+    f.registerDependentCleanup(async () => { releaseGate.resolve(); await coordinator.close().catch(() => undefined); });
+    const attempt = await coordinator.begin(f.beginRequest()), request = { commandId: randomUUID(), attemptId: attempt.id };
+    const receipt = await coordinator.stop(request); await entered.promise;
+    assert.equal(receipt.sides[0]!.engineStoppedSubmitting, true, '真实驱动cutoff仍进入原Stop批');
+    assert.equal(receipt.sides[0]!.stopAcknowledged, true, '真实ACK仍进入原Stop批');
+    assert.equal(receipt.sides[0]!.cleanupQuiescent, false, '驱动清理不代表Core输入租期释放');
+    assert.equal(coordinator.get({ attemptId: attempt.id }).attempt!.sides[0]!.cleanupQuiescent, false);
+    assert.throws(() => coordinator.assertExecutionIdle(), { code: 'ATTEMPT_CONFLICT' });
+    assert.deepEqual(await coordinator.stop(request), receipt); assert.equal(closes, 1);
+    releaseGate.resolve();
+    if (outcome === 'success') await waitForOutputIdle(coordinator);
+    else {
+      await new Promise(resolve => setTimeout(resolve, 20));
+      assert.throws(() => coordinator.assertExecutionIdle(), { code: 'BACKEND_FAILURE' });
+      await assert.rejects(coordinator.begin(f.beginRequest()), { code: 'BACKEND_FAILURE' });
+    }
+    const latest = f.repository.recordingAttempts.get({ attemptId: attempt.id }).attempt!;
+    assert.equal(latest.sides[0]!.cleanupQuiescent, outcome === 'success');
+    assert.deepEqual(f.repository.recordingAttempts.cached('stop', request), receipt, '收尾不改写原不可变Stop回执');
+  });
+});
+
+test('MBR002：输入租期release无有效结果不伪造静止且失败锁存不放行新run', async t => {
+  const f = await fixture(t);
+  const coordinator = createRecordingAttemptCoordinator({ store: f.repository.recordingAttempts,
+    acquireInputLease: async (...args) => {
+      const lease = await acquireRecordingOutputInputLease(...args);
+      return { signal: lease.signal, provider: lease.provider, async release() { await lease.release(); return undefined as never; } };
+    },
+    admissionProvider: { async authorize() {}, async start() { return { async stop() {}, async close() {} }; } },
+  });
+  f.registerDependentCleanup(() => coordinator.close().catch(() => undefined));
+  const attempt = await coordinator.begin(f.beginRequest());
+  await coordinator.stop({ commandId: randomUUID(), attemptId: attempt.id });
+  await new Promise(resolve => setTimeout(resolve, 20));
+  const latest = coordinator.get({ attemptId: attempt.id }).attempt!;
+  assert.equal(latest.sides[0]!.engineStoppedSubmitting, false); assert.equal(latest.sides[0]!.cleanupQuiescent, false);
+  assert.throws(() => coordinator.assertExecutionIdle(), { code: 'BACKEND_FAILURE' });
+  await assert.rejects(coordinator.begin(f.beginRequest()), { code: 'BACKEND_FAILURE' });
 });
 
 test('同命令同body返回原回执且不重启输出，异body拒绝；并发Begin只准一个', async t => {
@@ -1590,7 +1820,9 @@ test('停止写入故障也必须停止自建driver，不能因事务失败继�
   assert.equal(coordinator.get({ attemptId: a.id }).attempt!.status, 'interrupted');
   const db = new DatabaseSync(f.filePath, { readOnly: true }); t.after(() => db.close());
   const kinds = db.prepare('SELECT kind FROM recording_attempt_events WHERE attempt_id=? ORDER BY revision').all(a.id).map(row => row.kind);
-  assert.equal(kinds.includes('engine-cutoff'), false); assert.equal(kinds.includes('stop-ack'), false); assert.equal(kinds.includes('abort'), false);
+  assert.equal(kinds.includes('engine-cutoff'), true, '独立close完成后可提交软件停止事实');
+  assert.equal(kinds.includes('cleanup-quiescent'), true, '句柄与输入租期关闭后提交新的软件静止证据');
+  assert.equal(kinds.includes('stop-ack'), false); assert.equal(kinds.includes('abort'), false, '原Stop事务的abort与同步ACK仍完整回滚');
   assert.equal(db.prepare('SELECT 1 FROM recording_attempt_receipts WHERE json_extract(request,\'$.action\')=\'stop\' AND attempt_id=?').get(a.id), undefined);
 });
 

@@ -671,7 +671,9 @@ test('Attempt客户端固定Renderer工作库、先复制确认意图且绝不�
   resolveScope({ datasetId })
   await started
   await client.stopRecordingAttempt({ commandId: datasetId, attemptId: datasetId })
-  assert.deepEqual(calls.map(([channel]) => channel), ['commandOutbox:context', 'recordingAttempts:begin', 'recordingAttempts:stop'])
+  await client.getRecordingAttemptReceipt!({ action: 'begin', request: { ...request, planContentHash: 'a'.repeat(64) } })
+  assert.deepEqual(calls.map(([channel]) => channel), ['commandOutbox:context', 'recordingAttempts:begin', 'recordingAttempts:stop', 'recordingAttempts:receipt'])
+  assert.deepEqual(calls[3]![1], { datasetId, payload: { action: 'begin', request: { ...request, planContentHash: 'a'.repeat(64) } } })
   assert.deepEqual(calls[1]![1], { datasetId, payload: { ...request, planContentHash: 'a'.repeat(64) } })
   const invalid = (module as typeof import('../src/preload/recording-attempt-client.js')).createRecordingAttemptClient(async () => ({ datasetId: '/private/invalid-scope' }))
   await assert.rejects(invalid.listRecordingAttempts({ page: { offset: 0, limit: 25 } }), error => error instanceof Error && error.message.includes('OUTBOX_SCOPE_MISMATCH') && !error.message.includes('/private'))

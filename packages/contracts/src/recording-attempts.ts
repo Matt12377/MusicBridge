@@ -39,8 +39,19 @@ export type ConfirmRecordingAttemptRequest = {
 export interface BeginRecordingAttemptSideRequest { commandId: string; attemptId: string; expectedRevision: number; side: 'B'; userConfirmed: true }
 /** 不以运行进度revision挡住停止，也不能选择最新Attempt或替代设备。 */
 export interface StopRecordingAttemptRequest { commandId: string; attemptId: string }
+/** 核对原命令不触发执行；没有回执不构成未受理证明。 */
+export type RecordingAttemptReceiptRequest =
+  | { action: 'begin'; request: BeginRecordingAttemptRequest }
+  | { action: 'beginSide'; request: BeginRecordingAttemptSideRequest }
+  | { action: 'confirm'; request: ConfirmRecordingAttemptRequest }
+  | { action: 'stop'; request: StopRecordingAttemptRequest };
+export type RecordingAttemptReceipt = { commandId: string; action: RecordingAttemptReceiptRequest['action'] } & (
+  | { status: 'pending' | 'unknown' }
+  | { status: 'accepted'; receipt: RecordingAttempt; attempt: RecordingAttempt }
+);
 export type RecordingAttemptsPage = Page<RecordingAttempt>;
 export interface RecordingAttemptsPublicApi {
+  getRecordingAttemptReceipt?(request: RecordingAttemptReceiptRequest): Promise<RecordingAttemptReceipt>;
   listRecordingAttempts(request: ListRecordingAttemptsRequest): Promise<RecordingAttemptsPage>;
   getRecordingAttempt(attemptId: string): Promise<{ attempt: RecordingAttempt | null }>;
   beginRecordingAttempt(request: BeginRecordingAttemptRequest): Promise<RecordingAttempt>;
@@ -84,6 +95,32 @@ export function isConfirmRecordingAttemptRequest(v: unknown): v is ConfirmRecord
 }
 export function isBeginRecordingAttemptSideRequest(v: unknown): v is BeginRecordingAttemptSideRequest { return record(v) && keys(v, ['commandId', 'attemptId', 'expectedRevision', 'side', 'userConfirmed']) && uuid(v.commandId) && uuid(v.attemptId) && integer(v.expectedRevision, 1) && v.side === 'B' && v.userConfirmed === true; }
 export function isStopRecordingAttemptRequest(v: unknown): v is StopRecordingAttemptRequest { return record(v) && keys(v, ['commandId', 'attemptId']) && uuid(v.commandId) && uuid(v.attemptId); }
+
+export function isRecordingAttemptReceiptRequest(v: unknown): v is RecordingAttemptReceiptRequest {
+  if (!record(v) || !keys(v, ['action', 'request'])) return false;
+  return v.action === 'begin' ? isBeginRecordingAttemptRequest(v.request)
+    : v.action === 'beginSide' ? isBeginRecordingAttemptSideRequest(v.request)
+    : v.action === 'confirm' ? isConfirmRecordingAttemptRequest(v.request)
+    : v.action === 'stop' && isStopRecordingAttemptRequest(v.request);
+}
+export function isRecordingAttemptReceipt(v: unknown): v is RecordingAttemptReceipt {
+  if (!record(v) || !uuid(v.commandId) || !['begin', 'beginSide', 'confirm', 'stop'].includes(String(v.action))) return false;
+  if (v.status === 'pending' || v.status === 'unknown') return keys(v, ['commandId', 'action', 'status']);
+  if (v.status !== 'accepted' || !keys(v, ['commandId', 'action', 'status', 'receipt', 'attempt'])
+    || !isRecordingAttempt(v.receipt) || !isRecordingAttempt(v.attempt)) return false;
+  const receipt = v.receipt, current = v.attempt;
+  if (current.revision < receipt.revision || current.sides.length !== receipt.sides.length) return false;
+  if (current.revision === receipt.revision && (!(attemptKeys.filter(key => key !== 'sides') as Array<keyof RecordingAttempt>).every(key => receipt[key] === current[key])
+    || receipt.sides.some((side, index) => !(sideKeys as Array<keyof RecordingAttemptSide>).every(key => side[key] === current.sides[index]?.[key])))) return false;
+  return (['id', 'draftId', 'planVersionId', 'planContentHash', 'executionAssetId', 'physicalId', 'createdAt'] as const).every(key => receipt[key] === current[key])
+    && receipt.sides.every(side => {
+      const next = current.sides.find(value => value.side === side.side);
+      return !!next && (['frameCount', 'recipeHash', 'audioSha256', 'pcmSha256'] as const).every(key => side[key] === next[key])
+        && (side.runId === undefined || side.runId === next.runId)
+        && (['sourceFramesRead', 'submittedFrames', 'consumedFrames'] as const).every(key => next[key] >= side[key])
+        && boolKeys.every(key => !side[key] || next[key]);
+    });
+}
 
 export function isRecordingAttemptSide(v: unknown): v is RecordingAttemptSide {
   if (!record(v) || !keys(v, sideKeys) || !isRenderSide(v.side) || !integer(v.frameCount, 1) || !hash(v.recipeHash) || !hash(v.audioSha256) || !hash(v.pcmSha256)

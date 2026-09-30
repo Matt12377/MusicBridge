@@ -1,4 +1,5 @@
 import { testElectronArguments } from '../scripts/test-keychain.mjs'
+import { runStartupProcess } from '../scripts/startup-gate-process.mjs'
 import { openCollectionView, selectModelPage } from './collection-navigation.js'
 import { connectLibraryReadFixtures } from './library-read-fixtures.js'
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
@@ -399,38 +400,6 @@ async function readZoneListCalls() {
   return electronApp.evaluate(() => {
     const runtime = globalThis as typeof globalThis & { zoneListCalls?: number }
     return runtime.zoneListCalls ?? 0
-  })
-}
-
-async function waitForProcessMarker(
-  child: ReturnType<ElectronApplication['process']>,
-  marker: string,
-): Promise<string> {
-  const stdout = child.stdout
-  if (!stdout) throw new Error('Electron crash gate 没有可读 stdout')
-  return new Promise((resolve, reject) => {
-    let output = ''
-    const timer = setTimeout(() => {
-      cleanup()
-      reject(new Error(`等待 Electron marker 超时：${marker}`))
-    }, 10_000)
-    const onData = (chunk: Buffer | string) => {
-      output += chunk.toString()
-      if (!output.includes(marker)) return
-      cleanup()
-      resolve(output)
-    }
-    const onExit = () => {
-      cleanup()
-      reject(new Error(`Electron 在 marker 前退出：${marker}`))
-    }
-    const cleanup = () => {
-      clearTimeout(timer)
-      stdout.off('data', onData)
-      child.off('exit', onExit)
-    }
-    stdout.on('data', onData)
-    child.once('exit', onExit)
   })
 }
 
@@ -970,19 +939,13 @@ test('v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation', 
   )
   crashEnvironment.MUSIC_BRIDGE_STARTUP_USER_DATA_DIR = crashUserDataDirectory
   delete crashEnvironment.NETEASE_COOKIE
-  let crashApp: ElectronApplication | undefined
-  try {
-    crashApp = await electron.launch({
-      args: testElectronArguments([electronEntry]),
-      cwd: desktopRoot,
-      env: crashEnvironment,
-    })
-    const output = await waitForProcessMarker(crashApp.process(), 'CORE_CRASH_GATE_PASS')
-    expect(output).toContain('CORE_CRASH_GATE_PASS')
-  } finally {
-    await crashApp?.close().catch(() => undefined)
-    await rm(crashUserDataDirectory, { recursive: true, force: true })
-  }
+  // 此阶段无UI断言；从spawn即收集标记，等待真实stdio关闭，避免Playwright先消费stdout。
+  const crashResult = await runStartupProcess(require('electron') as string, testElectronArguments([electronEntry]), {
+    cwd: desktopRoot, env: crashEnvironment, expectedMarker: 'CORE_CRASH_GATE_PASS',
+  })
+  expect(crashResult, '双崩溃只重启一次且须成功关闭；测试目录保留为证据').toMatchObject({
+    failure: null, markerSeen: true, closed: true, code: 0, signal: null,
+  })
 })
 
 test('合成 Profile 资料不可用但登录仍有效', async () => {

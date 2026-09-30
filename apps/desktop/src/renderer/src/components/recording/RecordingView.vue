@@ -591,7 +591,7 @@ onUnmounted(() => { mounted = false; alive = false; ++generation; ++reservationN
       <section v-else-if="page === 'workbench' && draft" class="workbench" aria-labelledby="workbench-title">
         <h3 id="workbench-title" class="sr-only">{{ draft.title }}的制作工作台</h3>
         <p v-if="workspaceState.status === 'loading'" role="status" class="workspace-message">正在读取上次保存的工作位置与版本选择…</p>
-        <div v-else-if="workspaceState.status === 'error'" role="alert" class="workspace-message error"><p>{{ workspaceState.error }}</p><button v-if="workspaceState.pending" type="button" :disabled="workspaceState.writing" @click="workspace.retry()">重试原保存操作</button><button type="button" :disabled="loading" @click="open(draft.id)">重新读取并放弃本地未保存选择</button></div>
+        <div v-else-if="workspaceState.status === 'error'" role="alert" class="workspace-message error"><p>{{ workspaceState.error }}</p><button v-if="workspaceState.pending" type="button" :disabled="workspaceState.writing" @click="workspace.retry()">重试原保存操作</button><button type="button" :disabled="loading" @click="open(draft.id)">重新读取工作库（保留未决回执）</button></div>
         <p v-else-if="workspaceState.writing" role="status" class="workspace-message">正在保存本次选择与页面位置；尚未取得持久回执。</p>
         <div v-if="staleFields.length" class="workspace-message stale" role="status"><strong>已存引用需要复核</strong><ul><li v-for="(item, index) in staleFields" :key="item.field + index">{{ staleText(item) }}</li></ul></div>
         <div class="workbench-columns">

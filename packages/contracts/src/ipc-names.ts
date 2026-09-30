@@ -123,6 +123,7 @@ export const IPC_COMMANDS = [
   'recordingRecords.applyDisposition',
   'recordingAttempts.list',
   'recordingAttempts.get',
+  'recordingAttempts.receipt',
   'recordingAttempts.begin',
   'recordingAttempts.confirm',
   'recordingAttempts.beginSide',

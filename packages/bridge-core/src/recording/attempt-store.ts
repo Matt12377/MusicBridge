@@ -207,6 +207,25 @@ export function createRecordingAttemptStore({ read, beforeCommit, databaseBudget
       if (!dto.isRecordingAttemptIdRequest(request)) return attemptFail('INVALID_REQUEST');
       return read(db => ({ attempt: get(db, request.attemptId) }));
     },
+    /** Core在真实句柄关闭及输入租期释放后补软件静止；精确run、单事务、不改原动作回执。 */
+    persistClosedOutputRunQuiet(attemptId: string, side: dto.RenderSide, runId: string): void {
+      if (!dto.isRecordingAttemptIdRequest({ attemptId }) || !dto.isCollectionId(runId) || !dto.isRenderSide(side)) return attemptFail('INVALID_REQUEST');
+      transaction('attempt-close-quiet', 'terminal-event', (db, budget, certificate) => {
+        let current = get(db, attemptId) ?? attemptFail('ATTEMPT_NOT_FOUND');
+        if (!current.sides.some(value => value.side === side && value.runId === runId)) return attemptFail('INVALID_REQUEST');
+        const plan = attemptPlan(db, current.planVersionId), planned: Array<{ before: dto.RecordingAttempt; after: dto.RecordingAttempt; event: StopCleanupEvent }> = [];
+        let added = 0;
+        for (const type of ['engine-cutoff', 'cleanup-quiescent'] as const) {
+          const now = new Date().toISOString(), event = { type, side, runId, at: now < current.updatedAt ? current.updatedAt : now };
+          const after = replayAttemptEvent(attemptId, plan, current, event);
+          if (after.revision !== current.revision) { added += eventAdded(current, after, event); planned.push({ before: current, after, event }); current = after; }
+        }
+        const count = planned.length as 0 | 1 | 2;
+        reserveBudget(db, added, count, 0, true, databaseBudgetBytes, budget);
+        budget?.expectMutationDelta(count * 2); certificate.expectAttemptMutations(count, 0);
+        for (const item of planned) append(db, item.before, item.after, item.event);
+      });
+    },
     list(request: dto.ListRecordingAttemptsRequest): dto.RecordingAttemptsPage {
       if (!dto.isListRecordingAttemptsRequest(request)) return attemptFail('INVALID_REQUEST');
       return read(db => {

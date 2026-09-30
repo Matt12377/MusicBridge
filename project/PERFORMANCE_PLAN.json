@@ -3,7 +3,7 @@
   "baselineCommit": "e97f9e578beb7c5329d0c59e232b0da568e2f6fa",
   "state": "active",
   "ownerAuthorization": "连续实施性能与正确性计划，使用 gpt-6.1-sol xhigh 子代理并展示待办进度",
-  "currentTask": "MBP-002",
+  "currentTask": "MBR-002",
   "implementationComplete": 3,
   "automaticAcceptanceComplete": 3,
   "taskCount": 11,
@@ -45,7 +45,7 @@
       ],
       "state": "software-gates-passed",
       "implementationCommit": "28bac4a257a39f1c8b4f28c3c3d964c7d8b59c44",
-      "reportCommit": null,
+      "reportCommit": "f672c9f1ef4c8faf0af86a8758476cb4def50a9f",
       "evidence": [
         "reports/MBP-002_READ_LIFECYCLE.md",
         "reports/MBP-002_EVIDENCE.json"
@@ -57,7 +57,7 @@
       "dependsOn": [
         "MBP-002"
       ],
-      "state": "pending",
+      "state": "implementing",
       "implementationCommit": null,
       "reportCommit": null,
       "evidence": []
@@ -158,8 +158,17 @@
       "evidence": []
     }
   ],
-  "implementationCommit": "28bac4a257a39f1c8b4f28c3c3d964c7d8b59c44",
-  "branch": "codex/mbp-002-read-lifecycle",
-  "currentTaskBase": "37fe2d22168d20b5defa336d679c8c8d7dc5d06a",
-  "automaticAcceptanceScope": "local-standard-software-gates"
+  "implementationCommit": null,
+  "branch": "codex/mbr-002-recovery-lifecycle",
+  "currentTaskBase": "f672c9f1ef4c8faf0af86a8758476cb4def50a9f",
+  "automaticAcceptanceScope": "local-standard-software-gates",
+  "agentPolicy": {
+    "model": "gpt-6.1-sol",
+    "reasoningEffort": "high",
+    "maximumImplementationAgents": 3,
+    "additionalAuditAgent": "Owner-permitted-if-needed",
+    "forbiddenModels": [
+      "gpt-6-sol"
+    ]
+  }
 }

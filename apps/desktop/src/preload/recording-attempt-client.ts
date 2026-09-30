@@ -11,11 +11,12 @@ export function createRecordingAttemptClient(invoke: (channel: string, value?: u
     return record.datasetId
   }).catch(() => { throw failure() })
   void scope.catch(() => undefined)
-  async function send<T>(name: 'list' | 'get' | 'begin' | 'confirm' | 'beginSide' | 'stop', payload: unknown): Promise<T> {
+  async function send<T>(name: 'list' | 'get' | 'receipt' | 'begin' | 'confirm' | 'beginSide' | 'stop', payload: unknown): Promise<T> {
     const captured = structuredClone(payload)
     return await invoke(`recordingAttempts:${name}`, { datasetId: await scope, payload: captured }) as T
   }
   return {
+    getRecordingAttemptReceipt: request => send('receipt', request),
     listRecordingAttempts: request => send('list', request),
     getRecordingAttempt: attemptId => send('get', { attemptId }),
     beginRecordingAttempt: request => send('begin', request),
