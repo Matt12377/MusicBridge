@@ -6,14 +6,14 @@ import ts from 'typescript'
 
 test('主题 IPC 拒绝不可信来源和非法值，仅改变窗口外观', async () => {
   const source = await readFile('src/main/index.ts', 'utf8')
-  const start = source.indexOf("  ipcMain.handle('app:set-appearance-theme'")
-  const end = source.indexOf("  ipcMain.handle('app:get-info'", start)
+  const start = source.indexOf("  registerPerformanceHandler('app:set-appearance-theme'")
+  const end = source.indexOf("  registerPerformanceHandler('app:get-info'", start)
   assert.ok(start > 0 && end > start)
   let handler!: (event: { trusted: boolean }, theme: unknown) => void
   const nativeTheme = { themeSource: 'light' }
   let background = '#f2edf1'
   runInNewContext(ts.transpileModule(source.slice(start, end), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, {
-    ipcMain: { handle: (channel: string, callback: typeof handler) => { assert.equal(channel, 'app:set-appearance-theme'); handler = callback } },
+    registerPerformanceHandler: (channel: string, callback: typeof handler) => { assert.equal(channel, 'app:set-appearance-theme'); handler = callback },
     requireTrustedRenderer: (event: { trusted: boolean }) => { if (!event.trusted) throw Error('拒绝来源'); return { setBackgroundColor: (value: string) => { background = value } } },
     publicIpcFailure: (code: string) => { throw Error(code) },
     nativeTheme,

@@ -2652,5 +2652,32 @@
     },
     "remoteHeadVerification": "git ls-remote origin refs/heads/codex/task-085-collection-preview must equal final local HEAD",
     "nextBranchBase": "最终报告提交 HEAD；不作为下一任务放行"
+  },
+  "performanceOptimization20261001": {
+    "state": "active",
+    "ownerAuthorization": "连续实施十一项性能与正确性任务，使用 gpt-6.1-sol xhigh 子代理并展示待办进度",
+    "baselineCommit": "e97f9e578beb7c5329d0c59e232b0da568e2f6fa",
+    "branch": "codex/mbp-001-performance-baseline",
+    "currentTask": "MBP-001",
+    "plan": "project/PERFORMANCE_PLAN.json",
+    "todo": "project/PERFORMANCE_TODO.md",
+    "implementationComplete": 0,
+    "automaticAcceptanceComplete": 0,
+    "taskCount": 11,
+    "implementationCommit": null,
+    "checks": {
+      "fullVerifyR4": "EXIT1_POSTBUILD_SANDBOX_DEPENDENCY_FIXED",
+      "contracts": "222-pass-exit0",
+      "core": "1581-pass-2-existing-skip-exit0",
+      "desktop": "873-pass-exit0",
+      "productionBuildR5": "PASS-exit0",
+      "electronStartup": "4-pass-exit0-mock-keychain",
+      "productionElectronTrace": "PASS-exit0-isolated-synthetic-Core",
+      "finalFullVerify": "PENDING_FIXED_IMPLEMENTATION_COMMIT"
+    },
+    "realMacRoonAcceptance": "NOT_RUN",
+    "realRecordingAcceptance": "NOT_RUN",
+    "mainMerge": "NOT_RUN",
+    "installedAppReplacement": "NOT_RUN"
   }
 }

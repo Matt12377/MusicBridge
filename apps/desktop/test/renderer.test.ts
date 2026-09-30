@@ -549,7 +549,7 @@ test('search playback gives immediate preparation feedback and rejects duplicate
   assert.match(playTrack, /if \(playbackStartPending\.value\) return/)
   assert.match(playTrack, /playbackStartPending\.value = true[\s\S]*onToast\('正在准备'\)/)
   assert.match(playTrack, /api\.play\(track\.id, getSelectedQuality\(\), rendererClickAtMs\)/)
-  assert.match(playTrack, /finally \{\s*playbackStartPending\.value = false\s*\}/)
+  assert.match(playTrack, /finally \{\s*api\.performanceDiagnostics\?\.end\(trace, traceOutcome\)\s*playbackStartPending\.value = false\s*\}/)
   assert.match(app, /onToast: showToast/)
   assert.match(app, /:busy="playbackStartPending"/)
 })

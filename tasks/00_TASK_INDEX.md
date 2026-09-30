@@ -1,5 +1,9 @@
 # 任务索引
 
+## Owner 授权的性能与正确性任务线（2026-10-01）
+
+按 [性能待办](../project/PERFORMANCE_TODO.md) 和 [机器台账](../project/PERFORMANCE_PLAN.json) 连续实施 MBP-001～009 与 MBR-001/002。当前 [MBP-001](MBP-001-performance-baseline.md) 从 `e97f9e5` 开始；MBP-003 分 A/B 两步，只有两步验收才计入完成。沿用独立分支、实现/报告提交与 Gate；原 WAVE-5 的真实设备、capacity 和发布边界保持独立。
+
 严格按依赖顺序执行；一次只给 LunaMax 一个任务。
 
 | 任务 | 目标 | 依赖 | 退出 Gate |

@@ -432,6 +432,8 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
 
   async function playTrack(track: TrackSummary): Promise<void> {
     if (playbackStartPending.value) return
+    const trace = api.performanceDiagnostics?.begin('playback')
+    let traceOutcome: 'ok' | 'error' = 'ok'
     cancelRoonPlaybackPreparation()
     const rendererClickAtMs = Date.now()
     playbackStartPending.value = true
@@ -451,6 +453,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
       )
       if (selection.source === 'roon') {
         rememberRoonQueueDescriptor(track.id, selection.candidate, true)
+        api.performanceDiagnostics?.use(trace)
         const snapshot = await api.replaceQueue([{
           trackId: track.id,
           qualityPreference: getSelectedQuality(),
@@ -461,12 +464,15 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
         onEnterNowPlaying()
         return
       }
+      api.performanceDiagnostics?.use(trace)
       applyNeteasePlayback(await api.play(track.id, getSelectedQuality(), rendererClickAtMs))
       if (!getMatchResult(track.id)) onMatchTracks([cloneTrackSummary(track)])
       onEnterNowPlaying()
     } catch (error) {
+      traceOutcome = 'error'
       onError(error)
     } finally {
+      api.performanceDiagnostics?.end(trace, traceOutcome)
       playbackStartPending.value = false
     }
   }
@@ -482,6 +488,8 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
       onError({ code: 'ROON_ZONE_NOT_SELECTED' })
       return
     }
+    const trace = api.performanceDiagnostics?.begin('playback')
+    let traceOutcome: 'ok' | 'error' | 'cancelled' = 'ok'
     clearActionError()
     playbackStartPending.value = true
     const operation = ++roonPlaybackOperation
@@ -494,21 +502,24 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     onEnterNowPlaying()
     try {
       const tracks = await collectRoonPlaybackContext(track, context?.page,
-        context ? (page) => context.load(context.reference, page) : undefined,
+        context ? (page) => { api.performanceDiagnostics?.use(trace); return context.load(context.reference, page) } : undefined,
         () => operation === roonPlaybackOperation)
       if (operation !== roonPlaybackOperation) return
       for (const item of tracks) rememberRoonQueueDescriptor(roonTrackIdFromReference(item.reference), item)
+      api.performanceDiagnostics?.use(trace)
       await api.playRoonTrack(track.reference, zoneId, tracks.map((item) => item.reference))
       if (operation !== roonPlaybackOperation) return
       optimisticRoonTrackId = undefined
       applyPlaybackState(await api.getPlaybackState())
     } catch (error) {
+      traceOutcome = operation === roonPlaybackOperation ? 'error' : 'cancelled'
       if (operation !== roonPlaybackOperation) return
       optimisticRoonTrackId = undefined
       await refreshPlayback()
       if (operation !== roonPlaybackOperation) return
       onError(error)
     } finally {
+      api.performanceDiagnostics?.end(trace, operation === roonPlaybackOperation ? traceOutcome : 'cancelled')
       playbackStartPending.value = false
     }
   }

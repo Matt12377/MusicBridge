@@ -1,3 +1,4 @@
+import { withPerformanceContext } from './diagnostics/performance-trace.js';
 import type { VolumeRequest } from '@music-bridge/contracts';
 import { RecordingPrintError } from './recording/print-integrity.js';
 import { RecordingReplicaError } from './recording/replica-error.js';
@@ -781,7 +782,15 @@ export async function attachCoreRuntimePort(
         return;
       }
       try {
-        const result = await dispatch(runtime, parsed.value);
+        const recorder = runtime.performance;
+        const context = parsed.value.performanceTrace;
+        const span = recorder?.start('ipc', context, {}, { command: parsed.value.command });
+        recorder?.mark('ipc', 'core-received', span?.context, {}, { command: parsed.value.command });
+        let result: unknown;
+        try {
+          result = await (recorder ? withPerformanceContext(recorder, span?.context, () => dispatch(runtime, parsed.value)) : dispatch(runtime, parsed.value));
+          span?.end('ok');
+        } catch (error) { span?.end('error'); throw error; }
         const response: IpcResponse = {
           version: IPC_VERSION,
           id: parsed.value.id,
@@ -789,6 +798,7 @@ export async function attachCoreRuntimePort(
           result,
         };
         port.postMessage(response);
+        recorder?.mark('ipc', 'response-sent', span?.context, {}, { command: parsed.value.command });
         if (parsed.value.command === 'core.shutdown' && options.exitAfterShutdown) {
           setImmediate(() => process.exit(0));
         }

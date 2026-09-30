@@ -1,3 +1,4 @@
+import { currentPerformanceContext, readPerformanceTime } from '../diagnostics/performance-trace.js';
 import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import type {
@@ -1577,7 +1578,17 @@ export class BridgeController {
   }
 
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
-    const next = this.operationTail.then(operation);
+    const trace = currentPerformanceContext();
+    const span = trace?.recorder.start('queue', trace.context);
+    const enteredAt = trace ? readPerformanceTime() : undefined;
+    trace?.recorder.mark('queue', 'queue-enter', trace.context);
+    const next = this.operationTail.then(async () => {
+      const executingAt = trace ? readPerformanceTime() : undefined;
+      if (enteredAt !== undefined && executingAt !== undefined) span?.add({ queueWaitMs: Math.max(0, executingAt - enteredAt) });
+      trace?.recorder.mark('queue', 'queue-start', trace.context);
+      try { const value = await operation(); span?.end('ok'); return value; }
+      catch (error) { span?.end('error'); throw error; }
+    });
     this.operationTail = next.then(
       () => undefined,
       () => undefined,

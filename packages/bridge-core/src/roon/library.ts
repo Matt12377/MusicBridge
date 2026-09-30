@@ -1,3 +1,4 @@
+import { currentPerformanceContext, readPerformanceTime } from '../diagnostics/performance-trace.js';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   isValidRoonImageBinary,
@@ -803,10 +804,16 @@ export function createRoonLibraryService(dependencies: {
         : {}),
     };
     let settled = false;
+    const trace = currentPerformanceContext();
+    const span = trace?.recorder.start('provider', trace.context, { providerCallCount: 1, ...(operation === 'load' ? { pageCount: 1 } : {}) });
+    const started = trace ? readPerformanceTime() : undefined;
+    trace?.recorder.mark('provider', 'provider-dispatch', trace.context);
     const finish = (error?: Error, body?: unknown): void => {
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
+      const completedAt = trace ? readPerformanceTime() : undefined;
+      span?.end(error ? 'error' : 'ok', started !== undefined && completedAt !== undefined ? { providerDurationMs: Math.max(0, completedAt - started) } : {});
       if (error) reject(error);
       else resolve(body);
     };
@@ -818,6 +825,8 @@ export function createRoonLibraryService(dependencies: {
     }, requestTimeoutMs);
     try {
       dependencies.browse[operation](requestOptions, (error, body) => {
+        // 本地超时不冒充 Provider 已返回；迟到回调仍留下真正的返回标记。
+        trace?.recorder.mark('provider', 'provider-response', trace.context);
         try {
           dependencies.onBrowseShape?.({
             ...summarizeRoonBrowsePayload(operation, requestOptions, body),

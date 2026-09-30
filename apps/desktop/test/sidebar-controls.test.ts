@@ -8,7 +8,7 @@ import ts from 'typescript'
 const require = createRequire(import.meta.url)
 const vue = require('vue') as typeof import('vue')
 interface Host { type: string; text: string; props: Record<string, any>; children: Host[]; parent: Host | null }
-const node = (type = ''): Host => Object.assign({ type, text: '', props: {}, children: [], parent: null }, { getBoundingClientRect: () => ({ top: 180, right: 60 }), focus() {} })
+const node = (type = ''): Host => Object.assign({ type, text: '', props: {}, children: [], parent: null }, { style: { display: '' }, getBoundingClientRect: () => ({ top: 180, right: 60 }), focus() {} })
 
 async function mount(t: test.TestContext, name: string, initial: Record<string, unknown>) {
   const { descriptor } = parse(await readFile(new URL(`../src/renderer/src/components/sidebar/${name}.vue`, import.meta.url), 'utf8'))
@@ -53,10 +53,31 @@ const playlists = [{ id: '301', name: '合成歌单', trackCount: 2 }]
 
 test('主导航按指定顺序排列，收藏只指向 Roon，歌单独立折叠', async () => {
   const source = await readFile(new URL('../src/renderer/src/components/sidebar/MusicSidebar.vue', import.meta.url), 'utf8')
-  const sources = [...source.matchAll(/<SidebarNavRow source="([^"]+)" label="([^"]+)"/g)].map(match => [match[1], match[2]])
+  const entries = [...source.matchAll(/<SidebarNavRow source="([^"]+)" label="([^"]+)"/g)].map(match => ({ index: match.index, source: match[1], label: match[2] }))
+  const collection = source.indexOf('data-sidebar-source="collection"')
+  assert.ok(collection > 0)
+  entries.push({ index: collection, source: 'collection', label: '实物收藏' })
+  const sources = entries.sort((a, b) => a.index - b.index).map(entry => [entry.source, entry.label])
   assert.deepEqual(sources, [['home','主页'],['roon-albums','专辑'],['roon-artists','艺术家'],['roon-genres','流派'],['roon-favorites','收藏'],['collection','实物收藏'],['recording','录音']])
   assert.ok(source.indexOf('<SidebarPlaylistList') > source.indexOf('source="recording"'))
   assert.ok(source.indexOf('<SidebarSettingsFooter') > source.indexOf('</nav>'))
+})
+
+test('实物收藏展开组保留两个独立入口且子项点击不重复导航', async t => {
+  const selections: string[] = [], views: string[] = []
+  const f = await mount(t, 'MusicSidebar', { expanded: true, activeSource: { type: 'home' }, searchQuery: '', playlists: [], playlistState: 'ready', sourceScrollTop: 0, settingsActive: false,
+    onNavigate: (source: { type: string }) => selections.push(source.type), 'onNavigate-collection': (view: string) => views.push(view) })
+  await f.click(f.byClass('sidebar-collection-toggle')[0])
+  assert.deepEqual(selections, ['collection'])
+  f.props.activeSource = { type: 'collection' }; await f.tick()
+  const children = f.byClass('sidebar-collection-child')
+  assert.equal(children.length, 2)
+  assert.deepEqual(children.map(child => child.props['data-collection-view']), ['tapes', 'music'])
+  for (const child of children) await f.click(child)
+  assert.deepEqual(views, ['tapes', 'music'])
+  assert.deepEqual(selections, ['collection'])
+  f.props.collectionView = 'music'; await f.tick()
+  assert.equal(f.byClass('sidebar-collection-child')[1]?.props['aria-current'], 'page')
 })
 
 test('歌单默认展开，折叠后移除列表，再展开仍可导航且不触发重试', async t => {

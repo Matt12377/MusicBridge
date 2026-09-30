@@ -6,6 +6,7 @@ import {
   buildDiagnosticReport,
   DIAGNOSTIC_RING_LIMIT,
   DiagnosticRingBuffer,
+  PerformanceTraceRecorder,
   type DiagnosticComponentSnapshot,
   type DiagnosticPlatformInfo,
   type DiagnosticReport,
@@ -24,6 +25,7 @@ const DEFAULT_HEALTH: PublicBridgeState = {
 const PLAYBACK_STARTUP_EVENT_RESERVE = 32
 
 export class MainDiagnosticRecorder {
+  readonly performance = new PerformanceTraceRecorder({ component: 'main', enabled: process.env.MUSIC_BRIDGE_PERFORMANCE_TRACE === '1' })
   private readonly buffer: DiagnosticRingBuffer
   private readonly playbackStartupBuffer: DiagnosticRingBuffer
   private readonly limit: number
@@ -38,6 +40,7 @@ export class MainDiagnosticRecorder {
   }
 
   recordCoreEvent(event: TypedIpcEvent): void {
+    this.performance.increment('eventCount')
     if (
       event.event === 'core.ready' ||
       event.event === 'core.health' ||
@@ -95,6 +98,7 @@ export class MainDiagnosticRecorder {
     )
 
     return {
+      ...(this.performance.isEnabled() ? { performance: this.performance.snapshot() } : {}),
       component: 'main',
       health: { ...health },
       timeline,
@@ -124,6 +128,7 @@ export class MainDiagnosticRecorder {
 }
 
 export interface DiagnosticReportWriteInput {
+  rendererPerformance?: NonNullable<DiagnosticReport['rendererPerformance']>
   platform: DiagnosticPlatformInfo
   main: DiagnosticComponentSnapshot
   core: DiagnosticComponentSnapshot

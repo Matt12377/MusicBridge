@@ -1,3 +1,4 @@
+import { traceProviderApi } from '../diagnostics/performance-instrumentation.js';
 import { createRequire } from 'node:module';
 import { BridgeError } from '../shared/errors.js';
 import {
@@ -153,7 +154,8 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     options: NeteaseClientOptions = {},
   ) {
     this.cookie = cookie?.trim() || undefined;
-    this.api = api ?? loadApi();
+    const providerApi = api ?? loadApi();
+    this.api = process.env.MUSIC_BRIDGE_PERFORMANCE_TRACE === '1' ? traceProviderApi(providerApi) : providerApi;
     this.prepareApiRuntime =
       prepareApiRuntime ?? (api === undefined ? ensureNeteaseApiRuntime : async () => undefined);
     this.metadataCacheMaxEntries = boundedMetadataCacheEntries(options.metadataCacheMaxEntries);

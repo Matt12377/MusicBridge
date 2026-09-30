@@ -1,3 +1,4 @@
+import { createNodePerformanceTrace, currentPerformanceContext } from './diagnostics/performance-trace.js';
 import type { VolumeRequest, VolumeSnapshot } from '@music-bridge/contracts';
 import { createRecordingPrintCoordinator, type RecordingPrintCoordinator } from './recording/print-coordinator.js';
 import { createRecordingReplicaInput } from './recording/replica-input.js';
@@ -128,6 +129,7 @@ import { resolveRoonMatch } from './matching/candidate-resolution.js';
 export type CoreRuntimeEvent = TypedIpcEvent;
 
 export interface CoreRuntime {
+  readonly performance?: import('@music-bridge/contracts').PerformanceTraceRecorder;
   readonly commandOutbox?: ReturnType<typeof createDatasetCommandBoundary>;
   physicalLinks?: PhysicalLinksCoordinator;
   masterDrafts?: MasterDraftsCoordinator;
@@ -526,6 +528,8 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
 
   let shutdownStarted = false;
   const diagnostics = new DiagnosticRingBuffer();
+  const performanceMonitor = createNodePerformanceTrace({ component: 'core', enabled: (options.env ?? process.env).MUSIC_BRIDGE_PERFORMANCE_TRACE === '1', monitorEventLoop: true });
+  const performanceTrace = performanceMonitor.recorder;
   const runtimeStartedAt = Date.now();
   let startupLatencyMs: number | undefined;
   let lastPlayLatencyMs: number | undefined;
@@ -556,7 +560,18 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   ): void => {
     diagnostics.record({ component: 'core', level, event, ...fields });
   };
-  const emit = (event: CoreRuntimeEvent): void => options.onEvent?.(event);
+  let performanceEventSequence = 0;
+  const emit = (event: CoreRuntimeEvent): void => {
+    if (performanceTrace.isEnabled()) {
+      performanceTrace.increment('eventCount');
+      if (event.event === 'playback.changed') performanceTrace.setGauge('queueItemCount', event.payload.state.queue.items.length);
+      // 抽样估计 JSON 负载；不在每次进度通知中再次序列化全队列。
+      if (++performanceEventSequence % 40 === 1) {
+        try { performanceTrace.mark('event', 'sample', currentPerformanceContext()?.context, { estimatedBytes: Buffer.byteLength(JSON.stringify(event)) }, { eventName: event.event }); } catch { /* 诊断不影响业务事件。 */ }
+      }
+    }
+    options.onEvent?.(event);
+  };
   const publicState = (): PublicBridgeState =>
     toPublicBridgeState(controller.getState(), runtime);
   const emitHealth = (): void => emit(eventWithState('core.health', publicState()));
@@ -990,6 +1005,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
           : { ...gate },
     );
     return {
+      ...(performanceTrace.isEnabled() ? { performance: performanceTrace.snapshot() } : {}),
       component: 'core',
       health: publicState(),
       timeline: diagnostics.snapshot(),
@@ -1009,6 +1025,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   };
 
   return {
+    performance: performanceTrace,
     async start(): Promise<void> {
       if (runtime === 'ready') return;
       if (shutdownStarted) {
@@ -1040,6 +1057,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
             code: asBridgeError(cleanupError).code,
           });
         }
+        performanceMonitor.dispose();
         throw error;
       }
     },
@@ -1050,6 +1068,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       try {
         await cleanup();
       } finally {
+        performanceMonitor.dispose();
         runtime = 'stopped';
         recordDiagnostic('info', 'core_shutdown', { state: runtime });
         emitHealth();
@@ -1186,6 +1205,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
           startupTrace: {
             startedAtMs: startedAt,
             onStage: (stage, elapsedMs) => {
+              performanceTrace.mark('playback', stage, currentPerformanceContext()?.context);
               recordDiagnostic('info', PLAYBACK_STARTUP_DIAGNOSTIC_EVENTS[stage], {
                 durationMs: elapsedMs,
               });
@@ -1461,6 +1481,8 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
   let syntheticVolume = 40;
   let selectedZoneId: string | undefined;
   const diagnostics = new DiagnosticRingBuffer();
+  const performanceMonitor = createNodePerformanceTrace({ component: 'core', enabled: process.env.MUSIC_BRIDGE_PERFORMANCE_TRACE === '1', monitorEventLoop: true });
+  const performanceTrace = performanceMonitor.recorder;
   const trackFor = (trackId: string): TrackSummary | undefined =>
     fixtureTracks.find((track) => track.id === trackId);
   const verifiedQueueItem = (item: PlaybackQueueRequestItem): PlaybackQueueItem => {
@@ -1515,6 +1537,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       state.activeStreamCount === 0 &&
       !state.activePlaybackPresent;
     return {
+      ...(performanceTrace.isEnabled() ? { performance: performanceTrace.snapshot() } : {}),
       component: 'core',
       health: state,
       timeline: diagnostics.snapshot(),
@@ -1544,12 +1567,14 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     };
   };
   return {
+    performance: performanceTrace,
     async start() {
       commandOutbox.context();
       state = { ...state, runtime: 'ready', roon: 'ready' };
       diagnostics.record({ component: 'core', level: 'info', event: 'core_ready', state: 'ready' });
     },
     async shutdown() {
+      try {
       await recordingReplica.close();
       await recordingPrints.close();
       await recordingRecords.close();
@@ -1576,6 +1601,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
         activePlaybackPresent: false,
       };
       diagnostics.record({ component: 'core', level: 'info', event: 'core_shutdown', state: 'stopped' });
+      } finally { performanceMonitor.dispose(); }
     },
     ping: () => ({ pong: true as const }),
     getHealth: () => state,

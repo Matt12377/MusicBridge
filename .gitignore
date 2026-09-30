@@ -17,6 +17,8 @@ config.json
 *.dsf
 *.dff
 diagnostics/
+!packages/bridge-core/src/diagnostics/
+!packages/bridge-core/src/diagnostics/*.ts
 apps/desktop/out/
 apps/desktop/release/
 apps/desktop/native/ffmpeg/

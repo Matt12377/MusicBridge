@@ -1678,3 +1678,44 @@ test('搜索切换分组使 item_key 失效后，专辑和艺人详情重新定�
   assert.equal(artistAlbums.items[0]?.title, '测试专辑');
   assert.equal((await service.browseAlbum(artistAlbums.items[0]!, page)).items[0]?.title, '测试歌曲');
 });
+
+
+test('诊断时钟故障不阻止 Browse 派发或使同步回调悬空', async t => {
+  const { PerformanceTraceRecorder } = await import('@music-bridge/contracts');
+  const { withPerformanceContext } = await import('../src/diagnostics/performance-trace.js');
+  const { performance } = await import('node:perf_hooks');
+  let calls = 0;
+  const service = createRoonLibraryService({ browse: {
+    browse(options, callback) { calls++; callback(false, { action: 'list', list: { level: options.pop_all ? 0 : 1, count: 1 } }); },
+    load(_options, callback) { calls++; callback(false, { offset: 0, items: [{ title: '合成专辑', item_key: 'album', hint: 'list' }] }); },
+  }, image: { get_image: () => undefined } });
+  const recorder = new PerformanceTraceRecorder({ component: 'core', enabled: true, now: () => 0 });
+  const context = recorder.context()!;
+  const clock = t.mock.method(performance, 'now', () => { throw new Error('合成诊断时钟故障'); });
+  try {
+    const page = await withPerformanceContext(recorder, context, () => service.browseAlbums({ offset: 0, limit: 24 }));
+    assert.equal(page.items[0]?.title, '合成专辑');
+    assert.ok(calls > 0);
+    assert.equal(recorder.snapshot().inflightCount, 0);
+  } finally { clock.mock.restore(); }
+});
+
+
+test('本地 Browse 超时不冒充 Provider 返回，迟到回调单独保留返回标记', async t => {
+  const { PerformanceTraceRecorder } = await import('@music-bridge/contracts');
+  const { withPerformanceContext } = await import('../src/diagnostics/performance-trace.js');
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let finish!: (error: string | false, body: unknown) => void;
+  const service = createRoonLibraryService({ requestTimeoutMs: 5, browse: {
+    browse(_options, callback) { finish = callback; }, load() { throw new Error('超时后不能继续读取'); },
+  }, image: { get_image: () => undefined } });
+  const recorder = new PerformanceTraceRecorder({ component: 'core', enabled: true });
+  const pending = withPerformanceContext(recorder, recorder.context(), () => service.browseAlbums({ offset: 0, limit: 24 }));
+  const failure = assert.rejects(pending, /timed out/);
+  await new Promise(resolve => setImmediate(resolve));
+  t.mock.timers.tick(6); await failure;
+  assert.equal(recorder.snapshot().events.filter(event => event.phase === 'provider-response').length, 0);
+  finish(false, { action: 'list', list: { level: 0, count: 1 } });
+  assert.equal(recorder.snapshot().events.filter(event => event.phase === 'provider-response').length, 1);
+  assert.equal(recorder.snapshot().inflightCount, 0);
+});

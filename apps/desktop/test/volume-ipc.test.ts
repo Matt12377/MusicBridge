@@ -8,10 +8,10 @@ test('音量 IPC 在主进程和 Core 边界拒绝非法参数与不可信来源
  const source = await readFile('src/main/index.ts','utf8')
  const handlers = new Map<string, (event: boolean, payload?:unknown) => unknown>()
  const calls: unknown[] = []
- const a=source.indexOf("  ipcMain.handle('roon:volume:get'")
- const b=source.indexOf("  ipcMain.handle('playback:seek'",a)
+ const a=source.indexOf("  registerPerformanceHandler('roon:volume:get'")
+ const b=source.indexOf("  registerPerformanceHandler('playback:seek'",a)
  runInNewContext(ts.transpileModule(source.slice(a,b),{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText,{
-  ipcMain:{handle:(name:string,fn:(event:boolean,payload?:unknown)=>unknown)=>handlers.set(name,fn)},
+  registerPerformanceHandler:(name:string,fn:(event:boolean,payload?:unknown)=>unknown)=>handlers.set(name,fn),
   invokeCore:(trusted:boolean,fn:()=>unknown)=>{if(!trusted) throw Error('拒绝来源');return fn()},
   supervisor:{request:(...args:unknown[])=>calls.push(args)},isVolumeRequest,
   publicIpcFailure:()=>{throw Error('无效参数')},

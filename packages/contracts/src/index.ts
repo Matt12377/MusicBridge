@@ -5,6 +5,7 @@ export * from './favorites.js';
 export * from './collection.js';
 export * from './matching.js';
 export * from './diagnostics.js';
+export * from './performance.js';
 export * from './ipc.js';
 export * from './library.js';
 export * from './lyrics.js';

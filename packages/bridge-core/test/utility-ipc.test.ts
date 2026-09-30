@@ -3,6 +3,9 @@ import { OutputCheckError } from '../src/recording/output-error.js';
 import { createMediaPlanningCoordinator } from '../src/recording/media-coordinator.js';
 import { createSourceEvidenceService } from '../src/recording/source-evidence.js';
 import assert from 'node:assert/strict';
+import { PerformanceTraceRecorder } from '@music-bridge/contracts';
+import { currentPerformanceContext } from '../src/diagnostics/performance-trace.js';
+import { traceProviderApi } from '../src/diagnostics/performance-instrumentation.js';
 import test from 'node:test';
 import {
   IPC_VERSION,
@@ -1619,4 +1622,23 @@ test('印刷worker真实Core运行时空库可领取、所有命令拒绝缺失�
     assert.equal(prints.ok,false);assert.equal(prints.error.code,'OUTBOX_SCOPE_MISMATCH');
   }
   assert.equal((await rpc('recordingPrintWorker.renderHtml',{html:'<script>bad</script>'},datasetId)).ok,false);
+});
+
+
+test('正式 Utility dispatch 将受控 RPC 身份传到 Provider 并关闭 span', async () => {
+  const performance = new PerformanceTraceRecorder({ component: 'core', enabled: true });
+  const context = performance.context()!;
+  const port = new FakePort();
+  const provider = traceProviderApi({ async read() { assert.equal(currentPerformanceContext()?.context.traceId, context.traceId); return []; } });
+  const runtime = Object.assign(makeRuntime(), { performance, searchTracks: async (_query: string, page: { offset: number; limit: number }) => ({ ...page, items: await provider.read(), total: 0, hasMore: false }) });
+  await attachCoreRuntimePort(port, runtime);
+  port.send({ version: 1, id: context.requestId, command: 'library.search', payload: { query: '合成查询', page: { offset: 0, limit: 24 } }, performanceTrace: context });
+  await new Promise(resolve => setImmediate(resolve));
+  const response = port.messages.find(message => (message as { id?: string }).id === context.requestId) as { ok: boolean };
+  assert.equal(response.ok, true);
+  const events = performance.snapshot().events;
+  assert.ok(events.some(event => event.operation === 'provider' && event.context?.traceId === context.traceId));
+  assert.ok(events.some(event => event.phase === 'response-sent' && event.context?.requestId === context.requestId));
+  assert.equal(performance.snapshot().inflightCount, 0);
+  assert.equal(currentPerformanceContext(), undefined);
 });

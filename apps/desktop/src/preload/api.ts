@@ -74,6 +74,7 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
 }
 
 export interface MusicBridgePublicApi extends RecordingWorkspacePublicApi, RecordingPrintsPublicApi, RecordingReplicaPublicApi, RecordingDeviceSelectionPublicApi, RecordingRecordsPublicApi, RecordingAttemptsPublicApi, RecordingOutputPublicApi, RecordingPlansPublicApi, CollectionProgressPublicApi, SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, PreparationZipPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, SourceCandidatesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
+  performanceDiagnostics?: import('../shared/performance-transport.js').PerformanceInteractionDiagnostics
   getVolume: () => Promise<VolumeSnapshot>
   setVolume: (request: VolumeRequest) => Promise<VolumeSnapshot>
   setAppearanceTheme: (theme: 'light' | 'dark') => Promise<void>
@@ -364,6 +365,7 @@ export const PUBLIC_API_KEYS = [
   'getCoreState',
   'pingCore',
   'exportDiagnostics',
+  'performanceDiagnostics',
   'getAuthState',
   'beginQrLogin',
   'pollQrLogin',
@@ -601,6 +603,7 @@ export function createPreloadApi(
   sourceCandidatesApi?: SourceCandidatesPublicApi,
   preparationZipApi?: PreparationZipPublicApi,
   recordingDeviceApi?: RecordingDeviceSelectionPublicApi,
+  performanceDiagnostics: import('../shared/performance-transport.js').PerformanceInteractionDiagnostics = { begin: () => undefined, use: () => {}, end: () => {} },
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   const outputUnavailable = async (): Promise<never> => { throw new Error('输出核验服务暂时不可用；未访问设备。') }
@@ -687,6 +690,7 @@ export function createPreloadApi(
     getCoreState,
     pingCore,
     exportDiagnostics,
+    performanceDiagnostics,
     getAuthState,
     beginQrLogin,
     pollQrLogin,

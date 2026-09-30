@@ -1,3 +1,5 @@
+import * as performanceContracts from '@music-bridge/contracts'
+import * as performanceTransport from '../src/shared/performance-transport.js'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -35,6 +37,8 @@ test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，
   const replicaModule = await import('../src/preload/recording-replica-client.js').catch(() => ({}))
   const printModule = await import('../src/preload/recording-print-client.js')
   const modules: Record<string, unknown> = {
+    '@music-bridge/contracts': performanceContracts,
+    '../shared/performance-transport.js': performanceTransport,
     './recording-print-client.js': printModule,
     './recording-replica-client.js': replicaModule,
     './recording-record-client.js': recordModule,
@@ -433,6 +437,7 @@ test('Preload exposes only sanitized business methods', async () => {
     'getCoreState',
     'pingCore',
     'exportDiagnostics',
+    'performanceDiagnostics',
     'getAuthState',
     'beginQrLogin',
     'pollQrLogin',

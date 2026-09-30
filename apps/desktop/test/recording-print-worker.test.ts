@@ -67,5 +67,5 @@ test('Main在Core就绪时启动打印worker，失效与退出时停止，公开
   assert.match(main, /onReady: async client => \{\s*lifecycleProbe\.mark\('core-ready-received'\)\s*await startRecordingPrintWorker\(client\)/u)
   assert.match(main, /onLifecycle: \(event\) => \{\s*if \(event.event === 'spawn'\) lifecycleProbe\.mark\('core-spawn'\)[\s\S]*?if \(event.event !== 'ready'\) stopRecordingPrintWorker\(\)/u)
   assert.match(main, /quitAfterCoreShutdown = true\s*stopRecordingPrintWorker\(\)/u)
-  assert.match(preload, /createRecordingPrintClient\(\(channel, value\) => ipcRenderer.invoke\(channel, value\)\)/u)
+  assert.match(preload, /createRecordingPrintClient\(\(channel, value\) => invokePerformance\(channel, value\)\)/u)
 })

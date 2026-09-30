@@ -1,3 +1,4 @@
+import { createPerformanceIpcBridge } from "./performance-ipc.js"
 import { isVolumeRequest } from '@music-bridge/contracts'
 import { normalizeRoonDisplayUrl } from '@music-bridge/contracts'
 import { RoonDisplayConnection } from './roon-display-connection.js'
@@ -214,6 +215,12 @@ let trayRefreshPromise: Promise<void> | undefined
 let trayRefreshQueued = false
 let quitAfterCoreShutdown = false
 const mainDiagnostics = new MainDiagnosticRecorder()
+const performanceIpc = createPerformanceIpcBridge(mainDiagnostics.performance)
+const registerPerformanceHandler: typeof ipcMain.handle = (channel, listener) => {
+  ipcMain.handle(channel, performanceIpc.wrap(listener, event => {
+    try { requireTrustedRenderer(event); return true } catch { return false }
+  }))
+}
 
 function recordRoonImageShape(summary: RoonImageShapeSummary): void {
   if (
@@ -981,6 +988,7 @@ async function exportDiagnosticsFromMain(
       electronVersion: process.versions.electron ?? 'unknown',
       nodeVersion: process.versions.node,
     },
+    ...(performanceIpc.rendererSnapshot() ? { rendererPerformance: performanceIpc.rendererSnapshot()! } : {}),
     main: mainDiagnostics.snapshot(core.health),
     core,
     gates: [
@@ -1008,45 +1016,45 @@ function registerIpcHandlers(
   } })
   commandOutbox = createCommandOutboxService({ store, currentDataset: async () => (await supervisor.request('commandOutbox.context', {})).datasetId, ...executor })
   installCommandOutboxIpc<Electron.IpcMainInvokeEvent>({
-    handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer,
+    handle: (channel, handler) => registerPerformanceHandler(channel, handler), requireTrusted: requireTrustedRenderer,
     context: () => supervisor.request('commandOutbox.context', {}), service: commandOutbox, store,
   })
   if (isRoonImageGate) {
-    ipcMain.handle('roon:image:diagnostic', (event, shape: unknown) => {
+    registerPerformanceHandler('roon:image:diagnostic', (event, shape: unknown) => {
       requireTrustedRenderer(event)
       recordPreloadRoonImageShape(shape)
       return { recorded: true }
     })
   }
-  ipcMain.handle('app:set-appearance-theme', (event, theme: unknown) => {
+  registerPerformanceHandler('app:set-appearance-theme', (event, theme: unknown) => {
     const target = requireTrustedRenderer(event)
     if (theme !== 'light' && theme !== 'dark') return publicIpcFailure('INVALID_IPC_REQUEST', '主题必须为浅色或深色')
     nativeTheme.themeSource = theme
     target.setBackgroundColor(theme === 'dark' ? '#3c4253' : '#f2edf1')
   })
-  ipcMain.handle('app:get-info', (event) => {
+  registerPerformanceHandler('app:get-info', (event) => {
     requireTrustedRenderer(event)
     return appInfo()
   })
-  ipcMain.handle('core:get-health', (event) =>
+  registerPerformanceHandler('core:get-health', (event) =>
     invokeCore(event, () => supervisor.request('core.getHealth', {})),
   )
-  ipcMain.handle('core:get-state', (event) =>
+  registerPerformanceHandler('core:get-state', (event) =>
     invokeCore(event, () => supervisor.request('core.getState', {})),
   )
-  ipcMain.handle('core:ping', (event) =>
+  registerPerformanceHandler('core:ping', (event) =>
     invokeCore(event, () => supervisor.request('core.ping', {})),
   )
-  ipcMain.handle('diagnostics:export', (event) =>
+  registerPerformanceHandler('diagnostics:export', (event) =>
     invokeCore(event, () => exportDiagnosticsFromMain(supervisor)),
   )
-  ipcMain.handle('auth:get-state', (event) =>
+  registerPerformanceHandler('auth:get-state', (event) =>
     invokeCore(event, () => supervisor.request('auth.getState', {})),
   )
-  ipcMain.handle('auth:begin-qr', (event) =>
+  registerPerformanceHandler('auth:begin-qr', (event) =>
     invokeCore(event, () => supervisor.request('auth.beginQr', {})),
   )
-  ipcMain.handle('auth:poll-qr', (event, challengeId: unknown) =>
+  registerPerformanceHandler('auth:poll-qr', (event, challengeId: unknown) =>
     invokeCore(event, async (): Promise<PublicAuthState> => {
       const result = await supervisor.requestInternal('auth.pollQr', {
         challengeId: requireChallengeId(challengeId),
@@ -1057,14 +1065,14 @@ function registerIpcHandlers(
       return result.state
     }),
   )
-  ipcMain.handle('auth:cancel-qr', (event, challengeId: unknown) =>
+  registerPerformanceHandler('auth:cancel-qr', (event, challengeId: unknown) =>
     invokeCore(event, () =>
       supervisor.request('auth.cancelQr', {
         challengeId: requireChallengeId(challengeId),
       }),
     ),
   )
-  ipcMain.handle('auth:logout', (event) =>
+  registerPerformanceHandler('auth:logout', (event) =>
     invokeCore(event, async (): Promise<PublicAuthState> => {
       let state: PublicAuthState | undefined
       let failure: unknown
@@ -1083,13 +1091,13 @@ function registerIpcHandlers(
       return state
     }),
   )
-  ipcMain.handle('account:get-state', (event) =>
+  registerPerformanceHandler('account:get-state', (event) =>
     invokeCore(event, () => supervisor.request('account.getState', {})),
   )
-  ipcMain.handle('account:refresh', (event) =>
+  registerPerformanceHandler('account:refresh', (event) =>
     invokeCore(event, () => supervisor.request('account.refresh', {})),
   )
-  ipcMain.handle('library:search', (event, query: unknown, page: unknown) =>
+  registerPerformanceHandler('library:search', (event, query: unknown, page: unknown) =>
     invokeCore(event, () =>
       supervisor.request('library.search', {
         query: requireSearchQuery(query),
@@ -1097,7 +1105,7 @@ function registerIpcHandlers(
       }),
     ),
   )
-  ipcMain.handle('library:search-artists', (event, query: unknown, page: unknown) =>
+  registerPerformanceHandler('library:search-artists', (event, query: unknown, page: unknown) =>
     invokeCore(event, () =>
       supervisor.request('library.searchArtists', {
         query: requireSearchQuery(query),
@@ -1105,7 +1113,7 @@ function registerIpcHandlers(
       }),
     ),
   )
-  ipcMain.handle('library:search-albums', (event, query: unknown, page: unknown) =>
+  registerPerformanceHandler('library:search-albums', (event, query: unknown, page: unknown) =>
     invokeCore(event, () =>
       supervisor.request('library.searchAlbums', {
         query: requireSearchQuery(query),
@@ -1113,7 +1121,7 @@ function registerIpcHandlers(
       }),
     ),
   )
-  ipcMain.handle('library:artist', (event, artistId: unknown, page: unknown) =>
+  registerPerformanceHandler('library:artist', (event, artistId: unknown, page: unknown) =>
     invokeCore(event, () =>
       supervisor.request('library.artist', {
         artistId: requirePlaybackTrackId(artistId),
@@ -1121,7 +1129,7 @@ function registerIpcHandlers(
       }),
     ),
   )
-  ipcMain.handle('library:album', (event, albumId: unknown, page: unknown) =>
+  registerPerformanceHandler('library:album', (event, albumId: unknown, page: unknown) =>
     invokeCore(event, () =>
       supervisor.request('library.album', {
         albumId: requirePlaybackTrackId(albumId),
@@ -1129,17 +1137,17 @@ function registerIpcHandlers(
       }),
     ),
   )
-  ipcMain.handle('library:liked', (event, page: unknown) =>
+  registerPerformanceHandler('library:liked', (event, page: unknown) =>
     invokeCore(event, () =>
       supervisor.request('library.liked', { page: requireLibraryPage(page) }),
     ),
   )
-  ipcMain.handle('library:like-status', (event, trackId: unknown) =>
+  registerPerformanceHandler('library:like-status', (event, trackId: unknown) =>
     invokeCore(event, () => supervisor.request('library.likeStatus', {
       trackId: requirePlaybackTrackId(trackId),
     })),
   )
-  ipcMain.handle('library:like', (event, trackId: unknown, liked: unknown) =>
+  registerPerformanceHandler('library:like', (event, trackId: unknown, liked: unknown) =>
     invokeCore(event, () => {
       if (typeof liked !== 'boolean') {
         return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid like state')
@@ -1150,21 +1158,21 @@ function registerIpcHandlers(
       })
     }),
   )
-  ipcMain.handle('library:match', (event, track: unknown) =>
+  registerPerformanceHandler('library:match', (event, track: unknown) =>
     invokeCore(event, () => supervisor.request('library.match', {
       track: requireTrackSummary(track),
     })),
   )
-  ipcMain.handle('library:aggregate-search', (event, query: unknown, page: unknown) =>
+  registerPerformanceHandler('library:aggregate-search', (event, query: unknown, page: unknown) =>
     invokeCore(event, () => supervisor.request('library.aggregateSearch', {
       query: requireSearchQuery(query),
       page: requireLibraryPage(page),
     })),
   )
-  ipcMain.handle('library:playlists', (event) =>
+  registerPerformanceHandler('library:playlists', (event) =>
     invokeCore(event, () => supervisor.request('library.playlists', {})),
   )
-  ipcMain.handle('library:playlist', (event, playlistId: unknown, page: unknown) =>
+  registerPerformanceHandler('library:playlist', (event, playlistId: unknown, page: unknown) =>
     invokeCore(event, () =>
       supervisor.request('library.playlist', {
         playlistId: requirePlaylistId(playlistId),
@@ -1172,103 +1180,103 @@ function registerIpcHandlers(
       }),
     ),
   )
-  ipcMain.handle('library:daily-recommendations', (event) =>
+  registerPerformanceHandler('library:daily-recommendations', (event) =>
     invokeCore(event, () => supervisor.request('library.dailyRecommendations', {})),
   )
-  ipcMain.handle('recordingVersions:list', (event, draftId: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingVersions:list', (event, draftId: unknown) => invokeCore(event, () => {
     if (!isCollectionId(draftId)) throw new Error('录音草稿编号无效。')
     return supervisor.request('recordingVersions.list', { draftId })
   }))
-  ipcMain.handle('recordingVersions:preview', (event, request: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingVersions:preview', (event, request: unknown) => invokeCore(event, () => {
     if (!isPreviewVersionsRequest(request)) throw new Error('版本预览请求无效。')
     return supervisor.request('recordingVersions.preview', request)
   }))
-  ipcMain.handle('recordingVersions:job', (event, id: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingVersions:job', (event, id: unknown) => invokeCore(event, () => {
     if (!isCollectionId(id)) throw new Error('版本任务编号无效。')
     return supervisor.request('recordingVersions.job', { id })
   }))
-  ipcMain.handle('recordingMedia:plans', (event, draftId: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingMedia:plans', (event, draftId: unknown) => invokeCore(event, () => {
     if (!isCollectionId(draftId)) throw new Error('录音草稿编号无效。')
     return supervisor.request('recordingMedia.plans', { draftId })
   }))
-  ipcMain.handle('recordingMedia:detail', (event, id: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingMedia:detail', (event, id: unknown) => invokeCore(event, () => {
     if (!isCollectionId(id)) throw new Error('录音规划编号无效。')
     return supervisor.request('recordingMedia.detail', { id })
   }))
-  ipcMain.handle('recordingMedia:balance', (event, draftId: unknown, spec: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingMedia:balance', (event, draftId: unknown, spec: unknown) => invokeCore(event, () => {
     if (!isCollectionId(draftId) || !isMediaLayoutSpec(spec)) throw new Error('分面输入无效。')
     return supervisor.request('recordingMedia.balance', { draftId, spec })
   }))
-  ipcMain.handle('recordingMedia:preview', (event, request: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingMedia:preview', (event, request: unknown) => invokeCore(event, () => {
     if (!isPreviewMediaRequest(request)) throw new Error('分面预览请求无效。')
     return supervisor.request('recordingMedia.preview', request)
   }))
-  ipcMain.handle('recordingBackups:overview', event => invokeCore(event, () => supervisor.request('recordingBackups.overview', {})))
-  ipcMain.handle('recordingArchive:roots', event => invokeCore(event, () => supervisor.request('recordingArchive.roots', {})))
-  ipcMain.handle('recordingArchive:preview', (event, request: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingBackups:overview', event => invokeCore(event, () => supervisor.request('recordingBackups.overview', {})))
+  registerPerformanceHandler('recordingArchive:roots', event => invokeCore(event, () => supervisor.request('recordingArchive.roots', {})))
+  registerPerformanceHandler('recordingArchive:preview', (event, request: unknown) => invokeCore(event, () => {
     if (!isPreviewArchiveRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档请求无效或尚未明确确认')
     return supervisor.request('recordingArchive.preview', request)
   }))
-  ipcMain.handle('recordingArchive:verify', (event, request: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingArchive:verify', (event, request: unknown) => invokeCore(event, () => {
     if (!isVerifyArchiveRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档请求无效或尚未明确确认')
     return supervisor.request('recordingArchive.verify', request)
   }))
-  ipcMain.handle('recordingArchive:list', (event, draftId: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingArchive:list', (event, draftId: unknown) => invokeCore(event, () => {
     if (!isCollectionId(draftId)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档编号无效')
     return supervisor.request('recordingArchive.list', { draftId })
   }))
-  ipcMain.handle('recordingArchive:operation', (event, id: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingArchive:operation', (event, id: unknown) => invokeCore(event, () => {
     if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档编号无效')
     return supervisor.request('recordingArchive.operation', { id })
   }))
-  ipcMain.handle('recordingArchive:cancelRead', (event, id: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingArchive:cancelRead', (event, id: unknown) => invokeCore(event, () => {
     if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '归档编号无效')
     return supervisor.request('recordingArchive.cancelRead', { id })
   }))
-  ipcMain.handle('recordingProfiles:list', event => invokeCore(event, () => supervisor.request('recordingProfiles.list', {})))
-  ipcMain.handle('recordingProfiles:history', (event, profileId: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingProfiles:list', event => invokeCore(event, () => supervisor.request('recordingProfiles.list', {})))
+  registerPerformanceHandler('recordingProfiles:history', (event, profileId: unknown) => invokeCore(event, () => {
     if (!isCollectionId(profileId)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
     return supervisor.request('recordingProfiles.history', { profileId })
   }))
-  ipcMain.handle('recordingProfiles:version', (event, versionId: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingProfiles:version', (event, versionId: unknown) => invokeCore(event, () => {
     if (!isCollectionId(versionId)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
     return supervisor.request('recordingProfiles.version', { versionId })
   }))
-  ipcMain.handle('recordingProfiles:session', (event, draftId: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingProfiles:session', (event, draftId: unknown) => invokeCore(event, () => {
     if (!isCollectionId(draftId)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
     return supervisor.request('recordingProfiles.session', { draftId })
   }))
-  ipcMain.handle('recordingExecution:list', (event, draftId: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingExecution:list', (event, draftId: unknown) => invokeCore(event, () => {
     if (!isCollectionId(draftId)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
     return supervisor.request('recordingExecution.list', { draftId })
   }))
-  ipcMain.handle('recordingExecution:preview', (event, request: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingExecution:preview', (event, request: unknown) => invokeCore(event, () => {
     if (!isPreviewExecutionRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
     return supervisor.request('recordingExecution.preview', request)
   }))
-  ipcMain.handle('recordingExecution:job', (event, id: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingExecution:job', (event, id: unknown) => invokeCore(event, () => {
     if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
     return supervisor.request('recordingExecution.job', { id })
   }))
-  ipcMain.handle('recordingExecution:cancelRead', (event, id: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingExecution:cancelRead', (event, id: unknown) => invokeCore(event, () => {
     if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
     return supervisor.request('recordingExecution.cancelRead', { id })
   }))
-  ipcMain.handle('recordingExecution:verify', (event, request: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingExecution:verify', (event, request: unknown) => invokeCore(event, () => {
     if (!isVerifyExecutionRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '录音参数或执行资产请求无效或未确认')
     return supervisor.request('recordingExecution.verify', request)
   }))
-  ipcMain.handle('recordingPrepared:list', (event, draftId: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingPrepared:list', (event, draftId: unknown) => invokeCore(event, () => {
     if (!isCollectionId(draftId)) return publicIpcFailure('INVALID_IPC_REQUEST', 'PREP 请求无效或未确认')
     return supervisor.request('recordingPrepared.list', { draftId })
   }))
-  installReferenceCatalogReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
-  installSpreadsheetImportReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
-  installRecordingPlanReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
-  installRecordingWorkspaceRead({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
-  installRecordingCandidateHandlers({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installReferenceCatalogReads({ handle: (channel, handler) => registerPerformanceHandler(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installSpreadsheetImportReads({ handle: (channel, handler) => registerPerformanceHandler(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installRecordingPlanReads({ handle: (channel, handler) => registerPerformanceHandler(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installRecordingWorkspaceRead({ handle: (channel, handler) => registerPerformanceHandler(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installRecordingCandidateHandlers({ handle: (channel, handler) => registerPerformanceHandler(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   installPreparationZipHandlers<Electron.IpcMainInvokeEvent>({
-    handle: (channel, handler) => ipcMain.handle(channel, handler), supervisor,
+    handle: (channel, handler) => registerPerformanceHandler(channel, handler), supervisor,
     windowFor: event => {
       const window = requireTrustedRenderer(event)
       const contents = window.webContents
@@ -1290,10 +1298,10 @@ function registerIpcHandlers(
       return selected.canceled ? null : selected.filePath ?? null
     },
   })
-  installRecordingOutputReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
-  installRecordingRecordHandlers({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installRecordingOutputReads({ handle: (channel, handler) => registerPerformanceHandler(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installRecordingRecordHandlers({ handle: (channel, handler) => registerPerformanceHandler(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   installRecordingPrintHandlers({
-    handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor,
+    handle: (channel, handler) => registerPerformanceHandler(channel, handler), requireTrusted: requireTrustedRenderer, supervisor,
     getEpoch: () => recordingPrintEpoch,
     pickArtwork: event => pickCollectionPhoto(
       () => dialog.showOpenDialog(requireTrustedRenderer(event), { title: '选择母版 Artwork（选择后需保存）', properties: ['openFile'], filters: [{ name: 'Artwork 图片', extensions: ['png', 'jpg', 'jpeg'] }] }),
@@ -1307,107 +1315,107 @@ function registerIpcHandlers(
       title: '导出历史 J-Card PDF（不覆盖已有文件）', defaultPath: `MusicBridge-${options.request.artifactId}.pdf`, filters: [{ name: 'PDF 文档', extensions: ['pdf'] }],
     }) }),
   })
-  installRecordingReplicaHandlers({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
-  installRecordingDeviceHandlers({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
-  installRecordingAttemptHandlers({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
-  installCollectionProgressReads({ handle: (channel, handler) => ipcMain.handle(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
-  ipcMain.handle('recordingPrepared:selections', (event, preparationId: unknown) => invokeCore(event, () => {
+  installRecordingReplicaHandlers({ handle: (channel, handler) => registerPerformanceHandler(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installRecordingDeviceHandlers({ handle: (channel, handler) => registerPerformanceHandler(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installRecordingAttemptHandlers({ handle: (channel, handler) => registerPerformanceHandler(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  installCollectionProgressReads({ handle: (channel, handler) => registerPerformanceHandler(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  registerPerformanceHandler('recordingPrepared:selections', (event, preparationId: unknown) => invokeCore(event, () => {
     if (!isCollectionId(preparationId)) return publicIpcFailure('INVALID_IPC_REQUEST', 'PREP 请求无效或未确认')
     return supervisor.request('recordingPrepared.selections', { preparationId })
   }))
-  ipcMain.handle('recordingPrepared:job', (event, id: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingPrepared:job', (event, id: unknown) => invokeCore(event, () => {
     if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', 'PREP 请求无效或未确认')
     return supervisor.request('recordingPrepared.job', { id })
   }))
-  ipcMain.handle('recordingPrepared:previewImport', (event, request: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingPrepared:previewImport', (event, request: unknown) => invokeCore(event, () => {
     if (!isPreviewPreparedImportRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', 'PREP 请求无效或未确认')
     return supervisor.request('recordingPrepared.previewImport', request)
   }))
-  ipcMain.handle('recordingPrepared:review', (event, request: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingPrepared:review', (event, request: unknown) => invokeCore(event, () => {
     if (!isReviewPreparedRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', 'PREP 请求无效或未确认')
     return supervisor.request('recordingPrepared.review', request)
   }))
-  ipcMain.handle('recordingPreparation:destinations', event => invokeCore(event, () => supervisor.request('recordingPreparation.destinations', {})))
-  ipcMain.handle('recordingPreparation:list', (event, draftId: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingPreparation:destinations', event => invokeCore(event, () => supervisor.request('recordingPreparation.destinations', {})))
+  registerPerformanceHandler('recordingPreparation:list', (event, draftId: unknown) => invokeCore(event, () => {
     if (!isCollectionId(draftId)) return publicIpcFailure('INVALID_IPC_REQUEST', '草稿编号无效')
     return supervisor.request('recordingPreparation.list', { draftId })
   }))
-  ipcMain.handle('recordingPreparation:preview', (event, request: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingPreparation:preview', (event, request: unknown) => invokeCore(event, () => {
     if (!isPreviewPreparationRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '工作区预览请求无效')
     return supervisor.request('recordingPreparation.preview', request)
   }))
-  ipcMain.handle('recordingPreparation:job', (event, id: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingPreparation:job', (event, id: unknown) => invokeCore(event, () => {
     if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '工作区任务编号无效')
     return supervisor.request('recordingPreparation.job', { id })
   }))
-  ipcMain.handle('recordingPreparation:open', (event, id: unknown) => invokeCore(event, async () => {
+  registerPerformanceHandler('recordingPreparation:open', (event, id: unknown) => invokeCore(event, async () => {
     if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '工作区编号无效')
     const context = await supervisor.requestInternal('recordingPreparation.context', { id })
     const error = await shell.openPath(context.absolutePath)
     if (error) return publicIpcFailure('NOT_READY', '无法打开工作区，请检查目标目录是否仍可用')
     return { opened: true as const }
   }))
-  ipcMain.handle('recordingSources:roots', event => invokeCore(event, () => supervisor.request('recordingSources.roots', {})))
-  ipcMain.handle('recordingSources:snapshot', (event, draftId: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingSources:roots', event => invokeCore(event, () => supervisor.request('recordingSources.roots', {})))
+  registerPerformanceHandler('recordingSources:snapshot', (event, draftId: unknown) => invokeCore(event, () => {
     if (!isCollectionId(draftId)) return publicIpcFailure('INVALID_IPC_REQUEST', '草稿编号无效')
     return supervisor.request('recordingSources.snapshot', { draftId })
   }))
-  ipcMain.handle('recordingSources:job', (event, id: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingSources:job', (event, id: unknown) => invokeCore(event, () => {
     if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '校验任务编号无效')
     return supervisor.request('recordingSources.job', { id })
   }))
-  ipcMain.handle('recordingDrafts:list', (event, page: unknown) => invokeCore(event, () => supervisor.request('recordingDrafts.list', { page: requireLibraryPage(page) })))
-  ipcMain.handle('recordingDrafts:detail', (event, id: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingDrafts:list', (event, page: unknown) => invokeCore(event, () => supervisor.request('recordingDrafts.list', { page: requireLibraryPage(page) })))
+  registerPerformanceHandler('recordingDrafts:detail', (event, id: unknown) => invokeCore(event, () => {
     if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '草稿编号无效')
     return supervisor.request('recordingDrafts.detail', { id })
   }))
-  ipcMain.handle('recordingDrafts:runtime', (event, draftId: unknown, trackId: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('recordingDrafts:runtime', (event, draftId: unknown, trackId: unknown) => invokeCore(event, () => {
     if (!isCollectionId(draftId) || !isCollectionId(trackId)) return publicIpcFailure('INVALID_IPC_REQUEST', '草稿曲目编号无效')
     return supervisor.request('recordingDrafts.runtime', { draftId, trackId })
   }))
-  ipcMain.handle('physicalLinks:digitalDetail', (event, id: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('physicalLinks:digitalDetail', (event, id: unknown) => invokeCore(event, () => {
     if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '关联对象编号无效')
     return supervisor.request('physicalLinks.digitalDetail', { id })
   }))
-  ipcMain.handle('physicalLinks:physical', (event, releaseId: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('physicalLinks:physical', (event, releaseId: unknown) => invokeCore(event, () => {
     if (!isCollectionId(releaseId)) return publicIpcFailure('INVALID_IPC_REQUEST', '关联对象编号无效')
     return supervisor.request('physicalLinks.physical', { releaseId })
   }))
-  ipcMain.handle('physicalLinks:history', (event, releaseId: unknown, page: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('physicalLinks:history', (event, releaseId: unknown, page: unknown) => invokeCore(event, () => {
     if (!isCollectionId(releaseId)) return publicIpcFailure('INVALID_IPC_REQUEST', '发行版编号无效')
     return supervisor.request('physicalLinks.history', { releaseId, page: requireLibraryPage(page) })
   }))
-  ipcMain.handle('physicalLinks:runtime', (event, id: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('physicalLinks:runtime', (event, id: unknown) => invokeCore(event, () => {
     if (!isCollectionId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '关联对象编号无效')
     return supervisor.request('physicalLinks.runtime', { id })
   }))
-  ipcMain.handle('physicalLinks:digitalList', (event, page: unknown) => invokeCore(event, () => supervisor.request('physicalLinks.digitalList', { page: requireLibraryPage(page) })))
-  ipcMain.handle('physicalLinks:search', (event, query: unknown, page: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('physicalLinks:digitalList', (event, page: unknown) => invokeCore(event, () => supervisor.request('physicalLinks.digitalList', { page: requireLibraryPage(page) })))
+  registerPerformanceHandler('physicalLinks:search', (event, query: unknown, page: unknown) => invokeCore(event, () => {
     if (!isAlbumQuery(query)) return publicIpcFailure('INVALID_IPC_REQUEST', '专辑查询无效')
     return supervisor.request('physicalLinks.search', { query, page: requireLibraryPage(page) })
   }))
-  ipcMain.handle('physicalLinks:matrix', (event, page: unknown, query: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('physicalLinks:matrix', (event, page: unknown, query: unknown) => invokeCore(event, () => {
     if (query !== undefined && !isAlbumQuery(query)) return publicIpcFailure('INVALID_IPC_REQUEST', '矩阵查询无效')
     return supervisor.request('physicalLinks.matrix', { page: requireLibraryPage(page), ...(query !== undefined ? { query } : {}) })
   }))
-  ipcMain.handle('physicalMusic:list', (event, page: unknown, filter: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('physicalMusic:list', (event, page: unknown, filter: unknown) => invokeCore(event, () => {
     if (filter !== undefined && !isMusicFilter(filter)) return publicIpcFailure('INVALID_IPC_REQUEST', '音乐筛选无效')
     return supervisor.request('physicalMusic.list', { page: requireLibraryPage(page), ...(filter ? { filter } : {}) })
   }))
-  ipcMain.handle('physicalMusic:detail', (event, id: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('physicalMusic:detail', (event, id: unknown) => invokeCore(event, () => {
     if (!isMusicId(id)) return publicIpcFailure('INVALID_IPC_REQUEST', '音乐编号无效')
     return supervisor.request('physicalMusic.detail', { id })
   }))
-  ipcMain.handle('physicalMusic:copies', (event, releaseId: unknown, page: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('physicalMusic:copies', (event, releaseId: unknown, page: unknown) => invokeCore(event, () => {
     if (!isCollectionId(releaseId)) return publicIpcFailure('INVALID_IPC_REQUEST', '商业发行编号无效')
     return supervisor.request('physicalMusic.copies', { releaseId, page: requireLibraryPage(page) })
   }))
-  ipcMain.handle('physicalMusic:photo', (event, photoId: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('physicalMusic:photo', (event, photoId: unknown) => invokeCore(event, () => {
     if (!isCollectionId(photoId)) return publicIpcFailure('INVALID_IPC_REQUEST', '照片编号无效')
     return supervisor.request('physicalMusic.photo', { photoId })
   }))
   let photoPickerBusy = false
-  ipcMain.handle('collection:pick-photo', async (event) => {
+  registerPerformanceHandler('collection:pick-photo', async (event) => {
     const window = requireTrustedRenderer(event)
     if (photoPickerBusy) return publicIpcFailure('NOT_READY', '照片选择器已打开')
     photoPickerBusy = true
@@ -1420,19 +1428,19 @@ function registerIpcHandlers(
       return publicIpcFailure('INVALID_IPC_REQUEST', error instanceof CollectionPhotoImportError ? error.message : '照片导入失败')
     } finally { photoPickerBusy = false }
   })
-  ipcMain.handle('collection:photo', (event, photoId: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('collection:photo', (event, photoId: unknown) => invokeCore(event, () => {
     if (!isCollectionId(photoId)) return publicIpcFailure('INVALID_IPC_REQUEST', '照片编号无效')
     return supervisor.request('collection.photo', { photoId })
   }))
-  ipcMain.handle('collection:list', (event, page: unknown, filter: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('collection:list', (event, page: unknown, filter: unknown) => invokeCore(event, () => {
     if (filter !== undefined && !isCollectionFilter(filter)) return publicIpcFailure('INVALID_IPC_REQUEST', '库存筛选无效')
     return supervisor.request('collection.list', { page: requireLibraryPage(page), ...(filter ? { filter } : {}) })
   }))
-  ipcMain.handle('collection:detail', (event, modelId: unknown, page: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('collection:detail', (event, modelId: unknown, page: unknown) => invokeCore(event, () => {
     if (!isCollectionId(modelId)) return publicIpcFailure('INVALID_IPC_REQUEST', '库存型号无效')
     return supervisor.request('collection.detail', { modelId, page: requireLibraryPage(page) })
   }))
-  ipcMain.handle('favorites:list', (event, kind: unknown, page: unknown) =>
+  registerPerformanceHandler('favorites:list', (event, kind: unknown, page: unknown) =>
     invokeCore(event, () => {
       const favoriteKind = requireFavoriteKind(kind)
       return supervisor.request('favorites.list', {
@@ -1441,12 +1449,12 @@ function registerIpcHandlers(
       })
     }),
   )
-  ipcMain.handle('favorites:check', (event, descriptor: unknown) =>
+  registerPerformanceHandler('favorites:check', (event, descriptor: unknown) =>
     invokeCore(event, () => supervisor.request('favorites.check', {
       descriptor: requireFavoriteDescriptor(descriptor),
     })),
   )
-  ipcMain.handle('favorites:set', (event, descriptor: unknown, favorite: unknown) =>
+  registerPerformanceHandler('favorites:set', (event, descriptor: unknown, favorite: unknown) =>
     invokeCore(event, () => {
       if (typeof favorite !== 'boolean') {
         return publicIpcFailure('INVALID_IPC_REQUEST', 'Invalid favorite state')
@@ -1457,42 +1465,42 @@ function registerIpcHandlers(
       })
     }),
   )
-  ipcMain.handle('roon:list-zones', (event) =>
+  registerPerformanceHandler('roon:list-zones', (event) =>
     invokeCore(event, () => supervisor.request('roon.listZones', {})),
   )
-  ipcMain.handle('lyrics:display:get', event => invokeCore(event, async () => roonDisplayConnection?.getSettings() ?? { url: '', status: 'disabled' }))
-  ipcMain.handle('lyrics:display:configure', (event, url: unknown) => invokeCore(event, async () => {
+  registerPerformanceHandler('lyrics:display:get', event => invokeCore(event, async () => roonDisplayConnection?.getSettings() ?? { url: '', status: 'disabled' }))
+  registerPerformanceHandler('lyrics:display:configure', (event, url: unknown) => invokeCore(event, async () => {
     let normalized: string
     try { normalized = normalizeRoonDisplayUrl(url) } catch { return publicIpcFailure('INVALID_IPC_REQUEST', '请输入不含凭据的局域网 Roon /display/ 地址。') }
     if (!roonDisplayConnection) return publicIpcFailure('NOT_READY', '歌词连接尚未就绪。')
     return roonDisplayConnection.configure(normalized)
   }))
-  ipcMain.handle('roon:select-zone', (event, zoneId: unknown) =>
+  registerPerformanceHandler('roon:select-zone', (event, zoneId: unknown) =>
     invokeCore(event, () =>
       supervisor.request('roon.selectZone', { zoneId: requireZoneId(zoneId) }),
     ),
   )
-  ipcMain.handle('roon:library:albums', (event, page: unknown) =>
+  registerPerformanceHandler('roon:library:albums', (event, page: unknown) =>
     invokeCore(event, () =>
       supervisor.request('roon.library.albums', { page: requireLibraryPage(page) }),
     ),
   )
-  ipcMain.handle('roon:library:artists', (event, page: unknown) =>
+  registerPerformanceHandler('roon:library:artists', (event, page: unknown) =>
     invokeCore(event, () =>
       supervisor.request('roon.library.artists', { page: requireLibraryPage(page) }),
     ),
   )
-  ipcMain.handle('roon:library:genres', (event, page: unknown) =>
+  registerPerformanceHandler('roon:library:genres', (event, page: unknown) =>
     invokeCore(event, () =>
       supervisor.request('roon.library.genres', { page: requireLibraryPage(page) }),
     ),
   )
-  ipcMain.handle('roon:library:playlists', (event, page: unknown) =>
+  registerPerformanceHandler('roon:library:playlists', (event, page: unknown) =>
     invokeCore(event, () =>
       supervisor.request('roon.library.playlists', { page: requireLibraryPage(page) }),
     ),
   )
-  ipcMain.handle('roon:library:album', (event, reference: unknown, page: unknown) =>
+  registerPerformanceHandler('roon:library:album', (event, reference: unknown, page: unknown) =>
     invokeCore(event, () =>
       supervisor.request('roon.library.album', {
         reference: requireRoonReference(reference),
@@ -1500,7 +1508,7 @@ function registerIpcHandlers(
       }),
     ),
   )
-  ipcMain.handle('roon:library:artist', (event, reference: unknown, page: unknown) =>
+  registerPerformanceHandler('roon:library:artist', (event, reference: unknown, page: unknown) =>
     invokeCore(event, () =>
       supervisor.request('roon.library.artist', {
         reference: requireRoonReference(reference),
@@ -1508,7 +1516,7 @@ function registerIpcHandlers(
       }),
     ),
   )
-  ipcMain.handle('roon:library:genre', (event, reference: unknown, page: unknown) =>
+  registerPerformanceHandler('roon:library:genre', (event, reference: unknown, page: unknown) =>
     invokeCore(event, () =>
       supervisor.request('roon.library.genre', {
         reference: requireRoonReference(reference),
@@ -1516,7 +1524,7 @@ function registerIpcHandlers(
       }),
     ),
   )
-  ipcMain.handle('roon:library:playlist', (event, reference: unknown, page: unknown) =>
+  registerPerformanceHandler('roon:library:playlist', (event, reference: unknown, page: unknown) =>
     invokeCore(event, () =>
       supervisor.request('roon.library.playlist', {
         reference: requireRoonReference(reference),
@@ -1524,7 +1532,7 @@ function registerIpcHandlers(
       }),
     ),
   )
-  ipcMain.handle('roon:library:search', (event, query: unknown, page: unknown, kind: unknown) =>
+  registerPerformanceHandler('roon:library:search', (event, query: unknown, page: unknown, kind: unknown) =>
     invokeCore(event, () =>
       supervisor.request('roon.library.search', {
         query: requireSearchQuery(query),
@@ -1533,7 +1541,7 @@ function registerIpcHandlers(
       }),
     ),
   )
-  ipcMain.handle('roon:library:image', async (event, reference: unknown, options: unknown) => {
+  registerPerformanceHandler('roon:library:image', async (event, reference: unknown, options: unknown) => {
     requireTrustedRenderer(event)
     const imageOptions = requireRoonImageOptions(options)
     const imageReference = requireRoonReference(reference)
@@ -1552,7 +1560,7 @@ function registerIpcHandlers(
       ? { code: error.code, message: error.message }
       : { code: 'INTERNAL_ERROR', message: 'Roon image request failed' })
   })
-  ipcMain.handle('roon:library:play', (event, reference: unknown, zoneId: unknown, queueReferences: unknown) =>
+  registerPerformanceHandler('roon:library:play', (event, reference: unknown, zoneId: unknown, queueReferences: unknown) =>
     invokeCore(event, () =>
       supervisor.request('roon.library.play', {
         reference: requireRoonEntityReference(reference),
@@ -1561,7 +1569,7 @@ function registerIpcHandlers(
       }),
     ),
   )
-  ipcMain.handle('roon:library:queue', (event, reference: unknown, zoneId: unknown) =>
+  registerPerformanceHandler('roon:library:queue', (event, reference: unknown, zoneId: unknown) =>
     invokeCore(event, () =>
       supervisor.request('roon.library.queue', {
         reference: requireRoonEntityReference(reference),
@@ -1569,32 +1577,32 @@ function registerIpcHandlers(
       }),
     ),
   )
-  ipcMain.handle('roon:transport:stop', (event) =>
+  registerPerformanceHandler('roon:transport:stop', (event) =>
     invokeCore(event, () => supervisor.request('roon.transport.stop', {})),
   )
-  ipcMain.handle('lyrics:get', (event, trackId: unknown) =>
+  registerPerformanceHandler('lyrics:get', (event, trackId: unknown) =>
     invokeCore(event, () =>
       supervisor.request('lyrics.get', {
         trackId: requirePlaybackTrackId(trackId),
       }),
     ),
   )
-  ipcMain.handle('lyrics:match:get', (event) =>
+  registerPerformanceHandler('lyrics:match:get', (event) =>
     invokeCore(event, () => supervisor.request('lyrics.match.get', {})),
   )
-  ipcMain.handle('lyrics:match:select', (event, matchSessionId: unknown, candidateId: unknown) =>
+  registerPerformanceHandler('lyrics:match:select', (event, matchSessionId: unknown, candidateId: unknown) =>
     invokeCore(event, () => supervisor.request('lyrics.match.select', {
       matchSessionId: requireLyricsMatchId(matchSessionId),
       candidateId: requireLyricsMatchId(candidateId),
     })),
   )
-  ipcMain.handle('lyrics:match:revoke', (event) =>
+  registerPerformanceHandler('lyrics:match:revoke', (event) =>
     invokeCore(event, () => supervisor.request('lyrics.match.revoke', {})),
   )
-  ipcMain.handle('playback:get-state', (event) =>
+  registerPerformanceHandler('playback:get-state', (event) =>
     invokeCore(event, () => supervisor.request('playback.getState', {})),
   )
-  ipcMain.handle('playback:play', (event, trackId: unknown, qualityPreference: unknown, rendererClickAt: unknown) => {
+  registerPerformanceHandler('playback:play', (event, trackId: unknown, qualityPreference: unknown, rendererClickAt: unknown) => {
     const mainReceivedAtMs = Date.now()
     return invokeCore(event, () => {
       const rendererClickAtMs = requireRendererClickAtMs(rendererClickAt, mainReceivedAtMs)
@@ -1606,29 +1614,29 @@ function registerIpcHandlers(
       })
     })
   })
-  ipcMain.handle('playback:pause', (event) =>
+  registerPerformanceHandler('playback:pause', (event) =>
     invokeCore(event, () => supervisor.request('playback.pause', {})),
   )
-  ipcMain.handle('playback:resume', (event) =>
+  registerPerformanceHandler('playback:resume', (event) =>
     invokeCore(event, () => supervisor.request('playback.resume', {})),
   )
-  ipcMain.handle('playback:stop', (event) =>
+  registerPerformanceHandler('playback:stop', (event) =>
     invokeCore(event, () => supervisor.request('playback.stop', {})),
   )
-  ipcMain.handle('playback:next', (event) =>
+  registerPerformanceHandler('playback:next', (event) =>
     invokeCore(event, () => supervisor.request('playback.next', {})),
   )
-  ipcMain.handle('playback:previous', (event) =>
+  registerPerformanceHandler('playback:previous', (event) =>
     invokeCore(event, () => supervisor.request('playback.previous', {})),
   )
-  ipcMain.handle('playback:play-queue-index', (event, index: unknown) =>
+  registerPerformanceHandler('playback:play-queue-index', (event, index: unknown) =>
     invokeCore(event, () =>
       supervisor.request('playback.playQueueIndex', {
         index: requireExistingPlaybackIndex(index),
       }),
     ),
   )
-  ipcMain.handle('playback:replace-queue', (event, items: unknown, index: unknown) =>
+  registerPerformanceHandler('playback:replace-queue', (event, items: unknown, index: unknown) =>
     invokeCore(event, () => {
       const queue = requirePlaybackQueue(items)
       return supervisor.request('playback.replaceQueue', {
@@ -1637,12 +1645,12 @@ function registerIpcHandlers(
       })
     }),
   )
-  ipcMain.handle('roon:volume:get', event => invokeCore(event, () => supervisor.request('roon.volume.get', {})))
-  ipcMain.handle('roon:volume:set', (event, request: unknown) => invokeCore(event, () => {
+  registerPerformanceHandler('roon:volume:get', event => invokeCore(event, () => supervisor.request('roon.volume.get', {})))
+  registerPerformanceHandler('roon:volume:set', (event, request: unknown) => invokeCore(event, () => {
     if (!isVolumeRequest(request)) return publicIpcFailure('INVALID_IPC_REQUEST', '无效的音量请求')
     return supervisor.request('roon.volume.set', request)
   }))
-  ipcMain.handle('playback:seek', (event, positionMs: unknown) =>
+  registerPerformanceHandler('playback:seek', (event, positionMs: unknown) =>
     invokeCore(event, () => {
       if (
         typeof positionMs !== 'number' ||
@@ -1655,26 +1663,26 @@ function registerIpcHandlers(
       return supervisor.request('playback.seek', { positionMs })
     }),
   )
-  ipcMain.handle('playback:append-queue', (event, items: unknown) =>
+  registerPerformanceHandler('playback:append-queue', (event, items: unknown) =>
     invokeCore(event, () =>
       supervisor.request('playback.appendQueue', {
         items: requirePlaybackQueue(items),
       }),
     ),
   )
-  ipcMain.handle('playback:insert-next', (event, items: unknown) =>
+  registerPerformanceHandler('playback:insert-next', (event, items: unknown) =>
     invokeCore(event, () =>
       supervisor.request('playback.insertNext', {
         items: requirePlaybackQueue(items),
       }),
     ),
   )
-  ipcMain.handle('remote-core:get-state', (event) => {
+  registerPerformanceHandler('remote-core:get-state', (event) => {
     return invokeRemoteCore(event, getRemoteCoreState)
   })
-  ipcMain.handle('remote-core:start', (event, sshTarget: unknown) => invokeRemoteCore(event, () => startRemoteCoreDevelopment(sshTarget)))
-  ipcMain.handle('remote-core:stop', (event) => invokeRemoteCore(event, stopRemoteCoreDevelopment))
-  ipcMain.handle('remote-core:reconnect', (event) => invokeRemoteCore(event, reconnectRemoteCoreDevelopment))
+  registerPerformanceHandler('remote-core:start', (event, sshTarget: unknown) => invokeRemoteCore(event, () => startRemoteCoreDevelopment(sshTarget)))
+  registerPerformanceHandler('remote-core:stop', (event) => invokeRemoteCore(event, stopRemoteCoreDevelopment))
+  registerPerformanceHandler('remote-core:reconnect', (event) => invokeRemoteCore(event, reconnectRemoteCoreDevelopment))
 }
 
 function createWindow(supervisor: CoreSupervisor): BrowserWindow {
@@ -1691,6 +1699,7 @@ function createWindow(supervisor: CoreSupervisor): BrowserWindow {
       ...buildBrowserWindowWebPreferences(),
       ...(isUiE2e ? { backgroundThrottling: false } : {}),
       preload: path.join(currentDirectory, '../preload/index.cjs'),
+      additionalArguments: process.env.MUSIC_BRIDGE_PERFORMANCE_TRACE === '1' ? ['--music-bridge-performance-trace=1'] : [],
     },
   })
   mainWindow = window
@@ -1851,6 +1860,8 @@ function createCoreSupervisor(
           serviceName: options.serviceName,
         }) as unknown as CoreChildProcess,
     },
+    performance: mainDiagnostics.performance,
+    performanceContext: () => performanceIpc.context(),
     onReady: options.onReady,
     onLifecycle: options.onLifecycle,
     onEvent: (event: TypedIpcEvent) => {

@@ -1,3 +1,4 @@
+import { traceDatabase } from '../diagnostics/performance-instrumentation.js';
 import { createRecordingPrintStore, migrateRecordingPrints, migrateRecordingPrintVersions, recoverRecordingPrints, type RecordingPrintStore } from '../recording/print-store.js';
 import { RecordingPrintError } from '../recording/print-integrity.js';
 import { createRecordingRecordStore, migrateRecordingRecords, type RecordingRecordStore } from '../recording/record-store.js';
@@ -211,7 +212,8 @@ export function createCollectionRepository(options: { filePath: string; stagingR
       const fd = openSync(options.filePath, constants.O_CREAT | constants.O_RDWR | constants.O_NOFOLLOW, 0o600);
       try { fchmodSync(fd, 0o600); } finally { closeSync(fd); }
     }
-    const db = new DatabaseSync(options.filePath, { enableForeignKeyConstraints: true, allowExtension: false });
+    const connection = new DatabaseSync(options.filePath, { enableForeignKeyConstraints: true, allowExtension: false });
+    const db = process.env.MUSIC_BRIDGE_PERFORMANCE_TRACE === '1' ? traceDatabase(connection) : connection;
     try {
       // WAL 恢复期间，首次版本读取也可能遇到短暂锁；先设置等待，再访问数据库内容。
       db.exec('PRAGMA busy_timeout=1000');

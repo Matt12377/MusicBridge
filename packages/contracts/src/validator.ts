@@ -1,3 +1,4 @@
+import { copyPerformanceTraceContext, isPerformanceTraceSnapshot } from './performance.js';
 import { isVolumeRequest, isVolumeSnapshot } from './volume.js';
 import { isRoonDisplayLyricsEvent } from './roon-display-lyrics.js';
 import { isGetMasterArtworkRequest, isSaveMasterArtworkRequest, isMasterArtworkResult, isMasterArtworkVersion } from './recording-artwork.js';
@@ -1306,7 +1307,8 @@ function isDiagnosticGate(value: unknown): value is DiagnosticGateResult {
 function isDiagnosticComponentSnapshot(value: unknown): value is DiagnosticComponentSnapshot {
   if (!isRecord(value)) return false;
   if (
-    !hasOnlyKeys(value, ['component', 'health', 'timeline', 'memory', 'counters', 'latency', 'gates']) ||
+    !hasOnlyKeys(value, ['component', 'health', 'timeline', 'memory', 'counters', 'latency', 'gates', 'performance']) ||
+    (value.performance !== undefined && (!isPerformanceTraceSnapshot(value.performance) || value.performance.component !== value.component)) ||
     !['main', 'core'].includes(String(value.component)) ||
     !isPublicBridgeState(value.health) ||
     !Array.isArray(value.timeline) ||
@@ -1971,6 +1973,7 @@ export function validateIpcRequest(
       command: input.command as (typeof IPC_COMMANDS)[number],
       payload: input.payload,
       ...(input.expectedDatasetId !== undefined ? { expectedDatasetId: input.expectedDatasetId as string } : {}),
+      ...(copyPerformanceTraceContext(input.performanceTrace) ? { performanceTrace: copyPerformanceTraceContext(input.performanceTrace)! } : {}),
     },
   };
 }

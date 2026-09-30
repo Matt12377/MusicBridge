@@ -16,6 +16,9 @@ import {
   type TypedIpcEvent,
   type ActivateRestoredDataset,
   type RestoreActivationView,
+  type PerformanceTraceRecorder,
+  type PerformanceTraceContext,
+  type PerformanceSpan,
 } from '@music-bridge/contracts'
 
 export interface CoreMessagePort {
@@ -75,6 +78,7 @@ interface StartupAttempt {
 }
 
 interface PendingRequest {
+  performanceSpan?: PerformanceSpan
   command: IpcCommand
   internal: boolean
   timer: NodeJS.Timeout
@@ -118,6 +122,8 @@ export class CoreSupervisor {
       onEvent?: (event: TypedIpcEvent) => void
       onReady?: (client: CoreStartupClient) => Promise<void> | void
       onLifecycle?: (event: CoreSupervisorLifecycle) => void
+      performance?: PerformanceTraceRecorder
+      performanceContext?: () => PerformanceTraceContext | undefined
     },
   ) {
     const timeout = options.startupTimeoutMs
@@ -184,9 +190,17 @@ export class CoreSupervisor {
       throw new CoreIpcError('NOT_READY', 'Core is not ready')
     }
     const id = randomUUID()
-    const request = { version: IPC_VERSION, id, command, payload, ...(expectedDatasetId === undefined ? {} : { expectedDatasetId }) }
+    const recorder = this.options.performance
+    let parent: import('@music-bridge/contracts').PerformanceTraceContext | undefined
+    if (recorder?.isEnabled()) {
+      try { parent = this.options.performanceContext?.() } catch { /* 诊断回调不得阻止业务请求。 */ }
+    }
+    const traceContext = recorder?.context(parent ? { traceId: parent.traceId, requestId: id, parentRequestId: parent.requestId } : { requestId: id })
+    const performanceSpan = recorder?.start('ipc', traceContext, {}, { command })
+    const request = { version: IPC_VERSION, id, command, payload, ...(expectedDatasetId === undefined ? {} : { expectedDatasetId }), ...(traceContext ? { performanceTrace: traceContext } : {}) }
     const validated = validateIpcRequest(request)
     if (!validated.ok) {
+      performanceSpan?.end('error')
       throw new CoreIpcError(validated.error.code, validated.error.message)
     }
     const timedCommand = command === 'commandOutbox.execute' && 'command' in payload ? String(payload.command) : command
@@ -202,15 +216,19 @@ export class CoreSupervisor {
       : this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
     const response = await new Promise<unknown>((resolve, reject) => {
       const timer = setTimeout(() => {
-        this.pending.delete(id)
+        this.removePending(id)
+        performanceSpan?.cancel()
+        performanceSpan?.end('cancelled')
         reject(new CoreIpcError('TIMEOUT', 'Core request timed out'))
       }, timeoutMs)
-      this.pending.set(id, { command, internal, timer, resolve, reject })
+      this.pending.set(id, { command, internal, timer, resolve, reject, ...(performanceSpan ? { performanceSpan } : {}) })
+      recorder?.setGauge('activeRequestCount', this.pending.size)
       try {
         this.port?.postMessage(request)
       } catch {
         clearTimeout(timer)
-        this.pending.delete(id)
+        this.removePending(id)
+        performanceSpan?.end('error')
         reject(new CoreIpcError('INTERNAL_ERROR', 'Core request could not be sent'))
       }
     })
@@ -447,12 +465,14 @@ export class CoreSupervisor {
         : validateIpcResponseForCommand(message, pending.command)
       if (!response.ok) {
         clearTimeout(pending.timer)
-        this.pending.delete(message.id)
+        this.removePending(message.id)
+        pending.performanceSpan?.end('error')
         pending.reject(new CoreIpcError(response.error.code, response.error.message))
         return
       }
       clearTimeout(pending.timer)
-      this.pending.delete(message.id)
+      this.removePending(message.id)
+      pending.performanceSpan?.end(response.value.ok ? 'ok' : 'error')
       if (response.value.ok) {
         pending.resolve(response.value.result)
       } else {
@@ -486,11 +506,17 @@ export class CoreSupervisor {
     }
   }
 
+  private removePending(id: string): void {
+    this.pending.delete(id)
+    this.options.performance?.setGauge('activeRequestCount', this.pending.size)
+  }
+
   private rejectPending(error: CoreIpcError): void {
     for (const [id, pending] of this.pending) {
       clearTimeout(pending.timer)
+      pending.performanceSpan?.end('error')
       pending.reject(error)
-      this.pending.delete(id)
+      this.removePending(id)
     }
   }
 

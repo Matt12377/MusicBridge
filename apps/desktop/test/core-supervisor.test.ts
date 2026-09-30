@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { randomUUID } from 'node:crypto'
+import { PerformanceTraceRecorder } from '@music-bridge/contracts'
 
 import { IPC_VERSION, type ActivateRestoredDataset, type RestoreActivationView } from '@music-bridge/contracts'
 import {
@@ -776,5 +777,45 @@ for (const command of ['roon.library.play', 'roon.library.queue', 'roon.library.
     await harness.supervisor.shutdown()
     assert.equal(timedOutAtReadDeadline, command === 'roon.library.albums')
     assert.equal(result.code, 'TIMEOUT')
+  })
+}
+
+test('正式 Supervisor RPC 保留 Renderer trace 并以实际请求 UUID 关联响应', async () => {
+  const harness = makeHarness()
+  const performance = new PerformanceTraceRecorder({ component: 'main', enabled: true })
+  const parent = performance.context()!
+  const supervisor = new CoreSupervisor({ entryPath: '/synthetic/core.js', cwd: '/synthetic', dependencies: harness.dependencies,
+    requestTimeoutMs: 100, startupTimeoutMs: 100, performance, performanceContext: () => parent })
+  const starting = supervisor.start(); ready(harness.channels[0]!); await starting
+  const request = supervisor.request('core.ping', {})
+  const sent = harness.channels[0]!.port2.sent.at(-1) as { id: string; performanceTrace: { traceId: string; requestId: string; parentRequestId: string } }
+  assert.deepEqual(sent.performanceTrace, { traceId: parent.traceId, requestId: sent.id, parentRequestId: parent.requestId })
+  harness.channels[0]!.port2.receive({ version: 1, id: sent.id, ok: true, result: { pong: true } })
+  assert.deepEqual(await request, { pong: true })
+  assert.equal(performance.snapshot().inflightCount, 0)
+  assert.equal(performance.snapshot().gauges.activeRequestCount, 0)
+  assert.equal(performance.snapshot().events.at(-1)?.outcome, 'ok')
+  await assert.rejects(supervisor.request('core.ping', { invalid: true } as never))
+  assert.equal(performance.snapshot().inflightCount, 0)
+  await supervisor.shutdown()
+})
+
+for (const enabled of [false, true]) {
+  test(`Supervisor 诊断上下文异常不影响业务，enabled=${enabled}`, async () => {
+    const harness = makeHarness()
+    let diagnosticCalls = 0
+    const performance = new PerformanceTraceRecorder({ component: 'main', enabled })
+    const supervisor = new CoreSupervisor({ entryPath: '/synthetic/core.js', cwd: '/synthetic', dependencies: harness.dependencies,
+      requestTimeoutMs: 100, startupTimeoutMs: 100, performance,
+      performanceContext: () => { diagnosticCalls++; throw new Error('合成诊断故障') } })
+    const starting = supervisor.start(); ready(harness.channels[0]!); await starting
+    const pending = supervisor.request('core.ping', {})
+    const request = harness.channels[0]!.port2.sent.at(-1) as { id: string }
+    harness.channels[0]!.port2.receive({ version: 1, id: request.id, ok: true, result: { pong: true } })
+    assert.deepEqual(await pending, { pong: true })
+    assert.equal(diagnosticCalls, enabled ? 1 : 0)
+    assert.equal(performance.snapshot().inflightCount, 0)
+    if (enabled) assert.equal(performance.snapshot().gauges.activeRequestCount, 0)
+    await supervisor.shutdown()
   })
 }

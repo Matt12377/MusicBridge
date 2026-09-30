@@ -1,3 +1,4 @@
+import { copyPerformanceTraceSnapshot } from './performance.js'
 import type { PublicBridgeState } from './state.js'
 
 export const DIAGNOSTIC_SCHEMA_VERSION = 1 as const
@@ -46,6 +47,7 @@ export interface DiagnosticGateResult {
 }
 
 export interface DiagnosticComponentSnapshot {
+  performance?: import('./performance.js').PerformanceTraceSnapshot
   component: DiagnosticComponent
   health: PublicBridgeState
   timeline: readonly DiagnosticTimelineEvent[]
@@ -64,6 +66,7 @@ export interface DiagnosticPlatformInfo {
 }
 
 export interface DiagnosticReport {
+  rendererPerformance?: import('./performance.js').PerformanceTraceSnapshot
   schemaVersion: typeof DIAGNOSTIC_SCHEMA_VERSION
   generatedAt: string
   platform: DiagnosticPlatformInfo
@@ -136,23 +139,32 @@ export function assertDiagnosticExportSafe(serialized: string): void {
 }
 
 export function buildDiagnosticReport(input: {
+  rendererPerformance?: import('./performance.js').PerformanceTraceSnapshot
   platform: DiagnosticPlatformInfo
   main: DiagnosticComponentSnapshot
   core: DiagnosticComponentSnapshot
   gates?: readonly DiagnosticGateResult[]
   generatedAt?: string
 }): DiagnosticReport {
+  const rendererPerformance = copyPerformanceTraceSnapshot(input.rendererPerformance)
+  const { performance: originalMainPerformance, ...main } = input.main
+  const { performance: originalCorePerformance, ...core } = input.core
+  const mainPerformance = copyPerformanceTraceSnapshot(originalMainPerformance)
+  const corePerformance = copyPerformanceTraceSnapshot(originalCorePerformance)
   const report: DiagnosticReport = {
+    ...(rendererPerformance ? { rendererPerformance } : {}),
     schemaVersion: DIAGNOSTIC_SCHEMA_VERSION,
     generatedAt: input.generatedAt ?? new Date().toISOString(),
     platform: { ...input.platform },
     main: {
-      ...input.main,
+      ...main,
+      ...(mainPerformance ? { performance: mainPerformance } : {}),
       timeline: input.main.timeline.map(copyEvent),
       gates: input.main.gates.map((gate) => ({ ...gate })),
     },
     core: {
-      ...input.core,
+      ...core,
+      ...(corePerformance ? { performance: corePerformance } : {}),
       timeline: input.core.timeline.map(copyEvent),
       gates: input.core.gates.map((gate) => ({ ...gate })),
     },

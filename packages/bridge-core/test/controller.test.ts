@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { validateIpcEvent } from '@music-bridge/contracts';
+import { PerformanceTraceRecorder, validateIpcEvent } from '@music-bridge/contracts';
+import { performance } from 'node:perf_hooks';
+import { withPerformanceContext } from '../src/diagnostics/performance-trace.js';
 import type { PlaybackSnapshot } from '@music-bridge/contracts';
 import { BridgeController } from '../src/application/bridge-controller.js';
 import { BridgeError } from '../src/shared/errors.js';
@@ -2038,4 +2040,17 @@ test('后来订阅者不会提前确认旧订阅者尚未收到的同曲能力�
   assert.equal(original.length, after);
   stopLater();
   stopOriginal();
+});
+
+
+test('诊断时钟故障不阻止排队业务修改真实队列', async t => {
+  const { controller } = makeHarness();
+  const recorder = new PerformanceTraceRecorder({ component: 'core', enabled: true, now: () => 0 });
+  const context = recorder.context()!;
+  const clock = t.mock.method(performance, 'now', () => { throw new Error('合成诊断时钟故障'); });
+  try {
+    await withPerformanceContext(recorder, context, () => controller.appendQueue([{ trackId: '123', qualityPreference: 'lossless' }]));
+    assert.equal(controller.getPlaybackState().queue.items[0]?.trackId, '123');
+    assert.equal(recorder.snapshot().inflightCount, 0);
+  } finally { clock.mock.restore(); }
 });

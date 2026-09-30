@@ -43,6 +43,8 @@ export default defineConfig({
   },
   preload: {
     build: {
+      // 沙盒只能 require Electron；纯合同诊断代码随 Preload 一起打包。
+      externalizeDeps: { exclude: ['@music-bridge/contracts'] },
       outDir: 'dist/preload',
       rollupOptions: {
         output: {
