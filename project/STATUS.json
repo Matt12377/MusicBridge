@@ -743,7 +743,7 @@
     "task085FullProduct": {
       "baseCommit": "05256eb867e37574e16f23eab877026a229a1703",
       "branch": "codex/task-085-v3-full-product",
-      "state": "IN_PROGRESS_STAGE_REVIEW_CHECKPOINT",
+      "state": "IN_PROGRESS_AUDIT_REMEDIATION_FULL_SOFTWARE_GATES_PASS_DEVICE_OWNER_PENDING",
       "implementationCommit": "bbc2f7baa40fd671f603aa37817ba6f9018d6ebf",
       "firstReportCommit": "5edd878010594c7daabc3e5f9eeb1c9d2b87a237",
       "incrementalCodeCommit": "2ab45fa919513f512edc9cf3c5800c23779ad0f9",
@@ -791,10 +791,99 @@
         "task072And073E2E": "4_PASS_3_NATIVE_GATE_CONDITIONAL_SKIP_EXIT_0",
         "remoteVerify": "NOT_RUN_FOR_INCREMENTAL_CODE"
       },
-      "formalAppEvidence": "PARTIAL_SYNTHETIC_072_TO_074_NOT_PRODUCT_ACCEPTED",
+      "formalAppEvidence": "C3_FULL104_AUTOMATED_PASS_SYNTHETIC_DEVICE_AND_PRODUCT_NOT_ACCEPTED",
       "formalCapacitySamples": 0,
       "gateB": "NOT_RUN",
-      "ownerProductAcceptance": "NOT_RUN"
+      "ownerProductAcceptance": "NOT_RUN",
+      "auditRemediation": {
+        "baseSnapshotCommit": "6d6c1c4c5f28acc9967cff3ef48ef8f91d7c6b5c",
+        "parentSnapshotCommit": "5edd878010594c7daabc3e5f9eeb1c9d2b87a237",
+        "implementationCommit": "a2dc3b996d28313549a1ab7695b01ed268691e6d",
+        "reportCommit": null,
+        "reportCommitResolution": "git log -1 --format=%H -- reports/TASK-085_AUDIT_REMEDIATION.md reports/TASK-085_FAILURE_LEDGER.json",
+        "report": "reports/TASK-085_AUDIT_REMEDIATION.md",
+        "failureLedger": "reports/TASK-085_FAILURE_LEDGER.json",
+        "evidenceRoot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-task085-audit-99ar22",
+        "model": "gpt-6.1-sol",
+        "mainReasoningEffort": "xhigh",
+        "subagentReasoningEffort": "high",
+        "prohibitedModel": "gpt-6-sol",
+        "baselineCore": {
+          "preV3": "1368_PASS_0_FAIL_1_SKIP_EXIT_0",
+          "parent": "1497_PASS_44_FAIL_2_SKIP_EXIT_1",
+          "snapshot": "1503_PASS_42_FAIL_2_SKIP_EXIT_1"
+        },
+        "snapshotRemoteCI": {
+          "verify": "36335402226_COMPLETED_FAILURE",
+          "electron": "36335402270_COMPLETED_FAILURE_58_PASS_41_FAIL_4_SKIP",
+          "artifactCount": 0
+        },
+        "localChecks": {
+          "standardVerify": "C3_PASS_EXIT_0_CONTRACTS208_CORE1557_PASS_2_SKIP_DESKTOP863_BUILD_PRELOAD_PASS",
+          "finalSameEnvironmentCore": "1557_PASS_0_FAIL_2_SKIP_EXIT_0",
+          "fullElectron": "C3_FULL104_100_PASS_0_FAIL_4_ORIGINAL_SKIP_EXIT_0_NO_FLAKY_NO_OUTSIDE_ERROR",
+          "cleanDatabaseCoreJourney": "3_PASS_EXIT_0_SYNTHETIC_OUTPUT_WITH_PCM_HASH_AND_COLD_REOPEN",
+          "outputLifecycle": "7_PASS_EXIT_0_SYNTHETIC_OUTPUT_DRIVER_AND_FAKE_INPUT_LEASE_NO_AUDIO_FD",
+          "outputCertificateNegative": "2_PASS_EXIT_0_UNKNOWN_TRIGGER_EXTRA_WRITE_EXTERNAL_COMMIT",
+          "offlineNetworkGuard": "2_ALLOWLIST_LOADED_3_OUT_OF_SCOPE_BLOCKED_REAL_ELECTRON_SYNTHETIC_ONLY_EXIT_0",
+          "controlPlane": "PASS_EXIT_0",
+          "boundaries": "PASS_EXIT_0",
+          "cycles": "PASS_EXIT_0",
+          "electronStartup": "C3_4_PASS_0_FAIL_0_SKIP_EXIT_0",
+          "finalRendererTypes": "PASS_EXIT_0",
+          "focusedC3": "ORIGINAL10_FAIL_EACH_PASSED_SEPARATELY_10_SCOPE6PASS4FAIL_THEN4_SCOPE3PASS1FAIL_THENJ09_1PASS_NOT_FULL_SUITE",
+          "buildIdentity": "44_FILES_UNCHANGED_BEFORE_AFTER_FULL_ELECTRON_AND_STARTUP_GATES"
+        },
+        "realDeviceOutput": "NOT_RUN",
+        "gateB": "NOT_RUN",
+        "ownerAcceptance": "NOT_RUN",
+        "mainMerge": "NOT_AUTHORIZED_NOT_RUN",
+        "installedAppReplacement": "NOT_AUTHORIZED_NOT_RUN",
+        "v3Completion": "NOT_ACCEPTED",
+        "nextTaskBaseline": "FINAL_REPORT_HEAD_AFTER_GATES_AND_OWNER_RELEASE",
+        "implementationPush": "PASS_TASK_BRANCH_ONLY",
+        "baselineElectron": {
+          "preV3": "95_PASS_0_FAIL_4_SKIP_EXIT_0_SCOPE99",
+          "parent": "54_PASS_45_FAIL_4_SKIP_EXIT_1_SCOPE103",
+          "snapshot": "59_PASS_40_FAIL_4_SKIP_EXIT_1_SCOPE103"
+        },
+        "baselineDesktop": {
+          "preV3": "763_PASS_0_FAIL_EXIT_0",
+          "parent": "846_PASS_16_FAIL_EXIT_1",
+          "snapshot": "846_PASS_16_FAIL_EXIT_1"
+        },
+        "realPhysicalInputCaptureEvidence": "NOT_RUN_NOT_CLAIMED",
+        "testedLifecycle": "SYNTHETIC_OUTPUT_DRIVER_AND_FAKE_INPUT_LEASE_PCM_READ_PROVED_SEPARATELY_BY_MAIN_JOURNEY",
+        "implementationSourceManifestSha256": "d2d63c1fa14c91b771707f87b1584b54bc84ba04a8bf730928229a37dd528303",
+        "previousRemediation": {
+          "implementationCommit": "d0bc464c9c7e345e1f0506dba6b96b459552a805",
+          "standardVerify": "LOCAL_PASS_EXIT_0",
+          "localElectron": "104_TOTAL_82_PASS_18_FAIL_4_SKIP_EXIT_1",
+          "remoteVerify": "36689363781_FAILURE_1554_PASS_3_FAIL_2_SKIP_DESKTOP_NOT_REACHED",
+          "remoteElectron": "36689363699_COMPLETED_FAILURE",
+          "cause": "新增主流程测试固定本机外置卷路径；Electron生产恢复与旧界面合同失配，原失败证据保留"
+        },
+        "currentRemoteCI": {
+          "verify": "36698688790_COMPLETED_SUCCESS_CONTRACTS208_CORE1557_PASS_2_SKIP_DESKTOP863",
+          "electron": "36698688779_COMPLETED_SUCCESS_FULL104_100_PASS_4_ORIGINAL_SKIP_STARTUP4_PASS",
+          "security": "36698688704_COMPLETED_SUCCESS"
+        },
+        "implementationSourceManifest": "implementation-c3-source.json",
+        "secondRemediation": {
+          "implementationCommit": "5d13179999431b30e53740e8330ab887189cd3f7",
+          "standardVerify": "LOCAL_AND_REMOTE_PASS_FULL_RANGE",
+          "localElectron": "104_TOTAL_92_PASS_8_FAIL_4_SKIP_EXIT_1_PLUS_WORKER_ERROR",
+          "remoteVerify": "36691621215_COMPLETED_SUCCESS",
+          "remoteElectron": "36691621219_COMPLETED_FAILURE_90_PASS_10_FAIL_4_SKIP_PLUS_WORKER_ERROR"
+        },
+        "softwareRemediation": "ORIGINAL_FULL_RANGE_LOCAL_AND_REMOTE_PASS_DEVICE_AND_PRODUCT_ACCEPTANCE_PENDING",
+        "coverage": "63_ORIGINAL_IDS_AND_30_MVP_ROWS_BOUND_TO_C3_AUTOMATED_SLICES_WITH_EXPLICIT_LIMITS",
+        "progress": {
+          "completed": 14,
+          "total": 15,
+          "scope": "SOFTWARE_AUDIT_REMEDIATION_STEPS_NOT_V3_FEATURE_COMPLETION"
+        }
+      }
     },
     "previousTask": {
       "task": "TASK-078",

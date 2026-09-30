@@ -54,7 +54,7 @@ harnessHardening:
   - TASK-083
   - TASK-084
 capacityExecution: frozen-no-new-authority-or-window-during-v3-software-closeout
-reviewBoundary: task085-incremental-local-synthetic-gates-partial-first-push-remote-verify-failed-increment-not-remotely-verified-task080-through084-frozen-capacity-real-device-and-owner-acceptance-pending
+reviewBoundary: task085-audit-remediation-c3-original-full-range-local-and-remote-pass-capacity-frozen-real-device-owner-acceptance-pending
 task085Stage:
   checkpoint: 2026-09-28
   status: in-progress-partial-software-evidence-not-product-acceptance
@@ -80,3 +80,29 @@ task085Stage:
   fullVerify: first-push-failed44-incremental-code-not-remotely-verified
   gateB: NOT_RUN
   ownerProductAcceptance: NOT_RUN
+
+auditRemediation:
+  checkpoint: 2026-09-30
+  implementationCommit: a2dc3b996d28313549a1ab7695b01ed268691e6d
+  previousImplementationCommit: 5d13179999431b30e53740e8330ab887189cd3f7
+  previousFullElectron: local92pass8fail4originalskip-remote90pass10fail4originalskip-exit1-worker-error
+  previousRemoteVerify: run36691621215-success-contracts208-core1557pass2skip-desktop863pass
+  firstRemediationCommit: d0bc464c9c7e345e1f0506dba6b96b459552a805
+  firstRemediationFullElectron: 82-pass-18-fail-4-original-skip-exit1
+  firstRemediationRemoteVerify: run36689363781-core1554pass3fail2skip-hosted-temp-path-ENOENT
+  fullVerify: c3-local-and-remote-success-contracts208-core1557pass2originalskip-desktop863-build-preload
+  fullElectron: c3-local-and-remote-full104-100pass0fail4originalskip-no-new-skips
+  remoteVerify: run36698688790-completed-success
+  remoteElectron: run36698688779-completed-success
+  remoteSecurity: run36698688704-completed-success
+  electronStartup: local-and-remote4pass0fail0skip
+  report: reports/TASK-085_AUDIT_REMEDIATION.md
+  failureLedger: reports/TASK-085_FAILURE_LEDGER.json
+  reportCommit: null
+  reportCommitResolution: "git log -1 --format=%H -- reports/TASK-085_AUDIT_REMEDIATION.md reports/TASK-085_FAILURE_LEDGER.json"
+  gateB: NOT_RUN
+  realDevice: NOT_RUN
+  ownerProductAcceptance: NOT_RUN
+  mainMerge: NOT_AUTHORIZED_NOT_RUN
+  installedAppReplacement: NOT_AUTHORIZED_NOT_RUN
+  v3Completion: NOT_ACCEPTED

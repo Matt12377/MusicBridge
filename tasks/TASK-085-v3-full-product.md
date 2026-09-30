@@ -1,5 +1,7 @@
 # TASK-085：V3 全功能预览迁入正式 MusicBridge
 
+> **2026-09-30 外审整改状态：** 第三轮实现 `a2dc3b996d28313549a1ab7695b01ed268691e6d` 的本地与远端完整 verify、原范围 Electron（100 通过 / 4 原有跳过）及 4 项进程门禁通过。三项 CI 均完成成功；此前失败与归因仍保留于 [整改报告](../reports/TASK-085_AUDIT_REMEDIATION.md)。[63＋30 台账](../reports/TASK-085_COVERAGE.md) 逐项绑定当前自动化切片并保留缺口，[开发待办](../reports/TASK-085_TODO.md) 展示软件整改进度。真实设备、Gate B、Owner 与 TASK-085 产品验收尚未完成；不放行 main 合并、本机 App 替换或 TASK-086。下文保留原阶段记录。
+
 ## 身份与授权
 
 - 基线：`05256eb867e37574e16f23eab877026a229a1703`；分支：`codex/task-085-v3-full-product`；首推实现提交：`bbc2f7baa40fd671f603aa37817ba6f9018d6ebf`（308 个实现路径逐文件核对后提交）；首份报告提交并已推送：`5edd878010594c7daabc3e5f9eeb1c9d2b87a237`。七文件增量代码提交：`2ab45fa919513f512edc9cf3c5800c23779ad0f9`（本地、尚未推送）；增量报告提交仍为 `null`，提交后按结果报告所述 Git 规则解析。下一任务基线是最终增量报告提交 HEAD，不能把当前代码提交或 `main` 预填为下一基线；不把提交当作发布接受。
