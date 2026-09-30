@@ -29,7 +29,10 @@
     "originMainAfterCodeFastForward": "6042a36e9a14e27e8da03c101bf20a847a90c94a",
     "localMainAfterCasUpdate": "6042a36e9a14e27e8da03c101bf20a847a90c94a",
     "finalMainBaseline": null,
-    "untrackedPreserved": ["apps/desktop/test-results/", "prototypes/metafine-study/"],
+    "untrackedPreserved": [
+      "apps/desktop/test-results/",
+      "prototypes/metafine-study/"
+    ],
     "installedAppSourceCommit": "1daefda790c32948663dc76ddbf75fbe1fdc319e",
     "installedAppAsarSha256": "a13c7e7c08caaea15a3c9e8623e1359aed9405ed6d1046406ee894bab9c235ec",
     "ordinaryWindowAndRealPlaybackAcceptance": "not-confirmed"
@@ -160,7 +163,12 @@
       "codeSignature": "pass-ad-hoc",
       "ordinaryStartup": "pass-in-revised-installed-app-prior-keychain-wait-resolved"
     },
-    "carryover": ["Web Display protocol is not a stable public lyrics API", "Roon file-preference settings unchanged", "Full regression and remote CI not run", "Real seek, whole-track sync and cross-album lyrics validation remain pending"],
+    "carryover": [
+      "Web Display protocol is not a stable public lyrics API",
+      "Roon file-preference settings unchanged",
+      "Full regression and remote CI not run",
+      "Real seek, whole-track sync and cross-album lyrics validation remain pending"
+    ],
     "initialImplementationCommit": "f8635b033d04052b5968aa3657c6c16da67e32cc",
     "implementationCommit": "7c68473e0864c702d206d0ddbc3388d0de2ca99f",
     "identityRepair": "transport-corroborated-browse-credits-difference-and-late-observation-recovery",
@@ -226,9 +234,20 @@
     "testConcurrency": 1,
     "typecheck": "pass",
     "productionBuild": "pass",
-    "visualThemes": ["light", "dark"],
-    "visualWidths": [1980, 1440, 720],
-    "searchFirstPage": { "syntheticAlbums": 999, "groupItemsRead": 25, "pageSize": 24 },
+    "visualThemes": [
+      "light",
+      "dark"
+    ],
+    "visualWidths": [
+      1980,
+      1440,
+      720
+    ],
+    "searchFirstPage": {
+      "syntheticAlbums": 999,
+      "groupItemsRead": 25,
+      "pageSize": 24
+    },
     "realRoonValidation": "not-run",
     "ownerAcceptance": "pending",
     "currentRunningApp": "not-restarted",
@@ -2592,5 +2611,46 @@
         "currentRunningApp": "restart-required"
       }
     }
+  },
+  "collectionPreviewRefinement20260930": {
+    "branch": "codex/task-085-collection-preview",
+    "baseCommit": "308213dec4708a5f4a9967869a6d2b3d93ab07ca",
+    "state": "committed-development-snapshot-full-validation-pending",
+    "ownerAuthorization": "FullPreview 参考及后续截图快速 UI 调整、轻量动效；Owner 自行构建并授权推送最新结果",
+    "referencePackage": "MusicBridge_V3_FullPreview_v1.0",
+    "report": "reports/TASK-085_COLLECTION_PREVIEW.md",
+    "implementationCommit": "c045237ebf56a6bbfc229b1e06930a7d13c61dd3",
+    "realDevice": "NOT_RUN",
+    "ownerVisualAcceptance": "NOT_RUN",
+    "mainMerge": "NOT_RUN",
+    "installedAppReplacement": "NOT_RUN",
+    "remotePush": "OWNER_AUTHORIZED_DEVELOPMENT_BRANCH_PUSH",
+    "historicalChecks": {
+      "contractsSource": "210-pass-exit0",
+      "coreSourceMappedCollection": "55-pass-exit0",
+      "fullVerify": "REPAIRED_SNAPSHOT_IN_PROGRESS",
+      "controlPlane": "PASS-exit0",
+      "boundaries": "PASS-exit0",
+      "desktopBuild": "REPAIRED_SNAPSHOT_IN_PROGRESS",
+      "desktopTypecheck": "REPAIRED_SNAPSHOT_IN_PROGRESS",
+      "electronCollection": "PRE_REPAIR_2_PASS",
+      "electronFull": "FIRST_RUN_90_PASS12_FAIL4_EXISTING_SKIPS_REPAIR_PENDING"
+    },
+    "snapshotDate": "2026-10-01",
+    "reportCommitResolution": "git log -1 --format=%H -- reports/TASK-085_COLLECTION_PREVIEW.md",
+    "checks": {
+      "desktopTypecheck": "PASS-exit0",
+      "e2eTypecheck": "PASS-exit0",
+      "desktopCollectionFocused": "38-pass-exit0-no-skips",
+      "contractsCollectionFilterSource": "2-pass-exit0-no-skips",
+      "coreCollectionFilterSource": "4-pass-exit0-no-skips",
+      "diffCheck": "PASS-exit0",
+      "desktopBuild": "NOT_RUN_OWNER_REQUEST",
+      "fullVerify": "NOT_RERUN_AFTER_LATEST_UI",
+      "electronFull": "NOT_RERUN_AFTER_LATEST_UI",
+      "motion": "ISOLATED_CHROME_PASS_NOT_APP_ACCEPTANCE"
+    },
+    "remoteHeadVerification": "git ls-remote origin refs/heads/codex/task-085-collection-preview must equal final local HEAD",
+    "nextBranchBase": "最终报告提交 HEAD；不作为下一任务放行"
   }
 }
