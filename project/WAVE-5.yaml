@@ -98,7 +98,7 @@ auditRemediation:
   electronStartup: local-and-remote4pass0fail0skip
   report: reports/TASK-085_AUDIT_REMEDIATION.md
   failureLedger: reports/TASK-085_FAILURE_LEDGER.json
-  reportCommit: null
+  reportCommit: 60978102835d5f5cc7758f6fbbfbf567e8c06833
   reportCommitResolution: "git log -1 --format=%H -- reports/TASK-085_AUDIT_REMEDIATION.md reports/TASK-085_FAILURE_LEDGER.json"
   gateB: NOT_RUN
   realDevice: NOT_RUN
