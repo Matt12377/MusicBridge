@@ -4,9 +4,11 @@ import type { WantEntry, WantPriority, CollectionLengthQuantity } from '@music-b
 import { createCollectionProgressController } from './collection-progress-controller'
 
 const emit = defineEmits<{ close: [] }>()
+const props = withDefaults(defineProps<{ initialSection?: 'progress' | 'wants' }>(), { initialSection: 'progress' })
 const dialog = ref<HTMLDialogElement>()
 const controller = createCollectionProgressController({ api: window.musicBridge, onChange: () => triggerRef(state) })
 const state = shallowRef(controller.state)
+controller.setSection(props.initialSection)
 const navigationBlocked = computed(() => state.value.busy || !!state.value.pendingLabel)
 const blocked = computed(() => navigationBlocked.value || state.value.sourcesLoading || state.value.wantsLoading)
 const current = computed(() => state.value.progressFresh && !!state.value.progress?.isCurrentRevision)

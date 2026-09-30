@@ -590,6 +590,16 @@ function navigateShortcut(source: SidebarSource): void {
   navigateSource(source)
 }
 
+function navigateCollection(view: 'tapes' | 'music'): void {
+  if (currentView.value === 'collection' && collectionView.value === view) return
+  if (currentView.value === 'collection' && collectionViewRef.value?.canLeave() !== true) {
+    showToast(collectionViewRef.value?.leaveBlockReason() ?? '当前收藏中的设备运行尚未安全收口。')
+    return
+  }
+  navigateSource({ type: 'collection' })
+  if (currentView.value === 'collection') collectionView.value = view
+}
+
 function onGlobalShortcut(event: KeyboardEvent): void {
   if (event.key === 'Escape' && isImmersiveNowPlaying.value) {
     event.preventDefault()
@@ -793,8 +803,10 @@ onUnmounted(() => {
         :playlist-state="playlistState"
         :source-scroll-top="sidebar.sourceScrollTop.value"
         :settings-active="currentView === 'settings'"
+        :collection-view="collectionView"
         @toggle="sidebar.toggleExpanded"
         @navigate="navigateSource"
+        @navigate-collection="navigateCollection"
         @update:search-query="updateSearchQuery"
         @clear-search="clearSearch"
         @retry-playlists="loadPlaylists"

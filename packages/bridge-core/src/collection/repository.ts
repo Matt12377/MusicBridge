@@ -95,6 +95,24 @@ interface LotRow { quantity_adjustment: number; id: string; sku_id: string; mode
 interface CopyRow { recording_title?: string | null; physical_id: string; lot_id: string; sku_id: string; model_id: string; minutes: number; packaging: CollectionCopy['packaging']; usage: CollectionCopy['usage']; available: number; origin: CollectionCopy['origin']; revision: number; reserved_from: string | null }
 interface PhotoRow { id: string; model_id: string; physical_id: string | null; width: number; height: number }
 
+// 列表筛选与型号计数共用库存分类；未知、预留和不可用不得充作可用空白。
+const poolCountExpressions = { sealed: 'l.sealed', opened: 'l.opened', legacy: 'l.legacy', unknown: 'l.unknown' };
+const copyCountExpressions = {
+  unavailable: 'c.available=0', reserved: "c.available=1 AND c.usage='reserved'", recorded: "c.available=1 AND c.usage='recorded'",
+  sealed: "c.available=1 AND c.usage IN ('blank','erased') AND c.packaging='sealed'",
+  opened: "c.available=1 AND c.usage IN ('blank','erased') AND c.packaging='opened'",
+  unknown: "c.available=1 AND (c.usage='unknown' OR (c.usage IN ('blank','erased') AND c.packaging='unknown'))",
+};
+const poolCountFrom = 'inventory_lots l JOIN collection_skus s ON s.id=l.sku_id';
+const copyCountFrom = 'physical_copies c JOIN inventory_lots l ON l.id=c.lot_id JOIN collection_skus s ON s.id=l.sku_id';
+const sumProjection = (expressions: Record<string, string>): string => Object.entries(expressions).map(([key, expression]) => `COALESCE(SUM(${expression}),0) AS ${key}`).join(', ');
+function stockCountPredicate(poolKeys: readonly (keyof typeof poolCountExpressions)[], copyKeys: readonly (keyof typeof copyCountExpressions)[]): string {
+  const sums: string[] = [];
+  if (poolKeys.length) sums.push(`COALESCE((SELECT SUM(${poolKeys.map(key => `(${poolCountExpressions[key]})`).join(' + ')}) FROM ${poolCountFrom} WHERE s.model_id=collection_models.id),0)`);
+  if (copyKeys.length) sums.push(`COALESCE((SELECT SUM(${copyKeys.map(key => `(${copyCountExpressions[key]})`).join(' + ')}) FROM ${copyCountFrom} WHERE s.model_id=collection_models.id),0)`);
+  return `(${sums.join(' + ')}) > 0`;
+}
+
 const schema = `
 CREATE TABLE collection_models (
   id TEXT PRIMARY KEY, identity_key TEXT NOT NULL UNIQUE, descriptor TEXT NOT NULL,
@@ -269,17 +287,8 @@ export function createCollectionRepository(options: { filePath: string; stagingR
   const count = (db: DatabaseSync, sql: string, ...values: SQLInputValue[]): number => Number(db.prepare(sql).get(...values)?.n ?? 0);
 
   function counts(db: DatabaseSync, modelId: string): CollectionCounts {
-    const pools = db.prepare(`SELECT COALESCE(SUM(sealed),0) AS sealed, COALESCE(SUM(opened),0) AS opened,
-      COALESCE(SUM(legacy),0) AS legacy, COALESCE(SUM(unknown),0) AS unknown
-      FROM inventory_lots l JOIN collection_skus s ON s.id=l.sku_id WHERE s.model_id=?`).get(modelId)!;
-    const copies = db.prepare(`SELECT COUNT(*) AS n,
-      COALESCE(SUM(c.available=0),0) AS unavailable,
-      COALESCE(SUM(c.available=1 AND c.usage='reserved'),0) AS reserved,
-      COALESCE(SUM(c.available=1 AND c.usage='recorded'),0) AS recorded,
-      COALESCE(SUM(c.available=1 AND c.usage IN ('blank','erased') AND c.packaging='sealed'),0) AS sealed,
-      COALESCE(SUM(c.available=1 AND c.usage IN ('blank','erased') AND c.packaging='opened'),0) AS opened,
-      COALESCE(SUM(c.available=1 AND (c.usage='unknown' OR (c.usage IN ('blank','erased') AND c.packaging='unknown'))),0) AS unknown
-      FROM physical_copies c JOIN inventory_lots l ON l.id=c.lot_id JOIN collection_skus s ON s.id=l.sku_id WHERE s.model_id=?`).get(modelId)!;
+    const pools = db.prepare(`SELECT ${sumProjection(poolCountExpressions)} FROM ${poolCountFrom} WHERE s.model_id=?`).get(modelId)!;
+    const copies = db.prepare(`SELECT COUNT(*) AS n, ${sumProjection(copyCountExpressions)} FROM ${copyCountFrom} WHERE s.model_id=?`).get(modelId)!;
     return {
       total: Number(pools.sealed) + Number(pools.opened) + Number(pools.legacy) + Number(pools.unknown) + Number(copies.n),
       sealedBlank: Number(pools.sealed) + Number(copies.sealed), openedBlank: Number(pools.opened) + Number(copies.opened),
@@ -492,6 +501,10 @@ export function createCollectionRepository(options: { filePath: string; stagingR
       if (filter.brand?.trim()) { conditions.push("lower(json_extract(descriptor,'$.brand'))=?"); values.push(normalized(filter.brand).toLowerCase()); }
       if (filter.decade === 'unknown') conditions.push("json_extract(descriptor,'$.year') IS NULL");
       else if (filter.decade !== undefined) { conditions.push("json_extract(descriptor,'$.year') BETWEEN ? AND ?"); values.push(filter.decade, filter.decade + 9); }
+      if (filter.stockState === 'identified') conditions.push("json_extract(descriptor,'$.identification')='verified'");
+      else if (filter.stockState === 'needs-review') conditions.push(`(json_extract(descriptor,'$.identification')<>'verified' OR ${stockCountPredicate(['unknown'], ['unknown'])})`);
+      else if (filter.stockState === 'blank') conditions.push(stockCountPredicate(['sealed', 'opened'], ['sealed', 'opened']));
+      else if (filter.stockState === 'recorded') conditions.push(stockCountPredicate(['legacy'], ['recorded']));
       const where = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : '';
       return guarded(db => paged(many<{ id: string }>(db, `SELECT id FROM collection_models${where} ORDER BY rowid DESC LIMIT ? OFFSET ?`, ...values, page.limit, page.offset).map(r => model(db, r.id)), page, count(db, `SELECT COUNT(*) AS n FROM collection_models${where}`, ...values)));
     },

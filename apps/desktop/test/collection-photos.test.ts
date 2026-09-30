@@ -190,8 +190,16 @@ for (const name of ['CollectionPhotos', 'PhysicalMusicView'] as const) test(`${n
   const music = { entry: { id: photo.id, title: '合成发行版', artist: '合成作者', kind: 'cd', quantity: 1 }, release: { completeness: 'basic', tracks: [] }, photos: [photo] }
   const view = await mountedPhoto(t, { name, props: name === 'CollectionPhotos' ? { detail, busy: false } : { requestedId: photo.id, active: true }, api: { getCollectionPhoto: loader, getPhysicalMusicPhoto: loader, getPhysicalMusic: async () => music } })
   await view.click(name === 'CollectionPhotos' ? '查看实物照片 1' : '查看发行版照片 1')
-  assert.equal(calls, 0); assert.equal(view.observers.length, 2)
-  view.observers[1]!.fire(true); await view.tick(); await view.click('重试此照片'); assert.equal(calls, 2)
+  assert.equal(calls, 0)
+  // 封面和图库可以各有缩略图，大图由实际打开的 dialog 定位，不依赖实例顺序。
+  const previewObserver = view.observers.find(observer => {
+    for (let node = observer.target; node; node = node.parent ?? undefined) if (node.tag === 'dialog' && node.open) return true
+    return false
+  })
+  assert.ok(previewObserver, '打开的大图必须有独立可视读取实例')
+  const thumbnails = view.observers.filter(observer => observer !== previewObserver)
+  assert.ok(thumbnails.length > 0, '保留缩略图与大图的隔离保护')
+  previewObserver.fire(true); await view.tick(); await view.click('重试此照片'); assert.equal(calls, 2)
   for (const button of view.all().filter(node => node.tag === 'button')) assert.equal(view.all(button).slice(1).some(node => node.tag === 'button'), false)
-  assert.equal(view.observers[0]!.disconnected, false, '局部重试不触发未可视缩略图')
+  assert.ok(thumbnails.every(observer => !observer.disconnected), '局部重试不触发任何未可视缩略图')
 })

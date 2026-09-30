@@ -52,6 +52,7 @@ function transportLabel(state: PlaybackSnapshot['state'] | undefined): string {
       <button
         type="button"
         class="player-play-button"
+        :data-playing="playbackState?.state === 'playing'"
         :disabled="['resolving', 'preparing', 'pausing', 'resuming', 'stopping', 'error'].includes(playbackState?.state ?? '') || (!playbackState?.canPause && !playbackState?.canResume && !currentTrack)"
         :aria-label="transportLabel(playbackState?.state)"
         @click="emit('toggle-playback')"

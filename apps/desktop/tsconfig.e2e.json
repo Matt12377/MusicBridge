@@ -16,6 +16,7 @@
     "e2e/task-077.spec.ts",
     "e2e/task-078.spec.ts",
     "e2e/task-085*.spec.ts",
+    "e2e/collection-preview.spec.ts",
     "src/renderer/src/env.d.ts"
   ]
 }

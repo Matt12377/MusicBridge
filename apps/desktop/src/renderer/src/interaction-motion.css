@@ -1,0 +1,70 @@
+/* 动效只负责反馈与层次；不改变虚拟列表行高、设备状态或等待时长。 */
+:root {
+  --mb-motion-out: cubic-bezier(.23, 1, .32, 1);
+  --mb-motion-soft: cubic-bezier(.4, 0, .2, 1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* 持续动效只挂在两个真实播放按钮上，图标和按钮本身保持稳定。 */
+  :root :is(.player-play-button, .transport-button-primary) { position: relative; isolation: isolate; }
+  :root :is(.player-play-button, .transport-button-primary)::before {
+    content: ''; position: absolute; inset: -6px; border-radius: 50%; pointer-events: none;
+    border: 1px solid color-mix(in srgb, var(--mb-accent) 55%, transparent);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--mb-accent) 25%, transparent);
+    opacity: 0;
+  }
+  :root :is(.player-play-button, .transport-button-primary)[data-playing='true']::before {
+    animation: mb-playback-breathe 4.8s var(--mb-motion-soft) infinite;
+  }
+  :root[data-motion-paused='true'] :is(.player-play-button, .transport-button-primary)::before { animation-play-state: paused; }
+
+  /* 常用控件用可打断的短过渡，不延迟动作。 */
+  :root[data-motion-input='pointer'] :is(.music-sidebar button, .collection-view button, .global-player button, .primary-button, .secondary-button, .transport-button) {
+    transition: transform 120ms var(--mb-motion-out), background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+  }
+  :root[data-motion-input='pointer'] :is(.music-sidebar button, .collection-view button, .global-player button, .primary-button, .secondary-button, .transport-button):active:not(:disabled) {
+    transform: scale(.98);
+  }
+  :root .inventory-tile, :root .music-card {
+    transition: transform 160ms var(--mb-motion-out), border-color 140ms ease;
+  }
+  :root[data-motion-input='pointer'] :is(.inventory-subviews button, .detail-nav button, .settings-category-tabs button, .sections button) {
+    transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+  }
+
+  /* 弹窗从中心轻轻展开，小菜单从自己的边缘出现。关闭仍即时释放焦点。 */
+  :root[data-motion-input='pointer'] dialog[open] {
+    opacity: 1; transform: scale(1); transform-origin: center;
+    transition: opacity 180ms var(--mb-motion-out), transform 200ms var(--mb-motion-out);
+  }
+  :root[data-motion-input='pointer'] :is(.sidebar-popover, .toolbar-status-popover, .player-volume-panel, .toast) {
+    opacity: 1; transform: translateY(0) scale(1);
+    transform-origin: bottom right;
+    transition: opacity 140ms var(--mb-motion-out), transform 160ms var(--mb-motion-out);
+  }
+  :root .toolbar-status-popover { transform-origin: top right; }
+  :root .sidebar-playlist-popover { transform-origin: top left; }
+  @starting-style {
+    :root[data-motion-input='pointer'] dialog[open] { opacity: 0; transform: scale(.985); }
+    :root[data-motion-input='pointer'] :is(.sidebar-popover, .toolbar-status-popover, .player-volume-panel, .toast) { opacity: 0; transform: translateY(4px) scale(.985); }
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    :root:not([data-motion-input='keyboard']) .inventory-tile:hover, :root:not([data-motion-input='keyboard']) .music-card:hover { transform: translateY(-2px); }
+  }
+}
+
+:root[data-motion-input='keyboard'] :is(.music-sidebar button, .collection-view button, .global-player button, .primary-button, .secondary-button, .transport-button, .inventory-tile, .music-card, .settings-category-tabs button, dialog, .sidebar-popover, .toolbar-status-popover, .player-volume-panel, .toast) {
+  transition: none !important;
+}
+:root[data-motion-input='keyboard'] :is(.music-sidebar button, .collection-view button, .global-player button, .primary-button, .secondary-button, .transport-button):active { transform: none !important; }
+
+@keyframes mb-playback-breathe {
+  0%, 100% { opacity: .2; transform: scale(.96); }
+  50% { opacity: .48; transform: scale(1.055); }
+}
+
+/* 避免原有无限动画在“减少动态效果”下以极短周期持续运行。 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

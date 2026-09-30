@@ -183,6 +183,7 @@ const actualQualityDetail = computed(() => {
             <button
               type="button"
               class="transport-button transport-button-primary"
+              :data-playing="props.playbackState?.state === 'playing'"
               :disabled="['resolving', 'preparing', 'pausing', 'resuming', 'stopping', 'error'].includes(props.playbackState?.state ?? '') || (!props.playbackState?.canPause && !props.playbackState?.canResume && !props.currentTrack)"
               :aria-label="transportLabel(props.playbackState?.state)"
               @click="emit('toggle-playback')"

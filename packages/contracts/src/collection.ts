@@ -117,7 +117,10 @@ export interface CollectionPublicApi {
   setCollectionPolicy(request: CollectionPolicyRequest): Promise<CollectionMutationResult>;
 }
 
-export interface CollectionFilter { query?: string; brand?: string; decade?: number | 'unknown' }
+export interface CollectionFilter {
+  query?: string; brand?: string; decade?: number | 'unknown';
+  stockState?: 'identified' | 'needs-review' | 'blank' | 'recorded';
+}
 export interface CollectionPhoto {
   id: string;
   modelId: string;
@@ -243,9 +246,10 @@ export function isCollectionDetail(v: unknown): v is CollectionDetail {
 }
 
 export function isCollectionFilter(v: unknown): v is CollectionFilter {
-  return record(v) && keys(v, ['query', 'brand', 'decade'])
+  return record(v) && keys(v, ['query', 'brand', 'decade', 'stockState'])
     && (v.query === undefined || text(v.query, true)) && (v.brand === undefined || text(v.brand, true))
-    && (v.decade === undefined || v.decade === 'unknown' || (integer(v.decade, 1900, 2200) && v.decade % 10 === 0));
+    && (v.decade === undefined || v.decade === 'unknown' || (integer(v.decade, 1900, 2200) && v.decade % 10 === 0))
+    && (v.stockState === undefined || typeof v.stockState === 'string' && ['identified', 'needs-review', 'blank', 'recorded'].includes(v.stockState));
 }
 export function isCollectionPhoto(v: unknown): v is CollectionPhoto {
   return record(v) && keys(v, ['id', 'modelId', 'physicalId', 'width', 'height', 'source']) && isCollectionId(v.id) && isCollectionId(v.modelId)

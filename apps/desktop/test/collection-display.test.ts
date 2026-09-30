@@ -39,7 +39,11 @@ test('实际型号详情渲染Unknown标题，不把空品牌型号呈现为空�
   const app = vue.createSSRApp(module.exports.default, { detail: { model, lots: page, copies: page }, busy: false })
   const html = await renderToString(app)
   assert.match(html, /<h2>品牌待确认 · 型号待确认<\/h2>/u)
-  assert.match(html, /<button type="button" disabled>补充库存<\/button>/u)
+  // 版面可增加样式属性；保护行为仍是同一补充入口明确禁用。
+  const receiveButton = html.match(/<button\b([^>]*)>补充库存<\/button>/u)
+  assert.ok(receiveButton, '型号详情必须保留补充库存入口')
+  assert.match(receiveButton[1]!, /\btype="button"/u)
+  assert.match(receiveButton[1]!, /(?:^|\s)disabled(?:\s|$)/u)
   assert.match(html, /Excel 导入历史.*数量更正/u)
   assert.equal(model.brand, ''); assert.equal(model.name, '')
 })
