@@ -7,6 +7,7 @@ import { DatabaseSync } from 'node:sqlite'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { CanonicalReference, SourcePack } from '@music-bridge/contracts'
+import { e2eTemporaryRoot } from './temporary-root.js'
 
 const desktopRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const fromCore = createRequire(path.join(desktopRoot, '../../packages/bridge-core/package.json'))
@@ -36,11 +37,6 @@ let app: ElectronApplication | undefined
 let page: Page
 let userDataDirectory: string
 
-function externalTmp(): string {
-  const value = process.env.TMPDIR ?? ''
-  if (path.resolve(value) !== '/Volumes/LifeWeave/Developer/CommandLine/tmp') throw new Error('TASK-085 E2E 必须显式使用外置 LifeWeave TMPDIR')
-  return value
-}
 async function launch(): Promise<void> {
   const env = Object.fromEntries(Object.entries(process.env).filter(([key, value]) => value !== undefined && !/^(MUSIC_BRIDGE_|NETEASE_|ROON_)/u.test(key))) as Record<string, string>
   app = await electron.launch({ args: testElectronArguments([path.join(desktopRoot, 'dist/main/index.js')]), cwd: desktopRoot, timeout: 30_000,
@@ -203,7 +199,7 @@ async function expectOverall(panel: Locator, total: number, owned: number, missi
 
 test('TASK-085 J03/J04/C11：库存表原行到目录合并拆分、求购快照与同库冷启', async () => {
   test.setTimeout(360_000)
-  userDataDirectory = await mkdtemp(path.join(externalTmp(), 'musicbridge-ui-e2e-collection-'))
+  userDataDirectory = await mkdtemp(path.join(e2eTemporaryRoot(), 'musicbridge-ui-e2e-collection-'))
   await mkdir(test.info().outputDir, { recursive: true })
   await writeFile(test.info().outputPath('synthetic-user-data-path.txt'), userDataDirectory)
   const bundle = await bundleIdentity()

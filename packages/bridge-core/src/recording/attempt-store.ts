@@ -105,7 +105,7 @@ export function createRecordingAttemptStore({ read, beforeCommit, databaseBudget
       try {
         const attemptEligible = beforeCommit === undefined && ['begin', 'progress', 'terminal-event', 'terminal-stop'].includes(certificateAction);
         const attemptSession = audit.beginAppend(db, attemptEligible, databaseBudgetBytes,
-          (certificateAction === 'other' ? 'progress' : certificateAction) as RecordingAttemptCertificateAction);
+          (certificateAction === 'other' || certificateAction === 'output-run' ? 'progress' : certificateAction) as RecordingAttemptCertificateAction);
         if (!certificate.reuseSnapshot() && (Number(db.prepare('PRAGMA user_version').get()!.user_version) >= 20 || certificate.requiresObjectAudit)) {
           verifyRecordingRecordSnapshot(db,objectAudit,certificate); certificate.observeSnapshotVerified();
         }
@@ -180,10 +180,16 @@ export function createRecordingAttemptStore({ read, beforeCommit, databaseBudget
     },
     /** Core私有状态；不经Renderer、IPC或公开命令提交设备/输入资格。 */
     registerOutputRun(attempt: dto.RecordingAttempt, side: dto.RenderSide, runId: string): void {
-      transaction('attempt-output-run-pending', 'other', db => registerOutputRunPending(db, attempt, side, runId));
+      transaction('attempt-output-run-pending', 'output-run', (db, _budget, certificate) => {
+        registerOutputRunPending(db, attempt, side, runId);
+        certificate.expectOutputRunMutations(1);
+      });
     },
     settleOutputRun(attemptId: string, side: dto.RenderSide, runId: string, phase: 'verified' | 'failed', reason?: OutputRunBarrierFailure): void {
-      transaction('attempt-output-run-settle', 'other', db => settleOutputRunBarrier(db, attemptId, side, runId, phase, reason));
+      transaction('attempt-output-run-settle', 'output-run', (db, _budget, certificate) => {
+        settleOutputRunBarrier(db, attemptId, side, runId, phase, reason);
+        certificate.expectOutputRunMutations(1);
+      });
     },
     capture(planVersionId: string, planContentHash: string, side?: dto.RenderSide): RecordingOutputInput {
       try {

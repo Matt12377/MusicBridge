@@ -364,7 +364,7 @@ test('measure stop group在单一clone内每轮都从合法隔离基线Begin，�
   assert.notEqual(first.physicalId, second.physicalId);
   const blocked = coordinator();
   await assert.rejects(blocked.begin({ commandId: randomUUID(), planVersionId: stopPlans[0]!.id,
-    planContentHash: stopPlans[0]!.contentHash, userConfirmed: true }), { code: 'COPY_UNAVAILABLE' });
+    planContentHash: stopPlans[0]!.contentHash, userConfirmed: true }), { code: 'NOT_ACCEPTED', causeCode: 'COPY_UNAVAILABLE' });
   await blocked.close();
   assert.deepEqual(api.summarizeCapacityFixtureTree(f.directory), sharedBefore, '预建和Stop不得改写封存seed fixture的任何身份或内容');
   assert.ok(readdirSync(workspacePath, { recursive: true }).length > 8, '新源、execution与archive文件必须只写入传入workspace');

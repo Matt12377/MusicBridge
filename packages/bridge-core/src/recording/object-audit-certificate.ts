@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 
-export type ObjectAuditCertificateAction = 'begin' | 'progress' | 'terminal-event' | 'terminal-stop' | 'attempt-event' | 'attempt-command' | 'attempt-complete' | 'print-claim' | 'print-complete' | 'other';
+export type ObjectAuditCertificateAction = 'begin' | 'progress' | 'terminal-event' | 'terminal-stop' | 'attempt-event' | 'attempt-command' | 'attempt-complete' | 'output-run' | 'print-claim' | 'print-complete' | 'other';
 export interface CertifiedObjectMetadata {
   scope: 'record-visual' | 'print-object';
   sha256: string;
@@ -28,6 +28,7 @@ export interface ObjectAuditCertificateCandidate { readonly db: DatabaseSync; re
 const MAX_CERTIFICATE_BYTES = 16 * 1024 * 1024;
 const MAX_CERTIFICATE_ENTRIES = 32_768;
 const WRITTEN_TABLES = new Set([
+  'output_run_barrier_events',
   'recording_attempts', 'recording_attempt_events', 'recording_attempt_receipts',
   'recording_records', 'recording_record_current', 'recording_record_events', 'recording_record_permits', 'recording_record_visuals', 'recording_record_write_guard',
   'physical_copies', 'media_reservations', 'media_plans',
@@ -35,6 +36,7 @@ const WRITTEN_TABLES = new Set([
   'recording_print_jobs', 'recording_print_events', 'recording_print_artifacts', 'recording_print_receipts',
 ]);
 const ALLOWED_WRITE_TRIGGERS = new Set([
+  'output_run_terminal_requires_pending', 'output_run_events_no_update', 'output_run_events_no_delete',
   'recording_attempts_no_delete', 'recording_attempt_events_no_update', 'recording_attempt_events_no_delete',
   'recording_attempt_receipts_no_update', 'recording_attempt_receipts_no_delete',
   'recording_record_current_no_delete', 'recording_record_events_no_update', 'recording_record_events_no_delete',
@@ -116,11 +118,12 @@ export class ObjectAuditCertificateSession {
   #expectedBeginMutations: 0 | 5 | 6 | undefined;
   #invalidMutationExpectation = false;
   #snapshotVerified = false;
+  #expectedOutputRunMutations: 1 | undefined;
   #snapshotReused = false;
   constructor(readonly db: DatabaseSync, readonly action: ObjectAuditCertificateAction, prior: Certificate | null) {
     this.#entry = environment(db);
     this.#prior = prior;
-    this.reusable = ['begin', 'progress', 'terminal-event', 'terminal-stop', 'attempt-event', 'attempt-command', 'attempt-complete', 'print-claim', 'print-complete'].includes(action) && this.#entry !== null && prior !== null
+    this.reusable = ['begin', 'progress', 'terminal-event', 'terminal-stop', 'attempt-event', 'attempt-command', 'attempt-complete', 'output-run', 'print-claim', 'print-complete'].includes(action) && this.#entry !== null && prior !== null
       && prior.token.dataVersion === this.#entry.dataVersion && prior.token.totalChanges === this.#entry.totalChanges && prior.token.state === this.#entry.state;
     if (this.reusable && prior) {
       this.#retainedEntries = prior.objects.size + prior.receipts.size;
@@ -138,7 +141,7 @@ export class ObjectAuditCertificateSession {
     return matched;
   }
   observeObject(value: CertifiedObjectMetadata): void {
-    if (!['begin', 'progress', 'terminal-event', 'terminal-stop', 'attempt-event', 'attempt-command', 'attempt-complete', 'print-claim', 'print-complete'].includes(this.action) || this.#entry === null || this.#overflow) return;
+    if (!['begin', 'progress', 'terminal-event', 'terminal-stop', 'attempt-event', 'attempt-command', 'attempt-complete', 'output-run', 'print-claim', 'print-complete'].includes(this.action) || this.#entry === null || this.#overflow) return;
     if (this.reusable && this.#prior?.objects.has(objectKey(value))) {
       if (this.#prior.objects.get(objectKey(value)) !== objectValue(value)) this.#reuseMiss = true;
       return;
@@ -153,7 +156,7 @@ export class ObjectAuditCertificateSession {
     return matched;
   }
   observeReceipt(key: string, value: string): void {
-    if (!['begin', 'progress', 'terminal-event', 'terminal-stop', 'attempt-event', 'attempt-command', 'attempt-complete', 'print-claim', 'print-complete'].includes(this.action) || this.#entry === null || this.#overflow) return;
+    if (!['begin', 'progress', 'terminal-event', 'terminal-stop', 'attempt-event', 'attempt-command', 'attempt-complete', 'output-run', 'print-claim', 'print-complete'].includes(this.action) || this.#entry === null || this.#overflow) return;
     if (this.reusable && this.#prior?.receipts.has(key)) {
       if (this.#prior.receipts.get(key) !== value) this.#reuseMiss = true;
       return;
@@ -197,6 +200,13 @@ export class ObjectAuditCertificateSession {
     if(this.action!=='attempt-complete'||!valid||this.#expectedCompletionMutations!==undefined){this.#invalidMutationExpectation=true;return;}
     this.#expectedCompletionMutations=entries;
   }
+  /** 输出屏障每次仅追加一行；额外写入或未知 trigger 必须使证书失效。 */
+  expectOutputRunMutations(entries: 1): void {
+    if (this.action !== 'output-run' || this.#expectedOutputRunMutations !== undefined || entries !== 1) {
+      this.#invalidMutationExpectation = true; return;
+    }
+    this.#expectedOutputRunMutations = entries;
+  }
   candidate(): ObjectAuditCertificateCandidate | null {
     const next = environment(this.db);
     if (!next || !this.#entry || next.dataVersion !== this.#entry.dataVersion || next.state !== this.#entry.state) return null;
@@ -211,7 +221,8 @@ export class ObjectAuditCertificateSession {
       for(const [key,value] of this.#objects)objects.set(key,value);for(const [key,value] of this.#receipts)receipts.set(key,value);
       return {db:this.db,certificate:{token:next,objects,receipts,snapshotVerified:completeReuse||this.#snapshotVerified}};
     }
-    const expectedMutations = this.action === 'print-claim' || this.action === 'print-complete' ? this.#expectedPrintMutations
+    const expectedMutations = this.action === 'output-run' ? this.#expectedOutputRunMutations
+      : this.action === 'print-claim' || this.action === 'print-complete' ? this.#expectedPrintMutations
       : this.action==='attempt-complete'?this.#expectedCompletionMutations:this.#expectedAttemptMutations;
     const exactDelta = !this.#invalidMutationExpectation && expectedMutations !== undefined && delta === expectedMutations;
     // 冷store没有Begin证书时，首次白名单事务已完整核验结构／对象；精确写入后可从该事实建立锚点。

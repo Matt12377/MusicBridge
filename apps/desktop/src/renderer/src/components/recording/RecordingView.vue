@@ -110,7 +110,7 @@ let recordingPlanOpener: HTMLElement | undefined
 async function openRecordingPlan(context?: RecordingPlanContext): Promise<void> { if (dirty.value || splitDirty.value) return; const selected = context ?? selectedPlanContext(); if (!selected) { notice.value = '请先明确选择本次冻结布局与制作路径。'; return }; const opener = activeTrigger(); if (!await confirmCurrentWorkspaceSelection('计划与预检')) return; recordingPlanOpener = opener; initialRecordingPlanContext.value = selected; recordingPlan.value = true; recordPage('plan') }
 async function closeRecordingPlan(): Promise<void> { if (recordingPlan.value && recordingPlanPanel.value?.canLeave() !== true) { leaveGuardNotice.value = recordingPlanPanel.value?.leaveBlockReason() ?? '当前正式输出或命令回执尚未收口；请保留计划页。'; return }; recordingPlan.value = false; recordPage('workbench'); await refreshAfterClose(recordingPlanOpener, () => recordingPlanTrigger.value) }
 const initialExecutionContext = shallowRef<{ layoutId: string; mode: ExecutionMode; preparedId?: string }>()
-let mediaOpener: HTMLElement | undefined, versionsOpener: HTMLElement | undefined, executionOpener: HTMLElement | undefined, preparationOpener: HTMLElement | undefined, preparedOpener: HTMLElement | undefined
+let mediaOpener: HTMLElement | undefined, versionsOpener: HTMLElement | undefined, executionOpener: HTMLElement | undefined, preparationOpener: HTMLElement | undefined, preparedOpener: HTMLElement | undefined, sourceOpener: HTMLElement | undefined
 const viewRoot = ref<HTMLElement>()
 const focusCleanups = new Set<() => void>()
 function activeTrigger(): HTMLElement | undefined { const target = document.activeElement; return target && 'focus' in target ? target as HTMLElement : undefined }
@@ -149,7 +149,7 @@ const preparation = ref(false), preparationLayoutId = ref(''), preparationTrigge
 async function openPreparation(layoutId = ''): Promise<void> { if (dirty.value || splitDirty.value) return; const selectedId = layoutId || workflowState.value.selection.layoutId; if (!selectedId) { notice.value = '请先明确选择本次冻结布局。'; return }; const opener = activeTrigger(); if (!await confirmCurrentWorkspaceSelection('Logic 工作区', { layoutId: selectedId, path: 'logic' })) return; preparationOpener = opener; masterVersions.value = false; preparationLayoutId.value = selectedId; preparation.value = true; recordPage('logic') }
 async function closePreparation(): Promise<void> { preparation.value = false; recordPage('workbench'); await refreshAfterClose(preparationOpener, () => preparationTrigger.value) }
 const sourceTrackId = ref('')
-function openSource(trackId: string): void { if (dirty.value || splitDirty.value) { discarding.value = true; return }; sourceTrackId.value = trackId; recordPage('source') }
+function openSource(trackId: string): void { if (dirty.value || splitDirty.value) { discarding.value = true; return }; sourceOpener = activeTrigger(); sourceTrackId.value = trackId; recordPage('source') }
 const pending = shallowRef<() => Promise<MasterDraftResult>>()
 const confirmedSaveNeedsRefresh = ref(false)
 const title = ref(''), programType = ref<DraftProgramType>('compilation'), trackIds = ref<string[]>([])
@@ -362,7 +362,7 @@ async function confirmCurrentWorkspaceSelection(label: string, patch: Partial<Re
   }
   return true
 }
-async function closeSources(): Promise<void> { sourceTrackId.value = ''; recordPage('workbench'); await refreshWorkflow() }
+async function closeSources(): Promise<void> { const trackId = sourceTrackId.value; sourceTrackId.value = ''; recordPage('workbench'); await refreshAfterClose(sourceOpener, () => viewRoot.value?.querySelector<HTMLElement>(`[data-recording-return-focus="source-${trackId}"]`) ?? undefined) }
 async function closeMediaPlanning(): Promise<void> { mediaPlanning.value = false; recordPage('workbench'); await refreshAfterClose(mediaOpener, () => viewRoot.value?.querySelector<HTMLElement>('[data-recording-return-focus="media-main"]') ?? undefined) }
 async function mediaChanged(): Promise<void> {
   await refreshWorkflow()
@@ -390,7 +390,7 @@ async function mediaSelected(planId: string | null): Promise<void> {
 async function closeMasterVersions(): Promise<void> { masterVersions.value = false; recordPage('workbench'); await refreshAfterClose(versionsOpener, () => viewRoot.value?.querySelector<HTMLElement>('[data-recording-return-focus="versions"]') ?? undefined) }
 async function selectWorkflow(selection: Partial<RecordingWorkflowSelection>): Promise<void> {
   if (blocked.value || dirty.value || splitDirty.value || workspace.state.status !== 'ready') return
-  const draftId = draft.value?.id, token = generation
+  const draftId = draft.value?.id, draftRevision = draft.value?.revision, token = generation
   workflow.select(selection)
   const accepted: Partial<RecordingWorkspaceSelection> = {}
   for (const key of Object.keys(selection) as (keyof RecordingWorkspaceSelection)[]) {
@@ -398,8 +398,19 @@ async function selectWorkflow(selection: Partial<RecordingWorkflowSelection>): P
   }
   if (!Object.keys(accepted).length || !draftId) return
   await workspace.choose(accepted)
-  if (alive && token === generation && draft.value?.id === draftId && !workspaceSelectionConfirmed(workflow.state.selection, draftId)) {
+  if (!alive || token !== generation || draft.value?.id !== draftId) return
+  if (!workspaceSelectionConfirmed(workflow.state.selection, draftId)) {
     notice.value = '本次版本选择尚未取得工作库持久回执；请重试原保存操作或重新读取。'
+    return
+  }
+  if (Object.hasOwn(accepted, 'planId') && accepted.planId && workflow.state.selection.planId === accepted.planId) {
+    // 保存选择期间的新编辑仍归用户所有，迟到回执不能覆盖它们。
+    if (dirty.value || splitDirty.value || draft.value.revision !== draftRevision) {
+      notice.value = '规划选择已保存；保留你刚修改的草稿和分面，请完成保存后再核对。'
+      return
+    }
+    const plan = workflow.state.facts?.plans.plans.find(value => value.id === accepted.planId)
+    if (plan) { workbenchSpec.value = structuredClone(plan.spec); workbenchBaselineSpec.value = JSON.stringify(plan.spec) }
   }
 }
 async function nextAction(action: RecordingNextAction): Promise<void> {
@@ -597,7 +608,7 @@ onUnmounted(() => { mounted = false; alive = false; ++generation; ++reservationN
                           <button type="button" :disabled="blocked || !!workbenchSpec.distribution" :aria-label="'上移 ' + track.metadata.title" @click="moveGroup(track.id, { direction: -1 })">上移</button>
                           <button type="button" :disabled="blocked || !!workbenchSpec.distribution" :aria-label="'下移 ' + track.metadata.title" @click="moveGroup(track.id, { direction: 1 })">下移</button>
                           <button v-if="workbenchSpec.format === 'cassette'" type="button" :disabled="blocked || !!workbenchSpec.distribution" @click="moveGroup(track.id, { side: side.name === 'A' ? 'B' : 'A' })">移至 {{ side.name === 'A' ? 'B' : 'A' }} 面</button>
-                          <button type="button" :disabled="blocked || dirty" @click="openSource(track.id)">处理源</button>
+                          <button type="button" :data-recording-return-focus="'source-' + track.id" :disabled="blocked || dirty" @click="openSource(track.id)">处理源</button>
                           <button type="button" :disabled="blocked" @click="play(track.id)">试听</button>
                           <button type="button" :disabled="blocked || !!workbenchSpec.distribution" :aria-label="'移除 ' + track.metadata.title" @click="removeTrack(track.id)">移除</button>
                         </div>

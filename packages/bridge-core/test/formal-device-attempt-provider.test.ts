@@ -206,10 +206,12 @@ for (const mode of ['expired', 'selection-generation', 'second-verify'] as const
       },
     });
     f.registerDependentCleanup(() => coordinator.close());
-    await assert.rejects(coordinator.begin({ commandId: randomUUID(), planVersionId: plan.id,
-      planContentHash: plan.contentHash, userConfirmed: true }), { code: 'BACKEND_NOT_CERTIFIED' });
+    const failed = await coordinator.begin({ commandId: randomUUID(), planVersionId: plan.id,
+      planContentHash: plan.contentHash, userConfirmed: true });
+    assert.equal(failed.status, 'failed');
     const attempt = coordinator.list({ page: { offset: 0, limit: 1 } }).items[0]!;
     assert.equal(starts, 0);
+    assert.deepEqual(failed, attempt);
     assert.equal(attempt.status, 'failed');
     assert.equal(attempt.reason, 'backend-start-failed');
     assert.deepEqual(attempt.sides.map(side => ({ cutoff: side.engineStoppedSubmitting,

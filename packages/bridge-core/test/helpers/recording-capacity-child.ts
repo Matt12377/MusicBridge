@@ -1,3 +1,4 @@
+import { waitForVerifiedOutputRun } from './output-run-ready.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
@@ -62,6 +63,7 @@ async function operatePrintWrite(task: PrintWriteTask): Promise<Extract<Capacity
       active.onEvent({ type: 'progress', side: side.side, runId: active.runId, at, sourceFramesRead: side.frameCount, submittedFrames: side.frameCount, consumedFrames: side.frameCount });
       for (const type of ['source-eof', 'engine-cutoff', 'cleanup-quiescent', 'backend-drained'] as const) active.onEvent({ type, side: side.side, runId: active.runId, at });
       await new Promise<void>(resolve => setImmediate(resolve)); controller.signal.throwIfAborted();
+      await waitForVerifiedOutputRun(repository, attempt.id, active.runId);
       attempt = coordinator.get({ attemptId: attempt.id }).attempt!;
       attempt = await coordinator.confirm({ commandId: randomUUID(), attemptId: attempt.id, expectedRevision: attempt.revision, kind: 'physical-stop', side: side.side, userConfirmed: true });
       if (index + 1 < attempt.sides.length) {

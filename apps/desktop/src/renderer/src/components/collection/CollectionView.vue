@@ -21,6 +21,13 @@ const emit = defineEmits<{ startRecording: [selection: CollectionStartEntry]; op
 const recordPhysicalId = ref('')
 type LeaveGuard = { canLeave(): boolean; leaveBlockReason(): string | null }
 const recordsPanel = ref<LeaveGuard | null>(null), musicView = ref<LeaveGuard | null>(null), leaveError = ref('')
+// 面板在 v-for 内，字符串 ref 会被 Vue 收集为数组；离开守卫需要唯一组件实例。
+function bindMusicView(instance: unknown): void {
+  musicView.value = instance && typeof instance === 'object'
+    && 'canLeave' in instance && typeof instance.canLeave === 'function'
+    && 'leaveBlockReason' in instance && typeof instance.leaveBlockReason === 'function'
+    ? instance as LeaveGuard : null
+}
 function leaveBlockReason(): string | null {
   if (recordPhysicalId.value && recordsPanel.value?.canLeave() !== true) return recordsPanel.value?.leaveBlockReason() ?? '录音档案中的设备运行尚未安全收口。'
   if (musicView.value?.canLeave() === false) return musicView.value.leaveBlockReason() ?? '实体音乐库中的设备运行尚未安全收口。'
@@ -188,7 +195,7 @@ function onTabKeydown(event: KeyboardEvent): void {
         @add-photo="inventory.addPhoto"
         @change-photo="request => inventory.mutate(() => collectionApi.changeCollectionPhoto(request))"
         @policy="request => inventory.mutate(() => collectionApi.setCollectionPolicy(request))" />
-      <PhysicalMusicView :key="musicNavigation" v-if="view.id === 'music'" ref="musicView" :requested-id="musicId" :active="selectedView === 'music'" @model="showModel" />
+      <PhysicalMusicView :key="musicNavigation" v-if="view.id === 'music'" :ref="bindMusicView" :requested-id="musicId" :active="selectedView === 'music'" @model="showModel" />
       <header v-if="view.id === 'tapes' && !detail" class="collection-heading">
         <div>
           <p class="collection-kicker">磁带收藏</p>

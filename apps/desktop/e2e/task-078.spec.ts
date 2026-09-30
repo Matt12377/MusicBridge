@@ -243,7 +243,7 @@ test('V3同数据集7盘：幂等Completed、Replica历史核验、真实J-Card�
     const print = await page.evaluate(request => window.musicBridge.getRecordingPrint(request), printRequest)
     expect(print.facts.physicalId).toBe(physicalId); expect(print.facts.recordingContentHash).toBe(detail.record.contentHash)
     expect(print.facts.planContentHash).toBe(detail.plan.contentHash)
-    expect(print.artifact.rendererVersion).toContain('preview2')
+    expect(print.artifact.rendererVersion).toMatch(/^jp0-v1-box1-pages1-electron-[\d.]+-chrome-[\d.]+$/u)
     expect(print.artifact.geometry).toMatchObject({ widthMm: 103.1875, heightMm: 101.6, widthPt: 292.5, heightPt: 288 })
     const exported = path.join(directory, '同一七盘档案.pdf')
     await app!.evaluate(({ dialog }, filePath) => { dialog.showSaveDialog = (async () => ({ canceled: false, filePath })) as typeof dialog.showSaveDialog }, exported)

@@ -12,6 +12,51 @@ import { createRecordingAttemptStore } from '../src/recording/attempt-store.js';
 import { acquireRecordingOutputInputLease } from '../src/recording/output-input.js';
 
 const page = { offset: 0, limit: 25 };
+
+test('R023输出屏障凭证：未知触发器不能通过单行追加发布热证明', async t => {
+  const x = await printObjectAuditFixture(t);
+  x.f.db.exec(`CREATE TRIGGER output_run_unknown AFTER INSERT ON output_run_barrier_events
+    BEGIN UPDATE physical_copies SET revision=revision WHERE physical_id='${x.attempt.physicalId}'; END`);
+  x.counts.hash = 0;
+  x.store.registerOutputRun(x.attempt, x.driver.side, x.driver.runId);
+  assert.ok(x.counts.hash > 0, '未知屏障触发器必须回退完整对象核验');
+  x.counts.hash = 0;
+  x.store.settleOutputRun(x.attempt.id, x.driver.side, x.driver.runId, 'failed', 'START_FAILED');
+  assert.ok(x.counts.hash > 0, '未知触发器存在期间不得重新锚定热证明');
+  x.counts.hash = 0; x.driver.onEvent(x.event(1));
+  assert.ok(x.counts.hash > 0, '后续事件也不得消费屏障事务的无效候选');
+});
+
+test('R023输出屏障凭证：额外行变化与外连接提交都强制重新核验', async t => {
+  const x = await printObjectAuditFixture(t), prepare = x.f.db.prepare.bind(x.f.db);
+  let injected = false;
+  t.mock.method(x.f.db, 'prepare', function(sql: string) {
+    const statement = prepare(sql);
+    if (sql !== 'INSERT INTO output_run_barrier_events VALUES(?,?,?,?,?,?,?,?)') return statement;
+    return new Proxy(statement, { get(item, method) {
+      if (method === 'run') return (...values: Parameters<typeof statement.run>) => {
+        const result = statement.run(...values);
+        if (!injected) {
+          prepare('UPDATE physical_copies SET revision=revision WHERE physical_id=?').run(x.attempt.physicalId);
+          injected = true;
+        }
+        return result;
+      };
+      const value = Reflect.get(item, method, item);
+      return typeof value === 'function' ? value.bind(item) : value;
+    } });
+  });
+  x.counts.hash = 0; x.store.registerOutputRun(x.attempt, x.driver.side, x.driver.runId);
+  assert.equal(injected, true);
+  x.counts.hash = 0; x.driver.onEvent(x.event(1));
+  assert.ok(x.counts.hash > 0, '额外一行变化不得被精确单行预期接受');
+  const external = new DatabaseSync(x.f.filePath);
+  try { external.prepare('UPDATE physical_copies SET revision=revision+1 WHERE physical_id=?').run(x.attempt.physicalId); }
+  finally { external.close(); }
+  x.counts.hash = 0;
+  x.store.settleOutputRun(x.attempt.id, x.driver.side, x.driver.runId, 'failed', 'START_FAILED');
+  assert.ok(x.counts.hash > 0, '外连接 data_version 改变后必须重新读取原字节');
+});
 function deferred<T>() { let resolve!: (value: T) => void, reject!: (error: unknown) => void; const promise = new Promise<T>((done, fail) => { resolve = done; reject = fail; }); return { promise, resolve, reject }; }
 async function waitForOutputIdle(coordinator: RecordingAttemptCoordinator): Promise<void> {
   const deadline = performance.now() + 10_000;

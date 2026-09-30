@@ -21,6 +21,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Prepare hosted runner evidence directories
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          test -d "$RUNNER_TEMP"
+          mkdir -p "$RUNNER_TEMP/musicbridge-electron/tmp" "$RUNNER_TEMP/musicbridge-electron/results"
+          printf 'TMPDIR=%s\nMUSIC_BRIDGE_E2E_OUTPUT_DIR=%s\n' "$RUNNER_TEMP/musicbridge-electron/tmp" "$RUNNER_TEMP/musicbridge-electron/results" >> "$GITHUB_ENV"
+
       - name: Node.js 22
         uses: actions/setup-node@v4
         with:
@@ -34,7 +43,22 @@ jobs:
         working-directory: apps/desktop
 
       - name: Electron startup, crash/restart, safeStorage vault and credential recovery gates
-        run: corepack pnpm@10.17.1 --filter @music-bridge/desktop run test:electron
+        shell: bash
+        run: |
+          set -o pipefail
+          corepack pnpm@10.17.1 --filter @music-bridge/desktop run test:electron 2>&1 | tee "$RUNNER_TEMP/musicbridge-electron/electron-gates.log"
 
       - name: Electron end-to-end flow (Playwright, production build)
-        run: corepack pnpm@10.17.1 --filter @music-bridge/desktop run test:e2e
+        shell: bash
+        run: |
+          set -o pipefail
+          corepack pnpm@10.17.1 --filter @music-bridge/desktop run test:e2e 2>&1 | tee "$RUNNER_TEMP/musicbridge-electron/electron-e2e.log"
+
+      - name: Preserve Electron logs and synthetic test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-e2e-${{ github.sha }}
+          path: ${{ runner.temp }}/musicbridge-electron/
+          if-no-files-found: warn
+          retention-days: 14

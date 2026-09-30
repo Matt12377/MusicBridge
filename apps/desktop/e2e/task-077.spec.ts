@@ -93,7 +93,7 @@ test('Completed持久任务在真实App冷启自动生成PDF，公开八API保�
     await expect(panel).toContainText(recordingId)
     await page.setViewportSize({ width: 720, height: 480 }); await panel.scrollIntoViewIfNeeded()
     expect(await panel.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
-    const confirmation = panel.getByRole('checkbox')
+    const confirmation = panel.getByRole('checkbox', { name: '我确认仅按本次历史事实生成或重试打印请求，不改写录音档案、旧 PDF 或完成时 Artwork', exact: true })
     const checkboxGeometry = await confirmation.evaluate(el => {
       const box = el.getBoundingClientRect(), label = el.closest('label')!
       return { width: box.width, height: box.height, labelDisplay: getComputedStyle(label).display, labelDirection: getComputedStyle(label).flexDirection, labelHeight: label.getBoundingClientRect().height }
@@ -146,7 +146,7 @@ test('真实schema20旧档案启动不自动补建，用户明确后补由运行
   await expect(panel).toContainText('此旧档案没有完成时自动打印请求')
   const create = panel.getByRole('button', { name: '依据现有历史事实补建基础卡片', exact: true })
   await expect(create).toBeDisabled()
-  await panel.getByRole('checkbox', { name: '我确认仅按本次历史事实补建或重试原打印请求，不改写录音档案', exact: true }).check()
+  await panel.getByRole('checkbox', { name: '我确认仅按本次历史事实生成或重试打印请求，不改写录音档案、旧 PDF 或完成时 Artwork', exact: true }).check()
   await create.click()
   await expect.poll(async () => (await list()).items[0]?.state, { timeout: 65_000 }).toBe('ready')
   const job = (await list()).items[0]!

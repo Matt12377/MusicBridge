@@ -1,3 +1,4 @@
+import { rebuildLegacySchema } from './helpers/rebuild-legacy-schema.js';
 import assert from 'node:assert/strict'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdtemp, mkdir, readFile, rm } from 'node:fs/promises'
@@ -32,7 +33,7 @@ function oldRows(db: DatabaseSync, releaseId: string) {
   }
 }
 function downgradeTo23(db: DatabaseSync): void {
-  db.exec('DROP TABLE physical_link_history; DROP TABLE commercial_copy_photos; DROP TABLE commercial_copy_details; DROP TABLE commercial_release_copies; PRAGMA user_version=23')
+  rebuildLegacySchema(db, 23)
 }
 
 test('23→24只加逐件与未知历史标记；旧发行原文、照片字节、关系和旧账本不变', async t => {
@@ -56,7 +57,7 @@ test('23→24只加逐件与未知历史标记；旧发行原文、照片字节�
   assert.equal(history.total, 1)
   assert.deepEqual({ kind: history.items[0]?.kind, occurredAt: history.items[0]?.occurredAt, evidence: history.items[0]?.evidence }, { kind: 'historical-unknown', occurredAt: null, evidence: undefined })
   const after = at(filePath)
-  assert.equal(after.prepare('PRAGMA user_version').get()?.user_version, 24)
+  assert.equal(after.prepare('PRAGMA user_version').get()?.user_version, 30)
   assert.deepEqual(oldRows(after, created.id), before)
   assert.deepEqual(after.prepare('PRAGMA foreign_key_check').all(), [])
   after.close()

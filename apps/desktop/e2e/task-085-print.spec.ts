@@ -7,9 +7,10 @@ import type { TestContext } from 'node:test'
 import { recordingRecordFixture } from '../../../packages/bridge-core/test/helpers/recording-record-fixture.js'
 import { createRecordingRecordCoordinator } from '../../../packages/bridge-core/src/recording/record-coordinator.js'
 import { waitForMainWindow } from './main-window.js'
+import { e2eTemporaryRoot } from './temporary-root.js'
 
 const desktopRoot = path.resolve(import.meta.dirname, '..')
-const temporaryRoot = '/Volumes/LifeWeave/Developer/CommandLine/tmp'
+const temporaryRoot = e2eTemporaryRoot()
 const fixedDatabase = process.env.MUSIC_BRIDGE_TASK085_PRINT_FIXED_DB
 const fixedDatabaseSha256 = '33027eaaa76fe2889d5995b31cf3254f05d092227b7f71058a1910c39485709f'
 const fixedRecordingId = '02b1ac35-f048-461a-825b-8df30e4dc90d'

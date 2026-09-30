@@ -1,3 +1,4 @@
+import { historicalRows } from './helpers/rebuild-legacy-schema.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
@@ -6,10 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createCollectionRepository } from '../src/collection/repository.js';
 
-function facts(db: DatabaseSync) {
-  return db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT GLOB 'sqlite_*' AND name NOT GLOB 'recording_attempt*' AND name NOT GLOB 'recording_record*' AND name NOT GLOB 'recording_print*' AND name NOT GLOB 'master_artwork*' ORDER BY name").all()
-    .map(({ name }) => [name, db.prepare(`SELECT * FROM "${name}" ORDER BY rowid`).all()]);
-}
+function facts(db: DatabaseSync) { return historicalRows(db, 18); }
 
 async function fixture(t: test.TestContext) {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-task074-migration-'));
@@ -25,7 +23,7 @@ test('真实schema18旧事实迁移到21逐列不变，新Attempt表为空且外
   const f = await fixture(t), repository = createCollectionRepository({ filePath: f.filePath });
   t.after(() => repository.close()); repository.list({ offset: 0, limit: 1 });
   const db = new DatabaseSync(f.filePath, { readOnly: true }); t.after(() => db.close());
-  assert.equal(db.prepare('PRAGMA user_version').get()!.user_version, 21);
+  assert.equal(db.prepare('PRAGMA user_version').get()!.user_version, 30);
   assert.deepEqual(facts(db), f.before);
   for (const table of ['recording_attempts', 'recording_attempt_events', 'recording_attempt_receipts']) assert.equal(db.prepare(`SELECT count(*) n FROM ${table}`).get()!.n, 0);
   assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
@@ -42,5 +40,5 @@ test('schema21提交前故障整体回滚到18，重试不能丢失旧历史', a
   const retried = createCollectionRepository({ filePath: f.filePath }); t.after(() => retried.close());
   retried.list({ offset: 0, limit: 1 });
   const after = new DatabaseSync(f.filePath, { readOnly: true }); t.after(() => after.close());
-  assert.equal(after.prepare('PRAGMA user_version').get()!.user_version, 21); assert.deepEqual(facts(after), f.before);
+  assert.equal(after.prepare('PRAGMA user_version').get()!.user_version, 30); assert.deepEqual(facts(after), f.before);
 });

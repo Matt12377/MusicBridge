@@ -15,10 +15,13 @@ test('计划Main只注册五个读取入口，先验证可信来源和DTO，free
   })
   const invoke = (name: string, value: unknown, trusted = true) => Promise.resolve().then(() => handlers.get(`recordingPlans:${name}`)!(trusted, value))
   assert.deepEqual([...handlers.keys()].sort(), ['list','version','preview','preflight','cancelRead'].map(n => `recordingPlans:${n}`).sort())
-  const id = randomUUID(), selection = { assetId: id, archiveOperationId: id }
+  const id = randomUUID(), selection = { assetId: id, archiveOperationId: id, outputSelection: { endpointId: 'fixture_output', selectionGeneration: randomUUID() } }
   await assert.rejects(invoke('list', { draftId: id }, false))
   await assert.rejects(invoke('preview', { readId: id, selection, certified: true }))
   await assert.rejects(invoke('preflight', { readId: id, planVersionId: id, absolutePath: '/synthetic/private' }))
+  await assert.rejects(invoke('preview', { readId: id, selection: { assetId: id, archiveOperationId: id } }), /INVALID_IPC_REQUEST/u)
+  for (const outputSelection of [{ ...selection.outputSelection, deviceUid: '合成禁止UID' }, { ...selection.outputSelection, certified: true }, { endpointId: 'fixture_output' }])
+    await assert.rejects(invoke('preview', { readId: id, selection: { ...selection, outputSelection } }), /INVALID_IPC_REQUEST/u)
   assert.equal(calls.length, 0)
   const cases: Array<[string, unknown]> = [['list',{ draftId: id }],['version',{ id }],['preview',{ readId: id, selection }],['preflight',{ readId: id, planVersionId: id }],['cancelRead',{ id }]]
   for (const [name, payload] of cases) assert.deepEqual(await invoke(name, payload), { synthetic: true })

@@ -1,3 +1,4 @@
+import { historicalRows } from './helpers/rebuild-legacy-schema.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHash, randomUUID } from 'node:crypto';
@@ -13,7 +14,7 @@ import { createCollectionRepository } from '../src/collection/repository.js';
 import { readBackupIndex } from '../src/recording/backup-index.js';
 import { isolateRestoredDatabase, verifyRestoredDatabaseIsolation } from '../src/recording/restore-database.js';
 
-test('固定旧schema14仍可校验，正式schema24迁移只增加零调整额且隔离恢复保留原逐列事实', async t => {
+test('固定旧schema14仍可校验，正式schema30迁移只增加零调整额且隔离恢复保留原逐列事实', async t => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-catalog-backup-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const filePath = path.join(directory, 'collection.sqlite');
@@ -30,10 +31,10 @@ test('固定旧schema14仍可校验，正式schema24迁移只增加零调整额�
   };
   const original = inspect(), repository = createCollectionRepository({ filePath });
   try { repository.list({ offset: 0, limit: 20 }); } finally { repository.close(); }
-  assert.equal(inspect().version, 24, 'schema24必须由正式迁移创建，不能只改user_version');
+  assert.equal(inspect().version, 30, 'schema30必须由正式迁移创建，不能只改user_version');
   assert.deepEqual(readBackupIndex(filePath).index, { operations: [], objects: [], incompleteOperationIds: [] });
   isolateRestoredDatabase(filePath); verifyRestoredDatabaseIsolation(filePath);
-  assert.deepEqual(inspect(), { ...original, version: 24, lots: original.lots.map(lot => ({ ...lot, quantity_adjustment: 0 })) });
+  assert.deepEqual(inspect(), { ...original, version: 30, lots: original.lots.map(lot => ({ ...lot, quantity_adjustment: 0 })) });
 });
 
 
@@ -53,7 +54,7 @@ test('含参考资料与历史拥有快照的真实数据库备份可隔离恢�
   assert.equal(matched.currentCounts.owned, 1); assert.equal(matched.currentEntries[0]?.stockCount, 5);
   const destinationPath = path.join(directory, '快照'); await mkdir(destinationPath);
   const snapshot = await repository.backupSnapshot({ ...await authorizeSourceDirectory(destinationPath), id: randomUUID() });
-  assert.equal(snapshot.schemaVersion, 22);
+  assert.equal(snapshot.schemaVersion, 30);
   const restoredPath = path.join(destinationPath, 'collection.sqlite');
   readBackupIndex(restoredPath); isolateRestoredDatabase(restoredPath); verifyRestoredDatabaseIsolation(restoredPath); readBackupIndex(restoredPath);
   const restored = createCollectionRepository({ filePath: restoredPath });
@@ -241,7 +242,7 @@ test('正式schema24隔离副本撤销路径授权但逐列保留固定旧schema
   const facts = () => {
     const db = new DatabaseSync(filePath, { readOnly: true });
     try {
-      assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 24);
+      assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 30);
       return db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND (name GLOB 'inventory_*' OR name GLOB 'collection_*' OR name GLOB 'reference_*' OR name GLOB 'spreadsheet_*' OR name='physical_copies') ORDER BY name").all().map(({ name }) => [name, db.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all()]);
     } finally { db.close(); }
   };
@@ -260,7 +261,7 @@ test('schema22工作簿源bytes篡改即使恢复原不可变trigger也拒绝备
   const source = repository.spreadsheetImports.registerSource({ commandId: randomUUID(), bytes, displayName: 'synthetic-integrity.xlsx', workbook: { fileFormat: 'xlsx', parserVersion: 'sheetjs-ce-0.20.3', dateSystem: '1900', sheets: [{ name: '合成库存', rows: [{ rowIndex: 1, cells: [{ columnIndex: 1, type: 'number', value: 10 }] }] }] } });
   const destinationPath = path.join(directory, '快照'); await mkdir(destinationPath);
   const snapshot = await repository.backupSnapshot({ ...await authorizeSourceDirectory(destinationPath), id: randomUUID() });
-  assert.equal(snapshot.schemaVersion, 22);
+  assert.equal(snapshot.schemaVersion, 30);
   const restoredPath = path.join(destinationPath, 'collection.sqlite');
   readBackupIndex(restoredPath);
   const db = new DatabaseSync(restoredPath);
@@ -291,7 +292,7 @@ test('固定schema16备份只读验证原bytes，迁移21后完整性及隔离�
   seed.exec(await readFile(new URL('./fixtures/collection-schema16.sql', import.meta.url), 'utf8')); seed.close();
   const before = await readFile(filePath);
   readBackupIndex(filePath); assert.deepEqual(await readFile(filePath), before);
-  const inspect = () => { const db = new DatabaseSync(filePath, { readOnly: true }); try { return db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT GLOB 'recording_plan*' AND name NOT GLOB 'recording_attempt*' AND name NOT GLOB 'recording_record*' AND name NOT GLOB 'recording_print*' AND name NOT GLOB 'master_artwork*' AND name NOT IN ('collection_wants','collection_want_events','collection_progress_snapshots','collection_progress_ledger') ORDER BY name").all().map(({ name }) => [name, db.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all()]); } finally { db.close(); } };
+  const inspect = () => { const db = new DatabaseSync(filePath, { readOnly: true }); try { return historicalRows(db, 16); } finally { db.close(); } };
   const original = inspect(), repository = createCollectionRepository({ filePath });
   try { assert.equal(repository.collectionProgress.wants({ page: { offset: 0, limit: 25 } }).total, 0); } finally { repository.close(); }
   assert.deepEqual(inspect(), original, '18迁移不修改16的Excel原字节、照片、余额和目录事实');
@@ -308,7 +309,7 @@ test('schema22求购版本篡改恢复trigger后仍被备份full check拒绝，�
   const revision = repository.catalog.publishRevision({ ...plan, commandId: randomUUID(), baselineFingerprint: preview.baselineFingerprint, userConfirmed: true }).revision;
   const wanted = repository.collectionProgress.saveWant({ id: null, expectedVersion: 0, commandId: randomUUID(), revisionId: revision.id, referenceId: item.referenceId, priority: 'normal', preferredCondition: '', notes: '原始备注', targetLengthMinutes: null, packagingTarget: '', priceTarget: null, userConfirmed: true });
   const directory = path.join(f.directory, 'progress-snapshot'); await mkdir(directory);
-  const result = await repository.backupSnapshot({ ...await authorizeSourceDirectory(directory), id: randomUUID() }); assert.equal(result.schemaVersion, 22);
+  const result = await repository.backupSnapshot({ ...await authorizeSourceDirectory(directory), id: randomUUID() }); assert.equal(result.schemaVersion, 30);
   const file = path.join(directory, 'collection.sqlite'); readBackupIndex(file);
   const db = new DatabaseSync(file);
   try { const sql = String(db.prepare("SELECT sql FROM sqlite_master WHERE name='collection_want_events_no_update'").get()?.sql); assert.match(sql, /CREATE TRIGGER/u); db.exec('DROP TRIGGER collection_want_events_no_update'); db.prepare("UPDATE collection_want_events SET data=json_set(data,'$.notes','被篡改') WHERE id=?").run(wanted.id); db.exec(sql); assert.equal(db.prepare('PRAGMA integrity_check').get()?.integrity_check, 'ok'); } finally { db.close(); }
@@ -339,7 +340,7 @@ test('固定schema17备份只读验证，升级22及隔离恢复不修改旧列�
   const original = inspect(), repository = createCollectionRepository({ filePath });
   try { repository.list({ offset: 0, limit: 1 }); } finally { repository.close(); }
   const db = new DatabaseSync(filePath, { readOnly: true });
-  try { assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 24); } finally { db.close(); }
+  try { assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 30); } finally { db.close(); }
   assert.deepEqual(inspect(), original); readBackupIndex(filePath);
   isolateRestoredDatabase(filePath); verifyRestoredDatabaseIsolation(filePath); readBackupIndex(filePath);
   assert.deepEqual(inspect(), original);
@@ -352,7 +353,7 @@ test('正式计划与当前参数快照进入完整备份和隔离恢复，归�
   const database = path.join(result.directory.path, 'database', 'collection.sqlite');
   const db = new DatabaseSync(database, { readOnly: true });
   try {
-    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 24);
+    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 30);
     assert.deepEqual(JSON.parse(String(db.prepare('SELECT data FROM recording_plan_versions WHERE id=?').get(plan.id)?.data)), plan);
     assert.equal(db.prepare('SELECT count(*) n FROM recording_plan_ledger').get()?.n, 1);
   } finally { db.close(); }

@@ -3,7 +3,7 @@ import test from 'node:test'
 import { randomUUID } from 'node:crypto'
 import { CoreIpcError } from '../src/main/core-supervisor.js'
 
-test('Replica六入口固定工作库并严格拒绝任意来源、设备与假确认', async () => {
+test('Replica七入口固定工作库并严格拒绝任意来源、设备与假确认', async () => {
   const module = await import('../src/main/recording-replica-ipc.js').catch(() => ({}))
   assert.ok('installRecordingReplicaHandlers' in module, '缺少Replica IPC入口')
   const handlers = new Map<string, (trusted: boolean, value?: unknown) => unknown>()
@@ -19,7 +19,8 @@ test('Replica六入口固定工作库并严格拒绝任意来源、设备与假�
   })
   const datasetId = randomUUID(), id = randomUUID()
   const start = { runId: id, recordingId: id, target: 'actual-execution', side: 'A', expectedFingerprint: 'a'.repeat(64), userConfirmed: true }
-  const cases: Array<[string, unknown]> = [['status', {}], ['inspect', { readId: id, recordingId: id }], ['cancelRead', { readId: id }], ['start', start], ['get', { runId: id }], ['stop', { runId: id }]]
+  const control = { runId: id, commandId: randomUUID(), expectedControlRevision: 0, operation: 'pause' }
+  const cases: Array<[string, unknown]> = [['status', {}], ['inspect', { readId: id, recordingId: id }], ['cancelRead', { readId: id }], ['start', start], ['get', { runId: id }], ['stop', { runId: id }], ['control', control]]
   const invoke = (method: string, payload: unknown, trusted = true) => Promise.resolve().then(() => handlers.get(`recordingReplica:${method}`)!(trusted, { datasetId, payload }))
   assert.deepEqual([...handlers.keys()].sort(), cases.map(([method]) => `recordingReplica:${method}`).sort())
   for (const [method, payload] of cases) {
@@ -29,6 +30,8 @@ test('Replica六入口固定工作库并严格拒绝任意来源、设备与假�
     }
   }
   for (const patch of [{ userConfirmed: false }, { target: 'latest-master' }, { side: 'both' }, { expectedFingerprint: 'bad' }]) await assert.rejects(invoke('start', { ...start, ...patch }), /INVALID_IPC_REQUEST/u)
+  for (const patch of [{ expectedControlRevision: -1 }, { commandId: 'bad' }, { operation: 'seek' }, { operation: 'pause', frame: 1 }, { operation: 'seek', frame: -1 }])
+    await assert.rejects(invoke('control', { ...control, ...patch }), /INVALID_IPC_REQUEST/u)
   for (const value of [{}, { datasetId, payload: {}, extra: true }, { datasetId: datasetId + '\n', payload: {} }]) await assert.rejects(Promise.resolve().then(() => handlers.get('recordingReplica:status')!(true, value)), /INVALID_IPC_REQUEST/u)
   assert.equal(calls.length, 0)
   for (const [method, payload] of cases) assert.deepEqual(await invoke(method, payload), { dispatched: `recordingReplica.${method}` })

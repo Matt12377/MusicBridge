@@ -36,10 +36,23 @@ jobs:
         run: node scripts/ci/verify-cycles.mjs
 
       - name: Verify platform-independent workspace (typecheck, unit tests, build; no Electron)
-        run: corepack pnpm@10.17.1 verify
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/musicbridge-verify"
+          corepack pnpm@10.17.1 verify 2>&1 | tee "$RUNNER_TEMP/musicbridge-verify/verify.log"
 
       - name: Diff whitespace
         run: git diff --check
+
+      - name: Preserve full verification log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-${{ github.sha }}
+          path: ${{ runner.temp }}/musicbridge-verify/
+          if-no-files-found: warn
+          retention-days: 14
 
   dependency-audit:
     runs-on: ubuntu-latest

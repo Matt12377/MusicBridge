@@ -1,3 +1,4 @@
+import { historicalRows } from './helpers/rebuild-legacy-schema.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
@@ -259,8 +260,8 @@ test('固定schema17迁移失败完整回滚；重试21逐列保留旧事实', a
   const repository = createCollectionRepository({ filePath }); t.after(() => repository.close());
   repository.recordingPlans.version({ id: randomUUID() });
   const migrated = new DatabaseSync(filePath, { readOnly: true }); t.after(() => migrated.close());
-  assert.equal(migrated.prepare('PRAGMA user_version').get()!.user_version, 21);
-  verifyRecordingPlanDatabase(migrated); assert.deepEqual(facts(filePath), before);
+  assert.equal(migrated.prepare('PRAGMA user_version').get()!.user_version, 30);
+  verifyRecordingPlanDatabase(migrated); assert.deepEqual(historicalRows(migrated, 17), before);
 });
 
 test('发布文件完整但任务非completed也不能冻结；归档统计不能被重签Plan伪造', async t => {

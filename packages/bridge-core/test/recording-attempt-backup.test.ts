@@ -49,6 +49,7 @@ test('篡改事件即使恢复不可变trigger仍拒绝备份/恢复，失败不
 test('终态Attempt关联实体篡改为空白或已擦除，即使恢复trigger也不能备份或恢复', async t => {
   const f = await fixture(t), a = await f.attempts.begin(f.beginRequest());
   await f.attempts.stop({ commandId: randomUUID(), attemptId: a.id });
+  await f.attempts.close();
   const db = new DatabaseSync(f.filePath); t.after(() => db.close());
   const trigger = String(db.prepare("SELECT sql FROM sqlite_schema WHERE name='recording_attempt_copy_no_blank'").get()!.sql);
   const contentTrigger = String(db.prepare("SELECT sql FROM sqlite_schema WHERE name='recording_record_content_copy_guard'").get()!.sql);

@@ -36,7 +36,7 @@ async function draft(title = '下一步合成草稿') {
 }
 async function openDraft(title: string) {
   await page.locator('[data-sidebar-source="recording"]').click()
-  await page.getByRole('button', { name: `继续草稿 ${title}` }).click()
+  await page.locator('.draft-card').filter({ hasText: title }).click()
 }
 async function audit(target: Locator, name: string, screenshotTarget?: Locator) {
   expect(await target.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
@@ -45,6 +45,11 @@ async function audit(target: Locator, name: string, screenshotTarget?: Locator) 
   expect(violations.violations.filter(v => v.impact === 'serious' || v.impact === 'critical')).toEqual([])
   await screenshotTarget?.scrollIntoViewIfNeeded()
   await page.screenshot({ path: test.info().outputPath(name + '.png') })
+}
+
+async function expandRecordingDetails(): Promise<void> {
+  const details = page.locator('.extra-steps')
+  if (!await details.evaluate(element => (element as HTMLDetailsElement).open)) await details.locator(':scope > summary').click()
 }
 
 test('V3交互：240字符草稿长名在窄窗与宽窗均可读，不撑出主内容', async () => {
@@ -61,10 +66,10 @@ test('V3交互：唯一下一步跟随草稿修改、源面板关闭与读取失
   const next = page.getByTestId('recording-next-step'), action = page.getByTestId('recording-next-action')
   await expect(next).toBeVisible(); await expect(action).toBeEnabled()
   await expect(next).toContainText('源')
-  await action.click(); const source = page.getByRole('dialog', { name: '实际源文件', exact: true })
+  await action.click(); const source = page.locator('section.source-panel.is-inline')
   await expect(source).toBeVisible(); await source.getByRole('button', { name: '关闭', exact: true }).click()
   await expect(action).toBeEnabled()
-  await page.getByLabel('草稿标题', { exact: true }).fill('修改后合成草稿')
+  await page.getByLabel('制作标题', { exact: true }).fill('修改后合成草稿')
   await expect(action).toHaveText('保存当前草稿')
   await action.click()
   await expect.poll(async () => (await page.evaluate(id => window.musicBridge.getMasterDraft(id), saved.draftId)).title).toBe('修改后合成草稿')
@@ -98,7 +103,7 @@ test('V3交互：已登记关系选曲保留Exact与Probable区别，浏览不�
     return { digitalId: exact.digitalId!, before: await window.musicBridge.getCollectionMatrix({ offset: 0, limit: 25 }) }
   })
   await page.locator('[data-sidebar-source="recording"]').click()
-  await page.getByRole('button', { name: '从 Roon 选择音乐', exact: true }).click()
+  await page.getByRole('button', { name: '新建制作', exact: true }).click()
   const picker = page.getByRole('dialog', { name: '从 Roon 选择曲目', exact: true })
   await picker.getByRole('tab', { name: '已登记收藏关系', exact: true }).click()
   await picker.getByRole('button', { name: '查看已登记专辑 关联验收专辑', exact: true }).click()
@@ -136,7 +141,7 @@ test('V3交互：240字符曲目在Picker跨专辑已选区保持可读和键盘
     })
   }, title)
   await page.locator('[data-sidebar-source="recording"]').click()
-  const trigger = page.getByRole('button', { name: '从 Roon 选择音乐', exact: true }); await trigger.click()
+  const trigger = page.getByRole('button', { name: '新建制作', exact: true }); await trigger.click()
   const picker = page.getByRole('dialog', { name: '从 Roon 选择曲目', exact: true })
   await picker.getByRole('button', { name: '查看曲目 关联验收专辑', exact: true }).click()
   await picker.getByRole('checkbox', { name: `选择 ${title}`, exact: true }).check()
@@ -163,7 +168,7 @@ test('V3交互：关系离线与冷启不丢本地资料，不自动重定位或
   })
   async function enter() {
     await page.locator('[data-sidebar-source="recording"]').click()
-    await page.getByRole('button', { name: '从 Roon 选择音乐', exact: true }).click()
+    await page.getByRole('button', { name: '新建制作', exact: true }).click()
     const picker = page.getByRole('dialog', { name: '从 Roon 选择曲目', exact: true })
     const roon = picker.getByRole('tab', { name: 'Roon 浏览', exact: true }); await roon.focus(); await page.keyboard.press('End')
     await expect(picker.getByRole('tab', { name: '已登记收藏关系', exact: true })).toBeFocused()
@@ -231,6 +236,40 @@ test('V3交互：真实多规划历史需明确选择，同谱系Direct路径与
   const planSelect = next.getByRole('combobox', { name: '本次媒体规划', exact: true }), layoutSelect = next.getByRole('combobox', { name: '本次冻结布局', exact: true }), pathSelect = next.getByRole('combobox', { name: '本次处理路径', exact: true })
   await expect(action).toHaveAttribute('data-action', 'choose-context'); await expect(planSelect).toHaveValue('')
   await action.click(); await expect(planSelect).toBeFocused()
+  await app!.evaluate(({ ipcMain }, input) => {
+    const handlers = (ipcMain as unknown as { _invokeHandlers: Map<string, (...args: unknown[]) => Promise<unknown>> })._invokeHandlers
+    const original = handlers.get('commandOutbox:submit')
+    if (!original) throw new Error('缺少正式工作上下文命令 handler')
+    const state = { held: false, release: undefined as (() => void) | undefined, restore: () => { ipcMain.removeHandler('commandOutbox:submit'); ipcMain.handle('commandOutbox:submit', original) } }
+    ;(globalThis as unknown as { task085WorkspaceHold: typeof state }).task085WorkspaceHold = state
+    ipcMain.removeHandler('commandOutbox:submit')
+    ipcMain.handle('commandOutbox:submit', async (...args) => {
+      const result = await original(...args)
+      const submitted = args[1] as { request?: { command?: string; payload?: { draftId?: string; selection?: { planId?: string } } } } | undefined
+      if (!state.held && submitted?.request?.command === 'recordingWorkspace.put' && submitted.request.payload?.draftId === input.draftId
+        && submitted.request.payload.selection?.planId === input.planId && typeof result === 'object' && result !== null && 'ok' in result && result.ok === true) {
+        state.held = true
+        await new Promise<void>(resolve => { state.release = resolve })
+      }
+      return result
+    })
+  }, { draftId: saved.draftId, planId: plans[0]!.id })
+  try {
+    await planSelect.selectOption(plans[0]!.id)
+    await expect.poll(() => app!.evaluate(() => (globalThis as unknown as { task085WorkspaceHold: { held: boolean } }).task085WorkspaceHold.held)).toBe(true)
+    await planSelect.selectOption(plans[1]!.id)
+    await expect(planSelect).toHaveValue(plans[1]!.id)
+    await app!.evaluate(() => (globalThis as unknown as { task085WorkspaceHold: { release?: () => void } }).task085WorkspaceHold.release?.())
+    await expect.poll(async () => (await page.evaluate(id => window.musicBridge.getRecordingWorkspaceContext(id), saved.draftId))?.selection.planId).toBe(plans[1]!.id)
+    const expectedDurations = plans[1]!.layout.sides.map(side => `${Math.floor(side.durationMs! / 60_000)}:${String(Math.floor(side.durationMs! / 1000) % 60).padStart(2, '0')}`)
+    await expect.poll(() => page.locator('.side-card header > span').allTextContents()).toEqual(expectedDurations)
+    await expect(planSelect).toHaveValue(plans[1]!.id)
+  } finally {
+    await app!.evaluate(() => {
+      const state = (globalThis as unknown as { task085WorkspaceHold: { release?: () => void; restore: () => void } }).task085WorkspaceHold
+      state.release?.(); state.restore()
+    })
+  }
   await planSelect.selectOption(plans[0]!.id); await expect(layoutSelect).toHaveValue('')
   await action.click(); await expect(layoutSelect).toBeFocused()
   await layoutSelect.selectOption(layout.id); await expect(pathSelect).toHaveValue('')
@@ -238,7 +277,7 @@ test('V3交互：真实多规划历史需明确选择，同谱系Direct路径与
   await pathSelect.selectOption('direct'); await expect(action).toHaveAttribute('data-action', 'execution')
   await expect(next).toContainText('F-01')
   await action.click()
-  const executionPanel = page.getByRole('dialog', { name: '录音参数与执行资产', exact: true })
+  const executionPanel = page.locator('section.execution-panel.is-inline')
   await expect(executionPanel.getByRole('combobox', { name: '冻结布局', exact: true })).toHaveValue(layout.id)
   await expect(executionPanel.getByRole('combobox', { name: '执行来源', exact: true })).toHaveValue('direct')
   await executionPanel.getByRole('button', { name: '关闭', exact: true }).click()
@@ -246,23 +285,29 @@ test('V3交互：真实多规划历史需明确选择，同谱系Direct路径与
   for (const size of [{ width: 720, height: 480 }, { width: 1440, height: 900 }]) { await page.setViewportSize(size); await next.scrollIntoViewIfNeeded(); await audit(page.locator('.recording-view'), `recording-context-${size.width}`) }
   await planSelect.selectOption(plans[1]!.id); await expect(layoutSelect).toHaveValue(''); await expect(action).toHaveAttribute('data-action', 'versions')
   await action.click()
-  const versionPanel = page.getByRole('dialog', { name: '母版与布局版本', exact: true })
+  const versionPanel = page.locator('section.versions-panel.is-inline')
   await expect(versionPanel.getByRole('combobox', { name: '已保存的规划', exact: true })).toHaveValue(plans[1]!.id)
   await versionPanel.getByRole('button', { name: '关闭', exact: true }).click(); await expect(action).toBeEnabled(); await expect(action).toBeFocused()
   await planSelect.selectOption(plans[0]!.id); await layoutSelect.selectOption(layout.id)
   await page.evaluate(request => window.musicBridge.releaseMediaPlan(request), { commandId: randomUUID(), planId: plans[0]!.id, expectedRevision: plans[0]!.revision, userConfirmed: true as const })
-  await page.getByRole('button', { name: '母版与布局版本', exact: true }).click()
-  await page.getByRole('dialog', { name: '母版与布局版本', exact: true }).getByRole('button', { name: '关闭', exact: true }).click()
+  await expandRecordingDetails()
+  await page.locator('.extra-steps').getByRole('button', { name: '母版与版本', exact: true }).click()
+  await page.locator('section.versions-panel.is-inline').getByRole('button', { name: '关闭', exact: true }).click()
   await expect(planSelect).toHaveValue(''); await expect(layoutSelect).toHaveValue('')
   await planSelect.selectOption(plans[0]!.id); await expect(action).toHaveAttribute('data-action', 'media')
   await action.click()
-  const mediaPanel = page.getByRole('dialog', { name: '分面与选择磁带', exact: true })
+  const mediaPanel = page.locator('section.media-panel.is-inline')
   await expect(mediaPanel.getByRole('combobox', { name: '已存规划', exact: true })).toHaveValue(plans[0]!.id)
   await mediaPanel.getByRole('button', { name: '关闭', exact: true }).click(); await expect(action).toBeFocused()
   expect(await page.evaluate(id => window.musicBridge.listMasterVersions(id), saved.draftId)).toEqual(history)
   expect(await readFile(sourceFile)).toEqual(bytes)
+  await expect.poll(async () => { const stored = await page.evaluate(id => window.musicBridge.getRecordingWorkspaceContext(id), saved.draftId); return { planId: stored?.selection.planId, page: stored?.pagePosition } }).toEqual({ planId: plans[0]!.id, page: 'workbench' })
+  const storedContext = await page.evaluate(id => window.musicBridge.getRecordingWorkspaceContext(id), saved.draftId)
   await close(); await launch(); await openDraft('多历史上下文')
-  await expect(page.getByTestId('recording-next-step').getByRole('combobox', { name: '本次媒体规划', exact: true })).toHaveValue('')
+  await page.getByTestId('recording-next-step').locator('.next-details > summary').click()
+  await expect(page.getByTestId('recording-next-step').getByRole('combobox', { name: '本次媒体规划', exact: true })).toHaveValue(plans[0]!.id)
+  expect((await page.evaluate(id => window.musicBridge.getRecordingWorkspaceContext(id), saved.draftId))?.selection).toEqual(storedContext?.selection)
+  await expect(page.getByTestId('recording-next-action')).toHaveAttribute('data-action', 'media')
 })
 
 test('TASK-085 J05：正式 UI 登记发行与逐件、归属照片、关联更正撤销并冷启保留', async () => {

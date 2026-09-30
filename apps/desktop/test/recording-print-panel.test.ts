@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as c from '@music-bridge/contracts';
 import { id, planFixture, recordFixture, stateFixture, mounted } from './helpers/recording-print-ui.js';
-import { createRecordingPrintRequest } from '../../../packages/bridge-core/src/recording/print-facts.js';
+import { buildRecordingPrintFacts, createRecordingPrintRequest } from '../../../packages/bridge-core/src/recording/print-facts.js';
 const end = '2026-08-29T00:00:00.000Z', hash = 'a'.repeat(64), image = { dataUrl: 'data:image/jpeg;base64,/9j/2Q==', width: 1, height: 1 };
 function deferred<T>() { let resolve!: (v: T) => void, reject!: (e: Error) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; }
 function fixture() {
@@ -17,6 +17,19 @@ function fixture() {
     return { detail, job, result, api, calls };
 }
 async function controller(f = fixture()) { const m = await import('../src/renderer/src/components/recording/recording-print-controller.js').catch(() => ({})); assert.ok('createRecordingPrintController' in m); const ctl = (m as typeof import('../src/renderer/src/components/recording/recording-print-controller.js')).createRecordingPrintController({ api: f.api, detail: f.detail }); return { ...f, ctl }; }
+test('印刷合成冻结事实复算内容/时间线Hash；拒绝漂移，不覆写原Record或输入证据', () => {
+  const f = fixture(), original = structuredClone(f.detail), result = structuredClone(f.result);
+  assert.deepEqual(buildRecordingPrintFacts(f.detail.record, f.detail.plan), f.result.facts);
+  for (const mutate of [
+    (detail: c.RecordingRecordDetail) => { detail.plan.master.contentHash = '0'.repeat(64); },
+    (detail: c.RecordingRecordDetail) => { detail.plan.layout.timelineHash = '0'.repeat(64); },
+    (detail: c.RecordingRecordDetail) => { detail.record.completion.sides[0]!.recipeHash = '0'.repeat(64); },
+  ]) {
+    const changed = structuredClone(f.detail); mutate(changed);
+    assert.throws(() => buildRecordingPrintFacts(changed.record, changed.plan), { code: 'INVALID_HISTORY' });
+  }
+  assert.deepEqual(f.detail, original); assert.deepEqual(f.result, result);
+});
 test('打印读取不创建/不自动选Artifact；显式get后才能导出', async () => { const f = await controller(); await f.ctl.refresh(); assert.equal(f.ctl.state.selectedId, ''); await f.ctl.exportPdf(); assert.deepEqual(f.calls.map(x => x.name), ['list']); });
 test('旧Record补建必须人工确认，失败原DTO重试、不隐式outbox', async () => { const f = await controller(); await f.ctl.request(); assert.equal(f.calls.length, 0); f.ctl.setConfirmed(true); f.api.requestRecordingPrint = async (r) => { f.calls.push({ name: 'request', request: r }); throw new Error('/private/secret'); }; await f.ctl.request(); assert.ok(f.ctl.state.pending); await f.ctl.retryPending(); assert.deepEqual(f.calls[0]!.request, f.calls[1]!.request); assert.doesNotMatch(f.ctl.state.error, /private|secret/); f.ctl.abandonPending(); assert.equal(f.ctl.canClose(), true); });
 test('新印刷版本的尺寸、选图与 QR 只入本次 design；迟到选图不能跨 controller 代际', async () => {

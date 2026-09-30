@@ -1,3 +1,4 @@
+import { rebuildLegacySchema } from './helpers/rebuild-legacy-schema.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, mkdir, readFile, rm } from 'node:fs/promises';
@@ -89,12 +90,12 @@ test('不存在的实体 ID 不能写入工作台；失效但仍存在的 ID 可
   finally { reopened.close(); }
 });
 
-test('schema21隔离恢复后正式迁移到22；schema22备份回读上下文并拒绝损坏选择', async t => {
+test('schema21隔离恢复后正式迁移到30；schema30备份回读上下文并拒绝损坏选择', async t => {
   const { directory, filePath, repository } = await fixture(t);
   const current = draft(repository);
   repository.close();
   const old = new DatabaseSync(filePath);
-  try { old.exec('DROP TABLE recording_workspace_ledger; DROP TABLE recording_workspace_contexts; PRAGMA user_version=21;'); }
+  try { rebuildLegacySchema(old, 21); }
   finally { old.close(); }
   const oldBytes = await readFile(filePath);
   readBackupIndex(filePath);
@@ -107,7 +108,7 @@ test('schema21隔离恢复后正式迁移到22；schema22备份回读上下文�
     assert.equal(context.contextRevision, 1);
     const destination = path.join(directory, 'backup'); await mkdir(destination);
     const snapshot = await migrated.backupSnapshot({ ...await authorizeSourceDirectory(destination), id: randomUUID() });
-    assert.equal(snapshot.schemaVersion, 22);
+    assert.equal(snapshot.schemaVersion, 30);
     const copy = path.join(destination, 'collection.sqlite');
     readBackupIndex(copy); isolateRestoredDatabase(copy); verifyRestoredDatabaseIsolation(copy);
     const restored = createCollectionRepository({ filePath: copy });

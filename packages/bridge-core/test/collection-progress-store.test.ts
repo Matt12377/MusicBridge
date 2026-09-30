@@ -1,3 +1,4 @@
+import { historicalRows } from './helpers/rebuild-legacy-schema.js';
 import assert from 'node:assert/strict';
 import { randomUUID, createHash } from 'node:crypto';
 import { readFile, mkdtemp, rm } from 'node:fs/promises';
@@ -11,7 +12,7 @@ import { createCollectionRepository } from '../src/collection/repository.js';
 const page = { offset: 0, limit: 25 };
 const sha = (value: string) => createHash('sha256').update(value).digest('hex');
 const item = (referenceId = 'a', changes: Partial<CanonicalReference> = {}): CanonicalReference => ({ referenceId, bookId: 'progress-book', brand: '合成品牌', series: '合成系列', model: referenceId, edition: '1990', lengths: [46, 90], iec: 'II', era: '1990', image: { kind: 'none' }, pages: ['1'], notes: '合成参考项', confidence: 'high', ...changes });
-function facts(db: DatabaseSync) { return db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT GLOB 'recording_plan*' AND name NOT GLOB 'recording_attempt*' AND name NOT GLOB 'recording_record*' AND name NOT GLOB 'recording_print*' AND name NOT GLOB 'master_artwork*' AND name NOT GLOB 'sqlite_*' AND name NOT GLOB 'collection_progress_*' AND name NOT GLOB 'collection_want*' ORDER BY name").all().map(({ name }) => [name, db.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all()]); }
+function facts(db: DatabaseSync) { return historicalRows(db, 16); }
 async function fixture(t: test.TestContext, beforeCommit?: (action: string) => void) {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-progress-')), filePath = path.join(directory, 'collection.sqlite');
   const db = new DatabaseSync(filePath); db.exec(await readFile(new URL('./fixtures/collection-schema16.sql', import.meta.url), 'utf8')); db.close();
@@ -33,7 +34,7 @@ test('固定schema16迁移21逐列保留XLSX原bytes/更正/实体照片/目录�
   assert.throws(() => repository.list(page), /库存暂时不可用/u);
   db = new DatabaseSync(filePath, { readOnly: true }); assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 16); assert.deepEqual(facts(db), before); db.close();
   fail = false; repository.list(page); repository.close(); db = new DatabaseSync(filePath, { readOnly: true });
-  try { assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 21); assert.deepEqual(facts(db), before); assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []); } finally { db.close(); }
+  try { assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 30); assert.deepEqual(facts(db), before); assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []); } finally { db.close(); }
 });
 test('Owned90再Wanted46仍分子1，品牌/系列守恒，读取不改库存与目录历史', async t => {
   const { repository, filePath } = await fixture(t), modelId = repository.list(page).items.find(m => m.name === '固定旧库型号')!.id;

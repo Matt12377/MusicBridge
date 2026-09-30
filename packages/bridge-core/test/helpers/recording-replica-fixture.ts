@@ -1,3 +1,4 @@
+import { waitForVerifiedOutputRun } from './output-run-ready.js';
 import type test from 'node:test';
 import { randomUUID } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
@@ -22,7 +23,7 @@ export async function completeReplicaPlan(t:test.TestContext,repository:Collecti
     const driver=starts[i]!,side=attempt.sides[i]!,identity={side:side.side,runId:driver.runId,at:new Date().toISOString()};
     driver.onEvent({...identity,type:'progress',sourceFramesRead:side.frameCount,submittedFrames:side.frameCount,consumedFrames:side.frameCount});
     for(const type of ['source-eof','engine-cutoff','cleanup-quiescent','backend-drained'] as const)driver.onEvent({...identity,type});
-    await new Promise<void>(r=>setImmediate(r));attempt=attempts.get({attemptId:attempt.id}).attempt!;
+    await waitForVerifiedOutputRun(repository, attempt.id, driver.runId);attempt=attempts.get({attemptId:attempt.id}).attempt!;
     attempt=await attempts.confirm({commandId:randomUUID(),attemptId:attempt.id,expectedRevision:attempt.revision,kind:'physical-stop',side:side.side,userConfirmed:true});
   }
   attempt=await attempts.confirm({commandId:randomUUID(),attemptId:attempt.id,expectedRevision:attempt.revision,kind:'physical-recording',userConfirmed:true});

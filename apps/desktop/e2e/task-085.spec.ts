@@ -3,9 +3,10 @@ import { _electron as electron, expect, test, type ElectronApplication, type Pag
 import { mkdtemp, mkdir, readFile, realpath, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { waitForMainWindow } from './main-window.js'
+import { e2eTemporaryRoot } from './temporary-root.js'
 
 const desktopRoot = path.resolve(import.meta.dirname, '..')
-const temporaryRoot = '/Volumes/LifeWeave/Developer/CommandLine/tmp'
+const temporaryRoot = e2eTemporaryRoot()
 let app: ElectronApplication | undefined
 let page: Page
 let userData: string
