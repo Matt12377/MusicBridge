@@ -51,6 +51,10 @@ async function expandRecordingDetails(): Promise<void> {
   const details = page.locator('.extra-steps')
   if (!await details.evaluate(element => (element as HTMLDetailsElement).open)) await details.locator(':scope > summary').click()
 }
+async function expandRecordingContext(): Promise<void> {
+  const details = page.getByTestId('recording-next-step').locator('.next-details')
+  if (!await details.evaluate(element => (element as HTMLDetailsElement).open)) await details.locator(':scope > summary').click()
+}
 
 test('V3交互：240字符草稿长名在窄窗与宽窗均可读，不撑出主内容', async () => {
   const title = 'W'.repeat(240); await draft(title); await openDraft(title)
@@ -293,17 +297,20 @@ test('V3交互：真实多规划历史需明确选择，同谱系Direct路径与
   await expect(executionPanel.getByRole('combobox', { name: '执行来源', exact: true })).toHaveValue('direct')
   await executionPanel.getByRole('button', { name: '关闭', exact: true }).click()
   await expect(action).toBeEnabled(); await expect(action).toBeFocused()
+  await expandRecordingContext()
   for (const size of [{ width: 720, height: 480 }, { width: 1440, height: 900 }]) { await page.setViewportSize(size); await next.scrollIntoViewIfNeeded(); await audit(page.locator('.recording-view'), `recording-context-${size.width}`) }
   await planSelect.selectOption(plans[1]!.id); await expect(layoutSelect).toHaveValue(''); await expect(action).toHaveAttribute('data-action', 'versions')
   await action.click()
   const versionPanel = page.locator('section.versions-panel.is-inline')
   await expect(versionPanel.getByRole('combobox', { name: '已保存的规划', exact: true })).toHaveValue(plans[1]!.id)
   await versionPanel.getByRole('button', { name: '关闭', exact: true }).click(); await expect(action).toBeEnabled(); await expect(action).toBeFocused()
+  await expandRecordingContext()
   await planSelect.selectOption(plans[0]!.id); await layoutSelect.selectOption(layout.id)
   await page.evaluate(request => window.musicBridge.releaseMediaPlan(request), { commandId: randomUUID(), planId: plans[0]!.id, expectedRevision: plans[0]!.revision, userConfirmed: true as const })
   await expandRecordingDetails()
   await page.locator('.extra-steps').getByRole('button', { name: '母版与版本', exact: true }).click()
   await page.locator('section.versions-panel.is-inline').getByRole('button', { name: '关闭', exact: true }).click()
+  await expandRecordingContext()
   await expect(planSelect).toHaveValue(''); await expect(layoutSelect).toHaveValue('')
   await planSelect.selectOption(plans[0]!.id); await expect(action).toHaveAttribute('data-action', 'media')
   await action.click()

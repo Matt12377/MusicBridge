@@ -1,6 +1,8 @@
 import { testElectronArguments } from '../scripts/test-keychain.mjs'
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { mkdtemp, readFile, rm, mkdir, readdir } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, mkdir, readdir, writeFile } from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import os from 'node:os'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -153,7 +155,8 @@ export async function verifyBackupRestoreWorkflow({ session, electronEntry, desk
     delete environment.NETEASE_COOKIE; delete environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY
     await electronApp.close()
     const oldDatabasePath = path.join(diagnosticDirectory, 'data', 'collection.v1.sqlite')
-    const oldDatabaseBytes = await readFile(oldDatabasePath)
+    const preLaunchDatabaseBytes = await readFile(oldDatabasePath)
+    await writeFile(test.info().outputPath('old-database-before-second-launch.sha256'), createHash('sha256').update(preLaunchDatabaseBytes).digest('hex'))
     session.electronApp = electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: environment }); session.page = page = await electronApp.firstWindow()
     await page.setViewportSize({ width: 720, height: 800 })
     await expect.poll(async () => (await page.evaluate(() => window.musicBridge.getCoreHealth())).runtime).toBe('ready')
@@ -173,6 +176,35 @@ export async function verifyBackupRestoreWorkflow({ session, electronEntry, desk
     await expect.poll(async () => (await page.evaluate(() => window.musicBridge.getPlaybackState())).state).toBe('playing')
     const beforeCore = await electronApp.evaluate(({ app }) => app.getAppMetrics().filter(p => p.name === 'Music Bridge Core' || p.serviceName === 'Music Bridge Core').map(p => ({ pid: p.pid, created: p.creationTime })))
     expect(beforeCore).toHaveLength(1)
+    const inventoryRows = () => {
+      const db = new DatabaseSync(oldDatabasePath, { readOnly: true })
+      try {
+        db.exec('BEGIN DEFERRED')
+        const tables = db.prepare("SELECT name FROM sqlite_schema WHERE type = 'table' AND name LIKE 'collection_%' ORDER BY name").all().map(row => String(row.name))
+        return Object.fromEntries(tables.map(name => [name, db.prepare(`SELECT * FROM "${name.replaceAll('"', '""')}"`).all().map(row => JSON.stringify(row)).sort()]))
+      } finally { db.close() }
+    }
+    const oldInventory = inventoryRows()
+    let stoppedDatabaseBytes: Buffer | undefined, stoppedCoreExitCode: number | undefined, lifecycleBuffer = '', captureFailure: string | undefined
+    const stdout = electronApp.process().stdout
+    if (!stdout) throw new Error('缺少本例 Main 生命周期观测流，不能确认旧 Core 收尾后的字节基线')
+    const captureStoppedDatabase = (chunk: Buffer | string) => {
+      lifecycleBuffer += chunk.toString()
+      const lines = lifecycleBuffer.split('\n'); lifecycleBuffer = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.startsWith('TASK078_LIFECYCLE ')) continue
+        try {
+          const event = JSON.parse(line.slice('TASK078_LIFECYCLE '.length)) as { phase: string; exitCode?: number }
+          if (event.phase !== 'core-exit') continue
+          stoppedCoreExitCode = event.exitCode
+          stoppedDatabaseBytes = readFileSync(oldDatabasePath)
+        } catch (error) { captureFailure = String(error) }
+        stdout.off('data', captureStoppedDatabase)
+        break
+      }
+    }
+    // 第二次启动仍会合法持久化工作位置和原操作回执；在真实旧 Core 退出、WAL 收尾后固定不可覆写基线。
+    stdout.on('data', captureStoppedDatabase)
     await loseNextOutboxReceipt(electronApp, 'recordingBackups.activate', '合成激活回执丢失')
     await activationButton.click()
     const retryActivation = activationPanel.getByRole('button', { name: '重试备份恢复原操作', exact: true })
@@ -190,7 +222,14 @@ export async function verifyBackupRestoreWorkflow({ session, electronEntry, desk
     const currentCollection = await page.evaluate(() => window.musicBridge.listCollection({ offset: 0, limit: 100 }))
     expect(currentCollection.items.map(item => item.id)).toEqual([retainedStock.modelId])
     expect((await page.evaluate(() => window.musicBridge.getPlaybackState())).state).toBe('idle')
-    expect(await readFile(oldDatabasePath)).toEqual(oldDatabaseBytes)
+    await expect.poll(() => stoppedDatabaseBytes !== undefined || captureFailure !== undefined).toBe(true)
+    expect(captureFailure).toBeUndefined()
+    expect(stoppedCoreExitCode).toBe(0)
+    if (!stoppedDatabaseBytes) throw new Error('未取得旧 Core 退出后的真实数据库字节')
+    const oldDatabaseBytes = stoppedDatabaseBytes
+    await writeFile(test.info().outputPath('old-database-at-core-exit.sha256'), createHash('sha256').update(oldDatabaseBytes).digest('hex'))
+    expect(inventoryRows()).toEqual(oldInventory)
+    expect((await readFile(oldDatabasePath)).equals(oldDatabaseBytes), '激活后旧库必须逐字节保持旧 Core 退出时的内容').toBe(true)
     const oldDatabase = new DatabaseSync(oldDatabasePath, { readOnly: true })
     try { expect(oldDatabase.prepare('SELECT id FROM collection_models ORDER BY id').all().map(row => row.id)).toEqual([retainedStock.modelId, laterStock.modelId].sort()) }
     finally { oldDatabase.close() }
@@ -217,6 +256,6 @@ export async function verifyBackupRestoreWorkflow({ session, electronEntry, desk
     expect((await page.evaluate(() => window.musicBridge.getBackupOverview())).activations).toEqual(activated)
     expect((await page.evaluate(() => window.musicBridge.listCollection({ offset: 0, limit: 100 }))).items.map(item => item.id)).toEqual([retainedStock.modelId])
     expect((await page.evaluate(() => window.musicBridge.getPlaybackState())).state).toBe('idle')
-    expect(await readFile(oldDatabasePath)).toEqual(oldDatabaseBytes)
+    expect((await readFile(oldDatabasePath)).equals(oldDatabaseBytes), '候选库冷启动后旧库仍须逐字节不变').toBe(true)
   } finally { await rm(work, { recursive: true, force: true }) }
 }

@@ -322,7 +322,7 @@ test('V3同数据集7盘：幂等Completed、Replica历史核验、真实J-Card�
     const scopeBefore = (await page.evaluate(() => window.musicBridge.getCommandOutbox())).datasetId
     await page.locator('[data-sidebar-source="recording"]').click()
     await page.getByRole('button', { name: '备份与恢复', exact: true }).click()
-    const restorePanel = page.getByRole('dialog', { name: '备份与恢复', exact: true })
+    const restorePanel = page.locator('section.backup-panel.is-inline')
     await expect(restorePanel).toBeVisible()
     await restorePanel.getByRole('combobox', { name: /^待激活的隔离恢复/u }).selectOption(restored.id)
     await restorePanel.getByLabel('我确认停止播放、重启 Core 并复制为新工作库；保留旧库，丢弃未保存的录音编辑', { exact: true }).check()

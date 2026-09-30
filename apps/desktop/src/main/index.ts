@@ -1271,12 +1271,14 @@ function registerIpcHandlers(
     handle: (channel, handler) => ipcMain.handle(channel, handler), supervisor,
     windowFor: event => {
       const window = requireTrustedRenderer(event)
+      const contents = window.webContents
       return {
         id: window.id,
         onInvalidated: listener => {
-          window.webContents.on('did-start-navigation', listener)
+          contents.on('did-start-navigation', listener)
           window.on('closed', listener)
-          return () => { window.webContents.removeListener('did-start-navigation', listener); window.removeListener('closed', listener) }
+          // closed 时原生窗口已销毁；解除监听使用登记时的对象，不再读取窗口 getter。
+          return () => { contents.removeListener('did-start-navigation', listener); window.removeListener('closed', listener) }
         },
       }
     },

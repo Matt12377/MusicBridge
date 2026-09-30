@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
-import type { CollectionCopyDetail, DraftProgramType, MasterDraft, MasterDraftResult, MasterDraftSummary, Page, AppendMasterDraftRequest, ExecutionMode, MediaLayoutSpec, RecordingWorkspacePagePosition, RecordingWorkspaceSelection, RecordingWorkspaceStaleReason } from '@music-bridge/contracts'
+import type { CollectionCopyDetail, DraftProgramType, MasterDraft, MasterDraftResult, MasterDraftSummary, Page, AppendMasterDraftRequest, ExecutionMode, MediaPlan, MediaLayoutSpec, RecordingWorkspacePagePosition, RecordingWorkspaceSelection, RecordingWorkspaceStaleReason } from '@music-bridge/contracts'
 import BackupRestorePanel from './BackupRestorePanel.vue'
 import MediaPlanningPanel from './MediaPlanningPanel.vue'
 import MasterVersionsPanel from './MasterVersionsPanel.vue'
@@ -370,25 +370,30 @@ async function confirmCurrentWorkspaceSelection(label: string, patch: Partial<Re
 }
 async function closeSources(): Promise<void> { const trackId = sourceTrackId.value; sourceTrackId.value = ''; recordPage('workbench'); await refreshAfterClose(sourceOpener, () => viewRoot.value?.querySelector<HTMLElement>(`[data-recording-return-focus="source-${trackId}"]`) ?? undefined) }
 async function closeMediaPlanning(): Promise<void> { mediaPlanning.value = false; recordPage('workbench'); await refreshAfterClose(mediaOpener, () => viewRoot.value?.querySelector<HTMLElement>('[data-recording-return-focus="media-main"]') ?? undefined) }
-async function mediaChanged(): Promise<void> {
-  await refreshWorkflow()
-  if (workflow.state.status !== 'ready') return
-  const plan = workflow.state.facts?.plans.plans.find(value => value.id === workflow.state.selection.planId)
-  if (plan) { workbenchSpec.value = structuredClone(plan.spec); workbenchBaselineSpec.value = JSON.stringify(plan.spec) }
+let mediaSelectionSequence = 0
+async function mediaChanged(changed: MediaPlan): Promise<void> {
+  if (changed.draftId !== draft.value?.id) return
+  // 保存、预留或释放的回执明确指向本次操作的规划，连同工作上下文保存。
+  await mediaSelected(changed.id)
 }
 async function mediaSelected(planId: string | null): Promise<void> {
-  const draftId = draft.value?.id, token = generation
+  const draftId = draft.value?.id, draftRevision = draft.value?.revision, token = generation, sequence = ++mediaSelectionSequence
+  const specAtStart = JSON.stringify(workbenchSpec.value)
   if (!draftId || workspace.state.status !== 'ready') return
   await refreshWorkflow()
-  if (!alive || token !== generation || draft.value?.id !== draftId || workflow.state.status !== 'ready') return
+  if (!alive || token !== generation || sequence !== mediaSelectionSequence || draft.value?.id !== draftId || workflow.state.status !== 'ready') return
   workflow.select({ planId: planId ?? undefined })
   if (workflow.state.selection.planId !== (planId ?? undefined)) {
     notice.value = '所选规划不属于当前制作或事实已变化；不会改选最新规划。'; return
   }
   await workspace.choose({ planId: planId ?? undefined })
-  if (!alive || token !== generation || draft.value?.id !== draftId) return
+  if (!alive || token !== generation || sequence !== mediaSelectionSequence || draft.value?.id !== draftId) return
   if (!workspaceSelectionConfirmed(workflow.state.selection, draftId)) {
     notice.value = '本次选盘尚未取得工作库持久回执；请重试原保存操作或重新读取。'; return
+  }
+  if (dirty.value || draft.value.revision !== draftRevision || JSON.stringify(workbenchSpec.value) !== specAtStart) {
+    notice.value = '规划选择已保存；保留你刚修改的草稿和分面，请完成保存后再核对。'
+    return
   }
   const plan = workflow.state.facts?.plans.plans.find(value => value.id === planId)
   if (plan) { workbenchSpec.value = structuredClone(plan.spec); workbenchBaselineSpec.value = JSON.stringify(plan.spec) }
@@ -396,6 +401,7 @@ async function mediaSelected(planId: string | null): Promise<void> {
 async function closeMasterVersions(): Promise<void> { masterVersions.value = false; recordPage('workbench'); await refreshAfterClose(versionsOpener, () => viewRoot.value?.querySelector<HTMLElement>('[data-recording-return-focus="versions"]') ?? undefined) }
 async function selectWorkflow(selection: Partial<RecordingWorkflowSelection>): Promise<void> {
   if (blocked.value || dirty.value || splitDirty.value || workspace.state.status !== 'ready') return
+  ++mediaSelectionSequence
   const draftId = draft.value?.id, draftRevision = draft.value?.revision, token = generation
   workflow.select(selection)
   const accepted: Partial<RecordingWorkspaceSelection> = {}

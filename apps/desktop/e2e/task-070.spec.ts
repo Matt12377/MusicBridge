@@ -360,7 +360,7 @@ test('V3完成度：合法大目录历史按响应字节预算分页，完整分
     const snapshot = await page.evaluate(request => window.musicBridge.captureCollectionProgress(request), { commandId: randomUUID(), revisionId: catalog.revision.id, expectedFingerprint: current.fingerprint, userConfirmed: true as const })
     expect(snapshot.overall.total).toBe(500); captured.push(snapshot.id)
   }
-  const seen: string[] = [], pageSizes: number[] = []
+  const seen: string[] = [], pageSizes: number[] = [], pageSummaries: string[][] = []
   let offset = 0, pages = 0
   while (offset < 25) {
     const result = await page.evaluate(request => window.musicBridge.listCollectionProgressSnapshots(request), { bookId, page: { offset, limit: 25 } })
@@ -376,6 +376,7 @@ test('V3完成度：合法大目录历史按响应字节预算分页，完整分
       seen.push(snapshot.id)
     }
     pageSizes.push(result.items.length)
+    pageSummaries.push(result.items.map(snapshot => `${snapshot.createdAt} · 目录修订 ${snapshot.catalogSequence}`))
     offset += result.items.length; pages++
     expect(result.hasMore).toBe(offset < 25)
     expect(pages).toBeLessThanOrEqual(25)
@@ -392,10 +393,13 @@ test('V3完成度：合法大目录历史按响应字节预算分页，完整分
   await panel.getByRole('navigation', { name: '完成度与求购内容' }).getByRole('button', { name: '历史', exact: true }).click()
   await panel.getByRole('button', { name: '读取完成度快照历史', exact: true }).click()
   const historyButtons = panel.getByRole('button', { name: '读取此完成度快照', exact: true })
+  const historySummaries = historyButtons.locator('..').locator('strong')
   await expect(historyButtons).toHaveCount(pageSizes[0]!)
+  await expect(historySummaries).toHaveText(pageSummaries[0]!)
   for (let index = 1; index < pageSizes.length; index++) {
     await panel.getByRole('button', { name: '下一页快照', exact: true }).click()
     await expect(historyButtons).toHaveCount(pageSizes[index]!)
+    await expect(historySummaries).toHaveText(pageSummaries[index]!)
   }
   await expect(panel.getByRole('button', { name: '下一页快照', exact: true })).toBeDisabled()
   const previous = panel.getByRole('button', { name: '上一页快照', exact: true })
@@ -406,6 +410,7 @@ test('V3完成度：合法大目录历史按响应字节预算分页，完整分
     // 相邻预算页可能同为12条；必须等读取结束，不能仅用条数判定已返回。
     await expect(panel.getByRole('button', { name: '关闭', exact: true })).toBeEnabled()
     await expect(historyButtons).toHaveCount(pageSizes[index]!)
+    await expect(historySummaries).toHaveText(pageSummaries[index]!)
   }
   await expect(previous).toBeDisabled()
   await page.keyboard.press('Escape'); await expect(panel).not.toBeVisible()
