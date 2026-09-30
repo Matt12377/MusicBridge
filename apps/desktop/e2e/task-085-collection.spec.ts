@@ -8,6 +8,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { CanonicalReference, SourcePack } from '@music-bridge/contracts'
 import { e2eTemporaryRoot } from './temporary-root.js'
+import { selectModelPage } from './collection-navigation.js'
 
 const desktopRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const fromCore = createRequire(path.join(desktopRoot, '../../packages/bridge-core/package.json'))
@@ -260,7 +261,10 @@ test('TASK-085 J03/J04/C11：库存表原行到目录合并拆分、求购快照
     await expect(unknownCard).toHaveCount(1)
     await unknownCard.click()
     const modelDetail = page.locator('.model-detail')
+    await selectModelPage(page, '我的库存')
     await modelDetail.getByRole('button', { name: '登记旧录音' }).click()
+    await selectModelPage(page, '实体磁带')
+    await expect(modelDetail.locator('article.copy strong').first()).toBeVisible()
     const physicalId = (await modelDetail.locator('article.copy strong').first().textContent())?.trim() ?? ''
     expect(physicalId).toMatch(/^MB-C-\d{5,9}$/u)
     const baselinePhysical = await physicalEvidence(physicalId)

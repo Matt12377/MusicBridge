@@ -1,4 +1,5 @@
 import { testElectronArguments } from '../scripts/test-keychain.mjs'
+import { openCollectionView, selectModelPage } from './collection-navigation.js'
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, mkdir, writeFile, realpath, readFile } from 'node:fs/promises'
@@ -115,14 +116,15 @@ test('V3档案界面明确选择实体和处置，空态与读取故障分开、
   await expect(panel).not.toContainText('/private/')
   await panel.getByRole('button', { name: '关闭录音档案', exact: true }).click(); await expect(trigger).toBeFocused()
   // 双库必须导航至同一实体；读取故障不影响明确的历史入口，也不复制库存。
-  await page.locator('[data-sidebar-source="collection"]').click()
+  await openCollectionView(page, 'tapes')
   await page.locator('.inventory-card').filter({ hasText: '界面旧录音' }).click()
+  await selectModelPage(page, '实体磁带')
   const inventoryEntry = page.getByRole('button', { name: '档案与当前内容', exact: true })
   await inventoryEntry.click()
   await expect(page.getByTestId('recording-record-history')).toContainText(copy.physicalId!)
   await expect(panel).toContainText('内容修订 1')
   await panel.getByRole('button', { name: '关闭录音档案', exact: true }).click(); await expect(inventoryEntry).toBeFocused()
-  await page.getByRole('tab', { name: '实体音乐库', exact: true }).click()
+  await openCollectionView(page, 'music')
   const musicCard = page.locator('.music-card').filter({ hasText: copy.physicalId! })
   await expect(musicCard).toHaveCount(1); await musicCard.click()
   await expect(page.getByRole('button', { name: '补录录音内容', exact: true })).toHaveCount(0)

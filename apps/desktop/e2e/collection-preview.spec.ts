@@ -91,8 +91,50 @@ async function assertNoHorizontalOverflow(): Promise<void> {
   expect(geometry.right).toBeLessThanOrEqual(geometry.windowWidth + 1)
 }
 
+/** 当前全宽墙按容器宽度响应；验证真实行列、间距和完整图片，不固定桌面列数。 */
+async function assertCollectionWallGeometry(): Promise<void> {
+  const grid = page.locator('.inventory-grid')
+  await expect(grid).toBeVisible()
+  const geometry = await grid.evaluate(element => {
+    const collection = element.closest<HTMLElement>('.collection-view')!, scroll = collection.closest<HTMLElement>('.content-scroll')!
+    const collectionStyle = getComputedStyle(collection), scrollStyle = getComputedStyle(scroll), style = getComputedStyle(element)
+    const boxes = [...element.querySelectorAll<HTMLElement>('.inventory-tile')].map(tile => { const box = tile.getBoundingClientRect(); return { x: box.x, y: box.y, width: box.width, right: box.right } })
+    const media = [...element.querySelectorAll<HTMLElement>('.inventory-card-media')].map(item => { const box = item.getBoundingClientRect(); return { width: box.width, height: box.height } })
+    const images = [...element.querySelectorAll<HTMLImageElement>('.inventory-card-photo img')].map(image => {
+      const box = image.getBoundingClientRect(), frame = image.closest<HTMLElement>('.inventory-card-media')!.getBoundingClientRect()
+      return { fit: getComputedStyle(image).objectFit, width: image.naturalWidth, height: image.naturalHeight,
+        left: box.left - frame.left, top: box.top - frame.top, right: box.right - frame.right, bottom: box.bottom - frame.bottom }
+    })
+    return { collectionWidth: collection.getBoundingClientRect().width,
+      availableWidth: scroll.clientWidth - parseFloat(scrollStyle.paddingLeft) - parseFloat(scrollStyle.paddingRight),
+      containerWidth: collection.clientWidth - parseFloat(collectionStyle.paddingLeft) - parseFloat(collectionStyle.paddingRight),
+      gridWidth: element.clientWidth, columns: style.gridTemplateColumns.split(/\s+/u).length, gap: parseFloat(style.columnGap), boxes, media, images }
+  })
+  expect(geometry.collectionWidth).toBeCloseTo(geometry.availableWidth, 0)
+  const gap = geometry.containerWidth <= 820 ? 20 : 28
+  const columns = geometry.containerWidth <= 480 ? 1 : geometry.containerWidth <= 820 ? 2 : Math.max(1, Math.floor((geometry.gridWidth + gap) / (280 + gap)))
+  expect(geometry.columns).toBe(columns)
+  expect(geometry.gap).toBe(gap)
+  expect(geometry.boxes.length).toBeGreaterThan(0)
+  const firstRow = geometry.boxes.slice(0, columns)
+  for (const [index, box] of firstRow.entries()) {
+    expect(box.y).toBeCloseTo(firstRow[0]!.y, 0)
+    expect(box.width).toBeCloseTo(firstRow[0]!.width, 0)
+    if (index) expect(box.x - firstRow[index - 1]!.right).toBeCloseTo(gap, 0)
+  }
+  if (geometry.boxes.length > columns) expect(geometry.boxes[columns]!.y).toBeGreaterThan(firstRow[0]!.y)
+  for (const media of geometry.media) expect(media.width / media.height).toBeCloseTo(8 / 5, 2)
+  for (const image of geometry.images) {
+    expect(image.fit).toBe('contain')
+    expect(image.width).toBeGreaterThan(0); expect(image.height).toBeGreaterThan(0)
+    expect(image.left).toBeGreaterThanOrEqual(-1); expect(image.top).toBeGreaterThanOrEqual(-1)
+    expect(image.right).toBeLessThanOrEqual(1); expect(image.bottom).toBeLessThanOrEqual(1)
+  }
+}
+
 async function capture(name: string): Promise<void> {
   await assertNoHorizontalOverflow()
+  if (await page.locator('.inventory-grid').isVisible()) await assertCollectionWallGeometry()
   await page.screenshot({ path: test.info().outputPath(`${name}.png`), scale: 'css', animations: 'disabled' })
   const geometry = await page.evaluate(() => ({ width: innerWidth, height: innerHeight, theme: document.documentElement.dataset.theme,
     cards: [...document.querySelectorAll('.inventory-card')].map(card => { const box = card.getBoundingClientRect(); return { x: box.x, y: box.y, width: box.width, height: box.height } }) }))
@@ -207,7 +249,7 @@ test('收藏原型：状态筛选跨分页、墙与库存切换以及详情返�
   await expect(page.locator('.inventory-card-title')).toHaveText(Array.from({ length: 9 }, (_, index) => `合成收藏品牌 合成型号 ${String(9 - index).padStart(2, '0')}`))
 })
 
-test('收藏原型：浅深色三列墙、720 窄窗长型号、滚动入口与实体音乐仍可使用', async () => {
+test('收藏原型：浅深色全宽响应式墙、720 窄窗长型号、滚动入口与实体音乐仍可使用', async () => {
   await seedCollection(4)
   await seedReferenceImage()
   await openCollection()
@@ -219,12 +261,9 @@ test('收藏原型：浅深色三列墙、720 窄窗长型号、滚动入口与�
   const referenceCard = cards.filter({ has: page.locator('.inventory-card-title', { hasText: '合成收藏品牌 合成型号 01' }) })
   await expect(referenceCard).toContainText('书籍参考 · 版次未核')
   await expect(referenceCard.getByRole('img', { name: /书籍参考图，非实物照片/u })).toBeVisible()
-  const columns = await cards.evaluateAll(elements => new Set(elements.slice(0, 3).map(element => Math.round(element.getBoundingClientRect().x))).size)
-  expect(columns).toBe(3)
-  const rows = await cards.evaluateAll(elements => elements.slice(0, 4).map(element => Math.round(element.getBoundingClientRect().y)))
-  expect(rows[0]).toBe(rows[1])
-  expect(rows[1]).toBe(rows[2])
-  expect(rows[3]).toBeGreaterThan(rows[0]!)
+  const referenceImage = referenceCard.getByRole('img', { name: /书籍参考图，非实物照片/u })
+  await expect.poll(() => referenceImage.evaluate(image => ({ width: (image as HTMLImageElement).naturalWidth, height: (image as HTMLImageElement).naturalHeight }))).toEqual({ width: 160, height: 100 })
+  await assertCollectionWallGeometry()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
   await capture('collection-wall-light-1440')
   await referenceCard.locator('.reference-image img').dispatchEvent('error')
@@ -255,6 +294,16 @@ test('收藏原型：浅深色三列墙、720 窄窗长型号、滚动入口与�
   const detail = page.getByRole('region', { name: '磁带型号详情' })
   await expect(detail).toBeVisible()
   const detailTabs = detail.getByRole('tablist', { name: '型号详情页面', exact: true })
+  // 顶层两库是侧栏按钮；真正的详情 tab 继续保护箭头与首尾键盘合同。
+  const overviewTab = detailTabs.getByRole('tab', { name: '概览', exact: true })
+  await overviewTab.focus()
+  for (const [key, label] of [['ArrowRight', '我的库存'], ['End', '资料照片'], ['Home', '概览'], ['ArrowLeft', '资料照片']] as const) {
+    await page.keyboard.press(key)
+    const tab = detailTabs.getByRole('tab', { name: label, exact: true })
+    await expect(tab).toBeFocused()
+    await expect(tab).toHaveAttribute('aria-selected', 'true')
+    await expect(detail.getByRole('tabpanel', { name: label, exact: true })).toBeVisible()
+  }
   for (const label of ['概览', '我的库存', '资料照片', '实体磁带']) {
     await detailTabs.getByRole('tab', { name: label, exact: true }).click()
     await expect(detail.getByRole('tabpanel')).toHaveCount(1)

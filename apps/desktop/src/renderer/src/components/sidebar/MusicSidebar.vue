@@ -37,7 +37,7 @@ const collectionExpanded = ref(false)
 const collectionViews = [{ id: 'tapes', label: '收藏音乐库', icon: 'cassette' }, { id: 'music', label: '实体音乐库', icon: 'vinyl' }] as const
 function toggleCollection(): void {
   if (!props.expanded) { emit('toggle'); collectionExpanded.value = true }
-  else if (isSourceSelected('collection')) { collectionExpanded.value = !collectionExpanded.value; return }
+  else if (isSourceSelected('collection') && !props.settingsActive) { collectionExpanded.value = !collectionExpanded.value; return }
   else collectionExpanded.value = true
   selectSource({ type: 'collection' })
 }
@@ -104,7 +104,7 @@ onMounted(restoreSourceScroll)
         <div v-show="expanded && collectionExpanded" id="sidebar-collection-views" class="sidebar-collection-views" role="group" aria-label="实物收藏分类">
           <button v-for="view in collectionViews" :key="view.id" type="button" class="sidebar-nav-row sidebar-collection-child"
             :class="{ selected: isSourceSelected('collection') && (collectionView ?? 'tapes') === view.id }"
-            :data-collection-view="view.id" :aria-current="isSourceSelected('collection') && (collectionView ?? 'tapes') === view.id ? 'page' : undefined"
+            :data-collection-view="view.id" :aria-label="view.label" :aria-current="isSourceSelected('collection') && (collectionView ?? 'tapes') === view.id ? 'page' : undefined"
             @click="emit('navigate-collection', view.id)"><SidebarIcon :name="view.icon" /><span class="sidebar-row-label">{{ view.label }}</span></button>
         </div>
         <SidebarNavRow source="recording" label="录音" icon="record" :expanded="expanded" :selected="isSourceSelected('recording')" @select="selectSource({ type: 'recording' })" />

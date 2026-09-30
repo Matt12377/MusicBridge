@@ -2664,8 +2664,18 @@
     "implementationComplete": 1,
     "automaticAcceptanceComplete": 1,
     "taskCount": 11,
-    "implementationCommit": null,
-    "checks": {},
+    "implementationCommit": "2b79715a7147d142f91b630dcc19571c734cc45e",
+    "checks": {
+      "implementationCommit": "2b79715a7147d142f91b630dcc19571c734cc45e",
+      "sourceSha256": "483c7839c87bbe31957f3f0648de228784a3f3b0d74f803d58b8143b60724f73",
+      "fullVerify": "PASS_EXIT_0",
+      "contracts": "222_PASS_0_FAIL_0_SKIP",
+      "core": "1609_PASS_0_FAIL_2_EXISTING_SKIP",
+      "desktop": "878_PASS_0_FAIL_0_SKIP",
+      "electronStartupRecovery": "4_PASS_EXIT_0",
+      "fullElectronE2E": "84_PASS_19_FAIL_4_EXISTING_SKIP_EXIT_1",
+      "remoteCiCurrentSnapshot": "NOT_RUN"
+    },
     "realMacRoonAcceptance": "NOT_RUN",
     "realRecordingAcceptance": "NOT_RUN",
     "mainMerge": "NOT_RUN",
@@ -2677,9 +2687,13 @@
       "implementationCommit": "d89c3ea3743a81e9afe818d6869dfc02ecb797cf",
       "reportCommit": "7a6a19105480be456778dfa4369379f224665e39",
       "remoteHead": "7a6a19105480be456778dfa4369379f224665e39",
-      "remoteVerify": "IN_PROGRESS",
-      "remoteElectronE2E": "IN_PROGRESS",
-      "remoteSecurity": "PASS"
-    }
+      "remoteVerify": "FAIL",
+      "remoteElectronE2E": "FAIL",
+      "remoteSecurity": "PASS",
+      "remoteVerifyRunId": 36765155218,
+      "remoteElectronE2ERunId": 36765154891,
+      "remoteSecurityRunId": 36765155190
+    },
+    "pendingGate": "设置返回收藏导航修复、旧 UI 夹具迁移与原完整 E2E 重跑"
   }
 }

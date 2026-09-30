@@ -3,6 +3,7 @@ import { _electron as electron, expect, test, type ElectronApplication, type Pag
 import { mkdtemp, mkdir, readFile, realpath, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { waitForMainWindow } from './main-window.js'
+import { openCollectionView, selectModelPage } from './collection-navigation.js'
 import { e2eTemporaryRoot } from './temporary-root.js'
 
 const desktopRoot = path.resolve(import.meta.dirname, '..')
@@ -96,12 +97,14 @@ test('正式 App：指定单盘进入确切制作、明确预留与释放后回�
   const copy = () => page.evaluate(id => window.musicBridge.getCollectionCopy(id), fixture.physicalId)
   expect((await copy()).copy).toMatchObject({ physicalId: fixture.physicalId, usage: 'blank', available: true })
 
-  await page.locator('[data-sidebar-source="collection"]').click()
+  await openCollectionView(page, 'tapes')
   await page.locator('.inventory-card').filter({ hasText: '指定单盘' }).click()
   const copyRow = page.locator('.model-detail .copy').filter({ hasText: fixture.physicalId })
-  await expect(copyRow).toBeVisible()
+  await selectModelPage(page, '概览')
   await page.locator('.content-scroll').evaluate(element => { element.scrollTop = 0 })
   await page.screenshot({ path: test.info().outputPath('01a-collection-overview-light-1440.png'), scale: 'css' })
+  await selectModelPage(page, '实体磁带')
+  await expect(copyRow).toBeVisible()
   await copyRow.scrollIntoViewIfNeeded()
   await page.screenshot({ path: test.info().outputPath('01b-collection-copy-light-1440.png'), scale: 'css' })
   await copyRow.getByRole('button', { name: '用于本次录音', exact: true }).click()
@@ -167,6 +170,8 @@ test('正式 App：指定单盘进入确切制作、明确预留与释放后回�
   await page.getByRole('radio', { name: /深色/u }).check()
   expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark')
   await page.locator('[data-sidebar-source="collection"]').click()
+  await expect(page.getByRole('region', { name: '磁带型号详情', exact: true })).toBeVisible()
+  await selectModelPage(page, '实体磁带')
   await expect(copyRow).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('04-collection-dark-1440.png'), scale: 'css' })
   await setNativeContentSize(720, 480, false)

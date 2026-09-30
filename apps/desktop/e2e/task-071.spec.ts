@@ -1,4 +1,5 @@
 import { testElectronArguments } from '../scripts/test-keychain.mjs'
+import { openCollectionView } from './collection-navigation.js'
 import { _electron as electron, expect, test, type ElectronApplication, type Page, type Locator } from '@playwright/test'
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, mkdir, readFile, writeFile, realpath } from 'node:fs/promises'
@@ -344,8 +345,7 @@ test('TASK-085 J05：正式 UI 登记发行与逐件、归属照片、关联更�
   })
   observePage()
   await blockExternal()
-  await page.locator('[data-sidebar-source="collection"]').click()
-  await page.getByRole('tab', { name: '实体音乐库', exact: true }).click()
+  await openCollectionView(page, 'music')
   await page.getByRole('button', { name: '添加实体音乐', exact: true }).click()
   const editor = page.getByRole('dialog', { name: '添加实体音乐', exact: true })
   await editor.getByLabel('艺术家', { exact: true }).fill('合成艺术家')
@@ -448,8 +448,7 @@ test('TASK-085 J05：正式 UI 登记发行与逐件、归属照片、关联更�
   observePage()
   await blockExternal()
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.locator('[data-sidebar-source="collection"]').click()
-  await page.getByRole('tab', { name: '实体音乐库', exact: true }).click()
+  await openCollectionView(page, 'music')
   await page.locator('.music-card').filter({ hasText: '关联验收专辑' }).click()
   const restored = await page.evaluate(async id => ({
     detail: await window.musicBridge.getPhysicalMusic(id),

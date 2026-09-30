@@ -4,6 +4,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import type { CollectionPhotoImage } from '@music-bridge/contracts'
+import { openCollectionView, selectModelPage } from './collection-navigation.js'
 
 type PhotoChannel = 'collection:photo' | 'physicalMusic:photo'
 interface PhotoProbe {
@@ -106,11 +107,10 @@ export async function verifyTask071Photos({ app, page, directory, outputPath }: 
       await expect(img).toHaveAttribute('width', String(width)); await expect(img).toHaveAttribute('height', String(height))
     }
     await page.setViewportSize({ width: 720, height: 480 })
-    await page.locator('[data-sidebar-source="collection"]').click()
     for (const kind of ['collection', 'physical'] as const) {
       const isCollection = kind === 'collection', channel: PhotoChannel = isCollection ? 'collection:photo' : 'physicalMusic:photo'
       await page.setViewportSize({ width: 720, height: 480 })
-      await page.getByRole('tab', { name: isCollection ? '空白磁带收藏' : '实体音乐库', exact: true }).click()
+      await openCollectionView(page, isCollection ? 'tapes' : 'music')
       const wall = page.locator(isCollection ? '#collection-panel-tapes' : '.music-library')
       const cards = wall.locator(isCollection ? '.inventory-card' : '.music-card')
       await expect(cards).toHaveCount(12)
@@ -138,7 +138,9 @@ export async function verifyTask071Photos({ app, page, directory, outputPath }: 
       expect(await reads(channel, photoId)).toBe(1)
       await layout(wall)
       await page.screenshot({ path: outputPath(`task071-${kind}-photo-wall-720.png`) })
-      await card.press('Enter')
+      if (isCollection) await card.press('Enter')
+      else await card.getByRole('button', { name: /^查看藏品详情：/ }).press('Enter')
+      if (isCollection) await selectModelPage(page, '资料照片')
       const photos = page.getByRole('region', { name: isCollection ? '实物照片' : '发行版实物照片', exact: true })
       const open = photos.getByRole('button', { name: isCollection ? '查看实物照片 1' : '查看发行版照片 1', exact: true })
       await open.scrollIntoViewIfNeeded()

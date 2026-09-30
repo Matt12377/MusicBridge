@@ -80,6 +80,32 @@ test('实物收藏展开组保留两个独立入口且子项点击不重复导�
   assert.equal(f.byClass('sidebar-collection-child')[1]?.props['aria-current'], 'page')
 })
 
+test('设置保留收藏来源时，单次父按钮返回收藏且普通页仍可折叠', async t => {
+  for (const expanded of [true, false]) {
+    const selections: string[] = []; let toggles = 0
+    const f = await mount(t, 'MusicSidebar', { expanded, activeSource: { type: 'collection' }, collectionView: 'music', searchQuery: '', playlists: [], playlistState: 'ready', sourceScrollTop: 0, settingsActive: true,
+      onNavigate: (source: { type: string }) => selections.push(source.type), onToggle: () => toggles++ })
+    const parent = () => f.byClass('sidebar-collection-toggle')[0]
+    await f.click(parent())
+    assert.deepEqual(selections, ['collection'], '设置页单次点击必须导航，不能只折叠分类')
+    assert.equal(toggles, expanded ? 0 : 1)
+    f.props.expanded = true; f.props.settingsActive = false; await f.tick()
+    assert.equal(parent()?.props['aria-expanded'], true)
+    assert.equal(f.byClass('sidebar-collection-child')[1]?.props['aria-current'], 'page')
+    await f.click(parent()); assert.equal(parent()?.props['aria-expanded'], false)
+    await f.click(parent()); assert.equal(parent()?.props['aria-expanded'], true)
+    assert.deepEqual(selections, ['collection'], '已在收藏页时折叠和展开不得重复导航')
+  }
+})
+
+test('收藏分类即使文字被窄窗样式隐藏仍保留独立按钮名称', async t => {
+  const f = await mount(t, 'MusicSidebar', { expanded: true, activeSource: { type: 'collection' }, searchQuery: '', playlists: [], playlistState: 'ready', sourceScrollTop: 0, settingsActive: false })
+  for (const expanded of [true, false]) {
+    f.props.expanded = expanded; await f.tick()
+    assert.deepEqual(f.byClass('sidebar-collection-child').map(child => child.props['aria-label']), ['收藏音乐库', '实体音乐库'])
+  }
+})
+
 test('歌单默认展开，折叠后移除列表，再展开仍可导航且不触发重试', async t => {
   const selections: string[] = []; let retries = 0
   const f = await mount(t, 'SidebarPlaylistList', { expanded: true, playlists, state: 'ready', onSelect: (id: string) => selections.push(id), onRetry: () => retries++ })
