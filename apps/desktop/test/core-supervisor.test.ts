@@ -819,3 +819,31 @@ for (const enabled of [false, true]) {
     await supervisor.shutdown()
   })
 }
+
+test('MBP-002：Main 读取取消立即结束等待并通知 Core，迟到结果不二次落定', async () => {
+  const harness = makeHarness(); const starting = harness.supervisor.start(); ready(harness.channels[0]!); await starting;
+  const controller = new AbortController(); const pending = harness.supervisor.request('library.search', { query: 'x', page: { offset: 0, limit: 24 } }, undefined, { signal: controller.signal, deadlineAtMs: Date.now() + 500 });
+  const rejected = assert.rejects(pending, error => error instanceof CoreIpcError && error.code === 'CANCELLED'); const port = harness.channels[0]!.port2; const sent = port.sent.at(-1) as { id: string; readContext: { deadlineAtMs: number } };
+  assert.ok(sent.readContext.deadlineAtMs <= Date.now() + 500); controller.abort(); await rejected; assert.deepEqual(port.sent.at(-1), { version: 1, kind: 'library.read.cancel', id: sent.id });
+  port.receive({ version: 1, id: sent.id, ok: true, result: { items: [], offset: 0, limit: 24, total: 0, hasMore: false } }); await harness.supervisor.shutdown();
+});
+test('MBP-002：Main 拒绝预先取消与写命令读取上下文，均零派发', async () => {
+  const harness = makeHarness(); const starting = harness.supervisor.start(); ready(harness.channels[0]!); await starting; const controller = new AbortController(); controller.abort(); const port = harness.channels[0]!.port2; const count = port.sent.length;
+  await assert.rejects(harness.supervisor.request('library.search', { query: 'x', page: { offset: 0, limit: 24 } }, undefined, { signal: controller.signal }), error => error instanceof CoreIpcError && error.code === 'CANCELLED');
+  await assert.rejects(harness.supervisor.request('playback.stop', {}, undefined, { deadlineAtMs: Date.now() + 100 }), error => error instanceof CoreIpcError && error.code === 'INVALID_IPC_REQUEST'); assert.equal(port.sent.length, count); await harness.supervisor.shutdown();
+});
+
+test('MBP-002：Main 期限已到即拒绝成功回包，不依赖超时 timer 已执行', async t => {
+  const harness = makeHarness();
+  const starting = harness.supervisor.start(); ready(harness.channels[0]!); await starting;
+  t.after(() => harness.supervisor.shutdown());
+  let now = Date.now();
+  t.mock.method(Date, 'now', () => now);
+  const pending = harness.supervisor.request('library.search', { query: 'deadline', page: { offset: 0, limit: 24 } }, undefined, { deadlineAtMs: now + 100 });
+  const rejected = assert.rejects(pending, error => error instanceof CoreIpcError && error.code === 'TIMEOUT');
+  const port = harness.channels[0]!.port2, sent = port.sent.at(-1) as { id: string };
+  now += 101;
+  port.receive({ version: 1, id: sent.id, ok: true, result: { items: [], offset: 0, limit: 24, total: 0, hasMore: false } });
+  await rejected;
+  assert.deepEqual(port.sent.at(-1), { version: 1, kind: 'library.read.cancel', id: sent.id });
+});

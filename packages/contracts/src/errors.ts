@@ -5,6 +5,7 @@ export type PublicErrorCode =
   | 'UNKNOWN_IPC_COMMAND'
   | 'INVALID_IPC_RESPONSE'
   | 'TIMEOUT'
+  | 'CANCELLED'
   | 'NOT_READY'
   /** Core已证实本次Begin未提交且没有可能迟到的启动；仅此码允许清除原Begin待确认命令。 */
   | 'ATTEMPT_NOT_ACCEPTED'

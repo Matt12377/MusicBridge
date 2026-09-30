@@ -1,3 +1,4 @@
+import { createLibraryReadBroker } from './library-read-ipc.js'
 import { createPerformanceIpcBridge } from "./performance-ipc.js"
 import { isVolumeRequest } from '@music-bridge/contracts'
 import { normalizeRoonDisplayUrl } from '@music-bridge/contracts'
@@ -1032,6 +1033,24 @@ function registerIpcHandlers(
     nativeTheme.themeSource = theme
     target.setBackgroundColor(theme === 'dark' ? '#3c4253' : '#f2edf1')
   })
+  const libraryReads = createLibraryReadBroker(supervisor)
+  const readOwners = new Set<number>()
+  registerPerformanceHandler('library:read', (event, value: unknown) => invokeCore(event, async () => {
+    if (event.senderFrame !== event.sender.mainFrame) return publicIpcFailure('NOT_READY', '读取仅允许可信主页面')
+    const owner = event.sender.id
+    if (!readOwners.has(owner)) {
+      readOwners.add(owner)
+      event.sender.once('destroyed', () => { libraryReads.cancelOwner(owner); readOwners.delete(owner) })
+      event.sender.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => {
+        if (isMainFrame && !isInPlace) libraryReads.cancelOwner(owner)
+      })
+    }
+    return libraryReads.read(owner, value)
+  }))
+  registerPerformanceHandler('library:cancel-read', (event, id: unknown) => invokeCore(event, async () => {
+    if (event.senderFrame !== event.sender.mainFrame) return publicIpcFailure('NOT_READY', '读取取消仅允许可信主页面')
+    libraryReads.cancel(event.sender.id, id)
+  }))
   registerPerformanceHandler('app:get-info', (event) => {
     requireTrustedRenderer(event)
     return appInfo()

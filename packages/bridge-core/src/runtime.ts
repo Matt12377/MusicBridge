@@ -1,3 +1,4 @@
+import { assertLibraryReadCurrent, currentLibraryRead, type LibraryReadLifetime } from './shared/library-read-lifetime.js';
 import { createNodePerformanceTrace, currentPerformanceContext } from './diagnostics/performance-trace.js';
 import type { VolumeRequest, VolumeSnapshot } from '@music-bridge/contracts';
 import { createRecordingPrintCoordinator, type RecordingPrintCoordinator } from './recording/print-coordinator.js';
@@ -129,6 +130,7 @@ import { resolveRoonMatch } from './matching/candidate-resolution.js';
 export type CoreRuntimeEvent = TypedIpcEvent;
 
 export interface CoreRuntime {
+  getLibraryReadScope?(command: import('@music-bridge/contracts').IpcCommand): string;
   readonly performance?: import('@music-bridge/contracts').PerformanceTraceRecorder;
   readonly commandOutbox?: ReturnType<typeof createDatasetCommandBoundary>;
   physicalLinks?: PhysicalLinksCoordinator;
@@ -544,6 +546,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     | undefined;
   let dailyRequest: Promise<DailyRecommendationsSnapshot> | undefined;
   let dailyRequestGeneration = -1;
+  let dailyRequestRead: LibraryReadLifetime | undefined;
   let dailyRequestDayKey = '';
   let dailyFailureUntil = 0;
   const gateResults: DiagnosticGateResult[] = [
@@ -602,10 +605,11 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   };
 
   const withProviderRecovery = async <T>(operation: () => Promise<T>): Promise<T> => {
+    const generation = credentialGeneration;
     try {
       return await operation();
     } catch (error) {
-      if (asBridgeError(error).code === 'AUTH_EXPIRED') {
+      if (generation === credentialGeneration && asBridgeError(error).code === 'AUTH_EXPIRED') {
         netease.clearCredential();
         notifyProviderExpired();
       }
@@ -632,8 +636,9 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
         return accountState;
       } catch (error) {
         if (generation !== credentialGeneration || !netease.configured) return accountState;
+        assertLibraryReadCurrent();
         const bridgeError = asBridgeError(error);
-        if (bridgeError.code === 'AUTH_EXPIRED') throw error;
+        if (generation !== credentialGeneration || ['AUTH_EXPIRED', 'READ_CANCELLED', 'READ_DEADLINE'].includes(bridgeError.code)) throw error;
         accountState = { status: 'unavailable' };
         emitAccount();
         return accountState;
@@ -664,6 +669,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     }
     if (
       dailyRequest &&
+      (!dailyRequestRead || (!dailyRequestRead.signal.aborted && dailyRequestRead.isCurrent() && dailyRequestRead.now() < dailyRequestRead.deadlineAtMs)) &&
       dailyRequestGeneration === credentialGeneration &&
       dailyRequestDayKey === dayKey
     ) {
@@ -683,12 +689,14 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
         if (generation !== credentialGeneration || !netease.configured) {
           return { dayKey, tracks: [] };
         }
+        assertLibraryReadCurrent();
         const normalized = { ...snapshot, dayKey };
         dailyCache = { generation, dayKey, snapshot: normalized };
         return normalized;
       } catch (error) {
+        assertLibraryReadCurrent();
         const bridgeError = asBridgeError(error);
-        if (bridgeError.code === 'AUTH_EXPIRED') throw error;
+        if (generation !== credentialGeneration || ['AUTH_EXPIRED', 'READ_CANCELLED', 'READ_DEADLINE'].includes(bridgeError.code)) throw error;
         dailyFailureUntil = (options.now?.() ?? Date.now()) + 30_000;
         if (bridgeError.code === 'DAILY_RECOMMENDATIONS_UNAVAILABLE') throw error;
         throw new BridgeError(
@@ -699,12 +707,14 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       }
     })();
     dailyRequest = request;
+    dailyRequestRead = currentLibraryRead();
     dailyRequestGeneration = generation;
     dailyRequestDayKey = dayKey;
     try {
       return await request;
     } finally {
       if (dailyRequest === request) {
+        dailyRequestRead = undefined;
         dailyRequest = undefined;
         dailyRequestGeneration = -1;
         dailyRequestDayKey = '';
@@ -725,6 +735,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
 
     try {
       const result = await resolveRoonMatch(recording, roonLibrary);
+      assertLibraryReadCurrent();
       if (isCacheableMatchResult(result)) matchCache.set(recording, result);
       return { trackId: track.id, ...result };
     } catch (error) {
@@ -739,6 +750,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
         candidates: [],
         algorithmVersion: MATCH_ALGORITHM_VERSION,
       };
+      assertLibraryReadCurrent();
       if (isCacheableMatchResult(result)) matchCache.set(recording, result);
       return { trackId: track.id, ...result };
     }
@@ -1024,7 +1036,16 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     };
   };
 
+  let scopeService = roon.getLibraryService();
+  let serviceEpoch = 0;
   return {
+    getLibraryReadScope(command) {
+      const current = roon.getLibraryService();
+      if (current !== scopeService) { scopeService = current; serviceEpoch++; }
+      const roonScope = [serviceEpoch, roonLibrary.getReadScope(), controller.getState().roon.selectedZoneId ?? ''];
+      const combined = command === 'library.match' || command === 'library.aggregateSearch';
+      return JSON.stringify([shutdownStarted, ...(combined || command.startsWith('library.') ? [credentialGeneration] : []), ...(combined || !command.startsWith('library.') ? roonScope : [])]);
+    },
     performance: performanceTrace,
     async start(): Promise<void> {
       if (runtime === 'ready') return;
@@ -1567,6 +1588,12 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     };
   };
   return {
+    getLibraryReadScope: command => {
+      const combined = command === 'library.match' || command === 'library.aggregateSearch';
+      return JSON.stringify([state.runtime,
+        ...(combined || command.startsWith('library.') ? [state.provider] : []),
+        ...(combined || !command.startsWith('library.') ? [state.roon, selectedZoneId ?? ''] : [])]);
+    },
     performance: performanceTrace,
     async start() {
       commandOutbox.context();

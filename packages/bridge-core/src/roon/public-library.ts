@@ -1,3 +1,4 @@
+import { assertLibraryReadCurrent, currentLibraryRead } from '../shared/library-read-lifetime.js';
 import type {
   RoonImageOptions as PublicRoonImageOptions,
   RoonImageShapeSummary,
@@ -41,6 +42,7 @@ export interface RoonPublicLibraryOptions {
 export interface RoonAlbumMetadata { title: string; artist?: string; year?: number; version?: string }
 
 export interface RoonPublicLibrary {
+  getReadScope(): string;
   invalidateReferences(): void;
   /** 仅 Core 调用；将 Transport 封面键接入已有受控图片读取链路。 */
   registerNowPlayingArtwork(imageKey: string): string;
@@ -296,6 +298,7 @@ export function createRoonPublicLibrary(
   const imageReferences = new Map<string, string>();
   const imageCache = new Map<string, CachedImage>();
   const pendingImages = new Map<string, Promise<CachedImage>>();
+  const imageReadOwners = new WeakMap<Promise<CachedImage>, NonNullable<ReturnType<typeof currentLibraryRead>>>();
   const negativeImages = new Map<string, NegativeImageEntry>();
   let imageCacheBytes = 0;
   let activeService: RoonLibraryService | undefined;
@@ -420,6 +423,7 @@ export function createRoonPublicLibrary(
   };
 
   function currentPage(page: RoonLibraryPage<RoonEntityDescriptor>, request: RoonPageRequest, current: RoonLibraryService, scope: string): PublicRoonLibraryPage {
+    assertLibraryReadCurrent();
     if (service() !== current || referenceScope !== scope) {
       throw new BridgeError('ROON_LIBRARY_INVALID_REFERENCE', 'Roon 浏览结果已过期，请重新选择当前专辑。', { httpStatus: 409 });
     }
@@ -427,6 +431,10 @@ export function createRoonPublicLibrary(
   }
 
   return {
+    getReadScope() {
+      try { service(); } catch (error) { if (!(error instanceof BridgeError) || error.code !== 'ROON_LIBRARY_UNAVAILABLE') throw error; }
+      return referenceScope;
+    },
     invalidateReferences() { references.clear(); imageReferences.clear(); clearImageState(); referenceScope = randomUUID(); activeService = undefined; },
     registerNowPlayingArtwork(imageKey) {
       service();
@@ -572,11 +580,14 @@ export function createRoonPublicLibrary(
     async getImage(reference, options) {
       const current = service();
       let imageKey = imageReferences.get(reference);
+      const scope = referenceScope;
+      const ensureCurrent = (): void => { assertLibraryReadCurrent(); if (service() !== current || referenceScope !== scope) throw new BridgeError('ROON_LIBRARY_INVALID_REFERENCE', 'Roon 封面读取已过期'); };
       const stored = references.get(reference);
       if (!imageKey) {
         if (stored?.descriptor.kind === 'artist' && current.getArtistImageKey) {
           try {
             imageKey = await current.getArtistImageKey(stored.descriptor);
+            ensureCurrent();
             if (imageKey) imageReferences.set(reference, imageKey);
           } catch (error) {
             return wrapLibraryError(error, 'image');
@@ -611,10 +622,13 @@ export function createRoonPublicLibrary(
           negativeImages.delete(cacheKey);
         }
         let pending = pendingImages.get(cacheKey);
+        const owner = pending && imageReadOwners.get(pending);
+        if (owner && (owner.signal.aborted || !owner.isCurrent() || owner.now() >= owner.deadlineAtMs)) pending = undefined;
         if (!pending) {
           pending = (async () => {
             try {
               const result = await current.getImage(imageKey, imageOptions(normalized));
+              ensureCurrent();
               const body = new Uint8Array(result.body);
               if (!isValidRoonImageBinary(result.contentType, body)) {
                 throw new RoonLibraryError(
@@ -633,18 +647,23 @@ export function createRoonPublicLibrary(
               cacheImage(cacheKey, image);
               return image;
             } catch (error) {
+              try { ensureCurrent(); } catch { throw error; }
               negativeImages.set(cacheKey, {
                 error,
                 expiresAt: now() + negativeImageTtlMs,
               });
               throw error;
             } finally {
-              pendingImages.delete(cacheKey);
+              if (pendingImages.get(cacheKey) === pending) pendingImages.delete(cacheKey);
             }
           })();
+          const read = currentLibraryRead();
+          if (read) imageReadOwners.set(pending, read);
           pendingImages.set(cacheKey, pending);
         }
-        return cloneImage(await pending);
+        const result = await pending;
+        ensureCurrent();
+        return cloneImage(result);
       } catch (error) {
         return wrapLibraryError(error, 'image');
       }

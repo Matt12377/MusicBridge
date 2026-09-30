@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { createLibraryReadScope, isLibraryReadCancelled } from '../libraryReadScope.js'
 import type {
   FavoriteEntityDescriptor, FavoriteKind, FavoritePage, FavoriteRecord,
   PageRequest, RoonLibraryItem, RoonLibraryPage,
@@ -31,6 +32,22 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
   const { api, formatError, onError, onToast, getView,
     onDetailOpening, onDetailReady, onNavigateSource, onPlayTrack } = options
 
+  let disposed = false, sessionEpoch = 0
+  const catalogReads = createLibraryReadScope(api)
+  const detailReads = { album: createLibraryReadScope(api), artist: createLibraryReadScope(api), genre: createLibraryReadScope(api), playlist: createLibraryReadScope(api) }
+  const entityFavoriteReads = createLibraryReadScope(api), favoriteReads = createLibraryReadScope(api)
+  type DetailKind = keyof typeof detailReads
+  const detailRequests: Partial<Record<DetailKind, { reference: string; page: PageRequest }>> = {}
+  const detailTargets: typeof detailRequests = {}
+  let pendingFavorite: { kind: FavoriteKind; page: PageRequest } | undefined
+  const albumCollection = useRoonSearchCollection('album',
+    (page, context) => catalogReads.read('roon.library.albums', { page }, () => api.listRoonAlbums(page), context),
+    (query, page, kind, context) => catalogReads.read('roon.library.search', { query, page, kind }, () => api.searchRoonLibrary(query, page, kind), context), formatError)
+  const artistCollection = useRoonSearchCollection('artist',
+    (page, context) => catalogReads.read('roon.library.artists', { page }, () => api.listRoonArtists(page), context),
+    (query, page, kind, context) => catalogReads.read('roon.library.search', { query, page, kind }, () => api.searchRoonLibrary(query, page, kind), context), formatError)
+  const genreCollection = useRoonCollection((page, context) => catalogReads.read('roon.library.genres', { page }, () => api.listRoonGenres(page), context), formatError)
+  const playlistCollection = useRoonCollection((page, context) => catalogReads.read('roon.library.playlists', { page }, () => api.listRoonPlaylists(page), context), formatError)
   const {
     query: localAlbumQuery,
     setQuery: setLocalAlbumQuery,
@@ -43,12 +60,7 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     loadMore: loadMoreRoonAlbums,
     retry: retryRoonAlbums,
     reset: resetRoonAlbums,
-  } = useRoonSearchCollection(
-    'album',
-    (page) => api.listRoonAlbums(page),
-    (query, page, kind) => api.searchRoonLibrary(query, page, kind),
-    (error) => formatError(error),
-  )
+  } = albumCollection
   const {
     query: localArtistQuery,
     setQuery: setLocalArtistQuery,
@@ -61,12 +73,7 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     loadMore: loadMoreRoonArtists,
     retry: retryRoonArtists,
     reset: resetRoonArtists,
-  } = useRoonSearchCollection(
-    'artist',
-    (page) => api.listRoonArtists(page),
-    (query, page, kind) => api.searchRoonLibrary(query, page, kind),
-    (error) => formatError(error),
-  )
+  } = artistCollection
   const {
     page: roonGenresPage,
     initialLoading: roonGenresInitialLoading,
@@ -77,10 +84,7 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     loadMore: loadMoreRoonGenres,
     retry: retryRoonGenres,
     reset: resetRoonGenres,
-  } = useRoonCollection(
-    (page) => api.listRoonGenres(page),
-    (error) => formatError(error),
-  )
+  } = genreCollection
   const {
     page: roonPlaylistsPage,
     initialLoading: roonPlaylistsInitialLoading,
@@ -91,10 +95,7 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     loadMore: loadMoreRoonPlaylists,
     retry: retryRoonPlaylists,
     reset: resetRoonPlaylists,
-  } = useRoonCollection(
-    (page) => api.listRoonPlaylists(page),
-    (error) => formatError(error),
-  )
+  } = playlistCollection
   const favoriteKind = ref<FavoriteKind>('track')
   const favoriteResolutionEpoch = ref(0)
   const resolvedFavoriteDescriptors = new Map<string, FavoriteEntityDescriptor>()
@@ -145,6 +146,7 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     reference: string,
     page: PageRequest = { offset: 0, limit: 24 },
   ): Promise<void> {
+    if (disposed) return
     const album = [
       ...roonAlbumsPage.value.items,
       ...selectedRoonArtistPage.value.items,
@@ -155,9 +157,12 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       void loadRoonEntityFavorite(album, 'album')
     }
     const initial = page.offset === 0
+    if (initial && selectedRoonAlbum.value?.reference !== reference) selectedRoonAlbum.value = null
     if (initial) {
       onDetailOpening('roon-album-detail')
       roonAlbumRequestGeneration += 1
+      detailReads.album.cancelAll()
+      roonAlbumLoadingMore.value = false
       roonAlbumInitialLoading.value = true
       roonAlbumLoadMoreError.value = null
       roonAlbumError.value = null
@@ -168,9 +173,12 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       roonAlbumLoadMoreError.value = null
     }
     const generation = roonAlbumRequestGeneration
+    detailRequests.album = { reference, page: { ...page } }
+    detailTargets.album = detailRequests.album
     try {
-      const result = await api.getRoonAlbumTracks(reference, page)
+      const result = await detailReads.album.read('roon.library.album', { reference, page }, () => api.getRoonAlbumTracks(reference, page))
       if (generation !== roonAlbumRequestGeneration) return
+      delete detailRequests.album
       selectedRoonAlbumPage.value = initial ? result : appendRoonPage(selectedRoonAlbumPage.value, result)
       roonAlbumInitialLoading.value = false
       roonAlbumLoadingMore.value = false
@@ -178,6 +186,8 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       onDetailReady('roon-album-detail', { type: 'roon-album', reference })
     } catch (error) {
       if (generation !== roonAlbumRequestGeneration) return
+      if (isLibraryReadCancelled(error)) { roonAlbumInitialLoading.value = false; roonAlbumLoadingMore.value = false; return }
+      delete detailRequests.album
       if (initial) {
         roonAlbumInitialLoading.value = false
         roonAlbumError.value = formatError(error)
@@ -192,15 +202,19 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     reference: string,
     page: PageRequest = { offset: 0, limit: 24 },
   ): Promise<void> {
+    if (disposed) return
     const artist = roonArtistsPage.value.items.find((item) => item.reference === reference)
     if (artist && artist.kind === 'artist') {
       selectedRoonArtist.value = artist
       void loadRoonEntityFavorite(artist, 'artist')
     }
     const initial = page.offset === 0
+    if (initial && selectedRoonArtist.value?.reference !== reference) selectedRoonArtist.value = null
     if (initial) {
       onDetailOpening('roon-artist-detail')
       roonArtistRequestGeneration += 1
+      detailReads.artist.cancelAll()
+      roonArtistLoadingMore.value = false
       roonArtistInitialLoading.value = true
       roonArtistLoadMoreError.value = null
       roonArtistError.value = null
@@ -211,9 +225,12 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       roonArtistLoadMoreError.value = null
     }
     const generation = roonArtistRequestGeneration
+    detailRequests.artist = { reference, page: { ...page } }
+    detailTargets.artist = detailRequests.artist
     try {
-      const result = await api.getRoonArtistAlbums(reference, page)
+      const result = await detailReads.artist.read('roon.library.artist', { reference, page }, () => api.getRoonArtistAlbums(reference, page))
       if (generation !== roonArtistRequestGeneration) return
+      delete detailRequests.artist
       selectedRoonArtistPage.value = initial ? result : appendRoonPage(selectedRoonArtistPage.value, result)
       roonArtistInitialLoading.value = false
       roonArtistLoadingMore.value = false
@@ -221,6 +238,8 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       onDetailReady('roon-artist-detail', { type: 'roon-artist', reference })
     } catch (error) {
       if (generation !== roonArtistRequestGeneration) return
+      if (isLibraryReadCancelled(error)) { roonArtistInitialLoading.value = false; roonArtistLoadingMore.value = false; return }
+      delete detailRequests.artist
       if (initial) {
         roonArtistInitialLoading.value = false
         roonArtistError.value = formatError(error)
@@ -235,11 +254,15 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     reference: string,
     page: PageRequest = { offset: 0, limit: 24 },
   ): Promise<void> {
+    if (disposed) return
     const genre = roonGenresPage.value.items.find((item) => item.reference === reference)
     if (genre?.kind === 'genre') selectedRoonGenre.value = genre
     const initial = page.offset === 0
+    if (initial && selectedRoonGenre.value?.reference !== reference) selectedRoonGenre.value = null
     if (initial) {
       roonGenreRequestGeneration += 1
+      detailReads.genre.cancelAll()
+      roonGenreLoadingMore.value = false
       roonGenreInitialLoading.value = true
       roonGenreLoadMoreError.value = null
       roonGenreError.value = null
@@ -250,9 +273,12 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       roonGenreLoadMoreError.value = null
     }
     const generation = roonGenreRequestGeneration
+    detailRequests.genre = { reference, page: { ...page } }
+    detailTargets.genre = detailRequests.genre
     try {
-      const result = await api.getRoonGenreItems(reference, page)
+      const result = await detailReads.genre.read('roon.library.genre', { reference, page }, () => api.getRoonGenreItems(reference, page))
       if (generation !== roonGenreRequestGeneration) return
+      delete detailRequests.genre
       selectedRoonGenrePage.value = initial ? result : appendRoonPage(selectedRoonGenrePage.value, result)
       roonGenreInitialLoading.value = false
       roonGenreLoadingMore.value = false
@@ -260,6 +286,8 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       onDetailReady('roon-genre-detail', { type: 'roon-genre', reference })
     } catch (error) {
       if (generation !== roonGenreRequestGeneration) return
+      if (isLibraryReadCancelled(error)) { roonGenreInitialLoading.value = false; roonGenreLoadingMore.value = false; return }
+      delete detailRequests.genre
       if (initial) {
         roonGenreInitialLoading.value = false
         roonGenreError.value = formatError(error)
@@ -274,11 +302,15 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     reference: string,
     page: PageRequest = { offset: 0, limit: 24 },
   ): Promise<void> {
+    if (disposed) return
     const playlist = roonPlaylistsPage.value.items.find((item) => item.reference === reference)
     if (playlist?.kind === 'playlist') selectedRoonPlaylist.value = playlist
     const initial = page.offset === 0
+    if (initial && selectedRoonPlaylist.value?.reference !== reference) selectedRoonPlaylist.value = null
     if (initial) {
       roonPlaylistRequestGeneration += 1
+      detailReads.playlist.cancelAll()
+      roonPlaylistLoadingMore.value = false
       roonPlaylistInitialLoading.value = true
       roonPlaylistLoadMoreError.value = null
       roonPlaylistError.value = null
@@ -289,9 +321,12 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       roonPlaylistLoadMoreError.value = null
     }
     const generation = roonPlaylistRequestGeneration
+    detailRequests.playlist = { reference, page: { ...page } }
+    detailTargets.playlist = detailRequests.playlist
     try {
-      const result = await api.getRoonPlaylistTracks(reference, page)
+      const result = await detailReads.playlist.read('roon.library.playlist', { reference, page }, () => api.getRoonPlaylistTracks(reference, page))
       if (generation !== roonPlaylistRequestGeneration) return
+      delete detailRequests.playlist
       selectedRoonPlaylistPage.value = initial ? result : appendRoonPage(selectedRoonPlaylistPage.value, result)
       roonPlaylistInitialLoading.value = false
       roonPlaylistLoadingMore.value = false
@@ -299,6 +334,8 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       onDetailReady('roon-playlist-detail', { type: 'roon-playlist', reference })
     } catch (error) {
       if (generation !== roonPlaylistRequestGeneration) return
+      if (isLibraryReadCancelled(error)) { roonPlaylistInitialLoading.value = false; roonPlaylistLoadingMore.value = false; return }
+      delete detailRequests.playlist
       if (initial) {
         roonPlaylistInitialLoading.value = false
         roonPlaylistError.value = formatError(error)
@@ -310,38 +347,42 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
   }
 
   function roonAlbumPageAt(offset: number): void {
-    const album = selectedRoonAlbum.value
-    if (album) void loadRoonAlbum(album.reference, { offset, limit: selectedRoonAlbumPage.value.limit })
+    const reference = selectedRoonAlbum.value?.reference ?? detailTargets.album?.reference
+    if (reference) void loadRoonAlbum(reference, { offset, limit: selectedRoonAlbumPage.value.limit })
   }
 
   function roonArtistPageAt(offset: number): void {
-    const artist = selectedRoonArtist.value
-    if (artist) void loadRoonArtist(artist.reference, { offset, limit: selectedRoonArtistPage.value.limit })
+    const reference = selectedRoonArtist.value?.reference ?? detailTargets.artist?.reference
+    if (reference) void loadRoonArtist(reference, { offset, limit: selectedRoonArtistPage.value.limit })
   }
 
   function roonGenrePageAt(offset: number): void {
-    const genre = selectedRoonGenre.value
-    if (genre) void loadRoonGenre(genre.reference, { offset, limit: selectedRoonGenrePage.value.limit })
+    const reference = selectedRoonGenre.value?.reference ?? detailTargets.genre?.reference
+    if (reference) void loadRoonGenre(reference, { offset, limit: selectedRoonGenrePage.value.limit })
   }
 
   function roonPlaylistPageAt(offset: number): void {
-    const playlist = selectedRoonPlaylist.value
-    if (playlist) void loadRoonPlaylist(playlist.reference, { offset, limit: selectedRoonPlaylistPage.value.limit })
+    const reference = selectedRoonPlaylist.value?.reference ?? detailTargets.playlist?.reference
+    if (reference) void loadRoonPlaylist(reference, { offset, limit: selectedRoonPlaylistPage.value.limit })
   }
 
   async function loadRoonEntityFavorite(
     item: RoonLibraryItem,
     kind: 'album' | 'artist',
   ): Promise<void> {
+    if (disposed) return
     const operation = ++entityFavoriteOperation
+    entityFavoriteReads.cancelAll()
     const state = kind === 'album' ? roonAlbumFavoriteState : roonArtistFavoriteState
     state.value = 'loading'
     try {
-      const result = await api.checkFavorite(localFavoriteDescriptor(item))
+      const result = await entityFavoriteReads.read('favorites.check', { descriptor: localFavoriteDescriptor(item) }, () => api.checkFavorite(localFavoriteDescriptor(item)))
       if (operation !== entityFavoriteOperation) return
       state.value = result.favorite ? 'liked' : 'not-liked'
     } catch (error) {
-      if (operation === entityFavoriteOperation) state.value = 'error'
+      if (operation !== entityFavoriteOperation) return
+      if (isLibraryReadCancelled(error)) { state.value = 'idle'; return }
+      state.value = 'error'
       onError(error)
     }
   }
@@ -372,10 +413,13 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     kind: FavoriteKind = favoriteKind.value,
     page: PageRequest = { offset: 0, limit: LIBRARY_PAGE_SIZE },
   ): Promise<void> {
+    if (disposed) return
     const initial = page.offset === 0
     if (initial) {
       favoriteKind.value = kind
       favoritesRequestGeneration += 1
+      favoriteReads.cancelAll()
+      favoritesLoadingMore.value = false
       favoritesInitialLoading.value = true
       favoritesLoadMoreError.value = null
       favoritesError.value = null
@@ -386,9 +430,11 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       favoritesLoadMoreError.value = null
     }
     const generation = favoritesRequestGeneration
+    pendingFavorite = { kind, page: { ...page } }
     try {
-      const result = await api.listFavorites(kind, page)
+      const result = await favoriteReads.read('favorites.list', { kind, page }, () => api.listFavorites(kind, page))
       if (generation !== favoritesRequestGeneration || kind !== favoriteKind.value) return
+      pendingFavorite = undefined
       favoritesPage.value = initial ? result : {
         ...result,
         items: [...favoritesPage.value.items, ...result.items.filter((item) => !favoritesPage.value.items.some((existing) => existing.favoriteId === item.favoriteId))],
@@ -398,6 +444,8 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       favoritesError.value = null
     } catch (error) {
       if (generation !== favoritesRequestGeneration || kind !== favoriteKind.value) return
+      if (isLibraryReadCancelled(error)) { favoritesInitialLoading.value = false; favoritesLoadingMore.value = false; return }
+      pendingFavorite = undefined
       if (initial) {
         favoritesInitialLoading.value = false
         favoritesError.value = formatError(error)
@@ -447,8 +495,8 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
   }
 
   function retryRoonAlbum(): void {
-    const album = selectedRoonAlbum.value
-    if (album) void loadRoonAlbum(album.reference)
+    const reference = selectedRoonAlbum.value?.reference ?? detailTargets.album?.reference
+    if (reference) void loadRoonAlbum(reference)
   }
 
   function refreshVisibleRoonCollection(): void {
@@ -460,55 +508,94 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
   }
 
 
-  function invalidateAlbumArtistRequests(): void {
+  function invalidateDetailRequests(): void {
     roonAlbumRequestGeneration += 1
     roonArtistRequestGeneration += 1
-  }
-
-  function leaveDetail(): void {
-    invalidateAlbumArtistRequests()
-    entityFavoriteOperation += 1
-    roonAlbumInitialLoading.value = false
-    roonAlbumLoadingMore.value = false
-    roonArtistInitialLoading.value = false
-    roonArtistLoadingMore.value = false
-  }
-
-  function invalidateDetailRequests(): void {
-    leaveDetail()
     roonGenreRequestGeneration += 1
     roonPlaylistRequestGeneration += 1
-    roonGenreInitialLoading.value = false
-    roonGenreLoadingMore.value = false
-    roonPlaylistInitialLoading.value = false
-    roonPlaylistLoadingMore.value = false
+    for (const scope of Object.values(detailReads)) scope.cancelAll()
+    roonAlbumInitialLoading.value = false; roonAlbumLoadingMore.value = false
+    roonArtistInitialLoading.value = false; roonArtistLoadingMore.value = false
+    roonGenreInitialLoading.value = false; roonGenreLoadingMore.value = false
+    roonPlaylistInitialLoading.value = false; roonPlaylistLoadingMore.value = false
+  }
+
+  // 旧调用名保留，所有详情一起换代，避免流派或歌单的旧回执重新导航。
+  function invalidateAlbumArtistRequests(): void { invalidateDetailRequests() }
+  function leaveDetail(): void {
+    invalidateDetailRequests()
+    entityFavoriteOperation += 1
+    entityFavoriteReads.cancelAll()
+  }
+
+  function suspendPageReads(destination: ViewId): void {
+    const collections = { 'roon-albums': albumCollection, 'roon-artists': artistCollection, 'roon-genres': genreCollection, 'roon-playlists': playlistCollection }
+    for (const [view, collection] of Object.entries(collections)) if (view !== destination) collection.suspend()
+    if (destination !== 'roon-favorites') {
+      favoritesRequestGeneration += 1
+      favoriteReads.cancelAll()
+      favoritesInitialLoading.value = false; favoritesLoadingMore.value = false
+    }
+    leaveDetail()
+  }
+
+  async function resumePageReads(view: ViewId): Promise<void> {
+    if (disposed) return
+    if (view === 'roon-albums') await albumCollection.resume()
+    else if (view === 'roon-artists') await artistCollection.resume()
+    else if (view === 'roon-genres') await genreCollection.resume()
+    else if (view === 'roon-playlists') await playlistCollection.resume()
+    else if (view === 'roon-favorites' && pendingFavorite && !favoritesInitialLoading.value && !favoritesLoadingMore.value) await loadFavorites(pendingFavorite.kind, pendingFavorite.page)
+  }
+
+  function resumeDetail(view: ViewId): void {
+    const detailKinds: Partial<Record<ViewId, DetailKind>> = { 'roon-album-detail': 'album', 'roon-artist-detail': 'artist', 'roon-genre-detail': 'genre', 'roon-playlist-detail': 'playlist' }
+    const kind = detailKinds[view]
+    if (!kind || disposed) return
+    const request = detailRequests[kind]
+    if (!request) return
+    const load = { album: loadRoonAlbum, artist: loadRoonArtist, genre: loadRoonGenre, playlist: loadRoonPlaylist }[kind]
+    void load(request.reference, request.page)
   }
 
   function captureDetail() {
     return {
+      epoch: sessionEpoch, requests: { ...detailRequests }, targets: { ...detailTargets },
       album: selectedRoonAlbum.value, albumPage: selectedRoonAlbumPage.value,
       albumError: roonAlbumError.value, albumFavorite: roonAlbumFavoriteState.value,
       albumLoadMoreError: roonAlbumLoadMoreError.value, albumPending: roonAlbumInitialLoading.value,
       artist: selectedRoonArtist.value, artistPage: selectedRoonArtistPage.value,
       artistError: roonArtistError.value, artistFavorite: roonArtistFavoriteState.value,
       artistLoadMoreError: roonArtistLoadMoreError.value, artistPending: roonArtistInitialLoading.value,
+      genre: selectedRoonGenre.value, genrePage: selectedRoonGenrePage.value, genreError: roonGenreError.value, genreLoadMoreError: roonGenreLoadMoreError.value,
+      playlist: selectedRoonPlaylist.value, playlistPage: selectedRoonPlaylistPage.value, playlistError: roonPlaylistError.value, playlistLoadMoreError: roonPlaylistLoadMoreError.value,
     }
   }
 
   function restoreDetail(snapshot: ReturnType<typeof captureDetail>): void {
-    selectedRoonAlbum.value = snapshot.album
-    selectedRoonAlbumPage.value = snapshot.albumPage
-    roonAlbumError.value = snapshot.albumError
-    roonAlbumFavoriteState.value = snapshot.albumFavorite
+    if (snapshot.epoch !== sessionEpoch) return
+    leaveDetail()
+    for (const kind of Object.keys(detailReads) as DetailKind[]) { delete detailRequests[kind]; if (snapshot.requests[kind]) detailRequests[kind] = snapshot.requests[kind] }
+    for (const kind of Object.keys(detailReads) as DetailKind[]) { delete detailTargets[kind]; if (snapshot.targets[kind]) detailTargets[kind] = snapshot.targets[kind] }
+    selectedRoonAlbum.value = snapshot.album; selectedRoonAlbumPage.value = snapshot.albumPage
+    roonAlbumError.value = snapshot.albumError; roonAlbumFavoriteState.value = snapshot.albumFavorite
     roonAlbumLoadMoreError.value = snapshot.albumLoadMoreError
-    selectedRoonArtist.value = snapshot.artist
-    selectedRoonArtistPage.value = snapshot.artistPage
-    roonArtistError.value = snapshot.artistError
-    roonArtistFavoriteState.value = snapshot.artistFavorite
+    selectedRoonArtist.value = snapshot.artist; selectedRoonArtistPage.value = snapshot.artistPage
+    roonArtistError.value = snapshot.artistError; roonArtistFavoriteState.value = snapshot.artistFavorite
     roonArtistLoadMoreError.value = snapshot.artistLoadMoreError
+    selectedRoonGenre.value = snapshot.genre; selectedRoonGenrePage.value = snapshot.genrePage
+    roonGenreError.value = snapshot.genreError; roonGenreLoadMoreError.value = snapshot.genreLoadMoreError
+    selectedRoonPlaylist.value = snapshot.playlist; selectedRoonPlaylistPage.value = snapshot.playlistPage
+    roonPlaylistError.value = snapshot.playlistError; roonPlaylistLoadMoreError.value = snapshot.playlistLoadMoreError
   }
 
   function resetSession(): void {
+    sessionEpoch += 1
+    leaveDetail()
+    favoriteReads.cancelAll()
+    catalogReads.cancelAll()
+    pendingFavorite = undefined
+    for (const kind of Object.keys(detailReads) as DetailKind[]) { delete detailRequests[kind]; delete detailTargets[kind] }
     resolvedFavoriteDescriptors.clear()
     favoriteResolutionEpoch.value += 1
     resetRoonAlbums()
@@ -540,7 +627,10 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
   }
 
   function dispose(): void {
+    disposed = true
     resetSession()
+    for (const collection of [albumCollection, artistCollection, genreCollection, playlistCollection]) collection.dispose()
+    for (const scope of [catalogReads, favoriteReads, entityFavoriteReads, ...Object.values(detailReads)]) scope.dispose()
   }
 
   return {
@@ -573,6 +663,6 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     removeFavorite, favoritesPageAt, retryFavorites, retryRoonAlbum,
     refreshVisibleRoonCollection, invalidateAlbumArtistRequests, leaveDetail,
     invalidateDetailRequests, captureDetail,
-    restoreDetail, resetSession, dispose,
+    restoreDetail, resumeDetail, suspendPageReads, resumePageReads, resetSession, dispose,
   }
 }

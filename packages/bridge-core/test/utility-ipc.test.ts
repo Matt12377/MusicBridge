@@ -1642,3 +1642,42 @@ test('正式 Utility dispatch 将受控 RPC 身份传到 Provider 并关闭 span
   assert.equal(performance.snapshot().inflightCount, 0);
   assert.equal(currentPerformanceContext(), undefined);
 });
+
+test('MBP-002：Core 合并同作用域读取，取消单个订阅者不结束另一个', async () => {
+  let finish!: (result: unknown) => void;
+  let calls = 0;
+  const runtime = Object.assign(makeRuntime(), { searchTracks: async () => { calls++; return await new Promise(resolve => { finish = resolve; }); } }) as unknown as CoreRuntimeForIpc;
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, runtime);
+  const payload = { query: 'shared', page: { offset: 0, limit: 24 } };
+  for (const id of ['read-A', 'read-B']) port.send({ version: 1, id, command: 'library.search', payload, readContext: { deadlineAtMs: Date.now() + 1000 } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(calls, 1);
+  port.send({ version: 1, kind: 'library.read.cancel', id: 'read-A' });
+  finish({ items: [], total: 0, offset: 0, limit: 24, hasMore: false });
+  await new Promise(resolve => setImmediate(resolve));
+  const responses = port.messages as Array<{ id?: string; ok?: boolean; error?: { code: string } }>;
+  assert.equal(responses.find(r => r.id === 'read-A')?.error?.code, 'CANCELLED');
+  assert.equal(responses.find(r => r.id === 'read-B')?.ok, true);
+  assert.equal(responses.filter(r => r.id === 'read-A').length, 1);
+});
+
+test('MBP-002：读取取消消息不能撤销写命令或抹去其唯一回执', async () => {
+  let finish!: () => void;
+  let calls = 0;
+  const runtime = makeRuntime();
+  runtime.playbackStop = async () => { calls++; await new Promise<void>(resolve => { finish = resolve; }); return runtime.getPlaybackState(); };
+  const port = new FakePort();
+  await attachCoreRuntimePort(port, runtime);
+  port.send({ version: 1, id: 'write-stop', command: 'playback.stop', payload: {} });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(calls, 1);
+  port.send({ version: 1, kind: 'library.read.cancel', id: 'write-stop' });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(port.messages.some(value => (value as { id?: string }).id === 'write-stop'), false);
+  finish();
+  await new Promise(resolve => setImmediate(resolve));
+  const responses = port.messages.filter(value => (value as { id?: string }).id === 'write-stop') as Array<{ ok: boolean }>;
+  assert.equal(responses.length, 1);
+  assert.equal(responses[0]?.ok, true);
+});

@@ -1,4 +1,5 @@
 import { copyPerformanceTraceContext, isPerformanceTraceSnapshot } from './performance.js';
+import { isLibraryReadCommand, isLibraryReadContext } from './library-read.js';
 import { isVolumeRequest, isVolumeSnapshot } from './volume.js';
 import { isRoonDisplayLyricsEvent } from './roon-display-lyrics.js';
 import { isGetMasterArtworkRequest, isSaveMasterArtworkRequest, isMasterArtworkResult, isMasterArtworkVersion } from './recording-artwork.js';
@@ -1208,6 +1209,7 @@ const PUBLIC_ERROR_CODES = new Set([
   'UNKNOWN_IPC_COMMAND',
   'INVALID_IPC_RESPONSE',
   'TIMEOUT',
+  'CANCELLED',
   'NOT_READY',
   'ATTEMPT_NOT_ACCEPTED',
   'AUTH_REQUIRED',
@@ -1940,6 +1942,7 @@ export function validateIpcRequest(
   }
 
   if (
+    (input.readContext !== undefined && (!isLibraryReadCommand(input.command) || !isLibraryReadContext(input.readContext))) ||
     (input.expectedDatasetId !== undefined && !isCommandOutboxDatasetId(input.expectedDatasetId)) ||
     typeof input.id !== 'string' ||
     input.id.trim().length === 0 ||
@@ -1972,6 +1975,7 @@ export function validateIpcRequest(
       id: input.id,
       command: input.command as (typeof IPC_COMMANDS)[number],
       payload: input.payload,
+      ...(input.readContext !== undefined ? { readContext: input.readContext as import('./library-read.js').LibraryReadContext } : {}),
       ...(input.expectedDatasetId !== undefined ? { expectedDatasetId: input.expectedDatasetId as string } : {}),
       ...(copyPerformanceTraceContext(input.performanceTrace) ? { performanceTrace: copyPerformanceTraceContext(input.performanceTrace)! } : {}),
     },

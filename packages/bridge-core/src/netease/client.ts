@@ -1,3 +1,4 @@
+import { assertLibraryReadCurrent, currentLibraryRead, libraryReadCancelled, remainingLibraryReadMs, waitLibraryRead } from '../shared/library-read-lifetime.js';
 import { traceProviderApi } from '../diagnostics/performance-instrumentation.js';
 import { createRequire } from 'node:module';
 import { BridgeError } from '../shared/errors.js';
@@ -139,6 +140,9 @@ function loadApi(): NeteaseApiModule {
 
 export class NeteaseClient implements NeteasePort, QrLoginProvider {
   private cookie: string | undefined;
+  private accountGeneration = 0;
+  private outstandingReads = 0;
+  private outstandingOtherRequests = 0;
   private readonly api: NeteaseApiModule;
   private readonly prepareApiRuntime: () => Promise<void>;
   private readonly metadataCache = new Map<string, CachedTrackMetadata>();
@@ -155,7 +159,34 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
   ) {
     this.cookie = cookie?.trim() || undefined;
     const providerApi = api ?? loadApi();
-    this.api = process.env.MUSIC_BRIDGE_PERFORMANCE_TRACE === '1' ? traceProviderApi(providerApi) : providerApi;
+    const traced = process.env.MUSIC_BRIDGE_PERFORMANCE_TRACE === '1' ? traceProviderApi(providerApi) : providerApi;
+    const readMethods = new Set(['search', 'artists', 'artist_detail', 'album', 'likelist', 'song_like_check', 'user_account', 'recommend_songs', 'user_playlist', 'playlist_detail', 'playlist_track_all', 'song_detail', 'lyric_new']);
+    const wrapped = new Map<PropertyKey, unknown>();
+    this.api = new Proxy(traced, { get: (target, property, receiver) => {
+      const original = Reflect.get(target, property, receiver) as unknown;
+      if (typeof original !== 'function' || !readMethods.has(String(property))) return original;
+      if (wrapped.has(property)) return wrapped.get(property);
+      const invoke = (params: Record<string, unknown>) => {
+        assertLibraryReadCurrent();
+        if (typeof params.cookie === 'string' && params.cookie !== this.cookie) throw libraryReadCancelled();
+        const read = currentLibraryRead();
+        // 媒体库读取不能耗尽播放元数据与账户恢复所需的预留调用预算。
+        if ((read ? this.outstandingReads : this.outstandingOtherRequests) >= (read ? 32 : 8)) throw new BridgeError('NETEASE_REQUEST_FAILED', '未返回读取预算已满');
+        const generation = this.accountGeneration;
+        if (read) this.outstandingReads++; else this.outstandingOtherRequests++;
+        const work = Promise.resolve().then(() => {
+          assertLibraryReadCurrent();
+          if (generation !== this.accountGeneration) throw libraryReadCancelled();
+          return original.call(target, read ? { ...params, timeout: remainingLibraryReadMs(10_000) } : params);
+        }).then(result => {
+          assertLibraryReadCurrent();
+          if (generation !== this.accountGeneration) throw libraryReadCancelled();
+          return result;
+        }).finally(() => { if (read) this.outstandingReads--; else this.outstandingOtherRequests--; });
+        return waitLibraryRead(work);
+      };
+      wrapped.set(property, invoke); return invoke;
+    } });
     this.prepareApiRuntime =
       prepareApiRuntime ?? (api === undefined ? ensureNeteaseApiRuntime : async () => undefined);
     this.metadataCacheMaxEntries = boundedMetadataCacheEntries(options.metadataCacheMaxEntries);
@@ -170,6 +201,7 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
   setCredential(credential: string): void {
     const nextCredential = credential.trim() || undefined;
     if (nextCredential !== this.cookie) {
+      this.accountGeneration++;
       this.metadataCache.clear();
       this.likedTrackIdsCache = undefined;
     }
@@ -177,6 +209,7 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
   }
 
   clearCredential(): void {
+    this.accountGeneration++;
     this.cookie = undefined;
     this.metadataCache.clear();
     this.likedTrackIdsCache = undefined;
@@ -534,6 +567,7 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
   }
 
   private requireCookie(): string {
+    assertLibraryReadCurrent();
     if (!this.cookie) {
       throw new BridgeError(
         'NETEASE_NOT_CONFIGURED',
@@ -561,6 +595,7 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
   }
 
   private rememberTrack(track: TrackSummary | TrackMetadata): void {
+    assertLibraryReadCurrent();
     const metadata = cloneTrackMetadata(track);
     this.metadataCache.delete(metadata.id);
     this.metadataCache.set(metadata.id, {
@@ -588,6 +623,7 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     const ids = this.api.likelist
       ? parseLikedTrackIds(await this.api.likelist({ uid: accountId, cookie }))
       : await this.getLikedPlaylistTrackIds(accountId, cookie);
+    assertLibraryReadCurrent();
     this.likedTrackIdsCache = {
       ids: [...ids],
       idSet: new Set(ids),

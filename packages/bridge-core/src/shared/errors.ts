@@ -1,4 +1,6 @@
 export type BridgeErrorCode =
+  | 'READ_CANCELLED'
+  | 'READ_DEADLINE'
   | 'CONFIG_INVALID'
   | 'NETEASE_NOT_CONFIGURED'
   | 'NETEASE_REQUEST_FAILED'

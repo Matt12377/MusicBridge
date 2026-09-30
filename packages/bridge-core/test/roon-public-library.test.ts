@@ -719,3 +719,14 @@ test('断连前发出的专辑请求即使晚到，也不能发布到新的引�
   finish!({ items: [{ kind: 'album', title: '旧回复', itemKey: 'old-key' }], offset: 0, level: 0 });
   await assert.rejects(pending, error => error instanceof Error && 'code' in error && error.code === 'ROON_LIBRARY_INVALID_REFERENCE');
 });
+
+test('MBP-002：旧图片读取跨 clear 的失败不写新负缓存或清除新 pending', async () => {
+  const reads: Array<{ resolve(value: { contentType: string; body: Buffer }): void; reject(error: unknown): void }> = [];
+  const service = createRoonLibraryService({ browse: { browse() {}, load() {} }, image: { get_image() {} } });
+  service.getImage = () => new Promise((resolve, reject) => { reads.push({ resolve, reject }); });
+  const library = createRoonPublicLibrary(() => service); const firstReference = library.registerNowPlayingArtwork('same-key');
+  const old = library.getImage(firstReference); const rejected = assert.rejects(old);
+  library.invalidateReferences(); const nextReference = library.registerNowPlayingArtwork('same-key'); const fresh = library.getImage(nextReference);
+  reads[0]!.reject(new Error('旧代错误')); await rejected; const shared = library.getImage(nextReference); assert.equal(reads.length, 2);
+  reads[1]!.resolve({ contentType: 'image/jpeg', body: JPEG_BYTES }); await Promise.all([fresh, shared]); assert.equal(reads.length, 2);
+});

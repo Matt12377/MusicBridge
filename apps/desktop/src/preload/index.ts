@@ -370,5 +370,6 @@ contextBridge.exposeInMainWorld(
     preparationZipClient,
     createRecordingDeviceClient((channel, value) => invokePerformance(channel, value)),
     interactions.api,
+    { readLibrary: request => invokePerformance('library:read', request), cancelLibraryRead: id => invokePerformance('library:cancel-read', id) },
   ),
 )

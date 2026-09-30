@@ -1,3 +1,4 @@
+import { isLibraryReadCommand } from '@music-bridge/contracts'
 import { randomUUID } from 'node:crypto'
 
 import {
@@ -79,6 +80,9 @@ interface StartupAttempt {
 
 interface PendingRequest {
   performanceSpan?: PerformanceSpan
+  detachReadAbort?: () => void
+  readDeadlineAtMs?: number
+  cancelCoreRead?: () => void
   command: IpcCommand
   internal: boolean
   timer: NodeJS.Timeout
@@ -164,8 +168,9 @@ export class CoreSupervisor {
     command: TCommand,
     payload: IpcCommandPayloads[TCommand],
     expectedDatasetId?: string,
+    read?: { signal?: AbortSignal; deadlineAtMs?: number },
   ): Promise<IpcCommandResults[TCommand]> {
-    return (await this.sendRequest(command, payload, false, expectedDatasetId)) as IpcCommandResults[TCommand]
+    return (await this.sendRequest(command, payload, false, expectedDatasetId, undefined, read)) as IpcCommandResults[TCommand]
   }
 
   async requestInternal<TCommand extends IpcInternalCommand>(
@@ -182,7 +187,11 @@ export class CoreSupervisor {
     internal: boolean,
     expectedDatasetId?: string,
     startup?: StartupAttempt,
+    read?: { signal?: AbortSignal; deadlineAtMs?: number },
   ): Promise<unknown> {
+    if (read && !isLibraryReadCommand(command)) throw new CoreIpcError('INVALID_IPC_REQUEST', '写命令不能使用读取取消协议')
+    if (read?.deadlineAtMs !== undefined && (!Number.isSafeInteger(read.deadlineAtMs) || read.deadlineAtMs <= 0)) throw new CoreIpcError('INVALID_IPC_REQUEST', '读取期限无效')
+    if (read?.signal?.aborted) throw new CoreIpcError('CANCELLED', '读取已取消')
     const permitted = startup
       ? startup.valid && startup.readyReceived && startup.generation === this.startupGeneration && this.startupAttempt === startup && this.child === startup.child && this.port === startup.port && !this.shuttingDown
       : this._status === 'ready'
@@ -197,12 +206,6 @@ export class CoreSupervisor {
     }
     const traceContext = recorder?.context(parent ? { traceId: parent.traceId, requestId: id, parentRequestId: parent.requestId } : { requestId: id })
     const performanceSpan = recorder?.start('ipc', traceContext, {}, { command })
-    const request = { version: IPC_VERSION, id, command, payload, ...(expectedDatasetId === undefined ? {} : { expectedDatasetId }), ...(traceContext ? { performanceTrace: traceContext } : {}) }
-    const validated = validateIpcRequest(request)
-    if (!validated.ok) {
-      performanceSpan?.end('error')
-      throw new CoreIpcError(validated.error.code, validated.error.message)
-    }
     const timedCommand = command === 'commandOutbox.execute' && 'command' in payload ? String(payload.command) : command
     const timeoutMs =
       ['recordingReplica.inspect', 'recordingOutput.check', 'recordingPlans.preview', 'recordingPlans.freeze', 'recordingPlans.preflight', 'recordingArchive.preview', 'recordingArchive.start', 'recordingArchive.verify', 'recordingArchive.initialize', 'recordingExecution.preview', 'recordingExecution.start', 'recordingExecution.verify', 'recordingPrepared.previewImport', 'recordingPrepared.startImport', 'recordingPrepared.review', 'recordingPrepared.freeze', 'recordingPreparationZip.preview', 'recordingPreparationZip.start'].includes(timedCommand)
@@ -214,17 +217,37 @@ export class CoreSupervisor {
       command.startsWith('roon.transport.')
       ? LIBRARY_REQUEST_TIMEOUT_MS
       : this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
+    const deadlineAtMs = isLibraryReadCommand(command) ? Math.min(Date.now() + timeoutMs, read?.deadlineAtMs ?? Infinity) : undefined
+    if (deadlineAtMs !== undefined && deadlineAtMs <= Date.now()) { performanceSpan?.end('cancelled'); throw new CoreIpcError('TIMEOUT', '读取期限已到') }
+    const request = { version: IPC_VERSION, id, command, payload, ...(deadlineAtMs === undefined ? {} : { readContext: { deadlineAtMs } }), ...(expectedDatasetId === undefined ? {} : { expectedDatasetId }), ...(traceContext ? { performanceTrace: traceContext } : {}) }
+    const validated = validateIpcRequest(request)
+    if (!validated.ok) {
+      performanceSpan?.end('error')
+      throw new CoreIpcError(validated.error.code, validated.error.message)
+    }
+    const port = this.port
+    const cancelCoreRead = (): void => { if (deadlineAtMs !== undefined) { try { port?.postMessage({ version: IPC_VERSION, kind: 'library.read.cancel', id }) } catch { /* 已退出的 Core 不再有存活读取。 */ } } }
     const response = await new Promise<unknown>((resolve, reject) => {
+      const abort = (): void => {
+        const pending = this.pending.get(id)
+        if (!pending) return
+        clearTimeout(pending.timer); this.removePending(id); cancelCoreRead()
+        performanceSpan?.cancel(); performanceSpan?.end('cancelled')
+        reject(new CoreIpcError('CANCELLED', '读取已取消'))
+      }
       const timer = setTimeout(() => {
         this.removePending(id)
+        cancelCoreRead()
         performanceSpan?.cancel()
         performanceSpan?.end('cancelled')
         reject(new CoreIpcError('TIMEOUT', 'Core request timed out'))
-      }, timeoutMs)
-      this.pending.set(id, { command, internal, timer, resolve, reject, ...(performanceSpan ? { performanceSpan } : {}) })
+      }, deadlineAtMs === undefined ? timeoutMs : Math.max(1, deadlineAtMs - Date.now()))
+      read?.signal?.addEventListener('abort', abort, { once: true })
+      this.pending.set(id, { command, internal, timer, resolve, reject, ...(deadlineAtMs === undefined ? {} : { readDeadlineAtMs: deadlineAtMs, cancelCoreRead }), ...(read?.signal ? { detachReadAbort: () => read.signal?.removeEventListener('abort', abort) } : {}), ...(performanceSpan ? { performanceSpan } : {}) })
       recorder?.setGauge('activeRequestCount', this.pending.size)
       try {
-        this.port?.postMessage(request)
+        if (read?.signal?.aborted) { abort(); return }
+        port?.postMessage(request)
       } catch {
         clearTimeout(timer)
         this.removePending(id)
@@ -457,6 +480,15 @@ export class CoreSupervisor {
       }
       const pending = this.pending.get(message.id)
       if (!pending) return
+      if (pending.readDeadlineAtMs !== undefined && Date.now() >= pending.readDeadlineAtMs) {
+        clearTimeout(pending.timer)
+        this.removePending(message.id)
+        pending.cancelCoreRead?.()
+        pending.performanceSpan?.cancel()
+        pending.performanceSpan?.end('cancelled')
+        pending.reject(new CoreIpcError('TIMEOUT', '读取期限已到'))
+        return
+      }
       const response = pending.internal
         ? validateIpcInternalResponseForCommand(
             message,
@@ -507,6 +539,7 @@ export class CoreSupervisor {
   }
 
   private removePending(id: string): void {
+    this.pending.get(id)?.detachReadAbort?.()
     this.pending.delete(id)
     this.options.performance?.setGauge('activeRequestCount', this.pending.size)
   }

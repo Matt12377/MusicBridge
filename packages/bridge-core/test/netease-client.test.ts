@@ -168,3 +168,14 @@ test('NeteaseClient distinguishes authorized, expired and unavailable credential
   mode = 'unavailable'
   assert.equal(await client.verifyCredentialStatus('fixture-credential'), 'unavailable')
 })
+
+test('MBP-002：网易云账户换代拒绝旧搜索并阻止旧元数据缓存写回', async () => {
+  let finish!: (value: unknown) => void; let details = 0;
+  const api = { search: async () => await new Promise(resolve => { finish = resolve; }),
+    song_detail: async () => { details++; return { body: { code: 200, songs: [{ id: 1, name: '新账户数据', ar: [{ name: '艺人' }], al: { name: '专辑' }, dt: 60000 }] } }; },
+  } as unknown as NonNullable<ConstructorParameters<typeof NeteaseClient>[1]>;
+  const client = new NeteaseClient('synthetic-A', api); const old = client.searchTracks('query', { offset: 0, limit: 24 });
+  const rejected = assert.rejects(old, { code: 'READ_CANCELLED' }); await new Promise(resolve => setImmediate(resolve));
+  client.setCredential('synthetic-B'); finish({ body: { code: 200, result: { songCount: 1, songs: [{ id: 1, name: '旧账户数据', artists: [{ name: '艺人' }], album: { name: '专辑' } }] } } });
+  await rejected; assert.equal((await client.getTrack('1')).title, '新账户数据'); assert.equal(details, 1);
+});

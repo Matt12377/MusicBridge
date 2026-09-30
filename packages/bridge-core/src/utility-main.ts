@@ -1,3 +1,5 @@
+import { LibraryReadRegistry } from './shared/library-read-registry.js';
+import { isLibraryReadCommand, isLibraryReadCancel } from '@music-bridge/contracts';
 import { withPerformanceContext } from './diagnostics/performance-trace.js';
 import type { VolumeRequest } from '@music-bridge/contracts';
 import { RecordingPrintError } from './recording/print-integrity.js';
@@ -124,6 +126,8 @@ function failureForError(id: string, error: unknown, command: IpcRequest['comman
   if (error instanceof CollectionError) return responseFailure(id, error.code, error.message);
   if (error instanceof SpreadsheetReadError || error instanceof SpreadsheetParseError) return responseFailure(id, 'INVALID_IPC_REQUEST', error.message);
   const bridgeError = asBridgeError(error);
+  if (bridgeError.code === 'READ_CANCELLED') return responseFailure(id, 'CANCELLED', '读取已取消');
+  if (bridgeError.code === 'READ_DEADLINE') return responseFailure(id, 'TIMEOUT', '读取期限已到');
   if (bridgeError.code === 'NETEASE_NOT_CONFIGURED') {
     return responseFailure(id, 'AUTH_REQUIRED', 'Provider login required');
   }
@@ -773,7 +777,9 @@ export async function attachCoreRuntimePort(
   runtime: CoreRuntimeForIpc,
   options: { exitAfterShutdown?: boolean; beforeReady?: () => void } = {},
 ): Promise<void> {
+  const reads = new LibraryReadRegistry(command => runtime.getLibraryReadScope?.(command) ?? 'runtime');
   port.on('message', (event) => {
+    if (isLibraryReadCancel(event.data)) { reads.cancel(event.data.id); return; }
     void (async () => {
       const parsed = validateIpcRequest(event.data);
       const id = requestId(event.data);
@@ -788,7 +794,11 @@ export async function attachCoreRuntimePort(
         recorder?.mark('ipc', 'core-received', span?.context, {}, { command: parsed.value.command });
         let result: unknown;
         try {
-          result = await (recorder ? withPerformanceContext(recorder, span?.context, () => dispatch(runtime, parsed.value)) : dispatch(runtime, parsed.value));
+          const operation = () => recorder ? withPerformanceContext(recorder, span?.context, () => dispatch(runtime, parsed.value)) : dispatch(runtime, parsed.value);
+          if (parsed.value.command === 'core.shutdown') reads.cancelAll();
+          if (['auth.setCredential', 'auth.clearCredential', 'auth.logout'].includes(parsed.value.command)) reads.cancelWhere(command => command.startsWith('library.'));
+          if (parsed.value.command === 'roon.selectZone') reads.cancelWhere(command => !command.startsWith('library.') || command === 'library.match' || command === 'library.aggregateSearch');
+          result = await (isLibraryReadCommand(parsed.value.command) ? reads.read(parsed.value, operation) : operation());
           span?.end('ok');
         } catch (error) { span?.end('error'); throw error; }
         const response: IpcResponse = {

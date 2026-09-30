@@ -1,4 +1,5 @@
 import { computed, ref } from 'vue'
+import { createLibraryReadScope, isLibraryReadCancelled } from '../libraryReadScope.js'
 import type {
   DailyRecommendationsSnapshot, Page, PageRequest, PlaylistDetail, PlaylistSummary,
   PublicAccountState, PublicAuthState, PublicBridgeState, RemoteCoreTunnelState, TrackSummary,
@@ -91,6 +92,11 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
     return likedPage.value.items.length ? 'ready' : 'empty'
   })
 
+  const reads = { liked: createLibraryReadScope(api), daily: createLibraryReadScope(api), playlists: createLibraryReadScope(api), home: createLibraryReadScope(api), playlist: createLibraryReadScope(api) }
+  let playlistOwned = false
+  let playlistRequest: { id: string; page: PageRequest } | undefined
+  let likedRequest: PageRequest | undefined
+  let dailyPending = false, homePending = false
   let disposed = false
   let authOperation = 0
   let authRevision = 0
@@ -119,12 +125,18 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
 
   function resetPlaylistList(): void {
     playlistListGeneration += 1
+    reads.playlists.cancelAll()
     playlists.value = []
     playlistState.value = 'ready'
     playlistError.value = null
   }
 
   function resetPrivateLibraryState(): void {
+    for (const scope of Object.values(reads)) scope.cancelAll()
+    playlistOwned = false
+    playlistRequest = undefined
+    likedRequest = undefined
+    dailyPending = false; homePending = false
     accountOperation += 1
     dailyOperation += 1
     likedRequestGeneration += 1
@@ -158,6 +170,7 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
   function resetAuthorizedLoadStarted(): void {
     if (disposed) return
     authorizedLibraryLoadStarted = false
+    for (const scope of Object.values(reads)) scope.cancelAll()
     accountOperation += 1
     dailyOperation += 1
     likedRequestGeneration += 1
@@ -167,7 +180,7 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
     likedInitialLoading.value = false
     likedLoadingMore.value = false
     playlistLoadingMore.value = false
-    if (selectedPlaylistId.value) {
+    if (playlistOwned && selectedPlaylistId.value) {
       pendingPlaylistRequest = { id: selectedPlaylistId.value, page: { offset: 0, limit: LIBRARY_PAGE_SIZE } }
       playlistInitialLoading.value = true
     }
@@ -194,6 +207,8 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
     }
     if (initial) {
       likedRequestGeneration += 1
+      reads.liked.cancelAll()
+      likedLoadingMore.value = false
       likedInitialLoading.value = true
       likedLoadMoreError.value = null
     } else {
@@ -202,15 +217,20 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
       likedLoadMoreError.value = null
     }
     const generation = likedRequestGeneration
+    likedRequest = { ...page }
     try {
-      const result = await api.getLikedTracks(page)
+      const result = await reads.liked.read('library.liked', { page }, () => api.getLikedTracks(page))
       if (disposed || generation !== likedRequestGeneration || !canLoadPrivate()) return
+      likedRequest = undefined
       likedPage.value = initial ? result : appendPage(likedPage.value, result)
       likedError.value = null
       if (initial) likedInitialLoading.value = false
       else likedLoadingMore.value = false
     } catch (error) {
       if (disposed || generation !== likedRequestGeneration || !canLoadPrivate()) return
+      likedInitialLoading.value = false; likedLoadingMore.value = false
+      if (isLibraryReadCancelled(error)) return
+      likedRequest = undefined
       if (initial) {
         likedInitialLoading.value = false
         likedError.value = libraryErrorKind(error)
@@ -228,8 +248,11 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
   async function loadDailyRecommendations(): Promise<void> {
     if (disposed) return
     const operation = ++dailyOperation
+    reads.daily.cancelAll()
+    dailyPending = true
     dailyError.value = null
     if (authState.value.status !== 'authorized') {
+      dailyPending = false
       dailyRecommendations.value = emptyDailyRecommendations()
       dailyState.value = 'empty'
       return
@@ -237,13 +260,16 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
     dailyState.value = 'loading'
     if (!canLoadPrivate()) return
     try {
-      const snapshot = await api.getDailyRecommendations()
+      const snapshot = await reads.daily.read('library.dailyRecommendations', {}, () => api.getDailyRecommendations())
       if (disposed || operation !== dailyOperation || !canLoadPrivate()) return
+      dailyPending = false
       dailyRecommendations.value = snapshot
       void onMatchTracks(snapshot.tracks, getView() === 'home' || getView() === 'daily-recommendations')
       dailyState.value = snapshot.tracks.length ? 'ready' : 'empty'
     } catch (error) {
       if (disposed || operation !== dailyOperation || !canLoadPrivate()) return
+      if (isLibraryReadCancelled(error)) { dailyState.value = dailyRecommendations.value.tracks.length ? 'ready' : 'empty'; return }
+      dailyPending = false
       dailyRecommendations.value = emptyDailyRecommendations()
       dailyState.value = 'error'
       dailyError.value = dailyMessage(error)
@@ -292,23 +318,34 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
   async function loadHomeRecommendations(): Promise<void> {
     if (disposed) return
     const operation = ++homeRecommendationOperation
+    reads.home.cancelAll()
+    homePending = true
     homeRecommendationState.value = 'loading'
     if (!canLoadPrivate()) return
     const selections = selectRandomPlaylistPages(playlists.value)
     if (!selections.length) {
+      homePending = false
       homePlaylistTracks.value = []
       homeRecommendationState.value = 'ready'
       return
     }
     try {
+      let cancelledPages = 0
       const settled = await settleHomePlaylistPages(
-        selections.map((selection) => api.getPlaylist(selection.playlistId, selection.page)),
+        selections.map((selection) => reads.home.read('library.playlist', { playlistId: selection.playlistId, page: selection.page }, () => api.getPlaylist(selection.playlistId, selection.page)).catch(error => {
+          if (isLibraryReadCancelled(error)) cancelledPages += 1
+          throw error
+        })),
       )
       if (disposed || operation !== homeRecommendationOperation || !canLoadPrivate()) return
+      if (cancelledPages === selections.length) { homeRecommendationState.value = 'ready'; return }
+      homePending = false
       homePlaylistTracks.value = shuffleTracks(settled.tracks)
       homeRecommendationState.value = settled.successCount > 0 ? 'ready' : 'error'
-    } catch {
+    } catch (error) {
       if (disposed || operation !== homeRecommendationOperation || !canLoadPrivate()) return
+      if (isLibraryReadCancelled(error)) { homeRecommendationState.value = 'ready'; return }
+      homePending = false
       homePlaylistTracks.value = []
       homeRecommendationState.value = 'error'
     }
@@ -327,16 +364,18 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
       return
     }
     const generation = ++playlistListGeneration
+    reads.playlists.cancelAll()
     playlistState.value = 'loading'
     playlistError.value = null
     try {
-      const result = await api.getUserPlaylists()
+      const result = await reads.playlists.read('library.playlists', {}, () => api.getUserPlaylists())
       if (disposed || generation !== playlistListGeneration || !canLoadPrivate()) return
       playlists.value = result
       playlistState.value = 'ready'
-      await loadHomeRecommendations()
+      if (getView() === 'home') await loadHomeRecommendations()
     } catch (error) {
       if (disposed || generation !== playlistListGeneration || !canLoadPrivate()) return
+      if (isLibraryReadCancelled(error)) { playlistState.value = 'ready'; return }
       playlistError.value = error
       playlistState.value = 'error'
       homePlaylistTracks.value = []
@@ -354,6 +393,7 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
     page: PageRequest = { offset: 0, limit: LIBRARY_PAGE_SIZE },
   ): Promise<void> {
     if (disposed || authState.value.status !== 'authorized') return
+    playlistOwned = true
     const switchingPlaylist = selectedPlaylistId.value !== playlistId
     selectedPlaylistId.value = playlistId
     const previousPlaylist = selectedPlaylist.value
@@ -367,6 +407,8 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
     }
     if (initial && !switchingPlaylist) playlistRequestGeneration += 1
     if (initial) {
+      reads.playlist.cancelAll()
+      playlistLoadingMore.value = false
       playlistInitialLoading.value = true
       playlistLoadMoreError.value = null
     } else {
@@ -374,14 +416,16 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
       playlistLoadingMore.value = true
       playlistLoadMoreError.value = null
     }
+    playlistRequest = { id: playlistId, page: { ...page } }
     if (!canLoadPrivate()) {
       pendingPlaylistRequest = { id: playlistId, page }
       return
     }
     const generation = playlistRequestGeneration
     try {
-      const result = await api.getPlaylist(playlistId, page)
+      const result = await reads.playlist.read('library.playlist', { playlistId, page }, () => api.getPlaylist(playlistId, page))
       if (disposed || generation !== playlistRequestGeneration || selectedPlaylistId.value !== playlistId || !canLoadPrivate()) return
+      playlistRequest = undefined
       selectedPlaylist.value = {
         ...result,
         tracks: initial ? result.tracks : appendPage(previousPlaylist?.tracks ?? null, result.tracks),
@@ -393,6 +437,9 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
       else playlistLoadingMore.value = false
     } catch (error) {
       if (disposed || generation !== playlistRequestGeneration || selectedPlaylistId.value !== playlistId || !canLoadPrivate()) return
+      playlistInitialLoading.value = false; playlistLoadingMore.value = false
+      if (isLibraryReadCancelled(error)) return
+      playlistRequest = undefined
       if (initial) {
         playlistInitialLoading.value = false
         playlistDetailError.value = libraryErrorKind(error)
@@ -418,7 +465,7 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
     void loadLiked()
     void loadPlaylists()
     void loadDailyRecommendations()
-    if (pendingPlaylistRequest) {
+    if (playlistOwned && pendingPlaylistRequest) {
       const pending = pendingPlaylistRequest
       pendingPlaylistRequest = undefined
       void loadPlaylist(pending.id, pending.page)
@@ -552,9 +599,38 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
     }
   }
 
+  function cancelPageReads(destination: ViewId): void {
+    if (destination !== 'playlist-detail') {
+      playlistOwned = false; playlistRequestGeneration += 1
+      reads.playlist.cancelAll(); pendingPlaylistRequest = undefined
+      playlistInitialLoading.value = false; playlistLoadingMore.value = false
+    }
+    if (destination !== 'home' && destination !== 'liked') {
+      likedRequestGeneration += 1; reads.liked.cancelAll()
+      likedInitialLoading.value = false; likedLoadingMore.value = false
+    }
+    if (destination !== 'home' && destination !== 'daily-recommendations') {
+      dailyOperation += 1; reads.daily.cancelAll()
+      if (dailyState.value === 'loading') dailyState.value = dailyRecommendations.value.tracks.length ? 'ready' : 'empty'
+    }
+    if (destination !== 'home') {
+      homeRecommendationOperation += 1; reads.home.cancelAll()
+      if (homeRecommendationState.value === 'loading') homeRecommendationState.value = 'ready'
+    }
+  }
+
+  function resumePageReads(view: ViewId): void {
+    if (disposed) return
+    if (view === 'playlist-detail' && playlistRequest && !playlistInitialLoading.value && !playlistLoadingMore.value) void loadPlaylist(playlistRequest.id, playlistRequest.page)
+    if ((view === 'home' || view === 'liked') && likedRequest && !likedInitialLoading.value && !likedLoadingMore.value) void loadLiked(likedRequest)
+    if ((view === 'home' || view === 'daily-recommendations') && dailyPending && dailyState.value !== 'loading') void loadDailyRecommendations()
+    if (view === 'home' && homePending && homeRecommendationState.value !== 'loading') void loadHomeRecommendations()
+  }
+
   function dispose(): void {
     if (disposed) return
     disposed = true
+    for (const scope of Object.values(reads)) scope.dispose()
     authOperation += 1
     authRevision += 1
     accountOperation += 1
@@ -580,6 +656,6 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
     loadPlaylist, retryPlaylist, playlistPageAt,
     applyAuthState, applyAccountState, applyInitialAuthState,
     loadAuthorizedLibraryWhenReady, resetAuthorizedLoadStarted, resetPrivateLibraryState,
-    beginQrLogin, cancelQrLogin, logout, dispose,
+    beginQrLogin, cancelQrLogin, logout, cancelPageReads, resumePageReads, dispose,
   }
 }

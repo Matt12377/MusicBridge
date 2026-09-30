@@ -1,0 +1,70 @@
+import type { IpcRequest, IpcCommand } from '@music-bridge/contracts';
+import { BridgeError } from './errors.js';
+import { libraryReadCancelled, libraryReadTimeout, withLibraryRead } from './library-read-lifetime.js';
+
+interface Subscriber { finish(error?: unknown, value?: unknown): void }
+interface Flight {
+  key: string; controller: AbortController; subscribers: Map<string, Subscriber>;
+  deadlineAtMs: number; scope: string; command: IpcCommand;
+}
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+  if (value && typeof value === 'object') return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`).join(',')}}`;
+  return JSON.stringify(value) ?? 'null';
+}
+/** 同 flight 共享工作，各 IPC ID 独占回执、期限和取消权。 */
+export class LibraryReadRegistry {
+  private readonly flights = new Map<string, Flight>();
+  private readonly subscribers = new Map<string, Flight>();
+  private outstanding = 0;
+  constructor(private readonly scope: (command: IpcCommand) => string, private readonly now = Date.now,
+    private readonly maximumFlights = 64, private readonly maximumSubscribers = 256) {}
+  read(request: IpcRequest, operation: () => Promise<unknown>): Promise<unknown> {
+    const now = this.now();
+    const deadlineAtMs = Math.min(request.readContext?.deadlineAtMs ?? now + 10_000, now + 10_000);
+    if (deadlineAtMs <= now) return Promise.reject(libraryReadTimeout());
+    if (this.subscribers.has(request.id)) return Promise.reject(new BridgeError('BAD_REQUEST', '读取 ID 已在使用'));
+    if (this.subscribers.size >= this.maximumSubscribers) return Promise.reject(new BridgeError('BAD_REQUEST', '读取订阅预算已满'));
+    const scope = this.scope(request.command);
+    const key = canonical([scope, request.command, request.payload]);
+    let flight = this.flights.get(key);
+    const fresh = !flight;
+    if (!flight) {
+      if (this.outstanding >= this.maximumFlights) return Promise.reject(new BridgeError('BAD_REQUEST', '未返回读取预算已满'));
+      flight = { key, scope, command: request.command, controller: new AbortController(), subscribers: new Map(), deadlineAtMs: now + 10_000 };
+      this.flights.set(key, flight); this.outstanding++;
+    }
+    const owned = flight;
+    const result = new Promise<unknown>((resolve, reject) => {
+      const finish = (error?: unknown, value?: unknown): void => {
+        if (!owned.subscribers.has(request.id)) return;
+        clearTimeout(timer); owned.subscribers.delete(request.id); this.subscribers.delete(request.id);
+        const outcome = error ?? (this.now() >= Math.min(deadlineAtMs, owned.deadlineAtMs) ? libraryReadTimeout() : undefined);
+        if (outcome) reject(outcome); else resolve(value);
+        if (!owned.subscribers.size) {
+          owned.controller.abort(outcome instanceof BridgeError ? outcome : libraryReadCancelled());
+          if (this.flights.get(key) === owned) this.flights.delete(key);
+        }
+      };
+      const timer = setTimeout(() => finish(libraryReadTimeout()), Math.max(0, Math.min(deadlineAtMs, owned.deadlineAtMs) - this.now()));
+      owned.subscribers.set(request.id, { finish }); this.subscribers.set(request.id, owned);
+    });
+    if (fresh) {
+      Promise.resolve().then(() => withLibraryRead({ signal: owned.controller.signal,
+        deadlineAtMs: owned.deadlineAtMs, now: this.now, isCurrent: () => this.scope(owned.command) === owned.scope }, operation))
+        .then(value => {
+          if (this.now() >= owned.deadlineAtMs) throw libraryReadTimeout();
+          if (this.scope(owned.command) !== owned.scope) throw libraryReadCancelled();
+          for (const sub of [...owned.subscribers.values()]) sub.finish(undefined, value);
+        }, error => { for (const sub of [...owned.subscribers.values()]) sub.finish(error); })
+        .catch(error => { for (const sub of [...owned.subscribers.values()]) sub.finish(error); })
+        .finally(() => { this.outstanding--; if (this.flights.get(key) === owned) this.flights.delete(key); });
+    }
+    return result;
+  }
+  cancel(id: string): void { this.subscribers.get(id)?.subscribers.get(id)?.finish(libraryReadCancelled()); }
+  cancelWhere(predicate: (command: IpcCommand) => boolean): void {
+    for (const [id, flight] of [...this.subscribers]) if (predicate(flight.command)) this.cancel(id);
+  }
+  cancelAll(): void { for (const id of [...this.subscribers.keys()]) this.cancel(id); }
+}

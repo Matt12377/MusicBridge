@@ -190,6 +190,7 @@ const netease = useNeteaseLibrary({
   onResetPrivate: () => {
     journey.resetPrivatePath()
     search.resetSearch()
+    search.invalidateAccountScope()
     playback.invalidateCollectionOperation()
     recentTracks.value = []
   },
@@ -224,6 +225,8 @@ const journey = usePageJourney({
     loadLiked,
     loadPlaylists,
     loadPlaylist: playlistId => loadPlaylist(playlistId),
+    cancelPageReads: netease.cancelPageReads,
+    resumePageReads: netease.resumePageReads,
   },
   onPlayRoonTrack: item => { void playRoonLibraryTrack(item) },
   onCloseInspector: () => { inspectorOpen.value = false },
@@ -291,6 +294,14 @@ const selectedZone = computed(() => {
   const selectedId = playbackState.value?.selectedZoneId
   return zones.value.find((zone) => zone.zoneId === selectedId) ?? zones.value.find((zone) => zone.selected)
 })
+watch(() => selectedZone.value?.zoneId, (next, previous) => {
+  if (next === previous) return
+  search.invalidateRoonScope(currentView.value === 'search')
+  browse.resetSession()
+  journey.resetRoonPath()
+  void browse.resumePageReads(currentView.value)
+  refreshVisibleRoonCollection()
+}, { flush: 'sync' })
 const zoneLifecycleStatus = computed(() => resolveZoneLifecycleStatus({
   roonStatus: coreState.value?.roon ?? 'disconnected',
   loading: zonesLoading.value,
@@ -306,7 +317,7 @@ function resetRoonRuntimeReferences(): void {
   browse.resetSession()
   journey.resetRoonPath()
   playback.resetRoonSession()
-  search.resetMatches()
+  search.invalidateRoonScope()
   roonArtworkCache.clear()
 }
 
@@ -671,6 +682,7 @@ const lifecycle = useRendererLifecycle({
     remoteCoreState.value = state
     if (state.sshTarget) updateRemoteSshTarget(state.sshTarget)
     if (previousStatus === 'ready' && state.status !== 'ready') resetRoonRuntimeReferences()
+    if (previousStatus === 'ready' && state.status !== 'ready') search.invalidateScope()
     if (state.status !== 'ready' && coreState.value) {
       coreState.value = { ...coreState.value, roon: 'disconnected' }
     }
@@ -679,10 +691,12 @@ const lifecycle = useRendererLifecycle({
       resetAuthorizedLoadStarted()
     } else {
       loadAuthorizedLibraryWhenReady()
+      if (state.status === 'ready' && currentView.value === 'search') search.resume()
     }
   },
   onCoreEvent: event => {
     const previousRoonStatus = coreState.value?.roon
+    const previousRuntime = coreState.value?.runtime
     if (
       event.event === 'core.ready'
       || (event.event === 'roon.changed'
@@ -692,6 +706,7 @@ const lifecycle = useRendererLifecycle({
       resetRoonRuntimeReferences()
     }
     if (event.event === 'core.ready' || event.event === 'core.health' || event.event === 'roon.changed') {
+      if (event.event === 'core.ready' || (previousRuntime === 'ready' && event.payload.state.runtime !== 'ready')) search.invalidateScope()
       coreState.value = event.payload.state
       if (event.payload.state.runtime !== 'ready') resetAuthorizedLoadStarted()
     }
@@ -704,6 +719,7 @@ const lifecycle = useRendererLifecycle({
       && isCoreRuntimeStable(event.payload.state.runtime, remoteCoreState.value.status)
     ) {
       zoneRefreshCoordinator.handleCoreEvent(event.event, event.payload.state.roon)
+      if (currentView.value === 'search') search.resume()
     }
     if (
       (event.event === 'core.ready' || event.event === 'roon.changed')
@@ -721,6 +737,8 @@ const lifecycle = useRendererLifecycle({
     }
     if (event.event === 'account.changed') {
       applyAccountState(event.payload.state)
+      search.invalidateAccountScope()
+      if (currentView.value === 'search') search.resume()
     }
     if (event.event === 'playback.changed') {
       playback.acceptPlaybackEvent(event.payload.state)
@@ -999,6 +1017,13 @@ onUnmounted(() => {
           @retry="retryRoonAlbum"
           @load-more="roonAlbumPageAt(selectedRoonAlbumPage.offset + selectedRoonAlbumPage.limit)"
         />
+
+        <section v-else-if="currentView === 'roon-album-detail' || currentView === 'roon-artist-detail'" class="view">
+          <button type="button" class="back-link" @click="returnFromRoonDetail(currentView === 'roon-artist-detail' ? 'artist' : 'album')">← {{ roonDetailBackLabel }}</button>
+          <p v-if="roonAlbumInitialLoading || roonArtistInitialLoading" role="status">正在读取详情资料…</p>
+          <p v-else role="status">{{ roonAlbumError || roonArtistError || '详情身份尚未确认，请返回列表重新选择。' }}</p>
+          <button v-if="currentView === 'roon-album-detail' && roonAlbumError" type="button" @click="retryRoonAlbum">重试读取详情</button>
+        </section>
 
         <RoonBrowseDetail
           v-else-if="currentView === 'roon-genre-detail' && selectedRoonGenre"

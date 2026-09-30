@@ -2657,14 +2657,14 @@
     "state": "active",
     "ownerAuthorization": "连续实施十一项性能与正确性任务，使用 gpt-6.1-sol xhigh 子代理并展示待办进度",
     "baselineCommit": "e97f9e578beb7c5329d0c59e232b0da568e2f6fa",
-    "branch": "codex/mbr-001-playback-correctness",
-    "currentTask": "MBR-001",
+    "branch": "codex/mbp-002-read-lifecycle",
+    "currentTask": "MBP-002",
     "plan": "project/PERFORMANCE_PLAN.json",
     "todo": "project/PERFORMANCE_TODO.md",
     "implementationComplete": 2,
     "automaticAcceptanceComplete": 2,
     "taskCount": 11,
-    "implementationCommit": "4c36e9554900591b367add7edfc16985690f7a03",
+    "implementationCommit": null,
     "checks": {
       "implementationSha": "4c36e9554900591b367add7edfc16985690f7a03",
       "sourceFingerprint": "03643c43af840e6d294bf51685549d6475fbd4f7a306e834572c0badfa629f21",
@@ -2684,18 +2684,30 @@
     "report": "reports/MBR-001_PLAYBACK_CORRECTNESS.md",
     "currentTaskBase": "7a6a19105480be456778dfa4369379f224665e39",
     "previousTask": {
-      "id": "MBP-001",
-      "implementationCommit": "d89c3ea3743a81e9afe818d6869dfc02ecb797cf",
-      "reportCommit": "7a6a19105480be456778dfa4369379f224665e39",
-      "remoteHead": "7a6a19105480be456778dfa4369379f224665e39",
-      "remoteVerify": "FAIL",
-      "remoteElectronE2E": "FAIL",
-      "remoteSecurity": "PASS",
-      "remoteVerifyRunId": 36765155218,
-      "remoteElectronE2ERunId": 36765154891,
-      "remoteSecurityRunId": 36765155190
+      "id": "MBR-001",
+      "implementationCommit": "4c36e9554900591b367add7edfc16985690f7a03",
+      "reportCommit": "37fe2d22168d20b5defa336d679c8c8d7dc5d06a",
+      "localSoftwareGate": "PASS",
+      "remoteCI": {
+        "verify": {
+          "id": 36779250625,
+          "status": "WORKFLOW_FAIL",
+          "softwareJob": "PASS",
+          "dependencyAudit": "FAIL",
+          "moderate": 11,
+          "high": 7
+        },
+        "electron-e2e": {
+          "id": 36779250676,
+          "status": "PASS"
+        },
+        "security": {
+          "id": 36779250610,
+          "status": "PASS"
+        }
+      }
     },
-    "pendingGate": "remote-ci-after-report-push",
+    "pendingGate": "MBP-002 implementation and full software gates",
     "firstImplementationChecks": {
       "implementationCommit": "2b79715a7147d142f91b630dcc19571c734cc45e",
       "sourceSha256": "483c7839c87bbe31957f3f0648de228784a3f3b0d74f803d58b8143b60724f73",
@@ -2707,6 +2719,7 @@
       "fullElectronE2E": "84_PASS_19_FAIL_4_EXISTING_SKIP_EXIT_1",
       "remoteCiCurrentSnapshot": "NOT_RUN"
     },
-    "automaticAcceptanceScope": "local-standard-software-gates"
+    "automaticAcceptanceScope": "local-standard-software-gates",
+    "baseCommit": "37fe2d22168d20b5defa336d679c8c8d7dc5d06a"
   }
 }

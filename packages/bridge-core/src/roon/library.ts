@@ -1,3 +1,4 @@
+import { assertLibraryReadCurrent, currentLibraryRead, libraryReadCancelled, libraryReadTimeout, remainingLibraryReadMs } from '../shared/library-read-lifetime.js';
 import { currentPerformanceContext, readPerformanceTime } from '../diagnostics/performance-trace.js';
 import { createHash, randomUUID } from 'node:crypto';
 import {
@@ -197,12 +198,14 @@ interface BrowseSessionState {
   multiSessionKey: string;
   input?: string;
   initialized: boolean;
+  requiresPathValidation?: boolean;
   rootLevel?: number;
   currentLevel?: number;
   currentCount?: number;
   currentImageKey?: string;
   currentPath: BrowsePathSegment[];
   tail: Promise<void>;
+  pendingOperations: number;
 }
 
 export interface RoonBrowseShapeSummary {
@@ -724,6 +727,7 @@ export function createRoonLibraryService(dependencies: {
   }>();
   const artistImageKeysBySignature = new Map<string, string | undefined>();
   const pendingArtistImageKeys = new Map<string, Promise<string | undefined>>();
+  const artistReadOwners = new WeakMap<Promise<string | undefined>, NonNullable<ReturnType<typeof currentLibraryRead>>>();
   const artistImageLookupTails = Array.from({ length: 4 }, () => Promise.resolve());
   let nextArtistImageLookupLane = 0;
 
@@ -731,6 +735,7 @@ export function createRoonLibraryService(dependencies: {
     hierarchy: RoonBrowseHierarchy,
     options: { register?: boolean; input?: string } = {},
   ): BrowseSessionState => {
+    if (options.register !== false && sessionsByKey.size >= 256) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', 'Browse 会话预算已满');
     const session: BrowseSessionState = {
       hierarchy,
       multiSessionKey: newSessionKey(hierarchy),
@@ -738,6 +743,7 @@ export function createRoonLibraryService(dependencies: {
       initialized: false,
       currentPath: [],
       tail: Promise.resolve(),
+      pendingOperations: 0,
     };
     if (options.register !== false) sessionsByKey.set(session.multiSessionKey, session);
     return session;
@@ -752,7 +758,17 @@ export function createRoonLibraryService(dependencies: {
   const searchSession = (query: string, kind = 'track'): BrowseSessionState => {
     const key = JSON.stringify([kind, query]);
     const existing = searchSessions.get(key);
-    if (existing) return existing;
+    if (existing) { searchSessions.delete(key); searchSessions.set(key, existing); return existing; }
+    if (searchSessions.size >= 48) {
+      const oldest = [...searchSessions].find(([, session]) => session.pendingOperations === 0);
+      if (!oldest) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', '搜索会话预算已满');
+      const [oldKey, oldSession] = oldest;
+      searchSessions.delete(oldKey);
+      for (const [alias, value] of sessionsByKey) if (value === oldSession) sessionsByKey.delete(alias);
+      const oldQuery = oldSession.input ?? '';
+      searchTracksByQuery.delete(oldQuery); searchAlbumsByQuery.delete(oldQuery); searchArtistsByQuery.delete(oldQuery);
+      entitySearchProgress.delete(oldKey);
+    }
     const created = createSession('search', { input: query });
     searchSessions.set(key, created);
     return created;
@@ -761,13 +777,16 @@ export function createRoonLibraryService(dependencies: {
     pathSignature: string,
     path: readonly BrowsePathSegment[],
   ): void => {
+    assertLibraryReadCurrent();
     pathsBySignature.set(pathSignature, path);
   };
   const withSession = <T>(
     session: BrowseSessionState,
     operation: () => Promise<T>,
   ): Promise<T> => {
-    const result = session.tail.then(operation, operation);
+    const guarded = () => { assertLibraryReadCurrent(); return operation(); };
+    session.pendingOperations++;
+    const result = session.tail.then(guarded, guarded).finally(() => { session.pendingOperations--; });
     session.tail = result.then(() => undefined, () => undefined);
     return result;
   };
@@ -775,12 +794,14 @@ export function createRoonLibraryService(dependencies: {
   const withArtistImageLookupLane = <T>(operation: () => Promise<T>): Promise<T> => {
     const lane = nextArtistImageLookupLane;
     nextArtistImageLookupLane = (nextArtistImageLookupLane + 1) % artistImageLookupTails.length;
-    const result = artistImageLookupTails[lane]!.then(operation, operation);
+    const guarded = () => { assertLibraryReadCurrent(); return operation(); };
+    const result = artistImageLookupTails[lane]!.then(guarded, guarded);
     artistImageLookupTails[lane] = result.then(() => undefined, () => undefined);
     return result;
   };
 
   const cacheArtistImageKey = (signature: string, imageKey: string | undefined): void => {
+    assertLibraryReadCurrent();
     if (!artistImageKeysBySignature.has(signature) && artistImageKeysBySignature.size >= 2_048) {
       const oldest = artistImageKeysBySignature.keys().next().value;
       if (oldest !== undefined) artistImageKeysBySignature.delete(oldest);
@@ -789,10 +810,29 @@ export function createRoonLibraryService(dependencies: {
     artistImageKeysBySignature.set(signature, imageKey);
   };
 
+  let outstandingReadBrowse = 0;
+  let outstandingOtherBrowse = 0;
+  let outstandingImages = 0;
+  const retireSession = (key: unknown): void => {
+    if (typeof key !== 'string') return;
+    const session = sessionsByKey.get(key);
+    if (!session || session.multiSessionKey !== key) return;
+    session.multiSessionKey = newSessionKey(session.hierarchy);
+    session.initialized = false; session.currentPath = []; session.requiresPathValidation = true;
+    delete session.rootLevel; delete session.currentLevel; delete session.currentCount; delete session.currentImageKey;
+    sessionsByKey.set(session.multiSessionKey, session);
+    const aliases = [...sessionsByKey].filter(([, value]) => value === session);
+    for (const [old] of aliases.slice(0, Math.max(0, aliases.length - 4))) sessionsByKey.delete(old);
+    albumTracksBySignature.clear(); artistAlbumsBySignature.clear(); genreItemsBySignature.clear(); playlistTracksBySignature.clear();
+    searchTracksByQuery.clear(); searchAlbumsByQuery.clear(); searchArtistsByQuery.clear(); entitySearchProgress.clear();
+  };
   const requestBrowse = (
     operation: 'browse' | 'load',
     options: Record<string, unknown>,
   ): Promise<unknown> => new Promise((resolve, reject) => {
+    assertLibraryReadCurrent();
+    const read = currentLibraryRead();
+    if ((read ? outstandingReadBrowse : outstandingOtherBrowse) >= 32) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', '未返回 Browse 请求预算已满');
     const zoneOrOutputId = operation === 'browse' ? dependencies.zoneOrOutputId?.() : undefined;
     const requestOptions = {
       ...options,
@@ -811,20 +851,28 @@ export function createRoonLibraryService(dependencies: {
     const finish = (error?: Error, body?: unknown): void => {
       if (settled) return;
       settled = true;
-      clearTimeout(timeout);
+      clearTimeout(timeout); read?.signal.removeEventListener('abort', cancel);
       const completedAt = trace ? readPerformanceTime() : undefined;
       span?.end(error ? 'error' : 'ok', started !== undefined && completedAt !== undefined ? { providerDurationMs: Math.max(0, completedAt - started) } : {});
       if (error) reject(error);
-      else resolve(body);
+      else { try { assertLibraryReadCurrent(); resolve(body); } catch (expired) { retireSession(options.multi_session_key); reject(expired); } }
     };
+    const cancel = (): void => { retireSession(options.multi_session_key); finish(read?.signal.reason instanceof Error && 'code' in read.signal.reason && (read.signal.reason.code === 'READ_CANCELLED' || read.signal.reason.code === 'READ_DEADLINE') ? read.signal.reason : libraryReadCancelled()); };
     const timeout = setTimeout(() => {
+      retireSession(options.multi_session_key);
+      if (read && read.now() >= read.deadlineAtMs) { finish(libraryReadTimeout()); return; }
       finish(new RoonLibraryError(
         'ROON_LIBRARY_REQUEST_FAILED',
         `Roon ${operation} timed out`,
       ));
-    }, requestTimeoutMs);
+    }, remainingLibraryReadMs(requestTimeoutMs));
+    read?.signal.addEventListener('abort', cancel, { once: true });
+    let returned = false;
+    const release = (): void => { if (!returned) { returned = true; if (read) outstandingReadBrowse--; else outstandingOtherBrowse--; } };
+    if (read) outstandingReadBrowse++; else outstandingOtherBrowse++;
     try {
       dependencies.browse[operation](requestOptions, (error, body) => {
+        release();
         // 本地超时不冒充 Provider 已返回；迟到回调仍留下真正的返回标记。
         trace?.recorder.mark('provider', 'provider-response', trace.context);
         try {
@@ -848,6 +896,7 @@ export function createRoonLibraryService(dependencies: {
         finish(undefined, body);
       });
     } catch {
+      release();
       finish(new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', `Roon ${operation} failed`));
     }
   });
@@ -869,6 +918,7 @@ export function createRoonLibraryService(dependencies: {
         'Roon Browse did not return a navigable list',
       );
     }
+    assertLibraryReadCurrent();
     session.initialized = true;
     session.currentLevel = response.list.level;
     if (response.list.count === undefined) delete session.currentCount;
@@ -969,7 +1019,7 @@ export function createRoonLibraryService(dependencies: {
       const segment = targetPath[index];
       if (!segment) continue;
       // 搜索分组重新进入后其子项 key 会更换；每层验证身份并读取当前 key。
-      const currentSegment = session.hierarchy === 'search'
+      const currentSegment = session.hierarchy === 'search' || session.requiresPathValidation === true
         ? (await resolveCurrentItemKey(session, segment, session.currentPath)).segment
         : segment;
       const nextPath = [...session.currentPath, currentSegment];
@@ -980,6 +1030,7 @@ export function createRoonLibraryService(dependencies: {
       }));
       applyBrowseState(session, response, nextPath);
     }
+    session.requiresPathValidation = false;
     return currentList(session);
   };
 
@@ -1262,6 +1313,7 @@ export function createRoonLibraryService(dependencies: {
         }
       }
       // 整次请求成功才推进检查点，失败重试不会跳过条目。
+      assertLibraryReadCurrent();
       entitySearchProgress.set(key, state);
       return {
         items: state.items.slice(request.offset, request.offset + request.limit), offset: request.offset, level: state.level,
@@ -1456,6 +1508,7 @@ export function createRoonLibraryService(dependencies: {
         return pageFromResolvedItems(existing, pageRequest, level);
       }
       const collected = await collectEntityChildren(session, path, expectedKind);
+      assertLibraryReadCurrent();
       cache.set(context.pathSignature, collected.items);
       return pageFromResolvedItems(collected.items, pageRequest, collected.level);
     });
@@ -1641,7 +1694,8 @@ export function createRoonLibraryService(dependencies: {
         return cached;
       }
       const existing = pendingArtistImageKeys.get(signature);
-      if (existing) return existing;
+      const owner = existing && artistReadOwners.get(existing);
+      if (existing && (!owner || (!owner.signal.aborted && owner.isCurrent() && owner.now() < owner.deadlineAtMs))) return existing;
       const imageSession = createSession(sourceSession.hierarchy, {
         register: false,
         ...(sourceSession.input !== undefined ? { input: sourceSession.input } : {}),
@@ -1666,8 +1720,10 @@ export function createRoonLibraryService(dependencies: {
         cacheArtistImageKey(signature, imageKey);
         return imageKey;
       })).finally(() => {
-        pendingArtistImageKeys.delete(signature);
+        if (pendingArtistImageKeys.get(signature) === pending) pendingArtistImageKeys.delete(signature);
       });
+      const read = currentLibraryRead();
+      if (read) artistReadOwners.set(pending, read);
       pendingArtistImageKeys.set(signature, pending);
       return pending;
     },
@@ -1706,6 +1762,7 @@ export function createRoonLibraryService(dependencies: {
         }
         const list = await navigateToPath(session, path);
         const tracks = await collectAlbumTracks(session, path, album.imageKey);
+        assertLibraryReadCurrent();
         albumTracksBySignature.set(cacheKey, tracks);
         return pageFromResolvedItems(tracks, pageRequest, list.level);
       });
@@ -1822,6 +1879,7 @@ export function createRoonLibraryService(dependencies: {
             }).filter((item) => item.itemKey !== undefined && item.hint === 'list'));
           }
         }
+        assertLibraryReadCurrent();
         artistAlbumsBySignature.set(cacheKey, albums);
         const resultLevel = albums[0]?.browseContext?.level ?? list.level;
         return pageFromResolvedItems(albums, pageRequest, resultLevel);
@@ -1961,6 +2019,7 @@ export function createRoonLibraryService(dependencies: {
           seenResults.add(identity);
           return true;
         });
+        assertLibraryReadCurrent();
         cache.set(normalizedQuery, uniqueResults);
         const resultLevel = uniqueResults[0]?.browseContext?.level ?? list.level;
         return pageFromResolvedItems(uniqueResults, pageRequest, resultLevel);
@@ -1970,6 +2029,9 @@ export function createRoonLibraryService(dependencies: {
       if (imageKey.trim().length === 0 || imageKey.length > 512) {
         return Promise.reject(new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', 'Roon image key is invalid'));
       }
+      assertLibraryReadCurrent();
+      if (outstandingImages >= 32) return Promise.reject(new RoonLibraryError('ROON_IMAGE_REQUEST_FAILED', '未返回图片请求预算已满'));
+      const read = currentLibraryRead();
       const requestOptions = { ...DEFAULT_IMAGE_OPTIONS, ...options };
       validateImageOptions(requestOptions);
       return new Promise((resolve, reject) => {
@@ -1977,15 +2039,22 @@ export function createRoonLibraryService(dependencies: {
         const finish = (error?: Error, result?: RoonImageResult): void => {
           if (settled) return;
           settled = true;
-          clearTimeout(timeout);
+          clearTimeout(timeout); read?.signal.removeEventListener('abort', cancel);
           if (error) reject(error);
-          else if (result) resolve(result);
+          else if (result) { try { assertLibraryReadCurrent(); resolve(result); } catch (error) { reject(error); } }
         };
+        const cancel = (): void => finish(read?.signal.reason instanceof Error && 'code' in read.signal.reason && (read.signal.reason.code === 'READ_CANCELLED' || read.signal.reason.code === 'READ_DEADLINE') ? read.signal.reason : libraryReadCancelled());
         const timeout = setTimeout(() => {
+          if (read && read.now() >= read.deadlineAtMs) { finish(libraryReadTimeout()); return; }
           finish(new RoonLibraryError('ROON_IMAGE_REQUEST_FAILED', 'Roon image request timed out'));
-        }, requestTimeoutMs);
+        }, remainingLibraryReadMs(requestTimeoutMs));
+        read?.signal.addEventListener('abort', cancel, { once: true });
+        let returned = false;
+        const release = (): void => { if (!returned) { returned = true; outstandingImages--; } };
+        outstandingImages++;
         try {
           dependencies.image.get_image(imageKey, requestOptions, (error, contentType, body) => {
+            release();
             try {
               dependencies.onImageShape?.(
                 summarizeRoonImageBinary('roon-callback', contentType, body),
@@ -2012,6 +2081,7 @@ export function createRoonLibraryService(dependencies: {
             finish(undefined, { contentType, body });
           });
         } catch {
+          release();
           finish(new RoonLibraryError('ROON_IMAGE_REQUEST_FAILED', 'Roon image request failed'));
         }
       });
