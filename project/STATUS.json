@@ -2661,10 +2661,10 @@
     "currentTask": "MBP-001",
     "plan": "project/PERFORMANCE_PLAN.json",
     "todo": "project/PERFORMANCE_TODO.md",
-    "implementationComplete": 0,
-    "automaticAcceptanceComplete": 0,
+    "implementationComplete": 1,
+    "automaticAcceptanceComplete": 1,
     "taskCount": 11,
-    "implementationCommit": null,
+    "implementationCommit": "d89c3ea3743a81e9afe818d6869dfc02ecb797cf",
     "checks": {
       "fullVerifyR4": "EXIT1_POSTBUILD_SANDBOX_DEPENDENCY_FIXED",
       "contracts": "222-pass-exit0",
@@ -2673,11 +2673,12 @@
       "productionBuildR5": "PASS-exit0",
       "electronStartup": "4-pass-exit0-mock-keychain",
       "productionElectronTrace": "PASS-exit0-isolated-synthetic-Core",
-      "finalFullVerify": "PENDING_FIXED_IMPLEMENTATION_COMMIT"
+      "finalFullVerify": "PASS-exit0-fixed-d89c3ea"
     },
     "realMacRoonAcceptance": "NOT_RUN",
     "realRecordingAcceptance": "NOT_RUN",
     "mainMerge": "NOT_RUN",
-    "installedAppReplacement": "NOT_RUN"
+    "installedAppReplacement": "NOT_RUN",
+    "report": "reports/MBP-001_PERFORMANCE_BASELINE.md"
   }
 }

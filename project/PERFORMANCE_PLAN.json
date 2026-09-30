@@ -4,22 +4,150 @@
   "state": "active",
   "ownerAuthorization": "连续实施性能与正确性计划，使用 gpt-6.1-sol xhigh 子代理并展示待办进度",
   "currentTask": "MBP-001",
-  "implementationComplete": 0,
-  "automaticAcceptanceComplete": 0,
+  "implementationComplete": 1,
+  "automaticAcceptanceComplete": 1,
   "taskCount": 11,
   "realMacRoonAcceptance": "NOT_RUN",
   "realRecordingAcceptance": "NOT_RUN",
   "tasks": [
-    {"id":"MBP-001","dependsOn":[],"state":"in-progress","implementationCommit":null,"reportCommit":null,"evidence":[]},
-    {"id":"MBR-001","dependsOn":["MBP-001"],"state":"pending","implementationCommit":null,"reportCommit":null,"evidence":[]},
-    {"id":"MBP-002","dependsOn":["MBP-001","MBR-001"],"state":"pending","implementationCommit":null,"reportCommit":null,"evidence":[]},
-    {"id":"MBR-002","dependsOn":["MBP-002"],"state":"pending","implementationCommit":null,"reportCommit":null,"evidence":[]},
-    {"id":"MBP-003","dependsOn":["MBP-002","MBR-001"],"state":"pending","steps":[{"id":"MBP-003A","state":"pending"},{"id":"MBP-003B","dependsOn":["MBP-004"],"state":"pending"}],"implementationCommit":null,"reportCommit":null,"evidence":[]},
-    {"id":"MBP-004","dependsOn":["MBP-002","MBP-003A"],"state":"pending","implementationCommit":null,"reportCommit":null,"evidence":[]},
-    {"id":"MBP-006","dependsOn":["MBP-003"],"state":"pending","implementationCommit":null,"reportCommit":null,"evidence":[]},
-    {"id":"MBP-005","dependsOn":["MBP-002","MBP-004"],"state":"pending","implementationCommit":null,"reportCommit":null,"evidence":[]},
-    {"id":"MBP-007","dependsOn":["MBP-005","MBP-006"],"state":"pending","implementationCommit":null,"reportCommit":null,"evidence":[]},
-    {"id":"MBP-008","dependsOn":["MBP-001","MBP-002"],"state":"pending","workerDecision":"PENDING_MEASUREMENT","implementationCommit":null,"reportCommit":null,"evidence":[]},
-    {"id":"MBP-009","dependsOn":["MBP-003","MBP-004","MBP-005","MBP-006","MBP-007","MBP-008","MBR-002"],"state":"pending","implementationCommit":null,"reportCommit":null,"evidence":[]}
-  ]
+    {
+      "id": "MBP-001",
+      "dependsOn": [],
+      "state": "software-gates-passed",
+      "implementationCommit": "d89c3ea3743a81e9afe818d6869dfc02ecb797cf",
+      "reportCommit": null,
+      "evidence": [
+        "reports/MBP-001_PERFORMANCE_BASELINE.md",
+        "reports/MBP-001_BASELINE.json"
+      ],
+      "reportCommitResolution": "commit-containing-reports/MBP-001_PERFORMANCE_BASELINE.md"
+    },
+    {
+      "id": "MBR-001",
+      "dependsOn": [
+        "MBP-001"
+      ],
+      "state": "pending",
+      "implementationCommit": null,
+      "reportCommit": null,
+      "evidence": []
+    },
+    {
+      "id": "MBP-002",
+      "dependsOn": [
+        "MBP-001",
+        "MBR-001"
+      ],
+      "state": "pending",
+      "implementationCommit": null,
+      "reportCommit": null,
+      "evidence": []
+    },
+    {
+      "id": "MBR-002",
+      "dependsOn": [
+        "MBP-002"
+      ],
+      "state": "pending",
+      "implementationCommit": null,
+      "reportCommit": null,
+      "evidence": []
+    },
+    {
+      "id": "MBP-003",
+      "dependsOn": [
+        "MBP-002",
+        "MBR-001"
+      ],
+      "state": "pending",
+      "steps": [
+        {
+          "id": "MBP-003A",
+          "state": "pending"
+        },
+        {
+          "id": "MBP-003B",
+          "dependsOn": [
+            "MBP-004"
+          ],
+          "state": "pending"
+        }
+      ],
+      "implementationCommit": null,
+      "reportCommit": null,
+      "evidence": []
+    },
+    {
+      "id": "MBP-004",
+      "dependsOn": [
+        "MBP-002",
+        "MBP-003A"
+      ],
+      "state": "pending",
+      "implementationCommit": null,
+      "reportCommit": null,
+      "evidence": []
+    },
+    {
+      "id": "MBP-006",
+      "dependsOn": [
+        "MBP-003"
+      ],
+      "state": "pending",
+      "implementationCommit": null,
+      "reportCommit": null,
+      "evidence": []
+    },
+    {
+      "id": "MBP-005",
+      "dependsOn": [
+        "MBP-002",
+        "MBP-004"
+      ],
+      "state": "pending",
+      "implementationCommit": null,
+      "reportCommit": null,
+      "evidence": []
+    },
+    {
+      "id": "MBP-007",
+      "dependsOn": [
+        "MBP-005",
+        "MBP-006"
+      ],
+      "state": "pending",
+      "implementationCommit": null,
+      "reportCommit": null,
+      "evidence": []
+    },
+    {
+      "id": "MBP-008",
+      "dependsOn": [
+        "MBP-001",
+        "MBP-002"
+      ],
+      "state": "pending",
+      "workerDecision": "PENDING_MEASUREMENT",
+      "implementationCommit": null,
+      "reportCommit": null,
+      "evidence": []
+    },
+    {
+      "id": "MBP-009",
+      "dependsOn": [
+        "MBP-003",
+        "MBP-004",
+        "MBP-005",
+        "MBP-006",
+        "MBP-007",
+        "MBP-008",
+        "MBR-002"
+      ],
+      "state": "pending",
+      "implementationCommit": null,
+      "reportCommit": null,
+      "evidence": []
+    }
+  ],
+  "implementationCommit": "d89c3ea3743a81e9afe818d6869dfc02ecb797cf"
 }

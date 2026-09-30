@@ -1,0 +1,349 @@
+{
+  "schemaVersion": 1,
+  "task": "MBP-001",
+  "generatedAt": "2026-09-30T19:08:34.771Z",
+  "gitSha": "d89c3ea3743a81e9afe818d6869dfc02ecb797cf",
+  "implementation": {
+    "workingTreeDirty": true,
+    "dirtyImplementation": false,
+    "sourceFingerprint": "2b9063216679f029e2e965256f9edd21bcf069756382b90a61c06d5efead0d09",
+    "measuredSourceFiles": [
+      {
+        "path": "apps/desktop/src/renderer/src/composables/application/usePlaybackSession.ts",
+        "sha256": "7eecd1d32e786c06d1287daf6f22ca9dd5b71add0ba54e797babc385be7089f1"
+      },
+      {
+        "path": "apps/desktop/src/renderer/src/roon-context-queue.ts",
+        "sha256": "c70ad8b42126857b288c6077d1f8231ee8f6a693e6ea209b2e1e809c8ea01202"
+      },
+      {
+        "path": "packages/bridge-core/src/roon/library.ts",
+        "sha256": "8ba157b898ee2f43db4f225bcc09fd1a1eebc0540527134f65507a0a4cac23d7"
+      },
+      {
+        "path": "packages/bridge-core/src/application/playback-event-publisher.ts",
+        "sha256": "26a91591564650d2d89fda77ca320a2bd562fc95a13ea0257b21d0fd7a16aac0"
+      }
+    ]
+  },
+  "runtime": {
+    "nodeVersion": "v22.23.2",
+    "concurrency": 1,
+    "execution": "Node + tsx 直接调用当前 TypeScript 实现；合成输入与 Fake SDK",
+    "buildNature": "未构建或启动 Electron；contracts dist 是源码模块已有的本地运行依赖",
+    "contractsDistIndexSha256": "da583fe03a9d32024d7cbe347ff20af7081af75de71cc956a5d5ca99173533ac",
+    "baselineScriptSha256": "fd4e790adc4800cb07f4cc8fc570706728df6791058a1e2ed57e8fc1f27358fd"
+  },
+  "sourceStableDuringRun": true,
+  "nature": "合成结构基线；实际调用生产模块，不连接真实账号、Provider、Roon、设备或用户资料",
+  "scenarios": [
+    {
+      "scenario": "renderer-playback-remaining-pages",
+      "evidence": "真实 usePlaybackSession 调用真实 collectRoonPlaybackContext，API 为合成 Fake",
+      "total": 250,
+      "initialPageItems": 24,
+      "pageLimit": 24,
+      "beforeRemainingPageReleased": {
+        "playCount": 0,
+        "requestedPages": 1,
+        "sequence": [
+          "now-playing-opened",
+          "page-request:24"
+        ]
+      },
+      "remainingPageRequests": [
+        {
+          "offset": 24,
+          "limit": 24
+        },
+        {
+          "offset": 48,
+          "limit": 24
+        },
+        {
+          "offset": 72,
+          "limit": 24
+        },
+        {
+          "offset": 96,
+          "limit": 24
+        },
+        {
+          "offset": 120,
+          "limit": 24
+        },
+        {
+          "offset": 144,
+          "limit": 24
+        },
+        {
+          "offset": 168,
+          "limit": 24
+        },
+        {
+          "offset": 192,
+          "limit": 24
+        },
+        {
+          "offset": 216,
+          "limit": 24
+        },
+        {
+          "offset": 240,
+          "limit": 24
+        }
+      ],
+      "pagesCompletedBeforePlayback": 10,
+      "allRemainingPagesReadBeforePlayback": true,
+      "dispatchedReferenceCount": 250,
+      "uniqueDispatchedReferenceCount": 250,
+      "sequence": [
+        "now-playing-opened",
+        "page-request:24",
+        "page-return:24",
+        "page-request:48",
+        "page-return:48",
+        "page-request:72",
+        "page-return:72",
+        "page-request:96",
+        "page-return:96",
+        "page-request:120",
+        "page-return:120",
+        "page-request:144",
+        "page-return:144",
+        "page-request:168",
+        "page-return:168",
+        "page-request:192",
+        "page-return:192",
+        "page-request:216",
+        "page-return:216",
+        "page-request:240",
+        "page-return:240",
+        "playRoonTrack"
+      ]
+    },
+    {
+      "scenario": "detail-first-page-album",
+      "evidence": "真实 createRoonLibraryService + 合成 Roon Browse SDK 回调",
+      "total": 250,
+      "requestedPageItems": 24,
+      "returnedPageItems": 24,
+      "reportedTotal": 250,
+      "sdkLoads": [
+        {
+          "offset": 0,
+          "requestedCount": 100,
+          "returnedCount": 100
+        },
+        {
+          "offset": 100,
+          "requestedCount": 100,
+          "returnedCount": 100
+        },
+        {
+          "offset": 200,
+          "requestedCount": 50,
+          "returnedCount": 50
+        }
+      ],
+      "sdkLoadCount": 3,
+      "loadedBeforeFirstPage": 250,
+      "collectedFullListBeforeReturningFirstPage": true
+    },
+    {
+      "scenario": "detail-first-page-artist",
+      "evidence": "真实 createRoonLibraryService + 合成 Roon Browse SDK 回调",
+      "total": 250,
+      "requestedPageItems": 24,
+      "returnedPageItems": 24,
+      "reportedTotal": 250,
+      "sdkLoads": [
+        {
+          "offset": 0,
+          "requestedCount": 100,
+          "returnedCount": 100
+        },
+        {
+          "offset": 100,
+          "requestedCount": 100,
+          "returnedCount": 100
+        },
+        {
+          "offset": 200,
+          "requestedCount": 50,
+          "returnedCount": 50
+        }
+      ],
+      "sdkLoadCount": 3,
+      "loadedBeforeFirstPage": 250,
+      "collectedFullListBeforeReturningFirstPage": true
+    },
+    {
+      "scenario": "detail-first-page-playlist",
+      "evidence": "真实 createRoonLibraryService + 合成 Roon Browse SDK 回调",
+      "total": 250,
+      "requestedPageItems": 24,
+      "returnedPageItems": 24,
+      "reportedTotal": 250,
+      "sdkLoads": [
+        {
+          "offset": 0,
+          "requestedCount": 100,
+          "returnedCount": 100
+        },
+        {
+          "offset": 100,
+          "requestedCount": 100,
+          "returnedCount": 100
+        },
+        {
+          "offset": 200,
+          "requestedCount": 50,
+          "returnedCount": 50
+        }
+      ],
+      "sdkLoadCount": 3,
+      "loadedBeforeFirstPage": 250,
+      "collectedFullListBeforeReturningFirstPage": true
+    },
+    {
+      "scenario": "playback-publisher-50",
+      "evidence": "真实 createPlaybackEventPublisher；保持同一 queue 对象，两次进度 tick",
+      "queueSize": 50,
+      "ticks": [
+        {
+          "tick": 1,
+          "eventCount": 2,
+          "eventCounts": {
+            "playback.changed": 1,
+            "queue.changed": 1
+          },
+          "jsonBytesEstimate": 17023
+        },
+        {
+          "tick": 2,
+          "eventCount": 1,
+          "eventCounts": {
+            "playback.changed": 1
+          },
+          "jsonBytesEstimate": 8639
+        }
+      ],
+      "eventCount": 3,
+      "jsonBytesEstimate": 25662,
+      "byteEstimateBoundary": "对合成事件实际 JSON.stringify 后计算 UTF-8 字节；不是 Electron IPC structured-clone 实际传输大小"
+    },
+    {
+      "scenario": "playback-publisher-500",
+      "evidence": "真实 createPlaybackEventPublisher；保持同一 queue 对象，两次进度 tick",
+      "queueSize": 500,
+      "ticks": [
+        {
+          "tick": 1,
+          "eventCount": 2,
+          "eventCounts": {
+            "playback.changed": 1,
+            "queue.changed": 1
+          },
+          "jsonBytesEstimate": 168829
+        },
+        {
+          "tick": 2,
+          "eventCount": 1,
+          "eventCounts": {
+            "playback.changed": 1
+          },
+          "jsonBytesEstimate": 84542
+        }
+      ],
+      "eventCount": 3,
+      "jsonBytesEstimate": 253371,
+      "byteEstimateBoundary": "对合成事件实际 JSON.stringify 后计算 UTF-8 字节；不是 Electron IPC structured-clone 实际传输大小"
+    },
+    {
+      "scenario": "playback-publisher-5000",
+      "evidence": "真实 createPlaybackEventPublisher；保持同一 queue 对象，两次进度 tick",
+      "queueSize": 5000,
+      "ticks": [
+        {
+          "tick": 1,
+          "eventCount": 2,
+          "eventCounts": {
+            "playback.changed": 1,
+            "queue.changed": 1
+          },
+          "jsonBytesEstimate": 1713835
+        },
+        {
+          "tick": 2,
+          "eventCount": 1,
+          "eventCounts": {
+            "playback.changed": 1
+          },
+          "jsonBytesEstimate": 857045
+        }
+      ],
+      "eventCount": 3,
+      "jsonBytesEstimate": 2570880,
+      "byteEstimateBoundary": "对合成事件实际 JSON.stringify 后计算 UTF-8 字节；不是 Electron IPC structured-clone 实际传输大小"
+    },
+    {
+      "scenario": "duplicate-context-semantics",
+      "evidence": "真实 collectRoonPlaybackContext；仅观测既有语义",
+      "distinctOccurrencesInput": 3,
+      "distinctOccurrencesCollected": 3,
+      "distinctOccurrencesPreserveOrder": true,
+      "sameReferenceInput": 3,
+      "sameReferenceCollected": 2,
+      "sameReferenceLastMetadataWins": true
+    },
+    {
+      "scenario": "multi-disc-source-index-semantics",
+      "evidence": "真实 Roon Library 多碟下钻；相同 item_key 的出现由 sourceIndex 区分",
+      "total": 6,
+      "returned": 6,
+      "items": [
+        {
+          "discNumber": 1,
+          "trackNumber": 1,
+          "sourceIndex": 0
+        },
+        {
+          "discNumber": 1,
+          "trackNumber": 2,
+          "sourceIndex": 1
+        },
+        {
+          "discNumber": 1,
+          "trackNumber": 3,
+          "sourceIndex": 2
+        },
+        {
+          "discNumber": 2,
+          "trackNumber": 1,
+          "sourceIndex": 0
+        },
+        {
+          "discNumber": 2,
+          "trackNumber": 2,
+          "sourceIndex": 1
+        },
+        {
+          "discNumber": 2,
+          "trackNumber": 3,
+          "sourceIndex": 2
+        }
+      ],
+      "uniqueOccurrencePathCount": 6,
+      "repeatedTitleCount": 4
+    }
+  ],
+  "unmeasured": [
+    "真实 Roon Browse 延迟和成功率",
+    "真实 Provider 网络及限流",
+    "真实音频/录音/设备状态与听感",
+    "Electron IPC structured-clone 实际字节",
+    "Renderer 帧时间与完整应用事件循环",
+    "正式打包/签名/发布/Owner 验收"
+  ]
+}
