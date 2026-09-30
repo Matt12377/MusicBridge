@@ -119,7 +119,7 @@ onBeforeUnmount(() => { alive = false; ++generation; if (timer) clearTimeout(tim
       </article>
       <details v-if="history?.jobs.length"><summary>任务记录（{{ history.jobs.length }}）</summary><ul class="jobs"><li v-for="job in history.jobs" :key="job.id">{{ job.id.slice(0, 8) }} · {{ jobLabel(job) }}</li></ul></details>
     </section>
-    <PreparationZipPanel :draft-id="draft.id" :workspaces="history?.workspaces ?? []" @uncertain="zipUncertain = $event" />
+    <PreparationZipPanel v-if="history" :draft-id="draft.id" :workspaces="history.workspaces" @uncertain="zipUncertain = $event" />
     <footer>不自动启动或控制 Logic。失败、中断或取消后可能留下未完成目录，系统不会擅自删除；目录存在不代表导出成功。</footer>
   </component>
 </template>

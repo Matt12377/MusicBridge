@@ -114,6 +114,12 @@ let mediaOpener: HTMLElement | undefined, versionsOpener: HTMLElement | undefine
 const viewRoot = ref<HTMLElement>()
 const focusCleanups = new Set<() => void>()
 function activeTrigger(): HTMLElement | undefined { const target = document.activeElement; return target && 'focus' in target ? target as HTMLElement : undefined }
+let pickerOpener: HTMLElement | undefined
+function openPicker(): void { pickerOpener = activeTrigger(); picker.value = true }
+async function closePicker(): Promise<void> {
+  picker.value = false; error.value = ''
+  await refreshAfterClose(pickerOpener, () => viewRoot.value?.querySelector<HTMLElement>(draft.value ? '[data-recording-return-focus="picker-add"]' : '[data-recording-return-focus="picker-new"]') ?? undefined)
+}
 function returnTarget(opener?: HTMLElement, fallback?: () => HTMLElement | undefined): HTMLElement | undefined {
   if (opener?.isConnected) return opener
   const key = opener?.dataset.recordingReturnFocus
@@ -419,7 +425,7 @@ async function nextAction(action: RecordingNextAction): Promise<void> {
     case 'retry-pending': await retry(); break
     case 'save-draft': save(); break
     case 'refresh': await refreshWorkflow(); break
-    case 'pick-source': picker.value = true; break
+    case 'pick-source': openPicker(); break
     case 'source': openSource(action.trackId); break
     case 'media': openMediaPlanning(workflowState.value.selection.planId); break
     case 'versions': openMasterVersions(workflowState.value.selection.planId ?? ''); break
@@ -555,13 +561,13 @@ onUnmounted(() => { mounted = false; alive = false; ++generation; ++reservationN
 
     <template v-else>
       <p v-if="leaveGuardNotice" class="workspace-message error" role="alert">{{ leaveGuardNotice }}</p>
-      <MasterSourcePicker v-if="picker" :draft="draft" :busy="saving" :pending="!!pending" :error="error" inline @close="picker = false; error = ''" @confirm="append" @retry="retry" />
+      <MasterSourcePicker v-if="picker" :draft="draft" :busy="saving" :pending="!!pending" :error="error" inline @close="closePicker" @confirm="append" @retry="retry" />
 
       <section v-else-if="page === 'my-work'" class="recording-home" aria-labelledby="my-work-title">
         <div v-if="pendingPhysicalIntent" class="physical-intent" role="status"><strong>已从实物收藏带入 {{ pendingPhysicalIntent.physicalId }}</strong><p>这只是本次想用的磁带；请先选一份制作，再核对实时库存、分面容量并明确预留。</p><button type="button" @click="cancelPhysicalIntent">取消本次选盘意图</button></div>
         <div class="page-intro">
           <div><p class="recording-kicker">MY WORK</p><h3 id="my-work-title">我的制作</h3><p>继续已有草稿，或从 Roon 选一张专辑、几首歌。选曲不会播放、预留磁带或启动录音。</p></div>
-          <button class="recording-primary" type="button" :disabled="blocked" @click="picker = true">新建制作</button>
+          <button class="recording-primary" data-recording-return-focus="picker-new" type="button" :disabled="blocked" @click="openPicker">新建制作</button>
         </div>
         <p v-if="loading" role="status">正在读取已保存的制作…</p>
         <div v-if="catalog?.items.length" class="draft-grid">
@@ -585,7 +591,7 @@ onUnmounted(() => { mounted = false; alive = false; ++generation; ++reservationN
         <div class="workbench-columns">
           <div class="workbench-main">
             <section class="workbench-card" aria-labelledby="music-sides-title">
-              <div class="section-heading"><div><h4 id="music-sides-title">音乐与 {{ workbenchSpec.format === 'dat' ? '连续节目' : 'A/B 分面' }}</h4><p>按组调整曲序与分面，连播组一起移动。保存草稿后重新估算，旧冻结版本不会被改写。</p></div><button type="button" :disabled="blocked || dirty || !!workbenchSpec.distribution" @click="picker = true">添加音乐</button></div>
+              <div class="section-heading"><div><h4 id="music-sides-title">音乐与 {{ workbenchSpec.format === 'dat' ? '连续节目' : 'A/B 分面' }}</h4><p>按组调整曲序与分面，连播组一起移动。保存草稿后重新估算，旧冻结版本不会被改写。</p></div><button data-recording-return-focus="picker-add" type="button" :disabled="blocked || dirty || !!workbenchSpec.distribution" @click="openPicker">添加音乐</button></div>
               <fieldset :disabled="blocked" class="draft-fields"><legend class="sr-only">编辑制作信息</legend><label>制作标题<input v-model="title" maxlength="240" required></label><label>节目类型<select v-model="programType"><option v-for="(label, value) in types" :key="value" :value="value">{{ label }}</option></select></label></fieldset>
               <p class="estimate-note">草稿时长 {{ duration(draft.estimatedDurationMs) }}；未知时长不按零计算。{{ selectedPlan?.sourceBasis === 'verified-sources' ? '所选规划使用已验证源时长。' : '未锁源时仅为 Roon 约值，正式冻结仍须精确文件证据。' }}</p>
               <div v-if="workbenchSpec.distribution" class="workbench-distribution" role="status">
@@ -658,8 +664,9 @@ onUnmounted(() => { mounted = false; alive = false; ++generation; ++reservationN
 :global(:root[data-theme='dark'] .recording-view){--mb-accent:#93d7b0;--mb-accent-hover:#b6e5ca;--mb-accent-soft:rgba(147,215,176,.17);--mb-on-accent:#183325;--recording-card-bg:rgba(42,49,54,.88)}
 .recording-heading,.page-intro,.section-heading,.subpage-return,.side-card>header,.recording-footer{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
 .recording-heading{align-items:center;padding-bottom:16px;border-bottom:1px solid var(--mb-glass-border)}
+.recording-heading>div{min-width:0;max-width:100%}
 .recording-kicker{margin:0 0 5px;color:var(--mb-accent);font-size:11px;font-weight:700;letter-spacing:.08em}
-h2{margin:0;font-size:clamp(24px,2.4vw,32px);line-height:1.25}
+h2{margin:0;font-size:clamp(24px,2.4vw,32px);line-height:1.25;overflow-wrap:anywhere}
 h3{margin:0;font-size:clamp(22px,2.2vw,30px);line-height:1.3}
 h4{margin:0;font-size:17px;line-height:1.4}
 p{line-height:1.65;overflow-wrap:anywhere}

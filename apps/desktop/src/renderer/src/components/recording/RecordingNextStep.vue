@@ -35,7 +35,7 @@ defineExpose({ focusContext })
         <h3 id="recording-next-title">{{ nextStep.title }}</h3>
         <p id="recording-next-description" :role="state.status === 'error' ? 'alert' : 'status'">{{ nextStep.description }}</p>
       </div>
-      <button type="button" class="next-primary" data-testid="recording-next-action" :data-action="nextStep.action.type" :disabled="nextStep.disabled" aria-describedby="recording-next-description" @click="act">{{ nextStep.label }}</button>
+      <button type="button" class="next-primary" data-recording-return-focus="next-action" data-testid="recording-next-action" :data-action="nextStep.action.type" :disabled="nextStep.disabled" aria-describedby="recording-next-description" @click="act">{{ nextStep.label }}</button>
     </div>
     <details v-if="choices" ref="contextDetails" class="next-details">
       <summary>版本与关联详情 <span>按需展开并明确选择，不自动沿用最新版本</span></summary>

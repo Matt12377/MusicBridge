@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHash, randomUUID } from 'node:crypto';
-import { access, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { access, mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import type { MediaLayoutSpec, RecordingAttempt } from '@music-bridge/contracts';
 import { createCollectionRepository } from '../src/collection/repository.js';
@@ -18,7 +20,24 @@ import { fakePlanDeviceSelection } from './helpers/fake-plan-device-selection.js
 import { recordingProfileContent } from './helpers/recording-profile-fixture.js';
 import { waitForVerifiedOutputRun } from './helpers/output-run-ready.js';
 
-const temporaryRoot = '/Volumes/LifeWeave/Developer/CommandLine/tmp';
+/** 本机只写已挂载外置卷；GitHub hosted CI 使用既有 RUNNER_TEMP，绝不创建模拟 Volumes。 */
+async function journeyTemporaryRoot(): Promise<string> {
+  const hosted = process.env.GITHUB_ACTIONS === 'true' && process.env.RUNNER_ENVIRONMENT === 'github-hosted';
+  const expected = hosted ? process.env.RUNNER_TEMP : '/Volumes/LifeWeave/Developer/CommandLine/tmp';
+  if (!expected || !path.isAbsolute(expected)) throw new Error('主流程验证必须明确提供绝对临时根目录');
+  if (!hosted) {
+    const mounts = execFileSync('/sbin/mount', { encoding: 'utf8' });
+    if (!mounts.split('\n').some(line => line.includes(' on /Volumes/LifeWeave ('))) throw new Error('LifeWeave 外置卷未挂载，停止主流程验证');
+    if (!process.env.TMPDIR || !path.isAbsolute(process.env.TMPDIR)) throw new Error('本机主流程验证必须明确提供外置 TMPDIR');
+  }
+  const root = await realpath(expected);
+  // verify CI 没有 TMPDIR 配置，hosted 路径直接由 RUNNER_TEMP 指定；本机不回落系统目录。
+  const actual = hosted ? root : await realpath(process.env.TMPDIR!);
+  const relative = path.relative(root, actual);
+  if (relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) throw new Error('本机主流程 TMPDIR 必须位于批准的外置临时根目录中');
+  await access(actual, constants.R_OK | constants.W_OK);
+  return actual;
+}
 const page = { offset: 0, limit: 25 };
 function audio(marker: number): Buffer {
   const bytes = Buffer.alloc(44 + 44100 * 4);
@@ -37,7 +56,7 @@ function audio(marker: number): Buffer {
  * 本夹具逐步调用真实仓库/协调器；只有设备选择和输出 provider 为构造器合成注入。
  */
 async function journey(t: test.TestContext) {
-  await access(temporaryRoot);
+  const temporaryRoot = await journeyTemporaryRoot();
   const directory = await mkdtemp(path.join(temporaryRoot, 'musicbridge-v3-main-journey-'));
   const filePath = path.join(directory, 'clean.sqlite');
   const repository = createCollectionRepository({ filePath });

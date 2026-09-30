@@ -95,7 +95,7 @@ onBeforeUnmount(() => { alive = false; controller.dispose(); unsubscribe?.(); if
 onUnmounted(() => { unsubscribe = undefined })
 </script>
 <template>
-  <component :is="inline ? 'section' : 'dialog'" ref="dialog" class="source-picker" :class="{ 'is-inline': inline }" aria-label="从 Roon 选择曲目" @cancel.prevent="close">
+  <component :is="inline ? 'section' : 'dialog'" ref="dialog" class="source-picker" :class="{ 'is-inline': inline }" aria-label="从 Roon 选择曲目" @cancel.prevent="close" @keydown.esc.prevent="close">
     <header><div><p>私人录音草稿</p><h2>从 Roon 选择曲目</h2></div><button :disabled="blocked" @click="close">取消</button></header>
     <p>可跨专辑选择，按点击顺序加入。这里只保存草稿，尚未验证实际音频源，不开始录音。</p>
     <p v-if="error" role="alert">{{ error }} <button v-if="pending" :disabled="busy" @click="emit('retry')">重试原操作</button></p>
