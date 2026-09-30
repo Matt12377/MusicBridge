@@ -80,7 +80,7 @@ const {
   toggleTrackLike, playTrack, playRoonLibraryTrack, queueRoonLibraryTrack,
   appendTrack, insertTrackNext, replaceAndPlayCollection, appendCollection,
   invalidateCollectionOperation, playQueueItem, togglePlayback, stopPlayback,
-  nextTrack, previousTrack, seekPlayback, cancelRoonPlaybackPreparation,
+  nextTrack, previousTrack, seekPlayback, cancelRoonPlaybackPreparation, retryLastPlaybackAction,
 } = playback
 const zones = ref<readonly PublicRoonZone[]>([])
 const zonesLoading = ref(false)
@@ -644,9 +644,7 @@ function onGlobalShortcut(event: KeyboardEvent): void {
 }
 
 async function retryAction(): Promise<void> {
-  const track = currentTrack.value
-  if (track) await playTrack(track)
-  else await refreshPlayback()
+  await retryLastPlaybackAction()
 }
 
 function qualityLabel(quality: string | undefined): string {

@@ -177,7 +177,7 @@ onUnmounted(() => {
         :tabindex="props.busy ? -1 : 0"
         :aria-disabled="props.busy ? 'true' : undefined"
         @dblclick="requestPlay(track)"
-        @keydown.enter="requestPlay(track)"
+        @keydown.enter.self.prevent="requestPlay(track)"
         @contextmenu="showContextMenu($event, track)"
       >
         <span class="track-index" aria-hidden="true"><span class="track-number">{{ trackIndex(index) + 1 }}</span><span class="track-play-mark">▶</span></span>

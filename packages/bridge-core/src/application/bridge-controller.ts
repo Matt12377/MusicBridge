@@ -370,17 +370,23 @@ export class BridgeController {
     },
   ) {
     this.dependencies.roon.setTerminalHandler((reason) => {
-      if (this.activeToken && !this.activePlayback) {
+      const token = this.activeToken;
+      const generation = this.playbackGeneration;
+      if (token === undefined) return;
+      // 捕获事件到达时的身份与停止意图，不能在排队后重新认领另一首歌曲。
+      const playbackWasPlaying = this.activePlayback !== undefined
+        && this.playbackState !== 'stopping'
+        && this.playbackState !== 'error';
+      if (!this.activePlayback) {
         this.pendingTerminalReason = reason;
       }
       void this.enqueue(async () => {
-        const playbackWasPlaying = this.activePlayback !== undefined;
-        if (!this.activeToken && !this.activePlayback) return;
+        if (generation !== this.playbackGeneration || token !== this.activeToken) return;
 
         this.clearActiveResources();
         if (reason !== 'ended' || !playbackWasPlaying) {
           this.nextPreparation = undefined;
-          this.playbackState = reason === 'stopped' ? 'idle' : 'error';
+          this.playbackState = reason === 'stopped' || reason === 'ended' ? 'idle' : 'error';
           this.lastPlaybackError = reason === 'media_error'
             ? 'ROON_MEDIA_ERROR'
             : reason === 'zone_lost'
@@ -1096,19 +1102,46 @@ export class BridgeController {
   handleRoonPlaybackState(state: RoonNativePlaybackState | undefined): void {
     const previous = this.lastNativeRoonPlaybackState;
     this.lastNativeRoonPlaybackState = state;
-    if (
-      state !== 'stopped' ||
-      (previous !== 'playing' && previous !== 'loading') ||
-      this.nativeRoonStopRequested ||
-      this.activeRoonPlayback === undefined
-    ) {
-      return;
-    }
-
+    const active = this.activeRoonPlayback;
+    if (!active || this.nativeRoonStopRequested || this.playbackState === 'error') return;
+    const unavailable = state === undefined;
+    const stoppedFromPaused = state === 'stopped'
+      && (previous === 'paused' || this.playbackState === 'paused');
+    const ended = state === 'stopped' && (previous === 'playing' || previous === 'loading');
+    if (!unavailable && !stoppedFromPaused && !ended) return;
+    const stoppedObservation = stoppedFromPaused ? this.freshNativeStoppedObservation() : undefined;
+    if (stoppedFromPaused && !stoppedObservation) return;
     const generation = this.playbackGeneration;
     void this.enqueue(async () => {
-      if (this.nativeRoonStopRequested || this.activeRoonPlayback === undefined
+      if (this.nativeRoonStopRequested || this.playbackState === 'error' || this.activeRoonPlayback !== active
         || generation !== this.playbackGeneration) return;
+      if (unavailable) {
+        // 缺少观测不能证明停止或自然结束；冻结现态并保留再次停止的身份。
+        this.playbackGeneration += 1;
+        this.nextPreparation = undefined;
+        this.playbackState = 'error';
+        this.lastPlaybackError = 'ROON_TRANSPORT_UNAVAILABLE';
+        this.lastPlaybackIssue = {
+          ...makePlaybackIssue('INTERNAL_ERROR', this.newDiagnosticId()),
+          message: 'Roon 播放状态暂不可确认，请重新连接后重试停止',
+        };
+        this.qualityNotice = undefined;
+        this.notifyPlaybackChanged();
+        return;
+      }
+      if (stoppedObservation) {
+        const current = this.freshNativeStoppedObservation();
+        if (!current || current.revision < stoppedObservation.revision
+          || this.lastNativeRoonPlaybackState !== 'stopped') return;
+        // 暂停后确认停止不代表歌曲自然播完，不自动开启下一首。
+        this.clearActiveResources();
+        this.nextPreparation = undefined;
+        this.playbackState = 'idle';
+        this.clearPlaybackIssue();
+        this.notifyPlaybackChanged();
+        this.dependencies.logger.info('roon_native_terminal', { reason: 'stopped' });
+        return;
+      }
       this.dependencies.logger.info('roon_native_terminal', { reason: 'ended' });
       const nextIndex = this.queueIndex >= 0 ? this.queueIndex + 1 : this.queue.length;
       this.clearActiveResources();
@@ -1125,6 +1158,20 @@ export class BridgeController {
       const bridgeError = asBridgeError(error);
       this.dependencies.logger.warn('queue_advance_failed', { code: bridgeError.code });
     });
+  }
+
+  private freshNativeStoppedObservation(): RoonPlaybackObservation | undefined {
+    const active = this.activeRoonPlayback;
+    const context = this.positionContext;
+    const observation = this.dependencies.roon.getSelectedZonePlaybackObservation?.();
+    if (!active || !context || context.generation !== this.playbackGeneration
+      || context.source !== 'roon' || observation?.state !== 'stopped'
+      || observation.zoneId !== active.zoneId
+      || observation.zoneId !== this.dependencies.roon.getState().selectedZoneId
+      || context.minimumRevision === undefined
+      || !Number.isSafeInteger(observation.revision)
+      || observation.revision <= context.minimumRevision) return undefined;
+    return observation;
   }
 
   getPlaybackGeneration(): number {
@@ -1490,27 +1537,39 @@ export class BridgeController {
     }
 
     this.playbackState = 'stopping';
-    this.positionMs = 0;
     this.playbackGeneration += 1;
     this.lastPositionPublishedAt = this.now();
     this.notifyPlaybackChanged();
     try {
       if (this.activeRoonPlayback) {
         this.nativeRoonStopRequested = true;
-        try {
-          await this.dependencies.roonLibrary?.stop();
-        } finally {
-          this.nativeRoonStopRequested = false;
+        const roonLibrary = this.dependencies.roonLibrary;
+        if (!roonLibrary) {
+          throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', '本地 Roon 停止不可用', { httpStatus: 503 });
         }
+        await roonLibrary.stop();
       } else {
         await this.dependencies.roon.stop();
       }
-    } finally {
-      this.clearActiveResources();
-      this.playbackState = 'idle';
-      this.clearPlaybackIssue();
+    } catch (error) {
+      // 停止结果未知时保留活动身份和原生停止意图，避免失去重试或误判自然续播。
+      this.nextPreparation = undefined;
+      this.playbackState = 'error';
+      this.lastPlaybackError = asBridgeError(error).code;
+      this.lastPlaybackIssue = {
+        ...this.issueForError(error),
+        message: '停止尚未确认，请重试停止',
+        retryable: true,
+        action: 'retry',
+      };
+      this.qualityNotice = undefined;
       this.notifyPlaybackChanged();
+      throw error;
     }
+    this.clearActiveResources();
+    this.playbackState = 'idle';
+    this.clearPlaybackIssue();
+    this.notifyPlaybackChanged();
   }
 
   private async hydrateQueueItems(items: readonly QueueItem[]): Promise<void> {
@@ -1546,6 +1605,7 @@ export class BridgeController {
     this.activeToken = undefined;
     this.activePlayback = undefined;
     this.activeRoonPlayback = undefined;
+    this.nativeRoonStopRequested = false;
     this.queueProjectionDirty = true;
     this.positionContext = undefined;
     this.positionMs = 0;

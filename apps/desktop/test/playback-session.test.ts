@@ -61,6 +61,68 @@ function deferred<T>() {
   return { promise, resolve }
 }
 
+test('MBR-001 单曲播放替换集合后，旧后台分页不得追加到新队列', async t => {
+  const nextPage = deferred<import('@music-bridge/contracts').Page<TrackSummary>>();
+  const appended: string[][] = [];
+  const harness = createSession({ replaceQueue: async () => snapshot(track('A')), play: async () => snapshot(track('B')),
+    appendQueue: async items => { appended.push(items.map(item => item.trackId)); return snapshot(track('A')); } });
+  t.after(() => harness.session.dispose());
+  await harness.session.replaceAndPlayCollection(async page => page.offset === 0
+    ? { items: [track('A')], offset: 0, limit: 20, total: 21, hasMore: true } : nextPage.promise);
+  await harness.session.playTrack(track('B'));
+  nextPage.resolve({ items: [track('旧C')], offset: 20, limit: 20, total: 21, hasMore: false });
+  await tick();
+  assert.deepEqual(appended, []);
+  assert.equal(harness.session.currentTrack.value?.id, 'B');
+});
+
+test('MBR-001 旧 append 回执晚于新播放时不得回填界面状态', async t => {
+  const ack = deferred<PlaybackSnapshot>();
+  let appendCalls = 0;
+  const harness = createSession({ replaceQueue: async () => snapshot(track('A')), play: async () => snapshot(track('B')),
+    appendQueue: async () => { appendCalls++; return ack.promise; } });
+  t.after(() => harness.session.dispose());
+  await harness.session.replaceAndPlayCollection(async page => ({ items: [track(page.offset === 0 ? 'A' : '旧C')],
+    offset: page.offset, limit: 20, total: 21, hasMore: page.offset === 0 }));
+  await tick(); assert.equal(appendCalls, 1);
+  await harness.session.playTrack(track('B'));
+  ack.resolve(snapshot(track('A'))); await tick();
+  assert.equal(harness.session.currentTrack.value?.id, 'B');
+});
+
+test('MBR-001 Stop 后旧后台页停止消费，用户下一次集合播放仍可开始', async t => {
+  const nextPage = deferred<import('@music-bridge/contracts').Page<TrackSummary>>();
+  let appended = 0;
+  const idle: PlaybackSnapshot = { ...snapshot(track('A')), state: 'idle', currentTrack: undefined, canStop: false, canPause: false };
+  const harness = createSession({ replaceQueue: async items => snapshot(track(items[0]!.trackId)), stop: async () => idle,
+    appendQueue: async () => { appended++; return snapshot(track('A')); } });
+  t.after(() => harness.session.dispose());
+  await harness.session.replaceAndPlayCollection(async page => page.offset === 0
+    ? { items: [track('A')], offset: 0, limit: 20, total: 21, hasMore: true } : nextPage.promise);
+  await harness.session.stopPlayback();
+  nextPage.resolve({ items: [track('旧C')], offset: 20, limit: 20, total: 21, hasMore: false }); await tick();
+  assert.equal(appended, 0); assert.equal(harness.session.playbackState.value?.state, 'idle');
+  await harness.session.replaceAndPlayCollection(async () => ({ items: [track('B')], offset: 0, limit: 20, total: 1, hasMore: false }));
+  assert.equal(harness.session.currentTrack.value?.id, 'B');
+});
+
+for (const source of ['netease', 'roon'] as const) {
+  test(`MBR-001 ${source} 停止失败的重试继续停止原来源，不重新播放`, async t => {
+    let stops = 0, plays = 0;
+    const failure = new Error('合成停止超时');
+    const idle: PlaybackSnapshot = { ...snapshot(track('A'), 0, source), state: 'idle', currentTrack: undefined, canStop: false, canPause: false };
+    const stop = async () => { stops++; if (stops === 1) throw failure; return idle; };
+    const harness = createSession({ stop, stopRoonTransport: async () => { await stop(); return { stopped: true }; },
+      play: async () => { plays++; return snapshot(track('A')); }, getPlaybackState: async () => idle });
+    t.after(() => harness.session.dispose());
+    harness.session.applyPlaybackState(snapshot(track('A'), 0, source));
+    await assert.rejects(harness.session.stopPlayback(), error => error === failure);
+    await (harness.session as unknown as { retryLastPlaybackAction(): Promise<void> }).retryLastPlaybackAction();
+    assert.equal(stops, 2); assert.equal(plays, 0);
+    assert.equal(harness.session.playbackState.value?.state, 'idle');
+  });
+}
+
 test('100 次同曲进度事件不重复请求歌词或喜欢状态', async t => {
   const harness = createSession()
   t.after(() => harness.session.dispose())

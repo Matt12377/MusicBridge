@@ -2054,3 +2054,333 @@ test('诊断时钟故障不阻止排队业务修改真实队列', async t => {
     assert.equal(recorder.snapshot().inflightCount, 0);
   } finally { clock.mock.restore(); }
 });
+
+function drainMbrController(controller: BridgeController): Promise<void> {
+  // 仅测试侧等待已提交操作落定，不新增生产调度或依赖定时 sleep。
+  return (controller as unknown as { operationTail: Promise<void> }).operationTail;
+}
+
+function mbrNativeQueue(length = 2) {
+  return Array.from({ length }, (_, index) => ({
+    reference: `mbr-native-${index}`,
+    zoneId: 'zone-1',
+    track: { id: String(94001 + index), title: `本地曲目 ${index + 1}`, artists: ['合成艺人'], album: '合成专辑' },
+  }));
+}
+
+for (const length of [2, 3]) {
+  test(`MBR-001：${length}曲队列的旧 ended 排在 Next 后不能清除新曲或再前进`, async t => {
+    const { controller, roon, registry } = makeHarness();
+    t.after(() => controller.stop());
+    await controller.replaceQueue(Array.from({ length }, (_, index) => ({
+      trackId: String(93001 + index), quality: 'standard',
+    })));
+    const advancing = controller.next();
+    roon.emitTerminal('ended');
+    await advancing;
+    await drainMbrController(controller);
+    assert.deepEqual(roon.playRequests.map(request => request.metadata.id), ['93001', '93002']);
+    const snapshot = controller.getPlaybackState();
+    assert.equal(snapshot.currentTrack?.id, '93002');
+    assert.equal(snapshot.queue.index, 1);
+    assert.equal(snapshot.state, 'playing');
+    assert.equal(snapshot.canStop, true);
+    assert.equal(registry.size, 1);
+  });
+}
+
+for (const reason of ['stopped', 'media_error', 'zone_lost'] as const) {
+  test(`MBR-001：旧 ${reason} 排在 Next 后不能终止新曲或写入旧错误`, async t => {
+    const { controller, roon, registry } = makeHarness();
+    t.after(() => controller.stop());
+    await controller.replaceQueue([{ trackId: '93101' }, { trackId: '93102' }]);
+    const advancing = controller.next();
+    roon.emitTerminal(reason);
+    await advancing;
+    await drainMbrController(controller);
+    assert.deepEqual(roon.playRequests.map(request => request.metadata.id), ['93101', '93102']);
+    const snapshot = controller.getPlaybackState();
+    assert.equal(snapshot.currentTrack?.id, '93102');
+    assert.equal(snapshot.state, 'playing');
+    assert.equal(snapshot.lastIssue, undefined);
+    assert.equal(snapshot.canStop, true);
+    assert.equal(registry.size, 1);
+  });
+}
+
+test('MBR-001：同一曲目的重复 ended 只推进一次', async t => {
+  const { controller, roon, registry } = makeHarness();
+  t.after(() => controller.stop());
+  await controller.replaceQueue([{ trackId: '93201' }, { trackId: '93202' }, { trackId: '93203' }]);
+  roon.emitTerminal('ended');
+  roon.emitTerminal('ended');
+  await drainMbrController(controller);
+  assert.deepEqual(roon.playRequests.map(request => request.metadata.id), ['93201', '93202']);
+  assert.equal(controller.getPlaybackState().currentTrack?.id, '93202');
+  assert.equal(controller.getPlaybackState().queue.index, 1);
+  assert.equal(registry.size, 1);
+});
+
+test('MBR-001：Provider 停止失败保留身份、位置和受控错误，成功重试后才清理', async t => {
+  const { controller, roon, registry } = makeHarness();
+  await controller.play({ trackId: '93301' });
+  assert.equal(controller.updateRoonTime(18_000), true);
+  const active = controller.getState().activePlayback;
+  const failure = new BridgeError('ROON_TIMEOUT', '合成停止故障包含内部会话资料', { httpStatus: 504 });
+  const originalStop = roon.stop.bind(roon);
+  let shouldFail = true;
+  const stop = t.mock.method(roon, 'stop', async () => {
+    if (shouldFail) { roon.stopCalls++; throw failure; }
+    await originalStop();
+  });
+  const snapshots: PlaybackSnapshot[] = [];
+  const unsubscribe = controller.subscribe(snapshot => snapshots.push(snapshot));
+  t.after(async () => { unsubscribe(); stop.mock.restore(); await controller.stop(); });
+
+  await assert.rejects(controller.stop(), error => error === failure);
+  assert.equal(roon.stopCalls, 1);
+  assert.equal(controller.getState().activePlayback, active);
+  const failed = controller.getPlaybackState();
+  assert.equal(failed.currentTrack?.id, '93301');
+  assert.equal(failed.positionMs, 18_000);
+  assert.equal(failed.state, 'error');
+  assert.equal(failed.canStop, true);
+  assert.equal(failed.canPause, false);
+  assert.equal(failed.canResume, false);
+  assert.equal(failed.lastIssue?.retryable, true);
+  assert.equal(failed.lastIssue?.action, 'retry');
+  assert.equal(failed.lastIssue?.message, '停止尚未确认，请重试停止');
+  assert.doesNotMatch(JSON.stringify(failed.lastIssue), /内部会话资料/);
+  assert.equal(registry.size, 1);
+  assert.ok(snapshots.every(snapshot => snapshot.state !== 'idle'));
+
+  shouldFail = false;
+  await controller.stop();
+  assert.equal(roon.stopCalls, 2);
+  assert.equal(controller.getPlaybackState().state, 'idle');
+  assert.equal(controller.getPlaybackState().canStop, false);
+  assert.equal(controller.getPlaybackState().currentTrack, undefined);
+  assert.equal(controller.getPlaybackState().lastIssue, undefined);
+  assert.equal(registry.size, 0);
+  await controller.stop();
+  assert.equal(roon.stopCalls, 2);
+});
+
+test('MBR-001：原生 Roon 停止失败保留身份与停止意图，成功重试后才清理', async t => {
+  const { controller, nativeRoon, roon, registry } = makeHarness();
+  nativeRoon.playObservation = { revision: 1, zoneId: 'zone-1', state: 'playing', positionMs: 7_000 };
+  await controller.replaceRoonQueue(mbrNativeQueue(), 0);
+  const failure = new BridgeError('ROON_TIMEOUT', '合成原生停止确认超时', { httpStatus: 504 });
+  const originalStop = nativeRoon.stop.bind(nativeRoon);
+  let shouldFail = true;
+  const stop = t.mock.method(nativeRoon, 'stop', async () => {
+    if (shouldFail) { nativeRoon.stopCalls++; throw failure; }
+    await originalStop();
+  });
+  t.after(async () => { stop.mock.restore(); await controller.stop(); });
+  await assert.rejects(controller.stop(), error => error === failure);
+  const failed = controller.getPlaybackState();
+  assert.equal(failed.currentTrack?.id, '94001');
+  assert.equal(failed.source, 'roon');
+  assert.equal(failed.positionMs, 7_000);
+  assert.equal(failed.state, 'error');
+  assert.equal(failed.canStop, true);
+  assert.equal(failed.lastIssue?.retryable, true);
+  assert.equal(failed.lastIssue?.message, '停止尚未确认，请重试停止');
+  assert.equal(nativeRoon.active, true);
+  assert.equal(controller.getState().activeRoonPlayback?.id, '94001');
+  assert.equal(registry.size, 0);
+
+  controller.handleRoonPlaybackState('playing');
+  controller.handleRoonPlaybackState('stopped');
+  await drainMbrController(controller);
+  assert.deepEqual(nativeRoon.playCalls.map(call => call.reference), ['mbr-native-0']);
+  assert.equal(controller.getPlaybackState().currentTrack?.id, '94001');
+  assert.equal(controller.getPlaybackState().state, 'error');
+  assert.equal(roon.playRequests.length, 0);
+
+  shouldFail = false;
+  await controller.stop();
+  assert.equal(nativeRoon.stopCalls, 2);
+  assert.equal(nativeRoon.active, false);
+  assert.equal(controller.getPlaybackState().state, 'idle');
+  assert.equal(controller.getPlaybackState().currentTrack, undefined);
+  assert.equal(controller.getPlaybackState().canStop, false);
+  assert.equal(controller.getPlaybackState().lastIssue, undefined);
+});
+
+for (const source of ['Provider', '原生 Roon'] as const) {
+  test(`MBR-001：${source} 的 Next 遇到停止失败不能开始下一首或丢失原曲`, async t => {
+    const { controller, nativeRoon, roon, registry } = makeHarness();
+    const native = source === '原生 Roon';
+    if (native) await controller.replaceRoonQueue(mbrNativeQueue(), 0);
+    else await controller.replaceQueue([{ trackId: '93401' }, { trackId: '93402' }]);
+    const port = native ? nativeRoon : roon;
+    const failure = new BridgeError('ROON_TIMEOUT', '合成切歌前停止失败', { httpStatus: 504 });
+    const stop = t.mock.method(port, 'stop', async () => { port.stopCalls++; throw failure; });
+    t.after(async () => { stop.mock.restore(); await controller.stop(); });
+    await assert.rejects(controller.next(), error => error === failure);
+    assert.equal(controller.getPlaybackState().queue.index, 0);
+    assert.equal(controller.getPlaybackState().currentTrack?.id, native ? '94001' : '93401');
+    assert.equal(controller.getPlaybackState().state, 'error');
+    assert.equal(controller.getPlaybackState().canStop, true);
+    assert.equal(nativeRoon.playCalls.length, native ? 1 : 0);
+    assert.equal(roon.playRequests.length, native ? 0 : 1);
+    assert.equal(registry.size, native ? 0 : 1);
+  });
+}
+
+test('MBR-001：Provider 停止失败后的真实 ended 可以清理，但不能自动开启下一首', async t => {
+  const { controller, roon, registry } = makeHarness();
+  await controller.replaceQueue([{ trackId: '93501' }, { trackId: '93502' }]);
+  const failure = new BridgeError('ROON_TIMEOUT', '合成停止失败', { httpStatus: 504 });
+  const stop = t.mock.method(roon, 'stop', async () => { roon.stopCalls++; throw failure; });
+  t.after(async () => { stop.mock.restore(); await controller.stop(); });
+  await assert.rejects(controller.stop(), error => error === failure);
+  assert.equal(controller.getPlaybackState().canStop, true);
+  roon.emitTerminal('ended');
+  await drainMbrController(controller);
+  assert.deepEqual(roon.playRequests.map(request => request.metadata.id), ['93501']);
+  assert.equal(controller.getPlaybackState().state, 'idle');
+  assert.equal(controller.getPlaybackState().currentTrack, undefined);
+  assert.equal(registry.size, 0);
+});
+
+test('MBR-001：停止等待期间到达的 ended 不因随后停止失败而自动续播', { timeout: 1_000 }, async t => {
+  const { controller, roon, registry } = makeHarness();
+  await controller.replaceQueue([{ trackId: '93601' }, { trackId: '93602' }]);
+  let entered!: () => void;
+  let rejectStop!: (error: unknown) => void;
+  const entry = new Promise<void>(resolve => { entered = resolve; });
+  const pending = new Promise<void>((_resolve, reject) => { rejectStop = reject; });
+  const failure = new BridgeError('ROON_TIMEOUT', '合成延迟停止失败', { httpStatus: 504 });
+  const stop = t.mock.method(roon, 'stop', () => { roon.stopCalls++; entered(); return pending; });
+  const states: string[] = [];
+  const unsubscribe = controller.subscribe(snapshot => states.push(snapshot.state));
+  t.after(async () => { unsubscribe(); stop.mock.restore(); await controller.stop(); });
+  const stopping = controller.stop();
+  const rejected = assert.rejects(stopping, error => error === failure);
+  await entry;
+  assert.equal(controller.getPlaybackState().state, 'stopping');
+  roon.emitTerminal('ended');
+  rejectStop(failure);
+  await rejected;
+  await drainMbrController(controller);
+  assert.ok(states.includes('error'));
+  assert.deepEqual(roon.playRequests.map(request => request.metadata.id), ['93601']);
+  assert.equal(controller.getPlaybackState().state, 'idle');
+  assert.equal(registry.size, 0);
+});
+
+test('MBR-001：新鲜 paused 到 stopped 清理原生身份，但不视为自然结束续播', async t => {
+  const { controller, nativeRoon, roon } = makeHarness();
+  t.after(() => controller.stop());
+  await controller.replaceRoonQueue(mbrNativeQueue(), 0);
+  roon.state = { ...roon.state, transportState: 'playing', canPause: true };
+  await controller.pause();
+  controller.handleRoonPlaybackState('paused');
+  nativeRoon.active = false;
+  roon.nativeObservation = { revision: 2, zoneId: 'zone-1', state: 'stopped' };
+  controller.handleRoonPlaybackState('stopped');
+  await drainMbrController(controller);
+  assert.equal(controller.getPlaybackState().state, 'idle');
+  assert.equal(controller.getPlaybackState().currentTrack, undefined);
+  assert.equal(controller.getPlaybackState().canStop, false);
+  assert.equal(controller.getPlaybackState().queue.index, 0);
+  assert.deepEqual(nativeRoon.playCalls.map(call => call.reference), ['mbr-native-0']);
+  assert.equal(nativeRoon.stopCalls, 0);
+});
+
+test('MBR-001：暂停后过期或其他 Zone 的 stopped 不能清理，新鲜本 Zone 观测才可清理', async t => {
+  const { controller, nativeRoon, roon } = makeHarness();
+  t.after(() => controller.stop());
+  await controller.replaceRoonQueue(mbrNativeQueue(), 0);
+  roon.state = { ...roon.state, transportState: 'playing', canPause: true };
+  await controller.pause();
+  controller.handleRoonPlaybackState('paused');
+  for (const observation of [
+    { revision: 1, zoneId: 'zone-1', state: 'stopped' as const },
+    { revision: 2, zoneId: 'zone-other', state: 'stopped' as const },
+  ]) {
+    roon.nativeObservation = observation;
+    controller.handleRoonPlaybackState('stopped');
+    await drainMbrController(controller);
+    assert.equal(controller.getPlaybackState().currentTrack?.id, '94001');
+    assert.equal(controller.getPlaybackState().state, 'paused');
+    assert.equal(controller.getPlaybackState().canStop, true);
+  }
+  roon.nativeObservation = { revision: 2, zoneId: 'zone-1', state: 'stopped' };
+  controller.handleRoonPlaybackState('stopped');
+  await drainMbrController(controller);
+  assert.equal(controller.getPlaybackState().state, 'idle');
+  assert.equal(controller.getPlaybackState().currentTrack, undefined);
+  assert.equal(nativeRoon.playCalls.length, 1);
+});
+
+test('MBR-001：暂停后 stopped 排队期间收到新 playing，不能按旧观测清理', async t => {
+  const { controller, nativeRoon, roon } = makeHarness();
+  t.after(() => controller.stop());
+  await controller.replaceRoonQueue(mbrNativeQueue(), 0);
+  roon.state = { ...roon.state, transportState: 'playing', canPause: true };
+  await controller.pause();
+  controller.handleRoonPlaybackState('paused');
+  roon.nativeObservation = { revision: 2, zoneId: 'zone-1', state: 'stopped' };
+  controller.handleRoonPlaybackState('stopped');
+  roon.state = { ...roon.state, transportState: 'playing' };
+  roon.nativeObservation = { revision: 3, zoneId: 'zone-1', state: 'playing' };
+  controller.syncRoonTransportState();
+  controller.handleRoonPlaybackState('playing');
+  await drainMbrController(controller);
+  assert.equal(controller.getPlaybackState().currentTrack?.id, '94001');
+  assert.equal(controller.getPlaybackState().state, 'playing');
+  assert.equal(controller.getPlaybackState().canStop, true);
+  assert.equal(nativeRoon.playCalls.length, 1);
+});
+
+test('MBR-001：Core 断开缺少原生状态时保留身份与位置，标记可恢复错误而不续播', async t => {
+  const { controller, nativeRoon, roon, registry } = makeHarness();
+  nativeRoon.playObservation = { revision: 1, zoneId: 'zone-1', state: 'playing', positionMs: 8_000 };
+  await controller.replaceRoonQueue(mbrNativeQueue(), 0);
+  t.after(() => controller.stop());
+  controller.handleRoonPlaybackState('playing');
+  roon.state = { status: 'discovering' };
+  controller.handleRoonPlaybackState(undefined);
+  await drainMbrController(controller);
+  const snapshot = controller.getPlaybackState();
+  assert.equal(snapshot.currentTrack?.id, '94001');
+  assert.equal(snapshot.positionMs, 8_000);
+  assert.equal(snapshot.state, 'error');
+  assert.equal(snapshot.canStop, true);
+  assert.equal(snapshot.canPause, false);
+  assert.equal(snapshot.canResume, false);
+  assert.equal(snapshot.lastIssue?.retryable, true);
+  assert.equal(snapshot.lastIssue?.message, 'Roon 播放状态暂不可确认，请重新连接后重试停止');
+  assert.equal(nativeRoon.playCalls.length, 1);
+  assert.equal(registry.size, 0);
+
+  // 单纯恢复状态字符串不足以重新确认身份，更不能随后自动跳到另一首。
+  roon.state = { status: 'playing', selectedZoneId: 'zone-1', transportState: 'playing' };
+  roon.nativeObservation = { revision: 2, zoneId: 'zone-1', state: 'playing' };
+  controller.syncRoonTransportState();
+  controller.handleRoonPlaybackState('playing');
+  roon.nativeObservation = { revision: 3, zoneId: 'zone-1', state: 'stopped' };
+  controller.handleRoonPlaybackState('stopped');
+  await drainMbrController(controller);
+  assert.equal(controller.getPlaybackState().state, 'error');
+  assert.equal(controller.getPlaybackState().currentTrack?.id, '94001');
+  assert.equal(nativeRoon.playCalls.length, 1);
+});
+
+test('MBR-001：旧 Core 缺失状态排在 Next 后不能给新曲写入错误', async t => {
+  const { controller, nativeRoon } = makeHarness();
+  t.after(() => controller.stop());
+  await controller.replaceRoonQueue(mbrNativeQueue(), 0);
+  const advancing = controller.next();
+  controller.handleRoonPlaybackState(undefined);
+  await advancing;
+  await drainMbrController(controller);
+  assert.equal(controller.getPlaybackState().currentTrack?.id, '94002');
+  assert.equal(controller.getPlaybackState().state, 'playing');
+  assert.equal(controller.getPlaybackState().lastIssue, undefined);
+  assert.deepEqual(nativeRoon.playCalls.map(call => call.reference), ['mbr-native-0', 'mbr-native-1']);
+});

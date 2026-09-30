@@ -52,6 +52,11 @@ interface ActiveRoonPlaybackContext {
   trackId: string;
   session?: RoonAudioInputSession;
   cancel?: () => void;
+  stopping?: boolean;
+  stopFailed?: boolean;
+  stopPending?: Promise<void>;
+  requestStop?: () => void;
+  confirmStop?: () => void;
 }
 
 interface PlaybackConfirmationWaiter {
@@ -471,16 +476,19 @@ function observationMatchesTrack(
   ) {
     return false;
   }
-  if (allowMetadataAliases) return true;
   const corroborations: boolean[] = [];
   if (nowPlaying.artist) {
     corroborations.push(track.artists.some((artist) => relatedIdentity(nowPlaying.artist!, artist)));
   }
   if (nowPlaying.album) corroborations.push(relatedIdentity(nowPlaying.album, track.album));
-  if (nowPlaying.durationMs !== undefined && track.durationMs !== undefined) {
-    corroborations.push(Math.abs(nowPlaying.durationMs - track.durationMs) <= 2_000);
-  }
-  return corroborations.length === 0 || corroborations.some(Boolean);
+  const durationPresent = nowPlaying.durationMs !== undefined && track.durationMs !== undefined;
+  const durationMatches = durationPresent && Math.abs(nowPlaying.durationMs! - track.durationMs!) <= 2_000;
+  // 可核对的时长冲突具有否决权；别名不能把明显不同版本当作确认。
+  if (durationPresent && !durationMatches) return false;
+  if (allowMetadataAliases && durationMatches) return true;
+  if (corroborations.some(value => !value)) return false;
+  if (corroborations.length > 0) return true;
+  return durationMatches || (track.artists.length === 0 && track.album.trim().length === 0 && track.durationMs === undefined);
 }
 
 function observationMatchesRequest(
@@ -513,6 +521,8 @@ export class RoonAudioInputAdapter implements RoonPort {
   private readonly zones = new Map<string, RoonZone>();
   private selectedZone: RoonZone | undefined;
   private zoneRevision = 0;
+  private readonly zoneRevisions = new Map<string, number>();
+  private readonly zonePlaybackRevisions = new Map<string, number>();
   private playbackGeneration = 0;
   private activePlaybackContext: ActiveRoonPlaybackContext | undefined;
   private state: RoonState = { status: 'discovering' };
@@ -752,7 +762,7 @@ export class RoonAudioInputAdapter implements RoonPort {
         if (settled) return;
         settled = true;
         releaseTimeout();
-        if (error) this.clearPlaybackContext(generation);
+        if (error && !playbackContext.stopping) this.clearPlaybackContext(generation);
         if (error) reject(error);
         else resolve();
       };
@@ -820,6 +830,10 @@ export class RoonAudioInputAdapter implements RoonPort {
           gatewayStage,
         });
         if (staleCallback) return;
+        if (playbackContext.stopping) {
+          if (event === 'StoppedUser' || event === 'EndedNaturally') playbackContext.confirmStop?.();
+          return;
+        }
         switch (event) {
           case 'Playing':
             this.setStatus('playing', 'Playing', false);
@@ -905,6 +919,11 @@ export class RoonAudioInputAdapter implements RoonPort {
           sanitizedErrorClass: responseSummary.sanitizedErrorClass,
         });
         if (staleCallback) return;
+        if (playbackContext.stopping) {
+          if (sessionEvent === 'SessionEnded') playbackContext.confirmStop?.();
+          else if (sessionEvent === 'SessionBegan' && sessionId) playbackContext.requestStop?.();
+          return;
+        }
 
         if (sessionEvent === 'SessionBegan') {
           if (settled) return;
@@ -1141,14 +1160,14 @@ export class RoonAudioInputAdapter implements RoonPort {
 
   async stop(): Promise<void> {
     const playbackContext = this.activePlaybackContext;
-    this.activePlaybackContext = undefined;
-    this.playbackGeneration += 1;
-    playbackContext?.cancel?.();
-    const session = playbackContext?.session;
-    if (playbackContext) delete playbackContext.session;
-    if (!session) return;
+    if (!playbackContext) return;
+    if (playbackContext.stopPending) return playbackContext.stopPending;
+    playbackContext.stopping = true;
+    playbackContext.cancel?.();
+    const session = playbackContext.session;
+    if (!session) throw new BridgeError('ROON_TIMEOUT', '停止尚未确认，请重试停止', { httpStatus: 504, details: { operation: 'stop' } });
 
-    await new Promise<void>((resolve) => {
+    const work = new Promise<void>((resolve, reject) => {
       let done = false;
       let timeout: ReturnType<typeof setTimeout> | undefined;
       const releaseTimeout = (): void => {
@@ -1157,23 +1176,47 @@ export class RoonAudioInputAdapter implements RoonPort {
         timeout = undefined;
         this.activeTimerCount = Math.max(0, this.activeTimerCount - 1);
       };
-      const finish = (): void => {
+      const finish = (error?: unknown): void => {
         if (done) return;
         done = true;
         releaseTimeout();
-        resolve();
+        if (error) {
+          playbackContext.stopFailed = true;
+          this.setStatus('error', '停止尚未确认', true);
+          reject(error);
+        } else resolve();
+      };
+      playbackContext.confirmStop = () => {
+        if (this.activePlaybackContext !== playbackContext) return;
+        this.activePlaybackContext = undefined;
+        this.playbackGeneration += 1;
+        delete playbackContext.requestStop;
+        delete playbackContext.confirmStop;
+        if (this.core && this.selectedZone) {
+          this.setStatus('ready', 'Ready', false);
+          this.setTransportState('stopped');
+        }
+        const notifyLateClosure = playbackContext.stopFailed === true;
+        finish();
+        // 正常主动停止由请求方落定；未知结果后的迟到关闭补发终止证据。
+        if (notifyLateClosure) this.terminalHandler('stopped');
+      };
+      playbackContext.requestStop = () => {
+        try {
+          session.end_session(message => {
+            const event = messageName(message);
+            if (event === 'SessionEnded' || event === 'Success') playbackContext.confirmStop?.();
+            else finish(new BridgeError('ROON_TIMEOUT', '停止尚未确认，请重试停止', { httpStatus: 504, details: { operation: 'stop' } }));
+          });
+        } catch (error) { finish(error); }
       };
       this.activeTimerCount += 1;
-      timeout = setTimeout(finish, 2_000);
-      session.end_session(() => {
-        finish();
-      });
+      timeout = setTimeout(() => finish(new BridgeError('ROON_TIMEOUT', '停止尚未确认，请重试停止', { httpStatus: 504, details: { operation: 'stop' } })), 2_000);
+      playbackContext.requestStop();
     });
-
-    if (this.core && this.selectedZone) {
-      this.setStatus('ready', 'Ready', false);
-      this.setTransportState('stopped');
-    }
+    playbackContext.stopPending = work;
+    try { await work; }
+    finally { if (playbackContext.stopPending === work) delete playbackContext.stopPending; }
   }
 
   async pause(): Promise<void> {
@@ -1208,28 +1251,33 @@ export class RoonAudioInputAdapter implements RoonPort {
   }
 
   async shutdown(): Promise<void> {
-    await this.stop();
-    this.rejectPlaybackConfirmations(new BridgeError(
-      'ROON_ZONE_NOT_SELECTED',
-      'Roon adapter stopped before playback confirmation',
-      { httpStatus: 409 },
-    ));
-    try {
-      this.roon?.stop_discovery?.();
-      this.roon?.disconnect_all?.();
-    } finally {
-      this.roon = undefined;
-      this.core = undefined;
-      this.audioInput = undefined;
-      this.libraryService = undefined;
-      this.terminalHandler = () => undefined;
-      this.stateHandler = () => undefined;
-      this.timeHandler = () => undefined;
-      this.activeTimerCount = 0;
-      this.zones.clear();
-      this.selectedZone = undefined;
-      this.zoneRevision += 1;
-      this.state = { status: 'discovering' };
+    try { await this.stop(); }
+    finally {
+      this.rejectPlaybackConfirmations(new BridgeError(
+        'ROON_ZONE_NOT_SELECTED',
+        'Roon adapter stopped before playback confirmation',
+        { httpStatus: 409 },
+      ));
+      try {
+        this.roon?.stop_discovery?.();
+        this.roon?.disconnect_all?.();
+      } finally {
+        this.roon = undefined;
+        this.core = undefined;
+        this.audioInput = undefined;
+        this.libraryService = undefined;
+        this.terminalHandler = () => undefined;
+        this.stateHandler = () => undefined;
+        this.timeHandler = () => undefined;
+        this.activeTimerCount = 0;
+        this.activePlaybackContext = undefined;
+        this.zones.clear();
+        this.zoneRevisions.clear();
+        this.zonePlaybackRevisions.clear();
+        this.selectedZone = undefined;
+        this.zoneRevision += 1;
+        this.state = { status: 'discovering' };
+      }
     }
   }
 
@@ -1248,7 +1296,7 @@ export class RoonAudioInputAdapter implements RoonPort {
     const nowPlaying = readZoneNowPlaying(zone);
     const imageKey = zone.now_playing?.image_key;
     return {
-      revision: this.zoneRevision,
+      revision: this.zoneRevisions.get(zone.zone_id) ?? 0,
       zoneId: zone.zone_id,
       ...(zone.state ? { state: zone.state } : {}),
       ...(positionMs !== undefined ? { positionMs } : {}),
@@ -1280,7 +1328,7 @@ export class RoonAudioInputAdapter implements RoonPort {
       ));
     }
     const current = this.getSelectedZonePlaybackObservation();
-    if (observationMatchesRequest(current, request)) return Promise.resolve(current);
+    if (this.matchesPlaybackConfirmation(current, request)) return Promise.resolve(current);
     return new Promise<RoonPlaybackObservation>((resolve, reject) => {
       const finish = (
         waiter: PlaybackConfirmationWaiter,
@@ -1339,8 +1387,14 @@ export class RoonAudioInputAdapter implements RoonPort {
     const observation = this.getSelectedZonePlaybackObservation();
     if (!observation) return;
     for (const waiter of [...this.playbackConfirmationWaiters]) {
-      if (observationMatchesRequest(observation, waiter.request)) waiter.resolve(observation);
+      if (this.matchesPlaybackConfirmation(observation, waiter.request)) waiter.resolve(observation);
     }
+  }
+
+  private matchesPlaybackConfirmation(observation: RoonPlaybackObservation | undefined, request: RoonPlaybackConfirmationRequest): observation is RoonPlaybackObservation {
+    // seek tick 是位置证据，不能把旧 playing 曲目刷新成新播放动作的确认。
+    return observationMatchesRequest(observation, request)
+      && (!request.track || (this.zonePlaybackRevisions.get(observation.zoneId) ?? 0) > request.afterRevision);
   }
 
   private rejectPlaybackConfirmations(error: Error): void {
@@ -1380,6 +1434,8 @@ export class RoonAudioInputAdapter implements RoonPort {
         if (response === 'Subscribed') {
           this.zoneRevision += 1;
           this.zones.clear();
+          this.zoneRevisions.clear();
+          this.zonePlaybackRevisions.clear();
           for (const zone of message.zones ?? []) this.storeZone(zone);
         } else if (response === 'Changed') {
           this.zoneRevision += 1;
@@ -1387,7 +1443,16 @@ export class RoonAudioInputAdapter implements RoonPort {
           for (const zone of message.zones_changed ?? []) this.storeZone(zone);
           for (const zone of message.zones_removed ?? []) {
             const zoneId = readZoneId(zone);
-            if (zoneId) this.zones.delete(zoneId);
+            if (zoneId) { this.zones.delete(zoneId); this.zoneRevisions.delete(zoneId); this.zonePlaybackRevisions.delete(zoneId); }
+          }
+          for (const value of message.zones_seek_changed ?? []) {
+            const zoneId = readZoneId(value);
+            const zone = zoneId ? this.zones.get(zoneId) : undefined;
+            const seconds = value && typeof value === 'object' ? (value as { seek_position?: unknown }).seek_position : undefined;
+            if (!zone || typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0 || seconds > MAX_ROON_TIME_MS / 1_000) continue;
+            this.zones.set(zone.zone_id, { ...zone, seek_position: seconds,
+              ...(zone.now_playing ? { now_playing: { ...zone.now_playing, seek_position: seconds } } : {}) });
+            this.zoneRevisions.set(zone.zone_id, ++this.zoneRevision);
           }
         }
         this.updateSelectedZone();
@@ -1422,6 +1487,8 @@ export class RoonAudioInputAdapter implements RoonPort {
     this.audioInput = undefined;
     this.libraryService = undefined;
     this.zones.clear();
+    this.zoneRevisions.clear();
+    this.zonePlaybackRevisions.clear();
     this.selectedZone = undefined;
     this.zoneRevision += 1;
     this.state = { status: 'discovering' };
@@ -1430,7 +1497,11 @@ export class RoonAudioInputAdapter implements RoonPort {
   }
 
   private storeZone(value: unknown): void {
-    if (isRoonZone(value)) this.zones.set(value.zone_id, value);
+    if (isRoonZone(value)) {
+      this.zones.set(value.zone_id, value);
+      this.zoneRevisions.set(value.zone_id, ++this.zoneRevision);
+      this.zonePlaybackRevisions.set(value.zone_id, this.zoneRevision);
+    }
   }
 
   private updateSelectedZone(): void {

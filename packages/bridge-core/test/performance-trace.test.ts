@@ -145,7 +145,8 @@ test('未显式 dispose 的 unref 采样器和 perf_hooks 不延长独立 Node �
   const script = `import { createNodePerformanceTrace } from ${JSON.stringify(moduleUrl)}; const trace = createNodePerformanceTrace({ component: 'core', enabled: true, monitorEventLoop: true }); if (!trace.isMonitoring()) process.exitCode = 1;`;
   const child = spawnSync(process.execPath, ['--import', 'tsx', '--input-type=module', '--eval', script], {
     cwd: process.cwd(), timeout: 3_000, encoding: 'utf8',
-    env: { ...process.env, TMPDIR: '/Volumes/LifeWeave/Developer/CommandLine/tmp' },
+    // 继承调用环境：本机由外置构建入口约束，hosted CI 使用 runner 临时目录。
+    env: { ...process.env },
   });
   assert.equal(child.error, undefined);
   assert.equal(child.status, 0, child.stderr);

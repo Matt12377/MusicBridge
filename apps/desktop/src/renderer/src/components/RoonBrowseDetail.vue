@@ -71,7 +71,7 @@ function formatDuration(durationMs: number | undefined): string {
         <div class="search-section-heading"><h3 id="roon-detail-tracks-heading">曲目</h3><span>{{ tracks.length }} 首</span></div>
         <div class="roon-track-table" role="table" :aria-label="props.mode === 'genre' ? 'Roon 流派曲目' : 'Roon 歌单曲目'">
           <div class="roon-track-table-header" role="row"><span>#</span><span>歌曲</span><span>时长</span><span class="visually-hidden">操作</span></div>
-          <div v-for="(track, index) in tracks" :key="track.reference" class="roon-track-row" role="row" tabindex="0" @dblclick="emit('play', track)" @keydown.enter="emit('play', track)">
+          <div v-for="(track, index) in tracks" :key="track.reference" class="roon-track-row" role="row" tabindex="0" @dblclick="emit('play', track)" @keydown.enter.self.prevent="emit('play', track)">
             <span class="roon-track-index">{{ track.trackNumber ?? index + 1 }}</span>
             <RoonArtwork class="roon-track-art" :reference="track.artworkReference" :alt="`${track.title} 封面`" :width="128" :height="128" /><span class="roon-track-copy"><strong>{{ track.title }}</strong><small>{{ track.artist || track.subtitle || track.album || '—' }}</small><span class="track-quality-details">{{ qualityDetails(track) }} · Roon<span v-if="track.album"> · {{ track.album }}</span></span></span>
             <span class="roon-track-duration">{{ formatDuration(track.durationMs) }}</span>

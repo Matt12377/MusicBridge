@@ -1955,12 +1955,13 @@ for (const allowMetadataAliases of [true, false]) {
     let settled = false
     const pending = adapter.waitForSelectedZonePlayback({
       zoneId: 'zone-1', state: 'playing', afterRevision: before.revision,
-      track: { title: '逆光', artists: ['Stefanie Sun'], album: 'Against the Light' },
+      // 别名允许中英文展示差异，但须用相符时长补充身份依据。
+      track: { title: '逆光', artists: ['Stefanie Sun'], album: 'Against the Light', durationMs: 240_000 },
       allowMetadataAliases,
     }).then(value => { settled = true; return value }, error => error)
     const emit = (zone: string, state: string, title: string) => api.core.transport.emit('Changed', {
       zones_changed: [{ zone_id: zone, state, now_playing: {
-        three_line: { line1: title, line2: '孙燕姿', line3: '逆光' }, seek_position: 0.2,
+        three_line: { line1: title, line2: '孙燕姿', line3: '逆光' }, length: 240, seek_position: 0.2,
       }, outputs: [{ output_id: 'output-1' }] }],
     })
     await nextTurn()
@@ -1978,3 +1979,167 @@ for (const allowMetadataAliases of [true, false]) {
     await adapter.stop()
   })
 }
+
+test('MBR-001 其他 Zone 更新不能刷新当前设备的旧同名观测', async () => {
+  const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 30 });
+  const selected = { zone_id: 'zone-1', state: 'playing', outputs: [{ output_id: 'output-1' }],
+    now_playing: { three_line: { line1: '同名曲', line2: '错误艺人', line3: '错误专辑' }, length: 180 } };
+  api.core.transport.emit('Changed', { zones_changed: [selected] });
+  const before = adapter.getSelectedZonePlaybackObservation()!;
+  const confirmation = adapter.waitForSelectedZonePlayback({ zoneId: 'zone-1', state: 'playing',
+    afterRevision: before.revision, track: { title: '同名曲', artists: ['目标艺人'], album: '目标专辑', durationMs: 180_000 },
+    allowMetadataAliases: true }).catch(error => error);
+  api.core.transport.emit('Changed', { zones_changed: [{ zone_id: 'zone-2', state: 'playing', outputs: [{ output_id: 'output-2' }] }] });
+  assert.equal(adapter.getSelectedZonePlaybackObservation()?.revision, before.revision);
+  assert.equal((await confirmation).code, 'ROON_TIMEOUT');
+  await adapter.shutdown();
+});
+
+for (const aliases of [false, true]) {
+  test(`MBR-001 同名曲时长冲突不能被其他匹配字段或别名开关覆盖 ${aliases}`, async () => {
+    const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 30 });
+    const before = adapter.getSelectedZonePlaybackObservation()!;
+    const confirmation = adapter.waitForSelectedZonePlayback({ zoneId: 'zone-1', state: 'playing', afterRevision: before.revision,
+      track: { title: '同名曲', artists: ['目标艺人'], album: '目标专辑', durationMs: 180_000 }, allowMetadataAliases: aliases }).catch(error => error);
+    api.core.transport.emit('Changed', { zones_changed: [{ zone_id: 'zone-1', state: 'playing', outputs: [{ output_id: 'output-1' }],
+      now_playing: { three_line: { line1: '同名曲', line2: '目标艺人', line3: '目标专辑' }, length: 240 } }] });
+    assert.equal((await confirmation).code, 'ROON_TIMEOUT');
+    await adapter.shutdown();
+  });
+}
+
+test('MBR-001 别名开关不能单凭同名曲确认不同艺人与专辑', async () => {
+  const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 30 });
+  const before = adapter.getSelectedZonePlaybackObservation()!;
+  const confirmation = adapter.waitForSelectedZonePlayback({ zoneId: 'zone-1', state: 'playing', afterRevision: before.revision,
+    track: { title: '同名曲', artists: ['目标艺人'], album: '目标专辑' }, allowMetadataAliases: true }).catch(error => error);
+  api.core.transport.emit('Changed', { zones_changed: [{ zone_id: 'zone-1', state: 'playing', outputs: [{ output_id: 'output-1' }],
+    now_playing: { three_line: { line1: '同名曲', line2: '另一艺人', line3: '另一专辑' } } }] });
+  assert.equal((await confirmation).code, 'ROON_TIMEOUT');
+  await adapter.shutdown();
+});
+
+test('MBR-001 Audio Input 停止同步失败保留同一会话且不残留 timer，可重试', async () => {
+  const { adapter, api } = await makeReadyHarness();
+  const playing = adapter.play(playRequest); await nextTurn();
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'synthetic-stop-session' }); await playing;
+  const injected = new Error('合成停止失败');
+  let calls = 0;
+  api.core.audioInput.beforeEndSession = () => { calls++; if (calls === 1) throw injected; };
+  await assert.rejects(adapter.stop(), error => error === injected);
+  assert.equal(adapter.getDiagnosticResourceCounters().activeSessionCount, 1);
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+  await adapter.stop();
+  assert.equal(calls, 2);
+  assert.equal(adapter.getDiagnosticResourceCounters().activeSessionCount, 0);
+  await adapter.shutdown();
+});
+
+test('MBR-001 Audio Input 停止超时不冒充成功，迟到关闭可落定且不能恢复 Playing', async t => {
+  const { adapter, api } = await makeReadyHarness();
+  const playing = adapter.play(playRequest); await nextTurn();
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'synthetic-stop-session' }); await playing;
+  api.core.audioInput.autoEndSession = false;
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const stopped = adapter.stop().then(() => 'incorrect-success', error => error);
+  t.mock.timers.tick(2_000);
+  const result = await stopped;
+  assert.equal(result.code, 'ROON_TIMEOUT');
+  assert.equal(adapter.getDiagnosticResourceCounters().activeSessionCount, 1);
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+  api.core.audioInput.emitPlay('Playing');
+  assert.notEqual(adapter.getState().status, 'playing');
+  api.core.audioInput.endSessionAt(0);
+  assert.equal(adapter.getDiagnosticResourceCounters().activeSessionCount, 0);
+  await adapter.shutdown();
+});
+
+test('MBR-001 停止失败时 shutdown 仍关闭发现与连接，并保留失败结果', async () => {
+  const { adapter, api } = await makeReadyHarness();
+  const playing = adapter.play(playRequest); await nextTurn();
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'synthetic-stop-session' }); await playing;
+  const injected = new Error('合成停止失败');
+  api.core.audioInput.beforeEndSession = () => { throw injected; };
+  await assert.rejects(adapter.shutdown(), error => error === injected);
+  assert.equal(api.stopDiscoveryCalls, 1);
+  assert.equal(api.disconnectAllCalls, 1);
+  assert.equal(adapter.getDiagnosticResourceCounters().activeSessionCount, 0);
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+});
+
+test('MBR-001 seek tick 更新本 Zone 的位置，但不能确认旧曲目为新播放动作', async () => {
+  const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 30 });
+  api.core.transport.emit('Changed', { zones_changed: [{ zone_id: 'zone-1', state: 'playing', outputs: [{ output_id: 'output-1' }],
+    now_playing: { three_line: { line1: '同名曲', line2: '目标艺人', line3: '目标专辑' }, length: 180, seek_position: 10 } }] });
+  const before = adapter.getSelectedZonePlaybackObservation()!;
+  const confirmation = adapter.waitForSelectedZonePlayback({ zoneId: 'zone-1', state: 'playing', afterRevision: before.revision,
+    track: { title: '同名曲', artists: ['目标艺人'], album: '目标专辑', durationMs: 180_000 } }).catch(error => error);
+  api.core.transport.emit('Changed', { zones_seek_changed: [{ zone_id: 'zone-1', seek_position: 11 }] });
+  const after = adapter.getSelectedZonePlaybackObservation()!;
+  assert.equal(after.positionMs, 11_000);
+  assert.ok(after.revision > before.revision);
+  api.core.transport.emit('Changed', { zones_seek_changed: [{ zone_id: 'zone-2', seek_position: 12 }] });
+  assert.equal(adapter.getSelectedZonePlaybackObservation()?.revision, after.revision);
+  assert.equal((await confirmation).code, 'ROON_TIMEOUT');
+  await adapter.shutdown();
+});
+
+test('MBR-001 SessionBegan 迟于 Stop 时补发关闭，不启动音频', async () => {
+  const { adapter, api } = await makeReadyHarness();
+  const playing = adapter.play(playRequest).catch(error => error);
+  await nextTurn();
+  api.core.audioInput.autoEndSession = false;
+  let stops = 0;
+  api.core.audioInput.beforeEndSession = () => { stops++; };
+  const stopping = adapter.stop();
+  assert.equal(stops, 1);
+  api.core.audioInput.autoEndSession = true;
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'synthetic-late-session' });
+  await stopping;
+  assert.ok(await playing instanceof Error);
+  assert.equal(stops, 2);
+  assert.equal(api.core.audioInput.playCalls, 0);
+  assert.equal(adapter.getDiagnosticResourceCounters().activeSessionCount, 0);
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+  await adapter.shutdown();
+});
+
+test('MBR-001 并发 Stop 共享请求，超时后旧关闭回执可结束当前重试', async t => {
+  const { adapter, api } = await makeReadyHarness();
+  const playing = adapter.play(playRequest); await nextTurn();
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'synthetic-stop-session' }); await playing;
+  api.core.audioInput.autoEndSession = false;
+  let stops = 0;
+  api.core.audioInput.beforeEndSession = () => { stops++; };
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const first = adapter.stop().catch(error => error);
+  const duplicate = adapter.stop().catch(error => error);
+  const oldReceipt = api.core.audioInput.endSessionCallbacks[0]!;
+  assert.equal(stops, 1);
+  t.mock.timers.tick(2_000);
+  assert.equal((await first).code, 'ROON_TIMEOUT');
+  assert.equal((await duplicate).code, 'ROON_TIMEOUT');
+  const retry = adapter.stop();
+  assert.equal(stops, 2);
+  oldReceipt('SessionEnded', {});
+  await retry;
+  assert.equal(adapter.getDiagnosticResourceCounters().activeSessionCount, 0);
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+  await adapter.shutdown();
+});
+
+test('MBR-001 非成功关闭回执不能清除会话，重试确认后才清理', async () => {
+  const { adapter, api } = await makeReadyHarness();
+  const playing = adapter.play(playRequest); await nextTurn();
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'synthetic-stop-session' }); await playing;
+  api.core.audioInput.autoEndSession = false;
+  const stopping = adapter.stop().catch(error => error);
+  api.core.audioInput.endSessionCallbacks[0]!('Failure', {});
+  assert.equal((await stopping).code, 'ROON_TIMEOUT');
+  assert.equal(adapter.getDiagnosticResourceCounters().activeSessionCount, 1);
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+  api.core.audioInput.autoEndSession = true;
+  await adapter.stop();
+  assert.equal(adapter.getDiagnosticResourceCounters().activeSessionCount, 0);
+  await adapter.shutdown();
+});

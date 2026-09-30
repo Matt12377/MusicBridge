@@ -100,6 +100,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   let collectionOperation = 0
   let roonPlaybackOperation = 0
   let optimisticRoonTrackId: string | undefined
+  let retryStopSource: 'roon' | 'netease' | undefined
 
   function cancelRoonPlaybackPreparation(): void {
     ++roonPlaybackOperation
@@ -432,6 +433,8 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
 
   async function playTrack(track: TrackSummary): Promise<void> {
     if (playbackStartPending.value) return
+    invalidateCollectionOperation()
+    retryStopSource = undefined
     const trace = api.performanceDiagnostics?.begin('playback')
     let traceOutcome: 'ok' | 'error' = 'ok'
     cancelRoonPlaybackPreparation()
@@ -490,6 +493,8 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     }
     const trace = api.performanceDiagnostics?.begin('playback')
     let traceOutcome: 'ok' | 'error' | 'cancelled' = 'ok'
+    invalidateCollectionOperation()
+    retryStopSource = undefined
     clearActionError()
     playbackStartPending.value = true
     const operation = ++roonPlaybackOperation
@@ -580,13 +585,17 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   ): Promise<void> {
     try {
       if (pendingTracks.length > 0 && operation === collectionOperation) {
-        applyPlaybackState(await api.appendQueue(queueItemsForTracks(pendingTracks)))
+        const snapshot = await api.appendQueue(queueItemsForTracks(pendingTracks))
+        if (operation !== collectionOperation || disposed) return
+        applyPlaybackState(snapshot)
       }
       while (operation === collectionOperation) {
         const batch = await loader.next()
         if (!batch || operation !== collectionOperation) return
         if (batch.tracks.length > 0) {
-          applyPlaybackState(await api.appendQueue(queueItemsForTracks(batch.tracks)))
+          const snapshot = await api.appendQueue(queueItemsForTracks(batch.tracks))
+          if (operation !== collectionOperation || disposed) return
+          applyPlaybackState(snapshot)
         }
         if (!batch.hasMore) return
       }
@@ -604,7 +613,9 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     initialPage?: Page<TrackSummary>,
     openNowPlaying = true,
   ): Promise<void> {
-    if (collectionPlaybackStartInFlight || activeCollectionLoader) return
+    if (collectionPlaybackStartInFlight) return
+    invalidateCollectionOperation()
+    retryStopSource = undefined
     cancelRoonPlaybackPreparation()
     collectionPlaybackStartInFlight = true
     const operation = ++collectionOperation
@@ -645,24 +656,37 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   }
 
   async function appendCollection(loadPage: CollectionPageLoader): Promise<void> {
+    invalidateCollectionOperation()
     const operation = ++collectionOperation
-    activeCollectionLoader?.cancel()
     clearActionError()
     const loader = createProgressiveCollectionLoader(loadPage, LIBRARY_PAGE_SIZE)
     activeCollectionLoader = loader
+    let continuing = false
     try {
       const firstBatch = await loader.next()
       if (operation !== collectionOperation || !firstBatch || firstBatch.tracks.length === 0) return
-      applyPlaybackState(await api.appendQueue(queueItemsForTracks(firstBatch.tracks)))
+      const snapshot = await api.appendQueue(queueItemsForTracks(firstBatch.tracks))
+      if (operation !== collectionOperation || disposed) return
+      applyPlaybackState(snapshot)
       onToast('已加入播放队列')
-      if (firstBatch.hasMore) void continueCollectionQueue(loader, operation)
+      if (firstBatch.hasMore) {
+        continuing = true
+        void continueCollectionQueue(loader, operation)
+      }
+      else if (activeCollectionLoader === loader) activeCollectionLoader = undefined
     } catch (error) {
       if (operation === collectionOperation) onError(error)
+    } finally {
+      if (!continuing && operation === collectionOperation && activeCollectionLoader === loader) {
+        activeCollectionLoader = undefined
+      }
     }
   }
 
   async function playTracks(tracks: readonly TrackSummary[]): Promise<void> {
     if (!tracks.length) return
+    invalidateCollectionOperation()
+    retryStopSource = undefined
     cancelRoonPlaybackPreparation()
     clearActionError()
     try {
@@ -711,17 +735,47 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   }
 
   async function stopPlayback(): Promise<void> {
+    await stopPlaybackForSource(playbackSource.value)
+  }
+
+  async function stopPlaybackForSource(source: 'roon' | 'netease'): Promise<void> {
+    invalidateCollectionOperation()
+    const operation = collectionOperation
     cancelRoonPlaybackPreparation()
+    clearActionError()
     try {
-      if (playbackSource.value === 'roon') {
+      if (source === 'roon') {
         await api.stopRoonTransport()
-        await refreshPlayback()
+        if (operation !== collectionOperation || disposed) return
+        const snapshot = await api.getPlaybackState()
+        if (operation !== collectionOperation || disposed) return
+        applyPlaybackState(snapshot)
+        retryStopSource = undefined
         return
       }
-      applyNeteasePlayback(await api.stop())
+      const snapshot = await api.stop()
+      if (operation !== collectionOperation || disposed) return
+      applyNeteasePlayback(snapshot)
+      retryStopSource = undefined
     } catch (error) {
+      if (operation !== collectionOperation || disposed) return
+      retryStopSource = source
       onError(error)
     }
+  }
+
+  async function retryLastPlaybackAction(): Promise<void> {
+    if (retryStopSource || (playbackState.value?.state === 'error' && playbackState.value.canStop)) {
+      await stopPlaybackForSource(retryStopSource ?? playbackSource.value)
+      return
+    }
+    const track = currentTrack.value
+    if (track && playbackSource.value === 'roon') {
+      const item = roonQueueDescriptors.get(track.id)
+      if (item) await playRoonLibraryTrack(item)
+      else await refreshPlayback()
+    } else if (track) await playTrack(track)
+    else await refreshPlayback()
   }
 
   async function nextTrack(): Promise<void> {
@@ -796,6 +850,8 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   }
 
   function resetRoonSession(): void {
+    retryStopSource = undefined
+    invalidateCollectionOperation()
     cancelRoonPlaybackPreparation()
     roonQueueDescriptors.clear()
     roonQueueNeteaseMatches.clear()
@@ -825,7 +881,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     selectLocalLyricsMatch, revokeLocalLyricsMatch, toggleTrackLike, refreshPlayback,
     playTrack, playRoonLibraryTrack, queueRoonLibraryTrack, appendTrack, insertTrackNext,
     replaceAndPlayCollection, appendCollection, playTracks, invalidateCollectionOperation,
-    playQueueItem, togglePlayback, stopPlayback, nextTrack, previousTrack, seekPlayback,
+    playQueueItem, togglePlayback, stopPlayback, retryLastPlaybackAction, nextTrack, previousTrack, seekPlayback,
     cancelRoonPlaybackPreparation, resetRoonSession, dispose,
   }
 }

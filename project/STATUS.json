@@ -2657,28 +2657,29 @@
     "state": "active",
     "ownerAuthorization": "连续实施十一项性能与正确性任务，使用 gpt-6.1-sol xhigh 子代理并展示待办进度",
     "baselineCommit": "e97f9e578beb7c5329d0c59e232b0da568e2f6fa",
-    "branch": "codex/mbp-001-performance-baseline",
-    "currentTask": "MBP-001",
+    "branch": "codex/mbr-001-playback-correctness",
+    "currentTask": "MBR-001",
     "plan": "project/PERFORMANCE_PLAN.json",
     "todo": "project/PERFORMANCE_TODO.md",
     "implementationComplete": 1,
     "automaticAcceptanceComplete": 1,
     "taskCount": 11,
-    "implementationCommit": "d89c3ea3743a81e9afe818d6869dfc02ecb797cf",
-    "checks": {
-      "fullVerifyR4": "EXIT1_POSTBUILD_SANDBOX_DEPENDENCY_FIXED",
-      "contracts": "222-pass-exit0",
-      "core": "1581-pass-2-existing-skip-exit0",
-      "desktop": "873-pass-exit0",
-      "productionBuildR5": "PASS-exit0",
-      "electronStartup": "4-pass-exit0-mock-keychain",
-      "productionElectronTrace": "PASS-exit0-isolated-synthetic-Core",
-      "finalFullVerify": "PASS-exit0-fixed-d89c3ea"
-    },
+    "implementationCommit": null,
+    "checks": {},
     "realMacRoonAcceptance": "NOT_RUN",
     "realRecordingAcceptance": "NOT_RUN",
     "mainMerge": "NOT_RUN",
     "installedAppReplacement": "NOT_RUN",
-    "report": "reports/MBP-001_PERFORMANCE_BASELINE.md"
+    "report": "reports/MBP-001_PERFORMANCE_BASELINE.md",
+    "currentTaskBase": "7a6a19105480be456778dfa4369379f224665e39",
+    "previousTask": {
+      "id": "MBP-001",
+      "implementationCommit": "d89c3ea3743a81e9afe818d6869dfc02ecb797cf",
+      "reportCommit": "7a6a19105480be456778dfa4369379f224665e39",
+      "remoteHead": "7a6a19105480be456778dfa4369379f224665e39",
+      "remoteVerify": "IN_PROGRESS",
+      "remoteElectronE2E": "IN_PROGRESS",
+      "remoteSecurity": "PASS"
+    }
   }
 }
