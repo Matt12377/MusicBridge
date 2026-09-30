@@ -154,7 +154,6 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     ].find((item) => item.reference === reference)
     if (album && album.kind === 'album') {
       selectedRoonAlbum.value = album
-      void loadRoonEntityFavorite(album, 'album')
     }
     const initial = page.offset === 0
     if (initial && selectedRoonAlbum.value?.reference !== reference) selectedRoonAlbum.value = null
@@ -167,6 +166,8 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       roonAlbumLoadMoreError.value = null
       roonAlbumError.value = null
       selectedRoonAlbumPage.value = emptyRoonPage(page.limit)
+      // 目标页先取得读取所有权；收藏入口的原描述继续用于关系核对。
+      if (selectedRoonAlbum.value?.reference === reference) void loadRoonEntityFavorite(selectedRoonAlbum.value, 'album')
     } else {
       if (roonAlbumLoadingMore.value) return
       roonAlbumLoadingMore.value = true
@@ -206,7 +207,6 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     const artist = roonArtistsPage.value.items.find((item) => item.reference === reference)
     if (artist && artist.kind === 'artist') {
       selectedRoonArtist.value = artist
-      void loadRoonEntityFavorite(artist, 'artist')
     }
     const initial = page.offset === 0
     if (initial && selectedRoonArtist.value?.reference !== reference) selectedRoonArtist.value = null
@@ -219,6 +219,7 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       roonArtistLoadMoreError.value = null
       roonArtistError.value = null
       selectedRoonArtistPage.value = emptyRoonPage(page.limit)
+      if (selectedRoonArtist.value?.reference === reference) void loadRoonEntityFavorite(selectedRoonArtist.value, 'artist')
     } else {
       if (roonArtistLoadingMore.value) return
       roonArtistLoadingMore.value = true
@@ -469,7 +470,6 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     if (item.kind === 'track') { onPlayTrack(item); return }
     if (item.kind === 'album') selectedRoonAlbum.value = item
     if (item.kind === 'artist') selectedRoonArtist.value = item
-    if (item.kind === 'album' || item.kind === 'artist') void loadRoonEntityFavorite(item, item.kind)
     onNavigateSource({ type: item.kind === 'album' ? 'roon-album' : 'roon-artist', reference: item.reference })
   }
 

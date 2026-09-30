@@ -417,13 +417,11 @@ export function usePageJourney(options: PageJourneyOptions) {
     }
     if (item.kind === 'album') {
       browse.selectedRoonAlbum.value = item
-      void browse.loadRoonEntityFavorite(item, 'album')
       void browse.loadRoonAlbum(item.reference)
       return
     }
     if (item.kind === 'artist') {
       browse.selectedRoonArtist.value = item
-      void browse.loadRoonEntityFavorite(item, 'artist')
       void browse.loadRoonArtist(item.reference)
     }
   }

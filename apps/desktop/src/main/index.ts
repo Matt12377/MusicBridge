@@ -1027,12 +1027,6 @@ function registerIpcHandlers(
       return { recorded: true }
     })
   }
-  registerPerformanceHandler('app:set-appearance-theme', (event, theme: unknown) => {
-    const target = requireTrustedRenderer(event)
-    if (theme !== 'light' && theme !== 'dark') return publicIpcFailure('INVALID_IPC_REQUEST', '主题必须为浅色或深色')
-    nativeTheme.themeSource = theme
-    target.setBackgroundColor(theme === 'dark' ? '#3c4253' : '#f2edf1')
-  })
   const libraryReads = createLibraryReadBroker(supervisor)
   const readOwners = new Set<number>()
   registerPerformanceHandler('library:read', (event, value: unknown) => invokeCore(event, async () => {
@@ -1051,6 +1045,12 @@ function registerIpcHandlers(
     if (event.senderFrame !== event.sender.mainFrame) return publicIpcFailure('NOT_READY', '读取取消仅允许可信主页面')
     libraryReads.cancel(event.sender.id, id)
   }))
+  registerPerformanceHandler('app:set-appearance-theme', (event, theme: unknown) => {
+    const target = requireTrustedRenderer(event)
+    if (theme !== 'light' && theme !== 'dark') return publicIpcFailure('INVALID_IPC_REQUEST', '主题必须为浅色或深色')
+    nativeTheme.themeSource = theme
+    target.setBackgroundColor(theme === 'dark' ? '#3c4253' : '#f2edf1')
+  })
   registerPerformanceHandler('app:get-info', (event) => {
     requireTrustedRenderer(event)
     return appInfo()

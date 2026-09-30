@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import type { IpcCommandResults, LibraryReadCommand, LibraryReadRequest, PageRequest, PlaylistDetail, PublicBridgeState, RoonLibraryPage } from '@music-bridge/contracts'
+import type { FavoriteEntityDescriptor, FavoriteRecord, IpcCommandResults, LibraryReadCommand, LibraryReadRequest, PageRequest, PlaylistDetail, PublicBridgeState, RoonLibraryPage } from '@music-bridge/contracts'
 import type { MusicBridgePublicApi } from '../src/preload/api.js'
 import { useNeteaseLibrary } from '../src/renderer/src/composables/application/useNeteaseLibrary.js'
 import { useRoonBrowse } from '../src/renderer/src/composables/application/useRoonBrowse.js'
@@ -237,6 +237,127 @@ function newProtocol() {
     cancelLibraryRead: async (id: string) => { cancelled.push(id) },
   } }
 }
+
+for (const protocol of ['legacy', 'readLibrary'] as const) {
+  for (const kind of ['album', 'artist'] as const) {
+    test(`MBP-002：${protocol} 收藏 ${kind} 打开详情后才读取收藏状态，导航不取消目标页读取`, async t => {
+      const transport = newProtocol(), favorite = deferred<{ favorite: boolean }>(), detail = deferred<RoonLibraryPage>()
+      const checks: Array<{ descriptor: FavoriteEntityDescriptor; view: string }> = [], writes: Array<{ descriptor: FavoriteEntityDescriptor; favorite: boolean }> = []
+      let state!: ReturnType<typeof harness>
+      state = harness({
+        checkFavorite: descriptor => { checks.push({ descriptor, view: state.journey.currentView.value }); return favorite.promise },
+        getRoonAlbumTracks: () => detail.promise, getRoonArtistAlbums: () => detail.promise,
+        setFavorite: async (descriptor, favorite) => { writes.push({ descriptor, favorite }); return { favorite } },
+        ...(protocol === 'readLibrary' ? {
+          readLibrary: <C extends LibraryReadCommand>(request: LibraryReadRequest<C>) => {
+            if (request.command === 'favorites.check') checks.push({ descriptor: (request.payload as { descriptor: FavoriteEntityDescriptor }).descriptor, view: state.journey.currentView.value })
+            return transport.api.readLibrary(request)
+          },
+          cancelLibraryRead: transport.api.cancelLibraryRead,
+        } : {}),
+      })
+      t.after(state.dispose)
+      const item = { kind, reference: `收藏-${kind}`, title: '详情元数据标题', subtitle: '详情副标题' }
+      const record: FavoriteRecord = { kind, title: '原收藏标题', artist: '原收藏艺人', favoriteId: `favorite-${kind}`, createdAt: 1, updatedAt: 1 }
+      state.journey.currentView.value = 'roon-favorites'
+      state.journey.sidebar.setActiveSource({ type: 'roon-favorites' })
+      state.browse.openFavorite(item, record)
+      assert.equal(state.journey.currentView.value, `roon-${kind}-detail`)
+      if (protocol === 'readLibrary') {
+        for (const request of transport.requests) transport.waits.get(request.id)!.resolve(request.command === 'favorites.check' ? { favorite: true } : roonPage('真实详情数据'))
+      } else { favorite.resolve({ favorite: true }); detail.resolve(roonPage('真实详情数据')) }
+      await turn()
+      const favoriteState = kind === 'album' ? state.browse.roonAlbumFavoriteState : state.browse.roonArtistFavoriteState
+      const detailPage = kind === 'album' ? state.browse.selectedRoonAlbumPage : state.browse.selectedRoonArtistPage
+      assert.equal(favoriteState.value, 'liked', '当前详情收藏状态必须结束 loading 并保留真实检查结果')
+      assert.equal(detailPage.value.items[0]?.title, '真实详情数据')
+      assert.deepEqual(checks, [{ descriptor: { kind, title: '原收藏标题', artist: '原收藏艺人' }, view: `roon-${kind}-detail` }])
+      assert.deepEqual(transport.cancelled, [], '离开收藏目录不能取消刚进入详情的读取')
+      assert.deepEqual(writes, [], '打开详情只读取，不改收藏关系')
+      await state.browse.toggleRoonEntityFavorite(kind)
+      assert.deepEqual(writes, [{ descriptor: { kind, title: '原收藏标题', artist: '原收藏艺人' }, favorite: false }])
+      assert.equal(favoriteState.value, 'not-liked')
+    })
+  }
+}
+
+for (const origin of ['catalog', 'aggregate'] as const) {
+  for (const kind of ['album', 'artist'] as const) {
+    test(`MBP-002：${origin} ${kind} 详情只在目标页检查一次收藏，更多页不覆盖在途收藏写回执`, async t => {
+      const requests: Array<{ command: LibraryReadCommand; view: string }> = [], cancelled: string[] = []
+      const writing = deferred<{ favorite: boolean }>(), writes: boolean[] = []
+      let state!: ReturnType<typeof harness>
+      state = harness({
+        readLibrary: async <C extends LibraryReadCommand>(request: LibraryReadRequest<C>) => {
+          requests.push({ command: request.command, view: state.journey.currentView.value })
+          return (request.command === 'favorites.check' ? { favorite: true } : roonPage('详情曲目', { offset: 0, limit: 24 }, true)) as IpcCommandResults[C]
+        },
+        cancelLibraryRead: async id => { cancelled.push(id) },
+        setFavorite: (_descriptor, favorite) => { writes.push(favorite); return writing.promise },
+      })
+      t.after(state.dispose)
+      const item = { kind, reference: `目标-${kind}`, title: '真实目标' }
+      const catalog = kind === 'album' ? state.browse.roonAlbumsPage : state.browse.roonArtistsPage
+      catalog.value = { ...empty, items: [item] }
+      state.journey.currentView.value = origin === 'catalog' ? kind === 'album' ? 'roon-albums' : 'roon-artists' : 'search'
+      state.search.searchQuery.value = '保留关键词'
+      if (origin === 'catalog') state.journey.navigateSource({ type: `roon-${kind}`, reference: item.reference })
+      else state.journey.selectAggregatedRoonItem(item)
+      await turn()
+      const favoriteState = kind === 'album' ? state.browse.roonAlbumFavoriteState : state.browse.roonArtistFavoriteState
+      assert.equal(favoriteState.value, 'liked')
+      assert.deepEqual(requests.filter(request => request.command === 'favorites.check'), [{ command: 'favorites.check', view: `roon-${kind}-detail` }])
+      assert.deepEqual(cancelled, [])
+      assert.equal(state.search.searchQuery.value, '保留关键词')
+      const pendingWrite = state.browse.toggleRoonEntityFavorite(kind)
+      assert.equal(favoriteState.value, 'loading')
+      await state.browse.toggleRoonEntityFavorite(kind)
+      assert.deepEqual(writes, [false], '在途收藏写入不能被第二次点击重放')
+      const more = kind === 'album' ? state.browse.loadRoonAlbum : state.browse.loadRoonArtist
+      await more(item.reference, { offset: 24, limit: 24 })
+      assert.equal(requests.filter(request => request.command === 'favorites.check').length, 1, '更多页读取不能抢占收藏写入身份')
+      assert.equal(favoriteState.value, 'loading')
+      writing.resolve({ favorite: false }); await pendingWrite
+      assert.equal(favoriteState.value, 'not-liked')
+      assert.deepEqual(state.errors, [])
+    })
+  }
+}
+
+test('MBP-002：父艺术家详情返回后才检查收藏，保留同 epoch 数据和滚动且迟到子检查失效', async t => {
+  const transport = newProtocol(), state = harness(transport.api)
+  t.after(state.dispose)
+  const artist = { kind: 'artist' as const, reference: '父艺术家', title: '父艺术家' }
+  const album = { kind: 'album' as const, reference: '子专辑', title: '子专辑' }
+  state.browse.roonArtistsPage.value = { ...empty, items: [artist] }
+  state.journey.currentView.value = 'roon-artists'
+  let scrollTop = 0
+  state.journey.contentScroll.value = { get scrollTop() { return scrollTop }, scrollTo: ({ top }: { top: number }) => { scrollTop = top } } as HTMLElement
+  state.journey.navigateSource({ type: 'roon-artist', reference: artist.reference })
+  for (const request of transport.requests) transport.waits.get(request.id)!.resolve(request.command === 'favorites.check' ? { favorite: true } : { ...empty, items: [album] })
+  await turn()
+  assert.equal(state.browse.roonArtistFavoriteState.value, 'liked')
+  scrollTop = 146
+  state.journey.navigateSource({ type: 'roon-album', reference: album.reference })
+  const childCheck = transport.requests.find(request => request.command === 'favorites.check' && (request.payload as { descriptor: FavoriteEntityDescriptor }).descriptor.kind === 'album')!
+  const childDetail = transport.requests.find(request => request.command === 'roon.library.album')!
+  transport.waits.get(childDetail.id)!.resolve(roonPage('子专辑曲目')); await turn()
+  scrollTop = 0
+  state.journey.returnFromRoonDetail('album')
+  const parentChecks = transport.requests.filter(request => request.command === 'favorites.check' && (request.payload as { descriptor: FavoriteEntityDescriptor }).descriptor.kind === 'artist')
+  assert.equal(parentChecks.length, 2)
+  assert.equal(state.journey.currentView.value, 'roon-artist-detail')
+  assert.equal(state.browse.selectedRoonArtist.value?.reference, artist.reference)
+  assert.deepEqual(state.browse.selectedRoonArtistPage.value.items, [album])
+  assert.equal(state.browse.roonArtistInitialLoading.value, false)
+  assert.deepEqual(transport.cancelled, [childCheck.id])
+  transport.waits.get(childCheck.id)!.resolve({ favorite: false })
+  transport.waits.get(parentChecks[1]!.id)!.resolve({ favorite: true })
+  await turn()
+  assert.equal(state.browse.roonArtistFavoriteState.value, 'liked')
+  assert.equal(scrollTop, 146)
+  assert.deepEqual(state.errors, [])
+})
 
 test('MBP-002：真实 Renderer 新协议离页只取消详情，后台侧栏歌单继续', async t => {
   const transport = newProtocol()

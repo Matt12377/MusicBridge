@@ -1,5 +1,6 @@
 import { testElectronArguments } from '../scripts/test-keychain.mjs'
 import { openCollectionView, selectModelPage } from './collection-navigation.js'
+import { connectLibraryReadFixtures } from './library-read-fixtures.js'
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -210,6 +211,60 @@ test('六项修复：收藏封面与打开播放、专辑播放全部、零专�
   await page.locator('.content-scroll').evaluate(e => { e.scrollTop = e.scrollHeight })
   const gap = await page.evaluate(() => document.querySelector('.global-player')!.getBoundingClientRect().top - document.querySelector('.roon-track-row:last-child')!.getBoundingClientRect().bottom)
   expect(gap).toBeGreaterThanOrEqual(0); expect(gap).toBeLessThan(80)
+})
+
+test('读取生命周期：实际页面离开取消原读取，返回使用新身份且拒绝旧结果', async () => {
+  await reloadWithZones([{ zoneId: 'synthetic-zone', displayName: '合成播放设备', selected: true }])
+  await electronApp.evaluate(({ ipcMain }) => {
+    type Handler = (event: unknown, ...args: unknown[]) => unknown
+    const handlers = (ipcMain as unknown as { _invokeHandlers: Map<string, Handler> })._invokeHandlers
+    const read = handlers.get('library:read')!, cancel = handlers.get('library:cancel-read')!
+    const facts = { ids: [] as string[], cancelled: [] as string[], calls: 0, release: undefined as (() => void) | undefined }
+    ;(globalThis as typeof globalThis & { readLifecycleFacts: typeof facts }).readLifecycleFacts = facts
+    ipcMain.removeHandler('library:read')
+    ipcMain.handle('library:read', (event, request: { id: string; command: string }) => {
+      if (request.command === 'roon.library.albums') facts.ids.push(request.id)
+      return read(event, request)
+    })
+    ipcMain.removeHandler('library:cancel-read')
+    ipcMain.handle('library:cancel-read', (event, id: string) => {
+      if (facts.ids.includes(id)) facts.cancelled.push(id)
+      return cancel(event, id)
+    })
+    ipcMain.removeHandler('roon:library:albums')
+    ipcMain.handle('roon:library:albums', (_event, page) => {
+      const number = ++facts.calls
+      const result = { ...page, total: 1, hasMore: false, items: [{
+        reference: `musicbridge-v2-entity-22222222-2222-4222-8222-${String(number).padStart(12, '0')}`,
+        kind: 'album', title: number === 1 ? '迟到的旧专辑' : '返回后的当前专辑',
+      }] }
+      return number === 1 ? new Promise(resolve => { facts.release = () => resolve(result) }) : result
+    })
+  })
+  await page.locator('[data-sidebar-source="roon-albums"]').click()
+  await expect.poll(() => electronApp.evaluate(() => (globalThis as typeof globalThis & { readLifecycleFacts: { calls: number } }).readLifecycleFacts.calls)).toBe(1)
+  await sourceButton('home').click()
+  await expect(page.locator('#home-heading')).toBeVisible()
+  await expect.poll(() => electronApp.evaluate(() => {
+    const facts = (globalThis as typeof globalThis & { readLifecycleFacts: { ids: string[]; cancelled: string[] } }).readLifecycleFacts
+    return facts.cancelled.includes(facts.ids[0]!)
+  })).toBe(true)
+  await page.locator('[data-sidebar-source="roon-albums"]').click()
+  await expect(page.getByText('返回后的当前专辑', { exact: true })).toBeVisible()
+  const identities = await electronApp.evaluate(() => {
+    const facts = (globalThis as typeof globalThis & { readLifecycleFacts: { ids: string[]; calls: number } }).readLifecycleFacts
+    return { ids: facts.ids, calls: facts.calls }
+  })
+  expect(identities.calls).toBe(2)
+  expect(identities.ids).toHaveLength(2)
+  expect(identities.ids[1]).not.toBe(identities.ids[0])
+  await electronApp.evaluate(async () => {
+    (globalThis as typeof globalThis & { readLifecycleFacts: { release: () => void } }).readLifecycleFacts.release()
+    await new Promise<void>(resolve => setImmediate(resolve))
+  })
+  await page.evaluate(async () => { await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))) })
+  await expect(page.getByText('迟到的旧专辑', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('返回后的当前专辑', { exact: true })).toBeVisible()
 })
 
 async function openAccountSettings() {
@@ -459,6 +514,7 @@ test.beforeEach(async () => {
     env: environment,
   })
   page = await electronApp.firstWindow()
+  await connectLibraryReadFixtures(electronApp)
   if (test.info().title.includes('V3 Logic 工作区')) {
     await mkdir(test.info().outputDir, { recursive: true })
     page.on('pageerror', error => process.stdout.write(`J09_STARTUP_PAGEERROR=${error.message}\n`))
