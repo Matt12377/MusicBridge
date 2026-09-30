@@ -2661,26 +2661,27 @@
     "currentTask": "MBR-001",
     "plan": "project/PERFORMANCE_PLAN.json",
     "todo": "project/PERFORMANCE_TODO.md",
-    "implementationComplete": 1,
-    "automaticAcceptanceComplete": 1,
+    "implementationComplete": 2,
+    "automaticAcceptanceComplete": 2,
     "taskCount": 11,
-    "implementationCommit": "2b79715a7147d142f91b630dcc19571c734cc45e",
+    "implementationCommit": "4c36e9554900591b367add7edfc16985690f7a03",
     "checks": {
-      "implementationCommit": "2b79715a7147d142f91b630dcc19571c734cc45e",
-      "sourceSha256": "483c7839c87bbe31957f3f0648de228784a3f3b0d74f803d58b8143b60724f73",
-      "fullVerify": "PASS_EXIT_0",
-      "contracts": "222_PASS_0_FAIL_0_SKIP",
-      "core": "1609_PASS_0_FAIL_2_EXISTING_SKIP",
-      "desktop": "878_PASS_0_FAIL_0_SKIP",
-      "electronStartupRecovery": "4_PASS_EXIT_0",
-      "fullElectronE2E": "84_PASS_19_FAIL_4_EXISTING_SKIP_EXIT_1",
-      "remoteCiCurrentSnapshot": "NOT_RUN"
+      "implementationSha": "4c36e9554900591b367add7edfc16985690f7a03",
+      "sourceFingerprint": "03643c43af840e6d294bf51685549d6475fbd4f7a306e834572c0badfa629f21",
+      "sourceFileCount": 815,
+      "verify": "PASS-exit-0-contracts-222-core-1609-original-2-skip-desktop-880",
+      "electronGate": "PASS-exit-0-4",
+      "fullE2E": "PASS-exit-0-103-original-4-conditional-skip-0-fail",
+      "realMacRoon": "NOT_RUN",
+      "realRecording": "NOT_RUN",
+      "systemKeychain": "NOT_RUN",
+      "remoteCI": "PENDING_AFTER_PUSH"
     },
     "realMacRoonAcceptance": "NOT_RUN",
     "realRecordingAcceptance": "NOT_RUN",
     "mainMerge": "NOT_RUN",
     "installedAppReplacement": "NOT_RUN",
-    "report": "reports/MBP-001_PERFORMANCE_BASELINE.md",
+    "report": "reports/MBR-001_PLAYBACK_CORRECTNESS.md",
     "currentTaskBase": "7a6a19105480be456778dfa4369379f224665e39",
     "previousTask": {
       "id": "MBP-001",
@@ -2694,6 +2695,18 @@
       "remoteElectronE2ERunId": 36765154891,
       "remoteSecurityRunId": 36765155190
     },
-    "pendingGate": "设置返回收藏导航修复、旧 UI 夹具迁移与原完整 E2E 重跑"
+    "pendingGate": "remote-ci-after-report-push",
+    "firstImplementationChecks": {
+      "implementationCommit": "2b79715a7147d142f91b630dcc19571c734cc45e",
+      "sourceSha256": "483c7839c87bbe31957f3f0648de228784a3f3b0d74f803d58b8143b60724f73",
+      "fullVerify": "PASS_EXIT_0",
+      "contracts": "222_PASS_0_FAIL_0_SKIP",
+      "core": "1609_PASS_0_FAIL_2_EXISTING_SKIP",
+      "desktop": "878_PASS_0_FAIL_0_SKIP",
+      "electronStartupRecovery": "4_PASS_EXIT_0",
+      "fullElectronE2E": "84_PASS_19_FAIL_4_EXISTING_SKIP_EXIT_1",
+      "remoteCiCurrentSnapshot": "NOT_RUN"
+    },
+    "automaticAcceptanceScope": "local-standard-software-gates"
   }
 }

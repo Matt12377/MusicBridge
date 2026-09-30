@@ -4,8 +4,8 @@
   "state": "active",
   "ownerAuthorization": "连续实施性能与正确性计划，使用 gpt-6.1-sol xhigh 子代理并展示待办进度",
   "currentTask": "MBR-001",
-  "implementationComplete": 1,
-  "automaticAcceptanceComplete": 1,
+  "implementationComplete": 2,
+  "automaticAcceptanceComplete": 2,
   "taskCount": 11,
   "realMacRoonAcceptance": "NOT_RUN",
   "realRecordingAcceptance": "NOT_RUN",
@@ -27,10 +27,15 @@
       "dependsOn": [
         "MBP-001"
       ],
-      "state": "in-progress",
-      "implementationCommit": null,
+      "state": "software-gates-passed",
+      "implementationCommit": "4c36e9554900591b367add7edfc16985690f7a03",
       "reportCommit": null,
-      "evidence": []
+      "evidence": [
+        "reports/MBR-001_PLAYBACK_CORRECTNESS.md",
+        "reports/MBR-001_EVIDENCE.json",
+        "reports/MBP-001_REMOTE_FAILURE_ATTRIBUTION.md"
+      ],
+      "reportCommitResolution": "commit-containing-reports/MBR-001_PLAYBACK_CORRECTNESS.md"
     },
     {
       "id": "MBP-002",
@@ -149,7 +154,8 @@
       "evidence": []
     }
   ],
-  "implementationCommit": "d89c3ea3743a81e9afe818d6869dfc02ecb797cf",
+  "implementationCommit": "4c36e9554900591b367add7edfc16985690f7a03",
   "branch": "codex/mbr-001-playback-correctness",
-  "currentTaskBase": "7a6a19105480be456778dfa4369379f224665e39"
+  "currentTaskBase": "7a6a19105480be456778dfa4369379f224665e39",
+  "automaticAcceptanceScope": "local-standard-software-gates"
 }

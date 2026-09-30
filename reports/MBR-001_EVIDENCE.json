@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "task": "MBR-001",
+  "baseCommit": "7a6a19105480be456778dfa4369379f224665e39",
+  "firstImplementationCommit": "2b79715a7147d142f91b630dcc19571c734cc45e",
+  "implementationCommit": "4c36e9554900591b367add7edfc16985690f7a03",
+  "sourceIdentity": {
+    "commit": "4c36e9554900591b367add7edfc16985690f7a03",
+    "fileCount": 815,
+    "sha256": "03643c43af840e6d294bf51685549d6475fbd4f7a306e834572c0badfa629f21",
+    "definition": "git tracked apps/packages/scripts ts/vue/mjs/cjs/json/yaml/yml/js plus root package/lock/workspace; sorted path NUL bytes NUL",
+    "capturedAt": "2026-09-30T21:09:07.274Z",
+    "stableAfterGates": true
+  },
+  "generatedAt": "2026-09-30T21:19:42.610Z",
+  "checks": {
+    "verify": {
+      "exitCode": 0,
+      "contracts": {
+        "passed": 222,
+        "failed": 0,
+        "skipped": 0
+      },
+      "core": {
+        "passed": 1609,
+        "failed": 0,
+        "originalSkips": 2
+      },
+      "desktop": {
+        "passed": 880,
+        "failed": 0,
+        "skipped": 0
+      },
+      "strictTypes": true,
+      "productionBuild": true,
+      "preloadBoundary": true
+    },
+    "electronStartupRecovery": {
+      "passed": 4,
+      "exitCode": 0,
+      "mockKeychain": true
+    },
+    "fullElectronE2E": {
+      "startTime": "2026-09-30T21:12:17.773Z",
+      "duration": 289241.701,
+      "expected": 103,
+      "skipped": 4,
+      "unexpected": 0,
+      "flaky": 0,
+      "exitCode": 0,
+      "total": 107,
+      "originalConditionalSkips": 4,
+      "workers": 1
+    },
+    "staticGates": {
+      "controlPlane": 0,
+      "boundaries": 0,
+      "cycles": 0,
+      "cycleFiles": 342,
+      "diffCheck": 0
+    }
+  },
+  "priorE2E": {
+    "implementationCommit": "2b79715a7147d142f91b630dcc19571c734cc45e",
+    "passed": 84,
+    "failed": 19,
+    "originalConditionalSkips": 4,
+    "exitCode": 1
+  },
+  "uiCausalReruns": [
+    {
+      "run": "r1",
+      "passed": 67,
+      "failed": 7,
+      "originalConditionalSkips": 1,
+      "exitCode": 1
+    },
+    {
+      "run": "r2",
+      "passed": 6,
+      "failed": 1,
+      "skipped": 0,
+      "exitCode": 1
+    },
+    {
+      "run": "r3",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0
+    }
+  ],
+  "boundaries": {
+    "realProvider": "NOT_RUN",
+    "realRoonAudio": "NOT_RUN",
+    "systemKeychain": "NOT_RUN",
+    "realRecording": "NOT_RUN",
+    "mainMerge": "NOT_RUN",
+    "installedAppReplacement": "NOT_RUN",
+    "release": "NOT_RUN",
+    "remoteCI": "PENDING_AFTER_PUSH"
+  },
+  "artifacts": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbr-001-root-9Sklh3/verify-r2.log",
+      "sha256": "5f4ccb5d5f6cff17f7f4b42de7b7d2d0f8de16136dbd99c6eefd6ee4cdfceac3"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbr-001-root-9Sklh3/electron-gate-r2.log",
+      "sha256": "e7b70b27edb266ce941f28aae277a9c9abe6d2c7e538834dc3c1726bdcc765c5"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbr-001-root-9Sklh3/full-e2e-r2.log",
+      "sha256": "11c0620b3ea75e506a730626510a5c406d520a54b3fdf1355ea9f49ba57b4505"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbr-001-root-9Sklh3/full-e2e-r2-report.json",
+      "sha256": "4ce3eba0c77b05ade00422148a0928c4785f4ad58e17e44a276de0a5035778aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbr-001-root-9Sklh3/source-fixed-4c36e95.json",
+      "sha256": "1e555f0f201400970a69eedc42cba489d9803cc2e220f4f70c9ef139b444bb34"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbr-001-root-9Sklh3/sidebar-red-r1.log",
+      "sha256": "a7f035204f324c698581a7fe4ee8ca5e4be2ffd3d200e67f724e682b484c470a"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbr-001-root-9Sklh3/sidebar-green-r1.log",
+      "sha256": "c854d01ccc80637f7deff630e9cc9b45c7a10ea0a3e7a9b74333c556c8f2fc88"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbr-001-root-9Sklh3/sidebar-a11y-red-r1.log",
+      "sha256": "d037df263c18d7ec179420b4df7d471b1ae93799279b054af8444f9e5e2a9a6a"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbr-001-root-9Sklh3/sidebar-a11y-green-r1.log",
+      "sha256": "82502ce6856bd94edec94972b0b678e2182276ef5ea130564ffa6df0198b9d66"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbr-001-root-9Sklh3/ui-e2e-r1.log",
+      "sha256": "c17002ecce62ae7cc6365fd5fa25b7b7ededd5af9f4674556c243834fe74fa71"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbr-001-root-9Sklh3/ui-e2e-r1-report.json",
+      "sha256": "8b74dbca446f2980158e81dc9e4dd91098c349fd3ca112f0450cdb4e33af8e61"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbr-001-root-9Sklh3/ui-e2e-r2.log",
+      "sha256": "ab9a6c631f6cbaeae420df2822c553016f9882d91e98788bd665b82bca36aabf"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbr-001-root-9Sklh3/ui-e2e-r2-report.json",
+      "sha256": "1716c6d8e4898b93e8d752aaf799377d6ab405013c391fe54cd46a14f1e5930d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbr-001-root-9Sklh3/ui-e2e-r3.log",
+      "sha256": "d778d71f92481f068640fd93e8e2585ded58350ac91b447c6c6701b11af49d2e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbr-001-root-9Sklh3/ui-e2e-r3-report.json",
+      "sha256": "3322c43465ffa6a037afdd26f15bcc5d2f994a232751e531d01146df3e67dec0"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbr-001-root-9Sklh3/control-plane-r2.log",
+      "sha256": "8a65c33beed0d30e8ee6f68aebd92135b8f6b810b89af35a70a2f996600251bf"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbr-001-root-9Sklh3/boundaries-r2.log",
+      "sha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbr-001-root-9Sklh3/cycles-r2.log",
+      "sha256": "fd3db0cdbd06421925a46bd0b0a58261e549ef737caf7f39efe23d456f934e9d"
+    }
+  ]
+}
