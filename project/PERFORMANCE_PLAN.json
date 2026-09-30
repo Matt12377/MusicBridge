@@ -4,8 +4,8 @@
   "state": "active",
   "ownerAuthorization": "连续实施性能与正确性计划，使用 gpt-6.1-sol xhigh 子代理并展示待办进度",
   "currentTask": "MBP-002",
-  "implementationComplete": 2,
-  "automaticAcceptanceComplete": 2,
+  "implementationComplete": 3,
+  "automaticAcceptanceComplete": 3,
   "taskCount": 11,
   "realMacRoonAcceptance": "NOT_RUN",
   "realRecordingAcceptance": "NOT_RUN",
@@ -43,10 +43,14 @@
         "MBP-001",
         "MBR-001"
       ],
-      "state": "implementing",
-      "implementationCommit": null,
+      "state": "software-gates-passed",
+      "implementationCommit": "28bac4a257a39f1c8b4f28c3c3d964c7d8b59c44",
       "reportCommit": null,
-      "evidence": []
+      "evidence": [
+        "reports/MBP-002_READ_LIFECYCLE.md",
+        "reports/MBP-002_EVIDENCE.json"
+      ],
+      "reportCommitResolution": "commit-containing-reports/MBP-002_READ_LIFECYCLE.md"
     },
     {
       "id": "MBR-002",
@@ -154,7 +158,7 @@
       "evidence": []
     }
   ],
-  "implementationCommit": null,
+  "implementationCommit": "28bac4a257a39f1c8b4f28c3c3d964c7d8b59c44",
   "branch": "codex/mbp-002-read-lifecycle",
   "currentTaskBase": "37fe2d22168d20b5defa336d679c8c8d7dc5d06a",
   "automaticAcceptanceScope": "local-standard-software-gates"

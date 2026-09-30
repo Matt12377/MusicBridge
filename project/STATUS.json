@@ -2661,28 +2661,29 @@
     "currentTask": "MBP-002",
     "plan": "project/PERFORMANCE_PLAN.json",
     "todo": "project/PERFORMANCE_TODO.md",
-    "implementationComplete": 2,
-    "automaticAcceptanceComplete": 2,
+    "implementationComplete": 3,
+    "automaticAcceptanceComplete": 3,
     "taskCount": 11,
-    "implementationCommit": null,
+    "implementationCommit": "28bac4a257a39f1c8b4f28c3c3d964c7d8b59c44",
     "checks": {
-      "implementationSha": "4c36e9554900591b367add7edfc16985690f7a03",
-      "sourceFingerprint": "03643c43af840e6d294bf51685549d6475fbd4f7a306e834572c0badfa629f21",
-      "sourceFileCount": 815,
-      "verify": "PASS-exit-0-contracts-222-core-1609-original-2-skip-desktop-880",
-      "electronGate": "PASS-exit-0-4",
-      "fullE2E": "PASS-exit-0-103-original-4-conditional-skip-0-fail",
+      "implementationSha": "28bac4a257a39f1c8b4f28c3c3d964c7d8b59c44",
+      "sourceFingerprint": "e7e86032e653dc4af47ea9cb04dfb1dca76cf9857de95d9267c4771fdfd35a72",
+      "sourceFileCount": 826,
+      "verify": "PASS-exit-0-contracts-223-core-1626-original-2-skip-desktop-941",
+      "electronGate": "PASS-exit-0-mock-4",
+      "fullE2E": "PASS-exit-0-104-original-4-conditional-skip-0-fail",
       "realMacRoon": "NOT_RUN",
       "realRecording": "NOT_RUN",
-      "systemKeychain": "NOT_RUN",
+      "systemKeychain": "SYSTEM_MODE_SOFTWARE_GATE_WITH_SYNTHETIC_VALUE_EXECUTED",
+      "ownerKeychainAcceptance": "NOT_RUN",
       "remoteCI": "PENDING_AFTER_PUSH"
     },
     "realMacRoonAcceptance": "NOT_RUN",
     "realRecordingAcceptance": "NOT_RUN",
     "mainMerge": "NOT_RUN",
     "installedAppReplacement": "NOT_RUN",
-    "report": "reports/MBR-001_PLAYBACK_CORRECTNESS.md",
-    "currentTaskBase": "7a6a19105480be456778dfa4369379f224665e39",
+    "report": "reports/MBP-002_READ_LIFECYCLE.md",
+    "currentTaskBase": "37fe2d22168d20b5defa336d679c8c8d7dc5d06a",
     "previousTask": {
       "id": "MBR-001",
       "implementationCommit": "4c36e9554900591b367add7edfc16985690f7a03",
@@ -2707,19 +2708,20 @@
         }
       }
     },
-    "pendingGate": "MBP-002 implementation and full software gates",
+    "pendingGate": "development-branch push and remote HEAD; MBR-002 continues from report HEAD",
     "firstImplementationChecks": {
-      "implementationCommit": "2b79715a7147d142f91b630dcc19571c734cc45e",
-      "sourceSha256": "483c7839c87bbe31957f3f0648de228784a3f3b0d74f803d58b8143b60724f73",
-      "fullVerify": "PASS_EXIT_0",
-      "contracts": "222_PASS_0_FAIL_0_SKIP",
-      "core": "1609_PASS_0_FAIL_2_EXISTING_SKIP",
-      "desktop": "878_PASS_0_FAIL_0_SKIP",
-      "electronStartupRecovery": "4_PASS_EXIT_0",
-      "fullElectronE2E": "84_PASS_19_FAIL_4_EXISTING_SKIP_EXIT_1",
-      "remoteCiCurrentSnapshot": "NOT_RUN"
+      "implementationCommit": "bc04b713522ab8547a416131ee18e13336ba1740",
+      "exitCode": 1,
+      "contractsPassed": 223,
+      "corePassed": 1626,
+      "coreOriginalSkips": 2,
+      "desktopPassed": 931,
+      "desktopFailed": 1,
+      "productionBuild": "NOT_REACHED",
+      "failure": "主题 IPC VM 源码抽取夹具包含新增读取处理器；调整 Main 排列保留原来源/主题断言，定向 1/1 通过后固定提交全量重跑"
     },
     "automaticAcceptanceScope": "local-standard-software-gates",
-    "baseCommit": "37fe2d22168d20b5defa336d679c8c8d7dc5d06a"
+    "baseCommit": "37fe2d22168d20b5defa336d679c8c8d7dc5d06a",
+    "reportCommitResolution": "commit-containing-reports/MBP-002_READ_LIFECYCLE.md"
   }
 }
