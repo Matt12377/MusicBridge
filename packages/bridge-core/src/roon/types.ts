@@ -29,12 +29,20 @@ export type RoonGatewayStage =
   | 'aborted'
   | 'error';
 
-export interface RoonPlayRequest {
+/** Core内部的操作身份与取消；不进入公开DTO或IPC。 */
+export interface RoonOperationOptions {
+  signal?: AbortSignal;
+  expectedZoneId?: string;
+}
+
+export interface RoonPlayRequest extends RoonOperationOptions {
   mediaUrl: string;
   iconUrl: string;
   metadata: TrackMetadata;
   gatewayStage?: () => RoonGatewayStage;
   onStartupStage?: (stage: 'roon-session-began' | 'roon-playing') => void;
+  /** 首个实际SDK写入前同步登记，取消或Zone变化时可以拒绝派发。 */
+  onDispatch?: () => void;
 }
 
 export type RoonTerminalReason =
@@ -65,6 +73,7 @@ export interface RoonPlaybackObservation {
 }
 
 export interface RoonPlaybackConfirmationRequest {
+  signal?: AbortSignal;
   zoneId: string;
   state: 'playing' | 'paused' | 'stopped' | 'inactive';
   afterRevision: number;
@@ -93,13 +102,13 @@ export interface RoonPort {
   setTerminalHandler(handler: (reason: RoonTerminalReason) => void): void;
   setTimeHandler?(handler: (event: RoonTimeEvent) => void): void;
   start(): Promise<void>;
-  stop(): Promise<void>;
+  stop(options?: RoonOperationOptions): Promise<void>;
   shutdown(): Promise<void>;
   play(request: RoonPlayRequest): Promise<void>;
-  pause(): Promise<void>;
-  resume(): Promise<void>;
-  seek?(positionMs: number): Promise<void>;
-  control?(control: 'play' | 'pause' | 'playpause' | 'stop' | 'previous' | 'next'): Promise<void>;
+  pause(options?: RoonOperationOptions): Promise<void>;
+  resume(options?: RoonOperationOptions): Promise<void>;
+  seek?(positionMs: number, options?: RoonOperationOptions): Promise<void>;
+  control?(control: 'play' | 'pause' | 'playpause' | 'stop' | 'previous' | 'next', options?: RoonOperationOptions): Promise<void>;
   getSelectedZonePlaybackState?(): RoonNativePlaybackState | undefined;
   getSelectedZonePlaybackObservation?(): RoonPlaybackObservation | undefined;
   waitForSelectedZonePlayback?(

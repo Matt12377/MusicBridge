@@ -1,7 +1,134 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { PublicBridgeState } from '@music-bridge/contracts';
-import { createTestBridgeRuntime, toPublicBridgeState } from '../src/runtime.js';
+import type { PublicBridgeState, TrackSummary } from '@music-bridge/contracts';
+import { createBridgeRuntime, createTestBridgeRuntime, toPublicBridgeState } from '../src/runtime.js';
+import { NeteaseClient } from '../src/netease/client.js';
+import { RoonAudioInputAdapter } from '../src/roon/adapter.js';
+import type { RoonLibraryService } from '../src/roon/library.js';
+import type { RoonPlaybackObservation, RoonState } from '../src/roon/types.js';
+import { StreamGateway } from '../src/stream/gateway.js';
+import { ControlServer } from '../src/control/server.js';
+import { createLocalFavoriteRepository } from '../src/favorites/repository.js';
+import { BridgeError } from '../src/shared/errors.js';
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>(done => { resolve = done; });
+  return { promise, resolve };
+}
+const turn = () => new Promise<void>(resolve => setImmediate(resolve));
+async function beforeSlowWork<T>(promise: Promise<T>, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([promise, new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), 300);
+    })]);
+  } finally { clearTimeout(timer); }
+}
+
+/** 真实runtime组合，只替换外部I/O；两个select回调均来自生产构造，不是合成runtime实现。 */
+async function priorityRuntime(t: test.TestContext) {
+  const events: string[] = [], metadata = deferred<void>(), url = deferred<void>(), confirmation = deferred<void>(), stop = deferred<void>(), nativeResponse = deferred<void>();
+  let holdMetadata = false, holdUrl = false, holdConfirmation = false, holdStop = false, holdNativeResponse = false, failStop = false;
+  let state: RoonState = { status: 'ready', selectedZoneId: 'zone-A', transportState: 'stopped', canPause: true, canResume: true };
+  let revision = 1, metadataEntered = false, urlEntered = false, nativeDispatched = false;
+  let controlSelect!: (zoneId: string) => Promise<unknown>;
+  let controlSeek!: (positionMs: number) => Promise<{ positionMs: number }>;
+  let nativePlay!: (reference: string, zoneId: string, track: TrackSummary, options: {
+    signal?: AbortSignal; expectedZoneId?: string; onDispatch?: () => void; onDispatchCompletion?: (completion: Promise<void>) => void;
+  }) => Promise<RoonPlaybackObservation>;
+  const observation = (): RoonPlaybackObservation => ({ zoneId: state.selectedZoneId!, revision, ...(state.transportState ? { state: state.transportState } : {}) });
+  const library = {
+    async browseAlbums() { return { items: [{ kind: 'album', title: '合成专辑', itemKey: 'album' }], offset: 0, level: 0, hasMore: false }; },
+    async browseAlbum() { return { items: [{ kind: 'track', title: '合成本地曲目', artist: '合成艺人', album: '合成专辑', itemKey: 'track' }], offset: 0, level: 1, hasMore: false }; },
+    async playTrack(_track: unknown, zoneId: string, onDispatch?: () => void) {
+      onDispatch?.(); nativeDispatched = true; events.push(`native-play:${zoneId}`);
+      if (holdNativeResponse) await nativeResponse.promise;
+      events.push(`native-response:${zoneId}`);
+      return 'accepted';
+    },
+  } as unknown as RoonLibraryService;
+  t.mock.method(NeteaseClient.prototype, 'getTrack', async (id: string) => {
+    metadataEntered = true; events.push('metadata'); if (holdMetadata) await metadata.promise;
+    return { id, title: '合成云曲目', artists: ['合成艺人'], album: '合成专辑' };
+  });
+  t.mock.method(NeteaseClient.prototype, 'resolveStream', async (trackId: string, quality: string) => {
+    urlEntered = true; events.push('url'); if (holdUrl) await url.promise;
+    return { trackId, upstreamUrl: 'https://synthetic.invalid/audio', requestedQuality: quality, actualQuality: 'lossless', expiresInSeconds: 600 };
+  });
+  t.mock.method(NeteaseClient.prototype, 'getPublicAccountProfile', async () => ({ displayName: '合成账号' }));
+  t.mock.method(StreamGateway.prototype, 'start', async () => undefined);
+  t.mock.method(StreamGateway.prototype, 'preflight', async () => { events.push('preflight'); });
+  t.mock.method(RoonAudioInputAdapter.prototype, 'start', async () => undefined);
+  t.mock.method(RoonAudioInputAdapter.prototype, 'getState', () => ({ ...state }));
+  t.mock.method(RoonAudioInputAdapter.prototype, 'getLibraryService', () => library);
+  t.mock.method(RoonAudioInputAdapter.prototype, 'getSelectedZonePlaybackState', () => state.transportState);
+  t.mock.method(RoonAudioInputAdapter.prototype, 'getSelectedZonePlaybackObservation', observation);
+  t.mock.method(RoonAudioInputAdapter.prototype, 'selectZone', (zoneId: string) => {
+    events.push(`select:${zoneId}`); state = { ...state, selectedZoneId: zoneId }; ++revision;
+  });
+  t.mock.method(RoonAudioInputAdapter.prototype, 'play', async (request: { onDispatch?: () => void }) => {
+    request.onDispatch?.(); events.push(`cloud-play:${state.selectedZoneId}`);
+    state = { ...state, status: 'playing', transportState: 'playing' }; ++revision;
+  });
+  t.mock.method(RoonAudioInputAdapter.prototype, 'stop', async () => {
+    events.push(`audio-stop:${state.selectedZoneId}`); if (holdStop) await stop.promise;
+    if (failStop) throw new BridgeError('ROON_TIMEOUT', '合成停止未确认');
+    state = { ...state, status: 'ready', transportState: 'stopped' }; ++revision;
+  });
+  t.mock.method(RoonAudioInputAdapter.prototype, 'control', async (command: string, options?: { expectedZoneId?: string; signal?: AbortSignal }) => {
+    const owner = options?.expectedZoneId ?? state.selectedZoneId;
+    events.push(`control:${command}:${owner}`);
+    if (command === 'stop') {
+      assert.equal(options?.signal?.aborted ?? false, false, '停止不能复用已取消的准备signal');
+      if (holdStop) await stop.promise;
+      if (failStop) throw new BridgeError('ROON_TIMEOUT', '合成停止未确认');
+      state = { ...state, status: 'ready', transportState: 'stopped' }; ++revision;
+    }
+  });
+  t.mock.method(RoonAudioInputAdapter.prototype, 'waitForSelectedZonePlayback', async (request: { signal?: AbortSignal; state: string }) => {
+    if (request.state === 'playing' && holdConfirmation) {
+      await new Promise<void>((resolve, reject) => {
+        void confirmation.promise.then(resolve);
+        if (request.signal?.aborted) reject(new BridgeError('ROON_TIMEOUT', '合成旧确认取消'));
+        else request.signal?.addEventListener('abort', () => reject(new BridgeError('ROON_TIMEOUT', '合成旧确认取消')), { once: true });
+      });
+    }
+    if (request.state === 'playing') { state = { ...state, status: 'playing', transportState: 'playing' }; ++revision; }
+    return observation();
+  });
+  t.mock.method(RoonAudioInputAdapter.prototype, 'setVolume', async (request: { zoneId: string; outputId: string; value: number }) => {
+    events.push(`volume:${request.zoneId}:${request.value}`);
+    return { zoneId: request.zoneId, outputs: [{ outputId: request.outputId, name: '合成输出', type: 'number', min: 0, max: 100, step: 1, value: request.value }] };
+  });
+  t.mock.method(RoonAudioInputAdapter.prototype, 'seek', async (positionMs: number, options?: { expectedZoneId?: string }) => {
+    events.push(`seek:${options?.expectedZoneId ?? state.selectedZoneId}:${positionMs}`);
+  });
+  t.mock.method(ControlServer.prototype, 'start', async function(this: ControlServer) {
+    const options = Reflect.get(this, 'options') as { controller: object; roon: { selectZone(zoneId: string): Promise<unknown>; seekRoonTransport(positionMs: number): Promise<{ positionMs: number }> } };
+    controlSelect = options.roon.selectZone;
+    controlSeek = options.roon.seekRoonTransport;
+    nativePlay = (Reflect.get(options.controller, 'dependencies') as { roonLibrary: { play: typeof nativePlay } }).roonLibrary.play;
+  });
+  const runtime = createBridgeRuntime({
+    env: { NETEASE_COOKIE: 'synthetic-runtime-only', BRIDGE_CONTROL_HOST: '127.0.0.1', BRIDGE_STREAM_HOST: '127.0.0.1' },
+    favoriteRepository: createLocalFavoriteRepository(),
+    logger: { debug() {}, info() {}, warn() {}, error() {} },
+    roonSdk: { createApi: () => assert.fail('此夹具禁止真实Roon连接') } as never,
+  });
+  await runtime.start();
+  t.after(async () => { metadata.resolve(); url.resolve(); confirmation.resolve(); stop.resolve(); nativeResponse.resolve(); failStop = false; await runtime.shutdown(); });
+  return {
+    runtime, events, metadata, url, confirmation, stop, nativeResponse,
+    select: (entry: 'runtime' | 'control', zoneId: string) => entry === 'runtime' ? runtime.selectZone(zoneId) : controlSelect(zoneId),
+    controlSeek: (positionMs: number) => controlSeek(positionMs),
+    nativePlay,
+    hold: (kind: 'metadata' | 'url' | 'confirmation' | 'stop' | 'native-response') => { if (kind === 'metadata') holdMetadata = true; else if (kind === 'url') holdUrl = true; else if (kind === 'confirmation') holdConfirmation = true; else if (kind === 'native-response') holdNativeResponse = true; else holdStop = true; },
+    failStop: (value: boolean) => { failStop = value; },
+    entered: () => ({ metadata: metadataEntered, url: urlEntered, native: nativeDispatched }),
+    async nativeReference() { const album = (await runtime.browseRoonAlbums({ offset: 0, limit: 1 })).items[0]!; return (await runtime.browseRoonAlbum(album.reference, { offset: 0, limit: 1 })).items[0]!.reference; },
+  };
+}
 
 function localDayKey(now = Date.now()): string {
   const date = new Date(now);
@@ -167,4 +294,145 @@ test('显式合成目录注入走同一公共曲目浏览，不提供试听成�
   const tracks = await runtime.browseRoonAlbum(album.reference, { offset: 0, limit: 20 });
   assert.equal(tracks.items[0]?.title, '合成关联曲目');
   await assert.rejects(runtime.playRoonTrack(tracks.items[0]!.reference, 'synthetic-zone'));
+});
+
+for (const entry of ['runtime', 'control'] as const) {
+  test(`MBP-003A：${entry}同turn换Zone撤销尚未进入mailbox的旧播放意图`, async t => {
+    const f = await priorityRuntime(t);
+    const pending = f.runtime.playbackPlay('1000', 'lossless');
+    const ended = Promise.allSettled([pending]);
+    const changed = f.select(entry, 'zone-B');
+    try {
+      await beforeSlowWork(changed, '同turn换Zone没有撤销旧播放意图');
+      await ended; await turn();
+      assert.equal(f.runtime.getPlaybackState().selectedZoneId, 'zone-B');
+      assert.equal(f.events.some(event => event.startsWith('cloud-play:')), false, '旧mailbox意图不得稍后使用新Zone派发');
+      assert.equal(f.runtime.getDiagnostics().counters.activeTokenCount, 0);
+      assert.equal(f.runtime.getPlaybackState().state, 'idle');
+    } finally { await ended; }
+  });
+
+  for (const blocked of ['metadata', 'url'] as const) test(`MBP-003A：${entry}换Zone撤销未派发${blocked}准备，迟到结果不能播放新Zone`, async t => {
+    const f = await priorityRuntime(t); f.hold(blocked);
+    const pending = f.runtime.playbackPlay('1000', 'lossless');
+    const ended = Promise.allSettled([pending]);
+    for (let i = 0; i < 20 && !f.entered()[blocked]; ++i) await turn();
+    assert.equal(f.entered()[blocked], true);
+    try {
+      await beforeSlowWork(f.select(entry, 'zone-B'), '换Zone仍等待旧metadata/URL，未撤销准备所有权');
+      assert.equal(f.runtime.getPlaybackState().selectedZoneId, 'zone-B');
+      assert.equal(f.events.some(event => event.startsWith('cloud-play:')), false);
+    } finally { f.metadata.resolve(); f.url.resolve(); await ended; }
+    await turn();
+    assert.equal(f.events.some(event => event.startsWith('cloud-play:')), false, '旧Zone取消后迟到准备不能注册或派发新Zone播放');
+    assert.equal(f.runtime.getDiagnostics().counters.activeTokenCount, 0);
+    assert.equal(f.runtime.getPlaybackState().state, 'idle');
+  });
+
+  test(`MBP-003A：${entry}换Zone在Native已派发未确认时先Stop原owner，确认关闭前不select`, async t => {
+    const f = await priorityRuntime(t); f.hold('confirmation'); f.hold('stop');
+    const pending = f.runtime.playRoonTrack(await f.nativeReference(), 'zone-A');
+    const ended = Promise.allSettled([pending]);
+    for (let i = 0; i < 20 && !f.entered().native; ++i) await turn();
+    assert.equal(f.entered().native, true);
+    const changed = f.select(entry, 'zone-B'), changedEnded = Promise.allSettled([changed]);
+    try {
+      for (let i = 0; i < 30 && !f.events.includes('control:stop:zone-A'); ++i) await turn();
+      assert.ok(f.events.includes('control:stop:zone-A'), '旧播放确认不得阻塞原owner的停止派发');
+      assert.equal(f.events.includes('select:zone-B'), false);
+      assert.equal(f.runtime.getPlaybackState().selectedZoneId, 'zone-A');
+      f.stop.resolve();
+      await beforeSlowWork(changed, '原owner停止确认后仍等待已撤销的播放确认');
+      assert.equal(f.runtime.getPlaybackState().selectedZoneId, 'zone-B');
+      assert.ok(f.events.indexOf('control:stop:zone-A') < f.events.indexOf('select:zone-B'));
+    } finally { f.stop.resolve(); f.confirmation.resolve(); await Promise.all([ended, changedEnded]); }
+    assert.deepEqual(f.events.filter(event => event.startsWith('native-play:')), ['native-play:zone-A']);
+    assert.equal(f.runtime.getPlaybackState().currentTrack, undefined);
+  });
+
+  test(`MBP-003A：${entry}停止未知保留原Zone所有权，重试确认前不得select`, async t => {
+    const f = await priorityRuntime(t); f.hold('confirmation'); f.failStop(true);
+    const pending = f.runtime.playRoonTrack(await f.nativeReference(), 'zone-A'), ended = Promise.allSettled([pending]);
+    for (let i = 0; i < 20 && !f.entered().native; ++i) await turn();
+    assert.equal(f.entered().native, true);
+    try {
+      await assert.rejects(beforeSlowWork(f.select(entry, 'zone-B'), '停止未知仍等待旧播放确认'), { code: 'ROON_TIMEOUT' });
+      assert.equal(f.runtime.getPlaybackState().selectedZoneId, 'zone-A');
+      assert.equal(f.events.some(event => event.startsWith('select:')), false);
+      await assert.rejects(beforeSlowWork(f.select(entry, 'zone-B'), '停止未知重试仍等待旧播放确认'), { code: 'ROON_TIMEOUT' });
+      assert.equal(f.events.filter(event => event === 'control:stop:zone-A').length, 2);
+      assert.equal(f.events.some(event => event.startsWith('select:')), false);
+      f.failStop(false);
+      await beforeSlowWork(f.select(entry, 'zone-B'), '原owner停止成功后没有解除换Zone屏障');
+      assert.equal(f.runtime.getPlaybackState().selectedZoneId, 'zone-B');
+    } finally { f.failStop(false); f.confirmation.resolve(); await ended; }
+    assert.deepEqual(f.events.filter(event => event.startsWith('native-play:')), ['native-play:zone-A']);
+    assert.equal(f.runtime.getPlaybackState().state, 'idle');
+  });
+
+  test(`MBP-003A：${entry}取消Native确认不冒充实际SDK回执，Stop不得越过在途写入`, async t => {
+    const f = await priorityRuntime(t); f.hold('confirmation'); f.hold('native-response');
+    const pending = f.runtime.playRoonTrack(await f.nativeReference(), 'zone-A'), ended = Promise.allSettled([pending]);
+    for (let i = 0; i < 20 && !f.entered().native; ++i) await turn();
+    assert.equal(f.entered().native, true);
+    const changed = f.select(entry, 'zone-B'), changedEnded = Promise.allSettled([changed]);
+    try {
+      for (let i = 0; i < 20; ++i) await turn();
+      assert.equal(f.events.includes('control:stop:zone-A'), false, '确认取消不能把仍在途的实际写入当成完成');
+      assert.equal(f.events.includes('select:zone-B'), false);
+      f.nativeResponse.resolve();
+      await beforeSlowWork(changed, '原SDK回执结束后停止仍被旧确认阻塞');
+      assert.ok(f.events.indexOf('native-response:zone-A') < f.events.indexOf('control:stop:zone-A'));
+      assert.ok(f.events.indexOf('control:stop:zone-A') < f.events.indexOf('select:zone-B'));
+    } finally { f.nativeResponse.resolve(); f.confirmation.resolve(); await Promise.all([ended, changedEnded]); }
+    assert.equal(f.runtime.getPlaybackState().selectedZoneId, 'zone-B');
+    assert.equal(f.runtime.getPlaybackState().currentTrack, undefined);
+  });
+}
+
+test('MBP-003A：生产runtime音量走独立设备路径，不等待metadata或URL准备', async t => {
+  const f = await priorityRuntime(t); f.hold('metadata'); f.hold('url');
+  const pending = f.runtime.playbackPlay('1000', 'lossless'), ended = Promise.allSettled([pending]);
+  for (let i = 0; i < 20 && !f.entered().metadata; ++i) await turn();
+  assert.equal(f.entered().metadata, true); assert.equal(f.entered().url, true);
+  try {
+    const volume = await beforeSlowWork(f.runtime.setVolume({ zoneId: 'zone-A', outputId: 'output-A', how: 'absolute', value: 47 }), '音量误入慢播放准备链');
+    assert.equal(volume.outputs[0]?.value, 47);
+    assert.ok(f.events.includes('volume:zone-A:47'));
+    assert.equal(f.events.some(event => event.startsWith('cloud-play:')), false);
+  } finally { f.metadata.resolve(); f.url.resolve(); await ended; }
+});
+
+test('MBP-003A：HTTP transport seek不越过实际Native写入，原回执后不等旧确认', async t => {
+  const f = await priorityRuntime(t); f.hold('confirmation'); f.hold('native-response');
+  const pending = f.runtime.playRoonTrack(await f.nativeReference(), 'zone-A'), ended = Promise.allSettled([pending]);
+  for (let i = 0; i < 20 && !f.entered().native; ++i) await turn();
+  assert.equal(f.entered().native, true);
+  const seek = f.controlSeek(1250), seekEnded = Promise.allSettled([seek]);
+  try {
+    for (let i = 0; i < 20; ++i) await turn();
+    assert.equal(f.events.some(event => event.startsWith('seek:')), false, 'HTTP控制不能绕过设备写入tail');
+    f.nativeResponse.resolve();
+    assert.equal((await beforeSlowWork(seek, 'HTTP seek仍等待旧播放确认')).positionMs, 1250);
+    assert.ok(f.events.indexOf('native-response:zone-A') < f.events.indexOf('seek:zone-A:1250'));
+  } finally { f.nativeResponse.resolve(); f.confirmation.resolve(); await Promise.all([ended, seekEnded]); }
+});
+
+test('MBP-003A：HTTP transport seek保留无MB owner时的外部Roon控制能力', async t => {
+  const f = await priorityRuntime(t);
+  assert.equal(f.runtime.getPlaybackState().currentTrack, undefined);
+  assert.equal((await f.controlSeek(2500)).positionMs, 2500);
+  assert.deepEqual(f.events.filter(event => event.startsWith('seek:')), ['seek:zone-A:2500']);
+  assert.equal(f.events.some(event => event.startsWith('native-play:') || event.startsWith('cloud-play:')), false);
+});
+
+for (const hook of ['onDispatch', 'onDispatchCompletion'] as const) test(`MBP-003A：生产Native ${hook}同步取消仍挡住首个SDK写入`, async t => {
+  const f = await priorityRuntime(t); f.hold('confirmation');
+  const abort = new AbortController();
+  const options = { signal: abort.signal, expectedZoneId: 'zone-A', [hook]: () => abort.abort() };
+  await assert.rejects(f.nativePlay(await f.nativeReference(), 'zone-A', {
+    id: 'synthetic-native', title: '合成本地曲目', artists: ['合成艺人'], album: '合成专辑',
+  }, options), { code: 'BAD_REQUEST' });
+  assert.equal(f.entered().native, false);
+  assert.equal(f.events.some(event => event.startsWith('native-play:')), false);
 });

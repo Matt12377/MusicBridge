@@ -195,6 +195,7 @@ class FakeRoon implements RoonPort {
       this.maxConcurrentPlayCalls,
       this.activePlayCalls,
     );
+    if (!this.shouldFail) request.onDispatch?.();
     request.onStartupStage?.('roon-session-began');
     if (this.playDelayMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, this.playDelayMs));
@@ -313,9 +314,10 @@ class FakeNativeRoonLibrary {
   };
   private confirmSeekRequest: (() => void) | undefined;
 
-  async play(reference: string, zoneId: string, _track?: unknown): Promise<RoonPlaybackObservation> {
+  async play(reference: string, zoneId: string, _track?: unknown, options?: { onDispatch?: () => void }): Promise<RoonPlaybackObservation> {
     this.playCalls.push({ reference, zoneId });
     if (this.shouldFail) throw new Error('Synthetic native Roon failure');
+    options?.onDispatch?.();
     this.active = true;
     return { ...this.playObservation, zoneId };
   }
@@ -2057,7 +2059,11 @@ test('诊断时钟故障不阻止排队业务修改真实队列', async t => {
 
 function drainMbrController(controller: BridgeController): Promise<void> {
   // 仅测试侧等待已提交操作落定，不新增生产调度或依赖定时 sleep。
-  return (controller as unknown as { operationTail: Promise<void> }).operationTail;
+  const internal = controller as unknown as { operationTail: Promise<void>; externalTasks: Set<Promise<unknown>> };
+  return (async () => {
+    await internal.operationTail;
+    while (internal.externalTasks.size > 0) await Promise.allSettled([...internal.externalTasks]);
+  })();
 }
 
 function mbrNativeQueue(length = 2) {
@@ -2383,4 +2389,211 @@ test('MBR-001：旧 Core 缺失状态排在 Next 后不能给新曲写入错误'
   assert.equal(controller.getPlaybackState().state, 'playing');
   assert.equal(controller.getPlaybackState().lastIssue, undefined);
   assert.deepEqual(nativeRoon.playCalls.map(call => call.reference), ['mbr-native-0', 'mbr-native-1']);
+});
+
+function mbpDeferred<T>() {
+  let resolve!: (value: T) => void, reject!: (error: unknown) => void;
+  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
+
+for (const stage of ['metadata', 'url', 'preflight'] as const) {
+  test(`MBP003A：${stage}准备未决时Stop先完成，迟到结果零播放/零token`, { timeout: 3000 }, async t => {
+    const f = makeHarness(), gate = mbpDeferred<void>(), entered = mbpDeferred<void>();
+    const originalTrack = f.netease.getTrack.bind(f.netease), originalStream = f.netease.resolveStream.bind(f.netease), originalPreflight = f.gateway.preflight.bind(f.gateway);
+    if (stage === 'metadata') t.mock.method(f.netease, 'getTrack', async (id: string) => { entered.resolve(); await gate.promise; return originalTrack(id); });
+    if (stage === 'url') t.mock.method(f.netease, 'resolveStream', async (id: string, quality: QualityLevel) => { entered.resolve(); await gate.promise; return originalStream(id, quality); });
+    if (stage === 'preflight') t.mock.method(f.gateway, 'preflight', async (...args: Parameters<typeof f.gateway.preflight>) => { entered.resolve(); await gate.promise; return originalPreflight(...args); });
+    const playing = f.controller.play({ trackId: '99001', quality: 'standard' }).catch(error => error);
+    await entered.promise;
+    let stopped = false;
+    const stopping = f.controller.stop().then(() => { stopped = true; });
+    try {
+      await new Promise(resolve => setTimeout(resolve, 30));
+      assert.equal(stopped, true, 'Stop不能等待准备Promise');
+      assert.equal(f.roon.playRequests.length, 0); assert.equal(f.registry.size, 0);
+    } finally { gate.resolve(); await playing; await stopping; }
+    assert.equal(f.roon.playRequests.length, 0); assert.equal(f.registry.size, 0);
+    assert.equal(f.controller.getPlaybackState().state, 'idle');
+  });
+}
+
+test('MBP003A：小批队列元数据未决仍接受插入并响应Stop，顺序不变', { timeout: 3000 }, async t => {
+  const f = makeHarness(), gate = mbpDeferred<void>(), entered = mbpDeferred<void>();
+  await f.controller.play({ trackId: '99010', quality: 'standard' });
+  const original = f.netease.getTrack.bind(f.netease);
+  t.mock.method(f.netease, 'getTrack', async (id: string) => { if (id !== '99010') { entered.resolve(); await gate.promise; } return original(id); });
+  const inserting = f.controller.insertNext([{ trackId: '99011', quality: 'standard' }]);
+  await entered.promise;
+  let stopped = false; const stopping = f.controller.stop().then(() => { stopped = true; });
+  try { await new Promise(resolve => setTimeout(resolve, 30)); assert.equal(stopped, true); }
+  finally { gate.resolve(); await inserting; await stopping; }
+  assert.deepEqual(f.controller.getPlaybackState().queue.items.map(item => item.trackId), ['99010', '99011']);
+});
+
+test('MBP003A：同turn已受理播放也具有ownership，Stop取消未启动意图', async () => {
+  const f = makeHarness();
+  const playing = f.controller.play({ trackId: '99020' }).catch(error => error);
+  assert.equal(f.controller.hasPlaybackOwnership(), true);
+  await f.controller.stop();
+  await playing;
+  assert.equal(f.roon.playRequests.length, 0);
+  assert.equal(f.registry.size, 0);
+  assert.equal(f.controller.hasPlaybackOwnership(), false);
+});
+
+test('MBP003A：Smart查找取消后不派发Native、不fallback Provider', { timeout: 3000 }, async () => {
+  const gate = mbpDeferred<{ reference: string; zoneId: string }>(), entered = mbpDeferred<void>();
+  const f = makeHarness(206, async () => { entered.resolve(); return gate.promise; });
+  const playing = f.controller.replaceQueue([{ trackId: '99021', preferredSource: 'smart' }]).catch(error => error);
+  await entered.promise;
+  await f.controller.stop();
+  gate.resolve({ reference: 'private-synthetic', zoneId: 'zone-1' });
+  const error = await playing;
+  assert.equal(error.details?.reason, 'operation_cancelled');
+  assert.equal(f.nativeRoon.playCalls.length, 0);
+  assert.equal(f.netease.resolveCalls, 0);
+  assert.equal(f.registry.size, 0);
+});
+
+for (const control of ['pause', 'stop', 'external-seek'] as const) {
+  test(`MBP003A：Native先确认但SDK回执未结时${control}不得越过真实写入`, { timeout: 3000 }, async t => {
+    const f = makeHarness(), completion = mbpDeferred<void>();
+    t.mock.method(f.nativeRoon, 'play', async (_reference: string, zoneId: string, _track: unknown, options?: {
+      onDispatch?: () => void; onDispatchCompletion?: (completion: Promise<void>) => void;
+    }) => {
+      options?.onDispatch?.(); options?.onDispatchCompletion?.(completion.promise);
+      return { revision: 1, zoneId, state: 'playing' as const };
+    });
+    await f.controller.playRoon(mbrNativeQueue(1)[0]!);
+    f.roon.state = { ...f.roon.state, transportState: 'playing', canPause: true };
+    let settled = false;
+    const controlling = (control === 'pause' ? f.controller.pause() : control === 'stop' ? f.controller.stop() : f.controller.seekRoonTransport(1234)).then(() => { settled = true; });
+    try {
+      await new Promise(resolve => setTimeout(resolve, 15));
+      assert.equal(settled, false);
+      assert.equal(f.nativeRoon.pauseCalls + f.nativeRoon.stopCalls + f.roon.seekCalls.length, 0);
+    } finally { completion.resolve(); await controlling; }
+    assert.equal(settled, true);
+    await f.controller.stop();
+  });
+}
+
+test('MBP003A：Native已dispatch确认取消后Stop未知保留ownership，新Play禁止越过', { timeout: 3000 }, async t => {
+  const f = makeHarness(), entered = mbpDeferred<void>();
+  t.mock.method(f.nativeRoon, 'play', async (_ref: string, _zone: string, _track: unknown, options?: { signal?: AbortSignal; onDispatch?: () => void }) => {
+    options?.onDispatch?.(); entered.resolve();
+    await new Promise<void>((_resolve, reject) => options?.signal?.addEventListener('abort', () => reject(new BridgeError('BAD_REQUEST', '合成取消', { httpStatus: 409, details: { reason: 'operation_cancelled' } })), { once: true }));
+    return { revision: 1, zoneId: 'zone-1', state: 'playing' as const };
+  });
+  const starting = f.controller.playRoon(mbrNativeQueue(1)[0]!).catch(error => error);
+  await entered.promise;
+  let failures = 2;
+  t.mock.method(f.nativeRoon, 'stop', async (options?: { signal?: AbortSignal; expectedZoneId?: string }) => {
+    assert.equal(options?.signal, undefined); assert.equal(options?.expectedZoneId, 'zone-1');
+    f.nativeRoon.stopCalls++;
+    if (failures-- > 0) throw new BridgeError('ROON_TIMEOUT', '合成未知停止', { httpStatus: 504 });
+  });
+  await assert.rejects(f.controller.stop()); await starting;
+  assert.equal(f.controller.hasPlaybackOwnership(), true);
+  await assert.rejects(f.controller.play({ trackId: '99022' }));
+  assert.equal(f.nativeRoon.stopCalls, 1); assert.equal(f.roon.playRequests.length, 0);
+  await assert.rejects(f.controller.stop());
+  assert.equal(f.controller.hasPlaybackOwnership(), true);
+  await f.controller.stop();
+  assert.equal(f.controller.hasPlaybackOwnership(), false);
+});
+
+test('MBP003A：Native SDK已结算而Transport确认未决，外部seek不等待确认', { timeout: 3000 }, async t => {
+  const f = makeHarness(), entered = mbpDeferred<void>(), completion = mbpDeferred<void>();
+  t.mock.method(f.nativeRoon, 'play', async (_reference: string, zoneId: string, _track: unknown, options?: {
+    signal?: AbortSignal; onDispatch?: () => void; onDispatchCompletion?: (completion: Promise<void>) => void;
+  }) => {
+    options?.onDispatch?.(); options?.onDispatchCompletion?.(completion.promise); entered.resolve();
+    await new Promise<void>((_resolve, reject) => options?.signal?.addEventListener('abort', () => reject(new BridgeError('BAD_REQUEST', '合成取消', { httpStatus: 409, details: { reason: 'operation_cancelled' } })), { once: true }));
+    return { revision: 1, zoneId, state: 'playing' as const };
+  });
+  const starting = f.controller.playRoon(mbrNativeQueue(1)[0]!).catch(error => error);
+  await entered.promise;
+  const seeking = f.controller.seekRoonTransport(2345);
+  completion.resolve();
+  await seeking;
+  assert.deepEqual(f.roon.seekCalls, [2345]);
+  assert.equal(f.controller.hasPlaybackOwnership(), true);
+  await f.controller.stop(); await starting;
+});
+
+test('MBP003A：旧metadata准备被新Play取代，迟到reject不覆写新曲或撤销新token', { timeout: 3000 }, async t => {
+  const f = makeHarness(), gate = mbpDeferred<never>(), entered = mbpDeferred<void>();
+  const original = f.netease.getTrack.bind(f.netease);
+  t.mock.method(f.netease, 'getTrack', async (id: string) => {
+    if (id === '99030') { entered.resolve(); return gate.promise; }
+    return original(id);
+  });
+  const old = f.controller.play({ trackId: '99030' }).catch(error => error);
+  await entered.promise;
+  await f.controller.play({ trackId: '99031' });
+  assert.equal((await old).details?.reason, 'operation_cancelled');
+  gate.reject(new Error('合成迟到元数据错误'));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.controller.getPlaybackState().currentTrack?.id, '99031');
+  assert.equal(f.controller.getPlaybackState().state, 'playing');
+  assert.equal(f.registry.size, 1);
+  assert.deepEqual(f.roon.playRequests.map(request => request.metadata.id), ['99031']);
+  await f.controller.stop();
+});
+
+test('MBP003A：连续pause/resume按设备确认顺序执行，resume不在pausing期间误拒绝', { timeout: 3000 }, async () => {
+  const f = makeHarness();
+  await f.controller.play({ trackId: '99032' });
+  f.roon.autoConfirmPause = false;
+  const pausing = f.controller.pause();
+  const resuming = f.controller.resume();
+  await waitFor(() => f.roon.pauseCalls === 1);
+  assert.equal(f.roon.resumeCalls, 0);
+  f.roon.confirmPause();
+  await Promise.all([pausing, resuming]);
+  assert.equal(f.roon.resumeCalls, 1);
+  assert.equal(f.controller.getPlaybackState().state, 'playing');
+  await f.controller.stop();
+});
+
+for (const source of ['provider', 'native'] as const) {
+  test(`MBP003A：${source}合法Port未提供onDispatch钩子，确认活动后仍必须真实Stop`, async t => {
+    const f = makeHarness();
+    if (source === 'provider') {
+      const play = f.roon.play.bind(f.roon);
+      t.mock.method(f.roon, 'play', async (request: RoonPlayRequest) => {
+        const { onDispatch: _ignored, ...withoutHook } = request;
+        await play(withoutHook);
+      });
+      await f.controller.play({ trackId: '99033' });
+    } else {
+      t.mock.method(f.nativeRoon, 'play', async (_reference: string, zoneId: string) => ({ revision: 1, zoneId, state: 'playing' as const }));
+      await f.controller.playRoon(mbrNativeQueue(1)[0]!);
+    }
+    await f.controller.stop();
+    assert.equal(source === 'provider' ? f.roon.stopCalls : f.nativeRoon.stopCalls, 1);
+    assert.equal(f.controller.hasPlaybackOwnership(), false);
+  });
+}
+
+test('MBP003A：无MB owner的外部Stop排队期间切Zone，迟到控制仍绑定受理Zone', { timeout: 3000 }, async t => {
+  const f = makeHarness(), entered = mbpDeferred<void>(), release = mbpDeferred<void>();
+  t.mock.method(f.roon, 'seek', async () => { entered.resolve(); await release.promise; });
+  const seeking = f.controller.seekRoonTransport(3456);
+  await entered.promise;
+  let expectedZone: string | undefined;
+  t.mock.method(f.nativeRoon, 'stop', async (options?: { expectedZoneId?: string; signal?: AbortSignal }) => {
+    assert.equal(options?.signal, undefined);
+    expectedZone = options?.expectedZoneId;
+    if (options?.expectedZoneId !== f.roon.state.selectedZoneId) throw new BridgeError('BAD_REQUEST', '合成Zone已变化', { httpStatus: 409 });
+    f.nativeRoon.stopCalls++;
+  });
+  const stopped = assert.rejects(f.controller.stopRoonTransport());
+  f.roon.state = { ...f.roon.state, selectedZoneId: 'zone-2' };
+  release.resolve();
+  await seeking; await stopped;
+  assert.equal(expectedZone, 'zone-1');
+  assert.equal(f.nativeRoon.stopCalls, 0);
 });

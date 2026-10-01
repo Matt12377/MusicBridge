@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { getEventListeners } from 'node:events';
 import { runConfirmedTrackAction } from '../src/roon/confirmed-track-action.js';
 import {
   RoonAudioInputAdapter,
@@ -2142,4 +2143,182 @@ test('MBR-001 非成功关闭回执不能清除会话，重试确认后才清理
   await adapter.stop();
   assert.equal(adapter.getDiagnosticResourceCounters().activeSessionCount, 0);
   await adapter.shutdown();
+});
+
+test('MBP003A：Provider首写前取消或Zone变化不创建Session，登记同步取消也不写', async t => {
+  const { adapter, api } = await makeReadyHarness({ sessionBeginTimeoutMs: 30 });
+  t.after(() => adapter.shutdown());
+  const controller = new AbortController(); controller.abort();
+  await assert.rejects(adapter.play({ ...playRequest, signal: controller.signal }), error =>
+    error instanceof BridgeError && error.details?.reason === 'operation_cancelled');
+  await assert.rejects(adapter.play({ ...playRequest, expectedZoneId: 'zone-other' }), { code: 'ROON_ZONE_NOT_SELECTED' });
+  const sync = new AbortController(); let dispatches = 0;
+  await assert.rejects(adapter.play({ ...playRequest, signal: sync.signal, expectedZoneId: 'zone-1', onDispatch: () => {
+    assert.equal(api.core.audioInput.beginSessionCalls, 0); ++dispatches; sync.abort();
+  } }));
+  assert.equal(dispatches, 1); assert.equal(api.core.audioInput.beginSessionCalls, 0);
+  assert.equal(adapter.getDiagnosticResourceCounters().activeSessionCount, 0);
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+});
+
+test('MBP003A：取消在途Provider确认保留Stop所有权，迟到Session不派发play', async t => {
+  const { adapter, api } = await makeReadyHarness({ sessionBeginTimeoutMs: 50 });
+  t.after(() => adapter.shutdown());
+  const controller = new AbortController(); let dispatches = 0;
+  const playing = adapter.play({ ...playRequest, signal: controller.signal, expectedZoneId: 'zone-1', onDispatch: () => {
+    assert.equal(api.core.audioInput.beginSessionCalls, 0); ++dispatches;
+  } });
+  const rejected = assert.rejects(playing, error => error instanceof BridgeError && error.details?.reason === 'operation_cancelled');
+  await nextTurn(); controller.abort(); await rejected;
+  assert.equal(dispatches, 1); assert.equal(adapter.getDiagnosticResourceCounters().activeSessionCount, 1);
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+  assert.equal(getEventListeners(controller.signal, 'abort').length, 0);
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'synthetic-cancelled-session' });
+  assert.equal(api.core.audioInput.playCalls, 0);
+  api.core.audioInput.autoEndSession = false;
+  const stopping = adapter.stop(); let stopped = false;
+  const stopResult = stopping.then(() => { stopped = true; }); await nextTurn();
+  assert.equal(stopped, false, '取消准备不能冒充远端停止确认');
+  api.core.audioInput.endSessionCallbacks[0]!('SessionEnded', {}); await stopResult;
+  assert.equal(adapter.getDiagnosticResourceCounters().activeSessionCount, 0);
+});
+
+test('MBP003A：前次停止期间取消新准备，停止回执之后仍不得发起新Session', async t => {
+  const { adapter, api } = await makeReadyHarness({ sessionBeginTimeoutMs: 50 });
+  t.after(() => adapter.shutdown());
+  const first = adapter.play(playRequest); await nextTurn();
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'synthetic-old-session' }); await first;
+  api.core.audioInput.autoEndSession = false;
+  const controller = new AbortController();
+  const next = adapter.play({ ...playRequest, signal: controller.signal, expectedZoneId: 'zone-1' });
+  const rejected = assert.rejects(next, error => error instanceof BridgeError && error.details?.reason === 'operation_cancelled');
+  await nextTurn(); controller.abort();
+  api.core.audioInput.endSessionCallbacks[0]!('SessionEnded', {}); await rejected;
+  assert.equal(api.core.audioInput.beginSessionCalls, 1);
+  api.core.audioInput.autoEndSession = true;
+});
+
+test('MBP003A：取消确认释放timer和listener，迟到观测不能结算后继任务', async t => {
+  const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 50 });
+  t.after(() => adapter.shutdown());
+  const controller = new AbortController();
+  const request = { zoneId: 'zone-1', state: 'playing' as const, afterRevision: adapter.getSelectedZonePlaybackObservation()!.revision };
+  const pending = adapter.waitForSelectedZonePlayback({ ...request, signal: controller.signal });
+  const rejected = assert.rejects(pending, error => error instanceof BridgeError && error.details?.reason === 'operation_cancelled');
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 1); controller.abort(); await rejected;
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+  assert.equal(getEventListeners(controller.signal, 'abort').length, 0);
+  let finished = false;
+  const fresh = adapter.waitForSelectedZonePlayback({ ...request, track: { title: '后继曲目', artists: [], album: '' } }).then(value => { finished = true; return value; });
+  api.core.transport.emit('Changed', { zones_changed: [{ zone_id: 'zone-1', state: 'playing', outputs: [{ output_id: 'output-1' }], now_playing: { three_line: { line1: '旧任务曲目' } } }] });
+  await nextTurn(); assert.equal(finished, false);
+  api.core.transport.emit('Changed', { zones_changed: [{ zone_id: 'zone-1', state: 'playing', outputs: [{ output_id: 'output-1' }], now_playing: { three_line: { line1: '后继曲目' } } }] });
+  await fresh;
+  await assert.rejects(adapter.waitForSelectedZonePlayback({ ...request, signal: controller.signal }));
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+});
+
+test('MBP003A：所有控制在首写前核取消和预期Zone，不写到新Zone', async t => {
+  const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 30 });
+  t.after(() => adapter.shutdown());
+  const playing = adapter.play(playRequest); await nextTurn();
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'synthetic-control-session' }); await playing;
+  const controller = new AbortController(); controller.abort();
+  for (const options of [{ signal: controller.signal }, { expectedZoneId: 'zone-other' }]) {
+    for (const invoke of [() => adapter.pause(options), () => adapter.resume(options), () => adapter.seek(2000, options), () => adapter.control('next', options)]) {
+      await assert.rejects(invoke);
+    }
+  }
+  assert.deepEqual(api.core.transport.controlCalls, []); assert.deepEqual(api.core.transport.seekCalls, []);
+});
+
+test('MBP003A：已派发Pause不因abort冒充RPC完成，实际回执后才取消确认', async t => {
+  const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 50 });
+  t.after(() => adapter.shutdown());
+  const playing = adapter.play(playRequest); await nextTurn();
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'synthetic-pause-session' }); await playing;
+  let callback!: (error: string | false) => void;
+  t.mock.method(api.core.transport, 'control', (_zone: string | { zone_id: string }, _control: string, reply: (error: string | false) => void) => { callback = reply; });
+  const controller = new AbortController(); let finished = false;
+  const pending = adapter.pause({ signal: controller.signal, expectedZoneId: 'zone-1' }).then(value => { finished = true; return { value }; }, error => { finished = true; return { error }; });
+  controller.abort(); await nextTurn(); assert.equal(finished, false);
+  callback(false); const result = await pending;
+  assert.equal('error' in result, true);
+  assert.equal('error' in result && result.error instanceof BridgeError && result.error.details?.reason, 'operation_cancelled');
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+});
+
+test('MBP003A：首写hook同步Stop时零SDK写且不留下无Session的未知停止', async t => {
+  const { adapter, api } = await makeReadyHarness({ sessionBeginTimeoutMs: 50 });
+  t.after(() => adapter.shutdown()); let stop!: Promise<void>;
+  await assert.rejects(adapter.play({ ...playRequest, onDispatch: () => { stop = adapter.stop(); } }));
+  await stop;
+  assert.equal(api.core.audioInput.beginSessionCalls, 0);
+  assert.equal(adapter.getDiagnosticResourceCounters().activeSessionCount, 0);
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+});
+
+test('MBP003A：等待旧Stop时捕获Zone变化不得把新Provider准备派发到新Zone', async t => {
+  const { adapter, api } = await makeReadyHarness({ sessionBeginTimeoutMs: 50 });
+  t.after(() => adapter.shutdown());
+  const first = adapter.play(playRequest); await nextTurn();
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'synthetic-old-zone-session' }); await first;
+  api.core.audioInput.autoEndSession = false;
+  const next = adapter.play(playRequest); const rejected = assert.rejects(next, { code: 'ROON_ZONE_NOT_SELECTED' });
+  api.core.transport.emit('Changed', { zones_added: [{ zone_id: 'zone-2', outputs: [{ output_id: 'output-2' }] }] });
+  adapter.selectZone('zone-2');
+  api.core.audioInput.endSessionCallbacks[0]!('SessionEnded', {}); await rejected;
+  assert.equal(api.core.audioInput.beginSessionCalls, 1);
+  api.core.audioInput.autoEndSession = true;
+});
+
+test('MBP003A：Pause回执前换Zone，新Zone的paused不能确认旧Zone动作', async t => {
+  const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 30 });
+  t.after(() => adapter.shutdown());
+  const playing = adapter.play(playRequest); await nextTurn();
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'synthetic-zone-pause-session' }); await playing;
+  let callback!: (error: string | false) => void;
+  t.mock.method(api.core.transport, 'control', (_zone: string | { zone_id: string }, _control: string, reply: (error: string | false) => void) => { callback = reply; });
+  const pausing = adapter.pause({ expectedZoneId: 'zone-1' }); const rejected = assert.rejects(pausing, { code: 'ROON_TIMEOUT' });
+  api.core.transport.emit('Changed', { zones_added: [{ zone_id: 'zone-2', state: 'paused', outputs: [{ output_id: 'output-2' }] }] });
+  adapter.selectZone('zone-2'); callback(false);
+  await rejected; assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+});
+
+test('MBP003A Stop Zone：错误expectedZone零关闭，正确Zone才能关闭原Session', async t => {
+  const { adapter, api } = await makeReadyHarness(); t.after(() => adapter.shutdown());
+  const playing = adapter.play(playRequest); await nextTurn();
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'synthetic-stop-zone-session' }); await playing;
+  await assert.rejects(adapter.stop({ expectedZoneId: 'zone-other' }), { code: 'ROON_ZONE_NOT_SELECTED' });
+  assert.equal(api.core.audioInput.endSessionCallbacks.length, 0);
+  assert.equal(adapter.getDiagnosticResourceCounters().activeSessionCount, 1);
+  await adapter.stop({ expectedZoneId: 'zone-1' });
+  assert.equal(api.core.audioInput.endSessionCallbacks.filter(Boolean).length, 1);
+  assert.equal(adapter.getDiagnosticResourceCounters().activeSessionCount, 0);
+});
+
+test('MBP003A Stop Zone：正确Zone在途仍等真实关闭，错误Zone不能共用该Stop请求', async t => {
+  const { adapter, api } = await makeReadyHarness();
+  t.after(async () => { api.core.audioInput.autoEndSession = true; api.core.audioInput.endSessionCallbacks[0]?.('SessionEnded', {}); await adapter.shutdown(); });
+  const playing = adapter.play(playRequest); await nextTurn();
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'synthetic-stop-pending-zone' }); await playing;
+  api.core.audioInput.autoEndSession = false;
+  let stopped = false;
+  const stopping = adapter.stop({ expectedZoneId: 'zone-1' }).then(() => { stopped = true; });
+  const wrong = adapter.stop({ expectedZoneId: 'zone-other' }).then(() => ({ ok: true }), error => ({ error }));
+  await nextTurn(); assert.equal(stopped, false);
+  api.core.audioInput.endSessionCallbacks[0]!('SessionEnded', {}); await stopping;
+  assert.equal('error' in await wrong, true, '错误Zone不能分享正确Zone的成功关闭结果');
+  assert.equal(adapter.getDiagnosticResourceCounters().activeSessionCount, 0);
+});
+
+test('MBP003A Stop Zone：新selectedZone不能误认旧Session owner，无options仍可收口旧会话', async t => {
+  const { adapter, api } = await makeReadyHarness(); t.after(() => adapter.shutdown());
+  const playing = adapter.play(playRequest); await nextTurn();
+  api.core.audioInput.emitSession('SessionBegan', { session_id: 'synthetic-old-stop-owner' }); await playing;
+  api.core.transport.emit('Changed', { zones_added: [{ zone_id: 'zone-2', outputs: [{ output_id: 'output-2' }] }] });
+  adapter.selectZone('zone-2');
+  await assert.rejects(adapter.stop({ expectedZoneId: 'zone-2' }), { code: 'ROON_ZONE_NOT_SELECTED' });
+  assert.equal(api.core.audioInput.endSessionCallbacks.length, 0);
+  await adapter.stop(); assert.equal(adapter.getDiagnosticResourceCounters().activeSessionCount, 0);
 });

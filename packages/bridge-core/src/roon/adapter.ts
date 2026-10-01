@@ -6,6 +6,7 @@ import { BridgeError } from '../shared/errors.js';
 import type { Logger } from '../shared/logger.js';
 import type {
   RoonPlayRequest,
+  RoonOperationOptions,
   RoonGatewayStage,
   RoonPort,
   RoonState,
@@ -50,6 +51,8 @@ type RoonPlaybackPhase = 'awaiting_session' | 'awaiting_playing';
 interface ActiveRoonPlaybackContext {
   generation: number;
   trackId: string;
+  zoneId: string;
+  dispatched?: boolean;
   session?: RoonAudioInputSession;
   cancel?: () => void;
   stopping?: boolean;
@@ -64,6 +67,13 @@ interface PlaybackConfirmationWaiter {
   resolve: (observation: RoonPlaybackObservation) => void;
   reject: (error: Error) => void;
   timeout: ReturnType<typeof setTimeout>;
+  removeAbort?: () => void;
+}
+
+function cancelledOperation(signal?: AbortSignal): BridgeError {
+  return new BridgeError('BAD_REQUEST', 'Roon操作已取消', {
+    httpStatus: 409, details: { reason: 'operation_cancelled' }, cause: signal?.reason,
+  });
 }
 
 export type SanitizedRoonErrorClass =
@@ -702,7 +712,9 @@ export class RoonAudioInputAdapter implements RoonPort {
       );
     }
 
+    const capturedZone = this.operationZone(request).zone_id;
     await this.stop();
+    this.operationZone(request, capturedZone);
     const selectedZone = this.selectedZone;
     if (
       !selectedZone ||
@@ -742,7 +754,7 @@ export class RoonAudioInputAdapter implements RoonPort {
       });
     }
     const generation = ++this.playbackGeneration;
-    const playbackContext: ActiveRoonPlaybackContext = { generation, trackId };
+    const playbackContext: ActiveRoonPlaybackContext = { generation, trackId, zoneId: capturedZone };
     this.activePlaybackContext = playbackContext;
 
     await new Promise<void>((resolve, reject) => {
@@ -761,10 +773,17 @@ export class RoonAudioInputAdapter implements RoonPort {
       const finish = (error?: Error): void => {
         if (settled) return;
         settled = true;
+        request.signal?.removeEventListener('abort', onAbort);
         releaseTimeout();
         if (error && !playbackContext.stopping) this.clearPlaybackContext(generation);
         if (error) reject(error);
         else resolve();
+      };
+
+      const onAbort = (): void => {
+        // 取消的是启动确认，已发送的Session仍由原所有者Stop并等待真实关闭。
+        if (playbackContext.dispatched) playbackContext.stopping = true;
+        finish(cancelledOperation(request.signal));
       };
 
       playbackContext.cancel = () => {
@@ -948,6 +967,7 @@ export class RoonAudioInputAdapter implements RoonPort {
           }
 
           try {
+            this.operationZone(request, capturedZone);
             audioInput.update_transport_controls(
               {
                 session_id: sessionId,
@@ -986,6 +1006,8 @@ export class RoonAudioInputAdapter implements RoonPort {
                 },
               },
             };
+            this.operationZone(request, capturedZone);
+            if (playbackContext.stopping) return;
             audioInput.play(playOptions, handlePlayEvent);
           } catch (error) {
             this.logger.warn('roon_connection_error', {
@@ -995,7 +1017,10 @@ export class RoonAudioInputAdapter implements RoonPort {
               staleCallback: false,
               trackIdPresent: true,
             });
-            finish(protocolError('awaiting_playing', 'play_request_failed'));
+            if (error instanceof BridgeError && (error.details?.reason === 'operation_cancelled' || error.code === 'ROON_ZONE_NOT_SELECTED')) {
+              playbackContext.stopping = true;
+              finish(error);
+            } else finish(protocolError('awaiting_playing', 'play_request_failed'));
           }
           return;
         }
@@ -1043,6 +1068,12 @@ export class RoonAudioInputAdapter implements RoonPort {
       });
 
       try {
+        request.signal?.addEventListener('abort', onAbort, { once: true });
+        this.operationZone(request, capturedZone);
+        request.onDispatch?.();
+        this.operationZone(request, capturedZone);
+        if (settled || playbackContext.stopping) throw cancelledOperation(request.signal);
+        playbackContext.dispatched = true;
         const session = audioInput.begin_session(
           {
             zone_id: selectedZoneSnapshot.zone_id,
@@ -1064,7 +1095,7 @@ export class RoonAudioInputAdapter implements RoonPort {
           staleCallback: false,
           trackIdPresent: this.isCurrentPlaybackGeneration(generation),
         });
-        finish(protocolError('awaiting_session', 'begin_session_failed'));
+        finish(error instanceof BridgeError ? error : protocolError('awaiting_session', 'begin_session_failed'));
       }
     });
   }
@@ -1081,7 +1112,7 @@ export class RoonAudioInputAdapter implements RoonPort {
     return this.getVolume();
   }
 
-  async seek(positionMs: number): Promise<void> {
+  async seek(positionMs: number, options: RoonOperationOptions = {}): Promise<void> {
     if (
       !Number.isSafeInteger(positionMs) ||
       positionMs < 0 ||
@@ -1089,7 +1120,7 @@ export class RoonAudioInputAdapter implements RoonPort {
     ) {
       throw new BridgeError('BAD_REQUEST', 'Roon seek position is invalid', { httpStatus: 400 });
     }
-    const zone = this.selectedZone;
+    const zone = this.operationZone(options);
     const transport = this.core?.services.RoonApiTransport;
     if (!zone || !transport) {
       throw new BridgeError('ROON_ZONE_NOT_SELECTED', 'Roon Zone is not selected', { httpStatus: 409 });
@@ -1116,13 +1147,15 @@ export class RoonAudioInputAdapter implements RoonPort {
       afterRevision: observation.revision,
       requirePosition: true,
       positionMs,
+      ...(options.signal ? { signal: options.signal } : {}),
     });
   }
 
   async control(
     control: 'play' | 'pause' | 'playpause' | 'stop' | 'previous' | 'next',
+    options: RoonOperationOptions = {},
   ): Promise<void> {
-    const zone = this.selectedZone;
+    const zone = this.operationZone(options);
     const transport = this.core?.services.RoonApiTransport;
     if (!zone || !transport) {
       throw new BridgeError('ROON_ZONE_NOT_SELECTED', 'Roon Zone is not selected', { httpStatus: 409 });
@@ -1154,17 +1187,29 @@ export class RoonAudioInputAdapter implements RoonPort {
         zoneId: beforeStop.zoneId,
         state: 'inactive',
         afterRevision: beforeStop.revision,
+        ...(options.signal ? { signal: options.signal } : {}),
       });
     }
   }
 
-  async stop(): Promise<void> {
+  async stop(options: RoonOperationOptions = {}): Promise<void> {
     const playbackContext = this.activePlaybackContext;
+    if (options.expectedZoneId !== undefined) {
+      this.operationZone(options);
+      if (playbackContext && playbackContext.zoneId !== options.expectedZoneId) {
+        throw new BridgeError('ROON_ZONE_NOT_SELECTED', '待停止会话不属于预期播放设备', { httpStatus: 409 });
+      }
+    }
     if (!playbackContext) return;
     if (playbackContext.stopPending) return playbackContext.stopPending;
     playbackContext.stopping = true;
     playbackContext.cancel?.();
     const session = playbackContext.session;
+    if (!session && !playbackContext.dispatched) {
+      // 首写hook内的同步Stop：尚无任何远端动作，不能制造永远等不到的Session关闭。
+      this.clearPlaybackContext(playbackContext.generation);
+      return;
+    }
     if (!session) throw new BridgeError('ROON_TIMEOUT', '停止尚未确认，请重试停止', { httpStatus: 504, details: { operation: 'stop' } });
 
     const work = new Promise<void>((resolve, reject) => {
@@ -1219,34 +1264,38 @@ export class RoonAudioInputAdapter implements RoonPort {
     finally { if (playbackContext.stopPending === work) delete playbackContext.stopPending; }
   }
 
-  async pause(): Promise<void> {
+  async pause(options: RoonOperationOptions = {}): Promise<void> {
+    this.operationZone(options);
     const observation = this.getSelectedZonePlaybackObservation();
     if (!observation) {
       throw new BridgeError('ROON_ZONE_NOT_SELECTED', 'Roon Zone is not selected', {
         httpStatus: 409,
       });
     }
-    await this.controlTransport('pause', 'is_pause_allowed');
+    await this.controlTransport('pause', 'is_pause_allowed', { ...options, expectedZoneId: observation.zoneId });
     await this.waitForSelectedZonePlayback({
       zoneId: observation.zoneId,
       state: 'paused',
       afterRevision: observation.revision,
+      ...(options.signal ? { signal: options.signal } : {}),
     });
   }
 
-  async resume(): Promise<void> {
+  async resume(options: RoonOperationOptions = {}): Promise<void> {
+    this.operationZone(options);
     const observation = this.getSelectedZonePlaybackObservation();
     if (!observation) {
       throw new BridgeError('ROON_ZONE_NOT_SELECTED', 'Roon Zone is not selected', {
         httpStatus: 409,
       });
     }
-    await this.controlTransport('play', 'is_play_allowed');
+    await this.controlTransport('play', 'is_play_allowed', { ...options, expectedZoneId: observation.zoneId });
     await this.waitForSelectedZonePlayback({
       zoneId: observation.zoneId,
       state: 'playing',
       afterRevision: observation.revision,
       requirePosition: true,
+      ...(options.signal ? { signal: options.signal } : {}),
     });
   }
 
@@ -1311,6 +1360,7 @@ export class RoonAudioInputAdapter implements RoonPort {
   waitForSelectedZonePlayback(
     request: RoonPlaybackConfirmationRequest,
   ): Promise<RoonPlaybackObservation> {
+    if (request.signal?.aborted) return Promise.reject(cancelledOperation(request.signal));
     if (
       request.zoneId.trim().length === 0
       || request.zoneId.length > 128
@@ -1337,6 +1387,7 @@ export class RoonAudioInputAdapter implements RoonPort {
       ): void => {
         if (!this.playbackConfirmationWaiters.delete(waiter)) return;
         clearTimeout(waiter.timeout);
+        waiter.removeAbort?.();
         this.activeTimerCount = Math.max(0, this.activeTimerCount - 1);
         if (error) reject(error);
         else if (observation) resolve(observation);
@@ -1363,6 +1414,10 @@ export class RoonAudioInputAdapter implements RoonPort {
         ));
       }, this.transportTimeoutMs);
       this.playbackConfirmationWaiters.add(waiter);
+      const onAbort = (): void => waiter.reject(cancelledOperation(request.signal));
+      waiter.removeAbort = () => request.signal?.removeEventListener('abort', onAbort);
+      request.signal?.addEventListener('abort', onAbort, { once: true });
+      if (request.signal?.aborted) { onAbort(); return; }
       this.flushPlaybackConfirmations();
     });
   }
@@ -1589,9 +1644,20 @@ export class RoonAudioInputAdapter implements RoonPort {
     this.stateHandler();
   }
 
+  private operationZone(options: RoonOperationOptions, capturedZoneId?: string): RoonZone {
+    if (options.signal?.aborted) throw cancelledOperation(options.signal);
+    const zone = this.selectedZone;
+    if (!zone || (options.expectedZoneId !== undefined && zone.zone_id !== options.expectedZoneId)
+      || (capturedZoneId !== undefined && zone.zone_id !== capturedZoneId)) {
+      throw new BridgeError('ROON_ZONE_NOT_SELECTED', '播放设备在操作期间已变化', { httpStatus: 409 });
+    }
+    return zone;
+  }
+
   private async controlTransport(
     control: RoonTransportControl,
     capability: 'is_pause_allowed' | 'is_play_allowed',
+    options: RoonOperationOptions = {},
   ): Promise<void> {
     if (!this.core || !this.selectedZone || !this.activePlaybackContext) {
       throw new BridgeError('BAD_REQUEST', `Roon transport ${control} is unavailable`, {
@@ -1605,10 +1671,11 @@ export class RoonAudioInputAdapter implements RoonPort {
         details: { reason: 'pause_unsupported', ownerDecision: 'OWNER_DECISION_REQUIRED' },
       });
     }
-    const zone = Object.freeze({ zone_id: this.selectedZone.zone_id });
+    const zone = Object.freeze({ zone_id: this.operationZone(options).zone_id });
+    const transport = this.core.services.RoonApiTransport;
     await this.runTransportRequest(
       control,
-      (callback) => this.core?.services.RoonApiTransport.control(zone, control, callback),
+      (callback) => transport.control(zone, control, callback),
       (cause) => new BridgeError('ROON_MEDIA_ERROR', `Roon transport ${control} failed`, {
         httpStatus: 502,
         ...(cause !== undefined ? { cause } : {}),

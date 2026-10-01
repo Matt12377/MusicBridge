@@ -34,6 +34,7 @@ import type {
   TransportSecurity,
 } from '../netease/types.js';
 import type {
+  RoonOperationOptions,
   RoonGatewayStage,
   RoonNativePlaybackState,
   RoonNowPlayingIdentity,
@@ -100,11 +101,23 @@ export interface PlaybackStartupTrace {
 }
 interface NativeRoonPlaybackPort {
   resolveArtwork?(imageKey: string): string | undefined;
-  play(reference: string, zoneId: string, track: TrackSummary): Promise<RoonPlaybackObservation>;
-  stop(): Promise<void>;
-  pause(): Promise<void>;
-  resume(): Promise<void>;
-  seek?(positionMs: number): Promise<void>;
+  play(reference: string, zoneId: string, track: TrackSummary, options?: RoonOperationOptions & {
+    onDispatch?: () => void;
+    onDispatchCompletion?: (completion: Promise<void>) => void;
+  }): Promise<RoonPlaybackObservation>;
+  stop(options?: RoonOperationOptions): Promise<void>;
+  pause(options?: RoonOperationOptions): Promise<void>;
+  resume(options?: RoonOperationOptions): Promise<void>;
+  seek?(positionMs: number, options?: RoonOperationOptions): Promise<void>;
+}
+interface PlaybackOwner {
+  item: QueueItem;
+  zoneId: string;
+  source: PlaybackResolvedSource;
+  abort: AbortController;
+  preparing: boolean;
+  dispatched: boolean;
+  token?: string;
 }
 export type PlaybackChangedListener = (snapshot: PlaybackSnapshot) => void;
 
@@ -341,6 +354,16 @@ export class BridgeController {
   private nativeRoonStopRequested = false;
   private lastNativeRoonPlaybackState: RoonNativePlaybackState | undefined;
   private operationTail: Promise<void> = Promise.resolve();
+  private playbackCommandTail: Promise<void> = Promise.resolve();
+  private deviceTail: Promise<void> = Promise.resolve();
+  private controlTail: Promise<void> = Promise.resolve();
+  private pendingPlaybackCommands = 0;
+  private commandEpoch = 0;
+  private runningCommandEpoch = 0;
+  private owner: PlaybackOwner | undefined;
+  private stopFlight: Promise<void> | undefined;
+  private stopUnknown = false;
+  private readonly externalTasks = new Set<Promise<unknown>>();
   private queueHydrationGeneration = 0;
   private nextPreparation: {
     item: QueueItem;
@@ -381,6 +404,7 @@ export class BridgeController {
         this.pendingTerminalReason = reason;
       }
       void this.enqueue(async () => {
+        if (this.stopFlight) await this.stopFlight.catch(() => undefined);
         if (generation !== this.playbackGeneration || token !== this.activeToken) return;
 
         this.clearActiveResources();
@@ -411,7 +435,7 @@ export class BridgeController {
         }
 
         this.dependencies.logger.info('roon_session_terminal', { reason });
-        await this.startQueueIndex(nextIndex, true);
+        await this.startAutomaticQueueIndex(nextIndex);
       }).catch((error: unknown) => {
         const bridgeError = asBridgeError(error);
         this.dependencies.logger.warn('queue_advance_failed', {
@@ -508,6 +532,7 @@ export class BridgeController {
       canNext: hasNext || this.canNavigateNativeRoon('next'),
       canPrevious: hasPrevious || this.canNavigateNativeRoon('previous'),
       canStop:
+        this.hasPlaybackOwnership() ||
         this.activeToken !== undefined ||
         this.activePlayback !== undefined ||
         this.activeRoonPlayback !== undefined,
@@ -542,8 +567,9 @@ export class BridgeController {
     startupTrace?: PlaybackStartupTrace;
   }): Promise<BridgeState> {
     const item = normalizeQueueItem(input);
-    return this.enqueue(async () => {
+    return this.enqueuePlayback(async () => {
       await this.stopActive();
+      this.guardCommand();
       this.queue = [item];
       this.queueIndex = 0;
       this.queueProjectionDirty = true;
@@ -564,9 +590,10 @@ export class BridgeController {
     }
     // 在停止现有播放前验证整个上下文，避免无效请求破坏当前队列。
     const items = inputs.map(normalizeNativeRoonQueueItem);
-    return this.enqueue(async () => {
+    return this.enqueuePlayback(async () => {
       ++this.queueHydrationGeneration;
       await this.stopActive();
+      this.guardCommand();
       this.queue = items;
       this.queueIndex = startIndex;
       this.queueProjectionDirty = true;
@@ -598,7 +625,7 @@ export class BridgeController {
     }
     const normalizedItems = items.map((item) => normalizeQueueItem(item));
 
-    return this.enqueue(async () => {
+    return this.enqueuePlayback(async () => {
       const hydrationGeneration = ++this.queueHydrationGeneration;
       const activePlayback = this.activePlayback;
       const preserveActivePlayback = activePlayback !== undefined &&
@@ -613,6 +640,7 @@ export class BridgeController {
           activeItem.requestedQuality = activePlayback.requestedQuality;
           activeItem.actualQuality = activePlayback.actualQuality;
         }
+        if (this.owner && activeItem) this.owner.item = activeItem;
         this.queue = normalizedItems;
         this.queueIndex = startIndex;
         this.queueProjectionDirty = true;
@@ -623,6 +651,7 @@ export class BridgeController {
       }
 
       await this.stopActive();
+      this.guardCommand();
       this.queue = normalizedItems;
       this.queueIndex = startIndex;
       this.queueProjectionDirty = true;
@@ -657,13 +686,13 @@ export class BridgeController {
 
       const hydrationGeneration = ++this.queueHydrationGeneration;
       const shouldHydrateInline = acceptedItems.length <= QUEUE_HYDRATION_BATCH_SIZE;
-      if (shouldHydrateInline) await this.hydrateQueueItems(acceptedItems);
       this.queue.push(...acceptedItems);
       this.queueProjectionDirty = true;
       this.notifyPlaybackChanged();
-      if (!shouldHydrateInline) {
-        this.scheduleQueueHydration(acceptedItems, hydrationGeneration);
-      }
+      if (shouldHydrateInline) {
+        await this.hydrateQueueItems(acceptedItems);
+        if (hydrationGeneration === this.queueHydrationGeneration) this.notifyPlaybackChanged();
+      } else this.scheduleQueueHydration(acceptedItems, hydrationGeneration);
       return this.getState();
     });
   }
@@ -699,7 +728,6 @@ export class BridgeController {
 
       const hydrationGeneration = ++this.queueHydrationGeneration;
       const shouldHydrateInline = acceptedItems.length <= QUEUE_HYDRATION_BATCH_SIZE;
-      if (shouldHydrateInline) await this.hydrateQueueItems(acceptedItems);
       const insertionIndex = this.nextInsertionQueueIndex === this.queueIndex && this.nextInsertionCursor !== undefined
         ? this.nextInsertionCursor
         : this.queueIndex >= 0 ? this.queueIndex + 1 : 0;
@@ -708,9 +736,10 @@ export class BridgeController {
       this.nextInsertionQueueIndex = this.queueIndex;
       this.nextInsertionCursor = insertionIndex + acceptedItems.length;
       this.notifyPlaybackChanged();
-      if (!shouldHydrateInline) {
-        this.scheduleQueueHydration(acceptedItems, hydrationGeneration);
-      }
+      if (shouldHydrateInline) {
+        await this.hydrateQueueItems(acceptedItems);
+        if (hydrationGeneration === this.queueHydrationGeneration) this.notifyPlaybackChanged();
+      } else this.scheduleQueueHydration(acceptedItems, hydrationGeneration);
       return this.getState();
     });
   }
@@ -728,7 +757,7 @@ export class BridgeController {
   }
 
   async next(): Promise<BridgeState> {
-    return this.enqueue(async () => {
+    return this.enqueuePlayback(async () => {
       this.syncNativeRoonTrack();
       if (this.activeRoonPlayback && (this.queueIndex < 0 || this.queueIndex >= this.queue.length - 1)) {
         return this.navigateNativeRoon('next');
@@ -747,7 +776,7 @@ export class BridgeController {
   }
 
   async previous(): Promise<BridgeState> {
-    return this.enqueue(async () => {
+    return this.enqueuePlayback(async () => {
       this.syncNativeRoonTrack();
       if (this.activeRoonPlayback && this.queueIndex <= 0) return this.navigateNativeRoon('previous');
       if (this.queueIndex <= 0) return this.getState();
@@ -772,7 +801,10 @@ export class BridgeController {
   private async navigateNativeRoon(direction: 'next' | 'previous'): Promise<BridgeState> {
     if (!this.canNavigateNativeRoon(direction)) return this.getState();
     // 不先 stop，也不伪造队列索引；实际曲目与封面由后续 Transport 观测确认。
-    await this.dependencies.roon.control!(direction);
+    const owner = this.owner;
+    const generation = this.playbackGeneration;
+    await this.device(() => { this.guardControl(owner, generation); return this.dependencies.roon.control!(direction, this.ownerOptions(owner)); });
+    this.guardControl(owner, generation);
     this.syncRoonTransportState();
     return this.getState();
   }
@@ -797,7 +829,7 @@ export class BridgeController {
         httpStatus: 400,
       });
     }
-    return this.enqueue(async () => {
+    return this.enqueuePlayback(async () => {
       if (index >= this.queue.length) {
         throw new BridgeError('BAD_REQUEST', 'Playback queue index is invalid', {
           httpStatus: 400,
@@ -816,15 +848,20 @@ export class BridgeController {
   }
 
   async stop(): Promise<BridgeState> {
+    ++this.commandEpoch;
+    this.owner?.abort.abort();
     return this.enqueue(async () => {
       this.nextPreparation = undefined;
-      await this.stopActive();
+      await this.stopActive(true);
       return this.getState();
     });
   }
 
   async pause(): Promise<BridgeState> {
-    return this.enqueue(async () => {
+    return this.enqueueControl(async () => {
+      const owner = this.owner;
+      const generation = this.playbackGeneration;
+      const options = this.ownerOptions(owner);
       const snapshot = this.getPlaybackState();
       if (
         (!this.activePlayback && !this.activeRoonPlayback) ||
@@ -839,8 +876,9 @@ export class BridgeController {
       this.playbackState = 'pausing';
       this.notifyPlaybackChanged();
       try {
-        if (this.activeRoonPlayback) await this.dependencies.roonLibrary?.pause();
-        else await this.dependencies.roon.pause();
+        if (this.activeRoonPlayback) await this.device(() => { this.guardControl(owner, generation); return this.dependencies.roonLibrary?.pause(options) ?? Promise.resolve(); });
+        else await this.device(() => { this.guardControl(owner, generation); return this.dependencies.roon.pause(options); });
+        this.guardControl(owner, generation);
         const changed = this.getPlaybackState().state !== 'paused'
           || this.lastPlaybackError !== undefined
           || this.lastPlaybackIssue !== undefined;
@@ -850,6 +888,7 @@ export class BridgeController {
         if (changed) this.notifyPlaybackChanged();
         return this.getState();
       } catch (error) {
+        this.guardControl(owner, generation);
         this.playbackState = this.observedTransportPlaybackState('playing');
         this.setPlaybackError(error);
         this.notifyPlaybackChanged();
@@ -859,19 +898,25 @@ export class BridgeController {
   }
 
   async stopRoonTransport(): Promise<BridgeState> {
+    const zoneId = this.dependencies.roon.getState().selectedZoneId;
+    ++this.commandEpoch;
+    this.owner?.abort.abort();
     return this.enqueue(async () => {
       this.nextPreparation = undefined;
-      if (this.activeToken !== undefined || this.activePlayback !== undefined || this.activeRoonPlayback !== undefined) {
-        await this.stopActive();
+      if (this.hasPlaybackOwnership()) {
+        await this.stopActive(true);
       } else {
-        await this.dependencies.roonLibrary?.stop();
+        await this.device(() => this.dependencies.roonLibrary?.stop(zoneId ? { expectedZoneId: zoneId } : {}) ?? Promise.resolve());
       }
       return this.getState();
     });
   }
 
   async resume(): Promise<BridgeState> {
-    return this.enqueue(async () => {
+    return this.enqueueControl(async () => {
+      const owner = this.owner;
+      const generation = this.playbackGeneration;
+      const options = this.ownerOptions(owner);
       const snapshot = this.getPlaybackState();
       if (
         (!this.activePlayback && !this.activeRoonPlayback) ||
@@ -886,8 +931,9 @@ export class BridgeController {
       this.playbackState = 'resuming';
       this.notifyPlaybackChanged();
       try {
-        if (this.activeRoonPlayback) await this.dependencies.roonLibrary?.resume();
-        else await this.dependencies.roon.resume();
+        if (this.activeRoonPlayback) await this.device(() => { this.guardControl(owner, generation); return this.dependencies.roonLibrary?.resume(options) ?? Promise.resolve(); });
+        else await this.device(() => { this.guardControl(owner, generation); return this.dependencies.roon.resume(options); });
+        this.guardControl(owner, generation);
         const changed = this.getPlaybackState().state !== 'playing'
           || this.lastPlaybackError !== undefined
           || this.lastPlaybackIssue !== undefined;
@@ -897,11 +943,30 @@ export class BridgeController {
         if (changed) this.notifyPlaybackChanged();
         return this.getState();
       } catch (error) {
+        this.guardControl(owner, generation);
         this.playbackState = this.observedTransportPlaybackState('paused');
         this.setPlaybackError(error);
         this.notifyPlaybackChanged();
         throw error;
       }
+    });
+  }
+
+  async seekRoonTransport(positionMs: number): Promise<BridgeState> {
+    if (!Number.isSafeInteger(positionMs) || positionMs < 0 || positionMs > 24 * 60 * 60 * 1_000) {
+      throw new BridgeError('BAD_REQUEST', 'Roon seek position is invalid', { httpStatus: 400 });
+    }
+    const zoneId = this.dependencies.roon.getState().selectedZoneId;
+    const epoch = this.commandEpoch;
+    return this.enqueueControl(async () => {
+      if (this.stopUnknown) throw new BridgeError('ROON_TRANSPORT_UNAVAILABLE', '停止尚未确认，请重试停止', { httpStatus: 409 });
+      if (!this.dependencies.roon.seek) throw new BridgeError('ROON_TRANSPORT_UNAVAILABLE', 'Roon seek is unavailable', { httpStatus: 409 });
+      await this.device(() => {
+        if (epoch !== this.commandEpoch) throw this.cancelled();
+        if (this.stopUnknown) throw new BridgeError('ROON_TRANSPORT_UNAVAILABLE', '停止尚未确认，请重试停止', { httpStatus: 409 });
+        return this.dependencies.roon.seek!(positionMs, zoneId ? { expectedZoneId: zoneId } : {});
+      });
+      return this.getState();
     });
   }
 
@@ -913,14 +978,19 @@ export class BridgeController {
     ) {
       throw new BridgeError('BAD_REQUEST', 'Roon seek position is invalid', { httpStatus: 400 });
     }
-    return this.enqueue(async () => {
+    return this.enqueueControl(async () => {
+      const owner = this.owner;
+      const generation = this.playbackGeneration;
+      const options = this.ownerOptions(owner);
       const roonLibrary = this.dependencies.roonLibrary;
       if (this.activeRoonPlayback && roonLibrary?.seek) {
-        await roonLibrary.seek(positionMs);
+        await this.device(() => { this.guardControl(owner, generation); return roonLibrary.seek!(positionMs, options); });
+        this.guardControl(owner, generation);
         return this.getState();
       }
       if (this.activePlayback && this.dependencies.roon.seek) {
-        await this.dependencies.roon.seek(positionMs);
+        await this.device(() => { this.guardControl(owner, generation); return this.dependencies.roon.seek!(positionMs, options); });
+        this.guardControl(owner, generation);
         return this.getState();
       }
       throw new BridgeError(
@@ -1016,10 +1086,12 @@ export class BridgeController {
   }
 
   async clearQueue(): Promise<BridgeState> {
+    ++this.commandEpoch;
+    this.owner?.abort.abort();
     return this.enqueue(async () => {
       this.nextPreparation = undefined;
       this.queueHydrationGeneration += 1;
-      await this.stopActive();
+      await this.stopActive(true);
       this.queue = [];
       this.queueIndex = -1;
       this.queueProjectionDirty = true;
@@ -1031,10 +1103,12 @@ export class BridgeController {
   }
 
   async shutdown(): Promise<void> {
+    ++this.commandEpoch;
+    this.owner?.abort.abort();
     await this.enqueue(async () => {
       this.nextPreparation = undefined;
       this.queueHydrationGeneration += 1;
-      await this.stopActive();
+      await this.stopActive(true);
       this.queue = [];
       this.queueIndex = -1;
       this.queueProjectionDirty = true;
@@ -1153,7 +1227,7 @@ export class BridgeController {
         this.notifyPlaybackChanged();
         return;
       }
-      await this.startQueueIndex(nextIndex, true);
+      await this.startAutomaticQueueIndex(nextIndex);
     }).catch((error: unknown) => {
       const bridgeError = asBridgeError(error);
       this.dependencies.logger.warn('queue_advance_failed', { code: bridgeError.code });
@@ -1200,11 +1274,21 @@ export class BridgeController {
     };
   }
 
+  private startAutomaticQueueIndex(index: number): Promise<void> {
+    const generation = this.playbackGeneration;
+    const item = this.queue[index];
+    return this.enqueuePlayback(async () => {
+      if (generation !== this.playbackGeneration || item !== this.queue[index]) return;
+      await this.startQueueIndex(index, true);
+    });
+  }
+
   private async startQueueIndex(
     index: number,
     skipUnavailable: boolean,
     startupTrace?: PlaybackStartupTrace,
   ): Promise<void> {
+    this.guardCommand();
     this.nextInsertionQueueIndex = undefined;
     this.nextInsertionCursor = undefined;
     let candidate = index;
@@ -1221,8 +1305,16 @@ export class BridgeController {
       if (!item) {
         break;
       }
+      const owner: PlaybackOwner = {
+        item, zoneId: item.roonZoneId ?? this.dependencies.roon.getState().selectedZoneId ?? '',
+        source: item.roonReference || item.preferredSource === 'roon' ? 'roon' : 'netease',
+        abort: new AbortController(), preparing: true, dispatched: false,
+      };
+      this.owner = owner;
       try {
-        await this.startItem(item, startupTrace);
+        await this.startItem(item, owner, startupTrace);
+        this.guardOwner(owner);
+        owner.preparing = false;
         if (skippedError) {
           this.lastPlaybackError = skippedError.code;
           this.lastPlaybackIssue = this.issueForError(skippedError);
@@ -1230,6 +1322,8 @@ export class BridgeController {
         this.notifyPlaybackChanged();
         return;
       } catch (error) {
+        if (this.owner !== owner || owner.abort.signal.aborted) throw this.cancelled();
+        if (!owner.dispatched && !this.stopUnknown) this.owner = undefined;
         const bridgeError = asBridgeError(error);
         if (!skipUnavailable || !isSkippableQueueError(error)) {
           this.playbackState = 'error';
@@ -1254,10 +1348,11 @@ export class BridgeController {
 
   private async startItem(
     item: QueueItem,
+    owner: PlaybackOwner,
     startupTrace?: PlaybackStartupTrace,
   ): Promise<void> {
     if (item.preferredSource === 'roon' || item.roonReference) {
-      await this.startRoonItem(item);
+      await this.startRoonItem(item, owner);
       return;
     }
 
@@ -1276,7 +1371,7 @@ export class BridgeController {
     const requestedQuality = resolveQualityPreference(item.qualityPreference);
     const preparation = this.nextPreparation;
     const candidate = preparation?.item === item && preparation.quality === requestedQuality
-      ? await preparation.result : undefined;
+      ? await this.waitOwned(owner, preparation.result) : undefined;
     if (this.nextPreparation === preparation) this.nextPreparation = undefined;
     const prepared = candidate && candidate.expiresAtMs > this.now() ? candidate : undefined;
     let metadata: TrackMetadata;
@@ -1289,13 +1384,13 @@ export class BridgeController {
     } else if (item.preferredSource === 'smart') {
       metadata = item.track
         ? { ...item.track, artists: [...item.track.artists] }
-        : await this.dependencies.netease.getTrack(item.trackId);
+        : await this.waitOwned(owner, this.dependencies.netease.getTrack(item.trackId));
       this.reportStartupStage(startupTrace, 'metadata-ready');
     } else {
       const metadataRequest: Promise<TrackMetadata> = item.track
         ? Promise.resolve({ ...item.track, artists: [...item.track.artists] })
         : this.dependencies.netease.getTrack(item.trackId);
-      [metadata, initialStream] = await Promise.all([
+      [metadata, initialStream] = await this.waitOwned(owner, Promise.all([
         metadataRequest.then((value) => {
           this.reportStartupStage(startupTrace, 'metadata-ready');
           return value;
@@ -1304,25 +1399,38 @@ export class BridgeController {
           this.reportStartupStage(startupTrace, 'stream-url-ready');
           return value;
         }),
-      ]);
+      ]));
     }
+    this.guardOwner(owner);
     item.track = toTrackSummary(metadata);
     this.queueProjectionDirty = true;
     if (item.preferredSource === 'smart' && this.dependencies.resolveSmartSource) {
-      const resolution = await this.dependencies.resolveSmartSource(item.track);
+      const resolution = await this.waitOwned(owner, this.dependencies.resolveSmartSource(item.track));
+      this.guardOwner(owner);
       if (resolution) {
+        if (resolution.zoneId !== owner.zoneId) throw this.cancelled();
+        owner.source = 'roon';
         item.roonReference = resolution.reference;
         item.roonZoneId = resolution.zoneId;
         try {
-          await this.startRoonItem(item);
+          await this.startRoonItem(item, owner);
           return;
         } catch (error) {
+          this.guardOwner(owner);
           this.dependencies.logger.warn('smart_roon_fallback', {
             code: asBridgeError(error).code,
           });
           // A failed native start can be ambiguous at the transport boundary.
           // Stop it before starting the V1 Provider path to prevent overlap.
-          await this.dependencies.roonLibrary?.stop();
+          try {
+            await this.device(() => this.dependencies.roonLibrary?.stop({ expectedZoneId: owner.zoneId }) ?? Promise.resolve());
+          } catch (stopError) {
+            this.stopUnknown = true;
+            throw stopError;
+          }
+          this.guardOwner(owner);
+          owner.dispatched = false;
+          owner.source = 'netease';
           delete item.roonReference;
           delete item.roonZoneId;
           delete item.resolvedSource;
@@ -1333,13 +1441,13 @@ export class BridgeController {
     item.resolvedSource = 'netease';
     this.queueProjectionDirty = true;
     if (!initialStream) {
-      initialStream = await this.dependencies.netease.resolveStream(
-        item.trackId,
-        requestedQuality,
-      );
+      initialStream = await this.waitOwned(owner, this.dependencies.netease.resolveStream(
+        item.trackId, requestedQuality,
+      ));
       this.reportStartupStage(startupTrace, 'stream-url-ready');
     }
-    if (!prepared) await this.dependencies.gateway.preflight(initialStream);
+    if (!prepared) await this.waitOwned(owner, this.dependencies.gateway.preflight(initialStream));
+    this.guardOwner(owner);
     this.reportStartupStage(startupTrace, 'gateway-preflight-ready');
 
     const resolver = this.createRefreshingResolver(
@@ -1355,6 +1463,7 @@ export class BridgeController {
       ttlMs: Math.max((metadata.durationMs ?? 0) + 60 * 60 * 1000, 2 * 60 * 60 * 1000),
     });
 
+    owner.token = registration.token;
     this.activeToken = registration.token;
     this.pendingTerminalReason = undefined;
     this.playbackState = 'preparing';
@@ -1379,7 +1488,11 @@ export class BridgeController {
     };
 
     try {
-      await this.dependencies.roon.play({
+      await this.device(() => {
+        this.guardOwner(owner);
+        return this.dependencies.roon.play({
+        ...this.ownerOptions(owner),
+        onDispatch: () => { owner.dispatched = true; },
         mediaUrl: this.dependencies.gateway.streamUrl(
           registration.token,
           initialStream.format,
@@ -1396,6 +1509,8 @@ export class BridgeController {
             }
           : {}),
       });
+      });
+      this.guardOwner(owner);
       if (this.pendingTerminalReason) {
         const reason = this.pendingTerminalReason;
         this.pendingTerminalReason = undefined;
@@ -1458,13 +1573,20 @@ export class BridgeController {
       });
       this.notifyPlaybackChanged();
     } catch (error) {
-      this.pendingTerminalReason = undefined;
-      this.clearActiveResources();
+      if (this.owner === owner && !owner.abort.signal.aborted) {
+        this.pendingTerminalReason = undefined;
+        if (!owner.dispatched && owner.token !== undefined) {
+          this.dependencies.gateway.clearStageObserver(owner.token);
+          this.dependencies.registry.revoke(owner.token);
+          if (this.activeToken === owner.token) this.activeToken = undefined;
+          delete owner.token;
+        }
+      }
       throw error;
     }
   }
 
-  private async startRoonItem(item: QueueItem): Promise<void> {
+  private async startRoonItem(item: QueueItem, owner: PlaybackOwner): Promise<void> {
     const reference = item.roonReference;
     const zoneId = item.roonZoneId;
     const roonLibrary = this.dependencies.roonLibrary;
@@ -1479,7 +1601,13 @@ export class BridgeController {
     this.notifyPlaybackChanged();
     const track = cloneTrackSummary(item.track);
     try {
-      const observation = await roonLibrary.play(reference, zoneId, track);
+      const observation = await this.devicePlay((onDispatchCompletion) => {
+        this.guardOwner(owner);
+        return roonLibrary.play(reference, zoneId, track, {
+          ...this.ownerOptions(owner), onDispatch: () => { owner.dispatched = true; }, onDispatchCompletion,
+        });
+      });
+      this.guardOwner(owner);
       const confirmedTrack = track.durationMs === undefined
         && observation.nowPlaying?.durationMs !== undefined
         ? { ...track, durationMs: observation.nowPlaying.durationMs }
@@ -1516,6 +1644,7 @@ export class BridgeController {
       });
       this.notifyPlaybackChanged();
     } catch (error) {
+      if (this.owner !== owner || owner.abort.signal.aborted) throw this.cancelled();
       this.activeRoonPlayback = undefined;
       delete item.resolvedSource;
       this.queueProjectionDirty = true;
@@ -1523,53 +1652,55 @@ export class BridgeController {
     }
   }
 
-  private async stopActive(): Promise<void> {
-    const hasActivePlayback =
-      this.activeToken !== undefined ||
-      this.activePlayback !== undefined ||
-      this.activeRoonPlayback !== undefined;
-    if (!hasActivePlayback) {
-      if (this.playbackState !== 'idle') {
-        this.playbackState = 'idle';
-        this.notifyPlaybackChanged();
-      }
-      return;
+  private stopActive(retryUnknown = false): Promise<void> {
+    if (this.stopFlight) return this.stopFlight;
+    if (this.stopUnknown && !retryUnknown) return Promise.reject(new BridgeError(
+      'ROON_TRANSPORT_UNAVAILABLE', '停止尚未确认，请重试停止', { httpStatus: 409 },
+    ));
+    const owner = this.owner;
+    owner?.abort.abort();
+    const hasActive = this.activeToken !== undefined || this.activePlayback !== undefined || this.activeRoonPlayback !== undefined;
+    if (!hasActive && !owner) {
+      if (this.playbackState !== 'idle') { this.playbackState = 'idle'; this.notifyPlaybackChanged(); }
+      return Promise.resolve();
     }
-
+    const confirmedActive = this.activePlayback !== undefined || this.activeRoonPlayback !== undefined;
+    const needsStop = owner ? owner.dispatched || confirmedActive || this.stopUnknown : hasActive;
+    const native = owner?.source === 'roon' || this.activeRoonPlayback !== undefined;
+    const zoneId = owner?.zoneId ?? this.activeRoonPlayback?.zoneId ?? this.dependencies.roon.getState().selectedZoneId;
     this.playbackState = 'stopping';
-    this.playbackGeneration += 1;
+    ++this.playbackGeneration;
     this.lastPositionPublishedAt = this.now();
+    if (native && needsStop) this.nativeRoonStopRequested = true;
     this.notifyPlaybackChanged();
-    try {
-      if (this.activeRoonPlayback) {
-        this.nativeRoonStopRequested = true;
-        const roonLibrary = this.dependencies.roonLibrary;
-        if (!roonLibrary) {
-          throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', '本地 Roon 停止不可用', { httpStatus: 503 });
-        }
-        await roonLibrary.stop();
-      } else {
-        await this.dependencies.roon.stop();
+    const closing = (async () => {
+      try {
+        if (needsStop) await this.device(() => {
+          if (native) {
+            if (!this.dependencies.roonLibrary) throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', '本地 Roon 停止不可用', { httpStatus: 503 });
+            return this.dependencies.roonLibrary.stop({ ...(zoneId ? { expectedZoneId: zoneId } : {}) });
+          }
+          return this.dependencies.roon.stop({ ...(zoneId ? { expectedZoneId: zoneId } : {}) });
+        });
+      } catch (error) {
+        this.stopUnknown = true;
+        this.nextPreparation = undefined;
+        this.playbackState = 'error';
+        this.lastPlaybackError = asBridgeError(error).code;
+        this.lastPlaybackIssue = { ...this.issueForError(error), message: '停止尚未确认，请重试停止', retryable: true, action: 'retry' };
+        this.qualityNotice = undefined;
+        this.notifyPlaybackChanged();
+        throw error;
       }
-    } catch (error) {
-      // 停止结果未知时保留活动身份和原生停止意图，避免失去重试或误判自然续播。
-      this.nextPreparation = undefined;
-      this.playbackState = 'error';
-      this.lastPlaybackError = asBridgeError(error).code;
-      this.lastPlaybackIssue = {
-        ...this.issueForError(error),
-        message: '停止尚未确认，请重试停止',
-        retryable: true,
-        action: 'retry',
-      };
-      this.qualityNotice = undefined;
+      this.stopUnknown = false;
+      this.clearActiveResources();
+      this.playbackState = 'idle';
+      this.clearPlaybackIssue();
       this.notifyPlaybackChanged();
-      throw error;
-    }
-    this.clearActiveResources();
-    this.playbackState = 'idle';
-    this.clearPlaybackIssue();
-    this.notifyPlaybackChanged();
+    })();
+    this.stopFlight = closing;
+    void closing.then(() => { if (this.stopFlight === closing) this.stopFlight = undefined; }, () => { if (this.stopFlight === closing) this.stopFlight = undefined; });
+    return closing;
   }
 
   private async hydrateQueueItems(items: readonly QueueItem[]): Promise<void> {
@@ -1578,7 +1709,9 @@ export class BridgeController {
       await Promise.all(batch.map(async (item) => {
         if (item.track) return;
         try {
-          item.track = toTrackSummary(await this.dependencies.netease.getTrack(item.trackId));
+          const track = toTrackSummary(await this.dependencies.netease.getTrack(item.trackId));
+          if (!this.queue.includes(item)) return;
+          item.track = track;
           // 分批 hydration 的 await 间隙可能穿插进度回报。
           this.queueProjectionDirty = true;
         } catch {
@@ -1598,6 +1731,9 @@ export class BridgeController {
   }
 
   private clearActiveResources(): void {
+    this.owner?.abort.abort();
+    this.owner = undefined;
+    this.stopUnknown = false;
     if (this.activeToken) {
       this.dependencies.gateway.clearStageObserver(this.activeToken);
       this.dependencies.registry.revoke(this.activeToken);
@@ -1637,23 +1773,114 @@ export class BridgeController {
     }
   }
 
+  hasPlaybackOwnership(): boolean {
+    return Boolean(this.pendingPlaybackCommands || this.owner || this.stopFlight || this.stopUnknown || this.activeToken || this.activePlayback || this.activeRoonPlayback);
+  }
+
+  private guardCommand(): void {
+    if (this.runningCommandEpoch !== this.commandEpoch) throw this.cancelled();
+  }
+
+  private cancelled(): BridgeError {
+    return new BridgeError('BAD_REQUEST', '播放操作已取消', { httpStatus: 409, details: { reason: 'operation_cancelled' } });
+  }
+
+  private guardOwner(owner: PlaybackOwner): void {
+    if (this.owner !== owner || owner.abort.signal.aborted || this.queue[this.queueIndex] !== owner.item
+      || (this.dependencies.roon.getState().selectedZoneId ?? '') !== owner.zoneId
+      || (owner.token !== undefined && this.activeToken !== owner.token)) throw this.cancelled();
+  }
+
+  private guardControl(owner: PlaybackOwner | undefined, generation: number): void {
+    if (this.owner !== owner || this.playbackGeneration !== generation || owner?.abort.signal.aborted) throw this.cancelled();
+  }
+
+  private ownerOptions(owner: PlaybackOwner | undefined): RoonOperationOptions {
+    return { ...(owner ? { signal: owner.abort.signal, expectedZoneId: owner.zoneId } : {}) };
+  }
+
+  private waitOwned<T>(owner: PlaybackOwner, work: Promise<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const cancel = () => {
+        owner.abort.signal.removeEventListener('abort', cancel);
+        reject(this.cancelled());
+      };
+      owner.abort.signal.addEventListener('abort', cancel, { once: true });
+      work.then(value => {
+        try { this.guardOwner(owner); resolve(value); } catch (error) { reject(error); }
+      }, reject).finally(() => owner.abort.signal.removeEventListener('abort', cancel));
+      if (owner.abort.signal.aborted) cancel();
+    });
+  }
+
+  private device<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.deviceTail.then(operation);
+    this.deviceTail = result.then(() => undefined, () => undefined);
+    return result;
+  }
+
+  private devicePlay<T>(operation: (onCompletion: (completion: Promise<void>) => void) => Promise<T>): Promise<T> {
+    let completionRegistered = false;
+    let release!: () => void;
+    const barrier = new Promise<void>(resolve => { release = resolve; });
+    const result = this.deviceTail.then(() => operation(value => {
+      completionRegistered = true;
+      // 写入真实结算即释放控制链，不等待独立的 Transport 确认。
+      void value.then(release, release);
+    }));
+    void result.then(() => { if (!completionRegistered) release(); }, () => { if (!completionRegistered) release(); });
+    this.deviceTail = barrier;
+    return result;
+  }
+
+  private enqueuePlayback<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.owner?.preparing) this.owner.abort.abort();
+    const epoch = this.commandEpoch;
+    ++this.pendingPlaybackCommands;
+    const result = this.enqueue(() => {
+      const result = this.playbackCommandTail.then(() => {
+        if (epoch !== this.commandEpoch) throw this.cancelled();
+        this.runningCommandEpoch = epoch;
+        return operation();
+      });
+      this.playbackCommandTail = result.then(() => undefined, () => undefined);
+      return result;
+    });
+    return result.finally(() => { --this.pendingPlaybackCommands; });
+  }
+
+  private enqueueControl<T>(operation: () => Promise<T>): Promise<T> {
+    const epoch = this.commandEpoch;
+    return this.enqueue(() => {
+      const result = this.controlTail.then(() => {
+        if (epoch !== this.commandEpoch) throw this.cancelled();
+        return operation();
+      });
+      this.controlTail = result.then(() => undefined, () => undefined);
+      return result;
+    });
+  }
+
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
     const trace = currentPerformanceContext();
     const span = trace?.recorder.start('queue', trace.context);
     const enteredAt = trace ? readPerformanceTime() : undefined;
     trace?.recorder.mark('queue', 'queue-enter', trace.context);
-    const next = this.operationTail.then(async () => {
+    const accepted = this.operationTail.then(() => {
       const executingAt = trace ? readPerformanceTime() : undefined;
       if (enteredAt !== undefined && executingAt !== undefined) span?.add({ queueWaitMs: Math.max(0, executingAt - enteredAt) });
       trace?.recorder.mark('queue', 'queue-start', trace.context);
-      try { const value = await operation(); span?.end('ok'); return value; }
-      catch (error) { span?.end('error'); throw error; }
+      try {
+        const result = operation();
+        this.externalTasks.add(result);
+        void result.then(() => { this.externalTasks.delete(result); }, () => { this.externalTasks.delete(result); });
+        span?.end('ok');
+        // 包装 Promise 句柄，mailbox 不会 adoption 外部工作。
+        return { result };
+      } catch (error) { span?.end('error'); throw error; }
     });
-    this.operationTail = next.then(
-      () => undefined,
-      () => undefined,
-    );
-    return next;
+    this.operationTail = accepted.then(() => undefined, () => undefined);
+    return accepted.then(handle => handle.result);
   }
 
   /** 仅提前解析紧邻下一首的短期URL和响应头，不下载音频、不注册流或占用Roon会话。 */

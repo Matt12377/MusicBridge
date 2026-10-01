@@ -100,6 +100,7 @@ import type { RoonBrowseShapeSummary } from './roon/library.js';
 import { switchRoonZoneAfterStop } from './roon/zone-switch.js';
 import { runConfirmedTrackAction } from './roon/confirmed-track-action.js';
 import type { RoonSdk } from './roon/sdk.js';
+import type { RoonOperationOptions } from './roon/types.js';
 import { asBridgeError, BridgeError } from './shared/errors.js';
 import { createLogger, type Logger } from './shared/logger.js';
 import { StreamGateway } from './stream/gateway.js';
@@ -379,6 +380,19 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   });
   let notifyProviderExpired: () => void = () => undefined;
   let resolveSmartSource: (track: TrackSummary) => Promise<SmartRoonResolution | undefined> = async () => undefined;
+  const playbackObservation = (operation: RoonOperationOptions, zoneId?: string) => {
+    if (operation.signal?.aborted) {
+      throw new BridgeError('BAD_REQUEST', '播放操作已取消', {
+        httpStatus: 409, details: { reason: 'operation_cancelled' }, cause: operation.signal.reason,
+      });
+    }
+    const selected = roon.getSelectedZonePlaybackObservation();
+    if (!selected || (zoneId !== undefined && selected.zoneId !== zoneId)
+      || (operation.expectedZoneId !== undefined && selected.zoneId !== operation.expectedZoneId)) {
+      throw new BridgeError('ROON_ZONE_NOT_SELECTED', '播放设备在准备期间已切换', { httpStatus: 409 });
+    }
+    return selected;
+  };
   const controller = new BridgeController({
     netease,
     roon,
@@ -387,26 +401,38 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     logger,
     roonLibrary: {
       resolveArtwork: imageKey => roonLibrary.registerNowPlayingArtwork(imageKey),
-      play: async (reference, zoneId, track) => {
-        const selected = roon.getSelectedZonePlaybackObservation();
-        if (!selected || selected.zoneId !== zoneId) {
-          throw new BridgeError(
-            'ROON_ZONE_NOT_SELECTED',
-            'The requested Roon Zone is not the selected playback Zone',
-            { httpStatus: 409 },
-          );
-        }
+      play: async (reference, zoneId, track, operation: RoonOperationOptions & {
+        onDispatch?: () => void;
+        onDispatchCompletion?: (completion: Promise<void>) => void;
+      } = {}) => {
+        const selected = playbackObservation(operation, zoneId);
         let dispatchRevision = selected.revision;
         const startupId = randomUUID();
         return runConfirmedTrackAction({
-          dispatch: onDispatch => roonLibrary.playTrack(reference, zoneId, onDispatch),
+          ...(operation.signal ? { signal: operation.signal } : {}),
+          onDispatch: () => {
+            playbackObservation(operation, zoneId);
+            operation.onDispatch?.();
+          },
+          dispatch: async onDispatch => {
+            let finishDispatch!: () => void;
+            const completion = new Promise<void>(resolve => { finishDispatch = resolve; });
+            try {
+              return await roonLibrary.playTrack(reference, zoneId, () => {
+                onDispatch();
+                // Transport确认可先到；设备写链另行等待真实Browse回执或既有截止。
+                operation.onDispatchCompletion?.(completion);
+                playbackObservation(operation, zoneId);
+              });
+            } finally { finishDispatch(); }
+          },
           confirm: () => {
-            const before = roon.getSelectedZonePlaybackObservation();
-            if (!before || before.zoneId !== zoneId) throw new BridgeError('ROON_ZONE_NOT_SELECTED', '播放设备在准备期间已切换', { httpStatus: 409 });
+            const before = playbackObservation(operation, zoneId);
             dispatchRevision = before.revision;
             return roon.waitForSelectedZonePlayback({
               zoneId, state: 'playing', afterRevision: dispatchRevision, track,
               allowMetadataAliases: true,
+              ...(operation.signal ? { signal: operation.signal } : {}),
             });
           },
           onStage: (stage, elapsedMs) => {
@@ -421,50 +447,42 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
           },
         });
       },
-      pause: async () => {
-        const before = roon.getSelectedZonePlaybackObservation();
-        if (!before) {
-          throw new BridgeError('ROON_ZONE_NOT_SELECTED', 'Roon Zone is not selected', {
-            httpStatus: 409,
-          });
-        }
-        await roon.control('pause');
+      pause: async (operation: RoonOperationOptions = {}) => {
+        const before = playbackObservation(operation);
+        await roon.control('pause', { ...operation, expectedZoneId: before.zoneId });
         await roon.waitForSelectedZonePlayback({
           zoneId: before.zoneId,
           state: 'paused',
           afterRevision: before.revision,
+          ...(operation.signal ? { signal: operation.signal } : {}),
         });
       },
-      resume: async () => {
-        const before = roon.getSelectedZonePlaybackObservation();
-        if (!before) {
-          throw new BridgeError('ROON_ZONE_NOT_SELECTED', 'Roon Zone is not selected', {
-            httpStatus: 409,
-          });
-        }
-        await roon.control('play');
+      resume: async (operation: RoonOperationOptions = {}) => {
+        const before = playbackObservation(operation);
+        await roon.control('play', { ...operation, expectedZoneId: before.zoneId });
         await roon.waitForSelectedZonePlayback({
           zoneId: before.zoneId,
           state: 'playing',
           afterRevision: before.revision,
           requirePosition: true,
+          ...(operation.signal ? { signal: operation.signal } : {}),
         });
       },
-      seek: async (positionMs) => {
+      seek: async (positionMs, operation: RoonOperationOptions = {}) => {
         if (!roon.seek) {
           throw new BridgeError('ROON_TRANSPORT_UNAVAILABLE', 'Roon seek is not available', {
             httpStatus: 409,
           });
         }
-        await roon.seek(positionMs);
+        await roon.seek(positionMs, operation);
       },
-      stop: async () => {
+      stop: async (operation: RoonOperationOptions = {}) => {
         if (!roon.control) {
           throw new BridgeError('ROON_TRANSPORT_UNAVAILABLE', 'Roon transport control is not available', {
             httpStatus: 409,
           });
         }
-        await roon.control('stop');
+        await roon.control('stop', operation);
       },
     },
     resolveSmartSource: (track) => resolveSmartSource(track),
@@ -488,10 +506,8 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
         ...(zone.is_seek_allowed !== undefined ? { seekAllowed: zone.is_seek_allowed === true } : {}),
       })),
       selectZone: async (zoneId) => {
-        const stateBeforeSwitch = controller.getState();
         await switchRoonZoneAfterStop({
-          hasActivePlayback: stateBeforeSwitch.activePlayback !== undefined
-            || stateBeforeSwitch.activeRoonPlayback !== undefined,
+          hasActivePlayback: controller.hasPlaybackOwnership(),
           stop: () => controller.stop(),
           select: () => roon.selectZone(zoneId),
         });
@@ -509,12 +525,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
         return { queued: true as const };
       },
       async seekRoonTransport(positionMs) {
-        if (!roon.seek) {
-          throw new BridgeError('ROON_TRANSPORT_UNAVAILABLE', 'Roon seek is not available', {
-            httpStatus: 409,
-          });
-        }
-        await roon.seek(positionMs);
+        await controller.seekRoonTransport(positionMs);
         return {
           positionMs:
             roon.getSelectedZonePlaybackObservation()?.positionMs ?? positionMs,
@@ -1358,10 +1369,8 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     })),
 
     async selectZone(zoneId: string): Promise<PublicBridgeState> {
-      const stateBeforeSwitch = controller.getState();
       await switchRoonZoneAfterStop({
-        hasActivePlayback: stateBeforeSwitch.activePlayback !== undefined
-          || stateBeforeSwitch.activeRoonPlayback !== undefined,
+        hasActivePlayback: controller.hasPlaybackOwnership(),
         stop: () => controller.stop(),
         select: () => roon.selectZone(zoneId),
       });
