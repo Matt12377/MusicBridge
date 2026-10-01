@@ -1,0 +1,3385 @@
+{
+  "schemaVersion": 1,
+  "task": "MBP-007",
+  "baseCommit": "4ac88f5a9a3a3ae8ae36d1da14c02a284dd098c3",
+  "branch": "codex/mbp-007-virtual-artwork",
+  "implementationCommit": "c948c1e14ba87ebdbde95c868ce55dff515c3509",
+  "implementationCheckpoints": [
+    "aae59d19483656c55a7f95c3811eccdae18ffe81",
+    "457e32eb4d65ca28c8f3116dc206fb1c193d2749",
+    "c948c1e14ba87ebdbde95c868ce55dff515c3509"
+  ],
+  "reportCommitResolution": "commit-containing-reports/MBP-007_VIRTUAL_ARTWORK.md",
+  "sourceIdentities": [
+    {
+      "commit": "c948c1e14ba87ebdbde95c868ce55dff515c3509",
+      "fileCount": 876,
+      "sha256": "cd178bf637f5fb3000c0f8246b10615e87bb18da7233faccf712e79e4780c114",
+      "capturedAt": "2026-10-01T10:11:27.338Z",
+      "definition": "git tracked apps/packages/scripts ts/vue/mjs/cjs/json/yaml/yml/js plus root package/lock/workspace; sorted path NUL bytes NUL"
+    },
+    {
+      "commit": "c948c1e14ba87ebdbde95c868ce55dff515c3509",
+      "fileCount": 876,
+      "sha256": "cd178bf637f5fb3000c0f8246b10615e87bb18da7233faccf712e79e4780c114",
+      "capturedAt": "2026-10-01T10:20:38.142Z",
+      "definition": "git tracked apps/packages/scripts ts/vue/mjs/cjs/json/yaml/yml/js plus root package/lock/workspace; sorted path NUL bytes NUL"
+    },
+    {
+      "commit": "c948c1e14ba87ebdbde95c868ce55dff515c3509",
+      "fileCount": 876,
+      "sha256": "cd178bf637f5fb3000c0f8246b10615e87bb18da7233faccf712e79e4780c114",
+      "capturedAt": "2026-10-01T10:35:32.944Z",
+      "definition": "git tracked apps/packages/scripts ts/vue/mjs/cjs/json/yaml/yml/js plus root package/lock/workspace; sorted path NUL bytes NUL"
+    },
+    {
+      "commit": "c948c1e14ba87ebdbde95c868ce55dff515c3509",
+      "fileCount": 876,
+      "sha256": "cd178bf637f5fb3000c0f8246b10615e87bb18da7233faccf712e79e4780c114",
+      "capturedAt": "2026-10-01T10:40:37.112Z",
+      "definition": "git tracked apps/packages/scripts ts/vue/mjs/cjs/json/yaml/yml/js plus root package/lock/workspace; sorted path NUL bytes NUL"
+    }
+  ],
+  "taskSourceTestFiles": {
+    "apps/desktop/src/renderer/src/App.vue": "473555dd856f3386b3678472b9015050224d5491e3132dc3b9b42603f6fad9c8",
+    "apps/desktop/src/renderer/src/components/AlbumAmbientBackground.vue": "6a6ec1f381e5487b03a159a1e3c8c16387608b0e2787e3f92b9140df1aae8d66",
+    "apps/desktop/test/ambient-preview-parity.test.ts": "4d11c12d91ba8bc01f69068e31465b348c4b732909b1f0f52387b779b20a54b8",
+    "apps/desktop/test/mbp-005-renderer-cache.test.ts": "1ee6752a4d9c2d33d94b70599b825eae35c3228808374a87a8cf4260b8626948",
+    "apps/desktop/src/renderer/src/roon-artwork-cache.ts": "dec4ee23c13c9bd4dd17197eaee0559c3936820919b6cf7bf024486dd6dc5349",
+    "apps/desktop/src/renderer/src/artwork-image.ts": "67754aaf3fd8c18e4cc7496877921d0584fef7f41c965256fee7abe7734444cc",
+    "apps/desktop/src/renderer/src/components/RoonArtwork.vue": "a766d74b398bf6da26cf89f108c96a327258a399ca1c486e7148013c029ee072",
+    "apps/desktop/src/renderer/src/components/SafeArtwork.vue": "52cd015d3343886af507fa47b937f293fa0e8cf09d23cf4469d17fa47e6b2779",
+    "apps/desktop/src/renderer/src/composables/ambientArtwork.ts": "facf547dee33786c043b13693f3ef12ed740b43be7f70f0ca3f7ec6a29adcd17",
+    "apps/desktop/test/roon-artwork-cache.test.ts": "10052d6e3c4c185f184cd97b64f95244d819d5141eb8ed68cda6fa64695c14b8",
+    "apps/desktop/test/ambient-artwork.test.ts": "40b0b0d0c62f596ef0186c25016e6dacd298e73f7a27052a39b1a4e1a8a01cd5",
+    "apps/desktop/test/mbp-007-artwork-lifecycle.test.ts": "77aa6664e7c95738e4197d8df959f45cd55cc6ea2ecbb917cb77ade011c5b494",
+    "apps/desktop/test/mbp-007-artwork-components.test.ts": "3e85d51cdd7ed33accabcb211e3b5c4443c04a5610fc4cc7d2ab031c039958f7",
+    "apps/desktop/test/mbp-007-artwork-geometry.test.ts": "7388484b4c0813a08ec93faff94a5048214e6deb2b85d50024d2d5e420cb6323",
+    "apps/desktop/test/mbp-007-artwork-cross-layer.test.ts": "a9015af951b28dc33a9cd240da601bc219dee1a7bbb50c6d370bec7312fbf535",
+    "apps/desktop/src/renderer/src/components/RoonAlbumGrid.vue": "f094008039d3e6781a4a2737564faa2cbe2ec9e0f6ff39a47d9e76f131e861d0",
+    "apps/desktop/src/renderer/src/components/RoonEntityGrid.vue": "d72b6ac7cc1f7a7a3736b90847fc171eb05a5edb620049ab1418d8944e96af0b",
+    "apps/desktop/src/renderer/src/components/FavoriteEntityGrid.vue": "3dafd0e84d2fed6062cae16c683cabb32384011994582fa2120ed6c1de669fc2",
+    "apps/desktop/src/renderer/src/components/SearchEntities.vue": "d2498087cb75d9a19d5cee073dc8481404d7f5804a084577d493d5ea7242bce7",
+    "apps/desktop/src/renderer/src/components/NeteasePlaylistGrid.vue": "dfcf8b215a637c167c0c47656a18d4c0c200c6f0b7bffaf7642bc4e89964058b",
+    "apps/desktop/src/renderer/src/composables/favoriteResolution.ts": "5d213062e8670a0d0e91522babf045a2e901b41a80290af66453e805ee1c57da",
+    "apps/desktop/src/renderer/src/composables/gridWindow.ts": "75fbf743f2ad1871ac9837ca45a92955a6b8e2d8bd44df0d938646db982daf8a",
+    "apps/desktop/src/renderer/src/composables/useGridWindow.ts": "b2fbc60abe4ae2daf15467aa6699864c8c2dd995b9efab72d2417f1381a9c901",
+    "apps/desktop/src/renderer/src/composables/gridCardProbe.ts": "ab5fa88966027f6f573adc8d7d11ea45e80a84465a2379bf67a24933cc1af467",
+    "apps/desktop/src/renderer/src/composables/useFavoriteWindowResolution.ts": "4c4ad3f8263e40ad8ccbe6fdc9c34bb10671fce27a9862dc3f90cd42a86f0219",
+    "apps/desktop/src/renderer/src/composables/useGridArtworkRetry.ts": "cd583474e6e4a5ccaabe20f4ccf7388d10cc9007ac9ac1d814b3d9d30a40668b",
+    "apps/desktop/test/roon-grid-mounted.test.ts": "8ae902c4f23a550c1ea1c57c20df196fcf5d2adefbb6a4ba82f27d9146544a4a",
+    "apps/desktop/test/roon-grid-resolution.test.ts": "cfe7afcf4918105b51f8c87896b186e14f04c0ecfa5b8dc9f2078501677154db",
+    "apps/desktop/test/roon-grid-window.test.ts": "3b6c306534e3d57d63daa6cfdcf34b2d5fc3025ee6ca5715aa60cc7fa3b30fa9",
+    "apps/desktop/test/roon-grid-lifecycle.test.ts": "26dff6438de2ee8d3c16c005a79e3a9ca951bdd1c06e104f801598f074453844",
+    "apps/desktop/test/favorite-window-resolution.test.ts": "be364b8fea49c8c42081d2a4aae438146e6f9b5198ab695145bd0922634d0e0a",
+    "apps/desktop/test/mbp-005-renderer-ui.test.ts": "fe1b67e42d4f1854231e6675a969c98ab5eb21c84ede2a4a0dace31182a649e5",
+    "packages/bridge-core/src/roon/public-library.ts": "fc250767f858bc3b88c838560461bdc6b81793ae6e802406eb31686f472efc98",
+    "packages/bridge-core/src/roon/image-read-owner.ts": "f420b6f5db6042466976dacc7b0870cc7530d39f6fc578fb43aa323b42f94db2",
+    "packages/bridge-core/test/roon-image-owner.test.ts": "9012ed27ef0158b38e60491425894648bd197abe1746a2993b8b92b82a69219f",
+    "apps/desktop/e2e/v1-ui.spec.ts": "83091bf3fb9ef476f2832cecb4a158470c2f066282e9200f8a3bfdcdd8867cf1"
+  },
+  "taskSourceManifestSha256": "8fbcd259a7e97b554e9bdf9af1c3eb51d94ff1eac8a4f9be353b3a625a3446cf",
+  "finalChecks": {
+    "verify-final-r4": {
+      "exitCode": 0,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/verify-final-r4.log",
+      "logSha256": "28786d53c17c237d77a4b9a421657adbeca5ad43bafa610f6bb1ff17a2a8ec72"
+    },
+    "electron-final-r4": {
+      "exitCode": 0,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/electron-final-r4.log",
+      "logSha256": "6b8b559a849a0765f6f824df6356348e49ac86056f942829153d8b76aa05399a"
+    },
+    "e2e-final-r5": {
+      "exitCode": 0,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/e2e-final-r5.log",
+      "logSha256": "490b842079898c2deca72928f673e5e2f0ed92a47dacfe6b0fc915baa7a4fbfa"
+    },
+    "control-plane-final-r5": {
+      "exitCode": 0,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/control-plane-final-r5.log",
+      "logSha256": "8a65c33beed0d30e8ee6f68aebd92135b8f6b810b89af35a70a2f996600251bf"
+    },
+    "boundaries-final-r5": {
+      "exitCode": 0,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/boundaries-final-r5.log",
+      "logSha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825"
+    },
+    "cycles-final-r5": {
+      "exitCode": 0,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/cycles-final-r5.log",
+      "logSha256": "1f7bc7b952fab1e79ae49d9abc55674ec6ff6c82bff61a0aecbb9579369f76c9"
+    },
+    "diff-final-r5": {
+      "exitCode": 0,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/diff-final-r5.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "verifyTestStats": {
+    "contracts": {
+      "tests": 250,
+      "suites": 0,
+      "passed": 250,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "core": {
+      "tests": 1906,
+      "suites": 0,
+      "passed": 1904,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 2,
+      "todo": 0
+    },
+    "desktop": {
+      "tests": 1214,
+      "suites": 0,
+      "passed": 1214,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  "e2eStats": {
+    "startTime": "2026-10-01T10:35:39.332Z",
+    "duration": 297284.73,
+    "expected": 104,
+    "skipped": 4,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "focused": {
+    "core": 149,
+    "artwork": 54,
+    "grid": 56,
+    "root": 53,
+    "isolatedStrict": "PASS",
+    "scope": "overlapping-targeted-synthetic-not-additive"
+  },
+  "chromeSynthetic": {
+    "geometry": 36,
+    "gestures": 7,
+    "scrollComparisons": 9,
+    "failureStatusGeometry": 12,
+    "lastSourceManifest": "TASK_SOURCE_R2_FREEZE.json",
+    "timerDelayP95Ms5000": {
+      "album": {
+        "baseline": 24.1,
+        "current": 5.2
+      },
+      "favorite": {
+        "baseline": 299,
+        "current": 6.9
+      },
+      "playlist": {
+        "baseline": 24.7,
+        "current": 6.5
+      }
+    },
+    "domMaximum5000": {
+      "album": 40,
+      "favorite": 42,
+      "playlist": 40
+    },
+    "claim": "actual Chrome synthetic; no real Roon, RSS or Owner visual acceptance"
+  },
+  "independentAudit": {
+    "rounds": 2,
+    "r1ConfirmedP2": 1,
+    "r2BootstrapOriginal": 1,
+    "r2ActualSfcContinuousStates": 1,
+    "r2Related": 56,
+    "r2StrictExit": 0,
+    "remainingConfirmedP1P2": 0,
+    "auditedProductionCommit": "457e32eb4d65ca28c8f3116dc206fb1c193d2749",
+    "postAuditTestOnlyDelta": "apps/desktop/e2e/v1-ui.spec.ts; Root self-review and final original full gates",
+    "scope": "four R1 repair deltas and direct regression neighborhood, not whole branch absence proof",
+    "reports": [
+      "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/R1_AUDIT.md",
+      "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/R2_AUDIT.md"
+    ]
+  },
+  "failureRecords": {
+    "firstVerify": {
+      "reason": "独立R1确认Favorite bootstrap profile真实P2；Gate主动停止，修后重新固定全量",
+      "wrapperPid": 92373,
+      "signaledDescendants": [
+        92375,
+        92396,
+        92766,
+        92785,
+        92896,
+        92973,
+        96615,
+        96616
+      ],
+      "signal": "SIGTERM",
+      "source": "aae59d19483656c55a7f95c3811eccdae18ffe81",
+      "completeGate": false
+    },
+    "secondVerify": {
+      "state": "INCOMPLETE_EXIT_UNKNOWN",
+      "sessionId": 78612,
+      "observation": "工具handle不存在；ps未发现final-gates、verify wrapper或其pnpm/tsx/tsc后代。用户开发App进程82997保留。",
+      "reason": "前一回合被主动中断，日志停止于Desktop pretest；不伪造实际退出码。",
+      "fixedCommit": "457e32eb4d65ca28c8f3116dc206fb1c193d2749",
+      "logSha256": "3ca57cc6542b607393ba715c8a471439a4b83a422a748b9906c3f0b81521164e",
+      "completeGate": false
+    },
+    "chromeOutputIdentity": {
+      "reason": "补修后误复用了final-chrome.zsh的r1输出名；本次新产物按r2 cohort移存，旧final r1同名内容无法再核，不声称完整保留。旧candidate-expanded-r3/gestures-r1旧log/scroll-candidate-r1与原R1审计/第一次verify143仍保留。",
+      "newFrozenManifestSha256": "0cfdbd123e174a2a99ac54c29c9b3e5d1d4ab1edc53ec602522343e8a6dd7111"
+    },
+    "thirdFullE2E": {
+      "implementation": "457e32eb4d65ca28c8f3116dc206fb1c193d2749",
+      "verifyExit": 0,
+      "electronExit": 0,
+      "e2eExit": 1,
+      "passed": 103,
+      "originalSkip": 4,
+      "failed": 1,
+      "scope": "original full 108",
+      "cause": "DOM all26 count assumption incompatible with virtual window; subsequent behavior not reached, not yet claimed passing",
+      "failingLine": 3589,
+      "rawReport": "musicbridge-playwright-report.json",
+      "newAssertion": "traverse first/middle/end actual windows; exact all26 logical index/title ordering and final index25; original local-source/final offset24/detail/search/navigation/scroll protections retained"
+    },
+    "fourthFullE2ELaunchFailure": {
+      "head": "c948c1e14ba87ebdbde95c868ce55dff515c3509",
+      "sourceFingerprint": "cd178bf637f5fb3000c0f8246b10615e87bb18da7233faccf712e79e4780c114",
+      "exitCode": 1,
+      "stats": {
+        "startTime": "2026-10-01T10:21:32.328Z",
+        "duration": 331145.838,
+        "expected": 103,
+        "skipped": 4,
+        "unexpected": 1,
+        "flaky": 0
+      },
+      "case": "V3 收藏与录音分开，收藏视图支持键盘、搜索返回和收起侧栏",
+      "location": "v1-ui.spec.ts:480 beforeEach electron.launch",
+      "productAssertionsReached": false,
+      "observedProcess": {
+        "pid": 38587,
+        "exitCode": 1,
+        "signal": null,
+        "websocketDisconnectCode": 1006,
+        "cleanupKillError": "EPERM"
+      },
+      "cause": "UNDETERMINED",
+      "unchangedCasePassedPreviousR3": true,
+      "repairedCase108PassedR4": true,
+      "report": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-playwright-report.json",
+        "sha256": "2e9183ec4fafba856828725f8ff0a83c86844843af45155f3970a11abe33ceb5"
+      },
+      "nativeCrashReportFound": false,
+      "scope": "本次仅确认启动阶段失败，不能从一次失败推断为历史问题或生产回归",
+      "unchangedTargetedDiagnostic": {
+        "exitCode": 0,
+        "passed": 1,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/e2e-launch-diagnosis-r1.log",
+        "conclusion": "相同源代码原用例单次复跑通过；原启动退出原因仍未确定，不能据此宣布完整范围通过"
+      }
+    },
+    "rootPostAuditTestOnlyReview": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/ROOT_POST_R2_E2E_REVIEW.md",
+    "otherFailures": "TOOL_FAILURES.md and retained actual RED/entry failure logs; no new skip or scope shrink"
+  },
+  "previous005Remote": {
+    "head": "4ac88f5a9a3a3ae8ae36d1da14c02a284dd098c3",
+    "verifyRun": 36835564019,
+    "verifyJob": 110282023366,
+    "verify": "FAIL-test-only-absolute-artifact-path-ENOENT",
+    "contracts": 250,
+    "corePass": 1877,
+    "coreOriginalSkip": 2,
+    "desktopPass": 1133,
+    "desktopFail": 1,
+    "build": "NOT_REACHED",
+    "dependencyAudit": "FAIL-11moderate-7high",
+    "electronE2E": "PASS-run36835563971",
+    "security": "PASS-run36835564017",
+    "followupReport": "reports/MBP-005_REMOTE_CI_FOLLOWUP.md"
+  },
+  "carryover": {
+    "dependencyAudit": "MBP-009",
+    "currentRemoteCI": "NOT_PUSHED_AT_REPORT_COMMIT",
+    "realProvider": "NOT_RUN",
+    "realMacRoon": "NOT_RUN",
+    "realRecordingGateB": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "mainMerge": "NOT_RUN",
+    "installedAppReplacement": "NOT_RUN",
+    "release": "NOT_RUN"
+  },
+  "artifactScope": "top-level immutable snapshots of six external evidence roots and separate R4/R5/targeted artifact roots; downloaded CI artifact directory separate from top-level index; overwritten previous Chrome final-r1 originals explicitly not recoverable",
+  "artifactCount": 503,
+  "actualExitRecords": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/boundaries-final-r5.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/control-plane-final-r5.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/cycles-final-r5.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/diff-final-r5.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/e2e-final-r3.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/e2e-final-r4.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/e2e-final-r5.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/e2e-launch-diagnosis-r1.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/e2e-local-search-repair-r1.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/electron-final-r3.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/electron-final-r4.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/favorite-status-baseline.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/favorite-status-candidate-r1.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/favorite-status-final-r2.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-entry-r2.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-entry-r3.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-entry-r4.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-expanded-r2.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-expanded.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-final.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-r2.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-candidate-expanded-r3.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-candidate-final-r1.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-candidate-final-r2.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-candidate-r1.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-candidate-r2.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-favorite-debug-r1.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-gestures-final-r1.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-gestures-final-r2.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-gestures-r1.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-runner-syntax.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-scroll-baseline-r1.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-scroll-candidate-r1.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-scroll-final-r1.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-scroll-final-r2.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-ci-artifacts.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-ci-download.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-electron-artifacts.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-electron-download.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-electron-raw.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-runs-r2.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-runs-r3.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-runs.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-verify-jobs.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-verify-raw.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/root-ci-portable-cache-tests-r2.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/root-ci-portable-cache-tests.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/root-desktop-strict-r1.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/root-final-narrow-r1.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-after-all-final-r5.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-after-verify-final-r3.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-after-verify-final-r4.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-before-final-r2.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-before-final-r3.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-before-final-r4.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-before-final-r5.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-before-gates.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/verify-final-r1.exit",
+      "exitCode": 143
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/verify-final-r3.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/verify-final-r4.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-diff-check-final.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-green-r1.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-green-r2.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-green-r3.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-green-r4.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-green-r5.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-green-r6.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-keyboard-before-red.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-profile-r1-diff.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-profile-r1-green.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-profile-r1-red.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-profile-r1-regression.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-profile-r1-strict.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-red-r2.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-red.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-retry-green-r1.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-retry-green-r2.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-retry-green-r3.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-scroll-before-red-actual.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-scroll-before-red.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-scroll-green-actual.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-scroll-green.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-strict-r1.exit",
+      "exitCode": 2
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-strict-r2.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-strict-r3.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-untracked-whitespace-final.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-core-busy-red.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-diff-check.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-diff-freeze.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-final-r1.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-freeze-r1.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-freeze-r2.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-freeze-r3.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-green-r1.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-mounted-r1.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-red.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-regression-r1.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-regression-r2.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-regression-r3.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-strict-final.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-strict-freeze.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-strict-r1.exit",
+      "exitCode": 2
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-strict-r2.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/freeze-identity.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/ambient-timeout.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/artwork-54.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/artwork-independent-green.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/artwork-strict.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/audit-fixtures-final-strict.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/audit-r1-strict.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/candidates-strict-missing-globals.exit",
+      "exitCode": 2
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/candidates-strict.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/core-149.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/core-independent.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/core-renderer-busy-entry-error.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/core-renderer-busy.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/core-strict.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/favorite-profile-bootstrap-entry-error.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/favorite-profile-bootstrap-entry-error2.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/favorite-profile-bootstrap-final-red.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/favorite-profile-bootstrap.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/grid-52.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/grid-independent-green.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/grid-root-mount.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/grid-strict.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/independent-strict.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/original8-base.exit",
+      "exitCode": 1
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/original8-green.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/root-direct.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/audit-strict-resolved.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/audit-strict.exit",
+      "exitCode": 2
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/bootstrap-original-green.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/grid-56.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/grid-strict.exit",
+      "exitCode": 0
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/retry-neighborhood.exit",
+      "exitCode": 0
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/BASELINE_SOURCE.json",
+      "bytes": 30202,
+      "sha256": "14fb17b8e721774ad035b4cde276231f8d74fe26fbcfd966e97ab3782e203bce"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/BaselineNeteasePlaylistGrid.vue",
+      "bytes": 1065,
+      "sha256": "c10f4ffb4527d2e15d27954c844984582d3f80e36b0db0759f0526aa981627a5"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/CHROME_R2_OUTPUT_IDENTITY.json",
+      "bytes": 375,
+      "sha256": "7f72f346432825be5799321bf388912242222652bb5a378c4b35281a5e92e616"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/E2E_R3_FAILURE_SUMMARY.json",
+      "bytes": 629,
+      "sha256": "c9e0627b09c5e76360bea1cdb900783d410c2725151b5d4ae577d5b67e8e2fd4"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/E2E_R4_LAUNCH_FAILURE_SUMMARY.json",
+      "bytes": 1484,
+      "sha256": "0d7f6d8bec7b12cc440c9d21b99c4ecc2d075f168a3ed9da82d76134a5ee0966"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/MBP-007_DRAFT_REPORT.md",
+      "bytes": 8211,
+      "sha256": "4c8fd549eea78c7f15c8d5a51bceb88dff6c7327bd4f26868c45a476bcb20c5c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/MBP008_DRAFT_TASK.md",
+      "bytes": 4044,
+      "sha256": "85c9dc8aa1f1f85f9050059fd43722fb52cb9f11a6a84e7eae760dcf4a5d1859"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/MBP009_OFFICIAL_ADVISORIES_READONLY.json",
+      "bytes": 1489,
+      "sha256": "ad562fdbfe31247f4dffbc9e201892c81b666712dbc0d7c15e2278e00d241669"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/ROOT_POST_R2_E2E_REVIEW.md",
+      "bytes": 1050,
+      "sha256": "41c55ec33a75802e16fa41645f1dfb99923053b61397be4524bb944af1d4ad24"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/ROOT_SOURCE_FREEZE.json",
+      "bytes": 706,
+      "sha256": "3a13f730fbe12c3ea552c05b068a6c3d585a391055fe1a4a353533952acd431d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/TASK_SOURCE_FINAL_R3_FREEZE.json",
+      "bytes": 6101,
+      "sha256": "8fbcd259a7e97b554e9bdf9af1c3eb51d94ff1eac8a4f9be353b3a625a3446cf"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/TASK_SOURCE_FREEZE.json",
+      "bytes": 5348,
+      "sha256": "77dfd53e8804450eda96649a075aa6f79eb4a71d4c9eae62e36168870b89ddd9"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/TASK_SOURCE_R2_FREEZE.json",
+      "bytes": 5652,
+      "sha256": "0cfdbd123e174a2a99ac54c29c9b3e5d1d4ab1edc53ec602522343e8a6dd7111"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/TOOL_FAILURES.md",
+      "bytes": 2311,
+      "sha256": "cab711b75494417df128ce933d8102809fad7cae0819293d4da096e22b5fb083"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/VERIFY_R1_INTERRUPTION.json",
+      "bytes": 359,
+      "sha256": "1be3577055389a3320f911bad2fd6cb17cffea9230b395d520a4e96fa6cad65f"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/VERIFY_R2_INTERRUPTION.json",
+      "bytes": 484,
+      "sha256": "1226d3ff990872aefca69afbba7a37c90d995942c0a916e21d63606b099663d0"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/anonymous_token",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/boundaries-final-r5.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/boundaries-final-r5.log",
+      "bytes": 16,
+      "sha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/control-plane-final-r5.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/control-plane-final-r5.log",
+      "bytes": 19,
+      "sha256": "8a65c33beed0d30e8ee6f68aebd92135b8f6b810b89af35a70a2f996600251bf"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/cycles-final-r5.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/cycles-final-r5.log",
+      "bytes": 22,
+      "sha256": "1f7bc7b952fab1e79ae49d9abc55674ec6ff6c82bff61a0aecbb9579369f76c9"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/diff-final-r5.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/diff-final-r5.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/draft-report.py",
+      "bytes": 8080,
+      "sha256": "7e717b303adf39f3442308f3eb5ea79e65404b3294399fe1ed3f6e3a42713041"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/e2e-final-r3.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/e2e-final-r3.log",
+      "bytes": 21975,
+      "sha256": "4821b29956524940ec3f0637dc4d7bc6a9ca42ff9510fd779aafe1a0a166e310"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/e2e-final-r4.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/e2e-final-r4.log",
+      "bytes": 23286,
+      "sha256": "ade331436401a1046496549d7ecb9378097d180c63a4fd506c80fc5b61f3a421"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/e2e-final-r5.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/e2e-final-r5.log",
+      "bytes": 19617,
+      "sha256": "490b842079898c2deca72928f673e5e2f0ed92a47dacfe6b0fc915baa7a4fbfa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/e2e-launch-diagnosis-r1.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/e2e-launch-diagnosis-r1.log",
+      "bytes": 608,
+      "sha256": "1bfec75b9c1e84f8d4da31f84022ef3e0943fefe3c04e68f1e7f52a4a551d1ac"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/e2e-local-search-repair-r1.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/e2e-local-search-repair-r1.log",
+      "bytes": 620,
+      "sha256": "1f999d4cb636057228aa5d058711db66ea51efe299d7da7659459fe486b1ece4"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/electron-final-r3.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/electron-final-r3.log",
+      "bytes": 1992,
+      "sha256": "b25b6b74904d8a6d8f314ebd92b00076fa4ee2ade6473f1ba43dd59c4f8038df"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/electron-final-r4.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/electron-final-r4.log",
+      "bytes": 1992,
+      "sha256": "6b8b559a849a0765f6f824df6356348e49ac86056f942829153d8b76aa05399a"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/external-volume-final.log",
+      "bytes": 150,
+      "sha256": "4e6b04465a7fce26436d55dc0f4c3b66e982f4cf34b03e0758250cdb286cf811"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/favorite-status-baseline.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/favorite-status-baseline.json",
+      "bytes": 481144,
+      "sha256": "ff7ec516521bab596bfdd3ecf02080f14af9565adf9bd7c67ee9ee0e64a77149"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/favorite-status-baseline.log",
+      "bytes": 506,
+      "sha256": "f7a2f586f8c985b4dd1077338e4ac53f1e587db29322467334efeb80c3947bcf"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/favorite-status-candidate-r1.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/favorite-status-candidate-r1.json",
+      "bytes": 380666,
+      "sha256": "ea733667e4a507463b7f28c03cf2fb4811c30736272a6297d568275bb07f8175"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/favorite-status-candidate-r1.log",
+      "bytes": 1034,
+      "sha256": "c834c9f817f8d64243738874910438a24f09bbe4a5156f59f5b8f60a63a39cae"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/favorite-status-final-r2.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/favorite-status-final-r2.json",
+      "bytes": 380666,
+      "sha256": "ea733667e4a507463b7f28c03cf2fb4811c30736272a6297d568275bb07f8175"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/favorite-status-final-r2.log",
+      "bytes": 1034,
+      "sha256": "c834c9f817f8d64243738874910438a24f09bbe4a5156f59f5b8f60a63a39cae"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-chrome.zsh",
+      "bytes": 348,
+      "sha256": "0ab175289cb5073a204abfc0829bd834b1ce31ded4ec956f66d2940cbaead511"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-gates-r3.zsh",
+      "bytes": 1136,
+      "sha256": "4899ecd1ec559264e99bfd886a2c7817aa365df62b546c5630accfab51fbbe25"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-gates-r4.zsh",
+      "bytes": 1139,
+      "sha256": "21dd7149000b1a3a664c2acc79773eda08aa3145f7ad1720b4213e5196d17cec"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-gates.zsh",
+      "bytes": 1136,
+      "sha256": "b3926989b0802266e98ef190e9f06efc6bddbc4f0be8c597893cd43b0fac4c85"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/finalize-progress.py",
+      "bytes": 3096,
+      "sha256": "6838d2f5a2da6c85ad28daa53f382a8ff22969fe4386880deb120a7fd41a74f4"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/finalize-report.py",
+      "bytes": 9631,
+      "sha256": "79b4ef68aa06938562209e78545f8a5c152c12eb9f33adfacceaec83729c86a1"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-entry-r2.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-entry-r2.log",
+      "bytes": 163646,
+      "sha256": "3f78347bd056535b646ea7942115cdb37bb9572f076236e60777f40654470696"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-entry-r3.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-entry-r3.log",
+      "bytes": 3960,
+      "sha256": "19d947af6d8392ca9211ae1b5266b495be11fd19588e9ddfbfdc818b889fdad2"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-entry-r4.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-entry-r4.json",
+      "bytes": 6068,
+      "sha256": "7fad96cbc2d73a6f3ee9bc74ed5f8113178218ffbb09c4828af60d8e2d698de2"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-entry-r4.log",
+      "bytes": 282,
+      "sha256": "34827c4e2cac95a38330b8b26cd00d1689a22f1dc0134b6d3c54c812223a9b5b"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-expanded-r2.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-expanded-r2.json",
+      "bytes": 3325820,
+      "sha256": "b7a30b1d39682df84ea0f3c2515445cd42d438e7be22b68904cddc84ed063073"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-expanded-r2.log",
+      "bytes": 3138,
+      "sha256": "cdd236ba4283951ed85a91b3eaa02a30ae1eeb5a39f74064c5cfd449520bc3c7"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-expanded.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-expanded.json",
+      "bytes": 1817093,
+      "sha256": "9f0f8d6194d8d1189888234bf27d839894a5de43eedb93eecc3a9711a69b43b2"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-expanded.log",
+      "bytes": 2088,
+      "sha256": "99905cbc918aef7f0a6d9dbdac4ce938d37ecb11878b73024f4c1bc3432b3a21"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-final-failure.json",
+      "bytes": 1135510,
+      "sha256": "69a2b2d794273f2b8e9249574cd7259e28c7424e11039cafbe50fa6e3698c91e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-final.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-final.log",
+      "bytes": 629,
+      "sha256": "9b9d6b53005cadc3ee1fc4fdbb2c3e813203c2c98babaa21dbc34b393930f623"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-r2.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-r2.json",
+      "bytes": 2204577,
+      "sha256": "9186b3c60a2783b438977e8528f11977c90484bbe8cf8319a1019f238960442c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline-r2.log",
+      "bytes": 102,
+      "sha256": "bf7e5b3262be0857c9728e339fd4cdbac847cdcc0bd0d3e8e6b2ec76c44c94c1"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-baseline.log",
+      "bytes": 534,
+      "sha256": "7c3cec1c70e1d1a6348373a8157b9a69f24ffb620f172b095ba50045e341346a"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-candidate-expanded-r3.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-candidate-expanded-r3.json",
+      "bytes": 211107,
+      "sha256": "9e166380a6757817a6d4b77f425c6e07c064fa02512f13d039d5020e5bc0ad14"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-candidate-expanded-r3.log",
+      "bytes": 3018,
+      "sha256": "8f36b5e08dba3a6b6a13b449c5f1e5568134437a888dc0dcf06a31e56f5d0b77"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-candidate-final-r1.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-candidate-final-r1.json",
+      "bytes": 211123,
+      "sha256": "2d3ad087072030c641bf75f241f3f43f09f12e954c6436c0022f01db6449055d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-candidate-final-r1.log",
+      "bytes": 3018,
+      "sha256": "8f36b5e08dba3a6b6a13b449c5f1e5568134437a888dc0dcf06a31e56f5d0b77"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-candidate-final-r2.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-candidate-final-r2.json",
+      "bytes": 211123,
+      "sha256": "2d3ad087072030c641bf75f241f3f43f09f12e954c6436c0022f01db6449055d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-candidate-final-r2.log",
+      "bytes": 3018,
+      "sha256": "8f36b5e08dba3a6b6a13b449c5f1e5568134437a888dc0dcf06a31e56f5d0b77"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-candidate-r1-comparison.json",
+      "bytes": 13184,
+      "sha256": "ca810342d5049d43a4bb2e1414b841f1de9989579f9e9303a7c12d9458366bf2"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-candidate-r1.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-candidate-r1.json",
+      "bytes": 138254,
+      "sha256": "9878086d775dff25fd2a7f819f43361365c01a599606a86fd7a89585209730b5"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-candidate-r1.log",
+      "bytes": 2010,
+      "sha256": "bade90b003a7429e7700afdef94c8cc9638ded51ea2a6ba3d1a66a411cefb3eb"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-candidate-r2-failure.json",
+      "bytes": 34643,
+      "sha256": "d2faa26b1feeb7076e64e2fe1c82a596bc510acd3b7754d6251b6a7fe6de9338"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-candidate-r2.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-candidate-r2.log",
+      "bytes": 787,
+      "sha256": "48e47d993ae3197122d35df72552a7498d6fa672c396e45f8fede01107858272"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-debug-detail.json",
+      "bytes": 7672,
+      "sha256": "71cd89a999b5cf5a4c74d89485adb451ddf981f3a0e913a188b238e07842e6a7"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-favorite-debug-r1.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-favorite-debug-r1.json",
+      "bytes": 6718,
+      "sha256": "8fdaf28a3df6ed29aa4cd4656c87cdc59b5c1a34a6ac35f27825d4437fa019bd"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-favorite-debug-r1.log",
+      "bytes": 182,
+      "sha256": "927a4bb5a9dd03ec41801ca2da1ceaf4ec43591e032f46612b7256260a8ba729"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-favorite-status.mjs",
+      "bytes": 5137,
+      "sha256": "c282c39611435c3cf738c285959aba061bb0a4950b765411ccd6c28dbce28807"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-fixture-baseline.html",
+      "bytes": 273,
+      "sha256": "4006f26f6bfb605014da9542c8639a774d3f312a31b51b4bd5de3176fb2efe96"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-fixture-baseline.ts",
+      "bytes": 5758,
+      "sha256": "594e8acc59d0594459c117e258d0c7b3d22384bd226035994911fd61f616fda9"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-fixture.html",
+      "bytes": 264,
+      "sha256": "52d21daf3f1906074049effd4d3e4f6a633b0d8bebc26cf4e7f258bf1c25c327"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-fixture.ts",
+      "bytes": 6630,
+      "sha256": "afa8cfbdab3f350ce32146890ba969691638ce5e311613da7a721743ec9960a5"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-gestures-final-r1.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-gestures-final-r1.log",
+      "bytes": 1441,
+      "sha256": "d699431e6af491135757e02712c25e983c023475d12b50857652a7f714002ab7"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-gestures-final-r2.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-gestures-final-r2.json",
+      "bytes": 64309,
+      "sha256": "7d545d7c340cf5d1dd159129df5ee0b288e68bd0410a1cf2ecc32ab042c43653"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-gestures-final-r2.log",
+      "bytes": 1441,
+      "sha256": "d699431e6af491135757e02712c25e983c023475d12b50857652a7f714002ab7"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-gestures-r1.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-gestures-r1.json",
+      "bytes": 64309,
+      "sha256": "7d545d7c340cf5d1dd159129df5ee0b288e68bd0410a1cf2ecc32ab042c43653"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-gestures-r1.log",
+      "bytes": 1441,
+      "sha256": "d699431e6af491135757e02712c25e983c023475d12b50857652a7f714002ab7"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-gestures.mjs",
+      "bytes": 11238,
+      "sha256": "a0f9952d0f6a1f0613a99d90e1e7d2f8a652722a663548fb20394408553f250d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-runner-syntax.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-runner-syntax.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-runner.mjs",
+      "bytes": 7205,
+      "sha256": "98277a61274f0bb56fc3ee15714fd35fc0fc64dc049fff6472b28fd3976412d8"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-scroll-baseline-r1.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-scroll-baseline-r1.json",
+      "bytes": 40611,
+      "sha256": "3f9dc7403b82157e8c71cb8fea4ee462ca6f8bf6d077a46bf9c2265dea6a4d45"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-scroll-baseline-r1.log",
+      "bytes": 875,
+      "sha256": "b112f9ba83a7672c18efdfaa3f14ce2719e05734711b20d18453415c29bfcec0"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-scroll-candidate-r1.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-scroll-candidate-r1.json",
+      "bytes": 95751,
+      "sha256": "ae4e704b78d083e649422860084b31123daf1ca5870ccf12fa3b78fd9add2ceb"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-scroll-candidate-r1.log",
+      "bytes": 829,
+      "sha256": "26dbbf67d24a617df45532b844e9c83d208cf7a68116b22184abb63ce03b52c1"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-scroll-final-r1.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-scroll-final-r1.json",
+      "bytes": 96056,
+      "sha256": "e481bc1b5f670993ec07636459e67cf98d4a0661cc9daad88742d7ccda6b1f50"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-scroll-final-r1.log",
+      "bytes": 878,
+      "sha256": "96733994de707d8682bea469dec18c25d05ccc6e51f1192da73eefe074a5cc9f"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-scroll-final-r2.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-scroll-final-r2.json",
+      "bytes": 96056,
+      "sha256": "e481bc1b5f670993ec07636459e67cf98d4a0661cc9daad88742d7ccda6b1f50"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-scroll-final-r2.log",
+      "bytes": 878,
+      "sha256": "96733994de707d8682bea469dec18c25d05ccc6e51f1192da73eefe074a5cc9f"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/geometry-scroll.mjs",
+      "bytes": 4349,
+      "sha256": "89f68eec5ce8c11491f252dbbd39adbddd4e25ee06321e2c4f9c4f0a657bc5ed"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/mbp008-control-probe-draft.mjs",
+      "bytes": 5301,
+      "sha256": "f117dca0592a0c3116e3553c8cb7f2c799ac975764c671da36cee668c447130f"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-local-search-albums.png",
+      "bytes": 621904,
+      "sha256": "f9dfb5ef9cc307d050bdbb559bc819f9253dfb7892b5ed568fbecfcd94cc4952"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-playwright-report.json",
+      "bytes": 129621,
+      "sha256": "96295816ef17d6bea0378a02dacd0350f7626d9a7308c4dbb52a1b3b37b0d1dc"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-task-033-sidebar-720.png",
+      "bytes": 184824,
+      "sha256": "2c75c8ff79159b681834d474be9d5cf4a5122e561f0a444d3c16e39ce8d7c05c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-task-034-daily.png",
+      "bytes": 830407,
+      "sha256": "723869c8a2ce3abea00b1725537f75791e6bcbf3e8864b68ed327891b425659e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-task-034-home.png",
+      "bytes": 830244,
+      "sha256": "67cfcb2d6b3da82c19dd013d8c0fdcff97f8d1c5d7db98c4600df6e253907fcf"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-task-034-settings.png",
+      "bytes": 198609,
+      "sha256": "9a1cc18fab46220b32029a86f15021b32f6ce71f7b83505b27183acb92011a0b"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-task-037-controls.png",
+      "bytes": 5641,
+      "sha256": "83bf57a736f9a8874879eea012bdd6b640e63895de86ca2211591660a3e854f6"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-task-037-lyrics-focus.png",
+      "bytes": 353563,
+      "sha256": "a845f0056b38c5434423e6d1fce1845527079c27cb09b513e69dad131f7b202e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-task-037-now-playing.png",
+      "bytes": 520062,
+      "sha256": "771cf932f2a872f6fda481677bfdc46c58f25af902a9716a64d3889092ac2992"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-task-046-lyrics-candidates.png",
+      "bytes": 99825,
+      "sha256": "e2d25bacf730b32121bc8f3567e0603d5f42b0ced433ac34537451be2f01d0c7"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-task-048-collection-1440.png",
+      "bytes": 258378,
+      "sha256": "7717d4894c031d6e7422dc753fd10e793fd9752d6cc97565a6de3820c176134f"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-task-048-collection-720.png",
+      "bytes": 111265,
+      "sha256": "f084976cb227f79312a9d013913e80c662bb9a408b6dd2703d542824d22d3725"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-task-048-recording-1440.png",
+      "bytes": 519302,
+      "sha256": "03cb5921509e0af64087bb712a25de4d7841d0bf243b87b2827def54088c3242"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-task-048-recording-720.png",
+      "bytes": 176317,
+      "sha256": "02350884f53cd0ba6a87f9bf15e1711532e9adeae229676d50a795cab315755b"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-task-049-detail-720.png",
+      "bytes": 106595,
+      "sha256": "979484e030c3fe5ec967dd21ab88cd74f512ed27b2531385b1d0ac2c7834c9ac"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-task-049-detail.png",
+      "bytes": 297415,
+      "sha256": "24d1a1454682c628a4bd792383180df6d2659c8765e4e9f07c0a4a37efa0e7ca"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-task-049-receive.png",
+      "bytes": 351413,
+      "sha256": "6b3d15a753fb675d47a8de3e034cb35f0a932868448053134b83b4afa285b2f3"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-v1-home-1280.png",
+      "bytes": 446476,
+      "sha256": "cab974f00e8b75f99577e8d1165ec0c4121fd5537bf3b642a76ec1d96e5808a0"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-v1-home-1440.png",
+      "bytes": 349087,
+      "sha256": "f56e32555aed891ae03edca3206bda431629c017d60bd10577a9e8067d9c437c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-v1-home-1728.png",
+      "bytes": 570660,
+      "sha256": "c448f5a38355b47136b2c969598b5cd2fd3dad84b95423a9c7bbd9ae78939a38"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-v1-home-2048.png",
+      "bytes": 642828,
+      "sha256": "b6c11be186802d5f7d3ae1b4c3a8439dfb150bad99d24e3fac83cf32432ba95d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-v1-search.png",
+      "bytes": 658673,
+      "sha256": "2aeece0b3af5a43c4b7d7bc054762aefb4e4f8c0cba06089d6d469f61b258951"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-v1-settings-Roon.png",
+      "bytes": 481973,
+      "sha256": "dd3047669a89cd4ef27edfe44d64efb123c17d291320485d8c4f22f7daa9e88f"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-v1-settings-应用.png",
+      "bytes": 517886,
+      "sha256": "abb1b3d042b6ae93aeb8f5131ac9d878844993b05e82d6c2c1fb7c03282db4ba"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-v1-settings-播放.png",
+      "bytes": 468661,
+      "sha256": "ded6d613d9222e45fe94b98352e8cfa3eb7932e66e9cc1dd6e84fd1def5ceeed"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-v1-settings-账户.png",
+      "bytes": 486571,
+      "sha256": "e4c451402770bf23373f8b5fe26b505972d207fc45da2023be85b97309d6358c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/musicbridge-v1-settings-高级.png",
+      "bytes": 496666,
+      "sha256": "3b6360f73c0cff693f3cd353149d76ea9999db8713ec866a7198e7105848746c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/prepare-favorite-status-runner.py",
+      "bytes": 3992,
+      "sha256": "d4b06673a8e48b2ce558aec9167658343e39a0ab70f71ec6c660cdfc9f89f691"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/prepare-gesture-runner.py",
+      "bytes": 10006,
+      "sha256": "c4ae806d60c09ce2538ad336308b8617c457570f0f42eab9011ce0aa288c8f05"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/prepare-scroll-runner.py",
+      "bytes": 3195,
+      "sha256": "05fa0a6d341239318509737dbff6869a5eef94a85da9d9d52a695576926ff8b8"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-ci-artifacts.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-ci-artifacts.log",
+      "bytes": 771,
+      "sha256": "cc0b0a437697dcac6856613a732b12d3fd7b66d5e0080140876e44385e9fcd82"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-ci-download.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-ci-download.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-electron-artifacts.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-electron-artifacts.log",
+      "bytes": 779,
+      "sha256": "427845e2073e247dc293bf55b2bd0c0c46e8bc86b3a6af1ca8cd49eb5b5b3d5c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-electron-download.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-electron-download.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-electron-raw.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-electron-raw.log",
+      "bytes": 82017,
+      "sha256": "173d0df5b5c1f828ac74fc2e1c13f67c05c9f22fb3a15e95566c4e7a7156fc24"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-runs-r2.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-runs-r2.log",
+      "bytes": 197,
+      "sha256": "ad01e26955b6452f3b01ba0af12cc42bb86803c4f9cdfebdc20d7014a60e10f2"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-runs-r3.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-runs-r3.log",
+      "bytes": 652,
+      "sha256": "0949b63a14508a030fadd5a837a5aac27a69daac93f15dab7101727cece3e308"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-runs.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-runs.log",
+      "bytes": 642,
+      "sha256": "a96c77f577da2c7b0b835106cde9b8afc6e9c9775a8066d499bc4860a894438f"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-verify-jobs.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-verify-jobs.log",
+      "bytes": 4066,
+      "sha256": "e0c2f6baa289ec9b734f6d6ff92d6c5476380524e6f29188e2e9c79e1c18a7bf"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-verify-raw.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-verify-raw.log",
+      "bytes": 3211308,
+      "sha256": "f514654aaba8858a7161cfa0c08345ee259923bc4e738494e62ffdf3487feb6e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/remaining-gates-r5.zsh",
+      "bytes": 813,
+      "sha256": "2a30e391ce0bad84e7062ddd4839acb0c5f12aa77183322021b4550b2baefe2b"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/root-ci-portable-cache-tests-r2.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/root-ci-portable-cache-tests-r2.log",
+      "bytes": 12763,
+      "sha256": "0744b65475bb6afa01d7fb30c30032a89c762bc26ac64cd89554a92f5aefc88d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/root-ci-portable-cache-tests.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/root-ci-portable-cache-tests.log",
+      "bytes": 1550,
+      "sha256": "ebfd05112cc6612e98b638ddaa714343828b58815d48e19bfadb681c31beabc7"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/root-desktop-strict-r1.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/root-desktop-strict-r1.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/root-final-narrow-r1.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/root-final-narrow-r1.log",
+      "bytes": 13654,
+      "sha256": "6513e2bb279d8d1af26b9c95ef9df541ecb5f36a88c61fb411ec6cabc0a7cec6"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/run-check-launch-diagnosis.zsh",
+      "bytes": 932,
+      "sha256": "be9ab1cef09d32940f21c5cba5c40fda1fadb69b50cff5df7f657e7c9f91c5ae"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/run-check-r4.zsh",
+      "bytes": 921,
+      "sha256": "98a5f386bc3efd2da7d5e8a04800a6c5b40f766350c74f0028133a985f9d91b0"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/run-check-r5.zsh",
+      "bytes": 921,
+      "sha256": "ae8d9a6c1f1cd6b6a6e5aa7cc106940e03f571be8299a69340acf3bef74eaa7c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/run-check.zsh",
+      "bytes": 773,
+      "sha256": "15a4d769b513805d149ab1f469fcbe4fbf327e2e7cdce651049617f0af596535"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-after-all-final-r5.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-after-all-final-r5.json",
+      "bytes": 347,
+      "sha256": "3e853350d3452178aa9e4d4986622aa5ada8b084547a3c9b160ed0298f0cf3b5"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-after-all-final-r5.log",
+      "bytes": 327,
+      "sha256": "ef59d1a099239092fa9354691705886537e927804fcd24be9db567bbccb55bc7"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-after-verify-final-r3.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-after-verify-final-r3.json",
+      "bytes": 347,
+      "sha256": "e66b374e5a76c81202e3a0c45de92cc07995d07ff1297e18fa96530168176671"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-after-verify-final-r3.log",
+      "bytes": 327,
+      "sha256": "c114e6f09f4e365ec1b6bba688e97d7579dbaaa9c62462c54a52b7c53c8af8ea"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-after-verify-final-r4.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-after-verify-final-r4.json",
+      "bytes": 347,
+      "sha256": "2166c7d1014e6798e8c1e9bde46abc9a076f00a30a105b146875e3a49ab1a3c0"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-after-verify-final-r4.log",
+      "bytes": 327,
+      "sha256": "c344dd51de9b5a841ff8c3d06a7deab4f1a41488814082f1c48888ffa538fcc1"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-before-final-r2.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-before-final-r2.json",
+      "bytes": 347,
+      "sha256": "f24862cd341b3ecace3ccdc6a38dabce49129c72e7c54946c4d5b5b11c52b1e4"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-before-final-r2.log",
+      "bytes": 327,
+      "sha256": "7af123c8df8236baa6b65b668c41645c4aff48da14072fab5d6521d2108765ec"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-before-final-r3.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-before-final-r3.json",
+      "bytes": 347,
+      "sha256": "e0f4d73845c7d08b55493965fc3118ba78ba1abc589acab779697fddb81ad494"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-before-final-r3.log",
+      "bytes": 327,
+      "sha256": "83e7a679287cc580ce4c1f279216d7748b1c5d7fa390b4889268c335d66b358b"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-before-final-r4.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-before-final-r4.json",
+      "bytes": 347,
+      "sha256": "96e861585a3269280246e9fefcd64d0ae32140e62a9da40f100166ca666df63e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-before-final-r4.log",
+      "bytes": 327,
+      "sha256": "bb4e8481b65ebd417f442457cc64c13906c9ea8fa16e2cde3ac1b37dfb117c9e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-before-final-r5.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-before-final-r5.json",
+      "bytes": 347,
+      "sha256": "5255cc39de066310ae51d6d9ba5aa340ab21bb0593e31d070800928b23652db8"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-before-final-r5.log",
+      "bytes": 327,
+      "sha256": "091b01e8e75390396aa49b24075f6d0027778a3e7b6a74e8149a2d60f36ce5d4"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-before-gates.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-before-gates.json",
+      "bytes": 347,
+      "sha256": "29a4bede4ca324e274d21ede3596486fc6e8feda4cd04bb52c3a085eddafaf57"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/source-before-gates.log",
+      "bytes": 327,
+      "sha256": "0607835fbc05d587f0e445689a48b6ab2035ced0c97d395094e1e58a34d2858e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/verify-final-r1.exit",
+      "bytes": 4,
+      "sha256": "9d9b18720961e9b4689fd763b85e7b6f36160ccd3a8a1c9ddc5103bb0f66c396"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/verify-final-r1.log",
+      "bytes": 362567,
+      "sha256": "1eb97013cabe2b4fb78a92ffa5154cf7129a3a7fc40eda2d0ae27f4eee2f29c5"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/verify-final-r2.log",
+      "bytes": 520947,
+      "sha256": "3ca57cc6542b607393ba715c8a471439a4b83a422a748b9906c3f0b81521164e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/verify-final-r3.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/verify-final-r3.log",
+      "bytes": 810601,
+      "sha256": "de7b3b7e4c891cb6e0dddc3d01a916d9eb6abaf7d55025afbeea12f200ebc650"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/verify-final-r4.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/verify-final-r4.log",
+      "bytes": 810665,
+      "sha256": "28786d53c17c237d77a4b9a421657adbeca5ad43bafa610f6bb1ff17a2a8ec72"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/GRID_CANDIDATE_MANIFEST.json",
+      "bytes": 4661,
+      "sha256": "fc9e21b11fed2aba37b76ee1f1d6dff68f7372aa3a864fb5833b6036b79454b3"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/GRID_DELIVERY.md",
+      "bytes": 3906,
+      "sha256": "3a1be921ceb0e638f50b666736f5ed79d69bb7a82bb8f021d1113d6051b52335"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/GRID_FREEZE.json",
+      "bytes": 4974,
+      "sha256": "9e968930a596579de3d0f74691c2b79316b6ba4b092abd471287202477fe81e3"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/GRID_R1_REPAIR_DELIVERY.md",
+      "bytes": 1838,
+      "sha256": "7decd4eeab8e149434d203d235dabaa1c263f3bf5f0cb910eadf495f9082f774"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/GRID_R1_REPAIR_FREEZE.json",
+      "bytes": 4429,
+      "sha256": "942a10d894b1446603bf7cc0f66a2f20a13cec35ff80e536910d53183e71732a"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-candidate-sha256.txt",
+      "bytes": 2085,
+      "sha256": "49d5b36a5e983418b0d6a72571a8f2ac69b84723783dfa78b167c2f1669e5434"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-diff-check-final.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-diff-check-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-freeze-sha256.txt",
+      "bytes": 2168,
+      "sha256": "1ba07b7360fc2d3c8bde09d1a83583c743feaad2298c0953cdfbe31d630fd533"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-green-r1.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-green-r1.log",
+      "bytes": 7333,
+      "sha256": "499dd0459e09ba7cd340577c1a48b106ac32041a2a4b0f813aa83ec03a5376fb"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-green-r2.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-green-r2.log",
+      "bytes": 5744,
+      "sha256": "614849bb9e427a2adac96d4e0644c313d2d64bb196515799b49920b064478392"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-green-r3.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-green-r3.log",
+      "bytes": 8420,
+      "sha256": "04b72ea08d292f26fff24883c994fbfcdc342d3021def9c4e332a00bc72af31e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-green-r4.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-green-r4.log",
+      "bytes": 12877,
+      "sha256": "2f7219e45bd2a6ef5dfe3d821a137411a076bdac9d60782042f91a5fdbaa4d3d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-green-r5.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-green-r5.log",
+      "bytes": 11432,
+      "sha256": "7a9a0ce24e3152f010dafe053c4d718a1d156a2d399bb288efe5277b3c79377b"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-green-r6.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-green-r6.log",
+      "bytes": 13052,
+      "sha256": "65371078548573ea84348c84b8fc5d7539e4322a7e9e2c81803ed8864acc6d40"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-keyboard-before-red.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-keyboard-before-red.log",
+      "bytes": 1894,
+      "sha256": "8a89207c069da53c804f7d5df3038d8735ea8bbe7feba3038afc0462c86c4501"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-keyboard-before.test.ts",
+      "bytes": 10793,
+      "sha256": "1f36e9fbcff69abe3d4e75415dd93f3080037e56a743323c71bce5bb6f10a211"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-profile-r1-diff.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-profile-r1-diff.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-profile-r1-green.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-profile-r1-green.log",
+      "bytes": 5858,
+      "sha256": "466072bdb6ed5af701e27367402a23da7fd4b02f7a4f6ceab15121716541656f"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-profile-r1-red.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-profile-r1-red.log",
+      "bytes": 2499,
+      "sha256": "92715d7bfa8bb0382c6593801e56c9b7159e338f89489afffa91177edf0bd53f"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-profile-r1-regression.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-profile-r1-regression.log",
+      "bytes": 13917,
+      "sha256": "de31ad5af24d0261e502b7706159bf9ef9af10bf5dc38e3b3216e3163a77b96c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-profile-r1-strict.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-profile-r1-strict.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-r1-repair-sha256.txt",
+      "bytes": 2178,
+      "sha256": "1a6422d320b0159b420dfff4964ba76454bad8276fabe3cfc021ee8b26494e88"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-red-r2.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-red-r2.log",
+      "bytes": 5778,
+      "sha256": "ab68963d8040daf5316e50be53e824d2fdf50d0365ac13f9812cf4016461b72f"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-red.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-red.log",
+      "bytes": 38285897,
+      "sha256": "e68cf42e9a60342b15de20ec6cf22f54ab97ad94fd3bbaae8fd052c2d7f2040f"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-retry-green-r1.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-retry-green-r1.log",
+      "bytes": 7026,
+      "sha256": "dafca3df9f7c32937863ce18f4011d0c228ec387394a681e4d7569739bbced01"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-retry-green-r2.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-retry-green-r2.log",
+      "bytes": 5278,
+      "sha256": "21723df3b89a03982a4b9cef24880d115e5a47eaf524fcc95118793899c2d707"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-retry-green-r3.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-retry-green-r3.log",
+      "bytes": 4698,
+      "sha256": "102a1e42489ac89fd8f8174b1c0e21d9923da7930678c41b4c271b804c48eeda"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-scroll-before-red-actual.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-scroll-before-red-actual.log",
+      "bytes": 1141,
+      "sha256": "f69cc1d9bc086fa3419ce6ca22f0810b072684c3ccc612fc79f001ba7f12505a"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-scroll-before-red.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-scroll-before-red.log",
+      "bytes": 50,
+      "sha256": "e1ceeef48782c0e448350443d5753b8e8a9204918b20d800744d32f5848fca33"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-scroll-green-actual.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-scroll-green-actual.log",
+      "bytes": 522,
+      "sha256": "dd2659afa3ed6512ac5a651d2aa0a44a5c20bd9adbed4ce99c92399ff549689a"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-scroll-green.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-scroll-green.log",
+      "bytes": 50,
+      "sha256": "e1ceeef48782c0e448350443d5753b8e8a9204918b20d800744d32f5848fca33"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-strict-r1.exit",
+      "bytes": 2,
+      "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-strict-r1.log",
+      "bytes": 862,
+      "sha256": "3f625e1208dad4766691121f79ed625114c121f466c05e04a0d7ddc8607f254e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-strict-r2.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-strict-r2.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-strict-r3.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-strict-r3.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-untracked-whitespace-final.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/grid-untracked-whitespace-final.log",
+      "bytes": 40,
+      "sha256": "9b2f3141269f05139cfe23d20cd538532448f80ac0bc0a7e8d5e1f9297fa65d4"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/tsconfig.grid.json",
+      "bytes": 2507,
+      "sha256": "afabb1727c19d13cbf48b9d6e17fa52ff366d3d0a11160c064c26c688b457c80"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-grid-high-ocNdUd/useGridWindow-root-focus-before.ts",
+      "bytes": 10337,
+      "sha256": "7035042c0583399548904de6bf3ade4cd8fc0d83034bdbe888d084b921ab80f5"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/ARTWORK_FREEZE.json",
+      "bytes": 5608,
+      "sha256": "fe57c7d73199d5ea34a1bb333a1cfc6d512eab2ebdb6dc34bc70e181d98d16fa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/DELIVERY.md",
+      "bytes": 1344,
+      "sha256": "c3e28731ed1ab07f25432007b4e8b72623d090c9f9e3a6b9138fe8747eb866ee"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-core-busy-red.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-core-busy-red.log",
+      "bytes": 9108,
+      "sha256": "02c5080c4c5d5856e0ec12202b17f8343abd4c8a02af6ebd029504ba1dbfc13a"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-diff-check.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-diff-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-diff-freeze.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-diff-freeze.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-final-r1.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-final-r1.log",
+      "bytes": 13064,
+      "sha256": "c4f43d6f4d8826f8352a48ec010de8a943476722b616fa30ccce3c26d8324975"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-freeze-r1.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-freeze-r1.log",
+      "bytes": 9916,
+      "sha256": "34ba40191b7aefc267a5540509497a28ee0351d5889d2e47d28ad6b7e7d419a8"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-freeze-r2.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-freeze-r2.log",
+      "bytes": 10649,
+      "sha256": "d0bcc4a71ff2392f8d6cc7ba06b2929e63747fd9b419118da1801fcdcb285d96"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-freeze-r3.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-freeze-r3.log",
+      "bytes": 10858,
+      "sha256": "318bd3457e9e7df4dc2e11c6a5e737beeb30ccf36f8632b8f69d645b6e65cb74"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-green-r1.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-green-r1.log",
+      "bytes": 1140,
+      "sha256": "b8b2262560d4fd890b8fd322f5ad4f5d8ce29767f5d54a3aa14b09db93136866"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-mounted-r1.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-mounted-r1.log",
+      "bytes": 1459,
+      "sha256": "4ef83e575e85b529b0175fbab4c2c469a7f2b0a649323d5ca2ee014f646a1081"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-red.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-red.log",
+      "bytes": 4481,
+      "sha256": "35ee33a7ba5f780b856e3b3a3c14e4a29bd93c59945843a16b9f7d2bfc5d0d7c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-regression-r1.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-regression-r1.log",
+      "bytes": 5554,
+      "sha256": "60a7cf2de0a8beb0c6d06fb6056416ba1eb71381183ecfac29f7bdb3499bcf34"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-regression-r2.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-regression-r2.log",
+      "bytes": 7783,
+      "sha256": "758db568ad2fa41a503c15d7e5f99a01a7d3dab44afeeb4bd5c493b0bf77490a"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-regression-r3.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-regression-r3.log",
+      "bytes": 9687,
+      "sha256": "2da0986e57693c69888ce4a2dcfae7338922ef77bbac0f223452c4ffdb4b521e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-strict-final.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-strict-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-strict-freeze.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-strict-freeze.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-strict-r1.exit",
+      "bytes": 2,
+      "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-strict-r1.log",
+      "bytes": 858,
+      "sha256": "82adab1b1dee01ae78e4123e3a7d605003bdae861c3a32b2d5a01de48739aee4"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-strict-r2.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/artwork-strict-r2.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/before-final-check-sha256.txt",
+      "bytes": 1296,
+      "sha256": "51fe25a817c36596b98ef47b037ca04834456ae7f9d4a4ba8d1badd4e2fceb14"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/freeze-identity.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/frozen-sha256.txt",
+      "bytes": 1296,
+      "sha256": "51fe25a817c36596b98ef47b037ca04834456ae7f9d4a4ba8d1badd4e2fceb14"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-artwork-high-ZM55EP/tsconfig.artwork.json",
+      "bytes": 1107,
+      "sha256": "98604ad6a824f81e0d39694a9eb85538b390345f8eb0a8a215f48a8e7414f816"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/CORE_EVIDENCE_SHA256.json",
+      "bytes": 3206,
+      "sha256": "0da6a36c0c4af714363a75e41475573fa2cb27668188e975ba203259db4f24d5"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/CORE_FREEZE.json",
+      "bytes": 854,
+      "sha256": "d71114b25ebce851575208916768377c100cf08ef416b0697462391026b500be"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/CORE_REPORT.md",
+      "bytes": 5042,
+      "sha256": "6c707014fa9acd0c4b0c01a96c2a882f46e3f1b2e330de31ad7cfb462b0634e2"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/GREEN-final-149.log",
+      "bytes": 34514,
+      "sha256": "0d95c2b81a7cbc40750cdc3edb9660d67ed49456ec515aca3743fcc68158c3bd"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/GREEN-final.log",
+      "bytes": 34062,
+      "sha256": "2b36d6e32382cd5b6017d482fc3b2eb6edf159c0ceabe19a2bbdcff766af78e1"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/GREEN-first.log",
+      "bytes": 9179,
+      "sha256": "65686409661225a8958e748c5b047aafbb6cd497d0dd290733f5fd0ad3b4f4b2"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/GREEN-full-first.log",
+      "bytes": 17754,
+      "sha256": "795209c01f0f4953edb61891afb6415e056209710daf832188dbea2e37db5f26"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/GREEN-full-second.log",
+      "bytes": 20315,
+      "sha256": "4b86550918ce0eb86ccbc952104ca32720b1d8d2c5df6a531bd063cd3e17de5c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/GREEN-second.log",
+      "bytes": 6946,
+      "sha256": "a1c9ce796d372424a9e5f3f9a2a6797bf6a1e1df5a73b2fa3282d32b80aba554"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/GREEN-six-spec.log",
+      "bytes": 33770,
+      "sha256": "81cfb753260c2dcda9fc65269f270682e1cc6b236d78b22d585e2f62d0bcbbae"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/RED-entry-error.log",
+      "bytes": 1955,
+      "sha256": "3c32cc56a3d52dd9a71480d1bcd71176b53ddf598498af74f95eb0728aff18c0"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/RED-to-GREEN-original8.log",
+      "bytes": 1580,
+      "sha256": "509376c97c124c5a85441a333f9e149ec7614c1675318da2d4453f9e0e8fe95b"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/RED.log",
+      "bytes": 6138,
+      "sha256": "0404bb9aeb76ad7e3bfffb3ac992b26cf787d3aeb14e1ad8da8535d9b9df7c19"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/exit-codes.json",
+      "bytes": 375,
+      "sha256": "0ffe03fcd4b2e6dd6215239d4809467069331a2670fb945602f4ecb3c723f8f5"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/image-red.test.ts",
+      "bytes": 5940,
+      "sha256": "a2e5fd18db5b5dae9861b4938c36619576c2e68f6aaddef44c4024bff4596cf2"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/package.json",
+      "bytes": 18,
+      "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/protected-identity.json",
+      "bytes": 1489,
+      "sha256": "a6e12e24a01b08966cec112fb665486abb6688b14cead20d7c6c5d8c265d04ab"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/strict-final-27.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/strict-final-r2.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/strict-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/strict-first.log",
+      "bytes": 1346,
+      "sha256": "a3c7113bd17c6c361637f07607dab56fbeca6e00446ed7daed4ba260d76a1509"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-core-tVy4yV/strict-types.json",
+      "bytes": 843,
+      "sha256": "2d7219d1efb27490fbeef0f2f1be5891dd060be2a43db4ac312c941319c8f42d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/AUDIT_EVIDENCE_SHA256.json",
+      "bytes": 11868,
+      "sha256": "e9716a5c676a4e3200a63084639238dfe2af34a95a4725d89f2b29fc73315c6e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/CORE_LOCAL_AUDIT.md",
+      "bytes": 2558,
+      "sha256": "aa5460cc1e0ad614cffa58858e337f21b63cbe631b8c3665b4d9bcd576a820f6"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/PRE_FREEZE_CANDIDATES.md",
+      "bytes": 1730,
+      "sha256": "7caeed18a466205fbbe17a769f340cd0448e21a1a54030a43b3aedf19e0ea2fb"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/PRE_FREEZE_CANDIDATE_HASHES.json",
+      "bytes": 626,
+      "sha256": "b356be747c22fb09353a9ab0984954d95d0e0dac8268a6d6258931e0a88828a5"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/R1_AUDIT.md",
+      "bytes": 7240,
+      "sha256": "749a40495fee2d25c0bac37ff3f044bb73095da8a6117e3305d7540acbfeacc6"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/ambient-timeout.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/ambient-timeout.log",
+      "bytes": 1222,
+      "sha256": "f13961d83d5d93401f673bf5935c4039bb5c6e2f6b39ffa1f3b0259a19ae4514"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/ambient-timeout.test.ts",
+      "bytes": 1335,
+      "sha256": "85d51bf51069720f4a449c7494d49d0a9123ceddb96d25aa2ba8131fffcba895"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/artwork-54.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/artwork-54.log",
+      "bytes": 13039,
+      "sha256": "014e981555fb36f9adc681c3ff6b476d94ff4d51b0bc5ef0c96b62f014aa8453"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/artwork-hash-verification.json",
+      "bytes": 2863,
+      "sha256": "244eea77bf0aabdd7ee90a4d813ceb7bf04c69ab2d85049afc1dfb7c30465d96"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/artwork-independent-green.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/artwork-independent-green.log",
+      "bytes": 782,
+      "sha256": "efe71f236bcc119b9c6109aea5c37f13e751f6d20c3243db4a5dcc650b4b3ee0"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/artwork-postcheck-hash-verification.json",
+      "bytes": 2651,
+      "sha256": "54ba50baf2c50c1558c98bf24e6aa484ef5b165eea0860086e2cfc545542035d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/artwork-strict.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/artwork-strict.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/audit-fixtures-final-strict.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/audit-fixtures-final-strict.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/audit-r1-strict.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/audit-r1-strict.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/candidates-strict-missing-globals.exit",
+      "bytes": 2,
+      "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/candidates-strict-missing-globals.log",
+      "bytes": 156,
+      "sha256": "93fe3b6381ee70d84462873762a5e630d5a90f8c2455c7b17b163ee39dbf4ddf"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/candidates-strict.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/candidates-strict.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/core-149.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/core-149.log",
+      "bytes": 34494,
+      "sha256": "3b30447b34df2d7b9c91554aedb0fb536a4eb4a9f93f04665a58a99a004b360d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/core-hash-verification.json",
+      "bytes": 7351,
+      "sha256": "3b322d88b1f779ff17547ba337b339649768146837f6b12fb5d7065bc38d658c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/core-independent.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/core-independent.log",
+      "bytes": 1053,
+      "sha256": "3b3b4e12b56b13b159eacde87fb992ce01928c246bf68aa94cc1ec0d0fae907d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/core-independent.test.ts",
+      "bytes": 3883,
+      "sha256": "9a86110137ce6e94e6b77892e1c8ce7a239be7f9c9ed8c19c12f70b997d5e5ba"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/core-renderer-busy-entry-error.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/core-renderer-busy-entry-error.log",
+      "bytes": 1974,
+      "sha256": "d861b8aab0abb542d1b7b9259e7c18da90cac7a6e4234f6828ef426a064c4cce"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/core-renderer-busy-original.test.ts",
+      "bytes": 1701,
+      "sha256": "bb573759f68b582991b29b8a4489aab5fba1f09541b5abfbccf89949376e456f"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/core-renderer-busy.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/core-renderer-busy.log",
+      "bytes": 977,
+      "sha256": "5183b9d1d3b6be43f52ee4387b32934671a3ac0070f4bc944171d8be42e10bbc"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/core-renderer-busy.test.ts",
+      "bytes": 1791,
+      "sha256": "9a826c3ae1e852a78b5cfd47338edc4e688ef14dca069854402b1bf8b8318d66"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/core-strict.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/core-strict.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/favorite-profile-bootstrap-entry-error.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/favorite-profile-bootstrap-entry-error.log",
+      "bytes": 1124,
+      "sha256": "18da5bbca356bb6e3ba7f8576a92a195faf983fdd00dcd4d42fc2cd01ebb0e9d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/favorite-profile-bootstrap-entry-error2.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/favorite-profile-bootstrap-entry-error2.log",
+      "bytes": 1856,
+      "sha256": "b7843ab6bc2fdaaa81c5fc791605b374dc661425e30d237effe90c6d830b5c45"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/favorite-profile-bootstrap-final-red.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/favorite-profile-bootstrap-final-red.log",
+      "bytes": 998,
+      "sha256": "f449b74deb4a03d2a5f495064c9392067b8c172a32fccfebaaa21a74d7af12c6"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/favorite-profile-bootstrap.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/favorite-profile-bootstrap.log",
+      "bytes": 998,
+      "sha256": "dbddb8dfdaca9d2aafb5a12cfca820d494baf061b83a3d223e3deb3371593509"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/favorite-profile-bootstrap.test.ts",
+      "bytes": 6883,
+      "sha256": "c1da9346326dbdf9b909b2dc7063e229b48ee3b8f0d954e5234db315a566bb82"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/grid-52.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/grid-52.log",
+      "bytes": 13052,
+      "sha256": "2dc4ba746d15b1176167e1f30303d9a28e7d5a354cafa786f3099ac3c874db27"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/grid-candidate-hash-verification.json",
+      "bytes": 5359,
+      "sha256": "a8828c7d7f413f7bde13547172b316b1de73d9b90e385545e4824a2a5640dce1"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/grid-independent-green.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/grid-independent-green.log",
+      "bytes": 361,
+      "sha256": "08b515b0535baa2f3007404e4bb49710baf3bfc875dcbb34672354a045a348d7"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/grid-root-mount.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/grid-root-mount.log",
+      "bytes": 997,
+      "sha256": "bec963f05ebeef91295e45bc4667ef1498f83d2ca4159afb4794af01544b18ad"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/grid-root-mount.test.ts",
+      "bytes": 2040,
+      "sha256": "358ab82a58660f3e485e66675c7c6518b08e0f63070a1589e695fe1a3a376b6f"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/grid-strict.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/grid-strict.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/independent-strict.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/independent-strict.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/original8-base.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/original8-base.log",
+      "bytes": 6230,
+      "sha256": "e74669d1782fd602d44260bf22f77562481d0bff0aae67dfc2b4f50431a4b0c0"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/original8-base.test.ts",
+      "bytes": 5976,
+      "sha256": "de5f78e1a4ac60df6c88a3f643b291987da80c72be0bc408cef4f6553051ad48"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/original8-green.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/original8-green.log",
+      "bytes": 1582,
+      "sha256": "c96e8879ebc8494528e195a902ccaefb189021438e95e77bde2604779d543f9b"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/package.json",
+      "bytes": 18,
+      "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/root-direct.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/root-direct.log",
+      "bytes": 13664,
+      "sha256": "05f6fdef9a2340d9e6b1d61ef288a81cc9c807f51dbc52f60552af238e882e24"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/root-geometry-review.json",
+      "bytes": 16304,
+      "sha256": "214dd0f284acf0106f1410e5e01d4ccc3d0a8c4f07efdd1560335f2b8999b7dd"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/root-hash-verification.json",
+      "bytes": 45366,
+      "sha256": "f29acdd7f1c415e4958e5f4eeb6806022d5c59c630d2d22aa99d1e7320011446"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/strict-candidates.json",
+      "bytes": 1484,
+      "sha256": "2af7dd8aa5ad3a6bdcbbf4354ab38b080fd77953e6c1d3d729216b39acb47852"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/strict-core.json",
+      "bytes": 844,
+      "sha256": "ffba99e64cd2ff17e4ee722e586219fc349d51c249d1d8bb09cb7af44da3ac75"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/strict-independent.json",
+      "bytes": 963,
+      "sha256": "69a51d1f828eeeadf2125106de60d47812c312d0536b6def7ef08b97bd08ec27"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/strict-r1.json",
+      "bytes": 1592,
+      "sha256": "300a172467f35f258b0ac5df19cf5e3e1681a19ee7532c8e97115b218f6faae2"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/task-final-hash-verification.json",
+      "bytes": 10240,
+      "sha256": "80e2a574df6c0e7f389f9143f418b557e769cb77477839564ea40fcb22ac8e3c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/tsconfig-artwork.json",
+      "bytes": 1107,
+      "sha256": "98604ad6a824f81e0d39694a9eb85538b390345f8eb0a8a215f48a8e7414f816"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-AGShjQ/tsconfig-grid.json",
+      "bytes": 2507,
+      "sha256": "afabb1727c19d13cbf48b9d6e17fa52ff366d3d0a11160c064c26c688b457c80"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/AUDIT_EVIDENCE_SHA256.json",
+      "bytes": 2288,
+      "sha256": "75d1ee8fda13a5bdfc0e48572dfeda827da2af46b49bf051924306db39c8507c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/R2_AUDIT.md",
+      "bytes": 6167,
+      "sha256": "5dd3038ae6f6144270ccdd2f0b7047d5566f3eeaa05c850023183c893a112459"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/audit-strict-resolved.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/audit-strict-resolved.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/audit-strict.exit",
+      "bytes": 2,
+      "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/audit-strict.log",
+      "bytes": 6440,
+      "sha256": "69c4da5c2acf6635a97e282fa76c450eddac08535d8d9ca7813dd467aae40c44"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/bootstrap-original-green.command.json",
+      "bytes": 480,
+      "sha256": "340e17b60db478149c762b8095426c72083dbdbadf17031d419288c2540fa81a"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/bootstrap-original-green.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/bootstrap-original-green.log",
+      "bytes": 352,
+      "sha256": "d98b473ec9ea31a76d4c37b1baa78ed9e7f30d8fe6731e32ffb960e833e44071"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/favorite-retry-neighborhood.test.ts",
+      "bytes": 8321,
+      "sha256": "e6799f5bae5978c4be09525b29f21ad5bd6892de2094587cc570590580364d05"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/grid-56.command.json",
+      "bytes": 1186,
+      "sha256": "b7ec1ee76e5ae06c05dde4fc9e301d3bb1cd25b5cfa7dba52487af565067fc0a"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/grid-56.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/grid-56.log",
+      "bytes": 13917,
+      "sha256": "2b211eaa81def92356096a4bbc8c86d03a9eaeb6b27a2562b8a024a6de24a84c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/grid-strict.command.json",
+      "bytes": 482,
+      "sha256": "35013dca5e1c34c558951cea1ddb4d094d6f6025c512e911f1e76c12979585d1"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/grid-strict.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/grid-strict.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/hash-after.json",
+      "bytes": 9062,
+      "sha256": "a91224b6097a9cd50acc6ffc2d7b59e694a527c024555fc089de4c9a0eb2242f"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/hash-before.json",
+      "bytes": 9556,
+      "sha256": "ecbb51354781e910b512bf462aff423fd76ff2635e1500b2caf62daa7b0b1548"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/hash-final.json",
+      "bytes": 219,
+      "sha256": "22b8266e7d9171bc3d7c665f04cb716c28007547993aa660d85f2d8584edfb86"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/original-fixture-identity.json",
+      "bytes": 197,
+      "sha256": "ceb1a71de5bfaf05eddff233c8a963efd34f3e63a169ecd80cfe9d460cd6d591"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/retry-neighborhood.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/retry-neighborhood.log",
+      "bytes": 378,
+      "sha256": "da8b6a1c6252266993058103f1f2248ab3db242741d726a7a794afd1370fc642"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/root-r2-chrome-review.json",
+      "bytes": 4774,
+      "sha256": "93e5172e68405bdda9f462d7e959838965457e524fa0874d4552acb10986fa2c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/tsconfig-grid.json",
+      "bytes": 2507,
+      "sha256": "afabb1727c19d13cbf48b9d6e17fa52ff366d3d0a11160c064c26c688b457c80"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-audit-zI0icV/tsconfig-r2-audit.json",
+      "bytes": 2988,
+      "sha256": "936f5158e237310f1d2e343e64a0ab14446332f9b4487bd383eb28070f4cf14d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/anonymous_token",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-local-search-albums.png",
+      "bytes": 621904,
+      "sha256": "f9dfb5ef9cc307d050bdbb559bc819f9253dfb7892b5ed568fbecfcd94cc4952"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-playwright-report.json",
+      "bytes": 132640,
+      "sha256": "2e9183ec4fafba856828725f8ff0a83c86844843af45155f3970a11abe33ceb5"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-task-033-sidebar-720.png",
+      "bytes": 184163,
+      "sha256": "fe40ad44bd1c5601de20aef8412a63497ed5361c641d50de17247ead359f4cc7"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-task-034-daily.png",
+      "bytes": 830407,
+      "sha256": "723869c8a2ce3abea00b1725537f75791e6bcbf3e8864b68ed327891b425659e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-task-034-home.png",
+      "bytes": 830270,
+      "sha256": "c162aa6187d97a8851c4e4160d67c829f856e045c707385288d34a20c26a5163"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-task-034-settings.png",
+      "bytes": 198608,
+      "sha256": "d7b00abc17602c965a0f6e782021b2428b5bb570f60c3abb8451061524883992"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-task-037-controls.png",
+      "bytes": 5652,
+      "sha256": "3169e8bbba3b0ba15fea299aed65b1f45c0eb376cef4a4a468852f467523e44c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-task-037-lyrics-focus.png",
+      "bytes": 353509,
+      "sha256": "878fa2895d1d42319d336e5108c76614c14249b9907c8bf4eafbb9497851a56c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-task-037-now-playing.png",
+      "bytes": 519995,
+      "sha256": "f08e0d01a7adcdd3e37cf7bc1830184f453e8864a5c27b8d49948cc03a57344d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-task-046-lyrics-candidates.png",
+      "bytes": 99665,
+      "sha256": "d1db2cd83911cc240d0d6f1de7603ab2871a0d1c9ece0156ddf0897dc1dbea20"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-task-048-collection-1440.png",
+      "bytes": 268502,
+      "sha256": "d4279ff8bd1b087eabd7b897b9ca68ce7ace8f4f72b6a90b299aaa410015a5cc"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-task-048-collection-720.png",
+      "bytes": 111266,
+      "sha256": "885faf47ded8a6cdb1c6c7157647997a948c23ac72194488ef3b2254963db71e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-task-048-recording-1440.png",
+      "bytes": 521727,
+      "sha256": "96e73643de60951a6e31598693caff81ad1a71ea0f6288357f18bc1ae17819f1"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-task-048-recording-720.png",
+      "bytes": 176344,
+      "sha256": "d0c2d0b60cc337ef540880ddff421de54fb0590d87e1a1db7ff6dda7d1d1444a"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-task-049-detail-720.png",
+      "bytes": 106451,
+      "sha256": "4037e69212ef48a75d60bea933309183be422fbd38fc7eee7f0d3d0d9d7b3718"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-task-049-detail.png",
+      "bytes": 297240,
+      "sha256": "abe81f60f8a8f29af3ba352376556438d0981fb6895f82e4c3d5bf706ab874e8"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-task-049-receive.png",
+      "bytes": 335094,
+      "sha256": "4bac50780915e1d114a4cebd2c4f6976b3b6eecd038956d52b6d0f261147ec0c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-v1-home-1280.png",
+      "bytes": 473336,
+      "sha256": "c8267236a856b66931c27c757a6dc157c65547d0351699b62b2e41f9520d9901"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-v1-home-1440.png",
+      "bytes": 348757,
+      "sha256": "e06202c971450b50ffa5bda89ac0cea0d03d58c5d83fc4ad1f06310056ccd5c3"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-v1-home-1728.png",
+      "bytes": 570619,
+      "sha256": "55805a7a18f6ef2bff7e2704e5c53a9e38f5d3b8f3edf133ae1fb1927f41db25"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-v1-home-2048.png",
+      "bytes": 643196,
+      "sha256": "fb3db4853ccd9674c1de365d0daa6dcbdf896cd49344d81ea55023d14e67eeb7"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-v1-search.png",
+      "bytes": 658802,
+      "sha256": "efce4443bd3215e7d86f0bd6fdc4f2bd9f7effbb574fb426b17e5a70f945eb28"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-v1-settings-Roon.png",
+      "bytes": 483468,
+      "sha256": "eb73b6471ab42f4c3e56160f45df38a11c0c6ac090c4f89adba83bca2ef0f876"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-v1-settings-应用.png",
+      "bytes": 518236,
+      "sha256": "f6cf11ca83b55310e1166bb42115564e4949830907f8e21b95bfdc4ecf80ac8c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-v1-settings-播放.png",
+      "bytes": 469732,
+      "sha256": "be902bb58d75e0ce66229668c3fa6741f0120e9c2e0f8472608ffe9a9f9175b2"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-v1-settings-账户.png",
+      "bytes": 484038,
+      "sha256": "c3320eac867a3ff0ef04f46111d458805c1f99343b37adcbe10475602da7d53d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r4-artifacts/musicbridge-v1-settings-高级.png",
+      "bytes": 497507,
+      "sha256": "f4ecb08ada4ece13775fbcbd69d190ee9335d43bc66ee8e5589211f9829bf306"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-local-search-albums.png",
+      "bytes": 621904,
+      "sha256": "f9dfb5ef9cc307d050bdbb559bc819f9253dfb7892b5ed568fbecfcd94cc4952"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-playwright-report.json",
+      "bytes": 124753,
+      "sha256": "4035cd2fda79f1890455408dce69308c705dbfae7129923316f8f48232adaa30"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-task-033-sidebar-720.png",
+      "bytes": 179584,
+      "sha256": "868d5265f9e1d2b513746fc754552f643542ad661bf43dd6bfd2af30c76c216d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-task-034-daily.png",
+      "bytes": 830407,
+      "sha256": "723869c8a2ce3abea00b1725537f75791e6bcbf3e8864b68ed327891b425659e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-task-034-home.png",
+      "bytes": 830279,
+      "sha256": "61cdd0370194848705c9bd0e5fbb25d0799208780bda13d8cd162ac3bd63cb4b"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-task-034-settings.png",
+      "bytes": 198611,
+      "sha256": "6c8c5f104c79cc999336f0ac035b4a9a1f17fe4695ba35734d4747887c98e9c0"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-task-037-controls.png",
+      "bytes": 5654,
+      "sha256": "fddaa686d956a09b73661b32d264b304a7ba5cd41432d536b07b6f3179814459"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-task-037-lyrics-focus.png",
+      "bytes": 353525,
+      "sha256": "be0aee55378998096c1205133d0d3831212952fb1f7e1ebca2000a50ddd4c89c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-task-037-now-playing.png",
+      "bytes": 520062,
+      "sha256": "771cf932f2a872f6fda481677bfdc46c58f25af902a9716a64d3889092ac2992"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-task-046-lyrics-candidates.png",
+      "bytes": 99812,
+      "sha256": "617c53b945747a82a5b65879dd1b161e47380e7bd6a83e37223ad4b9b7fb3d37"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-task-048-collection-1440.png",
+      "bytes": 258819,
+      "sha256": "35a068ffc7193cb3726e086fc0814ba601fb72c787d653885ba55d064497294f"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-task-048-collection-720.png",
+      "bytes": 111264,
+      "sha256": "7ea4fad60197666d4b6ff85aebf725393f5c633d75063bfaf7ce395041951785"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-task-048-recording-1440.png",
+      "bytes": 519121,
+      "sha256": "2a99701085e485cac1bde9b4b090351b7916204fc6e084b39b12fccda7f11809"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-task-048-recording-720.png",
+      "bytes": 176336,
+      "sha256": "e57bcf9ef8e6c7409f0a3d23d98feb169b227dda3b0d440e7c6c45a570c638c9"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-task-049-detail-720.png",
+      "bytes": 106521,
+      "sha256": "6c450ba9f256192aa69eace764f46bb451f6a17f42d98923585522eedf780631"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-task-049-detail.png",
+      "bytes": 297350,
+      "sha256": "aef7daa14780d0b818fb5538d57ce92b36ba127e83da8175c045fb3eeb4edebf"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-task-049-receive.png",
+      "bytes": 351157,
+      "sha256": "6518723d9690a2469cd099f15522a1f7036e7e30098c529a3b04f7b150427238"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-v1-home-1280.png",
+      "bytes": 473299,
+      "sha256": "543e700b4795756f30f236ab83b0e8e5b61e9885f261191fe2855ecd30cd6898"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-v1-home-1440.png",
+      "bytes": 349069,
+      "sha256": "14ea7537a6720989e13456203906946498f58eb02a4f1f8b97153f6fc9d19d57"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-v1-home-1728.png",
+      "bytes": 570618,
+      "sha256": "67700e0373ed7e9dbd1ca4cc7b39a169c94abb37e947dc2cc6a2815d33e6977b"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-v1-home-2048.png",
+      "bytes": 643196,
+      "sha256": "fb3db4853ccd9674c1de365d0daa6dcbdf896cd49344d81ea55023d14e67eeb7"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-v1-search.png",
+      "bytes": 658804,
+      "sha256": "137b5a9780f9ba17939f694c8d189ddec82a0e21b3d617d5b2276e1540d80792"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-v1-settings-Roon.png",
+      "bytes": 483200,
+      "sha256": "f18be07180c19fa0fe84c4db9352968a788271376215f3db3ae07dee48942ce3"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-v1-settings-应用.png",
+      "bytes": 518236,
+      "sha256": "f6cf11ca83b55310e1166bb42115564e4949830907f8e21b95bfdc4ecf80ac8c"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-v1-settings-播放.png",
+      "bytes": 469903,
+      "sha256": "8f955e791454402d0012cd0bc085a3df89bf5fc22f341311f4e5ecc63a5b6cfe"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-v1-settings-账户.png",
+      "bytes": 484745,
+      "sha256": "9bac7222359cb6a1c2df25bae9af24bd28a9cea24db7ed0d04c1ac4310ae6ead"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/final-r5-artifacts/musicbridge-v1-settings-高级.png",
+      "bytes": 497507,
+      "sha256": "f4ecb08ada4ece13775fbcbd69d190ee9335d43bc66ee8e5589211f9829bf306"
+    }
+  ]
+}

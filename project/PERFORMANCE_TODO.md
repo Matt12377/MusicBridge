@@ -1,6 +1,6 @@
 # MusicBridge 性能与正确性实施进度
 
-**实现完成：8/11 · 本地软件验收：8/11 · 真实 Mac/Roon：未执行**
+**实现完成：9/11 · 本地软件验收：9/11 · 真实 Mac/Roon：未执行**
 
 当前任务：**MBP-007 — 虚拟网格、封面竞态与资源预算**。基线 `4ac88f5`，分支 `codex/mbp-007-virtual-artwork`。
 
@@ -35,7 +35,7 @@ MBP-001 远端已结束：security 通过，verify/Electron E2E 失败。本地�
 | 7 | MBP-003B | 已完成 | 本地通过 | Core 持有上下文，先播并按需补队列 |
 | 8 | MBP-006 | 已完成 | 本地通过 | 小进度事件、队列版本与重连恢复 |
 | 9 | MBP-005 | 已完成 | 本地通过 | 作用域缓存、网易云歌单快照、渐进搜索 |
-| 10 | MBP-007 | 实施中 | 未执行 | 虚拟网格、封面竞态修复和资源预算 |
+| 10 | MBP-007 | 已完成 | 本地通过 | 虚拟网格、封面竞态修复和资源预算 |
 | 11 | MBP-008 | 待开始 | 未执行 | 批量 SQL、进度匹配与历史预算热点；worker 按测量决定 |
 | 12 | MBP-009 | 待开始 | 未执行 | 接口收口、全量回归、性能对照与实机验收记录 |
 
@@ -231,7 +231,7 @@ MBP-004报告 `02125604ab19a62f85a7b75d84b400f9d0e3f105` 已推送，远端HEAD�
 - [x] Renderer代际/资源lease/编码自然尺寸预算/取消与playing优先。
 - [x] Core跨alias独立消费者、共享owned ALS与真实SDK32预算保护。
 - [x] 实际几何、焦点/返回/加载更多及默认资源预算观测。
-- [ ] 独立审计（必要时追加一名，最多两轮）与原完整Gate。
+- [x] 两轮独立审计及固定原完整Gate均完成。
 - [ ] 固定实现/报告提交、开发分支push与远端HEAD核对。
 
 007仅软件实现范围；真实Provider/Roon/设备/GateB、main/App替换和发布保持未执行。005固定4ac88f5远端已结束：Electron E2E/security通过；verify作业1个测试失败为证据文件写死本机绝对路径，dependency-audit仍11 moderate/7 high失败。原日志/产物已保存；Root本轮修测试输出为TAP诊断，保留全部断言；不把local通过称全CI通过。
@@ -242,7 +242,7 @@ MBP-004报告 `02125604ab19a62f85a7b75d84b400f9d0e3f105` 已推送，远端HEAD�
 - [x] 图片generation、自然几何预算、当前背景超时与跨层忙重试：54/54定向、严格类型。
 - [x] 六类网格窗口、收藏解析有限池、外部重试按钮、延迟挂载与滚动布局复用：52/52定向、严格类型。
 - [x] 实际Chrome合成36组首/中/末几何，以及7组焦点、resize、恢复、分页和900ms背景租期行为。
-- [ ] 全部源码冻结后的独立R1、原全量verify/mock Electron/完整E2E与静态Gate。
+- [x] 源码冻结后两轮独立审计、原全量verify/mock Electron/完整E2E与静态Gate。
 - [ ] 独立实现/报告提交、开发分支push与远端HEAD核对；通过后计9/11并接续008。
 
 上一阶段005远端verify新测试固定本机产物路径已定位并移除，原业务断言保留；dependency-audit仍为已确认11 moderate/7 high，009收口。
@@ -254,4 +254,8 @@ MBP-004报告 `02125604ab19a62f85a7b75d84b400f9d0e3f105` 已推送，远端HEAD�
 - [x] 固定457e32e原verify完整通过：Contracts250/Core1904+原2skip/Desktop1214、三包构建；876源码指纹前后一致。
 - [x] 原mock Electron启动/恢复4/4，退出0。
 - [x] 原完整E2E实际103pass/原4skip/1fail已归因：全DOM count26与虚拟窗口不兼容。Root改逐段精确核26条逻辑次序/末项，原case1/1通过，全部搜索/返回/分页断言保留。
-- [ ] 新固定实现原完整Gate复跑；当前不计9/11。
+- [x] 最终固定c948原完整Gate通过；计软件9/11，真实验收仍未执行。
+
+007固定c948第四轮verify与mock Electron通过；完整E2E103pass/原4skip/1fail，case74在beforeEach Electron启动退出1，未执行页面断言，退出根因未确定。相同源码原case单次复跑1/1退出0；不能代替完整范围。第五轮以独立外置目录重跑原108项E2E及未到达静态Gate，保留全部失败日志与报告，总计仍8/11。
+
+007最终固定c948：第四轮verify Contracts250/Core1904+原2skip/Desktop1214与三包类型/构建、mock Electron4均exit0；第五轮完整E2E104+原4skip/0fail/0flaky与原静态Gate均exit0。876源码四个检查点SHA cd178bf6…相同，36任务源码/测试身份未改变。R4启动失败原日志/JSON/exit1和相同原case单次复跑通过均保留，根因仍未确定；不增加skip或自动retry。软件完成9/11，独立报告/push后接续008。

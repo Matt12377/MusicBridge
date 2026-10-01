@@ -4,8 +4,8 @@
   "state": "active",
   "ownerAuthorization": "连续实施性能与正确性计划；最新子代理偏好 gpt-6.1-sol high，最多3名，必要时承担审计测试",
   "currentTask": "MBP-007",
-  "implementationComplete": 8,
-  "automaticAcceptanceComplete": 8,
+  "implementationComplete": 9,
+  "automaticAcceptanceComplete": 9,
   "taskCount": 11,
   "realMacRoonAcceptance": "NOT_RUN",
   "realRecordingAcceptance": "NOT_RUN",
@@ -169,12 +169,16 @@
         "MBP-005",
         "MBP-006"
       ],
-      "state": "in-progress",
-      "implementationCommit": null,
+      "state": "software-gates-passed",
+      "implementationCommit": "c948c1e14ba87ebdbde95c868ce55dff515c3509",
       "reportCommit": null,
-      "evidence": [],
+      "evidence": [
+        "reports/MBP-007_VIRTUAL_ARTWORK.md",
+        "reports/MBP-007_EVIDENCE.json"
+      ],
       "baseCommit": "4ac88f5a9a3a3ae8ae36d1da14c02a284dd098c3",
-      "branch": "codex/mbp-007-virtual-artwork"
+      "branch": "codex/mbp-007-virtual-artwork",
+      "reportCommitResolution": "commit-containing-reports/MBP-007_VIRTUAL_ARTWORK.md"
     },
     {
       "id": "MBP-008",
@@ -205,7 +209,7 @@
       "evidence": []
     }
   ],
-  "implementationCommit": null,
+  "implementationCommit": "c948c1e14ba87ebdbde95c868ce55dff515c3509",
   "branch": "codex/mbp-007-virtual-artwork",
   "currentTaskBase": "4ac88f5a9a3a3ae8ae36d1da14c02a284dd098c3",
   "automaticAcceptanceScope": "local-standard-software-gates",
