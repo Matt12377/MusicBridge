@@ -76,8 +76,12 @@ export function createDatasetRoonProjectionGateway(
       case 'acquirePermit': {
         const p = payload as DatasetProjectionCommandPayloads['acquirePermit'];
         const ticket = tickets.get(p.projectionId);
-        if (!ticket || ticket.epoch !== context.epoch || ticket.scope !== p.scope || ticket.permitId
-          || library() !== ticket.source || ticket.source.getReadScope() !== ticket.scope) return unavailable();
+        if (!ticket || ticket.epoch !== context.epoch || ticket.scope !== p.scope || ticket.permitId) return unavailable();
+        if (getLibrary() !== ticket.source || ticket.source.getReadScope() !== ticket.scope) {
+          // 已观察到来源失效的未许可票据永久收回，避免保留旧来源或稍后复活权限。
+          tickets.delete(p.projectionId);
+          return unavailable();
+        }
         const permitId = randomUUID();
         ticket.permitId = permitId;
         // 许可是捕获证据的线性化点，不锁Transport，也不等待worker同步事务。

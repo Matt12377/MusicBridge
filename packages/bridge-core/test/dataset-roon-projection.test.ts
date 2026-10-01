@@ -31,6 +31,17 @@ test('媒体库代际失效或来源替换后，未许可元数据不能进入ow
   await assert.rejects(f.gateway.handler('acquirePermit', { scope: second.scope, projectionId: second.projectionId }, { epoch: f.epoch }), /来源已经变化/u);
 });
 
+test('已因来源替换而拒绝的元数据票据不能随旧来源返回重新取得许可', async t => {
+  const f = await fixture(t);
+  const source = f.source();
+  const capture = await f.gateway.handler('captureAlbumMetadata', { reference: f.albums.items[0]!.reference }, { epoch: f.epoch });
+  const ticket = { scope: capture.scope, projectionId: capture.projectionId };
+  f.replace({ ...source });
+  await assert.rejects(f.gateway.handler('acquirePermit', ticket, { epoch: f.epoch }), /来源已经变化/u);
+  f.replace(source);
+  await assert.rejects(f.gateway.handler('acquirePermit', ticket, { epoch: f.epoch }), /来源已经变化/u);
+});
+
 test('许可先成立的同步事务可以完成并释放；之后失效和重复许可不冒充新权限', async t => {
   const f = await fixture(t);
   const capture = await f.gateway.handler('captureAlbumMetadata', { reference: f.albums.items[0]!.reference }, { epoch: f.epoch });
