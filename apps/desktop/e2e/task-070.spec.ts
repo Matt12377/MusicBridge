@@ -193,7 +193,9 @@ test('V3完成度：真实回执丢失冷启不重放，人工恢复幂等，sch
   expect((await page.evaluate(request => window.musicBridge.listWantEntries(request), { page: paging })).total).toBe(2)
   await close(); await launch()
   expect(await page.evaluate(() => window.musicBridge.getCommandOutbox())).toEqual(pending)
-  await page.reload(); await expect(page.locator('#home-heading')).toBeVisible()
+  // 重载以 DOM、首页及 Core 就绪为屏障，装饰图片的 load 不参与回执恢复合同。
+  await page.reload({ waitUntil: 'domcontentloaded' }); await expect(page.locator('#home-heading')).toBeVisible()
+  await expect.poll(async () => (await page.evaluate(() => window.musicBridge.getCoreHealth())).runtime).toBe('ready')
   expect(await page.evaluate(() => window.musicBridge.getCommandOutbox())).toEqual(pending)
   expect((await page.evaluate(request => window.musicBridge.listWantEntries(request), { page: paging })).total).toBe(2)
   const recovered = await page.evaluate(id => window.musicBridge.retryCommandOutbox({ id, userConfirmed: true }), pending.entries[0]!.id)
