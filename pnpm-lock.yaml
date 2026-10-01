@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@neteasecloudmusicapienhanced/api@4.40.1>axios': 1.20.0
+  '@neteasecloudmusicapienhanced/unblockmusic-utils@0.4.4>axios': 1.20.0
+  get-uri@6.0.5>basic-ftp: 6.2.1
+
 patchedDependencies:
   electron-vite@5.0.0:
     hash: 25cacfc1a498d23e0c6b4c204f4fc74bd7b79ef6b89939f1798f3c245df33bcf
@@ -1080,8 +1085,8 @@ packages:
     resolution: {integrity: sha512-UzGt8zg7Ny8djbYMhxl2zuEevVa7r2gJjYY5Lwr1xM7+XU2nd6CkIWFTVcCIbAP63vSz71NaVyyuSk9lHKcy0A==}
     engines: {node: '>=4'}
 
-  axios@1.19.0:
-    resolution: {integrity: sha512-ht/iuYZXEjFxLH/Hkezgd7m6JKlHHXEUSneaDz8uZe1Gj5QZtCnpyDsckvAiEnT89OEbCLmnte4R4sn7P0EKFw==}
+  axios@1.20.0:
+    resolution: {integrity: sha512-r8aOh8j9cGKpgQAqpzrUHnSIc6a59Y3Xf/cv8sy1DrHCkZHzQGEuoq1tARk6qSyDdtQGSDgpb9kFlruzPvrgwg==}
 
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
@@ -1098,8 +1103,8 @@ packages:
     engines: {node: '>=6.0.0'}
     hasBin: true
 
-  basic-ftp@5.3.1:
-    resolution: {integrity: sha512-bopVNp6ugyA150DDuZfPFdt1KZ5a94ZDiwX4hMgZDzF+GttD80lEy8kj98kbyhLXnPvhtIo93mdnLIjpCAeeOw==}
+  basic-ftp@6.2.1:
+    resolution: {integrity: sha512-bK67isD+lKq46AU8vNtjvMaT2ZqAOAmNCbxUHlFBRD4k15NWxyEjmaKtZPlgce58So4BNTjITGQOVTjL9y0ECA==}
     engines: {node: '>=10.0.0'}
 
   birpc@2.9.0:
@@ -3448,7 +3453,7 @@ snapshots:
   '@neteasecloudmusicapienhanced/api@4.40.1':
     dependencies:
       '@neteasecloudmusicapienhanced/unblockmusic-utils': 0.4.4
-      axios: 1.19.0
+      axios: 1.20.0
       crypto-js: 4.2.0
       dotenv: 17.4.2
       express: 5.2.1
@@ -3473,7 +3478,7 @@ snapshots:
   '@neteasecloudmusicapienhanced/unblockmusic-utils@0.4.4':
     dependencies:
       '@unblockneteasemusic/server': 0.28.0
-      axios: 1.19.0
+      axios: 1.20.0
       dotenv: 17.4.2
       express: 4.22.2
       https: 1.0.0
@@ -3909,7 +3914,7 @@ snapshots:
 
   axe-core@4.13.0: {}
 
-  axios@1.19.0:
+  axios@1.20.0:
     dependencies:
       follow-redirects: 1.16.0
       form-data: 4.0.6
@@ -3927,7 +3932,7 @@ snapshots:
 
   baseline-browser-mapping@2.11.16: {}
 
-  basic-ftp@5.3.1: {}
+  basic-ftp@6.2.1: {}
 
   birpc@2.9.0: {}
 
@@ -4691,7 +4696,7 @@ snapshots:
 
   get-uri@6.0.5:
     dependencies:
-      basic-ftp: 5.3.1
+      basic-ftp: 6.2.1
       data-uri-to-buffer: 6.0.2
       debug: 4.4.3
     transitivePeerDependencies:

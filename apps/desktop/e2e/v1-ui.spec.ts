@@ -3,6 +3,7 @@ import { runStartupProcess } from '../scripts/startup-gate-process.mjs'
 import { openCollectionView, selectModelPage } from './collection-navigation.js'
 import { connectLibraryReadFixtures } from './library-read-fixtures.js'
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
+import type { AxeResults } from 'axe-core'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { appendFile, mkdtemp, readFile, rm, stat, writeFile, realpath, mkdir, readdir } from 'node:fs/promises'
@@ -17,6 +18,14 @@ const desktopRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const electronEntry = path.join(desktopRoot, 'dist/main/index.js')
 const require = createRequire(import.meta.url)
 const axeSource = await readFile(require.resolve('axe-core/axe.min.js'), 'utf8')
+
+function electronEnvironment(environment: NodeJS.ProcessEnv): Record<string, string> {
+  const values: [string, string][] = []
+  for (const [name, value] of Object.entries(environment)) {
+    if (typeof value === 'string') values.push([name, value])
+  }
+  return Object.fromEntries(values)
+}
 
 let electronApp: ElectronApplication
 let page: Page
@@ -460,7 +469,7 @@ test.beforeEach(async () => {
     await writeFile(test.info().outputPath('synthetic-user-data-path.txt'), await realpath(diagnosticDirectory))
   }
   diagnosticPath = path.join(diagnosticDirectory, 'diagnostics.json')
-  const environment = {
+  const environment: NodeJS.ProcessEnv = {
     ...process.env,
     MUSIC_BRIDGE_UI_E2E: '1',
     MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory,
@@ -480,7 +489,7 @@ test.beforeEach(async () => {
   electronApp = await electron.launch({
     args: testElectronArguments([electronEntry]),
     cwd: desktopRoot,
-    env: environment,
+    env: electronEnvironment(environment),
   })
   page = await electronApp.firstWindow()
   await connectLibraryReadFixtures(electronApp)
@@ -927,7 +936,7 @@ test('v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation', 
   expect(await page.evaluate(() => ({ process: typeof (globalThis as { process?: unknown }).process, require: typeof (globalThis as { require?: unknown }).require }))).toEqual({ process: 'undefined', require: 'undefined' })
   expect(await page.evaluate(() => window.open('https://example.invalid'))).toBeNull()
 
-  const crashEnvironment = {
+  const crashEnvironment: NodeJS.ProcessEnv = {
     ...process.env,
     MUSIC_BRIDGE_UI_E2E: '1',
     MUSIC_BRIDGE_STARTUP_TEST: '1',
@@ -1572,9 +1581,9 @@ test('V3 真实库存录入、实例化与刷新后数量保持一致', async ()
   await expect(detail.getByText('MB-C-00001', { exact: true })).toBeVisible()
   // 完全退出 Electron，再用同一个独立测试目录启动，证明数据不只保存在 Renderer 或 Core 内存。
   await electronApp.close()
-  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
+  const environment: NodeJS.ProcessEnv = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
   delete environment.NETEASE_COOKIE
-  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: environment })
+  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: electronEnvironment(environment) })
   page = await electronApp.firstWindow()
   await openCollectionView(page, 'tapes')
   await page.getByRole('button', { name: /合成品牌 库存验收磁带/ }).click()
@@ -1754,9 +1763,9 @@ test('V3 实物照片原生导入、代表图与重启持久化，不预分配�
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.screenshot({ path: test.info().outputPath('photos-wall-1440.png') })
   await electronApp.close()
-  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
+  const environment: NodeJS.ProcessEnv = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
   delete environment.NETEASE_COOKIE
-  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: environment })
+  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: electronEnvironment(environment) })
   page = await electronApp.firstWindow()
   await openCollectionView(page, 'tapes')
   await page.getByRole('button', { name: /照片验收品牌 照片验收型号/ }).click()
@@ -1841,7 +1850,7 @@ test('V3 单盘照片拒绝非法文件；加载失败可重试且不丢库存',
 })
 
 test('packaged UI has no critical or serious axe findings', async () => {
-  const results = await electronApp.evaluate(async ({ BrowserWindow }, source) => {
+  const results: AxeResults = await electronApp.evaluate(async ({ BrowserWindow }, source) => {
     const window = BrowserWindow.getAllWindows()[0]
     if (!window) throw new Error('没有找到 Electron 窗口')
     return window.webContents.executeJavaScript(
@@ -1897,9 +1906,9 @@ test('V3 实体音乐库录入原版 CD，重启后仍在且不改变空白库�
   await editor.getByRole('button', { name: '保存音乐资料', exact: true }).click()
   await expect(page.getByText('实物数量 2', { exact: true })).toBeVisible()
   await electronApp.close()
-  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
+  const environment: NodeJS.ProcessEnv = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
   delete environment.NETEASE_COOKIE
-  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: environment })
+  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: electronEnvironment(environment) })
   page = await electronApp.firstWindow()
   await openCollectionView(page, 'music')
   const card = page.getByRole('button', { name: /原版 CD · 2 张 合成唱片/ })
@@ -2022,9 +2031,9 @@ test('V3 Roon 关联闭环：取消、确认、矩阵、双向导航与重启重
   const matrix = page.getByRole('region', { name: '收藏矩阵内容', exact: true })
   await expect(matrix.getByText('CD 2', { exact: true })).toBeVisible()
   await electronApp.close()
-  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory, MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY: '1' }
+  const environment: NodeJS.ProcessEnv = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory, MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY: '1' }
   delete environment.NETEASE_COOKIE
-  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: environment }); page = await electronApp.firstWindow()
+  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: electronEnvironment(environment) }); page = await electronApp.firstWindow()
   expect((await page.evaluate(id => window.musicBridge.getDigitalRuntime(id), digitalId)).status).toBe('needs-resolution')
   await enterPhysical()
   await page.getByRole('button', { name: '查看数字关联详情', exact: true }).click()
@@ -2132,9 +2141,9 @@ test('V3 录音选曲草稿：取消不写入、跨专辑选曲、排序与重�
     await page.screenshot({ path: test.info().outputPath(`master-draft-${size.width}.png`) })
   }
   await electronApp.close()
-  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
+  const environment: NodeJS.ProcessEnv = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
   delete environment.NETEASE_COOKIE; delete environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY
-  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: environment }); page = await electronApp.firstWindow()
+  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: electronEnvironment(environment) }); page = await electronApp.firstWindow()
   await page.locator('[data-sidebar-source="recording"]').click()
   await page.locator('.draft-card').filter({ hasText: '跨专辑私人精选' }).click()
   const restored = await page.evaluate(id => window.musicBridge.getMasterDraft(id), id)
@@ -2227,9 +2236,9 @@ test('V3 录音选曲源验证：原生选择到 SQLite、人工确认、离线�
   }
   await panel.getByRole('button', { name: '关闭', exact: true }).click(); await expect(trigger).toBeFocused()
   await electronApp.close()
-  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
+  const environment: NodeJS.ProcessEnv = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
   delete environment.NETEASE_COOKIE; delete environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY
-  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: environment }); page = await electronApp.firstWindow()
+  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: electronEnvironment(environment) }); page = await electronApp.firstWindow()
   await page.locator('[data-sidebar-source="recording"]').click(); await page.locator('.draft-card').filter({ hasText: '实际源验证合成' }).click()
   expect((await page.evaluate(id => window.musicBridge.getDraftSources(id), saved.draftId)).sourceLockEligible).toBe(true)
   expect((await page.evaluate(() => window.musicBridge.listCollection({ offset: 0, limit: 20 }))).total).toBe(0)
@@ -2291,9 +2300,9 @@ test('V3 分面与库存：浏览不写入，明确预留、取消与冷启动�
   const after = await page.evaluate(() => window.musicBridge.getPlaybackState())
   expect(after.queue).toEqual(before.queue); expect(after.selectedZoneId).toEqual(before.selectedZoneId); expect(after.state).toEqual(before.state)
   await electronApp.close()
-  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
+  const environment: NodeJS.ProcessEnv = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
   delete environment.ELECTRON_RUN_AS_NODE
-  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: environment }); page = await electronApp.firstWindow()
+  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: electronEnvironment(environment) }); page = await electronApp.firstWindow()
   expect((await page.evaluate(id => window.musicBridge.getRecordingWorkspaceContext(id), fixture.draftId))?.selection.planId).toBe(reservedPlans[0]!.id)
   await page.locator('[data-sidebar-source="recording"]').click(); await page.locator('.draft-card').filter({ hasText: '分面预留合成' }).click()
   await page.locator('.workbench-main').getByRole('button', { name: '估算分面与选带', exact: true }).click()
@@ -2416,9 +2425,9 @@ test('V3 母版冻结：正式 IPC 复核源、回执重试、帧级历史与冷
   }
   await panel.getByRole('button', { name: '关闭', exact: true }).click(); await expect(trigger).toBeFocused()
   await electronApp.close()
-  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
+  const environment: NodeJS.ProcessEnv = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
   delete environment.NETEASE_COOKIE; delete environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY
-  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: environment }); page = await electronApp.firstWindow()
+  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: electronEnvironment(environment) }); page = await electronApp.firstWindow()
   await page.locator('[data-sidebar-source="recording"]').click(); await page.locator('.draft-card').filter({ hasText: '版本冻结合成' }).click()
   await expandRecordingDetails(); await page.locator('.extra-steps').getByRole('button', { name: '母版与版本', exact: true }).click()
   await expect(page.getByText('查看布局 L1', { exact: true })).toBeVisible()
@@ -2686,9 +2695,9 @@ test('V3 Logic 工作区：原生授权、确认复制、回执重试、Finder �
   await step('accepted-recovery-close-app', () => electronApp.close())
   expect(firstProcess.exitCode).toBe(0)
   expect(mainExceptions).toEqual([])
-  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_UI_E2E_OFFLINE: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
+  const environment: NodeJS.ProcessEnv = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_UI_E2E_OFFLINE: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
   delete environment.NETEASE_COOKIE; delete environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY
-  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: environment }); page = await electronApp.firstWindow()
+  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: electronEnvironment(environment) }); page = await electronApp.firstWindow()
   captureMainLifecycle(electronApp)
   await electronApp.evaluate(() => { process.on('uncaughtExceptionMonitor', error => { process.stdout.write('TASK078_UNCAUGHT ' + JSON.stringify({ message: error.message, stack: error.stack }) + '\n') }) })
   observePage(page)
@@ -2730,7 +2739,7 @@ test('V3 Logic 工作区：原生授权、确认复制、回执重试、Finder �
     return { request, datasetId, rejection, preRestartStatus: receipt.status }
   }, history.workspaces[0]!.id)
   await electronApp.close()
-  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: environment }); page = await electronApp.firstWindow()
+  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: electronEnvironment(environment) }); page = await electronApp.firstWindow()
   observePage(page)
   await page.locator('[data-sidebar-source="recording"]').click(); await page.locator('.draft-card').filter({ hasText: 'Logic 工作区合成' }).click()
   // 第二次退出时仍在 Logic 子页；冷启应恢复同一页与原回执，而不是回到工作台重新选择。
@@ -2864,8 +2873,8 @@ for (const emptyB of [false, true]) test(`V3 PREP：原始 Render 保存、人�
   }
   await panel.getByRole('button', { name: '关闭', exact: true }).click(); await expect(trigger).toBeFocused()
   await electronApp.close()
-  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }; delete environment.NETEASE_COOKIE; delete environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY
-  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: environment }); page = await electronApp.firstWindow()
+  const environment: NodeJS.ProcessEnv = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }; delete environment.NETEASE_COOKIE; delete environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY
+  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: electronEnvironment(environment) }); page = await electronApp.firstWindow()
   await page.locator('[data-sidebar-source="recording"]').click(); await page.locator('.draft-card').filter({ hasText: 'PREP 合成草稿' }).click(); await expandRecordingDetails(); await page.locator('.extra-steps').getByRole('button', { name: 'Render 与 PREP', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'PREP 1', exact: true })).toBeVisible(); expect(await page.evaluate(id => window.musicBridge.listPrepared(id), draft.draftId)).toEqual(history)
   await page.locator('section.prepared-panel.is-inline').getByRole('button', { name: '关闭', exact: true }).click()
@@ -3016,6 +3025,7 @@ test('V3 执行资产：Profile 与本次参数、明确编译、回执重试和
   await expect(panel.getByText(/^正在准备并校验 \d+ \/ \d+ 面$/)).toHaveCount(0)
   const history = await page.evaluate(id => window.musicBridge.listExecutionAssets(id), draft.draftId), asset = history.assets[0]!
   expect(history.assets).toHaveLength(1); expect(history.jobs).toHaveLength(1); expect(asset.formalReady).toBe(false); expect(asset.settings.effective.noiseReduction).toBeNull(); expect(asset.settings.effective.recordLevel).toBe('人工合成 -3 dB'); expect(asset.settings.effective.preRollMs).toBe(2000)
+  if (asset.recipes[1]!.schemaVersion !== 1) throw new Error('合成空 B 面必须使用 schemaVersion 1 执行配方')
   expect(asset.audio).toHaveLength(1); expect(asset.recipes[1]!.totalFrames).toBe(0); expect(asset.audio[0]!.audio.frameCount).toBe(396902)
   expect(JSON.stringify(history)).not.toContain(directory)
   const outputDirectory = path.join(target, `MusicBridge-Execution-${history.jobs[0]!.id}`); expect(await readdir(path.join(outputDirectory, 'Audio'))).toEqual(['A.execution.wav']); expect(await readFile(sourceFile)).toEqual(bytes)
@@ -3070,8 +3080,8 @@ test('V3 执行资产：Profile 与本次参数、明确编译、回执重试和
     await panel.evaluate(el => { el.scrollTop = 0 }); await page.screenshot({ path: test.info().outputPath(`execution-parameters-${size.width}.png`) }); await panel.getByRole('heading', { name: '执行资产 1', exact: true }).scrollIntoViewIfNeeded(); await page.screenshot({ path: test.info().outputPath(`execution-history-${size.width}.png`) })
   }
   await panel.getByRole('button', { name: '关闭', exact: true }).click(); await expect(trigger).toBeFocused(); await electronApp.close()
-  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }; delete environment.NETEASE_COOKIE; delete environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY
-  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: environment }); page = await electronApp.firstWindow()
+  const environment: NodeJS.ProcessEnv = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }; delete environment.NETEASE_COOKIE; delete environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY
+  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: electronEnvironment(environment) }); page = await electronApp.firstWindow()
   await page.locator('[data-sidebar-source="recording"]').click(); await page.locator('.draft-card').filter({ hasText: '执行资产合成草稿' }).click(); await page.getByRole('button', { name: '录音参数与执行资产', exact: true }).click()
   await expect(page.getByRole('heading', { name: '执行资产 1', exact: true })).toBeVisible(); expect(await page.evaluate(id => window.musicBridge.listExecutionAssets(id), draft.draftId)).toEqual(history)
   await page.getByRole('button', { name: '归档此执行资产', exact: true }).click()
@@ -3198,9 +3208,9 @@ test('V3 执行资产固定原生构建：真实转换、文件验证与冷启�
   await expect(panel.getByText('本次文件验证通过', { exact: true })).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('native-conversion.png') })
   await electronApp.close()
-  const environment = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_BUNDLED_CONVERTER_GATE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
+  const environment: NodeJS.ProcessEnv = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_BUNDLED_CONVERTER_GATE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: diagnosticDirectory }
   delete environment.NETEASE_COOKIE; delete environment.MUSIC_BRIDGE_SYNTHETIC_ROON_LIBRARY
-  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: environment }); page = await electronApp.firstWindow()
+  electronApp = await electron.launch({ args: testElectronArguments([electronEntry]), cwd: desktopRoot, env: electronEnvironment(environment) }); page = await electronApp.firstWindow()
   await page.locator('[data-sidebar-source="recording"]').click(); await page.locator('.draft-card').filter({ hasText: '固定原生构建合成草稿' }).click()
   await page.getByRole('button', { name: '录音参数与执行资产', exact: true }).click()
   await expect(page.getByRole('heading', { name: '执行资产 1', exact: true })).toBeVisible()
