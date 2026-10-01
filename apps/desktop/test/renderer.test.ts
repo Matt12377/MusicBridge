@@ -463,7 +463,7 @@ test('Provider and native Roon progress seek only through an explicitly seekable
   const playback = await applicationSource('usePlaybackSession.ts')
   const nowPlaying = await readFile(path.resolve('src/renderer/src/components/NowPlayingView.vue'), 'utf8')
 
-  assert.match(app, /:seek-allowed="selectedZone\?\.seekAllowed === true"/)
+  assert.match(app, /:seek-allowed="selectedZone\?\.seekAllowed === true && playbackSyncStatus === 'ready'"/)
   assert.match(nowPlaying, /seekAllowed: boolean/)
   assert.match(nowPlaying, /:disabled="!props\.seekAllowed \|\| !props\.currentTrack \|\| durationMs <= 0"/)
   assert.doesNotMatch(playback, /playbackState\.value\s*=\s*\{\s*\.\.\.snapshot,\s*positionMs:\s*result\.positionMs\s*\}/)

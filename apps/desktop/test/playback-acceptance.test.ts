@@ -22,7 +22,7 @@ test('Provider playback exposes seek when the selected Roon zone allows it', asy
   const implementation = app.slice(seekStart, seekEnd)
 
   assert.doesNotMatch(implementation, /playbackSource\.value !== 'roon'/)
-  assert.match(app, /:seek-allowed="selectedZone\?\.seekAllowed === true"/)
+  assert.match(app, /:seek-allowed="selectedZone\?\.seekAllowed === true && playbackSyncStatus === 'ready'"/)
 })
 
 test('queue inspector uses the available panel height instead of a fixed 420px viewport', async () => {
