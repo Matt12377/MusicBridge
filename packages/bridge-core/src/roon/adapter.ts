@@ -1473,6 +1473,8 @@ export class RoonAudioInputAdapter implements RoonPort {
         ? createRoonLibraryService({
             browse: core.services.RoonApiBrowse,
             image: core.services.RoonApiImage,
+            // 开发回滚在新服务实例生效，两套遍历缓存不会共用游标。
+            incrementalDetails: process.env.MUSIC_BRIDGE_INCREMENTAL_ROON_DETAILS !== '0',
             ...(this.onBrowseShape ? { onBrowseShape: this.onBrowseShape } : {}),
             ...(this.onImageShape ? { onImageShape: this.onImageShape } : {}),
             zoneOrOutputId: () => this.selectedZone?.zone_id,

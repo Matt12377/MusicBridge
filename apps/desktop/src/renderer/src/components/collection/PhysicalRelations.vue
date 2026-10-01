@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import type { CollectionMatrixRow, DigitalAlbumDetail, DigitalRuntime, MusicEntry, Page, PhysicalDigitalLink, PhysicalLinkHistoryEvent, PhysicalLinkResult, PhysicalLinksSnapshot, PhysicalRelation, RoonLibraryPage } from '@music-bridge/contracts'
+import { nextRoonPageOffset, readRoonDatasetPage, RoonPageCursorHistory } from '../../composables/roonLibraryPagination.js'
 import RoonAlbumPicker from './RoonAlbumPicker.vue'
 import { createPhysicalLinkHistoryFence } from './physical-link-history-fence'
 import { createPhysicalRelationRequestFence } from './physical-relation-request-fence'
@@ -17,8 +18,10 @@ const runtimeLabels = { available: '当前 Roon 链接可用', 'needs-resolution
 let alive = true, lastReleaseId = props.release?.id
 const historyFence = createPhysicalLinkHistoryFence()
 const viewFence = createPhysicalRelationRequestFence(), tracksFence = createPhysicalRelationRequestFence()
+const trackCursors = new RoonPageCursorHistory()
+let trackRebases = 0
 let unsubscribe: (() => void) | undefined
-function clearTracks(): void { tracksFence.invalidate(); tracks.value = undefined; playbackError.value = '' }
+function clearTracks(): void { tracksFence.invalidate(); trackCursors.reset(); trackRebases = 0; tracks.value = undefined; playbackError.value = '' }
 async function readView<T>(operation: () => Promise<T>, publish: (value: T) => void): Promise<boolean> {
   loading.value = true
   return viewFence.read(operation, {
@@ -119,11 +122,21 @@ function absence(): void {
 async function preview(offset = 0): Promise<void> {
   const reference = runtime.value?.status === 'available' ? runtime.value.reference : undefined, id = digital.value?.album.id
   if (!reference || !id) return
-  tracks.value = undefined; playbackError.value = ''
-  await tracksFence.read(() => api.getRoonAlbumTracks(reference, { offset, limit: 20 }), {
+  const previous = tracks.value
+  if (offset === 0) trackRebases = 0
+  playbackError.value = ''
+  const valid = () => alive && digital.value?.album.id === id && runtime.value?.status === 'available' && runtime.value.reference === reference
+  let version = 0
+  await tracksFence.read(async () => {
+    version = tracksFence.version()
+    const result = await readRoonDatasetPage(previous, { offset, limit: 20 }, page => api.getRoonAlbumTracks(reference, page),
+      () => tracksFence.isCurrent(version, valid), trackRebases === 0 ? () => { trackRebases++ } : undefined)
+    if (!result) throw new Error('关联曲目读取已取消')
+    return result.page
+  }, {
     valid: () => alive && digital.value?.album.id === id && runtime.value?.status === 'available' && runtime.value.reference === reference,
-    success: result => { tracks.value = result },
-    failure: () => { playbackError.value = '曲目暂时无法读取，请检查 Roon 连接或重新定位。' },
+    success: result => { tracks.value = result; trackCursors.record(reference, result) },
+    failure: () => { playbackError.value = '曲目暂时无法读取或上下文已变化，请重新读取；旧页不代表完整专辑。' },
   })
 }
 async function play(reference: string): Promise<void> {
@@ -169,7 +182,7 @@ onUnmounted(() => { alive = false; viewFence.invalidate(); clearTracks(); histor
       <article v-for="item in digital.links" :key="item.link.id" class="link-card"><strong>{{ item.release.title }}</strong><p>{{ relations[item.link.relation] }} · {{ item.release.kind === 'cd' ? '原版 CD' : '原版磁带' }} × {{ item.release.quantity }}</p><p v-if="item.link.ripFromCdConfirmed">CD Rip · 用户单独确认</p><div class="actions"><button :disabled="blocked" @click="showPhysical(item.release.id)">查看关联实物</button><button :disabled="blocked" @click="removing = item.link">解除关联</button></div></article>
       <div v-if="!digital.links.length" class="absence"><p>{{ digital.album.physicalAbsenceConfirmed ? 'Digital Only · 已确认未收藏原版实物' : '原版实物尚未核实，不视为缺少' }}</p><label><input v-model="absenceConfirm" type="checkbox">{{ digital.album.physicalAbsenceConfirmed ? '确认撤销未收藏声明' : '我已核实尚未收藏原版实物' }}</label><button :disabled="blocked || !absenceConfirm" @click="absence">{{ digital.album.physicalAbsenceConfirmed ? '撤销未收藏声明' : '确认未收藏原版实物' }}</button></div>
       <p v-if="playbackError" role="alert">{{ playbackError }}</p>
-      <section v-if="tracks" aria-label="关联专辑曲目"><ul><li v-for="track in tracks.items" :key="track.reference"><span>{{ track.title }} · {{ track.artist }}</span><button :disabled="blocked || runtime?.status !== 'available'" @click="play(track.reference)">试听 {{ track.title }}</button></li></ul><nav aria-label="关联曲目分页"><button :disabled="!tracks.offset" @click="preview(Math.max(0, tracks.offset - 20))">上一页</button><button :disabled="!tracks.hasMore" @click="preview(tracks.offset + 20)">下一页</button></nav></section>
+      <section v-if="tracks" aria-label="关联专辑曲目"><ul><li v-for="track in tracks.items" :key="track.reference"><span>{{ track.title }} · {{ track.artist }}</span><button :disabled="blocked || runtime?.status !== 'available'" @click="play(track.reference)">试听 {{ track.title }}</button></li></ul><nav aria-label="关联曲目分页"><button :disabled="!tracks.offset" @click="preview(trackCursors.previous(tracks))">上一页</button><button :disabled="!tracks.hasMore" @click="preview(nextRoonPageOffset(tracks))">下一页</button></nav></section>
     </template>
     <template v-else-if="release">
       <header><h3>Roon 数字关联</h3><button :disabled="blocked || !snapshot" @click="picker = 'link'">关联 Roon 专辑</button></header>

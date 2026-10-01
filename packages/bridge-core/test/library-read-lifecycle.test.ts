@@ -127,3 +127,101 @@ for (const changed of [false, true]) {
     else { assert.equal((await service.browseAlbum(album, page)).items.length, 2); assert.deepEqual(dispatched, ['album:v1', 'album:v2']); }
   });
 }
+
+test('MBP-004：普通原始页失败保留成功检查点，重试不跳过未发布条目', async () => {
+  const offsets: number[] = []; let failed = false;
+  const service = createRoonLibraryService({ browse: {
+    browse(options, callback) { callback(false, { action: 'list', list: { level: options.pop_all ? 0 : 1, count: options.pop_all ? 1 : 4 } }); },
+    load(options, callback) {
+      const offset = Number(options.offset);
+      if (options.level === 0) { callback(false, { offset, items: [{ title: '专辑', item_key: 'album', hint: 'list' }] }); return; }
+      offsets.push(offset);
+      if (offset === 1 && !failed) { failed = true; callback('受控失败', undefined); return; }
+      callback(false, { offset, items: [{ title: `曲目${offset}`, subtitle: '艺人', item_key: `track:${offset}`, hint: 'action_list' }] });
+    },
+  }, image: { get_image() {} } });
+  const album = (await service.browseAlbums({ offset: 0, limit: 1 })).items[0]!;
+  await assert.rejects(service.browseAlbum(album, { offset: 0, limit: 2 }));
+  const page = await service.browseAlbum(album, { offset: 0, limit: 2 });
+  assert.deepEqual(offsets, [0, 1, 1, 2]); assert.deepEqual(page.items.map(item => item.title), ['曲目0', '曲目1']);
+  const last = await service.browseAlbum(album, { offset: 2, limit: 2 });
+  assert.equal(last.sourceEpoch, page.sourceEpoch); assert.deepEqual(last.items.map(item => item.title), ['曲目2', '曲目3']); assert.equal(last.complete, true);
+});
+
+test('MBP-004：详情上下文 LRU 重建生成新代，释放旧条目引用只会明确过期', async () => {
+  let current = '';
+  const service = createRoonLibraryService({ browse: {
+    browse(options, callback) {
+      if (options.pop_all || options.pop_levels) current = '';
+      if (options.item_key) current = String(options.item_key);
+      callback(false, { action: 'list', list: { level: current ? 1 : 0, count: current ? 1 : 33 } });
+    },
+    load(options, callback) {
+      const offset = Number(options.offset), count = Number(options.count);
+      callback(false, { offset, items: current ? [{ title: '曲目', subtitle: '艺人', item_key: `track:${current}`, hint: 'action_list' }]
+        : Array.from({ length: Math.min(count, 33 - offset) }, (_, i) => ({ title: `专辑${offset + i}`, item_key: `album:${offset + i}`, hint: 'list' })) });
+    },
+  }, image: { get_image() {} } });
+  const albums = (await service.browseAlbums({ offset: 0, limit: 100 })).items;
+  const first = await service.browseAlbum(albums[0]!, { offset: 0, limit: 1 });
+  for (const album of albums.slice(1)) await service.browseAlbum(album, { offset: 0, limit: 1 });
+  await assert.rejects(service.playTrack(first.items[0]!, 'zone'), /stale/u);
+  const fresh = await service.browseAlbum(albums[0]!, { offset: 0, limit: 1 });
+  assert.notEqual(fresh.sourceEpoch, first.sourceEpoch); assert.equal(fresh.items[0]?.title, '曲目');
+});
+
+test('MBP-004：导航回调期间 Zone 换代后不派发旧详情 load', async () => {
+  let zone = 'A'; let detailLoads = 0;
+  const service = createRoonLibraryService({ zoneOrOutputId: () => zone, browse: {
+    browse(options, callback) {
+      if (options.item_key) zone = 'B';
+      callback(false, { action: 'list', list: { level: options.pop_all ? 0 : 1, count: 1 } });
+    },
+    load(options, callback) {
+      if (options.level === 0) callback(false, { offset: options.offset, items: [{ title: '专辑', item_key: 'album', hint: 'list' }] });
+      else { detailLoads++; callback(false, { offset: options.offset, items: [{ title: '曲目', subtitle: '艺人', item_key: 'track', hint: 'action_list' }] }); }
+    },
+  }, image: { get_image() {} } });
+  const album = (await service.browseAlbums({ offset: 0, limit: 1 })).items[0]!;
+  await assert.rejects(service.browseAlbum(album, { offset: 0, limit: 1 }), error => code(error, 'READ_CANCELLED'));
+  assert.equal(detailLoads, 0);
+});
+
+test('MBP-004：在途详情上下文不被 LRU 驱逐，容量满时安全拒绝', async () => {
+  let detail = false; let held!: (error: string | false, body: unknown) => void; let detailLoads = 0;
+  const service = createRoonLibraryService({ browse: {
+    browse(options, callback) { detail = Boolean(options.item_key); callback(false, { action: 'list', list: { level: detail ? 1 : 0, count: detail ? 1 : 33 } }); },
+    load(options, callback) {
+      if (detail) { detailLoads++; held = callback; return; }
+      const offset = Number(options.offset);
+      callback(false, { offset, items: Array.from({ length: Math.min(Number(options.count), 33 - offset) }, (_, i) => ({ title: `专辑${offset + i}`, item_key: `album:${offset + i}`, hint: 'list' })) });
+    },
+  }, image: { get_image() {} } });
+  const albums = (await service.browseAlbums({ offset: 0, limit: 100 })).items;
+  const controller = new AbortController();
+  const reads = albums.slice(0, 32).map(album => withLibraryRead({ signal: controller.signal, deadlineAtMs: Date.now() + 3000, now: Date.now, isCurrent: () => true }, () => service.browseAlbum(album, { offset: 0, limit: 1 })));
+  const ended = Promise.allSettled(reads); await turn();
+  await assert.rejects(service.browseAlbum(albums[32]!, { offset: 0, limit: 1 }), /上下文预算已满/u);
+  assert.equal(detailLoads, 1); controller.abort();
+  for (const outcome of await ended) assert.equal(outcome.status, 'rejected');
+  held(false, { offset: 0, items: [] }); await turn(); assert.equal(detailLoads, 1);
+});
+
+test('MBP-004：扫描工作预算不足不返回半页，成功 raw 检查点供后续重试', async () => {
+  const offsets: number[] = []; let detail = false;
+  const service = createRoonLibraryService({ browse: {
+    browse(options, callback) { detail = Boolean(options.item_key); callback(false, { action: 'list', list: { level: detail ? 1 : 0, count: detail ? 16_386 : 1 } }); },
+    load(options, callback) {
+      const offset = Number(options.offset), count = Number(options.count);
+      if (!detail) { callback(false, { offset, items: [{ title: '稀疏专辑', item_key: 'album', hint: 'list' }] }); return; }
+      offsets.push(offset);
+      callback(false, { offset, items: Array.from({ length: Math.min(count, 16_386 - offset) }, (_, i) => offset + i < 16_385
+        ? { title: '说明', hint: 'header' } : { title: '最终曲目', subtitle: '艺人', item_key: 'track', hint: 'action_list' }) });
+    },
+  }, image: { get_image() {} } });
+  const album = (await service.browseAlbums({ offset: 0, limit: 1 })).items[0]!;
+  await assert.rejects(service.browseAlbum(album, { offset: 0, limit: 1 }), /扫描预算已满/u);
+  assert.equal(offsets.at(-1), 16_382);
+  const page = await service.browseAlbum(album, { offset: 0, limit: 1 });
+  assert.equal(offsets.at(-1), 16_384); assert.equal(page.items[0]?.title, '最终曲目'); assert.equal(page.complete, true); assert.equal(page.total, 1);
+});

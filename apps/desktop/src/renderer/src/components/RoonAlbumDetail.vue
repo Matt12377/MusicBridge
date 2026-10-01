@@ -48,7 +48,7 @@ function formatDuration(durationMs: number | undefined): string {
         <p class="section-kicker">Roon 专辑</p>
         <h2 id="roon-album-heading">{{ props.album.title }}</h2>
         <p class="lede">{{ props.album.artist || props.album.subtitle || '本地音乐库' }}</p>
-        <span class="roon-album-detail-meta">{{ props.album.year ? `${props.album.year} · ` : '' }}{{ props.page.total ?? props.page.items.length }} 首歌曲</span>
+        <span class="roon-album-detail-meta">{{ props.album.year ? `${props.album.year} · ` : '' }}{{ props.page.total === undefined ? `已加载 ${props.page.items.length} 首` : `${props.page.total} 首歌曲` }}</span>
         <button type="button" class="primary-button" :disabled="props.playbackPending || props.initialLoading || !!props.error || !props.page.items.length" @click="emit('play-all')"><i class="bi bi-play-fill" aria-hidden="true"></i> {{ props.playbackPending ? '正在准备播放…' : '播放全部' }}</button>
         <button type="button" class="secondary-button detail-favorite-button" :disabled="props.favoriteState === 'loading'" :aria-pressed="props.favoriteState === 'liked'" @click="emit('toggle-favorite')">{{ props.favoriteState === 'liked' ? '♥ 已收藏' : '♡ 收藏专辑' }}</button>
       </div>

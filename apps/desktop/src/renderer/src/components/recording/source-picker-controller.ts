@@ -1,5 +1,7 @@
 import type { CollectionMatrixRow, DigitalAlbumDetail, DigitalRuntime, Page, PhysicalLinksPublicApi, RoonLibraryItem, RoonLibraryPage, TypedIpcEvent } from '@music-bridge/contracts'
 
+import { readRoonDatasetPage, RoonPageCursorHistory } from '../../composables/roonLibraryPagination.js'
+
 export type SourcePickerApi = Pick<PhysicalLinksPublicApi, 'searchPhysicalRoonAlbums' | 'getCollectionMatrix' | 'getDigitalAlbum' | 'getDigitalRuntime'> & {
   getRoonAlbumTracks(reference: string, page: { offset: number; limit: number }): Promise<RoonLibraryPage>
 }
@@ -57,6 +59,28 @@ export class SourcePickerController {
   private generation = 0
   private connectionGeneration = 0
   private localRead = false
+  private readonly albumCursors = new RoonPageCursorHistory()
+  private readonly trackCursors = new RoonPageCursorHistory()
+  private readonly pageScopes: Record<'albums' | 'tracks', { key: string; page?: RoonLibraryPage; attempts: number }> = {
+    albums: { key: '', attempts: 0 }, tracks: { key: '', attempts: 0 },
+  }
+  previousAlbumsOffset(): number { return this.albumCursors.previous(this.state.albums) }
+  previousTracksOffset(): number { return this.trackCursors.previous(this.state.tracks) }
+  private async readPickerPage(kind: 'albums' | 'tracks', key: string, offset: number, limit: number,
+    read: (page: { offset: number; limit: number }) => Promise<RoonLibraryPage>, token: number): Promise<RoonLibraryPage | undefined> {
+    const scope = this.pageScopes[kind]
+    const history = kind === 'albums' ? this.albumCursors : this.trackCursors
+    if (scope.key !== key || offset === 0) { scope.key = key; scope.page = undefined; scope.attempts = 0; history.reset() }
+    const result = await readRoonDatasetPage(scope.page, { offset, limit }, read, () => this.current(token),
+      scope.attempts === 0 ? () => {
+        scope.attempts++
+        if (kind === 'tracks') this.patch({ selected: this.state.selected.map(item => item.albumReference === key ? { ...item, stale: true } : item) })
+      } : undefined)
+    if (!result || !this.current(token)) return undefined
+    scope.page = result.page
+    history.record(key, result.page)
+    return result.page
+  }
   constructor(private readonly api: SourcePickerApi, private readonly changed: (state: SourcePickerState) => void = () => {}) {}
   private patch(update: Partial<SourcePickerState>): void {
     if (!this.alive) return
@@ -88,8 +112,8 @@ export class SourcePickerController {
     const token = this.begin({ album: undefined, tracks: undefined, trackDigitalId: undefined, albums: undefined })
     try {
       if (this.state.offline) throw new Error('Roon 离线')
-      const albums = await this.api.searchPhysicalRoonAlbums(query, { offset, limit: 20 })
-      if (this.current(token)) this.patch({ albums })
+      const albums = await this.readPickerPage('albums', query.trim(), offset, 20, page => this.api.searchPhysicalRoonAlbums(query, page), token)
+      if (albums && this.current(token)) this.patch({ albums })
     } catch {
       if (this.current(token)) this.patch({ error: 'Roon 专辑暂时不可用，请检查连接后重试。未确认选曲不会保存。' })
     } finally { if (this.current(token)) this.patch({ loading: false }) }
@@ -127,8 +151,8 @@ export class SourcePickerController {
     const token = this.begin({ album, tracks: undefined, trackDigitalId: undefined })
     try {
       if (this.state.offline) throw new Error('Roon 离线')
-      const tracks = await this.api.getRoonAlbumTracks(album.reference, { offset, limit: 30 })
-      if (this.current(token)) this.patch({ tracks })
+      const tracks = await this.readPickerPage('tracks', album.reference, offset, 30, page => this.api.getRoonAlbumTracks(album.reference, page), token)
+      if (tracks && this.current(token)) this.patch({ tracks })
     } catch {
       if (this.current(token)) this.patch({
         selected: this.state.selected.map(selection => selection.albumReference === album.reference ? { ...selection, stale: true } : selection),
@@ -151,8 +175,8 @@ export class SourcePickerController {
       }
       const reference = runtime.reference
       this.patch({ album: { ...digital.album.metadata, reference, kind: 'album' } })
-      const tracks = await this.api.getRoonAlbumTracks(reference, { offset, limit: 30 })
-      if (!this.current(token)) return
+      const tracks = await this.readPickerPage('tracks', reference, offset, 30, page => this.api.getRoonAlbumTracks(reference, page), token)
+      if (!tracks || !this.current(token)) return
       // 请求期间也可能撤权、断线或换引用，不能把迟到曲目当作当前结果。
       const current = await this.api.getDigitalRuntime(id)
       if (!this.current(token)) return
@@ -170,6 +194,8 @@ export class SourcePickerController {
     } finally { if (this.current(token)) this.patch({ loading: false }) }
   }
   backFromTracks(): void {
+    this.trackCursors.reset()
+    this.pageScopes.tracks = { key: '', attempts: 0 }
     ++this.generation
     this.localRead = false
     this.patch({ album: undefined, tracks: undefined, trackDigitalId: undefined, loading: false, error: '' })
@@ -212,6 +238,8 @@ export class SourcePickerController {
   setRoonAvailable(available: boolean): void {
     if (available) { this.patch({ offline: false }); return }
     ++this.connectionGeneration
+    this.albumCursors.reset(); this.trackCursors.reset()
+    this.pageScopes.albums = { key: '', attempts: 0 }; this.pageScopes.tracks = { key: '', attempts: 0 }
     // 本地矩阵和详情独立于 Roon；只取消运行期目录、曲目与确认读取。
     if (!this.localRead) ++this.generation
     this.patch({ offline: true, loading: this.localRead && this.state.loading, albums: undefined, tracks: undefined, runtime: this.state.digital ? { status: 'unavailable' } : undefined,

@@ -55,7 +55,7 @@ function formatDuration(durationMs: number | undefined): string {
         <p class="section-kicker">{{ props.mode === 'genre' ? 'Roon 流派' : 'Roon 歌单' }}</p>
         <h2 :id="`roon-${props.mode}-heading`">{{ props.entity.title }}</h2>
         <p class="lede">{{ props.entity.subtitle || (props.mode === 'genre' ? '真实专辑与曲目' : '真实 Roon Playlist 曲目') }}</p>
-        <span class="roon-album-detail-meta">{{ props.page.total ?? props.page.items.length }} 个条目</span>
+        <span class="roon-album-detail-meta">{{ props.page.total === undefined ? `已加载 ${props.page.items.length} 个条目` : `${props.page.total} 个条目` }}</span>
       </div>
     </div>
 

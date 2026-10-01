@@ -119,3 +119,35 @@ test('Roon collection loader rejects a mismatched response offset and retries th
   assert.deepEqual(calls, [0, 1, 1])
   assert.deepEqual(collection.page.value.items.map((item) => item.reference), ['album:1', 'album:2'])
 })
+
+const epochA = '00000000-0000-4000-8000-000000000001', epochB = '00000000-0000-4000-8000-000000000002'
+test('MBP004：根列表用raw nextOffset而非limit或有效显示长度', async () => {
+  const calls: number[] = []
+  const collection = useRoonCollection(async request => {
+    calls.push(request.offset)
+    return { ...page(`album:${request.offset}`, request.offset, request.offset === 0), sourceEpoch: epochA, complete: request.offset !== 0, nextOffset: request.offset === 0 ? 7 : 13 }
+  }, () => '读取失败', 24)
+  await collection.load(); await collection.loadMore()
+  assert.deepEqual(calls, [0, 7])
+})
+test('MBP004：混epoch拒绝第N页，最多重读0一次，持续换代显式报错', async () => {
+  const calls: number[] = []
+  let generation = 0
+  const collection = useRoonCollection(async request => {
+    calls.push(request.offset)
+    if (request.offset === 0) generation++
+    const sourceEpoch = request.offset === 0 ? (generation === 1 ? epochA : epochB) : (generation === 1 ? epochB : epochA)
+    return { ...page(`album:${generation}:${request.offset}`, request.offset, true), sourceEpoch, complete: false, nextOffset: request.offset + 7 }
+  }, () => '读取失败', 24)
+  await collection.load(); await collection.loadMore(); await collection.loadMore()
+  assert.deepEqual(calls, [0, 7, 0, 7])
+  assert.deepEqual(collection.page.value.items.map(item => item.reference), ['album:2:0'])
+  assert.match(collection.loadMoreError.value ?? '', /重新读取/u)
+})
+test('MBP004：hasMore但游标不前进不继续派发', async () => {
+  const calls: number[] = []
+  const collection = useRoonCollection(async request => { calls.push(request.offset); return { ...page('album:1', 0, true), nextOffset: 0 } }, () => '游标异常')
+  await collection.load(); await collection.loadMore()
+  assert.deepEqual(calls, [0])
+  assert.ok(collection.error.value || collection.loadMoreError.value)
+})

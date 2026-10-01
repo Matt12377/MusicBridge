@@ -92,6 +92,9 @@ export interface RoonLibraryPage<T extends RoonEntityDescriptor> {
   level: number;
   total?: number;
   hasMore?: boolean;
+  sourceEpoch?: string;
+  complete?: boolean;
+  nextOffset?: number;
 }
 
 export interface RoonImageResult {
@@ -100,6 +103,7 @@ export interface RoonImageResult {
 }
 
 export interface RoonLibraryService {
+  invalidateReadContexts?(): void;
   browseAlbums(request: RoonPageRequest): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
   browseArtists(request: RoonPageRequest): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
   browseGenres(request: RoonPageRequest): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
@@ -192,6 +196,87 @@ interface BrowsePathSegment {
   sourceIndex: number;
   pathSignature: string;
 }
+
+// 私有原始页检查点；公开 offset 仍表示详情的有效条目位置。
+type DetailMode = 'album' | 'artist' | 'genre' | 'playlist';
+interface DetailFrame {
+  path: readonly BrowsePathSegment[];
+  role: 'album' | 'artist-root' | 'mixed-root' | 'album-items' | 'track-items';
+  offset: number;
+  total?: number;
+  level?: number;
+  buffer: readonly unknown[];
+  bufferOffset: number;
+  bufferBytes: number;
+  index: number;
+  eof: boolean;
+  disc?: number;
+  depth: number;
+}
+interface DetailState {
+  frames: DetailFrame[];
+  groups: DetailFrame[];
+  items: RoonEntityDescriptor[];
+  candidates: RoonEntityDescriptor[];
+  itemBytes: number;
+  candidateBytes: number;
+  grouped: boolean;
+  complete: boolean;
+  containers: number;
+  level: number;
+}
+interface DetailContext {
+  key: string;
+  epoch: string;
+  session: BrowseSessionState;
+  sessionKey: string;
+  generation: number;
+  zone: string | undefined;
+  state: DetailState;
+  tail: Promise<void>;
+  pending: number;
+  paths: Set<string>;
+  rootPath: readonly BrowsePathSegment[];
+  pathBytes: number;
+  rootPathBytes: number;
+}
+const MAX_DETAIL_CONTEXTS = 32;
+const MAX_DETAIL_DESCRIPTORS = 8_192;
+const MAX_RETAINED_DESCRIPTORS = 32_768;
+const MAX_REGISTERED_PATHS = 65_536;
+const MAX_DETAIL_REQUEST_WORK = 16_384;
+const MAX_BROWSE_RECORD_BYTES = 128 * 1024;
+const MAX_DETAIL_CACHE_BYTES = 32 * 1024 * 1024;
+const MAX_RETAINED_CACHE_BYTES = 128 * 1024 * 1024;
+const MAX_PATH_CACHE_BYTES = 32 * 1024 * 1024;
+const MAX_ARTIST_IMAGE_KEY_BYTES = 32 * 1024;
+const MAX_ARTIST_IMAGE_CACHE_BYTES = 4 * 1024 * 1024;
+
+// 保守计量 UTF-16 字符串与容器/节点开销；不串行化全缓存，也不截断身份。
+function browseValueBytes(value: unknown, maximum: number): number {
+  const pending: Array<{ value: unknown; depth: number }> = [{ value, depth: 0 }];
+  const seen = new Set<object>(); let bytes = 0; let nodes = 0;
+  while (pending.length) {
+    const entry = pending.pop()!;
+    if (++nodes > 4096 || entry.depth > 16) throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', 'Browse 记录结构预算超限');
+    bytes += 64;
+    if (typeof entry.value === 'string') bytes += 2 * Buffer.byteLength(entry.value, 'utf8');
+    else if (entry.value && typeof entry.value === 'object') {
+      if (seen.has(entry.value)) throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', 'Browse 记录包含循环引用');
+      seen.add(entry.value);
+      // 逐字段访问，巨大未知对象不会先复制 Object.entries 到另一个大数组。
+      for (const key in entry.value) {
+        if (!Object.hasOwn(entry.value, key)) continue;
+        bytes += 64 + 2 * Buffer.byteLength(key, 'utf8');
+        if (bytes > maximum || pending.length >= 4096) throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', 'Browse 记录字节预算超限');
+        pending.push({ value: (entry.value as Record<string, unknown>)[key], depth: entry.depth + 1 });
+      }
+    }
+    if (bytes > maximum) throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', 'Browse 记录字节预算超限');
+  }
+  return bytes;
+}
+
 
 interface BrowseSessionState {
   hierarchy: RoonBrowseHierarchy;
@@ -456,6 +541,7 @@ function normalizePage(request: RoonPageRequest): RoonPageRequest {
 function readBrowseResponse(value: unknown): BrowseResponse {
   const body = asRecord(value);
   const list = asRecord(body?.list);
+  if (list) browseValueBytes(list, MAX_BROWSE_RECORD_BYTES);
   const level = readSafeInteger(list?.level);
   if (level === undefined) {
     throw new RoonLibraryError(
@@ -698,6 +784,7 @@ export function createRoonLibraryService(dependencies: {
   onBrowseShape?: (summary: RoonBrowseShapeSummary) => void;
   onImageShape?: (summary: RoonImageShapeSummary) => void;
   zoneOrOutputId?: () => string | undefined;
+  incrementalDetails?: boolean;
 }): RoonLibraryService {
   const requestTimeoutMs = dependencies.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
   if (!Number.isSafeInteger(requestTimeoutMs) || requestTimeoutMs < 1) {
@@ -705,10 +792,17 @@ export function createRoonLibraryService(dependencies: {
   }
   const newSessionKey = (hierarchy: RoonBrowseHierarchy): string =>
     `musicbridge-v2-${hierarchy}-${randomUUID()}`;
+  const incrementalDetails = dependencies.incrementalDetails !== false;
+  let contextGeneration = 0;
+  let contextZone = dependencies.zoneOrOutputId?.();
+  const detailContexts = new Map<string, DetailContext>();
+  const rootEpochs = new Map<string, { epoch: string; sessionKey: string; eofOffset?: number; contiguousThrough: number }>();
   const sessionsByKey = new Map<string, BrowseSessionState>();
   const rootSessions = new Map<RoonBrowseHierarchy, BrowseSessionState>();
   const searchSessions = new Map<string, BrowseSessionState>();
   const pathsBySignature = new Map<string, readonly BrowsePathSegment[]>();
+  const pathSizes = new Map<string, number>();
+  let retainedPathBytes = 0;
   const albumTracksBySignature = new Map<string, readonly RoonEntityDescriptor[]>();
   const artistAlbumsBySignature = new Map<string, readonly RoonEntityDescriptor[]>();
   const genreItemsBySignature = new Map<string, readonly RoonEntityDescriptor[]>();
@@ -726,6 +820,8 @@ export function createRoonLibraryService(dependencies: {
     level: number;
   }>();
   const artistImageKeysBySignature = new Map<string, string | undefined>();
+  const artistImageKeySizes = new Map<string, number>();
+  let retainedArtistImageKeyBytes = 0;
   const pendingArtistImageKeys = new Map<string, Promise<string | undefined>>();
   const artistReadOwners = new WeakMap<Promise<string | undefined>, NonNullable<ReturnType<typeof currentLibraryRead>>>();
   const artistImageLookupTails = Array.from({ length: 4 }, () => Promise.resolve());
@@ -778,7 +874,15 @@ export function createRoonLibraryService(dependencies: {
     path: readonly BrowsePathSegment[],
   ): void => {
     assertLibraryReadCurrent();
-    pathsBySignature.set(pathSignature, path);
+    if (!pathsBySignature.has(pathSignature) && pathsBySignature.size >= MAX_REGISTERED_PATHS) {
+      throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', 'Browse 路径预算已满，请重新加载资料库');
+    }
+    const bytes = browseValueBytes(path, MAX_PATH_CACHE_BYTES);
+    if (retainedPathBytes - (pathSizes.get(pathSignature) ?? 0) + bytes > MAX_PATH_CACHE_BYTES) {
+      throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', 'Browse 路径字节预算已满');
+    }
+    retainedPathBytes += bytes - (pathSizes.get(pathSignature) ?? 0);
+    pathSizes.set(pathSignature, bytes); pathsBySignature.set(pathSignature, path);
   };
   const withSession = <T>(
     session: BrowseSessionState,
@@ -800,14 +904,24 @@ export function createRoonLibraryService(dependencies: {
     return result;
   };
 
+  const removeArtistImageKey = (signature: string): void => {
+    artistImageKeysBySignature.delete(signature);
+    retainedArtistImageKeyBytes -= artistImageKeySizes.get(signature) ?? 0;
+    artistImageKeySizes.delete(signature);
+  };
   const cacheArtistImageKey = (signature: string, imageKey: string | undefined): void => {
     assertLibraryReadCurrent();
-    if (!artistImageKeysBySignature.has(signature) && artistImageKeysBySignature.size >= 2_048) {
+    const keyBytes = imageKey === undefined ? 0 : Buffer.byteLength(imageKey, 'utf8');
+    if (keyBytes > MAX_ARTIST_IMAGE_KEY_BYTES) throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', '艺人图片 key 字节预算超限');
+    const bytes = 128 + 2 * Buffer.byteLength(signature, 'utf8') + 2 * keyBytes;
+    removeArtistImageKey(signature);
+    while (artistImageKeysBySignature.size >= 2_048 || retainedArtistImageKeyBytes + bytes > MAX_ARTIST_IMAGE_CACHE_BYTES) {
       const oldest = artistImageKeysBySignature.keys().next().value;
-      if (oldest !== undefined) artistImageKeysBySignature.delete(oldest);
+      if (oldest === undefined) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', '艺人图片 key 缓存字节预算已满');
+      removeArtistImageKey(oldest);
     }
-    artistImageKeysBySignature.delete(signature);
     artistImageKeysBySignature.set(signature, imageKey);
+    artistImageKeySizes.set(signature, bytes); retainedArtistImageKeyBytes += bytes;
   };
 
   let outstandingReadBrowse = 0;
@@ -817,6 +931,8 @@ export function createRoonLibraryService(dependencies: {
     if (typeof key !== 'string') return;
     const session = sessionsByKey.get(key);
     if (!session || session.multiSessionKey !== key) return;
+    for (const context of detailContexts.values()) if (context.session === session) forgetContext(context);
+    rootEpochs.delete(session.hierarchy);
     session.multiSessionKey = newSessionKey(session.hierarchy);
     session.initialized = false; session.currentPath = []; session.requiresPathValidation = true;
     delete session.rootLevel; delete session.currentLevel; delete session.currentCount; delete session.currentImageKey;
@@ -1087,9 +1203,19 @@ export function createRoonLibraryService(dependencies: {
     request: RoonPageRequest,
   ): Promise<RoonLibraryPage<RoonEntityDescriptor>> => {
     const pageRequest = normalizePage(request);
+    checkContextZone();
     const session = rootSession(hierarchy);
     return withSession(session, async () => {
+      const generation = contextGeneration;
+      const zone = contextZone;
+      let epoch = rootEpochs.get(hierarchy);
+      if (!epoch || epoch.sessionKey !== session.multiSessionKey) {
+        epoch = { epoch: randomUUID(), sessionKey: session.multiSessionKey, contiguousThrough: 0 };
+        rootEpochs.set(hierarchy, epoch);
+      }
       const list = await ensureRoot(session);
+      assertLibraryReadCurrent();
+      if (generation !== contextGeneration || zone !== dependencies.zoneOrOutputId?.() || epoch.sessionKey !== session.multiSessionKey) throw libraryReadCancelled();
       const loaded = readLoadResponse(await requestBrowse('load', {
         hierarchy,
         multi_session_key: session.multiSessionKey,
@@ -1097,22 +1223,43 @@ export function createRoonLibraryService(dependencies: {
         offset: pageRequest.offset,
         count: pageRequest.limit,
       }));
-      const offset = readSafeInteger(loaded.offset) ?? pageRequest.offset;
+      validateRawPage(loaded, pageRequest.offset, pageRequest.limit, list.count);
+      assertLibraryReadCurrent();
+      if (generation !== contextGeneration || zone !== dependencies.zoneOrOutputId?.() || epoch.sessionKey !== session.multiSessionKey) {
+        throw libraryReadCancelled();
+      }
+      const offset = pageRequest.offset;
+      const nextOffset = offset + loaded.items.length;
+      const stagedPaths = new Map<string, readonly BrowsePathSegment[]>();
       const items = mapItems(loaded.items, kind, hierarchy, {
         multiSessionKey: session.multiSessionKey,
         level: list.level,
         parentReference: rootReference(hierarchy),
         parentPath: [],
         sourceOffset: offset,
-        registerPath,
+        registerPath: (signature, value) => { stagedPaths.set(signature, value); },
       }).filter((item) => item.itemKey !== undefined && item.hint === 'list');
+      const stagedSizes = new Map([...stagedPaths].map(([signature, value]) => [signature, browseValueBytes(value, MAX_PATH_CACHE_BYTES)]));
+      const additions = [...stagedPaths.keys()].filter(signature => !pathsBySignature.has(signature)).length;
+      const delta = [...stagedSizes].reduce((sum, [signature, bytes]) => sum + bytes - (pathSizes.get(signature) ?? 0), 0);
+      if (pathsBySignature.size + additions > MAX_REGISTERED_PATHS || retainedPathBytes + delta > MAX_PATH_CACHE_BYTES) {
+        throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', 'Browse 根页路径预算已满');
+      }
+      for (const [signature, value] of stagedPaths) { pathsBySignature.set(signature, value); pathSizes.set(signature, stagedSizes.get(signature)!); }
+      retainedPathBytes += delta;
+      if (offset <= epoch.contiguousThrough) epoch.contiguousThrough = Math.max(epoch.contiguousThrough, nextOffset);
+      if (list.count !== undefined && nextOffset >= list.count) epoch.eofOffset = list.count;
+      else if (list.count === undefined && loaded.items.length === 0) epoch.eofOffset = Math.min(epoch.eofOffset ?? offset, offset);
+
       return {
         items,
         offset,
         level: list.level,
-        ...(list.count !== undefined
-          ? { total: list.count, hasMore: offset + loaded.items.length < list.count }
-          : {}),
+        sourceEpoch: epoch.epoch,
+        complete: epoch.eofOffset !== undefined,
+        nextOffset,
+        ...(list.count !== undefined ? { total: list.count } : epoch.eofOffset !== undefined && epoch.contiguousThrough === epoch.eofOffset ? { total: epoch.eofOffset } : {}),
+        hasMore: list.count !== undefined ? nextOffset < list.count : epoch.eofOffset !== undefined ? nextOffset < epoch.eofOffset : loaded.items.length > 0,
       };
     });
   };
@@ -1357,6 +1504,206 @@ export function createRoonLibraryService(dependencies: {
       || /^\d[\d,. ]*\s*(?:位)?艺术家\s*[,，]\s*\d[\d,. ]*\s*(?:张)?专辑$/u.test(normalized);
   };
 
+  const invalidateReadContexts = (): void => {
+    contextGeneration++;
+    detailContexts.clear(); rootEpochs.clear();
+    albumTracksBySignature.clear(); artistAlbumsBySignature.clear(); genreItemsBySignature.clear(); playlistTracksBySignature.clear();
+    searchTracksByQuery.clear(); searchAlbumsByQuery.clear(); searchArtistsByQuery.clear(); entitySearchProgress.clear();
+    pathsBySignature.clear(); pathSizes.clear(); retainedPathBytes = 0;
+    artistImageKeysBySignature.clear(); artistImageKeySizes.clear(); retainedArtistImageKeyBytes = 0; pendingArtistImageKeys.clear();
+    for (const session of new Set(sessionsByKey.values())) {
+      const oldKey = session.multiSessionKey;
+      retireSession(oldKey);
+    }
+    contextZone = dependencies.zoneOrOutputId?.();
+  };
+  const checkContextZone = (): void => {
+    if (contextZone === dependencies.zoneOrOutputId?.()) return;
+    // Zone 换代保留已发引用的稳定重放材料；缓存与会话必须换代。
+    const paths = new Map(pathsBySignature);
+    invalidateReadContexts();
+    for (const [signature, path] of paths) registerPath(signature, path);
+  };
+  const validateRawPage = (loaded: LoadResponse, offset: number, count: number, total?: number): void => {
+    if (loaded.offset !== undefined && readSafeInteger(loaded.offset) !== offset) {
+      throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', 'Browse 原始 offset 偏移不匹配');
+    }
+    if (offset + loaded.items.length > 1_000_000) throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', 'Browse 原始偏移超出公开游标范围');
+    if (loaded.items.length > count || (total !== undefined && loaded.items.length > 0 && offset + loaded.items.length > total)) {
+      throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', 'Browse 原始页超出请求范围');
+    }
+    if (loaded.items.length === 0 && total !== undefined && offset < total) {
+      throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', 'Browse 原始页未推进且未到 EOF');
+    }
+    for (const value of loaded.items) browseValueBytes(value, MAX_BROWSE_RECORD_BYTES);
+  };
+  const newFrame = (path: readonly BrowsePathSegment[], role: DetailFrame['role'], disc?: number, depth = 0): DetailFrame => ({
+    path, role, offset: 0, buffer: [], bufferOffset: 0, bufferBytes: 0, index: 0, eof: false, ...(disc !== undefined ? { disc } : {}), depth,
+  });
+  const forgetContext = (context: DetailContext): void => {
+    if (detailContexts.get(context.key) !== context) return;
+    detailContexts.delete(context.key);
+    // 根实体路径独立保留；释放详情条目路径后旧 reference 只会明确过期。
+    const retained = new Set([...detailContexts.values()].flatMap(value => [...value.paths, ...value.rootPath.map(segment => segment.pathSignature)]));
+    for (const signature of context.paths) if (!retained.has(signature)) {
+      pathsBySignature.delete(signature); retainedPathBytes -= pathSizes.get(signature) ?? 0; pathSizes.delete(signature);
+    }
+  };
+  const detailBytes = (context: DetailContext, state: DetailState): number => state.itemBytes + state.candidateBytes
+    + state.frames.reduce((sum, frame) => sum + frame.bufferBytes + 256, 0)
+    + state.groups.reduce((sum, frame) => sum + frame.bufferBytes + 256, 0) + context.pathBytes + context.rootPathBytes;
+  const reserveDetailMemory = (context: DetailContext, state: DetailState, stagedBytes: number): void => {
+    const size = (value: DetailState) => value.items.length + value.candidates.length;
+    if (size(state) > MAX_DETAIL_DESCRIPTORS) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', '详情条目预算已满');
+    if (detailBytes(context, state) + stagedBytes > MAX_DETAIL_CACHE_BYTES) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', '详情缓存字节预算已满');
+    let bytes = detailBytes(context, state) + stagedBytes + [...detailContexts.values()].filter(value => value !== context).reduce((sum, value) => sum + detailBytes(value, value.state), 0);
+    let retained = size(state) + [...detailContexts.values()].filter(value => value !== context).reduce((sum, value) => sum + size(value.state), 0);
+    while (retained > MAX_RETAINED_DESCRIPTORS || bytes > MAX_RETAINED_CACHE_BYTES) {
+      const oldest = [...detailContexts.values()].find(value => value !== context && value.pending === 0);
+      if (!oldest) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', '在途详情缓存预算已满');
+      retained -= size(oldest.state); bytes -= detailBytes(oldest, oldest.state); forgetContext(oldest);
+    }
+  };
+  const assertContext = (context: DetailContext): void => {
+    assertLibraryReadCurrent();
+    if (detailContexts.get(context.key) !== context || context.generation !== contextGeneration
+      || context.sessionKey !== context.session.multiSessionKey || context.zone !== dependencies.zoneOrOutputId?.()) {
+      throw libraryReadCancelled();
+    }
+  };
+  const incrementalDetail = async (
+    entity: RoonEntityDescriptor, mode: DetailMode, session: BrowseSessionState,
+    path: readonly BrowsePathSegment[], request: RoonPageRequest,
+  ): Promise<RoonLibraryPage<RoonEntityDescriptor>> => {
+    const key = `${mode}\0${entity.browseContext!.pathSignature}`;
+    let context = detailContexts.get(key);
+    if (!context) {
+      if (detailContexts.size >= MAX_DETAIL_CONTEXTS) {
+        const oldest = [...detailContexts.values()].find(value => value.pending === 0);
+        if (!oldest) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', '在途详情上下文预算已满');
+        forgetContext(oldest);
+      }
+      context = {
+        key, epoch: randomUUID(), session, sessionKey: session.multiSessionKey, generation: contextGeneration, zone: contextZone,
+        state: { frames: [newFrame(path, mode === 'album' ? 'album' : mode === 'artist' ? 'artist-root' : 'mixed-root')], groups: [], items: [], candidates: [], itemBytes: 0, candidateBytes: 0, grouped: false, complete: false, containers: 0, level: entity.browseContext!.level + 1 },
+        tail: Promise.resolve(), pending: 0, paths: new Set(), rootPath: path, pathBytes: 0, rootPathBytes: browseValueBytes(path, MAX_PATH_CACHE_BYTES),
+      };
+      detailContexts.set(key, context);
+    }
+    const owned = context;
+    detailContexts.delete(key); detailContexts.set(key, owned); owned.pending++;
+    const work = async (): Promise<RoonLibraryPage<RoonEntityDescriptor>> => {
+      assertContext(owned);
+      let scanned = 0;
+      const target = request.offset + request.limit + 1;
+      while (!owned.state.complete && owned.state.items.length < target) {
+        await withSession(session, async () => {
+          assertContext(owned);
+          const state: DetailState = { ...owned.state, frames: owned.state.frames.map(frame => ({ ...frame })), groups: [...owned.state.groups], items: [...owned.state.items], candidates: [...owned.state.candidates] };
+          const stagedPaths = new Map<string, readonly BrowsePathSegment[]>();
+          const stagePath = (signature: string, value: readonly BrowsePathSegment[]) => { stagedPaths.set(signature, value); };
+          const frame = state.frames.at(-1);
+          if (!frame) { state.complete = true; }
+          else {
+            const needsLoad = frame.index >= frame.buffer.length && !frame.eof && (frame.total === undefined || frame.offset < frame.total);
+            const list = needsLoad || frame.level === undefined ? await navigateToPath(session, frame.path) : { level: frame.level, ...(frame.total !== undefined ? { count: frame.total } : {}) };
+            assertContext(owned);
+            frame.level = list.level;
+            state.level = list.level;
+            if (frame.total !== undefined && list.count !== undefined && frame.total !== list.count) {
+              forgetContext(owned);
+              throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', '详情原始总数变化，请重新加载');
+            }
+            if (list.count !== undefined) frame.total = list.count;
+            if (frame.index >= frame.buffer.length && !frame.eof) {
+              if (frame.total !== undefined && frame.offset >= frame.total) frame.eof = true;
+              else {
+                const budget = MAX_DETAIL_REQUEST_WORK - scanned;
+                if (budget <= 0) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', '本次详情扫描预算已满，可重试继续读取');
+                const count = Math.min(MAX_PAGE_LIMIT, Math.max(1, target - state.items.length), budget, frame.total === undefined ? MAX_PAGE_LIMIT : frame.total - frame.offset);
+                const loaded = readLoadResponse(await requestBrowse('load', { hierarchy: session.hierarchy, multi_session_key: session.multiSessionKey, level: list.level, offset: frame.offset, count }));
+                validateRawPage(loaded, frame.offset, count, frame.total);
+                scanned += loaded.items.length;
+                frame.bufferBytes = loaded.items.reduce<number>((sum, value) => sum + browseValueBytes(value, MAX_BROWSE_RECORD_BYTES), 0);
+                frame.buffer = loaded.items; frame.bufferOffset = frame.offset; frame.index = 0;
+                frame.offset += loaded.items.length;
+                frame.eof = frame.total !== undefined ? frame.offset >= frame.total : loaded.items.length === 0;
+              }
+            }
+            const parentReference = frame.path.at(-1)?.pathSignature ?? rootReference(session.hierarchy);
+            let descended = false;
+            while (frame.index < frame.buffer.length && state.items.length < target) {
+              const index = frame.bufferOffset + frame.index++;
+              const value = frame.buffer[frame.index - 1]; const record = asRecord(value) ?? {};
+              const hint = readString(record, 'hint'), title = readString(record, 'title'), subtitle = readString(record, 'subtitle');
+              const groupKind = title ? normalizedGroupKind(title) : undefined;
+              if (frame.role === 'album' && hint === 'header') { if (title) { const disc = inferDiscNumber(title) ?? frame.disc; if (disc !== undefined) frame.disc = disc; } continue; }
+              const container = hint === 'list' && title && (frame.role === 'album' || frame.role === 'artist-root' && groupKind === 'album' || frame.role === 'mixed-root' && groupKind);
+              if (container) {
+                const segment = readPathSegment(value, session.hierarchy, 'container', parentReference, index, frame.disc);
+                if (segment && (frame.role !== 'mixed-root' || mode === 'genre' || groupKind === 'track')) {
+                  if (++state.containers > MAX_ALBUM_CONTAINER_COUNT) throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', '详情分组数量超出有界预算');
+                  const childPath = [...frame.path, segment]; stagePath(segment.pathSignature, childPath);
+                  const child = newFrame(childPath, frame.role === 'album' ? 'album' : groupKind === 'album' ? 'album-items' : 'track-items', title ? inferDiscNumber(title) ?? frame.disc : frame.disc, frame.depth + 1);
+                  if (child.depth > MAX_ALBUM_BROWSE_DEPTH) throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', '详情层级深度超出有界预算');
+                  if (frame.role === 'mixed-root') state.groups.push(child);
+                  else {
+                    if (frame.role === 'artist-root') { state.grouped = true; state.candidates = []; state.candidateBytes = 0; }
+                    state.frames.push(child); descended = true; break;
+                  }
+                }
+                continue;
+              }
+              let kind: 'album' | 'track' | undefined;
+              if (frame.role === 'artist-root') { if (!state.grouped && hint === 'list') kind = 'album'; }
+              else if (frame.role === 'album-items') { if (hint === 'list') kind = 'album'; }
+              else if (frame.role === 'mixed-root') {
+                if (mode === 'genre' && hint === 'list' && subtitle && !isGenreCollectionSummary(subtitle)) kind = 'album';
+                else if (hint === 'action_list' && subtitle) kind = 'track';
+              } else if (hint === 'action_list' && subtitle) kind = 'track';
+              if (!kind) continue;
+              const disc = frame.role === 'album' ? (title ? inferDiscNumber(title) : undefined) ?? frame.disc : undefined;
+              const item = readItem(value, kind, session.hierarchy, { multiSessionKey: session.multiSessionKey, level: list.level, parentReference, parentPath: frame.path, sourceIndex: index, ...(disc !== undefined ? { inheritedDiscNumber: disc } : {}), registerPath: stagePath });
+              if (!item?.itemKey) continue;
+              const resolved = mode === 'album' ? { ...item, ...(!item.album ? { album: entity.title } : {}), ...(!item.imageKey && entity.imageKey ? { imageKey: entity.imageKey } : {}) } : item;
+              const bytes = browseValueBytes(resolved, MAX_BROWSE_RECORD_BYTES);
+              if (frame.role === 'artist-root') { state.candidates.push(resolved); state.candidateBytes += bytes; }
+              else { state.items.push(resolved); state.itemBytes += bytes; }
+            }
+            if (!descended && frame.index >= frame.buffer.length) {
+              frame.buffer = []; frame.bufferBytes = 0; frame.index = 0;
+              if (frame.eof) {
+                state.frames.pop();
+                if (frame.role === 'artist-root' && !state.grouped) { state.items = state.candidates; state.itemBytes = state.candidateBytes; state.candidates = []; state.candidateBytes = 0; }
+                if (frame.role === 'mixed-root' && state.groups.length) state.frames.push(state.groups.shift()!);
+                else if (!state.frames.length && state.groups.length) state.frames.push(state.groups.shift()!);
+                state.complete = state.frames.length === 0;
+              }
+            }
+          }
+          assertContext(owned);
+          const stagedSizes = new Map([...stagedPaths].map(([signature, value]) => [signature, browseValueBytes(value, MAX_PATH_CACHE_BYTES)]));
+          const newContextBytes = [...stagedSizes].filter(([signature]) => !owned.paths.has(signature)).reduce((sum, [, bytes]) => sum + bytes, 0);
+          reserveDetailMemory(owned, state, newContextBytes);
+          const additions = [...stagedPaths.keys()].filter(signature => !pathsBySignature.has(signature)).length;
+          if (pathsBySignature.size + additions > MAX_REGISTERED_PATHS) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', 'Browse 路径预算已满');
+          const pathDelta = [...stagedSizes].reduce((sum, [signature, bytes]) => sum + bytes - (pathSizes.get(signature) ?? 0), 0);
+          if (retainedPathBytes + pathDelta > MAX_PATH_CACHE_BYTES) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', 'Browse 路径字节预算已满');
+          for (const [signature, value] of stagedPaths) { pathsBySignature.set(signature, value); pathSizes.set(signature, stagedSizes.get(signature)!); owned.paths.add(signature); }
+          retainedPathBytes += pathDelta; owned.pathBytes += newContextBytes;
+          owned.state = state;
+        });
+      }
+      assertContext(owned);
+      const items = owned.state.items.slice(request.offset, request.offset + request.limit);
+      return { items, offset: request.offset, level: owned.state.level, sourceEpoch: owned.epoch, complete: owned.state.complete, nextOffset: request.offset + items.length,
+        ...(owned.state.complete ? { total: owned.state.items.length } : {}), hasMore: !owned.state.complete || request.offset + items.length < owned.state.items.length };
+    };
+    const result = owned.tail.then(work, work).finally(() => { owned.pending--; });
+    owned.tail = result.then(() => undefined, () => undefined);
+    return result;
+  };
+
   const collectEntityChildren = async (
     session: BrowseSessionState,
     entityPath: readonly BrowsePathSegment[],
@@ -1492,7 +1839,9 @@ export function createRoonLibraryService(dependencies: {
         `Roon ${expectedKind} path is unavailable`,
       );
     }
+    checkContextZone();
     const { session, path } = entitySessionAndPath(entity, expectedKind);
+    if (incrementalDetails) return incrementalDetail(entity, expectedKind, session, path, pageRequest);
     const cache = expectedKind === 'genre'
       ? genreItemsBySignature
       : playlistTracksBySignature;
@@ -1672,6 +2021,7 @@ export function createRoonLibraryService(dependencies: {
   };
 
   return {
+    invalidateReadContexts,
     browseAlbums: (request) => pageFor('albums', 'album', request),
     browseArtists: (request) => pageFor('artists', 'artist', request),
     browseGenres: (request) => pageFor('genres', 'genre', request),
@@ -1679,6 +2029,9 @@ export function createRoonLibraryService(dependencies: {
     browseGenre: (genre, request) => browseEntityChildren(genre, 'genre', request),
     browsePlaylist: (playlist, request) => browseEntityChildren(playlist, 'playlist', request),
     getArtistImageKey: async (artist) => {
+      checkContextZone();
+      const imageGeneration = contextGeneration;
+      const imageZone = contextZone;
       const { session: sourceSession, path } = entitySessionAndPath(artist, 'artist');
       const signature = path.at(-1)?.pathSignature;
       if (!signature) {
@@ -1700,23 +2053,33 @@ export function createRoonLibraryService(dependencies: {
         register: false,
         ...(sourceSession.input !== undefined ? { input: sourceSession.input } : {}),
       });
+      const assertImageOwner = () => {
+        assertLibraryReadCurrent();
+        if (imageGeneration !== contextGeneration || imageZone !== dependencies.zoneOrOutputId?.()) throw libraryReadCancelled();
+      };
       const pending = withArtistImageLookupLane(async () => withSession(imageSession, async () => {
+        assertImageOwner();
         await replayStablePath(imageSession, path);
+        assertImageOwner();
         const list = currentList(imageSession);
         let imageKey = list.imageKey;
         if (!imageKey && list.count !== 0) {
+          const count = Math.min(list.count ?? 8, 8);
           const loaded = readLoadResponse(await requestBrowse('load', {
             hierarchy: imageSession.hierarchy,
             multi_session_key: imageSession.multiSessionKey,
             level: list.level,
             offset: 0,
-            count: Math.min(list.count ?? 8, 8),
+            count,
           }));
+          validateRawPage(loaded, 0, count, list.count);
+          assertImageOwner();
           imageKey = loaded.items
             .map((item) => asRecord(item))
             .map((item) => readString(item ?? {}, 'image_key'))
             .find((candidate) => candidate !== undefined);
         }
+        assertImageOwner();
         cacheArtistImageKey(signature, imageKey);
         return imageKey;
       })).finally(() => {
@@ -1747,7 +2110,9 @@ export function createRoonLibraryService(dependencies: {
       if (!albumContext) {
         throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', 'Roon album path is unavailable');
       }
+      checkContextZone();
       const { session, path } = entitySessionAndPath(album, 'album');
+      if (incrementalDetails) return incrementalDetail(album, 'album', session, path, pageRequest);
       const cacheKey = albumContext.pathSignature;
       const cached = albumTracksBySignature.get(cacheKey);
       if (cached) {
@@ -1787,7 +2152,9 @@ export function createRoonLibraryService(dependencies: {
       if (!artistContext) {
         throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', 'Roon artist path is unavailable');
       }
+      checkContextZone();
       const { session, path } = entitySessionAndPath(artist, 'artist');
+      if (incrementalDetails) return incrementalDetail(artist, 'artist', session, path, pageRequest);
       const cacheKey = artistContext.pathSignature;
       const cached = artistAlbumsBySignature.get(cacheKey);
       if (cached) {

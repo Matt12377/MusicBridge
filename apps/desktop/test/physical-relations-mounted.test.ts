@@ -25,6 +25,7 @@ async function mounted(t: test.TestContext) {
   const script = compileScript(descriptor, { id: 'physical-relations-mounted', inlineTemplate: true })
   const historyFence = await import('../src/renderer/src/components/collection/physical-link-history-fence.js')
   const requestFence = await import('../src/renderer/src/components/collection/physical-relation-request-fence.js')
+  const pagination = await import('../src/renderer/src/composables/roonLibraryPagination.js')
   type TrackPage = ReturnType<typeof page>
   let runtimeReference = 'roon:album:original', coreListener: ((event: unknown) => void) | undefined
   let trackResponse: (reference: string, offset: number) => Promise<TrackPage> = async (_reference, offset) => page(offset)
@@ -45,6 +46,7 @@ async function mounted(t: test.TestContext) {
   const load = (name: string) => name === 'vue' ? vue
     : name === './physical-link-history-fence' ? historyFence
     : name === './physical-relation-request-fence' ? requestFence
+    : name === '../../composables/roonLibraryPagination.js' ? pagination
     : name === './RoonAlbumPicker.vue' ? { default: { render: () => null } }
     : require(name)
   new Function('require', 'module', 'exports', 'window', compiled)(load, component, component.exports, { musicBridge: api })
@@ -128,4 +130,13 @@ test('挂载的实体关系页：reference 真变化与离线使曲目失效，�
   assert.match(view.text(), /当前 Roon 不可用，收藏关系已保留/u)
   assert.doesNotMatch(view.text(), /合成第1首/u, '离线前的迟到曲目不能回填')
   assert.equal(view.all().some(current => current.tag === 'section' && current.props['aria-label'] === '关联专辑曲目'), false)
+})
+
+test('MBP004：挂载关联曲目采用真实nextOffset，上一页返回访问过的游标', async t => {
+  const view = await mounted(t)
+  view.setTrackResponse(async (_reference, offset) => ({ ...page(offset), nextOffset: offset + 7, hasMore: offset < 14 }))
+  await view.click('查看数字关联详情')
+  await view.click('查看 Roon 曲目 / 试听')
+  await view.click('下一页'); await view.click('下一页'); await view.click('上一页')
+  assert.deepEqual(view.trackCalls.map(call => call.offset), [0, 7, 14, 7])
 })

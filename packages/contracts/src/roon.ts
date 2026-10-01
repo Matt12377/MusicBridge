@@ -47,6 +47,12 @@ export interface RoonLibraryPage {
   limit: number
   total?: number
   hasMore?: boolean
+  /** 本地遍历的公开快照代，不包含Browse私有身份。 */
+  sourceEpoch?: string
+  /** 整个遍历已到末尾；完整缓存首页仍可能有后续页。 */
+  complete?: boolean
+  /** 下一请求位置；根列表消费原始行，详情消费有效条目。 */
+  nextOffset?: number
 }
 
 export type RoonImageScale = 'fit' | 'fill' | 'stretch'

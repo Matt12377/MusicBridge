@@ -3,7 +3,7 @@
   "baselineCommit": "e97f9e578beb7c5329d0c59e232b0da568e2f6fa",
   "state": "active",
   "ownerAuthorization": "连续实施性能与正确性计划；最新子代理偏好 gpt-6.1-sol high，最多3名，必要时承担审计测试",
-  "currentTask": "MBP-003A",
+  "currentTask": "MBP-004",
   "implementationComplete": 4,
   "automaticAcceptanceComplete": 4,
   "taskCount": 11,
@@ -80,7 +80,7 @@
           "baseCommit": "a838a00486d113ea086e4edbe229cafe528a9bf7",
           "branch": "codex/mbp-003a-priority-controls",
           "implementationCommit": "c2038e6807f8bccdd12b75366ffcd8dc3c62c25d",
-          "reportCommit": null,
+          "reportCommit": "c91c53774d709fe45c09c0c1da8fb78ba6b2c7a1",
           "reportCommitResolution": "commit-containing-reports/MBP-003A_PRIORITY_CONTROLS.md",
           "evidence": [
             "reports/MBP-003A_PRIORITY_CONTROLS.md",
@@ -105,10 +105,12 @@
         "MBP-002",
         "MBP-003A"
       ],
-      "state": "pending",
+      "state": "implementing",
       "implementationCommit": null,
       "reportCommit": null,
-      "evidence": []
+      "evidence": [],
+      "baseCommit": "c91c53774d709fe45c09c0c1da8fb78ba6b2c7a1",
+      "branch": "codex/mbp-004-incremental-details"
     },
     {
       "id": "MBP-006",
@@ -172,8 +174,8 @@
     }
   ],
   "implementationCommit": null,
-  "branch": "codex/mbp-003a-priority-controls",
-  "currentTaskBase": "a838a00486d113ea086e4edbe229cafe528a9bf7",
+  "branch": "codex/mbp-004-incremental-details",
+  "currentTaskBase": "c91c53774d709fe45c09c0c1da8fb78ba6b2c7a1",
   "automaticAcceptanceScope": "local-standard-software-gates",
   "agentPolicy": {
     "model": "gpt-6.1-sol",

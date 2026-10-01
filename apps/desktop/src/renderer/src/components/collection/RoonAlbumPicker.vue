@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import type { DigitalAlbum, Page, PhysicalRelation, RoonLibraryPage } from '@music-bridge/contracts'
+import { nextRoonPageOffset, readRoonDatasetPage, RoonPageCursorHistory } from '../../composables/roonLibraryPagination.js'
 const props = defineProps<{ mode: 'link' | 'register' | 'relocate'; cd?: boolean; busy: boolean; pending: boolean; error: string }>()
 const emit = defineEmits<{ close: []; retry: []; confirm: [selection: { reference?: string; digitalId?: string; relation: PhysicalRelation; ripFromCdConfirmed: boolean; physicalAbsenceConfirmed: boolean; reason: string }] }>()
 const dialog = ref<HTMLDialogElement>(), source = ref<'roon' | 'saved'>('roon'), query = ref(''), selected = ref(''), confirmed = ref(false)
@@ -9,12 +10,23 @@ const roon = shallowRef<RoonLibraryPage>(), saved = shallowRef<Page<DigitalAlbum
 const blocked = computed(() => props.busy || props.pending)
 const currentPage = computed(() => source.value === 'roon' ? roon.value : saved.value)
 const choices = computed(() => source.value === 'roon' ? (roon.value?.items ?? []).map(a => ({ id: a.reference, ...a })) : (saved.value?.items ?? []).map(a => ({ id: a.id, ...a.metadata })))
-let alive = true, generation = 0
+let alive = true, generation = 0, rebaseAttempts = 0, pageQuery = ''
+const cursors = new RoonPageCursorHistory()
+function previousOffset(): number { return source.value === 'roon' ? cursors.previous(roon.value) : Math.max(0, (saved.value?.offset ?? 0) - 20) }
+function nextOffset(): number { return source.value === 'roon' && roon.value ? nextRoonPageOffset(roon.value) : (saved.value?.offset ?? 0) + 20 }
 async function load(offset = 0): Promise<void> {
+  const readQuery = query.value.trim()
+  const previous = pageQuery === readQuery ? roon.value : undefined
+  if (offset === 0 || pageQuery !== readQuery) { rebaseAttempts = 0; cursors.reset() }
+  pageQuery = readQuery
   const token = ++generation; loading.value = true; readError.value = ''; selected.value = ''; confirmed.value = false
   roon.value = undefined; saved.value = undefined
   try {
-    if (source.value === 'roon') { const result = await window.musicBridge.searchPhysicalRoonAlbums(query.value, { offset, limit: 20 }); if (alive && token === generation) roon.value = result }
+    if (source.value === 'roon') {
+      const result = await readRoonDatasetPage(previous, { offset, limit: 20 }, page => window.musicBridge.searchPhysicalRoonAlbums(readQuery, page),
+        () => alive && token === generation, rebaseAttempts === 0 ? () => { rebaseAttempts++ } : undefined)
+      if (result && alive && token === generation) { roon.value = result.page; cursors.record(pageQuery, result.page) }
+    }
     else { const result = await window.musicBridge.listDigitalAlbums({ offset, limit: 20 }); if (alive && token === generation) saved.value = result }
   } catch { if (alive && token === generation) readError.value = '目录暂时无法读取。请检查 Roon 连接后重试；已有收藏不会改变。' }
   finally { if (alive && token === generation) loading.value = false }
@@ -44,7 +56,7 @@ onUnmounted(() => { alive = false; ++generation })
       <p v-if="loading" role="status">正在读取专辑…</p><p v-if="readError" role="alert">{{ readError }}</p>
       <div class="candidates"><label v-for="album in choices" :key="album.id" class="candidate"><input v-model="selected" type="radio" name="album" :value="album.id"><span><strong>{{ album.title }}</strong><small>{{ [album.artist, album.year, album.version].filter(Boolean).join(' · ') || '版本信息待核实' }}</small><small v-if="source === 'saved'">{{ album.id }}</small></span></label></div>
       <p v-if="currentPage && !choices.length && !loading">没有可选专辑。不会自动创建同名关联。</p>
-      <nav v-if="currentPage" aria-label="候选专辑分页"><button :disabled="loading || !currentPage.offset" @click="load(Math.max(0, currentPage.offset - 20))">上一页</button><span>第 {{ Math.floor(currentPage.offset / 20) + 1 }} 页</span><button :disabled="loading || !currentPage.hasMore" @click="load(currentPage.offset + 20)">下一页</button></nav>
+      <nav v-if="currentPage" aria-label="候选专辑分页"><button :disabled="loading || !currentPage.offset" @click="load(previousOffset())">上一页</button><span>{{ source === 'roon' ? `当前显示 ${choices.length} 个候选` : `第 ${Math.floor(currentPage.offset / 20) + 1} 页` }}</span><button :disabled="loading || !currentPage.hasMore" @click="load(nextOffset())">下一页</button></nav>
       <label v-if="mode === 'link'">关系类型<select v-model="relation"><option value="probable">Probable · 可能同版</option><option value="exact">Exact · 用户确认同版</option><option value="related">Related · 相关版本</option></select></label>
       <label v-if="mode === 'link'">确认或更正理由<textarea v-model.trim="reason" maxlength="240" rows="2" placeholder="写下核对依据；更正同一数字对象时保留前后关系"></textarea></label>
       <label v-if="mode === 'link' && cd && relation === 'exact'" class="check"><input v-model="rip" type="checkbox">确认此数字版本由这张原版 CD 抓轨</label>

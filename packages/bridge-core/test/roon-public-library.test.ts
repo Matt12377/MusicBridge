@@ -6,6 +6,102 @@ import { createRoonPublicLibrary } from '../src/roon/public-library.js';
 
 const JPEG_BYTES = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]);
 
+function mbp004PublicService(): RoonLibraryService {
+  return createRoonLibraryService({
+    browse: { browse: () => assert.fail('映射测试不访问SDK'), load: () => assert.fail('映射测试不访问SDK') },
+    image: { get_image: () => assert.fail('映射测试不读取图片') },
+  });
+}
+
+test('MBP004：公开分页传递完成与下一游标，以公共scope包装遍历代且不泄露内部身份', async t => {
+  const service = mbp004PublicService();
+  t.mock.method(service, 'browseAlbums', async (request: { offset: number; limit: number }) => ({
+    items: [], offset: request.offset, level: 0, hasMore: true,
+    sourceEpoch: 'private-core-traversal-session', complete: false, nextOffset: request.offset + 12,
+  }));
+  const library = createRoonPublicLibrary(() => service);
+  const first = await library.browseAlbums({ offset: 0, limit: 24 });
+  const second = await library.browseAlbums({ offset: 12, limit: 24 });
+  assert.match(first.sourceEpoch ?? '', /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u);
+  assert.equal(first.sourceEpoch, second.sourceEpoch);
+  assert.equal(first.complete, false);
+  assert.equal(first.nextOffset, 12);
+  assert.equal(second.nextOffset, 24);
+  assert.equal(first.total, undefined);
+  assert.equal(JSON.stringify(first).includes('private-core-traversal-session'), false);
+  library.invalidateReferences();
+  const fresh = await library.browseAlbums({ offset: 0, limit: 24 });
+  assert.notEqual(fresh.sourceEpoch, first.sourceEpoch);
+});
+
+test('MBP004：显式失效、service替换和失去service同步撤销Core读取上下文', () => {
+  const calls: string[] = [];
+  const first = mbp004PublicService(), second = mbp004PublicService();
+  first.invalidateReadContexts = () => calls.push('first');
+  second.invalidateReadContexts = () => calls.push('second');
+  let service: RoonLibraryService | undefined = first;
+  const library = createRoonPublicLibrary(() => service);
+  const scopeA = library.getReadScope();
+  library.invalidateReferences();
+  const scopeB = library.getReadScope();
+  service = second;
+  const scopeC = library.getReadScope();
+  service = undefined;
+  const scopeD = library.getReadScope();
+  assert.deepEqual(calls, ['first', 'first', 'second']);
+  assert.equal(new Set([scopeA, scopeB, scopeC, scopeD]).size, 4);
+});
+
+test('MBP004：scope失效后的迟到分页不映射或覆盖新遍历代', async t => {
+  const service = mbp004PublicService();
+  let finish!: (page: Awaited<ReturnType<RoonLibraryService['browseAlbums']>>) => void;
+  const deferred = new Promise<Awaited<ReturnType<RoonLibraryService['browseAlbums']>>>(resolve => { finish = resolve; });
+  t.mock.method(service, 'browseAlbums', () => deferred);
+  let invalidations = 0;
+  service.invalidateReadContexts = () => { invalidations++; };
+  const library = createRoonPublicLibrary(() => service);
+  const reading = library.browseAlbums({ offset: 0, limit: 24 });
+  library.invalidateReferences();
+  const newScope = library.getReadScope();
+  finish({ items: [], offset: 0, level: 0, sourceEpoch: 'old-core-epoch', complete: true, hasMore: false, nextOffset: 0 });
+  await assert.rejects(reading, { code: 'ROON_LIBRARY_INVALID_REFERENCE' });
+  assert.equal(library.getReadScope(), newScope);
+  assert.equal(invalidations, 1);
+});
+
+test('MBP004：公开实体引用按字节拒绝增长，重复映射不重复占预算，换scope释放预算', async t => {
+  const service = mbp004PublicService();
+  t.mock.method(service, 'browseAlbums', async (request: { offset: number; limit: number }) => ({
+    items: [{ kind: 'album' as const, title: `Album ${request.offset}${'a'.repeat(390)}`,
+      artist: 'a'.repeat(400), album: 'b'.repeat(400), subtitle: 'c'.repeat(400),
+      version: 'v'.repeat(400), itemKey: `private-${request.offset}${'k'.repeat(390)}`, hint: 'list' }],
+    offset: request.offset, level: 0, total: 2, hasMore: request.offset === 0,
+  }));
+  const library = createRoonPublicLibrary(() => service, { maxReferenceCacheBytes: 8_192 });
+  const first = (await library.browseAlbums({ offset: 0, limit: 1 })).items[0]!;
+  const same = (await library.browseAlbums({ offset: 0, limit: 1 })).items[0]!;
+  assert.equal(first.reference, same.reference);
+  await assert.rejects(library.browseAlbums({ offset: 1, limit: 1 }), { code: 'ROON_LIBRARY_REQUEST_FAILED' });
+  assert.equal(library.getAlbumSnapshot(first.reference).title, first.title);
+  library.invalidateReferences();
+  const fresh = (await library.browseAlbums({ offset: 1, limit: 1 })).items[0]!;
+  assert.equal(fresh.title.startsWith('Album 1'), true);
+  assert.throws(() => library.getAlbumSnapshot(first.reference), { code: 'ROON_LIBRARY_INVALID_REFERENCE' });
+});
+
+test('MBP004：Transport图片引用遵守独立字节预算且清空scope后可重新登记', () => {
+  const service = mbp004PublicService();
+  const library = createRoonPublicLibrary(() => service, { maxReferenceCacheBytes: 8_192 });
+  const keys = Array.from({ length: 16 }, (_, index) => `cover-${index}-${'i'.repeat(390)}`);
+  const first = library.registerNowPlayingArtwork(keys[0]!);
+  assert.equal(library.registerNowPlayingArtwork(keys[0]!), first);
+  assert.throws(() => { for (const key of keys.slice(1)) library.registerNowPlayingArtwork(key); },
+    { code: 'ROON_LIBRARY_RESPONSE_INVALID' });
+  assert.equal(library.registerNowPlayingArtwork(keys[0]!), first);
+  library.invalidateReferences();
+  assert.notEqual(library.registerNowPlayingArtwork(keys[0]!), first);
+});
+
 test('Transport 当前封面复用受控图片读取，引用去重且重连后失效，不产生可播放实体', async () => {
   const imageKeys: string[] = [];
   const makeService = () => createRoonLibraryService({
@@ -97,7 +193,7 @@ test('Roon artist artwork lazily falls back to the artist list image without exp
           action: 'list',
           list: {
             level: location === 'root' ? 0 : 1,
-            count: 1,
+            count: location === 'root' ? 2 : 1,
             ...(location === 'artist' ? { image_key: 'artist-image:private' } : {}),
           },
         });
@@ -107,7 +203,7 @@ test('Roon artist artwork lazily falls back to the artist list image without exp
         callback(false, {
           offset: options.offset,
           items: location === 'root'
-            ? [{ title: 'Artist without root image', item_key: 'artist:private', hint: 'list' }]
+            ? [{ title: 'Artist without root image', item_key: Number(options.offset) === 0 ? 'artist:private' : 'artist:private-1', hint: 'list' }]
             : [{ title: 'Album', item_key: 'album:private', hint: 'list' }],
         });
       },

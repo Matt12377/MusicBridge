@@ -24,6 +24,7 @@ import SearchTrackPreview from './components/SearchTrackPreview.vue'
 import RoonAlbumGrid from './components/RoonAlbumGrid.vue'
 import RoonEntityGrid from './components/RoonEntityGrid.vue'
 import FavoriteEntityGrid from './components/FavoriteEntityGrid.vue'
+import { nextRoonPageOffset } from './composables/roonLibraryPagination.js'
 import RoonAlbumDetail from './components/RoonAlbumDetail.vue'
 import RoonBrowseDetail from './components/RoonBrowseDetail.vue'
 import MusicSidebar from './components/sidebar/MusicSidebar.vue'
@@ -994,7 +995,7 @@ onUnmounted(() => {
             :error="roonArtistError"
             @select="roonSearchOrigin ? selectAggregatedRoonItem($event) : navigateSource({ type: 'roon-album', reference: $event.reference })"
             @retry="loadRoonArtist(selectedRoonArtist.reference)"
-            @load-more="roonArtistPageAt(selectedRoonArtistPage.offset + selectedRoonArtistPage.limit)"
+            @load-more="roonArtistPageAt(nextRoonPageOffset(selectedRoonArtistPage))"
           />
         </section>
 
@@ -1015,7 +1016,7 @@ onUnmounted(() => {
           @queue="queueRoonLibraryTrack"
           @toggle-favorite="toggleRoonEntityFavorite('album')"
           @retry="retryRoonAlbum"
-          @load-more="roonAlbumPageAt(selectedRoonAlbumPage.offset + selectedRoonAlbumPage.limit)"
+          @load-more="roonAlbumPageAt(nextRoonPageOffset(selectedRoonAlbumPage))"
         />
 
         <section v-else-if="currentView === 'roon-album-detail' || currentView === 'roon-artist-detail'" class="view">
@@ -1039,7 +1040,7 @@ onUnmounted(() => {
           @play="playRoonLibraryTrack"
           @queue="queueRoonLibraryTrack"
           @retry="loadRoonGenre(selectedRoonGenre.reference)"
-          @load-more="roonGenrePageAt(selectedRoonGenrePage.offset + selectedRoonGenrePage.limit)"
+          @load-more="roonGenrePageAt(nextRoonPageOffset(selectedRoonGenrePage))"
         />
 
         <RoonBrowseDetail
@@ -1055,7 +1056,7 @@ onUnmounted(() => {
           @play="playRoonLibraryTrack"
           @queue="queueRoonLibraryTrack"
           @retry="loadRoonPlaylist(selectedRoonPlaylist.reference)"
-          @load-more="roonPlaylistPageAt(selectedRoonPlaylistPage.offset + selectedRoonPlaylistPage.limit)"
+          @load-more="roonPlaylistPageAt(nextRoonPageOffset(selectedRoonPlaylistPage))"
         />
 
         <section v-else-if="currentView === 'search'" class="view view-search" :class="{ 'search-category-artists': searchCategory === 'artists' && !searchDetail }" aria-labelledby="search-heading">

@@ -27,11 +27,14 @@ import {
 } from './library.js';
 
 const MAX_REFERENCES = 65_536;
+const DEFAULT_MAX_REFERENCE_CACHE_BYTES = 32 * 1024 * 1024;
 const DEFAULT_MAX_IMAGE_CACHE_ENTRIES = 128;
 const DEFAULT_MAX_IMAGE_CACHE_BYTES = 32 * 1024 * 1024;
 const DEFAULT_NEGATIVE_IMAGE_TTL_MS = 3_000;
 
 export interface RoonPublicLibraryOptions {
+  /** 受信任组合层设置；实体及图片引用各自的保留数据计量预算。 */
+  maxReferenceCacheBytes?: number;
   maxImageCacheEntries?: number;
   maxImageCacheBytes?: number;
   negativeImageTtlMs?: number;
@@ -75,6 +78,37 @@ export interface RoonPublicLibrary {
 interface DescriptorReference {
   descriptor: RoonEntityDescriptor;
   imageReference?: string;
+}
+
+/** 计量引用自身与已支持标量，不是实际RSS；既有引用不因新页挤压而静默失效。 */
+class ReferenceMap<T> extends Map<string, T> {
+  private retainedBytes = 0;
+  private readonly sizes = new Map<string, number>();
+  constructor(private readonly maximumBytes: number, private readonly measure: (value: T) => number) { super(); }
+  override set(key: string, value: T): this {
+    const bytes = 1_024 + key.length * 2 + this.measure(value);
+    const nextBytes = this.retainedBytes - (this.sizes.get(key) ?? 0) + bytes;
+    if (nextBytes > this.maximumBytes) throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', '公开引用字节预算已满，请重新读取');
+    super.set(key, value); this.sizes.set(key, bytes); this.retainedBytes = nextBytes;
+    return this;
+  }
+  override delete(key: string): boolean {
+    const deleted = super.delete(key);
+    if (deleted) { this.retainedBytes -= this.sizes.get(key) ?? 0; this.sizes.delete(key); }
+    return deleted;
+  }
+  override clear(): void { super.clear(); this.sizes.clear(); this.retainedBytes = 0; }
+}
+
+function descriptorReferenceBytes(value: DescriptorReference): number {
+  const descriptor = value.descriptor;
+  const strings = [descriptor.kind, descriptor.hierarchy, descriptor.title, descriptor.subtitle,
+    descriptor.artist, descriptor.album, descriptor.itemKey, descriptor.imageKey, descriptor.hint,
+    descriptor.format, descriptor.version, value.imageReference];
+  const context = descriptor.browseContext;
+  if (context) strings.push(context.hierarchy, context.multiSessionKey, context.itemKey,
+    context.kind, context.parentReference, context.pathSignature);
+  return 1_024 + strings.reduce((bytes, text) => bytes + (text?.length ?? 0) * 2, 0);
 }
 
 interface CachedImage {
@@ -188,6 +222,9 @@ function mapPage(
     limit: request.limit,
     ...(page.total !== undefined ? { total: page.total } : {}),
     ...(page.hasMore !== undefined ? { hasMore: page.hasMore } : {}),
+    ...(page.sourceEpoch !== undefined ? { sourceEpoch: uuidFromIdentity(scope, `browse-source\0${page.sourceEpoch}`) } : {}),
+    ...(page.complete !== undefined ? { complete: page.complete } : {}),
+    ...(page.nextOffset !== undefined ? { nextOffset: page.nextOffset } : {}),
   };
 }
 
@@ -293,9 +330,11 @@ export function createRoonPublicLibrary(
     60_000,
     'Roon image negative-cache TTL',
   );
+  const maxReferenceCacheBytes = requireBoundedInteger(libraryOptions.maxReferenceCacheBytes,
+    DEFAULT_MAX_REFERENCE_CACHE_BYTES, 128 * 1024 * 1024, '公开引用字节预算');
   const now = libraryOptions.now ?? Date.now;
-  const references = new Map<string, DescriptorReference>();
-  const imageReferences = new Map<string, string>();
+  const references = new ReferenceMap<DescriptorReference>(maxReferenceCacheBytes, descriptorReferenceBytes);
+  const imageReferences = new ReferenceMap<string>(maxReferenceCacheBytes, value => value.length * 2);
   const imageCache = new Map<string, CachedImage>();
   const pendingImages = new Map<string, Promise<CachedImage>>();
   const imageReadOwners = new WeakMap<Promise<CachedImage>, NonNullable<ReturnType<typeof currentLibraryRead>>>();
@@ -351,19 +390,26 @@ export function createRoonPublicLibrary(
     body: new Uint8Array(image.body),
   });
 
+  const invalidateScope = (): void => {
+    // 公共引用换代时同步撤销Core遍历，不能只换公开标签而继续复用旧详情。
+    activeService?.invalidateReadContexts?.();
+    references.clear();
+    imageReferences.clear();
+    clearImageState();
+    referenceScope = randomUUID();
+    activeService = undefined;
+  };
+
   const service = (): RoonLibraryService => {
     const value = getService();
     if (!value) {
-      if (activeService) { references.clear(); imageReferences.clear(); clearImageState(); referenceScope = randomUUID(); activeService = undefined; }
+      if (activeService) invalidateScope();
       throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', 'Roon Library is not available', {
         httpStatus: 503,
       });
     }
     if (activeService && activeService !== value) {
-      references.clear();
-      imageReferences.clear();
-      clearImageState();
-      referenceScope = randomUUID();
+      invalidateScope();
     }
     activeService = value;
     return value;
@@ -435,7 +481,7 @@ export function createRoonPublicLibrary(
       try { service(); } catch (error) { if (!(error instanceof BridgeError) || error.code !== 'ROON_LIBRARY_UNAVAILABLE') throw error; }
       return referenceScope;
     },
-    invalidateReferences() { references.clear(); imageReferences.clear(); clearImageState(); referenceScope = randomUUID(); activeService = undefined; },
+    invalidateReferences: invalidateScope,
     registerNowPlayingArtwork(imageKey) {
       service();
       if (typeof imageKey !== 'string' || imageKey.trim().length === 0 || imageKey.length > 512) {

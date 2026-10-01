@@ -78,3 +78,18 @@ test('Roon album pagination auto-loads only at an idle intersecting sentinel', (
   assert.equal(shouldAutoLoadRoonPage({ ...idle, loadMoreError: '读取失败' }), false)
   assert.equal(shouldAutoLoadRoonPage({ ...idle, hasMore: false }), false)
 })
+
+const mbp004EpochA = '00000000-0000-4000-8000-000000000001'
+const mbp004EpochB = '00000000-0000-4000-8000-000000000002'
+test('MBP004：append保留dataset epoch/EOF/原始下一游标，不以去重长度推进', () => {
+  const first = { items: [{ reference: 'a', kind: 'album' as const, title: 'A' }], offset: 0, limit: 24, sourceEpoch: mbp004EpochA, complete: false, nextOffset: 7, hasMore: true }
+  const second = { items: [{ reference: 'a', kind: 'album' as const, title: '重复A' }, { reference: 'b', kind: 'album' as const, title: 'B' }], offset: 7, limit: 24, sourceEpoch: mbp004EpochA, complete: true, nextOffset: 13, total: 2, hasMore: false }
+  assert.deepEqual(appendRoonPage(first, second), { ...second, items: [first.items[0], second.items[1]] })
+})
+for (const sourceEpoch of [mbp004EpochB, undefined]) {
+  test(`MBP004：append在不同或缺失epoch时先拒绝混页（${sourceEpoch ?? '旧协议'}）`, () => {
+    const first = { items: [], offset: 0, limit: 24, sourceEpoch: mbp004EpochA, hasMore: true }
+    const second = { items: [], offset: 24, limit: 24, ...(sourceEpoch ? { sourceEpoch } : {}), hasMore: false }
+    assert.throws(() => appendRoonPage(first, second), /已变化/u)
+  })
+}

@@ -98,7 +98,9 @@ test('RoonLibraryService 通过 Browse + load 读取 Albums 分页，并保留�
   const album = page.items[0];
   assert.ok(album?.browseContext);
   const { browseContext: _browseContext, ...publicFields } = album;
-  assert.deepEqual({ ...page, items: [publicFields] }, {
+  const { sourceEpoch, complete, nextOffset, ...legacyPage } = page;
+  assert.match(sourceEpoch!, /^[0-9a-f-]{36}$/u); assert.equal(complete, false); assert.equal(nextOffset, 2);
+  assert.deepEqual({ ...legacyPage, items: [publicFields] }, {
     items: [{
       kind: 'album',
       hierarchy: 'albums',
@@ -147,7 +149,7 @@ test('RoonLibraryService drills Genre into typed Albums and Tracks without coerc
         action: 'list',
         list: {
           level: location === 'root' ? 0 : location === 'genre' ? 1 : 2,
-          count: location === 'genre' ? 2 : 1,
+          count: location === 'genre' ? 2 : location === 'tracks' ? 3 : 1,
         },
       });
     },
@@ -1099,10 +1101,11 @@ test('RoonLibraryService 从最终 Track 的明确 CD1/CD2 标签补全多碟顺
   assert.deepEqual(tracks.items.map((track) => track.discNumber), [1, 2]);
 });
 
-test('RoonLibraryService 对疑似整库回流的超大专辑层 fail closed', async () => {
+test('RoonLibraryService legacy 回滚保留超大专辑层 fail closed', async () => {
   let loadCalls = 0;
   let browseIndex = 0;
   const service = createRoonLibraryService({
+    incrementalDetails: false,
     browse: {
       browse(_options, callback) {
         callback(false, browseIndex++ === 0
@@ -1332,7 +1335,8 @@ test('RoonLibraryService 只下钻 Artist 的 Albums 分组，不把 Top Tracks 
 
   assert.deepEqual(first.items.map((item) => item.title), ['Album A']);
   assert.deepEqual(second.items.map((item) => item.title), ['Album B']);
-  assert.equal(first.total, 2);
+  assert.equal(first.total, undefined); assert.equal(first.complete, false);
+  assert.equal(second.total, 2); assert.equal(second.complete, true);
   assert.deepEqual(browseCalls.map((call) => call.item_key), [undefined, 'artist:1', 'group:albums']);
   assert.equal(browseCalls.some((call) => call.item_key === 'group:tracks'), false);
 });
@@ -1718,4 +1722,149 @@ test('本地 Browse 超时不冒充 Provider 返回，迟到回调单独保留�
   finish(false, { action: 'list', list: { level: 0, count: 1 } });
   assert.equal(recorder.snapshot().events.filter(event => event.phase === 'provider-response').length, 1);
   assert.equal(recorder.snapshot().inflightCount, 0);
+});
+
+for (const kind of ['album', 'playlist', 'artist'] as const) {
+  test(`MBP-004：${kind} 5000 项首屏只读必要原始页，第二页保留原始索引`, async () => {
+    let location = 'root'; const loads: Array<{ location: string; offset: number; count: number }> = [];
+    const service = createRoonLibraryService({ browse: {
+      browse(options, callback) {
+        if (options.pop_all) location = 'root';
+        else if (options.item_key) location = String(options.item_key);
+        const count = location === 'root' || location === 'entity' && kind === 'artist' ? 1 : 5000;
+        callback(false, { action: 'list', list: { level: location === 'root' ? 0 : location === 'group' ? 2 : 1, count } });
+      },
+      load(options, callback) {
+        const offset = Number(options.offset), count = Number(options.count);
+        loads.push({ location, offset, count });
+        if (location === 'root') { callback(false, { offset, items: [{ title: '实体', item_key: 'entity', hint: 'list' }] }); return; }
+        if (location === 'entity' && kind === 'artist') { callback(false, { offset, items: [{ title: 'Albums', item_key: 'group', hint: 'list' }] }); return; }
+        callback(false, { offset, items: Array.from({ length: Math.min(count, 5000 - offset) }, (_, i) => ({ title: `条目${offset + i}`, subtitle: '艺人', item_key: `item:${offset + i}`, hint: kind === 'artist' ? 'list' : 'action_list' })) });
+      },
+    }, image: { get_image() {} } });
+    const entity = (await (kind === 'artist' ? service.browseArtists : kind === 'playlist' ? service.browsePlaylists : service.browseAlbums)({ offset: 0, limit: 24 })).items[0]!;
+    const read = (offset: number) => kind === 'artist' ? service.browseArtist(entity, { offset, limit: 24 }) : kind === 'playlist' ? service.browsePlaylist(entity, { offset, limit: 24 }) : service.browseAlbum(entity, { offset, limit: 24 });
+    const first = await read(0);
+    assert.equal(first.items.length, 24); assert.equal(first.nextOffset, 24); assert.equal(first.complete, false); assert.equal(first.total, undefined);
+    assert.match(first.sourceEpoch!, /^[0-9a-f-]{36}$/u);
+    assert.ok(loads.filter(load => load.location !== 'root').reduce((sum, load) => sum + load.count, 0) <= 26);
+    const second = await read(24);
+    assert.equal(second.sourceEpoch, first.sourceEpoch); assert.equal(second.items[0]?.title, '条目24');
+    assert.equal(second.items[0]?.browseContext?.sourceIndex, 24);
+  });
+}
+
+test('MBP-004：原始响应 offset 错位拒绝，不以请求位置冒充真实身份', async () => {
+  const service = createRoonLibraryService({ browse: {
+    browse(_options, callback) { callback(false, { action: 'list', list: { level: 0, count: 2 } }); },
+    load(_options, callback) { callback(false, { offset: 1, items: [{ title: '错位', item_key: 'wrong', hint: 'list' }] }); },
+  }, image: { get_image() {} } });
+  await assert.rejects(service.browseAlbums({ offset: 0, limit: 1 }), /offset|偏移/u);
+});
+
+test('MBP-004：单个 raw 记录字节超限拒绝且不截断身份，恢复后原游标可读', async () => {
+  let huge = false;
+  const service = createRoonLibraryService({ browse: {
+    browse(options, callback) { callback(false, { action: 'list', list: { level: options.pop_all ? 0 : 1, count: 1 } }); },
+    load(options, callback) { callback(false, { offset: options.offset, items: options.level === 0
+      ? [{ title: '专辑', item_key: 'album', hint: 'list' }]
+      : [{ title: '曲目', subtitle: '艺人', item_key: huge ? 'x'.repeat(100_000) : 'track', hint: 'action_list' }] }); },
+  }, image: { get_image() {} } });
+  const album = (await service.browseAlbums({ offset: 0, limit: 1 })).items[0]!;
+  huge = true; await assert.rejects(service.browseAlbum(album, { offset: 0, limit: 1 }), /字节预算/u);
+  huge = false; const page = await service.browseAlbum(album, { offset: 0, limit: 1 });
+  assert.equal(page.items[0]?.itemKey, 'track'); assert.equal(page.nextOffset, 1); assert.equal(page.complete, true);
+});
+
+test('MBP-004：direct 艺人累计字符串缓存受字节预算约束，不能返回半页或伪装完整', async () => {
+  let returned = 0;
+  const service = createRoonLibraryService({ browse: {
+    browse(options, callback) { callback(false, { action: 'list', list: { level: options.pop_all ? 0 : 1, count: options.pop_all ? 1 : 5000 } }); },
+    load(options, callback) {
+      const offset = Number(options.offset), count = Number(options.count);
+      if (options.level === 0) { callback(false, { offset, items: [{ title: '艺人', item_key: 'artist', hint: 'list' }] }); return; }
+      const items = Array.from({ length: Math.min(count, 5000 - offset) }, (_, i) => ({ title: `专辑${offset + i}${'字'.repeat(1500)}`, item_key: `album:${offset + i}`, hint: 'list' }));
+      returned += items.length; callback(false, { offset, items });
+    },
+  }, image: { get_image() {} } });
+  const artist = (await service.browseArtists({ offset: 0, limit: 1 })).items[0]!;
+  await assert.rejects(service.browseArtist(artist, { offset: 0, limit: 24 }), /字节预算/u);
+  assert.ok(returned > 1000 && returned < 5000, '原可读常规规模不因新条数阈值拒绝，超额字节在 EOF 前拒绝');
+});
+
+function artistArtworkBudgetFixture(size = 1) {
+  const nodes = new Map<string, number>(); const lookups = new Map<number, number>();
+  let holdMetadata = false; const heldMetadata: Array<() => void> = [];
+  let listKey: ((index: number) => string | undefined) = () => undefined;
+  let fallback: { offset?: number; extra?: string; imageKey?: string; count?: number } = {};
+  const service = createRoonLibraryService({ browse: {
+    browse(options, callback) {
+      const session = String(options.multi_session_key);
+      let node = nodes.get(session) ?? -1;
+      if (options.pop_all) node = -1;
+      else if (options.item_key) { node = Number(String(options.item_key).split(':')[1]); lookups.set(node, (lookups.get(node) ?? 0) + 1); }
+      nodes.set(session, node);
+      const key = node >= 0 ? listKey(node) : undefined;
+      const body = { action: 'list', list: { level: node < 0 ? 0 : 1, ...(node < 0 ? { count: size } : fallback.count === undefined ? {} : { count: fallback.count }), ...(key !== undefined ? { image_key: key } : {}) } };
+      if (node >= 0 && holdMetadata) { holdMetadata = false; heldMetadata.push(() => callback(false, body)); return; }
+      callback(false, body);
+    },
+    load(options, callback) {
+      const offset = Number(options.offset), count = Number(options.count);
+      const node = nodes.get(String(options.multi_session_key)) ?? -1;
+      const items = node < 0 ? Array.from({ length: Math.max(0, Math.min(count, size - offset)) }, (_, i) => ({ title: `艺人${offset + i}`, item_key: `artist:${offset + i}`, hint: 'list' }))
+        : offset > 0 ? [] : [{ title: '封面', hint: 'header', image_key: fallback.imageKey ?? 'image:fallback', ...(fallback.extra ? { extra: fallback.extra } : {}) }];
+      callback(false, { offset: node < 0 ? offset : fallback.offset ?? offset, items });
+    },
+  }, image: { get_image() {} } });
+  return { service, lookups, holdMetadata() { holdMetadata = true; }, releaseMetadata() { const release = heldMetadata.shift(); assert.ok(release); release(); }, setListKey(value: typeof listKey) { listKey = value; }, setFallback(value: typeof fallback) { fallback = value; } };
+}
+
+test('MBP-004 图片补修：Browse list.image_key 超大记录拒绝不缓存', async () => {
+  const f = artistArtworkBudgetFixture(); const artist = (await f.service.browseArtists({ offset: 0, limit: 1 })).items[0]!;
+  f.setListKey(() => 'x'.repeat(100_000));
+  await assert.rejects(f.service.getArtistImageKey!(artist), /字节预算/u);
+  f.setListKey(() => 'image:normal'); assert.equal(await f.service.getArtistImageKey!(artist), 'image:normal');
+});
+
+test('MBP-004 图片补修：fallback 原始 offset 错位或记录超大必须拒绝，短页未知 count 仍合法', async () => {
+  const f = artistArtworkBudgetFixture(); const artist = (await f.service.browseArtists({ offset: 0, limit: 1 })).items[0]!;
+  f.setFallback({ offset: 1 }); await assert.rejects(f.service.getArtistImageKey!(artist), /offset|偏移/u);
+  f.setFallback({ extra: 'x'.repeat(100_000) }); await assert.rejects(f.service.getArtistImageKey!(artist), /字节预算/u);
+  f.setFallback({ imageKey: 'image:short' }); assert.equal(await f.service.getArtistImageKey!(artist), 'image:short');
+});
+
+test('MBP-004 图片补修：单 key 超限不截断身份，不留下成功缓存', async () => {
+  const f = artistArtworkBudgetFixture(); const artist = (await f.service.browseArtists({ offset: 0, limit: 1 })).items[0]!;
+  f.setListKey(() => 'x'.repeat(40_000)); await assert.rejects(f.service.getArtistImageKey!(artist), /字节预算/u);
+  f.setListKey(() => 'image:valid'); assert.equal(await f.service.getArtistImageKey!(artist), 'image:valid');
+});
+
+test('MBP-004 图片补修：key 缓存 4MiB 限额按 LRU 淘汰，invalidate 清空计量', async () => {
+  const f = artistArtworkBudgetFixture(80); f.setListKey(index => `image:${index}:${'x'.repeat(30_000)}`);
+  const artists = (await f.service.browseArtists({ offset: 0, limit: 100 })).items;
+  for (const artist of artists) assert.ok((await f.service.getArtistImageKey!(artist))?.startsWith('image:'));
+  assert.equal(f.lookups.get(0), 1);
+  assert.ok((await f.service.getArtistImageKey!(artists[0]!))?.startsWith('image:0:')); assert.equal(f.lookups.get(0), 2);
+  f.service.invalidateReadContexts!();
+  const fresh = (await f.service.browseArtists({ offset: 0, limit: 100 })).items;
+  assert.ok((await f.service.getArtistImageKey!(fresh[0]!))?.startsWith('image:0:')); assert.equal(f.lookups.get(0), 3);
+});
+
+
+test('MBP-004 图片补修：invalidate 后旧图片 metadata 迟到不写新缓存或删除新 pending', async () => {
+  const f = artistArtworkBudgetFixture(); f.setListKey(() => 'image:old');
+  const artist = (await f.service.browseArtists({ offset: 0, limit: 1 })).items[0]!;
+  f.holdMetadata(); const old = f.service.getArtistImageKey!(artist);
+  const rejected = assert.rejects(old, error => (error as { code?: string }).code === 'READ_CANCELLED');
+  await new Promise(resolve => setImmediate(resolve)); f.service.invalidateReadContexts!();
+  f.setListKey(() => 'image:new');
+  const fresh = (await f.service.browseArtists({ offset: 0, limit: 1 })).items[0]!;
+  f.holdMetadata(); const first = f.service.getArtistImageKey!(fresh);
+  await new Promise(resolve => setImmediate(resolve));
+  f.releaseMetadata(); await rejected;
+  const shared = f.service.getArtistImageKey!(fresh);
+  await new Promise(resolve => setImmediate(resolve)); assert.equal(f.lookups.get(0), 2);
+  f.releaseMetadata(); assert.deepEqual(await Promise.all([first, shared]), ['image:new', 'image:new']);
+  assert.equal(await f.service.getArtistImageKey!(fresh), 'image:new'); assert.equal(f.lookups.get(0), 2);
 });

@@ -1474,13 +1474,20 @@ function isRoonLibraryItem(value: unknown): boolean {
 function isRoonLibraryPage(value: unknown): boolean {
   return (
     isRecord(value) &&
-    hasOnlyKeys(value, ['items', 'offset', 'limit', 'total', 'hasMore']) &&
+    hasOnlyKeys(value, ['items', 'offset', 'limit', 'total', 'hasMore', 'sourceEpoch', 'complete', 'nextOffset']) &&
     isPageRequest({ offset: value.offset, limit: value.limit }) &&
     Array.isArray(value.items) &&
     value.items.length <= MAX_PAGE_LIMIT &&
     value.items.every((item) => isRoonLibraryItem(item)) &&
     (value.total === undefined || (typeof value.total === 'number' && Number.isSafeInteger(value.total) && value.total >= 0 && value.total <= MAX_PAGE_OFFSET)) &&
-    (value.hasMore === undefined || typeof value.hasMore === 'boolean')
+    (value.hasMore === undefined || typeof value.hasMore === 'boolean') &&
+    (value.sourceEpoch === undefined || (typeof value.sourceEpoch === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(value.sourceEpoch))) &&
+    (value.complete === undefined || typeof value.complete === 'boolean') &&
+    (value.nextOffset === undefined || (
+      typeof value.nextOffset === 'number' && Number.isSafeInteger(value.nextOffset) &&
+      typeof value.offset === 'number' && value.nextOffset >= value.offset && value.nextOffset <= MAX_PAGE_OFFSET &&
+      (value.hasMore !== true || value.nextOffset > value.offset)
+    ))
   );
 }
 

@@ -2,7 +2,7 @@
 
 **实现完成：4/11 · 本地软件验收：4/11 · 真实 Mac/Roon：未执行**
 
-当前任务：**MBP-003A — 短状态处理与优先控制**。基线 `a838a00`，分支 `codex/mbp-003a-priority-controls`。
+当前任务：**MBP-004 — Roon详情增量分页**。基线 `c91c537`，分支 `codex/mbp-004-incremental-details`。
 
 本计划已获 Owner 授权连续实施。技术栈保留 Electron、Vue、Node/TS；真实播放、设备录音、main 合并、正式 App 替换和发布分别记录，不由软件测试代替。
 
@@ -31,7 +31,7 @@ MBP-001 远端已结束：security 通过，verify/Electron E2E 失败。本地�
 | 3 | MBP-002 | 已完成 | 本地通过 | 只读取消、截止期限、共享读取、导航和加载状态 |
 | 4 | MBR-002 | 已完成 | 本地通过 | 录音未知回执恢复、SSH 探测关闭、Control API 防护 |
 | 5 | MBP-003A | 已完成A | 本地通过 | 短状态处理与优先控制；属于 MBP-003 的第一步 |
-| 6 | MBP-004 | 待开始 | 未执行 | Roon 详情真分页与原始游标 |
+| 6 | MBP-004 | 实施中 | 待执行 | Roon 详情真分页与原始游标 |
 | 7 | MBP-003B | 待开始 | 未执行 | Core 持有上下文，先播并按需补队列 |
 | 8 | MBP-006 | 待开始 | 未执行 | 小进度事件、队列版本与重连恢复 |
 | 9 | MBP-005 | 待开始 | 未执行 | 作用域缓存、网易云歌单快照、渐进搜索 |
@@ -96,7 +96,7 @@ MBR-002 最终固定实现 `200da19`：完整 verify 224 / 1648+原2跳过 / 975
 - [x] runtime换Zone覆盖准备/派发所有权，独立行为审计；原断言与资源保护保留。
 - [x] 最终固定c2038e6：原完整verify、mock Electron4/4、完整E2E104+原4跳过与静态Gate，退出均0；827源码指纹一致。
 - [x] 独立报告与119份证据Hash已封存，报告提交即本步骤软件交付。
-- [ ] 开发分支push并核对远端HEAD。
+- [x] 开发分支push；报告c91c537与远端HEAD精确相同，tracked工作区清洁，无关WIP保留。
 
 MBR-002 固定报告 `a838a00` 的远端检查已结束：security和Electron E2E通过，verify作业通过；verify工作流仍因独立dependency-audit失败（11 moderate / 7 high），原始日志已保存。MBP-003A完成仍不增加总计，须后续003B一起验收。
 
@@ -109,3 +109,15 @@ MBP-003A随后定向通过：Roon100/100，生产runtime组合25/25（含17项�
 第二固定 `d30bfdb` 原完整verify退出0：224 / 1698+原2跳过 / 975；827源码指纹前后一致。独立窄审发现普通已确认播放成功Stop的公开canStop结算遗漏，Provider/Native两个行为case实际RED退出1；matching Stop flight结算时发布能力释放，未知停止锁继续保留。Controller108+runtime25共133项GREEN退出0；最终代码重新冻结后完成原全量Gate。首次RED命令在仓库根找不到tsx，属于执行入口错误而非行为RED，修正工作目录后的两项失败证据单独保留。
 
 最终固定 `c2038e6`：原完整verify224 / 1700+原2skip / 975、三包构建，mock Electron4/4，完整E2E104+原4条件skip、零失败/零flaky，退出均0。827源码SHA cff7fa95…Gate前后完全相同；MBP-003A软件子步骤通过，整个MBP-003仍待B步骤，总计保持4/11。
+
+### MBP-004 当前子步骤
+
+- [x] 从MBP-003A最终报告c91c537创建独立分支与外置证据根。
+- [x] 只读设计与接口冻结：response-only sourceEpoch/complete/nextOffset，保留原请求和业务遍历顺序。
+- [x] Core按原始页增量展平、作用域失效与有界缓存；最终63/63及严格类型通过，字节准入补修有实际RED/GREEN。
+- [x] Renderer下一游标、混代拒绝/有界恢复、未知总数和选曲/关联兼容；冻结80/80及严格类型通过。
+- [x] 公共合同、scope失效通路和隐私映射验证：合同230/230、公共库21/21及严格类型通过。
+- [x] 独立增量边界行为测试与源码复审；独立文件23/23，两轮审计与最后指定delta闭合，最终源码待原统一Gate覆盖。
+- [ ] 固定实现原全量Gate、独立报告与开发分支push。
+
+独立增量边界测试已冻结23/23（0失败/跳过）；album/playlist首屏50、500、5000项均1次load/5条raw，group-first artist均2次load/10条raw。Core原两份规格54/54，Renderer分页/选择器上一轮73/73通过，仍待作者最终冻结及统一Gate。最后复核正在补明确缓存字节预算；计数限额不能替代字节限额。root total保持SDK raw行口径，detail total仅有效EOF总数。尚未升级整体任务总计。

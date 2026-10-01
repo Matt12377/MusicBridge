@@ -1,7 +1,7 @@
 import type { PageRequest, RoonLibraryPage } from '@music-bridge/contracts'
 import { ref, type Ref } from 'vue'
 
-import { appendRoonPage, emptyRoonPage } from './roonLibraryPagination.js'
+import { appendRoonPage, emptyRoonPage, nextRoonPageOffset, readRoonDatasetPage, RoonPageEpochChanged } from './roonLibraryPagination.js'
 import { isLibraryReadCancelled, type LibraryReadOptions } from './libraryReadScope.js'
 
 export interface RoonCollectionLoader {
@@ -33,6 +33,7 @@ export function useRoonCollection(
   let disposed = false
   let controller: AbortController | undefined
   let pendingRequest: PageRequest | undefined
+  let rebaseAttempts = 0
 
   const suspend = (): void => {
     generation += 1
@@ -44,10 +45,12 @@ export function useRoonCollection(
 
   const load = async (
     request: PageRequest = { offset: 0, limit: pageSize },
+    resume = false,
   ): Promise<void> => {
     if (disposed) return
     const initial = request.offset === 0
     if (initial) {
+      if (!resume) rebaseAttempts = 0
       suspend()
       initialLoading.value = true
       loadingMore.value = false
@@ -63,15 +66,12 @@ export function useRoonCollection(
     controller = active
     pendingRequest = { ...request }
     try {
-      const result = await requestPage(request, { signal: active.signal })
-      if (requestGeneration !== generation) return
+      const result = await readRoonDatasetPage(initial ? undefined : page.value, request,
+        target => requestPage(target, { signal: active.signal }), () => requestGeneration === generation,
+        rebaseAttempts === 0 ? () => { rebaseAttempts++; pendingRequest = { offset: 0, limit: request.limit } } : undefined)
+      if (!result || requestGeneration !== generation) return
       pendingRequest = undefined
-      if (!initial && result.offset !== request.offset) {
-        loadingMore.value = false
-        loadMoreError.value = '分页响应异常，点击重试'
-        return
-      }
-      page.value = initial ? result : appendRoonPage(page.value, result)
+      page.value = initial || result.restarted ? result.page : appendRoonPage(page.value, result.page)
       initialLoading.value = false
       loadingMore.value = false
       error.value = null
@@ -86,7 +86,8 @@ export function useRoonCollection(
         error.value = formatError(requestError)
       } else {
         loadingMore.value = false
-        loadMoreError.value = '加载失败，点击重试'
+        loadMoreError.value = requestError instanceof RoonPageEpochChanged ? '读取上下文反复变化，请重新读取。'
+          : requestError instanceof Error && requestError.message === '分页响应异常，点击重试' ? requestError.message : '加载失败，点击重试'
       }
     } finally {
       if (controller === active) controller = undefined
@@ -102,10 +103,9 @@ export function useRoonCollection(
     load,
     loadMore: async () => {
       if (initialLoading.value || page.value.hasMore === false) return
-      await load({
-        offset: page.value.offset + page.value.limit,
-        limit: page.value.limit,
-      })
+      if (error.value) return
+      try { await load({ offset: nextRoonPageOffset(page.value), limit: page.value.limit }) }
+      catch { loadMoreError.value = '分页游标异常，请重新读取。' }
     },
     retry: () => load({ offset: 0, limit: page.value.limit }),
     reset: () => {
@@ -118,7 +118,7 @@ export function useRoonCollection(
       error.value = null
     },
     suspend,
-    resume: async () => { if (pendingRequest && !controller && !disposed) await load(pendingRequest) },
+    resume: async () => { if (pendingRequest && !controller && !disposed) await load(pendingRequest, true) },
     dispose: () => { disposed = true; suspend(); pendingRequest = undefined },
   }
 }

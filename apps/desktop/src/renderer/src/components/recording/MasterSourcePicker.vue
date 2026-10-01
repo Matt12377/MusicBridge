@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import type { AppendMasterDraftRequest, DraftProgramType, MasterDraft, RoonLibraryItem } from '@music-bridge/contracts'
+import { nextRoonPageOffset } from '../../composables/roonLibraryPagination.js'
 import SourcePickerRelations from './SourcePickerRelations.vue'
 import { SourcePickerController, sourceRoonAvailability, sourceTabForKey, type SourceTab, type SourcePickerState } from './source-picker-controller'
 const props = defineProps<{ draft?: MasterDraft; busy: boolean; pending: boolean; error: string; inline?: boolean }>()
@@ -111,13 +112,13 @@ onUnmounted(() => { unsubscribe = undefined })
             <form @submit.prevent="loadAlbums()"><label>搜索专辑<input v-model.trim="query" maxlength="240" placeholder="专辑或艺术家"></label><button :disabled="state.loading">搜索 / 浏览</button></form>
             <div class="albums"><button v-for="item in state.albums?.items" :key="item.reference" class="album" :data-album-reference="item.reference" :aria-label="`查看曲目 ${item.title}`" @click="loadTracks(item)"><strong>{{ item.title }}</strong><small>{{ [item.artist, item.year, item.version].filter(Boolean).join(' · ') || '版本待核实' }}</small></button></div>
             <p v-if="!state.loading && state.albums && !state.albums.items.length">没有可选内容，不推测或自动补齐曲目。</p>
-            <nav v-if="state.albums" aria-label="选曲专辑分页"><button :disabled="state.loading || !state.albums.offset" @click="loadAlbums(Math.max(0, state.albums.offset - 20))">上一页</button><button :disabled="state.loading || !state.albums.hasMore" @click="loadAlbums(state.albums.offset + 20)">下一页</button></nav>
+            <nav v-if="state.albums" aria-label="选曲专辑分页"><button :disabled="state.loading || !state.albums.offset" @click="loadAlbums(controller.previousAlbumsOffset())">上一页</button><button :disabled="state.loading || !state.albums.hasMore" @click="loadAlbums(nextRoonPageOffset(state.albums))">下一页</button></nav>
           </template>
           <template v-else>
             <header><button @click="backFromTracks">{{ tab.id === 'relations' ? '返回数字关联详情' : '返回专辑列表' }}</button><h3 tabindex="-1" data-tracks-heading>{{ state.album.title }}</h3></header>
             <div class="tracks"><label v-for="item in state.tracks?.items" :key="item.reference" class="track"><input type="checkbox" :checked="selected.some(t => t.item.reference === item.reference && !t.stale)" :aria-label="`选择 ${item.title}`" :disabled="state.loading || state.offline || (!selected.some(t => t.item.reference === item.reference) && selected.length >= 100)" @change="toggle(item, ($event.target as HTMLInputElement).checked)"><span><strong>{{ item.title }}</strong><small>{{ item.artist || '艺术家待核实' }} · {{ item.durationMs ? `${Math.floor(item.durationMs / 60000)}:${String(Math.floor(item.durationMs / 1000) % 60).padStart(2, '0')}` : '时长待核实' }}</small></span></label></div>
             <p v-if="!state.loading && state.tracks && !state.tracks.items.length">没有可选内容，不推测或自动补齐曲目。</p>
-            <nav v-if="state.tracks" aria-label="选曲分页"><button :disabled="state.loading || !state.tracks.offset" @click="tab.id === 'relations' ? relationTracks(Math.max(0, state.tracks.offset - 30)) : loadTracks(state.album, Math.max(0, state.tracks.offset - 30))">上一页</button><button :disabled="state.loading || !state.tracks.hasMore" @click="tab.id === 'relations' ? relationTracks(state.tracks.offset + 30) : loadTracks(state.album, state.tracks.offset + 30)">下一页</button></nav>
+            <nav v-if="state.tracks" aria-label="选曲分页"><button :disabled="state.loading || !state.tracks.offset" @click="tab.id === 'relations' ? relationTracks(controller.previousTracksOffset()) : loadTracks(state.album, controller.previousTracksOffset())">上一页</button><button :disabled="state.loading || !state.tracks.hasMore" @click="tab.id === 'relations' ? relationTracks(nextRoonPageOffset(state.tracks)) : loadTracks(state.album, nextRoonPageOffset(state.tracks))">下一页</button></nav>
           </template>
         </template>
       </section>

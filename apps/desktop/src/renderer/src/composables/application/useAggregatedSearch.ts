@@ -6,7 +6,7 @@ import type {
 } from '@music-bridge/contracts'
 import type { MusicBridgePublicApi } from '../../../../preload/api.js'
 import { appendPage } from '../libraryPagination.js'
-import { appendRoonPage, emptyRoonPage } from '../roonLibraryPagination.js'
+import { appendRoonPage, emptyRoonPage, nextRoonPageOffset, readRoonDatasetPage, RoonPageEpochChanged } from '../roonLibraryPagination.js'
 import { createSearchSnapshotLoader } from '../search.js'
 import {
   SMART_MATCH_REQUEST_CONCURRENCY, createMatchRequestScheduler,
@@ -42,6 +42,7 @@ export function useAggregatedSearch(options: AggregatedSearchOptions) {
   const { api, getZoneId, getScrollTop, scrollTo, classifyError,
     onResetSearchOrigin, onInvalidateRoonDetails } = options
   let disposed = false, roonScopeEpoch = 0, neteaseScopeEpoch = 0
+  const roonRebases = { album: 0, artist: 0 }
   const searchReads = createLibraryReadScope(api), roonReads = createLibraryReadScope(api)
   const detailReads = createLibraryReadScope(api), matchReads = createLibraryReadScope(api)
   let lastPage: PageRequest = { offset: 0, limit: LIBRARY_PAGE_SIZE }
@@ -116,6 +117,7 @@ export function useAggregatedSearch(options: AggregatedSearchOptions) {
   }
 
   function resetSearchSections(): void {
+    roonRebases.album = 0; roonRebases.artist = 0
     searchRequestGeneration += 1
     searchReads.cancelAll(); roonReads.cancelAll(); detailReads.cancelAll()
     pendingResume = undefined; detailResume = false; accountResume = false
@@ -250,16 +252,19 @@ export function useAggregatedSearch(options: AggregatedSearchOptions) {
       pendingEntities.set(key, { source, kind })
       roonSearchLoading.value = true
       try {
-        const request = { offset: target.value.offset + target.value.limit, limit: target.value.limit }
-        const page = await roonReads.read('roon.library.search', { query, page: request, kind }, () => api.searchRoonLibrary(query, request, kind))
-        if (generation !== searchRequestGeneration || epoch !== roonScopeEpoch) return
+        const request = { offset: nextRoonPageOffset(target.value), limit: target.value.limit }
+        const result = await readRoonDatasetPage(target.value, request,
+          page => roonReads.read('roon.library.search', { query, page, kind }, () => api.searchRoonLibrary(query, page, kind)),
+          () => generation === searchRequestGeneration && epoch === roonScopeEpoch,
+          roonRebases[kind] === 0 ? () => { roonRebases[kind]++ } : undefined)
+        if (!result || generation !== searchRequestGeneration || epoch !== roonScopeEpoch) return
         pendingEntities.delete(key)
-        target.value = appendRoonPage(target.value, page)
+        target.value = result.restarted ? result.page : appendRoonPage(target.value, result.page)
         roonSearchError.value = null
       } catch (error) {
         if (generation === searchRequestGeneration && epoch === roonScopeEpoch && !isLibraryReadCancelled(error)) {
           pendingEntities.delete(key)
-          roonSearchError.value = '加载更多 Roon 结果失败，请重试。'
+          roonSearchError.value = error instanceof RoonPageEpochChanged ? '读取上下文反复变化，请重新读取。' : '加载更多 Roon 结果失败，请重试。'
         }
       } finally {
         if (generation === searchRequestGeneration && epoch === roonScopeEpoch) roonSearchLoading.value = false

@@ -47,3 +47,42 @@ test('取消旧的本地播放请求后停止继续翻页', async () => {
   }, () => current), /已取消/)
   assert.equal(calls, 1)
 })
+
+const mbpEpoch = '00000000-0000-4000-8000-000000000001'
+test('MBP004：完整队列用effective nextOffset，完整缓存首页complete不终止翻页', async () => {
+  const calls: number[] = []
+  const initial = { items: [tracks[0]!], offset: 0, limit: 24, nextOffset: 1, complete: true, sourceEpoch: mbpEpoch, hasMore: true }
+  const result = await collectRoonPlaybackContext(tracks[0]!, initial, async page => { calls.push(page.offset); return { ...page, items: [tracks[1]!], sourceEpoch: mbpEpoch, nextOffset: 2, complete: true, hasMore: false } })
+  assert.deepEqual(calls, [1]); assert.deepEqual(result, tracks.slice(0, 2))
+})
+test('MBP004：完整队列EOF未知不能伪装成完成', async () => {
+  const initial = { items: [tracks[0]!], offset: 0, limit: 24, complete: false, sourceEpoch: mbpEpoch }
+  await assert.rejects(collectRoonPlaybackContext(tracks[0]!, initial), /完整/u)
+})
+
+test('MBP004：完整队列换代后有界重读，清掉旧条目并保留点击位置', async () => {
+  const epochB = '00000000-0000-4000-8000-000000000002', calls: number[] = []
+  const initial = { items: [tracks[0]!, tracks[1]!], offset: 0, limit: 24, sourceEpoch: mbpEpoch, nextOffset: 2, complete: false, hasMore: true }
+  const result = await collectRoonPlaybackContext(tracks[1]!, initial, async request => {
+    calls.push(request.offset)
+    return request.offset === 0
+      ? { ...request, items: [tracks[1]!], sourceEpoch: epochB, nextOffset: 1, complete: false, hasMore: true }
+      : { ...request, items: [tracks[2]!], sourceEpoch: epochB, nextOffset: request.offset + 1, complete: true, hasMore: false }
+  })
+  assert.deepEqual(calls, [2, 0, 1]); assert.deepEqual(result, tracks.slice(1))
+})
+test('MBP004：完整队列重读期间再换代立即拒绝，不循环或返回部分集合', async () => {
+  const calls: number[] = [], epochB = '00000000-0000-4000-8000-000000000002'
+  const initial = { items: [tracks[0]!], offset: 0, limit: 24, sourceEpoch: mbpEpoch, nextOffset: 1, complete: false, hasMore: true }
+  await assert.rejects(collectRoonPlaybackContext(tracks[0]!, initial, async request => {
+    calls.push(request.offset)
+    return { ...request, items: [tracks[0]!], sourceEpoch: request.offset === 0 ? mbpEpoch : epochB, nextOffset: request.offset + 1, hasMore: true, complete: false }
+  }), /已变化/u)
+  assert.deepEqual(calls, [1, 0])
+})
+test('MBP004：完整队列保留5000容量边界，5001首拒绝', async () => {
+  const large = Array.from({ length: 5001 }, (_, index) => ({ reference: `track:${index}`, kind: 'track' as const, title: '合成曲目' }))
+  const initial = { items: large.slice(0, 5000), offset: 4980, limit: 20, nextOffset: 5000, complete: true, hasMore: false, sourceEpoch: mbpEpoch }
+  assert.equal((await collectRoonPlaybackContext(large[0]!, initial)).length, 5000)
+  await assert.rejects(collectRoonPlaybackContext(large[0]!, { ...initial, items: large }), /容量/u)
+})

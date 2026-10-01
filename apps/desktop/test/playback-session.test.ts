@@ -4,7 +4,7 @@ import { roonTrackIdFromReference } from '@music-bridge/contracts'
 import type { LyricsSnapshot, PlaybackSnapshot, PublicTrackMatchResult, RoonLibraryItem, TrackSummary } from '@music-bridge/contracts'
 import type { MusicBridgePublicApi } from '../src/preload/api.js'
 import { projectPlaybackSnapshot } from '../src/renderer/src/composables/application/playbackSnapshot.js'
-import { usePlaybackSession } from '../src/renderer/src/composables/application/usePlaybackSession.js'
+import { usePlaybackSession, type RoonPlaybackContext } from '../src/renderer/src/composables/application/usePlaybackSession.js'
 import { favoriteDescriptorForRoonItem } from '../src/renderer/src/composables/playbackFavorites.js'
 
 const track = (id: string): TrackSummary => ({ id, title: `曲目 ${id}`, artists: ['合成艺人'], album: '合成专辑' })
@@ -23,6 +23,7 @@ function snapshot(currentTrack: TrackSummary, positionMs = 0, source: 'roon' | '
 function createSession(
   apiOverrides: Partial<MusicBridgePublicApi> = {},
   getMatchResult: (trackId: string) => PublicTrackMatchResult | undefined = () => undefined,
+  getRoonPlaybackContext: () => RoonPlaybackContext | undefined = () => undefined,
 ) {
   const calls = { lyrics: 0, like: 0, favorite: 0 }
   let nativeSnapshot = snapshot(track('1'), 0, 'roon')
@@ -42,7 +43,7 @@ function createSession(
     getMatchResult,
     getPendingMatch: () => undefined,
     onMatchTracks: () => undefined,
-    getRoonPlaybackContext: () => undefined,
+    getRoonPlaybackContext,
     resolveFavoriteDescriptor: favoriteDescriptorForRoonItem,
     onEnterNowPlaying: () => undefined,
     clearActionError: () => undefined,
@@ -516,4 +517,22 @@ test('lyrics.changed(B) 先于原生 playback.changed(B) 时保留 Core 推送�
   await tick()
   assert.equal(harness.session.lyricsSnapshot.value, lyricsB)
   assert.equal(harness.calls.lyrics, 0)
+})
+
+test('MBP004：完整Roon上下文持续换代时实际Session零play派发', async t => {
+  const item: RoonLibraryItem = { reference: 'musicbridge-v2-entity-00000000-0000-4000-8000-000000000001', kind: 'track', title: '合成曲目' }
+  const epochA = '00000000-0000-4000-8000-000000000001', epochB = '00000000-0000-4000-8000-000000000002'
+  let plays = 0
+  const calls: number[] = []
+  const f = createSession({ playRoonTrack: async () => { plays++; return { started: true } } }, () => undefined, () => ({
+    reference: 'album', page: { items: [item], offset: 0, limit: 24, sourceEpoch: epochA, nextOffset: 1, hasMore: true, complete: false },
+    load: async (_reference, request) => {
+      calls.push(request.offset)
+      return { ...request, items: [item], sourceEpoch: request.offset === 0 ? epochA : epochB, nextOffset: request.offset + 1, hasMore: true, complete: false }
+    },
+  }))
+  t.after(() => f.session.dispose())
+  await assert.rejects(f.session.playRoonLibraryTrack(item), /已变化/u)
+  assert.deepEqual(calls, [1, 0]); assert.equal(plays, 0)
+  assert.equal(f.session.playbackStartPending.value, false)
 })

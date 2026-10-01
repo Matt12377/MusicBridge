@@ -247,3 +247,31 @@ test('断线时保留迟到的本地详情，但断线前发出的runtime不能�
   await remoteReading
   assert.notEqual(controller.state.runtime?.status, 'available')
 })
+
+const mbp004A = '00000000-0000-4000-8000-000000000001', mbp004B = '00000000-0000-4000-8000-000000000002'
+test('MBP004：录音选曲页epoch变化只重读0，旧选择标记过期但不删除', async () => {
+  const offsets: number[] = []; let first = true
+  const { controller } = setup({ getRoonAlbumTracks: async (_reference, request) => {
+    offsets.push(request.offset)
+    const sourceEpoch = first ? mbp004A : mbp004B; first = false
+    return { ...page([track(`track:${sourceEpoch}`)], request.offset), sourceEpoch, nextOffset: request.offset + 7, hasMore: true, complete: false }
+  } })
+  await controller.loadRoonTracks(album())
+  controller.toggle(controller.state.tracks!.items[0]!, true)
+  await controller.loadRoonTracks(album(), 7)
+  assert.deepEqual(offsets, [0, 7, 0])
+  assert.equal(controller.state.tracks?.offset, 0)
+  assert.equal(controller.state.selected.length, 1)
+  assert.equal(controller.state.selected[0]?.stale, true)
+})
+
+test('MBP004：录音源root/track上一页用已访问游标而非固定步长', async () => {
+  const { controller } = setup({
+    searchPhysicalRoonAlbums: async (_query, request) => ({ ...page([album()], request.offset), limit: 20, sourceEpoch: mbp004A, nextOffset: request.offset + 7, hasMore: true }),
+    getRoonAlbumTracks: async (_reference, request) => ({ ...page([track()], request.offset), sourceEpoch: mbp004A, nextOffset: request.offset + 7, hasMore: true }),
+  })
+  await controller.loadAlbums('查询', 0); await controller.loadAlbums('查询', 7); await controller.loadAlbums('查询', 14)
+  assert.equal(controller.previousAlbumsOffset(), 7)
+  await controller.loadRoonTracks(album(), 0); await controller.loadRoonTracks(album(), 7); await controller.loadRoonTracks(album(), 14)
+  assert.equal(controller.previousTracksOffset(), 7)
+})
