@@ -20,6 +20,9 @@ import SettingsView from './components/settings/SettingsView.vue'
 import PlaybackInspector from './components/inspector/PlaybackInspector.vue'
 import TrackTable from './components/media/TrackTable.vue'
 import SearchEntities from './components/SearchEntities.vue'
+import LibraryRefreshNotice from './components/LibraryRefreshNotice.vue'
+import { createLibraryPageCache } from './composables/libraryPageCache.js'
+import { createPlaylistSnapshotLoader } from './composables/playlistSnapshotPagination.js'
 import SearchTrackPreview from './components/SearchTrackPreview.vue'
 import RoonAlbumGrid from './components/RoonAlbumGrid.vue'
 import RoonEntityGrid from './components/RoonEntityGrid.vue'
@@ -117,7 +120,17 @@ const diagnosticNotice = ref<{ code: string; message?: string } | null>(null)
 const diagnosticExportState = ref<'idle' | 'working' | 'done' | 'cancelled' | 'error'>('idle')
 const toastMessage = ref<string | null>(null)
 
+const pageCache = createLibraryPageCache()
+let pageCacheEpoch = 0
+function invalidatePageCaches(): void {
+  pageCacheEpoch++; pageCache.clear()
+  // scope 已轮转：同步结束旧私有读取，保留当前目标供原恢复链续读。
+  netease.resetAuthorizedLoadStarted()
+}
+
 const search = useAggregatedSearch({
+  cache: pageCache, getCacheScope: () => String(pageCacheEpoch),
+  getProviderAuthorized: () => netease.authState.value.status === 'authorized',
   api: window.musicBridge,
   getZoneId: () => selectedZone.value?.zoneId,
   getScrollTop: () => journey.contentScroll.value?.scrollTop ?? 0,
@@ -139,6 +152,7 @@ const {
   openSearchDetail, loadMoreSearchDetail, closeSearchDetail,
 } = search
 const browse = useRoonBrowse({
+  cache: pageCache, getCacheScope: () => JSON.stringify([pageCacheEpoch, selectedZone.value?.zoneId ?? null]),
   api: window.musicBridge,
   formatError: roonLibraryMessage,
   onError: recordActionError,
@@ -182,6 +196,7 @@ type SearchErrorKind = 'auth-required' | 'auth-expired' | 'generic'
 type LibraryErrorKind = SearchErrorKind
 
 const netease = useNeteaseLibrary({
+  cache: pageCache, getCacheScope: () => JSON.stringify([pageCacheEpoch, selectedZone.value?.zoneId ?? null]),
   api: window.musicBridge,
   getCoreRuntime: () => coreState.value?.runtime,
   getRemoteStatus: () => remoteCoreState.value.status,
@@ -190,6 +205,7 @@ const netease = useNeteaseLibrary({
   onPlaylistSwitch: () => playback.invalidateCollectionOperation(),
   onPlaylistReady: playlistId => journey.setDetailView('playlist-detail', { type: 'playlist', playlistId }),
   onResetPrivate: () => {
+    invalidatePageCaches()
     journey.resetPrivatePath()
     search.resetSearch()
     search.invalidateAccountScope()
@@ -298,9 +314,12 @@ const selectedZone = computed(() => {
 })
 watch(() => selectedZone.value?.zoneId, (next, previous) => {
   if (next === previous) return
-  search.invalidateRoonScope(currentView.value === 'search')
+  invalidatePageCaches()
+  search.invalidateScope()
+  if (journey.currentView.value === 'search') search.resume()
   browse.resetSession()
   journey.resetRoonPath()
+  loadAuthorizedLibraryWhenReady()
   void browse.resumePageReads(currentView.value)
   refreshVisibleRoonCollection()
 }, { flush: 'sync' })
@@ -316,6 +335,7 @@ const greeting = computed(() => {
   return hour >= 5 && hour < 12 ? '早上好' : hour >= 12 && hour < 18 ? '下午好' : '晚上好'
 })
 function resetRoonRuntimeReferences(): void {
+  invalidatePageCaches()
   browse.resetSession()
   journey.resetRoonPath()
   playback.resetRoonSession()
@@ -484,7 +504,7 @@ function playPlaylistTrack(track: TrackSummary): void {
   const playlistId = selectedPlaylistId.value
   if (!playlistId) return
   void replaceAndPlayCollection(
-    (page) => window.musicBridge.getPlaylist(playlistId, page).then((detail) => detail.tracks),
+    createPlaylistSnapshotLoader(page => window.musicBridge.getPlaylist(playlistId, page), selectedPlaylist.value ?? undefined),
     track.id,
     selectedPlaylist.value?.tracks.items.length ? selectedPlaylist.value.tracks : undefined,
     false,
@@ -495,7 +515,7 @@ function playAllPlaylist(): void {
   const playlistId = selectedPlaylistId.value
   if (!playlistId) return
   void replaceAndPlayCollection(
-    (page) => window.musicBridge.getPlaylist(playlistId, page).then((detail) => detail.tracks),
+    createPlaylistSnapshotLoader(page => window.musicBridge.getPlaylist(playlistId, page), selectedPlaylist.value ?? undefined),
     undefined,
     selectedPlaylist.value?.tracks.items.length ? selectedPlaylist.value.tracks : undefined,
   )
@@ -505,7 +525,7 @@ function appendAllPlaylist(): void {
   const playlistId = selectedPlaylistId.value
   if (!playlistId) return
   void appendCollection(
-    (page) => window.musicBridge.getPlaylist(playlistId, page).then((detail) => detail.tracks),
+    createPlaylistSnapshotLoader(page => window.musicBridge.getPlaylist(playlistId, page)),
   )
 }
 
@@ -724,6 +744,7 @@ const lifecycle = useRendererLifecycle({
       (event.event === 'core.ready' || event.event === 'roon.changed')
       && isCoreRuntimeStable(event.payload.state.runtime, remoteCoreState.value.status)
     ) {
+      loadAuthorizedLibraryWhenReady()
       zoneRefreshCoordinator.handleCoreEvent(event.event, event.payload.state.roon)
       if (currentView.value === 'search') search.resume()
     }
@@ -739,10 +760,18 @@ const lifecycle = useRendererLifecycle({
       refreshVisibleRoonCollection()
     }
     if (event.event === 'auth.changed') {
+      invalidatePageCaches()
       applyAuthState(event.payload.state)
+      loadAuthorizedLibraryWhenReady()
     }
     if (event.event === 'account.changed') {
+      invalidatePageCaches()
+      netease.resetPrivateLibraryState(false)
+      journey.resetPrivatePath()
+      playback.invalidateCollectionOperation()
+      recentTracks.value = []
       applyAccountState(event.payload.state)
+      netease.loadAuthorizedLibraryWhenReady({ accountStateCurrent: true })
       search.invalidateAccountScope()
       if (currentView.value === 'search') search.resume()
     }
@@ -797,6 +826,7 @@ const lifecycle = useRendererLifecycle({
 onMounted(() => lifecycle.start())
 
 onUnmounted(() => {
+  pageCache.dispose()
   lifecycle.dispose()
   zoneRefreshCoordinator.dispose()
   journey.dispose()
@@ -901,6 +931,7 @@ onUnmounted(() => {
             <div><p class="section-kicker">本地音乐库</p><h2 id="roon-albums-heading">专辑</h2><p class="lede">在本地专辑中搜索，不包含网易云结果。</p></div>
           </div>
           <p v-if="localAlbumQuery.trim()" class="local-search-summary">“{{ localAlbumQuery.trim() }}”的本地专辑 <button type="button" class="text-button" @click="setLocalAlbumQuery('')">清除搜索</button></p>
+          <LibraryRefreshNotice :message="browse.roonAlbumsRefreshError.value" @retry="retryRoonAlbums" />
           <RoonAlbumGrid
             :searching="!!localAlbumQuery.trim()"
             :page="roonAlbumsPage"
@@ -917,6 +948,7 @@ onUnmounted(() => {
         <section v-else-if="currentView === 'roon-artists'" class="view" aria-labelledby="roon-artists-heading">
           <div class="view-heading"><div><p class="section-kicker">本地音乐库</p><h2 id="roon-artists-heading">艺术家</h2><p class="lede">在本地艺术家中搜索，不包含网易云结果。</p></div></div>
           <p v-if="localArtistQuery.trim()" class="local-search-summary">“{{ localArtistQuery.trim() }}”的本地艺术家 <button type="button" class="text-button" @click="setLocalArtistQuery('')">清除搜索</button></p>
+          <LibraryRefreshNotice :message="browse.roonArtistsRefreshError.value" @retry="retryRoonArtists" />
           <RoonEntityGrid
             :page="roonArtistsPage"
             entity-label="艺术家"
@@ -934,6 +966,7 @@ onUnmounted(() => {
 
         <section v-else-if="currentView === 'roon-genres'" class="view" aria-labelledby="roon-genres-heading">
           <div class="view-heading"><div><p class="section-kicker">本地音乐库</p><h2 id="roon-genres-heading">流派</h2><p class="lede">选择流派后读取其中真实的专辑与曲目。</p></div></div>
+          <LibraryRefreshNotice :message="browse.roonGenresRefreshError.value" @retry="retryRoonGenres" />
           <RoonEntityGrid
             :page="roonGenresPage"
             entity-label="流派"
@@ -951,6 +984,7 @@ onUnmounted(() => {
 
         <section v-else-if="currentView === 'roon-playlists'" class="view" aria-labelledby="roon-playlists-heading">
           <div class="view-heading"><div><p class="section-kicker">本地音乐库</p><h2 id="roon-playlists-heading">Roon 歌单</h2><p class="lede">选择歌单后读取真实 Roon Playlist 曲目。</p></div></div>
+          <LibraryRefreshNotice :message="browse.roonPlaylistsRefreshError.value" @retry="retryRoonPlaylists" />
           <RoonEntityGrid
             :page="roonPlaylistsPage"
             entity-label="歌单"
@@ -991,6 +1025,7 @@ onUnmounted(() => {
         <section v-else-if="currentView === 'roon-artist-detail' && selectedRoonArtist" class="view" aria-labelledby="roon-artist-heading">
           <button type="button" class="back-link" @click="returnFromRoonDetail('artist')">← {{ roonDetailBackLabel }}</button>
           <div class="view-heading"><div><p class="section-kicker">Roon 艺术家</p><h2 id="roon-artist-heading">{{ selectedRoonArtist.title }}</h2><p class="lede">只显示该艺术家在 Roon Library 中的真实专辑。</p><button type="button" class="secondary-button detail-favorite-button" :disabled="roonArtistFavoriteState === 'loading'" :aria-pressed="roonArtistFavoriteState === 'liked'" @click="toggleRoonEntityFavorite('artist')">{{ roonArtistFavoriteState === 'liked' ? '♥ 已收藏' : '♡ 收藏艺术家' }}</button></div></div>
+          <LibraryRefreshNotice :message="browse.detailRefreshErrors.value.artist" @retry="loadRoonArtist(selectedRoonArtist.reference, undefined, false, true)" />
           <RoonAlbumGrid
             :page="selectedRoonArtistPage"
             :initial-loading="roonArtistInitialLoading"
@@ -1003,25 +1038,27 @@ onUnmounted(() => {
           />
         </section>
 
-        <RoonAlbumDetail
-          v-else-if="currentView === 'roon-album-detail' && selectedRoonAlbum"
-          :album="selectedRoonAlbum"
-          :back-label="roonDetailBackLabel"
-          :page="selectedRoonAlbumPage"
-          :initial-loading="roonAlbumInitialLoading"
-          :loading-more="roonAlbumLoadingMore"
-          :load-more-error="roonAlbumLoadMoreError"
-          :error="roonAlbumError"
-          :favorite-state="roonAlbumFavoriteState"
-          :playback-pending="playbackStartPending"
-          @play-all="selectedRoonAlbumPage.items[0] && playRoonLibraryTrack(selectedRoonAlbumPage.items[0])"
-          @back="returnFromRoonDetail('album')"
-          @play="playRoonLibraryTrack"
-          @queue="queueRoonLibraryTrack"
-          @toggle-favorite="toggleRoonEntityFavorite('album')"
-          @retry="retryRoonAlbum"
-          @load-more="roonAlbumPageAt(nextRoonPageOffset(selectedRoonAlbumPage))"
-        />
+        <template v-else-if="currentView === 'roon-album-detail' && selectedRoonAlbum">
+          <LibraryRefreshNotice :message="browse.detailRefreshErrors.value.album" @retry="retryRoonAlbum" />
+          <RoonAlbumDetail
+            :album="selectedRoonAlbum"
+            :back-label="roonDetailBackLabel"
+            :page="selectedRoonAlbumPage"
+            :initial-loading="roonAlbumInitialLoading"
+            :loading-more="roonAlbumLoadingMore"
+            :load-more-error="roonAlbumLoadMoreError"
+            :error="roonAlbumError"
+            :favorite-state="roonAlbumFavoriteState"
+            :playback-pending="playbackStartPending"
+            @play-all="selectedRoonAlbumPage.items[0] && playRoonLibraryTrack(selectedRoonAlbumPage.items[0])"
+            @back="returnFromRoonDetail('album')"
+            @play="playRoonLibraryTrack"
+            @queue="queueRoonLibraryTrack"
+            @toggle-favorite="toggleRoonEntityFavorite('album')"
+            @retry="retryRoonAlbum"
+            @load-more="roonAlbumPageAt(nextRoonPageOffset(selectedRoonAlbumPage))"
+          />
+        </template>
 
         <section v-else-if="currentView === 'roon-album-detail' || currentView === 'roon-artist-detail'" class="view">
           <button type="button" class="back-link" @click="returnFromRoonDetail(currentView === 'roon-artist-detail' ? 'artist' : 'album')">← {{ roonDetailBackLabel }}</button>
@@ -1030,38 +1067,42 @@ onUnmounted(() => {
           <button v-if="currentView === 'roon-album-detail' && roonAlbumError" type="button" @click="retryRoonAlbum">重试读取详情</button>
         </section>
 
-        <RoonBrowseDetail
-          v-else-if="currentView === 'roon-genre-detail' && selectedRoonGenre"
-          :entity="selectedRoonGenre"
-          :page="selectedRoonGenrePage"
-          mode="genre"
-          :initial-loading="roonGenreInitialLoading"
-          :loading-more="roonGenreLoadingMore"
-          :load-more-error="roonGenreLoadMoreError"
-          :error="roonGenreError"
-          @back="navigateSource({ type: 'roon-genres' })"
-          @album="selectAggregatedRoonItem"
-          @play="playRoonLibraryTrack"
-          @queue="queueRoonLibraryTrack"
-          @retry="loadRoonGenre(selectedRoonGenre.reference)"
-          @load-more="roonGenrePageAt(nextRoonPageOffset(selectedRoonGenrePage))"
-        />
+        <template v-else-if="currentView === 'roon-genre-detail' && selectedRoonGenre">
+          <LibraryRefreshNotice :message="browse.detailRefreshErrors.value.genre" @retry="loadRoonGenre(selectedRoonGenre.reference, undefined, false, true)" />
+          <RoonBrowseDetail
+            :entity="selectedRoonGenre"
+            :page="selectedRoonGenrePage"
+            mode="genre"
+            :initial-loading="roonGenreInitialLoading"
+            :loading-more="roonGenreLoadingMore"
+            :load-more-error="roonGenreLoadMoreError"
+            :error="roonGenreError"
+            @back="navigateSource({ type: 'roon-genres' })"
+            @album="selectAggregatedRoonItem"
+            @play="playRoonLibraryTrack"
+            @queue="queueRoonLibraryTrack"
+            @retry="loadRoonGenre(selectedRoonGenre.reference)"
+            @load-more="roonGenrePageAt(nextRoonPageOffset(selectedRoonGenrePage))"
+          />
+        </template>
 
-        <RoonBrowseDetail
-          v-else-if="currentView === 'roon-playlist-detail' && selectedRoonPlaylist"
-          :entity="selectedRoonPlaylist"
-          :page="selectedRoonPlaylistPage"
-          mode="playlist"
-          :initial-loading="roonPlaylistInitialLoading"
-          :loading-more="roonPlaylistLoadingMore"
-          :load-more-error="roonPlaylistLoadMoreError"
-          :error="roonPlaylistError"
-          @back="navigateSource({ type: 'roon-playlists' })"
-          @play="playRoonLibraryTrack"
-          @queue="queueRoonLibraryTrack"
-          @retry="loadRoonPlaylist(selectedRoonPlaylist.reference)"
-          @load-more="roonPlaylistPageAt(nextRoonPageOffset(selectedRoonPlaylistPage))"
-        />
+        <template v-else-if="currentView === 'roon-playlist-detail' && selectedRoonPlaylist">
+          <LibraryRefreshNotice :message="browse.detailRefreshErrors.value.playlist" @retry="loadRoonPlaylist(selectedRoonPlaylist.reference, undefined, false, true)" />
+          <RoonBrowseDetail
+            :entity="selectedRoonPlaylist"
+            :page="selectedRoonPlaylistPage"
+            mode="playlist"
+            :initial-loading="roonPlaylistInitialLoading"
+            :loading-more="roonPlaylistLoadingMore"
+            :load-more-error="roonPlaylistLoadMoreError"
+            :error="roonPlaylistError"
+            @back="navigateSource({ type: 'roon-playlists' })"
+            @play="playRoonLibraryTrack"
+            @queue="queueRoonLibraryTrack"
+            @retry="loadRoonPlaylist(selectedRoonPlaylist.reference)"
+            @load-more="roonPlaylistPageAt(nextRoonPageOffset(selectedRoonPlaylistPage))"
+          />
+        </template>
 
         <section v-else-if="currentView === 'search'" class="view view-search" :class="{ 'search-category-artists': searchCategory === 'artists' && !searchDetail }" aria-labelledby="search-heading">
           <div class="view-heading search-view-heading"><h2 id="search-heading">{{ searchQuery }}</h2></div>
@@ -1073,25 +1114,29 @@ onUnmounted(() => {
             <div class="search-detail-hero">
               <div><p class="section-kicker">{{ searchDetail.kind === 'artist' ? '艺人详情' : '专辑详情' }}</p><h3>{{ searchDetail.title }}</h3><p class="lede">{{ searchDetail.subtitle }}</p></div>
             </div>
-            <div v-if="searchDetail.loading" class="empty-state"><span class="loading-line"></span><p>正在读取歌曲…</p></div>
-            <p v-else-if="searchDetail.error" class="persistent-error">{{ searchDetail.error }}</p>
-            <TrackTable
-              v-else
-              :tracks="searchDetail.tracks.items"
-              :busy="playbackStartPending"
-              :match-states="matchStates"
-              :total="searchDetail.tracks.total"
-              :has-more="searchDetail.tracks.hasMore"
-              :loading-more="searchDetailLoadingMore" :load-more-error="searchDetailMoreError"
-              @load-more="loadMoreSearchDetail"
-              empty-title="没有可显示的歌曲"
-              empty-copy="Provider 暂时没有返回此项的歌曲。"
-              @play="playTrack"
-              @queue="appendTrack"
-              @play-next="insertTrackNext"
-            />
+            <div v-if="searchDetail.loading && !searchDetail.tracks.items.length" class="empty-state"><span class="loading-line"></span><p>正在读取歌曲…</p></div>
+            <p v-else-if="searchDetail.error && !searchDetail.tracks.items.length" class="persistent-error">{{ searchDetail.error }} <button type="button" class="inline-action" @click="search.retrySearchDetail">重新读取</button></p>
+            <template v-else>
+              <p v-if="searchDetail.loading" role="status">正在刷新歌曲…</p>
+              <LibraryRefreshNotice :message="searchDetail.error" :pending="searchDetail.loading" @retry="search.retrySearchDetail" />
+              <TrackTable
+                :tracks="searchDetail.tracks.items"
+                :busy="playbackStartPending"
+                :match-states="matchStates"
+                :total="searchDetail.tracks.total"
+                :has-more="searchDetail.tracks.hasMore"
+                :loading-more="searchDetailLoadingMore || searchDetail.loading" :load-more-error="searchDetailMoreError"
+                @load-more="loadMoreSearchDetail"
+                empty-title="没有可显示的歌曲"
+                empty-copy="Provider 暂时没有返回此项的歌曲。"
+                @play="playTrack"
+                @queue="appendTrack"
+                @play-next="insertTrackNext"
+              />
+            </template>
           </template>
           <template v-else>
+            <LibraryRefreshNotice :message="Object.values(search.refreshErrors.value).filter(Boolean).join(' ')" @retry="scheduleSearch" />
             <SearchEntities
               v-if="!searchSongsOpen"
               :mode="searchCategory === 'tracks' ? 'all' : searchCategory"
@@ -1099,6 +1144,8 @@ onUnmounted(() => {
               :artists="searchArtistsPage.items" :albums="searchAlbumsPage.items"
               :roon-artists="roonSearchArtists.items" :roon-albums="roonSearchAlbums.items"
               :artists-loading="searchArtistsState === 'loading'" :albums-loading="searchAlbumsState === 'loading'"
+              :roon-albums-loading="search.roonAlbumsLoading.value" :roon-artists-loading="search.roonArtistsLoading.value"
+              :roon-albums-error="search.roonAlbumsError.value" :roon-artists-error="search.roonArtistsError.value"
               :roon-loading="roonSearchLoading" :artists-error="searchArtistsError" :albums-error="searchAlbumsError" :roon-error="roonSearchError"
               :more-roon-albums="!!roonSearchAlbums.hasMore" :more-roon-artists="!!roonSearchArtists.hasMore"
               :more-albums="searchAlbumsPage.hasMore" :more-artists="searchArtistsPage.hasMore"
@@ -1146,12 +1193,14 @@ onUnmounted(() => {
             <div class="view-heading"><div><p class="section-kicker">MUSIC BRIDGE</p><h2 id="liked-heading">我喜欢的音乐</h2><p class="lede">{{ likedPage.total }} 首歌曲</p></div><div class="button-row"><button type="button" class="primary-button" :disabled="!likedPage.items.length" @click="playAllLiked">播放全部</button><button type="button" class="secondary-button" :disabled="!likedPage.items.length" @click="appendAllLiked">加入队列</button></div></div>
           </div>
           <p v-if="likedError" class="persistent-error">{{ likedError === 'auth-required' ? '请先登录音乐服务，再打开我喜欢的音乐。' : likedError === 'auth-expired' ? '登录已过期，请从侧栏账户菜单重新登录。' : '我喜欢的音乐暂时不可用，请稍后重试。' }}<button type="button" class="inline-action" @click="loadLiked()">重试</button></p>
+          <LibraryRefreshNotice :message="netease.likedRefreshError.value" @retry="loadLiked" />
           <TrackTable :tracks="likedPage.items" :initial-loading="likedInitialLoading" :loading-more="likedLoadingMore" :load-more-error="likedLoadMoreError" :total="likedPage.total" :has-more="likedPage.hasMore" empty-title="还没有喜欢的内容" empty-copy="登录网易云后，这里会显示你的收藏。" @play="playTrack" @queue="appendTrack" @play-next="insertTrackNext" @load-more="likedPageAt(likedPage.offset + likedPage.limit)" />
         </section>
 
         <section v-else-if="currentView === 'playlists'" class="view view-library" aria-labelledby="playlists-heading">
           <div class="view-heading"><div><p class="section-kicker">资料库</p><h2 id="playlists-heading">所有歌单</h2><p class="lede">你的网易云歌单直接来自当前 Provider 数据。</p></div></div>
           <p v-if="playlistState === 'error'" class="persistent-error">歌单暂时无法加载，请从侧栏歌单区域重试。</p>
+          <LibraryRefreshNotice :message="netease.playlistListRefreshError.value" @retry="netease.loadPlaylists()" />
           <div class="playlist-grid"><div v-if="playlistState === 'loading'" class="empty-state"><p>读取歌单…</p></div><div v-else-if="!playlists.length" class="empty-state"><h3>还没有歌单</h3><p>歌单会在网易云可用后出现在这里。</p></div><button v-for="playlist in playlists" v-else :key="playlist.id" type="button" class="playlist-card" @click="navigateSource({ type: 'playlist', playlistId: playlist.id })"><SafeArtwork class="playlist-art" :src="playlist.artworkUrl" alt="" fallback="♫" /><span><strong>{{ playlist.name }}</strong><small>{{ playlist.trackCount }} 首歌曲</small></span><b aria-hidden="true">→</b></button></div>
         </section>
 
@@ -1166,6 +1215,7 @@ onUnmounted(() => {
               <SafeArtwork class="playlist-detail-art" :src="selectedPlaylist.artworkUrl" alt="" fallback="♫" />
               <div class="playlist-detail-copy"><p class="section-kicker">歌单</p><h2 id="playlist-heading">{{ selectedPlaylist.name }}</h2><p class="lede">{{ selectedPlaylist.description || '来自你的音乐收藏。' }}</p><span class="playlist-count">{{ selectedPlaylist.trackCount }} 首歌曲</span><div class="button-row"><button type="button" class="primary-button" :disabled="!selectedPlaylist.tracks.items.length" @click="playAllPlaylist">播放全部</button><button type="button" class="secondary-button" :disabled="!selectedPlaylist.tracks.items.length" @click="appendAllPlaylist">加入队列</button></div></div>
             </div>
+            <LibraryRefreshNotice :message="netease.playlistRefreshError.value" :legacy="!selectedPlaylist.snapshotVersion" :pending="playlistInitialLoading" @retry="retryPlaylist" />
             <TrackTable v-model:scroll-top="playlistTableScrollTop" :tracks="selectedPlaylist.tracks.items" :initial-loading="playlistInitialLoading" :loading-more="playlistLoadingMore" :load-more-error="playlistLoadMoreError" :total="selectedPlaylist.tracks.total" :has-more="selectedPlaylist.tracks.hasMore" empty-title="歌单为空" empty-copy="这个歌单暂时没有可显示的歌曲。" @play="playPlaylistTrack" @queue="appendTrack" @play-next="insertTrackNext" @load-more="playlistPageAt(selectedPlaylist.tracks.offset + selectedPlaylist.tracks.limit)" />
           </template>
           <div v-else-if="playlistDetailError === null" class="empty-state"><p>选择一个歌单查看内容。</p></div>

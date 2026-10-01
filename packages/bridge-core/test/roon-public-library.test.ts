@@ -15,6 +15,8 @@ function mbp004PublicService(): RoonLibraryService {
 
 test('MBP004：公开分页传递完成与下一游标，以公共scope包装遍历代且不泄露内部身份', async t => {
   const service = mbp004PublicService();
+  // Fake直接提供分页，故同步currentness也必须描述该Fake遍历，而非真实SDK空会话。
+  service.getReadCacheStamp = () => 'private-core-traversal-session';
   t.mock.method(service, 'browseAlbums', async (request: { offset: number; limit: number }) => ({
     items: [], offset: request.offset, level: 0, hasMore: true,
     sourceEpoch: 'private-core-traversal-session', complete: false, nextOffset: request.offset + 12,

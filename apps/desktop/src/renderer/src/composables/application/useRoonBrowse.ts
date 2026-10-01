@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { cacheIdentity, mergeRefreshedRoonPage, type PageCacheOwnerOptions } from '../libraryPageCache.js'
 import { createLibraryReadScope, isLibraryReadCancelled } from '../libraryReadScope.js'
 import type {
   FavoriteEntityDescriptor, FavoriteKind, FavoritePage, FavoriteRecord,
@@ -16,7 +17,7 @@ function emptyFavoritePage(limit = LIBRARY_PAGE_SIZE): FavoritePage {
   return { items: [], offset: 0, limit, total: 0, hasMore: false }
 }
 
-export interface RoonBrowseOptions {
+export interface RoonBrowseOptions extends PageCacheOwnerOptions {
   api: MusicBridgePublicApi
   formatError: (error: unknown) => string
   onError: (error: unknown) => void
@@ -33,6 +34,9 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     onDetailOpening, onDetailReady, onNavigateSource, onPlayTrack } = options
 
   let disposed = false, sessionEpoch = 0
+  const cacheScope = () => JSON.stringify([options.getCacheScope?.() ?? '', sessionEpoch])
+  const detailRefreshErrors = ref<Partial<Record<'album' | 'artist' | 'genre' | 'playlist', string>>>({})
+  const detailReadAt: Partial<Record<'album' | 'artist' | 'genre' | 'playlist', number>> = {}
   const catalogReads = createLibraryReadScope(api)
   const detailReads = { album: createLibraryReadScope(api), artist: createLibraryReadScope(api), genre: createLibraryReadScope(api), playlist: createLibraryReadScope(api) }
   const entityFavoriteReads = createLibraryReadScope(api), favoriteReads = createLibraryReadScope(api)
@@ -49,12 +53,12 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
   let pendingFavorite: { kind: FavoriteKind; page: PageRequest } | undefined
   const albumCollection = useRoonSearchCollection('album',
     (page, context) => catalogReads.read('roon.library.albums', { page }, () => api.listRoonAlbums(page), context),
-    (query, page, kind, context) => catalogReads.read('roon.library.search', { query, page, kind }, () => api.searchRoonLibrary(query, page, kind), context), formatError)
+    (query, page, kind, context) => catalogReads.read('roon.library.search', { query, page, kind }, () => api.searchRoonLibrary(query, page, kind), context), formatError, 300, { cache: options.cache, getCacheScope: cacheScope })
   const artistCollection = useRoonSearchCollection('artist',
     (page, context) => catalogReads.read('roon.library.artists', { page }, () => api.listRoonArtists(page), context),
-    (query, page, kind, context) => catalogReads.read('roon.library.search', { query, page, kind }, () => api.searchRoonLibrary(query, page, kind), context), formatError)
-  const genreCollection = useRoonCollection((page, context) => catalogReads.read('roon.library.genres', { page }, () => api.listRoonGenres(page), context), formatError)
-  const playlistCollection = useRoonCollection((page, context) => catalogReads.read('roon.library.playlists', { page }, () => api.listRoonPlaylists(page), context), formatError)
+    (query, page, kind, context) => catalogReads.read('roon.library.search', { query, page, kind }, () => api.searchRoonLibrary(query, page, kind), context), formatError, 300, { cache: options.cache, getCacheScope: cacheScope })
+  const genreCollection = useRoonCollection((page, context) => catalogReads.read('roon.library.genres', { page }, () => api.listRoonGenres(page), context), formatError, 24, { cache: options.cache, getCacheScope: cacheScope, getDataset: () => 'genres' })
+  const playlistCollection = useRoonCollection((page, context) => catalogReads.read('roon.library.playlists', { page }, () => api.listRoonPlaylists(page), context), formatError, 24, { cache: options.cache, getCacheScope: cacheScope, getDataset: () => 'playlists' })
   const {
     query: localAlbumQuery,
     setQuery: setLocalAlbumQuery,
@@ -153,9 +157,15 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     reference: string,
     page: PageRequest = { offset: 0, limit: 24 },
     resume = false,
+    reload = false,
   ): Promise<void> {
     if (disposed) return
     const initial = page.offset === 0
+    const sameTarget = detailTargets.album?.reference === reference
+    const scope = cacheScope(), dataset = JSON.stringify(['album', reference])
+    const identity = cacheIdentity(scope, dataset, page), cached = options.cache?.peek<{ page: RoonLibraryPage; descriptor: RoonLibraryItem | null }>(identity)
+    let notified = false, firstRead = true, usedCache = false
+    delete detailRefreshErrors.value.album
     if (!initial && detailTargets.album?.reference !== reference) {
       roonAlbumLoadMoreError.value = '读取目标已变化，请重新读取。'
       return
@@ -178,7 +188,7 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       roonAlbumInitialLoading.value = true
       roonAlbumLoadMoreError.value = null
       roonAlbumError.value = null
-      selectedRoonAlbumPage.value = emptyRoonPage(page.limit)
+      if (!sameTarget) selectedRoonAlbumPage.value = emptyRoonPage(page.limit)
       // 目标页先取得读取所有权；收藏入口的原描述继续用于关系核对。
       if (selectedRoonAlbum.value?.reference === reference) void loadRoonEntityFavorite(selectedRoonAlbum.value, 'album')
     } else {
@@ -187,32 +197,50 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       roonAlbumLoadMoreError.value = null
     }
     const generation = roonAlbumRequestGeneration
+    const current = () => !disposed && generation === roonAlbumRequestGeneration && scope === cacheScope()
+    if (initial && cached && (!cached.value.page.sourceEpoch || !invalidDetailEpochs.has(cached.value.page.sourceEpoch))) {
+      selectedRoonAlbumPage.value = mergeRefreshedRoonPage(selectedRoonAlbumPage.value, cached.value.page)
+      if (cached.value.descriptor?.reference === reference) {
+        const missingDescriptor = selectedRoonAlbum.value?.reference !== reference
+        selectedRoonAlbum.value = cached.value.descriptor
+        if (missingDescriptor) void loadRoonEntityFavorite(cached.value.descriptor, 'album')
+      }
+      if (!resume) { onDetailReady('roon-album-detail', { type: 'roon-album', reference }); notified = true }
+    }
     detailRequests.album = { reference, page: { ...page } }
     detailTargets.album = detailRequests.album
     try {
       const result = await readRoonDatasetPage(initial ? undefined : selectedRoonAlbumPage.value, page,
-        target => detailReads.album.read('roon.library.album', { reference, page: target }, () => api.getRoonAlbumTracks(reference, target)),
-        () => generation === roonAlbumRequestGeneration,
+        target => {
+          if (initial && firstRead && cached && !cached.stale && !reload && (!cached.value.page.sourceEpoch || !invalidDetailEpochs.has(cached.value.page.sourceEpoch))) { firstRead = false; usedCache = true; return Promise.resolve(cached.value.page) }
+          const force = firstRead && (reload || !!cached?.stale); firstRead = false
+          return detailReads.album.read('roon.library.album', { reference, page: target }, () => api.getRoonAlbumTracks(reference, target), force ? { cacheMode: 'reload' } : undefined)
+        }, current,
         detailRebases.album === 0 ? () => {
           detailRebases.album++
+          options.cache?.evictDataset(scope, dataset)
           invalidateDetailEpoch(selectedRoonAlbumPage.value)
           detailRequests.album = { reference, page: { offset: 0, limit: page.limit } }
           detailTargets.album = detailRequests.album
         } : undefined)
-      if (!result || generation !== roonAlbumRequestGeneration) return
+      if (!result || !current()) return
       delete detailRequests.album
-      selectedRoonAlbumPage.value = initial || result.restarted ? result.page : appendRoonPage(selectedRoonAlbumPage.value, result.page)
+      detailReadAt.album = initial ? (usedCache ? cached!.writtenAt : Date.now()) : Math.min(detailReadAt.album ?? Date.now(), Date.now())
+      if (initial && selectedRoonAlbumPage.value.sourceEpoch !== result.page.sourceEpoch) options.cache?.evictDataset(scope, dataset)
+      if (!usedCache) options.cache?.put(cacheIdentity(scope, dataset, result.page), { page: result.page, descriptor: selectedRoonAlbum.value })
+      selectedRoonAlbumPage.value = result.restarted ? result.page : initial ? mergeRefreshedRoonPage(selectedRoonAlbumPage.value, result.page) : appendRoonPage(selectedRoonAlbumPage.value, result.page)
       roonAlbumInitialLoading.value = false
       roonAlbumLoadingMore.value = false
       roonAlbumError.value = null
-      onDetailReady('roon-album-detail', { type: 'roon-album', reference })
+      if (!notified) onDetailReady('roon-album-detail', { type: 'roon-album', reference })
     } catch (error) {
-      if (generation !== roonAlbumRequestGeneration) return
+      if (!current()) return
       if (isLibraryReadCancelled(error)) { roonAlbumInitialLoading.value = false; roonAlbumLoadingMore.value = false; return }
       delete detailRequests.album
       if (initial) {
         roonAlbumInitialLoading.value = false
-        roonAlbumError.value = formatError(error)
+        if (selectedRoonAlbumPage.value.items.length) detailRefreshErrors.value.album = formatError(error)
+        else roonAlbumError.value = formatError(error)
       } else {
         roonAlbumLoadingMore.value = false
         roonAlbumLoadMoreError.value = error instanceof RoonPageEpochChanged ? '读取上下文反复变化，请重新读取。' : '加载失败，点击重试'
@@ -224,9 +252,15 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     reference: string,
     page: PageRequest = { offset: 0, limit: 24 },
     resume = false,
+    reload = false,
   ): Promise<void> {
     if (disposed) return
     const initial = page.offset === 0
+    const sameTarget = detailTargets.artist?.reference === reference
+    const scope = cacheScope(), dataset = JSON.stringify(['artist', reference])
+    const identity = cacheIdentity(scope, dataset, page), cached = options.cache?.peek<{ page: RoonLibraryPage; descriptor: RoonLibraryItem | null }>(identity)
+    let notified = false, firstRead = true, usedCache = false
+    delete detailRefreshErrors.value.artist
     if (!initial && detailTargets.artist?.reference !== reference) {
       roonArtistLoadMoreError.value = '读取目标已变化，请重新读取。'
       return
@@ -245,7 +279,7 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       roonArtistInitialLoading.value = true
       roonArtistLoadMoreError.value = null
       roonArtistError.value = null
-      selectedRoonArtistPage.value = emptyRoonPage(page.limit)
+      if (!sameTarget) selectedRoonArtistPage.value = emptyRoonPage(page.limit)
       if (selectedRoonArtist.value?.reference === reference) void loadRoonEntityFavorite(selectedRoonArtist.value, 'artist')
     } else {
       if (roonArtistLoadingMore.value) return
@@ -253,32 +287,50 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       roonArtistLoadMoreError.value = null
     }
     const generation = roonArtistRequestGeneration
+    const current = () => !disposed && generation === roonArtistRequestGeneration && scope === cacheScope()
+    if (initial && cached && (!cached.value.page.sourceEpoch || !invalidDetailEpochs.has(cached.value.page.sourceEpoch))) {
+      selectedRoonArtistPage.value = mergeRefreshedRoonPage(selectedRoonArtistPage.value, cached.value.page)
+      if (cached.value.descriptor?.reference === reference) {
+        const missingDescriptor = selectedRoonArtist.value?.reference !== reference
+        selectedRoonArtist.value = cached.value.descriptor
+        if (missingDescriptor) void loadRoonEntityFavorite(cached.value.descriptor, 'artist')
+      }
+      if (!resume) { onDetailReady('roon-artist-detail', { type: 'roon-artist', reference }); notified = true }
+    }
     detailRequests.artist = { reference, page: { ...page } }
     detailTargets.artist = detailRequests.artist
     try {
       const result = await readRoonDatasetPage(initial ? undefined : selectedRoonArtistPage.value, page,
-        target => detailReads.artist.read('roon.library.artist', { reference, page: target }, () => api.getRoonArtistAlbums(reference, target)),
-        () => generation === roonArtistRequestGeneration,
+        target => {
+          if (initial && firstRead && cached && !cached.stale && !reload && (!cached.value.page.sourceEpoch || !invalidDetailEpochs.has(cached.value.page.sourceEpoch))) { firstRead = false; usedCache = true; return Promise.resolve(cached.value.page) }
+          const force = firstRead && (reload || !!cached?.stale); firstRead = false
+          return detailReads.artist.read('roon.library.artist', { reference, page: target }, () => api.getRoonArtistAlbums(reference, target), force ? { cacheMode: 'reload' } : undefined)
+        }, current,
         detailRebases.artist === 0 ? () => {
           detailRebases.artist++
+          options.cache?.evictDataset(scope, dataset)
           invalidateDetailEpoch(selectedRoonArtistPage.value)
           detailRequests.artist = { reference, page: { offset: 0, limit: page.limit } }
           detailTargets.artist = detailRequests.artist
         } : undefined)
-      if (!result || generation !== roonArtistRequestGeneration) return
+      if (!result || !current()) return
       delete detailRequests.artist
-      selectedRoonArtistPage.value = initial || result.restarted ? result.page : appendRoonPage(selectedRoonArtistPage.value, result.page)
+      detailReadAt.artist = initial ? (usedCache ? cached!.writtenAt : Date.now()) : Math.min(detailReadAt.artist ?? Date.now(), Date.now())
+      if (initial && selectedRoonArtistPage.value.sourceEpoch !== result.page.sourceEpoch) options.cache?.evictDataset(scope, dataset)
+      if (!usedCache) options.cache?.put(cacheIdentity(scope, dataset, result.page), { page: result.page, descriptor: selectedRoonArtist.value })
+      selectedRoonArtistPage.value = result.restarted ? result.page : initial ? mergeRefreshedRoonPage(selectedRoonArtistPage.value, result.page) : appendRoonPage(selectedRoonArtistPage.value, result.page)
       roonArtistInitialLoading.value = false
       roonArtistLoadingMore.value = false
       roonArtistError.value = null
-      onDetailReady('roon-artist-detail', { type: 'roon-artist', reference })
+      if (!notified) onDetailReady('roon-artist-detail', { type: 'roon-artist', reference })
     } catch (error) {
-      if (generation !== roonArtistRequestGeneration) return
+      if (!current()) return
       if (isLibraryReadCancelled(error)) { roonArtistInitialLoading.value = false; roonArtistLoadingMore.value = false; return }
       delete detailRequests.artist
       if (initial) {
         roonArtistInitialLoading.value = false
-        roonArtistError.value = formatError(error)
+        if (selectedRoonArtistPage.value.items.length) detailRefreshErrors.value.artist = formatError(error)
+        else roonArtistError.value = formatError(error)
       } else {
         roonArtistLoadingMore.value = false
         roonArtistLoadMoreError.value = error instanceof RoonPageEpochChanged ? '读取上下文反复变化，请重新读取。' : '加载失败，点击重试'
@@ -290,9 +342,15 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     reference: string,
     page: PageRequest = { offset: 0, limit: 24 },
     resume = false,
+    reload = false,
   ): Promise<void> {
     if (disposed) return
     const initial = page.offset === 0
+    const sameTarget = detailTargets.genre?.reference === reference
+    const scope = cacheScope(), dataset = JSON.stringify(['genre', reference])
+    const identity = cacheIdentity(scope, dataset, page), cached = options.cache?.peek<{ page: RoonLibraryPage; descriptor: RoonLibraryItem | null }>(identity)
+    let notified = false, firstRead = true, usedCache = false
+    delete detailRefreshErrors.value.genre
     if (!initial && detailTargets.genre?.reference !== reference) {
       roonGenreLoadMoreError.value = '读取目标已变化，请重新读取。'
       return
@@ -308,39 +366,53 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       roonGenreInitialLoading.value = true
       roonGenreLoadMoreError.value = null
       roonGenreError.value = null
-      selectedRoonGenrePage.value = emptyRoonPage(page.limit)
+      if (!sameTarget) selectedRoonGenrePage.value = emptyRoonPage(page.limit)
     } else {
       if (roonGenreLoadingMore.value) return
       roonGenreLoadingMore.value = true
       roonGenreLoadMoreError.value = null
     }
     const generation = roonGenreRequestGeneration
+    const current = () => !disposed && generation === roonGenreRequestGeneration && scope === cacheScope()
+    if (initial && cached && (!cached.value.page.sourceEpoch || !invalidDetailEpochs.has(cached.value.page.sourceEpoch))) {
+      selectedRoonGenrePage.value = mergeRefreshedRoonPage(selectedRoonGenrePage.value, cached.value.page)
+      if (cached.value.descriptor?.reference === reference) selectedRoonGenre.value = cached.value.descriptor
+      if (!resume) { onDetailReady('roon-genre-detail', { type: 'roon-genre', reference }); notified = true }
+    }
     detailRequests.genre = { reference, page: { ...page } }
     detailTargets.genre = detailRequests.genre
     try {
       const result = await readRoonDatasetPage(initial ? undefined : selectedRoonGenrePage.value, page,
-        target => detailReads.genre.read('roon.library.genre', { reference, page: target }, () => api.getRoonGenreItems(reference, target)),
-        () => generation === roonGenreRequestGeneration,
+        target => {
+          if (initial && firstRead && cached && !cached.stale && !reload && (!cached.value.page.sourceEpoch || !invalidDetailEpochs.has(cached.value.page.sourceEpoch))) { firstRead = false; usedCache = true; return Promise.resolve(cached.value.page) }
+          const force = firstRead && (reload || !!cached?.stale); firstRead = false
+          return detailReads.genre.read('roon.library.genre', { reference, page: target }, () => api.getRoonGenreItems(reference, target), force ? { cacheMode: 'reload' } : undefined)
+        }, current,
         detailRebases.genre === 0 ? () => {
           detailRebases.genre++
+          options.cache?.evictDataset(scope, dataset)
           invalidateDetailEpoch(selectedRoonGenrePage.value)
           detailRequests.genre = { reference, page: { offset: 0, limit: page.limit } }
           detailTargets.genre = detailRequests.genre
         } : undefined)
-      if (!result || generation !== roonGenreRequestGeneration) return
+      if (!result || !current()) return
       delete detailRequests.genre
-      selectedRoonGenrePage.value = initial || result.restarted ? result.page : appendRoonPage(selectedRoonGenrePage.value, result.page)
+      detailReadAt.genre = initial ? (usedCache ? cached!.writtenAt : Date.now()) : Math.min(detailReadAt.genre ?? Date.now(), Date.now())
+      if (initial && selectedRoonGenrePage.value.sourceEpoch !== result.page.sourceEpoch) options.cache?.evictDataset(scope, dataset)
+      if (!usedCache) options.cache?.put(cacheIdentity(scope, dataset, result.page), { page: result.page, descriptor: selectedRoonGenre.value })
+      selectedRoonGenrePage.value = result.restarted ? result.page : initial ? mergeRefreshedRoonPage(selectedRoonGenrePage.value, result.page) : appendRoonPage(selectedRoonGenrePage.value, result.page)
       roonGenreInitialLoading.value = false
       roonGenreLoadingMore.value = false
       roonGenreError.value = null
-      onDetailReady('roon-genre-detail', { type: 'roon-genre', reference })
+      if (!notified) onDetailReady('roon-genre-detail', { type: 'roon-genre', reference })
     } catch (error) {
-      if (generation !== roonGenreRequestGeneration) return
+      if (!current()) return
       if (isLibraryReadCancelled(error)) { roonGenreInitialLoading.value = false; roonGenreLoadingMore.value = false; return }
       delete detailRequests.genre
       if (initial) {
         roonGenreInitialLoading.value = false
-        roonGenreError.value = formatError(error)
+        if (selectedRoonGenrePage.value.items.length) detailRefreshErrors.value.genre = formatError(error)
+        else roonGenreError.value = formatError(error)
       } else {
         roonGenreLoadingMore.value = false
         roonGenreLoadMoreError.value = error instanceof RoonPageEpochChanged ? '读取上下文反复变化，请重新读取。' : '加载失败，点击重试'
@@ -352,9 +424,15 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     reference: string,
     page: PageRequest = { offset: 0, limit: 24 },
     resume = false,
+    reload = false,
   ): Promise<void> {
     if (disposed) return
     const initial = page.offset === 0
+    const sameTarget = detailTargets.playlist?.reference === reference
+    const scope = cacheScope(), dataset = JSON.stringify(['playlist', reference])
+    const identity = cacheIdentity(scope, dataset, page), cached = options.cache?.peek<{ page: RoonLibraryPage; descriptor: RoonLibraryItem | null }>(identity)
+    let notified = false, firstRead = true, usedCache = false
+    delete detailRefreshErrors.value.playlist
     if (!initial && detailTargets.playlist?.reference !== reference) {
       roonPlaylistLoadMoreError.value = '读取目标已变化，请重新读取。'
       return
@@ -370,39 +448,53 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       roonPlaylistInitialLoading.value = true
       roonPlaylistLoadMoreError.value = null
       roonPlaylistError.value = null
-      selectedRoonPlaylistPage.value = emptyRoonPage(page.limit)
+      if (!sameTarget) selectedRoonPlaylistPage.value = emptyRoonPage(page.limit)
     } else {
       if (roonPlaylistLoadingMore.value) return
       roonPlaylistLoadingMore.value = true
       roonPlaylistLoadMoreError.value = null
     }
     const generation = roonPlaylistRequestGeneration
+    const current = () => !disposed && generation === roonPlaylistRequestGeneration && scope === cacheScope()
+    if (initial && cached && (!cached.value.page.sourceEpoch || !invalidDetailEpochs.has(cached.value.page.sourceEpoch))) {
+      selectedRoonPlaylistPage.value = mergeRefreshedRoonPage(selectedRoonPlaylistPage.value, cached.value.page)
+      if (cached.value.descriptor?.reference === reference) selectedRoonPlaylist.value = cached.value.descriptor
+      if (!resume) { onDetailReady('roon-playlist-detail', { type: 'roon-playlist', reference }); notified = true }
+    }
     detailRequests.playlist = { reference, page: { ...page } }
     detailTargets.playlist = detailRequests.playlist
     try {
       const result = await readRoonDatasetPage(initial ? undefined : selectedRoonPlaylistPage.value, page,
-        target => detailReads.playlist.read('roon.library.playlist', { reference, page: target }, () => api.getRoonPlaylistTracks(reference, target)),
-        () => generation === roonPlaylistRequestGeneration,
+        target => {
+          if (initial && firstRead && cached && !cached.stale && !reload && (!cached.value.page.sourceEpoch || !invalidDetailEpochs.has(cached.value.page.sourceEpoch))) { firstRead = false; usedCache = true; return Promise.resolve(cached.value.page) }
+          const force = firstRead && (reload || !!cached?.stale); firstRead = false
+          return detailReads.playlist.read('roon.library.playlist', { reference, page: target }, () => api.getRoonPlaylistTracks(reference, target), force ? { cacheMode: 'reload' } : undefined)
+        }, current,
         detailRebases.playlist === 0 ? () => {
           detailRebases.playlist++
+          options.cache?.evictDataset(scope, dataset)
           invalidateDetailEpoch(selectedRoonPlaylistPage.value)
           detailRequests.playlist = { reference, page: { offset: 0, limit: page.limit } }
           detailTargets.playlist = detailRequests.playlist
         } : undefined)
-      if (!result || generation !== roonPlaylistRequestGeneration) return
+      if (!result || !current()) return
       delete detailRequests.playlist
-      selectedRoonPlaylistPage.value = initial || result.restarted ? result.page : appendRoonPage(selectedRoonPlaylistPage.value, result.page)
+      detailReadAt.playlist = initial ? (usedCache ? cached!.writtenAt : Date.now()) : Math.min(detailReadAt.playlist ?? Date.now(), Date.now())
+      if (initial && selectedRoonPlaylistPage.value.sourceEpoch !== result.page.sourceEpoch) options.cache?.evictDataset(scope, dataset)
+      if (!usedCache) options.cache?.put(cacheIdentity(scope, dataset, result.page), { page: result.page, descriptor: selectedRoonPlaylist.value })
+      selectedRoonPlaylistPage.value = result.restarted ? result.page : initial ? mergeRefreshedRoonPage(selectedRoonPlaylistPage.value, result.page) : appendRoonPage(selectedRoonPlaylistPage.value, result.page)
       roonPlaylistInitialLoading.value = false
       roonPlaylistLoadingMore.value = false
       roonPlaylistError.value = null
-      onDetailReady('roon-playlist-detail', { type: 'roon-playlist', reference })
+      if (!notified) onDetailReady('roon-playlist-detail', { type: 'roon-playlist', reference })
     } catch (error) {
-      if (generation !== roonPlaylistRequestGeneration) return
+      if (!current()) return
       if (isLibraryReadCancelled(error)) { roonPlaylistInitialLoading.value = false; roonPlaylistLoadingMore.value = false; return }
       delete detailRequests.playlist
       if (initial) {
         roonPlaylistInitialLoading.value = false
-        roonPlaylistError.value = formatError(error)
+        if (selectedRoonPlaylistPage.value.items.length) detailRefreshErrors.value.playlist = formatError(error)
+        else roonPlaylistError.value = formatError(error)
       } else {
         roonPlaylistLoadingMore.value = false
         roonPlaylistLoadMoreError.value = error instanceof RoonPageEpochChanged ? '读取上下文反复变化，请重新读取。' : '加载失败，点击重试'
@@ -559,7 +651,7 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
 
   function retryRoonAlbum(): void {
     const reference = selectedRoonAlbum.value?.reference ?? detailTargets.album?.reference
-    if (reference) void loadRoonAlbum(reference)
+    if (reference) void loadRoonAlbum(reference, undefined, false, true)
   }
 
   function refreshVisibleRoonCollection(): void {
@@ -623,7 +715,7 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
 
   function captureDetail() {
     return {
-      epoch: sessionEpoch, rebases: { ...detailRebases }, requests: { ...detailRequests }, targets: { ...detailTargets },
+      epoch: sessionEpoch, ...(options.cache ? { cacheScope: cacheScope(), readAt: { ...detailReadAt } } : {}), rebases: { ...detailRebases }, requests: { ...detailRequests }, targets: { ...detailTargets },
       album: selectedRoonAlbum.value, albumPage: selectedRoonAlbumPage.value,
       albumError: roonAlbumError.value, albumFavorite: roonAlbumFavoriteState.value,
       albumLoadMoreError: roonAlbumLoadMoreError.value, albumPending: roonAlbumInitialLoading.value,
@@ -636,7 +728,7 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
   }
 
   function restoreDetail(snapshot: ReturnType<typeof captureDetail>): void {
-    if (snapshot.epoch !== sessionEpoch) return
+    if (snapshot.epoch !== sessionEpoch || (snapshot.cacheScope !== undefined && snapshot.cacheScope !== cacheScope())) return
     leaveDetail()
     for (const kind of Object.keys(detailReads) as DetailKind[]) { delete detailRequests[kind]; if (snapshot.requests[kind]) detailRequests[kind] = snapshot.requests[kind] }
     for (const kind of Object.keys(detailReads) as DetailKind[]) { delete detailTargets[kind]; if (snapshot.targets[kind]) detailTargets[kind] = snapshot.targets[kind] }
@@ -655,6 +747,13 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       detailRebases[kind] = snapshot.rebases[kind]
       const page = pages[kind].value
       const target = detailTargets[kind]
+      const readAt = snapshot.readAt?.[kind]
+      if (readAt !== undefined) detailReadAt[kind] = readAt
+      const age = readAt === undefined ? undefined : Date.now() - readAt
+      if (options.cache && target && !detailRequests[kind] && age !== undefined && !(age >= 0 && age < 30_000)) {
+        if (age < 0 || age > 300_000) pages[kind].value = emptyRoonPage(page.limit)
+        detailRequests[kind] = { reference: target.reference, page: { offset: 0, limit: page.limit } }
+      }
       if (!page.sourceEpoch || !invalidDetailEpochs.has(page.sourceEpoch) || !target) continue
       pages[kind].value = emptyRoonPage(page.limit)
       // 父页只恢复目标与滚动位置；失效快照不与新页混合。
@@ -664,6 +763,8 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
   }
 
   function resetSession(): void {
+    detailRefreshErrors.value = {}
+    for (const kind of Object.keys(detailReadAt) as DetailKind[]) delete detailReadAt[kind]
     sessionEpoch += 1
     invalidDetailEpochs.clear()
     for (const kind of Object.keys(detailReads) as DetailKind[]) detailRebases[kind] = 0
@@ -732,6 +833,9 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     roonGenreLoadingMore, roonGenreLoadMoreError, roonGenreError,
     selectedRoonPlaylist, selectedRoonPlaylistPage, roonPlaylistInitialLoading,
     roonPlaylistLoadingMore, roonPlaylistLoadMoreError, roonPlaylistError,
+    detailRefreshErrors,
+    roonAlbumsRefreshError: albumCollection.refreshError, roonArtistsRefreshError: artistCollection.refreshError,
+    roonGenresRefreshError: genreCollection.refreshError, roonPlaylistsRefreshError: playlistCollection.refreshError,
     resolveFavoriteDescriptor: localFavoriteDescriptor, loadRoonAlbum, loadRoonArtist,
     loadRoonGenre, loadRoonPlaylist, roonAlbumPageAt, roonArtistPageAt,
     roonGenrePageAt, roonPlaylistPageAt, loadRoonEntityFavorite,

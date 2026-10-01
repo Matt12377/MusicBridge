@@ -113,34 +113,45 @@ export interface RoonOwnedPlaybackSource {
   read(page: RoonPageRequest, options: { signal: AbortSignal; isCurrent(): boolean }): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
   release(): void;
 }
+export interface RoonBrowseReadOptions { refresh?: true }
+export type RoonReadCacheSelector =
+  | { kind: 'root'; hierarchy: Exclude<RoonBrowseHierarchy, 'search'> }
+  | { kind: 'detail'; entity: RoonEntityDescriptor }
+  | { kind: 'search'; query: string; resultKind?: RoonSearchResultKind };
 export interface RoonLibraryService {
+  getReadCacheStamp?(selector: RoonReadCacheSelector): string | undefined;
   captureTrackActions?(track: RoonEntityDescriptor): RoonCapturedTrackActions;
   forkPlaybackContext?(parent: RoonEntityDescriptor, sourceEpoch: string, zoneId: string): RoonOwnedPlaybackSource;
   invalidateReadContexts?(): void;
-  browseAlbums(request: RoonPageRequest): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
-  browseArtists(request: RoonPageRequest): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
-  browseGenres(request: RoonPageRequest): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
-  browsePlaylists(request: RoonPageRequest): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
+  browseAlbums(request: RoonPageRequest, options?: RoonBrowseReadOptions): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
+  browseArtists(request: RoonPageRequest, options?: RoonBrowseReadOptions): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
+  browseGenres(request: RoonPageRequest, options?: RoonBrowseReadOptions): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
+  browsePlaylists(request: RoonPageRequest, options?: RoonBrowseReadOptions): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
   browseAlbum(
     album: RoonEntityDescriptor,
     request: RoonPageRequest,
+    options?: RoonBrowseReadOptions,
   ): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
   browseArtist(
     artist: RoonEntityDescriptor,
     request: RoonPageRequest,
+    options?: RoonBrowseReadOptions,
   ): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
   browseGenre(
     genre: RoonEntityDescriptor,
     request: RoonPageRequest,
+    options?: RoonBrowseReadOptions,
   ): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
   browsePlaylist(
     playlist: RoonEntityDescriptor,
     request: RoonPageRequest,
+    options?: RoonBrowseReadOptions,
   ): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
   searchLibrary(
     query: string,
     request: RoonPageRequest,
     kind?: RoonSearchResultKind,
+    options?: RoonBrowseReadOptions,
   ): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
   getImage(imageKey: string, options?: RoonImageOptions): Promise<RoonImageResult>;
   getArtistImageKey?(artist: RoonEntityDescriptor): Promise<string | undefined>;
@@ -297,6 +308,7 @@ function browseValueBytes(value: unknown, maximum: number): number {
 
 
 interface BrowseSessionState {
+  cacheEpoch: string;
   hierarchy: RoonBrowseHierarchy;
   multiSessionKey: string;
   input?: string;
@@ -854,6 +866,7 @@ export function createRoonLibraryService(dependencies: {
     if (options.register !== false && sessionsByKey.size >= 256) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', 'Browse 会话预算已满');
     const session: BrowseSessionState = {
       hierarchy,
+      cacheEpoch: randomUUID(),
       multiSessionKey: newSessionKey(hierarchy),
       ...(options.input !== undefined ? { input: options.input } : {}),
       initialized: false,
@@ -944,25 +957,49 @@ export function createRoonLibraryService(dependencies: {
     artistImageKeySizes.set(signature, bytes); retainedArtistImageKeyBytes += bytes;
   };
 
+  const actualBrowseByKey = new Map<string, number>();
   let outstandingReadBrowse = 0;
   let outstandingOtherBrowse = 0;
   let outstandingImages = 0;
-  const retireSession = (key: unknown): void => {
+  const retireSession = (key: unknown, targeted = false): void => {
     if (typeof key !== 'string') return;
     const session = sessionsByKey.get(key);
     if (!session || session.multiSessionKey !== key) return;
     for (const context of detailContexts.values()) if (context.session === session) forgetContext(context);
     if (session.owned) return;
     rootEpochs.delete(session.hierarchy);
-    session.multiSessionKey = newSessionKey(session.hierarchy);
+    session.cacheEpoch = randomUUID();
+    // 真取消/超时隔离尚未返回的SDK；串行目标刷新可保留SDK会话并重新pop_all。
+    if (!targeted) session.multiSessionKey = newSessionKey(session.hierarchy);
     session.initialized = false; session.currentPath = []; session.requiresPathValidation = true;
     delete session.rootLevel; delete session.currentLevel; delete session.currentCount; delete session.currentImageKey;
     sessionsByKey.set(session.multiSessionKey, session);
     const aliases = [...sessionsByKey].filter(([, value]) => value === session);
     for (const [old] of aliases.slice(0, Math.max(0, aliases.length - 4))) sessionsByKey.delete(old);
-    albumTracksBySignature.clear(); artistAlbumsBySignature.clear(); genreItemsBySignature.clear(); playlistTracksBySignature.clear();
-    searchTracksByQuery.clear(); searchAlbumsByQuery.clear(); searchArtistsByQuery.clear(); entitySearchProgress.clear();
+    if (!targeted) {
+      albumTracksBySignature.clear(); artistAlbumsBySignature.clear(); genreItemsBySignature.clear(); playlistTracksBySignature.clear();
+      searchTracksByQuery.clear(); searchAlbumsByQuery.clear(); searchArtistsByQuery.clear(); entitySearchProgress.clear();
+    } else {
+      // 旧实现的空列表没有descriptor可反查session，仍须撤掉本hierarchy的物化结果。
+      if (session.hierarchy === 'albums') albumTracksBySignature.clear();
+      if (session.hierarchy === 'artists') artistAlbumsBySignature.clear();
+      if (session.hierarchy === 'genres') genreItemsBySignature.clear();
+      if (session.hierarchy === 'playlists') playlistTracksBySignature.clear();
+      for (const cache of [albumTracksBySignature, artistAlbumsBySignature, genreItemsBySignature, playlistTracksBySignature]) {
+        for (const [signature, items] of cache) if (items.some(item => sessionsByKey.get(item.browseContext?.multiSessionKey ?? '') === session)) cache.delete(signature);
+      }
+      if (session.hierarchy === 'search') {
+        const query = session.input ?? '';
+        searchTracksByQuery.delete(query); searchAlbumsByQuery.delete(query); searchArtistsByQuery.delete(query);
+        for (const [searchKey, value] of searchSessions) if (value === session) entitySearchProgress.delete(searchKey);
+      }
+    }
   };
+  const refreshSession = (session: BrowseSessionState): Promise<void> => withSession(session, async () => {
+    assertLibraryReadCurrent();
+    // 同key尚有真实未返回SDK时必须旋转，绝不能把本地等待结束当物理静止。
+    retireSession(session.multiSessionKey, (actualBrowseByKey.get(session.multiSessionKey) ?? 0) === 0);
+  });
   const requestBrowse = (
     operation: 'browse' | 'load',
     options: Record<string, unknown>,
@@ -1005,7 +1042,12 @@ export function createRoonLibraryService(dependencies: {
     }, remainingLibraryReadMs(requestTimeoutMs));
     read?.signal.addEventListener('abort', cancel, { once: true });
     let returned = false;
-    const release = (): void => { if (!returned) { returned = true; if (read) outstandingReadBrowse--; else outstandingOtherBrowse--; } };
+    const physicalKey = typeof options.multi_session_key === 'string' ? options.multi_session_key : undefined;
+    const release = (): void => { if (!returned) {
+      returned = true; if (read) outstandingReadBrowse--; else outstandingOtherBrowse--;
+      if (physicalKey) { const remaining = (actualBrowseByKey.get(physicalKey) ?? 1) - 1; if (remaining === 0) actualBrowseByKey.delete(physicalKey); else actualBrowseByKey.set(physicalKey, remaining); }
+    } };
+    if (physicalKey) actualBrowseByKey.set(physicalKey, (actualBrowseByKey.get(physicalKey) ?? 0) + 1);
     if (read) outstandingReadBrowse++; else outstandingOtherBrowse++;
     try {
       dependencies.browse[operation](requestOptions, (error, body) => {
@@ -1223,10 +1265,12 @@ export function createRoonLibraryService(dependencies: {
     hierarchy: Exclude<RoonBrowseHierarchy, 'search'>,
     kind: Exclude<RoonLibraryKind, 'track'>,
     request: RoonPageRequest,
+    options?: RoonBrowseReadOptions,
   ): Promise<RoonLibraryPage<RoonEntityDescriptor>> => {
     const pageRequest = normalizePage(request);
     checkContextZone();
     const session = rootSession(hierarchy);
+    if (options?.refresh) await refreshSession(session);
     return withSession(session, async () => {
       const generation = contextGeneration;
       const zone = contextZone;
@@ -1886,6 +1930,7 @@ export function createRoonLibraryService(dependencies: {
     entity: RoonEntityDescriptor,
     expectedKind: 'genre' | 'playlist',
     request: RoonPageRequest,
+    options?: RoonBrowseReadOptions,
   ): Promise<RoonLibraryPage<RoonEntityDescriptor>> => {
     const pageRequest = normalizePage(request);
     if (!entity.itemKey) {
@@ -1908,6 +1953,7 @@ export function createRoonLibraryService(dependencies: {
     }
     checkContextZone();
     const { session, path } = entitySessionAndPath(entity, expectedKind);
+    if (options?.refresh) await refreshSession(session);
     if (incrementalDetails) return incrementalDetail(entity, expectedKind, session, path, pageRequest);
     const cache = expectedKind === 'genre'
       ? genreItemsBySignature
@@ -2160,16 +2206,32 @@ export function createRoonLibraryService(dependencies: {
       },
     };
   };
+  const getReadCacheStamp = (selector: RoonReadCacheSelector): string | undefined => {
+    // 不调用checkContextZone：缓存检查不得更新代际、会话或权限寿命。
+    if (contextZone !== dependencies.zoneOrOutputId?.()) return undefined;
+    if (selector.kind === 'root') {
+      const epoch = rootEpochs.get(selector.hierarchy), session = rootSessions.get(selector.hierarchy);
+      return epoch && session && epoch.sessionKey === session.multiSessionKey ? epoch.epoch : undefined;
+    }
+    if (selector.kind === 'search') {
+      return searchSessions.get(JSON.stringify([selector.resultKind ?? 'track', selector.query.trim()]))?.cacheEpoch;
+    }
+    const entity = selector.entity, signature = entity.browseContext?.pathSignature;
+    const context = signature ? detailContexts.get(`${entity.kind}\0${signature}`) : undefined;
+    return context && !context.owned && context.generation === contextGeneration
+      && context.sessionKey === context.session.multiSessionKey && context.zone === contextZone ? context.epoch : undefined;
+  };
   return {
+    getReadCacheStamp,
     invalidateReadContexts,
     captureTrackActions,
     ...(incrementalDetails ? { forkPlaybackContext } : {}),
-    browseAlbums: (request) => pageFor('albums', 'album', request),
-    browseArtists: (request) => pageFor('artists', 'artist', request),
-    browseGenres: (request) => pageFor('genres', 'genre', request),
-    browsePlaylists: (request) => pageFor('playlists', 'playlist', request),
-    browseGenre: (genre, request) => browseEntityChildren(genre, 'genre', request),
-    browsePlaylist: (playlist, request) => browseEntityChildren(playlist, 'playlist', request),
+    browseAlbums: (request, options) => pageFor('albums', 'album', request, options),
+    browseArtists: (request, options) => pageFor('artists', 'artist', request, options),
+    browseGenres: (request, options) => pageFor('genres', 'genre', request, options),
+    browsePlaylists: (request, options) => pageFor('playlists', 'playlist', request, options),
+    browseGenre: (genre, request, options) => browseEntityChildren(genre, 'genre', request, options),
+    browsePlaylist: (playlist, request, options) => browseEntityChildren(playlist, 'playlist', request, options),
     getArtistImageKey: async (artist) => {
       checkContextZone();
       const imageGeneration = contextGeneration;
@@ -2232,7 +2294,7 @@ export function createRoonLibraryService(dependencies: {
       pendingArtistImageKeys.set(signature, pending);
       return pending;
     },
-    browseAlbum: async (album, request) => {
+    browseAlbum: async (album, request, options) => {
       const pageRequest = normalizePage(request);
       if (!album.itemKey) {
         throw new RoonLibraryError(
@@ -2254,6 +2316,7 @@ export function createRoonLibraryService(dependencies: {
       }
       checkContextZone();
       const { session, path } = entitySessionAndPath(album, 'album');
+      if (options?.refresh) await refreshSession(session);
       if (incrementalDetails) return incrementalDetail(album, 'album', session, path, pageRequest);
       const cacheKey = albumContext.pathSignature;
       const cached = albumTracksBySignature.get(cacheKey);
@@ -2274,7 +2337,7 @@ export function createRoonLibraryService(dependencies: {
         return pageFromResolvedItems(tracks, pageRequest, list.level);
       });
     },
-    browseArtist: async (artist, request) => {
+    browseArtist: async (artist, request, options) => {
       const pageRequest = normalizePage(request);
       if (!artist.itemKey) {
         throw new RoonLibraryError(
@@ -2296,6 +2359,7 @@ export function createRoonLibraryService(dependencies: {
       }
       checkContextZone();
       const { session, path } = entitySessionAndPath(artist, 'artist');
+      if (options?.refresh) await refreshSession(session);
       if (incrementalDetails) return incrementalDetail(artist, 'artist', session, path, pageRequest);
       const cacheKey = artistContext.pathSignature;
       const cached = artistAlbumsBySignature.get(cacheKey);
@@ -2394,26 +2458,34 @@ export function createRoonLibraryService(dependencies: {
         return pageFromResolvedItems(albums, pageRequest, resultLevel);
       });
     },
-    searchLibrary: async (query, request, kind = 'track') => {
+    searchLibrary: async (query, request, kind = 'track', options) => {
       const normalizedQuery = query.trim();
       if (normalizedQuery.length === 0 || normalizedQuery.length > 128) {
         throw new RoonLibraryError('ROON_LIBRARY_INVALID_PAGE', 'Roon search query is invalid');
       }
       const pageRequest = normalizePage(request);
+      checkContextZone();
+      const session = searchSession(normalizedQuery, kind);
+      if (options?.refresh) await refreshSession(session);
+      const stamp = session.cacheEpoch;
+      const stamped = (page: RoonLibraryPage<RoonEntityDescriptor>) => {
+        assertLibraryReadCurrent();
+        if (session.cacheEpoch !== stamp || contextZone !== dependencies.zoneOrOutputId?.()) throw libraryReadCancelled();
+        return { ...page, sourceEpoch: stamp, complete: page.total !== undefined, nextOffset: page.offset + page.items.length };
+      };
       const entityPage = kind === 'album' || kind === 'artist' ? searchEntityPage(normalizedQuery, kind, pageRequest) : undefined;
-      if (entityPage) return entityPage;
+      if (entityPage) return stamped(await entityPage);
       const cache = kind === 'track' ? searchTracksByQuery : kind === 'album' ? searchAlbumsByQuery : searchArtistsByQuery;
       const cached = cache.get(normalizedQuery);
       if (cached) {
         const level = cached[0]?.browseContext?.level ?? 0;
-        return pageFromResolvedItems(cached, pageRequest, level);
+        return stamped(pageFromResolvedItems(cached, pageRequest, level));
       }
-      const session = searchSession(normalizedQuery);
       return withSession(session, async () => {
         const existing = cache.get(normalizedQuery);
         if (existing) {
           const level = existing[0]?.browseContext?.level ?? 0;
-          return pageFromResolvedItems(existing, pageRequest, level);
+          return stamped(pageFromResolvedItems(existing, pageRequest, level));
         }
         if (!session.initialized) {
           const response = readBrowseResponse(await requestBrowse('browse', {
@@ -2531,7 +2603,7 @@ export function createRoonLibraryService(dependencies: {
         assertLibraryReadCurrent();
         cache.set(normalizedQuery, uniqueResults);
         const resultLevel = uniqueResults[0]?.browseContext?.level ?? list.level;
-        return pageFromResolvedItems(uniqueResults, pageRequest, resultLevel);
+        return stamped(pageFromResolvedItems(uniqueResults, pageRequest, resultLevel));
       });
     },
     getImage: (imageKey, options = {}) => {

@@ -4,6 +4,7 @@ import { BridgeError } from './errors.js';
 export interface LibraryReadLifetime {
   signal: AbortSignal;
   deadlineAtMs: number;
+  cacheMode?: 'reload';
   now: () => number;
   isCurrent: () => boolean;
 }

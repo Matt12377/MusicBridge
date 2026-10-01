@@ -3,7 +3,7 @@
   "baselineCommit": "e97f9e578beb7c5329d0c59e232b0da568e2f6fa",
   "state": "active",
   "ownerAuthorization": "连续实施性能与正确性计划；最新子代理偏好 gpt-6.1-sol high，最多3名，必要时承担审计测试",
-  "currentTask": "MBP-006",
+  "currentTask": "MBP-005",
   "implementationComplete": 7,
   "automaticAcceptanceComplete": 7,
   "taskCount": 11,
@@ -137,7 +137,7 @@
       ],
       "state": "software-gates-passed",
       "implementationCommit": "794e59ca8f5077c66a1375b1e6a17cc33c5bffdf",
-      "reportCommit": null,
+      "reportCommit": "a0c9cd7c1030c380263fa4394f73c5b802ec5f23",
       "evidence": [
         "reports/MBP-006_COMPACT_EVENTS.md",
         "reports/MBP-006_EVIDENCE.json"
@@ -152,10 +152,12 @@
         "MBP-002",
         "MBP-004"
       ],
-      "state": "pending",
+      "state": "implementation-frozen-audit-and-full-gate-pending",
       "implementationCommit": null,
       "reportCommit": null,
-      "evidence": []
+      "evidence": [],
+      "baseCommit": "a0c9cd7c1030c380263fa4394f73c5b802ec5f23",
+      "branch": "codex/mbp-005-scoped-cache"
     },
     {
       "id": "MBP-007",
@@ -197,9 +199,9 @@
       "evidence": []
     }
   ],
-  "implementationCommit": "794e59ca8f5077c66a1375b1e6a17cc33c5bffdf",
-  "branch": "codex/mbp-006-compact-events",
-  "currentTaskBase": "78502a338b8c59a6160c1cba3f1b7d3497c18fe7",
+  "implementationCommit": null,
+  "branch": "codex/mbp-005-scoped-cache",
+  "currentTaskBase": "a0c9cd7c1030c380263fa4394f73c5b802ec5f23",
   "automaticAcceptanceScope": "local-standard-software-gates",
   "agentPolicy": {
     "model": "gpt-6.1-sol",

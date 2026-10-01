@@ -370,6 +370,8 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     () => roon.getLibraryService(),
     {
       incrementalPlaybackContexts: (options.env ?? process.env).MUSIC_BRIDGE_INCREMENTAL_ROON_QUEUE !== '0',
+      // 仅在实际读取时求值；构造阶段尚未建立 Controller 和凭据代。
+      getPageCacheScope: () => JSON.stringify([shutdownStarted, credentialGeneration, ...getRoonReadIdentity()]),
       ...(options.onRoonImageShape ? { onImageShape: options.onRoonImageShape } : {}),
     },
   );
@@ -1066,11 +1068,14 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
 
   let scopeService = roon.getLibraryService();
   let serviceEpoch = 0;
+  function getRoonReadIdentity(): [number, string, string] {
+    const current = roon.getLibraryService();
+    if (current !== scopeService) { scopeService = current; serviceEpoch++; }
+    return [serviceEpoch, roonLibrary.getReadScope(), controller.getState().roon.selectedZoneId ?? ''];
+  }
   return {
     getLibraryReadScope(command) {
-      const current = roon.getLibraryService();
-      if (current !== scopeService) { scopeService = current; serviceEpoch++; }
-      const roonScope = [serviceEpoch, roonLibrary.getReadScope(), controller.getState().roon.selectedZoneId ?? ''];
+      const roonScope = getRoonReadIdentity();
       const combined = command === 'library.match' || command === 'library.aggregateSearch';
       return JSON.stringify([shutdownStarted, ...(combined || command.startsWith('library.') ? [credentialGeneration] : []), ...(combined || !command.startsWith('library.') ? roonScope : [])]);
     },

@@ -1,5 +1,6 @@
 import type { PageRequest, RoonLibraryPage } from '@music-bridge/contracts'
 import { ref } from 'vue'
+import type { PageCacheOwnerOptions } from './libraryPageCache.js'
 import { useRoonCollection } from './useRoonCollection.js'
 import type { LibraryReadOptions } from './libraryReadScope.js'
 
@@ -10,6 +11,7 @@ export function useRoonSearchCollection(
   search: (query: string, page: PageRequest, kind: 'album' | 'artist', context?: LibraryReadOptions) => Promise<RoonLibraryPage>,
   formatError: (error: unknown) => string,
   debounceMs = 300,
+  options: PageCacheOwnerOptions = {},
 ) {
   const query = ref('')
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -17,7 +19,7 @@ export function useRoonSearchCollection(
   const collection = useRoonCollection((page, context) => {
     const text = query.value.trim()
     return text ? search(text, page, kind, context) : list(page, context)
-  }, formatError)
+  }, formatError, 24, { ...options, getDataset: () => JSON.stringify([kind, query.value.trim()]) })
   function reset(): void {
     if (timer !== undefined) clearTimeout(timer)
     timer = undefined
@@ -26,9 +28,11 @@ export function useRoonSearchCollection(
   }
   function setQuery(value: string): void {
     if (disposed) return
+    const same = query.value.trim() === value.trim()
     query.value = value
     // 输入时就使旧请求失效，不能等到防抖结束才阻止旧结果写回。
-    reset()
+    if (same) suspend()
+    else reset()
     collection.initialLoading.value = true
     if (!value.trim()) { void collection.load(); return }
     pendingQuery = true

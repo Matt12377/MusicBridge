@@ -1007,10 +1007,12 @@ function isPlaylistDetail(value: unknown): value is PlaylistDetail {
     : undefined;
   return (
     isRecord(value) &&
-    hasOnlyKeys(value, ['id', 'name', 'trackCount', 'artworkUrl', 'description', 'tracks']) &&
+    hasOnlyKeys(value, ['id', 'name', 'trackCount', 'artworkUrl', 'description', 'tracks', 'snapshotVersion']) &&
     summary !== undefined &&
     isPlaylistSummary(summary) &&
     (value.description === undefined || safeString(value.description, 4_096)) &&
+    (value.snapshotVersion === undefined || typeof value.snapshotVersion === 'string'
+      && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(value.snapshotVersion)) &&
     isPageOfTracks(value.tracks)
   );
 }

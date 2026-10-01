@@ -6,6 +6,7 @@ interface Subscriber { finish(error?: unknown, value?: unknown): void }
 interface Flight {
   key: string; controller: AbortController; subscribers: Map<string, Subscriber>;
   deadlineAtMs: number; scope: string; command: IpcCommand;
+  cacheMode?: 'reload';
 }
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
@@ -26,12 +27,14 @@ export class LibraryReadRegistry {
     if (this.subscribers.has(request.id)) return Promise.reject(new BridgeError('BAD_REQUEST', '读取 ID 已在使用'));
     if (this.subscribers.size >= this.maximumSubscribers) return Promise.reject(new BridgeError('BAD_REQUEST', '读取订阅预算已满'));
     const scope = this.scope(request.command);
-    const key = canonical([scope, request.command, request.payload]);
+    const cacheMode = request.readContext?.cacheMode;
+    const key = canonical([scope, request.command, request.payload, cacheMode ?? 'default']);
     let flight = this.flights.get(key);
     const fresh = !flight;
     if (!flight) {
       if (this.outstanding >= this.maximumFlights) return Promise.reject(new BridgeError('BAD_REQUEST', '未返回读取预算已满'));
-      flight = { key, scope, command: request.command, controller: new AbortController(), subscribers: new Map(), deadlineAtMs: now + 10_000 };
+      flight = { key, scope, command: request.command, controller: new AbortController(), subscribers: new Map(), deadlineAtMs: now + 10_000,
+        ...(cacheMode ? { cacheMode } : {}) };
       this.flights.set(key, flight); this.outstanding++;
     }
     const owned = flight;
@@ -51,7 +54,8 @@ export class LibraryReadRegistry {
     });
     if (fresh) {
       Promise.resolve().then(() => withLibraryRead({ signal: owned.controller.signal,
-        deadlineAtMs: owned.deadlineAtMs, now: this.now, isCurrent: () => this.scope(owned.command) === owned.scope }, operation))
+        deadlineAtMs: owned.deadlineAtMs, now: this.now, isCurrent: () => this.scope(owned.command) === owned.scope,
+        ...(owned.cacheMode ? { cacheMode: owned.cacheMode } : {}) }, operation))
         .then(value => {
           if (this.now() >= owned.deadlineAtMs) throw libraryReadTimeout();
           if (this.scope(owned.command) !== owned.scope) throw libraryReadCancelled();

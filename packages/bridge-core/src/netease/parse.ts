@@ -470,9 +470,21 @@ export function parsePlaylistDetailHeader(
   const body = bodyOf(response);
   responseBodyCode(body, 'playlist detail');
   const playlist = isRecord(body.playlist) ? body.playlist : undefined;
+  if (!playlist) throw new BridgeError('NETEASE_REQUEST_FAILED', '歌单header未返回');
+  // 完整header必须来自实际响应；缺trackIds是旧能力，缺必填header是坏数据。
+  const id = safeId(playlist.id);
+  const name = stringValue(playlist.name);
+  const count = numeric(playlist.trackCount);
+  if (!id || id !== requestedPlaylistId || id.length > 128 || !name || name.length > 512 || count === undefined || !Number.isSafeInteger(count) || count < 0 || count > 1_000_000) {
+    throw new BridgeError('NETEASE_REQUEST_FAILED', '歌单实际header字段无效');
+  }
   const summary = playlistSummaryFromRecord({
-    ...(playlist ?? {}),
-    id: playlist?.id ?? requestedPlaylistId,
+    id,
+    name,
+    trackCount: count,
+    coverImgUrl: playlist?.coverImgUrl,
+    coverUrl: playlist?.coverUrl,
+    picUrl: playlist?.picUrl,
   });
   if (!summary) {
     throw new BridgeError('NETEASE_REQUEST_FAILED', 'NetEase playlist detail was not returned', {
@@ -486,16 +498,26 @@ export function parsePlaylistDetailHeader(
   };
 }
 
-export function parsePlaylistTrackIds(response: unknown): string[] | undefined {
+export function parsePlaylistTrackIds(response: unknown, maximumBytes = 4 * 1024 * 1024): string[] | undefined {
   const body = bodyOf(response);
   responseBodyCode(body, 'playlist detail');
   const playlist = isRecord(body.playlist) ? body.playlist : undefined;
   if (!playlist || !Object.prototype.hasOwnProperty.call(playlist, 'trackIds')) return undefined;
-  if (!Array.isArray(playlist.trackIds)) return [];
-  return playlist.trackIds
-    .map((item) => (isRecord(item) ? item.id : item))
-    .map(safeId)
-    .filter((id): id is string => id !== undefined);
+  if (!Array.isArray(playlist.trackIds) || playlist.trackIds.length > 1_000_000) {
+    throw new BridgeError('NETEASE_REQUEST_FAILED', '歌单完整曲目ID列表无效');
+  }
+  const ids: string[] = [];
+  let bytes = 32;
+  for (const item of playlist.trackIds) {
+    const rawId = isRecord(item) ? item.id : item;
+    if (typeof rawId === 'string' && rawId.length > 128) throw new BridgeError('NETEASE_REQUEST_FAILED', '歌单曲目ID无效');
+    const id = safeId(rawId);
+    if (!id || /^0+$/u.test(id)) throw new BridgeError('NETEASE_REQUEST_FAILED', '歌单曲目ID无效');
+    bytes += 32 + id.length * 2;
+    if (bytes > maximumBytes) throw new BridgeError('NETEASE_REQUEST_FAILED', '歌单快照字节预算已满');
+    ids.push(id);
+  }
+  return ids;
 }
 
 export function parsePlaylistTrackPage(

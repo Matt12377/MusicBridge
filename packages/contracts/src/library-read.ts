@@ -19,6 +19,8 @@ export interface LibraryReadRequest<C extends LibraryReadCommand = LibraryReadCo
   command: C;
   payload: IpcCommandPayloads[C];
   deadlineAtMs: number;
+  /** 仅刷新纯读取，不授予 scope 或写入权限。 */
+  cacheMode?: 'reload';
 }
 export interface LibraryReadPublicApi {
   readLibrary<C extends LibraryReadCommand>(request: LibraryReadRequest<C>): Promise<IpcCommandResults[C]>;
@@ -34,5 +36,7 @@ export function isLibraryReadCancel(value: unknown): value is LibraryReadCancel 
 export function isLibraryReadContext(value: unknown): value is LibraryReadContext {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const v = value as Record<string, unknown>;
-  return Object.keys(v).length === 1 && Number.isSafeInteger(v.deadlineAtMs) && (v.deadlineAtMs as number) > 0;
+  return Object.keys(v).every(key => key === 'deadlineAtMs' || key === 'cacheMode')
+    && Number.isSafeInteger(v.deadlineAtMs) && (v.deadlineAtMs as number) > 0
+    && (v.cacheMode === undefined || v.cacheMode === 'reload');
 }

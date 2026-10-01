@@ -1,4 +1,5 @@
 import { computed, ref } from 'vue'
+import { cacheIdentity, type PageCacheOwnerOptions } from '../libraryPageCache.js'
 import { createLibraryReadScope, isLibraryReadCancelled } from '../libraryReadScope.js'
 import type {
   AlbumSummary, ArtistSummary, MatchState, Page, PageRequest,
@@ -28,7 +29,8 @@ function searchSectionErrorKind(message: string): SearchErrorKind {
   return 'generic'
 }
 
-export interface AggregatedSearchOptions {
+export interface AggregatedSearchOptions extends PageCacheOwnerOptions {
+  getProviderAuthorized?: () => boolean
   api: MusicBridgePublicApi
   getZoneId: () => string | undefined
   getScrollTop: () => number
@@ -50,6 +52,7 @@ export function useAggregatedSearch(options: AggregatedSearchOptions) {
   let roonQueryPending = false, roonResume = false
   const pendingEntities = new Map<string, { source: 'roon' | 'netease'; kind: 'album' | 'artist' }>()
   let detailResume = false, accountResume = false
+  let searchDetailScope: string | undefined
   const searchQuery = ref('')
   const searchCategory = ref<'all' | 'tracks' | 'albums' | 'artists'>('all')
   const searchSongsOpen = computed({
@@ -63,8 +66,14 @@ export function useAggregatedSearch(options: AggregatedSearchOptions) {
   const searchSongScrollTop = ref(0)
   const roonSearchAlbums = ref<RoonLibraryPage>(emptyRoonPage(8))
   const roonSearchArtists = ref<RoonLibraryPage>(emptyRoonPage(6))
-  const roonSearchLoading = ref(false)
-  const roonSearchError = ref<string | null>(null)
+  const roonAlbumsLoading = ref(false), roonArtistsLoading = ref(false)
+  const roonAlbumsError = ref<string | null>(null), roonArtistsError = ref<string | null>(null)
+  const roonSearchLoading = computed(() => roonAlbumsLoading.value || roonArtistsLoading.value)
+  const roonSearchError = computed(() => roonAlbumsError.value ?? roonArtistsError.value)
+  const roonSectionOperations = { album: 0, artist: 0 }
+  const refreshErrors = ref<Partial<Record<'tracks' | 'artists' | 'albums' | 'roon-albums' | 'roon-artists', string>>>({})
+  let publishedQuery = ''
+  const cacheScope = (source: 'roon' | 'netease') => JSON.stringify([options.getCacheScope?.() ?? '', source, source === 'roon' ? roonScopeEpoch : neteaseScopeEpoch, getZoneId() ?? null, source === 'netease' ? options.getProviderAuthorized?.() ?? true : true])
   const searchPage = ref<Page<TrackSummary>>(emptyPage())
   const searchArtistsPage = ref<Page<ArtistSummary>>(emptyPage(6))
   const searchAlbumsPage = ref<Page<AlbumSummary>>(emptyPage(8))
@@ -95,10 +104,10 @@ export function useAggregatedSearch(options: AggregatedSearchOptions) {
     }
   }
   const newSnapshotLoader = () => createSearchSnapshotLoader({
-    artists: (query, page) => snapshotRead(searchReads.read('library.searchArtists', { query, page }, () => api.searchArtists(query, page))),
-    tracks: (query, page) => snapshotRead(searchReads.read('library.search', { query, page }, () => api.searchTracks(query, page))),
-    albums: (query, page) => snapshotRead(searchReads.read('library.searchAlbums', { query, page }, () => api.searchAlbums(query, page))),
-  })
+    artists: (query, page, readOptions) => snapshotRead(searchReads.read('library.searchArtists', { query, page }, () => api.searchArtists(query, page), readOptions?.reload ? { cacheMode: 'reload' } : undefined)),
+    tracks: (query, page, readOptions) => snapshotRead(searchReads.read('library.search', { query, page }, () => api.searchTracks(query, page), readOptions?.reload ? { cacheMode: 'reload' } : undefined)),
+    albums: (query, page, readOptions) => snapshotRead(searchReads.read('library.searchAlbums', { query, page }, () => api.searchAlbums(query, page), readOptions?.reload ? { cacheMode: 'reload' } : undefined)),
+  }, { cache: options.cache, getCacheScope: () => cacheScope('netease') })
   let searchSnapshotLoader = newSnapshotLoader()
   const searchInitialLoading = ref(false)
   const searchLoadingMore = ref(false)
@@ -128,8 +137,8 @@ export function useAggregatedSearch(options: AggregatedSearchOptions) {
     onResetSearchOrigin()
     roonSearchAlbums.value = emptyRoonPage(8)
     roonSearchArtists.value = emptyRoonPage(6)
-    roonSearchLoading.value = false
-    roonSearchError.value = null
+    roonAlbumsLoading.value = false; roonArtistsLoading.value = false
+    roonAlbumsError.value = null; roonArtistsError.value = null
     searchSnapshotLoader.cancel()
     searchDetailGeneration += 1
     searchArtistsPage.value = emptyPage(6)
@@ -142,9 +151,9 @@ export function useAggregatedSearch(options: AggregatedSearchOptions) {
   }
 
 
-  async function loadSearch(query: string, page: PageRequest, generation: number, includeRoon = true): Promise<void> {
+  async function loadSearch(query: string, page: PageRequest, generation: number, includeRoon = true, reload = false): Promise<void> {
     if (disposed) return
-    const epoch = neteaseScopeEpoch
+    const epoch = neteaseScopeEpoch, scope = cacheScope('netease')
     lastPage = { ...page }
     const initial = page.offset === 0
     if (initial) {
@@ -154,7 +163,7 @@ export function useAggregatedSearch(options: AggregatedSearchOptions) {
       searchAlbumsState.value = 'loading'
       searchArtistsError.value = null
       searchAlbumsError.value = null
-      if (includeRoon) void loadRoonSearch(query, generation)
+      if (includeRoon) void loadRoonSearch(query, generation, reload)
     } else {
       if (searchLoadingMore.value) return
       searchLoadingMore.value = true
@@ -162,49 +171,45 @@ export function useAggregatedSearch(options: AggregatedSearchOptions) {
     }
     try {
       if (initial) {
-        const snapshot = await searchSnapshotLoader.load(query)
-        if (generation !== searchRequestGeneration || epoch !== neteaseScopeEpoch || snapshot.stale) return
-        if (snapshot.artists.state === 'ready') {
-          searchArtistsPage.value = snapshot.artists.page
-          searchArtistsState.value = 'ready'
-        } else if (isLibraryReadCancelled({ message: snapshot.artists.message })) {
-          searchArtistsState.value = searchArtistsPage.value.items.length ? 'ready' : 'idle'
-          searchArtistsError.value = null
-        } else {
-          searchArtistsState.value = 'error'
-          searchArtistsError.value = snapshot.artists.message
-        }
-        if (snapshot.albums.state === 'ready') {
-          searchAlbumsPage.value = snapshot.albums.page
-          searchAlbumsState.value = 'ready'
-        } else if (isLibraryReadCancelled({ message: snapshot.albums.message })) {
-          searchAlbumsState.value = searchAlbumsPage.value.items.length ? 'ready' : 'idle'
-          searchAlbumsError.value = null
-        } else {
-          searchAlbumsState.value = 'error'
-          searchAlbumsError.value = snapshot.albums.message
-        }
-        if (snapshot.tracks.state === 'ready') {
-          searchPage.value = snapshot.tracks.page
-          searchError.value = null
-        } else if (isLibraryReadCancelled({ message: snapshot.tracks.message })) {
-          searchError.value = null
-        } else {
-          searchPage.value = emptyPage()
-          searchError.value = searchSectionErrorKind(snapshot.tracks.message)
-        }
-        searchInitialLoading.value = false
-        void matchTracks(searchPage.value.items)
+        await searchSnapshotLoader.load(query, { reload, onSection: publication => {
+          if (disposed || generation !== searchRequestGeneration || epoch !== neteaseScopeEpoch || scope !== cacheScope('netease') || publication.query !== searchQuery.value.trim()) return
+          const section = publication.section, result = publication.result
+          if (section === 'tracks') {
+            searchInitialLoading.value = false
+            if (publication.result.state === 'ready') {
+              searchPage.value = publication.result.page; searchError.value = null
+              delete refreshErrors.value.tracks
+              void matchTracks(searchPage.value.items)
+            } else if (!isLibraryReadCancelled({ message: publication.result.message })) {
+              if (searchPage.value.items.length) refreshErrors.value.tracks = publication.result.message
+              else searchError.value = searchSectionErrorKind(publication.result.message)
+            }
+          } else {
+            const state = section === 'artists' ? searchArtistsState : searchAlbumsState
+            const error = section === 'artists' ? searchArtistsError : searchAlbumsError
+            if (result.state === 'ready') {
+              if (publication.section === 'artists' && publication.result.state === 'ready') searchArtistsPage.value = publication.result.page
+              if (publication.section === 'albums' && publication.result.state === 'ready') searchAlbumsPage.value = publication.result.page
+              state.value = 'ready'; error.value = null; delete refreshErrors.value[section]
+            } else if (isLibraryReadCancelled({ message: result.message })) state.value = (section === 'artists' ? searchArtistsPage.value : searchAlbumsPage.value).items.length ? 'ready' : 'idle'
+            else {
+              const hasItems = (section === 'artists' ? searchArtistsPage.value : searchAlbumsPage.value).items.length > 0
+              state.value = hasItems ? 'ready' : 'error'
+              if (hasItems) refreshErrors.value[section] = result.message
+              else error.value = result.message
+            }
+          }
+        } })
       } else {
         const result = await searchReads.read('library.search', { query, page }, () => api.searchTracks(query, page))
-        if (generation !== searchRequestGeneration || epoch !== neteaseScopeEpoch) return
+        if (generation !== searchRequestGeneration || epoch !== neteaseScopeEpoch || scope !== cacheScope('netease')) return
         searchPage.value = appendPage(searchPage.value, result)
         void matchTracks(result.items)
         searchError.value = null
         searchLoadingMore.value = false
       }
     } catch (error) {
-      if (generation !== searchRequestGeneration || epoch !== neteaseScopeEpoch) return
+      if (generation !== searchRequestGeneration || epoch !== neteaseScopeEpoch || scope !== cacheScope('netease')) return
       if (isLibraryReadCancelled(error)) { searchInitialLoading.value = false; searchLoadingMore.value = false; return }
       if (initial) {
         searchInitialLoading.value = false
@@ -220,54 +225,65 @@ export function useAggregatedSearch(options: AggregatedSearchOptions) {
     }
   }
 
-  async function loadRoonSearch(query: string, generation: number): Promise<void> {
+  async function loadRoonSearch(query: string, generation: number, reload = false): Promise<void> {
     if (disposed) return
-    const epoch = roonScopeEpoch
+    const epoch = roonScopeEpoch, scope = cacheScope('roon')
     roonQueryPending = true; roonResume = false
-    roonSearchLoading.value = true
-    const results = await Promise.allSettled([
-      roonReads.read('roon.library.search', { query, page: { offset: 0, limit: 8 }, kind: 'album' }, () => api.searchRoonLibrary(query, { offset: 0, limit: 8 }, 'album')),
-      roonReads.read('roon.library.search', { query, page: { offset: 0, limit: 6 }, kind: 'artist' }, () => api.searchRoonLibrary(query, { offset: 0, limit: 6 }, 'artist')),
-    ])
-    if (generation !== searchRequestGeneration || epoch !== roonScopeEpoch) return
-    roonQueryPending = false
-    const [albums, artists] = results
-    if (albums.status === 'fulfilled') roonSearchAlbums.value = albums.value
-    if (artists.status === 'fulfilled') roonSearchArtists.value = artists.value
-
-    roonSearchError.value = results.some((result) => result.status === 'rejected' && !isLibraryReadCancelled(result.reason)) ? '部分 Roon 搜索结果暂时不可用，请检查 Roon 连接后重新搜索。' : null
-    roonSearchLoading.value = false
+    await Promise.all((['album', 'artist'] as const).map(async kind => {
+      const operation = ++roonSectionOperations[kind]
+      const target = kind === 'album' ? roonSearchAlbums : roonSearchArtists
+      const loading = kind === 'album' ? roonAlbumsLoading : roonArtistsLoading, errorState = kind === 'album' ? roonAlbumsError : roonArtistsError
+      const section = kind === 'album' ? 'roon-albums' : 'roon-artists'
+      const request = { offset: 0, limit: kind === 'album' ? 8 : 6 }, dataset = JSON.stringify(['search', query, kind])
+      const identity = cacheIdentity(scope, dataset, request), cached = options.cache?.peek<RoonLibraryPage>(identity)
+      const current = () => !disposed && generation === searchRequestGeneration && epoch === roonScopeEpoch && operation === roonSectionOperations[kind] && scope === cacheScope('roon') && query === searchQuery.value.trim()
+      loading.value = true; errorState.value = null
+      if (cached) target.value = cached.value
+      if (cached && !cached.stale && !reload) { loading.value = false; return }
+      try {
+        const result = await roonReads.read('roon.library.search', { query, page: request, kind }, () => api.searchRoonLibrary(query, request, kind), reload || cached?.stale ? { cacheMode: 'reload' } : undefined)
+        if (!current()) return
+        options.cache?.put(identity, result); target.value = result; delete refreshErrors.value[section]
+      } catch (error) {
+        if (!current() || isLibraryReadCancelled(error)) return
+        if (target.value.items.length) refreshErrors.value[section] = '刷新 Roon 搜索失败，保留已加载内容。'
+        else errorState.value = '部分 Roon 搜索结果暂时不可用，请检查 Roon 连接后重新搜索。'
+      } finally { if (current()) loading.value = false }
+    }))
+    if (generation === searchRequestGeneration && epoch === roonScopeEpoch) roonQueryPending = false
   }
 
   async function loadMoreSearchEntities(source: 'roon' | 'netease', kind: 'album' | 'artist'): Promise<void> {
     if (disposed) return
     const generation = searchRequestGeneration, epoch = roonScopeEpoch, netEpoch = neteaseScopeEpoch
-    const query = searchQuery.value.trim()
+    const query = searchQuery.value.trim(), scope = cacheScope(source)
+    const current = () => !disposed && generation === searchRequestGeneration && (source === 'roon' ? epoch === roonScopeEpoch : netEpoch === neteaseScopeEpoch) && scope === cacheScope(source) && query === searchQuery.value.trim()
     const isAlbum = kind === 'album'
     const key = `${source}:${kind}`
     if (source === 'roon') {
-      if (roonSearchLoading.value) return
+      const loading = isAlbum ? roonAlbumsLoading : roonArtistsLoading, errorState = isAlbum ? roonAlbumsError : roonArtistsError
+      if (loading.value) return
       const target = isAlbum ? roonSearchAlbums : roonSearchArtists
       if (!target.value.hasMore) return
       pendingEntities.set(key, { source, kind })
-      roonSearchLoading.value = true
+      loading.value = true
       try {
         const request = { offset: nextRoonPageOffset(target.value), limit: target.value.limit }
         const result = await readRoonDatasetPage(target.value, request,
           page => roonReads.read('roon.library.search', { query, page, kind }, () => api.searchRoonLibrary(query, page, kind)),
-          () => generation === searchRequestGeneration && epoch === roonScopeEpoch,
+          current,
           roonRebases[kind] === 0 ? () => { roonRebases[kind]++ } : undefined)
-        if (!result || generation !== searchRequestGeneration || epoch !== roonScopeEpoch) return
+        if (!result || !current()) return
         pendingEntities.delete(key)
         target.value = result.restarted ? result.page : appendRoonPage(target.value, result.page)
-        roonSearchError.value = null
+        errorState.value = null
       } catch (error) {
-        if (generation === searchRequestGeneration && epoch === roonScopeEpoch && !isLibraryReadCancelled(error)) {
+        if (current() && !isLibraryReadCancelled(error)) {
           pendingEntities.delete(key)
-          roonSearchError.value = error instanceof RoonPageEpochChanged ? '读取上下文反复变化，请重新读取。' : '加载更多 Roon 结果失败，请重试。'
+          errorState.value = error instanceof RoonPageEpochChanged ? '读取上下文反复变化，请重新读取。' : '加载更多 Roon 结果失败，请重试。'
         }
       } finally {
-        if (generation === searchRequestGeneration && epoch === roonScopeEpoch) roonSearchLoading.value = false
+        if (current()) loading.value = false
       }
       return
     }
@@ -279,20 +295,20 @@ export function useAggregatedSearch(options: AggregatedSearchOptions) {
       if (isAlbum) {
         const request = { offset: searchAlbumsPage.value.offset + searchAlbumsPage.value.limit, limit: 8 }
         const page = await searchReads.read('library.searchAlbums', { query, page: request }, () => api.searchAlbums(query, request))
-        if (generation !== searchRequestGeneration || netEpoch !== neteaseScopeEpoch) return
+        if (!current()) return
         searchAlbumsPage.value = appendPage(searchAlbumsPage.value, page)
         searchAlbumsError.value = null
       } else {
         const request = { offset: searchArtistsPage.value.offset + searchArtistsPage.value.limit, limit: 6 }
         const page = await searchReads.read('library.searchArtists', { query, page: request }, () => api.searchArtists(query, request))
-        if (generation !== searchRequestGeneration || netEpoch !== neteaseScopeEpoch) return
+        if (!current()) return
         searchArtistsPage.value = appendPage(searchArtistsPage.value, page)
         searchArtistsError.value = null
       }
       pendingEntities.delete(key)
       state.value = 'ready'
     } catch (error) {
-      if (generation !== searchRequestGeneration || netEpoch !== neteaseScopeEpoch) return
+      if (!current()) return
       if (isLibraryReadCancelled(error)) { state.value = 'ready'; return }
       pendingEntities.delete(key)
       state.value = 'error'
@@ -355,33 +371,33 @@ export function useAggregatedSearch(options: AggregatedSearchOptions) {
   function scheduleSearch(): void {
     if (disposed) return
     stopSearchTimer()
-    resetSearchSections()
+    const sameQuery = publishedQuery === searchQuery.value.trim() && !!publishedQuery
+    if (sameQuery) { searchRequestGeneration++; searchReads.cancelAll(); roonReads.cancelAll(); detailReads.cancelAll(); searchDetailGeneration++; searchSnapshotLoader.cancel() }
+    else { resetSearchSections(); refreshErrors.value = {} }
     searchSnapshotLoader.cancel()
     const generation = ++searchRequestGeneration
     searchError.value = null
     searchLoadMoreError.value = null
-    searchPage.value = emptyPage()
-    searchArtistsPage.value = emptyPage(6)
-    searchAlbumsPage.value = emptyPage(8)
-    searchArtistsState.value = 'idle'
-    searchAlbumsState.value = 'idle'
-    searchArtistsError.value = null
-    searchAlbumsError.value = null
+    if (!sameQuery) {
+      searchPage.value = emptyPage(); searchArtistsPage.value = emptyPage(6); searchAlbumsPage.value = emptyPage(8)
+      searchArtistsState.value = 'idle'; searchAlbumsState.value = 'idle'
+      searchArtistsError.value = null; searchAlbumsError.value = null
+    }
     searchDetail.value = null
-    matchStates.value = {}
-    matchResults.value = {}
-    cancelPendingMatches()
-    matchGeneration += 1
+    if (!sameQuery) {
+      matchStates.value = {}; matchResults.value = {}; cancelPendingMatches(); matchGeneration += 1
+    }
     searchInitialLoading.value = false
     searchLoadingMore.value = false
     const query = searchQuery.value.trim()
+    publishedQuery = query
     if (query.length === 0) {
       searchPage.value = emptyPage()
       return
     }
     searchTimer = setTimeout(() => {
       searchTimer = undefined
-      void loadSearch(query, { offset: 0, limit: LIBRARY_PAGE_SIZE }, generation)
+      void loadSearch(query, { offset: 0, limit: LIBRARY_PAGE_SIZE }, generation, true, sameQuery)
     }, SEARCH_DEBOUNCE_MS)
   }
 
@@ -394,66 +410,54 @@ export function useAggregatedSearch(options: AggregatedSearchOptions) {
     void loadSearch(query, { offset, limit: LIBRARY_PAGE_SIZE }, searchRequestGeneration)
   }
 
-  async function openSearchDetail(kind: 'artist' | 'album', id: string, title: string, subtitle: string): Promise<void> {
-    searchScrollTop.value = getScrollTop()
+  async function openSearchDetail(kind: 'artist' | 'album', id: string, title: string, subtitle: string, reload = false): Promise<void> {
+    if (!reload) searchScrollTop.value = getScrollTop()
     if (disposed) return
+    const scope = cacheScope('netease'), previous = searchDetail.value
+    const retained = reload && previous?.kind === kind && previous.id === id && searchDetailScope === scope && previous.tracks.items.length ? previous : undefined
+    searchDetailScope = scope
     const operation = ++searchDetailGeneration
     detailReads.cancelAll()
     detailResume = false
     searchDetailLoadingMore.value = false
     searchDetailMoreError.value = null
-    searchDetail.value = {
-      kind,
-      id,
-      title,
-      subtitle,
-      tracks: emptyPage(),
-      loading: true,
-      error: null,
+    searchDetail.value = retained ? { ...retained, loading: true, error: null } : {
+      kind, id, title, subtitle, tracks: emptyPage(), loading: true, error: null,
     }
+    const request = { offset: 0, limit: LIBRARY_PAGE_SIZE }
+    const identity = cacheIdentity(scope, JSON.stringify(['detail', kind, id]), request)
+    type DetailView = NonNullable<typeof searchDetail.value>
+    const cached = options.cache?.peek<DetailView>(identity)
+    const current = () => !disposed && operation === searchDetailGeneration && scope === cacheScope('netease') && searchDetail.value?.id === id && searchDetail.value.kind === kind
+    if (cached && !retained) searchDetail.value = { ...cached.value, loading: reload || cached.stale, error: null }
     try {
-      if (kind === 'artist') {
-        const page = { offset: 0, limit: LIBRARY_PAGE_SIZE }
-        const detail = await detailReads.read('library.artist', { artistId: id, page }, () => api.getArtist(id, page))
-        if (operation !== searchDetailGeneration) return
-        searchDetail.value = {
-          kind,
-          id,
-          title: detail.name,
-          subtitle: `${detail.albumCount ?? 0} 张专辑 · ${detail.trackCount ?? detail.tracks.total} 首歌曲`,
-          tracks: detail.tracks,
-          loading: false,
-          error: null,
-        }
-        return
-      }
-      const page = { offset: 0, limit: LIBRARY_PAGE_SIZE }
-      const detail = await detailReads.read('library.album', { albumId: id, page }, () => api.getAlbum(id, page))
-      if (operation !== searchDetailGeneration) return
-      searchDetail.value = {
-        kind,
-        id,
-        title: detail.name,
-        subtitle: `${detail.artistName} · ${detail.trackCount ?? detail.tracks.total} 首歌曲`,
-        tracks: detail.tracks,
-        loading: false,
-        error: null,
-      }
+      if (cached && !cached.stale && !reload) return
+      const result = kind === 'artist'
+        ? await detailReads.read('library.artist', { artistId: id, page: request }, () => api.getArtist(id, request), reload || cached?.stale ? { cacheMode: 'reload' } : undefined)
+        : await detailReads.read('library.album', { albumId: id, page: request }, () => api.getAlbum(id, request), reload || cached?.stale ? { cacheMode: 'reload' } : undefined)
+      if (!current()) return
+      const subtitle = 'artistName' in result ? `${result.artistName} · ${result.trackCount ?? result.tracks.total} 首歌曲` : `${result.albumCount ?? 0} 张专辑 · ${result.trackCount ?? result.tracks.total} 首歌曲`
+      const view: DetailView = { kind, id, title: result.name, subtitle, tracks: result.tracks, loading: false, error: null }
+      searchDetail.value = view; options.cache?.put(identity, view)
     } catch (error) {
-      if (operation !== searchDetailGeneration) return
-      if (isLibraryReadCancelled(error)) {
-        detailResume = true
-        if (searchDetail.value) searchDetail.value = { ...searchDetail.value, loading: false }
-        return
-      }
-      searchDetail.value = { kind, id, title, subtitle, tracks: emptyPage(), loading: false, error: '详情歌曲暂时不可用，请稍后重试。' }
+      if (!current()) return
+      if (isLibraryReadCancelled(error)) { detailResume = true; searchDetail.value = { ...searchDetail.value!, loading: false }; return }
+      if (searchDetail.value?.tracks.items.length) searchDetail.value = { ...searchDetail.value, loading: false, error: '刷新详情失败，保留已加载歌曲。' }
+      else searchDetail.value = { kind, id, title, subtitle, tracks: emptyPage(), loading: false, error: '详情歌曲暂时不可用，请稍后重试。' }
     }
+  }
+
+  function retrySearchDetail(): Promise<void> {
+    const detail = searchDetail.value
+    if (!detail || detail.loading || disposed) return Promise.resolve()
+    return openSearchDetail(detail.kind, detail.id, detail.title, detail.subtitle, true)
   }
 
   async function loadMoreSearchDetail(): Promise<void> {
     const detail = searchDetail.value
-    if (disposed || !detail || searchDetailLoadingMore.value) return
-    const generation = searchDetailGeneration
+    if (disposed || !detail || detail.loading || searchDetailLoadingMore.value) return
+    const generation = searchDetailGeneration, scope = cacheScope('netease')
+    const current = () => !disposed && generation === searchDetailGeneration && scope === cacheScope('netease') && searchDetail.value?.id === detail.id && searchDetail.value.kind === detail.kind
     searchDetailLoadingMore.value = true
     searchDetailMoreError.value = null
     try {
@@ -461,14 +465,14 @@ export function useAggregatedSearch(options: AggregatedSearchOptions) {
       const result = detail.kind === 'artist'
         ? await detailReads.read('library.artist', { artistId: detail.id, page: request }, () => api.getArtist(detail.id, request))
         : await detailReads.read('library.album', { albumId: detail.id, page: request }, () => api.getAlbum(detail.id, request))
-      if (generation === searchDetailGeneration && searchDetail.value) searchDetail.value = { ...searchDetail.value, tracks: appendPage(searchDetail.value.tracks, result.tracks) }
+      if (current() && searchDetail.value) searchDetail.value = { ...searchDetail.value, tracks: appendPage(searchDetail.value.tracks, result.tracks) }
     } catch (error) {
-      if (generation === searchDetailGeneration) {
+      if (current()) {
         if (isLibraryReadCancelled(error)) detailResume = true
         else searchDetailMoreError.value = '加载更多歌曲失败，请重试。'
       }
     } finally {
-      if (generation === searchDetailGeneration) searchDetailLoadingMore.value = false
+      if (current()) searchDetailLoadingMore.value = false
     }
   }
 
@@ -483,6 +487,7 @@ export function useAggregatedSearch(options: AggregatedSearchOptions) {
 
 
   function resetSearch(): void {
+    refreshErrors.value = {}; publishedQuery = ''
     searchQuery.value = ''
     stopSearchTimer()
     resetSearchSections()
@@ -514,7 +519,7 @@ export function useAggregatedSearch(options: AggregatedSearchOptions) {
     searchRequestGeneration += 1; searchDetailGeneration += 1; matchGeneration += 1
     searchSnapshotLoader.cancel()
     searchReads.cancelAll(); roonReads.cancelAll(); detailReads.cancelAll(); cancelPendingMatches()
-    searchInitialLoading.value = false; searchLoadingMore.value = false; roonSearchLoading.value = false
+    searchInitialLoading.value = false; searchLoadingMore.value = false; roonAlbumsLoading.value = false; roonArtistsLoading.value = false
     searchDetailLoadingMore.value = false
     if (searchDetail.value?.loading) searchDetail.value = { ...searchDetail.value, loading: false }
     if (searchArtistsState.value === 'loading') searchArtistsState.value = searchArtistsPage.value.items.length ? 'ready' : 'idle'
@@ -551,6 +556,7 @@ export function useAggregatedSearch(options: AggregatedSearchOptions) {
   }
 
   function invalidateScope(): void {
+    refreshErrors.value = {}
     neteaseScopeEpoch += 1; roonScopeEpoch += 1
     suspend()
     searchSnapshotLoader = newSnapshotLoader()
@@ -559,12 +565,13 @@ export function useAggregatedSearch(options: AggregatedSearchOptions) {
     searchArtistsState.value = 'idle'; searchAlbumsState.value = 'idle'
     roonSearchAlbums.value = emptyRoonPage(8); roonSearchArtists.value = emptyRoonPage(6)
     searchDetail.value = null; detailResume = false; accountResume = false
-    searchError.value = null; searchArtistsError.value = null; searchAlbumsError.value = null; roonSearchError.value = null
+    searchError.value = null; searchArtistsError.value = null; searchAlbumsError.value = null; roonAlbumsError.value = null; roonArtistsError.value = null
     resetMatches()
     if (searchQuery.value.trim()) { pendingResume = { offset: 0, limit: LIBRARY_PAGE_SIZE }; roonResume = true }
   }
 
   function invalidateAccountScope(): void {
+    delete refreshErrors.value.tracks; delete refreshErrors.value.artists; delete refreshErrors.value.albums
     neteaseScopeEpoch += 1
     searchSnapshotLoader.cancel()
     searchReads.cancelAll(); detailReads.cancelAll()
@@ -583,12 +590,13 @@ export function useAggregatedSearch(options: AggregatedSearchOptions) {
   }
 
   function invalidateRoonScope(refresh = false): void {
+    delete refreshErrors.value['roon-albums']; delete refreshErrors.value['roon-artists']
     roonScopeEpoch += 1
     roonQueryPending = false
     for (const [key, request] of pendingEntities) if (request.source === 'roon') pendingEntities.delete(key)
     roonReads.cancelAll()
     roonSearchAlbums.value = emptyRoonPage(8); roonSearchArtists.value = emptyRoonPage(6)
-    roonSearchLoading.value = false; roonSearchError.value = null
+    roonAlbumsLoading.value = false; roonArtistsLoading.value = false; roonAlbumsError.value = null; roonArtistsError.value = null
     resetMatches()
     roonResume = searchTimer === undefined && !!searchQuery.value.trim()
     if (refresh && !disposed && searchTimer === undefined && !pendingResume && searchQuery.value.trim()) void loadRoonSearch(searchQuery.value.trim(), searchRequestGeneration)
@@ -603,14 +611,14 @@ export function useAggregatedSearch(options: AggregatedSearchOptions) {
 
   return {
     searchQuery, searchCategory, searchSongsOpen, searchSongScrollTop,
-    roonSearchAlbums, roonSearchArtists, roonSearchLoading, roonSearchError,
+    roonSearchAlbums, roonSearchArtists, roonSearchLoading, roonSearchError, roonAlbumsLoading, roonArtistsLoading, roonAlbumsError, roonArtistsError, refreshErrors,
     searchPage, searchArtistsPage, searchAlbumsPage, searchArtistsState, searchAlbumsState,
     searchArtistsError, searchAlbumsError, searchDetail, searchDetailLoadingMore,
     searchDetailMoreError, searchScrollTop, searchInitialLoading, searchLoadingMore,
     searchLoadMoreError, searchError, matchStates, matchResults, pendingMatchRequests,
     selectSearchCategory, stopSearchTimer, resetSearchSections, resetSearch,
     resetMatches, cancelPendingMatches, matchTracks, scheduleSearch, searchPageAt,
-    loadMoreSearchEntities, openSearchSongs, openSearchDetail, loadMoreSearchDetail,
+    loadMoreSearchEntities, openSearchSongs, openSearchDetail, retrySearchDetail, loadMoreSearchDetail,
     closeSearchDetail, suspend, resume, invalidateScope, invalidateAccountScope, invalidateRoonScope, dispose,
   }
 }

@@ -2,7 +2,7 @@
 
 **实现完成：7/11 · 本地软件验收：7/11 · 真实 Mac/Roon：未执行**
 
-当前任务：**MBP-006 — 小进度事件、队列版本与重连恢复**。基线 `78502a3`，分支 `codex/mbp-006-compact-events`。
+当前任务：**MBP-005 — 作用域缓存、网易云歌单快照与渐进搜索**。基线 `a0c9cd7`，分支 `codex/mbp-005-scoped-cache`。
 
 本计划已获 Owner 授权连续实施。技术栈保留 Electron、Vue、Node/TS；真实播放、设备录音、main 合并、正式 App 替换和发布分别记录，不由软件测试代替。
 
@@ -34,7 +34,7 @@ MBP-001 远端已结束：security 通过，verify/Electron E2E 失败。本地�
 | 6 | MBP-004 | 已完成 | 本地通过 | Roon 详情真分页与原始游标 |
 | 7 | MBP-003B | 已完成 | 本地通过 | Core 持有上下文，先播并按需补队列 |
 | 8 | MBP-006 | 已完成 | 本地通过 | 小进度事件、队列版本与重连恢复 |
-| 9 | MBP-005 | 待开始 | 未执行 | 作用域缓存、网易云歌单快照、渐进搜索 |
+| 9 | MBP-005 | 实施中 | 未执行 | 作用域缓存、网易云歌单快照、渐进搜索 |
 | 10 | MBP-007 | 待开始 | 未执行 | 虚拟网格、封面竞态修复和资源预算 |
 | 11 | MBP-008 | 待开始 | 未执行 | 批量 SQL、进度匹配与历史预算热点；worker 按测量决定 |
 | 12 | MBP-009 | 待开始 | 未执行 | 接口收口、全量回归、性能对照与实机验收记录 |
@@ -178,3 +178,32 @@ MBP-004报告 `02125604ab19a62f85a7b75d84b400f9d0e3f105` 已推送，远端HEAD�
 四个E2E旧注入夹具已修：仅v1-ui.spec.ts，46条原断言及100+100进度循环逐字保留；实际targeted4/4退出0，新helper/四精确block隔离noEmit0。全v1显式检查与baseline相同30条旧诊断，原E2E类型配置未包含此文件，旧类型债务留009评估。最终固定794e59c重新跑原完整Gate；不把定向4项等同全量。
 
 最终固定794e59c：原完整verify247 / Core1824+原2skip / Desktop1078与三包类型/构建、mockElectron4、完整E2E104+原4skip、静态Gate均exit0；847源码SHA868efd15…Gate前后完全一致。软件完成7/11；远端CI、真实设备与Owner验收继续单列。
+
+006最终报告a0c9cd7已push并核远端HEAD精确相同，tracked清洁，原无关WIP保留。
+
+### MBP-005 当前子步骤
+
+- [x] 从006最终报告HEAD创建独立分支，外置证据根与文件所有权冻结。
+- [x] Root只读reload与版本公开合同、Main/Core/Renderer接线；Contracts250、两组21、真实软件组合3通过，整体待作者冻结Gate。
+- [x] Roon四文件作者冻结，128/128与隔离严格类型通过；独立审计及整体Gate待完成。
+- [x] 网易云五文件作者冻结，54/54与隔离严格类型通过；独立审计及整体Gate待完成。
+- [x] Renderer13文件首冻结，137/137与隔离Vue/test strict通过；原111项断言保留，完整独立R1中。
+- [ ] 必要独立审计、固定原完整Gate、报告和开发分支push。
+
+005 Root定向：合同250/250，原读取保护保留；Registry21、Main/Scope/Supervisor21、实际Source→Broker→Supervisor→Utility→Registry合成组合3，均exit0。默认四字段、独立取消和实际未返回预算保留；构造/文案/类型入口夹具错误日志另存，不伪称生产RED。Root首冻结13文件Hash，runtime整体类型和全量Gate待作者冻结。
+
+006报告a0c9cd7远端后续：verify作业110236979885通过、security通过，verify工作流因dependency-audit（11 moderate/7 high）失败；Electron E2E当前仍在运行。verify与依赖原始日志外置保存，未标为全CI通过。
+
+006报告a0c9cd7远端Electron E2E也已通过；verify作业/security/E2E均通过，工作流仍仅因dependency-audit红灯，不合并main或替换App。
+
+005 Root/Roon/网易云共22个冻结文件Hash核对一致。已安排独立 gpt-6.1-sol high 第一轮审计；Renderer仍在补缓存预算、取消和渐进搜索验证。作者定向通过未升级7/11总计。
+
+005独立第一轮确认网易云三个P2、四项实际RED：回拨误fresh；新版base淘汰后旧分页写回；缺trackCount空列表误强版本。作者指定补修中，不修改原断言或扩缩Gate。Root外置跨层3项strict noEmit退出0；首次仅外部import配置失配，已保留入口日志。
+
+005 Renderer已完成实际mounted 2项、详情返回与50/500/5000 pool计数；原相关与新增98项阶段通过，最终scope取消收尾/冻结中。500/5000保留8窗口页，精确字节见外置retained-pool-counts.json；不是RSS或真实Owner验收。Core标准生产/测试typecheck退出0，尚未用于整体最终Gate结论。
+
+005 Root/Roon/Renderer共30文件冻结Hash核对一致，Renderer独立重跑137/137通过；Netease三P2正式补修回合已启动。总体仍7/11，待完整R1/R2与固定原全量Gate。
+
+005独立完整R1累计6个P2根因：NET三项及Renderer owner回拨、account恢复、searchDetail后台loading/error遮住已有歌曲。NET三项已实际7RED→7GREEN，最终62/62与strict0，五文件新Hash核对一致；Renderer前三修已3RED→3GREEN，最后详情table/notice/retry收尾。之后只第二轮直接影响复核，不追加第三轮。
+
+005 R1的6个P2补修已最终冻结：Root13/Roon4/NET5/Renderer13，共35文件Hash全匹配。NET62/62、Renderer144/144、Roon128/128与隔离严格类型exit0；NET时钟/LRU/真实header和Renderer恢复/账户重载/实际搜索详情模板均有实际RED→GREEN。现在固定实现后进行一次R2及原完整Gate，总计仍7/11，不将作者定向升级为验收。

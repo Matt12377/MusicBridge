@@ -1,4 +1,6 @@
 import { computed, ref } from 'vue'
+import { cacheIdentity, type PageCacheOwnerOptions } from '../libraryPageCache.js'
+import { samePlaylistSnapshot, PlaylistSnapshotChanged } from '../playlistSnapshotPagination.js'
 import { createLibraryReadScope, isLibraryReadCancelled } from '../libraryReadScope.js'
 import type {
   DailyRecommendationsSnapshot, Page, PageRequest, PlaylistDetail, PlaylistSummary,
@@ -20,7 +22,7 @@ type LibraryErrorKind = 'auth-required' | 'auth-expired' | 'generic'
 type DailyState = 'idle' | 'loading' | 'ready' | 'empty' | 'error'
 type PlaylistLoadState = 'loading' | 'ready' | 'error'
 
-export interface NeteaseLibraryOptions {
+export interface NeteaseLibraryOptions extends PageCacheOwnerOptions {
   api: MusicBridgePublicApi
   getCoreRuntime: () => PublicBridgeState['runtime'] | undefined
   getRemoteStatus: () => RemoteCoreTunnelState['status']
@@ -59,6 +61,9 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
     onResetPrivate, onError, accountMessage, dailyMessage, libraryErrorKind,
   } = options
 
+  let privateCacheEpoch = 0, playlistRebaseAttempts = 0
+  const cacheScope = () => JSON.stringify([options.getCacheScope?.() ?? '', privateCacheEpoch])
+  const likedRefreshError = ref<string | null>(null), playlistRefreshError = ref<string | null>(null), playlistListRefreshError = ref<string | null>(null)
   const authState = ref<PublicAuthState>({ status: 'idle' })
   const authError = ref(false)
   const accountState = ref<PublicAccountState>({ status: 'missing' })
@@ -131,7 +136,9 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
     playlistError.value = null
   }
 
-  function resetPrivateLibraryState(): void {
+  function resetPrivateLibraryState(notify = true): void {
+    privateCacheEpoch++; playlistRebaseAttempts = 0
+    likedRefreshError.value = null; playlistRefreshError.value = null; playlistListRefreshError.value = null
     for (const scope of Object.values(reads)) scope.cancelAll()
     playlistOwned = false
     playlistRequest = undefined
@@ -164,11 +171,12 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
     dailyError.value = null
     accountError.value = null
     resetPlaylistList()
-    onResetPrivate()
+    if (notify) onResetPrivate()
   }
 
   function resetAuthorizedLoadStarted(): void {
     if (disposed) return
+    privateCacheEpoch++
     authorizedLibraryLoadStarted = false
     for (const scope of Object.values(reads)) scope.cancelAll()
     accountOperation += 1
@@ -216,24 +224,29 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
       likedLoadingMore.value = true
       likedLoadMoreError.value = null
     }
-    const generation = likedRequestGeneration
+    const generation = likedRequestGeneration, scope = cacheScope()
+    const identity = cacheIdentity(scope, 'liked', page), cached = options.cache?.peek<Page<TrackSummary>>(identity)
+    if (initial && cached) likedPage.value = cached.value
+    likedRefreshError.value = null
     likedRequest = { ...page }
     try {
-      const result = await reads.liked.read('library.liked', { page }, () => api.getLikedTracks(page))
-      if (disposed || generation !== likedRequestGeneration || !canLoadPrivate()) return
+      const result = cached && !cached.stale ? cached.value : await reads.liked.read('library.liked', { page }, () => api.getLikedTracks(page), cached?.stale ? { cacheMode: 'reload' } : undefined)
+      if (disposed || generation !== likedRequestGeneration || scope !== cacheScope() || !canLoadPrivate()) return
       likedRequest = undefined
+      if (!cached || cached.stale) options.cache?.put(identity, result)
       likedPage.value = initial ? result : appendPage(likedPage.value, result)
       likedError.value = null
       if (initial) likedInitialLoading.value = false
       else likedLoadingMore.value = false
     } catch (error) {
-      if (disposed || generation !== likedRequestGeneration || !canLoadPrivate()) return
+      if (disposed || generation !== likedRequestGeneration || scope !== cacheScope() || !canLoadPrivate()) return
       likedInitialLoading.value = false; likedLoadingMore.value = false
       if (isLibraryReadCancelled(error)) return
       likedRequest = undefined
       if (initial) {
         likedInitialLoading.value = false
-        likedError.value = libraryErrorKind(error)
+        if (likedPage.value.items.length) likedRefreshError.value = '刷新喜欢列表失败，保留已加载内容。'
+        else likedError.value = libraryErrorKind(error)
       } else {
         likedLoadingMore.value = false
         likedLoadMoreError.value = '加载失败，点击重试'
@@ -363,19 +376,24 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
       homeRecommendationState.value = 'loading'
       return
     }
-    const generation = ++playlistListGeneration
+    const generation = ++playlistListGeneration, scope = cacheScope()
+    const identity = cacheIdentity(scope, 'playlists', { offset: 0, limit: 20 }), cached = options.cache?.peek<readonly PlaylistSummary[]>(identity)
+    if (cached) playlists.value = cached.value
+    playlistListRefreshError.value = null
     reads.playlists.cancelAll()
     playlistState.value = 'loading'
     playlistError.value = null
     try {
-      const result = await reads.playlists.read('library.playlists', {}, () => api.getUserPlaylists())
-      if (disposed || generation !== playlistListGeneration || !canLoadPrivate()) return
+      const result = cached && !cached.stale ? cached.value : await reads.playlists.read('library.playlists', {}, () => api.getUserPlaylists(), cached?.stale ? { cacheMode: 'reload' } : undefined)
+      if (disposed || generation !== playlistListGeneration || scope !== cacheScope() || !canLoadPrivate()) return
+      if (!cached || cached.stale) options.cache?.put(identity, result)
       playlists.value = result
       playlistState.value = 'ready'
       if (getView() === 'home') await loadHomeRecommendations()
     } catch (error) {
-      if (disposed || generation !== playlistListGeneration || !canLoadPrivate()) return
+      if (disposed || generation !== playlistListGeneration || scope !== cacheScope() || !canLoadPrivate()) return
       if (isLibraryReadCancelled(error)) { playlistState.value = 'ready'; return }
+      if (playlists.value.length) { playlistListRefreshError.value = '刷新歌单列表失败，保留已加载内容。'; playlistState.value = 'ready'; return }
       playlistError.value = error
       playlistState.value = 'error'
       homePlaylistTracks.value = []
@@ -391,13 +409,16 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
   async function loadPlaylist(
     playlistId: string,
     page: PageRequest = { offset: 0, limit: LIBRARY_PAGE_SIZE },
+    reload = false,
+    rebase?: Pick<PlaylistDetail, 'snapshotVersion'>,
   ): Promise<void> {
     if (disposed || authState.value.status !== 'authorized') return
     playlistOwned = true
     const switchingPlaylist = selectedPlaylistId.value !== playlistId
     selectedPlaylistId.value = playlistId
-    const previousPlaylist = selectedPlaylist.value
+    const previousPlaylist = switchingPlaylist ? null : selectedPlaylist.value
     const initial = page.offset === 0
+    if (initial && !rebase) playlistRebaseAttempts = 0
     if (switchingPlaylist) {
       onPlaylistSwitch()
       playlistRequestGeneration += 1
@@ -421,50 +442,66 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
       pendingPlaylistRequest = { id: playlistId, page }
       return
     }
-    const generation = playlistRequestGeneration
+    const generation = playlistRequestGeneration, scope = cacheScope()
+    const dataset = `playlist:${playlistId}`, identity = cacheIdentity(scope, dataset, page)
+    const cached = options.cache?.peek<PlaylistDetail>(identity)
+    if (initial && cached && !previousPlaylist) selectedPlaylist.value = cached.value
+    playlistRefreshError.value = null
+    const current = () => !disposed && generation === playlistRequestGeneration && scope === cacheScope() && selectedPlaylistId.value === playlistId && canLoadPrivate()
     try {
-      const result = await reads.playlist.read('library.playlist', { playlistId, page }, () => api.getPlaylist(playlistId, page))
-      if (disposed || generation !== playlistRequestGeneration || selectedPlaylistId.value !== playlistId || !canLoadPrivate()) return
+      const result = cached && !cached.stale && !reload && !rebase ? cached.value : await reads.playlist.read('library.playlist', { playlistId, page }, () => api.getPlaylist(playlistId, page), !rebase && (reload || cached?.stale) ? { cacheMode: 'reload' } : undefined)
+      if (!current()) return
+      if (rebase && !samePlaylistSnapshot(rebase, result)) throw new PlaylistSnapshotChanged()
+      if (!initial && previousPlaylist && !samePlaylistSnapshot(previousPlaylist, result)) {
+        options.cache?.evictDataset(scope, dataset)
+        if (playlistRebaseAttempts++ > 0) throw new PlaylistSnapshotChanged()
+        await loadPlaylist(playlistId, { offset: 0, limit: page.limit }, false, result)
+        return
+      }
+      if (!cached || cached.stale || reload || rebase) options.cache?.put(identity, result)
       playlistRequest = undefined
       selectedPlaylist.value = {
         ...result,
-        tracks: initial ? result.tracks : appendPage(previousPlaylist?.tracks ?? null, result.tracks),
+        tracks: initial ? (previousPlaylist && samePlaylistSnapshot(previousPlaylist, result) && previousPlaylist.tracks.items.length > result.tracks.items.length ? { ...previousPlaylist.tracks, items: [...result.tracks.items, ...previousPlaylist.tracks.items.filter(item => !result.tracks.items.some(first => first.id === item.id))] } : result.tracks) : appendPage(previousPlaylist?.tracks ?? null, result.tracks),
       }
       pendingPlaylistRequest = undefined
-      onPlaylistReady(playlistId)
+      if (current() && (switchingPlaylist || !previousPlaylist)) onPlaylistReady(playlistId)
       playlistDetailError.value = null
       if (initial) playlistInitialLoading.value = false
       else playlistLoadingMore.value = false
     } catch (error) {
-      if (disposed || generation !== playlistRequestGeneration || selectedPlaylistId.value !== playlistId || !canLoadPrivate()) return
+      if (!current()) return
       playlistInitialLoading.value = false; playlistLoadingMore.value = false
       if (isLibraryReadCancelled(error)) return
       playlistRequest = undefined
       if (initial) {
         playlistInitialLoading.value = false
-        playlistDetailError.value = libraryErrorKind(error)
+        if (selectedPlaylist.value?.tracks.items.length) playlistRefreshError.value = error instanceof PlaylistSnapshotChanged ? error.message : '刷新歌单失败，保留已加载内容。'
+        else playlistDetailError.value = libraryErrorKind(error)
       } else {
         playlistLoadingMore.value = false
-        playlistLoadMoreError.value = '加载失败，点击重试'
+        playlistLoadMoreError.value = error instanceof PlaylistSnapshotChanged ? error.message : '加载失败，点击重试'
       }
     }
   }
 
   function retryPlaylist(): void {
-    if (selectedPlaylistId.value) void loadPlaylist(selectedPlaylistId.value)
+    if (selectedPlaylistId.value) void loadPlaylist(selectedPlaylistId.value, undefined, true)
   }
 
   function playlistPageAt(offset: number): void {
     if (selectedPlaylist.value) void loadPlaylist(selectedPlaylist.value.id, { offset, limit: LIBRARY_PAGE_SIZE })
   }
 
-  function loadAuthorizedLibraryWhenReady(): void {
+  function loadAuthorizedLibraryWhenReady(options: { accountStateCurrent?: true } = {}): void {
     if (authorizedLibraryLoadStarted || !canLoadPrivate()) return
+    if (options.accountStateCurrent && accountState.value.status !== 'ready') return
     authorizedLibraryLoadStarted = true
-    void loadAccountState()
+    // 可信账户事件已应用 profile/daily；恢复列表不能反向再读 profile 形成事件环。
+    if (!options.accountStateCurrent) void loadAccountState()
     void loadLiked()
     void loadPlaylists()
-    void loadDailyRecommendations()
+    if (!options.accountStateCurrent) void loadDailyRecommendations()
     if (playlistOwned && pendingPlaylistRequest) {
       const pending = pendingPlaylistRequest
       pendingPlaylistRequest = undefined
@@ -644,7 +681,7 @@ export function useNeteaseLibrary(options: NeteaseLibraryOptions) {
   }
 
   return {
-    authState, authError, accountState, accountError,
+    authState, authError, accountState, accountError, likedRefreshError, playlistRefreshError, playlistListRefreshError,
     dailyRecommendations, dailyState, dailyError,
     likedPage, likedInitialLoading, likedLoadingMore, likedLoadMoreError, likedError, likedHomeState,
     playlists, playlistState, playlistError,

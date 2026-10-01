@@ -1,4 +1,6 @@
 import { assertLibraryReadCurrent, currentLibraryRead, libraryReadCancelled, remainingLibraryReadMs, waitLibraryRead } from '../shared/library-read-lifetime.js';
+import { randomUUID } from 'node:crypto';
+import { SnapshotReadFlights } from './read-snapshot-cache.js';
 import { traceProviderApi } from '../diagnostics/performance-instrumentation.js';
 import { createRequire } from 'node:module';
 import { BridgeError } from '../shared/errors.js';
@@ -62,6 +64,26 @@ const DEFAULT_METADATA_CACHE_MAX_ENTRIES = 256;
 const MAX_METADATA_CACHE_MAX_ENTRIES = 512;
 const DEFAULT_METADATA_CACHE_TTL_MS = 5 * 60 * 1_000;
 const LIKED_TRACK_IDS_CACHE_TTL_MS = 30 * 1_000;
+const PLAYLIST_CACHE_MAX_ENTRIES = 32;
+const PLAYLIST_CACHE_MAX_BYTES = 16 * 1024 * 1024;
+const PLAYLIST_CACHE_MAX_ENTRY_BYTES = 4 * 1024 * 1024;
+const SNAPSHOT_CACHE_TTL_MS = 30_000;
+
+type PlaylistHeader = Omit<PlaylistDetail, 'tracks' | 'snapshotVersion'>;
+interface PlaylistBase {
+  header: PlaylistHeader;
+  trackIds?: readonly string[];
+  snapshotVersion?: string;
+  pageScope: string;
+  bornAt: number;
+  expiresAt: number;
+  bytes: number;
+}
+
+interface PlaylistReadGroup {
+  count: number;
+  acceptedPageScope: string | undefined;
+}
 
 interface CachedTrackMetadata {
   metadata: TrackMetadata;
@@ -78,6 +100,23 @@ interface NeteaseClientOptions {
   metadataCacheMaxEntries?: number;
   metadataCacheTtlMs?: number;
   now?: () => number;
+  playlistCacheMaxEntries?: number;
+  playlistCacheMaxBytes?: number;
+  playlistCacheMaxEntryBytes?: number;
+  snapshotCacheTtlMs?: number;
+  snapshotReadMaximumFlights?: number;
+  snapshotReadMaximumSubscribers?: number;
+  snapshotReadTimeoutMs?: number;
+}
+
+function boundedCacheOption(value: number | undefined, maximum: number): number {
+  return value !== undefined && Number.isSafeInteger(value) && value > 0 ? Math.min(value, maximum) : maximum;
+}
+
+function samePlaylistBase(a: PlaylistBase, header: PlaylistHeader, ids: readonly string[]): boolean {
+  return a.trackIds !== undefined && a.header.id === header.id && a.header.name === header.name &&
+    a.header.trackCount === header.trackCount && a.header.description === header.description && a.header.artworkUrl === header.artworkUrl &&
+    a.trackIds.length === ids.length && ids.every((id, index) => a.trackIds![index] === id);
 }
 
 function boundedMetadataCacheEntries(value: number | undefined): number {
@@ -150,6 +189,20 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
   private readonly metadataCacheTtlMs: number;
   private readonly now: () => number;
   private likedTrackIdsCache: CachedLikedTrackIds | undefined;
+  private readonly playlistBases = new Map<string, PlaylistBase>();
+  private playlistCacheBytes = 0;
+  private readonly latestBaseLoads = new Map<string, object>();
+  // 仅保留在途调用的最新受理事实；LRU淘汰不能让旧页重新有效。
+  private readonly playlistReadGroups = new Map<string, PlaylistReadGroup>();
+  private playlistReadCount = 0;
+  private readonly maximumPlaylistReadSubscribers: number;
+  private readonly snapshotReads: SnapshotReadFlights;
+  private readonly playlistCacheMaxEntries: number;
+  private readonly playlistCacheMaxBytes: number;
+  private readonly playlistCacheMaxEntryBytes: number;
+  private readonly snapshotCacheTtlMs: number;
+  private accountCache: { id: string; bornAt: number; expiresAt: number } | undefined;
+  private latestAccountLoad: object | undefined;
 
   constructor(
     cookie: string | undefined,
@@ -192,6 +245,12 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     this.metadataCacheMaxEntries = boundedMetadataCacheEntries(options.metadataCacheMaxEntries);
     this.metadataCacheTtlMs = boundedMetadataCacheTtlMs(options.metadataCacheTtlMs);
     this.now = options.now ?? Date.now;
+    this.playlistCacheMaxEntries = boundedCacheOption(options.playlistCacheMaxEntries, PLAYLIST_CACHE_MAX_ENTRIES);
+    this.playlistCacheMaxBytes = boundedCacheOption(options.playlistCacheMaxBytes, PLAYLIST_CACHE_MAX_BYTES);
+    this.playlistCacheMaxEntryBytes = boundedCacheOption(options.playlistCacheMaxEntryBytes, PLAYLIST_CACHE_MAX_ENTRY_BYTES);
+    this.snapshotCacheTtlMs = boundedCacheOption(options.snapshotCacheTtlMs, SNAPSHOT_CACHE_TTL_MS);
+    this.maximumPlaylistReadSubscribers = boundedCacheOption(options.snapshotReadMaximumSubscribers, 256);
+    this.snapshotReads = new SnapshotReadFlights(boundedCacheOption(options.snapshotReadMaximumFlights, 32), boundedCacheOption(options.snapshotReadMaximumSubscribers, 256), boundedCacheOption(options.snapshotReadTimeoutMs, 10_000));
   }
 
   get configured(): boolean {
@@ -204,6 +263,7 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
       this.accountGeneration++;
       this.metadataCache.clear();
       this.likedTrackIdsCache = undefined;
+      this.clearSnapshotCaches();
     }
     this.cookie = nextCredential;
   }
@@ -213,6 +273,7 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     this.cookie = undefined;
     this.metadataCache.clear();
     this.likedTrackIdsCache = undefined;
+    this.clearSnapshotCaches();
   }
 
   async createQr(): Promise<{ key: string; qrImage: string }> {
@@ -466,38 +527,49 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     pageInput: PageRequest,
   ): Promise<PlaylistDetail> {
     const playlistId = normalizeTrackId(playlistIdInput);
+    if (playlistId.length > 128) throw new BridgeError('BAD_REQUEST', '歌单ID无效');
     const page = normalizePageRequest(pageInput);
     const cookie = this.requireCookie();
+    const generation = this.accountGeneration;
+    const groupKey = `${generation}:${playlistId}`;
+    if (this.playlistReadCount >= this.maximumPlaylistReadSubscribers) throw new BridgeError('NETEASE_REQUEST_FAILED', '读取订阅预算已满');
+    let group = this.playlistReadGroups.get(groupKey);
+    if (!group) {
+      group = { count: 0, acceptedPageScope: this.playlistBases.get(playlistId)?.pageScope };
+      this.playlistReadGroups.set(groupKey, group);
+    }
+    group.count++; this.playlistReadCount++;
     try {
-      const playlistDetail = this.api.playlist_detail;
-      if (!playlistDetail) throw this.libraryApiUnavailable();
-      const playlistDetailResponse = await playlistDetail({ id: playlistId, cookie });
-      const header = parsePlaylistDetailHeader(
-        playlistDetailResponse,
-        playlistId,
-      );
-      const trackIds = parsePlaylistTrackIds(playlistDetailResponse);
-      let trackResponse: unknown;
-      if (trackIds !== undefined) {
-        const selectedIds = trackIds.slice(page.offset, page.offset + page.limit);
-        trackResponse = selectedIds.length === 0
-          ? { body: { code: 200, songs: [] } }
-          : await this.api.song_detail({ ids: selectedIds.join(','), cookie });
-      } else {
+      const base = await this.readPlaylistBase(playlistId, cookie, generation);
+      assertLibraryReadCurrent();
+      if (generation !== this.accountGeneration || group.acceptedPageScope !== base.pageScope) throw libraryReadCancelled();
+      const reload = currentLibraryRead()?.cacheMode === 'reload';
+      const tracks = await this.snapshotReads.read(`page:${generation}:${playlistId}:${base.pageScope}:${page.offset}:${page.limit}:${reload}`, () => generation === this.accountGeneration, async () => {
+        let response: unknown;
+        if (base.trackIds !== undefined) {
+          const selectedIds = base.trackIds.slice(page.offset, page.offset + page.limit);
+          response = selectedIds.length ? await this.api.song_detail({ ids: selectedIds.join(','), cookie }) : { body: { code: 200, songs: [] } };
+          assertLibraryReadCurrent();
+          const items = orderTrackSummariesByIds(parseTrackSummaries(response), selectedIds);
+          return { items, offset: page.offset, limit: page.limit, total: base.trackIds.length, hasMore: page.offset + page.limit < base.trackIds.length };
+        }
         const playlistTrackAll = this.api.playlist_track_all;
         if (!playlistTrackAll) throw this.libraryApiUnavailable();
-        trackResponse = await playlistTrackAll({
-          id: playlistId,
-          limit: page.limit,
-          offset: page.offset,
-          cookie,
-        });
-      }
-      const tracks = parsePlaylistTrackPage(trackResponse, page, header.trackCount);
+        response = await playlistTrackAll({ id: playlistId, limit: page.limit, offset: page.offset, cookie });
+        assertLibraryReadCurrent();
+        return parsePlaylistTrackPage(response, page, base.header.trackCount);
+      });
+      assertLibraryReadCurrent();
+      if (generation !== this.accountGeneration) throw libraryReadCancelled();
+      // 不撤其他订阅者的等待；实际返回后拒绝给已接受的新base写旧页元数据。
+      if (group.acceptedPageScope !== base.pageScope) throw libraryReadCancelled();
       this.rememberTracks(tracks.items);
-      return { ...header, tracks };
+      return { ...base.header, ...(base.snapshotVersion ? { snapshotVersion: base.snapshotVersion } : {}), tracks: { ...tracks, items: tracks.items.map(cloneTrackMetadata) } };
     } catch (error) {
       throw this.libraryError(error, 'playlist detail');
+    } finally {
+      group.count--; this.playlistReadCount--;
+      if (!group.count && this.playlistReadGroups.get(groupKey) === group) this.playlistReadGroups.delete(groupKey);
     }
   }
 
@@ -610,9 +682,76 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
   }
 
   private async getAccountId(cookie: string): Promise<string> {
-    const userAccount = this.api.user_account;
-    if (!userAccount) throw this.libraryApiUnavailable();
-    return parseAccountId(await userAccount({ cookie }));
+    assertLibraryReadCurrent();
+    const generation = this.accountGeneration;
+    if (cookie !== this.cookie) throw libraryReadCancelled();
+    const reload = currentLibraryRead()?.cacheMode === 'reload';
+    const now = this.now();
+    if (!reload && this.accountCache && this.accountCache.bornAt <= now && now < this.accountCache.expiresAt) return this.accountCache.id;
+    return this.snapshotReads.read(`account:${generation}:${reload}`, () => generation === this.accountGeneration, async () => {
+      const ticket = {}; this.latestAccountLoad = ticket;
+      try {
+        const userAccount = this.api.user_account;
+        if (!userAccount) throw this.libraryApiUnavailable();
+        const id = parseAccountId(await userAccount({ cookie }));
+        assertLibraryReadCurrent();
+        if (this.latestAccountLoad !== ticket) throw libraryReadCancelled();
+        if (id.length > 128) throw new BridgeError('NETEASE_REQUEST_FAILED', '账户ID无效');
+        const bornAt = this.now();
+        this.accountCache = { id, bornAt, expiresAt: bornAt + this.snapshotCacheTtlMs };
+        return id;
+      } finally { if (this.latestAccountLoad === ticket) this.latestAccountLoad = undefined; }
+    });
+  }
+
+  private clearSnapshotCaches(): void {
+    this.snapshotReads.clear(); this.playlistBases.clear(); this.latestBaseLoads.clear(); this.playlistCacheBytes = 0; this.accountCache = undefined; this.latestAccountLoad = undefined;
+  }
+
+  private async readPlaylistBase(playlistId: string, cookie: string, generation: number): Promise<PlaylistBase> {
+    assertLibraryReadCurrent();
+    const reload = currentLibraryRead()?.cacheMode === 'reload';
+    const cached = this.playlistBases.get(playlistId);
+    const now = this.now();
+    if (!reload && cached && cached.bornAt <= now && now < cached.expiresAt) {
+      this.playlistBases.delete(playlistId); this.playlistBases.set(playlistId, cached); return cached;
+    }
+    return this.snapshotReads.read(`base:${generation}:${playlistId}:${reload}`, () => generation === this.accountGeneration, async () => {
+      const ticket = {};
+      this.latestBaseLoads.set(playlistId, ticket);
+      try {
+        const playlistDetail = this.api.playlist_detail;
+        if (!playlistDetail) throw this.libraryApiUnavailable();
+        const response = await playlistDetail({ id: playlistId, cookie });
+        assertLibraryReadCurrent();
+        if (this.latestBaseLoads.get(playlistId) !== ticket) throw libraryReadCancelled();
+        const header = parsePlaylistDetailHeader(response, playlistId);
+        if (header.id !== playlistId || header.id.length > 128 || header.name.length > 512 || (header.description?.length ?? 0) > 4096 || !Number.isSafeInteger(header.trackCount) || header.trackCount < 0 || header.trackCount > 1_000_000) throw new BridgeError('NETEASE_REQUEST_FAILED', '歌单快照header无效');
+        const headerBytes = 256 + 2 * (playlistId.length + header.id.length + header.name.length + (header.description?.length ?? 0) + (header.artworkUrl?.length ?? 0));
+        const limit = Math.min(this.playlistCacheMaxEntryBytes, this.playlistCacheMaxBytes);
+        if (headerBytes + 32 > limit) throw new BridgeError('NETEASE_REQUEST_FAILED', '歌单快照字节预算已满');
+        const ids = parsePlaylistTrackIds(response, limit - headerBytes);
+        if (ids !== undefined && ids.length !== header.trackCount) throw new BridgeError('NETEASE_REQUEST_FAILED', '歌单完整曲目ID与总数不一致');
+        const previous = this.playlistBases.get(playlistId);
+        const snapshotVersion = ids === undefined ? undefined : previous && samePlaylistBase(previous, header, ids) && previous.snapshotVersion ? previous.snapshotVersion : randomUUID();
+        const bytes = headerBytes + 32 + (ids?.reduce((sum, id) => sum + 32 + id.length * 2, 0) ?? 0) + 128;
+        if (bytes > limit) throw new BridgeError('NETEASE_REQUEST_FAILED', '歌单快照字节预算已满');
+        const bornAt = this.now();
+        const base: PlaylistBase = Object.freeze({ header: Object.freeze(header), ...(ids === undefined ? {} : { trackIds: Object.freeze(ids) }), ...(snapshotVersion ? { snapshotVersion } : {}), pageScope: snapshotVersion ?? randomUUID(), bornAt, expiresAt: bornAt + this.snapshotCacheTtlMs, bytes });
+        assertLibraryReadCurrent();
+        if (this.latestBaseLoads.get(playlistId) !== ticket || generation !== this.accountGeneration) throw libraryReadCancelled();
+        if (previous) { this.playlistBases.delete(playlistId); this.playlistCacheBytes -= previous.bytes; }
+        while (this.playlistBases.size >= this.playlistCacheMaxEntries || this.playlistCacheBytes + bytes > this.playlistCacheMaxBytes) {
+          const oldest = this.playlistBases.keys().next().value;
+          if (oldest === undefined) break;
+          this.playlistCacheBytes -= this.playlistBases.get(oldest)!.bytes; this.playlistBases.delete(oldest);
+        }
+        this.playlistBases.set(playlistId, base); this.playlistCacheBytes += bytes;
+        const group = this.playlistReadGroups.get(`${generation}:${playlistId}`);
+        if (group) group.acceptedPageScope = base.pageScope;
+        return base;
+      } finally { if (this.latestBaseLoads.get(playlistId) === ticket) this.latestBaseLoads.delete(playlistId); }
+    });
   }
 
   private async getLikedTrackIds(cookie: string): Promise<readonly string[]> {

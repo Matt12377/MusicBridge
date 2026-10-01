@@ -293,7 +293,11 @@ test('NeteaseClient exposes explicit NetEase like and like-status operations', a
 
   assert.deepEqual(await client.isTrackLiked('101'), { liked: true });
   assert.deepEqual(await client.likeTrack('101', false), { liked: false });
-  assert.deepEqual(calls, [
+  const timeout = calls[0]!.params.timeout;
+  assert.ok(typeof timeout === 'number' && Number.isSafeInteger(timeout) && timeout > 0 && timeout <= 10000);
+  // 账户共享flight新增受信读取期限；其余原始Provider参数断言保留。
+  const { timeout: _ownedTimeout, ...accountParams } = calls[0]!.params;
+  assert.deepEqual([{ ...calls[0]!, params: accountParams }, ...calls.slice(1)], [
     { method: 'user_account', params: { cookie: 'synthetic-credential' } },
     { method: 'likelist', params: { uid: '42', cookie: 'synthetic-credential' } },
     { method: 'song_like', params: { id: '101', like: false, cookie: 'synthetic-credential' } },
@@ -451,7 +455,10 @@ test('NeteaseClient maps user playlists and loads only one playlist detail page'
       artworkUrl: 'https://p1.music.126.net/synthetic-playlist.jpg',
     },
   ]);
-  assert.deepEqual(await client.getPlaylist('301', { offset: 20, limit: 10 }), {
+  const { snapshotVersion, ...playlist } = await client.getPlaylist('301', { offset: 20, limit: 10 });
+  // response-only版本单独验证，原公开header/page内容仍完整深等。
+  assert.match(snapshotVersion ?? '', /^[a-f0-9-]{36}$/);
+  assert.deepEqual(playlist, {
     id: '301',
     name: 'Synthetic Playlist',
     description: 'Synthetic description',

@@ -78,5 +78,7 @@ export interface PlaylistSummary {
 
 export interface PlaylistDetail extends PlaylistSummary {
   description?: string
+  /** 完整表头与有序成员采样的版本；缺省表示旧接口，不能据此承诺整份歌单一致性。 */
+  snapshotVersion?: string
   tracks: Page<TrackSummary>
 }

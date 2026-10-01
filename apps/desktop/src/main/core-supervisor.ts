@@ -199,7 +199,7 @@ export class CoreSupervisor {
     command: TCommand,
     payload: IpcCommandPayloads[TCommand],
     expectedDatasetId?: string,
-    read?: { signal?: AbortSignal; deadlineAtMs?: number },
+    read?: { signal?: AbortSignal; deadlineAtMs?: number; cacheMode?: 'reload' },
   ): Promise<IpcCommandResults[TCommand]> {
     const route = this.startupAttempt
     const result = await this.sendRequest(command, payload, false, expectedDatasetId, undefined, read)
@@ -227,11 +227,12 @@ export class CoreSupervisor {
     internal: boolean,
     expectedDatasetId?: string,
     startup?: StartupAttempt,
-    read?: { signal?: AbortSignal; deadlineAtMs?: number },
+    read?: { signal?: AbortSignal; deadlineAtMs?: number; cacheMode?: 'reload' },
     accept?: (value: unknown) => void,
   ): Promise<unknown> {
     if (read && !isLibraryReadCommand(command)) throw new CoreIpcError('INVALID_IPC_REQUEST', '写命令不能使用读取取消协议')
     if (read?.deadlineAtMs !== undefined && (!Number.isSafeInteger(read.deadlineAtMs) || read.deadlineAtMs <= 0)) throw new CoreIpcError('INVALID_IPC_REQUEST', '读取期限无效')
+    if (read?.cacheMode !== undefined && read.cacheMode !== 'reload') throw new CoreIpcError('INVALID_IPC_REQUEST', '读取刷新意图无效')
     if (read?.signal?.aborted) throw new CoreIpcError('CANCELLED', '读取已取消')
     const permitted = startup
       ? startup.valid && startup.readyReceived && startup.generation === this.startupGeneration && this.startupAttempt === startup && this.child === startup.child && this.port === startup.port && !this.shuttingDown
@@ -260,7 +261,7 @@ export class CoreSupervisor {
       : this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
     const deadlineAtMs = isLibraryReadCommand(command) ? Math.min(Date.now() + timeoutMs, read?.deadlineAtMs ?? Infinity) : undefined
     if (deadlineAtMs !== undefined && deadlineAtMs <= Date.now()) { performanceSpan?.end('cancelled'); throw new CoreIpcError('TIMEOUT', '读取期限已到') }
-    const request = { version: IPC_VERSION, id, command, payload, ...(deadlineAtMs === undefined ? {} : { readContext: { deadlineAtMs } }), ...(expectedDatasetId === undefined ? {} : { expectedDatasetId }), ...(traceContext ? { performanceTrace: traceContext } : {}) }
+    const request = { version: IPC_VERSION, id, command, payload, ...(deadlineAtMs === undefined ? {} : { readContext: { deadlineAtMs, ...(read?.cacheMode !== undefined ? { cacheMode: read.cacheMode } : {}) } }), ...(expectedDatasetId === undefined ? {} : { expectedDatasetId }), ...(traceContext ? { performanceTrace: traceContext } : {}) }
     const validated = validateIpcRequest(request)
     if (!validated.ok) {
       performanceSpan?.end('error')

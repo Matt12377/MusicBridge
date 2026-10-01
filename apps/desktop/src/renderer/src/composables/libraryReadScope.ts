@@ -8,10 +8,11 @@ const MAX_LIBRARY_READ_MS = 10_000
 type ReadTimer = ReturnType<typeof setTimeout>
 type ReadEndCode = 'CANCELLED' | 'TIMEOUT'
 
-/** Signal 只在 Renderer 内使用；跨进程请求只有合同允许的四个字段。 */
+/** Signal 只在 Renderer 内使用；跨进程仅传合同字段，刷新意图可选。 */
 export interface LibraryReadOptions {
   signal?: AbortSignal
   deadlineAtMs?: number
+  cacheMode?: 'reload'
 }
 
 /** 时钟和计时器可注入，使取消与期限测试不依赖真实等待。 */
@@ -62,6 +63,9 @@ export function createLibraryReadScope(
     readOptions: LibraryReadOptions = {},
   ): Promise<IpcCommandResults[C]> {
     if (disposed || readOptions.signal?.aborted) return Promise.reject(readEndError('CANCELLED'))
+    if (readOptions.cacheMode !== undefined && readOptions.cacheMode !== 'reload') {
+      return Promise.reject(new Error('[INVALID_IPC_REQUEST] 资料库刷新意图无效。'))
+    }
     const startedAtMs = now()
     if (!Number.isSafeInteger(startedAtMs) || !Number.isSafeInteger(startedAtMs + MAX_LIBRARY_READ_MS)
       || (readOptions.deadlineAtMs !== undefined && !Number.isSafeInteger(readOptions.deadlineAtMs))) {
@@ -114,7 +118,8 @@ export function createLibraryReadScope(
       try {
         dispatched = true
         if (protocol && id !== undefined && readLibrary) {
-          const request: LibraryReadRequest<C> = { id, command, payload, deadlineAtMs }
+          const request: LibraryReadRequest<C> = { id, command, payload, deadlineAtMs,
+            ...(readOptions.cacheMode !== undefined ? { cacheMode: readOptions.cacheMode } : {}) }
           operation = readLibrary.call(api, request) as Promise<IpcCommandResults[C]>
         } else operation = fallback()
       } catch (error) { fail(error); return }

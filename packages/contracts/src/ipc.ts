@@ -79,7 +79,7 @@ export const IPC_VERSION = 1 as const;
 import { IPC_COMMANDS, IPC_EVENTS, type IpcCommand, type IpcEvent } from './ipc-names.js';
 export { IPC_COMMANDS, IPC_EVENTS, type IpcCommand, type IpcEvent } from './ipc-names.js';
 
-export interface LibraryReadContext { deadlineAtMs: number }
+export interface LibraryReadContext { deadlineAtMs: number; cacheMode?: 'reload' }
 
 export interface IpcRequest<TPayload = unknown> {
   readContext?: LibraryReadContext;

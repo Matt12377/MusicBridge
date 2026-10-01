@@ -14,6 +14,10 @@ const props = defineProps<{
   artistsLoading: boolean
   albumsLoading: boolean
   roonLoading: boolean
+  roonAlbumsLoading?: boolean
+  roonArtistsLoading?: boolean
+  roonAlbumsError?: string | null
+  roonArtistsError?: string | null
   artistsError: string | null
   albumsError: string | null
   roonError: string | null
@@ -29,6 +33,10 @@ const emit = defineEmits<{
   roon: [item: RoonLibraryItem]
   more: [source: 'roon' | 'netease', kind: 'album' | 'artist']
 }>()
+const artistRoonLoading = computed(() => props.roonArtistsLoading ?? props.roonLoading)
+const albumRoonLoading = computed(() => props.roonAlbumsLoading ?? props.roonLoading)
+const artistRoonError = computed(() => props.roonArtistsError !== undefined ? props.roonArtistsError : props.roonError)
+const albumRoonError = computed(() => props.roonAlbumsError !== undefined ? props.roonAlbumsError : props.roonError)
 const artists = computed(() => groupSearchArtists(props.artists, props.roonArtists))
 const albums = computed(() => mixSearchAlbums(props.albums, props.roonAlbums))
 const visibleArtists = computed(() => {
@@ -52,7 +60,7 @@ function observeMore(): void {
     const neteaseLoading = kind === 'album' ? props.albumsLoading : props.artistsLoading
     const neteaseError = kind === 'album' ? props.albumsError : props.artistsError
     // 两个来源独立推进；失败来源等待明确重试，不能形成无限请求。
-    if (moreRoon && !props.roonLoading && !props.roonError) emit('more', 'roon', kind)
+    if (moreRoon && !(kind === 'album' ? albumRoonLoading.value : artistRoonLoading.value) && !(kind === 'album' ? albumRoonError.value : artistRoonError.value)) emit('more', 'roon', kind)
     if (moreNetease && !neteaseLoading && !neteaseError) emit('more', 'netease', kind)
   }, { root: moreSentinel.value.closest('.content-scroll'), rootMargin: '240px 0px' })
   observer.observe(moreSentinel.value)
@@ -60,17 +68,18 @@ function observeMore(): void {
 onMounted(() => void nextTick(observeMore))
 watch(() => [props.mode, props.albums.length, props.artists.length, props.roonAlbums.length, props.roonArtists.length,
   props.moreAlbums, props.moreArtists, props.moreRoonAlbums, props.moreRoonArtists,
-  props.albumsLoading, props.artistsLoading, props.roonLoading, props.albumsError, props.artistsError, props.roonError],
+  props.albumsLoading, props.artistsLoading, props.roonLoading, props.albumsError, props.artistsError, props.roonError, props.roonAlbumsLoading, props.roonArtistsLoading, props.roonAlbumsError, props.roonArtistsError],
   () => void nextTick(observeMore))
 onUnmounted(() => observer?.disconnect())
 </script>
 
 <template>
-  <p v-if="roonError" class="persistent-error">{{ roonError }}</p>
+  <p v-if="roonError && roonAlbumsError === undefined && roonArtistsError === undefined" class="persistent-error">{{ roonError }}</p>
   <section v-if="mode !== 'albums'" class="search-result-section" :class="{ 'search-artist-preview': mode === 'all', 'search-artists-expanded': mode === 'artists' }" aria-labelledby="search-artists-heading">
     <div class="search-section-heading"><h3 id="search-artists-heading">艺人</h3><button v-if="mode === 'all'" type="button" class="text-button" @click="emit('category', 'artists')">查看全部 →</button></div>
+    <p v-if="roonArtistsError" class="persistent-error">{{ roonArtistsError }}</p>
     <p v-if="artistsError" class="persistent-error">{{ artistsError }}</p>
-    <p v-if="artistsLoading || roonLoading" role="status">正在搜索艺人…</p>
+    <p v-if="artistsLoading || artistRoonLoading" role="status">正在搜索艺人…</p>
     <div v-if="artists.length" class="search-card-grid search-card-grid-artists" role="list">
       <div v-for="artist in visibleArtists" :key="artist.key" class="search-artist-card unified-artist" role="listitem">
         <button class="artist-primary" type="button" :aria-label="`打开 ${artist.name}`" @click="artist.roon ? emit('roon', artist.roon) : artist.netease && emit('artist', artist.netease)">
@@ -85,16 +94,17 @@ onUnmounted(() => observer?.disconnect())
         </div>
       </div>
     </div>
-    <p v-else-if="!artistsLoading && !roonLoading" class="search-section-empty">没有匹配的艺人</p>
+    <p v-else-if="!artistsLoading && !artistRoonLoading" class="search-section-empty">没有匹配的艺人</p>
     <div v-if="mode !== 'all'" class="button-row">
-      <button v-if="moreRoonArtists && roonError" type="button" class="text-button" :disabled="roonLoading" @click="emit('more', 'roon', 'artist')">重试 Roon 艺人</button>
+      <button v-if="moreRoonArtists && artistRoonError" type="button" class="text-button" :disabled="artistRoonLoading" @click="emit('more', 'roon', 'artist')">重试 Roon 艺人</button>
       <button v-if="moreArtists && artistsError" type="button" class="text-button" :disabled="artistsLoading" @click="emit('more', 'netease', 'artist')">重试网易云艺人</button>
     </div>
   </section>
   <section v-if="mode !== 'artists'" class="search-result-section" aria-labelledby="search-albums-heading">
     <div class="search-section-heading"><h3 id="search-albums-heading">专辑</h3><button v-if="mode === 'all'" type="button" class="text-button" @click="emit('category', 'albums')">查看全部 →</button></div>
+    <p v-if="roonAlbumsError" class="persistent-error">{{ roonAlbumsError }}</p>
     <p v-if="albumsError" class="persistent-error">{{ albumsError }}</p>
-    <p v-if="albumsLoading || roonLoading" role="status">正在搜索专辑…</p>
+    <p v-if="albumsLoading || albumRoonLoading" role="status">正在搜索专辑…</p>
     <div v-if="albums.length" class="search-card-grid search-card-grid-albums" role="list">
       <button v-for="album in visibleAlbums" :key="album.key" type="button" class="search-album-card" role="listitem" @click="album.source === 'roon' ? emit('roon', album.item) : emit('album', album.item)">
         <template v-if="album.source === 'roon'">
@@ -107,14 +117,14 @@ onUnmounted(() => observer?.disconnect())
         </template>
       </button>
     </div>
-    <p v-else-if="!albumsLoading && !roonLoading" class="search-section-empty">没有匹配的专辑</p>
+    <p v-else-if="!albumsLoading && !albumRoonLoading" class="search-section-empty">没有匹配的专辑</p>
     <div v-if="mode !== 'all'" class="button-row">
-      <button v-if="moreRoonAlbums && roonError" type="button" class="text-button" :disabled="roonLoading" @click="emit('more', 'roon', 'album')">重试 Roon 专辑</button>
+      <button v-if="moreRoonAlbums && albumRoonError" type="button" class="text-button" :disabled="albumRoonLoading" @click="emit('more', 'roon', 'album')">重试 Roon 专辑</button>
       <button v-if="moreAlbums && albumsError" type="button" class="text-button" :disabled="albumsLoading" @click="emit('more', 'netease', 'album')">重试网易云专辑</button>
     </div>
   </section>
   <div v-if="mode !== 'all'" ref="moreSentinel" class="search-entity-sentinel" aria-live="polite">
-    <span v-if="roonLoading || (mode === 'albums' ? albumsLoading : artistsLoading)" role="status">正在加载更多{{ mode === 'albums' ? '专辑' : '艺人' }}…</span>
+    <span v-if="(mode === 'albums' ? albumRoonLoading : artistRoonLoading) || (mode === 'albums' ? albumsLoading : artistsLoading)" role="status">正在加载更多{{ mode === 'albums' ? '专辑' : '艺人' }}…</span>
   </div>
 </template>
 

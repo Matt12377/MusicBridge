@@ -26,6 +26,8 @@ import {
   type RoonSearchResultKind,
   type RoonTrackActionOutcome,
   type RoonCapturedTrackActions,
+  type RoonReadCacheSelector,
+  type RoonBrowseReadOptions,
 } from './library.js';
 
 const MAX_REFERENCES = 65_536;
@@ -35,6 +37,8 @@ const DEFAULT_MAX_IMAGE_CACHE_BYTES = 32 * 1024 * 1024;
 const DEFAULT_NEGATIVE_IMAGE_TTL_MS = 3_000;
 
 export interface RoonPublicLibraryOptions {
+  /** 只在读取时调用，包含Zone、凭据及组合层关闭代际。 */
+  getPageCacheScope?: () => string;
   incrementalPlaybackContexts?: boolean;
   /** 受信任组合层设置；实体及图片引用各自的保留数据计量预算。 */
   maxReferenceCacheBytes?: number;
@@ -384,6 +388,11 @@ export function createRoonPublicLibrary(
   let imageCacheBytes = 0;
   let activeService: RoonLibraryService | undefined;
   let referenceScope = randomUUID();
+  const pages = new Map<string, { dto: PublicRoonLibraryPage; origin: string; born: number; bytes: number }>();
+  let pageBytes = 0;
+  let pageScope: string | undefined;
+  const dropPage = (key: string) => { const old = pages.get(key); if (old) pageBytes -= old.bytes; pages.delete(key); };
+  const clearPages = () => { pages.clear(); pageBytes = 0; pageScope = undefined; };
   const contexts = new Map<string, PlaybackRegistration>();
   const contextKeys = new Map<string, string>();
   const leases = new Set<RoonPlaybackContextLease>();
@@ -443,7 +452,7 @@ export function createRoonPublicLibrary(
     // 公共引用换代时同步撤销Core遍历，不能只换公开标签而继续复用旧详情。
     activeService?.invalidateReadContexts?.();
     for (const lease of leases) lease.release();
-    contexts.clear(); contextKeys.clear();
+    contexts.clear(); contextKeys.clear(); clearPages();
     references.clear();
     imageReferences.clear();
     clearImageState();
@@ -559,6 +568,66 @@ export function createRoonPublicLibrary(
     if (entry) { const previous = contexts.get(entry.handle); if (previous) Object.assign(previous, entry); else contexts.set(entry.handle, entry); contextKeys.set(entry.key, entry.handle); }
     return { ...mapped, ...(entry ? { playbackContextHandle: entry.handle } : {}) };
   }
+  const clonePage = (page: PublicRoonLibraryPage): PublicRoonLibraryPage => ({ ...page, items: page.items.map(item => ({ ...item })) });
+  const pageSize = (page: PublicRoonLibraryPage): number => {
+    // 计量支持的公开标量和容器，非RSS/heap；不保存raw response或SDK身份。
+    let bytes = 512;
+    for (const item of page.items) { bytes += 256; for (const [key, value] of Object.entries(item)) bytes += 32 + key.length * 2 + (typeof value === 'string' ? value.length * 2 : 16); }
+    for (const [key, value] of Object.entries(page)) if (key !== 'items') bytes += 32 + key.length * 2 + (typeof value === 'string' ? value.length * 2 : 16);
+    return bytes;
+  };
+  const pageReferencesCurrent = (page: PublicRoonLibraryPage, current: RoonLibraryService, scope: string): boolean => {
+    if (!page.items.every(item => references.has(item.reference) && (!item.artworkReference || imageReferences.has(item.artworkReference)))) return false;
+    if (!page.playbackContextHandle) return true;
+    const entry = contexts.get(page.playbackContextHandle);
+    return !!entry && entry.service === current && entry.scope === scope && (entry.pins > 0 || now() - entry.touched < CONTEXT_IDLE_TTL_MS);
+  };
+  const readPage = async (
+    selector: RoonReadCacheSelector, request: RoonPageRequest,
+    read: (current: RoonLibraryService, options?: RoonBrowseReadOptions) => Promise<RoonLibraryPage<RoonEntityDescriptor>>,
+    parentReference?: string,
+  ): Promise<PublicRoonLibraryPage> => {
+    assertLibraryReadCurrent();
+    if (!Number.isSafeInteger(request.offset) || request.offset < 0 || request.offset > 1_000_000
+      || !Number.isSafeInteger(request.limit) || request.limit < 1 || request.limit > 100) throw new RoonLibraryError('ROON_LIBRARY_INVALID_PAGE', 'Roon page is invalid');
+    const current = service(), scope = referenceScope;
+    const trusted = libraryOptions.getPageCacheScope?.() ?? scope;
+    if (typeof trusted !== 'string' || trusted.length === 0 || trusted.length > 4096) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', '页缓存作用域无效');
+    const scopeChanged = pageScope !== undefined && pageScope !== trusted;
+    if (scopeChanged) clearPages();
+    pageScope = trusted;
+    const stamp = current.getReadCacheStamp?.(selector);
+    const identity = selector.kind === 'root' ? ['root', selector.hierarchy] : selector.kind === 'search'
+      ? ['search', selector.query.trim(), selector.resultKind ?? 'track'] : ['detail', selector.entity.kind, selector.entity.browseContext?.pathSignature ?? parentReference];
+    const key = JSON.stringify([trusted, ...identity, request.offset, request.limit]);
+    const cached = pages.get(key);
+    const ttl = selector.kind === 'search' ? 5_000 : 15_000;
+    const reload = currentLibraryRead()?.cacheMode === 'reload';
+    const age = cached ? now() - cached.born : undefined;
+    const hit = !reload && !scopeChanged && cached && age! >= 0 && age! < ttl && cached.origin === stamp
+      && pageReferencesCurrent(cached.dto, current, scope);
+    for (const [oldKey, entry] of pages) if (now() - entry.born < 0 || now() - entry.born >= 300_000) dropPage(oldKey);
+    if (hit) { pages.delete(key); pages.set(key, cached); return clonePage(cached.dto); }
+    // 新origin已建立时，ordinary续页只跟随该代；旧DTO不能再次触发reload换代。
+    const refresh = reload || scopeChanged || (!!cached && (stamp === undefined || (cached.origin === stamp
+      && (age! < 0 || age! >= ttl || !pageReferencesCurrent(cached.dto, current, scope)))));
+    const page = await read(current, refresh ? { refresh: true } : undefined);
+    assertLibraryReadCurrent();
+    if (service() !== current || referenceScope !== scope || (libraryOptions.getPageCacheScope?.() ?? scope) !== trusted
+      || (current.getReadCacheStamp && page.sourceEpoch !== undefined && current.getReadCacheStamp(selector) !== page.sourceEpoch)) {
+      throw new BridgeError('ROON_LIBRARY_INVALID_REFERENCE', 'Roon 浏览结果已过期，请重试', { httpStatus: 409 });
+    }
+    const mapped = currentPage(page, request, current, scope, parentReference);
+    if (page.sourceEpoch && current.getReadCacheStamp?.(selector) === page.sourceEpoch) {
+      const bytes = pageSize(mapped) + key.length * 2 + page.sourceEpoch.length * 2;
+      if (bytes <= 1024 * 1024) {
+        dropPage(key);
+        while (pages.size && (pages.size >= 128 || pageBytes + bytes > 16 * 1024 * 1024)) dropPage(pages.keys().next().value!);
+        pages.set(key, { dto: clonePage(mapped), origin: page.sourceEpoch, born: now(), bytes }); pageBytes += bytes;
+      }
+    }
+    return mapped;
+  };
   const summary = (reference: string): TrackSummary => {
     const stored = resolveTrackReference(reference), descriptor = stored.descriptor, durationMs = toDurationMs(descriptor);
     return { id: roonTrackIdFromReference(reference), title: descriptor.title,
@@ -643,133 +712,40 @@ export function createRoonPublicLibrary(
         ...(descriptor.year !== undefined ? { year: descriptor.year } : {}), ...(descriptor.version !== undefined ? { version: descriptor.version } : {}) };
     },
     async browseAlbums(request) {
-      try {
-        const current = service();
-        const scope = referenceScope;
-        return currentPage(
-          await current.browseAlbums(request),
-          request,
-          current,
-          scope,
-        );
-      } catch (error) {
-        return wrapLibraryError(error);
-      }
+      try { return await readPage({ kind: 'root', hierarchy: 'albums' }, request, (current, options) => current.browseAlbums(request, options)); }
+      catch (error) { return wrapLibraryError(error); }
     },
     async browseArtists(request) {
-      try {
-        const current = service();
-        const scope = referenceScope;
-        return currentPage(
-          await current.browseArtists(request),
-          request,
-          current,
-          scope,
-        );
-      } catch (error) {
-        return wrapLibraryError(error);
-      }
+      try { return await readPage({ kind: 'root', hierarchy: 'artists' }, request, (current, options) => current.browseArtists(request, options)); }
+      catch (error) { return wrapLibraryError(error); }
     },
     async browseGenres(request) {
-      try {
-        const current = service();
-        const scope = referenceScope;
-        return currentPage(
-          await current.browseGenres(request),
-          request,
-          current,
-          scope,
-        );
-      } catch (error) {
-        return wrapLibraryError(error);
-      }
+      try { return await readPage({ kind: 'root', hierarchy: 'genres' }, request, (current, options) => current.browseGenres(request, options)); }
+      catch (error) { return wrapLibraryError(error); }
     },
     async browsePlaylists(request) {
-      try {
-        const current = service();
-        const scope = referenceScope;
-        return currentPage(
-          await current.browsePlaylists(request),
-          request,
-          current,
-          scope,
-        );
-      } catch (error) {
-        return wrapLibraryError(error);
-      }
+      try { return await readPage({ kind: 'root', hierarchy: 'playlists' }, request, (current, options) => current.browsePlaylists(request, options)); }
+      catch (error) { return wrapLibraryError(error); }
     },
     async browseAlbum(reference, request) {
-      try {
-        const current = service();
-        const scope = referenceScope;
-        return currentPage(
-          await current.browseAlbum(resolveAlbum(reference), request),
-          request,
-          current,
-          scope,
-          reference,
-        );
-      } catch (error) {
-        return wrapLibraryError(error, 'album');
-      }
+      try { service(); const entity = resolveAlbum(reference); return await readPage({ kind: 'detail', entity }, request, (current, options) => current.browseAlbum(entity, request, options), reference); }
+      catch (error) { return wrapLibraryError(error, 'album'); }
     },
     async browseArtist(reference, request) {
-      try {
-        const current = service();
-        const scope = referenceScope;
-        return currentPage(
-          await current.browseArtist(resolveArtist(reference), request),
-          request,
-          current,
-          scope,
-        );
-      } catch (error) {
-        return wrapLibraryError(error);
-      }
+      try { service(); const entity = resolveArtist(reference); return await readPage({ kind: 'detail', entity }, request, (current, options) => current.browseArtist(entity, request, options)); }
+      catch (error) { return wrapLibraryError(error); }
     },
     async browseGenre(reference, request) {
-      try {
-        const current = service();
-        const scope = referenceScope;
-        return currentPage(
-          await current.browseGenre(resolveGenre(reference), request),
-          request,
-          current,
-          scope,
-          reference,
-        );
-      } catch (error) {
-        return wrapLibraryError(error);
-      }
+      try { service(); const entity = resolveGenre(reference); return await readPage({ kind: 'detail', entity }, request, (current, options) => current.browseGenre(entity, request, options), reference); }
+      catch (error) { return wrapLibraryError(error); }
     },
     async browsePlaylist(reference, request) {
-      try {
-        const current = service();
-        const scope = referenceScope;
-        return currentPage(
-          await current.browsePlaylist(resolvePlaylist(reference), request),
-          request,
-          current,
-          scope,
-          reference,
-        );
-      } catch (error) {
-        return wrapLibraryError(error);
-      }
+      try { service(); const entity = resolvePlaylist(reference); return await readPage({ kind: 'detail', entity }, request, (current, options) => current.browsePlaylist(entity, request, options), reference); }
+      catch (error) { return wrapLibraryError(error); }
     },
     async searchLibrary(query, request, kind) {
-      try {
-        const current = service();
-        const scope = referenceScope;
-        return currentPage(
-          await current.searchLibrary(query, request, kind),
-          request,
-          current,
-          scope,
-        );
-      } catch (error) {
-        return wrapLibraryError(error);
-      }
+      try { return await readPage({ kind: 'search', query, ...(kind ? { resultKind: kind } : {}) }, request, (current, options) => current.searchLibrary(query, request, kind, options)); }
+      catch (error) { return wrapLibraryError(error); }
     },
     async getImage(reference, options) {
       const current = service();
