@@ -4,8 +4,8 @@
   "state": "active",
   "ownerAuthorization": "连续实施性能与正确性计划；最新子代理偏好 gpt-6.1-sol high，最多3名，必要时承担审计测试",
   "currentTask": "MBP-004",
-  "implementationComplete": 4,
-  "automaticAcceptanceComplete": 4,
+  "implementationComplete": 5,
+  "automaticAcceptanceComplete": 5,
   "taskCount": 11,
   "realMacRoonAcceptance": "NOT_RUN",
   "realRecordingAcceptance": "NOT_RUN",
@@ -105,12 +105,16 @@
         "MBP-002",
         "MBP-003A"
       ],
-      "state": "implementing",
-      "implementationCommit": null,
+      "state": "software-gates-passed",
+      "implementationCommit": "0df9fb591a153286e0a2c962917c88dbd4704340",
       "reportCommit": null,
-      "evidence": [],
+      "evidence": [
+        "reports/MBP-004_INCREMENTAL_DETAILS.md",
+        "reports/MBP-004_EVIDENCE.json"
+      ],
       "baseCommit": "c91c53774d709fe45c09c0c1da8fb78ba6b2c7a1",
-      "branch": "codex/mbp-004-incremental-details"
+      "branch": "codex/mbp-004-incremental-details",
+      "reportCommitResolution": "commit-containing-reports/MBP-004_INCREMENTAL_DETAILS.md"
     },
     {
       "id": "MBP-006",
@@ -173,7 +177,7 @@
       "evidence": []
     }
   ],
-  "implementationCommit": null,
+  "implementationCommit": "0df9fb591a153286e0a2c962917c88dbd4704340",
   "branch": "codex/mbp-004-incremental-details",
   "currentTaskBase": "c91c53774d709fe45c09c0c1da8fb78ba6b2c7a1",
   "automaticAcceptanceScope": "local-standard-software-gates",
