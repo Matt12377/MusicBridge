@@ -147,7 +147,9 @@ contextBridge.exposeInMainWorld(
       }
       return result
     },
-    (reference: string, zoneId: string, queueReferences?: readonly string[]) => invokePerformance('roon:library:play', reference, zoneId, queueReferences),
+    (reference: string, zoneId: string, queueReferences?: readonly string[], contextHandle?: string) => contextHandle === undefined
+      ? invokePerformance('roon:library:play', reference, zoneId, queueReferences)
+      : invokePerformance('roon:library:play', reference, zoneId, queueReferences, contextHandle),
     (reference: string, zoneId: string) => invokePerformance('roon:library:queue', reference, zoneId),
     (kind: 'track' | 'album' | 'artist' | undefined, page: { offset: number; limit: number }) =>
       invokePerformance('favorites:list', kind, page),

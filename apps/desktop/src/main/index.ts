@@ -758,6 +758,13 @@ function requireRoonQueueReferences(value: unknown): readonly string[] {
   return value.map(requireRoonEntityReference)
 }
 
+function requireRoonPlaybackContextHandle(value: unknown): string {
+  if (typeof value !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(value)) {
+    return publicIpcFailure('INVALID_IPC_REQUEST', '播放上下文句柄无效')
+  }
+  return value
+}
+
 function requireRoonImageOptions(value: unknown): RoonImageOptions | undefined {
   if (value === undefined) return undefined
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -1580,14 +1587,18 @@ function registerIpcHandlers(
       ? { code: error.code, message: error.message }
       : { code: 'INTERNAL_ERROR', message: 'Roon image request failed' })
   })
-  registerPerformanceHandler('roon:library:play', (event, reference: unknown, zoneId: unknown, queueReferences: unknown) =>
-    invokeCore(event, () =>
-      supervisor.request('roon.library.play', {
+  registerPerformanceHandler('roon:library:play', (event, reference: unknown, zoneId: unknown, queueReferences: unknown, contextHandle: unknown) =>
+    invokeCore(event, () => {
+      if (queueReferences !== undefined && contextHandle !== undefined) {
+        return publicIpcFailure('INVALID_IPC_REQUEST', '上下文句柄与完整队列不能同时使用')
+      }
+      return supervisor.request('roon.library.play', {
         reference: requireRoonEntityReference(reference),
         zoneId: requireZoneId(zoneId),
         ...(queueReferences !== undefined ? { queueReferences: requireRoonQueueReferences(queueReferences) } : {}),
-      }),
-    ),
+        ...(contextHandle !== undefined ? { contextHandle: requireRoonPlaybackContextHandle(contextHandle) } : {}),
+      })
+    }),
   )
   registerPerformanceHandler('roon:library:queue', (event, reference: unknown, zoneId: unknown) =>
     invokeCore(event, () =>

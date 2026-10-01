@@ -15,8 +15,10 @@ import type {
   PlaybackResolvedSource,
   PlaybackSourcePreference,
   TrackSummary,
+  RoonLibraryItem,
 } from '@music-bridge/contracts';
-import { MAX_PLAYBACK_QUEUE_ITEMS } from '@music-bridge/contracts';
+import { MAX_PLAYBACK_QUEUE_ITEMS, roonTrackIdFromReference } from '@music-bridge/contracts';
+import type { RoonPlaybackContextLease, RoonPlaybackContextItem, RoonPlaybackContextPage } from '../roon/playback-context.js';
 import { BridgeError, asBridgeError } from '../shared/errors.js';
 import type { Logger } from '../shared/logger.js';
 import {
@@ -119,6 +121,20 @@ interface PlaybackOwner {
   dispatched: boolean;
   token?: string;
 }
+interface QueueContext {
+  lease: RoonPlaybackContextLease;
+  generation: number;
+  zoneId: string;
+  abort: AbortController;
+  before: number;
+  after: number;
+  afterComplete: boolean;
+  loading: number;
+  error?: 'retryable' | 'expired' | 'capacity';
+  tail: Promise<void>;
+  ready: Promise<void>;
+  activate(): void;
+}
 export type PlaybackChangedListener = (snapshot: PlaybackSnapshot) => void;
 
 const SKIPPABLE_QUEUE_ERRORS = new Set([
@@ -187,15 +203,35 @@ function cloneTrackSummary(track: TrackSummary): TrackSummary {
   };
 }
 
+function cloneRoonItem(item: RoonLibraryItem): RoonLibraryItem {
+  // 只复制公开标量，不让内部SDK字段进入队列响应。
+  const output: RoonLibraryItem = { kind: item.kind, reference: item.reference, title: item.title };
+  for (const key of ['subtitle', 'artist', 'album', 'albumCount', 'durationMs', 'bitrate', 'format', 'trackNumber', 'discNumber', 'year', 'version', 'artworkReference'] as const) {
+    const value = item[key];
+    if (value !== undefined) Object.assign(output, { [key]: value });
+  }
+  return output;
+}
+
+function normalizeContextItem(input: RoonPlaybackContextItem, zoneId: string): QueueItem {
+  if (input.zoneId !== zoneId || input.roonItem.kind !== 'track' || input.roonItem.reference !== input.reference
+    || roonTrackIdFromReference(input.reference) !== input.track.id) {
+    throw new BridgeError('BAD_REQUEST', '播放上下文曲目身份无效', { httpStatus: 400 });
+  }
+  return { ...normalizeNativeRoonQueueItem(input), roonItem: cloneRoonItem(input.roonItem) };
+}
+
 function freezeQueuePublication(queue: PlaybackQueueSnapshot): PlaybackQueueSnapshot {
   for (const item of queue.items) {
     if (item.track) {
       Object.freeze(item.track.artists);
       Object.freeze(item.track);
     }
+    if (item.roonItem) Object.freeze(item.roonItem);
     Object.freeze(item);
   }
   Object.freeze(queue.items);
+  if (queue.context) Object.freeze(queue.context);
   return Object.freeze(queue);
 }
 
@@ -365,6 +401,11 @@ export class BridgeController {
   private stopUnknown = false;
   private readonly externalTasks = new Set<Promise<unknown>>();
   private queueHydrationGeneration = 0;
+  private queueContextGeneration = 0;
+  private queueContext: QueueContext | undefined;
+  private readonly pendingQueueContexts = new Set<QueueContext>();
+  private queueEditTail: Promise<void> = Promise.resolve();
+  private lastContextPlaying: { item: QueueItem; generation: number; at: number; revision: number; positionMs: number } | undefined;
   private nextPreparation: {
     item: QueueItem;
     quality: QualityLevel;
@@ -461,8 +502,9 @@ export class BridgeController {
 
   private projectQueueSnapshot(): PlaybackQueueSnapshot {
     const hasQueue = this.queue.length > 0;
-    const hasNext = hasQueue && this.queueIndex >= 0 && this.queueIndex < this.queue.length - 1;
-    const hasPrevious = hasQueue && this.queueIndex > 0;
+    const context = this.queueContext;
+    const hasNext = hasQueue && this.queueIndex >= 0 && (this.queueIndex < this.queue.length - 1 || Boolean(context && !context.afterComplete));
+    const hasPrevious = hasQueue && (this.queueIndex > 0 || Boolean(context && context.before > 0));
     return {
       items: this.queue.map((item, index) => ({
         trackId: item.trackId,
@@ -470,6 +512,7 @@ export class BridgeController {
         ...(item.track ? { track: cloneTrackSummary(item.track) } : {}),
         ...(item.preferredSource ? { preferredSource: item.preferredSource } : {}),
         ...(item.resolvedSource ? { resolvedSource: item.resolvedSource } : {}),
+        ...(item.roonItem ? { roonItem: Object.freeze(cloneRoonItem(item.roonItem)) } : {}),
         ...(index === this.queueIndex && this.activePlayback
           ? {
               requestedQuality: this.activePlayback.requestedQuality,
@@ -480,6 +523,8 @@ export class BridgeController {
       index: this.queueIndex,
       hasNext,
       hasPrevious,
+      ...(context ? { context: { beforeComplete: context.before === 0, afterComplete: context.afterComplete,
+        loading: context.loading > 0, ...(context.error ? { error: context.error } : {}) } } : {}),
     };
   }
 
@@ -567,6 +612,7 @@ export class BridgeController {
     startupTrace?: PlaybackStartupTrace;
   }): Promise<BridgeState> {
     const item = normalizeQueueItem(input);
+    this.cancelQueueContext();
     return this.enqueuePlayback(async () => {
       await this.stopActive();
       this.guardCommand();
@@ -583,6 +629,210 @@ export class BridgeController {
     return this.replaceRoonQueue([input], 0);
   }
 
+  async replaceRoonContext(lease: RoonPlaybackContextLease): Promise<BridgeState> {
+    let items: QueueItem[], zoneId: string, selectedIndex: number;
+    try {
+      const initial = lease.initial;
+      zoneId = initial.items[initial.selectedIndex]?.zoneId ?? '';
+      this.validateContextPage(initial, initial.offset);
+      if (!Number.isSafeInteger(initial.selectedIndex) || initial.selectedIndex < 0 || initial.selectedIndex >= initial.items.length
+        || initial.items.length > MAX_QUEUE_ITEMS || !lease.isCurrent()
+        || zoneId !== this.dependencies.roon.getState().selectedZoneId) throw this.cancelled();
+      items = initial.items.map(value => normalizeContextItem(value, zoneId));
+      selectedIndex = initial.selectedIndex;
+    } catch (error) { lease.release(); throw error; }
+    this.cancelQueueContext();
+    let activate!: () => void;
+    const ready = new Promise<void>(resolve => { activate = resolve; });
+    const context: QueueContext = { lease, generation: this.queueContextGeneration, zoneId,
+      abort: new AbortController(), before: lease.initial.offset, after: lease.initial.nextOffset,
+      afterComplete: lease.initial.complete, loading: 0, tail: Promise.resolve(), ready, activate };
+    this.pendingQueueContexts.add(context);
+    try {
+      return await this.enqueuePlayback(async () => {
+        this.assertQueueContext(context, true);
+        await this.stopActive();
+        this.guardCommand(); this.assertQueueContext(context, true);
+        this.pendingQueueContexts.delete(context);
+        this.queueContext = context;
+        ++this.queueHydrationGeneration;
+        this.queue = items; this.queueIndex = selectedIndex;
+        context.activate();
+        this.queueProjectionDirty = true; this.clearPlaybackIssue();
+        await this.startQueueIndex(this.queueIndex, false);
+        this.assertQueueContext(context);
+        // Transport 确认后只预取一页；读页不进入设备链或播放命令链。
+        if (!context.afterComplete) void this.expandQueueContext(context, 'after', false).catch(() => undefined);
+        return this.getState();
+      });
+    } finally {
+      if (this.pendingQueueContexts.delete(context)) { context.abort.abort(); context.activate(); lease.release(); }
+    }
+  }
+
+  private cancelQueueContext(): void {
+    ++this.queueContextGeneration;
+    const contexts = new Set(this.pendingQueueContexts);
+    if (this.queueContext) contexts.add(this.queueContext);
+    this.pendingQueueContexts.clear(); this.queueContext = undefined; this.lastContextPlaying = undefined;
+    for (const context of contexts) { context.abort.abort(); context.activate(); context.lease.release(); }
+    if (contexts.size) this.queueProjectionDirty = true;
+  }
+
+  private assertQueueContext(context: QueueContext, pending = false): void {
+    if (context.abort.signal.aborted || context.generation !== this.queueContextGeneration
+      || (this.queueContext !== context && !(pending && this.pendingQueueContexts.has(context)))) throw this.cancelled();
+    if (!context.lease.isCurrent() || this.dependencies.roon.getState().selectedZoneId !== context.zoneId) {
+      throw new BridgeError('ROON_LIBRARY_INVALID_REFERENCE', '播放上下文已失效，请重新选择', { httpStatus: 409 });
+    }
+  }
+
+  private validateContextPage(page: RoonPlaybackContextPage, offset: number, limit?: number): void {
+    if (!Number.isSafeInteger(page.offset) || page.offset !== offset || page.offset < 0
+      || !Number.isSafeInteger(page.nextOffset) || page.nextOffset < offset
+      || (limit !== undefined && page.nextOffset > offset + limit)
+      || typeof page.complete !== 'boolean' || (!page.complete && page.nextOffset === offset)
+      || page.items.length > page.nextOffset - offset) {
+      throw new BridgeError('ROON_LIBRARY_REQUEST_FAILED', '播放上下文页游标无效', { httpStatus: 502 });
+    }
+  }
+
+  private contextCapacity(length: number): void {
+    if (length > MAX_QUEUE_ITEMS) throw new BridgeError('BAD_REQUEST', '播放队列容量已满', { httpStatus: 413, details: { capacity: MAX_QUEUE_ITEMS } });
+  }
+
+  private async readQueueContext(context: QueueContext, offset: number, limit: number): Promise<{ page: RoonPlaybackContextPage; items: QueueItem[] }> {
+    this.assertQueueContext(context);
+    const work = context.lease.read({ offset, limit }, { signal: context.abort.signal,
+      isCurrent: () => this.queueContext === context && context.generation === this.queueContextGeneration
+        && !context.abort.signal.aborted && context.lease.isCurrent()
+        && this.dependencies.roon.getState().selectedZoneId === context.zoneId });
+    const page = await new Promise<RoonPlaybackContextPage>((resolve, reject) => {
+      const cancel = () => { context.abort.signal.removeEventListener('abort', cancel); reject(this.cancelled()); };
+      context.abort.signal.addEventListener('abort', cancel, { once: true });
+      void work.then(resolve, reject).finally(() => context.abort.signal.removeEventListener('abort', cancel));
+      if (context.abort.signal.aborted) cancel();
+    });
+    this.assertQueueContext(context);
+    this.validateContextPage(page, offset, limit);
+    return { page, items: page.items.map(value => normalizeContextItem(value, context.zoneId)) };
+  }
+
+  private contextTask<T>(context: QueueContext, operation: () => Promise<T>): Promise<T> {
+    const result = context.tail.then(async () => {
+      context.loading++; delete context.error;
+      this.queueProjectionDirty = true; this.notifyPlaybackChanged();
+      try { this.assertQueueContext(context); return await operation(); }
+      catch (error) {
+        if (this.queueContext === context && !context.abort.signal.aborted) {
+          context.error = asBridgeError(error).httpStatus === 413 ? 'capacity'
+            : !context.lease.isCurrent() || this.dependencies.roon.getState().selectedZoneId !== context.zoneId ? 'expired' : 'retryable';
+        }
+        throw error;
+      } finally {
+        context.loading--;
+        if (this.queueContext === context && !context.abort.signal.aborted) { this.queueProjectionDirty = true; this.notifyPlaybackChanged(); }
+      }
+    });
+    context.tail = result.then(() => undefined, () => undefined);
+    return result;
+  }
+
+  private expandQueueContext(context: QueueContext, direction: 'before' | 'after', requireTrack: boolean): Promise<void> {
+    return this.contextTask(context, async () => {
+      let attempts = 0;
+      while (++attempts <= 128) {
+        this.assertQueueContext(context);
+        // 等待同一gate期间，既有预取或drain可能已经补出邻项。
+        if (requireTrack && this.queue[this.queueIndex + (direction === 'after' ? 1 : -1)]) return;
+        if (direction === 'after' && context.afterComplete || direction === 'before' && context.before === 0) return;
+        const before = context.before, after = context.after;
+        const offset = direction === 'after' ? after : Math.max(0, before - 100);
+        let cursor = offset; const items: QueueItem[] = []; let complete = false;
+        do {
+          const loaded = await this.readQueueContext(context, cursor, direction === 'after' ? 100 : before - cursor);
+          items.push(...loaded.items); cursor = loaded.page.nextOffset; complete = loaded.page.complete;
+          this.contextCapacity(this.queue.length + items.length);
+          if (direction === 'before' && complete && cursor < before) throw this.cancelled();
+        } while (direction === 'before' && cursor < before);
+        await this.enqueue(async () => {
+          this.assertQueueContext(context);
+          if (context.before !== before || context.after !== after) throw this.cancelled();
+          this.contextCapacity(this.queue.length + items.length);
+          const current = this.queue[this.queueIndex];
+          if (direction === 'after') { this.queue.push(...items); context.after = cursor; context.afterComplete = complete; }
+          else { this.queue.unshift(...items); context.before = offset; this.rebaseInsertion(items.length); }
+          if (current) this.queueIndex = this.queue.indexOf(current);
+          this.queueProjectionDirty = true; this.notifyPlaybackChanged();
+        });
+        if (!requireTrack || items.length) return;
+      }
+      throw new BridgeError('ROON_LIBRARY_REQUEST_FAILED', '播放上下文读取工作量超限', { httpStatus: 502 });
+    });
+  }
+
+  private rebaseInsertion(prefix: number): void {
+    if (this.nextInsertionQueueIndex !== undefined) this.nextInsertionQueueIndex += prefix;
+    if (this.nextInsertionCursor !== undefined) this.nextInsertionCursor += prefix;
+  }
+
+  private editContextQueue(items: QueueItem[], insert: boolean): Promise<BridgeState> {
+    const context = this.queueContext ?? [...this.pendingQueueContexts].at(-1);
+    const epoch = this.commandEpoch;
+    const result = this.queueEditTail.then(async () => {
+      if (epoch !== this.commandEpoch) throw this.cancelled();
+      if (!context) return this.commitQueueEdit(items, insert);
+      await context.ready;
+      return this.contextTask(context, async () => {
+        this.assertQueueContext(context);
+        this.contextCapacity(this.queue.length + items.length);
+        const before: QueueItem[] = [], after: QueueItem[] = [];
+        const originalBefore = context.before, originalAfter = context.after;
+        let cursor = 0, reads = 0;
+        while (cursor < originalBefore) {
+          if (++reads > 128) throw new BridgeError('ROON_LIBRARY_REQUEST_FAILED', '播放上下文读取工作量超限', { httpStatus: 502 });
+          const loaded = await this.readQueueContext(context, cursor, Math.min(100, originalBefore - cursor));
+          before.push(...loaded.items); cursor = loaded.page.nextOffset;
+          this.contextCapacity(this.queue.length + before.length + items.length);
+          if (loaded.page.complete && cursor < originalBefore) throw this.cancelled();
+        }
+        cursor = originalAfter; let complete = context.afterComplete;
+        while (!complete) {
+          if (++reads > 128) throw new BridgeError('ROON_LIBRARY_REQUEST_FAILED', '播放上下文读取工作量超限', { httpStatus: 502 });
+          const loaded = await this.readQueueContext(context, cursor, 100);
+          after.push(...loaded.items); cursor = loaded.page.nextOffset; complete = loaded.page.complete;
+          this.contextCapacity(this.queue.length + before.length + after.length + items.length);
+        }
+        return this.enqueue(async () => {
+          this.assertQueueContext(context);
+          if (epoch !== this.commandEpoch || context.before !== originalBefore || context.after !== originalAfter) throw this.cancelled();
+          this.contextCapacity(this.queue.length + before.length + after.length + items.length);
+          const current = this.queue[this.queueIndex];
+          this.queue = [...before, ...this.queue, ...after];
+          this.rebaseInsertion(before.length); if (current) this.queueIndex = this.queue.indexOf(current);
+          context.before = 0; context.after = cursor; context.afterComplete = true;
+          this.applyQueueEdit(items, insert);
+          return this.getState();
+        });
+      });
+    });
+    this.queueEditTail = result.then(() => undefined, () => undefined);
+    return result;
+  }
+
+  private applyQueueEdit(items: QueueItem[], insert: boolean): void {
+    const index = insert ? this.nextInsertionQueueIndex === this.queueIndex && this.nextInsertionCursor !== undefined
+      ? this.nextInsertionCursor : this.queueIndex >= 0 ? this.queueIndex + 1 : 0 : this.queue.length;
+    this.queue.splice(index, 0, ...items);
+    if (insert) { this.nextInsertionQueueIndex = this.queueIndex; this.nextInsertionCursor = index + items.length; }
+    const generation = ++this.queueHydrationGeneration;
+    this.queueProjectionDirty = true; this.notifyPlaybackChanged(); this.scheduleQueueHydration(items, generation);
+  }
+
+  private commitQueueEdit(items: QueueItem[], insert: boolean): Promise<BridgeState> {
+    return this.enqueue(async () => { this.contextCapacity(this.queue.length + items.length); this.applyQueueEdit(items, insert); return this.getState(); });
+  }
+
   async replaceRoonQueue(inputs: readonly NativeRoonQueueInput[], startIndex: number): Promise<BridgeState> {
     if (inputs.length === 0 || inputs.length > MAX_QUEUE_ITEMS
       || !Number.isSafeInteger(startIndex) || startIndex < 0 || startIndex >= inputs.length) {
@@ -590,6 +840,7 @@ export class BridgeController {
     }
     // 在停止现有播放前验证整个上下文，避免无效请求破坏当前队列。
     const items = inputs.map(normalizeNativeRoonQueueItem);
+    this.cancelQueueContext();
     return this.enqueuePlayback(async () => {
       ++this.queueHydrationGeneration;
       await this.stopActive();
@@ -624,6 +875,7 @@ export class BridgeController {
       });
     }
     const normalizedItems = items.map((item) => normalizeQueueItem(item));
+    this.cancelQueueContext();
 
     return this.enqueuePlayback(async () => {
       const hydrationGeneration = ++this.queueHydrationGeneration;
@@ -672,6 +924,7 @@ export class BridgeController {
   ): Promise<BridgeState> {
     const normalizedItems = items.map((item) => normalizeQueueItem(item));
     if (normalizedItems.length === 0) return this.getState();
+    if (this.queueContext || this.pendingQueueContexts.size) return this.editContextQueue(normalizedItems, false);
 
     return this.enqueue(async () => {
       const availableSlots = Math.max(0, MAX_QUEUE_ITEMS - this.queue.length);
@@ -699,6 +952,7 @@ export class BridgeController {
 
   async appendRoon(input: NativeRoonQueueInput): Promise<BridgeState> {
     const item = normalizeNativeRoonQueueItem(input);
+    if (this.queueContext || this.pendingQueueContexts.size) return this.editContextQueue([item], false);
     return this.enqueue(async () => {
       const availableSlots = Math.max(0, MAX_QUEUE_ITEMS - this.queue.length);
       if (availableSlots === 0) return this.getState();
@@ -714,6 +968,7 @@ export class BridgeController {
   ): Promise<BridgeState> {
     const normalizedItems = items.map((item) => normalizeQueueItem(item));
     if (normalizedItems.length === 0) return this.getState();
+    if (this.queueContext || this.pendingQueueContexts.size) return this.editContextQueue(normalizedItems, true);
 
     return this.enqueue(async () => {
       const availableSlots = Math.max(0, MAX_QUEUE_ITEMS - this.queue.length);
@@ -746,6 +1001,7 @@ export class BridgeController {
 
   async insertNextRoon(input: NativeRoonQueueInput): Promise<BridgeState> {
     const item = normalizeNativeRoonQueueItem(input);
+    if (this.queueContext || this.pendingQueueContexts.size) return this.editContextQueue([item], true);
     return this.enqueue(async () => {
       if (this.queue.length >= MAX_QUEUE_ITEMS) return this.getState();
       const insertionIndex = this.queueIndex >= 0 ? this.queueIndex + 1 : 0;
@@ -757,6 +1013,7 @@ export class BridgeController {
   }
 
   async next(): Promise<BridgeState> {
+    if (this.queueContext) return this.navigateQueueContext(this.queueContext, 1);
     return this.enqueuePlayback(async () => {
       this.syncNativeRoonTrack();
       if (this.activeRoonPlayback && (this.queueIndex < 0 || this.queueIndex >= this.queue.length - 1)) {
@@ -776,6 +1033,7 @@ export class BridgeController {
   }
 
   async previous(): Promise<BridgeState> {
+    if (this.queueContext) return this.navigateQueueContext(this.queueContext, -1);
     return this.enqueuePlayback(async () => {
       this.syncNativeRoonTrack();
       if (this.activeRoonPlayback && this.queueIndex <= 0) return this.navigateNativeRoon('previous');
@@ -784,6 +1042,27 @@ export class BridgeController {
       await this.stopActive();
       await this.startQueueIndex(previousIndex, true);
       return this.getState();
+    });
+  }
+
+  private async navigateQueueContext(context: QueueContext, direction: 1 | -1): Promise<BridgeState> {
+    this.assertQueueContext(context);
+    const epoch = this.commandEpoch;
+    const anchor = this.queue[this.queueIndex];
+    let waited = false;
+    const needsPage = direction === 1 ? this.queueIndex === this.queue.length - 1 && !context.afterComplete
+      : this.queueIndex === 0 && context.before > 0;
+    if (needsPage) { waited = true; await this.expandQueueContext(context, direction === 1 ? 'after' : 'before', true); }
+    if (epoch !== this.commandEpoch) throw this.cancelled();
+    return this.enqueuePlayback(async () => {
+      this.assertQueueContext(context);
+      if (waited && this.queue[this.queueIndex] !== anchor) throw this.cancelled();
+      const target = this.queue[this.queueIndex + direction];
+      if (!target) return this.getState();
+      await this.stopActive(); this.guardCommand(); this.assertQueueContext(context);
+      const index = this.queue.indexOf(target);
+      if (index < 0) throw this.cancelled();
+      await this.startQueueIndex(index, true); return this.getState();
     });
   }
 
@@ -829,25 +1108,37 @@ export class BridgeController {
         httpStatus: 400,
       });
     }
+    const contextGeneration = this.queueContextGeneration;
+    // 活跃上下文的数字索引只属于受理时窗口；prefix可以在命令链等待期间提交。
+    // 没有已安装上下文时，保留legacy在实际执行时读取新队列的语义。
+    const acceptedTarget = this.queueContext ? this.queue[index] : undefined;
+    if (this.queueContext && !acceptedTarget) throw new BridgeError('BAD_REQUEST', 'Playback queue index is invalid', { httpStatus: 400 });
     return this.enqueuePlayback(async () => {
-      if (index >= this.queue.length) {
+      if (contextGeneration !== this.queueContextGeneration) throw this.cancelled();
+      const target = acceptedTarget ?? this.queue[index];
+      if (!target || !this.queue.includes(target)) {
         throw new BridgeError('BAD_REQUEST', 'Playback queue index is invalid', {
           httpStatus: 400,
         });
       }
       if (
-        index === this.queueIndex &&
+        target === this.queue[this.queueIndex] &&
         (this.activePlayback !== undefined || this.activeRoonPlayback !== undefined)
       ) {
         return this.getState();
       }
       await this.stopActive();
-      await this.startQueueIndex(index, true);
+      this.guardCommand();
+      if (contextGeneration !== this.queueContextGeneration) throw this.cancelled();
+      const currentIndex = this.queue.indexOf(target);
+      if (currentIndex < 0) throw this.cancelled();
+      await this.startQueueIndex(currentIndex, true);
       return this.getState();
     });
   }
 
   async stop(): Promise<BridgeState> {
+    this.cancelQueueContext();
     ++this.commandEpoch;
     this.owner?.abort.abort();
     return this.enqueue(async () => {
@@ -898,6 +1189,7 @@ export class BridgeController {
   }
 
   async stopRoonTransport(): Promise<BridgeState> {
+    this.cancelQueueContext();
     const zoneId = this.dependencies.roon.getState().selectedZoneId;
     ++this.commandEpoch;
     this.owner?.abort.abort();
@@ -1060,6 +1352,7 @@ export class BridgeController {
       ? [index] : []);
     const index = matches.length === 1 ? matches[0]! : -1;
     const item = this.queue[index];
+    if (this.queueContext && !item) this.cancelQueueContext();
     const track: TrackSummary = item?.track ? cloneTrackSummary(item.track) : {
       id: BigInt(`0x${randomUUID().replaceAll('-', '')}`).toString(),
       title: identity.title,
@@ -1086,6 +1379,7 @@ export class BridgeController {
   }
 
   async clearQueue(): Promise<BridgeState> {
+    this.cancelQueueContext();
     ++this.commandEpoch;
     this.owner?.abort.abort();
     return this.enqueue(async () => {
@@ -1103,6 +1397,7 @@ export class BridgeController {
   }
 
   async shutdown(): Promise<void> {
+    this.cancelQueueContext();
     ++this.commandEpoch;
     this.owner?.abort.abort();
     await this.enqueue(async () => {
@@ -1166,6 +1461,7 @@ export class BridgeController {
       return false;
     }
     this.positionMs = positionMs;
+    if (event && this.queueContext && positionContext.source === 'roon') this.recordContextPlaying(event);
     const now = this.now();
     if (now - this.lastPositionPublishedAt < 250) return true;
     this.lastPositionPublishedAt = now;
@@ -1182,6 +1478,14 @@ export class BridgeController {
     const stoppedFromPaused = state === 'stopped'
       && (previous === 'paused' || this.playbackState === 'paused');
     const ended = state === 'stopped' && (previous === 'playing' || previous === 'loading');
+    if (this.queueContext && state === 'playing') {
+      const observed = this.dependencies.roon.getSelectedZonePlaybackObservation?.();
+      if (observed?.state === 'playing' && observed.positionMs !== undefined) this.recordContextPlaying({ ...observed, positionMs: observed.positionMs });
+    }
+    if (this.queueContext && state === 'stopped' && (previous === 'playing' || previous === 'paused' || previous === 'loading')) {
+      this.handleContextStopped(this.queueContext, active, previous === 'playing');
+      return;
+    }
     if (!unavailable && !stoppedFromPaused && !ended) return;
     const stoppedObservation = stoppedFromPaused ? this.freshNativeStoppedObservation() : undefined;
     if (stoppedFromPaused && !stoppedObservation) return;
@@ -1231,6 +1535,61 @@ export class BridgeController {
     }).catch((error: unknown) => {
       const bridgeError = asBridgeError(error);
       this.dependencies.logger.warn('queue_advance_failed', { code: bridgeError.code });
+    });
+  }
+
+  private contextIdentityMatches(observation: Pick<RoonPlaybackObservation, 'nowPlaying'>, track: TrackSummary, requireDuration = true): boolean {
+    const identity = observation.nowPlaying;
+    return Boolean(identity?.title && identity.artist && identity.album && track.artists.length > 0
+      && normalizedPlaybackIdentity(identity.title) === normalizedPlaybackIdentity(track.title)
+      && track.artists.some(artist => normalizedPlaybackIdentity(artist) === normalizedPlaybackIdentity(identity.artist!))
+      && normalizedPlaybackIdentity(identity.album) === normalizedPlaybackIdentity(track.album)
+      && (identity.durationMs !== undefined && track.durationMs !== undefined
+        ? Math.abs(identity.durationMs - track.durationMs) <= 1_000 : !requireDuration));
+  }
+
+  private recordContextPlaying(event: Pick<RoonPlaybackObservation, 'revision' | 'zoneId' | 'nowPlaying'> & { positionMs: number }): void {
+    const context = this.queueContext, item = this.queue[this.queueIndex], active = this.activeRoonPlayback;
+    if (!context || !item || !active || event.zoneId !== context.zoneId || event.zoneId !== active.zoneId
+      || !this.contextIdentityMatches(event, active.track) || !Number.isSafeInteger(event.positionMs) || event.positionMs < 0
+      || !Number.isSafeInteger(event.revision) || event.revision < (this.positionContext?.minimumRevision ?? Infinity)) return;
+    this.lastContextPlaying = { item, generation: this.playbackGeneration, at: this.now(), revision: event.revision, positionMs: event.positionMs };
+  }
+
+  private handleContextStopped(context: QueueContext, active: NonNullable<BridgeController['activeRoonPlayback']>, wasPlaying: boolean): void {
+    const observed = this.freshNativeStoppedObservation(), anchor = this.queue[this.queueIndex];
+    if (!observed || !anchor || !this.contextIdentityMatches(observed, active.track, false)) return;
+    const generation = this.playbackGeneration, epoch = this.commandEpoch, recent = this.lastContextPlaying;
+    const duration = active.track.durationMs;
+    // Transport没有权威ended；仅近期同曲到尾部的位置支持保守的自然结束推断。
+    const ended = wasPlaying && this.contextIdentityMatches(observed, active.track) && this.pendingPlaybackCommands === 0 && recent?.item === anchor
+      && recent.generation === generation && recent.revision < observed.revision
+      && this.now() - recent.at >= 0 && this.now() - recent.at <= 2_000
+      && duration !== undefined && recent.positionMs >= duration - 1_000 && recent.positionMs <= duration + 1_000;
+    void this.enqueue(async () => {
+      this.assertQueueContext(context);
+      if (this.activeRoonPlayback !== active || generation !== this.playbackGeneration || epoch !== this.commandEpoch
+        || this.nativeRoonStopRequested || this.lastNativeRoonPlaybackState !== 'stopped') return;
+      const current = this.freshNativeStoppedObservation();
+      if (!current || current.revision !== observed.revision || !this.contextIdentityMatches(current, active.track, false)) return;
+      this.clearActiveResources(); this.playbackState = 'idle'; this.clearPlaybackIssue(); this.notifyPlaybackChanged();
+      if (!ended || this.pendingPlaybackCommands) return;
+      const terminalGeneration = this.playbackGeneration;
+      const index = this.queue.indexOf(anchor);
+      if (index === this.queue.length - 1 && !context.afterComplete) await this.expandQueueContext(context, 'after', true);
+      this.assertQueueContext(context);
+      if (epoch !== this.commandEpoch || terminalGeneration !== this.playbackGeneration || this.pendingPlaybackCommands
+        || this.queue[this.queueIndex] !== anchor) return;
+      const target = this.queue[this.queue.indexOf(anchor) + 1];
+      if (!target) return;
+      await this.enqueuePlayback(async () => {
+        this.assertQueueContext(context);
+        if (epoch !== this.commandEpoch || terminalGeneration !== this.playbackGeneration || this.queue[this.queueIndex] !== anchor) return;
+        const targetIndex = this.queue.indexOf(target); if (targetIndex < 0) return;
+        await this.startQueueIndex(targetIndex, true);
+      });
+    }).catch(error => {
+      if (this.queueContext === context && !context.abort.signal.aborted) this.dependencies.logger.warn('queue_advance_failed', { code: asBridgeError(error).code });
     });
   }
 
@@ -1332,7 +1691,7 @@ export class BridgeController {
           throw error;
         }
         skippedError = bridgeError;
-        candidate += 1;
+        candidate = this.queue.indexOf(item) + 1;
       }
     }
 

@@ -53,6 +53,8 @@ export interface RoonLibraryPage {
   complete?: boolean
   /** 下一请求位置；根列表消费原始行，详情消费有效条目。 */
   nextOffset?: number
+  /** Core授权的播放上下文句柄，仅关联本地作用域与已返回条目。 */
+  playbackContextHandle?: string
 }
 
 export type RoonImageScale = 'fit' | 'fill' | 'stretch'

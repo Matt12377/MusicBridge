@@ -24,6 +24,7 @@ function createSession(
   apiOverrides: Partial<MusicBridgePublicApi> = {},
   getMatchResult: (trackId: string) => PublicTrackMatchResult | undefined = () => undefined,
   getRoonPlaybackContext: () => RoonPlaybackContext | undefined = () => undefined,
+  sessionOptions: { roonContextPlaybackEnabled?: boolean; onEnterNowPlaying?: () => void } = {},
 ) {
   const calls = { lyrics: 0, like: 0, favorite: 0 }
   let nativeSnapshot = snapshot(track('1'), 0, 'roon')
@@ -50,6 +51,7 @@ function createSession(
     onActionMessage: () => undefined,
     onError: error => { throw error },
     onToast: () => undefined,
+    ...sessionOptions,
   })
   return { session, calls, setNativeSnapshot: (value: PlaybackSnapshot) => { nativeSnapshot = value } }
 }
@@ -535,4 +537,201 @@ test('MBP004：完整Roon上下文持续换代时实际Session零play派发', as
   await assert.rejects(f.session.playRoonLibraryTrack(item), /已变化/u)
   assert.deepEqual(calls, [1, 0]); assert.equal(plays, 0)
   assert.equal(f.session.playbackStartPending.value, false)
+})
+
+const contextHandle = '00000000-0000-4000-8000-000000000051'
+const contextTrack = (suffix: string): RoonLibraryItem => ({
+  reference: `musicbridge-v2-entity-00000000-0000-4000-8000-${suffix.padStart(12, '0')}`,
+  kind: 'track', title: `上下文曲目${suffix}`, artist: '上下文艺人', album: '上下文专辑',
+})
+
+test('MBP003B：详情带句柄直接播放选中曲目，不等后续详情页', async t => {
+  const selected = contextTrack('52'), earlier = contextTrack('53')
+  let reads = 0
+  const writes: unknown[][] = []
+  const f = createSession({ playRoonTrack: async (...args) => { writes.push(args); return { started: true } } },
+    () => undefined, () => ({ reference: 'album', page: {
+      items: [earlier, selected], offset: 24, limit: 24, hasMore: true, complete: false,
+      sourceEpoch: contextHandle, playbackContextHandle: contextHandle, nextOffset: 48,
+    }, load: async () => { reads++; throw new Error('首播不能读取后续页') } }))
+  t.after(() => f.session.dispose())
+  await f.session.playRoonLibraryTrack(selected)
+  assert.equal(reads, 0)
+  assert.deepEqual(writes, [[selected.reference, 'zone-1', undefined, contextHandle]])
+})
+
+test('MBP003B：累积详情后仍可点击前页曲目，共用句柄而不发完整引用数组', async t => {
+  const first = contextTrack('54'), later = contextTrack('55')
+  const writes: unknown[][] = []
+  const f = createSession({ playRoonTrack: async (...args) => { writes.push(args); return { started: true } } },
+    () => undefined, () => ({ reference: 'playlist', page: {
+      items: [first, later], offset: 24, limit: 24, hasMore: false, complete: true,
+      sourceEpoch: contextHandle, playbackContextHandle: contextHandle,
+    }, load: async () => { throw new Error('不应重读前页') } }))
+  t.after(() => f.session.dispose())
+  await f.session.playRoonLibraryTrack(first)
+  assert.deepEqual(writes, [[first.reference, 'zone-1', undefined, contextHandle]])
+})
+
+test('MBP003B：提供但过期的句柄只拒绝，不降级成完整读取或单曲重试', async t => {
+  const selected = contextTrack('56')
+  const writes: unknown[][] = []; let reads = 0
+  const f = createSession({ playRoonTrack: async (...args) => { writes.push(args); throw new Error('上下文已过期') } },
+    () => undefined, () => ({ reference: 'genre', page: {
+      items: [selected], offset: 0, limit: 24, hasMore: true, playbackContextHandle: contextHandle,
+    }, load: async (_reference, request) => { reads++; return { ...request, items: [], hasMore: false } } }))
+  t.after(() => f.session.dispose())
+  await assert.rejects(f.session.playRoonLibraryTrack(selected), /上下文已过期/u)
+  assert.equal(reads, 0)
+  assert.deepEqual(writes, [[selected.reference, 'zone-1', undefined, contextHandle]])
+})
+
+for (const mode of ['缺句柄', '关闭开关'] as const) {
+  test(`MBP003B：${mode}保留旧完整读取与队列顺序`, async t => {
+    const first = contextTrack('57'), second = contextTrack('58')
+    const writes: unknown[][] = []; const reads: number[] = []
+    const f = createSession({ playRoonTrack: async (...args) => { writes.push(args); return { started: true } } },
+      () => undefined, () => ({ reference: 'album', page: {
+        items: [first], offset: 0, limit: 24, hasMore: true, nextOffset: 7,
+        ...(mode === '关闭开关' ? { playbackContextHandle: contextHandle } : {}),
+      }, load: async (_reference, request) => { reads.push(request.offset); return { ...request, items: [second], hasMore: false,
+        ...(mode === '关闭开关' ? { playbackContextHandle: contextHandle } : {}) } } }),
+      { roonContextPlaybackEnabled: mode !== '关闭开关' })
+    t.after(() => f.session.dispose())
+    await f.session.playRoonLibraryTrack(first)
+    assert.deepEqual(reads, [7])
+    assert.deepEqual(writes, [[first.reference, 'zone-1', [first.reference, second.reference]]])
+  })
+}
+
+test('MBP003B：搜索单曲不借用残留父页的句柄', async t => {
+  const selected = contextTrack('59'), foreign = contextTrack('60')
+  const writes: unknown[][] = []
+  const f = createSession({ playRoonTrack: async (...args) => { writes.push(args); return { started: true } } },
+    () => undefined, () => ({ reference: '旧album', page: {
+      items: [foreign], offset: 0, limit: 24, hasMore: true, playbackContextHandle: contextHandle,
+    }, load: async () => { throw new Error('不应借用旧父页') } }))
+  t.after(() => f.session.dispose())
+  await f.session.playRoonLibraryTrack(selected)
+  assert.deepEqual(writes, [[selected.reference, 'zone-1', [selected.reference]]])
+})
+
+test('MBP003B：后台补入的可信曲目保持本地收藏、最近播放与重播', async t => {
+  const item = { ...contextTrack('61'), trackNumber: 2, discNumber: 1, version: '现场版' }
+  const current = track(roonTrackIdFromReference(item.reference))
+  const native = snapshot(current, 0, 'roon')
+  native.queue.items = [{ ...native.queue.items[0]!, preferredSource: 'roon', roonItem: item }]
+  const queries: unknown[] = []; const writes: unknown[][] = []
+  const f = createSession({ checkFavorite: async descriptor => { queries.push(descriptor); return { favorite: false } },
+    playRoonTrack: async (...args) => { writes.push(args); return { started: true } } })
+  t.after(() => f.session.dispose())
+  f.setNativeSnapshot(native)
+  f.session.acceptPlaybackEvent(native)
+  await tick()
+  assert.deepEqual(queries, [favoriteDescriptorForRoonItem(item)])
+  assert.equal(f.session.recentTracks.value[0]?.id, current.id)
+  await f.session.retryLastPlaybackAction()
+  assert.deepEqual(writes, [[item.reference, 'zone-1', [item.reference]]])
+})
+
+test('MBP003B：仅context状态变化仍透出，普通进度tick保持队列引用', () => {
+  const previous = snapshot(track('1'), 0, 'roon')
+  previous.queue.context = { beforeComplete: false, afterComplete: false, loading: false }
+  const incoming = structuredClone(previous)
+  incoming.queue.context = { beforeComplete: false, afterComplete: false, loading: true, error: 'retryable' }
+  const projected = projectPlaybackSnapshot(previous, incoming)
+  assert.notEqual(projected.queue, previous.queue)
+  assert.deepEqual(projected.queue.context, incoming.queue.context)
+  const progress = projectPlaybackSnapshot(projected, { ...structuredClone(projected), positionMs: 1_000 })
+  assert.equal(progress.queue, projected.queue)
+})
+
+test('MBP003B：同trackId补齐roonItem不被快照投影丢弃', () => {
+  const item = contextTrack('62')
+  const previous = snapshot(track(roonTrackIdFromReference(item.reference)), 0, 'roon')
+  previous.queue.items = [{ ...previous.queue.items[0]!, preferredSource: 'roon' }]
+  const incoming = structuredClone(previous)
+  incoming.queue.items = [{ ...incoming.queue.items[0]!, roonItem: item }]
+  const projected = projectPlaybackSnapshot(previous, incoming)
+  assert.notEqual(projected.queue, previous.queue)
+  assert.deepEqual(projected.queue.items[0]?.roonItem, item)
+  assert.equal(projectPlaybackSnapshot(projected, structuredClone(projected)), projected)
+})
+
+test('MBP003B：进入播放页面同步取消后，句柄播放零派发', async t => {
+  const item = contextTrack('63'); let plays = 0
+  let stop!: Promise<void>
+  const idle = { ...snapshot(track('1'), 0, 'roon'), state: 'idle' as const, canStop: false }
+  const f = createSession({ playRoonTrack: async () => { plays++; return { started: true } },
+    stopRoonTransport: async () => ({ stopped: true }), getPlaybackState: async () => idle },
+    () => undefined, () => ({ reference: 'album', page: {
+      items: [item], offset: 0, limit: 24, playbackContextHandle: contextHandle,
+    }, load: async () => { throw new Error('不应额外读取') } }),
+    { onEnterNowPlaying: () => { stop = f.session.stopPlayback() } })
+  t.after(() => f.session.dispose())
+  await f.session.playRoonLibraryTrack(item)
+  await stop
+  assert.equal(plays, 0)
+  assert.equal(f.session.playbackState.value?.state, 'idle')
+})
+
+test('MBP003B：取消句柄播放的迟到回执不清除下一次准备标志或回填状态', async t => {
+  const first = contextTrack('64'), second = contextTrack('65')
+  const old = deferred<{ started: true }>(), next = deferred<{ started: true }>()
+  let writes = 0
+  const idle = { ...snapshot(track('1'), 0, 'roon'), state: 'idle' as const, canStop: false }
+  const f = createSession({ playRoonTrack: async () => { writes++; return writes === 1 ? old.promise : next.promise },
+    stopRoonTransport: async () => ({ stopped: true }), getPlaybackState: async () => idle },
+    () => undefined, () => ({ reference: 'album', page: {
+      items: [first, second], offset: 0, limit: 24, playbackContextHandle: contextHandle,
+    }, load: async () => { throw new Error('不应额外读取') } }))
+  t.after(() => f.session.dispose())
+  const pendingOld = f.session.playRoonLibraryTrack(first)
+  await f.session.stopPlayback()
+  const pendingNext = f.session.playRoonLibraryTrack(second)
+  assert.equal(f.session.playbackStartPending.value, true)
+  old.resolve({ started: true }); await pendingOld
+  assert.equal(f.session.playbackStartPending.value, true)
+  assert.equal(f.session.currentTrack.value?.id, roonTrackIdFromReference(second.reference))
+  next.resolve({ started: true }); await pendingNext
+  assert.equal(f.session.playbackStartPending.value, false)
+})
+
+test('MBP003B：句柄播放之后的旧快照读取晚于Stop，不回填旧playing状态', async t => {
+  const item = contextTrack('66'), oldRead = deferred<PlaybackSnapshot>()
+  let reads = 0
+  const idle = { ...snapshot(track('1'), 0, 'roon'), state: 'idle' as const, canStop: false }
+  const f = createSession({ playRoonTrack: async () => ({ started: true }),
+    stopRoonTransport: async () => ({ stopped: true }), getPlaybackState: async () => ++reads === 1 ? oldRead.promise : idle },
+    () => undefined, () => ({ reference: 'album', page: {
+      items: [item], offset: 0, limit: 24, playbackContextHandle: contextHandle,
+    }, load: async () => { throw new Error('不应额外读取') } }))
+  t.after(() => f.session.dispose())
+  const pending = f.session.playRoonLibraryTrack(item)
+  await tick(); await f.session.stopPlayback()
+  oldRead.resolve(snapshot(track(roonTrackIdFromReference(item.reference)), 0, 'roon'))
+  await pending
+  assert.equal(f.session.playbackState.value?.state, 'idle')
+})
+
+test('MBP003B：可信队列描述符有界且保留当前项，重复进度不重复收藏查询', async t => {
+  const items = Array.from({ length: 300 }, (_, index) => contextTrack(String(100 + index)))
+  const native = snapshot(track(roonTrackIdFromReference(items[0]!.reference)), 0, 'roon')
+  native.queue.items = items.map(item => ({ trackId: roonTrackIdFromReference(item.reference),
+    track: track(roonTrackIdFromReference(item.reference)), qualityPreference: 'auto', preferredSource: 'roon', roonItem: item }))
+  const queries: unknown[] = []; let plays = 0
+  const f = createSession({ checkFavorite: async descriptor => { queries.push(descriptor); return { favorite: false } },
+    playRoonTrack: async () => { plays++; return { started: true } } })
+  t.after(() => f.session.dispose())
+  f.session.acceptPlaybackEvent(native); await tick()
+  assert.deepEqual(queries, [favoriteDescriptorForRoonItem(items[0]!)])
+  for (let index = 1; index <= 100; index++) {
+    f.session.acceptPlaybackEvent({ ...structuredClone(native), positionMs: index * 1000 })
+  }
+  await tick()
+  assert.equal(queries.length, 1)
+  const evicted = snapshot(track(roonTrackIdFromReference(items[1]!.reference)), 0, 'roon')
+  f.setNativeSnapshot(evicted); f.session.acceptPlaybackEvent(evicted); await tick()
+  await f.session.retryLastPlaybackAction()
+  assert.equal(plays, 0, '超过描述符缓存容量的旧项不能继续作为可信重播身份')
 })

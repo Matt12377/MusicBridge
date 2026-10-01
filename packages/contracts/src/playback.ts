@@ -1,4 +1,5 @@
 import type { TrackSummary } from './library.js'
+import type { RoonLibraryItem } from './roon.js'
 
 export const PLAYBACK_QUALITY_LEVELS = [
   'standard',
@@ -51,6 +52,8 @@ export interface PlaybackQueueEntry {
   resolvedSource?: PlaybackResolvedSource
   requestedQuality?: PlaybackQuality
   actualQuality?: PlaybackActualQuality
+  /** 仅响应的可信Roon曲目，供后台补页后的收藏与重播使用。 */
+  roonItem?: RoonLibraryItem
 }
 
 /** @deprecated 新代码使用 PlaybackQueueEntry；此别名只保留公开快照命名兼容。 */
@@ -61,6 +64,12 @@ export interface PlaybackQueueSnapshot {
   index: number
   hasNext: boolean
   hasPrevious: boolean
+  context?: {
+    beforeComplete: boolean
+    afterComplete: boolean
+    loading: boolean
+    error?: 'retryable' | 'expired' | 'capacity'
+  }
 }
 
 export const PLAYBACK_ISSUE_CODES = [

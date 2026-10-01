@@ -27,7 +27,7 @@ async function beforeSlowWork<T>(promise: Promise<T>, message: string): Promise<
 }
 
 /** 真实runtime组合，只替换外部I/O；两个select回调均来自生产构造，不是合成runtime实现。 */
-async function priorityRuntime(t: test.TestContext) {
+async function priorityRuntime(t: test.TestContext, contextOptions: { enabled?: boolean; disabledFlag?: boolean; size?: number } = {}) {
   const events: string[] = [], metadata = deferred<void>(), url = deferred<void>(), confirmation = deferred<void>(), stop = deferred<void>(), nativeResponse = deferred<void>();
   let holdMetadata = false, holdUrl = false, holdConfirmation = false, holdStop = false, holdNativeResponse = false, failStop = false;
   let state: RoonState = { status: 'ready', selectedZoneId: 'zone-A', transportState: 'stopped', canPause: true, canResume: true };
@@ -48,6 +48,26 @@ async function priorityRuntime(t: test.TestContext) {
       return 'accepted';
     },
   } as unknown as RoonLibraryService;
+  const contextEpoch = '11111111-1111-4111-8111-111111111111';
+  if (contextOptions.enabled) {
+    const tracks = Array.from({ length: contextOptions.size ?? 6 }, (_, index) => ({ kind: 'track' as const, title: `合成上下文${index}`, artist: '合成艺人', album: '合成专辑', itemKey: `context-${index}`, durationMs: 60_000 }));
+    library.browseAlbum = async (_album, page) => ({ items: tracks.slice(page.offset, page.offset + page.limit), offset: page.offset, level: 1,
+      total: tracks.length, hasMore: page.offset + page.limit < tracks.length, sourceEpoch: contextEpoch,
+      nextOffset: Math.min(tracks.length, page.offset + page.limit), complete: page.offset + page.limit >= tracks.length });
+    library.forkPlaybackContext = (_parent, epoch, zoneId) => {
+      assert.equal(epoch, contextEpoch); assert.equal(zoneId, 'zone-A'); events.push('context-acquire');
+      let released = false;
+      return { isCurrent: () => !released, release: () => { released = true; events.push('context-release'); },
+        async read(page, options) {
+          assert.equal(options.signal.aborted, false); assert.equal(options.isCurrent(), true);
+          events.push(`context-read:${page.offset}`);
+          return { items: tracks.slice(page.offset, page.offset + page.limit), offset: page.offset, level: 1,
+            total: tracks.length, hasMore: page.offset + page.limit < tracks.length, sourceEpoch: '22222222-2222-4222-8222-222222222222',
+            nextOffset: Math.min(tracks.length, page.offset + page.limit), complete: page.offset + page.limit >= tracks.length };
+        },
+      };
+    };
+  }
   t.mock.method(NeteaseClient.prototype, 'getTrack', async (id: string) => {
     metadataEntered = true; events.push('metadata'); if (holdMetadata) await metadata.promise;
     return { id, title: '合成云曲目', artists: ['合成艺人'], album: '合成专辑' };
@@ -111,7 +131,7 @@ async function priorityRuntime(t: test.TestContext) {
     nativePlay = (Reflect.get(options.controller, 'dependencies') as { roonLibrary: { play: typeof nativePlay } }).roonLibrary.play;
   });
   const runtime = createBridgeRuntime({
-    env: { NETEASE_COOKIE: 'synthetic-runtime-only', BRIDGE_CONTROL_HOST: '127.0.0.1', BRIDGE_STREAM_HOST: '127.0.0.1' },
+    env: { NETEASE_COOKIE: 'synthetic-runtime-only', BRIDGE_CONTROL_HOST: '127.0.0.1', BRIDGE_STREAM_HOST: '127.0.0.1', ...(contextOptions.disabledFlag ? { MUSIC_BRIDGE_INCREMENTAL_ROON_QUEUE: '0' } : {}) },
     favoriteRepository: createLocalFavoriteRepository(),
     logger: { debug() {}, info() {}, warn() {}, error() {} },
     roonSdk: { createApi: () => assert.fail('此夹具禁止真实Roon连接') } as never,
@@ -127,6 +147,7 @@ async function priorityRuntime(t: test.TestContext) {
     failStop: (value: boolean) => { failStop = value; },
     entered: () => ({ metadata: metadataEntered, url: urlEntered, native: nativeDispatched }),
     async nativeReference() { const album = (await runtime.browseRoonAlbums({ offset: 0, limit: 1 })).items[0]!; return (await runtime.browseRoonAlbum(album.reference, { offset: 0, limit: 1 })).items[0]!.reference; },
+    async nativePage() { const album = (await runtime.browseRoonAlbums({ offset: 0, limit: 1 })).items[0]!; return runtime.browseRoonAlbum(album.reference, { offset: 0, limit: 1 }); },
   };
 }
 
@@ -435,4 +456,55 @@ for (const hook of ['onDispatch', 'onDispatchCompletion'] as const) test(`MBP-00
   }, options), { code: 'BAD_REQUEST' });
   assert.equal(f.entered().native, false);
   assert.equal(f.events.some(event => event.startsWith('native-play:')), false);
+});
+
+test('003B：生产runtime初次handle播放先派发选曲，确认后才读取邻近页', async t => {
+  const f = await priorityRuntime(t, { enabled: true }), page = await f.nativePage();
+  assert.ok(page.playbackContextHandle);
+  const reference = page.items[0]!.reference;
+  await f.runtime.playRoonTrack(reference, 'zone-A', undefined, page.playbackContextHandle);
+  for (let turnIndex = 0; turnIndex < 8; turnIndex++) await turn();
+  assert.equal(f.events.filter(event => event === 'native-play:zone-A').length, 1);
+  const dispatch = f.events.indexOf('native-play:zone-A'), firstRead = f.events.findIndex(event => event.startsWith('context-read:'));
+  assert.ok(dispatch >= 0 && firstRead > dispatch, '初次派发不能等未读页');
+  assert.ok(f.events.filter(event => event.startsWith('context-read:')).length <= 1, '首次只预取一个邻近页');
+  const snapshot = await f.runtime.getPlaybackState();
+  assert.equal(snapshot.currentTrack?.id, snapshot.queue.items[0]?.trackId);
+  assert.ok(snapshot.queue.items.length > 1);
+  assert.ok(snapshot.queue.items.every(item => item.roonItem?.kind === 'track'));
+});
+
+test('003B：无效或互斥handle不停止已有播放，不降级派发单曲', async t => {
+  const f = await priorityRuntime(t), reference = await f.nativeReference();
+  await f.runtime.playRoonTrack(reference, 'zone-A');
+  const before = await f.runtime.getPlaybackState(), callCount = f.events.length;
+  await assert.rejects(f.runtime.playRoonTrack(reference, 'zone-A', undefined, '11111111-1111-4111-8111-111111111111'), error => error instanceof BridgeError && error.code === 'ROON_LIBRARY_INVALID_REFERENCE');
+  await assert.rejects(f.runtime.playRoonTrack(reference, 'zone-A', [reference], '11111111-1111-4111-8111-111111111111'), error => error instanceof BridgeError && error.code === 'BAD_REQUEST');
+  assert.deepEqual(await f.runtime.getPlaybackState(), before);
+  assert.equal(f.events.length, callCount);
+});
+
+test('003B：关闭正式增量队列开关不提供handle，旧单曲入口保留', async t => {
+  const f = await priorityRuntime(t, { enabled: true, disabledFlag: true }), page = await f.nativePage();
+  assert.equal(page.playbackContextHandle, undefined);
+  await f.runtime.playRoonTrack(page.items[0]!.reference, 'zone-A');
+  assert.equal(f.events.filter(event => event === 'native-play:zone-A').length, 1);
+  assert.equal(f.events.filter(event => event === 'context-acquire' || event.startsWith('context-read:')).length, 0);
+  await assert.rejects(f.runtime.playRoonTrack(page.items[0]!.reference, 'zone-A', undefined, '11111111-1111-4111-8111-111111111111'));
+  assert.equal(f.events.filter(event => event === 'context-acquire').length, 0);
+});
+
+for (const size of [50, 500, 5000]) test(`003B：${size}条生产runtime合成上下文首播只预取一个窗口`, async t => {
+  const f = await priorityRuntime(t, { enabled: true, size }), page = await f.nativePage();
+  assert.ok(page.playbackContextHandle);
+  await f.runtime.playRoonTrack(page.items[0]!.reference, 'zone-A', undefined, page.playbackContextHandle);
+  for (let turnIndex = 0; turnIndex < 8; turnIndex++) await turn();
+  const reads = f.events.filter(event => event.startsWith('context-read:'));
+  assert.equal(reads.length, 1);
+  assert.ok(f.events.indexOf('native-play:zone-A') < f.events.indexOf(reads[0]!));
+  const snapshot = await f.runtime.getPlaybackState();
+  assert.ok(snapshot.queue.items.length > 1 && snapshot.queue.items.length <= 101);
+  assert.equal(snapshot.queue.index, 0);
+  assert.equal(f.events.filter(event => event === 'native-play:zone-A').length, 1);
+  if (size > 101) assert.equal(snapshot.queue.context?.afterComplete, false);
 });

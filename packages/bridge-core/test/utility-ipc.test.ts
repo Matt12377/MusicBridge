@@ -1681,3 +1681,21 @@ test('MBP-002：读取取消消息不能撤销写命令或抹去其唯一回执'
   assert.equal(responses.length, 1);
   assert.equal(responses[0]?.ok, true);
 });
+
+test('003B：Utility完整转发contextHandle，互斥或非法handle零runtime调用', async () => {
+  const handle = '11111111-1111-4111-8111-111111111111', reference = `musicbridge-v2-entity-${handle}`;
+  const runtime = makeRuntime(), calls: unknown[][] = [];
+  runtime.playRoonTrack = async (...args: unknown[]) => { calls.push(args); return { started: true }; };
+  const port = new FakePort(); await attachCoreRuntimePort(port, runtime);
+  port.send({ version: IPC_VERSION, id: 'context-valid', command: 'roon.library.play', payload: { reference, zoneId: 'zone', contextHandle: handle } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(calls, [[reference, 'zone', undefined, handle]]);
+  assert.ok(port.messages.some(value => (value as { id?: string; ok?: boolean }).id === 'context-valid' && (value as { ok?: boolean }).ok === true));
+  for (const [id, payload] of [
+    ['context-mixed', { reference, zoneId: 'zone', contextHandle: handle, queueReferences: [reference] }],
+    ['context-private', { reference, zoneId: 'zone', contextHandle: 'private-session' }],
+  ] as const) port.send({ version: IPC_VERSION, id, command: 'roon.library.play', payload });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(calls.length, 1);
+  for (const id of ['context-mixed', 'context-private']) assert.ok(port.messages.some(value => (value as { id?: string; ok?: boolean }).id === id && (value as { ok?: boolean }).ok === false));
+});

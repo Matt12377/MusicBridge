@@ -93,3 +93,18 @@ for (const sourceEpoch of [mbp004EpochB, undefined]) {
     assert.throws(() => appendRoonPage(first, second), /已变化/u)
   })
 }
+
+test('MBP003B：分页累积保留同代稳定句柄与前页曲目', () => {
+  const handle = '00000000-0000-4000-8000-000000000011'
+  const first = { items: [{ reference: 'first', kind: 'track' as const, title: '前页曲目' }], offset: 0, limit: 24, sourceEpoch: mbp004EpochA, playbackContextHandle: handle, hasMore: true }
+  const second = { items: [{ reference: 'second', kind: 'track' as const, title: '后页曲目' }], offset: 24, limit: 24, sourceEpoch: mbp004EpochA, playbackContextHandle: handle, hasMore: false }
+  assert.deepEqual(appendRoonPage(first, second), { ...second, items: [...first.items, ...second.items] })
+})
+
+test('MBP003B：同epoch下冲突句柄拒绝混页，原页不变', () => {
+  const first = { items: [{ reference: 'first', kind: 'track' as const, title: '前页曲目' }], offset: 0, limit: 24, sourceEpoch: mbp004EpochA, playbackContextHandle: mbp004EpochA, hasMore: true }
+  const original = structuredClone(first)
+  const second = { items: [{ reference: 'second', kind: 'track' as const, title: '后页曲目' }], offset: 24, limit: 24, sourceEpoch: mbp004EpochA, playbackContextHandle: mbp004EpochB, hasMore: false }
+  assert.throws(() => appendRoonPage(first, second), /上下文已变化/u)
+  assert.deepEqual(first, original)
+})

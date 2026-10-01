@@ -225,7 +225,7 @@ export interface CoreRuntime {
   browseRoonPlaylist(reference: string, page: PageRequest): Promise<RoonLibraryPage>;
   searchRoonLibrary(query: string, page: PageRequest, kind?: 'track' | 'album' | 'artist'): Promise<RoonLibraryPage>;
   getRoonImage(reference: string, options?: RoonImageOptions): Promise<RoonImageResult>;
-  playRoonTrack(reference: string, zoneId: string, queueReferences?: readonly string[]): Promise<{ started: true }>;
+  playRoonTrack(reference: string, zoneId: string, queueReferences?: readonly string[], contextHandle?: string): Promise<{ started: true }>;
   queueRoonTrack(reference: string, zoneId: string): Promise<{ queued: true }>;
   stopRoonTransport(): Promise<{ stopped: true }>;
   listZones(): readonly PublicRoonZone[];
@@ -362,7 +362,10 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   });
   const roonLibrary = createRoonPublicLibrary(
     () => roon.getLibraryService(),
-    options.onRoonImageShape ? { onImageShape: options.onRoonImageShape } : {},
+    {
+      incrementalPlaybackContexts: (options.env ?? process.env).MUSIC_BRIDGE_INCREMENTAL_ROON_QUEUE !== '0',
+      ...(options.onRoonImageShape ? { onImageShape: options.onRoonImageShape } : {}),
+    },
   );
   const favoriteRepository = options.favoriteRepository ?? createLocalFavoriteRepository(
     path.join(process.cwd(), '.musicbridge-favorites.json'),
@@ -1313,7 +1316,16 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     browseRoonPlaylist: (reference, page) => roonLibrary.browsePlaylist(reference, page),
     searchRoonLibrary: (query, page, kind) => roonLibrary.searchLibrary(query, page, kind),
     getRoonImage: (reference, options) => roonLibrary.getImage(reference, options),
-    async playRoonTrack(reference, zoneId, queueReferences) {
+    async playRoonTrack(reference, zoneId, queueReferences, contextHandle) {
+      if (contextHandle !== undefined) {
+        if (queueReferences !== undefined || typeof contextHandle !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(contextHandle)) {
+          throw new BridgeError('BAD_REQUEST', '播放上下文请求无效', { httpStatus: 400 });
+        }
+        // 同步验证已授权窗口；无效句柄不能先停止现有播放或回退单曲。
+        const lease = roonLibrary.acquirePlaybackContext(contextHandle, reference, zoneId);
+        try { await controller.replaceRoonContext(lease); } catch (error) { lease.release(); throw error; }
+        return { started: true as const };
+      }
       const references = queueReferences ?? [reference];
       await controller.replaceRoonQueue(references.map((entry) => ({
         reference: entry, zoneId, track: roonLibrary.getTrackSummary(entry),

@@ -2,7 +2,7 @@
 
 **实现完成：5/11 · 本地软件验收：5/11 · 真实 Mac/Roon：未执行**
 
-当前任务：**MBP-004 — Roon详情增量分页**。基线 `c91c537`，分支 `codex/mbp-004-incremental-details`。
+当前任务：**MBP-003B — 先播与按需补队列**。基线 `0212560`，分支 `codex/mbp-003b-demand-queue`。
 
 本计划已获 Owner 授权连续实施。技术栈保留 Electron、Vue、Node/TS；真实播放、设备录音、main 合并、正式 App 替换和发布分别记录，不由软件测试代替。
 
@@ -32,7 +32,7 @@ MBP-001 远端已结束：security 通过，verify/Electron E2E 失败。本地�
 | 4 | MBR-002 | 已完成 | 本地通过 | 录音未知回执恢复、SSH 探测关闭、Control API 防护 |
 | 5 | MBP-003A | 已完成A | 本地通过 | 短状态处理与优先控制；属于 MBP-003 的第一步 |
 | 6 | MBP-004 | 已完成 | 本地通过 | Roon 详情真分页与原始游标 |
-| 7 | MBP-003B | 待开始 | 未执行 | Core 持有上下文，先播并按需补队列 |
+| 7 | MBP-003B | 实施中 | 未执行 | Core 持有上下文，先播并按需补队列 |
 | 8 | MBP-006 | 待开始 | 未执行 | 小进度事件、队列版本与重连恢复 |
 | 9 | MBP-005 | 待开始 | 未执行 | 作用域缓存、网易云歌单快照、渐进搜索 |
 | 10 | MBP-007 | 待开始 | 未执行 | 虚拟网格、封面竞态修复和资源预算 |
@@ -123,3 +123,17 @@ MBP-003A随后定向通过：Roon100/100，生产runtime组合25/25（含17项�
 独立增量边界测试已冻结23/23（0失败/跳过）；album/playlist首屏50、500、5000项均1次load/5条raw，group-first artist均2次load/10条raw。Core原两份规格54/54，Renderer分页/选择器上一轮73/73通过，仍待作者最终冻结及统一Gate。最后复核正在补明确缓存字节预算；计数限额不能替代字节限额。root total保持SDK raw行口径，detail total仅有效EOF总数。尚未升级整体任务总计。
 
 最终固定MBP-004 `0df9fb5`：原完整verify230 / 1744+原2skip / 997、三包构建，mock Electron4/4，完整E2E104+原4skip、零失败/flaky，静态Gate均exit0；830源码指纹422ce0a3…前后相同。软件完成5/11；MBP-003仍待B。独立报告创建后推送并核对远端，再连续接续003B。
+
+MBP-004报告 `02125604ab19a62f85a7b75d84b400f9d0e3f105` 已推送，远端HEAD精确相同，tracked工作区清洁，无关WIP保留。远端CI未作为本地通过结论。
+
+### MBP-003B 当前子步骤
+
+- [x] 从MBP-004最终报告创建独立分支，确认外置证据与工作区。
+- [x] 只读设计：响应opaque handle、Core独立owned Browse session、stateless页接口和手工队列事务编辑策略。
+- [x] 公共合同与IPC薄适配；合同236/236、Utility54/54，runtime组合6/6；非法/互斥handle在停止旧播放前拒绝，尚待最终统一Gate。
+- [x] Core授权窗口、独立session/epoch、pin与预算；5规格128/128和隔离类型exit0，UI离页取消不破坏续播。
+- [x] Controller先播、单页预取/边缘补页与自然推进；145/145、隔离类型及冻结前后指纹通过，保留当前项对象、Stop未知与实际设备barrier。
+- [x] Renderer不先collect全队列；9文件已冻结，75/75与隔离类型exit0，后台曲目收藏/重播和旧缺字段兼容。
+- [ ] 独立行为审计、固定原全量Gate、报告与开发分支push。
+
+50/500/5000项生产runtime组合（外部服务为合成夹具）均确认：所选曲目先派发，随后最多读取一页、窗口不超过101项；这是调用顺序与工作量证据，不是真实Roon耗时。独立复审捕获数字索引/prefix竞态及错误数组冒充枚举，已保留实际RED并补修；Core已核Zone换代后稳定动作引用，Controller已核队列外切歌撤销和同turn编辑。Root组合runtime/Utility85/85、Main/Preload11/11通过，最终原全量Gate待固定源码，总计仍5/11。

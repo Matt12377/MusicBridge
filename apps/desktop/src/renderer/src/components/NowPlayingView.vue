@@ -5,6 +5,7 @@ import SidebarIcon from './sidebar/SidebarIcon.vue'
 import TrackArtwork from './TrackArtwork.vue'
 import LyricsLines from './LyricsLines.vue'
 import LocalLyricsMatchDrawer from './LocalLyricsMatchDrawer.vue'
+import { roonQueueContextStatus } from '../roon-queue-context-status.js'
 
 const props = defineProps<{
   currentTrack?: TrackSummary
@@ -34,6 +35,7 @@ const emit = defineEmits<{
 }>()
 
 const qualityDetailsOpen = ref(false)
+const contextStatus = computed(() => roonQueueContextStatus(props.playbackState?.queue.context))
 const lyricsMatchOpen = ref(false)
 const playbackQualityIdentity = computed(() => [
   props.currentTrack?.id ?? '',
@@ -190,6 +192,7 @@ const actualQualityDetail = computed(() => {
             ><SidebarIcon :name="props.playbackState?.state === 'playing' || props.playbackState?.state === 'pausing' ? 'pause' : 'play'" :size="24" /></button>
             <button type="button" class="transport-button transport-button-secondary" :disabled="!props.playbackState?.canNext" aria-label="下一首" @click="emit('next')"><SidebarIcon name="next" :size="21" /></button>
           </div>
+          <p v-if="contextStatus" class="artist-line" role="status">{{ contextStatus }}</p>
         </div>
       </div>
 

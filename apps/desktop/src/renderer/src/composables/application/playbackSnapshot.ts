@@ -3,6 +3,7 @@ import type {
   PlaybackQueueItem,
   PlaybackQueueSnapshot,
   PlaybackSnapshot,
+  RoonLibraryItem,
   TrackSummary,
 } from '@music-bridge/contracts'
 
@@ -32,13 +33,32 @@ function sameQueueItem(left: PlaybackQueueItem, right: PlaybackQueueItem): boole
     && left.preferredSource === right.preferredSource
     && left.resolvedSource === right.resolvedSource
     && left.requestedQuality === right.requestedQuality
-    && left.actualQuality === right.actualQuality)
+    && left.actualQuality === right.actualQuality
+    && sameRoonItem(left.roonItem, right.roonItem))
+}
+
+function sameRoonItem(left: RoonLibraryItem | undefined, right: RoonLibraryItem | undefined): boolean {
+  if (left === right) return true
+  if (!left || !right) return false
+  return left.reference === right.reference && left.kind === right.kind
+    && left.title === right.title && left.subtitle === right.subtitle
+    && left.artist === right.artist && left.album === right.album
+    && left.albumCount === right.albumCount && left.durationMs === right.durationMs
+    && left.bitrate === right.bitrate && left.format === right.format
+    && left.trackNumber === right.trackNumber && left.discNumber === right.discNumber
+    && left.year === right.year && left.version === right.version
+    && left.artworkReference === right.artworkReference
 }
 
 function sameQueue(left: PlaybackQueueSnapshot, right: PlaybackQueueSnapshot): boolean {
   if (left === right) return true
   if (left.index !== right.index || left.hasNext !== right.hasNext
     || left.hasPrevious !== right.hasPrevious || left.items.length !== right.items.length) return false
+  if (left.context !== right.context && (!left.context || !right.context
+    || left.context.beforeComplete !== right.context.beforeComplete
+    || left.context.afterComplete !== right.context.afterComplete
+    || left.context.loading !== right.context.loading
+    || left.context.error !== right.context.error)) return false
   // IPC 会重新序列化队列；逐项比较合同字段，避免每个进度 tick 都生成大 JSON 字符串。
   for (let index = 0; index < left.items.length; index += 1) {
     if (!sameQueueItem(left.items[index]!, right.items[index]!)) return false

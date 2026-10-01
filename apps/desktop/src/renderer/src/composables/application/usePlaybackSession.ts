@@ -38,6 +38,8 @@ export interface PlaybackSessionOptions {
   getPendingMatch: (trackId: string) => Promise<PublicTrackMatchResult> | undefined
   onMatchTracks: (tracks: readonly TrackSummary[]) => void
   getRoonPlaybackContext: () => RoonPlaybackContext | undefined
+  /** 关闭时保留完整读取的旧播放路径；正式能力由Core响应句柄决定。 */
+  roonContextPlaybackEnabled?: boolean
   resolveFavoriteDescriptor: (item: RoonLibraryItem) => FavoriteEntityDescriptor
   onEnterNowPlaying: () => void
   clearActionError: () => void
@@ -92,6 +94,15 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
       roonQueueNeteaseMatches.delete(oldest)
     }
   }
+
+  function rememberPublishedRoonItem(item: PlaybackQueueItem | undefined): void {
+    const descriptor = item?.roonItem
+    if (!item || !descriptor || descriptor.kind !== 'track' || item.preferredSource !== 'roon') return
+    try {
+      if (roonTrackIdFromReference(descriptor.reference) !== item.trackId) return
+    } catch { return }
+    rememberRoonQueueDescriptor(item.trackId, descriptor)
+  }
   const recentTracks = ref<readonly TrackSummary[]>([])
 
   let lyricsOperation = 0
@@ -99,12 +110,17 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   let localFavoriteOperation = 0
   let collectionOperation = 0
   let roonPlaybackOperation = 0
+  let pendingRoonPlaybackOperation: number | undefined
   let optimisticRoonTrackId: string | undefined
   let retryStopSource: 'roon' | 'netease' | undefined
 
   function cancelRoonPlaybackPreparation(): void {
     ++roonPlaybackOperation
     optimisticRoonTrackId = undefined
+    if (pendingRoonPlaybackOperation !== undefined) {
+      pendingRoonPlaybackOperation = undefined
+      playbackStartPending.value = false
+    }
   }
   let activeCollectionLoader: ProgressiveCollectionLoader | undefined
   let collectionPlaybackStartInFlight = false
@@ -325,7 +341,12 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     const previousDescriptor = localTrackFavoriteDescriptor.value
     const projected = projectPlaybackSnapshot(previousSnapshot, snapshot)
     if (projected !== previousSnapshot) playbackState.value = projected
+    if (projected.queue !== previousSnapshot?.queue) {
+      for (const item of projected.queue.items) rememberPublishedRoonItem(item)
+    }
     const queueItem = projected.queue.items[projected.queue.index]
+    // 当前曲目最后登记，完整手动队列超过描述符缓存时仍保留收藏和重播身份。
+    rememberPublishedRoonItem(queueItem)
     const nextSource = projected.source ?? queueItem?.resolvedSource
     if (nextSource !== undefined) {
       const sourceChanged = playbackSource.value !== nextSource
@@ -397,10 +418,15 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   }
 
   async function refreshPlayback(): Promise<void> {
+    await refreshPlaybackWhileCurrent(() => !disposed)
+  }
+
+  async function refreshPlaybackWhileCurrent(isCurrent: () => boolean): Promise<void> {
     try {
-      applyPlaybackState(await api.getPlaybackState())
+      const snapshot = await api.getPlaybackState()
+      if (isCurrent()) applyPlaybackState(snapshot)
     } catch (error) {
-      onError(error)
+      if (isCurrent()) onError(error)
     }
   }
 
@@ -498,6 +524,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     clearActionError()
     playbackStartPending.value = true
     const operation = ++roonPlaybackOperation
+    pendingRoonPlaybackOperation = operation
     // 在进入正在播放页面前捕获原浏览上下文，搜索/单曲入口不借用旧专辑。
     const context = getRoonPlaybackContext()
     const roonTrackId = roonTrackIdFromReference(track.reference)
@@ -506,26 +533,45 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     applyPlaybackState(createOptimisticRoonPlayback(track, zoneId, getSelectedQuality()))
     onEnterNowPlaying()
     try {
-      const tracks = await collectRoonPlaybackContext(track, context?.page,
-        context ? (page) => { api.performanceDiagnostics?.use(trace); return context.load(context.reference, page) } : undefined,
-        () => operation === roonPlaybackOperation)
-      if (operation !== roonPlaybackOperation) return
-      for (const item of tracks) rememberRoonQueueDescriptor(roonTrackIdFromReference(item.reference), item)
-      api.performanceDiagnostics?.use(trace)
-      await api.playRoonTrack(track.reference, zoneId, tracks.map((item) => item.reference))
+      if (operation !== roonPlaybackOperation || disposed) return
+      const handle = options.roonContextPlaybackEnabled !== false
+        && context?.page.items.some(item => item.kind === 'track' && item.reference === track.reference)
+        ? context.page.playbackContextHandle : undefined
+      if (handle !== undefined) {
+        for (const item of context!.page.items) {
+          if (item.kind === 'track') rememberRoonQueueDescriptor(roonTrackIdFromReference(item.reference), item)
+        }
+        rememberRoonQueueDescriptor(roonTrackId, track)
+        api.performanceDiagnostics?.use(trace)
+        // 句柄由Core校验；过期或无效时不能静默降级到另一个队列。
+        await api.playRoonTrack(track.reference, zoneId, undefined, handle)
+      } else {
+        const tracks = await collectRoonPlaybackContext(track, context?.page,
+          context ? (page) => { api.performanceDiagnostics?.use(trace); return context.load(context.reference, page) } : undefined,
+          () => operation === roonPlaybackOperation)
+        if (operation !== roonPlaybackOperation) return
+        for (const item of tracks) rememberRoonQueueDescriptor(roonTrackIdFromReference(item.reference), item)
+        api.performanceDiagnostics?.use(trace)
+        await api.playRoonTrack(track.reference, zoneId, tracks.map((item) => item.reference))
+      }
       if (operation !== roonPlaybackOperation) return
       optimisticRoonTrackId = undefined
-      applyPlaybackState(await api.getPlaybackState())
+      const snapshot = await api.getPlaybackState()
+      if (operation !== roonPlaybackOperation || disposed) return
+      applyPlaybackState(snapshot)
     } catch (error) {
       traceOutcome = operation === roonPlaybackOperation ? 'error' : 'cancelled'
       if (operation !== roonPlaybackOperation) return
       optimisticRoonTrackId = undefined
-      await refreshPlayback()
+      await refreshPlaybackWhileCurrent(() => operation === roonPlaybackOperation && !disposed)
       if (operation !== roonPlaybackOperation) return
       onError(error)
     } finally {
       api.performanceDiagnostics?.end(trace, operation === roonPlaybackOperation ? traceOutcome : 'cancelled')
-      playbackStartPending.value = false
+      if (pendingRoonPlaybackOperation === operation) {
+        pendingRoonPlaybackOperation = undefined
+        playbackStartPending.value = false
+      }
     }
   }
 

@@ -721,6 +721,7 @@ async function dispatch(
         (request.payload as { reference: string }).reference,
         (request.payload as { zoneId: string }).zoneId,
         (request.payload as { queueReferences?: readonly string[] }).queueReferences,
+        (request.payload as { contextHandle?: string }).contextHandle,
       );
     case 'roon.library.queue':
       return runtime.queueRoonTrack(

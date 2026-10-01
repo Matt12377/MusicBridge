@@ -670,7 +670,7 @@ test('RoonLibraryService 可按 Albums 分组返回真实专辑候选，不把 T
               items: [
                 { title: 'Albums', item_key: 'group:albums', hint: 'list' },
                 { title: 'Tracks', item_key: 'group:tracks', hint: 'list' },
-              ],
+              ].slice(Number(options.offset), Number(options.offset) + Number(options.count)),
             }
           : {
               offset: options.offset,
@@ -726,7 +726,7 @@ test('RoonLibraryService 可按 Artists 分组返回真实艺人候选，不把 
               items: [
                 { title: 'Artists', item_key: 'group:artists', hint: 'list' },
                 { title: 'Tracks', item_key: 'group:tracks', hint: 'list' },
-              ],
+              ].slice(Number(options.offset), Number(options.offset) + Number(options.count)),
             }
           : {
               offset: options.offset,

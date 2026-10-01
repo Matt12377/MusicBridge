@@ -32,6 +32,7 @@ import { unwrapRoonImageIpc } from '../src/roon-image-ipc.js'
 test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，不经过outbox或打开设备', async () => {
   const source = await readFile(path.resolve('src/preload/index.ts'), 'utf8')
   const calls: Array<[string, unknown]> = [], runId = '73000000-0000-4000-8000-000000000001'
+  const contextPlayCalls: unknown[][] = []
   let exposed: ReturnType<typeof createPreloadApi> | undefined
   const recordModule = await import('../src/preload/recording-record-client.js').catch(() => ({}))
   const replicaModule = await import('../src/preload/recording-replica-client.js').catch(() => ({}))
@@ -42,7 +43,7 @@ test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，
     './recording-print-client.js': printModule,
     './recording-replica-client.js': replicaModule,
     './recording-record-client.js': recordModule,
-    electron: { contextBridge: { exposeInMainWorld: (name: string, api: ReturnType<typeof createPreloadApi>) => { assert.equal(name, 'musicBridge'); exposed = api } }, ipcRenderer: { invoke: async (channel: string, payload: unknown) => { calls.push([channel, structuredClone(payload)]); return channel === 'commandOutbox:context' ? { datasetId: runId } : { reply: channel } } } },
+    electron: { contextBridge: { exposeInMainWorld: (name: string, api: ReturnType<typeof createPreloadApi>) => { assert.equal(name, 'musicBridge'); exposed = api } }, ipcRenderer: { invoke: async (channel: string, payload: unknown, ...args: unknown[]) => { calls.push([channel, structuredClone(payload)]); if (channel === 'roon:library:play') contextPlayCalls.push([payload, ...args]); return channel === 'commandOutbox:context' ? { datasetId: runId } : { reply: channel } } } },
     './recording-attempt-client.js': { createRecordingAttemptClient }, './recording-device-client.js': { createRecordingDeviceClient }, './recording-workspace-client.js': { createRecordingWorkspaceClient }, './recording-candidate-client.js': { createRecordingCandidateClient }, './preparation-zip-client.js': { createPreparationZipClient }, './api.js': { createPreloadApi }, './command-outbox-client.js': { createCommandOutboxClient, createCommandOutboxDatasetScope },
     './image-diagnostic.js': { summarizePreloadRoonImage }, '../roon-image-ipc.js': { unwrapRoonImageIpc },
   }
@@ -57,6 +58,9 @@ test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，
   assert.deepEqual(await exposed.readLibrary!(libraryRead), { reply: 'library:read' })
   assert.deepEqual(await exposed.cancelLibraryRead!(libraryRead.id), { reply: 'library:cancel-read' })
   assert.deepEqual(calls.slice(-2), [['library:read', libraryRead], ['library:cancel-read', libraryRead.id]])
+  await exposed.playRoonTrack(`musicbridge-v2-entity-${runId}`, 'zone', undefined, runId)
+  await exposed.playRoonTrack(`musicbridge-v2-entity-${runId}`, 'zone', [`musicbridge-v2-entity-${runId}`])
+  assert.deepEqual(contextPlayCalls, [[`musicbridge-v2-entity-${runId}`, 'zone', undefined, runId], [`musicbridge-v2-entity-${runId}`, 'zone', [`musicbridge-v2-entity-${runId}`]]])
 
   for (const name of ['getMasterArtwork', 'pickMasterArtwork', 'saveMasterArtwork', 'listRecordingPrints', 'requestRecordingPrint', 'retryRecordingPrint', 'getRecordingPrint', 'exportRecordingPrint']) assert.equal(typeof (exposed as unknown as Record<string, unknown>)[name], 'function', name)
   for (const name of ['getRecordingOutputStatus', 'checkRecordingOutput', 'cancelRecordingOutputCheck']) assert.equal(typeof (exposed as unknown as Record<string, unknown>)[name], 'function', name)

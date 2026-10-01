@@ -44,6 +44,7 @@ export function appendRoonPage(
     ...(next.sourceEpoch !== undefined ? { sourceEpoch: next.sourceEpoch } : {}),
     ...(next.complete !== undefined ? { complete: next.complete } : {}),
     ...(next.nextOffset !== undefined ? { nextOffset: next.nextOffset } : {}),
+    ...(next.playbackContextHandle !== undefined ? { playbackContextHandle: next.playbackContextHandle } : {}),
   }
 }
 
@@ -54,6 +55,9 @@ export class RoonPageEpochChanged extends Error {
 /** 缺字段的旧协议可继续使用，但已知身份不能与未知身份混合。 */
 export function assertRoonPageEpoch(current: RoonLibraryPage, next: RoonLibraryPage): void {
   if (current.sourceEpoch !== next.sourceEpoch) throw new RoonPageEpochChanged()
+  if (current.playbackContextHandle !== next.playbackContextHandle) {
+    throw new Error('Roon 播放上下文已变化，请重新读取。')
+  }
 }
 
 export function nextRoonPageOffset(page: RoonLibraryPage): number {

@@ -4,6 +4,7 @@ import type { PlaybackQueueItem, PlaybackSnapshot, TrackSummary } from '@music-b
 import { qualityDetails } from '../player/details.js'
 import TrackArtwork from '../TrackArtwork.vue'
 import { calculateVirtualWindow } from '../../composables/virtualWindow.js'
+import { roonQueueContextStatus } from '../../roon-queue-context-status.js'
 
 const props = defineProps<{
   currentTrack?: TrackSummary
@@ -21,6 +22,7 @@ const queueScrollTop = ref(0)
 const queueViewportHeight = ref(420)
 const QUEUE_VIRTUALIZATION_THRESHOLD = 200
 const QUEUE_ROW_HEIGHT = 80
+const contextStatus = computed(() => roonQueueContextStatus(props.playbackState?.queue.context))
 
 const currentEntry = computed(() => {
   const state = props.playbackState
@@ -74,7 +76,8 @@ function entryAlbum(item: PlaybackQueueItem): string {
       <button type="button" class="inspector-close" aria-label="关闭播放检查器" @click="emit('close')">×</button>
     </div>
     <div class="queue-panel inspector-queue">
-      <div class="panel-heading"><div><p class="section-kicker">接下来</p></div><span>{{ upcomingEntries.length }} 首</span></div>
+      <div class="panel-heading"><div><p class="section-kicker">接下来</p></div><span>{{ props.playbackState?.queue.context && !props.playbackState.queue.context.afterComplete ? `已加载 ${upcomingEntries.length} 首` : `${upcomingEntries.length} 首` }}</span></div>
+      <p v-if="contextStatus" class="empty-copy" role="status">{{ contextStatus }}</p>
       <div v-if="!props.playbackState?.queue.items.length" class="empty-copy">队列为空，去歌曲列表添加内容。</div>
       <template v-else>
         <div v-if="currentEntry || props.currentTrack" class="queue-current">
@@ -84,7 +87,7 @@ function entryAlbum(item: PlaybackQueueItem): string {
           <small>{{ props.currentTrack?.artists.join('、') ?? (currentEntry ? entryArtists(currentEntry) : '—') }} · {{ props.currentTrack?.album ?? (currentEntry ? entryAlbum(currentEntry) : '—') }}</small>
           <small v-if="props.playbackState?.requestedQuality">本次请求 {{ props.qualityLabel(props.playbackState.requestedQuality) }} · Provider 返回 {{ props.qualityLabel(props.playbackState.actualQuality) }}</small>
         </div>
-        <div v-if="!upcomingEntries.length" class="empty-copy">队列已播放完</div>
+        <div v-if="!upcomingEntries.length && props.playbackState?.queue.context?.afterComplete !== false" class="empty-copy">队列已播放完</div>
         <div ref="queueViewport" class="queue-upcoming-viewport" :class="{ 'is-virtualized': isQueueVirtualized }" @scroll="onQueueScroll">
           <div v-if="isQueueVirtualized" aria-hidden="true" :style="{ height: `${queueWindow.topSpacer}px` }"></div>
           <button v-for="entry in visibleUpcomingEntries" :key="`${entry.item.trackId}-${entry.index}`" type="button" class="queue-row" @click="emit('play-queue-item', entry.item, entry.index)">

@@ -99,7 +99,7 @@ import type {
 import type { FavoriteEntityDescriptor, FavoriteKind, FavoriteRecord } from './favorites.js';
 import { MATCH_STATES, type PublicTrackMatchResult } from './matching.js';
 import type { PublicAggregatedSearchResult } from './aggregated-search.js';
-import { isValidRoonImageBinary } from './roon.js';
+import { isValidRoonImageBinary, roonTrackIdFromReference } from './roon.js';
 
 export type ValidationResult<T> =
   | { ok: true; value: T }
@@ -284,10 +284,11 @@ function isRoonImagePayload(value: unknown): value is { reference: string; optio
 function isRoonTrackActionPayload(value: unknown, allowQueue = false): value is { reference: string; zoneId: string } {
   return (
     isRecord(value) &&
-    hasOnlyKeys(value, allowQueue ? ['reference', 'zoneId', 'queueReferences'] : ['reference', 'zoneId']) &&
+    hasOnlyKeys(value, allowQueue ? ['reference', 'zoneId', 'queueReferences', 'contextHandle'] : ['reference', 'zoneId']) &&
     safeString(value.reference, 128) &&
     /^musicbridge-v2-entity-[0-9a-f-]{36}$/u.test(value.reference) &&
     safeString(value.zoneId, 128) &&
+    (value.contextHandle === undefined || (typeof value.contextHandle === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(value.contextHandle) && value.queueReferences === undefined)) &&
     (value.queueReferences === undefined || (
       Array.isArray(value.queueReferences) && value.queueReferences.length > 0 &&
       value.queueReferences.length <= MAX_PLAYBACK_QUEUE_ITEMS &&
@@ -391,6 +392,7 @@ function isPlaybackQueueEntry(value: unknown): value is PlaybackQueueEntry {
       'resolvedSource',
       'requestedQuality',
       'actualQuality',
+      'roonItem',
     ]) &&
     safeString(value.trackId, 128) &&
     /^\d+$/.test(value.trackId) &&
@@ -400,14 +402,26 @@ function isPlaybackQueueEntry(value: unknown): value is PlaybackQueueEntry {
     (value.preferredSource === undefined || isPlaybackSourcePreference(value.preferredSource)) &&
     (value.resolvedSource === undefined || isPlaybackResolvedSource(value.resolvedSource)) &&
     (value.requestedQuality === undefined || isPlaybackQuality(value.requestedQuality)) &&
-    (value.actualQuality === undefined || isPlaybackQuality(value.actualQuality) || value.actualQuality === 'unknown')
+    (value.actualQuality === undefined || isPlaybackQuality(value.actualQuality) || value.actualQuality === 'unknown') &&
+    (value.roonItem === undefined || isQueueRoonItem(value.roonItem, value.trackId, value.preferredSource))
   );
+}
+
+function isQueueRoonItem(item: unknown, trackId: unknown, preferredSource: unknown): boolean {
+  if (!isRecord(item) || !isRoonLibraryItem(item) || item.kind !== 'track' || preferredSource !== 'roon') return false;
+  try { return roonTrackIdFromReference(String(item.reference)) === trackId; } catch { return false; }
+}
+
+function isQueueContext(value: unknown): boolean {
+  return isRecord(value) && hasOnlyKeys(value, ['beforeComplete', 'afterComplete', 'loading', 'error']) &&
+    typeof value.beforeComplete === 'boolean' && typeof value.afterComplete === 'boolean' &&
+    typeof value.loading === 'boolean' && (value.error === undefined || typeof value.error === 'string' && ['retryable', 'expired', 'capacity'].includes(value.error));
 }
 
 function isPlaybackQueueSnapshot(value: unknown): value is PlaybackQueueSnapshot {
   if (
     !isRecord(value) ||
-    !hasOnlyKeys(value, ['items', 'index', 'hasNext', 'hasPrevious']) ||
+    !hasOnlyKeys(value, ['items', 'index', 'hasNext', 'hasPrevious', 'context']) ||
     !Array.isArray(value.items) ||
     value.items.length > MAX_QUEUE_ITEMS ||
     !value.items.every((item) => isPlaybackQueueEntry(item)) ||
@@ -416,7 +430,8 @@ function isPlaybackQueueSnapshot(value: unknown): value is PlaybackQueueSnapshot
     value.index < -1 ||
     (value.items.length === 0 ? value.index !== -1 : value.index >= value.items.length) ||
     typeof value.hasNext !== 'boolean' ||
-    typeof value.hasPrevious !== 'boolean'
+    typeof value.hasPrevious !== 'boolean' ||
+    (value.context !== undefined && !isQueueContext(value.context))
   ) {
     return false;
   }
@@ -1474,7 +1489,7 @@ function isRoonLibraryItem(value: unknown): boolean {
 function isRoonLibraryPage(value: unknown): boolean {
   return (
     isRecord(value) &&
-    hasOnlyKeys(value, ['items', 'offset', 'limit', 'total', 'hasMore', 'sourceEpoch', 'complete', 'nextOffset']) &&
+    hasOnlyKeys(value, ['items', 'offset', 'limit', 'total', 'hasMore', 'sourceEpoch', 'complete', 'nextOffset', 'playbackContextHandle']) &&
     isPageRequest({ offset: value.offset, limit: value.limit }) &&
     Array.isArray(value.items) &&
     value.items.length <= MAX_PAGE_LIMIT &&
@@ -1483,6 +1498,7 @@ function isRoonLibraryPage(value: unknown): boolean {
     (value.hasMore === undefined || typeof value.hasMore === 'boolean') &&
     (value.sourceEpoch === undefined || (typeof value.sourceEpoch === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(value.sourceEpoch))) &&
     (value.complete === undefined || typeof value.complete === 'boolean') &&
+    (value.playbackContextHandle === undefined || (typeof value.playbackContextHandle === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(value.playbackContextHandle))) &&
     (value.nextOffset === undefined || (
       typeof value.nextOffset === 'number' && Number.isSafeInteger(value.nextOffset) &&
       typeof value.offset === 'number' && value.nextOffset >= value.offset && value.nextOffset <= MAX_PAGE_OFFSET &&

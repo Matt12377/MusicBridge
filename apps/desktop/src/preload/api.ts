@@ -120,7 +120,7 @@ export interface MusicBridgePublicApi extends Partial<LibraryReadPublicApi>, Rec
   getRoonPlaylistTracks: (reference: string, page: PageRequest) => Promise<RoonLibraryPage>
   searchRoonLibrary: (query: string, page: PageRequest, kind?: 'track' | 'album' | 'artist') => Promise<RoonLibraryPage>
   getRoonImage: (reference: string, options?: RoonImageOptions) => Promise<RoonImageResult>
-  playRoonTrack: (reference: string, zoneId: string, queueReferences?: readonly string[]) => Promise<{ started: true }>
+  playRoonTrack: (reference: string, zoneId: string, queueReferences?: readonly string[], contextHandle?: string) => Promise<{ started: true }>
   queueRoonTrack: (reference: string, zoneId: string) => Promise<{ queued: true }>
   stopRoonTransport: () => Promise<{ stopped: true }>
   getLyrics: (trackId: string) => Promise<LyricsSnapshot>
@@ -531,7 +531,7 @@ export function createPreloadApi(
   getRoonImage: (_reference: string, _options?: RoonImageOptions) => Promise<RoonImageResult> = async () => {
     throw new Error('Roon Library API is unavailable')
   },
-  playRoonTrack: (_reference: string, _zoneId: string, _queueReferences?: readonly string[]) => Promise<{ started: true }> = async () => {
+  playRoonTrack: (_reference: string, _zoneId: string, _queueReferences?: readonly string[], _contextHandle?: string) => Promise<{ started: true }> = async () => {
     throw new Error('Roon Library API is unavailable')
   },
   queueRoonTrack: (_reference: string, _zoneId: string) => Promise<{ queued: true }> = async () => {

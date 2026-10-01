@@ -1,4 +1,4 @@
-import { assertLibraryReadCurrent, currentLibraryRead, libraryReadCancelled, libraryReadTimeout, remainingLibraryReadMs } from '../shared/library-read-lifetime.js';
+import { assertLibraryReadCurrent, currentLibraryRead, libraryReadCancelled, libraryReadTimeout, remainingLibraryReadMs, withLibraryRead } from '../shared/library-read-lifetime.js';
 import { currentPerformanceContext, readPerformanceTime } from '../diagnostics/performance-trace.js';
 import { createHash, randomUUID } from 'node:crypto';
 import {
@@ -102,7 +102,20 @@ export interface RoonImageResult {
   body: Buffer;
 }
 
+export interface RoonCapturedTrackActions {
+  retainedBytes: number;
+  play(zoneOrOutputId: string, onDispatch?: () => void): Promise<RoonTrackActionOutcome>;
+  queue(zoneOrOutputId: string): Promise<RoonTrackActionOutcome>;
+}
+/** 私有源：不消费调用方游标，也不继承UI读取信号。 */
+export interface RoonOwnedPlaybackSource {
+  isCurrent(): boolean;
+  read(page: RoonPageRequest, options: { signal: AbortSignal; isCurrent(): boolean }): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
+  release(): void;
+}
 export interface RoonLibraryService {
+  captureTrackActions?(track: RoonEntityDescriptor): RoonCapturedTrackActions;
+  forkPlaybackContext?(parent: RoonEntityDescriptor, sourceEpoch: string, zoneId: string): RoonOwnedPlaybackSource;
   invalidateReadContexts?(): void;
   browseAlbums(request: RoonPageRequest): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
   browseArtists(request: RoonPageRequest): Promise<RoonLibraryPage<RoonEntityDescriptor>>;
@@ -212,6 +225,7 @@ interface DetailFrame {
   eof: boolean;
   disc?: number;
   depth: number;
+  validateBuffer?: boolean;
 }
 interface DetailState {
   frames: DetailFrame[];
@@ -226,6 +240,9 @@ interface DetailState {
   level: number;
 }
 interface DetailContext {
+  owned?: boolean;
+  abort?: AbortController;
+  pathValues?: Map<string, readonly BrowsePathSegment[]>;
   key: string;
   epoch: string;
   session: BrowseSessionState;
@@ -239,6 +256,7 @@ interface DetailContext {
   rootPath: readonly BrowsePathSegment[];
   pathBytes: number;
   rootPathBytes: number;
+  rootRawCount?: number;
 }
 const MAX_DETAIL_CONTEXTS = 32;
 const MAX_DETAIL_DESCRIPTORS = 8_192;
@@ -291,6 +309,7 @@ interface BrowseSessionState {
   currentPath: BrowsePathSegment[];
   tail: Promise<void>;
   pendingOperations: number;
+  owned?: boolean;
 }
 
 export interface RoonBrowseShapeSummary {
@@ -794,6 +813,7 @@ export function createRoonLibraryService(dependencies: {
     `musicbridge-v2-${hierarchy}-${randomUUID()}`;
   const incrementalDetails = dependencies.incrementalDetails !== false;
   let contextGeneration = 0;
+  let actionGeneration = 0;
   let contextZone = dependencies.zoneOrOutputId?.();
   const detailContexts = new Map<string, DetailContext>();
   const rootEpochs = new Map<string, { epoch: string; sessionKey: string; eofOffset?: number; contiguousThrough: number }>();
@@ -932,6 +952,7 @@ export function createRoonLibraryService(dependencies: {
     const session = sessionsByKey.get(key);
     if (!session || session.multiSessionKey !== key) return;
     for (const context of detailContexts.values()) if (context.session === session) forgetContext(context);
+    if (session.owned) return;
     rootEpochs.delete(session.hierarchy);
     session.multiSessionKey = newSessionKey(session.hierarchy);
     session.initialized = false; session.currentPath = []; session.requiresPathValidation = true;
@@ -1093,7 +1114,8 @@ export function createRoonLibraryService(dependencies: {
       );
     }
     const session = sessionsByKey.get(context.multiSessionKey);
-    const path = pathsBySignature.get(context.pathSignature);
+    const ownedContext = [...detailContexts.values()].find(value => value.owned && value.session === session);
+    const path = ownedContext?.pathValues?.get(context.pathSignature) ?? pathsBySignature.get(context.pathSignature);
     if (
       !session
       || session.hierarchy !== context.hierarchy
@@ -1135,7 +1157,7 @@ export function createRoonLibraryService(dependencies: {
       const segment = targetPath[index];
       if (!segment) continue;
       // 搜索分组重新进入后其子项 key 会更换；每层验证身份并读取当前 key。
-      const currentSegment = session.hierarchy === 'search' || session.requiresPathValidation === true
+      const currentSegment = session.owned === true || session.hierarchy === 'search' || session.requiresPathValidation === true
         ? (await resolveCurrentItemKey(session, segment, session.currentPath)).segment
         : segment;
       const nextPath = [...session.currentPath, currentSegment];
@@ -1504,8 +1526,10 @@ export function createRoonLibraryService(dependencies: {
       || /^\d[\d,. ]*\s*(?:位)?艺术家\s*[,，]\s*\d[\d,. ]*\s*(?:张)?专辑$/u.test(normalized);
   };
 
-  const invalidateReadContexts = (): void => {
+  const invalidateReadContexts = (preserveActions = false): void => {
     contextGeneration++;
+    if (!preserveActions) actionGeneration++;
+    for (const context of [...detailContexts.values()]) if (context.owned) forgetContext(context);
     detailContexts.clear(); rootEpochs.clear();
     albumTracksBySignature.clear(); artistAlbumsBySignature.clear(); genreItemsBySignature.clear(); playlistTracksBySignature.clear();
     searchTracksByQuery.clear(); searchAlbumsByQuery.clear(); searchArtistsByQuery.clear(); entitySearchProgress.clear();
@@ -1521,7 +1545,7 @@ export function createRoonLibraryService(dependencies: {
     if (contextZone === dependencies.zoneOrOutputId?.()) return;
     // Zone 换代保留已发引用的稳定重放材料；缓存与会话必须换代。
     const paths = new Map(pathsBySignature);
-    invalidateReadContexts();
+    invalidateReadContexts(true);
     for (const [signature, path] of paths) registerPath(signature, path);
   };
   const validateRawPage = (loaded: LoadResponse, offset: number, count: number, total?: number): void => {
@@ -1543,6 +1567,15 @@ export function createRoonLibraryService(dependencies: {
   const forgetContext = (context: DetailContext): void => {
     if (detailContexts.get(context.key) !== context) return;
     detailContexts.delete(context.key);
+    if (context.owned) {
+      for (const [alias, value] of sessionsByKey) if (value === context.session) sessionsByKey.delete(alias);
+      context.pathValues?.clear(); context.paths.clear();
+      context.rootPath = []; context.pathBytes = 0; context.rootPathBytes = 0;
+      context.state = { frames: [], groups: [], items: [], candidates: [], itemBytes: 0, candidateBytes: 0, grouped: false, complete: false, containers: 0, level: 0 };
+      context.session.currentPath = [];
+      context.abort?.abort();
+      return;
+    }
     // 根实体路径独立保留；释放详情条目路径后旧 reference 只会明确过期。
     const retained = new Set([...detailContexts.values()].flatMap(value => [...value.paths, ...value.rootPath.map(segment => segment.pathSignature)]));
     for (const signature of context.paths) if (!retained.has(signature)) {
@@ -1551,7 +1584,7 @@ export function createRoonLibraryService(dependencies: {
   };
   const detailBytes = (context: DetailContext, state: DetailState): number => state.itemBytes + state.candidateBytes
     + state.frames.reduce((sum, frame) => sum + frame.bufferBytes + 256, 0)
-    + state.groups.reduce((sum, frame) => sum + frame.bufferBytes + 256, 0) + context.pathBytes + context.rootPathBytes;
+    + state.groups.reduce((sum, frame) => sum + frame.bufferBytes + 256, 0) + context.pathBytes + context.rootPathBytes + (context.owned ? 4096 + 2 * (context.session.input?.length ?? 0) : 0);
   const reserveDetailMemory = (context: DetailContext, state: DetailState, stagedBytes: number): void => {
     const size = (value: DetailState) => value.items.length + value.candidates.length;
     if (size(state) > MAX_DETAIL_DESCRIPTORS) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', '详情条目预算已满');
@@ -1559,7 +1592,7 @@ export function createRoonLibraryService(dependencies: {
     let bytes = detailBytes(context, state) + stagedBytes + [...detailContexts.values()].filter(value => value !== context).reduce((sum, value) => sum + detailBytes(value, value.state), 0);
     let retained = size(state) + [...detailContexts.values()].filter(value => value !== context).reduce((sum, value) => sum + size(value.state), 0);
     while (retained > MAX_RETAINED_DESCRIPTORS || bytes > MAX_RETAINED_CACHE_BYTES) {
-      const oldest = [...detailContexts.values()].find(value => value !== context && value.pending === 0);
+      const oldest = [...detailContexts.values()].find(value => value !== context && value.pending === 0 && !value.owned);
       if (!oldest) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', '在途详情缓存预算已满');
       retained -= size(oldest.state); bytes -= detailBytes(oldest, oldest.state); forgetContext(oldest);
     }
@@ -1573,13 +1606,13 @@ export function createRoonLibraryService(dependencies: {
   };
   const incrementalDetail = async (
     entity: RoonEntityDescriptor, mode: DetailMode, session: BrowseSessionState,
-    path: readonly BrowsePathSegment[], request: RoonPageRequest,
+    path: readonly BrowsePathSegment[], request: RoonPageRequest, supplied?: DetailContext,
   ): Promise<RoonLibraryPage<RoonEntityDescriptor>> => {
-    const key = `${mode}\0${entity.browseContext!.pathSignature}`;
-    let context = detailContexts.get(key);
+    const key = supplied?.key ?? `${mode}\0${entity.browseContext!.pathSignature}`;
+    let context = supplied ?? detailContexts.get(key);
     if (!context) {
       if (detailContexts.size >= MAX_DETAIL_CONTEXTS) {
-        const oldest = [...detailContexts.values()].find(value => value.pending === 0);
+        const oldest = [...detailContexts.values()].find(value => value.pending === 0 && !value.owned);
         if (!oldest) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', '在途详情上下文预算已满');
         forgetContext(oldest);
       }
@@ -1596,6 +1629,17 @@ export function createRoonLibraryService(dependencies: {
       assertContext(owned);
       let scanned = 0;
       const target = request.offset + request.limit + 1;
+      if (owned.owned) await withSession(session, async () => {
+        assertContext(owned);
+        // 每页重新进入稳定父路径，不能把上次SDK导航的count当新观测。
+        await ensureRoot(session);
+        const list = await navigateToPath(session, owned.rootPath);
+        assertContext(owned);
+        if (owned.rootRawCount !== undefined && list.count !== undefined && owned.rootRawCount !== list.count) {
+          forgetContext(owned);
+          throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', '播放来源原始总数已改变');
+        }
+      });
       while (!owned.state.complete && owned.state.items.length < target) {
         await withSession(session, async () => {
           assertContext(owned);
@@ -1603,6 +1647,7 @@ export function createRoonLibraryService(dependencies: {
           const stagedPaths = new Map<string, readonly BrowsePathSegment[]>();
           const stagePath = (signature: string, value: readonly BrowsePathSegment[]) => { stagedPaths.set(signature, value); };
           const frame = state.frames.at(-1);
+          let rootRawCount: number | undefined;
           if (!frame) { state.complete = true; }
           else {
             const needsLoad = frame.index >= frame.buffer.length && !frame.eof && (frame.total === undefined || frame.offset < frame.total);
@@ -1614,7 +1659,23 @@ export function createRoonLibraryService(dependencies: {
               forgetContext(owned);
               throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', '详情原始总数变化，请重新加载');
             }
-            if (list.count !== undefined) frame.total = list.count;
+            if (list.count !== undefined) { frame.total = list.count; if (frame.path.at(-1)?.pathSignature === owned.rootPath.at(-1)?.pathSignature) rootRawCount = list.count; }
+            if (frame.validateBuffer && frame.buffer.length) {
+              const refreshed = readLoadResponse(await requestBrowse('load', { hierarchy: session.hierarchy, multi_session_key: session.multiSessionKey, level: list.level, offset: frame.bufferOffset, count: frame.buffer.length }));
+              validateRawPage(refreshed, frame.bufferOffset, frame.buffer.length, frame.total);
+              const identity = (value: unknown) => {
+                const record = asRecord(value) ?? {};
+                return ['title', 'subtitle', 'hint', 'artist', 'album', 'track_number', 'disc_number', 'duration', 'duration_ms', 'version'].map(key => record[key]);
+              };
+              if (refreshed.items.length !== frame.buffer.length || refreshed.items.some((value, index) => JSON.stringify(identity(value)) !== JSON.stringify(identity(frame.buffer[index])))) {
+                forgetContext(owned);
+                throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', '播放来源检查点身份已改变');
+              }
+              scanned += refreshed.items.length;
+              frame.buffer = refreshed.items;
+              frame.bufferBytes = refreshed.items.reduce<number>((sum, value) => sum + browseValueBytes(value, MAX_BROWSE_RECORD_BYTES), 0);
+              delete frame.validateBuffer;
+            }
             if (frame.index >= frame.buffer.length && !frame.eof) {
               if (frame.total !== undefined && frame.offset >= frame.total) frame.eof = true;
               else {
@@ -1685,13 +1746,19 @@ export function createRoonLibraryService(dependencies: {
           const stagedSizes = new Map([...stagedPaths].map(([signature, value]) => [signature, browseValueBytes(value, MAX_PATH_CACHE_BYTES)]));
           const newContextBytes = [...stagedSizes].filter(([signature]) => !owned.paths.has(signature)).reduce((sum, [, bytes]) => sum + bytes, 0);
           reserveDetailMemory(owned, state, newContextBytes);
-          const additions = [...stagedPaths.keys()].filter(signature => !pathsBySignature.has(signature)).length;
-          if (pathsBySignature.size + additions > MAX_REGISTERED_PATHS) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', 'Browse 路径预算已满');
-          const pathDelta = [...stagedSizes].reduce((sum, [signature, bytes]) => sum + bytes - (pathSizes.get(signature) ?? 0), 0);
-          if (retainedPathBytes + pathDelta > MAX_PATH_CACHE_BYTES) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', 'Browse 路径字节预算已满');
-          for (const [signature, value] of stagedPaths) { pathsBySignature.set(signature, value); pathSizes.set(signature, stagedSizes.get(signature)!); owned.paths.add(signature); }
-          retainedPathBytes += pathDelta; owned.pathBytes += newContextBytes;
+          if (owned.owned) {
+            for (const [signature, value] of stagedPaths) { owned.pathValues!.set(signature, value); owned.paths.add(signature); }
+          } else {
+            const additions = [...stagedPaths.keys()].filter(signature => !pathsBySignature.has(signature)).length;
+            if (pathsBySignature.size + additions > MAX_REGISTERED_PATHS) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', 'Browse 路径预算已满');
+            const pathDelta = [...stagedSizes].reduce((sum, [signature, bytes]) => sum + bytes - (pathSizes.get(signature) ?? 0), 0);
+            if (retainedPathBytes + pathDelta > MAX_PATH_CACHE_BYTES) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', 'Browse 路径字节预算已满');
+            for (const [signature, value] of stagedPaths) { pathsBySignature.set(signature, value); pathSizes.set(signature, stagedSizes.get(signature)!); owned.paths.add(signature); }
+            retainedPathBytes += pathDelta;
+          }
+          owned.pathBytes += newContextBytes;
           owned.state = state;
+          if (rootRawCount !== undefined) owned.rootRawCount = rootRawCount;
         });
       }
       assertContext(owned);
@@ -1876,6 +1943,7 @@ export function createRoonLibraryService(dependencies: {
       offset: segment.sourceIndex,
       count: 1,
     }));
+    validateRawPage(loaded, segment.sourceIndex, 1, list.count);
     const value = loaded.items[0];
     const parentReference = parentPath.at(-1)?.pathSignature
       ?? sessionRootReference(session);
@@ -1925,6 +1993,7 @@ export function createRoonLibraryService(dependencies: {
     zoneOrOutputId: string,
     kind: 'play' | 'queue',
     onDispatch?: () => void,
+    captured?: { hierarchy: RoonBrowseHierarchy; input?: string; path: readonly BrowsePathSegment[]; generation?: number },
   ): Promise<RoonTrackActionOutcome> => {
     if (!track.itemKey) {
       throw new RoonLibraryError(
@@ -1941,15 +2010,16 @@ export function createRoonLibraryService(dependencies: {
       hint: track.hint,
       item_key: track.itemKey,
     }, { kind: 'browse' });
-    const { session: sourceSession, path } = entitySessionAndPath(track, 'track');
+    const resolved = captured ?? (() => { const value = entitySessionAndPath(track, 'track'); return { hierarchy: value.session.hierarchy, ...(value.session.input !== undefined ? { input: value.session.input } : {}), path: value.path }; })();
+    const path = resolved.path;
     const segment = path.at(-1);
     if (!segment) {
       throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', 'Roon track path is unavailable');
     }
     const parentPath = path.slice(0, -1);
-    const actionSession = createSession(sourceSession.hierarchy, {
+    const actionSession = createSession(resolved.hierarchy, {
       register: false,
-      ...(sourceSession.input !== undefined ? { input: sourceSession.input } : {}),
+      ...(resolved.input !== undefined ? { input: resolved.input } : {}),
     });
     return withSession(actionSession, async () => {
       const refreshedParentPath = await replayStablePath(actionSession, parentPath);
@@ -1991,7 +2061,11 @@ export function createRoonLibraryService(dependencies: {
       }
       const authorization = authorizeRoonAction(actionItem, { kind, allowMutation: true });
       // 导航和身份校验完成后、真正发命令前开始监听，不漏掉早于 Browse 回执的 Transport 事件。
-      onDispatch?.();
+      const guardCaptured = () => {
+        if (captured && captured.generation !== actionGeneration) throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', '曲目动作快照已过期');
+        if (dependencies.zoneOrOutputId && dependencies.zoneOrOutputId() !== zoneOrOutputId) throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', '播放Zone已改变');
+      };
+      guardCaptured(); onDispatch?.(); guardCaptured();
       let result: BrowseItemRecord | undefined;
       try {
         result = asRecord(await requestBrowse('browse', {
@@ -2020,8 +2094,76 @@ export function createRoonLibraryService(dependencies: {
     });
   };
 
+  const captureTrackActions = (track: RoonEntityDescriptor): RoonCapturedTrackActions => {
+    const { session, path } = entitySessionAndPath(track, 'track');
+    const captured = { generation: actionGeneration, hierarchy: session.hierarchy, ...(session.input !== undefined ? { input: session.input } : {}), path: path.map(segment => ({ ...segment })) };
+    const descriptor = { ...track, ...(track.browseContext ? { browseContext: { ...track.browseContext } } : {}) };
+    const retainedBytes = browseValueBytes(captured, MAX_DETAIL_CACHE_BYTES) + browseValueBytes(descriptor, MAX_BROWSE_RECORD_BYTES) + 512;
+    const generation = actionGeneration;
+    const guard = () => { if (actionGeneration !== generation) throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', '曲目动作快照已过期'); };
+    return { retainedBytes,
+      play(zone, onDispatch) { guard(); return runTrackAction(descriptor, zone, 'play', onDispatch, captured); },
+      queue(zone) { guard(); return runTrackAction(descriptor, zone, 'queue', undefined, captured); },
+    };
+  };
+  const forkPlaybackContext = (entity: RoonEntityDescriptor, epoch: string, zone: string): RoonOwnedPlaybackSource => {
+    checkContextZone();
+    const mode = entity.kind;
+    if (!incrementalDetails || (mode !== 'album' && mode !== 'genre' && mode !== 'playlist')) throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', '播放上下文不支持此来源');
+    if (dependencies.zoneOrOutputId && dependencies.zoneOrOutputId() !== zone) throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', '播放Zone已改变');
+    const origin = detailContexts.get(`${mode}\0${entity.browseContext?.pathSignature}`);
+    if (!origin || origin.owned || origin.epoch !== epoch) throw new RoonLibraryError('ROON_LIBRARY_RESPONSE_INVALID', '播放上下文已过期');
+    assertContext(origin);
+    if ([...detailContexts.values()].filter(value => value.owned).length >= 2) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', '活动播放来源预算已满');
+    const session = createSession(origin.session.hierarchy, { ...(origin.session.input !== undefined ? { input: origin.session.input } : {}) });
+    session.owned = true; session.requiresPathValidation = true;
+    // 不重复复制同一不可变路径；frame/root/map共用fork自己的路径材料。
+    const clonedPaths = new Map<readonly BrowsePathSegment[], readonly BrowsePathSegment[]>();
+    const clonePath = (path: readonly BrowsePathSegment[]) => {
+      let copy = clonedPaths.get(path);
+      if (!copy) { copy = path.map(segment => ({ ...segment })); clonedPaths.set(path, copy); }
+      return copy;
+    };
+    const frame = (value: DetailFrame): DetailFrame => { const copy = { ...value, path: clonePath(value.path), buffer: value.buffer.map(row => structuredClone(row)), ...(value.buffer.length ? { validateBuffer: true } : {}) }; delete copy.level; return copy; };
+    const item = (value: RoonEntityDescriptor): RoonEntityDescriptor => ({ ...value, ...(value.browseContext ? { browseContext: { ...value.browseContext, multiSessionKey: session.multiSessionKey } } : {}) });
+    const context: DetailContext = { ...origin, owned: true, abort: new AbortController(), key: `owned\0${randomUUID()}`, epoch: randomUUID(), session, sessionKey: session.multiSessionKey,
+      state: { ...origin.state, frames: origin.state.frames.map(frame), groups: origin.state.groups.map(frame), items: origin.state.items.map(item), candidates: origin.state.candidates.map(item) },
+      pending: 0, tail: Promise.resolve(), paths: new Set(origin.paths), rootPath: clonePath(origin.rootPath), pathValues: new Map(),
+    };
+    for (const signature of [...origin.paths, ...origin.rootPath.map(segment => segment.pathSignature)]) {
+      const path = pathsBySignature.get(signature);
+      if (path) context.pathValues!.set(signature, clonePath(path));
+    }
+    try {
+      reserveDetailMemory(context, context.state, 0);
+      while (detailContexts.size >= MAX_DETAIL_CONTEXTS) {
+        const idle = [...detailContexts.values()].find(value => value.pending === 0 && !value.owned);
+        if (!idle) throw new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', '在途详情上下文预算已满');
+        forgetContext(idle);
+      }
+      detailContexts.set(context.key, context);
+    }
+    catch (error) { sessionsByKey.delete(session.multiSessionKey); throw error; }
+    const current = () => detailContexts.get(context.key) === context && context.generation === contextGeneration && context.sessionKey === session.multiSessionKey && context.zone === dependencies.zoneOrOutputId?.();
+    const parent = item(entity);
+    return {
+      isCurrent: current,
+      release() { forgetContext(context); },
+      async read(request, options) {
+        const signal = AbortSignal.any([context.abort!.signal, options.signal]);
+        try {
+          return await withLibraryRead({ signal, deadlineAtMs: Date.now() + 10_000, now: Date.now, isCurrent: () => current() && options.isCurrent() }, () => incrementalDetail(parent, mode, session, context.rootPath, normalizePage(request), context));
+        } catch (error) {
+          if (signal.aborted || !options.isCurrent() || error instanceof Error && 'code' in error && (error.code === 'READ_CANCELLED' || error.code === 'READ_DEADLINE')) forgetContext(context);
+          throw error;
+        }
+      },
+    };
+  };
   return {
     invalidateReadContexts,
+    captureTrackActions,
+    ...(incrementalDetails ? { forkPlaybackContext } : {}),
     browseAlbums: (request) => pageFor('albums', 'album', request),
     browseArtists: (request) => pageFor('artists', 'artist', request),
     browseGenres: (request) => pageFor('genres', 'genre', request),
