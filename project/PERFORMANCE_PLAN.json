@@ -4,8 +4,8 @@
   "state": "active",
   "ownerAuthorization": "连续实施性能与正确性计划；最新子代理偏好 gpt-6.1-sol high，最多3名，必要时承担审计测试",
   "currentTask": "MBP-003B",
-  "implementationComplete": 5,
-  "automaticAcceptanceComplete": 5,
+  "implementationComplete": 6,
+  "automaticAcceptanceComplete": 6,
   "taskCount": 11,
   "realMacRoonAcceptance": "NOT_RUN",
   "realRecordingAcceptance": "NOT_RUN",
@@ -72,7 +72,7 @@
         "MBP-002",
         "MBR-001"
       ],
-      "state": "implementing",
+      "state": "software-gates-passed",
       "steps": [
         {
           "id": "MBP-003A",
@@ -92,14 +92,26 @@
           "dependsOn": [
             "MBP-004"
           ],
-          "state": "implementing",
+          "state": "software-gates-passed",
           "baseCommit": "02125604ab19a62f85a7b75d84b400f9d0e3f105",
-          "branch": "codex/mbp-003b-demand-queue"
+          "branch": "codex/mbp-003b-demand-queue",
+          "implementationCommit": "77101e160cfe9d5f1fdaa244ce92cc670cd7424a",
+          "reportCommit": null,
+          "reportCommitResolution": "commit-containing-reports/MBP-003B_DEMAND_QUEUE.md",
+          "evidence": [
+            "reports/MBP-003B_DEMAND_QUEUE.md",
+            "reports/MBP-003B_EVIDENCE.json"
+          ]
         }
       ],
-      "implementationCommit": null,
+      "implementationCommit": "77101e160cfe9d5f1fdaa244ce92cc670cd7424a",
       "reportCommit": null,
-      "evidence": []
+      "evidence": [
+        "reports/MBP-003A_PRIORITY_CONTROLS.md",
+        "reports/MBP-003B_DEMAND_QUEUE.md",
+        "reports/MBP-003B_EVIDENCE.json"
+      ],
+      "reportCommitResolution": "commit-containing-reports/MBP-003B_DEMAND_QUEUE.md"
     },
     {
       "id": "MBP-004",
