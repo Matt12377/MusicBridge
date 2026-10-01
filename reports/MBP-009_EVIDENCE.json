@@ -5,7 +5,7 @@
   "branch": "codex/mbp-009-acceptance",
   "implementationCommit": "862876a1d4cd21e77a48a283b873d2b28094717a",
   "reportCommitResolution": "commit-containing-reports/MBP-009_ACCEPTANCE.md",
-  "state": "software-gates-passed-report-delivery-pending",
+  "state": "software-gates-passed",
   "sourceFileCount": 898,
   "sourceSha256": "dd07d75f6b7b3e1e7beb92dfc66c2cac1a68aab994c7d3b9d479fad0ac535e8b",
   "lockSha256": "46de57baa6d1b1a360af8cbeabec1ced2a33223db1eda13c589bbd867e62b99a",
@@ -3405,7 +3405,7 @@
     ]
   },
   "deliveryCommitResolution": "commit-containing-final-project/PERFORMANCE_PLAN.json",
-  "finalPushVerification": "须由FINAL_DELIVERY_RECEIPT.json记录实际终态，不以本草稿替代",
+  "finalPushVerification": "最终交付操作实际退出、远端HEAD、报告SHA和tracked clean由FINAL_DELIVERY_RECEIPT.json记录；本文件仅冻结已验证软件结果。",
   "verifyArtifactHistorical399": {
     "artifactMetadata": {
       "id": 11180805722,
@@ -3467,5 +3467,6 @@
     "zipDigestIndependentlyRecalculated": false,
     "boundary": "metadata含GitHub上传archive digest；本地hash是解压后完整verify.log，不把两者当同一摘要"
   },
-  "sourceFileCoverage": "898冻结清单仅ts/vue/mjs/cjs/json/yaml/yml/js与workspace清单，不覆盖原生C++/ObjC或忽略构建产物；本轮无这些原生源Git增量"
+  "sourceFileCoverage": "898冻结清单仅ts/vue/mjs/cjs/json/yaml/yml/js与workspace清单，不覆盖原生C++/ObjC或忽略构建产物；本轮无这些原生源Git增量",
+  "deliveryStatusAuthority": "project/STATUS.json.performanceOptimization20261001与FINAL_DELIVERY_RECEIPT.json"
 }
