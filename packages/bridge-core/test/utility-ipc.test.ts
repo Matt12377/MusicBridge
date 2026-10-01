@@ -493,6 +493,8 @@ function makeRuntime(): CoreRuntimeForIpc & {
     getHealth: () => state,
     getState: () => state,
     getDiagnostics: () => diagnostics,
+    getPlaybackStreamSnapshot: () => null,
+    getPlaybackEventProtocol: () => null,
     listZones: () => [],
     selectZone: async () => state,
     async setProviderCredential(credential: string) {
