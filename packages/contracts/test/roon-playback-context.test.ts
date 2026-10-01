@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { IPC_VERSION, roonTrackIdFromReference, validateIpcEvent, validateIpcRequest, validateIpcResponseForCommand } from '../src/index.js';
+import { IPC_VERSION, roonTrackIdFromReference, validateIpcEvent, validateIpcRequest, validateIpcResponseForCommand, type IpcCommand } from '../src/index.js';
 
 const handle = '11111111-1111-4111-8111-111111111111';
 const reference = `musicbridge-v2-entity-${handle}`;
@@ -8,7 +8,7 @@ const trackId = roonTrackIdFromReference(reference);
 const roonItem = { reference, kind: 'track', title: '已授权曲目' };
 const entry = { trackId, qualityPreference: 'auto', preferredSource: 'roon', roonItem };
 const request = (payload: unknown, command = 'roon.library.play') => validateIpcRequest({ version: IPC_VERSION, id: 'context-play', command, payload }).ok;
-const page = (value: unknown, command = 'roon.library.album') => validateIpcResponseForCommand({ version: IPC_VERSION, id: 'context-page', ok: true, result: value }, command).ok;
+const page = (value: unknown, command: IpcCommand = 'roon.library.album') => validateIpcResponseForCommand({ version: IPC_VERSION, id: 'context-page', ok: true, result: value }, command).ok;
 const queue = (items: unknown[], context?: unknown) => validateIpcEvent({ version: IPC_VERSION, event: 'queue.changed', payload: { queue: { items, index: 0, hasNext: true, hasPrevious: false, ...(context === undefined ? {} : { context }) } } }).ok;
 
 test('003B：详情页允许opaque上下文handle，旧页继续兼容', () => {
