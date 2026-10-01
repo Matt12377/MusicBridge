@@ -71,93 +71,135 @@ function parse(value: unknown): unknown { if (typeof value !== 'string') return 
 function normalizedItems(value: readonly CanonicalReference[]): CanonicalReference[] {
   const normalized = normalizeReferenceItems(value); if (!normalized) return corrupt(); return normalized;
 }
-function sourceData(db: DatabaseSync, id: string): ReferenceSourceDetail {
+interface VerificationContext {
+  sources: Map<string, ReferenceSourceDetail>;
+  revisions: Map<string, CatalogRevision>;
+  snapshots: Map<string, CatalogSnapshot>;
+  zipReceipts: Map<string, ReferenceSourceZipReceipt>;
+  modelIds: Set<string>;
+}
+function verificationContext(): VerificationContext {
+  // 仅本次完整只读校验持有；公开读写不复用，下一 owner/operation 重新读取所有事实。
+  return { sources: new Map(), revisions: new Map(), snapshots: new Map(), zipReceipts: new Map(), modelIds: new Set() };
+}
+function modelExists(db: DatabaseSync, id: string, context?: VerificationContext): void {
+  if (context) { context.modelIds.add(id); return; }
+  if (!db.prepare('SELECT id FROM collection_models WHERE id=?').get(id)) return corrupt();
+}
+function verifyModels(db: DatabaseSync, context: VerificationContext): void {
+  const ids = [...context.modelIds];
+  for (let start = 0; start < ids.length; start += 50) {
+    const block = ids.slice(start, start + 50);
+    const found = new Set(db.prepare(`SELECT id FROM collection_models WHERE id IN (${block.map(() => '?').join(',')})`).all(...block).map(row => String(row.id)));
+    if (block.some(id => !found.has(id))) return corrupt();
+  }
+}
+function sourceData(db: DatabaseSync, id: string, context?: VerificationContext): ReferenceSourceDetail {
+  const cached = context?.sources.get(id); if (cached) return cached;
   const row = db.prepare('SELECT * FROM reference_sources WHERE id=?').get(id); if (!row) return corrupt();
   const value = parse(row.data), rawPack = row.raw_pack;
   if (!isReferenceSourceVersion(value) || value.id !== row.id || value.bookId !== row.book_id || value.packHash !== row.pack_hash
     || typeof rawPack !== 'string' || Buffer.byteLength(rawPack) > MAX_REFERENCE_SOURCE_PACK_BYTES || Buffer.from(rawPack).toString('utf8') !== rawPack || sha(rawPack) !== value.packHash) return corrupt();
   const pack = parse(rawPack.replace(/^\uFEFF/u, ''));
   if (!isSourcePack(pack) || normalizeReferenceItems(pack.items)?.length !== value.itemCount || pack.bookId !== value.bookId || pack.title !== value.title || pack.sourceVersion !== value.sourceVersion) return corrupt();
-  return { source: value, rawPack };
+  const result = { source: value, rawPack };
+  context?.sources.set(id, result); return result;
 }
-function sourceZipReceiptData(db: DatabaseSync, id: string): ReferenceSourceZipReceipt {
+function sourceZipReceiptData(db: DatabaseSync, id: string, context?: VerificationContext): ReferenceSourceZipReceipt {
+  const cached = context?.zipReceipts.get(id); if (cached) return cached;
   const row = db.prepare('SELECT * FROM reference_source_zip_receipts WHERE id=?').get(id); if (!row) return corrupt();
   const value: ReferenceSourceZipReceipt = {
     id: String(row.id), sourceId: String(row.source_id), zipSha256: String(row.zip_hash), zipBytes: Number(row.zip_bytes),
     entryName: String(row.entry_name) as ReferenceSourceZipReceipt['entryName'],
     rawPackHash: String(row.raw_pack_hash), createdAt: String(row.created_at),
   };
-  if (!isReferenceSourceZipReceipt(value) || sourceData(db, value.sourceId).source.packHash !== value.rawPackHash) return corrupt();
-  return value;
+  if (!isReferenceSourceZipReceipt(value) || sourceData(db, value.sourceId, context).source.packHash !== value.rawPackHash) return corrupt();
+  context?.zipReceipts.set(id, value); return value;
 }
-function revisionData(db: DatabaseSync, id: string): CatalogRevision {
+function revisionData(db: DatabaseSync, id: string, context?: VerificationContext): CatalogRevision {
+  const cached = context?.revisions.get(id); if (cached) return cached;
   const row = db.prepare('SELECT * FROM reference_catalog_revisions WHERE id=?').get(id); if (!row) return corrupt();
   const value = parse(row.data);
   if (!isCatalogRevision(value) || value.id !== row.id || value.bookId !== row.book_id || value.sourceId !== row.source_id || value.sequence !== row.sequence || value.previousRevisionId !== row.previous_id || !same(normalizedItems(value.items), value.items)) return corrupt();
-  return value;
+  context?.revisions.set(id, value); return value;
 }
-function matchesData(db: DatabaseSync, revision: CatalogRevision): { matches: CatalogMatch[]; version: number } {
+function matchesData(db: DatabaseSync, revision: CatalogRevision, context?: VerificationContext): { matches: CatalogMatch[]; version: number } {
   const row = db.prepare('SELECT version,data FROM reference_catalog_matches WHERE revision_id=?').get(revision.id); if (!row) return corrupt();
   const matches = parse(row.data); const refs = new Set(revision.items.map(item => item.referenceId));
   if (!Array.isArray(matches) || matches.length > MAX_CATALOG_MATCHES || !Number.isSafeInteger(row.version) || Number(row.version) < 0 || !matches.every(value => isCatalogMatch(value) && refs.has(value.referenceId))) return corrupt();
   const keys = new Set<string>(), confirmed = new Set<string>();
+  const groups = context ? new Map<string, { count: number; unmatched: boolean }>() : undefined;
   for (const match of matches as CatalogMatch[]) {
     const key = `${match.referenceId}:${match.modelId ?? ''}`;
-    if (keys.has(key) || match.modelId && !db.prepare('SELECT id FROM collection_models WHERE id=?').get(match.modelId)) return corrupt();
+    if (keys.has(key)) return corrupt();
+    if (match.modelId) modelExists(db, match.modelId, context);
     keys.add(key);
     if (match.status === 'confirmed' && match.modelId) { if (confirmed.has(match.modelId)) return corrupt(); confirmed.add(match.modelId); }
+    if (groups) {
+      const group = groups.get(match.referenceId) ?? { count: 0, unmatched: false };
+      group.count++; group.unmatched ||= match.status === 'unmatched'; groups.set(match.referenceId, group);
+    }
   }
   for (const ref of refs) {
-    const related = (matches as CatalogMatch[]).filter(match => match.referenceId === ref);
-    if (related.length === 0 || related.length > 500 || related.length > 1 && related.some(match => match.status === 'unmatched')) return corrupt();
+    if (groups) {
+      const group = groups.get(ref);
+      if (!group || group.count > 500 || group.count > 1 && group.unmatched) return corrupt();
+    } else {
+      const related = (matches as CatalogMatch[]).filter(match => match.referenceId === ref);
+      if (related.length === 0 || related.length > 500 || related.length > 1 && related.some(match => match.status === 'unmatched')) return corrupt();
+    }
   }
   return { matches: matches as CatalogMatch[], version: Number(row.version) };
 }
-function snapshotData(db: DatabaseSync, id: string): CatalogSnapshot {
+function snapshotData(db: DatabaseSync, id: string, context?: VerificationContext): CatalogSnapshot {
+  const cached = context?.snapshots.get(id); if (cached) return cached;
   const row = db.prepare('SELECT * FROM reference_catalog_snapshots WHERE id=?').get(id); if (!row) return corrupt();
   const value = parse(row.data);
   if (!isCatalogSnapshot(value) || value.id !== row.id || value.revisionId !== row.revision_id || value.matchVersion !== row.match_version) return corrupt();
-  const revision = revisionData(db, value.revisionId);
+  const revision = revisionData(db, value.revisionId, context);
   if (value.bookId !== revision.bookId || !same(value.entries.map(entry => entry.referenceId), revision.items.map(item => item.referenceId))) return corrupt();
-  for (const match of value.entries.flatMap(entry => entry.matches)) if (match.modelId && !db.prepare('SELECT id FROM collection_models WHERE id=?').get(match.modelId)) return corrupt();
-  return value;
+  for (const match of value.entries.flatMap(entry => entry.matches)) if (match.modelId) modelExists(db, match.modelId, context);
+  context?.snapshots.set(id, value); return value;
 }
 
 /** 备份校验只读复用；不迁移、不修复、不改变当前指针或快照。 */
 export function verifyReferenceCatalogDatabase(db: DatabaseSync): void {
+  const context = verificationContext(); verifyDatabase(db, context); verifyModels(db, context);
+  if (db.prepare('PRAGMA foreign_key_check').all().length) return corrupt();
+}
+function verifyDatabase(db: DatabaseSync, context: VerificationContext): void {
   for (const [name, sql] of Object.entries(tables)) if (db.prepare('SELECT sql FROM sqlite_master WHERE type=? AND name=?').get('table', name)?.sql !== sql) return corrupt();
   for (const sql of triggers) { const name = sql.split(' ')[2]!; if (db.prepare('SELECT sql FROM sqlite_master WHERE type=? AND name=?').get('trigger', name)?.sql !== sql) return corrupt(); }
   assertBudget(db);
-  for (const row of db.prepare('SELECT id FROM reference_sources').iterate()) sourceData(db, String(row.id));
+  for (const row of db.prepare('SELECT id FROM reference_sources').iterate()) sourceData(db, String(row.id), context);
   for (const row of db.prepare('SELECT id FROM reference_catalog_revisions').iterate()) {
-    const revision = revisionData(db, String(row.id)), source = sourceData(db, revision.sourceId).source;
+    const revision = revisionData(db, String(row.id), context), source = sourceData(db, revision.sourceId, context).source;
     if (source.bookId !== revision.bookId || source.packHash !== revision.packHash) return corrupt();
-    if (revision.previousRevisionId) { const previous = revisionData(db, revision.previousRevisionId); if (previous.bookId !== revision.bookId || previous.sequence + 1 !== revision.sequence) return corrupt(); }
+    if (revision.previousRevisionId) { const previous = revisionData(db, revision.previousRevisionId, context); if (previous.bookId !== revision.bookId || previous.sequence + 1 !== revision.sequence) return corrupt(); }
     else if (revision.sequence !== 1 || revision.mappings.length) return corrupt();
-    const state = matchesData(db, revision);
+    const state = matchesData(db, revision, context);
     const latest = db.prepare('SELECT id FROM reference_catalog_snapshots WHERE revision_id=? ORDER BY rowid DESC LIMIT 1').get(revision.id);
     if (!latest) return corrupt();
-    const latestSnapshot = snapshotData(db, String(latest.id));
+    const latestSnapshot = snapshotData(db, String(latest.id), context);
     const sortedMatches = (matches: readonly CatalogMatch[]) => [...matches].sort((a, b) => canonical(a).localeCompare(canonical(b)));
     if (latestSnapshot.matchVersion !== state.version || !same(sortedMatches(latestSnapshot.entries.flatMap(entry => entry.matches)), sortedMatches(state.matches))) return corrupt();
     const head = db.prepare('SELECT current_revision_id FROM reference_catalog_heads WHERE book_id=?').get(revision.bookId);
-    if (!head || revisionData(db, String(head.current_revision_id)).sequence < revision.sequence) return corrupt();
+    if (!head || revisionData(db, String(head.current_revision_id), context).sequence < revision.sequence) return corrupt();
   }
-  for (const row of db.prepare('SELECT * FROM reference_catalog_heads').iterate()) if (revisionData(db, String(row.current_revision_id)).bookId !== row.book_id) return corrupt();
-  for (const row of db.prepare('SELECT id FROM reference_catalog_snapshots').iterate()) snapshotData(db, String(row.id));
+  for (const row of db.prepare('SELECT * FROM reference_catalog_heads').iterate()) if (revisionData(db, String(row.current_revision_id), context).bookId !== row.book_id) return corrupt();
+  for (const row of db.prepare('SELECT id FROM reference_catalog_snapshots').iterate()) snapshotData(db, String(row.id), context);
   for (const row of db.prepare('SELECT * FROM reference_catalog_ledger').iterate()) {
     if (!uuid(row.command_id) || typeof row.fingerprint !== 'string' || !/^[0-9a-f]{64}$/u.test(row.fingerprint) || typeof row.created_at !== 'string' || !Number.isFinite(Date.parse(row.created_at))) return corrupt();
     const result = parse(row.result);
-    if (row.kind === 'source') { if (!isReferenceSourceVersion(result) || !same(result, sourceData(db, result.id).source)) return corrupt(); }
+    if (row.kind === 'source') { if (!isReferenceSourceVersion(result) || !same(result, sourceData(db, result.id, context).source)) return corrupt(); }
     else if (row.kind === 'source-zip') {
-      if (!isRegisterReferenceSourceZipResult(result) || !same(result.source, sourceData(db, result.source.id).source)
-        || !same(result.receipt, sourceZipReceiptData(db, result.receipt.id))) return corrupt();
+      if (!isRegisterReferenceSourceZipResult(result) || !same(result.source, sourceData(db, result.source.id, context).source)
+        || !same(result.receipt, sourceZipReceiptData(db, result.receipt.id, context))) return corrupt();
     }
     else if (row.kind === 'publish' || row.kind === 'match') {
-      if (!isCatalogRevisionDetail(result) || !same(result.revision, revisionData(db, result.revision.id)) || !same(result.snapshot, snapshotData(db, result.snapshot.id))) return corrupt();
+      if (!isCatalogRevisionDetail(result) || !same(result.revision, revisionData(db, result.revision.id, context)) || !same(result.snapshot, snapshotData(db, result.snapshot.id, context))) return corrupt();
     } else return corrupt();
   }
-  if (db.prepare('PRAGMA foreign_key_check').all().length) return corrupt();
 }
 
 /** C11 容器回执只读校验；原 ZIP 不归档，也不能由缺失原 ZIP 推断来源无效。 */
@@ -167,8 +209,10 @@ export function verifyReferenceCatalogZipDatabase(db: DatabaseSync): void {
     const name = sql.split(' ')[2]!;
     if (db.prepare('SELECT sql FROM sqlite_master WHERE type=? AND name=?').get('trigger', name)?.sql !== sql) return corrupt();
   }
-  verifyReferenceCatalogDatabase(db);
-  for (const row of db.prepare('SELECT id FROM reference_source_zip_receipts').iterate()) sourceZipReceiptData(db, String(row.id));
+  const context = verificationContext(); verifyDatabase(db, context);
+  for (const row of db.prepare('SELECT id FROM reference_source_zip_receipts').iterate()) sourceZipReceiptData(db, String(row.id), context);
+  verifyModels(db, context);
+  if (db.prepare('PRAGMA foreign_key_check').all().length) return corrupt();
 }
 
 interface Access {

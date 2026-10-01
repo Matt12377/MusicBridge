@@ -140,26 +140,30 @@ export function isCollectionProgressEntry(v: unknown): v is CollectionProgressEn
 }
 const metricsKeys = ['bookId', 'revisionId', 'catalogSequence', 'matchVersion', 'metricsVersion', 'fingerprint', 'overall', 'brands', 'series', 'historicalWantedCount'];
 const sameCounts = (a: CollectionProgressCounts, b: CollectionProgressCounts): boolean => countKeys.every(key => a[key] === b[key]);
-function sumCounts(values: readonly CollectionProgressCounts[]): CollectionProgressCounts { return Object.fromEntries(countKeys.map(key => [key, values.reduce((sum, value) => sum + value[key], 0)])) as unknown as CollectionProgressCounts; }
+const emptyCounts = (): CollectionProgressCounts => ({ total: 0, owned: 0, missing: 0, unknown: 0, candidate: 0, needsReview: 0, wanted: 0, wantTargetCount: 0 });
+function addCounts(total: CollectionProgressCounts, value: CollectionProgressCounts): void { for (const key of countKeys) total[key] += value[key]; }
+function sumCounts(values: readonly CollectionProgressCounts[]): CollectionProgressCounts { const total = emptyCounts(); for (const value of values) addCounts(total, value); return total; }
+const seriesKey = (brand: string, series: string) => JSON.stringify([brand, series]);
 function metricsFields(v: Record<string, unknown>): v is Record<string, unknown> & CollectionProgressMetrics {
   if (!isReferenceCatalogKey(v.bookId) || !isCollectionId(v.revisionId) || !integer(v.catalogSequence, 1) || !integer(v.matchVersion) || v.metricsVersion !== 1 || !hash(v.fingerprint)
     || !isCollectionProgressCounts(v.overall) || !array(v.brands, isCollectionProgressBrand, MAX_CATALOG_REFERENCES) || !array(v.series, isCollectionProgressSeries, MAX_CATALOG_REFERENCES)
     || !integer(v.historicalWantedCount) || !unique(v.brands.map(group => group.brand)) || !unique(v.series.map(group => JSON.stringify([group.brand, group.series])))) return false;
   const { brands, series } = v;
+  const byBrand = new Map(brands.map(group => [group.brand, emptyCounts()]));
+  for (const group of series) { const counts = byBrand.get(group.brand); if (!counts) return false; addCounts(counts, group.counts); }
   return sameCounts(v.overall, sumCounts(brands.map(group => group.counts))) && sameCounts(v.overall, sumCounts(series.map(group => group.counts)))
-    && series.every(group => brands.some(brand => brand.brand === group.brand))
-    && brands.every(brand => sameCounts(brand.counts, sumCounts(series.filter(group => group.brand === brand.brand).map(group => group.counts))));
+    && brands.every(brand => sameCounts(brand.counts, byBrand.get(brand.brand)!));
 }
 function page<T>(v: unknown, guard: (v: unknown) => v is T): v is Page<T> {
   return record(v) && keys(v, ['items', 'total', 'offset', 'limit', 'hasMore']) && integer(v.total) && integer(v.offset) && integer(v.limit, 1, 25)
     && array(v.items, guard, v.limit) && v.items.length === Math.min(v.limit, Math.max(0, v.total - v.offset))
     && v.hasMore === (v.offset + v.items.length < v.total) && budget(v);
 }
-function countsFromEntries(entries: readonly CollectionProgressEntry[]): CollectionProgressCounts {
-  return { total: entries.length, owned: entries.filter(entry => entry.state === 'owned').length, missing: entries.filter(entry => entry.state === 'missing').length,
-    unknown: entries.filter(entry => entry.state === 'unknown').length, candidate: entries.filter(entry => entry.state === 'unknown' && entry.matches.some(match => match.status === 'candidate')).length,
-    needsReview: entries.filter(entry => entry.state === 'unknown' && entry.matches.some(match => match.status === 'needs-review')).length,
-    wanted: entries.filter(entry => entry.wantedTargets.length > 0).length, wantTargetCount: entries.reduce((sum, entry) => sum + entry.wantedTargets.length, 0) };
+function entryCounts(entry: CollectionProgressEntry): CollectionProgressCounts {
+  const counts = emptyCounts(); counts.total = 1; counts[entry.state] = 1;
+  if (entry.state === 'unknown') for (const match of entry.matches) { if (match.status === 'candidate') counts.candidate = 1; if (match.status === 'needs-review') counts.needsReview = 1; }
+  counts.wanted = Number(entry.wantedTargets.length > 0); counts.wantTargetCount = entry.wantedTargets.length;
+  return counts;
 }
 function entrySet(entries: readonly CollectionProgressEntry[]): boolean {
   const matches = entries.flatMap(entry => entry.matches), wanted = entries.flatMap(entry => entry.wantedTargets);
@@ -167,13 +171,22 @@ function entrySet(entries: readonly CollectionProgressEntry[]): boolean {
     && wanted.length <= MAX_COLLECTION_PROGRESS_WANTS && unique(wanted.map(target => target.id));
 }
 function completeEntries(metrics: CollectionProgressMetrics, entries: readonly CollectionProgressEntry[]): boolean {
-  return entries.length === metrics.overall.total && sameCounts(metrics.overall, countsFromEntries(entries))
-    && metrics.brands.every(group => sameCounts(group.counts, countsFromEntries(entries.filter(entry => entry.brand === group.brand))))
-    && metrics.series.every(group => sameCounts(group.counts, countsFromEntries(entries.filter(entry => entry.brand === group.brand && entry.series === group.series))));
+  // 每个条目只归并一次，仍逐字段核对总数、品牌及系列；零数量分组保持原合同。
+  const total = emptyCounts(), brands = new Map<string, CollectionProgressCounts>(), series = new Map<string, CollectionProgressCounts>();
+  for (const entry of entries) {
+    const counts = entryCounts(entry), key = seriesKey(entry.brand, entry.series);
+    let brand = brands.get(entry.brand); if (!brand) { brand = emptyCounts(); brands.set(entry.brand, brand); }
+    let group = series.get(key); if (!group) { group = emptyCounts(); series.set(key, group); }
+    addCounts(total, counts); addCounts(brand, counts); addCounts(group, counts);
+  }
+  return entries.length === metrics.overall.total && sameCounts(metrics.overall, total)
+    && metrics.brands.every(group => sameCounts(group.counts, brands.get(group.brand) ?? emptyCounts()))
+    && metrics.series.every(group => sameCounts(group.counts, series.get(seriesKey(group.brand, group.series)) ?? emptyCounts()));
 }
 function progressPage(metrics: CollectionProgressMetrics, v: unknown): v is Page<CollectionProgressEntry> {
-  if (!page(v, isCollectionProgressEntry) || v.total !== metrics.overall.total || !entrySet(v.items)
-    || !v.items.every(entry => metrics.brands.some(group => group.brand === entry.brand) && metrics.series.some(group => group.brand === entry.brand && group.series === entry.series))) return false;
+  if (!page(v, isCollectionProgressEntry) || v.total !== metrics.overall.total || !entrySet(v.items)) return false;
+  const brands = new Set(metrics.brands.map(group => group.brand)), series = new Set(metrics.series.map(group => seriesKey(group.brand, group.series)));
+  if (!v.items.every(entry => brands.has(entry.brand) && series.has(seriesKey(entry.brand, entry.series)))) return false;
   return v.offset !== 0 || v.items.length !== v.total || completeEntries(metrics, v.items);
 }
 export function isWantEntriesPage(v: unknown): v is WantEntriesPage { return page(v, isWantEntryView) && unique(v.items.map(item => item.entry.id)); }

@@ -28,6 +28,118 @@ function publish(repository: ReturnType<typeof createCollectionRepository>, item
 function set(repository: ReturnType<typeof createCollectionRepository>, revisionId: string, match: CatalogMatch) { return repository.catalog.setMatch({ commandId: randomUUID(), revisionId, expectedMatchVersion: repository.catalog.revision({ id: revisionId }).matchVersion, match, userConfirmed: true }); }
 function want(revisionId: string, changes: Partial<SaveWantEntryRequest> = {}): SaveWantEntryRequest { return { commandId: randomUUID(), id: null, expectedVersion: 0, revisionId, referenceId: 'a', priority: 'normal', preferredCondition: '良好', notes: '合成求购', targetLengthMinutes: 46, packagingTarget: '未拆封', priceTarget: { currency: 'CNY', amount: '120.50' }, userConfirmed: true, ...changes }; }
 
+// 只包围同步生产操作，原型在finally恢复；结构计数不作为墙钟性能证据。
+function observeProgress<T>(operation: () => T) {
+  const prepare = DatabaseSync.prototype.prepare, parse = JSON.parse, setMap = Map.prototype.set, getMap = Map.prototype.get;
+  const work = { revisionParses: 0, referenceIndexWrites: 0, referenceIndexReads: 0, modelReads: 0, quantityReads: 0, wantReads: 0, eventReads: 0 };
+  DatabaseSync.prototype.prepare = function (sql) {
+    if (/SELECT.*FROM collection_models\b/isu.test(sql)) work.modelReads++;
+    if (/SELECT.*FROM inventory_lots\b/isu.test(sql) && /UNION ALL/u.test(sql)) work.quantityReads++;
+    if (/SELECT.*FROM collection_wants\b/isu.test(sql) && !/count\(|sum\(|max\(|GROUP BY/iu.test(sql)) work.wantReads++;
+    if (/SELECT.*FROM collection_want_events\b/isu.test(sql) && !/count\(|sum\(|max\(/iu.test(sql)) work.eventReads++;
+    return prepare.call(this, sql);
+  };
+  JSON.parse = function (raw, reviver) {
+    const value: unknown = parse(raw, reviver);
+    if (value && typeof value === 'object' && 'items' in value && 'sequence' in value && 'previousRevisionId' in value) work.revisionParses++;
+    return value;
+  };
+  Map.prototype.set = function (key, value) {
+    if (value && typeof value === 'object' && 'referenceId' in value && 'pages' in value && 'confidence' in value) work.referenceIndexWrites++;
+    return setMap.call(this, key, value);
+  };
+  Map.prototype.get = function (key) {
+    const value: unknown = getMap.call(this, key);
+    if (value && typeof value === 'object' && 'referenceId' in value && 'pages' in value && 'confidence' in value) work.referenceIndexReads++;
+    return value;
+  };
+  try { return { value: operation(), work }; }
+  finally { DatabaseSync.prototype.prepare = prepare; JSON.parse = parse; Map.prototype.set = setMap; Map.prototype.get = getMap; }
+}
+
+test('MBP008操作内目录解析索引与want/model批读有界，下一次操作读取新事实', async t => {
+  const { repository, filePath } = await fixture(t);
+  const refs = Array.from({ length: 8 }, (_, index) => item('batch-' + index, { brand: index % 2 ? '乙' : '甲', series: index % 3 ? '引号"系列' : '反斜线\\系列' }));
+  const models = refs.map((ref, index) => repository.receive({ commandId: randomUUID(), model: { brand: '批量', name: ref.referenceId, edition: '1990', year: null, format: 'cassette', tapeType: 'II', identification: 'verified' }, lengthMinutes: index % 2 ? null : 90, quantities: { sealedBlank: 2, openedBlank: 0, legacyUsed: 0, unclassified: 0 } }));
+  const first = publish(repository, refs).revision;
+  for (const [index, ref] of refs.entries()) set(repository, first.id, { referenceId: ref.referenceId, modelId: models[index]!.modelId, status: 'confirmed', availability: 'unknown' });
+  const oldWant = repository.collectionProgress.saveWant(want(first.id, { referenceId: refs[0]!.referenceId }));
+  const latest = publish(repository, refs, first.id, refs.map(ref => ({ fromReferenceIds: [ref.referenceId], toReferenceIds: [ref.referenceId] }))).revision;
+  const saved = refs.flatMap(ref => [0, 1].map(() => repository.collectionProgress.saveWant(want(latest.id, { referenceId: ref.referenceId }))));
+  const measured = observeProgress(() => repository.collectionProgress.current({ revisionId: latest.id, page }));
+  assert.equal(measured.work.revisionParses, 2, '当前与旧revision分别只完整解析一次');
+  assert.equal(measured.work.referenceIndexWrites, 16, '每个revision的reference索引只构造一次');
+  assert.equal(measured.work.referenceIndexReads, 17, '17个want通过局部索引核验标签');
+  assert.equal(measured.work.wantReads, 1); assert.equal(measured.work.modelReads, 1); assert.equal(measured.work.quantityReads, 1);
+  assert.equal(measured.value.historicalWantedCount, 1); assert.equal(measured.value.overall.owned, 8); assert.equal(measured.value.overall.wantTargetCount, 16);
+  assert.deepEqual(measured.value.brands.map(group => group.brand), ['乙', '甲']);
+  assert.deepEqual(measured.value.series.map(group => [group.brand, group.series]), [['乙', '反斜线\\系列'], ['乙', '引号"系列'], ['甲', '反斜线\\系列'], ['甲', '引号"系列']]);
+  assert.deepEqual(measured.value.entries.items.map(entry => entry.referenceId), refs.map(ref => ref.referenceId));
+  for (const entry of measured.value.entries.items) assert.deepEqual(entry.wantedTargets.map(target => target.id), saved.filter(w => w.referenceId === entry.referenceId).map(w => w.id).sort());
+  const list = observeProgress(() => repository.collectionProgress.wants({ page }));
+  assert.equal(list.work.revisionParses, 2); assert.equal(list.work.wantReads, 1);
+  assert.deepEqual(list.value.items.map(view => view.entry.id), [oldWant, ...saved].map(w => w.id));
+  assert.equal(list.value.items[0]!.needsReview, true);
+  const capture = repository.collectionProgress.capture({ commandId: randomUUID(), revisionId: latest.id, expectedFingerprint: measured.value.fingerprint, userConfirmed: true });
+  const history = observeProgress(() => repository.collectionProgress.snapshot({ id: capture.id, page }));
+  assert.equal(history.work.revisionParses, 2); assert.equal(history.work.referenceIndexWrites, 16); assert.equal(history.work.eventReads, 1); assert.equal(history.work.modelReads, 1);
+  assert.equal(history.work.referenceIndexReads, 25, '17个历史want和8个entry分别核验原目录标签');
+  assert.deepEqual(history.value.entries.items, measured.value.entries.items);
+  repository.collectionProgress.cancelWant({ commandId: randomUUID(), id: saved[0]!.id, expectedVersion: 1, userConfirmed: true });
+  const next = observeProgress(() => repository.collectionProgress.current({ revisionId: latest.id, page }));
+  assert.equal(next.work.revisionParses, 2); assert.equal(next.value.overall.wantTargetCount, 15); assert.notEqual(next.value.fingerprint, measured.value.fingerprint);
+  assert.deepEqual(repository.collectionProgress.snapshot({ id: capture.id, page }), history.value);
+  const secondary = createCollectionRepository({ filePath });
+  try { secondary.collectionProgress.cancelWant({ commandId: randomUUID(), id: saved[1]!.id, expectedVersion: 1, userConfirmed: true }); }
+  finally { secondary.close(); }
+  assert.equal(repository.collectionProgress.current({ revisionId: latest.id, page }).overall.wantTargetCount, 14);
+  assert.throws(() => repository.collectionProgress.capture({ commandId: randomUUID(), revisionId: latest.id, expectedFingerprint: next.value.fingerprint, userConfirmed: true }), /指纹/u);
+  assert.deepEqual(repository.collectionProgress.snapshot({ id: capture.id, page }), history.value);
+  t.diagnostic(JSON.stringify({ current: measured.work, wants: list.work, historical: history.work, next: next.work }));
+});
+
+test('MBP008历史批量超过400目标按绑定预算分块且次序与旧版本不变', async t => {
+  const { repository } = await fixture(t), refs = Array.from({ length: 5 }, (_, index) => item('chunk-' + index));
+  const revision = publish(repository, refs).revision;
+  const wants = Array.from({ length: 401 }, (_, index) => repository.collectionProgress.saveWant(want(revision.id, { referenceId: refs[index % refs.length]!.referenceId })));
+  const current = repository.collectionProgress.current({ revisionId: revision.id, page });
+  const captured = repository.collectionProgress.capture({ commandId: randomUUID(), revisionId: revision.id, expectedFingerprint: current.fingerprint, userConfirmed: true });
+  const measured = observeProgress(() => repository.collectionProgress.snapshot({ id: captured.id, page }));
+  assert.equal(measured.work.eventReads, 2); assert.equal(measured.work.revisionParses, 1); assert.equal(measured.work.referenceIndexWrites, 5);
+  assert.equal(measured.work.referenceIndexReads, 406);
+  assert.equal(measured.value.snapshot.overall.wantTargetCount, 401);
+  for (const entry of measured.value.entries.items) assert.deepEqual(entry.wantedTargets.map(target => [target.id, target.version]), wants.filter(w => w.referenceId === entry.referenceId).sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0).map(w => [w.id, 1]));
+  const first = wants[0]!; repository.collectionProgress.saveWant(want(revision.id, { id: first.id, expectedVersion: 1, referenceId: first.referenceId, notes: '版本二' }));
+  assert.deepEqual(repository.collectionProgress.snapshot({ id: captured.id, page }), measured.value);
+  const list = observeProgress(() => repository.collectionProgress.snapshots({ page }));
+  assert.equal(list.work.eventReads, 2); assert.deepEqual(list.value.items, [captured]);
+  t.diagnostic(JSON.stringify({ historical: measured.work, list: list.work }));
+});
+
+test('MBP008动态新增TEXT列按UTF8计预算，NULL列不遮蔽已有JSON字节', async t => {
+  const { createCollectionProgressStore, COLLECTION_PROGRESS_LIMITS } = await import('../src/collection/collection-progress-store.js');
+  const { repository, filePath } = await fixture(t), revision = publish(repository).revision;
+  repository.collectionProgress.saveWant(want(revision.id));
+  const db = new DatabaseSync(filePath); t.after(() => db.close());
+  db.exec('ALTER TABLE collection_wants ADD COLUMN "额外列" TEXT');
+  const extra = '界'.repeat(200), original = COLLECTION_PROGRESS_LIMITS.totalBytes;
+  const bytes = () => ['collection_wants', 'collection_want_events', 'collection_progress_snapshots', 'collection_progress_ledger'].reduce((total, table) => {
+    const columns = db.prepare(`PRAGMA table_info(${table})`).all().filter(row => row.type === 'TEXT').map(row => String(row.name));
+    const expression = columns.map(column => `COALESCE(length(CAST("${column}" AS BLOB)),0)`).join('+');
+    return total + Number(db.prepare(`SELECT COALESCE(sum(${expression}),0) bytes FROM ${table}`).get()?.bytes);
+  }, 0);
+  const before = bytes(), mutable = COLLECTION_PROGRESS_LIMITS as { totalBytes: number };
+  const store = createCollectionProgressStore({ read: operation => operation(db), conflict: message => { throw new Error(message); } });
+  try {
+    mutable.totalBytes = before - 1; assert.throws(() => store.wants({ page }), /容量/u);
+    mutable.totalBytes = before + Buffer.byteLength(extra) - 1;
+    assert.equal(store.wants({ page }).total, 1);
+    db.prepare('UPDATE collection_wants SET "额外列"=?').run(extra);
+    assert.equal(bytes(), before + 600); assert.throws(() => store.wants({ page }), /容量/u);
+    mutable.totalBytes++; assert.equal(store.wants({ page }).total, 1);
+  } finally { mutable.totalBytes = original; }
+});
+
 test('固定schema16迁移21逐列保留XLSX原bytes/更正/实体照片/目录历史，迁移失败回滚', async t => {
   let fail = true; const { repository, filePath } = await fixture(t, action => { if (fail && action === 'migrate-collection-progress') throw new Error('合成迁移中断'); });
   let db = new DatabaseSync(filePath, { readOnly: true }); const before = facts(db); assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 16); assert.ok(Number(db.prepare('SELECT count(*) n FROM spreadsheet_adjustments').get()?.n) > 0); db.close();

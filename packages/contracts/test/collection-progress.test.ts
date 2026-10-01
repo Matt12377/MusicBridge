@@ -50,6 +50,39 @@ const counts = { total: 1, owned: 1, missing: 0, unknown: 0, candidate: 0, needs
 const page = <T>(items: T[]) => ({ items, total: items.length, offset: 0, limit: 25, hasMore: false });
 const progress = { bookId: 'book-a', revisionId: id, catalogSequence: 1, matchVersion: 0, metricsVersion: 1, facts: 'current', isCurrentRevision: true, fingerprint: hash, overall: counts, brands: [{ brand: '合成品牌', counts }], series: [{ brand: '合成品牌', series: '系列', counts }], historicalWantedCount: 0, entries: page([progressEntry]) };
 
+test('500个品牌系列与完整快照保持统计保护，分组成员访问线性增长', () => {
+  const size = 500;
+  let labelReads = 0;
+  const rows = Array.from({ length: size }, (_, n) => {
+    const brand = `品牌-${n}`, series = `系列-${n}`, referenceId = `large-${n}`;
+    return { ...progressEntry, referenceId, get brand() { labelReads++; return brand; }, get series() { labelReads++; return series; },
+      matches: [{ referenceId, modelId: randomUUID(), status: 'confirmed', availability: 'unknown' }], wantedTargets: [{ ...target, id: randomUUID() }] };
+  });
+  const overall = { total: size, owned: size, missing: 0, unknown: 0, candidate: 0, needsReview: 0, wanted: size, wantTargetCount: size };
+  const brands = rows.map(row => { const brand = row.brand; return { get brand() { labelReads++; return brand; }, counts }; });
+  const series = rows.map(row => { const brand = row.brand, series = row.series; return { get brand() { labelReads++; return brand; }, get series() { labelReads++; return series; }, counts }; });
+  const snapshot = { id, bookId: 'book-a', revisionId: id, catalogSequence: 1, matchVersion: 0, metricsVersion: 1, createdAt: entry.createdAt, fingerprint: hash, overall, brands, series, historicalWantedCount: 0 };
+  labelReads = 0;
+  assert.equal(c.isCollectionProgressSnapshot({ ...snapshot, entries: rows }), true);
+  assert.ok(labelReads <= 100 * size, `分组校验重复访问品牌系列 ${labelReads} 次`);
+  assert.equal(c.isCollectionProgressSnapshot({ ...snapshot, brands: [{ ...brands[0], counts: { ...counts, owned: 0, unknown: 1 } }, ...brands.slice(1)], entries: rows }), false);
+  assert.equal(c.isCollectionProgressSnapshot({ ...snapshot, series: [{ ...series[0], brand: 'foreign' }, ...series.slice(1)], entries: rows }), false);
+  assert.equal(c.isCollectionProgressSnapshot({ ...snapshot, entries: [{ ...rows[0], brand: 'foreign' }, ...rows.slice(1)] }), false);
+  const detail = { snapshot, entries: { offset: 475, limit: 25, total: size, hasMore: false, items: rows.slice(475) } };
+  assert.equal(c.isCollectionProgressSnapshotDetail(detail), true);
+  assert.equal(c.isCollectionProgressSnapshotDetail({ ...detail, entries: { ...detail.entries, items: [{ ...rows[475], series: 'foreign' }, ...rows.slice(476)] } }), false);
+});
+
+test('进度空分组与未知候选统计仍按原合同校验', () => {
+  const empty = { total: 0, owned: 0, missing: 0, unknown: 0, candidate: 0, needsReview: 0, wanted: 0, wantTargetCount: 0 };
+  assert.equal(c.isCollectionProgress({ ...progress, brands: [...progress.brands, { brand: '零数量', counts: empty }] }), true);
+  assert.equal(c.isCollectionProgress({ ...progress, series: [...progress.series, { brand: '合成品牌', series: '零系列', counts: empty }] }), true);
+  const unknown = { ...progressEntry, state: 'unknown', matches: [{ referenceId: 'ref-a', modelId: id, status: 'candidate', availability: 'unknown' }, { referenceId: 'ref-a', modelId: randomUUID(), status: 'needs-review', availability: 'unknown' }], stockCount: 0, ownedLengths: [], extraLengths: [] };
+  const metrics = { ...counts, owned: 0, unknown: 1, candidate: 1, needsReview: 1 };
+  assert.equal(c.isCollectionProgress({ ...progress, overall: metrics, brands: [{ brand: '合成品牌', counts: metrics }], series: [{ brand: '合成品牌', series: '系列', counts: metrics }], entries: page([unknown]) }), true);
+  assert.equal(c.isCollectionProgress({ ...progress, overall: { ...metrics, candidate: 0 }, brands: [{ brand: '合成品牌', counts: { ...metrics, candidate: 0 } }], series: [{ brand: '合成品牌', series: '系列', counts: { ...metrics, candidate: 0 } }], entries: page([unknown]) }), false);
+});
+
 test('长度覆盖与总数量守恒，未知/额外长度不能假装All Lengths', () => {
   assert.equal(c.isCollectionProgressEntry(progressEntry), true);
   assert.equal(c.isCollectionProgressEntry({ ...progressEntry, allKnownLengthsOwned: true }), false);

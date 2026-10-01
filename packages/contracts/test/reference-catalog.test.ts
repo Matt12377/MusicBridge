@@ -181,3 +181,42 @@ test('UTF8按字节限额，未知字段和稀疏数组不能绕过有界输入'
   const keys = { ...item, lengths: [], pages: [] };
   assert.equal(c.isCanonicalReference(keys), true);
 });
+
+test('2000项完整目录响应保持关联保护，成员访问量随目录线性增长', () => {
+  const count = 2000;
+  let referenceReads = 0;
+  const items = Array.from({ length: count }, (_, n) => {
+    const referenceId = `ref-${n}`;
+    return { ...item, model: `型号-${n}`, get referenceId() { referenceReads++; return referenceId; } };
+  });
+  const entries = items.map(i => ({ referenceId: i.referenceId, state: 'unknown', matches: [], stockCount: 0 }));
+  const counts = { total: count, owned: 0, missing: 0, unknown: count, candidate: 0, needsReview: 0 };
+  const revision = { id, bookId: item.bookId, sourceId: id, packHash, sequence: 1, previousRevisionId: null, items, mappings: [], createdAt: source.createdAt };
+  const snapshot = { id, bookId: item.bookId, revisionId: id, matchVersion: 0, createdAt: source.createdAt, counts, entries };
+  const detail = { revision, matchVersion: 0, matches: [], snapshot, currentCounts: counts, currentEntries: entries };
+  referenceReads = 0;
+  assert.equal(c.isCatalogRevisionDetail(detail), true);
+  assert.ok(referenceReads <= 32 * count, `完整响应重复访问目录成员 ${referenceReads} 次`);
+  const foreign = [{ ...entries[0]!, referenceId: 'foreign' }, ...entries.slice(1)];
+  assert.equal(c.isCatalogRevisionDetail({ ...detail, snapshot: { ...snapshot, entries: foreign } }), false);
+  assert.equal(c.isCatalogRevisionDetail({ ...detail, currentEntries: foreign }), false);
+  assert.equal(c.isCatalogRevisionDetail({ ...detail, currentEntries: [...entries.slice(1), entries[1]] }), false);
+  assert.equal(c.isCatalogRevisionDetail({ ...detail, currentCounts: { ...counts, owned: 1 } }), false);
+  assert.equal(c.isCatalogRevisionDetail({ ...detail, revision: { ...revision, items: [...items, items[0]] } }), false);
+});
+
+test('目录修订映射的成员校验保持完整，访问量随条目与映射数量增长', () => {
+  const count = 1000;
+  let referenceReads = 0;
+  const items = Array.from({ length: count }, (_, n) => {
+    const referenceId = `ref-${n}`;
+    return { ...item, model: `型号-${n}`, get referenceId() { referenceReads++; return referenceId; } };
+  });
+  const mappings = items.map((i, n) => ({ fromReferenceIds: [`old-${n}`], toReferenceIds: [i.referenceId] }));
+  const revision = { id, bookId: item.bookId, sourceId: id, packHash, sequence: 2, previousRevisionId: randomUUID(), items, mappings, createdAt: source.createdAt };
+  referenceReads = 0;
+  assert.equal(c.isCatalogRevision(revision), true);
+  assert.ok(referenceReads <= 32 * count, `修订映射重复访问目录成员 ${referenceReads} 次`);
+  assert.equal(c.isCatalogRevision({ ...revision, mappings: [...mappings.slice(0, -1), { fromReferenceIds: ['old-last'], toReferenceIds: ['foreign'] }] }), false);
+  assert.equal(c.isCatalogRevision({ ...revision, mappings: [...mappings, mappings[0]] }), false);
+});

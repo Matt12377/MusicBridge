@@ -310,6 +310,52 @@ export function createCollectionRepository(options: { filePath: string; stagingR
     if (!isCollectionModel(result)) return unavailable();
     return result;
   }
+  function listedModels(db: DatabaseSync, rows: ModelRow[]): CollectionModel[] {
+    const ids = [...new Set(rows.map(row => row.id))];
+    const lengths = new Map<string, (number | null)[]>();
+    const pools = new Map<string, { sealed: number; opened: number; legacy: number; unknown: number }>();
+    const copies = new Map<string, { n: number; sealed: number; opened: number; unknown: number; recorded: number; reserved: number; unavailable: number }>();
+    const photos = new Map<string, { count: number; featured: PhotoRow }>();
+    // 仅批量读取当前合法页；每条语句最多50个绑定参数，不持久缓存或改变连接所有权。
+    for (let offset = 0; offset < ids.length; offset += 50) {
+      const chunk = ids.slice(offset, offset + 50);
+      const bindings = chunk.map(() => '?').join(',');
+      for (const sku of many<{ model_id: string; minutes: number }>(db, `SELECT model_id,minutes FROM collection_skus WHERE model_id IN (${bindings}) ORDER BY model_id,minutes`, ...chunk)) {
+        const values = lengths.get(sku.model_id) ?? [];
+        values.push(sku.minutes || null); lengths.set(sku.model_id, values);
+      }
+      // 池与实体分别聚合，避免多批次和多副本的联接放大；所有实体仍计入持有总数。
+      for (const pool of many<{ model_id: string; sealed: number; opened: number; legacy: number; unknown: number }>(db,
+        `SELECT s.model_id,${sumProjection(poolCountExpressions)} FROM ${poolCountFrom} WHERE s.model_id IN (${bindings}) GROUP BY s.model_id`, ...chunk)) pools.set(pool.model_id, pool);
+      for (const copy of many<{ model_id: string; n: number; sealed: number; opened: number; unknown: number; recorded: number; reserved: number; unavailable: number }>(db,
+        `SELECT s.model_id,COUNT(*) AS n,${sumProjection(copyCountExpressions)} FROM ${copyCountFrom} WHERE s.model_id IN (${bindings}) GROUP BY s.model_id`, ...chunk)) copies.set(copy.model_id, copy);
+      // 照片每型号有24张上限，只取元数据；首条保留原featured优先与最早rowid回退。
+      for (const photo of many<PhotoRow>(db,
+        `SELECT p.id,p.model_id,p.physical_id,p.width,p.height FROM collection_photos p LEFT JOIN collection_featured_photos f ON f.model_id=p.model_id WHERE p.model_id IN (${bindings}) ORDER BY p.model_id,(f.photo_id=p.id) DESC,p.rowid`, ...chunk)) {
+        const prior = photos.get(photo.model_id);
+        if (prior) prior.count++;
+        else photos.set(photo.model_id, { count: 1, featured: photo });
+      }
+    }
+    // 批查询内部顺序不充作列表顺序；严格恢复分页查询的rowid倒序，逐型号校验完整DTO。
+    return rows.map(row => {
+      const pool = pools.get(row.id) ?? { sealed: 0, opened: 0, legacy: 0, unknown: 0 };
+      const copy = copies.get(row.id) ?? { n: 0, sealed: 0, opened: 0, unknown: 0, recorded: 0, reserved: 0, unavailable: 0 };
+      const photo = photos.get(row.id);
+      const result = { ...JSON.parse(row.descriptor) as CollectionDescriptor, id: row.id,
+        collectorPolicy: row.policy, minimumSealedReserve: row.minimum_sealed, revision: row.revision,
+        lengths: lengths.get(row.id) ?? [],
+        counts: {
+          total: Number(pool.sealed) + Number(pool.opened) + Number(pool.legacy) + Number(pool.unknown) + Number(copy.n),
+          sealedBlank: Number(pool.sealed) + Number(copy.sealed), openedBlank: Number(pool.opened) + Number(copy.opened),
+          legacyUsed: Number(pool.legacy), unknown: Number(pool.unknown) + Number(copy.unknown),
+          recorded: Number(copy.recorded), reserved: Number(copy.reserved), unavailable: Number(copy.unavailable),
+        }, photoCount: photo?.count ?? 0,
+        ...(photo ? { featuredPhoto: publicPhoto(photo.featured) } : {}) };
+      if (!isCollectionModel(result)) return unavailable();
+      return result;
+    });
+  }
   function ensureConsumable(db: DatabaseSync, modelId: string, sealed: boolean): void {
     const m = model(db, modelId);
     if (m.collectorPolicy === 'collector') conflict('该型号设为收藏保护，请先明确修改保护策略。');
@@ -508,7 +554,7 @@ export function createCollectionRepository(options: { filePath: string; stagingR
       else if (filter.stockState === 'blank') conditions.push(stockCountPredicate(['sealed', 'opened'], ['sealed', 'opened']));
       else if (filter.stockState === 'recorded') conditions.push(stockCountPredicate(['legacy'], ['recorded']));
       const where = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : '';
-      return guarded(db => paged(many<{ id: string }>(db, `SELECT id FROM collection_models${where} ORDER BY rowid DESC LIMIT ? OFFSET ?`, ...values, page.limit, page.offset).map(r => model(db, r.id)), page, count(db, `SELECT COUNT(*) AS n FROM collection_models${where}`, ...values)));
+      return guarded(db => paged(listedModels(db, many<ModelRow>(db, `SELECT id,descriptor,policy,minimum_sealed,revision FROM collection_models${where} ORDER BY rowid DESC LIMIT ? OFFSET ?`, ...values, page.limit, page.offset)), page, count(db, `SELECT COUNT(*) AS n FROM collection_models${where}`, ...values)));
     },
     detail(modelId, page) {
       if (!isCollectionId(modelId) || !validPage(page)) return conflict('库存请求无效，请检查型号和分页。');

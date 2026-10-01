@@ -236,8 +236,10 @@ function revisionFields(v: Record<string, unknown>): boolean {
   return isCollectionId(v.id) && isReferenceCatalogKey(v.bookId) && isCollectionId(v.sourceId) && hash(v.packHash) && integer(v.sequence, 1) && nullableId(v.previousRevisionId) && timestamp(v.createdAt);
 }
 export function isCatalogRevision(v: unknown): v is CatalogRevision {
-  return record(v) && keys(v, [...revisionKeys, 'items', 'mappings']) && revisionFields(v) && canonicalItems(v.items) && v.items.every(i => i.bookId === v.bookId) && mappings(v.mappings)
-    && v.mappings.every(m => m.toReferenceIds.every(id => (v.items as CanonicalReference[]).some(i => i.referenceId === id)));
+  if (!(record(v) && keys(v, [...revisionKeys, 'items', 'mappings']) && revisionFields(v) && canonicalItems(v.items) && v.items.every(i => i.bookId === v.bookId) && mappings(v.mappings))) return false;
+  // 本次完整校验内复用成员集合；每个映射仍必须指向修订中的真实条目。
+  const references = new Set(v.items.map(i => i.referenceId));
+  return v.mappings.every(m => m.toReferenceIds.every(id => references.has(id)));
 }
 export function isCatalogRevisionSummary(v: unknown): v is CatalogRevisionSummary { return record(v) && keys(v, [...revisionKeys, 'itemCount']) && revisionFields(v) && integer(v.itemCount, 1, MAX_CATALOG_REFERENCES); }
 export function isCatalogMatch(v: unknown): v is CatalogMatch {
@@ -278,11 +280,13 @@ export function isCatalogSnapshot(v: unknown): v is CatalogSnapshot { return rec
 export function isCatalogSnapshotSummary(v: unknown): v is CatalogSnapshotSummary { return record(v) && keys(v, snapshotKeys) && snapshotFields(v); }
 const matchFacts = (value: readonly CatalogMatch[]): string => JSON.stringify(value.map(m => JSON.stringify([m.referenceId, m.modelId, m.status, m.availability])).sort());
 export function isCatalogRevisionDetail(v: unknown): v is CatalogRevisionDetail {
-  return record(v) && keys(v, ['revision', 'matches', 'matchVersion', 'snapshot', 'currentCounts', 'currentEntries']) && isCatalogRevision(v.revision) && matches(v.matches) && integer(v.matchVersion)
+  if (!(record(v) && keys(v, ['revision', 'matches', 'matchVersion', 'snapshot', 'currentCounts', 'currentEntries']) && isCatalogRevision(v.revision) && matches(v.matches) && integer(v.matchVersion)
     && isCatalogSnapshot(v.snapshot) && v.snapshot.bookId === v.revision.bookId && v.snapshot.revisionId === v.revision.id && v.snapshot.matchVersion <= v.matchVersion
-    && v.snapshot.entries.length === v.revision.items.length && v.snapshot.entries.every(e => (v.revision as CatalogRevision).items.some(i => i.referenceId === e.referenceId))
+    && v.snapshot.entries.length === v.revision.items.length)) return false;
+  const references = new Set(v.revision.items.map(i => i.referenceId));
+  return v.snapshot.entries.every(e => references.has(e.referenceId))
     && completionEntries(v.currentCounts, v.currentEntries) && v.currentEntries.length === v.revision.items.length
-    && v.currentEntries.every(e => (v.revision as CatalogRevision).items.some(i => i.referenceId === e.referenceId))
+    && v.currentEntries.every(e => references.has(e.referenceId))
     && matchFacts(v.matches) === matchFacts(v.currentEntries.flatMap(e => e.matches));
 }
 export function isCatalogRevisionDelta(v: unknown): v is CatalogRevisionDelta {
