@@ -110,7 +110,12 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
     if (message.ok && message.operation === 'prepare' && (!isDatasetOwnerIdentity(message.result) || message.result.epoch !== epoch)) { fatal('protocol-failure'); return; }
     if (message.ok && (message.operation === 'close' || message.operation === 'commitBoot') && message.result !== undefined) { fatal('protocol-failure'); return; }
     pending.delete(message.requestId);
-    if (!message.ok) { item.reject(new DatasetOwnerDispatchError(message.failure)); return; }
+    if (!message.ok) {
+      item.reject(new DatasetOwnerDispatchError(message.failure));
+      // 合法关闭失败回复已证明owner未关闭；同步锁定原因，不依赖下一帧fatal到达。
+      if (message.operation === 'close') fatal('close-failed');
+      return;
+    }
     if (message.operation === 'close') closeAcknowledged = true;
     item.resolve(message.result);
   }

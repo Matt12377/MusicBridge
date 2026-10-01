@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { once } from 'node:events';
+import { EventEmitter, once } from 'node:events';
 import { Worker } from 'node:worker_threads';
 import test from 'node:test';
 import { validateIpcRequest, type IpcRequest } from '@music-bridge/contracts';
 import { createDatasetOwnerClient } from '../src/collection/dataset-owner-client.js';
-import { DatasetOwnerDispatchError, DatasetOwnerTransportError, isDatasetOwnerRequest, type DatasetOwnerFatalReason, type DatasetOwnerProjectionHandler } from '../src/collection/dataset-owner-protocol.js';
+import { DatasetOwnerDispatchError, DatasetOwnerTransportError, isDatasetOwnerRequest, type DatasetOwnerFatalReason, type DatasetOwnerProjectionHandler, type DatasetOwnerRequest } from '../src/collection/dataset-owner-protocol.js';
 
 const begin = (): IpcRequest => ({ version: 1, id: randomUUID(), command: 'recordingAttempts.begin', payload: { commandId: randomUUID(), planVersionId: randomUUID(), planContentHash: 'a'.repeat(64), userConfirmed: true } });
 function fixture(mode: string, projection?: DatasetOwnerProjectionHandler) {
@@ -97,6 +97,52 @@ test('关闭失败不能ACK成功，生产client不强制终止worker', { timeou
   // 故障fixture刻意保留端口，测试自身负责终止；生产close没有terminate/restart路径。
   await worker.terminate();
   assert.deepEqual(reasons, ['close-failed']);
+});
+
+test('关闭失败回复同步锁定close-failed，后续exit与fatal不覆盖安全错误或在途unknown', async () => {
+  // 只控制消息交付次序，运行实际client；没有线程调度、sleep或宽松原因断言。
+  class ControlledOwnerWorker extends EventEmitter {
+    readonly requests: DatasetOwnerRequest[] = [];
+    postMessage(message: unknown): void {
+      assert.ok(isDatasetOwnerRequest(message));
+      this.requests.push(message);
+    }
+    takeRequest(): DatasetOwnerRequest {
+      const request = this.requests.shift();
+      assert.ok(request);
+      return request;
+    }
+  }
+  const worker = new ControlledOwnerWorker();
+  const reasons: DatasetOwnerFatalReason[] = [];
+  const endpoint = createDatasetOwnerClient({ worker: worker as unknown as Worker, onFatal: reason => reasons.push(reason) });
+  const prepare = endpoint.prepare();
+  const preparation = worker.takeRequest();
+  worker.emit('message', { version: 1, epoch: preparation.epoch, type: 'response', requestId: preparation.requestId,
+    operation: 'prepare', ok: true, result: { epoch: preparation.epoch, datasetId: randomUUID() } });
+  await prepare;
+  const publicWrite = begin();
+  const writeOutcome = endpoint.dispatch(publicWrite).catch((error: unknown) => error);
+  const write = worker.takeRequest();
+  assert.equal(write.operation, 'dispatch');
+  const closeOutcome = endpoint.close().catch((error: unknown) => error);
+  const close = worker.takeRequest();
+  const failure = { version: 1 as const, id: close.requestId, ok: false as const, error: { code: 'INVENTORY_UNAVAILABLE' as const, message: '合成关闭未完成。' } };
+  worker.emit('message', { version: 1, epoch: close.epoch, type: 'response', requestId: close.requestId, operation: 'close', ok: false, failure });
+  assert.deepEqual(reasons, ['close-failed']); // 失败帧返回时即锁定，不等待下一帧或microtask。
+  worker.emit('exit', 17);
+  worker.emit('message', { version: 1, epoch: close.epoch, type: 'fatal', reason: 'close-failed' });
+  const closeError: unknown = await closeOutcome;
+  assert.ok(closeError instanceof DatasetOwnerDispatchError);
+  assert.deepEqual(closeError.failure, failure);
+  const writeError: unknown = await writeOutcome;
+  assert.ok(writeError instanceof DatasetOwnerTransportError);
+  assert.equal(writeError.outcome, 'unknown');
+  assert.equal(writeError.requestId, publicWrite.id);
+  assert.equal(writeError.command, publicWrite.command);
+  assert.deepEqual(reasons, ['close-failed']);
+  await assert.rejects(endpoint.dispatch(publicWrite), error => error instanceof DatasetOwnerTransportError && error.outcome === 'not-sent');
+  assert.deepEqual(worker.requests, []); // 后续请求不发送，也不会重放在途写。
 });
 
 test('原validator合法的含控制字符public id逐字转发，私有身份仍严格校验', { timeout: 10_000 }, async () => {
